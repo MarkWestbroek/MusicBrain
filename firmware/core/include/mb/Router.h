@@ -55,7 +55,7 @@ struct OutputCommand {
 
 // --- Router ---------------------------------------------------------------
 
-inline constexpr std::size_t kMaxOutputsPerEvent = 16;
+inline constexpr std::size_t kMaxOutputsPerEvent = 24;
 
 struct RouterResult {
     std::array<OutputCommand, kMaxOutputsPerEvent> commands{};

@@ -5,6 +5,8 @@ add_library(musicbrain_core STATIC
     src/Router.cpp
     src/MatrixRouter.cpp
     src/SynthPatch.cpp
+    src/SwitcherPatch.cpp
+    src/SwitcherRouter.cpp
     src/VoiceAllocator.cpp
     src/Protocol/SpiFrame.cpp
 )

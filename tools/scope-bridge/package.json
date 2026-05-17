@@ -1,0 +1,13 @@
+{
+  "name": "musicbrain-scope-bridge",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "description": "Spawns mb_simulator, forwards its NDJSON trace over a WebSocket so the editor's Scope panel can plot it live.",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

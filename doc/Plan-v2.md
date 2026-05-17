@@ -101,18 +101,35 @@ Eleven stages. Each stage produces something demonstrable; you can stop after an
 - End-to-end tests in `firmware/sim/tests/test_endtoend.cpp` (4 tests): NoteOn(60) → 0 V on ch 0x0000 + gate high on ch 0x0001; NoteOn(72) → +1.0 V (one octave up on the /60 scale); NoteOff clears gate; trace stream contains `spi`/`cv`/`gate` lines with correct timestamps and channel hex.
 - **Deliverable**: `mb_simulator.exe` outputs a CV-vs-time NDJSON trace viewable in any scope tool. (Design in [Simulation.md](Simulation.md).) ✅
 
-**Stage 5 — Waveform viewer in the editor**
-- Add a "Scope" panel to the React editor that plots the CV-vs-time stream over WebSocket.
-- Run the simulator as a tiny WebSocket server (or stream from a file).
-- **Deliverable**: live, in-browser visualisation of what *would* happen on real hardware.
+**Stage 5 — Waveform viewer in the editor** ✅ *Done (May 2026)*
+- `tools/scope-bridge/` — tiny Node + `ws@8` server (`server.mjs`). Spawns `mb_simulator.exe --loop`, pipes NDJSON stdout lines to every connected WebSocket client on port 8765. CLI flags: `--port`, `--exe <path>`, `--replay <file.ndjson>` (re-plays a captured trace instead of spawning the sim), `--loop`.
+- `editor/src/scope/TraceBuffer.ts` — typed parser for `cv` / `gate` / `spi` events, rolling buffer per channel (default 2000 points), `bounds()` for autoscaling.
+- `editor/src/scope/ScopePanel.tsx` — canvas-based step-line scope with auto-reconnecting WebSocket, per-channel colour palette, point-count legend.
+- `editor/src/App.tsx` — top-tab navigation `Patches` / `Scope`.
+- `tools/simulator/main.cpp` — added `--loop` flag and `std::cout.setf(std::ios::unitbuf)` so the bridge sees lines immediately. The previous demo body is factored into `playDemo()` and re-run every 2 s of virtual time.
+- **Deliverable**: `npm run start` in `tools/scope-bridge`, `npm run dev` in `editor`, switch to the *Scope* tab → live CV-vs-time trace from the simulator. ✅
 
 ### Phase C — First real hardware (project 1, lowest-risk)
 
-**Stage 6 — Effect-switcher MVP** ([adr/0003](adr/0003-project1-ui.md))
-- Teensy 4.0 or RP2040.
-- HAL: GPIO + SPI to a 74HC595 chain driving 8 latching relays.
-- LCD 16×2 (I²C) showing patch # + name.
-- 2 footswitches (up/down).
+**Stage 6 — Effect-switcher MVP** ([adr/0003](adr/0003-project1-ui.md)) — *core ✅ done (May 2026), MCU port pending*
+- New HAL interfaces (header-only, in `firmware/core/include/mb/`): `IRelayBoard`, `IDisplay`. (`IFootswitch` skipped for now — footswitch events arrive via the existing `InputKind::Footswitch` event so the router stays pure.)
+- `patch.switcher.v1` blob — see [protocols/schemas/patch.switcher.v1.md](protocols/schemas/patch.switcher.v1.md). 8 bytes: version, relayCount, relayMask (LE u16), flags, pad, CRC-16/CCITT. `mb::switcher::writeBlob` / `readBlob` round-trip; validation rejects bad CRC, bad version, mask bits above `relayCount`, zero count.
+- `mb::SwitcherRouter` (`firmware/core/src/SwitcherRouter.cpp`) — extends the pure `Router`:
+  - `MidiProgramChange(data=prog)` → select patch, parse blob, emit one `RelaySet` per relay + `DisplayDirty`.
+  - `Footswitch(payload=0, data=1)` = up (PC+1, wraps); `Footswitch(payload=1, data=1)` = down (PC-1, wraps). Footswitch release is ignored. Router also re-emits a synthetic `MidiOut` Program-Change for any downstream consumer.
+  - Unknown PC and missing/bad patch are no-ops (no commands).
+- `PatchBank` grew two helpers: `at(idx)` and `indexOf(id)` so the router can wrap PC up/down.
+- `kMaxOutputsPerEvent` bumped from 16 → 24 so 16 relays + DisplayDirty + MidiOut all fit.
+- Host HAL mocks (header-only, `firmware/hal/host/include/mb/host/`): `HostRelayBoard` (records mask + per-call counts) and `HostDisplay` (records last shown id + name). RP2040 will provide the real implementations behind the same interfaces.
+- `firmware/app-switcher/` — host harness `mb_switcher.exe`. Built-in demo loads 8 patches and walks through PC + footswitch events, printing the relay state as an ASCII bar (`####............  (mask=0x000F)`) and the OLED text. `--interactive` mode accepts `u`/`d`/`0..7`/`q` from stdin.
+- Tests: `firmware/core/tests/test_switcherrouter.cpp` — 10 new tests covering blob round-trip, all 4 rejection paths, PC selecting a patch + emitting the expected mask, unknown-PC no-op, footswitch wrap up & down, footswitch release ignored, `PatchBank::indexOf` / `at`. **All 50 core + sim tests pass.**
+- **Still to do for real hardware**: RP2040 HAL (`firmware/hal/rp2040/`) implementing `IRelayBoard` over GPIO + 74HC595 chain and `IDisplay` over SSD1306 I²C, plus a `main.cpp` that wires `PatchBank` (loaded from LittleFS CBOR), `SwitcherRouter`, and a USB-CDC JSON-RPC transport. The pure core does **not** need to change for that step.
+- **Deliverable (host)**: `mb_switcher.exe` smoke-tests the whole switcher pipeline on a laptop. ✅
+
+**Stage 6b — Effect-switcher on RP2040 (deferred)**
+- Same firmware base; new HAL implementations only.
+- LCD 16×2 (I²C) or SSD1306 OLED showing patch # + name.
+- 1 footswitch (short = up, long = down).
 - USB-CDC: speaks JSON-RPC to the editor.
 - 8 patches stored in LittleFS as CBOR.
 - **Deliverable**: a working pedalboard switcher you can use on stage.

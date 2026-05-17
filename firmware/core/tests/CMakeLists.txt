@@ -5,6 +5,7 @@ add_executable(core_tests
     test_matrixrouter.cpp
     test_router.cpp
     test_spiframe.cpp
+    test_switcherrouter.cpp
     test_main.cpp
 )
 target_link_libraries(core_tests PRIVATE musicbrain_core)

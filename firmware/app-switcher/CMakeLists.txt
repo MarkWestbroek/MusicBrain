@@ -1,0 +1,2 @@
+add_executable(mb_switcher main.cpp)
+target_link_libraries(mb_switcher PRIVATE musicbrain_core musicbrain_hal_host)

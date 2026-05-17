@@ -26,5 +26,8 @@ add_subdirectory(sim)
 # Host-side simulator that runs the router against a fake hardware.
 add_subdirectory(../tools/simulator simulator)
 
+# Project-1 effect-switcher host harness (same core that runs on RP2040).
+add_subdirectory(app-switcher)
+
 # Unit tests for core/.
 add_subdirectory(core/tests)
