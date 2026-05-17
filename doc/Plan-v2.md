@@ -63,19 +63,20 @@ Eleven stages. Each stage produces something demonstrable; you can stop after an
 
 ### Phase A — Core proven on host (no hardware needed)
 
-**Stage 1 — Verify host build & tests** *(do this first, today)*
-- Install CMake ≥ 3.20 + a C++17 compiler.
-- `cd firmware && cmake -S . -B build && cmake --build build && ctest --test-dir build`.
-- All 4 test files green.
-- Run `tools/simulator/main.cpp` and confirm output.
-- **Deliverable**: green CI run on PC, no hardware involved.
+**Stage 1 — Verify host build & tests** ✅ *Done (May 2026)*
+- Toolchain: CMake 4.3.2, clang++ 22.1.5 (LLVM), Ninja 1.12.1, MSVC 14.44 Build Tools (for Windows SDK libs).
+- `cd firmware && cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER=clang++ && cmake --build build && ctest --test-dir build` — all green.
+- 20 tests pass locally on Windows.
 
-**Stage 2 — Expand core: Patch JSON+CBOR I/O**
-- Add ArduinoJson (host build) or nlohmann/json for the host tools.
-- Add tinycbor (vendored) for device.
-- Add round-trip tests (JSON → struct → CBOR → struct → JSON, must equal).
-- Build `tools/patch-converter` (CLI: `patch-converter pack input.json output.cbor`).
-- **Deliverable**: patches survive editor ↔ device serialisation losslessly.
+**Stage 2 — Expand core: Patch JSON+CBOR I/O** ✅ *Done (May 2026)*
+- Hand-rolled zero-dependency `mb::PatchCodec` (JSON + CBOR subset of RFC 8949).
+  Decision: stayed dependency-free in `firmware/core/` to keep the device build trivial;
+  nlohmann/json can still be added for `tools/patch-converter` later if/when blob
+  schemas grow complex.
+- Schema documented in [doc/protocols/schemas/patch.md](protocols/schemas/patch.md).
+- 11 round-trip tests in `test_patchcodec.cpp` (JSON ↔ struct, CBOR ↔ struct, cross-format, empty/max-size, malformed inputs, unknown-field forward compatibility).
+- **Still to do**: `tools/patch-converter` CLI (`pack json→cbor`, `unpack cbor→json`) — small wrapper, can be added when first needed.
+- **Deliverable**: patches survive editor ↔ device serialisation losslessly, with a documented wire format.
 
 **Stage 3 — Voice allocator + matrix router (project 3 logic, host-only)**
 - Replace `NullRouter` with a `MatrixRouter` that:
@@ -165,22 +166,12 @@ For the next several stages, **the answer is: I can proceed right now with sensi
 - **Stage 3**: voice-allocation policy *defaults* to last-note priority with round-robin voice-stealing — easy to swap later.
 - **Stage 4 + 5**: the simulator design is fully specified in [Simulation.md](Simulation.md) below.
 
-### Would benefit from your input before starting
-- **Stage 6 (project 1 hardware)**:
-  - **MCU pick**: Teensy 4.0 (€25, drop-in, easier USB-MIDI) or RP2040 (€5, more PIO power, slightly fiddlier)?
-  - **Relay count**: how many effect loops? 4? 8? 16? Determines shift-register chain length.
-  - **Footswitch count**: 2 (up/down) or 4 (up/down + bank±)?
-  - **Display**: 16×2 LCD (I²C, €5) or small OLED (SSD1306, €3, better viewing angle)?
-- **Stage 8 (project 2)**:
-  - **Number of amps × speakers** in your real rig (drives matrix size).
-  - **Tube amps in play?** If yes, the no-unloaded-amp safety rule is mandatory.
-- **Stage 9 (project 3)**:
-  - **Initial number of voices** (1 is fine for the MVP; just need to know the target so the breakout count is right).
-  - **MIDI keybed** model — for pin-out / velocity curves.
-- **Editor**:
-  - Do you want the editor served from the ESP32 (Stage 11+) or always from `github.io` / a local file? Default: external hosting; ESP32 only as an optional add-on.
+### Decisions confirmed (May 2026)
+- **Stage 6 (project 1)**: **16 relays**, **1 footswitch** wired to send Program Change Up + Down (long-press / double-tap convention TBD in firmware), **OLED display** (SSD1306 128×64 I²C). MCU pick deferred — default RP2040 unless explicitly changed.
+- **Stage 9 (project 3)**: **8 voices** target — so 8 CV-out breakout chains in the simulator and PCB plan.
+- **Stage 8 (project 2)** and editor hosting: defaults stand (numbers come later from real rig; editor served externally for now).
 
-I will assume the defaults above unless you tell me otherwise.
+I will proceed with these.
 
 ### What I will *not* assume — these I need from you eventually
 - **Mechanical / enclosure choices** (Eurorack vs. desktop box vs. 19″ rack).
