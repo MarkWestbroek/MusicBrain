@@ -2,6 +2,7 @@ add_executable(core_tests
     test_patch.cpp
     test_patchbank.cpp
     test_patchcodec.cpp
+    test_matrixrouter.cpp
     test_router.cpp
     test_spiframe.cpp
     test_main.cpp

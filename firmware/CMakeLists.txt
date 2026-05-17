@@ -19,6 +19,10 @@ add_subdirectory(core)
 # Host HAL (compiles on PC; used by simulator and tests).
 add_subdirectory(hal/host)
 
+# Sim library: virtual SPI bus + chip models (DAC8568, GateBoard, ...).
+set(BUILD_TESTING ON)
+add_subdirectory(sim)
+
 # Host-side simulator that runs the router against a fake hardware.
 add_subdirectory(../tools/simulator simulator)
 

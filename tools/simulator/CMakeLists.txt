@@ -1,2 +1,2 @@
 add_executable(mb_simulator main.cpp)
-target_link_libraries(mb_simulator PRIVATE musicbrain_core musicbrain_hal_host)
+target_link_libraries(mb_simulator PRIVATE musicbrain_core musicbrain_hal_host musicbrain_sim)

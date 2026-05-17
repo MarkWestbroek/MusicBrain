@@ -3,6 +3,9 @@ add_library(musicbrain_core STATIC
     src/PatchBank.cpp
     src/PatchCodec.cpp
     src/Router.cpp
+    src/MatrixRouter.cpp
+    src/SynthPatch.cpp
+    src/VoiceAllocator.cpp
     src/Protocol/SpiFrame.cpp
 )
 

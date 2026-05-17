@@ -78,22 +78,28 @@ Eleven stages. Each stage produces something demonstrable; you can stop after an
 - **Still to do**: `tools/patch-converter` CLI (`pack json→cbor`, `unpack cbor→json`) — small wrapper, can be added when first needed.
 - **Deliverable**: patches survive editor ↔ device serialisation losslessly, with a documented wire format.
 
-**Stage 3 — Voice allocator + matrix router (project 3 logic, host-only)**
-- Replace `NullRouter` with a `MatrixRouter` that:
-  - Accepts a `Patch` with a CV edge list.
-  - Maintains voice-allocation state (last-note priority, voice-stealing).
-  - Applies per-oscillator calibration tables.
-  - Emits SPI-frame commands.
-- All unit-tested on host. No MCU involved.
-- **Deliverable**: given a MIDI score, the router produces the exact stream of SPI frames a real device would receive.
+**Stage 3 — Voice allocator + matrix router (project 3 logic, host-only)** ✅ *Done (May 2026)*
+- `mb::MatrixRouter` replaces `NullRouter` for project 3:
+  - Parses a `patch.synth.v1` blob (see [protocols/schemas/patch.synth.v1.md](protocols/schemas/patch.synth.v1.md)).
+  - `mb::VoiceAllocator` — 1..16 voices, smallest-age-first allocation (true round-robin spread; never-used voices come first), oldest-held steal, last-note priority on `noteOff`.
+  - 1V/oct mapping: `(midi-60)/60` clipped to ±1, scaled to int16 (±32767 = ±5V around middle C).
+  - Emits `CvSet` + `GateOn` on NoteOn (plus a `GateOff` on the stolen voice if applicable), `GateOff` on NoteOff, `DisplayDirty` on Program Change.
+- 16 new tests in `test_matrixrouter.cpp` (SynthPatch round-trip, allocator behaviour, MIDI→CV anchor points, router flows).
+- **Deliverable**: given a MIDI score, the router produces the exact stream of SPI frames a real device would receive. ✅
 
 ### Phase B — Closed-loop simulator (still no hardware)
 
-**Stage 4 — Virtual breakout chips**
-- Add `firmware/sim/` with: virtual `DAC8568`, virtual `CD4051`, virtual `SMP08`, virtual `GateBoard`, virtual `Bridge`.
-- Each model consumes our SPI frames, simulates the analog output, and writes time-stamped samples to a CSV / NDJSON stream.
-- Wire the simulator's transport to feed frames into these virtual chips instead of the loopback.
-- **Deliverable**: `tools/simulator` outputs a CV-vs-time trace file viewable in any scope tool. (Full design in [Simulation.md](Simulation.md).)
+**Stage 4 — Virtual breakout chips** ✅ *Done (May 2026)*
+- New `firmware/sim/` library:
+  - `mb::sim::Clock` — deterministic 64-bit µs counter.
+  - `mb::sim::Trace` — NDJSON event log writer (one JSON object per line).
+  - `mb::sim::VirtualSpiBus` — accepts encoded `mb::proto` frames and fans them out to attached listeners; logs an `spi` trace event per frame.
+  - `mb::sim::Dac8568` — listens for `CvSet` on its even slots, models 16-bit `code → volts` with 5 V full-scale (TI internal reference doubled), writes `cv` trace events.
+  - `mb::sim::GateBoard` — listens for `GateSet` on the odd slots between DAC channels, writes `gate` trace events.
+  - `mb::sim::RouterBridge` — turns `RouterResult` commands into `VirtualSpiBus` calls.
+- `tools/simulator/main.cpp` now wires `MatrixRouter` → `RouterBridge` → bus → DAC + gates → NDJSON on stdout. Built-in demo plays a 1-second C-major triad.
+- End-to-end tests in `firmware/sim/tests/test_endtoend.cpp` (4 tests): NoteOn(60) → 0 V on ch 0x0000 + gate high on ch 0x0001; NoteOn(72) → +1.0 V (one octave up on the /60 scale); NoteOff clears gate; trace stream contains `spi`/`cv`/`gate` lines with correct timestamps and channel hex.
+- **Deliverable**: `mb_simulator.exe` outputs a CV-vs-time NDJSON trace viewable in any scope tool. (Design in [Simulation.md](Simulation.md).) ✅
 
 **Stage 5 — Waveform viewer in the editor**
 - Add a "Scope" panel to the React editor that plots the CV-vs-time stream over WebSocket.
