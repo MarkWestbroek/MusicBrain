@@ -1,0 +1,286 @@
+/* Effect-switcher editor styles. Plain CSS – no framework. */
+
+.es-app {
+  font-family: system-ui, sans-serif;
+  color: #1f2933;
+}
+
+.es-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid #cbd2d9;
+  margin-bottom: 16px;
+}
+.es-tab {
+  background: #f5f7fa;
+  border: 1px solid #cbd2d9;
+  border-bottom: none;
+  padding: 6px 14px;
+  cursor: pointer;
+  border-radius: 6px 6px 0 0;
+  font-size: 14px;
+}
+.es-tab[aria-selected='true'] {
+  background: #ffffff;
+  font-weight: 600;
+  position: relative;
+  top: 1px;
+}
+
+.es-toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.es-toolbar button,
+.es-toolbar input[type='text'],
+.es-toolbar input[type='number'],
+.es-toolbar select {
+  font-size: 13px;
+  padding: 4px 8px;
+  border: 1px solid #cbd2d9;
+  border-radius: 4px;
+  background: #ffffff;
+}
+.es-toolbar button {
+  cursor: pointer;
+}
+.es-toolbar button:hover {
+  background: #f5f7fa;
+}
+.es-toolbar button.primary {
+  background: #2563eb;
+  color: white;
+  border-color: #2563eb;
+}
+.es-toolbar button.primary:hover { background: #1d4ed8; }
+.es-toolbar button.danger {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+/* ─── Category panel ─── */
+.es-cat-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+}
+.es-cat-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: #f5f7fa;
+  border-radius: 6px;
+}
+.es-cat-item input {
+  flex: 1;
+  border: 1px solid transparent;
+  background: transparent;
+  font-size: 13px;
+}
+.es-cat-item input:focus {
+  background: white;
+  border-color: #cbd2d9;
+}
+
+/* ─── Chain (React Flow) ─── */
+.es-chain {
+  height: 560px;
+  border: 1px solid #cbd2d9;
+  border-radius: 6px;
+  background: #fafbfc;
+}
+.es-node {
+  background: white;
+  border: 2px solid #6b7280;
+  border-radius: 6px;
+  padding: 8px 10px;
+  min-width: 140px;
+  font-size: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.es-node-img {
+  width: 100%;
+  max-width: 140px;
+  height: 60px;
+  object-fit: contain;
+  background: #f5f7fa;
+  border-radius: 4px;
+  margin-bottom: 4px;
+}
+.es-node-img-placeholder {
+  width: 100%;
+  height: 60px;
+  background: linear-gradient(135deg, #e5e7eb, #f5f7fa);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: #9ca3af;
+  margin-bottom: 4px;
+}
+.es-node-brand { font-weight: 600; font-size: 13px; }
+.es-node-model { color: #4b5563; }
+.es-node-meta  { color: #6b7280; font-size: 11px; margin-top: 4px; }
+.es-node-endpoint {
+  background: #1f2933;
+  color: white;
+  border-radius: 50%;
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+/* ─── Patches panel ─── */
+.es-patches-layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+.es-patch-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 600px;
+  overflow-y: auto;
+}
+.es-patch-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  background: #f5f7fa;
+}
+.es-patch-row:hover { background: #e4e7eb; }
+.es-patch-row[aria-selected='true'] {
+  background: #dbeafe;
+  border-color: #93c5fd;
+}
+.es-patch-pgm  { font-family: monospace; color: #6b7280; min-width: 32px; }
+.es-patch-name { flex: 1; font-size: 13px; }
+
+.es-chain-view {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 16px;
+  border: 1px solid #cbd2d9;
+  border-radius: 6px;
+  background: #fafbfc;
+  min-height: 220px;
+  align-items: center;
+}
+.es-effect-card {
+  border: 2px solid #6b7280;
+  border-radius: 8px;
+  padding: 8px;
+  width: 140px;
+  background: white;
+  cursor: pointer;
+  user-select: none;
+  text-align: center;
+  transition: all 120ms ease;
+}
+.es-effect-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+.es-effect-card.bypassed {
+  opacity: 0.35;
+  filter: grayscale(0.7);
+}
+.es-effect-card.active {
+  border-color: #16a34a;
+  box-shadow: 0 0 0 2px #bbf7d0;
+}
+.es-arrow {
+  font-size: 20px;
+  color: #6b7280;
+}
+.es-arrow.active { color: #16a34a; font-weight: 700; }
+
+/* ─── Simulation panel ─── */
+.es-sim {
+  display: grid;
+  grid-template-columns: 200px 220px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+.es-sim-col {
+  border: 1px solid #cbd2d9;
+  border-radius: 6px;
+  padding: 12px;
+  background: white;
+}
+.es-sim-col h3 {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  text-transform: uppercase;
+  color: #6b7280;
+  letter-spacing: 0.05em;
+}
+.es-fs-button {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: 4px solid #4b5563;
+  background: radial-gradient(circle at 30% 30%, #f3f4f6, #9ca3af);
+  cursor: pointer;
+  font-weight: 700;
+  margin: 8px;
+}
+.es-fs-button:active { background: radial-gradient(circle at 30% 30%, #9ca3af, #4b5563); }
+
+.es-brain {
+  background: #1e293b;
+  color: #f0f9ff;
+  font-family: monospace;
+  border-radius: 6px;
+  padding: 10px;
+  font-size: 12px;
+  min-height: 120px;
+}
+.es-brain-led {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 6px #22c55e;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+.es-sim-compact {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  min-height: 80px;
+}
+.es-sim-pedal {
+  background: linear-gradient(135deg, #fde68a, #f59e0b);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  min-width: 90px;
+  text-align: center;
+  color: #1f2933;
+  border: 2px solid #b45309;
+}
+
+.es-empty {
+  padding: 24px;
+  text-align: center;
+  color: #6b7280;
+  font-style: italic;
+}

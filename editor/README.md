@@ -14,7 +14,55 @@ Then open http://localhost:5173.
 
 ## Status
 
-Scaffolding only — shows two demo patches and a radio button. Real features (device discovery, patch CRUD, CV matrix view, file/git-backed library) come in roadmap stages 3 and 7.
+Drie projectmodi via knoppen bovenin:
+
+| Modus | Status |
+|---|---|
+| **Effect-switcher** | Volledig werkende offline editor + simulatie (zie hieronder) |
+| **Amp-switcher** | Placeholder — moet nog uitgewerkt worden |
+| **Poly-synth (scope)** | Live CV/gate-trace van `mb_simulator` via `tools/scope-bridge` |
+
+Device-discovery + WebSerial upload (synchroniseren met firmware) komt in Stage 7.
+
+## Effect-switcher editor
+
+Alles wordt opgeslagen in `localStorage` onder key `mb.effect-switcher.v1`. Geen backend. Knop **Demo laden** vervangt het project met 5 demo-pedalen en 5 patches; **Reset** wist alles.
+
+Tabs:
+
+| Tab | Voor wie | Wat |
+|---|---|---|
+| **Patches** | Muzikant | Patches doorklikken, effecten aan/uit togglen door op de kaart te klikken. Bypassed effecten worden grijs en lichter. Het signaalpad-▶ wordt groen tussen actieve effecten. Toont het samengestelde relais-masker (hex + binair) onderaan. |
+| **Effect-chain** | Engineer | Grafische editor met [React Flow](https://reactflow.dev). Voeg apparaten toe (`+ Effect`), sleep tussen handles om signaalpad te tekenen. Rechts paneel: merk/model/categorie/relais-index/plaatje. Parallelle takken kunnen door meerdere edges van/naar één node. **Auto-assign relais** doet een topologische sort en geeft elk apparaat een relais 0..n-1; je kunt daarna per apparaat handmatig overschrijven. |
+| **Categorieën** | Engineer | Beheer de lijst effectsoorten (Overdrive, Phaser, …). Een categorie die nog gebruikt wordt kan niet verwijderd worden. |
+| **Simulatie** | Iedereen | Drie kolommen: links footswitch ▲/▼ + PC-selector, midden “brain” met huidige patch + event-log, rechts de output-pedalen. Optie **Compact** verbergt bypassed effecten zodat een patch met phaser+echo letterlijk maar twee pedalen toont. |
+
+### Datamodel (samenvatting)
+
+```ts
+SwitcherProject {
+  relayCount: number;            // 1..32, default 16
+  categories: { id, label }[];
+  devices:    { id, brand, model, categoryId, relayIndex, x, y, imageDataUrl? }[];
+  edges:      { source, target }[];    // 'input' en 'output' zijn speciale endpoints
+  patches:    { id, name, bypassed: deviceId[] }[];
+  activePatchId: number;
+}
+```
+
+We slaan `bypassed` op (niet `active`) zodat een nieuw toegevoegd apparaat
+automatisch aan staat in alle bestaande patches.
+
+### Plaatje uploaden
+
+Op de Chain-tab: selecteer een apparaat → rechts paneel → **Uploaden**. Het plaatje wordt als base64 data-URL in localStorage opgeslagen (geen server-roundtrip). Houd plaatjes klein (<100 KB) om de quota niet te overschrijden.
+
+### Toekomst (nog niet geïmplementeerd)
+
+- Plaatje ophalen van internet via merk+model lookup
+- MIDI-out per patch (CC-berichten meesturen om bv. echo-tijd te zetten)
+- Bank-systeem voor >128 patches
+- Sync met firmware via WebSerial (Stage 7)
 
 ## Connecting to a device
 

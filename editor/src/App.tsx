@@ -1,56 +1,75 @@
 import { useState } from 'react';
-import type { Patch } from './api/types';
+import { EffectSwitcherApp } from './effect-switcher/EffectSwitcherApp';
 import { ScopePanel } from './scope/ScopePanel';
 
-const demoPatches: Patch[] = [
-  { id: 1, schemaVersion: 1, name: 'Crunch Lead', kind: 'effect', body: { loops: 0b00001011 } },
-  { id: 2, schemaVersion: 1, name: 'Clean',       kind: 'effect', body: { loops: 0b00000001 } },
-];
-
-type Tab = 'patches' | 'scope';
+type Project = 'switcher' | 'amp' | 'synth';
 
 export function App(): JSX.Element {
-  const [tab, setTab]       = useState<Tab>('patches');
-  const [active, setActive] = useState<number>(1);
+  const [project, setProject] = useState<Project>('switcher');
 
   return (
     <main style={{ fontFamily: 'system-ui, sans-serif', padding: 16 }}>
-      <h1>MusicBrain editor</h1>
-      <nav style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-        <button onClick={() => setTab('patches')} disabled={tab === 'patches'}>Patches</button>
-        <button onClick={() => setTab('scope')}   disabled={tab === 'scope'}>Scope</button>
-      </nav>
+      <header style={{ display: 'flex', alignItems: 'baseline', gap: 16, marginBottom: 16 }}>
+        <h1 style={{ margin: 0 }}>MusicBrain editor</h1>
+        <nav style={{ display: 'flex', gap: 4 }}>
+          <ProjectButton current={project} value="switcher" set={setProject}>
+            Effect-switcher
+          </ProjectButton>
+          <ProjectButton current={project} value="amp" set={setProject}>
+            Amp-switcher
+          </ProjectButton>
+          <ProjectButton current={project} value="synth" set={setProject}>
+            Poly-synth (scope)
+          </ProjectButton>
+        </nav>
+      </header>
 
-      {tab === 'patches' && (
+      {project === 'switcher' && <EffectSwitcherApp />}
+
+      {project === 'amp' && (
         <section>
-          <p>Scaffolding only. Connect-to-device + patch CRUD come next.</p>
-          <ul>
-            {demoPatches.map((p) => (
-              <li key={p.id}>
-                <label>
-                  <input
-                    type="radio"
-                    name="active"
-                    checked={active === p.id}
-                    onChange={() => setActive(p.id)}
-                  />
-                  {' '}#{p.id} — {p.name}
-                </label>
-              </li>
-            ))}
-          </ul>
+          <p style={{ color: '#6b7280' }}>
+            Amp-switcher editor: nog niet geïmplementeerd. Dit project routeert
+            preamp-out → poweramp-in en poweramp-out → speakers, met mute-tijd.
+          </p>
         </section>
       )}
 
-      {tab === 'scope' && (
-        <>
+      {project === 'synth' && (
+        <section>
           <p style={{ marginTop: 0 }}>
-            Live CV-vs-time trace from <code>mb_simulator</code> via{' '}
+            Live CV-vs-time trace van <code>mb_simulator</code> via{' '}
             <code>tools/scope-bridge</code> (ws://localhost:8765).
           </p>
           <ScopePanel />
-        </>
+        </section>
       )}
     </main>
+  );
+}
+
+function ProjectButton(props: {
+  current: Project;
+  value: Project;
+  set: (p: Project) => void;
+  children: React.ReactNode;
+}): JSX.Element {
+  const active = props.current === props.value;
+  return (
+    <button
+      onClick={() => props.set(props.value)}
+      style={{
+        padding: '4px 12px',
+        borderRadius: 4,
+        border: '1px solid #cbd2d9',
+        background: active ? '#2563eb' : '#f5f7fa',
+        color: active ? 'white' : '#1f2933',
+        cursor: 'pointer',
+        fontSize: 13,
+        fontWeight: active ? 600 : 400,
+      }}
+    >
+      {props.children}
+    </button>
   );
 }
