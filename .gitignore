@@ -1,0 +1,26 @@
+# Build artefacts
+build/
+out/
+dist/
+*.o
+*.obj
+*.elf
+*.hex
+*.bin
+*.map
+
+# Editor / Node
+node_modules/
+.vite/
+.cache/
+.pnpm-store/
+coverage/
+
+# IDE
+.vscode/
+.idea/
+*.user
+
+# OS
+.DS_Store
+Thumbs.db
