@@ -1,0 +1,551 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  MusicBrain firmware — UML 2.1 XMI export
+  Gegenereerd: May 2026, Stage 6 codebase
+  Import in Sparx EA: File > Import > Import Package from XMI File
+  Selecteer: UML 2.x XMI (XMI 2.1)
+-->
+<xmi:XMI xmi:version="2.1"
+  xmlns:xmi="http://schema.omg.org/spec/XMI/2.1"
+  xmlns:uml="http://www.eclipse.org/uml2/5.0.0/UML"
+  xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore">
+
+  <uml:Model xmi:id="_musicbrain" name="MusicBrain">
+
+    <!-- ================================================================
+         PACKAGE: mb (core)
+         ================================================================ -->
+    <packagedElement xmi:type="uml:Package" xmi:id="_pkg_mb" name="mb">
+
+      <!-- ── Enumerations ── -->
+      <packagedElement xmi:type="uml:Enumeration" xmi:id="_InputKind" name="InputKind">
+        <ownedLiteral xmi:id="_IK_None"              name="None"/>
+        <ownedLiteral xmi:id="_IK_MidiNoteOn"        name="MidiNoteOn"/>
+        <ownedLiteral xmi:id="_IK_MidiNoteOff"       name="MidiNoteOff"/>
+        <ownedLiteral xmi:id="_IK_MidiCc"            name="MidiCc"/>
+        <ownedLiteral xmi:id="_IK_MidiProgramChange" name="MidiProgramChange"/>
+        <ownedLiteral xmi:id="_IK_Footswitch"        name="Footswitch"/>
+        <ownedLiteral xmi:id="_IK_Encoder"           name="Encoder"/>
+        <ownedLiteral xmi:id="_IK_PotChange"         name="PotChange"/>
+        <ownedLiteral xmi:id="_IK_CvInSample"        name="CvInSample"/>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Enumeration" xmi:id="_OutputKind" name="OutputKind">
+        <ownedLiteral xmi:id="_OK_None"         name="None"/>
+        <ownedLiteral xmi:id="_OK_RelaySet"     name="RelaySet"/>
+        <ownedLiteral xmi:id="_OK_CvSet"        name="CvSet"/>
+        <ownedLiteral xmi:id="_OK_CvSegment"    name="CvSegment"/>
+        <ownedLiteral xmi:id="_OK_GateSet"      name="GateSet"/>
+        <ownedLiteral xmi:id="_OK_TriggerPulse" name="TriggerPulse"/>
+        <ownedLiteral xmi:id="_OK_MidiOut"      name="MidiOut"/>
+        <ownedLiteral xmi:id="_OK_DisplayDirty" name="DisplayDirty"/>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Enumeration" xmi:id="_CurveId" name="CurveId">
+        <ownedLiteral xmi:id="_CI_Hold"   name="Hold"/>
+        <ownedLiteral xmi:id="_CI_Linear" name="Linear"/>
+        <ownedLiteral xmi:id="_CI_ExpUp"  name="ExpUp"/>
+        <ownedLiteral xmi:id="_CI_ExpDn"  name="ExpDn"/>
+      </packagedElement>
+
+      <!-- ── Value structs ── -->
+      <packagedElement xmi:type="uml:Class" xmi:id="_CvValue" name="CvValue">
+        <ownedAttribute xmi:id="_CvValue_v" name="v" type="float"/>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Class" xmi:id="_CvSegment" name="CvSegment">
+        <ownedAttribute xmi:id="_CvSeg_target"   name="target"   type="_CvValue"/>
+        <ownedAttribute xmi:id="_CvSeg_duration" name="duration" type="uint32_t"/>
+        <ownedAttribute xmi:id="_CvSeg_curve"    name="curve"    type="_CurveId"/>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Class" xmi:id="_VoiceState" name="VoiceState">
+        <ownedAttribute xmi:id="_VS_held" name="held" type="bool"/>
+        <ownedAttribute xmi:id="_VS_note" name="note" type="uint8_t"/>
+        <ownedAttribute xmi:id="_VS_age"  name="age"  type="uint32_t"/>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Class" xmi:id="_AllocResult" name="AllocResult">
+        <ownedAttribute xmi:id="_AR_voiceIdx" name="voiceIdx" type="uint8_t"/>
+        <ownedAttribute xmi:id="_AR_stole"    name="stole"    type="bool"/>
+        <ownedAttribute xmi:id="_AR_prevNote" name="prevNote" type="uint8_t"/>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Class" xmi:id="_InputEvent" name="InputEvent">
+        <ownedAttribute xmi:id="_IE_kind"    name="kind"    type="_InputKind"/>
+        <ownedAttribute xmi:id="_IE_channel" name="channel" type="uint16_t"/>
+        <ownedAttribute xmi:id="_IE_payload" name="payload" type="uint16_t"/>
+        <ownedAttribute xmi:id="_IE_data"    name="data"    type="int32_t"/>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Class" xmi:id="_OutputCommand" name="OutputCommand">
+        <ownedAttribute xmi:id="_OC_kind"    name="kind"    type="_OutputKind"/>
+        <ownedAttribute xmi:id="_OC_channel" name="channel" type="uint16_t"/>
+        <ownedAttribute xmi:id="_OC_payload" name="payload" type="uint16_t"/>
+        <ownedAttribute xmi:id="_OC_data"    name="data"    type="int32_t"/>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Class" xmi:id="_RouterResult" name="RouterResult">
+        <ownedAttribute xmi:id="_RR_commands" name="commands" type="_OutputCommand" upper="24"/>
+        <ownedAttribute xmi:id="_RR_count"    name="count"    type="size_t"/>
+      </packagedElement>
+
+      <!-- ── Patch model ── -->
+      <packagedElement xmi:type="uml:Class" xmi:id="_Patch" name="Patch">
+        <ownedAttribute xmi:id="_Pa_id"            name="id"            type="uint16_t" visibility="public"/>
+        <ownedAttribute xmi:id="_Pa_schemaVersion" name="schemaVersion" type="uint16_t" visibility="public"/>
+        <ownedAttribute xmi:id="_Pa_name"          name="name[24]"      type="char"     visibility="public"/>
+        <ownedAttribute xmi:id="_Pa_blobSize"      name="blobSize"      type="uint16_t" visibility="public"/>
+        <ownedAttribute xmi:id="_Pa_blob"          name="blob[512]"     type="uint8_t"  visibility="public"/>
+        <ownedOperation xmi:id="_Pa_nameView" name="nameView" visibility="public">
+          <ownedParameter xmi:id="_Pa_nameView_ret" direction="return" type="string_view"/>
+        </ownedOperation>
+        <ownedOperation xmi:id="_Pa_setName" name="setName" visibility="public">
+          <ownedParameter xmi:id="_Pa_setName_s" name="s" direction="in" type="string_view"/>
+        </ownedOperation>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Class" xmi:id="_PatchBank" name="PatchBank">
+        <ownedAttribute xmi:id="_PB_patches" name="patches_[128]" type="_Patch"      visibility="private"/>
+        <ownedAttribute xmi:id="_PB_count"   name="count_"        type="size_t"      visibility="private"/>
+        <ownedAttribute xmi:id="_PB_active"  name="active_"       type="ProgramId"   visibility="private"/>
+        <ownedOperation xmi:id="_PB_insert" name="insert" visibility="public">
+          <ownedParameter xmi:id="_PB_insert_p"   name="p"   direction="in"     type="_Patch"/>
+          <ownedParameter xmi:id="_PB_insert_ret"              direction="return" type="bool"/>
+        </ownedOperation>
+        <ownedOperation xmi:id="_PB_find" name="find" visibility="public">
+          <ownedParameter xmi:id="_PB_find_id"  name="id"  direction="in"     type="uint16_t"/>
+          <ownedParameter xmi:id="_PB_find_ret"              direction="return" type="_Patch"/>
+        </ownedOperation>
+        <ownedOperation xmi:id="_PB_at" name="at" visibility="public">
+          <ownedParameter xmi:id="_PB_at_idx" name="idx" direction="in"     type="size_t"/>
+          <ownedParameter xmi:id="_PB_at_ret"              direction="return" type="_Patch"/>
+        </ownedOperation>
+        <ownedOperation xmi:id="_PB_indexOf" name="indexOf" visibility="public">
+          <ownedParameter xmi:id="_PB_indexOf_id"  name="id"  direction="in"     type="uint16_t"/>
+          <ownedParameter xmi:id="_PB_indexOf_ret"             direction="return" type="size_t"/>
+        </ownedOperation>
+        <ownedOperation xmi:id="_PB_setActive" name="setActive" visibility="public">
+          <ownedParameter xmi:id="_PB_setActive_id"  name="id"  direction="in"     type="uint16_t"/>
+          <ownedParameter xmi:id="_PB_setActive_ret"             direction="return" type="bool"/>
+        </ownedOperation>
+        <ownedOperation xmi:id="_PB_activeId" name="activeId" visibility="public">
+          <ownedParameter xmi:id="_PB_activeId_ret" direction="return" type="uint16_t"/>
+        </ownedOperation>
+        <ownedOperation xmi:id="_PB_active" name="active" visibility="public">
+          <ownedParameter xmi:id="_PB_active_ret" direction="return" type="_Patch"/>
+        </ownedOperation>
+        <ownedOperation xmi:id="_PB_size" name="size" visibility="public">
+          <ownedParameter xmi:id="_PB_size_ret" direction="return" type="size_t"/>
+        </ownedOperation>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Class" xmi:id="_PatchCodec" name="PatchCodec">
+        <ownedOperation xmi:id="_PC_toJson" name="toJson" isStatic="true" visibility="public">
+          <ownedParameter xmi:id="_PC_toJson_p"   name="p"   direction="in"     type="_Patch"/>
+          <ownedParameter xmi:id="_PC_toJson_ret"             direction="return" type="string"/>
+        </ownedOperation>
+        <ownedOperation xmi:id="_PC_fromJson" name="fromJson" isStatic="true" visibility="public">
+          <ownedParameter xmi:id="_PC_fromJson_s"   name="s"   direction="in"     type="string_view"/>
+          <ownedParameter xmi:id="_PC_fromJson_ret"             direction="return" type="_Patch"/>
+        </ownedOperation>
+        <ownedOperation xmi:id="_PC_toCbor" name="toCbor" isStatic="true" visibility="public">
+          <ownedParameter xmi:id="_PC_toCbor_p"   name="p"   direction="in"     type="_Patch"/>
+          <ownedParameter xmi:id="_PC_toCbor_ret"             direction="return" type="vector&lt;uint8_t&gt;"/>
+        </ownedOperation>
+        <ownedOperation xmi:id="_PC_fromCbor" name="fromCbor" isStatic="true" visibility="public">
+          <ownedParameter xmi:id="_PC_fromCbor_data" name="data" direction="in"     type="uint8_t*"/>
+          <ownedParameter xmi:id="_PC_fromCbor_size" name="size" direction="in"     type="size_t"/>
+          <ownedParameter xmi:id="_PC_fromCbor_ret"               direction="return" type="_Patch"/>
+        </ownedOperation>
+      </packagedElement>
+
+      <!-- ── Router hierarchy ── -->
+      <packagedElement xmi:type="uml:Class" xmi:id="_Router" name="Router" isAbstract="true">
+        <ownedOperation xmi:id="_Ro_handle" name="handle" isAbstract="true" visibility="public">
+          <ownedParameter xmi:id="_Ro_handle_ev"     name="ev"     direction="in"     type="_InputEvent"/>
+          <ownedParameter xmi:id="_Ro_handle_active" name="active" direction="in"     type="_Patch"/>
+          <ownedParameter xmi:id="_Ro_handle_ret"                  direction="return" type="_RouterResult"/>
+        </ownedOperation>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Class" xmi:id="_NullRouter" name="NullRouter">
+        <generalization xmi:id="_NR_gen" general="_Router"/>
+        <ownedOperation xmi:id="_NR_handle" name="handle" visibility="public">
+          <ownedParameter xmi:id="_NR_handle_ev"     name="ev"     direction="in"     type="_InputEvent"/>
+          <ownedParameter xmi:id="_NR_handle_active" name="active" direction="in"     type="_Patch"/>
+          <ownedParameter xmi:id="_NR_handle_ret"                  direction="return" type="_RouterResult"/>
+        </ownedOperation>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Class" xmi:id="_VoiceAllocator" name="VoiceAllocator">
+        <ownedAttribute xmi:id="_VA_voices"      name="voices_[16]"  type="_VoiceState" visibility="private"/>
+        <ownedAttribute xmi:id="_VA_voiceCount"  name="voiceCount_"  type="uint8_t"     visibility="private"/>
+        <ownedAttribute xmi:id="_VA_tick"        name="tick_"        type="uint32_t"    visibility="private"/>
+        <ownedOperation xmi:id="_VA_configure" name="configure" visibility="public">
+          <ownedParameter xmi:id="_VA_configure_n" name="voiceCount" direction="in" type="uint8_t"/>
+        </ownedOperation>
+        <ownedOperation xmi:id="_VA_noteOn" name="noteOn" visibility="public">
+          <ownedParameter xmi:id="_VA_noteOn_note" name="note" direction="in"     type="uint8_t"/>
+          <ownedParameter xmi:id="_VA_noteOn_ret"              direction="return" type="_AllocResult"/>
+        </ownedOperation>
+        <ownedOperation xmi:id="_VA_noteOff" name="noteOff" visibility="public">
+          <ownedParameter xmi:id="_VA_noteOff_note" name="note" direction="in"     type="uint8_t"/>
+          <ownedParameter xmi:id="_VA_noteOff_ret"              direction="return" type="uint8_t"/>
+        </ownedOperation>
+        <ownedOperation xmi:id="_VA_allOff" name="allOff" visibility="public"/>
+        <ownedOperation xmi:id="_VA_voiceCount_op" name="voiceCount" visibility="public">
+          <ownedParameter xmi:id="_VA_voiceCount_ret" direction="return" type="uint8_t"/>
+        </ownedOperation>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Class" xmi:id="_MatrixRouter" name="MatrixRouter">
+        <generalization xmi:id="_MxR_gen" general="_Router"/>
+        <ownedAttribute xmi:id="_MxR_alloc"  name="alloc_"         type="_VoiceAllocator" visibility="private" aggregation="composite"/>
+        <ownedAttribute xmi:id="_MxR_cfgFor" name="configuredFor_" type="uint8_t"         visibility="private"/>
+        <ownedOperation xmi:id="_MxR_cvCode" name="midiNoteToCvCode" isStatic="true" visibility="public">
+          <ownedParameter xmi:id="_MxR_cvCode_note" name="midiNote" direction="in"     type="uint8_t"/>
+          <ownedParameter xmi:id="_MxR_cvCode_ret"               direction="return" type="int16_t"/>
+        </ownedOperation>
+        <ownedOperation xmi:id="_MxR_handle" name="handle" visibility="public">
+          <ownedParameter xmi:id="_MxR_handle_ev"     name="ev"     direction="in"     type="_InputEvent"/>
+          <ownedParameter xmi:id="_MxR_handle_active" name="active" direction="in"     type="_Patch"/>
+          <ownedParameter xmi:id="_MxR_handle_ret"                  direction="return" type="_RouterResult"/>
+        </ownedOperation>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Class" xmi:id="_SwitcherRouter" name="SwitcherRouter">
+        <generalization xmi:id="_SwR_gen" general="_Router"/>
+        <ownedAttribute xmi:id="_SwR_bank" name="bank_" type="_PatchBank" visibility="private"/>
+        <ownedOperation xmi:id="_SwR_handle" name="handle" visibility="public">
+          <ownedParameter xmi:id="_SwR_handle_ev"     name="ev"     direction="in"     type="_InputEvent"/>
+          <ownedParameter xmi:id="_SwR_handle_active" name="active" direction="in"     type="_Patch"/>
+          <ownedParameter xmi:id="_SwR_handle_ret"                  direction="return" type="_RouterResult"/>
+        </ownedOperation>
+        <ownedOperation xmi:id="_SwR_selectProgram" name="selectProgram" visibility="private">
+          <ownedParameter xmi:id="_SwR_sp_id"  name="id"  direction="in"     type="uint16_t"/>
+          <ownedParameter xmi:id="_SwR_sp_ret"             direction="return" type="_RouterResult"/>
+        </ownedOperation>
+      </packagedElement>
+
+      <!-- ── HAL interfaces ── -->
+      <packagedElement xmi:type="uml:Interface" xmi:id="_IStore" name="IStore">
+        <ownedOperation xmi:id="_IS_read" name="read" isAbstract="true" visibility="public">
+          <ownedParameter xmi:id="_IS_read_key"    name="key"    direction="in"     type="uint32_t"/>
+          <ownedParameter xmi:id="_IS_read_out"    name="out"    direction="out"    type="uint8_t"/>
+          <ownedParameter xmi:id="_IS_read_cap"    name="cap"    direction="in"     type="size_t"/>
+          <ownedParameter xmi:id="_IS_read_outLen" name="outLen" direction="out"    type="size_t"/>
+          <ownedParameter xmi:id="_IS_read_ret"                  direction="return" type="bool"/>
+        </ownedOperation>
+        <ownedOperation xmi:id="_IS_write" name="write" isAbstract="true" visibility="public">
+          <ownedParameter xmi:id="_IS_write_key"  name="key"  direction="in"     type="uint32_t"/>
+          <ownedParameter xmi:id="_IS_write_data" name="data" direction="in"     type="uint8_t*"/>
+          <ownedParameter xmi:id="_IS_write_len"  name="len"  direction="in"     type="size_t"/>
+          <ownedParameter xmi:id="_IS_write_ret"              direction="return" type="bool"/>
+        </ownedOperation>
+        <ownedOperation xmi:id="_IS_erase" name="erase" isAbstract="true" visibility="public">
+          <ownedParameter xmi:id="_IS_erase_key" name="key" direction="in"     type="uint32_t"/>
+          <ownedParameter xmi:id="_IS_erase_ret"             direction="return" type="bool"/>
+        </ownedOperation>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Interface" xmi:id="_ITransport" name="ITransport">
+        <ownedOperation xmi:id="_IT_send" name="send" isAbstract="true" visibility="public">
+          <ownedParameter xmi:id="_IT_send_data" name="data" direction="in"     type="uint8_t*"/>
+          <ownedParameter xmi:id="_IT_send_len"  name="len"  direction="in"     type="size_t"/>
+          <ownedParameter xmi:id="_IT_send_ret"              direction="return" type="size_t"/>
+        </ownedOperation>
+        <ownedOperation xmi:id="_IT_recv" name="recv" isAbstract="true" visibility="public">
+          <ownedParameter xmi:id="_IT_recv_out" name="out" direction="out"    type="uint8_t"/>
+          <ownedParameter xmi:id="_IT_recv_cap" name="cap" direction="in"     type="size_t"/>
+          <ownedParameter xmi:id="_IT_recv_ret"             direction="return" type="size_t"/>
+        </ownedOperation>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Interface" xmi:id="_IRelayBoard" name="IRelayBoard">
+        <ownedOperation xmi:id="_IRB_relayCount" name="relayCount" isAbstract="true" visibility="public">
+          <ownedParameter xmi:id="_IRB_relayCount_ret" direction="return" type="size_t"/>
+        </ownedOperation>
+        <ownedOperation xmi:id="_IRB_setRelay" name="setRelay" isAbstract="true" visibility="public">
+          <ownedParameter xmi:id="_IRB_setRelay_id" name="id" direction="in" type="size_t"/>
+          <ownedParameter xmi:id="_IRB_setRelay_on" name="on" direction="in" type="bool"/>
+        </ownedOperation>
+        <ownedOperation xmi:id="_IRB_setMask" name="setMask" isAbstract="true" visibility="public">
+          <ownedParameter xmi:id="_IRB_setMask_mask" name="mask" direction="in" type="uint16_t"/>
+        </ownedOperation>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Interface" xmi:id="_IDisplay" name="IDisplay">
+        <ownedOperation xmi:id="_ID_showPatch" name="showPatch" isAbstract="true" visibility="public">
+          <ownedParameter xmi:id="_ID_showPatch_id"   name="patchId" direction="in" type="uint8_t"/>
+          <ownedParameter xmi:id="_ID_showPatch_name" name="name"    direction="in" type="string_view"/>
+        </ownedOperation>
+        <ownedOperation xmi:id="_ID_clear" name="clear" isAbstract="true" visibility="public"/>
+      </packagedElement>
+
+    </packagedElement>
+
+    <!-- ================================================================
+         PACKAGE: mb::synth
+         ================================================================ -->
+    <packagedElement xmi:type="uml:Package" xmi:id="_pkg_synth" name="mb::synth">
+      <packagedElement xmi:type="uml:Class" xmi:id="_SynthPatchV1" name="SynthPatchV1">
+        <ownedAttribute xmi:id="_SPV_voiceCount" name="voiceCount" type="uint8_t"/>
+        <ownedAttribute xmi:id="_SPV_caseId"     name="caseId"     type="uint8_t"/>
+        <ownedAttribute xmi:id="_SPV_firstSlot"  name="firstSlot"  type="uint8_t"/>
+        <ownedAttribute xmi:id="_SPV_pitchBits"  name="pitchBits"  type="uint8_t"/>
+        <ownedOperation xmi:id="_SPV_pitchCh" name="pitchChannel" visibility="public">
+          <ownedParameter xmi:id="_SPV_pitchCh_vi"  name="voiceIdx" direction="in"     type="uint8_t"/>
+          <ownedParameter xmi:id="_SPV_pitchCh_ret"               direction="return" type="uint16_t"/>
+        </ownedOperation>
+        <ownedOperation xmi:id="_SPV_gateCh" name="gateChannel" visibility="public">
+          <ownedParameter xmi:id="_SPV_gateCh_vi"  name="voiceIdx" direction="in"     type="uint8_t"/>
+          <ownedParameter xmi:id="_SPV_gateCh_ret"               direction="return" type="uint16_t"/>
+        </ownedOperation>
+      </packagedElement>
+    </packagedElement>
+
+    <!-- ================================================================
+         PACKAGE: mb::switcher
+         ================================================================ -->
+    <packagedElement xmi:type="uml:Package" xmi:id="_pkg_switcher" name="mb::switcher">
+      <packagedElement xmi:type="uml:Class" xmi:id="_SwitcherPatchV1" name="SwitcherPatchV1">
+        <ownedAttribute xmi:id="_SWPV_relayCount" name="relayCount" type="uint8_t"/>
+        <ownedAttribute xmi:id="_SWPV_relayMask"  name="relayMask"  type="uint16_t"/>
+        <ownedAttribute xmi:id="_SWPV_flags"      name="flags"      type="uint8_t"/>
+        <ownedOperation xmi:id="_SWPV_isRelayOn" name="isRelayOn" visibility="public">
+          <ownedParameter xmi:id="_SWPV_isRelayOn_i"   name="i"   direction="in"     type="uint8_t"/>
+          <ownedParameter xmi:id="_SWPV_isRelayOn_ret"            direction="return" type="bool"/>
+        </ownedOperation>
+      </packagedElement>
+    </packagedElement>
+
+    <!-- ================================================================
+         PACKAGE: mb::proto
+         ================================================================ -->
+    <packagedElement xmi:type="uml:Package" xmi:id="_pkg_proto" name="mb::proto">
+      <packagedElement xmi:type="uml:Enumeration" xmi:id="_Opcode" name="Opcode">
+        <ownedLiteral xmi:id="_Op_Ping"         name="Ping"/>
+        <ownedLiteral xmi:id="_Op_Pong"         name="Pong"/>
+        <ownedLiteral xmi:id="_Op_CvSet"        name="CvSet"/>
+        <ownedLiteral xmi:id="_Op_CvSegment"    name="CvSegment"/>
+        <ownedLiteral xmi:id="_Op_GateSet"      name="GateSet"/>
+        <ownedLiteral xmi:id="_Op_TriggerPulse" name="TriggerPulse"/>
+        <ownedLiteral xmi:id="_Op_CvInRequest"  name="CvInRequest"/>
+        <ownedLiteral xmi:id="_Op_CvInReport"   name="CvInReport"/>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Class" xmi:id="_SpiFrame" name="SpiFrame">
+        <ownedComment xmi:id="_SpiFrame_note" body="Utility namespace — free functions only. Modelled as class with static operations."/>
+        <ownedOperation xmi:id="_SF_crc16" name="crc16Ccitt" isStatic="true" visibility="public">
+          <ownedParameter xmi:id="_SF_crc16_data" name="data" direction="in"     type="uint8_t*"/>
+          <ownedParameter xmi:id="_SF_crc16_len"  name="len"  direction="in"     type="size_t"/>
+          <ownedParameter xmi:id="_SF_crc16_ret"              direction="return" type="uint16_t"/>
+        </ownedOperation>
+        <ownedOperation xmi:id="_SF_encode" name="encode" isStatic="true" visibility="public">
+          <ownedParameter xmi:id="_SF_encode_op"         name="op"         direction="in"     type="_Opcode"/>
+          <ownedParameter xmi:id="_SF_encode_payload"    name="payload"    direction="in"     type="uint8_t*"/>
+          <ownedParameter xmi:id="_SF_encode_payloadLen" name="payloadLen" direction="in"     type="size_t"/>
+          <ownedParameter xmi:id="_SF_encode_out"        name="out"        direction="out"    type="uint8_t"/>
+          <ownedParameter xmi:id="_SF_encode_outCap"     name="outCap"     direction="in"     type="size_t"/>
+          <ownedParameter xmi:id="_SF_encode_ret"                          direction="return" type="size_t"/>
+        </ownedOperation>
+        <ownedOperation xmi:id="_SF_decode" name="decode" isStatic="true" visibility="public">
+          <ownedParameter xmi:id="_SF_decode_in"          name="in"          direction="in"     type="uint8_t*"/>
+          <ownedParameter xmi:id="_SF_decode_inLen"       name="inLen"       direction="in"     type="size_t"/>
+          <ownedParameter xmi:id="_SF_decode_outOp"       name="outOp"       direction="out"    type="_Opcode"/>
+          <ownedParameter xmi:id="_SF_decode_outPayload"  name="outPayload"  direction="out"    type="uint8_t*"/>
+          <ownedParameter xmi:id="_SF_decode_outLen"      name="outPayloadLen" direction="out"  type="size_t"/>
+          <ownedParameter xmi:id="_SF_decode_outConsumed" name="outConsumed" direction="out"    type="size_t"/>
+          <ownedParameter xmi:id="_SF_decode_ret"                            direction="return" type="bool"/>
+        </ownedOperation>
+      </packagedElement>
+    </packagedElement>
+
+    <!-- ================================================================
+         PACKAGE: mb::sim
+         ================================================================ -->
+    <packagedElement xmi:type="uml:Package" xmi:id="_pkg_sim" name="mb::sim">
+
+      <packagedElement xmi:type="uml:Class" xmi:id="_Clock" name="Clock">
+        <ownedAttribute xmi:id="_CL_us" name="us_" type="uint64_t" visibility="private"/>
+        <ownedOperation xmi:id="_CL_now"     name="now"     visibility="public">
+          <ownedParameter xmi:id="_CL_now_ret" direction="return" type="uint64_t"/>
+        </ownedOperation>
+        <ownedOperation xmi:id="_CL_advance" name="advance" visibility="public">
+          <ownedParameter xmi:id="_CL_advance_d" name="deltaUs" direction="in" type="uint64_t"/>
+        </ownedOperation>
+        <ownedOperation xmi:id="_CL_set" name="set" visibility="public">
+          <ownedParameter xmi:id="_CL_set_us" name="us" direction="in" type="uint64_t"/>
+        </ownedOperation>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Class" xmi:id="_Trace" name="Trace">
+        <ownedAttribute xmi:id="_TR_out"  name="out_"  type="ostream"       visibility="private"/>
+        <ownedAttribute xmi:id="_TR_line" name="line_" type="stringstream"  visibility="private"/>
+        <ownedOperation xmi:id="_TR_begin"    name="begin"    visibility="public"/>
+        <ownedOperation xmi:id="_TR_field"    name="field"    visibility="public"/>
+        <ownedOperation xmi:id="_TR_fieldStr" name="fieldStr" visibility="public"/>
+        <ownedOperation xmi:id="_TR_end"      name="end"      visibility="public"/>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Class" xmi:id="_VirtualSpiBus" name="VirtualSpiBus">
+        <ownedAttribute xmi:id="_VSB_clock"      name="clock_"      type="_Clock"  visibility="private"/>
+        <ownedAttribute xmi:id="_VSB_trace"      name="trace_"      type="_Trace"  visibility="private"/>
+        <ownedAttribute xmi:id="_VSB_framesSent" name="framesSent_" type="size_t"  visibility="private"/>
+        <ownedOperation xmi:id="_VSB_attach"      name="attach"      visibility="public"/>
+        <ownedOperation xmi:id="_VSB_sendCvSet"   name="sendCvSet"   visibility="public">
+          <ownedParameter xmi:id="_VSB_sCv_ch"  name="channel" direction="in"     type="uint16_t"/>
+          <ownedParameter xmi:id="_VSB_sCv_val" name="value"   direction="in"     type="int16_t"/>
+          <ownedParameter xmi:id="_VSB_sCv_ret"               direction="return" type="bool"/>
+        </ownedOperation>
+        <ownedOperation xmi:id="_VSB_sendGateSet" name="sendGateSet" visibility="public">
+          <ownedParameter xmi:id="_VSB_sGs_ch"  name="channel" direction="in"     type="uint16_t"/>
+          <ownedParameter xmi:id="_VSB_sGs_on"  name="on"      direction="in"     type="bool"/>
+          <ownedParameter xmi:id="_VSB_sGs_ret"               direction="return" type="bool"/>
+        </ownedOperation>
+        <ownedOperation xmi:id="_VSB_framesSentOp" name="framesSent" visibility="public">
+          <ownedParameter xmi:id="_VSB_fso_ret" direction="return" type="size_t"/>
+        </ownedOperation>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Class" xmi:id="_RouterBridge" name="RouterBridge">
+        <ownedAttribute xmi:id="_RBr_bus" name="bus_" type="_VirtualSpiBus" visibility="private"/>
+        <ownedOperation xmi:id="_RBr_dispatch" name="dispatch" visibility="public">
+          <ownedParameter xmi:id="_RBr_dispatch_r" name="r" direction="in" type="_RouterResult"/>
+        </ownedOperation>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Class" xmi:id="_Dac8568" name="Dac8568">
+        <ownedAttribute xmi:id="_DAC_channelBase" name="channelBase_" type="uint16_t" visibility="private"/>
+        <ownedAttribute xmi:id="_DAC_vref"        name="vref_"        type="float"    visibility="private"/>
+        <ownedAttribute xmi:id="_DAC_codes"       name="codes_[8]"    type="int16_t"  visibility="private"/>
+        <ownedOperation xmi:id="_DAC_voltage" name="voltage" visibility="public">
+          <ownedParameter xmi:id="_DAC_voltage_ch"  name="channel" direction="in"     type="uint16_t"/>
+          <ownedParameter xmi:id="_DAC_voltage_ret"               direction="return" type="float"/>
+        </ownedOperation>
+        <ownedOperation xmi:id="_DAC_code" name="code" visibility="public">
+          <ownedParameter xmi:id="_DAC_code_ch"  name="channel" direction="in"     type="uint16_t"/>
+          <ownedParameter xmi:id="_DAC_code_ret"               direction="return" type="int16_t"/>
+        </ownedOperation>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Class" xmi:id="_GateBoard" name="GateBoard">
+        <ownedAttribute xmi:id="_GB_channelBase" name="channelBase_" type="uint16_t" visibility="private"/>
+        <ownedAttribute xmi:id="_GB_states"      name="states_[8]"   type="bool"     visibility="private"/>
+        <ownedOperation xmi:id="_GB_state" name="state" visibility="public">
+          <ownedParameter xmi:id="_GB_state_ch"  name="channel" direction="in"     type="uint16_t"/>
+          <ownedParameter xmi:id="_GB_state_ret"               direction="return" type="bool"/>
+        </ownedOperation>
+      </packagedElement>
+
+    </packagedElement>
+
+    <!-- ================================================================
+         PACKAGE: mb::host
+         ================================================================ -->
+    <packagedElement xmi:type="uml:Package" xmi:id="_pkg_host" name="mb::host">
+
+      <packagedElement xmi:type="uml:Class" xmi:id="_HostStore" name="HostStore">
+        <generalization xmi:id="_HS_gen" general="_IStore"/>
+        <ownedAttribute xmi:id="_HS_map" name="map_" type="unordered_map" visibility="private"/>
+        <ownedOperation xmi:id="_HS_read"  name="read"  visibility="public">
+          <ownedParameter xmi:id="_HS_read_ret" direction="return" type="bool"/>
+        </ownedOperation>
+        <ownedOperation xmi:id="_HS_write" name="write" visibility="public">
+          <ownedParameter xmi:id="_HS_write_ret" direction="return" type="bool"/>
+        </ownedOperation>
+        <ownedOperation xmi:id="_HS_erase" name="erase" visibility="public">
+          <ownedParameter xmi:id="_HS_erase_ret" direction="return" type="bool"/>
+        </ownedOperation>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Class" xmi:id="_HostLoopback" name="HostLoopback">
+        <generalization xmi:id="_HL_gen" general="_ITransport"/>
+        <ownedAttribute xmi:id="_HL_buf" name="buf_" type="deque&lt;uint8_t&gt;" visibility="private"/>
+        <ownedOperation xmi:id="_HL_send" name="send" visibility="public">
+          <ownedParameter xmi:id="_HL_send_ret" direction="return" type="size_t"/>
+        </ownedOperation>
+        <ownedOperation xmi:id="_HL_recv" name="recv" visibility="public">
+          <ownedParameter xmi:id="_HL_recv_ret" direction="return" type="size_t"/>
+        </ownedOperation>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Class" xmi:id="_HostRelayBoard" name="HostRelayBoard">
+        <generalization xmi:id="_HRB_gen" general="_IRelayBoard"/>
+        <ownedAttribute xmi:id="_HRB_count"         name="count_"         type="size_t"  visibility="private"/>
+        <ownedAttribute xmi:id="_HRB_states"        name="states_[16]"    type="bool"    visibility="private"/>
+        <ownedAttribute xmi:id="_HRB_setRelayCalls" name="setRelayCalls_" type="size_t"  visibility="private"/>
+        <ownedAttribute xmi:id="_HRB_setMaskCalls"  name="setMaskCalls_"  type="size_t"  visibility="private"/>
+        <ownedOperation xmi:id="_HRB_relayCount" name="relayCount" visibility="public">
+          <ownedParameter xmi:id="_HRB_relayCount_ret" direction="return" type="size_t"/>
+        </ownedOperation>
+        <ownedOperation xmi:id="_HRB_setRelay" name="setRelay" visibility="public"/>
+        <ownedOperation xmi:id="_HRB_setMask"  name="setMask"  visibility="public"/>
+        <ownedOperation xmi:id="_HRB_state"    name="state"    visibility="public">
+          <ownedParameter xmi:id="_HRB_state_ret" direction="return" type="bool"/>
+        </ownedOperation>
+        <ownedOperation xmi:id="_HRB_mask"     name="mask"     visibility="public">
+          <ownedParameter xmi:id="_HRB_mask_ret" direction="return" type="uint16_t"/>
+        </ownedOperation>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Class" xmi:id="_HostDisplay" name="HostDisplay">
+        <generalization xmi:id="_HD_gen" general="_IDisplay"/>
+        <ownedAttribute xmi:id="_HD_lastId"    name="lastId_"    type="uint8_t" visibility="private"/>
+        <ownedAttribute xmi:id="_HD_lastName"  name="lastName_"  type="string"  visibility="private"/>
+        <ownedAttribute xmi:id="_HD_showCalls" name="showCalls_" type="size_t"  visibility="private"/>
+        <ownedOperation xmi:id="_HD_showPatch" name="showPatch" visibility="public"/>
+        <ownedOperation xmi:id="_HD_clear"     name="clear"     visibility="public"/>
+        <ownedOperation xmi:id="_HD_lastId_op" name="lastId"    visibility="public">
+          <ownedParameter xmi:id="_HD_lastId_ret" direction="return" type="uint8_t"/>
+        </ownedOperation>
+        <ownedOperation xmi:id="_HD_lastName_op" name="lastName" visibility="public">
+          <ownedParameter xmi:id="_HD_lastName_ret" direction="return" type="string"/>
+        </ownedOperation>
+      </packagedElement>
+
+    </packagedElement>
+
+    <!-- ================================================================
+         ASSOCIATIONS
+         ================================================================ -->
+
+    <!-- PatchBank 1 to-many Patch -->
+    <packagedElement xmi:type="uml:Association" xmi:id="_assoc_bank_patch" name="">
+      <memberEnd xmi:idref="_PB_patches"/>
+      <ownedEnd xmi:id="_assoc_bank_patch_end" type="_PatchBank"/>
+    </packagedElement>
+
+    <!-- MatrixRouter composed-of VoiceAllocator -->
+    <packagedElement xmi:type="uml:Association" xmi:id="_assoc_mr_va" name="">
+      <memberEnd xmi:idref="_MxR_alloc"/>
+      <ownedEnd xmi:id="_assoc_mr_va_end" type="_MatrixRouter"/>
+    </packagedElement>
+
+    <!-- SwitcherRouter uses PatchBank -->
+    <packagedElement xmi:type="uml:Association" xmi:id="_assoc_swr_bank" name="">
+      <memberEnd xmi:idref="_SwR_bank"/>
+      <ownedEnd xmi:id="_assoc_swr_bank_end" type="_SwitcherRouter"/>
+    </packagedElement>
+
+    <!-- RouterBridge --> VirtualSpiBus -->
+    <packagedElement xmi:type="uml:Association" xmi:id="_assoc_rb_vsb" name="">
+      <memberEnd xmi:idref="_RBr_bus"/>
+      <ownedEnd xmi:id="_assoc_rb_vsb_end" type="_RouterBridge"/>
+    </packagedElement>
+
+    <!-- VirtualSpiBus --> Clock -->
+    <packagedElement xmi:type="uml:Association" xmi:id="_assoc_vsb_clk" name="">
+      <memberEnd xmi:idref="_VSB_clock"/>
+      <ownedEnd xmi:id="_assoc_vsb_clk_end" type="_VirtualSpiBus"/>
+    </packagedElement>
+
+    <!-- VirtualSpiBus --> Trace -->
+    <packagedElement xmi:type="uml:Association" xmi:id="_assoc_vsb_tr" name="">
+      <memberEnd xmi:idref="_VSB_trace"/>
+      <ownedEnd xmi:id="_assoc_vsb_tr_end" type="_VirtualSpiBus"/>
+    </packagedElement>
+
+  </uml:Model>
+</xmi:XMI>

@@ -1,0 +1,22 @@
+# MusicBrain Firmware — UML Documentation
+
+Generated: May 2026, based on Stage 6 codebase.
+
+## Files in this directory
+
+| File | Type | Inhoud |
+|------|------|--------|
+| `01-core-classes.md` | Mermaid classDiagram | Alle core-klassen + structs |
+| `02-sim-hal-classes.md` | Mermaid classDiagram | Sim-laag + HAL interfaces + host-mocks |
+| `03-seq-matrixrouter.md` | Mermaid sequenceDiagram | NoteOn/NoteOff flow door MatrixRouter |
+| `04-seq-switcherrouter.md` | Mermaid sequenceDiagram | ProgramChange + footswitch flow door SwitcherRouter |
+| `05-components.md` | Mermaid C4-stijl component | Pakketstructuur + afhankelijkheden |
+| `06-usecases.md` | Mermaid journey / use case | Use cases per actor |
+| `musicbrain.xmi` | XMI 2.1 | Import in Sparx EA: alle klassen + relaties |
+
+## Hoe importeren in Sparx EA
+
+1. **File → Import → Import Package from XMI File**
+2. Kies `musicbrain.xmi`
+3. Selecteer *UML 2.x XMI (XMI 2.1)*
+4. Klik *Import* → alle packages + klassen + operaties verschijnen in de browser.
