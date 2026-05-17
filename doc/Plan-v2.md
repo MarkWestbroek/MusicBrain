@@ -134,6 +134,24 @@ Eleven stages. Each stage produces something demonstrable; you can stop after an
 - 8 patches stored in LittleFS as CBOR.
 - **Deliverable**: a working pedalboard switcher you can use on stage.
 
+**Stage 6c — Effect-switcher on ESP32 (network-attached, in progress)**
+- Self-contained PlatformIO project at [`firmware/app-effect-switcher/esp32/`](../firmware/app-effect-switcher/esp32/README.md).
+- Same JSON schema as the editor (`SwitcherProject` v1) — the device stores
+  the file verbatim in LittleFS; no schema translation step.
+- Plain HTTP/REST API on port 80 (not JSON-RPC). Endpoints:
+  `GET/PUT /api/config`, `GET /api/patch`, `POST /api/patch/<id|next|prev>`,
+  `GET /api/status`. CORS wide-open so the React app can hit it directly.
+- Relay driver: two daisy-chained 74HC595s on hardware SPI = 16 relays
+  (configurable in `relays.cpp` for other boards).
+- WiFi STA mode (creds in git-ignored `secrets.h`), mDNS as `musicbrain.local`.
+- **Why ESP32 alongside RP2040?** WiFi out of the box means the editor can
+  configure a live pedalboard with zero extra cabling — perfect for a
+  rehearsal-room rig that doesn't need the lowest possible latency.
+- **Next step**: editor-side "Connect to device" panel that mirrors the
+  Simulation tab's actions onto the real device (see Stage 7).
+- **Deliverable**: ESP32 + relay-test board responding to patch changes
+  triggered from the React editor over WiFi.
+
 **Stage 7 — Editor v1 (project 1 only)**
 - Connect to device over WebSerial.
 - List, edit, upload, download patches.

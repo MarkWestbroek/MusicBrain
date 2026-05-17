@@ -9,154 +9,179 @@ interface LogEntry {
 
 export function SimulationPanel(): JSX.Element {
   const project = useProject();
-  const active   = project.patches.find((p) => p.id === project.activePatchId)
-                ?? project.patches[0];
+  const active  = project.patches.find((p) => p.id === project.activePatchId)
+               ?? project.patches[0];
   const ordered  = devicesInFlowOrder(project);
   const bypassed = new Set(active?.bypassed ?? []);
   const catLabel = new Map(project.categories.map((c) => [c.id, c.label] as const));
 
   const [log, setLog] = useState<LogEntry[]>([]);
-  const [compact, setCompact] = useState(true);
+  const [showLog, setShowLog] = useState(false);
 
   function push(text: string): void {
-    setLog((prev) => [...prev.slice(-19), { t: Date.now(), text }]);
+    setLog((prev) => [...prev.slice(-29), { t: Date.now(), text }]);
   }
 
-  function onUp(): void   { prevPatch(); push('FS▲ → prev'); }
-  function onDown(): void { nextPatch(); push('FS▼ → next'); }
-  function onPC(id: number): void { setActivePatch(id); push(`PC ${id}`); }
+  function onUp(): void   { nextPatch(); push('FS▲ → next patch'); }
+  function onDown(): void { prevPatch(); push('FS▼ → prev patch'); }
+  function onPC(id: number): void {
+    const name = project.patches.find((p) => p.id === id)?.name ?? '';
+    setActivePatch(id);
+    push(`PC ${id + 1} → "${name}"`);
+  }
 
-  // Reset log when project resets
   useEffect(() => {
     if (project.patches.length === 0) setLog([]);
   }, [project.patches.length]);
 
-  const visibleEffects = compact ? ordered.filter((d) => !bypassed.has(d.id)) : ordered;
+  // relayIndex → true (closed/active) | false (open/bypassed) | undefined (unassigned)
+  const relayState = new Map<number, boolean>();
+  for (const d of project.devices) {
+    if (d.relayIndex >= 0) relayState.set(d.relayIndex, !bypassed.has(d.id));
+  }
 
   return (
     <section>
-      <div className="es-toolbar">
-        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13 }}>
-          <input
-            type="checkbox"
-            checked={compact}
-            onChange={(e) => setCompact(e.target.checked)}
-          />
-          Compact: alleen actieve effecten tonen
-        </label>
-        <span style={{ color: '#6b7280', fontSize: 12 }}>
-          (Stuur ook via PC&nbsp;0..{project.patches.length - 1})
-        </span>
-      </div>
+      {/* ── Control flow row ── */}
+      <div className="es-sim-flow">
 
-      <div className="es-sim">
-        {/* ─── Input device (footswitch) ─── */}
-        <div className="es-sim-col">
-          <h3>Input</h3>
-          <div style={{ textAlign: 'center' }}>
-            <div>
-              <button className="es-fs-button" onClick={onUp} title="Vorige patch">▲</button>
-            </div>
-            <div>
-              <button className="es-fs-button" onClick={onDown} title="Volgende patch">▼</button>
-            </div>
-            <div style={{ marginTop: 10, fontSize: 12, color: '#6b7280' }}>
-              footswitches
-            </div>
-            <div style={{ marginTop: 12 }}>
-              <select
-                value={active?.id ?? 0}
-                onChange={(e) => onPC(parseInt(e.target.value, 10))}
-                style={{ width: '100%', fontSize: 12, padding: 4 }}
-              >
-                {project.patches.map((p) => (
-                  <option key={p.id} value={p.id}>PC {p.id} — {p.name}</option>
-                ))}
-              </select>
-              <div style={{ fontSize: 11, color: '#6b7280', marginTop: 4 }}>
-                MIDI ProgramChange
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ─── Brain ─── */}
-        <div className="es-sim-col">
-          <h3>Brain</h3>
-          <div className="es-brain">
-            <div><span className="es-brain-led" /> active</div>
-            <div style={{ marginTop: 6, fontSize: 14 }}>
-              {active ? `PC ${active.id}` : '—'}
-            </div>
-            <div style={{ color: '#a5f3fc', marginBottom: 8 }}>{active?.name}</div>
-            <div style={{ borderTop: '1px solid #334155', paddingTop: 6, color: '#94a3b8', fontSize: 11 }}>
-              event log
-            </div>
-            <div style={{ maxHeight: 90, overflowY: 'auto', marginTop: 4 }}>
-              {log.length === 0 && <div style={{ color: '#475569' }}>—</div>}
-              {[...log].reverse().map((e, i) => (
-                <div key={e.t + '_' + i}>
-                  {new Date(e.t).toLocaleTimeString()} {e.text}
-                </div>
+        {/* Input */}
+        <div className="es-sim-stage">
+          <div className="es-sim-stage-title">Input</div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+            <button className="es-fs-button" onClick={onUp} title="Previous patch">▲</button>
+            <button className="es-fs-button" onClick={onDown} title="Next patch">▼</button>
+            <div style={{ fontSize: 10, color: '#6b7280' }}>footswitch</div>
+            <select
+              value={active?.id ?? 0}
+              onChange={(e) => onPC(parseInt(e.target.value, 10))}
+              style={{ width: '100%', fontSize: 11, marginTop: 4 }}
+            >
+              {project.patches.map((p) => (
+                <option key={p.id} value={p.id}>PC {p.id + 1} — {p.name}</option>
               ))}
-            </div>
-          </div>
-          <div style={{ fontSize: 11, color: '#6b7280', marginTop: 6 }}>
-            (toekomst: MIDI-out per patch tonen)
+            </select>
           </div>
         </div>
 
-        {/* ─── Output (effects) ─── */}
-        <div className="es-sim-col">
-          <h3>Output — effects</h3>
-          {visibleEffects.length === 0 && (
-            <div className="es-empty" style={{ padding: 12 }}>
-              {ordered.length === 0
-                ? 'Geen apparaten gedefinieerd.'
-                : 'Alle effecten zijn bypassed (clean).'}
+        {/* MIDI connector */}
+        <div className="es-sim-connector">
+          <div className="es-sim-cable" />
+          <span className="es-sim-conn-badge">MIDI</span>
+          <div className="es-sim-cable" />
+          <span className="es-sim-conn-arrow">▶</span>
+        </div>
+
+        {/* Brain */}
+        <div className="es-sim-stage">
+          <div className="es-sim-stage-title">Brain</div>
+          <div className="es-brain es-brain--sim">
+            <div><span className="es-brain-led" />{active?.name ?? '—'}</div>
+            <div style={{ color: '#a5f3fc', fontSize: 11, marginTop: 2 }}>
+              PC {active ? active.id + 1 : '—'}
+            </div>
+          </div>
+          <button className="es-sim-log-toggle" onClick={() => setShowLog((v) => !v)}>
+            {showLog ? 'Log ▲' : 'Log ▼'}
+          </button>
+          {showLog && (
+            <div className="es-sim-log">
+              {log.length === 0
+                ? <span style={{ color: '#94a3b8', fontSize: 11 }}>No events yet.</span>
+                : [...log].reverse().map((e, i) => (
+                    <div key={e.t + '_' + i} className="es-sim-log-entry">
+                      {new Date(e.t).toLocaleTimeString()} {e.text}
+                    </div>
+                  ))}
             </div>
           )}
-          <div className="es-sim-compact">
-            {visibleEffects.map((d, i) => (
-              <span key={d.id} style={{ display: 'contents' }}>
-                <div
-                  className="es-sim-pedal"
-                  style={{
-                    opacity: bypassed.has(d.id) ? 0.35 : 1,
-                    filter:  bypassed.has(d.id) ? 'grayscale(0.7)' : 'none',
-                  }}
-                  title={`${d.brand} ${d.model} — relais ${d.relayIndex >= 0 ? d.relayIndex + 1 : '?'}`}
-                >
-                  <div>{catLabel.get(d.categoryId)}</div>
-                  <div style={{ fontWeight: 400, fontSize: 11, marginTop: 2 }}>
-                    {d.brand} {d.model}
-                  </div>
-                </div>
-                {i < visibleEffects.length - 1 && <span style={{ fontSize: 18, color: '#16a34a' }}>▶</span>}
-              </span>
+        </div>
+
+        {/* Relay control connector */}
+        <div className="es-sim-connector">
+          <div className="es-sim-cable" />
+          <span className="es-sim-conn-badge">relay ctrl</span>
+          <div className="es-sim-cable" />
+          <span className="es-sim-conn-arrow">▶</span>
+        </div>
+
+        {/* Relay matrix */}
+        <div className="es-sim-stage">
+          <div className="es-sim-stage-title">Relay Matrix</div>
+          <div className="es-relay-matrix">
+            {Array.from({ length: project.relayCount }, (_, i) => (
+              <div
+                key={i}
+                className={`es-relay-cell${relayState.get(i) === true ? ' closed' : ''}`}
+                title={`R${i + 1}: ${
+                  !relayState.has(i)
+                    ? 'unassigned'
+                    : relayState.get(i) ? 'closed (active)' : 'open (bypassed)'
+                }`}
+              >
+                {i + 1}
+              </div>
             ))}
           </div>
-          <div style={{ marginTop: 12, fontSize: 12, color: '#4b5563' }}>
-            Relais:&nbsp;
-            <code>{relayBitView(active?.bypassed ?? [], project.devices, project.relayCount)}</code>
-          </div>
         </div>
+
+        {/* Output connector */}
+        <div className="es-sim-connector">
+          <div className="es-sim-cable" />
+          <span className="es-sim-conn-arrow">▶</span>
+        </div>
+
+        {/* Output */}
+        <div className="es-sim-stage es-sim-stage--out">
+          <div className="es-sim-stage-title">Output</div>
+          <div style={{ fontSize: 32, textAlign: 'center', paddingTop: 8 }}>🔊</div>
+        </div>
+
+      </div>
+
+      {/* ── Audio signal path ── */}
+      <div className="es-sim-audio">
+        <div className="es-sim-audio-ep">Guitar IN</div>
+        <div className="es-sim-audio-arrow active">▶</div>
+
+        {ordered.length === 0 && (
+          <div style={{ color: '#6b7280', fontSize: 12, padding: '0 12px', alignSelf: 'center' }}>
+            No effects defined — add them in the Effect-chain tab.
+          </div>
+        )}
+
+        {ordered.map((d, i) => {
+          const isBypassed = bypassed.has(d.id);
+          const next = ordered[i + 1];
+          const arrowActive = !isBypassed && (!next || !bypassed.has(next.id));
+          return (
+            <span key={d.id} style={{ display: 'contents' }}>
+              <div className={`es-sim-pedal-card${isBypassed ? ' bypassed' : ' active'}`}>
+                <div className="es-sim-pedal-relay">
+                  {d.relayIndex >= 0 ? `R${d.relayIndex + 1}` : 'R—'}
+                </div>
+                {d.imageDataUrl
+                  ? <img src={d.imageDataUrl} alt={d.model} className="es-sim-pedal-img" />
+                  : <div className="es-sim-pedal-img-ph">🎛️</div>}
+                <div className="es-sim-pedal-brand">{d.brand}</div>
+                <div className="es-sim-pedal-model">{d.model}</div>
+                <div className="es-sim-pedal-cat">{catLabel.get(d.categoryId)}</div>
+              </div>
+              {i < ordered.length - 1 && (
+                <div className={`es-sim-audio-arrow${arrowActive ? ' active' : ''}`}>▶</div>
+              )}
+            </span>
+          );
+        })}
+
+        {ordered.length > 0 && (
+          <div className={`es-sim-audio-arrow${
+            !bypassed.has(ordered[ordered.length - 1]!.id) ? ' active' : ''
+          }`}>▶</div>
+        )}
+        <div className="es-sim-audio-ep">Guitar OUT</div>
       </div>
     </section>
   );
 }
 
-function relayBitView(
-  bypassed: string[],
-  devices: { id: string; relayIndex: number }[],
-  relayCount: number,
-): string {
-  const bp = new Set(bypassed);
-  const bits: string[] = [];
-  for (let i = 0; i < relayCount; i += 1) {
-    const dev = devices.find((d) => d.relayIndex === i);
-    if (!dev) { bits.push('.'); continue; }
-    bits.push(bp.has(dev.id) ? '0' : '1');
-  }
-  return bits.join('');
-}

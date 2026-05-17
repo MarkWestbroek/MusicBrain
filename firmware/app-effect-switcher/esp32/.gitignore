@@ -1,0 +1,9 @@
+# Local PlatformIO build artefacts
+.pio/
+.pioenvs/
+.piolibdeps/
+.vscode/
+.idea/
+
+# Per-developer secrets
+src/secrets.h

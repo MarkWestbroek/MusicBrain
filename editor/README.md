@@ -41,6 +41,10 @@ Tabs:
 
 ```ts
 SwitcherProject {
+  version: 1;                    // schema versie (intern, hoort bij deze editor-build)
+  name?: string;                 // vrije naam van het project (bv. "Stage-rig 2026")
+  description?: string;          // korte memory-aid, bv. "Live bezetting incl. octaver"
+  configVersion?: string;        // door jou bijgehouden, bv. "1.2.3" — handig voor changelog/backup
   relayCount: number;            // 1..32, default 16
   categories: { id, label }[];
   devices:    { id, brand, model, categoryId, relayIndex, x, y, imageDataUrl? }[];
@@ -53,6 +57,23 @@ SwitcherProject {
 We slaan `bypassed` op (niet `active`) zodat een nieuw toegevoegd apparaat
 automatisch aan staat in alle bestaande patches.
 
+> ⚠️ Let op het verschil tussen **`version`** (de schema-versie van het
+> bestandsformaat, vast op `1`) en **`configVersion`** (door jou zelf
+> bijgehouden, bv. semver). De ESP32-firmware weigert een import met
+> `version != 1`; `configVersion` is puur informatief.
+
+### Project-bar (header)
+
+Bovenin staat de project-balk. Klik op een veld om te bewerken:
+
+- **Naam** (vet) — vrije label, ook gebruikt in de default exportnaam.
+- **Version-chip** (`v1.2.3`) — `configVersion`. Bump zelf bij elke release.
+- **Description** — eenregelige omschrijving (max 120 tekens).
+- **Stats** — `{n} effects · {p} patches · {r} relays`.
+- **Taal-dropdown** — EN/NL, persistent in `localStorage`. Voegt vertaling toe via [`src/i18n.ts`](src/i18n.ts) (zero-dep, eenvoudig uit te breiden).
+- **Export JSON** — vraagt om bestandsnaam (default `musicbrain-{naam}-v{ver}-{datum}.json`).
+- **Import JSON** — vervangt huidige project; valideert `version === 1`.
+
 ### Plaatje uploaden
 
 Op de Chain-tab: selecteer een apparaat → rechts paneel → **Uploaden**. Het plaatje wordt als base64 data-URL in localStorage opgeslagen (geen server-roundtrip). Houd plaatjes klein (<100 KB) om de quota niet te overschrijden.
@@ -62,7 +83,9 @@ Op de Chain-tab: selecteer een apparaat → rechts paneel → **Uploaden**. Het 
 - Plaatje ophalen van internet via merk+model lookup
 - MIDI-out per patch (CC-berichten meesturen om bv. echo-tijd te zetten)
 - Bank-systeem voor >128 patches
-- Sync met firmware via WebSerial (Stage 7)
+- Sync met firmware via WebSerial / HTTP (Stage 7) — zie ook
+  [`firmware/app-effect-switcher/esp32/`](../firmware/app-effect-switcher/esp32/README.md)
+  voor de ESP32-doelhardware met REST-API.
 
 ## Connecting to a device
 
@@ -72,3 +95,4 @@ Two transports, both will speak the same JSON-RPC schema (`doc/protocols/schemas
 |---|---|---|
 | **WebSerial** (USB-CDC) | All projects, no extra hardware | Browser API; works in Chromium-based browsers. |
 | **WebSocket** (via ESP32 side car) | Project 3 on stage / from tablet | mDNS-discovered `musicbrain.local`. |
+| **Plain HTTP/REST** (ESP32 effect-switcher) | Project 1 op stage / vanaf tablet | mDNS `musicbrain.local`, eindpunten `GET/PUT /api/config`, `POST /api/patch/<id>`. Zie [esp32/README.md](../firmware/app-effect-switcher/esp32/README.md). |

@@ -3,6 +3,7 @@ import {
   Background,
   Controls,
   Handle,
+  MarkerType,
   Position,
   ReactFlow,
   ReactFlowProvider,
@@ -29,6 +30,7 @@ import {
   updateDevice,
 } from './actions';
 import { useProject } from './store';
+import { t } from '../i18n';
 import type { EffectDevice } from './types';
 
 // ─── Custom node components ────────────────────────────────────────────────
@@ -116,6 +118,15 @@ async function searchWikipediaImage(brand: string, model: string): Promise<strin
 function ChainPanelInner(): JSX.Element {
   const project = useProject();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedNodeIds, setSelectedNodeIds] = useState<ReadonlySet<string>>(() => new Set<string>());
+  const [selectedEdgeIds, setSelectedEdgeIds] = useState<ReadonlySet<string>>(() => new Set<string>());
+  const [epPos, setEpPos] = useState<{
+    input: { x: number; y: number };
+    output: { x: number; y: number };
+  }>(() => ({
+    input:  { x: -40, y: 200 },
+    output: { x: Math.max(1200, 80 + 3 * 220 + 80), y: 200 },
+  }));
   const [searching, setSearching] = useState(false);
   const [pasteUrl, setPasteUrl] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
@@ -127,21 +138,14 @@ function ChainPanelInner(): JSX.Element {
       {
         id: 'input',
         type: 'endpoint',
-        position: { x: -40, y: 200 },
+        position: epPos.input,
         data: { label: 'IN' },
-        draggable: false,
-        selectable: false,
       },
       {
         id: 'output',
         type: 'endpoint',
-        position: {
-          x: Math.max(1200, 80 + project.devices.length * 220 + 80),
-          y: 200,
-        },
+        position: epPos.output,
         data: { label: 'OUT' },
-        draggable: false,
-        selectable: false,
       },
     ];
     const catLabel = new Map(project.categories.map((c) => [c.id, c.label] as const));
@@ -150,6 +154,7 @@ function ChainPanelInner(): JSX.Element {
         id: d.id,
         type: 'device',
         position: { x: d.x, y: d.y },
+        selected: selectedNodeIds.has(d.id),
         data: {
           device: d,
           categoryLabel: catLabel.get(d.categoryId) ?? d.categoryId,
@@ -158,38 +163,64 @@ function ChainPanelInner(): JSX.Element {
       });
     }
     return result;
-  }, [project.devices, project.categories, onSelect]);
+  }, [project.devices, project.categories, onSelect, selectedNodeIds, epPos]);
 
   const edges: Edge[] = useMemo(
     () => project.edges.map((e) => ({
       id: e.id,
       source: e.source,
       target: e.target,
+      selected: selectedEdgeIds.has(e.id),
       reconnectable: true,
-      style: { stroke: '#374151', strokeWidth: 3 },
+      markerEnd: {
+        type: MarkerType.ArrowClosed, width: 12, height: 12,
+        color: selectedEdgeIds.has(e.id) ? '#2563eb' : '#374151',
+      },
+      style: {
+        stroke: selectedEdgeIds.has(e.id) ? '#2563eb' : '#374151',
+        strokeWidth: selectedEdgeIds.has(e.id) ? 3 : 1.5,
+      },
     })),
-    [project.edges],
+    [project.edges, selectedEdgeIds],
   );
 
   const onNodesChange = useCallback((changes: NodeChange[]) => {
-    // Apply locally to compute positions, persist on drag-stop
     for (const ch of changes) {
-      if (ch.type === 'position' && ch.position && !ch.dragging) {
-        moveDevice(ch.id, Math.round(ch.position.x), Math.round(ch.position.y));
+      if (ch.type === 'position' && ch.position) {
+        if (ch.id === 'input' || ch.id === 'output') {
+          if (!ch.dragging) {
+            const key = ch.id as 'input' | 'output';
+            setEpPos((prev) => ({ ...prev, [key]: ch.position! }));
+          }
+        } else if (!ch.dragging) {
+          moveDevice(ch.id, Math.round(ch.position.x), Math.round(ch.position.y));
+        }
       }
       if (ch.type === 'remove' && ch.id !== 'input' && ch.id !== 'output') {
         removeDevice(ch.id);
       }
+      if (ch.type === 'select') {
+        setSelectedNodeIds((prev) => {
+          const next = new Set(prev);
+          if (ch.selected) { next.add(ch.id); setSelectedId(ch.id); }
+          else next.delete(ch.id);
+          return next;
+        });
+      }
     }
-    // For visual smoothness during drag, applyNodeChanges is needed only when
-    // React Flow controls node state. Since we recompute nodes every render
-    // from project state, ignore intermediate non-final position changes.
     void applyNodeChanges;
   }, []);
 
   const onEdgesChange = useCallback((changes: EdgeChange[]) => {
     for (const ch of changes) {
       if (ch.type === 'remove') removeChainEdge(ch.id);
+      if (ch.type === 'select') {
+        setSelectedEdgeIds((prev) => {
+          const next = new Set(prev);
+          if (ch.selected) next.add(ch.id); else next.delete(ch.id);
+          return next;
+        });
+      }
     }
   }, []);
 
@@ -203,6 +234,51 @@ function ChainPanelInner(): JSX.Element {
       addChainEdge(newConnection.source, newConnection.target);
     }
   }, []);
+
+  // ─── Alignment context menu ─────────────────────────────────────────────
+
+  const selectedDeviceIds = useMemo(
+    () => [...selectedNodeIds].filter((id) => id !== 'input' && id !== 'output'),
+    [selectedNodeIds],
+  );
+
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+
+  function handleContextMenu(e: React.MouseEvent): void {
+    if (selectedDeviceIds.length < 2) { setContextMenu(null); return; }
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  }
+
+  function alignNodes(axis: 'x' | 'y', method: 'min' | 'max' | 'avg'): void {
+    const positions = selectedDeviceIds.map((id) => {
+      const d = project.devices.find((dev) => dev.id === id)!;
+      return { id, x: d.x, y: d.y };
+    });
+    const vals = positions.map((p) => p[axis]);
+    const target = method === 'min' ? Math.min(...vals)
+      : method === 'max' ? Math.max(...vals)
+      : Math.round(vals.reduce((s, v) => s + v, 0) / vals.length);
+    for (const p of positions) {
+      moveDevice(p.id, axis === 'x' ? target : p.x, axis === 'y' ? target : p.y);
+    }
+    setContextMenu(null);
+  }
+
+  function distributeNodes(axis: 'x' | 'y'): void {
+    if (selectedDeviceIds.length < 3) return;
+    const positions = selectedDeviceIds
+      .map((id) => { const d = project.devices.find((dev) => dev.id === id)!; return { id, x: d.x, y: d.y }; })
+      .sort((a, b) => a[axis] - b[axis]);
+    const first = positions[0]![axis];
+    const last = positions[positions.length - 1]![axis];
+    const step = (last - first) / (positions.length - 1);
+    positions.forEach((p, i) => {
+      const val = Math.round(first + i * step);
+      moveDevice(p.id, axis === 'x' ? val : p.x, axis === 'y' ? val : p.y);
+    });
+    setContextMenu(null);
+  }
 
   const selected = project.devices.find((d) => d.id === selectedId) ?? null;
 
@@ -240,14 +316,59 @@ function ChainPanelInner(): JSX.Element {
   }
 
   return (
-    <section>
+    <section onContextMenu={handleContextMenu} onClick={() => setContextMenu(null)}>
+      {/* Context menu overlay — click outside to close */}
+      {contextMenu && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 999 }}
+          onClick={() => setContextMenu(null)}
+          onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }}
+        />
+      )}
+      {contextMenu && selectedDeviceIds.length >= 2 && (
+        <div
+          style={{
+            position: 'fixed', left: contextMenu.x, top: contextMenu.y,
+            zIndex: 1000, background: 'white', border: '1px solid #d1d5db',
+            borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+            minWidth: 210, padding: '6px 0', fontSize: 14,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div style={{ padding: '6px 14px 8px', fontSize: 11, color: '#6b7280', fontWeight: 700, textTransform: 'uppercase', borderBottom: '1px solid #f3f4f6', letterSpacing: '0.04em' }}>
+            {t('align.title', { n: selectedDeviceIds.length })}
+          </div>
+          {([
+            { icon: '⬒', label: t('align.top'),    fn: () => alignNodes('y', 'min') },
+            { icon: '⬓', label: t('align.middle'), fn: () => alignNodes('y', 'avg') },
+            { icon: '⬓', label: t('align.bottom'), fn: () => alignNodes('y', 'max') },
+            null,
+            { icon: '◧', label: t('align.left'),   fn: () => alignNodes('x', 'min') },
+            { icon: '◫', label: t('align.center'), fn: () => alignNodes('x', 'avg') },
+            { icon: '◨', label: t('align.right'),  fn: () => alignNodes('x', 'max') },
+            null,
+            { icon: '↔', label: t('align.distH'),  fn: () => distributeNodes('x') },
+            { icon: '↕', label: t('align.distV'),  fn: () => distributeNodes('y') },
+          ] as const).map((item, i) =>
+            item === null
+              ? <hr key={i} style={{ margin: '4px 0', border: 'none', borderTop: '1px solid #f3f4f6' }} />
+              : <button
+                  key={item.label}
+                  onClick={item.fn}
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left', padding: '7px 16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#1f2937' }}
+                  onMouseEnter={(e) => { (e.currentTarget).style.background = '#eff6ff'; }}
+                  onMouseLeave={(e) => { (e.currentTarget).style.background = 'none'; }}
+                ><span style={{ fontSize: 16, width: 18, display: 'inline-block', textAlign: 'center', color: '#6b7280' }}>{item.icon}</span>{item.label}</button>
+          )}
+        </div>
+      )}
       <div className="es-toolbar">
-        <button className="primary" onClick={() => addDevice({})}>+ Effect</button>
-        <button onClick={autoAssignRelays} title="Topologische volgorde → relais 1..n">
-          Auto-assign relais
+        <button className="primary" onClick={() => addDevice({})}>{t('chain.addEffect')}</button>
+        <button onClick={autoAssignRelays} title="Topological order → relay 1..n">
+          {t('chain.autoAssign')}
         </button>
         <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          Relais:
+          {t('chain.relays')}
           <input
             type="number"
             min={1}
@@ -258,7 +379,7 @@ function ChainPanelInner(): JSX.Element {
           />
         </label>
         <span style={{ color: '#6b7280', fontSize: 12 }}>
-          Sleep tussen handles om signaalpad te tekenen. Klik op een node om te bewerken.
+          {t('chain.hint')}
         </span>
       </div>
 
@@ -283,17 +404,17 @@ function ChainPanelInner(): JSX.Element {
 
         <aside style={{ border: '1px solid #cbd2d9', borderRadius: 6, padding: 12, background: 'white' }}>
           <h3 style={{ marginTop: 0, fontSize: 13, textTransform: 'uppercase', color: '#6b7280' }}>
-            Eigenschappen
+            Properties
           </h3>
           {!selected && (
             <p style={{ color: '#6b7280', fontSize: 13 }}>
-              Klik op een apparaat om eigenschappen te bewerken.
+              Click a device to edit its properties.
             </p>
           )}
           {selected && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <label style={{ fontSize: 12 }}>
-                Merk
+                Brand
                 <input
                   type="text"
                   value={selected.brand}
@@ -311,7 +432,7 @@ function ChainPanelInner(): JSX.Element {
                 />
               </label>
               <label style={{ fontSize: 12 }}>
-                Categorie
+                Category
                 <select
                   value={selected.categoryId}
                   onChange={(e) => updateDevice(selected.id, { categoryId: e.target.value })}
@@ -323,7 +444,7 @@ function ChainPanelInner(): JSX.Element {
                 </select>
               </label>
               <label style={{ fontSize: 12 }}>
-                Relais (1..{project.relayCount}; 0 = niet toegekend)
+                Relay (1..{project.relayCount}; 0 = unassigned)
                 <input
                   type="number"
                   min={0}
@@ -347,14 +468,14 @@ function ChainPanelInner(): JSX.Element {
                 )}
                 <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
                   <button onClick={() => fileRef.current?.click()}>
-                    {selected.imageDataUrl ? 'Vervangen' : 'Uploaden'}
+                    {selected.imageDataUrl ? 'Replace' : 'Upload'}
                   </button>
                   <button
                     onClick={() => { void onAutoSearch(); }}
                     disabled={searching || !selected.brand || !selected.model}
-                    title="Zoek plaatje op Wikipedia. Als niet gevonden, opent Google Afbeeldingen."
+                    title="Search Wikipedia for image. Falls back to Google Images."
                   >
-                    {searching ? 'Zoeken…' : '🔍 Auto-zoek'}
+                    {searching ? 'Searching…' : '🔍 Auto-search'}
                   </button>
                   {selected.imageDataUrl && (
                     <button
@@ -368,7 +489,7 @@ function ChainPanelInner(): JSX.Element {
                 <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
                   <input
                     type="url"
-                    placeholder="Plak afbeelding-URL…"
+                    placeholder="Paste image URL…"
                     value={pasteUrl}
                     onChange={(e) => setPasteUrl(e.target.value)}
                     style={{ flex: 1, fontSize: 11, padding: '3px 6px' }}
@@ -385,9 +506,9 @@ function ChainPanelInner(): JSX.Element {
               </div>
               <button
                 className="danger"
-                onClick={() => { removeDevice(selected.id); setSelectedId(null); }}
+                onClick={() => { removeDevice(selected.id); setSelectedId(null); setSelectedNodeIds(new Set()); }}
               >
-                Verwijder apparaat
+                Delete device
               </button>
             </div>
           )}

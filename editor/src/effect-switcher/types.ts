@@ -37,7 +37,10 @@ export interface SwitcherPatch {
 }
 
 export interface SwitcherProject {
-  version: 1;
+  version: 1;                // schema version (do NOT confuse with configVersion)
+  name?: string;             // free-form project label
+  description?: string;      // multi-line memory aid for the musician
+  configVersion?: string;    // user-managed semver-ish, e.g. '1.2.3'
   relayCount: number;       // 16 standard, max 32
   categories: EffectCategory[];
   devices: EffectDevice[];

@@ -51,7 +51,16 @@ export function addDevice(partial) {
             x: partial.x ?? 80 + p.devices.length * 220,
             y: partial.y ?? 160,
         };
-        return { ...p, devices: [...p.devices, created] };
+        return {
+            ...p,
+            devices: [...p.devices, created],
+            // Bypass the new device in ALL existing patches so pre-existing patches
+            // are not silently altered. The user must explicitly enable it per patch.
+            patches: p.patches.map((pa) => ({
+                ...pa,
+                bypassed: [...pa.bypassed, created.id],
+            })),
+        };
     });
     return created;
 }
@@ -172,6 +181,20 @@ export function devicesInFlowOrder(p) {
         if (!ordered.includes(d))
             ordered.push(d);
     return ordered;
+}
+// ─── Patches ───────────────────────────────────────────────────────────────
+// ─── Project-level ────────────────────────────────────────────────────────
+export function loadProject(p) {
+    projectStore.set(() => p);
+}
+export function setProjectName(name) {
+    projectStore.set((p) => ({ ...p, name: name.trim() || undefined }));
+}
+export function setProjectDescription(description) {
+    projectStore.set((p) => ({ ...p, description: description.trim() || undefined }));
+}
+export function setProjectConfigVersion(version) {
+    projectStore.set((p) => ({ ...p, configVersion: version.trim() || undefined }));
 }
 // ─── Patches ───────────────────────────────────────────────────────────────
 export function addPatch(name) {
