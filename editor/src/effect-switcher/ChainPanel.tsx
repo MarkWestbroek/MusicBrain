@@ -14,6 +14,7 @@ import {
   type NodeChange,
   type NodeProps,
   type NodeTypes,
+  type OnReconnect,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
@@ -55,20 +56,22 @@ type DeviceNodeData = {
   onSelect: (id: string) => void;
 };
 
-function DeviceNode({ data }: NodeProps): JSX.Element {
+function DeviceNode({ data, selected }: NodeProps): JSX.Element {
   const d = data as DeviceNodeData;
+  const relayLabel = d.device.relayIndex < 0 ? 'R—' : `R${d.device.relayIndex + 1}`;
   return (
-    <div className="es-node" onClick={() => d.onSelect(d.device.id)}>
+    <div
+      className={`es-node${selected ? ' es-node-selected' : ''}`}
+      onClick={() => d.onSelect(d.device.id)}
+    >
       <Handle type="target" position={Position.Left} />
+      <div className="es-node-relay">{relayLabel}</div>
       {d.device.imageDataUrl
         ? <img src={d.device.imageDataUrl} alt={d.device.model} className="es-node-img" />
         : <div className="es-node-img-placeholder">🎛️</div>}
       <div className="es-node-brand">{d.device.brand}</div>
       <div className="es-node-model">{d.device.model}</div>
-      <div className="es-node-meta">
-        {d.categoryLabel} · relais&nbsp;
-        {d.device.relayIndex < 0 ? '—' : d.device.relayIndex}
-      </div>
+      <div className="es-node-meta">{d.categoryLabel}</div>
       <Handle type="source" position={Position.Right} />
     </div>
   );
@@ -81,9 +84,40 @@ const nodeTypes: NodeTypes = {
 
 // ─── Main editor ───────────────────────────────────────────────────────────
 
+// ─── Auto image search via Wikipedia ─────────────────────────────────────
+async function searchWikipediaImage(brand: string, model: string): Promise<string | null> {
+  const query = `${brand} ${model}`;
+  try {
+    const res = await fetch(
+      `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`,
+      { headers: { Accept: 'application/json' } },
+    );
+    if (!res.ok) return null;
+    const data = await res.json() as Record<string, unknown>;
+    const thumb = data['thumbnail'] as Record<string, string> | undefined;
+    const imgUrl = thumb?.['source'];
+    if (!imgUrl) return null;
+    const imgRes = await fetch(imgUrl);
+    if (!imgRes.ok) return null;
+    const blob = await imgRes.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+// ─── Main editor ───────────────────────────────────────────────────────────
+
 function ChainPanelInner(): JSX.Element {
   const project = useProject();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [pasteUrl, setPasteUrl] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
   const onSelect = useCallback((id: string) => setSelectedId(id), []);
@@ -131,8 +165,8 @@ function ChainPanelInner(): JSX.Element {
       id: e.id,
       source: e.source,
       target: e.target,
-      animated: true,
-      style: { stroke: '#2563eb', strokeWidth: 2 },
+      reconnectable: true,
+      style: { stroke: '#374151', strokeWidth: 3 },
     })),
     [project.edges],
   );
@@ -163,7 +197,35 @@ function ChainPanelInner(): JSX.Element {
     if (c.source && c.target) addChainEdge(c.source, c.target);
   }, []);
 
+  const onReconnect = useCallback<OnReconnect>((oldEdge, newConnection) => {
+    removeChainEdge(oldEdge.id);
+    if (newConnection.source && newConnection.target) {
+      addChainEdge(newConnection.source, newConnection.target);
+    }
+  }, []);
+
   const selected = project.devices.find((d) => d.id === selectedId) ?? null;
+
+  async function onAutoSearch(): Promise<void> {
+    if (!selected) return;
+    setSearching(true);
+    const dataUrl = await searchWikipediaImage(selected.brand, selected.model);
+    setSearching(false);
+    if (dataUrl) {
+      updateDevice(selected.id, { imageDataUrl: dataUrl });
+    } else {
+      window.open(
+        `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(`${selected.brand} ${selected.model} guitar pedal`)}`,
+        '_blank',
+      );
+    }
+  }
+
+  function onPasteUrl(): void {
+    if (!selected || !pasteUrl.trim()) return;
+    updateDevice(selected.id, { imageDataUrl: pasteUrl.trim() });
+    setPasteUrl('');
+  }
 
   function onImageChange(e: React.ChangeEvent<HTMLInputElement>): void {
     const file = e.target.files?.[0];
@@ -181,7 +243,7 @@ function ChainPanelInner(): JSX.Element {
     <section>
       <div className="es-toolbar">
         <button className="primary" onClick={() => addDevice({})}>+ Effect</button>
-        <button onClick={autoAssignRelays} title="Topologische volgorde → relais 0..n">
+        <button onClick={autoAssignRelays} title="Topologische volgorde → relais 1..n">
           Auto-assign relais
         </button>
         <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -209,6 +271,8 @@ function ChainPanelInner(): JSX.Element {
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
+            onReconnect={onReconnect}
+            deleteKeyCode="Delete"
             fitView
             proOptions={{ hideAttribution: true }}
           >
@@ -259,18 +323,16 @@ function ChainPanelInner(): JSX.Element {
                 </select>
               </label>
               <label style={{ fontSize: 12 }}>
-                Relais-index (0..{project.relayCount - 1}; -1 = niet toegekend)
+                Relais (1..{project.relayCount}; 0 = niet toegekend)
                 <input
                   type="number"
-                  min={-1}
-                  max={project.relayCount - 1}
-                  value={selected.relayIndex}
-                  onChange={(e) =>
-                    updateDevice(selected.id, {
-                      relayIndex: Math.max(-1, Math.min(project.relayCount - 1,
-                        parseInt(e.target.value, 10) || -1)),
-                    })
-                  }
+                  min={0}
+                  max={project.relayCount}
+                  value={selected.relayIndex < 0 ? 0 : selected.relayIndex + 1}
+                  onChange={(e) => {
+                    const v = parseInt(e.target.value, 10) || 0;
+                    updateDevice(selected.id, { relayIndex: v <= 0 ? -1 : v - 1 });
+                  }}
                   style={{ width: '100%' }}
                 />
               </label>
@@ -280,20 +342,39 @@ function ChainPanelInner(): JSX.Element {
                   <img
                     src={selected.imageDataUrl}
                     alt=""
-                    style={{ width: '100%', maxHeight: 100, objectFit: 'contain', display: 'block', margin: '4px 0' }}
+                    style={{ width: '100%', maxHeight: 120, objectFit: 'contain', display: 'block', margin: '4px 0', background: '#f5f7fa', borderRadius: 4 }}
                   />
                 )}
-                <button onClick={() => fileRef.current?.click()} style={{ marginRight: 4 }}>
-                  {selected.imageDataUrl ? 'Vervangen' : 'Uploaden'}
-                </button>
-                {selected.imageDataUrl && (
-                  <button
-                    className="danger"
-                    onClick={() => updateDevice(selected.id, { imageDataUrl: undefined })}
-                  >
-                    Verwijderen
+                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
+                  <button onClick={() => fileRef.current?.click()}>
+                    {selected.imageDataUrl ? 'Vervangen' : 'Uploaden'}
                   </button>
-                )}
+                  <button
+                    onClick={() => { void onAutoSearch(); }}
+                    disabled={searching || !selected.brand || !selected.model}
+                    title="Zoek plaatje op Wikipedia. Als niet gevonden, opent Google Afbeeldingen."
+                  >
+                    {searching ? 'Zoeken…' : '🔍 Auto-zoek'}
+                  </button>
+                  {selected.imageDataUrl && (
+                    <button
+                      className="danger"
+                      onClick={() => updateDevice(selected.id, { imageDataUrl: undefined })}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+                <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
+                  <input
+                    type="url"
+                    placeholder="Plak afbeelding-URL…"
+                    value={pasteUrl}
+                    onChange={(e) => setPasteUrl(e.target.value)}
+                    style={{ flex: 1, fontSize: 11, padding: '3px 6px' }}
+                  />
+                  <button onClick={onPasteUrl} disabled={!pasteUrl.trim()}>OK</button>
+                </div>
                 <input
                   ref={fileRef}
                   type="file"

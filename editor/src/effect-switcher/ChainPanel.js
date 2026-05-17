@@ -9,20 +9,51 @@ function EndpointNode({ data }) {
     const isInput = d.label === 'IN';
     return (_jsxs("div", { className: "es-node-endpoint", children: [d.label, isInput ? (_jsx(Handle, { type: "source", position: Position.Right })) : (_jsx(Handle, { type: "target", position: Position.Left }))] }));
 }
-function DeviceNode({ data }) {
+function DeviceNode({ data, selected }) {
     const d = data;
-    return (_jsxs("div", { className: "es-node", onClick: () => d.onSelect(d.device.id), children: [_jsx(Handle, { type: "target", position: Position.Left }), d.device.imageDataUrl
+    const relayLabel = d.device.relayIndex < 0 ? 'R—' : `R${d.device.relayIndex + 1}`;
+    return (_jsxs("div", { className: `es-node${selected ? ' es-node-selected' : ''}`, onClick: () => d.onSelect(d.device.id), children: [_jsx(Handle, { type: "target", position: Position.Left }), _jsx("div", { className: "es-node-relay", children: relayLabel }), d.device.imageDataUrl
                 ? _jsx("img", { src: d.device.imageDataUrl, alt: d.device.model, className: "es-node-img" })
-                : _jsx("div", { className: "es-node-img-placeholder", children: "\uD83C\uDF9B\uFE0F" }), _jsx("div", { className: "es-node-brand", children: d.device.brand }), _jsx("div", { className: "es-node-model", children: d.device.model }), _jsxs("div", { className: "es-node-meta", children: [d.categoryLabel, " \u00B7 relais\u00A0", d.device.relayIndex < 0 ? '—' : d.device.relayIndex] }), _jsx(Handle, { type: "source", position: Position.Right })] }));
+                : _jsx("div", { className: "es-node-img-placeholder", children: "\uD83C\uDF9B\uFE0F" }), _jsx("div", { className: "es-node-brand", children: d.device.brand }), _jsx("div", { className: "es-node-model", children: d.device.model }), _jsx("div", { className: "es-node-meta", children: d.categoryLabel }), _jsx(Handle, { type: "source", position: Position.Right })] }));
 }
 const nodeTypes = {
     endpoint: EndpointNode,
     device: DeviceNode,
 };
 // ─── Main editor ───────────────────────────────────────────────────────────
+// ─── Auto image search via Wikipedia ─────────────────────────────────────
+async function searchWikipediaImage(brand, model) {
+    const query = `${brand} ${model}`;
+    try {
+        const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`, { headers: { Accept: 'application/json' } });
+        if (!res.ok)
+            return null;
+        const data = await res.json();
+        const thumb = data['thumbnail'];
+        const imgUrl = thumb?.['source'];
+        if (!imgUrl)
+            return null;
+        const imgRes = await fetch(imgUrl);
+        if (!imgRes.ok)
+            return null;
+        const blob = await imgRes.blob();
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => resolve(null);
+            reader.readAsDataURL(blob);
+        });
+    }
+    catch {
+        return null;
+    }
+}
+// ─── Main editor ───────────────────────────────────────────────────────────
 function ChainPanelInner() {
     const project = useProject();
     const [selectedId, setSelectedId] = useState(null);
+    const [searching, setSearching] = useState(false);
+    const [pasteUrl, setPasteUrl] = useState('');
     const fileRef = useRef(null);
     const onSelect = useCallback((id) => setSelectedId(id), []);
     const nodes = useMemo(() => {
@@ -66,8 +97,8 @@ function ChainPanelInner() {
         id: e.id,
         source: e.source,
         target: e.target,
-        animated: true,
-        style: { stroke: '#2563eb', strokeWidth: 2 },
+        reconnectable: true,
+        style: { stroke: '#374151', strokeWidth: 3 },
     })), [project.edges]);
     const onNodesChange = useCallback((changes) => {
         // Apply locally to compute positions, persist on drag-stop
@@ -94,7 +125,32 @@ function ChainPanelInner() {
         if (c.source && c.target)
             addChainEdge(c.source, c.target);
     }, []);
+    const onReconnect = useCallback((oldEdge, newConnection) => {
+        removeChainEdge(oldEdge.id);
+        if (newConnection.source && newConnection.target) {
+            addChainEdge(newConnection.source, newConnection.target);
+        }
+    }, []);
     const selected = project.devices.find((d) => d.id === selectedId) ?? null;
+    async function onAutoSearch() {
+        if (!selected)
+            return;
+        setSearching(true);
+        const dataUrl = await searchWikipediaImage(selected.brand, selected.model);
+        setSearching(false);
+        if (dataUrl) {
+            updateDevice(selected.id, { imageDataUrl: dataUrl });
+        }
+        else {
+            window.open(`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(`${selected.brand} ${selected.model} guitar pedal`)}`, '_blank');
+        }
+    }
+    function onPasteUrl() {
+        if (!selected || !pasteUrl.trim())
+            return;
+        updateDevice(selected.id, { imageDataUrl: pasteUrl.trim() });
+        setPasteUrl('');
+    }
     function onImageChange(e) {
         const file = e.target.files?.[0];
         if (!file || !selected)
@@ -108,9 +164,10 @@ function ChainPanelInner() {
         reader.readAsDataURL(file);
         e.target.value = '';
     }
-    return (_jsxs("section", { children: [_jsxs("div", { className: "es-toolbar", children: [_jsx("button", { className: "primary", onClick: () => addDevice({}), children: "+ Effect" }), _jsx("button", { onClick: autoAssignRelays, title: "Topologische volgorde \u2192 relais 0..n", children: "Auto-assign relais" }), _jsxs("label", { style: { display: 'flex', alignItems: 'center', gap: 4 }, children: ["Relais:", _jsx("input", { type: "number", min: 1, max: 32, value: project.relayCount, onChange: (e) => setRelayCount(parseInt(e.target.value, 10) || 16), style: { width: 60 } })] }), _jsx("span", { style: { color: '#6b7280', fontSize: 12 }, children: "Sleep tussen handles om signaalpad te tekenen. Klik op een node om te bewerken." })] }), _jsxs("div", { style: { display: 'grid', gridTemplateColumns: '1fr 280px', gap: 12 }, children: [_jsx("div", { className: "es-chain", children: _jsxs(ReactFlow, { nodes: nodes, edges: edges, nodeTypes: nodeTypes, onNodesChange: onNodesChange, onEdgesChange: onEdgesChange, onConnect: onConnect, fitView: true, proOptions: { hideAttribution: true }, children: [_jsx(Background, { gap: 20 }), _jsx(Controls, { showInteractive: false })] }) }), _jsxs("aside", { style: { border: '1px solid #cbd2d9', borderRadius: 6, padding: 12, background: 'white' }, children: [_jsx("h3", { style: { marginTop: 0, fontSize: 13, textTransform: 'uppercase', color: '#6b7280' }, children: "Eigenschappen" }), !selected && (_jsx("p", { style: { color: '#6b7280', fontSize: 13 }, children: "Klik op een apparaat om eigenschappen te bewerken." })), selected && (_jsxs("div", { style: { display: 'flex', flexDirection: 'column', gap: 8 }, children: [_jsxs("label", { style: { fontSize: 12 }, children: ["Merk", _jsx("input", { type: "text", value: selected.brand, onChange: (e) => updateDevice(selected.id, { brand: e.target.value }), style: { width: '100%' } })] }), _jsxs("label", { style: { fontSize: 12 }, children: ["Model", _jsx("input", { type: "text", value: selected.model, onChange: (e) => updateDevice(selected.id, { model: e.target.value }), style: { width: '100%' } })] }), _jsxs("label", { style: { fontSize: 12 }, children: ["Categorie", _jsx("select", { value: selected.categoryId, onChange: (e) => updateDevice(selected.id, { categoryId: e.target.value }), style: { width: '100%' }, children: project.categories.map((c) => (_jsx("option", { value: c.id, children: c.label }, c.id))) })] }), _jsxs("label", { style: { fontSize: 12 }, children: ["Relais-index (0..", project.relayCount - 1, "; -1 = niet toegekend)", _jsx("input", { type: "number", min: -1, max: project.relayCount - 1, value: selected.relayIndex, onChange: (e) => updateDevice(selected.id, {
-                                                    relayIndex: Math.max(-1, Math.min(project.relayCount - 1, parseInt(e.target.value, 10) || -1)),
-                                                }), style: { width: '100%' } })] }), _jsxs("div", { style: { fontSize: 12 }, children: ["Plaatje:", selected.imageDataUrl && (_jsx("img", { src: selected.imageDataUrl, alt: "", style: { width: '100%', maxHeight: 100, objectFit: 'contain', display: 'block', margin: '4px 0' } })), _jsx("button", { onClick: () => fileRef.current?.click(), style: { marginRight: 4 }, children: selected.imageDataUrl ? 'Vervangen' : 'Uploaden' }), selected.imageDataUrl && (_jsx("button", { className: "danger", onClick: () => updateDevice(selected.id, { imageDataUrl: undefined }), children: "Verwijderen" })), _jsx("input", { ref: fileRef, type: "file", accept: "image/*", style: { display: 'none' }, onChange: onImageChange })] }), _jsx("button", { className: "danger", onClick: () => { removeDevice(selected.id); setSelectedId(null); }, children: "Verwijder apparaat" })] }))] })] })] }));
+    return (_jsxs("section", { children: [_jsxs("div", { className: "es-toolbar", children: [_jsx("button", { className: "primary", onClick: () => addDevice({}), children: "+ Effect" }), _jsx("button", { onClick: autoAssignRelays, title: "Topologische volgorde \u2192 relais 1..n", children: "Auto-assign relais" }), _jsxs("label", { style: { display: 'flex', alignItems: 'center', gap: 4 }, children: ["Relais:", _jsx("input", { type: "number", min: 1, max: 32, value: project.relayCount, onChange: (e) => setRelayCount(parseInt(e.target.value, 10) || 16), style: { width: 60 } })] }), _jsx("span", { style: { color: '#6b7280', fontSize: 12 }, children: "Sleep tussen handles om signaalpad te tekenen. Klik op een node om te bewerken." })] }), _jsxs("div", { style: { display: 'grid', gridTemplateColumns: '1fr 280px', gap: 12 }, children: [_jsx("div", { className: "es-chain", children: _jsxs(ReactFlow, { nodes: nodes, edges: edges, nodeTypes: nodeTypes, onNodesChange: onNodesChange, onEdgesChange: onEdgesChange, onConnect: onConnect, onReconnect: onReconnect, deleteKeyCode: "Delete", fitView: true, proOptions: { hideAttribution: true }, children: [_jsx(Background, { gap: 20 }), _jsx(Controls, { showInteractive: false })] }) }), _jsxs("aside", { style: { border: '1px solid #cbd2d9', borderRadius: 6, padding: 12, background: 'white' }, children: [_jsx("h3", { style: { marginTop: 0, fontSize: 13, textTransform: 'uppercase', color: '#6b7280' }, children: "Eigenschappen" }), !selected && (_jsx("p", { style: { color: '#6b7280', fontSize: 13 }, children: "Klik op een apparaat om eigenschappen te bewerken." })), selected && (_jsxs("div", { style: { display: 'flex', flexDirection: 'column', gap: 8 }, children: [_jsxs("label", { style: { fontSize: 12 }, children: ["Merk", _jsx("input", { type: "text", value: selected.brand, onChange: (e) => updateDevice(selected.id, { brand: e.target.value }), style: { width: '100%' } })] }), _jsxs("label", { style: { fontSize: 12 }, children: ["Model", _jsx("input", { type: "text", value: selected.model, onChange: (e) => updateDevice(selected.id, { model: e.target.value }), style: { width: '100%' } })] }), _jsxs("label", { style: { fontSize: 12 }, children: ["Categorie", _jsx("select", { value: selected.categoryId, onChange: (e) => updateDevice(selected.id, { categoryId: e.target.value }), style: { width: '100%' }, children: project.categories.map((c) => (_jsx("option", { value: c.id, children: c.label }, c.id))) })] }), _jsxs("label", { style: { fontSize: 12 }, children: ["Relais (1..", project.relayCount, "; 0 = niet toegekend)", _jsx("input", { type: "number", min: 0, max: project.relayCount, value: selected.relayIndex < 0 ? 0 : selected.relayIndex + 1, onChange: (e) => {
+                                                    const v = parseInt(e.target.value, 10) || 0;
+                                                    updateDevice(selected.id, { relayIndex: v <= 0 ? -1 : v - 1 });
+                                                }, style: { width: '100%' } })] }), _jsxs("div", { style: { fontSize: 12 }, children: ["Plaatje:", selected.imageDataUrl && (_jsx("img", { src: selected.imageDataUrl, alt: "", style: { width: '100%', maxHeight: 120, objectFit: 'contain', display: 'block', margin: '4px 0', background: '#f5f7fa', borderRadius: 4 } })), _jsxs("div", { style: { display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }, children: [_jsx("button", { onClick: () => fileRef.current?.click(), children: selected.imageDataUrl ? 'Vervangen' : 'Uploaden' }), _jsx("button", { onClick: () => { void onAutoSearch(); }, disabled: searching || !selected.brand || !selected.model, title: "Zoek plaatje op Wikipedia. Als niet gevonden, opent Google Afbeeldingen.", children: searching ? 'Zoeken…' : '🔍 Auto-zoek' }), selected.imageDataUrl && (_jsx("button", { className: "danger", onClick: () => updateDevice(selected.id, { imageDataUrl: undefined }), children: "\u2715" }))] }), _jsxs("div", { style: { display: 'flex', gap: 4, marginTop: 6 }, children: [_jsx("input", { type: "url", placeholder: "Plak afbeelding-URL\u2026", value: pasteUrl, onChange: (e) => setPasteUrl(e.target.value), style: { flex: 1, fontSize: 11, padding: '3px 6px' } }), _jsx("button", { onClick: onPasteUrl, disabled: !pasteUrl.trim(), children: "OK" })] }), _jsx("input", { ref: fileRef, type: "file", accept: "image/*", style: { display: 'none' }, onChange: onImageChange })] }), _jsx("button", { className: "danger", onClick: () => { removeDevice(selected.id); setSelectedId(null); }, children: "Verwijder apparaat" })] }))] })] })] }));
 }
 export function ChainPanel() {
     return (_jsx(ReactFlowProvider, { children: _jsx(ChainPanelInner, {}) }));

@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import {
   addPatch, devicesInFlowOrder, duplicatePatch, removePatch, renamePatch,
   setActivePatch, toggleBypass,
@@ -7,7 +6,6 @@ import { useProject } from './store';
 
 export function PatchesPanel(): JSX.Element {
   const project = useProject();
-  const [editingName, setEditingName] = useState<number | null>(null);
 
   const sortedPatches = [...project.patches].sort((a, b) => a.id - b.id);
   const active = project.patches.find((p) => p.id === project.activePatchId)
@@ -38,35 +36,52 @@ export function PatchesPanel(): JSX.Element {
       </div>
 
       <div className="es-patches-layout">
-        <div className="es-patch-list">
-          {sortedPatches.map((p) => (
-            <div
-              key={p.id}
-              className="es-patch-row"
-              aria-selected={p.id === active?.id}
-              onClick={() => setActivePatch(p.id)}
-              onDoubleClick={() => setEditingName(p.id)}
-            >
-              <span className="es-patch-pgm">PC&nbsp;{p.id}</span>
-              {editingName === p.id ? (
-                <input
-                  className="es-patch-name"
-                  value={p.name}
-                  autoFocus
-                  onBlur={() => setEditingName(null)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') setEditingName(null); }}
-                  onChange={(e) => renamePatch(p.id, e.target.value)}
-                />
-              ) : (
+        {/* ─── Patch list ─── */}
+        <div>
+          <div className="es-patch-list">
+            {sortedPatches.map((p) => (
+              <div
+                key={p.id}
+                className="es-patch-row"
+                aria-selected={p.id === active?.id}
+                onClick={() => setActivePatch(p.id)}
+              >
+                <span className="es-patch-pgm">PC&nbsp;{p.id + 1}</span>
                 <span className="es-patch-name">{p.name}</span>
-              )}
-            </div>
-          ))}
+              </div>
+            ))}
+          </div>
         </div>
 
+        {/* ─── Properties + signal chain ─── */}
         <div>
-          <h3 style={{ margin: '0 0 8px 0' }}>
-            {active ? `PC ${active.id} — ${active.name}` : 'Geen patch'}
+          {/* Properties panel */}
+          {active && (
+            <div className="es-patch-props">
+              <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                <label style={{ fontSize: 12, flex: 1 }}>
+                  <span style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Naam</span>
+                    <span style={{ color: '#9ca3af' }}>{active.name.length}/16</span>
+                  </span>
+                  <input
+                    type="text"
+                    maxLength={16}
+                    value={active.name}
+                    onChange={(e) => renamePatch(active.id, e.target.value)}
+                    style={{ width: '100%', fontSize: 13 }}
+                  />
+                  <span style={{ fontSize: 10, color: '#6b7280' }}>max. 16 tekens (past op display)</span>
+                </label>
+                <div style={{ fontSize: 12, color: '#6b7280', paddingBottom: 4 }}>
+                  PC&nbsp;<strong style={{ fontSize: 14, color: '#1f2933' }}>{active.id + 1}</strong>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <h3 style={{ margin: '12px 0 8px 0' }}>
+            {active ? `${active.name}` : 'Geen patch'}
           </h3>
           {ordered.length === 0 && (
             <div className="es-empty">
@@ -96,7 +111,7 @@ export function PatchesPanel(): JSX.Element {
                       <div style={{ fontWeight: 600, fontSize: 12, marginTop: 4 }}>{d.brand}</div>
                       <div style={{ fontSize: 11, color: '#4b5563' }}>{d.model}</div>
                       <div style={{ fontSize: 10, color: '#6b7280', marginTop: 2 }}>
-                        {catLabel.get(d.categoryId)} · R{d.relayIndex >= 0 ? d.relayIndex : '?'}
+                        {catLabel.get(d.categoryId)} · R{d.relayIndex >= 0 ? d.relayIndex + 1 : '?'}
                       </div>
                     </div>
                     {i < ordered.length - 1 && (

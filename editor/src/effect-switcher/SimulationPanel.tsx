@@ -125,7 +125,7 @@ export function SimulationPanel(): JSX.Element {
                     opacity: bypassed.has(d.id) ? 0.35 : 1,
                     filter:  bypassed.has(d.id) ? 'grayscale(0.7)' : 'none',
                   }}
-                  title={`${d.brand} ${d.model} — relais ${d.relayIndex}`}
+                  title={`${d.brand} ${d.model} — relais ${d.relayIndex >= 0 ? d.relayIndex + 1 : '?'}`}
                 >
                   <div>{catLabel.get(d.categoryId)}</div>
                   <div style={{ fontWeight: 400, fontSize: 11, marginTop: 2 }}>
