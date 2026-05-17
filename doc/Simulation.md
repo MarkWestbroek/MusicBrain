@@ -219,3 +219,54 @@ Small decisions, none blocking:
 4. **Scope library**: uplot (40 KB, fast, ugly default styling) or something heavier with a nicer look (recharts, ~200 KB)? Default: uplot.
 
 Tell me if any of those differ from your preference; otherwise I'll proceed with the defaults when Stage 4 starts.
+
+---
+
+## 8. Effect-switcher editor simulations (added round-4)
+
+The React editor's **Simulation** tab is split into two sub-views, because the
+effect-switcher project has two *very* different user stories that deserve
+their own visualisation:
+
+### 8.1 `Musician using the box` (existing)
+
+The on-stage view: footswitch → ESP32 brain → 16-relay matrix → audio
+signal path with pedal cards. Pure offline simulation against the in-memory
+patches; no device involved. This is what the guitarist sees in their head
+when they think `what does pressing FS▼ do?`.
+
+### 8.2 `Editor talking to the device` (new)
+
+The workshop / config view. Three columns:
+
+1. **Browser (editor)** — a stylised browser card with buttons for the real
+   API verbs: *Connect*, *GET /api/status*, *GET /api/config*,
+   *PUT /api/config*, *POST /api/patch/<id>*. The user picks the transport
+   (USB cable or WiFi).
+2. **Transport visualisation** — animated SVG of a USB cable *or* WiFi
+   waves; lights up when `connected`.
+3. **ESP32 device** — small dev-board sketch with a fake OLED screen
+   showing `MusicBrain` + a status line (`idle` / `connected` /
+   `receiving config…` / `applying patch N`) and a status LED.
+
+Below the three columns sits a **request log** in dark-monospace; browser
+requests are yellow (→) and device replies are green (←).
+
+Everything is simulated in-memory — no actual HTTP traffic. When the real
+`Connect to device` panel lands (Plan-v2 stage 7), the same layout will
+be reused but the buttons will fire genuine etch() calls into the ESP32
+firmware described in
+[firmware/app-effect-switcher/esp32/README.md](../firmware/app-effect-switcher/esp32/README.md).
+
+### 8.3 Why two simulations instead of one
+
+The two views answer different questions:
+
+| View | Audience | Question answered |
+|---|---|---|
+| Musician using the box | Performer | `Will pressing this footswitch do what I want?` |
+| Editor → device | Tech / power-user | `If I push this config, what happens on the wire?` |
+
+Mixing them into one screen would force one view to compromise — the
+musician doesn't care about `PUT /api/config` and the tech doesn't need
+to see pedal cards with brand logos.

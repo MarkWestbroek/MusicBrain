@@ -63,6 +63,31 @@ const dictionaries: Record<Lang, Record<string, string>> = {
     'align.right':          'Align right',
     'align.distH':          'Distribute horizontally',
     'align.distV':          'Distribute vertically',
+
+    // Simulation — "musician using the box" view
+    'sim.box.title':         'Musician using the box',
+    'sim.box.subtitle':      'Footswitch + relay chain on stage',
+
+    // Simulation — "engineer editing config in the browser" view
+    'sim.editor.title':      'Editor talking to the device',
+    'sim.editor.subtitle':   'Browser ↔ transport ↔ ESP32',
+    'sim.editor.connect':    'Connect',
+    'sim.editor.disconnect': 'Disconnect',
+    'sim.editor.transport':  'Transport',
+    'sim.editor.transport.usb':  'USB cable',
+    'sim.editor.transport.wifi': 'WiFi',
+    'sim.editor.getConfig':  'GET /api/config',
+    'sim.editor.putConfig':  'PUT /api/config',
+    'sim.editor.getStatus':  'GET /api/status',
+    'sim.editor.activate':   'POST /api/patch/<id>',
+    'sim.editor.browser':    'Browser (editor)',
+    'sim.editor.device':     'ESP32 (effect-switcher)',
+    'sim.editor.screen.idle':       'idle',
+    'sim.editor.screen.connected':  'connected',
+    'sim.editor.screen.fetching':   'sending config…',
+    'sim.editor.screen.receiving':  'receiving config…',
+    'sim.editor.screen.applying':   'applying patch {n}',
+    'sim.editor.log':        'Request log',
   },
   nl: {
     'app.title':            'MusicBrain editor',
@@ -108,6 +133,31 @@ const dictionaries: Record<Lang, Record<string, string>> = {
     'align.right':          'Rechts uitlijnen',
     'align.distH':          'Horizontaal verdelen',
     'align.distV':          'Verticaal verdelen',
+
+    // Simulation — "muzikant gebruikt de box"
+    'sim.box.title':         'Muzikant gebruikt de box',
+    'sim.box.subtitle':      'Voetschakelaar + relais-keten op het podium',
+
+    // Simulation — "engineer past config aan in de browser"
+    'sim.editor.title':      'Editor praat met het apparaat',
+    'sim.editor.subtitle':   'Browser ↔ verbinding ↔ ESP32',
+    'sim.editor.connect':    'Verbinden',
+    'sim.editor.disconnect': 'Loskoppelen',
+    'sim.editor.transport':  'Verbinding',
+    'sim.editor.transport.usb':  'USB-kabel',
+    'sim.editor.transport.wifi': 'WiFi',
+    'sim.editor.getConfig':  'GET /api/config',
+    'sim.editor.putConfig':  'PUT /api/config',
+    'sim.editor.getStatus':  'GET /api/status',
+    'sim.editor.activate':   'POST /api/patch/<id>',
+    'sim.editor.browser':    'Browser (editor)',
+    'sim.editor.device':     'ESP32 (effect-switcher)',
+    'sim.editor.screen.idle':       'idle',
+    'sim.editor.screen.connected':  'verbonden',
+    'sim.editor.screen.fetching':   'config versturen…',
+    'sim.editor.screen.receiving':  'config ontvangen…',
+    'sim.editor.screen.applying':   'patch {n} activeren',
+    'sim.editor.log':        'Request log',
   },
 };
 

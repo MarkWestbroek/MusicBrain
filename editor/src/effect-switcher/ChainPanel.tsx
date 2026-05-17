@@ -33,6 +33,31 @@ import { useProject } from './store';
 import { t } from '../i18n';
 import type { EffectDevice } from './types';
 
+// ─── Align-menu icons (inline SVG, mirror the Layout-panel look) ──────────
+type AlignKind = 'top' | 'middle' | 'bottom' | 'left' | 'center' | 'right' | 'distH' | 'distV';
+
+function AlignIcon({ kind }: { kind: AlignKind }): JSX.Element {
+  // 16×16 grid; three little boxes get aligned along the indicated axis.
+  // Stroke is the menu text colour so it picks up CSS hover/disabled later.
+  const stroke = 'currentColor';
+  const rect = (x: number, y: number, w: number, h: number) => (
+    <rect x={x} y={y} width={w} height={h} fill="none" stroke={stroke} strokeWidth="1" rx="0.5" />
+  );
+  const line = (x1: number, y1: number, x2: number, y2: number) => (
+    <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={stroke} strokeWidth="1.2" />
+  );
+  switch (kind) {
+    case 'top':    return (<svg width="16" height="16" viewBox="0 0 16 16">{line(1, 2, 15, 2)}{rect(3, 4, 4, 9)}{rect(9, 4, 4, 6)}</svg>);
+    case 'middle': return (<svg width="16" height="16" viewBox="0 0 16 16">{line(1, 8, 15, 8)}{rect(3, 4, 4, 9)}{rect(9, 5, 4, 6)}</svg>);
+    case 'bottom': return (<svg width="16" height="16" viewBox="0 0 16 16">{line(1, 14, 15, 14)}{rect(3, 3, 4, 10)}{rect(9, 7, 4, 6)}</svg>);
+    case 'left':   return (<svg width="16" height="16" viewBox="0 0 16 16">{line(2, 1, 2, 15)}{rect(4, 3, 9, 4)}{rect(4, 9, 6, 4)}</svg>);
+    case 'center': return (<svg width="16" height="16" viewBox="0 0 16 16">{line(8, 1, 8, 15)}{rect(4, 3, 9, 4)}{rect(5, 9, 6, 4)}</svg>);
+    case 'right':  return (<svg width="16" height="16" viewBox="0 0 16 16">{line(14, 1, 14, 15)}{rect(3, 3, 10, 4)}{rect(7, 9, 6, 4)}</svg>);
+    case 'distH':  return (<svg width="16" height="16" viewBox="0 0 16 16">{rect(1, 5, 3, 6)}{rect(6.5, 5, 3, 6)}{rect(12, 5, 3, 6)}{line(0.5, 14.5, 15.5, 14.5)}</svg>);
+    case 'distV':  return (<svg width="16" height="16" viewBox="0 0 16 16">{rect(5, 1, 6, 3)}{rect(5, 6.5, 6, 3)}{rect(5, 12, 6, 3)}{line(14.5, 0.5, 14.5, 15.5)}</svg>);
+  }
+}
+
 // ─── Custom node components ────────────────────────────────────────────────
 
 type EndpointData = { label: string };
@@ -339,16 +364,16 @@ function ChainPanelInner(): JSX.Element {
             {t('align.title', { n: selectedDeviceIds.length })}
           </div>
           {([
-            { icon: '⬒', label: t('align.top'),    fn: () => alignNodes('y', 'min') },
-            { icon: '⬓', label: t('align.middle'), fn: () => alignNodes('y', 'avg') },
-            { icon: '⬓', label: t('align.bottom'), fn: () => alignNodes('y', 'max') },
+            { icon: <AlignIcon kind="top"    />, label: t('align.top'),    fn: () => alignNodes('y', 'min') },
+            { icon: <AlignIcon kind="middle" />, label: t('align.middle'), fn: () => alignNodes('y', 'avg') },
+            { icon: <AlignIcon kind="bottom" />, label: t('align.bottom'), fn: () => alignNodes('y', 'max') },
             null,
-            { icon: '◧', label: t('align.left'),   fn: () => alignNodes('x', 'min') },
-            { icon: '◫', label: t('align.center'), fn: () => alignNodes('x', 'avg') },
-            { icon: '◨', label: t('align.right'),  fn: () => alignNodes('x', 'max') },
+            { icon: <AlignIcon kind="left"   />, label: t('align.left'),   fn: () => alignNodes('x', 'min') },
+            { icon: <AlignIcon kind="center" />, label: t('align.center'), fn: () => alignNodes('x', 'avg') },
+            { icon: <AlignIcon kind="right"  />, label: t('align.right'),  fn: () => alignNodes('x', 'max') },
             null,
-            { icon: '↔', label: t('align.distH'),  fn: () => distributeNodes('x') },
-            { icon: '↕', label: t('align.distV'),  fn: () => distributeNodes('y') },
+            { icon: <AlignIcon kind="distH"  />, label: t('align.distH'),  fn: () => distributeNodes('x') },
+            { icon: <AlignIcon kind="distV"  />, label: t('align.distV'),  fn: () => distributeNodes('y') },
           ] as const).map((item, i) =>
             item === null
               ? <hr key={i} style={{ margin: '4px 0', border: 'none', borderTop: '1px solid #f3f4f6' }} />
@@ -358,7 +383,7 @@ function ChainPanelInner(): JSX.Element {
                   style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left', padding: '7px 16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#1f2937' }}
                   onMouseEnter={(e) => { (e.currentTarget).style.background = '#eff6ff'; }}
                   onMouseLeave={(e) => { (e.currentTarget).style.background = 'none'; }}
-                ><span style={{ fontSize: 16, width: 18, display: 'inline-block', textAlign: 'center', color: '#6b7280' }}>{item.icon}</span>{item.label}</button>
+                ><span style={{ width: 20, height: 20, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#4b5563' }}>{item.icon}</span>{item.label}</button>
           )}
         </div>
       )}

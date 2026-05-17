@@ -2,7 +2,23 @@ import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useEffect, useState } from 'react';
 import { devicesInFlowOrder, nextPatch, prevPatch, setActivePatch } from './actions';
 import { useProject } from './store';
+import { EditorSimulationPanel } from './EditorSimulationPanel';
+import { t } from '../i18n';
+/**
+ * Top-level Simulation tab — switches between two distinct use-case views.
+ * Each view simulates a *different* user story, so they intentionally show
+ * different things on screen.
+ */
 export function SimulationPanel() {
+    const [mode, setMode] = useState('box');
+    return (_jsxs("section", { children: [_jsxs("div", { className: "es-sim-modetabs", children: [_jsxs("button", { className: "es-sim-modetab", "aria-selected": mode === 'box', onClick: () => setMode('box'), children: ["\uD83C\uDFB8 ", t('sim.box.title'), _jsx("span", { className: "es-sim-modetab-sub", children: t('sim.box.subtitle') })] }), _jsxs("button", { className: "es-sim-modetab", "aria-selected": mode === 'editor', onClick: () => setMode('editor'), children: ["\uD83D\uDCBB ", t('sim.editor.title'), _jsx("span", { className: "es-sim-modetab-sub", children: t('sim.editor.subtitle') })] })] }), mode === 'box' && _jsx(BoxSimulationPanel, {}), mode === 'editor' && _jsx(EditorSimulationPanel, {})] }));
+}
+/**
+ * "Musician using the box" — the original, on-stage view: footswitch + brain
+ * + relay matrix + audio signal path. Pure offline simulation; no device
+ * involvement.
+ */
+function BoxSimulationPanel() {
     const project = useProject();
     const active = project.patches.find((p) => p.id === project.activePatchId)
         ?? project.patches[0];

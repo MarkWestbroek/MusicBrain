@@ -13,6 +13,8 @@ import {
 
 // ─── Categories ────────────────────────────────────────────────────────────
 
+/** Add a new effect category. The id is derived from the label (lowercased,
+ *  non-alphanumerics → '-'). No-op if a category with that id already exists. */
 export function addCategory(label: string): void {
   const trimmed = label.trim();
   if (!trimmed) return;
@@ -23,6 +25,8 @@ export function addCategory(label: string): void {
   });
 }
 
+/** Change the display label of a category. The id stays the same so existing
+ *  devices keep pointing at it. */
 export function renameCategory(id: string, label: string): void {
   projectStore.set((p) => ({
     ...p,
@@ -30,6 +34,8 @@ export function renameCategory(id: string, label: string): void {
   }));
 }
 
+/** Delete a category. Silently keeps the category if any device still uses it
+ *  (to avoid orphan devices with a dangling categoryId). */
 export function removeCategory(id: string): void {
   projectStore.set((p) => {
     const inUse = p.devices.some((d) => d.categoryId === id);
@@ -40,6 +46,10 @@ export function removeCategory(id: string): void {
 
 // ─── Devices ───────────────────────────────────────────────────────────────
 
+/** Create a new effect device and append it to the chain.
+ *  Picks the first free relay index automatically and marks the new device as
+ *  BYPASSED in every existing patch, so live patches don't suddenly change
+ *  sound when the engineer adds something new on the chain canvas. */
 export function addDevice(partial: Partial<EffectDevice>): EffectDevice {
   let created!: EffectDevice;
   projectStore.set((p) => {
@@ -73,6 +83,7 @@ export function addDevice(partial: Partial<EffectDevice>): EffectDevice {
   return created;
 }
 
+/** Patch fields on an existing device (brand, model, relay, image, …). */
 export function updateDevice(id: string, patch: Partial<EffectDevice>): void {
   projectStore.set((p) => ({
     ...p,
@@ -80,6 +91,8 @@ export function updateDevice(id: string, patch: Partial<EffectDevice>): void {
   }));
 }
 
+/** Set the canvas position of a device (x/y in React-Flow coordinates).
+ *  Used by drag, align and distribute. */
 export function moveDevice(id: string, x: number, y: number): void {
   projectStore.set((p) => ({
     ...p,
@@ -87,6 +100,8 @@ export function moveDevice(id: string, x: number, y: number): void {
   }));
 }
 
+/** Remove a device along with any edges that touch it and any bypass
+ *  references in every patch. */
 export function removeDevice(id: string): void {
   projectStore.set((p) => ({
     ...p,
@@ -101,6 +116,8 @@ export function removeDevice(id: string): void {
 
 // ─── Edges (signal flow) ───────────────────────────────────────────────────
 
+/** Connect `source → target` in the signal graph. Self-loops are rejected and
+ *  duplicate edges are deduplicated by id. */
 export function addEdge(source: string, target: string): void {
   if (source === target) return;
   projectStore.set((p) => {
@@ -111,12 +128,15 @@ export function addEdge(source: string, target: string): void {
   });
 }
 
+/** Remove a signal-flow edge by id. */
 export function removeEdge(id: string): void {
   projectStore.set((p) => ({ ...p, edges: p.edges.filter((e) => e.id !== id) }));
 }
 
 // ─── Relay count ───────────────────────────────────────────────────────────
 
+/** Change the number of relays (1..32). Devices whose relayIndex no longer
+ *  fits get their relayIndex reset to -1 (= unassigned). */
 export function setRelayCount(n: number): void {
   const clamped = Math.max(1, Math.min(32, Math.floor(n)));
   projectStore.set((p) => ({
@@ -198,24 +218,31 @@ export function devicesInFlowOrder(p: SwitcherProject): EffectDevice[] {
 
 // ─── Project-level ────────────────────────────────────────────────────────
 
+/** Replace the whole project (used by JSON import). */
 export function loadProject(p: SwitcherProject): void {
   projectStore.set(() => p);
 }
 
+/** Set the project label shown in the header. Empty string clears it. */
 export function setProjectName(name: string): void {
   projectStore.set((p) => ({ ...p, name: name.trim() || undefined }));
 }
 
+/** Set the one-line description (memory aid for the musician). */
 export function setProjectDescription(description: string): void {
   projectStore.set((p) => ({ ...p, description: description.trim() || undefined }));
 }
 
+/** Set the user-managed config version (free-form semver-ish, e.g. '1.2.3').
+ *  Distinct from `version: 1` which identifies the schema. */
 export function setProjectConfigVersion(version: string): void {
   projectStore.set((p) => ({ ...p, configVersion: version.trim() || undefined }));
 }
 
 // ─── Patches ───────────────────────────────────────────────────────────────
 
+/** Append a new (empty / nothing-bypassed) patch and make it active. The id
+ *  is the lowest unused MIDI Program Change number (0..127). */
 export function addPatch(name: string): SwitcherPatch {
   let created!: SwitcherPatch;
   projectStore.set((p) => {
@@ -228,6 +255,7 @@ export function addPatch(name: string): SwitcherPatch {
   return created;
 }
 
+/** Duplicate an existing patch (same bypass list) and select the copy. */
 export function duplicatePatch(id: number, newName: string): void {
   projectStore.set((p) => {
     const src = p.patches.find((x) => x.id === id);
@@ -244,6 +272,8 @@ export function duplicatePatch(id: number, newName: string): void {
   });
 }
 
+/** Delete a patch. Refuses to delete the last patch so the active patch is
+ *  always valid. */
 export function removePatch(id: number): void {
   projectStore.set((p) => {
     if (p.patches.length <= 1) return p; // always keep at least one
@@ -253,6 +283,7 @@ export function removePatch(id: number): void {
   });
 }
 
+/** Rename a patch. */
 export function renamePatch(id: number, name: string): void {
   projectStore.set((p) => ({
     ...p,
@@ -260,10 +291,13 @@ export function renamePatch(id: number, name: string): void {
   }));
 }
 
+/** Select a patch by id. Drives the simulation + Patches panel highlight. */
 export function setActivePatch(id: number): void {
   projectStore.set((p) => ({ ...p, activePatchId: id }));
 }
 
+/** Advance to the next patch (sorted by id), wrapping at the end.
+ *  Used by the footswitch ▲ in the simulation and by `POST /api/patch/next`. */
 export function nextPatch(): void {
   projectStore.set((p) => {
     if (p.patches.length === 0) return p;
@@ -274,6 +308,7 @@ export function nextPatch(): void {
   });
 }
 
+/** Go back to the previous patch, wrapping at the start. */
 export function prevPatch(): void {
   projectStore.set((p) => {
     if (p.patches.length === 0) return p;
@@ -284,6 +319,8 @@ export function prevPatch(): void {
   });
 }
 
+/** Toggle whether a device is bypassed in the given patch.
+ *  In bypassed = relay off; not in bypassed = relay on. */
 export function toggleBypass(patchId: number, deviceId: string): void {
   projectStore.set((p) => ({
     ...p,
@@ -302,10 +339,13 @@ export function toggleBypass(patchId: number, deviceId: string): void {
 
 // ─── Bulk import / reset ───────────────────────────────────────────────────
 
+/** Wipe everything and restore the empty default project. */
 export function resetProject(): void {
   projectStore.reset();
 }
 
+/** Replace the project with a 5-pedal / 5-patch demo. Useful for first-run
+ *  exploration and for screenshots in the docs. */
 export function seedDemo(): void {
   projectStore.set(() => {
     const demo: SwitcherProject = {

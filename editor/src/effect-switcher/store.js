@@ -32,18 +32,23 @@ class ProjectStore {
             // quota / private mode: ignored
         }
     }
+    /** Snapshot accessor for `useSyncExternalStore`. Returns the *same*
+     *  reference until `set()` swaps it out, so React's identity check works. */
     getSnapshot = () => this.state;
+    /** Subscribe to state changes. Returns an unsubscribe function. */
     subscribe = (listener) => {
         this.listeners.add(listener);
         return () => this.listeners.delete(listener);
     };
-    /** Replace the entire project (immutably). */
+    /** Replace the project immutably via an updater. Persists to localStorage
+     *  and notifies every subscriber. All `actions.ts` helpers go through here. */
     set(update) {
         this.state = update(this.state);
         this.persist();
         for (const l of this.listeners)
             l();
     }
+    /** Wipe back to the empty default project. */
     reset() {
         this.state = emptyProject();
         this.persist();
@@ -52,6 +57,8 @@ class ProjectStore {
     }
 }
 export const projectStore = new ProjectStore();
+/** React hook — subscribe a component to the project store and re-render on
+ *  every change. Equivalent to `useSyncExternalStore(subscribe, getSnapshot)`. */
 export function useProject() {
     return useSyncExternalStore(projectStore.subscribe, projectStore.getSnapshot);
 }

@@ -545,3 +545,190 @@
   color: #6b7280;
   font-style: italic;
 }
+
+/* ── Simulation sub-mode tabs (musician vs editor) ────────────────────────── */
+.es-sim-modetabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.es-sim-modetab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f2937;
+}
+.es-sim-modetab:hover { background: #f1f5f9; }
+.es-sim-modetab[aria-selected='true'] {
+  background: #eef2ff;
+  border-color: #6366f1;
+  color: #312e81;
+}
+.es-sim-modetab-sub {
+  font-size: 11px;
+  font-weight: 400;
+  color: #6b7280;
+}
+
+/* ── Editor → device simulation ─────────────────────────────────────────── */
+.es-edsim {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  grid-template-rows: auto auto;
+  gap: 16px;
+  align-items: stretch;
+}
+.es-edsim-stage {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.es-edsim-stage-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6b7280;
+}
+.es-edsim-browser-bar {
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: #475569;
+  font-family: ui-monospace, monospace;
+}
+.es-edsim-transport {
+  font-size: 12px;
+  color: #374151;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.es-edsim-transport select { font-size: 12px; padding: 2px 4px; }
+.es-edsim-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.es-edsim-btns button {
+  font-size: 12px;
+  padding: 6px 8px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: left;
+  font-family: ui-monospace, monospace;
+}
+.es-edsim-btns button:hover:not(:disabled) { background: #f1f5f9; }
+.es-edsim-btns button.primary {
+  background: #4f46e5;
+  color: #fff;
+  border-color: #4338ca;
+  font-weight: 600;
+  font-family: inherit;
+}
+.es-edsim-btns button:disabled { opacity: 0.4; cursor: not-allowed; }
+.es-edsim-activate-row {
+  display: flex;
+  gap: 4px;
+  align-items: stretch;
+}
+.es-edsim-activate-row select {
+  flex: 1;
+  font-size: 11px;
+  padding: 2px 4px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  min-width: 0;
+}
+.es-edsim-activate-row button {
+  white-space: nowrap;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+}
+
+.es-edsim-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 130px;
+}
+
+.es-edsim-device { align-items: center; }
+.es-edsim-esp {
+  background: #1f2937;
+  color: #f3f4f6;
+  border-radius: 8px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 160px;
+}
+.es-edsim-esp-screen {
+  background: #0ea5e9;
+  color: #f0f9ff;
+  font-family: ui-monospace, monospace;
+  padding: 6px 10px;
+  border-radius: 3px;
+  min-width: 130px;
+  text-align: center;
+  box-shadow: inset 0 0 0 2px #0c4a6e;
+}
+.es-edsim-esp-screen-line1 { font-size: 11px; font-weight: 700; }
+.es-edsim-esp-screen-line2 { font-size: 10px; opacity: 0.85; }
+.es-edsim-esp-led {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: #4b5563;
+}
+.es-edsim-esp-led[data-on='1'] {
+  background: #22c55e;
+  box-shadow: 0 0 6px #22c55e;
+}
+.es-edsim-esp-label { font-size: 10px; color: #9ca3af; }
+
+.es-edsim-log {
+  grid-column: 1 / -1;
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 6px;
+  padding: 10px 12px;
+  max-height: 200px;
+  overflow-y: auto;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+}
+.es-edsim-log-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #94a3b8;
+  margin-bottom: 6px;
+}
+.es-edsim-log-empty { color: #64748b; }
+.es-edsim-log-entry {
+  display: grid;
+  grid-template-columns: 70px 14px 1fr;
+  gap: 6px;
+  padding: 2px 0;
+}
+.es-edsim-log-time { color: #64748b; }
+.es-edsim-log-from { color: #94a3b8; text-align: center; }
+.es-edsim-log-entry.from-browser .es-edsim-log-text { color: #fbbf24; }
+.es-edsim-log-entry.from-device  .es-edsim-log-text { color: #4ade80; }
