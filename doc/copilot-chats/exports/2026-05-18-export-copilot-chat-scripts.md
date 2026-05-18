@@ -2,7 +2,7 @@
 
 - **Datum**: 2026-05-18 00:28
 - **Sessie-ID**: `89b93135-b01c-47ce-8011-9acb7de3164f`
-- **Berichten**: 2
+- **Berichten**: 4
 
 ---
 
@@ -38,5 +38,35 @@ Alles staat klaar. Dit zijn de aangemaakte bestanden:
 | **Install Copilot Chat Hook** | Installeert de pre-commit hook |
 
 Starten via `Ctrl+Shift+P` → *Run Task* → kies de gewenste taak. Exports komen in `doc/copilot-chats/exports/`.
+
+---
+
+## 🧑 User
+
+dank. Er volgt wel een foutmelding
+
+ *  Executing task: pwsh -ExecutionPolicy Bypass -File D:\Git\Muziek\MusicBrain/scripts/run-chat-backup.ps1 
+
+pwsh : The term 'pwsh' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the 
+spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ pwsh -ExecutionPolicy Bypass -File D:\Git\Muziek\MusicBrain/scripts/r ...
++ ~~~~
+    + CategoryInfo          : ObjectNotFound: (pwsh:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+ 
+
+ *  The terminal process "C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -Command pwsh -ExecutionPolicy Bypass -File D:\Git\Muziek\MusicBrain/scripts/run-chat-backup.ps1" terminated with exit code: 1. 
+ *  Terminal will be reused by tasks, press any key to close it.
+
+---
+
+## 🤖 Assistant
+
+`pwsh` (PowerShell Core) staat niet op dit systeem, alleen `powershell.exe`. Ik pas de tasks.json aan: 
+```
+
+```
+Klaar. `pwsh` → `powershell` in alle drie de taken. Probeer *Run Task → Export Copilot Chats* opnieuw.
 
 ---

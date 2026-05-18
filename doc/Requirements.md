@@ -254,27 +254,27 @@ Schematic files in `Images/schematics/`:
 - `esp32-midi-oled.kicad_sch` â€” full system block (ESP32 + SparkFun breakout + OLED)
 - `midi-standalone.kicad_sch` â€” discrete MIDI IN/OUT replacement circuit
 
-## Editor — Modular Music Brain (MMB) v0.1 skeleton (2026-05-18)
+## Editor ï¿½ Modular Music Brain (MMB) v0.1 skeleton (2026-05-18)
 
 New top-level tab **Modular MB** added to the editor, alongside Effect-switcher,
 Amp-switcher and Scope. Source under `editor/src/modular-mb/`.
 
 Five sub-tabs:
-1. **Patches** — list/add/remove patches; pick the active patch
-2. **Modules** — CRUD for module definitions with default port sets per kind
-3. **Categorieën** — module categories with default CV ranges
-4. **Patcher** — central matrix view: sources (rows) × destinations (columns);
+1. **Patches** ï¿½ list/add/remove patches; pick the active patch
+2. **Modules** ï¿½ CRUD for module definitions with default port sets per kind
+3. **Categorieï¿½n** ï¿½ module categories with default CV ranges
+4. **Patcher** ï¿½ central matrix view: sources (rows) ï¿½ destinations (columns);
    click cells to (de)patch; incompatible signal types are visually disabled
-5. **Simulatie** — placeholder for v0.2 (envelope/LFO preview + live scope trace)
+5. **Simulatie** ï¿½ placeholder for v0.2 (envelope/LFO preview + live scope trace)
 
 Data model (`modular-mb/types.ts`) is **forward-compatible**:
-- `EnvelopeShape` is a discriminated union — v0.1 only ships `ahdsr`, but the
+- `EnvelopeShape` is a discriminated union ï¿½ v0.1 only ships `ahdsr`, but the
   shape already covers `multiphase`, `sampled`, `drawn` and `hwEmulation`.
 - `LfoShape` similarly covers `wave`, `multiphase`, `sampled`, `drawn`.
 - Curves are per-phase (CurveKind) so analog-style envelopes (e.g. linear
   attack + exponential decay) work without schema changes.
 - Triggers are typed (`midiNote` | `gatePort` | `lfo` | `manual`).
-- CV ranges are stored per-port (no hardcoded ±5 V assumption).
+- CV ranges are stored per-port (no hardcoded ï¿½5 V assumption).
 
 Hardware target (provisional, may change): **Teensy 4.1** as the brain
 (running envelopes/LFOs/audio in real time) with an **ESP32 as connectivity
@@ -282,7 +282,7 @@ sidecar** (WiFi ? editor, MIDI router). The brain renders envelope/LFO
 shapes locally and only ships discrete CV values over the bus to breakout
 boards, conserving bus bandwidth.
 
-## Editor — Chain panel responsiveness & selection fixes (2026-05-18)
+## Editor ï¿½ Chain panel responsiveness & selection fixes (2026-05-18)
 
 Two fixes to `editor/src/effect-switcher/ChainPanel.tsx`:
 
@@ -302,7 +302,7 @@ Two fixes to `editor/src/effect-switcher/ChainPanel.tsx`:
    from `onNodesChange`.
 
 
-## Editor — MMB v0.2: graph view, cable types, MVC param widget (2026-05-18)
+## Editor ï¿½ MMB v0.2: graph view, cable types, MVC param widget (2026-05-18)
 
 ### Cable types (signal kinds)
 `SignalType` is now `cv | gate | trigger | audio | midi`. Each has a colour
@@ -317,7 +317,7 @@ exposed via the `canConnect(src, dst)` helper). Conventions:
 | audio   | orange  | audio-rate signal                             |
 | midi    | purple  | MIDI message stream                           |
 
-Both Graph and Matrix views read the same table — no view-specific rules.
+Both Graph and Matrix views read the same table ï¿½ no view-specific rules.
 
 ### Patcher: Graph view alongside Matrix view
 The Patcher tab now has a Graph/Matrix toggle. Both views render the same
@@ -330,8 +330,8 @@ source port's signal type. Module positions are persisted on `ModuleDef.x/y`.
 ### MVC parameter widget (`ParamWidget.tsx`)
 A single component renders any of four views (`knob`, `slider`, `numeric`,
 `toggle`) on top of the same `value` / `onChange` props. The active patch
-stores values in `Patch.moduleSettings[moduleId][paramId]`, so all views —
-and any future view (touchscreen dial, OSC remote, ...) — stay in sync.
+stores values in `Patch.moduleSettings[moduleId][paramId]`, so all views ï¿½
+and any future view (touchscreen dial, OSC remote, ...) ï¿½ stay in sync.
 
 Per-`Param` `preferredView` field on `ModuleDef` sets the default view
 without locking out alternatives.
@@ -341,7 +341,7 @@ Adding a module from the Modules tab now pre-fills realistic ports and
 params: a VCO ships with Tune/Fine/PWM knobs and saw/sqr/sine outs; a
 VCF with Cutoff/Reso; an envelope with A/H/D/S/R as sliders; a breakout
 with Atten slider + Invert toggle; etc. `externallyControlled` flag is
-set for analog hardware modules (VCO/VCF/VCA/mixer) — the brain cannot
+set for analog hardware modules (VCO/VCF/VCA/mixer) ï¿½ the brain cannot
 drive their knobs, but the patch still stores recommended values as
 documentation.
 
@@ -351,3 +351,36 @@ documentation.
   for the data side; only the editor UI is deferred.
 - Live envelope/LFO preview in the Simulation tab.
 - Sampled/multiphase/drawn/hwEmulation envelope editors.
+
+---
+
+## Editor â€” MMB v0.3: JSON export / import + project metadata (2026-05-18)
+
+Analoog aan de ES-editor beschikt de MMB-editor nu over een projectbalk
+bovenaan het scherm met dezelfde visuele taal (CSS-klassen `.es-projectbar*`
+worden gedeeld).
+
+### Projectbalk
+- **Naam**: klik op de naam om inline te wijzigen (Enter/Escape/blur bevestigt).
+  Valt terug op `'MMB'` bij leeg opslaan.
+- **Versie**: klik op `vâ€”` of de versie-badge om een semver-achtige string in
+  te tikken (bijv. `1.0`, `0.2.1`). Optioneel veld.
+- **Opmerking**: klik op het beschrijvingsveld voor een vrije tekst (max 120
+  tekens). Optioneel veld.
+- **Stats**: toont live `X modules Â· Y patches`.
+- **Knoppen**: Exporteer â†“ Â· Importeer â†‘ Â· Nieuw (met bevestigingsdialoog)
+
+### Exporteer naar JSON
+- Bestandsnaam gegenereerd als `yyyy-mm-dd-hhmmss-Naam-vVersie-(Opmerking).json`
+  (dezelfde conventie als de ES-editor).
+- `window.prompt` stelt de gebruiker in staat de naam aan te passen.
+- De volledige `ModularProject`-struct wordt als pretty-printed JSON gedownload.
+
+### Importeer uit JSON
+- Verborgen `<input type="file">`, getriggerd via de knop.
+- Valideert `version === 1` voor het inladen; anders een foutmelding.
+- Vervangt het huidige project volledig via `setProject()`.
+
+### Nieuw project
+- Bevestigingsdialoog, dan `setProject(emptyModularProject())` â€” dezelfde
+  helper als bij het initialiseren, inclusief de 7 standaardcategorieÃ«n.
