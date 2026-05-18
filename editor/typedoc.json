@@ -1,0 +1,36 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+
+  "entryPoints": [
+    "src/effect-switcher",
+    "src/scope",
+    "src/i18n.ts"
+  ],
+  "entryPointStrategy": "expand",
+
+  "out": "../doc/api",
+
+  "name": "MusicBrain Editor – API reference",
+  "includeVersion": true,
+  "readme": "README.md",
+
+  "navigationLinks": {
+    "Simulation docs": "../Simulation.md",
+    "Requirements": "../Requirements.md"
+  },
+
+  "plugin": [],
+
+  "tsconfig": "./tsconfig.json",
+
+  "excludePrivate": true,
+  "excludeProtected": false,
+  "excludeExternals": true,
+  "excludeNotDocumented": false,
+
+  "categorizeByGroup": true,
+  "defaultCategory": "General",
+
+  "cleanOutputDir": true,
+  "githubPages": false
+}

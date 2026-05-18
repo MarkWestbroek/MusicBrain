@@ -96,3 +96,27 @@ Two transports, both will speak the same JSON-RPC schema (`doc/protocols/schemas
 | **WebSerial** (USB-CDC) | All projects, no extra hardware | Browser API; works in Chromium-based browsers. |
 | **WebSocket** (via ESP32 side car) | Project 3 on stage / from tablet | mDNS-discovered `musicbrain.local`. |
 | **Plain HTTP/REST** (ESP32 effect-switcher) | Project 1 op stage / vanaf tablet | mDNS `musicbrain.local`, eindpunten `GET/PUT /api/config`, `POST /api/patch/<id>`. Zie [esp32/README.md](../firmware/app-effect-switcher/esp32/README.md). |
+
+## API-documentatie genereren (TypeDoc)
+
+Alle geëxporteerde types en functies in `src/` hebben JSDoc-commentaar.
+[TypeDoc](https://typedoc.org/) zet die om naar een doorzoekbare HTML-site.
+
+```powershell
+cd editor
+npm run docs
+# opent daarna: doc/api/index.html
+```
+
+De output komt in `doc/api/` (naast `doc/Simulation.md` e.d.).  
+Die map staat in `.gitignore` — niet inchecken, op aanvraag regenereren.
+
+Configuratie staat in [`typedoc.json`](typedoc.json) in deze map.
+
+### Bekende waarschuwingen bij genereren
+
+| Waarschuwing | Betekenis | Actie nodig? |
+|---|---|---|
+| `ProjectStore … not included in the documentation` | `ProjectStore` is een interne klasse die *wel* als type opduikt in publieke functies (bv. `useProject` retourneert ermee). TypeDoc ziet de verwijzing maar de klasse zelf is niet geëxporteerd. | Nee — de klasse is bewust privé. |
+| `Props … not included in the documentation` | `ScopePanel` gebruikt een inline props-interface (geen `export`). TypeDoc meldt dat de parameter niet gedocumenteerd is. | Optioneel: geef de interface een naam en exporteer hem als `ScopePanelProps`. |
+| `Code block with language powershell will not be highlighted` | In `README.md` staat een `powershell`-codeblok. TypeDoc laadt standaard geen PowerShell syntax-highlighter. | Nee — de code is gewoon leesbaar; alleen kleuring ontbreekt. Optioneel: `"highlightLanguages": ["powershell"]` toevoegen aan `typedoc.json`. |

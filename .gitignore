@@ -17,6 +17,9 @@ node_modules/
 coverage/
 *.tsbuildinfo
 
+# Generated API docs (TypeDoc output)
+doc/api/
+
 # IDE
 .vscode/
 .idea/
