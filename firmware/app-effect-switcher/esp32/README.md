@@ -280,3 +280,108 @@ That keeps "what you see in the editor" and "what's on the device" two
 clearly separated states — you push/pull explicitly, the way Git does.
 Per-patch POST stays in the API for power-users (curl, MIDI bridges,
 external footswitches) but the editor itself never auto-fires it.
+
+## 11. MIDI IN / OUT
+
+### 11.1 Hardware
+
+Use a **SparkFun MIDI Breakout V1.5** (or any AliExpress clone of it):
+
+| SparkFun signal | ESP32 pin | Notes |
+|---|---|---|
+| `PORT-RX` (out of 6N138) | GPIO 26 | Direct connect — no level shifter |
+| `PORT-TX` (in of 74AHC1G125) | GPIO 27 | Direct connect |
+| `VCC` | 3V3 | Power the *whole* board at 3.3 V |
+| `GND` | GND | |
+
+**Why 3.3 V is fine:**
+The 6N138 optocoupler and 74AHC1G125 buffer both work at 3.3 V.
+MIDI current at 3.3 V: `(3.3 V − 1.0 V Vf) / 440 Ω ≈ 5.2 mA` — right on
+the MIDI 1.0 spec's 5 mA nominal. No level-shifting or TX inversion needed.
+
+**Signal polarity note (MIDI 1.0):**
+MIDI current flowing = SPACE (logic 0); no current = MARK (logic 1) — the
+same sense as UART idle-high. Both circuits preserve this polarity, so no
+`Serial2.begin(..., true)` inversion flag is required.
+
+### 11.2 GPIO assignment (UART2)
+
+```cpp
+// firmware/app-effect-switcher/esp32/src/midi_effect.h
+constexpr int MIDI_RX_PIN = 26;   // ESP32 UART2 RX
+constexpr int MIDI_TX_PIN = 27;   // ESP32 UART2 TX
+```
+
+UART2 is remapped to these GPIOs automatically in `MidiPort::begin()`.
+No other code needs to change to use different pins; edit the constants above.
+
+### 11.3 Firmware structure
+
+```
+firmware/lib/midi_common/
+├── MidiPort.h   ← generic MIDI 1.0 parser + sender (shared by all projects)
+└── MidiPort.cpp
+
+firmware/app-effect-switcher/esp32/src/
+├── midi_effect.h    ← effect-switcher integration (Program Change IN, CC OUT)
+└── midi_effect.cpp
+```
+
+`MidiPort` lives in `firmware/lib/midi_common/` — PlatformIO auto-adds that
+directory to the include path, so `#include <MidiPort.h>` works from any `src/`
+file in any `firmware/app-*/` project.
+
+### 11.4 MIDI IN — Program Change → patch
+
+When a **Program Change** arrives:
+
+1. The firmware searches `patches[*].midiProgram` for an exact match.
+2. If no explicit match, falls back to `patches[program % patchCount]`
+   (index modulo).
+
+Add `"midiProgram": <number>` to a patch in the editor JSON to bind it
+to a specific program number. Omitting the field from all patches means
+`PC 0 → patch 0`, `PC 1 → patch 1`, etc.
+
+### 11.5 MIDI OUT — CC on patch change
+
+Add a `"midiCcOut"` array to any patch to have the firmware send CC messages
+immediately after the relays are set:
+
+```json
+{
+  "id": 3,
+  "name": "Delay+Chorus",
+  "midiProgram": 5,
+  "midiCcOut": [
+    { "ch": 1, "cc": 70, "val": 127 },
+    { "ch": 1, "cc": 71, "val": 64  }
+  ],
+  "bypassed": []
+}
+```
+
+The order of `midiCcOut` events is preserved. Events fire synchronously from
+`applyActivePatch()` → `midiEffect.sendPatchCC(id)`.
+
+### 11.6 Serial monitor output
+
+```
+[midi] ready  rx=GPIO26  tx=GPIO27
+[midi] PC 5 → patch 3
+[midi] → CC ch=1 cc=70 val=127
+[midi] → CC ch=1 cc=71 val=64
+```
+
+### 11.7 KiCad schematic
+
+A wiring schematic for the full combination — ESP32 DevKitC + SparkFun MIDI
+breakout + SSD1306 OLED — is in:
+
+```
+Images/schematics/esp32-midi-oled.kicad_sch
+```
+
+Open with **KiCad 8** (standard symbol libraries must be installed). The
+schematic uses net labels (MIDI_RX, MIDI_TX, SDA, SCL) for clarity instead of
+long cross-page wires.

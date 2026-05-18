@@ -29,6 +29,7 @@
 #include "patch_engine.h"
 #include "relays.h"
 #include "storage.h"
+#include "midi_effect.h"
 
 #if __has_include("secrets.h")
   #include "secrets.h"
@@ -43,9 +44,10 @@
 
 namespace {
 
-WebServer    server(80);
-mb::Storage  storage;
-mb::Relays   relays;
+WebServer      server(80);
+mb::Storage    storage;
+mb::Relays     relays;
+mb::MidiEffect midiEffect;
 
 // Active config kept in RAM (parsed). 8 KiB is enough for ~10 effects with
 // images stripped (images are NOT shipped to the device — they live only in
@@ -89,6 +91,7 @@ void applyActivePatch() {
   activePatchId = r.patchId;
   relays.setMask(r.mask, r.count);
   Serial.printf("[patch] active=%d  mask=0x%08X  count=%u\n", r.patchId, r.mask, r.count);
+  midiEffect.sendPatchCC(activePatchId);
 }
 
 bool loadConfigFromString(const String& json, const char** errOut) {
@@ -254,6 +257,11 @@ void setup() {
     Serial.println(F("[config] no stored config — waiting for PUT /api/config"));
   }
 
+  midiEffect.begin(activeConfig, [](int id) {
+    activePatchId = id;
+    applyActivePatch();
+  });
+
   connectWiFi();
 
   // Routes
@@ -279,4 +287,5 @@ void setup() {
 
 void loop() {
   server.handleClient();
+  midiEffect.loop();
 }

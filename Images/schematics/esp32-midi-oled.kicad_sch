@@ -1,0 +1,492 @@
+(kicad_sch
+  (version 20231120)
+  (generator "eeschema")
+  (generator_version "8.0")
+  (uuid "mb000001-0000-0000-0000-000000000001")
+  (paper "A3")
+
+  (lib_symbols
+    ;; ── Device:R ──────────────────────────────────────────────────────────
+    (symbol "Device:R"
+      (pin_names (offset 0))
+      (pin_numbers (hide yes))
+      (property "Reference" "R" (at 1.016 0 90) (effects (font (size 1.27 1.27))))
+      (property "Value" "R"    (at -1.016 0 90) (effects (font (size 1.27 1.27))))
+      (property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (property "Datasheet" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (symbol "R_0_1"
+        (polyline (pts (xy -1.016 -2.032) (xy 1.016 -2.032) (xy 1.016 2.032) (xy -1.016 2.032) (xy -1.016 -2.032))
+          (stroke (width 0) (type default)) (fill (type none)))
+      )
+      (symbol "R_1_1"
+        (pin passive line (at 0 3.81 270) (length 1.778)
+          (name "~" (effects (font (size 1.27 1.27)))) (number "1" (effects (font (size 1.27 1.27)))))
+        (pin passive line (at 0 -3.81 90) (length 1.778)
+          (name "~" (effects (font (size 1.27 1.27)))) (number "2" (effects (font (size 1.27 1.27)))))
+      )
+    )
+
+    ;; ── Device:D ──────────────────────────────────────────────────────────
+    (symbol "Device:D"
+      (pin_names (offset 0))
+      (pin_numbers (hide yes))
+      (property "Reference" "D" (at 0 2.54 0) (effects (font (size 1.27 1.27))))
+      (property "Value" "D"    (at 0 -2.54 0) (effects (font (size 1.27 1.27))))
+      (property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (property "Datasheet" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (symbol "D_0_1"
+        (polyline (pts (xy -1.27 -1.27) (xy -1.27 1.27))
+          (stroke (width 0.254) (type default)) (fill (type none)))
+        (polyline (pts (xy -1.27 0) (xy 1.27 0))
+          (stroke (width 0) (type default)) (fill (type none)))
+        (polyline (pts (xy 1.27 -1.27) (xy -1.27 0) (xy 1.27 1.27) (xy 1.27 -1.27))
+          (stroke (width 0.254) (type default)) (fill (type none)))
+      )
+      (symbol "D_1_1"
+        (pin passive line (at -2.54 0 0) (length 1.27)
+          (name "A" (effects (font (size 1.27 1.27)))) (number "A" (effects (font (size 1.27 1.27)))))
+        (pin passive line (at 2.54 0 180) (length 1.27)
+          (name "K" (effects (font (size 1.27 1.27)))) (number "K" (effects (font (size 1.27 1.27)))))
+      )
+    )
+
+    ;; ── Custom:6N138 ──────────────────────────────────────────────────────
+    ;; Pins: 2=A 3=K 5=GND 6=Vout 7=Vb 8=VCC
+    (symbol "Custom:6N138"
+      (property "Reference" "U" (at 0 8.89 0) (effects (font (size 1.27 1.27))))
+      (property "Value" "6N138"  (at 0 -8.89 0) (effects (font (size 1.27 1.27))))
+      (property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (property "Datasheet" "https://www.vishay.com/docs/83604/6n138.pdf" (at 0 0 0)
+        (effects (font (size 1.27 1.27)) (hide yes)))
+      (symbol "6N138_0_1"
+        ;; body outline
+        (rectangle (start -6.35 7.62) (end 6.35 -7.62)
+          (stroke (width 0) (type default)) (fill (type background)))
+        ;; dividing line between input and output sides
+        (polyline (pts (xy 0 7.62) (xy 0 -7.62))
+          (stroke (width 0.254) (type default)) (fill (type none)))
+        ;; LED symbol on input side
+        (polyline (pts (xy -3.81 2.54) (xy -3.81 -2.54) (xy -1.27 0) (xy -3.81 2.54))
+          (stroke (width 0.254) (type default)) (fill (type none)))
+        (polyline (pts (xy -1.27 2.54) (xy -1.27 -2.54))
+          (stroke (width 0.254) (type default)) (fill (type none)))
+        ;; output transistor symbol
+        (circle (center 2.54 0) (radius 2.032)
+          (stroke (width 0.254) (type default)) (fill (type none)))
+      )
+      (symbol "6N138_1_1"
+        (pin input line (at -8.89 2.54 0) (length 2.54)
+          (name "A"    (effects (font (size 1.27 1.27)))) (number "2" (effects (font (size 1.27 1.27)))))
+        (pin input line (at -8.89 -2.54 0) (length 2.54)
+          (name "K"    (effects (font (size 1.27 1.27)))) (number "3" (effects (font (size 1.27 1.27)))))
+        (pin power_in line (at 2.54 -10.16 90) (length 2.54)
+          (name "GND"  (effects (font (size 1.27 1.27)))) (number "5" (effects (font (size 1.27 1.27)))))
+        (pin output line (at 8.89 -2.54 180) (length 2.54)
+          (name "Vout" (effects (font (size 1.27 1.27)))) (number "6" (effects (font (size 1.27 1.27)))))
+        (pin passive line (at 8.89 0 180) (length 2.54)
+          (name "Vb"   (effects (font (size 1.27 1.27)))) (number "7" (effects (font (size 1.27 1.27)))))
+        (pin power_in line (at 2.54 10.16 270) (length 2.54)
+          (name "VCC"  (effects (font (size 1.27 1.27)))) (number "8" (effects (font (size 1.27 1.27)))))
+      )
+    )
+
+    ;; ── Custom:74AHC1G125 ─────────────────────────────────────────────────
+    ;; Single non-inverting buffer; pins: 1=A 2=GND 3=Y 4=/OE 5=VCC
+    (symbol "Custom:74AHC1G125"
+      (property "Reference" "U" (at 0 5.08 0) (effects (font (size 1.27 1.27))))
+      (property "Value" "74AHC1G125" (at 0 -5.08 0) (effects (font (size 1.27 1.27))))
+      (property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (property "Datasheet" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (symbol "74AHC1G125_0_1"
+        (polyline (pts (xy -3.81 3.81) (xy -3.81 -3.81) (xy 3.81 0) (xy -3.81 3.81))
+          (stroke (width 0.254) (type default)) (fill (type background)))
+      )
+      (symbol "74AHC1G125_1_1"
+        (pin input  line (at -6.35 1.27 0) (length 2.54)
+          (name "A"   (effects (font (size 1.27 1.27)))) (number "1" (effects (font (size 1.27 1.27)))))
+        (pin power_in line (at 0 -6.35 90) (length 2.54)
+          (name "GND" (effects (font (size 1.27 1.27)))) (number "2" (effects (font (size 1.27 1.27)))))
+        (pin output line (at 6.35 0 180) (length 2.54)
+          (name "Y"   (effects (font (size 1.27 1.27)))) (number "3" (effects (font (size 1.27 1.27)))))
+        (pin input  line (at -6.35 -1.27 0) (length 2.54)
+          (name "/OE" (effects (font (size 1.27 1.27)))) (number "4" (effects (font (size 1.27 1.27)))))
+        (pin power_in line (at 0 6.35 270) (length 2.54)
+          (name "VCC" (effects (font (size 1.27 1.27)))) (number "5" (effects (font (size 1.27 1.27)))))
+      )
+    )
+
+    ;; ── Connector_Generic:Conn_01x05 (DIN-5 pins) ─────────────────────────
+    (symbol "Connector_Generic:Conn_01x05"
+      (pin_names (offset 1.016) (hide yes))
+      (pin_numbers (hide yes))
+      (property "Reference" "J"  (at 0 6.35 0) (effects (font (size 1.27 1.27))))
+      (property "Value" "Conn_01x05" (at 0 -6.35 0) (effects (font (size 1.27 1.27))))
+      (property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (property "Datasheet" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (symbol "Conn_01x05_0_1"
+        (rectangle (start -1.27 -5.08) (end 0 5.08)
+          (stroke (width 0.254) (type default)) (fill (type background)))
+      )
+      (symbol "Conn_01x05_1_1"
+        (pin passive line (at -2.54 3.81 0) (length 1.27)
+          (name "Pin_1" (effects (font (size 1.27 1.27)))) (number "1" (effects (font (size 1.27 1.27)))))
+        (pin passive line (at -2.54 1.27 0) (length 1.27)
+          (name "Pin_2" (effects (font (size 1.27 1.27)))) (number "2" (effects (font (size 1.27 1.27)))))
+        (pin passive line (at -2.54 -1.27 0) (length 1.27)
+          (name "Pin_3" (effects (font (size 1.27 1.27)))) (number "3" (effects (font (size 1.27 1.27)))))
+        (pin passive line (at -2.54 -3.81 0) (length 1.27)
+          (name "Pin_4" (effects (font (size 1.27 1.27)))) (number "4" (effects (font (size 1.27 1.27)))))
+        (pin passive line (at -2.54 -6.35 0) (length 1.27)
+          (name "Pin_5" (effects (font (size 1.27 1.27)))) (number "5" (effects (font (size 1.27 1.27)))))
+      )
+    )
+
+    ;; ── Connector_Generic:Conn_01x04 (OLED header) ────────────────────────
+    (symbol "Connector_Generic:Conn_01x04"
+      (pin_names (offset 1.016) (hide yes))
+      (pin_numbers (hide yes))
+      (property "Reference" "J"  (at 0 5.08 0) (effects (font (size 1.27 1.27))))
+      (property "Value" "Conn_01x04" (at 0 -5.08 0) (effects (font (size 1.27 1.27))))
+      (property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (property "Datasheet" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (symbol "Conn_01x04_0_1"
+        (rectangle (start -1.27 -3.81) (end 0 3.81)
+          (stroke (width 0.254) (type default)) (fill (type background)))
+      )
+      (symbol "Conn_01x04_1_1"
+        (pin passive line (at -2.54 2.54 0) (length 1.27)
+          (name "VCC" (effects (font (size 1.27 1.27)))) (number "1" (effects (font (size 1.27 1.27)))))
+        (pin passive line (at -2.54 1.27 0) (length 1.27)
+          (name "GND" (effects (font (size 1.27 1.27)))) (number "2" (effects (font (size 1.27 1.27)))))
+        (pin passive line (at -2.54 -1.27 0) (length 1.27)
+          (name "SCL" (effects (font (size 1.27 1.27)))) (number "3" (effects (font (size 1.27 1.27)))))
+        (pin passive line (at -2.54 -2.54 0) (length 1.27)
+          (name "SDA" (effects (font (size 1.27 1.27)))) (number "4" (effects (font (size 1.27 1.27)))))
+      )
+    )
+
+    ;; ── Custom:ESP32-WROOM-32 (relevant pins only) ─────────────────────────
+    (symbol "Custom:ESP32-WROOM-32"
+      (property "Reference" "U"  (at 0 22.86 0) (effects (font (size 1.27 1.27))))
+      (property "Value" "ESP32-WROOM-32" (at 0 -22.86 0) (effects (font (size 1.27 1.27))))
+      (property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (property "Datasheet" "https://www.espressif.com/sites/default/files/documentation/esp32-wroom-32_datasheet_en.pdf"
+        (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (symbol "ESP32-WROOM-32_0_1"
+        (rectangle (start -10.16 20.32) (end 10.16 -20.32)
+          (stroke (width 0.254) (type default)) (fill (type background)))
+      )
+      (symbol "ESP32-WROOM-32_1_1"
+        (pin power_in  line (at -12.7  17.78 0) (length 2.54)
+          (name "VIN/5V"   (effects (font (size 1.27 1.27)))) (number "VIN"    (effects (font (size 1.27 1.27)))))
+        (pin power_out line (at  12.7  17.78 180) (length 2.54)
+          (name "3V3"      (effects (font (size 1.27 1.27)))) (number "3V3"    (effects (font (size 1.27 1.27)))))
+        (pin power_in  line (at -12.7  15.24 0) (length 2.54)
+          (name "GND"      (effects (font (size 1.27 1.27)))) (number "GND1"   (effects (font (size 1.27 1.27)))))
+        (pin bidirectional line (at  12.7  12.7  180) (length 2.54)
+          (name "GPIO22/SCL"  (effects (font (size 1.27 1.27)))) (number "GPIO22" (effects (font (size 1.27 1.27)))))
+        (pin bidirectional line (at  12.7  10.16 180) (length 2.54)
+          (name "GPIO21/SDA"  (effects (font (size 1.27 1.27)))) (number "GPIO21" (effects (font (size 1.27 1.27)))))
+        (pin bidirectional line (at  12.7   7.62 180) (length 2.54)
+          (name "GPIO27/TX2"  (effects (font (size 1.27 1.27)))) (number "GPIO27" (effects (font (size 1.27 1.27)))))
+        (pin bidirectional line (at  12.7   5.08 180) (length 2.54)
+          (name "GPIO26/RX2"  (effects (font (size 1.27 1.27)))) (number "GPIO26" (effects (font (size 1.27 1.27)))))
+        (pin passive     line (at -12.7   5.08 0) (length 2.54)
+          (name "GPIO18/SCK"  (effects (font (size 1.27 1.27)))) (number "GPIO18" (effects (font (size 1.27 1.27)))))
+        (pin passive     line (at -12.7   2.54 0) (length 2.54)
+          (name "GPIO23/MOSI" (effects (font (size 1.27 1.27)))) (number "GPIO23" (effects (font (size 1.27 1.27)))))
+        (pin passive     line (at -12.7   0    0) (length 2.54)
+          (name "GPIO5/LATCH" (effects (font (size 1.27 1.27)))) (number "GPIO5"  (effects (font (size 1.27 1.27)))))
+        (pin power_in    line (at -12.7 -17.78 0) (length 2.54)
+          (name "GND"         (effects (font (size 1.27 1.27)))) (number "GND2"   (effects (font (size 1.27 1.27)))))
+      )
+    )
+
+    ;; ── power:GND ─────────────────────────────────────────────────────────
+    (symbol "power:GND"
+      (property "Reference" "#PWR" (at 0 -1.27 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (property "Value" "GND" (at 0 -2.54 0) (effects (font (size 1.27 1.27))))
+      (symbol "GND_0_1"
+        (polyline (pts (xy 0 0) (xy 0 -1.27)) (stroke (width 0) (type default)) (fill (type none)))
+        (polyline (pts (xy -1.27 -1.27) (xy 1.27 -1.27)) (stroke (width 0) (type default)) (fill (type none)))
+        (polyline (pts (xy -0.762 -1.778) (xy 0.762 -1.778)) (stroke (width 0) (type default)) (fill (type none)))
+        (polyline (pts (xy -0.254 -2.286) (xy 0.254 -2.286)) (stroke (width 0) (type default)) (fill (type none)))
+      )
+      (symbol "GND_1_1"
+        (pin power_in line (at 0 0 270) (length 0)
+          (name "GND" (effects (font (size 1.27 1.27)) (hide yes)))
+          (number "1"  (effects (font (size 1.27 1.27)) (hide yes))))
+      )
+    )
+
+    ;; ── power:+3V3 ────────────────────────────────────────────────────────
+    (symbol "power:+3V3"
+      (property "Reference" "#PWR" (at 0 3.302 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (property "Value" "+3V3" (at 0 3.302 0) (effects (font (size 1.27 1.27))))
+      (symbol "+3V3_0_1"
+        (polyline (pts (xy 0 0) (xy 0 1.27)) (stroke (width 0) (type default)) (fill (type none)))
+        (polyline (pts (xy -0.762 1.27) (xy 0 2.54) (xy 0.762 1.27))
+          (stroke (width 0) (type default)) (fill (type none)))
+      )
+      (symbol "+3V3_1_1"
+        (pin power_in line (at 0 0 270) (length 0)
+          (name "+3V3" (effects (font (size 1.27 1.27)) (hide yes)))
+          (number "1"  (effects (font (size 1.27 1.27)) (hide yes))))
+      )
+    )
+
+    ;; ── power:+5V ─────────────────────────────────────────────────────────
+    (symbol "power:+5V"
+      (property "Reference" "#PWR" (at 0 3.302 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (property "Value" "+5V" (at 0 3.302 0) (effects (font (size 1.27 1.27))))
+      (symbol "+5V_0_1"
+        (polyline (pts (xy 0 0) (xy 0 1.27)) (stroke (width 0) (type default)) (fill (type none)))
+        (polyline (pts (xy -0.762 1.27) (xy 0 2.54) (xy 0.762 1.27))
+          (stroke (width 0) (type default)) (fill (type none)))
+      )
+      (symbol "+5V_1_1"
+        (pin power_in line (at 0 0 270) (length 0)
+          (name "+5V" (effects (font (size 1.27 1.27)) (hide yes)))
+          (number "1"  (effects (font (size 1.27 1.27)) (hide yes))))
+      )
+    )
+  )
+  ;; ─────────────────────────────────────────────────────────────────────────
+  ;; Net labels  (connect blocks without drawing long wires across the page)
+  ;; ─────────────────────────────────────────────────────────────────────────
+
+  (net_tie_pad_groups "1,2")
+
+  (label "MIDI_RX" (at 105 95 0)  (effects (font (size 1.27 1.27)) (justify left)))
+  (label "MIDI_RX" (at 270 105 180) (effects (font (size 1.27 1.27)) (justify right)))
+
+  (label "MIDI_TX" (at 105 190 0) (effects (font (size 1.27 1.27)) (justify left)))
+  (label "MIDI_TX" (at 270 98 180)  (effects (font (size 1.27 1.27)) (justify right)))
+
+  (label "SCL"     (at 340 130 0) (effects (font (size 1.27 1.27)) (justify left)))
+  (label "SCL"     (at 365 48 180) (effects (font (size 1.27 1.27)) (justify right)))
+
+  (label "SDA"     (at 340 135 0) (effects (font (size 1.27 1.27)) (justify left)))
+  (label "SDA"     (at 365 51 180) (effects (font (size 1.27 1.27)) (justify right)))
+
+  ;; ─────────────────────────────────────────────────────────────────────────
+  ;; MIDI IN block  (top-left region)
+  ;; ─────────────────────────────────────────────────────────────────────────
+
+  ;; J1 — MIDI IN DIN-5 connector
+  (symbol (lib_id "Connector_Generic:Conn_01x05") (at 20 95 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000001-0001-0001-0001-000000000001")
+    (property "Reference" "J1"    (at 20 88 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "DIN-5 MIDI IN" (at 20 102 0) (effects (font (size 1.27 1.27))))
+  )
+
+  ;; R1 — 220 Ω current-limiting resistor
+  (symbol (lib_id "Device:R") (at 48 82 90) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000001-0001-0001-0001-000000000002")
+    (property "Reference" "R1"  (at 48 79 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "220"     (at 48 85 0) (effects (font (size 1.27 1.27))))
+  )
+
+  ;; D1 — 1N4148 protection diode (cathode toward optocoupler)
+  (symbol (lib_id "Device:D") (at 67 82 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000001-0001-0001-0001-000000000003")
+    (property "Reference" "D1"     (at 67 79 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "1N4148"     (at 67 85 0) (effects (font (size 1.27 1.27))))
+  )
+
+  ;; U1 — 6N138 optocoupler
+  (symbol (lib_id "Custom:6N138") (at 90 90 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000001-0001-0001-0001-000000000004")
+    (property "Reference" "U1"    (at 90 81 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "6N138"     (at 90 99 0) (effects (font (size 1.27 1.27))))
+  )
+
+  ;; R2 — 4.7 kΩ pull-up on optocoupler output (to +3V3)
+  (symbol (lib_id "Device:R") (at 104 78 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000001-0001-0001-0001-000000000005")
+    (property "Reference" "R2"  (at 107 78 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "4k7"     (at 107 81 0) (effects (font (size 1.27 1.27))))
+  )
+
+  ;; +3V3 for R2 top
+  (symbol (lib_id "power:+3V3") (at 104 74 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000001-0001-0001-0001-000000000006")
+    (property "Reference" "#PWR01" (at 104 74 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    (property "Value" "+3V3" (at 104 71 0) (effects (font (size 1.27 1.27))))
+  )
+
+  ;; +3V3 for U1 VCC
+  (symbol (lib_id "power:+3V3") (at 90 79 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000001-0001-0001-0001-000000000007")
+    (property "Reference" "#PWR02" (at 90 79 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    (property "Value" "+3V3" (at 90 76 0) (effects (font (size 1.27 1.27))))
+  )
+
+  ;; GND for U1 GND
+  (symbol (lib_id "power:GND") (at 90 101 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000001-0001-0001-0001-000000000008")
+    (property "Reference" "#PWR03" (at 90 101 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    (property "Value" "GND" (at 90 103 0) (effects (font (size 1.27 1.27))))
+  )
+
+  ;; GND for U1 Vb (base — tie to GND)
+  (symbol (lib_id "power:GND") (at 100 90 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000001-0001-0001-0001-000000000009")
+    (property "Reference" "#PWR04" (at 100 90 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    (property "Value" "GND" (at 100 92 0) (effects (font (size 1.27 1.27))))
+  )
+
+  ;; GND for J1 pin 2 (cable shield)
+  (symbol (lib_id "power:GND") (at 20 100 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000001-0001-0001-0001-00000000000a")
+    (property "Reference" "#PWR05" (at 20 100 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    (property "Value" "GND" (at 20 102 0) (effects (font (size 1.27 1.27))))
+  )
+
+  ;; ─────────────────────────────────────────────────────────────────────────
+  ;; MIDI OUT block  (below MIDI IN)
+  ;; ─────────────────────────────────────────────────────────────────────────
+
+  ;; J2 — MIDI OUT DIN-5 connector
+  (symbol (lib_id "Connector_Generic:Conn_01x05") (at 20 195 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000001-0002-0002-0002-000000000001")
+    (property "Reference" "J2"    (at 20 188 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "DIN-5 MIDI OUT" (at 20 202 0) (effects (font (size 1.27 1.27))))
+  )
+
+  ;; R3 — 220 Ω to +3V3 (current source side)
+  (symbol (lib_id "Device:R") (at 48 183 90) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000001-0002-0002-0002-000000000002")
+    (property "Reference" "R3"  (at 48 180 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "220"     (at 48 186 0) (effects (font (size 1.27 1.27))))
+  )
+
+  ;; +3V3 above R3
+  (symbol (lib_id "power:+3V3") (at 48 179 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000001-0002-0002-0002-000000000003")
+    (property "Reference" "#PWR06" (at 48 179 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    (property "Value" "+3V3" (at 48 176 0) (effects (font (size 1.27 1.27))))
+  )
+
+  ;; R4 — 220 Ω between DIN-5 pin5 and 74AHC1G125 output
+  (symbol (lib_id "Device:R") (at 48 202 90) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000001-0002-0002-0002-000000000004")
+    (property "Reference" "R4"  (at 48 199 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "220"     (at 48 205 0) (effects (font (size 1.27 1.27))))
+  )
+
+  ;; U2 — 74AHC1G125 non-inverting buffer
+  (symbol (lib_id "Custom:74AHC1G125") (at 82 197 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000001-0002-0002-0002-000000000005")
+    (property "Reference" "U2"    (at 82 191 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "74AHC1G125" (at 82 204 0) (effects (font (size 1.27 1.27))))
+  )
+
+  ;; +3V3 for U2 VCC
+  (symbol (lib_id "power:+3V3") (at 82 190 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000001-0002-0002-0002-000000000006")
+    (property "Reference" "#PWR07" (at 82 190 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    (property "Value" "+3V3" (at 82 187 0) (effects (font (size 1.27 1.27))))
+  )
+
+  ;; GND for U2 GND
+  (symbol (lib_id "power:GND") (at 82 204 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000001-0002-0002-0002-000000000007")
+    (property "Reference" "#PWR08" (at 82 204 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    (property "Value" "GND" (at 82 206 0) (effects (font (size 1.27 1.27))))
+  )
+
+  ;; /OE pin of U2 tied to GND (always enabled)
+  (symbol (lib_id "power:GND") (at 74 198 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000001-0002-0002-0002-000000000008")
+    (property "Reference" "#PWR09" (at 74 198 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    (property "Value" "GND" (at 74 200 0) (effects (font (size 1.27 1.27))))
+  )
+
+  ;; GND for J2 pin 2
+  (symbol (lib_id "power:GND") (at 20 198 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000001-0002-0002-0002-000000000009")
+    (property "Reference" "#PWR10" (at 20 198 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    (property "Value" "GND" (at 20 200 0) (effects (font (size 1.27 1.27))))
+  )
+
+  ;; ─────────────────────────────────────────────────────────────────────────
+  ;; OLED I²C connector  (top-right)
+  ;; ─────────────────────────────────────────────────────────────────────────
+
+  (symbol (lib_id "Connector_Generic:Conn_01x04") (at 360 48 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000001-0003-0003-0003-000000000001")
+    (property "Reference" "J3"   (at 360 42 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "OLED I2C (SSD1306 / SH1106)"
+      (at 360 55 0) (effects (font (size 1.27 1.27))))
+  )
+
+  ;; +3V3 for OLED VCC
+  (symbol (lib_id "power:+3V3") (at 352 44 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000001-0003-0003-0003-000000000002")
+    (property "Reference" "#PWR11" (at 352 44 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    (property "Value" "+3V3" (at 352 41 0) (effects (font (size 1.27 1.27))))
+  )
+
+  ;; GND for OLED GND
+  (symbol (lib_id "power:GND") (at 352 48 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000001-0003-0003-0003-000000000003")
+    (property "Reference" "#PWR12" (at 352 48 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    (property "Value" "GND" (at 352 50 0) (effects (font (size 1.27 1.27))))
+  )
+
+  ;; ─────────────────────────────────────────────────────────────────────────
+  ;; ESP32-WROOM-32  (centre-right)
+  ;; ─────────────────────────────────────────────────────────────────────────
+
+  (symbol (lib_id "Custom:ESP32-WROOM-32") (at 280 140 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000001-0004-0004-0004-000000000001")
+    (property "Reference" "U3"  (at 280 118 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "ESP32-WROOM-32" (at 280 163 0) (effects (font (size 1.27 1.27))))
+  )
+
+  ;; +5V (USB) → ESP32 VIN
+  (symbol (lib_id "power:+5V") (at 264 122 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000001-0004-0004-0004-000000000002")
+    (property "Reference" "#PWR13" (at 264 122 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    (property "Value" "+5V (USB)" (at 264 119 0) (effects (font (size 1.27 1.27))))
+  )
+
+  ;; GND for ESP32
+  (symbol (lib_id "power:GND") (at 264 158 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000001-0004-0004-0004-000000000003")
+    (property "Reference" "#PWR14" (at 264 158 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    (property "Value" "GND" (at 264 160 0) (effects (font (size 1.27 1.27))))
+  )
+
+  ;; +3V3 output from ESP32
+  (symbol (lib_id "power:+3V3") (at 295 122 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000001-0004-0004-0004-000000000004")
+    (property "Reference" "#PWR15" (at 295 122 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    (property "Value" "+3V3" (at 295 119 0) (effects (font (size 1.27 1.27))))
+  )
+
+  ;; ─────────────────────────────────────────────────────────────────────────
+  ;; Text annotations
+  ;; ─────────────────────────────────────────────────────────────────────────
+
+  (text "Board powered at 3.3 V from ESP32 3V3 pin.\nMIDI IN: 6N138 output directly to GPIO26 (no level shifter).\nMIDI OUT: 74AHC1G125 non-inverting; no TX inversion needed.\nOLED: any SSD1306 / SH1106 I²C module (VCC=3V3, addr 0x3C).\nRelays: see relay wiring doc — GPIO18/23/5 → 74HC595 chain."
+    (at 130 245 0) (effects (font (size 1.27 1.27)) (justify left)))
+
+  (text "MIDI IN\n(5-pin DIN)" (at 20 75 0) (effects (font (size 1.52 1.52) bold) (justify left)))
+  (text "MIDI OUT\n(5-pin DIN)" (at 20 175 0) (effects (font (size 1.52 1.52) bold) (justify left)))
+  (text "OLED display\n(I²C)"   (at 340 38 0) (effects (font (size 1.52 1.52) bold) (justify left)))
+
+  ;; ─────────────────────────────────────────────────────────────────────────
+  ;; Title block
+  ;; ─────────────────────────────────────────────────────────────────────────
+  (title_block
+    (title "MusicBrain — ESP32 + MIDI IN/OUT + OLED")
+    (date "2026-05-18")
+    (rev "0.1")
+    (company "MusicBrain project")
+    (comment 1 "MIDI breakout powered at 3.3 V; see firmware/lib/midi_common/")
+    (comment 2 "Relay chain wiring: see firmware/app-effect-switcher/esp32/README.md §1")
+    (comment 3 "Open with KiCad 8 — standard symbol libraries required")
+  )
+)
