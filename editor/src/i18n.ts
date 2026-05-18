@@ -88,6 +88,20 @@ const dictionaries: Record<Lang, Record<string, string>> = {
     'sim.editor.screen.receiving':  'receiving config…',
     'sim.editor.screen.applying':   'applying patch {n}',
     'sim.editor.log':        'Request log',
+
+    // Settings panel
+    'settings.title':        'Device settings',
+    'settings.deviceUrl':    'Device URL',
+    'settings.transport':    'Transport',
+    'settings.transport.auto': 'Auto (try WiFi, fall back to USB)',
+    'settings.transport.wifi': 'WiFi / mDNS',
+    'settings.transport.usb':  'USB (WebSerial)',
+    'settings.test':         'Test connection',
+    'settings.testing':      'Testing…',
+    'settings.lastSync':     'Last sync',
+    'settings.never':        'never',
+    'settings.ok':           'OK — {info}',
+    'settings.fail':         'Failed: {err}',
   },
   nl: {
     'app.title':            'MusicBrain editor',
@@ -158,6 +172,20 @@ const dictionaries: Record<Lang, Record<string, string>> = {
     'sim.editor.screen.receiving':  'config ontvangen…',
     'sim.editor.screen.applying':   'patch {n} activeren',
     'sim.editor.log':        'Request log',
+
+    // Settings panel
+    'settings.title':        'Apparaat-instellingen',
+    'settings.deviceUrl':    'Apparaat-URL',
+    'settings.transport':    'Verbinding',
+    'settings.transport.auto': 'Auto (WiFi, daarna USB)',
+    'settings.transport.wifi': 'WiFi / mDNS',
+    'settings.transport.usb':  'USB (WebSerial)',
+    'settings.test':         'Test verbinding',
+    'settings.testing':      'Testen…',
+    'settings.lastSync':     'Laatste sync',
+    'settings.never':        'nooit',
+    'settings.ok':           'OK — {info}',
+    'settings.fail':         'Mislukt: {err}',
   },
 };
 

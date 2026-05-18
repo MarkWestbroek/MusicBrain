@@ -2,9 +2,13 @@ import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useState } from 'react';
 import { addCategory, removeCategory, renameCategory } from './actions';
 import { useProject } from './store';
+/** Panel for managing effect categories.
+ *  Provides add / rename / remove controls. A category can only be removed
+ *  when no device still references it (enforced in `removeCategory`). */
 export function CategoriesPanel() {
     const project = useProject();
     const [draft, setDraft] = useState('');
+    /** Commit the current `draft` text as a new category, then clear the input. */
     function commitAdd() {
         if (!draft.trim())
             return;

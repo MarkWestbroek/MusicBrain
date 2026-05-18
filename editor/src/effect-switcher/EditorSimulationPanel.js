@@ -18,6 +18,13 @@ import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useState } from 'react';
 import { useProject } from './store';
 import { t } from '../i18n';
+export const DISPLAY_VARIANTS = [
+    { id: 'ssd1306-128x64', label: 'SSD1306 128×64 OLED (0.96″)', width: 128, height: 64, notes: 'Most common; I²C addr 0x3C or 0x3D. 4-pin: VCC GND SCL SDA.' },
+    { id: 'ssd1306-128x32', label: 'SSD1306 128×32 OLED (0.91″)', width: 128, height: 32, notes: 'Slim version; same driver, half the height.' },
+    { id: 'sh1106-128x64', label: 'SH1106 128×64 OLED (1.3″)', width: 128, height: 64, notes: 'Slightly larger; needs SH1106 lib instead of SSD1306.' },
+    { id: 'st7735-128x160', label: 'ST7735 128×160 TFT (1.8″)', width: 160, height: 128, notes: 'Colour TFT; SPI. Firmware needs TFT_eSPI or Adafruit_ST7735.' },
+    { id: 'none', label: 'No display', width: 0, height: 0, notes: 'Headless device; no screen wired.' },
+];
 export function EditorSimulationPanel() {
     const project = useProject();
     const activePatch = project.patches.find((p) => p.id === project.activePatchId)
@@ -27,6 +34,8 @@ export function EditorSimulationPanel() {
     const [screen, setScreen] = useState({ kind: 'idle' });
     const [log, setLog] = useState([]);
     const [activateId, setActivateId] = useState(0);
+    const [variantId, setVariantId] = useState('ssd1306-128x64');
+    const variant = DISPLAY_VARIANTS.find((v) => v.id === variantId) ?? DISPLAY_VARIANTS[0];
     /** Append a log line. Keeps the last 40 entries. */
     function push(from, text) {
         setLog((prev) => [...prev.slice(-39), { t: Date.now(), from, text }]);
@@ -91,7 +100,7 @@ export function EditorSimulationPanel() {
     })();
     return (_jsxs("div", { className: "es-edsim", children: [_jsxs("div", { className: "es-edsim-stage es-edsim-browser", children: [_jsx("div", { className: "es-edsim-stage-title", children: t('sim.editor.browser') }), _jsx("div", { className: "es-edsim-browser-bar", children: "\u2302 http://musicbrain.local/" }), _jsxs("label", { className: "es-edsim-transport", children: [t('sim.editor.transport'), ":", _jsxs("select", { value: transport, onChange: (e) => setTransport(e.target.value), disabled: connected, children: [_jsx("option", { value: "usb", children: t('sim.editor.transport.usb') }), _jsx("option", { value: "wifi", children: t('sim.editor.transport.wifi') })] })] }), _jsxs("div", { className: "es-edsim-btns", children: [connected
                                 ? _jsx("button", { onClick: doDisconnect, children: t('sim.editor.disconnect') })
-                                : _jsx("button", { className: "primary", onClick: doConnect, children: t('sim.editor.connect') }), _jsx("button", { disabled: !connected, onClick: doGetStatus, children: t('sim.editor.getStatus') }), _jsx("button", { disabled: !connected, onClick: doGetConfig, children: t('sim.editor.getConfig') }), _jsx("button", { disabled: !connected, onClick: doPutConfig, children: t('sim.editor.putConfig') }), _jsxs("div", { className: "es-edsim-activate-row", children: [_jsx("select", { disabled: !connected, value: activateId, onChange: (e) => setActivateId(parseInt(e.target.value, 10)), children: project.patches.map((p) => (_jsxs("option", { value: p.id, children: ["patch ", p.id, " \u2014 ", p.name] }, p.id))) }), _jsxs("button", { disabled: !connected || project.patches.length === 0, onClick: doActivate, children: ["POST /api/patch/", activateId] })] })] })] }), _jsx("div", { className: `es-edsim-link ${transport} ${connected ? 'on' : 'off'}`, children: transport === 'usb' ? _jsx(UsbCable, { on: connected }) : _jsx(WifiWaves, { on: connected }) }), _jsxs("div", { className: "es-edsim-stage es-edsim-device", children: [_jsx("div", { className: "es-edsim-stage-title", children: t('sim.editor.device') }), _jsxs("div", { className: "es-edsim-esp", children: [_jsxs("div", { className: "es-edsim-esp-screen", children: [_jsx("div", { className: "es-edsim-esp-screen-line1", children: "MusicBrain" }), _jsx("div", { className: "es-edsim-esp-screen-line2", children: screenLine })] }), _jsx("div", { className: "es-edsim-esp-led", "data-on": connected ? '1' : '0', title: "status LED" }), _jsx("div", { className: "es-edsim-esp-label", children: "ESP32-WROOM" })] })] }), _jsxs("div", { className: "es-edsim-log", children: [_jsx("div", { className: "es-edsim-log-title", children: t('sim.editor.log') }), log.length === 0
+                                : _jsx("button", { className: "primary", onClick: doConnect, children: t('sim.editor.connect') }), _jsx("button", { disabled: !connected, onClick: doGetStatus, children: t('sim.editor.getStatus') }), _jsx("button", { disabled: !connected, onClick: doGetConfig, children: t('sim.editor.getConfig') }), _jsx("button", { disabled: !connected, onClick: doPutConfig, children: t('sim.editor.putConfig') }), _jsxs("div", { className: "es-edsim-activate-row", children: [_jsx("select", { disabled: !connected, value: activateId, onChange: (e) => setActivateId(parseInt(e.target.value, 10)), children: project.patches.map((p) => (_jsxs("option", { value: p.id, children: ["patch ", p.id, " \u2014 ", p.name] }, p.id))) }), _jsxs("button", { disabled: !connected || project.patches.length === 0, onClick: doActivate, children: ["POST /api/patch/", activateId] })] })] })] }), _jsx("div", { className: `es-edsim-link ${transport} ${connected ? 'on' : 'off'}`, children: transport === 'usb' ? _jsx(UsbCable, { on: connected }) : _jsx(WifiWaves, { on: connected }) }), _jsxs("div", { className: "es-edsim-stage es-edsim-device", children: [_jsx("div", { className: "es-edsim-stage-title", children: t('sim.editor.device') }), _jsxs("label", { className: "es-edsim-variant-label", children: ["Display:", _jsx("select", { value: variantId, onChange: (e) => setVariantId(e.target.value), children: DISPLAY_VARIANTS.map((v) => (_jsx("option", { value: v.id, children: v.label }, v.id))) })] }), variant.notes && (_jsx("div", { className: "es-edsim-variant-notes", children: variant.notes })), _jsxs("div", { className: "es-edsim-esp", children: [_jsx(DeviceScreen, { variant: variant, line1: "MusicBrain", line2: screenLine }), _jsx("div", { className: "es-edsim-esp-led", "data-on": connected ? '1' : '0', title: "status LED" }), _jsx("div", { className: "es-edsim-esp-label", children: "ESP32-WROOM" })] })] }), _jsxs("div", { className: "es-edsim-log", children: [_jsx("div", { className: "es-edsim-log-title", children: t('sim.editor.log') }), log.length === 0
                         ? _jsx("div", { className: "es-edsim-log-empty", children: "\u2014" })
                         : [...log].reverse().map((e, i) => (_jsxs("div", { className: `es-edsim-log-entry from-${e.from}`, children: [_jsx("span", { className: "es-edsim-log-time", children: new Date(e.t).toLocaleTimeString() }), _jsx("span", { className: "es-edsim-log-from", children: e.from === 'browser' ? '→' : '←' }), _jsx("span", { className: "es-edsim-log-text", children: e.text })] }, e.t + '_' + i)))] })] }));
 }
@@ -103,4 +112,29 @@ function UsbCable({ on }) {
 function WifiWaves({ on }) {
     const stroke = on ? '#2563eb' : '#94a3b8';
     return (_jsxs("svg", { width: "120", height: "40", viewBox: "0 0 120 40", "aria-label": "WiFi link", children: [_jsxs("g", { stroke: stroke, strokeWidth: "2", fill: "none", children: [_jsx("path", { d: "M 20 28 Q 30 14 40 28" }), _jsx("path", { d: "M 14 32 Q 30  6 46 32" }), _jsx("path", { d: "M  8 36 Q 30  0 52 36" }), _jsx("path", { d: "M 80 28 Q 90 14 100 28" }), _jsx("path", { d: "M 74 32 Q 90  6 106 32" }), _jsx("path", { d: "M 68 36 Q 90  0 112 36" })] }), _jsx("text", { x: "60", y: "22", fontSize: "9", textAnchor: "middle", fill: stroke, children: "WiFi" })] }));
+}
+// ─── Variant-aware device screen ─────────────────────────────────────────────
+/** Renders a scaled-down representation of the selected display module.
+ *  Different variants get different aspect-ratios and colours so the
+ *  simulation gives a realistic feel of the actual hardware. */
+function DeviceScreen({ variant, line1, line2 }) {
+    if (variant.id === 'none') {
+        return _jsx("div", { className: "es-edsim-esp-screen es-edsim-esp-screen--none", children: "(no display)" });
+    }
+    const isColor = variant.id.startsWith('st7735');
+    const bgColor = isColor ? '#1a1a2e' : '#0ea5e9';
+    const textColor = isColor ? '#e0e0ff' : '#f0f9ff';
+    const borderColor = isColor ? '#4a4a8a' : '#0c4a6e';
+    // Scale the mock screen proportionally (max 160×80 px in the UI).
+    const scale = Math.min(160 / variant.width, 80 / variant.height);
+    const w = Math.round(variant.width * scale);
+    const h = Math.round(variant.height * scale);
+    return (_jsxs("div", { className: "es-edsim-esp-screen", style: {
+            width: w, minWidth: w, height: h,
+            background: bgColor,
+            boxShadow: `inset 0 0 0 2px ${borderColor}`,
+            color: textColor,
+            flexDirection: 'column',
+            padding: '4px 6px',
+        }, children: [_jsx("div", { className: "es-edsim-esp-screen-line1", children: line1 }), _jsx("div", { className: "es-edsim-esp-screen-line2", children: line2 })] }));
 }

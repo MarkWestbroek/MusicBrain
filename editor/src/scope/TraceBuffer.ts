@@ -6,6 +6,7 @@ export type TraceEvent =
   | { t_us: number; kind: 'spi';  op: number; bytes: number }
   | { t_us: number; kind: string; [k: string]: unknown };
 
+/** One decoded CV sample as stored in the ring buffer. */
 export interface ScopePoint {
   t_us:  number;
   volts: number;
@@ -19,6 +20,9 @@ export class TraceBuffer {
   private series = new Map<string, ScopePoint[]>();
   constructor(private readonly maxPerChannel = 2000) {}
 
+  /** Parse one newline-delimited JSON event from the simulator stream and
+   *  append it to the per-channel ring buffer. Non-`cv` events are silently
+   *  ignored; malformed JSON is discarded without throwing. */
   ingest(line: string): void {
     let ev: TraceEvent;
     try { ev = JSON.parse(line) as TraceEvent; } catch { return; }
@@ -30,10 +34,16 @@ export class TraceBuffer {
     this.series.set(ch, arr);
   }
 
+  /** Sorted list of channel IDs that have received at least one sample. */
   channels(): string[]   { return Array.from(this.series.keys()).sort(); }
+  /** All buffered samples for `ch`, oldest first. Returns `[]` if unknown. */
   pointsFor(ch: string): ScopePoint[] { return this.series.get(ch) ?? []; }
+  /** Discard all buffered data. */
   clear(): void          { this.series.clear(); }
 
+  /** Compute the min/max time and voltage across all channels so the scope
+   *  canvas can set its axes without a separate pass. Provides sensible
+   *  defaults when the buffer is empty. */
   bounds(): { tMin: number; tMax: number; vMin: number; vMax: number } {
     let tMin = +Infinity, tMax = -Infinity, vMin = +Infinity, vMax = -Infinity;
     for (const arr of this.series.values()) {

@@ -4,7 +4,12 @@ import { TraceBuffer } from './TraceBuffer';
 // Stable colour per channel so visual identity persists across redraws.
 const palette = ['#3b82f6', '#f59e0b', '#10b981', '#ef4444', '#a855f7',
     '#06b6d4', '#84cc16', '#ec4899'];
+/** Map a channel ID to a consistent palette colour. */
 const colorFor = (ch, channels) => palette[channels.indexOf(ch) % palette.length] ?? '#888';
+/** Real-time CV scope panel. Connects to the scope-bridge WebSocket at
+ *  `url` (default `ws://localhost:8765`), ingests newline-delimited JSON
+ *  trace events from `mb_simulator`, and renders a canvas oscilloscope.
+ *  Automatically reconnects every 1.5 s when the socket closes. */
 export function ScopePanel({ url = 'ws://localhost:8765' }) {
     const canvasRef = useRef(null);
     const bufRef = useRef(new TraceBuffer(2000));

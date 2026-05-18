@@ -18,6 +18,8 @@ export const DEFAULT_CATEGORIES = [
     { id: 'looper', label: 'Looper' },
     { id: 'utility', label: 'Utility' },
 ];
+/** Return a minimal valid project with one empty patch and the default
+ *  category set. Used for Reset and first-run. */
 export function emptyProject() {
     return {
         version: 1,
@@ -29,7 +31,8 @@ export function emptyProject() {
         activePatchId: 0,
     };
 }
-/** Stable ID generator. */
+/** Stable ID generator. Combines a prefix, a base-36 timestamp, and a
+ *  per-session counter so IDs are unique even within the same millisecond. */
 let _idCounter = 0;
 export function newId(prefix) {
     _idCounter += 1;

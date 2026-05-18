@@ -8,6 +8,9 @@ export class TraceBuffer {
     constructor(maxPerChannel = 2000) {
         this.maxPerChannel = maxPerChannel;
     }
+    /** Parse one newline-delimited JSON event from the simulator stream and
+     *  append it to the per-channel ring buffer. Non-`cv` events are silently
+     *  ignored; malformed JSON is discarded without throwing. */
     ingest(line) {
         let ev;
         try {
@@ -25,9 +28,15 @@ export class TraceBuffer {
             arr.shift();
         this.series.set(ch, arr);
     }
+    /** Sorted list of channel IDs that have received at least one sample. */
     channels() { return Array.from(this.series.keys()).sort(); }
+    /** All buffered samples for `ch`, oldest first. Returns `[]` if unknown. */
     pointsFor(ch) { return this.series.get(ch) ?? []; }
+    /** Discard all buffered data. */
     clear() { this.series.clear(); }
+    /** Compute the min/max time and voltage across all channels so the scope
+     *  canvas can set its axes without a separate pass. Provides sensible
+     *  defaults when the buffer is empty. */
     bounds() {
         let tMin = +Infinity, tMax = -Infinity, vMin = +Infinity, vMax = -Infinity;
         for (const arr of this.series.values()) {

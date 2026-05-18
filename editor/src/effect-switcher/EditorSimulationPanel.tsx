@@ -19,6 +19,28 @@ import { useState } from 'react';
 import { useProject } from './store';
 import { t } from '../i18n';
 
+// ─── Hardware display variants ───────────────────────────────────────────────
+
+/** All supported simulated display modules. Extend this table when adding
+ *  support for more hardware. */
+export interface DisplayVariant {
+  id:    string;
+  label: string;
+  /** Width × height in logical pixels (for the OLED rectangle render). */
+  width:  number;
+  height: number;
+  /** Rough description shown in the selector tooltip. */
+  notes: string;
+}
+
+export const DISPLAY_VARIANTS: DisplayVariant[] = [
+  { id: 'ssd1306-128x64', label: 'SSD1306 128×64 OLED (0.96″)',  width: 128, height: 64,  notes: 'Most common; I²C addr 0x3C or 0x3D. 4-pin: VCC GND SCL SDA.' },
+  { id: 'ssd1306-128x32', label: 'SSD1306 128×32 OLED (0.91″)',  width: 128, height: 32,  notes: 'Slim version; same driver, half the height.' },
+  { id: 'sh1106-128x64',  label: 'SH1106 128×64 OLED (1.3″)',    width: 128, height: 64,  notes: 'Slightly larger; needs SH1106 lib instead of SSD1306.' },
+  { id: 'st7735-128x160', label: 'ST7735 128×160 TFT (1.8″)',     width: 160, height: 128, notes: 'Colour TFT; SPI. Firmware needs TFT_eSPI or Adafruit_ST7735.' },
+  { id: 'none',           label: 'No display',                    width: 0,   height: 0,   notes: 'Headless device; no screen wired.' },
+];
+
 type Transport = 'usb' | 'wifi';
 type ScreenState =
   | { kind: 'idle' }
@@ -38,6 +60,9 @@ export function EditorSimulationPanel(): JSX.Element {
   const [screen, setScreen]           = useState<ScreenState>({ kind: 'idle' });
   const [log, setLog]                 = useState<LogEntry[]>([]);
   const [activateId, setActivateId]   = useState<number>(0);
+  const [variantId, setVariantId]     = useState<string>('ssd1306-128x64');
+
+  const variant = DISPLAY_VARIANTS.find((v) => v.id === variantId) ?? DISPLAY_VARIANTS[0]!;
 
   /** Append a log line. Keeps the last 40 entries. */
   function push(from: 'browser' | 'device', text: string): void {
@@ -156,11 +181,25 @@ export function EditorSimulationPanel(): JSX.Element {
       {/* ── ESP32 column ── */}
       <div className="es-edsim-stage es-edsim-device">
         <div className="es-edsim-stage-title">{t('sim.editor.device')}</div>
+
+        {/* Hardware variant selector */}
+        <label className="es-edsim-variant-label">
+          Display:
+          <select
+            value={variantId}
+            onChange={(e) => setVariantId(e.target.value)}
+          >
+            {DISPLAY_VARIANTS.map((v) => (
+              <option key={v.id} value={v.id}>{v.label}</option>
+            ))}
+          </select>
+        </label>
+        {variant.notes && (
+          <div className="es-edsim-variant-notes">{variant.notes}</div>
+        )}
+
         <div className="es-edsim-esp">
-          <div className="es-edsim-esp-screen">
-            <div className="es-edsim-esp-screen-line1">MusicBrain</div>
-            <div className="es-edsim-esp-screen-line2">{screenLine}</div>
-          </div>
+          <DeviceScreen variant={variant} line1="MusicBrain" line2={screenLine} />
           <div className="es-edsim-esp-led" data-on={connected ? '1' : '0'} title="status LED" />
           <div className="es-edsim-esp-label">ESP32-WROOM</div>
         </div>
@@ -212,5 +251,47 @@ function WifiWaves({ on }: { on: boolean }): JSX.Element {
       </g>
       <text x="60" y="22" fontSize="9" textAnchor="middle" fill={stroke}>WiFi</text>
     </svg>
+  );
+}
+
+// ─── Variant-aware device screen ─────────────────────────────────────────────
+
+/** Renders a scaled-down representation of the selected display module.
+ *  Different variants get different aspect-ratios and colours so the
+ *  simulation gives a realistic feel of the actual hardware. */
+function DeviceScreen({ variant, line1, line2 }: {
+  variant: DisplayVariant;
+  line1: string;
+  line2: string;
+}): JSX.Element {
+  if (variant.id === 'none') {
+    return <div className="es-edsim-esp-screen es-edsim-esp-screen--none">(no display)</div>;
+  }
+
+  const isColor = variant.id.startsWith('st7735');
+  const bgColor    = isColor ? '#1a1a2e' : '#0ea5e9';
+  const textColor  = isColor ? '#e0e0ff' : '#f0f9ff';
+  const borderColor = isColor ? '#4a4a8a' : '#0c4a6e';
+
+  // Scale the mock screen proportionally (max 160×80 px in the UI).
+  const scale = Math.min(160 / variant.width, 80 / variant.height);
+  const w = Math.round(variant.width  * scale);
+  const h = Math.round(variant.height * scale);
+
+  return (
+    <div
+      className="es-edsim-esp-screen"
+      style={{
+        width: w, minWidth: w, height: h,
+        background: bgColor,
+        boxShadow: `inset 0 0 0 2px ${borderColor}`,
+        color: textColor,
+        flexDirection: 'column',
+        padding: '4px 6px',
+      }}
+    >
+      <div className="es-edsim-esp-screen-line1">{line1}</div>
+      <div className="es-edsim-esp-screen-line2">{line2}</div>
+    </div>
   );
 }

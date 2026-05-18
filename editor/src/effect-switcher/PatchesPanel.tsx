@@ -4,6 +4,9 @@ import {
 } from './actions';
 import { useProject } from './store';
 
+/** Panel that lists all patches and lets the engineer switch between them,
+ *  add / duplicate / remove patches, and toggle device bypass per patch.
+ *  The active patch drives both the editor highlight and the simulation. */
 export function PatchesPanel(): JSX.Element {
   const project = useProject();
 

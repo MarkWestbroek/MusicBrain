@@ -1,6 +1,9 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { addPatch, devicesInFlowOrder, duplicatePatch, removePatch, renamePatch, setActivePatch, toggleBypass, } from './actions';
 import { useProject } from './store';
+/** Panel that lists all patches and lets the engineer switch between them,
+ *  add / duplicate / remove patches, and toggle device bypass per patch.
+ *  The active patch drives both the editor highlight and the simulation. */
 export function PatchesPanel() {
     const project = useProject();
     const sortedPatches = [...project.patches].sort((a, b) => a.id - b.id);

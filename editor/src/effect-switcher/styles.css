@@ -732,3 +732,99 @@
 .es-edsim-log-from { color: #94a3b8; text-align: center; }
 .es-edsim-log-entry.from-browser .es-edsim-log-text { color: #fbbf24; }
 .es-edsim-log-entry.from-device  .es-edsim-log-text { color: #4ade80; }
+
+/* ── Settings gear button + drop-down panel ───────────────────────────────── */
+.es-settings-wrap {
+  position: relative;
+  display: inline-block;
+}
+.es-settings-gear {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font-size: 15px;
+  cursor: pointer;
+  padding: 2px 5px;
+  color: #6b7280;
+  line-height: 1;
+}
+.es-settings-gear:hover,
+.es-settings-gear.open { background: #f1f5f9; border-color: #e2e8f0; color: #374151; }
+
+.es-settings-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 200;
+  width: 340px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 4px 18px rgba(0,0,0,.12);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 13px;
+}
+.es-settings-title {
+  font-weight: 700;
+  font-size: 13px;
+  color: #111827;
+  margin-bottom: 2px;
+}
+.es-settings-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.es-settings-row > span { min-width: 110px; color: #374151; }
+.es-settings-row input,
+.es-settings-row select {
+  flex: 1;
+  font-size: 12px;
+  padding: 4px 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+}
+.es-settings-test-row { flex-wrap: wrap; gap: 6px; }
+.es-settings-test-row button { font-size: 12px; padding: 5px 10px; }
+.es-settings-test-result {
+  font-size: 11px;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.es-settings-test-result.ok   { color: #15803d; }
+.es-settings-test-result.fail { color: #b91c1c; }
+.es-settings-footer {
+  font-size: 11px;
+  color: #9ca3af;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 8px;
+}
+.es-settings-footer em { font-style: normal; color: #6b7280; }
+
+/* ── Hardware variant selector (in ESP32 column) ──────────────────────────── */
+.es-edsim-variant-label {
+  font-size: 11px;
+  color: #374151;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+.es-edsim-variant-label select { flex: 1; font-size: 11px; padding: 2px 4px; }
+.es-edsim-variant-notes {
+  font-size: 10px;
+  color: #6b7280;
+  line-height: 1.4;
+}
+.es-edsim-esp-screen--none {
+  background: #374151;
+  color: #6b7280;
+  font-style: italic;
+  min-width: 100px;
+}

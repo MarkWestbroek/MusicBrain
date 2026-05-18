@@ -3,6 +3,7 @@ import { CategoriesPanel } from './CategoriesPanel';
 import { ChainPanel } from './ChainPanel';
 import { PatchesPanel } from './PatchesPanel';
 import { SimulationPanel } from './SimulationPanel';
+import { SettingsButton } from './SettingsPanel';
 import {
   loadProject,
   resetProject,
@@ -18,6 +19,9 @@ import './styles.css';
 
 type SubTab = 'patches' | 'chain' | 'categories' | 'simulation';
 
+/** Root component for the effect-switcher sub-application.
+ *  Owns the tab strip, project bar (name / description / version), language
+ *  switcher, import/export, and the demo/reset actions. */
 export function EffectSwitcherApp(): JSX.Element {
   const project = useProject();
   const [tab, setTab] = useState<SubTab>('patches');
@@ -30,12 +34,16 @@ export function EffectSwitcherApp(): JSX.Element {
   const [, setLangTick] = useState(0);
   useEffect(() => subscribeLang(() => setLangTick((n) => n + 1)), []);
 
+  /** Build a safe filename from the project name and configVersion.
+   *  Non-alphanumeric characters are replaced with `_`. */
   function defaultFilename(): string {
     const safeName = (project.name ?? 'config').replace(/[^a-z0-9._-]+/gi, '_');
     const ver = project.configVersion ? `-v${project.configVersion}` : '';
     return `musicbrain-${safeName}${ver}-${new Date().toISOString().slice(0, 10)}.json`;
   }
 
+  /** Export the current project to a JSON file. Prompts the user for a
+   *  filename (pre-filled with the safe project name + config version). */
   function onExport(): void {
     const suggested = defaultFilename();
     const chosen = window.prompt('Save as filename:', suggested);
@@ -53,6 +61,8 @@ export function EffectSwitcherApp(): JSX.Element {
     URL.revokeObjectURL(url);
   }
 
+  /** Handle a file picked by the hidden `<input type="file">`. Reads the
+   *  JSON, validates it has `version: 1`, then calls `loadProject`. */
   function onImportFile(e: React.ChangeEvent<HTMLInputElement>): void {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -177,6 +187,7 @@ export function EffectSwitcherApp(): JSX.Element {
             className="es-projectbar-reset"
             onClick={() => { if (confirm(t('app.resetConfirm'))) resetProject(); }}
           >{t('app.reset')}</button>
+          <SettingsButton />
         </div>
       </div>
 

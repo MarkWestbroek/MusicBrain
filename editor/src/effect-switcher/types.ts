@@ -4,11 +4,13 @@
 // All IDs are stable strings so React keys + React-Flow edges remain valid
 // across reorderings.
 
+/** A user-defined grouping for effect devices (e.g. "Overdrive", "Delay"). */
 export interface EffectCategory {
   id: string;       // e.g. 'overdrive'
   label: string;    // e.g. 'Overdrive'
 }
 
+/** A single physical effect pedal / rack unit in the signal chain. */
 export interface EffectDevice {
   id: string;             // stable, e.g. 'd_1716800000_3'
   brand: string;          // e.g. 'Boss'
@@ -21,12 +23,17 @@ export interface EffectDevice {
   y: number;
 }
 
+/** A directed connection in the React-Flow chain canvas.
+ *  Source and target are either an `EffectDevice.id` or the special
+ *  sentinel values `'input'` / `'output'`. */
 export interface ChainEdge {
   id: string;       // 'e_<source>_<target>'
   source: string;   // EffectDevice.id OR 'input' / 'output'
   target: string;
 }
 
+/** One saved preset — a snapshot of which devices are bypassed.
+ *  The `id` doubles as the MIDI Program Change number (0..127). */
 export interface SwitcherPatch {
   id: number;       // MIDI program number (0..127)
   name: string;
@@ -36,6 +43,10 @@ export interface SwitcherPatch {
   bypassed: string[]; // EffectDevice.id[]
 }
 
+/** Root document: everything the editor saves to localStorage and exports
+ *  to JSON. `version` is the *schema* version (currently always 1) — do not
+ *  confuse it with `configVersion`, which is a user-managed release label
+ *  (e.g. `"2.3.1"`) that travels with the config to the device. */
 export interface SwitcherProject {
   version: 1;                // schema version (do NOT confuse with configVersion)
   name?: string;             // free-form project label
@@ -65,6 +76,8 @@ export const DEFAULT_CATEGORIES: EffectCategory[] = [
   { id: 'utility',     label: 'Utility'     },
 ];
 
+/** Return a minimal valid project with one empty patch and the default
+ *  category set. Used for Reset and first-run. */
 export function emptyProject(): SwitcherProject {
   return {
     version: 1,
@@ -77,7 +90,8 @@ export function emptyProject(): SwitcherProject {
   };
 }
 
-/** Stable ID generator. */
+/** Stable ID generator. Combines a prefix, a base-36 timestamp, and a
+ *  per-session counter so IDs are unique even within the same millisecond. */
 let _idCounter = 0;
 export function newId(prefix: string): string {
   _idCounter += 1;
