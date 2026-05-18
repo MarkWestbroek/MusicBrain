@@ -32,5 +32,7 @@
   "defaultCategory": "General",
 
   "cleanOutputDir": true,
-  "githubPages": false
+  "githubPages": false,
+
+  "highlightLanguages": ["typescript", "javascript", "json", "powershell", "bash"]
 }

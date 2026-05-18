@@ -6,9 +6,12 @@ import { emptyProject, type SwitcherProject } from './types';
 
 const STORAGE_KEY = 'mb.effect-switcher.v1';
 
-type Listener = () => void;
+/** Store change-listener callback. Passed to {@link ProjectStore.subscribe}. */
+export type Listener = () => void;
 
-class ProjectStore {
+/** Internal store class. Exposed for TypeDoc only — use `useProject()` and
+ *  `projectStore` in application code. */
+export class ProjectStore {
   private state: SwitcherProject;
   private listeners = new Set<Listener>();
 

@@ -8,13 +8,14 @@ const palette = ['#3b82f6', '#f59e0b', '#10b981', '#ef4444', '#a855f7',
 const colorFor = (ch: string, channels: string[]): string =>
   palette[channels.indexOf(ch) % palette.length] ?? '#888';
 
-interface Props { url?: string }
+/** Props for {@link ScopePanel}. */
+export interface ScopePanelProps { url?: string }
 
 /** Real-time CV scope panel. Connects to the scope-bridge WebSocket at
  *  `url` (default `ws://localhost:8765`), ingests newline-delimited JSON
  *  trace events from `mb_simulator`, and renders a canvas oscilloscope.
  *  Automatically reconnects every 1.5 s when the socket closes. */
-export function ScopePanel({ url = 'ws://localhost:8765' }: Props): JSX.Element {
+export function ScopePanel({ url = 'ws://localhost:8765' }: ScopePanelProps): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const bufRef    = useRef<TraceBuffer>(new TraceBuffer(2000));
   const [status, setStatus]   = useState<'connecting' | 'open' | 'closed' | 'error'>('connecting');

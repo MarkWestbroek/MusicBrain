@@ -3,7 +3,9 @@
 import { useSyncExternalStore } from 'react';
 import { emptyProject } from './types';
 const STORAGE_KEY = 'mb.effect-switcher.v1';
-class ProjectStore {
+/** Internal store class. Exposed for TypeDoc only — use `useProject()` and
+ *  `projectStore` in application code. */
+export class ProjectStore {
     state;
     listeners = new Set();
     constructor() {
