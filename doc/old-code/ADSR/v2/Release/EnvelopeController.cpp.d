@@ -1,0 +1,48 @@
+EnvelopeController.cpp.o: ..\EnvelopeController.cpp \
+ ..\EnvelopeController.h ..\Phase.h \
+ B:\eclipse\arduinoPlugin\packages\arduino\hardware\avr\1.8.3\cores\arduino/Arduino.h \
+ B:\eclipse\arduinoPlugin\packages\arduino\hardware\avr\1.8.3\cores\arduino/binary.h \
+ B:\eclipse\arduinoPlugin\packages\arduino\hardware\avr\1.8.3\cores\arduino/WCharacter.h \
+ B:\eclipse\arduinoPlugin\packages\arduino\hardware\avr\1.8.3\cores\arduino/WString.h \
+ B:\eclipse\arduinoPlugin\packages\arduino\hardware\avr\1.8.3\cores\arduino/HardwareSerial.h \
+ B:\eclipse\arduinoPlugin\packages\arduino\hardware\avr\1.8.3\cores\arduino/Stream.h \
+ B:\eclipse\arduinoPlugin\packages\arduino\hardware\avr\1.8.3\cores\arduino/Print.h \
+ B:\eclipse\arduinoPlugin\packages\arduino\hardware\avr\1.8.3\cores\arduino/Printable.h \
+ B:\eclipse\arduinoPlugin\packages\arduino\hardware\avr\1.8.3\cores\arduino/USBAPI.h \
+ B:\eclipse\arduinoPlugin\packages\arduino\hardware\avr\1.8.3\cores\arduino/Arduino.h \
+ B:\eclipse\arduinoPlugin\packages\arduino\hardware\avr\1.8.3\variants\standard/pins_arduino.h \
+ ..\Global.h ..\DebugState.h ..\SessionDebugOutput.h ..\Channel.h
+
+..\EnvelopeController.h:
+
+..\Phase.h:
+
+B:\eclipse\arduinoPlugin\packages\arduino\hardware\avr\1.8.3\cores\arduino/Arduino.h:
+
+B:\eclipse\arduinoPlugin\packages\arduino\hardware\avr\1.8.3\cores\arduino/binary.h:
+
+B:\eclipse\arduinoPlugin\packages\arduino\hardware\avr\1.8.3\cores\arduino/WCharacter.h:
+
+B:\eclipse\arduinoPlugin\packages\arduino\hardware\avr\1.8.3\cores\arduino/WString.h:
+
+B:\eclipse\arduinoPlugin\packages\arduino\hardware\avr\1.8.3\cores\arduino/HardwareSerial.h:
+
+B:\eclipse\arduinoPlugin\packages\arduino\hardware\avr\1.8.3\cores\arduino/Stream.h:
+
+B:\eclipse\arduinoPlugin\packages\arduino\hardware\avr\1.8.3\cores\arduino/Print.h:
+
+B:\eclipse\arduinoPlugin\packages\arduino\hardware\avr\1.8.3\cores\arduino/Printable.h:
+
+B:\eclipse\arduinoPlugin\packages\arduino\hardware\avr\1.8.3\cores\arduino/USBAPI.h:
+
+B:\eclipse\arduinoPlugin\packages\arduino\hardware\avr\1.8.3\cores\arduino/Arduino.h:
+
+B:\eclipse\arduinoPlugin\packages\arduino\hardware\avr\1.8.3\variants\standard/pins_arduino.h:
+
+..\Global.h:
+
+..\DebugState.h:
+
+..\SessionDebugOutput.h:
+
+..\Channel.h:

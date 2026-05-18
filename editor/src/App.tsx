@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { EffectSwitcherApp } from './effect-switcher/EffectSwitcherApp';
+import { ModularMbApp } from './modular-mb/ModularMbApp';
 import { ScopePanel } from './scope/ScopePanel';
 
-type Project = 'switcher' | 'amp' | 'synth';
+type Project = 'switcher' | 'amp' | 'mmb' | 'scope';
 
 export function App(): JSX.Element {
   const [project, setProject] = useState<Project>('switcher');
@@ -18,8 +19,11 @@ export function App(): JSX.Element {
           <ProjectButton current={project} value="amp" set={setProject}>
             Amp-switcher
           </ProjectButton>
-          <ProjectButton current={project} value="synth" set={setProject}>
-            Poly-synth (scope)
+          <ProjectButton current={project} value="mmb" set={setProject}>
+            Modular MB
+          </ProjectButton>
+          <ProjectButton current={project} value="scope" set={setProject}>
+            Scope
           </ProjectButton>
         </nav>
       </header>
@@ -35,7 +39,9 @@ export function App(): JSX.Element {
         </section>
       )}
 
-      {project === 'synth' && (
+      {project === 'mmb' && <ModularMbApp />}
+
+      {project === 'scope' && (
         <section>
           <p style={{ marginTop: 0 }}>
             Live CV-vs-time trace van <code>mb_simulator</code> via{' '}

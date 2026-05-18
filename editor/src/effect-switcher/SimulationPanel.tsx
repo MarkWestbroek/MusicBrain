@@ -1,13 +1,32 @@
-import { useEffect, useState } from 'react';
-import { devicesInFlowOrder, nextPatch, prevPatch, setActivePatch } from './actions';
+import { useEffect, useRef, useState } from 'react';
+import { devicesInFlowOrder, setActivePatch } from './actions';
 import { useProject } from './store';
 import { EditorSimulationPanel } from './EditorSimulationPanel';
 import { t } from '../i18n';
+import {
+  MidiParser,
+  MidiType,
+  describeMessage,
+  hex2,
+  serializeProgramChange,
+} from './midiSim';
 
 interface LogEntry {
   t: number;
   text: string;
 }
+
+/** A byte currently in flight on the simulated MIDI cable. */
+interface WireByte {
+  id:      number;   // unique key for React
+  value:   number;   // 0..255
+  bornAt:  number;   // performance.now() when launched
+}
+
+/** Total transit time per byte across the visualised cable. The real MIDI
+ *  bitrate (31 250 baud → ~320 µs per byte) is invisible to humans — we
+ *  inflate it so the user can actually watch the bytes travel. */
+const WIRE_TRANSIT_MS = 700;
 
 /**
  * Top-level Simulation tab — switches between two distinct use-case views.
@@ -61,17 +80,102 @@ function BoxSimulationPanel(): JSX.Element {
   const [log, setLog] = useState<LogEntry[]>([]);
   const [showLog, setShowLog] = useState(false);
 
+  // ── Simulated MIDI cable: bytes currently travelling left→right ──────────
+  const [wire, setWire] = useState<WireByte[]>([]);
+  const nextByteId = useRef(1);
+  // Parser lives on the "Brain" end of the cable. It is recreated only once;
+  // its callback closes over `setActivePatch` + `push` which are stable.
+  const parserRef = useRef<MidiParser | null>(null);
+  if (parserRef.current === null) {
+    parserRef.current = new MidiParser((m) => {
+      const label = describeMessage(m);
+      push(`◀ MIDI in: ${label}`);
+      if (m.type === MidiType.ProgramChange) {
+        // The editor's SwitcherPatch.id IS the MIDI program number (see
+        // types.ts). Match exactly; if no patch has that id, fall back to
+        // index modulo so something audible always happens.
+        const ps = projectRef.current.patches;
+        if (ps.length > 0) {
+          const exact = ps.find((p) => p.id === m.data1);
+          const target = exact ?? ps[m.data1 % ps.length]!;
+          setActivePatch(target.id);
+        }
+      }
+    });
+  }
+  // Keep a ref to the latest project so the parser callback always sees
+  // current patches without resubscribing.
+  const projectRef = useRef(project);
+  projectRef.current = project;
+
   function push(text: string): void {
     setLog((prev) => [...prev.slice(-29), { t: Date.now(), text }]);
   }
 
-  function onUp(): void   { nextPatch(); push('FS▲ → next patch'); }
-  function onDown(): void { prevPatch(); push('FS▼ → prev patch'); }
-  function onPC(id: number): void {
-    const name = project.patches.find((p) => p.id === id)?.name ?? '';
-    setActivePatch(id);
-    push(`PC ${id + 1} → "${name}"`);
+  /** Push raw bytes onto the simulated cable; they will be parsed on arrival. */
+  function transmitBytes(bytes: Uint8Array, label: string): void {
+    push(`▶ MIDI out: ${label}  [${Array.from(bytes).map(hex2).join(' ')}]`);
+    const now = performance.now();
+    setWire((prev) => [
+      ...prev,
+      // Stagger so successive bytes don't visually overlap. ~120 ms is enough
+      // to keep them readable.
+      ...Array.from(bytes, (value, i) => ({
+        id:     nextByteId.current++,
+        value,
+        bornAt: now + i * 120,
+      })),
+    ]);
   }
+
+  function onUp(): void {
+    const ps = projectRef.current.patches;
+    if (ps.length === 0) return;
+    const i = ps.findIndex((p) => p.id === projectRef.current.activePatchId);
+    const next = ps[((i < 0 ? 0 : i) + 1) % ps.length]!;
+    transmitBytes(serializeProgramChange(1, next.id), `PC1 #${next.id}  (▲ next)`);
+  }
+  function onDown(): void {
+    const ps = projectRef.current.patches;
+    if (ps.length === 0) return;
+    const i = ps.findIndex((p) => p.id === projectRef.current.activePatchId);
+    const prev = ps[((i < 0 ? 0 : i) - 1 + ps.length) % ps.length]!;
+    transmitBytes(serializeProgramChange(1, prev.id), `PC1 #${prev.id}  (▼ prev)`);
+  }
+  function onPC(id: number): void {
+    const p = projectRef.current.patches.find((x) => x.id === id);
+    if (!p) return;
+    transmitBytes(serializeProgramChange(1, p.id), `PC1 #${p.id} → "${p.name}"`);
+  }
+
+  // ── Animation loop: advance the wire and dispatch bytes as they arrive ──
+  // We bump a frame counter every requestAnimationFrame so the byte chips
+  // are re-rendered (and their `left` is recomputed) while in flight.
+  const [, setFrame] = useState(0);
+  useEffect(() => {
+    if (wire.length === 0) return;
+    let raf = 0;
+    const tick = (): void => {
+      const now = performance.now();
+      const arrived: WireByte[] = [];
+      const stillFlying: WireByte[] = [];
+      for (const b of wire) {
+        if (now - b.bornAt >= WIRE_TRANSIT_MS) arrived.push(b);
+        else stillFlying.push(b);
+      }
+      if (arrived.length > 0) {
+        // Feed parser in the order they were launched.
+        arrived.sort((a, b) => a.bornAt - b.bornAt);
+        for (const b of arrived) parserRef.current!.processByte(b.value);
+        setWire(stillFlying);
+        return;
+      }
+      setFrame((f) => f + 1);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [wire]);
 
   useEffect(() => {
     if (project.patches.length === 0) setLog([]);
@@ -107,12 +211,29 @@ function BoxSimulationPanel(): JSX.Element {
           </div>
         </div>
 
-        {/* MIDI connector */}
-        <div className="es-sim-connector">
-          <div className="es-sim-cable" />
-          <span className="es-sim-conn-badge">MIDI</span>
-          <div className="es-sim-cable" />
-          <span className="es-sim-conn-arrow">▶</span>
+        {/* MIDI connector — animated: shows real serialized bytes flying through */}
+        <div className="es-sim-connector es-sim-connector--midi">
+          <div className="es-sim-midi-wire">
+            <div className="es-sim-cable" />
+            <span className="es-sim-conn-badge">MIDI</span>
+            <div className="es-sim-cable" />
+            <span className="es-sim-conn-arrow">▶</span>
+            {wire.map((b) => {
+              const now = performance.now();
+              const progress = Math.max(0,
+                Math.min(1, (now - b.bornAt) / WIRE_TRANSIT_MS));
+              return (
+                <span
+                  key={b.id}
+                  className={`es-sim-midi-byte${(b.value & 0x80) ? ' status' : ''}`}
+                  style={{ left: `calc(${progress * 100}% - 14px)` }}
+                  title={`0x${hex2(b.value)} (${b.value})`}
+                >
+                  {hex2(b.value)}
+                </span>
+              );
+            })}
+          </div>
         </div>
 
         {/* Brain */}

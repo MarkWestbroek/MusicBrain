@@ -125,3 +125,229 @@ Programming can be in:
 - something else?
 
 Can you advice, for each of the projects and for the common things, what technology has what pros and cons, and how to choose between the options?
+
+---
+
+## Hardware decisions & component research
+
+### Standalone MIDI IN/OUT circuit
+
+The SparkFun MIDI Breakout V1.5 has been replaced by a fully discrete MIDI IN/OUT design.
+Schematic: `Images/schematics/midi-standalone.kicad_sch` (KiCad 8, self-contained, no external libs).
+
+#### MIDI IN circuit
+```
++5V ─── R1 (220 Ω) ─── J1 pin4
+                            │  (MIDI cable loop)
+J1 pin5 ─── D1 (1N4148) ─── U1 anode (pin 2)
+U1 cathode (pin 3) ─── GND
+U1 GND    (pin 5) ─── GND
+U1 VCC    (pin 8) ─── +5V  (+C1 100nF decoupling, close to pin)
+U1 Vb     (pin 7) ─── GND  (internal base floating → tied GND for stability)
+U1 Vout   (pin 6) ─── R2 (4.7 kΩ) ─── +3V3
+                   └── MIDI_RX (to ESP32 GPIO26, UART2 RX)
+```
+- **Why +5V on U1 VCC** (not +3V3 like original SparkFun design):  
+  MIDI spec requires ≥5 mA loop current. With +5V source, R1+R2 path gives ≈8 mA — well above minimum.  
+  Vout is pulled to +3V3, so the output is already 3.3 V-logic safe for the ESP32.
+- **D1** protects against reverse-polarity MIDI cable insertion.
+- **6N138** is suitable for 31250 baud; propagation delay ≈1 µs, well within one MIDI bit cell (32 µs).
+
+#### MIDI OUT circuit
+```
+MIDI_TX (ESP32 GPIO27, UART2 TX)
+   │
+  R5 (1 kΩ) ─── Q1 base
+                 Q1 collector ─── R4 (220 Ω) ─── J2 pin5
+                 Q1 emitter  ─── GND
++5V ─── R3 (220 Ω) ─── J2 pin4
+```
+- **Q1 = 2N3904 NPN**: TX HIGH → Q1 on → current flows → MIDI *mark* ✓  
+  TX LOW (UART idle is HIGH, active-low data) → Q1 off → MIDI *space* ✓  
+  No firmware inversion required; standard UART polarity is correct.
+- **Loop current** ≈ (5 V − 1.4 V LED forward voltage) / (220 + 220) Ω ≈ 8.2 mA ✓
+
+---
+
+### Mouser Bill of Materials — standalone MIDI circuit
+
+> Mouser website blocks automated scraping; part numbers below are based on known catalogue data.
+> Always verify availability and pricing on [mouser.com](https://www.mouser.com) before ordering.
+
+| Ref | Value | Description | Mouser Part # (approx.) | Qty |
+|-----|-------|-------------|------------------------|-----|
+| U1 | 6N138 | High-speed optocoupler, DIP-8 | **782-6N138** (Vishay) | 1 |
+| D1 | 1N4148 | Fast switching diode, DO-35 | **512-1N4148** (onsemi) | 1 |
+| Q1 | 2N3904 | NPN transistor, TO-92 | **512-2N3904BU** (onsemi) | 1 |
+| R1, R3, R4 | 220 Ω | Metal film, 1/4 W, 1% | **594-MFR-25FBF52-220R** (Vishay) | 3 |
+| R2 | 4.7 kΩ | Metal film, 1/4 W, 1% | **594-MFR-25FBF52-4K7** (Vishay) | 1 |
+| R5 | 1 kΩ | Metal film, 1/4 W, 1% | **594-MFR-25FBF52-1K** (Vishay) | 1 |
+| C1 | 100 nF | Ceramic disc, 50 V, through-hole | **80-C315C104M5U5TA** (KEMET) | 1 |
+| J1, J2 | DIN-5 | PCB-mount 5-pin DIN, vertical | **490-PD-50S** (CUI Devices) | 2 |
+
+Alternative DIN-5 connectors:
+- **Kycon SDS-50J** — right-angle PCB, popular in MIDI gear
+- **Adam-Tech DCSJ-5S-T-RA** — right-angle, horizontal mounting
+- **Switchcraft 57PC5F** — panel-mount with through-hole leads
+
+---
+
+### ESP32-S3 variant comparison: N16R8 vs N32R16V
+
+| Feature | **N16R8** | **N32R16V** |
+|---------|-----------|-------------|
+| Flash | 16 MB | **32 MB** |
+| PSRAM | 8 MB | **16 MB** |
+| PSRAM bus | QPI (Quad SPI, 4-bit) | **OPI (Octal SPI, 8-bit)** |
+| PSRAM chip | ESP32-S3R8 | ESP32-S3R16**V** (V = OPI) |
+| Max PSRAM bandwidth | ~40–80 MHz × 4 bit | ~80–120 MHz × 8 bit (~2×) |
+| PlatformIO board ID | `esp32-s3-devkitc-1` | `esp32-s3-devkitc-1-n32r16v` |
+| menuconfig | `CONFIG_SPIRAM_MODE_QUAD` | `CONFIG_SPIRAM_MODE_OCT` |
+
+**Which to choose?**  
+For project 3 (poly-synth CV matrix, large routing tables, audio DSP), the **N32R16V** is the better choice:
+- Double the RAM (16 MB vs 8 MB) — needed for large CV routing matrices and patch storage.
+- OPI PSRAM gives roughly 2× bandwidth — important for real-time DSP.
+- Correct `menuconfig` is essential: if OPI mode is not set, boot will fail or PSRAM will be detected incorrectly.
+- The N32R16V DevKitC is available on Mouser (search `ESP32-S3-DevKitC-1 N32R16V`); Espressif part **ESP32-S3-DevKitC-1-N32R16V**.
+
+---
+
+### BOOST-DAC8568 evaluation (project 3, poly CV output)
+
+**DAC8568** (Texas Instruments):
+- 16-bit, 8 independent channels, SPI up to 50 MHz
+- Internal 2.5 V reference (2 ppm/°C), output range 0–2.5 V (full-scale with internal ref)
+- 20 mA source/sink per channel, TSSOP-16 package, ~€12
+
+**BOOST-DAC8568 BoosterPack** (TI eval board):
+- Pre-assembled, $20 from ti.com, 2.54 mm header pitch
+- Designed for MSP430 LaunchPad BoosterPack pinout — needs careful wiring to use with ESP32
+
+| Aspect | Assessment |
+|--------|-----------|
+| ✅ No SMD soldering needed | Excellent for prototyping |
+| ✅ SPI compatible with ESP32-S3 at 3.3 V | Straightforward interface |
+| ✅ Internal 2.5 V reference | No external reference component |
+| ✅ 8 channels × 16-bit | Matches poly-synth channel count |
+| ⚠️ Output 0–2.5 V | Standard eurorack CV is 0–5 V or ±5 V → needs op-amp buffer with ×2 gain, or use external 5 V reference to DAC VREF pin |
+| ⚠️ MSP430 pinout form factor | Needs jumper wires / adapter to ESP32, not breadboard-direct |
+| ⚠️ 8 channels only | Full poly setup (8 osc × pitch + gate + velocity) may need 2–3 boards |
+
+**Recommendation**: The BOOST-DAC8568 is **practical for development and prototyping** — buy one to validate the SPI interface and CV calibration workflow. For the final PCB, design a custom DAC8568 circuit (TSSOP-16, direct SMD) with a rail-to-rail output op-amp (e.g. OPA2388) providing ×2 gain from the 2.5 V reference to produce 0–5 V CV. Use a precision 2.5 V external reference (e.g. REF3025) for best accuracy.
+
+---
+
+### Summary: hardware stack for project 1 (effect switcher)
+
+| Component | Choice |
+|-----------|--------|
+| Brain | ESP32-S3-DevKitC-1 (N16R8 or N32R16V) |
+| MIDI IN | 6N138 + 1N4148 + 220 Ω + 4.7 kΩ (standalone circuit) |
+| MIDI OUT | 2N3904 + 220 Ω + 220 Ω + 1 kΩ (standalone circuit) |
+| Display | SSD1306 OLED (I²C) |
+| Relay driver | ULN2803A (8-channel Darlington, TO-18 DIP) |
+| MIDI connectors | DIN-5 PCB-mount (CUI PD-50S or Kycon SDS-50J) |
+| Editor | Web app (React + TypeScript + Vite), served over WiFi |
+
+Schematic files in `Images/schematics/`:
+- `esp32-midi-oled.kicad_sch` — full system block (ESP32 + SparkFun breakout + OLED)
+- `midi-standalone.kicad_sch` — discrete MIDI IN/OUT replacement circuit
+
+## Editor � Modular Music Brain (MMB) v0.1 skeleton (2026-05-18)
+
+New top-level tab **Modular MB** added to the editor, alongside Effect-switcher,
+Amp-switcher and Scope. Source under `editor/src/modular-mb/`.
+
+Five sub-tabs:
+1. **Patches** � list/add/remove patches; pick the active patch
+2. **Modules** � CRUD for module definitions with default port sets per kind
+3. **Categorie�n** � module categories with default CV ranges
+4. **Patcher** � central matrix view: sources (rows) � destinations (columns);
+   click cells to (de)patch; incompatible signal types are visually disabled
+5. **Simulatie** � placeholder for v0.2 (envelope/LFO preview + live scope trace)
+
+Data model (`modular-mb/types.ts`) is **forward-compatible**:
+- `EnvelopeShape` is a discriminated union � v0.1 only ships `ahdsr`, but the
+  shape already covers `multiphase`, `sampled`, `drawn` and `hwEmulation`.
+- `LfoShape` similarly covers `wave`, `multiphase`, `sampled`, `drawn`.
+- Curves are per-phase (CurveKind) so analog-style envelopes (e.g. linear
+  attack + exponential decay) work without schema changes.
+- Triggers are typed (`midiNote` | `gatePort` | `lfo` | `manual`).
+- CV ranges are stored per-port (no hardcoded �5 V assumption).
+
+Hardware target (provisional, may change): **Teensy 4.1** as the brain
+(running envelopes/LFOs/audio in real time) with an **ESP32 as connectivity
+sidecar** (WiFi ? editor, MIDI router). The brain renders envelope/LFO
+shapes locally and only ships discrete CV values over the bus to breakout
+boards, conserving bus bandwidth.
+
+## Editor � Chain panel responsiveness & selection fixes (2026-05-18)
+
+Two fixes to `editor/src/effect-switcher/ChainPanel.tsx`:
+
+1. **Shift-click no longer selects toolbar text.** The chain section now has
+   `user-select: none` (with form controls inside the Properties aside
+   exempted via a CSS selector). Previously Shift+click on the canvas
+   extended the browser's text-selection range up through the toolbar,
+   highlighting "+Effect" and surrounding text and causing visible jitter.
+
+2. **Selection no longer rebuilds every node on every click.** Removed the
+   `selected` field from the nodes-memo data and dropped `selectedNodeIds`
+   from its dependency array. ReactFlow tracks selection internally and
+   passes it to `DeviceNode` via `NodeProps.selected`, so mirroring it was
+   redundant and triggered a full nodes-array rebuild on every click,
+   re-rendering all device cards. The local `selectedNodeIds` state is
+   still maintained (for the alignment context menu) but is now write-only
+   from `onNodesChange`.
+
+
+## Editor � MMB v0.2: graph view, cable types, MVC param widget (2026-05-18)
+
+### Cable types (signal kinds)
+`SignalType` is now `cv | gate | trigger | audio | midi`. Each has a colour
+constant (`SIGNAL_COLOUR`) and a compatibility table (`SIGNAL_COMPATIBILITY`,
+exposed via the `canConnect(src, dst)` helper). Conventions:
+
+| Type    | Colour  | Description                                   |
+|---------|---------|-----------------------------------------------|
+| cv      | blue    | continuous control voltage                    |
+| gate    | green   | sustained on/off; may drive a CV input        |
+| trigger | yellow  | momentary pulse; may stand in for a gate      |
+| audio   | orange  | audio-rate signal                             |
+| midi    | purple  | MIDI message stream                           |
+
+Both Graph and Matrix views read the same table � no view-specific rules.
+
+### Patcher: Graph view alongside Matrix view
+The Patcher tab now has a Graph/Matrix toggle. Both views render the same
+`PatchConnection[]` model (MVC). The Graph view (`PatcherGraphPanel.tsx`)
+uses ReactFlow with custom `ModuleNode`s. Each port is a coloured handle
+(per cable type). Connections are validated on drop via `canConnect`;
+incompatible drops are silently rejected. Edge stroke colour follows the
+source port's signal type. Module positions are persisted on `ModuleDef.x/y`.
+
+### MVC parameter widget (`ParamWidget.tsx`)
+A single component renders any of four views (`knob`, `slider`, `numeric`,
+`toggle`) on top of the same `value` / `onChange` props. The active patch
+stores values in `Patch.moduleSettings[moduleId][paramId]`, so all views �
+and any future view (touchscreen dial, OSC remote, ...) � stay in sync.
+
+Per-`Param` `preferredView` field on `ModuleDef` sets the default view
+without locking out alternatives.
+
+### Default port + param sets per module kind
+Adding a module from the Modules tab now pre-fills realistic ports and
+params: a VCO ships with Tune/Fine/PWM knobs and saw/sqr/sine outs; a
+VCF with Cutoff/Reso; an envelope with A/H/D/S/R as sliders; a breakout
+with Atten slider + Invert toggle; etc. `externallyControlled` flag is
+set for analog hardware modules (VCO/VCF/VCA/mixer) � the brain cannot
+drive their knobs, but the patch still stores recommended values as
+documentation.
+
+### Out of scope (v0.3+)
+- Hand-edit module front-panel layout (free placement of handles + knobs
+  on a coloured rectangle). The `ModuleVisual` type is already in place
+  for the data side; only the editor UI is deferred.
+- Live envelope/LFO preview in the Simulation tab.
+- Sampled/multiphase/drawn/hwEmulation envelope editors.

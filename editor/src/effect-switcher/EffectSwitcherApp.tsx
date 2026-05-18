@@ -34,12 +34,23 @@ export function EffectSwitcherApp(): JSX.Element {
   const [, setLangTick] = useState(0);
   useEffect(() => subscribeLang(() => setLangTick((n) => n + 1)), []);
 
-  /** Build a safe filename from the project name and configVersion.
-   *  Non-alphanumeric characters are replaced with `_`. */
+  /** Build a safe filename: yyyy-mm-dd-hhmmss-Naam-Versie-(Toelichting).json
+   *  Uses local time. Description is truncated to 32 characters. */
   function defaultFilename(): string {
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    const time = `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
     const safeName = (project.name ?? 'config').replace(/[^a-z0-9._-]+/gi, '_');
     const ver = project.configVersion ? `-v${project.configVersion}` : '';
-    return `musicbrain-${safeName}${ver}-${new Date().toISOString().slice(0, 10)}.json`;
+    let desc = '';
+    if (project.description) {
+      // Take only the first line; strip characters invalid in filenames
+      const firstLine = project.description.split(/\r?\n/)[0] ?? '';
+      const safe = firstLine.replace(/[^a-z0-9 ._-]+/gi, '_').trim().slice(0, 32).trimEnd();
+      if (safe) desc = `-(${safe})`;
+    }
+    return `${date}-${time}-${safeName}${ver}${desc}.json`;
   }
 
   /** Export the current project to a JSON file. Prompts the user for a

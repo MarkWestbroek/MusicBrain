@@ -111,7 +111,97 @@ const nodeTypes: NodeTypes = {
 
 // ─── Main editor ───────────────────────────────────────────────────────────
 
-// ─── Auto image search via Wikipedia ─────────────────────────────────────
+// ─── Auto image search ─────────────────────────────────────────────────────
+// Source order: 1. allthepedals.com  2. effectsdatabase.com  3. Wikipedia
+//
+// Strategy: use <img> element probes instead of fetch() for sources 1 & 2 —
+// this sidesteps CORS entirely. Images are stored as remote URLs (not data URLs)
+// so no blob reading is needed.
+
+// Helper: blob → data URL (used for Wikipedia only)
+function blobToDataUrl(blob: Blob): Promise<string | null> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(blob);
+  });
+}
+
+// Helper: probe a URL via <img> — works without CORS, returns natural dimensions
+function probeImageUrl(url: string): Promise<{ ok: boolean; w: number; h: number }> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const timer = setTimeout(() => resolve({ ok: false, w: 0, h: 0 }), 8000);
+    img.onload = () => { clearTimeout(timer); resolve({ ok: true, w: img.naturalWidth, h: img.naturalHeight }); };
+    img.onerror = () => { clearTimeout(timer); resolve({ ok: false, w: 0, h: 0 }); };
+    img.src = url;
+  });
+}
+
+// Sentinel URL — definitely does not exist on allthepedals.com.
+// Used to detect CDN placeholder behaviour: if the real slug returns the same
+// dimensions as this sentinel, the site is serving a default "no image" graphic.
+const ATP_SENTINEL = 'https://allthepedals.com/assets/pedals/zzz-does-not-exist-sentinel-check.webp';
+
+// 1. All The Pedals — probe slug via <img>; compare to sentinel to reject placeholders
+async function searchAllThePedalsImage(brand: string, model: string): Promise<string | null> {
+  const slug = `${brand} ${model}`
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+  const url = `https://allthepedals.com/assets/pedals/${slug}.webp`;
+  const [target, sentinel] = await Promise.all([probeImageUrl(url), probeImageUrl(ATP_SENTINEL)]);
+  if (!target.ok) return null;
+  if (target.w < 50 || target.h < 50) return null;  // too tiny → reject
+  // Same dimensions as the sentinel → allthepedals.com is serving its default placeholder → reject
+  if (sentinel.ok && target.w === sentinel.w && target.h === sentinel.h) return null;
+  return url;  // store URL directly — <img src> works without CORS
+}
+
+// 2. Effects Database — probe files.effectsdatabase.com directly via <img>
+//    The /find/name/ search endpoint blocks cross-origin fetch(); probing the
+//    CDN image files directly avoids that entirely.
+//    Image URL pattern: files.effectsdatabase.com/gear/pics/{brand-slug}_{model-slug}_001.jpg
+async function searchEffectsDbImage(brand: string, model: string): Promise<string | null> {
+  const b = brand.toLowerCase().replace(/[^a-z0-9]/g, '');  // e.g. "boss", "joyo"
+  const m = model
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');  // e.g. "ds-1", "jf-33", "phase-90"
+  const mNoDash = m.replace(/-/g, '');  // e.g. "ds1", "jf33"
+
+  const base = 'https://files.effectsdatabase.com/gear/pics/';
+  const candidates: string[] = [
+    `${base}${b}_${m}_001.jpg`,
+    ...(mNoDash !== m ? [`${base}${b}_${mNoDash}_001.jpg`] : []),
+  ];
+
+  // Joyo organises pedals into named series; the series slug becomes part of the
+  // brand prefix in the image filename (e.g. "joyo-2012_jf-33_001.jpg").
+  if (b === 'joyo') {
+    const numStr = m.replace(/^[a-z]+-?/, '');   // "33" from "jf-33"
+    const num = parseInt(numStr, 10);
+    if (!isNaN(num)) {
+      if (num >= 1  && num <= 29) candidates.push(`${base}joyo-classic_${m}_001.jpg`, `${base}joyo-classic_${mNoDash}_001.jpg`);
+      if (num >= 30 && num <= 39) candidates.push(`${base}joyo-2012_${m}_001.jpg`,    `${base}joyo-2012_${mNoDash}_001.jpg`);
+      if (num >= 40 && num <= 59) candidates.push(`${base}joyo_${m}_001.jpg`);  // already first candidate
+    }
+    if (m.startsWith('r-') || /^r\d/.test(m)) candidates.push(`${base}joyo-rseries_${m}_001.jpg`);
+    if (m.startsWith('jf3') && num >= 300)   candidates.push(`${base}joyo-ironman_${m}_001.jpg`);
+  }
+
+  const results = await Promise.all(candidates.map(probeImageUrl));
+  for (let i = 0; i < candidates.length; i++) {
+    const r = results[i]!;
+    if (r.ok && r.w >= 50 && r.h >= 50) return candidates[i] ?? null;
+  }
+  return null;
+}
+
+// 3. Wikipedia — REST summary thumbnail
 async function searchWikipediaImage(brand: string, model: string): Promise<string | null> {
   const query = `${brand} ${model}`;
   try {
@@ -126,13 +216,7 @@ async function searchWikipediaImage(brand: string, model: string): Promise<strin
     if (!imgUrl) return null;
     const imgRes = await fetch(imgUrl);
     if (!imgRes.ok) return null;
-    const blob = await imgRes.blob();
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = () => resolve(null);
-      reader.readAsDataURL(blob);
-    });
+    return blobToDataUrl(await imgRes.blob());
   } catch {
     return null;
   }
@@ -179,7 +263,10 @@ function ChainPanelInner(): JSX.Element {
         id: d.id,
         type: 'device',
         position: { x: d.x, y: d.y },
-        selected: selectedNodeIds.has(d.id),
+        // Note: `selected` is intentionally NOT set here. ReactFlow tracks
+        // selection internally and passes it to DeviceNode via NodeProps.
+        // Mirroring it caused a feedback loop that rebuilt every node on
+        // every click → noticeable lag and selection jitter.
         data: {
           device: d,
           categoryLabel: catLabel.get(d.categoryId) ?? d.categoryId,
@@ -188,7 +275,7 @@ function ChainPanelInner(): JSX.Element {
       });
     }
     return result;
-  }, [project.devices, project.categories, onSelect, selectedNodeIds, epPos]);
+  }, [project.devices, project.categories, onSelect, epPos]);
 
   const edges: Edge[] = useMemo(
     () => project.edges.map((e) => ({
@@ -310,13 +397,15 @@ function ChainPanelInner(): JSX.Element {
   async function onAutoSearch(): Promise<void> {
     if (!selected) return;
     setSearching(true);
-    const dataUrl = await searchWikipediaImage(selected.brand, selected.model);
+    let dataUrl: string | null = await searchAllThePedalsImage(selected.brand, selected.model);
+    if (!dataUrl) dataUrl = await searchEffectsDbImage(selected.brand, selected.model);
+    if (!dataUrl) dataUrl = await searchWikipediaImage(selected.brand, selected.model);
     setSearching(false);
     if (dataUrl) {
       updateDevice(selected.id, { imageDataUrl: dataUrl });
     } else {
       window.open(
-        `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(`${selected.brand} ${selected.model} guitar pedal`)}`,
+        `https://allthepedals.com/search/?q=${encodeURIComponent(`${selected.brand} ${selected.model}`)}`,
         '_blank',
       );
     }
@@ -341,7 +430,7 @@ function ChainPanelInner(): JSX.Element {
   }
 
   return (
-    <section onContextMenu={handleContextMenu} onClick={() => setContextMenu(null)}>
+    <section className="es-chain-section" onContextMenu={handleContextMenu} onClick={() => setContextMenu(null)}>
       {/* Context menu overlay — click outside to close */}
       {contextMenu && (
         <div
@@ -498,7 +587,7 @@ function ChainPanelInner(): JSX.Element {
                   <button
                     onClick={() => { void onAutoSearch(); }}
                     disabled={searching || !selected.brand || !selected.model}
-                    title="Search Wikipedia for image. Falls back to Google Images."
+                    title="Auto-search: All The Pedals → Effects Database → Wikipedia. Falls back to allthepedals.com search."
                   >
                     {searching ? 'Searching…' : '🔍 Auto-search'}
                   </button>

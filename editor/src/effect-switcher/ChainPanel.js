@@ -39,7 +39,97 @@ const nodeTypes = {
     device: DeviceNode,
 };
 // ─── Main editor ───────────────────────────────────────────────────────────
-// ─── Auto image search via Wikipedia ─────────────────────────────────────
+// ─── Auto image search ─────────────────────────────────────────────────────
+// Source order: 1. allthepedals.com  2. effectsdatabase.com  3. Wikipedia
+//
+// Strategy: use <img> element probes instead of fetch() for sources 1 & 2 —
+// this sidesteps CORS entirely. Images are stored as remote URLs (not data URLs)
+// so no blob reading is needed.
+// Helper: blob → data URL (used for Wikipedia only)
+function blobToDataUrl(blob) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+    });
+}
+// Helper: probe a URL via <img> — works without CORS, returns natural dimensions
+function probeImageUrl(url) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        const timer = setTimeout(() => resolve({ ok: false, w: 0, h: 0 }), 8000);
+        img.onload = () => { clearTimeout(timer); resolve({ ok: true, w: img.naturalWidth, h: img.naturalHeight }); };
+        img.onerror = () => { clearTimeout(timer); resolve({ ok: false, w: 0, h: 0 }); };
+        img.src = url;
+    });
+}
+// Sentinel URL — definitely does not exist on allthepedals.com.
+// Used to detect CDN placeholder behaviour: if the real slug returns the same
+// dimensions as this sentinel, the site is serving a default "no image" graphic.
+const ATP_SENTINEL = 'https://allthepedals.com/assets/pedals/zzz-does-not-exist-sentinel-check.webp';
+// 1. All The Pedals — probe slug via <img>; compare to sentinel to reject placeholders
+async function searchAllThePedalsImage(brand, model) {
+    const slug = `${brand} ${model}`
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '');
+    const url = `https://allthepedals.com/assets/pedals/${slug}.webp`;
+    const [target, sentinel] = await Promise.all([probeImageUrl(url), probeImageUrl(ATP_SENTINEL)]);
+    if (!target.ok)
+        return null;
+    if (target.w < 50 || target.h < 50)
+        return null; // too tiny → reject
+    // Same dimensions as the sentinel → allthepedals.com is serving its default placeholder → reject
+    if (sentinel.ok && target.w === sentinel.w && target.h === sentinel.h)
+        return null;
+    return url; // store URL directly — <img src> works without CORS
+}
+// 2. Effects Database — probe files.effectsdatabase.com directly via <img>
+//    The /find/name/ search endpoint blocks cross-origin fetch(); probing the
+//    CDN image files directly avoids that entirely.
+//    Image URL pattern: files.effectsdatabase.com/gear/pics/{brand-slug}_{model-slug}_001.jpg
+async function searchEffectsDbImage(brand, model) {
+    const b = brand.toLowerCase().replace(/[^a-z0-9]/g, ''); // e.g. "boss", "joyo"
+    const m = model
+        .toLowerCase()
+        .replace(/\s+/g, '-')
+        .replace(/[^a-z0-9-]/g, '')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, ''); // e.g. "ds-1", "jf-33", "phase-90"
+    const mNoDash = m.replace(/-/g, ''); // e.g. "ds1", "jf33"
+    const base = 'https://files.effectsdatabase.com/gear/pics/';
+    const candidates = [
+        `${base}${b}_${m}_001.jpg`,
+        ...(mNoDash !== m ? [`${base}${b}_${mNoDash}_001.jpg`] : []),
+    ];
+    // Joyo organises pedals into named series; the series slug becomes part of the
+    // brand prefix in the image filename (e.g. "joyo-2012_jf-33_001.jpg").
+    if (b === 'joyo') {
+        const numStr = m.replace(/^[a-z]+-?/, ''); // "33" from "jf-33"
+        const num = parseInt(numStr, 10);
+        if (!isNaN(num)) {
+            if (num >= 1 && num <= 29)
+                candidates.push(`${base}joyo-classic_${m}_001.jpg`, `${base}joyo-classic_${mNoDash}_001.jpg`);
+            if (num >= 30 && num <= 39)
+                candidates.push(`${base}joyo-2012_${m}_001.jpg`, `${base}joyo-2012_${mNoDash}_001.jpg`);
+            if (num >= 40 && num <= 59)
+                candidates.push(`${base}joyo_${m}_001.jpg`); // already first candidate
+        }
+        if (m.startsWith('r-') || /^r\d/.test(m))
+            candidates.push(`${base}joyo-rseries_${m}_001.jpg`);
+        if (m.startsWith('jf3') && num >= 300)
+            candidates.push(`${base}joyo-ironman_${m}_001.jpg`);
+    }
+    const results = await Promise.all(candidates.map(probeImageUrl));
+    for (let i = 0; i < candidates.length; i++) {
+        const r = results[i];
+        if (r.ok && r.w >= 50 && r.h >= 50)
+            return candidates[i] ?? null;
+    }
+    return null;
+}
+// 3. Wikipedia — REST summary thumbnail
 async function searchWikipediaImage(brand, model) {
     const query = `${brand} ${model}`;
     try {
@@ -54,13 +144,7 @@ async function searchWikipediaImage(brand, model) {
         const imgRes = await fetch(imgUrl);
         if (!imgRes.ok)
             return null;
-        const blob = await imgRes.blob();
-        return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = () => resolve(null);
-            reader.readAsDataURL(blob);
-        });
+        return blobToDataUrl(await imgRes.blob());
     }
     catch {
         return null;
@@ -101,7 +185,10 @@ function ChainPanelInner() {
                 id: d.id,
                 type: 'device',
                 position: { x: d.x, y: d.y },
-                selected: selectedNodeIds.has(d.id),
+                // Note: `selected` is intentionally NOT set here. ReactFlow tracks
+                // selection internally and passes it to DeviceNode via NodeProps.
+                // Mirroring it caused a feedback loop that rebuilt every node on
+                // every click → noticeable lag and selection jitter.
                 data: {
                     device: d,
                     categoryLabel: catLabel.get(d.categoryId) ?? d.categoryId,
@@ -110,7 +197,7 @@ function ChainPanelInner() {
             });
         }
         return result;
-    }, [project.devices, project.categories, onSelect, selectedNodeIds, epPos]);
+    }, [project.devices, project.categories, onSelect, epPos]);
     const edges = useMemo(() => project.edges.map((e) => ({
         id: e.id,
         source: e.source,
@@ -228,13 +315,17 @@ function ChainPanelInner() {
         if (!selected)
             return;
         setSearching(true);
-        const dataUrl = await searchWikipediaImage(selected.brand, selected.model);
+        let dataUrl = await searchAllThePedalsImage(selected.brand, selected.model);
+        if (!dataUrl)
+            dataUrl = await searchEffectsDbImage(selected.brand, selected.model);
+        if (!dataUrl)
+            dataUrl = await searchWikipediaImage(selected.brand, selected.model);
         setSearching(false);
         if (dataUrl) {
             updateDevice(selected.id, { imageDataUrl: dataUrl });
         }
         else {
-            window.open(`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(`${selected.brand} ${selected.model} guitar pedal`)}`, '_blank');
+            window.open(`https://allthepedals.com/search/?q=${encodeURIComponent(`${selected.brand} ${selected.model}`)}`, '_blank');
         }
     }
     function onPasteUrl() {
@@ -256,7 +347,7 @@ function ChainPanelInner() {
         reader.readAsDataURL(file);
         e.target.value = '';
     }
-    return (_jsxs("section", { onContextMenu: handleContextMenu, onClick: () => setContextMenu(null), children: [contextMenu && (_jsx("div", { style: { position: 'fixed', inset: 0, zIndex: 999 }, onClick: () => setContextMenu(null), onContextMenu: (e) => { e.preventDefault(); setContextMenu(null); } })), contextMenu && selectedDeviceIds.length >= 2 && (_jsxs("div", { style: {
+    return (_jsxs("section", { className: "es-chain-section", onContextMenu: handleContextMenu, onClick: () => setContextMenu(null), children: [contextMenu && (_jsx("div", { style: { position: 'fixed', inset: 0, zIndex: 999 }, onClick: () => setContextMenu(null), onContextMenu: (e) => { e.preventDefault(); setContextMenu(null); } })), contextMenu && selectedDeviceIds.length >= 2 && (_jsxs("div", { style: {
                     position: 'fixed', left: contextMenu.x, top: contextMenu.y,
                     zIndex: 1000, background: 'white', border: '1px solid #d1d5db',
                     borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
@@ -277,7 +368,7 @@ function ChainPanelInner() {
                         : _jsxs("button", { onClick: item.fn, style: { display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left', padding: '7px 16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#1f2937' }, onMouseEnter: (e) => { (e.currentTarget).style.background = '#eff6ff'; }, onMouseLeave: (e) => { (e.currentTarget).style.background = 'none'; }, children: [_jsx("span", { style: { width: 20, height: 20, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#4b5563' }, children: item.icon }), item.label] }, item.label))] })), _jsxs("div", { className: "es-toolbar", children: [_jsx("button", { className: "primary", onClick: () => addDevice({}), children: t('chain.addEffect') }), _jsx("button", { onClick: autoAssignRelays, title: "Topological order \u2192 relay 1..n", children: t('chain.autoAssign') }), _jsxs("label", { style: { display: 'flex', alignItems: 'center', gap: 4 }, children: [t('chain.relays'), _jsx("input", { type: "number", min: 1, max: 32, value: project.relayCount, onChange: (e) => setRelayCount(parseInt(e.target.value, 10) || 16), style: { width: 60 } })] }), _jsx("span", { style: { color: '#6b7280', fontSize: 12 }, children: t('chain.hint') })] }), _jsxs("div", { style: { display: 'grid', gridTemplateColumns: '1fr 280px', gap: 12 }, children: [_jsx("div", { className: "es-chain", children: _jsxs(ReactFlow, { nodes: nodes, edges: edges, nodeTypes: nodeTypes, onNodesChange: onNodesChange, onEdgesChange: onEdgesChange, onConnect: onConnect, onReconnect: onReconnect, deleteKeyCode: "Delete", fitView: true, proOptions: { hideAttribution: true }, children: [_jsx(Background, { gap: 20 }), _jsx(Controls, { showInteractive: false })] }) }), _jsxs("aside", { style: { border: '1px solid #cbd2d9', borderRadius: 6, padding: 12, background: 'white' }, children: [_jsx("h3", { style: { marginTop: 0, fontSize: 13, textTransform: 'uppercase', color: '#6b7280' }, children: "Properties" }), !selected && (_jsx("p", { style: { color: '#6b7280', fontSize: 13 }, children: "Click a device to edit its properties." })), selected && (_jsxs("div", { style: { display: 'flex', flexDirection: 'column', gap: 8 }, children: [_jsxs("label", { style: { fontSize: 12 }, children: ["Brand", _jsx("input", { type: "text", value: selected.brand, onChange: (e) => updateDevice(selected.id, { brand: e.target.value }), style: { width: '100%' } })] }), _jsxs("label", { style: { fontSize: 12 }, children: ["Model", _jsx("input", { type: "text", value: selected.model, onChange: (e) => updateDevice(selected.id, { model: e.target.value }), style: { width: '100%' } })] }), _jsxs("label", { style: { fontSize: 12 }, children: ["Category", _jsx("select", { value: selected.categoryId, onChange: (e) => updateDevice(selected.id, { categoryId: e.target.value }), style: { width: '100%' }, children: project.categories.map((c) => (_jsx("option", { value: c.id, children: c.label }, c.id))) })] }), _jsxs("label", { style: { fontSize: 12 }, children: ["Relay (1..", project.relayCount, "; 0 = unassigned)", _jsx("input", { type: "number", min: 0, max: project.relayCount, value: selected.relayIndex < 0 ? 0 : selected.relayIndex + 1, onChange: (e) => {
                                                     const v = parseInt(e.target.value, 10) || 0;
                                                     updateDevice(selected.id, { relayIndex: v <= 0 ? -1 : v - 1 });
-                                                }, style: { width: '100%' } })] }), _jsxs("div", { style: { fontSize: 12 }, children: ["Plaatje:", selected.imageDataUrl && (_jsx("img", { src: selected.imageDataUrl, alt: "", style: { width: '100%', maxHeight: 120, objectFit: 'contain', display: 'block', margin: '4px 0', background: '#f5f7fa', borderRadius: 4 } })), _jsxs("div", { style: { display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }, children: [_jsx("button", { onClick: () => fileRef.current?.click(), children: selected.imageDataUrl ? 'Replace' : 'Upload' }), _jsx("button", { onClick: () => { void onAutoSearch(); }, disabled: searching || !selected.brand || !selected.model, title: "Search Wikipedia for image. Falls back to Google Images.", children: searching ? 'Searching…' : '🔍 Auto-search' }), selected.imageDataUrl && (_jsx("button", { className: "danger", onClick: () => updateDevice(selected.id, { imageDataUrl: undefined }), children: "\u2715" }))] }), _jsxs("div", { style: { display: 'flex', gap: 4, marginTop: 6 }, children: [_jsx("input", { type: "url", placeholder: "Paste image URL\u2026", value: pasteUrl, onChange: (e) => setPasteUrl(e.target.value), style: { flex: 1, fontSize: 11, padding: '3px 6px' } }), _jsx("button", { onClick: onPasteUrl, disabled: !pasteUrl.trim(), children: "OK" })] }), _jsx("input", { ref: fileRef, type: "file", accept: "image/*", style: { display: 'none' }, onChange: onImageChange })] }), _jsx("button", { className: "danger", onClick: () => { removeDevice(selected.id); setSelectedId(null); setSelectedNodeIds(new Set()); }, children: "Delete device" })] }))] })] })] }));
+                                                }, style: { width: '100%' } })] }), _jsxs("div", { style: { fontSize: 12 }, children: ["Plaatje:", selected.imageDataUrl && (_jsx("img", { src: selected.imageDataUrl, alt: "", style: { width: '100%', maxHeight: 120, objectFit: 'contain', display: 'block', margin: '4px 0', background: '#f5f7fa', borderRadius: 4 } })), _jsxs("div", { style: { display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }, children: [_jsx("button", { onClick: () => fileRef.current?.click(), children: selected.imageDataUrl ? 'Replace' : 'Upload' }), _jsx("button", { onClick: () => { void onAutoSearch(); }, disabled: searching || !selected.brand || !selected.model, title: "Auto-search: All The Pedals \u2192 Effects Database \u2192 Wikipedia. Falls back to allthepedals.com search.", children: searching ? 'Searching…' : '🔍 Auto-search' }), selected.imageDataUrl && (_jsx("button", { className: "danger", onClick: () => updateDevice(selected.id, { imageDataUrl: undefined }), children: "\u2715" }))] }), _jsxs("div", { style: { display: 'flex', gap: 4, marginTop: 6 }, children: [_jsx("input", { type: "url", placeholder: "Paste image URL\u2026", value: pasteUrl, onChange: (e) => setPasteUrl(e.target.value), style: { flex: 1, fontSize: 11, padding: '3px 6px' } }), _jsx("button", { onClick: onPasteUrl, disabled: !pasteUrl.trim(), children: "OK" })] }), _jsx("input", { ref: fileRef, type: "file", accept: "image/*", style: { display: 'none' }, onChange: onImageChange })] }), _jsx("button", { className: "danger", onClick: () => { removeDevice(selected.id); setSelectedId(null); setSelectedNodeIds(new Set()); }, children: "Delete device" })] }))] })] })] }));
 }
 export function ChainPanel() {
     return (_jsx(ReactFlowProvider, { children: _jsx(ChainPanelInner, {}) }));

@@ -1,0 +1,486 @@
+(kicad_sch
+  (version 20231120)
+  (generator "eeschema")
+  (generator_version "8.0")
+  (uuid "mb000002-0000-0000-0000-000000000001")
+  (paper "A4" portrait)
+
+  ;; =========================================================================
+  ;; Embedded symbol library — no external libs required
+  ;; =========================================================================
+  (lib_symbols
+
+    ;; ── Device:R ─────────────────────────────────────────────────────────
+    (symbol "Device:R"
+      (pin_names (offset 0))
+      (pin_numbers (hide yes))
+      (property "Reference" "R" (at 1.016 0 90) (effects (font (size 1.27 1.27))))
+      (property "Value"     "R" (at -1.016 0 90) (effects (font (size 1.27 1.27))))
+      (property "Footprint" ""  (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (property "Datasheet" ""  (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (symbol "R_0_1"
+        (polyline (pts (xy -1.016 -2.032) (xy 1.016 -2.032) (xy 1.016 2.032) (xy -1.016 2.032) (xy -1.016 -2.032))
+          (stroke (width 0) (type default)) (fill (type none)))
+      )
+      (symbol "R_1_1"
+        (pin passive line (at 0  3.81 270) (length 1.778)
+          (name "~" (effects (font (size 1.27 1.27)))) (number "1" (effects (font (size 1.27 1.27)))))
+        (pin passive line (at 0 -3.81  90) (length 1.778)
+          (name "~" (effects (font (size 1.27 1.27)))) (number "2" (effects (font (size 1.27 1.27)))))
+      )
+    )
+
+    ;; ── Device:C ─────────────────────────────────────────────────────────
+    (symbol "Device:C"
+      (pin_names (offset 0.254))
+      (property "Reference" "C" (at 1.524 0 90) (effects (font (size 1.27 1.27))))
+      (property "Value"     "C" (at -1.524 0 90) (effects (font (size 1.27 1.27))))
+      (property "Footprint" ""  (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (property "Datasheet" ""  (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (symbol "C_0_1"
+        (polyline (pts (xy -2.032 -0.762) (xy 2.032 -0.762))
+          (stroke (width 0.508) (type default)) (fill (type none)))
+        (polyline (pts (xy -2.032  0.762) (xy 2.032  0.762))
+          (stroke (width 0.508) (type default)) (fill (type none)))
+      )
+      (symbol "C_1_1"
+        (pin passive line (at 0  3.81 270) (length 3.048)
+          (name "~" (effects (font (size 1.27 1.27)))) (number "1" (effects (font (size 1.27 1.27)))))
+        (pin passive line (at 0 -3.81  90) (length 3.048)
+          (name "~" (effects (font (size 1.27 1.27)))) (number "2" (effects (font (size 1.27 1.27)))))
+      )
+    )
+
+    ;; ── Device:D ─────────────────────────────────────────────────────────
+    (symbol "Device:D"
+      (pin_names (offset 0))
+      (pin_numbers (hide yes))
+      (property "Reference" "D" (at 0  2.54 0) (effects (font (size 1.27 1.27))))
+      (property "Value"     "D" (at 0 -2.54 0) (effects (font (size 1.27 1.27))))
+      (property "Footprint" ""  (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (property "Datasheet" ""  (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (symbol "D_0_1"
+        (polyline (pts (xy -1.27 -1.27) (xy -1.27 1.27))
+          (stroke (width 0.254) (type default)) (fill (type none)))
+        (polyline (pts (xy -1.27 0) (xy 1.27 0))
+          (stroke (width 0) (type default)) (fill (type none)))
+        (polyline (pts (xy 1.27 -1.27) (xy -1.27 0) (xy 1.27 1.27) (xy 1.27 -1.27))
+          (stroke (width 0.254) (type default)) (fill (type none)))
+      )
+      (symbol "D_1_1"
+        (pin passive line (at -2.54 0   0) (length 1.27)
+          (name "A" (effects (font (size 1.27 1.27)))) (number "A" (effects (font (size 1.27 1.27)))))
+        (pin passive line (at  2.54 0 180) (length 1.27)
+          (name "K" (effects (font (size 1.27 1.27)))) (number "K" (effects (font (size 1.27 1.27)))))
+      )
+    )
+
+    ;; ── Custom:6N138 ─────────────────────────────────────────────────────
+    ;; Vishay/ON Semi 6N138 high-speed optocoupler, DIP-8
+    ;; Pins used: 2=Anode  3=Cathode  5=GND  6=Vout  7=Vb(base)  8=VCC
+    (symbol "Custom:6N138"
+      (property "Reference" "U" (at 0  8.89 0) (effects (font (size 1.27 1.27))))
+      (property "Value" "6N138"  (at 0 -8.89 0) (effects (font (size 1.27 1.27))))
+      (property "Footprint" "Package_DIP:DIP-8_W7.62mm" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (property "Datasheet" "https://www.vishay.com/docs/83604/6n138.pdf" (at 0 0 0)
+        (effects (font (size 1.27 1.27)) (hide yes)))
+      (symbol "6N138_0_1"
+        ;; body
+        (rectangle (start -6.35 7.62) (end 6.35 -7.62)
+          (stroke (width 0) (type default)) (fill (type background)))
+        ;; divider between input/output sides
+        (polyline (pts (xy 0 7.62) (xy 0 -7.62))
+          (stroke (width 0.254) (type default)) (fill (type none)))
+        ;; LED symbol (input side)
+        (polyline (pts (xy -3.81 2.54) (xy -3.81 -2.54) (xy -1.27 0) (xy -3.81 2.54))
+          (stroke (width 0.254) (type default)) (fill (type none)))
+        (polyline (pts (xy -1.27 2.54) (xy -1.27 -2.54))
+          (stroke (width 0.254) (type default)) (fill (type none)))
+        ;; phototransistor circle (output side)
+        (circle (center 2.54 0) (radius 2.032)
+          (stroke (width 0.254) (type default)) (fill (type none)))
+      )
+      (symbol "6N138_1_1"
+        (pin input    line (at -8.89  2.54  0) (length 2.54)
+          (name "A"    (effects (font (size 1.27 1.27)))) (number "2" (effects (font (size 1.27 1.27)))))
+        (pin input    line (at -8.89 -2.54  0) (length 2.54)
+          (name "K"    (effects (font (size 1.27 1.27)))) (number "3" (effects (font (size 1.27 1.27)))))
+        (pin power_in line (at  2.54 -10.16 90) (length 2.54)
+          (name "GND"  (effects (font (size 1.27 1.27)))) (number "5" (effects (font (size 1.27 1.27)))))
+        (pin output   line (at  8.89 -2.54 180) (length 2.54)
+          (name "Vout" (effects (font (size 1.27 1.27)))) (number "6" (effects (font (size 1.27 1.27)))))
+        (pin passive  line (at  8.89  0    180) (length 2.54)
+          (name "Vb"   (effects (font (size 1.27 1.27)))) (number "7" (effects (font (size 1.27 1.27)))))
+        (pin power_in line (at  2.54  10.16 270) (length 2.54)
+          (name "VCC"  (effects (font (size 1.27 1.27)))) (number "8" (effects (font (size 1.27 1.27)))))
+      )
+    )
+
+    ;; ── Custom:Q_NPN_2N3904 ──────────────────────────────────────────────
+    ;; NPN transistor, TO-92, pins: B=base  C=collector  E=emitter
+    (symbol "Custom:Q_NPN_2N3904"
+      (property "Reference" "Q" (at 1.27 5.08 0) (effects (font (size 1.27 1.27))))
+      (property "Value" "2N3904"  (at 1.27 -5.08 0) (effects (font (size 1.27 1.27))))
+      (property "Footprint" "Package_TO_SOT_THT:TO-92_Inline" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (property "Datasheet" "https://www.onsemi.com/pub/Collateral/2N3903-D.PDF" (at 0 0 0)
+        (effects (font (size 1.27 1.27)) (hide yes)))
+      (symbol "Q_NPN_2N3904_0_1"
+        ;; body circle
+        (circle (center 1.27 0) (radius 2.794)
+          (stroke (width 0.254) (type default)) (fill (type background)))
+        ;; base connection stub
+        (polyline (pts (xy -2.54 0) (xy 0 0))
+          (stroke (width 0.254) (type default)) (fill (type none)))
+        ;; vertical bar on base side
+        (polyline (pts (xy 0 1.778) (xy 0 -1.778))
+          (stroke (width 0.508) (type default)) (fill (type none)))
+        ;; collector line
+        (polyline (pts (xy 0 1.27) (xy 2.54 2.54))
+          (stroke (width 0.254) (type default)) (fill (type none)))
+        ;; emitter line
+        (polyline (pts (xy 0 -1.27) (xy 2.54 -2.54))
+          (stroke (width 0.254) (type default)) (fill (type none)))
+        ;; emitter arrow (NPN, pointing outward)
+        (polyline (pts (xy 1.524 -1.905) (xy 2.54 -2.54) (xy 1.905 -1.524))
+          (stroke (width 0.254) (type default)) (fill (type none)))
+      )
+      (symbol "Q_NPN_2N3904_1_1"
+        (pin input   line (at -5.08  0    0) (length 2.54)
+          (name "B" (effects (font (size 1.27 1.27)))) (number "B" (effects (font (size 1.27 1.27)))))
+        (pin passive line (at  5.08  2.54 180) (length 2.54)
+          (name "C" (effects (font (size 1.27 1.27)))) (number "C" (effects (font (size 1.27 1.27)))))
+        (pin passive line (at  5.08 -2.54 180) (length 2.54)
+          (name "E" (effects (font (size 1.27 1.27)))) (number "E" (effects (font (size 1.27 1.27)))))
+      )
+    )
+
+    ;; ── Connector_Generic:Conn_01x05 (DIN-5 pins) ───────────────────────
+    (symbol "Connector_Generic:Conn_01x05"
+      (pin_names (offset 1.016) (hide yes))
+      (pin_numbers (hide yes))
+      (property "Reference" "J"  (at 0  6.35 0) (effects (font (size 1.27 1.27))))
+      (property "Value" "Conn_01x05" (at 0 -6.35 0) (effects (font (size 1.27 1.27))))
+      (property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (property "Datasheet" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (symbol "Conn_01x05_0_1"
+        (rectangle (start -1.27 -5.08) (end 0 5.08)
+          (stroke (width 0.254) (type default)) (fill (type background)))
+      )
+      (symbol "Conn_01x05_1_1"
+        (pin passive line (at -2.54  3.81 0) (length 1.27)
+          (name "Pin_1" (effects (font (size 1.27 1.27)))) (number "1" (effects (font (size 1.27 1.27)))))
+        (pin passive line (at -2.54  1.27 0) (length 1.27)
+          (name "Pin_2" (effects (font (size 1.27 1.27)))) (number "2" (effects (font (size 1.27 1.27)))))
+        (pin passive line (at -2.54 -1.27 0) (length 1.27)
+          (name "Pin_3" (effects (font (size 1.27 1.27)))) (number "3" (effects (font (size 1.27 1.27)))))
+        (pin passive line (at -2.54 -3.81 0) (length 1.27)
+          (name "Pin_4" (effects (font (size 1.27 1.27)))) (number "4" (effects (font (size 1.27 1.27)))))
+        (pin passive line (at -2.54 -6.35 0) (length 1.27)
+          (name "Pin_5" (effects (font (size 1.27 1.27)))) (number "5" (effects (font (size 1.27 1.27)))))
+      )
+    )
+
+    ;; ── power:GND ────────────────────────────────────────────────────────
+    (symbol "power:GND"
+      (property "Reference" "#PWR" (at 0 -1.27 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (property "Value" "GND" (at 0 -2.54 0) (effects (font (size 1.27 1.27))))
+      (symbol "GND_0_1"
+        (polyline (pts (xy 0 0) (xy 0 -1.27)) (stroke (width 0) (type default)) (fill (type none)))
+        (polyline (pts (xy -1.27 -1.27) (xy 1.27 -1.27)) (stroke (width 0) (type default)) (fill (type none)))
+        (polyline (pts (xy -0.762 -1.778) (xy 0.762 -1.778)) (stroke (width 0) (type default)) (fill (type none)))
+        (polyline (pts (xy -0.254 -2.286) (xy 0.254 -2.286)) (stroke (width 0) (type default)) (fill (type none)))
+      )
+      (symbol "GND_1_1"
+        (pin power_in line (at 0 0 270) (length 0)
+          (name "GND" (effects (font (size 1.27 1.27)) (hide yes)))
+          (number "1"  (effects (font (size 1.27 1.27)) (hide yes))))
+      )
+    )
+
+    ;; ── power:+3V3 ───────────────────────────────────────────────────────
+    (symbol "power:+3V3"
+      (property "Reference" "#PWR" (at 0 3.302 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (property "Value" "+3V3" (at 0 3.302 0) (effects (font (size 1.27 1.27))))
+      (symbol "+3V3_0_1"
+        (polyline (pts (xy 0 0) (xy 0 1.27)) (stroke (width 0) (type default)) (fill (type none)))
+        (polyline (pts (xy -0.762 1.27) (xy 0 2.54) (xy 0.762 1.27))
+          (stroke (width 0) (type default)) (fill (type none)))
+      )
+      (symbol "+3V3_1_1"
+        (pin power_in line (at 0 0 270) (length 0)
+          (name "+3V3" (effects (font (size 1.27 1.27)) (hide yes)))
+          (number "1"  (effects (font (size 1.27 1.27)) (hide yes))))
+      )
+    )
+
+    ;; ── power:+5V ────────────────────────────────────────────────────────
+    (symbol "power:+5V"
+      (property "Reference" "#PWR" (at 0 3.302 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (property "Value" "+5V" (at 0 3.302 0) (effects (font (size 1.27 1.27))))
+      (symbol "+5V_0_1"
+        (polyline (pts (xy 0 0) (xy 0 1.27)) (stroke (width 0) (type default)) (fill (type none)))
+        (polyline (pts (xy -0.762 1.27) (xy 0 2.54) (xy 0.762 1.27))
+          (stroke (width 0) (type default)) (fill (type none)))
+      )
+      (symbol "+5V_1_1"
+        (pin power_in line (at 0 0 270) (length 0)
+          (name "+5V" (effects (font (size 1.27 1.27)) (hide yes)))
+          (number "1"  (effects (font (size 1.27 1.27)) (hide yes))))
+      )
+    )
+
+  )
+  ;; end lib_symbols
+
+  ;; =========================================================================
+  ;; Net labels
+  ;; =========================================================================
+  ;; MIDI_RX: 6N138 Vout → ESP32 GPIO26
+  (label "MIDI_RX" (at 122 62.5 0) (effects (font (size 1.27 1.27)) (justify left)))
+
+  ;; MIDI_TX: ESP32 GPIO27 → R5 → Q1 base
+  (label "MIDI_TX" (at 60 148 180) (effects (font (size 1.27 1.27)) (justify right)))
+
+  ;; =========================================================================
+  ;; ── MIDI IN block ─────────────────────────────────────────────────────
+  ;;
+  ;;  +5V                    +3V3   +3V3
+  ;;   |                      |      |
+  ;;  R1                     R2     VCC(U1)
+  ;;  220Ω                  4.7kΩ  decoupled
+  ;;   |     D1(1N4148)      |      by C1
+  ;; J1p4 ──|>|── U1.A   U1.Vout──●──── MIDI_RX
+  ;; J1p5 ──────── U1.K    U1.Vb ── GND
+  ;; J1p2 ── GND          U1.GND── GND
+  ;; =========================================================================
+
+  ;; J1 — MIDI IN DIN-5 (panel-mount or PCB-mount, CUI PD-50S or equivalent)
+  (symbol (lib_id "Connector_Generic:Conn_01x05") (at 22 65 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000002-0001-0001-0001-000000000001")
+    (property "Reference" "J1" (at 22 57 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "DIN-5 MIDI IN" (at 22 73 0) (effects (font (size 1.27 1.27))))
+    (property "Footprint" "Connector_DIN:DIN5_PinHeader_P2.54mm_Horizontal" (at 0 0 0)
+      (effects (font (size 1.27 1.27)) (hide yes)))
+  )
+
+  ;; J1 pin 1 annotation (NC)
+  (no_connect (at 19.46 68.81) (uuid "mb000002-nc01"))
+  ;; J1 pin 3 annotation (NC)
+  (no_connect (at 19.46 63.73) (uuid "mb000002-nc02"))
+
+  ;; GND — J1 pin 2 (cable shield)
+  (symbol (lib_id "power:GND") (at 10 66.27 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000002-0001-0001-0001-000000000002")
+    (property "Reference" "#PWR01" (at 10 66.27 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    (property "Value" "GND" (at 10 68.5 0) (effects (font (size 1.27 1.27))))
+  )
+
+  ;; R1 — 220 Ω: +5V → J1 pin4 (current source for MIDI loop)
+  (symbol (lib_id "Device:R") (at 40 61.19 90) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000002-0001-0001-0001-000000000003")
+    (property "Reference" "R1" (at 40 58 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "220R" (at 40 64 0) (effects (font (size 1.27 1.27))))
+    (property "Footprint" "Resistor_THT:R_Axial_DIN0204_L3.6mm_D1.6mm_P5.08mm_Horizontal" (at 0 0 0)
+      (effects (font (size 1.27 1.27)) (hide yes)))
+  )
+
+  ;; +5V for R1 (left end)
+  (symbol (lib_id "power:+5V") (at 36.2 61.19 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000002-0001-0001-0001-000000000004")
+    (property "Reference" "#PWR02" (at 36.2 61.19 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    (property "Value" "+5V" (at 34 58.5 0) (effects (font (size 1.27 1.27))))
+  )
+
+  ;; D1 — 1N4148: J1 pin5 → U1 anode (reverse-polarity protection)
+  (symbol (lib_id "Device:D") (at 60 61.19 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000002-0001-0001-0001-000000000005")
+    (property "Reference" "D1" (at 60 58 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "1N4148" (at 60 64 0) (effects (font (size 1.27 1.27))))
+    (property "Footprint" "Diode_THT:D_DO-35_SOD27_P2.54mm_Horizontal" (at 0 0 0)
+      (effects (font (size 1.27 1.27)) (hide yes)))
+  )
+
+  ;; U1 — 6N138 optocoupler (MIDI isolation)
+  ;; VCC=+5V for standard MIDI 5mA; Vout pulled to +3V3 for ESP32 compatibility
+  (symbol (lib_id "Custom:6N138") (at 90 65 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000002-0001-0001-0001-000000000006")
+    (property "Reference" "U1" (at 90 55 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "6N138" (at 90 76 0) (effects (font (size 1.27 1.27))))
+    (property "Footprint" "Package_DIP:DIP-8_W7.62mm" (at 0 0 0)
+      (effects (font (size 1.27 1.27)) (hide yes)))
+  )
+
+  ;; R2 — 4.7 kΩ pull-up: +3V3 → U1.Vout (→ MIDI_RX)
+  (symbol (lib_id "Device:R") (at 112 60 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000002-0001-0001-0001-000000000007")
+    (property "Reference" "R2" (at 115 60 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "4k7" (at 115 63 0) (effects (font (size 1.27 1.27))))
+    (property "Footprint" "Resistor_THT:R_Axial_DIN0204_L3.6mm_D1.6mm_P5.08mm_Horizontal" (at 0 0 0)
+      (effects (font (size 1.27 1.27)) (hide yes)))
+  )
+
+  ;; +3V3 for R2 top
+  (symbol (lib_id "power:+3V3") (at 112 56.19 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000002-0001-0001-0001-000000000008")
+    (property "Reference" "#PWR03" (at 112 56.19 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    (property "Value" "+3V3" (at 110 53.5 0) (effects (font (size 1.27 1.27))))
+  )
+
+  ;; C1 — 100 nF: U1.VCC → GND (decoupling, place physically close to U1 pin 8)
+  (symbol (lib_id "Device:C") (at 112 73 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000002-0001-0001-0001-000000000009")
+    (property "Reference" "C1" (at 115 73 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "100n" (at 115 76 0) (effects (font (size 1.27 1.27))))
+    (property "Footprint" "Capacitor_THT:C_Disc_D3.0mm_W1.6mm_P2.50mm" (at 0 0 0)
+      (effects (font (size 1.27 1.27)) (hide yes)))
+  )
+
+  ;; +5V for U1.VCC (pin 8) and C1 top
+  (symbol (lib_id "power:+5V") (at 92.54 54.84 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000002-0001-0001-0001-00000000000a")
+    (property "Reference" "#PWR04" (at 92.54 54.84 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    (property "Value" "+5V" (at 90 52 0) (effects (font (size 1.27 1.27))))
+  )
+
+  ;; GND — U1.GND (pin 5)
+  (symbol (lib_id "power:GND") (at 92.54 75.16 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000002-0001-0001-0001-00000000000b")
+    (property "Reference" "#PWR05" (at 92.54 75.16 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    (property "Value" "GND" (at 92.54 77.5 0) (effects (font (size 1.27 1.27))))
+  )
+
+  ;; GND — U1.Vb (pin 7, base tied to GND for standard operation)
+  (symbol (lib_id "power:GND") (at 101.6 65 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000002-0001-0001-0001-00000000000c")
+    (property "Reference" "#PWR06" (at 101.6 65 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    (property "Value" "GND" (at 103 67 0) (effects (font (size 1.27 1.27))))
+  )
+
+  ;; GND — C1 bottom
+  (symbol (lib_id "power:GND") (at 112 77 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000002-0001-0001-0001-00000000000d")
+    (property "Reference" "#PWR07" (at 112 77 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    (property "Value" "GND" (at 112 79.5 0) (effects (font (size 1.27 1.27))))
+  )
+
+  ;; =========================================================================
+  ;; ── MIDI OUT block ────────────────────────────────────────────────────
+  ;;
+  ;;  +5V
+  ;;   |
+  ;;  R3 (220Ω)
+  ;;   |
+  ;; J2p4    J2p2 ─── GND
+  ;; J2p5
+  ;;   |
+  ;;  R4 (220Ω)
+  ;;   |
+  ;;   Q1.C                     MIDI_TX
+  ;;   Q1.B ─── R5 (1kΩ) ───────────────
+  ;;   Q1.E ─── GND
+  ;;
+  ;; When TX=HIGH (mark): Q1 on → current flows → MIDI mark ✓
+  ;; When TX=LOW  (space): Q1 off → no current   → MIDI space ✓
+  ;; Loop current ≈ (5V - 1.4V_LED) / (220+220) ≈ 8.2 mA  (spec: 5 mA min)
+  ;; =========================================================================
+
+  ;; J2 — MIDI OUT DIN-5
+  (symbol (lib_id "Connector_Generic:Conn_01x05") (at 22 140 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000002-0002-0002-0002-000000000001")
+    (property "Reference" "J2" (at 22 132 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "DIN-5 MIDI OUT" (at 22 148 0) (effects (font (size 1.27 1.27))))
+    (property "Footprint" "Connector_DIN:DIN5_PinHeader_P2.54mm_Horizontal" (at 0 0 0)
+      (effects (font (size 1.27 1.27)) (hide yes)))
+  )
+
+  ;; J2 pin 1, 2, 3 are NC per MIDI OUT standard (only pin 4 and 5 used)
+  (no_connect (at 19.46 143.81) (uuid "mb000002-nc03"))
+  (no_connect (at 19.46 141.27) (uuid "mb000002-nc04"))
+  (no_connect (at 19.46 138.73) (uuid "mb000002-nc05"))
+
+  ;; GND — optional J2 pin 2 if shield grounding desired (see note)
+  ;; (MIDI OUT typically leaves pin 2 unconnected on the transmitter side)
+
+  ;; R3 — 220 Ω: +5V → J2 pin4 (current source)
+  (symbol (lib_id "Device:R") (at 40 136.19 90) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000002-0002-0002-0002-000000000002")
+    (property "Reference" "R3" (at 40 133 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "220R" (at 40 139 0) (effects (font (size 1.27 1.27))))
+    (property "Footprint" "Resistor_THT:R_Axial_DIN0204_L3.6mm_D1.6mm_P5.08mm_Horizontal" (at 0 0 0)
+      (effects (font (size 1.27 1.27)) (hide yes)))
+  )
+
+  ;; +5V for R3 (left/source end)
+  (symbol (lib_id "power:+5V") (at 36.2 136.19 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000002-0002-0002-0002-000000000003")
+    (property "Reference" "#PWR08" (at 36.2 136.19 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    (property "Value" "+5V" (at 34 133.5 0) (effects (font (size 1.27 1.27))))
+  )
+
+  ;; R4 — 220 Ω: J2 pin5 → Q1 collector (current limit / protection)
+  (symbol (lib_id "Device:R") (at 60 133.65 90) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000002-0002-0002-0002-000000000004")
+    (property "Reference" "R4" (at 60 130.5 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "220R" (at 60 136.5 0) (effects (font (size 1.27 1.27))))
+    (property "Footprint" "Resistor_THT:R_Axial_DIN0204_L3.6mm_D1.6mm_P5.08mm_Horizontal" (at 0 0 0)
+      (effects (font (size 1.27 1.27)) (hide yes)))
+  )
+
+  ;; R5 — 1 kΩ: MIDI_TX → Q1 base (base current limiting)
+  (symbol (lib_id "Device:R") (at 72 148 90) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000002-0002-0002-0002-000000000005")
+    (property "Reference" "R5" (at 72 145 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "1k" (at 72 151 0) (effects (font (size 1.27 1.27))))
+    (property "Footprint" "Resistor_THT:R_Axial_DIN0204_L3.6mm_D1.6mm_P5.08mm_Horizontal" (at 0 0 0)
+      (effects (font (size 1.27 1.27)) (hide yes)))
+  )
+
+  ;; Q1 — 2N3904 NPN (MIDI OUT current driver)
+  (symbol (lib_id "Custom:Q_NPN_2N3904") (at 90 148 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000002-0002-0002-0002-000000000006")
+    (property "Reference" "Q1" (at 93 143 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "2N3904" (at 93 153 0) (effects (font (size 1.27 1.27))))
+    (property "Footprint" "Package_TO_SOT_THT:TO-92_Inline" (at 0 0 0)
+      (effects (font (size 1.27 1.27)) (hide yes)))
+  )
+
+  ;; GND — Q1 emitter
+  (symbol (lib_id "power:GND") (at 95.08 153.54 0) (unit 1)
+    (in_bom yes) (on_board yes) (uuid "mb000002-0002-0002-0002-000000000007")
+    (property "Reference" "#PWR09" (at 95.08 153.54 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    (property "Value" "GND" (at 95.08 156 0) (effects (font (size 1.27 1.27))))
+  )
+
+  ;; =========================================================================
+  ;; Text annotations
+  ;; =========================================================================
+
+  (text "MIDI IN" (at 22 53 0) (effects (font (size 1.524 1.524) bold) (justify left)))
+  (text "MIDI OUT" (at 22 128 0) (effects (font (size 1.524 1.524) bold) (justify left)))
+
+  (text "Pin 1: NC\nPin 2: GND (shield)\nPin 3: NC\nPin 4: + (via R1 to +5V)\nPin 5: – (signal)"
+    (at 6 82 0) (effects (font (size 1.016 1.016)) (justify left)))
+
+  (text "Pin 1: NC\nPin 2: NC\nPin 3: NC\nPin 4: + (via R3 from +5V)\nPin 5: – (to R4 → Q1.C)"
+    (at 6 157 0) (effects (font (size 1.016 1.016)) (justify left)))
+
+  (text "MIDI_RX → ESP32 GPIO26 (UART2 RX)" (at 126 62 0) (effects (font (size 1.27 1.27)) (justify left)))
+  (text "MIDI_TX ← ESP32 GPIO27 (UART2 TX)" (at 56 143 0) (effects (font (size 1.27 1.27)) (justify right)))
+
+  (text "Supply: +5V from USB (DevKitC VBUS/5V pin).\n+3V3 from ESP32 3V3 pin.\nAll components THT — fits on a few cm² of stripboard or PCB.\nMIDI baud: 31250. No inversion needed in firmware."
+    (at 22 175 0) (effects (font (size 1.27 1.27)) (justify left)))
+
+  ;; =========================================================================
+  ;; Title block
+  ;; =========================================================================
+  (title_block
+    (title "MusicBrain — Standalone MIDI IN/OUT Circuit")
+    (date "2026-05-18")
+    (rev "1.0")
+    (company "MusicBrain project")
+    (comment 1 "MIDI IN: 6N138 isolated, Vout to +3V3 — safe for ESP32 GPIO")
+    (comment 2 "MIDI OUT: 2N3904 NPN current driver from +5V — 8.2 mA loop current")
+    (comment 3 "Replaces SparkFun MIDI Breakout V1.5 with fully discrete components")
+    (comment 4 "Open with KiCad 8")
+  )
+)
