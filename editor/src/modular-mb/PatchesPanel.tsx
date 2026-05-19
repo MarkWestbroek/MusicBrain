@@ -9,16 +9,22 @@ export function PatchesPanel(): JSX.Element {
   const project = useModularProject();
 
   function addPatch(): void {
-    const rackId = project.activeRackId ?? project.racks[0]?.id;
-    if (!rackId) {
+    const physical = project.racks.find((r) => r.id === project.activeRackId)
+      ?? project.racks.find((r) => r.kind !== 'internal')
+      ?? project.racks[0];
+    if (!physical) {
       alert('Maak eerst een rack aan (Rack-tab).');
       return;
     }
+    const internal = project.racks.find((r) => r.kind === 'internal');
+    const rackIds = internal && internal.id !== physical.id
+      ? [physical.id, internal.id]
+      : [physical.id];
     const patch: Patch = {
       id: uid('patch'),
       name: `Patch ${project.patches.length + 1}`,
       voiceCount: 8,
-      rackId,
+      rackIds,
       connections: [],
       controlState: {},
       envelopes: [],
@@ -70,7 +76,7 @@ export function PatchesPanel(): JSX.Element {
           <tr style={{ textAlign: 'left', color: '#6b7280', borderBottom: '1px solid #e5e7eb' }}>
             <th style={{ padding: '4px 8px' }}>Actief</th>
             <th style={{ padding: '4px 8px' }}>Naam</th>
-            <th style={{ padding: '4px 8px' }}>Rack</th>
+            <th style={{ padding: '4px 8px' }}>Racks</th>
             <th style={{ padding: '4px 8px' }}>Verbindingen</th>
             <th style={{ padding: '4px 8px' }}>Env / LFO</th>
             <th style={{ padding: '4px 8px' }}>Stemmen</th>
@@ -91,11 +97,28 @@ export function PatchesPanel(): JSX.Element {
                   style={{ width: '100%', fontSize: 13 }} />
               </td>
               <td style={{ padding: '4px 8px' }}>
-                <select value={x.rackId}
-                  onChange={(e) => patch(x.id, (p) => ({ ...p, rackId: e.target.value }))}
-                  style={{ fontSize: 12 }}>
-                  {project.racks.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-                </select>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {project.racks.map((r) => {
+                    const on = x.rackIds.includes(r.id);
+                    return (
+                      <label key={r.id}
+                        style={{ fontSize: 11, display: 'inline-flex', gap: 3, alignItems: 'center',
+                                 padding: '1px 6px', borderRadius: 10,
+                                 background: on ? (r.kind === 'internal' ? '#1d4ed8' : '#475569') : '#e5e7eb',
+                                 color: on ? 'white' : '#374151', cursor: 'pointer' }}>
+                        <input type="checkbox" checked={on}
+                          onChange={(e) => patch(x.id, (p) => ({
+                            ...p,
+                            rackIds: e.target.checked
+                              ? Array.from(new Set([...p.rackIds, r.id]))
+                              : p.rackIds.filter((id) => id !== r.id),
+                          }))}
+                          style={{ margin: 0 }} />
+                        {r.name}{r.kind === 'internal' ? ' 🧠' : ''}
+                      </label>
+                    );
+                  })}
+                </div>
               </td>
               <td style={{ padding: '4px 8px', color: '#475569' }}>{x.connections.length}</td>
               <td style={{ padding: '4px 8px', color: '#475569' }}>

@@ -1011,3 +1011,33 @@ Voortbouwend op de data-laag uit iteratie 1 (zie eerder log: `Rack.kind`, `seedI
 - **Right-click context-menu op slots**: de bestaande slot-toolbar (`◀ ▶ ▲ ▼ ⎘ ×`) dekt alle acties al; een context-menu zou puur cosmetisch zijn.
 - **Migratie van bestaande `patch.envelopes[]` / `patch.lfos[]` naar interne modules**: vraagt aparte ronde — defaults moeten naar `controlState` worden gemapt en oude data moet leesbaar blijven voor reverse-migratie.
 
+
+---
+
+## v0.3 – iteratie 3 (multi-rack patches, slider-bug, kabelvorm)
+
+### Patch over meerdere racks (fysiek + intern samen)
+- `Patch.rackId` (single) is vervangen door `Patch.rackIds: string[]`. Een patch kan nu kabels leggen tussen modules in elk willekeurig aantal racks tegelijk — typisch het actieve fysieke rack plus het virtuele `MMB Brain (intern)`-rack.
+- `migrateProject()` repareert oudere v2-projecten via een nieuwe `normaliseV2()`-stap: legacy `rackId` wordt gepromoot naar `rackIds`, en het interne rack wordt automatisch toegevoegd zodat brain-modules altijd patchbaar zijn.
+- `PatchesPanel` toont per patch een rij chip-checkboxes (één per rack, blauw = intern); nieuw aangemaakte patches krijgen automatisch fysiek+intern erbij.
+- `PatcherGraphPanel` stapelt de gekozen racks verticaal (per rack een `rackYOffsetMm`-map; gutter 18 mm) en plaatst module-nodes op `(hpOffset, rackOffset + row*hoogte)`.
+- `PatcherMatrixPanel` itereert over alle `patchRacks` voor zowel bron- als doel-poorten; `PatcherPanel`-leegmelding kijkt naar het totaal aantal slots over alle racks.
+
+### AHDSR slider-bug
+- `SliderGlyph` rekent y als CENTRUM (track loopt y±len/2); de seed gaf y=26 met len=60 → track-bovenkant op y=-4, dus het knopje verdween in het paneel-headerveld.
+- `mmbAhdsr` zet nu `sliderLen=56` en `sliderY = 22 + sliderLen/2 = 50`; track ligt netjes tussen y=22 en y=78. Achterliggende decoratie-rect mee aangepast (y=20, h=68).
+
+### Kabelvorm in patcher
+- Handle is verkleind (12×12, donkere rand + zachte highlight) zodat hij visueel "in" de jack-cap zit i.p.v. eroverheen te bedekken.
+- Edge-stijl: `strokeWidth: 3`, `strokeLinecap: 'round'`, sterkere drop-shadow — de bezier-curve oogt nu als een echte kabel die uit de jack komt i.p.v. erlangs te schieten. ReactFlow's default bezier blijft gehandhaafd.
+
+### Bestanden
+- `editor/src/modular-mb/types.ts` — `Patch.rackIds`, `normaliseV2`, v1→v2 migratie geeft `[rack.id, internalRack.id]`.
+- `editor/src/modular-mb/PatchesPanel.tsx` — multi-rack chips + nieuwe-patch-default.
+- `editor/src/modular-mb/PatcherGraphPanel.tsx` — multi-rack node-layout, handle-styling, edge-styling.
+- `editor/src/modular-mb/PatcherMatrixPanel.tsx` — itereert over `patchRacks`.
+- `editor/src/modular-mb/PatcherPanel.tsx` — leegmelding over alle racks.
+- `editor/src/modular-mb/seedModules.ts` — AHDSR slider-positie gecorrigeerd.
+
+Build schoon (220 modules · ~460 KB / 145 KB gzip).
+

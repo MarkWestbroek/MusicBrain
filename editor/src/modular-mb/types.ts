@@ -388,7 +388,9 @@ export interface Patch {
   name: string;
   description?: string;
   voiceCount: number;
-  rackId: string;
+  /** Een patch kan kabels leggen tussen modules in meerdere racks tegelijk
+   *  (typisch: een fysiek rack + het virtuele MMB-brain-rack). */
+  rackIds: string[];
   connections: PatchConnection[];
   /** Per module: controlId → ControlValue. */
   controlState: Record<string, Record<string, ControlValue>>;
@@ -601,7 +603,7 @@ export function migrateV1toV2(v1: V1Project): ModularProject {
     name: px.name,
     description: px.description,
     voiceCount: px.voiceCount,
-    rackId: rack.id,
+    rackIds: [rack.id, internalRack.id],
     connections: px.connections,
     controlState: px.moduleSettings,   // numbers are valid ControlValue
     envelopes: px.envelopes,
@@ -624,7 +626,26 @@ export function migrateV1toV2(v1: V1Project): ModularProject {
 
 /** Accept v1 or v2 JSON and always return a v2 project. */
 export function migrateProject(input: unknown): ModularProject | null {
-  if (isV2(input)) return input;
+  if (isV2(input)) return normaliseV2(input);
   if (isV1(input)) return migrateV1toV2(input);
   return null;
+}
+
+/** Repair a v2 project loaded from older snapshots:
+ *  - fills `Patch.rackIds` from legacy `rackId`
+ *  - ensures the internal rack is always patch-bereikbaar  */
+function normaliseV2(p: ModularProject): ModularProject {
+  const internalRack = p.racks.find((r) => r.kind === 'internal');
+  const patches = p.patches.map((pa) => {
+    const legacy = (pa as unknown as { rackId?: string }).rackId;
+    let ids = Array.isArray(pa.rackIds) && pa.rackIds.length > 0
+      ? [...pa.rackIds]
+      : legacy ? [legacy] : [];
+    if (ids.length === 0 && p.racks[0]) ids = [p.racks[0].id];
+    if (internalRack && !ids.includes(internalRack.id)) ids.push(internalRack.id);
+    // Drop verwijzingen naar verdwenen racks.
+    ids = ids.filter((id) => p.racks.some((r) => r.id === id));
+    return { ...pa, rackIds: ids };
+  });
+  return { ...p, patches };
 }

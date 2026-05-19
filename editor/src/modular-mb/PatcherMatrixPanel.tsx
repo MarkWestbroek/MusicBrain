@@ -18,12 +18,12 @@ interface PortRef {
 export function PatcherMatrixPanel({ patchId }: { patchId: string }): JSX.Element {
   const project = useModularProject();
   const patch = project.patches.find((p) => p.id === patchId)!;
-  const rack  = project.racks.find((r) => r.id === patch.rackId);
+  const patchRacks = project.racks.filter((r) => patch.rackIds.includes(r.id));
 
   const sources: PortRef[] = [];
   const targets: PortRef[] = [];
 
-  if (rack) {
+  for (const rack of patchRacks) {
     for (const slot of rack.slots) {
       const m = project.modules.find((x) => x.id === slot.moduleId);
       if (!m) continue;

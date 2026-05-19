@@ -44,11 +44,12 @@ function ModuleNode({ data }) {
                 return (_jsx(Handle, { id: p.id, type: p.direction === 'in' ? 'target' : 'source', position: p.direction === 'in' ? Position.Left : Position.Right, isConnectable: true, style: {
                         left, top,
                         transform: 'translate(-50%, -50%)',
-                        width: 18, height: 18,
+                        width: 12, height: 12,
                         background: SIGNAL_COLOUR[p.signalType],
-                        border: '2px solid #fff',
+                        border: '1.5px solid rgba(0,0,0,0.55)',
                         borderRadius: '50%',
-                        opacity: 0.55,
+                        opacity: 0.95,
+                        boxShadow: '0 0 0 1px rgba(255,255,255,0.35) inset',
                         pointerEvents: 'all',
                     } }, p.id));
             }), _jsx("div", { style: { width: widthMm * PX_PER_MM, height: heightMm * PX_PER_MM, pointerEvents: 'none', position: 'absolute', top: 0, left: 0 } })] }));
@@ -58,21 +59,37 @@ const nodeTypes = { module: ModuleNode };
 function PatcherGraphInner({ patchId }) {
     const project = useModularProject();
     const patch = project.patches.find((p) => p.id === patchId);
-    const rack = project.racks.find((r) => r.id === patch.rackId);
+    const patchRacks = project.racks.filter((r) => patch.rackIds.includes(r.id));
+    // Stack racks vertically: y-offset per rack = som van vorige rack-hoogtes
+    // (rows × panel-hoogte) + gutter.
+    const RACK_GUTTER_MM = 18;
+    const rackYOffsetMm = useMemo(() => {
+        const map = new Map();
+        let y = 0;
+        for (const r of patchRacks) {
+            map.set(r.id, y);
+            y += r.rows * (PANEL_HEIGHT_MM + 6) + RACK_GUTTER_MM;
+        }
+        return map;
+    }, [patchRacks]);
     const placedModules = useMemo(() => {
-        return rack.slots
-            .map((s) => {
-            const m = project.modules.find((x) => x.id === s.moduleId);
-            return m ? { slot: s, module: m } : null;
-        })
-            .filter((x) => x !== null);
-    }, [rack.slots, project.modules]);
-    const nodes = useMemo(() => placedModules.map(({ slot, module: m }) => ({
+        const out = [];
+        for (const r of patchRacks) {
+            for (const s of r.slots) {
+                const m = project.modules.find((x) => x.id === s.moduleId);
+                if (m)
+                    out.push({ slot: s, module: m, rackId: r.id });
+            }
+        }
+        return out;
+    }, [patchRacks, project.modules]);
+    const nodes = useMemo(() => placedModules.map(({ slot, module: m, rackId }) => ({
         id: m.id,
         type: 'module',
         position: {
             x: slot.hpOffset * MM_PER_HP * PX_PER_MM,
-            y: slot.row * (PANEL_HEIGHT_MM + 6) * PX_PER_MM,
+            y: ((rackYOffsetMm.get(rackId) ?? 0)
+                + slot.row * (PANEL_HEIGHT_MM + 6)) * PX_PER_MM,
         },
         data: {
             module: m,
@@ -82,7 +99,7 @@ function PatcherGraphInner({ patchId }) {
         },
         // Lock dragging — position derives from rack.
         draggable: false,
-    })), [placedModules, project.moduleTypes, patch.controlState, patchId]);
+    })), [placedModules, rackYOffsetMm, project.moduleTypes, patch.controlState, patchId]);
     const edges = useMemo(() => patch.connections.map((c) => {
         const srcMod = project.modules.find((m) => m.id === c.from.moduleId);
         const srcPort = srcMod && resolvePorts(srcMod, project.moduleTypes)
@@ -92,9 +109,14 @@ function PatcherGraphInner({ patchId }) {
             id: c.id,
             source: c.from.moduleId, sourceHandle: c.from.portId,
             target: c.to.moduleId, targetHandle: c.to.portId,
+            type: 'default',
             // zIndex tilt edges above the node-panel (default they render below)
             zIndex: 1000,
-            style: { stroke: colour, strokeWidth: 2.4, filter: 'drop-shadow(0 0 1.5px rgba(0,0,0,0.7))' },
+            style: {
+                stroke: colour, strokeWidth: 3,
+                strokeLinecap: 'round',
+                filter: 'drop-shadow(0 1px 1.5px rgba(0,0,0,0.55))',
+            },
         };
     }), [patch.connections, project.modules, project.moduleTypes]);
     const onNodesChange = useCallback((_changes) => {

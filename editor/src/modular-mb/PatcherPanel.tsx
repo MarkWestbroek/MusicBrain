@@ -25,11 +25,13 @@ export function PatcherPanel(): JSX.Element {
       </p>
     );
   }
-  const rack = project.racks.find((r) => r.id === patch.rackId);
-  if (!rack || rack.slots.length === 0) {
+  const racks = project.racks.filter((r) => patch.rackIds.includes(r.id));
+  const totalSlots = racks.reduce((n, r) => n + r.slots.length, 0);
+  if (racks.length === 0 || totalSlots === 0) {
     return (
       <p style={{ color: '#6b7280', fontSize: 13 }}>
-        Het rack van deze patch is leeg. Plaats eerst modules in de Rack-tab.
+        De geselecteerde racks zijn leeg of niet meer aanwezig. Vink in de Patches-tab
+        de juiste racks aan en plaats modules in de Rack-tab.
       </p>
     );
   }

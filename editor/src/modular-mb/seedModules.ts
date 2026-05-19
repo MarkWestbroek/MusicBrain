@@ -536,8 +536,10 @@ function richterOsc2() {
 // 1. MMB AHDSR envelope — 8 HP, 5 verticale sliders + gate/trig in + cv/eoc out
 function mmbAhdsr() {
   const w = W(8);
-  const sliderY = 26;          // top van faders
-  const sliderLen = 60;
+  // SliderGlyph rendert vanaf het CENTRUM (y) en strekt zich uit van
+  // y-len/2 tot y+len/2 — dus minimaal len/2 + headroom voor titel.
+  const sliderLen = 56;
+  const sliderY = 22 + sliderLen / 2;   // = 50
   const colX = [w*0.12, w*0.30, w*0.50, w*0.70, w*0.88] as const;
   return assemble({
     typeId: 'tp_mmb_ahdsr',
@@ -555,7 +557,7 @@ function mmbAhdsr() {
       { x: w/2, y: 126, text: 'MMB',    fontSize: 1.8, color: '#f9fafb', align: 'middle' },
     ],
     decorations: [
-      { kind: 'rect', x: 1, y: 22, w: w-2, h: sliderLen+8, color: '#0b1220' },
+      { kind: 'rect', x: 1, y: 20, w: w-2, h: sliderLen+12, color: '#0b1220' },
     ],
     items: [
       slider('attack',  'A', colX[0], sliderY, { min: 0,    max: 5000, def: 10,   lengthMm: sliderLen, unit: 'ms' }),

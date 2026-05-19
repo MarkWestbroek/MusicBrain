@@ -22,7 +22,7 @@ import { updateProject, useModularProject, uid } from './store';
 import { ModulePanel } from './ModulePanel';
 import {
   type Module, type ModuleType, type Port, type PatchConnection,
-  type ControlValue,
+  type ControlValue, type RackSlot,
   canConnect, resolvePorts,
   SIGNAL_COLOUR, SIGNAL_LABEL,
   MM_PER_HP, PANEL_HEIGHT_MM,
@@ -88,11 +88,12 @@ function ModuleNode({ data }: NodeProps): JSX.Element {
             style={{
               left, top,
               transform: 'translate(-50%, -50%)',
-              width: 18, height: 18,
+              width: 12, height: 12,
               background: SIGNAL_COLOUR[p.signalType],
-              border: '2px solid #fff',
+              border: '1.5px solid rgba(0,0,0,0.55)',
               borderRadius: '50%',
-              opacity: 0.55,
+              opacity: 0.95,
+              boxShadow: '0 0 0 1px rgba(255,255,255,0.35) inset',
               pointerEvents: 'all',
             }}
           />
@@ -111,24 +112,40 @@ const nodeTypes: NodeTypes = { module: ModuleNode };
 function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
   const project = useModularProject();
   const patch = project.patches.find((p) => p.id === patchId)!;
-  const rack  = project.racks.find((r) => r.id === patch.rackId)!;
+  const patchRacks = project.racks.filter((r) => patch.rackIds.includes(r.id));
+
+  // Stack racks vertically: y-offset per rack = som van vorige rack-hoogtes
+  // (rows × panel-hoogte) + gutter.
+  const RACK_GUTTER_MM = 18;
+  const rackYOffsetMm = useMemo(() => {
+    const map = new Map<string, number>();
+    let y = 0;
+    for (const r of patchRacks) {
+      map.set(r.id, y);
+      y += r.rows * (PANEL_HEIGHT_MM + 6) + RACK_GUTTER_MM;
+    }
+    return map;
+  }, [patchRacks]);
 
   const placedModules = useMemo(() => {
-    return rack.slots
-      .map((s) => {
+    const out: { slot: RackSlot; module: Module; rackId: string }[] = [];
+    for (const r of patchRacks) {
+      for (const s of r.slots) {
         const m = project.modules.find((x) => x.id === s.moduleId);
-        return m ? { slot: s, module: m } : null;
-      })
-      .filter((x): x is { slot: typeof rack.slots[number]; module: Module } => x !== null);
-  }, [rack.slots, project.modules]);
+        if (m) out.push({ slot: s, module: m, rackId: r.id });
+      }
+    }
+    return out;
+  }, [patchRacks, project.modules]);
 
   const nodes: Node[] = useMemo(
-    () => placedModules.map(({ slot, module: m }) => ({
+    () => placedModules.map(({ slot, module: m, rackId }) => ({
       id: m.id,
       type: 'module',
       position: {
         x: slot.hpOffset * MM_PER_HP * PX_PER_MM,
-        y: slot.row * (PANEL_HEIGHT_MM + 6) * PX_PER_MM,
+        y: ((rackYOffsetMm.get(rackId) ?? 0)
+            + slot.row * (PANEL_HEIGHT_MM + 6)) * PX_PER_MM,
       },
       data: {
         module: m,
@@ -139,7 +156,7 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
       // Lock dragging — position derives from rack.
       draggable: false,
     })),
-    [placedModules, project.moduleTypes, patch.controlState, patchId],
+    [placedModules, rackYOffsetMm, project.moduleTypes, patch.controlState, patchId],
   );
 
   const edges: Edge[] = useMemo(
@@ -152,9 +169,14 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
         id: c.id,
         source: c.from.moduleId, sourceHandle: c.from.portId,
         target: c.to.moduleId,   targetHandle: c.to.portId,
+        type: 'default',
         // zIndex tilt edges above the node-panel (default they render below)
         zIndex: 1000,
-        style: { stroke: colour, strokeWidth: 2.4, filter: 'drop-shadow(0 0 1.5px rgba(0,0,0,0.7))' },
+        style: {
+          stroke: colour, strokeWidth: 3,
+          strokeLinecap: 'round',
+          filter: 'drop-shadow(0 1px 1.5px rgba(0,0,0,0.55))',
+        },
       } as Edge;
     }),
     [patch.connections, project.modules, project.moduleTypes],

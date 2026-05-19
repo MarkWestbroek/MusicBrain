@@ -17,9 +17,10 @@ export function PatcherPanel() {
     if (!patch) {
         return (_jsx("p", { style: { color: '#6b7280', fontSize: 13 }, children: "Selecteer eerst een patch in de Patches-tab (of maak er een aan)." }));
     }
-    const rack = project.racks.find((r) => r.id === patch.rackId);
-    if (!rack || rack.slots.length === 0) {
-        return (_jsx("p", { style: { color: '#6b7280', fontSize: 13 }, children: "Het rack van deze patch is leeg. Plaats eerst modules in de Rack-tab." }));
+    const racks = project.racks.filter((r) => patch.rackIds.includes(r.id));
+    const totalSlots = racks.reduce((n, r) => n + r.slots.length, 0);
+    if (racks.length === 0 || totalSlots === 0) {
+        return (_jsx("p", { style: { color: '#6b7280', fontSize: 13 }, children: "De geselecteerde racks zijn leeg of niet meer aanwezig. Vink in de Patches-tab de juiste racks aan en plaats modules in de Rack-tab." }));
     }
     return (_jsxs("div", { children: [_jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }, children: [_jsxs("span", { style: { fontSize: 13, color: '#475569' }, children: ["Patch: ", _jsx("strong", { children: patch.name }), " \u00A0\u00B7\u00A0 ", patch.connections.length, " verbindingen"] }), _jsx("div", { style: {
                             marginLeft: 'auto', display: 'flex', gap: 0,

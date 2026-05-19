@@ -7,10 +7,10 @@ import { canConnect, resolvePorts, SIGNAL_COLOUR, } from './types';
 export function PatcherMatrixPanel({ patchId }) {
     const project = useModularProject();
     const patch = project.patches.find((p) => p.id === patchId);
-    const rack = project.racks.find((r) => r.id === patch.rackId);
+    const patchRacks = project.racks.filter((r) => patch.rackIds.includes(r.id));
     const sources = [];
     const targets = [];
-    if (rack) {
+    for (const rack of patchRacks) {
         for (const slot of rack.slots) {
             const m = project.modules.find((x) => x.id === slot.moduleId);
             if (!m)
