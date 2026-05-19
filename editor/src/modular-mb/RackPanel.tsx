@@ -19,6 +19,7 @@ export function RackPanel(): JSX.Element {
   const racks = project.racks;
   const activeId = project.activeRackId ?? racks[0]?.id;
   const rack = racks.find((r) => r.id === activeId) ?? racks[0];
+  const [activeRow, setActiveRow] = useState<number>(0);
 
   function addRack(): void {
     const r: Rack = {
@@ -26,6 +27,19 @@ export function RackPanel(): JSX.Element {
       name: `Rack ${racks.length + 1}`,
       rows: 3, hpPerRow: 84,
       slots: [],
+      kind: 'physical',
+    };
+    updateProject((p) => ({ ...p, racks: [...p.racks, r], activeRackId: r.id }));
+  }
+
+  function addInternalRack(): void {
+    const existing = racks.find((r) => r.kind === 'internal');
+    if (existing) { updateProject((p) => ({ ...p, activeRackId: existing.id })); return; }
+    const r: Rack = {
+      id: uid('rack'),
+      name: 'MMB Brain (intern)',
+      description: 'Virtueel rack voor brain-modules; groeit automatisch mee.',
+      rows: 1, hpPerRow: 64, slots: [], kind: 'internal',
     };
     updateProject((p) => ({ ...p, racks: [...p.racks, r], activeRackId: r.id }));
   }
@@ -60,14 +74,28 @@ export function RackPanel(): JSX.Element {
           </select>
         </label>
         <button onClick={addRack} style={{ fontSize: 12 }}>+ Rack</button>
+        <button onClick={addInternalRack} style={{ fontSize: 12 }} title="Maak/activeer het MMB Brain (intern) rack">+ Intern</button>
         <button onClick={() => removeRack(rack.id)} style={{ fontSize: 12 }}>− Rack</button>
         <span style={{ flex: 1 }} />
+        <span style={{
+          fontSize: 11, padding: '2px 6px', borderRadius: 10,
+          background: rack.kind === 'internal' ? '#1d4ed8' : '#475569',
+          color: 'white',
+        }} title={rack.kind === 'internal' ? 'Virtueel rack — groeit mee, geen HP-budget' : 'Fysiek rack — HP-budget telt'}>
+          {rack.kind === 'internal' ? 'INTERN' : 'FYSIEK'}
+        </span>
         <RackHeaderEditor rack={rack} />
       </div>
 
-      <RackGrid rack={rack} modules={project.modules} types={project.moduleTypes} />
+      <RackGrid
+        rack={rack} modules={project.modules} types={project.moduleTypes}
+        activeRow={activeRow} onSelectRow={setActiveRow}
+      />
 
-      <ModuleSidebar rack={rack} modules={project.modules} types={project.moduleTypes} />
+      <ModuleSidebar
+        rack={rack} modules={project.modules} types={project.moduleTypes}
+        pickedRow={activeRow} setPickedRow={setActiveRow}
+      />
     </div>
   );
 }
@@ -77,6 +105,19 @@ export function RackPanel(): JSX.Element {
 function RackHeaderEditor({ rack }: { rack: Rack }): JSX.Element {
   function update(fn: (r: Rack) => Rack): void {
     updateProject((p) => ({ ...p, racks: p.racks.map((r) => r.id === rack.id ? fn(r) : r) }));
+  }
+  if (rack.kind === 'internal') {
+    // Interne racks groeien automatisch — alleen naam-edit, geen rows/HP-knoppen.
+    return (
+      <div style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12 }}>
+        <label>Naam:
+          <input value={rack.name}
+                 onChange={(e) => update((r) => ({ ...r, name: e.target.value }))}
+                 style={{ marginLeft: 4, fontSize: 12, width: 160 }} />
+        </label>
+        <span style={{ color: '#6b7280' }}>auto-grow • nu {rack.hpPerRow} HP</span>
+      </div>
+    );
   }
   return (
     <div style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12 }}>
@@ -101,10 +142,50 @@ function RackHeaderEditor({ rack }: { rack: Rack }): JSX.Element {
 
 // ── Rack visual grid ───────────────────────────────────────────────────
 
-function RackGrid({ rack, modules, types }: {
+function RackGrid({ rack, modules, types, activeRow, onSelectRow }: {
   rack: Rack; modules: Module[]; types: ModuleType[];
+  activeRow: number; onSelectRow: (row: number) => void;
 }): JSX.Element {
   const rowWidthMm = rack.hpPerRow * MM_PER_HP;
+
+  function duplicateSlot(slotId: string): void {
+    const slot = rack.slots.find((s) => s.id === slotId);
+    if (!slot) return;
+    const src = modules.find((m) => m.id === slot.moduleId);
+    if (!src) return;
+    const newMod: Module = {
+      ...src,
+      id: uid('mod'),
+      name: `${src.name} copy`,
+    };
+    // Find next free HP slot in same row, fallback to subsequent rows.
+    const placeInRow = (row: number, w: number): number | null => {
+      const rowSlots = rack.slots.filter((s) => s.row === row).sort((a, b) => a.hpOffset - b.hpOffset);
+      let off = 0;
+      for (const s of rowSlots) {
+        const sm = modules.find((m) => m.id === s.moduleId);
+        const sw = sm?.visual.hpWidth ?? 4;
+        if (off + w <= s.hpOffset) return off;
+        off = Math.max(off, s.hpOffset + sw);
+      }
+      return off + w <= rack.hpPerRow ? off : null;
+    };
+    let row = slot.row, offset: number | null = null;
+    for (let r = slot.row; r < rack.rows; r++) {
+      const o = placeInRow(r, newMod.visual.hpWidth);
+      if (o !== null) { row = r; offset = o; break; }
+    }
+    if (offset === null) {
+      alert('Geen vrije ruimte voor duplicaat in dit rack — voeg eerst een rij of HP toe.');
+      return;
+    }
+    const newSlot: RackSlot = { id: uid('slot'), moduleId: newMod.id, row, hpOffset: offset };
+    updateProject((p) => ({
+      ...p,
+      modules: [...p.modules, newMod],
+      racks: p.racks.map((r) => r.id === rack.id ? { ...r, slots: [...r.slots, newSlot] } : r),
+    }));
+  }
 
   function removeSlot(slotId: string): void {
     updateProject((p) => ({
@@ -148,14 +229,20 @@ function RackGrid({ rack, modules, types }: {
         const slotsInRow = rack.slots
           .filter((s) => s.row === rowIdx)
           .sort((a, b) => a.hpOffset - b.hpOffset);
+        const isActive = rowIdx === activeRow;
         return (
-          <div key={rowIdx} style={{
+          <div key={rowIdx}
+               onClick={() => onSelectRow(rowIdx)}
+               title={`Rij ${rowIdx + 1} — klik om als actieve rij te kiezen (volgende ‘Plaats →’ komt hierheen)`}
+               style={{
             position: 'relative',
             width: rowWidthMm * PX_PER_MM,
             height: PANEL_HEIGHT_MM * PX_PER_MM,
             background: '#1e293b',
-            border: '1px solid #334155',
+            border: isActive ? '2px solid #2563eb' : '1px solid #334155',
+            boxShadow: isActive ? '0 0 0 1px #1d4ed8 inset' : undefined,
             borderRadius: 3,
+            cursor: 'pointer',
           }}>
             {/* HP grid lines every 10 HP */}
             {Array.from({ length: Math.floor(rack.hpPerRow / 10) }).map((_, i) => (
@@ -194,7 +281,9 @@ function RackGrid({ rack, modules, types }: {
                 }}>
                   <ModulePanel module={m} types={types} pxPerMm={PX_PER_MM} showPortLabels={false} />
                   {/* Slot toolbar */}
-                  <div style={{
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
                     position: 'absolute', top: 2, right: 2,
                     display: 'flex', gap: 2,
                     background: 'rgba(0,0,0,0.55)', borderRadius: 3, padding: 1,
@@ -203,6 +292,7 @@ function RackGrid({ rack, modules, types }: {
                     <button title="→ HP" onClick={() => moveSlot(slot.id,  1)} style={slotBtn}>▶</button>
                     <button title="↑ rij" onClick={() => moveRow(slot.id, -1)} style={slotBtn}>▲</button>
                     <button title="↓ rij" onClick={() => moveRow(slot.id,  1)} style={slotBtn}>▼</button>
+                    <button title="Dupliceer module" onClick={() => duplicateSlot(slot.id)} style={slotBtn}>⎘</button>
                     <button title="Verwijder uit rack" onClick={() => removeSlot(slot.id)} style={slotBtn}>×</button>
                   </div>
                 </div>
@@ -231,16 +321,23 @@ function detectOverlap(slot: RackSlot, all: RackSlot[], mod: Module, modules: Mo
 
 // ── Sidebar: modules-niet-in-rack + plaats-knop ────────────────────────
 
-function ModuleSidebar({ rack, modules, types }: {
+function ModuleSidebar({ rack, modules, types, pickedRow, setPickedRow }: {
   rack: Rack; modules: Module[]; types: ModuleType[];
+  pickedRow: number; setPickedRow: (row: number) => void;
 }): JSX.Element {
   const inRack = new Set(rack.slots.map((s) => s.moduleId));
-  const available = modules.filter((m) => !inRack.has(m.id));
-  const [pickedRow, setPickedRow] = useState(0);
+  // Filter passend bij rack-soort: interne racks tonen alleen internal modules,
+  // fysieke racks tonen alleen niet-internal modules.
+  const wantInternal = rack.kind === 'internal';
+  const available = modules.filter((m) =>
+    !inRack.has(m.id) && (wantInternal ? m.internal : !m.internal),
+  );
 
   function placeAt(moduleId: string, mod: Module): void {
+    const isInternal = rack.kind === 'internal';
+    const row = isInternal ? 0 : pickedRow;
     // Find first free HP in chosen row
-    const slotsInRow = rack.slots.filter((s) => s.row === pickedRow)
+    const slotsInRow = rack.slots.filter((s) => s.row === row)
       .sort((a, b) => a.hpOffset - b.hpOffset);
     let offset = 0;
     for (const s of slotsInRow) {
@@ -249,17 +346,17 @@ function ModuleSidebar({ rack, modules, types }: {
       if (offset + mod.visual.hpWidth <= s.hpOffset) break;
       offset = Math.max(offset, s.hpOffset + w);
     }
-    if (offset + mod.visual.hpWidth > rack.hpPerRow) {
-      alert('Geen ruimte op deze rij — kies een andere rij.');
+    const needHp = offset + mod.visual.hpWidth;
+    const newHpPerRow = isInternal ? Math.max(rack.hpPerRow, needHp) : rack.hpPerRow;
+    if (!isInternal && needHp > rack.hpPerRow) {
+      alert('Geen ruimte op deze rij — kies een andere rij of verhoog HP/rij.');
       return;
     }
-    const slot: RackSlot = {
-      id: uid('slot'), moduleId, row: pickedRow, hpOffset: offset,
-    };
+    const slot: RackSlot = { id: uid('slot'), moduleId, row, hpOffset: offset };
     updateProject((p) => ({
       ...p,
       racks: p.racks.map((r) => r.id === rack.id
-        ? { ...r, slots: [...r.slots, slot] } : r),
+        ? { ...r, hpPerRow: newHpPerRow, slots: [...r.slots, slot] } : r),
     }));
   }
 
@@ -270,21 +367,30 @@ function ModuleSidebar({ rack, modules, types }: {
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         <h3 style={{ margin: 0, fontSize: 13, textTransform: 'uppercase', color: '#374151' }}>
-          Modules niet in rack ({available.length})
+          {wantInternal ? 'Brain-modules niet geplaatst' : 'Modules niet in rack'} ({available.length})
         </h3>
-        <label style={{ fontSize: 12, marginLeft: 'auto' }}>
-          Plaats in rij:
-          <select value={pickedRow} onChange={(e) => setPickedRow(Number(e.target.value))}
-                  style={{ marginLeft: 4, fontSize: 12 }}>
-            {Array.from({ length: rack.rows }).map((_, i) =>
-              <option key={i} value={i}>{i + 1}</option>)}
-          </select>
-        </label>
+        {!wantInternal && (
+          <label style={{ fontSize: 12, marginLeft: 'auto' }}>
+            Plaats in rij:
+            <select value={pickedRow} onChange={(e) => setPickedRow(Number(e.target.value))}
+                    style={{ marginLeft: 4, fontSize: 12 }}>
+              {Array.from({ length: rack.rows }).map((_, i) =>
+                <option key={i} value={i}>{i + 1}</option>)}
+            </select>
+          </label>
+        )}
+        {wantInternal && (
+          <span style={{ marginLeft: 'auto', fontSize: 11, color: '#6b7280' }}>
+            Interne modules worden automatisch achteraan toegevoegd; HP groeit mee.
+          </span>
+        )}
       </div>
 
       {available.length === 0 && (
         <p style={{ color: '#6b7280', fontSize: 13 }}>
-          Alle modules zijn al geplaatst. Maak nieuwe modules aan in de Modules-tab.
+          {wantInternal
+            ? 'Geen losse brain-modules. Klik "✨ Internals" in de project-balk om AHDSR/LFO/S&H te seeden.'
+            : 'Alle modules zijn al geplaatst. Maak nieuwe modules aan in de Modules-tab.'}
         </p>
       )}
 

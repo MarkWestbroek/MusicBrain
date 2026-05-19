@@ -7,7 +7,7 @@
 import { useRef, useState } from 'react';
 import { setProject, updateProject, useModularProject, getProject } from './store';
 import { emptyModularProject } from './types';
-import { seedExampleModules } from './seedModules';
+import { seedExampleModules, seedInternals } from './seedModules';
 import { PatchesPanel } from './PatchesPanel';
 import { ModulesPanel } from './ModulesPanel';
 import { CategoriesPanel } from './CategoriesPanel';
@@ -173,6 +173,10 @@ export function ModularMbApp(): JSX.Element {
             onClick={() => setProject(seedExampleModules(getProject()))}
             title="Voeg 6 voorbeeld-modules toe aan dit project en plaats ze in het actieve rack"
           >✨ Voorbeelden</button>
+          <button
+            onClick={() => setProject(seedInternals(getProject()))}
+            title="Voeg MMB-brain modules (AHDSR, LFO, S&H) toe aan het virtuele rack"
+          >✨ Internals</button>
           <button className="es-projectbar-reset"
             onClick={() => { if (confirm('Project wissen en opnieuw beginnen?')) setProject(emptyModularProject()); }}
           >Nieuw</button>

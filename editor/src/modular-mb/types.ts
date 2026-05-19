@@ -300,6 +300,9 @@ export interface Rack {
   rows: number;
   hpPerRow: number;
   slots: RackSlot[];
+  /** 'physical' = echte Eurorack-case (HP-budget telt). 'internal' = virtuele
+   *  rack voor MMB-brain modules (AHDSR/LFO/Seq/…); groeit automatisch mee. */
+  kind?: 'physical' | 'internal';
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -443,13 +446,25 @@ export function emptyModularProject(): ModularProject {
     categories:  defaultCategories(),
     moduleTypes: [],
     modules:     [],
-    racks: [{
-      id: 'rack_default',
-      name: 'Mijn rack',
-      rows: 3,
-      hpPerRow: 84,
-      slots: [],
-    }],
+    racks: [
+      {
+        id: 'rack_default',
+        name: 'Mijn rack',
+        rows: 3,
+        hpPerRow: 84,
+        slots: [],
+        kind: 'physical',
+      },
+      {
+        id: 'rack_internal',
+        name: 'MMB Brain (intern)',
+        description: 'Virtueel rack voor brain-modules (AHDSR, LFO, Sequencer, …). Groeit automatisch mee.',
+        rows: 1,
+        hpPerRow: 64,
+        slots: [],
+        kind: 'internal',
+      },
+    ],
     patches: [],
     activeRackId: 'rack_default',
   };
@@ -573,6 +588,13 @@ export function migrateV1toV2(v1: V1Project): ModularProject {
     name: 'Mijn rack',
     rows: 3, hpPerRow: 84,
     slots: rackSlots,
+    kind: 'physical',
+  };
+  const internalRack: Rack = {
+    id: 'rack_internal',
+    name: 'MMB Brain (intern)',
+    description: 'Virtueel rack voor brain-modules (groeit automatisch mee).',
+    rows: 1, hpPerRow: 64, slots: [], kind: 'internal',
   };
   const patches: Patch[] = v1.patches.map((px) => ({
     id: px.id,
@@ -593,7 +615,7 @@ export function migrateV1toV2(v1: V1Project): ModularProject {
     categories: v1.categories.length ? v1.categories : defaultCategories(),
     moduleTypes,
     modules,
-    racks: [rack],
+    racks: [rack, internalRack],
     patches,
     activeRackId: rack.id,
     activePatchId: v1.activePatchId,

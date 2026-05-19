@@ -152,7 +152,9 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
         id: c.id,
         source: c.from.moduleId, sourceHandle: c.from.portId,
         target: c.to.moduleId,   targetHandle: c.to.portId,
-        style: { stroke: colour, strokeWidth: 2 },
+        // zIndex tilt edges above the node-panel (default they render below)
+        zIndex: 1000,
+        style: { stroke: colour, strokeWidth: 2.4, filter: 'drop-shadow(0 0 1.5px rgba(0,0,0,0.7))' },
       } as Edge;
     }),
     [patch.connections, project.modules, project.moduleTypes],

@@ -50,8 +50,22 @@ function sw(id: string, label: string, x: number, y: number, positions: string[]
 function button(id: string, label: string, x: number, y: number) {
   return { control: { kind: 'button' as const, id, label, momentary: true }, placement: { x, y } };
 }
+function slider(id: string, label: string, x: number, y: number,
+                opts: Partial<{ min: number; max: number; def: number; lengthMm: number; unit: string; orientation: 'v'|'h' }> = {}) {
+  return {
+    control: {
+      kind: 'slider' as const, id, label,
+      min: opts.min ?? 0, max: opts.max ?? 1, defaultValue: opts.def ?? 0,
+      orientation: (opts.orientation ?? 'v') as 'v'|'h',
+      lengthMm: opts.lengthMm ?? 35,
+      unit: opts.unit,
+      style: 'mini-fader' as const,
+    },
+    placement: { x, y },
+  };
+}
 
-type Spec = ReturnType<typeof knob | typeof inPort | typeof outPort | typeof toggle | typeof sw | typeof button>;
+type Spec = ReturnType<typeof knob | typeof inPort | typeof outPort | typeof toggle | typeof sw | typeof button | typeof slider>;
 
 function assemble(spec: {
   typeId: string;
@@ -66,6 +80,7 @@ function assemble(spec: {
   decorations?: { kind: 'rect'|'line'|'text'|'tubeSlot'|'ledMarker'|'jackBlock'; x: number; y: number; w?: number; h?: number; x2?: number; y2?: number; color?: string; text?: string; fontSize?: number }[];
   items: Spec[];
   notes?: string;
+  internal?: boolean;
 }): { type: ModuleType; module: Module } {
   const controls = spec.items.filter((s): s is Extract<Spec, { control: unknown }> => 'control' in s).map((s) => s.control);
   const ports    = spec.items.filter((s): s is Extract<Spec, { port: unknown }>    => 'port'    in s).map((s) => s.port);
@@ -85,7 +100,7 @@ function assemble(spec: {
   const module: Module = {
     id: uid('mod'),
     typeId: spec.typeId,
-    internal: false,
+    internal: spec.internal ?? false,
     name: `${spec.brand} ${spec.model}`,
     brand: spec.brand,
     modelNumber: spec.model,
@@ -177,15 +192,17 @@ function mutantSnare() {
 
 function elements() {
   const w = W(34);
-  // 8 kolommen voor de top-rij van kleine knoppen; expliciet getypeerd.
-  // [0]=jack-kolom links, [1..6]=knoppen, [7]=aux-out rechts.
+  // Layout: linker I/O-kolom (V/Oct, Gate, Ext, Out) op x≈4..13.
+  // Knoppen-kolommen [1..6] op breed verspreide x, plus aux-out [7].
   const cols: readonly [number,number,number,number,number,number,number,number] =
-    [w*0.06, w*0.18, w*0.30, w*0.42, w*0.55, w*0.67, w*0.82, w*0.94];
+    [w*0.07, w*0.20, w*0.31, w*0.42, w*0.55, w*0.67, w*0.82, w*0.94];
   const topY = 22;
   const bigY = 50;
   const lowKnobY = 78;
-  const attenY = 92;
-  const jackY  = 108;
+  const attenY = 96;
+  const cvJackY = 114;
+  // Linker I/O-kolom (eigen y-grid, los van de knoppen-rijen)
+  const ioLx = 4, ioRx = 13;
   return assemble({
     typeId: 'tp_mi_elements',
     categoryId: 'vco',
@@ -196,93 +213,70 @@ function elements() {
     texture: 'mi-cream',
     baseColor: '#efe8d2',
     texts: [
-      { x: w*0.10, y: 6, text: 'Elements', fontSize: 3, color: '#1f2937' },
-      { x: w*0.95, y: 6, text: 'modal synthesizer', fontSize: 1.8, color: '#6b7280', align: 'end' },
-      // top-rij labels
-      { x: cols[0], y: topY+8, text: 'CONTOUR', fontSize: 1.6, color: '#1f2937', align: 'middle' },
-      { x: cols[1], y: topY+8, text: 'BOW',     fontSize: 1.6, color: '#1f2937', align: 'middle' },
-      { x: cols[2], y: topY+8, text: 'BLOW',    fontSize: 1.6, color: '#e11d48', align: 'middle' },
-      { x: cols[3], y: topY+8, text: 'STRIKE',  fontSize: 1.6, color: '#0891b2', align: 'middle' },
-      { x: cols[4], y: topY+8, text: 'COARSE',  fontSize: 1.6, color: '#1f2937', align: 'middle' },
-      { x: cols[5], y: topY+8, text: 'FINE',    fontSize: 1.6, color: '#1f2937', align: 'middle' },
-      { x: cols[6], y: topY+8, text: 'FM',      fontSize: 1.6, color: '#1f2937', align: 'middle' },
-      // big-knop labels
-      { x: cols[2], y: bigY+12, text: 'FLOW',    fontSize: 1.8, color: '#e11d48', align: 'middle' },
-      { x: cols[3], y: bigY+12, text: 'MALLET',  fontSize: 1.8, color: '#0891b2', align: 'middle' },
-      { x: cols[5], y: bigY+12, text: 'GEOMETRY',fontSize: 1.8, color: '#1f2937', align: 'middle' },
-      { x: cols[6], y: bigY+12, text: 'BRIGHT',  fontSize: 1.8, color: '#1f2937', align: 'middle' },
-      // low row
-      { x: cols[1], y: lowKnobY+8, text: 'TIMBRE', fontSize: 1.5, color: '#1f2937', align: 'middle' },
-      { x: cols[2], y: lowKnobY+8, text: 'TIMBRE', fontSize: 1.5, color: '#e11d48', align: 'middle' },
-      { x: cols[3], y: lowKnobY+8, text: 'TIMBRE', fontSize: 1.5, color: '#0891b2', align: 'middle' },
-      { x: cols[4], y: lowKnobY+8, text: 'DAMPING',fontSize: 1.5, color: '#1f2937', align: 'middle' },
-      { x: cols[5], y: lowKnobY+8, text: 'POSITION',fontSize: 1.5, color: '#1f2937', align: 'middle' },
-      { x: cols[6], y: lowKnobY+8, text: 'SPACE', fontSize: 1.5, color: '#1f2937', align: 'middle' },
-      // bottom
-      { x: cols[0], y: jackY-12, text: 'V/OCT',   fontSize: 1.3, color: '#1f2937', align: 'middle' },
-      { x: cols[0]+3, y: jackY-2, text: 'GATE',   fontSize: 1.3, color: '#1f2937', align: 'start' },
-      { x: cols[0], y: jackY+10, text: 'EXT IN',  fontSize: 1.3, color: '#1f2937', align: 'middle' },
-      { x: cols[0], y: jackY+20, text: 'OUT L/R', fontSize: 1.3, color: '#1f2937', align: 'middle' },
-      { x: w/2, y: 125, text: 'MUTABLE INSTRUMENTS', fontSize: 1.8, color: '#1f2937', align: 'middle' },
+      // alleen panel-titel + subtitel + brand: knoppen/jacks labelen zichzelf
+      { x: w*0.10, y: 7, text: 'Elements', fontSize: 3, color: '#1f2937' },
+      { x: w*0.95, y: 7, text: 'modal synthesizer', fontSize: 1.8, color: '#6b7280', align: 'end' },
+      { x: w/2, y: 126, text: 'MUTABLE INSTRUMENTS', fontSize: 1.8, color: '#1f2937', align: 'middle' },
     ],
     decorations: [
-      // verticale scheidingslijn rond x=w*0.47 (kleine band)
-      { kind: 'rect', x: w*0.47, y: 14, w: 0.4, h: PANEL_HEIGHT_MM - 28, color: '#9ca3af' },
-      // licht-grijs vlak voor de output-blokken linksonder
-      { kind: 'rect', x: 2, y: jackY+14, w: 12, h: 10, color: '#cbd5e1' },
+      // verticale scheidingslijn rond het centrum (excitation | resonator)
+      { kind: 'rect', x: w*0.48, y: 14, w: 0.4, h: PANEL_HEIGHT_MM - 28, color: '#9ca3af' },
+      // licht-grijs vlak achter de Out L/R jacks
+      { kind: 'rect', x: 1, y: 104, w: 16, h: 16, color: '#cbd5e1' },
     ],
     items: [
       // top-rij kleine knoppen
-      knob('contour',   'Contour',   cols[0], topY, { size: 'small', color: '#ffffff' }),
-      knob('bow',       'Bow',       cols[1], topY, { size: 'small', color: '#ffffff' }),
-      knob('blow_amt',  'Blow Amt',  cols[2], topY, { size: 'small', color: '#e11d48' }),
-      knob('strike_amt','Strike Amt',cols[3], topY, { size: 'small', color: '#0891b2' }),
-      knob('coarse',    'Coarse',    cols[4], topY, { size: 'small', min: -36, max: 36, def: 0, unit: 'semi', color: '#ffffff' }),
-      knob('fine',      'Fine',      cols[5], topY, { size: 'small', min: -50, max: 50, def: 0, unit: 'ct',   color: '#ffffff' }),
-      knob('fm_amt',    'FM',        cols[6], topY, { size: 'small', min: -1, max: 1, def: 0, color: '#ffffff' }),
+      knob('contour',   'Contour',   cols[1], topY, { size: 'small', color: '#ffffff' }),
+      knob('bow',       'Bow',       cols[2], topY, { size: 'small', color: '#ffffff' }),
+      knob('blow_amt',  'Blow',      cols[3], topY, { size: 'small', color: '#e11d48' }),
+      knob('strike_amt','Strike',    cols[4], topY, { size: 'small', color: '#0891b2' }),
+      knob('coarse',    'Coarse',    cols[5], topY, { size: 'small', min: -36, max: 36, def: 0, unit: 'semi', color: '#ffffff' }),
+      knob('fine',      'Fine',      cols[6], topY, { size: 'small', min: -50, max: 50, def: 0, unit: 'ct',   color: '#ffffff' }),
 
-      // play-button + big knops
-      button('play', 'Play', cols[0], bigY),
+      // play button + grote knoppen
+      button('play',    'Play',      cols[0], bigY-6),
       knob('flow',      'Flow',      cols[2], bigY, { size: 'large', color: '#e11d48' }),
       knob('mallet',    'Mallet',    cols[3], bigY, { size: 'large', color: '#0891b2' }),
       knob('geometry',  'Geometry',  cols[5], bigY, { size: 'large', color: '#ffffff' }),
       knob('bright',    'Brightness',cols[6], bigY, { size: 'large', color: '#ffffff' }),
+      // FM knob op vrije plek tussen excitation- en resonator-deel
+      knob('fm_amt',    'FM',        cols[4], bigY, { size: 'medium', min: -1, max: 1, def: 0, color: '#ffffff' }),
 
       // low knoppen
-      knob('bow_tim',   'Bow Timbre',   cols[1], lowKnobY, { size: 'small', color: '#ffffff' }),
-      knob('blow_tim',  'Blow Timbre',  cols[2], lowKnobY, { size: 'small', color: '#e11d48' }),
-      knob('strike_tim','Strike Timbre',cols[3], lowKnobY, { size: 'small', color: '#0891b2' }),
-      knob('damping',   'Damping',      cols[4], lowKnobY, { size: 'small', color: '#ffffff' }),
-      knob('position',  'Position',     cols[5], lowKnobY, { size: 'small', color: '#ffffff' }),
-      knob('space',     'Space',        cols[6], lowKnobY, { size: 'small', color: '#ffffff' }),
+      knob('bow_tim',   'Bow Tim',   cols[2], lowKnobY, { size: 'small', color: '#ffffff' }),
+      knob('blow_tim',  'Blow Tim',  cols[3], lowKnobY, { size: 'small', color: '#e11d48' }),
+      knob('strike_tim','Strike Tim',cols[4], lowKnobY, { size: 'small', color: '#0891b2' }),
+      knob('damping',   'Damping',   cols[5], lowKnobY, { size: 'small', color: '#ffffff' }),
+      knob('position',  'Position',  cols[6], lowKnobY, { size: 'small', color: '#ffffff' }),
+      knob('space',     'Space',     cols[7], lowKnobY, { size: 'small', color: '#ffffff' }),
 
-      // attenuverters (heel klein)
-      knob('a_bow',    'A Bow',    cols[1], attenY, { size: 'small', min: -1, max: 1, def: 0, color: '#0a0a0a' }),
-      knob('a_blow',   'A Blow',   cols[2], attenY, { size: 'small', min: -1, max: 1, def: 0, color: '#0a0a0a' }),
-      knob('a_strike', 'A Strike', cols[3], attenY, { size: 'small', min: -1, max: 1, def: 0, color: '#0a0a0a' }),
-      knob('a_damp',   'A Damp',   cols[4], attenY, { size: 'small', min: -1, max: 1, def: 0, color: '#0a0a0a' }),
-      knob('a_pos',    'A Position',cols[5], attenY, { size: 'small', min: -1, max: 1, def: 0, color: '#0a0a0a' }),
-      knob('a_space',  'A Space',  cols[6], attenY, { size: 'small', min: -1, max: 1, def: 0, color: '#0a0a0a' }),
+      // attenuverters (heel klein, ruim onder de low-knoppen)
+      knob('a_bow',    'A Bow',    cols[2], attenY, { size: 'small', min: -1, max: 1, def: 0, color: '#0a0a0a' }),
+      knob('a_blow',   'A Blow',   cols[3], attenY, { size: 'small', min: -1, max: 1, def: 0, color: '#0a0a0a' }),
+      knob('a_strike', 'A Strike', cols[4], attenY, { size: 'small', min: -1, max: 1, def: 0, color: '#0a0a0a' }),
+      knob('a_damp',   'A Damp',   cols[5], attenY, { size: 'small', min: -1, max: 1, def: 0, color: '#0a0a0a' }),
+      knob('a_pos',    'A Pos',    cols[6], attenY, { size: 'small', min: -1, max: 1, def: 0, color: '#0a0a0a' }),
+      knob('a_space',  'A Space',  cols[7], attenY, { size: 'small', min: -1, max: 1, def: 0, color: '#0a0a0a' }),
 
-      // jacks linkerkolom
-      inPort('vct',     'V/Oct',   'cv',    cols[0]-2, jackY-8),
-      inPort('fm_in',   'FM',      'cv',    cols[0]+4, jackY-8),
-      inPort('gate',    'Gate',    'gate',  cols[0]-2, jackY),
-      inPort('strength','Strength','cv',    cols[0]+4, jackY),
-      inPort('ext_pink','Ext Pink','audio', cols[0]-2, jackY+8),
-      inPort('ext_cyan','Ext Cyan','audio', cols[0]+4, jackY+8),
-      outPort('out_l',  'Out L',   'audio', cols[0]-2, jackY+18),
-      outPort('out_r',  'Out R',   'audio', cols[0]+4, jackY+18),
+      // linker I/O-kolom (eigen verticale spacing van ~16mm tussen rijen)
+      inPort('vct',     'V/Oct',   'cv',    ioLx, 26),
+      inPort('fm_in',   'FM',      'cv',    ioRx, 26),
+      inPort('gate',    'Gate',    'gate',  ioLx, 44),
+      inPort('strength','Strength','cv',    ioRx, 44),
+      inPort('ext_pink','Ext Pink','audio', ioLx, 70),
+      inPort('ext_cyan','Ext Cyan','audio', ioRx, 70),
+      outPort('out_l',  'Out L',   'audio', ioLx, 112),
+      outPort('out_r',  'Out R',   'audio', ioRx, 112),
 
-      // CV-jacks onder de lage knoppen
-      inPort('cv_bow',    'CV Bow',    'cv', cols[1], jackY+8),
-      inPort('cv_blow',   'CV Blow',   'cv', cols[2], jackY+8),
-      inPort('cv_strike', 'CV Strike', 'cv', cols[3], jackY+8),
-      inPort('cv_damp',   'CV Damp',   'cv', cols[4], jackY+8),
-      inPort('cv_pos',    'CV Position','cv',cols[5], jackY+8),
-      inPort('cv_space',  'CV Space',  'cv', cols[6], jackY+8),
+      // CV-jacks onder de attenuverters
+      inPort('cv_bow',    'CV Bow',   'cv', cols[2], cvJackY),
+      inPort('cv_blow',   'CV Blow',  'cv', cols[3], cvJackY),
+      inPort('cv_strike', 'CV Strike','cv', cols[4], cvJackY),
+      inPort('cv_damp',   'CV Damp',  'cv', cols[5], cvJackY),
+      inPort('cv_pos',    'CV Pos',   'cv', cols[6], cvJackY),
+      inPort('cv_space',  'CV Space', 'cv', cols[7], cvJackY),
 
-      outPort('aux',    'Aux',     'audio', cols[7], jackY+8),
+      outPort('aux',    'Aux',     'audio', w-5, 112),
     ],
     notes: 'Modal-synthese stem (excitation: bow/blow/strike → resonator: modal/string/drum/non-linear string).',
   });
@@ -535,7 +529,162 @@ function richterOsc2() {
   });
 }
 
+// ───────────────────────────────────────────────────────────────────────
+// MMB Brain — interne modules
+// ───────────────────────────────────────────────────────────────────────
+
+// 1. MMB AHDSR envelope — 8 HP, 5 verticale sliders + gate/trig in + cv/eoc out
+function mmbAhdsr() {
+  const w = W(8);
+  const sliderY = 26;          // top van faders
+  const sliderLen = 60;
+  const colX = [w*0.12, w*0.30, w*0.50, w*0.70, w*0.88] as const;
+  return assemble({
+    typeId: 'tp_mmb_ahdsr',
+    categoryId: 'envelope',
+    variant: 'AHDSR (vertical-sliders)',
+    brand: 'MMB',
+    model: 'AHDSR',
+    hp: 8,
+    texture: 'pcb-black',
+    baseColor: '#111827',
+    internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'AHDSR',  fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: 'envelope', fontSize: 1.4, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB',    fontSize: 1.8, color: '#f9fafb', align: 'middle' },
+    ],
+    decorations: [
+      { kind: 'rect', x: 1, y: 22, w: w-2, h: sliderLen+8, color: '#0b1220' },
+    ],
+    items: [
+      slider('attack',  'A', colX[0], sliderY, { min: 0,    max: 5000, def: 10,   lengthMm: sliderLen, unit: 'ms' }),
+      slider('hold',    'H', colX[1], sliderY, { min: 0,    max: 5000, def: 0,    lengthMm: sliderLen, unit: 'ms' }),
+      slider('decay',   'D', colX[2], sliderY, { min: 0,    max: 5000, def: 200,  lengthMm: sliderLen, unit: 'ms' }),
+      slider('sustain', 'S', colX[3], sliderY, { min: 0,    max: 1,    def: 0.7,  lengthMm: sliderLen }),
+      slider('release', 'R', colX[4], sliderY, { min: 0,    max: 8000, def: 400,  lengthMm: sliderLen, unit: 'ms' }),
+
+      toggle('loop',    'Loop',  w*0.30, 96),
+      sw    ('curve',   'Curve', w*0.70, 96, ['Lin','Exp','Log'], 1),
+
+      inPort ('gate',    'Gate', 'gate',   w*0.20, 112),
+      inPort ('trig',    'Trig', 'trigger',w*0.50, 112),
+      outPort('cv_out',  'Env',  'cv',     w*0.80, 112),
+      outPort('eoc',     'EOC',  'trigger',w*0.50, 122),
+    ],
+    notes: 'Interne MMB envelope. Loop=on maakt er een quasi-LFO van; curve schakelt tussen lineair/exp/log per fase.',
+  });
+}
+
+// 2. MMB LFO — 6 HP, rate-knob + wave-switch + depth-knob, 2 outs
+function mmbLfo() {
+  const w = W(6);
+  return assemble({
+    typeId: 'tp_mmb_lfo',
+    categoryId: 'lfo',
+    variant: 'LFO (rate+wave+depth)',
+    brand: 'MMB',
+    model: 'LFO',
+    hp: 6,
+    texture: 'pcb-black',
+    baseColor: '#111827',
+    internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'LFO',  fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB',  fontSize: 1.8, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('rate',  'Rate',  w/2, 26, { size: 'large',  min: 0.01, max: 50, def: 1,  unit: 'Hz', color: '#f9fafb' }),
+      sw  ('wave',  'Wave',  w/2, 56, ['Sin','Tri','Saw','Sqr','S&H'], 0),
+      knob('depth', 'Depth', w/2, 78, { size: 'medium', min: 0,    max: 1,  def: 1, color: '#f9fafb' }),
+      toggle('bipolar','Bip', w*0.25, 96, true),
+      sw    ('run',   'Run',  w*0.75, 96, ['Always','Gated','OneShot'], 0),
+
+      inPort ('rate_cv','Rate', 'cv',     w*0.25, 112),
+      inPort ('reset',  'Rst',  'trigger',w*0.50, 112),
+      outPort('out',    'Out',  'cv',     w*0.75, 112),
+      outPort('out_inv','Inv',  'cv',     w*0.50, 122),
+    ],
+    notes: 'Interne MMB LFO; bipolar=on geeft \u00b1depth, off geeft 0..depth.',
+  });
+}
+
+// 3. MMB S&H + Slew — 4 HP
+function mmbSh() {
+  const w = W(4);
+  return assemble({
+    typeId: 'tp_mmb_sh',
+    categoryId: 'utility',
+    variant: 'S&H + Slew',
+    brand: 'MMB',
+    model: 'S&H',
+    hp: 4,
+    texture: 'pcb-black',
+    baseColor: '#111827',
+    internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'S&H',  fontSize: 2.2, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB',  fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('slew', 'Slew', w/2, 30, { size: 'medium', min: 0, max: 5000, def: 0, unit: 'ms', color: '#f9fafb' }),
+      sw  ('mode', 'Mode', w/2, 60, ['S&H','T&H','Slew'], 0),
+      inPort ('in',   'In',   'cv',     w*0.30, 92),
+      inPort ('trig', 'Trig', 'trigger',w*0.70, 92),
+      outPort('out',  'Out',  'cv',     w/2,    114),
+    ],
+    notes: 'Sample-and-hold met slew-limiter. In Slew-mode wordt de trigger-input genegeerd.',
+  });
+}
+
 // ── public entry ───────────────────────────────────────────────────────
+
+/** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
+export function seedInternals(project: ModularProject): ModularProject {
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh()];
+  const newTypes = all.map((x) => x.type);
+  const newModules = all.map((x) => x.module);
+
+  // Zorg dat het interne rack bestaat
+  let racks = project.racks.slice();
+  let internal = racks.find((r) => r.kind === 'internal' || r.id === 'rack_internal');
+  if (!internal) {
+    internal = {
+      id: 'rack_internal', name: 'MMB Brain (intern)',
+      description: 'Virtueel rack voor brain-modules.',
+      rows: 1, hpPerRow: 64, slots: [], kind: 'internal',
+    };
+    racks = [...racks, internal];
+  }
+
+  // Auto-grow: voeg HP toe als ze niet passen
+  const totalHpNew = newModules.reduce((s, m) => s + m.visual.hpWidth, 0);
+  const usedHp = internal.slots.reduce((mx, s) => {
+    const m = project.modules.find((x) => x.id === s.moduleId);
+    return Math.max(mx, s.hpOffset + (m?.visual.hpWidth ?? 0));
+  }, 0);
+  const needed = usedHp + totalHpNew;
+  const grownHpPerRow = Math.max(internal.hpPerRow, Math.ceil(needed / Math.max(1, internal.rows)));
+
+  let offset = usedHp;
+  const addSlots: RackSlot[] = [];
+  for (const m of newModules) {
+    addSlots.push({ id: uid('slot'), moduleId: m.id, row: 0, hpOffset: offset });
+    offset += m.visual.hpWidth;
+  }
+
+  const updatedRacks = racks.map((r) =>
+    r.id === internal!.id
+      ? { ...r, hpPerRow: grownHpPerRow, slots: [...r.slots, ...addSlots] }
+      : r);
+
+  return {
+    ...project,
+    moduleTypes: [...project.moduleTypes, ...newTypes],
+    modules:     [...project.modules, ...newModules],
+    racks: updatedRacks,
+  };
+}
 
 export function seedExampleModules(project: ModularProject): ModularProject {
   const all = [mutantSnare(), elements(), shelvesPlusExp(), rs110(), fusionVco(), richterOsc2()];

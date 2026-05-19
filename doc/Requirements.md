@@ -938,3 +938,76 @@ Zes hand-gemodelleerde modules zitten in `seedModules.ts`:
 
 Layouts zijn pragmatische benaderingen â€” pixel-perfecte reproductie
 wacht op de MI-AI-parser en op (optionele) drag-drop placement-editor.
+
+---
+
+## MMB v0.3 — implementatiestart (sessie-log)
+
+**Wat is opgeleverd in deze ronde:**
+
+1. **Patcher-kabels nu zichtbaar** — in `PatcherGraphPanel.tsx` krijgt elke edge `zIndex: 1000` plus een licht drop-shadow en dikkere stroke. ReactFlow rendert edges anders ónder de node-panels.
+2. **Elements-paneel label-overlap weg** — in `seedModules.ts` zijn de handmatige row-headers verwijderd; `ModulePanel` labelt knoppen en jacks automatisch (knob: y+r+2.2 / jack: y+JACK_R+2.0). Linker I/O-kolom (V/Oct, Gate, Ext, Out L/R) heeft nu eigen y-grid (26/44/70/112) bij x=4 en x=13 zodat de jacks niet meer over elkaar staan. FM-knob verhuisd naar centrale vrije plek; play-button apart op (cols[0], bigY-6).
+3. **Categorieën-tab volwaardig** — `CategoriesPanel.tsx` heeft nu:
+   * tabel met label-edit, kind-dropdown (vco/vcf/vca/mixer/mult/attenuator/breakout/envelope/lfo/midiRouter/sequencer/effect/drum/noise/utility/custom), CV-range-readout en gebruik-teller;
+   * `+ Toevoegen` voor nieuwe categorieën (id via `uid('cat')`);
+   * `Verwijder` per rij, geblokkeerd zolang er ModuleTypes deze categorie gebruiken.
+4. **Rack: row-selectie + duplicate** — in `RackPanel.tsx` is `pickedRow` opgetild naar `RackPanel` zodat klikken op een rij in de `RackGrid` die rij actief maakt (blauwe rand) én de sidebar-dropdown synchroniseert. Slot-toolbar heeft een duplicate-knop die de module dupliceert (nieuwe id, " copy" suffix, eerste vrije HP in dezelfde rij; valt terug op volgende rij).
+
+**Nog open voor v0.3 (volgende ronde):**
+
+* **Interne modules side-rack** — voorstel: `Rack.kind: 'physical' | 'internal'` toevoegen en bij eerste interne plaatsing een rack `rack_internal` aanmaken dat auto-meegroeit. Alternatief: physical rack auto-verbreden wanneer `Module.internal === true` geplaatst wordt.
+* **MMB-interne AHDSR (`tp_mmb_ahdsr`)** als eerste interne module-seed, met `internal: true`, brand `MMB`, layout 4 verticale sliders.
+* **CV-range editor + reorder** in CategoriesPanel.
+* **Right-click context-menu** op rack-slot (alternatief voor de toolbar-knoppen).
+* **Rack-grootte UX** is nu functioneel via HP/rij + Rijen inputs in de header; uitbreidings-idee: drag-resize aan de zijkanten.
+
+---
+
+## MMB v0.3 — implementatiestart (sessie-log)
+
+**Wat is opgeleverd in deze ronde:**
+
+1. **Patcher-kabels nu zichtbaar** — in `PatcherGraphPanel.tsx` krijgt elke edge `zIndex: 1000` plus drop-shadow en dikkere stroke. ReactFlow rendert edges anders ónder de node-panels.
+2. **Elements-paneel label-overlap weg** — in `seedModules.ts` zijn de handmatige row-headers verwijderd; `ModulePanel` labelt knoppen en jacks automatisch. Linker I/O-kolom (V/Oct, Gate, Ext, Out L/R) heeft nu eigen y-grid (26/44/70/112) bij x=4 en x=13. FM-knob verhuisd naar centrale vrije plek.
+3. **Categorieën-tab volwaardig** — `CategoriesPanel.tsx` heeft tabel met label-edit + kind-dropdown + gebruik-teller, `+ Toevoegen` voor nieuwe categorieën, en `Verwijder` per rij (geblokkeerd als er ModuleTypes naar verwijzen).
+4. **Rack: row-selectie + duplicate** — `pickedRow` opgetild naar `RackPanel`; klikken op een rij maakt die actief (blauwe rand) en synct met sidebar. Slot-toolbar heeft duplicate-knop die module kloont (nieuwe id, " copy"-suffix, eerste vrije HP in zelfde rij, valt terug op volgende rij).
+
+**Nog open voor v0.3 (volgende ronde):**
+
+* Interne modules side-rack: `Rack.kind: physical|internal` of auto-verbreding bij `Module.internal === true`.
+* Eerste MMB-interne AHDSR (`tp_mmb_ahdsr`) als seed.
+* CV-range editor en reorder in CategoriesPanel.
+* Right-click context-menu op rack-slot.
+
+---
+
+## v0.3 â€“ iteratie 2 (internal-rack UI + CV-range editor)
+
+Voortbouwend op de data-laag uit iteratie 1 (zie eerder log: `Rack.kind`, `seedInternals`) is nu de UI-koppeling rond:
+
+### Internal-rack UI (RackPanel)
+- **Rack-toolbar**: extra knop `+ Intern` maakt of activeert het virtuele `MMB Brain (intern)` rack. Naast de rack-naam staat een badge `INTERN` (blauw) of `FYSIEK` (grijs) zodat in Ã©Ã©n oogopslag duidelijk is dat HP daar niet telt.
+- **RackHeaderEditor** verbergt de Rows/HP-velden voor interne racks; toont in plaats daarvan `auto-grow Â· nu N HP`.
+- **ModuleSidebar** filtert nu strikt op rack-soort:
+  - intern rack â†’ toont alleen modules met `internal === true` (lege state linkt naar `âœ¨ Internals`-knop);
+  - fysiek rack â†’ toont alleen `internal === false`.
+- **placeAt()** voor interne racks: rij wordt altijd 0, en als `offset + hpWidth > hpPerRow` groeit `hpPerRow` automatisch mee (geen alert, geen verloren plaatsing).
+
+### Project-balk (ModularMbApp)
+- Knop `âœ¨ Internals` naast `âœ¨ Voorbeelden`: roept `seedInternals(project)` aan en voegt de drie MMB-brain modules (AHDSR, LFO, S&H) toe aan het interne rack. De factoriesseed loopt langs `mmbAhdsr/mmbLfo/mmbSh` uit `seedModules.ts` en plaatst alles op rij 0; `hpPerRow` groeit naar `max(64, ceil((used+nieuw)/rows))`.
+
+### CategorieÃ«n â€“ CV-range editor (CategoriesPanel)
+- De voorheen read-only `defaultCvRange`-kolom is nu interactief: kleine inline `CvRangeEditor`-cel met twee number-inputs (min/max), bipolair-checkbox (`Â±`), en `Ã—` om de range te wissen. CategorieÃ«n zonder range tonen een `+ range`-knop die default `âˆ’5..+5 V (bipolar)` zet â€” handig voor patch-defaults en latere simulator-clamping.
+
+### Bestanden gewijzigd
+- `editor/src/modular-mb/RackPanel.tsx` â€“ `addInternalRack`, kind-badge, header-tak voor intern, sidebar-filter + auto-grow in `placeAt`.
+- `editor/src/modular-mb/ModularMbApp.tsx` â€“ import `seedInternals`, knop `âœ¨ Internals`.
+- `editor/src/modular-mb/CategoriesPanel.tsx` â€“ `CvRangeEditor` helper + cell-render.
+
+### Build
+`npm run build` schoon (220 modules, ~459 KB / 144 KB gzip).
+
+### Bewust uitgesteld
+- **Right-click context-menu op slots**: de bestaande slot-toolbar (`â—€ â–¶ â–² â–¼ âŽ˜ Ã—`) dekt alle acties al; een context-menu zou puur cosmetisch zijn.
+- **Migratie van bestaande `patch.envelopes[]` / `patch.lfos[]` naar interne modules**: vraagt aparte ronde â€” defaults moeten naar `controlState` worden gemapt en oude data moet leesbaar blijven voor reverse-migratie.
+
