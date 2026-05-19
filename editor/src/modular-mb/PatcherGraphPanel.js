@@ -1,113 +1,101 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
-// Patcher — Graph view. Modules are nodes; ports are coloured handles;
-// cables are edges. All state lives in the same project store as the
-// matrix view, so toggling between Graph/Matrix shows the same patch.
-import { useCallback, useMemo, useState } from 'react';
+// Patcher — Graph view (v2).
+//
+// Each module placed in the active patch's rack is rendered as a ReactFlow
+// node containing the full SVG ModulePanel; ports of the module become
+// ReactFlow handles on the node's borders. Cables (edges) follow the same
+// signal-type colour rules. Knob/slider/switch values are read from and
+// written back to `patch.controlState`.
+//
+// Module positions in the graph mirror their rack slot (row × HP), so the
+// graph view is a free zoom/pan of the same physical layout.
+import { useCallback, useMemo } from 'react';
 import { Background, Controls, Handle, Position, ReactFlow, ReactFlowProvider, } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { updateProject, useModularProject } from './store';
-import { canConnect, SIGNAL_COLOUR, SIGNAL_LABEL, } from './types';
-import { ParamWidget } from './ParamWidget';
-function uid(prefix) {
-    return `${prefix}_${Math.random().toString(36).slice(2, 9)}`;
-}
-function ModuleNode({ data, selected }) {
-    const { module: m } = data;
-    const rowH = 18;
-    const maxRows = Math.max(m.inputs.length, m.outputs.length, 1);
-    const bodyH = 24 + maxRows * rowH;
-    const headerBg = m.visual?.color ?? kindColour(m.kind);
-    return (_jsxs("div", { style: {
-            width: 160,
-            minHeight: bodyH,
-            background: '#ffffff',
-            border: selected ? '2px solid #2563eb' : '1px solid #475569',
-            borderRadius: 6,
-            boxShadow: selected ? '0 0 0 3px rgba(37,99,235,0.18)' : '0 1px 3px rgba(0,0,0,0.08)',
-            fontSize: 11,
-            overflow: 'visible',
-        }, children: [_jsxs("div", { style: {
-                    background: headerBg, color: 'white',
-                    padding: '3px 8px', fontWeight: 600,
-                    borderTopLeftRadius: 4, borderTopRightRadius: 4,
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-                }, children: [_jsx("span", { children: m.label }), _jsx("span", { style: { fontSize: 9, opacity: 0.8 }, children: m.kind })] }), _jsxs("div", { style: { position: 'relative', padding: '4px 8px' }, children: [m.inputs.map((p, i) => (_jsx(PortRow, { port: p, side: "in", rowY: i * rowH + 4 }, `in.${p.id}`))), m.outputs.map((p, i) => (_jsx(PortRow, { port: p, side: "out", rowY: i * rowH + 4 }, `out.${p.id}`)))] })] }));
-}
-function PortRow({ port, side, rowY }) {
-    const colour = SIGNAL_COLOUR[port.signalType];
-    return (_jsxs("div", { style: {
-            position: 'relative', height: 18, marginBottom: 0,
-            display: 'flex',
-            justifyContent: side === 'in' ? 'flex-start' : 'flex-end',
-            alignItems: 'center',
-        }, children: [_jsx(Handle, { type: side === 'in' ? 'target' : 'source', position: side === 'in' ? Position.Left : Position.Right, id: port.id, style: {
-                    background: colour,
-                    width: 10, height: 10,
-                    border: '1.5px solid white',
-                    top: rowY + 10,
-                } }), _jsx("span", { style: {
-                    color: colour, fontWeight: 600,
-                    marginLeft: side === 'in' ? 8 : 0,
-                    marginRight: side === 'out' ? 8 : 0,
-                }, title: `${port.name} · ${SIGNAL_LABEL[port.signalType]}`, children: port.name })] }));
+import { updateProject, useModularProject, uid } from './store';
+import { ModulePanel } from './ModulePanel';
+import { canConnect, resolvePorts, SIGNAL_COLOUR, SIGNAL_LABEL, MM_PER_HP, PANEL_HEIGHT_MM, } from './types';
+const PX_PER_MM = 2.4;
+function ModuleNode({ data }) {
+    const { module: m, types, controlState, patchId } = data;
+    const ports = resolvePorts(m, types);
+    const heightMm = m.visual.heightMm ?? PANEL_HEIGHT_MM;
+    const widthMm = m.visual.hpWidth * MM_PER_HP;
+    function setControl(controlId, value) {
+        updateProject((p) => ({
+            ...p,
+            patches: p.patches.map((px) => {
+                if (px.id !== patchId)
+                    return px;
+                const prev = px.controlState[m.id] ?? {};
+                return {
+                    ...px,
+                    controlState: { ...px.controlState, [m.id]: { ...prev, [controlId]: value } },
+                };
+            }),
+        }));
+    }
+    return (_jsxs("div", { className: "nopan nodrag nowheel", style: { position: 'relative', background: '#0f172a', borderRadius: 4, padding: 2 }, children: [_jsx(ModulePanel, { module: m, types: types, controlState: controlState, onControlChange: setControl, pxPerMm: PX_PER_MM, showPortLabels: true }), ports.map((p) => {
+                const pl = m.visual.portPlacements[p.id];
+                if (!pl)
+                    return null;
+                const left = pl.x * PX_PER_MM;
+                const top = pl.y * PX_PER_MM;
+                return (_jsx(Handle, { id: p.id, type: p.direction === 'in' ? 'target' : 'source', position: p.direction === 'in' ? Position.Left : Position.Right, style: {
+                        left, top,
+                        transform: 'translate(-50%, -50%)',
+                        width: 14, height: 14,
+                        background: SIGNAL_COLOUR[p.signalType],
+                        border: '2px solid white',
+                        opacity: 0.001, // invisible — ports drawn by SVG
+                    } }, p.id));
+            }), _jsx("div", { style: { width: widthMm * PX_PER_MM, height: heightMm * PX_PER_MM, pointerEvents: 'none', position: 'absolute', top: 2, left: 2 } })] }));
 }
 const nodeTypes = { module: ModuleNode };
-function kindColour(kind) {
-    switch (kind) {
-        case 'vco': return '#0891b2';
-        case 'vcf': return '#0e7490';
-        case 'vca': return '#15803d';
-        case 'envelope': return '#7c3aed';
-        case 'lfo': return '#c026d3';
-        case 'mixer': return '#475569';
-        case 'breakout': return '#92400e';
-        case 'midiRouter': return '#9333ea';
-        case 'sequencer': return '#be123c';
-        default: return '#475569';
-    }
-}
-// ─── Panel ───────────────────────────────────────────────────────────────
+// ── Inner panel (inside ReactFlowProvider) ─────────────────────────────
 function PatcherGraphInner({ patchId }) {
     const project = useModularProject();
     const patch = project.patches.find((p) => p.id === patchId);
-    const [selectedModuleId, setSelectedModuleId] = useState(null);
-    const nodes = useMemo(() => project.modules.map((m, i) => ({
+    const rack = project.racks.find((r) => r.id === patch.rackId);
+    const placedModules = useMemo(() => {
+        return rack.slots
+            .map((s) => {
+            const m = project.modules.find((x) => x.id === s.moduleId);
+            return m ? { slot: s, module: m } : null;
+        })
+            .filter((x) => x !== null);
+    }, [rack.slots, project.modules]);
+    const nodes = useMemo(() => placedModules.map(({ slot, module: m }) => ({
         id: m.id,
         type: 'module',
-        position: { x: m.x ?? 60 + (i % 4) * 200, y: m.y ?? 60 + Math.floor(i / 4) * 180 },
-        data: { module: m },
-    })), [project.modules]);
+        position: {
+            x: slot.hpOffset * MM_PER_HP * PX_PER_MM,
+            y: slot.row * (PANEL_HEIGHT_MM + 6) * PX_PER_MM,
+        },
+        data: {
+            module: m,
+            types: project.moduleTypes,
+            controlState: patch.controlState[m.id] ?? {},
+            patchId,
+        },
+        // Lock dragging — position derives from rack.
+        draggable: false,
+    })), [placedModules, project.moduleTypes, patch.controlState, patchId]);
     const edges = useMemo(() => patch.connections.map((c) => {
         const srcMod = project.modules.find((m) => m.id === c.from.moduleId);
-        const srcPort = srcMod?.outputs.find((p) => p.id === c.from.portId);
+        const srcPort = srcMod && resolvePorts(srcMod, project.moduleTypes)
+            .find((p) => p.id === c.from.portId);
         const colour = srcPort ? SIGNAL_COLOUR[srcPort.signalType] : '#475569';
         return {
             id: c.id,
-            source: c.from.moduleId,
-            sourceHandle: c.from.portId,
-            target: c.to.moduleId,
-            targetHandle: c.to.portId,
+            source: c.from.moduleId, sourceHandle: c.from.portId,
+            target: c.to.moduleId, targetHandle: c.to.portId,
             style: { stroke: colour, strokeWidth: 2 },
         };
-    }), [patch.connections, project.modules]);
-    const onNodesChange = useCallback((changes) => {
-        for (const ch of changes) {
-            if (ch.type === 'position' && ch.position && !ch.dragging) {
-                const id = ch.id;
-                const { x, y } = ch.position;
-                updateProject((p) => ({
-                    ...p,
-                    modules: p.modules.map((m) => (m.id === id ? { ...m, x: Math.round(x), y: Math.round(y) } : m)),
-                }));
-            }
-            if (ch.type === 'select') {
-                if (ch.selected)
-                    setSelectedModuleId(ch.id);
-                else if (selectedModuleId === ch.id)
-                    setSelectedModuleId(null);
-            }
-        }
-    }, [selectedModuleId]);
+    }), [patch.connections, project.modules, project.moduleTypes]);
+    const onNodesChange = useCallback((_changes) => {
+        // Positions are fixed (driven by rack). Nothing to persist.
+    }, []);
     const onEdgesChange = useCallback((changes) => {
         for (const ch of changes) {
             if (ch.type === 'remove') {
@@ -125,14 +113,16 @@ function PatcherGraphInner({ patchId }) {
             return;
         const srcMod = project.modules.find((m) => m.id === c.source);
         const dstMod = project.modules.find((m) => m.id === c.target);
-        const srcPort = srcMod?.outputs.find((p) => p.id === c.sourceHandle);
-        const dstPort = dstMod?.inputs.find((p) => p.id === c.targetHandle);
+        if (!srcMod || !dstMod)
+            return;
+        const srcPorts = resolvePorts(srcMod, project.moduleTypes);
+        const dstPorts = resolvePorts(dstMod, project.moduleTypes);
+        const srcPort = srcPorts.find((p) => p.id === c.sourceHandle && p.direction === 'out');
+        const dstPort = dstPorts.find((p) => p.id === c.targetHandle && p.direction === 'in');
         if (!srcPort || !dstPort)
             return;
-        if (!canConnect(srcPort.signalType, dstPort.signalType)) {
-            // Silent reject; could surface a toast in a later iteration.
+        if (!canConnect(srcPort.signalType, dstPort.signalType))
             return;
-        }
         const conn = {
             id: uid('c'),
             from: { moduleId: c.source, portId: c.sourceHandle },
@@ -143,53 +133,20 @@ function PatcherGraphInner({ patchId }) {
             patches: p.patches.map((px) => px.id !== patchId ? px
                 : { ...px, connections: [...px.connections, conn] }),
         }));
-    }, [project.modules, patchId]);
-    const selectedModule = selectedModuleId
-        ? project.modules.find((m) => m.id === selectedModuleId) ?? null
-        : null;
-    return (_jsxs("div", { style: { display: 'grid', gridTemplateColumns: '1fr 260px', gap: 12 }, children: [_jsx("div", { style: {
-                    height: 540, border: '1px solid #cbd2d9', borderRadius: 6, background: '#fafbfc',
-                    userSelect: 'none',
-                }, children: _jsxs(ReactFlow, { nodes: nodes, edges: edges, nodeTypes: nodeTypes, onNodesChange: onNodesChange, onEdgesChange: onEdgesChange, onConnect: onConnect, deleteKeyCode: "Delete", fitView: true, proOptions: { hideAttribution: true }, children: [_jsx(Background, { gap: 20 }), _jsx(Controls, { showInteractive: false })] }) }), _jsx(ModuleAside, { module: selectedModule, patchId: patchId })] }));
-}
-// ─── Properties side panel ───────────────────────────────────────────────
-function ModuleAside({ module: m, patchId }) {
-    const project = useModularProject();
-    const patch = project.patches.find((p) => p.id === patchId);
-    if (!m) {
-        return (_jsxs("aside", { style: asideStyle, children: [_jsx("h3", { style: asideH3, children: "Module" }), _jsx("p", { style: { color: '#6b7280', fontSize: 12 }, children: "Klik een module in de graph om parameters te bewerken." }), _jsx(Legend, {})] }));
-    }
-    const settings = patch.moduleSettings[m.id] ?? {};
-    function setParam(paramId, value) {
-        const mod = m;
-        updateProject((proj) => ({
-            ...proj,
-            patches: proj.patches.map((px) => {
-                if (px.id !== patchId)
-                    return px;
-                const prev = px.moduleSettings[mod.id] ?? {};
-                return {
-                    ...px,
-                    moduleSettings: { ...px.moduleSettings, [mod.id]: { ...prev, [paramId]: value } },
-                };
-            }),
-        }));
-    }
-    return (_jsxs("aside", { style: asideStyle, children: [_jsx("h3", { style: asideH3, children: m.label }), _jsxs("div", { style: { fontSize: 11, color: '#6b7280', marginBottom: 8 }, children: [m.kind, m.externallyControlled ? ' · extern bediend' : ''] }), m.params.length === 0 && (_jsx("p", { style: { color: '#6b7280', fontSize: 12, fontStyle: 'italic' }, children: "Geen instelbare parameters." })), m.params.length > 0 && (_jsx("div", { style: { display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 10 }, children: m.params.map((p) => (_jsx(ParamWidget, { label: p.name, value: settings[p.id] ?? p.defaultValue, min: p.min, max: p.max, unit: p.unit, view: p.preferredView ?? 'knob', onChange: (v) => setParam(p.id, v) }, p.id))) })), _jsx(Legend, {})] }));
+    }, [project.modules, project.moduleTypes, patchId]);
+    return (_jsxs("div", { style: { display: 'grid', gridTemplateColumns: '1fr 220px', gap: 12 }, children: [_jsx("div", { style: {
+                    height: 620, border: '1px solid #cbd2d9', borderRadius: 6,
+                    background: '#0f172a', userSelect: 'none',
+                }, children: _jsxs(ReactFlow, { nodes: nodes, edges: edges, nodeTypes: nodeTypes, onNodesChange: onNodesChange, onEdgesChange: onEdgesChange, onConnect: onConnect, deleteKeyCode: "Delete", fitView: true, minZoom: 0.3, maxZoom: 2, proOptions: { hideAttribution: true }, children: [_jsx(Background, { gap: 20, color: "#1e293b" }), _jsx(Controls, { showInteractive: false })] }) }), _jsx(Legend, {})] }));
 }
 function Legend() {
-    return (_jsxs("div", { style: { marginTop: 12, fontSize: 11, color: '#475569' }, children: [_jsx("div", { style: { fontWeight: 600, marginBottom: 4 }, children: "Kabel-types" }), ['cv', 'gate', 'trigger', 'audio', 'midi'].map((t) => (_jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: 6, lineHeight: '18px' }, children: [_jsx("span", { style: {
+    return (_jsxs("aside", { style: {
+            border: '1px solid #cbd2d9', borderRadius: 6, padding: 10, background: 'white',
+        }, children: [_jsx("h3", { style: { marginTop: 0, marginBottom: 6, fontSize: 12, textTransform: 'uppercase', color: '#374151' }, children: "Signaal-types" }), ['cv', 'gate', 'trigger', 'audio', 'midi'].map((t) => (_jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: 6, lineHeight: '18px', fontSize: 11 }, children: [_jsx("span", { style: {
                             display: 'inline-block', width: 18, height: 3,
                             background: SIGNAL_COLOUR[t], borderRadius: 1,
-                        } }), SIGNAL_LABEL[t]] }, t)))] }));
+                        } }), SIGNAL_LABEL[t]] }, t))), _jsx("p", { style: { fontSize: 11, color: '#6b7280', marginTop: 10 }, children: "Sleep van een uit-jack naar een in-jack om te patchen. Selecteer een kabel en druk Delete om te verwijderen." }), _jsx("p", { style: { fontSize: 11, color: '#6b7280' }, children: "Knoppen/schuiven/schakelaars zijn live: ze tonen en wijzigen de toestand van de huidige patch." })] }));
 }
-const asideStyle = {
-    border: '1px solid #cbd2d9', borderRadius: 6, padding: 12, background: 'white',
-};
-const asideH3 = {
-    marginTop: 0, marginBottom: 4, fontSize: 13,
-    textTransform: 'uppercase', color: '#374151',
-};
 export function PatcherGraphPanel(props) {
     return (_jsx(ReactFlowProvider, { children: _jsx(PatcherGraphInner, { ...props }) }));
 }

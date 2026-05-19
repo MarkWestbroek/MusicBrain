@@ -1,40 +1,35 @@
 // ─────────────────────────────────────────────────────────────────────────
-// Modular Music Brain (MMB) — data model v0.1
+// Modular Music Brain (MMB) — data model v2 (2026-05-19)
 //
-// Scope of v0.1:
-//   • Modules with typed input/output ports (CV, gate, audio, MIDI)
-//   • Patches = named sets of connections + module-parameter values
-//   • Envelopes (AHDSR only for v0.1; shape is a discriminated union so
-//     multiphase/sampled/drawn/hwEmulation can be added later without
-//     breaking existing patch JSON)
-//   • LFOs (basic waveforms for v0.1; same extensibility pattern)
+// v2 introduces the three-layer module model:
+//   Category  → ModuleType (template) → Module (concrete realisation)
+//                                          ↑
+//                                  placed in Rack(s)
+//                                          ↑
+//                                referenced by Patch (connections + controlState)
 //
-// JSON format rules:
-//   • Every persisted shape carries `kind` so the union can be widened.
-//   • Times are in milliseconds, frequencies in Hz, voltages in V (CV).
-//   • CV ranges are stored explicitly per port; do not assume ±5 V or 0–10 V.
+// The v1 model (single `ModuleDef`) is migrated on import — see
+// `migrateProject()` in this file.
 // ─────────────────────────────────────────────────────────────────────────
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Cable / signal types
+// ═══════════════════════════════════════════════════════════════════════
 
 export type SignalType = 'cv' | 'gate' | 'trigger' | 'audio' | 'midi';
 
-/** Visual conventions for cables / handles. Kept here next to the type so
- *  Patcher graph view and Matrix view stay in sync. Colours are
- *  intentionally distinct enough to read from a distance. */
 export const SIGNAL_COLOUR: Record<SignalType, string> = {
-  cv:      '#2563eb', // blue   — continuous voltage
-  gate:    '#16a34a', // green  — sustained on/off
-  trigger: '#eab308', // yellow — momentary pulse
-  audio:   '#ea580c', // orange — audio-rate signal
-  midi:    '#9333ea', // purple — MIDI message stream
+  cv:      '#2563eb',
+  gate:    '#16a34a',
+  trigger: '#eab308',
+  audio:   '#ea580c',
+  midi:    '#9333ea',
 };
 
 export const SIGNAL_LABEL: Record<SignalType, string> = {
   cv: 'CV', gate: 'Gate', trigger: 'Trig', audio: 'Audio', midi: 'MIDI',
 };
 
-/** Which signal types may legally connect from src → dst. A gate output
- *  can drive a CV input (binary 0/+V). A trigger can stand in for a gate.
- *  Audio and MIDI are strict. */
 export const SIGNAL_COMPATIBILITY: Record<SignalType, SignalType[]> = {
   cv:      ['cv'],
   gate:    ['gate', 'cv'],
@@ -48,85 +43,267 @@ export function canConnect(src: SignalType, dst: SignalType): boolean {
 }
 
 export interface CvRange {
-  /** Lower bound in volts (or normalised −1..0 for bipolar gates). */
   min: number;
-  /** Upper bound in volts. */
   max: number;
-  /** True for ±V signals (LFOs, audio); false for unipolar (envelopes, gates). */
   bipolar: boolean;
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Ports
+// ═══════════════════════════════════════════════════════════════════════
 
 export interface Port {
   id: string;
   name: string;
   signalType: SignalType;
-  /** Only meaningful for `cv` (and optionally `audio`). */
+  /** in = jack accepts a signal; out = jack drives one. */
+  direction: 'in' | 'out';
   range?: CvRange;
 }
 
-/** Knob / setting on a hardware or internal module. */
-export interface Param {
+// ═══════════════════════════════════════════════════════════════════════
+//  Controls (knobs, sliders, switches, …) — discriminated union
+// ═══════════════════════════════════════════════════════════════════════
+
+export type KnobStyle =
+  | 'generic'
+  | 'bakelite-pointer'
+  | 'mutable-small'
+  | 'mutable-large'
+  | 'davies-1900h'
+  | 'rogan-pointer'
+  | 'thonk-d-shaft'
+  | 'tube';
+
+export type SliderStyle = 'fader' | 'mini-fader';
+export type ButtonStyle = 'momentary' | 'push' | 'led';
+export type Taper       = 'lin' | 'log' | 'exp';
+export type ControlSize = 'small' | 'medium' | 'large';
+
+export interface KnobControl {
+  kind: 'knob';
   id: string;
-  name: string;
+  label: string;
   min: number;
   max: number;
   defaultValue: number;
   unit?: string;
-  /** How this parameter is preferred to be rendered. The actual editor
-   *  may render any of these on top of the same value (MVC); this is
-   *  only the *default* view. */
-  preferredView?: 'knob' | 'slider' | 'numeric' | 'toggle';
+  taper?: Taper;
+  style?: KnobStyle;
+  /** Cap colour, e.g. for Mutable Instruments' red/cyan/white system. */
+  color?: string;
+  size?: ControlSize;
 }
 
-/** Optional visual layout for a module on the patcher graph. v0.2 uses
- *  algorithmic port placement (inputs left, outputs right); v0.3 will
- *  let users place handles/knobs freely to mimic the actual front panel. */
-export interface ModuleVisual {
-  /** Panel width in grid units (1 unit = ~12 px). */
-  width?: number;
-  /** Panel height in grid units. */
-  height?: number;
-  /** Panel background colour, e.g. '#fde68a' for a custom hardware module. */
-  color?: string;
-  /** Manual port placement — if absent, ports are spaced automatically. */
-  inputPositions?:  Record<string, { x: number; y: number }>;
-  outputPositions?: Record<string, { x: number; y: number }>;
-  knobPositions?:   Record<string, { x: number; y: number }>;
+export interface SliderControl {
+  kind: 'slider';
+  id: string;
+  label: string;
+  min: number;
+  max: number;
+  defaultValue: number;
+  unit?: string;
+  orientation: 'v' | 'h';
+  lengthMm?: number;
+  style?: SliderStyle;
 }
+
+export interface ToggleControl {
+  kind: 'toggle';
+  id: string;
+  label: string;
+  offLabel?: string;
+  onLabel?: string;
+  defaultValue: boolean;
+}
+
+export interface SwitchControl {
+  kind: 'switch';
+  id: string;
+  label: string;
+  positions: string[];
+  defaultIndex: number;
+  orientation?: 'v' | 'h' | 'rotary';
+}
+
+export interface ButtonControl {
+  kind: 'button';
+  id: string;
+  label: string;
+  momentary: boolean;
+  defaultValue?: boolean;
+  style?: ButtonStyle;
+}
+
+export interface JoystickControl {
+  kind: 'joystick';
+  id: string;
+  label: string;
+  axes: ('x' | 'y')[];
+  defaultValue: { x: number; y: number };
+}
+
+export interface ExoticControl {
+  kind: 'exotic';
+  id: string;
+  label: string;
+  description: string;
+  defaultValue: number;
+}
+
+export type Control =
+  | KnobControl | SliderControl | ToggleControl
+  | SwitchControl | ButtonControl | JoystickControl | ExoticControl;
+
+/** Value stored per (module, control) in a patch. Shape depends on kind. */
+export type ControlValue = number | boolean | { x: number; y: number };
+
+export function defaultValueOf(c: Control): ControlValue {
+  switch (c.kind) {
+    case 'knob':
+    case 'slider':
+    case 'exotic':    return c.defaultValue;
+    case 'toggle':    return c.defaultValue;
+    case 'switch':    return c.defaultIndex;
+    case 'button':    return c.defaultValue ?? false;
+    case 'joystick':  return c.defaultValue;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Visual / panel layout — millimetres, top-left origin.
+//  1 HP = 5.08 mm; 3U Eurorack = 128.5 mm tall.
+// ═══════════════════════════════════════════════════════════════════════
+
+export const MM_PER_HP = 5.08;
+export const PANEL_HEIGHT_MM = 128.5;
+
+export type PanelTexture =
+  | 'aluminum'
+  | 'pcb-black'
+  | 'mi-cream'
+  | 'gold-plate'
+  | 'wood';
+
+export interface PanelDecoration {
+  kind: 'rect' | 'line' | 'text' | 'tubeSlot' | 'ledMarker' | 'jackBlock';
+  x: number; y: number;
+  w?: number; h?: number;
+  x2?: number; y2?: number;
+  color?: string;
+  text?: string;
+  fontSize?: number;
+}
+
+export interface ControlPlacement {
+  x: number;
+  y: number;
+  rotation?: number;
+  sizeOverride?: ControlSize;
+}
+
+export interface PortPlacement {
+  x: number;
+  y: number;
+  labelPos?: 'above' | 'below' | 'left' | 'right' | 'none';
+}
+
+export interface ModuleVisual {
+  hpWidth: number;
+  heightMm?: number;
+  texture: PanelTexture;
+  baseColor?: string;
+  decorations?: PanelDecoration[];
+  /** Text-only labels (no logos — copyright-safe). */
+  texts?: { x: number; y: number; text: string; fontSize?: number; color?: string; align?: 'start' | 'middle' | 'end' }[];
+  controlPlacements: Record<string, ControlPlacement>;
+  portPlacements:    Record<string, PortPlacement>;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Categories (top layer)
+// ═══════════════════════════════════════════════════════════════════════
 
 export type ModuleKind =
-  // Analog hardware
   | 'vco' | 'vcf' | 'vca' | 'mixer' | 'mult' | 'attenuator' | 'breakout'
-  // Internal / digital (run on the brain itself)
   | 'envelope' | 'lfo' | 'midiRouter' | 'sequencer'
-  // Catch-all for user-defined hardware
   | 'custom';
 
-export interface ModuleDef {
+export interface ModuleCategory {
   id: string;
-  kind: ModuleKind;
-  /** Display label, e.g. "VCO-1", "ADSR-A". */
   label: string;
-  /** Brand/model of the underlying hardware (optional for internal modules). */
-  brand?: string;
-  model?: string;
-  inputs:  Port[];
-  outputs: Port[];
-  params:  Param[];
-  /** Free-form notes for the musician. */
-  notes?: string;
-  /** Layout position in the patcher view. */
-  x?: number;
-  y?: number;
-  /** Optional visual layout for the front-panel rendering. */
-  visual?: ModuleVisual;
-  /** Marks modules that are "passive" in the sense that the brain cannot
-   *  control their knobs (e.g. a Eurorack VCO). The patch may still store
-   *  recommended knob positions as documentation. */
-  externallyControlled?: boolean;
+  kind: ModuleKind | string;
+  defaultCvRange?: CvRange;
 }
 
-// ─── Envelope shapes ─────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════
+//  ModuleType (middle layer — template)
+// ═══════════════════════════════════════════════════════════════════════
+
+export interface ModuleType {
+  id: string;
+  categoryId: string;
+  /** Variant within the category, e.g. "ladder", "AHDSR", "pitch-CV 16-bit". */
+  variant: string;
+  notes?: string;
+  ports: Port[];
+  controls: Control[];
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Module (bottom layer — concrete realisation)
+// ═══════════════════════════════════════════════════════════════════════
+
+export interface Module {
+  id: string;
+  typeId: string;
+  /** True = the brain itself implements this (envelopes, LFOs, MIDI router). */
+  internal: boolean;
+  name: string;
+  brand?: string;
+  modelNumber?: string;
+  /** If present, overrides the type's port set. */
+  portsOverride?: Port[];
+  controlsOverride?: Control[];
+  visual: ModuleVisual;
+  notes?: string;
+}
+
+export function resolvePorts(mod: Module, types: ModuleType[]): Port[] {
+  if (mod.portsOverride) return mod.portsOverride;
+  const t = types.find((x) => x.id === mod.typeId);
+  return t ? t.ports : [];
+}
+
+export function resolveControls(mod: Module, types: ModuleType[]): Control[] {
+  if (mod.controlsOverride) return mod.controlsOverride;
+  const t = types.find((x) => x.id === mod.typeId);
+  return t ? t.controls : [];
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Rack
+// ═══════════════════════════════════════════════════════════════════════
+
+export interface RackSlot {
+  id: string;
+  moduleId: string;
+  row: number;
+  hpOffset: number;
+}
+
+export interface Rack {
+  id: string;
+  name: string;
+  description?: string;
+  rows: number;
+  hpPerRow: number;
+  slots: RackSlot[];
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Envelope / LFO shapes (unchanged from v1)
+// ═══════════════════════════════════════════════════════════════════════
 
 export type CurveKind =
   | 'linear' | 'exp' | 'log' | 'sCurve'
@@ -134,48 +311,29 @@ export type CurveKind =
 
 export interface AhdsrShape {
   kind: 'ahdsr';
-  attackMs:  number;
-  holdMs:    number;
-  decayMs:   number;
-  sustain:   number;  // 0..1
-  releaseMs: number;
-  /** Curve applied to all transition phases; per-phase override in v0.2. */
-  curve: CurveKind;
+  attackMs: number; holdMs: number; decayMs: number;
+  sustain: number; releaseMs: number; curve: CurveKind;
 }
 
-/** Generic multiphase segment used by both envelopes and LFOs. */
-export interface Phase {
-  /** Target value at end of this phase. For envelopes: 0..1. For LFOs: −1..1. */
-  value: number;
-  /** Duration of the phase in ms (envelope) or fraction of cycle (LFO 0..1). */
-  time: number;
-  curve: CurveKind;
-}
+export interface Phase { value: number; time: number; curve: CurveKind; }
 
 export interface MultiphaseShape {
   kind: 'multiphase';
   phases: Phase[];
-  /** Index of the phase that becomes the sustain hold-point (envelope only). */
   sustainPhase?: number;
 }
 
-/** A captured analog-envelope curve. Multiple variants allow interpolation
- *  to retain analog "wobble" between repeats. */
 export interface SampledShape {
   kind: 'sampled';
   sampleRateHz: number;
-  /** One or more captures of the same envelope shape. */
   variants: number[][];
 }
 
-/** Hand-drawn envelope/LFO from a touch or pointer surface. */
 export interface DrawnShape {
   kind: 'drawn';
-  /** Sorted by t (0..1 for LFO cycle, or absolute ms for envelope). */
   points: { t: number; v: number }[];
 }
 
-/** Real-time emulation of a small analog circuit. */
 export interface HwEmulationShape {
   kind: 'hwEmulation';
   circuitId: string;
@@ -186,17 +344,8 @@ export type EnvelopeShape =
   | AhdsrShape | MultiphaseShape | SampledShape | DrawnShape | HwEmulationShape;
 
 export type LfoWave = 'sine' | 'triangle' | 'saw' | 'rsaw' | 'square' | 'pulse';
-
-export interface WaveShape {
-  kind: 'wave';
-  wave: LfoWave;
-  /** Only used for pulse; 0..1. */
-  pwm?: number;
-}
-
+export interface WaveShape { kind: 'wave'; wave: LfoWave; pwm?: number; }
 export type LfoShape = WaveShape | MultiphaseShape | SampledShape | DrawnShape;
-
-// ─── Trigger sources ─────────────────────────────────────────────────────
 
 export type TriggerSource =
   | { kind: 'midiNote'; channel: number; noteFilter?: { min: number; max: number } }
@@ -204,39 +353,28 @@ export type TriggerSource =
   | { kind: 'lfo';      lfoId: string; threshold: number }
   | { kind: 'manual' };
 
-// ─── Envelope / LFO instances (live on the brain) ────────────────────────
-
 export interface EnvelopeInstance {
-  id: string;
-  label: string;
-  shape: EnvelopeShape;
-  loop: boolean;
+  id: string; label: string; shape: EnvelopeShape; loop: boolean;
   trigger: TriggerSource;
-  /** Module-port targets this envelope drives. */
   outputs: { moduleId: string; portId: string }[];
 }
 
 export interface LfoInstance {
-  id: string;
-  label: string;
-  shape: LfoShape;
-  /** Free-running frequency, or one cycle per gate when running !== 'always'. */
-  freqHz: number;
-  /** Start phase 0..1. */
-  startPhase: number;
-  bipolar: boolean;
+  id: string; label: string; shape: LfoShape;
+  freqHz: number; startPhase: number; bipolar: boolean;
   running: 'always' | 'gated' | 'oneShot';
-  trigger?: TriggerSource;  // only for gated / oneShot
+  trigger?: TriggerSource;
   outputs: { moduleId: string; portId: string }[];
 }
 
-// ─── Patch (connections + values + envs/LFOs) ────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════
+//  Patch
+// ═══════════════════════════════════════════════════════════════════════
 
 export interface PatchConnection {
   id: string;
   from: { moduleId: string; portId: string };
   to:   { moduleId: string; portId: string };
-  /** 0..1 attenuation; 1 = pass-through. */
   attenuation?: number;
   invert?: boolean;
 }
@@ -246,55 +384,219 @@ export interface Patch {
   name: string;
   description?: string;
   voiceCount: number;
+  rackId: string;
   connections: PatchConnection[];
-  /** Per module: paramId → value. */
-  moduleSettings: Record<string, Record<string, number>>;
+  /** Per module: controlId → ControlValue. */
+  controlState: Record<string, Record<string, ControlValue>>;
   envelopes: EnvelopeInstance[];
   lfos: LfoInstance[];
 }
 
-// ─── Category configuration ──────────────────────────────────────────────
-
-export interface ModuleCategory {
-  id: string;
-  label: string;
-  kind: ModuleKind;
-  /** Default port ranges to pre-fill when adding a module of this kind. */
-  defaultCvRange?: CvRange;
-}
-
-// ─── Top-level project ───────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════
+//  Top-level project
+// ═══════════════════════════════════════════════════════════════════════
 
 export interface ModularProject {
-  version: 1;
+  version: 2;
   name: string;
   description?: string;
   configVersion?: string;
-  modules: ModuleDef[];
-  categories: ModuleCategory[];
-  patches: Patch[];
+
+  categories:  ModuleCategory[];
+  moduleTypes: ModuleType[];
+  modules:     Module[];
+  racks:       Rack[];
+  patches:     Patch[];
+
+  activeRackId?:  string;
   activePatchId?: string;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Seed
+// ═══════════════════════════════════════════════════════════════════════
+
+export function defaultCategories(): ModuleCategory[] {
+  const cv  = { min: -5, max: 5,  bipolar: true  };
+  const uni = { min:  0, max: 10, bipolar: false };
+  return [
+    { id: 'vco',      label: 'VCO',      kind: 'vco',      defaultCvRange: cv  },
+    { id: 'vcf',      label: 'VCF',      kind: 'vcf',      defaultCvRange: cv  },
+    { id: 'vca',      label: 'VCA',      kind: 'vca',      defaultCvRange: uni },
+    { id: 'mixer',    label: 'Mixer',    kind: 'mixer' },
+    { id: 'breakout', label: 'Breakout', kind: 'breakout' },
+    { id: 'envelope', label: 'Envelope', kind: 'envelope', defaultCvRange: uni },
+    { id: 'lfo',      label: 'LFO',      kind: 'lfo',      defaultCvRange: cv  },
+  ];
 }
 
 export function emptyModularProject(): ModularProject {
   return {
-    version: 1,
+    version: 2,
     name: 'ModularMB',
-    modules: [],
-    categories: [
-      { id: 'vco',      label: 'VCO',      kind: 'vco',
-        defaultCvRange: { min: -5, max: 5, bipolar: true } },
-      { id: 'vcf',      label: 'VCF',      kind: 'vcf',
-        defaultCvRange: { min: -5, max: 5, bipolar: true } },
-      { id: 'vca',      label: 'VCA',      kind: 'vca',
-        defaultCvRange: { min: 0, max: 10, bipolar: false } },
-      { id: 'mixer',    label: 'Mixer',    kind: 'mixer' },
-      { id: 'breakout', label: 'Breakout', kind: 'breakout' },
-      { id: 'envelope', label: 'Envelope', kind: 'envelope',
-        defaultCvRange: { min: 0, max: 10, bipolar: false } },
-      { id: 'lfo',      label: 'LFO',      kind: 'lfo',
-        defaultCvRange: { min: -5, max: 5, bipolar: true } },
-    ],
+    categories:  defaultCategories(),
+    moduleTypes: [],
+    modules:     [],
+    racks: [{
+      id: 'rack_default',
+      name: 'Mijn rack',
+      rows: 3,
+      hpPerRow: 84,
+      slots: [],
+    }],
     patches: [],
+    activeRackId: 'rack_default',
   };
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Migration: v1 → v2
+//
+//  v1 had a flat `modules: ModuleDef[]` with `inputs/outputs/params` per
+//  module. We map each v1 module to a v2 (ModuleType, Module) pair and
+//  place all modules in a default rack. Patch `moduleSettings` becomes
+//  `controlState` (param values were always numbers).
+// ═══════════════════════════════════════════════════════════════════════
+
+interface V1Param {
+  id: string; name: string; min: number; max: number; defaultValue: number;
+  unit?: string; preferredView?: 'knob' | 'slider' | 'numeric' | 'toggle';
+}
+interface V1Port {
+  id: string; name: string; signalType: SignalType; range?: CvRange;
+}
+interface V1ModuleDef {
+  id: string; kind: ModuleKind; label: string;
+  brand?: string; model?: string;
+  inputs: V1Port[]; outputs: V1Port[]; params: V1Param[];
+  notes?: string; x?: number; y?: number;
+  visual?: unknown;
+  externallyControlled?: boolean;
+}
+interface V1Patch {
+  id: string; name: string; description?: string; voiceCount: number;
+  connections: PatchConnection[];
+  moduleSettings: Record<string, Record<string, number>>;
+  envelopes: EnvelopeInstance[]; lfos: LfoInstance[];
+}
+interface V1Project {
+  version: 1;
+  name: string; description?: string; configVersion?: string;
+  modules: V1ModuleDef[];
+  categories: ModuleCategory[];
+  patches: V1Patch[];
+  activePatchId?: string;
+}
+
+function paramToControl(p: V1Param): Control {
+  const view = p.preferredView ?? 'knob';
+  if (view === 'toggle') {
+    return { kind: 'toggle', id: p.id, label: p.name, defaultValue: p.defaultValue > 0 };
+  }
+  if (view === 'slider') {
+    return {
+      kind: 'slider', id: p.id, label: p.name,
+      min: p.min, max: p.max, defaultValue: p.defaultValue,
+      unit: p.unit, orientation: 'v',
+    };
+  }
+  // 'knob' and 'numeric' both render as knob in v2 (numeric is still a view option in widgets).
+  return {
+    kind: 'knob', id: p.id, label: p.name,
+    min: p.min, max: p.max, defaultValue: p.defaultValue,
+    unit: p.unit, style: 'generic', size: 'medium',
+  };
+}
+
+function isV1(p: unknown): p is V1Project {
+  return !!p && typeof p === 'object' && (p as { version?: unknown }).version === 1;
+}
+function isV2(p: unknown): p is ModularProject {
+  return !!p && typeof p === 'object' && (p as { version?: unknown }).version === 2;
+}
+
+/** Convert a v1 project to v2. Each v1 module becomes one type + one module. */
+export function migrateV1toV2(v1: V1Project): ModularProject {
+  const moduleTypes: ModuleType[] = [];
+  const modules:     Module[]     = [];
+  const rackSlots:   RackSlot[]   = [];
+  // patch settings: oldModuleId → newModuleId (kept identical for traceability)
+  for (let i = 0; i < v1.modules.length; i++) {
+    const m = v1.modules[i]!;
+    const ports: Port[] = [
+      ...m.inputs .map((p) => ({ ...p, direction: 'in'  as const })),
+      ...m.outputs.map((p) => ({ ...p, direction: 'out' as const })),
+    ];
+    const controls = m.params.map(paramToControl);
+    const typeId = `type_${m.id}`;
+    moduleTypes.push({
+      id: typeId,
+      categoryId: m.kind,
+      variant: `${m.kind} (uit v1)`,
+      ports,
+      controls,
+    });
+    // Best-effort visual: empty placement maps; renderer falls back to auto-layout.
+    const visual: ModuleVisual = {
+      hpWidth: Math.max(4, Math.min(20, controls.length + 4)),
+      texture: 'aluminum',
+      controlPlacements: {},
+      portPlacements:    {},
+    };
+    modules.push({
+      id: m.id,
+      typeId,
+      internal: m.kind === 'envelope' || m.kind === 'lfo'
+             || m.kind === 'midiRouter' || m.kind === 'sequencer',
+      name: m.label,
+      brand: m.brand,
+      modelNumber: m.model,
+      notes: m.notes,
+      visual,
+    });
+    // Lay out left-to-right, wrap every 84 HP across 3 rows.
+    rackSlots.push({
+      id: `slot_${m.id}`,
+      moduleId: m.id,
+      row: Math.floor((i * 6) / 84),
+      hpOffset: (i * 6) % 84,
+    });
+  }
+  const rack: Rack = {
+    id: 'rack_default',
+    name: 'Mijn rack',
+    rows: 3, hpPerRow: 84,
+    slots: rackSlots,
+  };
+  const patches: Patch[] = v1.patches.map((px) => ({
+    id: px.id,
+    name: px.name,
+    description: px.description,
+    voiceCount: px.voiceCount,
+    rackId: rack.id,
+    connections: px.connections,
+    controlState: px.moduleSettings,   // numbers are valid ControlValue
+    envelopes: px.envelopes,
+    lfos: px.lfos,
+  }));
+  return {
+    version: 2,
+    name: v1.name,
+    description: v1.description,
+    configVersion: v1.configVersion,
+    categories: v1.categories.length ? v1.categories : defaultCategories(),
+    moduleTypes,
+    modules,
+    racks: [rack],
+    patches,
+    activeRackId: rack.id,
+    activePatchId: v1.activePatchId,
+  };
+}
+
+/** Accept v1 or v2 JSON and always return a v2 project. */
+export function migrateProject(input: unknown): ModularProject | null {
+  if (isV2(input)) return input;
+  if (isV1(input)) return migrateV1toV2(input);
+  return null;
 }

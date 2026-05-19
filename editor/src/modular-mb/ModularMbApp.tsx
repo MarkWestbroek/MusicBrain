@@ -5,21 +5,24 @@
 // bar and reuses the same `.es-projectbar*` CSS classes.
 
 import { useRef, useState } from 'react';
-import { setProject, updateProject, useModularProject } from './store';
-import { emptyModularProject, type ModularProject } from './types';
+import { setProject, updateProject, useModularProject, getProject } from './store';
+import { emptyModularProject } from './types';
+import { seedExampleModules } from './seedModules';
 import { PatchesPanel } from './PatchesPanel';
 import { ModulesPanel } from './ModulesPanel';
 import { CategoriesPanel } from './CategoriesPanel';
+import { RackPanel } from './RackPanel';
 import { PatcherPanel } from './PatcherPanel';
 import { SimulationPanel } from './SimulationPanel';
 // Reuse the ES project-bar CSS classes (.es-projectbar*) — same visual language.
 import '../effect-switcher/styles.css';
 
-type Tab = 'patches' | 'modules' | 'categories' | 'patcher' | 'simulation';
+type Tab = 'patches' | 'modules' | 'rack' | 'categories' | 'patcher' | 'simulation';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'patches',    label: 'Patches' },
   { id: 'modules',    label: 'Modules' },
+  { id: 'rack',       label: 'Rack' },
   { id: 'categories', label: 'Categorieën' },
   { id: 'patcher',    label: 'Patcher' },
   { id: 'simulation', label: 'Simulatie' },
@@ -72,12 +75,11 @@ export function ModularMbApp(): JSX.Element {
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const parsed = JSON.parse(reader.result as string) as ModularProject;
-        if (!parsed || parsed.version !== 1) {
-          alert('Ongeldig formaat — verwacht version: 1 (MMB JSON).');
+        const parsed = JSON.parse(reader.result as string);
+        if (!setProject(parsed)) {
+          alert('Ongeldig formaat — verwacht MMB JSON (v1 of v2).');
           return;
         }
-        setProject(parsed);
       } catch {
         alert('Kon het bestand niet verwerken. Zorg dat het een geldig MMB-JSON is.');
       }
@@ -167,6 +169,10 @@ export function ModularMbApp(): JSX.Element {
           <button onClick={() => importRef.current?.click()} title="JSON-bestand laden">↑ Importeer</button>
           <input ref={importRef} type="file" accept=".json,application/json"
             style={{ display: 'none' }} onChange={onImportFile} />
+          <button
+            onClick={() => setProject(seedExampleModules(getProject()))}
+            title="Voeg 6 voorbeeld-modules toe aan dit project en plaats ze in het actieve rack"
+          >✨ Voorbeelden</button>
           <button className="es-projectbar-reset"
             onClick={() => { if (confirm('Project wissen en opnieuw beginnen?')) setProject(emptyModularProject()); }}
           >Nieuw</button>
@@ -200,6 +206,7 @@ export function ModularMbApp(): JSX.Element {
 
       {tab === 'patches'    && <PatchesPanel />}
       {tab === 'modules'    && <ModulesPanel />}
+      {tab === 'rack'       && <RackPanel />}
       {tab === 'categories' && <CategoriesPanel />}
       {tab === 'patcher'    && <PatcherPanel />}
       {tab === 'simulation' && <SimulationPanel />}

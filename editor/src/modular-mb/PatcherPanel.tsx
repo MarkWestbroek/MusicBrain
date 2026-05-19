@@ -25,10 +25,11 @@ export function PatcherPanel(): JSX.Element {
       </p>
     );
   }
-  if (project.modules.length === 0) {
+  const rack = project.racks.find((r) => r.id === patch.rackId);
+  if (!rack || rack.slots.length === 0) {
     return (
       <p style={{ color: '#6b7280', fontSize: 13 }}>
-        Voeg eerst modules toe in de Modules-tab.
+        Het rack van deze patch is leeg. Plaats eerst modules in de Rack-tab.
       </p>
     );
   }

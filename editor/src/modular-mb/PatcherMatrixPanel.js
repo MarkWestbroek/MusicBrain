@@ -1,25 +1,29 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
-// Patcher — Matrix view. Sources (rows) × targets (cols), click cells to
-// (de)patch. Incompatible signal types are visually disabled.
-//
-// This view is one of two on the same `PatchConnection[]` model; the other
-// is the Graph view. They stay in perfect sync because both read/write
-// through the same store.
-import { updateProject, useModularProject } from './store';
-import { canConnect, SIGNAL_COLOUR } from './types';
-function uid(prefix) {
-    return `${prefix}_${Math.random().toString(36).slice(2, 9)}`;
-}
+// Patcher — Matrix view (v2). Rows = sources (output ports), cols =
+// targets (input ports), click a cell to toggle a PatchConnection.
+// Only modules placed in the active patch's rack are listed.
+import { updateProject, useModularProject, uid } from './store';
+import { canConnect, resolvePorts, SIGNAL_COLOUR, } from './types';
 export function PatcherMatrixPanel({ patchId }) {
     const project = useModularProject();
     const patch = project.patches.find((p) => p.id === patchId);
+    const rack = project.racks.find((r) => r.id === patch.rackId);
     const sources = [];
     const targets = [];
-    for (const m of project.modules) {
-        for (const p of m.outputs)
-            sources.push({ moduleId: m.id, portId: p.id, port: p, moduleLabel: m.label });
-        for (const p of m.inputs)
-            targets.push({ moduleId: m.id, portId: p.id, port: p, moduleLabel: m.label });
+    if (rack) {
+        for (const slot of rack.slots) {
+            const m = project.modules.find((x) => x.id === slot.moduleId);
+            if (!m)
+                continue;
+            const ports = resolvePorts(m, project.moduleTypes);
+            for (const p of ports) {
+                const ref = { moduleId: m.id, portId: p.id, port: p, moduleName: m.name };
+                if (p.direction === 'out')
+                    sources.push(ref);
+                else
+                    targets.push(ref);
+            }
+        }
     }
     function isConnected(s, t) {
         return patch.connections.some((c) => c.from.moduleId === s.moduleId && c.from.portId === s.portId
@@ -57,12 +61,12 @@ export function PatcherMatrixPanel({ patchId }) {
                                             whiteSpace: 'nowrap', borderLeft: '1px solid #e5e7eb',
                                             minWidth: 22, fontWeight: 500,
                                             color: SIGNAL_COLOUR[t.port.signalType],
-                                        }, title: `${t.moduleLabel} · ${t.port.name} (${t.port.signalType})`, children: [t.moduleLabel, ".", t.port.name] }, `${t.moduleId}.${t.portId}`)))] }) }), _jsx("tbody", { children: sources.map((s) => (_jsxs("tr", { children: [_jsxs("th", { style: {
+                                        }, title: `${t.moduleName} · ${t.port.name} (${t.port.signalType})`, children: [t.moduleName, ".", t.port.name] }, `${t.moduleId}.${t.portId}`)))] }) }), _jsx("tbody", { children: sources.map((s) => (_jsxs("tr", { children: [_jsxs("th", { style: {
                                             padding: '4px 8px', background: '#f8fafc', textAlign: 'left',
                                             position: 'sticky', left: 0, fontWeight: 500, whiteSpace: 'nowrap',
                                             borderTop: '1px solid #e5e7eb',
                                             color: SIGNAL_COLOUR[s.port.signalType],
-                                        }, title: `${s.moduleLabel} · ${s.port.name} (${s.port.signalType})`, children: [s.moduleLabel, ".", s.port.name] }), targets.map((t) => {
+                                        }, title: `${s.moduleName} · ${s.port.name} (${s.port.signalType})`, children: [s.moduleName, ".", s.port.name] }), targets.map((t) => {
                                         const ok = canConnect(s.port.signalType, t.port.signalType);
                                         const on = ok && isConnected(s, t);
                                         return (_jsx("td", { onClick: () => toggle(s, t), style: {
@@ -73,5 +77,5 @@ export function PatcherMatrixPanel({ patchId }) {
                                                 cursor: ok ? 'pointer' : 'not-allowed',
                                                 fontWeight: 700,
                                             }, children: on ? '●' : ok ? '' : '·' }, `${t.moduleId}.${t.portId}`));
-                                    })] }, `${s.moduleId}.${s.portId}`))) })] }) }), _jsx("p", { style: { fontSize: 12, color: '#6b7280', marginTop: 8 }, children: "Klik een cel om bron\u2192doel te (de)patchen. Cel-kleur volgt het signaal-type van de bron. Grijze cellen zijn incompatibel." })] }));
+                                    })] }, `${s.moduleId}.${s.portId}`))) })] }) }), _jsx("p", { style: { fontSize: 12, color: '#6b7280', marginTop: 8 }, children: "Klik een cel om bron\u2192doel te (de)patchen. Alleen poorten van modules die in het rack van deze patch geplaatst zijn worden getoond." })] }));
 }

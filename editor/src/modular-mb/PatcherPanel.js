@@ -17,8 +17,9 @@ export function PatcherPanel() {
     if (!patch) {
         return (_jsx("p", { style: { color: '#6b7280', fontSize: 13 }, children: "Selecteer eerst een patch in de Patches-tab (of maak er een aan)." }));
     }
-    if (project.modules.length === 0) {
-        return (_jsx("p", { style: { color: '#6b7280', fontSize: 13 }, children: "Voeg eerst modules toe in de Modules-tab." }));
+    const rack = project.racks.find((r) => r.id === patch.rackId);
+    if (!rack || rack.slots.length === 0) {
+        return (_jsx("p", { style: { color: '#6b7280', fontSize: 13 }, children: "Het rack van deze patch is leeg. Plaats eerst modules in de Rack-tab." }));
     }
     return (_jsxs("div", { children: [_jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }, children: [_jsxs("span", { style: { fontSize: 13, color: '#475569' }, children: ["Patch: ", _jsx("strong", { children: patch.name }), " \u00A0\u00B7\u00A0 ", patch.connections.length, " verbindingen"] }), _jsx("div", { style: {
                             marginLeft: 'auto', display: 'flex', gap: 0,

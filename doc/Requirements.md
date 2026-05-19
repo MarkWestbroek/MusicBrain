@@ -462,6 +462,139 @@ classDiagram
         +to: moduleId+portId
     }
 
+## Editor — MMB v0.4: drie-laags model (Category/Type/Module) + Rack + SVG-panelen (2026-05-19)
+
+Het oorspronkelijke "platte" model — één `ModuleDef` per concrete module met
+inputs/outputs/params direct in dezelfde struct — bleek te beperkt zodra we de
+modules echt als front-panelen wilden visualiseren en herbruikbare types nodig
+hadden. v0.4 introduceert een drie-laags model en een rack-laag tussen module
+en patch.
+
+### Lagen
+
+1. **`ModuleCategory`** — bovenste laag. Groepering op functie (VCO, VCF, …)
+   met optionele standaard-CV-range.
+2. **`ModuleType`** — middelste laag. Een *template* binnen een categorie,
+   bv. "Ladder", "AHDSR", "Hi-res pitch-CV". Bezit `ports[]` en `controls[]`.
+3. **`Module`** — onderste laag. Een *concrete realisatie* met merk,
+   modelnummer, panel-visual en optionele port/control-overrides. Zo kun je
+   meerdere fysieke modules (b.v. drie verschillende ladder-VCF's) hebben
+   die dezelfde basis-`ModuleType` delen.
+
+### Rack
+
+Tussen `Module` en `Patch` zit een `Rack`-laag:
+
+```
+Rack { rows, hpPerRow, slots: RackSlot[] }
+RackSlot { moduleId, row, hpOffset }
+```
+
+Een Eurorack-rack heeft typisch 3 rijen × 84 HP (1 HP = 5.08 mm). Modules
+worden in slots geplaatst; overlap wordt visueel gedetecteerd. Een `Patch`
+verwijst voortaan naar een `rackId` — *dezelfde* set modules met dezelfde
+fysieke posities, maar elk met eigen kabels en eigen knop-/schakelstanden.
+
+### Controls (discriminated union)
+
+Knoppen/schuiven/schakelaars worden niet langer als één generieke `Param`
+gemodelleerd, maar als een *discriminated union* `Control`:
+
+| `kind`     | Modelleert                              | Waardetype |
+|------------|-----------------------------------------|------------|
+| `knob`     | draaiknop (lin/log/exp taper, stijl)    | `number`   |
+| `slider`   | fader (verticaal of horizontaal)        | `number`   |
+| `toggle`   | 2-standen kantel-schakelaar             | `boolean`  |
+| `switch`   | N-standen (b.v. 3-pos LP/BP/HP)         | `number`   (index) |
+| `button`   | momentary / latching / LED              | `boolean`  |
+| `joystick` | XY-stick                                | `{x,y}`    |
+| `exotic`   | placeholder voor afwijkende controls    | `number`   |
+
+Per control bewaart het paneel een `ControlPlacement { x, y, rotation? }`
+in millimeter t.o.v. de linkerbovenhoek van het paneel.
+
+### Panel-visual + SVG-renderer
+
+`ModuleVisual` beschrijft het uiterlijk:
+
+- `hpWidth` + optionele `heightMm` (default 128.5 mm = 3U)
+- `texture: aluminum | pcb-black | mi-cream | gold-plate | wood`
+- `decorations[]` — rechthoeken, lijnen, tube-slots, jack-blokken
+- `texts[]` — letterlijke labels (geen logo's — copyright-veilig)
+- `controlPlacements` + `portPlacements`
+
+`ModulePanel.tsx` rendert dit alles in pure SVG met mm-coördinaten en
+schaalt via `pxPerMm`. Knoppen reageren op pointer-drag (120 px = volle
+range); schakelaars cyclen bij klik; sliders draggen langs hun as.
+
+### Patch — controlState
+
+```
+Patch {
+  rackId,
+  connections: PatchConnection[],
+  controlState: Record<moduleId, Record<controlId, ControlValue>>,
+  envelopes, lfos, voiceCount,
+}
+```
+
+Hierdoor toont elk paneel in de patcher de *werkelijke* stand van de patch
+(knop op 10-over-12, schakelaar links, enz.) — niet de defaults van de
+ModuleType.
+
+### Migratie v1 → v2
+
+Bij import van een v1-JSON wordt automatisch gemigreerd:
+
+- elk v1-`ModuleDef` → één `ModuleType` (variant "uit v1") + één `Module`
+- `inputs`/`outputs` worden samengevoegd in `ports[]` met `direction`-veld
+- `params[]` → `controls[]` (knob/slider/toggle naargelang `preferredView`)
+- alle modules belanden in een standaard-rack (3 rijen × 84 HP, 6 HP elk,
+  wrap bij 84 HP)
+- `moduleSettings` → `controlState` (numerieke waarden zijn geldige
+  ControlValues)
+
+De migratie zit in `migrateV1toV2()` in `types.ts`; `setProject()` in de
+store roept deze automatisch aan als de input `version: 1` heeft.
+
+### UI-structuur
+
+Tabs (links → rechts): **Patches · Modules · Rack · Categorieën · Patcher
+· Simulatie**.
+
+- **Modules** is gesplitst in twee panes (ModuleTypes + Modules) met
+  inline editor onder elke selectie. De module-editor toont een live SVG
+  preview van het paneel.
+- **Rack** toont het actieve rack als donkere rijen met de werkelijke
+  panel-SVG's; modules zijn per slot ↑↓/←→ te verplaatsen of te
+  verwijderen. Onderaan staat een sidebar met modules-niet-in-rack +
+  plaats-knop.
+- **Patcher** (Graph) rendert *dezelfde* ModulePanels als nodes; de
+  ReactFlow-handles liggen onzichtbaar bovenop de SVG-jacks. Cables
+  volgen signal-type kleuren. Knop-/schakel-bewegingen schrijven direct
+  in `patch.controlState`.
+
+### Bestanden
+
+- `editor/src/modular-mb/types.ts` — v2 model + migratie
+- `editor/src/modular-mb/store.ts` — store met auto-migrate `setProject()`
+- `editor/src/modular-mb/ModulePanel.tsx` — pure SVG-renderer (440 regels)
+- `editor/src/modular-mb/ModulesPanel.tsx` — Types + Modules + editors
+- `editor/src/modular-mb/RackPanel.tsx` — racks + slots + sidebar
+- `editor/src/modular-mb/PatchesPanel.tsx` — patch CRUD met rackId-keuze
+- `editor/src/modular-mb/PatcherGraphPanel.tsx` — rack-gedreven graph
+- `editor/src/modular-mb/PatcherMatrixPanel.tsx` — rack-gedreven matrix
+
+### Nog open
+
+- Drag-and-drop editor voor `controlPlacements` / `portPlacements`
+  (momenteel: auto-layout-knop + handmatige JSON-vrije coördinaten via
+  toekomstige editor).
+- Seed-modules naar voorbeeld van echte Eurorack-modules (Mutant Snare,
+  Fusion VCO, Shelves, Elements, AS RS-110).
+- Live scope-bridge voor de Simulatie-tab.
+
+
     class EnvelopeInstance {
         +id: string
         +label: string
@@ -572,3 +705,5 @@ fysieke module, terwijl `Param.defaultValue` de fabrieksinstelling
 vastlegt. Dit is het MVC-principe: één model (de `Param`-definitie),
 meerdere views (knob/slider/numeric/toggle), en de waarde-state los van
 de definitie.
+
+

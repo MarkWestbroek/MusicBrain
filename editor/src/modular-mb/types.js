@@ -1,35 +1,26 @@
 // ─────────────────────────────────────────────────────────────────────────
-// Modular Music Brain (MMB) — data model v0.1
+// Modular Music Brain (MMB) — data model v2 (2026-05-19)
 //
-// Scope of v0.1:
-//   • Modules with typed input/output ports (CV, gate, audio, MIDI)
-//   • Patches = named sets of connections + module-parameter values
-//   • Envelopes (AHDSR only for v0.1; shape is a discriminated union so
-//     multiphase/sampled/drawn/hwEmulation can be added later without
-//     breaking existing patch JSON)
-//   • LFOs (basic waveforms for v0.1; same extensibility pattern)
+// v2 introduces the three-layer module model:
+//   Category  → ModuleType (template) → Module (concrete realisation)
+//                                          ↑
+//                                  placed in Rack(s)
+//                                          ↑
+//                                referenced by Patch (connections + controlState)
 //
-// JSON format rules:
-//   • Every persisted shape carries `kind` so the union can be widened.
-//   • Times are in milliseconds, frequencies in Hz, voltages in V (CV).
-//   • CV ranges are stored explicitly per port; do not assume ±5 V or 0–10 V.
+// The v1 model (single `ModuleDef`) is migrated on import — see
+// `migrateProject()` in this file.
 // ─────────────────────────────────────────────────────────────────────────
-/** Visual conventions for cables / handles. Kept here next to the type so
- *  Patcher graph view and Matrix view stay in sync. Colours are
- *  intentionally distinct enough to read from a distance. */
 export const SIGNAL_COLOUR = {
-    cv: '#2563eb', // blue   — continuous voltage
-    gate: '#16a34a', // green  — sustained on/off
-    trigger: '#eab308', // yellow — momentary pulse
-    audio: '#ea580c', // orange — audio-rate signal
-    midi: '#9333ea', // purple — MIDI message stream
+    cv: '#2563eb',
+    gate: '#16a34a',
+    trigger: '#eab308',
+    audio: '#ea580c',
+    midi: '#9333ea',
 };
 export const SIGNAL_LABEL = {
     cv: 'CV', gate: 'Gate', trigger: 'Trig', audio: 'Audio', midi: 'MIDI',
 };
-/** Which signal types may legally connect from src → dst. A gate output
- *  can drive a CV input (binary 0/+V). A trigger can stand in for a gate.
- *  Audio and MIDI are strict. */
 export const SIGNAL_COMPATIBILITY = {
     cv: ['cv'],
     gate: ['gate', 'cv'],
@@ -40,25 +31,177 @@ export const SIGNAL_COMPATIBILITY = {
 export function canConnect(src, dst) {
     return SIGNAL_COMPATIBILITY[src].includes(dst);
 }
+export function defaultValueOf(c) {
+    switch (c.kind) {
+        case 'knob':
+        case 'slider':
+        case 'exotic': return c.defaultValue;
+        case 'toggle': return c.defaultValue;
+        case 'switch': return c.defaultIndex;
+        case 'button': return c.defaultValue ?? false;
+        case 'joystick': return c.defaultValue;
+    }
+}
+// ═══════════════════════════════════════════════════════════════════════
+//  Visual / panel layout — millimetres, top-left origin.
+//  1 HP = 5.08 mm; 3U Eurorack = 128.5 mm tall.
+// ═══════════════════════════════════════════════════════════════════════
+export const MM_PER_HP = 5.08;
+export const PANEL_HEIGHT_MM = 128.5;
+export function resolvePorts(mod, types) {
+    if (mod.portsOverride)
+        return mod.portsOverride;
+    const t = types.find((x) => x.id === mod.typeId);
+    return t ? t.ports : [];
+}
+export function resolveControls(mod, types) {
+    if (mod.controlsOverride)
+        return mod.controlsOverride;
+    const t = types.find((x) => x.id === mod.typeId);
+    return t ? t.controls : [];
+}
+// ═══════════════════════════════════════════════════════════════════════
+//  Seed
+// ═══════════════════════════════════════════════════════════════════════
+export function defaultCategories() {
+    const cv = { min: -5, max: 5, bipolar: true };
+    const uni = { min: 0, max: 10, bipolar: false };
+    return [
+        { id: 'vco', label: 'VCO', kind: 'vco', defaultCvRange: cv },
+        { id: 'vcf', label: 'VCF', kind: 'vcf', defaultCvRange: cv },
+        { id: 'vca', label: 'VCA', kind: 'vca', defaultCvRange: uni },
+        { id: 'mixer', label: 'Mixer', kind: 'mixer' },
+        { id: 'breakout', label: 'Breakout', kind: 'breakout' },
+        { id: 'envelope', label: 'Envelope', kind: 'envelope', defaultCvRange: uni },
+        { id: 'lfo', label: 'LFO', kind: 'lfo', defaultCvRange: cv },
+    ];
+}
 export function emptyModularProject() {
     return {
-        version: 1,
+        version: 2,
         name: 'ModularMB',
+        categories: defaultCategories(),
+        moduleTypes: [],
         modules: [],
-        categories: [
-            { id: 'vco', label: 'VCO', kind: 'vco',
-                defaultCvRange: { min: -5, max: 5, bipolar: true } },
-            { id: 'vcf', label: 'VCF', kind: 'vcf',
-                defaultCvRange: { min: -5, max: 5, bipolar: true } },
-            { id: 'vca', label: 'VCA', kind: 'vca',
-                defaultCvRange: { min: 0, max: 10, bipolar: false } },
-            { id: 'mixer', label: 'Mixer', kind: 'mixer' },
-            { id: 'breakout', label: 'Breakout', kind: 'breakout' },
-            { id: 'envelope', label: 'Envelope', kind: 'envelope',
-                defaultCvRange: { min: 0, max: 10, bipolar: false } },
-            { id: 'lfo', label: 'LFO', kind: 'lfo',
-                defaultCvRange: { min: -5, max: 5, bipolar: true } },
-        ],
+        racks: [{
+                id: 'rack_default',
+                name: 'Mijn rack',
+                rows: 3,
+                hpPerRow: 84,
+                slots: [],
+            }],
         patches: [],
+        activeRackId: 'rack_default',
     };
+}
+function paramToControl(p) {
+    const view = p.preferredView ?? 'knob';
+    if (view === 'toggle') {
+        return { kind: 'toggle', id: p.id, label: p.name, defaultValue: p.defaultValue > 0 };
+    }
+    if (view === 'slider') {
+        return {
+            kind: 'slider', id: p.id, label: p.name,
+            min: p.min, max: p.max, defaultValue: p.defaultValue,
+            unit: p.unit, orientation: 'v',
+        };
+    }
+    // 'knob' and 'numeric' both render as knob in v2 (numeric is still a view option in widgets).
+    return {
+        kind: 'knob', id: p.id, label: p.name,
+        min: p.min, max: p.max, defaultValue: p.defaultValue,
+        unit: p.unit, style: 'generic', size: 'medium',
+    };
+}
+function isV1(p) {
+    return !!p && typeof p === 'object' && p.version === 1;
+}
+function isV2(p) {
+    return !!p && typeof p === 'object' && p.version === 2;
+}
+/** Convert a v1 project to v2. Each v1 module becomes one type + one module. */
+export function migrateV1toV2(v1) {
+    const moduleTypes = [];
+    const modules = [];
+    const rackSlots = [];
+    // patch settings: oldModuleId → newModuleId (kept identical for traceability)
+    for (let i = 0; i < v1.modules.length; i++) {
+        const m = v1.modules[i];
+        const ports = [
+            ...m.inputs.map((p) => ({ ...p, direction: 'in' })),
+            ...m.outputs.map((p) => ({ ...p, direction: 'out' })),
+        ];
+        const controls = m.params.map(paramToControl);
+        const typeId = `type_${m.id}`;
+        moduleTypes.push({
+            id: typeId,
+            categoryId: m.kind,
+            variant: `${m.kind} (uit v1)`,
+            ports,
+            controls,
+        });
+        // Best-effort visual: empty placement maps; renderer falls back to auto-layout.
+        const visual = {
+            hpWidth: Math.max(4, Math.min(20, controls.length + 4)),
+            texture: 'aluminum',
+            controlPlacements: {},
+            portPlacements: {},
+        };
+        modules.push({
+            id: m.id,
+            typeId,
+            internal: m.kind === 'envelope' || m.kind === 'lfo'
+                || m.kind === 'midiRouter' || m.kind === 'sequencer',
+            name: m.label,
+            brand: m.brand,
+            modelNumber: m.model,
+            notes: m.notes,
+            visual,
+        });
+        // Lay out left-to-right, wrap every 84 HP across 3 rows.
+        rackSlots.push({
+            id: `slot_${m.id}`,
+            moduleId: m.id,
+            row: Math.floor((i * 6) / 84),
+            hpOffset: (i * 6) % 84,
+        });
+    }
+    const rack = {
+        id: 'rack_default',
+        name: 'Mijn rack',
+        rows: 3, hpPerRow: 84,
+        slots: rackSlots,
+    };
+    const patches = v1.patches.map((px) => ({
+        id: px.id,
+        name: px.name,
+        description: px.description,
+        voiceCount: px.voiceCount,
+        rackId: rack.id,
+        connections: px.connections,
+        controlState: px.moduleSettings, // numbers are valid ControlValue
+        envelopes: px.envelopes,
+        lfos: px.lfos,
+    }));
+    return {
+        version: 2,
+        name: v1.name,
+        description: v1.description,
+        configVersion: v1.configVersion,
+        categories: v1.categories.length ? v1.categories : defaultCategories(),
+        moduleTypes,
+        modules,
+        racks: [rack],
+        patches,
+        activeRackId: rack.id,
+        activePatchId: v1.activePatchId,
+    };
+}
+/** Accept v1 or v2 JSON and always return a v2 project. */
+export function migrateProject(input) {
+    if (isV2(input))
+        return input;
+    if (isV1(input))
+        return migrateV1toV2(input);
+    return null;
 }

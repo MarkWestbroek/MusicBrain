@@ -1,28 +1,39 @@
-// Patcher — Matrix view. Sources (rows) × targets (cols), click cells to
-// (de)patch. Incompatible signal types are visually disabled.
-//
-// This view is one of two on the same `PatchConnection[]` model; the other
-// is the Graph view. They stay in perfect sync because both read/write
-// through the same store.
+// Patcher — Matrix view (v2). Rows = sources (output ports), cols =
+// targets (input ports), click a cell to toggle a PatchConnection.
+// Only modules placed in the active patch's rack are listed.
 
-import { updateProject, useModularProject } from './store';
-import { type Port, type PatchConnection, canConnect, SIGNAL_COLOUR } from './types';
+import { updateProject, useModularProject, uid } from './store';
+import {
+  type Port, type PatchConnection,
+  canConnect, resolvePorts, SIGNAL_COLOUR,
+} from './types';
 
-function uid(prefix: string): string {
-  return `${prefix}_${Math.random().toString(36).slice(2, 9)}`;
+interface PortRef {
+  moduleId: string;
+  portId: string;
+  port: Port;
+  moduleName: string;
 }
-
-interface PortRef { moduleId: string; portId: string; port: Port; moduleLabel: string; }
 
 export function PatcherMatrixPanel({ patchId }: { patchId: string }): JSX.Element {
   const project = useModularProject();
   const patch = project.patches.find((p) => p.id === patchId)!;
+  const rack  = project.racks.find((r) => r.id === patch.rackId);
 
   const sources: PortRef[] = [];
   const targets: PortRef[] = [];
-  for (const m of project.modules) {
-    for (const p of m.outputs) sources.push({ moduleId: m.id, portId: p.id, port: p, moduleLabel: m.label });
-    for (const p of m.inputs)  targets.push({ moduleId: m.id, portId: p.id, port: p, moduleLabel: m.label });
+
+  if (rack) {
+    for (const slot of rack.slots) {
+      const m = project.modules.find((x) => x.id === slot.moduleId);
+      if (!m) continue;
+      const ports = resolvePorts(m, project.moduleTypes);
+      for (const p of ports) {
+        const ref: PortRef = { moduleId: m.id, portId: p.id, port: p, moduleName: m.name };
+        if (p.direction === 'out') sources.push(ref);
+        else                       targets.push(ref);
+      }
+    }
   }
 
   function isConnected(s: PortRef, t: PortRef): boolean {
@@ -79,8 +90,8 @@ export function PatcherMatrixPanel({ patchId }: { patchId: string }): JSX.Elemen
                       minWidth: 22, fontWeight: 500,
                       color: SIGNAL_COLOUR[t.port.signalType],
                     }}
-                    title={`${t.moduleLabel} · ${t.port.name} (${t.port.signalType})`}>
-                  {t.moduleLabel}.{t.port.name}
+                    title={`${t.moduleName} · ${t.port.name} (${t.port.signalType})`}>
+                  {t.moduleName}.{t.port.name}
                 </th>
               ))}
             </tr>
@@ -93,9 +104,8 @@ export function PatcherMatrixPanel({ patchId }: { patchId: string }): JSX.Elemen
                   position: 'sticky', left: 0, fontWeight: 500, whiteSpace: 'nowrap',
                   borderTop: '1px solid #e5e7eb',
                   color: SIGNAL_COLOUR[s.port.signalType],
-                }}
-                    title={`${s.moduleLabel} · ${s.port.name} (${s.port.signalType})`}>
-                  {s.moduleLabel}.{s.port.name}
+                }} title={`${s.moduleName} · ${s.port.name} (${s.port.signalType})`}>
+                  {s.moduleName}.{s.port.name}
                 </th>
                 {targets.map((t) => {
                   const ok = canConnect(s.port.signalType, t.port.signalType);
@@ -122,8 +132,8 @@ export function PatcherMatrixPanel({ patchId }: { patchId: string }): JSX.Elemen
       </div>
 
       <p style={{ fontSize: 12, color: '#6b7280', marginTop: 8 }}>
-        Klik een cel om bron→doel te (de)patchen. Cel-kleur volgt het signaal-type
-        van de bron. Grijze cellen zijn incompatibel.
+        Klik een cel om bron→doel te (de)patchen. Alleen poorten van modules
+        die in het rack van deze patch geplaatst zijn worden getoond.
       </p>
     </div>
   );
