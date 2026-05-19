@@ -384,3 +384,191 @@ worden gedeeld).
 ### Nieuw project
 - Bevestigingsdialoog, dan `setProject(emptyModularProject())` — dezelfde
   helper als bij het initialiseren, inclusief de 7 standaardcategorieën.
+
+---
+
+## MMB gegevensmodel — UML klasse-diagram
+
+```mermaid
+classDiagram
+    direction TB
+
+    class ModularProject {
+        +version: 1
+        +name: string
+        +description?: string
+        +configVersion?: string
+        +activePatchId?: string
+    }
+
+    class ModuleCategory {
+        +id: string
+        +label: string
+        +kind: ModuleKind
+        +defaultCvRange?: CvRange
+    }
+
+    class ModuleDef {
+        +id: string
+        +kind: ModuleKind
+        +label: string
+        +brand?: string
+        +model?: string
+        +notes?: string
+        +x?: number
+        +y?: number
+        +externallyControlled?: boolean
+    }
+
+    class Port {
+        +id: string
+        +name: string
+        +signalType: SignalType
+        +range?: CvRange
+    }
+
+    class Param {
+        +id: string
+        +name: string
+        +min: number
+        +max: number
+        +defaultValue: number
+        +unit?: string
+        +preferredView?: «knob|slider|numeric|toggle»
+    }
+
+    class ModuleVisual {
+        +width?: number
+        +height?: number
+        +color?: string
+        +inputPositions?: Record
+        +outputPositions?: Record
+        +knobPositions?: Record
+    }
+
+    class Patch {
+        +id: string
+        +name: string
+        +description?: string
+        +voiceCount: number
+        +moduleSettings: Record~moduleId, Record~paramId,number~~
+    }
+
+    class PatchConnection {
+        +id: string
+        +attenuation?: number
+        +invert?: boolean
+        +from: moduleId+portId
+        +to: moduleId+portId
+    }
+
+    class EnvelopeInstance {
+        +id: string
+        +label: string
+        +loop: boolean
+        +outputs: moduleId+portId[]
+    }
+
+    class LfoInstance {
+        +id: string
+        +label: string
+        +freqHz: number
+        +startPhase: number
+        +bipolar: boolean
+        +running: «always|gated|oneShot»
+        +outputs: moduleId+portId[]
+    }
+
+    class EnvelopeShape {
+        «discriminated union»
+        +kind: ahdsr|multiphase|sampled|drawn|hwEmulation
+    }
+
+    class LfoShape {
+        «discriminated union»
+        +kind: wave|multiphase|sampled|drawn
+    }
+
+    class TriggerSource {
+        «discriminated union»
+        +kind: midiNote|gatePort|lfo|manual
+    }
+
+    %% Top-level aggregation
+    ModularProject "1" *-- "0..*" ModuleDef         : modules
+    ModularProject "1" *-- "0..*" ModuleCategory     : categories
+    ModularProject "1" *-- "0..*" Patch              : patches
+
+    %% Module structure
+    ModuleDef "1" *-- "0..*" Port                   : inputs / outputs
+    ModuleDef "1" *-- "0..*" Param                  : params
+    ModuleDef "1" o-- "0..1" ModuleVisual            : visual
+
+    %% Patch contents
+    Patch "1" *-- "0..*" PatchConnection             : connections
+    Patch "1" *-- "0..*" EnvelopeInstance            : envelopes
+    Patch "1" *-- "0..*" LfoInstance                 : lfos
+
+    %% Shapes (owned by instance)
+    EnvelopeInstance "1" *-- "1" EnvelopeShape       : shape
+    EnvelopeInstance "1" *-- "1" TriggerSource        : trigger
+    LfoInstance      "1" *-- "1" LfoShape             : shape
+    LfoInstance      "1" o-- "0..1" TriggerSource     : trigger
+
+    %% Cross-references (by id, not direct object ref)
+    PatchConnection ..> ModuleDef                    : from/to moduleId
+    PatchConnection ..> Port                         : from/to portId
+    EnvelopeInstance ..> Port                        : outputs→portId
+    LfoInstance      ..> Port                        : outputs→portId
+    ModuleCategory   ..> ModuleDef                   : kind (filter)
+```
+
+### Toelichting: hoe zijn module-type-parameters gemodelleerd?
+
+De parameters van een module zijn **niet** gemodelleerd als aparte
+subtypen per `ModuleKind` (geen `VcoParams`, `VcfParams`, enzovoort).
+In plaats daarvan is er één generieke `Param`-struct:
+
+```ts
+interface Param {
+  id: string;           // unieke sleutel binnen de module, bijv. "cutoff"
+  name: string;         // leesbare naam, bijv. "Cutoff"
+  min: number;          // domein-minimum, bijv. 20
+  max: number;          // domein-maximum, bijv. 20000
+  defaultValue: number; // beginwaarde, bijv. 1000
+  unit?: string;        // optioneel: "Hz", "ms", "%", ...
+  preferredView?: 'knob' | 'slider' | 'numeric' | 'toggle';
+}
+```
+
+De **semantiek per module-type** zit in de factory-functie
+`defaultPortsFor(kind)` in `ModulesPanel.tsx`. Die seeded bij het
+aanmaken van een nieuw module de correcte `Param[]` (en `Port[]`):
+
+| `ModuleKind` | Typische params (seeds) |
+|---|---|
+| `vco` | Tune (knob, –24..+24 st), Fine (knob, −100..+100 ct), PWM (knob, 0..100%) |
+| `vcf` | Cutoff (knob, 20–20 000 Hz), Resonance (knob, 0–100%) |
+| `vca` | Level (knob, 0–100%) |
+| `mixer` | Level per kanaal (sliders, 0–100%) |
+| `envelope` | Attack, Hold, Decay, Sustain, Release (sliders, ms/%) |
+| `lfo` | Rate (knob, 0.01–20 Hz), Depth (knob, 0–100%) |
+| `attenuator` | Attenuation (slider, 0–100%), Invert (toggle) |
+| `breakout` | Attenuation (slider), Invert (toggle) |
+| `sequencer` | BPM (numeric), Steps (numeric, 1–32) |
+
+Eenmaal aangemaakt zijn de `params` gewone data: de gebruiker kan ze
+hernoemen, min/max aanpassen of extra params toevoegen. De seed is dus
+een handige beginstand, geen dwingend schema.
+
+**Parameterwaarden** leven *niet* op `ModuleDef` zelf maar in het patch:
+
+```
+Patch.moduleSettings[moduleId][paramId] = number
+```
+
+Daardoor kan iedere patch afwijkende instellingen opslaan voor dezelfde
+fysieke module, terwijl `Param.defaultValue` de fabrieksinstelling
+vastlegt. Dit is het MVC-principe: één model (de `Param`-definitie),
+meerdere views (knob/slider/numeric/toggle), en de waarde-state los van
+de definitie.

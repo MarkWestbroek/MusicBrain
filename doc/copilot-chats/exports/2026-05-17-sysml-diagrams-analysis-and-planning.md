@@ -2,7 +2,7 @@
 
 - **Datum**: 2026-05-17 14:32
 - **Sessie-ID**: `4db45503-0a7f-471a-850c-117803aee9d5`
-- **Berichten**: 12
+- **Berichten**: 16
 
 ---
 
@@ -328,5 +328,74 @@ Beeld is duidelijk. Ik ga in deze ronde dit doen, in volgorde van prioriteit:
 Het echte "eurorack frontpanel" uittekenen (knobjes op een gekleurd paneel met juiste posities) parkeer ik bewust voor v0.3 — datamodel ondersteunt het wel, maar de editor zelf is veel werk. Voor nu krijgen modules een procedureel ogend rechthoekje met handles links/rechts. Akkoord? Ik ga vast aan de slag — als je iets anders prioriteert hoor ik 't.
 
 Eerst types uitbreiden:  
+
+---
+
+## 🧑 User
+
+Zou je misschien tussen door wat kleine dingen kunnen doen aan de editor? Analoog aan de ES ook bewaren van de instellingen als json en naam, versie en opmerking er aan geven?
+
+---
+
+## 🤖 Assistant
+
+Laat me snel kijken hoe het in de ES werkt zodat ik het analoog opbouw: Alles wat ik nodig heb. Nu de MMB app updaten met projectbalk, export, import en reset — analoog aan de ES: 
+```
+
+```
+The ES CSS classes are in `effect-switcher/styles.css` — need to import that in the MMB app: 
+```
+
+```
+The replace left the old block intact — need to read the current file and clean it up:  The old block is still appended. Delete and recreate cleanly:     Clean build in 687ms. Now update the docs: 
+```
+
+```
+Klaar. De MMB-editor heeft nu:
+
+- **Projectbalk** bovenaan met inline klikbaar bewerken van naam, versie en opmerking — exact analoog aan de ES-editor (zelfde `.es-projectbar*` CSS-klassen)
+- **↓ Exporteer** — slaat het volledige project op als JSON met de bestandsnaamconventie 
+- **↑ Importeer** — laadt een JSON-bestand in, valideert 
+- **Nieuw** — wist het project na bevestiging (via )
+- **Stats** — toont live 
+
+Build is schoon (687ms, geen fouten/warnings). Documentatie bijgewerkt in .
+
+---
+
+## 🧑 User
+
+kun je een mermaid UML model genereren in de documentatie over het gegevensmodel onder de MMB? Welke klassen (structs) zijn er en hoe verhouden die zich tot elkaar?
+
+Hoe heb je, specifiek, de module-type-parameters gemodelleerd?
+
+---
+
+## 🤖 Assistant
+
+Nu heb ik het volledige model. Ik voeg het diagram toe in Requirements.md: 
+```
+
+```
+Toegevoegd in .
+
+---
+
+### Antwoord op je vraag: hoe zijn module-type-parameters gemodelleerd?
+
+Er is bewust **géén** aparte klasse per module-type (`VcoParams`, `VcfParams`, enz.). Het model gebruikt één generieke -struct met:
+
+-  /  /  /  /  / 
+-  — hint voor de widget (`knob | slider | numeric | toggle`)
+
+De **type-specifieke semantiek** zit uitsluitend in de seed-functie  die bij het aanmaken van een module de correcte params vult (een VCO krijgt Tune/Fine/PWM, een VCF krijgt Cutoff/Resonance, enz.). Na die seed zijn het gewone data.
+
+De **waarden** leven helemaal los van de definitie:
+
+```
+Patch.moduleSettings[moduleId][paramId] → number
+```
+
+Zo slaat elke patch zijn eigen instellingen op voor dezelfde fysieke module, terwijl  de fabrieksinstelling is. Dat is het MVC-principe dat door het hele model loopt.
 
 ---
