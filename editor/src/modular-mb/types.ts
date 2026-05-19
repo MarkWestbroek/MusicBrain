@@ -227,6 +227,7 @@ export interface ModuleVisual {
 export type ModuleKind =
   | 'vco' | 'vcf' | 'vca' | 'mixer' | 'mult' | 'attenuator' | 'breakout'
   | 'envelope' | 'lfo' | 'midiRouter' | 'sequencer'
+  | 'effect' | 'drum' | 'noise' | 'utility'
   | 'custom';
 
 export interface ModuleCategory {
@@ -420,13 +421,18 @@ export function defaultCategories(): ModuleCategory[] {
   const cv  = { min: -5, max: 5,  bipolar: true  };
   const uni = { min:  0, max: 10, bipolar: false };
   return [
-    { id: 'vco',      label: 'VCO',      kind: 'vco',      defaultCvRange: cv  },
-    { id: 'vcf',      label: 'VCF',      kind: 'vcf',      defaultCvRange: cv  },
-    { id: 'vca',      label: 'VCA',      kind: 'vca',      defaultCvRange: uni },
-    { id: 'mixer',    label: 'Mixer',    kind: 'mixer' },
-    { id: 'breakout', label: 'Breakout', kind: 'breakout' },
-    { id: 'envelope', label: 'Envelope', kind: 'envelope', defaultCvRange: uni },
-    { id: 'lfo',      label: 'LFO',      kind: 'lfo',      defaultCvRange: cv  },
+    { id: 'vco',      label: 'VCO',       kind: 'vco',      defaultCvRange: cv  },
+    { id: 'vcf',      label: 'VCF',       kind: 'vcf',      defaultCvRange: cv  },
+    { id: 'vca',      label: 'VCA',       kind: 'vca',      defaultCvRange: uni },
+    { id: 'mixer',    label: 'Mixer',     kind: 'mixer' },
+    { id: 'breakout', label: 'Breakout',  kind: 'breakout' },
+    { id: 'envelope', label: 'Envelope',  kind: 'envelope', defaultCvRange: uni },
+    { id: 'lfo',      label: 'LFO',       kind: 'lfo',      defaultCvRange: cv  },
+    { id: 'sequencer',label: 'Sequencer', kind: 'sequencer' },
+    { id: 'drum',     label: 'Drum',      kind: 'drum' },
+    { id: 'effect',   label: 'Effect',    kind: 'effect' },
+    { id: 'noise',    label: 'Noise/Rand',kind: 'noise' },
+    { id: 'utility',  label: 'Utility',   kind: 'utility' },
   ];
 }
 

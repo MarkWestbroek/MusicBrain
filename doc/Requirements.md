@@ -707,3 +707,234 @@ meerdere views (knob/slider/numeric/toggle), en de waarde-state los van
 de definitie.
 
 
+
+
+## Editor — MMB v0.3: categorieën uitbreidbaar, interne modules, sequencer-in-brain, simulatie-strategie (2026-05-19)
+
+Onderstaande punten zijn antwoorden op vragen die tijdens het bouwen
+van de seed-voorbeelden naar boven kwamen. Ze leggen het ontwerp voor
+de volgende iteratie vast — sommige stukken zijn al geïmplementeerd
+(✅), andere zijn nog een voorzet (⏳).
+
+### Categorieën zijn data, niet code ✅
+
+`ModuleCategory` is een gewone array in `ModularProject.categories`.
+De gebruiker kan er aan toevoegen / verwijderen via de **Categorieën**-
+tab, zonder code-aanpassingen. Voor consistentie kennen we een vast
+`ModuleKind`-union dat de *bekende* semantische rollen vastlegt:
+
+```
+ModuleKind =
+  | 'vco' | 'vcf' | 'vca'
+  | 'mixer' | 'mult' | 'attenuator' | 'breakout'
+  | 'envelope' | 'lfo'
+  | 'midiRouter' | 'sequencer'
+  | 'effect' | 'drum' | 'noise' | 'utility'
+  | 'custom';
+```
+
+`ModuleCategory.kind` is `ModuleKind | string` — een categorie mag dus
+ook een vrije string dragen voor exotische types ("granular",
+"wavetable", "vocoder", …). De ingebouwde seed (`defaultCategories()`)
+levert nu: **VCO, VCF, VCA, Mixer, Breakout, Envelope, LFO, Sequencer,
+Drum, Effect, Noise/Rand, Utility**.
+
+Implicaties voor de simulatie-laag: alleen `kind` mag bepalend zijn
+voor "wat doet dit ding standaard?" Vrij gekozen string-kinds vallen
+terug op `'custom'`-gedrag (alleen visuele paneel + patcher-rol, geen
+ingebakken DSP).
+
+### Interne modules (MMB-merk) ⏳ ontwerp
+
+De BRAIN heeft DSP-objecten die als ware "modules" mee mogen draaien in
+het rack: AHDSR-envelope, LFO, mini-mixers, S&H, slew, midi-router.
+Deze modelleren we als **gewone `Module`-records met `internal: true`
+en `brand: "MMB"`**, met een eigen `typeId` per variant:
+
+| `typeId` | brand | name | category | varianten |
+|---|---|---|---|---|
+| `tp_mmb_ahdsr` | MMB | AHDSR | envelope | layoutvariant: `vertical-sliders`, `horizontal-knobs`, `compact-numeric` |
+| `tp_mmb_lfo`   | MMB | LFO   | lfo      | layoutvariant: `rate+wave`, `rate+wave+depth`, `multi-out` |
+| `tp_mmb_mix4`  | MMB | Mix 4 | mixer    | 4-in stereo summer |
+| `tp_mmb_sh`    | MMB | S&H   | utility  | sample-and-hold + slew |
+| `tp_mmb_seq`   | MMB | Seq 16| sequencer | 16-step CV/gate (zie hieronder) |
+
+De `layoutvariant` (een string in `ModuleType.variant`) bepaalt welke
+seed-`controlPlacements`/`portPlacements` worden gebruikt; de
+*semantiek* (welke parameters er zijn, welke poorten, hoe de DSP
+reageert) is identiek tussen varianten. Zo kan dezelfde AHDSR in een
+patch als compacte 4 HP-module verschijnen, en in een andere als
+brede 12 HP-versie met aparte trigger-inputs per stage.
+
+`Module.internal: true` was al gereserveerd in v2 maar nog niet
+gebruikt; vanaf v0.3 markeert het modules die *niet* fysiek in een
+case zitten maar door de BRAIN worden uitgevoerd. Ze tellen wel mee
+voor de patcher (poorten, kabels) maar niet voor HP-occupatie van
+fysieke racks — of we geven ze hun eigen "virtual rack".
+
+### Sequencer als brain-functie ⏳ ontwerp
+
+Een sequencer past natuurlijk in dit interne-module-model: de BRAIN
+heeft zat CPU om CV/gate-stappen te genereren, en kan ze direct op
+zijn eigen CV-outs zetten of via patches naar andere brain-functies
+routeren.
+
+Eerste voorzet voor `tp_mmb_seq` (intern, brand MMB, kind `sequencer`):
+
+```
+Poorten (out):
+  cv_out, gate_out, accent_out, eoc (end-of-cycle trigger)
+Poorten (in):
+  clock_in, reset_in, run_in, transpose_cv
+Controls:
+  bpm                 (knob, 30–300 BPM, default 120)
+  steps               (numeric, 1–32, default 16)
+  swing               (knob, 0–50%, default 0)
+  direction           (switch: Fwd / Rev / PingPong / Random)
+  gate_length         (knob, 0–100%, default 50)
+  per-step:
+    pitch[i]          (numeric, semitones rel. to tonic)
+    gate[i]           (toggle)
+    accent[i]         (toggle)
+    slide[i]          (toggle)
+Patch-state:
+  tonic (note, default C3)
+  scale (Chromatic / Major / Minor / Dorian / etc.)
+```
+
+Een sequencer hoeft niet één-op-één met een hardware-paneel te
+overeenkomen; we modelleren hem als intern, met een
+`layoutvariant: 'piano-roll'` view die de pitch/gate/accent/slide
+per step toont (vergelijkbaar met TB-303-stijl).
+
+Voor multi-track is de gedachte: meerdere `tp_mmb_seq`-modules
+parallel; ze delen optioneel een master-clock (één `clock_in` patch).
+
+### LFO & Envelope — status
+
+In v1 (pre-rack-editor) bestonden er al `LfoInstance` en
+`EnvelopeInstance` als patch-onderdelen, *naast* het module-systeem.
+Bij v2-migratie zijn die nog niet automatisch geconverteerd naar
+"echte" internal modules — ze leven nog als losse arrays op de
+`Patch`.
+
+Plan v0.3:
+
+1. Implementeer `tp_mmb_ahdsr` en `tp_mmb_lfo` met
+   `seedExampleModules` (knop "✨ Internals" naast "✨ Voorbeelden").
+2. Migrateer bestaande `LfoInstance[]` / `EnvelopeInstance[]` naar
+   `Module`-records met `internal:true`. Hun shape-data (attack/hold/
+   decay/sustain/release, rate/wave/depth) wordt `controlState` van die
+   module in de patch.
+3. Patch-routing: de bestaande `outputs[]→portId` op LfoInstance gaat
+   naar `PatchConnection[]` met `from: { moduleId, portId }`.
+
+Daarna kunnen LFO/Envelope worden behandeld als gewone modules in de
+graph-view: zichtbare paneel, sleepbare kabels, knop-state.
+
+### Simulatie-strategie ⏳ ontwerp
+
+Vraag: kunnen we de interne modules echt laten klinken in de editor,
+en de externe (hardware) modules stubben?
+
+**Interne modules — ja, real-time speelbaar in de browser.** Het
+plan:
+
+- DSP-runtime: **Tone.js** of direct **Web Audio API** met
+  `AudioWorklet` voor sample-accurate paths. Tone.js levert kant-en-klare
+  oscillators, filters, envelopes, sequencer-clock — ideaal voor MVP.
+  Voor lage-latency aangepaste DSP kunnen we per module een
+  `AudioWorkletProcessor` registreren. (Andere kandidaten: Elementary
+  Audio voor functional DSP, Faust-WASM, Web-Synth — Tone.js heeft de
+  rustigste leercurve en is React-vriendelijk.)
+- Per `ModuleKind` een **simulator-factory** die de DSP-graph opbouwt
+  uit de huidige `controlState` en alle inkomende `PatchConnection`s.
+- Mapping `Port (cv/audio/gate/trigger)` → Tone.js `Signal`,
+  `Gate`, `Param` of `AudioNode.connect()`.
+
+**Externe modules — stub-strategie.** Voor elke externe module bieden
+we drie stub-niveaus, te kiezen per module-instantie:
+
+1. **Pass-through** (default): audio-in → audio-out; cv-in → cv-out.
+   Geen geluid wijziging, maar wel patchable.
+2. **Generic-by-kind**: kies een ingebouwde "look-alike" op basis van
+   `categoryId`. VCO → Tone.js oscillator (saw, parameter `tune`).
+   VCF → Tone.js Filter (LP/HP/BP afgeleid uit `cutoff`). VCA →
+   `Tone.Gain` gestuurd door eerste cv-in. Drum → één-shot sample of
+   noise-burst.
+3. **Custom-script**: een veldje "DSP-code" op de externe `Module`
+   waarin je een mini-Faust-/JS-fragment achterlaat dat door de
+   simulator wordt geladen. Voor power users.
+
+De **Simulatie**-tab krijgt: Play/Stop, master-volume meter,
+per-module mini-meters, en een keuzemenu per externe module (off /
+pass-through / generic / script). Bij Stop wordt de AudioContext
+gepauzeerd zodat er geen DSP draait wanneer je puur edit.
+
+Geluid uit de editor is een schaduw van de echte hardware-patch — niet
+identiek, maar genoeg om logica en routering te toetsen voordat je naar
+de BRAIN flasht.
+
+### Mutable Instruments — open-source panelen ⏳ TODO
+
+Mutable Instruments heeft alle hardware (incl. paneel-Illustrator-
+files) onder een vrije licentie op
+<https://github.com/pichenettes/eurorack>. De paneel-bestanden zitten
+per module in `<modulename>/hardware_design/panel/*.ai`.
+
+Aanpak voor authentieke MI-panels in de editor:
+
+1. Download de `.ai` files (Elements, Plaits, Rings, Marbles, Tides,
+   Shelves, Beads, …).
+2. Converteer naar SVG met **Inkscape CLI**
+   (`inkscape file.ai --export-type=svg --export-plain-svg`) of een
+   Adobe-script. Resultaat: schone vector-coördinaten in mm.
+3. Schrijf een eenmalige parser die uit het SVG de tekst-labels,
+   cirkels (jacks/knoppen) en rechthoeken (sliders/switches)
+   extraheert en omzet naar onze `ModuleType` + `Module.visual`-
+   structuur (`controlPlacements`, `portPlacements`, `texts`,
+   `decorations`).
+4. Resultaat als gegenereerde seed-bestanden inchecken (één per MI-
+   module). De parser-stap is offline; runtime weet niets van AI.
+
+Licentie: MI-panelen zijn CC-BY-SA 3.0; we mogen ze gebruiken mits
+naamsvermelding en behoud van licentie. Het MI-logo zelf is een
+woordmerk en wordt **niet** op onze schermen overgenomen — we
+gebruiken alleen "Mutable Instruments" als tekst-label.
+
+Tot die parser bestaat blijven de huidige hand-gemodelleerde MI-
+seeds (Elements, Shelves + Exp) in gebruik.
+
+### Patcher — connectie-bug fix (2026-05-19)
+
+In de eerste v2-iteratie verschenen kabels wel grijs tijdens slepen,
+maar bleven niet "plakken" op de jack. Oorzaken/fixes:
+
+- `Handle` was 14 × 14 px met `opacity 0.001`, plus de wrapper had
+  een 2 px-padding waardoor SVG-jacks en handle-cirkels niet meer op
+  exact dezelfde positie zaten. → Padding weg, handles 18 × 18 px,
+  `opacity 0.55`, zichtbare kleuring per signaaltype.
+- `className="nodrag"` op de wrapper hield mousedown-events tegen
+  voordat `Handle` ze kon ontvangen. → Klasse weg
+  (`draggable: false` op het Node dekt de niet-versleepbare positie
+  al af).
+- `ConnectionMode.Loose` aangezet zodat het niet uitmaakt of de
+  gebruiker van in→out of out→in sleept; `onConnect` normaliseert.
+- `onConnect` logt nu duidelijk waarom een verbinding eventueel wordt
+  geweigerd (incompatibele signal-types, of in→in / out→out).
+
+### Seed-voorbeelden (✨ Voorbeelden) — status
+
+Zes hand-gemodelleerde modules zitten in `seedModules.ts`:
+
+| Module | HP | Categorie | Bron-stijl |
+|---|---|---|---|
+| Hexinverter Mutant Snare | 12 | drum | foto |
+| Mutable Instruments Elements | 34 | vco (modal) | foto |
+| Mutable Instruments Shelves + Exp | 16 | vcf (EQ) | foto, expander samengevoegd |
+| Analogue Systems RS-110 MkII | 10 | vcf | foto |
+| Erica Synths Fusion VCO | 22 | vco | foto |
+| Malekko Richter Oscillator II | 14 | vco | foto |
+
+Layouts zijn pragmatische benaderingen — pixel-perfecte reproductie
+wacht op de MI-AI-parser en op (optionele) drag-drop placement-editor.

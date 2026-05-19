@@ -10,7 +10,7 @@ import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 // Module positions in the graph mirror their rack slot (row × HP), so the
 // graph view is a free zoom/pan of the same physical layout.
 import { useCallback, useMemo } from 'react';
-import { Background, Controls, Handle, Position, ReactFlow, ReactFlowProvider, } from '@xyflow/react';
+import { Background, Controls, Handle, Position, ReactFlow, ReactFlowProvider, ConnectionMode, } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { updateProject, useModularProject, uid } from './store';
 import { ModulePanel } from './ModulePanel';
@@ -35,21 +35,23 @@ function ModuleNode({ data }) {
             }),
         }));
     }
-    return (_jsxs("div", { className: "nopan nodrag nowheel", style: { position: 'relative', background: '#0f172a', borderRadius: 4, padding: 2 }, children: [_jsx(ModulePanel, { module: m, types: types, controlState: controlState, onControlChange: setControl, pxPerMm: PX_PER_MM, showPortLabels: true }), ports.map((p) => {
+    return (_jsxs("div", { className: "nopan nowheel", style: { position: 'relative', background: '#0f172a', borderRadius: 4 }, children: [_jsx(ModulePanel, { module: m, types: types, controlState: controlState, onControlChange: setControl, pxPerMm: PX_PER_MM, showPortLabels: true }), ports.map((p) => {
                 const pl = m.visual.portPlacements[p.id];
                 if (!pl)
                     return null;
                 const left = pl.x * PX_PER_MM;
                 const top = pl.y * PX_PER_MM;
-                return (_jsx(Handle, { id: p.id, type: p.direction === 'in' ? 'target' : 'source', position: p.direction === 'in' ? Position.Left : Position.Right, style: {
+                return (_jsx(Handle, { id: p.id, type: p.direction === 'in' ? 'target' : 'source', position: p.direction === 'in' ? Position.Left : Position.Right, isConnectable: true, style: {
                         left, top,
                         transform: 'translate(-50%, -50%)',
-                        width: 14, height: 14,
+                        width: 18, height: 18,
                         background: SIGNAL_COLOUR[p.signalType],
-                        border: '2px solid white',
-                        opacity: 0.001, // invisible — ports drawn by SVG
+                        border: '2px solid #fff',
+                        borderRadius: '50%',
+                        opacity: 0.55,
+                        pointerEvents: 'all',
                     } }, p.id));
-            }), _jsx("div", { style: { width: widthMm * PX_PER_MM, height: heightMm * PX_PER_MM, pointerEvents: 'none', position: 'absolute', top: 2, left: 2 } })] }));
+            }), _jsx("div", { style: { width: widthMm * PX_PER_MM, height: heightMm * PX_PER_MM, pointerEvents: 'none', position: 'absolute', top: 0, left: 0 } })] }));
 }
 const nodeTypes = { module: ModuleNode };
 // ── Inner panel (inside ReactFlowProvider) ─────────────────────────────
@@ -109,20 +111,33 @@ function PatcherGraphInner({ patchId }) {
         }
     }, [patchId]);
     const onConnect = useCallback((c) => {
-        if (!c.source || !c.target || !c.sourceHandle || !c.targetHandle)
+        if (!c.source || !c.target || !c.sourceHandle || !c.targetHandle) {
+            console.warn('[patcher] connection missing source/target/handle', c);
             return;
-        const srcMod = project.modules.find((m) => m.id === c.source);
-        const dstMod = project.modules.find((m) => m.id === c.target);
-        if (!srcMod || !dstMod)
+        }
+        // ConnectionMode=Loose: source/target may be reversed if user dragged in→out.
+        // Normalise so srcPort is always the output.
+        let aMod = project.modules.find((m) => m.id === c.source);
+        let bMod = project.modules.find((m) => m.id === c.target);
+        if (!aMod || !bMod)
             return;
-        const srcPorts = resolvePorts(srcMod, project.moduleTypes);
-        const dstPorts = resolvePorts(dstMod, project.moduleTypes);
-        const srcPort = srcPorts.find((p) => p.id === c.sourceHandle && p.direction === 'out');
-        const dstPort = dstPorts.find((p) => p.id === c.targetHandle && p.direction === 'in');
-        if (!srcPort || !dstPort)
+        let aPort = resolvePorts(aMod, project.moduleTypes).find((p) => p.id === c.sourceHandle);
+        let bPort = resolvePorts(bMod, project.moduleTypes).find((p) => p.id === c.targetHandle);
+        if (!aPort || !bPort)
             return;
-        if (!canConnect(srcPort.signalType, dstPort.signalType))
+        if (aPort.direction === 'in' && bPort.direction === 'out') {
+            [aMod, bMod] = [bMod, aMod];
+            [aPort, bPort] = [bPort, aPort];
+        }
+        if (aPort.direction !== 'out' || bPort.direction !== 'in') {
+            console.warn('[patcher] rejected: need out→in', { aPort, bPort });
             return;
+        }
+        const srcMod = aMod, dstMod = bMod, srcPort = aPort, dstPort = bPort;
+        if (!canConnect(srcPort.signalType, dstPort.signalType)) {
+            console.warn('[patcher] rejected: incompatible signal types', srcPort.signalType, '→', dstPort.signalType);
+            return;
+        }
         const conn = {
             id: uid('c'),
             from: { moduleId: c.source, portId: c.sourceHandle },
@@ -133,11 +148,12 @@ function PatcherGraphInner({ patchId }) {
             patches: p.patches.map((px) => px.id !== patchId ? px
                 : { ...px, connections: [...px.connections, conn] }),
         }));
+        console.log('[patcher] connected', srcMod.name, srcPort.name, '→', dstMod.name, dstPort.name);
     }, [project.modules, project.moduleTypes, patchId]);
     return (_jsxs("div", { style: { display: 'grid', gridTemplateColumns: '1fr 220px', gap: 12 }, children: [_jsx("div", { style: {
                     height: 620, border: '1px solid #cbd2d9', borderRadius: 6,
                     background: '#0f172a', userSelect: 'none',
-                }, children: _jsxs(ReactFlow, { nodes: nodes, edges: edges, nodeTypes: nodeTypes, onNodesChange: onNodesChange, onEdgesChange: onEdgesChange, onConnect: onConnect, deleteKeyCode: "Delete", fitView: true, minZoom: 0.3, maxZoom: 2, proOptions: { hideAttribution: true }, children: [_jsx(Background, { gap: 20, color: "#1e293b" }), _jsx(Controls, { showInteractive: false })] }) }), _jsx(Legend, {})] }));
+                }, children: _jsxs(ReactFlow, { nodes: nodes, edges: edges, nodeTypes: nodeTypes, onNodesChange: onNodesChange, onEdgesChange: onEdgesChange, onConnect: onConnect, connectionMode: ConnectionMode.Loose, deleteKeyCode: "Delete", fitView: true, minZoom: 0.3, maxZoom: 2, proOptions: { hideAttribution: true }, children: [_jsx(Background, { gap: 20, color: "#1e293b" }), _jsx(Controls, { showInteractive: false })] }) }), _jsx(Legend, {})] }));
 }
 function Legend() {
     return (_jsxs("aside", { style: {

@@ -74,6 +74,11 @@ export function defaultCategories() {
         { id: 'breakout', label: 'Breakout', kind: 'breakout' },
         { id: 'envelope', label: 'Envelope', kind: 'envelope', defaultCvRange: uni },
         { id: 'lfo', label: 'LFO', kind: 'lfo', defaultCvRange: cv },
+        { id: 'sequencer', label: 'Sequencer', kind: 'sequencer' },
+        { id: 'drum', label: 'Drum', kind: 'drum' },
+        { id: 'effect', label: 'Effect', kind: 'effect' },
+        { id: 'noise', label: 'Noise/Rand', kind: 'noise' },
+        { id: 'utility', label: 'Utility', kind: 'utility' },
     ];
 }
 export function emptyModularProject() {

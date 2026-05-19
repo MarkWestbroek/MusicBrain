@@ -12,7 +12,7 @@
 import { useCallback, useMemo } from 'react';
 import {
   Background, Controls, Handle, Position,
-  ReactFlow, ReactFlowProvider,
+  ReactFlow, ReactFlowProvider, ConnectionMode,
   type Connection, type Edge, type EdgeChange,
   type Node, type NodeChange, type NodeProps, type NodeTypes,
 } from '@xyflow/react';
@@ -61,7 +61,7 @@ function ModuleNode({ data }: NodeProps): JSX.Element {
 
   return (
     <div
-      className="nopan nodrag nowheel"
+      className="nopan nowheel"
       style={{ position: 'relative', background: '#0f172a', borderRadius: 4 }}
     >
       <ModulePanel
@@ -176,16 +176,31 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
   }, [patchId]);
 
   const onConnect = useCallback((c: Connection) => {
-    if (!c.source || !c.target || !c.sourceHandle || !c.targetHandle) return;
-    const srcMod = project.modules.find((m) => m.id === c.source);
-    const dstMod = project.modules.find((m) => m.id === c.target);
-    if (!srcMod || !dstMod) return;
-    const srcPorts = resolvePorts(srcMod, project.moduleTypes);
-    const dstPorts = resolvePorts(dstMod, project.moduleTypes);
-    const srcPort = srcPorts.find((p) => p.id === c.sourceHandle && p.direction === 'out');
-    const dstPort = dstPorts.find((p) => p.id === c.targetHandle && p.direction === 'in');
-    if (!srcPort || !dstPort) return;
-    if (!canConnect(srcPort.signalType, dstPort.signalType)) return;
+    if (!c.source || !c.target || !c.sourceHandle || !c.targetHandle) {
+      console.warn('[patcher] connection missing source/target/handle', c);
+      return;
+    }
+    // ConnectionMode=Loose: source/target may be reversed if user dragged in→out.
+    // Normalise so srcPort is always the output.
+    let aMod = project.modules.find((m) => m.id === c.source);
+    let bMod = project.modules.find((m) => m.id === c.target);
+    if (!aMod || !bMod) return;
+    let aPort = resolvePorts(aMod, project.moduleTypes).find((p) => p.id === c.sourceHandle);
+    let bPort = resolvePorts(bMod, project.moduleTypes).find((p) => p.id === c.targetHandle);
+    if (!aPort || !bPort) return;
+    if (aPort.direction === 'in' && bPort.direction === 'out') {
+      [aMod, bMod] = [bMod, aMod];
+      [aPort, bPort] = [bPort, aPort];
+    }
+    if (aPort.direction !== 'out' || bPort.direction !== 'in') {
+      console.warn('[patcher] rejected: need out→in', { aPort, bPort });
+      return;
+    }
+    const srcMod = aMod, dstMod = bMod, srcPort = aPort, dstPort = bPort;
+    if (!canConnect(srcPort.signalType, dstPort.signalType)) {
+      console.warn('[patcher] rejected: incompatible signal types', srcPort.signalType, '→', dstPort.signalType);
+      return;
+    }
     const conn: PatchConnection = {
       id: uid('c'),
       from: { moduleId: c.source, portId: c.sourceHandle },
@@ -196,6 +211,7 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
       patches: p.patches.map((px) => px.id !== patchId ? px
         : { ...px, connections: [...px.connections, conn] }),
     }));
+    console.log('[patcher] connected', srcMod.name, srcPort.name, '→', dstMod.name, dstPort.name);
   }, [project.modules, project.moduleTypes, patchId]);
 
   return (
@@ -211,6 +227,7 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          connectionMode={ConnectionMode.Loose}
           deleteKeyCode="Delete"
           fitView
           minZoom={0.3} maxZoom={2}
