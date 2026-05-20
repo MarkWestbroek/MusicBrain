@@ -4,8 +4,8 @@ import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 //
 // Project bar (name / version / description) is analogous to the ES project
 // bar and reuses the same `.es-projectbar*` CSS classes.
-import { useRef, useState } from 'react';
-import { setProject, updateProject, useModularProject, getProject } from './store';
+import { useEffect, useRef, useState } from 'react';
+import { setProject, updateProject, useModularProject, getProject, undo, redo } from './store';
 import { emptyModularProject } from './types';
 import { seedExampleModules, seedInternals, seedTestPatch } from './seedModules';
 import { PatchesPanel } from './PatchesPanel';
@@ -31,6 +31,29 @@ export function ModularMbApp() {
     const [editingVer, setEditingVer] = useState(false);
     const [editingDesc, setEditingDesc] = useState(false);
     const importRef = useRef(null);
+    // ─── Global undo/redo: Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z ───────────────
+    useEffect(() => {
+        function onKey(e) {
+            if (!(e.ctrlKey || e.metaKey))
+                return;
+            // Sla over als focus in een tekstveld zit — daar geldt native undo.
+            const t = e.target;
+            const tag = t?.tagName?.toLowerCase();
+            if (tag === 'input' || tag === 'textarea' || (t && t.isContentEditable))
+                return;
+            const k = e.key.toLowerCase();
+            if (k === 'z' && !e.shiftKey) {
+                e.preventDefault();
+                undo();
+            }
+            else if (k === 'y' || (k === 'z' && e.shiftKey)) {
+                e.preventDefault();
+                redo();
+            }
+        }
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, []);
     // ─── Filename: yyyy-mm-dd-hhmmss-Naam-vVersie-(Opmerking).json ───────
     function defaultFilename() {
         const now = new Date();

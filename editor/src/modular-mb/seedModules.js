@@ -65,6 +65,7 @@ function display(id, x, y, opts = {}) {
             bindTo: opts.bindTo,
             format: opts.format,
             text: opts.text,
+            size: opts.size,
         },
         placement: { x, y },
     };
@@ -776,11 +777,11 @@ function mmbSeq8() {
             knob('root', 'Root', w * 0.18, 92, { size: 'medium', min: 24, max: 96, def: 60, unit: 'midi', color: '#f9fafb' }),
             knob('rate', 'Rate', w * 0.36, 92, { size: 'medium', min: 0.5, max: 16, def: 4, unit: 'Hz', color: '#f9fafb' }),
             knob('gate', 'Gate', w * 0.54, 92, { size: 'medium', min: 0.05, max: 0.95, def: 0.5, color: '#f9fafb' }),
-            sw('length', 'Length', w * 0.72, 92, ['2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16'], 6),
+            knob('length', 'Length', w * 0.70, 92, { size: 'medium', min: 2, max: 16, def: 8, color: '#f9fafb' }),
             toggle('run', 'Run', w * 0.08, 92, true),
             led('runLed', w * 0.08, 104, { color: '#f87171', size: 'small', bindTo: 'run' }),
-            // Step-positie display (1..16, live).
-            display('stepDisp', w * 0.90, 92, { label: 'Step', digits: 2, style: 'led', bindTo: '__currentStep', format: 'int' }),
+            // Step-positie display (1..16, live) — groot & duidelijk.
+            display('stepDisp', w * 0.88, 92, { label: 'Step', digits: 2, style: 'led', bindTo: '__currentStep', format: 'int', size: 'large' }),
             inPort('clock', 'Clk', 'trigger', w * 0.12, 114),
             inPort('reset', 'Rst', 'trigger', w * 0.26, 114),
             inPort('voct_in', 'V+', 'cv', w * 0.40, 114),

@@ -375,8 +375,8 @@ export class AudioEngine {
       case 'sequencer': {
         if (controlId === 'length' || controlId.startsWith('s') || controlId === 'root') {
           // Herbereken notes[] uit de huidige controls.
-          const lengthIdx = readKnob(node.controls, 'length', 6);
-          const length = Math.max(1, Math.min(16, lengthIdx + 2));
+          const lengthRaw = readKnob(node.controls, 'length', 8);
+          const length = Math.max(1, Math.min(16, Math.round(lengthRaw)));
           const root   = Math.round(readKnob(node.controls, 'root', 60));
           const notes: number[] = [];
           for (let i = 0; i < length; i++) {
@@ -581,8 +581,8 @@ export class AudioEngine {
         }
         return null;
       case 'sequencer': {
-        const lengthIdx = readKnob(controls, 'length', 6);
-        const length = Math.max(1, Math.min(16, lengthIdx + 2));
+        const lengthRaw = readKnob(controls, 'length', 8);
+        const length = Math.max(1, Math.min(16, Math.round(lengthRaw)));
         const root   = Math.round(readKnob(controls, 'root', 60));
         const notes: number[] = [];
         for (let i = 0; i < length; i++) {

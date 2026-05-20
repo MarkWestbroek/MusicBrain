@@ -168,6 +168,8 @@ export interface DisplayControl {
   format?: 'int' | 'float1' | 'float2' | 'midi' | 'onoff';
   /** Fallback-tekst als bindTo leeg is of niet bestaat. */
   text?: string;
+  /** Visuele grootte van het display. Default 'medium'. */
+  size?: 'small' | 'medium' | 'large';
 }
 
 /** Read-only LED-indicator. Statische kleur, of gebonden aan een toggle. */
@@ -416,9 +418,12 @@ export interface PatchConnection {
   to:   { moduleId: string; portId: string };
   attenuation?: number;
   invert?: boolean;
-  /** Optioneel: visuele kabel-buiger. Offset (px) van de bezier-control-point
-   *  t.o.v. het midden van source/target. Heeft geen audio-effect. */
+  /** @deprecated — single bend (iter-5.5). Wordt op load gemigreerd naar `bends[0]`. */
   bend?: { dx: number; dy: number };
+  /** Visuele kabel-buigers: lijst van knikpunten in flow-coördinaten. De
+   *  kabel loopt als polyline source → bends[0] → bends[1] → ... → target.
+   *  Geen audio-effect; puur cosmetisch. */
+  bends?: { x: number; y: number }[];
 }
 
 export interface Patch {

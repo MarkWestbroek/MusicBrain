@@ -9,7 +9,7 @@
 // Module positions in the graph mirror their rack slot (row × HP), so the
 // graph view is a free zoom/pan of the same physical layout.
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   Background, Controls, Handle, Position,
   ReactFlow, ReactFlowProvider, ConnectionMode,
@@ -119,49 +119,87 @@ const nodeTypes: NodeTypes = { module: ModuleNode };
 // ── Edge: bezier-pad met sleepbare control-point ───────────────────────
 
 interface BendableEdgeData {
-  bend?: { dx: number; dy: number };
+  bends?: { x: number; y: number }[];
   patchId: string;
   connectionId: string;
+}
+
+/** Polyline-pad door alle waypoints. */
+function buildPath(sx: number, sy: number, tx: number, ty: number,
+                   bends: { x: number; y: number }[]): string {
+  let p = `M ${sx},${sy}`;
+  for (const b of bends) p += ` L ${b.x},${b.y}`;
+  p += ` L ${tx},${ty}`;
+  return p;
+}
+
+/** Loodrechte projectie van P op segment AB (geclamped op [A,B]). Geeft
+ *  het projectie-punt en de afstand (in flow-coords). */
+function projectOnSegment(
+  ax: number, ay: number, bx: number, by: number, px: number, py: number,
+): { x: number; y: number; t: number; dist: number } {
+  const dx = bx - ax, dy = by - ay;
+  const lenSq = dx * dx + dy * dy;
+  const t = lenSq > 0 ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lenSq)) : 0;
+  const x = ax + t * dx, y = ay + t * dy;
+  const ddx = px - x, ddy = py - y;
+  return { x, y, t, dist: Math.sqrt(ddx * ddx + ddy * ddy) };
 }
 
 function BendableEdge(props: EdgeProps): JSX.Element {
   const { id, sourceX, sourceY, targetX, targetY, style, selected, data } = props;
   const d = data as unknown as BendableEdgeData;
-  const bend = d?.bend ?? { dx: 0, dy: 0 };
-  const midX = (sourceX + targetX) / 2;
-  const midY = (sourceY + targetY) / 2;
-  const cpX = midX + bend.dx;
-  const cpY = midY + bend.dy;
-  const path = `M ${sourceX},${sourceY} Q ${cpX},${cpY} ${targetX},${targetY}`;
+  const bends = d?.bends ?? [];
+  const path = buildPath(sourceX, sourceY, targetX, targetY, bends);
   const rf = useReactFlow();
-  const startRef = useRef<{ x: number; y: number; dx: number; dy: number } | null>(null);
 
-  // Window-level listeners: werken ook als muis buiten de cirkel komt
-  // en omzeilen ReactFlow's eigen pan-handlers.
-  function onPointerDown(e: React.PointerEvent<SVGCircleElement>): void {
+  function writeBends(next: { x: number; y: number }[]): void {
+    updateProject((p) => ({
+      ...p,
+      patches: p.patches.map((px) => px.id !== d.patchId ? px : ({
+        ...px,
+        connections: px.connections.map((c) => c.id !== d.connectionId
+          ? c
+          : { ...c, bends: next }),
+      })),
+    }));
+  }
+
+  /** Dubbelklik op de kabel zelf → voeg een knik toe op het dichtstbijzijnde punt. */
+  function onCableDoubleClick(e: React.MouseEvent<SVGPathElement>): void {
+    e.stopPropagation();
+    e.preventDefault();
+    const pt = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
+    // Bouw waypoint-lijst inclusief endpoints om het beste segment te vinden.
+    const wps = [{ x: sourceX, y: sourceY }, ...bends, { x: targetX, y: targetY }];
+    let bestSeg = 0, bestProj = { x: pt.x, y: pt.y, t: 0, dist: Infinity };
+    for (let i = 0; i < wps.length - 1; i++) {
+      const a = wps[i]!; const b = wps[i + 1]!;
+      const pr = projectOnSegment(a.x, a.y, b.x, b.y, pt.x, pt.y);
+      if (pr.dist < bestProj.dist) { bestProj = pr; bestSeg = i; }
+    }
+    const next = bends.slice();
+    next.splice(bestSeg, 0, { x: bestProj.x, y: bestProj.y });
+    writeBends(next);
+  }
+
+  /** Sleep een knik via window-listeners (werkt buiten de cirkel om). */
+  function onKnotPointerDown(idx: number, e: React.PointerEvent<SVGCircleElement>): void {
     e.stopPropagation();
     e.nativeEvent.stopImmediatePropagation();
     e.preventDefault();
     const flowStart = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
-    startRef.current = { x: flowStart.x, y: flowStart.y, dx: bend.dx, dy: bend.dy };
+    const orig = bends[idx]!;
+    let latest = bends.slice();
 
     function onMove(ev: PointerEvent): void {
-      if (!startRef.current) return;
       const cur = rf.screenToFlowPosition({ x: ev.clientX, y: ev.clientY });
-      const ndx = startRef.current.dx + (cur.x - startRef.current.x);
-      const ndy = startRef.current.dy + (cur.y - startRef.current.y);
-      updateProject((p) => ({
-        ...p,
-        patches: p.patches.map((px) => px.id !== d.patchId ? px : ({
-          ...px,
-          connections: px.connections.map((c) => c.id !== d.connectionId
-            ? c
-            : { ...c, bend: { dx: ndx, dy: ndy } }),
-        })),
-      }));
+      const nx = orig.x + (cur.x - flowStart.x);
+      const ny = orig.y + (cur.y - flowStart.y);
+      latest = latest.map((b, i) => i === idx ? { x: nx, y: ny } : b);
+      writeBends(latest);
     }
     function onUp(): void {
-      startRef.current = null;
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
     }
@@ -169,47 +207,44 @@ function BendableEdge(props: EdgeProps): JSX.Element {
     window.addEventListener('pointerup', onUp);
   }
 
-  function onDoubleClick(e: React.MouseEvent<SVGCircleElement>): void {
+  /** Dubbelklik op een knik → verwijder hem. */
+  function onKnotDoubleClick(idx: number, e: React.MouseEvent<SVGCircleElement>): void {
     e.stopPropagation();
-    updateProject((p) => ({
-      ...p,
-      patches: p.patches.map((px) => px.id !== d.patchId ? px : ({
-        ...px,
-        connections: px.connections.map((c) => c.id !== d.connectionId
-          ? c
-          : { ...c, bend: { dx: 0, dy: 0 } }),
-      })),
-    }));
+    e.preventDefault();
+    writeBends(bends.filter((_, i) => i !== idx));
   }
 
   return (
     <>
-      {/* Brede onzichtbare hitzone voor makkelijker klikken op de kabel */}
+      {/* Onzichtbare hit-strip — vangt klikken op de kabel makkelijker op. */}
       <path
         id={id}
         d={path}
         fill="none"
         stroke="transparent"
         strokeWidth={20}
-        style={{ pointerEvents: 'stroke', cursor: 'default' }}
+        style={{ pointerEvents: 'stroke', cursor: 'crosshair' }}
+        onDoubleClick={onCableDoubleClick}
       />
-      {/* Zichtbare kabel */}
-      <path d={path} fill="none" style={style} />
-      {/* SVG handle op control-point — sleep om kabel te buigen */}
-      <circle
-        cx={cpX}
-        cy={cpY}
-        r={selected ? 8 : 6}
-        fill={selected ? '#fbbf24' : '#f8fafc'}
-        stroke="#0f172a"
-        strokeWidth={2}
-        className="nodrag nopan"
-        style={{ cursor: 'grab', pointerEvents: 'all' }}
-        onPointerDown={onPointerDown}
-        onDoubleClick={onDoubleClick}
-      >
-        <title>Sleep om kabel te buigen · dubbelklik = recht</title>
-      </circle>
+      {/* Zichtbare kabel. */}
+      <path d={path} fill="none" style={style} pointerEvents="none" />
+      {/* Knikpunten — alleen als ze bestaan; geen ruis bij rechte kabels. */}
+      {bends.map((b, i) => (
+        <circle
+          key={i}
+          cx={b.x} cy={b.y}
+          r={selected ? 7 : 5}
+          fill={selected ? '#fbbf24' : '#f8fafc'}
+          stroke="#0f172a"
+          strokeWidth={2}
+          className="nodrag nopan"
+          style={{ cursor: 'grab', pointerEvents: 'all' }}
+          onPointerDown={(e) => onKnotPointerDown(i, e)}
+          onDoubleClick={(e) => onKnotDoubleClick(i, e)}
+        >
+          <title>Sleep om te verplaatsen · dubbelklik = verwijderen</title>
+        </circle>
+      ))}
     </>
   );
 }
@@ -282,7 +317,7 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
         source: c.from.moduleId, sourceHandle: c.from.portId,
         target: c.to.moduleId,   targetHandle: c.to.portId,
         type: 'bendable',
-        data: { bend: c.bend ?? { dx: 0, dy: 0 }, patchId, connectionId: c.id },
+        data: { bends: c.bends ?? [], patchId, connectionId: c.id },
         selected: isSel,
         // zIndex tilt edges above the node-panel (default they render below)
         zIndex: isSel ? 1500 : 1000,

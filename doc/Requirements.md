@@ -1461,3 +1461,106 @@ of zichtbaar werden zodra de nieuwe modules in een patch gebruikt werden.
 
 ### Build
 - TypeScript strict groen. Bundle ≈ **751 kB / gzip 221.6 kB**.
+
+---
+
+## Iter-5.7 — Multi-bend kabels, undo/redo, SEQ-16 UI polish
+
+**Datum**: 2025 — vervolg op iter-5.6.
+
+### Probleem 1 — Kabels buigen werkte niet, en de witte stippen waren visuele ruis
+
+**Symptomen** (gerapporteerd):
+- "Sonnet heeft iets gedaan dat er wel heel raar uitziet: allemaal witte stippen in het beeld om de kabels te kunnen buigen" — een wit handvat-bolletje midden op elke kabel, ook op rechte kabels die je nooit gaat buigen.
+- "modules toevoegen werkt buigen nog steeds niet" — drie eerdere pogingen (HTML in `EdgeLabelRenderer`, SVG-cirkel met React `onPointerMove`, SVG-cirkel met `window`-listeners) gaven elk wel een klikbaar element maar geen bruikbare drag-respons.
+- "De kabels starten en stoppen nu ook ongeveer naast de sockets" — door het wegvallen van `BaseEdge` leek de kabel niet meer exact bij de jack-centra aan te sluiten (in werkelijkheid was het de oogtruc van de altijd-zichtbare bolletjes; de polyline gebruikt `sourceX/Y`/`targetX/Y` van React Flow, wat exact de handle-centra zijn).
+
+**Nieuw mentaal model** (op verzoek):
+> "Je dubbelklikt ergens op een edge, en daar ontstaat een 'knik' die je kunt draggen — alsof je de kabel daar beetpakt. Per kabel kan dat meer dan één keer."
+
+**Datamodel-wijziging** in `editor/src/modular-mb/types.ts`:
+
+```ts
+export interface PatchConnection {
+  // ...
+  /** @deprecated — single bend (iter-5.5). */
+  bend?: { dx: number; dy: number };
+  /** Lijst van knikpunten in flow-coördinaten. Polyline source -> bends[0] -> ... -> target. */
+  bends?: { x: number; y: number }[];
+}
+```
+
+**Nieuwe `BendableEdge`** in `PatcherGraphPanel.tsx`:
+
+- Geen knik-handvat als `bends` leeg is (default). Geen visuele ruis op rechte kabels.
+- Renderboom: brede onzichtbare hit-strip (`stroke-width: 20`, `pointer-events: stroke`) + zichtbare polyline-`<path>` + cirkel per bend.
+- **Dubbelklik op de kabel** -> bereken het dichtstbijzijnde punt op de polyline (loodrechte projectie per segment via `projectOnSegment`), voeg dat als nieuwe knik toe op het juiste segment-index.
+- **Sleep van een knik** -> `pointerdown` registreert window-level `pointermove` en `pointerup` listeners; tijdens drag wordt de knikpositie in `bends[i]` herschreven via `updateProject`. Coördinaten worden via `rf.screenToFlowPosition()` naar flow-space gemapt zodat zoom/pan correct meelopen.
+- **Dubbelklik op een knik** -> verwijdert dat knikpunt uit de array.
+- React Flow's pan/select wordt bij `pointerdown` op de cirkel onderdrukt via `e.stopPropagation()` plus `e.nativeEvent.stopImmediatePropagation()` en de class `nodrag nopan`.
+
+Resultaat: een rechte kabel bevat geen extra DOM-elementen; pas wanneer de gebruiker hem buigt verschijnen knikpunten precies waar hij ze plaatst.
+
+### Probleem 2 — Undo/redo (Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z)
+
+**Vraag**: "is het mogelijk elke edit (kabel edit, knopwaarde wijzigen, enz.) te schrijven naar een state en met Ctrl-Z en Y door die historie te kunnen gaan?"
+
+**Implementatie** in `editor/src/modular-mb/store.ts`:
+
+- Twee stacks `past: ModularProject[]` en `future: ModularProject[]`, elk gecapt op `HISTORY_MAX = 100`.
+- `updateProject(fn, opts?)` accepteert nu optioneel `{ skipHistory?, forceCommit? }`. Default-gedrag: vorige state wordt op `past` gepusht en `future` leeggemaakt **tenzij** de vorige push minder dan `COALESCE_MS = 350` ms geleden was -- dan wordt de bestaande entry hergebruikt. Hierdoor collapsen continue knob-drags / sliders tot één undo-stap zonder dat callers dat hoeven te weten.
+- `setProject()` (load JSON) reset beide stacks: een geladen project is een nieuw vertrekpunt.
+- Nieuwe exports: `undo()`, `redo()`, `canUndo()`, `canRedo()`.
+
+**Keyboard hook** in `ModularMbApp.tsx`:
+
+```ts
+useEffect(() => {
+  function onKey(e: KeyboardEvent): void {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    const t = e.target as HTMLElement | null;
+    const tag = t?.tagName?.toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || (t && t.isContentEditable)) return;
+    const k = e.key.toLowerCase();
+    if (k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+    else if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); redo(); }
+  }
+  window.addEventListener('keydown', onKey);
+  return () => window.removeEventListener('keydown', onKey);
+}, []);
+```
+
+Alle `updateProject`-callers (knoppen, kabel-bends, rack-drag, categorie/module/patch-CRUD) zitten nu automatisch in de history; tekstvelden gebruiken native browser-undo zodat per-letter editen geen project-snapshots vreet.
+
+### Probleem 3 — SEQ-16 Length onleesbaar, Step-display te klein
+
+**Klacht**: "de sequencer heeft een length dat een heel klein schuifje is? Ik snap hem niet zo goed." en "idem het step nummer?"
+
+**Oplossing**:
+
+1. `Length` is geen 15-positie switch meer maar een **`medium`-knob 2..16** (default 8). Engine leest direct `Math.round(length)` (`AudioEngine.ts`, twee plekken: scheduler en initial-rebuild).
+2. `DisplayControl` heeft een nieuwe optionele `size: 'small' | 'medium' | 'large'`-prop (`types.ts`). De render in `ModulePanel.tsx` schaalt nu `charW`, `fontSize`, `h` en label-offset op basis van die size. Default blijft `medium`, dus bestaande displays veranderen niet.
+3. Step-display in SEQ-16 staat nu op `size: 'large'`: lettergrootte ~4.6 mm i.p.v. 2.8 mm en hoogte 7.2 i.p.v. 4.4 -- duidelijk afleesbaar tijdens runtime.
+
+### Bestanden gewijzigd
+
+- `editor/src/modular-mb/types.ts` — `PatchConnection.bends`, `DisplayControl.size`.
+- `editor/src/modular-mb/store.ts` — past/future, undo/redo, coalescing, skipHistory/forceCommit.
+- `editor/src/modular-mb/ModularMbApp.tsx` — keyboard listener, undo/redo imports.
+- `editor/src/modular-mb/PatcherGraphPanel.tsx` — multi-bend `BendableEdge`, `projectOnSegment`, `buildPath`.
+- `editor/src/modular-mb/ModulePanel.tsx` — `DisplayGlyph` size-aware.
+- `editor/src/modular-mb/seedModules.ts` — Length-knob, Step-display large, `display()`-helper accepteert size.
+- `editor/src/modular-mb/sim/AudioEngine.ts` — Length leest direct `Math.round(value)`.
+
+### Build
+
+`cd editor; npm run build` -> 752.69 kB / gzip 222.09 kB. Geen TS-errors.
+
+### Backlog-update
+
+| Item | Status |
+|---|---|
+| Kabel-buiger met meerdere knikken (dubbelklik = nieuw knikpunt; sleep; dubbelklik op knik = verwijderen) | ✅ iter-5.7 |
+| Undo/redo voor alle project-mutaties (Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z) | ✅ iter-5.7 |
+| SEQ-16 Length-bediening onleesbaar als 15-positie switch | ✅ iter-5.7 (knop 2..16) |
+| SEQ-16 Step-display te klein om af te lezen tijdens run | ✅ iter-5.7 (display size: large) |

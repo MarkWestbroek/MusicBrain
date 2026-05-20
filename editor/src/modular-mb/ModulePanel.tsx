@@ -608,21 +608,25 @@ function DisplayGlyph({
     ? display.slice(0, c.digits)
     : display.padStart(c.digits, ' ');
 
-  const charW = 2.0;
+  const sizeKey = c.size ?? 'medium';
+  const charW = sizeKey === 'large' ? 3.4 : sizeKey === 'small' ? 1.4 : 2.0;
+  const fontSize = sizeKey === 'large' ? 4.6 : sizeKey === 'small' ? 2.0 : 2.8;
+  const h = sizeKey === 'large' ? 7.2 : sizeKey === 'small' ? 3.2 : 4.4;
+  const labelOffset = sizeKey === 'large' ? 1.2 : 0.8;
+  const yText = sizeKey === 'large' ? y + 2.0 : sizeKey === 'small' ? y + 1.0 : y + 1.3;
   const w = c.digits * charW + 2.0;
-  const h = 4.4;
   const bg = style === 'oled' ? '#0a1424' : '#1a0a0a';
   const fg = style === 'oled' ? '#67e8f9' : '#f87171';
   return (
     <g>
       {c.label && (
-        <text x={x} y={y - h / 2 - 0.8} fontSize={1.4} fill={textCol} textAnchor="middle">
+        <text x={x} y={y - h / 2 - labelOffset} fontSize={1.4} fill={textCol} textAnchor="middle">
           {c.label}
         </text>
       )}
       <rect x={x - w / 2} y={y - h / 2} width={w} height={h} rx={0.6}
         fill={bg} stroke="#000" strokeWidth={0.25} />
-      <text x={x} y={y + 1.3} fontSize={2.8} fill={fg}
+      <text x={x} y={yText} fontSize={fontSize} fill={fg}
         textAnchor="middle" fontFamily="ui-monospace, monospace"
         style={{ letterSpacing: '0.08em' }}>
         {text}
