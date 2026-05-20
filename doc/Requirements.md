@@ -254,27 +254,27 @@ Schematic files in `Images/schematics/`:
 - `esp32-midi-oled.kicad_sch` — full system block (ESP32 + SparkFun breakout + OLED)
 - `midi-standalone.kicad_sch` — discrete MIDI IN/OUT replacement circuit
 
-## Editor � Modular Music Brain (MMB) v0.1 skeleton (2026-05-18)
+## Editor — Modular Music Brain (MMB) v0.1 skeleton (2026-05-18)
 
 New top-level tab **Modular MB** added to the editor, alongside Effect-switcher,
 Amp-switcher and Scope. Source under `editor/src/modular-mb/`.
 
 Five sub-tabs:
-1. **Patches** � list/add/remove patches; pick the active patch
-2. **Modules** � CRUD for module definitions with default port sets per kind
-3. **Categorie�n** � module categories with default CV ranges
-4. **Patcher** � central matrix view: sources (rows) � destinations (columns);
+1. **Patches** — list/add/remove patches; pick the active patch
+2. **Modules** — CRUD for module definitions with default port sets per kind
+3. **Categorieën** — module categories with default CV ranges
+4. **Patcher** — central matrix view: sources (rows) — destinations (columns);
    click cells to (de)patch; incompatible signal types are visually disabled
-5. **Simulatie** � placeholder for v0.2 (envelope/LFO preview + live scope trace)
+5. **Simulatie** — placeholder for v0.2 (envelope/LFO preview + live scope trace)
 
 Data model (`modular-mb/types.ts`) is **forward-compatible**:
-- `EnvelopeShape` is a discriminated union � v0.1 only ships `ahdsr`, but the
+- `EnvelopeShape` is a discriminated union — v0.1 only ships `ahdsr`, but the
   shape already covers `multiphase`, `sampled`, `drawn` and `hwEmulation`.
 - `LfoShape` similarly covers `wave`, `multiphase`, `sampled`, `drawn`.
 - Curves are per-phase (CurveKind) so analog-style envelopes (e.g. linear
   attack + exponential decay) work without schema changes.
 - Triggers are typed (`midiNote` | `gatePort` | `lfo` | `manual`).
-- CV ranges are stored per-port (no hardcoded �5 V assumption).
+- CV ranges are stored per-port (no hardcoded ±5 V assumption).
 
 Hardware target (provisional, may change): **Teensy 4.1** as the brain
 (running envelopes/LFOs/audio in real time) with an **ESP32 as connectivity
@@ -282,7 +282,7 @@ sidecar** (WiFi ? editor, MIDI router). The brain renders envelope/LFO
 shapes locally and only ships discrete CV values over the bus to breakout
 boards, conserving bus bandwidth.
 
-## Editor � Chain panel responsiveness & selection fixes (2026-05-18)
+## Editor — Chain panel responsiveness & selection fixes (2026-05-18)
 
 Two fixes to `editor/src/effect-switcher/ChainPanel.tsx`:
 
@@ -302,7 +302,7 @@ Two fixes to `editor/src/effect-switcher/ChainPanel.tsx`:
    from `onNodesChange`.
 
 
-## Editor � MMB v0.2: graph view, cable types, MVC param widget (2026-05-18)
+## Editor — MMB v0.2: graph view, cable types, MVC param widget (2026-05-18)
 
 ### Cable types (signal kinds)
 `SignalType` is now `cv | gate | trigger | audio | midi`. Each has a colour
@@ -317,7 +317,7 @@ exposed via the `canConnect(src, dst)` helper). Conventions:
 | audio   | orange  | audio-rate signal                             |
 | midi    | purple  | MIDI message stream                           |
 
-Both Graph and Matrix views read the same table � no view-specific rules.
+Both Graph and Matrix views read the same table — no view-specific rules.
 
 ### Patcher: Graph view alongside Matrix view
 The Patcher tab now has a Graph/Matrix toggle. Both views render the same
@@ -330,8 +330,8 @@ source port's signal type. Module positions are persisted on `ModuleDef.x/y`.
 ### MVC parameter widget (`ParamWidget.tsx`)
 A single component renders any of four views (`knob`, `slider`, `numeric`,
 `toggle`) on top of the same `value` / `onChange` props. The active patch
-stores values in `Patch.moduleSettings[moduleId][paramId]`, so all views �
-and any future view (touchscreen dial, OSC remote, ...) � stay in sync.
+stores values in `Patch.moduleSettings[moduleId][paramId]`, so all views —
+and any future view (touchscreen dial, OSC remote, ...) — stay in sync.
 
 Per-`Param` `preferredView` field on `ModuleDef` sets the default view
 without locking out alternatives.
@@ -341,7 +341,7 @@ Adding a module from the Modules tab now pre-fills realistic ports and
 params: a VCO ships with Tune/Fine/PWM knobs and saw/sqr/sine outs; a
 VCF with Cutoff/Reso; an envelope with A/H/D/S/R as sliders; a breakout
 with Atten slider + Invert toggle; etc. `externallyControlled` flag is
-set for analog hardware modules (VCO/VCF/VCA/mixer) � the brain cannot
+set for analog hardware modules (VCO/VCF/VCA/mixer) — the brain cannot
 drive their knobs, but the patch still stores recommended values as
 documentation.
 
@@ -941,21 +941,21 @@ wacht op de MI-AI-parser en op (optionele) drag-drop placement-editor.
 
 ---
 
-## MMB v0.3 � implementatiestart (sessie-log)
+## MMB v0.3 — implementatiestart (sessie-log)
 
 **Wat is opgeleverd in deze ronde:**
 
-1. **Patcher-kabels nu zichtbaar** � in `PatcherGraphPanel.tsx` krijgt elke edge `zIndex: 1000` plus een licht drop-shadow en dikkere stroke. ReactFlow rendert edges anders �nder de node-panels.
-2. **Elements-paneel label-overlap weg** � in `seedModules.ts` zijn de handmatige row-headers verwijderd; `ModulePanel` labelt knoppen en jacks automatisch (knob: y+r+2.2 / jack: y+JACK_R+2.0). Linker I/O-kolom (V/Oct, Gate, Ext, Out L/R) heeft nu eigen y-grid (26/44/70/112) bij x=4 en x=13 zodat de jacks niet meer over elkaar staan. FM-knob verhuisd naar centrale vrije plek; play-button apart op (cols[0], bigY-6).
-3. **Categorie�n-tab volwaardig** � `CategoriesPanel.tsx` heeft nu:
+1. **Patcher-kabels nu zichtbaar** — in `PatcherGraphPanel.tsx` krijgt elke edge `zIndex: 1000` plus een licht drop-shadow en dikkere stroke. ReactFlow rendert edges anders onder de node-panels.
+2. **Elements-paneel label-overlap weg** — in `seedModules.ts` zijn de handmatige row-headers verwijderd; `ModulePanel` labelt knoppen en jacks automatisch (knob: y+r+2.2 / jack: y+JACK_R+2.0). Linker I/O-kolom (V/Oct, Gate, Ext, Out L/R) heeft nu eigen y-grid (26/44/70/112) bij x=4 en x=13 zodat de jacks niet meer over elkaar staan. FM-knob verhuisd naar centrale vrije plek; play-button apart op (cols[0], bigY-6).
+3. **Categorieën-tab volwaardig** — `CategoriesPanel.tsx` heeft nu:
    * tabel met label-edit, kind-dropdown (vco/vcf/vca/mixer/mult/attenuator/breakout/envelope/lfo/midiRouter/sequencer/effect/drum/noise/utility/custom), CV-range-readout en gebruik-teller;
-   * `+ Toevoegen` voor nieuwe categorie�n (id via `uid('cat')`);
+   * `+ Toevoegen` voor nieuwe categorieën (id via `uid('cat')`);
    * `Verwijder` per rij, geblokkeerd zolang er ModuleTypes deze categorie gebruiken.
-4. **Rack: row-selectie + duplicate** � in `RackPanel.tsx` is `pickedRow` opgetild naar `RackPanel` zodat klikken op een rij in de `RackGrid` die rij actief maakt (blauwe rand) �n de sidebar-dropdown synchroniseert. Slot-toolbar heeft een duplicate-knop die de module dupliceert (nieuwe id, " copy" suffix, eerste vrije HP in dezelfde rij; valt terug op volgende rij).
+4. **Rack: row-selectie + duplicate** — in `RackPanel.tsx` is `pickedRow` opgetild naar `RackPanel` zodat klikken op een rij in de `RackGrid` die rij actief maakt (blauwe rand) én de sidebar-dropdown synchroniseert. Slot-toolbar heeft een duplicate-knop die de module dupliceert (nieuwe id, " copy" suffix, eerste vrije HP in dezelfde rij; valt terug op volgende rij).
 
 **Nog open voor v0.3 (volgende ronde):**
 
-* **Interne modules side-rack** � voorstel: `Rack.kind: 'physical' | 'internal'` toevoegen en bij eerste interne plaatsing een rack `rack_internal` aanmaken dat auto-meegroeit. Alternatief: physical rack auto-verbreden wanneer `Module.internal === true` geplaatst wordt.
+* **Interne modules side-rack** — voorstel: `Rack.kind: 'physical' | 'internal'` toevoegen en bij eerste interne plaatsing een rack `rack_internal` aanmaken dat auto-meegroeit. Alternatief: physical rack auto-verbreden wanneer `Module.internal === true` geplaatst wordt.
 * **MMB-interne AHDSR (`tp_mmb_ahdsr`)** als eerste interne module-seed, met `internal: true`, brand `MMB`, layout 4 verticale sliders.
 * **CV-range editor + reorder** in CategoriesPanel.
 * **Right-click context-menu** op rack-slot (alternatief voor de toolbar-knoppen).
@@ -963,14 +963,14 @@ wacht op de MI-AI-parser en op (optionele) drag-drop placement-editor.
 
 ---
 
-## MMB v0.3 � implementatiestart (sessie-log)
+## MMB v0.3 — implementatiestart (sessie-log)
 
 **Wat is opgeleverd in deze ronde:**
 
-1. **Patcher-kabels nu zichtbaar** � in `PatcherGraphPanel.tsx` krijgt elke edge `zIndex: 1000` plus drop-shadow en dikkere stroke. ReactFlow rendert edges anders �nder de node-panels.
-2. **Elements-paneel label-overlap weg** � in `seedModules.ts` zijn de handmatige row-headers verwijderd; `ModulePanel` labelt knoppen en jacks automatisch. Linker I/O-kolom (V/Oct, Gate, Ext, Out L/R) heeft nu eigen y-grid (26/44/70/112) bij x=4 en x=13. FM-knob verhuisd naar centrale vrije plek.
-3. **Categorie�n-tab volwaardig** � `CategoriesPanel.tsx` heeft tabel met label-edit + kind-dropdown + gebruik-teller, `+ Toevoegen` voor nieuwe categorie�n, en `Verwijder` per rij (geblokkeerd als er ModuleTypes naar verwijzen).
-4. **Rack: row-selectie + duplicate** � `pickedRow` opgetild naar `RackPanel`; klikken op een rij maakt die actief (blauwe rand) en synct met sidebar. Slot-toolbar heeft duplicate-knop die module kloont (nieuwe id, " copy"-suffix, eerste vrije HP in zelfde rij, valt terug op volgende rij).
+1. **Patcher-kabels nu zichtbaar** — in `PatcherGraphPanel.tsx` krijgt elke edge `zIndex: 1000` plus drop-shadow en dikkere stroke. ReactFlow rendert edges anders onder de node-panels.
+2. **Elements-paneel label-overlap weg** — in `seedModules.ts` zijn de handmatige row-headers verwijderd; `ModulePanel` labelt knoppen en jacks automatisch. Linker I/O-kolom (V/Oct, Gate, Ext, Out L/R) heeft nu eigen y-grid (26/44/70/112) bij x=4 en x=13. FM-knob verhuisd naar centrale vrije plek.
+3. **Categorieën-tab volwaardig** — `CategoriesPanel.tsx` heeft tabel met label-edit + kind-dropdown + gebruik-teller, `+ Toevoegen` voor nieuwe categorieën, en `Verwijder` per rij (geblokkeerd als er ModuleTypes naar verwijzen).
+4. **Rack: row-selectie + duplicate** — `pickedRow` opgetild naar `RackPanel`; klikken op een rij maakt die actief (blauwe rand) en synct met sidebar. Slot-toolbar heeft duplicate-knop die module kloont (nieuwe id, " copy"-suffix, eerste vrije HP in zelfde rij, valt terug op volgende rij).
 
 **Nog open voor v0.3 (volgende ronde):**
 
@@ -1140,16 +1140,16 @@ Alle modules zijn `internal: true`, texture `pcb-black`, basekleur `#111827`:
 
 | Module | TypeId | HP | Categorie | Belangrijkste ports |
 |---|---|---|---|---|
-| MMB VCO | `tp_mmb_vco` | 8 | vco | in `voct` (cv), `fm` (cv), `sync` (trig) ÔÇö out `out` (audio) |
-| MMB VCF | `tp_mmb_vcf` | 6 | vcf | in `in` (audio), `cv` (cv) ÔÇö out `out` (audio) |
-| MMB VCA | `tp_mmb_vca` | 4 | vca | in `in` (audio), `cv` (cv) ÔÇö out `out` (audio) |
-| MMB OUT | `tp_mmb_out` | 4 | utility | in `l`, `r` (audio) ÔÇö sink naar Tone destination |
-| MMB SEQ-8 | `tp_mmb_seq8` | 12 | sequencer | in `clock`, `reset` (trig) ÔÇö out `cv` (cv), `gate_out` (gate) |
+| MMB VCO | `tp_mmb_vco` | 8 | vco | in `voct` (cv), `fm` (cv), `sync` (trig) — out `out` (audio) |
+| MMB VCF | `tp_mmb_vcf` | 6 | vcf | in `in` (audio), `cv` (cv) — out `out` (audio) |
+| MMB VCA | `tp_mmb_vca` | 4 | vca | in `in` (audio), `cv` (cv) — out `out` (audio) |
+| MMB OUT | `tp_mmb_out` | 4 | utility | in `l`, `r` (audio) — sink naar Tone destination |
+| MMB SEQ-8 | `tp_mmb_seq8` | 12 | sequencer | in `clock`, `reset` (trig) — out `cv` (cv), `gate_out` (gate) |
 
 Controls die de engine kent:
 - **VCO**: `wave` (Sin/Tri/Saw/Sqr), `coarse` (-36..36 semi), `fine` (-100..100 ct), `fm_amt`, `level`.
 - **VCF**: `cutoff` (20..18000 Hz), `q` (0.1..12), `cv_amt` (0..1), `type` (LP/HP/BP).
-- **VCA**: `gain` (0..1, default 0 ÔÇö envelope MOET aangesloten zijn voor geluid), `resp` (Lin/Exp).
+- **VCA**: `gain` (0..1, default 0 — envelope MOET aangesloten zijn voor geluid), `resp` (Lin/Exp).
 - **OUT**: `level` (0..1).
 - **SEQ-8**: 8 semitone-knoppen `s1..s8` (-24..24), `root` (MIDI 24..96), `rate` (Hz, default 4), `gate` (0.05..0.95), `length` (2..8 stappen), `run` toggle.
 
@@ -1158,35 +1158,35 @@ Controls die de engine kent:
 ### Nieuwe action: `seedTestPatch(project)`
 Maakt **in ÚÚn klik** een compleet werkend setup:
 1. Verzekert dat de benodigde internals (VCO, VCF, VCA, OUT, AHDSR) bestaan.
-2. Maakt een *fysiek* rack ÔÇ£Test rackÔÇØ van 1 rij, breed genoeg, met vers-geÔÇÉkloonde modules (VCO + VCF + VCA + ENV + OUT achter elkaar).
-3. Maakt een patch ÔÇ£Test patchÔÇØ met deze kabels:
-   - `vco.out ÔåÆ vcf.in`
-   - `vcf.out ÔåÆ vca.in`
-   - `vca.out ÔåÆ out.l` (en `out.r`)
-   - `env.cv_out ÔåÆ vca.cv`  (envelope opent de VCA)
+2. Maakt een *fysiek* rack "Test rack" van 1 rij, breed genoeg, met vers-ge‐kloonde modules (VCO + VCF + VCA + ENV + OUT achter elkaar).
+3. Maakt een patch "Test patch" met deze kabels:
+   - `vco.out → vcf.in`
+   - `vcf.out → vca.in`
+   - `vca.out → out.l` (en `out.r`)
+   - `env.cv_out → vca.cv`  (envelope opent de VCA)
 4. Zet directe default-controls (saw wave, cutoff 2500 Hz, AHDSR 5/0/200/0.6/400 ms).
 5. Maakt het nieuwe rack + patch actief.
 
-UI-knop ÔÇ£Ô£¿ Test-patchÔÇØ staat in de actiebalk van Modular-MB naast ÔÇ£Ô£¿ InternalsÔÇØ.
+UI-knop "✨ Test-patch" staat in de actiebalk van Modular-MB naast "✨ Internals".
 
 ### Connection-following AudioEngine (`editor/src/modular-mb/sim/AudioEngine.ts`)
-Volledig herschreven van de oude ÔÇ£eerste-module-per-categorieÔÇØ MVP naar een echte signal-graph:
+Volledig herschreven van de oude "eerste-module-per-categorie" MVP naar een echte signal-graph:
 
 - Per module wordt op basis van `category.kind` een Tone-node opgebouwd:
-  - `vco` ÔåÆ `Tone.Oscillator` (waveform uit `wave`-switch).
-  - `vcf` ÔåÆ `Tone.Filter` (LP/HP/BP, cutoff/Q van knoppen).
-  - `vca` ÔåÆ `Tone.Gain` (knob = basisniveau; CV telt erbovenop).
-  - `envelope` ÔåÆ `Tone.Envelope` (A+H gecombineerd in attack-tijd).
-  - `lfo` ÔåÆ `Tone.LFO` (start bij engine-start).
-  - `sequencer` ÔåÆ interne step-clock (`setInterval` op `rate` Hz), geen Tone-node.
-  - `utility` met `typeId === 'tp_mmb_out'` ÔåÆ master-sink `Tone.Gain.toDestination()`.
+  - `vco` → `Tone.Oscillator` (waveform uit `wave`-switch).
+  - `vcf` → `Tone.Filter` (LP/HP/BP, cutoff/Q van knoppen).
+  - `vca` → `Tone.Gain` (knob = basisniveau; CV telt erbovenop).
+  - `envelope` → `Tone.Envelope` (A+H gecombineerd in attack-tijd).
+  - `lfo` → `Tone.LFO` (start bij engine-start).
+  - `sequencer` → interne step-clock (`setInterval` op `rate` Hz), geen Tone-node.
+  - `utility` met `typeId === 'tp_mmb_out'` → master-sink `Tone.Gain.toDestination()`.
 
 - Vervolgens wordt **elke `patch.connection` gewired**:
-  - audioÔåÆaudio: directe `.connect()`.
-  - cvÔåÆVCA.cv: envelope/LFO-output direct op `gain.gain` AudioParam (additief op de knob).
-  - cvÔåÆVCF.cv: via `Tone.Scale(0, baseCutoff*8*cv_amt)` op `filter.frequency`.
-  - cv (SEQ) ÔåÆ VCO.voct: sequencer-step zet rechtstreeks `osc.frequency` (geen continue signal).
-  - gate (SEQ) ÔåÆ envelope.gate: sequencer roept `triggerAttack/Release` op het envelope-target aan op basis van `gate`-ratio.
+  - audio→audio: directe `.connect()`.
+  - cv→VCA.cv: envelope/LFO-output direct op `gain.gain` AudioParam (additief op de knob).
+  - cv→VCF.cv: via `Tone.Scale(0, baseCutoff*8*cv_amt)` op `filter.frequency`.
+  - cv (SEQ) → VCO.voct: sequencer-step zet rechtstreeks `osc.frequency` (geen continue signal).
+  - gate (SEQ) → envelope.gate: sequencer roept `triggerAttack/Release` op het envelope-target aan op basis van `gate`-ratio.
 
 - **Keyboard-routing**: `noteOn` zet alleen VCO's zonder `voct`-kabel en triggert alleen envelopes zonder `gate`-kabel. Zodra een sequencer is aangesloten neemt die de toonhoogte/gating over. Monofoon (polyfonie blijft uit scope).
 
@@ -1194,9 +1194,9 @@ Volledig herschreven van de oude ÔÇ£eerste-module-per-categorieÔÇØ MVP naa
 
 ### Beperkingen / vervolg
 - Polyfonie blijft buiten scope (alle stemmen monofoon).
-- LFOÔåÆVCF en LFOÔåÆVCO.fm wires lopen via dezelfde generieke cv-routing; expliciete `Tone.Scale` op die paden kan nog verfijnd worden.
+- LFO→VCF en LFO→VCO.fm wires lopen via dezelfde generieke cv-routing; expliciete `Tone.Scale` op die paden kan nog verfijnd worden.
 - Sequencer-clock is intern op een JS-`setInterval`; sync naar `Tone.Transport` is een latere uitbouw.
-- ÔÇ£Test-patchÔÇØ overschrijft niets; iedere klik maakt een nieuw rack+patch (kan worden opgeruimd via Patches-tab).
+- "Test-patch" overschrijft niets; iedere klik maakt een nieuw rack+patch (kan worden opgeruimd via Patches-tab).
 
 
 ## Iter-5.1 — Patcher/Sim UX feedback
@@ -1284,3 +1284,78 @@ Volledig herschreven van de oude ÔÇ£eerste-module-per-categorieÔÇØ MVP naa
 
 **Build**: ✅ groen — `dist/assets/index-*.js` 728 kB (gzip 215 kB).
 
+
+
+---
+
+
+---
+
+## MMB v0.3 — open backlog & feature requests (mei 2026)
+
+Verzameld na iter-5.3. Prioriteiten bijgewerkt op 20 mei 2026 op basis van gebruikersfeedback.
+
+### A. UX-observaties
+
+| # | Prio | Onderwerp | Voorstel |
+|---|---|---|---|
+| A1 | **1~2** | Rack: pijltjes overlappen module-naam | Vervangen door drag-handle op de bovenrand van het module-blok; rechtsklik op titelbalk of leeg paneloppervlak → context-menu: Dupliceer / Verwijder / Wissel rij. *Niet alleen cosmetisch — huidige pijltjes zijn onwerkbaar.* |
+| A2 | **1** | Kabels lopen door modules heen | Edge-bezier-handles (kabel-buiger) toevoegen zodat de gebruiker kabels handmatig kan omleggen. Optioneel later auto-routing. |
+| A3 | ✅ | MIDI-IN channel-display klein | Vergroot in iter-5.4: charW 1.4 → 2.0, fontSize 2.0 → 2.8. |
+| A4 | 3 | Latency toets → geluid | Inherent aan WebAudio look-ahead (~50–100 ms). Verminderen via lagere `lookAhead` op `Tone.context` en directe `triggerAttack` zonder ramp. Onderzoek nodig. |
+| A5 | **1** | Geluid herstart bij parameterwijziging | Engine bouwt volledig opnieuw bij elke patch-edit. Plan: live-binding — continuous controls (`cutoff`, `gain`, ADSR-tijden) schrijven direct via `param.rampTo()` in bestaande nodes; alleen kabel/osc-type-wijzigingen → rebuild. |
+
+### B. Sequencer-uitbreidingen
+
+| # | Prio | Onderwerp | Voorstel |
+|---|---|---|---|
+| B1 | 3 | CV-input als root-offset | Nieuwe in-port `voct_in` (cv); engine telt in-CV op bij `root` voordat `cv_out` wordt gezet. |
+| B2 | 3 | Gate-input als run-override | Nieuwe in-port `run_in` (gate); zolang signaal hoog → sequencer loopt ongeacht de Run-toggle. |
+| B3 | 3 | Per-step gate/trigger outputs | Acht out-ports `g1`..`g8` (gate) voor drum-triggering; optioneel kortere puls (`trig`-variant). |
+| B4 | **1** | 16-step versie | Tweede rij stappen (`s9`..`s16`) onder de eerste; `length`-switch wordt 1..16. Panel heeft voldoende HP. |
+| B5 | **1** | Step-LED's (huidige positie) | Één `led` per step, `bindTo: 'currentStep'`; engine schrijft `currentStep` als pseudo-control naar `controlState`. |
+
+### C. Patcher / editor-features
+
+| # | Prio | Onderwerp | Voorstel |
+|---|---|---|---|
+| C1 | 2 | Properties-paneel rechts | Nieuw paneel boven de signaaltype-legenda: van de geselecteerde module alle controls als `naam: waarde` met inline edit; tab-navigatie tussen velden. |
+| C2 | 2 | Module-presets opslaan als JSON | Knop "Bewaar preset" → exporteert `controlState[moduleId]` als `.mmbpreset`-JSON-bestand. Tegenhanger "Laad preset". |
+| C3 | 2 | Preset intern bij module | Toevoegen aan `Module.presets: { name: string; values: Record<string,ControlValue> }[]` zodat presets meereizen met de module-definitie. |
+
+### D. Persistentie
+
+**Beslissing (20 mei 2026):** voorkeur is een kleine REST-API op de bestaande Plesk-host.
+- Hosting ondersteunt database-aanmaken; SQLite heeft de voorkeur (eenvoud, geen losse server).
+- NAS-hosting is een alternatief maar meer beheer-overhead; niet gekozen.
+- D2 (cloud-sync) volgt automatisch zodra D1 staat.
+- **User management vereist** — zeker voor de Effect-switcher: er is al een externe tester voor de hardware-unit die toegang moet krijgen.
+
+| # | Prio | Onderwerp | Voorstel |
+|---|---|---|---|
+| D1 | 3 | Centrale opslag | REST-API (Node/Express) + SQLite op Plesk-host. Endpoints: GET/PUT project-JSON per gebruiker. JWT-auth voor multi-user. |
+| D2 | 3 | Gebruikersbeheer + sync | Gebruikers aanmaken/uitnodigen; elke gebruiker heeft eigen opgeslagen projecten. Basis voor Effect-switcher tester-toegang. |
+
+### E. Nieuwe interne modules
+
+| # | Prio | Module | Specificatie |
+|---|---|---|---|
+| E1 | **1** | Noise | Categorie `noise`; controls: `color` (white/pink/brown), `level`. Out: `out` (audio). Tone: `Tone.Noise`. |
+| E2 | 2 | Phaser | Categorie `effect`; controls: `rate`, `depth`, `feedback`, `mix`. In: `in` (audio), optioneel `cv` (rate-mod). Out: `out`. Tone: `Tone.Phaser`. |
+| E3 | **1** | Echo / delay | Categorie `effect`; controls: `time`, `feedback`, `mix`, optioneel `tempo_sync` (toggle). In: `in`. Out: `out`. Tone: `Tone.FeedbackDelay`. |
+
+### F. Documentatie & planning
+
+| # | Status | Onderwerp |
+|---|---|---|
+| F1 | ✅ iter-5.4 | Requirements.md mojibake gefikst (ÔÇö → —, ÔåÆ → →, enz.) en tabel-corruptie door PowerShell-escapes hersteld. |
+| F2 | ✅ iter-5.4 | Heldere backlog — deze sectie. |
+| F3 | open | Plan v0.4 / v2 requirements — op te stellen nadat D1-keuze is gemaakt. |
+
+### Prioriteitsvolgorde (vastgesteld 20 mei 2026)
+
+| Prio | Items |
+|---|---|
+| **1** | A2 kabel-buiger · A5 live parameter-binding · B4 16-step SEQ · B5 step-LED's · E1 noise · E3 echo |
+| **2** | A1 rack drag+context-menu (bijna prio 1: huidige pijltjes onwerkbaar) · C1 properties-paneel · C2/C3 presets |
+| **3** | D1 persistentie + D2 user management · B1/B2/B3 SEQ CV/gate-inputs · A4 latency-onderzoek |

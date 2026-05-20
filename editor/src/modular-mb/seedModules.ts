@@ -65,8 +65,37 @@ function slider(id: string, label: string, x: number, y: number,
     placement: { x, y },
   };
 }
+function display(id: string, x: number, y: number,
+                 opts: Partial<{ label: string; digits: number; style: 'led'|'oled'; bindTo: string;
+                                 format: 'int'|'float1'|'float2'|'midi'|'onoff'; text: string }> = {}) {
+  return {
+    control: {
+      kind: 'display' as const, id,
+      label: opts.label,
+      digits: opts.digits ?? 4,
+      style: opts.style ?? 'led',
+      bindTo: opts.bindTo,
+      format: opts.format,
+      text: opts.text,
+    },
+    placement: { x, y },
+  };
+}
+function led(id: string, x: number, y: number,
+             opts: Partial<{ label: string; color: string; size: 'small'|'medium'|'large'; bindTo: string }> = {}) {
+  return {
+    control: {
+      kind: 'led' as const, id,
+      label: opts.label,
+      color: opts.color,
+      size: opts.size ?? 'medium',
+      bindTo: opts.bindTo,
+    },
+    placement: { x, y },
+  };
+}
 
-type Spec = ReturnType<typeof knob | typeof inPort | typeof outPort | typeof toggle | typeof sw | typeof button | typeof slider>;
+type Spec = ReturnType<typeof knob | typeof inPort | typeof outPort | typeof toggle | typeof sw | typeof button | typeof slider | typeof display | typeof led>;
 
 function assemble(spec: {
   typeId: string;
@@ -762,12 +791,17 @@ function mmbMidiIn() {
       { x: w/2, y: 126, text: 'MMB',     fontSize: 1.6, color: '#f9fafb', align: 'middle' },
     ],
     items: [
-      knob('channel', 'Ch', w*0.30, 40, { size: 'small', min: 0, max: 16, def: 0, unit: '0=all', color: '#f9fafb' }),
-      sw  ('mode',    'Mode', w*0.70, 40, ['mono','legato','last'], 0),
+      knob('channel', 'Ch', w*0.30, 35, { size: 'small', min: 0, max: 16, def: 0, unit: '0=all', color: '#f9fafb' }),
+      // Live display: kanaal-nummer (0 = all). Mirrort de Ch-knop.
+      display('chDisp', w*0.70, 35, { digits: 3, style: 'led', bindTo: 'channel', format: 'int' }),
+      sw  ('mode',    'Mode', w*0.30, 60, ['mono','legato','last'], 0),
+      // Activity-LED: licht op zodra de simulator een MIDI-bron stuurt (later
+      // koppelbaar aan engine-state; nu altijd "klaar").
+      led('act', w*0.70, 60, { label: 'Act', color: '#22c55e', size: 'medium' }),
       outPort('pitch', 'V/Oct', 'cv',   w*0.30, 95),
       outPort('gate',  'Gate',  'gate', w*0.70, 95),
     ],
-    notes: 'Zet inkomende MIDI-noten (USB / screen-keyboard / test-sequence) om in CV (V/Oct) en Gate. Sluit pitch op een VCO\u2019s voct aan en gate op een envelope.',
+    notes: 'Zet inkomende MIDI-noten (USB / screen-keyboard / test-sequence) om in CV (V/Oct) en Gate. De MIDI-bron kies je in het Simulatie-paneel; deze module heeft géén MIDI-poort op de front (er bestaat geen "MIDI-in jack" in modulair-land — alles loopt via de brain). Sluit pitch op een VCO\u2019s voct aan en gate op een envelope.',
   });
 }
 
@@ -808,6 +842,8 @@ function mmbSeq8() {
       knob ('gate',   'Gate',   w*0.70, 90, { size: 'medium', min: 0.05, max: 0.95, def: 0.5, color: '#f9fafb' }),
       sw   ('length', 'Length', w*0.88, 90, ['2','3','4','5','6','7','8'], 6),
       toggle('run',   'Run',    w*0.10, 90, true),
+      // Run-LED brandt zodra de toggle aan staat (engine-binding komt later).
+      led('runLed', w*0.10, 102, { color: '#f87171', size: 'small', bindTo: 'run' }),
 
       inPort ('clock','Clk',  'trigger', w*0.20, 112),
       inPort ('reset','Rst',  'trigger', w*0.40, 112),
@@ -911,7 +947,7 @@ export function seedExampleModules(project: ModularProject): ModularProject {
  *  dat de benodigde MMB-modules (incl. internals) bestaan. */
 export function seedTestPatch(project: ModularProject): ModularProject {
   // 1. Verzeker dat alle internals (incl. VCO/VCF/VCA/OUT/ENV/SEQ) bestaan.
-  const needed = ['tp_mmb_vco','tp_mmb_vcf','tp_mmb_vca','tp_mmb_out','tp_mmb_ahdsr','tp_mmb_seq8'];
+  const needed = ['tp_mmb_vco','tp_mmb_vcf','tp_mmb_vca','tp_mmb_out','tp_mmb_ahdsr','tp_mmb_seq8','tp_mmb_midiin'];
   const missing = needed.some((tid) => !project.moduleTypes.some((t) => t.id === tid));
   let p = missing ? seedInternals(project) : project;
 
@@ -927,6 +963,7 @@ export function seedTestPatch(project: ModularProject): ModularProject {
     void t;
   }
   const seq = fresh('tp_mmb_seq8');
+  const mi  = fresh('tp_mmb_midiin');
   const vco = fresh('tp_mmb_vco');
   const vcf = fresh('tp_mmb_vcf');
   const vca = fresh('tp_mmb_vca');
@@ -940,13 +977,13 @@ export function seedTestPatch(project: ModularProject): ModularProject {
     offset += m.visual.hpWidth;
     return slot;
   };
-  const rackHp = seq.visual.hpWidth + vco.visual.hpWidth + vcf.visual.hpWidth
+  const rackHp = seq.visual.hpWidth + mi.visual.hpWidth + vco.visual.hpWidth + vcf.visual.hpWidth
                + vca.visual.hpWidth + env.visual.hpWidth + out.visual.hpWidth;
   const rack: Rack = {
     id: uid('rack'), name: 'Test rack',
-    description: 'Automatisch gegenereerd door "Test-patch": SEQ → VCO → VCF → VCA → OUT met ENV → VCA.',
+    description: 'Automatisch gegenereerd door "Test-patch": SEQ + MIDI-IN → VCO → VCF → VCA → OUT met ENV → VCA.',
     rows: 1, hpPerRow: Math.max(64, rackHp + 4),
-    slots: [place(seq), place(vco), place(vcf), place(vca), place(env), place(out)],
+    slots: [place(seq), place(mi), place(vco), place(vcf), place(vca), place(env), place(out)],
     kind: 'physical',
   };
 
@@ -965,6 +1002,10 @@ export function seedTestPatch(project: ModularProject): ModularProject {
     // Sequencer drives toonhoogte (V/Oct) en envelope-gate.
     c({ m: seq, port: 'cv'       }, { m: vco, port: 'voct' }),
     c({ m: seq, port: 'gate_out' }, { m: env, port: 'gate' }),
+    // MIDI-In parallel — als de sequencer uit staat, neemt deze het over
+    // (keyboard / screen-keys / test-sequence → dezelfde VCO + envelope).
+    c({ m: mi,  port: 'pitch'    }, { m: vco, port: 'voct' }),
+    c({ m: mi,  port: 'gate'     }, { m: env, port: 'gate' }),
   ];
 
   // 5. Default control state — direct hoorbaar bij Start.
@@ -976,6 +1017,7 @@ export function seedTestPatch(project: ModularProject): ModularProject {
     [out.id]: { level: 0.8 },
     [seq.id]: { s1: 0, s2: 4, s3: 7, s4: 12, s5: 7, s6: 0, s7: 5, s8: 3,
                 root: 60, rate: 4, gate: 0.5, length: 6, run: true },
+    [mi.id]:  { channel: 0, mode: 0 },
   };
 
   const patch: Patch = {
@@ -991,7 +1033,7 @@ export function seedTestPatch(project: ModularProject): ModularProject {
   return {
     ...p,
     racks:        [...p.racks, rack],
-    modules:      [...p.modules, seq, vco, vcf, vca, env, out],
+    modules:      [...p.modules, seq, mi, vco, vcf, vca, env, out],
     patches:      [...p.patches, patch],
     activeRackId:  rack.id,
     activePatchId: patch.id,

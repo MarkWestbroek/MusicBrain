@@ -48,7 +48,7 @@ export function ModulePanel({ module: mod, types, controlState, onControlChange,
                 if (!cp)
                     return null;
                 const value = controlState?.[c.id] ?? defaultValueOf(c);
-                return (_jsx(ControlGlyph, { control: c, x: cp.x, y: cp.y, rotation: cp.rotation ?? 0, sizeOverride: cp.sizeOverride, value: value, onChange: onControlChange ? (v) => onControlChange(c.id, v) : undefined, textCol: textCol }, `ctl-${c.id}`));
+                return (_jsx(ControlGlyph, { control: c, x: cp.x, y: cp.y, rotation: cp.rotation ?? 0, sizeOverride: cp.sizeOverride, value: value, controls: controls, controlState: controlState, onChange: onControlChange ? (v) => onControlChange(c.id, v) : undefined, textCol: textCol }, `ctl-${c.id}`));
             })] }));
 }
 // ── Decorations ────────────────────────────────────────────────────────
@@ -84,7 +84,7 @@ function PortGlyph({ port, x, y, labelPos, showLabel, highlighted, onClick, text
 }
 // ── Control glyphs ─────────────────────────────────────────────────────
 function ControlGlyph(props) {
-    const { control: c, x, y, rotation, sizeOverride, value, onChange, textCol } = props;
+    const { control: c, x, y, rotation, sizeOverride, value, controls, controlState, onChange, textCol } = props;
     switch (c.kind) {
         case 'knob':
             return _jsx(KnobGlyph, { c: c, x: x, y: y, sizeOverride: sizeOverride, value: typeof value === 'number' ? value : c.defaultValue, onChange: onChange, textCol: textCol });
@@ -100,6 +100,10 @@ function ControlGlyph(props) {
             return _jsx(JoystickGlyph, { c: c, x: x, y: y, value: typeof value === 'object' && value !== null && 'x' in value ? value : c.defaultValue, onChange: onChange, textCol: textCol });
         case 'exotic':
             return _jsx(ExoticGlyph, { c: c, x: x, y: y, value: typeof value === 'number' ? value : c.defaultValue, textCol: textCol });
+        case 'display':
+            return _jsx(DisplayGlyph, { c: c, x: x, y: y, controls: controls, controlState: controlState, textCol: textCol });
+        case 'led':
+            return _jsx(LedGlyph, { c: c, x: x, y: y, controlState: controlState, textCol: textCol });
     }
 }
 // ── Knob ────────────────────────────────────────────────────────────────
@@ -202,7 +206,7 @@ function SliderGlyph({ c, x, y, rotation, value, onChange, textCol, }) {
 }
 // ── Toggle ──────────────────────────────────────────────────────────────
 function ToggleGlyph({ c, x, y, value, onChange, textCol, }) {
-    return (_jsxs("g", { style: { cursor: onChange ? 'pointer' : 'default' }, onClick: () => onChange?.(!value), children: [_jsx("rect", { x: x - 2, y: y - 3, width: 4, height: 6, fill: "#2a2a2a", rx: 0.6, stroke: "#000", strokeWidth: 0.15 }), _jsx("rect", { x: x - 1.4, y: value ? y - 2.5 : y + 0.4, width: 2.8, height: 2.1, fill: "#e5e7eb", rx: 0.3 }), _jsx("text", { x: x, y: y + 5.6, fontSize: 1.6, fill: textCol, textAnchor: "middle", children: c.label })] }));
+    return (_jsxs("g", { style: { cursor: onChange ? 'pointer' : 'default' }, onClick: () => onChange?.(!value), children: [_jsx("text", { x: x, y: y - 4.4, fontSize: 1.6, fill: textCol, textAnchor: "middle", children: c.label }), _jsx("rect", { x: x - 2, y: y - 3, width: 4, height: 6, fill: "#2a2a2a", rx: 0.6, stroke: "#000", strokeWidth: 0.15 }), _jsx("rect", { x: x - 1.4, y: value ? y - 2.5 : y + 0.4, width: 2.8, height: 2.1, fill: "#e5e7eb", rx: 0.3 }), _jsx("text", { x: x + 3.2, y: y + 0.7, fontSize: 1.3, fill: value ? '#22c55e' : '#6b7280', children: value ? 'on' : 'off' })] }));
 }
 // ── Switch (multi-position) ────────────────────────────────────────────
 function SwitchGlyph({ c, x, y, value, onChange, textCol, }) {
@@ -235,6 +239,62 @@ function JoystickGlyph({ c, x, y, value, onChange, textCol, }) {
 // ── Exotic ──────────────────────────────────────────────────────────────
 function ExoticGlyph({ c, x, y, textCol, }) {
     return (_jsxs("g", { children: [_jsx("rect", { x: x - 3, y: y - 3, width: 6, height: 6, fill: "none", stroke: "#9333ea", strokeDasharray: "0.6 0.6", strokeWidth: 0.3 }), _jsx("text", { x: x, y: y + 0.6, fontSize: 1.4, fill: textCol, textAnchor: "middle", children: "?" }), _jsx("text", { x: x, y: y + 5, fontSize: 1.4, fill: textCol, textAnchor: "middle", children: c.label })] }));
+}
+// ── Display (read-only) ─────────────────────────────────────────────────
+function DisplayGlyph({ c, x, y, controls, controlState, textCol, }) {
+    const style = c.style ?? 'led';
+    // Resolve waarde
+    let display = c.text ?? '';
+    if (c.bindTo) {
+        const v = controlState?.[c.bindTo];
+        if (v === undefined) {
+            // Probeer default uit de gekoppelde control op te halen.
+            const bound = controls?.find((x2) => x2.id === c.bindTo);
+            const dv = bound ? defaultValueOf(bound) : undefined;
+            display = formatDisplay(dv, c.format);
+        }
+        else {
+            display = formatDisplay(v, c.format);
+        }
+    }
+    // Pad/cap naar `digits` tekens.
+    const text = display.length > c.digits
+        ? display.slice(0, c.digits)
+        : display.padStart(c.digits, ' ');
+    const charW = 2.0;
+    const w = c.digits * charW + 2.0;
+    const h = 4.4;
+    const bg = style === 'oled' ? '#0a1424' : '#1a0a0a';
+    const fg = style === 'oled' ? '#67e8f9' : '#f87171';
+    return (_jsxs("g", { children: [c.label && (_jsx("text", { x: x, y: y - h / 2 - 0.8, fontSize: 1.4, fill: textCol, textAnchor: "middle", children: c.label })), _jsx("rect", { x: x - w / 2, y: y - h / 2, width: w, height: h, rx: 0.6, fill: bg, stroke: "#000", strokeWidth: 0.25 }), _jsx("text", { x: x, y: y + 1.3, fontSize: 2.8, fill: fg, textAnchor: "middle", fontFamily: "ui-monospace, monospace", style: { letterSpacing: '0.08em' }, children: text })] }));
+}
+function formatDisplay(v, fmt) {
+    if (v === undefined || v === null)
+        return '--';
+    if (typeof v === 'boolean')
+        return v ? 'ON' : 'OFF';
+    if (typeof v === 'object')
+        return '...';
+    // numeric
+    switch (fmt) {
+        case 'int': return String(Math.round(v));
+        case 'float1': return v.toFixed(1);
+        case 'float2': return v.toFixed(2);
+        case 'midi': return String(Math.round(v));
+        case 'onoff': return v > 0 ? 'ON' : 'OFF';
+        default: return String(Math.round(v));
+    }
+}
+// ── LED (read-only indicator) ───────────────────────────────────────────
+function LedGlyph({ c, x, y, controlState, textCol, }) {
+    const sizeR = c.size === 'large' ? 1.6 : c.size === 'small' ? 0.7 : 1.1;
+    const colour = c.color ?? '#22c55e';
+    let on = true;
+    if (c.bindTo) {
+        const v = controlState?.[c.bindTo];
+        on = typeof v === 'boolean' ? v : typeof v === 'number' ? v > 0 : false;
+    }
+    return (_jsxs("g", { children: [_jsx("circle", { cx: x, cy: y, r: sizeR + 0.4, fill: "#0a0a0a" }), _jsx("circle", { cx: x, cy: y, r: sizeR, fill: on ? colour : '#333', style: on ? { filter: `drop-shadow(0 0 ${sizeR * 1.4}px ${colour})` } : undefined }), c.label && (_jsx("text", { x: x, y: y + sizeR + 2.4, fontSize: 1.2, fill: textCol, textAnchor: "middle", children: c.label }))] }));
 }
 // ── Helpers ────────────────────────────────────────────────────────────
 function clamp(v, lo, hi) {

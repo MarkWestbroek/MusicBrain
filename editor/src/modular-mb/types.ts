@@ -151,9 +151,40 @@ export interface ExoticControl {
   defaultValue: number;
 }
 
+/** Read-only display: toont een numerieke waarde of statische tekst.
+ *  - bindTo (control-id) → toont de live waarde van die control.
+ *  - format → 'int' | 'float1' | 'float2' | 'midi'.
+ *  - text (zonder bindTo) → statische tekst als fallback. */
+export interface DisplayControl {
+  kind: 'display';
+  id: string;
+  label?: string;
+  /** Aantal tekens dat past op het display. */
+  digits: number;
+  /** 'led' = rode 7-segment look, 'oled' = blauw monospace. */
+  style?: 'led' | 'oled';
+  /** Wanneer gezet, leest het display de waarde van die control uit het patch-controlState. */
+  bindTo?: string;
+  format?: 'int' | 'float1' | 'float2' | 'midi' | 'onoff';
+  /** Fallback-tekst als bindTo leeg is of niet bestaat. */
+  text?: string;
+}
+
+/** Read-only LED-indicator. Statische kleur, of gebonden aan een toggle. */
+export interface LedControl {
+  kind: 'led';
+  id: string;
+  label?: string;
+  color?: string;   // off-kleur is dim variant van deze
+  size?: 'small' | 'medium' | 'large';
+  /** Optioneel: aan/uit volgt de waarde van deze control (toggle of >0). */
+  bindTo?: string;
+}
+
 export type Control =
   | KnobControl | SliderControl | ToggleControl
-  | SwitchControl | ButtonControl | JoystickControl | ExoticControl;
+  | SwitchControl | ButtonControl | JoystickControl | ExoticControl
+  | DisplayControl | LedControl;
 
 /** Value stored per (module, control) in a patch. Shape depends on kind. */
 export type ControlValue = number | boolean | { x: number; y: number };
@@ -167,6 +198,8 @@ export function defaultValueOf(c: Control): ControlValue {
     case 'switch':    return c.defaultIndex;
     case 'button':    return c.defaultValue ?? false;
     case 'joystick':  return c.defaultValue;
+    case 'display':   return 0;
+    case 'led':       return false;
   }
 }
 

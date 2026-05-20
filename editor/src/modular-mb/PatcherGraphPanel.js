@@ -9,7 +9,7 @@ import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 //
 // Module positions in the graph mirror their rack slot (row × HP), so the
 // graph view is a free zoom/pan of the same physical layout.
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Background, Controls, Handle, Position, ReactFlow, ReactFlowProvider, ConnectionMode, } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { updateProject, useModularProject, uid } from './store';
@@ -100,36 +100,46 @@ function PatcherGraphInner({ patchId }) {
         // Lock dragging — position derives from rack.
         draggable: false,
     })), [placedModules, rackYOffsetMm, project.moduleTypes, patch.controlState, patchId]);
+    const [selectedEdgeId, setSelectedEdgeId] = useState(null);
     const edges = useMemo(() => patch.connections.map((c) => {
         const srcMod = project.modules.find((m) => m.id === c.from.moduleId);
         const srcPort = srcMod && resolvePorts(srcMod, project.moduleTypes)
             .find((p) => p.id === c.from.portId);
         const colour = srcPort ? SIGNAL_COLOUR[srcPort.signalType] : '#475569';
+        const isSel = c.id === selectedEdgeId;
         return {
             id: c.id,
             source: c.from.moduleId, sourceHandle: c.from.portId,
             target: c.to.moduleId, targetHandle: c.to.portId,
             type: 'default',
+            selected: isSel,
             // zIndex tilt edges above the node-panel (default they render below)
-            zIndex: 1000,
+            zIndex: isSel ? 1500 : 1000,
             // brede onzichtbare hit-strip zodat de kabel makkelijker te klikken is
             interactionWidth: 24,
             // re-attach door uiteinde te slepen
             reconnectable: true,
             style: {
-                stroke: colour, strokeWidth: 3,
+                stroke: colour,
+                strokeWidth: isSel ? 6 : 3,
                 strokeLinecap: 'round',
-                filter: 'drop-shadow(0 1px 1.5px rgba(0,0,0,0.55))',
+                filter: isSel
+                    ? `drop-shadow(0 0 6px ${colour})`
+                    : 'drop-shadow(0 1px 1.5px rgba(0,0,0,0.55))',
             },
         };
-    }), [patch.connections, project.modules, project.moduleTypes]);
+    }), [patch.connections, project.modules, project.moduleTypes, selectedEdgeId]);
     const onNodesChange = useCallback((_changes) => {
         // Positions are fixed (driven by rack). Nothing to persist.
     }, []);
     const onEdgesChange = useCallback((changes) => {
         for (const ch of changes) {
+            if (ch.type === 'select') {
+                setSelectedEdgeId((prev) => ch.selected ? ch.id : (prev === ch.id ? null : prev));
+            }
             if (ch.type === 'remove') {
                 const eid = ch.id;
+                setSelectedEdgeId((prev) => prev === eid ? null : prev);
                 updateProject((p) => ({
                     ...p,
                     patches: p.patches.map((px) => px.id !== patchId ? px
@@ -138,6 +148,16 @@ function PatcherGraphInner({ patchId }) {
             }
         }
     }, [patchId]);
+    // Klik direct op een kabel: selecteer hem expliciet (React Flow doet dit
+    // ook intern, maar we houden er onze eigen state op na zodat de visuele
+    // dikte/glow door re-renders heen blijft staan en Delete het juiste id
+    // pakt).
+    const onEdgeClick = useCallback((_e, edge) => {
+        setSelectedEdgeId(edge.id);
+    }, []);
+    const onPaneClick = useCallback(() => {
+        setSelectedEdgeId(null);
+    }, []);
     const onConnect = useCallback((c) => {
         if (!c.source || !c.target || !c.sourceHandle || !c.targetHandle) {
             console.warn('[patcher] connection missing source/target/handle', c);
@@ -225,10 +245,21 @@ function PatcherGraphInner({ patchId }) {
           stroke-width: 4 !important;
           cursor: pointer;
         }
-      ` }), _jsx("div", { className: "mmb-patcher", tabIndex: 0, style: {
+      ` }), _jsx("div", { className: "mmb-patcher", tabIndex: 0, onKeyDown: (e) => {
+                    if ((e.key === 'Delete' || e.key === 'Backspace') && selectedEdgeId) {
+                        const eid = selectedEdgeId;
+                        setSelectedEdgeId(null);
+                        updateProject((p) => ({
+                            ...p,
+                            patches: p.patches.map((px) => px.id !== patchId ? px
+                                : { ...px, connections: px.connections.filter((c) => c.id !== eid) }),
+                        }));
+                        e.preventDefault();
+                    }
+                }, style: {
                     height: 620, border: '1px solid #cbd2d9', borderRadius: 6,
                     background: '#0f172a', userSelect: 'none', outline: 'none',
-                }, children: _jsxs(ReactFlow, { nodes: nodes, edges: edges, nodeTypes: nodeTypes, onNodesChange: onNodesChange, onEdgesChange: onEdgesChange, onConnect: onConnect, onReconnect: onReconnect, connectionMode: ConnectionMode.Loose, deleteKeyCode: ['Delete', 'Backspace'], edgesFocusable: true, fitView: true, minZoom: 0.3, maxZoom: 2, proOptions: { hideAttribution: true }, children: [_jsx(Background, { gap: 20, color: "#1e293b" }), _jsx(Controls, { showInteractive: false })] }) }), _jsx(Legend, {})] }));
+                }, children: _jsxs(ReactFlow, { nodes: nodes, edges: edges, nodeTypes: nodeTypes, onNodesChange: onNodesChange, onEdgesChange: onEdgesChange, onConnect: onConnect, onReconnect: onReconnect, onEdgeClick: onEdgeClick, onPaneClick: onPaneClick, connectionMode: ConnectionMode.Loose, deleteKeyCode: ['Delete', 'Backspace'], edgesFocusable: true, fitView: true, minZoom: 0.3, maxZoom: 2, proOptions: { hideAttribution: true }, children: [_jsx(Background, { gap: 20, color: "#1e293b" }), _jsx(Controls, { showInteractive: false })] }) }), _jsx(Legend, {})] }));
 }
 function Legend() {
     return (_jsxs("aside", { style: {

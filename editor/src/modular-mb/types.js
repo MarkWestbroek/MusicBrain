@@ -40,6 +40,8 @@ export function defaultValueOf(c) {
         case 'switch': return c.defaultIndex;
         case 'button': return c.defaultValue ?? false;
         case 'joystick': return c.defaultValue;
+        case 'display': return 0;
+        case 'led': return false;
     }
 }
 // ═══════════════════════════════════════════════════════════════════════

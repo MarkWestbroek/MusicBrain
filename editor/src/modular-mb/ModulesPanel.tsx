@@ -418,6 +418,8 @@ function controlDetail(c: Control): string {
     case 'switch':   return `${c.positions.length} posities`;
     case 'button':   return c.momentary ? 'momentary' : 'latching';
     case 'joystick': return `xy default (${c.defaultValue.x}, ${c.defaultValue.y})`;
+    case 'display':  return `${c.digits} digits${c.bindTo ? ` → ${c.bindTo}` : ''}`;
+    case 'led':      return c.bindTo ? `bound to ${c.bindTo}` : 'static';
   }
 }
 

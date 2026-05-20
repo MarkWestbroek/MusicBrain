@@ -148,6 +148,8 @@ export function ModulePanel({
             rotation={cp.rotation ?? 0}
             sizeOverride={cp.sizeOverride}
             value={value}
+            controls={controls}
+            controlState={controlState}
             onChange={onControlChange ? (v) => onControlChange(c.id, v) : undefined}
             textCol={textCol}
           />
@@ -253,10 +255,12 @@ function ControlGlyph(props: {
   control: Control; x: number; y: number; rotation: number;
   sizeOverride?: 'small' | 'medium' | 'large';
   value: ControlValue;
+  controls?: Control[];
+  controlState?: Record<string, ControlValue>;
   onChange?: (v: ControlValue) => void;
   textCol: string;
 }): JSX.Element | null {
-  const { control: c, x, y, rotation, sizeOverride, value, onChange, textCol } = props;
+  const { control: c, x, y, rotation, sizeOverride, value, controls, controlState, onChange, textCol } = props;
   switch (c.kind) {
     case 'knob':
       return <KnobGlyph c={c} x={x} y={y} sizeOverride={sizeOverride}
@@ -285,6 +289,14 @@ function ControlGlyph(props: {
     case 'exotic':
       return <ExoticGlyph c={c} x={x} y={y}
         value={typeof value === 'number' ? value : c.defaultValue}
+        textCol={textCol} />;
+    case 'display':
+      return <DisplayGlyph c={c} x={x} y={y}
+        controls={controls} controlState={controlState}
+        textCol={textCol} />;
+    case 'led':
+      return <LedGlyph c={c} x={x} y={y}
+        controlState={controlState}
         textCol={textCol} />;
   }
 }
@@ -452,12 +464,18 @@ function ToggleGlyph({
   return (
     <g style={{ cursor: onChange ? 'pointer' : 'default' }}
        onClick={() => onChange?.(!value)}>
+      {/* Label boven het schakelaartje, zodat "up = on" visueel klopt
+          (label staat aan de "aan"-kant). */}
+      <text x={x} y={y - 4.4} fontSize={1.6} fill={textCol} textAnchor="middle">
+        {c.label}
+      </text>
       <rect x={x - 2} y={y - 3} width={4} height={6} fill="#2a2a2a" rx={0.6}
         stroke="#000" strokeWidth={0.15} />
       <rect x={x - 1.4} y={value ? y - 2.5 : y + 0.4} width={2.8} height={2.1}
         fill="#e5e7eb" rx={0.3} />
-      <text x={x} y={y + 5.6} fontSize={1.6} fill={textCol} textAnchor="middle">
-        {c.label}
+      {/* Statusletter rechts van het schakelaartje. */}
+      <text x={x + 3.2} y={y + 0.7} fontSize={1.3} fill={value ? '#22c55e' : '#6b7280'}>
+        {value ? 'on' : 'off'}
       </text>
     </g>
   );
@@ -556,6 +574,105 @@ function ExoticGlyph({
         stroke="#9333ea" strokeDasharray="0.6 0.6" strokeWidth={0.3} />
       <text x={x} y={y + 0.6} fontSize={1.4} fill={textCol} textAnchor="middle">?</text>
       <text x={x} y={y + 5} fontSize={1.4} fill={textCol} textAnchor="middle">{c.label}</text>
+    </g>
+  );
+}
+
+// ── Display (read-only) ─────────────────────────────────────────────────
+
+function DisplayGlyph({
+  c, x, y, controls, controlState, textCol,
+}: {
+  c: import('./types').DisplayControl;
+  x: number; y: number;
+  controls?: Control[];
+  controlState?: Record<string, ControlValue>;
+  textCol: string;
+}): JSX.Element {
+  const style = c.style ?? 'led';
+  // Resolve waarde
+  let display = c.text ?? '';
+  if (c.bindTo) {
+    const v = controlState?.[c.bindTo];
+    if (v === undefined) {
+      // Probeer default uit de gekoppelde control op te halen.
+      const bound = controls?.find((x2) => x2.id === c.bindTo);
+      const dv = bound ? defaultValueOf(bound) : undefined;
+      display = formatDisplay(dv, c.format);
+    } else {
+      display = formatDisplay(v, c.format);
+    }
+  }
+  // Pad/cap naar `digits` tekens.
+  const text = display.length > c.digits
+    ? display.slice(0, c.digits)
+    : display.padStart(c.digits, ' ');
+
+  const charW = 2.0;
+  const w = c.digits * charW + 2.0;
+  const h = 4.4;
+  const bg = style === 'oled' ? '#0a1424' : '#1a0a0a';
+  const fg = style === 'oled' ? '#67e8f9' : '#f87171';
+  return (
+    <g>
+      {c.label && (
+        <text x={x} y={y - h / 2 - 0.8} fontSize={1.4} fill={textCol} textAnchor="middle">
+          {c.label}
+        </text>
+      )}
+      <rect x={x - w / 2} y={y - h / 2} width={w} height={h} rx={0.6}
+        fill={bg} stroke="#000" strokeWidth={0.25} />
+      <text x={x} y={y + 1.3} fontSize={2.8} fill={fg}
+        textAnchor="middle" fontFamily="ui-monospace, monospace"
+        style={{ letterSpacing: '0.08em' }}>
+        {text}
+      </text>
+    </g>
+  );
+}
+
+function formatDisplay(v: ControlValue | undefined, fmt?: import('./types').DisplayControl['format']): string {
+  if (v === undefined || v === null) return '--';
+  if (typeof v === 'boolean') return v ? 'ON' : 'OFF';
+  if (typeof v === 'object') return '...';
+  // numeric
+  switch (fmt) {
+    case 'int':    return String(Math.round(v));
+    case 'float1': return v.toFixed(1);
+    case 'float2': return v.toFixed(2);
+    case 'midi':   return String(Math.round(v));
+    case 'onoff':  return v > 0 ? 'ON' : 'OFF';
+    default:       return String(Math.round(v));
+  }
+}
+
+// ── LED (read-only indicator) ───────────────────────────────────────────
+
+function LedGlyph({
+  c, x, y, controlState, textCol,
+}: {
+  c: import('./types').LedControl;
+  x: number; y: number;
+  controlState?: Record<string, ControlValue>;
+  textCol: string;
+}): JSX.Element {
+  const sizeR = c.size === 'large' ? 1.6 : c.size === 'small' ? 0.7 : 1.1;
+  const colour = c.color ?? '#22c55e';
+  let on = true;
+  if (c.bindTo) {
+    const v = controlState?.[c.bindTo];
+    on = typeof v === 'boolean' ? v : typeof v === 'number' ? v > 0 : false;
+  }
+  return (
+    <g>
+      <circle cx={x} cy={y} r={sizeR + 0.4} fill="#0a0a0a" />
+      <circle cx={x} cy={y} r={sizeR} fill={on ? colour : '#333'}
+        style={on ? { filter: `drop-shadow(0 0 ${sizeR * 1.4}px ${colour})` } : undefined} />
+      {c.label && (
+        <text x={x} y={y + sizeR + 2.4} fontSize={1.2} fill={textCol} textAnchor="middle">
+          {c.label}
+        </text>
+      )}
     </g>
   );
 }
