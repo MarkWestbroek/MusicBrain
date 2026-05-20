@@ -142,7 +142,32 @@ function KnobGlyph({ c, x, y, sizeOverride, value, onChange, textCol, }) {
         dragState.current = null;
         setActive(false);
     }
-    return (_jsxs("g", { style: { cursor: onChange ? 'ns-resize' : 'default' }, onPointerDown: onPointerDown, onPointerMove: onPointerMove, onPointerUp: onPointerUp, onPointerCancel: onPointerUp, children: [_jsx("circle", { cx: x, cy: y, r: r + 0.6, fill: ring, opacity: 0.9 }), _jsx("circle", { cx: x, cy: y, r: r, fill: cap, stroke: active ? '#fff' : '#1a1a1a', strokeWidth: active ? 0.4 : 0.2 }), _jsx("line", { x1: x, y1: y, x2: px, y2: py, stroke: pointerColourFor(c.style ?? 'generic', cap), strokeWidth: Math.max(0.4, r * 0.16), strokeLinecap: "round" }), _jsx("text", { x: x, y: y + r + 2.2, fontSize: 1.8, fill: textCol, textAnchor: "middle", fontWeight: 500, children: c.label })] }));
+    return (_jsxs("g", { style: { cursor: onChange ? 'ns-resize' : 'default' }, onPointerDown: onPointerDown, onPointerMove: onPointerMove, onPointerUp: onPointerUp, onPointerCancel: onPointerUp, children: [c.ticks ? _jsx(KnobTicks, { c: c, x: x, y: y, r: r }) : null, _jsx("circle", { cx: x, cy: y, r: r + 0.6, fill: ring, opacity: 0.9 }), _jsx("circle", { cx: x, cy: y, r: r, fill: cap, stroke: active ? '#fff' : '#1a1a1a', strokeWidth: active ? 0.4 : 0.2 }), _jsx("line", { x1: x, y1: y, x2: px, y2: py, stroke: pointerColourFor(c.style ?? 'generic', cap), strokeWidth: Math.max(0.4, r * 0.16), strokeLinecap: "round" }), _jsx("text", { x: x, y: y + r + 2.2, fontSize: 1.8, fill: textCol, textAnchor: "middle", fontWeight: 500, children: c.label })] }));
+}
+function KnobTicks({ c, x, y, r, }) {
+    const every = c.ticks?.every ?? 1;
+    const highlight = new Set(c.ticks?.highlight ?? []);
+    const range = c.max - c.min;
+    if (range <= 0)
+        return _jsx("g", {});
+    const marks = [];
+    // Outer ring radii.
+    const r0 = r + 0.9;
+    for (let v = c.min; v <= c.max + 1e-6; v += every) {
+        const t = (v - c.min) / range;
+        const a = (-135 + t * 270) * Math.PI / 180;
+        const sx = x + Math.sin(a) * r0;
+        const sy = y - Math.cos(a) * r0;
+        const isBold = highlight.has(Math.round(v));
+        const len = isBold ? 1.6 : 0.7;
+        const ex = x + Math.sin(a) * (r0 + len);
+        const ey = y - Math.cos(a) * (r0 + len);
+        marks.push(_jsx("line", { x1: sx, y1: sy, x2: ex, y2: ey, stroke: isBold ? '#fbbf24' : '#475569', strokeWidth: isBold ? 0.4 : 0.18, strokeLinecap: "round" }, v));
+        if (isBold) {
+            marks.push(_jsx("text", { x: x + Math.sin(a) * (r0 + len + 1.4), y: y - Math.cos(a) * (r0 + len + 1.4) + 0.6, fontSize: 1.3, fill: "#fbbf24", textAnchor: "middle", fontWeight: 600, children: Math.round(v) }, `l${v}`));
+        }
+    }
+    return _jsx("g", { children: marks });
 }
 function capColourFor(style) {
     switch (style) {

@@ -1622,3 +1622,64 @@ Op feedback van iter-5.7-screenshots en backlog-items C1 + A1-uitbreiding:
 
 ### Build
 - `npm run build` groen, bundle 759.00 kB / gzip 223.82 kB. TypeScript strict, geen warnings.
+
+## Editor — MMB iter-5.9: Run 3-stand · MIDI-passthrough · selection-fix · Length-stepper (2026-06-12)
+
+Op feedback van iter-5.8: selectie-outline overlapte kabels, en MIDI-IN→SEQ→VCO werkte niet zoals verwacht.
+
+1. **Patcher selectie binnen panel-rand** (`PatcherGraphPanel.tsx`):
+   - Outline en outer-glow vervangen door **inset boxShadow**: `inset 0 0 0 2px #fbbf24, inset 0 0 12px rgba(251,191,36,0.35)`. Selectie-marker zit nu binnen de panel-rechthoek en kan kabels die tegen / vóór het paneel langs lopen niet meer afdekken.
+
+2. **SEQ-16 Run als 3-stands switch** (`seedModules.ts` + `AudioEngine.ts`):
+   - `toggle('run')` → `sw('run', ['Free','Off','Gate'], 0)`. Standen:
+     - **Free** (boven): sequencer loopt zelfstandig op interne klok (zoals voorheen Run=on).
+     - **Off** (midden): sequencer staat stil en gedraagt zich als een **kabeltje**: V+ (cv-in) wordt 1:1 doorgelust naar CV-out, Run+ (gate-in) naar Gate-out. Hierdoor werkt de keten MIDI-IN → SEQ → VCO/Env precies hetzelfde alsof de SEQ er niet tussen zit. Ideaal voor "alleen route, geen pattern".
+     - **Gate** (onder): sequencer wacht stil tot Run+ rising-edge (eerste keyboard-aanslag); start dan vanaf step 1 met de gespeelde toets als root. Bij gate-low: stop + reset + envelope-release.
+   - Run-LED is nu groen (`#22c55e`) en bind aan een nieuwe `__runActive` live-control (1 = pattern loopt, 0 = stil), zodat hij ook in Gate-mode goed knippert.
+   - Default-projectstate `run: true` → `run: 0` (Free).
+
+3. **V+ als root-override** (`AudioEngine.ts` `step()`):
+   - Aparte `rootBase` op `SeqNode` zodat de per-step semitones (uit de step-knoppen) bewaard blijven. Stap-noot = `effectiveRoot + (storedNote − rootBase) + voctOffset`.
+   - **MIDI-IN-source** → `extVoctMidi` overschrijft de root absoluut (zoals de gebruiker vroeg: "CV neemt de root over").
+   - **Signal-source (LFO/Env)** → blijft `voctOffset = round((meter − 0.5) × 24)` als ±12-semis offset.
+
+4. **MIDI-IN → SEQ direct routing** (`AudioEngine.ts`):
+   - `MidiInNode` heeft nu `seqVoctTargets[]` en `seqRunTargets[]` lijsten. `wire()` detecteert MIDI-IN als bron op `voct_in`/`run_in` van een sequencer en push't naar deze lijsten in plaats van een onmogelijke `Tone.Meter` op te zetten (MIDI-IN heeft immers geen `Tone.Signal`-output).
+   - In `noteOn()`/`noteOff()` worden de aangesloten sequencers per stand afgehandeld:
+     - Off → V+/Run+ direct naar `cv_out`/`gate_out` doorgelust (passthrough naar VCO/Env).
+     - Gate → rising-edge start interval + reset stepIdx; falling-edge stopt interval + release.
+     - Free → alleen `extVoctMidi` bijhouden zodat root telkens up-to-date is voor de volgende step.
+
+5. **Length-knob als rotary-stepper met benadrukte 6/8/12/16** (`types.ts` + `ModulePanel.tsx` + `seedModules.ts`):
+   - Nieuw optioneel veld `KnobControl.ticks: { every?: number; highlight?: number[] }`. Wanneer gezet rendert `KnobGlyph` kleine tick-streepjes om de skirt voor elke `every` waarden, en vette amber streepjes + label voor elke waarde in `highlight`.
+   - Length kreeg `ticks: { every: 1, highlight: [6, 8, 12, 16] }`. Knob blijft analoog te draaien (zachter dan een echt klik-mechanisme), maar je leest de belangrijke patroonlengtes meteen visueel af.
+
+6. **Helper `shouldRunSeq(seq)`** (`AudioEngine.ts`):
+   - Centrale plek voor "moet deze sequencer nu lopen?" — leest `runMode` + de juiste gate-bron (MIDI-IN extern of `Tone.Meter` op signal-bron). Wordt gebruikt in `start()`, `updateControl('run')`, `updateControl('rate')` en in `step()` om de Gate-mode interval uit te zetten.
+
+### Bestanden
+- `editor/src/modular-mb/PatcherGraphPanel.tsx` — selectie-styling van outline → inset boxShadow.
+- `editor/src/modular-mb/seedModules.ts` — Run-toggle → 3-stand switch + LED-binding `__runActive` + Length `ticks` + project-default `run: 0`.
+- `editor/src/modular-mb/types.ts` — `KnobControl.ticks` veld.
+- `editor/src/modular-mb/ModulePanel.tsx` — `KnobTicks` sub-component (rotary-stepper rendering).
+- `editor/src/modular-mb/sim/AudioEngine.ts` — `MidiInNode.seq*Targets`, `SeqNode.runMode/rootBase/extVoctMidi/extGateActive/midiDriven*`, `shouldRunSeq()`, MIDI-IN passthrough in `noteOn`/`noteOff`, V+ root-override in `step()`.
+
+### Backlog-status (na iter-5.9)
+| Prio | ID | Status |
+|------|----|--------|
+| 1 | A2 / A5 / B4 / B5 / E1 / E3 | ✅ alle prio-1 items af |
+| 2 | A1 (rack drag/keys) | ✅ iter-5.8 |
+| 2 | C1 (properties-paneel) | ✅ iter-5.8 |
+| 2 | C2 / C3 (presets opslaan / module-presets) | ⏳ open |
+| 3 | B1 / B2 / B3 (SEQ V+/Run+/Trig) | ✅ iter-5.8 + 5.9 |
+| 3 | A4 (latency) | ⏳ open |
+| 3 | D1 / D2 (server-persistentie + users) | ⏳ open |
+| — | Length click-stepper 6/8/12/16 | ✅ visueel (rotary-stepper marks); echte klik-detents kunnen later. |
+| — | SEQ Run 3-stand + MIDI-passthrough | ✅ nieuw in 5.9 |
+| — | Patcher-selectie overlapt kabels | ✅ inset shadow |
+
+Open vraag voor iter-5.10:
+- **Poly-MIDI**: vraag om "in poly mode hoe werkt dat door de SEQ" — voorgesteld aparte module `MIDI-POLY` (cv1..cv4 + gate1..gate4) i.p.v. SEQ poly te maken; de huidige SEQ blijft mono.
+
+### Build
+- `npm run build` groen, bundle 762.23 kB / gzip 224.65 kB. TypeScript strict, geen warnings.

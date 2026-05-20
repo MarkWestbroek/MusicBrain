@@ -44,9 +44,11 @@ function ModuleNode({ data, selected }) {
     }
     return (_jsxs("div", { className: "nopan nowheel", style: {
             position: 'relative', background: '#0f172a', borderRadius: 4,
-            outline: selected ? '1.5px solid #fbbf24' : 'none',
-            outlineOffset: 1,
-            boxShadow: selected ? '0 0 10px rgba(251,191,36,0.35)' : undefined,
+            outline: 'none',
+            outlineOffset: 0,
+            boxShadow: selected
+                ? 'inset 0 0 0 2px #fbbf24, inset 0 0 12px rgba(251,191,36,0.35)'
+                : undefined,
             transition: 'box-shadow 120ms',
         }, children: [_jsx(ModulePanel, { module: m, types: types, controlState: merged, onControlChange: setControl, pxPerMm: PX_PER_MM, showPortLabels: true }), ports.map((p) => {
                 const pl = m.visual.portPlacements[p.id];

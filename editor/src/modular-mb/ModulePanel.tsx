@@ -352,6 +352,8 @@ function KnobGlyph({
     <g style={{ cursor: onChange ? 'ns-resize' : 'default' }}
        onPointerDown={onPointerDown} onPointerMove={onPointerMove}
        onPointerUp={onPointerUp} onPointerCancel={onPointerUp}>
+      {/* tick marks (rotary-stepper) */}
+      {c.ticks ? <KnobTicks c={c} x={x} y={y} r={r} /> : null}
       {/* knurled skirt */}
       <circle cx={x} cy={y} r={r + 0.6} fill={ring} opacity={0.9} />
       {/* cap */}
@@ -366,6 +368,49 @@ function KnobGlyph({
         textAnchor="middle" fontWeight={500}>{c.label}</text>
     </g>
   );
+}
+
+function KnobTicks({
+  c, x, y, r,
+}: {
+  c: import('./types').KnobControl;
+  x: number; y: number; r: number;
+}): JSX.Element {
+  const every = c.ticks?.every ?? 1;
+  const highlight = new Set(c.ticks?.highlight ?? []);
+  const range = c.max - c.min;
+  if (range <= 0) return <g />;
+  const marks: JSX.Element[] = [];
+  // Outer ring radii.
+  const r0 = r + 0.9;
+  for (let v = c.min; v <= c.max + 1e-6; v += every) {
+    const t = (v - c.min) / range;
+    const a = (-135 + t * 270) * Math.PI / 180;
+    const sx = x + Math.sin(a) * r0;
+    const sy = y - Math.cos(a) * r0;
+    const isBold = highlight.has(Math.round(v));
+    const len = isBold ? 1.6 : 0.7;
+    const ex = x + Math.sin(a) * (r0 + len);
+    const ey = y - Math.cos(a) * (r0 + len);
+    marks.push(
+      <line key={v}
+        x1={sx} y1={sy} x2={ex} y2={ey}
+        stroke={isBold ? '#fbbf24' : '#475569'}
+        strokeWidth={isBold ? 0.4 : 0.18}
+        strokeLinecap="round" />
+    );
+    if (isBold) {
+      marks.push(
+        <text key={`l${v}`}
+          x={x + Math.sin(a) * (r0 + len + 1.4)}
+          y={y - Math.cos(a) * (r0 + len + 1.4) + 0.6}
+          fontSize={1.3} fill="#fbbf24" textAnchor="middle" fontWeight={600}>
+          {Math.round(v)}
+        </text>
+      );
+    }
+  }
+  return <g>{marks}</g>;
 }
 
 function capColourFor(style: import('./types').KnobStyle): string {

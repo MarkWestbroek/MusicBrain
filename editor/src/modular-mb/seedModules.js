@@ -23,6 +23,7 @@ function knob(id, label, x, y, opts = {}) {
             size: (opts.size ?? 'medium'),
             color: opts.color, style: opts.style ?? 'generic',
             unit: opts.unit,
+            ticks: opts.ticks,
         },
         placement: { x, y },
     };
@@ -777,9 +778,10 @@ function mmbSeq8() {
             knob('root', 'Root', w * 0.18, 92, { size: 'medium', min: 24, max: 96, def: 60, unit: 'midi', color: '#f9fafb' }),
             knob('rate', 'Rate', w * 0.36, 92, { size: 'medium', min: 0.5, max: 16, def: 4, unit: 'Hz', color: '#f9fafb' }),
             knob('gate', 'Gate', w * 0.54, 92, { size: 'medium', min: 0.05, max: 0.95, def: 0.5, color: '#f9fafb' }),
-            knob('length', 'Length', w * 0.70, 92, { size: 'medium', min: 2, max: 16, def: 8, color: '#f9fafb' }),
-            toggle('run', 'Run', w * 0.08, 92, true),
-            led('runLed', w * 0.08, 104, { color: '#f87171', size: 'small', bindTo: 'run' }),
+            knob('length', 'Length', w * 0.70, 92, { size: 'medium', min: 2, max: 16, def: 8, color: '#f9fafb',
+                ticks: { every: 1, highlight: [6, 8, 12, 16] } }),
+            sw('run', 'Run', w * 0.08, 92, ['Free', 'Off', 'Gate'], 0),
+            led('runLed', w * 0.08, 104, { color: '#22c55e', size: 'small', bindTo: '__runActive' }),
             // Step-positie display (1..16, live) — groot & duidelijk.
             display('stepDisp', w * 0.88, 92, { label: 'Step', digits: 2, style: 'led', bindTo: '__currentStep', format: 'int', size: 'large' }),
             // BPM-indicator naast Rate (bindTo '__rateBpm', engine schrijft elke
@@ -795,7 +797,7 @@ function mmbSeq8() {
             outPort('gate_out', 'Gate', 'gate', w * 0.76, 114),
             outPort('trig', 'Trig', 'trigger', w * 0.90, 114),
         ],
-        notes: '16-step sequencer met semitone-per-step. CV-out is een proxy voor V/Oct. V+ (cv-in) telt op bij de root (transponeren), Run+ (gate-in) override-t de Run-toggle zolang het signaal hoog is. Trig vuurt een korte puls per step (handig voor drum-envelopes). Step-LED licht op bij de huidige positie.',
+        notes: '16-step sequencer met semitone-per-step. Run-schakelaar: Free = sequencer loopt vrij, Off = doorlus (V+ → CV-out, Run+ → Gate-out — sequencer als kabeltje), Gate = wacht op Run+ rising edge en gebruikt V+ als root. CV-out is een proxy voor V/Oct. V+ override-t de root (toetsenbord bepaalt grondtoon). Trig vuurt een korte puls per step (handig voor drum-envelopes). Step-LED licht op bij de huidige positie.',
     });
 }
 // 9. MMB NOISE — 4 HP. Witte/roze/bruin ruis met level-knop.
@@ -1016,7 +1018,7 @@ export function seedTestPatch(project) {
         [env.id]: { attack: 5, hold: 0, decay: 200, sustain: 0.6, release: 400, loop: false, curve: 1 },
         [out.id]: { level: 0.8 },
         [seq.id]: { s1: 0, s2: 4, s3: 7, s4: 12, s5: 7, s6: 0, s7: 5, s8: 3,
-            root: 60, rate: 4, gate: 0.5, length: 6, run: true },
+            root: 60, rate: 4, gate: 0.5, length: 6, run: 0 },
         [mi.id]: { channel: 0, mode: 0 },
     };
     const patch = {

@@ -93,6 +93,13 @@ export interface KnobControl {
   /** Cap colour, e.g. for Mutable Instruments' red/cyan/white system. */
   color?: string;
   size?: ControlSize;
+  /**
+   * Optional rotary-stepper rendering: draw tick marks around the skirt at
+   * every integer step from `min` to `max`. Positions in `highlight` get
+   * longer/thicker marks. Currently only honoured when `min`/`max` are
+   * integers and the range is ≤ 24.
+   */
+  ticks?: { every?: number; highlight?: number[] };
 }
 
 export interface SliderControl {

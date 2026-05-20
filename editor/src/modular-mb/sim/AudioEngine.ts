@@ -58,6 +58,8 @@ interface VcfNode extends BaseNode {
   filter: Tone.Filter;
   cvAmt: number;
   baseCutoff: number;
+  /** Scale node injected during wire() when a CV source is connected. */
+  cvScale: Tone.Scale | null;
 }
 interface VcaNode extends BaseNode {
   kind: 'vca';
@@ -106,6 +108,10 @@ interface MidiInNode extends BaseNode {
   pitchTargets: string[];
   /** Envelope module-ids waarvan de gate-input aan onze gate-out hangt. */
   gateTargets: string[];
+  /** Sequencer module-ids waarvan voct_in aan onze pitch-out hangt. */
+  seqVoctTargets: string[];
+  /** Sequencer module-ids waarvan run_in aan onze gate-out hangt. */
+  seqRunTargets: string[];
   /** Laatste gespeelde MIDI-noot (mono); null = release. */
   currentMidi: number | null;
 }
@@ -115,8 +121,10 @@ interface SeqNode extends BaseNode {
   notes: number[];
   rateHz: number;
   gateRatio: number;
-  /** True als de 'run'-toggle aan staat én er minstens één connectie is. */
-  running: boolean;
+  /** Cached root knob value (used so V+ can override it without losing the per-step semitones). */
+  rootBase: number;
+  /** Run-mode: 0=Free (loop), 1=Off (passthrough), 2=Gate (wait for Run+ edge). */
+  runMode: 0 | 1 | 2;
   /** Module-ids that this sequencer's gate is wired to (envelopes). */
   gateTargets: string[];
   /** Module-ids that this sequencer's CV is wired to (VCO voct inputs). */
@@ -140,6 +148,14 @@ interface SeqNode extends BaseNode {
   runGate: boolean;
   /** Tone.Meter listening on the Run+ source (gate amplitude). */
   runMeter: Tone.Meter | null;
+  /** External root from MIDI-IN→voct_in (overrides root knob); null = no MIDI source. */
+  extVoctMidi: number | null;
+  /** External gate from MIDI-IN→run_in (true = key held). */
+  extGateActive: boolean;
+  /** True if a MIDI-IN drives our voct_in (used to pick passthrough mechanism). */
+  midiDrivenVoct: boolean;
+  /** True if a MIDI-IN drives our run_in. */
+  midiDrivenRun: boolean;
 }
 type EngineNode = VcoNode | VcfNode | VcaNode | EnvNode | LfoNode | OutNode | MidiInNode | SeqNode | NoiseNode | EchoNode | PhaserNode;
 
@@ -195,6 +211,7 @@ export class AudioEngine {
           this.status.liveControls[m.id] = {
             ...(this.status.liveControls[m.id] ?? {}),
             __rateBpm: Math.round(node.rateHz * 15),
+            __runActive: node.runMode === 0 ? 1 : 0,
           };
         }
       }
@@ -212,7 +229,7 @@ export class AudioEngine {
       if (!src || !dst) continue;
       const srcIsActive =
         src.kind === 'midiin' ||
-        (src.kind === 'sequencer' && src.running);
+        (src.kind === 'sequencer' && src.runMode !== 1);
       if (!srcIsActive) continue;
       if (dst.kind === 'vco' && conn.to.portId === 'voct') dst.voctDriven = true;
       if (dst.kind === 'envelope' && conn.to.portId === 'gate') dst.gateDriven = true;
@@ -232,7 +249,7 @@ export class AudioEngine {
       if (node.kind === 'noise') {
         if (node.noise.state !== 'started') { try { node.noise.start(); } catch { /* ignore */ } }
       }
-      if (node.kind === 'sequencer' && node.active && (node.running || node.runDriven)) this.startSequencer(node);
+      if (node.kind === 'sequencer' && node.active && this.shouldRunSeq(node)) this.startSequencer(node);
     }
     this.status.running = true;
     this.emit();
@@ -282,6 +299,39 @@ export class AudioEngine {
           const n = this.nodes.get(tgt);
           if (n?.kind === 'envelope') n.env.triggerAttack();
         }
+        // Forward to sequencers wired to our voct_out / gate_out.
+        for (const tgt of mi.seqVoctTargets) {
+          const seq = this.nodes.get(tgt);
+          if (seq?.kind !== 'sequencer') continue;
+          seq.extVoctMidi = midi;
+          if (seq.runMode === 1) {
+            // Off / passthrough: V+ note → seq.cv_out targets directly.
+            for (const vTgt of seq.cvTargets) {
+              const vco = this.nodes.get(vTgt);
+              if (vco?.kind === 'vco') {
+                const off = readKnob(vco.controls, 'coarse', 0) + readKnob(vco.controls, 'fine', 0) / 100;
+                vco.osc.frequency.rampTo(midiToHz(midi + off), 0.005);
+              }
+            }
+          }
+        }
+        for (const tgt of mi.seqRunTargets) {
+          const seq = this.nodes.get(tgt);
+          if (seq?.kind !== 'sequencer') continue;
+          const wasActive = seq.extGateActive;
+          seq.extGateActive = true;
+          if (seq.runMode === 1) {
+            // Off / passthrough: gate-on → trigger seq.gate_out targets.
+            for (const gTgt of seq.gateTargets) {
+              const env = this.nodes.get(gTgt);
+              if (env?.kind === 'envelope') env.env.triggerAttack();
+            }
+          } else if (seq.runMode === 2 && !wasActive) {
+            // Gate mode: rising edge → reset and start.
+            seq.stepIdx = 0;
+            if (seq.intervalId === null && seq.active) this.startSequencer(seq);
+          }
+        }
       }
     }
 
@@ -309,6 +359,25 @@ export class AudioEngine {
         for (const tgt of node.gateTargets) {
           const n = this.nodes.get(tgt);
           if (n?.kind === 'envelope') n.env.triggerRelease();
+        }
+        // Forward release to connected sequencers.
+        for (const tgt of node.seqRunTargets) {
+          const seq = this.nodes.get(tgt);
+          if (seq?.kind !== 'sequencer') continue;
+          seq.extGateActive = false;
+          if (seq.runMode === 1) {
+            for (const gTgt of seq.gateTargets) {
+              const env = this.nodes.get(gTgt);
+              if (env?.kind === 'envelope') env.env.triggerRelease();
+            }
+          } else if (seq.runMode === 2) {
+            // Gate mode: gate low → stop sequencer + release any open gate.
+            if (seq.intervalId !== null) this.stopSequencer(seq);
+            for (const gTgt of seq.gateTargets) {
+              const env = this.nodes.get(gTgt);
+              if (env?.kind === 'envelope') env.env.triggerRelease();
+            }
+          }
         }
       }
     }
@@ -353,7 +422,14 @@ export class AudioEngine {
         if (controlId === 'type') return false;
         if (controlId === 'cutoff') {
           node.baseCutoff = num;
-          node.filter.frequency.rampTo(num, RAMP);
+          if (node.cvScale) {
+            // filter.frequency is overridden by the CV Scale; update the scale
+            // range so modulation depth tracks the new cutoff, but do NOT call
+            // rampTo on the overridden Signal (Tone.js throws a RangeError).
+            node.cvScale.max = num * 8 * node.cvAmt;
+          } else {
+            node.filter.frequency.rampTo(num, RAMP);
+          }
           return true;
         }
         if (controlId === 'q' || controlId === 'res') { node.filter.Q.rampTo(num, RAMP); return true; }
@@ -399,31 +475,38 @@ export class AudioEngine {
             notes.push(root + Math.round(readKnob(node.controls, `s${i + 1}`, 0)));
           }
           node.notes = notes;
+          node.rootBase = root;
           return true;
         }
-        if (controlId === 'rate') {
-          node.rateHz = clamp(num, 0.5, 16);
-          // BPM = rate(Hz) * 60 / 4   (één step = 16e noot, 4 steps per beat).
-          this.status.liveControls[node.moduleId] = {
-            ...(this.status.liveControls[node.moduleId] ?? {}),
-            __rateBpm: Math.round(node.rateHz * 15),
-          };
-          // Herstart interval met nieuwe rate als hij draait.
-          if (node.intervalId !== null) {
-            window.clearInterval(node.intervalId);
-            node.intervalId = null;
-            if (node.active && node.running) this.startSequencer(node);
+          if (controlId === 'rate') {
+            node.rateHz = clamp(num, 0.5, 16);
+            // BPM = rate(Hz) * 60 / 4   (één step = 16e noot, 4 steps per beat).
+            this.status.liveControls[node.moduleId] = {
+              ...(this.status.liveControls[node.moduleId] ?? {}),
+              __rateBpm: Math.round(node.rateHz * 15),
+            };
+            // Herstart interval met nieuwe rate als hij draait.
+            if (node.intervalId !== null) {
+              window.clearInterval(node.intervalId);
+              node.intervalId = null;
+              if (node.active && this.shouldRunSeq(node)) this.startSequencer(node);
+            }
+            return true;
           }
-          return true;
-        }
         if (controlId === 'gate') { node.gateRatio = clamp(num, 0.05, 0.95); return true; }
         if (controlId === 'run') {
-          const run = Boolean(value);
-          node.running = run;
-          // Run-toggle heeft geen effect zolang Run+ override actief is.
-          if (node.runDriven) return true;
-          if (run && node.active && node.intervalId === null) this.startSequencer(node);
-          if (!run && node.intervalId !== null) this.stopSequencer(node);
+          // 3-stand switch: 0=Free, 1=Off, 2=Gate. Legacy boolean true → 0.
+          const mode: 0 | 1 | 2 = typeof value === 'number'
+            ? (Math.max(0, Math.min(2, Math.round(value))) as 0 | 1 | 2)
+            : (value === false ? 1 : 0);
+          node.runMode = mode;
+          // Live LED-binding: groen wanneer pattern daadwerkelijk loopt.
+          this.status.liveControls[node.moduleId] = {
+            ...(this.status.liveControls[node.moduleId] ?? {}),
+            __runActive: mode === 0 ? 1 : 0,
+          };
+          if (node.intervalId !== null) this.stopSequencer(node);
+          if (node.active && this.shouldRunSeq(node)) this.startSequencer(node);
           return true;
         }
         return true;
@@ -555,7 +638,7 @@ export class AudioEngine {
         const ftype: 'lowpass' | 'highpass' | 'bandpass' =
           tIdx === 1 ? 'highpass' : tIdx === 2 ? 'bandpass' : 'lowpass';
         const filter = new Tone.Filter({ frequency: baseCutoff, Q: q, type: ftype });
-        return { ...base, kind: 'vcf', filter, cvAmt, baseCutoff };
+        return { ...base, kind: 'vcf', filter, cvAmt, baseCutoff, cvScale: null };
       }
       case 'vca': {
         const baseGain = clamp(readKnob(controls, 'gain', 0), 0, 1);
@@ -595,6 +678,7 @@ export class AudioEngine {
           return {
             ...base, kind: 'midiin',
             pitchTargets: [], gateTargets: [],
+            seqVoctTargets: [], seqRunTargets: [],
             currentMidi: null,
           };
         }
@@ -617,11 +701,16 @@ export class AudioEngine {
         }
         const rate = clamp(readKnob(controls, 'rate', 4), 0.5, 16);
         const gate = clamp(readKnob(controls, 'gate', 0.5), 0.05, 0.95);
-        const run  = readToggle(controls, 'run', true);
+        // Run is now a 3-pos switch (0=Free, 1=Off, 2=Gate). Legacy boolean true → 0 (Free).
+        const runRaw = controls['run'];
+        const runMode: 0 | 1 | 2 = typeof runRaw === 'number'
+          ? (Math.max(0, Math.min(2, Math.round(runRaw))) as 0 | 1 | 2)
+          : (runRaw === false ? 1 : 0);
         return {
           ...base, kind: 'sequencer',
           notes, rateHz: rate, gateRatio: gate,
-          running: run,
+          rootBase: root,
+          runMode,
           gateTargets: [], cvTargets: [], trigTargets: [],
           intervalId: null, stepIdx: 0, lastNote: null,
           active: false,
@@ -630,6 +719,10 @@ export class AudioEngine {
           runDriven: false,
           runGate: false,
           runMeter: null,
+          extVoctMidi: null,
+          extGateActive: false,
+          midiDrivenVoct: false,
+          midiDrivenRun: false,
         };
       }
       default:
@@ -671,6 +764,7 @@ export class AudioEngine {
         const scale = new Tone.Scale(0, dst.baseCutoff * 8 * dst.cvAmt);
         out.connect(scale);
         scale.connect(dst.filter.frequency);
+        dst.cvScale = scale;
         return;
       }
       // VCO V/Oct uit een SEQ-module → handled door step-update, niet via signal.
@@ -684,8 +778,16 @@ export class AudioEngine {
         src.pitchTargets.push(dst.moduleId);
         return;
       }
-      // CV → sequencer V+ : transponeer alle stappen met (val-0.5)*24 semis.
+      // CV → sequencer V+ : transponeer alle stappen of override root via V+.
       if (dst.kind === 'sequencer' && conn.to.portId === 'voct_in') {
+        if (src.kind === 'midiin') {
+          // MIDI-IN heeft geen Tone.Signal; we volgen de live noot via de
+          // dispatcher (zie midiInDispatcher).
+          src.seqVoctTargets.push(dst.moduleId);
+          dst.midiDrivenVoct = true;
+          dst.active = true;
+          return;
+        }
         const out = cvOutputOf(src);
         if (!out) return;
         const meter = new Tone.Meter({ normalRange: true, smoothing: 0 });
@@ -697,6 +799,13 @@ export class AudioEngine {
 
     // ── trigger → sequencer.run_in (gate-override van Run-toggle) ──
     if ((srcSig === 'gate' || srcSig === 'trigger') && dst.kind === 'sequencer' && conn.to.portId === 'run_in') {
+      if (src.kind === 'midiin') {
+        src.seqRunTargets.push(dst.moduleId);
+        dst.midiDrivenRun = true;
+        dst.runDriven = true;
+        dst.active = true;
+        return;
+      }
       const out = cvOutputOf(src) ?? audioOutputOf(src);
       if (!out) return;
       const meter = new Tone.Meter({ normalRange: true, smoothing: 0 });
@@ -728,18 +837,36 @@ export class AudioEngine {
     }
   }
 
+  /**
+   * Of een sequencer in zijn huidige runMode + extern-gate-state moet draaien.
+   * - Free  : altijd
+   * - Off   : nooit (passthrough loopt direct via dispatcher)
+   * - Gate  : alleen als de externe gate hoog is
+   */
+  private shouldRunSeq(seq: SeqNode): boolean {
+    if (seq.runMode === 0) return true;
+    if (seq.runMode === 1) return false;
+    // runMode === 2 (Gate)
+    if (seq.midiDrivenRun) return seq.extGateActive;
+    if (seq.runMeter) {
+      const v = Number(seq.runMeter.getValue());
+      return Number.isFinite(v) && v > 0.3;
+    }
+    // Geen Run+ wire \u00e9n Gate-stand: niets te doen.
+    return false;
+  }
+
   private startSequencer(seq: SeqNode): void {
     if (seq.intervalId !== null) return;
+    if (seq.runMode === 1) return;
     const intervalMs = 1000 / seq.rateHz;
     const step = (): void => {
-      // Run+ override: lees gate van run_in source. Stop met spelen
-      // zolang de gate laag is (maar laat het interval doorlopen zodat
-      // we direct weer aanslaan zodra hij hoog wordt).
-      if (seq.runDriven && seq.runMeter) {
+      // Run+ override (signal-meter pad): laat interval doorlopen,
+      // maar sla de step over zolang de gate laag is.
+      if (seq.runMode === 0 && seq.runDriven && seq.runMeter) {
         const v = Number(seq.runMeter.getValue());
         seq.runGate = Number.isFinite(v) && v > 0.3;
         if (!seq.runGate) {
-          // Laat eventuele open envelope los zodat hij niet eindeloos doorklinkt.
           if (seq.lastNote !== null) {
             for (const tgt of seq.gateTargets) {
               const env = this.nodes.get(tgt);
@@ -750,10 +877,28 @@ export class AudioEngine {
           return;
         }
       }
-      // V+ transponeren: lees CV en map naar semitones (-12..+12).
+      // Gate-mode: stop interval zodra externe gate weg valt.
+      if (seq.runMode === 2 && !this.shouldRunSeq(seq)) {
+        if (seq.lastNote !== null) {
+          for (const tgt of seq.gateTargets) {
+            const env = this.nodes.get(tgt);
+            if (env?.kind === 'envelope') env.env.triggerRelease();
+          }
+          seq.lastNote = null;
+        }
+        this.stopSequencer(seq);
+        return;
+      }
+      // V+ root-override: MIDI-IN \u2192 absolute root; signal-meter \u2192 \u00b112 semis offset.
+      let rootOverride: number | null = null;
+      if (seq.midiDrivenVoct && seq.extVoctMidi !== null) {
+        rootOverride = seq.extVoctMidi;
+      }
       if (seq.voctMeter) {
         const v = Number(seq.voctMeter.getValue());
         seq.voctOffset = Number.isFinite(v) ? Math.round((v - 0.5) * 24) : 0;
+      } else {
+        seq.voctOffset = 0;
       }
       // Release previous gate (note off on connected envelopes).
       if (seq.lastNote !== null) {
@@ -764,8 +909,10 @@ export class AudioEngine {
         seq.lastNote = null;
       }
       // Trigger the new step.
-      const baseNote = seq.notes[seq.stepIdx % seq.notes.length]!;
-      const note = baseNote + seq.voctOffset;
+      const absNote = seq.notes[seq.stepIdx % seq.notes.length]!;
+      const semisAboveRoot = absNote - seq.rootBase;
+      const effectiveRoot = rootOverride ?? seq.rootBase;
+      const note = effectiveRoot + semisAboveRoot + seq.voctOffset;
       seq.lastNote = note;
       const step1 = (seq.stepIdx % seq.notes.length) + 1;
       seq.stepIdx++;
@@ -773,6 +920,7 @@ export class AudioEngine {
       this.status.liveControls[seq.moduleId] = {
         ...(this.status.liveControls[seq.moduleId] ?? {}),
         __currentStep: step1,
+        __runActive: 1,
       };
 
       // Drive CV targets (VCO voct inputs).
@@ -815,7 +963,7 @@ export class AudioEngine {
     seq.lastNote = null;
     // Clear live step indicator.
     const live = this.status.liveControls[seq.moduleId];
-    if (live) { delete live.__currentStep; }
+    if (live) { delete live.__currentStep; live.__runActive = 0; }
   }
 
   private emit(): void {

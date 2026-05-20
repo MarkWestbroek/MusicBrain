@@ -73,9 +73,11 @@ function ModuleNode({ data, selected }: NodeProps): JSX.Element {
       className="nopan nowheel"
       style={{
         position: 'relative', background: '#0f172a', borderRadius: 4,
-        outline: selected ? '1.5px solid #fbbf24' : 'none',
-        outlineOffset: 1,
-        boxShadow: selected ? '0 0 10px rgba(251,191,36,0.35)' : undefined,
+        outline: 'none',
+        outlineOffset: 0,
+        boxShadow: selected
+          ? 'inset 0 0 0 2px #fbbf24, inset 0 0 12px rgba(251,191,36,0.35)'
+          : undefined,
         transition: 'box-shadow 120ms',
       }}
     >
