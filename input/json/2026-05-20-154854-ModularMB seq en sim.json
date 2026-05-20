@@ -1,0 +1,2414 @@
+{
+  "version": 2,
+  "name": "ModularMB",
+  "categories": [
+    {
+      "id": "vco",
+      "label": "VCO",
+      "kind": "vco",
+      "defaultCvRange": {
+        "min": -5,
+        "max": 5,
+        "bipolar": true
+      }
+    },
+    {
+      "id": "vcf",
+      "label": "VCF",
+      "kind": "vcf",
+      "defaultCvRange": {
+        "min": -5,
+        "max": 5,
+        "bipolar": true
+      }
+    },
+    {
+      "id": "vca",
+      "label": "VCA",
+      "kind": "vca",
+      "defaultCvRange": {
+        "min": 0,
+        "max": 10,
+        "bipolar": false
+      }
+    },
+    {
+      "id": "mixer",
+      "label": "Mixer",
+      "kind": "mixer"
+    },
+    {
+      "id": "breakout",
+      "label": "Breakout",
+      "kind": "breakout"
+    },
+    {
+      "id": "envelope",
+      "label": "Envelope",
+      "kind": "envelope",
+      "defaultCvRange": {
+        "min": 0,
+        "max": 10,
+        "bipolar": false
+      }
+    },
+    {
+      "id": "lfo",
+      "label": "LFO",
+      "kind": "lfo",
+      "defaultCvRange": {
+        "min": -5,
+        "max": 5,
+        "bipolar": true
+      }
+    },
+    {
+      "id": "sequencer",
+      "label": "Sequencer",
+      "kind": "sequencer"
+    },
+    {
+      "id": "drum",
+      "label": "Drum",
+      "kind": "drum"
+    },
+    {
+      "id": "effect",
+      "label": "Effect",
+      "kind": "effect"
+    },
+    {
+      "id": "noise",
+      "label": "Noise/Rand",
+      "kind": "noise"
+    },
+    {
+      "id": "utility",
+      "label": "Utility",
+      "kind": "utility"
+    }
+  ],
+  "moduleTypes": [
+    {
+      "id": "tp_mmb_ahdsr",
+      "categoryId": "envelope",
+      "variant": "AHDSR (vertical-sliders)",
+      "ports": [
+        {
+          "id": "gate",
+          "name": "Gate",
+          "signalType": "gate",
+          "direction": "in"
+        },
+        {
+          "id": "trig",
+          "name": "Trig",
+          "signalType": "trigger",
+          "direction": "in"
+        },
+        {
+          "id": "cv_out",
+          "name": "Env",
+          "signalType": "cv",
+          "direction": "out"
+        },
+        {
+          "id": "eoc",
+          "name": "EOC",
+          "signalType": "trigger",
+          "direction": "out"
+        }
+      ],
+      "controls": [
+        {
+          "kind": "slider",
+          "id": "attack",
+          "label": "A",
+          "min": 0,
+          "max": 5000,
+          "defaultValue": 10,
+          "orientation": "v",
+          "lengthMm": 56,
+          "unit": "ms",
+          "style": "mini-fader"
+        },
+        {
+          "kind": "slider",
+          "id": "hold",
+          "label": "H",
+          "min": 0,
+          "max": 5000,
+          "defaultValue": 0,
+          "orientation": "v",
+          "lengthMm": 56,
+          "unit": "ms",
+          "style": "mini-fader"
+        },
+        {
+          "kind": "slider",
+          "id": "decay",
+          "label": "D",
+          "min": 0,
+          "max": 5000,
+          "defaultValue": 200,
+          "orientation": "v",
+          "lengthMm": 56,
+          "unit": "ms",
+          "style": "mini-fader"
+        },
+        {
+          "kind": "slider",
+          "id": "sustain",
+          "label": "S",
+          "min": 0,
+          "max": 1,
+          "defaultValue": 0.7,
+          "orientation": "v",
+          "lengthMm": 56,
+          "style": "mini-fader"
+        },
+        {
+          "kind": "slider",
+          "id": "release",
+          "label": "R",
+          "min": 0,
+          "max": 8000,
+          "defaultValue": 400,
+          "orientation": "v",
+          "lengthMm": 56,
+          "unit": "ms",
+          "style": "mini-fader"
+        },
+        {
+          "kind": "toggle",
+          "id": "loop",
+          "label": "Loop",
+          "defaultValue": false
+        },
+        {
+          "kind": "switch",
+          "id": "curve",
+          "label": "Curve",
+          "positions": [
+            "Lin",
+            "Exp",
+            "Log"
+          ],
+          "defaultIndex": 1
+        }
+      ],
+      "notes": "Interne MMB envelope. Loop=on maakt er een quasi-LFO van; curve schakelt tussen lineair/exp/log per fase."
+    },
+    {
+      "id": "tp_mmb_lfo",
+      "categoryId": "lfo",
+      "variant": "LFO (rate+wave+depth)",
+      "ports": [
+        {
+          "id": "rate_cv",
+          "name": "Rate",
+          "signalType": "cv",
+          "direction": "in"
+        },
+        {
+          "id": "reset",
+          "name": "Rst",
+          "signalType": "trigger",
+          "direction": "in"
+        },
+        {
+          "id": "out",
+          "name": "Out",
+          "signalType": "cv",
+          "direction": "out"
+        },
+        {
+          "id": "out_inv",
+          "name": "Inv",
+          "signalType": "cv",
+          "direction": "out"
+        }
+      ],
+      "controls": [
+        {
+          "kind": "knob",
+          "id": "rate",
+          "label": "Rate",
+          "min": 0.01,
+          "max": 50,
+          "defaultValue": 1,
+          "size": "large",
+          "color": "#f9fafb",
+          "style": "generic",
+          "unit": "Hz"
+        },
+        {
+          "kind": "switch",
+          "id": "wave",
+          "label": "Wave",
+          "positions": [
+            "Sin",
+            "Tri",
+            "Saw",
+            "Sqr",
+            "S&H"
+          ],
+          "defaultIndex": 0
+        },
+        {
+          "kind": "knob",
+          "id": "depth",
+          "label": "Depth",
+          "min": 0,
+          "max": 1,
+          "defaultValue": 1,
+          "size": "medium",
+          "color": "#f9fafb",
+          "style": "generic"
+        },
+        {
+          "kind": "toggle",
+          "id": "bipolar",
+          "label": "Bip",
+          "defaultValue": true
+        },
+        {
+          "kind": "switch",
+          "id": "run",
+          "label": "Run",
+          "positions": [
+            "Always",
+            "Gated",
+            "OneShot"
+          ],
+          "defaultIndex": 0
+        }
+      ],
+      "notes": "Interne MMB LFO; bipolar=on geeft ±depth, off geeft 0..depth."
+    },
+    {
+      "id": "tp_mmb_sh",
+      "categoryId": "utility",
+      "variant": "S&H + Slew",
+      "ports": [
+        {
+          "id": "in",
+          "name": "In",
+          "signalType": "cv",
+          "direction": "in"
+        },
+        {
+          "id": "trig",
+          "name": "Trig",
+          "signalType": "trigger",
+          "direction": "in"
+        },
+        {
+          "id": "out",
+          "name": "Out",
+          "signalType": "cv",
+          "direction": "out"
+        }
+      ],
+      "controls": [
+        {
+          "kind": "knob",
+          "id": "slew",
+          "label": "Slew",
+          "min": 0,
+          "max": 5000,
+          "defaultValue": 0,
+          "size": "medium",
+          "color": "#f9fafb",
+          "style": "generic",
+          "unit": "ms"
+        },
+        {
+          "kind": "switch",
+          "id": "mode",
+          "label": "Mode",
+          "positions": [
+            "S&H",
+            "T&H",
+            "Slew"
+          ],
+          "defaultIndex": 0
+        }
+      ],
+      "notes": "Sample-and-hold met slew-limiter. In Slew-mode wordt de trigger-input genegeerd."
+    },
+    {
+      "id": "tp_mmb_vco",
+      "categoryId": "vco",
+      "variant": "VCO (wave + coarse/fine)",
+      "ports": [
+        {
+          "id": "voct",
+          "name": "1V/Oct",
+          "signalType": "cv",
+          "direction": "in"
+        },
+        {
+          "id": "fm",
+          "name": "FM",
+          "signalType": "cv",
+          "direction": "in"
+        },
+        {
+          "id": "sync",
+          "name": "Sync",
+          "signalType": "trigger",
+          "direction": "in"
+        },
+        {
+          "id": "out",
+          "name": "Out",
+          "signalType": "audio",
+          "direction": "out"
+        }
+      ],
+      "controls": [
+        {
+          "kind": "switch",
+          "id": "wave",
+          "label": "Wave",
+          "positions": [
+            "Sin",
+            "Tri",
+            "Saw",
+            "Sqr"
+          ],
+          "defaultIndex": 2
+        },
+        {
+          "kind": "knob",
+          "id": "coarse",
+          "label": "Coarse",
+          "min": -36,
+          "max": 36,
+          "defaultValue": 0,
+          "size": "large",
+          "color": "#f9fafb",
+          "style": "generic",
+          "unit": "semi"
+        },
+        {
+          "kind": "knob",
+          "id": "fine",
+          "label": "Fine",
+          "min": -100,
+          "max": 100,
+          "defaultValue": 0,
+          "size": "medium",
+          "color": "#f9fafb",
+          "style": "generic",
+          "unit": "ct"
+        },
+        {
+          "kind": "knob",
+          "id": "fm_amt",
+          "label": "FM",
+          "min": 0,
+          "max": 1,
+          "defaultValue": 0,
+          "size": "medium",
+          "color": "#f9fafb",
+          "style": "generic"
+        },
+        {
+          "kind": "knob",
+          "id": "level",
+          "label": "Level",
+          "min": 0,
+          "max": 1,
+          "defaultValue": 0.8,
+          "size": "medium",
+          "color": "#f9fafb",
+          "style": "generic"
+        }
+      ],
+      "notes": "Interne MMB VCO. 'wave' kiest sine/triangle/sawtooth/square; coarse+fine zijn semitonen+cent offsets t.o.v. de inkomende V/Oct."
+    },
+    {
+      "id": "tp_mmb_vcf",
+      "categoryId": "vcf",
+      "variant": "VCF (lp/hp/bp)",
+      "ports": [
+        {
+          "id": "in",
+          "name": "In",
+          "signalType": "audio",
+          "direction": "in"
+        },
+        {
+          "id": "cv",
+          "name": "Cut CV",
+          "signalType": "cv",
+          "direction": "in"
+        },
+        {
+          "id": "out",
+          "name": "Out",
+          "signalType": "audio",
+          "direction": "out"
+        }
+      ],
+      "controls": [
+        {
+          "kind": "knob",
+          "id": "cutoff",
+          "label": "Cutoff",
+          "min": 20,
+          "max": 18000,
+          "defaultValue": 2000,
+          "size": "large",
+          "color": "#f9fafb",
+          "style": "generic",
+          "unit": "Hz"
+        },
+        {
+          "kind": "knob",
+          "id": "q",
+          "label": "Q",
+          "min": 0.1,
+          "max": 12,
+          "defaultValue": 0.7,
+          "size": "medium",
+          "color": "#f9fafb",
+          "style": "generic"
+        },
+        {
+          "kind": "knob",
+          "id": "cv_amt",
+          "label": "CV amt",
+          "min": 0,
+          "max": 1,
+          "defaultValue": 1,
+          "size": "medium",
+          "color": "#f9fafb",
+          "style": "generic"
+        },
+        {
+          "kind": "switch",
+          "id": "type",
+          "label": "Type",
+          "positions": [
+            "LP",
+            "HP",
+            "BP"
+          ],
+          "defaultIndex": 0
+        }
+      ],
+      "notes": "Interne MMB filter. Cutoff-knop is de basis; CV-input moduleert via cv_amt (1V/oct-achtig, ~5 octaven full-swing)."
+    },
+    {
+      "id": "tp_mmb_vca",
+      "categoryId": "vca",
+      "variant": "VCA (linear)",
+      "ports": [
+        {
+          "id": "in",
+          "name": "In",
+          "signalType": "audio",
+          "direction": "in"
+        },
+        {
+          "id": "cv",
+          "name": "CV",
+          "signalType": "cv",
+          "direction": "in"
+        },
+        {
+          "id": "out",
+          "name": "Out",
+          "signalType": "audio",
+          "direction": "out"
+        }
+      ],
+      "controls": [
+        {
+          "kind": "knob",
+          "id": "gain",
+          "label": "Gain",
+          "min": 0,
+          "max": 1,
+          "defaultValue": 0,
+          "size": "large",
+          "color": "#f9fafb",
+          "style": "generic"
+        },
+        {
+          "kind": "switch",
+          "id": "resp",
+          "label": "Resp",
+          "positions": [
+            "Lin",
+            "Exp"
+          ],
+          "defaultIndex": 0
+        }
+      ],
+      "notes": "Lineaire VCA. Bij gain=0 is de basisweg dicht; een CV-input voegt erbovenop (typisch envelope → CV)."
+    },
+    {
+      "id": "tp_mmb_out",
+      "categoryId": "utility",
+      "variant": "Audio output",
+      "ports": [
+        {
+          "id": "l",
+          "name": "L",
+          "signalType": "audio",
+          "direction": "in"
+        },
+        {
+          "id": "r",
+          "name": "R",
+          "signalType": "audio",
+          "direction": "in"
+        }
+      ],
+      "controls": [
+        {
+          "kind": "knob",
+          "id": "level",
+          "label": "Level",
+          "min": 0,
+          "max": 1,
+          "defaultValue": 0.8,
+          "size": "large",
+          "color": "#f9fafb",
+          "style": "generic"
+        }
+      ],
+      "notes": "Stuurt aangesloten audio naar de master out. Mono-bron op L of R werkt ook."
+    },
+    {
+      "id": "tp_mmb_midiin",
+      "categoryId": "utility",
+      "variant": "MIDI-to-CV breakout",
+      "ports": [
+        {
+          "id": "pitch",
+          "name": "V/Oct",
+          "signalType": "cv",
+          "direction": "out"
+        },
+        {
+          "id": "gate",
+          "name": "Gate",
+          "signalType": "gate",
+          "direction": "out"
+        }
+      ],
+      "controls": [
+        {
+          "kind": "knob",
+          "id": "channel",
+          "label": "Ch",
+          "min": 0,
+          "max": 16,
+          "defaultValue": 0,
+          "size": "small",
+          "color": "#f9fafb",
+          "style": "generic",
+          "unit": "0=all"
+        },
+        {
+          "kind": "switch",
+          "id": "mode",
+          "label": "Mode",
+          "positions": [
+            "mono",
+            "legato",
+            "last"
+          ],
+          "defaultIndex": 0
+        }
+      ],
+      "notes": "Zet inkomende MIDI-noten (USB / screen-keyboard / test-sequence) om in CV (V/Oct) en Gate. Sluit pitch op een VCO’s voct aan en gate op een envelope."
+    },
+    {
+      "id": "tp_mmb_seq8",
+      "categoryId": "sequencer",
+      "variant": "8-step CV/Gate sequencer",
+      "ports": [
+        {
+          "id": "clock",
+          "name": "Clk",
+          "signalType": "trigger",
+          "direction": "in"
+        },
+        {
+          "id": "reset",
+          "name": "Rst",
+          "signalType": "trigger",
+          "direction": "in"
+        },
+        {
+          "id": "cv",
+          "name": "CV",
+          "signalType": "cv",
+          "direction": "out"
+        },
+        {
+          "id": "gate_out",
+          "name": "Gate",
+          "signalType": "gate",
+          "direction": "out"
+        }
+      ],
+      "controls": [
+        {
+          "kind": "knob",
+          "id": "s1",
+          "label": "1",
+          "min": -24,
+          "max": 24,
+          "defaultValue": 0,
+          "size": "small",
+          "color": "#f9fafb",
+          "style": "generic",
+          "unit": "st"
+        },
+        {
+          "kind": "knob",
+          "id": "s2",
+          "label": "2",
+          "min": -24,
+          "max": 24,
+          "defaultValue": 4,
+          "size": "small",
+          "color": "#f9fafb",
+          "style": "generic",
+          "unit": "st"
+        },
+        {
+          "kind": "knob",
+          "id": "s3",
+          "label": "3",
+          "min": -24,
+          "max": 24,
+          "defaultValue": 7,
+          "size": "small",
+          "color": "#f9fafb",
+          "style": "generic",
+          "unit": "st"
+        },
+        {
+          "kind": "knob",
+          "id": "s4",
+          "label": "4",
+          "min": -24,
+          "max": 24,
+          "defaultValue": 12,
+          "size": "small",
+          "color": "#f9fafb",
+          "style": "generic",
+          "unit": "st"
+        },
+        {
+          "kind": "knob",
+          "id": "s5",
+          "label": "5",
+          "min": -24,
+          "max": 24,
+          "defaultValue": 7,
+          "size": "small",
+          "color": "#f9fafb",
+          "style": "generic",
+          "unit": "st"
+        },
+        {
+          "kind": "knob",
+          "id": "s6",
+          "label": "6",
+          "min": -24,
+          "max": 24,
+          "defaultValue": 0,
+          "size": "small",
+          "color": "#f9fafb",
+          "style": "generic",
+          "unit": "st"
+        },
+        {
+          "kind": "knob",
+          "id": "s7",
+          "label": "7",
+          "min": -24,
+          "max": 24,
+          "defaultValue": 5,
+          "size": "small",
+          "color": "#f9fafb",
+          "style": "generic",
+          "unit": "st"
+        },
+        {
+          "kind": "knob",
+          "id": "s8",
+          "label": "8",
+          "min": -24,
+          "max": 24,
+          "defaultValue": 3,
+          "size": "small",
+          "color": "#f9fafb",
+          "style": "generic",
+          "unit": "st"
+        },
+        {
+          "kind": "knob",
+          "id": "root",
+          "label": "Root",
+          "min": 24,
+          "max": 96,
+          "defaultValue": 60,
+          "size": "medium",
+          "color": "#f9fafb",
+          "style": "generic",
+          "unit": "midi"
+        },
+        {
+          "kind": "knob",
+          "id": "rate",
+          "label": "Rate",
+          "min": 0.5,
+          "max": 16,
+          "defaultValue": 4,
+          "size": "medium",
+          "color": "#f9fafb",
+          "style": "generic",
+          "unit": "Hz"
+        },
+        {
+          "kind": "knob",
+          "id": "gate",
+          "label": "Gate",
+          "min": 0.05,
+          "max": 0.95,
+          "defaultValue": 0.5,
+          "size": "medium",
+          "color": "#f9fafb",
+          "style": "generic"
+        },
+        {
+          "kind": "switch",
+          "id": "length",
+          "label": "Length",
+          "positions": [
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8"
+          ],
+          "defaultIndex": 6
+        },
+        {
+          "kind": "toggle",
+          "id": "run",
+          "label": "Run",
+          "defaultValue": true
+        }
+      ],
+      "notes": "8-step sequencer met semitone-per-step. CV-out is een proxy voor V/Oct die direct in de VCO’s voct-input mag."
+    }
+  ],
+  "modules": [
+    {
+      "id": "mod_o38sgk5",
+      "typeId": "tp_mmb_ahdsr",
+      "internal": true,
+      "name": "MMB AHDSR",
+      "brand": "MMB",
+      "modelNumber": "AHDSR",
+      "visual": {
+        "hpWidth": 8,
+        "heightMm": 128.5,
+        "texture": "pcb-black",
+        "baseColor": "#111827",
+        "texts": [
+          {
+            "x": 20.32,
+            "y": 8,
+            "text": "AHDSR",
+            "fontSize": 2.4,
+            "color": "#f9fafb",
+            "align": "middle"
+          },
+          {
+            "x": 20.32,
+            "y": 14,
+            "text": "envelope",
+            "fontSize": 1.4,
+            "color": "#9ca3af",
+            "align": "middle"
+          },
+          {
+            "x": 20.32,
+            "y": 126,
+            "text": "MMB",
+            "fontSize": 1.8,
+            "color": "#f9fafb",
+            "align": "middle"
+          }
+        ],
+        "decorations": [
+          {
+            "kind": "rect",
+            "x": 1,
+            "y": 20,
+            "w": 38.64,
+            "h": 68,
+            "color": "#0b1220"
+          }
+        ],
+        "controlPlacements": {
+          "attack": {
+            "x": 4.8768,
+            "y": 50
+          },
+          "hold": {
+            "x": 12.192,
+            "y": 50
+          },
+          "decay": {
+            "x": 20.32,
+            "y": 50
+          },
+          "sustain": {
+            "x": 28.447999999999997,
+            "y": 50
+          },
+          "release": {
+            "x": 35.7632,
+            "y": 50
+          },
+          "loop": {
+            "x": 12.192,
+            "y": 96
+          },
+          "curve": {
+            "x": 28.447999999999997,
+            "y": 96
+          }
+        },
+        "portPlacements": {
+          "gate": {
+            "x": 8.128,
+            "y": 112,
+            "labelPos": "below"
+          },
+          "trig": {
+            "x": 20.32,
+            "y": 112,
+            "labelPos": "below"
+          },
+          "cv_out": {
+            "x": 32.512,
+            "y": 112,
+            "labelPos": "below"
+          },
+          "eoc": {
+            "x": 20.32,
+            "y": 122,
+            "labelPos": "below"
+          }
+        }
+      }
+    },
+    {
+      "id": "mod_tdby6ed",
+      "typeId": "tp_mmb_lfo",
+      "internal": true,
+      "name": "MMB LFO",
+      "brand": "MMB",
+      "modelNumber": "LFO",
+      "visual": {
+        "hpWidth": 6,
+        "heightMm": 128.5,
+        "texture": "pcb-black",
+        "baseColor": "#111827",
+        "texts": [
+          {
+            "x": 15.24,
+            "y": 8,
+            "text": "LFO",
+            "fontSize": 2.4,
+            "color": "#f9fafb",
+            "align": "middle"
+          },
+          {
+            "x": 15.24,
+            "y": 126,
+            "text": "MMB",
+            "fontSize": 1.8,
+            "color": "#f9fafb",
+            "align": "middle"
+          }
+        ],
+        "controlPlacements": {
+          "rate": {
+            "x": 15.24,
+            "y": 26
+          },
+          "wave": {
+            "x": 15.24,
+            "y": 56
+          },
+          "depth": {
+            "x": 15.24,
+            "y": 78
+          },
+          "bipolar": {
+            "x": 7.62,
+            "y": 96
+          },
+          "run": {
+            "x": 22.86,
+            "y": 96
+          }
+        },
+        "portPlacements": {
+          "rate_cv": {
+            "x": 7.62,
+            "y": 112,
+            "labelPos": "below"
+          },
+          "reset": {
+            "x": 15.24,
+            "y": 112,
+            "labelPos": "below"
+          },
+          "out": {
+            "x": 22.86,
+            "y": 112,
+            "labelPos": "below"
+          },
+          "out_inv": {
+            "x": 15.24,
+            "y": 122,
+            "labelPos": "below"
+          }
+        }
+      }
+    },
+    {
+      "id": "mod_qkne3fd",
+      "typeId": "tp_mmb_sh",
+      "internal": true,
+      "name": "MMB S&H",
+      "brand": "MMB",
+      "modelNumber": "S&H",
+      "visual": {
+        "hpWidth": 4,
+        "heightMm": 128.5,
+        "texture": "pcb-black",
+        "baseColor": "#111827",
+        "texts": [
+          {
+            "x": 10.16,
+            "y": 8,
+            "text": "S&H",
+            "fontSize": 2.2,
+            "color": "#f9fafb",
+            "align": "middle"
+          },
+          {
+            "x": 10.16,
+            "y": 126,
+            "text": "MMB",
+            "fontSize": 1.6,
+            "color": "#f9fafb",
+            "align": "middle"
+          }
+        ],
+        "controlPlacements": {
+          "slew": {
+            "x": 10.16,
+            "y": 30
+          },
+          "mode": {
+            "x": 10.16,
+            "y": 60
+          }
+        },
+        "portPlacements": {
+          "in": {
+            "x": 6.096,
+            "y": 92,
+            "labelPos": "below"
+          },
+          "trig": {
+            "x": 14.223999999999998,
+            "y": 92,
+            "labelPos": "below"
+          },
+          "out": {
+            "x": 10.16,
+            "y": 114,
+            "labelPos": "below"
+          }
+        }
+      }
+    },
+    {
+      "id": "mod_fmec6fy",
+      "typeId": "tp_mmb_vco",
+      "internal": true,
+      "name": "MMB VCO",
+      "brand": "MMB",
+      "modelNumber": "VCO",
+      "visual": {
+        "hpWidth": 8,
+        "heightMm": 128.5,
+        "texture": "pcb-black",
+        "baseColor": "#111827",
+        "texts": [
+          {
+            "x": 20.32,
+            "y": 8,
+            "text": "VCO",
+            "fontSize": 2.4,
+            "color": "#f9fafb",
+            "align": "middle"
+          },
+          {
+            "x": 20.32,
+            "y": 126,
+            "text": "MMB",
+            "fontSize": 1.8,
+            "color": "#f9fafb",
+            "align": "middle"
+          }
+        ],
+        "controlPlacements": {
+          "wave": {
+            "x": 20.32,
+            "y": 22
+          },
+          "coarse": {
+            "x": 12.192,
+            "y": 50
+          },
+          "fine": {
+            "x": 28.447999999999997,
+            "y": 50
+          },
+          "fm_amt": {
+            "x": 12.192,
+            "y": 78
+          },
+          "level": {
+            "x": 28.447999999999997,
+            "y": 78
+          }
+        },
+        "portPlacements": {
+          "voct": {
+            "x": 8.128,
+            "y": 104,
+            "labelPos": "below"
+          },
+          "fm": {
+            "x": 20.32,
+            "y": 104,
+            "labelPos": "below"
+          },
+          "sync": {
+            "x": 32.512,
+            "y": 104,
+            "labelPos": "below"
+          },
+          "out": {
+            "x": 20.32,
+            "y": 118,
+            "labelPos": "below"
+          }
+        }
+      }
+    },
+    {
+      "id": "mod_zxrazog",
+      "typeId": "tp_mmb_vcf",
+      "internal": true,
+      "name": "MMB VCF",
+      "brand": "MMB",
+      "modelNumber": "VCF",
+      "visual": {
+        "hpWidth": 6,
+        "heightMm": 128.5,
+        "texture": "pcb-black",
+        "baseColor": "#111827",
+        "texts": [
+          {
+            "x": 15.24,
+            "y": 8,
+            "text": "VCF",
+            "fontSize": 2.4,
+            "color": "#f9fafb",
+            "align": "middle"
+          },
+          {
+            "x": 15.24,
+            "y": 126,
+            "text": "MMB",
+            "fontSize": 1.8,
+            "color": "#f9fafb",
+            "align": "middle"
+          }
+        ],
+        "controlPlacements": {
+          "cutoff": {
+            "x": 15.24,
+            "y": 24
+          },
+          "q": {
+            "x": 9.144,
+            "y": 54
+          },
+          "cv_amt": {
+            "x": 21.336,
+            "y": 54
+          },
+          "type": {
+            "x": 15.24,
+            "y": 78
+          }
+        },
+        "portPlacements": {
+          "in": {
+            "x": 7.62,
+            "y": 104,
+            "labelPos": "below"
+          },
+          "cv": {
+            "x": 22.86,
+            "y": 104,
+            "labelPos": "below"
+          },
+          "out": {
+            "x": 15.24,
+            "y": 118,
+            "labelPos": "below"
+          }
+        }
+      }
+    },
+    {
+      "id": "mod_nfvl3ow",
+      "typeId": "tp_mmb_vca",
+      "internal": true,
+      "name": "MMB VCA",
+      "brand": "MMB",
+      "modelNumber": "VCA",
+      "visual": {
+        "hpWidth": 4,
+        "heightMm": 128.5,
+        "texture": "pcb-black",
+        "baseColor": "#111827",
+        "texts": [
+          {
+            "x": 10.16,
+            "y": 8,
+            "text": "VCA",
+            "fontSize": 2.4,
+            "color": "#f9fafb",
+            "align": "middle"
+          },
+          {
+            "x": 10.16,
+            "y": 126,
+            "text": "MMB",
+            "fontSize": 1.6,
+            "color": "#f9fafb",
+            "align": "middle"
+          }
+        ],
+        "controlPlacements": {
+          "gain": {
+            "x": 10.16,
+            "y": 24
+          },
+          "resp": {
+            "x": 10.16,
+            "y": 60
+          }
+        },
+        "portPlacements": {
+          "in": {
+            "x": 5.08,
+            "y": 92,
+            "labelPos": "below"
+          },
+          "cv": {
+            "x": 15.24,
+            "y": 92,
+            "labelPos": "below"
+          },
+          "out": {
+            "x": 10.16,
+            "y": 114,
+            "labelPos": "below"
+          }
+        }
+      }
+    },
+    {
+      "id": "mod_8k9w4tu",
+      "typeId": "tp_mmb_out",
+      "internal": true,
+      "name": "MMB OUT",
+      "brand": "MMB",
+      "modelNumber": "OUT",
+      "visual": {
+        "hpWidth": 4,
+        "heightMm": 128.5,
+        "texture": "pcb-black",
+        "baseColor": "#111827",
+        "texts": [
+          {
+            "x": 10.16,
+            "y": 8,
+            "text": "OUT",
+            "fontSize": 2.4,
+            "color": "#f9fafb",
+            "align": "middle"
+          },
+          {
+            "x": 10.16,
+            "y": 126,
+            "text": "MMB",
+            "fontSize": 1.6,
+            "color": "#f9fafb",
+            "align": "middle"
+          }
+        ],
+        "controlPlacements": {
+          "level": {
+            "x": 10.16,
+            "y": 30
+          }
+        },
+        "portPlacements": {
+          "l": {
+            "x": 6.096,
+            "y": 92,
+            "labelPos": "below"
+          },
+          "r": {
+            "x": 14.223999999999998,
+            "y": 92,
+            "labelPos": "below"
+          }
+        }
+      }
+    },
+    {
+      "id": "mod_0mvnjyq",
+      "typeId": "tp_mmb_midiin",
+      "internal": true,
+      "name": "MMB MIDI-IN",
+      "brand": "MMB",
+      "modelNumber": "MIDI-IN",
+      "visual": {
+        "hpWidth": 6,
+        "heightMm": 128.5,
+        "texture": "pcb-black",
+        "baseColor": "#111827",
+        "texts": [
+          {
+            "x": 15.24,
+            "y": 8,
+            "text": "MIDI-IN",
+            "fontSize": 2.2,
+            "color": "#f9fafb",
+            "align": "middle"
+          },
+          {
+            "x": 15.24,
+            "y": 14,
+            "text": "mono · last-note",
+            "fontSize": 1.2,
+            "color": "#9ca3af",
+            "align": "middle"
+          },
+          {
+            "x": 15.24,
+            "y": 126,
+            "text": "MMB",
+            "fontSize": 1.6,
+            "color": "#f9fafb",
+            "align": "middle"
+          }
+        ],
+        "controlPlacements": {
+          "channel": {
+            "x": 9.144,
+            "y": 40
+          },
+          "mode": {
+            "x": 21.336,
+            "y": 40
+          }
+        },
+        "portPlacements": {
+          "pitch": {
+            "x": 9.144,
+            "y": 95,
+            "labelPos": "below"
+          },
+          "gate": {
+            "x": 21.336,
+            "y": 95,
+            "labelPos": "below"
+          }
+        }
+      }
+    },
+    {
+      "id": "mod_lvnak6d",
+      "typeId": "tp_mmb_seq8",
+      "internal": true,
+      "name": "MMB SEQ-8",
+      "brand": "MMB",
+      "modelNumber": "SEQ-8",
+      "visual": {
+        "hpWidth": 12,
+        "heightMm": 128.5,
+        "texture": "pcb-black",
+        "baseColor": "#111827",
+        "texts": [
+          {
+            "x": 30.48,
+            "y": 8,
+            "text": "SEQ-8",
+            "fontSize": 2.4,
+            "color": "#f9fafb",
+            "align": "middle"
+          },
+          {
+            "x": 30.48,
+            "y": 14,
+            "text": "step sequencer",
+            "fontSize": 1.2,
+            "color": "#9ca3af",
+            "align": "middle"
+          },
+          {
+            "x": 30.48,
+            "y": 126,
+            "text": "MMB",
+            "fontSize": 1.6,
+            "color": "#f9fafb",
+            "align": "middle"
+          }
+        ],
+        "decorations": [
+          {
+            "kind": "rect",
+            "x": 2,
+            "y": 40,
+            "w": 56.96,
+            "h": 36,
+            "color": "#0b1220"
+          }
+        ],
+        "controlPlacements": {
+          "s1": {
+            "x": 4.8768,
+            "y": 56
+          },
+          "s2": {
+            "x": 11.2776,
+            "y": 56
+          },
+          "s3": {
+            "x": 17.6784,
+            "y": 56
+          },
+          "s4": {
+            "x": 24.0792,
+            "y": 56
+          },
+          "s5": {
+            "x": 30.48,
+            "y": 56
+          },
+          "s6": {
+            "x": 36.8808,
+            "y": 56
+          },
+          "s7": {
+            "x": 43.2816,
+            "y": 56
+          },
+          "s8": {
+            "x": 49.682399999999994,
+            "y": 56
+          },
+          "root": {
+            "x": 12.192,
+            "y": 90
+          },
+          "rate": {
+            "x": 27.432000000000002,
+            "y": 90
+          },
+          "gate": {
+            "x": 42.672,
+            "y": 90
+          },
+          "length": {
+            "x": 53.644800000000004,
+            "y": 90
+          },
+          "run": {
+            "x": 6.096,
+            "y": 90
+          }
+        },
+        "portPlacements": {
+          "clock": {
+            "x": 12.192,
+            "y": 112,
+            "labelPos": "below"
+          },
+          "reset": {
+            "x": 24.384,
+            "y": 112,
+            "labelPos": "below"
+          },
+          "cv": {
+            "x": 39.624,
+            "y": 112,
+            "labelPos": "below"
+          },
+          "gate_out": {
+            "x": 51.816,
+            "y": 112,
+            "labelPos": "below"
+          }
+        }
+      }
+    },
+    {
+      "id": "mod_dpzc58o",
+      "typeId": "tp_mmb_seq8",
+      "internal": false,
+      "name": "MMB SEQ-8 (test)",
+      "brand": "MMB",
+      "modelNumber": "SEQ-8",
+      "visual": {
+        "hpWidth": 12,
+        "heightMm": 128.5,
+        "texture": "pcb-black",
+        "baseColor": "#111827",
+        "texts": [
+          {
+            "x": 30.48,
+            "y": 8,
+            "text": "SEQ-8",
+            "fontSize": 2.4,
+            "color": "#f9fafb",
+            "align": "middle"
+          },
+          {
+            "x": 30.48,
+            "y": 14,
+            "text": "step sequencer",
+            "fontSize": 1.2,
+            "color": "#9ca3af",
+            "align": "middle"
+          },
+          {
+            "x": 30.48,
+            "y": 126,
+            "text": "MMB",
+            "fontSize": 1.6,
+            "color": "#f9fafb",
+            "align": "middle"
+          }
+        ],
+        "decorations": [
+          {
+            "kind": "rect",
+            "x": 2,
+            "y": 40,
+            "w": 56.96,
+            "h": 36,
+            "color": "#0b1220"
+          }
+        ],
+        "controlPlacements": {
+          "s1": {
+            "x": 4.8768,
+            "y": 56
+          },
+          "s2": {
+            "x": 11.2776,
+            "y": 56
+          },
+          "s3": {
+            "x": 17.6784,
+            "y": 56
+          },
+          "s4": {
+            "x": 24.0792,
+            "y": 56
+          },
+          "s5": {
+            "x": 30.48,
+            "y": 56
+          },
+          "s6": {
+            "x": 36.8808,
+            "y": 56
+          },
+          "s7": {
+            "x": 43.2816,
+            "y": 56
+          },
+          "s8": {
+            "x": 49.682399999999994,
+            "y": 56
+          },
+          "root": {
+            "x": 12.192,
+            "y": 90
+          },
+          "rate": {
+            "x": 27.432000000000002,
+            "y": 90
+          },
+          "gate": {
+            "x": 42.672,
+            "y": 90
+          },
+          "length": {
+            "x": 53.644800000000004,
+            "y": 90
+          },
+          "run": {
+            "x": 6.096,
+            "y": 90
+          }
+        },
+        "portPlacements": {
+          "clock": {
+            "x": 12.192,
+            "y": 112,
+            "labelPos": "below"
+          },
+          "reset": {
+            "x": 24.384,
+            "y": 112,
+            "labelPos": "below"
+          },
+          "cv": {
+            "x": 39.624,
+            "y": 112,
+            "labelPos": "below"
+          },
+          "gate_out": {
+            "x": 51.816,
+            "y": 112,
+            "labelPos": "below"
+          }
+        }
+      }
+    },
+    {
+      "id": "mod_bbbx72g",
+      "typeId": "tp_mmb_vco",
+      "internal": false,
+      "name": "MMB VCO (test)",
+      "brand": "MMB",
+      "modelNumber": "VCO",
+      "visual": {
+        "hpWidth": 8,
+        "heightMm": 128.5,
+        "texture": "pcb-black",
+        "baseColor": "#111827",
+        "texts": [
+          {
+            "x": 20.32,
+            "y": 8,
+            "text": "VCO",
+            "fontSize": 2.4,
+            "color": "#f9fafb",
+            "align": "middle"
+          },
+          {
+            "x": 20.32,
+            "y": 126,
+            "text": "MMB",
+            "fontSize": 1.8,
+            "color": "#f9fafb",
+            "align": "middle"
+          }
+        ],
+        "controlPlacements": {
+          "wave": {
+            "x": 20.32,
+            "y": 22
+          },
+          "coarse": {
+            "x": 12.192,
+            "y": 50
+          },
+          "fine": {
+            "x": 28.447999999999997,
+            "y": 50
+          },
+          "fm_amt": {
+            "x": 12.192,
+            "y": 78
+          },
+          "level": {
+            "x": 28.447999999999997,
+            "y": 78
+          }
+        },
+        "portPlacements": {
+          "voct": {
+            "x": 8.128,
+            "y": 104,
+            "labelPos": "below"
+          },
+          "fm": {
+            "x": 20.32,
+            "y": 104,
+            "labelPos": "below"
+          },
+          "sync": {
+            "x": 32.512,
+            "y": 104,
+            "labelPos": "below"
+          },
+          "out": {
+            "x": 20.32,
+            "y": 118,
+            "labelPos": "below"
+          }
+        }
+      }
+    },
+    {
+      "id": "mod_mp0rp6s",
+      "typeId": "tp_mmb_vcf",
+      "internal": false,
+      "name": "MMB VCF (test)",
+      "brand": "MMB",
+      "modelNumber": "VCF",
+      "visual": {
+        "hpWidth": 6,
+        "heightMm": 128.5,
+        "texture": "pcb-black",
+        "baseColor": "#111827",
+        "texts": [
+          {
+            "x": 15.24,
+            "y": 8,
+            "text": "VCF",
+            "fontSize": 2.4,
+            "color": "#f9fafb",
+            "align": "middle"
+          },
+          {
+            "x": 15.24,
+            "y": 126,
+            "text": "MMB",
+            "fontSize": 1.8,
+            "color": "#f9fafb",
+            "align": "middle"
+          }
+        ],
+        "controlPlacements": {
+          "cutoff": {
+            "x": 15.24,
+            "y": 24
+          },
+          "q": {
+            "x": 9.144,
+            "y": 54
+          },
+          "cv_amt": {
+            "x": 21.336,
+            "y": 54
+          },
+          "type": {
+            "x": 15.24,
+            "y": 78
+          }
+        },
+        "portPlacements": {
+          "in": {
+            "x": 7.62,
+            "y": 104,
+            "labelPos": "below"
+          },
+          "cv": {
+            "x": 22.86,
+            "y": 104,
+            "labelPos": "below"
+          },
+          "out": {
+            "x": 15.24,
+            "y": 118,
+            "labelPos": "below"
+          }
+        }
+      }
+    },
+    {
+      "id": "mod_23l5u5e",
+      "typeId": "tp_mmb_vca",
+      "internal": false,
+      "name": "MMB VCA (test)",
+      "brand": "MMB",
+      "modelNumber": "VCA",
+      "visual": {
+        "hpWidth": 4,
+        "heightMm": 128.5,
+        "texture": "pcb-black",
+        "baseColor": "#111827",
+        "texts": [
+          {
+            "x": 10.16,
+            "y": 8,
+            "text": "VCA",
+            "fontSize": 2.4,
+            "color": "#f9fafb",
+            "align": "middle"
+          },
+          {
+            "x": 10.16,
+            "y": 126,
+            "text": "MMB",
+            "fontSize": 1.6,
+            "color": "#f9fafb",
+            "align": "middle"
+          }
+        ],
+        "controlPlacements": {
+          "gain": {
+            "x": 10.16,
+            "y": 24
+          },
+          "resp": {
+            "x": 10.16,
+            "y": 60
+          }
+        },
+        "portPlacements": {
+          "in": {
+            "x": 5.08,
+            "y": 92,
+            "labelPos": "below"
+          },
+          "cv": {
+            "x": 15.24,
+            "y": 92,
+            "labelPos": "below"
+          },
+          "out": {
+            "x": 10.16,
+            "y": 114,
+            "labelPos": "below"
+          }
+        }
+      }
+    },
+    {
+      "id": "mod_cnveya2",
+      "typeId": "tp_mmb_ahdsr",
+      "internal": false,
+      "name": "MMB AHDSR (test)",
+      "brand": "MMB",
+      "modelNumber": "AHDSR",
+      "visual": {
+        "hpWidth": 8,
+        "heightMm": 128.5,
+        "texture": "pcb-black",
+        "baseColor": "#111827",
+        "texts": [
+          {
+            "x": 20.32,
+            "y": 8,
+            "text": "AHDSR",
+            "fontSize": 2.4,
+            "color": "#f9fafb",
+            "align": "middle"
+          },
+          {
+            "x": 20.32,
+            "y": 14,
+            "text": "envelope",
+            "fontSize": 1.4,
+            "color": "#9ca3af",
+            "align": "middle"
+          },
+          {
+            "x": 20.32,
+            "y": 126,
+            "text": "MMB",
+            "fontSize": 1.8,
+            "color": "#f9fafb",
+            "align": "middle"
+          }
+        ],
+        "decorations": [
+          {
+            "kind": "rect",
+            "x": 1,
+            "y": 20,
+            "w": 38.64,
+            "h": 68,
+            "color": "#0b1220"
+          }
+        ],
+        "controlPlacements": {
+          "attack": {
+            "x": 4.8768,
+            "y": 50
+          },
+          "hold": {
+            "x": 12.192,
+            "y": 50
+          },
+          "decay": {
+            "x": 20.32,
+            "y": 50
+          },
+          "sustain": {
+            "x": 28.447999999999997,
+            "y": 50
+          },
+          "release": {
+            "x": 35.7632,
+            "y": 50
+          },
+          "loop": {
+            "x": 12.192,
+            "y": 96
+          },
+          "curve": {
+            "x": 28.447999999999997,
+            "y": 96
+          }
+        },
+        "portPlacements": {
+          "gate": {
+            "x": 8.128,
+            "y": 112,
+            "labelPos": "below"
+          },
+          "trig": {
+            "x": 20.32,
+            "y": 112,
+            "labelPos": "below"
+          },
+          "cv_out": {
+            "x": 32.512,
+            "y": 112,
+            "labelPos": "below"
+          },
+          "eoc": {
+            "x": 20.32,
+            "y": 122,
+            "labelPos": "below"
+          }
+        }
+      }
+    },
+    {
+      "id": "mod_foqfbcu",
+      "typeId": "tp_mmb_out",
+      "internal": false,
+      "name": "MMB OUT (test)",
+      "brand": "MMB",
+      "modelNumber": "OUT",
+      "visual": {
+        "hpWidth": 4,
+        "heightMm": 128.5,
+        "texture": "pcb-black",
+        "baseColor": "#111827",
+        "texts": [
+          {
+            "x": 10.16,
+            "y": 8,
+            "text": "OUT",
+            "fontSize": 2.4,
+            "color": "#f9fafb",
+            "align": "middle"
+          },
+          {
+            "x": 10.16,
+            "y": 126,
+            "text": "MMB",
+            "fontSize": 1.6,
+            "color": "#f9fafb",
+            "align": "middle"
+          }
+        ],
+        "controlPlacements": {
+          "level": {
+            "x": 10.16,
+            "y": 30
+          }
+        },
+        "portPlacements": {
+          "l": {
+            "x": 6.096,
+            "y": 92,
+            "labelPos": "below"
+          },
+          "r": {
+            "x": 14.223999999999998,
+            "y": 92,
+            "labelPos": "below"
+          }
+        }
+      }
+    },
+    {
+      "id": "mod_9xrbpu6",
+      "typeId": "tp_mmb_out",
+      "internal": false,
+      "name": "MMB OUT (test) copy",
+      "brand": "MMB",
+      "modelNumber": "OUT",
+      "visual": {
+        "hpWidth": 4,
+        "heightMm": 128.5,
+        "texture": "pcb-black",
+        "baseColor": "#111827",
+        "texts": [
+          {
+            "x": 10.16,
+            "y": 8,
+            "text": "OUT",
+            "fontSize": 2.4,
+            "color": "#f9fafb",
+            "align": "middle"
+          },
+          {
+            "x": 10.16,
+            "y": 126,
+            "text": "MMB",
+            "fontSize": 1.6,
+            "color": "#f9fafb",
+            "align": "middle"
+          }
+        ],
+        "controlPlacements": {
+          "level": {
+            "x": 10.16,
+            "y": 30
+          }
+        },
+        "portPlacements": {
+          "l": {
+            "x": 6.096,
+            "y": 92,
+            "labelPos": "below"
+          },
+          "r": {
+            "x": 14.223999999999998,
+            "y": 92,
+            "labelPos": "below"
+          }
+        }
+      }
+    },
+    {
+      "id": "mod_420vlxe",
+      "typeId": "tp_mmb_ahdsr",
+      "internal": false,
+      "name": "MMB AHDSR (test) copy",
+      "brand": "MMB",
+      "modelNumber": "AHDSR",
+      "visual": {
+        "hpWidth": 8,
+        "heightMm": 128.5,
+        "texture": "pcb-black",
+        "baseColor": "#111827",
+        "texts": [
+          {
+            "x": 20.32,
+            "y": 8,
+            "text": "AHDSR",
+            "fontSize": 2.4,
+            "color": "#f9fafb",
+            "align": "middle"
+          },
+          {
+            "x": 20.32,
+            "y": 14,
+            "text": "envelope",
+            "fontSize": 1.4,
+            "color": "#9ca3af",
+            "align": "middle"
+          },
+          {
+            "x": 20.32,
+            "y": 126,
+            "text": "MMB",
+            "fontSize": 1.8,
+            "color": "#f9fafb",
+            "align": "middle"
+          }
+        ],
+        "decorations": [
+          {
+            "kind": "rect",
+            "x": 1,
+            "y": 20,
+            "w": 38.64,
+            "h": 68,
+            "color": "#0b1220"
+          }
+        ],
+        "controlPlacements": {
+          "attack": {
+            "x": 4.8768,
+            "y": 50
+          },
+          "hold": {
+            "x": 12.192,
+            "y": 50
+          },
+          "decay": {
+            "x": 20.32,
+            "y": 50
+          },
+          "sustain": {
+            "x": 28.447999999999997,
+            "y": 50
+          },
+          "release": {
+            "x": 35.7632,
+            "y": 50
+          },
+          "loop": {
+            "x": 12.192,
+            "y": 96
+          },
+          "curve": {
+            "x": 28.447999999999997,
+            "y": 96
+          }
+        },
+        "portPlacements": {
+          "gate": {
+            "x": 8.128,
+            "y": 112,
+            "labelPos": "below"
+          },
+          "trig": {
+            "x": 20.32,
+            "y": 112,
+            "labelPos": "below"
+          },
+          "cv_out": {
+            "x": 32.512,
+            "y": 112,
+            "labelPos": "below"
+          },
+          "eoc": {
+            "x": 20.32,
+            "y": 122,
+            "labelPos": "below"
+          }
+        }
+      }
+    }
+  ],
+  "racks": [
+    {
+      "id": "rack_default",
+      "name": "Mijn rack",
+      "rows": 3,
+      "hpPerRow": 84,
+      "slots": [],
+      "kind": "physical"
+    },
+    {
+      "id": "rack_internal",
+      "name": "MMB Brain (intern)",
+      "description": "Virtueel rack voor brain-modules (AHDSR, LFO, Sequencer, …). Groeit automatisch mee.",
+      "rows": 1,
+      "hpPerRow": 64,
+      "slots": [
+        {
+          "id": "slot_nk1o0xz",
+          "moduleId": "mod_o38sgk5",
+          "row": 0,
+          "hpOffset": 0
+        },
+        {
+          "id": "slot_gnb9lq6",
+          "moduleId": "mod_tdby6ed",
+          "row": 0,
+          "hpOffset": 8
+        },
+        {
+          "id": "slot_hy1lh7c",
+          "moduleId": "mod_qkne3fd",
+          "row": 0,
+          "hpOffset": 14
+        },
+        {
+          "id": "slot_nmmv2o3",
+          "moduleId": "mod_fmec6fy",
+          "row": 0,
+          "hpOffset": 18
+        },
+        {
+          "id": "slot_6c0ihoq",
+          "moduleId": "mod_zxrazog",
+          "row": 0,
+          "hpOffset": 26
+        },
+        {
+          "id": "slot_r8couuq",
+          "moduleId": "mod_nfvl3ow",
+          "row": 0,
+          "hpOffset": 32
+        },
+        {
+          "id": "slot_c7nfeg6",
+          "moduleId": "mod_8k9w4tu",
+          "row": 0,
+          "hpOffset": 36
+        },
+        {
+          "id": "slot_vunh7cv",
+          "moduleId": "mod_0mvnjyq",
+          "row": 0,
+          "hpOffset": 40
+        },
+        {
+          "id": "slot_vci03lx",
+          "moduleId": "mod_lvnak6d",
+          "row": 0,
+          "hpOffset": 46
+        }
+      ],
+      "kind": "internal"
+    },
+    {
+      "id": "rack_i41zgu0",
+      "name": "Test rack",
+      "description": "Automatisch gegenereerd door \"Test-patch\": SEQ → VCO → VCF → VCA → OUT met ENV → VCA.",
+      "rows": 1,
+      "hpPerRow": 64,
+      "slots": [
+        {
+          "id": "slot_bmlam88",
+          "moduleId": "mod_dpzc58o",
+          "row": 0,
+          "hpOffset": 0
+        },
+        {
+          "id": "slot_xj7w3rn",
+          "moduleId": "mod_bbbx72g",
+          "row": 0,
+          "hpOffset": 12
+        },
+        {
+          "id": "slot_yi6lpuh",
+          "moduleId": "mod_mp0rp6s",
+          "row": 0,
+          "hpOffset": 20
+        },
+        {
+          "id": "slot_nyr56u4",
+          "moduleId": "mod_23l5u5e",
+          "row": 0,
+          "hpOffset": 26
+        },
+        {
+          "id": "slot_1mldz0f",
+          "moduleId": "mod_cnveya2",
+          "row": 0,
+          "hpOffset": 30
+        },
+        {
+          "id": "slot_yinyq4j",
+          "moduleId": "mod_420vlxe",
+          "row": 0,
+          "hpOffset": 38
+        },
+        {
+          "id": "slot_gy7qe65",
+          "moduleId": "mod_foqfbcu",
+          "row": 0,
+          "hpOffset": 46
+        }
+      ],
+      "kind": "physical"
+    }
+  ],
+  "patches": [
+    {
+      "id": "patch_b57is51",
+      "name": "Test patch",
+      "description": "Simpele subtractieve synth: VCO → VCF → VCA met envelope op de VCA.",
+      "voiceCount": 1,
+      "rackIds": [
+        "rack_i41zgu0"
+      ],
+      "connections": [
+        {
+          "id": "conn_iym71jz",
+          "from": {
+            "moduleId": "mod_bbbx72g",
+            "portId": "out"
+          },
+          "to": {
+            "moduleId": "mod_mp0rp6s",
+            "portId": "in"
+          }
+        },
+        {
+          "id": "conn_fybpyw4",
+          "from": {
+            "moduleId": "mod_mp0rp6s",
+            "portId": "out"
+          },
+          "to": {
+            "moduleId": "mod_23l5u5e",
+            "portId": "in"
+          }
+        },
+        {
+          "id": "conn_2c2cur7",
+          "from": {
+            "moduleId": "mod_23l5u5e",
+            "portId": "out"
+          },
+          "to": {
+            "moduleId": "mod_foqfbcu",
+            "portId": "l"
+          }
+        },
+        {
+          "id": "conn_5crg2cs",
+          "from": {
+            "moduleId": "mod_23l5u5e",
+            "portId": "out"
+          },
+          "to": {
+            "moduleId": "mod_foqfbcu",
+            "portId": "r"
+          }
+        },
+        {
+          "id": "conn_1dvnnzd",
+          "from": {
+            "moduleId": "mod_dpzc58o",
+            "portId": "cv"
+          },
+          "to": {
+            "moduleId": "mod_bbbx72g",
+            "portId": "voct"
+          }
+        },
+        {
+          "id": "conn_slz4jfe",
+          "from": {
+            "moduleId": "mod_dpzc58o",
+            "portId": "gate_out"
+          },
+          "to": {
+            "moduleId": "mod_cnveya2",
+            "portId": "gate"
+          }
+        },
+        {
+          "id": "conn_gtiho85",
+          "from": {
+            "moduleId": "mod_cnveya2",
+            "portId": "cv_out"
+          },
+          "to": {
+            "moduleId": "mod_23l5u5e",
+            "portId": "cv"
+          }
+        },
+        {
+          "id": "c_s3pwtgi",
+          "from": {
+            "moduleId": "mod_420vlxe",
+            "portId": "cv_out"
+          },
+          "to": {
+            "moduleId": "mod_mp0rp6s",
+            "portId": "cv"
+          }
+        }
+      ],
+      "controlState": {
+        "mod_bbbx72g": {
+          "wave": 2,
+          "coarse": 0,
+          "fine": 0,
+          "level": 0.9900000254313152,
+          "fm_amt": 0
+        },
+        "mod_mp0rp6s": {
+          "cutoff": 2739.730246861776,
+          "q": 3.741110102335612,
+          "cv_amt": 0.7399998982747396,
+          "type": 0
+        },
+        "mod_23l5u5e": {
+          "gain": 0,
+          "resp": 0
+        },
+        "mod_cnveya2": {
+          "attack": 531.6654968261716,
+          "hold": 0,
+          "decay": 1319.9989318847656,
+          "sustain": 0.6,
+          "release": 2287.999267578125,
+          "loop": false,
+          "curve": 0
+        },
+        "mod_foqfbcu": {
+          "level": 0.8
+        },
+        "mod_dpzc58o": {
+          "s1": 0,
+          "s2": 4,
+          "s3": 7,
+          "s4": 12,
+          "s5": 7,
+          "s6": 0,
+          "s7": 5,
+          "s8": 3,
+          "root": 60,
+          "rate": 4,
+          "gate": 0.5,
+          "length": 6,
+          "run": false
+        },
+        "mod_420vlxe": {
+          "attack": 1069.9998474121094,
+          "hold": 500,
+          "decay": 3240.000534057617,
+          "sustain": 0.4959999847412109,
+          "release": 2735.999755859375
+        }
+      },
+      "envelopes": [],
+      "lfos": []
+    }
+  ],
+  "activeRackId": "rack_i41zgu0",
+  "activePatchId": "patch_b57is51"
+}

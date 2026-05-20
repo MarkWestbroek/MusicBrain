@@ -1,4 +1,4 @@
-import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 // Patcher — Graph view (v2).
 //
 // Each module placed in the active patch's rack is rendered as a ReactFlow
@@ -9,15 +9,22 @@ import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 //
 // Module positions in the graph mirror their rack slot (row × HP), so the
 // graph view is a free zoom/pan of the same physical layout.
-import { useCallback, useMemo, useState } from 'react';
-import { Background, Controls, Handle, Position, ReactFlow, ReactFlowProvider, ConnectionMode, } from '@xyflow/react';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { Background, Controls, Handle, Position, ReactFlow, ReactFlowProvider, ConnectionMode, useReactFlow, } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { updateProject, useModularProject, uid } from './store';
 import { ModulePanel } from './ModulePanel';
+import { useEngineStatus } from './sim/engineSingleton';
 import { canConnect, resolvePorts, SIGNAL_COLOUR, SIGNAL_LABEL, MM_PER_HP, PANEL_HEIGHT_MM, } from './types';
 const PX_PER_MM = 2.4;
 function ModuleNode({ data }) {
     const { module: m, types, controlState, patchId } = data;
+    // Live-status (step-LEDs etc.) wordt hier lokaal gemerged zodat een
+    // engineStatus-tick niet de hele graph laat re-builden — alleen deze
+    // node re-rendert.
+    const engineStatus = useEngineStatus();
+    const liveCtrl = engineStatus.liveControls[m.id];
+    const merged = liveCtrl ? { ...controlState, ...liveCtrl } : controlState;
     const ports = resolvePorts(m, types);
     const heightMm = m.visual.heightMm ?? PANEL_HEIGHT_MM;
     const widthMm = m.visual.hpWidth * MM_PER_HP;
@@ -35,7 +42,7 @@ function ModuleNode({ data }) {
             }),
         }));
     }
-    return (_jsxs("div", { className: "nopan nowheel", style: { position: 'relative', background: '#0f172a', borderRadius: 4 }, children: [_jsx(ModulePanel, { module: m, types: types, controlState: controlState, onControlChange: setControl, pxPerMm: PX_PER_MM, showPortLabels: true }), ports.map((p) => {
+    return (_jsxs("div", { className: "nopan nowheel", style: { position: 'relative', background: '#0f172a', borderRadius: 4 }, children: [_jsx(ModulePanel, { module: m, types: types, controlState: merged, onControlChange: setControl, pxPerMm: PX_PER_MM, showPortLabels: true }), ports.map((p) => {
                 const pl = m.visual.portPlacements[p.id];
                 if (!pl)
                     return null;
@@ -55,6 +62,64 @@ function ModuleNode({ data }) {
             }), _jsx("div", { style: { width: widthMm * PX_PER_MM, height: heightMm * PX_PER_MM, pointerEvents: 'none', position: 'absolute', top: 0, left: 0 } })] }));
 }
 const nodeTypes = { module: ModuleNode };
+function BendableEdge(props) {
+    const { id, sourceX, sourceY, targetX, targetY, style, selected, data } = props;
+    const d = data;
+    const bend = d?.bend ?? { dx: 0, dy: 0 };
+    const midX = (sourceX + targetX) / 2;
+    const midY = (sourceY + targetY) / 2;
+    const cpX = midX + bend.dx;
+    const cpY = midY + bend.dy;
+    const path = `M ${sourceX},${sourceY} Q ${cpX},${cpY} ${targetX},${targetY}`;
+    const rf = useReactFlow();
+    const startRef = useRef(null);
+    // Window-level listeners: werken ook als muis buiten de cirkel komt
+    // en omzeilen ReactFlow's eigen pan-handlers.
+    function onPointerDown(e) {
+        e.stopPropagation();
+        e.nativeEvent.stopImmediatePropagation();
+        e.preventDefault();
+        const flowStart = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
+        startRef.current = { x: flowStart.x, y: flowStart.y, dx: bend.dx, dy: bend.dy };
+        function onMove(ev) {
+            if (!startRef.current)
+                return;
+            const cur = rf.screenToFlowPosition({ x: ev.clientX, y: ev.clientY });
+            const ndx = startRef.current.dx + (cur.x - startRef.current.x);
+            const ndy = startRef.current.dy + (cur.y - startRef.current.y);
+            updateProject((p) => ({
+                ...p,
+                patches: p.patches.map((px) => px.id !== d.patchId ? px : ({
+                    ...px,
+                    connections: px.connections.map((c) => c.id !== d.connectionId
+                        ? c
+                        : { ...c, bend: { dx: ndx, dy: ndy } }),
+                })),
+            }));
+        }
+        function onUp() {
+            startRef.current = null;
+            window.removeEventListener('pointermove', onMove);
+            window.removeEventListener('pointerup', onUp);
+        }
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', onUp);
+    }
+    function onDoubleClick(e) {
+        e.stopPropagation();
+        updateProject((p) => ({
+            ...p,
+            patches: p.patches.map((px) => px.id !== d.patchId ? px : ({
+                ...px,
+                connections: px.connections.map((c) => c.id !== d.connectionId
+                    ? c
+                    : { ...c, bend: { dx: 0, dy: 0 } }),
+            })),
+        }));
+    }
+    return (_jsxs(_Fragment, { children: [_jsx("path", { id: id, d: path, fill: "none", stroke: "transparent", strokeWidth: 20, style: { pointerEvents: 'stroke', cursor: 'default' } }), _jsx("path", { d: path, fill: "none", style: style }), _jsx("circle", { cx: cpX, cy: cpY, r: selected ? 8 : 6, fill: selected ? '#fbbf24' : '#f8fafc', stroke: "#0f172a", strokeWidth: 2, className: "nodrag nopan", style: { cursor: 'grab', pointerEvents: 'all' }, onPointerDown: onPointerDown, onDoubleClick: onDoubleClick, children: _jsx("title", { children: "Sleep om kabel te buigen \u00B7 dubbelklik = recht" }) })] }));
+}
+const edgeTypes = { bendable: BendableEdge };
 // ── Inner panel (inside ReactFlowProvider) ─────────────────────────────
 function PatcherGraphInner({ patchId }) {
     const project = useModularProject();
@@ -111,7 +176,8 @@ function PatcherGraphInner({ patchId }) {
             id: c.id,
             source: c.from.moduleId, sourceHandle: c.from.portId,
             target: c.to.moduleId, targetHandle: c.to.portId,
-            type: 'default',
+            type: 'bendable',
+            data: { bend: c.bend ?? { dx: 0, dy: 0 }, patchId, connectionId: c.id },
             selected: isSel,
             // zIndex tilt edges above the node-panel (default they render below)
             zIndex: isSel ? 1500 : 1000,
@@ -259,7 +325,7 @@ function PatcherGraphInner({ patchId }) {
                 }, style: {
                     height: 620, border: '1px solid #cbd2d9', borderRadius: 6,
                     background: '#0f172a', userSelect: 'none', outline: 'none',
-                }, children: _jsxs(ReactFlow, { nodes: nodes, edges: edges, nodeTypes: nodeTypes, onNodesChange: onNodesChange, onEdgesChange: onEdgesChange, onConnect: onConnect, onReconnect: onReconnect, onEdgeClick: onEdgeClick, onPaneClick: onPaneClick, connectionMode: ConnectionMode.Loose, deleteKeyCode: ['Delete', 'Backspace'], edgesFocusable: true, fitView: true, minZoom: 0.3, maxZoom: 2, proOptions: { hideAttribution: true }, children: [_jsx(Background, { gap: 20, color: "#1e293b" }), _jsx(Controls, { showInteractive: false })] }) }), _jsx(Legend, {})] }));
+                }, children: _jsxs(ReactFlow, { nodes: nodes, edges: edges, nodeTypes: nodeTypes, edgeTypes: edgeTypes, onNodesChange: onNodesChange, onEdgesChange: onEdgesChange, onConnect: onConnect, onReconnect: onReconnect, onEdgeClick: onEdgeClick, onPaneClick: onPaneClick, connectionMode: ConnectionMode.Loose, deleteKeyCode: ['Delete', 'Backspace'], edgesFocusable: true, fitView: true, minZoom: 0.3, maxZoom: 2, proOptions: { hideAttribution: true }, children: [_jsx(Background, { gap: 20, color: "#1e293b" }), _jsx(Controls, { showInteractive: false })] }) }), _jsx(Legend, {})] }));
 }
 function Legend() {
     return (_jsxs("aside", { style: {

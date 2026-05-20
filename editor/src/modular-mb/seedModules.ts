@@ -82,7 +82,7 @@ function display(id: string, x: number, y: number,
   };
 }
 function led(id: string, x: number, y: number,
-             opts: Partial<{ label: string; color: string; size: 'small'|'medium'|'large'; bindTo: string }> = {}) {
+             opts: Partial<{ label: string; color: string; size: 'small'|'medium'|'large'; bindTo: string; bindMatch: number }> = {}) {
   return {
     control: {
       kind: 'led' as const, id,
@@ -90,6 +90,7 @@ function led(id: string, x: number, y: number,
       color: opts.color,
       size: opts.size ?? 'medium',
       bindTo: opts.bindTo,
+      bindMatch: opts.bindMatch,
     },
     placement: { x, y },
   };
@@ -809,48 +810,139 @@ function mmbMidiIn() {
 //    Outputs: CV (volt-per-octave proxy) + GATE. De engine draait de
 //    interne clock zodra Start ingedrukt is.
 function mmbSeq8() {
-  const w = W(12);
-  const rowY = 56;
-  const sx = (i: number) => w * (0.08 + i * 0.105);
+  const w = W(20);
+  // Twee rijen van 8 stappen.
+  const rowY1 = 38;
+  const rowY2 = 62;
+  const sx = (i: number) => w * (0.07 + (i % 8) * 0.115);
+  const rowY = (i: number) => (i < 8 ? rowY1 : rowY2);
+  // LED-rij iets onder elke knop.
+  const ledY = (i: number) => rowY(i) + 9;
+  const stepKnobs = [];
+  const stepLeds = [];
+  const stepDefaults = [0,4,7,12,7,0,5,3,12,9,7,5,4,0,-5,-12];
+  for (let i = 0; i < 16; i++) {
+    const id = `s${i+1}`;
+    stepKnobs.push(
+      knob(id, String(i+1), sx(i), rowY(i), {
+        size: 'small', min: -24, max: 24, def: stepDefaults[i] ?? 0, unit: 'st', color: '#f9fafb',
+      })
+    );
+    stepLeds.push(
+      led(`led_${id}`, sx(i), ledY(i), { color: '#fbbf24', size: 'small', bindTo: '__currentStep', bindMatch: i + 1 })
+    );
+  }
+  // Hack: bindTo '__currentStep' wordt door de panel-renderer afgevangen
+  // (engine schrijft __currentStep als 1-based step naar controlState).
+  // We patchen de LED's hieronder zodat ze "aan" zijn als hun index matcht.
   return assemble({
     typeId: 'tp_mmb_seq8',
     categoryId: 'sequencer',
-    variant: '8-step CV/Gate sequencer',
-    brand: 'MMB', model: 'SEQ-8',
-    hp: 12, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    variant: '16-step CV/Gate sequencer',
+    brand: 'MMB', model: 'SEQ-16',
+    hp: 20, texture: 'pcb-black', baseColor: '#111827', internal: true,
     texts: [
-      { x: w/2, y: 8,   text: 'SEQ-8', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
-      { x: w/2, y: 14,  text: 'step sequencer', fontSize: 1.2, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 8,   text: 'SEQ-16', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: '16-step sequencer', fontSize: 1.2, color: '#9ca3af', align: 'middle' },
       { x: w/2, y: 126, text: 'MMB',   fontSize: 1.6, color: '#f9fafb', align: 'middle' },
     ],
     decorations: [
-      { kind: 'rect', x: 2, y: 40, w: w-4, h: 36, color: '#0b1220' },
+      { kind: 'rect', x: 2, y: 30, w: w-4, h: 44, color: '#0b1220' },
     ],
     items: [
-      // 8 step-knoppen (semitone offsets vanaf root)
-      knob('s1', '1', sx(0), rowY, { size: 'small', min: -24, max: 24, def: 0,  unit: 'st', color: '#f9fafb' }),
-      knob('s2', '2', sx(1), rowY, { size: 'small', min: -24, max: 24, def: 4,  unit: 'st', color: '#f9fafb' }),
-      knob('s3', '3', sx(2), rowY, { size: 'small', min: -24, max: 24, def: 7,  unit: 'st', color: '#f9fafb' }),
-      knob('s4', '4', sx(3), rowY, { size: 'small', min: -24, max: 24, def: 12, unit: 'st', color: '#f9fafb' }),
-      knob('s5', '5', sx(4), rowY, { size: 'small', min: -24, max: 24, def: 7,  unit: 'st', color: '#f9fafb' }),
-      knob('s6', '6', sx(5), rowY, { size: 'small', min: -24, max: 24, def: 0,  unit: 'st', color: '#f9fafb' }),
-      knob('s7', '7', sx(6), rowY, { size: 'small', min: -24, max: 24, def: 5,  unit: 'st', color: '#f9fafb' }),
-      knob('s8', '8', sx(7), rowY, { size: 'small', min: -24, max: 24, def: 3,  unit: 'st', color: '#f9fafb' }),
+      ...stepKnobs,
+      ...stepLeds,
 
-      knob ('root',   'Root',   w*0.20, 90, { size: 'medium', min: 24, max: 96, def: 60, unit: 'midi', color: '#f9fafb' }),
-      knob ('rate',   'Rate',   w*0.45, 90, { size: 'medium', min: 0.5, max: 16, def: 4, unit: 'Hz',   color: '#f9fafb' }),
-      knob ('gate',   'Gate',   w*0.70, 90, { size: 'medium', min: 0.05, max: 0.95, def: 0.5, color: '#f9fafb' }),
-      sw   ('length', 'Length', w*0.88, 90, ['2','3','4','5','6','7','8'], 6),
-      toggle('run',   'Run',    w*0.10, 90, true),
-      // Run-LED brandt zodra de toggle aan staat (engine-binding komt later).
-      led('runLed', w*0.10, 102, { color: '#f87171', size: 'small', bindTo: 'run' }),
+      knob ('root',   'Root',   w*0.18, 92, { size: 'medium', min: 24, max: 96, def: 60, unit: 'midi', color: '#f9fafb' }),
+      knob ('rate',   'Rate',   w*0.36, 92, { size: 'medium', min: 0.5, max: 16, def: 4, unit: 'Hz',   color: '#f9fafb' }),
+      knob ('gate',   'Gate',   w*0.54, 92, { size: 'medium', min: 0.05, max: 0.95, def: 0.5, color: '#f9fafb' }),
+      sw   ('length', 'Length', w*0.72, 92, ['2','3','4','5','6','7','8','9','10','11','12','13','14','15','16'], 6),
+      toggle('run',   'Run',    w*0.08, 92, true),
+      led   ('runLed', w*0.08, 104, { color: '#f87171', size: 'small', bindTo: 'run' }),
+      // Step-positie display (1..16, live).
+      display('stepDisp', w*0.90, 92, { label: 'Step', digits: 2, style: 'led', bindTo: '__currentStep', format: 'int' }),
 
-      inPort ('clock','Clk',  'trigger', w*0.20, 112),
-      inPort ('reset','Rst',  'trigger', w*0.40, 112),
-      outPort('cv',   'CV',   'cv',      w*0.65, 112),
-      outPort('gate_out','Gate','gate',  w*0.85, 112),
+      inPort ('clock', 'Clk',   'trigger', w*0.12, 114),
+      inPort ('reset', 'Rst',   'trigger', w*0.26, 114),
+      inPort ('voct_in','V+',   'cv',      w*0.40, 114),
+      inPort ('run_in', 'Run+', 'gate',    w*0.54, 114),
+      outPort('cv',     'CV',   'cv',      w*0.72, 114),
+      outPort('gate_out','Gate','gate',    w*0.88, 114),
     ],
-    notes: '8-step sequencer met semitone-per-step. CV-out is een proxy voor V/Oct die direct in de VCO\u2019s voct-input mag.',
+    notes: '16-step sequencer met semitone-per-step. CV-out is een proxy voor V/Oct. V+ (cv-in) telt op bij de root (transponeren), Run+ (gate-in) override-t de Run-toggle zolang het signaal hoog is. Step-LED licht op bij de huidige positie.',
+  });
+}
+
+// 9. MMB NOISE — 4 HP. Witte/roze/bruin ruis met level-knop.
+function mmbNoise() {
+  const w = W(4);
+  return assemble({
+    typeId: 'tp_mmb_noise',
+    categoryId: 'noise',
+    variant: 'Noise generator',
+    brand: 'MMB', model: 'NOISE',
+    hp: 4, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'NOISE', fontSize: 2.0, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB',   fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      sw  ('color', 'Color', w/2, 30, ['white','pink','brown'], 0),
+      knob('level', 'Level', w/2, 60, { size: 'medium', min: 0, max: 1, def: 0.6, color: '#f9fafb' }),
+      outPort('out', 'Out', 'audio', w/2, 100),
+    ],
+    notes: 'Witte / roze / bruine ruis. Mooi voor S&H-bronnen, drum-shells of hi-hat-percussie.',
+  });
+}
+
+// 10. MMB ECHO — 6 HP. Stereo-feedback delay (Tone.FeedbackDelay).
+function mmbEcho() {
+  const w = W(6);
+  return assemble({
+    typeId: 'tp_mmb_echo',
+    categoryId: 'effect',
+    variant: 'Feedback delay',
+    brand: 'MMB', model: 'ECHO',
+    hp: 6, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'ECHO', fontSize: 2.2, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: 'feedback delay', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('time',     'Time',  w*0.30, 30, { size: 'medium', min: 0.01, max: 2.0, def: 0.30, unit: 's',  color: '#f9fafb' }),
+      knob('feedback', 'Fbk',   w*0.70, 30, { size: 'medium', min: 0,    max: 0.95,def: 0.45, color: '#f9fafb' }),
+      knob('mix',      'Mix',   w*0.30, 70, { size: 'medium', min: 0,    max: 1,   def: 0.35, color: '#f9fafb' }),
+      toggle('tempo_sync', 'Sync', w*0.70, 70, false),
+      inPort ('in',  'In',  'audio', w*0.30, 110),
+      outPort('out', 'Out', 'audio', w*0.70, 110),
+    ],
+    notes: 'Feedback-delay (Tone.FeedbackDelay). Mooi achter een VCA. Sync-toggle haakt later in op de master-clock.',
+  });
+}
+
+// 11. MMB PHASER — 6 HP. Klassiek phaser-effect (Tone.Phaser).
+function mmbPhaser() {
+  const w = W(6);
+  return assemble({
+    typeId: 'tp_mmb_phaser',
+    categoryId: 'effect',
+    variant: 'Phaser',
+    brand: 'MMB', model: 'PHASER',
+    hp: 6, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'PHASER', fontSize: 2.0, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB',    fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('rate',     'Rate',  w*0.30, 30, { size: 'medium', min: 0.1, max: 8, def: 0.5, unit: 'Hz', color: '#f9fafb' }),
+      knob('depth',    'Depth', w*0.70, 30, { size: 'medium', min: 0,   max: 1, def: 0.7, color: '#f9fafb' }),
+      knob('feedback', 'Fbk',   w*0.30, 70, { size: 'medium', min: 0,   max: 0.95, def: 0.3, color: '#f9fafb' }),
+      knob('mix',      'Mix',   w*0.70, 70, { size: 'medium', min: 0,   max: 1, def: 0.5, color: '#f9fafb' }),
+      inPort ('in',  'In',  'audio', w*0.30, 110),
+      outPort('out', 'Out', 'audio', w*0.70, 110),
+    ],
+    notes: 'Phaser (Tone.Phaser). Klassieke sweep-modulatie; mooi achter een VCF of als send.',
   });
 }
 
@@ -858,7 +950,7 @@ function mmbSeq8() {
 
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbVcf(), mmbVca(), mmbOut(), mmbMidiIn(), mmbSeq8()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbVcf(), mmbVca(), mmbOut(), mmbMidiIn(), mmbSeq8(), mmbNoise(), mmbEcho(), mmbPhaser()];
   const newTypes = all.map((x) => x.type);
   const newModules = all.map((x) => x.module);
 

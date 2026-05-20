@@ -7,10 +7,12 @@ import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useState } from 'react';
 import { updateProject, useModularProject, uid } from './store';
 import { ModulePanel } from './ModulePanel';
+import { useEngineStatus } from './sim/engineSingleton';
 import { MM_PER_HP, PANEL_HEIGHT_MM, } from './types';
 const PX_PER_MM = 2.2;
 export function RackPanel() {
     const project = useModularProject();
+    const engineStatus = useEngineStatus();
     const racks = project.racks;
     const activeId = project.activeRackId ?? racks[0]?.id;
     const rack = racks.find((r) => r.id === activeId) ?? racks[0];
@@ -75,6 +77,7 @@ function RackHeaderEditor({ rack }) {
 // ── Rack visual grid ───────────────────────────────────────────────────
 function RackGrid({ rack, modules, types, activeRow, onSelectRow }) {
     const rowWidthMm = rack.hpPerRow * MM_PER_HP;
+    const engineStatus = useEngineStatus();
     function duplicateSlot(slotId) {
         const slot = rack.slots.find((s) => s.id === slotId);
         if (!slot)
@@ -149,57 +152,104 @@ function RackGrid({ rack, modules, types, activeRow, onSelectRow }) {
             })),
         }));
     }
-    return (_jsx("div", { style: {
+    function setSlotPosition(slotId, row, hpOffset) {
+        updateProject((p) => ({
+            ...p,
+            racks: p.racks.map((r) => r.id !== rack.id ? r : ({
+                ...r,
+                slots: r.slots.map((s) => s.id === slotId
+                    ? {
+                        ...s,
+                        row: Math.max(0, Math.min(r.rows - 1, row)),
+                        hpOffset: Math.max(0, Math.min(r.hpPerRow - 1, hpOffset)),
+                    }
+                    : s),
+            })),
+        }));
+    }
+    // Context-menu voor module-strip (rechter-muis op een slot).
+    const [menu, setMenu] = useState(null);
+    return (_jsxs("div", { style: {
             display: 'flex', flexDirection: 'column', gap: 4,
             padding: 6, background: '#0f172a', borderRadius: 6,
             overflowX: 'auto',
-        }, children: Array.from({ length: rack.rows }).map((_, rowIdx) => {
-            const slotsInRow = rack.slots
-                .filter((s) => s.row === rowIdx)
-                .sort((a, b) => a.hpOffset - b.hpOffset);
-            const isActive = rowIdx === activeRow;
-            return (_jsxs("div", { onClick: () => onSelectRow(rowIdx), title: `Rij ${rowIdx + 1} — klik om als actieve rij te kiezen (volgende ‘Plaats →’ komt hierheen)`, style: {
-                    position: 'relative',
-                    width: rowWidthMm * PX_PER_MM,
-                    height: PANEL_HEIGHT_MM * PX_PER_MM,
-                    background: '#1e293b',
-                    border: isActive ? '2px solid #2563eb' : '1px solid #334155',
-                    boxShadow: isActive ? '0 0 0 1px #1d4ed8 inset' : undefined,
-                    borderRadius: 3,
-                    cursor: 'pointer',
-                }, children: [Array.from({ length: Math.floor(rack.hpPerRow / 10) }).map((_, i) => (_jsx("div", { style: {
-                            position: 'absolute',
-                            left: (i + 1) * 10 * MM_PER_HP * PX_PER_MM,
-                            top: 0, bottom: 0,
-                            width: 1, background: '#334155', opacity: 0.6,
-                        } }, i))), slotsInRow.map((slot) => {
-                        const m = modules.find((x) => x.id === slot.moduleId);
-                        if (!m) {
+        }, children: [Array.from({ length: rack.rows }).map((_, rowIdx) => {
+                const slotsInRow = rack.slots
+                    .filter((s) => s.row === rowIdx)
+                    .sort((a, b) => a.hpOffset - b.hpOffset);
+                const isActive = rowIdx === activeRow;
+                return (_jsxs("div", { onClick: () => onSelectRow(rowIdx), onDragOver: (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }, onDrop: (e) => {
+                        e.preventDefault();
+                        const slotId = e.dataTransfer.getData('text/slot-id');
+                        if (!slotId)
+                            return;
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const xPx = e.clientX - rect.left;
+                        const hp = Math.max(0, Math.round(xPx / (MM_PER_HP * PX_PER_MM)));
+                        setSlotPosition(slotId, rowIdx, hp);
+                    }, title: `Rij ${rowIdx + 1} — klik om als actieve rij te kiezen (volgende ‘Plaats →’ komt hierheen)`, style: {
+                        position: 'relative',
+                        width: rowWidthMm * PX_PER_MM,
+                        height: PANEL_HEIGHT_MM * PX_PER_MM,
+                        background: '#1e293b',
+                        border: isActive ? '2px solid #2563eb' : '1px solid #334155',
+                        boxShadow: isActive ? '0 0 0 1px #1d4ed8 inset' : undefined,
+                        borderRadius: 3,
+                        cursor: 'pointer',
+                    }, children: [Array.from({ length: Math.floor(rack.hpPerRow / 10) }).map((_, i) => (_jsx("div", { style: {
+                                position: 'absolute',
+                                left: (i + 1) * 10 * MM_PER_HP * PX_PER_MM,
+                                top: 0, bottom: 0,
+                                width: 1, background: '#334155', opacity: 0.6,
+                            } }, i))), slotsInRow.map((slot) => {
+                            const m = modules.find((x) => x.id === slot.moduleId);
+                            if (!m) {
+                                return (_jsxs("div", { style: {
+                                        position: 'absolute',
+                                        left: slot.hpOffset * MM_PER_HP * PX_PER_MM,
+                                        top: 0,
+                                        height: PANEL_HEIGHT_MM * PX_PER_MM,
+                                        width: 60,
+                                        background: '#dc2626',
+                                        color: 'white', fontSize: 10, padding: 4,
+                                    }, children: ["Missing", _jsx("br", {}), slot.moduleId] }, slot.id));
+                            }
+                            const overlap = detectOverlap(slot, slotsInRow, m, modules);
                             return (_jsxs("div", { style: {
                                     position: 'absolute',
                                     left: slot.hpOffset * MM_PER_HP * PX_PER_MM,
                                     top: 0,
-                                    height: PANEL_HEIGHT_MM * PX_PER_MM,
-                                    width: 60,
-                                    background: '#dc2626',
-                                    color: 'white', fontSize: 10, padding: 4,
-                                }, children: ["Missing", _jsx("br", {}), slot.moduleId] }, slot.id));
-                        }
-                        const overlap = detectOverlap(slot, slotsInRow, m, modules);
-                        return (_jsxs("div", { style: {
-                                position: 'absolute',
-                                left: slot.hpOffset * MM_PER_HP * PX_PER_MM,
-                                top: 0,
-                                outline: overlap ? '2px solid #dc2626' : 'none',
-                                outlineOffset: -2,
-                            }, children: [_jsx(ModulePanel, { module: m, types: types, pxPerMm: PX_PER_MM, showPortLabels: false }), _jsxs("div", { onClick: (e) => e.stopPropagation(), style: {
-                                        position: 'absolute', top: 2, right: 2,
-                                        display: 'flex', gap: 2,
-                                        background: 'rgba(0,0,0,0.55)', borderRadius: 3, padding: 1,
-                                    }, children: [_jsx("button", { title: "\u2190 HP", onClick: () => moveSlot(slot.id, -1), style: slotBtn, children: "\u25C0" }), _jsx("button", { title: "\u2192 HP", onClick: () => moveSlot(slot.id, 1), style: slotBtn, children: "\u25B6" }), _jsx("button", { title: "\u2191 rij", onClick: () => moveRow(slot.id, -1), style: slotBtn, children: "\u25B2" }), _jsx("button", { title: "\u2193 rij", onClick: () => moveRow(slot.id, 1), style: slotBtn, children: "\u25BC" }), _jsx("button", { title: "Dupliceer module", onClick: () => duplicateSlot(slot.id), style: slotBtn, children: "\u2398" }), _jsx("button", { title: "Verwijder uit rack", onClick: () => removeSlot(slot.id), style: slotBtn, children: "\u00D7" })] })] }, slot.id));
-                    })] }, rowIdx));
-        }) }));
+                                    outline: overlap ? '2px solid #dc2626' : 'none',
+                                    outlineOffset: -2,
+                                }, onContextMenu: (e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setMenu({ x: e.clientX, y: e.clientY, slotId: slot.id });
+                                }, children: [_jsx("div", { draggable: true, onDragStart: (e) => {
+                                            e.dataTransfer.setData('text/slot-id', slot.id);
+                                            e.dataTransfer.effectAllowed = 'move';
+                                        }, title: "Sleep om te verplaatsen (HP / rij)", style: {
+                                            position: 'absolute', left: 0, right: 0, top: 0,
+                                            height: 8, background: 'rgba(37,99,235,0.55)',
+                                            cursor: 'grab', borderTopLeftRadius: 2, borderTopRightRadius: 2,
+                                            zIndex: 2,
+                                        } }), _jsx(ModulePanel, { module: m, types: types, pxPerMm: PX_PER_MM, showPortLabels: false, controlState: engineStatus.liveControls[m.id] })] }, slot.id));
+                        })] }, rowIdx));
+            }), menu && (_jsx("div", { onClick: () => setMenu(null), style: {
+                    position: 'fixed', inset: 0, zIndex: 999,
+                }, children: _jsxs("ul", { onClick: (e) => e.stopPropagation(), style: {
+                        position: 'fixed', left: menu.x, top: menu.y,
+                        listStyle: 'none', margin: 0, padding: 4,
+                        background: '#0f172a', border: '1px solid #334155',
+                        borderRadius: 4, minWidth: 160, fontSize: 12,
+                        color: '#e2e8f0', boxShadow: '0 4px 16px rgba(0,0,0,0.45)',
+                    }, children: [_jsx("li", { children: _jsx("button", { style: ctxItem, onClick: () => { duplicateSlot(menu.slotId); setMenu(null); }, children: "\u2398 Dupliceer module" }) }), _jsx("li", { children: _jsx("button", { style: ctxItem, onClick: () => { moveRow(menu.slotId, -1); setMenu(null); }, children: "\u25B2 Rij omhoog" }) }), _jsx("li", { children: _jsx("button", { style: ctxItem, onClick: () => { moveRow(menu.slotId, 1); setMenu(null); }, children: "\u25BC Rij omlaag" }) }), _jsx("li", { children: _jsx("button", { style: ctxItem, onClick: () => { moveSlot(menu.slotId, -1); setMenu(null); }, children: "\u25C0 1 HP naar links" }) }), _jsx("li", { children: _jsx("button", { style: ctxItem, onClick: () => { moveSlot(menu.slotId, 1); setMenu(null); }, children: "\u25B6 1 HP naar rechts" }) }), _jsx("li", { children: _jsx("button", { style: { ...ctxItem, color: '#fca5a5' }, onClick: () => { removeSlot(menu.slotId); setMenu(null); }, children: "\u00D7 Verwijder uit rack" }) })] }) }))] }));
 }
+const ctxItem = {
+    display: 'block', width: '100%', textAlign: 'left',
+    padding: '4px 8px', background: 'transparent', color: 'inherit',
+    border: 'none', cursor: 'pointer', fontSize: 12,
+};
 function detectOverlap(slot, all, mod, modules) {
     const start = slot.hpOffset;
     const end = start + mod.visual.hpWidth;
@@ -218,11 +268,13 @@ function detectOverlap(slot, all, mod, modules) {
 }
 // ── Sidebar: modules-niet-in-rack + plaats-knop ────────────────────────
 function ModuleSidebar({ rack, modules, types, pickedRow, setPickedRow }) {
+    const engineStatus = useEngineStatus();
     const inRack = new Set(rack.slots.map((s) => s.moduleId));
-    // Filter passend bij rack-soort: interne racks tonen alleen internal modules,
-    // fysieke racks tonen alleen niet-internal modules.
+    // Interne racks tonen alleen internal modules; fysieke racks tonen ALLE
+    // niet-geplaatste modules (inclusief internal) zodat NOISE/ECHO/PHASER
+    // gewoon in een testpatch geplaatst kunnen worden.
     const wantInternal = rack.kind === 'internal';
-    const available = modules.filter((m) => !inRack.has(m.id) && (wantInternal ? m.internal : !m.internal));
+    const available = modules.filter((m) => !inRack.has(m.id) && (wantInternal ? m.internal : true));
     function placeAt(moduleId, mod) {
         const isInternal = rack.kind === 'internal';
         const row = isInternal ? 0 : pickedRow;
@@ -260,11 +312,6 @@ function ModuleSidebar({ rack, modules, types, pickedRow, setPickedRow }) {
                     return (_jsxs("div", { style: {
                             border: '1px solid #cbd2d9', borderRadius: 4, padding: 6,
                             display: 'flex', alignItems: 'center', gap: 8,
-                        }, children: [_jsx("div", { style: { background: '#1f2937', borderRadius: 3 }, children: _jsx(ModulePanel, { module: m, types: types, pxPerMm: 1.2, showPortLabels: false }) }), _jsxs("div", { style: { fontSize: 12 }, children: [_jsx("div", { style: { fontWeight: 600 }, children: m.name }), _jsxs("div", { style: { color: '#6b7280' }, children: [t?.variant ?? '?', " \u00B7 ", m.visual.hpWidth, " HP"] }), _jsx("button", { onClick: () => placeAt(m.id, m), style: { fontSize: 11, marginTop: 4 }, children: "Plaats \u2192" })] })] }, m.id));
+                        }, children: [_jsx("div", { style: { background: '#1f2937', borderRadius: 3 }, children: _jsx(ModulePanel, { module: m, types: types, pxPerMm: 1.2, showPortLabels: false, controlState: engineStatus.liveControls[m.id] }) }), _jsxs("div", { style: { fontSize: 12 }, children: [_jsx("div", { style: { fontWeight: 600 }, children: m.name }), _jsxs("div", { style: { color: '#6b7280' }, children: [t?.variant ?? '?', " \u00B7 ", m.visual.hpWidth, " HP"] }), _jsx("button", { onClick: () => placeAt(m.id, m), style: { fontSize: 11, marginTop: 4 }, children: "Plaats \u2192" })] })] }, m.id));
                 }) })] }));
 }
-// ── Styles ─────────────────────────────────────────────────────────────
-const slotBtn = {
-    fontSize: 10, padding: '0 4px', border: 'none',
-    background: '#475569', color: 'white', cursor: 'pointer', borderRadius: 2,
-};

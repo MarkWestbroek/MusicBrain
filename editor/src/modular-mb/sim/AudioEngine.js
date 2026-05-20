@@ -31,7 +31,7 @@ export class AudioEngine {
     portIndex = new Map();
     currentKeyboardNote = null;
     listeners = new Set();
-    status = { running: false, voiceFreqHz: 0, level: 0 };
+    status = { running: false, voiceFreqHz: 0, level: 0, liveControls: {} };
     rafId = null;
     startedOscs = new Set();
     // ── public API ─────────────────────────────────────────────────────
@@ -109,6 +109,14 @@ export class AudioEngine {
                 }
                 catch { /* already started */ }
             }
+            if (node.kind === 'noise') {
+                if (node.noise.state !== 'started') {
+                    try {
+                        node.noise.start();
+                    }
+                    catch { /* ignore */ }
+                }
+            }
             if (node.kind === 'sequencer' && node.active && node.running)
                 this.startSequencer(node);
         }
@@ -122,6 +130,12 @@ export class AudioEngine {
                 this.stopSequencer(node);
             if (node.kind === 'envelope')
                 node.env.triggerRelease();
+            if (node.kind === 'noise') {
+                try {
+                    node.noise.stop();
+                }
+                catch { /* ignore */ }
+            }
         }
         for (const o of this.startedOscs) {
             try {
@@ -207,6 +221,196 @@ export class AudioEngine {
         if (this.master)
             this.master.gain.rampTo(clamp(v, 0, 1), 0.05);
     }
+    /**
+     * Pas een control-wijziging *live* toe op de bestaande Tone-graph.
+     * Returnt `true` als de wijziging zonder rebuild verwerkt is, `false`
+     * als de aanroeper alsnog `build()` moet aanroepen (kabel/topologie-
+     * gevoelige parameters zoals oscillator-type, filter-type, noise-color).
+     */
+    updateControl(moduleId, controlId, value) {
+        const node = this.nodes.get(moduleId);
+        if (!node)
+            return false;
+        // Houd node.controls altijd in sync zodat SEQ-step herberekening en
+        // toekomstige rebuilds correct doorlopen.
+        node.controls = { ...node.controls, [controlId]: value };
+        const num = typeof value === 'number' ? value : Number(value);
+        const RAMP = 0.02;
+        switch (node.kind) {
+            case 'vco': {
+                if (controlId === 'wave')
+                    return false; // type-wisseling = rebuild
+                if (controlId === 'coarse' || controlId === 'fine') {
+                    const offset = readKnob(node.controls, 'coarse', 0) + readKnob(node.controls, 'fine', 0) / 100;
+                    node.osc.frequency.rampTo(midiToHz(node.baseMidi + offset), RAMP);
+                    return true;
+                }
+                if (controlId === 'detune') {
+                    node.osc.detune.rampTo(num, RAMP);
+                    return true;
+                }
+                return true;
+            }
+            case 'vcf': {
+                if (controlId === 'type')
+                    return false;
+                if (controlId === 'cutoff') {
+                    node.baseCutoff = num;
+                    node.filter.frequency.rampTo(num, RAMP);
+                    return true;
+                }
+                if (controlId === 'q' || controlId === 'res') {
+                    node.filter.Q.rampTo(num, RAMP);
+                    return true;
+                }
+                if (controlId === 'cv_amt') {
+                    node.cvAmt = num;
+                    return true;
+                }
+                return true;
+            }
+            case 'vca': {
+                if (controlId === 'gain' || controlId === 'level') {
+                    node.gain.gain.rampTo(clamp(num, 0, 1), RAMP);
+                    return true;
+                }
+                return true;
+            }
+            case 'envelope': {
+                const e = node.env;
+                if (controlId === 'attack') {
+                    e.attack = Math.max(0.001, num);
+                    return true;
+                }
+                if (controlId === 'hold') { /* Tone.Envelope kent geen native hold */
+                    return true;
+                }
+                if (controlId === 'decay') {
+                    e.decay = Math.max(0.001, num);
+                    return true;
+                }
+                if (controlId === 'sustain') {
+                    e.sustain = clamp(num, 0, 1);
+                    return true;
+                }
+                if (controlId === 'release') {
+                    e.release = Math.max(0.001, num);
+                    return true;
+                }
+                return true;
+            }
+            case 'lfo': {
+                if (controlId === 'wave' || controlId === 'shape')
+                    return false;
+                if (controlId === 'rate' || controlId === 'freq') {
+                    node.lfo.frequency.rampTo(num, RAMP);
+                    return true;
+                }
+                if (controlId === 'depth' || controlId === 'amount') {
+                    node.lfo.max = num;
+                    node.lfo.min = -num;
+                    return true;
+                }
+                return true;
+            }
+            case 'out': {
+                if (controlId === 'level') {
+                    node.inGain.gain.rampTo(clamp(num, 0, 1), RAMP);
+                    return true;
+                }
+                return true;
+            }
+            case 'sequencer': {
+                if (controlId === 'length' || controlId.startsWith('s') || controlId === 'root') {
+                    // Herbereken notes[] uit de huidige controls.
+                    const lengthIdx = readKnob(node.controls, 'length', 6);
+                    const length = Math.max(1, Math.min(16, lengthIdx + 2));
+                    const root = Math.round(readKnob(node.controls, 'root', 60));
+                    const notes = [];
+                    for (let i = 0; i < length; i++) {
+                        notes.push(root + Math.round(readKnob(node.controls, `s${i + 1}`, 0)));
+                    }
+                    node.notes = notes;
+                    return true;
+                }
+                if (controlId === 'rate') {
+                    node.rateHz = clamp(num, 0.5, 16);
+                    // Herstart interval met nieuwe rate als hij draait.
+                    if (node.intervalId !== null) {
+                        window.clearInterval(node.intervalId);
+                        node.intervalId = null;
+                        if (node.active && node.running)
+                            this.startSequencer(node);
+                    }
+                    return true;
+                }
+                if (controlId === 'gate') {
+                    node.gateRatio = clamp(num, 0.05, 0.95);
+                    return true;
+                }
+                if (controlId === 'run') {
+                    const run = Boolean(value);
+                    node.running = run;
+                    if (run && node.active && node.intervalId === null)
+                        this.startSequencer(node);
+                    if (!run && node.intervalId !== null)
+                        this.stopSequencer(node);
+                    return true;
+                }
+                return true;
+            }
+            case 'noise': {
+                if (controlId === 'color')
+                    return false; // Tone.Noise.type → rebuild
+                if (controlId === 'level') {
+                    node.level.gain.rampTo(clamp(num, 0, 1), RAMP);
+                    return true;
+                }
+                return true;
+            }
+            case 'echo': {
+                if (controlId === 'tempo_sync')
+                    return false;
+                if (controlId === 'time') {
+                    node.delay.delayTime.rampTo(clamp(num, 0.001, 2), RAMP);
+                    return true;
+                }
+                if (controlId === 'feedback') {
+                    node.delay.feedback.rampTo(clamp(num, 0, 0.95), RAMP);
+                    return true;
+                }
+                if (controlId === 'mix') {
+                    const mix = clamp(num, 0, 1);
+                    node.wetGain.gain.rampTo(mix, RAMP);
+                    node.dryGain.gain.rampTo(1 - mix, RAMP);
+                    return true;
+                }
+                return true;
+            }
+            case 'phaser': {
+                if (controlId === 'rate') {
+                    node.phaser.frequency.rampTo(clamp(num, 0.01, 10), RAMP);
+                    return true;
+                }
+                if (controlId === 'depth') {
+                    node.phaser.Q.value = 10 * clamp(num, 0, 1);
+                    return true;
+                }
+                if (controlId === 'feedback') { /* Tone.Phaser heeft geen public feedback param */
+                    return false;
+                }
+                if (controlId === 'mix') {
+                    const mix = clamp(num, 0, 1);
+                    node.wetGain.gain.rampTo(mix, RAMP);
+                    node.dryGain.gain.rampTo(1 - mix, RAMP);
+                    return true;
+                }
+                return true;
+            }
+            case 'midiin': return true;
+        }
+        return false;
+    }
     subscribe(fn) {
         this.listeners.add(fn);
         fn(this.status);
@@ -235,6 +439,24 @@ export class AudioEngine {
                 case 'out':
                     node.inGain.dispose();
                     break;
+                case 'noise':
+                    node.noise.dispose();
+                    node.level.dispose();
+                    break;
+                case 'echo':
+                    node.delay.dispose();
+                    node.wetGain.dispose();
+                    node.dryGain.dispose();
+                    node.input.dispose();
+                    node.output.dispose();
+                    break;
+                case 'phaser':
+                    node.phaser.dispose();
+                    node.wetGain.dispose();
+                    node.dryGain.dispose();
+                    node.input.dispose();
+                    node.output.dispose();
+                    break;
                 case 'sequencer': /* no Tone nodes */ break;
                 case 'midiin': /* no Tone nodes */ break;
             }
@@ -250,6 +472,52 @@ export class AudioEngine {
     // ── helpers ────────────────────────────────────────────────────────
     makeNode(kind, m, t, controls) {
         const base = { moduleId: m.id, type: t, controls };
+        // Speciale interne modules waarvan de categorie-`kind` niet aansluit
+        // op het standaard switch-vocabulaire (utility/vco/vcf/...). Deze
+        // worden op typeId herkend zodat ze altijd worden gebouwd, los van
+        // welke categorie de gebruiker aan ze hangt.
+        if (t.id === 'tp_mmb_noise') {
+            const colorIdx = readKnob(controls, 'color', 0);
+            const ntype = colorIdx === 1 ? 'pink' : colorIdx === 2 ? 'brown' : 'white';
+            const level = clamp(readKnob(controls, 'level', 0.6), 0, 1);
+            const noise = new Tone.Noise(ntype);
+            const g = new Tone.Gain(level);
+            noise.connect(g);
+            return { ...base, kind: 'noise', noise, level: g };
+        }
+        if (t.id === 'tp_mmb_echo') {
+            const time = clamp(readKnob(controls, 'time', 0.30), 0.001, 2);
+            const fbk = clamp(readKnob(controls, 'feedback', 0.45), 0, 0.95);
+            const mix = clamp(readKnob(controls, 'mix', 0.35), 0, 1);
+            const input = new Tone.Gain(1);
+            const output = new Tone.Gain(1);
+            const dryG = new Tone.Gain(1 - mix);
+            const wetG = new Tone.Gain(mix);
+            const delay = new Tone.FeedbackDelay({ delayTime: time, feedback: fbk });
+            input.connect(dryG);
+            dryG.connect(output);
+            input.connect(delay);
+            delay.connect(wetG);
+            wetG.connect(output);
+            return { ...base, kind: 'echo', delay, wetGain: wetG, dryGain: dryG, input, output };
+        }
+        if (t.id === 'tp_mmb_phaser') {
+            const rate = clamp(readKnob(controls, 'rate', 0.5), 0.01, 10);
+            const depth = clamp(readKnob(controls, 'depth', 0.7), 0, 1);
+            const mix = clamp(readKnob(controls, 'mix', 0.5), 0, 1);
+            const input = new Tone.Gain(1);
+            const output = new Tone.Gain(1);
+            const dryG = new Tone.Gain(1 - mix);
+            const wetG = new Tone.Gain(mix);
+            const ph = new Tone.Phaser({ frequency: rate, octaves: 3, baseFrequency: 350 });
+            ph.Q.value = 10 * depth;
+            input.connect(dryG);
+            dryG.connect(output);
+            input.connect(ph);
+            ph.connect(wetG);
+            wetG.connect(output);
+            return { ...base, kind: 'phaser', phaser: ph, wetGain: wetG, dryGain: dryG, input, output };
+        }
         switch (kind) {
             case 'vco': {
                 const wave = pickWaveform(controls);
@@ -307,9 +575,17 @@ export class AudioEngine {
                         currentMidi: null,
                     };
                 }
+                if (t.id === 'tp_mmb_noise') {
+                    // Already handled above; never reach here.
+                    return null;
+                }
+                if (t.id === 'tp_mmb_echo' || t.id === 'tp_mmb_phaser') {
+                    return null;
+                }
                 return null;
             case 'sequencer': {
-                const length = Math.max(1, readKnob(controls, 'length', 6) + 2); // switch idx 0..6 → 2..8 steps
+                const lengthIdx = readKnob(controls, 'length', 6);
+                const length = Math.max(1, Math.min(16, lengthIdx + 2));
                 const root = Math.round(readKnob(controls, 'root', 60));
                 const notes = [];
                 for (let i = 0; i < length; i++) {
@@ -326,6 +602,9 @@ export class AudioEngine {
                     gateTargets: [], cvTargets: [],
                     intervalId: null, stepIdx: 0, lastNote: null,
                     active: false,
+                    voctOffset: 0,
+                    runDriven: false,
+                    runGate: false,
                 };
             }
             default:
@@ -410,7 +689,13 @@ export class AudioEngine {
             // Trigger the new step.
             const note = seq.notes[seq.stepIdx % seq.notes.length];
             seq.lastNote = note;
+            const step1 = (seq.stepIdx % seq.notes.length) + 1;
             seq.stepIdx++;
+            // Write live step-index for UI (step-LEDs / display).
+            this.status.liveControls[seq.moduleId] = {
+                ...(this.status.liveControls[seq.moduleId] ?? {}),
+                __currentStep: step1,
+            };
             // Drive CV targets (VCO voct inputs).
             for (const tgt of seq.cvTargets) {
                 const n = this.nodes.get(tgt);
@@ -446,6 +731,11 @@ export class AudioEngine {
         }
         seq.stepIdx = 0;
         seq.lastNote = null;
+        // Clear live step indicator.
+        const live = this.status.liveControls[seq.moduleId];
+        if (live) {
+            delete live.__currentStep;
+        }
     }
     emit() {
         const s = { ...this.status };
@@ -469,6 +759,9 @@ function audioOutputOf(n) {
         case 'vco': return n.osc;
         case 'vcf': return n.filter;
         case 'vca': return n.gain;
+        case 'noise': return n.level;
+        case 'echo': return n.output;
+        case 'phaser': return n.output;
         default: return null;
     }
 }
@@ -477,6 +770,8 @@ function audioInputOf(n) {
         case 'vcf': return n.filter;
         case 'vca': return n.gain;
         case 'out': return n.inGain;
+        case 'echo': return n.input;
+        case 'phaser': return n.input;
         default: return null;
     }
 }

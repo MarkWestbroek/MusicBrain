@@ -292,7 +292,12 @@ function LedGlyph({ c, x, y, controlState, textCol, }) {
     let on = true;
     if (c.bindTo) {
         const v = controlState?.[c.bindTo];
-        on = typeof v === 'boolean' ? v : typeof v === 'number' ? v > 0 : false;
+        if (c.bindMatch !== undefined) {
+            on = typeof v === 'number' && v === c.bindMatch;
+        }
+        else {
+            on = typeof v === 'boolean' ? v : typeof v === 'number' ? v > 0 : false;
+        }
     }
     return (_jsxs("g", { children: [_jsx("circle", { cx: x, cy: y, r: sizeR + 0.4, fill: "#0a0a0a" }), _jsx("circle", { cx: x, cy: y, r: sizeR, fill: on ? colour : '#333', style: on ? { filter: `drop-shadow(0 0 ${sizeR * 1.4}px ${colour})` } : undefined }), c.label && (_jsx("text", { x: x, y: y + sizeR + 2.4, fontSize: 1.2, fill: textCol, textAnchor: "middle", children: c.label }))] }));
 }

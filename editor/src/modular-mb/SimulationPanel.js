@@ -8,7 +8,7 @@ import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 // ondersteunen — zie roadmap in Requirements.md §v0.3-simulatie.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useModularProject } from './store';
-import { AudioEngine } from './sim/AudioEngine';
+import { getEngine } from './sim/engineSingleton';
 import { ScreenKeyboardSource, TestSequenceSource, WebMidiSource, } from './sim/MidiSource';
 export function SimulationPanel() {
     const project = useModularProject();
@@ -16,7 +16,7 @@ export function SimulationPanel() {
         ?? project.patches[0];
     const engineRef = useRef(null);
     if (engineRef.current === null)
-        engineRef.current = new AudioEngine();
+        engineRef.current = getEngine();
     const engine = engineRef.current;
     const sources = useMemo(() => ({
         screen: new ScreenKeyboardSource(),
@@ -25,20 +25,57 @@ export function SimulationPanel() {
     }), []);
     const [sourceId, setSourceId] = useState('sequence');
     const source = sources[sourceId];
-    const [status, setStatus] = useState({ running: false, voiceFreqHz: 0, level: 0 });
+    const [status, setStatus] = useState({ running: false, voiceFreqHz: 0, level: 0, liveControls: {} });
     const [masterVol, setMasterVol] = useState(0.7);
     const [error, setError] = useState(null);
-    // (Re)bouw de signal-graph zodra de patch verandert (live re-patching).
-    // Als de engine al draaide, herstart hem na de rebuild zodat de gebruiker
-    // tijdens het patchen niet opnieuw hoeft te starten.
+    // (Re)bouw de signal-graph zodra topologie van de patch verandert.
+    // Live-knop-wijzigingen worden via engine.updateControl direct verwerkt
+    // zonder rebuild (geen klikken / opnieuw starten van oscillators).
+    const prevSigRef = useRef('');
+    const prevCtrlRef = useRef({});
     useEffect(() => {
         if (!patch)
             return;
-        const wasRunning = status.running;
-        engine.build(project, patch);
-        engine.setMasterVolume(masterVol);
-        if (wasRunning) {
-            void engine.start();
+        // Topologie-signature: alleen connections + modules + rack-leden.
+        const sig = JSON.stringify({
+            conns: patch.connections,
+            rackIds: patch.rackIds,
+            mods: project.modules.map((m) => ({ id: m.id, typeId: m.typeId })),
+            racks: project.racks.map((r) => ({ id: r.id, slots: r.slots })),
+        });
+        if (sig !== prevSigRef.current) {
+            prevSigRef.current = sig;
+            prevCtrlRef.current = JSON.parse(JSON.stringify(patch.controlState ?? {}));
+            const wasRunning = status.running;
+            engine.build(project, patch);
+            engine.setMasterVolume(masterVol);
+            if (wasRunning) {
+                void engine.start();
+            }
+            return;
+        }
+        // Topologie ongewijzigd → diff controls en push live.
+        const next = patch.controlState ?? {};
+        const prev = prevCtrlRef.current;
+        let needRebuild = false;
+        for (const mid of Object.keys(next)) {
+            const nv = next[mid] ?? {};
+            const pv = prev[mid] ?? {};
+            for (const k of Object.keys(nv)) {
+                if (pv[k] !== nv[k]) {
+                    const handled = engine.updateControl(mid, k, nv[k]);
+                    if (!handled)
+                        needRebuild = true;
+                }
+            }
+        }
+        prevCtrlRef.current = JSON.parse(JSON.stringify(next));
+        if (needRebuild) {
+            const wasRunning = status.running;
+            engine.build(project, patch);
+            if (wasRunning) {
+                void engine.start();
+            }
         }
         // status.running bewust uit deps gelaten — anders looped het.
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -57,7 +94,7 @@ export function SimulationPanel() {
     useEffect(() => engine.subscribe(setStatus), [engine]);
     useEffect(() => () => {
         Object.values(sources).forEach((s) => s.stop());
-        engine.dispose();
+        // engine is singleton — niet disposen op unmount.
     }, [engine, sources]);
     async function startAll() {
         try {

@@ -661,7 +661,11 @@ function LedGlyph({
   let on = true;
   if (c.bindTo) {
     const v = controlState?.[c.bindTo];
-    on = typeof v === 'boolean' ? v : typeof v === 'number' ? v > 0 : false;
+    if (c.bindMatch !== undefined) {
+      on = typeof v === 'number' && v === c.bindMatch;
+    } else {
+      on = typeof v === 'boolean' ? v : typeof v === 'number' ? v > 0 : false;
+    }
   }
   return (
     <g>

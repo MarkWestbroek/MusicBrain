@@ -179,6 +179,8 @@ export interface LedControl {
   size?: 'small' | 'medium' | 'large';
   /** Optioneel: aan/uit volgt de waarde van deze control (toggle of >0). */
   bindTo?: string;
+  /** Als gezet: LED is enkel "aan" wanneer de gebonden waarde exact gelijk is aan bindMatch. */
+  bindMatch?: number;
 }
 
 export type Control =
@@ -414,6 +416,9 @@ export interface PatchConnection {
   to:   { moduleId: string; portId: string };
   attenuation?: number;
   invert?: boolean;
+  /** Optioneel: visuele kabel-buiger. Offset (px) van de bezier-control-point
+   *  t.o.v. het midden van source/target. Heeft geen audio-effect. */
+  bend?: { dx: number; dy: number };
 }
 
 export interface Patch {

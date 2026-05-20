@@ -1340,9 +1340,9 @@ Verzameld na iter-5.3. Prioriteiten bijgewerkt op 20 mei 2026 op basis van gebru
 
 | # | Prio | Module | Specificatie |
 |---|---|---|---|
-| E1 | **1** | Noise | Categorie `noise`; controls: `color` (white/pink/brown), `level`. Out: `out` (audio). Tone: `Tone.Noise`. |
-| E2 | 2 | Phaser | Categorie `effect`; controls: `rate`, `depth`, `feedback`, `mix`. In: `in` (audio), optioneel `cv` (rate-mod). Out: `out`. Tone: `Tone.Phaser`. |
-| E3 | **1** | Echo / delay | Categorie `effect`; controls: `time`, `feedback`, `mix`, optioneel `tempo_sync` (toggle). In: `in`. Out: `out`. Tone: `Tone.FeedbackDelay`. |
+| E1 | ✅ iter-5.5 | Noise | Categorie `noise`; controls: `color` (white/pink/brown), `level`. Out: `out` (audio). Tone: `Tone.Noise`. |
+| E2 | ✅ iter-5.5 | Phaser | Categorie `effect`; controls: `rate`, `depth`, `feedback`, `mix`. In: `in` (audio), optioneel `cv` (rate-mod). Out: `out`. Tone: `Tone.Phaser`. |
+| E3 | ✅ iter-5.5 | Echo / delay | Categorie `effect`; controls: `time`, `feedback`, `mix`, optioneel `tempo_sync` (toggle). In: `in`. Out: `out`. Tone: `Tone.FeedbackDelay`. |
 
 ### F. Documentatie & planning
 
@@ -1356,6 +1356,108 @@ Verzameld na iter-5.3. Prioriteiten bijgewerkt op 20 mei 2026 op basis van gebru
 
 | Prio | Items |
 |---|---|
-| **1** | A2 kabel-buiger · A5 live parameter-binding · B4 16-step SEQ · B5 step-LED's · E1 noise · E3 echo |
-| **2** | A1 rack drag+context-menu (bijna prio 1: huidige pijltjes onwerkbaar) · C1 properties-paneel · C2/C3 presets |
+| **1** | ✅ A2 kabel-buiger · ✅ A5 live parameter-binding · ✅ B4 16-step SEQ · ✅ B5 step-LED's · ✅ E1 noise · ✅ E3 echo |
+| **2** | ✅ A1 rack drag+context-menu · C1 properties-paneel · C2/C3 presets |
 | **3** | D1 persistentie + D2 user management · B1/B2/B3 SEQ CV/gate-inputs · A4 latency-onderzoek |
+
+## v0.3 — iter-5.5 (Effects + 16-step SEQ + live params + edge-buiger + rack-drag)
+
+Vervolg op iter-5.4. Nieuwe modules + gevoelige UX-verbeteringen op
+patcher en rack, plus directe parameter-binding zodat knoppen niet meer
+de hele audio-graph hoeven te rebuilden.
+
+### Nieuwe modules
+- **NOISE** (4 HP, internal) — `Tone.Noise`. Color-switch
+  white/pink/brown, level-knop. Categorie `noise`.
+- **ECHO** (6 HP, internal) — `Tone.FeedbackDelay` met aparte wet/dry-
+  paden. Knoppen: Time (0.001-2 s), Feedback (0-0.95), Mix (0-1) en
+  een `tempo_sync`-toggle (UI; sync-implementatie is toekomstig).
+- **PHASER** (6 HP, internal) — `Tone.Phaser`. Knoppen: Rate (0.01-10
+  Hz), Depth, Feedback, Mix. Bonus-effect bovenop ECHO.
+
+### Sequencer
+- **SEQ-16** — vervangt SEQ-8 (typeId blijft `tp_mmb_seq8` voor
+  patch-compat). Twee rijen van 8 step-knobs (semitones), 16 step-LEDs,
+  length-switch 2..16 stappen. Nieuwe poorten `voct_in` en `run_in`
+  zijn UI-only voor nu (engine-routing volgt later).
+- **Step-LEDs** lichten op tijdens het lopen via een nieuwe
+  `bindMatch`-eigenschap op `LedControl`. De engine schrijft per step
+  een transient `__currentStep` waarde in `EngineStatus.liveControls`
+  die door RackPanel en PatcherGraphPanel wordt mergen op de panel-
+  rendering.
+
+### Live parameter-binding (geen rebuild meer bij knop-draaien)
+- `AudioEngine.updateControl(moduleId, controlId, value)` past wijzigingen
+  *direct* toe op de bestaande Tone-graph via `rampTo`/setters. Returnt
+  `true` bij live-toepassing, `false` als alsnog `build()` nodig is
+  (kabels, oscillator-/filter-type, noise-color, tempo_sync).
+- `SimulationPanel` rebuilds nu alleen bij topologie-wijzigingen
+  (modules + connections + rack-slots). Bij control-only changes wordt
+  per gewijzigde key `engine.updateControl` aangeroepen → geen audio-
+  artefacten / klikken meer tijdens patching.
+
+### Patcher: kabel-buiger (A2)
+- Custom `BendableEdge` (xyflow v12). Elke kabel krijgt een handle op
+  de bezier-control-point; slepen verschuift hem (`bend.dx/dy` op
+  `PatchConnection`), dubbelklik = recht. Path is nu kwadratisch
+  (`M ... Q cp ...`) i.p.v. de standaard-bezier.
+- Edge-data bevat `patchId` + `connectionId` zodat de drag direct
+  in de store schrijft.
+
+### Rack: drag-handle + context-menu (A1)
+- Bovenaan elk slot zit een blauwe drag-bar. Sleep naar een andere
+  HP/rij in dezelfde rack-strip → module verspringt (`setSlotPosition`).
+- Rechter-muis op een module opent een context-menu: Dupliceer ·
+  Rij ↑ / ↓ · 1 HP ◀ / ▶ · Verwijder uit rack. De bestaande
+  ◀▶▲▼-knoppen blijven beschikbaar.
+
+### Singleton-engine + live-status
+- `sim/engineSingleton.ts` exposes één `AudioEngine` voor de hele app.
+  Hook `useEngineStatus()` geeft elke panel toegang tot live-status
+  (o.a. step-LEDs in Rack en Patcher). `SimulationPanel` disposed de
+  engine niet meer op unmount.
+
+### Build
+- TypeScript strict groen. Vite bundle ≈ **752 kB / gzip 221.6 kB**
+  (was 731 kB / 216 kB in iter-5.4). Toename komt door 3 nieuwe Tone-
+  effects + bendable-edge + context-menu.
+## v0.3 — iter-5.6 (bugfixes na iter-5.5)
+
+Snelle reparatie van regressies en blokkers die in iter-5.5 zijn ontstaan
+of zichtbaar werden zodra de nieuwe modules in een patch gebruikt werden.
+
+### Geluid uit Noise / Echo / Phaser
+- **Bug**: in `AudioEngine.makeNode` zaten de tp_mmb_noise / _echo / _phaser
+  takken binnen `case 'utility':`. Hun categorie-`kind` is echter `noise`
+  resp. `effect`, dus die switch-case werd nooit bereikt en er werd geen
+  Tone-node aangemaakt → patch-kabels naar OUT bleven stil.
+- **Fix**: speciale type-id's worden nu vóór de kind-switch herkend en
+  altijd gebouwd, los van hun categorie. NOISE start netjes mee in
+  `engine.start()`; ECHO en PHASER passen mix/feedback live aan.
+
+### Patcher: flikker en unresponsiveness tijdens spelen
+- **Bug**: de `nodes`-useMemo in PatcherGraphPanel had
+  `engineStatus.liveControls` als dep. Bij elke sequencer-stap (16 Hz+)
+  werd de hele node-array opnieuw opgebouwd; React Flow rebuildde dan
+  de hele graph + DOM, waardoor de muis-cursor flikkerde en het paneel
+  onresponsief werd.
+- **Fix**: live-status wordt nu binnen `ModuleNode` zelf opgehaald via
+  `useEngineStatus`. De buitenste graph blijft stabiel; alleen de
+  modules waarin een control-waarde verandert re-renderen.
+
+### Kabel-buiger zichtbaar en bereikbaar
+- **Bug**: het bend-handle op de bezier control-point was 8 px wit
+  met opacity 0.55 — op een gekleurde kabel onzichtbaar, en werd door
+  React Flow's pan-listeners af en toe ingepikt.
+- **Fix**: handle is nu 12 px (16 px geselecteerd), opacity 0.95,
+  donkere rand, met `nodrag nopan`-classes en `e.preventDefault()` in
+  pointerDown zodat slepen onmiddellijk werkt.
+
+### Rack-pijltjes weg
+- **Bug**: de slot-toolbar (◀▶▲▼⎘×) bovenop elk paneel maakte de
+  drag-bar én rechter-muis-context lastig bereikbaar.
+- **Fix**: toolbar is verwijderd. Alle acties zitten nu in (a) de blauwe
+  drag-handle bovenaan elk slot en (b) het rechter-muis-context-menu.
+
+### Build
+- TypeScript strict groen. Bundle ≈ **751 kB / gzip 221.6 kB**.
