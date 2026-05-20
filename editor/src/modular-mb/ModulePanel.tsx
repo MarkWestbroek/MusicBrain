@@ -217,12 +217,28 @@ function PortGlyph({
       <circle cx={x} cy={y} r={JACK_R + 0.4} fill={colour} opacity={highlighted ? 1 : 0.85} />
       {/* socket body */}
       <circle cx={x} cy={y} r={JACK_R} fill="#1a1a1a" stroke="#000" strokeWidth={0.15} />
-      {/* inner hole */}
-      <circle cx={x} cy={y} r={JACK_R - 1.2} fill="#0a0a0a" />
-      {/* direction marker: out = filled dot, in = ring */}
-      {port.direction === 'out'
-        ? <circle cx={x} cy={y} r={0.5} fill={colour} />
-        : <circle cx={x} cy={y} r={0.5} fill="none" stroke={colour} strokeWidth={0.25} />}
+      {port.direction === 'out' ? (
+        <>
+          {/* OUTPUT: gevulde gekleurde plug-kop */}
+          <circle cx={x} cy={y} r={JACK_R - 0.8} fill={colour} />
+          <circle cx={x - 0.5} cy={y - 0.5} r={0.6} fill="rgba(255,255,255,0.55)" />
+          {/* outward arrow boven-rechts */}
+          <polygon
+            points={`${x + JACK_R - 0.2},${y - JACK_R - 0.4} ${x + JACK_R + 1.2},${y - JACK_R - 1.4} ${x + JACK_R + 1.2},${y - JACK_R + 0.4}`}
+            fill={colour} stroke="#000" strokeWidth={0.1} />
+        </>
+      ) : (
+        <>
+          {/* INPUT: holle donkere socket met kleine cv-rand */}
+          <circle cx={x} cy={y} r={JACK_R - 0.8} fill="#050505" />
+          <circle cx={x} cy={y} r={JACK_R - 1.2} fill="none"
+            stroke={colour} strokeWidth={0.25} opacity={0.6} />
+          {/* inward arrow boven-rechts */}
+          <polygon
+            points={`${x + JACK_R - 0.2},${y - JACK_R - 1.4} ${x + JACK_R + 1.2},${y - JACK_R - 0.4} ${x + JACK_R - 0.2},${y - JACK_R + 0.4}`}
+            fill="none" stroke={colour} strokeWidth={0.3} />
+        </>
+      )}
       {showLabel && labelPos !== 'none' && (
         <text x={lx} y={ly} fontSize={1.6} fill={textCol} textAnchor={anchor}
           fontWeight={500}>{label}</text>

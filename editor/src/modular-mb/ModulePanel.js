@@ -1,4 +1,4 @@
-import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 // ModulePanel — schematic SVG rendering of a Module's front panel.
 //
 // Pure presentation. Reads:
@@ -80,9 +80,7 @@ function PortGlyph({ port, x, y, labelPos, showLabel, highlighted, onClick, text
             : y + 0.6;
     const anchor = labelPos === 'left' ? 'end' :
         labelPos === 'right' ? 'start' : 'middle';
-    return (_jsxs("g", { style: { cursor: onClick ? 'pointer' : 'default' }, onClick: onClick, children: [_jsx("circle", { cx: x, cy: y, r: JACK_R + 0.4, fill: colour, opacity: highlighted ? 1 : 0.85 }), _jsx("circle", { cx: x, cy: y, r: JACK_R, fill: "#1a1a1a", stroke: "#000", strokeWidth: 0.15 }), _jsx("circle", { cx: x, cy: y, r: JACK_R - 1.2, fill: "#0a0a0a" }), port.direction === 'out'
-                ? _jsx("circle", { cx: x, cy: y, r: 0.5, fill: colour })
-                : _jsx("circle", { cx: x, cy: y, r: 0.5, fill: "none", stroke: colour, strokeWidth: 0.25 }), showLabel && labelPos !== 'none' && (_jsx("text", { x: lx, y: ly, fontSize: 1.6, fill: textCol, textAnchor: anchor, fontWeight: 500, children: label }))] }));
+    return (_jsxs("g", { style: { cursor: onClick ? 'pointer' : 'default' }, onClick: onClick, children: [_jsx("circle", { cx: x, cy: y, r: JACK_R + 0.4, fill: colour, opacity: highlighted ? 1 : 0.85 }), _jsx("circle", { cx: x, cy: y, r: JACK_R, fill: "#1a1a1a", stroke: "#000", strokeWidth: 0.15 }), port.direction === 'out' ? (_jsxs(_Fragment, { children: [_jsx("circle", { cx: x, cy: y, r: JACK_R - 0.8, fill: colour }), _jsx("circle", { cx: x - 0.5, cy: y - 0.5, r: 0.6, fill: "rgba(255,255,255,0.55)" }), _jsx("polygon", { points: `${x + JACK_R - 0.2},${y - JACK_R - 0.4} ${x + JACK_R + 1.2},${y - JACK_R - 1.4} ${x + JACK_R + 1.2},${y - JACK_R + 0.4}`, fill: colour, stroke: "#000", strokeWidth: 0.1 })] })) : (_jsxs(_Fragment, { children: [_jsx("circle", { cx: x, cy: y, r: JACK_R - 0.8, fill: "#050505" }), _jsx("circle", { cx: x, cy: y, r: JACK_R - 1.2, fill: "none", stroke: colour, strokeWidth: 0.25, opacity: 0.6 }), _jsx("polygon", { points: `${x + JACK_R - 0.2},${y - JACK_R - 1.4} ${x + JACK_R + 1.2},${y - JACK_R - 0.4} ${x + JACK_R - 0.2},${y - JACK_R + 0.4}`, fill: "none", stroke: colour, strokeWidth: 0.3 })] })), showLabel && labelPos !== 'none' && (_jsx("text", { x: lx, y: ly, fontSize: 1.6, fill: textCol, textAnchor: anchor, fontWeight: 500, children: label }))] }));
 }
 // ── Control glyphs ─────────────────────────────────────────────────────
 function ControlGlyph(props) {

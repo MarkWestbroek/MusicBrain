@@ -1041,3 +1041,89 @@ Voortbouwend op de data-laag uit iteratie 1 (zie eerder log: `Rack.kind`, `seedI
 
 Build schoon (220 modules · ~460 KB / 145 KB gzip).
 
+
+---
+
+## v0.3 iter-4 — Audio-engine + MIDI-bronnen + duidelijker in/out
+
+### Patcher-visualisatie
+- **In- vs uit-poorten zijn nu in één oogopslag herkenbaar:**
+  - **Outputs**: massief gevulde cap in de port-kleur, met witte highlight-dot
+    en een naar-buiten gerichte gevulde driehoek rechtsboven.
+  - **Inputs**: holle donkere kern (#050505) met een dunne gekleurde binnenring
+    en een naar-binnen wijzende open chevron.
+- `JACK_R` blijft 2.6 — wijziging is puur visueel; layout en bestaande
+  connecties ongewijzigd.
+
+### Nieuwe simulator (Sim-tab)
+Het oude `v0.2-komt-eraan` placeholder-paneel is vervangen door een werkende
+mini-synth-engine + drie inwisselbare MIDI-bronnen.
+
+**Dependencies**
+- `tone` toegevoegd aan `editor/package.json` (`npm i tone` — 2 moderate-vuln
+  advisories geaccepteerd, install verder schoon).
+
+**Nieuwe map `editor/src/modular-mb/sim/`**
+
+`AudioEngine.ts`
+- MVP monofone voice-graph: **VCO → VCF → AmplitudeEnvelope → VCA → master → meter → destination**.
+- `build(project, patch)` zoekt per categorie-`kind` (`vco`, `vcf`, `vca`,
+  `envelope`) de eerste module in de patch en mapt de controls erop:
+  - VCO `wave`/`waveform` → Tone.Oscillator type (sine/triangle/square/sawtooth).
+  - VCF `cutoff` (40–18k) + `q` (0.1–12) → Tone.Filter lowpass.
+  - Envelope `attack`/`hold`/`decay`/`sustain`/`release` (ms→s, sustain 0..1)
+    → Tone.AmplitudeEnvelope (A+H worden bij A opgeteld).
+- Last-note-priority mono — `noteOn` ramped frequentie naar de nieuwe noot,
+  `noteOff` triggert release alleen voor de actief klinkende noot.
+- `Tone.Meter` (smoothing 0.85) → genormaliseerd naar 0..1 via RAF-loop
+  voor de UI-meter.
+- Strict TS-veilig: alle controls via `Number(...)` met fallback defaults,
+  clamps op alle ranges, dispose() ruimt nodes + RAF op.
+
+`MidiSource.ts`
+- Gemeenschappelijke interface `MidiSource { id, label, start, stop, subscribe, describe? }`
+  met `MidiEvent` (noteOn/noteOff/cc) en `BaseSource` listener-helper.
+- **`ScreenKeyboardSource`** — window keydown/keyup met keymap
+  `A W S E D F T G Y H U J K` (witte+zwarte toetsen) en `Z`/`X` voor
+  octaaf-shift. De UI rendert óók een klikbaar SVG-keyboard van twee
+  octaven met pointer-capture.
+- **`TestSequenceSource`** — C-majeur arpeggio `[60,64,67,72,67,64]` in
+  8ste-noten via `setInterval`; BPM 30–300 instelbaar.
+- **`WebMidiSource`** — `navigator.requestMIDIAccess({sysex:false})`,
+  parseert status-bytes 0x90/0x80/0xb0, herbindt automatisch op
+  `onstatechange`. `describe()` toont device-namen. Werkt met de
+  ingebouwde TS-DOM Web-MIDI typings (geen eigen ambient declaration nodig).
+
+`SimulationPanel.tsx` (vervangt het placeholder-paneel)
+- Bovenbalk: huidige patch-naam, live voice-frequency, **Start/Stop**
+  (Start awaits zowel `Tone.start()` als `source.start()` zodat het
+  user-gesture-vereiste van WebAudio gehonoreerd wordt), master-volume
+  slider 0–100 % en een gradient level-meter.
+- Bron-selector: drie radio-buttons. Bij wisseling wordt de vorige source
+  netjes `stop()`'d zodat globale keylisteners verdwijnen.
+- Per source een eigen sub-UI:
+  - Screen-keyboard: octaaf±-knoppen, klikbare 2-octaven SVG, hint over
+    computer-toetsen.
+  - Sequence: BPM-input + uitleg.
+  - WebMIDI: beschikbaarheids-check, lijst van aangesloten devices, hint
+    om op Start te klikken voor toestemming.
+- "Engine-mapping" sectie onderin toont per voice-rol of er een module
+  in de patch gevonden is (of dat defaults gebruikt worden).
+- Cleanup-effect ruimt zowel engine als alle sources op bij unmount.
+
+### Build / status
+- `npm run build` slaagt schoon (1184 modules, ~710 kB bundle — Tone.js
+  is de grootste nieuwe bijdrage; chunk-splitting staat op de roadmap).
+- TypeScript strict + `noUncheckedIndexedAccess`: alle nieuwe code
+  passeert zonder casts of `any`.
+
+### Open items (volgende iter)
+1. **Echte connection-following engine** — nu pakt de engine de eerste module
+   per categorie; later moet `patch.connections` doorlopen worden om een
+   volledige signal-graph te bouwen (incl. meerdere VCO's, mixer, breakout).
+2. **Polyfonie** — momenteel mono met last-note-priority.
+3. **Interne sequencer-module** als alternatief voor de test-sequence-bron.
+4. **Scope/visualizer** — koppelen aan `Tone.Analyser` voor live waveform
+   en spectrum.
+5. **LFO/Env als gemodelleerde modules** met patch-bare CV-outputs.
+6. **Code-splitting** voor Tone.js zodat de hoofd-bundle weer onder 500 kB komt.
