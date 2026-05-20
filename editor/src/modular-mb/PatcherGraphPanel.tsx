@@ -392,8 +392,21 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
     [patch.connections, project.modules, project.moduleTypes, selectedEdgeId],
   );
 
-  const onNodesChange = useCallback((_changes: NodeChange[]) => {
-    // Positions are fixed (driven by rack). Nothing to persist.
+  const onNodesChange = useCallback((changes: NodeChange[]) => {
+    // Positions are fixed — only handle selection changes so the internal
+    // ReactFlow Zustand store stays in sync with our selectedNodeId state.
+    // Without this, the store can be reset to selected=false by the next
+    // nodes-prop sync before our React state update has landed.
+    for (const ch of changes) {
+      if (ch.type === 'select') {
+        if (ch.selected) {
+          setSelectedNodeId(ch.id);
+          setSelectedEdgeId(null);
+        } else {
+          setSelectedNodeId((prev) => prev === ch.id ? null : prev);
+        }
+      }
+    }
   }, []);
 
   const onEdgesChange = useCallback((changes: EdgeChange[]) => {

@@ -14,6 +14,7 @@ import { CategoriesPanel } from './CategoriesPanel';
 import { RackPanel } from './RackPanel';
 import { PatcherPanel } from './PatcherPanel';
 import { SimulationPanel } from './SimulationPanel';
+import { PresetsModal } from './PresetsModal';
 // Reuse the ES project-bar CSS classes (.es-projectbar*) — same visual language.
 import '../effect-switcher/styles.css';
 
@@ -34,6 +35,7 @@ export function ModularMbApp(): JSX.Element {
   const [editingName, setEditingName] = useState(false);
   const [editingVer,  setEditingVer]  = useState(false);
   const [editingDesc, setEditingDesc] = useState(false);
+  const [showPresets, setShowPresets] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
 
   // ─── Global undo/redo: Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z ───────────────
@@ -186,6 +188,10 @@ export function ModularMbApp(): JSX.Element {
           <input ref={importRef} type="file" accept=".json,application/json"
             style={{ display: 'none' }} onChange={onImportFile} />
           <button
+            onClick={() => setShowPresets(true)}
+            title="Presets opslaan/laden (project of per module)"
+          >💾 Presets</button>
+          <button
             onClick={() => setProject(seedExampleModules(getProject()))}
             title="Voeg 6 voorbeeld-modules toe aan dit project en plaats ze in het actieve rack"
           >✨ Voorbeelden</button>
@@ -239,6 +245,8 @@ export function ModularMbApp(): JSX.Element {
       <div style={{ display: tab === 'simulation' ? 'block' : 'none' }}>
         <SimulationPanel />
       </div>
+
+      {showPresets && <PresetsModal onClose={() => setShowPresets(false)} />}
     </section>
   );
 }

@@ -1683,3 +1683,42 @@ Open vraag voor iter-5.10:
 
 ### Build
 - `npm run build` groen, bundle 762.23 kB / gzip 224.65 kB. TypeScript strict, geen warnings.
+
+---
+
+## Iter-5.10 — Presets (C2 + C3)
+
+**Doel:** opslaan/laden van knopstanden, op twee niveaus: hele patches (project-snapshots) en per-module (controlValues van één moduletype).
+
+### Nieuwe files
+- `editor/src/modular-mb/presets.ts` — pure logica.
+  - localStorage key `mmb.presets.v1` met `PresetLibrary { version: 1, patches: PatchPresetData[], modules: ModulePresetData[] }`.
+  - Helpers: `loadLibrary` / `saveLibrary` / `savePatchPreset` / `deletePatchPreset` / `renamePatchPreset` / `saveModulePreset` / `deleteModulePreset` / `renameModulePreset` / `applyModulePreset`.
+  - Export/Import van de hele bibliotheek als `.json` via `exportLibraryJson` / `importLibraryJson` (mergt met dedupe op `id`).
+  - Factory presets in code:
+    - `factoryPatchPresets` (functies, niet data — gebruiken bestaande seed-helpers): **Init (leeg)**, **Internals only**, **Test patch (klassiek)**, **Acid bass**, **Soft pad**.
+    - `factoryModulePresets` (data): **Acid resonance** + **Open LP** (VCF), **Snappy pluck** + **Slow pad** (AHDSR), **Detuned saw** (VCO).
+- `editor/src/modular-mb/PresetsModal.tsx` — UI met twee tabs:
+  - **Patch presets** — sla huidig project op met naam · laad factory of eigen preset (bevestiging vóór projectvervanging).
+  - **Module presets** — kies doel-module (dropdown), sla huidige knopstand op · laad presets gefilterd op `typeId` (alleen presets die bij het type passen worden getoond).
+  - Header heeft Export- en Import-knop voor de hele bibliotheek (.json).
+  - ESC sluit de modal.
+
+### Wijzigingen
+- `editor/src/modular-mb/ModularMbApp.tsx`:
+  - Nieuwe knop **💾 Presets** in de project-actiesbalk (rechts naast Importeer).
+  - State `showPresets` + render van `<PresetsModal>` als die open is.
+
+### Designkeuzes
+- **Patch-preset = hele `ModularProject` snapshot.** Eenvoudig, robuust en symmetrisch met Export/Import — verschil is alleen de opslaglocatie (localStorage met naam vs. .json-download).
+- **Module-preset = controlValues van één moduletype.** `applyModulePreset` kopieert de waarden naar de gekozen module in het actieve patch. Filter op `typeId` zorgt dat een VCF-preset niet per ongeluk op een VCO landt.
+- **Factory patch-presets als functies** (geen data) — gebruiken `seedTestPatch` + `tweakActivePatch` om tweaks toe te voegen. Voordeel: geen apart onderhoud van module-snapshots; nadeel: factory presets vereisen kloppende `tp_mmb_*` typeIds in de seed.
+- **Geen rechter-klik op modules nu** — module-presets zijn bereikbaar via dropdown in de modal. Per-module context-menu kan later worden toegevoegd zonder de logica aan te passen.
+
+### Build
+- `cd editor && npm run build` → groen, `dist/assets/index-*.js 776.43 kB / gzip 228.32 kB`.
+
+### Niet-gewijzigd / openstaand
+- **3 (click-detents Length-knop):** snapping van Length naar integers tijdens `onPointerMove` is **niet** geïmplementeerd; de knop toont nog steeds ticks maar gedraagt zich continu. Kan in een aparte iter-stap.
+- **D1/D2 (server-persistentie + users) en A4 (latency)** blijven open.
+

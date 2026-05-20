@@ -339,7 +339,12 @@ function KnobGlyph({
     const dy = dragState.current.startY - e.clientY;
     const fraction = dy / 120;     // 120 px ≈ full range
     const range = c.max - c.min;
-    const next = clamp(dragState.current.startVal + fraction * range, c.min, c.max);
+    let next = clamp(dragState.current.startVal + fraction * range, c.min, c.max);
+    // Click-detents: snap to multiples of ticks.every when defined.
+    if (c.ticks?.every) {
+      next = Math.round(next / c.ticks.every) * c.ticks.every;
+      next = clamp(next, c.min, c.max);
+    }
     onChange(next);
   }
   function onPointerUp(e: React.PointerEvent<SVGGElement>): void {
