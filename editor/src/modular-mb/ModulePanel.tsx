@@ -222,9 +222,9 @@ function PortGlyph({
           {/* OUTPUT: gevulde gekleurde plug-kop */}
           <circle cx={x} cy={y} r={JACK_R - 0.8} fill={colour} />
           <circle cx={x - 0.5} cy={y - 0.5} r={0.6} fill="rgba(255,255,255,0.55)" />
-          {/* outward arrow boven-rechts */}
+          {/* OUTPUT arrow: wijst naar BUITEN (rechts) → signaal verlaat de jack */}
           <polygon
-            points={`${x + JACK_R - 0.2},${y - JACK_R - 0.4} ${x + JACK_R + 1.2},${y - JACK_R - 1.4} ${x + JACK_R + 1.2},${y - JACK_R + 0.4}`}
+            points={`${x + JACK_R - 0.2},${y - JACK_R - 1.4} ${x + JACK_R + 1.2},${y - JACK_R - 0.4} ${x + JACK_R - 0.2},${y - JACK_R + 0.4}`}
             fill={colour} stroke="#000" strokeWidth={0.1} />
         </>
       ) : (
@@ -233,9 +233,9 @@ function PortGlyph({
           <circle cx={x} cy={y} r={JACK_R - 0.8} fill="#050505" />
           <circle cx={x} cy={y} r={JACK_R - 1.2} fill="none"
             stroke={colour} strokeWidth={0.25} opacity={0.6} />
-          {/* inward arrow boven-rechts */}
+          {/* INPUT arrow: LINKSboven, wijst naar BINNEN (tip rechts, naar de jack toe) */}
           <polygon
-            points={`${x + JACK_R - 0.2},${y - JACK_R - 1.4} ${x + JACK_R + 1.2},${y - JACK_R - 0.4} ${x + JACK_R - 0.2},${y - JACK_R + 0.4}`}
+            points={`${x - JACK_R - 1.2},${y - JACK_R - 1.4} ${x - JACK_R + 0.2},${y - JACK_R - 0.5} ${x - JACK_R - 1.2},${y - JACK_R + 0.4}`}
             fill="none" stroke={colour} strokeWidth={0.3} />
         </>
       )}

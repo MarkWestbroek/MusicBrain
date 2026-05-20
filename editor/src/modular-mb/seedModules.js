@@ -576,10 +576,177 @@ function mmbSh() {
         notes: 'Sample-and-hold met slew-limiter. In Slew-mode wordt de trigger-input genegeerd.',
     });
 }
+// 4. MMB VCO — 8 HP. Simulator-vriendelijk: wave-switch, coarse/fine knoppen,
+//    V/Oct + FM in, audio out. Port-ids matchen de engine-conventie.
+function mmbVco() {
+    const w = W(8);
+    return assemble({
+        typeId: 'tp_mmb_vco',
+        categoryId: 'vco',
+        variant: 'VCO (wave + coarse/fine)',
+        brand: 'MMB', model: 'VCO',
+        hp: 8, texture: 'pcb-black', baseColor: '#111827', internal: true,
+        texts: [
+            { x: w / 2, y: 8, text: 'VCO', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+            { x: w / 2, y: 126, text: 'MMB', fontSize: 1.8, color: '#f9fafb', align: 'middle' },
+        ],
+        items: [
+            sw('wave', 'Wave', w / 2, 22, ['Sin', 'Tri', 'Saw', 'Sqr'], 2),
+            knob('coarse', 'Coarse', w * 0.30, 50, { size: 'large', min: -36, max: 36, def: 0, unit: 'semi', color: '#f9fafb' }),
+            knob('fine', 'Fine', w * 0.70, 50, { size: 'medium', min: -100, max: 100, def: 0, unit: 'ct', color: '#f9fafb' }),
+            knob('fm_amt', 'FM', w * 0.30, 78, { size: 'medium', min: 0, max: 1, def: 0, color: '#f9fafb' }),
+            knob('level', 'Level', w * 0.70, 78, { size: 'medium', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+            inPort('voct', '1V/Oct', 'cv', w * 0.20, 104),
+            inPort('fm', 'FM', 'cv', w * 0.50, 104),
+            inPort('sync', 'Sync', 'trigger', w * 0.80, 104),
+            outPort('out', 'Out', 'audio', w / 2, 118),
+        ],
+        notes: 'Interne MMB VCO. \'wave\' kiest sine/triangle/sawtooth/square; coarse+fine zijn semitonen+cent offsets t.o.v. de inkomende V/Oct.',
+    });
+}
+// 5. MMB VCF — 6 HP. Cutoff/Q/type-switch, audio-in, cv-cutoff-in, audio-out.
+function mmbVcf() {
+    const w = W(6);
+    return assemble({
+        typeId: 'tp_mmb_vcf',
+        categoryId: 'vcf',
+        variant: 'VCF (lp/hp/bp)',
+        brand: 'MMB', model: 'VCF',
+        hp: 6, texture: 'pcb-black', baseColor: '#111827', internal: true,
+        texts: [
+            { x: w / 2, y: 8, text: 'VCF', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+            { x: w / 2, y: 126, text: 'MMB', fontSize: 1.8, color: '#f9fafb', align: 'middle' },
+        ],
+        items: [
+            knob('cutoff', 'Cutoff', w / 2, 24, { size: 'large', min: 20, max: 18000, def: 2000, unit: 'Hz', color: '#f9fafb' }),
+            knob('q', 'Q', w * 0.30, 54, { size: 'medium', min: 0.1, max: 12, def: 0.7, color: '#f9fafb' }),
+            knob('cv_amt', 'CV amt', w * 0.70, 54, { size: 'medium', min: 0, max: 1, def: 1, color: '#f9fafb' }),
+            sw('type', 'Type', w / 2, 78, ['LP', 'HP', 'BP'], 0),
+            inPort('in', 'In', 'audio', w * 0.25, 104),
+            inPort('cv', 'Cut CV', 'cv', w * 0.75, 104),
+            outPort('out', 'Out', 'audio', w / 2, 118),
+        ],
+        notes: 'Interne MMB filter. Cutoff-knop is de basis; CV-input moduleert via cv_amt (1V/oct-achtig, ~5 octaven full-swing).',
+    });
+}
+// 6. MMB VCA — 4 HP. Gain knob + cv-in (typisch ENV → VCA).
+function mmbVca() {
+    const w = W(4);
+    return assemble({
+        typeId: 'tp_mmb_vca',
+        categoryId: 'vca',
+        variant: 'VCA (linear)',
+        brand: 'MMB', model: 'VCA',
+        hp: 4, texture: 'pcb-black', baseColor: '#111827', internal: true,
+        texts: [
+            { x: w / 2, y: 8, text: 'VCA', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+            { x: w / 2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+        ],
+        items: [
+            knob('gain', 'Gain', w / 2, 24, { size: 'large', min: 0, max: 1, def: 0, color: '#f9fafb' }),
+            sw('resp', 'Resp', w / 2, 60, ['Lin', 'Exp'], 0),
+            inPort('in', 'In', 'audio', w * 0.25, 92),
+            inPort('cv', 'CV', 'cv', w * 0.75, 92),
+            outPort('out', 'Out', 'audio', w / 2, 114),
+        ],
+        notes: 'Lineaire VCA. Bij gain=0 is de basisweg dicht; een CV-input voegt erbovenop (typisch envelope → CV).',
+    });
+}
+// 7. MMB OUT — 4 HP. Routeert audio naar de master-uitgang (Tone destination).
+function mmbOut() {
+    const w = W(4);
+    return assemble({
+        typeId: 'tp_mmb_out',
+        categoryId: 'utility',
+        variant: 'Audio output',
+        brand: 'MMB', model: 'OUT',
+        hp: 4, texture: 'pcb-black', baseColor: '#111827', internal: true,
+        texts: [
+            { x: w / 2, y: 8, text: 'OUT', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+            { x: w / 2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+        ],
+        items: [
+            knob('level', 'Level', w / 2, 30, { size: 'large', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+            inPort('l', 'L', 'audio', w * 0.30, 92),
+            inPort('r', 'R', 'audio', w * 0.70, 92),
+        ],
+        notes: 'Stuurt aangesloten audio naar de master out. Mono-bron op L of R werkt ook.',
+    });
+}
+// 7b. MMB MIDI-In — 6 HP. Breakout-module die de actieve MIDI-bron
+//     (USB-keyboard, screen-keyboard of test-sequence) splitst in een
+//     CV-pitch en een Gate. Mono / last-note. Channel-knop is voor nu
+//     informatief; de engine luistert nog naar alle kanalen.
+function mmbMidiIn() {
+    const w = W(6);
+    return assemble({
+        typeId: 'tp_mmb_midiin',
+        categoryId: 'utility',
+        variant: 'MIDI-to-CV breakout',
+        brand: 'MMB', model: 'MIDI-IN',
+        hp: 6, texture: 'pcb-black', baseColor: '#111827', internal: true,
+        texts: [
+            { x: w / 2, y: 8, text: 'MIDI-IN', fontSize: 2.2, color: '#f9fafb', align: 'middle' },
+            { x: w / 2, y: 14, text: 'mono · last-note', fontSize: 1.2, color: '#9ca3af', align: 'middle' },
+            { x: w / 2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+        ],
+        items: [
+            knob('channel', 'Ch', w * 0.30, 40, { size: 'small', min: 0, max: 16, def: 0, unit: '0=all', color: '#f9fafb' }),
+            sw('mode', 'Mode', w * 0.70, 40, ['mono', 'legato', 'last'], 0),
+            outPort('pitch', 'V/Oct', 'cv', w * 0.30, 95),
+            outPort('gate', 'Gate', 'gate', w * 0.70, 95),
+        ],
+        notes: 'Zet inkomende MIDI-noten (USB / screen-keyboard / test-sequence) om in CV (V/Oct) en Gate. Sluit pitch op een VCO\u2019s voct aan en gate op een envelope.',
+    });
+}
+// 8. MMB SEQ-8 — 8 HP. 8-step sequencer (semitone-knoppen) + run/length/rate.
+//    Outputs: CV (volt-per-octave proxy) + GATE. De engine draait de
+//    interne clock zodra Start ingedrukt is.
+function mmbSeq8() {
+    const w = W(12);
+    const rowY = 56;
+    const sx = (i) => w * (0.08 + i * 0.105);
+    return assemble({
+        typeId: 'tp_mmb_seq8',
+        categoryId: 'sequencer',
+        variant: '8-step CV/Gate sequencer',
+        brand: 'MMB', model: 'SEQ-8',
+        hp: 12, texture: 'pcb-black', baseColor: '#111827', internal: true,
+        texts: [
+            { x: w / 2, y: 8, text: 'SEQ-8', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+            { x: w / 2, y: 14, text: 'step sequencer', fontSize: 1.2, color: '#9ca3af', align: 'middle' },
+            { x: w / 2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+        ],
+        decorations: [
+            { kind: 'rect', x: 2, y: 40, w: w - 4, h: 36, color: '#0b1220' },
+        ],
+        items: [
+            // 8 step-knoppen (semitone offsets vanaf root)
+            knob('s1', '1', sx(0), rowY, { size: 'small', min: -24, max: 24, def: 0, unit: 'st', color: '#f9fafb' }),
+            knob('s2', '2', sx(1), rowY, { size: 'small', min: -24, max: 24, def: 4, unit: 'st', color: '#f9fafb' }),
+            knob('s3', '3', sx(2), rowY, { size: 'small', min: -24, max: 24, def: 7, unit: 'st', color: '#f9fafb' }),
+            knob('s4', '4', sx(3), rowY, { size: 'small', min: -24, max: 24, def: 12, unit: 'st', color: '#f9fafb' }),
+            knob('s5', '5', sx(4), rowY, { size: 'small', min: -24, max: 24, def: 7, unit: 'st', color: '#f9fafb' }),
+            knob('s6', '6', sx(5), rowY, { size: 'small', min: -24, max: 24, def: 0, unit: 'st', color: '#f9fafb' }),
+            knob('s7', '7', sx(6), rowY, { size: 'small', min: -24, max: 24, def: 5, unit: 'st', color: '#f9fafb' }),
+            knob('s8', '8', sx(7), rowY, { size: 'small', min: -24, max: 24, def: 3, unit: 'st', color: '#f9fafb' }),
+            knob('root', 'Root', w * 0.20, 90, { size: 'medium', min: 24, max: 96, def: 60, unit: 'midi', color: '#f9fafb' }),
+            knob('rate', 'Rate', w * 0.45, 90, { size: 'medium', min: 0.5, max: 16, def: 4, unit: 'Hz', color: '#f9fafb' }),
+            knob('gate', 'Gate', w * 0.70, 90, { size: 'medium', min: 0.05, max: 0.95, def: 0.5, color: '#f9fafb' }),
+            sw('length', 'Length', w * 0.88, 90, ['2', '3', '4', '5', '6', '7', '8'], 6),
+            toggle('run', 'Run', w * 0.10, 90, true),
+            inPort('clock', 'Clk', 'trigger', w * 0.20, 112),
+            inPort('reset', 'Rst', 'trigger', w * 0.40, 112),
+            outPort('cv', 'CV', 'cv', w * 0.65, 112),
+            outPort('gate_out', 'Gate', 'gate', w * 0.85, 112),
+        ],
+        notes: '8-step sequencer met semitone-per-step. CV-out is een proxy voor V/Oct die direct in de VCO\u2019s voct-input mag.',
+    });
+}
 // ── public entry ───────────────────────────────────────────────────────
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project) {
-    const all = [mmbAhdsr(), mmbLfo(), mmbSh()];
+    const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbVcf(), mmbVca(), mmbOut(), mmbMidiIn(), mmbSeq8()];
     const newTypes = all.map((x) => x.type);
     const newModules = all.map((x) => x.module);
     // Zorg dat het interne rack bestaat
@@ -652,5 +819,90 @@ export function seedExampleModules(project) {
         moduleTypes: [...project.moduleTypes, ...newTypes],
         modules: [...project.modules, ...newModules],
         racks,
+    };
+}
+/** Maak een nieuw "Test rack" + "Test patch" met VCO→VCF→VCA→OUT en
+ *  ENV→VCA, klaar om in de Simulatie-tab af te spelen. Zorgt automatisch
+ *  dat de benodigde MMB-modules (incl. internals) bestaan. */
+export function seedTestPatch(project) {
+    // 1. Verzeker dat alle internals (incl. VCO/VCF/VCA/OUT/ENV/SEQ) bestaan.
+    const needed = ['tp_mmb_vco', 'tp_mmb_vcf', 'tp_mmb_vca', 'tp_mmb_out', 'tp_mmb_ahdsr', 'tp_mmb_seq8'];
+    const missing = needed.some((tid) => !project.moduleTypes.some((t) => t.id === tid));
+    let p = missing ? seedInternals(project) : project;
+    // 2. Maak nieuw fysiek rack met fresh modules.
+    const types = p.moduleTypes;
+    function fresh(typeId) {
+        const t = types.find((x) => x.id === typeId);
+        const proto = p.modules.find((m) => m.typeId === typeId);
+        return { ...proto, id: uid('mod'), internal: false,
+            name: `${proto.brand ?? ''} ${proto.modelNumber ?? ''} (test)`.trim(),
+            // copy visual via reference is fine (read-only at render time).
+            visual: proto.visual };
+        void t;
+    }
+    const seq = fresh('tp_mmb_seq8');
+    const vco = fresh('tp_mmb_vco');
+    const vcf = fresh('tp_mmb_vcf');
+    const vca = fresh('tp_mmb_vca');
+    const env = fresh('tp_mmb_ahdsr');
+    const out = fresh('tp_mmb_out');
+    // 3. Layout: één rij, achter elkaar.
+    let offset = 0;
+    const place = (m) => {
+        const slot = { id: uid('slot'), moduleId: m.id, row: 0, hpOffset: offset };
+        offset += m.visual.hpWidth;
+        return slot;
+    };
+    const rackHp = seq.visual.hpWidth + vco.visual.hpWidth + vcf.visual.hpWidth
+        + vca.visual.hpWidth + env.visual.hpWidth + out.visual.hpWidth;
+    const rack = {
+        id: uid('rack'), name: 'Test rack',
+        description: 'Automatisch gegenereerd door "Test-patch": SEQ → VCO → VCF → VCA → OUT met ENV → VCA.',
+        rows: 1, hpPerRow: Math.max(64, rackHp + 4),
+        slots: [place(seq), place(vco), place(vcf), place(vca), place(env), place(out)],
+        kind: 'physical',
+    };
+    // 4. Patch met cables.
+    const c = (from, to) => ({
+        id: uid('conn'),
+        from: { moduleId: from.m.id, portId: from.port },
+        to: { moduleId: to.m.id, portId: to.port },
+    });
+    const connections = [
+        c({ m: vco, port: 'out' }, { m: vcf, port: 'in' }),
+        c({ m: vcf, port: 'out' }, { m: vca, port: 'in' }),
+        c({ m: vca, port: 'out' }, { m: out, port: 'l' }),
+        c({ m: vca, port: 'out' }, { m: out, port: 'r' }),
+        c({ m: env, port: 'cv_out' }, { m: vca, port: 'cv' }),
+        // Sequencer drives toonhoogte (V/Oct) en envelope-gate.
+        c({ m: seq, port: 'cv' }, { m: vco, port: 'voct' }),
+        c({ m: seq, port: 'gate_out' }, { m: env, port: 'gate' }),
+    ];
+    // 5. Default control state — direct hoorbaar bij Start.
+    const controlState = {
+        [vco.id]: { wave: 2, coarse: 0, fine: 0, level: 0.8 }, // saw, A4-ish
+        [vcf.id]: { cutoff: 2500, q: 0.7, cv_amt: 1, type: 0 }, // LP
+        [vca.id]: { gain: 0, resp: 0 }, // closed; env opens it
+        [env.id]: { attack: 5, hold: 0, decay: 200, sustain: 0.6, release: 400, loop: false, curve: 1 },
+        [out.id]: { level: 0.8 },
+        [seq.id]: { s1: 0, s2: 4, s3: 7, s4: 12, s5: 7, s6: 0, s7: 5, s8: 3,
+            root: 60, rate: 4, gate: 0.5, length: 6, run: true },
+    };
+    const patch = {
+        id: uid('patch'), name: 'Test patch',
+        description: 'Simpele subtractieve synth: VCO → VCF → VCA met envelope op de VCA.',
+        voiceCount: 1,
+        rackIds: [rack.id],
+        connections,
+        controlState,
+        envelopes: [], lfos: [],
+    };
+    return {
+        ...p,
+        racks: [...p.racks, rack],
+        modules: [...p.modules, seq, vco, vcf, vca, env, out],
+        patches: [...p.patches, patch],
+        activeRackId: rack.id,
+        activePatchId: patch.id,
     };
 }

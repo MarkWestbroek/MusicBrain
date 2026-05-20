@@ -7,7 +7,7 @@
 import { useRef, useState } from 'react';
 import { setProject, updateProject, useModularProject, getProject } from './store';
 import { emptyModularProject } from './types';
-import { seedExampleModules, seedInternals } from './seedModules';
+import { seedExampleModules, seedInternals, seedTestPatch } from './seedModules';
 import { PatchesPanel } from './PatchesPanel';
 import { ModulesPanel } from './ModulesPanel';
 import { CategoriesPanel } from './CategoriesPanel';
@@ -20,10 +20,10 @@ import '../effect-switcher/styles.css';
 type Tab = 'patches' | 'modules' | 'rack' | 'categories' | 'patcher' | 'simulation';
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'patches',    label: 'Patches' },
+  { id: 'categories', label: 'Categorieën' },
   { id: 'modules',    label: 'Modules' },
   { id: 'rack',       label: 'Rack' },
-  { id: 'categories', label: 'Categorieën' },
+  { id: 'patches',    label: 'Patches' },
   { id: 'patcher',    label: 'Patcher' },
   { id: 'simulation', label: 'Simulatie' },
 ];
@@ -175,8 +175,12 @@ export function ModularMbApp(): JSX.Element {
           >✨ Voorbeelden</button>
           <button
             onClick={() => setProject(seedInternals(getProject()))}
-            title="Voeg MMB-brain modules (AHDSR, LFO, S&H) toe aan het virtuele rack"
+            title="Voeg MMB-modules (AHDSR, LFO, S&H, VCO, VCF, VCA, OUT, SEQ-8) toe aan het virtuele rack"
           >✨ Internals</button>
+          <button
+            onClick={() => setProject(seedTestPatch(getProject()))}
+            title="Maak een nieuw Test rack + Test patch: VCO → VCF → VCA → OUT met ENV → VCA. Klaar om in de Simulatie-tab af te spelen."
+          >✨ Test-patch</button>
           <button className="es-projectbar-reset"
             onClick={() => { if (confirm('Project wissen en opnieuw beginnen?')) setProject(emptyModularProject()); }}
           >Nieuw</button>
@@ -213,7 +217,12 @@ export function ModularMbApp(): JSX.Element {
       {tab === 'rack'       && <RackPanel />}
       {tab === 'categories' && <CategoriesPanel />}
       {tab === 'patcher'    && <PatcherPanel />}
-      {tab === 'simulation' && <SimulationPanel />}
+      {/* SimulationPanel blijft altijd gemount zodat de audio-engine en de
+          gekozen MIDI-bron (bv. de auto-sequence) blijven draaien als je
+          naar een andere tab gaat om aan knoppen te draaien of te patchen. */}
+      <div style={{ display: tab === 'simulation' ? 'block' : 'none' }}>
+        <SimulationPanel />
+      </div>
     </section>
   );
 }

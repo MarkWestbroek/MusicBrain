@@ -23,17 +23,28 @@ export function SimulationPanel() {
         sequence: new TestSequenceSource(),
         webmidi: new WebMidiSource(),
     }), []);
-    const [sourceId, setSourceId] = useState('screen');
+    const [sourceId, setSourceId] = useState('sequence');
     const source = sources[sourceId];
     const [status, setStatus] = useState({ running: false, voiceFreqHz: 0, level: 0 });
     const [masterVol, setMasterVol] = useState(0.7);
     const [error, setError] = useState(null);
+    // (Re)bouw de signal-graph zodra de patch verandert (live re-patching).
+    // Als de engine al draaide, herstart hem na de rebuild zodat de gebruiker
+    // tijdens het patchen niet opnieuw hoeft te starten.
     useEffect(() => {
         if (!patch)
             return;
+        const wasRunning = status.running;
         engine.build(project, patch);
         engine.setMasterVolume(masterVol);
-    }, [engine, project, patch, masterVol]);
+        if (wasRunning) {
+            void engine.start();
+        }
+        // status.running bewust uit deps gelaten — anders looped het.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [engine, project, patch]);
+    // Master-volume apart — verandert niet de hele engine.
+    useEffect(() => { engine.setMasterVolume(masterVol); }, [engine, masterVol]);
     useEffect(() => {
         const unsub = source.subscribe((e) => {
             if (e.kind === 'noteOn')

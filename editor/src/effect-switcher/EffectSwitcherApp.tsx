@@ -203,12 +203,12 @@ export function EffectSwitcherApp(): JSX.Element {
       </div>
 
       <div className="es-tabs">
-        <button className="es-tab" aria-selected={tab === 'patches'}
-                onClick={() => setTab('patches')}>{t('tab.patches')}</button>
-        <button className="es-tab" aria-selected={tab === 'chain'}
-                onClick={() => setTab('chain')}>{t('tab.chain')}</button>
         <button className="es-tab" aria-selected={tab === 'categories'}
                 onClick={() => setTab('categories')}>{t('tab.categories')}</button>
+        <button className="es-tab" aria-selected={tab === 'chain'}
+                onClick={() => setTab('chain')}>{t('tab.chain')}</button>
+        <button className="es-tab" aria-selected={tab === 'patches'}
+                onClick={() => setTab('patches')}>{t('tab.patches')}</button>
         <button className="es-tab" aria-selected={tab === 'simulation'}
                 onClick={() => setTab('simulation')}>{t('tab.simulation')}</button>
       </div>

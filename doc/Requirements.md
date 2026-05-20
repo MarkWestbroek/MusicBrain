@@ -1127,3 +1127,160 @@ mini-synth-engine + drie inwisselbare MIDI-bronnen.
    en spectrum.
 5. **LFO/Env als gemodelleerde modules** met patch-bare CV-outputs.
 6. **Code-splitting** voor Tone.js zodat de hoofd-bundle weer onder 500 kB komt.
+
+## Iter-5 — Connection-following AudioEngine + standaard MMB-modules + Test-patch
+
+**Datum**: deze sessie. **Status**: build OK (724 kB gzipped 214 kB).
+
+### Doel
+De simulator kabel-correct maken: de audio-keten moet de echte `patch.connections` volgen zodat envelope, sequencer en filter-CV daadwerkelijk doen wat de patcher tekent. Daarvoor zijn ook *standaard* MMB-modules nodig die exact de port-naming-conventie van de engine kennen, plus een ÚÚn-kliks test-rack om alles te valideren.
+
+### Nieuwe interne modules (`editor/src/modular-mb/seedModules.ts`)
+Alle modules zijn `internal: true`, texture `pcb-black`, basekleur `#111827`:
+
+| Module | TypeId | HP | Categorie | Belangrijkste ports |
+|---|---|---|---|---|
+| MMB VCO | `tp_mmb_vco` | 8 | vco | in `voct` (cv), `fm` (cv), `sync` (trig) ÔÇö out `out` (audio) |
+| MMB VCF | `tp_mmb_vcf` | 6 | vcf | in `in` (audio), `cv` (cv) ÔÇö out `out` (audio) |
+| MMB VCA | `tp_mmb_vca` | 4 | vca | in `in` (audio), `cv` (cv) ÔÇö out `out` (audio) |
+| MMB OUT | `tp_mmb_out` | 4 | utility | in `l`, `r` (audio) ÔÇö sink naar Tone destination |
+| MMB SEQ-8 | `tp_mmb_seq8` | 12 | sequencer | in `clock`, `reset` (trig) ÔÇö out `cv` (cv), `gate_out` (gate) |
+
+Controls die de engine kent:
+- **VCO**: `wave` (Sin/Tri/Saw/Sqr), `coarse` (-36..36 semi), `fine` (-100..100 ct), `fm_amt`, `level`.
+- **VCF**: `cutoff` (20..18000 Hz), `q` (0.1..12), `cv_amt` (0..1), `type` (LP/HP/BP).
+- **VCA**: `gain` (0..1, default 0 ÔÇö envelope MOET aangesloten zijn voor geluid), `resp` (Lin/Exp).
+- **OUT**: `level` (0..1).
+- **SEQ-8**: 8 semitone-knoppen `s1..s8` (-24..24), `root` (MIDI 24..96), `rate` (Hz, default 4), `gate` (0.05..0.95), `length` (2..8 stappen), `run` toggle.
+
+`seedInternals()` plaatst nu al deze modules in `rack_internal` (auto-grow van rij-aantal).
+
+### Nieuwe action: `seedTestPatch(project)`
+Maakt **in ÚÚn klik** een compleet werkend setup:
+1. Verzekert dat de benodigde internals (VCO, VCF, VCA, OUT, AHDSR) bestaan.
+2. Maakt een *fysiek* rack ÔÇ£Test rackÔÇØ van 1 rij, breed genoeg, met vers-geÔÇÉkloonde modules (VCO + VCF + VCA + ENV + OUT achter elkaar).
+3. Maakt een patch ÔÇ£Test patchÔÇØ met deze kabels:
+   - `vco.out ÔåÆ vcf.in`
+   - `vcf.out ÔåÆ vca.in`
+   - `vca.out ÔåÆ out.l` (en `out.r`)
+   - `env.cv_out ÔåÆ vca.cv`  (envelope opent de VCA)
+4. Zet directe default-controls (saw wave, cutoff 2500 Hz, AHDSR 5/0/200/0.6/400 ms).
+5. Maakt het nieuwe rack + patch actief.
+
+UI-knop ÔÇ£Ô£¿ Test-patchÔÇØ staat in de actiebalk van Modular-MB naast ÔÇ£Ô£¿ InternalsÔÇØ.
+
+### Connection-following AudioEngine (`editor/src/modular-mb/sim/AudioEngine.ts`)
+Volledig herschreven van de oude ÔÇ£eerste-module-per-categorieÔÇØ MVP naar een echte signal-graph:
+
+- Per module wordt op basis van `category.kind` een Tone-node opgebouwd:
+  - `vco` ÔåÆ `Tone.Oscillator` (waveform uit `wave`-switch).
+  - `vcf` ÔåÆ `Tone.Filter` (LP/HP/BP, cutoff/Q van knoppen).
+  - `vca` ÔåÆ `Tone.Gain` (knob = basisniveau; CV telt erbovenop).
+  - `envelope` ÔåÆ `Tone.Envelope` (A+H gecombineerd in attack-tijd).
+  - `lfo` ÔåÆ `Tone.LFO` (start bij engine-start).
+  - `sequencer` ÔåÆ interne step-clock (`setInterval` op `rate` Hz), geen Tone-node.
+  - `utility` met `typeId === 'tp_mmb_out'` ÔåÆ master-sink `Tone.Gain.toDestination()`.
+
+- Vervolgens wordt **elke `patch.connection` gewired**:
+  - audioÔåÆaudio: directe `.connect()`.
+  - cvÔåÆVCA.cv: envelope/LFO-output direct op `gain.gain` AudioParam (additief op de knob).
+  - cvÔåÆVCF.cv: via `Tone.Scale(0, baseCutoff*8*cv_amt)` op `filter.frequency`.
+  - cv (SEQ) ÔåÆ VCO.voct: sequencer-step zet rechtstreeks `osc.frequency` (geen continue signal).
+  - gate (SEQ) ÔåÆ envelope.gate: sequencer roept `triggerAttack/Release` op het envelope-target aan op basis van `gate`-ratio.
+
+- **Keyboard-routing**: `noteOn` zet alleen VCO's zonder `voct`-kabel en triggert alleen envelopes zonder `gate`-kabel. Zodra een sequencer is aangesloten neemt die de toonhoogte/gating over. Monofoon (polyfonie blijft uit scope).
+
+- Meter via `Tone.Meter` op de master; status (`running`, `voiceFreqHz`, `level`) gepublished via `subscribe(...)` (Sim-panel ongewijzigd).
+
+### Beperkingen / vervolg
+- Polyfonie blijft buiten scope (alle stemmen monofoon).
+- LFOÔåÆVCF en LFOÔåÆVCO.fm wires lopen via dezelfde generieke cv-routing; expliciete `Tone.Scale` op die paden kan nog verfijnd worden.
+- Sequencer-clock is intern op een JS-`setInterval`; sync naar `Tone.Transport` is een latere uitbouw.
+- ÔÇ£Test-patchÔÇØ overschrijft niets; iedere klik maakt een nieuw rack+patch (kan worden opgeruimd via Patches-tab).
+
+
+## Iter-5.1 — Patcher/Sim UX feedback
+
+**Status**: build OK (725 kB / gzip 214 kB).
+
+### Wijzigingen op basis van feedback
+
+1. **Pijltjes-richting op poorten omgedraaid** (`ModulePanel.tsx`):
+   - **OUT** krijgt nu een gevulde pijl die naar buiten wijst (naar rechts uit de jack).
+   - **IN** krijgt een open pijl die naar binnen wijst (naar de jack toe).
+   - Vorige versie had ze omgekeerd.
+
+2. **SEQ-8 toegevoegd aan Test-patch** (`seedModules.ts`):
+   - "Test rack" begint nu met SEQ-8 voor de VCO+VCF+VCA+ENV+OUT keten.
+   - Twee extra kabels: `seq.cv -> vco.voct` en `seq.gate_out -> env.gate`.
+   - Default-controls voor SEQ: 1-3-5-octaaf-5-1-4-3 semitone-pattern, root C4, 4 Hz, 8 steps, run=true.
+   - Klik op "✨ Test-patch" geeft je nu een complete demo die direct speelt zodra je Start drukt.
+
+3. **Default MIDI-source = TestSequenceSource** (`SimulationPanel.tsx`):
+   - Sim opent voortaan met de automatische test-sequence i.p.v. on-screen keyboard.
+   - Eén klik op Start en je hoort iets — geen extern keyboard of muis-tikken nodig.
+
+4. **SimulationPanel blijft altijd gemount** (`ModularMbApp.tsx`):
+   - Tab-switch verbergt de panel met `display:none` i.p.v. unmount.
+   - De AudioEngine en de actieve MIDI-bron blijven dus dóórdraaien als je naar Patcher, Rack of Modules tab gaat.
+   - Workflow: druk Start in Simulatie → switch naar Patcher → draai aan knoppen of leg/verwijder kabels → wijziging is direct hoorbaar.
+
+5. **Live re-patching** (`SimulationPanel.tsx`):
+   - `engine.build(project, patch)` triggert nu alleen op project/patch-mutatie (master-vol apart).
+   - Als de engine al draaide tijdens een rebuild, wordt hij automatisch hervat (`engine.start()` na build).
+   - Dit maakt het volledig "live": een nieuwe kabel of een verwijderde verbinding past de signaal-keten direct aan.
+
+### Niet gedaan (open punten)
+
+- **Plooibare kabels** met sleepbare control-points: vergt een custom `EdgeType` met state-bookkeeping in xyflow. Geparkeerd; eerst horen of de keten goed werkt.
+- **Externe MIDI-keyboard test**: hardware-afhankelijk, gebruiker doet zelf.
+- **Cable-delete via graph**: was al aanwezig (`deleteKeyCode="Delete"` + hint in legenda) — selecteer kabel + Delete. Geen wijziging nodig.
+
+
+## Iter-5.2 — Patcher UX, sequencer-stop & MIDI-In breakout (2025)
+
+**Wat is er veranderd**
+
+1. **Pijltjes correct geplaatst.**
+   - OUT-jacks: vol gekleurd driehoekje **rechtsboven** met de tip naar rechts.
+   - IN-jacks: open driehoekje **linksboven** met de tip naar rechts (de socket in).
+   - Visueel leesbaar van links naar rechts ("signaal stroomt deze kant op").
+
+2. **Kabels selecteerbaar en verwijderbaar in de Patcher.**
+   - Brede onzichtbare hit-zone (`interactionWidth: 24`) op elke edge — kabels zijn nu makkelijk te raken.
+   - Geselecteerde kabel wordt **dikker** (5 px) en krijgt een lichte glow, hover toont een muis-pointer en iets dikkere lijn.
+   - `Delete` én `Backspace` verwijderen de geselecteerde kabel(s).
+   - Canvas heeft `tabIndex={0}` zodat keystrokes daadwerkelijk binnenkomen.
+
+3. **Kabel-uiteinde verslepen (ompluggen).**
+   - `onReconnect` op de ReactFlow-graph: pak een eind van een bestaande kabel, sleep het naar een andere jack en de verbinding wordt geüpdatet (zelfde id) zonder dat je hem hoeft te verwijderen en opnieuw te tekenen.
+   - Validatie via dezelfde `canConnect` + out↔in-normalisatie als `onConnect`.
+
+4. **Sequencer Run-toggle stopt nu echt.**
+   - `AudioEngine.makeNode('sequencer')` leest de `run`-toggle in een nieuw `running`-veld op de SeqNode.
+   - `start()` start alleen de step-interval als `running===true`.
+   - `voctDriven` / `gateDriven` worden alléén op de doelmodules gezet door **actieve** bronnen (MIDI-In, of SEQ met run=true). Zo blijft het keyboard de VCO/envelope aansturen zodra de sequencer uit staat.
+   - Combineert met de bestaande live re-patch: zodra je `run` uitzet, herbouwt de engine en hoor je direct stilte (en kun je daarna het keyboard gebruiken).
+
+5. **Nieuwe interne module: MMB MIDI-IN (6 HP).**
+   - `tp_mmb_midiin`, internal, categorie `utility`.
+   - Front: `Channel`-knop (0=all) + `Mode`-switch (mono / legato / last); momenteel beide informatief.
+   - Outputs: `pitch` (V/Oct CV) en `gate` (Gate).
+   - Engine-routing: er is een nieuwe node-kind `midiin`. Op `noteOn` updaten alle MIDI-In modules hun aangesloten VCO-`voct`-targets (osc.frequency.rampTo) en triggeren ze de gekoppelde envelopes. Op `noteOff` releasen ze die envelopes weer.
+   - Backwards-compatible: zolang er **geen** MIDI-In module in de patch zit, blijft de oude implicit-routing actief (elke VCO zonder `voct`-kabel en elke envelope zonder `gate`-kabel reageert direct op het keyboard).
+   - Toegevoegd aan `seedInternals()`; bestaande projecten krijgen de module automatisch bij de volgende `seedInternals`-call.
+
+**Bewust uitgesteld**
+
+- Polyfonie, voice-stealing, MIDI-controller-CV's (mod/pitchbend/aftertouch) — eerst de mono-pipeline laten settelen.
+- Visuele patch-cable bend / drag-handles op tussenpunten — alleen de uiteinden zijn nu sleepbaar.
+- Per-MIDI-In channel-filter; nu luistert de engine nog naar alle inkomende notes ongeacht de knob-stand.
+
+**Bestanden**
+- `editor/src/modular-mb/ModulePanel.tsx` (pijltjes).
+- `editor/src/modular-mb/PatcherGraphPanel.tsx` (edge-selectie, hit-zone, deleteKeyCode-array, `onReconnect`, styling).
+- `editor/src/modular-mb/sim/AudioEngine.ts` (`MidiInNode`, SEQ `running`, herzien noteOn/noteOff, actieve-driver-detectie).
+- `editor/src/modular-mb/seedModules.ts` (`mmbMidiIn()` factory + opname in `seedInternals`).
+
+**Build**: ✅ groen — `dist/assets/index-*.js` 728 kB (gzip 215 kB).
+

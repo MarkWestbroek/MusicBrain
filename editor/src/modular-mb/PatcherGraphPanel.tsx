@@ -172,6 +172,10 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
         type: 'default',
         // zIndex tilt edges above the node-panel (default they render below)
         zIndex: 1000,
+        // brede onzichtbare hit-strip zodat de kabel makkelijker te klikken is
+        interactionWidth: 24,
+        // re-attach door uiteinde te slepen
+        reconnectable: true,
         style: {
           stroke: colour, strokeWidth: 3,
           strokeLinecap: 'round',
@@ -238,12 +242,59 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
     console.log('[patcher] connected', srcMod.name, srcPort.name, '→', dstMod.name, dstPort.name);
   }, [project.modules, project.moduleTypes, patchId]);
 
+  // Edge-reconnect: gebruiker sleept een uiteinde van een bestaande kabel
+  // naar een andere jack. We verwijderen de oude verbinding en draaien de
+  // nieuwe door dezelfde validatie/normalisatie als onConnect.
+  const onReconnect = useCallback((oldEdge: Edge, conn: Connection) => {
+    if (!conn.source || !conn.target || !conn.sourceHandle || !conn.targetHandle) return;
+    let aMod = project.modules.find((m) => m.id === conn.source);
+    let bMod = project.modules.find((m) => m.id === conn.target);
+    if (!aMod || !bMod) return;
+    let aPort = resolvePorts(aMod, project.moduleTypes).find((p) => p.id === conn.sourceHandle);
+    let bPort = resolvePorts(bMod, project.moduleTypes).find((p) => p.id === conn.targetHandle);
+    if (!aPort || !bPort) return;
+    if (aPort.direction === 'in' && bPort.direction === 'out') {
+      [aMod, bMod] = [bMod, aMod];
+      [aPort, bPort] = [bPort, aPort];
+    }
+    if (aPort.direction !== 'out' || bPort.direction !== 'in') return;
+    if (!canConnect(aPort.signalType, bPort.signalType)) return;
+    updateProject((p) => ({
+      ...p,
+      patches: p.patches.map((px) => px.id !== patchId ? px
+        : {
+            ...px,
+            connections: [
+              ...px.connections.filter((c) => c.id !== oldEdge.id),
+              { id: oldEdge.id,
+                from: { moduleId: aMod!.id, portId: aPort!.id },
+                to:   { moduleId: bMod!.id, portId: bPort!.id } },
+            ],
+          }),
+    }));
+  }, [project.modules, project.moduleTypes, patchId]);
+
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 220px', gap: 12 }}>
-      <div style={{
-        height: 620, border: '1px solid #cbd2d9', borderRadius: 6,
-        background: '#0f172a', userSelect: 'none',
-      }}>
+      <style>{`
+        /* Selected cable: dikker, lichte glow, kleine label-cue */
+        .mmb-patcher .react-flow__edge.selected .react-flow__edge-path {
+          stroke-width: 5 !important;
+          filter: drop-shadow(0 0 4px rgba(255,255,255,0.55));
+        }
+        /* Hover-feedback op de brede onzichtbare hitzone */
+        .mmb-patcher .react-flow__edge:hover .react-flow__edge-path {
+          stroke-width: 4 !important;
+          cursor: pointer;
+        }
+      `}</style>
+      <div
+        className="mmb-patcher"
+        tabIndex={0}
+        style={{
+          height: 620, border: '1px solid #cbd2d9', borderRadius: 6,
+          background: '#0f172a', userSelect: 'none', outline: 'none',
+        }}>
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -251,8 +302,10 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          onReconnect={onReconnect}
           connectionMode={ConnectionMode.Loose}
-          deleteKeyCode="Delete"
+          deleteKeyCode={['Delete', 'Backspace']}
+          edgesFocusable={true}
           fitView
           minZoom={0.3} maxZoom={2}
           proOptions={{ hideAttribution: true }}
