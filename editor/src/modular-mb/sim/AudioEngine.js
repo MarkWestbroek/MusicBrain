@@ -68,8 +68,17 @@ export class AudioEngine {
             const kind = String(cat?.kind ?? '');
             const ctrl = (patch.controlState[m.id] ?? {});
             const node = this.makeNode(kind, m, t, ctrl);
-            if (node)
+            if (node) {
                 this.nodes.set(m.id, node);
+                // Seed afgeleide UI-velden zoals BPM zodat de display niet leeg
+                // blijft tot de gebruiker Rate aanraakt.
+                if (node.kind === 'sequencer') {
+                    this.status.liveControls[m.id] = {
+                        ...(this.status.liveControls[m.id] ?? {}),
+                        __rateBpm: Math.round(node.rateHz * 15),
+                    };
+                }
+            }
         }
         // 3. Wire connections.
         this.connections = patch.connections;
@@ -117,7 +126,7 @@ export class AudioEngine {
                     catch { /* ignore */ }
                 }
             }
-            if (node.kind === 'sequencer' && node.active && node.running)
+            if (node.kind === 'sequencer' && node.active && (node.running || node.runDriven))
                 this.startSequencer(node);
         }
         this.status.running = true;
@@ -335,6 +344,11 @@ export class AudioEngine {
                 }
                 if (controlId === 'rate') {
                     node.rateHz = clamp(num, 0.5, 16);
+                    // BPM = rate(Hz) * 60 / 4   (één step = 16e noot, 4 steps per beat).
+                    this.status.liveControls[node.moduleId] = {
+                        ...(this.status.liveControls[node.moduleId] ?? {}),
+                        __rateBpm: Math.round(node.rateHz * 15),
+                    };
                     // Herstart interval met nieuwe rate als hij draait.
                     if (node.intervalId !== null) {
                         window.clearInterval(node.intervalId);
@@ -351,6 +365,9 @@ export class AudioEngine {
                 if (controlId === 'run') {
                     const run = Boolean(value);
                     node.running = run;
+                    // Run-toggle heeft geen effect zolang Run+ override actief is.
+                    if (node.runDriven)
+                        return true;
                     if (run && node.active && node.intervalId === null)
                         this.startSequencer(node);
                     if (!run && node.intervalId !== null)
@@ -457,7 +474,20 @@ export class AudioEngine {
                     node.input.dispose();
                     node.output.dispose();
                     break;
-                case 'sequencer': /* no Tone nodes */ break;
+                case 'sequencer': /* no Tone nodes */
+                    if (node.voctMeter) {
+                        try {
+                            node.voctMeter.dispose();
+                        }
+                        catch { /* ignore */ }
+                    }
+                    if (node.runMeter) {
+                        try {
+                            node.runMeter.dispose();
+                        }
+                        catch { /* ignore */ }
+                    }
+                    break;
                 case 'midiin': /* no Tone nodes */ break;
             }
         }
@@ -599,12 +629,14 @@ export class AudioEngine {
                     ...base, kind: 'sequencer',
                     notes, rateHz: rate, gateRatio: gate,
                     running: run,
-                    gateTargets: [], cvTargets: [],
+                    gateTargets: [], cvTargets: [], trigTargets: [],
                     intervalId: null, stepIdx: 0, lastNote: null,
                     active: false,
                     voctOffset: 0,
+                    voctMeter: null,
                     runDriven: false,
                     runGate: false,
+                    runMeter: null,
                 };
             }
             default:
@@ -659,6 +691,36 @@ export class AudioEngine {
                 src.pitchTargets.push(dst.moduleId);
                 return;
             }
+            // CV → sequencer V+ : transponeer alle stappen met (val-0.5)*24 semis.
+            if (dst.kind === 'sequencer' && conn.to.portId === 'voct_in') {
+                const out = cvOutputOf(src);
+                if (!out)
+                    return;
+                const meter = new Tone.Meter({ normalRange: true, smoothing: 0 });
+                out.connect(meter);
+                dst.voctMeter = meter;
+                return;
+            }
+        }
+        // ── trigger → sequencer.run_in (gate-override van Run-toggle) ──
+        if ((srcSig === 'gate' || srcSig === 'trigger') && dst.kind === 'sequencer' && conn.to.portId === 'run_in') {
+            const out = cvOutputOf(src) ?? audioOutputOf(src);
+            if (!out)
+                return;
+            const meter = new Tone.Meter({ normalRange: true, smoothing: 0 });
+            out.connect(meter);
+            dst.runDriven = true;
+            dst.runMeter = meter;
+            // Forceer evaluatie elke tick: start altijd, runGate gating gebeurt in step().
+            dst.active = true;
+            return;
+        }
+        // ── sequencer.trig → envelope (korte puls per step) ──
+        if (srcSig === 'trigger' && src.kind === 'sequencer' && conn.from.portId === 'trig'
+            && dst.kind === 'envelope' && conn.to.portId === 'gate') {
+            src.trigTargets.push(dst.moduleId);
+            src.active = true;
+            return;
         }
         // ── gate → envelope ──
         if (srcSig === 'gate' && dst.kind === 'envelope' && conn.to.portId === 'gate') {
@@ -677,6 +739,30 @@ export class AudioEngine {
             return;
         const intervalMs = 1000 / seq.rateHz;
         const step = () => {
+            // Run+ override: lees gate van run_in source. Stop met spelen
+            // zolang de gate laag is (maar laat het interval doorlopen zodat
+            // we direct weer aanslaan zodra hij hoog wordt).
+            if (seq.runDriven && seq.runMeter) {
+                const v = Number(seq.runMeter.getValue());
+                seq.runGate = Number.isFinite(v) && v > 0.3;
+                if (!seq.runGate) {
+                    // Laat eventuele open envelope los zodat hij niet eindeloos doorklinkt.
+                    if (seq.lastNote !== null) {
+                        for (const tgt of seq.gateTargets) {
+                            const env = this.nodes.get(tgt);
+                            if (env?.kind === 'envelope')
+                                env.env.triggerRelease();
+                        }
+                        seq.lastNote = null;
+                    }
+                    return;
+                }
+            }
+            // V+ transponeren: lees CV en map naar semitones (-12..+12).
+            if (seq.voctMeter) {
+                const v = Number(seq.voctMeter.getValue());
+                seq.voctOffset = Number.isFinite(v) ? Math.round((v - 0.5) * 24) : 0;
+            }
             // Release previous gate (note off on connected envelopes).
             if (seq.lastNote !== null) {
                 for (const tgt of seq.gateTargets) {
@@ -687,7 +773,8 @@ export class AudioEngine {
                 seq.lastNote = null;
             }
             // Trigger the new step.
-            const note = seq.notes[seq.stepIdx % seq.notes.length];
+            const baseNote = seq.notes[seq.stepIdx % seq.notes.length];
+            const note = baseNote + seq.voctOffset;
             seq.lastNote = note;
             const step1 = (seq.stepIdx % seq.notes.length) + 1;
             seq.stepIdx++;
@@ -704,11 +791,18 @@ export class AudioEngine {
                     n.osc.frequency.rampTo(midiToHz(note + offset), 0.005);
                 }
             }
-            // Trigger gate targets (envelopes).
+            // Trigger gate targets (envelopes) — gehouden gate (gateRatio).
             for (const tgt of seq.gateTargets) {
                 const env = this.nodes.get(tgt);
                 if (env?.kind === 'envelope')
                     env.env.triggerAttack();
+            }
+            // Trig-out: korte puls per step (drum-trigger), onafhankelijk van gateRatio.
+            for (const tgt of seq.trigTargets) {
+                const env = this.nodes.get(tgt);
+                if (env?.kind === 'envelope') {
+                    env.env.triggerAttackRelease(0.005);
+                }
             }
             this.status.voiceFreqHz = midiToHz(note);
             this.emit();

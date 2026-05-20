@@ -240,6 +240,25 @@ function RackGrid({ rack, modules, types, activeRow, onSelectRow }: {
 
   // Context-menu voor module-strip (rechter-muis op een slot).
   const [menu, setMenu] = useState<{ x: number; y: number; slotId: string } | null>(null);
+  // Geselecteerde slot voor toetsenbordnavigatie + visuele highlight.
+  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
+
+  function onSlotKeyDown(e: React.KeyboardEvent<HTMLDivElement>, slotId: string): void {
+    const big = e.shiftKey ? 4 : 1;
+    let handled = true;
+    if (e.key === 'ArrowLeft')       moveSlot(slotId, -big);
+    else if (e.key === 'ArrowRight') moveSlot(slotId,  big);
+    else if (e.key === 'ArrowUp')    moveRow(slotId, -1);
+    else if (e.key === 'ArrowDown')  moveRow(slotId,  1);
+    else if (e.key === 'Delete')     removeSlot(slotId);
+    else handled = false;
+    if (handled) {
+      e.preventDefault();
+      // Houd focus op de slot-wrapper zodat herhaalde pijltjes blijven werken.
+      const el = e.currentTarget;
+      requestAnimationFrame(() => el.focus());
+    }
+  }
 
   return (
     <div style={{
@@ -303,13 +322,28 @@ function RackGrid({ rack, modules, types, activeRow, onSelectRow }: {
                 );
               }
               const overlap = detectOverlap(slot, slotsInRow, m, modules);
+              const isSelected = selectedSlotId === slot.id;
               return (
-                <div key={slot.id} style={{
+                <div key={slot.id}
+                  tabIndex={0}
+                  data-slot-id={slot.id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedSlotId(slot.id);
+                    onSelectRow(rowIdx);
+                  }}
+                  onFocus={() => setSelectedSlotId(slot.id)}
+                  onKeyDown={(e) => onSlotKeyDown(e, slot.id)}
+                  style={{
                   position: 'absolute',
                   left: slot.hpOffset * MM_PER_HP * PX_PER_MM,
                   top: 0,
-                  outline: overlap ? '2px solid #dc2626' : 'none',
+                  outline: overlap
+                    ? '2px solid #dc2626'
+                    : isSelected ? '2px solid #fbbf24' : 'none',
                   outlineOffset: -2,
+                  boxShadow: isSelected ? '0 0 14px rgba(251,191,36,0.55)' : undefined,
+                  cursor: 'pointer',
                 }}
                   onContextMenu={(e) => {
                     e.preventDefault();

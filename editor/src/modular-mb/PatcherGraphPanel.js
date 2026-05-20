@@ -17,7 +17,7 @@ import { ModulePanel } from './ModulePanel';
 import { useEngineStatus } from './sim/engineSingleton';
 import { canConnect, resolvePorts, SIGNAL_COLOUR, SIGNAL_LABEL, MM_PER_HP, PANEL_HEIGHT_MM, } from './types';
 const PX_PER_MM = 2.4;
-function ModuleNode({ data }) {
+function ModuleNode({ data, selected }) {
     const { module: m, types, controlState, patchId } = data;
     // Live-status (step-LEDs etc.) wordt hier lokaal gemerged zodat een
     // engineStatus-tick niet de hele graph laat re-builden — alleen deze
@@ -42,7 +42,13 @@ function ModuleNode({ data }) {
             }),
         }));
     }
-    return (_jsxs("div", { className: "nopan nowheel", style: { position: 'relative', background: '#0f172a', borderRadius: 4 }, children: [_jsx(ModulePanel, { module: m, types: types, controlState: merged, onControlChange: setControl, pxPerMm: PX_PER_MM, showPortLabels: true }), ports.map((p) => {
+    return (_jsxs("div", { className: "nopan nowheel", style: {
+            position: 'relative', background: '#0f172a', borderRadius: 4,
+            outline: selected ? '1.5px solid #fbbf24' : 'none',
+            outlineOffset: 1,
+            boxShadow: selected ? '0 0 10px rgba(251,191,36,0.35)' : undefined,
+            transition: 'box-shadow 120ms',
+        }, children: [_jsx(ModulePanel, { module: m, types: types, controlState: merged, onControlChange: setControl, pxPerMm: PX_PER_MM, showPortLabels: true }), ports.map((p) => {
                 const pl = m.visual.portPlacements[p.id];
                 if (!pl)
                     return null;
@@ -62,12 +68,34 @@ function ModuleNode({ data }) {
             }), _jsx("div", { style: { width: widthMm * PX_PER_MM, height: heightMm * PX_PER_MM, pointerEvents: 'none', position: 'absolute', top: 0, left: 0 } })] }));
 }
 const nodeTypes = { module: ModuleNode };
-/** Polyline-pad door alle waypoints. */
-function buildPath(sx, sy, tx, ty, bends) {
-    let p = `M ${sx},${sy}`;
-    for (const b of bends)
-        p += ` L ${b.x},${b.y}`;
-    p += ` L ${tx},${ty}`;
+/** Pad door alle waypoints. Wanneer `smooth=true` wordt door de tussen-
+ *  liggende knikken een cardinal-achtige curve getrokken: per knik gaat
+ *  de lijn naar het midden van het inkomende segment, maakt een
+ *  kwadratische bocht door de knik en gaat door naar het midden van het
+ *  uitgaande segment. Hoekige weergave (smooth=false) gebruikt een
+ *  rechte polyline — handig tijdens het slepen voor exacte feedback. */
+function buildPath(sx, sy, tx, ty, bends, smooth) {
+    if (bends.length === 0 || !smooth) {
+        let p = `M ${sx},${sy}`;
+        for (const b of bends)
+            p += ` L ${b.x},${b.y}`;
+        p += ` L ${tx},${ty}`;
+        return p;
+    }
+    // Smooth: M src L mid0 [Q b_i mid_i]* L tgt
+    const pts = [{ x: sx, y: sy }, ...bends, { x: tx, y: ty }];
+    const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+    let p = `M ${pts[0].x},${pts[0].y}`;
+    // Lijn naar de eerste midpoint.
+    const m0 = mid(pts[0], pts[1]);
+    p += ` L ${m0.x},${m0.y}`;
+    for (let i = 1; i < pts.length - 1; i++) {
+        const cur = pts[i];
+        const nxt = pts[i + 1];
+        const m = mid(cur, nxt);
+        p += ` Q ${cur.x},${cur.y} ${m.x},${m.y}`;
+    }
+    p += ` L ${pts[pts.length - 1].x},${pts[pts.length - 1].y}`;
     return p;
 }
 /** Loodrechte projectie van P op segment AB (geclamped op [A,B]). Geeft
@@ -84,8 +112,12 @@ function BendableEdge(props) {
     const { id, sourceX, sourceY, targetX, targetY, style, selected, data } = props;
     const d = data;
     const bends = d?.bends ?? [];
-    const path = buildPath(sourceX, sourceY, targetX, targetY, bends);
     const rf = useReactFlow();
+    const [dragging, setDragging] = useState(false);
+    const [hover, setHover] = useState(false);
+    // Tijdens drag rechte segmenten ("alsof je de kabel beetpakt"); anders smooth.
+    const path = buildPath(sourceX, sourceY, targetX, targetY, bends, !dragging);
+    const cableColor = style?.stroke ?? '#94a3b8';
     function writeBends(next) {
         updateProject((p) => ({
             ...p,
@@ -123,6 +155,7 @@ function BendableEdge(props) {
         e.stopPropagation();
         e.nativeEvent.stopImmediatePropagation();
         e.preventDefault();
+        setDragging(true);
         const flowStart = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
         const orig = bends[idx];
         let latest = bends.slice();
@@ -136,6 +169,7 @@ function BendableEdge(props) {
         function onUp() {
             window.removeEventListener('pointermove', onMove);
             window.removeEventListener('pointerup', onUp);
+            setDragging(false);
         }
         window.addEventListener('pointermove', onMove);
         window.addEventListener('pointerup', onUp);
@@ -146,7 +180,16 @@ function BendableEdge(props) {
         e.preventDefault();
         writeBends(bends.filter((_, i) => i !== idx));
     }
-    return (_jsxs(_Fragment, { children: [_jsx("path", { id: id, d: path, fill: "none", stroke: "transparent", strokeWidth: 20, style: { pointerEvents: 'stroke', cursor: 'crosshair' }, onDoubleClick: onCableDoubleClick }), _jsx("path", { d: path, fill: "none", style: style, pointerEvents: "none" }), bends.map((b, i) => (_jsx("circle", { cx: b.x, cy: b.y, r: selected ? 7 : 5, fill: selected ? '#fbbf24' : '#f8fafc', stroke: "#0f172a", strokeWidth: 2, className: "nodrag nopan", style: { cursor: 'grab', pointerEvents: 'all' }, onPointerDown: (e) => onKnotPointerDown(i, e), onDoubleClick: (e) => onKnotDoubleClick(i, e), children: _jsx("title", { children: "Sleep om te verplaatsen \u00B7 dubbelklik = verwijderen" }) }, i)))] }));
+    return (_jsxs(_Fragment, { children: [_jsx("path", { id: id, d: path, fill: "none", stroke: "transparent", strokeWidth: 20, style: { pointerEvents: 'stroke', cursor: 'crosshair' }, onDoubleClick: onCableDoubleClick, onPointerEnter: () => setHover(true), onPointerLeave: () => setHover(false) }), _jsx("path", { d: path, fill: "none", style: style, pointerEvents: "none", strokeLinejoin: "round", strokeLinecap: "round" }), bends.map((b, i) => {
+                const r = selected ? 6 : (hover || dragging) ? 5 : 3.2;
+                // Rusttoestand: zelfde kleur als kabel, donkere dunne rand → "wegzakken".
+                // Hover/drag/selected: licht oplichten.
+                const fill = selected
+                    ? '#fbbf24'
+                    : (hover || dragging) ? '#f8fafc' : cableColor;
+                const stroke = selected || hover || dragging ? '#0f172a' : 'rgba(15,23,42,0.65)';
+                return (_jsx("circle", { cx: b.x, cy: b.y, r: r, fill: fill, fillOpacity: selected || hover || dragging ? 1 : 0.85, stroke: stroke, strokeWidth: selected || hover || dragging ? 2 : 1.2, className: "nodrag nopan", style: { cursor: 'grab', pointerEvents: 'all', transition: 'r 120ms, fill 120ms' }, onPointerEnter: () => setHover(true), onPointerLeave: () => setHover(false), onPointerDown: (e) => onKnotPointerDown(i, e), onDoubleClick: (e) => onKnotDoubleClick(i, e), children: _jsx("title", { children: "Sleep om te verplaatsen \u00B7 dubbelklik = verwijderen" }) }, i));
+            })] }));
 }
 const edgeTypes = { bendable: BendableEdge };
 // ── Inner panel (inside ReactFlowProvider) ─────────────────────────────
@@ -177,6 +220,8 @@ function PatcherGraphInner({ patchId }) {
         }
         return out;
     }, [patchRacks, project.modules]);
+    const [selectedEdgeId, setSelectedEdgeId] = useState(null);
+    const [selectedNodeId, setSelectedNodeId] = useState(null);
     const nodes = useMemo(() => placedModules.map(({ slot, module: m, rackId }) => ({
         id: m.id,
         type: 'module',
@@ -191,10 +236,10 @@ function PatcherGraphInner({ patchId }) {
             controlState: patch.controlState[m.id] ?? {},
             patchId,
         },
+        selected: m.id === selectedNodeId,
         // Lock dragging — position derives from rack.
         draggable: false,
-    })), [placedModules, rackYOffsetMm, project.moduleTypes, patch.controlState, patchId]);
-    const [selectedEdgeId, setSelectedEdgeId] = useState(null);
+    })), [placedModules, rackYOffsetMm, project.moduleTypes, patch.controlState, patchId, selectedNodeId]);
     const edges = useMemo(() => patch.connections.map((c) => {
         const srcMod = project.modules.find((m) => m.id === c.from.moduleId);
         const srcPort = srcMod && resolvePorts(srcMod, project.moduleTypes)
@@ -249,9 +294,15 @@ function PatcherGraphInner({ patchId }) {
     // pakt).
     const onEdgeClick = useCallback((_e, edge) => {
         setSelectedEdgeId(edge.id);
+        setSelectedNodeId(null);
+    }, []);
+    const onNodeClick = useCallback((_e, node) => {
+        setSelectedNodeId(node.id);
+        setSelectedEdgeId(null);
     }, []);
     const onPaneClick = useCallback(() => {
         setSelectedEdgeId(null);
+        setSelectedNodeId(null);
     }, []);
     const onConnect = useCallback((c) => {
         if (!c.source || !c.target || !c.sourceHandle || !c.targetHandle) {
@@ -329,7 +380,7 @@ function PatcherGraphInner({ patchId }) {
                 }),
         }));
     }, [project.modules, project.moduleTypes, patchId]);
-    return (_jsxs("div", { style: { display: 'grid', gridTemplateColumns: '1fr 220px', gap: 12 }, children: [_jsx("style", { children: `
+    return (_jsxs("div", { style: { display: 'grid', gridTemplateColumns: '1fr 280px', gap: 12 }, children: [_jsx("style", { children: `
         /* Selected cable: dikker, lichte glow, kleine label-cue */
         .mmb-patcher .react-flow__edge.selected .react-flow__edge-path {
           stroke-width: 5 !important;
@@ -354,7 +405,66 @@ function PatcherGraphInner({ patchId }) {
                 }, style: {
                     height: 620, border: '1px solid #cbd2d9', borderRadius: 6,
                     background: '#0f172a', userSelect: 'none', outline: 'none',
-                }, children: _jsxs(ReactFlow, { nodes: nodes, edges: edges, nodeTypes: nodeTypes, edgeTypes: edgeTypes, onNodesChange: onNodesChange, onEdgesChange: onEdgesChange, onConnect: onConnect, onReconnect: onReconnect, onEdgeClick: onEdgeClick, onPaneClick: onPaneClick, connectionMode: ConnectionMode.Loose, deleteKeyCode: ['Delete', 'Backspace'], edgesFocusable: true, fitView: true, minZoom: 0.3, maxZoom: 2, proOptions: { hideAttribution: true }, children: [_jsx(Background, { gap: 20, color: "#1e293b" }), _jsx(Controls, { showInteractive: false })] }) }), _jsx(Legend, {})] }));
+                }, children: _jsxs(ReactFlow, { nodes: nodes, edges: edges, nodeTypes: nodeTypes, edgeTypes: edgeTypes, onNodesChange: onNodesChange, onEdgesChange: onEdgesChange, onConnect: onConnect, onReconnect: onReconnect, onEdgeClick: onEdgeClick, onNodeClick: onNodeClick, onPaneClick: onPaneClick, connectionMode: ConnectionMode.Loose, deleteKeyCode: ['Delete', 'Backspace'], edgesFocusable: true, fitView: true, minZoom: 0.3, maxZoom: 2, proOptions: { hideAttribution: true }, children: [_jsx(Background, { gap: 20, color: "#1e293b" }), _jsx(Controls, { showInteractive: false })] }) }), _jsxs("div", { style: { display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }, children: [_jsx(PropertiesPanel, { patchId: patchId, selectedNodeId: selectedNodeId }), _jsx(Legend, {})] })] }));
+}
+function PropertiesPanel(props) {
+    const { patchId, selectedNodeId } = props;
+    const project = useModularProject();
+    const patch = project.patches.find((p) => p.id === patchId);
+    const m = selectedNodeId ? project.modules.find((x) => x.id === selectedNodeId) : undefined;
+    const t = m ? project.moduleTypes.find((tp) => tp.id === m.typeId) : undefined;
+    function setControl(controlId, value) {
+        if (!m)
+            return;
+        updateProject((p) => ({
+            ...p,
+            patches: p.patches.map((px) => {
+                if (px.id !== patchId)
+                    return px;
+                const prev = px.controlState[m.id] ?? {};
+                return {
+                    ...px,
+                    controlState: { ...px.controlState, [m.id]: { ...prev, [controlId]: value } },
+                };
+            }),
+        }));
+    }
+    if (!m || !t || !patch) {
+        return (_jsxs("aside", { style: {
+                border: '1px solid #cbd2d9', borderRadius: 6, padding: 10, background: 'white',
+            }, children: [_jsx("h3", { style: { marginTop: 0, marginBottom: 6, fontSize: 12, textTransform: 'uppercase', color: '#374151' }, children: "Properties" }), _jsx("p", { style: { fontSize: 11, color: '#6b7280', margin: 0 }, children: "Klik een module aan om zijn controls hier te bewerken." })] }));
+    }
+    const cs = patch.controlState[m.id] ?? {};
+    const ports = resolvePorts(m, project.moduleTypes);
+    return (_jsxs("aside", { style: {
+            border: '1px solid #cbd2d9', borderRadius: 6, padding: 10, background: 'white',
+            maxHeight: 360, overflowY: 'auto',
+        }, children: [_jsx("h3", { style: { marginTop: 0, marginBottom: 4, fontSize: 12, textTransform: 'uppercase', color: '#374151' }, children: m.name }), _jsxs("div", { style: { fontSize: 10, color: '#6b7280', marginBottom: 8 }, children: [t.variant, " \u00B7 ", m.visual.hpWidth, " HP"] }), _jsx("table", { style: { width: '100%', fontSize: 11, borderCollapse: 'collapse' }, children: _jsx("tbody", { children: t.controls.map((ctrl) => {
+                        const v = cs[ctrl.id];
+                        const lbl = ctrl.label || ctrl.id;
+                        let editor;
+                        if (ctrl.kind === 'knob' || ctrl.kind === 'slider') {
+                            const num = typeof v === 'number' ? v : ctrl.defaultValue;
+                            editor = (_jsx("input", { type: "number", value: num, min: ctrl.min, max: ctrl.max, step: (ctrl.max - ctrl.min) / 100, onChange: (e) => setControl(ctrl.id, Number(e.target.value)), style: { width: 70 } }));
+                        }
+                        else if (ctrl.kind === 'toggle') {
+                            editor = (_jsx("input", { type: "checkbox", checked: typeof v === 'boolean' ? v : ctrl.defaultValue, onChange: (e) => setControl(ctrl.id, e.target.checked) }));
+                        }
+                        else if (ctrl.kind === 'switch') {
+                            const idx = typeof v === 'number' ? v : ctrl.defaultIndex;
+                            editor = (_jsx("select", { value: idx, onChange: (e) => setControl(ctrl.id, Number(e.target.value)), children: ctrl.positions.map((p, i) => (_jsx("option", { value: i, children: p }, i))) }));
+                        }
+                        else if (ctrl.kind === 'button') {
+                            editor = (_jsx("input", { type: "checkbox", checked: typeof v === 'boolean' ? v : (ctrl.defaultValue ?? false), onChange: (e) => setControl(ctrl.id, e.target.checked) }));
+                        }
+                        else if (ctrl.kind === 'display' || ctrl.kind === 'led') {
+                            editor = _jsx("span", { style: { color: '#6b7280' }, children: "(read-only)" });
+                        }
+                        else {
+                            editor = _jsx("span", { style: { color: '#6b7280' }, children: "\u2014" });
+                        }
+                        return (_jsxs("tr", { children: [_jsx("td", { style: { padding: '2px 6px 2px 0', color: '#374151' }, children: lbl }), _jsx("td", { style: { padding: '2px 0', textAlign: 'right' }, children: editor })] }, ctrl.id));
+                    }) }) }), ports.length > 0 && (_jsxs(_Fragment, { children: [_jsx("h4", { style: { fontSize: 10, textTransform: 'uppercase', color: '#6b7280', margin: '10px 0 4px' }, children: "Poorten" }), _jsx("ul", { style: { margin: 0, paddingLeft: 14, fontSize: 10, color: '#374151' }, children: ports.map((p) => (_jsxs("li", { children: [_jsx("span", { style: { color: SIGNAL_COLOUR[p.signalType] }, children: "\u25CF" }), ' ', p.name, " ", _jsxs("em", { style: { color: '#9ca3af' }, children: ["(", p.direction === 'in' ? 'in' : 'uit', " \u00B7 ", SIGNAL_LABEL[p.signalType], ")"] })] }, p.id))) })] }))] }));
 }
 function Legend() {
     return (_jsxs("aside", { style: {

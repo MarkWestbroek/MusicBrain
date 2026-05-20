@@ -42,7 +42,7 @@ interface ModuleNodeData {
   patchId: string;
 }
 
-function ModuleNode({ data }: NodeProps): JSX.Element {
+function ModuleNode({ data, selected }: NodeProps): JSX.Element {
   const { module: m, types, controlState, patchId } = data as unknown as ModuleNodeData;
   // Live-status (step-LEDs etc.) wordt hier lokaal gemerged zodat een
   // engineStatus-tick niet de hele graph laat re-builden — alleen deze
@@ -71,7 +71,13 @@ function ModuleNode({ data }: NodeProps): JSX.Element {
   return (
     <div
       className="nopan nowheel"
-      style={{ position: 'relative', background: '#0f172a', borderRadius: 4 }}
+      style={{
+        position: 'relative', background: '#0f172a', borderRadius: 4,
+        outline: selected ? '1.5px solid #fbbf24' : 'none',
+        outlineOffset: 1,
+        boxShadow: selected ? '0 0 10px rgba(251,191,36,0.35)' : undefined,
+        transition: 'box-shadow 120ms',
+      }}
     >
       <ModulePanel
         module={m} types={types}
@@ -124,12 +130,36 @@ interface BendableEdgeData {
   connectionId: string;
 }
 
-/** Polyline-pad door alle waypoints. */
+/** Pad door alle waypoints. Wanneer `smooth=true` wordt door de tussen-
+ *  liggende knikken een cardinal-achtige curve getrokken: per knik gaat
+ *  de lijn naar het midden van het inkomende segment, maakt een
+ *  kwadratische bocht door de knik en gaat door naar het midden van het
+ *  uitgaande segment. Hoekige weergave (smooth=false) gebruikt een
+ *  rechte polyline — handig tijdens het slepen voor exacte feedback. */
 function buildPath(sx: number, sy: number, tx: number, ty: number,
-                   bends: { x: number; y: number }[]): string {
-  let p = `M ${sx},${sy}`;
-  for (const b of bends) p += ` L ${b.x},${b.y}`;
-  p += ` L ${tx},${ty}`;
+                   bends: { x: number; y: number }[],
+                   smooth: boolean): string {
+  if (bends.length === 0 || !smooth) {
+    let p = `M ${sx},${sy}`;
+    for (const b of bends) p += ` L ${b.x},${b.y}`;
+    p += ` L ${tx},${ty}`;
+    return p;
+  }
+  // Smooth: M src L mid0 [Q b_i mid_i]* L tgt
+  const pts = [{ x: sx, y: sy }, ...bends, { x: tx, y: ty }];
+  const mid = (a: { x: number; y: number }, b: { x: number; y: number }) =>
+    ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+  let p = `M ${pts[0]!.x},${pts[0]!.y}`;
+  // Lijn naar de eerste midpoint.
+  const m0 = mid(pts[0]!, pts[1]!);
+  p += ` L ${m0.x},${m0.y}`;
+  for (let i = 1; i < pts.length - 1; i++) {
+    const cur = pts[i]!;
+    const nxt = pts[i + 1]!;
+    const m = mid(cur, nxt);
+    p += ` Q ${cur.x},${cur.y} ${m.x},${m.y}`;
+  }
+  p += ` L ${pts[pts.length - 1]!.x},${pts[pts.length - 1]!.y}`;
   return p;
 }
 
@@ -150,8 +180,12 @@ function BendableEdge(props: EdgeProps): JSX.Element {
   const { id, sourceX, sourceY, targetX, targetY, style, selected, data } = props;
   const d = data as unknown as BendableEdgeData;
   const bends = d?.bends ?? [];
-  const path = buildPath(sourceX, sourceY, targetX, targetY, bends);
   const rf = useReactFlow();
+  const [dragging, setDragging] = useState(false);
+  const [hover, setHover] = useState(false);
+  // Tijdens drag rechte segmenten ("alsof je de kabel beetpakt"); anders smooth.
+  const path = buildPath(sourceX, sourceY, targetX, targetY, bends, !dragging);
+  const cableColor = (style as React.CSSProperties | undefined)?.stroke as string | undefined ?? '#94a3b8';
 
   function writeBends(next: { x: number; y: number }[]): void {
     updateProject((p) => ({
@@ -188,6 +222,7 @@ function BendableEdge(props: EdgeProps): JSX.Element {
     e.stopPropagation();
     e.nativeEvent.stopImmediatePropagation();
     e.preventDefault();
+    setDragging(true);
     const flowStart = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
     const orig = bends[idx]!;
     let latest = bends.slice();
@@ -202,6 +237,7 @@ function BendableEdge(props: EdgeProps): JSX.Element {
     function onUp(): void {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
+      setDragging(false);
     }
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
@@ -225,26 +261,40 @@ function BendableEdge(props: EdgeProps): JSX.Element {
         strokeWidth={20}
         style={{ pointerEvents: 'stroke', cursor: 'crosshair' }}
         onDoubleClick={onCableDoubleClick}
+        onPointerEnter={() => setHover(true)}
+        onPointerLeave={() => setHover(false)}
       />
       {/* Zichtbare kabel. */}
-      <path d={path} fill="none" style={style} pointerEvents="none" />
+      <path d={path} fill="none" style={style} pointerEvents="none" strokeLinejoin="round" strokeLinecap="round" />
       {/* Knikpunten — alleen als ze bestaan; geen ruis bij rechte kabels. */}
-      {bends.map((b, i) => (
-        <circle
-          key={i}
-          cx={b.x} cy={b.y}
-          r={selected ? 7 : 5}
-          fill={selected ? '#fbbf24' : '#f8fafc'}
-          stroke="#0f172a"
-          strokeWidth={2}
-          className="nodrag nopan"
-          style={{ cursor: 'grab', pointerEvents: 'all' }}
-          onPointerDown={(e) => onKnotPointerDown(i, e)}
-          onDoubleClick={(e) => onKnotDoubleClick(i, e)}
-        >
-          <title>Sleep om te verplaatsen · dubbelklik = verwijderen</title>
-        </circle>
-      ))}
+      {bends.map((b, i) => {
+        const r = selected ? 6 : (hover || dragging) ? 5 : 3.2;
+        // Rusttoestand: zelfde kleur als kabel, donkere dunne rand → "wegzakken".
+        // Hover/drag/selected: licht oplichten.
+        const fill = selected
+          ? '#fbbf24'
+          : (hover || dragging) ? '#f8fafc' : cableColor;
+        const stroke = selected || hover || dragging ? '#0f172a' : 'rgba(15,23,42,0.65)';
+        return (
+          <circle
+            key={i}
+            cx={b.x} cy={b.y}
+            r={r}
+            fill={fill}
+            fillOpacity={selected || hover || dragging ? 1 : 0.85}
+            stroke={stroke}
+            strokeWidth={selected || hover || dragging ? 2 : 1.2}
+            className="nodrag nopan"
+            style={{ cursor: 'grab', pointerEvents: 'all', transition: 'r 120ms, fill 120ms' }}
+            onPointerEnter={() => setHover(true)}
+            onPointerLeave={() => setHover(false)}
+            onPointerDown={(e) => onKnotPointerDown(i, e)}
+            onDoubleClick={(e) => onKnotDoubleClick(i, e)}
+          >
+            <title>Sleep om te verplaatsen · dubbelklik = verwijderen</title>
+          </circle>
+        );
+      })}
     </>
   );
 }
@@ -282,6 +332,9 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
     return out;
   }, [patchRacks, project.modules]);
 
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+
   const nodes: Node[] = useMemo(
     () => placedModules.map(({ slot, module: m, rackId }) => ({
       id: m.id,
@@ -297,13 +350,12 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
         controlState: patch.controlState[m.id] ?? {},
         patchId,
       },
+      selected: m.id === selectedNodeId,
       // Lock dragging — position derives from rack.
       draggable: false,
     })),
-    [placedModules, rackYOffsetMm, project.moduleTypes, patch.controlState, patchId],
+    [placedModules, rackYOffsetMm, project.moduleTypes, patch.controlState, patchId, selectedNodeId],
   );
-
-  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
 
   const edges: Edge[] = useMemo(
     () => patch.connections.map((c) => {
@@ -365,9 +417,15 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
   // pakt).
   const onEdgeClick = useCallback((_e: React.MouseEvent, edge: Edge) => {
     setSelectedEdgeId(edge.id);
+    setSelectedNodeId(null);
+  }, []);
+  const onNodeClick = useCallback((_e: React.MouseEvent, node: Node) => {
+    setSelectedNodeId(node.id);
+    setSelectedEdgeId(null);
   }, []);
   const onPaneClick = useCallback(() => {
     setSelectedEdgeId(null);
+    setSelectedNodeId(null);
   }, []);
 
   const onConnect = useCallback((c: Connection) => {
@@ -442,7 +500,7 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
   }, [project.modules, project.moduleTypes, patchId]);
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 220px', gap: 12 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 12 }}>
       <style>{`
         /* Selected cable: dikker, lichte glow, kleine label-cue */
         .mmb-patcher .react-flow__edge.selected .react-flow__edge-path {
@@ -484,6 +542,7 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
           onConnect={onConnect}
           onReconnect={onReconnect}
           onEdgeClick={onEdgeClick}
+          onNodeClick={onNodeClick}
           onPaneClick={onPaneClick}
           connectionMode={ConnectionMode.Loose}
           deleteKeyCode={['Delete', 'Backspace']}
@@ -497,8 +556,141 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
         </ReactFlow>
       </div>
 
-      <Legend />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
+        <PropertiesPanel
+          patchId={patchId}
+          selectedNodeId={selectedNodeId}
+        />
+        <Legend />
+      </div>
     </div>
+  );
+}
+
+function PropertiesPanel(props: { patchId: string; selectedNodeId: string | null }): JSX.Element {
+  const { patchId, selectedNodeId } = props;
+  const project = useModularProject();
+  const patch = project.patches.find((p) => p.id === patchId);
+  const m = selectedNodeId ? project.modules.find((x) => x.id === selectedNodeId) : undefined;
+  const t = m ? project.moduleTypes.find((tp) => tp.id === m.typeId) : undefined;
+
+  function setControl(controlId: string, value: ControlValue): void {
+    if (!m) return;
+    updateProject((p) => ({
+      ...p,
+      patches: p.patches.map((px) => {
+        if (px.id !== patchId) return px;
+        const prev = px.controlState[m.id] ?? {};
+        return {
+          ...px,
+          controlState: { ...px.controlState, [m.id]: { ...prev, [controlId]: value } },
+        };
+      }),
+    }));
+  }
+
+  if (!m || !t || !patch) {
+    return (
+      <aside style={{
+        border: '1px solid #cbd2d9', borderRadius: 6, padding: 10, background: 'white',
+      }}>
+        <h3 style={{ marginTop: 0, marginBottom: 6, fontSize: 12, textTransform: 'uppercase', color: '#374151' }}>
+          Properties
+        </h3>
+        <p style={{ fontSize: 11, color: '#6b7280', margin: 0 }}>
+          Klik een module aan om zijn controls hier te bewerken.
+        </p>
+      </aside>
+    );
+  }
+
+  const cs = patch.controlState[m.id] ?? {};
+  const ports = resolvePorts(m, project.moduleTypes);
+
+  return (
+    <aside style={{
+      border: '1px solid #cbd2d9', borderRadius: 6, padding: 10, background: 'white',
+      maxHeight: 360, overflowY: 'auto',
+    }}>
+      <h3 style={{ marginTop: 0, marginBottom: 4, fontSize: 12, textTransform: 'uppercase', color: '#374151' }}>
+        {m.name}
+      </h3>
+      <div style={{ fontSize: 10, color: '#6b7280', marginBottom: 8 }}>
+        {t.variant} · {m.visual.hpWidth} HP
+      </div>
+      <table style={{ width: '100%', fontSize: 11, borderCollapse: 'collapse' }}>
+        <tbody>
+          {t.controls.map((ctrl) => {
+            const v = cs[ctrl.id];
+            const lbl = ctrl.label || ctrl.id;
+            let editor: JSX.Element;
+            if (ctrl.kind === 'knob' || ctrl.kind === 'slider') {
+              const num = typeof v === 'number' ? v : ctrl.defaultValue;
+              editor = (
+                <input
+                  type="number" value={num}
+                  min={ctrl.min} max={ctrl.max}
+                  step={(ctrl.max - ctrl.min) / 100}
+                  onChange={(e) => setControl(ctrl.id, Number(e.target.value))}
+                  style={{ width: 70 }}
+                />
+              );
+            } else if (ctrl.kind === 'toggle') {
+              editor = (
+                <input
+                  type="checkbox" checked={typeof v === 'boolean' ? v : ctrl.defaultValue}
+                  onChange={(e) => setControl(ctrl.id, e.target.checked)}
+                />
+              );
+            } else if (ctrl.kind === 'switch') {
+              const idx = typeof v === 'number' ? v : ctrl.defaultIndex;
+              editor = (
+                <select
+                  value={idx}
+                  onChange={(e) => setControl(ctrl.id, Number(e.target.value))}
+                >
+                  {ctrl.positions.map((p, i) => (
+                    <option key={i} value={i}>{p}</option>
+                  ))}
+                </select>
+              );
+            } else if (ctrl.kind === 'button') {
+              editor = (
+                <input
+                  type="checkbox" checked={typeof v === 'boolean' ? v : (ctrl.defaultValue ?? false)}
+                  onChange={(e) => setControl(ctrl.id, e.target.checked)}
+                />
+              );
+            } else if (ctrl.kind === 'display' || ctrl.kind === 'led') {
+              editor = <span style={{ color: '#6b7280' }}>(read-only)</span>;
+            } else {
+              editor = <span style={{ color: '#6b7280' }}>—</span>;
+            }
+            return (
+              <tr key={ctrl.id}>
+                <td style={{ padding: '2px 6px 2px 0', color: '#374151' }}>{lbl}</td>
+                <td style={{ padding: '2px 0', textAlign: 'right' }}>{editor}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      {ports.length > 0 && (
+        <>
+          <h4 style={{ fontSize: 10, textTransform: 'uppercase', color: '#6b7280', margin: '10px 0 4px' }}>
+            Poorten
+          </h4>
+          <ul style={{ margin: 0, paddingLeft: 14, fontSize: 10, color: '#374151' }}>
+            {ports.map((p) => (
+              <li key={p.id}>
+                <span style={{ color: SIGNAL_COLOUR[p.signalType] }}>●</span>{' '}
+                {p.name} <em style={{ color: '#9ca3af' }}>({p.direction === 'in' ? 'in' : 'uit'} · {SIGNAL_LABEL[p.signalType]})</em>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </aside>
   );
 }
 

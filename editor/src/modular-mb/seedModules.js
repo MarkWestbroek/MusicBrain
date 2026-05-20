@@ -782,14 +782,20 @@ function mmbSeq8() {
             led('runLed', w * 0.08, 104, { color: '#f87171', size: 'small', bindTo: 'run' }),
             // Step-positie display (1..16, live) — groot & duidelijk.
             display('stepDisp', w * 0.88, 92, { label: 'Step', digits: 2, style: 'led', bindTo: '__currentStep', format: 'int', size: 'large' }),
-            inPort('clock', 'Clk', 'trigger', w * 0.12, 114),
-            inPort('reset', 'Rst', 'trigger', w * 0.26, 114),
-            inPort('voct_in', 'V+', 'cv', w * 0.40, 114),
-            inPort('run_in', 'Run+', 'gate', w * 0.54, 114),
-            outPort('cv', 'CV', 'cv', w * 0.72, 114),
-            outPort('gate_out', 'Gate', 'gate', w * 0.88, 114),
+            // BPM-indicator naast Rate (bindTo '__rateBpm', engine schrijft elke
+            // rate-update een afgeleide BPM).
+            display('rateBpm', w * 0.36, 104, { label: 'BPM', digits: 3, style: 'led', bindTo: '__rateBpm', format: 'int', size: 'small' }),
+            // Length-waarde naast de knob — toont integer 2..16.
+            display('lenVal', w * 0.70, 104, { label: 'len', digits: 2, style: 'led', bindTo: 'length', format: 'int', size: 'small' }),
+            inPort('clock', 'Clk', 'trigger', w * 0.10, 114),
+            inPort('reset', 'Rst', 'trigger', w * 0.22, 114),
+            inPort('voct_in', 'V+', 'cv', w * 0.34, 114),
+            inPort('run_in', 'Run+', 'gate', w * 0.46, 114),
+            outPort('cv', 'CV', 'cv', w * 0.62, 114),
+            outPort('gate_out', 'Gate', 'gate', w * 0.76, 114),
+            outPort('trig', 'Trig', 'trigger', w * 0.90, 114),
         ],
-        notes: '16-step sequencer met semitone-per-step. CV-out is een proxy voor V/Oct. V+ (cv-in) telt op bij de root (transponeren), Run+ (gate-in) override-t de Run-toggle zolang het signaal hoog is. Step-LED licht op bij de huidige positie.',
+        notes: '16-step sequencer met semitone-per-step. CV-out is een proxy voor V/Oct. V+ (cv-in) telt op bij de root (transponeren), Run+ (gate-in) override-t de Run-toggle zolang het signaal hoog is. Trig vuurt een korte puls per step (handig voor drum-envelopes). Step-LED licht op bij de huidige positie.',
     });
 }
 // 9. MMB NOISE — 4 HP. Witte/roze/bruin ruis met level-knop.

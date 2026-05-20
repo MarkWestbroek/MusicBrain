@@ -1564,3 +1564,61 @@ Alle `updateProject`-callers (knoppen, kabel-bends, rack-drag, categorie/module/
 | Undo/redo voor alle project-mutaties (Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z) | ✅ iter-5.7 |
 | SEQ-16 Length-bediening onleesbaar als 15-positie switch | ✅ iter-5.7 (knop 2..16) |
 | SEQ-16 Step-display te klein om af te lezen tijdens run | ✅ iter-5.7 (display size: large) |
+
+## Editor — MMB iter-5.8: kabel-polish, properties-paneel, rack-keyboardnav, SEQ-routing/trig (2026-06-04)
+
+Op feedback van iter-5.7-screenshots en backlog-items C1 + A1-uitbreiding:
+
+1. **Kabels** (`PatcherGraphPanel.tsx` `BendableEdge` / `buildPath`):
+   - Pad rendert nu **smooth** door alle waypoints heen (kwadratische bocht door elke knik), behalve tijdens het slepen van een knot — dan rechte segmenten zodat je 1:1 feedback hebt op je beweging.
+   - Knot-stippen "zakken weg" in de kabelkleur in rust (fill = stroke-color, lage radius/opacity, donkere dunne stroke). Bij hover, drag of selectie lichten ze op (witte vulling, grotere radius, fellere stroke).
+   - Hover-detectie via `pointerenter/leave` op zowel de hit-strip als de circles → de hele kabel + knikken laten zich gezamenlijk zien.
+
+2. **Patcher properties-paneel** (backlog C1):
+   - Nieuwe `PropertiesPanel`-component naast de Legend (rechter sidebar). Zodra je een module aanklikt op de canvas verschijnt zijn naam, zijn type-variant, een tabel met **alle controls** (knob/slider als number-input, toggle/button als checkbox, switch als select, display/led read-only) en een lijst van **poorten** met richting + signaal-kleur.
+   - Module-selectie krijgt visuele feedback: amber outline + glow rond de geselecteerde `ModuleNode`.
+   - Pane-click of klikken op een edge wist de selectie. Klik op een edge wist node-selectie en vice versa zodat het paneel altijd één ding tegelijk toont.
+   - Sidebar-grid is van 220 → 280 px breed gemaakt om plek te bieden.
+
+3. **Rack: pijltjes + Shift voor grotere stappen** (backlog A1-uitbreiding) (`RackPanel.tsx` `RackGrid`):
+   - Elke slot-wrapper is nu `tabIndex=0` en luistert op `keydown`: `←/→` = 1 HP, `Shift+←/→` = 4 HP, `↑/↓` = rij omhoog/omlaag, `Delete` = uit rack verwijderen.
+   - Klik op een slot selecteert hem (amber outline + glow, vergelijkbaar met de patcher-highlight) en zet focus zodat de pijltjes meteen werken.
+   - `requestAnimationFrame(() => el.focus())` na elke move zodat herhaald drukken blijft werken nadat het project opnieuw rendert.
+
+4. **SEQ-16: V+ (CV-in) en Run+ (gate-in) doen nu écht iets** (`AudioEngine.ts`):
+   - `SeqNode` kreeg `voctMeter`, `runMeter`, `runDriven`, `runGate` en `trigTargets`. `wire()` heeft drie nieuwe takken:
+     - **cv → sequencer.voct_in**: sluit een `Tone.Meter (normalRange:true)` op de bron-CV en gebruikt zijn waarde elke step om alle stappen te transponeren met `round((v − 0.5) × 24)` semitones (-12..+12).
+     - **gate/trigger → sequencer.run_in**: zet `runDriven=true` + sluit een meter aan. In `step()` wordt de note-trigger overgeslagen wanneer de gate <0.3 is (en open envelopes worden losgelaten). Bij hoge gate loopt de sequencer gewoon, ongeacht de Run-toggle. Schakelaar zelf is genegeerd zolang Run+ aangesloten is.
+   - In `start()` wordt een sequencer ook opgestart wanneer `runDriven` is (niet alleen als `running` true is), zodat het interval altijd loopt en de gate-poll het werk doet.
+   - Meters worden netjes `dispose()`'d in de SeqNode-tak van `dispose()`.
+
+5. **SEQ-16: Trig-output voor drums** (`seedModules.ts` + `AudioEngine.ts`):
+   - Nieuwe `outPort('trig','Trig','trigger')` rechts naast Gate. Per step vuurt de engine een `triggerAttackRelease(0.005)` op alle gekoppelde envelopes — onafhankelijk van `gateRatio`. Ideaal voor drums (kort percussief envelop-shot).
+   - Gate-out blijft de "gehouden" gate volgens de Gate-knob (bestaande logica), Trig is edge-only.
+
+6. **SEQ-16: BPM-indicator hersteld** (`seedModules.ts` + `AudioEngine.ts`):
+   - Nieuw klein display `rateBpm` onder de Rate-knob, gebonden aan `__rateBpm`. Engine schrijft `Math.round(rate × 15)` (= rate (Hz) × 60 / 4, één step is een 16e noot). Bij default-rate 4 Hz → 60 BPM.
+   - Initiale waarde wordt al bij `engine.build()` ge-seed zodat het display nooit leeg is.
+
+7. **SEQ-16: Length-waarde display**:
+   - Klein numeriek display `lenVal` onder de Length-knob, direct gebonden aan de live `length`-control. Knob blijft een knob, maar je leest de exacte integer-waarde (2..16) er nu naast. (Echte click-stepper met benadrukte 6/8/12/16 is uitgesteld — vereist een nieuwe control-kind.)
+
+### Bestanden
+- `editor/src/modular-mb/PatcherGraphPanel.tsx` — `BendableEdge` smooth pad + dimmed dots; `selectedNodeId` state; `onNodeClick`; nieuw `PropertiesPanel`-component; sidebar-grid 280 px.
+- `editor/src/modular-mb/RackPanel.tsx` — `selectedSlotId` state; `onSlotKeyDown`; per-slot `tabIndex/onClick/onKeyDown` + amber selection outline.
+- `editor/src/modular-mb/seedModules.ts` (`mmbSeq8`) — extra `outPort('trig')`; `display('rateBpm')` + `display('lenVal')`; jacks-rij her-uitgelijnd voor 7 jacks.
+- `editor/src/modular-mb/sim/AudioEngine.ts` — `SeqNode` velden `voctMeter/runMeter/runDriven/runGate/trigTargets`; nieuwe `wire()`-takken voor V+/Run+/trig; `step()` past `voctOffset` toe en gating op `runGate`; `__rateBpm` seed in `build()` en update in `updateControl('rate')`; `dispose()` ruimt meters op.
+
+### Backlog-status
+| ID | Onderwerp | Status |
+|----|-----------|--------|
+| A1 | Rack-arrow-keys + selectie-highlight | ✅ klaar |
+| C1 | Properties-paneel rechts | ✅ klaar (knob/slider/toggle/switch/button + poortenlijst) |
+| — | Kabel-bochten smooth + dim dots | ✅ klaar |
+| — | SEQ V+/Run+ wiring | ✅ klaar |
+| — | SEQ trig-out voor drums | ✅ klaar |
+| — | SEQ BPM-display herstel | ✅ klaar |
+| — | SEQ Length click-switch met benadrukte 6/8/12/16 | ⏭ uitgesteld (vereist nieuwe stepper-control kind) |
+
+### Build
+- `npm run build` groen, bundle 759.00 kB / gzip 223.82 kB. TypeScript strict, geen warnings.
