@@ -1320,8 +1320,10 @@ Verzameld na iter-5.3. Prioriteiten bijgewerkt op 20 mei 2026 op basis van gebru
 | # | Prio | Onderwerp | Voorstel |
 |---|---|---|---|
 | C1 | 2 | Properties-paneel rechts | Nieuw paneel boven de signaaltype-legenda: van de geselecteerde module alle controls als `naam: waarde` met inline edit; tab-navigatie tussen velden. |
-| C2 | 2 | Module-presets opslaan als JSON | Knop "Bewaar preset" → exporteert `controlState[moduleId]` als `.mmbpreset`-JSON-bestand. Tegenhanger "Laad preset". |
-| C3 | 2 | Preset intern bij module | Toevoegen aan `Module.presets: { name: string; values: Record<string,ControlValue> }[]` zodat presets meereizen met de module-definitie. |
+| C2 | ✅ iter-5.10 | Module-presets opslaan als JSON | Knop "Bewaar preset" → exporteert `controlState[moduleId]` als `.mmbpreset`-JSON-bestand. Tegenhanger "Laad preset". |
+| C3 | ✅ iter-5.10 | Preset intern bij module | Toevoegen aan `Module.presets: { name: string; values: Record<string,ControlValue> }[]` zodat presets meereizen met de module-definitie. |
+| C4 | 2 | Breakout dual-weergave in rack + patcher | Een CV-breakout verschijnt zowel in het **interne rack** (brain-kant) als in het **externe rack** (Eurorack-kant) als hetzelfde fysieke object gezien van twee kanten. Labels op beide kanten geven aan welke poort wat is. In de patcher zijn ze verbindbaar. Zie ADR 0009. |
+| C5 | 2 | Signaalpad-view (symbolisch) | Een ingedikte view van intern + extern rack toont *alleen actieve modules* in logische signaalpadvolgorde, los van hun fysieke positie in het rack. Basis voor simulatie-overzicht en patch-recall-instructies. |
 
 ### D. Persistentie
 
@@ -1357,7 +1359,7 @@ Verzameld na iter-5.3. Prioriteiten bijgewerkt op 20 mei 2026 op basis van gebru
 | Prio | Items |
 |---|---|
 | **1** | ✅ A2 kabel-buiger · ✅ A5 live parameter-binding · ✅ B4 16-step SEQ · ✅ B5 step-LED's · ✅ E1 noise · ✅ E3 echo |
-| **2** | ✅ A1 rack drag+context-menu · C1 properties-paneel · C2/C3 presets |
+| **2** | ✅ A1 rack drag+context-menu · C1 properties-paneel · ✅ C2/C3 presets · C4 breakout dual-weergave · C5 signaalpad-view |
 | **3** | D1 persistentie + D2 user management · B1/B2/B3 SEQ CV/gate-inputs · A4 latency-onderzoek |
 
 ## v0.3 — iter-5.5 (Effects + 16-step SEQ + live params + edge-buiger + rack-drag)

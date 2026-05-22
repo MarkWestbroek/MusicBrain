@@ -1,7 +1,7 @@
 # ADR 0009 – Modular domain: four-layer architecture (Definition / Instance / Runtime / View)
 
 ## Status
-Proposed (2026-05-22)
+Accepted (2026-05-22)
 
 ## Context
 The MusicBrain modular editor (`editor/src/modular-mb/`) and the (still empty) `firmware/app-modular-brain/` share a domain — oscillators, filters, envelopes, amplifiers, sequencers, wired together — but currently the editor models it data-first: TypeScript interfaces as POJOs plus a god-class `AudioEngine` with `switch(node.kind)` for every operation. Adding a new module touches 5+ places; module-specific knowledge is scattered; the C++ side will reinvent the same dispatch problem.
@@ -18,6 +18,10 @@ Tone.js (the simulator's audio backend) demonstrates a clean OO hierarchy worth 
 Key insight from comparing them: **CV and audio are different worlds.** Envelopes, LFOs, sequencers, and CV-routers only need ~1–2 kHz update rates. Digital audio synthesis needs 44 kHz sample-accurate processing and its own DMA/I2S pipeline. Mixing both on the same update path adds complexity for no benefit.
 
 This ADR replaces an earlier draft of 0009 that conflated *type schema* and *per-instance values* into a single "Definition" layer, and did not distinguish CV from audio modules; both distinctions are now explicit.
+
+**System diagrams:**
+See [SysML Overview](../SysML/sysML-overview.png) for the high-level hardware/signal-flow architecture and user-facing control inputs.
+See [SysML Details](../SysML/SysML-more-details.png) for firmware-level routing, module composition, and the internal vs. external rack split.
 
 ## Decision
 
@@ -68,37 +72,70 @@ Module (abstract)                ← ports[], controls[], setControl(id, val), d
  │   │   └─ Ahdsr
  │   ├─ Lfo
  │   ├─ Sequencer → Seq16
- │   └─ CvMapper
+ │   ├─ CvMapper
+ │   ├─ CvBreakout               ← writes CV/gate to bus → external rack
+ │   │   ├─ CvOut12              ← 12-bit CV output (0–5 V, 0–10 V, ±5 V, etc.; range in def)
+ │   │   ├─ CvOut16              ← 16-bit pitch CV output (1 V/oct)
+ │   │   └─ GateOut              ← digital gate/trigger output
+ │   ├─ CvBreakIn                ← reads CV/gate from bus ← external rack
+ │   │   ├─ CvIn12               ← 12-bit CV input from external rack
+ │   │   ├─ CvIn16               ← 16-bit CV input from external rack
+ │   │   └─ GateIn               ← gate/trigger input from external rack
+ │   └─ ControllerBreakIn        ← human-interface bridge; maps physical controls → CV values
  ├─ AudioModule (abstract)       ← update(); runs at ~344 Hz on audio Teensy / simulator
  │   ├─ Oscillator (abs)         ← pitchCvIn, audioOut, tuning; setNote(semitones)
  │   │   └─ Vco
  │   ├─ Filter (abs)             ← audioIn, audioOut, cutoffCvIn
  │   │   ├─ Vcf
  │   │   └─ Svf
- │   └─ Amplifier → Vca         ← audioIn, audioOut, gainCvIn
+ │   └─ Amplifier → Vca         ← audioIn, audioOut, gainCvIn (CV 0–100 % / 0–4095)
  └─ ExternalModule               ← one class, data-driven; routing handle only, no audio/CV code
 ```
 
-**Signal vocabulary — gate, not MIDI:**
+See [module hierarchy diagram](../uml/module-hierarchy-v1.png) for a visual representation of this structure.
+
+**Breakout modules bridge brain and external rack.** Three symmetrical breakout classes complete the boundary:
+
+- `CvBreakout` — an internal module that writes CV/gate values to the SPI/CAN-FD bus. An `EnvelopeGenerator` or `Sequencer` connects its output port to a `CvBreakout`; the breakout owns the bus write. The physical board appears twice in a patch: as a `CvBreakout` node in the *internal rack* (brain side) and as a panel connector in the *external rack* (Eurorack side). This dual appearance is intentional and reflects the actual signal path. Display breakouts (boards that show values on a small screen or LED bar rather than driving a DAC) follow the same pattern.
+- `CvBreakIn` — the reverse path: reads CV/gate values arriving from the external rack over the bus and makes them available as input ports to internal `CvModule` instances (e.g. an incoming pitch CV from an external sequencer). Same dual-appearance principle: one node in each rack.
+- `ControllerBreakIn` — a special break-in whose source is not the bus but physical human-interface hardware on the brain's own panel or a connected controller board: potentiometers, encoders, buttons, touchscreen zones. In the original SysML diagrams this was labelled "pots control panel". From the perspective of an `EnvelopeGenerator` or `Vco`, its output looks identical to any other CV input — only the source differs. `ControllerBreakIn` is also the primary mechanism for feeding real-time control inputs to the audio Teensy: the brain forwards the values over the bus at the normal CV tick rate.
+
+**Internal bus: music-time signals and management messages.** The SPI/CAN-FD bus carries two distinct traffic classes, analogous to the split between real-time MIDI and SysEx:
+
+1. **Music-time signals** — the primary traffic: CV values (12-bit, 16-bit), gate signals (1-bit), trigger pulses. Produced and consumed at the CvModule tick rate (~1–2 kHz). Time-sensitive; must not be delayed.
+2. **Management messages** — non-time-sensitive configuration, firmware, and status traffic that runs alongside music-time traffic:
+   - *Configuration* — e.g. setting the voltage range on a `CvOut12` breakout, or writing calibration data. Sent once at boot or when the user changes a setting in the web UI.
+   - *Firmware updates* — breakout boards that contain their own microcontroller (MCU) can receive firmware updates over the bus, eliminating the need to physically connect each board to a programmer. The brain acts as the flashing host.
+   - *Status / telemetry* — a breakout can report its firmware version, hardware revision, or fault state back to the brain for display in the web UI.
+
+This management layer is "bus overhead" by design and does not interfere with music-time traffic. The exact framing protocol (dedicated message-type bits, time-slot reservation, or a separate management register) is deferred to ADR 0006 or a follow-up.
+
+**Signal vocabulary — gate and CV, not MIDI:**
 The brain speaks in signals, not MIDI messages. When a note starts:
 - `env.setGate(true)` — the envelope receives a high gate; it decides what to do with it (start attack).
 - `vco.setNote(semitones)` — the oscillator receives a pitch value.
-- `vca.setGate(true)` — the amplifier opens.
+- `vca.setCV(value)` — the amplifier receives a continuous CV amplitude (0–100 % in simulator; 0–4095 for a 12-bit breakout). A VCA has no gate; it is always active and simply passes audio scaled by the CV level. Zero CV = silence.
 
 The MIDI layer (voice allocator) maps `noteOn(note, velocity)` to these calls. Module classes themselves have no knowledge of MIDI.
 
 The `setGate(bool)` convention replaces the earlier `triggerAttack` / `triggerRelease` names, which leaked internal envelope knowledge to the caller. A gate is what the outside world sends; what the module does with it (attack, decay, …) is the module's own concern.
+
+**CV value representation differs by context:**
+- *Simulator (TS):* float in a normalised range (e.g. 0.0–1.0 for gain, –1.0–+1.0 for bipolar CV). Easy to feed directly to Tone.js params.
+- *Firmware / breakout:* integer matching DAC resolution (12-bit: 0–4095; 16-bit: 0–65535). Voltage range (0–5 V, ±5 V, 0–10 V, 0–12 V, …) is a parameter of the `CvBreakout` definition, not of the module sending the signal. The breakout scales the integer to the correct voltage.
 
 **In firmware (Teensy — main brain):**
 - Only `CvModule` subclasses run here. Timer ISR calls `tick()` on each registered module in order.
 - `ExternalModule` has no `tick()` — it is represented only as routing metadata and DAC-write targets.
 - Cross-boundary writes (MIDI ISR / main loop → timer ISR state) guarded by `__disable_irq()` / `__enable_irq()` (same pattern as Teensy Audio `noteOn`).
 
-**In firmware (audio Teensy — optional, separate rack module):**
+**In firmware (audio Teensy — optional, possibly panel-less):**
 - Only `AudioModule` subclasses run here. DMA/I2S ISR drives `update()`.
-- Receives CV/gate values from the main brain over the internal bus (same bus as external Eurorack breakouts).
-- Produces stereo or multi-channel I2S audio output.
-- If digital audio is not needed in a build, this module simply does not exist in the rack.
+- Receives CV/gate values from the main brain over the internal bus (same mechanism as any external Eurorack breakout receiving CV).
+- Does not require a physical panel slot; it can be a bare board inside the case with no HP allocation. Configuration and patch recall happen entirely through the web UI.
+- Control inputs (filter cutoff, gain, oscillator pitch, …) arrive as CV values from `ControllerBreakIn` modules, forwarded over the bus at the standard tick rate.
+- Audio output goes via a dedicated **audio breakout module** (a small companion board in the rack that holds the DAC/codec and audio jack sockets).
+- If digital audio is not needed in a build, this module simply does not exist.
 
 **In the web simulator:**
 - `CvModule` subclasses run in a `setInterval`-driven tick.
@@ -130,12 +167,15 @@ The runtime class is the **single source of truth for its own definition** (`sta
 - **CV bus ≠ audio bus**: the internal SPI/CAN-FD breakout bus carries CV/gate values (12-bit, 16-bit, 1-bit) at 1–2 kHz. Audio (if present) is on a separate I2S path on the audio Teensy. Module code never mixes these paths.
 
 ### Architecture note — audio Teensy
-Digital audio synthesis is architecturally separate from CV processing. If the project needs internal audio voices, the preferred approach is a **dedicated audio rack module** (another Teensy 4.x) that:
-- subscribes to CV/gate values from the main brain over the internal bus (identical to how an external Eurorack VCO receives CV);
+Digital audio synthesis is architecturally separate from CV processing. If the project needs internal audio voices, the preferred approach is a **dedicated audio Teensy** (Teensy 4.x) that:
+- is **not necessarily panel-mounted** — it can live as a bare board inside the enclosure with no HP allocation in the rack;
+- is configured entirely through the web UI, exactly like the rest of the system — no physical controls required on the board itself;
+- subscribes to CV/gate values from the main brain over the internal SPI/CAN-FD bus (identical to how an external Eurorack VCO receives CV from a `CvBreakout`);
+- receives real-time control inputs (filter cutoff, oscillator pitch, gain, …) as CV values forwarded from `ControllerBreakIn` modules over the bus;
 - runs `AudioModule` classes locally using the Teensy Audio ISR model;
-- outputs audio via I2S to a DAC or codec.
+- outputs audio via I2S to an **audio breakout module** — a small companion board (probably 4–6 HP) in the rack that holds the DAC/codec and audio jack sockets.
 
-The main brain Teensy has no audio code. This keeps both Teensys within their performance envelope and keeps firmware responsibility boundaries clean. Whether to implement this is deferred; the class hierarchy already supports it via the `AudioModule` branch.
+The main brain Teensy has no audio code. This keeps both processors within their performance envelope and maintains clean firmware responsibility boundaries. Whether to implement the audio engine is deferred; the class hierarchy already supports it via the `AudioModule` branch.
 
 ## Migration plan (informative)
 1. Rename the current `interface Module` in `editor/src/modular-mb/types.ts` to `ModuleInstance`. Update call sites mechanically.
@@ -158,15 +198,30 @@ The main brain Teensy has no audio code. This keeps both Teensys within their pe
 - **Neutral**: save/load/undo/redo/presets unchanged; they operate on layer 2.
 
 ## Open questions
-- Whether `Lfo` should live under `CvModule` (it produces a CV, not audio) or be a `CvModule` sibling to `EnvelopeGenerator`. Current placement: `CvModule → Lfo`.
-- Whether `Param`/`Signal`/`Switch` control-value wrappers belong in a shared TS/C++ library or are platform-local.
-- Whether the runtime class's `static readonly definition` is the source from which catalog JSON is generated, or the JSON is hand-written and the class asserts equality at boot.
-- Whether the audio Teensy communicates with the main brain over the existing SPI/CAN-FD bus or needs a dedicated higher-bandwidth channel (e.g. a direct SPI link for low-latency CV delivery).
+
+**✅ Resolved:**
+- **LFO placement** — `Lfo` is a direct sibling of `EnvelopeGenerator` under `CvModule`, confirmed. It produces CV, not audio; no audio-rate processing required.
+- **Audio Teensy bus channel** — the existing SPI/CAN-FD bus is sufficient; CV traffic at 1–2 kHz is low bandwidth. The audio Teensy may not even be rack-mounted (see architecture note).
+
+**Still open:**
+
+- **`Param`/`Signal`/`Switch` control-value wrappers** — The layer-2 `controlValues` record currently uses the untyped union `number | boolean | string | number[]`. A typed-wrapper approach would introduce `Param` (continuous numeric with unit + range), `Switch` (discrete/enum), and `Signal` (CV port reference) as first-class value types, making mismatches a compile-time error rather than a runtime surprise.
+  - *Option A — platform-local:* TypeScript defines its own wrapper types; C++ defines parallel structs independently. No build step; simpler to start. Risk: the two sides can drift silently as both codebases evolve independently.
+  - *Option B — shared schema (IDL / JSON Schema):* a single schema defines the types; stubs are generated for both TS and C++. Build-time guarantee of no drift. Requires a code-generation pipeline and additional tooling overhead.
+  - Defer until the first firmware round-trip test reveals whether drift is a practical problem.
+
+- **Catalog source of truth** — The layer-1 `ModuleDefinition` must be consistent between the JSON catalog loaded at runtime and the `static readonly definition` on each runtime class.
+  - *Option A — class is source:* a build step iterates all registered runtime classes, reads their `static readonly definition`, and writes the JSON catalog. Catalog always matches the code; adding a module means only adding a class file. Requires a code-generation step.
+  - *Option B — JSON is source, class asserts:* humans write the catalog JSON; at boot each runtime class reads the catalog entry and asserts that its declared ports and controls match. Mismatch = loud startup error, never silently wrong. No build step needed.
+  - *Option C — JSON only, no assertion:* simplest; most fragile.
+  - Leaning towards **Option B** as the pragmatic middle ground: human-authored JSON keeps the catalog readable without tooling; the boot-time assertion prevents silent drift.
 
 ## References
 - [ADR 0002](0002-editor-stack.md) — editor stack.
 - [ADR 0005](0005-patch-storage-format.md) — JSON in editor, CBOR on device. Layer 2 maps to this format.
 - [ADR 0006](0006-multi-case-transport.md) — SPI/CAN-FD internal bus that carries CV/gate between brain and breakouts.
 - [ADR 0008](0008-latency-and-interpolation.md) — latency budget and breakout-side interpolation; relevant for CV update rate choice.
+- [SysML Overview](../SysML/sysML-overview.png) — system-level block diagram showing user-facing controls, internal brain, external modules, and signal types.
+- [SysML Details](../SysML/SysML-more-details.png) — firmware-level detail view with internal vs. external racks, module hierarchies, and bus routing.
 - Mutable Instruments / Yarns `voice.h` — inspiration for `CvModule` composition pattern and two-rate update (control tick + audio ISR).
 - Teensy Audio library `AudioStream.h` / `effect_envelope.cpp` — inspiration for `AudioModule.update()` block-processing pattern, ISR scheduling, and IRQ-guard pattern for cross-boundary writes.

@@ -2,7 +2,7 @@
 
 - **Datum**: 2026-05-17 14:32
 - **Sessie-ID**: `4db45503-0a7f-471a-850c-117803aee9d5`
-- **Berichten**: 33
+- **Berichten**: 53
 
 ---
 
@@ -988,6 +988,636 @@ Groen. Twee dingen gefixt:
 Root cause: ReactFlow v12 beheert selectie via zijn eigen Zustand-store. Als -changes negeert, kan de store gereset worden naar `false` door de volgende sync van de -prop (die nog  had op dat moment). Fix:  handelt nu  changes af en synchroniseert ze direct naar . Store en React-state zijn daarna altijd in sync, en de  wordt consistent getekend.
 
 **2 — Click-detents op Length (ModulePanel.tsx)**  
-In  van : als  gezet is (bij de Length-knop is dat `1`), wordt de waarde na berekening afgerond naar het dichtstbijzijnde veelvoud via . De Length-knop springt nu in harde stappen van 1: 2 → 3 → 4 → … → 16, precies op de tikstrepen.
+In  van : als  gezet is (bij de Length-knop is dat `1`), wordt de waarde na berekening afgerond naar het dichtstbijzijnde veelvoud via . De Length-knop springt nu in harde stappen van 1: 2 → 3 → 4 → … → 16, precies op de tikstrepen.Categorieën bestaan al. Nu E1+E3+B4+B5 in  toevoegen plus engine-support. Eerst MidiInNode interface check; daarna SeqNode 16-step + currentStep; daarna Noise+Echo node-kinds.  Nu E1 Noise + E3 Echo factory's + 16-step SEQ + step-LEDs in één bewerking. Eerst SEQ uitbreiden naar 16 stappen met step-LEDs:  
+```
+
+```
+Nu de LED's per step uniek koppelen aan `__currentStep == N`. Voeg `bindMatch` toe aan LedControl:  
+```
+
+```
+
+```
+
+```
+Nu de  helper en SEQ aanpassen om  te gebruiken:                   
+```
+
+```
+Nu Noise + Echo factories toevoegen vóór de :                   Voeg na  (vóór de `// ── public entry` comment) Noise + Echo toe:                                   
+```
+
+```
+
+```
+
+```
+Nu de AudioEngine: noise+echo+phaser nodes + 16-step seq + currentStep schrijven naar controlState + Run-override via run_in + voct_in transponering.   
+```
+
+```
+Nu: noise op  starten, currentStep schrijven naar controlState, voct_in / run_in support in :                   Voeg `liveControls` aan engine-status toe en emit op elke seq-step:                                               
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+Nu RackPanel & PatcherGraphPanel laten doorgeven van :                                        
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+Nu een eerste build doen om te zien of de basis groen is:                                           Beide gebruiken zitten in sub-components. Voeg  daar lokaal toe:                                        
+```
+
+```
+
+```
+
+```
+Nu de AudioEngine TS-error (lijn 587):                                           
+```
+
+```
+Build groen — **745 kB / gzip 219.54 kB**. Nu A5 (live parameter-binding), A1 (rack drag/context-menu), A2 (kabel-buiger). Eerst A5: 
+```
+
+```
+Nu de control-change-flow aansluiten — vind waar  op control-change triggert:                                             
+```
+
+```
+
+```
+
+```
+Build check:                                               Groen. Nu A1 — rack drag-handle + context-menu:                        Voeg `setSlotPosition` toe + drag-handle + context-menu state. Eerst de helper:                           
+```
+
+```
+Goed. Nu drag-and-drop op de rij + context-menu UI op het slot:                                                        
+```
+
+```
+Voeg drag-handle bovenaan het slot toe + onContextMenu:                                                                               
+```
+
+```
+Voeg context-menu UI toe vóór de sluitende  van RackGrid:                             
+```
+
+```
+Groen. Nu A2 — kabel-buiger via custom edge in xyflow:                                               
+```
+
+```
+Maak nu de BendableEdge in PatcherGraphPanel.tsx:                                                
+```
+
+```
+Voeg BendableEdge-component toe. Eerst kijken waar  eindigt en  wordt gedefinieerd:                                                                                                               
+```
+
+```
+Nu de edge-creatie en ReactFlow  propageren:                                   
+
+---
+
+## 🧑 User
+
+waar staan we nu qua backlog? Waar worden de presets nu opgeslagen?
+
+---
+
+## 🤖 Assistant
+
+Duidelijk beeld. **Samenvatting:**
+
+---
+
+### Backlog-status na iter-5.10
+
+| Prio | Item | Status |
+|---|---|---|
+| 1 | A2 kabel-buiger | ✅ iter-5.5 |
+| 1 | A5 live parameter-binding | ✅ iter-5.5 |
+| 1 | B4 16-step SEQ | ✅ iter-5.6 |
+| 1 | B5 step-LED's | ✅ iter-5.7 |
+| 2 | A1 rack drag/context-menu | ✅ iter-5.8 |
+| 2 | C1 properties-paneel | ✅ iter-5.8 |
+| **2** | **C2/C3 presets** | **✅ iter-5.10** |
+| 3 | A4 latency | ⏳ open |
+| 3 | D1 server-persistentie | ⏳ open |
+| 3 | D2 gebruikersbeheer + sync | ⏳ open |
+| 3 | B1/B2/B3 SEQ CV/gate-inputs | ⏳ open |
+
+**Alle prio-1 en prio-2 items zijn klaar.** Wat resteert is prio-3.
+
+---
+
+### Waar worden presets opgeslagen?
+
+In `localStorage` van de browser, onder sleutel **** — als een JSON-object met de structuur:
+```json
+{ "version": 1, "patches": [...], "modules": [...] }
+```
+- **Voordeel:** geen server nodig, werkt direct.
+- **Nadeel:** browser-gebonden en privé. Vandaar de Export/Import-knoppen in de modal — daarmee kun je de bibliotheek als `.json`-bestand opslaan en op een andere machine inladen.
+
+Zodra D1 (server-REST-API) er is, kunnen presets daarheen worden gemigreerd; de `loadLibrary`/`saveLibrary`-functies in  zijn dan het enige aanknopingspunt.
+
+---
+
+## 🧑 User
+
+Ik heb nog wel een paar vragen tussendoor
+
+1. hoe zit de js/ts code in elkaar? Ik zie overal elke file zowel js als ts(x) zijn. Waarom is dat zo?
+2. Is de frontend code object georienteerd opgezet, dus met hulp van klassen die zowel gegevens als methoden hebben? Of vooral procedureel / reagerend op events met losse functies en objecten bevatten alleen data. Ik vind wel interfaces maar weinig classes.
+3. zou dat niet overzichtelijker zijn? Of kost dat echt performance? Ik ken de data niet, wat dit betreft. Mijn voorkeur gaat uit naar OO vanwege begrijpelijkheid, onderhoudbaarheid en een betere, duidelijker separation of concerns. Het is ook mijn denk-achtergrond. Ik denk OO als ik programmeer.
+
+Voor de backend / C++ code geldt natuurlijk hetzelfde. Ik zie wel een aantal .h files en een paar klassen, en vooral veel interfaces. Ik heb nog niet helemaal helder of het echt in de basis OO is opgezet nu. Daar zou ik wel graag naar willen kijken, zodat ik het zelf goed snap en blijf snappen.
+
+Ik denk daarbij aan:
+- een Module / Moduledefinitie / Patch / Rack enz. zijn concepten die heel goed als object te definieren zijn. Via overerving kunnen we deze specialiseren.
+- een AHDSR (specialisatie van de abstracte EnvelopeGenerator) module (intern) komt dan zowel in C++ als TS voor als object.
+   - in C++ kan deze via een SetGate (hi of lo) methode gestart en gestopt worden, en wordt dat dan ook daarwerkelijk gedaan (het is immers een echt werkende interne module)
+   - in TS gebeurt eigenlijk hetzelfde, maar alleen in Simulatie mode
+   - panel is in de teensy niet nodig, maar wel in de Frontend
+   - de onderliggende controls-collectie van een module is in beide werelden gelijk
+   - hoe de control wordt weergegeven op het panel is in de C++ wereld niet van belang, maar in de configurator en simulator wel (MVC patroon)
+
+We moeten misschien even een strak plan maken over de structuur en samenhang.
+
+---
+
+## 🤖 Assistant
+
+Goede vragen — voordat ik antwoord even kort verifiëren wat er feitelijk in de repo staat.     Genoeg context. Drie inhoudelijke antwoorden + een architectuurvoorstel.
+
+---
+
+## 1. Waarom .js naast elke .ts(x)?
+
+Dat is **compileer-residu, niet bedoeld**. Bewijs:
+-  heeft géén `outDir` en géén `noEmit` ⇒ als iemand toevallig `tsc` draait (i.p.v. Vite), schrijft TypeScript naast elke `.ts` een Genoeg context. Drie inhoudelijke antwoorden + een architectuurvoorstel.
+
+---
+
+## 1. Waarom .js naast elke .ts(x)?
+
+Dat is **compileer-residu, niet bedoeld**. Bewijs:
+-  heeft géén `outDir` en géén `noEmit` ⇒ als iemand toevallig `tsc` draait (i.p.v. Vite), schrijft TypeScript naast elke `.ts` een gelijknamige `.js`.
+-  blokkeert deze .js niet (alleen , `build/`, `*.tsbuildinfo`).
+- Vite zelf gebruikt esbuild en bundelt naar editor/dist/ — die `.js`'jes worden bij `npm run build` of `dev` níét gebruikt.
+- Timestamps:  is van 21 mei, `.ts` van 20 mei — een editor-watch of een handmatige `tsc` heeft ze regenereerd.
+
+**Aanbeveling (klein, los van architectuur):** zet `"noEmit": true` in  én voeg  toe aan , daarna eenmalig `git rm` van de losse .js'jes. Vite blijft ongewijzigd werken; per ongeluk een `tsc` draaien doet dan niets meer kwaad. Wil je dat ik dit opruim? (1 commit, geen functionele wijziging.)
+
+---
+
+## 2. Is de frontend OO?
+
+**Nee, niet in klassieke zin.** De architectuur is:
+- **Data-laag** = TS-interfaces (, , , , , …) — pure POJOs, serialiseerbaar naar JSON.
+- **Gedrag** = losse functies + één god-class. Concreet:
+  -  — factory-functies die de POJOs vullen.
+  - `AudioEngine.ts` — wél een class, maar intern is alle module-specifieke logica één grote  op .
+  - React-components — functionele components, geen klassen.
+- **Discriminated unions** doen het werk dat in OO door subclasses zou worden gedaan:  + . TypeScript dwingt exhaustiviteit af, dus het is type-safe — alleen verspreid over meerdere bestanden.
+
+C++ kant is vergelijkbaar:  is POD met enkele helpers. De  files zijn hardware-abstractie-interfaces. Een echte module-hiërarchie (EnvelopeGenerator, Filter, Oscillator) bestaat **nog niet** —  bevat alleen een README. Goed moment om die structuur nu te ontwerpen.
+
+---
+
+## 3. Zou OO overzichtelijker zijn? Eerlijke afweging
+
+**Geen "ja"-blind.** De redenen waarom het nú functioneel/data-georiënteerd is, zijn niet toevallig:
+
+| Voordeel huidige aanpak | Wat je verliest bij volledig OO |
+|---|---|
+| Project = JSON-snapshot ⇒  /  / undo+redo via past/future-stacks van immutable objecten zijn 5 regels. | Klasse-instanties overleven  niet; je moet `serialize()` + `hydrate()` schrijven en bijhouden. |
+| Save/load/export/import + nu de presets zijn **gratis** omdat alles al POJO is. | Idem — extra serialisatielaag nodig. |
+| React render = referentievergelijking. Immutable updates triggeren precies wat moet hertekenen. | Mutator-methodes op classes botsen met React's "nieuwe referentie = re-render". |
+| Structural sharing:  is goedkoop. | Class-graphs vergen `.clone()` en zijn duurder/foutgevoeliger. |
+
+**Echte pijn van de huidige aanpak (die OO wél oplost):**
+- Nieuwe module toevoegen = 5 plekken aanraken (seedModules · AudioEngine.makeNode · AudioEngine.wire · AudioEngine.updateControl · soms ModulePanel).
+- Module-specifieke kennis is verspreid; geen "één plek om VCF te begrijpen".
+- AudioEngine.ts (~870 regels) is de god-module aan het worden.
+
+---
+
+## Voorstel: **gelaagde architectuur met OO daar waar het loont**
+
+Niet alles-of-niets, maar een **bewuste driedeling**. Dit past zowel TS als C++.
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│ 1. DEFINITION layer (data, serializable)                     │
+│    interface IModuleDef { id, typeId, controls, ports, … }   │
+│    interface IVcfDef extends IModuleDef { kind: 'vcf'; … }   │
+│    → leeft in JSON, gaat over de draad (TS↔C++↔disk)         │
+│    → blijft POJO/POD, geen methodes                          │
+├──────────────────────────────────────────────────────────────┤
+│ 2. RUNTIME layer (OO, gedrag)                                │
+│    abstract class ModuleRuntime {                            │
+│      constructor(def: IModuleDef)                            │
+│      abstract wire(graph), updateControl(id, val), dispose() │
+│    }                                                         │
+│    class VcfRuntime extends ModuleRuntime { … Tone.Filter … }│
+│    class AhdsrRuntime extends EnvelopeRuntime { setGate() … }│
+│    → wordt in TS rond Tone.js gewikkeld                      │
+│    → wordt in C++ rond AudioStream gewikkeld                 │
+│    → identieke namen en hiërarchie aan beide kanten          │
+├──────────────────────────────────────────────────────────────┤
+│ 3. VIEW layer (MVC's V, alleen frontend)                     │
+│    React-components: PatcherGraphPanel, ModulePanel, …       │
+│    Lezen uit Definition-laag, sturen edits naar store,       │
+│    raken Runtime-laag nooit aan.                             │
+└──────────────────────────────────────────────────────────────┘
+```
+
+**Wat hiermee wint:**
+- **OO precies waar het pijn doet:** `class VcfRuntime { wire(); updateControl(); }` — alle VCF-engine-logica op één plek. `AHDSR extends EnvelopeGenerator` is een echte klasse-hiërarchie.
+- **MVC-scheiding expliciet:** view weet niets van Tone.js / AudioStream, runtime weet niets van React/SVG.
+- **TS ↔ C++ symmetrie:** dezelfde klassenamen, methodes (`setGate`, `wire`, `updateControl`), dezelfde overerving. In C++ kunnen Definition + Runtime samenvallen in één class met `serialize()`; in TS blijven ze gesplitst vanwege React.
+- **Bestaande save/load/preset/undo/redo blijven werken zonder wijziging** — die hangen aan laag 1, en die blijft data.
+- **Migratie kan stapsgewijs:** een runtime-class per module-type, AudioEngine wordt thin dispatcher (). Geen big-bang refactor.
+
+**Wat je niet wint (eerlijk):**
+- Voor , ,  (de container-types) is OO weinig nuttig — die zijn pure structuur. Daar zou ik POJOs houden. OO loont vooral op de **engine-/runtime-laag** waar polymorfisme een god-switch vervangt.
+
+---
+
+## Plan om dit echt te doen
+
+Als je dit wilt, stel ik deze volgorde voor (we hoeven nu níéts te coderen):
+
+1. **ADR schrijven** (`doc/adr/0006-module-runtime-classes.md`) — vastleggen: 3-lagen-model, naamgevingsregels TS↔C++, regel "Definition blijft POJO".
+2. **TS-skelet** —  met `ModuleRuntime` (abstract) + één concrete subclass (`VcfRuntime`) + `RuntimeRegistry`. AudioEngine roept registry-dispatch aan i.p.v. de huidige . Eén module migreren als . Eén module migreren als proof.
+3. **C++-skelet** — `firmware/core/include/mb/Runtime/` met identieke namen:  +  +  + . Nog leeg / dummy, alleen het skelet.
+4. **Per iter één module migreren** — Vcf → Vco → Vca → Envelope (incl. AHDSR-overerving als demo) → SEQ → … Bestaande functionaliteit blijft werken want elke migratie is achter de registry.
+
+**Mijn aanbeveling:** doe stap 1 eerst (ADR), dan beslissen we gezamenlijk of we doorgaan met 2-4. Een ADR kost weinig en voorkomt dat we halverwege ergens anders uitkomen.
+
+Wil je dat ik de ADR schrijf? Of eerst nog ergens op doorvragen (bv. de C++ kant van `EnvelopeGenerator → AHDSR` concreet uitwerken voordat we vastleggen)?
+
+---
+
+## 🧑 User
+
+Ja, eens met ADR schrijven. Wil je dat doen? Lees wel even onderstaand eerst.
+
+Over 2 en 3 al meteen: ik val over de naam XXXRuntime. In OO noem je iets naar wat het is. Ik zou gewoon de module de module noemen, omdat het de kern is van alles. De rest zit eromheen: het module-paneel, het module-type, de controls en input en output zijn denk ik compositie-onderdelen van een module op alle niveau's en via overerving worden die steeds specifieker, of worden het er meer.
+
+Een panel geeft een module weer, op welk niveau in de overervingsboom dan ook. Er kan dan ook een abstract panel bestaan voor een heel rudimentaire VCO, die alleen een CVin heeft, een tuning control en een Audio-uit, en misschien meer niet. De Envelope een gate (en SetGate method dan) en een Env-out. De rest zit in de specialisaties.
+
+Gebruikt tone.js (die library gebruiken we toch?) ook een soort klasse-hierarchie? Dat zit best netjes in elkaar en we kunnen er wellicht wat van lenen.
+
+Runtime als naam voor de laag vind ik wel duidelijk en goed.
+
+---
+
+## 🤖 Assistant
+
+Goede pushback op `Runtime`-suffix — die was lui. Ik schrijf ADR 0009. Eerst over Tone.js (kort, want het is wel relevant voor de ADR), dan voorstel ik de ADR-inhoud zo dat je hem kunt lezen en accepteren.
+
+## Tone.js hiërarchie — wat we kunnen lenen
+
+Ja, we gebruiken Tone.js, en het is netjes opgezet. Kern:
+
+```
+ToneAudioNode (abstract)         ← input/output, connect/disconnect, dispose
+ ├─ Source (abstract)             ← .start(time), .stop(time)
+ │   ├─ Oscillator   ├─ LFO   ├─ Noise   ├─ Player
+ ├─ Effect (abstract)             ← wet/dry, .input + .output uniform
+ │   ├─ Filter   ├─ Reverb   ├─ Chorus
+ ├─ Instrument (abstract)         ← triggerAttack / triggerRelease
+ │   ├─ Synth   ├─ MonoSynth   ├─ PolySynth
+ └─ Envelope                       ← triggerAttack / triggerRelease
+     └─ AmplitudeEnvelope
+```
+
+Wat ik concreet wil lenen:
+- **Uniforme  / `output` properties** op elke node → `connect()` is polymorf, geen `switch(kind)` meer.
+- **`dispose()` als universele lifecycle** — wij hebben dit nu deels ad-hoc.
+- **`Param` / `Signal` voor automatiseerbare controls** i.p.v. losse `number` — geeft moduleerbaar controltype een echte plek in het type-systeem.
+- **Naamgeving van events:** `triggerAttack(time)` / `triggerRelease(time)` i.p.v. `setGate(true/false)` — leesbaarder en past bij de domeintaal.
+- **Abstract → specialisatie** met groei van het oppervlak per stap: precies wat jij voor de paneel-hiërarchie schetst (`Oscillator` heeft alleen pitch-CV+audio-out, `Vco` voegt waveform/PWM/sync toe).
+
+Wat we **niet** overnemen: Tone.js heeft geen serialisatie/save-laag —  / `output` properties** op elke node → `connect()` is polymorf, geen `switch(kind)` meer.
+- **`dispose()` als universele lifecycle** — wij hebben dit nu deels ad-hoc.
+- **`Param` / `Signal` voor automatiseerbare controls** i.p.v. losse `number` — geeft moduleerbaar controltype een echte plek in het type-systeem.
+- **Naamgeving van events:** `triggerAttack(time)` / `triggerRelease(time)` i.p.v. `setGate(true/false)` — leesbaarder en past bij de domeintaal.
+- **Abstract → specialisatie** met groei van het oppervlak per stap: precies wat jij voor de paneel-hiërarchie schetst (`Oscillator` heeft alleen pitch-CV+audio-out, `Vco` voegt waveform/PWM/sync toe).
+
+Wat we **niet** overnemen: Tone.js heeft geen serialisatie/save-laag — voor ons is dat juist de tweede helft van de ADR.
+
+---
+
+## ADR 0009 — voorstel
+
+Naamgeving-keuze die ik in de ADR vastleg, gevolg van jouw input:
+- Layer-naam: **`runtime/`** (folder + namespace) — beschrijft de laag, niet de klasse.
+- Klassennamen: **wat het ding is** — `Module`, `Oscillator`, `Vco`, `Filter`, `Vcf`, `EnvelopeGenerator`, `Ahdsr`, `Amplifier`, `Vca`, `Sequencer`.
+- Naamclash met huidige `interface Module` in : ik stel voor de POJO te hernoemen naar **`ModuleSnapshot`** (past bij de undo-redo-semantiek; project = `ModularProjectSnapshot`-achtig). Alternatief: `ModuleData`. Klasse pakt de schone naam `Module`. Welke vind jij beter?
+- `ModuleType` blijft `ModuleType` (catalogus-entry).
+- Paneel-hiërarchie volgt: `class Panel`, `class OscillatorPanel extends Panel`, `class VcoPanel extends OscillatorPanel`. Abstract panels renderen alleen wat hun klasse-niveau garandeert (pitch-CV-in, tuning-knob, audio-uit).
+
+Ik schrijf nu de ADR-file. Twee open vragen die ik in de ADR als "Open question" zet, niet vooraf invul:
+1. POJO-suffix: `ModuleSnapshot` vs `ModuleData` (voorkeur?).
+2. Wordt `Panel` ook een klasse, of houden we het bij React functional components die een `Module` lezen? (Mijn neiging: React functional components blijven, maar krijgen wel **subcomponenten per abstractieniveau** in dezelfde overervings-stijl — geen extra klassenlaag in React zelf, want dat botst.) 
+```
+
+```
+ADR 0009 staat in , opgenomen in  als *Proposed*.
+
+Kernpunten verwerkt:
+- 3-lagen-model: Definition (POJO/POD) — Runtime (OO) — View (React).
+- Klassen heten naar wat ze zijn: `Module`, `Oscillator`, `Vco`, `EnvelopeGenerator`, `Ahdsr`. Geen `XXXRuntime`-suffix.
+- Layer-naam `runtime/` blijft (folder/namespace).
+- Tone.js-patronen geleend: uniform /`output`, `connect`/`dispose`, `triggerAttack`/`triggerRelease`, composition over extension.
+- React-panels: functioneel + per niveau, abstract panel rendert alleen wat zijn klasse-niveau garandeert.
+- Persistence/undo/presets blijven snapshot-based — geen breukvlak.
+- Migratie: stapsgewijs via registry; één module (Vcf) als proof.
+
+Twee open vragen aan jou voordat we stap 1 doen:
+
+1. **POJO-suffix**: `ModuleSnapshot` (mijn voorkeur, past bij undo-snapshot) of `ModuleData`?
+2. **`Lfo`**: subclass van `Oscillator` /`output`, `connect`/`dispose`, `triggerAttack`/`triggerRelease`, composition over extension.
+- React-panels: functioneel + per niveau, abstract panel rendert alleen wat zijn klasse-niveau garandeert.
+- Persistence/undo/presets blijven snapshot-based — geen breukvlak.
+- Migratie: stapsgewijs via registry; één module (Vcf) als proof.
+
+Twee open vragen aan jou voordat we stap 1 doen:
+
+1. **POJO-suffix**: `ModuleSnapshot` (mijn voorkeur, past bij undo-snapshot) of `ModuleData`?
+2. **`Lfo`**: subclass van `Oscillator` of eigen tak onder `Source`?
+
+En de losse vraag van eerder blijft staan: zal ik in een aparte mini-commit de `.js`-residuen opruimen (`noEmit: true` in tsconfig + `src/**/*.js` in  + `git rm` van de losse `.js`'jes)? Dat is onafhankelijk van de ADR.
+
+---
+
+## 🧑 User
+
+Een vraag terug over de ModuleSnapshot / Data POJO's. Ze zitten in de **definition** laag en ik zie er ook geen data in, zoals de stand van de tune-knob of de ingestelde Attack-waarde in de AHDSR. Waar leeft die data? Als die in deze POJO's zit, is XXXSnapshot of XXXState of XXXSetting correct, maar de naam van de laag niet helemaal.
+
+De Interface-definitie van een Module zit toch ook in de module zelf? Welke ports en controls en displays (leds, little screens, LED-numbers) er zijn. Of scheiden we dat?
+
+Dus:
+## Definition laag
+- er is een ModuleX-Definition = brand, model, variant + port[] + control[] + display[] = welke poorten, controls van welk type heeft deze module
+
+## Runtime laag
+- er is een ModuleX die voor al die ports en controls en displays ook daarwerkelijk plek heeft voor de actuele waarde, die in een object (een runtime instantie van ModeleX) ook daadwerkelijk gevuld zijn en continu kunnen veranderen. ModuleX is uiteraard meer dan data, want ook de code om daarwerkelijk te werken. Die heeft die waarden van de controls uiteraard nodig.
+   -> zetten we dat flexibel op? Dus zoiets als de ModuleX-State = de **waarden** van de controls en ports en displays ? Dan moeten de waarden wel polymorf zijn.
+   -> of bakken we dat hard in de moduleX klasse?
+   -> of is er daar een onderscheid tussen de interne en externe modules. De interne moeten namelijk gebouwd worden. De externe worden aangestuurd en bestaan eigenlijk niet in de C++ code. 
+   -> in de simulatie is het ook zo: een aantal (meer dan op de teensy) modules hebben een concrete implementatie en kunnen runtime runnen. De rest is eigenlijk alleen maar informatie over welke poorten (belangrijkst) er zijn en wat voor instellingen de gebruiker op de echte module moet doen voor een patch.
+   -> die echte modules worden in de simulatie wel benaderd door een lookalike simulatiemodule, dus een SolidStateVCO (denkbeeldige naam) met blok, sinus, driehoek en zaagtand wordt benaderd door onze VCO, hoewel ie natuurlijk anders zal klinken.
+
+## view laag
+- dan is er in de web-View laag ook een moduleX-Panel (let op: 1 moduleX mag meerdere panelen hebben; al kan er maar 1 tegelijk getoond worden)
+- N.B.: de microcontroller kan ook een (simpeler) View laag hebben: we willen via een (klein) display toch ook wel de toestand en wat events kunnen weergeven. Dan kan het zijn dat moduleX ook daar een moduleX-View heeft die zich op een klein schermpje kan tonen in een beperkte ruimte.
+
+---
+
+## 🤖 Assistant
+
+Goede vragen — je legt een echte fout in de ADR bloot. Ik had "Definition" laten doen wat eigenlijk twee taken zijn, en ik had de interne/externe-splitsing helemaal niet beschreven. Voorstel tot herziening:
+
+## Vier lagen i.p.v. drie
+
+| Laag | Wat het beschrijft | Statisch/dynamisch | Voorbeeld |
+|---|---|---|---|
+| **1. Catalog** | *Welke modeltypes bestaan er.* Brand, model, variant + welke ports, controls, displays. Schema, geen waarden. | Statisch, per type één keer. | "BrandX VCO Mk2 heeft pitch-CV-in, FM-in, audio-uit, tuning-knob, octaaf-switch, waveform-select." |
+| **2. Patch** | *Wat zit er in dit patch.* Welke module-instanties, hun id/positie/naam, hun **knop-standen en switch-waardes**, hun connecties. | Veranderlijk; dít is wat in JSON wordt opgeslagen / ondo'd / naar firmware gestuurd. | "Instance `vco_001` is van type `brandx_vco_mk2`, tuning=440, octaaf=0, waveform=saw, audio-uit verbonden met `vcf_001.audio-in`." |
+| **3. Runtime** | *Levende klasse-instanties met code.* Wrappen Tone.js-nodes (TS) of DAC-streams (C++). Lezen Catalog+Patch om zich op te bouwen, houden tijdens spelen de **actuele effectieve waarde** bij (= patch-waarde ± modulatie). | Vluchtig, niet geserialiseerd. | `vcoInstance = new Vco(catalog.brandx_vco_mk2, patch.modules['vco_001'])` |
+| **4. View** | *Hoe iets wordt getoond.* In webeditor: React-panels (meerdere per module mogelijk). Op de Teensy: klein OLED-uitzicht. | Stateless renderlaag; leest Patch (+ evt. Runtime voor live-meters). | `<VcoFullPanel module={…} />`, `<VcoCompactPanel …/>`, `OledStatusView::render(module)` |
+
+Dit lost je vragen op:
+- **Waar leeft de tune-knop-stand?** In laag 2 () als opgeslagen setpoint. In laag 3 (`Runtime`) als `Param`-achtig object dat dat setpoint + eventuele CV-modulatie combineert tot de actuele klinkende waarde. Tone.js doet dit ook zo (`param.value` is het setpoint).
+- **Hoort de port/control-lijst bij de module zelf?** Ja. Catalog-entry is de geserialiseerde vorm van wat de klasse over zichzelf weet. Implementatie: elke runtime-klasse heeft een `static readonly definition: ModuleDefinition` die de catalog-entry produceert. Single source of truth, geen drift.
+
+## Hernoeming
+- Laag 1 entry: `ModuleDefinition` (jouw voorstel) of `ModuleType`. Beide zijn correct; ik vind `ModuleDefinition` net iets explicieter dan `ModuleType`, en `ModuleType` doet in TS-spraak vooral aan "discriminator" denken. Voorkeur?
+- Laag 2 entry: `ModuleInstance` (dit is wat een patch bevat). Vervangt het ongelukkige `ModuleSnapshot`.  blijft .
+- Laag 3: `Module` (de klasse) + subklassen `Vco`, `Vcf`, `Ahdsr`, …
+- Laag 4: panels — `VcoFullPanel`, `VcoCompactPanel`, etc. (1 module → N panels, één tegelijk getoond.)
+
+## Polymorfe waardes
+Houden zoals nu: een control-waarde is een union (`number | boolean | string | number[]` voor sequencer-steps, etc.). In laag 2 ligt het als POJO; in laag 3 wikkelt de runtime het in een typed `Param<T>`/`Signal<number>`/`Switch<T>`-achtige wrapper. Niet hardcoderen in elke module-klasse (zou veel duplicatie geven); generieke control-laag bouwen.
+
+## Intern vs extern — belangrijke aanvulling
+
+Klasse-hiërarchie krijgt een vroege splitsing:
+
+```
+Module (abstract)
+ ├─ InternalModule (abstract)        ← heeft echte audio/CV processing
+ │   ├─ Oscillator → Vco, Lfo
+ │   ├─ Filter → Vcf, Svf
+ │   ├─ Amplifier → Vca
+ │   ├─ EnvelopeGenerator → Ahdsr, Adsr
+ │   └─ Sequencer → Seq16
+ └─ ExternalModule                   ← géén audio-code; routeert I/O, onthoudt user-instellingen
+```
+
+- **Firmware**: `ExternalModule` heeft geen audio-implementatie. De brain stuurt CV/gate naar de patchbay en onthoudt voor de gebruiker welke knoppen op de echte hardware-module moeten staan (mooi voor patch-recall: "zet op je BrandX VCO de tune op 12 uur").
+- **Editor-simulatie**: een externe module wordt afgespeeld door een **proxy-runtime** (bv. onze `Vco` doet de SolidStateVco na, dichtstbij wat we hebben). Die mapping `external definition → proxy runtime class` zit in een aparte sim-registry, niet in het patch-bestand. Niet alle externe modules hoeven een proxy te hebben — sommige tonen alleen visueel een paneel en zwijgen.
+- **`ExternalModule` zelf wordt waarschijnlijk geen subklasse-explosie**: brand/model/variant zijn *data* in de catalog-entry, niet aparte klassen. Een nieuwe externe module = nieuwe catalog-entry + (optioneel) een proxy-mapping; geen nieuwe code.
+
+## View ook op de Teensy
+Akkoord, ik trek "View = alleen frontend" terug. View is een **rol** (iets-tonen-aan-een-mens); de implementatie verschilt per platform:
+- Webeditor: React panels, meerdere varianten per module.
+- Brain OLED: kleine C++-renderer, bijv. één regel per actief module met huidige effectieve waardes.
+
+In de codebase: `editor/src/.../view/` en `firmware/core/include/mb/view/` — verschillende implementaties, dezelfde rol.
+
+---
+
+## Open punten voor jou
+1. **Catalog-entry-naam**: `ModuleDefinition` of `ModuleType`?
+2. **`ExternalModule`**: één klasse met data-gedreven varianten (mijn voorstel) of toch subclasses per merk? Mijn argument voor één klasse: anders schrijf je code voor elke nieuwe hardware-VCO die je tegenkomt.
+3. **Proxy-mapping voor simulatie**: in de catalog-entry zelf (`simulatedBy: 'tp_mmb_vco'`) of in een aparte sim-only registry? Mijn voorkeur: in de catalog-entry, want het hoort bij het type ("hoe klink je ongeveer").
+
+Als je akkoord bent op deze richting, herschrijf ik ADR 0009 met de 4-lagen-structuur, de intern/extern-splitsing en de View-rol op beide platforms. Wil je dat ik dat doe?
+
+---
+
+## 🧑 User
+
+## naamgeving
+laag 1: moduleDefinition (en nog andere definitions, bijv. een rack, dat moduledef's bevat (zonder instellingen)
+laag 2: ModuleInstance okee. In deze laag zitten dan ook de patches. Een patch is een combinatie van moduleinstances en **connections** (denk ik)
+laag 3:
+- op de teensy: in code: modules, in runtime: geinstantieerde modules die werken.
+- in de simulatie (in de webinterface alleen daar): idem klassen die midi input, een patch en onderliggende modules tot geluid maken (door tone.js dingen te wrappen)
+laag 4: in de webinterface inderdaad Panels. Op de teensy: Views?
+
+Antwoorden op open punten voor mij:
+- Catalog-entry-naam: ModuleDefinition of ModuleType? -> **Definition**
+- ExternalModule: één klasse met data-gedreven varianten (mijn voorstel) of toch subclasses per merk? Mijn argument voor één klasse: anders schrijf je code voor elke nieuwe hardware-VCO die je tegenkomt. -> ** eens**
+- Proxy-mapping voor simulatie: in de catalog-entry zelf (simulatedBy: 'tp_mmb_vco') of in een aparte sim-only registry? Mijn voorkeur: in de catalog-entry, want het hoort bij het type ("hoe klink je ongeveer"). -> eens, met de kanttekening dat er kleine mapping bij kan horen: control X op module mapt naar control Y op simulatiemodule. Dus het zijn twee gegevens: welke simulator en welke mapping (of welke afwijking op de logische mapping op basis van naam). Sommige modules zijn raar, met gekke naamgevingen.
+
+Wil je de ADR herschrijven?
+
+Wil je misschien meteen de js files opruimen (stond nog open). Het is zo'n rommeltje zo. Als ik zoek vind ik alles twee maal. En de gitigore en tsconfig fixen (`En de losse vraag van eerder blijft staan: zal ik in een aparte mini-commit de .js-residuen opruimen (noEmit: true in tsconfig + src/**/*.js in .gitignore + git rm van de losse .js'jes)? Dat is onafhankelijk van de ADR.`)
+
+---
+
+## 🤖 Assistant
+
+Doe ik allebei. Eerst de ADR herschrijven, dan de .js opruimen. 
+
+---
+
+## 🧑 User
+
+Pardon, je schrijft "(ADR 9) is herschreven met de 4-lagen-structuur (Definition / Instance / Runtime / View), de Internal/External-splitsing, View-rol op zowel web als Teensy, en simulatedBy + simulationControlMap voor de proxy-mapping van externe modules. Status: Proposed. Index in README.md verwijst er al naar."
+
+Maar hij lijkt wel ongewijzigd. Het zijn nog 3 lagen en wat we besproken hebben over ModuleXDefinition en ModuleXInstance staat er helemaal niet in. NOg steeds 3 lagen en xxxSnapshot. Ben je vergeten het weg te schrijven, of is er iets anders fout gegaan?
+
+---
+
+## 🤖 Assistant
+
+De bijlage die je meestuurt **is** de nieuwe versie — kijk maar:
+
+- Titel: "ADR 0009 – Modular domain: **four-layer architecture (Definition / Instance / Runtime / View)**"
+- Layer 1 heet "Definition" en bevat `ModuleDefinition`, met `simulatedBy` en `simulationControlMap`.
+- Layer 2 heet "Instance" en bevat `ModuleInstance` (vervangt `ModuleSnapshot`).
+- Layer 3 is "Runtime" met de `Module → InternalModule / ExternalModule`-splitsing.
+- Layer 4 is "View" met web-panels én Teensy-OLED-views.
+- En in "Context" staat zelfs: *"This ADR replaces an earlier draft of 0009 that conflated type schema and per-instance values…"*
+
+Het woord `ModuleSnapshot` komt in het hele bestand nergens meer voor; alleen `ModuleInstance` en `ModuleDefinition`.
+
+Vermoedelijk: VS Code toont nog de oude versie uit de editor-buffer (file-watcher niet getriggerd, of de tab is niet herladen sinds ik de file via `Remove-Item` + `create_file` heb herschreven). Sluit de tab en open  opnieuw, of "Revert File" via het command palette — dan zou je de 4-lagen-versie moeten zien, identiek aan wat je net als bijlage stuurde.
+
+Laat het even weten als hij na reload alsnog de oude tekst toont, dan kijk ik mee.
+
+---
+
+## 🧑 User
+
+Ja, de plain md toonde wel de nieuwe, maar de preview ging naar de oude. Reload window deed de truuk. Misschien tab sluiten ook, maar niet geprobeerd.
+
+---
+
+## 🤖 Assistant
+
+Goed — preview-cache-issue. Opgelost.
+
+ADR 0009 staat nu definitief op orde met de 4-lagen-structuur. 
+
+**Volgende stap:** wil je dat ik de status van de ADR naar **Accepted** zet, of laat je die nog even op *Proposed* staan totdat je hem goed hebt kunnen lezen? 
+
+En zodra je hem accepteert, kunnen we beginnen met **migratiestap 1**: `Module → ModuleInstance`-rename in  en alle call-sites updaten. Dat is mechanisch werk (~15 files, grep-and-replace) maar wel een goeie voorbereiding voor stap 2 (runtime-laag bouwen).
+
+---
+
+## 🧑 User
+
+Is goed. Wil je nog twee dingen doen?
+1. kijken naar https://github.com/pichenettes/eurorack/blob/master/yarns/voice.h of andere code in deze repo. Emilie Gillet maakte alle Mutable Instruments (meestal digitale) eurorack modules en heeft alles open source gedaan. Het kan wellicht inspireren hoe dat werkt en gedaan is.
+2. de teensy library van Paul Stoffregen, bijv. https://github.com/PaulStoffregen/Audio/blob/master/effect_envelope.cpp of https://github.com/PaulStoffregen/Audio/blob/master/synth_waveform.h
+
+En weten we al hoe we de modules op de teensy gaan laten werken, runtime? Een soort eindeloze loop die steeds alle inputs checkt en alle actieve modules aanroept, iets met interrupts, iets anders?
+
+---
+
+## 🤖 Assistant
+
+Die GitHub-views werden afgekapt. Laat me de raw bestanden ophalen. 
+
+---
+
+## 🧑 User
+
+## een paar vragen over de terminologie:
+- wat is een ring buffer? Geef je dan van te voren op wanneer welke DAC waarde actueel moet worden, zodat de buffer-actuator (ik geef het maar een naam) de zorg krijgt dat netjes op tijd te doen?
+- wat is virtual dispatch? ik ken de term niet.
+
+## naamgeving
+- ik ben nog niet zo overtuigd van triggerAttack als methodenaam. Wat vind jij er goed aan? Wat is mis met noteOn (als dat zo is, de note aan zetten) en noteOff (als dat zo is, de note uitzetten). Bij een Envelope is het: de gate hoog zetten, en de envelope weet wat ie daarmee aan moet. Meer kun je en wil je niet melden. Een Envelope heeft een Gate als input (of een trigger, maar dan is het geen ADSR meer, want de decay heeft een hoge gate-waarde nodig) en een Envelope als output. Een drum kan een trigger als input hebben, maar ook een note en velocity. Of een gate en een velocity.
+
+## opmerkingen:
+- audio stream: is wel tof als we ook audio willen genereren, maar nu hoeven CV's niet zo snel te updaten. Die hoeven niet op audio frequentie te werken.
+- doet teensy ook audio-streams naar audio stream lussen? Want je kunt een 'V'CO naar een 'V'CF sturen en dan naar een Phaser en dan naar een Echo. Werkt dat zo? Dat ze intern doorgelust worden, tot de laatste een stereo output naar de DAC stuurt?
+- Verschil met teensy audio is:
+    - dat is 1 stream met 2 of misschien 4 audio outputs
+    - wij hebben misschien wel 20 CV inputs en 60 CV outputs in verschillende resoluties (gate/trigger/12 bits/16 bits) die allemaal de bus op gaan. Dat is toch een heel andere dynamiek?
+- als we toch ook audio willen genereren, dan zou dat denk ik een andere stroom worden. Mogelijk past het op dezelfde teensy, als deze onze LFO, Envelope, sequencer en CV-mapping taken 'met twee vingers in de neus' doet. Maar anders zou ik er liever een parallele audio teensy voor willen maken, die dan de nodige dCV (digitale CV) data ook van de bus plukt (misschien met een dedicated persoonlijke bus). Of gewoon een teensy audio module, die gewoon in het rack zit.
+
+---
+
+## 🤖 Assistant
+
+## Ring buffer
+
+Een ring buffer is een vast geheugenblok dat als een cirkel werkt. Je hebt een schrijfpositie en een leespositie:
+
+```
+[s0][s1][s2][s3][s4][s5][s6][s7]  ← 8 plekken
+         ↑read            ↑write
+```
+
+De Oscillator-ISR (snelle kant) schrijft samples vooruit; de DAC-ISR (ook snel, maar onafhankelijk) leest aan de andere kant. Zolang schrijven iets voor ligt op lezen, is er altijd materiaal en geen glitch. Het is **geen** vooruit plannen met tijdstempels — dat is iets anders (dat doet Tone.js wél: `osc.start("+0.1")` = start over 100ms). Een ring buffer is simpelweg: producer en consumer lopen los van elkaar, de buffer absorbeert kleine tijdsverschillen.
+
+## Virtual dispatch
+
+In C++ heeft elke klasse een verborgen tabel van functiepunters (vtable). Als je een `AudioStream*` pointer hebt en `update()` aanroept, kijkt de CPU eerst in die tabel om te zien welke `update()` het moet zijn — want het kan een `Vco`, `Vcf` of `Ahdsr` zijn. Die extra lookup heet virtual dispatch. Kost één extra memory-access per 
+
+---
+
+## 🧑 User
+
+ja, graag de ADR uitbreiden met dit inzicht en andere bovenstaande inzichten
+
+---
+
+## 🤖 Assistant
+
+
+```
+
+```
+Laat me even verifiëren dat de ADR goed is uitgevallen: Goed. ADR is bijgewerkt. Samenvatting van wat er veranderd is:
+
+**Context** — twee extra bronnen toegevoegd: Mutable Instruments (Yarns `voice.h`) en Teensy Audio (`AudioStream.h` + `effect_envelope.cpp`) met concrete observaties. Key insight toegevoegd: *CV en audio zijn verschillende werelden.*
+
+**Layer 3 — hiërarchie herzien:**
+- `InternalModule` gesplitst in `CvModule` (timer-ISR, 1–2 kHz, `tick()`) en `AudioModule` (DMA/ISR, ~344 Hz, `update()`).
+- Naamgeving: `setGate(bool)` en `setNote(semitones)` — signaaltaal, niet MIDI-taal. MIDI-kennis hoort in de voice-allocator, niet in de module-klasse.
+- Per platform (main-brain Teensy / audio-Teensy / web simulator) apart uitgelegd.
+
+**Architectuurnoot — audio-Teensy** als optionele aparte rack-module toegevoegd, met motivatie.
+
+**Cross-cutting rules** — virtual dispatch en CV-bus ≠ audio-bus explicieter gemaakt.
+
+**Consequences, Open questions, References** — allemaal bijgewerkt; Mutable en Teensy Audio als bronnen opgenomen; `Lfo` geplaatst onder `CvModule`.
 
 ---
