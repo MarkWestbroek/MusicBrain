@@ -14,3 +14,4 @@ Format: based on Michael Nygard's template (Context / Decision / Consequences).
 | [0006](0006-multi-case-transport.md) | Multi-case transport via SPI↔CAN-FD/RS-485 bridge | Accepted |
 | [0007](0007-licensing.md) | Open source by default | Accepted |
 | [0008](0008-latency-and-interpolation.md) | Latency budget + breakout-side interpolation | Accepted |
+| [0009](0009-module-runtime-classes.md) | Module runtime classes: OO domain layer, shared between TS editor and C++ firmware | Proposed |
