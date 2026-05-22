@@ -178,11 +178,17 @@ Digital audio synthesis is architecturally separate from CV processing. If the p
 The main brain Teensy has no audio code. This keeps both processors within their performance envelope and maintains clean firmware responsibility boundaries. Whether to implement the audio engine is deferred; the class hierarchy already supports it via the `AudioModule` branch.
 
 ## Migration plan (informative)
-1. Rename the current `interface Module` in `editor/src/modular-mb/types.ts` to `ModuleInstance`. Update call sites mechanically.
-2. Introduce `editor/src/modular-mb/runtime/` with `Module` (abstract), `CvModule` (abstract), `AudioModule` (abstract), `ExternalModule` (concrete) and a `Registry`. Add `editor/src/modular-mb/view/` and move existing panel code there.
-3. Migrate **one** internal module type end-to-end as proof: `Vcf` (definition → instance → runtime → panel). Verify save/load/undo unchanged.
-4. Refactor `AudioEngine` to dispatch via registry.
-5. Migrate remaining internal types: `Vco`, `Vca`, `Ahdsr`, `Lfo`, `Seq16`, …
+1. ✅ Rename the current `interface Module` in `editor/src/modular-mb/types.ts` to `ModuleInstance`. Update call sites mechanically. *(done — 33 edits, 7 files)*
+2. ✅ Introduce `editor/src/modular-mb/runtime/` with `Module` (abstract), `CvModule` (abstract), `AudioModule` (abstract), `ExternalModule` (concrete) and a `Registry`. Add `editor/src/modular-mb/view/` and move existing panel code there. *(done — runtime scaffold; view/ move deferred until after step 5)*
+3. ✅ Migrate **one** internal module type end-to-end as proof: `Vcf` (definition → instance → runtime → panel). Verify save/load/undo unchanged. *(done — `runtime/audio/Vcf.ts` wraps `Tone.Filter` via composition, self-registers)*
+4. ✅ Refactor `AudioEngine` to dispatch via registry. *(done — Vco/Vcf/Vca/Ahdsr/Lfo all constructed via `registry.create()`; runtime owns Tone-node lifecycle + setControl. Sequencer/MIDI-In/Noise/Echo/Phaser/Out remain in the legacy `switch` because they have no Tone-primitive ownership to extract — their logic is engine-orchestration.)*
+5. **Partially done** — internal types migrated to runtime classes:
+   - ✅ `Vcf` → `runtime/audio/Vcf.ts` (extends `AudioModule`)
+   - ✅ `Vco` → `runtime/audio/Vco.ts` (extends `AudioModule`)
+   - ✅ `Vca` → `runtime/audio/Vca.ts` (extends `AudioModule`)
+   - ✅ `Ahdsr` → `runtime/cv/Ahdsr.ts` (extends `CvModule`, `tick()` no-op in simulator — Tone.Envelope self-schedules)
+   - ✅ `Lfo` → `runtime/cv/Lfo.ts` (extends `CvModule`, same pattern)
+   - ⏳ `Seq16` deferred — has no Tone primitive to own; its entire behaviour is engine-orchestrated (intervalId, run/voct meters, MIDI overrides). Needs a richer abstract `Sequencer` interface before migration is meaningful.
 6. Introduce `ExternalModule` + first external-module catalog entry + simulator proxy mapping.
 7. Mirror the skeleton in `firmware/core/include/mb/runtime/` (headers first), and add `firmware/core/include/mb/view/`.
 

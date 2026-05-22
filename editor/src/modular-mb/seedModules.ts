@@ -595,7 +595,7 @@ function mmbAhdsr() {
       { kind: 'rect', x: 1, y: 20, w: w-2, h: sliderLen+12, color: '#0b1220' },
     ],
     items: [
-      slider('attack',  'A', colX[0], sliderY, { min: 0,    max: 5000, def: 10,   lengthMm: sliderLen, unit: 'ms' }),
+      slider('attack',  'A', colX[0], sliderY, { min: 0,    max: 2000, def: 10,   lengthMm: sliderLen, unit: 'ms' }),
       slider('hold',    'H', colX[1], sliderY, { min: 0,    max: 5000, def: 0,    lengthMm: sliderLen, unit: 'ms' }),
       slider('decay',   'D', colX[2], sliderY, { min: 0,    max: 5000, def: 200,  lengthMm: sliderLen, unit: 'ms' }),
       slider('sustain', 'S', colX[3], sliderY, { min: 0,    max: 1,    def: 0.7,  lengthMm: sliderLen }),

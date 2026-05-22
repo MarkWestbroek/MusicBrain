@@ -1,7 +1,11 @@
 import type { ModuleInstance, ModuleType } from '../types';
-import type { Module } from './Module';
+import type { Module, ControlValue } from './Module';
 
-export type ModuleFactory = (type: ModuleType, instance: ModuleInstance) => Module;
+export type ModuleFactory = (
+  type: ModuleType,
+  instance: ModuleInstance,
+  initialControlValues?: Record<string, ControlValue>,
+) => Module;
 
 /**
  * Registry — typeId → runtime-class factory.
@@ -24,12 +28,16 @@ export class Registry {
     return this.factories.has(typeId);
   }
 
-  create(type: ModuleType, instance: ModuleInstance): Module {
+  create(
+    type: ModuleType,
+    instance: ModuleInstance,
+    initialControlValues?: Record<string, ControlValue>,
+  ): Module {
     const factory = this.factories.get(instance.typeId);
     if (!factory) {
       throw new Error(`Registry: no factory for typeId "${instance.typeId}"`);
     }
-    return factory(type, instance);
+    return factory(type, instance, initialControlValues);
   }
 
   knownTypes(): string[] {

@@ -28,6 +28,7 @@ import type {
   ModularProject, Patch, ModuleInstance, ModuleType,
   PatchConnection, ControlValue, SignalType,
 } from '../types';
+import { registry, Vcf, Vco, Vca, Ahdsr, Lfo } from '../runtime';
 
 export interface EngineStatus {
   running: boolean;
@@ -47,6 +48,9 @@ interface BaseNode {
 }
 interface VcoNode extends BaseNode {
   kind: 'vco';
+  /** Runtime class instance — owns Tone.Oscillator lifecycle + setControl. */
+  runtime: Vco;
+  /** Alias of `runtime.osc` for legacy wire code. */
   osc: Tone.Oscillator;
   /** Base MIDI note (driven by keyboard or sequencer-cv). */
   baseMidi: number;
@@ -55,7 +59,10 @@ interface VcoNode extends BaseNode {
 }
 interface VcfNode extends BaseNode {
   kind: 'vcf';
+  /** Underlying Tone.Filter (alias of `runtime.filter` for legacy wire code). */
   filter: Tone.Filter;
+  /** Runtime class instance — owns Tone.Filter lifecycle and setControl dispatch. */
+  runtime: Vcf;
   cvAmt: number;
   baseCutoff: number;
   /** Scale node injected during wire() when a CV source is connected. */
@@ -63,18 +70,24 @@ interface VcfNode extends BaseNode {
 }
 interface VcaNode extends BaseNode {
   kind: 'vca';
+  runtime: Vca;
+  /** Alias of `runtime.gain`. */
   gain: Tone.Gain;
   /** Sum of CV cable contributions (created via Tone.Gain when needed). */
   cvSum: Tone.Signal<'number'> | null;
 }
 interface EnvNode extends BaseNode {
   kind: 'envelope';
+  runtime: Ahdsr;
+  /** Alias of `runtime.env`. */
   env: Tone.Envelope;
   /** True when a cable drives the 'gate' input (otherwise: keyboard gates it). */
   gateDriven: boolean;
 }
 interface LfoNode extends BaseNode {
   kind: 'lfo';
+  runtime: Lfo;
+  /** Alias of `runtime.lfo`. */
   lfo: Tone.LFO;
 }
 interface OutNode extends BaseNode {
@@ -415,7 +428,7 @@ export class AudioEngine {
           node.osc.frequency.rampTo(midiToHz(node.baseMidi + offset), RAMP);
           return true;
         }
-        if (controlId === 'detune') { node.osc.detune.rampTo(num, RAMP); return true; }
+        if (controlId === 'detune') { node.runtime.setControl('detune', num); return true; }
         return true;
       }
       case 'vcf': {
@@ -428,36 +441,33 @@ export class AudioEngine {
             // rampTo on the overridden Signal (Tone.js throws a RangeError).
             node.cvScale.max = num * 8 * node.cvAmt;
           } else {
-            node.filter.frequency.rampTo(num, RAMP);
+            node.runtime.setControl('cutoff', num);
           }
           return true;
         }
-        if (controlId === 'q' || controlId === 'res') { node.filter.Q.rampTo(num, RAMP); return true; }
+        if (controlId === 'q' || controlId === 'res') { node.runtime.setControl('q', num); return true; }
         if (controlId === 'cv_amt') { node.cvAmt = num; return true; }
         return true;
       }
       case 'vca': {
         if (controlId === 'gain' || controlId === 'level') {
-          node.gain.gain.rampTo(clamp(num, 0, 1), RAMP);
+          node.runtime.setControl(controlId, clamp(num, 0, 1));
           return true;
         }
         return true;
       }
       case 'envelope': {
-        const e = node.env;
-        if (controlId === 'attack')  { e.attack  = Math.max(0.001, num); return true; }
-        if (controlId === 'hold')    { /* Tone.Envelope kent geen native hold */ return true; }
-        if (controlId === 'decay')   { e.decay   = Math.max(0.001, num); return true; }
-        if (controlId === 'sustain') { e.sustain = clamp(num, 0, 1);     return true; }
-        if (controlId === 'release') { e.release = Math.max(0.001, num); return true; }
+        if (controlId === 'attack' || controlId === 'hold' || controlId === 'decay'
+         || controlId === 'sustain' || controlId === 'release') {
+          node.runtime.setControl(controlId, num);
+          return true;
+        }
         return true;
       }
       case 'lfo': {
         if (controlId === 'wave' || controlId === 'shape') return false;
-        if (controlId === 'rate' || controlId === 'freq') { node.lfo.frequency.rampTo(num, RAMP); return true; }
-        if (controlId === 'depth' || controlId === 'amount') {
-          node.lfo.max = num; node.lfo.min = -num; return true;
-        }
+        if (controlId === 'rate' || controlId === 'freq')   { node.runtime.setControl('rate', num);  return true; }
+        if (controlId === 'depth' || controlId === 'amount'){ node.runtime.setControl('depth', num); return true; }
         return true;
       }
       case 'out': {
@@ -555,11 +565,11 @@ export class AudioEngine {
     this.stop();
     for (const node of this.nodes.values()) {
       switch (node.kind) {
-        case 'vco': node.osc.dispose(); break;
-        case 'vcf': node.filter.dispose(); break;
-        case 'vca': node.gain.dispose(); node.cvSum?.dispose(); break;
-        case 'envelope': node.env.dispose(); break;
-        case 'lfo': node.lfo.dispose(); break;
+        case 'vco': node.runtime.dispose(); break;
+        case 'vcf': node.runtime.dispose(); break;
+        case 'vca': node.runtime.dispose(); node.cvSum?.dispose(); break;
+        case 'envelope': node.runtime.dispose(); break;
+        case 'lfo': node.runtime.dispose(); break;
         case 'out': node.inGain.dispose(); break;
         case 'noise': node.noise.dispose(); node.level.dispose(); break;
         case 'echo': node.delay.dispose(); node.wetGain.dispose(); node.dryGain.dispose(); node.input.dispose(); node.output.dispose(); break;
@@ -626,42 +636,26 @@ export class AudioEngine {
     }
     switch (kind) {
       case 'vco': {
-        const wave = pickWaveform(controls);
-        const osc = new Tone.Oscillator({ frequency: 220, type: wave, volume: -6 });
-        return { ...base, kind: 'vco', osc, baseMidi: 57, voctDriven: false };
+        const rt = registry.create(t, m, controls) as Vco;
+        return { ...base, kind: 'vco', runtime: rt, osc: rt.osc, baseMidi: 57, voctDriven: false };
       }
       case 'vcf': {
+        const cvAmt = clamp(readKnob(controls, 'cv_amt', 1), 0, 1);
+        const rt = registry.create(t, m, controls) as Vcf;
         const baseCutoff = clamp(readKnob(controls, 'cutoff', 2000), 20, 18000);
-        const q          = clamp(readKnob(controls, 'q', 0.7),       0.1, 12);
-        const cvAmt      = clamp(readKnob(controls, 'cv_amt', 1),    0, 1);
-        const tIdx       = readKnob(controls, 'type', 0);
-        const ftype: 'lowpass' | 'highpass' | 'bandpass' =
-          tIdx === 1 ? 'highpass' : tIdx === 2 ? 'bandpass' : 'lowpass';
-        const filter = new Tone.Filter({ frequency: baseCutoff, Q: q, type: ftype });
-        return { ...base, kind: 'vcf', filter, cvAmt, baseCutoff, cvScale: null };
+        return { ...base, kind: 'vcf', runtime: rt, filter: rt.filter, cvAmt, baseCutoff, cvScale: null };
       }
       case 'vca': {
-        const baseGain = clamp(readKnob(controls, 'gain', 0), 0, 1);
-        const gain = new Tone.Gain(baseGain);
-        return { ...base, kind: 'vca', gain, cvSum: null };
+        const rt = registry.create(t, m, controls) as Vca;
+        return { ...base, kind: 'vca', runtime: rt, gain: rt.gain, cvSum: null };
       }
       case 'envelope': {
-        const A = msToSec(controls['attack'],  10);
-        const H = msToSec(controls['hold'],    0);
-        const D = msToSec(controls['decay'],   200);
-        const S = clamp(Number(controls['sustain'] ?? 0.7), 0, 1);
-        const R = msToSec(controls['release'], 400);
-        const env = new Tone.Envelope({ attack: A + H, decay: D, sustain: S, release: R });
-        return { ...base, kind: 'envelope', env, gateDriven: false };
+        const rt = registry.create(t, m, controls) as Ahdsr;
+        return { ...base, kind: 'envelope', runtime: rt, env: rt.env, gateDriven: false };
       }
       case 'lfo': {
-        const rate  = clamp(readKnob(controls, 'rate',  1), 0.01, 50);
-        const depth = clamp(readKnob(controls, 'depth', 1), 0, 1);
-        const wIdx  = readKnob(controls, 'wave', 0);
-        const ltype: Wave = wIdx === 1 ? 'triangle' : wIdx === 2 ? 'sawtooth'
-                          : wIdx === 3 ? 'square'   : 'sine';
-        const lfo = new Tone.LFO({ frequency: rate, min: 0, max: depth, type: ltype });
-        return { ...base, kind: 'lfo', lfo };
+        const rt = registry.create(t, m, controls) as Lfo;
+        return { ...base, kind: 'lfo', runtime: rt, lfo: rt.lfo };
       }
       case 'utility':
         // Convention: alleen 'MMB OUT' wordt als audio-output-node behandeld.

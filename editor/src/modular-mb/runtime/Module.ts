@@ -1,19 +1,24 @@
-import type { ModuleInstance, ModuleType, Port, Control } from '../types';
+import type { ModuleInstance, ModuleType, Port, Control, ControlValue } from '../types';
 
-export type ControlValue = number | boolean | string | number[];
+export type { ControlValue };
 
 export abstract class Module {
   readonly id: string;
   readonly typeId: string;
   protected readonly type: ModuleType;
   protected readonly instance: ModuleInstance;
-  protected controlValues: Record<string, ControlValue> = {};
+  protected controlValues: Record<string, ControlValue>;
 
-  constructor(type: ModuleType, instance: ModuleInstance) {
+  constructor(
+    type: ModuleType,
+    instance: ModuleInstance,
+    initialControlValues: Record<string, ControlValue> = {},
+  ) {
     this.type = type;
     this.instance = instance;
     this.id = instance.id;
     this.typeId = instance.typeId;
+    this.controlValues = { ...initialControlValues };
   }
 
   get ports(): Port[] {
