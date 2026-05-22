@@ -179,7 +179,7 @@ The main brain Teensy has no audio code. This keeps both processors within their
 
 ## Migration plan (informative)
 1. Rename the current `interface Module` in `editor/src/modular-mb/types.ts` to `ModuleInstance`. Update call sites mechanically.
-2. Introduce `editor/src/modular-mb/runtime/` with `Module` (abstract), `InternalModule`, `ExternalModule`, and `Registry`. Add `editor/src/modular-mb/view/` and move existing panel code there.
+2. Introduce `editor/src/modular-mb/runtime/` with `Module` (abstract), `CvModule` (abstract), `AudioModule` (abstract), `ExternalModule` (concrete) and a `Registry`. Add `editor/src/modular-mb/view/` and move existing panel code there.
 3. Migrate **one** internal module type end-to-end as proof: `Vcf` (definition → instance → runtime → panel). Verify save/load/undo unchanged.
 4. Refactor `AudioEngine` to dispatch via registry.
 5. Migrate remaining internal types: `Vco`, `Vca`, `Ahdsr`, `Lfo`, `Seq16`, …
