@@ -12,7 +12,7 @@
 
 import { useRef, useState } from 'react';
 import {
-  type Module,
+  type ModuleInstance,
   type ModuleType,
   type Control,
   type ControlValue,
@@ -50,7 +50,7 @@ const JACK_R = 2.6;
 // ──────────────────────────────────────────────────────────────────────────
 
 export interface ModulePanelProps {
-  module: Module;
+  module: ModuleInstance;
   types: ModuleType[];
   /** Optional live state (controlId → value). */
   controlState?: Record<string, ControlValue>;

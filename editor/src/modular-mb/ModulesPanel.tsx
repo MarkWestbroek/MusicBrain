@@ -9,7 +9,7 @@ import { useState } from 'react';
 import { updateProject, useModularProject, uid } from './store';
 import { ModulePanel } from './ModulePanel';
 import {
-  type ModuleType, type Module, type Control, type Port,
+  type ModuleType, type ModuleInstance, type Control, type Port,
   type ModuleCategory, MM_PER_HP,
 } from './types';
 
@@ -135,7 +135,7 @@ function ModulesPane({
   types, modules, filterTypeId, selectedId, onSelect,
 }: {
   types: ModuleType[];
-  modules: Module[];
+  modules: ModuleInstance[];
   filterTypeId: string | null;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
@@ -149,7 +149,7 @@ function ModulesPane({
     if (!typeId) return;
     const t = types.find((x) => x.id === typeId);
     if (!t) return;
-    const m: Module = {
+    const m: ModuleInstance = {
       id: uid('mod'),
       typeId,
       internal: false,
@@ -425,8 +425,8 @@ function controlDetail(c: Control): string {
 
 // ── Module editor: name/brand/visual + live panel preview ──────────────
 
-function ModuleEditor({ module: m, types }: { module: Module; types: ModuleType[] }): JSX.Element {
-  function patch(fn: (m: Module) => Module): void {
+function ModuleEditor({ module: m, types }: { module: ModuleInstance; types: ModuleType[] }): JSX.Element {
+  function patch(fn: (m: ModuleInstance) => ModuleInstance): void {
     updateProject((p) => ({
       ...p,
       modules: p.modules.map((x) => x.id === m.id ? fn(x) : x),
@@ -481,7 +481,7 @@ function ModuleEditor({ module: m, types }: { module: Module; types: ModuleType[
               <select value={m.visual.texture}
                       onChange={(e) => patch((x) => ({
                         ...x,
-                        visual: { ...x.visual, texture: e.target.value as Module['visual']['texture'] },
+                        visual: { ...x.visual, texture: e.target.value as ModuleInstance['visual']['texture'] },
                       }))}
                       style={{ marginLeft: 4, fontSize: 12 }}>
                 {(['aluminum', 'pcb-black', 'mi-cream', 'gold-plate', 'wood'] as const).map((tx) =>

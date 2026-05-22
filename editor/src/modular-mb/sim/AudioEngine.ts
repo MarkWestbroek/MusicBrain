@@ -25,7 +25,7 @@
 
 import * as Tone from 'tone';
 import type {
-  ModularProject, Patch, Module, ModuleType,
+  ModularProject, Patch, ModuleInstance, ModuleType,
   PatchConnection, ControlValue, SignalType,
 } from '../types';
 
@@ -581,7 +581,7 @@ export class AudioEngine {
   // ── helpers ────────────────────────────────────────────────────────
 
   private makeNode(
-    kind: string, m: Module, t: ModuleType, controls: Record<string, ControlValue>,
+    kind: string, m: ModuleInstance, t: ModuleType, controls: Record<string, ControlValue>,
   ): EngineNode | null {
     const base = { moduleId: m.id, type: t, controls };
     // Speciale interne modules waarvan de categorie-`kind` niet aansluit

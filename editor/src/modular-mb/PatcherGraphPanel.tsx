@@ -24,7 +24,7 @@ import { updateProject, useModularProject, uid } from './store';
 import { ModulePanel } from './ModulePanel';
 import { useEngineStatus } from './sim/engineSingleton';
 import {
-  type Module, type ModuleType, type Port, type PatchConnection,
+  type ModuleInstance, type ModuleType, type Port, type PatchConnection,
   type ControlValue, type RackSlot,
   canConnect, resolvePorts,
   SIGNAL_COLOUR, SIGNAL_LABEL,
@@ -36,7 +36,7 @@ const PX_PER_MM = 2.4;
 // ── Node ───────────────────────────────────────────────────────────────
 
 interface ModuleNodeData {
-  module: Module;
+  module: ModuleInstance;
   types: ModuleType[];
   controlState: Record<string, ControlValue>;
   patchId: string;
@@ -324,7 +324,7 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
   }, [patchRacks]);
 
   const placedModules = useMemo(() => {
-    const out: { slot: RackSlot; module: Module; rackId: string }[] = [];
+    const out: { slot: RackSlot; module: ModuleInstance; rackId: string }[] = [];
     for (const r of patchRacks) {
       for (const s of r.slots) {
         const m = project.modules.find((x) => x.id === s.moduleId);

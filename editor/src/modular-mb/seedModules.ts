@@ -13,7 +13,7 @@
 // Aanroep via "✨ Voorbeelden" in de project-balk.
 
 import {
-  type ModularProject, type ModuleType, type Module, type RackSlot,
+  type ModularProject, type ModuleType, type ModuleInstance, type RackSlot,
   type Rack, type Patch, type PatchConnection, type ControlValue,
   MM_PER_HP, PANEL_HEIGHT_MM,
 } from './types';
@@ -116,7 +116,7 @@ function assemble(spec: {
   items: Spec[];
   notes?: string;
   internal?: boolean;
-}): { type: ModuleType; module: Module } {
+}): { type: ModuleType; module: ModuleInstance } {
   const controls = spec.items.filter((s): s is Extract<Spec, { control: unknown }> => 'control' in s).map((s) => s.control);
   const ports    = spec.items.filter((s): s is Extract<Spec, { port: unknown }>    => 'port'    in s).map((s) => s.port);
   const controlPlacements: Record<string, { x: number; y: number }> = {};
@@ -132,7 +132,7 @@ function assemble(spec: {
     ports, controls,
     notes: spec.notes,
   };
-  const module: Module = {
+  const module: ModuleInstance = {
     id: uid('mod'),
     typeId: spec.typeId,
     internal: spec.internal ?? false,
@@ -1056,7 +1056,7 @@ export function seedTestPatch(project: ModularProject): ModularProject {
 
   // 2. Maak nieuw fysiek rack met fresh modules.
   const types = p.moduleTypes;
-  function fresh(typeId: string): Module {
+  function fresh(typeId: string): ModuleInstance {
     const t = types.find((x) => x.id === typeId)!;
     const proto = p.modules.find((m) => m.typeId === typeId)!;
     return { ...proto, id: uid('mod'), internal: false,
@@ -1075,7 +1075,7 @@ export function seedTestPatch(project: ModularProject): ModularProject {
 
   // 3. Layout: één rij, achter elkaar.
   let offset = 0;
-  const place = (m: Module): RackSlot => {
+  const place = (m: ModuleInstance): RackSlot => {
     const slot: RackSlot = { id: uid('slot'), moduleId: m.id, row: 0, hpOffset: offset };
     offset += m.visual.hpWidth;
     return slot;
@@ -1091,7 +1091,7 @@ export function seedTestPatch(project: ModularProject): ModularProject {
   };
 
   // 4. Patch met cables.
-  const c = (from: { m: Module; port: string }, to: { m: Module; port: string }): PatchConnection => ({
+  const c = (from: { m: ModuleInstance; port: string }, to: { m: ModuleInstance; port: string }): PatchConnection => ({
     id: uid('conn'),
     from: { moduleId: from.m.id, portId: from.port },
     to:   { moduleId: to.m.id,   portId: to.port },

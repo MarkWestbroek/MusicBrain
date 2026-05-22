@@ -299,7 +299,7 @@ export interface ModuleType {
 //  Module (bottom layer — concrete realisation)
 // ═══════════════════════════════════════════════════════════════════════
 
-export interface Module {
+export interface ModuleInstance {
   id: string;
   typeId: string;
   /** True = the brain itself implements this (envelopes, LFOs, MIDI router). */
@@ -314,13 +314,13 @@ export interface Module {
   notes?: string;
 }
 
-export function resolvePorts(mod: Module, types: ModuleType[]): Port[] {
+export function resolvePorts(mod: ModuleInstance, types: ModuleType[]): Port[] {
   if (mod.portsOverride) return mod.portsOverride;
   const t = types.find((x) => x.id === mod.typeId);
   return t ? t.ports : [];
 }
 
-export function resolveControls(mod: Module, types: ModuleType[]): Control[] {
+export function resolveControls(mod: ModuleInstance, types: ModuleType[]): Control[] {
   if (mod.controlsOverride) return mod.controlsOverride;
   const t = types.find((x) => x.id === mod.typeId);
   return t ? t.controls : [];
@@ -460,7 +460,7 @@ export interface ModularProject {
 
   categories:  ModuleCategory[];
   moduleTypes: ModuleType[];
-  modules:     Module[];
+  modules:     ModuleInstance[];
   racks:       Rack[];
   patches:     Patch[];
 
@@ -591,7 +591,7 @@ function isV2(p: unknown): p is ModularProject {
 /** Convert a v1 project to v2. Each v1 module becomes one type + one module. */
 export function migrateV1toV2(v1: V1Project): ModularProject {
   const moduleTypes: ModuleType[] = [];
-  const modules:     Module[]     = [];
+  const modules:     ModuleInstance[]     = [];
   const rackSlots:   RackSlot[]   = [];
   // patch settings: oldModuleId → newModuleId (kept identical for traceability)
   for (let i = 0; i < v1.modules.length; i++) {

@@ -9,7 +9,7 @@ import { updateProject, useModularProject, uid } from './store';
 import { ModulePanel } from './ModulePanel';
 import { useEngineStatus } from './sim/engineSingleton';
 import {
-  type Rack, type RackSlot, type Module, type ModuleType,
+  type Rack, type RackSlot, type ModuleInstance, type ModuleType,
   MM_PER_HP, PANEL_HEIGHT_MM,
 } from './types';
 
@@ -145,7 +145,7 @@ function RackHeaderEditor({ rack }: { rack: Rack }): JSX.Element {
 // ── Rack visual grid ───────────────────────────────────────────────────
 
 function RackGrid({ rack, modules, types, activeRow, onSelectRow }: {
-  rack: Rack; modules: Module[]; types: ModuleType[];
+  rack: Rack; modules: ModuleInstance[]; types: ModuleType[];
   activeRow: number; onSelectRow: (row: number) => void;
 }): JSX.Element {
   const rowWidthMm = rack.hpPerRow * MM_PER_HP;
@@ -156,7 +156,7 @@ function RackGrid({ rack, modules, types, activeRow, onSelectRow }: {
     if (!slot) return;
     const src = modules.find((m) => m.id === slot.moduleId);
     if (!src) return;
-    const newMod: Module = {
+    const newMod: ModuleInstance = {
       ...src,
       id: uid('mod'),
       name: `${src.name} copy`,
@@ -410,7 +410,7 @@ const ctxItem: React.CSSProperties = {
   border: 'none', cursor: 'pointer', fontSize: 12,
 };
 
-function detectOverlap(slot: RackSlot, all: RackSlot[], mod: Module, modules: Module[]): boolean {
+function detectOverlap(slot: RackSlot, all: RackSlot[], mod: ModuleInstance, modules: ModuleInstance[]): boolean {
   const start = slot.hpOffset;
   const end   = start + mod.visual.hpWidth;
   for (const other of all) {
@@ -427,7 +427,7 @@ function detectOverlap(slot: RackSlot, all: RackSlot[], mod: Module, modules: Mo
 // ── Sidebar: modules-niet-in-rack + plaats-knop ────────────────────────
 
 function ModuleSidebar({ rack, modules, types, pickedRow, setPickedRow }: {
-  rack: Rack; modules: Module[]; types: ModuleType[];
+  rack: Rack; modules: ModuleInstance[]; types: ModuleType[];
   pickedRow: number; setPickedRow: (row: number) => void;
 }): JSX.Element {
   const engineStatus = useEngineStatus();
@@ -440,7 +440,7 @@ function ModuleSidebar({ rack, modules, types, pickedRow, setPickedRow }: {
     !inRack.has(m.id) && (wantInternal ? m.internal : true),
   );
 
-  function placeAt(moduleId: string, mod: Module): void {
+  function placeAt(moduleId: string, mod: ModuleInstance): void {
     const isInternal = rack.kind === 'internal';
     const row = isInternal ? 0 : pickedRow;
     // Find first free HP in chosen row
