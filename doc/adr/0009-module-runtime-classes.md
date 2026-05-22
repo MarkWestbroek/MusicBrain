@@ -1,104 +1,123 @@
-# ADR 0009 – Module runtime classes: OO domain layer, shared between TS editor and C++ firmware
+# ADR 0009 – Modular domain: four-layer architecture (Definition / Instance / Runtime / View)
 
 ## Status
 Proposed (2026-05-22)
 
 ## Context
-The MusicBrain modular editor (`editor/src/modular-mb/`) and the (still empty) `firmware/app-modular-brain/` both need to represent the same domain: oscillators, filters, envelopes, amplifiers, sequencers — wired together in a patch. Today the editor uses a fully data-oriented approach: TypeScript interfaces (`Module`, `ModuleType`, `Patch`, `Rack`, `Control`) as POJOs, with behaviour scattered across `seedModules.ts` (factories), `AudioEngine.ts` (one growing class with `switch(node.kind)` per operation), and React components (rendering).
+The MusicBrain modular editor (`editor/src/modular-mb/`) and the (still empty) `firmware/app-modular-brain/` share a domain — oscillators, filters, envelopes, amplifiers, sequencers, wired together — but currently the editor models it data-first: TypeScript interfaces as POJOs plus a god-class `AudioEngine` with `switch(node.kind)` for every operation. Adding a new module touches 5+ places; module-specific knowledge is scattered; the C++ side will reinvent the same dispatch problem.
 
-Pros of the current setup: trivial JSON snapshots → free save/load, undo/redo, transport over the wire to firmware. Cons: adding a new module type touches 5+ places, module-specific knowledge is spread across files, `AudioEngine.ts` is becoming a god-module, and the C++ side will have to reinvent the same dispatch problem.
+We also need to model two kinds of modules from day one:
+- **Internal** modules that the brain actually synthesises (project-3 internal voices, plus everything in the web simulator).
+- **External** Eurorack-style modules that the brain only routes signals to/from. The brain does not synthesise them; it remembers their patch settings so the user can recreate them on the real hardware. In the simulator, an external module is voiced by a **proxy** internal module (e.g. our generic `Vco` stands in for a "BrandX SolidStateVCO").
 
-We want a domain model that:
-- maps naturally onto our mental model (a module *is* a thing, with specialisations);
-- gives one place per module type for its behaviour;
-- mirrors cleanly between TypeScript (simulator) and C++17 (firmware);
-- does **not** break the snapshot-based persistence, undo/redo, or React reconciliation that we rely on.
+Tone.js (the simulator's audio backend) demonstrates a clean OO hierarchy worth borrowing patterns from: `ToneAudioNode` → `Source` / `Effect` / `Instrument` / `Envelope`, each with uniform `input`/`output`, `connect`/`dispose`, and lifecycle events like `triggerAttack(time)`.
 
-Tone.js (the simulator's audio backend) demonstrates a class hierarchy worth borrowing from: `ToneAudioNode` → `Source` / `Effect` / `Instrument` / `Envelope`, each with uniform `input`/`output`, `connect()`, `dispose()`, and lifecycle events like `triggerAttack(time)`. We can lean on those patterns where they fit.
+This ADR replaces an earlier draft of 0009 that conflated *type schema* and *per-instance values* into a single "Definition" layer; that distinction is now made explicit.
 
 ## Decision
 
-We introduce a **three-layer architecture** for the modular domain, with OO classes only where polymorphism removes a `switch` and stateful behaviour benefits from encapsulation.
+A **four-layer architecture** for the modular domain. Each layer owns one concern. Layers 1–2 are pure data (serialisable); layer 3 is OO (live behaviour); layer 4 is rendering (web and on-device).
 
-### Layer 1 — Definition (data, serialisable)
-Plain POJOs / PODs. What's in JSON on disk, in undo snapshots, and on the wire to firmware.
+### Layer 1 — Definition (catalog, schema)
+*Which module models exist and what is on them.* Static, no user values.
 
-- TypeScript: `interface ModuleSnapshot`, `interface PatchSnapshot`, `interface ModularProjectSnapshot`, `interface ControlValueMap`, `interface ConnectionSnapshot`. (Current `interface Module` in `editor/src/modular-mb/types.ts` is renamed to `ModuleSnapshot` to free the class name.)
-- C++: matching `struct`s in `firmware/core/include/mb/` (same field names, same shape).
-- Rule: **no methods that mutate audio state** here. Only pure helpers like `nameView()`. Anything that produces sound or holds audio nodes lives in layer 2.
+- `ModuleDefinition` — brand, model, variant, plus the lists `ports[]`, `controls[]`, `displays[]` (LEDs, small screens, numeric displays). Says *what* a module of this type has.
+- `RackDefinition`, `PanelLayoutDefinition` and similar describe the schema of containers and visual layouts.
+- A `ModuleDefinition` is the **single source of truth** about a module model. The runtime class (layer 3) exposes its own definition via a `static readonly definition: ModuleDefinition` so code and catalog cannot drift.
+- Definitions are loaded from JSON catalogs (built-in and user/third-party), keyed by `typeId` (e.g. `tp_mmb_vco`, `brandx_solidstate_vco_mk2`).
+- **For external modules**, the definition additionally carries the simulator hint:
+  - `simulatedBy: 'tp_mmb_vco'` — which internal type voices it in the simulator (optional; absent = silent in simulation).
+  - `simulationControlMap?: Record<string, string>` — overrides for control-id mapping where names diverge (e.g. `{ "freq": "tuning", "reso": "resonance" }`). Default is mapping by identical control id.
 
-### Layer 2 — Runtime (OO, behaviour)
-Living instances. One class per module type. Constructed from a `ModuleSnapshot`; **not** itself serialised.
+### Layer 2 — Instance (patch contents)
+*What is in this specific patch.* The serialised, diffable, undo/redo'able state.
 
-Folder: `editor/src/modular-mb/runtime/` and `firmware/core/include/mb/runtime/`.
+- `ModuleInstance` — `{ id, typeId, name, position, controlValues, portState }`. Refers to a `ModuleDefinition` by `typeId`. **Holds the user's knob positions, switch settings and other persisted values.**
+- `Connection` — one cable: `{ fromInstanceId, fromPortId, toInstanceId, toPortId }`.
+- `Patch` — `{ id, name, voiceCount, rackIds, moduleInstances, connections, … }`. A patch is the combination of module instances and connections, plus per-patch settings.
+- `ModularProject` — top-level container: catalog refs + patches + presets.
+- Control values are **polymorphic**: `number | boolean | string | number[]` (covers knobs, switches, mode selects, sequencer steps). The shape is documented per control in the layer-1 definition.
+- This is the layer that maps to ADR 0005 storage (JSON in editor, CBOR on device) and to the undo/redo snapshot store.
 
-Class hierarchy (identical in both languages):
+### Layer 3 — Runtime (live OO instances)
+*Code that actually does something with a `ModuleInstance`.* Classes, not data. Not serialised.
+
+- **In firmware (Teensy)**: each internal module type is a C++ class that processes audio/CV every frame. `Module` (abstract) → `InternalModule` (abstract) → `Oscillator` → `Vco`, and so on.
+- **In the web simulator**: the same class hierarchy in TypeScript, wrapping Tone.js nodes by composition. Used for MIDI input + patch + modules → sound.
+- **External modules have no runtime in firmware** — the brain routes signals to them but does not own a class instance that "is" the module. They may have a thin "routing handle" object, but no audio code.
+- **External modules in the simulator** are voiced by a **proxy runtime**: the simulator looks up `definition.simulatedBy`, instantiates that internal class, and uses `simulationControlMap` to translate control writes.
+
+Hierarchy (identical names in TS and C++):
 
 ```
-Module (abstract)               ← inputs[], outputs[], controls[], connect(), dispose()
- ├─ Source (abstract)            ← start(time), stop(time)
- │   ├─ Oscillator (abstract)    ← pitchCvIn, audioOut, tuning control
- │   │   ├─ Vco
- │   │   └─ Lfo                   (low-rate Oscillator specialisation)
- │   └─ Noise
- ├─ Filter (abstract)             ← audioIn, audioOut, cutoffCvIn
- │   ├─ Vcf
- │   └─ Svf
- ├─ Amplifier (abstract)          ← audioIn, audioOut, gainCvIn
- │   └─ Vca
- ├─ EnvelopeGenerator (abstract)  ← gateIn, envOut, triggerAttack(time), triggerRelease(time)
- │   ├─ Ad
- │   ├─ Adsr
- │   └─ Ahdsr                     (specialisation of Adsr / EnvelopeGenerator)
- └─ Sequencer (abstract)
-     └─ Seq16
+Module (abstract)               ← inputs[], outputs[], controls[], connect, dispose
+ ├─ InternalModule (abstract)    ← owns audio/CV processing
+ │   ├─ Source (abstract)         ← start(time), stop(time)
+ │   │   ├─ Oscillator → Vco
+ │   │   ├─ Lfo
+ │   │   └─ Noise
+ │   ├─ Filter (abstract)         ← audioIn, audioOut, cutoffCvIn
+ │   │   ├─ Vcf
+ │   │   └─ Svf
+ │   ├─ Amplifier → Vca
+ │   ├─ EnvelopeGenerator         ← triggerAttack(time), triggerRelease(time)
+ │   │   ├─ Adsr
+ │   │   └─ Ahdsr
+ │   └─ Sequencer → Seq16
+ └─ ExternalModule                ← one class, data-driven variants from definition
 ```
 
-Naming rules:
-- Classes are named after **what the thing is** (`Vco`, `Ahdsr`), never after their layer (no `VcoRuntime`).
-- Abstract bases declare the minimum surface their level guarantees. `Oscillator` guarantees only `pitchCvIn`, `audioOut`, and a `tuning` control. `Vco` adds waveform / PWM / sync.
-- Lifecycle methods follow Tone.js where applicable: `connect()`, `disconnect()`, `dispose()`, `triggerAttack(time)`, `triggerRelease(time)`.
-- Control values that can be modulated use a `Param`/`Signal`-style wrapper (not raw `number`), so automation has a typed home.
+Conventions:
+- Class names describe **what the thing is** (`Vco`, `Ahdsr`). No `Runtime` / `Engine` suffix.
+- Each abstract level declares the minimum surface its level guarantees; subclasses add ports/controls. Example: `Oscillator` guarantees `pitchCvIn`, `audioOut`, a `tuning` control. `Vco` adds waveform / PWM / sync.
+- Lifecycle and event vocabulary follow Tone.js where applicable: `connect`, `disconnect`, `dispose`, `triggerAttack(time)`, `triggerRelease(time)`.
+- Control values that can be modulated are wrapped at runtime in a typed `Param<T>` / `Signal<number>` / `Switch<T>` layer. The runtime value = persisted setpoint (from `ModuleInstance`) ± live modulation. The setpoint stays in layer 2; the effective value lives only here.
+- A runtime instance is built by:
+  ```ts
+  const cls = registry.get(instance.typeId);       // layer 3 class
+  const def = catalog.get(instance.typeId);        // layer 1 definition
+  const m   = new cls(def, instance);              // layer 3 instance
+  ```
+- `AudioEngine` becomes a thin dispatcher around the registry. No more `switch(kind)`.
+- The runtime class is the **single source of truth for its definition** (`static readonly definition`); the catalog file is generated from / aligned with the class.
 
-TS-specific:
-- The runtime class **wraps** Tone.js nodes by composition (`this.osc = new Tone.Oscillator(...)`). We do not extend Tone classes directly — composition keeps the hierarchy ours.
+### Layer 4 — View (rendering, on web and on device)
+*How a module is shown to a human.* Stateless renderers reading from layer 2 (and optionally layer 3 for live meters).
 
-C++-specific:
-- Same class names and method signatures. Where TS wraps a `Tone.Oscillator`, C++ wraps the equivalent (a DAC-driven CV stream, or an AudioStream object for project-3 internal voices).
-- Definition and Runtime **may** coalesce into a single class with `serialize()/deserialize()` if it keeps the firmware leaner; the editor splits them because React requires immutable data.
-
-### Layer 3 — View (frontend only)
-React functional components. They read from layer 1 (the snapshot), dispatch edits to the store, and never reach into layer 2.
-
-- Components mirror the class hierarchy by **composition**, not by class inheritance: `OscillatorPanel` is a function that renders pitch-CV-in + tuning + audio-out; `VcoPanel` is a function that calls `<OscillatorPanel .../>` and then renders the extra controls. No `class Panel` — that fights React.
+- **In the web editor**: React functional components. A module *may have multiple panels* (compact, full, mobile); only one is shown at a time. Naming: `VcoFullPanel`, `VcoCompactPanel`, etc. Composition over inheritance: `VcoFullPanel` calls `<OscillatorPanel … />` and adds the VCO-specific extras.
+- **On the Teensy**: a small C++ view layer renders module status on the on-board display (e.g. OLED). Same role, simpler implementation. Naming: `VcoOledView`, `PatchStatusView`, etc.
+- Layout: `editor/src/modular-mb/view/` and `firmware/core/include/mb/view/`. Different implementations, same role.
+- The view never reaches into layer 3 to mutate; edits go through the layer-2 store, which the runtime observes.
 
 ### Cross-cutting rules
-- **Registry**: each runtime class registers itself by `typeId` (e.g. `tp_mmb_vcf`). `AudioEngine` becomes a thin dispatcher: `registry.get(snapshot.typeId).create(snapshot)`. No more `switch(kind)`.
-- **Persistence stays snapshot-based.** Save / load / undo / redo / presets all operate on layer 1. Migration on load: build runtime instances from snapshots.
-- **TS ↔ C++ symmetry by convention**, not by code generation, in the first iteration: same class names, same `typeId`s, same control IDs. If drift becomes a problem we add a shared JSON schema and generate stubs (deferred to a future ADR).
+- **Registry per platform**: TS has a runtime-class registry keyed by `typeId`; C++ does the same with a factory table.
+- **Persistence stays snapshot-based** on layer 2 (ADR 0005). Save / load / undo / redo / presets are unaffected.
+- **TS ↔ C++ symmetry by convention** in the first iteration: same class names, same `typeId`s, same control IDs, same method signatures. If drift becomes a problem we add a shared JSON schema and generate stubs (deferred to a future ADR).
 
-## Migration plan (informative, not part of the decision)
-1. Rename `interface Module` → `ModuleSnapshot` in `editor/src/modular-mb/types.ts`. Update call sites.
-2. Add `editor/src/modular-mb/runtime/` with `Module` (abstract) and `Registry`.
-3. Migrate **one** module type (`Vcf`) end-to-end as proof: snapshot → `Vcf` runtime → `VcfPanel` reads snapshot.
-4. Refactor `AudioEngine` to dispatch via registry instead of `switch`.
-5. Migrate remaining types one per iteration: `Vco`, `Vca`, `Ahdsr`, `Lfo`, `Seq16`, …
-6. Mirror the skeleton in `firmware/core/include/mb/runtime/` (headers only at first).
+## Migration plan (informative)
+1. Rename the current `interface Module` in `editor/src/modular-mb/types.ts` to `ModuleInstance`. Update call sites mechanically.
+2. Introduce `editor/src/modular-mb/runtime/` with `Module` (abstract), `InternalModule`, `ExternalModule`, and `Registry`. Add `editor/src/modular-mb/view/` and move existing panel code there.
+3. Migrate **one** internal module type end-to-end as proof: `Vcf` (definition → instance → runtime → panel). Verify save/load/undo unchanged.
+4. Refactor `AudioEngine` to dispatch via registry.
+5. Migrate remaining internal types: `Vco`, `Vca`, `Ahdsr`, `Lfo`, `Seq16`, …
+6. Introduce `ExternalModule` + first external-module catalog entry + simulator proxy mapping.
+7. Mirror the skeleton in `firmware/core/include/mb/runtime/` (headers first), and add `firmware/core/include/mb/view/`.
 
 ## Consequences
-- **Pro:** new module type = one class file + one registry call + one React panel. Module-specific knowledge co-located.
-- **Pro:** `EnvelopeGenerator → Ahdsr` and `Oscillator → Vco` express real domain relationships, ready for `Adsr`, `Ad`, sub-octave VCOs, etc., without `switch` growth.
-- **Pro:** C++ firmware starts with the same vocabulary; no translation layer.
-- **Con:** one-time rename `Module → ModuleSnapshot` ripples through ~15 files (mechanical).
-- **Con:** an extra construction step on load (snapshot → runtime); cost is negligible (≤ ms for any realistic patch).
-- **Neutral:** save/load/undo/redo/presets unchanged because they operate on snapshots.
+- **Pro**: new internal module type = one class file + one registry call + one or more panels. New external module = one catalog entry, no code.
+- **Pro**: `EnvelopeGenerator → Ahdsr` and `Oscillator → Vco` are real domain relations, ready for `Ad`, `Adsr`, sub-octave VCOs, etc., without `switch` growth.
+- **Pro**: C++ firmware starts with the same vocabulary; the brain treats external Eurorack modules first-class without polluting the internal class tree.
+- **Pro**: View is decoupled from model: multiple panels per module on web, OLED views on device, same data underneath.
+- **Con**: one-time rename `Module → ModuleInstance` ripples through ~15 files (mechanical).
+- **Con**: an extra construction step on load (definition + instance → runtime); negligible cost.
+- **Neutral**: save/load/undo/redo/presets unchanged because they operate on layer 2.
 
 ## Open questions
-- POJO suffix: `ModuleSnapshot` (preferred — matches undo-snapshot semantics) vs `ModuleData`. To be confirmed before step 1 of the migration.
 - Whether `Lfo` should subclass `Oscillator` (sharing pitch-CV semantics) or be its own branch under `Source`.
-- Whether `Param`/`Signal` wrapper for control values lands in layer 1 (serialised metadata) or only layer 2 (runtime).
+- Whether `Param`/`Signal`/`Switch` wrappers belong in a shared TS/C++ control library or are platform-local.
+- Whether the runtime class's `static readonly definition` should be the source from which catalog JSON is generated, or whether the JSON is hand-written and the class asserts equality at boot.
 
 ## References
 - [ADR 0002](0002-editor-stack.md) — editor stack.
-- [ADR 0005](0005-patch-storage-format.md) — JSON in editor, CBOR on device. This ADR builds on the snapshot format defined there.
-- Tone.js class hierarchy — inspiration for layer-2 naming and lifecycle (`connect` / `dispose` / `triggerAttack` / `triggerRelease`).
+- [ADR 0005](0005-patch-storage-format.md) — JSON in editor, CBOR on device. Layer 2 maps to this format.
+- Tone.js class hierarchy — inspiration for layer-3 naming and lifecycle (`connect` / `dispose` / `triggerAttack` / `triggerRelease`).

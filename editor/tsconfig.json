@@ -10,6 +10,7 @@
     "noImplicitOverride": true,
     "jsx": "react-jsx",
     "isolatedModules": true,
+    "noEmit": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "esModuleInterop": true,

@@ -20,6 +20,11 @@ coverage/
 # Generated API docs (TypeDoc output)
 doc/api/
 
+# TypeScript emit artifacts inside source trees (Vite handles transpilation; tsc should be noEmit)
+editor/src/**/*.js
+editor/src/**/*.js.map
+editor/src/**/*.d.ts
+
 # IDE
 .vscode/
 .idea/
