@@ -10,9 +10,14 @@ We also need to model two kinds of modules from day one:
 - **Internal** modules that the brain actually synthesises (project-3 internal voices, plus everything in the web simulator).
 - **External** Eurorack-style modules that the brain only routes signals to/from. The brain does not synthesise them; it remembers their patch settings so the user can recreate them on the real hardware. In the simulator, an external module is voiced by a **proxy** internal module (e.g. our generic `Vco` stands in for a "BrandX SolidStateVCO").
 
-Tone.js (the simulator's audio backend) demonstrates a clean OO hierarchy worth borrowing patterns from: `ToneAudioNode` → `Source` / `Effect` / `Instrument` / `Envelope`, each with uniform `input`/`output`, `connect`/`dispose`, and lifecycle events like `triggerAttack(time)`.
+Tone.js (the simulator's audio backend) demonstrates a clean OO hierarchy worth borrowing from: `ToneAudioNode` → `Source` / `Effect` / `Instrument` / `Envelope`, with uniform `input`/`output`, `connect`/`dispose`. We also studied two embedded references:
 
-This ADR replaces an earlier draft of 0009 that conflated *type schema* and *per-instance values* into a single "Definition" layer; that distinction is now made explicit.
+- **Mutable Instruments / Yarns** (`voice.h`): `Voice` contains `Oscillator` by composition. `Refresh()` runs at a low-rate control tick (~1 kHz); `RenderAudio()` runs at audio rate. `NoteOn(note, velocity, portamento, trigger)` is called from a MIDI ISR or main loop.
+- **Teensy Audio library** (`AudioStream.h`): every node is a `AudioStream` subclass that implements `virtual void update()`. A software ISR fires at 44100/128 ≈ 344 Hz, iterates a linked list of all nodes, and calls each `update()` in turn. Nodes exchange fixed-size sample blocks (128 × int16_t). Cross-boundary writes (main loop → ISR) are guarded by `__disable_irq()` / `__enable_irq()`.
+
+Key insight from comparing them: **CV and audio are different worlds.** Envelopes, LFOs, sequencers, and CV-routers only need ~1–2 kHz update rates. Digital audio synthesis needs 44 kHz sample-accurate processing and its own DMA/I2S pipeline. Mixing both on the same update path adds complexity for no benefit.
+
+This ADR replaces an earlier draft of 0009 that conflated *type schema* and *per-instance values* into a single "Definition" layer, and did not distinguish CV from audio modules; both distinctions are now explicit.
 
 ## Decision
 
@@ -42,44 +47,73 @@ A **four-layer architecture** for the modular domain. Each layer owns one concer
 ### Layer 3 — Runtime (live OO instances)
 *Code that actually does something with a `ModuleInstance`.* Classes, not data. Not serialised.
 
-- **In firmware (Teensy)**: each internal module type is a C++ class that processes audio/CV every frame. `Module` (abstract) → `InternalModule` (abstract) → `Oscillator` → `Vco`, and so on.
-- **In the web simulator**: the same class hierarchy in TypeScript, wrapping Tone.js nodes by composition. Used for MIDI input + patch + modules → sound.
-- **External modules have no runtime in firmware** — the brain routes signals to them but does not own a class instance that "is" the module. They may have a thin "routing handle" object, but no audio code.
-- **External modules in the simulator** are voiced by a **proxy runtime**: the simulator looks up `definition.simulatedBy`, instantiates that internal class, and uses `simulationControlMap` to translate control writes.
+**Internal modules** split into two update families:
+
+| Family | Class | Update mechanism | Rate | Examples |
+|---|---|---|---|---|
+| **CvModule** | `CvModule (abstract)` | Timer ISR → `tick()` | 1–2 kHz | Envelope, Lfo, Sequencer, CvMapper |
+| **AudioModule** | `AudioModule (abstract)` | DMA/I2S ISR → `update()` | 44100/128 ≈ 344 Hz | Vco, Vcf, Vca (digital audio) |
+
+`CvModule.tick()` follows the Mutable Instruments pattern (`Voice::Refresh`): runs in a timer ISR, computes the next CV/gate values, and writes them to DAC channels via the breakout bus. This is the primary update path on the main brain Teensy.
+
+`AudioModule.update()` follows the Teensy Audio pattern (`AudioStream::update`): fires at block rate, processes 128 samples per call, passes buffers between nodes via connections. This path only exists on a **dedicated audio Teensy** (see architecture note below).
 
 Hierarchy (identical names in TS and C++):
 
 ```
-Module (abstract)               ← inputs[], outputs[], controls[], connect, dispose
- ├─ InternalModule (abstract)    ← owns audio/CV processing
- │   ├─ Source (abstract)         ← start(time), stop(time)
- │   │   ├─ Oscillator → Vco
- │   │   ├─ Lfo
- │   │   └─ Noise
- │   ├─ Filter (abstract)         ← audioIn, audioOut, cutoffCvIn
- │   │   ├─ Vcf
- │   │   └─ Svf
- │   ├─ Amplifier → Vca
- │   ├─ EnvelopeGenerator         ← triggerAttack(time), triggerRelease(time)
+Module (abstract)                ← ports[], controls[], setControl(id, val), dispose()
+ ├─ CvModule (abstract)          ← tick(); runs at 1–2 kHz on main-brain Teensy
+ │   ├─ EnvelopeGenerator (abs)  ← gateIn port; setGate(bool)
  │   │   ├─ Adsr
  │   │   └─ Ahdsr
- │   └─ Sequencer → Seq16
- └─ ExternalModule                ← one class, data-driven variants from definition
+ │   ├─ Lfo
+ │   ├─ Sequencer → Seq16
+ │   └─ CvMapper
+ ├─ AudioModule (abstract)       ← update(); runs at ~344 Hz on audio Teensy / simulator
+ │   ├─ Oscillator (abs)         ← pitchCvIn, audioOut, tuning; setNote(semitones)
+ │   │   └─ Vco
+ │   ├─ Filter (abs)             ← audioIn, audioOut, cutoffCvIn
+ │   │   ├─ Vcf
+ │   │   └─ Svf
+ │   └─ Amplifier → Vca         ← audioIn, audioOut, gainCvIn
+ └─ ExternalModule               ← one class, data-driven; routing handle only, no audio/CV code
 ```
 
-Conventions:
-- Class names describe **what the thing is** (`Vco`, `Ahdsr`). No `Runtime` / `Engine` suffix.
-- Each abstract level declares the minimum surface its level guarantees; subclasses add ports/controls. Example: `Oscillator` guarantees `pitchCvIn`, `audioOut`, a `tuning` control. `Vco` adds waveform / PWM / sync.
-- Lifecycle and event vocabulary follow Tone.js where applicable: `connect`, `disconnect`, `dispose`, `triggerAttack(time)`, `triggerRelease(time)`.
-- Control values that can be modulated are wrapped at runtime in a typed `Param<T>` / `Signal<number>` / `Switch<T>` layer. The runtime value = persisted setpoint (from `ModuleInstance`) ± live modulation. The setpoint stays in layer 2; the effective value lives only here.
-- A runtime instance is built by:
-  ```ts
-  const cls = registry.get(instance.typeId);       // layer 3 class
-  const def = catalog.get(instance.typeId);        // layer 1 definition
-  const m   = new cls(def, instance);              // layer 3 instance
-  ```
-- `AudioEngine` becomes a thin dispatcher around the registry. No more `switch(kind)`.
-- The runtime class is the **single source of truth for its definition** (`static readonly definition`); the catalog file is generated from / aligned with the class.
+**Signal vocabulary — gate, not MIDI:**
+The brain speaks in signals, not MIDI messages. When a note starts:
+- `env.setGate(true)` — the envelope receives a high gate; it decides what to do with it (start attack).
+- `vco.setNote(semitones)` — the oscillator receives a pitch value.
+- `vca.setGate(true)` — the amplifier opens.
+
+The MIDI layer (voice allocator) maps `noteOn(note, velocity)` to these calls. Module classes themselves have no knowledge of MIDI.
+
+The `setGate(bool)` convention replaces the earlier `triggerAttack` / `triggerRelease` names, which leaked internal envelope knowledge to the caller. A gate is what the outside world sends; what the module does with it (attack, decay, …) is the module's own concern.
+
+**In firmware (Teensy — main brain):**
+- Only `CvModule` subclasses run here. Timer ISR calls `tick()` on each registered module in order.
+- `ExternalModule` has no `tick()` — it is represented only as routing metadata and DAC-write targets.
+- Cross-boundary writes (MIDI ISR / main loop → timer ISR state) guarded by `__disable_irq()` / `__enable_irq()` (same pattern as Teensy Audio `noteOn`).
+
+**In firmware (audio Teensy — optional, separate rack module):**
+- Only `AudioModule` subclasses run here. DMA/I2S ISR drives `update()`.
+- Receives CV/gate values from the main brain over the internal bus (same bus as external Eurorack breakouts).
+- Produces stereo or multi-channel I2S audio output.
+- If digital audio is not needed in a build, this module simply does not exist in the rack.
+
+**In the web simulator:**
+- `CvModule` subclasses run in a `setInterval`-driven tick.
+- `AudioModule` subclasses wrap Tone.js nodes by composition. `Vco` holds a `Tone.Oscillator`; `Vcf` holds a `Tone.Filter`; etc. `setNote()` maps to `this.osc.frequency.value`; `setGate(true)` maps to envelope/source start.
+- External modules are voiced by a proxy: simulator looks up `definition.simulatedBy`, creates that `AudioModule`, applies `simulationControlMap`.
+
+**Construction:**
+```ts
+const cls = registry.get(instance.typeId);   // layer-3 class
+const def  = catalog.get(instance.typeId);   // layer-1 definition
+const m    = new cls(def, instance);          // layer-3 instance
+```
+`AudioEngine` becomes a thin dispatcher around the registry. No more `switch(kind)`.
+
+The runtime class is the **single source of truth for its own definition** (`static readonly definition`); the catalog is generated from or validated against it.
 
 ### Layer 4 — View (rendering, on web and on device)
 *How a module is shown to a human.* Stateless renderers reading from layer 2 (and optionally layer 3 for live meters).
@@ -90,9 +124,18 @@ Conventions:
 - The view never reaches into layer 3 to mutate; edits go through the layer-2 store, which the runtime observes.
 
 ### Cross-cutting rules
-- **Registry per platform**: TS has a runtime-class registry keyed by `typeId`; C++ does the same with a factory table.
+- **Registry per platform**: TS has a runtime-class registry keyed by `typeId`; C++ does the same with a factory table. Virtual dispatch (C++ vtable / TS dynamic method lookup) eliminates `switch(kind)` at call sites.
 - **Persistence stays snapshot-based** on layer 2 (ADR 0005). Save / load / undo / redo / presets are unaffected.
 - **TS ↔ C++ symmetry by convention** in the first iteration: same class names, same `typeId`s, same control IDs, same method signatures. If drift becomes a problem we add a shared JSON schema and generate stubs (deferred to a future ADR).
+- **CV bus ≠ audio bus**: the internal SPI/CAN-FD breakout bus carries CV/gate values (12-bit, 16-bit, 1-bit) at 1–2 kHz. Audio (if present) is on a separate I2S path on the audio Teensy. Module code never mixes these paths.
+
+### Architecture note — audio Teensy
+Digital audio synthesis is architecturally separate from CV processing. If the project needs internal audio voices, the preferred approach is a **dedicated audio rack module** (another Teensy 4.x) that:
+- subscribes to CV/gate values from the main brain over the internal bus (identical to how an external Eurorack VCO receives CV);
+- runs `AudioModule` classes locally using the Teensy Audio ISR model;
+- outputs audio via I2S to a DAC or codec.
+
+The main brain Teensy has no audio code. This keeps both Teensys within their performance envelope and keeps firmware responsibility boundaries clean. Whether to implement this is deferred; the class hierarchy already supports it via the `AudioModule` branch.
 
 ## Migration plan (informative)
 1. Rename the current `interface Module` in `editor/src/modular-mb/types.ts` to `ModuleInstance`. Update call sites mechanically.
@@ -104,20 +147,26 @@ Conventions:
 7. Mirror the skeleton in `firmware/core/include/mb/runtime/` (headers first), and add `firmware/core/include/mb/view/`.
 
 ## Consequences
-- **Pro**: new internal module type = one class file + one registry call + one or more panels. New external module = one catalog entry, no code.
+- **Pro**: new CV module type = one class file + one `tick()` implementation + one registry call. New audio module = same but with `update()`. New external module = one catalog entry, no code.
 - **Pro**: `EnvelopeGenerator → Ahdsr` and `Oscillator → Vco` are real domain relations, ready for `Ad`, `Adsr`, sub-octave VCOs, etc., without `switch` growth.
-- **Pro**: C++ firmware starts with the same vocabulary; the brain treats external Eurorack modules first-class without polluting the internal class tree.
-- **Pro**: View is decoupled from model: multiple panels per module on web, OLED views on device, same data underneath.
-- **Con**: one-time rename `Module → ModuleInstance` ripples through ~15 files (mechanical).
-- **Con**: an extra construction step on load (definition + instance → runtime); negligible cost.
-- **Neutral**: save/load/undo/redo/presets unchanged because they operate on layer 2.
+- **Pro**: `setGate(bool)` / `setNote(int)` at the module boundary; MIDI knowledge stays in the voice allocator. Modules are signal-domain citizens, not MIDI citizens.
+- **Pro**: CvModule / AudioModule split means the main brain Teensy never runs audio code; the audio Teensy never runs CV-routing code. Clean responsibility boundary.
+- **Pro**: C++ and TS share vocabulary; same class names and method signatures across languages.
+- **Pro**: View decoupled from model: multiple panels per module on web, OLED views on device.
+- **Con**: one-time rename `Module → ModuleInstance` ripples through ~15 files (mechanical, type-safe).
+- **Con**: extra construction step on load (definition + instance → runtime); negligible cost.
+- **Neutral**: save/load/undo/redo/presets unchanged; they operate on layer 2.
 
 ## Open questions
-- Whether `Lfo` should subclass `Oscillator` (sharing pitch-CV semantics) or be its own branch under `Source`.
-- Whether `Param`/`Signal`/`Switch` wrappers belong in a shared TS/C++ control library or are platform-local.
-- Whether the runtime class's `static readonly definition` should be the source from which catalog JSON is generated, or whether the JSON is hand-written and the class asserts equality at boot.
+- Whether `Lfo` should live under `CvModule` (it produces a CV, not audio) or be a `CvModule` sibling to `EnvelopeGenerator`. Current placement: `CvModule → Lfo`.
+- Whether `Param`/`Signal`/`Switch` control-value wrappers belong in a shared TS/C++ library or are platform-local.
+- Whether the runtime class's `static readonly definition` is the source from which catalog JSON is generated, or the JSON is hand-written and the class asserts equality at boot.
+- Whether the audio Teensy communicates with the main brain over the existing SPI/CAN-FD bus or needs a dedicated higher-bandwidth channel (e.g. a direct SPI link for low-latency CV delivery).
 
 ## References
 - [ADR 0002](0002-editor-stack.md) — editor stack.
 - [ADR 0005](0005-patch-storage-format.md) — JSON in editor, CBOR on device. Layer 2 maps to this format.
-- Tone.js class hierarchy — inspiration for layer-3 naming and lifecycle (`connect` / `dispose` / `triggerAttack` / `triggerRelease`).
+- [ADR 0006](0006-multi-case-transport.md) — SPI/CAN-FD internal bus that carries CV/gate between brain and breakouts.
+- [ADR 0008](0008-latency-and-interpolation.md) — latency budget and breakout-side interpolation; relevant for CV update rate choice.
+- Mutable Instruments / Yarns `voice.h` — inspiration for `CvModule` composition pattern and two-rate update (control tick + audio ISR).
+- Teensy Audio library `AudioStream.h` / `effect_envelope.cpp` — inspiration for `AudioModule.update()` block-processing pattern, ISR scheduling, and IRQ-guard pattern for cross-boundary writes.
