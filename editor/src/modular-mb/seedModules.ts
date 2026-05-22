@@ -116,6 +116,8 @@ function assemble(spec: {
   items: Spec[];
   notes?: string;
   internal?: boolean;
+  simulatedBy?: string;
+  simulationControlMap?: Record<string, string>;
 }): { type: ModuleType; module: ModuleInstance } {
   const controls = spec.items.filter((s): s is Extract<Spec, { control: unknown }> => 'control' in s).map((s) => s.control);
   const ports    = spec.items.filter((s): s is Extract<Spec, { port: unknown }>    => 'port'    in s).map((s) => s.port);
@@ -131,6 +133,8 @@ function assemble(spec: {
     variant: spec.variant,
     ports, controls,
     notes: spec.notes,
+    ...(spec.simulatedBy ? { simulatedBy: spec.simulatedBy } : {}),
+    ...(spec.simulationControlMap ? { simulationControlMap: spec.simulationControlMap } : {}),
   };
   const module: ModuleInstance = {
     id: uid('mod'),
@@ -425,6 +429,8 @@ function rs110() {
     decorations: [],
     items,
     notes: 'Multimode-filter met 4 gelijktijdige uitgangen (LP/BP/HP/Notch) + aparte resonance-in/out voor patching.',
+    simulatedBy: 'tp_mmb_vcf',
+    simulationControlMap: { freq: 'cutoff', res: 'q' },
   });
 }
 

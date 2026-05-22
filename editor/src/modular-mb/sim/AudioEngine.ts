@@ -210,11 +210,29 @@ export class AudioEngine {
     // 2. Build a node per module.
     for (const m of project.modules) {
       if (!inRack.has(m.id)) continue;
-      const t = project.moduleTypes.find((x) => x.id === m.typeId);
-      if (!t) continue;
+      const tRaw = project.moduleTypes.find((x) => x.id === m.typeId);
+      if (!tRaw) continue;
+      // ADR 0009 — external simulation proxy. If the type declares a
+      // `simulatedBy`, resolve to the proxy type and remap controls; the
+      // engine then treats this external module as if it were the proxy.
+      let t = tRaw;
+      let ctrl = (patch.controlState[m.id] ?? {}) as Record<string, ControlValue>;
+      if (tRaw.simulatedBy) {
+        const proxy = project.moduleTypes.find((x) => x.id === tRaw.simulatedBy);
+        if (proxy) {
+          t = proxy;
+          const map = tRaw.simulationControlMap ?? {};
+          const remapped: Record<string, ControlValue> = {};
+          for (const [k, v] of Object.entries(ctrl)) {
+            const mapped = map[k];
+            if (mapped !== undefined) remapped[mapped] = v;
+            else if (proxy.controls.some((c) => c.id === k)) remapped[k] = v;
+          }
+          ctrl = remapped;
+        }
+      }
       const cat = project.categories.find((c) => c.id === t.categoryId);
       const kind = String(cat?.kind ?? '');
-      const ctrl = (patch.controlState[m.id] ?? {}) as Record<string, ControlValue>;
       const node = this.makeNode(kind, m, t, ctrl);
       if (node) {
         this.nodes.set(m.id, node);

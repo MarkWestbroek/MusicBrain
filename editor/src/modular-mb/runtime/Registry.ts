@@ -33,9 +33,12 @@ export class Registry {
     instance: ModuleInstance,
     initialControlValues?: Record<string, ControlValue>,
   ): Module {
-    const factory = this.factories.get(instance.typeId);
+    // Lookup by *type id*, not instance.typeId, so external modules whose
+    // type carries `simulatedBy` resolve to the proxy internal factory
+    // (caller is responsible for passing the resolved proxy type).
+    const factory = this.factories.get(type.id);
     if (!factory) {
-      throw new Error(`Registry: no factory for typeId "${instance.typeId}"`);
+      throw new Error(`Registry: no factory for type "${type.id}"`);
     }
     return factory(type, instance, initialControlValues);
   }

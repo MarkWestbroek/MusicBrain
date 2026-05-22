@@ -189,8 +189,8 @@ The main brain Teensy has no audio code. This keeps both processors within their
    - ✅ `Ahdsr` → `runtime/cv/Ahdsr.ts` (extends `CvModule`, `tick()` no-op in simulator — Tone.Envelope self-schedules)
    - ✅ `Lfo` → `runtime/cv/Lfo.ts` (extends `CvModule`, same pattern)
    - ⏳ `Seq16` deferred — has no Tone primitive to own; its entire behaviour is engine-orchestrated (intervalId, run/voct meters, MIDI overrides). Needs a richer abstract `Sequencer` interface before migration is meaningful.
-6. Introduce `ExternalModule` + first external-module catalog entry + simulator proxy mapping.
-7. Mirror the skeleton in `firmware/core/include/mb/runtime/` (headers first), and add `firmware/core/include/mb/view/`.
+6. ✅ Introduce `ExternalModule` + first external-module catalog entry + simulator proxy mapping. *(done — `ModuleType` carries optional `simulatedBy` + `simulationControlMap`; `AudioEngine` resolves the proxy type before constructing a node and remaps controls; `registry.create()` now keys on `type.id`. First catalog entry wired: Analogue Systems RS-110 MkII (`tp_as_rs110`) simulates as `tp_mmb_vcf` with `freq → cutoff`, `res → q`. Port-id mapping for richer externals — e.g. picking `lp`/`bp`/`hp`/`notch` outputs — is deferred until a real external module needs it.)*
+7. ✅ Mirror the skeleton in `firmware/core/include/mb/runtime/` (headers first), and add `firmware/core/include/mb/view/`. *(done — `Module.h`, `CvModule.h`, `AudioModule.h`, `ExternalModule.h`, `Registry.h` under `mb::runtime`; `IView.h` under `mb::view`. Headers only; concrete subclasses will land per-module as the firmware grows. C++17 (matches existing `cxx_std_17`); no CMakeLists changes needed because the additions are header-only.)*
 
 ## Consequences
 - **Pro**: new CV module type = one class file + one `tick()` implementation + one registry call. New audio module = same but with `update()`. New external module = one catalog entry, no code.

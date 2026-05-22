@@ -293,6 +293,21 @@ export interface ModuleType {
   notes?: string;
   ports: Port[];
   controls: Control[];
+  /**
+   * External-module simulation proxy (ADR 0009, layer 1).
+   * If set, the audio engine constructs the runtime class registered
+   * for this `typeId` instead of looking up the external type itself.
+   * Used so external Eurorack modules can be auditioned in the web
+   * simulator by mapping onto an existing internal MMB module.
+   */
+  simulatedBy?: string;
+  /**
+   * Maps this external module's control ids to the simulated internal
+   * module's control ids. Controls without an entry keep their id if
+   * the internal module has one with the same name; otherwise they are
+   * silently ignored in the simulator.
+   */
+  simulationControlMap?: Record<string, string>;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
