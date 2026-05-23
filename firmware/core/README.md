@@ -23,6 +23,10 @@ Pure C++17, no vendor headers. Compiles on host (for tests and the simulator) an
 | `runtime/Registry.h` | Factory registry: `typeId` → `unique_ptr<Module>`. Concrete classes self-register at static-init. |
 | `runtime/Ahdsr.h` | AHDSR envelope with `Curve { Linear, Exponential, Logarithmic }` and loop mode. Mirrors Tone-side panel one-to-one. |
 | `runtime/Lfo.h` | LFO modelled on Tone.LFO + panel extensions: `Wave { Sin, Tri, Saw, Sqr, S&H }`, `bipolar`, `Run { Always, Gated, OneShot }`, reset trigger. |
+| `runtime/CvBreakout.h` | Abstract brain-side breakout. Holds `(caseId, firstSlot)`, owns per-slot float inputs, ships changes via an injectable `BreakoutSink`. |
+| `runtime/CvOut12.h` | 8-channel 12-bit modulation breakout (per `doc/tech/dac-sh-mux.md`). |
+| `runtime/CvOut16.h` | 16-bit pitch / 1V-oct breakout (DAC8568 reference). |
+| `runtime/GateOut.h` | Digital gate/trigger breakout; deduplicates repeated identical states. |
 
 ### Runtime layer (ADR 0009)
 
