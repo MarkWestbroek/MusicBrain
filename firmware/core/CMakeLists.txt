@@ -9,6 +9,8 @@ add_library(musicbrain_core STATIC
     src/SwitcherRouter.cpp
     src/VoiceAllocator.cpp
     src/Protocol/SpiFrame.cpp
+    src/runtime/Ahdsr.cpp
+    src/runtime/Lfo.cpp
 )
 
 target_include_directories(musicbrain_core PUBLIC include)

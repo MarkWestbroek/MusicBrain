@@ -10,13 +10,26 @@
 // (same pattern as the Teensy Audio library).
 
 #include "Module.h"
+#include <cstdint>
 
 namespace mb::runtime {
+
+// Control rate at which the CV-domain timer ISR calls `tick()`. 1 kHz
+// gives 1 ms resolution which is fine for envelopes/LFOs and well within
+// the budget of a Teensy 3.x/4.x at the brain's CV update load.
+constexpr std::uint32_t kCvTickRateHz = 1000;
 
 class CvModule : public Module {
 public:
     using Module::Module;
-    // Called once per control tick. Must be lock-free and short.
+
+    // Called once per control tick from the CV-domain timer ISR. Must be:
+    //   - lock-free (no mutex, no malloc)
+    //   - bounded in runtime (≪ 1 / kCvTickRateHz seconds)
+    //   - safe to interleave with `setControl` calls from the main thread
+    //     (read-modify-write on shared scalars must be considered).
+    // Concrete implementations advance their internal state and update
+    // any output values they expose (e.g. `Envelope::value()`).
     virtual void tick() = 0;
 };
 

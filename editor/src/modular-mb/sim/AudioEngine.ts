@@ -45,6 +45,8 @@ interface BaseNode {
   kind: string;
   type: ModuleType;
   controls: Record<string, ControlValue>;
+  /** Control-id remapping for external modules simulated by a proxy (simulationControlMap). */
+  controlMap?: Record<string, string>;
 }
 interface VcoNode extends BaseNode {
   kind: 'vco';
@@ -217,11 +219,13 @@ export class AudioEngine {
       // engine then treats this external module as if it were the proxy.
       let t = tRaw;
       let ctrl = (patch.controlState[m.id] ?? {}) as Record<string, ControlValue>;
+      let controlMap: Record<string, string> | undefined;
       if (tRaw.simulatedBy) {
         const proxy = project.moduleTypes.find((x) => x.id === tRaw.simulatedBy);
         if (proxy) {
           t = proxy;
           const map = tRaw.simulationControlMap ?? {};
+          controlMap = map;
           const remapped: Record<string, ControlValue> = {};
           for (const [k, v] of Object.entries(ctrl)) {
             const mapped = map[k];
@@ -233,7 +237,7 @@ export class AudioEngine {
       }
       const cat = project.categories.find((c) => c.id === t.categoryId);
       const kind = String(cat?.kind ?? '');
-      const node = this.makeNode(kind, m, t, ctrl);
+      const node = this.makeNode(kind, m, t, ctrl, controlMap);
       if (node) {
         this.nodes.set(m.id, node);
         // Seed afgeleide UI-velden zoals BPM zodat de display niet leeg
@@ -436,6 +440,11 @@ export class AudioEngine {
     // Houd node.controls altijd in sync zodat SEQ-step herberekening en
     // toekomstige rebuilds correct doorlopen.
     node.controls = { ...node.controls, [controlId]: value };
+    // Remap external-module control IDs (e.g. RS-110 'freq' → 'cutoff').
+    if (node.controlMap) {
+      const mapped = node.controlMap[controlId];
+      if (mapped !== undefined) controlId = mapped;
+    }
     const num = typeof value === 'number' ? value : Number(value);
     const RAMP = 0.02;
     switch (node.kind) {
@@ -610,8 +619,9 @@ export class AudioEngine {
 
   private makeNode(
     kind: string, m: ModuleInstance, t: ModuleType, controls: Record<string, ControlValue>,
+    controlMap?: Record<string, string>,
   ): EngineNode | null {
-    const base = { moduleId: m.id, type: t, controls };
+    const base = { moduleId: m.id, type: t, controls, controlMap };
     // Speciale interne modules waarvan de categorie-`kind` niet aansluit
     // op het standaard switch-vocabulaire (utility/vco/vcf/...). Deze
     // worden op typeId herkend zodat ze altijd worden gebouwd, los van
@@ -654,24 +664,29 @@ export class AudioEngine {
     }
     switch (kind) {
       case 'vco': {
+        if (!registry.has(t.id)) return null;
         const rt = registry.create(t, m, controls) as Vco;
         return { ...base, kind: 'vco', runtime: rt, osc: rt.osc, baseMidi: 57, voctDriven: false };
       }
       case 'vcf': {
+        if (!registry.has(t.id)) return null;
         const cvAmt = clamp(readKnob(controls, 'cv_amt', 1), 0, 1);
         const rt = registry.create(t, m, controls) as Vcf;
         const baseCutoff = clamp(readKnob(controls, 'cutoff', 2000), 20, 18000);
         return { ...base, kind: 'vcf', runtime: rt, filter: rt.filter, cvAmt, baseCutoff, cvScale: null };
       }
       case 'vca': {
+        if (!registry.has(t.id)) return null;
         const rt = registry.create(t, m, controls) as Vca;
         return { ...base, kind: 'vca', runtime: rt, gain: rt.gain, cvSum: null };
       }
       case 'envelope': {
+        if (!registry.has(t.id)) return null;
         const rt = registry.create(t, m, controls) as Ahdsr;
         return { ...base, kind: 'envelope', runtime: rt, env: rt.env, gateDriven: false };
       }
       case 'lfo': {
+        if (!registry.has(t.id)) return null;
         const rt = registry.create(t, m, controls) as Lfo;
         return { ...base, kind: 'lfo', runtime: rt, lfo: rt.lfo };
       }
