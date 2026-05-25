@@ -2,7 +2,7 @@
 
 - **Datum**: 2026-05-17 14:32
 - **Sessie-ID**: `4db45503-0a7f-471a-850c-117803aee9d5`
-- **Berichten**: 32
+- **Berichten**: 35
 
 ---
 
@@ -593,6 +593,310 @@ Het meeste staat al gelocked, dus dit is niet "opnieuw beslissen" maar "weten wa
 5. **Bridge firmware** — `firmware/breakouts/bridge/` directory bestaat nog niet. STM32G0/G4 of Teensy 4.x (geen RP2040 wegens geen CAN-FD).
 6. **Concrete breakout-PCB's** —  is leeg. De C++ scaffolding hierboven werkt met een `BreakoutSink`, dus een echte board-cpp hoeft alleen die interface te implementeren rond de SPI driver van die specifieke MCU.
 
-Welke van die 6 wil je als eerste aanpakken? Ik zou voorstellen: eerst **management-framing** + **seqnums** (allebei wire-format dingen die je nu makkelijk in v1→v2 kan zetten voordat er hardware is), daarna pas arbitrage en backpressure (dat wil je met echte metingen doen).
+Welke van die 6 wil je als eerste aanpakken? Ik zou voorstellen: eerst **management-framing** + **seqnums** (allebei wire-format dingen die je nu makkelijk in v1→v2 kan zetten voordat er hardware is), daarna pas arbitrage en backpressure (dat wil je met echte metingen doen).Categorieën bestaan al. Nu E1+E3+B4+B5 in  toevoegen plus engine-support. Eerst MidiInNode interface check; daarna SeqNode 16-step + currentStep; daarna Noise+Echo node-kinds.  Nu E1 Noise + E3 Echo factory's + 16-step SEQ + step-LEDs in één bewerking. Eerst SEQ uitbreiden naar 16 stappen met step-LEDs:  
+```
+
+```
+Nu de LED's per step uniek koppelen aan `__currentStep == N`. Voeg `bindMatch` toe aan LedControl:  
+```
+
+```
+
+```
+
+```
+Nu de  helper en SEQ aanpassen om  te gebruiken:                   
+```
+
+```
+Nu Noise + Echo factories toevoegen vóór de :                   Voeg na  (vóór de `// ── public entry` comment) Noise + Echo toe:                                   
+```
+
+```
+
+```
+
+```
+Nu de AudioEngine: noise+echo+phaser nodes + 16-step seq + currentStep schrijven naar controlState + Run-override via run_in + voct_in transponering.   
+```
+
+```
+Nu: noise op  starten, currentStep schrijven naar controlState, voct_in / run_in support in :                   Voeg `liveControls` aan engine-status toe en emit op elke seq-step:                                               
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+Nu RackPanel & PatcherGraphPanel laten doorgeven van :                                        
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+Nu een eerste build doen om te zien of de basis groen is:                                           Beide gebruiken zitten in sub-components. Voeg  daar lokaal toe:                                        
+```
+
+```
+
+```
+
+```
+Nu de AudioEngine TS-error (lijn 587):                                           
+```
+
+```
+Build groen — **745 kB / gzip 219.54 kB**. Nu A5 (live parameter-binding), A1 (rack drag/context-menu), A2 (kabel-buiger). Eerst A5: 
+```
+
+```
+Nu de control-change-flow aansluiten — vind waar  op control-change triggert:                                             
+```
+
+```
+
+```
+
+```
+Build check:                                               Groen. Nu A1 — rack drag-handle + context-menu:                        Voeg `setSlotPosition` toe + drag-handle + context-menu state. Eerst de helper:                           
+```
+
+```
+Goed. Nu drag-and-drop op de rij + context-menu UI op het slot:                                                        
+```
+
+```
+Voeg drag-handle bovenaan het slot toe + onContextMenu:                                                                               
+```
+
+```
+Voeg context-menu UI toe vóór de sluitende  van RackGrid:                             
+```
+
+```
+Groen. Nu A2 — kabel-buiger via custom edge in xyflow:                                               
+```
+
+```
+Maak nu de BendableEdge in PatcherGraphPanel.tsx:                                                
+```
+
+```
+Voeg BendableEdge-component toe. Eerst kijken waar  eindigt en  wordt gedefinieerd:                                                                                                               
+```
+
+```
+Nu de edge-creatie en ReactFlow  propageren:                                   
+
+---
+
+## 🧑 User
+
+I have drawn up some thoughts, based on ADR 10 on polyphony and rack definition, patching and runtime behaviour. (The 3 layers.)
+
+Can you please read and see the sketches (they may help).
+
+Can you please see if you understand what I wrote and make some:
+- screen sketches of the rack and patcher screens in order to cater for this
+- changes or additions to in the data structures we have
+- any other observations or additions or questions
+
+Side question: am I right about the MIDI 1 and 2 differences, or can that be sharper?
+
+How to proceed on this? Can you make a plan on what to do in what order?
+- I suppose: first UI, to get a grip on the data and view on things
+- then the MIDI-in code (in teensy C++ code, which we can use to run for the simulation too, like we did in the effect switcher) to have real data to work with
+- then expand the logic on the teensy to polyphonic, multi-occurence
+
+---
+
+## 🤖 Assistant
+
+I'll read the rest of your doc and the current rack code briefly, then put a sketch-file together and reply.  Klaar. Hieronder mijn samenvatting + de gevraagde reflecties.
+
+## Wat ik uit je tekst + schetsen lees
+
+Drie lagen, en polyphonie zit op verschillende plekken anders:
+
+- **RACK** — declareert *welke fysieke modules of sub-delen N keer bestaan*. Jouw "groep" met master + 2..N (vergrijsd). Werkt voor hele modules én voor sub-delen van *multi-modules* (1 helft van een dual-osc, 1 dCV/aCV-paar van een 8-BO).
+- **PATCH** — is mono of N-poly **van nature**. Bevat ≥1 event-source. De gebruiker patcht alleen naar **masters**; de polyphonie zit *in de connectie*: poly-out → master-in wordt voice-replicated, global-out → master-in wordt gedupliceerd.
+- **RUNTIME** — brain mag de patch zélf expanderen óf voorgekauwd krijgen; compacte vorm blijft nodig voor on-device display.
+
+Extra concepten die ik herken: **dCV vs aCV** (conversie hoort eigenlijk op de connectie), **port-typen** (pitch16/cv12/gate1/trig1), **mix-back** als spiegel van expanding (`*→1` glyph in je schets), en je expliciete onderscheid **event-source** vs **normaal** vs **multi** vs **poly→mono** vs **mono→poly**.
+
+Belangrijk verschil met wat ik in ADR 0010 had opgeschreven: ik had "voice stamps" op patch-niveau geplaatst. Jouw model — groepen op rack-niveau — past beter bij hoe je er over praat ("welke modules staan er N keer in mijn kast"). Mijn doc-update zet dat recht en geeft de nieuwe types (`CellGroup` op , `PolyGroup` op , `polyKind` op , `conversion` op , plus `expandPatch()`).
+
+## Schermschetsen + datastructuren
+
+Alles in :
+
+1. Rack-paneel in **grouping-mode** — klik = master, volgende kliks = 2..N vergrijsd, met inzoom op multi-modules (QuadVCO toont 4 sub-cellen).
+2. Mixer als fan-in: één jack-stack gemarkeerd "poly IN (×4)".
+3. Patcher met drie cable-stijlen (`───` global, `═══` voice-poly, `─┬─` global broadcast naar poly) + cable-inspector voor mapping, sum, attenuation.
+4. dCV↔aCV: conversie als veld op de cable, kiest BO-cell-group.
+5. TypeScript-additions in  (allemaal optionele velden, oude patches blijven laden).
+6. Diff-tabel ADR 0010 vs deze schets + 6 open vragen.
+
+## MIDI 1 vs MIDI 2 — scherper
+
+Je had het grotendeels goed, paar nuances:
+
+- **MIDI 1 kan wél per-toets-druk**: *Polyphonic Key Pressure* (status `0xA0`) is per ingedrukte toets. Niet veel keyboards verzenden het, maar het zit in de standaard.
+- **Pitch-bend en CC per noot in MIDI 1**: alleen via **MPE** (MIDI Polyphonic Expression) — conventie waarbij elke noot een eigen MIDI-kanaal krijgt, zodat kanaal-CC's per-noot worden. Osmose en Roli doen dit standaard.
+- **Channel-CC's zijn inderdaad global** op een normaal kanaal — jouw schets-legenda klopt voor de niet-MPE-modus.
+- **MIDI 2 (UMP)**: per-noot controllers en per-noot pitch-bend zijn *first class*, geen kanaal-truc nodig. Velocity 16-bit, controllers 32-bit. Bidirectional + property exchange (apparaten vertellen elkaar wat ze kunnen).
+- Voor `MidiInModule`: kanaal-CC's MIDI 1 → globale out; MPE → per-voice via kanaal-naar-voice-mapping in de allocator; MIDI 2 → per-voice direct via note-ID. Dat zit allemaal achter dezelfde voice/global splitsing in je schets.
+
+## Voorgesteld plan (jouw volgorde, met fase-detail)
+
+**Fase A — UI +  (allemaal optionele velden, oude patches blijven laden).
+6. Diff-tabel ADR 0010 vs deze schets + 6 open vragen.
+
+## MIDI 1 vs MIDI 2 — scherper
+
+Je had het grotendeels goed, paar nuances:
+
+- **MIDI 1 kan wél per-toets-druk**: *Polyphonic Key Pressure* (status `0xA0`) is per ingedrukte toets. Niet veel keyboards verzenden het, maar het zit in de standaard.
+- **Pitch-bend en CC per noot in MIDI 1**: alleen via **MPE** (MIDI Polyphonic Expression) — conventie waarbij elke noot een eigen MIDI-kanaal krijgt, zodat kanaal-CC's per-noot worden. Osmose en Roli doen dit standaard.
+- **Channel-CC's zijn inderdaad global** op een normaal kanaal — jouw schets-legenda klopt voor de niet-MPE-modus.
+- **MIDI 2 (UMP)**: per-noot controllers en per-noot pitch-bend zijn *first class*, geen kanaal-truc nodig. Velocity 16-bit, controllers 32-bit. Bidirectional + property exchange (apparaten vertellen elkaar wat ze kunnen).
+- Voor `MidiInModule`: kanaal-CC's MIDI 1 → globale out; MPE → per-voice via kanaal-naar-voice-mapping in de allocator; MIDI 2 → per-voice direct via note-ID. Dat zit allemaal achter dezelfde voice/global splitsing in je schets.
+
+## Voorgesteld plan (jouw volgorde, met fase-detail)
+
+**Fase A — UI + datamodel (alleen TS, geen firmware)**
+1. Types uitbreiden: `CellGroup`, `PolyGroup`, , , .
+2. `seedModules.ts` aanvullen:  per module + `cellGroups` op DualOsc / QuadVCO / QuadVCA / 8×CV-Out.
+3. Rack-panel **grouping-mode**: groep aanmaken, master + 2..N klikken, multi-module inzoom, kleur per groep.
+4. Patcher: cable-stijlen (poly/global/broadcast), masters-only-zichtbaar, inspector-paneel per cable.
+5. `expandPatch()` als pure functie + unit-tests.
+6. Simulator (Tone.js) gebruikt `expandPatch()` zodat we het ook hoorbaar kunnen valideren.
+
+**Fase B — MIDI-in C++ (Teensy + simulator, één code-base)**
+1. `EventSourceModule` abstract in .
+2. `MidiInModule` met embedded `VoiceAllocator`, kanaal-filter, mono/poly switch, per-voice + global output bus.
+3. Platform-agnostische MIDI-parser (USB + DIN merged), volledig host-testbaar.
+4. Tests: noteOn/Off-routing, kanaal-filter, mono vs poly, kanaal-CC → global, MPE → per-voice.
+5. Inhaken in TS-simulator (zelfde patroon als de effect-switcher: of via emscripten, of als TS-port die dezelfde allocator-algoritme spiegelt — beslissen op moment).
+
+**Fase C — Polyfone executie op de Teensy**
+1. Patch-loader: `expandPatch()` óf de gecompacte vorm + on-device expansie.
+2. Connection-layer: per-voice routering van `MidiInModule.voice_i` → `Envelope_i` / `VCO_i`.
+3. CvBreakout voice-indexed: voice-N pitch landt op `firstSlot + N`.
+4. Bandbreedte meten op echte SPI/CAN-bus → beslissen CvSet vs CvSegment per signaal.
+5. End-to-end: simulator + Teensy + 8 voices + DAC-breakout, MIDI-keyboard erin.
+
+**Fase D — Restpunten ADR 0010**: multi-pool, volledige CC-matrix, stamp/groep-nesting, CAN-FD-arbitrage, MIDI-out. Pas na C.
+
+Volgorde-rationale: je hebt gelijk dat UI eerst moet — Fase B en C hangen volledig af van de datamodel-beslissingen uit A1+A2. Ik stel voor te starten met **A1 + A2** (types + seed), zodat we de vorm kunnen vastleggen voordat ik de groupings-UI bouw.
+
+## Open vragen waar ik graag jouw call op heb
+
+1. **Eens met rack-level `PolyGroup` ipv patch-level voice-stamp?** Dit is de grootste afwijking van ADR 0010 en ik wil het bevestigd hebben voor ik de types ga aanpassen.
+2. **Multi-modules met *gedeelde* controls** (jouw "N hardware instances, 1 control-set"): bouwen we dat als eerste concrete voorbeeld in seed (bv. `MMB Quad-VCO-Shared`)?
+3. **Conversie-op-de-cable**: akkoord met  als veld, of liever een aparte conversie-node-instantie in de patch?
+4. **Beginnen met Fase A1 (types) of eerst de schetsen in dit doc-stuk met jou doornemen** voor we code raken?
+
+---
+
+## 🧑 User
+
+Ja, een paar aanvullingen, nu ik dit zo teruglees.
+
+## groups:
+     - een rack kan natuurlijk zowel door een mono patch als door een poly gebruikt worden.
+     - er kunnen zowel N=2 als N=4 of N=8 groepen in een rack zitten (of N=3... misschien atypisch, maar het kan)
+     - een N=8 groep in het rack zou in een N=4 patch uiteen moeten vallen in 2 groepen van 4, dus met twee masters.
+     - .... tenzij je aangeeft dat je unisono wilt toepassen
+     - dat gaat ook op voor N=8 groep en een monofone patch :-)
+     - blijvend bij N=4 uit de MIDI zijn twee groepen van 4 handig: dan kun je er 1 (1 van de twee masters) iets detunen, daarna de twee stemmen terugmixen tot 1 audio signaal, en dan verder de signaalketen door als een N=4 signaal
+        - dan moet je wel de MIDI-IN out tweemaal verbinden: met elke groep van 4
+      - unisono mode kan nog wel handig zijn dus: misschien unisono = automatish patchen, maar wel de controls willen kunnen beinvloeden per groep-master....
+
+## cell group
+- dan hebben we ook een **cell** nodig: het kader (a.h.w.) om de set poorten, controls en eventueel displays die zich herhalen en samen dus een cell vormen.
+- een cell gedraagt zich eigenlijk als een module op zich
+- zie ook boven over het gebruiken van een groep in een mono patch: dan vallen de groepen eigenlijk weer weg
+
+## poly port
+- voice-poly-port zou ik poly-voice-port noemen of poly-port met N=2..8. Als N=1 is het nog steeds een voice-port, maar we zeggen dan gewoon port. Dus of het om een voice gaat maakt minder uit dan dat het om polyfonie gaat.
+- een gewone poort op een module, wanneer in een groep gezet, wordt een poly-port. Alle poorten van die module worden dat trouwens.
+- sommige modules hebben dus onderdelen poly en onderdelen niet. Dat betekent dat ze splitsen of samenvoegen. Het maakt eigenlijk niet zo uit wat ze doen. Ze hebben gewoon poly-in en gewoon-uit of andersom.
+
+verschil tussen aCV en dCV zit hem eigenlijk in de intern- of extern-heid van een module
+- gek ding is dan de portals BI en BO: die zijn half intern en half extern. Die willen we daarom misschien wel half in het in==externe rack zetten en dan de digitale helft gratis erbij in interne rack
+- in een rack is dat belangrijk maar in een patch wil je dat misschien verbergen door het BO/BI nummer (of beter: label, dat moeten we het dan wel kunnen gaan geven) gewoon op de connectie te zetten
+
+## global port
+je definitie "global port — an output (or input) that carries one signal, applied to all voices." klopt niet: ik heb gezegd dat globale parameters usually wel op de voices betrekking hebben, maar je kunt er alles mee doen. De kleur van het licht beinvloeden, ofzo. Ik gebruik liever enkelvoudige poort, en alleen voor de event sources heeft het woord global betekenis. Omdat het niet van een voice-event afkomstig is, zeg maar.
+
+belangrijk:
+- Je kunt geen poly uit poort naar een single in poort leiden, omdat de poly *gerepliceerd* (per voice anders) wil worden
+- andersom kan wel: dan wordt het enkelvoudige signaal dus *gedupliceerd*, zonder per voice verschillend te zijn.
+
+## your 1.4 Mix-back / fan-in side
+the use case: mark the mixer as poly4 + 4 x single is **a** possibilty
+- poly8 is also possible
+- 2 x poly4 as well
+
+**BUT**, in the rack, poly 8 is most flexible, if you sometimes want 8 voices.
+- probably we will need some ways to *ungroup* in patches. At first, modules are showed as groups, but if you don't need one as a group, you can ungroup this group-of-modules, or group-of-cells completely or partly.
+- for example, the mixer is in the rack as having an N=8 poly audio input. The user may ungroup them as 4 + 1+1+1+1. So in the patch (which might be N=4) it can be used flexibly.
+
+## cable styling
+Agree.
+- note: I don't understand the "(also duplicated to all 4 VCAs) " addition
+
+## open questions
+>> Group across racks — the user's doc explicitly says "must live in one rack". Confirmed. We do not need cross-rack groups in v1. **agree**
+>> Multiple groups, same N — allowed; cables only need to match group membership, not group id. **I don't understand can you explain?**
+>> Voice count mismatch — what if the user changes Patch.voiceCount to a value no rack group can supply? Editor warns + offers to either (a) clamp to the smallest group's N, or (b) create a new auto-group on the largest compatible set. **I don't understand can you explain?**
+>> Per-voice trim on a global broadcast — the inspector mentions a "per-voice trim slider grid". Worth designing but defer until a real patch needs it. **I don't understand can you explain?**
+>> Cable-routing override — the user mentions "override mapping" (e.g. swap voices 1↔3). Stored as PatchConnection.voicePermutation?: number[]. Defer until needed. **I don't understand can you explain?**
+>> Multi-modules with shared controls — the user wants the option of "N hardware instances, 1 control set". That's a degenerate CellGroup with controlIds: [] and the controls living module-globally. The model already supports it; the panel renderer needs to draw the controls once and wire them to all cells. Concrete first example is a planned MMB house-brand "Quad-VCO-Shared". ** yes, I thought so, this fits the model perfectly**
+
+## open vragen in chat
+Open vragen waar ik graag jouw call op heb
+>> Eens met rack-level PolyGroup ipv patch-level voice-stamp? Dit is de grootste afwijking van ADR 0010 en ik wil het bevestigd hebben voor ik de types ga aanpassen. **eens**
+>> Multi-modules met gedeelde controls (jouw "N hardware instances, 1 control-set"): bouwen we dat als eerste concrete voorbeeld in seed (bv. MMB Quad-VCO-Shared)? **ja, maar wel lastig te testen, omdat ik het nog niet heb**
+>> Conversie-op-de-cable: akkoord met PatchConnection.conversion als veld, of liever een aparte conversie-node-instantie in de patch? **ja, dit ziet er logisch uit**
+>> Beginnen met Fase A1 (types) of eerst de schetsen in dit doc-stuk met jou doornemen voor we code raken? **eerst even mijn heel tekst uit deze chat verwerken en terugkoppelen**
+
+Qua testen dacht ik: misschien kunnen we de Teensy audio library toch wat activeren om iets makkelijker de echte CV-processing en CV-genererende code te kunnen testen.
+- dan zouden we qua polyfonie niet naar 8 of 16 stemmen hoeven, maar 3 of 4 is genoeg om het principe te testen
+- we zouden een interne VCO-groep, een VCF-groep en een VCA-groep nodig hebben voor wat basis testen.
+- dan kunnen we de echte MIDI-in, de echte envelopes, en de echte LFO's testen op de interne modules (die gewoon de teensy audio library wrappen).
+- wat we niet testen is de bus en de BO en BI, maar we krijgen wel een beter idee van de hoeveelheid data, denk ik, als we dat loggen.
+
+Wil je dat meenemen in je planning?
+
+Ik kom er namelijk niet snel toe om alle hardware compleet en werkend te hebben. De Teensy heb ik wel in huis en die heeft wel een standaard stereo audio uit (of kan ik maken met een simpele audio-shield). En ik wil graag de code en voldoende inzicht hebben om verder te kunnen besluiten over hardware.
+
+
+
+
+
+
+
+Can you process this feedback and see if the plan changes?
 
 ---
