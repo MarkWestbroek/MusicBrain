@@ -2,7 +2,7 @@
 
 - **Datum**: 2026-05-17 14:32
 - **Sessie-ID**: `4db45503-0a7f-471a-850c-117803aee9d5`
-- **Berichten**: 35
+- **Berichten**: 46
 
 ---
 
@@ -898,5 +898,241 @@ Ik kom er namelijk niet snel toe om alle hardware compleet en werkend te hebben.
 
 
 Can you process this feedback and see if the plan changes?
+
+---
+
+## 🤖 Assistant
+
+Goede feedback, ik verwerk alles. Eerst de doc updaten, dan in de chat de vier onduidelijke punten uitleggen en de Teensy-Audio-route in het plan opnemen. 
+```
+
+```
+Doc bijgewerkt. Hieronder de antwoorden op je vier "I don't understand" punten + de plan-aanpassing voor de Teensy Audio Library.
+
+## De vier onduidelijke punten — uitgelegd
+
+**1. Multiple groups, same N — "cables only need to match group membership, not group id"**
+Slordig opgeschreven. Eigenlijk: een rack mag rustig twee N=4 groepen hebben (bv. `Voice` met 4 VCO's en `Drum` met 4 perc-osc's) zonder dat ze met elkaar gemixt worden. Een kabel gaat altijd tussen twee specifieke groepen; de expansie mapt cel-index op cel-index *binnen* elke groep. Verschillende N's tussen endpoints = verboden (jouw "poly→single is forbidden"-regel). Heb het herschreven in §5.1.
+
+**2. Voice-count mismatch**
+Concreet: jouw rack heeft alleen een N=4 groep maar je zet . De editor moet iets aanbieden. Mogelijkheden:
+- (a) **clamp**: voiceCount terug naar 4.
+- (b) **regroup**: automatisch een patch-lokale override bouwen die 6 cellen pakt uit een grotere pool (als die er is).
+- (c) **split** (jouw geval): N=8 rack-groep + N=4 patch ⇒ automatisch 2× N=4 met twee masters via `polyOverrides`.
+
+**3. Per-voice trim op een single→poly broadcast**
+Default: mod-wheel (single) → 4 VCO's pwm (poly) ⇒ alle 4 krijgen dezelfde waarde. De cable-inspector zou *optioneel* een rijtje N kleine sliders kunnen tonen (default 100% per voice) zodat je voice 3 op 50% en voice 4 op 25% kunt zetten. Leuke fine-tuning, niet urgent — schuif naar v1.5.
+
+**4. Cable-routing override / `voicePermutation`**
+Default poly-poly cable: voice 1→1, 2→2, 3→3, 4→4. Soms wil je `[3,1,2,4]` — voice 3 van de bron op cell 1 van het doel, etc. Bv. omdat VCO 1 op je rack net mooi getuned staat voor de baslijn. Opgeslagen als . Ook v1.5.
+
+## Aanvullingen die ik in de doc verwerkt heb
+
+- **Cell** is nu eerste-klas concept: "gedraagt zich als een sub-module"; .
+- **Naamgeving**: weg met "voice-poly port". Nu: **single-port** (default) en **poly-port (N=2..8)**. Een normale poort wordt automatisch poly als zijn cel/module in een poly-groep zit — geen extra veld op . Alleen event-source outputs krijgen een `eventKind: 'voice' | 'global'` om aan te geven waar het signaal vandaan komt.
+- **Harde regels** als expliciet blok bovenaan: `poly→single` is verboden (gebruik een collapse-module), `single→poly` wordt gedupliceerd, `poly(N)→poly(N)` is voice-indexed, `poly(N)→poly(M)` is verboden zonder remap-module.
+- **dCV vs aCV**: herframed als "intern vs extern module". BI/BO straddelt — analoge helft in externe rack, digitale helft gratis in interne rack.
+- **Ungroup-in-patch**: nieuw veld  voor partial-ungroup / split / unison.
+- **Rack-grouping max-flex regel**: mixer staat als N=8 cell-group in het rack; patches splitsen of ontgroeperen lokaal.
+- **Unison-mode** als veld op de override (v1.5).
+- Verwarrende regel `(also duplicated to all 4 VCAs)` weggehaald — dat was een misplaatste aside.
+- Diff-tabel ADR 0010 bijgewerkt met de nieuwe regels.
+
+Zie  voor de bijgewerkte tekst.
+
+## Plan-update: Teensy Audio Library als test-bed
+
+Goed idee. Wat het ons oplevert: end-to-end ketens (MIDI → MidiInModule → VoiceAllocator → poly envelope/LFO → poly VCO → poly VCF → poly VCA → mixer → audio uit) op echte hardware, **zonder** dat de bus, BO of BI hoeven te werken. We meten echte CPU/RAM/timing en kunnen logs van data-volumes maken — perfect voor bandbreedte-inschattingen later.
+
+Aangepaste fase-volgorde:
+
+**Fase A — UI + datamodel** (zoals voorgesteld, ongewijzigd)
+A1. Types: `CellGroup`, `Cell`, `PolyGroup`, `PatchPolyOverride`, , .
+A2. Seed:  op alle modules; cell-groups op DualOsc/QuadVCO/QuadVCA/8×CV-Out.
+A3. Rack grouping-mode + multi-module zoom + ungroup-in-patch UX.
+A4. Patcher cable-stijlen (poly/single/duplicate) + inspector + handhaving van de "harde regels".
+A5. `expandPatch()` + unit-tests.
+A6. Tone.js simulator bovenop `expandPatch()`.
+
+**Fase B — MIDI-in C++ (Teensy + simulator delen code)**
+B1. `EventSourceModule` abstract.
+B2. `MidiInModule` met `VoiceAllocator`, kanaal-filter, mono/poly switch, per-voice + global out bus.
+B3. Platform-agnostische MIDI-parser (USB + DIN merged), host-testbaar.
+B4. Tests: noteOn/Off, kanaal-filter, mono vs poly, kanaal-CC → global, MPE → per-voice.
+
+**Fase B′ — NIEUW: Teensy Audio Library wrappers als interne modules** *(parallel aan B, of direct erna)*
+B′1. `TeensyAudioVCO`, `TeensyAudioVCF`, `TeensyAudioVCA` als interne modules die `AudioSynthWaveform` / `AudioFilterStateVariable` / `AudioEffectMultiply` (of equivalenten) wrappen. CV-in (dCV) wordt vertaald naar de juiste Teensy-Audio parameters.
+B′2. Cell-groups op deze interne modules (`count: 4`) zodat ze als poly-groep van 3 of 4 voices gebruikt kunnen worden.
+B′3. `AudioOutputI2S` of `AudioOutputAnalogStereo` (Teensy's eigen DAC) als master-uitgang. Geen extra audio-shield strikt nodig als je Teensy 3.6/4.x met DAC gebruikt — losse shield optioneel.
+B′4. End-to-end test op de Teensy zelf: USB-MIDI in → MidiInModule (B) → 3-voice poly chain via B′ modules → stereo out → koptelefoon/luidspreker. Geen bus, geen BO/BI nodig.
+B′5. **Logging-modus**: schrijf alle hypothetische bus-frames (CvSet/CvSegment/GateSet die *zouden* worden verstuurd als de bus erbij zou zitten) naar Serial of een ringbuffer. Daar lezen we het data-volume en de timing uit, voor de echte bandbreedte-discussie van fase C.
+
+**Fase C — Echte poly executie op de Teensy (mét bus + BO + BI)** — onveranderd, maar nu met realistische data-meting uit B′5 als input.
+
+**Fase D — restpunten ADR 0010** — onveranderd.
+
+### Wat dit voor de planning-volgorde  op alle modules; cell-groups op DualOsc/QuadVCO/QuadVCA/8×CV-Out.
+A3. Rack grouping-mode + multi-module zoom + ungroup-in-patch UX.
+A4. Patcher cable-stijlen (poly/single/duplicate) + inspector + handhaving van de "harde regels".
+A5. `expandPatch()` + unit-tests.
+A6. Tone.js simulator bovenop `expandPatch()`.
+
+**Fase B — MIDI-in C++ (Teensy + simulator delen code)**
+B1. `EventSourceModule` abstract.
+B2. `MidiInModule` met `VoiceAllocator`, kanaal-filter, mono/poly switch, per-voice + global out bus.
+B3. Platform-agnostische MIDI-parser (USB + DIN merged), host-testbaar.
+B4. Tests: noteOn/Off, kanaal-filter, mono vs poly, kanaal-CC → global, MPE → per-voice.
+
+**Fase B′ — NIEUW: Teensy Audio Library wrappers als interne modules** *(parallel aan B, of direct erna)*
+B′1. `TeensyAudioVCO`, `TeensyAudioVCF`, `TeensyAudioVCA` als interne modules die `AudioSynthWaveform` / `AudioFilterStateVariable` / `AudioEffectMultiply` (of equivalenten) wrappen. CV-in (dCV) wordt vertaald naar de juiste Teensy-Audio parameters.
+B′2. Cell-groups op deze interne modules (`count: 4`) zodat ze als poly-groep van 3 of 4 voices gebruikt kunnen worden.
+B′3. `AudioOutputI2S` of `AudioOutputAnalogStereo` (Teensy's eigen DAC) als master-uitgang. Geen extra audio-shield strikt nodig als je Teensy 3.6/4.x met DAC gebruikt — losse shield optioneel.
+B′4. End-to-end test op de Teensy zelf: USB-MIDI in → MidiInModule (B) → 3-voice poly chain via B′ modules → stereo out → koptelefoon/luidspreker. Geen bus, geen BO/BI nodig.
+B′5. **Logging-modus**: schrijf alle hypothetische bus-frames (CvSet/CvSegment/GateSet die *zouden* worden verstuurd als de bus erbij zou zitten) naar Serial of een ringbuffer. Daar lezen we het data-volume en de timing uit, voor de echte bandbreedte-discussie van fase C.
+
+**Fase C — Echte poly executie op de Teensy (mét bus + BO + BI)** — onveranderd, maar nu met realistische data-meting uit B′5 als input.
+
+**Fase D — restpunten ADR 0010** — onveranderd.
+
+### Wat dit voor de planning-volgorde betekent
+
+- **Eerst A1+A2** (types + seed) blijft het kritieke pad: B, B′ en C hangen er allemaal op.
+- **B en B′ kunnen parallel** zodra A1 staat. B is de algoritmische kant (allocator + parser, host-testbaar), B′ is de Teensy-specifieke wrapping. B′ heeft B niet nodig om te starten — je kunt een dummy "speel C-majeur akkoord" trigger gebruiken tot B klaar is.
+- **Quad-VCO-Shared** als hardware-voorbeeld kunnen we niet testen, maar in B′ kun je een interne `MMB-Quad-VCO-Shared` toevoegen die 4 Teensy-Audio VCO's wrapt met één gedeelde control-set. Dat *valideert het datamodel* zonder dat de fysieke module bestaat.
+
+### Aanbeveling voor de volgende stap
+
+Mijn voorstel: ik begin met **A1 (types) + A2 (seed)** in één pull. Klein, in TS, geen runtime-impact, valideerbaar met `npm run build` + unit-tests. Daarna pakken we A3 (rack grouping-mode) aan, en parallel kan ik B′1-B′2 voorbereiden (de Teensy-Audio wrappers) zodat zodra MidiInModule (B) draait, we meteen geluid hebben.
+
+Ga ik door met A1+A2, of wil je eerst nog iets aanscherpen in de doc?
+
+---
+
+## 🧑 User
+
+Nee, lijkt perfect. Wil je starten zoals je hebt voorgesteld? Als je door kunt, ga gerust door zonder te vragen.
+
+---
+
+## 🤖 Assistant
+
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+Build groen. Korte doc-update zodat de sketch reflecteert wat er nu in code zit: Doc is nu schoon. Klaar.
+
+**Wat er gewijzigd is:**
+-  — alle nieuwe types toegevoegd (, , /, , plus optionele velden op , , , , ). Alles optioneel → bestaande projecten laden zonder migratie.
+-  —  accepteert nu  + ;  helpers kregen optionele  (, );  is gemarkeerd als  met  op pitch/gate; nieuwe  toegevoegd (16 HP multi-module, 1 cellGroup count=4, shared controls) en geregistreerd in .
+-  — sectie 7 "Implementation status" toegevoegd.
+
+`npm run build` in  → groen.
+
+**Volgende stap (jouw go nodig):** Phase A3 = rack-level "Group voices…" UI (selectie → groep  → groen.
+
+**Volgende stap (jouw go nodig):** Phase A3 = rack-level "Group voices…" UI (selectie → groep aanmaken/wijzigen, kleur, voice-labels), gevolgd door A4 (expand/collapse render) en A5 (patch-niveau override-paneel). Wil je dat ik daarmee verder ga, of eerst Phase B′ (Teensy-Audio polyfoon test) opzetten?
+
+---
+
+## 🧑 User
+
+ik moet de echte teensy met het MIDI bordje nog aansluiten, dus A4 en A5 kan wel eerst. Hoewel ik misschien ook MIDI via de computer naar de teensy kan sluizen? Dan hoef ik electronisch nog niets te breadboarden, behalve misschien de audio out.
+
+---
+
+## 🤖 Assistant
+
+Goed plan: Teensy 3.x/4.x doet **USB-MIDI native** (gewoon `Tools → USB Type → MIDI` in de Arduino IDE, en je hebt `usbMIDI.read()` / `usbMIDI.setHandleNoteOn(...)`), dus je hoeft het fysieke MIDI-bordje (optocoupler + DIN-5) pas later te bouwen — DAW of een MIDI-test-tool stuurt direct via USB naar de Teensy. Voor audio-out heb je óók nog niets nodig als je de Teensy Audio Library gebruikt: die heeft een `AudioOutputUSB` node waarmee de Teensy als USB-audio-device verschijnt en je het signaal in je DAW kunt monitoren — pas als je echt analoog wil horen heb je een DAC-bordje of de audio-shield nodig.
+
+Concreet voorstel voor de volgorde: **A4 (expand/collapse render) → A5 (override-paneel) → B′ via USB-MIDI + USB-audio** (volledig breadboardloos, perfect om de polyfonie-pipeline end-to-end te valideren) → daarna pas het fysieke MIDI-circuit en analoge audio-out. Wil je dat ik met A4 begin?
+
+---
+
+## 🧑 User
+
+ja, graag. Als je al iets op wilt zetten voor B, of het zelfs al wilt bouwen, dan ook graag! Dan zoek ik de teensy om aan te sluiten. Ik heb geen DAW op mijn windows: misschien heb je een suggestie voor een eenvoudige MIDI mapper op windows?
+
+---
+
+## 🤖 Assistant
+
+Ik ga eerst beide gebieden parallel verkennen (editor-UI + firmware-modulestructuur), zodat ik concreet kan plannen. 
+
+---
+
+## 🧑 User
+
+het interne rack is auto-grow, maar het groeit niet. Ik wil 3 VCO's toevoegen via dupliceer, maar krijg deze melding. Wat ik niet kan doen. (zie img 2).
+
+Extern lukt het, maar 2..4 zijn nog niet uitgegrijsd, klopt dat? (img 3)
+
+---
+
+## 🤖 Assistant
+
+Helder — twee problemen:
+
+1. **Bug**:  toont de alert ook voor interne racks zonder auto-grow te proberen.
+2. **Design-vraag**: V2..4 grijs? → dat is een bewuste stap die er nog niet is (zie hieronder).
+
+Fix voor issue 1: 
+```
+
+```
+Groen.
+
+**Bug gefixt**:  checkt nu of  — dan wordt  uitgebreid en wordt de copy direct achter de bestaande modules geplaatst. De alert verschijnt alleen nog bij fysieke racks.
+
+---
+
+**V2..4 niet uitgegrijsd — klopt dat?**
+
+Ja, dat is de huidige stand. De badge (`V2/4`, `V3/4`, `V4/4`) wordt al getoond, maar echt "grijs maken" van slave-voices (om aan te geven: *edit V1, de rest volgt*) is nog niet gebouwd. Dat hoort bij full A4 (patcher-expand + visuele voice-distinctie). De huidige toestand is dus bewust-tijdelijk, niet een bug.
+
+Wil je dat ik V2..4 nu ook visueel dimmen (halfdoorzichtige overlay op de slot), of bewaar je dat voor als de echte polyfonie-routing ook werkt?
+
+---
+
+## 🧑 User
+
+auto-grow werkt ook niet met slepen naar buiten het huidige rack. 1 hp naar rechts beweegt een module wel buiten de grenzen, maar rekt ze niet op.
+Een rij bijmaken in een intern rack gaat ook niet.
+
+Is er geen combi van auto grow en manual settings mogelijk?
+
+---
+
+## 🤖 Assistant
+
+Drie problemen in één keer: , ,  (drag) klemmen allemaal op de huidige grenzen zonder te groeien, en  verbergt de controls voor interne racks. Alles in één edit. 
 
 ---

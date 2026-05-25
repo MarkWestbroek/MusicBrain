@@ -128,36 +128,30 @@ function RackHeaderEditor({ rack }: { rack: Rack }): JSX.Element {
   function update(fn: (r: Rack) => Rack): void {
     updateProject((p) => ({ ...p, racks: p.racks.map((r) => r.id === rack.id ? fn(r) : r) }));
   }
-  if (rack.kind === 'internal') {
-    // Interne racks groeien automatisch — alleen naam-edit, geen rows/HP-knoppen.
-    return (
-      <div style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12 }}>
-        <label>Naam:
-          <input value={rack.name}
-                 onChange={(e) => update((r) => ({ ...r, name: e.target.value }))}
-                 style={{ marginLeft: 4, fontSize: 12, width: 160 }} />
-        </label>
-        <span style={{ color: '#6b7280' }}>auto-grow • nu {rack.hpPerRow} HP</span>
-      </div>
-    );
-  }
+  const isInternal = rack.kind === 'internal';
   return (
     <div style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12 }}>
       <label>Naam:
         <input value={rack.name}
                onChange={(e) => update((r) => ({ ...r, name: e.target.value }))}
-               style={{ marginLeft: 4, fontSize: 12, width: 120 }} />
+               style={{ marginLeft: 4, fontSize: 12, width: isInternal ? 160 : 120 }} />
       </label>
-      <label>Rijen:
-        <input type="number" min={1} max={6} value={rack.rows}
-               onChange={(e) => update((r) => ({ ...r, rows: Math.max(1, Math.min(6, Number(e.target.value) || 1)) }))}
-               style={{ marginLeft: 4, fontSize: 12, width: 50 }} />
-      </label>
-      <label>HP/rij:
-        <input type="number" min={20} max={168} value={rack.hpPerRow}
-               onChange={(e) => update((r) => ({ ...r, hpPerRow: Math.max(20, Math.min(168, Number(e.target.value) || 84)) }))}
-               style={{ marginLeft: 4, fontSize: 12, width: 60 }} />
-      </label>
+      {isInternal ? (
+        <span style={{ color: '#6b7280' }}>auto-grow • nu {rack.hpPerRow} HP</span>
+      ) : (
+        <>
+          <label>Rijen:
+            <input type="number" min={1} max={6} value={rack.rows}
+                   onChange={(e) => update((r) => ({ ...r, rows: Math.max(1, Math.min(6, Number(e.target.value) || 1)) }))}
+                   style={{ marginLeft: 4, fontSize: 12, width: 50 }} />
+          </label>
+          <label>HP/rij:
+            <input type="number" min={20} max={168} value={rack.hpPerRow}
+                   onChange={(e) => update((r) => ({ ...r, hpPerRow: Math.max(20, Math.min(168, Number(e.target.value) || 84)) }))}
+                   style={{ marginLeft: 4, fontSize: 12, width: 60 }} />
+          </label>
+        </>
+      )}
     </div>
   );
 }
@@ -200,14 +194,29 @@ function RackGrid({ rack, modules, types, activeRow, onSelectRow }: {
       if (o !== null) { row = r; offset = o; break; }
     }
     if (offset === null) {
-      alert('Geen vrije ruimte voor duplicaat in dit rack — voeg eerst een rij of HP toe.');
-      return;
+      if (rack.kind === 'internal') {
+        // Auto-grow: bereken rechteruiteinde van rij 0 en plak er direct achteraan.
+        const usedHp = rack.slots.reduce((mx, s) => {
+          const sm = modules.find((m) => m.id === s.moduleId);
+          return Math.max(mx, s.hpOffset + (sm?.visual.hpWidth ?? 4));
+        }, 0);
+        row = 0;
+        offset = usedHp;
+      } else {
+        alert('Geen vrije ruimte voor duplicaat in dit rack — voeg eerst een rij of HP toe.');
+        return;
+      }
     }
+    const newHpPerRow = rack.kind === 'internal'
+      ? Math.max(rack.hpPerRow, offset + newMod.visual.hpWidth)
+      : rack.hpPerRow;
     const newSlot: RackSlot = { id: uid('slot'), moduleId: newMod.id, row, hpOffset: offset };
     updateProject((p) => ({
       ...p,
       modules: [...p.modules, newMod],
-      racks: p.racks.map((r) => r.id === rack.id ? { ...r, slots: [...r.slots, newSlot] } : r),
+      racks: p.racks.map((r) => r.id === rack.id
+        ? { ...r, hpPerRow: newHpPerRow, slots: [...r.slots, newSlot] }
+        : r),
     }));
   }
 
@@ -222,40 +231,78 @@ function RackGrid({ rack, modules, types, activeRow, onSelectRow }: {
   function moveSlot(slotId: string, deltaHp: number): void {
     updateProject((p) => ({
       ...p,
-      racks: p.racks.map((r) => r.id !== rack.id ? r : ({
-        ...r,
-        slots: r.slots.map((s) => s.id === slotId
-          ? { ...s, hpOffset: Math.max(0, Math.min(r.hpPerRow - 1, s.hpOffset + deltaHp)) }
-          : s),
-      })),
+      racks: p.racks.map((r) => {
+        if (r.id !== rack.id) return r;
+        const slot = r.slots.find((s) => s.id === slotId);
+        if (!slot) return r;
+        const newOffset = Math.max(0, slot.hpOffset + deltaHp);
+        if (r.kind === 'internal') {
+          const mod = p.modules.find((m) => m.id === slot.moduleId);
+          const w = mod?.visual.hpWidth ?? 4;
+          return {
+            ...r,
+            hpPerRow: Math.max(r.hpPerRow, newOffset + w),
+            slots: r.slots.map((s) => s.id === slotId ? { ...s, hpOffset: newOffset } : s),
+          };
+        }
+        return {
+          ...r,
+          slots: r.slots.map((s) => s.id === slotId
+            ? { ...s, hpOffset: Math.min(r.hpPerRow - 1, newOffset) } : s),
+        };
+      }),
     }));
   }
 
   function moveRow(slotId: string, deltaRow: number): void {
     updateProject((p) => ({
       ...p,
-      racks: p.racks.map((r) => r.id !== rack.id ? r : ({
-        ...r,
-        slots: r.slots.map((s) => s.id === slotId
-          ? { ...s, row: Math.max(0, Math.min(r.rows - 1, s.row + deltaRow)) }
-          : s),
-      })),
+      racks: p.racks.map((r) => {
+        if (r.id !== rack.id) return r;
+        const slot = r.slots.find((s) => s.id === slotId);
+        if (!slot) return r;
+        const newRow = Math.max(0, slot.row + deltaRow);
+        if (r.kind === 'internal') {
+          return {
+            ...r,
+            rows: Math.max(r.rows, newRow + 1),
+            slots: r.slots.map((s) => s.id === slotId ? { ...s, row: newRow } : s),
+          };
+        }
+        return {
+          ...r,
+          slots: r.slots.map((s) => s.id === slotId
+            ? { ...s, row: Math.min(r.rows - 1, newRow) } : s),
+        };
+      }),
     }));
   }
 
   function setSlotPosition(slotId: string, row: number, hpOffset: number): void {
     updateProject((p) => ({
       ...p,
-      racks: p.racks.map((r) => r.id !== rack.id ? r : ({
-        ...r,
-        slots: r.slots.map((s) => s.id === slotId
-          ? {
-              ...s,
-              row: Math.max(0, Math.min(r.rows - 1, row)),
-              hpOffset: Math.max(0, Math.min(r.hpPerRow - 1, hpOffset)),
-            }
-          : s),
-      })),
+      racks: p.racks.map((r) => {
+        if (r.id !== rack.id) return r;
+        const clampedRow    = Math.max(0, r.kind === 'internal' ? row    : Math.min(r.rows     - 1, row));
+        const clampedOffset = Math.max(0, r.kind === 'internal' ? hpOffset : Math.min(r.hpPerRow - 1, hpOffset));
+        if (r.kind === 'internal') {
+          const slot = r.slots.find((s) => s.id === slotId);
+          const mod  = slot ? p.modules.find((m) => m.id === slot.moduleId) : undefined;
+          const w    = mod?.visual.hpWidth ?? 4;
+          return {
+            ...r,
+            rows:     Math.max(r.rows,     clampedRow    + 1),
+            hpPerRow: Math.max(r.hpPerRow, clampedOffset + w),
+            slots: r.slots.map((s) => s.id === slotId
+              ? { ...s, row: clampedRow, hpOffset: clampedOffset } : s),
+          };
+        }
+        return {
+          ...r,
+          slots: r.slots.map((s) => s.id === slotId
+            ? { ...s, row: clampedRow, hpOffset: clampedOffset } : s),
+        };
+      }),
     }));
   }
 
