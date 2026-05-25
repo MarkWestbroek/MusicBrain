@@ -11,6 +11,7 @@ add_library(musicbrain_core STATIC
     src/Protocol/SpiFrame.cpp
     src/runtime/Ahdsr.cpp
     src/runtime/Lfo.cpp
+    src/runtime/MidiIn.cpp
     src/runtime/CvBreakout.cpp
     src/runtime/CvOut12.cpp
     src/runtime/CvOut16.cpp

@@ -10,10 +10,28 @@ import { ModulePanel } from './ModulePanel';
 import { useEngineStatus } from './sim/engineSingleton';
 import {
   type Rack, type RackSlot, type ModuleInstance, type ModuleType,
+  type PolyGroup, type PolyGroupMember,
   MM_PER_HP, PANEL_HEIGHT_MM,
 } from './types';
 
 const PX_PER_MM = 2.2;
+
+// Palette voor voice-groups (cycled in volgorde van aanmaken).
+const POLY_COLORS = [
+  '#22d3ee', '#a78bfa', '#fb923c', '#34d399',
+  '#f472b6', '#facc15', '#60a5fa', '#fb7185',
+];
+
+/** Build a quick lookup: moduleId → { group, voiceIndex } for the rack. */
+function buildVoiceMap(rack: Rack): Map<string, { group: PolyGroup; voiceIndex: number }> {
+  const map = new Map<string, { group: PolyGroup; voiceIndex: number }>();
+  for (const g of rack.polyGroups ?? []) {
+    g.members.forEach((m, i) => {
+      if (m.kind === 'module') map.set(m.moduleId, { group: g, voiceIndex: i });
+    });
+  }
+  return map;
+}
 
 export function RackPanel(): JSX.Element {
   const project = useModularProject();
@@ -89,6 +107,8 @@ export function RackPanel(): JSX.Element {
         <RackHeaderEditor rack={rack} />
       </div>
 
+      <VoiceGroupsPanel rack={rack} modules={project.modules} types={project.moduleTypes} />
+
       <RackGrid
         rack={rack} modules={project.modules} types={project.moduleTypes}
         activeRow={activeRow} onSelectRow={setActiveRow}
@@ -150,6 +170,7 @@ function RackGrid({ rack, modules, types, activeRow, onSelectRow }: {
 }): JSX.Element {
   const rowWidthMm = rack.hpPerRow * MM_PER_HP;
   const engineStatus = useEngineStatus();
+  const voiceMap = buildVoiceMap(rack);
 
   function duplicateSlot(slotId: string): void {
     const slot = rack.slots.find((s) => s.id === slotId);
@@ -323,6 +344,7 @@ function RackGrid({ rack, modules, types, activeRow, onSelectRow }: {
               }
               const overlap = detectOverlap(slot, slotsInRow, m, modules);
               const isSelected = selectedSlotId === slot.id;
+              const voice = voiceMap.get(m.id);
               return (
                 <div key={slot.id}
                   tabIndex={0}
@@ -368,6 +390,35 @@ function RackGrid({ rack, modules, types, activeRow, onSelectRow }: {
                   />
                   <ModulePanel module={m} types={types} pxPerMm={PX_PER_MM} showPortLabels={false}
                     controlState={engineStatus.liveControls[m.id]} />
+                  {voice && (
+                    <>
+                      {/* Kleur-ribbon onderaan = visuele tag van de voice-group. */}
+                      <div
+                        title={`${voice.group.label} — voice ${voice.voiceIndex + 1} / ${voice.group.voiceCount}`}
+                        style={{
+                          position: 'absolute', left: 0, right: 0, bottom: 0,
+                          height: 4, background: voice.group.color || '#888',
+                          zIndex: 3, pointerEvents: 'none',
+                          borderBottomLeftRadius: 2, borderBottomRightRadius: 2,
+                        }}
+                      />
+                      {/* Voice-badge linksboven (onder de drag-handle). */}
+                      <div
+                        title={`${voice.group.label} — voice ${voice.voiceIndex + 1} / ${voice.group.voiceCount}`}
+                        style={{
+                          position: 'absolute', left: 2, top: 10,
+                          padding: '1px 4px',
+                          fontSize: 9, lineHeight: 1.1, fontWeight: 600,
+                          color: '#0f172a',
+                          background: voice.group.color || '#cbd5e1',
+                          borderRadius: 2, zIndex: 3, pointerEvents: 'none',
+                        }}
+                      >
+                        V{voice.voiceIndex + 1}/{voice.group.voiceCount}
+                        {voice.voiceIndex === 0 ? ' ★' : ''}
+                      </div>
+                    </>
+                  )}
                 </div>
               );
             })}
@@ -422,6 +473,180 @@ function detectOverlap(slot: RackSlot, all: RackSlot[], mod: ModuleInstance, mod
     if (start < oEnd && end > oStart) return true;
   }
   return false;
+}
+
+// ── Voice groups (rack-level polyphony) ────────────────────────────────
+
+function VoiceGroupsPanel({ rack, modules, types }: {
+  rack: Rack; modules: ModuleInstance[]; types: ModuleType[];
+}): JSX.Element {
+  const groups = rack.polyGroups ?? [];
+
+  function update(fn: (r: Rack) => Rack): void {
+    updateProject((p) => ({ ...p, racks: p.racks.map((r) => r.id === rack.id ? fn(r) : r) }));
+  }
+  function addGroup(): void {
+    const color = POLY_COLORS[groups.length % POLY_COLORS.length];
+    const id = uid('pg');
+    update((r) => ({
+      ...r,
+      polyGroups: [
+        ...(r.polyGroups ?? []),
+        { id, label: `Group ${groups.length + 1}`, voiceCount: 0, members: [], color },
+      ],
+    }));
+  }
+  function deleteGroup(id: string): void {
+    if (!confirm('Voice group verwijderen?')) return;
+    update((r) => ({ ...r, polyGroups: (r.polyGroups ?? []).filter((g) => g.id !== id) }));
+  }
+  function updateGroup(id: string, fn: (g: PolyGroup) => PolyGroup): void {
+    update((r) => ({
+      ...r,
+      polyGroups: (r.polyGroups ?? []).map((g) => g.id === id ? fn(g) : g),
+    }));
+  }
+  function addMember(groupId: string, moduleId: string): void {
+    updateGroup(groupId, (g) => {
+      const m: PolyGroupMember = { kind: 'module', moduleId };
+      const members = [...g.members, m];
+      return { ...g, members, voiceCount: members.length };
+    });
+  }
+  function removeMember(groupId: string, idx: number): void {
+    updateGroup(groupId, (g) => {
+      const members = g.members.filter((_, i) => i !== idx);
+      return { ...g, members, voiceCount: members.length };
+    });
+  }
+  function moveMember(groupId: string, idx: number, dir: -1 | 1): void {
+    updateGroup(groupId, (g) => {
+      const j = idx + dir;
+      if (j < 0 || j >= g.members.length) return g;
+      const members = [...g.members];
+      const a = members[idx], b = members[j];
+      if (!a || !b) return g;
+      members[idx] = b;
+      members[j]   = a;
+      return { ...g, members };
+    });
+  }
+
+  // Welke modules zijn al lid van een group (in dit rack)?
+  const memberOf = new Map<string, string>();   // moduleId -> groupId
+  for (const g of groups) {
+    for (const m of g.members) {
+      if (m.kind === 'module') memberOf.set(m.moduleId, g.id);
+    }
+  }
+
+  function candidates(g: PolyGroup): ModuleInstance[] {
+    const rackModuleIds = new Set(rack.slots.map((s) => s.moduleId));
+    const first = g.members[0];
+    const anchorTypeId = first && first.kind === 'module'
+      ? modules.find((m) => m.id === first.moduleId)?.typeId
+      : undefined;
+    return modules.filter((m) =>
+      rackModuleIds.has(m.id) &&
+      !memberOf.has(m.id) &&
+      (anchorTypeId ? m.typeId === anchorTypeId : true),
+    );
+  }
+
+  if (groups.length === 0) {
+    return (
+      <div style={{ margin: '6px 0 8px', fontSize: 12, color: '#9ca3af', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <button onClick={addGroup} style={{ fontSize: 12 }}>+ Voice group</button>
+        <span>Bundel N modules van hetzelfde type tot één polyfone stack (de eerste = master).</span>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ margin: '6px 0 8px', padding: 8, background: '#1e293b', borderRadius: 4, fontSize: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <strong style={{ color: '#e2e8f0' }}>Voice groups</strong>
+        <span style={{ color: '#64748b', fontSize: 11 }}>({groups.length})</span>
+        <button onClick={addGroup} style={{ fontSize: 12 }}>+ Group</button>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {groups.map((g) => {
+          const first = g.members[0];
+          const anchor = first && first.kind === 'module'
+            ? modules.find((m) => m.id === first.moduleId)
+            : undefined;
+          const anchorType = anchor ? types.find((t) => t.id === anchor.typeId) : undefined;
+          const cand = candidates(g);
+          return (
+            <div key={g.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: 6, background: '#0f172a', borderRadius: 3 }}>
+              <span style={{
+                width: 14, height: 14, borderRadius: 3,
+                background: g.color || '#888', flexShrink: 0, marginTop: 3,
+                border: '1px solid rgba(255,255,255,0.1)',
+              }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
+                  <input value={g.label}
+                         onChange={(e) => updateGroup(g.id, (gg) => ({ ...gg, label: e.target.value }))}
+                         style={{ fontSize: 12, width: 140 }} />
+                  <span style={{ color: '#9ca3af', fontSize: 11 }}>
+                    {g.voiceCount} {g.voiceCount === 1 ? 'voice' : 'voices'}
+                    {anchorType ? ` · ${anchorType.variant}` : ' · (no anchor yet)'}
+                  </span>
+                  <span style={{ flex: 1 }} />
+                  <button onClick={() => deleteGroup(g.id)} style={{ fontSize: 11, color: '#fca5a5' }}>× Delete</button>
+                </div>
+                {g.members.length === 0 && (
+                  <div style={{ color: '#fbbf24', fontSize: 11, marginBottom: 4 }}>
+                    Lege group — voeg een module toe (de eerste wordt de master en bepaalt het type).
+                  </div>
+                )}
+                {g.members.length > 0 && (
+                  <ol style={{ margin: 0, padding: '0 0 0 20px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {g.members.map((mem, i) => {
+                      const mm = mem.kind === 'module' ? modules.find((m) => m.id === mem.moduleId) : undefined;
+                      const label = mm ? `${mm.name}${i === 0 ? '  ★ master' : ''}` : '(missing)';
+                      return (
+                        <li key={i} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <span style={{ flex: 1, color: '#e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            V{i + 1}: {label}
+                          </span>
+                          <button onClick={() => moveMember(g.id, i, -1)} disabled={i === 0}
+                                  style={{ fontSize: 10 }} title="Voice-index omhoog">↑</button>
+                          <button onClick={() => moveMember(g.id, i, 1)} disabled={i === g.members.length - 1}
+                                  style={{ fontSize: 10 }} title="Voice-index omlaag">↓</button>
+                          <button onClick={() => removeMember(g.id, i)}
+                                  style={{ fontSize: 10, color: '#fca5a5' }} title="Uit group halen">×</button>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                )}
+                {cand.length > 0 ? (
+                  <div style={{ marginTop: 4 }}>
+                    <select defaultValue="" onChange={(e) => {
+                      const v = e.target.value;
+                      e.currentTarget.value = '';
+                      if (v) addMember(g.id, v);
+                    }} style={{ fontSize: 11 }}>
+                      <option value="">+ Add voice…</option>
+                      {cand.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                    </select>
+                  </div>
+                ) : (
+                  g.members.length > 0 && (
+                    <div style={{ color: '#6b7280', fontSize: 11, marginTop: 2 }}>
+                      Geen vrije modules van type {anchorType?.variant ?? '?'} meer in dit rack.
+                    </div>
+                  )
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 // ── Sidebar: modules-niet-in-rack + plaats-knop ────────────────────────

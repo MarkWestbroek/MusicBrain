@@ -59,6 +59,19 @@ export interface Port {
   /** in = jack accepts a signal; out = jack drives one. */
   direction: 'in' | 'out';
   range?: CvRange;
+  /**
+   *  Polyphony metadata (sketch §3.2). Only event-source outputs need
+   *  this flag; for every other port the poly/single status is derived
+   *  from cell/group membership at expansion time.
+   *    'voice'  — produced once per voice (note-on, velocity, per-note CC).
+   *    'global' — not voice-derived (mod wheel, breath, master pitch-bend).
+   */
+  eventKind?: 'voice' | 'global';
+  /**
+   *  If this port belongs to a cell-group on a multi-module, the id of
+   *  that group (see `ModuleType.cellGroups`). Unset = module-global port.
+   */
+  cellGroupId?: string;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -285,6 +298,46 @@ export interface ModuleCategory {
 //  ModuleType (middle layer — template)
 // ═══════════════════════════════════════════════════════════════════════
 
+/**
+ *  Polyphony role of a module (sketch §1.1 vocabulary).
+ *  Distinct from `ModuleCategory.kind`, which classifies by function
+ *  (vco / vcf / vca / …). `role` classifies by how the module participates
+ *  in polyphonic expansion.
+ */
+export type ModuleRole =
+  | 'event-source'   // converts external events to CV/gate (MIDI-in, breath …)
+  | 'normal'         // plain module, becomes poly when grouped
+  | 'multi'          // contains N cell-groups internally (dual osc, quad VCO …)
+  | 'poly-to-mono'   // collapses N voices to 1 (audio mixer, sum bus)
+  | 'mono-to-poly'   // expands 1 stream to N (chord-splitter …)
+  | 'break-in'       // aCV → dCV converter board
+  | 'break-out';     // dCV → aCV converter board
+
+/**
+ *  Multi-module support (sketch §3.1). A CellGroup is the *template* of
+ *  a repeating sub-part: a frame around the ports + controls + displays
+ *  that make up ONE instance, plus how many instances exist.
+ *  A *cell* is a single realisation, addressed as
+ *  `(moduleId, cellGroupId, cellIndex)`, and behaves like a sub-module.
+ */
+export interface CellGroup {
+  /** Stable id, unique within the ModuleType. */
+  id: string;
+  /** Human label of one cell ("Oscillator", "VCA", "CV channel"). */
+  label: string;
+  /** How many cells of this kind exist on the panel. */
+  count: number;
+  /**
+   *  Port ids that belong to ONE cell, replicated `count` times.
+   *  Convention: cell-port-id format is `<portId>_<index>` (1-based).
+   */
+  portIds: string[];
+  /** Control ids that belong to ONE cell. Empty array = shared-controls multi-module. */
+  controlIds: string[];
+  /** Optional display ids that belong to ONE cell. */
+  displayIds?: string[];
+}
+
 export interface ModuleType {
   id: string;
   categoryId: string;
@@ -293,6 +346,17 @@ export interface ModuleType {
   notes?: string;
   ports: Port[];
   controls: Control[];
+  /**
+   *  Polyphony role. Optional; missing = 'normal'. See `ModuleRole`.
+   */
+  role?: ModuleRole;
+  /**
+   *  Multi-module cell-groups. Present iff `role === 'multi'` (or one of
+   *  the break-in/break-out variants that internally repeat a function).
+   *  Ports/controls listed in any cell-group are per-cell; everything
+   *  else stays module-global.
+   */
+  cellGroups?: CellGroup[];
   /**
    * External-module simulation proxy (ADR 0009, layer 1).
    * If set, the audio engine constructs the runtime class registered
@@ -362,6 +426,35 @@ export interface Rack {
   /** 'physical' = echte Eurorack-case (HP-budget telt). 'internal' = virtuele
    *  rack voor MMB-brain modules (AHDSR/LFO/Seq/…); groeit automatisch mee. */
   kind?: 'physical' | 'internal';
+  /**
+   *  Rack-level polyphony groups (sketch §3.3). Each group marks N cells
+   *  (whole modules or cells inside a multi-module) as the voices of one
+   *  polyphonic stack. Several groups with different N values may coexist.
+   *  Empty / missing = mono rack.
+   */
+  polyGroups?: PolyGroup[];
+}
+
+/**
+ *  One member of a PolyGroup. Either a whole module (`kind:'module'`) or
+ *  one cell inside a multi-module (`kind:'cell'`).
+ */
+export type PolyGroupMember =
+  | { kind: 'module'; moduleId: string }
+  | { kind: 'cell';   moduleId: string; cellGroupId: string; cellIndex: number };
+
+/**
+ *  Rack-level polyphony group. `members[0]` is the master (voice 1);
+ *  `members[i]` is voice `i+1`. All members must be type-compatible:
+ *  same `ModuleType.id` for whole-module members, same
+ *  `(typeId, cellGroupId)` for cell members.
+ */
+export interface PolyGroup {
+  id: string;
+  label: string;          // shown on the master + cable tooltips
+  voiceCount: number;     // N ≥ 2
+  members: PolyGroupMember[];
+  color?: string;         // UI tint for cells + cables that belong to this group
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -446,6 +539,38 @@ export interface PatchConnection {
    *  kabel loopt als polyline source → bends[0] → bends[1] → ... → target.
    *  Geen audio-effect; puur cosmetisch. */
   bends?: { x: number; y: number }[];
+  /**
+   *  dCV ↔ aCV conversion (sketch §3.5). Present when the cable crosses
+   *  the internal/external boundary. References the BI/BO cell-group that
+   *  carries the conversion. For poly cables: `polyGroupId` defines the
+   *  per-voice cell mapping. For single (global) cables: `cellIndex`
+   *  picks the one cell to drive.
+   */
+  conversion?: {
+    breakoutModuleId: string;
+    cellGroupId: string;
+    polyGroupId?: string;
+    cellIndex?: number;
+  };
+}
+
+/**
+ *  Patch-local override of a rack-level PolyGroup (sketch §3.4). Lets a
+ *  patch repartition an N=8 rack group into 2× N=4, ungroup it entirely,
+ *  or mark it as a unison view — without touching the rack definition.
+ */
+export interface PatchPolyOverride {
+  /** Which rack-level PolyGroup we're modifying. */
+  rackPolyGroupId: string;
+  /**
+   *  Replacement partitioning. Empty array = ungroup completely (every
+   *  cell becomes single). Each entry produces one patch-local poly-group;
+   *  `memberIndices` references indices into the original group's members.
+   */
+  partition: { label: string; voiceCount: number; memberIndices: number[] }[];
+  /** Unison view: all sub-groups driven by the same signal but with
+   *  independent controls. Defer the wiring detail to v1.5. */
+  unison?: boolean;
 }
 
 export interface Patch {
@@ -461,6 +586,8 @@ export interface Patch {
   controlState: Record<string, Record<string, ControlValue>>;
   envelopes: EnvelopeInstance[];
   lfos: LfoInstance[];
+  /** Patch-local repartitioning of rack PolyGroups (sketch §3.4). */
+  polyOverrides?: PatchPolyOverride[];
 }
 
 // ═══════════════════════════════════════════════════════════════════════

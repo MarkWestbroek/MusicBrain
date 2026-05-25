@@ -8,6 +8,7 @@ add_executable(core_tests
     test_switcherrouter.cpp
     test_ahdsr.cpp
     test_lfo.cpp
+    test_midiin.cpp
     test_cvbreakout.cpp
     test_main.cpp
 )

@@ -15,6 +15,7 @@
 import {
   type ModularProject, type ModuleType, type ModuleInstance, type RackSlot,
   type Rack, type Patch, type PatchConnection, type ControlValue,
+  type ModuleRole, type CellGroup,
   MM_PER_HP, PANEL_HEIGHT_MM,
 } from './types';
 import { uid } from './store';
@@ -38,11 +39,26 @@ function knob(id: string, label: string, x: number, y: number,
     placement: { x, y },
   };
 }
-function inPort(id: string, name: string, signal: 'cv'|'gate'|'trigger'|'audio'|'midi', x: number, y: number) {
-  return { port: { id, name, signalType: signal, direction: 'in' as const }, placement: { x, y, labelPos: 'below' as const } };
+function inPort(id: string, name: string, signal: 'cv'|'gate'|'trigger'|'audio'|'midi', x: number, y: number,
+                opts: Partial<{ cellGroupId: string }> = {}) {
+  return {
+    port: {
+      id, name, signalType: signal, direction: 'in' as const,
+      ...(opts.cellGroupId ? { cellGroupId: opts.cellGroupId } : {}),
+    },
+    placement: { x, y, labelPos: 'below' as const },
+  };
 }
-function outPort(id: string, name: string, signal: 'cv'|'gate'|'trigger'|'audio'|'midi', x: number, y: number) {
-  return { port: { id, name, signalType: signal, direction: 'out' as const }, placement: { x, y, labelPos: 'below' as const } };
+function outPort(id: string, name: string, signal: 'cv'|'gate'|'trigger'|'audio'|'midi', x: number, y: number,
+                 opts: Partial<{ eventKind: 'voice' | 'global'; cellGroupId: string }> = {}) {
+  return {
+    port: {
+      id, name, signalType: signal, direction: 'out' as const,
+      ...(opts.eventKind ? { eventKind: opts.eventKind } : {}),
+      ...(opts.cellGroupId ? { cellGroupId: opts.cellGroupId } : {}),
+    },
+    placement: { x, y, labelPos: 'below' as const },
+  };
 }
 function toggle(id: string, label: string, x: number, y: number, def = false) {
   return { control: { kind: 'toggle' as const, id, label, defaultValue: def }, placement: { x, y } };
@@ -118,6 +134,8 @@ function assemble(spec: {
   internal?: boolean;
   simulatedBy?: string;
   simulationControlMap?: Record<string, string>;
+  role?: ModuleRole;
+  cellGroups?: CellGroup[];
 }): { type: ModuleType; module: ModuleInstance } {
   const controls = spec.items.filter((s): s is Extract<Spec, { control: unknown }> => 'control' in s).map((s) => s.control);
   const ports    = spec.items.filter((s): s is Extract<Spec, { port: unknown }>    => 'port'    in s).map((s) => s.port);
@@ -135,6 +153,8 @@ function assemble(spec: {
     notes: spec.notes,
     ...(spec.simulatedBy ? { simulatedBy: spec.simulatedBy } : {}),
     ...(spec.simulationControlMap ? { simulationControlMap: spec.simulationControlMap } : {}),
+    ...(spec.role ? { role: spec.role } : {}),
+    ...(spec.cellGroups ? { cellGroups: spec.cellGroups } : {}),
   };
   const module: ModuleInstance = {
     id: uid('mod'),
@@ -710,6 +730,59 @@ function mmbVco() {
   });
 }
 
+// 4b. MMB Quad-VCO-Shared — 16 HP. Multi-module: 4 identical oscillator
+//     cells sharing ONE set of controls (wave/coarse/fine/level). The
+//     canonical "shared-controls multi-module" referenced in the polyphony
+//     sketch (CellGroup with controlIds: []). Useful as a fan-out target
+//     for an N=4 voice group: one v/oct in and one audio out per cell.
+function mmbQuadVcoShared() {
+  const w = W(16);
+  const colX = (i: number) => w * (0.125 + i * 0.25);          // cell centres
+  return assemble({
+    typeId: 'tp_mmb_quad_vco_shared',
+    categoryId: 'vco',
+    variant: 'Quad VCO (shared controls)',
+    brand: 'MMB', model: 'QUAD-VCO-S',
+    hp: 16, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    role: 'multi',
+    cellGroups: [{
+      id: 'osc',
+      label: 'Oscillator',
+      count: 4,
+      portIds: ['voct', 'out'],
+      controlIds: [],   // shared-controls multi-module
+    }],
+    texts: [
+      { x: w/2, y: 8,   text: 'QUAD-VCO-S',  fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: 'shared controls · 4 cells', fontSize: 1.2, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB',         fontSize: 1.8, color: '#f9fafb', align: 'middle' },
+      { x: colX(0), y: 78, text: '1', fontSize: 1.6, color: '#9ca3af', align: 'middle' },
+      { x: colX(1), y: 78, text: '2', fontSize: 1.6, color: '#9ca3af', align: 'middle' },
+      { x: colX(2), y: 78, text: '3', fontSize: 1.6, color: '#9ca3af', align: 'middle' },
+      { x: colX(3), y: 78, text: '4', fontSize: 1.6, color: '#9ca3af', align: 'middle' },
+    ],
+    items: [
+      // Shared (module-global) controls — apply to ALL 4 cells.
+      sw  ('wave',   'Wave',   w*0.20, 28, ['Sin','Tri','Saw','Sqr'], 2),
+      knob('coarse', 'Coarse', w*0.45, 32, { size: 'large',  min: -36, max: 36, def: 0,  unit: 'semi', color: '#f9fafb' }),
+      knob('fine',   'Fine',   w*0.65, 32, { size: 'medium', min: -100, max: 100, def: 0, unit: 'ct',  color: '#f9fafb' }),
+      knob('level',  'Level',  w*0.85, 32, { size: 'medium', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+
+      // Per-cell ports — 4× v/oct in (top row) + 4× audio out (bottom row).
+      // ids carry the 1-based cell index; cellGroupId binds them to 'osc'.
+      inPort ('voct_1', 'V/Oct', 'cv',    colX(0), 92, { cellGroupId: 'osc' }),
+      inPort ('voct_2', 'V/Oct', 'cv',    colX(1), 92, { cellGroupId: 'osc' }),
+      inPort ('voct_3', 'V/Oct', 'cv',    colX(2), 92, { cellGroupId: 'osc' }),
+      inPort ('voct_4', 'V/Oct', 'cv',    colX(3), 92, { cellGroupId: 'osc' }),
+      outPort('out_1',  'Out',   'audio', colX(0), 116, { cellGroupId: 'osc' }),
+      outPort('out_2',  'Out',   'audio', colX(1), 116, { cellGroupId: 'osc' }),
+      outPort('out_3',  'Out',   'audio', colX(2), 116, { cellGroupId: 'osc' }),
+      outPort('out_4',  'Out',   'audio', colX(3), 116, { cellGroupId: 'osc' }),
+    ],
+    notes: 'Multi-module met 4 identieke oscillator-cellen die ALLE dezelfde control-set delen (wave/coarse/fine/level). Eén v/oct-in en één audio-out per cel. Canonisch voorbeeld van een shared-controls multi-module (CellGroup met controlIds: []). Hardware bestaat nog niet — eerst alleen in simulator gebruiken.',
+  });
+}
+
 // 5. MMB VCF — 6 HP. Cutoff/Q/type-switch, audio-in, cv-cutoff-in, audio-out.
 function mmbVcf() {
   const w = W(6);
@@ -796,6 +869,7 @@ function mmbMidiIn() {
     variant: 'MIDI-to-CV breakout',
     brand: 'MMB', model: 'MIDI-IN',
     hp: 6, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    role: 'event-source',
     texts: [
       { x: w/2, y: 8,   text: 'MIDI-IN', fontSize: 2.2, color: '#f9fafb', align: 'middle' },
       { x: w/2, y: 14,  text: 'mono · last-note', fontSize: 1.2, color: '#9ca3af', align: 'middle' },
@@ -809,8 +883,8 @@ function mmbMidiIn() {
       // Activity-LED: licht op zodra de simulator een MIDI-bron stuurt (later
       // koppelbaar aan engine-state; nu altijd "klaar").
       led('act', w*0.70, 60, { label: 'Act', color: '#22c55e', size: 'medium' }),
-      outPort('pitch', 'V/Oct', 'cv',   w*0.30, 95),
-      outPort('gate',  'Gate',  'gate', w*0.70, 95),
+      outPort('pitch', 'V/Oct', 'cv',   w*0.30, 95, { eventKind: 'voice' }),
+      outPort('gate',  'Gate',  'gate', w*0.70, 95, { eventKind: 'voice' }),
     ],
     notes: 'Zet inkomende MIDI-noten (USB / screen-keyboard / test-sequence) om in CV (V/Oct) en Gate. De MIDI-bron kies je in het Simulatie-paneel; deze module heeft géén MIDI-poort op de front (er bestaat geen "MIDI-in jack" in modulair-land — alles loopt via de brain). Sluit pitch op een VCO\u2019s voct aan en gate op een envelope.',
   });
@@ -967,7 +1041,7 @@ function mmbPhaser() {
 
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbVcf(), mmbVca(), mmbOut(), mmbMidiIn(), mmbSeq8(), mmbNoise(), mmbEcho(), mmbPhaser()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbVcf(), mmbVca(), mmbOut(), mmbMidiIn(), mmbSeq8(), mmbNoise(), mmbEcho(), mmbPhaser()];
   const newTypes = all.map((x) => x.type);
   const newModules = all.map((x) => x.module);
 
