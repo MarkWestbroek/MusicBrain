@@ -25,7 +25,7 @@ import { ModulePanel } from './ModulePanel';
 import { useEngineStatus } from './sim/engineSingleton';
 import {
   type ModuleInstance, type ModuleType, type Port, type PatchConnection,
-  type ControlValue, type RackSlot,
+  type ControlValue, type RackSlot, type PolyGroup, type PatchPolyOverride,
   canConnect, resolvePorts,
   SIGNAL_COLOUR, SIGNAL_LABEL,
   MM_PER_HP, PANEL_HEIGHT_MM,
@@ -40,10 +40,16 @@ interface ModuleNodeData {
   types: ModuleType[];
   controlState: Record<string, ControlValue>;
   patchId: string;
+  /** When this module is part of a PolyGroup: which group + voice-index.
+   *  voiceIndex 0 = master, ≥1 = ghost follower (only present when the
+   *  group is expanded in the patcher). */
+  voice?: { group: PolyGroup; voiceIndex: number };
+  /** True when rendered as a ghost (follower of an expanded group). */
+  ghost?: boolean;
 }
 
 function ModuleNode({ data, selected }: NodeProps): JSX.Element {
-  const { module: m, types, controlState, patchId } = data as unknown as ModuleNodeData;
+  const { module: m, types, controlState, patchId, voice, ghost } = data as unknown as ModuleNodeData;
   // Live-status (step-LEDs etc.) wordt hier lokaal gemerged zodat een
   // engineStatus-tick niet de hele graph laat re-builden — alleen deze
   // node re-rendert.
@@ -73,12 +79,15 @@ function ModuleNode({ data, selected }: NodeProps): JSX.Element {
       className="nopan nowheel"
       style={{
         position: 'relative', background: '#0f172a', borderRadius: 4,
-        outline: 'none',
-        outlineOffset: 0,
+        outline: voice && !ghost ? `2px solid ${voice.group.color || '#22d3ee'}` : 'none',
+        outlineOffset: -2,
+        opacity: ghost ? 0.42 : 1,
+        filter: ghost ? 'grayscale(0.45)' : undefined,
         boxShadow: selected
           ? 'inset 0 0 0 2px #fbbf24, inset 0 0 12px rgba(251,191,36,0.35)'
-          : undefined,
+          : (voice && !ghost ? `0 0 14px ${voice.group.color || '#22d3ee'}55` : undefined),
         transition: 'box-shadow 120ms',
+        pointerEvents: ghost ? 'none' : undefined,
       }}
     >
       <ModulePanel
@@ -88,6 +97,20 @@ function ModuleNode({ data, selected }: NodeProps): JSX.Element {
         pxPerMm={PX_PER_MM}
         showPortLabels={true}
       />
+      {voice && (
+        <div style={{
+          position: 'absolute', top: 2, left: 2, zIndex: 5,
+          fontSize: 11, fontWeight: 600, color: '#0f172a',
+          background: voice.group.color || '#22d3ee',
+          padding: '1px 6px', borderRadius: 3,
+          boxShadow: '0 1px 2px rgba(0,0,0,0.4)',
+          pointerEvents: 'none',
+        }}>
+          {ghost
+            ? `${voice.voiceIndex + 1}/${voice.group.voiceCount}`
+            : `× ${voice.group.voiceCount} · ${voice.group.label}`}
+        </div>
+      )}
       {/* Handles — positioned on top of each port using the panel's port
           placements so ReactFlow can draw cables from the actual jacks. */}
       {ports.map((p) => {
@@ -101,17 +124,17 @@ function ModuleNode({ data, selected }: NodeProps): JSX.Element {
             id={p.id}
             type={p.direction === 'in' ? 'target' : 'source'}
             position={p.direction === 'in' ? Position.Left : Position.Right}
-            isConnectable={true}
+            isConnectable={!ghost}
             style={{
               left, top,
               transform: 'translate(-50%, -50%)',
               width: 12, height: 12,
               background: SIGNAL_COLOUR[p.signalType],
               border: '1.5px solid rgba(0,0,0,0.55)',
-              borderRadius: '50%',
-              opacity: 0.95,
+              borderRadius: ghost ? 2 : '50%',
+              opacity: ghost ? 0.55 : 0.95,
               boxShadow: '0 0 0 1px rgba(255,255,255,0.35) inset',
-              pointerEvents: 'all',
+              pointerEvents: ghost ? 'none' : 'all',
             }}
           />
         );
@@ -334,62 +357,129 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
     return out;
   }, [patchRacks, project.modules]);
 
+  // ── Polyphony view-state (A4-full) ───────────────────────────────────
+  // For each module: which PolyGroup it belongs to + voice-index. Built
+  // once across all racks visible in this patch.
+  const voiceMap = useMemo(() => {
+    const map = new Map<string, { group: PolyGroup; voiceIndex: number }>();
+    for (const r of patchRacks) {
+      for (const g of r.polyGroups ?? []) {
+        g.members.forEach((mem, idx) => {
+          if (mem.kind === 'module') map.set(mem.moduleId, { group: g, voiceIndex: idx });
+        });
+      }
+    }
+    return map;
+  }, [patchRacks]);
+  const allGroups = useMemo(() => {
+    const gs: PolyGroup[] = [];
+    for (const r of patchRacks) for (const g of r.polyGroups ?? []) gs.push(g);
+    return gs;
+  }, [patchRacks]);
+
+  // Expand/collapse per group. Default = all collapsed (only masters shown).
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const toggleExpand = (gid: string): void => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(gid)) next.delete(gid); else next.add(gid);
+      return next;
+    });
+  };
+
+  // Real-but-hidden followers are kept as ghost nodes only when their
+  // group is expanded. Masters are always rendered. Non-grouped modules
+  // are always rendered.
+  const visibleModules = useMemo(() =>
+    placedModules.filter(({ module: m }) => {
+      const v = voiceMap.get(m.id);
+      if (!v) return true;                             // not in a group
+      if (v.voiceIndex === 0) return true;             // master → always
+      return expandedGroups.has(v.group.id);           // follower → only if expanded
+    }),
+  [placedModules, voiceMap, expandedGroups]);
+
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
   const nodes: Node[] = useMemo(
-    () => placedModules.map(({ slot, module: m, rackId }) => ({
-      id: m.id,
-      type: 'module',
-      position: {
-        x: slot.hpOffset * MM_PER_HP * PX_PER_MM,
-        y: ((rackYOffsetMm.get(rackId) ?? 0)
-            + slot.row * (PANEL_HEIGHT_MM + 6)) * PX_PER_MM,
-      },
-      data: {
-        module: m,
-        types: project.moduleTypes,
-        controlState: patch.controlState[m.id] ?? {},
-        patchId,
-      },
-      selected: m.id === selectedNodeId,
-      // Lock dragging — position derives from rack.
-      draggable: false,
-    })),
-    [placedModules, rackYOffsetMm, project.moduleTypes, patch.controlState, patchId, selectedNodeId],
+    () => visibleModules.map(({ slot, module: m, rackId }) => {
+      const voice = voiceMap.get(m.id);
+      const ghost = !!(voice && voice.voiceIndex > 0);
+      return {
+        id: m.id,
+        type: 'module',
+        position: {
+          x: slot.hpOffset * MM_PER_HP * PX_PER_MM,
+          y: ((rackYOffsetMm.get(rackId) ?? 0)
+              + slot.row * (PANEL_HEIGHT_MM + 6)) * PX_PER_MM,
+        },
+        data: {
+          module: m,
+          types: project.moduleTypes,
+          controlState: patch.controlState[m.id] ?? {},
+          patchId,
+          voice,
+          ghost,
+        },
+        selected: m.id === selectedNodeId,
+        // Lock dragging — position derives from rack.
+        draggable: false,
+        selectable: !ghost,
+      };
+    }),
+    [visibleModules, rackYOffsetMm, project.moduleTypes, patch.controlState, patchId, selectedNodeId, voiceMap],
   );
 
   const edges: Edge[] = useMemo(
-    () => patch.connections.map((c) => {
+    () => patch.connections.flatMap((c) => {
       const srcMod  = project.modules.find((m) => m.id === c.from.moduleId);
       const srcPort = srcMod && resolvePorts(srcMod, project.moduleTypes)
         .find((p) => p.id === c.from.portId);
       const colour = srcPort ? SIGNAL_COLOUR[srcPort.signalType] : '#475569';
       const isSel = c.id === selectedEdgeId;
-      return {
+      // Hide cables touching a hidden follower (collapsed group).
+      const srcV = voiceMap.get(c.from.moduleId);
+      const dstV = voiceMap.get(c.to.moduleId);
+      const srcHidden = !!(srcV && srcV.voiceIndex > 0 && !expandedGroups.has(srcV.group.id));
+      const dstHidden = !!(dstV && dstV.voiceIndex > 0 && !expandedGroups.has(dstV.group.id));
+      if (srcHidden || dstHidden) return [];
+      // Poly-cable detection: both endpoints are masters in (the same) group,
+      // OR one is a master — then this cable visually carries N voices.
+      const polyGroup = srcV && srcV.voiceIndex === 0 ? srcV.group
+                       : dstV && dstV.voiceIndex === 0 ? dstV.group
+                       : null;
+      const tintColour = polyGroup ? (polyGroup.color || colour) : colour;
+      const stroke = polyGroup ? Math.max(isSel ? 7 : 5, 5) : (isSel ? 6 : 3);
+      return [{
         id: c.id,
         source: c.from.moduleId, sourceHandle: c.from.portId,
         target: c.to.moduleId,   targetHandle: c.to.portId,
         type: 'bendable',
         data: { bends: c.bends ?? [], patchId, connectionId: c.id },
         selected: isSel,
-        // zIndex tilt edges above the node-panel (default they render below)
         zIndex: isSel ? 1500 : 1000,
-        // brede onzichtbare hit-strip zodat de kabel makkelijker te klikken is
         interactionWidth: 24,
-        // re-attach door uiteinde te slepen
         reconnectable: true,
+        label: polyGroup ? `×${polyGroup.voiceCount}` : undefined,
+        labelStyle: polyGroup ? { fill: '#0f172a', fontWeight: 700, fontSize: 11 } : undefined,
+        labelBgStyle: polyGroup ? { fill: tintColour } : undefined,
+        labelBgPadding: [4, 2] as [number, number],
+        labelBgBorderRadius: 3,
         style: {
-          stroke: colour,
-          strokeWidth: isSel ? 6 : 3,
+          stroke: tintColour,
+          strokeWidth: stroke,
           strokeLinecap: 'round',
+          strokeDasharray: polyGroup ? '0' : undefined,
           filter: isSel
-            ? `drop-shadow(0 0 6px ${colour})`
-            : 'drop-shadow(0 1px 1.5px rgba(0,0,0,0.55))',
+            ? `drop-shadow(0 0 6px ${tintColour})`
+            : (polyGroup
+                ? `drop-shadow(0 0 4px ${tintColour}88)`
+                : 'drop-shadow(0 1px 1.5px rgba(0,0,0,0.55))'),
         },
-      } as Edge;
+      } as Edge];
     }),
-    [patch.connections, project.modules, project.moduleTypes, selectedEdgeId],
+    [patch.connections, project.modules, project.moduleTypes, selectedEdgeId, voiceMap, expandedGroups, patchId],
   );
 
   const onNodesChange = useCallback((changes: NodeChange[]) => {
@@ -547,6 +637,35 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
           height: 620, border: '1px solid #cbd2d9', borderRadius: 6,
           background: '#0f172a', userSelect: 'none', outline: 'none',
         }}>
+        {allGroups.length > 0 && (
+          <div style={{
+            position: 'absolute', zIndex: 20,
+            display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap',
+            fontSize: 11, color: '#e2e8f0', padding: 6,
+          }}>
+            <strong style={{ color: '#cbd5e1', fontSize: 11 }}>Voice groups:</strong>
+            {allGroups.map((g) => {
+              const isOpen = expandedGroups.has(g.id);
+              return (
+                <button key={g.id}
+                        onClick={() => toggleExpand(g.id)}
+                        title={isOpen ? 'Inklappen (alleen master tonen)' : 'Uitklappen (ghost voices tonen)'}
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 4,
+                          padding: '2px 8px', fontSize: 11,
+                          background: isOpen ? '#1e293b' : '#0f172a',
+                          color: '#e2e8f0',
+                          border: `1px solid ${g.color || '#64748b'}`,
+                          borderRadius: 10, cursor: 'pointer',
+                        }}>
+                  <span>{isOpen ? '▼' : '▶'}</span>
+                  <span style={{ width: 8, height: 8, borderRadius: 4, background: g.color || '#888' }} />
+                  {g.label} <span style={{ color: '#94a3b8' }}>× {g.voiceCount}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -576,6 +695,9 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
           patchId={patchId}
           selectedNodeId={selectedNodeId}
         />
+        {allGroups.length > 0 && (
+          <PolyOverridesPanel patchId={patchId} allGroups={allGroups} />
+        )}
         <Legend />
       </div>
     </div>
@@ -708,6 +830,220 @@ function PropertiesPanel(props: { patchId: string; selectedNodeId: string | null
     </aside>
   );
 }
+
+// ── A5: PatchPolyOverride panel ────────────────────────────────────────
+//
+// Lets a patch repartition a rack-level PolyGroup without touching the
+// rack definition. The override's `partition` array describes how the
+// group's N member-indices are split into one or more patch-local
+// sub-groups. Empty array = ungroup completely (every cell becomes
+// single). One entry covering all indices = no-op (= rack default).
+
+function PolyOverridesPanel({ patchId, allGroups }: {
+  patchId: string; allGroups: PolyGroup[];
+}): JSX.Element {
+  const project = useModularProject();
+  const patch = project.patches.find((p) => p.id === patchId);
+  const overrides = patch?.polyOverrides ?? [];
+
+  function update(fn: (overs: PatchPolyOverride[]) => PatchPolyOverride[]): void {
+    updateProject((p) => ({
+      ...p,
+      patches: p.patches.map((px) => px.id !== patchId
+        ? px : { ...px, polyOverrides: fn(px.polyOverrides ?? []) }),
+    }));
+  }
+  function addOverride(gid: string): void {
+    const g = allGroups.find((x) => x.id === gid);
+    if (!g) return;
+    update((overs) => [...overs, {
+      rackPolyGroupId: gid,
+      partition: [{
+        label: g.label,
+        voiceCount: g.voiceCount,
+        memberIndices: g.members.map((_, i) => i),
+      }],
+    }]);
+  }
+  function removeOverride(gid: string): void {
+    update((overs) => overs.filter((o) => o.rackPolyGroupId !== gid));
+  }
+  function setPartition(gid: string, partition: PatchPolyOverride['partition']): void {
+    update((overs) => overs.map((o) => o.rackPolyGroupId !== gid ? o : ({ ...o, partition })));
+  }
+  function toggleUnison(gid: string): void {
+    update((overs) => overs.map((o) => o.rackPolyGroupId !== gid ? o : ({ ...o, unison: !o.unison })));
+  }
+
+  const available = allGroups.filter((g) => !overrides.some((o) => o.rackPolyGroupId === g.id));
+
+  return (
+    <aside style={{
+      border: '1px solid #cbd2d9', borderRadius: 6, padding: 10, background: 'white',
+    }}>
+      <h3 style={{ marginTop: 0, marginBottom: 6, fontSize: 12, textTransform: 'uppercase', color: '#374151' }}>
+        Voice-overrides
+      </h3>
+      {overrides.length === 0 && (
+        <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 6 }}>
+          Patch gebruikt de rack-defaults. Voeg een override toe om een rack-group
+          patch-lokaal anders op te delen (bijv. N=8 → 2× N=4 of ungroup naar 8× mono).
+        </div>
+      )}
+      {overrides.map((o) => {
+        const g = allGroups.find((x) => x.id === o.rackPolyGroupId);
+        if (!g) {
+          return (
+            <div key={o.rackPolyGroupId} style={{ fontSize: 11, color: '#dc2626', marginBottom: 6 }}>
+              Onbekende rack-group {o.rackPolyGroupId}
+              <button onClick={() => removeOverride(o.rackPolyGroupId)} style={{ marginLeft: 6 }}>×</button>
+            </div>
+          );
+        }
+        return (
+          <OverrideEditor key={o.rackPolyGroupId} group={g} override={o}
+                          onChangePartition={(p) => setPartition(o.rackPolyGroupId, p)}
+                          onToggleUnison={() => toggleUnison(o.rackPolyGroupId)}
+                          onRemove={() => removeOverride(o.rackPolyGroupId)} />
+        );
+      })}
+      {available.length > 0 && (
+        <div style={{ marginTop: 6 }}>
+          <select defaultValue="" onChange={(e) => {
+            const v = e.target.value;
+            e.currentTarget.value = '';
+            if (v) addOverride(v);
+          }} style={{ fontSize: 11 }}>
+            <option value="">+ Override toevoegen…</option>
+            {available.map((g) => <option key={g.id} value={g.id}>{g.label} (N={g.voiceCount})</option>)}
+          </select>
+        </div>
+      )}
+    </aside>
+  );
+}
+
+function OverrideEditor({ group, override, onChangePartition, onToggleUnison, onRemove }: {
+  group: PolyGroup;
+  override: PatchPolyOverride;
+  onChangePartition: (p: PatchPolyOverride['partition']) => void;
+  onToggleUnison: () => void;
+  onRemove: () => void;
+}): JSX.Element {
+  const N = group.voiceCount;
+  // For each member-index 0..N-1: which partition row does it belong to?
+  // -1 means "ungrouped" (not in any sub-group). Initial mapping derives
+  // from the override's partition array.
+  const ownerOf = new Array<number>(N).fill(-1);
+  override.partition.forEach((p, partIdx) => {
+    for (const mi of p.memberIndices) if (mi >= 0 && mi < N) ownerOf[mi] = partIdx;
+  });
+
+  function setOwner(mi: number, partIdx: number): void {
+    // Recompute partition from updated ownerOf.
+    const owners = [...ownerOf];
+    owners[mi] = partIdx;
+    rebuildFrom(owners);
+  }
+  function rebuildFrom(owners: number[]): void {
+    // Group cells by current ownership; preserve existing partition labels
+    // where possible (matched by partIdx position).
+    const buckets = new Map<number, number[]>();
+    owners.forEach((own, mi) => {
+      if (own < 0) return;
+      const arr = buckets.get(own) ?? [];
+      arr.push(mi);
+      buckets.set(own, arr);
+    });
+    const newParts: PatchPolyOverride['partition'] = [];
+    const sorted = [...buckets.entries()].sort(([a], [b]) => a - b);
+    for (const [oldIdx, indices] of sorted) {
+      const oldLabel = override.partition[oldIdx]?.label ?? `${group.label} ${newParts.length + 1}`;
+      newParts.push({
+        label: oldLabel,
+        voiceCount: indices.length,
+        memberIndices: indices,
+      });
+    }
+    onChangePartition(newParts);
+  }
+  function addPartition(): void {
+    // Create a new empty partition row; user assigns cells to it via the
+    // per-cell dropdowns.
+    onChangePartition([
+      ...override.partition,
+      { label: `${group.label} ${override.partition.length + 1}`, voiceCount: 0, memberIndices: [] },
+    ]);
+  }
+  function renamePartition(idx: number, label: string): void {
+    onChangePartition(override.partition.map((p, i) => i === idx ? { ...p, label } : p));
+  }
+
+  return (
+    <div style={{
+      border: `1px solid ${group.color || '#cbd2d9'}`, borderRadius: 4,
+      padding: 6, marginBottom: 6, fontSize: 11, background: '#f9fafb',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+        <span style={{
+          width: 10, height: 10, borderRadius: 2, flexShrink: 0,
+          background: group.color || '#888',
+        }} />
+        <strong style={{ flex: 1 }}>{group.label} · N={N}</strong>
+        <label style={{ fontSize: 10, color: '#4b5563' }}>
+          <input type="checkbox" checked={!!override.unison} onChange={onToggleUnison}
+                 style={{ verticalAlign: 'middle', marginRight: 2 }} />
+          unison
+        </label>
+        <button onClick={onRemove} style={{ fontSize: 10, color: '#b91c1c' }}>× Reset</button>
+      </div>
+
+      <div style={{ marginBottom: 4 }}>
+        {override.partition.length === 0
+          ? <span style={{ color: '#9ca3af' }}>Ungrouped (elk cell wordt mono).</span>
+          : override.partition.map((p, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
+                <input value={p.label}
+                       onChange={(e) => renamePartition(i, e.target.value)}
+                       style={{ fontSize: 11, flex: 1, minWidth: 0, padding: '1px 4px' }} />
+                <span style={{ color: '#6b7280' }}>{p.voiceCount} v</span>
+              </div>
+          ))}
+        <button onClick={addPartition} style={{ fontSize: 10, marginTop: 2 }}>+ sub-group</button>
+      </div>
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+        {ownerOf.map((own, mi) => (
+          <select key={mi} value={own} onChange={(e) => setOwner(mi, Number(e.target.value))}
+                  title={`Cell ${mi + 1}`}
+                  style={{
+                    fontSize: 10, padding: '0 2px',
+                    background: own >= 0 ? '#e5e7eb' : '#fff',
+                  }}>
+            <option value={-1}>{mi + 1}: —</option>
+            {override.partition.map((p, pi) => (
+              <option key={pi} value={pi}>{mi + 1}: {p.label}</option>
+            ))}
+          </select>
+        ))}
+      </div>
+
+      {(() => {
+        // Validation: each cell must belong to exactly one partition
+        // (or none, but the "no partition" state is also a valid "ungroup
+        // this cell" expression — only flag duplicates).
+        const counts = new Map<number, number>();
+        ownerOf.forEach((own) => { if (own >= 0) counts.set(own, (counts.get(own) ?? 0) + 1); });
+        const cellsAssigned = ownerOf.filter((o) => o >= 0).length;
+        if (cellsAssigned === 0 && override.partition.length > 0) {
+          return <div style={{ color: '#b45309', marginTop: 4 }}>⚠ Geen cells toegewezen — override doet niets.</div>;
+        }
+        return null;
+      })()}
+    </div>
+  );
+}
+
 
 function Legend(): JSX.Element {
   return (

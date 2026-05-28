@@ -1,190 +1,190 @@
-﻿# Polyphony â€” Rack & Patcher UI sketches + data-model additions
+﻿# Polyphony — Rack & Patcher UI sketches + data-model additions
 
 Companion to [`global to multiple and back thoughts 01.md`](../global%20to%20multiple%20and%20back%20thoughts%2001.md) and [ADR 0010](../adr/0010-midi-in-and-polyphony.md). Started 2026-05-25.
 
-This file proposes screen layouts for the **rack panel** (where groups are defined) and the **patcher** (where the user actually wires the poly cables), plus the data-structure additions needed to back them. ASCII sketches are intentional â€” they map cleanly to the existing `RackPanel.tsx` / `PatcherGraphPanel.tsx` and can be ported to real React/SVG once we agree on shape.
+This file proposes screen layouts for the **rack panel** (where groups are defined) and the **patcher** (where the user actually wires the poly cables), plus the data-structure additions needed to back them. ASCII sketches are intentional — they map cleanly to the existing `RackPanel.tsx` / `PatcherGraphPanel.tsx` and can be ported to real React/SVG once we agree on shape.
 
 > **Vocabulary** (from `thoughts 01.md`, after the 25-may feedback round):
-> - **internal / external module** â€” "internal" lives in the brain (its CV is digital, dCV); "external" lives in the physical rack (its CV is analog, aCV). The dCV â†” aCV distinction is really *where the module sits*, not a separate signal kind.
-> - **BI / BO board** â€” the only modules that straddle the boundary. Conceptually each BI/BO cell has an *external half* (analog jack, lives in the external rack view) and a *digital half* (dCV slot, lives in the internal rack view, free).
-> - **multi-module** â€” a single physical module that internally repeats one function N times (dual osc, quad VCA, 8Ã— CV breakout).
-> - **cell-group** (template) â€” within a multi-module, the spec of ports + controls + displays that make up ONE repeated function and how many times it appears. Ports/controls outside any cell-group are *module-global*.
-> - **cell** â€” one realisation of a cell-group, addressed by `(moduleId, cellGroupId, cellIndex)`. *A cell behaves like a sub-module*: it can be selected, grouped, patched to.
-> - **poly-group** â€” a rack-level set of N cells (whole modules, or cells inside a multi-module) marked as "the N voices". `N â‰¥ 2`. Several poly-groups (different N values) may coexist in one rack.
-> - **single port** â€” a normal port carrying one signal. Default for everything.
-> - **poly-port (N=2..8)** â€” what a port becomes when its owning module/cell is part of a poly-group: it logically carries N parallel signals, one per cell in the group.
-> - **global port** â€” only meaningful on **event sources**: an output that is not derived from a voice event (e.g. mod-wheel, breath, master pitch-bend). Still a single signal; the word "global" only emphasises its origin.
+> - **internal / external module** — "internal" lives in the brain (its CV is digital, dCV); "external" lives in the physical rack (its CV is analog, aCV). The dCV ↔ aCV distinction is really *where the module sits*, not a separate signal kind.
+> - **BI / BO board** — the only modules that straddle the boundary. Conceptually each BI/BO cell has an *external half* (analog jack, lives in the external rack view) and a *digital half* (dCV slot, lives in the internal rack view, free).
+> - **multi-module** — a single physical module that internally repeats one function N times (dual osc, quad VCA, 8× CV breakout).
+> - **cell-group** (template) — within a multi-module, the spec of ports + controls + displays that make up ONE repeated function and how many times it appears. Ports/controls outside any cell-group are *module-global*.
+> - **cell** — one realisation of a cell-group, addressed by `(moduleId, cellGroupId, cellIndex)`. *A cell behaves like a sub-module*: it can be selected, grouped, patched to.
+> - **poly-group** — a rack-level set of N cells (whole modules, or cells inside a multi-module) marked as "the N voices". `N ≥ 2`. Several poly-groups (different N values) may coexist in one rack.
+> - **single port** — a normal port carrying one signal. Default for everything.
+> - **poly-port (N=2..8)** — what a port becomes when its owning module/cell is part of a poly-group: it logically carries N parallel signals, one per cell in the group.
+> - **global port** — only meaningful on **event sources**: an output that is not derived from a voice event (e.g. mod-wheel, breath, master pitch-bend). Still a single signal; the word "global" only emphasises its origin.
 >
 > **Hard signal-flow rules** (used everywhere below):
-> - `single-out â†’ single-in`  âœ“ trivial.
-> - `single-out â†’ poly-in (N)` âœ“ the signal is **duplicated** across N voices.
-> - `poly-out (N) â†’ poly-in (N)` âœ“ **voice-indexed** 1â†”1 (unless overridden).
-> - `poly-out (N) â†’ single-in` âœ— **forbidden** â€” would require collapsing N voices to 1 without rules. Use an explicit mix/sum/collapse module instead.
-> - `poly-out (N) â†’ poly-in (M)` with `N â‰  M` âœ— unless an explicit re-mapping module sits in between.
+> - `single-out → single-in`  ✓ trivial.
+> - `single-out → poly-in (N)` ✓ the signal is **duplicated** across N voices.
+> - `poly-out (N) → poly-in (N)` ✓ **voice-indexed** 1↔1 (unless overridden).
+> - `poly-out (N) → single-in` ✗ **forbidden** — would require collapsing N voices to 1 without rules. Use an explicit mix/sum/collapse module instead.
+> - `poly-out (N) → poly-in (M)` with `N ≠ M` ✗ unless an explicit re-mapping module sits in between.
 
 ---
 
-## 1. RACK layer â€” group-definition UI
+## 1. RACK layer — group-definition UI
 
 ### 1.1 Normal rack view (today)
 
 ```
-â”Œâ”€ Rack: Studio Cabinet â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ [+ Module] [Modeâ–¾] â”€â”
-â”‚                                                                                â”‚
-â”‚  Row 1  â”Œâ”€â”€â”€â”€â”€â”€â”â”Œâ”€â”€â”€â”€â”€â”€â”â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”â”Œâ”€â”€â”€â”€â”€â”€â”â”Œâ”€â”€â”€â”€â”€â”€â”               â”‚
-â”‚         â”‚ MIDI â”‚â”‚ DualOscâ”‚â”‚ QuadVCO  â”‚â”‚ QuadVCA  â”‚â”‚ ENV â”‚â”‚ LFO  â”‚               â”‚
-â”‚         â”‚  IN  â”‚â”‚        â”‚â”‚          â”‚â”‚          â”‚â”‚ AHDSRâ”‚â”‚      â”‚               â”‚
-â”‚         â””â”€â”€â”€â”€â”€â”€â”˜â””â”€â”€â”€â”€â”€â”€â”˜â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜â””â”€â”€â”€â”€â”€â”€â”˜â””â”€â”€â”€â”€â”€â”€â”˜               â”‚
-â”‚                                                                                â”‚
-â”‚  Row 2  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”                              â”‚
-â”‚         â”‚ 8Ã— CV-Out 12 â”‚â”‚ 4Ã— CV-16 â”‚â”‚ 8-ch Mixer â”‚                              â”‚
-â”‚         â”‚  (breakout)  â”‚â”‚  (pitch) â”‚â”‚            â”‚                              â”‚
-â”‚         â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜                              â”‚
-â”‚                                                                                â”‚
-â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+┌─ Rack: Studio Cabinet ──────────────────────────────────── [+ Module] [Mode▾] ─┐
+│                                                                                │
+│  Row 1  ┌──────┐┌──────┐┌──────────┐┌──────────┐┌──────┐┌──────┐               │
+│         │ MIDI ││ DualOsc││ QuadVCO  ││ QuadVCA  ││ ENV ││ LFO  │               │
+│         │  IN  ││        ││          ││          ││ AHDSR││      │               │
+│         └──────┘└──────┘└──────────┘└──────────┘└──────┘└──────┘               │
+│                                                                                │
+│  Row 2  ┌──────────────┐┌──────────┐┌────────────┐                              │
+│         │ 8× CV-Out 12 ││ 4× CV-16 ││ 8-ch Mixer │                              │
+│         │  (breakout)  ││  (pitch) ││            │                              │
+│         └──────────────┘└──────────┘└────────────┘                              │
+│                                                                                │
+└────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 Group-definition mode  ("Mode â–¾ â†’ Poly grouping")
+### 1.2 Group-definition mode  ("Mode ▾ → Poly grouping")
 
 Switching the rack panel into **grouping mode** dims the canvas and overlays a small toolbar. Every module / cell becomes click-targetable.
 
 ```
-â”Œâ”€ Rack: Studio Cabinet â”€â”€â”€ [Mode â–¾ Poly grouping] â”€â”€â”€â”€ [Group: Voice (N=4) â–¾] â”€â”
-â”‚  Click cells to add â†’ master first, then 2..N in order. ESC to leave.         â”‚
-â”‚                                                                                â”‚
-â”‚  Row 1  â”Œâ”€â”€â”€â”€â”€â”€â”â”Œâ”€â”€â”€â”€â”€â”€â”â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”â”Œâ”€â”€â”€â”€â”€â”€â”â”Œâ”€â”€â”€â”€â”€â”€â”               â”‚
-â”‚         â”‚ MIDI â”‚â”‚ DualOscâ”‚â”‚ QuadVCO â”ƒâ”‚ QuadVCA  â”‚â”‚ ENV  â”‚â”‚ LFO  â”‚               â”‚
-â”‚         â”‚  IN  â”‚â”‚ â”ƒMâ”ƒ 2 â”‚â”‚ â”ƒMâ”ƒ 2 3 4â”‚â”‚ â”ƒMâ”ƒ 2 3 4â”‚â”‚ (G)  â”‚â”‚ (G)  â”‚               â”‚
-â”‚         â””â”€â”€â”€â”€â”€â”€â”˜â””â”€â”€â”€â”€â”€â”€â”˜â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜â””â”€â”€â”€â”€â”€â”€â”˜â””â”€â”€â”€â”€â”€â”€â”˜               â”‚
-â”‚                                                                                â”‚
-â”‚  Row 2  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”                              â”‚
-â”‚         â”‚ 8Ã— CV-Out 12 â”‚â”‚ 4Ã— CV-16 â”‚â”‚ 8-ch Mixer â”‚                              â”‚
-â”‚         â”‚ â”ƒMâ”ƒ2 3 4 . . â”‚â”‚ â”ƒMâ”ƒ2 3 4 â”‚â”‚ â”ƒIN-polyâ”ƒ  â”‚                              â”‚
-â”‚         â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜                              â”‚
-â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+┌─ Rack: Studio Cabinet ─── [Mode ▾ Poly grouping] ──── [Group: Voice (N=4) ▾] ─┐
+│  Click cells to add → master first, then 2..N in order. ESC to leave.         │
+│                                                                                │
+│  Row 1  ┌──────┐┌──────┐┌──────────┐┌──────────┐┌──────┐┌──────┐               │
+│         │ MIDI ││ DualOsc││ QuadVCO ┃│ QuadVCA  ││ ENV  ││ LFO  │               │
+│         │  IN  ││ ┃M┃ 2 ││ ┃M┃ 2 3 4││ ┃M┃ 2 3 4││ (G)  ││ (G)  │               │
+│         └──────┘└──────┘└──────────┘└──────────┘└──────┘└──────┘               │
+│                                                                                │
+│  Row 2  ┌──────────────┐┌──────────┐┌────────────┐                              │
+│         │ 8× CV-Out 12 ││ 4× CV-16 ││ 8-ch Mixer │                              │
+│         │ ┃M┃2 3 4 . . ││ ┃M┃2 3 4 ││ ┃IN-poly┃  │                              │
+│         └──────────────┘└──────────┘└────────────┘                              │
+└────────────────────────────────────────────────────────────────────────────────┘
 
-Legend:  â”ƒMâ”ƒ = master cell (bold border, voice index 1)
+Legend:  ┃M┃ = master cell (bold border, voice index 1)
          2..N = follower cells (greyed, numbered)
          (G)  = explicitly global module (will not be replicated)
-         â”ƒIN-polyâ”ƒ = a single port flagged as "accepts a poly bundle"
+         ┃IN-poly┃ = a single port flagged as "accepts a poly bundle"
 ```
 
 Interaction:
-1. User picks **N** for the active group (`Voice (N=4)`) â€” N is a rack-level property of the group, **not** a per-module thing.
-2. User clicks a cell. First click â‡’ master. Each subsequent click â‡’ index `2..N`. Re-clicking the master clears the whole group; re-clicking a follower removes just that follower.
-3. The cell must be **compatible** with the master â€” same `ModuleType.id` for whole-module members, same `(typeId, cellGroupId)` for multi-module members. Incompatible cells get a red outline + tooltip "type mismatch".
-4. **Multi-module zoom**: hovering a multi-module enlarges it so its internal cells become individually clickable (the QuadVCO shows 4 numbered sub-panels, the 8Ã— CV breakout shows 8 dCV/aCV pairs).
+1. User picks **N** for the active group (`Voice (N=4)`) — N is a rack-level property of the group, **not** a per-module thing.
+2. User clicks a cell. First click ⇒ master. Each subsequent click ⇒ index `2..N`. Re-clicking the master clears the whole group; re-clicking a follower removes just that follower.
+3. The cell must be **compatible** with the master — same `ModuleType.id` for whole-module members, same `(typeId, cellGroupId)` for multi-module members. Incompatible cells get a red outline + tooltip "type mismatch".
+4. **Multi-module zoom**: hovering a multi-module enlarges it so its internal cells become individually clickable (the QuadVCO shows 4 numbered sub-panels, the 8× CV breakout shows 8 dCV/aCV pairs).
 5. Multiple groups in one rack are allowed and colour-coded: `Voice (blue)`, `Drum sub-pool (orange)`, etc.
 
-### 1.3 Multi-module zoom example â€” `QuadVCO`
+### 1.3 Multi-module zoom example — `QuadVCO`
 
 ```
-â”Œâ”€ QuadVCO â”€â”€â”€â”€â”€ (cell groups: 4Ã— "osc") â”€â”€â”€ [Click cells: â”ƒMâ”ƒ â†’ 2 â†’ 3 â†’ 4] â”€â”
-â”‚ Global controls:   â”Œâ”€[ SYNC ]â”€â”  â”Œâ”€[ XMOD ]â”€â”                              â”‚
-â”‚                                                                             â”‚
-â”‚  â”Œâ”€â”€ cell 1 (M) â”€â”€â” â”Œâ”€â”€ cell 2 â”€â”€â” â”Œâ”€â”€ cell 3 â”€â”€â” â”Œâ”€â”€ cell 4 â”€â”€â”           â”‚
-â”‚  â”‚  â”ƒMâ”ƒ           â”‚ â”‚     2      â”‚ â”‚     3      â”‚ â”‚     4      â”‚           â”‚
-â”‚  â”‚ â—‰ FREQ         â”‚ â”‚ â—‰ FREQ     â”‚ â”‚ â—‰ FREQ     â”‚ â”‚ â—‰ FREQ     â”‚           â”‚
-â”‚  â”‚ â—‰ WAVE         â”‚ â”‚ â—‰ WAVE     â”‚ â”‚ â—‰ WAVE     â”‚ â”‚ â—‰ WAVE     â”‚           â”‚
-â”‚  â”‚ â¬¢ v/oct in     â”‚ â”‚ â¬¢ v/oct in â”‚ â”‚ â¬¢ v/oct in â”‚ â”‚ â¬¢ v/oct in â”‚           â”‚
-â”‚  â”‚ â¬¡ audio out    â”‚ â”‚ â¬¡ audio outâ”‚ â”‚ â¬¡ audio outâ”‚ â”‚ â¬¡ audio outâ”‚           â”‚
-â”‚  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜ â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜ â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜ â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜           â”‚
-â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+┌─ QuadVCO ───── (cell groups: 4× "osc") ─── [Click cells: ┃M┃ → 2 → 3 → 4] ─┐
+│ Global controls:   ┌─[ SYNC ]─┐  ┌─[ XMOD ]─┐                              │
+│                                                                             │
+│  ┌── cell 1 (M) ──┐ ┌── cell 2 ──┐ ┌── cell 3 ──┐ ┌── cell 4 ──┐           │
+│  │  ┃M┃           │ │     2      │ │     3      │ │     4      │           │
+│  │ ◉ FREQ         │ │ ◉ FREQ     │ │ ◉ FREQ     │ │ ◉ FREQ     │           │
+│  │ ◉ WAVE         │ │ ◉ WAVE     │ │ ◉ WAVE     │ │ ◉ WAVE     │           │
+│  │ ⬢ v/oct in     │ │ ⬢ v/oct in │ │ ⬢ v/oct in │ │ ⬢ v/oct in │           │
+│  │ ⬡ audio out    │ │ ⬡ audio out│ │ ⬡ audio out│ │ ⬡ audio out│           │
+│  └───────────────┘ └────────────┘ └────────────┘ └────────────┘           │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 The same UI works for a `DualVCO` with `count=2`, or an 8-channel CV breakout where each cell is `{dCV-slot, aCV-jack}`.
 
-### 1.4 Mix-back / fan-in side â€” group at max flexibility, ungroup in the patch
+### 1.4 Mix-back / fan-in side — group at max flexibility, ungroup in the patch
 
-An 8-channel mixer has 8 inputs. The **rack** marks them as one N=8 cell-group (= maximum flexibility). A specific **patch** may then *ungroup* this default partially: e.g. "4 voices in inputs 1..4, single inputs on 5..8", or "2Ã— N=4 in 1..4 + 5..8".
+An 8-channel mixer has 8 inputs. The **rack** marks them as one N=8 cell-group (= maximum flexibility). A specific **patch** may then *ungroup* this default partially: e.g. "4 voices in inputs 1..4, single inputs on 5..8", or "2× N=4 in 1..4 + 5..8".
 
 Ungrouping is a patch-local override; the rack definition stays untouched. Other patches on the same rack are free to use the full N=8 grouping or any other partition.
 
 A poly-port is still drawn as a single jack-stack in the patcher (one cable = one connection), but the rack panel shows the underlying cells too:
 
 ```
-â”Œâ”€ Mixer 8-ch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-â”‚   â”ƒ poly IN â”ƒ   in 2     in 3     in 4     in 5    in 6  â”‚
-â”‚   â¬¢â¬¢â¬¢â¬¢ (Ã—4) â¬¡        â¬¡        â¬¡        â¬¡       â¬¡     â”‚
-â”‚   vol1 vol2 vol3 vol4 vol5     vol6     vol7    vol8     â”‚
-â”‚   pan1 pan2 pan3 pan4 pan5     pan6     pan7    pan8     â”‚
-â”‚   â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â” â”‚
-â”‚   â¬¡ L out                              â¬¡ R out           â”‚
-â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+┌─ Mixer 8-ch ─────────────────────────────────────────────┐
+│   ┃ poly IN ┃   in 2     in 3     in 4     in 5    in 6  │
+│   ⬢⬢⬢⬢ (×4) ⬡        ⬡        ⬡        ⬡       ⬡     │
+│   vol1 vol2 vol3 vol4 vol5     vol6     vol7    vol8     │
+│   pan1 pan2 pan3 pan4 pan5     pan6     pan7    pan8     │
+│   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ │
+│   ⬡ L out                              ⬡ R out           │
+└──────────────────────────────────────────────────────────┘
 ```
 
 Note the **asymmetry**: a *poly* input occupies the visual footprint of N jacks (mini-stack of 4 sockets) but counts as a single connection in the patcher. The volume / pan controls behind it are still per-channel (the user wants to control voice 3 a bit louder), but they live on the mixer panel as before.
 
 ---
 
-## 2. PATCH layer â€” patcher with poly cables
+## 2. PATCH layer — patcher with poly cables
 
 The patcher only ever lets the user draw cables to / from **master cells** and explicitly-marked **poly ports**. Followers are hidden in the patcher (they live in the rack-grouping view, not here). This keeps the cable count manageable.
 
 ### 2.1 Cable styling
 
 ```
-   â”€â”€â”€ thin solid line â”€â”€â”€      global â†’ global cable (today)
-   â•â•â• double / thick line â•â•â•  voice-poly cable (1 cable, N voices under water)
-   â”€â”¬â”€ split tee on global side a global signal duplicated into a voice-poly target
+   ─── thin solid line ───      global → global cable (today)
+   ═══ double / thick line ═══  voice-poly cable (1 cable, N voices under water)
+   ─┬─ split tee on global side a global signal duplicated into a voice-poly target
 ```
 
 Examples:
 
 ```
   MIDI-IN            QuadVCO (master)         QuadVCA (master)        Mixer
-  â”Œâ”€â”€â”€â”€â”€â”€â”            â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”              â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”          â”Œâ”€â”€â”€â”€â”€â”€â”
-  â”‚      â”‚ pitch â•â•â•â•â•â•ªâ•> v/oct  â”‚     audio    â”‚          â”‚  audio   â”‚poly  â”‚
-  â”‚      â”‚ (Ã—4 voice) â”‚     out â•â•ªâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•ªâ•> in     â”‚  out â•â•â•â•â•ªâ•> in â”‚
-  â”‚      â”‚            â”‚          â”‚              â”‚          â”‚          â”‚      â”‚
-  â”‚      â”‚ mod â”€â”€â”€â”€â”€â”€â”€â•ªâ”€â”€> pwm   â”‚              â”‚          â”‚          â”‚      â”‚
-  â”‚      â”‚ (glb)      â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜              â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜          â”‚L out â”‚
-  â”‚      â”‚                                                            â”‚R out â”‚
-  â””â”€â”€â”€â”€â”€â”€â”˜                                                            â””â”€â”€â”€â”€â”€â”€â”˜
+  ┌──────┐            ┌──────────┐              ┌──────────┐          ┌──────┐
+  │      │ pitch ═════╪═> v/oct  │     audio    │          │  audio   │poly  │
+  │      │ (×4 voice) │     out ═╪══════════════╪═> in     │  out ════╪═> in │
+  │      │            │          │              │          │          │      │
+  │      │ mod ───────╪──> pwm   │              │          │          │      │
+  │      │ (glb)      └──────────┘              └──────────┘          │L out │
+  │      │                                                            │R out │
+  └──────┘                                                            └──────┘
 ```
 
 Three cable types visible here:
-1. `â•â•â•` poly-poly: MIDI-IN poly pitch-out â†’ master VCO v/oct, expanded to (`pitch_i` â†’ `vco_i.voct`) for i=1..4.
-2. `â”€â”¬â”€` single-to-poly: MIDI-IN mod-wheel (global single) â†’ master VCO pwm, **duplicated** to all 4 VCOs' pwm.
-3. `â•â•â•` poly-poly chained: VCO master audio out â†’ VCA master audio in â†’ mixer poly input. No re-expansion â€” once a signal is poly it stays voice-indexed end-to-end, until it lands on a port that the rack/patch has marked as a fan-in (the mixer's poly input).
+1. `═══` poly-poly: MIDI-IN poly pitch-out → master VCO v/oct, expanded to (`pitch_i` → `vco_i.voct`) for i=1..4.
+2. `─┬─` single-to-poly: MIDI-IN mod-wheel (global single) → master VCO pwm, **duplicated** to all 4 VCOs' pwm.
+3. `═══` poly-poly chained: VCO master audio out → VCA master audio in → mixer poly input. No re-expansion — once a signal is poly it stays voice-indexed end-to-end, until it lands on a port that the rack/patch has marked as a fan-in (the mixer's poly input).
 
 ### 2.2 Inspector pane on a poly cable
 
-Clicking a `â•â•â•` cable shows:
+Clicking a `═══` cable shows:
 
 ```
-â”Œâ”€ Cable: VCO (master) audio out â†’ VCA (master) audio in â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-â”‚   Carries: 4 voices (group "Voice", N=4)                            â”‚
-â”‚   Mapping: 1â†”1   (vco_1 â†’ vca_1, vco_2 â†’ vca_2, â€¦)                  â”‚
-â”‚   [â–¢ override mapping]   [â–¢ sum to mono]   [â–¢ attenuate per voice] â”‚
-â”‚   Source group:  Voice  (master = QuadVCO cell 1)                   â”‚
-â”‚   Target group:  Voice  (master = QuadVCA cell 1)                   â”‚
-â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+┌─ Cable: VCO (master) audio out → VCA (master) audio in ────────────┐
+│   Carries: 4 voices (group "Voice", N=4)                            │
+│   Mapping: 1↔1   (vco_1 → vca_1, vco_2 → vca_2, …)                  │
+│   [▢ override mapping]   [▢ sum to mono]   [▢ attenuate per voice] │
+│   Source group:  Voice  (master = QuadVCO cell 1)                   │
+│   Target group:  Voice  (master = QuadVCA cell 1)                   │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-For a `â”€â”¬â”€` (global broadcast) cable:
+For a `─┬─` (global broadcast) cable:
 
 ```
-â”Œâ”€ Cable: MIDI-IN mod_wheel â†’ QuadVCO (master) pwm  â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-â”‚   Carries: 1 signal (global)                                        â”‚
-â”‚   Fanout:  â†’ 4 targets (pwm_1, pwm_2, pwm_3, pwm_4)                 â”‚
-â”‚   Per-voice trim:  [ same for all â–¾ ]   (or per-voice slider grid)  â”‚
-â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+┌─ Cable: MIDI-IN mod_wheel → QuadVCO (master) pwm  ─────────────────┐
+│   Carries: 1 signal (global)                                        │
+│   Fanout:  → 4 targets (pwm_1, pwm_2, pwm_3, pwm_4)                 │
+│   Per-voice trim:  [ same for all ▾ ]   (or per-voice slider grid)  │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 ### 2.3 Conversion-on-the-connection (BO / BI placement)
 
-The user's idea "the dCV â†” aCV conversion belongs on the connection" maps very nicely to the cable inspector. When you draw a cable from an *internal* output (dCV) to an *external* input (aCV), the inspector requires you to pick **which breakout cell** carries the conversion:
+The user's idea "the dCV ↔ aCV conversion belongs on the connection" maps very nicely to the cable inspector. When you draw a cable from an *internal* output (dCV) to an *external* input (aCV), the inspector requires you to pick **which breakout cell** carries the conversion:
 
 ```
-â”Œâ”€ Cable: ENV out (dCV) â†’ BrandX VCF cutoff (aCV)  â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-â”‚   Conversion needed: dCV â†’ aCV (12-bit, 0..5 V)                     â”‚
-â”‚   Via breakout:   [ 8Ã— CV-Out 12  âŒ„ ]   cell:  [ 3 âŒ„ ]              â”‚
-â”‚   Aux trim:       [ âœ“ board-side smoothing (CvSegment) ]            â”‚
-â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+┌─ Cable: ENV out (dCV) → BrandX VCF cutoff (aCV)  ──────────────────┐
+│   Conversion needed: dCV → aCV (12-bit, 0..5 V)                     │
+│   Via breakout:   [ 8× CV-Out 12  ⌄ ]   cell:  [ 3 ⌄ ]              │
+│   Aux trim:       [ ✓ board-side smoothing (CvSegment) ]            │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-For a **voice-poly** cable that crosses the boundary, the conversion target must be a **poly cell group on a breakout** (e.g. the 4Ã— pitch breakout grouped as "Voice/pitch"). The inspector pre-selects it if exactly one matches; otherwise the user picks.
+For a **voice-poly** cable that crosses the boundary, the conversion target must be a **poly cell group on a breakout** (e.g. the 4× pitch breakout grouped as "Voice/pitch"). The inspector pre-selects it if exactly one matches; otherwise the user picks.
 
 ---
 
@@ -223,12 +223,12 @@ export interface ModuleType {
 
 A non-multi module simply has no `cellGroups` and behaves like today. A *shared-controls multi-module* (the user's "Quad-VCO-Shared" idea) is just `cellGroups: [{ ..., portIds: [...], controlIds: [] }]` with all controls living module-globally.
 
-### 3.2 Port flags â€” only event-sources need extra metadata
+### 3.2 Port flags — only event-sources need extra metadata
 
 A normal module's port has no poly/global flag of its own. Whether it is "poly" or "single" follows from cell/group membership at expansion time:
 
-- Port on a module that is NOT in any poly-group â‡’ single.
-- Port on a cell that IS in a poly-group â‡’ poly-port of cardinality `group.voiceCount`.
+- Port on a module that is NOT in any poly-group ⇒ single.
+- Port on a cell that IS in a poly-group ⇒ poly-port of cardinality `group.voiceCount`.
 
 Only **event-source** outputs need an explicit flag, because they declare their nature *before* any grouping is involved:
 
@@ -254,7 +254,7 @@ export type PolyGroupMember =
   | { kind: 'cell';   moduleId: string; cellGroupId: string; cellIndex: number };
 
 export interface PolyGroup {
-  id: string;                 // 'voice', 'drum_sub', â€¦
+  id: string;                 // 'voice', 'drum_sub', …
   label: string;              // 'Voice'  (shown on the master + cable tooltips)
   voiceCount: number;         // N
   /** Ordered: members[0] is the master, members[i] is voice i+1. */
@@ -272,7 +272,7 @@ export interface Rack {
 
 ### 3.4 Patch may locally repartition rack groups
 
-`Patch.voiceCount` stays. New: a patch may **locally override** the rack's grouping for its own connections â€” split an N=8 rack group into 2Ã— N=4, ungroup it entirely to 8Ã— single, etc. The rack definition is untouched and other patches keep using the rack's defaults.
+`Patch.voiceCount` stays. New: a patch may **locally override** the rack's grouping for its own connections — split an N=8 rack group into 2× N=4, ungroup it entirely to 8× single, etc. The rack definition is untouched and other patches keep using the rack's defaults.
 
 ```ts
 export interface PatchPolyOverride {
@@ -301,9 +301,9 @@ A new optional field on the existing `PatchConnection`:
 ```ts
 export interface PatchConnection {
   // ...existing fields...
-  /** When the cable crosses dCVâ†”aCV: which breakout cell-group carries
+  /** When the cable crosses dCV↔aCV: which breakout cell-group carries
    *  the conversion, and (for poly cables) which PolyGroup maps voice
-   *  index â†’ breakout cell. */
+   *  index → breakout cell. */
   conversion?: {
     breakoutModuleId: string;
     cellGroupId: string;        // 'cv_12'  or  'pitch_16'
@@ -324,8 +324,8 @@ Compile-time function in TypeScript (mirrored on the firmware later):
 // Produces the flattened graph the brain executes:
 //   - all per-voice copies of modules in any PolyGroup
 //   - all expanded per-voice cables
-//   - all broadcast (global â†’ poly) cables fanned out
-//   - all sum (poly â†’ poly-input-marked-as-sum) cables collapsed
+//   - all broadcast (global → poly) cables fanned out
+//   - all sum (poly → poly-input-marked-as-sum) cables collapsed
 //
 // Input  : Patch + the Racks it references (containing PolyGroups)
 // Output : { instances: ExpandedInstance[], cables: ExpandedCable[] }
@@ -348,9 +348,9 @@ The brain receives either the original patch + groups (and runs `expandPatch` on
 | Per-port poly semantics | `shareMode: broadcast / sum / voice-indexed` on a `StampPort` | No flag on normal ports. Polyness follows from cell/group membership. Only event-source ports carry an explicit `eventKind: 'voice' \| 'global'`. |
 | Multi-modules | not addressed | First-class `CellGroup` on `ModuleType`, and a *cell* is treated as a sub-module everywhere. |
 | Mix-back | implicit via `shareMode='sum'` | Rack stores the *maximum* poly cell-group; patches may *ungroup* partially. The mixer is just a normal module whose inputs happen to be a cell-group. |
-| dCVâ†”aCV conversion | not addressed | Lives on the cable (`PatchConnection.conversion`), references a breakout cell-group. The BI/BO panel itself shows the analog half in the external rack and the digital half (free) in the internal rack. |
+| dCV↔aCV conversion | not addressed | Lives on the cable (`PatchConnection.conversion`), references a breakout cell-group. The BI/BO panel itself shows the analog half in the external rack and the digital half (free) in the internal rack. |
 | Brain expansion | brain only sees flattened graph | Both forms supported: brain may receive compact + expand on-device (needed for the touchscreen view), or receive pre-expanded. |
-| Forbidden connections | not addressed | `poly-out â†’ single-in` is rejected by the patcher; user must insert an explicit collapse module. |
+| Forbidden connections | not addressed | `poly-out → single-in` is rejected by the patcher; user must insert an explicit collapse module. |
 
 ADR 0010 is not wrong, but rack-level groups are a better fit for the project: the user thinks about *which physical modules exist N times*, not about *which subgraph repeats*. When ADR 0010 is updated, the "voice stamp" section should be replaced by the `PolyGroup` model from this sketch.
 
@@ -358,26 +358,26 @@ ADR 0010 is not wrong, but rack-level groups are a better fit for the project: t
 
 ## 5. Clarifications & deferred features
 
-### 5.1 Several poly-groups in one rack â€” example
+### 5.1 Several poly-groups in one rack — example
 
 Think: rack has `Voice` (N=4, 4 VCOs masters at cell 1, sub at cell 5 of an 8-VCO) **and** `Drum` (N=3, 3 percussive oscillators). A cable from `MIDI-IN.pitch` to `Voice.master.voct` expands to 4 voices; a cable from `Drum-Trig-Seq.gate` to `Drum.master.gate` expands to 3 voices. The two groups never interact unless you patch between them; the only thing they share is the rack they live in.
 
-The earlier note "cables only need to match group membership, not group id" was sloppy â€” strike it. A cable's two endpoints land on whatever groups they belong to; the *expansion* maps them by cell-index ordering within each group. If the cardinalities differ you fall under the forbidden-connection rule and the patcher refuses the cable.
+The earlier note "cables only need to match group membership, not group id" was sloppy — strike it. A cable's two endpoints land on whatever groups they belong to; the *expansion* maps them by cell-index ordering within each group. If the cardinalities differ you fall under the forbidden-connection rule and the patcher refuses the cable.
 
-### 5.2 Voice-count mismatch â€” what to offer the user
+### 5.2 Voice-count mismatch — what to offer the user
 
 Scenario: rack only has an N=4 group; user sets `Patch.voiceCount = 6`. Editor warning. Offered fixes:
- - **(a) clamp** â€” lower `voiceCount` to 4 to match the largest available group.
- - **(b) regroup** â€” auto-build a patch-local override that takes 6 cells from the largest matching cell-pool (only works if the rack has â‰¥ 6 ungrouped compatible cells).
- - **(c) split** â€” opposite case: rack has N=8 group, patch wants N=4. Auto-add `polyOverrides` that partition the N=8 into 2Ã— N=4 (two masters), as you described.
+ - **(a) clamp** — lower `voiceCount` to 4 to match the largest available group.
+ - **(b) regroup** — auto-build a patch-local override that takes 6 cells from the largest matching cell-pool (only works if the rack has ≥ 6 ungrouped compatible cells).
+ - **(c) split** — opposite case: rack has N=8 group, patch wants N=4. Auto-add `polyOverrides` that partition the N=8 into 2× N=4 (two masters), as you described.
 
-### 5.3 Per-voice trim on a singleâ†’poly broadcast â€” example
+### 5.3 Per-voice trim on a single→poly broadcast — example
 
-Default for a `single-out â†’ poly-in (N=4)` cable: all 4 voices receive the same value of the source (the duplication rule). The inspector can optionally show a *trim grid* â€” N small sliders, default 100% each â€” so the user attenuates the broadcast per voice (voice 3 gets 50% mod, voice 4 gets 25%). Useful for layered patches; safe to defer to v1.5.
+Default for a `single-out → poly-in (N=4)` cable: all 4 voices receive the same value of the source (the duplication rule). The inspector can optionally show a *trim grid* — N small sliders, default 100% each — so the user attenuates the broadcast per voice (voice 3 gets 50% mod, voice 4 gets 25%). Useful for layered patches; safe to defer to v1.5.
 
-### 5.4 Cable routing override / voicePermutation â€” example
+### 5.4 Cable routing override / voicePermutation — example
 
-Default for a `poly-out (N) â†’ poly-in (N)` cable: voice-indexed 1â†”1. Sometimes the user wants `[3, 1, 2, 4]` â€” voice 3 from the source drives cell 1 of the target, voice 1 drives cell 2, etc. Stored as `PatchConnection.voicePermutation?: number[]`. Defer to v1.5; rare in practice.
+Default for a `poly-out (N) → poly-in (N)` cable: voice-indexed 1↔1. Sometimes the user wants `[3, 1, 2, 4]` — voice 3 from the source drives cell 1 of the target, voice 1 drives cell 2, etc. Stored as `PatchConnection.voicePermutation?: number[]`. Defer to v1.5; rare in practice.
 
 ### 5.5 Unison mode
 
@@ -388,7 +388,66 @@ User request: "N=8 rack group used in N=1 patch with all 8 cells driven by the s
 - Groups live in one rack only.
 - A rack may hold any mix of N=2, N=3, N=4, N=8 etc. poly-groups simultaneously.
 - BI/BO panels straddle internal + external rack view (digital half is free).
-- Multi-modules with shared controls = `CellGroup { controlIds: [] }` + controls at module level. Concrete first example: a planned MMB house-brand `Quad-VCO-Shared` (hardware not built yet â€” first tests will be simulator-only).
+- Multi-modules with shared controls = `CellGroup { controlIds: [] }` + controls at module level. Concrete first example: a planned MMB house-brand `Quad-VCO-Shared` (hardware not built yet — first tests will be simulator-only).
+
+---
+
+## 6. Future phases — A4 (full) + A5 plan
+
+The "min" version of A4 that shipped only decorates each grouped rack-slot with a color ribbon + `i/N ★` voice badge. The **full** A4 + A5 below are still to do.
+
+### 6.1 Phase A4 (full) — patcher expand/collapse with ghost-voices
+
+Goal: the patcher stays readable when a rack has N voices, by **only ever showing the master cell** of each poly-group as a real node. Voices 2..N are visually folded behind the master and only revealed when the user explicitly expands the group.
+
+Concrete behaviour (target file: `editor/src/modular-mb/PatcherGraphPanel.tsx`):
+
+1. **Default render = collapsed.** A rack with a `PolyGroup g` of N=4 produces 1 patcher node per master cell (4× collapsed → 4 nodes today; 4× expanded would be 4×4 = 16). The node gets a small "× N" badge and is tinted with `g.color`.
+2. **Cables between masters represent the whole bundle.** A cable drawn `master.audio_out → master.vca_in` *is* the poly cable; the inspector shows "carries N voices, voice-indexed 1↔1" (matches §2.2). The user never draws per-voice cables by hand.
+3. **Per-group expand toggle.** A small `▶` / `▼` in the group's chip (or on the master node header) toggles `expandedGroups: Set<string>` in patcher-local UI state. When expanded:
+   - Voices 2..N are drawn as **ghost nodes** next to the master (semi-transparent, dashed border, voice-index label).
+   - Each implicit per-voice cable is drawn as a thin ghost line between the corresponding ghost ports.
+   - Ghost nodes are read-only: no drag, no port-click, no inspector. They exist purely to make the expansion visible.
+4. **Global → poly broadcasts** (`single-out → poly-in`) render in collapsed mode as a single `─┬─` tee on the source side; expanding shows the N fan-out lines as ghosts.
+5. **Forbidden cables** (`poly-out → single-in` without an explicit collapse module) get the same red treatment as today's invalid cables, with a tooltip "voeg een Mix/Sum module in".
+6. **Performance**: ghost nodes are layout-only, no event handlers; the per-voice expansion is computed on the fly from `expandPatch()` output (§3.6) and memoised per-group.
+
+Out of scope for A4: actually running the expanded graph (that's brain-side); editing per-voice attenuations on a broadcast cable (deferred to v1.5 per §5.3); per-cable voice permutations (§5.4).
+
+### 6.2 Phase A5 — `PatchPolyOverride` panel
+
+Goal: surface the data-model item from §3.4 in the UI, so a patch can split or ungroup the rack's default `PolyGroup`s without touching the rack definition.
+
+Concrete behaviour (likely a new section in the patch-properties panel):
+
+1. **List**: one row per active `PatchPolyOverride`. Empty list = "patch uses rack defaults".
+2. **Add override**: dropdown of rack-level `PolyGroup`s that don't yet have an override. Pick one → row appears with a default partition equal to `[ { label: g.label, voiceCount: g.voiceCount, memberIndices: 0..N-1 } ]` (= no-op).
+3. **Edit partition**: drag-to-split UI on the member indices. Concretely a horizontal strip of N small numbered cells; the user clicks "split here" between two cells to break a sub-group, or drags a divider. Each sub-group has its own editable label + auto-derived `voiceCount`.
+4. **Special modes**: checkbox `unison` (§5.5) on the override as a whole. When ticked, all sub-groups are visually merged with a chain-icon and the runtime will drive them from the same voice.
+5. **Delete override**: → reverts to rack default.
+6. **Validation**: every `memberIndices` must form a partition of `0..N-1` (no overlap, no gaps); the editor refuses to save an invalid override and shows a red banner. The validator already exists conceptually in §3.4's "validation rule".
+7. **Side-effect**: when an override changes, `expandPatch()` re-runs; patcher cables that no longer match the effective grouping are flagged invalid (orange outline + "voice mismatch, fix the override or redraw the cable").
+
+Out of scope for A5: visualising overrides on the rack panel (rack panel stays rack-pure); per-patch poly-group renaming beyond the override label.
+
+### 6.3 Phase B — Teensy runtime (full plan)
+
+Recap of the agreed approach (B-scaffold = MidiInModule + VoiceAllocator are already in firmware). Remaining work, in order:
+
+1. **Audio library wrapping.** Embed the Teensy `Audio` library's `AudioSynthWaveform` (VCO), `AudioFilterStateVariable` / `AudioFilterBiquad` (VCF) and `AudioEffectMultiply` (VCA) inside our internal module subclasses. The MMB module owns the `Audio*` object, exposes our `tick()` / control-set / port-read API, and forwards parameters into the wrapped object each tick.
+2. **USB only — no soldering.** Wiring stays Teensy-only:
+   - **MIDI-in** via USB-MIDI (`usbMIDI.read()` polled in the main loop, dispatched into the existing `MidiInModule::onNoteOn/Off`). The PC routes a DAW or external keyboard into the Teensy.
+   - **Audio-out** via USB audio (`AudioOutputUSB`), so the PC plays back what the Teensy synthesises. No DAC, no breadboard.
+3. **Polyphony switch + routing.** Build the first end-to-end poly patch in the brain runtime:
+   - `MidiInModule` with `voiceCount = 4` produces 4× `(pitch, gate, vel)`.
+   - 4× wrapped `VCO` (one per voice) reads `voicePitchV(i)`.
+   - 4× wrapped `VCF` reads VCO out + a shared cutoff/env.
+   - 4× wrapped `VCA` reads gate-driven envelope.
+   - Sum into a mono mix → `AudioOutputUSB`.
+4. **CV vs audio stream.** Make the distinction explicit at the wiring level: CV ports tick at the slow rate (control-rate, e.g. 1 kHz from main loop), audio ports tick at the Audio library's 44.1 kHz block rate. The wrapper modules bridge: their CV inputs are sampled at audio-block boundaries.
+5. **Test.** Round-trip from a PC MIDI source → Teensy synth → PC audio input, listened to in any DAW. Success = 4-voice polyphony audibly working, no crackle, voice stealing on a 5th note matches the editor sim.
+
+Deferred to a later B-phase: external CV via the BO board (needs hardware), DIN-MIDI merge with USB stream behind a `MidiSource` abstraction, CC + pitch-bend handling, per-voice modulation matrices.
 
 ---
 
@@ -475,13 +534,81 @@ Rack-editor UX overhaul on top of A3+A4-min. All in `editor/src/modular-mb/RackP
 - N > 1: bulk-delete + sneltoetsen-hint. De selectie-set en setter zijn props.
 
 **Selection-aware context menu.** Rechter-muis op een ongeselecteerd slot promoveert het tot single-select; op een geselecteerd slot blijft de hele selectie staan.
-- Multi-branch: header "<N> modules geselecteerd"; `⇤ Aansluiten naar links` / `⇥ Aansluiten naar rechts` (`packSelection` — per rij sorteren op `hpOffset`, butten vanaf de linker- of rechterrand van de huidige spreiding; valideert botsingen tegen niet-geselecteerde modules en rij-grenzen); `⛓ Maak voice-group van selectie` (alleen als alle leden hetzelfde `typeId` hebben en nog niet gegroepeerd zijn — leftmost wordt master, kleur uit `POLY_COLORS`); `× Verwijder selectie`.
+- Multi-branch: header "<N> modules geselecteerd"; `⇤ Aansluiten naar links` / `⇥ Aansluiten naar rechts` (`packSelection` — per rij sorteren op `hpOffset`, butten vanaf de linker- of rechterrand van de huidige spreiding; valideert botsingen tegen niet-geselecteerde modules en rij-grenzen); `⛓ Maak voice-group van selectie` (alleen als alle leden hetzelfde `typeId` hebben en nog niet gegroepeerd zijn — leftmost wordt master, kleur uit `POLY_COLORS`); `— Verwijder selectie`.
 - Single-branch: dupliceer / rij omhoog/omlaag / 1HP links/rechts / `⛓ Voice-group van alle modules met dit type` (zelfde regel: gegroepeerd raakt overgeslagen, geklikt slot wordt master); verwijder.
 
-**Voice-groups chip-bar.** Het volle `VoiceGroupsPanel` is ingeklapt naar een ~30px chip-bar (`● Label · N`-buttons + `+ Group`). Klik op een chip opent een absoluut-gepositioneerde popover met de bestaande editor (naam, voice-count, member-volgorde ↑↓×, "+ Add voice"-dropdown, delete). Klik buiten de popover (overlay) of een tweede klik op de chip sluit.
+**Voice-groups chip-bar.** Het volle `VoiceGroupsPanel` is ingeklapt naar een ~30px chip-bar (`● Label · N`-buttons + `+ Group`). Klik op een chip opent de **`GroupEditor` in het rechter properties-paneel** (de eerdere popover is geschrapt; alles wat aan een rack-element hangt — module-props of voice-group — woont nu op één plek). Een tweede klik op de chip sluit. Klikken op een module wisselt de inspector automatisch terug naar module-props (en sluit de open group); een chip openen wist de slot-selectie.
 - Wanneer een groep open staat krijgen al haar member-slots in het grid een gekleurde outline + glow in de groep-kleur (extra `openGroupId` prop op `RackGrid`).
+
+**Inspector auto-hide.** Het rechter properties-paneel rendert alleen als er iets te tonen is: 1+ slot geselecteerd óf een voice-group open. Anders verdwijnt het hele aside-element en krijgt het rack-grid de volle breedte. Klik op de grid-achtergrond leegt beide en verbergt het paneel weer.
 
 **Badge zonder V-prefix.** Voice-badges op rack-slots tonen nu `1/3 ★` (master) of `2/3` in plaats van `V1/3 ★`. Compacter en de ster maakt de master onmiskenbaar.
 
 Editor build groen na alle wijzigingen (`npm run build` → vite 1.6s).
+
+### Phase A4 (full) + A5 — done
+
+Patcher-side polyphony visualisation en patch-lokale voice-overrides
+gebouwd in `editor/src/modular-mb/PatcherGraphPanel.tsx`. Verfijning van
+de chip-bevindingen ook meegenomen.
+
+**A4-full — patcher voice-decoratie.**
+- `ModuleNodeData` heeft optionele `voice: { group, voiceIndex }` + `ghost`
+  flags. `ModuleNode` tekent:
+  - **Master** (voiceIndex 0 of niet-ghost): gekleurde 2px outline +
+    glow-shadow in de groep-kleur en een badge `× N · Label` linksboven.
+  - **Ghost-follower** (voiceIndex ≥ 1, alleen zichtbaar als groep
+    uitgeklapt): zelfde slot met `opacity 0.42` + grayscale, vierkante
+    handles, `pointerEvents: none`, badge `i/N`.
+- `PatcherGraphInner` bouwt één `voiceMap` over alle racks van de patch
+  en houdt `expandedGroups: Set<string>` als view-state. `nodes` filtert
+  followers eruit zolang hun groep collapsed is; uitgeklapt verschijnen
+  ze alsnog op hun rack-positie als ghost-nodes.
+- `edges` verbergt cables die aan een verborgen follower hangen en
+  herkent **poly-cables** (een endpoint = master van een groep): die
+  worden dikker, met glow in de groep-kleur, plus een `×N` label-chip
+  in de groep-kleur op het midden van de kabel — visuele bevestiging
+  dat er meerdere voices door één symbolische cable lopen.
+- Een **chip-bar** boven het ReactFlow-canvas (absolute positie) toont
+  per groep `▶/▼ ● Label × N`. Klik wisselt expand/collapse. Bij
+  meerdere racks in één patch staan alle groepen naast elkaar.
+- Bewust uitgesteld: per-voice trim-knoppen, automatische ghost-cables
+  (volger-kabels van groepslid naar groepslid), `voicePermutation` /
+  routing-overrides op connection-niveau.
+
+**A5 — `PatchPolyOverride` panel.** Nieuw component `PolyOverridesPanel`
+in het rechter sidebar, rendert alleen als de patch ≥1 voice-group ziet.
+- Per rack-groep zonder override is er een select `+ Override toevoegen…`.
+  Default-override = één partition die alle cells beslaat (no-op).
+- Per override toont `OverrideEditor`:
+  - Header met groep-kleur, label, `N=<voiceCount>`, `unison`-checkbox
+    (zet `override.unison`), en `× Reset` (verwijdert de override
+    volledig).
+  - Een hernoembare label-rij per partition + knop `+ sub-group`.
+  - Een rij met N dropdowns (één per member-cell) waarmee elke cell aan
+    een partition wordt gehangen (of `—` = ungrouped). Partities worden
+    automatisch herbouwd uit de cell→partition mapping zodat
+    `memberIndices` en `voiceCount` consistent blijven.
+  - Waarschuwing als de partities samen leeg zijn (override doet niets).
+- State-mutaties lopen via `updateProject` met `polyOverrides: PatchPolyOverride[]`
+  op de huidige patch. Geen runtime-gebruik nog — de overrides worden
+  later door de voice-allocator/uploader gelezen.
+
+**Bevindingen-fixes (vóór A4/A5).**
+- *Delete-knop overflow in 260px inspector*: `GroupEditor` header
+  gesplitst in 2 rijen — rij 1 `[colordot][naam input flex:1][× Delete]`,
+  rij 2 grijze sub-text `{N} voices · {type.variant}`. Input krijgt
+  `flex:1 minWidth:0` zodat de delete-knop nooit wordt weggedrukt.
+- *Context-menu negeert bestaande groep*: het slot/multi-context-menu
+  berekent nu een `sharedGroupId` (multi: gedeeld iff álle selectie naar
+  dezelfde groep wijst; single: directe lookup). Als gevonden →
+  menu-item `⛓ Toon voice-group eigenschappen` dat de inspector
+  rechtstreeks omschakelt naar `GroupEditor` voor die groep (en
+  slot-selectie wist). Anders blijft het oorspronkelijke `Maak
+  voice-group …`-item staan.
+- *Empty-state inspector*: `RackInspector` rendert nu een korte
+  placeholder "Geen module geselecteerd." zonder Ctrl/Shift-hint, en
+  het hele `<aside>` blijft auto-hidden zolang er niets te tonen is.
+
+Build: `cd editor; npm run build` → vite 1.6s, 0 errors.
 

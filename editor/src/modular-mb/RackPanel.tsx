@@ -115,22 +115,36 @@ export function RackPanel(): JSX.Element {
       </div>
 
       <VoiceGroupsPanel rack={rack} modules={project.modules} types={project.moduleTypes}
-                        openGroupId={openGroupId} setOpenGroupId={setOpenGroupId} />
+                        openGroupId={openGroupId}
+                        setOpenGroupId={(id) => {
+                          setOpenGroupId(id);
+                          if (id) {
+                            setSelectedSlotIds(new Set());
+                            setLastSelectedSlotId(null);
+                          }
+                        }} />
 
       <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <RackGrid
             rack={rack} modules={project.modules} types={project.moduleTypes}
             activeRow={activeRow} onSelectRow={setActiveRow}
-            selectedSlotIds={selectedSlotIds} setSelectedSlotIds={setSelectedSlotIds}
+            selectedSlotIds={selectedSlotIds}
+            setSelectedSlotIds={(s) => {
+              setSelectedSlotIds(s);
+              if (s.size > 0) setOpenGroupId(null);
+            }}
             lastSelectedSlotId={lastSelectedSlotId} setLastSelectedSlotId={setLastSelectedSlotId}
-            openGroupId={openGroupId}
+            openGroupId={openGroupId} setOpenGroupId={setOpenGroupId}
           />
         </div>
-        <RackInspector
-          rack={rack} modules={project.modules}
-          selectedSlotIds={selectedSlotIds} setSelectedSlotIds={setSelectedSlotIds}
-        />
+        {(selectedSlotIds.size > 0 || openGroupId) && (
+          <RackInspector
+            rack={rack} modules={project.modules} types={project.moduleTypes}
+            selectedSlotIds={selectedSlotIds} setSelectedSlotIds={setSelectedSlotIds}
+            openGroupId={openGroupId} setOpenGroupId={setOpenGroupId}
+          />
+        )}
       </div>
 
       <ModuleSidebar
@@ -180,12 +194,12 @@ function RackHeaderEditor({ rack }: { rack: Rack }): JSX.Element {
 function RackGrid({ rack, modules, types, activeRow, onSelectRow,
                    selectedSlotIds, setSelectedSlotIds,
                    lastSelectedSlotId, setLastSelectedSlotId,
-                   openGroupId }: {
+                   openGroupId, setOpenGroupId }: {
   rack: Rack; modules: ModuleInstance[]; types: ModuleType[];
   activeRow: number; onSelectRow: (row: number) => void;
   selectedSlotIds: Set<string>; setSelectedSlotIds: (s: Set<string>) => void;
   lastSelectedSlotId: string | null; setLastSelectedSlotId: (id: string | null) => void;
-  openGroupId: string | null;
+  openGroupId: string | null; setOpenGroupId: (id: string | null) => void;
 }): JSX.Element {
   const rowWidthMm = rack.hpPerRow * MM_PER_HP;
   const engineStatus = useEngineStatus();
@@ -818,6 +832,31 @@ function RackGrid({ rack, modules, types, activeRow, onSelectRow,
       {menu && (() => {
         const multi = selectedSlotIds.size > 1;
         const close = () => setMenu(null);
+        // Determine whether the focused module(s) already live in a voice-group.
+        // For multi: shared iff all selected map to the same group.
+        // For single: just look up the right-clicked module.
+        let sharedGroupId: string | null = null;
+        if (multi) {
+          const ids = new Set<string>();
+          for (const sid of selectedSlotIds) {
+            const s = rack.slots.find((x) => x.id === sid);
+            const v = s ? voiceMap.get(s.moduleId) : undefined;
+            ids.add(v ? v.group.id : '');
+          }
+          if (ids.size === 1) {
+            const only = [...ids][0]!;
+            if (only !== '') sharedGroupId = only;
+          }
+        } else {
+          const s = rack.slots.find((x) => x.id === menu.slotId);
+          const v = s ? voiceMap.get(s.moduleId) : undefined;
+          sharedGroupId = v ? v.group.id : null;
+        }
+        const openGroup = (gid: string): void => {
+          setSelectedSlotIds(new Set());
+          setLastSelectedSlotId(null);
+          setOpenGroupId(gid);
+        };
         return (
           <div
             onClick={close}
@@ -839,7 +878,9 @@ function RackGrid({ rack, modules, types, activeRow, onSelectRow,
                   <li><button style={ctxItem} onClick={() => { packSelection('left');  close(); }}>⇤ Aansluiten naar links</button></li>
                   <li><button style={ctxItem} onClick={() => { packSelection('right'); close(); }}>⇥ Aansluiten naar rechts</button></li>
                   <li style={ctxSep} />
-                  <li><button style={ctxItem} onClick={() => { makeVoiceGroupFromSelection(); close(); }}>⛓ Maak voice-group van selectie</button></li>
+                  {sharedGroupId
+                    ? <li><button style={ctxItem} onClick={() => { openGroup(sharedGroupId!); close(); }}>⛓ Toon voice-group eigenschappen</button></li>
+                    : <li><button style={ctxItem} onClick={() => { makeVoiceGroupFromSelection(); close(); }}>⛓ Maak voice-group van selectie</button></li>}
                   <li style={ctxSep} />
                   <li><button style={{ ...ctxItem, color: '#fca5a5' }} onClick={() => {
                     const ids = selectedSlotIds;
@@ -861,7 +902,9 @@ function RackGrid({ rack, modules, types, activeRow, onSelectRow,
                   <li><button style={ctxItem} onClick={() => { moveSlot(menu.slotId, -1);   close(); }}>◀ 1 HP naar links</button></li>
                   <li><button style={ctxItem} onClick={() => { moveSlot(menu.slotId,  1);   close(); }}>▶ 1 HP naar rechts</button></li>
                   <li style={ctxSep} />
-                  <li><button style={ctxItem} onClick={() => { makeVoiceGroupFromSameType(menu.slotId); close(); }}>⛓ Voice-group van alle modules met dit type</button></li>
+                  {sharedGroupId
+                    ? <li><button style={ctxItem} onClick={() => { openGroup(sharedGroupId!); close(); }}>⛓ Toon voice-group eigenschappen</button></li>
+                    : <li><button style={ctxItem} onClick={() => { makeVoiceGroupFromSameType(menu.slotId); close(); }}>⛓ Voice-group van alle modules met dit type</button></li>}
                   <li style={ctxSep} />
                   <li><button style={{ ...ctxItem, color: '#fca5a5' }} onClick={() => { removeSlot(menu.slotId); close(); }}>× Verwijder uit rack</button></li>
                 </>
@@ -892,11 +935,15 @@ const ctxSep: React.CSSProperties = {
 // or a count + bulk-actions when multiple are selected. Renamed module
 // instances feed back into the project store immediately.
 
-function RackInspector({ rack, modules, selectedSlotIds, setSelectedSlotIds }: {
+function RackInspector({ rack, modules, types, selectedSlotIds, setSelectedSlotIds,
+                        openGroupId, setOpenGroupId }: {
   rack: Rack;
   modules: ModuleInstance[];
+  types: ModuleType[];
   selectedSlotIds: Set<string>;
   setSelectedSlotIds: (s: Set<string>) => void;
+  openGroupId: string | null;
+  setOpenGroupId: (id: string | null) => void;
 }): JSX.Element {
   const slots = rack.slots.filter((s) => selectedSlotIds.has(s.id));
 
@@ -917,12 +964,28 @@ function RackInspector({ rack, modules, selectedSlotIds, setSelectedSlotIds }: {
     setSelectedSlotIds(new Set());
   }
 
+  // Mode priority: selection > open voice-group > placeholder (auto-hidden
+  // by the parent when both are empty, so we never reach the placeholder).
+  if (slots.length === 0 && openGroupId) {
+    const group = (rack.polyGroups ?? []).find((g) => g.id === openGroupId);
+    return (
+      <aside style={inspectorBox}>
+        <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 13 }}>Voice group</div>
+        {group ? (
+          <GroupEditor rack={rack} modules={modules} types={types} group={group}
+                       onClose={() => setOpenGroupId(null)} />
+        ) : (
+          <div style={{ color: '#fca5a5', fontSize: 12 }}>Group niet gevonden.</div>
+        )}
+      </aside>
+    );
+  }
+
   if (slots.length === 0) {
     return (
       <aside style={inspectorBox}>
         <div style={{ color: '#94a3b8', fontSize: 12, fontStyle: 'italic' }}>
-          Geen module geselecteerd.<br />
-          Klik op een module. Ctrl/⌘+klik = toevoegen, Shift+klik = bereik (zelfde rij).
+          Geen module geselecteerd.
         </div>
       </aside>
     );
@@ -1073,27 +1136,6 @@ function VoiceGroupsPanel({ rack, modules, types, openGroupId, setOpenGroupId }:
           </span>
         )}
       </div>
-      {openGroupId && (() => {
-        const g = groups.find((x) => x.id === openGroupId);
-        if (!g) return null;
-        return (
-          <>
-            {/* Overlay vangt clicks buiten de popover. */}
-            <div onClick={() => setOpenGroupId(null)}
-                 style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'transparent' }} />
-            <div style={{
-              position: 'absolute', top: 28, left: 0, zIndex: 51,
-              minWidth: 360, maxWidth: 520,
-              background: '#0f172a', border: `1px solid ${g.color || '#334155'}`,
-              borderRadius: 6, padding: 10,
-              boxShadow: '0 6px 20px rgba(0,0,0,0.55)',
-            }}>
-              <GroupEditor rack={rack} modules={modules} types={types} group={g}
-                           onClose={() => setOpenGroupId(null)} />
-            </div>
-          </>
-        );
-      })()}
     </div>
   );
 }
@@ -1159,20 +1201,20 @@ function GroupEditor({ rack, modules, types, group, onClose }: {
 
   return (
     <div style={{ fontSize: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
         <span style={{
-          width: 14, height: 14, borderRadius: 3,
+          width: 14, height: 14, borderRadius: 3, flexShrink: 0,
           background: group.color || '#888',
           border: '1px solid rgba(255,255,255,0.1)',
         }} />
         <input value={group.label}
                onChange={(e) => updateGroup((g) => ({ ...g, label: e.target.value }))}
-               style={{ fontSize: 12, flex: 1, padding: '2px 4px' }} />
-        <span style={{ color: '#9ca3af', fontSize: 11 }}>
-          {group.voiceCount} {group.voiceCount === 1 ? 'voice' : 'voices'}
-          {anchorType ? ` · ${anchorType.variant}` : ' · (no anchor)'}
-        </span>
-        <button onClick={deleteGroup} style={{ fontSize: 11, color: '#fca5a5' }}>× Delete</button>
+               style={{ fontSize: 12, flex: 1, minWidth: 0, padding: '2px 4px' }} />
+        <button onClick={deleteGroup} style={{ fontSize: 11, color: '#fca5a5', flexShrink: 0 }}>× Delete</button>
+      </div>
+      <div style={{ color: '#9ca3af', fontSize: 11, marginBottom: 8 }}>
+        {group.voiceCount} {group.voiceCount === 1 ? 'voice' : 'voices'}
+        {anchorType ? ` · ${anchorType.variant}` : ' · (no anchor)'}
       </div>
       {group.members.length === 0 && (
         <div style={{ color: '#fbbf24', fontSize: 11, marginBottom: 6 }}>

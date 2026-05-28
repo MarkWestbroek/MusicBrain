@@ -2,7 +2,7 @@
 
 - **Datum**: 2026-05-17 14:32
 - **Sessie-ID**: `4db45503-0a7f-471a-850c-117803aee9d5`
-- **Berichten**: 46
+- **Berichten**: 59
 
 ---
 
@@ -1134,5 +1134,469 @@ Is er geen combi van auto grow en manual settings mogelijk?
 ## 🤖 Assistant
 
 Drie problemen in één keer: , ,  (drag) klemmen allemaal op de huidige grenzen zonder te groeien, en  verbergt de controls voor interne racks. Alles in één edit. 
+
+---
+
+## 🧑 User
+
+Belangrijker / handiger is het volgende. Is dat mogelijk?
+
+1. multiselect modules: met shift select of control klik.
+- de selectie als geheel moet je dan naar links of rechts of op of neer (met pijltjes) kunnen bewegen
+- of slepen naar een andere plek
+
+2. in de rechtsklik van een selectie met meerdere modules zou "aansluiten" een fijne optie zijn. Als ze iets overlappen of uit elkaar staan: zet ze netjes tegen elkaar, beginnend bij de meest linkse, en dan rechts daarvan naast elkaar zetten.
+- andersom vanaf rechts aansluiten kan dan de tweede optie zijn
+
+3. maak een voice-groep kan dan ook in de rechtsklik op een selectie. Die moet dan wel een fout geven als het geen compatibele modules zijn
+- rechtsklik op 1 module (de master, pref. de meest linkse dan denk ik) en maak voicegroup zou dan mogen voorstellen alle gelijke modules die er zijn toe te voegen van links naar rechts.
+
+4. properties
+- modules hebben eigenschappen, of in elk geval één: een identifier, maar die is niet te bewerken
+- in de add voice dropdown zie ik ze wel: "MMB vco copy copy" enzo (zie img)
+
+5. De voice groups zou beter een properties menu van de groep zijn. Kan dat?
+- Ze nemen nu erg veel ruimte in.
+- Klikken op de rand van een groep bijv.
+- de groep zou dan ook omrand kunnen worden (tijdelijk)
+
+6 naamgeving groepsleden
+- nu V1/3
+- V is de eerste letter van de modulenaam denk ik?
+- maar dat is vaak V: VCF, VCO, VCA...
+- misschien geen of anders 3 letters? De naam staat ook bovenin (img 2)
+
+---
+
+## 🤖 Assistant
+
+Allemaal goed haalbaar — laten we eerst even de scope/keuzes vastpinnen, dan bouw ik in één klap een coherent geheel in plaats van losse stukjes.
+
+**1. Multiselect (shift / ctrl + klik)**
+- Doable. State =  in . `Ctrl+klik` togglet, `Shift+klik` selecteert range (per rij, op -volgorde).
+- Pijltjes verschuiven dan álle geselecteerden met dezelfde delta. **Botsing**: stop de hele move zodra één lid zou overlappen/buiten de rij vallen — anders wordt het onvoorspelbaar. Bij internal rack: auto-grow zoals nu.
+- Drag: één "anker"-slot is de muiscursor, de rest volgt met dezelfde delta.
+
+**2. "Aansluiten" in context-menu (multi-select)**
+- Sorteer selectie op . Per rij: linkermeest blijft staan, rest schuift kop-aan-staart rechts ernaast. Tweede optie "vanaf rechts aansluiten" = rechtermeest blijft staan, rest spiegelt links.
+- Modules in andere rijen blijven met rust.
+
+**3. Voice-group vanuit context-menu**
+- Multi-select → "Maak voice-group": valideer alle gelijke , anders alert + niets doen. Master = meest linkse.
+- Single-select → "Voice-group van alle gelijke modules in dit rack": pakt alle modules met hetzelfde  die nog vrij zijn, sorteert op , geklikte module wordt master (of meest-links, kies jij).
+
+**4. Module-naam editen**
+- Voorstel: een **klein properties-paneel** dat verschijnt onder de rack-grid zodra je 1 slot selecteert. Toont: naam (editable), typeId (read-only), HP, voice-group-lid. Bij multi-select: alleen bulk-acties.
+- Alternatief: dubbelklik op modulepaneel = inline rename. Iets minder ontdekbaar.
+
+**5. Voice-groups paneel inklappen**
+- Voorstel: vervang het hele paneel door een dunne bar `Voice groups (2)  [VCO ●] [VCF ●]  + Group`. Klikken op een chip → opent een **popover** met die ene groep (rename/recolor/leden/reorder). Klikken op het rack-icoontje of erbuiten sluit.
+- Hover/active chip = tijdelijke gloeiende rand om de groepsleden in het rack (bovenop de bestaande kleurstreep onderaan).
+- Resultaat: paneel kost normaal ~30 px hoogte, niet ~150.
+
+**6. Badge-naamgeving**
+- "V" was gewoon een hardcoded prefix (niet eerste letter van module-naam, dat was een toevallige collisie). Suggesties op een rij:
+  - `1/3 ★` (minimalistisch, ★ voor master)
+  - `●1/3` (cirkel in group-color, dan getal)
+  - `1·3` (kort, geen `/` verwarring)
+- Mijn voorkeur: **`1/3 ★`** — kleurband + getalletje is genoeg, modulenaam staat al bovenaan.
+
+---
+
+**Voorstel volgorde** (om niet één , geklikte module wordt master (of meest-links, kies jij).
+
+**4. Module-naam editen**
+- Voorstel: een **klein properties-paneel** dat verschijnt onder de rack-grid zodra je 1 slot selecteert. Toont: naam (editable), typeId (read-only), HP, voice-group-lid. Bij multi-select: alleen bulk-acties.
+- Alternatief: dubbelklik op modulepaneel = inline rename. Iets minder ontdekbaar.
+
+**5. Voice-groups paneel inklappen**
+- Voorstel: vervang het hele paneel door een dunne bar `Voice groups (2)  [VCO ●] [VCF ●]  + Group`. Klikken op een chip → opent een **popover** met die ene groep (rename/recolor/leden/reorder). Klikken op het rack-icoontje of erbuiten sluit.
+- Hover/active chip = tijdelijke gloeiende rand om de groepsleden in het rack (bovenop de bestaande kleurstreep onderaan).
+- Resultaat: paneel kost normaal ~30 px hoogte, niet ~150.
+
+**6. Badge-naamgeving**
+- "V" was gewoon een hardcoded prefix (niet eerste letter van module-naam, dat was een toevallige collisie). Suggesties op een rij:
+  - `1/3 ★` (minimalistisch, ★ voor master)
+  - `●1/3` (cirkel in group-color, dan getal)
+  - `1·3` (kort, geen `/` verwarring)
+- Mijn voorkeur: **`1/3 ★`** — kleurband + getalletje is genoeg, modulenaam staat al bovenaan.
+
+---
+
+**Voorstel volgorde** (om niet één gigantische diff te maken):
+1. **Quick wins**: badge `V` weg → `1/3 ★` + module-naam editable in een lichte properties-bar (1 & 6 + half 4).
+2. **Multiselect-engine**:  + arrow-move + drag-move met collision check (1).
+3. **Context-menu uitbreiden**: aansluiten links/rechts + voice-group vanuit selectie / single (2 & 3).
+4. **Voice-groups collapse**: chip-bar + popover (5).
+
+Wil je dat ik gewoon in deze volgorde door bouw? En 2 keuzes graag bevestigen:
+- **Badge-stijl**: `1/3 ★` ok, of liever `●1/3`?
+- **Properties-paneel** plek: aparte bar onder rack-grid, of inline boven de sidebar?
+
+---
+
+## 🧑 User
+
+Ja, graag doorbouwen. 1 en 2 mag ook wel samen (achter elkaar). Lijkt niet erg te overlappen.
+keuzes:
+-1/3*
+- ik denk dat aan de zijkant (IDE-achtig) handiger is, omdat schermen eerder breed dan hoog zijn tegenwoordig. Anders zit je steeds op en neer te scrollen. ik weet niet wat je bedoelt met de sidebar
+
+---
+
+## 🤖 Assistant
+
+Nu de implementatie. Drie hoofdwijzigingen in  + één nieuwe component.  
+```
+
+```
+
+```
+
+```
+Nu : signature aanpassen, selectie via props, multi-select aware click + key + drag.    
+```
+
+```
+Nu de slot-rendering:  via set, click via nieuwe handler, drop via delta.  
+```
+
+```
+Nu  component toevoegen + bouw checken.     
+```
+
+```
+Groen. Stap 1+2 (+ wat van 4 en 6) zijn gebouwd:
+
+**Multiselect**
+- **Klik** = enkele select (zoals voorheen).
+- **Ctrl/⌘+klik** = toevoegen aan / afhalen van selectie.
+- **Shift+klik** = bereik selecteren binnen dezelfde rij (tussen laatste single-click en de geklikte slot, op -volgorde).
+- **Pijltjes** (←↑→↓) verplaatsen nu de **hele selectie** in één keer; Shift+pijl = 4 HP.
+- **Slepen**: de gesleepte module is anker — de hele selectie verschuift met dezelfde Δrij/ΔHP mee.
+- **Delete** verwijdert de hele selectie.
+- **Collision-check**: bewegingen die zouden overlappen met een niet-geselecteerde module of buiten de grenzen -volgorde).
+- **Pijltjes** (←↑→↓) verplaatsen nu de **hele selectie** in één keer; Shift+pijl = 4 HP.
+- **Slepen**: de gesleepte module is anker — de hele selectie verschuift met dezelfde Δrij/ΔHP mee.
+- **Delete** verwijdert de hele selectie.
+- **Collision-check**: bewegingen die zouden overlappen met een niet-geselecteerde module of buiten de grenzen vallen worden in z'n geheel afgewezen. Intern rack groeit automatisch mee (rijen én HP).
+- **Rechtsklik** op -volgorde).
+- **Pijltjes** (←↑→↓) verplaatsen nu de **hele selectie** in één keer; Shift+pijl = 4 HP.
+- **Slepen**: de gesleepte module is anker — de hele selectie verschuift met dezelfde Δrij/ΔHP mee.
+- **Delete** verwijdert de hele selectie.
+- **Collision-check**: bewegingen die zouden overlappen met een niet-geselecteerde module of buiten de grenzen vallen worden in z'n geheel afgewezen. Intern rack groeit automatisch mee (rijen én HP).
+- **Rechtsklik** op een niet-geselecteerde slot zet de selectie tijdelijk op alleen die slot (voor eenduidig menu-gedrag).
+
+**Inspector (rechter zijpaneel, IDE-stijl)**
+- 0 selectie: korte uitleg + sneltoetsen.
+- 1 selectie: bewerkbare **Naam**, plus Type/HP/Rij/HP-offset/Module-id read-only.
+- >1 selectie: aantal + bulk-acties (alleen "Verwijder selectie" nu).
+- Naam-edit gaat direct naar de store, dus dropdowns als "+ Add voice…" zien de nieuwe naam meteen.
+
+**Badge** is nu `1/3 ★` (was `V1/3 ★`).
+
+Voor stap 3 (context-menu uitbreiden: "Aansluiten links/rechts" + "Maak voice-group uit selectie" / "Voice-group van alle gelijke modules") en stap 5 (voice-groups paneel inklappen tot chip-bar) — zal ik daar direct mee verder, of wil je eerst dit testen?
+
+---
+
+## 🧑 User
+
+bevindingen:
+- als ik een groep naar beneden geklikt heb met pijltje omlaag (of omhoog) is de focus van de groep af en werkt een pijtjestoets niet meer
+- deselect: ik zou verwachten dat klikken op de achtergrond (waar er geen module is) zou leiden tot deselecteren (er is niets meer geselecteerd) Het properties blok kan dan weer verdwijnen.
+
+wil je hier naar kijken en dan meteen door met de nog openstaande punten?
+
+---
+
+## 🤖 Assistant
+
+
+```
+
+```
+Bugs gefixt. Nu door met stappen 3 (context-menu uitbreiden) en 5 (voice-groups inklappen tot chip-bar). Eerst even het huidige  bekijken om er nette popovers van te maken.    Nu de helpers + nieuwe menu structuur.    
+```
+
+```
+Nu het context-menu vervangen door een selectie-bewuste versie.  
+```
+
+```
+
+```
+
+```
+Nu de  inklappen tot chip-bar met popover. Ik vervang het geheel.     `openGroupId` lift ik naar  zodat het rack-grid de actieve groep ook kan omranden.    
+```
+
+```
+Nu  herschrijven naar chip-bar + popover.    
+```
+
+```
+Build groen. Nu doc bijwerken.     
+```
+
+```
+Klaar.
+
+**Wat er in deze ronde is geland (rack-tab UX):**
+
+- **Focus-bug** na pijltjes-rij-wissel opgelost via  +  (DOM wordt opnieuw aangemaakt bij rij-wissel, focus volgt nu).
+- **Deselect bij achtergrond-klik** (rij-strip + grid-root); slot-klik gebruikt .
+- **Context-menu is nu selectie-bewust**: multi-branch met *Aansluiten links/rechts* (per rij butten), *Maak voice-group van selectie*, *Verwijder N*; single-branch heeft er *Voice-group van alle modules met dit type* bij.
+- **Voice-groups inklap naar chip-bar**: `● Label · N` buttons, klik = popover met de oude editor erin. Open groep highlightet zijn rack-slots met een gekleurde ring + glow in de groepskleur.
+- Build groen (`npm run build`, vite 1.65s).
+-  sectie 7 heeft een nieuwe subsectie *Phase A4-min refinements — done* met de volledige uitleg.
+
+Nog open uit jouw 6-puntenlijstje: niets meer — alle 6 zijn af. Logische vervolg-richtingen zijn **A4 (volledig)** — patcher expand/collapse met ghost-voices in `PatcherGraphPanel.tsx`, en daarna **A5** — patch-overrides voor poly-counts. Welke kant op?
+
+---
+
+## 🧑 User
+
+- is het niet logischer het voicegroup-edit paneeltje onder te brengen in het properties paneel rechts?
+- kan het properties paneel ook auto-hiden als het leeg is?
+
+A4 lijkt nu wel logisch: dat is dat je in de patcher bewust bent van voicegroups en eigenlijk alleen de master ziet en de andere 2..n stemmen verborgen zijn, toch? Ik vind de beschrijving van A4 en A5 niet meer zo snel. Wil je die nog even weergeven hier? (Of waar het staat.)
+
+Verder zie ik in polyphony-rack-patcher-ui.md rare tekens: â€”, â†’, nog meer?
+- wat is dat geweest? wil je dat herstellen?
+
+Als de UI af is, kunnen we wel naar de teensy bewegen. Wat was daar het plan ook weer? UIt mijn hoofd: de audiolibrary VCO, VCF en VCA inbedden in onze interne modules, MIDI in via USB (ik route dat op de PC) en Audio uit via USB zodat alleen de teensy zelf nodig is, geen solderen of breadboarding, en dan de MIDI-in code maken met polyfonie switch, routing gaan bouwen (CV stroom en audio stroom) en testen.
+
+---
+
+## 🤖 Assistant
+
+Mojibake bevestigd: oorspronkelijke UTF-8 (`—` = `E2 80 94`) is ooit als Windows-1252 ingelezen en als UTF-8 weggeschreven. Klassieke double-encode. Eenmalig terug-decoderen lost het op. Mooi. Mojibake hersteld. Nu A4-/A5-secties opzoeken in dezelfde doc: Mijn repair sloeg los over de em-dashes die ik zelf in deze sessie had toegevoegd (die werden cp1252-byte 0x97 en daarna ongeldig UTF-8 → U+FFFD). Even die handvol replacement-chars vervangen door echte em-dashes. Encoding is hersteld, alle em-dashes en pijlen kloppen weer. Nu de inhoudelijke vragen: ik zoek even A4/A5 op zoals ze in de huidige plan-doc staan en geef die letterlijk weer; daarna pas ik de inspector aan.  Plan:
+1.  blijft chip-bar, maar popover weg — klik op een chip toont de editor in het **rechter properties-paneel**.
+2. Inspector toont 3 modi (prioriteit): selectie → voice-group → leeg. Bij leeg auto-hide.
+3. Doc: section 6 toevoegen met expliciete A4/A5 plan-omschrijving.
+
+Eerst de code:  Nu de aanpassingen: chip-bar zonder popover, inspector mode-switcher (selectie/group/leeg), auto-hide:     
+```
+
+```
+Nu het popover uit  slopen (chip alleen meer toggle, geen overlay):   
+```
+
+```
+Build groen. Nu de doc: A4/A5 plan-secties toevoegen plus de Teensy/B-fase recap.  
+```
+
+```
+Tot slot het A4-min refinements blokje bijwerken zodat de chip-bar → inspector verhuizing en auto-hide vermeld staan:   
+```
+
+```
+Klaar. Korte recap:
+
+**UI**
+- Voice-group editor zit nu in het rechter properties-paneel (popover weg). Klik op een chip → groep open in inspector + slot-selectie weg. Klik op een module → inspector flipt terug naar module-props + groep dicht.
+- Inspector auto-hidet wanneer er niets te tonen is (geen selectie én geen open groep). Rack-grid krijgt dan de volle breedte.
+
+**Mojibake hersteld** in . Het was klassieke double-encode (UTF-8 ooit als cp1252 ingelezen en weer opgeslagen — `—` → `â€"`, `→` → `â†'`, etc.). Per-char terug-decoded; 20 standalone em-dashes die ik zelf in deze sessie had toegevoegd waren tot `U+FFFD` vernauwd en heb ik teruggezet. Alle pijlen + box-drawing chars zien er weer correct uit.
+
+**A4 + A5 + B-plan in doc.** Nieuwe sectie 6 in dezelfde doc, met:
+- **6.1 A4-full**: patcher rendert per voice-group alleen de master als echte node + cable, met een `▶/▼` per groep voor *ghost-voice* expand (semi-transparant, dashed, read-only). Gedrag voor poly↔poly cables, global→poly broadcasts (`─┬─`), en forbidden cables (`poly-out → single-in`). Run-gedrag van de geëxpandeerde graph is *out of scope* — dat is brain-side.
+- **6.2 A5**: `PatchPolyOverride`-paneel in de patch-properties. Lijst van overrides, dropdown om er een toe te voegen, drag-to-split UI op de member-indices, `unison`-checkbox, validatie dat partitions volledig zijn, en cable-revalidation bij wijzigingen.
+- **6.3 B (Teensy, full)**: jouw recap klopt — (1) Audio-library `AudioSynthWaveform`/`Filter`/`EffectMultiply` als VCO/VCF/VCA wrappen, (2) USB-only via `usbMIDI` in + `AudioOutputUSB` uit, (3) 4-voice end-to-end patch (MidiIn → 4×VCO → 4×VCF → 4×VCA → mono mix), (4) CV-rate vs audio-block-rate scheiden, (5) MIDI-in PC → Teensy → MIDI-uit PC roundtrip-test inclusief voice-stealing op een 5e noot. DIN-merge / BO-board / CC + pitchbend gedeferd.
+
+Build groen na alle wijzigingen (vite 1.66s). Volgende stap is dan A4-full in `PatcherGraphPanel.tsx` — zal ik daar mee starten of liever eerst de Teensy-fase oppakken?
+
+---
+
+## 🧑 User
+
+bevindingen:
+- delete valt er nog een beetje uit (img)
+- als een voicegroup (VG) al bestaat staat er toch nog "maak een vg van selectie". Dat zou kunnen veranderen naar: "(toon) vg eigenschappen"?
+
+
+Wil daar naar kijken en dan meteen door met A4, en als je wilt en kunt, A5?
+
+---
+
+## 🧑 User
+
+@agent Try Again
+
+---
+
+## 🤖 Assistant
+
+Wijzigingen: 1) inspector layout (delete naast input, beschrijving op eigen regel), 2) context menu groep-bewust, 3)  doorgeven aan .    
+```
+
+```
+Nu de inspector/GroupEditor layout fixen zodat Delete binnen 260px past:     
+```
+
+```
+Nu de doc-mojibake (van mijn vorige sweep) repareren — alleen mijn eigen nieuwe Dutch tekst is beschadigd.     
+```
+
+```
+Groen. Nu A4 (full) en A5. Eerst de patcher verkennen.    
+```
+
+```
+Nu de voiceMap + chip-bar + filterlogica in :     
+```
+
+```
+Nu de chip-bar boven de patcher renderen, plus de A5 override-paneel.     Voeg chip-bar boven het `mmb-patcher` div toe, en `PolyOverridePanel` rechts onder de PropertiesPanel:      
+```
+
+```
+
+```
+
+```
+Nu de  component definitie net voor  plaatsen:     
+```
+
+```
+I removed the  declaration.  declaration. Fix: 
+```
+
+```
+Build green. Nu de doc bijwerken. 
+```
+
+```
+Groen. Nu A4 (full) en A5. Eerst de patcher verkennen.    
+```
+
+```
+Nu de voiceMap + chip-bar + filterlogica in :     
+```
+
+```
+Nu de chip-bar boven de patcher renderen, plus de A5 override-paneel.     Voeg chip-bar boven het `mmb-patcher` div toe, en `PolyOverridePanel` rechts onder de PropertiesPanel:      
+```
+
+```
+
+```
+
+```
+Nu de  component definitie net voor  plaatsen:     
+```
+
+```
+I removed the  declaration. Fix: 
+```
+
+```
+Build green. Nu de doc bijwerken. 
+```
+
+```
+Klaar. Wat er deze ronde aangepast is:
+
+**Rack-editor bevindingen** () — beide eerder afgehandeld:
+- GroupEditor-header in 2 rijen → Delete-knop past nu binnen 260px.
+- Context-menu detecteert bestaande voice-group (single én multi) en toont dan `⛓ Toon voice-group eigenschappen` ipv ; opent direct de  in het properties-paneel.
+
+**A4 (full)** ():
+-  krijgt  +  velden → gekleurde outline/glow + -badge voor masters, semitransparante grayscale ghost-followers met -badge.
+-  bouwt  over alle racks, houdt -state, filtert/ghost't nodes, verbergt cables die aan verborgen followers hangen, en tekent poly-cables (dikker, glow + -label in groep-kleur).
+- Chip-bar boven het canvas:  per voice-group, klik wisselt expand/collapse.
+
+**A5** (zelfde bestand):  +  rechts in de sidebar. Per rack-group: + override → partition-rijen (label-input + auto voiceCount), één dropdown per member-cell om aan een partition te hangen, -toggle, `× Reset`. Geschreven naar  via . Runtime-gebruik komt later (allocator/upload).
+
+**Doc** (): nieuwe sectie "Phase A4 (full) + A5 — done" met implementatie-details en wat bewust uitgesteld is (per-voice trims, automatische ghost-cables, voicePermutation).
+
+Build: `npm run build` → vite 1.64s, geen errors.
+
+---
+
+## 🧑 User
+
+ik begrijp de voice overrides nog niet zo goed. Ik zou ook verwachten dat de UI verandert als ik dat doe.
+- Bijv: een groep splitsen in twee groepen, zou daarna twee groepen van 4 ipv 1 van 8 moeten geven.
+- unisono zou de groep weer moeten uitpakken naar losse modules, hoewel de ingang dan wel een gelijk signaal moet krijgen.
+- de patcher weet echter niet welke poort de ingang is, dus dan zouden we moeten kunnen kiezen bij unisono: welke **poorten** (mogelijk meervoud) het monofone signaal krijgen, en welke niet.
+- De unisono groep moet visuaal ook wel herkenbaar blijven met een rand eromheen.
+- Volgende fase, maar goed om op te schrijven: nesting is bij unisono wel interessant... een groep van 4 groepjes van 2 unisono vco's bijv. -> 4 stemmig dubbele oscillatoren.
+
+Dan zou ik nu heel graag naar de teensy gaan:
+```
+6.3 B (Teensy, full): jouw recap klopt — (1) Audio-library AudioSynthWaveform/Filter/EffectMultiply als VCO/VCF/VCA wrappen, (2) USB-only via usbMIDI in + AudioOutputUSB uit, (3) 4-voice end-to-end patch (MidiIn → 4×VCO → 4×VCF → 4×VCA → mono mix), (4) CV-rate vs audio-block-rate scheiden, (5) MIDI-in PC → Teensy → MIDI-uit PC roundtrip-test inclusief voice-stealing op een 5e noot. DIN-merge / BO-board / CC + pitchbend gedeferd.
+```
+- Waar staat dat gedocumenteerd, qua reqs / change log?
+-  Moet dan niet ook de MIDI-in panel aangepast worden, zodat poly en het aantal stemmen ook een optie is?
+
+## patcher
+- request: omdat een poly rack de modules 'indikt', is er veel leeg (zie img). Automatisch 'aansluiten' (tegen elkaar aanschuiven van alle modules) van het hele rack (een soort compacte view) zou fijn zijn.
+
+## teensy
+**ik heb de teensy aangesloten. Kun jij er zelf bij?**
+
+---
+
+## 🤖 Assistant
+
+Veel vragen tegelijk — ik beantwoord ze eerst, check de Teensy, en stel daarna voor wat ik direct oppak.
+
+Eerst even kijken of ik bij de Teensy kan: ## Voice-overrides — wat de huidige UI bedoelt vs wat jij verwacht
+
+Jouw mentaal model klopt en is veel nuttiger dan wat ik gebouwd heb. Wat ik nu heb is een laag-niveau "cell→partition mapping"-editor — correct als data, maar onleesbaar als UI en zonder feedback in de patcher zelf. Concreet:
+
+| Wat je verwacht | Wat de UI doet | Wat ik moet veranderen |
+|---|---|---|
+| "Splits N=8 in 2× N=4" met 1 knop | Je moet handmatig een sub-group toevoegen en cells 1 voor 1 toewijzen | Knop "Splits in 2/4/…" + visuele chips per partition |
+| Unison → groep wordt visueel losse modules (maar zelfde signaal) | Alleen een checkbox, geen visueel effect | Unison-modus rendert alle voices als losse modules met een gestippelde rand erom |
+| Bij unison: kies *welke poorten* mono signaal krijgen | Niet aanwezig | Per cell-group: dropdown-checklist met inputs van het master-type |
+| Override past zichtbaar de chip-bar + patcher aan | Chip-bar leest alleen de rack-groep, override wordt genegeerd |  + chip-bar moeten patch-overrides mergen |
+| (later) nesting: 4× (unison 2× VCO) | n.v.t. |  recursie — backlog |
+
+Dit is een serieus UX-rework van A5. **Voorstel:** ik parkeer A5 zoals het is, schrijf de bovenstaande punten naar de doc als "A5 v2 — backlog", en we pakken Teensy eerst (jouw expliciete prioriteit). Akkoord?
+
+## Doc-locaties
+
+- **Teensy-plan (B-recap)** staat nu alléén in  §6.3. Dat is een sketch-doc, geen reqs.
+- **Officiële requirements**:  — daarin staat poly bij regel 1196 nog als out-of-scope. Dat moet bijgewerkt.
+- **ADR's**: er bestaat al  (status: *Proposed*). Logische plek om de Teensy-implementatiekeuze + voice-allocator vast te leggen.
+- **Change-log**: er is geen `CHANGELOG.md`. De gewoonte tot nu is "appendix met datum in de relevante md". Voor Teensy zou ik een nieuw `firmware/app-modular-brain/DEVLOG.md` of een sectie in  maken.
+
+## MIDI-in panel — poly + voice count optie
+
+Ja, technisch logisch — maar **niet daar**. Het aantal stemmen hoort bij de **voice-group** (rack-niveau), niet bij de MIDI-In module. Een MIDI-In stuurt gewoon `noteOn(voct, gate)` naar wat aangesloten is; de voice-allocator zit erachter en die kent N uit de poly-group. Wel zinvol op de MIDI-In zelf: **channel** + **note-priority mode** (last/lowest/highest/round-robin) + **legato vs retrigger**. Dat zet ik op de backlog.
+
+## Patcher compact view
+
+Helder request. Implementatie-idee: een toggle "Compact" boven de patcher die  en  **virtueel** herberekent (alleen voor de view, niet schrijven naar de rack-data) — per rij links-aansluiten op volgorde van originele , ghost-followers in expanded groups krijgen dan ook hun eigen "virtuele" plek direct achter de master. Zet ik op backlog samen met A5 v2.
+
+## Teensy — wat ik zie en wat ik kan
+
+Detectie: ja, ik vind hem. PnP rapporteert `USB\VID_16C0&PID_0486` — dat is **PJRC VID 16C0, PID 0486 = USB MIDI**. Geen COM-poort dus geen `Serial.print`-debugkanaal beschikbaar.
+
+Wat dit betekent:
+1. **Geen toolchain geïnstalleerd**: geen `arduino-cli`, geen `teensy_loader_cli`, geen `platformio`. Ik kan dus nu **niet flashen of compileren**.
+2. **USB Type staat op MIDI-only**: voor onze plannen (Serial debug + MIDI + Audio) moet de firmware met USB Type = `Serial + MIDI + Audio` gebouwd worden — dat is een compile-flag (`-DUSB_MIDI_AUDIO_SERIAL`), geen Teensy-hardware-instelling.
+3. **MIDI-IO bereiken**: ik zou via een Node/Python script `midi.send` kunnen doen, maar zonder eerst onze firmware te flashen luistert hij naar niets bekends.
+
+**Concreet voorstel om door te kunnen:**
+
+a) Ik installeer **PlatformIO CLI** (`pip install -U platformio`, ~50 MB; vereist Python — heb jij dat?). PIO regelt zelf Teensyduino-core + `teensy_loader_cli` voor de upload. Daarna kan ik:
+-  voorzien van een `platformio.ini` met `board = teensy41`, `framework = arduino`, `build_flags = -D USB_MIDI_SERIAL`
+- de bestaande `core/`-library als `lib_deps` linken
+- een blink + USB-MIDI-loopback sketch bouwen + uploaden om de pipeline te valideren
+- daarna de echte B-stappen (Audio-library wrappers, 4-voice end-to-end)
+
+b) Alternatief: **jij  voorzien van een `platformio.ini` met `board = teensy41`, `framework = arduino`, `build_flags = -D USB_MIDI_SERIAL`
+- de bestaande `core/`-library als `lib_deps` linken
+- een blink + USB-MIDI-loopback sketch bouwen + uploaden om de pipeline te valideren
+- daarna de echte B-stappen (Audio-library wrappers, 4-voice end-to-end)
+
+b) Alternatief: **jij installeert Teensyduino + Arduino IDE** en flasht zelf op mijn instructies (langzamer, maar geen tools op je systeem nodig).
+
+c) Voor het Serial-debugkanaal moet de Teensy na de eerste flash ook zichtbaar worden als `COMx`. Dat lukt alleen als de USB Type "Serial" bevat.
+
+**Vraag: mag ik PlatformIO via `pip install -U platformio` installeren?** En heb je Python al op je PATH? (`python --version` check ik anders snel.) Als ja → ik scaffold meteen `firmware/app-modular-brain/platformio.ini` + een `main.cpp` die "Hello Teensy" over USB-MIDI stuurt zodat we de pipeline valideren vóór we core-modules gaan poorten.
 
 ---
