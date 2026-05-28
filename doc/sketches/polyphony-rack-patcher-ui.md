@@ -455,3 +455,33 @@ Out of scope, still pending: full A4 (patcher expand/collapse with ghost-voice r
 Build + test verify: `cmake --build` clean, `core_tests.exe` → **76 test(s), 0 failed** (was 67; +9 MidiIn).
 
 Out of scope, still pending: wiring the Teensy `usbMIDI` polling loop into a `MidiInModule` instance (needs the main-loop dispatcher to exist first); CC + pitch-bend handling; merging USB + DIN streams behind a `MidiSource` abstraction.
+
+### Phase A4-min refinements — done
+
+Rack-editor UX overhaul on top of A3+A4-min. All in `editor/src/modular-mb/RackPanel.tsx`.
+
+**Internal-rack auto-grow, overal.** Eerder rekte een internal rack alleen op bij het plaatsen van een nieuwe module. Nu groeit `hpPerRow` (en zo nodig `rows`) ook bij `duplicateSlot`, `moveSlot` (toetsenbord + 1HP-context-menu), `moveRow` en de drag/drop-handler `setSlotPosition`. Physical racks blijven hard begrensd door hun fysieke HP/rij-config.
+
+**Multiselect-engine.** Selectie is een `Set<string>` in `RackPanel`, gedeeld met `RackGrid` en de nieuwe `RackInspector`.
+- Klik: single-select. Shift-klik: range binnen dezelfde rij (op `hpOffset`-volgorde, anker = laatste single-klik). Ctrl/Cmd-klik: toggle.
+- Pijltjestoetsen op een geselecteerd slot bewegen de hele selectie atomair (één botsing of out-of-bounds tegen niet-geselecteerde modules → hele move wordt geweigerd; internal racks groeien in plaats van te weigeren). Delete verwijdert alle geselecteerde slots.
+- Drag-and-drop: als het ankermodule onderdeel van de selectie is, beweegt de hele selectie met dezelfde delta; anders valt het terug op single-move (en wordt het sleepdoel ook automatisch het nieuwe single-select).
+- Focus-retentie: na een rij-wissel is het DOM-element opnieuw aangemaakt, dus een `pendingFocusRef` + `useEffect` zet de focus terug op `[data-slot-id="…"]`. Pijltjestoetsen blijven daardoor werken na meerdere achtereenvolgende moves.
+- Achtergrond-klik (lege rij-strip of grid-root) leegt de selectie; slot-klik stopt propagation zodat dat niet per ongeluk gebeurt.
+
+**RackInspector (zij-panel).** Vervangt de oude per-rij "Selected slot"-blokjes door één 260px-breed aside naast het rack-grid.
+- 0 selectie: placeholder-tekst.
+- 1 selectie: bewerkbare module-naam, plus key/value-regels voor type, HP, rij, HP-offset, module-id, en een "Verwijder uit rack"-knop.
+- N > 1: bulk-delete + sneltoetsen-hint. De selectie-set en setter zijn props.
+
+**Selection-aware context menu.** Rechter-muis op een ongeselecteerd slot promoveert het tot single-select; op een geselecteerd slot blijft de hele selectie staan.
+- Multi-branch: header "<N> modules geselecteerd"; `⇤ Aansluiten naar links` / `⇥ Aansluiten naar rechts` (`packSelection` — per rij sorteren op `hpOffset`, butten vanaf de linker- of rechterrand van de huidige spreiding; valideert botsingen tegen niet-geselecteerde modules en rij-grenzen); `⛓ Maak voice-group van selectie` (alleen als alle leden hetzelfde `typeId` hebben en nog niet gegroepeerd zijn — leftmost wordt master, kleur uit `POLY_COLORS`); `× Verwijder selectie`.
+- Single-branch: dupliceer / rij omhoog/omlaag / 1HP links/rechts / `⛓ Voice-group van alle modules met dit type` (zelfde regel: gegroepeerd raakt overgeslagen, geklikt slot wordt master); verwijder.
+
+**Voice-groups chip-bar.** Het volle `VoiceGroupsPanel` is ingeklapt naar een ~30px chip-bar (`● Label · N`-buttons + `+ Group`). Klik op een chip opent een absoluut-gepositioneerde popover met de bestaande editor (naam, voice-count, member-volgorde ↑↓×, "+ Add voice"-dropdown, delete). Klik buiten de popover (overlay) of een tweede klik op de chip sluit.
+- Wanneer een groep open staat krijgen al haar member-slots in het grid een gekleurde outline + glow in de groep-kleur (extra `openGroupId` prop op `RackGrid`).
+
+**Badge zonder V-prefix.** Voice-badges op rack-slots tonen nu `1/3 ★` (master) of `2/3` in plaats van `V1/3 ★`. Compacter en de ster maakt de master onmiskenbaar.
+
+Editor build groen na alle wijzigingen (`npm run build` → vite 1.6s).
+
