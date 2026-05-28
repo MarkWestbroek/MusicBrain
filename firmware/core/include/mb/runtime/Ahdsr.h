@@ -1,32 +1,53 @@
 #pragma once
-// ADR 0009 — concrete AHDSR envelope.
-//
-// Modelled after the working Teensy 3.1 prototype in
-// `doc/old-code/ADSR/v3/.../Envelope.{h,cpp}` but adapted to the
-// ISR-tick model defined in ADR 0008:
-//   - the old code polled `millis()` from a busy loop;
-//   - this version is driven by `tick()` at `kCvTickRateHz`, so the
-//     elapsed time of a phase is simply the tick counter.
-//
-// Phase machine (unchanged from the prototype):
-//   gate-open  (from O/D/S/R) → A → H → D → S
-//   gate-close (from A/H/D/S) → R → O
-//   if loop && phase == R    → A (instead of O)
-//
-// Controls (TS-layer-2 ids match `tp_mmb_ahdsr`):
-//   attack   float   ms   ≥ 0
-//   hold     float   ms   ≥ 0
-//   decay    float   ms   ≥ 0
-//   sustain  float   0..1
-//   release  float   ms   ≥ 0
-//   loop     bool         if true, jumps back to Attack after Release
-//   curve    int    0=Lin (default), 1=Exp, 2=Log
-//
-// Curve affects only the Attack / Decay / Release ramp shape — Hold and
-// Sustain are always flat. The shape is applied as a pow() on the linear
-// progress, so the start/end values are identical to the linear case and
-// only the in-between trajectory changes. This keeps phase-transition
-// thresholds (≥1.0, ≤sustain, ≤0) working unchanged.
+/**
+ * @file Ahdsr.h
+ * @brief Concrete AHDSR (Attack / Hold / Decay / Sustain / Release) envelope
+ *        generator, driven by the 1 kHz CV tick ISR.
+ *
+ * @details
+ * Modelled after the working Teensy 3.1 prototype in
+ * `doc/old-code/ADSR/v3/`, ported from a busy-polling `millis()` loop to
+ * the ISR-tick model (ADR-0008): `tick()` is called once per millisecond, so
+ * the elapsed time of a phase equals its tick counter \u00d7 1 ms.
+ *
+ * **Phase state machine:**
+ * ```
+ * gate opens  (from Zero/D/S/R) \u2192 Attack \u2192 Hold \u2192 Decay \u2192 Sustain
+ * gate closes (from A/H/D/S)   \u2192 Release \u2192 Zero
+ * if loop && Release finishes  \u2192 Attack  (loop mode)
+ * ```
+ * Retrigger while already in D/S/R preserves the current value to avoid
+ * amplitude clicks.
+ *
+ * **Layer-2 controls (`setControl()`):**
+ * | controlId  | type  | unit | range        |
+ * |------------|-------|------|--------------|
+ * | `attack`   | float | ms   | \u2265 0           |
+ * | `hold`     | float | ms   | \u2265 0           |
+ * | `decay`    | float | ms   | \u2265 0           |
+ * | `sustain`  | float | \u2014    | 0 \u2026 1         |
+ * | `release`  | float | ms   | \u2265 0           |
+ * | `loop`     | bool  | \u2014    | false / true |
+ * | `curve`    | int   | \u2014    | 0=Lin, 1=Exp, 2=Log |
+ *
+ * **Curve:**
+ * Applies only to the ramping phases (Attack/Decay/Release).  Hold and
+ * Sustain are always flat.  The curve is implemented as `pow(linear, exp)`,
+ * so start and end values are identical to the linear case; only the
+ * in-between trajectory changes.  Phase-transition thresholds (`\u2265 1.0`,
+ * `\u2264 sustain`, `\u2264 0`) therefore work unchanged regardless of curve selection.
+ *
+ * **Thread safety:**
+ * `tick()` runs from the CV ISR; `setControl()` and `setGate()` are called
+ * from the main thread.  ARM Cortex-M7 single-word reads/writes are atomic,
+ * but multi-field updates use `__disable_irq()` / `__enable_irq()` to
+ * prevent torn reads between `value_` and `phase_`.
+ *
+ * **Editor mirror:** `tp_mmb_ahdsr` in
+ * `editor/src/modular-mb/seedModules.ts::mmbAhdsr()`.
+ *
+ * **ADR references:** ADR-0008 (CV tick), ADR-0009 (module hierarchy).
+ */
 
 #include "Envelope.h"
 #include "Registry.h"
@@ -34,56 +55,59 @@
 
 namespace mb::runtime {
 
+/** @brief Concrete AHDSR envelope generator. */
 class Ahdsr final : public Envelope {
 public:
     static constexpr const char* kTypeId = "tp_mmb_ahdsr";
 
-    // Internal phase state, exposed for diagnostics (tests + on-device view).
-    // The fixed integer values match the prototype enum so any saved logs
-    // remain comparable.
+    /** @brief Internal phase state.
+     *  Exposed publicly for diagnostic use (tests and on-device displays).
+     *  The fixed integer values are kept stable so any saved log output
+     *  remains comparable across firmware versions. */
     enum class Phase : std::uint8_t { Zero, Attack, Hold, Decay, Sustain, Release };
 
-    // Curve shape for Attack / Decay / Release. Matches the 3-position
-    // panel switch labelled `Lin / Exp / Log`.
+    /** @brief Ramp-curve shape for Attack, Decay, and Release phases.
+     *  Matches the 3-position panel switch labelled "Lin / Exp / Log". */
     enum class Curve : std::uint8_t { Linear = 0, Exponential = 1, Logarithmic = 2 };
 
-    // Construct an envelope in the `Zero` (idle) phase. The instance id
-    // is stored on the Module base for identification by the patch system;
-    // the envelope itself only uses its own internal state.
+    /** @brief Construct an envelope starting in the `Zero` (idle) phase. */
     explicit Ahdsr(std::string_view id);
 
     // --- Module override -------------------------------------------------
 
-    // Apply a layer-2 control change. Times come in as floats in *milli-
-    // seconds*; the implementation converts to ticks once and never
-    // touches floating-point time per tick. Unknown ids are no-ops.
+    /** @brief Apply a layer-2 control change.
+     *  Times arrive as floats in milliseconds and are converted to ticks
+     *  once on assignment; no floating-point arithmetic occurs per tick.
+     *  Unknown control ids are silently ignored. */
     void setControl(std::string_view controlId, ControlValue value) override;
 
     // --- CvModule override -----------------------------------------------
 
-    // Called once per CV tick. Advances `phaseTicks_`, recomputes `value_`
-    // through the curve function for the current phase, and triggers a
-    // phase transition when a threshold is hit. Safe to call from an ISR.
+    /** @brief Advance the envelope by one CV tick (1 ms).
+     *  Updates `value_`, triggers phase transitions at the appropriate
+     *  thresholds.  Safe to call from a timer ISR. */
     void tick() override;
 
     // --- Envelope overrides ----------------------------------------------
 
-    // Gate input. Rising edge: starts Attack from Zero, or retriggers
-    // from D/S/R while preserving the current value (avoids clicks).
-    // Falling edge: from A/H/D/S → Release, starting from current value.
-    // No-op if the requested transition is not allowed in the current
-    // phase (e.g. opening the gate while already in Attack / Hold).
+    /** @brief Set the gate (trigger) input.
+     *  Rising edge: starts Attack from Zero, or retriggers from D/S/R while
+     *  preserving the current output value to avoid amplitude clicks.
+     *  Falling edge: transitions A/H/D/S → Release from the current value.
+     *  Transitions that are not allowed in the current phase are no-ops. */
     void setGate(bool open) override;
 
-    // Current envelope output, normalised 0..1.
+    /** @brief Current envelope output, normalised to [0.0 … 1.0]. */
     float value() const override { return value_; }
 
-    // True while the envelope is producing a non-idle value. Used by the
-    // voice allocator to know when a voice slot becomes free again.
+    /** @brief True while the envelope is producing a non-idle (non-Zero) value.
+     *  Used by the voice allocator to detect when a voice slot is free again. */
     bool  active() const override { return phase_ != Phase::Zero; }
 
-    // Current phase. Public for tests and the on-device view.
+    /** @brief Current phase, for diagnostics and tests. */
     Phase phase() const { return phase_; }
+
+    /** @brief Current curve setting. */
     Curve curve() const { return curve_; }
 
     // Register the factory with the global registry. Idempotent. Called

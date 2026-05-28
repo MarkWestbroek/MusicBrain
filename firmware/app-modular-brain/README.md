@@ -93,3 +93,40 @@ End-to-end transport between the React editor and the Teensy is live. Newline-te
 - **PIO config.** Added `bblanchon/ArduinoJson@^7.1.0` to `lib_deps`. PIO's LDF didn't resolve the include path automatically (likely the `lib_extra_dirs = ..` interaction with `core/`); fixed by adding `-I .pio/libdeps/teensy41/ArduinoJson/src` to `build_flags`. FLASH +20 KB, RAM unchanged (auto-sized `JsonDocument` allocates on demand).
 - **Validation.** MIDI pipeline test still green (all 3 sub-tests PASS) — Serial-link traffic doesn't disturb the audio path.
 - **Next (B-step 3).** Replace the hardcoded 4-voice setup with a `ModuleRegistry` that instantiates `MidiInModule` / `VcoModule` / `AdsrModule` / `VcaModule` from the incoming `project.modules` + `patch.connections`. First mapped types: MIDI-IN → existing `mb::runtime::MidiInModule`, VCO → `AudioSynthWaveform` wrap, ADSR → `AudioSynthWaveformDc` ramp wrap, VCA → `AudioEffectMultiply` wrap, AUDIO-OUT → `AudioOutputUSB`.
+
+### 2026-05-29 — B-phase step 3 (dynamic audio graph from patch JSON)
+
+The editor can now push a patch and the Teensy re-wires its audio graph at runtime without a reflash.
+
+**Architecture.**
+
+| New file | Role |
+|---|---|
+| `src/AudioPortModule.h` | Interface mixin; declares `outputPort()` / `inputPort()` returning `AudioPort{stream*, channel, valid}`. Overrides `Module::supportsAudioPorts()` → `true`; provides `AudioPortModule::from(Module*)` static cast helper. |
+| `src/AudioGraph.h/.cpp` | `build(patch, instances)` iterates the `connections` array in the patch JSON, resolves both endpoints via `AudioPortModule::from()`, creates `unique_ptr<AudioConnection>`. `tearDown()` destroys all connections under `AudioNoInterrupts/Interrupts`. Logs wired/skipped counts. |
+| `src/VcoModule.h` | `tp_mmb_vco`, wraps `AudioSynthWaveform`. `updatePitch(volts)` converts V/Oct to Hz (`261.6 · 2^v`). Ports: out `"out"`. |
+| `src/VcaModule.h` | `tp_mmb_vca`, wraps `AudioEffectMultiply`. Port `"in"` → ch 0, `"cv"` → ch 1, `"out"` → ch 0. |
+| `src/AhdsrAudioModule.h` | `tp_mmb_ahdsr`, composes `mb::runtime::Ahdsr env_` + `mutable AudioSynthWaveformDc dc_`. `tick()` calls `env_.tick()` then `dc_.amplitude(env_.value())`. Overwrites the core Ahdsr factory so that `ProjectRuntime::applyConfig` now instantiates this richer type. |
+| `src/VcfModule.h` | `tp_mmb_vcf`, wraps `AudioFilterStateVariable`. Output channel: LP=0, HP=2, BP=1. |
+| `src/OutModule.h` | `tp_mmb_out`, routes `"l"` / `"r"` to a shared `AudioOutputUSB*` singleton set in `setup()`. |
+
+**Key design decisions.**
+
+- **No RTTI.** Teensy builds compile with `-fno-rtti`. `dynamic_cast` is forbidden. Solution: `Module::supportsAudioPorts()` virtual bool (default `false`; `AudioPortModule` overrides to `true`) plus `static_cast` where the virtual tag guarantees safety. Similarly, `tickCvModules()` and `syncDynamicModules()` in `main.cpp` use `mod->typeId()` comparison + `static_cast`.
+- **`insert_or_assign` in Registry.** `Ahdsr.cpp` auto-registers `tp_mmb_ahdsr` at static-init time. Changed `Registry::register_()` from `emplace` (first-wins) to `insert_or_assign` (last-wins) so `AhdsrAudioModule::registerFactory()` — called last in `registerAllRuntimeModules()` — can overwrite it.
+- **`AudioOutputUSB` singleton.** Multiple `AudioOutputUSB` instances conflict on USB. `OutModule::sharedOutput` is an `inline static` pointer set in `setup()` to the single global `usbOut`.
+- **Composition, not inheritance, for `AhdsrAudioModule`.** Inheriting both `Ahdsr` and `AudioPortModule` would create a diamond through `Module`. Instead `AhdsrAudioModule` owns an `mb::runtime::Ahdsr env_` member and delegates all envelope logic to it.
+- **Backward compatibility.** The static 4-voice graph from B-step 2 is still present and runs concurrently with the dynamic graph. MIDI notes drive both chains simultaneously. Disabling the static graph when a dynamic patch is active is deferred to B-step 4.
+
+**CV tick.** `loop()` fires `tickCvModules()` every ≥ 1 ms (guarded by `millis()` delta), which calls `env->tick()` on every `AhdsrAudioModule` instance so the AHDSR state machine advances independent of the audio block callback.
+
+**Mono limitation.** `syncDynamicModules()` drives all VCO/AHDSR instances from voice-0 only. Polyphonic dynamic patches are a future step.
+
+**Build result.**
+```
+FLASH: 125 560 B code (+10 KB vs step 2)
+RAM1:  free local 322 304 B
+RAM2:  free malloc 495 712 B
+[SUCCESS]
+```
+

@@ -159,7 +159,11 @@ export async function connect(): Promise<void> {
   try {
     // Teensy USB VID = 0x16C0.
     port = await navigator.serial.requestPort({ filters: [{ usbVendorId: 0x16C0 }] });
-    await port.open({ baudRate: 115200 });
+    // The browser may return a port that is already open (e.g. after a
+    // hot-reload). Only call open() when readable is null.
+    if (!port.readable) {
+      await port.open({ baudRate: 115200 });
+    }
     writer = port.writable!.getWriter();
     readLoopAbort = false;
     void readLoop();
@@ -187,10 +191,35 @@ async function safeClose(): Promise<void> {
 }
 
 export async function sendConfig(project: ModularProject): Promise<void> {
-  // Strip design-time-only arrays that the firmware doesn't need.
-  // categories + moduleTypes together make up ~80% of the JSON payload.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { categories: _c, moduleTypes: _mt, ...runtime } = project;
+  // Build a minimal runtime-only payload — the Teensy only needs enough to
+  // instantiate modules and wire the audio graph. Strip ALL visual/design-
+  // time fields so the JSON stays well under the 48 KB line buffer.
+  const runtime = {
+    version:       project.version,
+    name:          project.name,
+    activePatchId: project.activePatchId,
+    modules: project.modules.map((m) => ({
+      id:     m.id,
+      typeId: m.typeId,
+    })),
+    racks: project.racks.map((r) => ({
+      id:    r.id,
+      slots: r.slots.map((s) => ({ id: s.id, moduleId: s.moduleId })),
+    })),
+    patches: project.patches.map((p) => ({
+      id:      p.id,
+      name:    p.name,
+      rackIds: p.rackIds,
+      connections: p.connections.map((c) => ({
+        id:   c.id,
+        from: c.from,
+        to:   c.to,
+        ...(c.attenuation !== undefined ? { attenuation: c.attenuation } : {}),
+        ...(c.invert      ? { invert: c.invert }       : {}),
+      })),
+      controlState: p.controlState,
+    })),
+  };
   await writeLine(JSON.stringify({ type: 'config', project: runtime }));
 }
 

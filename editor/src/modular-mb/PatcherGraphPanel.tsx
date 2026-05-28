@@ -449,7 +449,10 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
       const polyGroup = srcV && srcV.voiceIndex === 0 ? srcV.group
                        : dstV && dstV.voiceIndex === 0 ? dstV.group
                        : null;
-      const tintColour = polyGroup ? (polyGroup.color || colour) : colour;
+      // Cable stroke always follows the *signal type* colour so CV is always
+      // blue, Gate green, etc. — regardless of which poly group it belongs to.
+      // The poly group colour is only used for the ×N label background.
+      const groupColor = polyGroup ? (polyGroup.color || colour) : colour;
       const stroke = polyGroup ? Math.max(isSel ? 7 : 5, 5) : (isSel ? 6 : 3);
       return [{
         id: c.id,
@@ -463,18 +466,18 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
         reconnectable: true,
         label: polyGroup ? `×${polyGroup.voiceCount}` : undefined,
         labelStyle: polyGroup ? { fill: '#0f172a', fontWeight: 700, fontSize: 11 } : undefined,
-        labelBgStyle: polyGroup ? { fill: tintColour } : undefined,
+        labelBgStyle: polyGroup ? { fill: groupColor } : undefined,
         labelBgPadding: [4, 2] as [number, number],
         labelBgBorderRadius: 3,
         style: {
-          stroke: tintColour,
+          stroke: colour,
           strokeWidth: stroke,
           strokeLinecap: 'round',
           strokeDasharray: polyGroup ? '0' : undefined,
           filter: isSel
-            ? `drop-shadow(0 0 6px ${tintColour})`
+            ? `drop-shadow(0 0 6px ${colour})`
             : (polyGroup
-                ? `drop-shadow(0 0 4px ${tintColour}88)`
+                ? `drop-shadow(0 0 4px ${colour}88)`
                 : 'drop-shadow(0 1px 1.5px rgba(0,0,0,0.55))'),
         },
       } as Edge];

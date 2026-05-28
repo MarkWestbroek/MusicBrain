@@ -1,15 +1,18 @@
-// MusicBrain Teensy firmware — B-phase step 2: 4-voice polyphony via
-// the shared `mb::runtime::MidiInModule` allocator.
+// MusicBrain Teensy firmware — B-phase step 3: dynamic audio graph from patch JSON.
 //
-// Audio graph (per voice):
-//   AudioSynthWaveform osc -> AudioEffectMultiply vca <- AudioSynthWaveformDc eg
-// Voice outputs are summed in one stereo AudioMixer4 then sent to USB-audio.
+// Static 4-voice graph (B-step 2) remains active as a fallback.
+// When the editor pushes a project and activates a patch, AudioGraph
+// wires the project modules (VCO, VCA, AHDSR-DC, VCF, Out) via
+// AudioConnection objects derived from the patch's connection list.
 //
-// MIDI handling:
-//   usbMIDI callbacks -> midiIn.onNoteOn/Off (delegates to VoiceAllocator).
-//   After each event we resync all `kVoices` audio voices from
-//   midiIn.voicePitchV / voiceGate / voiceVelocity. Pure read-from-model
-//   so the Audio library never sees inconsistent state.
+// CV bridge:
+//   syncVoicesFromModel() still drives the static 4-voice chain.
+//   syncDynamicModules()  additionally drives any VcoModule / AhdsrAudioModule
+//   instances in the live runtime (voice 0 only — mono patch support).
+//
+// CV tick:
+//   loop() calls tickCvModules() every ≥1 ms so AhdsrAudioModule instances
+//   advance their envelopes and update their DC proxy outputs.
 
 #include <Arduino.h>
 #include <Audio.h>
@@ -18,6 +21,12 @@
 
 #include "mb/runtime/MidiIn.h"
 #include "TeensyLink.h"
+#include "ProjectRuntime.h"
+#include "RegisterAllModules.h"
+#include "AudioGraph.h"
+#include "VcoModule.h"
+#include "AhdsrAudioModule.h"
+#include "OutModule.h"
 
 namespace {
 
@@ -64,26 +73,71 @@ constexpr uint32_t kHeartbeatPeriodMs = 1000;
 uint32_t lastBlinkMs = 0;
 bool ledState = false;
 
-mmb_link::TeensyLink link;
+mmb_link::TeensyLink    link;
+mmb_link::ProjectRuntime runtime;
+mmb_link::AudioGraph    audioGraph;
 
-// Editor → Teensy callbacks. B-step 2 just logs; B-step 3 will rebuild
-// the audio graph from the project tree.
+// ------------------------------------------------------------------
+// CV tick — called from loop() every ≥1 ms.
+// Advances all AhdsrAudioModule envelopes and pushes the new value
+// to their AudioSynthWaveformDc proxy outputs.
+// ------------------------------------------------------------------
+uint32_t lastCvTickMs = 0;
+
+void tickCvModules() {
+    for (auto& [id, mod] : runtime.instances()) {
+        if (mod->typeId() == mmb_link::AhdsrAudioModule::kTypeId)
+            static_cast<mmb_link::AhdsrAudioModule*>(mod.get())->tick();
+    }
+}
+
+// ------------------------------------------------------------------
+// Dynamic CV bridge — drives VcoModule pitch and AhdsrAudioModule gate
+// from voice 0 of the live MidiInModule.  Mono patches only (B-step 3).
+// ------------------------------------------------------------------
+void syncDynamicModules() {
+    const float pitchV = midiIn.voicePitchV(0);
+    const bool  gate   = midiIn.voiceGate(0);
+
+    for (auto& [id, mod] : runtime.instances()) {
+        const std::string_view tid = mod->typeId();
+        if (tid == mmb_link::VcoModule::kTypeId)
+            static_cast<mmb_link::VcoModule*>(mod.get())->updatePitch(pitchV);
+        else if (tid == mmb_link::AhdsrAudioModule::kTypeId)
+            static_cast<mmb_link::AhdsrAudioModule*>(mod.get())->setGate(gate);
+    }
+}
+
+// ------------------------------------------------------------------
+// Editor → Teensy callbacks.
+// ------------------------------------------------------------------
+
 void onConfigReceived(JsonObjectConst project) {
     const char* name = project["name"] | "(unnamed)";
     mmb_link::TeensyLink::logf("config received: name=%s", name);
+    runtime.applyConfig(project);
 }
 
 void onSelectPatch(const char* patchId) {
     mmb_link::TeensyLink::logf("selectPatch: %s", patchId);
+    if (runtime.activatePatch(patchId)) {
+        JsonObjectConst patch = runtime.activePatchJson();
+        if (!patch.isNull())
+            audioGraph.build(patch, runtime.instances());
+    }
 }
 
+// ------------------------------------------------------------------
 // V/Oct → Hz: MIDI 60 = 0 V = 261.626 Hz (C4); +1 V = +1 octave.
+// ------------------------------------------------------------------
 inline float voltsToHz(float v) {
     return 261.6256f * powf(2.0f, v);
 }
 
+// ------------------------------------------------------------------
+// Static 4-voice sync (B-step 2 fallback, always active).
+// ------------------------------------------------------------------
 void syncVoicesFromModel() {
-    // Atomic re-config vs audio ISR.
     AudioNoInterrupts();
     for (uint8_t i = 0; i < kVoices; ++i) {
         const bool  gate = midiIn.voiceGate(i);
@@ -96,6 +150,8 @@ void syncVoicesFromModel() {
             eg[i].amplitude(0.0f, 60);        // 60 ms release
         }
     }
+    // Drive dynamic modules from voice 0 (mono)
+    syncDynamicModules();
     AudioInterrupts();
 }
 
@@ -134,10 +190,12 @@ void setup() {
     Serial.begin(115200);
     uint32_t t0 = millis();
     while (!Serial && (millis() - t0) < 1500) { /* spin briefly */ }
-    Serial.println("[boot] MusicBrain Teensy step-2 (4-voice via MidiInModule) online");
+    Serial.println("[boot] MusicBrain Teensy step-3 (dynamic audio graph) online");
     Serial.printf("[boot] CPU @ %lu MHz\n", static_cast<unsigned long>(F_CPU_ACTUAL / 1000000));
 
     AudioMemory(40);
+
+    // Static 4-voice graph (B-step 2)
     for (uint8_t i = 0; i < kVoices; ++i) {
         osc[i].begin(WAVEFORM_SAWTOOTH);
         osc[i].amplitude(0.9f);
@@ -150,6 +208,9 @@ void setup() {
     new (mixToUsbStorageL) AudioConnection(mixL, 0, usbOut, 0);
     new (mixToUsbStorageR) AudioConnection(mixR, 0, usbOut, 1);
 
+    // Point OutModule instances at the shared USB output
+    mmb_link::OutModule::sharedOutput = &usbOut;
+
     midiIn.setControl("channel",    static_cast<int32_t>(0));         // omni
     midiIn.setControl("voiceCount", static_cast<int32_t>(kVoices));
     Serial.printf("[boot] MidiInModule: omni, voices=%u\n", midiIn.voiceCount());
@@ -157,6 +218,7 @@ void setup() {
     usbMIDI.setHandleNoteOn (handleNoteOn);
     usbMIDI.setHandleNoteOff(handleNoteOff);
 
+    mmb_link::registerAllRuntimeModules();
     link.begin(onConfigReceived, onSelectPatch);
 }
 
@@ -164,7 +226,13 @@ void loop() {
     while (usbMIDI.read()) { /* drain */ }
     link.poll();
 
-    uint32_t now = millis();
+    // CV tick — advance envelopes approximately every 1 ms
+    const uint32_t now = millis();
+    if (now - lastCvTickMs >= 1) {
+        lastCvTickMs = now;
+        tickCvModules();
+    }
+
     if (now - lastBlinkMs >= kHeartbeatPeriodMs / 2) {
         lastBlinkMs = now;
         ledState = !ledState;

@@ -1,20 +1,48 @@
-// Editor ↔ Teensy link over USB Serial.
-//
-// Protocol (mmb-config.v1, see doc/sketches/polyphony-rack-patcher-ui.md §6.5):
-//   newline-terminated UTF-8 JSON lines, 115200 baud, USB-Serial.
-//
-//   From editor (host) → Teensy:
-//     {"type":"hello"}                        request hello reply
-//     {"type":"config","project":{...}}       full ModularProject push
-//     {"type":"selectPatch","patchId":"..."}  switch active patch
-//
-//   From Teensy → editor:
-//     {"type":"hello","fw":"mmb-teensy-1","step":2}
-//     {"type":"ack","ok":true,"applied":"config","modules":N,"patches":M}
-//     {"type":"ack","ok":false,"err":"..."}
-//     {"type":"log","msg":"..."}
-//
-// This first slice only acks; module instantiation comes in B-step 3+.
+/**
+ * @file TeensyLink.h
+ * @brief USB-Serial JSON protocol bridge between the browser editor and the
+ *        Teensy firmware (mmb-config.v1).
+ *
+ * @details
+ * The MusicBrain editor runs in the browser and communicates with the Teensy
+ * over USB using the Web Serial API (Chrome/Edge only). Both sides exchange
+ * newline-terminated UTF-8 JSON messages at 115 200 baud.
+ *
+ * **Message flow:**
+ *
+ * Editor → Teensy:
+ * - `{"type":"hello"}` — request a handshake reply (editor sends this on
+ *   connect so it can learn the firmware version even if it missed the
+ *   boot-time hello).
+ * - `{"type":"config","project":{...}}` — push the complete runtime-only
+ *   ModularProject snapshot. The editor strips all design-time data
+ *   (categories, module-type definitions, visual layouts) so the payload
+ *   is typically 3–15 KB.
+ * - `{"type":"selectPatch","patchId":"..."}` — switch the active patch
+ *   (preset). The firmware reinstantiates the audio graph from the stored
+ *   project snapshot.
+ *
+ * Teensy → Editor:
+ * - `{"type":"hello","fw":"mmb-teensy-1","step":N}` — sent on boot and in
+ *   reply to every incoming hello. `step` reflects the B-phase build step.
+ * - `{"type":"ack","ok":true,"applied":"config","modules":N,...}` — success
+ *   acknowledgement, echoes back counts for the editor to display.
+ * - `{"type":"ack","ok":false,"err":"..."}` — error acknowledgement.
+ * - `{"type":"log","msg":"..."}` — free-form diagnostic log line, shown in
+ *   the editor's log pane.
+ *
+ * **Buffer strategy:**
+ * The line buffer is a statically-allocated `char[]` in BSS (no heap). This
+ * avoids the silent truncation that Arduino's `String` produces under heap
+ * pressure at large payload sizes. The buffer is 48 KB — comfortably larger
+ * than the largest expected payload; Teensy 4.1 has 512 KB of RAM2 and over
+ * 300 KB of free RAM1.
+ *
+ * **Caller contract:**
+ * Call `begin()` once from `setup()`, then call `poll()` on every iteration
+ * of `loop()`. Both `log()` and `logf()` are safe to call from anywhere in
+ * the main thread (not from ISRs).
+ */
 
 #pragma once
 
@@ -28,11 +56,25 @@ namespace mmb_link {
 // heap fragmentation risk. Teensy 4.1 RAM1 has ~370 KB free for globals.
 inline constexpr size_t kLineMax = 48 * 1024;
 
+/**
+ * @brief Handles the USB-Serial JSON protocol (mmb-config.v1).
+ *
+ * Instantiate one global instance and call `begin()` + `poll()`. Everything
+ * else is driven by callbacks and the `log()` / `logf()` static helpers.
+ */
 class TeensyLink {
 public:
+    /** Callback invoked when a valid "config" message arrives. The
+     *  @p project view is valid only for the duration of the callback —
+     *  callers that need to retain data must deep-copy it (ProjectRuntime
+     *  does this via ArduinoJson's assignment). */
     using ConfigHandler      = void (*)(JsonObjectConst project);
+
+    /** Callback invoked when a "selectPatch" message arrives. */
     using SelectPatchHandler = void (*)(const char* patchId);
 
+    /** @brief Initialise the link and send the opening hello frame.
+     *  Must be called once from Arduino `setup()` after `Serial.begin()`. */
     void begin(ConfigHandler onConfig, SelectPatchHandler onSelectPatch) {
         onConfig_      = onConfig;
         onSelectPatch_ = onSelectPatch;
@@ -40,7 +82,8 @@ public:
         sendHello();
     }
 
-    // Call from loop().
+    /** @brief Drain the serial input buffer and dispatch complete lines.
+     *  Call on every iteration of Arduino `loop()`. Non-blocking. */
     void poll() {
         while (Serial.available() > 0) {
             const int c = Serial.read();
@@ -56,6 +99,9 @@ public:
         }
     }
 
+    /** @brief Send a structured log message to the editor.
+     *  Serialises `{"type":"log","msg":"..."}` onto the serial line.
+     *  Safe to call from the main thread at any time. */
     static void log(const char* msg) {
         JsonDocument doc;
         doc["type"] = "log";
@@ -64,6 +110,7 @@ public:
         Serial.println();
     }
 
+    /** @brief printf-style variant of log(). Message is truncated at 200 chars. */
     static void logf(const char* fmt, ...) {
         char tmp[200];
         va_list ap; va_start(ap, fmt);
@@ -82,7 +129,7 @@ private:
         JsonDocument doc;
         doc["type"] = "hello";
         doc["fw"]   = "mmb-teensy-1";
-        doc["step"] = 2;
+        doc["step"] = 3;
         serializeJson(doc, Serial);
         Serial.println();
     }

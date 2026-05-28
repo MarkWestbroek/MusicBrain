@@ -1,14 +1,31 @@
 #pragma once
-// ADR 0009 — module runtime classes (firmware side, skeleton only).
-//
-// Mirrors editor/src/modular-mb/runtime/Module.ts. This header declares the
-// abstract `Module` base class with the same shape as the TypeScript runtime;
-// concrete subclasses live alongside it (`CvModule.h`, `AudioModule.h`,
-// `ExternalModule.h`).
-//
-// Implementation is deferred — these headers exist so the firmware namespace
-// matches the editor and ADR vocabulary, and so follow-up commits can fill
-// in subclasses incrementally without changing call sites.
+/**
+ * @file Module.h
+ * @brief Abstract base class for all MusicBrain runtime modules.
+ *
+ * @details
+ * Every buildable block in the modular system — whether a VCO, an AHDSR,
+ * an LFO, or a MIDI input — is represented at runtime by a `Module`
+ * subclass.  The hierarchy mirrors the TypeScript runtime in the editor
+ * (`editor/src/modular-mb/runtime/Module.ts`) so that module behaviour can
+ * be described once and tested independently of the Teensy target.
+ *
+ * Two sub-hierarchies extend this base:
+ * - `AudioModule` — for signal-generating / signal-processing modules that
+ *   interact directly with the Teensy Audio library.
+ * - `CvModule` — for modules that produce CV values at the 1 kHz CV tick
+ *   rate (envelopes, LFOs, sequencers).
+ *
+ * **Layer-2 control protocol:**
+ * The editor can send real-time control changes to a live module via the
+ * TeensyLink.  Changes arrive as `{"controlId":"...","value":...}` inside a
+ * patch connection or control-state object and are dispatched to the
+ * relevant module via `setControl()`.  Subclasses are expected to handle any
+ * control id they know and silently ignore anything unfamiliar, so older
+ * patches remain compatible with newer firmware builds.
+ *
+ * **ADR reference:** ADR-0009 (firmware/doc/adr/).
+ */
 
 #include "../Types.h"
 #include <cstdint>
@@ -18,33 +35,60 @@
 
 namespace mb::runtime {
 
-// ControlValue mirrors the TS layer-2 union. Kept narrow so it fits in a
-// register-sized variant; richer types come later (ADR 0009 open question).
+/**
+ * @brief A variant holding any scalar control value that can be sent from the editor.
+ *
+ * `float` — continuous knob / CV (e.g. frequency ratio, time in ms).\n
+ * `bool`  — toggle / gate.\n
+ * `int32_t` — discrete selector (waveform, curve, voice count).
+ */
 using ControlValue = std::variant<float, bool, int32_t>;
 
+/**
+ * @brief Abstract base for all runtime module objects.
+ *
+ * Holds the module's immutable identity (typeId + instance id) and declares
+ * the one virtual method that every concrete module must implement.
+ */
 class Module {
 public:
-    // The base ctor stores both ids by value. Callers may pass in temporaries
-    // (e.g. `std::string_view` of a literal); copying into `std::string`
-    // guarantees the strings outlive the lambda factories that construct us.
+    /** Stores both ids by value so they outlive temporary factory lambdas. */
     Module(std::string_view typeId, std::string_view id)
         : typeId_(typeId), id_(id) {}
     virtual ~Module() = default;
 
-    // Instance id assigned by the patch (e.g. "vco1"). Unique within a
-    // single patch. Safe to use as a map key for the runtime instance list.
+    /** @brief Instance id assigned by the project (e.g. `"vco1"`).  Unique
+     *  within a project; used as the map key in ProjectRuntime. */
     std::string_view id()     const { return id_; }
 
-    // Module-type id from the catalog (e.g. "tp_mmb_ahdsr"). Constant for
-    // the lifetime of the instance — the registry looks up by this id.
+    /** @brief Module-type id from the catalog (e.g. `"tp_mmb_ahdsr"`).  Set
+     *  at construction time and immutable for the lifetime of the instance. */
     std::string_view typeId() const { return typeId_; }
 
-    // Live-edit hook used by the registry / patch system. Called from the
-    // main thread when a layer-2 control changes value. Implementations
-    // must be cheap (this is on the UI thread) and may NOT block. Unknown
-    // control ids must be silently ignored so older patches keep loading
-    // against newer firmware.
+    /**
+     * @brief Apply a layer-2 control change from the editor.
+     *
+     * Called on the main thread when a knob, switch, or CV input changes
+     * value in the browser editor.  Implementations must be cheap and
+     * non-blocking.  **Unknown @p controlId values must be silently
+     * ignored** so that older patches remain loadable on newer firmware.
+     *
+     * @param controlId  Identifier matching the control definition in the
+     *                   module-type catalog (e.g. `"attackMs"`).
+     * @param value      New value; the active alternative in the variant
+     *                   matches the declared type of the control.
+     */
     virtual void setControl(std::string_view controlId, ControlValue value) = 0;
+
+    /**
+     * @brief Returns true if this module exposes Teensy Audio stream ports.
+     *
+     * Used in place of `dynamic_cast` (which requires RTTI, disabled on
+     * Teensy builds) to identify `AudioPortModule` subclasses.  The default
+     * implementation returns false; `AudioPortModule` overrides it to true.
+     * Callers may then safely `static_cast<AudioPortModule*>` the pointer.
+     */
+    virtual bool supportsAudioPorts() const { return false; }
 
 protected:
     std::string typeId_;

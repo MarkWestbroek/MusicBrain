@@ -11,8 +11,10 @@ void VoiceAllocator::configure(uint8_t voiceCount) {
 
 AllocResult VoiceAllocator::noteOn(uint8_t note) {
     AllocResult r{};
-    // 1) Prefer a free voice with the smallest age (= released longest ago,
-    //    or never used).
+    // Step 1: prefer the free voice that has been idle the longest.
+    // age == 0 means never used and always wins; among used-then-released
+    // voices the one with the smallest age was released earliest, giving
+    // it the most time to finish its release phase before being retriggered.
     int chosen = -1;
     uint32_t bestAge = UINT32_MAX;
     for (uint8_t i = 0; i < voiceCount_; ++i) {
@@ -26,7 +28,8 @@ AllocResult VoiceAllocator::noteOn(uint8_t note) {
         }
     }
     if (chosen < 0) {
-        // 2) All voices held → steal the OLDEST (smallest age).
+        // Step 2: all voices held — steal the oldest (lowest age = has been
+        // sounding the longest), which is most likely past its transient.
         bestAge = UINT32_MAX;
         for (uint8_t i = 0; i < voiceCount_; ++i) {
             if (voices_[i].age < bestAge) {
@@ -45,9 +48,10 @@ AllocResult VoiceAllocator::noteOn(uint8_t note) {
 }
 
 uint8_t VoiceAllocator::noteOff(uint8_t note) {
-    // Last-note priority: drop the most-recently-allocated voice that
-    // matches (covers the case where the same note was retriggered after
-    // a steal — only the newest instance should be released by this NoteOff).
+    // Last-note priority: when the same MIDI note number has been allocated
+    // to multiple voices (possible after steal + retrigger), only release
+    // the most recently allocated one.  A stale NoteOff for an earlier
+    // instance then becomes a no-op, so the retriggered note keeps sounding.
     int chosen = -1;
     uint32_t bestAge = 0;
     for (uint8_t i = 0; i < voiceCount_; ++i) {

@@ -1,16 +1,30 @@
 #pragma once
-// ADR 0009 — runtime-class registry (firmware skeleton).
-//
-// Maps `typeId` (e.g. "tp_mmb_vcf") to a factory that builds a Module
-// instance. Mirrors editor/src/modular-mb/runtime/Registry.ts.
-//
-// Concrete subclasses self-register at static-init time so adding a new
-// module type means dropping in one new .cpp file with one REGISTER_MODULE
-// macro call — no changes to the patch loader.
-//
-// This is the firmware analogue of the TS `registry` singleton. Tests are
-// expected to construct an isolated `Registry` rather than mutate the
-// global one.
+/**
+ * @file Registry.h
+ * @brief Global factory registry that maps module type-ids to constructors.
+ *
+ * @details
+ * At startup the firmware does not know which module types the editor will
+ * push in a project.  The Registry decouples the project loader
+ * (ProjectRuntime) from the concrete module classes by storing a map of
+ * `typeId → Factory` entries.
+ *
+ * **Self-registration pattern:**
+ * Each concrete module class provides a static `registerFactory()` method
+ * that inserts its own factory into `Registry::global()`.  Those methods
+ * are called once at startup by `registerAllRuntimeModules()`.  Adding a
+ * new module type therefore only requires one extra `.h`/`.cpp` pair and
+ * one line in `RegisterAllModules.h` — no other files change.
+ *
+ * **Mirrors the editor:**
+ * This class is the C++ equivalent of
+ * `editor/src/modular-mb/runtime/Registry.ts`.  Both follow the same
+ * typeId convention (e.g. `"tp_mmb_ahdsr"`).
+ *
+ * **Testing:**
+ * Unit tests should construct their own local `Registry` instance rather
+ * than mutating `global()`, to keep test cases isolated.
+ */
 
 #include "Module.h"
 #include <functional>
@@ -21,29 +35,43 @@
 
 namespace mb::runtime {
 
+/** @brief Global factory registry — maps typeId strings to Module constructors. */
 class Registry {
 public:
-    // Factories take an instance id (assigned by the patch) and return an
-    // owning pointer to a fresh `Module`. Returning by `unique_ptr` keeps
-    // ownership unambiguous and removes any need for a virtual dtor dance.
+    /**
+     * @brief A callable that produces a new Module instance.
+     * Receives the project-level instance id; returns an owning pointer.
+     */
     using Factory = std::function<std::unique_ptr<Module>(std::string_view instanceId)>;
 
-    // Register a factory. If a factory for `typeId` is already present
-    // it is overwritten silently — callers (typically `Foo::registerFactory`)
-    // are expected to be idempotent.
+    /**
+     * @brief Register (or overwrite) a factory for the given @p typeId.
+     *
+     * Uses insert-or-assign semantics: if a factory for @p typeId already
+     * exists it is replaced.  This means that registration order matters —
+     * the **last** call for a given typeId wins.  In practice this allows
+     * app-level modules (registered in `registerAllRuntimeModules()`) to
+     * override default factories that were registered by static initialisers
+     * in core library translation units.
+     */
     void register_(std::string_view typeId, Factory factory) {
-        factories_.emplace(std::string{typeId}, std::move(factory));
+        factories_.insert_or_assign(std::string{typeId}, std::move(factory));
     }
 
-    // True if a factory is registered for `typeId`. The patch loader uses
-    // this to skip ExternalModule-only catalog entries gracefully.
+    /** @brief Return true if a factory is registered for @p typeId.  Used by
+     *  ProjectRuntime to skip module types that are not implemented in
+     *  firmware (e.g. external Eurorack modules). */
     bool has(std::string_view typeId) const {
         return factories_.find(std::string{typeId}) != factories_.end();
     }
 
-    // Construct a fresh instance. Returns nullptr when no factory exists
-    // for `typeId` — the caller must handle that case (the patch loader
-    // logs a warning and falls back to an ExternalModule placeholder).
+    /**
+     * @brief Construct a fresh Module of the given type.
+     * @param typeId      Module-type catalog id.
+     * @param instanceId  Project-level instance id (e.g. `"vco1"`).
+     * @return Owning pointer to the new instance, or nullptr if @p typeId
+     *         has no registered factory.
+     */
     std::unique_ptr<Module> create(std::string_view typeId,
                                    std::string_view instanceId) const {
         auto it = factories_.find(std::string{typeId});
@@ -51,8 +79,10 @@ public:
         return it->second(instanceId);
     }
 
-    // Global singleton used by the production code path. Tests should
-    // construct their own `Registry` to avoid leaking state between cases.
+    /**
+     * @brief The process-wide singleton used by production code.
+     * Unit tests should use a local Registry instance to stay isolated.
+     */
     static Registry& global() {
         static Registry r;
         return r;

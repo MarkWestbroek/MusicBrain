@@ -103,38 +103,105 @@ def find_workspace_storage_dirs(project_path: str) -> list[str]:
     return sorted(set(matches))
 
 
-# Response item kinds to skip when extracting readable text.
+# Response item kinds to skip entirely when extracting readable text.
+# Note: toolInvocationSerialized and inlineReference are handled explicitly below.
 _RESPONSE_SKIP_KINDS = frozenset({
-    "toolInvocationSerialized",
     "thinking",
     "textEditGroup",
+    "codeblockUri",
     "undoStop",
     "mcpServersStarting",
-    "inlineReference",
     "treeData",
 })
 
 
-def _extract_text_from_response_list(response_list: list) -> list[str]:
-    """Extraheer tekst-items uit een response-lijst (response-field of streaming chunks).
+def _clean_file_uri_in_text(text: str) -> str:
+    """Zet '[](file:///d%3A/.../foo.md)' om naar 'foo.md' in een tekst."""
+    def _replace(m: re.Match) -> str:
+        uri = unquote(m.group(1)).split("#")[0]
+        path = uri.replace("file:///", "").replace("/", os.sep)
+        if path.startswith(os.sep) and len(path) > 2 and path[2] == ":":
+            path = path[1:]
+        return os.path.basename(path.rstrip("/\\")) or path
+    return re.sub(r"\[\]\(([^)]+)\)", _replace, text)
 
-    Accepteert items met kind=None (null), kind="", kind="markdownContent",
-    of items met het 'supportThemeIcons' veld — dit zijn de leesbare
-    tekst-fragmenten. Items met bekende niet-tekst kinds worden overgeslagen.
+
+_EMPTY_FENCE_RE = re.compile(r"\n```\n(?:\s*\n```\n)+")
+
+
+def _remove_empty_fences(text: str) -> str:
+    """Verwijder lege code-blocks (artefacten van overgeslagen textEditGroup-items)."""
+    # Collapse een reeks van bare ``` fences (zonder inhoud ertussen) naar \n
+    return _EMPTY_FENCE_RE.sub("\n", text)
+
+
+def _extract_text_from_response_list(response_list: list) -> list[str]:
+    """Extraheer tekst-items en tool-statusregels uit een response-lijst.
+
+    Verwerkt items in volgorde:
+    - toolInvocationSerialized (isComplete=True): cursieve statusregel
+    - inlineReference: bestandsnaam als inline code
+    - markdownContent / kindloze items met value: tekst-inhoud
     """
-    texts = []
+    parts: list[str] = []
+    pending_tools: list[str] = []
+
+    def flush_tools() -> None:
+        if not pending_tools:
+            return
+        if len(pending_tools) <= 4:
+            line = "*" + " \u00b7 ".join(pending_tools) + "*"
+        else:
+            first = pending_tools[0]
+            count = len(pending_tools) - 1
+            items_md = "\n".join(f"- {t}" for t in pending_tools)
+            line = (
+                f"<details>\n<summary><em>{first}</em>"
+                f" (+{count} meer)</summary>\n\n{items_md}\n</details>"
+            )
+        parts.append(f"\n\n{line}\n\n")
+        pending_tools.clear()
+
     for r in response_list:
         if not isinstance(r, dict):
             continue
         r_kind = r.get("kind")          # None voor null, str voor de rest
-        r_val = r.get("value", "")
-        if not isinstance(r_val, str) or not r_val.strip():
-            continue
+
         if r_kind in _RESPONSE_SKIP_KINDS:
             continue
+
+        # Tool-statusregels: alleen afgeronde aanroepen meenemen
+        if r_kind == "toolInvocationSerialized":
+            if r.get("isComplete"):
+                past = r.get("pastTenseMessage", {})
+                pastval = past.get("value", "") if isinstance(past, dict) else ""
+                if pastval:
+                    pending_tools.append(_clean_file_uri_in_text(pastval))
+            continue
+
+        # Inline bestandsreferenties
+        if r_kind == "inlineReference":
+            ref = r.get("inlineReference", {})
+            if isinstance(ref, dict):
+                name = ref.get("name", "")
+                if not name:
+                    fspath = ref.get("fsPath", "")
+                    if fspath:
+                        name = os.path.basename(fspath.rstrip("/\\")) or fspath
+                if name:
+                    flush_tools()
+                    parts.append(f"`{name}`")
+            continue
+
+        # Tekst-inhoud: kind=None, kind="", kind="markdownContent", of supportThemeIcons
         if r_kind in (None, "", "markdownContent") or "supportThemeIcons" in r:
-            texts.append(r_val)
-    return texts
+            r_val = r.get("value", "")
+            if isinstance(r_val, str) and r_val.strip():
+                flush_tools()
+                parts.append(r_val)
+
+    flush_tools()
+    return parts
 
 
 def replay_jsonl_state(filepath: str) -> dict:
@@ -159,6 +226,7 @@ def replay_jsonl_state(filepath: str) -> dict:
     messages = []
     current_response_parts = []      # streaming chunks (fallback, oud formaat)
     current_consolidated = []        # geconsolideerde response (oud formaat)
+    _cons_has_text = [False]          # True als consolidated echte tekst bevat (niet alleen tool-status)
     latest_generated_title = ""
     first_message_timestamp = 0
 
@@ -204,15 +272,27 @@ def replay_jsonl_state(filepath: str) -> dict:
 
         resp_texts = _extract_text_from_response_list(req.get("response", []))
         if resp_texts:
-            messages.append({"role": "assistant", "text": "".join(resp_texts)})
+            messages.append(
+                {"role": "assistant", "text": _remove_empty_fences("" .join(resp_texts))}
+            )
 
     def flush_pending_response() -> None:
         """Voeg lopende assistent-response toe (oud formaat)."""
-        resp_parts = current_consolidated if current_consolidated else current_response_parts
+        if current_response_parts:
+            # Streaming-resultaat heeft de meest complete response (tools + tekst)
+            resp_parts = current_response_parts
+        elif current_consolidated:
+            # Geen streaming: gebruik de embedded response als fallback
+            resp_parts = current_consolidated
+        else:
+            resp_parts = []
         if resp_parts:
-            messages.append({"role": "assistant", "text": "".join(resp_parts)})
+            messages.append(
+                {"role": "assistant", "text": _remove_empty_fences("".join(resp_parts))}
+            )
         current_consolidated.clear()
         current_response_parts.clear()
+        _cons_has_text[0] = False
 
     # --- main parse loop ---
 
@@ -324,14 +404,12 @@ def replay_jsonl_state(filepath: str) -> dict:
                     and isinstance(patch_key[1], int)
                     and patch_key[2] == "response"
                 ):
-                    for item in v:
-                        if not isinstance(item, dict):
-                            continue
-                        item_val = item.get("value", "")
-                        if isinstance(item_val, str) and item_val.strip():
-                            if item.get("kind") not in _RESPONSE_SKIP_KINDS:
-                                if not current_consolidated:
-                                    current_response_parts.append(item_val)
+                    if not _cons_has_text[0]:
+                        # Accumuleer delta-patches; flush_pending_response
+                        # gebruikt streaming boven consolidated om dubbeling te voorkomen
+                        current_response_parts.extend(
+                            _extract_text_from_response_list(v)
+                        )
                     continue
 
                 for item in v:
@@ -363,10 +441,21 @@ def replay_jsonl_state(filepath: str) -> dict:
                         if consolidated:
                             current_response_parts.clear()
                             current_consolidated.extend(consolidated)
+                            # Echte tekst aanwezig? Dan blokkeren we streaming chunks
+                            _cons_has_text[0] = any(
+                                r.get("kind") in (None, "", "markdownContent")
+                                or "supportThemeIcons" in r
+                                for r in item.get("response", [])
+                                if isinstance(r, dict)
+                                and r.get("kind") not in _RESPONSE_SKIP_KINDS
+                                and r.get("kind") not in ("toolInvocationSerialized", "inlineReference")
+                                and isinstance(r.get("value", ""), str)
+                                and r.get("value", "").strip()
+                            )
 
                     elif "value" in item and isinstance(item["value"], str):
                         if item.get("kind") not in _RESPONSE_SKIP_KINDS:
-                            if not current_consolidated:
+                            if not _cons_has_text[0]:
                                 current_response_parts.append(item["value"])
 
     flush_pending_response()
@@ -504,15 +593,16 @@ def main():
 
     # Bepaal project root (één niveau boven scripts/)
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.dirname(script_dir)  # MusicBrain/
+    project_root = os.path.dirname(script_dir)
+    project_name = os.path.basename(project_root)
 
     export_dir = os.path.join(project_root, "doc", "copilot-chats", "exports")
     os.makedirs(export_dir, exist_ok=True)
 
-    # Zoek workspace storage dirs voor MusicBrain
-    ws_dirs = find_workspace_storage_dirs("MusicBrain")
+    # Zoek workspace storage dirs op basis van project_root (zelfconfigurerend)
+    ws_dirs = find_workspace_storage_dirs(project_root)
     if not ws_dirs:
-        print("Geen VS Code workspace storage gevonden voor MusicBrain.")
+        print(f"Geen VS Code workspace storage gevonden voor {project_name}.")
         sys.exit(1)
 
     print(f"Gevonden workspace storage directories: {len(ws_dirs)}")
