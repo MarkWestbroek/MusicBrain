@@ -90,6 +90,44 @@ public:
      */
     virtual bool supportsAudioPorts() const { return false; }
 
+    /** @brief Logical kind of a module port — drives graph routing.
+     *
+     *  `Audio` ports are wired by `AudioGraph` (Teensy `AudioConnection`).
+     *  `Cv` / `Gate` ports are routed by `CvGraph` via the `CvBus` and
+     *  `readCvPort()` / `writeCvPort()`.  `None` means the port id is
+     *  unknown to this module.  A single port id has exactly one kind. */
+    enum class PortKind : std::uint8_t { None, Audio, Cv, Gate };
+
+    /** @brief Declared kind of an output port.  Default: `None`. */
+    virtual PortKind outputPortKind(std::string_view /*portId*/) const {
+        return PortKind::None;
+    }
+
+    /** @brief Declared kind of an input port.  Default: `None`. */
+    virtual PortKind inputPortKind(std::string_view /*portId*/) const {
+        return PortKind::None;
+    }
+
+    /** @brief Sample the current value of a CV/gate output port.
+     *
+     *  Called by the CV bridge once per CV tick (1 kHz).  The default
+     *  returns `0.0f` so modules without CV outputs need no override.
+     *  Implementations must be O(1) and safe to call from the CV-tick
+     *  context (currently the main loop's 1 ms poll; promoted to
+     *  `IntervalTimer` ISR in a later step). */
+    virtual float readCvPort(std::string_view /*portId*/) const {
+        return 0.0f;
+    }
+
+    /** @brief Deliver a new value to a CV/gate input port.
+     *
+     *  Called by the CV bridge whenever a publisher's value has changed.
+     *  The wrapper module is responsible for translating the value to
+     *  whatever its internal implementation needs (e.g. a Teensy Audio
+     *  parameter setter, a DC waveform amplitude, an SPI DAC code).
+     *  The patch and the bus never see those implementation details. */
+    virtual void writeCvPort(std::string_view /*portId*/, float /*value*/) {}
+
 protected:
     std::string typeId_;
     std::string id_;

@@ -99,6 +99,25 @@ public:
         env_.setControl(controlId, value);
     }
 
+    // --- Port-kind / CV-bridge -----------------------------------------
+
+    /** @brief `cv_out` is declared CV; the audio DC proxy is a transitional
+     *  implementation detail and will disappear in C4 once the CV bridge
+     *  drives consumer modules directly. */
+    PortKind outputPortKind(std::string_view portId) const override {
+        return (portId == "cv_out") ? PortKind::Cv : PortKind::None;
+    }
+    PortKind inputPortKind(std::string_view portId) const override {
+        return (portId == "gate" || portId == "trig") ? PortKind::Gate
+                                                      : PortKind::None;
+    }
+    float readCvPort(std::string_view portId) const override {
+        return (portId == "cv_out") ? env_.value() : 0.0f;
+    }
+    void writeCvPort(std::string_view portId, float value) override {
+        if (portId == "gate" || portId == "trig") env_.setGate(value >= 0.5f);
+    }
+
     /**
      * @brief Register the audio AHDSR factory, overwriting any existing
      *        `"tp_mmb_ahdsr"` entry (e.g. from `Ahdsr`'s static auto-init).

@@ -97,6 +97,25 @@ public:
      *  Transitions that are not allowed in the current phase are no-ops. */
     void setGate(bool open) override;
 
+    // --- Port-kind / CV-bridge -----------------------------------------
+
+    /** @brief `gate`/`trig` are gate-domain inputs; `cv_out` is a CV output. */
+    PortKind inputPortKind(std::string_view portId) const override {
+        return (portId == "gate" || portId == "trig") ? PortKind::Gate
+                                                      : PortKind::None;
+    }
+    PortKind outputPortKind(std::string_view portId) const override {
+        return (portId == "cv_out") ? PortKind::Cv : PortKind::None;
+    }
+    /** @brief CV bridge entry point.  `gate` / `trig` accept 0.0 / 1.0. */
+    void writeCvPort(std::string_view portId, float value) override {
+        if (portId == "gate" || portId == "trig") setGate(value >= 0.5f);
+    }
+    /** @brief CV bridge sample point.  `cv_out` returns the envelope value. */
+    float readCvPort(std::string_view portId) const override {
+        return (portId == "cv_out") ? value_ : 0.0f;
+    }
+
     /** @brief Current envelope output, normalised to [0.0 … 1.0]. */
     float value() const override { return value_; }
 

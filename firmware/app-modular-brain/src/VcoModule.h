@@ -75,6 +75,23 @@ public:
         return {};  // VCO has no audio inputs (voct/fm/sync are CV-domain)
     }
 
+    // --- Port-kind / CV-bridge -----------------------------------------
+
+    /** @brief `out` is the only audio port; `voct` / `fm` / `sync` are CV. */
+    PortKind outputPortKind(std::string_view portId) const override {
+        return (portId == "out") ? PortKind::Audio : PortKind::None;
+    }
+    PortKind inputPortKind(std::string_view portId) const override {
+        if (portId == "voct" || portId == "fm")   return PortKind::Cv;
+        if (portId == "sync")                     return PortKind::Gate;
+        return PortKind::None;
+    }
+    /** @brief CV bridge entry point.  `voct` retunes the oscillator. */
+    void writeCvPort(std::string_view portId, float value) override {
+        if (portId == "voct") updatePitch(value);
+        // fm / sync: not yet implemented
+    }
+
     void setControl(std::string_view controlId,
                     mb::runtime::ControlValue value) override {
         auto asFloat = [&](float fallback) -> float {

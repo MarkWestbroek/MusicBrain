@@ -25,6 +25,7 @@
 #include "ProjectRuntime.h"
 #include "RegisterAllModules.h"
 #include "AudioGraph.h"
+#include "CvGraph.h"
 #include "VcoModule.h"
 #include "AhdsrAudioModule.h"
 #include "OutModule.h"
@@ -80,6 +81,7 @@ bool ledState = false;
 mmb_link::TeensyLink    link;
 mmb_link::ProjectRuntime runtime;
 mmb_link::AudioGraph    audioGraph;
+mmb_link::CvGraph       cvGraph;
 
 // Static 4-voice graph on/off. Toggled via the editor's "Static graph" switch
 // (command {"type":"setStatic","enabled":bool}) so you can isolate the
@@ -177,8 +179,10 @@ void onSelectPatch(const char* patchId) {
             mmb_link::TeensyLink::logf("static auto-muted for dynamic patch");
         }
         JsonObjectConst patch = runtime.activePatchJson();
-        if (!patch.isNull())
+        if (!patch.isNull()) {
             audioGraph.build(patch, runtime.instances());
+            cvGraph.build(patch, runtime.instances());
+        }
     }
 }
 
@@ -211,8 +215,8 @@ void syncVoicesFromModel() {
             eg[i].amplitude(0.0f, 60);        // 60 ms release
         }
     }
-    // Drive dynamic modules from voice 0 (mono)
-    syncDynamicModules();
+    // Drive dynamic CV routes (replaces the old voice-0 monosync).
+    cvGraph.tickBridge();
     AudioInterrupts();
 }
 
@@ -292,6 +296,7 @@ void loop() {
     if (now - lastCvTickMs >= 1) {
         lastCvTickMs = now;
         tickCvModules();
+        cvGraph.tickBridge();
     }
 
     if (now - lastBlinkMs >= kHeartbeatPeriodMs / 2) {

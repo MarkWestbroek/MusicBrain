@@ -62,6 +62,22 @@ public:
      *  Supported ids: `"channel"` (0–16), `"voiceCount"` (1…kMaxAllocVoices). */
     void setControl(std::string_view controlId, ControlValue value) override;
 
+    /** @brief Declare the kind of each named output port.
+     *  `pitch` → Cv (V/Oct), `gate` → Gate (0.0 / 1.0). */
+    PortKind outputPortKind(std::string_view portId) const override {
+        if (portId == "pitch") return PortKind::Cv;
+        if (portId == "gate")  return PortKind::Gate;
+        return PortKind::None;
+    }
+
+    /** @brief Sample a CV/gate output port.
+     *  `pitch` returns the V/Oct of the most recently gated voice (or the
+     *  last value when no voice is gated, so release tails play in tune).
+     *  `gate` returns 1.0 when any voice is gated, else 0.0.
+     *  This collapses polyphonic state into the mono signals the current
+     *  graph layer consumes; true per-voice routing comes later. */
+    float readCvPort(std::string_view portId) const override;
+
     // --- CvModule override ----------------------------------------------
 
     /** @brief No-op tick: MidiInModule is event-driven, not scheduled.

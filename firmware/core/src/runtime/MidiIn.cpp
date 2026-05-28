@@ -110,6 +110,23 @@ float MidiInModule::voiceVelocity(std::uint8_t voiceIdx) const {
     return static_cast<float>(velocity_[voiceIdx]) * (1.0f / 127.0f);
 }
 
+float MidiInModule::readCvPort(std::string_view portId) const {
+    const std::uint8_t n = alloc_.voiceCount();
+    if (portId == "gate") {
+        for (std::uint8_t v = 0; v < n; ++v)
+            if (gate_[v]) return 1.0f;
+        return 0.0f;
+    }
+    if (portId == "pitch") {
+        // First currently-gated voice wins; if none, last note assigned to
+        // voice 0 (so a release tail keeps its pitch).
+        for (std::uint8_t v = 0; v < n; ++v)
+            if (gate_[v]) return noteToVolts(currentNote_[v]);
+        return noteToVolts(currentNote_[0]);
+    }
+    return 0.0f;
+}
+
 void MidiInModule::registerFactory() {
     auto& reg = Registry::global();
     if (reg.has(kTypeId)) return;
