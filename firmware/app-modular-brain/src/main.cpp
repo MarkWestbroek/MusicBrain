@@ -230,9 +230,19 @@ void logVoiceTable(const char* tag) {
     Serial.println();
 }
 
+void forwardMidiToRuntime(bool noteOn, uint8_t channel, uint8_t note, uint8_t velocity) {
+    for (auto& [id, mod] : runtime.instances()) {
+        if (mod->typeId() != mb::runtime::MidiInModule::kTypeId) continue;
+        auto* m = static_cast<mb::runtime::MidiInModule*>(mod.get());
+        if (noteOn) m->onNoteOn(channel, note, velocity);
+        else        m->onNoteOff(channel, note);
+    }
+}
+
 void handleNoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
     Serial.printf("[midi] noteOn  ch=%u note=%u vel=%u\n", channel, note, velocity);
     midiIn.onNoteOn(channel, note, velocity);
+    forwardMidiToRuntime(true, channel, note, velocity);
     syncVoicesFromModel();
     logVoiceTable("on ");
     uint8_t echoed = static_cast<uint8_t>(note + 12);
@@ -242,6 +252,7 @@ void handleNoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
 void handleNoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
     Serial.printf("[midi] noteOff ch=%u note=%u vel=%u\n", channel, note, velocity);
     midiIn.onNoteOff(channel, note);
+    forwardMidiToRuntime(false, channel, note, velocity);
     syncVoicesFromModel();
     logVoiceTable("off");
     uint8_t echoed = static_cast<uint8_t>(note + 12);

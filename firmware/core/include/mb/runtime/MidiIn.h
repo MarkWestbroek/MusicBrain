@@ -67,6 +67,7 @@ public:
     PortKind outputPortKind(std::string_view portId) const override {
         if (portId == "pitch") return PortKind::Cv;
         if (portId == "gate")  return PortKind::Gate;
+        if (portId == "vel")   return PortKind::Cv;
         return PortKind::None;
     }
 

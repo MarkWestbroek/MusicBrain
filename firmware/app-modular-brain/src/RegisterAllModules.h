@@ -42,6 +42,7 @@
 #include "VcaModule.h"
 #include "VcfModule.h"
 #include "OutModule.h"
+#include "mb/runtime/CvMath.h"
 
 namespace mmb_link {
 
@@ -50,6 +51,7 @@ namespace mmb_link {
 inline void registerAllRuntimeModules() {
     mb::runtime::MidiInModule::registerFactory();
     mb::runtime::Lfo::registerFactory();
+    mb::runtime::CvMath::registerFactory();
 
     // Audio-domain module wrappers — registered last so they win over any
     // static-init factories from core library TUs (specifically Ahdsr.cpp).

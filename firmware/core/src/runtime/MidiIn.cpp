@@ -124,6 +124,12 @@ float MidiInModule::readCvPort(std::string_view portId) const {
             if (gate_[v]) return noteToVolts(currentNote_[v]);
         return noteToVolts(currentNote_[0]);
     }
+    if (portId == "vel") {
+        // Velocity of the first currently-gated voice, normalised to 0..1.
+        for (std::uint8_t v = 0; v < n; ++v)
+            if (gate_[v]) return static_cast<float>(velocity_[v]) * (1.0f / 127.0f);
+        return 0.0f;
+    }
     return 0.0f;
 }
 

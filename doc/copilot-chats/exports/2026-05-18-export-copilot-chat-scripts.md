@@ -2,7 +2,7 @@
 
 - **Datum**: 2026-05-18 00:28
 - **Sessie-ID**: `89b93135-b01c-47ce-8011-9acb7de3164f`
-- **Berichten**: 14
+- **Berichten**: 18
 
 ---
 
@@ -557,5 +557,39 @@ Er is geen echte "user script" slot in VS Code. De praktische opties:
 - **VS Code extensie** — wel mogelijk maar veel werk voor dit doel.
 
 De meest praktische aanpak is de User Task combinatie met de installer.
+
+---
+
+## 🧑 User
+
+kun jij die globale user task ook instellen?
+
+---
+
+## 🤖 Assistant
+
+
+
+*Created tasks.json*
+
+Klaar. De drie taken zijn nu beschikbaar in **elk** VS Code-project via **Terminal → Run Task** → zoek op "Export Copilot Chats".
+
+Ze werken zodra het project de scripts heeft (geïnstalleerd via `update-chat-export.py`). In projecten zonder de scripts geeft de task een foutmelding, maar ze staan verder niemand in de weg.
+
+---
+
+## 🧑 User
+
+kun je nog een klein instructie bestandje maken over hoe de scripts te exporteren + welke files exact. Dan kan ik dat in de root van mijn \git map zetten
+
+---
+
+## 🤖 Assistant
+
+
+
+*Created copilot-chat-export.md*
+
+D:\Git\copilot-chat-export.md staat klaar.
 
 ---

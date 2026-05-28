@@ -883,10 +883,40 @@ function mmbMidiIn() {
       // Activity-LED: licht op zodra de simulator een MIDI-bron stuurt (later
       // koppelbaar aan engine-state; nu altijd "klaar").
       led('act', w*0.70, 60, { label: 'Act', color: '#22c55e', size: 'medium' }),
-      outPort('pitch', 'V/Oct', 'cv',   w*0.30, 95, { eventKind: 'voice' }),
-      outPort('gate',  'Gate',  'gate', w*0.70, 95, { eventKind: 'voice' }),
+      outPort('pitch', 'V/Oct', 'cv',   w*0.20, 95, { eventKind: 'voice' }),
+      outPort('gate',  'Gate',  'gate', w*0.50, 95, { eventKind: 'voice' }),
+      outPort('vel',   'Vel',   'cv',   w*0.80, 95, { eventKind: 'voice' }),
     ],
     notes: 'Zet inkomende MIDI-noten (USB / screen-keyboard / test-sequence) om in CV (V/Oct) en Gate. De MIDI-bron kies je in het Simulatie-paneel; deze module heeft géén MIDI-poort op de front (er bestaat geen "MIDI-in jack" in modulair-land — alles loopt via de brain). Sluit pitch op een VCO\u2019s voct aan en gate op een envelope.',
+  });
+}
+
+// 7c. MMB CvMath — 4 HP. Combinatorial CV processor: weighted sum or multiply.
+function mmbCvMath() {
+  const w = W(4);
+  return assemble({
+    typeId: 'tp_mmb_cvmath',
+    categoryId: 'utility',
+    variant: 'CV Math (sum/mult)',
+    brand: 'MMB', model: 'CV-MATH',
+    hp: 4, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'CV-MATH', fontSize: 2.0, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB',      fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      sw  ('mode',   'Mode',   w/2,    22, ['Sum','Mult'], 0),
+      knob('gain_a', 'Gain A', w*0.30, 46, { size: 'small', min: -2, max: 2, def: 1, color: '#f9fafb' }),
+      knob('gain_b', 'Gain B', w*0.70, 46, { size: 'small', min: -2, max: 2, def: 1, color: '#f9fafb' }),
+      knob('gain_c', 'Gain C', w*0.30, 68, { size: 'small', min: -2, max: 2, def: 1, color: '#f9fafb' }),
+      knob('offset', 'Offset', w*0.70, 68, { size: 'small', min: -5, max: 5,  def: 0, color: '#f9fafb' }),
+
+      inPort ('a',   'A',   'cv', w*0.20, 92),
+      inPort ('b',   'B',   'cv', w*0.50, 92),
+      inPort ('c',   'C',   'cv', w*0.80, 92),
+      outPort('out', 'Out', 'cv', w/2,    114),
+    ],
+    notes: 'Sum-mode: out = a×gain_a + b×gain_b + c×gain_c + offset. Mult-mode: out = a × b (ring-mod stijl, bijv. envelope × velocity). Gain-waarden kunnen negatief zijn voor inversie.',
   });
 }
 
@@ -1041,7 +1071,7 @@ function mmbPhaser() {
 
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbVcf(), mmbVca(), mmbOut(), mmbMidiIn(), mmbSeq8(), mmbNoise(), mmbEcho(), mmbPhaser()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbVcf(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbSeq8(), mmbNoise(), mmbEcho(), mmbPhaser()];
   const newTypes = all.map((x) => x.type);
   const newModules = all.map((x) => x.module);
 

@@ -2,7 +2,7 @@
 
 - **Datum**: 2026-05-17 14:32
 - **Sessie-ID**: `4db45503-0a7f-471a-850c-117803aee9d5`
-- **Berichten**: 293
+- **Berichten**: 346
 
 ---
 
@@ -11221,5 +11221,1543 @@ ik heb een heel langzame attack en lange release. Die hoor ik beide niet
 ## 🤖 Assistant
 
 De Teensy draait nog de **oude B-step 2 firmware** — we hebben wel gebouwd maar nooit geüpload. Dat verklaart alles: de editor toont "(step 2)", er zijn geen AudioGraph-logs, en de dynamische keten bestaat niet. 
+
+---
+
+## 🧑 User
+
+ik heb de knop gedrukt maar weet niet of het gelukt is
+
+powershell pakt dit niet:
+Suggestion [3,General]: The command \.venv\Scripts\pio.exe was not found, but does exist in the current location. Windows PowerShell does not load commands from the current location by default. If you trust this command, instead type: ".\\.venv\Scripts\pio.exe". See "get-help about_Command_Precedence" for more details.
+PS D:\Git\Muziek\MusicBrain> 
+
+Een versie info in de log is wel fijn, wil je dat maken?
+
+---
+
+## 🤖 Assistant
+
+Eerst de versie-info updaten, dan direct uploaden: 
+Upload geslaagd. Verbind nu opnieuw in de editor — je zou moeten zien:
+
+```
+Verbonden — mmb-teensy-1 (step 3)
+```
+
+Dan: Clear log → Push config → Select active patch → je ziet nu de `AudioGraph: wired=N skipped=M` regel in de log.
+
+---
+
+## 🧑 User
+
+22:00:50.610 tx {"type":"config","project":{"version":2,"name":"ModularMB","activePatchId":"patch_h2psk0f","modules":[{"id":"mod_s5p7ab8","typeId":"tp_mmb_ahdsr"},{"id":"mod_sagrkl9","typeId":"tp_mmb_lfo"},{"id":"mod…
+22:00:50.614 rx {"type":"log","msg":"config received: name=ModularMB"}
+22:00:50.615 rx {"type":"log","msg":"runtime: created=15 unknown=18 total=33 active=patch_h2psk0f"}
+22:00:50.615 rx {"type":"ack","ok":true,"applied":"config","modules":33,"patches":1,"racks":2}
+22:00:54.962 tx {"type":"selectPatch","patchId":"patch_h2psk0f"}
+22:00:54.964 rx {"type":"log","msg":"selectPatch: patch_h2psk0f"}
+22:00:54.964 rx {"type":"log","msg":"active patch=patch_h2psk0f connections=6 wired=6 dangling=0"}
+22:00:54.964 rx {"type":"log","msg":"AudioGraph: wired=4 skipped=2"}
+22:00:54.964 rx {"type":"ack","ok":true,"applied":"selectPatch","patchId":"patch_h2psk0f"}
+
+---
+
+## 🤖 Assistant
+
+Uitstekend! De dynamische graph werkt:
+- **6 verbindingen** in de patch, alle 6 eindpunten bekend (`dangling=0`)
+- **4 audio-connections** gedraadd (VCO→VCA, AHDSR→VCA, VCA→OUT L, VCA→OUT R)
+- **2 overgeslagen** — dat zijn de MIDI-IN→VCO en MIDI-IN→AHDSR kabels; die zijn geen `AudioPortModule` (correct: die worden afgehandeld via `syncDynamicModules()`)
+
+Vraag: hoor je nu iets? Laat me VcoModule checken want de amplitude moet geïnitialiseerd zijn: 
+
+*Searched for text `amplitude|level|begin` (`**/firmware/app-modular-brain/src/VcoModule.h`), 7 results*
+
+
+
+*Searched for text `amplitude|level|begin` (`**/firmware/app-modular-brain/src/VcoModule.h`), 7 results*
+
+VcoModule heeft amplitude 0.9 in de constructor. Nu check ik `AhdsrAudioModule` — de dc_.amplitude() aanroepen in `tick()` moeten wel onder `AudioNoInterrupts` draaien:  
+
+*Read main.cpp, lines 70 to 100 · Searched for text `attackMs|releaseMs|default|constexpr` (`**/firmware/core/include/mb/runtime/Ahdsr.h`), 3 results · Searched for text `attackTicks_|releaseTicks_|sustainLevel_|uint32_t a|float s` (`**/firmware/core/include/mb/runtime/Ahdsr.h`), 4 results*
+
+De standaard Ahdsr waarden zijn: attack=10ms, sustain=0.7, 
+
+*Read main.cpp, lines 70 to 100 · Searched for text `attackMs|releaseMs|default|constexpr` (`**/firmware/core/include/mb/runtime/Ahdsr.h`), 3 results · Searched for text `attackTicks_|releaseTicks_|sustainLevel_|uint32_t a|float s` (`**/firmware/core/include/mb/runtime/Ahdsr.h`), 4 results*
+
+De standaard Ahdsr waarden zijn: attack=10ms, sustain=0.7, release=300ms. Jij hebt attack=101ms en release=3051ms ingesteld maar **die worden nog niet uit de JSON gelezen** — `applyConfig()` instantieert de modules maar roept `setControl()` niet aan. Dat ga ik nu fixen: 
+
+*Read ProjectRuntime.h, lines 75 to 110*
+
+
+
+*Searched for text `holdTicks_|decayTicks_` (`**/firmware/core/include/mb/runtime/Ahdsr.h`), 2 results · Searched for text `attackMs|holdMs|decayMs|releaseMs|setControl` (`**/firmware/core/src/runtime/Ahdsr.cpp`), 1 result · Read Ahdsr.cpp, lines 1 to 55*
+
+Goed nieuws: `Ahdsr::setControl`'s `asFloat`-lambda accepteert zowel `float` als `int32_t`, dus ik kan een eenvoudige type-discriminatie gebruiken. Nu het fix in `applyConfig()`:   
+Build geslaagd. De editor houdt COM4 bezet — druk opnieuw de knop op de Teensy in. Daarna opnieuw verbinden in de editor → Push config → Select active patch.
+
+Nu zal de AHDSR starten met jouw ingestelde attack=101ms en release=3051ms in plaats van de firmware-defaults. Je zou het lange infaden en uitfaden duidelijk moeten horen.
+
+**Wat er precies is toegevoegd:** na het aanmaken van elke module-instantie wordt `controlState` uit de project-JSON gelezen en voor elke key→value `setControl()` aangeroepen. ArduinoJson boolean, integer en float types worden elk correct doorgegeven aan het `std::variant<float, bool, int32_t>` type van `ControlValue`.
+
+---
+
+## 🧑 User
+
+ja, alles gedaan, maar ik hoor geen verschil. Kunnen we geen versienummer bijhouden in het formaat 0.3.1 0.3.2 ...0.3.55 enz.?
+
+Wil je dan nog eens uploaden? Dan weten we zeker dat de firmware is geupdate
+
+---
+
+## 🤖 Assistant
+
+Goed plan. Ik maak een `FwVersion.h` met een patch-counter die je per upload kunt ophogen, en voeg het toe aan het hello-bericht. 
+
+---
+
+## 🧑 User
+
+Hmm. Het lijkt er nog niet op dat de AHDSR settings overkomen of werken. Is er een andere manier om dit goed te testen? Wil je de code nog eens nalopen? Is alles goed gebouwd?
+Kunnen we misschien ook een switch voor de rudimentaire basis patch zetten? Dan kan die uit en horen we alleen de geconfigureerde patch (programruntime is actief, klopt dat?). Of niets. Maar dan weten we meer.
+
+---
+
+## 🤖 Assistant
+
+Goede vragen. Laat me eerst de hele controlState-keten controleren en daarna een switch toevoegen.  
+
+*Searched for regex `controlState|attack.*ms|releaseMs` (`**/editor/src/modular-mb/**/*.ts`), 20 results*
+
+**Daar zit het probleem!** Het `controlState` zit op het patch-niveau (`patch.controlState[moduleId][controlId]`), NIET op de module-entry. Mijn firmware-fix leest het op de verkeerde plek. Laat me dit bevestigen:   
+
+*Read teensyLink.ts, lines 195 to 235*
+
+
+
+---
+
+## 🧑 User
+
+ik hoor niets met static off
+
+22:28:11.149 tx {"type":"config","project":{"version":2,"name":"ModularMB","activePatchId":"patch_h2psk0f","modules":[{"id":"mod_s5p7ab8","typeId":"tp_mmb_ahdsr"},{"id":"mod_sagrkl9","typeId":"tp_mmb_lfo"},{"id":"mod…
+22:28:12.837 tx {"type":"selectPatch","patchId":"patch_h2psk0f"}
+22:28:25.815 sys read error: The device has been lost.
+22:28:27.862 sys disconnected
+22:28:31.832 sys serial port opened
+22:28:31.832 tx {"type":"hello"}
+22:28:31.833 rx [boot] MusicBrain Teensy step-3 (dynamic audio graph) online
+22:28:31.833 rx [boot] CPU @ 600 MHz
+22:28:31.833 rx [boot] MidiInModule: omni, voices=4
+22:28:31.833 rx {"type":"hello","fw":"mmb-teensy-1","version":"0.3.2","step":3}
+22:28:31.833 rx {"type":"hello","fw":"mmb-teensy-1","version":"0.3.2","step":3}
+22:28:43.077 tx {"type":"config","project":{"version":2,"name":"ModularMB","activePatchId":"patch_h2psk0f","modules":[{"id":"mod_s5p7ab8","typeId":"tp_mmb_ahdsr"},{"id":"mod_sagrkl9","typeId":"tp_mmb_lfo"},{"id":"mod…
+22:28:43.083 rx {"type":"log","msg":"config received: name=ModularMB"}
+22:28:43.083 rx {"type":"log","msg":"runtime: created=15 unknown=18 total=33 active=patch_h2psk0f"}
+22:28:43.083 rx {"type":"ack","ok":true,"applied":"config","modules":33,"patches":1,"racks":2}
+22:28:45.149 tx {"type":"selectPatch","patchId":"patch_h2psk0f"}
+22:28:45.151 rx {"type":"log","msg":"selectPatch: patch_h2psk0f"}
+22:28:45.151 rx {"type":"log","msg":"active patch=patch_h2psk0f connections=6 wired=6 dangling=0 controls=7"}
+22:28:45.151 rx {"type":"log","msg":"AudioGraph: wired=4 skipped=2"}
+22:28:45.151 rx {"type":"ack","ok":true,"applied":"selectPatch","patchId":"patch_h2psk0f"}
+22:28:58.677 rx [midi] noteOn  ch=1 note=69 vel=100
+22:28:58.678 rx [voices on ] 0:*69 1: 0 2: 0 3: 0 
+22:28:58.790 rx [midi] noteOff ch=1 note=69 vel=0
+22:28:58.790 rx [voices off] 0: 69 1: 0 2: 0 3: 0 
+22:28:59.069 rx [midi] noteOn  ch=1 note=72 vel=100
+22:28:59.069 rx [voices on ] 0: 69 1:*72 2: 0 3: 0 
+22:28:59.190 rx [midi] noteOff ch=1 note=72 vel=0
+22:28:59.190 rx [voices off] 0: 69 1: 72 2: 0 3: 0 
+22:28:59.446 rx [midi] noteOn  ch=1 note=76 vel=100
+22:28:59.446 rx [voices on ] 0: 69 1: 72 2:*76 3: 0 
+22:28:59.566 rx [midi] noteOff ch=1 note=76 vel=0
+22:28:59.566 rx [voices off] 0: 69 1: 72 2: 76 3: 0 
+22:29:04.338 rx [midi] noteOn  ch=1 note=72 vel=39
+22:29:04.338 rx [voices on ] 0: 69 1: 72 2: 76 3:*72
+
+---
+
+## 🤖 Assistant
+
+
+
+*Read VcoModule.h, lines 35 to 75 · Read AhdsrAudioModule.h, lines 30 to 90 · Searched for text `registerAllRuntimeModules|RegisterAll` (`**/firmware/app-modular-brain/src/main.cpp`), 2 results · Read main.cpp, lines 230 to 250*
+
+Ik zie het probleem: de **statische graph** heeft `mixL/R → usbOut` connections, en de **dynamische graph** maakt ook connections naar dezelfde `usbOut` ch0/ch1. In Teensy audio kan slechts één bron tegelijk naar een audio-input port — ze overschrijven elkaar. Daarom hoor je niets bij static-off: de statische (nu stille) mixer-connectie schrijft nog steeds over de dynamische VCA-output heen.
+
+Fix: maak de static-naar-USB connections destructibel zodat ze écht weg kunnen.    
+
+*Searched for text `mixToUsb` (`**/firmware/app-modular-brain/src/main.cpp`), 4 results*
+
+
+
+*Searched for text `mixToUsb` (`**/firmware/app-modular-brain/src/main.cpp`), 4 results*
+
+
+Nu update ik `applyStaticEnabled()` om de connections daadwerkelijk weg te halen, en bump de versie:     
+Check of `<memory>` is geïncludeerd:     
+
+*Searched for text `#include <memory>` (`**/firmware/app-modular-brain/src/main.cpp`), no results · Read main.cpp, lines 1 to 30*
+
+
+Upload geslaagd zonder 
+
+*Searched for text `#include <memory>` (`**/firmware/app-modular-brain/src/main.cpp`), no results · Read main.cpp, lines 1 to 30*
+
+
+Upload geslaagd zonder knopdruk deze keer. **v0.3.3** draait nu.
+
+**Wat te testen:**
+1. Reconnect → `v0.3.3`
+2. Push config → log toont `controls=N`
+3. Select active patch
+4. Speel een noot → je hoort beide chains gemixt
+5. Klik **🔇 Static OFF** → de mixer-naar-USB connecties worden nu écht gesloopt; je hoort alleen de dynamische patch
+6. Speel een noot → klinkt het? Klinkt de AHDSR met lange release zoals verwacht?
+
+Als het nog steeds stil is met static-off, ligt het probleem in de dynamische chain zelf (waarschijnlijk een verkeerde poort-mapping of een VCO/AHDSR die niet correct geüpdatet wordt). Dan kunnen we diagnostische logs toevoegen.
+
+---
+
+## 🧑 User
+
+22:32:58.390 tx {"type":"config","project":{"version":2,"name":"ModularMB","activePatchId":"patch_h2psk0f","modules":[{"id":"mod_s5p7ab8","typeId":"tp_mmb_ahdsr"},{"id":"mod_sagrkl9","typeId":"tp_mmb_lfo"},{"id":"mod…
+22:32:58.395 rx {"type":"log","msg":"config received: name=ModularMB"}
+22:32:58.395 rx {"type":"log","msg":"runtime: created=15 unknown=18 total=33 active=patch_h2psk0f"}
+22:32:58.395 rx {"type":"ack","ok":true,"applied":"config","modules":33,"patches":1,"racks":2}
+22:33:31.806 tx {"type":"selectPatch","patchId":"patch_h2psk0f"}
+22:33:31.808 rx {"type":"log","msg":"selectPatch: patch_h2psk0f"}
+22:33:31.808 rx {"type":"log","msg":"active patch=patch_h2psk0f connections=6 wired=6 dangling=0 controls=7"}
+22:33:31.808 rx {"type":"log","msg":"AudioGraph: wired=4 skipped=2"}
+22:33:31.808 rx {"type":"ack","ok":true,"applied":"selectPatch","patchId":"patch_h2psk0f"}
+
+Static stond op off, maar was aan, nu echt uitgezet:
+
+22:35:09.086 tx {"type":"setStatic","enabled":false}
+22:35:09.088 rx {"type":"log","msg":"static graph muted"}
+22:35:09.088 rx {"type":"ack","ok":true,"applied":"setStatic","enabled":false}
+
+geen geluid meer
+
+---
+
+## 🤖 Assistant
+
+Diagnose nodig. Laat me eerst de werkelijke port-namen uit de JSON-catalog verifiëren — als bv "in" eigenlijk "audio" heet in de patch, dan retourneert mijn `inputPort()` `{}` en wordt de connectie wel geteld (skipped doet ie niet als de port-id niet matcht...wacht jawel). Hmm, eigenlijk: als poortnaam niet matcht → invalid AudioPort → skipped. Maar skipped=2, niet 4. Dus 4 connecties zijn écht gewired.
+
+Laat me kijken naar wat er gestuurd wordt:     
+
+*Searched for regex `tp_mmb_vca|tp_mmb_vco|tp_mmb_out|tp_mmb_ahdsr` (`**/input/json/2026-05-20-154854-ModularMB seq en sim.json`), 14 results · Read 2026-05-20-154854-ModularMB seq en sim.json, lines 500 to 580*
+
+
+
+---
+
+## 🧑 User
+
+```
+22:36:48.871 sys disconnected
+22:38:02.009 sys serial port opened
+22:38:02.009 tx {"type":"hello"}
+22:38:02.010 rx [boot] MusicBrain Teensy step-3 (dynamic audio graph) online
+22:38:02.010 rx [boot] CPU @ 600 MHz
+22:38:02.010 rx [boot] MidiInModule: omni, voices=4
+22:38:02.010 rx {"type":"hello","fw":"mmb-teensy-1","version":"0.3.4","step":3}
+22:38:02.011 rx {"type":"hello","fw":"mmb-teensy-1","version":"0.3.4","step":3}
+22:38:05.367 tx {"type":"config","project":{"version":2,"name":"ModularMB","activePatchId":"patch_h2psk0f","modules":[{"id":"mod_s5p7ab8","typeId":"tp_mmb_ahdsr"},{"id":"mod_sagrkl9","typeId":"tp_mmb_lfo"},{"id":"mod…
+22:38:05.371 rx {"type":"log","msg":"config received: name=ModularMB"}
+22:38:05.371 rx {"type":"log","msg":"runtime: created=15 unknown=18 total=33 active=patch_h2psk0f"}
+22:38:05.371 rx {"type":"ack","ok":true,"applied":"config","modules":33,"patches":1,"racks":2}
+22:38:07.646 tx {"type":"selectPatch","patchId":"patch_h2psk0f"}
+22:38:07.648 rx {"type":"log","msg":"selectPatch: patch_h2psk0f"}
+22:38:07.648 rx {"type":"log","msg":"active patch=patch_h2psk0f connections=6 wired=6 dangling=0 controls=7"}
+22:38:07.648 rx {"type":"log","msg":"  skip(notaudio): mod_s6vt3sw(tp_mmb_midiin).gate -> mod_s5p7ab8(tp_mmb_ahdsr).gate"}
+22:38:07.648 rx {"type":"log","msg":"  skip(notaudio): mod_s6vt3sw(tp_mmb_midiin).pitch -> mod_goxjv2c(tp_mmb_vco).voct"}
+22:38:07.648 rx {"type":"log","msg":"  wire: mod_goxjv2c(tp_mmb_vco).out/ch0 -> mod_a1vvyk8(tp_mmb_vca).in/ch0"}
+22:38:07.649 rx {"type":"log","msg":"  wire: mod_a1vvyk8(tp_mmb_vca).out/ch0 -> mod_ydqt0z9(tp_mmb_out).l/ch0"}
+22:38:07.649 rx {"type":"log","msg":"  wire: mod_a1vvyk8(tp_mmb_vca).out/ch0 -> mod_ydqt0z9(tp_mmb_out).r/ch1"}
+22:38:07.649 rx {"type":"log","msg":"  wire: mod_s5p7ab8(tp_mmb_ahdsr).cv_out/ch0 -> mod_a1vvyk8(tp_mmb_vca).cv/ch1"}
+22:38:07.649 rx {"type":"log","msg":"AudioGraph: wired=4 skipped=2"}
+22:38:07.649 rx {"type":"ack","ok":true,"applied":"selectPatch","patchId":"patch_h2psk0f"}
+```
+na static off geen geluid (maar dat verwachtten we)
+
+Zitten de CV connections ook wel goed? Kunnen we dat ook zien? Als de VCA op 0 blijft staan hoor je ook niets.
+
+---
+
+## 🤖 Assistant
+
+De wiring is **100% correct**. Dus de CV waarden zelf zijn verdacht — laten we ze zichtbaar maken. Ik voeg een diagnose-log toe die elke 250ms de envelope-value en VCO-frequency print:      
+
+*Searched for text `float value()` (`**/firmware/app-modular-brain/src/AhdsrAudioModule.h`), 1 result · Searched for text `private:|osc_;` (`**/firmware/app-modular-brain/src/VcoModule.h`), 2 results*
+
+
+
+*Searched for text `float value()` (`**/firmware/app-modular-brain/src/AhdsrAudioModule.h`), 1 result · Searched for text `private:|osc_;` (`**/firmware/app-modular-brain/src/VcoModule.h`), 2 results*
+
+Ik voeg een periodieke diagnose-log toe in `loop()`:     
+
+*Searched for text `lastCvTickMs|loop()` (`**/firmware/app-modular-brain/src/main.cpp`), 6 results · Read main.cpp, lines 260 to 279*
+
+
+Geflasht. **v0.3.5** met envelope-diagnose draait nu.
+
+Reconnect → Push config → Select active patch → speel een noot (een paar seconden ingedrukt houden). De log toont elke 250ms een regel per AHDSR-instance:
+
+```
+[diag] mod_s5p7ab8 env=0.000  v0 gate=0 pitchV=0.00
+... (note on) ...
+[diag] mod_s5p7ab8 env=0.523  v0 gate=1 pitchV=-0.25
+[diag] mod_s5p7ab8 env=0.700  v0 gate=1 pitchV=-0.25
+... (note off, release loopt) ...
+[diag] mod_s5p7ab8 env=0.612  v0 gate=0 pitchV=-0.25
+```
+
+**Wat we eruit leren:**
+- Als `env` stijgt na gate=1 en daalt na gate=0 → de envelope werkt; probleem zit in VCA-multiply of DC-output naar VCA.
+- Als `env` op 0 blijft ondanks gate=1 → setGate of tick wordt niet aangeroepen.
+- Als `gate` altijd 0 blijft → midiIn registreert de noten niet voor voice 0.
+
+Plak de output hier dan kunnen we gericht doorpakken.
+
+---
+
+## 🧑 User
+
+22:43:53.310 rx [diag] mod_6xmkglz env=0.000  v0 gate=0 pitchV=0.42
+22:43:53.310 rx [diag] mod_s5p7ab8 env=0.000  v0 gate=0 pitchV=0.42
+22:43:53.560 rx [diag] mod_6xmkglz env=0.000  v0 gate=0 pitchV=0.42
+22:43:53.560 rx [diag] mod_s5p7ab8 env=0.000  v0 gate=0 pitchV=0.42
+22:43:53.810 rx [diag] mod_6xmkglz env=0.000  v0 gate=0 pitchV=0.42
+22:43:53.810 rx [diag] mod_s5p7ab8 env=0.000  v0 gate=0 pitchV=0.42
+22:43:54.060 rx [midi] noteOn  ch=1 note=60 vel=99
+22:43:54.060 rx [voices on ] 0: 65 1: 65 2:*60 3: 72 
+22:43:54.060 rx [diag] mod_6xmkglz env=0.000  v0 gate=0 pitchV=0.42
+22:43:54.060 rx [diag] mod_s5p7ab8 env=0.000  v0 gate=0 pitchV=0.42
+22:43:54.310 rx [diag] mod_6xmkglz env=0.000  v0 gate=0 pitchV=0.42
+22:43:54.310 rx [diag] mod_s5p7ab8 env=0.000  v0 gate=0 pitchV=0.42
+22:43:54.560 rx [diag] mod_6xmkglz env=0.000  v0 gate=0 pitchV=0.42
+22:43:54.561 rx [diag] mod_s5p7ab8 env=0.000  v0 gate=0 pitchV=0.42
+22:43:54.810 rx [diag] mod_6xmkglz env=0.000  v0 gate=0 pitchV=0.42
+22:43:54.810 rx [diag] mod_s5p7ab8 env=0.000  v0 gate=0 pitchV=0.42
+22:43:55.060 rx [diag] mod_6xmkglz env=0.000  v0 gate=0 pitchV=0.42
+22:43:55.060 rx [diag] mod_s5p7ab8 env=0.000  v0 gate=0 pitchV=0.42
+22:43:55.078 rx [midi] noteOff ch=1 note=60 vel=0
+22:43:55.078 rx [voices off] 0: 65 1: 65 2: 60 3: 72 
+22:43:55.310 rx [diag] mod_6xmkglz env=0.000  v0 gate=0 pitchV=0.42
+22:43:55.310 rx [diag] mod_s5p7ab8 env=0.000  v0 gate=0 pitchV=0.42
+22:43:55.560 rx [diag] mod_6xmkglz env=0.000  v0 gate=0 pitchV=0.42
+22:43:55.561 rx [diag] mod_s5p7ab8 env=0.000  v0 gate=0 pitchV=0.42
+22:43:55.802 rx [midi] noteOn  ch=1 note=64 vel=90
+22:43:55.802 rx [voices on ] 0: 65 1: 65 2: 60 3:*64 
+22:43:55.810 rx [diag] mod_6xmkglz env=0.000  v0 gate=0 pitchV=0.42
+22:43:55.810 rx [diag] mod_s5p7ab8 env=0.000  v0 gate=0 pitchV=0.42
+22:43:56.060 rx [diag] mod_6xmkglz env=0.000  v0 gate=0 pitchV=0.42
+22:43:56.061 rx [diag] mod_s5p7ab8 env=0.000  v0 gate=0 pitchV=0.42
+22:43:56.310 rx [diag] mod_6xmkglz env=0.000  v0 gate=0 pitchV=0.42
+22:43:56.310 rx [diag] mod_s5p7ab8 env=0.000  v0 gate=0 pitchV=0.42
+22:43:56.560 rx [diag] mod_6xmkglz env=0.000  v0 gate=0 pitchV=0.42
+22:43:56.560 rx [diag] mod_s5p7ab8 env=0.000  v0 gate=0 pitchV=0.42
+22:43:56.810 rx [diag] mod_6xmkglz env=0.000  v0 gate=0 pitchV=0.42
+22:43:56.810 rx [diag] mod_s5p7ab8 env=0.000  v0 gate=0 pitchV=0.42
+22:43:57.060 rx [diag] mod_6xmkglz env=0.000  v0 gate=0 pitchV=0.42
+22:43:57.060 rx [diag] mod_s5p7ab8 env=0.000  v0 gate=0 pitchV=0.42
+22:43:57.154 rx [midi] noteOff ch=1 note=64 vel=0
+22:43:57.155 rx [voices off] 0: 65 1: 65 2: 60 3: 64 
+22:43:57.310 rx [diag] mod_6xmkglz env=0.000  v0 gate=0 pitchV=0.42
+22:43:57.310 rx [diag] mod_s5p7ab8 env=0.000  v0 gate=0 pitchV=0.42
+22:43:57.560 rx [diag] mod_6xmkglz env=0.000  v0 gate=0 pitchV=0.42
+22:43:57.560 rx [diag] mod_s5p7ab8 env=0.000  v0 gate=0 pitchV=0.42
+22:43:57.810 rx [diag] mod_6xmkglz env=0.000  v0 gate=0 pitchV=0.42
+22:43:57.810 rx [diag] mod_s5p7ab8 env=0.000  v0 gate=0 pitchV=0.42
+22:43:57.932 rx [midi] noteOn  ch=1 note=67 vel=103
+22:43:57.932 rx [voices on ] 0: 65 1:*67 2: 60 3: 64 
+22:43:58.059 rx [midi] noteOff ch=1 note=67 vel=0
+22:43:58.059 rx [voices off] 0: 65 1: 67 2: 60 3: 64 
+22:43:58.060 rx [diag] mod_6xmkglz env=0.000  v0 gate=0 pitchV=0.42
+22:43:58.060 rx [diag] mod_s5p7ab8 env=0.000  v0 gate=0 pitchV=0.42
+22:43:58.310 rx [diag] mod_6xmkglz env=0.000  v0 gate=0 pitchV=0.42
+22:43:58.310 rx [diag] mod_s5p7ab8 env=0.000  v0 gate=0 pitchV=0.42
+22:43:58.560 rx [diag] mod_6xmkglz env=0.000  v0 gate=0 pitchV=0.42
+22:43:58.561 rx [diag] mod_s5p7ab8 env=0.000  v0 gate=0 pitchV=0.42
+22:43:58.617 rx [midi] noteOn  ch=1 note=67 vel=106
+22:43:58.617 rx [voices on ] 0:*67 1: 67 2: 60 3: 64 
+22:43:58.789 rx [midi] noteOff ch=1 note=67 vel=0
+22:43:58.789 rx [voices off] 0: 67 1: 67 2: 60 3: 64 
+22:43:58.810 rx [diag] mod_6xmkglz env=0.704  v0 gate=0 pitchV=0.58
+22:43:58.811 rx [diag] mod_s5p7ab8 env=0.952  v0 gate=0 pitchV=0.58
+22:43:59.060 rx [diag] mod_6xmkglz env=0.073  v0 gate=0 pitchV=0.58
+22:43:59.060 rx [diag] mod_s5p7ab8 env=0.909  v0 gate=0 pitchV=0.58
+22:43:59.229 rx [midi] noteOn  ch=1 note=67 vel=114
+22:43:59.229 rx [voices on ] 0: 67 1: 67 2:*67 3: 64 
+22:43:59.310 rx [diag] mod_6xmkglz env=0.000  v0 gate=0 pitchV=0.58
+22:43:59.310 rx [diag] mod_s5p7ab8 env=0.865  v0 gate=0 pitchV=0.58
+22:43:59.391 rx [midi] noteOff ch=1 note=67 vel=0
+22:43:59.391 rx [voices off] 0: 67 1: 67 2: 67 3: 64 
+22:43:59.560 rx [diag] mod_6xmkglz env=0.000  v0 gate=0 pitchV=0.58
+22:43:59.560 rx [diag] mod_s5p7ab8 env=0.822  v0 gate=0 pitchV=0.58
+22:43:59.810 rx [diag] mod_6xmkglz env=0.000  v0 gate=0 pitchV=0.58
+22:43:59.810 rx [diag] mod_s5p7ab8 env=0.779  v0 gate=0 pitchV=0.58
+22:44:00.060 rx [diag] mod_6xmkglz env=0.000  v0 gate=0 pitchV=0.58
+22:44:00.060 rx [diag] mod_s5p7ab8 env=0.736  v0 gate=0 pitchV=0.58
+22:44:00.310 rx [diag] mod_6xmkglz env=0.000  v0 gate=0 pitchV=0.58
+22:44:00.311 rx [diag] mod_s5p7ab8 env=0.692  v0 gate=0 pitchV=0.58
+22:44:00.560 rx [diag] mod_6xmkglz env=0.000  v0 gate=0 pitchV=0.58
+22:44:00.560 rx [diag] mod_s5p7ab8 env=0.649  v0 gate=0 pitchV=0.58
+22:44:00.664 sys disconnected
+
+---
+
+## 🤖 Assistant
+
+Goede data. Belangrijke observaties:
+
+1. **Envelope werkt** (mod_s5p7ab8 ging tot env=0.952 en released langzaam) → AHDSR ontvangt gate en tikt.
+2. **Pitch werkt** (voice 0 pitchV ging 0.42→0.58 toen v0 noot 67 kreeg, exact 7/12V).
+3. **Toch geen audio** ondanks env=0.95 en juiste pitch.
+
+Dit wijst op het vermoeden uit de planning: **AHDSR `cv_out` is een CV-poort die geen audio-stream samples produceert** — de wire naar VCA.cv levert 0 op. Laat me checken. 
+
+*Read AhdsrAudioModule.h, lines 1 to 120*
+
+AHDSR heeft een echte `AudioSynthWaveformDc` — ok. Nu de VCA:  
+
+*Searched for regex `inputPort|outputPort|AudioEffect|AudioConnection|AudioMixer|amp_|class Vca` (`**/firmware/app-modular-brain/src/VcaModule.h`), 10 results · Read VcoModule.h*
+
+
+
+---
+
+## 🧑 User
+
+nu klinkt er een (ik denk) sinus (of mss driehoek), die heel traag reageert. Het lijkt niet de langzame attack, maar meer vertraging. Dan is ie niet polyfoon.
+Het lijkt alsof de voice pas vrijkomt nadat de release helemaal geweest is. Zoiets.
+
+---
+
+## 🤖 Assistant
+
+Drie aparte symptomen, met één gemeenschappelijke oorzaak en één los:
+
+**Vertraging + niet polyfoon = zelfde bug.** Het patch toont `× 3` voice groups (polyfoon ontwerp). MidiInModule alloceert noten round-robin over 4 voices, maar onze graph wired alleen `midiin.pitch` / `midiin.gate` → zonder voice-index, dus impliciet voice 0. In jouw eerdere log zag je `voices on  0: 65 1:*67 2: 60 3: 64` — de nieuwe noot gaat naar voice 1, voice 0 houdt zijn oude noot 65 vast. Pas wanneer de allocator weer voice 0 kiest hoor je een verandering — dat voelt als "release moet eerst klaar".
+
+**"Sinus/driehoek" terwijl je saw verwacht** is los: de VCO start in `WAVEFORM_SAWTOOTH`, maar als het patch een `controlState.{vco}.wave` waarde stuurt (bv. `0`=sine, `1`=triangle) overschrijft dat de saw. Even checken wat de editor in het patch zet.
+
+Laat me eerst kijken hoe MidiInModule de `pitch`/`gate` poorten zonder voice-index oplevert:  
+
+*Searched for regex `voicePitch|voiceGate|outputPort|inputPort|kTypeId|noteOn|allocate|voicePitchV` (`**/firmware/**/MidiIn*.h`), 11 results · Searched for regex `midiin.pitch|midiin.gate|\"pitch\"|\"gate\"|midiIn\\.voice|voicePitchV|tickCvModules` (`**/firmware/app-modular-brain/src`), no results*
+
+
+
+---
+
+## 🧑 User
+
+ik zag ergens wave, maar daarna niet meer, maar ik hoor nu verschil in golfvorm en ook in attack.
+
+de connectie valt wel steeds uit.
+
+23:06:28.233 tx {"type":"config","project":{"version":2,"name":"ModularMB","activePatchId":"patch_h2psk0f","modules":[{"id":"mod_s5p7ab8","typeId":"tp_mmb_ahdsr"},{"id":"mod_sagrkl9","typeId":"tp_mmb_lfo"},{"id":"mod…
+23:06:28.245 rx {"type":"log","msg":"config received: name=ModularMB"}
+23:06:28.817 tx {"type":"selectPatch","patchId":"patch_h2psk0f"}
+23:06:36.255 sys read error: The device has been lost.
+
+de snelle logs mogen wel weer uit: die storen enorm.
+
+De MIDI poort valt ook steeds weg; dan moet ik in de VMPK eerst een andere uitgang kiezen, en dan weer de teensy, dan pakt ie hem weer. Erg traag en cumbersome testen allemaal....
+
+Kun jij het niet zelf ook testen met een MIDI in en de audio uit? 
+
+Waarom werkte de static patch wel polyfoon en de dynamische nog niet? Kunnen we daar langzaam naar toe bewegen, of eerst nog de andere modules testen? Of is dat alleen de VCF? Is die al gewrapped? Welke eventueel nog meer?
+
+---
+
+## 🤖 Assistant
+
+Eerst diag-spam eruit en versie bump:     
+Welke modules zijn al gewrapped?   
+
+*Searched for regex `: public AudioPortModule|static constexpr const char\* kTypeId` (`**/firmware/app-modular-brain/src/*.h`), 10 results*
+
+v0.3.8 staat erop, log is rustig.
+
+**Antwoorden op je vragen:**
+
+**1. "Kun jij zelf testen?"** Nee — ik zit in een tekst-omgeving, ik kan geen USB-audio of MIDI horen of meten. Ik kan alleen code wijzigen, builden, flashen, en je log/observaties interpreteren. Daarom de logs als oogkleppen.
+
+**2. "Connectie / MIDI valt steeds uit"** Bekende USB-stack-pijn van Teensy als je veel USB-functies tegelijk gebruikt (Serial + MIDI + Audio). Triggers waren waarschijnlijk de printf-flood (250 ms × 2 AHDSR + log-regels) plus dat host-side Windows soms de device "verliest" als de Teensy te lang in een ISR-zware fase zit. v0.3.8 zou al rustiger moeten zijn. Permanente verbetering: vervang stringly-typed `Serial.printf` log door enkel betekenisvolle events en throttle.
+
+**3. "Waarom werkte static wel polyfoon?"** De static-graph is keihard gebakken: 4 vaste `AudioSynthWaveform` oscillatoren met 4 vaste pitches (akkoord), 4 vaste AudioConnections naar één mixer naar USB. Geen voice-allocator, geen routing — gewoon 4 oscillators die altijd klinken. "Polyfonie" zonder note-allocation. De dynamische graph wordt door één Module-instance per type opgebouwd (1 VCO, 1 VCA, 1 AHDSR), dus inherently monofoon tot we per-voice instantiatie ondersteunen.
+
+**4. "Wat is al gewrapped als AudioPortModule?"**
+- `tp_mmb_ahdsr` (AHDSR met DC-out)
+- `tp_mmb_vca` (audio × cv)
+- `tp_mmb_vco` (saw/sin/tri/sqr)
+- `tp_mmb_vcf` (filter — gewrapped maar nog niet getest in patch)
+- `tp_mmb_out` (USB-stereo)
+
+Niet gewrapped maar wel in de catalog: `LFO`, `Noise`, `S&H`, `Echo`, `Phaser`, `SEQ-16`. Sommige bestaan als CV-only in `core/mb/runtime/` maar hebben geen audio-stream.
+
+**5. "Eerst polyfonie of eerst andere modules?"** Mijn aanbeveling:
+- **Eerst VCF testen** in een patch (`VCO → VCF → VCA → OUT` met LFO of envelope op cutoff): klein, één extra wire, je hoort meteen of filter werkt. Dat valideert ook het VCF-wrapper-pad zonder dat we polyfonie aanraken.
+- **Daarna polyfonie** — fundamentele klus: graph moet per voice gerepliceerd, AHDSR/VCO/VCA elk N instances. Vereist refactor van AudioGraph + runtime instance map (van `id` naar `id × voice`). Niet "even tussendoor".
+- LFO/Noise wrappen is daarvóór wel een prima tussenstap (kleiner dan polyfonie).
+
+Wat wil je: VCF testen, of LFO/Noise wrappen, of toch direct polyfonie aanpakken?
+
+---
+
+## 🧑 User
+
+de VCF doet niet zo veel, lijkt het. In simulatie wel (tone.js), maar op de teensy hoor ik geen 'wahw' effect
+
+---
+
+## 🤖 Assistant
+
+Laat me de VCF wrapper bekijken: 
+
+*Read VcfModule.h*
+
+Gevonden. De `cv` poort (cutoff modulatie) staat bewust **niet** als AudioPort in `inputPort()` — die was gepland als "toekomstige verbetering" maar de AHDSR→VCF verbinding bestaat al in het patch. `AudioFilterStateVariable` heeft wél channel 1 als audio-rate frequency-CV input — we moeten hem alleen 
+
+*Read VcfModule.h*
+
+Gevonden. De `cv` poort (cutoff modulatie) staat bewust **niet** als AudioPort in `inputPort()` — die was gepland als "toekomstige verbetering" maar de AHDSR→VCF verbinding bestaat al in het patch. `AudioFilterStateVariable` heeft wél channel 1 als audio-rate frequency-CV input — we moeten hem alleen blootstellen: 
+v0.3.9. Test het filter-effect:
+
+- `AudioFilterStateVariable` channel 1 is "frequency octave shift" — een DC van 0.0 = geen extra shift, 1.0 = +N octaven boven de `cutoff` basisfrequentie. De AHDSR loopt 0→sustain→0, dus de cutoff zweeft omhoog tijdens attack/hold/decay en daalt tijdens release → typisch "wah"-envelope sweep.
+
+**Als je nog geen verschil hoort** is de basisfrequentie (`cutoff`) waarschijnlijk al te hoog (2000 Hz default) zodat de sweep buiten hoorbaar bereik valt. Zet in het patch de Cutoff knop verder naar links (laag, bv. 300-800 Hz) en de Q omhoog — dan is het effect het duidelijkst.
+
+**Volgende vraag:** de `cv_amt` knop (CvAmt in de UI) schalen we nu nog niet — de AHDSR-waarde gaat altijd 1:1 naar het filter. Als je wil dat die knop wat doet, moeten we een `AudioEffectMultiply` tussenschakelen als scaler. Dat is een kleine uitbreiding als dit werkt.
+
+---
+
+## 🧑 User
+
+ik snap iets niet. Waarom moet CV als audio poort?
+
+---
+
+## 🧑 User
+
+ik snap bijna niets van wat je schrijft.
+Er is geen geluid nu
+
+---
+
+## 🤖 Assistant
+
+Eerst die vraag beantwoorden, dan debuggen.
+
+**Waarom CV als audio-poort?**  
+Op de Teensy is er maar één manier om een signaal van module naar module te sturen: via de Teensy Audio bibliotheek, en die werkt uitsluitend met 44.1 kHz sample-blokken. Er is geen apart "CV-kanaal". Als de AHDSR de filter-cutoff wil bewegen, stuurt die een *DC-waarde* (een constante toon van bijv. 0.7) die 44100 keer per seconde ververst wordt. Dat is technisch een audio-signaal, ook al klinkt het zelf niet. De `AudioSynthWaveformDc` in de AHDSR module doet precies dat.
+
+Maar nu geen geluid meer. Laat me kijken of de AudioGraph build logs zeggen wat er misgaat: 
+
+---
+
+## 🧑 User
+
+maybe the VCA is silent because of no input
+
+---
+
+## 🤖 Assistant
+
+Laat me eerst zien hoe AudioGraph de connecties aanmaakt — dan snap ik meteen waarom het stil is: 
+
+*Read AudioGraph.cpp*
+
+
+
+---
+
+## 🧑 User
+
+Okay now there is sound but no 'wah'. Maybe the filter parameters are different. Too high lopass is not hearable
+
+---
+
+## 🤖 Assistant
+
+Goed dat er geluid is. Het filter-effect: de AHDSR sweept de cutoff omhóóg vanuit de basiswaarde. Als de basiswaarde al hoog is, sweept ie voorbij het hoorbare bereik. Laat me kijken wat de editor als cutoff-waarde stuurt: 
+
+*Searched for regex `cutoff|tp_mmb_vcf|vcf` (`**/editor/src/**/*.ts,editor/src/**/*.tsx`), no results · Searched for regex `tp_mmb_vcf|"cutoff"` (`**/editor/src`), no results*
+
+
+
+*Searched for files matching `**/modules*.ts`, no matches · Searched for files matching `**/catalog*.ts`, no matches*
+
+
+
+*Searched for text `tp_mmb_vcf`, 20 results · Searched for regex `tp_mmb_vcf|cutoff|"q"` (`**/editor/src/modular-mb/seedModules.ts`), 14 results*
+
+Twee dingen te zeggen:
+
+**"Waarom CV als audio poort?"** — In de Teensy Audio library bestaat er geen apart CV-pad. Alles loopt als `AudioStream` (44100 samples/sec). De AHDSR stuurt een DC-golfvorm die langzaam op en neer gaat. Dat ís CV, maar technisch 
+
+<details>
+<summary><em>Searched for regex `cutoff|tp_mmb_vcf|vcf` (`**/editor/src/**/*.ts,editor/src/**/*.tsx`), no results</em> (+5 meer)</summary>
+
+- Searched for regex `cutoff|tp_mmb_vcf|vcf` (`**/editor/src/**/*.ts,editor/src/**/*.tsx`), no results
+- Searched for regex `tp_mmb_vcf|"cutoff"` (`**/editor/src`), no results
+- Searched for files matching `**/modules*.ts`, no matches
+- Searched for files matching `**/catalog*.ts`, no matches
+- Searched for text `tp_mmb_vcf`, 20 results
+- Searched for regex `tp_mmb_vcf|cutoff|"q"` (`**/editor/src/modular-mb/seedModules.ts`), 14 results
+</details>
+
+Twee dingen te zeggen:
+
+**"Waarom CV als audio poort?"** — In de Teensy Audio library bestaat er geen apart CV-pad. Alles loopt als `AudioStream` (44100 samples/sec). De AHDSR stuurt een DC-golfvorm die langzaam op en neer gaat. Dat ís CV, maar technisch gewoon een audio-signaal met een hele lage frequentie. Vandaar dat de verbinding via `AudioConnection` loopt.
+
+**Filter geen effect** — De patch stuurt `cutoff: 2500, q: 0.7`. De AHDSR sweept de cutoff *omhoog* vanuit 2500 Hz naar boven — dat is al bijna alles wat je hoort, dus er verandert niks hoorbaars.
+
+Voor een "wah":
+- **Cutoff laag**: 200–500 Hz
+- **Q hoog**: 3–5 (resonantie-peak maakt het dramatisch)
+
+Die knopwaarden staan in de UI — de firmware past ze toe via `controlState`. Zet de Cutoff-knop links op ~300 Hz en Q op ~3 en verstuur opnieuw, dan sweept de AHDSR van 300 Hz omhoog door het hoorbare bereik.
+
+Wil je ook dat ik de default in het patch (`seedModules.ts`) aanpas, zodat nieuwe instanties meteen bruikbare waarden hebben?
+
+---
+
+## 🧑 User
+
+okee, dat werkt een beetje
+het is nog steeds wat traag allemaal
+
+ik ben niet blij met die CV over audio. Dat was niet het idee. We zouden CV als een eigen dCV constructie doen met een verversingsfrequentie van 1kHz. Een aparte interrupt (?) op de teensy. De audio gaat zijn eigen gang, was het idee, via de audio library.
+
+Maar dat is nog niet gemaakt? Kunnen we die lijn starten misschien? We weten dat we wat audio componenten hebben die het doen en die we kunnen verbinden. Nu is het tijd voor onze core business: de CV mappen. Wil je nog eens goed kijken naar de plannen en even focus krijgen daarop?
+
+---
+
+## 🤖 Assistant
+
+Laat me eerst kijken wat er al gepland is voor de CV-bus in de docs:  
+
+*Searched for regex `dCV|CV bus|CV-bus|1 ?kHz|1000 Hz|control rate|IntervalTimer|cvTick|cvBus` (`**/doc/**/*.md`), 20 results*
+
+
+
+*Searched for regex `class CvModule|class EventSourceModule|kCvTickRateHz|class Module|setControl|setInput|tick\\(\\)` (`**/firmware/core`), no results*
+
+
+
+*Searched for files matching `**/firmware/core/include/mb/runtime/*.h`, 13 matches · Read CvModule.h*
+
+
+
+*Read Module.h · Read Ahdsr.h, lines 1 to 120 · Read CvBreakout.h, lines 1 to 60*
+
+
+
+<details>
+<summary><em>Searched for regex `dCV|CV bus|CV-bus|1 ?kHz|1000 Hz|control rate|IntervalTimer|cvTick|cvBus` (`**/doc/**/*.md`), 20 results</em> (+6 meer)</summary>
+
+- Searched for regex `dCV|CV bus|CV-bus|1 ?kHz|1000 Hz|control rate|IntervalTimer|cvTick|cvBus` (`**/doc/**/*.md`), 20 results
+- Searched for regex `class CvModule|class EventSourceModule|kCvTickRateHz|class Module|setControl|setInput|tick\\(\\)` (`**/firmware/core`), no results
+- Searched for files matching `**/firmware/core/include/mb/runtime/*.h`, 13 matches
+- Read CvModule.h
+- Read Module.h
+- Read Ahdsr.h, lines 1 to 120
+- Read CvBreakout.h, lines 1 to 60
+</details>
+
+Wat ik vond na door de plannen te lopen (ADR-0008, 0009, 0010 en `runtime`):
+
+**De architectuur is allang ontworpen, alleen nooit afgemaakt:**
+- `CvModule::tick()` bestaat, `kCvTickRateHz = 1000` is gedefinieerd.
+- `Ahdsr`, `Lfo`, `MidiIn` zijn al pure CV-domein modules (in `core/include/mb/runtime/`).
+- ADR-0009 zegt expliciet: *"CV bus ≠ audio bus. Module code never mixes these paths."*
+
+**Wat er ontbreekt (de "missing middle"):**
+1. **Echte 1 kHz timer-ISR** — nu pollen we in `loop()` met `if (now - lastCvTickMs >= 1)`. Moet een `IntervalTimer` zijn.
+2. **In-memory CV-bus** — `(moduleId, portId) → float` map die elke tick door producenten geschreven en door consumenten gelezen wordt. Equivalent van `AudioGraph` maar voor CV.
+3. **CV→audio bridge** — wanneer een CV-connectie naar een audio-module wijst (`ahdsr.cv_out → vca.cv`, `lfo.out → vcf.cutoff`), wordt op elke CV-tick de juiste audio-library setter aangeroepen (`vca.gain()`, `vcf.frequency()`). Geen `AudioConnection` meer, geen DC-proxy.
+
+**Wat er weg kan zodra dit er staat:**
+- `AhdsrAudioModule.h` (de DC-proxy hack) → AHDSR is gewoon weer puur CV.
+- De `cv` input-port van VCA/VCF als `AudioPort` (mijn vorige fix) → die wordt vervangen door bus-bridge.
+- De ad-hoc `syncDynamicModules()` in `main.cpp` die voice-0 pitch en gate naar VCO/AHDSR pusht.
+
+**Voorgestelde aanpak in kleine stappen:**
+
+| Stap | Wat | Resultaat |
+|---|---|---|
+| **C1** | `CvBus` klasse: `std::unordered_map<std::string, float>` met sleutel `"<moduleId>.<portId>"`. Methoden: `publish(key, value)` (ISR-safe), `read(key)` (main of audio block). | In-memory CV-bus. |
+| **C2** | `CvGraph` parseert patch-connecties en bouwt twee lijsten: producenten (welke CvModule schrijft naar welke bus-key na zijn `tick()`) en consumenten-bridges (welke bus-key drijft welke audio-parameter-setter). | Routering geconfigureerd uit patch. |
+| **C3** | `IntervalTimer` op 1 kHz die alle CvModules tickt, daarna producenten flusht naar de bus, daarna consumer-bridges aanroept. | Echte CV-ISR met juiste verversingssnelheid. |
+| **C4** | AHDSR-proxy en VCA/VCF cv-AudioPort verwijderen. `main.cpp::syncDynamicModules` vervangen door de generieke bridge in C3. | Code-opschoning, één pad voor alle CV. |
+
+Per stap meteen testen op de Teensy zodat we niet weer met een grote ongeteste sprong zitten.
+
+**Mijn vraag:** akkoord met deze 4-stappen-volgorde? En begin ik met C1+C2 (samen, want C2 heeft C1 nodig en ze zijn nog niet gevaarlijk — geen gedragsverandering tot C3+C4 erbij komt)?
+
+---
+
+## 🧑 User
+
+we hebben modules met een configuratie van poorten. Elke poort heeft een type. Kan de module die de VCF van Teensy wrapt niet die vertaling doen van een CV waarde (die misschien vaak, misschien helemaal nooit wijzigt) naar een audio waarde? Heeft de VCF elke tik opnieuw een audio waarde nodig, of alleen als ie wijzigt?
+
+Akkoord met de stappen en starten met C1 en C2
+
+---
+
+## 🤖 Assistant
+
+Goede vragen — laat me ze beantwoorden vóór ik begin:
+
+**1. "Heeft de VCF elke tik een audio CV-waarde nodig?"** Nee. `AudioFilterStateVariable::frequency(hz)` is een setter die je vanuit de main-thread aanroept; de waarde blijft staan tot je hem weer wijzigt. Audio-rate CV-input (de channel-1 audio-modulatie die ik vorige keer gebruikte) is alleen nodig als je per-sample (44100×/sec) wilt moduleren — wat voor 99% van de gebruikssituaties overkill is. Een LFO op 5 Hz hoeft je VCF maar ~1000×/sec te updaten en zelfs daarvan is alleen het _verschil_ relevant.
+
+**2. "Kan de wrapper-module de vertaling doen?"** Ja, dat is precies het idee van C3. Elke wrapper krijgt een `setCv(portId, float)` (of `setCv(portId, bool)` voor gate/trigger). De VCF-wrapper rekent dan zelf cv-volts → cutoff Hz uit en roept `vcf_.frequency(hz)` aan. **Alleen als de waarde verandert** — kleine optimalisatie maar gratis.
+
+**3. Schema:**
+
+```
+CvModule.tick()  ──publish──▶  CvBus[key]  ──pull/push──▶  AudioPortModule.setCv(port, val)
+   (1 kHz ISR)                  (in-mem)                       (alleen bij change)
+```
+
+Akkoord — ik start C1 + C2. Geen gedragsverandering, alleen infrastructuur + log zodat je kunt zien dat de CV-routes correct herkend worden.  
+
+*Read AudioGraph.h, lines 1 to 40*
+
+Nu schrijf ik C1 (CvBus) en C2 (CvGraph):  
+
+*Created CvBus.h*
+
+
+
+---
+
+## 🧑 User
+
+00:00:43.684 tx {"type":"config","project":{"version":2,"name":"ModularMB","activePatchId":"patch_h2psk0f","modules":[{"id":"mod_s5p7ab8","typeId":"tp_mmb_ahdsr"},{"id":"mod_sagrkl9","typeId":"tp_mmb_lfo"},{"id":"mod…
+00:00:43.692 rx {"type":"log","msg":"config received: name=ModularMB"}
+00:00:43.692 rx {"type":"log","msg":"runtime: created=15 unknown=18 total=33 active=patch_h2psk0f"}
+00:00:43.692 rx {"type":"ack","ok":true,"applied":"config","modules":33,"patches":1,"racks":2}
+00:00:49.692 tx {"type":"selectPatch","patchId":"patch_h2psk0f"}
+00:00:49.694 rx {"type":"log","msg":"selectPatch: patch_h2psk0f"}
+00:00:49.694 rx {"type":"log","msg":"active patch=patch_h2psk0f connections=8 wired=8 dangling=0 controls=13"}
+00:00:49.694 rx {"type":"log","msg":"static auto-muted for dynamic patch"}
+00:00:49.695 rx {"type":"log","msg":"  skip(notaudio): mod_s6vt3sw(tp_mmb_midiin).pitch -> mod_goxjv2c(tp_mmb_vco).voct"}
+00:00:49.695 rx {"type":"log","msg":"  skip(notaudio): mod_s6vt3sw(tp_mmb_midiin).gate -> mod_s5p7ab8(tp_mmb_ahdsr).gate"}
+00:00:49.695 rx {"type":"log","msg":"  wire: mod_s5p7ab8(tp_mmb_ahdsr).cv_out/ch0 -> mod_cvt52yx(tp_mmb_vcf).cv/ch1"}
+00:00:49.695 rx {"type":"log","msg":"  wire: mod_s5p7ab8(tp_mmb_ahdsr).cv_out/ch0 -> mod_a1vvyk8(tp_mmb_vca).cv/ch1"}
+00:00:49.695 rx {"type":"log","msg":"  wire: mod_goxjv2c(tp_mmb_vco).out/ch0 -> mod_cvt52yx(tp_mmb_vcf).in/ch0"}
+00:00:49.695 rx {"type":"log","msg":"  wire: mod_cvt52yx(tp_mmb_vcf).out/ch0 -> mod_a1vvyk8(tp_mmb_vca).in/ch0"}
+00:00:49.695 rx {"type":"log","msg":"  wire: mod_a1vvyk8(tp_mmb_vca).out/ch0 -> mod_ydqt0z9(tp_mmb_out).l/ch0"}
+00:00:49.695 rx {"type":"log","msg":"  wire: mod_a1vvyk8(tp_mmb_vca).out/ch0 -> mod_ydqt0z9(tp_mmb_out).r/ch1"}
+00:00:49.696 rx {"type":"log","msg":"AudioGraph: wired=6 skipped=2"}
+00:00:49.696 rx {"type":"log","msg":"  cv-route: mod_s6vt3sw.pitch -> mod_goxjv2c.voct"}
+00:00:49.696 rx {"type":"log","msg":"  cv-route: mod_s6vt3sw.gate -> mod_s5p7ab8.gate"}
+00:00:49.696 rx {"type":"log","msg":"CvGraph: routes=2"}
+00:00:49.698 rx {"type":"ack","ok":true,"applied":"selectPatch","patchId":"patch_h2psk0f"}
+
+---
+
+## 🤖 Assistant
+
+C1 + C2 werken perfect. Analyse van de log:
+
+**Wat klopt:**
+- `cv-route: midiin.pitch → vco.voct` ✅
+- `cv-route: midiin.gate → ahdsr.gate` ✅
+- `CvGraph: routes=2` ✅
+
+**Wat nog niet klopt (C4-werk):**
+```
+wire: mod_s5p7ab8(tp_mmb_ahdsr).cv_out/ch0 -> mod_cvt52yx(tp_mmb_vcf).cv/ch1
+wire: mod_s5p7ab8(tp_mmb_ahdsr).cv_out/ch0 -> mod_a1vvyk8(tp_mmb_vca).cv/ch1
+```
+Die gaan nog steeds als audio-verbinding omdat de AHDSR nog een `AudioSynthWaveformDc`-proxy heeft. CvGraph ziet ze terecht als "beide hebben audio-port → overslaan". Dat lost C4 op.
+
+**Voordat we C3 bouwen:** het VCA-probleem. Als we de AHDSR-DC-proxy weghalen, verliest `AudioEffectMultiply` zijn tweede input. Oplossing: de DC verhuist van de AHDSR naar de VCA-wrapper zelf — VCA bezit zijn eigen `AudioSynthWaveformDc`, en `writeCvPort("cv", float)` roept `dc_.amplitude(value)` aan. De audio-graph blijft dan `VCO.out × VCA.dc_internal → OUT`. De AHDSR wordt weer puur CV.
+
+**C3-plan (IntervalTimer + bridge):**
+- `readCvPort(portId)` / `writeCvPort(portId, float)` toevoegen aan `Module` (virtual noop).
+- `MidiIn` implementeert `readCvPort("pitch"/"gate")`.
+- `VcoModule` implementeert `writeCvPort("voct")` → `updatePitch()`.
+- `Ahdsr` implementeert `writeCvPort("gate")` → `setGate()`.
+- `IntervalTimer` in `main.cpp` op 1 kHz: tick alle CvModules → loop cvGraph.routes() → `src.readCvPort` → `dst.writeCvPort`.
+- `syncDynamicModules()` verdwijnt.
+
+Zin in C3 nu? Dan begin ik met de `readCvPort`/`writeCvPort` interface in `Module.h` en daarna de implementaties.
+
+---
+
+## 🧑 User
+
+yes, any CV port (gate, CV12, CV16) , in and out, should be exposed as CV port from the module. THe module should hide the fact that it is wrapping an audio port. We might change the implementation of the filter to something else. Maybe we add a sidecar FPGA... Or take the PJRC code (open source) and adapt it so we discern real audio and real CV ports... 
+
+Gaan we dat op deze wijze doen? Dat is mij nog niet geheel duidelijk.
+
+---
+
+## 🤖 Assistant
+
+Ja, dit is exact de juiste lijn. Laat me het model scherp neerzetten:
+
+---
+
+**Het port-model:**
+
+Elke poort heeft een `PortKind`: `Audio | Cv | Gate`. De module declareert welke soort elke poort is. De interne implementatie is volledig verborgen.
+
+```
+Module
+ ├─ outputPortKind("cv_out")  → PortKind::Cv      ← AHDSR
+ ├─ readCvPort("cv_out")      → 0.73f             ← AHDSR geeft huidige env-waarde
+ └─ inputPortKind("in")       → PortKind::Audio   ← VCF/VCA
+
+VcaModule
+ ├─ inputPortKind("in")   → Audio   (voor AudioGraph)
+ ├─ inputPortKind("cv")   → Cv      (voor CvGraph)
+ ├─ writeCvPort("cv", v)  → intern: dc_.amplitude(v)   ← verborgen impl.
+ └─ outputPortKind("out") → Audio
+```
+
+De grafenbouwer kijkt alleen naar `PortKind`:
+
+| src kind | dst kind | transport |
+|---|---|---|
+| Audio | Audio | `AudioConnection` |
+| Cv/Gate | Cv/Gate | `CvBus` + bridge |
+| Cv/Gate | Audio | **niet toegestaan** — module verbergt dit |
+
+De patch zegt alleen `"ahdsr.cv_out → vca.cv"`. Het patch weet niet en hoeft niet te weten of VCA intern een DC-proxy, FPGA-register of iets anders gebruikt — `writeCvPort("cv", 0.73f)` is de enige interface.
+
+**Toekomstige implementaties (FPGA, DAC, custom audio) zijn dan triviaal:**
+```cpp
+// Nu:   writeCvPort("cv", v) { dc_.amplitude(v); }
+// FPGA: writeCvPort("cv", v) { fpga_reg[SLOT_CV] = voltsToInt16(v); }
+// DAC:  writeCvPort("cv", v) { dac.setChannel(slot_, v); }
+```
+De patch en de routing veranderen niets.
+
+---
+
+**Dit is de basis van C3. Wil je dat ik nu:**
+1. `PortKind` + `readCvPort`/`writeCvPort` toevoeg aan `Module.h` (core)
+2. `MidiIn`, `VcoModule`, `AhdsrAudioModule` de juiste methoden laat implementeren
+3. `CvGraph::build()` laat routeren op basis van `PortKind` (en niet meer de audio-port-detectie-hack)
+4. De `IntervalTimer` toevoeg in `main.cpp` die de routes draait
+
+C4 (AHDSR DC-proxy weghalen, VCA/VCF `writeCvPort`) komt daarna als aparte stap.
+
+Zeg maar ja en ik begin.
+
+---
+
+## 🧑 User
+
+ja, graag
+
+---
+
+## 🤖 Assistant
+
+Begin met de core uitbreiding van `Module.h`:   
+
+*Read Module.h, lines 80 to 99*
+
+
+Nu MidiIn — implementeer `outputPortKind` + `readCvPort` voor `pitch`/`gate`:   
+
+*Read MidiIn.h, lines 40 to 126*
+
+
+
+---
+
+## 🧑 User
+
+er is geen geluid
+
+00:24:20.248 sys serial port opened
+00:24:20.248 tx {"type":"hello"}
+00:24:20.249 rx [boot] MusicBrain Teensy step-3 (dynamic audio graph) online
+00:24:20.249 rx [boot] CPU @ 600 MHz
+00:24:20.249 rx [boot] MidiInModule: omni, voices=4
+00:24:20.249 rx {"type":"hello","fw":"mmb-teensy-1","version":"0.4.1","step":3}
+00:24:20.250 rx {"type":"hello","fw":"mmb-teensy-1","version":"0.4.1","step":3}
+00:24:22.045 tx {"type":"config","project":{"version":2,"name":"ModularMB","activePatchId":"patch_h2psk0f","modules":[{"id":"mod_s5p7ab8","typeId":"tp_mmb_ahdsr"},{"id":"mod_sagrkl9","typeId":"tp_mmb_lfo"},{"id":"mod…
+00:24:22.050 rx {"type":"log","msg":"config received: name=ModularMB"}
+00:24:22.051 rx {"type":"log","msg":"runtime: created=15 unknown=18 total=33 active=patch_h2psk0f"}
+00:24:22.051 rx {"type":"ack","ok":true,"applied":"config","modules":33,"patches":1,"racks":2}
+00:24:27.109 tx {"type":"selectPatch","patchId":"patch_h2psk0f"}
+00:24:27.112 rx {"type":"log","msg":"selectPatch: patch_h2psk0f"}
+00:24:27.112 rx {"type":"log","msg":"active patch=patch_h2psk0f connections=8 wired=8 dangling=0 controls=13"}
+00:24:27.112 rx {"type":"log","msg":"static auto-muted for dynamic patch"}
+00:24:27.112 rx {"type":"log","msg":"  skip(notaudio): mod_s6vt3sw(tp_mmb_midiin).pitch -> mod_goxjv2c(tp_mmb_vco).voct"}
+00:24:27.112 rx {"type":"log","msg":"  skip(notaudio): mod_s6vt3sw(tp_mmb_midiin).gate -> mod_s5p7ab8(tp_mmb_ahdsr).gate"}
+00:24:27.112 rx {"type":"log","msg":"  wire: mod_s5p7ab8(tp_mmb_ahdsr).cv_out/ch0 -> mod_cvt52yx(tp_mmb_vcf).cv/ch1"}
+00:24:27.113 rx {"type":"log","msg":"  wire: mod_s5p7ab8(tp_mmb_ahdsr).cv_out/ch0 -> mod_a1vvyk8(tp_mmb_vca).cv/ch1"}
+00:24:27.113 rx {"type":"log","msg":"  wire: mod_goxjv2c(tp_mmb_vco).out/ch0 -> mod_cvt52yx(tp_mmb_vcf).in/ch0"}
+00:24:27.114 rx {"type":"log","msg":"  wire: mod_cvt52yx(tp_mmb_vcf).out/ch0 -> mod_a1vvyk8(tp_mmb_vca).in/ch0"}
+00:24:27.114 rx {"type":"log","msg":"  wire: mod_a1vvyk8(tp_mmb_vca).out/ch0 -> mod_ydqt0z9(tp_mmb_out).l/ch0"}
+00:24:27.114 rx {"type":"log","msg":"  wire: mod_a1vvyk8(tp_mmb_vca).out/ch0 -> mod_ydqt0z9(tp_mmb_out).r/ch1"}
+00:24:27.114 rx {"type":"log","msg":"AudioGraph: wired=6 skipped=2"}
+00:24:27.114 rx {"type":"log","msg":"  cv-route: mod_s6vt3sw.pitch[cv] -> mod_goxjv2c.voct[cv]"}
+00:24:27.114 rx {"type":"log","msg":"  cv-route: mod_s6vt3sw.gate[gate] -> mod_s5p7ab8.gate[gate]"}
+00:24:27.115 rx {"type":"log","msg":"  skip(kind): mod_s5p7ab8.cv_out[cv] -> mod_cvt52yx.cv[none]"}
+00:24:27.115 rx {"type":"log","msg":"  skip(kind): mod_s5p7ab8.cv_out[cv] -> mod_a1vvyk8.cv[none]"}
+00:24:27.115 rx {"type":"log","msg":"  skip(kind): mod_goxjv2c.out[audio] -> mod_cvt52yx.in[none]"}
+00:24:27.115 rx {"type":"log","msg":"  skip(kind): mod_cvt52yx.out[none] -> mod_a1vvyk8.in[none]"}
+00:24:27.115 rx {"type":"log","msg":"  skip(kind): mod_a1vvyk8.out[none] -> mod_ydqt0z9.l[none]"}
+00:24:27.115 rx {"type":"log","msg":"  skip(kind): mod_a1vvyk8.out[none] -> mod_ydqt0z9.r[none]"}
+00:24:27.115 rx {"type":"log","msg":"CvGraph: routes=2 skipped=6"}
+00:24:27.116 rx {"type":"ack","ok":true,"applied":"selectPatch","patchId":"patch_h2psk0f"}
+
+---
+
+## 🤖 Assistant
+
+
+
+<details>
+<summary><em>Read AhdsrAudioModule.h, lines 1 to 110</em> (+5 meer)</summary>
+
+- Read AhdsrAudioModule.h, lines 1 to 110
+- Read CvGraph.cpp
+- Searched for text `readCvPort` (`**/firmware/core/**`), 5 results
+- Read MidiIn.cpp, lines 100 to 143
+- Searched for regex `writeCvPort|updatePitch|outputPortKind|inputPortKind` (`**/firmware/app-modular-brain/**`), 17 results
+- Read VcoModule.h, lines 55 to 130
+</details>
+
+
+
+*Read main.cpp, lines 230 to 260*
+
+
+
+<details>
+<summary><em>Read main.cpp, lines 130 to 230</em> (+9 meer)</summary>
+
+- Read main.cpp, lines 130 to 230
+- Searched for regex `tickCvModules|tick\(\)|dc_\.amplitude` (`**/firmware/**`), 20 results
+- Read AhdsrAudioModule.h, lines 1 to 110
+- Read CvGraph.cpp
+- Searched for text `readCvPort` (`**/firmware/core/**`), 5 results
+- Read MidiIn.cpp, lines 100 to 143
+- Searched for regex `writeCvPort|updatePitch|outputPortKind|inputPortKind` (`**/firmware/app-modular-brain/**`), 17 results
+- Read VcoModule.h, lines 55 to 130
+- Read main.cpp, lines 230 to 260
+- Read AhdsrAudioModule.h, lines 100 to 140
+</details>
+
+CV-routes en audio-wires zien er correct uit in de log, maar er staat geen `[midi] noteOn` in. Speel even een noot na select-patch en plak de log — dan zie ik of de bridge wel triggert en of de envelope opent.
+
+Eén ding wat ik wil verifiëren terwijl je dat doet: in v0.4.1 advanced de envelope alleen vanuit de 1 ms loop-tick (`tickCvModules()`), terwijl `setGate(true)` óók vanuit diezelfde tickBridge in de 1 ms loop komt. Op zich prima — maar in v0.4.0 zat `setGate()` nog op het note-event direct. Als de envelope-state of attack-tijd 0 is, kan het zijn dat de envelope al weer dicht is tegen de tijd dat het eerste audio-block langs komt. Onwaarschijnlijk, maar wel een verschil.
+
+Kun je het volgende sturen:
+1. Log van een note-on (drukken na de selectPatch), inclusief de `[midi] noteOn` regel en `[voices on]` regel die daarna verschijnen.
+2. Of na een note-on er een audio-tikje (zelfs zachtjes) of écht totaal niets hoorbaar is.
+
+Met die twee weet ik direct of het gate niet doorkomt, de envelope niet opent, of de DC→VCA-keten dood is.
+
+---
+
+## 🧑 User
+
+ik hoor helemaal niets, ook geen tikje. De static deed het nog wel even in het begin.
+
+Disconnect
+📤 Push config
+🎯 Select active patch
+🔇 Static OFF
+OK — applied=selectPatch
+Log
+Clear
+00:31:18.110 sys read error: The device has been lost.
+00:31:37.044 sys disconnected
+00:31:39.599 sys serial port opened
+00:31:39.599 tx {"type":"hello"}
+00:31:39.599 rx [boot] MusicBrain Teensy step-3 (dynamic audio graph) online
+00:31:39.599 rx [boot] CPU @ 600 MHz
+00:31:39.599 rx [boot] MidiInModule: omni, voices=4
+00:31:39.599 rx {"type":"hello","fw":"mmb-teensy-1","version":"0.4.1","step":3}
+00:31:39.599 rx [midi] noteOn  ch=1 note=71 vel=100
+00:31:39.600 rx [voices on ] 0:*71 1: 0 2: 0 3: 0 
+00:31:39.600 rx [midi] noteOff ch=1 note=71 vel=0
+00:31:39.600 rx [voices off] 0: 71 1: 0 2: 0 3: 0 
+00:31:39.600 rx [midi] noteOn  ch=1 note=66 vel=100
+00:31:39.600 rx [voices on ] 0: 71 1:*66 2: 0 3: 0 
+00:31:39.600 rx {"type":"hello","fw":"mmb-teensy-1","version":"0.4.1","step":3}
+00:31:43.928 rx [midi] noteOn  ch=1 note=67 vel=88
+00:31:43.929 rx [voices on ] 0: 72 1:*67 2: 71 3: 71 
+00:31:44.127 rx [midi] noteOff ch=1 note=67 vel=0
+00:31:44.127 rx [voices off] 0: 72 1: 67 2: 71 3: 71 
+00:31:44.347 rx [midi] noteOn  ch=1 note=67 vel=86
+00:31:44.347 rx [voices on ] 0: 72 1: 67 2:*67 3: 71 
+00:31:44.537 rx [midi] noteOff ch=1 note=67 vel=0
+00:31:44.537 rx [voices off] 0: 72 1: 67 2: 67 3: 71 
+00:31:44.715 rx [midi] noteOn  ch=1 note=64 vel=59
+00:31:44.715 rx [voices on ] 0: 72 1: 67 2: 67 3:*64 
+00:31:44.717 rx [midi] noteOn  ch=1 note=62 vel=61
+00:31:44.717 rx [voices on ] 0:*62 1: 67 2: 67 3:*64 
+00:31:44.825 rx [midi] noteOff ch=1 note=62 vel=0
+00:31:44.825 rx [voices off] 0: 62 1: 67 2: 67 3:*64 
+00:31:44.877 rx [midi] noteOff ch=1 note=64 vel=0
+00:31:44.878 rx [voices off] 0: 62 1: 67 2: 67 3: 64 
+00:31:45.281 rx [midi] noteOn  ch=1 note=67 vel=86
+00:31:45.281 rx [voices on ] 0: 62 1:*67 2: 67 3: 64 
+00:31:45.446 rx [midi] noteOff ch=1 note=67 vel=0
+00:31:45.446 rx [voices off] 0: 62 1: 67 2: 67 3: 64 
+00:31:45.532 rx [midi] noteOn  ch=1 note=62 vel=86
+00:31:45.532 rx [voices on ] 0: 62 1: 67 2:*62 3: 64 
+00:31:45.698 rx [midi] noteOff ch=1 note=62 vel=0
+00:31:45.698 rx [voices off] 0: 62 1: 67 2: 62 3: 64 
+00:31:45.796 rx [midi] noteOn  ch=1 note=65 vel=93
+00:31:45.796 rx [voices on ] 0:*65 1: 67 2: 62 3: 64 
+00:31:45.954 rx [midi] noteOff ch=1 note=65 vel=0
+00:31:45.954 rx [voices off] 0: 65 1: 67 2: 62 3: 64 
+00:31:46.251 rx [midi] noteOn  ch=1 note=62 vel=11
+00:31:46.252 rx [voices on ] 0: 65 1: 67 2: 62 3:*62 
+00:31:46.283 rx [midi] noteOn  ch=1 note=69 vel=84
+00:31:46.283 rx [voices on ] 0: 65 1:*69 2: 62 3:*62 
+00:31:46.289 rx [midi] noteOn  ch=1 note=65 vel=95
+00:31:46.289 rx [voices on ] 0: 65 1:*69 2:*65 3:*62 
+00:31:46.665 rx [midi] noteOff ch=1 note=65 vel=0
+00:31:46.666 rx [voices off] 0: 65 1:*69 2: 65 3:*62 
+00:31:46.668 rx [midi] noteOff ch=1 note=69 vel=0
+00:31:46.668 rx [voices off] 0: 65 1: 69 2: 65 3:*62 
+00:31:46.673 rx [midi] noteOff ch=1 note=62 vel=0
+00:31:46.673 rx [voices off] 0: 65 1: 69 2: 65 3: 62 
+00:31:48.027 tx {"type":"setStatic","enabled":false}
+00:31:48.031 rx {"type":"log","msg":"static graph muted"}
+00:31:48.033 rx {"type":"ack","ok":true,"applied":"setStatic","enabled":false}
+00:31:48.794 rx [midi] noteOn  ch=1 note=64 vel=37
+00:31:48.794 rx [voices on ] 0:*64 1: 69 2: 65 3: 62 
+00:31:48.893 rx [midi] noteOff ch=1 note=64 vel=0
+00:31:48.893 rx [voices off] 0: 64 1: 69 2: 65 3: 62 
+00:31:49.149 rx [midi] noteOn  ch=1 note=67 vel=31
+00:31:49.149 rx [voices on ] 0: 64 1: 69 2:*67 3: 62 
+00:31:49.195 rx [midi] noteOn  ch=1 note=64 vel=38
+00:31:49.195 rx [voices on ] 0: 64 1:*64 2:*67 3: 62 
+00:31:49.298 rx [midi] noteOff ch=1 note=64 vel=0
+00:31:49.298 rx [voices off] 0: 64 1: 64 2:*67 3: 62 
+00:31:49.313 rx [midi] noteOff ch=1 note=67 vel=0
+00:31:49.313 rx [voices off] 0: 64 1: 64 2: 67 3: 62 
+00:31:49.495 rx [midi] noteOn  ch=1 note=60 vel=70
+00:31:49.496 rx [voices on ] 0: 64 1: 64 2: 67 3:*60 
+00:31:49.508 rx [midi] noteOn  ch=1 note=67 vel=61
+00:31:49.508 rx [voices on ] 0:*67 1: 64 2: 67 3:*60 
+00:31:49.661 rx [midi] noteOff ch=1 note=67 vel=0
+00:31:49.661 rx [voices off] 0: 67 1: 64 2: 67 3:*60 
+00:31:49.680 rx [midi] noteOff ch=1 note=60 vel=0
+00:31:49.680 rx [voices off] 0: 67 1: 64 2: 67 3: 60 
+00:31:50.955 tx {"type":"config","project":{"version":2,"name":"ModularMB","activePatchId":"patch_h2psk0f","modules":[{"id":"mod_s5p7ab8","typeId":"tp_mmb_ahdsr"},{"id":"mod_sagrkl9","typeId":"tp_mmb_lfo"},{"id":"mod…
+00:31:50.960 rx {"type":"log","msg":"config received: name=ModularMB"}
+00:31:50.961 rx {"type":"log","msg":"runtime: created=15 unknown=18 total=33 active=patch_h2psk0f"}
+00:31:50.961 rx {"type":"ack","ok":true,"applied":"config","modules":33,"patches":1,"racks":2}
+00:31:52.059 tx {"type":"selectPatch","patchId":"patch_h2psk0f"}
+00:31:52.062 rx {"type":"log","msg":"selectPatch: patch_h2psk0f"}
+00:31:52.064 rx {"type":"log","msg":"active patch=patch_h2psk0f connections=8 wired=8 dangling=0 controls=13"}
+00:31:52.064 rx {"type":"log","msg":"  skip(notaudio): mod_s6vt3sw(tp_mmb_midiin).pitch -> mod_goxjv2c(tp_mmb_vco).voct"}
+00:31:52.066 rx {"type":"log","msg":"  skip(notaudio): mod_s6vt3sw(tp_mmb_midiin).gate -> mod_s5p7ab8(tp_mmb_ahdsr).gate"}
+00:31:52.066 rx {"type":"log","msg":"  wire: mod_s5p7ab8(tp_mmb_ahdsr).cv_out/ch0 -> mod_cvt52yx(tp_mmb_vcf).cv/ch1"}
+00:31:52.066 rx {"type":"log","msg":"  wire: mod_s5p7ab8(tp_mmb_ahdsr).cv_out/ch0 -> mod_a1vvyk8(tp_mmb_vca).cv/ch1"}
+00:31:52.067 rx {"type":"log","msg":"  wire: mod_goxjv2c(tp_mmb_vco).out/ch0 -> mod_cvt52yx(tp_mmb_vcf).in/ch0"}
+00:31:52.067 rx {"type":"log","msg":"  wire: mod_cvt52yx(tp_mmb_vcf).out/ch0 -> mod_a1vvyk8(tp_mmb_vca).in/ch0"}
+00:31:52.068 rx {"type":"log","msg":"  wire: mod_a1vvyk8(tp_mmb_vca).out/ch0 -> mod_ydqt0z9(tp_mmb_out).l/ch0"}
+00:31:52.068 rx {"type":"log","msg":"  wire: mod_a1vvyk8(tp_mmb_vca).out/ch0 -> mod_ydqt0z9(tp_mmb_out).r/ch1"}
+00:31:52.068 rx {"type":"log","msg":"AudioGraph: wired=6 skipped=2"}
+00:31:52.069 rx {"type":"log","msg":"  cv-route: mod_s6vt3sw.pitch[cv] -> mod_goxjv2c.voct[cv]"}
+00:31:52.069 rx {"type":"log","msg":"  cv-route: mod_s6vt3sw.gate[gate] -> mod_s5p7ab8.gate[gate]"}
+00:31:52.069 rx {"type":"log","msg":"  skip(kind): mod_s5p7ab8.cv_out[cv] -> mod_cvt52yx.cv[none]"}
+00:31:52.070 rx {"type":"log","msg":"  skip(kind): mod_s5p7ab8.cv_out[cv] -> mod_a1vvyk8.cv[none]"}
+00:31:52.070 rx {"type":"log","msg":"  skip(kind): mod_goxjv2c.out[audio] -> mod_cvt52yx.in[none]"}
+00:31:52.070 rx {"type":"log","msg":"  skip(kind): mod_cvt52yx.out[none] -> mod_a1vvyk8.in[none]"}
+00:31:52.071 rx {"type":"log","msg":"  skip(kind): mod_a1vvyk8.out[none] -> mod_ydqt0z9.l[none]"}
+00:31:52.071 rx {"type":"log","msg":"  skip(kind): mod_a1vvyk8.out[none] -> mod_ydqt0z9.r[none]"}
+00:31:52.072 rx {"type":"log","msg":"CvGraph: routes=2 skipped=6"}
+00:31:52.072 rx {"type":"ack","ok":true,"applied":"selectPatch","patchId":"patch_h2psk0f"}
+00:31:55.700 rx [midi] noteOn  ch=1 note=60 vel=81
+00:31:55.702 rx [voices on ] 0: 67 1:*60 2: 67 3: 60 
+00:31:56.913 rx [midi] noteOff ch=1 note=60 vel=0
+00:31:56.913 rx [voices off] 0: 67 1: 60 2: 67 3: 60 
+00:31:58.904 rx [midi] noteOn  ch=1 note=60 vel=100
+00:31:58.904 rx [voices on ] 0: 67 1: 60 2:*60 3: 60 
+00:31:59.547 rx [midi] noteOff ch=1 note=60 vel=0
+00:31:59.549 rx [voices off] 0: 67 1: 60 2: 60 3: 60 
+00:32:02.795 rx [midi] noteOn  ch=1 note=64 vel=92
+00:32:02.795 rx [voices on ] 0:*64 1: 60 2: 60 3: 60 
+00:32:03.799 rx [midi] noteOff ch=1 note=64 vel=0
+00:32:03.799 rx [voices off] 0: 64 1: 60 2: 60 3: 60 
+00:32:05.556 rx [midi] noteOn  ch=1 note=67 vel=108
+00:32:05.556 rx [voices on ] 0: 64 1: 60 2: 60 3:*67 
+00:32:06.003 rx [midi] noteOff ch=1 note=67 vel=0
+00:32:06.003 rx [voices off] 0: 64 1: 60 2: 60 3: 67 
+00:32:06.246 rx [midi] noteOn  ch=1 note=67 vel=115
+00:32:06.246 rx [voices on ] 0: 64 1:*67 2: 60 3: 67 
+00:32:06.486 rx [midi] noteOff ch=1 note=67 vel=0
+00:32:06.486 rx [voices off] 0: 64 1: 67 2: 60 3: 67 
+00:32:06.878 rx [midi] noteOn  ch=1 note=67 vel=127
+00:32:06.880 rx [voices on ] 0: 64 1: 67 2:*67 3: 67 
+00:32:07.078 rx [midi] noteOff ch=1 note=67 vel=0
+00:32:07.078 rx [voices off] 0: 64 1: 67 2: 67 3: 67 
+00:32:08.381 rx [midi] noteOn  ch=1 note=72 vel=123
+00:32:08.381 rx [voices on ] 0:*72 1: 67 2: 67 3: 67 
+00:32:08.458 rx [midi] noteOff ch=1 note=72 vel=0
+00:32:08.458 rx [voices off] 0: 72 1: 67 2: 67 3: 67 
+00:32:08.534 rx [midi] noteOn  ch=1 note=72 vel=82
+00:32:08.534 rx [voices on ] 0: 72 1: 67 2: 67 3:*72 
+00:32:08.598 rx [midi] noteOff ch=1 note=72 vel=0
+00:32:08.598 rx [voices off] 0: 72 1: 67 2: 67 3: 72 
+00:32:08.681 rx [midi] noteOn  ch=1 note=72 vel=80
+00:32:08.681 rx [voices on ] 0: 72 1:*72 2: 67 3: 72 
+00:32:08.744 rx [midi] noteOff ch=1 note=72 vel=0
+00:32:08.746 rx [voices off] 0: 72 1: 72 2: 67 3: 72 
+00:32:08.829 rx [midi] noteOn  ch=1 note=72 vel=61
+00:32:08.829 rx [voices on ] 0: 72 1: 72 2:*72 3: 72 
+00:32:08.871 rx [midi] noteOff ch=1 note=72 vel=0
+00:32:08.871 rx [voices off] 0: 72 1: 72 2: 72 3: 72 
+00:32:08.969 rx [midi] noteOn  ch=1 note=72 vel=43
+00:32:08.969 rx [voices on ] 0:*72 1: 72 2: 72 3: 72 
+00:32:08.994 rx [midi] noteOff ch=1 note=72 vel=0
+00:32:08.994 rx [voices off] 0: 72 1: 72 2: 72 3: 72 
+00:32:09.066 rx [midi] noteOn  ch=1 note=72 vel=95
+00:32:09.066 rx [voices on ] 0: 72 1: 72 2: 72 3:*72 
+00:32:09.159 rx [midi] noteOff ch=1 note=72 vel=0
+00:32:09.159 rx [voices off] 0: 72 1: 72 2: 72 3: 72 
+00:32:10.811 rx [midi] noteOn  ch=1 note=60 vel=83
+00:32:10.813 rx [voices on ] 0: 72 1:*60 2: 72 3: 72 
+00:32:10.978 rx [midi] noteOff ch=1 note=60 vel=0
+00:32:10.978 rx [voices off] 0: 72 1: 60 2: 72 3: 72 
+00:32:11.142 rx [midi] noteOn  ch=1 note=72 vel=52
+00:32:11.142 rx [voices on ] 0: 72 1: 60 2:*72 3: 72 
+00:32:11.318 rx [midi] noteOff ch=1 note=72 vel=0
+00:32:11.318 rx [voices off] 0: 72 1: 60 2: 72 3: 72 
+00:32:11.446 rx [midi] noteOn  ch=1 note=60 vel=65
+00:32:11.446 rx [voices on ] 0:*60 1: 60 2: 72 3: 72 
+00:32:11.629 rx [midi] noteOff ch=1 note=60 vel=0
+00:32:11.629 rx [voices off] 0: 60 1: 60 2: 72 3: 72 
+00:32:11.787 rx [midi] noteOn  ch=1 note=72 vel=36
+00:32:11.787 rx [voices on ] 0: 60 1: 60 2: 72 3:*72 
+00:32:11.960 rx [midi] noteOff ch=1 note=72 vel=0
+00:32:11.962 rx [voices off] 0: 60 1: 60 2: 72 3: 72 
+00:32:12.127 rx [midi] noteOn  ch=1 note=60 vel=70
+00:32:12.127 rx [voices on ] 0: 60 1:*60 2: 72 3: 72 
+00:32:13.032 rx [midi] noteOff ch=1 note=60 vel=0
+00:32:13.032 rx [voices off] 0: 60 1: 60 2: 72 3: 72 
+00:32:13.231 rx [midi] noteOn  ch=1 note=72 vel=75
+00:32:13.231 rx [voices on ] 0: 60 1: 60 2:*72 3: 72 
+00:32:13.713 rx [midi] noteOff ch=1 note=72 vel=0
+00:32:13.713 rx [voices off] 0: 60 1: 60 2: 72 3: 72 
+00:32:13.954 rx [midi] noteOn  ch=1 note=60 vel=84
+00:32:13.954 rx [voices on ] 0:*60 1: 60 2: 72 3: 72 
+00:32:14.580 rx [midi] noteOff ch=1 note=60 vel=0
+00:32:14.580 rx [voices off] 0: 60 1: 60 2: 72 3: 72 
+00:32:14.786 rx [midi] noteOn  ch=1 note=72 vel=50
+00:32:14.788 rx [voices on ] 0: 60 1: 60 2: 72 3:*72 
+00:32:15.275 rx [midi] noteOff ch=1 note=72 vel=0
+00:32:15.275 rx [voices off] 0: 60 1: 60 2: 72 3: 72 
+00:32:15.607 rx [midi] noteOn  ch=1 note=60 vel=97
+00:32:15.607 rx [voices on ] 0: 60 1:*60 2: 72 3: 72 
+00:32:16.078 rx [midi] noteOff ch=1 note=60 vel=0
+00:32:16.078 rx [voices off] 0: 60 1: 60 2: 72 3: 72 
+00:32:16.370 rx [midi] noteOn  ch=1 note=72 vel=83
+00:32:16.370 rx [voices on ] 0: 60 1: 60 2:*72 3: 72 
+00:32:17.225 rx [midi] noteOff ch=1 note=72 vel=0
+00:32:17.225 rx [voices off] 0: 60 1: 60 2: 72 3: 72 
+00:32:17.710 rx [midi] noteOn  ch=1 note=60 vel=127
+00:32:17.710 rx [voices on ] 0:*60 1: 60 2: 72 3: 72 
+00:32:18.350 rx [midi] noteOff ch=1 note=60 vel=0
+00:32:18.355 rx [voices off] 0: 60 1: 60 2: 72 3: 72 
+00:32:21.348 rx [midi] noteOn  ch=1 note=72 vel=103
+00:32:21.349 rx [voices on ] 0: 60 1: 60 2: 72 3:*72 
+00:32:22.197 rx [midi] noteOff ch=1 note=72 vel=0
+00:32:22.197 rx [voices off] 0: 60 1: 60 2: 72 3: 72
+
+---
+
+## 🤖 Assistant
+
+
+
+*Read main.cpp, lines 280 to 308 · Searched for text `class AudioPortModule` (`**/firmware/**`), 1 result · Read AudioPortModule.h, lines 40 to 83 · Read VcoModule.h, lines 25 to 55*
+
+Ik voeg even een diagnostische log toe in `tickBridge()` om te zien of de writes feitelijk gebeuren: 
+Build is klaar maar Teensy reageerde niet op de USB-reboot. Druk de **PROGRAM-knop** op de Teensy en zeg "ga" — dan probeer ik upload opnieuw, of doe je het zelf met dezelfde flow. Met de extra `bridge:` log zien we direct of de gate-write naar AHDSR feitelijk gebeurt op note-on.
+
+---
+
+## 🧑 User
+
+ga
+
+---
+
+## 🤖 Assistant
+
+Staat erop. Doe nu: connect → config push → selectPatch → speel 1 noot.
+
+In de log zouden nu regels als `bridge: pitch -> voct = 0.583` en `bridge: gate -> gate = 0.000 / 1.000` moeten verschijnen. Plak die output dan kan ik exact zien of de bridge de waarden überhaupt schrijft.
+
+---
+
+## 🧑 User
+
+Connect
+Disconnect
+📤 Push config
+🎯 Select active patch
+🔊 Static ON
+OK — applied=setStatic
+Log
+Clear
+00:35:24.494 tx {"type":"selectPatch","patchId":"patch_h2psk0f"}
+00:35:24.496 rx {"type":"log","msg":"selectPatch: patch_h2psk0f"}
+00:35:24.496 rx {"type":"log","msg":"active patch=patch_h2psk0f connections=8 wired=8 dangling=0 controls=13"}
+00:35:24.496 rx {"type":"log","msg":"static auto-muted for dynamic patch"}
+00:35:24.496 rx {"type":"log","msg":"  skip(notaudio): mod_s6vt3sw(tp_mmb_midiin).pitch -> mod_goxjv2c(tp_mmb_vco).voct"}
+00:35:24.496 rx {"type":"log","msg":"  skip(notaudio): mod_s6vt3sw(tp_mmb_midiin).gate -> mod_s5p7ab8(tp_mmb_ahdsr).gate"}
+00:35:24.496 rx {"type":"log","msg":"  wire: mod_s5p7ab8(tp_mmb_ahdsr).cv_out/ch0 -> mod_cvt52yx(tp_mmb_vcf).cv/ch1"}
+00:35:24.496 rx {"type":"log","msg":"  wire: mod_s5p7ab8(tp_mmb_ahdsr).cv_out/ch0 -> mod_a1vvyk8(tp_mmb_vca).cv/ch1"}
+00:35:24.496 rx {"type":"log","msg":"  wire: mod_goxjv2c(tp_mmb_vco).out/ch0 -> mod_cvt52yx(tp_mmb_vcf).in/ch0"}
+00:35:24.497 rx {"type":"log","msg":"  wire: mod_cvt52yx(tp_mmb_vcf).out/ch0 -> mod_a1vvyk8(tp_mmb_vca).in/ch0"}
+00:35:24.497 rx {"type":"log","msg":"  wire: mod_a1vvyk8(tp_mmb_vca).out/ch0 -> mod_ydqt0z9(tp_mmb_out).l/ch0"}
+00:35:24.497 rx {"type":"log","msg":"  wire: mod_a1vvyk8(tp_mmb_vca).out/ch0 -> mod_ydqt0z9(tp_mmb_out).r/ch1"}
+00:35:24.497 rx {"type":"log","msg":"AudioGraph: wired=6 skipped=2"}
+00:35:24.497 rx {"type":"log","msg":"  cv-route: mod_s6vt3sw.pitch[cv] -> mod_goxjv2c.voct[cv]"}
+00:35:24.497 rx {"type":"log","msg":"  cv-route: mod_s6vt3sw.gate[gate] -> mod_s5p7ab8.gate[gate]"}
+00:35:24.497 rx {"type":"log","msg":"  skip(kind): mod_s5p7ab8.cv_out[cv] -> mod_cvt52yx.cv[none]"}
+00:35:24.497 rx {"type":"log","msg":"  skip(kind): mod_s5p7ab8.cv_out[cv] -> mod_a1vvyk8.cv[none]"}
+00:35:24.497 rx {"type":"log","msg":"  skip(kind): mod_goxjv2c.out[audio] -> mod_cvt52yx.in[none]"}
+00:35:24.498 rx {"type":"log","msg":"  skip(kind): mod_cvt52yx.out[none] -> mod_a1vvyk8.in[none]"}
+00:35:24.498 rx {"type":"log","msg":"  skip(kind): mod_a1vvyk8.out[none] -> mod_ydqt0z9.l[none]"}
+00:35:24.498 rx {"type":"log","msg":"  skip(kind): mod_a1vvyk8.out[none] -> mod_ydqt0z9.r[none]"}
+00:35:24.498 rx {"type":"log","msg":"CvGraph: routes=2 skipped=6"}
+00:35:24.498 rx {"type":"ack","ok":true,"applied":"selectPatch","patchId":"patch_h2psk0f"}
+00:35:24.498 rx {"type":"log","msg":"  bridge: pitch -> voct = -5.000"}
+00:35:24.498 rx {"type":"log","msg":"  bridge: gate -> gate = 0.000"}
+00:35:31.398 tx {"type":"setStatic","enabled":true}
+00:35:31.401 rx {"type":"log","msg":"static graph enabled"}
+00:35:31.401 rx {"type":"ack","ok":true,"applied":"setStatic","enabled":true}
+00:35:45.327 rx [midi] noteOn  ch=1 note=74 vel=100
+00:35:45.327 rx [voices on ] 0:*74 1: 0 2: 0 3: 0 
+00:35:45.470 rx [midi] noteOff ch=1 note=74 vel=0
+00:35:45.470 rx [voices off] 0: 74 1: 0 2: 0 3: 0 
+00:35:49.486 rx [midi] noteOn  ch=1 note=60 vel=92
+00:35:49.486 rx [voices on ] 0: 74 1:*60 2: 0 3: 0 
+00:35:50.043 rx [midi] noteOff ch=1 note=60 vel=0
+00:35:50.043 rx [voices off] 0: 74 1: 60 2: 0 3: 0 
+00:35:51.301 rx [midi] noteOn  ch=1 note=60 vel=41
+00:35:51.301 rx [voices on ] 0: 74 1: 60 2:*60 3: 0 
+00:35:51.606 rx [midi] noteOff ch=1 note=60 vel=0
+00:35:51.606 rx [voices off] 0: 74 1: 60 2: 60 3: 0 
+00:35:51.668 rx [midi] noteOn  ch=1 note=64 vel=111
+00:35:51.669 rx [voices on ] 0: 74 1: 60 2: 60 3:*64 
+00:35:52.146 rx [midi] noteOff ch=1 note=64 vel=0
+00:35:52.146 rx [voices off] 0: 74 1: 60 2: 60 3: 64 
+00:35:53.844 rx [midi] noteOn  ch=1 note=67 vel=120
+00:35:53.844 rx [voices on ] 0:*67 1: 60 2: 60 3: 64 
+00:35:54.299 rx [midi] noteOff ch=1 note=67 vel=0
+00:35:54.299 rx [voices off] 0: 67 1: 60 2: 60 3: 64 
+00:35:54.651 rx [midi] noteOn  ch=1 note=67 vel=114
+00:35:54.651 rx [voices on ] 0: 67 1:*67 2: 60 3: 64 
+00:35:54.780 rx [midi] noteOff ch=1 note=67 vel=0
+00:35:54.780 rx [voices off] 0: 67 1: 67 2: 60 3: 64 
+00:35:55.844 rx [midi] noteOn  ch=1 note=72 vel=108
+00:35:55.844 rx [voices on ] 0: 67 1: 67 2:*72 3: 64 
+00:35:55.951 rx [midi] noteOff ch=1 note=72 vel=0
+00:35:55.952 rx [voices off] 0: 67 1: 67 2: 72 3: 64 
+00:35:56.139 rx [midi] noteOn  ch=1 note=72 vel=73
+00:35:56.139 rx [voices on ] 0: 67 1: 67 2: 72 3:*72 
+00:35:56.209 rx [midi] noteOff ch=1 note=72 vel=0
+00:35:56.209 rx [voices off] 0: 67 1: 67 2: 72 3: 72 
+00:35:56.350 rx [midi] noteOn  ch=1 note=72 vel=90
+00:35:56.350 rx [voices on ] 0:*72 1: 67 2: 72 3: 72 
+00:35:56.427 rx [midi] noteOff ch=1 note=72 vel=0
+00:35:56.427 rx [voices off] 0: 72 1: 67 2: 72 3: 72 
+00:35:56.560 rx [midi] noteOn  ch=1 note=72 vel=63
+00:35:56.560 rx [voices on ] 0: 72 1:*72 2: 72 3: 72 
+00:35:56.616 rx [midi] noteOff ch=1 note=72 vel=0
+00:35:56.616 rx [voices off] 0: 72 1: 72 2: 72 3: 72 
+00:35:56.749 rx [midi] noteOn  ch=1 note=72 vel=121
+00:35:56.750 rx [voices on ] 0: 72 1: 72 2:*72 3: 72 
+00:35:56.866 rx [midi] noteOff ch=1 note=72 vel=0
+00:35:56.866 rx [voices off] 0: 72 1: 72 2: 72 3: 72
+
+---
+
+## 🤖 Assistant
+
+Belangrijke vondst: de bridge logt één keer (na selectPatch met `pitch=-5.000`, `gate=0.000`) en daarna **nooit meer** — ook niet bij note-on. Maar de 1 ms tick draait gegarandeerd (anders had de hele firmware niets gedaan). En `syncVoicesFromModel` zou óók moeten triggeren.
+
+Eerst checken of `cvGraph` global instance is en consistent gerefereerd:   
+
+*Searched for regex `cvGraph|CvGraph` (`**/firmware/app-modular-brain/src/main.cpp`), 6 results · Searched for text `onNoteOn` (`**/firmware/core/src/runtime/MidiIn.cpp`), 1 result · Read MidiIn.cpp, lines 50 to 100*
+
+**Gevonden.** Het probleem: er zijn **twee** `MidiInModule` objecten.
+
+- De globale `midiIn` in `main.cpp` ontvangt de USB-MIDI events (jouw `[midi] noteOn` log komt daar vandaan).
+- De `ProjectRuntime` maakt op basis van het patch JSON een **aparte** `MidiInModule` aan (instance `mod_s6vt3sw`).
+- `CvGraph` bridget vanaf de **runtime-instance**, niet vanaf de globale → die ziet nooit een note → `gate` blijft 0 en `pitch` blijft −5 V (= note 0 default).
+
+Dat verklaart precies dat de bridge na build één keer logt en daarna nooit meer.
+
+In v0.4.0 sloeg `syncDynamicModules` deze bug over door de globale `midiIn` direct uit te lezen en mechanisch op de runtime-VCO/AHDSR te schrijven. De nieuwe bridge respecteert het JSON-bronmodel — zoals het hoort — maar dan moeten USB-events ook naar dáár.
+
+Snelste fix: forward MIDI events naar alle runtime-`MidiInModule` instances.    
+
+*Read main.cpp, lines 1 to 120*
+
+
+
+*Searched for regex `cvGraph|CvGraph` (`**/firmware/app-modular-brain/src/main.cpp`), 6 results · Searched for text `onNoteOn` (`**/firmware/core/src/runtime/MidiIn.cpp`), 1 result · Read MidiIn.cpp, lines 50 to 100*
+
+**Gevonden.** Het probleem: er zijn **twee** `MidiInModule` objecten.
+
+- De globale `midiIn` in `main.cpp` ontvangt de USB-MIDI events (jouw `[midi] noteOn` log komt daar vandaan).
+- De `ProjectRuntime` maakt op basis van het patch JSON een **aparte** `MidiInModule` aan (instance `mod_s6vt3sw`).
+- `CvGraph` bridget vanaf de **runtime-instance**, niet vanaf de globale → die ziet nooit een note → `gate` blijft 0 en `pitch` blijft −5 V (= note 0 default).
+
+Dat verklaart precies dat de bridge na build één keer logt en daarna nooit meer.
+
+In v0.4.0 sloeg `syncDynamicModules` deze bug over door de globale `midiIn` direct uit te lezen en mechanisch op de runtime-VCO/AHDSR te schrijven. De nieuwe bridge respecteert het JSON-bronmodel — zoals het hoort — maar dan moeten USB-events ook naar dáár.
+
+Snelste fix: forward MIDI events naar alle runtime-`MidiInModule` instances.    
+
+*Read main.cpp, lines 1 to 120*
+
+
+Bump versie en flash:     
+v0.4.2 staat erop. Test even: connect → push config → selectPatch → noot spelen. Geluid zou er nu moeten zijn, en in de log zie je per noot een nieuwe `bridge: ...` regel met de actuele pitch/gate.
+
+---
+
+## 🧑 User
+
+ja,  dit geeft de patch weer!
+
+Werken 2 envelopes nu in principe ook?
+
+Clear
+00:45:34.421 tx {"type":"selectPatch","patchId":"patch_h2psk0f"}
+00:45:34.422 rx {"type":"log","msg":"selectPatch: patch_h2psk0f"}
+00:45:34.422 rx {"type":"log","msg":"active patch=patch_h2psk0f connections=9 wired=9 dangling=0 controls=15"}
+00:45:34.423 rx {"type":"log","msg":"  wire: mod_s5p7ab8(tp_mmb_ahdsr).cv_out/ch0 -> mod_cvt52yx(tp_mmb_vcf).cv/ch1"}
+00:45:34.423 rx {"type":"log","msg":"  wire: mod_goxjv2c(tp_mmb_vco).out/ch0 -> mod_cvt52yx(tp_mmb_vcf).in/ch0"}
+00:45:34.423 rx {"type":"log","msg":"  wire: mod_cvt52yx(tp_mmb_vcf).out/ch0 -> mod_a1vvyk8(tp_mmb_vca).in/ch0"}
+00:45:34.423 rx {"type":"log","msg":"  wire: mod_a1vvyk8(tp_mmb_vca).out/ch0 -> mod_ydqt0z9(tp_mmb_out).l/ch0"}
+00:45:34.423 rx {"type":"log","msg":"  wire: mod_a1vvyk8(tp_mmb_vca).out/ch0 -> mod_ydqt0z9(tp_mmb_out).r/ch1"}
+00:45:34.423 rx {"type":"log","msg":"  skip(notaudio): mod_s6vt3sw(tp_mmb_midiin).pitch -> mod_goxjv2c(tp_mmb_vco).voct"}
+00:45:34.423 rx {"type":"log","msg":"  skip(notaudio): mod_s6vt3sw(tp_mmb_midiin).gate -> mod_s5p7ab8(tp_mmb_ahdsr).gate"}
+00:45:34.423 rx {"type":"log","msg":"  skip(notaudio): mod_s6vt3sw(tp_mmb_midiin).gate -> mod_6xmkglz(tp_mmb_ahdsr).gate"}
+00:45:34.424 rx {"type":"log","msg":"  wire: mod_6xmkglz(tp_mmb_ahdsr).cv_out/ch0 -> mod_a1vvyk8(tp_mmb_vca).cv/ch1"}
+00:45:34.424 rx {"type":"log","msg":"AudioGraph: wired=6 skipped=3"}
+00:45:34.424 rx {"type":"log","msg":"  skip(kind): mod_s5p7ab8.cv_out[cv] -> mod_cvt52yx.cv[none]"}
+00:45:34.424 rx {"type":"log","msg":"  skip(kind): mod_goxjv2c.out[audio] -> mod_cvt52yx.in[none]"}
+00:45:34.424 rx {"type":"log","msg":"  skip(kind): mod_cvt52yx.out[none] -> mod_a1vvyk8.in[none]"}
+00:45:34.424 rx {"type":"log","msg":"  skip(kind): mod_a1vvyk8.out[none] -> mod_ydqt0z9.l[none]"}
+00:45:34.424 rx {"type":"log","msg":"  skip(kind): mod_a1vvyk8.out[none] -> mod_ydqt0z9.r[none]"}
+00:45:34.424 rx {"type":"log","msg":"  cv-route: mod_s6vt3sw.pitch[cv] -> mod_goxjv2c.voct[cv]"}
+00:45:34.424 rx {"type":"log","msg":"  cv-route: mod_s6vt3sw.gate[gate] -> mod_s5p7ab8.gate[gate]"}
+00:45:34.425 rx {"type":"log","msg":"  cv-route: mod_s6vt3sw.gate[gate] -> mod_6xmkglz.gate[gate]"}
+00:45:34.425 rx {"type":"log","msg":"  skip(kind): mod_6xmkglz.cv_out[cv] -> mod_a1vvyk8.cv[none]"}
+00:45:34.425 rx {"type":"log","msg":"CvGraph: routes=3 skipped=6"}
+00:45:34.425 rx {"type":"ack","ok":true,"applied":"selectPatch","patchId":"patch_h2psk0f"}
+00:45:34.426 rx {"type":"log","msg":"  bridge: pitch -> voct = 0.000"}
+00:45:34.426 rx {"type":"log","msg":"  bridge: gate -> gate = 0.000"}
+00:45:34.426 rx {"type":"log","msg":"  bridge: gate -> gate = 0.000"}
+
+Ik vind het moeilijk te horen.
+
+---
+
+## 🤖 Assistant
+
+De architectuur klopt: 3 cv-routes (pitch + 2×gate), beide AHDSR-DC-proxies via AudioGraph naar VCF en VCA. In principe zouden 2 envelopes moeten werken.
+
+Maar we hebben nog geen note-on in de log gezien náást selectPatch, dus de bridge-log toont alleen de begin-state (alles 0). Dat maakt horen lastig diagnosticeren.
+
+Verwijder eerst de verbose bridge-spam (die logt elke waardeverandering, dus spamt flink bij noten), dan clean testen: 
+v0.4.3 staat erop. Na selectPatch en een noot spelen: als je iets hoort (ook al is het zacht of kort) dan werkt de keten. Controleer dan:
+
+1. **VCA envelope (amp AHDSR)** — sustain niet op 0, attack niet te lang
+2. **VCF cutoff** — als die te laag staat blokkeer je het signaal hoe dan ook
+
+Als het envelopen-gedrag klopt maar je het geluid amper hoort, is dat waarschijnlijk de VCF cutoff of het VCA sustain niveau. Kun je de instellingen van beide AHDSR-modules delen (Attack/Hold/Decay/Sustain/Release)?
+
+---
+
+## 🧑 User
+
+Nee, het geluid is okee. Ik heb de VCA envelope meer attack gegeven, en de filter gelaten wat ie was, zodat ze niet gelijk op gaan.
+Maar het verschil met de vorige patch was toch nog niet heel groot. Geluidsniveau is hard genoeg.
+
+nog iets:
+- de midi-in module heeft helemaal nog geen velocity CV out... 
+- En we hebben ook zoiets als een CV-opteller nodig (of een soort zwitsers zakmes voor CVs: 1 op 1 optellen, met factoren optellen, omkeren, vermenigvuldigen, zulke dingen)
+- Hoe doe je typisch dan een velocity in een patch verwerken? Zowel effect op de amplitude uiteraard (dus een soort vermenigvuldiger van de amplitude-envelope), als op schelheid van de toon, bijv.? Of wil je envelope zelf extra input geven? Hoe doet men dat normaalgesproken?
+
+---
+
+## 🤖 Assistant
+
+Goed dat het geluid werkt. Laat me eerst het conceptuele plaatje schetsen, dan de implementatie.
+
+---
+
+**Hoe velocity normaal in analoge modulaire patches werkt:**
+
+```
+MidiIn.vel ──────────────┐
+                          ▼ mult
+Envelope.cv_out ─────── [CvMath] ──→ VCA.cv     ← amplitude × velocity
+MidiIn.vel × 0.3 + Cutoff_base ──→ VCF.cv       ← hogere velocity = heldere toon
+```
+
+- **Amplitude**: `velocity × envelope → VCA`. Je wilt de *vorm* van de envelope maar de *schaal* van de velocity. Dat is een echte vermenigvuldiging van twee CV-signalen.
+- **Timbre**: `velocity × cv_amt + base_cutoff → VCF`. Dit is een gewogen optelling.
+- **Envelope zelf schalen** (klassieke hardware synths): de piekwaarde van de envelope wordt door velocity bepaald — dat is implementation-intern makkelijker, maar minder flexibel als patchmodel.
+
+**Wat we nodig hebben:**
+
+1. `vel` output port op `MidiIn` — triviaal, data is al aanwezig
+2. `CvMath` module — zwitsers zakmes voor CV: `out = a*ka + b*kb + c*kc + offset` (som), of `out = a * b` (vermenigvuldigen)
+
+---
+
+Ik implementeer ze nu: 
+
+*Created 4 todos · Read MidiIn.h, lines 60 to 100*
+
+
+
+
+*Read MidiIn.cpp, lines 113 to 135*
+
+
+
+
+*Starting: *Create CvMath module in core* (2/4)*
+
+Nu `CvMath`. Kijk eerst wat de `Module`-basisklasse verwacht: 
+
+*Read Module.h, lines 1 to 130 · Read runtime · Read Ahdsr.h, lines 1 to 60*
+
+Nu `CvMath` aanmaken in core: 
+
+*Created CvMath.h · Starting: *Register CvMath in app* (3/4) · Searched for text `registerFactory` (`**/firmware/app-modular-brain/src/RegisterAllModules*`), 10 results · Read RegisterAllModules.h, lines 40 to 64*
+
+
+
+
+*Starting: *Build + flash v0.4.4* (4/4)*
+
+
+
+*Completed: *Build + flash v0.4.4* (4/4)*
+
+v0.4.4 staat erop. Wat er nieuw is:
+
+**`MidiIn.vel` output** — `PortKind::Cv`, waarde 0..1, geeft de velocity van de actief-gegated voice.
+
+**`tp_mmb_cvmath` module** — twee modi:
+- **sum** (mode=0, default): `out = a×gain_a + b×gain_b + c×gain_c + offset` — voor mix, scale, invert, bias
+- **mult** (mode=1): `out = a × b` — voor `envelope × velocity`
+
+**Typische velocity-patches:**
+
+```
+# Amplituderespons op velocity:
+MidiIn.vel ──→ CvMath.a  (mode=mult)
+AHDSR.cv_out ──→ CvMath.b
+CvMath.out ──→ VCA.cv
+
+# Heldere toon bij hogere velocity:
+MidiIn.vel ──→ CvMath.a  (mode=sum, gain_a=0.3, gain_b=1.0)
+Base_cutoff ──→ CvMath.b
+CvMath.out ──→ VCF.cv
+```
+
+De `CvMath` module moet nu ook nog aan de editor-kant worden toegevoegd als module-definitie in `seedModules.ts` zodat je hem in de patch-editor kunt plaatsen. Wil je dat als volgende stap doen, of eerst de firmware verder testen?
+
+---
+
+## 🧑 User
+
+wil je hem aan de editor toevoegen? Je hebt ze toch nog niet gepatcht? Ik kan wel testen parallel, of het nog werkt.
+
+---
+
+## 🤖 Assistant
+
+
+
+<details>
+<summary><em>Searched for files matching `**/seedModules.ts`, 1 match</em> (+6 meer)</summary>
+
+- Searched for files matching `**/seedModules.ts`, 1 match
+- Searched for text `tp_mmb_ahdsr` (`**/editor/src/modular-mb/seedModules.ts`), 3 results
+- Read seedModules.ts, lines 590 to 680
+- Read seedModules.ts, lines 680 to 800
+- Read seedModules.ts, lines 800 to 900
+- Searched for text `mmbMidiIn()` (`**/editor/src/modular-mb/seedModules.ts`), 2 results
+- Read seedModules.ts, lines 860 to 910
+</details>
+
+
+
+<details>
+<summary><em>Searched for files matching `**/seedModules.ts`, 1 match</em> (+7 meer)</summary>
+
+- Searched for files matching `**/seedModules.ts`, 1 match
+- Searched for text `tp_mmb_ahdsr` (`**/editor/src/modular-mb/seedModules.ts`), 3 results
+- Read seedModules.ts, lines 590 to 680
+- Read seedModules.ts, lines 680 to 800
+- Read seedModules.ts, lines 800 to 900
+- Searched for text `mmbMidiIn()` (`**/editor/src/modular-mb/seedModules.ts`), 2 results
+- Read seedModules.ts, lines 860 to 910
+- Read seedModules.ts, lines 1035 to 1060
+</details>
+
+Nu heb ik genoeg context. Ik voeg de `vel` port toe aan `mmbMidiIn` en een nieuwe `mmbCvMath` functie:  
+Controleer of de editor nog buildt: 
+
+*Checked seedModules.ts, no problems found*
+
+Schoon. Even snel checken of esbuild nog loopt of opnieuw getriggerd moet:  
+
+*Searched for files matching `**/esbuild*config*`, no matches · Searched for text `esbuild` (`**/editor/**`), 3 results*
+
+De `esbuild` terminal is apart — die watched waarschijnlijk al. De TypeScript-check is groen, dus de build zal automatisch rebuilden als de watch-terminal actief is.
+
+---
+
+Gedaan. Overzicht van de wijzigingen:
+
+**`mmbMidiIn` in `seedModules.ts`** — heeft nu een derde output port:
+- `pitch` (V/Oct) op 20%
+- `gate` (Gate) op 50%  
+- `vel` (CV, 0..1) op 80%
+
+**`mmbCvMath` — nieuw, 4 HP:**
+- **Sum-mode**: `out = a×gain_a + b×gain_b + c×gain_c + offset`
+- **Mult-mode**: `out = a × b`
+- Gain-waarden −2..+2 (negatief = inversie), Offset −5..+5
+
+**Typische velocity-patch:**
+```
+MidiIn.vel  ──→ CvMath.a   (mode = Mult)
+AHDSR.cv_out ──→ CvMath.b
+CvMath.out  ──→ VCA.cv
+```
+```
+MidiIn.vel  ──→ CvMath.a   (mode = Sum, gain_a ≈ 0.3, offset = base)
+CvMath.out  ──→ VCF.cv     (heldere toon bij hogere velocity)
+```
 
 ---
