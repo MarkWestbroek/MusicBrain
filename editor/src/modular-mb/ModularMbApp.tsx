@@ -15,6 +15,7 @@ import { RackPanel } from './RackPanel';
 import { PatcherPanel } from './PatcherPanel';
 import { SimulationPanel } from './SimulationPanel';
 import { PresetsModal } from './PresetsModal';
+import { TeensyLinkModal } from './TeensyLinkModal';
 // Reuse the ES project-bar CSS classes (.es-projectbar*) — same visual language.
 import '../effect-switcher/styles.css';
 
@@ -36,6 +37,7 @@ export function ModularMbApp(): JSX.Element {
   const [editingVer,  setEditingVer]  = useState(false);
   const [editingDesc, setEditingDesc] = useState(false);
   const [showPresets, setShowPresets] = useState(false);
+  const [showTeensy,  setShowTeensy]  = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
 
   // ─── Global undo/redo: Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z ───────────────
@@ -192,6 +194,10 @@ export function ModularMbApp(): JSX.Element {
             title="Presets opslaan/laden (project of per module)"
           >💾 Presets</button>
           <button
+            onClick={() => setShowTeensy(true)}
+            title="Verbinden met Teensy via USB Serial en config pushen"
+          >🔌 Teensy</button>
+          <button
             onClick={() => setProject(seedExampleModules(getProject()))}
             title="Voeg 6 voorbeeld-modules toe aan dit project en plaats ze in het actieve rack"
           >✨ Voorbeelden</button>
@@ -247,6 +253,7 @@ export function ModularMbApp(): JSX.Element {
       </div>
 
       {showPresets && <PresetsModal onClose={() => setShowPresets(false)} />}
+      {showTeensy  && <TeensyLinkModal onClose={() => setShowTeensy(false)} />}
     </section>
   );
 }

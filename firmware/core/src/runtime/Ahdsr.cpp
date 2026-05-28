@@ -34,7 +34,7 @@ void Ahdsr::setControl(std::string_view controlId, ControlValue value) {
         std::int32_t idx = 0;
         if (auto* i = std::get_if<std::int32_t>(&value)) idx = *i;
         else if (auto* f = std::get_if<float>(&value))   idx = static_cast<std::int32_t>(*f);
-        curve_ = static_cast<Curve>(std::clamp(idx, 0, 2));
+        curve_ = static_cast<Curve>(std::clamp<std::int32_t>(idx, 0, 2));
     }
 }
 

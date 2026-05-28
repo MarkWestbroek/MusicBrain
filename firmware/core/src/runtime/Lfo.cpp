@@ -57,12 +57,12 @@ void Lfo::setControl(std::string_view controlId, ControlValue value) {
     } else if (controlId == "depth" || controlId == "amount") {
         depth_ = std::clamp(asFloat(1.0f), 0.0f, 1.0f);
     } else if (controlId == "wave" || controlId == "shape") {
-        const auto idx = std::clamp(asInt(0), 0, 4);
+        const auto idx = std::clamp<std::int32_t>(asInt(0), 0, 4);
         wave_ = static_cast<Wave>(idx);
     } else if (controlId == "bipolar") {
         bipolar_ = asBool(true);
     } else if (controlId == "run") {
-        const auto idx = std::clamp(asInt(0), 0, 2);
+        const auto idx = std::clamp<std::int32_t>(asInt(0), 0, 2);
         run_ = static_cast<Run>(idx);
         // Mode change resets the running flag to its mode-default so the
         // user gets predictable behaviour after flipping the switch.

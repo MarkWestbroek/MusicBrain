@@ -34,10 +34,10 @@ void MidiInModule::setControl(std::string_view controlId, ControlValue value) {
     };
 
     if (controlId == "channel") {
-        const auto c = std::clamp(asInt(0), 0, 16);
+        const auto c = std::clamp<std::int32_t>(asInt(0), 0, 16);
         channelFilter_ = static_cast<std::uint8_t>(c);
     } else if (controlId == "voiceCount" || controlId == "voices") {
-        const auto n = std::clamp(asInt(1), 1, static_cast<int>(kMaxAllocVoices));
+        const auto n = std::clamp<std::int32_t>(asInt(1), 1, static_cast<std::int32_t>(kMaxAllocVoices));
         alloc_.configure(static_cast<std::uint8_t>(n));
         // Reconfiguring is a destructive op: any held notes from the old
         // layout would point at indices that may no longer be valid.

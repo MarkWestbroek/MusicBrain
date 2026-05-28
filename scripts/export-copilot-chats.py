@@ -103,17 +103,37 @@ def find_workspace_storage_dirs(project_path: str) -> list[str]:
     return sorted(set(matches))
 
 
+# Response item kinds to skip when extracting readable text.
+_RESPONSE_SKIP_KINDS = frozenset({
+    "toolInvocationSerialized",
+    "thinking",
+    "textEditGroup",
+    "undoStop",
+    "mcpServersStarting",
+    "inlineReference",
+    "treeData",
+})
+
+
 def _extract_text_from_response_list(response_list: list) -> list[str]:
-    """Extraheer tekst-items uit een response-lijst (response-field of streaming chunks)."""
+    """Extraheer tekst-items uit een response-lijst (response-field of streaming chunks).
+
+    Accepteert items met kind=None (null), kind="", kind="markdownContent",
+    of items met het 'supportThemeIcons' veld — dit zijn de leesbare
+    tekst-fragmenten. Items met bekende niet-tekst kinds worden overgeslagen.
+    """
     texts = []
     for r in response_list:
         if not isinstance(r, dict):
             continue
-        r_kind = r.get("kind", "")
+        r_kind = r.get("kind")          # None voor null, str voor de rest
         r_val = r.get("value", "")
-        if isinstance(r_val, str) and r_val.strip():
-            if r_kind in ("", "markdownContent") or "supportThemeIcons" in r:
-                texts.append(r_val)
+        if not isinstance(r_val, str) or not r_val.strip():
+            continue
+        if r_kind in _RESPONSE_SKIP_KINDS:
+            continue
+        if r_kind in (None, "", "markdownContent") or "supportThemeIcons" in r:
+            texts.append(r_val)
     return texts
 
 
@@ -121,39 +141,80 @@ def replay_jsonl_state(filepath: str) -> dict:
     """
     Replay een JSONL state-journal naar bruikbare conversatie-data.
 
-    VS Code slaat chatsessies op als append-only JSONL:
-    - kind=0: volledige snapshot (initieel, requests is meestal leeg)
-    - kind=1: scalar patches (user input, titels, metadata)
-    - kind=2: list patches (request markers, response parts)
+    VS Code gebruikt twee JSONL-formaten:
 
-    We extraheren user berichten en assistant responses uit de patches.
+    **Compact-snapshot formaat** (nieuw, na compactie door VS Code):
+    - Regel 0: kind=null, v = volledig sessie-object incl. alle requests
+    - Volgende regels: kind=path (list) voor incrementele patches
+      - kind=['requests'] / k=['requests']: nieuw request toegevoegd
+      - kind=['requests',N,'response']: streaming response-update voor request N
+      - kind=['customTitle'] etc.: metadatawijziging
 
-    Strategie voor response-tekst:
-    - Request markers (requestId) bevatten een geconsolideerd 'response'-veld met de
-      volledige finale assistent-tekst (inclusief tekst na tool-calls).
-    - Losse streaming chunks in kind=2 patches bevatten tussentijdse fragmenten.
-    - We gebruiken het geconsolideerde response-veld als primaire bron en vallen
-      terug op streaming chunks als dat veld leeg is.
+    **Incrementeel formaat** (oud, bij verse/ongecomprimeerde sessies):
+    - kind=0: initieel snapshot (requests meestal leeg)
+    - kind=1: scalar patch (k=pad, v=waarde)
+    - kind=2: list patch (request markers, streaming chunks)
     """
     session_header = None
     messages = []
-    current_response_parts = []      # streaming chunks (fallback)
-    current_consolidated = []        # geconsolideerde response uit marker (primair)
-    current_request_id = None
+    current_response_parts = []      # streaming chunks (fallback, oud formaat)
+    current_consolidated = []        # geconsolideerde response (oud formaat)
     latest_generated_title = ""
     first_message_timestamp = 0
 
+    # --- helpers ---
+
+    def _update_title(key: str, value: str) -> None:
+        nonlocal latest_generated_title
+        cleaned = " ".join(value.split()).strip()
+        if cleaned:
+            nonlocal session_header
+            if session_header is None:
+                session_header = {}
+            session_header[key] = cleaned
+            if key == "generatedTitle":
+                latest_generated_title = cleaned
+
+    def _track_timestamp(ts: object) -> None:
+        nonlocal first_message_timestamp
+        if isinstance(ts, (int, float)) and ts > 0:
+            if not first_message_timestamp:
+                first_message_timestamp = ts
+            else:
+                first_message_timestamp = min(first_message_timestamp, ts)
+
+    def _process_request(req: dict) -> None:
+        """Verwerk één request-object (compact-snapshot of ['requests']-patch)."""
+        _track_timestamp(req.get("timestamp"))
+
+        gen_title = req.get("generatedTitle", "")
+        if isinstance(gen_title, str) and gen_title.strip():
+            nonlocal latest_generated_title
+            latest_generated_title = " ".join(gen_title.split()).strip()
+
+        msg_data = req.get("message", {})
+        if isinstance(msg_data, dict):
+            user_text = msg_data.get("text", "")
+        elif isinstance(msg_data, str):
+            user_text = msg_data
+        else:
+            user_text = ""
+        if user_text.strip():
+            messages.append({"role": "user", "text": user_text.strip()})
+
+        resp_texts = _extract_text_from_response_list(req.get("response", []))
+        if resp_texts:
+            messages.append({"role": "assistant", "text": "".join(resp_texts)})
+
     def flush_pending_response() -> None:
-        """Voeg de lopende assistent-response toe als bericht."""
-        # Gebruik geconsolideerde marker-response als die gevuld is, anders streaming chunks.
+        """Voeg lopende assistent-response toe (oud formaat)."""
         resp_parts = current_consolidated if current_consolidated else current_response_parts
         if resp_parts:
-            messages.append({
-                "role": "assistant",
-                "text": "".join(resp_parts)
-            })
+            messages.append({"role": "assistant", "text": "".join(resp_parts)})
         current_consolidated.clear()
         current_response_parts.clear()
+
+    # --- main parse loop ---
 
     with open(filepath, "r", encoding="utf-8", errors="replace") as f:
         for line in f:
@@ -165,11 +226,69 @@ def replay_jsonl_state(filepath: str) -> dict:
             except json.JSONDecodeError:
                 continue
 
-            kind = obj.get("kind")
+            kind = obj.get("kind")   # None / int / list
             v = obj.get("v")
+            k = obj.get("k")         # path key (list or None)
+
+            # ── COMPACT-SNAPSHOT FORMAAT ───────────────────────────────────────
+
+            if kind is None and isinstance(v, dict) and "requests" in v:
+                # Volledige sessie-snapshot (compact formaat)
+                session_header = {key: val for key, val in v.items() if key != "requests"}
+                for title_key in ("customTitle", "sessionTitle", "generatedTitle", "title"):
+                    val = session_header.get(title_key, "")
+                    if isinstance(val, str) and val.strip():
+                        cleaned = " ".join(val.split()).strip()
+                        session_header[title_key] = cleaned
+                        if title_key == "generatedTitle":
+                            latest_generated_title = cleaned
+                        break
+                _track_timestamp(session_header.get("creationDate"))
+                for req in v.get("requests", []):
+                    if isinstance(req, dict):
+                        _process_request(req)
+                continue
+
+            if isinstance(kind, list):
+                # kind is het pad (== k in dit formaat)
+                path = kind  # kind en k zijn hetzelfde
+
+                # ['requests'] → nieuw request appended
+                if path == ["requests"] and isinstance(v, list):
+                    for req in v:
+                        if isinstance(req, dict):
+                            _process_request(req)
+                    continue
+
+                # ['requests', N, 'response'] → streaming response-update
+                if (
+                    len(path) == 3
+                    and path[0] == "requests"
+                    and isinstance(path[1], int)
+                    and path[2] == "response"
+                    and isinstance(v, list)
+                ):
+                    resp_texts = _extract_text_from_response_list(v)
+                    if resp_texts:
+                        new_text = "".join(resp_texts)
+                        if messages and messages[-1]["role"] == "assistant":
+                            if len(new_text) > len(messages[-1]["text"]):
+                                messages[-1]["text"] = new_text
+                        else:
+                            messages.append({"role": "assistant", "text": new_text})
+                    continue
+
+                # Titelwijziging
+                if path and path[-1] in ("customTitle", "sessionTitle", "generatedTitle", "title"):
+                    if isinstance(v, str) and v.strip():
+                        _update_title(path[-1], v)
+                continue
+
+            # ── OUD INCREMENTEEL FORMAAT (kind = int) ──────────────────────────
 
             if kind == 0:
-                session_header = v or {}
+                snapshot = v or {}
+                session_header = {key: val for key, val in snapshot.items() if key != "requests"}
                 for key in ("customTitle", "sessionTitle", "generatedTitle", "title"):
                     value = session_header.get(key, "")
                     if isinstance(value, str) and value.strip():
@@ -178,23 +297,24 @@ def replay_jsonl_state(filepath: str) -> dict:
                         if key == "generatedTitle":
                             latest_generated_title = cleaned
                         break
+                _track_timestamp(session_header.get("creationDate"))
+                # Process any requests already present in the snapshot
+                for req in snapshot.get("requests", []):
+                    if isinstance(req, dict):
+                        _process_request(req)
                 continue
 
             if kind == 1:
-                patch_path = obj.get("k", [])
+                patch_path = k if isinstance(k, list) else obj.get("k", [])
                 if isinstance(patch_path, list) and patch_path:
                     patch_key = patch_path[-1]
                     if patch_key in ("customTitle", "sessionTitle", "generatedTitle", "title"):
                         if isinstance(v, str) and v.strip():
-                            cleaned = " ".join(v.split()).strip()
-                            session_header = session_header or {}
-                            session_header[patch_key] = cleaned
-                            if patch_key == "generatedTitle":
-                                latest_generated_title = cleaned
+                            _update_title(patch_key, v)
                 continue
 
             if kind == 2 and isinstance(v, list):
-                patch_key = obj.get("k", [])
+                patch_key = k if isinstance(k, list) else obj.get("k", [])
 
                 # Live streaming patches: k=['requests', N, 'response']
                 if (
@@ -207,10 +327,9 @@ def replay_jsonl_state(filepath: str) -> dict:
                     for item in v:
                         if not isinstance(item, dict):
                             continue
-                        item_kind = item.get("kind", "")
                         item_val = item.get("value", "")
                         if isinstance(item_val, str) and item_val.strip():
-                            if item_kind in ("", "markdownContent") or "supportThemeIcons" in item:
+                            if item.get("kind") not in _RESPONSE_SKIP_KINDS:
                                 if not current_consolidated:
                                     current_response_parts.append(item_val)
                     continue
@@ -219,13 +338,7 @@ def replay_jsonl_state(filepath: str) -> dict:
                     if not isinstance(item, dict):
                         continue
 
-                    timestamp = item.get("timestamp")
-                    if isinstance(timestamp, (int, float)) and timestamp > 0:
-                        first_message_timestamp = (
-                            timestamp
-                            if not first_message_timestamp
-                            else min(first_message_timestamp, timestamp)
-                        )
+                    _track_timestamp(item.get("timestamp"))
 
                     generated_title = item.get("generatedTitle", "")
                     if isinstance(generated_title, str) and generated_title.strip():
@@ -233,7 +346,6 @@ def replay_jsonl_state(filepath: str) -> dict:
 
                     if "requestId" in item:
                         flush_pending_response()
-                        current_request_id = item["requestId"]
 
                         msg_data = item.get("message", {})
                         if isinstance(msg_data, dict):
@@ -243,10 +355,7 @@ def replay_jsonl_state(filepath: str) -> dict:
                         else:
                             user_text = ""
                         if user_text.strip():
-                            messages.append({
-                                "role": "user",
-                                "text": user_text.strip()
-                            })
+                            messages.append({"role": "user", "text": user_text.strip()})
 
                         consolidated = _extract_text_from_response_list(
                             item.get("response", [])
@@ -256,9 +365,7 @@ def replay_jsonl_state(filepath: str) -> dict:
                             current_consolidated.extend(consolidated)
 
                     elif "value" in item and isinstance(item["value"], str):
-                        item_kind = item.get("kind", "")
-                        if (item_kind in ("", "markdownContent")
-                                or "supportThemeIcons" in item):
+                        if item.get("kind") not in _RESPONSE_SKIP_KINDS:
                             if not current_consolidated:
                                 current_response_parts.append(item["value"])
 
@@ -479,7 +586,7 @@ def main():
                     and current_msg_count <= existing_msg_count
                     and not needs_filename_update
                     and not jsonl_is_newer):
-                print(f"  Ongewijzigd ({current_msg_count} berichten): {session_id[:8]} → {os.path.basename(existing_filepath)}")
+                print(f"  Ongewijzigd ({current_msg_count} berichten): {session_id[:8]} -> {os.path.basename(existing_filepath)}")
                 skipped += 1
                 continue
 
@@ -493,17 +600,17 @@ def main():
                         filepath = f"{name}-{counter}{ext}"
                         counter += 1
                     if current_msg_count > existing_msg_count:
-                        action = f"Hernoemd en bijgewerkt ({existing_msg_count}→{current_msg_count} berichten)"
+                        action = f"Hernoemd en bijgewerkt ({existing_msg_count}->{current_msg_count} berichten)"
                     else:
                         action = "Hernoemd"
                 else:
                     filepath = existing_filepath
                     if current_msg_count > existing_msg_count:
-                        action = f"Bijgewerkt ({existing_msg_count}→{current_msg_count} berichten)"
+                        action = f"Bijgewerkt ({existing_msg_count}->{current_msg_count} berichten)"
                     elif jsonl_is_newer or force:
                         action = f"Ververst ({current_msg_count} berichten, JSONL bijgewerkt)"
                     else:
-                        action = f"Bijgewerkt ({existing_msg_count}→{current_msg_count} berichten)"
+                        action = f"Bijgewerkt ({existing_msg_count}->{current_msg_count} berichten)"
             else:
                 counter = 1
                 base_filepath = filepath
@@ -522,7 +629,7 @@ def main():
                         os.remove(existing_filepath)
                     except OSError:
                         pass
-                print(f"  {action}: {session_id[:8]} → {os.path.basename(filepath)}")
+                print(f"  {action}: {session_id[:8]} -> {os.path.basename(filepath)}")
                 exported += 1
 
     export_dir_display = os.path.relpath(export_dir, project_root)

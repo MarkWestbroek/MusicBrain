@@ -449,6 +449,65 @@ Recap of the agreed approach (B-scaffold = MidiInModule + VoiceAllocator are alr
 
 Deferred to a later B-phase: external CV via the BO board (needs hardware), DIN-MIDI merge with USB stream behind a `MidiSource` abstraction, CC + pitch-bend handling, per-voice modulation matrices.
 
+#### Status (2026-05-28)
+
+- **Step 0 — toolchain & pipeline.** ✅ done. PlatformIO 6.1.19 in `.venv`; project at [firmware/app-modular-brain](../../firmware/app-modular-brain/); USB Type `USB_MIDI_AUDIO_SERIAL`; upload via `teensy-gui`; MIDI-roundtrip script [scripts/pipeline_test.py](../../firmware/app-modular-brain/scripts/pipeline_test.py) (pure ctypes/winmm — no rtmidi/pygame wheels yet on Python 3.14).
+- **Step 1 — first audible voice.** ✅ done. 1× `AudioSynthWaveform` (saw) → `AudioEffectMultiply` (gated by ramped `AudioSynthWaveformDc`) → stereo `AudioOutputUSB`. Plays from any USB-MIDI source into "Teensy MIDI/Audio".
+- **Step 2 — 4-voice polyphony via shared `MidiInModule`.** ✅ done. PIO now compiles `firmware/core` as a Teensy library (`lib_extra_dirs`/`lib_deps`); the sketch instantiates `mb::runtime::MidiInModule{"midi1"}` with `voiceCount=4` and mirrors `voicePitchV/voiceGate/voiceVelocity` into 4 audio voices (saw → multiply ← DC envelope, summed in `AudioMixer4` → `AudioOutputUSB`). Same allocator code path as editor + host tests. `pipeline_test.py` extended with single-note, 4-note chord and 5-note voice-stealing sub-tests — all PASS. Required portability fix: explicit `std::clamp<std::int32_t>(...)` in `MidiIn.cpp/Lfo.cpp/CvBreakout.cpp/Ahdsr.cpp` (on ARM `int32_t == long int`).
+- **Step 3-5 — CV-rate vs audio-rate split, VCF, BO board / DIN-merge.** open.
+
+See [firmware/app-modular-brain/README.md](../../firmware/app-modular-brain/README.md) §DEVLOG for the full per-step log.
+
+### 6.5 Editor ↔ Teensy link (mmb-config.v1, USB Serial)
+
+The editor pushes its full `ModularProject` to the Teensy over USB-Serial.
+This same JSON-on-the-wire protocol will later flow via the planned
+ESP32 WiFi sidecar — same payload, different transport.
+
+**Transport.** USB CDC-Serial at 115200 8N1, newline-terminated UTF-8
+JSON lines. Browser side uses the Web Serial API
+([editor/src/modular-mb/teensyLink.ts](../../editor/src/modular-mb/teensyLink.ts)),
+device side uses `ArduinoJson v7`
+([firmware/app-modular-brain/src/TeensyLink.h](../../firmware/app-modular-brain/src/TeensyLink.h)).
+
+**Messages.**
+
+| From → To           | Type            | Payload                                              |
+|---------------------|-----------------|------------------------------------------------------|
+| Teensy → editor     | `hello`         | `{fw, step}`                                         |
+| editor → Teensy     | `hello`         | (request) — Teensy replies with its own `hello`      |
+| editor → Teensy     | `config`        | `{project: ModularProject}` — full snapshot          |
+| editor → Teensy     | `selectPatch`   | `{patchId}`                                          |
+| Teensy → editor     | `ack`           | `{ok, applied, modules?, patches?, racks?, err?}`    |
+| Teensy → editor     | `log`           | `{msg}`                                              |
+
+**Status (2026-05-28).** ✅ Link-skelet operationeel. Verbinden / connecten /
+`hello`-handshake / volledige config-push / `selectPatch` / log-stream
+werken in beide richtingen. De Teensy logt aantal modules/patches/racks
+maar bouwt de audiograaf nog niet om — dat is B-step 3.
+
+**Open (B-step 3+).** Module-registry op de Teensy, zodat een binnenkomend
+`config`-bericht de huidige hardgecodeerde 4-voice graph vervangt door
+de modules + connections uit het project. Mappings: editor-`MIDI-IN` →
+`mb::runtime::MidiInModule`, editor-`VCO` → `AudioSynthWaveform`-wrap,
+editor-`ADSR` → ramped `AudioSynthWaveformDc`-wrap, editor-`VCA` →
+`AudioEffectMultiply`-wrap, editor-`AUDIO-OUT` → `AudioOutputUSB`.
+
+### 6.4 Backlog — UX rework (post-A5)
+
+Captured from a user review during the A5 implementation; not yet
+implemented. These are the items that determine whether the
+PatchPolyOverride feature is actually understandable.
+
+1. **One-click split presets.** Buttons "Split in 2", "Split in 4", "Ungroup" instead of cell-by-cell dropdowns. Manual partitioning stays available as power-user mode.
+2. **Patcher reflects the override live.** `voiceMap` must merge the rack's `polyGroups` with the active patch's `polyOverrides`. The chip-bar then shows the patch-local groups (e.g. 2× N=4 instead of 1× N=8). Currently the chip-bar reads only the rack — so overrides are invisible in the patcher.
+3. **Unison = expand-as-individual-modules-but-shared-input.**
+   - Visually: all N voices rendered as separate slots, surrounded by a dashed outline in the group colour (so the user sees they share one MIDI source).
+   - Per partition: a port-picker dropdown (multi-select) listing the master type's input ports, marking which receive the shared mono signal and which stay per-voice. Stored on the partition as `unisonSharedPorts?: string[]`.
+4. **Nesting (later).** A partition's `unisonChildren?` could itself be a `PatchPolyOverride['partition']` array → 4 sub-groups of 2 unison VCOs = "4-voice dual osc". Recursive renderer + recursive voice-allocator semantics.
+5. **MidiIn panel additions.** Channel + note-priority mode (last/lowest/highest/round-robin) + legato vs retrigger. Voice-count stays on the rack/voice-group, not on MidiIn.
+6. **Patcher "Compact view" toggle.** Because poly racks visually thin out (lots of empty HP between masters), a toggle that virtually packs all slots flush-left per row — view-only, doesn't mutate slot positions in the rack. Followers in expanded groups get a virtual slot next to their master.
+
 ---
 
 

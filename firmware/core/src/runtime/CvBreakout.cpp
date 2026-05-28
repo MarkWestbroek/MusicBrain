@@ -15,10 +15,10 @@ void CvBreakout::setControl(std::string_view controlId, ControlValue value) {
     };
 
     if (controlId == "addr_case") {
-        caseId_ = static_cast<std::uint8_t>(std::clamp(asInt(0), 0, 255));
+        caseId_ = static_cast<std::uint8_t>(std::clamp<std::int32_t>(asInt(0), 0, 255));
         std::fill(dirty_.begin(), dirty_.end(), true);   // resend on next tick
     } else if (controlId == "addr_first_slot") {
-        firstSlot_ = static_cast<std::uint8_t>(std::clamp(asInt(0), 0, 255));
+        firstSlot_ = static_cast<std::uint8_t>(std::clamp<std::int32_t>(asInt(0), 0, 255));
         std::fill(dirty_.begin(), dirty_.end(), true);
     }
 }
