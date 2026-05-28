@@ -66,7 +66,8 @@ public:
     AudioPort inputPort(std::string_view portId) const override {
         if (portId == "in")
             return { const_cast<AudioFilterStateVariable*>(&vcf_), 0, true };
-        // "cv" is CV-domain; no audio port — skip
+        if (portId == "cv")
+            return { const_cast<AudioFilterStateVariable*>(&vcf_), 1, true };
         return {};
     }
 
