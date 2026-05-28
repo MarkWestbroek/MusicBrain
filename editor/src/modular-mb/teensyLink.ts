@@ -37,7 +37,7 @@ export type LinkStatus =
   | { kind: 'unsupported' }       // no navigator.serial in this browser
   | { kind: 'disconnected' }
   | { kind: 'connecting' }
-  | { kind: 'connected'; fw?: string; step?: number }
+  | { kind: 'connected'; fw?: string; version?: string; step?: number }
   | { kind: 'error'; message: string };
 
 export interface LinkLogEntry {
@@ -117,9 +117,10 @@ function handleLine(line: string): void {
     switch (msg.type) {
       case 'hello':
         setState({ status: {
-          kind: 'connected',
-          fw:   typeof msg.fw === 'string'   ? msg.fw   : undefined,
-          step: typeof msg.step === 'number' ? msg.step : undefined,
+          kind:    'connected',
+          fw:      typeof msg.fw      === 'string'  ? msg.fw      : undefined,
+          version: typeof msg.version === 'string'  ? msg.version : undefined,
+          step:    typeof msg.step    === 'number'  ? msg.step    : undefined,
         } });
         break;
       case 'ack':
@@ -225,6 +226,10 @@ export async function sendConfig(project: ModularProject): Promise<void> {
 
 export async function sendSelectPatch(patchId: string): Promise<void> {
   await writeLine(JSON.stringify({ type: 'selectPatch', patchId }));
+}
+
+export async function sendSetStatic(enabled: boolean): Promise<void> {
+  await writeLine(JSON.stringify({ type: 'setStatic', enabled }));
 }
 
 export function clearLog(): void {

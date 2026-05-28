@@ -1,7 +1,7 @@
 // Editor-side panel for the Teensy USB-Serial link. Live status, push-config
 // button, and a scrollable log of all JSON traffic + raw Serial prints.
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getProject } from './store';
 import {
   useTeensyLink,
@@ -9,6 +9,7 @@ import {
   disconnect,
   sendConfig,
   sendSelectPatch,
+  sendSetStatic,
   clearLog,
 } from './teensyLink';
 
@@ -28,6 +29,13 @@ export function TeensyLinkModal({ onClose }: Props): JSX.Element {
   const isConnected = link.status.kind === 'connected';
   const project = getProject();
   const activePatchId = project.activePatchId;
+  const [staticEnabled, setStaticEnabled] = useState(true);
+
+  async function toggleStatic(): Promise<void> {
+    const next = !staticEnabled;
+    try { await sendSetStatic(next); setStaticEnabled(next); }
+    catch (err) { alert(`setStatic faalde: ${(err as Error).message}`); }
+  }
 
   async function onPush(): Promise<void> {
     try { await sendConfig(project); }
@@ -46,6 +54,7 @@ export function TeensyLinkModal({ onClose }: Props): JSX.Element {
       case 'disconnected': return '○ Niet verbonden';
       case 'connecting':   return '… Verbinden';
       case 'connected':    return `● Verbonden${link.status.fw ? ` — ${link.status.fw}` : ''}${
+                                   link.status.version ? ` v${link.status.version}` : ''}${
                                    link.status.step != null ? ` (step ${link.status.step})` : ''}`;
       case 'error':        return `✗ Fout: ${link.status.message}`;
     }
@@ -85,6 +94,11 @@ export function TeensyLinkModal({ onClose }: Props): JSX.Element {
               disabled={!isConnected || !activePatchId}
               title={activePatchId ? `selectPatch ${activePatchId}` : 'Geen actieve patch'}
             >🎯 Select active patch</button>
+            <button
+              onClick={() => { void toggleStatic(); }}
+              disabled={!isConnected}
+              title="Mute / unmute de statische 4-stem fallback-graph"
+            >{staticEnabled ? '🔊 Static ON' : '🔇 Static OFF'}</button>
           </div>
 
           {link.lastAck && (

@@ -39,6 +39,8 @@ void AudioGraph::build(
         auto fromIt = instances.find(std::string{fromModId});
         auto toIt   = instances.find(std::string{toModId});
         if (fromIt == instances.end() || toIt == instances.end()) {
+            TeensyLink::logf("  skip(noinst): %s.%s -> %s.%s",
+                             fromModId, fromPortId, toModId, toPortId);
             ++skipped_;
             continue;
         }
@@ -47,6 +49,11 @@ void AudioGraph::build(
         auto* src = AudioPortModule::from(fromIt->second.get());
         auto* dst = AudioPortModule::from(toIt->second.get());
         if (!src || !dst) {
+            TeensyLink::logf("  skip(notaudio): %s(%s).%s -> %s(%s).%s",
+                             fromModId,
+                             std::string{fromIt->second->typeId()}.c_str(), fromPortId,
+                             toModId,
+                             std::string{toIt->second->typeId()}.c_str(), toPortId);
             ++skipped_;
             continue;
         }
@@ -55,9 +62,24 @@ void AudioGraph::build(
         AudioPort sp = src->outputPort(fromPortId);
         AudioPort dp = dst->inputPort(toPortId);
         if (!sp || !dp) {
+            TeensyLink::logf("  skip(port): %s(%s).%s[%d] -> %s(%s).%s[%d]",
+                             fromModId,
+                             std::string{fromIt->second->typeId()}.c_str(),
+                             fromPortId, (int)sp.valid,
+                             toModId,
+                             std::string{toIt->second->typeId()}.c_str(),
+                             toPortId, (int)dp.valid);
             ++skipped_;
             continue;
         }
+
+        TeensyLink::logf("  wire: %s(%s).%s/ch%u -> %s(%s).%s/ch%u",
+                         fromModId,
+                         std::string{fromIt->second->typeId()}.c_str(),
+                         fromPortId, sp.channel,
+                         toModId,
+                         std::string{toIt->second->typeId()}.c_str(),
+                         toPortId, dp.channel);
 
         // Create and own the AudioConnection
         conns_.push_back(

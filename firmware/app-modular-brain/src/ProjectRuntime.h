@@ -132,12 +132,45 @@ public:
                 const bool ok = find(srcId) && find(dstId);
                 if (ok) ++wired; else ++dangling;
             }
-            TeensyLink::logf("active patch=%s connections=%d wired=%d dangling=%d",
-                             patchId, static_cast<int>(conns.size()), wired, dangling);
+            const int applied = applyControlState(p);
+            TeensyLink::logf("active patch=%s connections=%d wired=%d dangling=%d controls=%d",
+                             patchId, static_cast<int>(conns.size()), wired, dangling, applied);
             return true;
         }
         TeensyLink::logf("activatePatch: unknown id %s", patchId);
         return false;
+    }
+
+    /**
+     * @brief Push every key/value in `patch.controlState[moduleId]` into the
+     *        matching module instance via `setControl()`.
+     *
+     * The patch JSON schema is:
+     *   patch.controlState = { moduleId: { controlId: value, ... }, ... }
+     * Values may be float, int (long), or bool.
+     *
+     * @return Number of `setControl()` calls that actually fired.
+     */
+    int applyControlState(JsonObjectConst patch) {
+        JsonObjectConst cs = patch["controlState"].as<JsonObjectConst>();
+        if (cs.isNull()) return 0;
+        int n = 0;
+        for (JsonPairConst modPair : cs) {
+            auto* mod = find(modPair.key().c_str());
+            if (!mod) continue;
+            JsonObjectConst ctrls = modPair.value().as<JsonObjectConst>();
+            if (ctrls.isNull()) continue;
+            for (JsonPairConst kv : ctrls) {
+                JsonVariantConst v = kv.value();
+                if      (v.is<bool>())  mod->setControl(kv.key().c_str(), v.as<bool>());
+                else if (v.is<long>())  mod->setControl(kv.key().c_str(),
+                                            static_cast<std::int32_t>(v.as<long>()));
+                else if (v.is<float>()) mod->setControl(kv.key().c_str(), v.as<float>());
+                else continue;
+                ++n;
+            }
+        }
+        return n;
     }
 
     /** @brief Look up a live module by its project-level @p id.

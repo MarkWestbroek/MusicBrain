@@ -48,6 +48,7 @@
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
+#include "FwVersion.h"
 
 namespace mmb_link {
 
@@ -73,11 +74,16 @@ public:
     /** Callback invoked when a "selectPatch" message arrives. */
     using SelectPatchHandler = void (*)(const char* patchId);
 
+    /** Callback invoked when a "setStatic" message arrives. */
+    using SetStaticHandler = void (*)(bool enabled);
+
     /** @brief Initialise the link and send the opening hello frame.
      *  Must be called once from Arduino `setup()` after `Serial.begin()`. */
-    void begin(ConfigHandler onConfig, SelectPatchHandler onSelectPatch) {
+    void begin(ConfigHandler onConfig, SelectPatchHandler onSelectPatch,
+               SetStaticHandler onSetStatic = nullptr) {
         onConfig_      = onConfig;
         onSelectPatch_ = onSelectPatch;
+        onSetStatic_   = onSetStatic;
         bufLen_ = 0;
         sendHello();
     }
@@ -124,12 +130,14 @@ private:
     size_t bufLen_ = 0;
     ConfigHandler      onConfig_      = nullptr;
     SelectPatchHandler onSelectPatch_ = nullptr;
+    SetStaticHandler   onSetStatic_   = nullptr;
 
     void sendHello() {
         JsonDocument doc;
-        doc["type"] = "hello";
-        doc["fw"]   = "mmb-teensy-1";
-        doc["step"] = 3;
+        doc["type"]    = "hello";
+        doc["fw"]      = "mmb-teensy-1";
+        doc["version"] = FW_VERSION;
+        doc["step"]    = 3;
         serializeJson(doc, Serial);
         Serial.println();
     }
@@ -193,6 +201,15 @@ private:
             JsonDocument extra;
             extra["patchId"] = patchId;
             sendAckOk("selectPatch", extra);
+            return;
+        }
+        if (strcmp(type, "setStatic") == 0) {
+            if (!doc["enabled"].is<bool>()) { sendAckErr("setStatic: missing enabled"); return; }
+            const bool en = doc["enabled"].as<bool>();
+            if (onSetStatic_) onSetStatic_(en);
+            JsonDocument extra;
+            extra["enabled"] = en;
+            sendAckOk("setStatic", extra);
             return;
         }
         sendAckErr("unknown type");

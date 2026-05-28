@@ -17,6 +17,7 @@
 #include <Arduino.h>
 #include <Audio.h>
 #include <usb_midi.h>
+#include <memory>
 #include <new>
 
 #include "mb/runtime/MidiIn.h"
@@ -65,8 +66,11 @@ VoiceWires* voiceWires(uint8_t i) {
     return reinterpret_cast<VoiceWires*>(voiceWiresStorage + sizeof(VoiceWires) * i);
 }
 
-alignas(AudioConnection) char mixToUsbStorageL[sizeof(AudioConnection)];
-alignas(AudioConnection) char mixToUsbStorageR[sizeof(AudioConnection)];
+// Static-graph → USB connections. Heap-allocated so they can be destroyed
+// when the user mutes the static graph (otherwise they'd keep overwriting
+// the dynamic graph's blocks in usbOut's input slots).
+std::unique_ptr<AudioConnection> mixToUsbL;
+std::unique_ptr<AudioConnection> mixToUsbR;
 
 constexpr uint8_t kHeartbeatPin = LED_BUILTIN;
 constexpr uint32_t kHeartbeatPeriodMs = 1000;
@@ -76,6 +80,33 @@ bool ledState = false;
 mmb_link::TeensyLink    link;
 mmb_link::ProjectRuntime runtime;
 mmb_link::AudioGraph    audioGraph;
+
+// Static 4-voice graph on/off. Toggled via the editor's "Static graph" switch
+// (command {"type":"setStatic","enabled":bool}) so you can isolate the
+// dynamic patch.
+bool staticEnabled = true;
+
+void applyStaticEnabled() {
+    AudioNoInterrupts();
+    if (staticEnabled) {
+        if (!mixToUsbL) mixToUsbL = std::make_unique<AudioConnection>(mixL, 0, usbOut, 0);
+        if (!mixToUsbR) mixToUsbR = std::make_unique<AudioConnection>(mixR, 0, usbOut, 1);
+        for (uint8_t i = 0; i < kVoices; ++i) {
+            mixL.gain(i, 0.25f);
+            mixR.gain(i, 0.25f);
+        }
+    } else {
+        // Destroy the connections so they stop writing into usbOut's input
+        // slots (otherwise they'd overwrite the dynamic graph's blocks).
+        mixToUsbL.reset();
+        mixToUsbR.reset();
+        for (uint8_t i = 0; i < kVoices; ++i) {
+            mixL.gain(i, 0.0f);
+            mixR.gain(i, 0.0f);
+        }
+    }
+    AudioInterrupts();
+}
 
 // ------------------------------------------------------------------
 // CV tick — called from loop() every ≥1 ms.
@@ -93,18 +124,33 @@ void tickCvModules() {
 
 // ------------------------------------------------------------------
 // Dynamic CV bridge — drives VcoModule pitch and AhdsrAudioModule gate
-// from voice 0 of the live MidiInModule.  Mono patches only (B-step 3).
+// from the live MidiInModule.  The patch graph is single-voice (mono);
+// we collapse all allocator voices into one virtual voice:
+//   gate  = OR of every voice's gate
+//   pitch = pitch of the most recently gated voice; if none is gated
+//           we hold the last pitch (so release still has a defined Hz).
+// This avoids the "only voice 0 ever updates" stall while we don't yet
+// have true polyphony in the firmware graph.
 // ------------------------------------------------------------------
 void syncDynamicModules() {
-    const float pitchV = midiIn.voicePitchV(0);
-    const bool  gate   = midiIn.voiceGate(0);
+    static float lastPitchV = 0.0f;
+    bool  anyGate   = false;
+    float pitchV    = lastPitchV;
+    const std::uint8_t n = midiIn.voiceCount();
+    for (std::uint8_t v = 0; v < n; ++v) {
+        if (midiIn.voiceGate(v)) {
+            if (!anyGate) pitchV = midiIn.voicePitchV(v);
+            anyGate = true;
+        }
+    }
+    if (anyGate) lastPitchV = pitchV;
 
     for (auto& [id, mod] : runtime.instances()) {
         const std::string_view tid = mod->typeId();
         if (tid == mmb_link::VcoModule::kTypeId)
             static_cast<mmb_link::VcoModule*>(mod.get())->updatePitch(pitchV);
         else if (tid == mmb_link::AhdsrAudioModule::kTypeId)
-            static_cast<mmb_link::AhdsrAudioModule*>(mod.get())->setGate(gate);
+            static_cast<mmb_link::AhdsrAudioModule*>(mod.get())->setGate(anyGate);
     }
 }
 
@@ -121,10 +167,25 @@ void onConfigReceived(JsonObjectConst project) {
 void onSelectPatch(const char* patchId) {
     mmb_link::TeensyLink::logf("selectPatch: %s", patchId);
     if (runtime.activatePatch(patchId)) {
+        // Teensy AudioConnection::connect() is first-source-wins: if the
+        // static mix is still attached to usbOut.ch0/1, the dynamic patch's
+        // out-module connections will be silently dropped. Force-mute the
+        // static path before (re)building the dynamic graph.
+        if (staticEnabled) {
+            staticEnabled = false;
+            applyStaticEnabled();
+            mmb_link::TeensyLink::logf("static auto-muted for dynamic patch");
+        }
         JsonObjectConst patch = runtime.activePatchJson();
         if (!patch.isNull())
             audioGraph.build(patch, runtime.instances());
     }
+}
+
+void onSetStatic(bool enabled) {
+    staticEnabled = enabled;
+    applyStaticEnabled();
+    mmb_link::TeensyLink::logf("static graph %s", enabled ? "enabled" : "muted");
 }
 
 // ------------------------------------------------------------------
@@ -205,8 +266,8 @@ void setup() {
         mixL.gain(i, 0.25f);
         mixR.gain(i, 0.25f);
     }
-    new (mixToUsbStorageL) AudioConnection(mixL, 0, usbOut, 0);
-    new (mixToUsbStorageR) AudioConnection(mixR, 0, usbOut, 1);
+    mixToUsbL = std::make_unique<AudioConnection>(mixL, 0, usbOut, 0);
+    mixToUsbR = std::make_unique<AudioConnection>(mixR, 0, usbOut, 1);
 
     // Point OutModule instances at the shared USB output
     mmb_link::OutModule::sharedOutput = &usbOut;
@@ -219,7 +280,7 @@ void setup() {
     usbMIDI.setHandleNoteOff(handleNoteOff);
 
     mmb_link::registerAllRuntimeModules();
-    link.begin(onConfigReceived, onSelectPatch);
+    link.begin(onConfigReceived, onSelectPatch, onSetStatic);
 }
 
 void loop() {
