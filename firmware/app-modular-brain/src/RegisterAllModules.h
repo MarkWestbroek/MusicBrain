@@ -41,6 +41,7 @@
 #include "VcoModule.h"
 #include "VcaModule.h"
 #include "VcfModule.h"
+#include "MixerModule.h"
 #include "OutModule.h"
 #include "mb/runtime/CvMath.h"
 
@@ -58,6 +59,7 @@ inline void registerAllRuntimeModules() {
     VcoModule::registerFactory();
     VcaModule::registerFactory();
     VcfModule::registerFactory();
+    MixerModule::registerFactory();
     OutModule::registerFactory();
     AhdsrAudioModule::registerFactory();  // must be last: overwrites Ahdsr's auto-registration
 }

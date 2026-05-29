@@ -147,9 +147,24 @@ export class WebMidiSource extends BaseSource {
   readonly label = 'USB / Bluetooth MIDI (Web MIDI)';
   private access: MIDIAccess | null = null;
   private inputs: MIDIInput[] = [];
+  /* Notes currently held, keyed by MIDI note number.  Used to de-duplicate
+   * events when a controller exposes several input ports (e.g. the KeyStep
+   * Pro publishes multiple ports): a single physical key press then arrives
+   * once per port.  Without this guard each press allocates two voices on
+   * the same pitch, which beats/comb-filters into a hoarse ring-mod sound. */
+  private held = new Set<number>();
 
   static isSupported(): boolean {
     return typeof navigator !== 'undefined' && 'requestMIDIAccess' in navigator;
+  }
+
+  /* The Teensy enumerates its own USB-MIDI port, which the browser sees as an
+   * *input*.  We must never listen to it: the firmware would otherwise feed
+   * its own output straight back into the bridge, creating a MIDI loop.  Any
+   * port whose name/manufacturer mentions Teensy/MusicBrain is skipped. */
+  private static isOwnDevicePort(inp: MIDIInput): boolean {
+    const hay = `${inp.name ?? ''} ${inp.manufacturer ?? ''}`.toLowerCase();
+    return hay.includes('teensy') || hay.includes('musicbrain');
   }
 
   async start(): Promise<void> {
@@ -163,13 +178,17 @@ export class WebMidiSource extends BaseSource {
   stop(): void {
     for (const inp of this.inputs) inp.onmidimessage = null;
     this.inputs = [];
+    this.held.forEach((n) => this.emit({ kind: 'noteOff', note: n }));
+    this.held.clear();
     if (this.access) this.access.onstatechange = null;
     this.access = null;
   }
   describe(): string {
     if (!this.access) return 'niet verbonden';
     const names: string[] = [];
-    this.access.inputs.forEach((i) => { names.push(i.name ?? 'unnamed'); });
+    this.access.inputs.forEach((i) => {
+      if (!WebMidiSource.isOwnDevicePort(i)) names.push(i.name ?? 'unnamed');
+    });
     return names.length ? names.join(', ') : 'geen MIDI-apparaten gevonden';
   }
 
@@ -177,7 +196,9 @@ export class WebMidiSource extends BaseSource {
     if (!this.access) return;
     for (const inp of this.inputs) inp.onmidimessage = null;
     const list: MIDIInput[] = [];
-    this.access.inputs.forEach((i) => list.push(i));
+    this.access.inputs.forEach((i) => {
+      if (!WebMidiSource.isOwnDevicePort(i)) list.push(i);
+    });
     this.inputs = list;
     for (const inp of this.inputs) inp.onmidimessage = this.onMessage;
   }
@@ -188,10 +209,15 @@ export class WebMidiSource extends BaseSource {
     const status = data[0]! & 0xf0;
     const d1 = data[1]!;
     const d2 = data[2] ?? 0;
-    if (status === 0x90 && d2 > 0) this.emit({ kind: 'noteOn',  note: d1, velocity: d2 / 127 });
-    else if (status === 0x80 || (status === 0x90 && d2 === 0))
+    if (status === 0x90 && d2 > 0) {
+      if (this.held.has(d1)) return;          // already sounding — ignore dupe
+      this.held.add(d1);
+      this.emit({ kind: 'noteOn',  note: d1, velocity: d2 / 127 });
+    } else if (status === 0x80 || (status === 0x90 && d2 === 0)) {
+      if (!this.held.delete(d1)) return;       // not sounding — ignore stray off
       this.emit({ kind: 'noteOff', note: d1 });
-    else if (status === 0xb0)
+    } else if (status === 0xb0) {
       this.emit({ kind: 'cc', controller: d1, value: d2 });
+    }
   };
 }

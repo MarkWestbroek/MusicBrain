@@ -10,8 +10,10 @@ import {
   sendConfig,
   sendSelectPatch,
   sendSetStatic,
+  sendMidi,
   clearLog,
 } from './teensyLink';
+import { WebMidiSource } from './sim/MidiSource';
 
 interface Props {
   onClose: () => void;
@@ -47,6 +49,66 @@ export function TeensyLinkModal({ onClose }: Props): JSX.Element {
     try { await sendSelectPatch(activePatchId); }
     catch (err) { alert(`selectPatch faalde: ${(err as Error).message}`); }
   }
+
+  // ── One-click test: push config + select patch + play a short arpeggio ──
+  const [testing, setTesting] = useState(false);
+  async function onTest(): Promise<void> {
+    if (testing) return;
+    setTesting(true);
+    try {
+      await sendConfig(project);
+      if (activePatchId) await sendSelectPatch(activePatchId);
+      // Give the firmware a moment to (re)build the audio + CV graph.
+      await sleep(250);
+      const arp = [60, 64, 67, 72];   // C-major arpeggio
+      for (const note of arp) {
+        await sendMidi(true, note, 100);
+        await sleep(220);
+        await sendMidi(false, note);
+        await sleep(40);
+      }
+    } catch (err) {
+      alert(`Test faalde: ${(err as Error).message}`);
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  // ── Live MIDI bridge: forward hardware MIDI (e.g. Keystep) to the Teensy ──
+  const [bridging, setBridging] = useState(false);
+  const midiSrcRef = useRef<WebMidiSource | null>(null);
+  async function toggleBridge(): Promise<void> {
+    if (bridging) {
+      midiSrcRef.current?.stop();
+      midiSrcRef.current = null;
+      setBridging(false);
+      return;
+    }
+    try {
+      const src = new WebMidiSource();
+      await src.start();
+      src.subscribe((e) => {
+        if (e.kind === 'noteOn')  void sendMidi(true,  e.note, Math.round(e.velocity * 127));
+        else if (e.kind === 'noteOff') void sendMidi(false, e.note);
+      });
+      midiSrcRef.current = src;
+      setBridging(true);
+    } catch (err) {
+      alert(`MIDI-bridge faalde: ${(err as Error).message}`);
+    }
+  }
+
+  // Stop the bridge when the modal unmounts or the link drops.
+  useEffect(() => {
+    return () => { midiSrcRef.current?.stop(); midiSrcRef.current = null; };
+  }, []);
+  useEffect(() => {
+    if (!isConnected && bridging) {
+      midiSrcRef.current?.stop();
+      midiSrcRef.current = null;
+      setBridging(false);
+    }
+  }, [isConnected, bridging]);
 
   function statusLabel(): string {
     switch (link.status.kind) {
@@ -101,6 +163,19 @@ export function TeensyLinkModal({ onClose }: Props): JSX.Element {
             >{staticEnabled ? '🔊 Static ON' : '🔇 Static OFF'}</button>
           </div>
 
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <button
+              onClick={() => { void onTest(); }}
+              disabled={!isConnected || testing}
+              title="Push config + selecteer actieve patch + speel een test-arpeggio"
+            >{testing ? '⏳ Test loopt…' : '▶️ Test patch'}</button>
+            <button
+              onClick={() => { void toggleBridge(); }}
+              disabled={!isConnected}
+              title="Stuur MIDI van je hardware-keyboard (Keystep) rechtstreeks door naar de Teensy"
+            >{bridging ? '⏹ Stop MIDI-bridge' : '🎹 Keystep → Teensy'}</button>
+          </div>
+
           {link.lastAck && (
             <div style={ackBox(link.lastAck.ok)}>
               {link.lastAck.ok ? 'OK' : 'ERR'} — applied={link.lastAck.applied ?? '?'}
@@ -132,6 +207,10 @@ export function TeensyLinkModal({ onClose }: Props): JSX.Element {
 function fmtTs(ts: number): string {
   const d = new Date(ts);
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}.${String(d.getMilliseconds()).padStart(3, '0')}`;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 const modalBackdrop: React.CSSProperties = {

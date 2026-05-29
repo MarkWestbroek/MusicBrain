@@ -119,8 +119,11 @@ uint32_t lastCvTickMs = 0;
 
 void tickCvModules() {
     for (auto& [id, mod] : runtime.instances()) {
-        if (mod->typeId() == mmb_link::AhdsrAudioModule::kTypeId)
+        const std::string_view tid = mod->typeId();
+        if (tid == mmb_link::AhdsrAudioModule::kTypeId)
             static_cast<mmb_link::AhdsrAudioModule*>(mod.get())->tick();
+        else if (tid == mb::runtime::Lfo::kTypeId)
+            static_cast<mb::runtime::Lfo*>(mod.get())->tick();
     }
 }
 
@@ -134,27 +137,6 @@ void tickCvModules() {
 // This avoids the "only voice 0 ever updates" stall while we don't yet
 // have true polyphony in the firmware graph.
 // ------------------------------------------------------------------
-void syncDynamicModules() {
-    static float lastPitchV = 0.0f;
-    bool  anyGate   = false;
-    float pitchV    = lastPitchV;
-    const std::uint8_t n = midiIn.voiceCount();
-    for (std::uint8_t v = 0; v < n; ++v) {
-        if (midiIn.voiceGate(v)) {
-            if (!anyGate) pitchV = midiIn.voicePitchV(v);
-            anyGate = true;
-        }
-    }
-    if (anyGate) lastPitchV = pitchV;
-
-    for (auto& [id, mod] : runtime.instances()) {
-        const std::string_view tid = mod->typeId();
-        if (tid == mmb_link::VcoModule::kTypeId)
-            static_cast<mmb_link::VcoModule*>(mod.get())->updatePitch(pitchV);
-        else if (tid == mmb_link::AhdsrAudioModule::kTypeId)
-            static_cast<mmb_link::AhdsrAudioModule*>(mod.get())->setGate(anyGate);
-    }
-}
 
 // ------------------------------------------------------------------
 // Editor → Teensy callbacks.
@@ -239,14 +221,21 @@ void forwardMidiToRuntime(bool noteOn, uint8_t channel, uint8_t note, uint8_t ve
     }
 }
 
+/*
+ * Note: we deliberately do NOT echo notes back over usbMIDI.  An earlier
+ * step transposed every note +12 and re-sent it for the host-side
+ * `pipeline_test.py` round-trip check.  That echo is harmful in normal use:
+ * if the editor's MIDI bridge is subscribed to the Teensy's own MIDI port
+ * (or any DAW loops it back), each note re-enters handleNoteOn() one octave
+ * higher, producing a runaway 60->72->84->... cascade that sounds like a
+ * hoarse ring-modulator.  Real-instrument behaviour = one key, one voice.
+ */
 void handleNoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
     Serial.printf("[midi] noteOn  ch=%u note=%u vel=%u\n", channel, note, velocity);
     midiIn.onNoteOn(channel, note, velocity);
     forwardMidiToRuntime(true, channel, note, velocity);
     syncVoicesFromModel();
     logVoiceTable("on ");
-    uint8_t echoed = static_cast<uint8_t>(note + 12);
-    if (echoed <= 127) usbMIDI.sendNoteOn(echoed, velocity, channel);
 }
 
 void handleNoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
@@ -255,8 +244,14 @@ void handleNoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
     forwardMidiToRuntime(false, channel, note, velocity);
     syncVoicesFromModel();
     logVoiceTable("off");
-    uint8_t echoed = static_cast<uint8_t>(note + 12);
-    if (echoed <= 127) usbMIDI.sendNoteOff(echoed, velocity, channel);
+}
+
+// Editor MIDI bridge: notes sent over the serial link ({"type":"midi",...})
+// are dispatched through the same path as hardware USB-MIDI so the editor can
+// drive the runtime patch without a separate MIDI connection.
+void onMidiNote(bool on, uint8_t channel, uint8_t note, uint8_t velocity) {
+    if (on) handleNoteOn(channel, note, velocity);
+    else    handleNoteOff(channel, note, velocity);
 }
 
 }  // namespace
@@ -295,7 +290,7 @@ void setup() {
     usbMIDI.setHandleNoteOff(handleNoteOff);
 
     mmb_link::registerAllRuntimeModules();
-    link.begin(onConfigReceived, onSelectPatch, onSetStatic);
+    link.begin(onConfigReceived, onSelectPatch, onSetStatic, onMidiNote);
 }
 
 void loop() {

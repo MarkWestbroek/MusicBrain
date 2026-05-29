@@ -130,3 +130,163 @@ RAM2:  free malloc 495 712 B
 [SUCCESS]
 ```
 
+### 2026-06 — MIDI feedback fix, pure CV/audio split, LFO rate-CV/inv, stereo mixer (fw 0.5.1)
+
+Follow-up batch addressing a "ring-modulation / hoarse" sound and tightening the
+signal-domain architecture ahead of polyphony.
+
+**MIDI feedback loop (the hoarse/ring-mod bug).** Symptom: a played note caused
+an octave cascade in the log (60, 72, 84, 96, …) and a beating, hoarse tone.
+Two compounding causes: (1) the firmware echoed every note **+12** back over
+USB-MIDI (a leftover from `pipeline_test.py`); (2) the editor's `WebMidiSource`
+subscribed to **all** Web-MIDI inputs, including the Teensy's own USB-MIDI port.
+So editor → Teensy note 60 → Teensy echoes 72 → browser hears 72 from the
+Teensy port → forwards it → echoes 84 → runaway. Two oscillators a near-octave
+apart = beating/comb-filter = hoarse. Fix: (a) removed the `+12` echo from
+`handleNoteOn/Off` entirely; (b) `WebMidiSource` now skips its own device ports
+(name/manufacturer contains "teensy"/"musicbrain") and dedupes held notes via a
+`Set<number>` so multi-port controllers (e.g. KeyStep Pro) can't double-trigger.
+
+**Pure CV vs audio signal split.** Each `portId` now lives in exactly **one**
+domain so `CvGraph` and `AudioGraph` can't both claim the same input. The old
+DC-proxy (`AudioSynthWaveformDc`) that doubled as an *exposed audio port* is
+gone from the exposed surface:
+- `AhdsrAudioModule` no longer exposes `dc_` as an audio output — it is pure CV
+  (`cv_out` → `env_.value()`, `gate`/`trig` → Gate). No audio ports.
+- `VcaModule.cv` is CV-only; the internal `cvDc_` stays **permanently**
+  connected to `mult_` ch 1 (no more lazy-connect race).
+- `VcfModule.cv` is CV-only; a permanent internal `cvDc_` drives the filter's
+  cutoff-modulation input (`octaveControl(cv_amt)`), so the envelope (0..1) lifts
+  cutoff by up to `cv_amt` octaves.
+The audio-rate DC objects survive only as **internal implementation details**
+where a Teensy DSP node needs an audio-rate signal; they are never exposed as
+audio ports. **Rule:** a CV-bridge sink overrides `inputPortKind`+`writeCvPort`
+and exposes that port in CV only; a source overrides `outputPortKind`+`readCvPort`.
+
+**LFO rate-CV + inverse out + reset (`tp_mmb_lfo`).** Core `Lfo` gained
+`rate_cv` (exponential, ±4 octaves around the knob rate, clamped 0.001–5000 Hz),
+an `out_inv` output (`-value_`), and rising-edge `reset`. The editor module
+already exposed these ports; firmware now handles them — reset **is** wired.
+
+**Stereo mixer (`tp_mmb_mixer`).** Rewrote the mono `AudioMixer4` mixer into a
+4-channel **stereo** mixer: each input fans out (unity `AudioAmplifier`) into a
+left + right `AudioMixer4`, with per-channel `volN` (0..1) and `panN` (-1..+1)
+applied via an equal-power pan law (`L=vol·cos θ`, `R=vol·sin θ`,
+`θ=(pan+1)·π/4`). Ports `in1..in4` → `out_l`/`out_r`. Editor `mmbMixer()`
+relaid out as one row per channel (`[in] Vol Pan`) at 8 HP.
+
+**Rack port labels.** Internal MMB modules carry their jack names only in data
+(no printed faceplate art), so the rack grid now passes `showPortLabels` =
+the module type's `internal` flag — internal modules show their port labels,
+Eurorack faceplates stay clean.
+
+```
+FLASH: code 138 512 B, data 17 852 B
+RAM1:  free local 288 480 B
+RAM2:  free malloc 495 712 B
+[SUCCESS] — built; flash needs editor serial disconnected or PROGRAM button
+```
+
+### 2026-06 — CV-bridge sink fix, MIDI-bridge, Test/Keystep, Mixer + LFO (fw 0.5.0)A batch of editor + firmware work to close the "no sound" gap on the CV-bridge
+patch and shorten the test loop.
+
+**VcaModule CV-bridge sink (fw 0.4.5).** The CV-bridge patch
+(`CvMath.out → VCA.cv`) produced no sound because `VcaModule` reported its `cv`
+port as `PortKind::None`, so `CvGraph` skipped the route. The old working
+test-patch only ever drove `VCA.cv` from an AHDSR *audio* DC-proxy, handled by
+`AudioGraph`. Fix: gave `VcaModule` a real CV-bridge path — an internal
+lazy-connected `AudioSynthWaveformDc cvDc_` proxy, `inputPortKind("cv") → Cv`,
+and `writeCvPort("cv", v)` that connects the proxy on first use then sets its
+amplitude. The audio-DC-proxy pattern and the CV-bridge pattern now coexist;
+lazy-connect prevents two sources colliding on `mult_` channel 1.
+**Rule of thumb:** any module that can be a CV-bridge *sink* must override
+`inputPortKind` + `writeCvPort`; any CV-bridge *source* must override
+`outputPortKind` + `readCvPort`.
+
+**MIDI-bridge (editor → Teensy over serial).** New serial `{"type":"midi",
+on,note,vel,ch}` command in `TeensyLink::handleLine()` (no ack — hot path).
+`begin()` gained a 4th `MidiNoteHandler onMidiNote` callback that routes into
+`handleNoteOn/handleNoteOff`. Editor `teensyLink.ts` gained
+`sendMidi(on,note,velocity,channel)` (quiet — no log spam) + `isConnected()`.
+Lets the editor forward a hardware Keystep through the browser straight to the
+Teensy with no VMPK / manual mapping.
+
+**Test + Keystep buttons** (`TeensyLinkModal.tsx`). "▶️ Test patch" pushes the
+config, selects the active patch, waits, then plays a C-major arpeggio.
+"🎹 Keystep → Teensy" subscribes a `WebMidiSource` and forwards live note
+on/off via `sendMidi`.
+
+**MixerModule (`tp_mmb_mixer`).** 4-input summing audio mixer (`AudioMixer4`):
+inputs `in1..in4` (audio ch 0-3), output `out`, controls `gain1..gain4`
+(default 0.8). Polyphony building block. Editor counterpart `mmbMixer()` seeded
+in `seedModules.ts`.
+
+**LFO as a real CV module (`tp_mmb_lfo`).** The core `Lfo` already had the
+waveform / run-mode / depth state machine but was **missing the CV-bridge
+methods**, so it never routed. Added `inputPortKind` (`gate`/`reset` → Gate),
+`outputPortKind("out") → Cv`, `writeCvPort` (`gate` → `setGate`, `reset` →
+rising-edge `reset()`), `readCvPort("out")`. `main.cpp`'s `tickCvModules()` now
+also ticks `Lfo` instances every CV tick.
+Known editor/firmware port mismatch (low prio): editor `mmbLfo` exposes
+`rate_cv` + `out_inv` (not yet handled by firmware) and lacks a `gate` port.
+
+**Cleanup.** Removed the dead `syncDynamicModules()` (unused since the dynamic
+graph drives voices via `MidiInModule` + per-module ticks). Clean build, no
+warnings. Bumped `FwVersion.h` → **0.5.0**, flashed OK.
+
+```
+FLASH: code 137 680 B, data 17 852 B
+RAM1:  free local 288 480 B
+RAM2:  free malloc 495 712 B
+[SUCCESS] — uploaded to Teensy 4.1 (COM4)
+```
+
+## Module backlog & status
+
+Firmware module wrappers and their state. "Editor" = seeded module type exists
+in `seedModules.ts`; "Firmware" = runtime wrapper + factory registered.
+
+| Module | typeId | Editor | Firmware | Notes |
+|---|---|:--:|:--:|---|
+| MIDI-IN | `tp_mmb_midiin` | ✅ | ✅ | voice allocator, pitch/gate/vel ports |
+| VCO | `tp_mmb_vco` | ✅ | ✅ | V/Oct → Hz; `wave`/`level` |
+| VCF | `tp_mmb_vcf` | ✅ | ✅ | LP/HP/BP; `cv` pure-CV cutoff mod via internal DC (0.5.1); `cv_amt` = octaves |
+| VCA | `tp_mmb_vca` | ✅ | ✅ | pure-CV sink, permanent internal DC (0.5.1); `gain`/`resp` unused |
+| AHDSR | `tp_mmb_ahdsr` | ✅ | ✅ | tick-driven; pure CV `cv_out` (DC-proxy removed, 0.5.1) |
+| CvMath | `tp_mmb_cvmath` | ✅ | ✅ | sum / mult modes |
+| Mixer | `tp_mmb_mixer` | ✅ | ✅ | stereo 4-in, per-ch vol+pan, `out_l`/`out_r` (0.5.1) |
+| LFO | `tp_mmb_lfo` | ✅ | ✅ | CV-bridge + `rate_cv`/`out_inv`/`reset` handled (0.5.1) |
+| Seq8 | `tp_mmb_seq8` | ✅ | ⬜ | editor only |
+| Noise | — | ⬜ | ⬜ | needs wrapper |
+| S&H | — | ⬜ | ⬜ | needs wrapper |
+| Echo / Phaser | — | ⬜ | ⬜ | needs wrapper |
+
+### Backlog — Envelope variants (per UML §Envelope)
+
+The UML models an abstract `Envelope` with three concrete subtypes. Only AHDSR
+exists today.
+
+- **AHDSR** ✅ — Attack/Hold/Decay/Sustain/Release. Implemented
+  (`AhdsrAudioModule` + core `Ahdsr`).
+- **Multifase Envelope** ⬜ — N-segment piecewise envelope
+  (`(target, duration, curve)` list). Maps cleanly onto the planned
+  `CV_SEGMENT` bus opcode (ADR 0008) so the breakout interpolates each segment.
+  Needs: core segment list + tick engine, editor segment editor UI.
+- **Sampled Envelope** ⬜ — envelope shape read from a stored sample/table
+  (wavetable-style). Needs: table storage + phase/rate playback, loop/one-shot
+  mode, editor curve import.
+
+### Backlog — Breakouts (D/A out, A/D in)
+
+Scaffolding seams already pinned by ADR 0009 / 0010; not yet wrapped as runtime
+modules in this app.
+
+- **CV break-out (D/A)** ⬜ — gate/trigger, 12-bit (`CvOut12`) and 16-bit pitch
+  (`CvOut16` / DAC8568) variants. CV-range options 0..5V / 0..10V / 0..12V /
+  −12..12V live on the breakout class (ADR 0004), source always sends
+  normalised float. SPI frame format per `doc/protocols/spi-frame.md`.
+- **Gate break-out** ⬜ — N-channel digital gate/trigger (`GateOut`).
+- **CV break-in (A/D)** ⬜ — external CV sampled back into the CvGraph as a Cv
+  source (`outputPortKind`/`readCvPort`).
+- **Controller break-in** ⬜ — knobs/pots/buttons as CV/event sources.
+

@@ -737,6 +737,9 @@ function RackGrid({ rack, modules, types, activeRow, onSelectRow,
               }
               const overlap = detectOverlap(slot, slotsInRow, m, modules);
               const isSelected = selectedSlotIds.has(slot.id);
+              // Interne MMB-modules dragen hun poort-namen alleen in data (geen
+              // gedrukte faceplate-grafiek), dus tonen we de jack-labels expliciet.
+              const isInternal = types.find((x) => x.id === m.typeId)?.internal ?? false;
               const voice = voiceMap.get(m.id);
               const isGroupActive = !!(openGroupId && voice && voice.group.id === openGroupId);
               return (
@@ -792,7 +795,7 @@ function RackGrid({ rack, modules, types, activeRow, onSelectRow,
                       zIndex: 2,
                     }}
                   />
-                  <ModulePanel module={m} types={types} pxPerMm={PX_PER_MM} showPortLabels={false}
+                  <ModulePanel module={m} types={types} pxPerMm={PX_PER_MM} showPortLabels={isInternal}
                     controlState={engineStatus.liveControls[m.id]} />
                   {voice && (
                     <>

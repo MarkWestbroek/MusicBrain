@@ -142,9 +142,9 @@ function handleLine(line: string): void {
   }
 }
 
-async function writeLine(s: string): Promise<void> {
+async function writeLine(s: string, quiet = false): Promise<void> {
   if (!writer) throw new Error('not connected');
-  pushLog({ ts: Date.now(), dir: 'tx', text: s.length > 200 ? s.slice(0, 200) + '…' : s });
+  if (!quiet) pushLog({ ts: Date.now(), dir: 'tx', text: s.length > 200 ? s.slice(0, 200) + '…' : s });
   await writer.write(enc.encode(s + '\n'));
 }
 
@@ -230,6 +230,27 @@ export async function sendSelectPatch(patchId: string): Promise<void> {
 
 export async function sendSetStatic(enabled: boolean): Promise<void> {
   await writeLine(JSON.stringify({ type: 'setStatic', enabled }));
+}
+
+/** Editor MIDI bridge: forward a note event to the Teensy over the serial link.
+ *  The firmware dispatches it through the same path as hardware USB-MIDI.
+ *  @param on        true = note-on, false = note-off
+ *  @param note      MIDI note number 0..127
+ *  @param velocity  0..127 (ignored on note-off)
+ *  @param channel   0-based MIDI channel (default 0) */
+export async function sendMidi(
+  on: boolean, note: number, velocity = 100, channel = 0,
+): Promise<void> {
+  if (!writer) return;  // silently no-op when disconnected
+  await writeLine(JSON.stringify({
+    type: 'midi', on,
+    note: note | 0, vel: velocity | 0, ch: channel | 0,
+  }), true);  // quiet: don't flood the log while playing
+}
+
+/** True when a serial writer is currently attached (connected to a Teensy). */
+export function isConnected(): boolean {
+  return writer !== null;
 }
 
 export function clearLog(): void {

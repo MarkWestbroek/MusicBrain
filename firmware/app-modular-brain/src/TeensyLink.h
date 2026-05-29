@@ -77,13 +77,19 @@ public:
     /** Callback invoked when a "setStatic" message arrives. */
     using SetStaticHandler = void (*)(bool enabled);
 
+    /** Callback invoked when a "midi" message arrives (editor MIDI bridge).
+     *  @p on=true for note-on, false for note-off. */
+    using MidiNoteHandler = void (*)(bool on, uint8_t channel, uint8_t note, uint8_t velocity);
+
     /** @brief Initialise the link and send the opening hello frame.
      *  Must be called once from Arduino `setup()` after `Serial.begin()`. */
     void begin(ConfigHandler onConfig, SelectPatchHandler onSelectPatch,
-               SetStaticHandler onSetStatic = nullptr) {
+               SetStaticHandler onSetStatic = nullptr,
+               MidiNoteHandler onMidiNote = nullptr) {
         onConfig_      = onConfig;
         onSelectPatch_ = onSelectPatch;
         onSetStatic_   = onSetStatic;
+        onMidiNote_    = onMidiNote;
         bufLen_ = 0;
         sendHello();
     }
@@ -131,6 +137,7 @@ private:
     ConfigHandler      onConfig_      = nullptr;
     SelectPatchHandler onSelectPatch_ = nullptr;
     SetStaticHandler   onSetStatic_   = nullptr;
+    MidiNoteHandler    onMidiNote_    = nullptr;
 
     void sendHello() {
         JsonDocument doc;
@@ -210,6 +217,16 @@ private:
             JsonDocument extra;
             extra["enabled"] = en;
             sendAckOk("setStatic", extra);
+            return;
+        }
+        if (strcmp(type, "midi") == 0) {
+            // Editor MIDI bridge: {"type":"midi","on":bool,"note":int,"vel":int,"ch":int}.
+            // Hot-path: no ack (would flood the link during fast playing).
+            const bool    on   = doc["on"]   | false;
+            const uint8_t note = static_cast<uint8_t>(doc["note"] | 0);
+            const uint8_t vel  = static_cast<uint8_t>(doc["vel"]  | 0);
+            const uint8_t ch   = static_cast<uint8_t>(doc["ch"]   | 0);
+            if (onMidiNote_) onMidiNote_(on, ch, note, vel);
             return;
         }
         sendAckErr("unknown type");

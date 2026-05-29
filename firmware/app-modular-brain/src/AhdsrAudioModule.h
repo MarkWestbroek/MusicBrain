@@ -1,39 +1,43 @@
 #pragma once
 /**
  * @file AhdsrAudioModule.h
- * @brief AHDSR envelope with audio DC proxy output (typeId `tp_mmb_ahdsr`).
+ * @brief AHDSR envelope, CV-domain output (typeId `tp_mmb_ahdsr`).
  *
  * @details
- * Combines the tick-based AHDSR envelope logic from `mb::runtime::Ahdsr`
- * (via composition) with an `AudioSynthWaveformDc` object that mirrors the
- * current envelope value as an audio-rate DC signal.  The DC stream is
- * exposed as port `cv_out` so `AudioGraph` can wire it directly to an audio
- * input — typically the `cv` input of a `VcaModule`.
+ * Wraps the tick-based AHDSR envelope logic from `mb::runtime::Ahdsr`
+ * (via composition) and exposes its value on the CV-domain port `cv_out`.
+ *
+ * **Signal domains (clean separation).**
+ * This module lives entirely in the *CV domain*: its value is produced by a
+ * 1 kHz software tick and published through the CV bridge (`readCvPort`), not
+ * as a Teensy Audio-library 44.1 kHz stream.  Consumers (`VcaModule`,
+ * `VcfModule`) receive the scalar via their own `writeCvPort` and turn it
+ * into the audio-rate signal their DSP object needs.  There is no audio
+ * DC-proxy here any more — audio->audio routing belongs to `AudioGraph`,
+ * cv->cv routing belongs to `CvGraph`, and the two never overlap.
  *
  * This class registers as `"tp_mmb_ahdsr"` in the app's `Registry`,
- * replacing the pure-CV `mb::runtime::Ahdsr` for audio-domain patches.
+ * replacing the pure-CV `mb::runtime::Ahdsr` so the richer controls apply.
  *
  * Port map:
- * | Direction | portId   | AudioStream / channel  |
- * |-----------|----------|------------------------|
- * | output    | `cv_out` | `dc_`, channel 0       |
- *
- * (Inputs `gate` and `trig` are CV-domain; driven via `setGate()`.)
+ * | Direction | portId   | Domain | Notes                          |
+ * |-----------|----------|--------|--------------------------------|
+ * | input     | `gate`   | Gate   | note-on/off, driven via bridge |
+ * | input     | `trig`   | Gate   | retrigger, driven via bridge   |
+ * | output    | `cv_out` | Cv     | envelope value 0..1            |
  *
  * Controls (same ids as `mb::runtime::Ahdsr`):
  * `attack`, `hold`, `decay`, `sustain`, `release`, `loop`, `curve` —
  * all forwarded to the embedded `Ahdsr`.
  *
  * **Tick:** call `tick()` once per millisecond from the main loop or a
- * 1 kHz soft-timer.  Each call advances the envelope and pushes the new
- * value to `dc_.amplitude()`.  The DC update is ISR-safe (AudioSynthWaveformDc
- * uses `__disable_irq` / `__enable_irq` internally).
+ * 1 kHz soft-timer.  Each call advances the envelope state machine.
  *
  * **Gate:** call `setGate(true)` on note-on and `setGate(false)` on note-off.
  *
  * **Registry overwrite:** `AhdsrAudioModule::registerFactory()` must be
  * called *after* any `Ahdsr::registerFactory()` call (including the static
- * auto-registration in `Ahdsr.cpp`) so the audio-capable factory wins.
+ * auto-registration in `Ahdsr.cpp`) so this factory wins.
  * `Registry::register_()` uses insert-or-assign semantics (last writer wins).
  */
 
@@ -54,22 +58,19 @@ public:
         : AudioPortModule(kTypeId, id)
         , env_(id)           // embedded Ahdsr shares the same instance id
     {
-        dc_.amplitude(0.0f);
     }
 
     /**
-     * @brief Advance the envelope by one millisecond and update the DC proxy.
+     * @brief Advance the envelope by one millisecond.
      *
-     * Drives the AHDSR state machine forward by one tick (1 ms at 1 kHz),
-     * then writes the new envelope value to `dc_.amplitude()` so the audio
-     * graph sees it immediately on the next audio block.
+     * Drives the AHDSR state machine forward by one tick (1 ms at 1 kHz).
+     * The new value is read out through the CV bridge (`readCvPort`), so the
+     * audio graph never touches this module directly.
      *
-     * Safe to call from `loop()` or a soft-timer; `AudioSynthWaveformDc`
-     * handles its own interrupt protection internally.
+     * Safe to call from `loop()` or a soft-timer.
      */
     void tick() {
         env_.tick();
-        dc_.amplitude(env_.value());
     }
 
     /**
@@ -83,9 +84,10 @@ public:
     /** @brief Current envelope output value in [0, 1]. */
     float value() const { return env_.value(); }
 
-    AudioPort outputPort(std::string_view portId) const override {
-        if (portId == "cv_out")
-            return { const_cast<AudioSynthWaveformDc*>(&dc_), 0, true };
+    /* No audio ports: this module is pure CV-domain (see file header).
+     * Returning invalid ports makes AudioGraph skip every connection that
+     * touches this module, so cv_out is routed exclusively by CvGraph. */
+    AudioPort outputPort(std::string_view /*portId*/) const override {
         return {};
     }
 
@@ -101,9 +103,7 @@ public:
 
     // --- Port-kind / CV-bridge -----------------------------------------
 
-    /** @brief `cv_out` is declared CV; the audio DC proxy is a transitional
-     *  implementation detail and will disappear in C4 once the CV bridge
-     *  drives consumer modules directly. */
+    /** @brief `cv_out` is a CV-domain output carrying the envelope value. */
     PortKind outputPortKind(std::string_view portId) const override {
         return (portId == "cv_out") ? PortKind::Cv : PortKind::None;
     }
@@ -136,7 +136,6 @@ public:
     }
 
 private:
-    mutable AudioSynthWaveformDc dc_;  ///< Audio proxy for the envelope value.
     mb::runtime::Ahdsr           env_; ///< Tick-based envelope logic (composition).
 };
 

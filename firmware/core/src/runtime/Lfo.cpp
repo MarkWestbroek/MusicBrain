@@ -12,6 +12,10 @@ namespace {
 // division in the hot path; the compiler folds it.
 constexpr float kSecondsPerTick = 1.0f / static_cast<float>(kCvTickRateHz);
 
+// Full-scale exponential depth of the `rate_cv` input: a value of +1
+// multiplies the base rate by 2^kRateCvOctaves, -1 divides it by the same.
+constexpr float kRateCvOctaves = 4.0f;
+
 // Convert a raw xorshift32 output to a float in [-1, +1]. Top 24 bits
 // only — plenty of resolution for an S&H sample, and avoids the IEEE-754
 // sign-bit weirdness around 0.
@@ -100,7 +104,13 @@ void Lfo::tick() {
     }
 
     const float prevPhase = phase_;
-    phase_ += rateHz_ * kSecondsPerTick;
+    // Apply exponential rate-CV modulation (0 input = base rate).
+    float effRateHz = rateHz_;
+    if (rateCv_ != 0.0f) {
+        effRateHz = std::clamp(rateHz_ * std::pow(2.0f, rateCv_ * kRateCvOctaves),
+                               0.001f, 5000.0f);
+    }
+    phase_ += effRateHz * kSecondsPerTick;
     if (phase_ >= 1.0f) {
         phase_ -= std::floor(phase_);             // wrap to [0,1)
         // Cycle boundary crossed → new S&H sample.

@@ -32,6 +32,16 @@
  * Resets the phase to 0 regardless of run mode.  Can be patched as a CV
  * trigger input to synchronise multiple LFOs.
  *
+ * **`rate_cv` input (CV):**
+ * Exponentially modulates the base rate: a value of +1 multiplies the rate
+ * by 2^`kRateCvOctaves`, −1 divides it by the same factor, 0 leaves it at
+ * the `rate` control.  Lets an envelope or another LFO sweep the speed.
+ *
+ * **Outputs:**
+ * - `out`     — the LFO value.
+ * - `out_inv` — the same value negated (handy for complementary modulation,
+ *   e.g. one VCA up while another goes down).
+ *
  * **Implementation:**
  * All time bookkeeping is in ticks at `kCvTickRateHz` (1 kHz), so the
  * class has no dependency on Arduino's `millis()` and runs identically
@@ -106,6 +116,41 @@ public:
      *  Can be driven by a CV trigger to synchronise multiple LFOs. */
     void reset();
 
+    // --- Port-kind / CV-bridge -----------------------------------------
+
+    /** @brief `gate` and `reset` are gate-domain inputs; `rate_cv` is CV. */
+    PortKind inputPortKind(std::string_view portId) const override {
+        if (portId == "gate" || portId == "reset") return PortKind::Gate;
+        if (portId == "rate_cv")                   return PortKind::Cv;
+        return PortKind::None;
+    }
+    /** @brief `out` and `out_inv` are CV outputs. */
+    PortKind outputPortKind(std::string_view portId) const override {
+        return (portId == "out" || portId == "out_inv") ? PortKind::Cv
+                                                         : PortKind::None;
+    }
+    /** @brief CV bridge entry point.  `gate` drives the run-mode gate;
+     *  `reset` pulses the phase reset on a rising edge (0 → 1);
+     *  `rate_cv` exponentially modulates the rate (see header). */
+    void writeCvPort(std::string_view portId, float value) override {
+        if (portId == "gate") {
+            setGate(value >= 0.5f);
+        } else if (portId == "reset") {
+            const bool high = value >= 0.5f;
+            if (high && !lastResetHigh_) reset();
+            lastResetHigh_ = high;
+        } else if (portId == "rate_cv") {
+            rateCv_ = value;
+        }
+    }
+    /** @brief CV bridge sample point.  `out` returns the current LFO value;
+     *  `out_inv` returns its negation. */
+    float readCvPort(std::string_view portId) const override {
+        if (portId == "out")     return value_;
+        if (portId == "out_inv") return -value_;
+        return 0.0f;
+    }
+
     /** @brief Current output value.
      *  Range: [−depth, +depth] in bipolar mode; [0, depth] in unipolar mode.
      *  Returned as float so the same signal can drive PWM, DAC, or audio
@@ -151,6 +196,8 @@ private:
     float phase_       = 0.0f;     // [0, 1)
     bool  running_     = true;     // see `running()`
     bool  lastGate_    = false;    // for rising-edge detection in OneShot
+    bool  lastResetHigh_ = false;  // for rising-edge detection on the reset CV input
+    float rateCv_      = 0.0f;     // exponential rate modulation from `rate_cv` input
     float shCached_    = 0.0f;     // current S&H sample, refreshed each cycle
     std::uint32_t rng_ = 0xA341316Cu;  // xorshift32 state (arbitrary seed)
     float value_       = 0.0f;

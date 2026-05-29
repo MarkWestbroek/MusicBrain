@@ -920,6 +920,42 @@ function mmbCvMath() {
   });
 }
 
+// 7e. MMB MIXER — 8 HP. 4-kanaals STEREO mixer met per-kanaal volume + pan.
+//     Bouwsteen voor polyfonie: N voice-ketens voeden aparte kanalen en de
+//     stereo out_l/out_r-paar gaat naar VCF/VCA/OUT. Eén rij per kanaal:
+//     [in]  Vol  Pan.
+function mmbMixer() {
+  const w = W(8);
+  const rowY = (i: number) => 26 + i * 22;     // 26, 48, 70, 92
+  const items: ReturnType<typeof knob | typeof inPort | typeof outPort>[] = [];
+  for (let i = 0; i < 4; ++i) {
+    const n = i + 1;
+    const y = rowY(i);
+    items.push(
+      inPort(`in${n}`, `${n}`, 'audio', w * 0.12, y),
+      knob(`vol${n}`, 'Vol', w * 0.45, y, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      knob(`pan${n}`, 'Pan', w * 0.78, y, { size: 'small', min: -1, max: 1, def: 0, color: '#f9fafb' }),
+    );
+  }
+  items.push(
+    outPort('out_l', 'L', 'audio', w * 0.38, 116),
+    outPort('out_r', 'R', 'audio', w * 0.62, 116),
+  );
+  return assemble({
+    typeId: 'tp_mmb_mixer',
+    categoryId: 'utility',
+    variant: 'Stereo mixer (4-in)',
+    brand: 'MMB', model: 'MIXER',
+    hp: 8, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'MIXER', fontSize: 2.2, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB',   fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items,
+    notes: 'Stereo 4-kanaals mixer. Per kanaal: Vol (0..1) + Pan (-1 links .. +1 rechts, equal-power). Elke ingang wordt naar de L- en R-bus gemengd; out_l/out_r vormen het stereo-paar. Basis voor polyfone stem-sommatie.',
+  });
+}
+
 // 8. MMB SEQ-8 — 8 HP. 8-step sequencer (semitone-knoppen) + run/length/rate.
 //    Outputs: CV (volt-per-octave proxy) + GATE. De engine draait de
 //    interne clock zodra Start ingedrukt is.
@@ -1071,7 +1107,7 @@ function mmbPhaser() {
 
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbVcf(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbSeq8(), mmbNoise(), mmbEcho(), mmbPhaser()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbVcf(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbSeq8(), mmbNoise(), mmbEcho(), mmbPhaser()];
   const newTypes = all.map((x) => x.type);
   const newModules = all.map((x) => x.module);
 
@@ -1247,6 +1283,105 @@ export function seedTestPatch(project: ModularProject): ModularProject {
     ...p,
     racks:        [...p.racks, rack],
     modules:      [...p.modules, seq, mi, vco, vcf, vca, env, out],
+    patches:      [...p.patches, patch],
+    activeRackId:  rack.id,
+    activePatchId: patch.id,
+  };
+}
+
+/** Test-patch voor de CV-bridge: MidiIn → VCO + 2×AHDSR (filter-env + amp-env),
+ *  velocity via CvMath(mult) → VCA, filter-env → VCF.
+ *  Requires seedInternals() zodat tp_mmb_cvmath beschikbaar is. */
+export function seedCvBridgePatch(project: ModularProject): ModularProject {
+  const needed = ['tp_mmb_vco','tp_mmb_vcf','tp_mmb_vca','tp_mmb_out',
+                  'tp_mmb_ahdsr','tp_mmb_midiin','tp_mmb_cvmath'];
+  const missing = needed.some((tid) => !project.moduleTypes.some((t) => t.id === tid));
+  let p = missing ? seedInternals(project) : project;
+
+  const types = p.moduleTypes;
+  function fresh(typeId: string): ModuleInstance {
+    const proto = p.modules.find((m) => m.typeId === typeId)!;
+    return { ...proto, id: uid('mod'), internal: false, visual: proto.visual };
+  }
+
+  const mi      = fresh('tp_mmb_midiin');
+  const vco     = fresh('tp_mmb_vco');
+  const vcf     = fresh('tp_mmb_vcf');
+  const vca     = fresh('tp_mmb_vca');
+  const envAmp  = fresh('tp_mmb_ahdsr');  // amp envelope  → VCA (via CvMath × vel)
+  const envFlt  = fresh('tp_mmb_ahdsr');  // filter envelope → VCF
+  const cvmath  = fresh('tp_mmb_cvmath'); // mult: envAmp × vel → VCA.cv
+  const out     = fresh('tp_mmb_out');
+  void types;
+
+  let offset = 0;
+  const place = (m: ModuleInstance): RackSlot => {
+    const s: RackSlot = { id: uid('slot'), moduleId: m.id, row: 0, hpOffset: offset };
+    offset += m.visual.hpWidth;
+    return s;
+  };
+  // Volgorde: signaalpad CV + audio leesbaar van links naar rechts:
+  // MidiIn → VCO → envFlt → VCF → envAmp → CvMath → VCA → OUT
+  const slotOrder = [mi, vco, envFlt, vcf, envAmp, cvmath, vca, out];
+  const rackHp = slotOrder.reduce((s, m) => s + m.visual.hpWidth, 0);
+  const rack: Rack = {
+    id: uid('rack'), name: 'CV-bridge test rack',
+    description: 'MIDI-In → VCO → envFlt → VCF → envAmp → CvMath(vel×env) → VCA → OUT.',
+    rows: 1, hpPerRow: Math.max(64, rackHp + 4),
+    slots: slotOrder.map(place),
+    kind: 'physical',
+  };
+
+  const c = (from: { m: ModuleInstance; port: string }, to: { m: ModuleInstance; port: string }): PatchConnection => ({
+    id: uid('conn'),
+    from: { moduleId: from.m.id, portId: from.port },
+    to:   { moduleId: to.m.id,   portId: to.port },
+  });
+
+  const connections: PatchConnection[] = [
+    // Audio chain
+    c({ m: vco,    port: 'out'    }, { m: vcf,    port: 'in'    }),
+    c({ m: vcf,    port: 'out'    }, { m: vca,    port: 'in'    }),
+    c({ m: vca,    port: 'out'    }, { m: out,    port: 'l'     }),
+    c({ m: vca,    port: 'out'    }, { m: out,    port: 'r'     }),
+    // CV: MIDI → VCO pitch
+    c({ m: mi,     port: 'pitch'  }, { m: vco,    port: 'voct'  }),
+    // CV: MIDI gate → both envelopes
+    c({ m: mi,     port: 'gate'   }, { m: envAmp, port: 'gate'  }),
+    c({ m: mi,     port: 'gate'   }, { m: envFlt, port: 'gate'  }),
+    // CV: filter env → VCF cutoff
+    c({ m: envFlt, port: 'cv_out' }, { m: vcf,    port: 'cv'    }),
+    // CV: amp env × velocity → VCA (CvMath in mult mode)
+    c({ m: envAmp, port: 'cv_out' }, { m: cvmath, port: 'a'     }),
+    c({ m: mi,     port: 'vel'    }, { m: cvmath, port: 'b'     }),
+    c({ m: cvmath, port: 'out'    }, { m: vca,    port: 'cv'    }),
+  ];
+
+  const controlState: Record<string, Record<string, ControlValue>> = {
+    [mi.id]:     { channel: 0, mode: 0 },
+    [vco.id]:    { wave: 2, coarse: 0, fine: 0, level: 0.9 },
+    [vcf.id]:    { cutoff: 800, q: 0.8, cv_amt: 1, type: 0 },
+    [vca.id]:    { gain: 0, resp: 0 },
+    [envAmp.id]: { attack: 8, hold: 0, decay: 300, sustain: 0.7, release: 500, loop: false, curve: 1 },
+    [envFlt.id]: { attack: 20, hold: 0, decay: 600, sustain: 0.3, release: 800, loop: false, curve: 1 },
+    [cvmath.id]: { mode: 1, gain_a: 1, gain_b: 1, gain_c: 1, offset: 0 },  // mult: env × vel
+    [out.id]:    { level: 0.8 },
+  };
+
+  const patch: Patch = {
+    id: uid('patch'), name: 'CV-bridge patch',
+    description: 'Twee envelopes (filter + amp), velocity via CvMath(mult) op de VCA. Test voor de CV-bridge (v0.4.x).',
+    voiceCount: 1,
+    rackIds: [rack.id],
+    connections,
+    controlState,
+    envelopes: [], lfos: [],
+  };
+
+  return {
+    ...p,
+    racks:        [...p.racks, rack],
+    modules:      [...p.modules, mi, vco, vcf, vca, envAmp, envFlt, cvmath, out],
     patches:      [...p.patches, patch],
     activeRackId:  rack.id,
     activePatchId: patch.id,
