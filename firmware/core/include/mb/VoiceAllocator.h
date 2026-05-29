@@ -41,11 +41,26 @@ namespace mb {
 /** @brief Maximum number of simultaneous voices the allocator can manage. */
 inline constexpr uint8_t kMaxAllocVoices = 16;
 
-/** @brief Per-voice runtime state maintained by the allocator. */
+/** @brief Policy for choosing which voice to reuse/steal when no fully-idle
+ *         voice is available (see ADR 0011 §3). */
+enum class StealStrategy : uint8_t {
+    Oldest  = 0,  ///< Longest-sounding voice (lowest age). Default; legacy behaviour.
+    Lowest  = 1,  ///< Lowest MIDI note — keeps the bass, steals melody.
+    Highest = 2,  ///< Highest MIDI note — keeps a lead, steals lower notes.
+};
+
+/** @brief Per-voice runtime state maintained by the allocator.
+ *
+ *  Three-state lifecycle (ADR 0011 §1):
+ *  - **idle**: `!held && !releasing` — gate low, envelope finished/never played.
+ *  - **held**: `held` — gate high, note sounding.
+ *  - **releasing**: `!held && releasing` — gate low, envelope still ringing.
+ */
 struct VoiceState {
-    bool     held = false;  ///< Gate is currently high (note sounding).
-    uint8_t  note = 0;      ///< MIDI note number (0–127); only meaningful while `held`.
-    uint32_t age  = 0;      ///< Monotonically increasing timestamp; higher = more recently allocated/released.
+    bool     held      = false;  ///< Gate is currently high (note sounding).
+    bool     releasing = false;  ///< Gate low but envelope not yet reported done.
+    uint8_t  note      = 0;      ///< MIDI note number (0–127); meaningful while `held` or `releasing`.
+    uint32_t age       = 0;      ///< Monotonically increasing timestamp; higher = more recently allocated/released.
 };
 
 /** @brief Return value from `VoiceAllocator::noteOn()`. */
@@ -77,6 +92,18 @@ public:
     /** @brief Release all voices simultaneously (MIDI All Notes Off / patch reload). */
     void        allOff();
 
+    /** @brief Mark a voice's envelope release as complete (ADR 0011 §2).
+     *  Transitions a `releasing` voice to fully `idle` so it becomes the
+     *  preferred choice for the next note. No-op if the voice is `held` or
+     *  already idle. The runtime calls this when the voice's amp envelope
+     *  reaches `Phase::Zero` (or drops below an inaudible level). */
+    void        markReleaseComplete(uint8_t i);
+
+    /** @brief Select the voice-stealing policy (default `Oldest`). */
+    void          setStealStrategy(StealStrategy s) { steal_ = s; }
+    /** @brief Currently configured steal policy. */
+    StealStrategy stealStrategy() const { return steal_; }
+
     /** @brief Currently configured polyphony count. */
     uint8_t            voiceCount() const { return voiceCount_; }
 
@@ -84,9 +111,15 @@ public:
     const VoiceState&  state(uint8_t i)  const { return voices_[i]; }
 
 private:
+    /** @brief Pick the best voice among slots for which @p eligible is true,
+     *  applying the current steal strategy (Oldest/Lowest/Highest note).
+     *  @return chosen index, or -1 if no slot is eligible. */
+    int pickByStrategy(bool (*eligible)(const VoiceState&)) const;
+
     std::array<VoiceState, kMaxAllocVoices> voices_{};  ///< Voice state table, indexed 0…kMaxAllocVoices−1.
-    uint8_t  voiceCount_ = 0;  ///< Active polyphony count (≤ kMaxAllocVoices).
-    uint32_t tick_       = 0;  ///< Monotonic counter incremented on every alloc/release; drives `age` comparison.
+    uint8_t       voiceCount_ = 0;  ///< Active polyphony count (≤ kMaxAllocVoices).
+    uint32_t      tick_       = 0;  ///< Monotonic counter incremented on every alloc/release; drives `age` comparison.
+    StealStrategy steal_      = StealStrategy::Oldest;  ///< Voice-stealing policy.
 };
 
 }  // namespace mb

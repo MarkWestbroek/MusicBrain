@@ -12,6 +12,7 @@ import { setProject, useModularProject, getProject } from './store';
 import {
   type PatchPresetData,
   type ModulePresetData,
+  type PatchSetPresetData,
   loadLibrary,
   savePatchPreset,
   deletePatchPreset,
@@ -20,6 +21,10 @@ import {
   deleteModulePreset,
   renameModulePreset,
   applyModulePreset,
+  savePatchSetPreset,
+  deletePatchSetPreset,
+  renamePatchSetPreset,
+  addPatchSetToProject,
   exportLibraryJson,
   importLibraryJson,
   factoryPatchPresets,
@@ -32,7 +37,7 @@ interface PresetsModalProps {
 
 export function PresetsModal({ onClose }: PresetsModalProps): JSX.Element {
   const project = useModularProject();
-  const [tab, setTab]   = useState<'patches' | 'modules'>('patches');
+  const [tab, setTab]   = useState<'project' | 'patches' | 'modules'>('project');
   const [, setBump]     = useState(0);
   const refresh = (): void => setBump((n) => n + 1);
 
@@ -116,7 +121,7 @@ export function PresetsModal({ onClose }: PresetsModalProps): JSX.Element {
 
         {/* ── Tabs ── */}
         <div style={{ display: 'flex', gap: 4, padding: '8px 16px 0', borderBottom: '1px solid #334155' }}>
-          {(['patches', 'modules'] as const).map((t) => (
+          {(['project', 'patches', 'modules'] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -131,15 +136,17 @@ export function PresetsModal({ onClose }: PresetsModalProps): JSX.Element {
                 cursor: 'pointer', fontSize: 13,
               }}
             >
-              {t === 'patches' ? 'Patch presets' : 'Module presets'}
+              {t === 'project' ? 'Project presets' : t === 'patches' ? 'Patch presets' : 'Module presets'}
             </button>
           ))}
         </div>
 
         {/* ── Body ── */}
         <div style={{ flex: 1, overflow: 'auto', padding: 16 }}>
-          {tab === 'patches'
+          {tab === 'project'
             ? <PatchPresetsTab project={project} userPresets={lib.patches} onChange={refresh} onClose={onClose} />
+            : tab === 'patches'
+            ? <PatchSetPresetsTab userPresets={lib.patchSets} onChange={refresh} onClose={onClose} />
             : <ModulePresetsTab userPresets={lib.modules} onChange={refresh} />}
         </div>
       </div>
@@ -199,8 +206,10 @@ function PatchPresetsTab({ project, userPresets, onChange, onClose }: PatchTabPr
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <p style={{ margin: 0, color: '#94a3b8' }}>
-        Een <em>patch-preset</em> bewaart het complete project (alle modules, racks, patches, kabels en knopstanden).
-        Laden vervangt het huidige project.
+        Een <em>project-preset</em> bewaart het <strong>complete project</strong>: alle
+        modules, racks, patches, kabels en knopstanden. Laden vervangt het huidige
+        project volledig. Wil je alleen losse patches bewaren, gebruik dan de tab
+        “Patch presets”.
       </p>
 
       {/* Save current */}
@@ -253,6 +262,123 @@ function PatchPresetsTab({ project, userPresets, onChange, onClose }: PatchTabPr
                   </div>
                 </div>
                 <button style={btn} onClick={() => loadUser(p)}>↻ Laden</button>
+                <button style={btn} onClick={() => onRename(p)}>✎</button>
+                <button style={{ ...btn, color: '#fca5a5' }} onClick={() => onDelete(p)}>×</button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Patch-set presets tab (losse patches)
+// ═══════════════════════════════════════════════════════════════════════
+
+interface PatchSetTabProps {
+  userPresets: PatchSetPresetData[];
+  onChange: () => void;
+  onClose: () => void;
+}
+
+function PatchSetPresetsTab({ userPresets, onChange, onClose }: PatchSetTabProps): JSX.Element {
+  const project = useModularProject();
+  const [name, setName] = useState('');
+  const [selected, setSelected] = useState<Record<string, boolean>>({});
+
+  const selectedIds = project.patches.filter((p) => selected[p.id]).map((p) => p.id);
+
+  function toggle(id: string): void {
+    setSelected((s) => ({ ...s, [id]: !s[id] }));
+  }
+
+  function onSave(): void {
+    const n = name.trim();
+    if (!n) { alert('Geef de preset een naam.'); return; }
+    const chosen = project.patches.filter((p) => selected[p.id]);
+    if (chosen.length === 0) { alert('Selecteer minstens één patch.'); return; }
+    savePatchSetPreset(n, chosen);
+    setName('');
+    setSelected({});
+    onChange();
+  }
+
+  function onLoad(p: PatchSetPresetData): void {
+    if (!confirm(`${p.patches.length} patch(es) uit "${p.name}" toevoegen aan het huidige project?`)) return;
+    setProject(addPatchSetToProject(getProject(), p));
+    onClose();
+  }
+
+  function onDelete(p: PatchSetPresetData): void {
+    if (!confirm(`Preset "${p.name}" verwijderen?`)) return;
+    deletePatchSetPreset(p.id);
+    onChange();
+  }
+
+  function onRename(p: PatchSetPresetData): void {
+    const next = prompt('Nieuwe naam:', p.name);
+    if (next === null) return;
+    renamePatchSetPreset(p.id, next);
+    onChange();
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <p style={{ margin: 0, color: '#94a3b8' }}>
+        Een <em>patch-preset</em> bewaart alleen de geselecteerde patches (kabels,
+        knopstanden, envelopes en LFO&apos;s) — <strong>niet</strong> de modules of racks.
+        Laden vóégt de patches toe aan het huidige project (de modules moeten dus al bestaan).
+      </p>
+
+      {/* Selecteer + opslaan */}
+      <div style={section}>
+        <div style={sectionTitle}>Patches selecteren en opslaan</div>
+        {project.patches.length === 0 ? (
+          <div style={{ color: '#64748b', fontStyle: 'italic' }}>Dit project heeft nog geen patches.</div>
+        ) : (
+          <ul style={list}>
+            {project.patches.map((p) => (
+              <li key={p.id} style={listItem}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={!!selected[p.id]} onChange={() => toggle(p.id)} />
+                  <span style={{ fontWeight: 600 }}>{p.name}</span>
+                  <span style={meta}>
+                    {p.connections.length} kabels{p.programNumber != null ? ` · prog ${p.programNumber}` : ''}
+                  </span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          <input
+            type="text" placeholder="Preset-naam…"
+            value={name} onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') onSave(); }}
+            style={input}
+          />
+          <button style={btnPrimary} onClick={onSave}>💾 {selectedIds.length || ''} opslaan</button>
+        </div>
+      </div>
+
+      {/* Eigen patch-presets */}
+      <div style={section}>
+        <div style={sectionTitle}>Eigen patch-presets ({userPresets.length})</div>
+        {userPresets.length === 0 ? (
+          <div style={{ color: '#64748b', fontStyle: 'italic' }}>Nog geen patch-presets opgeslagen.</div>
+        ) : (
+          <ul style={list}>
+            {[...userPresets].sort((a, b) => b.createdAt - a.createdAt).map((p) => (
+              <li key={p.id} style={listItem}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600 }}>{p.name}</div>
+                  <div style={meta}>
+                    {p.patches.length} patch(es) · {new Date(p.createdAt).toLocaleString()}
+                  </div>
+                </div>
+                <button style={btn} onClick={() => onLoad(p)}>＋ Toevoegen</button>
                 <button style={btn} onClick={() => onRename(p)}>✎</button>
                 <button style={{ ...btn, color: '#fca5a5' }} onClick={() => onDelete(p)}>×</button>
               </li>

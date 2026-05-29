@@ -63,11 +63,16 @@ public:
     void setControl(std::string_view controlId, ControlValue value) override;
 
     /** @brief Declare the kind of each named output port.
-     *  `pitch` → Cv (V/Oct), `gate` → Gate (0.0 / 1.0). */
+     *  `pitch` → Cv (V/Oct), `gate` → Gate (0.0 / 1.0), `vel` → Cv.
+     *  Voice-indexed variants `pitchK`/`gateK`/`velK` (K = 1…voiceCount,
+     *  1-based) report the same kinds for per-voice routing (ADR 0011 §4). */
     PortKind outputPortKind(std::string_view portId) const override {
         if (portId == "pitch") return PortKind::Cv;
         if (portId == "gate")  return PortKind::Gate;
         if (portId == "vel")   return PortKind::Cv;
+        if (parseVoicePort(portId, "pitch") >= 0) return PortKind::Cv;
+        if (parseVoicePort(portId, "vel")   >= 0) return PortKind::Cv;
+        if (parseVoicePort(portId, "gate")  >= 0) return PortKind::Gate;
         return PortKind::None;
     }
 
@@ -127,6 +132,24 @@ public:
 private:
     // Returns true if the event should be ignored (channel doesn't match).
     bool filteredOut(std::uint8_t channel) const;
+
+    /** @brief Parse a voice-indexed port id of the form `<base><K>` (K ≥ 1).
+     *  @return 0-based voice index (K−1) on a match, or −1 if @p portId is not
+     *          exactly @p base followed by a positive 1-based integer.
+     *  Example: `parseVoicePort("pitch2", "pitch") == 1`. */
+    static int parseVoicePort(std::string_view portId, std::string_view base) {
+        if (portId.size() <= base.size())            return -1;
+        if (portId.substr(0, base.size()) != base)   return -1;
+        const std::string_view digits = portId.substr(base.size());
+        std::uint32_t k = 0;
+        for (char c : digits) {
+            if (c < '0' || c > '9') return -1;
+            k = k * 10 + static_cast<std::uint32_t>(c - '0');
+            if (k > kMaxAllocVoices) return -1;  // guard against overflow.
+        }
+        if (k == 0) return -1;  // 1-based: "pitch0" is not valid.
+        return static_cast<int>(k - 1);
+    }
 
     VoiceAllocator             alloc_{};
     std::uint8_t               channelFilter_ = kOmni;

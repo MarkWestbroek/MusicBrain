@@ -126,9 +126,30 @@ float MidiInModule::readCvPort(std::string_view portId) const {
     }
     if (portId == "vel") {
         // Velocity of the first currently-gated voice, normalised to 0..1.
+        // When no voice is gated we LATCH the last value (voice 0) instead
+        // of dropping to 0 — exactly like `pitch` keeps its note. This is
+        // essential for a velocity-scaled VCA (CvMath mult: env × vel): if
+        // vel collapsed to 0 at note-off, `env × 0` would zero the VCA
+        // instantly, cutting the release tail (no release) and producing a
+        // hard step (click). Latching lets the envelope's own release ramp
+        // bring the level down smoothly. Mirrors the documented contract of
+        // voiceVelocity().
         for (std::uint8_t v = 0; v < n; ++v)
             if (gate_[v]) return static_cast<float>(velocity_[v]) * (1.0f / 127.0f);
-        return 0.0f;
+        return static_cast<float>(velocity_[0]) * (1.0f / 127.0f);
+    }
+    // Voice-indexed ports (ADR 0011 §4): `pitchK`/`gateK`/`velK`, K = 1-based
+    // voice index. These expose a single voice directly so the editor can wire
+    // two (or more) independent voice chains by hand, ahead of the voice-stamp
+    // expansion in ADR 0010. Out-of-range indices fall through to 0.0f.
+    if (int vi = parseVoicePort(portId, "pitch"); vi >= 0) {
+        return (vi < n) ? voicePitchV(static_cast<std::uint8_t>(vi)) : 0.0f;
+    }
+    if (int vi = parseVoicePort(portId, "gate"); vi >= 0) {
+        return (vi < n && gate_[vi]) ? 1.0f : 0.0f;
+    }
+    if (int vi = parseVoicePort(portId, "vel"); vi >= 0) {
+        return (vi < n) ? voiceVelocity(static_cast<std::uint8_t>(vi)) : 0.0f;
     }
     return 0.0f;
 }

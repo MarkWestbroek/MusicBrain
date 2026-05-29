@@ -40,7 +40,9 @@
 #include <cstring>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <unordered_map>
+#include <vector>
 
 #include "mb/runtime/Module.h"
 #include "mb/runtime/Registry.h"
@@ -74,7 +76,22 @@ public:
      * @return LoadResult  Counts of requested / created / unknown modules.
      */
     LoadResult applyConfig(JsonObjectConst project) {
-        instances_.clear();
+        // ── Teensy AudioStream lifetime hazard ────────────────────────────
+        // Every audio module composes one or more `AudioStream` objects. The
+        // Teensy core's `AudioStream` ctor links itself into a *global*
+        // `first_update` list but the class declares **no destructor that
+        // unlinks** it. Destroying a live audio module therefore leaves a
+        // dangling pointer that the audio ISR walks every 128 samples → hard
+        // fault (`DACCVIOL`, garbage address). The old `instances_.clear()`
+        // here did exactly that on every re-push → the "device has been lost"
+        // crashes.
+        //
+        // Fix: **reconcile** instead of clear+recreate. Reuse every instance
+        // whose `id`+`typeId` is unchanged (no AudioStream churn), create only
+        // genuinely new modules, and *retire* (keep alive forever, never free)
+        // modules that vanished from the new config. Retired modules are
+        // disconnected by the next graph rebuild, so they stay silent and cost
+        // only a tiny idle update; a power-cycle clears the pool.
         projectDoc_.clear();
         projectDoc_["project"] = project;     // deep copy
         activePatchId_.clear();
@@ -83,23 +100,39 @@ public:
 
         LoadResult r;
         auto& reg = mb::runtime::Registry::global();
+        std::unordered_map<std::string, std::unique_ptr<mb::runtime::Module>> next;
         JsonArrayConst mods = project["modules"].as<JsonArrayConst>();
         for (JsonObjectConst m : mods) {
             ++r.requested;
             const char* id     = m["id"]     | "";
             const char* typeId = m["typeId"] | "";
             if (!*id || !*typeId) { ++r.unknown; continue; }
-            if (!reg.has(typeId)) {
-                ++r.unknown;
+            // Reuse an unchanged instance — keeps its AudioStream out of the
+            // destroy path. Control state is re-applied on patch activation.
+            auto it = instances_.find(std::string{id});
+            if (it != instances_.end() && it->second &&
+                it->second->typeId() == std::string_view{typeId}) {
+                next.emplace(it->first, std::move(it->second));
+                instances_.erase(it);
+                ++r.created;
                 continue;
             }
+            if (!reg.has(typeId)) { ++r.unknown; continue; }
             auto inst = reg.create(typeId, id);
             if (!inst) { ++r.unknown; continue; }
-            instances_.emplace(std::string{id}, std::move(inst));
+            next.emplace(std::string{id}, std::move(inst));
             ++r.created;
         }
-        TeensyLink::logf("runtime: created=%d unknown=%d total=%d active=%s",
+        // Whatever is still in instances_ disappeared from the new config and
+        // cannot be safely destroyed — retire it (kept alive, silent).
+        for (auto& kv : instances_) {
+            if (kv.second) retired_.push_back(std::move(kv.second));
+        }
+        instances_ = std::move(next);
+
+        TeensyLink::logf("runtime: created=%d unknown=%d total=%d retired=%d active=%s",
                          r.created, r.unknown, r.requested,
+                         static_cast<int>(retired_.size()),
                          activePatchId_.empty() ? "(none)" : activePatchId_.c_str());
         return r;
     }
@@ -219,6 +252,10 @@ public:
 private:
     JsonDocument projectDoc_;
     std::unordered_map<std::string, std::unique_ptr<mb::runtime::Module>> instances_;
+    /** Modules dropped by a re-config. Kept alive (never destroyed) because
+     *  their AudioStream members cannot be safely removed from the Teensy
+     *  audio update list while the engine runs. See applyConfig(). */
+    std::vector<std::unique_ptr<mb::runtime::Module>> retired_;
     std::string  activePatchId_;
 };
 

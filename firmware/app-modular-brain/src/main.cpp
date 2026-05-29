@@ -164,6 +164,12 @@ void onSelectPatch(const char* patchId) {
         if (!patch.isNull()) {
             audioGraph.build(patch, runtime.instances());
             cvGraph.build(patch, runtime.instances());
+            // Peak audio-block usage after (re)building. If this approaches the
+            // AudioMemory() budget the pool is too small for the patch.
+            mmb_link::TeensyLink::logf("audio blocks: peak=%u / budget=%u",
+                                       (unsigned)AudioMemoryUsageMax(),
+                                       (unsigned)120);
+            AudioMemoryUsageMaxReset();
         }
     }
 }
@@ -264,7 +270,22 @@ void setup() {
     Serial.println("[boot] MusicBrain Teensy step-3 (dynamic audio graph) online");
     Serial.printf("[boot] CPU @ %lu MHz\n", static_cast<unsigned long>(F_CPU_ACTUAL / 1000000));
 
-    AudioMemory(40);
+    // If the previous run hard-faulted (null deref, stack overflow, etc.) the
+    // Teensy reboots and re-enumerates over USB — which the editor sees as
+    // "device has been lost". CrashReport survives the reboot and tells us the
+    // fault address/type, so dump it once on boot for diagnosis. (No-op on a
+    // clean power-up.)
+    if (CrashReport) {
+        Serial.println("[boot] *** previous run crashed — CrashReport follows ***");
+        Serial.print(CrashReport);
+        Serial.println("[boot] *** end CrashReport ***");
+    }
+
+    // Audio block pool. 40 was too tight once the dynamic patch adds a second
+    // voice chain (2× VCO/VCF/VCA + envelopes + mixer): exhausting the pool
+    // starves the audio ISR and can hard-fault → USB drop. Teensy 4.1 has
+    // ample RAM, so budget generously and report the high-water mark.
+    AudioMemory(120);
 
     // Static 4-voice graph (B-step 2)
     for (uint8_t i = 0; i < kVoices; ++i) {

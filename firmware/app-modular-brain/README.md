@@ -25,6 +25,117 @@ To be implemented in roadmap stages 5–7.
 
 ## DEVLOG
 
+### 2026-05-30 — Crash-fix: AudioStream-lifetime bij re-config (fw 0.5.3)
+
+**Symptoom.** Na het pushen/her-pushen van een config verloor de Teensy de
+USB-verbinding ("device has been lost") en herstartte. De `CrashReport` (nieuw in
+0.5.2) wees het exact aan:
+
+```
+(DACCVIOL) Data Access Violation
+(MMARVALID) Accessed Address: 0x2D1820   ← buiten elk geldig RAM-gebied
+```
+
+**Echte oorzaak (niet audiogeheugen).** `peak=14–19 / 120` blokken — ruim
+voldoende, dus de 0.5.2-hypothese (te kleine `AudioMemory`) was fout. De crash
+is een **dangling pointer**: elke audio-module bevat `AudioStream`-objecten, en
+de Teensy-core linkt elke `AudioStream` in zijn ctor in een *globale*
+`first_update`-lijst — maar de class heeft **geen destructor die zich er weer
+uithaalt**. `ProjectRuntime::applyConfig()` deed bij elke push
+`instances_.clear()`, wat die modules vernietigde terwijl ze nog in de globale
+lijst stonden → de audio-ISR liep elke 128 samples door een vrijgegeven pointer
+→ hard fault op een garbage-adres. De eerste push na boot werkte; de tweede
+crashte.
+
+**Fix — reconcile i.p.v. clear+recreate.** `applyConfig()` hergebruikt nu elke
+instance met ongewijzigd `id`+`typeId` (geen AudioStream-churn), maakt alleen
+écht nieuwe modules aan, en **retireert** verdwenen modules (in een `retired_`
+vector, nooit vrijgegeven → blijven uit het destroy-pad). De volgende
+graph-rebuild koppelt ze los, dus ze blijven stil; een power-cycle ruimt de pool
+op. Geen `AudioStream` wordt ooit nog vernietigd terwijl de engine draait.
+
+```
+FLASH: code 142 528 B, data 19 900 B   free for files 7 955 460 B
+RAM1:  free local 286 400 B
+RAM2:  variables 49 376 B   free malloc 474 912 B
+[SUCCESS] — flash met pio run -d firmware/app-modular-brain -t upload (COM4)
+```
+
+**Editor — log-export.** De TeensyLink-modal heeft nu **📋 Kopieer alles** (hele
+log naar klembord) en **💾 Bewaar** (download als `teensy-log-<timestamp>.txt`)
+naast Clear. Handig om CrashReports te delen.
+
+> `runtime:`-logregel toont nu ook `retired=N`.
+
+### 2026-05-29 — Voice-lifecycle, steal-strategy & tweestemmige MVP (fw 0.5.2)
+
+Aanloop naar echte polyfonie. Zie **ADR 0011** (`doc/adr/0011-voice-lifecycle-and-two-voice-mvp.md`)
+voor de ontwerpkeuzes; ADR 0010 blijft het einddoel (voice-stamps).
+
+**`VoiceAllocator` — drie-staten lifecycle.** Een stem heeft nu `idle` /
+`held` / `releasing` i.p.v. enkel vrij/held. `noteOff()` zet de stem op
+`releasing` (gate laag, envelope rinkelt nog na). Allocatie-volgorde bij
+note-on: (1) een volledig `idle` stem (oudste, age 0 = nooit gebruikt wint —
+geen staart om af te kappen, alleen klik-minimalisatie); (2) anders een
+`releasing` stem hergebruiken volgens de steal-strategie; (3) anders een `held`
+stem stelen. Mono blijft veilig: `releasing` stemmen zijn nog steeds
+toewijsbaar, dus geen deadlock ook als niemand "release klaar" meldt.
+
+**"Wanneer is de release echt klaar?" (de threshold-vraag).** Antwoord in ADR
+0011 §2: gebruik bij voorkeur het **autoritatieve fase-signaal** — de AHDSR
+bereikt `Phase::Zero` als de release-ramp 0 raakt; de runtime roept dan
+`markReleaseComplete(voiceIdx)` aan en de stem wordt `idle` (eerste keus voor
+de volgende noot). Een vaste dB-drempel is broos over curves/sustains heen; als
+fallback geldt `amplitude < ~0.001` (≈ −60 dBFS) gedurende ≥1 control-tick. De
+feedback-bedrading vergt een stem→envelope-mapping (komt met de per-voice graph)
+en is een **verbetering**, geen correctheidsvereiste — de veilige default werkt
+nu al.
+
+**Selecteerbare steal-strategie.** Nieuwe `enum class StealStrategy { Oldest,
+Lowest, Highest }` op `VoiceAllocator` (`setStealStrategy()`); default `Oldest`
+(= huidig gedrag, alle bestaande tests blijven groen). `Lowest`/`Highest`
+behouden bas resp. lead. "Quietest" vergt amplitude-feedback → uitgesteld.
+
+**Tweestemmige MVP — poly-group-expansie bij push (optie B).** `MidiInModule`
+houdt de mono-poorten `pitch`/`gate`/`vel` (eerste gated voice, gelatcht) en
+krijgt **1-gebaseerde voice-geïndexeerde** poorten `pitchK`/`gateK`/`velK` (K =
+1…voiceCount). Die per-voice-poorten zijn nu het **expansie-doel**, niet iets dat
+de gebruiker met de hand bedraadt: in de editor blijft het model éénstemmig (één
+voice-keten + rack-`PolyGroup`s ×N) en `flattenProjectForFirmware()`
+(`editor/src/modular-mb/polyExpand.ts`) expandeert vlak vóór de config-push naar
+de platte per-stem-graaf. Regels: global→group met `eventKind:'voice'`-bron →
+fan-out `pitch{v+1}`; group→group → stem v→v; group→genummerde sink (`in1`) →
+`in{1+v}`. Editor: `seedTwoVoicePatch()` + knop **✨ Tweestemmig** seedt één
+master-keten [VCO → envFlt → VCF → envAmp → CvMath(vel×env) → VCA] + follower +
+zes PolyGroups (×2) → MIXER → OUT, met `Patch.voiceCount = 2`. De brain blijft
+"dom" en ziet enkel de platte connectie-lijst (ADR 0009/0010).
+
+**Crash-diagnostiek — `CrashReport` + `AudioMemory`.** Eerste poging tegen de
+"device has been lost"-crash: `if (CrashReport) Serial.print(CrashReport)` bij
+boot (dumpt de laatste fout-oorzaak; overleeft de reboot — dé sleutel-diagnose),
+`AudioMemory(40)` → **120** als marge, en `AudioMemoryUsageMax()` na elke
+graph-build gelogd. *De CrashReport wees later uit dat audiogeheugen niet de
+oorzaak was* (peak 14–19/120) — de echte fix volgde in 0.5.3 (AudioStream-
+lifetime, zie boven).
+
+**Tests.** `core/tests`: nieuwe allocator-tests (idle-vóór-releasing,
+`markReleaseComplete`, Lowest/Highest steal) + MidiIn voice-poort-tests
+(routing, port-kinds, grenzen). Alle 82 core-tests groen. Editor `tsc --noEmit`
+schoon (incl. nieuwe `polyExpand.ts`).
+
+```
+FLASH: code 141 632 B, data 19 900 B   free for files 7 956 484 B
+RAM1:  free local 286 432 B
+RAM2:  variables 49 376 B   free malloc 474 912 B   (AudioMemory(120))
+[SUCCESS] — built; flash vereist losgekoppelde editor-seriële of PROGRAM-knop
+```
+
+> Let op: bevat ook nog de niet-geflashte 2 ms DC-slew klik-fix uit de vorige
+> batch. Flash met `pio run -d firmware/app-modular-brain -t upload` (COM4)
+> nadat de seriële verbinding in de editor is losgekoppeld. Kijk bij de eerste
+> boot naar een eventuele `*** previous run crashed — CrashReport follows ***`
+> in de seriële log.
+
 ### 2026-05-28 — B-phase step 0 + step 1 (toolchain + 1 audible voice)
 
 **Step 0 — toolchain & USB pipeline.**
@@ -129,6 +240,44 @@ RAM1:  free local 322 304 B
 RAM2:  free malloc 495 712 B
 [SUCCESS]
 ```
+
+### 2026-06 — AHDSR release/click fix (velocity latch) + editor patch tooling (fw 0.5.1)
+
+**AHDSR "geen release, klik bij start/stop" bug.** Symptoom: de envelope gaf
+geen hoorbare release en er was een klik bij zowel note-on als note-off. De
+oorzaak zat **niet** in `Ahdsr` (state-machine + `computeValue()` ramps bleken
+correct) maar in de seed-patch + `MidiInModule::readCvPort("vel")`. De
+CV-bridge-testpatch stuurt de VCA via `CvMath` in **mult-mode**: `VCA.cv =
+AHDSR.cv_out × velocity`. `readCvPort("vel")` gaf echter `0.0` zodra er geen
+voice meer gated was. Op note-off zakte `vel` dus direct naar 0 → `env × 0 = 0`
+→ de release-staart werd hard afgekapt (geen release) plus een harde stap (klik);
+spiegelbeeldig bij note-on (vel sprong 0 → v). **Fix:** `readCvPort("vel")` latcht
+nu de laatste velocity — het geeft de velocity van de eerste gated voice terug,
+en anders `velocity_[0] / 127`. `velocity_` blijft bewaard bij `onNoteOff` /
+`allNotesOff`, conform de bestaande `voiceVelocity()`-documentatie. Build schoon.
+
+> Let op: dit zat in dezelfde fw-0.5.1-build die nog geflasht moet worden (COM4
+> was bezet). Flash met `pio run -d firmware/app-modular-brain -t upload` nadat
+> de seriële verbinding in de editor is losgekoppeld.
+
+**Editor — patch-beheer (geen firmware).**
+- **Patcher → "Bewaar als…":** dupliceert de actieve patch onder een nieuwe naam
+  (diepe kopie, vers id, programmanummer gewist) en maakt de kopie actief.
+- **Patches-tab → kopieer-knop (⧉):** kopieert een bestaande patch naar een
+  nieuwe naam.
+- **Patch-nummer (`Prog#`):** nieuw optioneel veld `Patch.programNumber` (0–127)
+  voor MIDI Program Change-selectie; in te voeren in de Patches-tab. (De
+  firmware-afhandeling van Program Change → patch-selectie is een vervolgstap.)
+- **Presets-modal opgesplitst:** de oude "Patch presets"-tab heet nu **"Project
+  presets"** (die bewaart écht het hele project) met gecorrigeerde uitleg. Een
+  nieuwe **"Patch presets"**-tab bewaart alleen geselecteerde losse patches
+  (kabels, knopstanden, envelopes, LFO's — geen modules/racks); laden vóégt ze
+  toe aan het huidige project. Export/Import (.json) neemt patch-sets mee.
+- **Rack-tab — labels & zoom:** interne (brain-)modules tonen nu hun poortlabels
+  in het rack (`ModuleType.internal` wordt nu in `assemble()` ingevuld). Rack
+  heeft eigen +/−/reset-zoom (0.4–3×) los van de browserzoom, via een effectieve
+  `PX = PX_PER_MM × zoom` die door `RackGrid` loopt zodat drop/klik→HP-rekenwerk
+  consistent blijft.
 
 ### 2026-06 — MIDI feedback fix, pure CV/audio split, LFO rate-CV/inv, stereo mixer (fw 0.5.1)
 

@@ -15,7 +15,7 @@
 import {
   type ModularProject, type ModuleType, type ModuleInstance, type RackSlot,
   type Rack, type Patch, type PatchConnection, type ControlValue,
-  type ModuleRole, type CellGroup,
+  type ModuleRole, type CellGroup, type PolyGroup,
   MM_PER_HP, PANEL_HEIGHT_MM,
 } from './types';
 import { uid } from './store';
@@ -151,6 +151,7 @@ function assemble(spec: {
     variant: spec.variant,
     ports, controls,
     notes: spec.notes,
+    ...(spec.internal ? { internal: true } : {}),
     ...(spec.simulatedBy ? { simulatedBy: spec.simulatedBy } : {}),
     ...(spec.simulationControlMap ? { simulationControlMap: spec.simulationControlMap } : {}),
     ...(spec.role ? { role: spec.role } : {}),
@@ -1382,6 +1383,157 @@ export function seedCvBridgePatch(project: ModularProject): ModularProject {
     ...p,
     racks:        [...p.racks, rack],
     modules:      [...p.modules, mi, vco, vcf, vca, envAmp, envFlt, cvmath, out],
+    patches:      [...p.patches, patch],
+    activeRackId:  rack.id,
+    activePatchId: patch.id,
+  };
+}
+
+/**
+ * Seed een **tweestemmige** testpatch (ADR 0011 §4 — twee-voice MVP, optie B).
+ *
+ * Eén leesbare voice-keten (VCO → envFlt → VCF → envAmp → CvMath(vel×env) → VCA)
+ * wordt als **master** (stem 1) bedraad; een identieke follower-keten (stem 2)
+ * bestaat als echte modules maar krijgt géén eigen kabels. Elke gevoiceerde
+ * moduletype zit in een rack-`PolyGroup` (×2). De editor toont dus één set
+ * kabels van de mono MidiIn-poorten (`pitch`/`gate`/`vel`, `eventKind:'voice'`)
+ * naar de masters; bij het pushen expandeert {@link flattenProjectForFirmware}
+ * deze tot de echte per-stem-graaf (pitch1→VCO1, pitch2→VCO2, …, VCA's → mixer
+ * `in1`/`in2`). `Patch.voiceCount = 2` zodat de allocator twee stemmen uitdeelt.
+ *
+ * Zo blijft het editor-model schoon (één voice-keten + PolyGroups) en blijft de
+ * brain "dom": die ziet enkel de platte connectie-lijst (ADR 0009/0010).
+ */
+export function seedTwoVoicePatch(project: ModularProject): ModularProject {
+  const needed = ['tp_mmb_vco','tp_mmb_vcf','tp_mmb_vca','tp_mmb_out',
+                  'tp_mmb_ahdsr','tp_mmb_midiin','tp_mmb_cvmath','tp_mmb_mixer'];
+  const missing = needed.some((tid) => !project.moduleTypes.some((t) => t.id === tid));
+  let p = missing ? seedInternals(project) : project;
+
+  function fresh(typeId: string): ModuleInstance {
+    const proto = p.modules.find((m) => m.typeId === typeId)!;
+    return { ...proto, id: uid('mod'), internal: false, visual: proto.visual };
+  }
+
+  const mi    = fresh('tp_mmb_midiin');
+  const mixer = fresh('tp_mmb_mixer');
+  const out   = fresh('tp_mmb_out');
+
+  // Per-voice ketens. index 0 → master (stem 1), index 1 → follower (stem 2).
+  type VoiceChain = {
+    vco: ModuleInstance; vcf: ModuleInstance; vca: ModuleInstance;
+    envAmp: ModuleInstance; envFlt: ModuleInstance; cvmath: ModuleInstance;
+  };
+  const voices: VoiceChain[] = [0, 1].map(() => ({
+    vco:    fresh('tp_mmb_vco'),
+    vcf:    fresh('tp_mmb_vcf'),
+    vca:    fresh('tp_mmb_vca'),
+    envAmp: fresh('tp_mmb_ahdsr'),
+    envFlt: fresh('tp_mmb_ahdsr'),
+    cvmath: fresh('tp_mmb_cvmath'),
+  }));
+  const master = voices[0]!;
+
+  // Layout: MidiIn vooraan, dan stem 1, stem 2, mixer, OUT — links→rechts.
+  let offset = 0;
+  const place = (m: ModuleInstance): RackSlot => {
+    const s: RackSlot = { id: uid('slot'), moduleId: m.id, row: 0, hpOffset: offset };
+    offset += m.visual.hpWidth;
+    return s;
+  };
+  const slotOrder: ModuleInstance[] = [mi];
+  for (const v of voices) {
+    slotOrder.push(v.vco, v.envFlt, v.vcf, v.envAmp, v.cvmath, v.vca);
+  }
+  slotOrder.push(mixer, out);
+  const rackHp = slotOrder.reduce((s, m) => s + m.visual.hpWidth, 0);
+
+  // PolyGroups: één per gevoiceerde moduletype. members[0] = master (stem 1),
+  // members[1] = follower (stem 2). De flatten gebruikt deze volgorde.
+  const grp = (label: string, key: keyof VoiceChain): PolyGroup => ({
+    id: uid('poly'), label, voiceCount: 2,
+    members: voices.map((v) => ({ kind: 'module' as const, moduleId: v[key].id })),
+  });
+  const polyGroups: PolyGroup[] = [
+    grp('VCO',  'vco'),
+    grp('envFlt', 'envFlt'),
+    grp('VCF',  'vcf'),
+    grp('envAmp', 'envAmp'),
+    grp('CvMath', 'cvmath'),
+    grp('VCA',  'vca'),
+  ];
+
+  const rack: Rack = {
+    id: uid('rack'), name: 'Tweestemmig test rack',
+    description: 'MidiIn → [VCO → envFlt → VCF → envAmp → CvMath(vel×env) → VCA] ×2 (PolyGroups) → MIXER → OUT.',
+    rows: 1, hpPerRow: Math.max(64, rackHp + 4),
+    slots: slotOrder.map(place),
+    kind: 'physical',
+    polyGroups,
+  };
+
+  const c = (from: { m: ModuleInstance; port: string }, to: { m: ModuleInstance; port: string }): PatchConnection => ({
+    id: uid('conn'),
+    from: { moduleId: from.m.id, portId: from.port },
+    to:   { moduleId: to.m.id,   portId: to.port },
+  });
+
+  // Slechts één set master-kabels — de flatten expandeert ze per stem.
+  //   MidiIn pitch/gate/vel zijn voice-event-poorten → fan-out per stem.
+  //   VCO→VCF, VCF→VCA, envFlt→VCF, envAmp→CvMath, CvMath→VCA zijn group→group
+  //   (stem v → stem v). VCA→mixer is group→genummerde sink (in1→in1/in2).
+  const connections: PatchConnection[] = [
+    // Audio: VCO → VCF → VCA → mixer (master = mixer-kanaal in1; stem 2 → in2)
+    c({ m: master.vco, port: 'out'    }, { m: master.vcf, port: 'in'    }),
+    c({ m: master.vcf, port: 'out'    }, { m: master.vca, port: 'in'    }),
+    c({ m: master.vca, port: 'out'    }, { m: mixer,      port: 'in1'   }),
+    // CV: mono MIDI-poorten (voice-event) → master; fan-out per stem
+    c({ m: mi,         port: 'pitch'  }, { m: master.vco,    port: 'voct' }),
+    c({ m: mi,         port: 'gate'   }, { m: master.envAmp, port: 'gate' }),
+    c({ m: mi,         port: 'gate'   }, { m: master.envFlt, port: 'gate' }),
+    // CV: filter-env → cutoff (group→group)
+    c({ m: master.envFlt, port: 'cv_out' }, { m: master.vcf,    port: 'cv' }),
+    // CV: amp-env × velocity → VCA
+    c({ m: master.envAmp, port: 'cv_out' }, { m: master.cvmath, port: 'a'  }),
+    c({ m: mi,            port: 'vel'    }, { m: master.cvmath, port: 'b'  }),
+    c({ m: master.cvmath, port: 'out'    }, { m: master.vca,    port: 'cv' }),
+    // Mixer → OUT (stereo, global→global)
+    c({ m: mixer, port: 'out_l' }, { m: out, port: 'l' }),
+    c({ m: mixer, port: 'out_r' }, { m: out, port: 'r' }),
+  ];
+
+  const controlState: Record<string, Record<string, ControlValue>> = {
+    [mi.id]:    { channel: 0, mode: 1, voiceCount: 2 },  // mode 1 = poly
+    [mixer.id]: { vol1: 0.8, pan1: 0, vol2: 0.8, pan2: 0, vol3: 0, vol4: 0 },
+    [out.id]:   { level: 0.8 },
+  };
+  voices.forEach((v) => {
+    controlState[v.vco.id]    = { wave: 2, coarse: 0, fine: 0, level: 0.9 };
+    controlState[v.vcf.id]    = { cutoff: 800, q: 0.8, cv_amt: 1, type: 0 };
+    controlState[v.vca.id]    = { gain: 0, resp: 0 };
+    controlState[v.envAmp.id] = { attack: 8, hold: 0, decay: 300, sustain: 0.7, release: 500, loop: false, curve: 1 };
+    controlState[v.envFlt.id] = { attack: 20, hold: 0, decay: 600, sustain: 0.3, release: 800, loop: false, curve: 1 };
+    controlState[v.cvmath.id] = { mode: 1, gain_a: 1, gain_b: 1, gain_c: 1, offset: 0 };
+  });
+
+  const allModules: ModuleInstance[] = [mi];
+  for (const v of voices) allModules.push(v.vco, v.vcf, v.vca, v.envAmp, v.envFlt, v.cvmath);
+  allModules.push(mixer, out);
+
+  const patch: Patch = {
+    id: uid('patch'), name: 'Tweestemmige patch',
+    description: 'Eén master voice-keten + PolyGroups (×2). De flatten expandeert naar twee stemmen via MidiIn pitch/gate/vel en VCA→mixer in1/in2 (ADR 0011 optie B).',
+    voiceCount: 2,
+    rackIds: [rack.id],
+    connections,
+    controlState,
+    envelopes: [], lfos: [],
+  };
+
+  return {
+    ...p,
+    racks:        [...p.racks, rack],
+    modules:      [...p.modules, ...allModules],
     patches:      [...p.patches, patch],
     activeRackId:  rack.id,
     activePatchId: patch.id,

@@ -2,7 +2,7 @@
 
 - **Datum**: 2026-05-17 14:32
 - **Sessie-ID**: `4db45503-0a7f-471a-850c-117803aee9d5`
-- **Berichten**: 346
+- **Berichten**: 372
 
 ---
 
@@ -10226,7 +10226,43 @@ Voor de USB-only Teensy-fase hebben we de BO-board routing helemaal niet nodig (
 {"type":"config","project":{...volledige ModularProject...}}   ← editor push
 {"type":"selectPatch","patchId":"..."}               ← editor klikt op patch
 {"type":"ack","ok":true,"applied":"config"}          ← Teensy bevestigt
-{"type":"log","msg":"[boot] 
+{"type":"log","msg":"[boot] ..."}                    ← Teensy debug
+```
+
+JSON i.p.v. CBOR omdat:
+- Web Serial spreekt natuurlijk strings; geen extra encoder/decoder in de browser.
+- `ArduinoJson` op de Teensy is robuust en past makkelijk in RAM2 (`malloc/new` heeft 495KB vrij).
+- Debugbaar: ik kan een log naar Serial loggen die je rechtstreeks in PuTTY leest.
+
+---
+
+## Gefaseerde implementatie
+
+1. **Connectie + heartbeat** (vandaag): Web Serial hook in editor + "Connect Teensy" knop. Teensy stuurt `{"type":"hello"}` bij boot; editor toont status. Geen synth-changes nog.
+2. **Config-push (skelet)**: editor stuurt complete `ModularProject` JSON; Teensy logt "config received: N modules, M connections" zonder iets aan te passen. Bewijst dat grote payloads passen.
+3. **Module-registry op Teensy**: 1 generieke `ModuleRegistry` die op `typeId` een C++-implementatie instantieert. Eerste implementatie: `MidiInModule` (bestaat al, hergebruiken). Editor stuurt config → Teensy bouwt MidiInModule met `voiceCount`/`channel` uit de control-state. Audio nog steeds direct via huidige 4-voice main.cpp.
+4. **VCO-wrap**: `VcoModule` wrapt `AudioSynthWaveform`. ModuleRegistry pakt waveform + pitch-mod uit controlState.
+5. **ADSR-wrap**: jouw `Ahdsr.cpp` bestaat al in core; nu een audio-graph-equivalent `AdsrModule` die per gate-edge tickt en een DC-envelope-stroom produceert.
+6. **VCA-wrap**: `AudioEffectMultiply`-wrapper als `VcaModule`.
+7. **Patcher → Audio graph**: parser leest `patch.connections` en bouwt `AudioConnection`s tussen de gewrapte modules. Voice 0..N-1 elk een eigen instantie.
+8. **AudioOut**: mixer naar `AudioOutputUSB`.
+9. **Program change**: USB-MIDI program-change → `selectPatch` intern, herbouwt de graph.
+
+Stappen 4–8 zijn iteratief: na elk dezelfde audible test (akkoord spelen, geluid komt eruit).
+
+**Buiten scope voor nu** (jouw lijstje bevestigt dit): VCF, Echo/Phaser, Noise, Mixer-module, Drum, Sequencer. Die komen na stap 8 als het skelet stabiel is.
+
+---
+
+## Akkoord op deze keuzes?
+
+Specifiek:
+1. **Nieuw JSON-protocol** (`mmb-config.v1`) i.p.v. `SynthPatchV1` uitbreiden — eens?
+2. **ArduinoJson dependency** toevoegen aan `platformio.ini` (`bblanchon/ArduinoJson@^7.0`) — eens?
+3. **Alle patches sturen** (niet alleen actieve) + `selectPatch` voor program-change — eens?
+4. **Stap 1 nu starten** (connectie + hello-handshake, nog geen module-wiring) — eens?
+
+Als ja op alle vier, begin ik meteen met stap 1 + 2 in deze sessie. Stappen 3+ in volgende sessies zodat we per fase kunnen luisteren of het nog klinkt.
 
 ---
 
@@ -10266,21 +10302,7 @@ Nu `main.cpp` aanpassen om de link te gebruiken:
 *Read platformio.ini, lines 15 to 25*
 
 
-
-
-*Read platformio.ini, lines 20 to 28*
-
-
-
-
-*Read platformio.ini, lines 15 to 25*
-
-
 Build groen, flashen: MIDI pipeline nog steeds groen. Nu editor-kant:                                                             
-
-*Starting: *Editor: useTeensyLink hook (Web Serial)* (3/6) · Created teensyLink.ts*
-
-
 
 *Starting: *Editor: useTeensyLink hook (Web Serial)* (3/6) · Created teensyLink.ts*
 
@@ -10290,10 +10312,6 @@ Nu een kleine modal-UI:
 
 Knop inhaken in `ModularMbApp`:  
 Beide builds groen. Docs:                                               
-
-*Read polyphony-rack-patcher-ui.md, lines 453 to 475*
-
-
 
 *Read polyphony-rack-patcher-ui.md, lines 453 to 475*
 
@@ -10311,8 +10329,6 @@ Klaar. Stappen 1 + 2 staan:
 **Editor** (`teensyLink.ts` + `TeensyLinkModal.tsx`)  
 - Web Serial singleton hook (`useSyncExternalStore` — verbinding overleeft re-renders en tab-switches).  
 - 🔌 Teensy-knop in de projectbar opent een modal met: status, Connect/Disconnect, **📤 Push config** (volledig `ModularProject`), **🎯 Select active patch**, live tx/rx log, ack-summary.
-
-**Probeer het:** open de editor in Chrome/Edge, klik 🔌 Teensy → Connect → kies "Teensy ), **🎯 Select active patch**, live tx/rx log, ack-summary.
 
 **Probeer het:** open de editor in Chrome/Edge, klik 🔌 Teensy → Connect → kies "Teensy MIDI/Audio" → je ziet `hello` en daarna kun je config pushen. De Teensy bevestigt met `ack` + telling. Audiograaf zelf wordt nog niet herbouwd — dat is B-step 3 (module-registry + wrappers).
 
@@ -10375,7 +10391,7 @@ ik krijg nu: fout: Failed to execute 'open' on 'SerialPort': The port is already
 *Read teensyLink.ts, lines 1 to 120 · Read teensyLink.ts, lines 120 to 200*
 
 De browser geeft soms een al-geopende port terug via `requestPort`. De fix: check of `port.readable` al bestaat vóór we `open()` aanroepen. 
-
+Klaar. De logica is nu: als `port.readable !== null` is de poort al open (bijv. na een hot-reload) en slaan we `open()` over — dan direct de writer pakken en de read-loop starten. De fout verdwijnt daarmee.
 
 ---
 
@@ -10397,20 +10413,6 @@ CV wordt rood en groen. Wel consequent, maar fout
 
 
 <details>
-<summary><em>Searched for text `CV|Gate|Trig|Audio|MIDI|signalColor|cable|wire.*color` (`**/editor/src/**/*.ts*`), 20 results</em> (+6 meer)</summary>
-
-- Searched for text `CV|Gate|Trig|Audio|MIDI|signalColor|cable|wire.*color` (`**/editor/src/**/*.ts*`), 20 results
-- Searched for text `sendConfig|runtime|modules.*map` (`**/editor/src/modular-mb/teensyLink.ts`), 3 results
-- Searched for text `signalType|SignalType|color.*cv|cv.*color|cable.*color|strokeColor` (`**/editor/src/modular-mb/**`), 20 results
-- Searched for text `visual|hpWi|brand|modelNumber|internal` (`**/editor/src/modular-mb/**`), 20 results
-- Searched for text `SIGNAL_COLOUR` (`**/editor/src/modular-mb/**`), 12 results
-- Read types.ts, lines 1 to 40
-- Read PatcherGraphPanel.tsx, lines 195 to 460
-</details>
-
-
-
-<details>
 <summary><em>Searched for text `CV|Gate|Trig|Audio|MIDI|signalColor|cable|wire.*color` (`**/editor/src/**/*.ts*`), 20 results</em> (+7 meer)</summary>
 
 - Searched for text `CV|Gate|Trig|Audio|MIDI|signalColor|cable|wire.*color` (`**/editor/src/**/*.ts*`), 20 results
@@ -10428,10 +10430,6 @@ Gevonden. De kabelkleur gebruikt `polyGroup.color` (de voice-group-kleur) in pla
 Fix: de `tintColour` alleen gebruiken voor het ×N-label en het gloefilter — de kabel zelf krijgt altijd de signaaltype-kleur. 
 Nu het IncompleteInput probleem. De payload is na het strippen van `categories`/`moduleTypes` nog steeds te groot. Laten we zien wat er nog in zit en dat verder reduceren: 
 
-*Read types.ts, lines 50 to 80 · Searched for text `ModularProject|ModuleInstance|interface.*{` (`**/editor/src/modular-mb/types.ts`), 20 results · Read types.ts, lines 341 to 460*
-
-
-
 <details>
 <summary><em>Read types.ts, lines 50 to 80</em> (+4 meer)</summary>
 
@@ -10448,8 +10446,6 @@ De `ModuleInstance` bevat `visual` (met placements, decoraties, teksten), `brand
 
 Nu kan ik een minimale runtime-payload maken. De Teensy heeft alleen nodig: `modules[id, typeId]`, `patches[id, connections[from, to]]`, `racks[id, slots[moduleId]]`, `activePatchId`. 
 Beide fixes zijn klaar. Samenvatting:
-
-**Kabelkleuren** — `tintColour` werd gebruikt als kabelkleur en liet de voice-group-kleur Beide fixes zijn klaar. Samenvatting:
 
 **Kabelkleuren** — `tintColour` werd gebruikt als kabelkleur en liet de voice-group-kleur (rood/groen) de signaaltype-kleur (blauw voor CV) overschrijven. Nu gebruikt de kabel altijd de signaaltype-kleur; de group-kleur blijft alleen op het `×3`-label-achtergrond.
 
@@ -10513,10 +10509,6 @@ ja, graag de volgende stap(pen). Ga maar zover als je kunt
 
 
 
-*Read Registry.h · Read Module.h · Read MidiIn.h, lines 1 to 80*
-
-
-
 <details>
 <summary><em>Read runtime</em> (+9 meer)</summary>
 
@@ -10533,10 +10525,6 @@ ja, graag de volgende stap(pen). Ga maar zover als je kunt
 </details>
 
 Ik plan: (1) `PatchRuntime` class die de config bewaart en bij `selectPatch` modules instantieert via de bestaande Registry, (2) skeleton VCO/VCA/ADSR/OUT modules die zichzelf registreren zodat het type-aantal "herkend" zichtbaar wordt, (3) ack uitbreiden zodat de editor ziet hoeveel modules de Teensy daadwerkelijk kon instantiëren.   
-
-*Read Ahdsr.h, lines 1 to 60 · Read Lfo.h, lines 1 to 60 · Searched for text `registerFactory` (`**/firmware/core/src/runtime/*.cpp`), 12 results*
-
-
 
 <details>
 <summary><em>Read Ahdsr.h, lines 1 to 60</em> (+6 meer)</summary>
@@ -10556,10 +10544,6 @@ Goed. Nu de nieuwe bestanden bouwen:
 
 Nu `main.cpp` aanpassen om PatchRuntime te gebruiken:     
 Goed — laat ik er ook nog connectie-inspectie aan toevoegen zodat je in de log ziet welke kabels herkend zijn.  
-Build succeeds. Even checken of de host-tests nog draaien:    
-
-*Searched for regex `unity_|TEST\(|CATCH_` (`**/firmware/**`), 10 results · Searched for files matching `**/firmware/**/build_host.*`, no matches*
-
 Build succeeds. Even checken of de host-tests nog draaien:    
 
 *Searched for regex `unity_|TEST\(|CATCH_` (`**/firmware/**`), 10 results · Searched for files matching `**/firmware/**/build_host.*`, no matches · Searched for files matching `**/firmware/**/CMakeLists.txt`, 8 matches*
@@ -10613,9 +10597,27 @@ Terechte observaties.
 
 **`PatchRuntime`** — de naam klopt niet. Een `Patch` in jouw model is één preset binnen een project; wat deze klasse doet is de complete project-configuratie bijhouden én de actieve patch selecteren. Dat is een `ProjectRuntime`. Hernoem ik meteen: 
 
-*Created 2 todos · Renamed `PatchRuntime` to `ProjectRuntime` - 3 edits across 2 files.*
+*Created 2 todos · Renamed `PatchRuntime` to `ProjectRuntime` - 3 edits across 2 files. · Searched for text `PatchRuntime` (`**/firmware/app-modular-brain/src/*.cpp`), 1 result*
 
 
+
+
+*Completed: *Rename PatchRuntime → ProjectRuntime* (1/2)*
+
+Klaar. Samenvatting van de architectuur zoals die nu staat:
+
+**OO-laag (core library, onveranderd):**
+- `mb::runtime::Module` — abstracte basis
+- `mb::runtime::MidiInModule`, `Ahdsr`, `Lfo` — concrete subklassen, elk met hun eigen `registerFactory()`
+- `mb::runtime::Registry` — typeId → factory-map (singleton)
+
+**App-laag (app-modular-brain/src):**
+- `mmb_link::ProjectRuntime` — klasse die de complete project-JSON bezit + de live module-instanties + de actieve patch. Één instantie per lopend project.
+- `mmb_link::TeensyLink` — klasse die de USB-Serial communicatie beheert
+- `RegisterAllModules.h` — vrije functie die alleen bij boot de statische registratie-methoden aanroept (linker-fix, geen domein-logica)
+- `main.cpp` — Arduino `setup()/loop()`, instantieert `TeensyLink` en `ProjectRuntime` als globals (Arduino-conventie; hier is een class-wrapper weinig toegevoegde waarde)
+
+`PatchRuntime` was dus een naamfout: het beheerde het *project* (alle modules), niet één patch. Een `Patch` in jouw model is de JSON-slice met kabels en controlState.
 
 ---
 
@@ -10686,15 +10688,6 @@ Nu alle files tegelijk herschrijven met Doxygen-commentaar:
 
 
 
-*Created 9 todos*
-
-
-
-
-*Starting: *ProjectRuntime.h Doxygen docs* (2/9)*
-
-
-
 
 *Read ProjectRuntime.h, lines 27 to 40 · Read ProjectRuntime.h, lines 40 to 65*
 
@@ -10714,47 +10707,7 @@ Nu alle files tegelijk herschrijven met Doxygen-commentaar:
 *Starting: *Core: Module.h Doxygen docs* (4/9) · Read Module.h*
 
 
-
-
-*Read ProjectRuntime.h, lines 82 to 105 · Read ProjectRuntime.h, lines 105 to 140*
-
-
-
-
-*Starting: *RegisterAllModules.h Doxygen docs* (3/9) · Read RegisterAllModules.h*
-
-
-
-
-*Starting: *Core: Module.h Doxygen docs* (4/9) · Read Module.h*
-
-
 Now Registry.h: 
-
-*Read Registry.h · Starting: *Core: Registry.h Doxygen docs* (5/9)*
-
-
-
-
-*Starting: *Core: CvModule + AudioModule docs* (6/9) · Read CvModule.h · Read AudioModule.h*
-
-
-
-
-*Starting: *Core: MidiIn.h Doxygen docs* (7/9) · Read MidiIn.h*
-
-
-
-
-*Starting: *Core: Ahdsr.h Doxygen docs* (8/9) · Read Ahdsr.h, lines 1 to 30 · Read Ahdsr.h, lines 60 to 90*
-
-
-
-
-*Starting: *Core: Lfo.h Doxygen docs* (9/9) · Read Lfo.h, lines 1 to 90*
-
-
-
 
 *Read Registry.h · Starting: *Core: Registry.h Doxygen docs* (5/9)*
 
@@ -10810,12 +10763,6 @@ Alle 10 headers zijn bijgewerkt. Hier een overzicht van wat er veranderd is en w
 | `Lfo.h` | Waveform tabel, polarity/run-mode tabel, S&H implementatie, sync via reset pulse |
 
 **Sparx EA import:** via *Tools → Source Code Engineering → Synchronize Package Contents*. EA leest de `@brief` tekst als element-noot; de class-hiërarchie wordt afgeleid uit de `#include`- en overerving-relaties in de headers.
-
----
-
-## 🧑 User
-
-twee vragen: de private methods, zijn die niet ook zinvol te commentarieren? En wat doet #sym:VoiceAllocator  ? Dat is ook een procedurele file?
 
 ---
 
@@ -10891,10 +10838,6 @@ okee. Zou je verder kunnen met de werklijst?
 
 *Read main.cpp, lines 1 to 120 · Read main.cpp, lines 120 to 180*
 
-
-
-*Read main.cpp, lines 1 to 120 · Read main.cpp, lines 120 to 180*
-
 Laten we eerst de relevante editor-bestanden lezen om de exacte port-namen te weten, dan beginnen we met de audio-module wrappers. 
 
 <details>
@@ -10911,10 +10854,6 @@ Laten we eerst de relevante editor-bestanden lezen om de exacte port-namen te we
 
 Nu weet ik de precieze port-namen. Laten we de patches in de JSON ook even bekijken om de connectie-structuur te begrijpen: 
 
-*Searched for text `"from"` (`d:\\Git\\Muziek\\MusicBrain\\input\\json\\*.json`), no results*
-
-
-
 *Searched for text `"from"` (`d:\\Git\\Muziek\\MusicBrain\\input\\json\\*.json`), no results · Searched for files matching `MusicBrain` · `input/json/*.json`, 1 match · Searched for text `activePatchId`, 20 results*
 
 Nu heb ik de exacte port-namen. Laten we ook een echt connection-voorbeeld uit de JSON bekijken: 
@@ -10923,13 +10862,10 @@ Nu heb ik de exacte port-namen. Laten we ook een echt connection-voorbeeld uit d
 
 Nu ook de actieve patch-connecties bekijken:  
 
-*Read 2026-05-20-154854-ModularMB seq en sim.json, lines 2300 to 2414*
-
-
-
 <details>
-<summary><em>Read src</em> (+4 meer)</summary>
+<summary><em>Read 2026-05-20-154854-ModularMB seq en sim.json, lines 2300 to 2414</em> (+5 meer)</summary>
 
+- Read 2026-05-20-154854-ModularMB seq en sim.json, lines 2300 to 2414
 - Read src
 - Read ProjectRuntime.h, lines 1 to 80
 - Read main.cpp
@@ -10938,47 +10874,6 @@ Nu ook de actieve patch-connecties bekijken:
 </details>
 
 Good. Now let me also quickly check the Ahdsr core header since `AhdsrAudioModule` will embed it:  
-
-*Read Ahdsr.h, lines 1 to 80 · Read Module.h, lines 1 to 50*
-
-
-
-*Searched for files matching `MusicBrain` · `firmware/core/**/Ahdsr*`, 2 matches*
-
-
-
-*Read Ahdsr.cpp · Read Ahdsr.h, lines 70 to 130 · Read Ahdsr.h, lines 130 to 156*
-
-
-
-<details>
-<summary><em>Read src</em> (+4 meer)</summary>
-
-- Read src
-- Read ProjectRuntime.h, lines 1 to 80
-- Read main.cpp
-- Read ProjectRuntime.h, lines 80 to 163
-- Read RegisterAllModules.h
-</details>
-
-Good. Now let me also quickly check the Ahdsr core header since `AhdsrAudioModule` will embed it:  
-
-<details>
-<summary><em>Read Ahdsr.h, lines 1 to 80</em> (+5 meer)</summary>
-
-- Read Ahdsr.h, lines 1 to 80
-- Read Module.h, lines 1 to 50
-- Searched for files matching `MusicBrain` · `firmware/core/**/Ahdsr*`, 2 matches
-- Read Ahdsr.cpp
-- Read Ahdsr.h, lines 70 to 130
-- Read Ahdsr.h, lines 130 to 156
-</details>
-
-
-
-*Read Registry.h, lines 1 to 80*
-
-
 
 <details>
 <summary><em>Read Ahdsr.h, lines 1 to 80</em> (+6 meer)</summary>
@@ -10993,30 +10888,6 @@ Good. Now let me also quickly check the Ahdsr core header since `AhdsrAudioModul
 </details>
 
 Good. I now have everything needed. Let me set up the todo list and build all the files. 
-
-*Created 12 todos · Starting: *AudioPortModule.h interface* (1/12) · Created AudioPortModule.h · Starting: *VcoModule.h wrapper* (2/12)*
-
-
-
-*Created VcoModule.h · Starting: *VcaModule.h wrapper* (3/12) · Created VcaModule.h · Starting: *AhdsrAudioModule.h wrapper* (4/12)*
-
-
-
-*Created AhdsrAudioModule.h · Starting: *VcfModule.h wrapper* (5/12) · Created VcfModule.h · Starting: *OutModule.h wrapper* (6/12)*
-
-
-
-<details>
-<summary><em>Created OutModule.h</em> (+4 meer)</summary>
-
-- Created OutModule.h
-- Starting: *AudioGraph.h + .cpp builder* (7/12)
-- Created AudioGraph.h
-- Created AudioGraph.cpp
-- Starting: *Fix Registry overwrite semantics* (8/12)
-</details>
-
-Now fix `Registry::register_()` to use insert-or-assign so `AhdsrAudioModule` can overwrite the auto-registered `Ahdsr` factory: 
 
 <details>
 <summary><em>Created 12 todos</em> (+16 meer)</summary>
@@ -11053,23 +10924,9 @@ Now fix `Registry::register_()` to use insert-or-assign so `AhdsrAudioModule` ca
 Now add `instances()` and `activePatchJson()` accessors to `ProjectRuntime.h`: 
 
 
-*Starting: *Update RegisterAllModules.h* (9/12)*
-
-
-
-
-*Starting: *Add accessors to ProjectRuntime.h* (10/12)*
-
-Now add `instances()` and `activePatchJson()` accessors to `ProjectRuntime.h`: 
-
-
 *Starting: *Rewire main.cpp for dynamic graph* (11/12)*
 
 Now rewrite `main.cpp` to integrate the audio graph, CV tick, and dynamic module sync: 
-
-
-*Starting: *Build & verify* (12/12)*
-
 
 
 *Starting: *Build & verify* (12/12)*
@@ -11172,9 +11029,53 @@ Het probleem is juist zichtbaar: na `selectPatch` zie je **geen** AudioGraph-log
 
 Laat me snel kijken wat er intern precies terugkomt:  
 
-*Read AudioGraph.cpp · Read ProjectRuntime.h, lines 1 to 120*
+*Read AudioGraph.cpp · Read ProjectRuntime.h, lines 1 to 120 · Read ProjectRuntime.h, lines 120 to 193*
 
+De editor-log laat één verraderlijk detail zien: we zien `selectPatch: patch_h2psk0f` maar daarna **geen** `active patch=...` log en geen `AudioGraph: wired=...`. Dat betekent dat `activatePatch()` wél true teruggeeft (ok=true in de ack), maar de logf's worden niet doorgestuurd, of de AudioGraph-build loopt niet. Laat me main.cpp checken:  
 
+<details>
+<summary><em>Searched for text `onSelectPatch|selectPatch|activatePatch|audioGraph.build` (`**/firmware/app-modular-brain/src/main.cpp`), 5 results</em> (+4 meer)</summary>
+
+- Searched for text `onSelectPatch|selectPatch|activatePatch|audioGraph.build` (`**/firmware/app-modular-brain/src/main.cpp`), 5 results
+- Searched for text `logf|log(` (`**/firmware/app-modular-brain/src/TeensyLink.h`), no results
+- Read main.cpp, lines 118 to 140
+- Searched for text `logf` (`**/firmware/app-modular-brain/src/TeensyLink.h`), 3 results
+- Read TeensyLink.h, lines 95 to 145
+</details>
+
+Ik zie het probleem: de ack `ok=true` wordt door TeensyLink zelf gestuurd, **ongeacht** of `activatePatch()` slaagt. Maar de tussenliggende logf's van `activatePatch()` + `AudioGraph::build()` ontbreken. Laat me kijken hoe TeensyLink de ack verstuurt en of de callback vóór of ná de ack wordt aangeroepen:   
+
+*Searched for text `selectPatch|onSelectPatch_|sendAck` (`**/firmware/app-modular-brain/src/TeensyLink.h`), 20 results · Read TeensyLink.h, lines 155 to 200*
+
+Ik zie een patroon: zowel bij config als selectPatch verschijnt slechts 1 log-regel, terwijl er meer zouden moeten zijn. Laat me de volledige callbacks in `main.cpp` lezen: 
+
+*Read main.cpp, lines 105 to 130*
+
+Ik zie het probleem nu duidelijk: bij config verschijnt alleen "config received: name=ModularMB" maar NIET het "runtime: created=..." van `applyConfig()`. Bij selectPatch ontbreken ook de volgende logregels. Dit patroon — eerste log zichtbaar, rest verdwenen — duidt op een **WebSerial parsing bug** in de editor die maar één JSON-regel per binnenkomend USB-pakket verwerkt. Laat me de editor-code checken:   
+
+*Searched for text `readline|split|newline|parseJSON|\n` (`**/editor/src/**/*.ts`), 20 results · Read teensyLink.ts, lines 1 to 120*
+
+De editor-log werkt prima als monitor — het verwerkt alle regels correct (ik zie het in de code). Maar er ontbreken regels. Twee mogelijke oorzaken:
+
+**1. De log is scrollbaar** — de modal toont misschien maar de zichtbare hoogte. Scroll in het log-gedeelte naar beneden: de "active patch=..." en "AudioGraph: wired=..." berichten zouden er al moeten zijn.
+
+**2. Patch heeft geen `connections` array** — `patch_h2psk0f` is aangemaakt maar heeft misschien nog geen kabels in de editor. Controleer in de editor's Patcher-tab of er daadwerkelijk verbindingen getekend zijn. Zonder kabels logt `audioGraph.build()`: `"AudioGraph: no connections array in patch"`.
+
+---
+
+**Pio device monitor** zit in de terminal, maar je kunt de poort niet tegelijk met de editor open hebben. De werkwijze:
+
+```powershell
+# Disconnect eerst in de editor (klik Disconnect)
+cd firmware\app-modular-brain
+..\..\..\.venv\Scripts\pio.exe device monitor
+```
+
+Zodra je dan de editor opnieuw verbindt (of de Teensy reset), zie je alle raw serial output inclusief `runtime: created=28 unknown=5 total=33` en `active patch=...` en `AudioGraph: wired=N skipped=M`.
+
+---
+
+De meest waarschijnlijke oorzaak op basis van het screenshot: **de patch heeft nog geen `connections`** en `AudioGraph` logt "no connections array" — maar die regel staat dan net buiten het zichtbare stuk van het log. Scroll even naar beneden in de modal.
 
 ---
 
@@ -11220,7 +11121,18 @@ ik heb een heel langzame attack en lange release. Die hoor ik beide niet
 
 ## 🤖 Assistant
 
-De Teensy draait nog de **oude B-step 2 firmware** — we hebben wel gebouwd maar nooit geüpload. Dat verklaart alles: de editor toont "(step 2)", er zijn geen AudioGraph-logs, en de dynamische keten bestaat niet. 
+De Teensy draait nog de **oude B-step 2 firmware** — we hebben wel gebouwd maar nooit geüpload. Dat verklaart alles: de editor toont "(step 2)", er zijn geen AudioGraph-logs, en de dynamische keten bestaat niet. De build slaagde maar COM4 was bezet (de device monitor). De Teensy Loader vroeg om een knopdruk. Twee opties:
+
+**Optie A — Knop op de Teensy:**  
+Druk de kleine knop op het Teensy-board in. De upload start dan automatisch.
+
+**Optie B — Sluit device monitor eerst:**  
+Druk Ctrl+C in de "pio"-terminal, dan opnieuw:
+```powershell
+.\..\..\.venv\Scripts\pio.exe run -t upload
+```
+
+Na de upload: verbind de editor opnieuw → de hello zou nu `"step":3` moeten tonen (als we dat bijwerken — of je herkent het door de log "AudioGraph: wired=N" na selectPatch). Wil je ook dat de hello-banner `step:3` zegt zodat je zeker weet welke firmware draait?
 
 ---
 
@@ -11274,25 +11186,13 @@ Vraag: hoor je nu iets? Laat me VcoModule checken want de amplitude moet geïnit
 
 *Searched for text `amplitude|level|begin` (`**/firmware/app-modular-brain/src/VcoModule.h`), 7 results*
 
-
-
-*Searched for text `amplitude|level|begin` (`**/firmware/app-modular-brain/src/VcoModule.h`), 7 results*
-
 VcoModule heeft amplitude 0.9 in de constructor. Nu check ik `AhdsrAudioModule` — de dc_.amplitude() aanroepen in `tick()` moeten wel onder `AudioNoInterrupts` draaien:  
-
-*Read main.cpp, lines 70 to 100 · Searched for text `attackMs|releaseMs|default|constexpr` (`**/firmware/core/include/mb/runtime/Ahdsr.h`), 3 results · Searched for text `attackTicks_|releaseTicks_|sustainLevel_|uint32_t a|float s` (`**/firmware/core/include/mb/runtime/Ahdsr.h`), 4 results*
-
-De standaard Ahdsr waarden zijn: attack=10ms, sustain=0.7, 
 
 *Read main.cpp, lines 70 to 100 · Searched for text `attackMs|releaseMs|default|constexpr` (`**/firmware/core/include/mb/runtime/Ahdsr.h`), 3 results · Searched for text `attackTicks_|releaseTicks_|sustainLevel_|uint32_t a|float s` (`**/firmware/core/include/mb/runtime/Ahdsr.h`), 4 results*
 
 De standaard Ahdsr waarden zijn: attack=10ms, sustain=0.7, release=300ms. Jij hebt attack=101ms en release=3051ms ingesteld maar **die worden nog niet uit de JSON gelezen** — `applyConfig()` instantieert de modules maar roept `setControl()` niet aan. Dat ga ik nu fixen: 
 
-*Read ProjectRuntime.h, lines 75 to 110*
-
-
-
-*Searched for text `holdTicks_|decayTicks_` (`**/firmware/core/include/mb/runtime/Ahdsr.h`), 2 results · Searched for text `attackMs|holdMs|decayMs|releaseMs|setControl` (`**/firmware/core/src/runtime/Ahdsr.cpp`), 1 result · Read Ahdsr.cpp, lines 1 to 55*
+*Read ProjectRuntime.h, lines 75 to 110 · Searched for text `holdTicks_|decayTicks_` (`**/firmware/core/include/mb/runtime/Ahdsr.h`), 2 results · Searched for text `attackMs|holdMs|decayMs|releaseMs|setControl` (`**/firmware/core/src/runtime/Ahdsr.cpp`), 1 result · Read Ahdsr.cpp, lines 1 to 55*
 
 Goed nieuws: `Ahdsr::setControl`'s `asFloat`-lambda accepteert zowel `float` als `int32_t`, dus ik kan een eenvoudige type-discriminatie gebruiken. Nu het fix in `applyConfig()`:   
 Build geslaagd. De editor houdt COM4 bezet — druk opnieuw de knop op de Teensy in. Daarna opnieuw verbinden in de editor → Push config → Select active patch.
@@ -11315,6 +11215,24 @@ Wil je dan nog eens uploaden? Dan weten we zeker dat de firmware is geupdate
 
 Goed plan. Ik maak een `FwVersion.h` met een patch-counter die je per upload kunt ophogen, en voeg het toe aan het hello-bericht. 
 
+*Read teensyLink.ts, lines 115 to 145 · Searched for text `step|fw|connected|Verbonden` (`**/editor/src/modular-mb/TeensyLinkModal.tsx`), 15 results*
+
+Ik maak een `FwVersion.h`, voeg het toe aan het hello-bericht, update de editor-display, en upload daarna meteen: 
+
+*Created FwVersion.h*
+
+Now update TeensyLink.h's `sendHello()` and the TypeScript side in parallel: 
+Now I need to add the `#include "FwVersion.h"` to TeensyLink.h:  
+
+*Read TeensyLink.h, lines 1 to 12 · Searched for text `#pragma once|#include` (`**/firmware/app-modular-brain/src/TeensyLink.h`), 3 results*
+
+
+Build geslaagd — druk opnieuw de knop op de Teensy in om te flashen.
+
+Na reconnect toont de editor dan: **`● Verbonden — mmb-teensy-1 v0.3.1 (step 3)`**
+
+Volgende keer dat je wilt controleren of een nieuwe versie is geflasht: bump de patch in `FwVersion.h` naar `"0.3.2"` vóór de upload.
+
 ---
 
 ## 🧑 User
@@ -11334,7 +11252,51 @@ Goede vragen. Laat me eerst de hele controlState-keten controleren en daarna een
 
 *Read teensyLink.ts, lines 195 to 235*
 
+Twee bugs/issues om aan te pakken:
 
+**Bug 1: controlState wordt op de verkeerde plek gelezen.** Het zit in `patch.controlState[moduleId][controlId]`, niet in `module.controlState`. Daarom hoorde je geen verschil.
+
+**Issue 2: switch om de static graph te muten.**
+
+Laat me beide opzij oplossen. Eerst de controlState-fix verplaatsen naar de patch-activatie:   
+Nu voeg ik een nieuwe methode toe en pas ze toe in `activatePatch()`:    
+Nu de **switch voor de static graph**. Ik voeg een runtime-vlag toe + een nieuw command `{"type":"setStatic","enabled":bool}`:    
+
+*Read main.cpp, lines 130 to 175 · Searched for text `kVoices|AudioMixer4|mixL|mixR` (`**/firmware/app-modular-brain/src/main.cpp`), 20 results*
+
+De simpelste switch: zet de mixer-gain op 0 voor de statische graph. Eén globale `bool staticEnabled` die de gain bepaalt. Ik gebruik een nieuw command `{"type":"setStatic","enabled":bool}`:     
+
+*Read main.cpp, lines 195 to 220*
+
+
+Nu een SetStatic-callback registreren in TeensyLink. Eerst TeensyLink uitbreiden:     
+Nu de callback registreren in `main.cpp` en de versie ophogen:     
+Nu de editor: een knop voor de switch. Eerst de transport-laag:     
+
+*Searched for text `sendSelectPatch|sendConfig` (`**/editor/src/modular-mb/teensyLink.ts`), 2 results*
+
+
+
+
+*Read TeensyLinkModal.tsx, lines 60 to 110 · Read TeensyLinkModal.tsx, lines 1 to 45*
+
+
+Nu bouwen en uploaden:     Build geslaagd — druk de knop op de Teensy om te flashen.
+
+**Wat er nu nieuw is in v0.3.2:**
+
+1. **controlState wordt nu wèl toegepast** — verplaatst naar `activatePatch()` waar hij hoort, en leest de juiste JSON-locatie (`patch.controlState[moduleId][controlId]`). De log toont straks `controls=N` zodat je ziet hoeveel waarden zijn doorgezet.
+
+2. **Static-graph switch**: nieuwe knop "🔊 Static ON / 🔇 Static OFF" in de Teensy-modal. Stuurt `{"type":"setStatic","enabled":false}` → mixer-gain naar 0 → de B-step 2 fallback wordt stil. Dan hoor je **alleen** de dynamische patch (of niets als die niet werkt).
+
+**Testvolgorde na flash:**
+1. Reconnect → log toont `v0.3.2 (step 3)`
+2. Push config → in de log moet je nu `controls=N` zien (N = aantal toegepaste controls, waarschijnlijk veel meer dan 0)
+3. Select active patch
+4. Speel een noot → je hoort beide chains gemengd
+5. Klik **🔇 Static OFF** → nu hoor je alleen de dynamische patch met jouw AHDSR-tijden
+
+Als je na stap 5 niks hoort, weten we dat de dynamic chain ook problemen heeft (bv. VCA cv-input mist of OUT-routering klopt niet) — dan kunnen we daar specifiek op debuggen.
 
 ---
 
@@ -11392,17 +11354,8 @@ Fix: maak de static-naar-USB connections destructibel zodat ze écht weg kunnen.
 *Searched for text `mixToUsb` (`**/firmware/app-modular-brain/src/main.cpp`), 4 results*
 
 
-
-*Searched for text `mixToUsb` (`**/firmware/app-modular-brain/src/main.cpp`), 4 results*
-
-
 Nu update ik `applyStaticEnabled()` om de connections daadwerkelijk weg te halen, en bump de versie:     
 Check of `<memory>` is geïncludeerd:     
-
-*Searched for text `#include <memory>` (`**/firmware/app-modular-brain/src/main.cpp`), no results · Read main.cpp, lines 1 to 30*
-
-
-Upload geslaagd zonder 
 
 *Searched for text `#include <memory>` (`**/firmware/app-modular-brain/src/main.cpp`), no results · Read main.cpp, lines 1 to 30*
 
@@ -11451,7 +11404,19 @@ Laat me kijken naar wat er gestuurd wordt:
 
 *Searched for regex `tp_mmb_vca|tp_mmb_vco|tp_mmb_out|tp_mmb_ahdsr` (`**/input/json/2026-05-20-154854-ModularMB seq en sim.json`), 14 results · Read 2026-05-20-154854-ModularMB seq en sim.json, lines 500 to 580*
 
+Belangrijke bevinding: de VCA in de catalog heeft `gain` knob default=0 + notes zeggen "Bij gain=0 is de basisweg dicht; CV voegt erbovenop". Het VCA-model is dus `audio × (gain + cv)`, niet enkel `audio × cv`. Mijn huidige VcaModule wrapt alleen `AudioEffectMultiply` (= `audio × cv`). Maar dat zou nog moeten werken want AHDSR sustain=0.7 ≠ 0.
 
+Maar laten we eerst zien **wat er écht gewired is**. Ik voeg een per-connection log toe en bump versie:     
+Geflasht. **v0.3.4** loopt. Reconnect, Push config, Select active patch — en plak hier de output. Je zou nu per connectie een regel moeten zien zoals:
+
+```
+wire: mod_xxx(tp_mmb_vco).out/ch0 -> mod_yyy(tp_mmb_vca).in/ch0
+wire: mod_zzz(tp_mmb_ahdsr).cv_out/ch0 -> mod_yyy(tp_mmb_vca).cv/ch1
+...
+skip(notaudio): mod_midi(tp_mmb_midiin).pitch -> mod_xxx(tp_mmb_vco).voct
+```
+
+Dan zien we precies welke 4 connections gewired zijn en welke 2 zijn overgeslagen — én of de port-mapping klopt zoals ik dacht.
 
 ---
 
@@ -11491,10 +11456,6 @@ Zitten de CV connections ook wel goed? Kunnen we dat ook zien? Als de VCA op 0 b
 ## 🤖 Assistant
 
 De wiring is **100% correct**. Dus de CV waarden zelf zijn verdacht — laten we ze zichtbaar maken. Ik voeg een diagnose-log toe die elke 250ms de envelope-value en VCO-frequency print:      
-
-*Searched for text `float value()` (`**/firmware/app-modular-brain/src/AhdsrAudioModule.h`), 1 result · Searched for text `private:|osc_;` (`**/firmware/app-modular-brain/src/VcoModule.h`), 2 results*
-
-
 
 *Searched for text `float value()` (`**/firmware/app-modular-brain/src/AhdsrAudioModule.h`), 1 result · Searched for text `private:|osc_;` (`**/firmware/app-modular-brain/src/VcoModule.h`), 2 results*
 
@@ -11627,7 +11588,33 @@ AHDSR heeft een echte `AudioSynthWaveformDc` — ok. Nu de VCA:
 
 *Searched for regex `inputPort|outputPort|AudioEffect|AudioConnection|AudioMixer|amp_|class Vca` (`**/firmware/app-modular-brain/src/VcaModule.h`), 10 results · Read VcoModule.h*
 
+Belangrijk inzicht: Teensy `AudioConnection::connect()` is **"first connect wins"** — als de static graph al verbonden was met `usbOut.ch0/1` toen je het patch activeerde, dan zijn de dynamische connecties naar `usbOut` stilletjes geweigerd. Static OFF destroyed alleen de **static** verbindingen, niet de gedropte dynamische.
 
+Laat me kijken hoe de output naar usbOut gaat in de dynamische graph: 
+
+<details>
+<summary><em>Searched for regex `usbOut|OutputModule|tp_mmb_out` (`**/firmware/app-modular-brain/src`), no results</em> (+5 meer)</summary>
+
+- Searched for regex `usbOut|OutputModule|tp_mmb_out` (`**/firmware/app-modular-brain/src`), no results
+- Searched for regex `usbOut|tp_mmb_out` (`**/firmware/app-modular-brain`), no results
+- Searched for regex `tp_mmb_out|AudioOutputUSB|OutputModule` (`**/firmware/**/*.h`), 5 results
+- Read OutModule.h, lines 40 to 83
+- Searched for regex `activatePatch|mixToUsbL|applyStaticEnabled|onSelectPatch` (`**/firmware/app-modular-brain/src/main.cpp`), 10 results
+- Read main.cpp, lines 140 to 170
+</details>
+
+Bug bevestigd. Static `mixToUsbL/R` worden in `setup()` aangemaakt en blokkeren permanent input-slot 0/1 van `usbOut`. Wanneer `audioGraph.build()` later `vca.out → usbOut` probeert, weigert Teensy's `connect()` stilletjes. Static OFF destroyt later wel de static connecties, maar de dynamische zijn al verloren.
+
+Fix: vóór elke dynamische build de static USB-connecties slopen en `staticEnabled=false` forceren. Tegelijk versie omhoog.  
+v0.3.6 staat erop. Test:
+
+1. Reconnect (status moet "v0.3.6" tonen).
+2. Push config + Select patch — log moet melden `static auto-muted for dynamic patch`.
+3. Speel een akkoord.
+
+**Verwacht resultaat:** je hoort nu de dynamische chain (VCO → VCA → USB), gemoduleerd door de AHDSR-envelope. De diag-regels blijven env-waardes loggen — als die stijgen tijdens noot-on en je hoort tegelijk geluid, dan is de bug opgelost.
+
+**Belangrijk neveneffect:** de Static-toggle in de UI heeft nu alleen effect zolang er geen patch geactiveerd is. Na een `selectPatch` wordt static automatisch uitgezet (één bron per usbOut-slot regel). Als je weer static-fallback wilt horen moet je opnieuw firmware booten of we voegen later een `clearPatch` commando toe.
 
 ---
 
@@ -11648,9 +11635,42 @@ Drie aparte symptomen, met één gemeenschappelijke oorzaak en één los:
 
 Laat me eerst kijken hoe MidiInModule de `pitch`/`gate` poorten zonder voice-index oplevert:  
 
-*Searched for regex `voicePitch|voiceGate|outputPort|inputPort|kTypeId|noteOn|allocate|voicePitchV` (`**/firmware/**/MidiIn*.h`), 11 results · Searched for regex `midiin.pitch|midiin.gate|\"pitch\"|\"gate\"|midiIn\\.voice|voicePitchV|tickCvModules` (`**/firmware/app-modular-brain/src`), no results*
+<details>
+<summary><em>Searched for regex `voicePitch|voiceGate|outputPort|inputPort|kTypeId|noteOn|allocate|voicePitchV` (`**/firmware/**/MidiIn*.h`), 11 results</em> (+7 meer)</summary>
+
+- Searched for regex `voicePitch|voiceGate|outputPort|inputPort|kTypeId|noteOn|allocate|voicePitchV` (`**/firmware/**/MidiIn*.h`), 11 results
+- Searched for regex `midiin.pitch|midiin.gate|\"pitch\"|\"gate\"|midiIn\\.voice|voicePitchV|tickCvModules` (`**/firmware/app-modular-brain/src`), no results
+- Searched for regex `tickCvModules|voicePitchV|midiIn\.` (`**/firmware/**/*.h,firmware/**/*.cpp`), no results
+- Searched for regex `voicePitchV|tickCvModules` (`**/firmware`), no results
+- Searched for regex `tickCvModules|voicePitchV` (`**/firmware`), no results
+- Searched for regex `tickCvModules` (`**/*.h`), no results
+- Searched for regex `tickCvModules` (`**/main.cpp`), 3 results
+- Read main.cpp, lines 105 to 145
+</details>
+
+Bevestigd: `syncDynamicModules()` leest hard-coded `voice 0`. Allocator gaat naar voice 1/2/3 → voice 0 verandert nauwelijks → je hoort één lange noot van de allereerste aanslag.
+
+Snelle mono-with-any-voice fix: gate = OR over alle voices, pitch = pitch van eerste actieve voice (anders laatste). En een log van `wave`-control in de VCO zodat we zien wat het patch stuurt.   
+
+*Searched for regex `voiceCount|kVoices|kMaxVoices|std::uint8_t.*voice|VoiceCount` (`**/MidiIn.h`), 8 results*
 
 
+
+
+*Searched for regex `syncDynamicModules\(\)` (`**/main.cpp`), 3 results*
+
+Goed, wordt al aangeroepen. Build + upload v0.3.7:   v0.3.7 staat erop.
+
+**Wat ik veranderd heb:**
+- `syncDynamicModules()` collapsed nu alle voices naar één virtuele monovoice: `gate = OR over alle voices`, `pitch = pitch van de eerste actieve voice` (anders behoud laatste).
+- VCO logt nu `[vco] wave=N` zodra het patch een wave-control stuurt.
+
+**Test:**
+1. Reconnect → v0.3.7 in status.
+2. Push config + Select patch — let in de log op `[vco] wave=N`:
+   - `wave=0` = sine, `wave=1` = triangle, `wave=2` = saw, `wave=3` = square.
+   - Als je `wave=0` of `wave=1` ziet en saw verwachtte, is het patch zelf zo geconfigureerd (knop in de UI staat op sine/tri).
+3. Speel een paar losse noten — nu zou elke note-on direct gehoord moeten worden en bij note-off de release moeten starten. Akkoorden klinken nog steeds monofoon (laatste/eerste actieve noot wint), echte polyfonie is een aparte stap.
 
 ---
 
@@ -11722,10 +11742,6 @@ Laat me de VCF wrapper bekijken:
 
 *Read VcfModule.h*
 
-Gevonden. De `cv` poort (cutoff modulatie) staat bewust **niet** als AudioPort in `inputPort()` — die was gepland als "toekomstige verbetering" maar de AHDSR→VCF verbinding bestaat al in het patch. `AudioFilterStateVariable` heeft wél channel 1 als audio-rate frequency-CV input — we moeten hem alleen 
-
-*Read VcfModule.h*
-
 Gevonden. De `cv` poort (cutoff modulatie) staat bewust **niet** als AudioPort in `inputPort()` — die was gepland als "toekomstige verbetering" maar de AHDSR→VCF verbinding bestaat al in het patch. `AudioFilterStateVariable` heeft wél channel 1 als audio-rate frequency-CV input — we moeten hem alleen blootstellen: 
 v0.3.9. Test het filter-effect:
 
@@ -11773,7 +11789,9 @@ Laat me eerst zien hoe AudioGraph de connecties aanmaakt — dan snap ik meteen 
 
 *Read AudioGraph.cpp*
 
+Eerst iets belangrijks: `AudioFilterStateVariable` heeft maar 1 input-kanaal (ch0 = audio). Mijn fix van `cv` → channel 1 schrijft buiten het geldige bereik. Dat is waarschijnlijk de oorzaak van de stilte.
 
+Laat me ook de port-namen uit de editor checken, want als de patch `"in"` anders noemt dan wij verwachten hoor je ook niets: 
 
 ---
 
@@ -11786,20 +11804,6 @@ Okay now there is sound but no 'wah'. Maybe the filter parameters are different.
 ## 🤖 Assistant
 
 Goed dat er geluid is. Het filter-effect: de AHDSR sweept de cutoff omhóóg vanuit de basiswaarde. Als de basiswaarde al hoog is, sweept ie voorbij het hoorbare bereik. Laat me kijken wat de editor als cutoff-waarde stuurt: 
-
-*Searched for regex `cutoff|tp_mmb_vcf|vcf` (`**/editor/src/**/*.ts,editor/src/**/*.tsx`), no results · Searched for regex `tp_mmb_vcf|"cutoff"` (`**/editor/src`), no results*
-
-
-
-*Searched for files matching `**/modules*.ts`, no matches · Searched for files matching `**/catalog*.ts`, no matches*
-
-
-
-*Searched for text `tp_mmb_vcf`, 20 results · Searched for regex `tp_mmb_vcf|cutoff|"q"` (`**/editor/src/modular-mb/seedModules.ts`), 14 results*
-
-Twee dingen te zeggen:
-
-**"Waarom CV als audio poort?"** — In de Teensy Audio library bestaat er geen apart CV-pad. Alles loopt als `AudioStream` (44100 samples/sec). De AHDSR stuurt een DC-golfvorm die langzaam op en neer gaat. Dat ís CV, maar technisch 
 
 <details>
 <summary><em>Searched for regex `cutoff|tp_mmb_vcf|vcf` (`**/editor/src/**/*.ts,editor/src/**/*.tsx`), no results</em> (+5 meer)</summary>
@@ -11842,22 +11846,6 @@ Maar dat is nog niet gemaakt? Kunnen we die lijn starten misschien? We weten dat
 ## 🤖 Assistant
 
 Laat me eerst kijken wat er al gepland is voor de CV-bus in de docs:  
-
-*Searched for regex `dCV|CV bus|CV-bus|1 ?kHz|1000 Hz|control rate|IntervalTimer|cvTick|cvBus` (`**/doc/**/*.md`), 20 results*
-
-
-
-*Searched for regex `class CvModule|class EventSourceModule|kCvTickRateHz|class Module|setControl|setInput|tick\\(\\)` (`**/firmware/core`), no results*
-
-
-
-*Searched for files matching `**/firmware/core/include/mb/runtime/*.h`, 13 matches · Read CvModule.h*
-
-
-
-*Read Module.h · Read Ahdsr.h, lines 1 to 120 · Read CvBreakout.h, lines 1 to 60*
-
-
 
 <details>
 <summary><em>Searched for regex `dCV|CV bus|CV-bus|1 ?kHz|1000 Hz|control rate|IntervalTimer|cvTick|cvBus` (`**/doc/**/*.md`), 20 results</em> (+6 meer)</summary>
@@ -11934,7 +11922,30 @@ Nu schrijf ik C1 (CvBus) en C2 (CvGraph):
 
 *Created CvBus.h*
 
+Nu C2 — CvGraph. Eerst even kijken hoe een patch-connectie wordt herkend als CV in plaats van audio:  
 
+*Read AudioGraph.h, lines 40 to 60 · Created CvGraph.h · Created CvGraph.cpp*
+
+Nu inhaken in `main.cpp` en versie bumpen:   
+
+*Searched for regex `audioGraph|AudioGraph audioGraph|#include \"AudioGraph` (`**/main.cpp`), 5 results*
+
+
+Build is groen, upload wacht op de PROGRAM-knop op de Teensy. Druk hem in en herhaal:  De build is groen, maar de upload mislukt omdat de Teensy niet vanzelf in program-mode springt. **Druk de PROGRAM-knop op de Teensy in** (de witte knopjeswachter naast de USB), dan flasht hij. Geef een seintje wanneer hij erop staat dan kan ik opnieuw uploaden, of doe het zelf via de PIO-knop in VS Code.
+
+**Wat C1 + C2 doen (zodra v0.4.0 draait):**
+- Status toont `v0.4.0`.
+- Na `Select patch` zie je in de log nu naast de bestaande `wire:`-regels (audio-graph) óók nieuwe `cv-route:`-regels — één per CV-connectie in het patch:
+  ```
+  cv-route: mod_xxx.gate    -> mod_s5p7ab8.gate
+  cv-route: mod_xxx.pitch   -> mod_goxjv2c.voct
+  cv-route: mod_s5p7ab8.cv_out -> mod_a1vvyk8.cv
+  ```
+- Gevolgd door `CvGraph: routes=N`.
+
+**Geen gedragsverandering** — geluid blijft hetzelfde als v0.3.9. Dit is alleen het herkennings- en bus-registratielaagje. C3 (IntervalTimer + bridge) brengt het tot leven, C4 ruimt de DC-proxy hack op.
+
+Vertel me wat de log laat zien zodra het draait — dan weten we dat de routing correct herkend wordt en kunnen we door naar C3.
 
 ---
 
@@ -12075,6 +12086,56 @@ Nu MidiIn — implementeer `outputPortKind` + `readCvPort` voor `pitch`/`gate`:
 *Read MidiIn.h, lines 40 to 126*
 
 
+Implementeer `readCvPort` in MidiIn.cpp:   
+
+*Searched for regex `voicePitchV|voiceGate|MidiInModule::` (`**/MidiIn.cpp`), 13 results · Read MidiIn.cpp, lines 95 to 115*
+
+
+
+
+*Searched for regex `noteToVolts` (`**/MidiIn.cpp`), 4 results*
+
+Goed. Nu Ahdsr (`gate` input) en VcoModule (`voct` input):     
+
+
+*Searched for regex `value_|private:|protected:` (`**/Ahdsr.h`), 6 results*
+
+
+Nu AhdsrAudioModule: forward calls naar de ingebedde Ahdsr:    
+Nu CvGraph upgraden naar PortKind-based + pointers naar modules cachen voor de bridge:    
+
+*Created CvGraph.h · Created CvGraph.h · Created CvGraph.cpp*
+
+Nu in main.cpp: vervang `syncDynamicModules()` door `cvGraph.tickBridge()`:     
+
+*Read main.cpp, lines 195 to 220*
+
+
+
+
+*Read main.cpp, lines 258 to 300 · Searched for regex `syncVoicesFromModel|syncDynamicModules|handleNoteOn|handleNoteOff` (`**/main.cpp`), 12 results*
+
+Roep `tickBridge()` ook aan vanuit de 1 kHz-tick zodat continue CV (LFO → cutoff, etc.) ook werkt:     
+Bump versie en build:     
+Build slaagde. Even checken op warnings:  Clean build. Nu uploaden — druk **PROGRAM-knop** als nodig:     v0.4.1 staat erop.
+
+**Wat is er nieuw:**
+- `Module` heeft nu `PortKind` (`Audio` / `Cv` / `Gate` / `None`) plus `readCvPort` / `writeCvPort` als generieke interface.
+- `MidiIn`, `Ahdsr`, `AhdsrAudioModule`, `VcoModule` declareren hun port-kinds en implementeren read/write.
+- `CvGraph` routeert nu op basis van `PortKind`, niet meer op "heeft toevallig een audio port".
+- `CvGraph::tickBridge()` draait elke 1 ms én op note-events; rijdt waarden van bron naar bestemming, alleen bij verandering.
+- De oude `syncDynamicModules()` is vervangen door deze generieke bridge.
+
+**Verwacht in de log na patch select:**
+```
+cv-route: mod_s6vt3sw.pitch[cv]   -> mod_goxjv2c.voct[cv]
+cv-route: mod_s6vt3sw.gate[gate]  -> mod_s5p7ab8.gate[gate]
+CvGraph: routes=2 skipped=0
+```
+
+**Verwacht audio-gedrag:** identiek aan v0.3.x — VCO volgt MIDI-pitch, AHDSR gate opent en sluit envelope, VCA volgt envelope (nog via DC-proxy). Verschil is dat dit nu via de **generieke bridge** loopt, niet via de hardgecodeerde `syncDynamicModules()`.
+
+Test even een paar noten en bevestig dat geluid hetzelfde is. Daarna kunnen we door naar **C4**: DC-proxy in AHDSR weghalen, VCA krijgt eigen `writeCvPort("cv")` + interne DC, en de architectuur is dan volledig schoon.
 
 ---
 
@@ -12120,23 +12181,6 @@ er is geen geluid
 ---
 
 ## 🤖 Assistant
-
-
-
-<details>
-<summary><em>Read AhdsrAudioModule.h, lines 1 to 110</em> (+5 meer)</summary>
-
-- Read AhdsrAudioModule.h, lines 1 to 110
-- Read CvGraph.cpp
-- Searched for text `readCvPort` (`**/firmware/core/**`), 5 results
-- Read MidiIn.cpp, lines 100 to 143
-- Searched for regex `writeCvPort|updatePitch|outputPortKind|inputPortKind` (`**/firmware/app-modular-brain/**`), 17 results
-- Read VcoModule.h, lines 55 to 130
-</details>
-
-
-
-*Read main.cpp, lines 230 to 260*
 
 
 
@@ -12514,24 +12558,6 @@ Snelste fix: forward MIDI events naar alle runtime-`MidiInModule` instances.
 *Read main.cpp, lines 1 to 120*
 
 
-
-*Searched for regex `cvGraph|CvGraph` (`**/firmware/app-modular-brain/src/main.cpp`), 6 results · Searched for text `onNoteOn` (`**/firmware/core/src/runtime/MidiIn.cpp`), 1 result · Read MidiIn.cpp, lines 50 to 100*
-
-**Gevonden.** Het probleem: er zijn **twee** `MidiInModule` objecten.
-
-- De globale `midiIn` in `main.cpp` ontvangt de USB-MIDI events (jouw `[midi] noteOn` log komt daar vandaan).
-- De `ProjectRuntime` maakt op basis van het patch JSON een **aparte** `MidiInModule` aan (instance `mod_s6vt3sw`).
-- `CvGraph` bridget vanaf de **runtime-instance**, niet vanaf de globale → die ziet nooit een note → `gate` blijft 0 en `pitch` blijft −5 V (= note 0 default).
-
-Dat verklaart precies dat de bridge na build één keer logt en daarna nooit meer.
-
-In v0.4.0 sloeg `syncDynamicModules` deze bug over door de globale `midiIn` direct uit te lezen en mechanisch op de runtime-VCO/AHDSR te schrijven. De nieuwe bridge respecteert het JSON-bronmodel — zoals het hoort — maar dan moeten USB-events ook naar dáár.
-
-Snelste fix: forward MIDI events naar alle runtime-`MidiInModule` instances.    
-
-*Read main.cpp, lines 1 to 120*
-
-
 Bump versie en flash:     
 v0.4.2 staat erop. Test even: connect → push config → selectPatch → noot spelen. Geluid zou er nu moeten zijn, en in de log zie je per noot een nieuwe `bridge: ...` regel met de actuele pitch/gate.
 
@@ -12655,11 +12681,7 @@ Nu `CvMath` aanmaken in core:
 
 
 
-*Starting: *Build + flash v0.4.4* (4/4)*
-
-
-
-*Completed: *Build + flash v0.4.4* (4/4)*
+*Starting: *Build + flash v0.4.4* (4/4) · Completed: *Build + flash v0.4.4* (4/4)*
 
 v0.4.4 staat erop. Wat er nieuw is:
 
@@ -12694,20 +12716,6 @@ wil je hem aan de editor toevoegen? Je hebt ze toch nog niet gepatcht? Ik kan we
 ---
 
 ## 🤖 Assistant
-
-
-
-<details>
-<summary><em>Searched for files matching `**/seedModules.ts`, 1 match</em> (+6 meer)</summary>
-
-- Searched for files matching `**/seedModules.ts`, 1 match
-- Searched for text `tp_mmb_ahdsr` (`**/editor/src/modular-mb/seedModules.ts`), 3 results
-- Read seedModules.ts, lines 590 to 680
-- Read seedModules.ts, lines 680 to 800
-- Read seedModules.ts, lines 800 to 900
-- Searched for text `mmbMidiIn()` (`**/editor/src/modular-mb/seedModules.ts`), 2 results
-- Read seedModules.ts, lines 860 to 910
-</details>
 
 
 
@@ -12759,5 +12767,2121 @@ CvMath.out  ──→ VCA.cv
 MidiIn.vel  ──→ CvMath.a   (mode = Sum, gain_a ≈ 0.3, offset = base)
 CvMath.out  ──→ VCF.cv     (heldere toon bij hogere velocity)
 ```
+
+---
+
+## 🧑 User
+
+zou je deze patch als test patch kunnen seeden?
+
+---
+
+## 🤖 Assistant
+
+
+
+*Read seedModules.ts, lines 1125 to 1230 · Read seedModules.ts, lines 1210 to 1240 · Read seedModules.ts, lines 1240 to 1255*
+
+Nu weet ik de structuur. Ik maak een tweede seed-patch op basis van de actuele patch: `MidiIn → VCO + AHDSR-filter + AHDSR-amp`, met velocity via `CvMath`: 
+Nu kijken waar `seedTestPatch` aangeroepen wordt, zodat ik `seedCvBridgePatch` ook kan aanhaken:  
+
+*Searched for text `seedTestPatch` (`**/editor/src/**`), 7 results · Read ModularMbApp.tsx, lines 200 to 220*
+
+
+
+
+*Checked seedModules.ts, ModularMbApp.tsx, no problems found*
+
+Schoon. In de editor-toolbar staat nu naast **✨ Test-patch** een nieuwe **✨ CV-bridge** knop. Die maakt een patch aan met:
+
+- `MidiIn` → VCO pitch (V/Oct)
+- `MidiIn.gate` → beide envelopes
+- `MidiIn.vel` → `CvMath.b` (mult-mode)
+- `envAmp.cv_out` → `CvMath.a` → `VCA.cv` (amplitude schaal met velocity)
+- `envFlt.cv_out` → `VCF.cv` (filter opent bij noot-aanslag)
+- Filter-envelope iets langzamer dan amp-envelope (attack=20ms, decay=600ms)
+
+---
+
+## 🧑 User
+
+mooi. Zou je hem nog iets logischer kunnen ordenen?
+- VCA net voor OUT bijv.
+- AHDSR2 (die voor de VCF) eerste, dan de VCF, dan de AHDSR2 voor de CV-math, dan de VCA
+
+Dan volg je meer de CV dan audio, maar lijkt mij duidelijker
+
+---
+
+## 🤖 Assistant
+
+De gewenste volgorde is: `MidiIn → VCO → envFlt → VCF → envAmp → CvMath → VCA → OUT`. Ik pas de volgorde in de `place()`-aanroepen aan: 
+
+*Searched for text `const rackHp = [mi, vco, vcf, vca, envAmp, envFlt, cvmath, out]` (`**/editor/src/modular-mb/seedModules.ts`), 1 result · Read seedModules.ts, lines 1282 to 1310*
+
+
+
+
+*Checked seedModules.ts, no problems found*
+
+Klaar. De volgorde is nu:
+
+```
+MIDI-IN → VCO → AHDSR (filter) → VCF → AHDSR (amp) → CV-MATH → VCA → OUT
+```
+
+Zo volg je eerst het CV-pad (envFlt opent de VCF, envAmp × vel gaat via CvMath naar de VCA), en eindigt het audio-pad rechts bij VCA → OUT.
+
+---
+
+## 🧑 User
+
+ik hoor alleen niets. Is de CV-math al wel gebouwd in code?
+
+---
+
+## 🤖 Assistant
+
+Laat me even checken wat er in de firmware staat: 
+
+*Searched for files matching `**/CvMath.h`, 1 match · Searched for text `CvMath` (`**/firmware/**`), 7 results · Read CvMath.h*
+
+CvMath bestaat en is geregistreerd. Het probleem zit waarschijnlijk in hoe `CvGraph` de verbindingen verwerkt — CvMath heeft geen `tick()`, maar de graph moet `readCvPort("out")` doorsturen naar `VCA.cv`. Laten we de CvGraph bekijken: 
+
+*Searched for text `tickBridge` (`**/firmware/app-modular-brain/src/CvGraph*`), 4 results · Read CvGraph.cpp*
+
+CvGraph ziet er goed uit — routes worden in volgorde verwerkt, dus `cvmath.a/b` worden geschreven vóór `cvmath.out` gelezen. Maar ik wil de VCA-implementatie checken — die moet `writeCvPort("cv", v)` correct afhandelen: 
+
+*Searched for text `writeCvPort` (`**/firmware/**`), 8 results*
+
+Er is geen `writeCvPort` voor een VCA module! Laten we die zoeken: 
+
+*Searched for files matching `**/VcaModule*`, 1 match · Read VcaModule.h*
+
+Er is het probleem. De VCA's `cv` poort is een **audio channel 1** van `AudioEffectMultiply` — geen CV-poort. CvGraph slaat die route dus over. Laat me AHDSR ook checken:  
+
+*Read AhdsrAudioModule.h*
+
+Nu begrijp ik het probleem volledig. Laten we ook VCF checken: 
+
+*Searched for text `inputPortKind|writeCvPort|cv` (`**/firmware/app-modular-brain/src/VcfModule.h`), 8 results · Read VcfModule.h, lines 60 to 108*
+
+Nu zie ik het volledig. VCA's `cv`-poort is een **audio channel 1** van `AudioEffectMultiply` — geen CV-poort. CvGraph slaat die route over. VCF heeft hetzelfde probleem. Dit is precies de geplande C4-cleanup: beide modules krijgen een interne DC + `writeCvPort`: 
+
+---
+
+## 🧑 User
+
+wacht even.... deze werkt wel, ook met een VCA
+
+---
+
+## 🤖 Assistant
+
+Klopt — dat werkt omdat in die patch `AHDSR.cv_out` direct naar `VCA.cv` gaat als **audio**-verbinding: de AHDSR heeft een `AudioSynthWaveformDc` proxy die audio-rate DC uitgeeft, en AudioGraph bekabelt die naar channel 1 van `AudioEffectMultiply`. Geen CvGraph nodig.
+
+In de CV-bridge patch loopt het via `CvMath.out → VCA.cv`. `CvMath.out` is Cv-domain, maar `VCA.cv` heeft geen `inputPortKind` override — die geeft `PortKind::None` terug. CvGraph ziet dat en **skipt** de route.
+
+De architectuurkloof:
+
+| Pad | Source kind | Dest kind | Graph | Werkt? |
+|-----|------------|-----------|-------|--------|
+| `AHDSR.cv_out → VCA.cv` (audio DC-proxy) | Audio | Audio | AudioGraph | ✅ |
+| `CvMath.out → VCA.cv` | Cv | None | CvGraph skip | ❌ |
+
+**Fix:** `VcaModule` moet een `writeCvPort("cv", v)` krijgen met een ingebouwde `AudioSynthWaveformDc` die channel 1 van de multiply voedt, plus `inputPortKind("cv") → Cv`. Wil je dat ik dat nu implementeer?
+
+---
+
+## 🧑 User
+
+Ja, graag!
+
+Daarnaast heb ik even een basis vraag. Het testen van de werking van de firmware op de teensy is tamelijk bewerkelijk. Ik moet een config en een patch uploaden. Soms eerst opnieuw met de teensy verbinden. Dan in VMPK de MIDI mapping verbreken en weer aanleggen. Dan een paar toetsen indrukken.
+Als het dan niet werkt, eerst de code aanpassen, firmware flashen, en alles opnieuw.
+
+Kan dat niet gestroomlijnder? Met een test-knop op de site (die een patch stuurt en meteen wat test-MIDI data stuurt, en daarvoor zorgt dat de connectie er ook is). Of iets dat zorgt dat mijn MIDI keyboard (de keystep pro) sneller richting de teensy verbonden is. De editor als MIDI mapper dus. (Hij ontvangt al MIDI voor simulatie.)
+
+Dan: kun je nog kort een overzicht geven van wat er nog moet gebeuren in de firmware?
+- ik denk een aantal modules bouwen / wrappen
+- polyfonie uitbouwen
+
+---
+
+## 🤖 Assistant
+
+Ik begin met de VCA-fix, daarna beantwoord ik je vragen.
+
+## 1. VcaModule: CV-bridge support 
+Belangrijk detail: de interne `cvDc_ → mult_ ch1` verbinding mag niet altijd actief zijn, anders botst die met de audio-domain route (AHDSR DC-proxy → VCA.cv) in de oude test-patch. Ik maak hem lazy: standaard losgekoppeld, pas verbinden bij de eerste CV-write. 
+VCF werkt al via de audio-route (AHDSR DC-proxy → VCF channel 1), dus alleen de VCA had de fix nodig. Nu versie bumpen en flashen:  
+
+*Read FwVersion.h, lines 1 to 5 · Searched for text `#define FW_VERSION` (`**/firmware/app-modular-brain/src/FwVersion.h`), 1 result*
+
+
+Build slaagt. Nu uploaden:  Firmware v0.4.5 staat klaar (druk eventueel op de PROGRAM-knop). De VCA accepteert nu CV-bridge input — `CvMath.out → VCA.cv` werkt.
+
+Laat me even kijken hoe de editor nu MIDI en patch-upload doet, zodat mijn voorstellen concreet zijn. 
+
+*Searched for regex `requestMIDIAccess|MIDIInput|MIDIOutput|navigator\.requestMIDI|noteOn|sendNoteOn` (`**/editor/src/**`), 18 results · Searched for regex `Serial|serialport|writePatch|uploadPatch|sendPatch|device|connect|WebSerial|webusb` (`**/editor/src/**`), 30 results · Searched for regex `TeensyLink|teensyLink|pushConfig|pushPatch|WebSerial|getPort|requestPort|writer\.write` (`**/editor/src/**`), 16 results · Read teensyLink.ts*
+
+Ik heb nu het complete beeld. De editor heeft al een WebSerial-link naar de Teensy (`teensyLink.ts`) die newline-JSON stuurt (`config`, `selectPatch`, `setStatic`, `hello`), en ontvangt al Web MIDI voor de simulatie. Hier zijn je antwoorden.
+
+## ✅ 1. VCA CV-bridge fix — gedaan
+
+`VcaModule` rapporteert nu `cv` als `PortKind::Cv` en heeft `writeCvPort("cv", …)` met een interne `AudioSynthWaveformDc` proxy die lazy op kanaal 1 van de multiply wordt aangesloten. Daardoor blijft de oude audio-route (AHDSR DC-proxy → VCA.cv) werken én werkt nu de CV-route (`CvMath.out → VCA.cv`). Firmware **v0.4.5** is geflasht.
+
+## 2. Teststraat stroomlijnen
+
+Je raakt de kern: het knelpunt is dat MIDI via VMPK → OS → USB-MIDI naar de Teensy loopt, met handmatige mapping. Maar de editor heeft **al twee dingen**: een WebSerial-link naar de Teensy én Web MIDI-input. Die kun je combineren.
+
+**Aanbevolen: editor als MIDI-bridge (lost beide op).**
+
+Voeg één nieuw serial-bericht toe: `{ type: 'midi', on: true, note: 60, vel: 100, ch: 0 }`. In de firmware laat je `TeensyLink` dat bericht doorzetten naar de bestaande `forwardMidiToRuntime(...)`. Daarmee:
+
+- **Test-knop** (jouw idee #1): één klik = `sendConfig()` → `sendSelectPatch()` → een paar `midi`-noten sturen. Geen VMPK, geen mapping, geen losse MIDI-koppeling.
+- **Keystep Pro live** (jouw idee #2): de editor ontvangt al Web MIDI (`MidiSource.ts`); je pipet die events door over dezelfde serial-link. De Teensy hoeft dan helemaal geen USB-MIDI-host te zijn — de editor is de mapper.
+
+Dat is veel robuuster dan de USB-MIDI-route en hergebruikt alle bestaande infrastructuur. De wijziging is klein:
+- Firmware: `case 'midi'` in de TeensyLink command-handler → `forwardMidiToRuntime(...)`.
+- Editor: `sendMidi(on, note, vel)` in `teensyLink.ts` + een **Test-knop** + optioneel een toggle "Keystep → Teensy" die `MidiSource` events doorstuurt.
+
+## 3. Firmware — wat staat er nog open?
+
+**Module-laag (wrappen/bouwen):**
+- **VCF cutoff-CV schaal** — `cv_amt` wordt nog niet toegepast; envelope→cutoff is nu vast.
+- **VCA `gain`/`resp`** — controls worden opgeslagen maar niet gebruikt (geen base-gain, geen exp-curve).
+- **NOISE, LFO, S&H, ECHO, PHASER** — bestaan in de editor maar moeten nog als firmware-module gewrapt worden.
+- **CvMath sum-mode** is klaar; eventueel meer CV-utils (slew/quantizer) later.
+
+**Architectuur (C4-opschoning uit eerdere planning):**
+- DC-proxy uit `AhdsrAudioModule` halen zodra alle consumenten via de CV-bridge gevoed worden (VCF/VCA puur CV). Nu bestaan audio- én CV-paden naast elkaar.
+- `syncDynamicModules()` is dood (build-warning) → verwijderen.
+
+**Polyfonie:**
+- Runtime instantieert nu één instance per module-id. Voor polyfonie heb je per "voice group" N kopieën van de osc/freq/amp-keten nodig (de editor toont al `× 3 osc/freq/amp` voice-groups). Dat vraagt: voice-allocatie (note→voice), N audio-ketens, en MIDI-verdeling over voices in `forwardMidiToRuntime`.
+
+Wil je dat ik de **MIDI-bridge + Test-knop** nu bouw? Dat geeft je direct de snelste testloop.
+
+---
+
+## 🧑 User
+
+ja, wil je de **MIDI-bridge + Test-knop** bouwen?
+
+Zou je daarna aan de te bouwen modules een simpele mixer willen toevoegen? Dat is voorbereidend op polyfonie nodig.
+
+**Zou je dan iets van de backlog willen oppakken?** Ik zou de **LFO** wil willen starten. Die willen we graag zelf bouwen, zodat het echt een CV module is. Hij hoeft nooit naar audio-frequentie toe. Hij lijkt qua opzet op de Envelope, en misschien kunnen we zelfs wat logica hergebruiken. In elk geval de structuur. 
+
+We hebben ook nog variaties op de Envelope op de backlog staan als het goed is. Anders moeten die er op. Zie UML img. 
+
+En de D/A breakouts en A/D break-ins moeten gepland worden. Kijk anders nog even naar het plan-v2.md
+
+---
+
+## 🤖 Assistant
+
+Veel te doen. Laat me eerst een plan maken en de relevante bestanden lezen. 
+
+<details>
+<summary><em>Created 6 todos</em> (+4 meer)</summary>
+
+- Created 6 todos
+- Searched for files matching `**/plan-v2.md`, 1 match
+- Searched for files matching `**/{BACKLOG,backlog}.md`, no matches
+- Searched for regex `selectPatch|setStatic|type ==|strcmp|handleCommand|onLine|processLine` (`**/firmware/app-modular-brain/src/**`), 20 results
+- Read TeensyLink.h, lines 60 to 220
+</details>
+
+Nu de relevante delen van `main.cpp` lezen:  
+
+*Read main.cpp, lines 160 to 319*
+
+Nu heb ik genoeg context. Ik begin met de MIDI-bridge in de firmware.
+
+### Task 1: Firmware `midi` serial command  
+Nu het docstring-blok bovenaan `TeensyLink.h` bijwerken en `main.cpp` aansluiten:  
+
+*Read TeensyLink.h, lines 15 to 30*
+
+Docstring is niet kritisch; ik ga verder met main.cpp. Ik voeg een bridge-handler toe en pas `link.begin` aan:  
+
+
+*Starting: *MIDI-bridge: editor sendMidi + Keystep forward* (2/6)*
+
+### Task 2: editor `sendMidi` + Keystep-forward
+
+Eerst `sendMidi` toevoegen aan teensyLink.ts:  
+Snel spelen mag de log niet overspoelen. Ik geef `writeLine` een quiet-optie en gebruik die voor MIDI:  
+
+
+*Read teensyLink.ts, lines 248 to 262*
+
+
+Nu de Keystep-forward en Test-knop. Laten we de TeensyLinkModal bekijken om de UI te begrijpen, en SimulationPanel voor waar MIDI events binnenkomen:  
+
+*Read TeensyLinkModal.tsx, lines 1 to 160*
+
+Nu de MidiSource bekijken om Keystep-events te kunnen doorsturen:   
+
+*Read MidiSource.ts*
+
+Nu breid ik de TeensyLinkModal uit met een Test-knop en een Keystep→Teensy bridge:  
+Nu de knoppen toevoegen in de UI en een `sleep`-helper:   
+
+
+*Checked TeensyLinkModal.tsx, teensyLink.ts, no problems found*
+
+Tasks 1-3 klaar. Nu de firmware bouwen om de MIDI-bridge te valideren, en daarna door naar de Mixer.   
+
+*Starting: *Mixer module (firmware + editor)* (4/6)*
+
+MIDI-bridge compileert. Nu de Mixer-module. Laten we eerst kijken hoe een bestaande audio-module (VcaModule patroon) en de editor-seed eruitzien, plus de OutModule voor meerdere inputs:  
+
+*Searched for regex `function mmbVca|function mmbOut|function mmbVcf` (`**/editor/src/modular-mb/seedModules.ts`), 3 results · Read seedModules.ts, lines 814 to 900*
+
+Laat me de AudioPortModule-basis en hoe AudioGraph audio-inputs koppelt bekijken:   
+
+*Read AudioPortModule.h, lines 1 to 60*
+
+Nu maak ik de MixerModule met `AudioMixer4` (4 audio-inputs + gains):   
+
+*Created MixerModule.h*
+
+Nu MixerModule registreren. Laat me `RegisterAllModules.h` bekijken:   
+
+*Read RegisterAllModules.h, lines 30 to 66*
+
+Er bestaat al een `mb/runtime/Lfo.h`! Daar kijk ik straks naar. Eerst de mixer registreren:   
+Nu de Mixer in de editor seeden. Ik kijk hoe `mmbCvMath` is gestructureerd en voeg `mmbMixer` toe:    
+
+*Read seedModules.ts, lines 897 to 945*
+
+
+Nu `mmbMixer()` toevoegen aan de `seedInternals``all` array. Laat me die vinden:    
+
+*Searched for regex `mmbCvMath\(\)` (`**/editor/src/modular-mb/seedModules.ts`), 2 results*
+
+
+
+
+*Checked seedModules.ts, no problems found*
+
+Mixer klaar. Nu de LFO — er bestaat al een `mb/runtime/Lfo.h`. Laat me die en de Ahdsr bekijken om te zien wat er al is en wat de gewenste structuur is:     
+
+*Read Lfo.h*
+
+De LFO bestaat al als `CvModule`! Laten we de `.cpp` en de `CvModule`-basis checken — vooral of de CV-bridge port-kinds aanwezig zijn:     
+
+*Read CvModule.h · Read Ahdsr.h, lines 90 to 130 · Searched for regex `outputPortKind|readCvPort|inputPortKind|writeCvPort|PortKind` (`**/firmware/core/**/Lfo.*`), no results*
+
+De LFO mist de CV-bridge methods. Laat me checken hoe `tickCvModules()` werkt (worden LFO-instances getikt?):      
+
+*Searched for text `tickCvModules` (`**/firmware/app-modular-brain/src/main.cpp`), 3 results · Read main.cpp, lines 112 to 160*
+
+De LFO mist twee dingen: CV-bridge poort-methods én hij wordt niet getikt. Ik voeg beide toe. Eerst de CV-bridge methods in Lfo.h:      
+Nu de LFO laten tikken in main.cpp. Ik moet ook `Lfo.h` includen — laat me checken wat `main.cpp` includeert:     
+
+*Searched for regex `#include` (`**/firmware/app-modular-brain/src/main.cpp`), 14 results*
+
+`RegisterAllModules.h` includeert al `Lfo.h`, dus `Lfo` is beschikbaar. Ik tik nu LFO mee:     
+Nu de editor `mmbLfo` control-ids vergelijken met de core `Lfo.cpp` setControl:      
+
+*Searched for text `function mmbLfo` (`**/editor/src/modular-mb/seedModules.ts`), 1 result · Read seedModules.ts, lines 643 to 700*
+
+De editor-LFO heeft geen `gate`-poort, alleen `reset`, `rate_cv`, `out`, `out_inv`. De core `Lfo` ondersteunt `gate` ook maar dat is optioneel. De kern (`out` als Cv, vrij lopend in Always-mode) werkt nu. Laat me de firmware bouwen om alles te valideren:       
+
+*Read content.txt, lines 1 to 120 · Read content.txt, lines 120 to 220 · Read content.txt, lines 240 to 280*
+
+Laat me het einde van de build-output checken:     
+
+*Read content.txt, lines 288 to 302*
+
+Build slaagt. De enige waarschuwing is de ongebruikte `syncDynamicModules()` — die ruim ik meteen op. Daarna versie bumpen.    
+
+*Read main.cpp, lines 135 to 160*
+
+
+
+
+*Read main.cpp, lines 138 to 155*
+
+Dubbel commentaarblok — opruimen:     
+Firmware v0.5.0 geflasht (clean build, geen warnings meer). Nu de laatste taak: backlog bijwerken met envelope-varianten en breakouts. Laat me `Plan-v2.md` en de backlog-locatie bekijken:     
+
+*Starting: *Envelope-varianten + breakouts plannen in backlog* (6/6) · Read doc · Searched for regex `backlog|Backlog|BACKLOG|Multifase|Sampled Envelope|break-out|breakout|break-in` (`**/doc/**`), 40 results*
+
+Geen aparte BACKLOG.md. Laat me `Plan-v2.md` lezen om de juiste plek voor planning te vinden:      
+
+*Read Plan-v2.md, lines 60 to 200*
+
+Er is geen module-backlog. Laat me checken of er al een firmware-modules statusdoc bestaat:         
+
+<details>
+<summary><em>Searched for files matching `**/firmware/app-modular-brain/**/README*`, 2 matches</em> (+10 meer)</summary>
+
+- Searched for files matching `**/firmware/app-modular-brain/**/README*`, 2 matches
+- Searched for files matching `**/{modules,module-status,roadmap,Roadmap}*.md`, no matches
+- Read README.md, lines 1 to 80
+- Read README.md, lines 80 to 133
+- Read README.md, lines 133 to 133
+- Read README.md, lines 133 to 133
+- Read README.md, lines 133 to 133
+- Read README.md, lines 133 to 133
+- Read README.md, lines 133 to 133
+- Searched for regex `^### |^\[SUCCESS\]|Module backlog|^## ` (`**/firmware/app-modular-brain/README.md`), 8 results
+- Read README.md, lines 128 to 133
+</details>
+
+Nu voeg ik een DEVLOG-entry én een Module-backlog sectie toe aan de README: 
+
+
+*Completed: *Envelope-varianten + breakouts plannen in backlog* (6/6)*
+
+Klaar. Alles is gebouwd, geflasht en gedocumenteerd.
+
+## Wat er nu draait (firmware v0.5.0, geflasht op COM4)
+
+- **VCA CV-bridge-fix** — de "geen geluid"-bug op de CV-bridge-patch is opgelost. `VcaModule` accepteert nu echte CV op zijn `cv`-poort via een lazy-connected DC-proxy. Vuistregel toegevoegd: elke CV-bridge-*sink* moet `inputPortKind` + `writeCvPort` overriden.
+- **MIDI-bridge** — editor stuurt nu `{"type":"midi",…}` over serial; firmware routeert dat naar `handleNoteOn/Off`.
+- **Mixer** (`tp_mmb_mixer`) — 4-in summing mixer, polyfonie-bouwsteen.
+- **LFO** (`tp_mmb_lfo`) — de ontbrekende CV-bridge-methodes zijn toegevoegd én hij tickt nu mee in `tickCvModules()`.
+- **Cleanup** — dode `syncDynamicModules()` weg, clean build zonder warnings.
+
+## In de editor kun je nu
+
+- **✨ CV-bridge** — seedt de testpatch.
+- **▶️ Test patch** — pusht config, selecteert de actieve patch en speelt automatisch een C-majeur arpeggio (geen extern toetsenbord nodig).
+- **🎹 Keystep → Teensy** — stuurt je hardware-MIDI live via de browser door naar de Teensy.
+
+## Backlog gedocumenteerd
+
+In `README.md` staat nu een **Module backlog & status**-sectie met:
+- statustabel van alle module-wrappers (editor vs firmware),
+- **Envelope-varianten** — AHDSR ✅, Multifase Envelope ⬜ (sluit aan op de geplande `CV_SEGMENT`-opcode uit ADR 0008), Sampled Envelope ⬜,
+- **Breakouts** — CV break-out (D/A, 12/16-bit, spanningsbereiken), Gate break-out, CV break-in en Controller break-in (A/D), met verwijzingen naar ADR 0004/0008/0009/0010.
+
+Let op (lage prioriteit): de editor-LFO heeft poorten `rate_cv` en `out_inv` die de firmware nog niet afhandelt, en mist een `gate`-poort — afstemmen kan in een follow-up.
+
+---
+
+## 🧑 User
+
+de log toont iets raars met de MIDI: het klinkt ook heel raar. Bijna als ringmodulation. (hees)
+
+de log:
+```
+19:54:14.052 rx [midi] noteOn  ch=0 note=60 vel=100
+19:54:14.052 rx [voices on ] 0: 112 1:*60 2: 124 3: 124 
+19:54:14.053 rx [midi] noteOn  ch=1 note=60 vel=100
+19:54:14.053 rx [voices on ] 0:*60 1:*60 2: 124 3: 124 
+19:54:14.054 rx [midi] noteOn  ch=0 note=72 vel=100
+19:54:14.054 rx [voices on ] 0:*60 1:*60 2:*72 3: 124 
+19:54:14.054 rx [midi] noteOn  ch=0 note=72 vel=100
+19:54:14.054 rx [voices on ] 0:*60 1:*60 2:*72 3:*72 
+19:54:14.055 rx [midi] noteOn  ch=0 note=84 vel=100
+19:54:14.056 rx [voices on ] 0:*60 1:*84 2:*72 3:*72 
+19:54:14.056 rx [midi] noteOn  ch=0 note=84 vel=100
+19:54:14.056 rx [voices on ] 0:*84 1:*84 2:*72 3:*72 
+19:54:14.056 rx [midi] noteOn  ch=0 note=96 vel=100
+19:54:14.056 rx [voices on ] 0:*84 1:*84 2:*96 3:*72 
+19:54:14.056 rx [midi] noteOn  ch=0 note=96 vel=100
+19:54:14.057 rx [voices on ] 0:*84 1:*84 2:*96 3:*96 
+19:54:14.057 rx [midi] noteOn  ch=0 note=108 vel=100
+19:54:14.057 rx [voices on ] 0:*84 1:*108 2:*96 3:*96 
+19:54:14.058 rx [midi] noteOn  ch=0 note=108 vel=100
+19:54:14.058 rx [voices on ] 0:*108 1:*108 2:*96 3:*96 
+19:54:14.058 rx [midi] noteOn  ch=0 note=120 vel=100
+19:54:14.058 rx [voices on ] 0:*108 1:*108 2:*120 3:*96 
+19:54:14.058 rx [midi] noteOn  ch=0 note=120 vel=100
+19:54:14.058 rx [voices on ] 0:*108 1:*108 2:*120 3:*120 
+19:54:15.157 rx [midi] noteOff ch=0 note=60 vel=100
+19:54:15.157 rx [voices off] 0:*108 1:*108 2:*120 3:*120 
+19:54:15.158 rx [midi] noteOff ch=1 note=60 vel=0
+19:54:15.158 rx [voices off] 0:*108 1:*108 2:*120 3:*120 
+19:54:15.161 rx [midi] noteOff ch=0 note=72 vel=100
+19:54:15.161 rx [voices off] 0:*108 1:*108 2:*120 3:*120 
+19:54:15.161 rx [midi] noteOff ch=0 note=72 vel=100
+19:54:15.161 rx [voices off] 0:*108 1:*108 2:*120 3:*120 
+19:54:15.161 rx [midi] noteOff ch=0 note=84 vel=100
+19:54:15.161 rx [voices off] 0:*108 1:*108 2:*120 3:*120 
+19:54:15.163 rx [midi] noteOff ch=0 note=84 vel=100
+19:54:15.163 rx [voices off] 0:*108 1:*108 2:*120 3:*120 
+19:54:15.163 rx [midi] noteOff ch=0 note=96 vel=100
+19:54:15.163 rx [voices off] 0:*108 1:*108 2:*120 3:*120 
+19:54:15.164 rx [midi] noteOff ch=0 note=96 vel=100
+19:54:15.164 rx [voices off] 0:*108 1:*108 2:*120 3:*120 
+19:54:15.164 rx [midi] noteOff ch=0 note=108 vel=100
+19:54:15.165 rx [voices off] 0: 108 1:*108 2:*120 3:*120 
+19:54:15.165 rx [midi] noteOff ch=0 note=108 vel=100
+19:54:15.165 rx [voices off] 0: 108 1: 108 2:*120 3:*120 
+19:54:15.165 rx [midi] noteOff ch=0 note=120 vel=100
+19:54:15.165 rx [voices off] 0: 108 1: 108 2:*120 3: 120 
+19:54:15.166 rx [midi] noteOff ch=0 note=120 vel=100
+19:54:15.166 rx [voices off] 0: 108 1: 108 2: 120 3: 120 
+```
+
+## opruimen
+```
+**Architectuur (C4-opschoning uit eerdere planning):**
+
+- DC-proxy uit [AhdsrAudioModule](file:///d%3A/Git/Muziek/MusicBrain/firmware/app-modular-brain/src/AhdsrAudioModule.h#49%2C7) halen zodra alle consumenten via de CV-bridge gevoed worden (VCF/VCA puur CV). Nu bestaan audio- én CV-paden naast elkaar.
+```
+Kan dat eventueel nu al? Ik vind het wel fijn als we voor we naar polyfonie gaan, de architectuur volgen en audio-> audio en cv-> cv doen. Dus scheiding van signaaltype (en mechanisme van opwekken: de 1kHz tick of de teensy audio lib manier (44 kHz?) )
+
+## LFO
+- rate CV in is wel essentieel
+- de reset trigger ingang is wel verbonden?
+- de inverse out is niet zo moeilijk toch? Is wel leuk.
+
+## rack
+- de poort labels missen op de modules, iig de interne modules hebben die niet
+
+## mixer
+- kan deze misschien een stereo mixer zijn, met pan knoppen op elk kanaal
+- beter dan boven elkaar: 1 vol - pan, 2 vol pan, etc.
+
+## documenteren
+Wil je code ook weer steeds documenteren op de afgesproken manier? /* ...*/ zodat ook EA dat kan lezen.
+
+---
+
+## 🤖 Assistant
+
+Veel te doen. Laat me eerst de relevante bestanden bekijken om de MIDI-bug en de architectuur te begrijpen. 
+
+*Created 6 todos · Searched for files matching `**/editor/src/modular-mb/sim/MidiSource.ts`, 1 match · Read AhdsrAudioModule.h, lines 1 to 120 · Read MidiSource.ts*
+
+Gevonden: `WebMidiSource.bindInputs()` abonneert op **alle** MIDI-inputs. Een Keystep Pro presenteert meerdere poorten → elke toetsaanslag komt dubbel binnen → twee stemmen op dezelfde noot → het "ring-mod / hese" comb-filter-geluid. Laat me de firmware MIDI-afhandeling en de andere bestanden bekijken. 
+
+<details>
+<summary><em>Read main.cpp, lines 155 to 200</em> (+6 meer)</summary>
+
+- Read main.cpp, lines 155 to 200
+- Searched for regex `handleNoteOn|handleNoteOff|onMidiNote|forwardMidiToRuntime|usbMIDI|setHandleNote|channel` (`**/firmware/app-modular-brain/src/main.cpp`), 20 results
+- Searched for regex `sendMidi|toggleBridge|onTest|noteOn|noteOff|subscribe|channel|ch` (`**/editor/src/modular-mb/TeensyLinkModal.tsx`), 20 results
+- Read TeensyLinkModal.tsx, lines 53 to 140
+- Searched for regex `sendMidi|channel|ch` (`**/editor/src/modular-mb/teensyLink.ts`), 20 results
+- Read teensyLink.ts, lines 227 to 270
+- Read main.cpp, lines 244 to 309
+</details>
+
+Nu zie ik de oorzaak. De Teensy echoot elke noot +12 terug via `usbMIDI.sendNoteOn`, en de editor-bridge abonneert op **álle** MIDI-inputs — inclusief de Teensy's eigen MIDI-uitgang. Dat is een feedback-loop: noot 60 → Teensy echoot 72 → bridge stuurt 72 terug → Teensy echoot 84 → ... (precies de octaaf-cascade 60,72,84,96,108,120 in je log). Twee tegelijk klinkende oscillatoren op bijna-gelijke noten geven dat hese/ringmod-geluid.
+
+Laat me de echo-regels in de firmware bekijken:  
+
+*Read main.cpp, lines 213 to 242*
+
+Nu de echo-regels verwijderen (debug-leftover die de feedback veroorzaakt):   
+Nu de editor-bridge: filter de Teensy's eigen MIDI-poort eruit én dedupliceer noten over meerdere poorten. 
+
+
+*Starting: *Architectuur: DC-proxy weg, VCF/VCA puur CV* (2/6)*
+
+Nu de architectuur-opschoning. Laat me VcfModule.h en de rest van VcaModule.h lezen om de audio- vs CV-paden te begrijpen.     
+
+*Read VcaModule.h · Read VcfModule.h*
+
+Laat me de rest van `AhdsrAudioModule.h` lezen en de AudioGraph/CvGraph adoptie-regels verifiëren.     
+
+*Read AhdsrAudioModule.h, lines 120 to 144 · Read CvGraph.cpp, lines 1 to 90 · Read AudioGraph.cpp*
+
+Bevestigd: een route als `AHDSR.cv_out → VCA.cv` wordt nu door **beide** grafen geclaimd (dubbel pad). Nu de drie modules naar puur-CV ombouwen. Eerst AHDSR — DC-proxy weg:     
+Nu VCA — `cv` puur CV maken (audio-input-poort weg, DC-proxy als interne mechaniek):      
+Nu VCF — `cv` puur CV via interne DC-proxy + `octaveControl` voor cutoff-modulatie:     
+
+
+*Starting: *LFO: rate-CV in, reset trigger, inverse out* (3/6) · Read Lfo.h · Searched for files matching `**/Lfo.cpp`, 1 match · Read Lfo.cpp*
+
+LFO heeft al `gate`/`reset`/`out`. Ik voeg `rate_cv` (in) en `out_inv` (uit) toe. De reset-trigger is al bedraad. Eerst de header:  
+Nu de `rate_cv`-modulatie in `tick()`:     
+LFO klaar. Nu de Mixer ombouwen naar stereo met pan. Laat me MixerModule.h lezen:     
+
+*Read MixerModule.h*
+
+Nu bouw ik de Mixer om naar stereo met volume + pan per kanaal. Laat me eerst de editor-kant (`mmbMixer`, `mmbOut`) en de port/control-structuur bekijken:  
+
+*Searched for regex `function mmbMixer|function mmbOut|function mmbCvMath|inPort|outPort|knob|toggle` (`**/editor/src/modular-mb/seedModules.ts`), 20 results · Read seedModules.ts, lines 27 to 118 · Searched for regex `mmbMixer|mmbLfo|mmbCvMath|mmbOut|function mmb` (`**/editor/src/modular-mb/seedModules.ts`), 19 results · Read seedModules.ts, lines 598 to 956*
+
+De Mixer wordt stereo met volume + pan per kanaal. Eerst de firmware (4× fan-out amp → 2 mixers, equal-power pan):      
+
+*Created MixerModule.h*
+
+
+
+---
+
+## 🤖 Assistant
+
+
+
+*Created MixerModule.h*
+
+
+Nu de editor-mixer naar stereo met vol+pan per kanaal (rij per kanaal):      
+
+
+*Checked seedModules.ts, MidiSource.ts, no problems found*
+
+
+
+*Checked seedModules.ts, MidiSource.ts, no problems found*
+
+LFO, Mixer, architectuur en MIDI gedaan. Nu de poort-labels op interne modules. Laat me de rack-rendering bekijken.     
+
+<details>
+<summary><em>Starting: *Rack: poort-labels op interne modules* (5/6)</em> (+7 meer)</summary>
+
+- Starting: *Rack: poort-labels op interne modules* (5/6)
+- Searched for regex `labelPos|port.label|portLabel|\.name.*port|renderPort` (`**/editor/src/**`), 20 results
+- Searched for regex `ModuleFaceView|FaceRenderer|renderFace|face\.items|\.items\.map|RackPanel|function Rack` (`**/editor/src/**`), 7 results
+- Searched for regex `items|jack|label|port|text|FaceItem|svg|<text` (`**/editor/src/modular-mb/RackPanel.tsx`), 20 results
+- Searched for regex `<ModulePanel|showPortLabels|portLayout|ports=` (`**/editor/src/modular-mb/RackPanel.tsx`), 4 results
+- Read ModulePanel.tsx, lines 55 to 260
+- Read RackPanel.tsx, lines 770 to 810
+- Read RackPanel.tsx, lines 720 to 760
+</details>
+
+
+
+<details>
+<summary><em>Starting: *Rack: poort-labels op interne modules* (5/6)</em> (+10 meer)</summary>
+
+- Starting: *Rack: poort-labels op interne modules* (5/6)
+- Searched for regex `labelPos|port.label|portLabel|\.name.*port|renderPort` (`**/editor/src/**`), 20 results
+- Searched for regex `ModuleFaceView|FaceRenderer|renderFace|face\.items|\.items\.map|RackPanel|function Rack` (`**/editor/src/**`), 7 results
+- Searched for regex `items|jack|label|port|text|FaceItem|svg|<text` (`**/editor/src/modular-mb/RackPanel.tsx`), 20 results
+- Searched for regex `<ModulePanel|showPortLabels|portLayout|ports=` (`**/editor/src/modular-mb/RackPanel.tsx`), 4 results
+- Read ModulePanel.tsx, lines 55 to 260
+- Read RackPanel.tsx, lines 770 to 810
+- Read RackPanel.tsx, lines 720 to 760
+- Searched for regex `internal\?:|internal:|\.internal` (`**/editor/src/modular-mb/**`), 20 results
+- Read RackPanel.tsx, lines 1340 to 1355
+- Read RackPanel.tsx, lines 194 to 220
+</details>
+
+
+
+
+*Checked RackPanel.tsx, no problems found*
+
+Nu de firmware bouwen + flashen. Eerst versie bumpen: 
+
+*Searched for regex `0\.5\.0|kFwVersion|FW_VERSION` (`**/firmware/app-modular-brain/**`), 6 results*
+
+
+
+
+*Searched for regex `MixerModule::registerFactory|MixerModule` (`**/firmware/app-modular-brain/**`), 7 results*
+
+Registratie is in orde. Nu firmware bouwen: Build slaagt. Nu flashen naar de Teensy:  De build is schoon, maar het flashen kon COM4 niet automatisch herstarten ("Access is denied") — de poort is waarschijnlijk bezet door de seriële verbinding van de editor. Je moet óf in de editor de verbinding verbreken, óf de **PROGRAM**-knop op de Teensy indrukken; de Teensy-loader staat klaar en flasht dan v0.5.1.
+
+Nu de documentatie bijwerken:  
+
+*Read README.md, lines 125 to 210*
+
+
+
+
+*Read README.md, lines 125 to 210*
+
+
+Nu de backlog-tabel bijwerken:   
+
+
+*Completed: *Rack: poort-labels op interne modules* (5/6)*
+
+Alles is af. Samenvatting in het Nederlands:
+
+## Wat er gedaan is
+
+**1. MIDI ring-mod / hees geluid — opgelost.** Het was een feedback-loop: de firmware echode elke noot **+12** terug over USB-MIDI (oude restant van `pipeline_test.py`), én de editor luisterde naar *alle* Web-MIDI-ingangen — inclusief de Teensy's eigen poort. Dus 60 → 72 → 84 → … cascade, twee oscillatoren bijna-octaaf uit elkaar = beating/hees. Fix: echo verwijderd + `WebMidiSource` negeert nu eigen Teensy-poorten en ontdubbelt vastgehouden noten (KeyStep Pro stuurt op meerdere poorten).
+
+**2. Schone scheiding CV vs audio — kan nu al, gedaan.** Elke `portId` zit nu in precies één domein, dus `CvGraph` en `AudioGraph` claimen niet meer dezelfde ingang. AHDSR is puur CV (DC-proxy uit de zichtbare poorten), VCA en VCF houden hun `cvDc_` alleen nog als *interne* implementatie (permanent verbonden, geen lazy-connect race meer). Goede basis vóór polyfonie.
+
+**3. LFO.** `rate_cv` werkt nu (exponentieel, ±4 octaven), `out_inv` is de geïnverteerde uitgang, en de **reset-trigger is inderdaad aangesloten** (rising-edge).
+
+**4. Mixer is nu stereo.** Per kanaal **Vol + Pan** (equal-power pan), één rij per kanaal (`[in] Vol Pan`), met `out_l`/`out_r`. In de editor herbouwd naar 8 HP.
+
+**5. Poort-labels.** Het rack toont nu de jack-labels op interne MMB-modules (Eurorack-faceplates blijven schoon).
+
+**6. Documentatie** — alle aangeraakte code heeft Doxygen `/** */` + `/* */` commentaar, en de README heeft een nieuwe DEVLOG-entry (fw 0.5.1) plus bijgewerkte backlog-tabel.
+
+**Build:** schoon (`[SUCCESS]`). **Flash:** de upload kon COM4 niet automatisch resetten ("Access is denied") omdat de editor de seriële poort vasthoudt. Verbreek even de verbinding in de editor (of druk de **PROGRAM**-knop op de Teensy) en de loader flasht v0.5.1.
+
+---
+
+## 🧑 User
+
+de AHDSR lijkt geen release te geven. Hij klikt ook bij starten en stoppen..
+
+```
+21:28:13.102 tx {"type":"config","project":{"version":2,"name":"ModularMB","activePatchId":"patch_r12yi3m","modules":[{"id":"mod_10o1x9w","typeId":"tp_mmb_ahdsr"},{"id":"mod_t9zrz20","typeId":"tp_mmb_lfo"},{"id":"mod…
+21:28:13.107 rx {"type":"log","msg":"config received: name=ModularMB"}
+21:28:13.108 rx {"type":"log","msg":"runtime: created=18 unknown=6 total=24 active=patch_r12yi3m"}
+21:28:13.108 rx {"type":"ack","ok":true,"applied":"config","modules":24,"patches":1,"racks":3}
+21:28:15.134 tx {"type":"selectPatch","patchId":"patch_r12yi3m"}
+21:28:15.136 rx {"type":"log","msg":"selectPatch: patch_r12yi3m"}
+21:28:15.136 rx {"type":"log","msg":"active patch=patch_r12yi3m connections=11 wired=11 dangling=0 controls=32"}
+21:28:15.136 rx {"type":"log","msg":"static auto-muted for dynamic patch"}
+21:28:15.137 rx {"type":"log","msg":"  wire: mod_6ms4jf4(tp_mmb_vco).out/ch0 -> mod_x2qmbjc(tp_mmb_vcf).in/ch0"}
+21:28:15.137 rx {"type":"log","msg":"  wire: mod_x2qmbjc(tp_mmb_vcf).out/ch0 -> mod_actx1r5(tp_mmb_vca).in/ch0"}
+21:28:15.137 rx {"type":"log","msg":"  wire: mod_actx1r5(tp_mmb_vca).out/ch0 -> mod_1r35z46(tp_mmb_out).l/ch0"}
+21:28:15.137 rx {"type":"log","msg":"  wire: mod_actx1r5(tp_mmb_vca).out/ch0 -> mod_1r35z46(tp_mmb_out).r/ch1"}
+21:28:15.137 rx {"type":"log","msg":"  skip(notaudio): mod_umj9ump(tp_mmb_midiin).pitch -> mod_6ms4jf4(tp_mmb_vco).voct"}
+21:28:15.137 rx {"type":"log","msg":"  skip(notaudio): mod_umj9ump(tp_mmb_midiin).gate -> mod_ujdzich(tp_mmb_ahdsr).gate"}
+21:28:15.137 rx {"type":"log","msg":"  skip(notaudio): mod_umj9ump(tp_mmb_midiin).gate -> mod_mccg9tu(tp_mmb_ahdsr).gate"}
+21:28:15.137 rx {"type":"log","msg":"  wire: mod_mccg9tu(tp_mmb_ahdsr).cv_out/ch0 -> mod_x2qmbjc(tp_mmb_vcf).cv/ch1"}
+21:28:15.138 rx {"type":"log","msg":"  skip(notaudio): mod_ujdzich(tp_mmb_ahdsr).cv_out -> mod_i5iufdo(tp_mmb_cvmath).a"}
+21:28:15.138 rx {"type":"log","msg":"  skip(notaudio): mod_umj9ump(tp_mmb_midiin).vel -> mod_i5iufdo(tp_mmb_cvmath).b"}
+21:28:15.138 rx {"type":"log","msg":"  skip(notaudio): mod_i5iufdo(tp_mmb_cvmath).out -> mod_actx1r5(tp_mmb_vca).cv"}
+21:28:15.138 rx {"type":"log","msg":"AudioGraph: wired=5 skipped=6"}
+21:28:15.138 rx {"type":"log","msg":"  skip(kind): mod_6ms4jf4.out[audio] -> mod_x2qmbjc.in[none]"}
+21:28:15.138 rx {"type":"log","msg":"  skip(kind): mod_x2qmbjc.out[none] -> mod_actx1r5.in[none]"}
+21:28:15.138 rx {"type":"log","msg":"  skip(kind): mod_actx1r5.out[none] -> mod_1r35z46.l[none]"}
+21:28:15.138 rx {"type":"log","msg":"  skip(kind): mod_actx1r5.out[none] -> mod_1r35z46.r[none]"}
+21:28:15.138 rx {"type":"log","msg":"  cv-route: mod_umj9ump.pitch[cv] -> mod_6ms4jf4.voct[cv]"}
+21:28:15.139 rx {"type":"log","msg":"  cv-route: mod_umj9ump.gate[gate] -> mod_ujdzich.gate[gate]"}
+21:28:15.139 rx {"type":"log","msg":"  cv-route: mod_umj9ump.gate[gate] -> mod_mccg9tu.gate[gate]"}
+21:28:15.139 rx {"type":"log","msg":"  skip(kind): mod_mccg9tu.cv_out[cv] -> mod_x2qmbjc.cv[none]"}
+21:28:15.140 rx {"type":"log","msg":"  cv-route: mod_ujdzich.cv_out[cv] -> mod_i5iufdo.a[cv]"}
+21:28:15.140 rx {"type":"log","msg":"  cv-route: mod_umj9ump.vel[cv] -> mod_i5iufdo.b[cv]"}
+21:28:15.140 rx {"type":"log","msg":"  cv-route: mod_i5iufdo.out[cv] -> mod_actx1r5.cv[cv]"}
+21:28:15.140 rx {"type":"log","msg":"CvGraph: routes=6 skipped=5"}
+21:28:15.140 rx {"type":"ack","ok":true,"applied":"selectPatch","patchId":"patch_r12yi3m"}
+21:28:19.663 rx [midi] noteOn  ch=0 note=65 vel=88
+21:28:19.663 rx [voices on ] 0:*65 1: 0 2: 0 3: 0 
+21:28:20.974 rx [midi] noteOff ch=0 note=65 vel=100
+21:28:20.974 rx [voices off] 0: 65 1: 0 2: 0 3: 0 
+21:28:21.248 rx [midi] noteOn  ch=0 note=60 vel=67
+21:28:21.248 rx [voices on ] 0: 65 1:*60 2: 0 3: 0 
+21:28:22.840 rx [midi] noteOff ch=0 note=60 vel=100
+21:28:22.840 rx [voices off] 0: 65 1: 60 2: 0 3: 0 
+21:28:23.205 rx [midi] noteOn  ch=0 note=72 vel=54
+21:28:23.205 rx [voices on ] 0: 65 1: 60 2:*72 3: 0 
+21:28:25.418 rx [midi] noteOff ch=0 note=72 vel=100
+21:28:25.419 rx [voices off] 0: 65 1: 60 2: 72 3: 0 
+21:28:26.606 rx [midi] noteOn  ch=0 note=60 vel=82
+21:28:26.606 rx [voices on ] 0: 65 1: 60 2: 72 3:*60 
+21:28:28.146 rx [midi] noteOff ch=0 note=60 vel=100
+21:28:28.146 rx [voices off] 0: 65 1: 60 2: 72 3: 60 
+21:28:29.531 rx [midi] noteOn  ch=0 note=65 vel=91
+21:28:29.531 rx [voices on ] 0:*65 1: 60 2: 72 3: 60 
+21:28:30.977 rx [midi] noteOff ch=0 note=65 vel=100
+21:28:30.977 rx [voices off] 0: 65 1: 60 2: 72 3: 60 
+21:28:32.362 rx [midi] noteOn  ch=0 note=67 vel=106
+21:28:32.362 rx [voices on ] 0: 65 1:*67 2: 72 3: 60 
+21:28:34.064 rx [midi] noteOff ch=0 note=67 vel=100
+21:28:34.064 rx [voices off] 0: 65 1: 67 2: 72 3: 60 
+21:28:35.242 rx [midi] noteOn  ch=0 note=72 vel=76
+21:28:35.243 rx [voices on ] 0: 65 1: 67 2:*72 3: 60 
+21:28:37.719 rx [midi] noteOff ch=0 note=72 vel=100
+21:28:37.720 rx [voices off] 0: 65 1: 67 2: 72 3: 60 
+```
+
+## rack
+- zie img: de poorten hebben geen label. In de patch staan ze er wel.
+- patcher heeft +- full zoom, rack niet, alleen zoom via de gehele browser zoom
+
+## modules
+ik moet de lfo en mixer nog testen
+
+## patches
+Het presets scherm zegt "Een *patch-preset* bewaart het complete project (alle modules, racks, patches, kabels en knopstanden). Laden vervangt het huidige project." (img 6)
+Dat is fout: dat is het bewaren van een heel project: een rack, en alle patches... 
+
+**het zou echter wel heel handig zijn om enkel een of meer patches te kunnen bewaren**
+
+Ook handig / nodig:
+- bewaar een patch *als* "een nieuwe patchnaam* (vanuit patcher)
+- kopieer een bestaande patch (in patches scherm) naar *nieuwe naam*
+
+### patchnummers
+om via midi program change van patch te kunnen wisselen hebben patches ook een nummer nodig
+
+---
+
+## 🤖 Assistant
+
+This is a multi-part request. Let me set up a plan and start investigating, beginning with the AHDSR sound bug. 
+
+*Created 7 todos · Searched for files matching `**/Ahdsr.*`, 4 matches · Read Ahdsr.h · Read Ahdsr.cpp*
+
+
+
+*Read CvGraph.cpp · Searched for files matching `**/CvMathModule.h`, no matches · Searched for text `tp_mmb_cvmath` (`**/firmware/**`), 2 results · Read CvMath.h*
+
+Before I dig in, the serial log you pasted is important: it shows the **old** firmware is still running. Look at these lines:
+
+```
+wire: mod_mccg9tu(tp_mmb_ahdsr).cv_out/ch0 -> mod_x2qmbjc(tp_mmb_vcf).cv/ch1   ← AudioGraph claims it as AUDIO
+skip(kind): mod_mccg9tu.cv_out[cv] -> mod_x2qmbjc.cv[none]                       ← VCF.cv still reports [none]
+skip(notaudio): mod_ujdzich(tp_mmb_ahdsr).cv_out -> ...cvmath).a                 ← AHDSR.cv_out also still audio (dual-path)
+```
+
+That dual-path behavior (AHDSR exposing `cv_out` as *both* audio and CV, VCF.cv as `[none]`) is exactly what v0.5.1 removed. So the flash from last turn did **not** land (COM4 was busy → "Access is denied"). Everything I changed is still only in source on the device.
+
+A couple of quick things so I don't debug against stale firmware and so I scope the rest right: 
+
+*Asked 2 questions (Flash state, Volgorde)*
+
+
+
+<details>
+<summary><em>Created 7 todos</em> (+7 meer)</summary>
+
+- Created 7 todos
+- Searched for files matching `**/Ahdsr.*`, 4 matches
+- Read Ahdsr.h
+- Read Ahdsr.cpp
+- Read CvGraph.cpp
+- Searched for files matching `**/CvMathModule.h`, no matches
+- Searched for text `tp_mmb_cvmath` (`**/firmware/**`), 2 results
+- Read CvMath.h
+</details>
+
+Before I dig in, the serial log you pasted is important: it shows the **old** firmware is still running. Look at these lines:
+
+```
+wire: mod_mccg9tu(tp_mmb_ahdsr).cv_out/ch0 -> mod_x2qmbjc(tp_mmb_vcf).cv/ch1   ← AudioGraph claims it as AUDIO
+skip(kind): mod_mccg9tu.cv_out[cv] -> mod_x2qmbjc.cv[none]                       ← VCF.cv still reports [none]
+skip(notaudio): mod_ujdzich(tp_mmb_ahdsr).cv_out -> ...cvmath).a                 ← AHDSR.cv_out also still audio (dual-path)
+```
+
+That dual-path behavior (AHDSR exposing `cv_out` as *both* audio and CV, VCF.cv as `[none]`) is exactly what v0.5.1 removed. So the flash from last turn did **not** land (COM4 was busy → "Access is denied"). Everything I changed is still only in source on the device.
+
+A couple of quick things so I don't debug against stale firmware and so I scope the rest right: 
+
+*Asked 2 questions (Flash state, Volgorde)*
+
+Je gaat flashen — top. Ondertussen onderzoek ik de echte envelope-keten. De "geen release"-klacht heeft mogelijk ook een patch-oorzaak (CvMath sum-mode telt velocity erbij op), dus laat me de MIDI-in velocity en de tick-keten checken. 
+
+*Searched for text `tp_mmb_midiin` (`**/firmware/**`), 3 results · Read MidiIn.h, lines 52 to 143 · Searched for text `readCvPort` (`**/firmware/core/src/runtime/MidiIn.cpp`), 1 result · Read MidiIn.cpp, lines 113 to 149*
+
+
+
+<details>
+<summary><em>Searched for text `tp_mmb_midiin` (`**/firmware/**`), 3 results</em> (+5 meer)</summary>
+
+- Searched for text `tp_mmb_midiin` (`**/firmware/**`), 3 results
+- Read MidiIn.h, lines 52 to 143
+- Searched for text `readCvPort` (`**/firmware/core/src/runtime/MidiIn.cpp`), 1 result
+- Read MidiIn.cpp, lines 113 to 149
+- Searched for regex `seedCvBridgePatch|cvmath|CvMath|mode.*mult|env.*vel` (`**/editor/src/modular-mb/**`), 20 results
+- Read seedModules.ts, lines 1295 to 1390
+</details>
+
+Found the real bug. The seed patch wires `VCA.cv = envAmp × velocity` (CvMath mult mode). But `readCvPort("vel")` returns **0.0** the instant the gate drops:
+
+```cpp
+if (portId == "vel") {
+    for (...) if (gate_[v]) return velocity_[v]/127;
+    return 0.0f;   // ← velocity collapses to 0 at note-off
+}
+```
+
+So at note-off `VCA.cv = env × 0 = 0` **instantly** — that kills the release tail (no release) and is a hard step (click). It also contradicts the header docstring, which says velocity should latch "so envelope release can still read it". Let me check `onNoteOff` to confirm velocity isn't wiped, then fix `vel` to latch like `pitch` does. 
+
+*Read MidiIn.cpp, lines 1 to 113*
+
+`velocity_` is preserved on note-off — so the fix is to make `vel` latch the last value like `pitch` does instead of returning 0.  
+Now let me check the editor-side simulator has the same velocity behavior, since the user also tests in the browser.  
+
+*Searched for regex `vel|velocity` (`**/editor/src/modular-mb/runtime/**`), 11 results · Searched for regex `'vel'|readCv|MidiIn|midiin` (`**/editor/src/modular-mb/runtime/**`), no results*
+
+
+
+*Searched for regex `vel|velocity` (`**/editor/src/modular-mb/runtime/**`), 11 results · Searched for regex `'vel'|readCv|MidiIn|midiin` (`**/editor/src/modular-mb/runtime/**`), no results*
+
+The firmware envelope fix is in. Let me rebuild to validate, then move to the editor features in parallel while it builds. First the build:  Build is clean. Now the editor features. First let me verify why the rack labels still don't show — checking whether `ModuleType` actually carries `internal`.  
+
+*Read types.ts, lines 360 to 395*
+
+`internal` lives on `ModuleInstance`, but `seedCvBridgePatch.fresh()` sets `internal: false`. Let me check `assemble()` and `seedInternals` to find the reliable signal.   
+
+*Read seedModules.ts, lines 120 to 175*
+
+`ModuleType` has no `internal` field, so my earlier `types.find(...).internal` is always `undefined` → labels never render. The proper fix is to add `internal` to `ModuleType`. Let me find the interface.   
+
+*Searched for regex `export interface ModuleType` (`**/editor/src/modular-mb/types.ts`), 1 result · Read types.ts, lines 341 to 360*
+
+
+
+
+*Searched for regex `export interface ModuleType` (`**/editor/src/modular-mb/types.ts`), 1 result · Read types.ts, lines 341 to 360*
+
+
+Now my RackGrid check `types.find(...).internal` will work. Let me verify the existing rack-zoom situation and the inspector preview also use it, then add rack zoom. Let me read the RackGrid render area and the panel header. 
+
+*Read RackPanel.tsx, lines 36 to 120 · Searched for regex `PX_PER_MM|MM_PER_HP|PANEL_HEIGHT_MM` (`**/editor/src/modular-mb/RackPanel.tsx`), 18 results · Read RackPanel.tsx, lines 660 to 720 · Read RackPanel.tsx, lines 120 to 160*
+
+Now let me add zoom state and controls in RackPanel, and thread a `zoom` prop into RackGrid. First the state and toolbar button: 
+Now update the RackGrid signature and replace `PX_PER_MM` usages inside it with a zoom-scaled local. Let me  usages inside it with a zoom-scaled local. Let me update the signature:  
+
+
+*Searched for regex `PX_PER_MM` (`**/editor/src/modular-mb/RackPanel.tsx`), 10 results*
+
+All usages from line 711 onward are inside `RackGrid`. Let me replace them with `PX`:  
+
+
+*Searched for regex `PX_PER_MM` (`**/editor/src/modular-mb/RackPanel.tsx`), 3 results · Read RackPanel.tsx, lines 768 to 775*
+
+
+
+
+*Checked RackPanel.tsx, seedModules.ts, types.ts, no problems found*
+
+Rack labels + zoom done. Now the Presets panel — let me find it for the text fix and patch-save features.   
+
+*Searched for regex `patch-preset bewaart het complete project|Patch presets|Module presets|Presets` (`**/editor/src/**`), 20 results · Read presets.ts, lines 1 to 250*
+
+
+
+*Searched for regex `patch-preset bewaart het complete project|Patch presets|Module presets|Presets` (`**/editor/src/**`), 20 results · Read presets.ts, lines 1 to 250*
+
+This is substantial. Let me look at the Patch type and the patches/patcher screens to implement save-as, copy, and patch numbers.    
+
+*Searched for regex `export interface Patch` (`**/editor/src/modular-mb/types.ts`), 3 results · Read types.ts, lines 583 to 630*
+
+Let me add a `programNumber` field to Patch for MIDI program change: 
+Now let me find the patches screen and the patcher panel to add save-as/copy/number UI.   
+
+*Searched for files matching `**/*Patch*Panel*.tsx`, 5 matches · Read PatchesPanel.tsx, lines 1 to 120 · Read PatchesPanel.tsx, lines 120 to 142*
+
+Let me add patch duplication and the program-number column to the patches screen:   
+Now the "save as new patch" from the patcher. Let me look at PatcherPanel.    
+
+*Read PatcherPanel.tsx*
+
+
+
+
+*Searched for regex `export (function|const) (updateProject|uid)` (`**/editor/src/modular-mb/store.ts`), 2 results*
+
+
+Now add the "Bewaar als…" button and handler: 
+
+
+*Read PatcherPanel.tsx, lines 28 to 52*
+
+
+Now the PresetsModal text fix and the "save only patches" feature. Let me read it.    
+
+*Read PresetsModal.tsx, lines 1 to 120 · Read PresetsModal.tsx, lines 120 to 320*
+
+
+
+*Read PresetsModal.tsx, lines 1 to 120 · Read PresetsModal.tsx, lines 120 to 320*
+
+Now I'll update `presets.ts` to add a patch-only preset type (save individual patches, not whole project). First let me see the rest of `presets.ts` factory section: 
+
+*Read presets.ts, lines 250 to 340*
+
+Now let me add patch-only ("losse patches") preset support to presets.ts:  
+Now add the patch-set save/delete/rename/apply functions after the module-preset functions: 
+Now update import to merge patchSets:  
+
+
+*Checked presets.ts, no problems found*
+
+Now update the PresetsModal: rename the "Patch presets" tab to "Project presets", reword text, and add a new "Patches" tab. First the imports and tab state:  
+Now add the new `PatchSetPresetsTab` component before the Module-presets section:  
+
+
+*Checked PresetsModal.tsx, PatchesPanel.tsx, PatcherPanel.tsx, no problems found*
+
+Patch numbers are now stored in the editor. Let me check whether the firmware config export should carry the number so program-change can work.    
+
+*Searched for regex `programChange|program_change|programNumber|ProgramChange` (`**/editor/src/**`), 19 results*
+
+Let me check how the modular-mb config is exported to firmware (to know if programNumber should be serialized):   
+
+*Searched for regex `voiceCount|exportConfig|toFirmware|buildConfig|serialize` (`**/editor/src/modular-mb/**`), 30 results · Read types.ts, lines 695 to 820*
+
+All edited files are clean. Let me run a typecheck on the editor to be safe.    
+Clean. Now let me document the changes. Let me find the relevant doc/README.    
+
+*Searched for files matching `**/{README,DEVLOG,DEVLOOP,CHANGELOG}*.md`, 20 matches · Searched for regex `Presets|preset|Patcher|Patches|zoom|0\.5\.` (`**/editor/README.md`), 7 results*
+
+
+
+*Searched for files matching `**/{README,DEVLOG,DEVLOOP,CHANGELOG}*.md`, 20 matches · Searched for regex `Presets|preset|Patcher|Patches|zoom|0\.5\.` (`**/editor/README.md`), 7 results · Searched for regex `0\.5\.0|0\.5\.1|AHDSR|CvMath|rack zoom|patch-preset` (`**/*.md`), 30 results · Read README.md, lines 133 to 160*
+
+I'll add a DEVLOG entry to the firmware README documenting the velocity-latch fix:   
+Alle punten zijn afgerond. Editor typechecked schoon (`tsc --noEmit`).
+
+## Wat ik heb gedaan
+
+**1. AHDSR — geen release + klik (firmware)**
+Oorzaak zat níét in `Ahdsr` zelf maar in de seed-patch + `MidiInModule::readCvPort("vel")`. De VCA wordt via `CvMath` mult-mode aangestuurd als `AHDSR.cv_out × velocity`. `readCvPort("vel")` gaf `0.0` zodra er geen voice meer gated was → op note-off `env × 0 = 0` → release afgekapt (geen release) + harde stap (klik), spiegelbeeldig bij note-on. Fix: velocity wordt nu gelatcht. Deze fix zit in de fw-0.5.1-build die **nog geflasht moet worden** (COM4 was bezet — koppel eerst de seriële verbinding in de editor los).
+
+**2. Rack-poortlabels** — interne modules tonen nu hun labels; `ModuleType.internal` wordt nu in `assemble()` ingevuld.
+
+**3. Rack-zoom** — eigen +/−/reset-knoppen (0.4–3×) los van de browserzoom, via `PX = PX_PER_MM × zoom` door `RackGrid`.
+
+**4. Presets-tekst** — de oude "Patch presets"-tab heet nu **"Project presets"** (bewaart écht het hele project) met gecorrigeerde uitleg.
+
+**5. Losse patches bewaren** — nieuwe **"Patch presets"**-tab bewaart alleen geselecteerde patches (kabels/knoppen/env/LFO, geen modules); laden voegt ze toe aan het project. Export/Import neemt ze mee.
+
+**6. Bewaar als / kopiëren** — "Bewaar als…"-knop in de Patcher; ⧉-kopieerknop in de Patches-tab.
+
+**7. Patch-nummer** — nieuw veld `programNumber` (0–127, kolom `Prog#`) voor MIDI Program Change. De firmware-afhandeling van Program Change → patch-selectie is bewust een vervolgstap (nog niet bedraad).
+
+Alles is gedocumenteerd in `README.md`.
+
+Wil je dat ik nu de firmware flash, of doe je dat zelf?
+
+---
+
+## 🧑 User
+
+Ik heb de firmware geflasht. De release doet het. Het klikt allemaal echter nog wel een beetje. Niet heel consistent. Hoe kan dat komen?
+
+## zoom
+waarom gaat 
+'**Rack-zoom** — eigen +/−/reset-knoppen (0.4–3×) los van de browserzoom, via [PX = PX_PER_MM × zoom] door [RackGrid]'
+en de patcher met een inline ding (zie img)
+
+- de zoom in het rack blijft niet als ik naar een andere tab ga en terug
+
+## voices en notes
+wat is de architectuuroplossing voor noten? Ik zou persoonlijk een voice-object maken, dat door de MIDI-IN beheerd wordt, waarin dan misschien een (max 1) actieve note zit.
+Die note is een gevolg van wat de MIDI-IN de voice geeft. Bij mono is er maar 1 voice. Het volgende note event breekt de vorige note gewoon af... Als er ruimte zit tussen de noten, kan de release zijn werk doen. Als release nul bereikt, kan de note eindigen of passief worden. De voice is dan zonder actieve note.
+
+Dat is vooral belangrijk bij poly: als een voice geen actieve note heeft, is ie klaar voor een nieuwe note.
+Zijn er geen beschikbare voices meer, dan moet er gestolen worden...
+
+#3 polyfonie
+Kunnen we al starten met polyfonie?
+
+---
+
+## 🤖 Assistant
+
+Goede vragen. Laat me een paar dingen bekijken voordat ik antwoord — de envelope-parameters, de zoom-state, en de huidige voice/MIDI-architectuur. 
+
+*Read Ahdsr.h, lines 1 to 80 · Read seedModules.ts, lines 1290 to 1340 · Read seedModules.ts, lines 1340 to 1380 · Searched for regex `amplitude\(|\.gain\(|writeCvPort|cvDc_|setCv` (`**/firmware/**`), 20 results*
+
+
+
+*Read AhdsrAudioModule.h, lines 90 to 143 · Read CvGraph.cpp, lines 60 to 105 · Searched for regex `amplitude|writeCvPort|cvDc_` (`**/firmware/app-modular-brain/src/VcaModule.h`), 15 results*
+
+
+
+<details>
+<summary><em>Read Ahdsr.h, lines 1 to 80</em> (+8 meer)</summary>
+
+- Read Ahdsr.h, lines 1 to 80
+- Read seedModules.ts, lines 1290 to 1340
+- Read seedModules.ts, lines 1340 to 1380
+- Searched for regex `amplitude\(|\.gain\(|writeCvPort|cvDc_|setCv` (`**/firmware/**`), 20 results
+- Read AhdsrAudioModule.h, lines 90 to 143
+- Read CvGraph.cpp, lines 60 to 105
+- Searched for regex `amplitude|writeCvPort|cvDc_` (`**/firmware/app-modular-brain/src/VcaModule.h`), 15 results
+- Read VcaModule.h, lines 82 to 95
+- Searched for regex `writeCvPort|amplitude|octaveControl|cvDc_` (`**/firmware/app-modular-brain/src/VcfModule.h`), 16 results
+</details>
+
+Gevonden. Laat me checken hoe vaak de CV-bridge tickt, zodat ik de juiste ramp-tijd kies. 
+
+*Searched for regex `tickBridge|tickCvModules|kCvTick|CV_TICK|millis\(\) -` (`**/firmware/app-modular-brain/src/**`), 10 results · Read main.cpp, lines 115 to 130 · Read main.cpp, lines 295 to 310*
+
+Root cause gevonden. Laat me beide CV-sinks fixen (VCA + VCF zetten de DC-amplitude instant → 1 ms-trapjes = zipper/klik).  
+
+*Read VcaModule.h, lines 40 to 111*
+
+
+
+
+*Read VcfModule.h, lines 105 to 133*
+
+
+
+
+*Read VcfModule.h, lines 127 to 138*
+
+
+Now let me build the firmware to confirm it compiles, and fix the rack-zoom persistence. Let me check the zoom state first. 
+
+*Read RackPanel.tsx, lines 1 to 60*
+
+Zoom resets bij tab-wissel omdat `RackPanel` unmount. Ik maak de zoom persistent via localStorage:  
+
+
+*Checked RackPanel.tsx, no problems found*
+
+Now build the firmware to validate the click fix compiles: Build succeeded (exit code 1 is alleen PowerShell die `teensy_size`-stderr ziet). Laat me de huidige voice-architectuur kort bekijken zodat ik je vragen 3 & 4 accuraat beantwoord.  
+
+*Searched for regex `voice|Voice|note_|velocity_|gate_|poly|mono|steal` (`**/firmware/core/include/mb/runtime/MidiIn.h`), 20 results · Read MidiIn.h, lines 49 to 120 · Searched for regex `steal|noteOn|noteOff|struct Voice|kMaxAllocVoices|class VoiceAllocator` (`**/firmware/core/**/VoiceAllocator.h`), 20 results · Completed: *AHDSR: release + klik fixen* (1/8)*
+
+Hieronder per vraag.
+
+## 1. Waarom klikt het nog (en wat ik eraan deed)
+
+De release werkt nu (velocity-latch fix). De resterende, **inconsistente** klik komt uit een ander mechanisme: zipper-ruis.
+
+De CV-bridge schrijft de envelope-waarde naar de VCA en VCF via een interne `AudioSynthWaveformDc`, en deed dat met `cvDc_.amplitude(value)` — een **directe** sprong. Die bridge tickt elke ~1 ms (in ), dus de gain van de `AudioEffectMultiply` kreeg een **trapfunctie van 1 ms-stapjes** (48 samples per stap). Elke stap is een kleine discontinuïteit → klik/zipper. Dat het *inconsistent* klinkt klopt: de hoorbaarheid hangt af van (a) het audio-niveau op het stapmoment en (b) de jitter van `millis()` (de tick is "≥1 ms", niet exact periodiek). Tijdens attack/decay zijn de stappen het grootst, dus daar hoor je het meest.
+
+Fix: de DC nu **slewen** over 2 ms i.p.v. instant zetten, in beide CV-sinks:
+-  → `cvDc_.amplitude(value, kCvSlewMs)`
+-  → idem
+
+Opeenvolgende updates vloeien zo in elkaar tot een continue, stuksgewijs-lineaire curve i.p.v. trapjes. Firmware bouwt schoon (FLASH code:138576). **Je moet opnieuw flashen** om dit te horen.
+
+> Mocht er ná het flashen nóg een restklik zitten bij note-on, dan is de volgende verdachte de VCO-fase (de oscillator reset z'n fase niet bij een nieuwe noot). Maar test eerst deze fix.
+
+## 2. Zoom: rack vs. patcher, en de persistentie
+
+Het verschil is bewust, om een concrete reden:
+- **Patcher** gebruikt een CSS-`transform: scale()` (de inline-knopjes in je screenshot). Dat is puur visueel — de cabels/knooppunten worden in dezelfde coördinaten getekend en de hele SVG schaalt mee. Simpel, want er is geen "klik→positie"-rekenwerk dat per pixel moet kloppen.
+- **Rack** rekent met echte HP/mm-posities: waar je een module *dropt* of *klikt* wordt teruggerekend naar een HP-slot. Een CSS-scale zou dat rekenwerk breken (muis-px ≠ model-px). Daarom schaal ik de effectieve `PX = PX_PER_MM × zoom` door `RackGrid` heen, zodat drop/klik→HP consistent blijft.
+
+De zoom bleef niet behouden omdat `RackPanel` unmount bij tab-wissel en de state met `useState(1)` reset. Opgelost: zoom wordt nu uit/naar `localStorage` (`mmb.rackZoom`) gelezen/geschreven in , dus hij blijft staan.
+
+(Wil je consistentie, dan kan ik de patcher óók de +/−/reset-knoppen geven, of het rack juist naar dezelfde stijl-knoppen brengen. Zeg maar welke je als standaard wilt.)
+
+## 3. Architectuur voor noten/voices
+
+Goed nieuws: wat je beschrijft is grotendeels al gebouwd in de model-laag. Er is een `VoiceAllocator` met precies jouw model:
+
+- Per voice een `VoiceState` (note, gate, velocity).
+- **NoteOn**: pak een vrije voice; zijn er geen, dan **steal** de oudste gehouden voice.
+- **NoteOff**:  (note, gate, velocity).
+- **NoteOn**: pak een vrije voice; zijn er geen, dan **steal** de oudste gehouden voice.
+- **NoteOff**: laat de voice die de noot houdt los (gate omlaag) → de release van de envelope loopt nog door.
+- `MidiInModule` bezit de allocator en levert per-voice `voicePitchV(i)`, `voiceGate(i)`, `voiceVelocity(i)`.
+
+Eén nuance t.o.v. jouw beschrijving: een voice wordt nu **vrij gemarkeerd op NoteOff** (niet pas als de release nul bereikt). Voor "release mag afmaken" is dat prima — de envelope draait door op de oude voice tot een steal hem overneemt. Wil je netjes "steal eerst voices waarvan de envelope al klaar is", dan is dat een verfijning (envelope-busy terugkoppelen naar de allocator).
+
+De **beperking** zit niet in dit model maar in de doorvoer ernaar:
+1. `MidiInModule::readCvPort("pitch"/"gate"/"vel")` plet alle voices tot **mono** (de laatst-gegate voice). Zie de docstring in .
+2. De audio-graph instantieert maar **één** voice-keten en stuurt die vanaf voice-0.
+
+## 4. Kunnen we starten met polyfonie?
+
+Ja — de fundering (allocator, per-voice state, steal) ligt er al. Wat ontbreekt is **per-voice routing** i.p.v. de mono-collapse. Concreet plan:
+
+1. **Voice-fan-out in de graph-builder**: een keten die in een rack-`PolyGroup` zit (dat UI-concept bestaat al in `types.ts`) wordt N× geïnstantieerd (VCO→VCF→VCA→ENV per voice).
+2. **Per-voice CV-poorten op MidiIn**: i.p.v. één `pitch`/`gate`/`vel`, voice-geïndexeerde uitgangen (bv. `pitch#i`) die `voicePitchV(i)` enz. teruggeven; de CV-bridge wired keten *i* aan voice *i*.
+3. **Sommatie**: alle voice-VCA's → mixer → OUT (Teensy `AudioMixer4`-cascade; let op `AudioMemory` budget bij N=8).
+4. **Editor**: PolyGroup → voiceCount al aanwezig; de graph-export moet de per-voice expansie meegeven.
+
+Dit is een substantiële stap (raakt CvGraph, AudioGraph, MidiIn-poorten en de config-export). Ik stel voor te beginnen met **2-stemmig als verticale plak** om het fan-out-mechanisme te bewijzen, en daarna opschalen.
+
+Zal ik:
+- **(a)** eerst een korte ADR/ontwerpnotitie + de MidiIn per-voice poorten opzetten (kleine, testbare eerste stap), of
+- **(b)** meteen de hele 2-voice audio-fan-out in de graph bouwen?
+
+Laat me weten welke aanpak je wilt; dan begin ik. (En vergeet niet de firmware opnieuw te flashen voor de klik-fix.)
+
+---
+
+## 🧑 User
+
+## rack - patcher
+"Wil je consistentie, dan kan ik de patcher óók de +/−/reset-knoppen geven, of het rack juist naar dezelfde stijl-knoppen brengen. Zeg maar welke je als standaard wilt." -> liefst het rack zoals de patcher (meer grafisch dan in de pagina)
+
+## voice busy als release
+ja, lijkt mij een goede verfijning, en de optie kunnen hebben in de voice-steal strategie lijkt mij ook een goed idee.
+Het geeft mogelijk natuurlijk ook problemen met lange releases. Wanneer is de release echt klaar. Treshold?
+
+## poly
+- wil je een korte ADR schrijven en meteen starten met tweestemmig? Ik geloof dat we op de juiste lijn zitten
+- wil je daarvoor ook een testpatch seeden?
+
+---
+
+## 🤖 Assistant
+
+Heldere keuzes. Ik pak ze in volgorde. Eerst kijken hoe de patcher z'n zoom-knoppen rendert, zodat ik het rack dezelfde stijl geef. 
+
+*Searched for regex `zoom|scale|setZoom|transform` (`**/editor/src/modular-mb/PatcherGraphPanel.tsx`), 10 results · Read PatcherGraphPanel.tsx, lines 670 to 700*
+
+De patcher gebruikt ReactFlow's `<Controls>` — een zwevend hoek-overlay. Ik geef het rack dezelfde stijl: een floating +/−/reset paneel over de rack-viewport. Laat me de huidige toolbar + grid-structuur bekijken.  
+
+*Searched for regex `setZoom|zoom|INTERN|FYSIEK|RackHeaderEditor|RackGrid` (`**/editor/src/modular-mb/RackPanel.tsx`), 20 results · Read RackPanel.tsx, lines 100 to 230*
+
+
+
+*Searched for regex `setZoom|zoom|INTERN|FYSIEK|RackHeaderEditor|RackGrid` (`**/editor/src/modular-mb/RackPanel.tsx`), 20 results · Read RackPanel.tsx, lines 100 to 230*
+
+Laat me de RackGrid-render-structuur zien om de floating overlay goed te positioneren.  
+
+*Read RackPanel.tsx, lines 700 to 760 · Read RackPanel.tsx, lines 670 to 700*
+
+Nu maak ik het rack-zoom een floating overlay (zoals de patcher). Eerst de inline toolbar weghalen en `setZoom` doorgeven aan `RackGrid`.   
+Now update the RackGrid signature to accept `setZoom`, make the outer container `position: relative`, and add the floating overlay:  
+Now add the `zoomBtn` style constant near `PX_PER_MM`:   
+
+
+*Checked RackPanel.tsx, no problems found*
+
+Rack-zoom is nu een zwevend hoek-overlay zoals de patcher. Nu vraag 2 + 3: voice-allocator verfijning en polyfonie. Laat me eerst de VoiceAllocator volledig lezen.    
+
+<details>
+<summary><em>Read VoiceAllocator.h</em> (+6 meer)</summary>
+
+- Read VoiceAllocator.h
+- Searched for files matching `**/VoiceAllocator.cpp`, 1 match
+- Read VoiceAllocator.cpp
+- Read MidiIn.h, lines 120 to 130
+- Read MidiIn.h, lines 128 to 143
+- Read MidiIn.cpp, lines 1 to 130
+- Read MidiIn.cpp, lines 130 to 157
+</details>
+
+Nu kijk ik naar de ADR-conventies en het ADR-register.   
+
+*Read adr · Read 0010-midi-in-and-polyphony.md, lines 1 to 80 · Read 0010-midi-in-and-polyphony.md, lines 80 to 160*
+
+
+
+*Read adr · Read 0010-midi-in-and-polyphony.md, lines 1 to 80 · Read 0010-midi-in-and-polyphony.md, lines 80 to 160 · Read 0010-midi-in-and-polyphony.md, lines 160 to 204*
+
+Er bestaat al een uitgebreide ADR 0010 (voice-stamps, breakouts — "Proposed", ambitieus). Ik schrijf een gefocuste ADR 0011 voor de praktische tweestemmige MVP + de voice-lifecycle/steal-verfijning. Laat me eerst de bestaande allocator-tests bekijken.   
+
+*Searched for regex `VoiceAllocator|noteOn|StealStrategy` (`**/firmware/**/test*/**`), 20 results · Read test_matrixrouter.cpp, lines 66 to 180*
+
+Nu ga ik bouwen. Eerst de ADR, dan de allocator-verfijning, dan de twee-stemmige slice + testpatch. Laat me een todo-lijst opzetten. 
+
+*Created 6 todos · Read 0009-module-runtime-classes.md, lines 1 to 30*
+
+Now I'll write the ADR 0011: 
+
+*Created 0011-voice-lifecycle-and-two-voice-mvp.md · Starting: *VoiceAllocator: steal-strategy + releasing-lifecycle* (3/6)*
+
+Now the VoiceAllocator. Let me read both files fully. 
+
+*Read VoiceAllocator.h · Read VoiceAllocator.cpp*
+
+
+
+*Read VoiceAllocator.h · Read VoiceAllocator.cpp*
+
+
+Now MidiIn per-voice ports. Let me read the relevant sections. 
+
+*Read MidiIn.cpp · Read MidiIn.h, lines 49 to 143*
+
+
+
+
+*Read MidiIn.cpp · Read MidiIn.h, lines 49 to 143*
+
+
+Now add unit tests for the new behaviour. Let me add after the existing allocator tests. 
+
+
+<details>
+<summary><em>Searched for regex `readCvPort|MidiInModule|voicePitchV` (`**/firmware/**/test*/**`), 19 results</em> (+4 meer)</summary>
+
+- Searched for regex `readCvPort|MidiInModule|voicePitchV` (`**/firmware/**/test*/**`), 19 results
+- Read test_midiin.cpp, lines 120 to 166
+- Read test_midiin.cpp, lines 166 to 166
+- Read test_midiin.cpp, lines 155 to 165
+- Read test_midiin.cpp, lines 1 to 22
+</details>
+
+
+
+<details>
+<summary><em>Searched for regex `readCvPort|MidiInModule|voicePitchV` (`**/firmware/**/test*/**`), 19 results</em> (+4 meer)</summary>
+
+- Searched for regex `readCvPort|MidiInModule|voicePitchV` (`**/firmware/**/test*/**`), 19 results
+- Read test_midiin.cpp, lines 120 to 166
+- Read test_midiin.cpp, lines 166 to 166
+- Read test_midiin.cpp, lines 155 to 165
+- Read test_midiin.cpp, lines 1 to 22
+</details>
+
+
+Let me build and run the core tests. Let me check the test build setup. 
+
+<details>
+<summary><em>Searched for files matching `**/firmware/core/**/CMakeLists.txt`, 2 matches</em> (+5 meer)</summary>
+
+- Searched for files matching `**/firmware/core/**/CMakeLists.txt`, 2 matches
+- Searched for regex `test_matrixrouter|test_midiin` (`**/firmware/core/**`), 2 results
+- Read CMakeLists.txt
+- Read CMakeLists.txt
+- Searched for files matching `**/firmware/CMakeLists.txt`, 1 match
+- Read CMakeLists.txt
+</details>
+
+I should configure from `firmware`, not `core`.  
+
+*Searched for text `enum class PortKind`, 1 result*
+
+
+
+*Searched for text `enum class PortKind`, 1 result · Read Module.h, lines 90 to 100*
+
+
+All 82 tests pass, including the new ones. Update todos and seed the two-voice patch.  
+
+*Starting: *Tweestemmige testpatch seeden* (5/6)*
+
+Now the two-voice test patch seed. Let me read the existing `seedCvBridgePatch`.  
+
+*Searched for regex `seedCvBridgePatch|function seed|export function` (`**/editor/src/modular-mb/seedModules.ts`), 5 results · Read seedModules.ts, lines 1296 to 1391 · Searched for regex `tp_mmb_mix|mixer|Mixer` (`**/editor/src/modular-mb/seedModules.ts`), 9 results · Read seedModules.ts, lines 924 to 975*
+
+
+
+*Read seedModules.ts, lines 1388 to 1391*
+
+
+
+
+<details>
+<summary><em>Searched for regex `seedCvBridgePatch|function seed|export function` (`**/editor/src/modular-mb/seedModules.ts`), 5 results</em> (+4 meer)</summary>
+
+- Searched for regex `seedCvBridgePatch|function seed|export function` (`**/editor/src/modular-mb/seedModules.ts`), 5 results
+- Read seedModules.ts, lines 1296 to 1391
+- Searched for regex `tp_mmb_mix|mixer|Mixer` (`**/editor/src/modular-mb/seedModules.ts`), 9 results
+- Read seedModules.ts, lines 924 to 975
+- Read seedModules.ts, lines 1388 to 1391
+</details>
+
+
+Now wire a button to call `seedTwoVoicePatch`. Let me find where `seedCvBridgePatch` is used in the UI.   
+
+*Searched for regex `seedCvBridgePatch` (`**/editor/src/**`), 3 results · Read ModularMbApp.tsx, lines 200 to 230*
+
+
+
+
+*Checked seedModules.ts, ModularMbApp.tsx, no problems found*
+
+
+
+*Searched for regex `seedCvBridgePatch` (`**/editor/src/**`), 3 results · Read ModularMbApp.tsx, lines 200 to 230*
+
+
+
+
+*Checked seedModules.ts, ModularMbApp.tsx, no problems found*
+
+Editor typecheck clean. Now build the firmware app to confirm the core changes compile in the Teensy app.  Build succeeds (FLASH code:139024; the exit-1 is the known PowerShell/teensy_size stderr artifact). Now document in the firmware README DEVLOG.  
+
+*Searched for regex `## DEVLOG|### 2026` (`**/firmware/app-modular-brain/README.md`), 8 results · Read README.md, lines 133 to 170*
+
+I'll add a new DEVLOG entry at the top of the DEVLOG (after the `## DEVLOG` header).   
+
+*Read README.md, lines 26 to 28*
+
+
+
+*Searched for regex `VoiceAllocator|noteOn|StealStrategy` (`**/firmware/**/test*/**`), 20 results · Read test_matrixrouter.cpp, lines 66 to 180*
+
+Nu ga ik bouwen. Eerst de ADR, dan de allocator-verfijning, dan de twee-stemmige slice + testpatch. Laat me een todo-lijst opzetten. 
+
+*Created 6 todos · Read 0009-module-runtime-classes.md, lines 1 to 30*
+
+Now I'll write the ADR 0011: 
+
+*Created 0011-voice-lifecycle-and-two-voice-mvp.md · Starting: *VoiceAllocator: steal-strategy + releasing-lifecycle* (3/6)*
+
+Now the VoiceAllocator. Let me read both files fully. 
+
+*Read VoiceAllocator.h · Read VoiceAllocator.cpp*
+
+
+Now MidiIn per-voice ports. Let me read the relevant sections. 
+
+*Read MidiIn.cpp · Read MidiIn.h, lines 49 to 143*
+
+
+Now add unit tests for the new behaviour. Let me add after the existing allocator tests. 
+
+
+<details>
+<summary><em>Searched for regex `readCvPort|MidiInModule|voicePitchV` (`**/firmware/**/test*/**`), 19 results</em> (+4 meer)</summary>
+
+- Searched for regex `readCvPort|MidiInModule|voicePitchV` (`**/firmware/**/test*/**`), 19 results
+- Read test_midiin.cpp, lines 120 to 166
+- Read test_midiin.cpp, lines 166 to 166
+- Read test_midiin.cpp, lines 155 to 165
+- Read test_midiin.cpp, lines 1 to 22
+</details>
+
+
+Let me build and run the core tests. Let me check the test build setup. 
+
+<details>
+<summary><em>Searched for files matching `**/firmware/core/**/CMakeLists.txt`, 2 matches</em> (+5 meer)</summary>
+
+- Searched for files matching `**/firmware/core/**/CMakeLists.txt`, 2 matches
+- Searched for regex `test_matrixrouter|test_midiin` (`**/firmware/core/**`), 2 results
+- Read CMakeLists.txt
+- Read CMakeLists.txt
+- Searched for files matching `**/firmware/CMakeLists.txt`, 1 match
+- Read CMakeLists.txt
+</details>
+
+I should configure from `firmware`, not `core`.  
+
+*Searched for text `enum class PortKind`, 1 result · Read Module.h, lines 90 to 100*
+
+
+All 82 tests pass, including the new ones. Update todos and seed the two-voice patch.  
+
+*Starting: *Tweestemmige testpatch seeden* (5/6)*
+
+Now the two-voice test patch seed. Let me read the existing `seedCvBridgePatch`.  
+
+<details>
+<summary><em>Searched for regex `seedCvBridgePatch|function seed|export function` (`**/editor/src/modular-mb/seedModules.ts`), 5 results</em> (+4 meer)</summary>
+
+- Searched for regex `seedCvBridgePatch|function seed|export function` (`**/editor/src/modular-mb/seedModules.ts`), 5 results
+- Read seedModules.ts, lines 1296 to 1391
+- Searched for regex `tp_mmb_mix|mixer|Mixer` (`**/editor/src/modular-mb/seedModules.ts`), 9 results
+- Read seedModules.ts, lines 924 to 975
+- Read seedModules.ts, lines 1388 to 1391
+</details>
+
+
+Now wire a button to call `seedTwoVoicePatch`. Let me find where `seedCvBridgePatch` is used in the UI.   
+
+*Searched for regex `seedCvBridgePatch` (`**/editor/src/**`), 3 results · Read ModularMbApp.tsx, lines 200 to 230*
+
+
+
+
+*Checked seedModules.ts, ModularMbApp.tsx, no problems found*
+
+Editor typecheck clean. Now build the firmware app to confirm the core changes compile in the Teensy app.  Build succeeds (FLASH code:139024; the exit-1 is the known PowerShell/teensy_size stderr artifact). Now document in the firmware README DEVLOG.  
+
+*Searched for regex `## DEVLOG|### 2026` (`**/firmware/app-modular-brain/README.md`), 8 results · Read README.md, lines 133 to 170*
+
+I'll add a new DEVLOG entry at the top of the DEVLOG (after the `## DEVLOG` header).   
+
+*Read README.md, lines 26 to 28 · Read README.md, lines 171 to 228*
+
+
+
+*Read README.md, lines 26 to 28 · Read README.md, lines 171 to 228*
+
+
+
+
+*Completed: *Tweestemmige testpatch seeden* (5/6)*
+
+Klaar. Samenvatting van wat ik heb gedaan:
+
+**ADR 0011** (`0011-voice-lifecycle-and-two-voice-mvp.md`) — gefocust op de tweestemmige MVP (ADR 0010 blijft het einddoel). Beantwoordt je threshold-vraag:
+
+> **"Wanneer is de release echt klaar?"** Gebruik het autoritatieve fase-signaal: de AHDSR heeft al een `Phase::Zero` die hij bereikt zodra de release-ramp 0 raakt — dát is het schone "klaar"-moment, geen giswerk. Een vaste dB-drempel is broos over verschillende curves/sustains; daarom alleen als fallback (`amplitude < ~0.001` ≈ −60 dBFS, één control-tick lang).
+
+**Implementatie:**
+- `VoiceAllocator`: drie-staten lifecycle (`idle`/`held`/`releasing`) + `markReleaseComplete()` + `enum class StealStrategy { Oldest, Lowest, Highest }`. Default `Oldest` houdt alle bestaande tests groen. Mono blijft deadlock-vrij omdat `releasing`-stemmen toewijsbaar blijven.
+- `MidiInModule`: voice-geïndexeerde poorten `pitch1/gate1/vel1`, `pitch2/…` naast de mono-poorten.
+- `seedTwoVoicePatch()` + knop **✨ Tweestemmig**: MidiIn (2 stemmen) → 2× voice-keten → MIXER → OUT, `voiceCount: 2`.
+
+**Validatie:** 82 core-tests groen (incl. nieuwe allocator- + voice-poort-tests), editor `tsc` schoon, firmware bouwt (FLASH 139024 B; de exit-1 is enkel het bekende teensy_size-stderr-artefact).
+
+Let op: deze build bevat ook nog de niet-geflashte 2 ms DC-slew klik-fix. Flash met `pio run -d firmware/app-modular-brain -t upload` op COM4 nadat je de seriële verbinding in de editor hebt losgekoppeld.
+
+De feedback-bedrading (envelope→`markReleaseComplete`) wacht bewust op de stem→envelope-mapping; tot dan werkt de veilige default al correct. Wil je dat ik die feedback nu ook voor de tweestemmige patch concreet in `main.cpp` aansluit?
+
+---
+
+## 🧑 User
+
+Maar je hebt het nu zonder groups gemaakt. En zonder link tussen MIDI-in en de twee VCO's. Dat is wel raar. Is dat dan hard gecodeerd?
+Dat moet dan zo weer weggegooid en goed gemaakt via de MIDI-in en een aantal poly poorten.
+
+Ook raakt de hele teensy soms verloren:
+23:45:32.375 tx {"type":"config","project":{"version":2,"name":"ModularMB","activePatchId":"patch_nbp1noe","modules":[{"id":"mod_5oi6pyb","typeId":"tp_mmb_ahdsr"},{"id":"mod_za564g6","typeId":"tp_mmb_lfo"},{"id":"mod…
+23:45:32.390 tx {"type":"selectPatch","patchId":"patch_nbp1noe"}
+23:45:32.396 rx {"type":"log","msg":"config received: name=ModularMB"}
+23:45:34.440 sys disconnected
+23:45:37.314 sys serial port opened
+23:45:37.314 tx {"type":"hello"}
+23:45:40.402 sys read error: The device has been lost.
+
+Dan kom ik er niet meer bij, behalve door de editor te reloaden
+
+---
+
+## 🤖 Assistant
+
+Goede punten. Twee dingen: (1) de tweestemmige patch is fout opgezet — de `pitch1/pitch2`-poorten bestaan niet op het editor-moduletype, dus de kabels renderen niet en lijken "hardcoded"; (2) de Teensy raakt verloren na config-push. Laat me eerst de editor-MidiIn-definitie en de poly-group-types bekijken. 
+
+*Searched for regex `function mmbMidiIn` (`**/editor/src/modular-mb/seedModules.ts`), 1 result · Read seedModules.ts, lines 865 to 924*
+
+
+
+---
+
+## 🧑 User
+
+'''
+00:15:41.707 sys serial port opened
+00:15:41.707 tx {"type":"hello"}
+00:15:41.708 rx [boot] MusicBrain Teensy step-3 (dynamic audio graph) online
+00:15:41.708 rx [boot] CPU @ 600 MHz
+00:15:41.708 rx [boot] *** previous run crashed — CrashReport follows ***
+00:15:41.708 rx CrashReport:
+00:15:41.708 rx   A problem occurred at (system time) 23:45:31
+00:15:41.708 rx   Code was executing from address 0xD9E2
+00:15:41.709 rx   CFSR: 82
+00:15:41.709 rx 	(DACCVIOL) Data Access Violation
+00:15:41.709 rx 	(MMARVALID) Accessed Address: 0x2D1820
+00:15:41.709 rx   Temperature inside the chip was 50.58 °C
+00:15:41.709 rx   Startup CPU clock speed is 600MHz
+00:15:41.709 rx [boot] *** end CrashReport ***
+00:15:41.709 rx [boot] MidiInModule: omni, voices=4
+00:15:41.709 rx {"type":"hello","fw":"mmb-teensy-1","version":"0.5.2","step":3}
+00:15:41.709 rx {"type":"hello","fw":"mmb-teensy-1","version":"0.5.2","step":3}
+```
+```
+00:19:18.793 sys serial port opened
+00:19:18.794 tx {"type":"hello"}
+00:19:18.795 rx {"type":"hello","fw":"mmb-teensy-1","version":"0.5.2","step":3}
+00:19:21.231 tx {"type":"config","project":{"version":2,"name":"ModularMB","activePatchId":"patch_uxfwcn4","modules":[{"id":"mod_fbsfy7n","typeId":"tp_mmb_ahdsr"},{"id":"mod_44u3ufx","typeId":"tp_mmb_lfo"},{"id":"mod…
+00:19:21.237 rx {"type":"log","msg":"config received: name=ModularMB"}
+00:19:21.238 rx {"type":"log","msg":"runtime: created=24 unknown=6 total=30 active=patch_uxfwcn4"}
+00:19:21.239 rx {"type":"ack","ok":true,"applied":"config","modules":30,"patches":1,"racks":3}
+00:19:25.111 tx {"type":"selectPatch","patchId":"patch_uxfwcn4"}
+00:19:25.112 rx {"type":"log","msg":"selectPatch: patch_uxfwcn4"}
+00:19:25.112 rx {"type":"log","msg":"active patch=patch_uxfwcn4 connections=22 wired=22 dangling=0 controls=68"}
+00:19:25.112 rx {"type":"log","msg":"static auto-muted for dynamic patch"}
+00:19:25.113 rx {"type":"log","msg":"  wire: mod_ngu4038(tp_mmb_vco).out/ch0 -> mod_8s5ft3h(tp_mmb_vcf).in/ch0"}
+00:19:25.113 rx {"type":"log","msg":"  wire: mod_t0tqdev(tp_mmb_vco).out/ch0 -> mod_cflowlk(tp_mmb_vcf).in/ch0"}
+00:19:25.113 rx {"type":"log","msg":"  wire: mod_8s5ft3h(tp_mmb_vcf).out/ch0 -> mod_ow3htzh(tp_mmb_vca).in/ch0"}
+00:19:25.113 rx {"type":"log","msg":"  wire: mod_cflowlk(tp_mmb_vcf).out/ch0 -> mod_iyhtfjl(tp_mmb_vca).in/ch0"}
+00:19:33.121 sys read error: The device has been lost.
+```
+reconnect
+```
+00:20:11.745 sys serial port opened
+00:20:11.745 tx {"type":"hello"}
+00:20:11.745 rx [boot] MusicBrain Teensy step-3 (dynamic audio graph) online
+00:20:11.746 rx [boot] CPU @ 600 MHz
+00:20:11.746 rx [boot] *** previous run crashed — CrashReport follows ***
+00:20:11.746 rx CrashReport:
+00:20:11.746 rx   A problem occurred at (system time) 0:19:24
+00:20:11.746 rx   Code was executing from address 0xDC18
+00:20:11.746 rx   CFSR: 82
+00:20:11.746 rx 	(DACCVIOL) Data Access Violation
+00:20:11.746 rx 	(MMARVALID) Accessed Address: 0x692E2965
+00:20:11.746 rx   HTSR: 40000000
+00:20:11.746 rx 	(FORCED) Forced Hard Fault
+00:20:11.746 rx   Temperature inside the chip was 49.90 °C
+00:20:11.746 rx   Startup CPU clock speed is 600MHz
+00:20:11.746 rx   Reboot was caused by auto reboot after fault or bad interrupt detected
+00:20:11.746 rx [boot] *** end CrashReport ***
+00:20:11.746 rx [boot] MidiInModule: omni, voices=4
+00:20:11.746 rx {"type":"hello","fw":"mmb-teensy-1","version":"0.5.2","step":3}
+00:20:11.746 rx {"type":"hello","fw":"mmb-teensy-1","version":"0.5.2","step":3}
+```
+push & select active patch (tweestemmig)
+```
+00:20:11.746 rx {"type":"hello","fw":"mmb-teensy-1","version":"0.5.2","step":3}
+00:20:11.746 rx {"type":"hello","fw":"mmb-teensy-1","version":"0.5.2","step":3}
+00:20:59.670 tx {"type":"config","project":{"version":2,"name":"ModularMB","activePatchId":"patch_uxfwcn4","modules":[{"id":"mod_fbsfy7n","typeId":"tp_mmb_ahdsr"},{"id":"mod_44u3ufx","typeId":"tp_mmb_lfo"},{"id":"mod…
+00:20:59.676 rx {"type":"log","msg":"config received: name=ModularMB"}
+00:20:59.677 rx {"type":"log","msg":"runtime: created=24 unknown=6 total=30 active=patch_uxfwcn4"}
+00:20:59.677 rx {"type":"ack","ok":true,"applied":"config","modules":30,"patches":1,"racks":3}
+00:21:04.678 tx {"type":"selectPatch","patchId":"patch_uxfwcn4"}
+00:21:04.679 rx {"type":"log","msg":"selectPatch: patch_uxfwcn4"}
+00:21:04.680 rx {"type":"log","msg":"active patch=patch_uxfwcn4 connections=22 wired=22 dangling=0 controls=68"}
+00:21:04.680 rx {"type":"log","msg":"static auto-muted for dynamic patch"}
+00:21:04.680 rx {"type":"log","msg":"  wire: mod_ngu4038(tp_mmb_vco).out/ch0 -> mod_8s5ft3h(tp_mmb_vcf).in/ch0"}
+00:21:04.680 rx {"type":"log","msg":"  wire: mod_t0tqdev(tp_mmb_vco).out/ch0 -> mod_cflowlk(tp_mmb_vcf).in/ch0"}
+00:21:04.680 rx {"type":"log","msg":"  wire: mod_8s5ft3h(tp_mmb_vcf).out/ch0 -> mod_ow3htzh(tp_mmb_vca).in/ch0"}
+00:21:04.681 rx {"type":"log","msg":"  wire: mod_cflowlk(tp_mmb_vcf).out/ch0 -> mod_iyhtfjl(tp_mmb_vca).in/ch0"}
+00:21:04.681 rx {"type":"log","msg":"  wire: mod_ow3htzh(tp_mmb_vca).out/ch0 -> mod_roxu1di(tp_mmb_mixer).in1/ch0"}
+00:21:04.681 rx {"type":"log","msg":"  wire: mod_iyhtfjl(tp_mmb_vca).out/ch0 -> mod_roxu1di(tp_mmb_mixer).in2/ch0"}
+00:21:04.681 rx {"type":"log","msg":"  skip(notaudio): mod_znpakqs(tp_mmb_midiin).pitch1 -> mod_ngu4038(tp_mmb_vco).voct"}
+00:21:04.681 rx {"type":"log","msg":"  skip(notaudio): mod_znpakqs(tp_mmb_midiin).pitch2 -> mod_t0tqdev(tp_mmb_vco).voct"}
+00:21:04.682 rx {"type":"log","msg":"  skip(notaudio): mod_znpakqs(tp_mmb_midiin).gate1 -> mod_g62jffm(tp_mmb_ahdsr).gate"}
+00:21:04.682 rx {"type":"log","msg":"  skip(notaudio): mod_znpakqs(tp_mmb_midiin).gate2 -> mod_577ygir(tp_mmb_ahdsr).gate"}
+00:21:04.683 rx {"type":"log","msg":"  skip(notaudio): mod_znpakqs(tp_mmb_midiin).gate1 -> mod_2k8avmh(tp_mmb_ahdsr).gate"}
+00:21:04.683 rx {"type":"log","msg":"  skip(notaudio): mod_znpakqs(tp_mmb_midiin).gate2 -> mod_0bshjuo(tp_mmb_ahdsr).gate"}
+00:21:04.683 rx {"type":"log","msg":"  skip(port): mod_2k8avmh(tp_mmb_ahdsr).cv_out[0] -> mod_8s5ft3h(tp_mmb_vcf).cv[0]"}
+00:21:04.684 rx {"type":"log","msg":"  skip(port): mod_0bshjuo(tp_mmb_ahdsr).cv_out[0] -> mod_cflowlk(tp_mmb_vcf).cv[0]"}
+00:21:04.684 rx {"type":"log","msg":"  skip(notaudio): mod_g62jffm(tp_mmb_ahdsr).cv_out -> mod_anohxp0(tp_mmb_cvmath).a"}
+00:21:04.684 rx {"type":"log","msg":"  skip(notaudio): mod_577ygir(tp_mmb_ahdsr).cv_out -> mod_su9mh72(tp_mmb_cvmath).a"}
+00:21:04.684 rx {"type":"log","msg":"  skip(notaudio): mod_znpakqs(tp_mmb_midiin).vel1 -> mod_anohxp0(tp_mmb_cvmath).b"}
+00:21:04.684 rx {"type":"log","msg":"  skip(notaudio): mod_znpakqs(tp_mmb_midiin).vel2 -> mod_su9mh72(tp_mmb_cvmath).b"}
+00:21:04.685 rx {"type":"log","msg":"  skip(notaudio): mod_anohxp0(tp_mmb_cvmath).out -> mod_ow3htzh(tp_mmb_vca).cv"}
+00:21:04.685 rx {"type":"log","msg":"  skip(notaudio): mod_su9mh72(tp_mmb_cvmath).out -> mod_iyhtfjl(tp_mmb_vca).cv"}
+00:21:04.686 rx {"type":"log","msg":"  wire: mod_roxu1di(tp_mmb_mixer).out_l/ch0 -> mod_2bhxanh(tp_mmb_out).l/ch0"}
+00:21:04.686 rx {"type":"log","msg":"  wire: mod_roxu1di(tp_mmb_mixer).out_r/ch0 -> mod_2bhxanh(tp_mmb_out).r/ch1"}
+00:21:04.686 rx {"type":"log","msg":"AudioGraph: wired=8 skipped=14"}
+00:21:04.686 rx {"type":"log","msg":"  skip(kind): mod_ngu4038.out[audio] -> mod_8s5ft3h.in[none]"}
+00:21:04.686 rx {"type":"log","msg":"  skip(kind): mod_t0tqdev.out[audio] -> mod_cflowlk.in[none]"}
+00:21:04.686 rx {"type":"log","msg":"  skip(kind): mod_8s5ft3h.out[none] -> mod_ow3htzh.in[none]"}
+00:21:04.687 rx {"type":"log","msg":"  skip(kind): mod_cflowlk.out[none] -> mod_iyhtfjl.in[none]"}
+00:21:04.687 rx {"type":"log","msg":"  skip(kind): mod_ow3htzh.out[none] -> mod_roxu1di.in1[none]"}
+00:21:04.687 rx {"type":"log","msg":"  skip(kind): mod_iyhtfjl.out[none] -> mod_roxu1di.in2[none]"}
+00:21:04.688 rx {"type":"log","msg":"  cv-route: mod_znpakqs.pitch1[cv] -> mod_ngu4038.voct[cv]"}
+00:21:04.688 rx {"type":"log","msg":"  cv-route: mod_znpakqs.pitch2[cv] -> mod_t0tqdev.voct[cv]"}
+00:21:04.688 rx {"type":"log","msg":"  cv-route: mod_znpakqs.gate1[gate] -> mod_g62jffm.gate[gate]"}
+00:21:04.689 rx {"type":"log","msg":"  cv-route: mod_znpakqs.gate2[gate] -> mod_577ygir.gate[gate]"}
+00:21:04.689 rx {"type":"log","msg":"  cv-route: mod_znpakqs.gate1[gate] -> mod_2k8avmh.gate[gate]"}
+00:21:04.689 rx {"type":"log","msg":"  cv-route: mod_znpakqs.gate2[gate] -> mod_0bshjuo.gate[gate]"}
+00:21:04.689 rx {"type":"log","msg":"  cv-route: mod_2k8avmh.cv_out[cv] -> mod_8s5ft3h.cv[cv]"}
+00:21:04.689 rx {"type":"log","msg":"  cv-route: mod_0bshjuo.cv_out[cv] -> mod_cflowlk.cv[cv]"}
+00:21:04.689 rx {"type":"log","msg":"  cv-route: mod_g62jffm.cv_out[cv] -> mod_anohxp0.a[cv]"}
+00:21:04.690 rx {"type":"log","msg":"  cv-route: mod_577ygir.cv_out[cv] -> mod_su9mh72.a[cv]"}
+00:21:04.690 rx {"type":"log","msg":"  cv-route: mod_znpakqs.vel1[cv] -> mod_anohxp0.b[cv]"}
+00:21:04.690 rx {"type":"log","msg":"  cv-route: mod_znpakqs.vel2[cv] -> mod_su9mh72.b[cv]"}
+00:21:04.690 rx {"type":"log","msg":"  cv-route: mod_anohxp0.out[cv] -> mod_ow3htzh.cv[cv]"}
+00:21:04.691 rx {"type":"log","msg":"  cv-route: mod_su9mh72.out[cv] -> mod_iyhtfjl.cv[cv]"}
+00:21:04.691 rx {"type":"log","msg":"  skip(kind): mod_roxu1di.out_l[none] -> mod_2bhxanh.l[none]"}
+00:21:04.691 rx {"type":"log","msg":"  skip(kind): mod_roxu1di.out_r[none] -> mod_2bhxanh.r[none]"}
+00:21:04.692 rx {"type":"log","msg":"CvGraph: routes=14 skipped=8"}
+00:21:04.692 rx {"type":"log","msg":"audio blocks: peak=17 / budget=120"}
+00:21:04.692 rx {"type":"ack","ok":true,"applied":"selectPatch","patchId":"patch_uxfwcn4"}
+```
+static off & test patch doet niets:
+```
+00:21:45.253 tx {"type":"setStatic","enabled":false}
+00:21:45.258 rx {"type":"log","msg":"static graph muted"}
+00:21:45.259 rx {"type":"ack","ok":true,"applied":"setStatic","enabled":false}
+00:21:47.773 tx {"type":"config","project":{"version":2,"name":"ModularMB","activePatchId":"patch_uxfwcn4","modules":[{"id":"mod_fbsfy7n","typeId":"tp_mmb_ahdsr"},{"id":"mod_44u3ufx","typeId":"tp_mmb_lfo"},{"id":"mod…
+00:21:47.780 tx {"type":"selectPatch","patchId":"patch_uxfwcn4"}
+00:21:47.782 rx {"type":"log","msg":"config received: name=ModularMB"}
+00:21:55.692 sys read error: The device has been lost.
+```
+reconnect:
+```
+00:22:28.198 sys disconnected
+00:22:33.336 sys serial port opened
+00:22:33.336 tx {"type":"hello"}
+00:22:33.337 rx [boot] MusicBrain Teensy step-3 (dynamic audio graph) online
+00:22:33.337 rx [boot] CPU @ 600 MHz
+00:22:33.337 rx [boot] *** previous run crashed — CrashReport follows ***
+00:22:33.337 rx CrashReport:
+00:22:33.337 rx   A problem occurred at (system time) 0:21:47
+00:22:33.337 rx   Code was executing from address 0x33CA
+00:22:33.337 rx   CFSR: 82
+00:22:33.337 rx 	(DACCVIOL) Data Access Violation
+00:22:33.337 rx 	(MMARVALID) Accessed Address: 0x3D00224
+00:22:33.337 rx   Temperature inside the chip was 49.90 °C
+00:22:33.337 rx   Startup CPU clock speed is 600MHz
+00:22:33.337 rx   Reboot was caused by auto reboot after fault or bad interrupt detected
+00:22:33.337 rx [boot] *** end CrashReport ***
+00:22:33.337 rx [boot] MidiInModule: omni, voices=4
+00:22:33.337 rx {"type":"hello","fw":"mmb-teensy-1","version":"0.5.2","step":3}
+00:22:33.337 rx {"type":"hello","fw":"mmb-teensy-1","version":"0.5.2","step":3}
+```
+test patch:
+```
+00:22:57.613 tx {"type":"config","project":{"version":2,"name":"ModularMB","activePatchId":"patch_uxfwcn4","modules":[{"id":"mod_fbsfy7n","typeId":"tp_mmb_ahdsr"},{"id":"mod_44u3ufx","typeId":"tp_mmb_lfo"},{"id":"mod…
+00:22:57.617 tx {"type":"selectPatch","patchId":"patch_uxfwcn4"}
+00:22:57.619 rx {"type":"log","msg":"config received: name=ModularMB"}
+00:22:57.620 rx {"type":"log","msg":"runtime: created=24 unknown=6 total=30 active=patch_uxfwcn4"}
+00:22:57.620 rx {"type":"ack","ok":true,"applied":"config","modules":30,"patches":1,"racks":3}
+00:22:57.620 rx {"type":"log","msg":"selectPatch: patch_uxfwcn4"}
+00:22:57.621 rx {"type":"log","msg":"active patch=patch_uxfwcn4 connections=22 wired=22 dangling=0 controls=68"}
+00:22:57.621 rx {"type":"log","msg":"static auto-muted for dynamic patch"}
+00:22:57.621 rx {"type":"log","msg":"  wire: mod_ngu4038(tp_mmb_vco).out/ch0 -> mod_8s5ft3h(tp_mmb_vcf).in/ch0"}
+00:22:57.621 rx {"type":"log","msg":"  wire: mod_t0tqdev(tp_mmb_vco).out/ch0 -> mod_cflowlk(tp_mmb_vcf).in/ch0"}
+00:22:57.621 rx {"type":"log","msg":"  wire: mod_8s5ft3h(tp_mmb_vcf).out/ch0 -> mod_ow3htzh(tp_mmb_vca).in/ch0"}
+00:22:57.621 rx {"type":"log","msg":"  wire: mod_cflowlk(tp_mmb_vcf).out/ch0 -> mod_iyhtfjl(tp_mmb_vca).in/ch0"}
+00:22:57.622 rx {"type":"log","msg":"  wire: mod_ow3htzh(tp_mmb_vca).out/ch0 -> mod_roxu1di(tp_mmb_mixer).in1/ch0"}
+00:22:57.622 rx {"type":"log","msg":"  wire: mod_iyhtfjl(tp_mmb_vca).out/ch0 -> mod_roxu1di(tp_mmb_mixer).in2/ch0"}
+00:22:57.622 rx {"type":"log","msg":"  skip(notaudio): mod_znpakqs(tp_mmb_midiin).pitch1 -> mod_ngu4038(tp_mmb_vco).voct"}
+00:22:57.622 rx {"type":"log","msg":"  skip(notaudio): mod_znpakqs(tp_mmb_midiin).pitch2 -> mod_t0tqdev(tp_mmb_vco).voct"}
+00:22:57.622 rx {"type":"log","msg":"  skip(notaudio): mod_znpakqs(tp_mmb_midiin).gate1 -> mod_g62jffm(tp_mmb_ahdsr).gate"}
+00:22:57.622 rx {"type":"log","msg":"  skip(notaudio): mod_znpakqs(tp_mmb_midiin).gate2 -> mod_577ygir(tp_mmb_ahdsr).gate"}
+00:22:57.622 rx {"type":"log","msg":"  skip(notaudio): mod_znpakqs(tp_mmb_midiin).gate1 -> mod_2k8avmh(tp_mmb_ahdsr).gate"}
+00:22:57.623 rx {"type":"log","msg":"  skip(notaudio): mod_znpakqs(tp_mmb_midiin).gate2 -> mod_0bshjuo(tp_mmb_ahdsr).gate"}
+00:22:57.623 rx {"type":"log","msg":"  skip(port): mod_2k8avmh(tp_mmb_ahdsr).cv_out[0] -> mod_8s5ft3h(tp_mmb_vcf).cv[0]"}
+00:22:57.623 rx {"type":"log","msg":"  skip(port): mod_0bshjuo(tp_mmb_ahdsr).cv_out[0] -> mod_cflowlk(tp_mmb_vcf).cv[0]"}
+00:22:57.623 rx {"type":"log","msg":"  skip(notaudio): mod_g62jffm(tp_mmb_ahdsr).cv_out -> mod_anohxp0(tp_mmb_cvmath).a"}
+00:22:57.623 rx {"type":"log","msg":"  skip(notaudio): mod_577ygir(tp_mmb_ahdsr).cv_out -> mod_su9mh72(tp_mmb_cvmath).a"}
+00:22:57.624 rx {"type":"log","msg":"  skip(notaudio): mod_znpakqs(tp_mmb_midiin).vel1 -> mod_anohxp0(tp_mmb_cvmath).b"}
+00:22:57.624 rx {"type":"log","msg":"  skip(notaudio): mod_znpakqs(tp_mmb_midiin).vel2 -> mod_su9mh72(tp_mmb_cvmath).b"}
+00:22:57.624 rx {"type":"log","msg":"  skip(notaudio): mod_anohxp0(tp_mmb_cvmath).out -> mod_ow3htzh(tp_mmb_vca).cv"}
+00:22:57.624 rx {"type":"log","msg":"  skip(notaudio): mod_su9mh72(tp_mmb_cvmath).out -> mod_iyhtfjl(tp_mmb_vca).cv"}
+00:22:57.624 rx {"type":"log","msg":"  wire: mod_roxu1di(tp_mmb_mixer).out_l/ch0 -> mod_2bhxanh(tp_mmb_out).l/ch0"}
+00:22:57.624 rx {"type":"log","msg":"  wire: mod_roxu1di(tp_mmb_mixer).out_r/ch0 -> mod_2bhxanh(tp_mmb_out).r/ch1"}
+00:22:57.624 rx {"type":"log","msg":"AudioGraph: wired=8 skipped=14"}
+00:22:57.624 rx {"type":"log","msg":"  skip(kind): mod_ngu4038.out[audio] -> mod_8s5ft3h.in[none]"}
+00:22:57.625 rx {"type":"log","msg":"  skip(kind): mod_t0tqdev.out[audio] -> mod_cflowlk.in[none]"}
+00:22:57.625 rx {"type":"log","msg":"  skip(kind): mod_8s5ft3h.out[none] -> mod_ow3htzh.in[none]"}
+00:22:57.625 rx {"type":"log","msg":"  skip(kind): mod_cflowlk.out[none] -> mod_iyhtfjl.in[none]"}
+00:22:57.625 rx {"type":"log","msg":"  skip(kind): mod_ow3htzh.out[none] -> mod_roxu1di.in1[none]"}
+00:22:57.625 rx {"type":"log","msg":"  skip(kind): mod_iyhtfjl.out[none] -> mod_roxu1di.in2[none]"}
+00:22:57.625 rx {"type":"log","msg":"  cv-route: mod_znpakqs.pitch1[cv] -> mod_ngu4038.voct[cv]"}
+00:22:57.626 rx {"type":"log","msg":"  cv-route: mod_znpakqs.pitch2[cv] -> mod_t0tqdev.voct[cv]"}
+00:22:57.626 rx {"type":"log","msg":"  cv-route: mod_znpakqs.gate1[gate] -> mod_g62jffm.gate[gate]"}
+00:22:57.626 rx {"type":"log","msg":"  cv-route: mod_znpakqs.gate2[gate] -> mod_577ygir.gate[gate]"}
+00:22:57.626 rx {"type":"log","msg":"  cv-route: mod_znpakqs.gate1[gate] -> mod_2k8avmh.gate[gate]"}
+00:22:57.626 rx {"type":"log","msg":"  cv-route: mod_znpakqs.gate2[gate] -> mod_0bshjuo.gate[gate]"}
+00:22:57.626 rx {"type":"log","msg":"  cv-route: mod_2k8avmh.cv_out[cv] -> mod_8s5ft3h.cv[cv]"}
+00:22:57.627 rx {"type":"log","msg":"  cv-route: mod_0bshjuo.cv_out[cv] -> mod_cflowlk.cv[cv]"}
+00:22:57.627 rx {"type":"log","msg":"  cv-route: mod_g62jffm.cv_out[cv] -> mod_anohxp0.a[cv]"}
+00:22:57.627 rx {"type":"log","msg":"  cv-route: mod_577ygir.cv_out[cv] -> mod_su9mh72.a[cv]"}
+00:22:57.627 rx {"type":"log","msg":"  cv-route: mod_znpakqs.vel1[cv] -> mod_anohxp0.b[cv]"}
+00:22:57.627 rx {"type":"log","msg":"  cv-route: mod_znpakqs.vel2[cv] -> mod_su9mh72.b[cv]"}
+00:22:57.627 rx {"type":"log","msg":"  cv-route: mod_anohxp0.out[cv] -> mod_ow3htzh.cv[cv]"}
+00:22:57.628 rx {"type":"log","msg":"  cv-route: mod_su9mh72.out[cv] -> mod_iyhtfjl.cv[cv]"}
+00:22:57.628 rx {"type":"log","msg":"  skip(kind): mod_roxu1di.out_l[none] -> mod_2bhxanh.l[none]"}
+00:22:57.628 rx {"type":"log","msg":"  skip(kind): mod_roxu1di.out_r[none] -> mod_2bhxanh.r[none]"}
+00:22:57.628 rx {"type":"log","msg":"CvGraph: routes=14 skipped=8"}
+00:22:57.629 rx {"type":"log","msg":"audio blocks: peak=14 / budget=120"}
+00:22:57.629 rx {"type":"ack","ok":true,"applied":"selectPatch","patchId":"patch_uxfwcn4"}
+00:22:57.869 rx [midi] noteOn  ch=0 note=60 vel=100
+00:22:57.869 rx [voices on ] 0:*60 1: 0 2: 0 3: 0 
+00:22:58.090 rx [midi] noteOff ch=0 note=60 vel=100
+00:22:58.091 rx [voices off] 0: 60 1: 0 2: 0 3: 0 
+00:22:58.131 rx [midi] noteOn  ch=0 note=64 vel=100
+00:22:58.131 rx [voices on ] 0: 60 1:*64 2: 0 3: 0 
+00:22:58.352 rx [midi] noteOff ch=0 note=64 vel=100
+00:22:58.352 rx [voices off] 0: 60 1: 64 2: 0 3: 0 
+00:22:58.392 rx [midi] noteOn  ch=0 note=67 vel=100
+00:22:58.392 rx [voices on ] 0: 60 1: 64 2:*67 3: 0 
+00:22:58.624 rx [midi] noteOff ch=0 note=67 vel=100
+00:22:58.624 rx [voices off] 0: 60 1: 64 2: 67 3: 0 
+00:22:58.666 rx [midi] noteOn  ch=0 note=72 vel=100
+00:22:58.666 rx [voices on ] 0: 60 1: 64 2: 67 3:*72 
+00:22:58.886 rx [midi] noteOff ch=0 note=72 vel=100
+00:22:58.886 rx [voices off] 0: 60 1: 64 2: 67 3: 72 
+``` 
+Patch iets aanpassen (vcf en adsr) en push config en sp proberen:
+```
+00:25:31.219 tx {"type":"config","project":{"version":2,"name":"ModularMB","activePatchId":"patch_uxfwcn4","modules":[{"id":"mod_fbsfy7n","typeId":"tp_mmb_ahdsr"},{"id":"mod_44u3ufx","typeId":"tp_mmb_lfo"},{"id":"mod…
+00:25:31.225 rx {"type":"log","msg":"config received: name=ModularMB"}
+00:25:33.931 tx {"type":"selectPatch","patchId":"patch_uxfwcn4"}
+00:25:39.235 sys read error: The device has been lost.
+```
+reconnect
+```
+00:26:30.931 sys disconnected
+00:26:36.518 sys serial port opened
+00:26:36.518 tx {"type":"hello"}
+00:26:36.518 rx [boot] MusicBrain Teensy step-3 (dynamic audio graph) online
+00:26:36.518 rx [boot] CPU @ 600 MHz
+00:26:36.518 rx [boot] *** previous run crashed — CrashReport follows ***
+00:26:36.518 rx CrashReport:
+00:26:36.518 rx   A problem occurred at (system time) 0:25:30
+00:26:36.518 rx   Code was executing from address 0xD9CA
+00:26:36.519 rx   CFSR: 82
+00:26:36.519 rx 	(DACCVIOL) Data Access Violation
+00:26:36.519 rx 	(MMARVALID) Accessed Address: 0x2D1920
+00:26:36.519 rx   Temperature inside the chip was 49.90 °C
+00:26:36.519 rx   Startup CPU clock speed is 600MHz
+00:26:36.519 rx   Reboot was caused by auto reboot after fault or bad interrupt detected
+00:26:36.519 rx [boot] *** end CrashReport ***
+00:26:36.519 rx [boot] MidiInModule: omni, voices=4
+00:26:36.519 rx {"type":"hello","fw":"mmb-teensy-1","version":"0.5.2","step":3}
+00:26:36.519 rx {"type":"hello","fw":"mmb-teensy-1","version":"0.5.2","step":3}
+```
+push en sap
+```
+00:27:00.042 tx {"type":"config","project":{"version":2,"name":"ModularMB","activePatchId":"patch_uxfwcn4","modules":[{"id":"mod_fbsfy7n","typeId":"tp_mmb_ahdsr"},{"id":"mod_44u3ufx","typeId":"tp_mmb_lfo"},{"id":"mod…
+00:27:00.048 rx {"type":"log","msg":"config received: name=ModularMB"}
+00:27:00.049 rx {"type":"log","msg":"runtime: created=24 unknown=6 total=30 active=patch_uxfwcn4"}
+00:27:00.049 rx {"type":"ack","ok":true,"applied":"config","modules":30,"patches":1,"racks":3}
+00:27:04.106 tx {"type":"selectPatch","patchId":"patch_uxfwcn4"}
+00:27:04.107 rx {"type":"log","msg":"selectPatch: patch_uxfwcn4"}
+00:27:04.108 rx {"type":"log","msg":"active patch=patch_uxfwcn4 connections=22 wired=22 dangling=0 controls=68"}
+00:27:04.108 rx {"type":"log","msg":"static auto-muted for dynamic patch"}
+00:27:04.108 rx {"type":"log","msg":"  wire: mod_ngu4038(tp_mmb_vco).out/ch0 -> mod_8s5ft3h(tp_mmb_vcf).in/ch0"}
+00:27:04.108 rx {"type":"log","msg":"  wire: mod_t0tqdev(tp_mmb_vco).out/ch0 -> mod_cflowlk(tp_mmb_vcf).in/ch0"}
+00:27:04.108 rx {"type":"log","msg":"  wire: mod_8s5ft3h(tp_mmb_vcf).out/ch0 -> mod_ow3htzh(tp_mmb_vca).in/ch0"}
+00:27:04.108 rx {"type":"log","msg":"  wire: mod_cflowlk(tp_mmb_vcf).out/ch0 -> mod_iyhtfjl(tp_mmb_vca).in/ch0"}
+00:27:04.108 rx {"type":"log","msg":"  wire: mod_ow3htzh(tp_mmb_vca).out/ch0 -> mod_roxu1di(tp_mmb_mixer).in1/ch0"}
+00:27:04.108 rx {"type":"log","msg":"  wire: mod_iyhtfjl(tp_mmb_vca).out/ch0 -> mod_roxu1di(tp_mmb_mixer).in2/ch0"}
+00:27:04.109 rx {"type":"log","msg":"  skip(notaudio): mod_znpakqs(tp_mmb_midiin).pitch1 -> mod_ngu4038(tp_mmb_vco).voct"}
+00:27:04.109 rx {"type":"log","msg":"  skip(notaudio): mod_znpakqs(tp_mmb_midiin).pitch2 -> mod_t0tqdev(tp_mmb_vco).voct"}
+00:27:04.109 rx {"type":"log","msg":"  skip(notaudio): mod_znpakqs(tp_mmb_midiin).gate1 -> mod_g62jffm(tp_mmb_ahdsr).gate"}
+00:27:04.109 rx {"type":"log","msg":"  skip(notaudio): mod_znpakqs(tp_mmb_midiin).gate2 -> mod_577ygir(tp_mmb_ahdsr).gate"}
+00:27:04.109 rx {"type":"log","msg":"  skip(notaudio): mod_znpakqs(tp_mmb_midiin).gate1 -> mod_2k8avmh(tp_mmb_ahdsr).gate"}
+00:27:04.109 rx {"type":"log","msg":"  skip(notaudio): mod_znpakqs(tp_mmb_midiin).gate2 -> mod_0bshjuo(tp_mmb_ahdsr).gate"}
+00:27:04.109 rx {"type":"log","msg":"  skip(port): mod_2k8avmh(tp_mmb_ahdsr).cv_out[0] -> mod_8s5ft3h(tp_mmb_vcf).cv[0]"}
+00:27:04.110 rx {"type":"log","msg":"  skip(port): mod_0bshjuo(tp_mmb_ahdsr).cv_out[0] -> mod_cflowlk(tp_mmb_vcf).cv[0]"}
+00:27:04.110 rx {"type":"log","msg":"  skip(notaudio): mod_g62jffm(tp_mmb_ahdsr).cv_out -> mod_anohxp0(tp_mmb_cvmath).a"}
+00:27:04.110 rx {"type":"log","msg":"  skip(notaudio): mod_577ygir(tp_mmb_ahdsr).cv_out -> mod_su9mh72(tp_mmb_cvmath).a"}
+00:27:04.110 rx {"type":"log","msg":"  skip(notaudio): mod_znpakqs(tp_mmb_midiin).vel1 -> mod_anohxp0(tp_mmb_cvmath).b"}
+00:27:04.110 rx {"type":"log","msg":"  skip(notaudio): mod_znpakqs(tp_mmb_midiin).vel2 -> mod_su9mh72(tp_mmb_cvmath).b"}
+00:27:04.111 rx {"type":"log","msg":"  skip(notaudio): mod_anohxp0(tp_mmb_cvmath).out -> mod_ow3htzh(tp_mmb_vca).cv"}
+00:27:04.111 rx {"type":"log","msg":"  skip(notaudio): mod_su9mh72(tp_mmb_cvmath).out -> mod_iyhtfjl(tp_mmb_vca).cv"}
+00:27:04.111 rx {"type":"log","msg":"  wire: mod_roxu1di(tp_mmb_mixer).out_l/ch0 -> mod_2bhxanh(tp_mmb_out).l/ch0"}
+00:27:04.112 rx {"type":"log","msg":"  wire: mod_roxu1di(tp_mmb_mixer).out_r/ch0 -> mod_2bhxanh(tp_mmb_out).r/ch1"}
+00:27:04.112 rx {"type":"log","msg":"AudioGraph: wired=8 skipped=14"}
+00:27:04.112 rx {"type":"log","msg":"  skip(kind): mod_ngu4038.out[audio] -> mod_8s5ft3h.in[none]"}
+00:27:04.112 rx {"type":"log","msg":"  skip(kind): mod_t0tqdev.out[audio] -> mod_cflowlk.in[none]"}
+00:27:04.112 rx {"type":"log","msg":"  skip(kind): mod_8s5ft3h.out[none] -> mod_ow3htzh.in[none]"}
+00:27:04.112 rx {"type":"log","msg":"  skip(kind): mod_cflowlk.out[none] -> mod_iyhtfjl.in[none]"}
+00:27:04.113 rx {"type":"log","msg":"  skip(kind): mod_ow3htzh.out[none] -> mod_roxu1di.in1[none]"}
+00:27:04.113 rx {"type":"log","msg":"  skip(kind): mod_iyhtfjl.out[none] -> mod_roxu1di.in2[none]"}
+00:27:04.113 rx {"type":"log","msg":"  cv-route: mod_znpakqs.pitch1[cv] -> mod_ngu4038.voct[cv]"}
+00:27:04.113 rx {"type":"log","msg":"  cv-route: mod_znpakqs.pitch2[cv] -> mod_t0tqdev.voct[cv]"}
+00:27:04.113 rx {"type":"log","msg":"  cv-route: mod_znpakqs.gate1[gate] -> mod_g62jffm.gate[gate]"}
+00:27:04.113 rx {"type":"log","msg":"  cv-route: mod_znpakqs.gate2[gate] -> mod_577ygir.gate[gate]"}
+00:27:04.114 rx {"type":"log","msg":"  cv-route: mod_znpakqs.gate1[gate] -> mod_2k8avmh.gate[gate]"}
+00:27:04.114 rx {"type":"log","msg":"  cv-route: mod_znpakqs.gate2[gate] -> mod_0bshjuo.gate[gate]"}
+00:27:04.114 rx {"type":"log","msg":"  cv-route: mod_2k8avmh.cv_out[cv] -> mod_8s5ft3h.cv[cv]"}
+00:27:04.114 rx {"type":"log","msg":"  cv-route: mod_0bshjuo.cv_out[cv] -> mod_cflowlk.cv[cv]"}
+00:27:04.114 rx {"type":"log","msg":"  cv-route: mod_g62jffm.cv_out[cv] -> mod_anohxp0.a[cv]"}
+00:27:04.114 rx {"type":"log","msg":"  cv-route: mod_577ygir.cv_out[cv] -> mod_su9mh72.a[cv]"}
+00:27:04.115 rx {"type":"log","msg":"  cv-route: mod_znpakqs.vel1[cv] -> mod_anohxp0.b[cv]"}
+00:27:04.115 rx {"type":"log","msg":"  cv-route: mod_znpakqs.vel2[cv] -> mod_su9mh72.b[cv]"}
+00:27:04.115 rx {"type":"log","msg":"  cv-route: mod_anohxp0.out[cv] -> mod_ow3htzh.cv[cv]"}
+00:27:04.116 rx {"type":"log","msg":"  cv-route: mod_su9mh72.out[cv] -> mod_iyhtfjl.cv[cv]"}
+00:27:04.116 rx {"type":"log","msg":"  skip(kind): mod_roxu1di.out_l[none] -> mod_2bhxanh.l[none]"}
+00:27:04.116 rx {"type":"log","msg":"  skip(kind): mod_roxu1di.out_r[none] -> mod_2bhxanh.r[none]"}
+00:27:04.116 rx {"type":"log","msg":"CvGraph: routes=14 skipped=8"}
+00:27:04.117 rx {"type":"log","msg":"audio blocks: peak=19 / budget=120"}
+00:27:04.117 rx {"type":"ack","ok":true,"applied":"selectPatch","patchId":"patch_uxfwcn4"}
+``` 
+nog weer een crash
+reconnect en nog eens
+nu is de patch er op en speelt:
+```
+00:27:32.626 tx {"type":"setStatic","enabled":false}
+00:27:32.629 rx {"type":"log","msg":"static graph muted"}
+00:27:32.629 rx {"type":"ack","ok":true,"applied":"setStatic","enabled":false}
+00:27:35.810 tx {"type":"config","project":{"version":2,"name":"ModularMB","activePatchId":"patch_uxfwcn4","modules":[{"id":"mod_fbsfy7n","typeId":"tp_mmb_ahdsr"},{"id":"mod_44u3ufx","typeId":"tp_mmb_lfo"},{"id":"mod…
+00:27:35.816 tx {"type":"selectPatch","patchId":"patch_uxfwcn4"}
+00:27:35.817 rx {"type":"log","msg":"config received: name=ModularMB"}
+00:27:41.881 tx {"type":"setStatic","enabled":true}
+00:27:43.827 sys read error: The device has been lost.
+00:27:43.874 tx {"type":"config","project":{"version":2,"name":"ModularMB","activePatchId":"patch_uxfwcn4","modules":[{"id":"mod_fbsfy7n","typeId":"tp_mmb_ahdsr"},{"id":"mod_44u3ufx","typeId":"tp_mmb_lfo"},{"id":"mod…
+00:27:51.818 sys disconnected
+00:27:55.028 sys serial port opened
+00:27:55.028 tx {"type":"hello"}
+00:27:55.029 rx [boot] MusicBrain Teensy step-3 (dynamic audio graph) online
+00:27:55.029 rx [boot] CPU @ 600 MHz
+00:27:55.029 rx [boot] *** previous run crashed — CrashReport follows ***
+00:27:55.029 rx CrashReport:
+00:27:55.029 rx   A problem occurred at (system time) 0:27:35
+00:27:55.029 rx   Code was executing from address 0xD9CA
+00:27:55.031 rx   CFSR: 82
+00:27:55.031 rx 	(DACCVIOL) Data Access Violation
+00:27:55.031 rx 	(MMARVALID) Accessed Address: 0x2D1920
+00:27:55.031 rx   Temperature inside the chip was 49.23 °C
+00:27:55.031 rx   Startup CPU clock speed is 600MHz
+00:27:55.031 rx   Reboot was caused by auto reboot after fault or bad interrupt detected
+00:27:55.032 rx [boot] *** end CrashReport ***
+00:27:55.032 rx [boot] MidiInModule: omni, voices=4
+00:27:55.032 rx {"type":"hello","fw":"mmb-teensy-1","version":"0.5.2","step":3}
+00:27:55.032 rx {"type":"hello","fw":"mmb-teensy-1","version":"0.5.2","step":3}
+00:28:02.313 tx {"type":"setStatic","enabled":false}
+00:28:02.318 rx {"type":"log","msg":"static graph muted"}
+00:28:02.319 rx {"type":"ack","ok":true,"applied":"setStatic","enabled":false}
+00:28:04.514 tx {"type":"config","project":{"version":2,"name":"ModularMB","activePatchId":"patch_uxfwcn4","modules":[{"id":"mod_fbsfy7n","typeId":"tp_mmb_ahdsr"},{"id":"mod_44u3ufx","typeId":"tp_mmb_lfo"},{"id":"mod…
+00:28:04.520 tx {"type":"selectPatch","patchId":"patch_uxfwcn4"}
+00:28:04.522 rx {"type":"log","msg":"config received: name=ModularMB"}
+00:28:04.523 rx {"type":"log","msg":"runtime: created=24 unknown=6 total=30 active=patch_uxfwcn4"}
+00:28:04.523 rx {"type":"ack","ok":true,"applied":"config","modules":30,"patches":1,"racks":3}
+00:28:04.524 rx {"type":"log","msg":"selectPatch: patch_uxfwcn4"}
+00:28:04.525 rx {"type":"log","msg":"active patch=patch_uxfwcn4 connections=22 wired=22 dangling=0 controls=68"}
+00:28:04.525 rx {"type":"log","msg":"  wire: mod_ngu4038(tp_mmb_vco).out/ch0 -> mod_8s5ft3h(tp_mmb_vcf).in/ch0"}
+00:28:04.526 rx {"type":"log","msg":"  wire: mod_t0tqdev(tp_mmb_vco).out/ch0 -> mod_cflowlk(tp_mmb_vcf).in/ch0"}
+00:28:04.526 rx {"type":"log","msg":"  wire: mod_8s5ft3h(tp_mmb_vcf).out/ch0 -> mod_ow3htzh(tp_mmb_vca).in/ch0"}
+00:28:04.527 rx {"type":"log","msg":"  wire: mod_cflowlk(tp_mmb_vcf).out/ch0 -> mod_iyhtfjl(tp_mmb_vca).in/ch0"}
+00:28:04.527 rx {"type":"log","msg":"  wire: mod_ow3htzh(tp_mmb_vca).out/ch0 -> mod_roxu1di(tp_mmb_mixer).in1/ch0"}
+00:28:04.527 rx {"type":"log","msg":"  wire: mod_iyhtfjl(tp_mmb_vca).out/ch0 -> mod_roxu1di(tp_mmb_mixer).in2/ch0"}
+00:28:04.528 rx {"type":"log","msg":"  skip(notaudio): mod_znpakqs(tp_mmb_midiin).pitch1 -> mod_ngu4038(tp_mmb_vco).voct"}
+00:28:04.528 rx {"type":"log","msg":"  skip(notaudio): mod_znpakqs(tp_mmb_midiin).pitch2 -> mod_t0tqdev(tp_mmb_vco).voct"}
+00:28:04.529 rx {"type":"log","msg":"  skip(notaudio): mod_znpakqs(tp_mmb_midiin).gate1 -> mod_g62jffm(tp_mmb_ahdsr).gate"}
+00:28:04.529 rx {"type":"log","msg":"  skip(notaudio): mod_znpakqs(tp_mmb_midiin).gate2 -> mod_577ygir(tp_mmb_ahdsr).gate"}
+00:28:04.530 rx {"type":"log","msg":"  skip(notaudio): mod_znpakqs(tp_mmb_midiin).gate1 -> mod_2k8avmh(tp_mmb_ahdsr).gate"}
+00:28:04.530 rx {"type":"log","msg":"  skip(notaudio): mod_znpakqs(tp_mmb_midiin).gate2 -> mod_0bshjuo(tp_mmb_ahdsr).gate"}
+00:28:04.530 rx {"type":"log","msg":"  skip(port): mod_2k8avmh(tp_mmb_ahdsr).cv_out[0] -> mod_8s5ft3h(tp_mmb_vcf).cv[0]"}
+00:28:04.531 rx {"type":"log","msg":"  skip(port): mod_0bshjuo(tp_mmb_ahdsr).cv_out[0] -> mod_cflowlk(tp_mmb_vcf).cv[0]"}
+00:28:04.531 rx {"type":"log","msg":"  skip(notaudio): mod_g62jffm(tp_mmb_ahdsr).cv_out -> mod_anohxp0(tp_mmb_cvmath).a"}
+00:28:04.532 rx {"type":"log","msg":"  skip(notaudio): mod_577ygir(tp_mmb_ahdsr).cv_out -> mod_su9mh72(tp_mmb_cvmath).a"}
+00:28:04.532 rx {"type":"log","msg":"  skip(notaudio): mod_znpakqs(tp_mmb_midiin).vel1 -> mod_anohxp0(tp_mmb_cvmath).b"}
+00:28:04.532 rx {"type":"log","msg":"  skip(notaudio): mod_znpakqs(tp_mmb_midiin).vel2 -> mod_su9mh72(tp_mmb_cvmath).b"}
+00:28:04.533 rx {"type":"log","msg":"  skip(notaudio): mod_anohxp0(tp_mmb_cvmath).out -> mod_ow3htzh(tp_mmb_vca).cv"}
+00:28:04.533 rx {"type":"log","msg":"  skip(notaudio): mod_su9mh72(tp_mmb_cvmath).out -> mod_iyhtfjl(tp_mmb_vca).cv"}
+00:28:04.534 rx {"type":"log","msg":"  wire: mod_roxu1di(tp_mmb_mixer).out_l/ch0 -> mod_2bhxanh(tp_mmb_out).l/ch0"}
+00:28:04.534 rx {"type":"log","msg":"  wire: mod_roxu1di(tp_mmb_mixer).out_r/ch0 -> mod_2bhxanh(tp_mmb_out).r/ch1"}
+00:28:04.534 rx {"type":"log","msg":"AudioGraph: wired=8 skipped=14"}
+00:28:04.535 rx {"type":"log","msg":"  skip(kind): mod_ngu4038.out[audio] -> mod_8s5ft3h.in[none]"}
+00:28:04.535 rx {"type":"log","msg":"  skip(kind): mod_t0tqdev.out[audio] -> mod_cflowlk.in[none]"}
+00:28:04.535 rx {"type":"log","msg":"  skip(kind): mod_8s5ft3h.out[none] -> mod_ow3htzh.in[none]"}
+00:28:04.536 rx {"type":"log","msg":"  skip(kind): mod_cflowlk.out[none] -> mod_iyhtfjl.in[none]"}
+00:28:04.536 rx {"type":"log","msg":"  skip(kind): mod_ow3htzh.out[none] -> mod_roxu1di.in1[none]"}
+00:28:04.536 rx {"type":"log","msg":"  skip(kind): mod_iyhtfjl.out[none] -> mod_roxu1di.in2[none]"}
+00:28:04.538 rx {"type":"log","msg":"  cv-route: mod_znpakqs.pitch1[cv] -> mod_ngu4038.voct[cv]"}
+00:28:04.538 rx {"type":"log","msg":"  cv-route: mod_znpakqs.pitch2[cv] -> mod_t0tqdev.voct[cv]"}
+00:28:04.538 rx {"type":"log","msg":"  cv-route: mod_znpakqs.gate1[gate] -> mod_g62jffm.gate[gate]"}
+00:28:04.539 rx {"type":"log","msg":"  cv-route: mod_znpakqs.gate2[gate] -> mod_577ygir.gate[gate]"}
+00:28:04.539 rx {"type":"log","msg":"  cv-route: mod_znpakqs.gate1[gate] -> mod_2k8avmh.gate[gate]"}
+00:28:04.539 rx {"type":"log","msg":"  cv-route: mod_znpakqs.gate2[gate] -> mod_0bshjuo.gate[gate]"}
+00:28:04.540 rx {"type":"log","msg":"  cv-route: mod_2k8avmh.cv_out[cv] -> mod_8s5ft3h.cv[cv]"}
+00:28:04.540 rx {"type":"log","msg":"  cv-route: mod_0bshjuo.cv_out[cv] -> mod_cflowlk.cv[cv]"}
+00:28:04.540 rx {"type":"log","msg":"  cv-route: mod_g62jffm.cv_out[cv] -> mod_anohxp0.a[cv]"}
+00:28:04.542 rx {"type":"log","msg":"  cv-route: mod_577ygir.cv_out[cv] -> mod_su9mh72.a[cv]"}
+00:28:04.542 rx {"type":"log","msg":"  cv-route: mod_znpakqs.vel1[cv] -> mod_anohxp0.b[cv]"}
+00:28:04.542 rx {"type":"log","msg":"  cv-route: mod_znpakqs.vel2[cv] -> mod_su9mh72.b[cv]"}
+00:28:04.542 rx {"type":"log","msg":"  cv-route: mod_anohxp0.out[cv] -> mod_ow3htzh.cv[cv]"}
+00:28:04.543 rx {"type":"log","msg":"  cv-route: mod_su9mh72.out[cv] -> mod_iyhtfjl.cv[cv]"}
+00:28:04.543 rx {"type":"log","msg":"  skip(kind): mod_roxu1di.out_l[none] -> mod_2bhxanh.l[none]"}
+00:28:04.543 rx {"type":"log","msg":"  skip(kind): mod_roxu1di.out_r[none] -> mod_2bhxanh.r[none]"}
+00:28:04.544 rx {"type":"log","msg":"CvGraph: routes=14 skipped=8"}
+00:28:04.544 rx {"type":"log","msg":"audio blocks: peak=14 / budget=120"}
+00:28:04.544 rx {"type":"ack","ok":true,"applied":"selectPatch","patchId":"patch_uxfwcn4"}
+00:28:04.773 rx [midi] noteOn  ch=0 note=60 vel=100
+00:28:04.773 rx [voices on ] 0:*60 1: 0 2: 0 3: 0 
+00:28:04.994 rx [midi] noteOff ch=0 note=60 vel=100
+00:28:04.994 rx [voices off] 0: 60 1: 0 2: 0 3: 0 
+00:28:05.034 rx [midi] noteOn  ch=0 note=64 vel=100
+00:28:05.034 rx [voices on ] 0: 60 1:*64 2: 0 3: 0 
+00:28:05.260 rx [midi] noteOff ch=0 note=64 vel=100
+00:28:05.260 rx [voices off] 0: 60 1: 64 2: 0 3: 0 
+00:28:05.301 rx [midi] noteOn  ch=0 note=67 vel=100
+00:28:05.302 rx [voices on ] 0: 60 1: 64 2:*67 3: 0 
+00:28:05.522 rx [midi] noteOff ch=0 note=67 vel=100
+00:28:05.522 rx [voices off] 0: 60 1: 64 2: 67 3: 0 
+00:28:05.563 rx [midi] noteOn  ch=0 note=72 vel=100
+00:28:05.563 rx [voices on ] 0: 60 1: 64 2: 67 3:*72 
+00:28:05.790 rx [midi] noteOff ch=0 note=72 vel=100
+00:28:05.790 rx [voices off] 0: 60 1: 64 2: 67 3: 72 
+```
+## crashen
+Kun je hier iets mee? Waar crasht de teensy steeds op?
+
+## knopje in log
+Het zou handig zijn een kopieer alles knopje in de log te hebben...
+En/of een: schrijf de log naar file
+
+---
+
+## 🤖 Assistant
+
+Goede CrashReports — die wijzen het probleem nauwkeurig aan. Laat me eerst analyseren, dan de code lezen.
+
+**Analyse van de crash:**
+- `DACCVIOL` (Data Access Violation), toegang tot adressen `0x2D1820` / `0x2D1920` — die liggen *buiten* elk geldig Teensy-RAM-gebied (DTCM `0x2000_0000`, OCRAM `0x2020_0000`). Het is dus een **dangling pointer**, geen audiogeheugen-tekort (peak=14–19 / 120, ruim genoeg — mijn eerdere hypothese was fout).
+- Crasht **niet** tijdens spelen, maar bij de **tweede** config-push (de eerste na boot werkt). Dat is het signaal: bij een herhaalde push vernietigt `applyConfig` de oude module-instances, terwijl `audioGraph`/`cvGraph` (en de audio-ISR-keten) nog naar die vernietigde `AudioStream`-objecten wijzen → ISR loopt door een vrijgegeven pointer.
+
+Laat me de relevante firmware lezen om dit te bevestigen. 
+
+---
+
+## 🧑 User
+
+[Terminal c24d900e-8679-48ef-bf28-fcdc6118359c notification: command completed with exit code 1. The terminal has been cleaned up.]
+Terminal output:
+PS D:\Git\Muziek\MusicBrain> cd d:\Git\Muziek\MusicBrain\editor; npx tsc --noEmit 2>&1 | Select-Object -Last 20
+PS D:\Git\Muziek\MusicBrain\editor> cd d:\Git\Muziek\MusicBrain; .\.venv\Scripts\pio.exe run -d firmware\app-modular-brain 2>&1 | Select-Object -Last 18
+Building in release mode
+Compiling .pio\build\teensy41\src\main.cpp.o
+Compiling .pio\build\teensy41\lib056\core\MatrixRouter.cpp.o
+Compiling .pio\build\teensy41\lib056\core\VoiceAllocator.cpp.o
+Compiling .pio\build\teensy41\lib056\core\runtime\MidiIn.cpp.o
+Compiling .pio\build\teensy41\libbdb\app-modular-brain\main.cpp.o
+Archiving .pio\build\teensy41\lib056\libcore.a
+Archiving .pio\build\teensy41\libbdb\libapp-modular-brain.a
+Linking .pio\build\teensy41\firmware.elf
+Checking size .pio\build\teensy41\firmware.elf
+Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
+Calculating size .pio\build\teensy41\firmware.elf
+.\.venv\Scripts\pio.exe : teensy_size: Memory Usage on Teensy 4.1:
+At line:1 char:30
++ ... MusicBrain; .\.venv\Scripts\pio.exe run -d firmware\app-modular-brain ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (teensy_size: Memory Usage on Teen 
+   sy 4.1::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+teensy_size:   FLASH: code:139024, data:17852, headers:9008   free for 
+files:7960580
+teensy_size:    RAM1: variables:71968, code:136212, padding:27628   free for 
+local variables:288480
+teensy_size:    RAM2: variables:28576  free for malloc/new:495712
+Building .pio\build\teensy41\firmware.hex
+========================= [SUCCESS] Took 11.13 seconds =========================
+PS D:\Git\Muziek\MusicBrain> cd d:\Git\Muziek\MusicBrain\editor; npx tsc --noEmit
+src/modular-mb/polyExpand.ts:39:12 - error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+
+39   return { base: m[1], num: Number(m[2]) };
+              ~~~~
+
+src/modular-mb/seedModules.ts:1487:12 - error TS18048: 'master' is possibly 'undefined'.
+
+1487     c({ m: master.vco, port: 'out'    }, { m: master.vcf, port: 'in'    }),
+                ~~~~~~
+
+src/modular-mb/seedModules.ts:1487:47 - error TS18048: 'master' is possibly 'undefined'.
+
+1487     c({ m: master.vco, port: 'out'    }, { m: master.vcf, port: 'in'    }),
+                                                   ~~~~~~
+
+src/modular-mb/seedModules.ts:1488:12 - error TS18048: 'master' is possibly 'undefined'.
+
+1488     c({ m: master.vcf, port: 'out'    }, { m: master.vca, port: 'in'    }),
+                ~~~~~~
+
+src/modular-mb/seedModules.ts:1488:47 - error TS18048: 'master' is possibly 'undefined'.
+
+1488     c({ m: master.vcf, port: 'out'    }, { m: master.vca, port: 'in'    }),
+                                                   ~~~~~~
+
+src/modular-mb/seedModules.ts:1489:12 - error TS18048: 'master' is possibly 'undefined'.
+
+1489     c({ m: master.vca, port: 'out'    }, { m: mixer,      port: 'in1'   }),
+                ~~~~~~
+
+src/modular-mb/seedModules.ts:1491:47 - error TS18048: 'master' is possibly 'undefined'.
+
+1491     c({ m: mi,         port: 'pitch'  }, { m: master.vco,    port: 'voct' }),
+                                                   ~~~~~~
+
+src/modular-mb/seedModules.ts:1492:47 - error TS18048: 'master' is possibly 'undefined'.
+
+1492     c({ m: mi,         port: 'gate'   }, { m: master.envAmp, port: 'gate' }),
+                                                   ~~~~~~
+
+src/modular-mb/seedModules.ts:1493:47 - error TS18048: 'master' is possibly 'undefined'.
+
+1493     c({ m: mi,         port: 'gate'   }, { m: master.envFlt, port: 'gate' }),
+                                                   ~~~~~~
+
+src/modular-mb/seedModules.ts:1495:12 - error TS18048: 'master' is possibly 'undefined'.
+
+1495     c({ m: master.envFlt, port: 'cv_out' }, { m: master.vcf,    port: 'cv' }),
+                ~~~~~~
+
+src/modular-mb/seedModules.ts:1495:50 - error TS18048: 'master' is possibly 'undefined'.
+
+1495     c({ m: master.envFlt, port: 'cv_out' }, { m: master.vcf,    port: 'cv' }),
+                                                      ~~~~~~
+
+src/modular-mb/seedModules.ts:1497:12 - error TS18048: 'master' is possibly 'undefined'.
+
+1497     c({ m: master.envAmp, port: 'cv_out' }, { m: master.cvmath, port: 'a'  }),
+                ~~~~~~
+
+src/modular-mb/seedModules.ts:1497:50 - error TS18048: 'master' is possibly 'undefined'.
+
+1497     c({ m: master.envAmp, port: 'cv_out' }, { m: master.cvmath, port: 'a'  }),
+                                                      ~~~~~~
+
+src/modular-mb/seedModules.ts:1498:50 - error TS18048: 'master' is possibly 'undefined'.
+
+1498     c({ m: mi,            port: 'vel'    }, { m: master.cvmath, port: 'b'  }),
+                                                      ~~~~~~
+
+src/modular-mb/seedModules.ts:1499:12 - error TS18048: 'master' is possibly 'undefined'.
+
+1499     c({ m: master.cvmath, port: 'out'    }, { m: master.vca,    port: 'cv' }),
+                ~~~~~~
+
+src/modular-mb/seedModules.ts:1499:50 - error TS18048: 'master' is possibly 'undefined'.
+
+1499     c({ m: master.cvmath, port: 'out'    }, { m: master.vca,    port: 'cv' }),
+                                                      ~~~~~~
+
+
+Found 16 errors in 2 files.
+
+Errors  Files
+     1  src/modular-mb/polyExpand.ts:39
+    15  src/modular-mb/seedModules.ts:1487
+PS D:\Git\Muziek\MusicBrain\editor> npx tsc --noEmit
+PS D:\Git\Muziek\MusicBrain\editor> cd d:\Git\Muziek\MusicBrain; .\.venv\Scripts\pio.exe run -d firmware\app-modular-brain
+Processing teensy41 (platform: teensy; board: teensy41; framework: arduino)
+--------------------------------------------------------------------------------
+Verbose mode can be enabled via `-v, --verbose` option
+CONFIGURATION: https://docs.platformio.org/page/boards/teensy/teensy41.html
+PLATFORM: Teensy (5.1.0) > Teensy 4.1
+HARDWARE: IMXRT1062 600MHz, 512KB RAM, 7.75MB Flash
+DEBUG: Current (jlink) External (jlink)
+PACKAGES: 
+ - framework-arduinoteensy @ 1.160.0 (1.60) 
+ - tool-teensy @ 1.160.0 (1.60) 
+ - toolchain-gccarmnoneeabi-teensy @ 1.110301.0 (11.3.1)
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ deep+, Compatibility ~ soft
+Found 103 compatible libraries
+Scanning dependencies...
+Dependency Graph
+|-- core
+|-- ArduinoJson @ 7.4.3
+|-- app-modular-brain
+|-- Audio @ 1.3
+|-- SPI @ 1.0
+|-- SD @ 2.0.0
+|-- SdFat @ 2.1.2
+|-- SerialFlash
+Building in release mode
+Compiling .pio\build\teensy41\src\AudioGraph.cpp.o
+Compiling .pio\build\teensy41\src\CvGraph.cpp.o
+Compiling .pio\build\teensy41\src\main.cpp.o
+Compiling .pio\build\teensy41\libbdb\app-modular-brain\AudioGraph.cpp.o
+Compiling .pio\build\teensy41\libbdb\app-modular-brain\CvGraph.cpp.o
+Compiling .pio\build\teensy41\libbdb\app-modular-brain\main.cpp.o
+Archiving .pio\build\teensy41\libbdb\libapp-modular-brain.a
+Linking .pio\build\teensy41\firmware.elf
+Checking size .pio\build\teensy41\firmware.elf
+Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
+Calculating size .pio\build\teensy41\firmware.elf
+teensy_size: Memory Usage on Teensy 4.1:
+teensy_size:   FLASH: code:141632, data:19900, headers:8448   free for files:7956484
+teensy_size:    RAM1: variables:74016, code:136740, padding:27100   free for local variables:286432
+teensy_size:    RAM2: variables:49376  free for malloc/new:474912
+Building .pio\build\teensy41\firmware.hex
+========================= [SUCCESS] Took 7.95 seconds =========================
+PS D:\Git\Muziek\MusicBrain> Get-ChildItem -Recurse -Filter AudioStream.h -Path "$env:USERPROFILE\.platformio" -ErrorAction SilentlyContinue | Select-Object -First 3 FullName
+
+FullName                                                                       
+--------                                                                       
+C:\Users\User\.platformio\packages\framework-arduinoteensy\cores\teensy3\Aud...
+C:\Users\User\.platformio\packages\framework-arduinoteensy\cores\teensy4\Aud...
+
+
+PS D:\Git\Muziek\MusicBrain> .\.venv\Scripts\pio.exe run -d firmware\app-modular-brain
+Processing teensy41 (platform: teensy; board: teensy41; framework: arduino)
+--------------------------------------------------------------------------------
+Verbose mode can be enabled via `-v, --verbose` option
+CONFIGURATION: https://docs.platformio.org/page/boards/teensy/teensy41.html
+PLATFORM: Teensy (5.1.0) > Teensy 4.1
+HARDWARE: IMXRT1062 600MHz, 512KB RAM, 7.75MB Flash
+DEBUG: Current (jlink) External (jlink)
+PACKAGES: 
+ - framework-arduinoteensy @ 1.160.0 (1.60) 
+ - tool-teensy @ 1.160.0 (1.60) 
+ - toolchain-gccarmnoneeabi-teensy @ 1.110301.0 (11.3.1)
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ deep+, Compatibility ~ soft
+Found 103 compatible libraries
+Scanning dependencies...
+Dependency Graph
+|-- core
+|-- ArduinoJson @ 7.4.3
+|-- app-modular-brain
+|-- Audio @ 1.3
+|-- SPI @ 1.0
+|-- SD @ 2.0.0
+|-- SdFat @ 2.1.2
+|-- SerialFlash
+Building in release mode
+Compiling .pio\build\teensy41\src\main.cpp.o
+Compiling .pio\build\teensy41\libbdb\app-modular-brain\main.cpp.o
+Archiving .pio\build\teensy41\libbdb\libapp-modular-brain.a
+Linking .pio\build\teensy41\firmware.elf
+Calculating size .pio\build\teensy41\firmware.elf
+Checking size .pio\build\teensy41\firmware.elf
+Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
+teensy_size: Memory Usage on Teensy 4.1:
+teensy_size:   FLASH: code:142528, data:19900, headers:8576   free for files:7955460
+teensy_size:    RAM1: variables:74048, code:137636, padding:26204   free for local variables:286400
+teensy_size:    RAM2: variables:49376  free for malloc/new:474912
+Building .pio\build\teensy41\firmware.hex
+========================= [SUCCESS] Took 7.93 seconds =========================
+PS D:\Git\Muziek\MusicBrain> npx tsc --noEmit
+Need to install the following packages:
+tsc@2.0.4
+Ok to proceed? (y) n
+npm error canceled
+npm error A complete log of this run can be found in: C:\Users\User\AppData\Local\npm-cache\_logs\2026-05-29T22_37_28_500Z-debug-0.log
+
+---
+
+## 🤖 Assistant
+
+Die tsc-fouten zijn oude output (van vóór mijn fixes, in de verkeerde map). Laat me schoon typechecken in de editor-map.     
 
 ---

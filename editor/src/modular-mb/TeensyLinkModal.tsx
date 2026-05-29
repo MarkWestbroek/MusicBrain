@@ -33,6 +33,28 @@ export function TeensyLinkModal({ onClose }: Props): JSX.Element {
   const activePatchId = project.activePatchId;
   const [staticEnabled, setStaticEnabled] = useState(true);
 
+  // ── Log export ──────────────────────────────────────────────────────
+  const [copied, setCopied] = useState(false);
+  async function copyLog(): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(formatLog(link.log));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch (err) {
+      alert(`Kopiëren faalde: ${(err as Error).message}`);
+    }
+  }
+  function saveLog(): void {
+    const blob = new Blob([formatLog(link.log)], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    a.href = url;
+    a.download = `teensy-log-${stamp}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   async function toggleStatic(): Promise<void> {
     const next = !staticEnabled;
     try { await sendSetStatic(next); setStaticEnabled(next); }
@@ -188,7 +210,21 @@ export function TeensyLinkModal({ onClose }: Props): JSX.Element {
 
           <div style={logHeaderRow}>
             <strong style={{ fontSize: 12 }}>Log</strong>
-            <button onClick={clearLog} style={{ fontSize: 11 }}>Clear</button>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button
+                onClick={() => { void copyLog(); }}
+                style={{ fontSize: 11 }}
+                disabled={link.log.length === 0}
+                title="Kopieer de volledige log naar het klembord"
+              >{copied ? '✓ Gekopieerd' : '📋 Kopieer alles'}</button>
+              <button
+                onClick={saveLog}
+                style={{ fontSize: 11 }}
+                disabled={link.log.length === 0}
+                title="Sla de volledige log op als tekstbestand"
+              >💾 Bewaar</button>
+              <button onClick={clearLog} style={{ fontSize: 11 }}>Clear</button>
+            </div>
           </div>
           <div ref={logRef} style={logBox}>
             {link.log.length === 0 && <div style={{ opacity: 0.5 }}>(nog geen verkeer)</div>}
@@ -202,6 +238,11 @@ export function TeensyLinkModal({ onClose }: Props): JSX.Element {
       </div>
     </div>
   );
+}
+
+/** Render the whole link log as plain text, one line per entry. */
+function formatLog(log: { ts: number; dir: string; text: string }[]): string {
+  return log.map((e) => `${fmtTs(e.ts)} ${e.dir} ${e.text}`).join('\n');
 }
 
 function fmtTs(ts: number): string {

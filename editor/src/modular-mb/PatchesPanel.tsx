@@ -45,6 +45,28 @@ export function PatchesPanel(): JSX.Element {
     }));
   }
 
+  /** Dupliceer een bestaande patch naar een nieuwe naam. De kopie krijgt
+   *  een vers id en wordt direct de actieve patch. Het programmanummer
+   *  wordt NIET overgenomen (zou botsen met het origineel). */
+  function duplicatePatch(id: string): void {
+    const src = project.patches.find((x) => x.id === id);
+    if (!src) return;
+    const suggested = `${src.name} (kopie)`;
+    const name = window.prompt('Naam voor de gekopieerde patch:', suggested);
+    if (name === null) return;
+    const copy: Patch = {
+      ...(JSON.parse(JSON.stringify(src)) as Patch),
+      id: uid('patch'),
+      name: name.trim() || suggested,
+      programNumber: undefined,
+    };
+    updateProject((p) => ({
+      ...p,
+      patches: [...p.patches, copy],
+      activePatchId: copy.id,
+    }));
+  }
+
   function patch(id: string, fn: (p: Patch) => Patch): void {
     updateProject((p) => ({
       ...p,
@@ -76,6 +98,7 @@ export function PatchesPanel(): JSX.Element {
           <tr style={{ textAlign: 'left', color: '#6b7280', borderBottom: '1px solid #e5e7eb' }}>
             <th style={{ padding: '4px 8px' }}>Actief</th>
             <th style={{ padding: '4px 8px' }}>Naam</th>
+            <th style={{ padding: '4px 8px' }} title="MIDI Program Change-nummer (0–127) om deze patch te selecteren">Prog#</th>
             <th style={{ padding: '4px 8px' }}>Racks</th>
             <th style={{ padding: '4px 8px' }}>Verbindingen</th>
             <th style={{ padding: '4px 8px' }}>Env / LFO</th>
@@ -95,6 +118,21 @@ export function PatchesPanel(): JSX.Element {
                 <input type="text" value={x.name}
                   onChange={(e) => patch(x.id, (p) => ({ ...p, name: e.target.value }))}
                   style={{ width: '100%', fontSize: 13 }} />
+              </td>
+              <td style={{ padding: '4px 8px' }}>
+                <input type="number" min={0} max={127}
+                  value={x.programNumber ?? ''}
+                  placeholder="—"
+                  title="MIDI Program Change 0–127 (leeg = niet gekoppeld)"
+                  onChange={(e) => {
+                    const raw = e.target.value.trim();
+                    patch(x.id, (p) => ({
+                      ...p,
+                      programNumber: raw === '' ? undefined
+                        : Math.max(0, Math.min(127, Number(raw) || 0)),
+                    }));
+                  }}
+                  style={{ width: 56, fontSize: 13 }} />
               </td>
               <td style={{ padding: '4px 8px' }}>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -130,6 +168,8 @@ export function PatchesPanel(): JSX.Element {
                   style={{ width: 50, fontSize: 13 }} />
               </td>
               <td style={{ padding: '4px 8px', textAlign: 'right' }}>
+                <button onClick={() => duplicatePatch(x.id)} style={{ fontSize: 11, marginRight: 4 }}
+                  title="Kopieer deze patch naar een nieuwe naam">⧉</button>
                 <button onClick={() => removePatch(x.id)} style={{ fontSize: 11 }}>×</button>
               </td>
             </tr>

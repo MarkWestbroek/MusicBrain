@@ -9,6 +9,7 @@
 
 import { useSyncExternalStore } from 'react';
 import type { ModularProject } from './types';
+import { flattenProjectForFirmware } from './polyExpand';
 
 // ── Web Serial type shims ──────────────────────────────────────────────
 // (Chrome/Edge ship these globally; we add minimal types so TS compiles
@@ -192,22 +193,27 @@ async function safeClose(): Promise<void> {
 }
 
 export async function sendConfig(project: ModularProject): Promise<void> {
+  // Expand poly-groups (×N voices) into the flat per-voice connection list the
+  // firmware runs — the brain only ever sees a flat module + connection graph
+  // (ADR 0010 §3). Done here, just before serialising, so the editor model
+  // keeps its single master-voice cables.
+  const flat = flattenProjectForFirmware(project);
   // Build a minimal runtime-only payload — the Teensy only needs enough to
   // instantiate modules and wire the audio graph. Strip ALL visual/design-
   // time fields so the JSON stays well under the 48 KB line buffer.
   const runtime = {
-    version:       project.version,
-    name:          project.name,
-    activePatchId: project.activePatchId,
-    modules: project.modules.map((m) => ({
+    version:       flat.version,
+    name:          flat.name,
+    activePatchId: flat.activePatchId,
+    modules: flat.modules.map((m) => ({
       id:     m.id,
       typeId: m.typeId,
     })),
-    racks: project.racks.map((r) => ({
+    racks: flat.racks.map((r) => ({
       id:    r.id,
       slots: r.slots.map((s) => ({ id: s.id, moduleId: s.moduleId })),
     })),
-    patches: project.patches.map((p) => ({
+    patches: flat.patches.map((p) => ({
       id:      p.id,
       name:    p.name,
       rackIds: p.rackIds,

@@ -17,11 +17,10 @@
 import {
   type ModularProject,
   type ControlValue,
+  type Patch,
   emptyModularProject,
 } from './types';
-import { seedInternals, seedTestPatch } from './seedModules';
-
-const STORAGE_KEY = 'mmb.presets.v1';
+import { seedInternals, seedTestPatch } from './seedModules';const STORAGE_KEY = 'mmb.presets.v1';
 
 export interface PatchPresetData {
   id: string;
@@ -43,14 +42,28 @@ export interface ModulePresetData {
   createdAt: number;
 }
 
+/** Een patch-set-preset bewaart alleen één of meer losse patches (kabels,
+ *  knopstanden, envelopes, LFO's) — NIET de modules/racks. Laden vóégt de
+ *  patches toe aan het huidige project; ze verwijzen naar bestaande modules
+ *  via hun id, dus ze passen het best in hetzelfde (of een afgeleid) project. */
+export interface PatchSetPresetData {
+  id: string;
+  name: string;
+  description?: string;
+  patches: Patch[];
+  createdAt: number;
+}
+
 export interface PresetLibrary {
   version: 1;
   patches: PatchPresetData[];
   modules: ModulePresetData[];
+  /** Losse patch-sets (optioneel — oudere bibliotheken hebben dit niet). */
+  patchSets: PatchSetPresetData[];
 }
 
 function emptyLibrary(): PresetLibrary {
-  return { version: 1, patches: [], modules: [] };
+  return { version: 1, patches: [], modules: [], patchSets: [] };
 }
 
 // ─── localStorage I/O ──────────────────────────────────────────────────
@@ -65,6 +78,7 @@ export function loadLibrary(): PresetLibrary {
       version: 1,
       patches: Array.isArray(parsed.patches) ? parsed.patches : [],
       modules: Array.isArray(parsed.modules) ? parsed.modules : [],
+      patchSets: Array.isArray(parsed.patchSets) ? parsed.patchSets : [],
     };
   } catch {
     return emptyLibrary();
@@ -154,6 +168,68 @@ export function renameModulePreset(id: string, name: string): void {
   saveLibrary(lib);
 }
 
+// ─── Patch-set-presets (losse patches, geen modules/racks) ─────────────
+
+/** Bewaar één of meer patches als losse preset. */
+export function savePatchSetPreset(
+  name: string,
+  patches: Patch[],
+  description?: string,
+): PatchSetPresetData {
+  const lib = loadLibrary();
+  const data: PatchSetPresetData = {
+    id: uidPreset('ps'),
+    name: name.trim() || 'Naamloze patches',
+    description,
+    patches: JSON.parse(JSON.stringify(patches)) as Patch[],
+    createdAt: Date.now(),
+  };
+  lib.patchSets.push(data);
+  saveLibrary(lib);
+  return data;
+}
+
+export function deletePatchSetPreset(id: string): void {
+  const lib = loadLibrary();
+  lib.patchSets = lib.patchSets.filter((p) => p.id !== id);
+  saveLibrary(lib);
+}
+
+export function renamePatchSetPreset(id: string, name: string): void {
+  const lib = loadLibrary();
+  const p = lib.patchSets.find((x) => x.id === id);
+  if (!p) return;
+  p.name = name.trim() || p.name;
+  saveLibrary(lib);
+}
+
+/** Voeg de patches uit een patch-set-preset toe aan het project. Elke patch
+ *  krijgt een vers id (en het programmanummer wordt gewist om botsingen te
+ *  voorkomen). De eerste toegevoegde patch wordt de actieve patch. Patches
+ *  verwijzen naar modules/racks via id; ontbrekende verwijzingen blijven
+ *  staan maar hebben pas effect zodra de bijbehorende modules bestaan. */
+export function addPatchSetToProject(
+  project: ModularProject,
+  preset: PatchSetPresetData,
+): ModularProject {
+  const existingRackIds = new Set(project.racks.map((r) => r.id));
+  const clones: Patch[] = preset.patches.map((src) => {
+    const copy = JSON.parse(JSON.stringify(src)) as Patch;
+    copy.id = uidPreset('patch');
+    copy.programNumber = undefined;
+    // Filter rack-verwijzingen die niet (meer) bestaan.
+    copy.rackIds = copy.rackIds.filter((id) => existingRackIds.has(id));
+    return copy;
+  });
+  if (clones.length === 0) return project;
+  const first = clones[0]!;
+  return {
+    ...project,
+    patches: [...project.patches, ...clones],
+    activePatchId: first.id,
+  };
+}
+
 /** Apply a module preset to a target module in the active patch. Returns
  *  a new ModularProject (immutable update). Returns null if there is no
  *  active patch or the target module is not found / wrong type. */
@@ -206,6 +282,11 @@ export function importLibraryJson(json: string): { patches: number; modules: num
       if (!m || existingModuleIds.has(m.id)) continue;
       lib.modules.push(m);
       addedModules++;
+    }
+    const existingSetIds = new Set(lib.patchSets.map((s) => s.id));
+    for (const s of parsed.patchSets ?? []) {
+      if (!s || existingSetIds.has(s.id)) continue;
+      lib.patchSets.push(s);
     }
     saveLibrary(lib);
     return { patches: addedPatches, modules: addedModules };

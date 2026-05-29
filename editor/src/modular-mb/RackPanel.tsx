@@ -16,6 +16,14 @@ import {
 
 const PX_PER_MM = 2.2;
 
+// Floating zoom-overlay button style (mirrors the patcher's ReactFlow Controls).
+const zoomBtn: React.CSSProperties = {
+  width: 26, height: 22,
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  background: 'transparent', color: '#e2e8f0', border: 'none',
+  fontSize: 14, cursor: 'pointer', padding: 0,
+};
+
 // Palette voor voice-groups (cycled in volgorde van aanmaken).
 const POLY_COLORS = [
   '#22d3ee', '#a78bfa', '#fb923c', '#34d399',
@@ -47,6 +55,15 @@ export function RackPanel(): JSX.Element {
   // Which voice-group's popover is currently open (also drives the group
   // highlight ring around its member slots in the grid). null = none.
   const [openGroupId, setOpenGroupId] = useState<string | null>(null);
+  // Rack zoom factor (multiplies the base px-per-mm). 1 = 100%. Persisted in
+  // localStorage so it survives unmount when switching tabs.
+  const [zoom, setZoom] = useState<number>(() => {
+    const raw = Number(localStorage.getItem('mmb.rackZoom'));
+    return raw >= 0.4 && raw <= 3 ? raw : 1;
+  });
+  useEffect(() => {
+    localStorage.setItem('mmb.rackZoom', String(zoom));
+  }, [zoom]);
 
   function addRack(): void {
     const r: Rack = {
@@ -129,6 +146,7 @@ export function RackPanel(): JSX.Element {
           <RackGrid
             rack={rack} modules={project.modules} types={project.moduleTypes}
             activeRow={activeRow} onSelectRow={setActiveRow}
+            zoom={zoom} setZoom={setZoom}
             selectedSlotIds={selectedSlotIds}
             setSelectedSlotIds={(s) => {
               setSelectedSlotIds(s);
@@ -194,13 +212,17 @@ function RackHeaderEditor({ rack }: { rack: Rack }): JSX.Element {
 function RackGrid({ rack, modules, types, activeRow, onSelectRow,
                    selectedSlotIds, setSelectedSlotIds,
                    lastSelectedSlotId, setLastSelectedSlotId,
-                   openGroupId, setOpenGroupId }: {
+                   openGroupId, setOpenGroupId, zoom, setZoom }: {
   rack: Rack; modules: ModuleInstance[]; types: ModuleType[];
   activeRow: number; onSelectRow: (row: number) => void;
   selectedSlotIds: Set<string>; setSelectedSlotIds: (s: Set<string>) => void;
   lastSelectedSlotId: string | null; setLastSelectedSlotId: (id: string | null) => void;
   openGroupId: string | null; setOpenGroupId: (id: string | null) => void;
+  zoom: number; setZoom: React.Dispatch<React.SetStateAction<number>>;
 }): JSX.Element {
+  // Effective px-per-mm including the user's rack-zoom. All layout + the
+  // drop/click→HP math below use PX so zoom stays self-consistent.
+  const PX = PX_PER_MM * zoom;
   const rowWidthMm = rack.hpPerRow * MM_PER_HP;
   const engineStatus = useEngineStatus();
   const voiceMap = buildVoiceMap(rack);
@@ -669,10 +691,33 @@ function RackGrid({ rack, modules, types, activeRow, onSelectRow,
     <div
       onClick={() => { setSelectedSlotIds(new Set()); setLastSelectedSlotId(null); }}
       style={{
+      position: 'relative',
       display: 'flex', flexDirection: 'column', gap: 4,
       padding: 6, background: '#0f172a', borderRadius: 6,
       overflowX: 'auto',
     }}>
+      {/* Zoom-overlay — zwevend zoals in de patcher (ReactFlow Controls-stijl). */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: 'absolute', left: 10, bottom: 10, zIndex: 5,
+          display: 'flex', flexDirection: 'column',
+          borderRadius: 6, overflow: 'hidden',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.5)',
+          background: '#1e293b', border: '1px solid #334155',
+        }}>
+        <button onClick={() => setZoom((z) => Math.min(3, +(z + 0.2).toFixed(2)))}
+          title="Inzoomen"
+          style={zoomBtn}>+</button>
+        <button onClick={() => setZoom((z) => Math.max(0.4, +(z - 0.2).toFixed(2)))}
+          title="Uitzoomen"
+          style={{ ...zoomBtn, borderTop: '1px solid #334155' }}>−</button>
+        <button onClick={() => setZoom(1)}
+          title={`Reset naar 100% (nu ${Math.round(zoom * 100)}%)`}
+          style={{ ...zoomBtn, borderTop: '1px solid #334155', fontSize: 9, lineHeight: 1 }}>
+          {Math.round(zoom * 100)}%
+        </button>
+      </div>
       {Array.from({ length: rack.rows }).map((_, rowIdx) => {
         const slotsInRow = rack.slots
           .filter((s) => s.row === rowIdx)
@@ -695,14 +740,14 @@ function RackGrid({ rack, modules, types, activeRow, onSelectRow,
                  if (!slotId) return;
                  const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
                  const xPx = e.clientX - rect.left;
-                 const hp = Math.max(0, Math.round(xPx / (MM_PER_HP * PX_PER_MM)));
+                 const hp = Math.max(0, Math.round(xPx / (MM_PER_HP * PX)));
                  dropToPosition(slotId, rowIdx, hp);
                }}
                title={`Rij ${rowIdx + 1} — klik om als actieve rij te kiezen (volgende ‘Plaats →’ komt hierheen)`}
                style={{
             position: 'relative',
-            width: rowWidthMm * PX_PER_MM,
-            height: PANEL_HEIGHT_MM * PX_PER_MM,
+            width: rowWidthMm * PX,
+            height: PANEL_HEIGHT_MM * PX,
             background: '#1e293b',
             border: isActive ? '2px solid #2563eb' : '1px solid #334155',
             boxShadow: isActive ? '0 0 0 1px #1d4ed8 inset' : undefined,
@@ -713,7 +758,7 @@ function RackGrid({ rack, modules, types, activeRow, onSelectRow,
             {Array.from({ length: Math.floor(rack.hpPerRow / 10) }).map((_, i) => (
               <div key={i} style={{
                 position: 'absolute',
-                left: (i + 1) * 10 * MM_PER_HP * PX_PER_MM,
+                left: (i + 1) * 10 * MM_PER_HP * PX,
                 top: 0, bottom: 0,
                 width: 1, background: '#334155', opacity: 0.6,
               }} />
@@ -724,9 +769,9 @@ function RackGrid({ rack, modules, types, activeRow, onSelectRow,
                 return (
                   <div key={slot.id} style={{
                     position: 'absolute',
-                    left: slot.hpOffset * MM_PER_HP * PX_PER_MM,
+                    left: slot.hpOffset * MM_PER_HP * PX,
                     top: 0,
-                    height: PANEL_HEIGHT_MM * PX_PER_MM,
+                    height: PANEL_HEIGHT_MM * PX,
                     width: 60,
                     background: '#dc2626',
                     color: 'white', fontSize: 10, padding: 4,
@@ -756,7 +801,7 @@ function RackGrid({ rack, modules, types, activeRow, onSelectRow,
                   onKeyDown={(e) => onSlotKeyDown(e, slot.id)}
                   style={{
                   position: 'absolute',
-                  left: slot.hpOffset * MM_PER_HP * PX_PER_MM,
+                  left: slot.hpOffset * MM_PER_HP * PX,
                   top: 0,
                   outline: overlap
                     ? '2px solid #dc2626'
@@ -795,7 +840,7 @@ function RackGrid({ rack, modules, types, activeRow, onSelectRow,
                       zIndex: 2,
                     }}
                   />
-                  <ModulePanel module={m} types={types} pxPerMm={PX_PER_MM} showPortLabels={isInternal}
+                  <ModulePanel module={m} types={types} pxPerMm={PX} showPortLabels={isInternal}
                     controlState={engineStatus.liveControls[m.id]} />
                   {voice && (
                     <>

@@ -6,9 +6,10 @@
 // purely a presentation choice (model-view-controller pattern).
 
 import { useState } from 'react';
-import { useModularProject } from './store';
+import { useModularProject, updateProject, uid } from './store';
 import { PatcherGraphPanel } from './PatcherGraphPanel';
 import { PatcherMatrixPanel } from './PatcherMatrixPanel';
+import type { Patch } from './types';
 
 type View = 'graph' | 'matrix';
 
@@ -36,12 +37,37 @@ export function PatcherPanel(): JSX.Element {
     );
   }
 
+  /** Bewaar de huidige patch onder een nieuwe naam (binnen het project).
+   *  Maakt een diepe kopie met een vers id; deze wordt direct actief. Het
+   *  programmanummer wordt niet meegekopieerd (zou botsen met origineel). */
+  function saveAsNewPatch(): void {
+    if (!patch) return;
+    const suggested = `${patch.name} (kopie)`;
+    const name = window.prompt('Bewaar patch als — nieuwe naam:', suggested);
+    if (name === null) return;
+    const copy: Patch = {
+      ...(JSON.parse(JSON.stringify(patch)) as Patch),
+      id: uid('patch'),
+      name: name.trim() || suggested,
+      programNumber: undefined,
+    };
+    updateProject((p) => ({
+      ...p,
+      patches: [...p.patches, copy],
+      activePatchId: copy.id,
+    }));
+  }
+
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
         <span style={{ fontSize: 13, color: '#475569' }}>
           Patch: <strong>{patch.name}</strong> &nbsp;·&nbsp; {patch.connections.length} verbindingen
         </span>
+        <button onClick={saveAsNewPatch} style={{ fontSize: 12, padding: '3px 10px' }}
+          title="Bewaar deze patch als een nieuwe patch (kopie met nieuwe naam)">
+          Bewaar als…
+        </button>
         <div style={{
           marginLeft: 'auto', display: 'flex', gap: 0,
           border: '1px solid #cbd2d9', borderRadius: 6, overflow: 'hidden',

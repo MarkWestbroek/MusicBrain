@@ -109,9 +109,11 @@ public:
     }
 
     /** @brief CV bridge entry point: drive the cutoff-modulation DC proxy.
-     *  The value is scaled to +/- `cv_amt` octaves by `octaveControl()`. */
+     *  The value is scaled to +/- `cv_amt` octaves by `octaveControl()`.
+     *  Slewed over `kCvSlewMs` to de-zipper the ~1 kHz control tick (see
+     *  VcaModule for the same rationale). */
     void writeCvPort(std::string_view portId, float value) override {
-        if (portId == "cv") cvDc_.amplitude(value);
+        if (portId == "cv") cvDc_.amplitude(value, kCvSlewMs);
     }
 
     /** @brief Register the VCF factory with the global Registry.  Idempotent. */
@@ -131,6 +133,9 @@ private:
     AudioConnection cvPatch_{ cvDc_, 0, vcf_, 1 };
     float   cvAmt_ = 2.0f;  ///< Modulation depth in octaves (octaveControl).
     uint8_t type_  = 0;     ///< 0=LP, 1=HP, 2=BP; used in outputPort() channel selection
+
+    /// DC slew time (ms) per CV update — de-zippers the ~1 kHz control tick.
+    static constexpr float kCvSlewMs = 2.0f;
 };
 
 }  // namespace mmb_link

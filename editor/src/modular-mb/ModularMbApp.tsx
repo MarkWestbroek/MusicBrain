@@ -7,7 +7,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { setProject, updateProject, useModularProject, getProject, undo, redo } from './store';
 import { emptyModularProject } from './types';
-import { seedExampleModules, seedInternals, seedTestPatch, seedCvBridgePatch } from './seedModules';
+import { seedExampleModules, seedInternals, seedTestPatch, seedCvBridgePatch, seedTwoVoicePatch } from './seedModules';
 import { PatchesPanel } from './PatchesPanel';
 import { ModulesPanel } from './ModulesPanel';
 import { CategoriesPanel } from './CategoriesPanel';
@@ -213,6 +213,10 @@ export function ModularMbApp(): JSX.Element {
             onClick={() => setProject(seedCvBridgePatch(getProject()))}
             title="CV-bridge patch: MidiIn → VCO → VCF → VCA, 2×AHDSR (filter+amp), velocity via CvMath."
           >✨ CV-bridge</button>
+          <button
+            onClick={() => setProject(seedTwoVoicePatch(getProject()))}
+            title="Tweestemmige patch (ADR 0011): MidiIn (2 stemmen) → 2× voice-keten → MIXER → OUT. MVP voor polyfonie."
+          >✨ Tweestemmig</button>
           <button className="es-projectbar-reset"
             onClick={() => { if (confirm('Project wissen en opnieuw beginnen?')) setProject(emptyModularProject()); }}
           >Nieuw</button>

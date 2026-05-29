@@ -132,6 +132,54 @@ MB_TEST(voicealloc_oldest_release_reused_first) {
     MB_REQUIRE(va.noteOn(72).voiceIdx == 1);
 }
 
+MB_TEST(voicealloc_idle_preferred_over_releasing) {
+    // A never-used (idle) voice must win over a releasing one, even though the
+    // releasing voice has a higher age — no tail to cut on the idle voice.
+    mb::VoiceAllocator va;
+    va.configure(4);
+    va.noteOn(60); va.noteOn(62); va.noteOn(64);  // voices 0,1,2 held; 3 idle
+    va.noteOff(62);                               // voice 1 releasing
+    auto r = va.noteOn(70);
+    MB_REQUIRE(r.voiceIdx == 3);   // idle voice 3, not releasing voice 1
+    MB_REQUIRE(!r.stole);
+}
+
+MB_TEST(voicealloc_mark_release_complete_makes_idle) {
+    // After release completes, a previously-releasing voice becomes the
+    // oldest idle voice and is chosen ahead of other still-releasing ones.
+    mb::VoiceAllocator va;
+    va.configure(2);
+    va.noteOn(60); va.noteOn(62);  // both held
+    va.noteOff(60);                // voice 0 releasing
+    va.noteOff(62);                // voice 1 releasing
+    va.markReleaseComplete(1);     // voice 1 now fully idle
+    auto r = va.noteOn(70);
+    MB_REQUIRE(r.voiceIdx == 1);   // idle beats releasing voice 0
+    MB_REQUIRE(!r.stole);
+}
+
+MB_TEST(voicealloc_steal_strategy_lowest) {
+    mb::VoiceAllocator va;
+    va.configure(3);
+    va.setStealStrategy(mb::StealStrategy::Lowest);
+    va.noteOn(67); va.noteOn(60); va.noteOn(64);  // all held: notes 67,60,64
+    auto r = va.noteOn(72);  // steal lowest note = 60 on voice 1
+    MB_REQUIRE(r.voiceIdx == 1);
+    MB_REQUIRE(r.stole);
+    MB_REQUIRE(r.prevNote == 60);
+}
+
+MB_TEST(voicealloc_steal_strategy_highest) {
+    mb::VoiceAllocator va;
+    va.configure(3);
+    va.setStealStrategy(mb::StealStrategy::Highest);
+    va.noteOn(67); va.noteOn(60); va.noteOn(64);  // all held: notes 67,60,64
+    auto r = va.noteOn(72);  // steal highest note = 67 on voice 0
+    MB_REQUIRE(r.voiceIdx == 0);
+    MB_REQUIRE(r.stole);
+    MB_REQUIRE(r.prevNote == 67);
+}
+
 // ---------- midiNoteToCvCode ----------
 MB_TEST(matrixrouter_midi_to_cv_code_anchor_points) {
     MB_REQUIRE(mb::MatrixRouter::midiNoteToCvCode(60) == 0);

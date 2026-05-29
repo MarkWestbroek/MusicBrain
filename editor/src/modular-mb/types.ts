@@ -347,6 +347,13 @@ export interface ModuleType {
   ports: Port[];
   controls: Control[];
   /**
+   *  True = an internal MMB module implemented by the brain itself
+   *  (envelopes, LFOs, mixer, …). Internal modules carry their jack names
+   *  only in data (no printed faceplate art), so the rack view shows their
+   *  port labels explicitly. Eurorack faceplates keep theirs printed.
+   */
+  internal?: boolean;
+  /**
    *  Polyphony role. Optional; missing = 'normal'. See `ModuleRole`.
    */
   role?: ModuleRole;
@@ -577,6 +584,10 @@ export interface Patch {
   id: string;
   name: string;
   description?: string;
+  /** Optional MIDI Program Change number (0–127) used to select this patch
+   *  from a controller / DAW. Undefined = not mapped to a program. Numbers
+   *  are expected to be unique within a project but this is not enforced. */
+  programNumber?: number;
   voiceCount: number;
   /** Een patch kan kabels leggen tussen modules in meerdere racks tegelijk
    *  (typisch: een fysiek rack + het virtuele MMB-brain-rack). */

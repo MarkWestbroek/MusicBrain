@@ -84,10 +84,17 @@ public:
     }
 
     /** @brief CV bridge entry point: mirror the scalar onto multiply channel 1
-     *  through the always-connected internal DC proxy. */
+     *  through the always-connected internal DC proxy.
+     *
+     *  The CV bridge updates this at the ~1 kHz control tick, so writing the
+     *  amplitude *instantly* would create a 1 ms staircase on the multiply
+     *  gain — an audible zipper/click whose loudness depends on the audio
+     *  level at each step (hence "inconsistent" clicks).  We instead slew the
+     *  DC over `kCvSlewMs`, slightly longer than the tick interval, so
+     *  consecutive updates join into a continuous piecewise-linear curve. */
     void writeCvPort(std::string_view portId, float value) override {
         if (portId != "cv") return;
-        cvDc_.amplitude(value);
+        cvDc_.amplitude(value, kCvSlewMs);
     }
 
     /** @brief Register the VCA factory with the global Registry.  Idempotent. */
@@ -105,6 +112,9 @@ private:
     mutable AudioSynthWaveformDc cvDc_;  ///< DC proxy for CV-bridge-driven `cv`.
     /// Internal patch: CV-bridge DC proxy -> multiply channel 1 (always on).
     AudioConnection cvPatch_{ cvDc_, 0, mult_, 1 };
+
+    /// DC slew time (ms) per CV update — de-zippers the ~1 kHz control tick.
+    static constexpr float kCvSlewMs = 2.0f;
 };
 
 }  // namespace mmb_link

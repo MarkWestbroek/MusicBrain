@@ -163,3 +163,36 @@ MB_TEST(midiin_reconfigure_voicecount_clears_state) {
     MB_REQUIRE(midi.voiceCount() == 2);
     MB_REQUIRE(countHighGates(midi) == 0);   // reconfigure resets gates
 }
+
+// ---------- Voice-indexed ports (ADR 0011 §4) ----------
+MB_TEST(midiin_voice_indexed_ports_route_each_voice) {
+    MidiInModule midi("m");
+    midi.setControl("voiceCount", ControlValue{std::int32_t{2}});
+    midi.onNoteOn(1, 60, 100);   // voice 0: 0 V
+    midi.onNoteOn(1, 72, 64);    // voice 1: +1 V
+
+    MB_REQUIRE(std::fabs(midi.readCvPort("pitch1") - 0.0f) < kEps);
+    MB_REQUIRE(std::fabs(midi.readCvPort("pitch2") - 1.0f) < kEps);
+    MB_REQUIRE(midi.readCvPort("gate1") == 1.0f);
+    MB_REQUIRE(midi.readCvPort("gate2") == 1.0f);
+    MB_REQUIRE(std::fabs(midi.readCvPort("vel1") - (100.0f / 127.0f)) < kEps);
+    MB_REQUIRE(std::fabs(midi.readCvPort("vel2") - (64.0f  / 127.0f)) < kEps);
+
+    midi.onNoteOff(1, 72);       // voice 1 gate drops
+    MB_REQUIRE(midi.readCvPort("gate2") == 0.0f);
+    MB_REQUIRE(midi.readCvPort("gate1") == 1.0f);
+}
+
+MB_TEST(midiin_voice_indexed_ports_kind_and_bounds) {
+    MidiInModule midi("m");
+    midi.setControl("voiceCount", ControlValue{std::int32_t{2}});
+    // Port kinds reported correctly.
+    MB_REQUIRE(midi.outputPortKind("pitch1") == Module::PortKind::Cv);
+    MB_REQUIRE(midi.outputPortKind("gate2")  == Module::PortKind::Gate);
+    MB_REQUIRE(midi.outputPortKind("vel1")   == Module::PortKind::Cv);
+    // Out-of-range / malformed names report no port.
+    MB_REQUIRE(midi.outputPortKind("pitch0") == Module::PortKind::None);
+    MB_REQUIRE(midi.outputPortKind("pitchX") == Module::PortKind::None);
+    // Index above voiceCount reads as 0 (silent), not garbage.
+    MB_REQUIRE(midi.readCvPort("gate3") == 0.0f);
+}
