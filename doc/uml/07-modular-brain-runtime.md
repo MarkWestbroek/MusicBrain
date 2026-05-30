@@ -66,13 +66,22 @@ classDiagram
         <<abstract>>
         +audioStreamFor(port) AudioStream*
     }
+    class AhdsrAudioModule {
+        <<CV output only>>
+        +tick()
+        +setGate(bool)
+        +readCvPort(cv_out) float
+    }
     class MidiInModule {
         -VoiceAllocator alloc_
-        +voiceGate(i) / voicePitchV(i) / voiceVelocity(i)
+        +voiceGate(i) bool
+        +voicePitchV(i) float
+        +voiceVelocity(i) float
     }
     class VoiceAllocator {
         -StealStrategy steal_
-        +noteOn() / noteOff()
+        +noteOn()
+        +noteOff()
         +markReleaseComplete(i)
     }
     class Registry {
@@ -86,7 +95,7 @@ classDiagram
     AudioPortModule <|-- VcaModule
     AudioPortModule <|-- OutModule
     AudioPortModule <|-- MixerModule
-    Module <|-- AhdsrAudioModule
+    AudioPortModule <|-- AhdsrAudioModule
     Module <|-- MidiInModule
     MidiInModule *-- VoiceAllocator
 
@@ -96,6 +105,12 @@ classDiagram
     AudioGraph ..> Module : raw pointers (audio ports)
     CvGraph ..> Module : raw pointers (Route)
 ```
+
+**Noot — `AhdsrAudioModule` naam vs. domein.** De klasse erft van `AudioPortModule`
+(hergebruikt de port-infrastructuur) maar produceert **uitsluitend CV** via
+`readCvPort("cv_out")`. Er is geen audio-DC-proxy meer; de 44.1 kHz-kant wordt
+volledig afgehandeld door de ontvangende modules (`VcaModule`, `VcfModule`) via
+`writeCvPort`. De naam is historisch en staat op de refactor-backlog.
 
 **Belangrijk — AudioStream-levensduur.** `AudioGraph`/`CvGraph` houden *rauwe*
 pointers naar de modules in `ProjectRuntime`. Teensy's `AudioStream` schrijft
@@ -150,9 +165,11 @@ classDiagram
         controlState
     }
     class PatchConnection {
-        from {moduleId, portId}
-        to   {moduleId, portId}
-        attenuation?
+        from_moduleId
+        from_portId
+        to_moduleId
+        to_portId
+        attenuation
     }
     class PolyGroup {
         id
