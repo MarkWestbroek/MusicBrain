@@ -12,6 +12,7 @@ Generated: May 2026, based on Stage 6 codebase.
 | `04-seq-switcherrouter.md` | Mermaid sequenceDiagram | ProgramChange + footswitch flow door SwitcherRouter |
 | `05-components.md` | Mermaid C4-stijl component | Pakketstructuur + afhankelijkheden |
 | `06-usecases.md` | Mermaid journey / use case | Use cases per actor |
+| `07-modular-brain-runtime.md` | Mermaid class + sequence | Modular-brain runtime (ProjectRuntime/AudioGraph/CvGraph) + editor-datamodel |
 | `musicbrain.xmi` | XMI 2.1 | Import in Sparx EA: alle klassen + relaties |
 
 ## Hoe importeren in Sparx EA
