@@ -25,6 +25,31 @@ To be implemented in roadmap stages 5–7.
 
 ## DEVLOG
 
+### 2026-05-31 — OO-opschoning: AhdsrAudioModule verwijderd + polymorfe CV-tick (fw 0.5.4)
+
+**Aanleiding.** Code-review van de module-hiërarchie. `AhdsrAudioModule`
+(`app-modular-brain/src/`) was een `AudioPortModule`-wrapper die door compositie
+een `mb::runtime::Ahdsr env_` bezat en *alle* gedrag delegeerde. Sinds de
+audio-DC-proxy eruit was, gaf hij geen enkele audio-poort meer terug — de klasse
+was 100% dubbelop met de core `Ahdsr`, die zélf al een volwaardige `CvModule` is
+(gate-in `gate`/`trig`, CV-out `cv_out`) en volledig door `CvGraph` wordt
+gerouteerd.
+
+**Wijzigingen.**
+- `AhdsrAudioModule.h` verwijderd; `tp_mmb_ahdsr` wordt nu direct geregistreerd
+  vanuit `mb::runtime::Ahdsr` in `registerAllRuntimeModules()`.
+- `Module::asCvModule()` toegevoegd (RTTI-vrij, default `nullptr`; `CvModule`
+  → `this`), zelfde idioom als `supportsAudioPorts()`.
+- `tickCvModules()` is nu één polymorfe loop
+  (`if (auto* cv = mod->asCvModule()) cv->tick();`) i.p.v. een `typeId`-switch.
+  Nieuwe `CvModule`-types tikken automatisch mee.
+- Comments/README + nieuw UML-document `doc/uml/08-core-runtime-hierarchy.md`
+  (hiërarchie, conceptueel dCV-busmodel, CV-/audio-Teensy SPI-split).
+
+**Validatie.** Core tests 82/0; firmware build `[SUCCESS]` (FLASH 141 504 B,
+iets kleiner dan 0.5.3). Functioneel identiek: gate/cv_out liepen al via
+`CvGraph`, alleen de tick-dispatch en factory zijn opgeschoond.
+
 ### 2026-05-30 — Crash-fix: AudioStream-lifetime bij re-config (fw 0.5.3)
 
 **Symptoom.** Na het pushen/her-pushen van een config verloor de Teensy de
@@ -217,19 +242,19 @@ The editor can now push a patch and the Teensy re-wires its audio graph at runti
 | `src/AudioGraph.h/.cpp` | `build(patch, instances)` iterates the `connections` array in the patch JSON, resolves both endpoints via `AudioPortModule::from()`, creates `unique_ptr<AudioConnection>`. `tearDown()` destroys all connections under `AudioNoInterrupts/Interrupts`. Logs wired/skipped counts. |
 | `src/VcoModule.h` | `tp_mmb_vco`, wraps `AudioSynthWaveform`. `updatePitch(volts)` converts V/Oct to Hz (`261.6 · 2^v`). Ports: out `"out"`. |
 | `src/VcaModule.h` | `tp_mmb_vca`, wraps `AudioEffectMultiply`. Port `"in"` → ch 0, `"cv"` → ch 1, `"out"` → ch 0. |
-| `src/AhdsrAudioModule.h` | `tp_mmb_ahdsr`, composes `mb::runtime::Ahdsr env_` + `mutable AudioSynthWaveformDc dc_`. `tick()` calls `env_.tick()` then `dc_.amplitude(env_.value())`. Overwrites the core Ahdsr factory so that `ProjectRuntime::applyConfig` now instantiates this richer type. |
+| `tp_mmb_ahdsr` | Registered directly from the core `mb::runtime::Ahdsr` (a pure `CvModule`). No audio wrapper: gate-in (`gate`/`trig`) and CV-out (`cv_out`) are routed entirely by `CvGraph`. The old `AhdsrAudioModule` wrapper was removed (fw 0.5.4) once its audio DC-proxy disappeared, leaving it 100% redundant. |
 | `src/VcfModule.h` | `tp_mmb_vcf`, wraps `AudioFilterStateVariable`. Output channel: LP=0, HP=2, BP=1. |
 | `src/OutModule.h` | `tp_mmb_out`, routes `"l"` / `"r"` to a shared `AudioOutputUSB*` singleton set in `setup()`. |
 
 **Key design decisions.**
 
-- **No RTTI.** Teensy builds compile with `-fno-rtti`. `dynamic_cast` is forbidden. Solution: `Module::supportsAudioPorts()` virtual bool (default `false`; `AudioPortModule` overrides to `true`) plus `static_cast` where the virtual tag guarantees safety. Similarly, `tickCvModules()` and `syncDynamicModules()` in `main.cpp` use `mod->typeId()` comparison + `static_cast`.
-- **`insert_or_assign` in Registry.** `Ahdsr.cpp` auto-registers `tp_mmb_ahdsr` at static-init time. Changed `Registry::register_()` from `emplace` (first-wins) to `insert_or_assign` (last-wins) so `AhdsrAudioModule::registerFactory()` — called last in `registerAllRuntimeModules()` — can overwrite it.
+- **No RTTI.** Teensy builds compile with `-fno-rtti`. `dynamic_cast` is forbidden. Solution: `Module::supportsAudioPorts()` virtual bool (default `false`; `AudioPortModule` overrides to `true`) plus `static_cast` where the virtual tag guarantees safety. The CV tick uses the same idiom: `Module::asCvModule()` (default `nullptr`; `CvModule` returns `this`), so `tickCvModules()` is a single polymorphic loop with no `typeId` switch.
+- **`insert_or_assign` in Registry.** `Ahdsr.cpp` auto-registers `tp_mmb_ahdsr` at static-init time; `registerAllRuntimeModules()` also calls `Ahdsr::registerFactory()` explicitly so the linker keeps that translation unit. `Registry::register_()` keeps last-wins (`insert_or_assign`) semantics.
 - **`AudioOutputUSB` singleton.** Multiple `AudioOutputUSB` instances conflict on USB. `OutModule::sharedOutput` is an `inline static` pointer set in `setup()` to the single global `usbOut`.
-- **Composition, not inheritance, for `AhdsrAudioModule`.** Inheriting both `Ahdsr` and `AudioPortModule` would create a diamond through `Module`. Instead `AhdsrAudioModule` owns an `mb::runtime::Ahdsr env_` member and delegates all envelope logic to it.
+- **One module, one domain.** Generators are strictly single-domain (`CvModule` makes only dCV; `AudioPortModule` makes only audio). Cross-domain steps are explicit converters (MIDI-to-CV, break-in/out) — never a "mixed" module. This keeps a future CV-Teensy / audio-Teensy SPI split feasible (see `doc/uml/08-core-runtime-hierarchy.md`).
 - **Backward compatibility.** The static 4-voice graph from B-step 2 is still present and runs concurrently with the dynamic graph. MIDI notes drive both chains simultaneously. Disabling the static graph when a dynamic patch is active is deferred to B-step 4.
 
-**CV tick.** `loop()` fires `tickCvModules()` every ≥ 1 ms (guarded by `millis()` delta), which calls `env->tick()` on every `AhdsrAudioModule` instance so the AHDSR state machine advances independent of the audio block callback.
+**CV tick.** `loop()` fires `tickCvModules()` every ≥ 1 ms (guarded by `millis()` delta), which calls `tick()` on every live `CvModule` (`Ahdsr`, `Lfo`, …) via `Module::asCvModule()`, so each CV state machine advances independent of the audio block callback.
 
 **Mono limitation.** `syncDynamicModules()` drives all VCO/AHDSR instances from voice-0 only. Polyphonic dynamic patches are a future step.
 
@@ -300,8 +325,8 @@ apart = beating/comb-filter = hoarse. Fix: (a) removed the `+12` echo from
 domain so `CvGraph` and `AudioGraph` can't both claim the same input. The old
 DC-proxy (`AudioSynthWaveformDc`) that doubled as an *exposed audio port* is
 gone from the exposed surface:
-- `AhdsrAudioModule` no longer exposes `dc_` as an audio output — it is pure CV
-  (`cv_out` → `env_.value()`, `gate`/`trig` → Gate). No audio ports.
+- `tp_mmb_ahdsr` (core `Ahdsr`) is pure CV: `cv_out` → `value()`,
+  `gate`/`trig` → Gate. It has no audio ports at all.
 - `VcaModule.cv` is CV-only; the internal `cvDc_` stays **permanently**
   connected to `mult_` ch 1 (no more lazy-connect race).
 - `VcfModule.cv` is CV-only; a permanent internal `cvDc_` drives the filter's
@@ -415,8 +440,8 @@ in `seedModules.ts`; "Firmware" = runtime wrapper + factory registered.
 The UML models an abstract `Envelope` with three concrete subtypes. Only AHDSR
 exists today.
 
-- **AHDSR** ✅ — Attack/Hold/Decay/Sustain/Release. Implemented
-  (`AhdsrAudioModule` + core `Ahdsr`).
+- **AHDSR** ✅ — Attack/Hold/Decay/Sustain/Release. Implemented as the core
+  `mb::runtime::Ahdsr` (`CvModule`), routed by `CvGraph`.
 - **Multifase Envelope** ⬜ — N-segment piecewise envelope
   (`(target, duration, curve)` list). Maps cleanly onto the planned
   `CV_SEGMENT` bus opcode (ADR 0008) so the breakout interpolates each segment.

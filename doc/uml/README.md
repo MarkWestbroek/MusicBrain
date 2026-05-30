@@ -13,6 +13,7 @@ Generated: May 2026, based on Stage 6 codebase.
 | `05-components.md` | Mermaid C4-stijl component | Pakketstructuur + afhankelijkheden |
 | `06-usecases.md` | Mermaid journey / use case | Use cases per actor |
 | `07-modular-brain-runtime.md` | Mermaid class + sequence | Modular-brain runtime (ProjectRuntime/AudioGraph/CvGraph) + editor-datamodel |
+| `08-core-runtime-hierarchy.md` | Mermaid class + flow | Core runtime module-hiërarchie (Module/CvModule/Envelope/Ahdsr), AhdsrAudioModule-opschoning + dCV-bus/SPI-split |
 | `musicbrain.xmi` | XMI 2.1 | Import in Sparx EA: alle klassen + relaties |
 
 ## Hoe importeren in Sparx EA

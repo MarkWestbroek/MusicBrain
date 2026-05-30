@@ -18,13 +18,12 @@
  * `ProjectRuntime::applyConfig()` is called gives the linker enough
  * references to retain every required object file.
  *
- * **Registration order matters for `tp_mmb_ahdsr`:**
+ * **`tp_mmb_ahdsr` is a pure-CV module:**
  * `mb::runtime::Ahdsr` auto-registers itself via a static initialiser in
- * `Ahdsr.cpp`.  `AhdsrAudioModule::registerFactory()` must be called
- * **after** that initialiser has run (which it always has, before `setup()`)
- * so that the audio-capable factory overwrites the pure-CV one.
- * `Registry::register_()` uses insert-or-assign semantics, so the last
- * registration for a given typeId wins.
+ * `Ahdsr.cpp`, but that object file may be dropped by the linker if nothing
+ * else references it.  Calling `mb::runtime::Ahdsr::registerFactory()`
+ * explicitly here keeps the translation unit alive.  There is no longer an
+ * audio wrapper for the envelope — it is routed entirely by `CvGraph`.
  *
  * **Adding a new module:**
  * 1. Include its header below.
@@ -35,9 +34,9 @@
 
 #include "mb/runtime/MidiIn.h"
 #include "mb/runtime/Lfo.h"
+#include "mb/runtime/Ahdsr.h"
 
 // Audio-domain module wrappers (app-modular-brain specific)
-#include "AhdsrAudioModule.h"
 #include "VcoModule.h"
 #include "VcaModule.h"
 #include "VcfModule.h"
@@ -52,16 +51,15 @@ namespace mmb_link {
 inline void registerAllRuntimeModules() {
     mb::runtime::MidiInModule::registerFactory();
     mb::runtime::Lfo::registerFactory();
+    mb::runtime::Ahdsr::registerFactory();   // pure CV-domain envelope
     mb::runtime::CvMath::registerFactory();
 
-    // Audio-domain module wrappers — registered last so they win over any
-    // static-init factories from core library TUs (specifically Ahdsr.cpp).
+    // Audio-domain module wrappers.
     VcoModule::registerFactory();
     VcaModule::registerFactory();
     VcfModule::registerFactory();
     MixerModule::registerFactory();
     OutModule::registerFactory();
-    AhdsrAudioModule::registerFactory();  // must be last: overwrites Ahdsr's auto-registration
 }
 
 }  // namespace mmb_link

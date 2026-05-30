@@ -44,6 +44,10 @@ namespace mb::runtime {
  */
 using ControlValue = std::variant<float, bool, int32_t>;
 
+// Forward declaration so the base can hand out a typed CV view without
+// pulling in the CvModule header (which itself includes this file).
+class CvModule;
+
 /**
  * @brief Abstract base for all runtime module objects.
  *
@@ -89,6 +93,17 @@ public:
      * Callers may then safely `static_cast<AudioPortModule*>` the pointer.
      */
     virtual bool supportsAudioPorts() const { return false; }
+
+    /**
+     * @brief Return a typed CV-domain view of this module, or `nullptr`.
+     *
+     * The CV tick scheduler walks every live module once per millisecond and
+     * advances only the CV-domain ones.  Rather than switch on `typeId()`
+     * (which is brittle and forgets new module types), callers ask the
+     * module itself: `if (auto* cv = mod->asCvModule()) cv->tick();`.
+     * Mirrors the RTTI-free `supportsAudioPorts()` idiom.  The default
+     * returns `nullptr`; `CvModule` overrides it to return `this`. */
+    virtual CvModule* asCvModule() { return nullptr; }
 
     /** @brief Logical kind of a module port — drives graph routing.
      *

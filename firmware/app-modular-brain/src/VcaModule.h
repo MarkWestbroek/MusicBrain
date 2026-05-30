@@ -6,7 +6,8 @@
  * @details
  * `AudioEffectMultiply` computes `output = input0 × input1`, which gives a
  * linear VCA when input0 carries the audio signal and input1 carries a 0 … 1
- * control voltage (typically the output of an `AhdsrAudioModule`'s DC proxy).
+ * control voltage (typically an `Ahdsr` envelope value delivered over the CV
+ * bus and applied to the internal `cvDc_` proxy).
  *
  * Port map:
  * | Direction | portId | Domain | Stream / channel              |

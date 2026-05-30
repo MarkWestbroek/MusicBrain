@@ -50,6 +50,10 @@ public:
      * `setControl()` calls from the main thread may interleave.
      */
     virtual void tick() = 0;
+
+    /** @brief Typed CV-domain view used by the CV tick scheduler.
+     *  Every `CvModule` is, by definition, tickable. */
+    CvModule* asCvModule() override { return this; }
 };
 
 }  // namespace mb::runtime

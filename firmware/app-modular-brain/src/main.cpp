@@ -7,12 +7,12 @@
 //
 // CV bridge:
 //   syncVoicesFromModel() still drives the static 4-voice chain.
-//   syncDynamicModules()  additionally drives any VcoModule / AhdsrAudioModule
-//   instances in the live runtime (voice 0 only — mono patch support).
+//   syncDynamicModules()  additionally drives any VcoModule instances in the
+//   live runtime (voice 0 only — mono patch support).
 //
 // CV tick:
-//   loop() calls tickCvModules() every ≥1 ms so AhdsrAudioModule instances
-//   advance their envelopes and update their DC proxy outputs.
+//   loop() calls tickCvModules() every ≥1 ms so every CvModule (Ahdsr, Lfo,
+//   …) advances its state machine independent of the audio block callback.
 
 #include <Arduino.h>
 #include <Audio.h>
@@ -27,7 +27,6 @@
 #include "AudioGraph.h"
 #include "CvGraph.h"
 #include "VcoModule.h"
-#include "AhdsrAudioModule.h"
 #include "OutModule.h"
 
 namespace {
@@ -112,23 +111,20 @@ void applyStaticEnabled() {
 
 // ------------------------------------------------------------------
 // CV tick — called from loop() every ≥1 ms.
-// Advances all AhdsrAudioModule envelopes and pushes the new value
-// to their AudioSynthWaveformDc proxy outputs.
+// Advances every CV-domain module (Ahdsr, Lfo, …).  Dispatch is
+// polymorphic via Module::asCvModule(); no per-type switch is needed,
+// so new CvModule types tick automatically without touching this loop.
 // ------------------------------------------------------------------
 uint32_t lastCvTickMs = 0;
 
 void tickCvModules() {
     for (auto& [id, mod] : runtime.instances()) {
-        const std::string_view tid = mod->typeId();
-        if (tid == mmb_link::AhdsrAudioModule::kTypeId)
-            static_cast<mmb_link::AhdsrAudioModule*>(mod.get())->tick();
-        else if (tid == mb::runtime::Lfo::kTypeId)
-            static_cast<mb::runtime::Lfo*>(mod.get())->tick();
+        if (auto* cv = mod->asCvModule()) cv->tick();
     }
 }
 
 // ------------------------------------------------------------------
-// Dynamic CV bridge — drives VcoModule pitch and AhdsrAudioModule gate
+// Dynamic CV bridge — drives VcoModule pitch and Ahdsr gate
 // from the live MidiInModule.  The patch graph is single-voice (mono);
 // we collapse all allocator voices into one virtual voice:
 //   gate  = OR of every voice's gate
