@@ -51,6 +51,19 @@ modules zelf — alleen het transport (in-proces ↔ SPI) wisselt.
 `CvOut12` → `CvBreakIn`, gate-decode, adres-filtering, port-mapping). Firmware
 build `[SUCCESS]` (FLASH 141 632 B). Zie `doc/uml/08-core-runtime-hierarchy.md`.
 
+**Opschoning.** De ongebruikte core-klasse `mb::runtime::AudioModule`
+(`update()`-per-blok-basis waar nooit iets van overerfde) is verwijderd — net als
+eerder `AhdsrAudioModule`. Alle audio loopt via `AudioPortModule` + Teensy
+`AudioConnection`; er is nu één audio-basis. Hernoeming `AudioPortModule` →
+`AudioModule` kan later, zodra er geen naam-clash meer is. Doc-comment in
+`core/Module.h` en `core/README.md` bijgewerkt.
+
+**Architectuur-correctie (docs).** BO/BI-borden zijn **externe** modules mét
+dCV-busadres, **nooit ín een Teensy**. Tussen twee Teensy's is geen BO/BI nodig:
+elke interne module op een andere Teensy krijgt een eigen dCV-adres (= `host +
+module-id`). Een `host`-veld per patch-module bepaalt de distributie. Zie
+`doc/uml/08-core-runtime-hierarchy.md` §3–§6 en `doc/tech/two-teensy-spi.md`.
+
 **Nog hardware-gebonden (volgende stap):** de echte Teensy SPI-driver
 (`SpiBreakoutSink` master-TX + slave-RX die `onFrame` voedt) en een patch/config-
 schakelaar die CV naar de bus routeert i.p.v. lokale audio. Die zijn nog niet

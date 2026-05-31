@@ -107,6 +107,25 @@ Zo blijft de distributie volledig data-gestuurd: je kiest in de editor welk boar
 welke modules draait en welk board master is, pusht de config, en de firmware
 schakelt het transport om — zonder hercompilatie.
 
+### Per-module distributie: het `host`-veld
+
+Naast de board-rol (`master`/`slave`) bepaalt een **`host`-veld per module** op
+welke Teensy die module draait:
+
+- `host` **afwezig** → module draait op deze (master-)Teensy; in-proces routing,
+  geen SPI.
+- `host` = naam van een andere Teensy → module draait daar; busadres = `host +
+  module-id`. `CvGraph` maakt van zo'n cross-host-verbinding automatisch een
+  dCV-bus-route.
+- `MidiInModule` kan alleen op de master; elke Teensy mag een eigen `OutModule`
+  hebben; de master zoekt de slave(s) op zodra ze in de patch voorkomen.
+
+Volledige uitwerking (adres-model, BO/BI als externe modules mét adres, en het
+gecorrigeerde split-diagram) staat in
+[`doc/uml/08-core-runtime-hierarchy.md`](../uml/08-core-runtime-hierarchy.md) §3–§5.
+De SPI-hardwarekant (ster vs. daisy-chain, MOSI/MISO, bus-monitor) staat in §6
+van datzelfde document.
+
 ---
 
 ## 4. Status

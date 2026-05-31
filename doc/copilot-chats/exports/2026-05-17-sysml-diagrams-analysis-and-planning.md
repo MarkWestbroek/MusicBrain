@@ -2,7 +2,7 @@
 
 - **Datum**: 2026-05-17 14:32
 - **Sessie-ID**: `4db45503-0a7f-471a-850c-117803aee9d5`
-- **Berichten**: 384
+- **Berichten**: 388
 
 ---
 
@@ -16059,5 +16059,166 @@ Wil je wel ook nog even naar 07 modular brain runtime kijken, want daarin staat 
 ## 🤖 Assistant
 
 Ik fix eerst doc 07, beantwoord dan de twee-Teensy-vraag, en daarna plannen we de poly-schaling + SPI. Eerst de verouderde `AhdsrAudioModule` uit het 07-diagram halen. 
+
+---
+
+## 🧑 User
+
+Dank. 
+
+## 2 x teensy
+- Wil je deze 2-teensies-instructie nog in een bestandje vastleggen?
+-  is de firmware nu eigenlijk identiek voor cv-teensy als voor audio-teensy, met het verschil dat de distributie van welk deel van de patch door welke teensy gedaan wordt anders is? En dat er 1 als SPI master (de brain dus) moet worden ingesteld, en de ander als SPI slave (een instrument a.h.w.)?
+- kan dat instellen ook via configuratie, via de  API?
+
+## UML
+- in 07-modular... md
+  - erft Ahdsr direct over van CvModule, terwijl daar toch nog Envelope tussen zit?
+  - wat is het verschil tussen een audiomodule en een audioportmodule? Zou dat ook niet allemaal audiomodule kunnen zijn (die niet gebruikt wordt?)?
+
+---
+
+## 🤖 Assistant
+
+Goede vragen. Ik pak ze in volgorde aan — eerst even doc 07 en de core `AudioModule` bekijken om de UML-vragen feitelijk te beantwoorden. 
+
+*Read 07-modular-brain-runtime.md, lines 1 to 120*
+
+Laat me de werkelijke overerving van `MidiInModule` en de core `AudioModule` verifiëren.  
+
+*Searched for regex `class MidiInModule|class Envelope|class Ahdsr|class AudioModule|class AudioPortModule`, 20 results · Read AudioModule.h · Read AudioPortModule.h · Searched for regex `AudioModule` (`**/firmware/**`), 9 results*
+
+
+
+---
+
+## 🧑 User
+
+Ja, wil je die verwijderen en (later, als dat veiliger is met name clashes ofzo) naar gewoon AudioModule?
+
+ Ik zit nog met de breakout (BO) en in break-in (BI) boards.
+
+ Idee is:
+ - een BO = hardware aan de eurorack kant die via de bus dCV ontvangt en 12- of 16 bits CV of Gate of trigger uitstuurt (in veelvoud, 4,8 of 16 sockets uit)
+ - een BI = hardware, precies andersom die trigger, gate of CV (12/16bits) samplet en op de dCV bus zet
+
+ We zouden ook dedicated hardware modules kunnen maken die al een eigen dCV-bus connector hebben (plug-formaat heb ik nog niet bedacht), en dus niet via jacksockets en kabeltjes hoeven te werken. Idem voor een controller-module met een dCV-bus-'uitgang'.
+
+N.B.: SPI is waarschijnlijk daisy-chaining, dus een bus-connectie betekent zowel een in als een uitgang, zowel voor een BO als een BI. En een module zou ook beide kunnen doen.
+
+De BO en de BI zijn dus eigenlijk alleen nodig voor interfacing met allerlei bestaande analoge modules.
+
+Het plaatje over de twee teensies in 08-modular...md  (zie img) in H5 klopt daarom niet, denk ik. de BO en BI zitten nooit in de teensy. Ze kunnen dCV ontvangen (BO) of sturen (BI), dus zijn a.h.w. adressen waarheen je informatie kunt sturen of van kunt krijgen.
+
+De Audio teensy heeft dus voor elke bereikbare (vanuit de cv teensy geconnecte) module een adres nodig op de dCV-bus. Direct, zonder BO of BI.
+BO's en BI's hebben ook (altijd) een adres, **maar zijn externe modules**. Dat had ik eerder anders geformuleerd, maar ik zie nu dat dat niet klopt. Ze zijn extern, **maar met een dCV adres**.
+
+Ik denk even hardop.
+
+Modules zonder dCV adres (zoals een MI Elements o.i.d.) kun je dus nooit koppelen in een patch, tenzij je er een BO of BI tussen zet.
+
+Maar een interne audio module draait op een teensy.
+- als het dezelfde is, zoals nu is er geen SPI bus nodig
+- als het een andere teensy is, is er wel een SPI bus nodig **plus een adres van de module** -> adres is: naam teensy + id module?
+
+-> Zou het toevoegen van een **host** aan modules in een patch voldoende zijn, om te weten of de patch op 1 teensy draait, of verdeeld wordt over 2 (of zelfs meer)?
+-> host is dan:
+     - deze teensy (geen host vermeld, de master)
+     - andere teensy (een naam of id geven?)
+- de midi-in kan alleen op de master draaien
+- elke teensy kan een out hebben
+- master zoekt de slave(s) op als deze in een patch voorkomen (schrijven en/of lezen)
+
+## SPI
+wil je nog iets zeggen over de hardware verbinding tussen teensy 1 en 2 en eventueel 3 enz.?
+- Klopt het wat ik denk over daisychaining? Is in en uit 1 'buslijn' (een cirkel), of maken we er beter 2?
+- kunnen we een SPI monitor maken, om te kunnen debuggen?
+
+---
+
+## 🤖 Assistant
+
+Helder verhaal, en je conceptuele correcties kloppen. Ik doe eerst de code-opschoning (ongebruikte core `AudioModule` weg), dan corrigeer ik doc 08 volgens jouw nieuwe model, en daarna de SPI-antwoorden. Eerst de referenties checken. 
+
+*Searched for regex `AudioModule\.h|AudioModule` (`**/firmware/**`), 9 results*
+
+No code includes `AudioModule.h` — purely dead. Let me read the `Module.h` comment and core/README to update them.   
+
+*Read Module.h, lines 1 to 25*
+
+Nu de opschoning: verwijder het bestand en corrigeer de twee doc-referenties in code-comments.   
+
+
+*Read README.md, lines 16 to 24*
+
+
+Nu het bestand verwijderen via terminal.   Verwijderd. Rebuild om te bevestigen dat niets ervan afhing.    88/0, schoon. Snel de firmware-build om de app-kant te bevestigen.    Schoon. Nu doc 08 corrigeren volgens jouw nieuwe (juiste) model: BO/BI zijn externe modules mét dCV-adres, nooit ín een Teensy; tussen twee Teensy's heeft elke interne module een eigen busadres. Ik fix §3 (BO/BI extern), herschrijf §5, en voeg een `host`-veld-ontwerp + SPI-hardwaresectie toe.  
+Ik liet per ongeluk een verweesde `AudioModule`-node staan in het §1-diagram. Laat me die helemaal weghalen.    
+
+*Read 08-core-runtime-hierarchy.md, lines 78 to 120 · Read 08-core-runtime-hierarchy.md, lines 60 to 78*
+
+
+Nu een korte noot toevoegen dat de core `AudioModule` is verwijderd. Laat me het einde van §1 lezen.    
+
+*Read 08-core-runtime-hierarchy.md, lines 108 to 130*
+
+
+
+
+*Read 08-core-runtime-hierarchy.md, lines 108 to 130*
+
+
+Nu §3: BO/BI als externe modules mét adres (niet intern).    
+Nu de §3-tekst na de enums uitbreiden met het gecorrigeerde adres-model. Laat me dat stuk lezen.    
+
+*Read 08-core-runtime-hierarchy.md, lines 175 to 230*
+
+
+Nu §5 herschrijven — de kern van de correctie. Laat me het huidige §5 lezen.     
+
+*Read 08-core-runtime-hierarchy.md, lines 285 to 320 · Read 08-core-runtime-hierarchy.md, lines 320 to 340*
+
+
+
+*Read 08-core-runtime-hierarchy.md, lines 285 to 320 · Read 08-core-runtime-hierarchy.md, lines 320 to 340*
+
+
+Nu een §6 met de SPI-hardware-antwoorden (daisy-chain, busvorm, monitor). Toevoegen na de statustabel.     
+Kleine nummeringsfout in die lijst herstellen (1, 3, 3 → 1, 2, 3).   
+Nu de `two-teensy-spi.md` aanvullen met het `host`-veld en een kruisverwijzing, en de firmware-DEVLOG bijwerken.     
+
+
+*Read README.md, lines 28 to 58*
+
+
+Nu de repo-memory bijwerken (AudioModule verwijderd).    
+
+*Updated memory file teensy-firmware.md*
+
+Klaar. Laat me de takenlijst afronden en samenvatten. 
+
+*Completed: *Doc 08 corrigeren: BO/BI extern + host-veld* (2/4)*
+
+Alles verwerkt. Per onderdeel:
+
+## Code-opschoning
+- **Ongebruikte core `AudioModule` verwijderd**  verwijderd** (`firmware/core/include/mb/runtime/AudioModule.h`). Niets erfde ervan. Comment in `Module.h` en core/README.md bijgewerkt. Core tests 88/0, firmware `[SUCCESS]` — niets hing ervan af.
+- **Hernoeming `AudioPortModule` → `AudioModule`** bewust *later* gelaten (jouw voorkeur), genoteerd als toekomstige stap zodra er geen naam-clash meer is.
+
+## Conceptuele correcties (doc 08)
+Je correcties zijn doorgevoerd in `08-core-runtime-hierarchy.md`:
+- **BO/BI zijn externe modules mét dCV-adres**, nooit ín een Teensy. §3-diagram (nu onder `ExterneModule`) en de tekst aangepast.
+- **§5-diagram herschreven**: tussen twee Teensy's geen BO/BI; elke interne module op een andere Teensy heeft een eigen dCV-adres waar de master rechtstreeks naartoe schrijft. BO/BI verschijnen alleen bij analoge eurorack-interfacing.
+- **Adres-model-tabel** toegevoegd: wie heeft wél/niet een adres (incl. "puur-analoge module = niet koppelbaar zonder BO/BI").
+- **`host`-veld**: jouw voorstel is voldoende én elegant — afwezig = master/deze Teensy (in-proces), naam = slave (busadres = `host + module-id`). `MidiIn` alleen op master; elke Teensy mag een `Out`; master zoekt slaves op zodra ze in de patch staan. `CvGraph` kiest transport op basis van de host-velden van bron/bestemming.
+
+## SPI-hardware (nieuwe §6 in doc 08)
+- **Daisy-chain?** Deels. Klassieke SPI is een *ster* rond één master (gedeelde SCK/MOSI/MISO + één CS per slave), geen ring. Echte daisy-chain (shift-register) bestaat, maar past beter bij domme DAC-BO-borden dan bij slimme Teensy-knopen. Voor meerdere Teensy's: **ster met per-knoop CS**.
+- **Eén lijn of twee?** Geen keuze: SPI is inherent full-duplex met **aparte MOSI + MISO** (al twee draden) + SCK + per-slave CS. Wel een keuze op bus-niveau: **SPI binnen een case, CAN-FD als inter-case-ruggengraat** (zelfde `SpiFrame`, ander transport).
+- **SPI-monitor?** Ja, drie niveaus: (1) software-tap via een logging-`BreakoutSink`/`onFrame`-hook (nu al, host-getest), (2) een derde Teensy als passieve bus-sniffer (uitbreiding van `CvBreakIn`), (3) USB-logic-analyzer met SPI-decoder voor de elektrische/timing-laag.
+
+Verder bijgewerkt: `two-teensy-spi.md` (host-veld + kruisverwijzingen), firmware DEVLOG, doc 07 en repo-memory.
+
+Wil je dat ik het `host`-veld nu ook daadwerkelijk in de editor/config-typedefinities en `CvGraph` ga implementeren, of laten we dat staan tot de SPI-hardware er is?
 
 ---

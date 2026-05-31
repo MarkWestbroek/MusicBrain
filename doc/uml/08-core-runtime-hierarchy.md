@@ -1,6 +1,6 @@
 # 08 — Core runtime module-hiërarchie
 
-Generated: May 2026 (na de AhdsrAudioModule-opschoning, fw 0.5.4).
+Generated: May 2026 (na de AudioModule-opschoning, fw 0.5.5).
 
 Dit document beschrijft de klasse-hiërarchie in `firmware/core/include/mb/runtime/`
 (+ `firmware/core/src/runtime/`) en de audio-wrappers in
@@ -67,11 +67,6 @@ classDiagram
         +onFrame(data, len)
     }
 
-    class AudioModule {
-        <<abstract>>
-        +update()*
-        note: core-basis, nu ongebruikt
-    }
     class ExternalModule {
         <<extern>>
         alleen gerefereerd, niet getickt
@@ -91,7 +86,6 @@ classDiagram
 
     Module <|-- CvModule
     Module <|-- CvMath
-    Module <|-- AudioModule
     Module <|-- ExternalModule
     Module <|-- AudioPortModule
 
@@ -124,6 +118,13 @@ classDiagram
   patch-weergave; de Teensy hoeft hem niet uit te voeren.
 * Beide domeinen worden **gestuurd via dCV** (`writeCvPort`), maar produceren elk
   maar één soort signaal.
+
+> **Opgeruimd (fw 0.5.5).** De ongebruikte core-klasse `mb::runtime::AudioModule`
+> (een `update()`-per-blok-basis waar nooit iets van overerfde) is verwijderd —
+> net als eerder `AhdsrAudioModule`. Alle echte audio loopt via de app-klasse
+> `AudioPortModule` + Teensy `AudioConnection`, niet via `update()`. Er is dus nog
+> maar één audio-basis. Een latere hernoeming `AudioPortModule` → `AudioModule`
+> kan, zodra er geen naam-clash meer is; voorlopig blijft de naam `AudioPortModule`.
 
 ---
 
@@ -172,10 +173,12 @@ classDiagram
         +Display[0..*]
     }
     class InterneModule {
-        <<intern: op Teensy geinstantieerd>>
+        <<intern: op een Teensy geinstantieerd>>
+        +heeft dCV-adres als op andere Teensy
     }
     class ExterneModule {
-        <<extern: alleen gerefereerd>>
+        <<extern: hardware, niet op Teensy>>
+        +dCV-adres (verplicht om te koppelen)
     }
     class CvModule {
         maakt alleen dCV
@@ -186,20 +189,20 @@ classDiagram
     }
 
     class CvBreakOut {
-        dCV -> SPI -> D/A (eurorack)
+        EXTERN bord: bus-dCV -> D/A -> analoge CV/gate/trig (4/8/16 sockets)
     }
     class CvBreakIn {
-        eurorack -> A/D -> SPI -> dCV
+        EXTERN bord: analoge CV/gate/trig -> A/D -> bus-dCV
     }
 
     Module <|-- InterneModule
     Module <|-- ExterneModule
     InterneModule <|-- CvModule
     InterneModule <|-- AudioModule
-    InterneModule <|-- CvBreakOut
-    InterneModule <|-- CvBreakIn
+    ExterneModule <|-- CvBreakOut
+    ExterneModule <|-- CvBreakIn
 
-    CvBreakOut ..> CvBreakIn : via bus (dCV)
+    CvBreakIn ..> CvBreakOut : via bus (dCV)
 ```
 
 ### Enums (uit de tekening)
@@ -211,6 +214,59 @@ In de code zijn deze nu impliciet: `PortKind { None, Audio, Cv, Gate }` dekt het
 domein; de bit-breedte/CV-range leeft in `CvOut12` / `CvOut16` (frame-formaat).
 Bij het uitbouwen van de echte hardware-bus worden dit expliciete enum-velden op
 de poort-definitie.
+
+### Adres-model — wat heeft een dCV-adres? (gecorrigeerd)
+
+> **Correctie t.o.v. een eerdere formulering.** BO- en BI-borden zitten **nooit
+> ín een Teensy**. Het zijn **externe** hardware-modules — maar wél mét een
+> dCV-busadres. Eerder stonden ze als interne modules getekend; dat klopt niet.
+
+Het sleutelbegrip is het **dCV-adres**: een plek op de bus waar je waarden
+naartoe kunt sturen of vandaan kunt lezen. Wie heeft er een nodig?
+
+| Ding | dCV-adres? | Toelichting |
+|------|-----------|-------------|
+| Interne module op **dezelfde** Teensy als zijn bron | nee | in-proces `writeCvPort`, geen bus |
+| Interne module op een **andere** Teensy | **ja** | bron-Teensy stuurt naar dat adres over SPI |
+| **BO-bord** (bus-dCV → analoge out) | **ja** | extern; ontvangt op zijn adres en zet D/A om |
+| **BI-bord** (analoge in → bus-dCV) | **ja** | extern; samplet en publiceert op zijn adres |
+| Dedicated hardware-module met eigen dCV-connector | **ja** | extern; praat rechtstreeks op de bus |
+| Puur-analoge module (bijv. MI Elements) | nee | **niet koppelbaar** in een patch tenzij er een BO/BI tussen zit |
+
+* BO/BI zijn er dus **alleen voor het koppelen van bestaande analoge modules** die
+  zelf geen bus-adres hebben. Tussen twee Teensy's is **geen** BO/BI nodig: elke
+  interne module die door een andere Teensy bereikt moet worden, krijgt gewoon
+  een eigen dCV-adres.
+* Een dedicated dCV-module (en een dCV-controller met een bus-"uitgang") heeft van
+  huis uit een adres en hoeft niet via jacksockets/kabels — alleen het
+  plug-formaat van de bus-connector staat nog open.
+* Omdat SPI vrijwel zeker **daisy-chained** is, heeft elke busdeelnemer feitelijk
+  een in- én een uitgang (zie §6). Eén bord kan daardoor tegelijk BO én BI zijn.
+
+#### `host`-veld op een patch-module
+
+Om te weten of een patch op één Teensy draait of over meerdere verdeeld wordt,
+volstaat één extra veld per module in de patch: **`host`**.
+
+```jsonc
+{ "id": "vca1", "type": "tp_mmb_vca", "host": "slave-1" }   // draait op slave-1
+{ "id": "eg1",  "type": "tp_mmb_ahdsr" }                     // host afwezig = master
+```
+
+* `host` **afwezig** → de module draait op **deze** Teensy (de master). Geen SPI nodig.
+* `host` = naam/id van een **andere** Teensy → die module draait op die slave; het
+  module-adres op de bus is dan `host + module-id` (Teensy-naam + instance-id).
+* `MidiInModule` kan **alleen op de master** draaien (USB-MIDI komt daar binnen).
+* **Elke** Teensy mag een `OutModule` hebben (eigen audio-uitgang).
+* De master **zoekt de slave(s) op** zodra ze in een patch voorkomen — als bron
+  (lezen) en/of als bestemming (schrijven). Een verbinding tussen modules met
+  verschillende `host` wordt automatisch een dCV-bus-route i.p.v. een in-proces
+  `writeCvPort`; de routing-laag (`CvGraph`) kiest het transport op basis van de
+  `host`-velden van bron en bestemming.
+
+Dit `host`-veld is voldoende om de hele distributie data-gestuurd te maken: de
+editor zet per module een host, en firmware + `CvGraph` leiden daaruit af welk
+transport (in-proces of SPI-adres) elke verbinding krijgt.
 
 ---
 
@@ -237,29 +293,50 @@ expliciete converter/bridge. Dat houdt het model simpel én splitsbaar.
 
 ## 5. Voorbereid op de CV-/audio-Teensy split (SPI dCV-bus)
 
-De strikte scheiding maakt een latere split over twee Teensy's mogelijk zonder de
-modules te herschrijven. De naad is `CvGraph` + `writeCvPort()`:
+De strikte scheiding maakt een latere split over twee (of meer) Teensy's mogelijk
+zonder de modules te herschrijven. De naad is `CvGraph` + `writeCvPort()`.
+
+> **Correctie t.o.v. de vorige versie van dit diagram.** BO/BI-borden zitten
+> **niet** in een Teensy. Tussen twee Teensy's is er **geen** BO/BI nodig: een
+> interne module op de audio-Teensy heeft gewoon zijn **eigen dCV-adres**, en de
+> CV-Teensy schrijft daar rechtstreeks naartoe over SPI. BO/BI komen pas in beeld
+> bij het koppelen van **analoge** eurorack-modules (zie §3).
 
 ```mermaid
 flowchart LR
-    subgraph CV["CV-Teensy (intern rack)"]
+    subgraph CV["CV-Teensy — host: master"]
         MIDI[MidiInModule] --> AH[Ahdsr / Lfo]
-        AH -->|writeCvPort| OUT[CvBreakOut / CvOut16]
     end
-    OUT -->|SPI dCV-frames| IN
-    subgraph AU["Audio-Teensy (emuleert eurorack)"]
-        IN[CvBreakIn] -->|writeCvPort| VCA[VcaModule]
-        VCO[VcoModule] --> VCA --> O[OutModule]
+    subgraph AU["Audio-Teensy — host: slave-1"]
+        VCO[VcoModule] --> VCA[VcaModule] --> O[OutModule]
     end
+    AH -->|dCV-frame naar adres van vca1| VCA
+
+    subgraph EXT["Analoge eurorack (optioneel)"]
+        BO[BO-bord adres] --> ANA[analoge module]
+        ANA --> BI[BI-bord adres]
+    end
+    AH -.dCV.-> BO
+    BI -.dCV.-> VCA
 ```
 
-* Vandaag draaien CV én audio op één Teensy; `CvGraph` levert envelope-waarden
-  rechtstreeks aan `VcaModule.cv` via `writeCvPort`.
-* Bij een split stuurt de CV-Teensy diezelfde waarden naar `CvOut12/16`
-  (SPI out, dCV-frames). De audio-Teensy ontvangt ze via een `CvBreakIn` en
-  schrijft ze met `writeCvPort` naar zijn `AudioPortModule`s.
-* De breakouts zijn de dCV-ontvangers + D/A aan de eurorack-kant; voorlopig
-  geëmuleerd door de audio-Teensy.
+* **Eén Teensy (nu):** `CvGraph` levert envelope-waarden rechtstreeks aan
+  `VcaModule.cv` via in-proces `writeCvPort`. Geen SPI.
+* **Twee Teensy's:** `vca1` draait met `host: "slave-1"`. Omdat bron (`eg1` op de
+  master) en bestemming (`vca1` op de slave) een verschillende `host` hebben,
+  wordt de verbinding een **dCV-bus-route**: de master encodeert de waarde in een
+  `SpiFrame` en stuurt hem naar het **adres van `vca1`** (= `host + module-id`).
+  De slave decodeert (`onFrame`) en doet `writeCvPort` naar zijn lokale `VcaModule`.
+* **Analoge interfacing:** alleen hier verschijnen BO/BI. De CV-Teensy stuurt naar
+  het adres van een **BO-bord** (dat D/A naar analoge CV doet); een **BI-bord**
+  samplet analoge signalen en publiceert ze op zijn adres, waar de audio-Teensy ze
+  weer kan lezen. BO/BI zijn externe modules mét adres — geen onderdeel van een
+  Teensy.
+
+De C++-klassen `CvBreakout` (encode/TX) en `CvBreakIn` (decode/RX) zijn de
+**transport-eindpunten** van de bus. Ze worden zowel hergebruikt voor de
+master↔slave-Teensy-koppeling als voor het praten met externe BO/BI-borden — de
+klasse is het transport, het *bord* is het externe hardware-begrip.
 
 Omdat de routing al volledig via `readCvPort` / `writeCvPort` loopt en niet via
 directe pointers tussen CV- en audio-objecten, verandert er voor de modules zelf
@@ -281,3 +358,69 @@ niets — alleen het transport (in-proces vs. SPI) wisselt.
 `onFrame()` (round-trip met `CvOut12`), zodat de decode-laag volledig zonder
 hardware te valideren is. Alleen de DMA-driver en het bus-bedradingsschema
 blijven hardware-werk.
+
+---
+
+## 6. SPI-hardware: bedrading tussen Teensy 1, 2, 3, …
+
+> Zie ook `doc/tech/spi.md` en `doc/tech/two-teensy-spi.md`. Dit is de
+> architectuurkant; de elektrische details horen in die tech-briefs.
+
+### Klopt het idee van daisy-chaining?
+
+Deels — let op het onderscheid:
+
+* **Klassieke SPI is geen ring.** Het is een **ster** rond één master: gedeelde
+  `SCK`, `MOSI`, `MISO`, plus **één `CS` (chip-select) per slave**. De master
+  kiest met `CS` wie er praat. Wil je N Teensy-slaves zo aansturen, dan heb je N
+  CS-lijnen vanaf de master nodig. `MISO` is dan "wired-OR": alleen de
+  geselecteerde slave mag de lijn drijven, de rest gaat hoog-impedant.
+* **Echte "daisy-chain" SPI** bestaat ook: dan gaat `MOSI → device → device →
+  MISO` als één lange schuifregister-ketting met **één gedeelde `CS`**. Dat werkt
+  prima voor simpele DAC-/shift-register-borden, maar minder voor "slimme"
+  Teensy-knopen die zelf willen kiezen wanneer ze data sturen.
+
+Voor MusicBrain met **meerdere slimme Teensy-knopen** is een **ster met
+per-knoop `CS`** het meest praktisch. "Daisy-chain" reserveren we dan voor de
+dom-DAC BO-borden binnen één case-segment.
+
+### Eén buslijn (cirkel) of twee?
+
+SPI is **full-duplex met aparte data-richtingen**: `MOSI` (master→slave) en
+`MISO` (slave→master) zijn al **twee fysieke draden**. Het is dus geen cirkel die
+je in één lijn samenvat — heen en terug lopen over verschillende geleiders, met
+een gedeelde klok `SCK` en gedeelde massa. Conclusie: je hebt **niet de keuze**
+tussen 1 of 2 — SPI is inherent ≥ 2 datalijnen (MOSI + MISO) + SCK + per-slave CS.
+
+Wat je wél kunt kiezen voor de **dCV-bus als geheel**:
+
+| Optie | Vorm | Voor | Tegen |
+|-------|------|------|-------|
+| A. SPI-ster, master = CV-Teensy | MOSI/MISO/SCK gedeeld, CS per knoop | simpel, full-duplex, request/report (`CvInReport`) werkt | aantal slaves beperkt door CS-pinnen; bereik kort (binnen één case) |
+| B. SPI alleen binnen een case, **CAN-FD tussen cases** | SPI lokaal, CAN als ruggengraat | schaalt over kabels/cases, robuuster bij lengte | extra brug-laag (zie `doc/tech/can-fd.md`) |
+
+Aanbevolen richting: **SPI binnen een case** (Teensy ↔ BO/BI-borden en Teensy ↔
+Teensy op korte afstand), en **CAN-FD als inter-case-ruggengraat** zodra je over
+meerdere cases/kabels gaat. De dCV-frame (`SpiFrame`) blijft hetzelfde; alleen het
+onderliggende transport wisselt — dezelfde abstractie als bij `CvBreakIn`.
+
+### Kunnen we een SPI-monitor maken om te debuggen?
+
+Ja, en dat is goed te doen op meerdere niveaus:
+
+1. **Software-tap (nu al mogelijk, geen extra hardware).** Omdat alle frames door
+   `mb::proto::encode` / `decode` gaan, kun je een `BreakoutSink`-decorator maken
+   die elk frame logt (`opcode`, `channel = caseId<<8|slot`, waarde, CRC-OK) naar
+   de bestaande `TeensyLink.logf`. Idem aan de RX-kant: log in `CvBreakIn::onFrame`
+   vóór het decoderen. Dit is de snelste debugger en werkt volledig host-getest.
+2. **Derde Teensy als passieve bus-sniffer.** Een extra Teensy als **SPI-slave**
+   op dezelfde MOSI/SCK (zonder zelf MISO te drijven) kan elk frame meelezen en
+   over USB-serial naar de pc dumpen — een "dCV-logic-analyzer" in software. Dit is
+   een natuurlijke uitbreiding van `CvBreakIn`: dezelfde `onFrame()`, maar dan
+   alleen loggen i.p.v. `writeCvPort`.
+3. **Logic-analyzer / oscilloscoop.** Voor het echte hardware-niveau (timing,
+   CS-randen, klok) een goedkope USB-logic-analyzer met SPI-decoder (bijv.
+   sigrok/PulseView). Onmisbaar bij het eerste tot-leven-wekken van de bus.
+
+Het software-pad (1) + een sniffer-Teensy (2) dekken vrijwel alle protocol-bugs;
+de logic-analyzer (3) gebruik je alleen voor de elektrische/timing-laag.
