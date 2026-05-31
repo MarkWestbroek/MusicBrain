@@ -6,7 +6,7 @@
  * @details
  * When a patch is activated, `AudioGraph::build()` iterates every entry in
  * the `connections` array of the patch JSON.  For each connection where both
- * the source module and the destination module are `AudioPortModule`
+ * the source module and the destination module are `AudioModule`
  * instances **and** both report a valid audio port for their respective port
  * ids, `AudioGraph` creates one `AudioConnection` and stores it in an owned
  * `vector`.
@@ -24,7 +24,7 @@
  * `AudioNoInterrupts()` / `AudioInterrupts()`.
  */
 
-#include "AudioPortModule.h"
+#include "AudioModule.h"
 #include <ArduinoJson.h>
 #include <Audio.h>
 #include <memory>

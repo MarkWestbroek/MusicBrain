@@ -26,7 +26,7 @@
  * build and the values it reads/writes are atomic floats.
  */
 
-#include "AudioPortModule.h"
+#include "AudioModule.h"
 #include "mb/runtime/CvBus.h"
 #include "mb/runtime/Module.h"
 #include <ArduinoJson.h>

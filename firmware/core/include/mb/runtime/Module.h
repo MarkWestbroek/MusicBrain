@@ -11,7 +11,7 @@
  * be described once and tested independently of the Teensy target.
  *
  * Two sub-hierarchies extend this base:
- * - `AudioPortModule` (in `app-modular-brain`) — for signal-generating /
+ * - `AudioModule` (in `app-modular-brain`) — for signal-generating /
  *   signal-processing modules that wrap Teensy Audio `AudioStream` objects and
  *   expose them as named ports for `AudioGraph`.
  * - `CvModule` — for modules that produce CV values at the 1 kHz CV tick
@@ -89,9 +89,9 @@ public:
      * @brief Returns true if this module exposes Teensy Audio stream ports.
      *
      * Used in place of `dynamic_cast` (which requires RTTI, disabled on
-     * Teensy builds) to identify `AudioPortModule` subclasses.  The default
-     * implementation returns false; `AudioPortModule` overrides it to true.
-     * Callers may then safely `static_cast<AudioPortModule*>` the pointer.
+     * Teensy builds) to identify `AudioModule` subclasses.  The default
+     * implementation returns false; `AudioModule` overrides it to true.
+     * Callers may then safely `static_cast<AudioModule*>` the pointer.
      */
     virtual bool supportsAudioPorts() const { return false; }
 

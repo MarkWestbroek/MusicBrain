@@ -32,7 +32,7 @@
  * | `detune`  | float   | Symmetric detune spread across the 8 (cents) |
  */
 
-#include "AudioPortModule.h"
+#include "AudioModule.h"
 #include "mb/runtime/Registry.h"
 #include <Audio.h>
 #include <array>
@@ -43,13 +43,13 @@
 namespace mmb_link {
 
 /** @brief Eight-voice oscillator bank with one shared control set. */
-class OctaVcoModule final : public AudioPortModule {
+class OctaVcoModule final : public AudioModule {
 public:
     static constexpr const char* kTypeId = "tp_mmb_octa_vco";
     static constexpr int          kCells  = 8;
 
     explicit OctaVcoModule(std::string_view id)
-        : AudioPortModule(kTypeId, id)
+        : AudioModule(kTypeId, id)
     {
         for (int i = 0; i < kCells; ++i) {
             osc_[i].begin(WAVEFORM_SAWTOOTH);

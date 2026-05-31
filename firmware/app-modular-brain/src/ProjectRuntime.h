@@ -223,7 +223,7 @@ public:
      * @brief Read-only access to the live module instances map.
      *
      * Used by `AudioGraph::build()` to resolve module ids to concrete
-     * `AudioPortModule` objects.  The returned reference is valid until
+     * `AudioModule` objects.  The returned reference is valid until
      * the next `applyConfig()` call (which rebuilds the map).
      */
     const std::unordered_map<std::string, std::unique_ptr<mb::runtime::Module>>&

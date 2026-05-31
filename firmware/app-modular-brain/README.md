@@ -88,10 +88,10 @@ build `[SUCCESS]` (FLASH 141 632 B). Zie `doc/uml/08-core-runtime-hierarchy.md`.
 
 **Opschoning.** De ongebruikte core-klasse `mb::runtime::AudioModule`
 (`update()`-per-blok-basis waar nooit iets van overerfde) is verwijderd — net als
-eerder `AhdsrAudioModule`. Alle audio loopt via `AudioPortModule` + Teensy
-`AudioConnection`; er is nu één audio-basis. Hernoeming `AudioPortModule` →
-`AudioModule` kan later, zodra er geen naam-clash meer is. Doc-comment in
-`core/Module.h` en `core/README.md` bijgewerkt.
+eerder `AhdsrAudioModule`. Alle audio loopt via één audio-basis + Teensy
+`AudioConnection`. Hernoeming `AudioPortModule` → `AudioModule` is inmiddels
+doorgevoerd (fw 0.5.13), nu de naam-clash met de geschrapte core-klasse weg is.
+Doc-comment in `core/Module.h` en `core/README.md` bijgewerkt.
 
 **Architectuur-correctie (docs).** BO/BI-borden zijn **externe** modules mét
 dCV-busadres, **nooit ín een Teensy**. Tussen twee Teensy's is geen BO/BI nodig:
@@ -317,8 +317,8 @@ The editor can now push a patch and the Teensy re-wires its audio graph at runti
 
 | New file | Role |
 |---|---|
-| `src/AudioPortModule.h` | Interface mixin; declares `outputPort()` / `inputPort()` returning `AudioPort{stream*, channel, valid}`. Overrides `Module::supportsAudioPorts()` → `true`; provides `AudioPortModule::from(Module*)` static cast helper. |
-| `src/AudioGraph.h/.cpp` | `build(patch, instances)` iterates the `connections` array in the patch JSON, resolves both endpoints via `AudioPortModule::from()`, creates `unique_ptr<AudioConnection>`. `tearDown()` destroys all connections under `AudioNoInterrupts/Interrupts`. Logs wired/skipped counts. |
+| `src/AudioModule.h` | Interface mixin; declares `outputPort()` / `inputPort()` returning `AudioPort{stream*, channel, valid}`. Overrides `Module::supportsAudioPorts()` → `true`; provides `AudioModule::from(Module*)` static cast helper. *(Tot fw 0.5.13 `AudioPortModule.h`.)* |
+| `src/AudioGraph.h/.cpp` | `build(patch, instances)` iterates the `connections` array in the patch JSON, resolves both endpoints via `AudioModule::from()`, creates `unique_ptr<AudioConnection>`. `tearDown()` destroys all connections under `AudioNoInterrupts/Interrupts`. Logs wired/skipped counts. |
 | `src/VcoModule.h` | `tp_mmb_vco`, wraps `AudioSynthWaveform`. `updatePitch(volts)` converts V/Oct to Hz (`261.6 · 2^v`). Ports: out `"out"`. |
 | `src/VcaModule.h` | `tp_mmb_vca`, wraps `AudioEffectMultiply`. Port `"in"` → ch 0, `"cv"` → ch 1, `"out"` → ch 0. |
 | `tp_mmb_ahdsr` | Registered directly from the core `mb::runtime::Ahdsr` (a pure `CvModule`). No audio wrapper: gate-in (`gate`/`trig`) and CV-out (`cv_out`) are routed entirely by `CvGraph`. The old `AhdsrAudioModule` wrapper was removed (fw 0.5.4) once its audio DC-proxy disappeared, leaving it 100% redundant. |
@@ -327,10 +327,10 @@ The editor can now push a patch and the Teensy re-wires its audio graph at runti
 
 **Key design decisions.**
 
-- **No RTTI.** Teensy builds compile with `-fno-rtti`. `dynamic_cast` is forbidden. Solution: `Module::supportsAudioPorts()` virtual bool (default `false`; `AudioPortModule` overrides to `true`) plus `static_cast` where the virtual tag guarantees safety. The CV tick uses the same idiom: `Module::asCvModule()` (default `nullptr`; `CvModule` returns `this`), so `tickCvModules()` is a single polymorphic loop with no `typeId` switch.
+- **No RTTI.** Teensy builds compile with `-fno-rtti`. `dynamic_cast` is forbidden. Solution: `Module::supportsAudioPorts()` virtual bool (default `false`; `AudioModule` overrides to `true`) plus `static_cast` where the virtual tag guarantees safety. The CV tick uses the same idiom: `Module::asCvModule()` (default `nullptr`; `CvModule` returns `this`), so `tickCvModules()` is a single polymorphic loop with no `typeId` switch.
 - **`insert_or_assign` in Registry.** `Ahdsr.cpp` auto-registers `tp_mmb_ahdsr` at static-init time; `registerAllRuntimeModules()` also calls `Ahdsr::registerFactory()` explicitly so the linker keeps that translation unit. `Registry::register_()` keeps last-wins (`insert_or_assign`) semantics.
 - **`AudioOutputUSB` singleton.** Multiple `AudioOutputUSB` instances conflict on USB. `OutModule::sharedOutput` is an `inline static` pointer set in `setup()` to the single global `usbOut`.
-- **One module, one domain.** Generators are strictly single-domain (`CvModule` makes only dCV; `AudioPortModule` makes only audio). Cross-domain steps are explicit converters (MIDI-to-CV, break-in/out) — never a "mixed" module. This keeps a future CV-Teensy / audio-Teensy SPI split feasible (see `doc/uml/08-core-runtime-hierarchy.md`).
+- **One module, one domain.** Generators are strictly single-domain (`CvModule` makes only dCV; `AudioModule` makes only audio). Cross-domain steps are explicit converters (MIDI-to-CV, break-in/out) — never a "mixed" module. This keeps a future CV-Teensy / audio-Teensy SPI split feasible (see `doc/uml/08-core-runtime-hierarchy.md`).
 - **Backward compatibility.** The static 4-voice graph from B-step 2 is still present and runs concurrently with the dynamic graph. MIDI notes drive both chains simultaneously. Disabling the static graph when a dynamic patch is active is deferred to B-step 4.
 
 **CV tick.** `loop()` fires `tickCvModules()` every ≥ 1 ms (guarded by `millis()` delta), which calls `tick()` on every live `CvModule` (`Ahdsr`, `Lfo`, …) via `Module::asCvModule()`, so each CV state machine advances independent of the audio block callback.

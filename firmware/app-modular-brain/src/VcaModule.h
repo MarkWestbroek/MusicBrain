@@ -37,7 +37,7 @@
  * the VCA amplitude via the multiply operation).
  */
 
-#include "AudioPortModule.h"
+#include "AudioModule.h"
 #include "mb/runtime/Registry.h"
 #include <Audio.h>
 #include <string_view>
@@ -45,12 +45,12 @@
 namespace mmb_link {
 
 /** @brief Linear VCA backed by `AudioEffectMultiply`. */
-class VcaModule final : public AudioPortModule {
+class VcaModule final : public AudioModule {
 public:
     static constexpr const char* kTypeId = "tp_mmb_vca";
 
     explicit VcaModule(std::string_view id)
-        : AudioPortModule(kTypeId, id)
+        : AudioModule(kTypeId, id)
     {
         // The CV proxy is permanently wired to multiply channel 1.  `cv` is a
         // CV-only port now, so there is no competing audio source to clash

@@ -14,7 +14,7 @@
  * - the **CV-Teensy** runs envelopes/LFOs/sequencers and ships their values
  *   out through a `CvBreakout` (SPI master, `CvSet`/`GateSet` frames);
  * - the **audio-Teensy** receives those frames through a `CvBreakIn` (SPI
- *   slave RX) and drives its `AudioPortModule`s via `writeCvPort()`.
+ *   slave RX) and drives its `AudioModule`s via `writeCvPort()`.
  *
  * Because routing already flows through `readCvPort()` / `writeCvPort()` and
  * never through direct pointers between the CV and audio objects, a module

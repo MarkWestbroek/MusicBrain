@@ -86,17 +86,23 @@ public:
      *  @p pitch is a signed -8192..8191 offset (same convention as usbMIDI). */
     using MidiBendHandler = void (*)(uint8_t channel, int pitch);
 
+    /** Callback invoked when a "cc" message arrives (editor MIDI bridge).
+     *  Control-change incl. mod-wheel (CC1). */
+    using MidiCcHandler = void (*)(uint8_t channel, uint8_t controller, uint8_t value);
+
     /** @brief Initialise the link and send the opening hello frame.
      *  Must be called once from Arduino `setup()` after `Serial.begin()`. */
     void begin(ConfigHandler onConfig, SelectPatchHandler onSelectPatch,
                SetStaticHandler onSetStatic = nullptr,
                MidiNoteHandler onMidiNote = nullptr,
-               MidiBendHandler onMidiBend = nullptr) {
+               MidiBendHandler onMidiBend = nullptr,
+               MidiCcHandler onMidiCc = nullptr) {
         onConfig_      = onConfig;
         onSelectPatch_ = onSelectPatch;
         onSetStatic_   = onSetStatic;
         onMidiNote_    = onMidiNote;
         onMidiBend_    = onMidiBend;
+        onMidiCc_      = onMidiCc;
         bufLen_ = 0;
         sendHello();
     }
@@ -146,6 +152,7 @@ private:
     SetStaticHandler   onSetStatic_   = nullptr;
     MidiNoteHandler    onMidiNote_    = nullptr;
     MidiBendHandler    onMidiBend_    = nullptr;
+    MidiCcHandler      onMidiCc_      = nullptr;
 
     void sendHello() {
         JsonDocument doc;
@@ -244,6 +251,15 @@ private:
             const int     val = doc["val"] | 8192;
             const int pitch   = std::clamp(val, 0, 16383) - 8192;
             if (onMidiBend_) onMidiBend_(ch, pitch);
+            return;
+        }
+        if (strcmp(type, "cc") == 0) {
+            // Editor MIDI bridge: {"type":"cc","cc":int,"val":int,"ch":int}.
+            // Mod-wheel is CC1; handled identically to hardware USB-MIDI.
+            const uint8_t ch  = static_cast<uint8_t>(doc["ch"]  | 0);
+            const uint8_t cc  = static_cast<uint8_t>(doc["cc"]  | 0);
+            const uint8_t val = static_cast<uint8_t>(doc["val"] | 0);
+            if (onMidiCc_) onMidiCc_(ch, cc, val);
             return;
         }
         sendAckErr("unknown type");

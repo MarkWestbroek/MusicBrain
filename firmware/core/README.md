@@ -31,7 +31,7 @@ Pure C++17, no vendor headers. Compiles on host (for tests and the simulator) an
 
 The `runtime/` subtree is the firmware mirror of `editor/src/modular-mb/runtime/`. Each concrete class:
 
-1. Inherits from `CvModule` (or, for audio, `AudioPortModule` in `app-modular-brain`).
+1. Inherits from `CvModule` (or, for audio, `AudioModule` in `app-modular-brain`).
 2. Declares a `static constexpr const char* kTypeId` matching the layer-1 catalog id (e.g. `tp_mmb_lfo`).
 3. Implements `setControl(controlId, ControlValue)` to accept live edits from layer 2.
 4. Self-registers via an anonymous-namespace static initialiser, so adding a module type means dropping in `Foo.h` / `Foo.cpp` with no changes to the patch loader.

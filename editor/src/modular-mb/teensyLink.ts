@@ -266,6 +266,20 @@ export async function sendMidiBend(
   }), true);
 }
 
+/** Editor MIDI bridge: forward a control-change (e.g. mod-wheel CC1) to the Teensy.
+ *  The firmware dispatches it through the same path as hardware USB-MIDI.
+ *  @param controller  CC number 0..127 (1 = mod-wheel)
+ *  @param value       0..127
+ *  @param channel     0-based MIDI channel (default 0) */
+export async function sendMidiCC(
+  controller: number, value: number, channel = 0,
+): Promise<void> {
+  if (!writer) return;
+  await writeLine(JSON.stringify({
+    type: 'cc', cc: controller | 0, val: value | 0, ch: channel | 0,
+  }), true);
+}
+
 /** True when a serial writer is currently attached (connected to a Teensy). */
 export function isConnected(): boolean {
   return writer !== null;

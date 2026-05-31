@@ -30,7 +30,7 @@
  * | `pluck`   | float | Pluck velocity / brightness (0 … 1)    |
  */
 
-#include "AudioPortModule.h"
+#include "AudioModule.h"
 #include "mb/runtime/Registry.h"
 #include <Audio.h>
 #include <cmath>
@@ -39,12 +39,12 @@
 namespace mmb_link {
 
 /** @brief Karplus-Strong plucked-string voice. */
-class StringModule final : public AudioPortModule {
+class StringModule final : public AudioModule {
 public:
     static constexpr const char* kTypeId = "tp_mmb_string";
 
     explicit StringModule(std::string_view id)
-        : AudioPortModule(kTypeId, id)
+        : AudioModule(kTypeId, id)
     {
         level_.gain(0.8f);
     }

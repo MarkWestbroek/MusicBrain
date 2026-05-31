@@ -45,9 +45,9 @@ void AudioGraph::build(
             continue;
         }
 
-        // Both must be AudioPortModules (dynamic_cast unavailable; use virtual tag)
-        auto* src = AudioPortModule::from(fromIt->second.get());
-        auto* dst = AudioPortModule::from(toIt->second.get());
+        // Both must be AudioModules (dynamic_cast unavailable; use virtual tag)
+        auto* src = AudioModule::from(fromIt->second.get());
+        auto* dst = AudioModule::from(toIt->second.get());
         if (!src || !dst) {
             TeensyLink::logf("  skip(notaudio): %s(%s).%s -> %s(%s).%s",
                              fromModId,

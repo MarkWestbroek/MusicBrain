@@ -27,7 +27,7 @@
  * `AudioGraph` will skip the connection.
  */
 
-#include "AudioPortModule.h"
+#include "AudioModule.h"
 #include "mb/runtime/Registry.h"
 #include <Audio.h>
 #include <string_view>
@@ -35,7 +35,7 @@
 namespace mmb_link {
 
 /** @brief Audio output module — routes L/R inputs to the shared USB audio sink. */
-class OutModule final : public AudioPortModule {
+class OutModule final : public AudioModule {
 public:
     static constexpr const char* kTypeId = "tp_mmb_out";
 
@@ -49,7 +49,7 @@ public:
     inline static AudioOutputUSB* sharedOutput = nullptr;
 
     explicit OutModule(std::string_view id)
-        : AudioPortModule(kTypeId, id)
+        : AudioModule(kTypeId, id)
     {}
 
     AudioPort outputPort(std::string_view /*portId*/) const override {

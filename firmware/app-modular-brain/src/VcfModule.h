@@ -40,7 +40,7 @@
  * `AudioGraph::build()` call (the output channel is fixed per connection).
  */
 
-#include "AudioPortModule.h"
+#include "AudioModule.h"
 #include "mb/runtime/Registry.h"
 #include <Audio.h>
 #include <cstdint>
@@ -49,12 +49,12 @@
 namespace mmb_link {
 
 /** @brief State-variable filter backed by `AudioFilterStateVariable`. */
-class VcfModule final : public AudioPortModule {
+class VcfModule final : public AudioModule {
 public:
     static constexpr const char* kTypeId = "tp_mmb_vcf";
 
     explicit VcfModule(std::string_view id)
-        : AudioPortModule(kTypeId, id)
+        : AudioModule(kTypeId, id)
     {
         vcf_.frequency(2000.0f);
         vcf_.resonance(0.7f);

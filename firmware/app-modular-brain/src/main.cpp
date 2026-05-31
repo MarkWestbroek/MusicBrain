@@ -316,6 +316,12 @@ void onMidiBend(uint8_t channel, int pitch) {
     handlePitchChange(channel, pitch);
 }
 
+// Editor MIDI bridge: control-change (incl. mod-wheel CC1) forwarded via the
+// serial link, dispatched through the same path as hardware USB-MIDI.
+void onMidiCc(uint8_t channel, uint8_t controller, uint8_t value) {
+    handleControlChange(channel, controller, value);
+}
+
 }  // namespace
 
 void setup() {
@@ -369,7 +375,7 @@ void setup() {
     usbMIDI.setHandlePitchChange  (handlePitchChange);
 
     mmb_link::registerAllRuntimeModules();
-    link.begin(onConfigReceived, onSelectPatch, onSetStatic, onMidiNote, onMidiBend);
+    link.begin(onConfigReceived, onSelectPatch, onSetStatic, onMidiNote, onMidiBend, onMidiCc);
 }
 
 void loop() {

@@ -25,7 +25,7 @@
  * coarse/fine offsets before being converted to Hz.
  */
 
-#include "AudioPortModule.h"
+#include "AudioModule.h"
 #include "mb/runtime/Registry.h"
 #include <Audio.h>
 #include <cmath>
@@ -35,12 +35,12 @@
 namespace mmb_link {
 
 /** @brief Voltage-controlled oscillator backed by `AudioSynthWaveform`. */
-class VcoModule final : public AudioPortModule {
+class VcoModule final : public AudioModule {
 public:
     static constexpr const char* kTypeId = "tp_mmb_vco";
 
     explicit VcoModule(std::string_view id)
-        : AudioPortModule(kTypeId, id)
+        : AudioModule(kTypeId, id)
     {
         osc_.begin(WAVEFORM_SAWTOOTH);
         osc_.amplitude(0.9f);

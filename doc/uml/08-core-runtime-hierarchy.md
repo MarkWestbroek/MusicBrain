@@ -72,7 +72,7 @@ classDiagram
         alleen gerefereerd, niet getickt
     }
 
-    class AudioPortModule {
+    class AudioModule {
         <<abstract, app>>
         +supportsAudioPorts() true
         +outputPort(id) AudioPort*
@@ -87,7 +87,7 @@ classDiagram
     Module <|-- CvModule
     Module <|-- CvMath
     Module <|-- ExternalModule
-    Module <|-- AudioPortModule
+    Module <|-- AudioModule
 
     CvModule <|-- Envelope
     CvModule <|-- Lfo
@@ -99,11 +99,11 @@ classDiagram
     CvBreakout <|-- CvOut16
     CvBreakout <|-- GateOut
 
-    AudioPortModule <|-- VcoModule
-    AudioPortModule <|-- VcfModule
-    AudioPortModule <|-- VcaModule
-    AudioPortModule <|-- MixerModule
-    AudioPortModule <|-- OutModule
+    AudioModule <|-- VcoModule
+    AudioModule <|-- VcfModule
+    AudioModule <|-- VcaModule
+    AudioModule <|-- MixerModule
+    AudioModule <|-- OutModule
 ```
 
 ### Hoe de twee domeinen worden gescheiden

@@ -33,7 +33,7 @@
  * | `drive`     | float | 0 … 1      | 0.2     | Overdrive / saturation     |
  */
 
-#include "AudioPortModule.h"
+#include "AudioModule.h"
 #include "mb/runtime/Registry.h"
 #include <Audio.h>
 #include <cmath>
@@ -121,12 +121,12 @@ private:
 };
 
 /** @brief Module wrapper around @ref AudioEffectCompDrive. */
-class CompDriveModule final : public AudioPortModule {
+class CompDriveModule final : public AudioModule {
 public:
     static constexpr const char* kTypeId = "tp_mmb_comp";
 
     explicit CompDriveModule(std::string_view id)
-        : AudioPortModule(kTypeId, id)
+        : AudioModule(kTypeId, id)
     {
         comp_.attack(10.0f);
         comp_.releaseTime(120.0f);

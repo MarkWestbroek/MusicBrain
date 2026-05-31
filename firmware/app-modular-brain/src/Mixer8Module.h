@@ -37,7 +37,7 @@
  * | `panN`    | float | -1 … +1  | 0       | Channel N stereo pan    |
  */
 
-#include "AudioPortModule.h"
+#include "AudioModule.h"
 #include "mb/runtime/Registry.h"
 #include <Audio.h>
 #include <cmath>
@@ -46,12 +46,12 @@
 namespace mmb_link {
 
 /** @brief 8-channel stereo mixer with per-channel volume + pan. */
-class Mixer8Module final : public AudioPortModule {
+class Mixer8Module final : public AudioModule {
 public:
     static constexpr const char* kTypeId = "tp_mmb_mixer8";
 
     explicit Mixer8Module(std::string_view id)
-        : AudioPortModule(kTypeId, id)
+        : AudioModule(kTypeId, id)
     {
         // Sum the two 4-channel banks into the final bus at unity gain.
         mixLsum_.gain(0, 1.0f); mixLsum_.gain(1, 1.0f);

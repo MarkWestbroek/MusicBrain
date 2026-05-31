@@ -1,10 +1,10 @@
 #pragma once
 /**
- * @file AudioPortModule.h
+ * @file AudioModule.h
  * @brief Interface for modules that expose named Teensy Audio stream ports.
  *
  * Modules that wrap AudioStream objects (VCO, VCA, AHDSR-DC, Out, etc.)
- * inherit from AudioPortModule and implement outputPort() / inputPort().
+ * inherit from AudioModule and implement outputPort() / inputPort().
  * AudioGraph queries these at patch-activation time to create the dynamic
  * AudioConnection objects that wire the signal path together.
  *
@@ -45,21 +45,21 @@ struct AudioPort {
  * matched pair.
  *
  * `supportsAudioPorts()` is overridden to return `true` so that
- * `AudioPortModule::from()` can safely `static_cast` without RTTI.
+ * `AudioModule::from()` can safely `static_cast` without RTTI.
  */
-class AudioPortModule : public mb::runtime::Module {
+class AudioModule : public mb::runtime::Module {
 public:
     using Module::Module;
 
     bool supportsAudioPorts() const override { return true; }
 
     /**
-     * @brief Safely cast a `Module*` to `AudioPortModule*` without RTTI.
+     * @brief Safely cast a `Module*` to `AudioModule*` without RTTI.
      * @return Non-null pointer iff @p m supports audio ports; nullptr otherwise.
      */
-    static AudioPortModule* from(mb::runtime::Module* m) {
+    static AudioModule* from(mb::runtime::Module* m) {
         return (m && m->supportsAudioPorts())
-            ? static_cast<AudioPortModule*>(m)
+            ? static_cast<AudioModule*>(m)
             : nullptr;
     }
 

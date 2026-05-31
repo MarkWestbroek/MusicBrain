@@ -36,7 +36,7 @@
  * | `panN`    | float | -1 … +1  | 0       | Channel N stereo pan    |
  */
 
-#include "AudioPortModule.h"
+#include "AudioModule.h"
 #include "mb/runtime/Registry.h"
 #include <Audio.h>
 #include <cmath>
@@ -45,12 +45,12 @@
 namespace mmb_link {
 
 /** @brief 4-channel stereo mixer with per-channel volume + pan. */
-class MixerModule final : public AudioPortModule {
+class MixerModule final : public AudioModule {
 public:
     static constexpr const char* kTypeId = "tp_mmb_mixer";
 
     explicit MixerModule(std::string_view id)
-        : AudioPortModule(kTypeId, id)
+        : AudioModule(kTypeId, id)
     {
         for (uint8_t i = 0; i < 4; ++i) {
             in_[i].gain(1.0f);   // fan-out node runs at unity; level is in the mix gains

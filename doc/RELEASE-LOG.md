@@ -10,6 +10,20 @@
 
 ## Firmware
 
+### fw 0.5.14 — AudioModule-rename & mod-wheel-bridge (2026-06-02)
+- **Refactor `AudioPortModule` → `AudioModule`.** De audio-basisklasse heet nu
+  `mmb_link::AudioModule` (bestand `AudioModule.h`); alle 11 subclasses,
+  `AudioGraph`/`CvGraph` en de doc-comments in `core/Module.h`/`CvBreakIn.h` mee
+  hernoemd. De naam-clash met de oude, al geschrapte core `mb::runtime::AudioModule`
+  was de enige reden dat dit eerder was uitgesteld. UML 07/08 + README's bijgewerkt.
+- **Mod-wheel via de editor-bridge (bugfix).** De live MIDI-bridge
+  (`TeensyLinkModal`) forwardde alleen note-on/off en pitch-bend; control-change
+  (mod-wheel = CC1) viel weg. Toegevoegd: `sendMidiCC()` in `teensyLink.ts`, een
+  `cc`-tak in de bridge-subscribe, een `{"type":"cc"}`-frame + `MidiCcHandler` in
+  `TeensyLink.h`, en `onMidiCc()` in `main.cpp` dat naar de bestaande
+  `handleControlChange()` (→ `cv_mod`/`cv_cc*`) routet. `WebMidiSource` emitte de
+  `cc`-events al; alleen de doorgifte ontbrak.
+
 ### fw 0.5.13 — octa-osc, string, comp+drive & firmware-sequencer (2026-06-01)
 - **Octa-osc VCO (FW-PM-1).** Nieuwe audio-module `tp_mmb_octa_vco`
   (`OctaVcoModule.h`): 8× `AudioSynthWaveform` die één control-set delen

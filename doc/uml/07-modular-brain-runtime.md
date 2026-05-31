@@ -62,7 +62,7 @@ classDiagram
         +writeCvPort(port, value)
     }
 
-    class AudioPortModule {
+    class AudioModule {
         <<abstract>>
         +audioStreamFor(port) AudioStream*
     }
@@ -99,12 +99,12 @@ classDiagram
         +has(typeId) bool
     }
 
-    Module <|-- AudioPortModule
-    AudioPortModule <|-- VcoModule
-    AudioPortModule <|-- VcfModule
-    AudioPortModule <|-- VcaModule
-    AudioPortModule <|-- OutModule
-    AudioPortModule <|-- MixerModule
+    Module <|-- AudioModule
+    AudioModule <|-- VcoModule
+    AudioModule <|-- VcfModule
+    AudioModule <|-- VcaModule
+    AudioModule <|-- OutModule
+    AudioModule <|-- MixerModule
     Module <|-- CvModule
     CvModule <|-- Envelope
     Envelope <|-- Ahdsr
@@ -127,19 +127,15 @@ concrete AHDSR-implementatie. Het is een gewone `CvModule` (gate-in `gate`/`trig
 verwijderd (fw 0.5.4) — hij was 100% dubbelop nadat de audio-DC-proxy verdween.
 Zie `08-core-runtime-hierarchy.md`.
 
-**Noot — twee audio-basisklassen.** Er bestaan er twee, met verschillende rollen:
-- `mmb_link::AudioPortModule` (app) — de klasse die de echte modules (`Vco`,
-  `Vcf`, `Vca`, `Mixer`, `Out`) gebruiken. Een module *bevat* één of meer Teensy
-  `AudioStream`-objecten en stelt ze met naam beschikbaar via `outputPort()` /
-  `inputPort()`. `AudioGraph` vraagt die poorten op en legt er `AudioConnection`s
-  tussen. De module is dus géén `AudioStream` zelf, maar een *poort-aggregator*.
-- `mb::runtime::AudioModule` (core) — een ouder ontwerp waarin een module zélf
-  een `AudioStream`-achtige `update()` per 128-sample-blok zou draaien. **Geen
-  enkele klasse erft hier (meer) van** — het is vestigiaal en wordt alleen nog in
-  `core/README.md` genoemd. Kandidaat voor opruimen (net als `AhdsrAudioModule`):
-  alle echte audio loopt via `AudioPortModule` + Teensy `AudioConnection`, niet
-  via `update()`. Het kan dus inderdaad "allemaal één klasse" worden — namelijk
-  `AudioPortModule` — door de ongebruikte core `AudioModule` te schrappen.
+**Noot — één audio-basisklasse.** `mmb_link::AudioModule` (app) is de klasse die
+de echte modules (`Vco`, `Vcf`, `Vca`, `Mixer`, `Out`, `OctaVco`, `String`,
+`CompDrive`) gebruiken. Een module *bevat* één of meer Teensy
+`AudioStream`-objecten en stelt ze met naam beschikbaar via `outputPort()` /
+`inputPort()`. `AudioGraph` vraagt die poorten op en legt er `AudioConnection`s
+tussen. De module is dus géén `AudioStream` zelf, maar een *poort-aggregator*.
+(Tot fw 0.5.13 heette deze klasse `AudioPortModule`; de oude, vestigiale core
+`mb::runtime::AudioModule` met een eigen `update()`-per-blok is verwijderd, dus de
+naam-clash is weg en er is nu nog één audio-basisklasse.)
 
 **Belangrijk — AudioStream-levensduur.** `AudioGraph`/`CvGraph` houden *rauwe*
 pointers naar de modules in `ProjectRuntime`. Teensy's `AudioStream` schrijft

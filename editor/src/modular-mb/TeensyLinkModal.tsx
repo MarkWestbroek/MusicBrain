@@ -12,6 +12,7 @@ import {
   sendSetStatic,
   sendMidi,
   sendMidiBend,
+  sendMidiCC,
   clearLog,
 } from './teensyLink';
 import { WebMidiSource } from './sim/MidiSource';
@@ -123,6 +124,7 @@ export function TeensyLinkModal({ onClose }: Props): JSX.Element {
         if (e.kind === 'noteOn')       void sendMidi(true,  e.note, Math.round(e.velocity * 127));
         else if (e.kind === 'noteOff') void sendMidi(false, e.note);
         else if (e.kind === 'pitchBend') void sendMidiBend(e.value);
+        else if (e.kind === 'cc')      void sendMidiCC(e.controller, e.value);
       });
       midiSrcRef.current = src;
       setBridging(true);
