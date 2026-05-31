@@ -10,6 +10,7 @@ Short, project-focused summaries of the technologies MusicBrain depends on. Each
 
 ## Buses & wire protocols
 - [SPI](spi.md) — in‑case bus brain ↔ breakouts.
+- [Two Teensies / CV↔audio split](two-teensy-spi.md) — dev-setup + SPI master/slave rol via config.
 - [CAN‑FD](can-fd.md) — inter‑case bus.
 - [RS‑485](rs485.md) — CAN‑FD fallback.
 - [MIDI (DIN, USB‑MIDI, BLE‑MIDI)](midi.md) — input + program change.

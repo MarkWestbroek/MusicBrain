@@ -2,7 +2,7 @@
 
 > Geldt voor de **modular-brain** (`firmware/app-modular-brain/` + `editor/src/modular-mb/`),
 > niet voor het oudere effect-switcher/core-domein in `01-core-classes.md`.
-> Bijgewerkt: mei 2026 (fw 0.5.4).
+> Bijgewerkt: mei 2026 (fw 0.5.5).
 
 Een gekozen **patch** bepaalt drie dingen:
 1. het **aantal stemmen** (`voiceCount`),
@@ -71,6 +71,12 @@ classDiagram
         +tick()
         +asCvModule() this
     }
+    class Envelope {
+        <<abstract>>
+        +setGate(bool)
+        +value() float
+        +active() bool
+    }
     class Ahdsr {
         +tick()
         +setGate(bool)
@@ -100,8 +106,9 @@ classDiagram
     AudioPortModule <|-- OutModule
     AudioPortModule <|-- MixerModule
     Module <|-- CvModule
-    CvModule <|-- Ahdsr
-    Module <|-- MidiInModule
+    CvModule <|-- Envelope
+    Envelope <|-- Ahdsr
+    CvModule <|-- MidiInModule
     MidiInModule *-- VoiceAllocator
 
     TeensyLink ..> ProjectRuntime : callbacks
@@ -111,12 +118,28 @@ classDiagram
     CvGraph ..> Module : raw pointers (Route)
 ```
 
-**Noot — `Ahdsr` is puur CV.** De envelope is een gewone `CvModule`
-(gate-in `gate`/`trig` → `setGate`, CV-out `cv_out` → `value()`), volledig
-gerouteerd door `CvGraph`. De 44.1 kHz-kant wordt afgehandeld door de
-ontvangende audio-modules (`VcaModule`, `VcfModule`) via `writeCvPort`. De
-vroegere `AhdsrAudioModule`-wrapper is verwijderd (fw 0.5.4) — hij was 100%
-dubbelop nadat de audio-DC-proxy verdween. Zie `08-core-runtime-hierarchy.md`.
+**Noot — `Ahdsr` is puur CV.** De envelope-tak is `CvModule ← Envelope ← Ahdsr`.
+`Envelope` is de abstracte tussenlaag (`setGate`/`value`/`active`); `Ahdsr` is de
+concrete AHDSR-implementatie. Het is een gewone `CvModule` (gate-in `gate`/`trig`
+→ `setGate`, CV-out `cv_out` → `value()`), volledig gerouteerd door `CvGraph`. De
+44.1 kHz-kant wordt afgehandeld door de ontvangende audio-modules (`VcaModule`,
+`VcfModule`) via `writeCvPort`. De vroegere `AhdsrAudioModule`-wrapper is
+verwijderd (fw 0.5.4) — hij was 100% dubbelop nadat de audio-DC-proxy verdween.
+Zie `08-core-runtime-hierarchy.md`.
+
+**Noot — twee audio-basisklassen.** Er bestaan er twee, met verschillende rollen:
+- `mmb_link::AudioPortModule` (app) — de klasse die de echte modules (`Vco`,
+  `Vcf`, `Vca`, `Mixer`, `Out`) gebruiken. Een module *bevat* één of meer Teensy
+  `AudioStream`-objecten en stelt ze met naam beschikbaar via `outputPort()` /
+  `inputPort()`. `AudioGraph` vraagt die poorten op en legt er `AudioConnection`s
+  tussen. De module is dus géén `AudioStream` zelf, maar een *poort-aggregator*.
+- `mb::runtime::AudioModule` (core) — een ouder ontwerp waarin een module zélf
+  een `AudioStream`-achtige `update()` per 128-sample-blok zou draaien. **Geen
+  enkele klasse erft hier (meer) van** — het is vestigiaal en wordt alleen nog in
+  `core/README.md` genoemd. Kandidaat voor opruimen (net als `AhdsrAudioModule`):
+  alle echte audio loopt via `AudioPortModule` + Teensy `AudioConnection`, niet
+  via `update()`. Het kan dus inderdaad "allemaal één klasse" worden — namelijk
+  `AudioPortModule` — door de ongebruikte core `AudioModule` te schrappen.
 
 **Belangrijk — AudioStream-levensduur.** `AudioGraph`/`CvGraph` houden *rauwe*
 pointers naar de modules in `ProjectRuntime`. Teensy's `AudioStream` schrijft
