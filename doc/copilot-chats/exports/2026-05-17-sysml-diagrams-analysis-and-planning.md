@@ -2,7 +2,7 @@
 
 - **Datum**: 2026-05-17 14:32
 - **Sessie-ID**: `4db45503-0a7f-471a-850c-117803aee9d5`
-- **Berichten**: 388
+- **Berichten**: 392
 
 ---
 
@@ -16220,5 +16220,381 @@ Je correcties zijn doorgevoerd in `08-core-runtime-hierarchy.md`:
 Verder bijgewerkt: `two-teensy-spi.md` (host-veld + kruisverwijzingen), firmware DEVLOG, doc 07 en repo-memory.
 
 Wil je dat ik het `host`-veld nu ook daadwerkelijk in de editor/config-typedefinities en `CvGraph` ga implementeren, of laten we dat staan tot de SPI-hardware er is?
+
+---
+
+## 🧑 User
+
+ik heb niet meer tussen dit laatste en het vorige request getest, maar de test patch, noch de CV-bridge patch geven nu geen geluid meer. De midi notes bereiken de teensy.
+
+Dit is wat ik probeerde en wat er gelogd werd:
+```
+10:03:24.162 rx {"type":"log","msg":"  cv-route: mod_59gc0ry.out[cv] -> mod_sku9eod.cv[cv]"}
+10:03:24.162 rx {"type":"log","msg":"  cv-route: mod_32srtum.out[cv] -> mod_gs0cru6.cv[cv]"}
+10:03:24.162 rx {"type":"log","msg":"  skip(kind): mod_p25h449.out_l[none] -> mod_ew6fubo.l[none]"}
+10:03:24.166 rx {"type":"log","msg":"  skip(kind): mod_p25h449.out_r[none] -> mod_ew6fubo.r[none]"}
+10:03:24.166 rx {"type":"log","msg":"CvGraph: routes=14 skipped=8"}
+10:03:24.166 rx {"type":"log","msg":"audio blocks: peak=9 / budget=120"}
+10:03:24.166 rx {"type":"ack","ok":true,"applied":"selectPatch","patchId":"patch_l9piek9"}
+10:03:24.333 rx [midi] noteOn  ch=0 note=60 vel=100
+10:03:24.338 rx [voices on ] 0:*60 1: 0 2: 0 3: 0 
+10:03:24.557 rx [midi] noteOff ch=0 note=60 vel=100
+10:03:24.557 rx [voices off] 0: 60 1: 0 2: 0 3: 0 
+10:03:24.598 rx [midi] noteOn  ch=0 note=64 vel=100
+10:03:24.598 rx [voices on ] 0: 60 1:*64 2: 0 3: 0 
+10:03:24.818 rx [midi] noteOff ch=0 note=64 vel=100
+10:03:24.819 rx [voices off] 0: 60 1: 64 2: 0 3: 0 
+10:03:24.859 rx [midi] noteOn  ch=0 note=67 vel=100
+10:03:24.859 rx [voices on ] 0: 60 1: 64 2:*67 3: 0 
+10:03:25.080 rx [midi] noteOff ch=0 note=67 vel=100
+10:03:25.080 rx [voices off] 0: 60 1: 64 2: 67 3: 0 
+10:03:25.121 rx [midi] noteOn  ch=0 note=72 vel=100
+10:03:25.121 rx [voices on ] 0: 60 1: 64 2: 67 3:*72 
+10:03:25.342 rx [midi] noteOff ch=0 note=72 vel=100
+10:03:25.347 rx [voices off] 0: 60 1: 64 2: 67 3: 72 
+10:03:38.111 tx {"type":"config","project":{"version":2,"name":"ModularMB","activePatchId":"patch_ursz2ws","modules":[{"id":"mod_xhtwwll","typeId":"tp_mmb_ahdsr"},{"id":"mod_ywrhog4","typeId":"tp_mmb_lfo"},{"id":"mod…
+10:03:38.128 rx {"type":"log","msg":"config received: name=ModularMB"}
+10:03:38.133 rx {"type":"log","msg":"runtime: created=30 unknown=7 total=37 retired=0 active=patch_ursz2ws"}
+10:03:38.133 rx {"type":"ack","ok":true,"applied":"config","modules":37,"patches":2,"racks":4}
+10:03:39.247 tx {"type":"selectPatch","patchId":"patch_ursz2ws"}
+10:03:39.258 rx {"type":"log","msg":"selectPatch: patch_ursz2ws"}
+10:03:39.258 rx {"type":"log","msg":"active patch=patch_ursz2ws connections=9 wired=7 dangling=2 controls=20"}
+10:03:39.258 rx {"type":"log","msg":"  wire: mod_j1uxsq3(tp_mmb_vco).out/ch0 -> mod_glhoi9f(tp_mmb_vcf).in/ch0"}
+10:03:39.262 rx {"type":"log","msg":"  wire: mod_glhoi9f(tp_mmb_vcf).out/ch0 -> mod_ar99smd(tp_mmb_vca).in/ch0"}
+10:03:39.262 rx {"type":"log","msg":"  wire: mod_ar99smd(tp_mmb_vca).out/ch0 -> mod_2bwnw3z(tp_mmb_out).l/ch0"}
+10:03:39.266 rx {"type":"log","msg":"  wire: mod_ar99smd(tp_mmb_vca).out/ch0 -> mod_2bwnw3z(tp_mmb_out).r/ch1"}
+10:03:39.266 rx {"type":"log","msg":"  skip(notaudio): mod_5gtp2dg(tp_mmb_ahdsr).cv_out -> mod_ar99smd(tp_mmb_vca).cv"}
+10:03:39.266 rx {"type":"log","msg":"  skip(noinst): mod_f7d2j9u.cv -> mod_j1uxsq3.voct"}
+10:03:39.270 rx {"type":"log","msg":"  skip(noinst): mod_f7d2j9u.gate_out -> mod_5gtp2dg.gate"}
+10:03:39.270 rx {"type":"log","msg":"  skip(notaudio): mod_97g85eg(tp_mmb_midiin).pitch -> mod_j1uxsq3(tp_mmb_vco).voct"}
+10:03:39.270 rx {"type":"log","msg":"  skip(notaudio): mod_97g85eg(tp_mmb_midiin).gate -> mod_5gtp2dg(tp_mmb_ahdsr).gate"}
+10:03:39.274 rx {"type":"log","msg":"AudioGraph: wired=4 skipped=5"}
+10:03:39.274 rx {"type":"log","msg":"  skip(kind): mod_j1uxsq3.out[audio] -> mod_glhoi9f.in[none]"}
+10:03:39.274 rx {"type":"log","msg":"  skip(kind): mod_glhoi9f.out[none] -> mod_ar99smd.in[none]"}
+10:03:39.277 rx {"type":"log","msg":"  skip(kind): mod_ar99smd.out[none] -> mod_2bwnw3z.l[none]"}
+10:03:39.277 rx {"type":"log","msg":"  skip(kind): mod_ar99smd.out[none] -> mod_2bwnw3z.r[none]"}
+10:03:39.277 rx {"type":"log","msg":"  cv-route: mod_5gtp2dg.cv_out[cv] -> mod_ar99smd.cv[cv]"}
+10:03:39.281 rx {"type":"log","msg":"  cv-route: mod_97g85eg.pitch[cv] -> mod_j1uxsq3.voct[cv]"}
+10:03:39.281 rx {"type":"log","msg":"  cv-route: mod_97g85eg.gate[gate] -> mod_5gtp2dg.gate[gate]"}
+10:03:39.281 rx {"type":"log","msg":"CvGraph: routes=3 skipped=6"}
+10:03:39.281 rx {"type":"log","msg":"audio blocks: peak=19 / budget=120"}
+10:03:39.284 rx {"type":"ack","ok":true,"applied":"selectPatch","patchId":"patch_ursz2ws"}
+10:03:41.734 tx {"type":"config","project":{"version":2,"name":"ModularMB","activePatchId":"patch_ursz2ws","modules":[{"id":"mod_xhtwwll","typeId":"tp_mmb_ahdsr"},{"id":"mod_ywrhog4","typeId":"tp_mmb_lfo"},{"id":"mod…
+10:03:41.750 tx {"type":"selectPatch","patchId":"patch_ursz2ws"}
+10:03:41.754 rx {"type":"log","msg":"config received: name=ModularMB"}
+10:03:41.757 rx {"type":"log","msg":"runtime: created=30 unknown=7 total=37 retired=0 active=patch_ursz2ws"}
+10:03:41.761 rx {"type":"ack","ok":true,"applied":"config","modules":37,"patches":2,"racks":4}
+10:03:41.761 rx {"type":"log","msg":"selectPatch: patch_ursz2ws"}
+10:03:41.761 rx {"type":"log","msg":"active patch=patch_ursz2ws connections=9 wired=7 dangling=2 controls=20"}
+10:03:41.764 rx {"type":"log","msg":"  wire: mod_j1uxsq3(tp_mmb_vco).out/ch0 -> mod_glhoi9f(tp_mmb_vcf).in/ch0"}
+10:03:41.764 rx {"type":"log","msg":"  wire: mod_glhoi9f(tp_mmb_vcf).out/ch0 -> mod_ar99smd(tp_mmb_vca).in/ch0"}
+10:03:41.764 rx {"type":"log","msg":"  wire: mod_ar99smd(tp_mmb_vca).out/ch0 -> mod_2bwnw3z(tp_mmb_out).l/ch0"}
+10:03:41.767 rx {"type":"log","msg":"  wire: mod_ar99smd(tp_mmb_vca).out/ch0 -> mod_2bwnw3z(tp_mmb_out).r/ch1"}
+10:03:41.767 rx {"type":"log","msg":"  skip(notaudio): mod_5gtp2dg(tp_mmb_ahdsr).cv_out -> mod_ar99smd(tp_mmb_vca).cv"}
+10:03:41.767 rx {"type":"log","msg":"  skip(noinst): mod_f7d2j9u.cv -> mod_j1uxsq3.voct"}
+10:03:41.771 rx {"type":"log","msg":"  skip(noinst): mod_f7d2j9u.gate_out -> mod_5gtp2dg.gate"}
+10:03:41.771 rx {"type":"log","msg":"  skip(notaudio): mod_97g85eg(tp_mmb_midiin).pitch -> mod_j1uxsq3(tp_mmb_vco).voct"}
+10:03:41.774 rx {"type":"log","msg":"  skip(notaudio): mod_97g85eg(tp_mmb_midiin).gate -> mod_5gtp2dg(tp_mmb_ahdsr).gate"}
+10:03:41.774 rx {"type":"log","msg":"AudioGraph: wired=4 skipped=5"}
+10:03:41.774 rx {"type":"log","msg":"  skip(kind): mod_j1uxsq3.out[audio] -> mod_glhoi9f.in[none]"}
+10:03:41.774 rx {"type":"log","msg":"  skip(kind): mod_glhoi9f.out[none] -> mod_ar99smd.in[none]"}
+10:03:41.777 rx {"type":"log","msg":"  skip(kind): mod_ar99smd.out[none] -> mod_2bwnw3z.l[none]"}
+10:03:41.777 rx {"type":"log","msg":"  skip(kind): mod_ar99smd.out[none] -> mod_2bwnw3z.r[none]"}
+10:03:41.777 rx {"type":"log","msg":"  cv-route: mod_5gtp2dg.cv_out[cv] -> mod_ar99smd.cv[cv]"}
+10:03:41.781 rx {"type":"log","msg":"  cv-route: mod_97g85eg.pitch[cv] -> mod_j1uxsq3.voct[cv]"}
+10:03:41.781 rx {"type":"log","msg":"  cv-route: mod_97g85eg.gate[gate] -> mod_5gtp2dg.gate[gate]"}
+10:03:41.781 rx {"type":"log","msg":"CvGraph: routes=3 skipped=6"}
+10:03:41.781 rx {"type":"log","msg":"audio blocks: peak=18 / budget=120"}
+10:03:41.784 rx {"type":"ack","ok":true,"applied":"selectPatch","patchId":"patch_ursz2ws"}
+10:03:42.005 rx [midi] noteOn  ch=0 note=60 vel=100
+10:03:42.005 rx [voices on ] 0:*60 1: 64 2: 67 3: 72 
+10:03:42.226 rx [midi] noteOff ch=0 note=60 vel=100
+10:03:42.226 rx [voices off] 0: 60 1: 64 2: 67 3: 72 
+10:03:42.267 rx [midi] noteOn  ch=0 note=64 vel=100
+10:03:42.267 rx [voices on ] 0: 60 1:*64 2: 67 3: 72 
+10:03:42.487 rx [midi] noteOff ch=0 note=64 vel=100
+10:03:42.488 rx [voices off] 0: 60 1: 64 2: 67 3: 72 
+10:03:42.528 rx [midi] noteOn  ch=0 note=67 vel=100
+10:03:42.528 rx [voices on ] 0: 60 1: 64 2:*67 3: 72 
+10:03:42.749 rx [midi] noteOff ch=0 note=67 vel=100
+10:03:42.753 rx [voices off] 0: 60 1: 64 2: 67 3: 72 
+10:03:42.790 rx [midi] noteOn  ch=0 note=72 vel=100
+10:03:42.790 rx [voices on ] 0: 60 1: 64 2: 67 3:*72 
+10:03:43.012 rx [midi] noteOff ch=0 note=72 vel=100
+10:03:43.012 rx [voices off] 0: 60 1: 64 2: 67 3: 72 
+10:03:43.318 tx {"type":"setStatic","enabled":false}
+10:03:43.331 rx {"type":"log","msg":"static graph muted"}
+10:03:43.336 rx {"type":"ack","ok":true,"applied":"setStatic","enabled":false}
+10:03:45.167 tx {"type":"config","project":{"version":2,"name":"ModularMB","activePatchId":"patch_ursz2ws","modules":[{"id":"mod_xhtwwll","typeId":"tp_mmb_ahdsr"},{"id":"mod_ywrhog4","typeId":"tp_mmb_lfo"},{"id":"mod…
+10:03:45.182 tx {"type":"selectPatch","patchId":"patch_ursz2ws"}
+10:03:45.187 rx {"type":"log","msg":"config received: name=ModularMB"}
+10:03:45.190 rx {"type":"log","msg":"runtime: created=30 unknown=7 total=37 retired=0 active=patch_ursz2ws"}
+10:03:45.190 rx {"type":"ack","ok":true,"applied":"config","modules":37,"patches":2,"racks":4}
+10:03:45.194 rx {"type":"log","msg":"selectPatch: patch_ursz2ws"}
+10:03:45.194 rx {"type":"log","msg":"active patch=patch_ursz2ws connections=9 wired=7 dangling=2 controls=20"}
+10:03:45.194 rx {"type":"log","msg":"  wire: mod_j1uxsq3(tp_mmb_vco).out/ch0 -> mod_glhoi9f(tp_mmb_vcf).in/ch0"}
+10:03:45.198 rx {"type":"log","msg":"  wire: mod_glhoi9f(tp_mmb_vcf).out/ch0 -> mod_ar99smd(tp_mmb_vca).in/ch0"}
+10:03:45.198 rx {"type":"log","msg":"  wire: mod_ar99smd(tp_mmb_vca).out/ch0 -> mod_2bwnw3z(tp_mmb_out).l/ch0"}
+10:03:45.201 rx {"type":"log","msg":"  wire: mod_ar99smd(tp_mmb_vca).out/ch0 -> mod_2bwnw3z(tp_mmb_out).r/ch1"}
+10:03:45.201 rx {"type":"log","msg":"  skip(notaudio): mod_5gtp2dg(tp_mmb_ahdsr).cv_out -> mod_ar99smd(tp_mmb_vca).cv"}
+10:03:45.201 rx {"type":"log","msg":"  skip(noinst): mod_f7d2j9u.cv -> mod_j1uxsq3.voct"}
+10:03:45.205 rx {"type":"log","msg":"  skip(noinst): mod_f7d2j9u.gate_out -> mod_5gtp2dg.gate"}
+10:03:45.205 rx {"type":"log","msg":"  skip(notaudio): mod_97g85eg(tp_mmb_midiin).pitch -> mod_j1uxsq3(tp_mmb_vco).voct"}
+10:03:45.205 rx {"type":"log","msg":"  skip(notaudio): mod_97g85eg(tp_mmb_midiin).gate -> mod_5gtp2dg(tp_mmb_ahdsr).gate"}
+10:03:45.209 rx {"type":"log","msg":"AudioGraph: wired=4 skipped=5"}
+10:03:45.209 rx {"type":"log","msg":"  skip(kind): mod_j1uxsq3.out[audio] -> mod_glhoi9f.in[none]"}
+10:03:45.209 rx {"type":"log","msg":"  skip(kind): mod_glhoi9f.out[none] -> mod_ar99smd.in[none]"}
+10:03:45.212 rx {"type":"log","msg":"  skip(kind): mod_ar99smd.out[none] -> mod_2bwnw3z.l[none]"}
+10:03:45.212 rx {"type":"log","msg":"  skip(kind): mod_ar99smd.out[none] -> mod_2bwnw3z.r[none]"}
+10:03:45.212 rx {"type":"log","msg":"  cv-route: mod_5gtp2dg.cv_out[cv] -> mod_ar99smd.cv[cv]"}
+10:03:45.216 rx {"type":"log","msg":"  cv-route: mod_97g85eg.pitch[cv] -> mod_j1uxsq3.voct[cv]"}
+10:03:45.216 rx {"type":"log","msg":"  cv-route: mod_97g85eg.gate[gate] -> mod_5gtp2dg.gate[gate]"}
+10:03:45.216 rx {"type":"log","msg":"CvGraph: routes=3 skipped=6"}
+10:03:45.216 rx {"type":"log","msg":"audio blocks: peak=18 / budget=120"}
+10:03:45.219 rx {"type":"ack","ok":true,"applied":"selectPatch","patchId":"patch_ursz2ws"}
+10:03:45.441 rx [midi] noteOn  ch=0 note=60 vel=100
+10:03:45.441 rx [voices on ] 0:*60 1: 64 2: 67 3: 72 
+10:03:45.662 rx [midi] noteOff ch=0 note=60 vel=100
+10:03:45.662 rx [voices off] 0: 60 1: 64 2: 67 3: 72 
+10:03:45.703 rx [midi] noteOn  ch=0 note=64 vel=100
+10:03:45.707 rx [voices on ] 0: 60 1:*64 2: 67 3: 72 
+10:03:45.925 rx [midi] noteOff ch=0 note=64 vel=100
+10:03:45.925 rx [voices off] 0: 60 1: 64 2: 67 3: 72 
+10:03:45.966 rx [midi] noteOn  ch=0 note=67 vel=100
+10:03:45.966 rx [voices on ] 0: 60 1: 64 2:*67 3: 72 
+10:03:46.188 rx [midi] noteOff ch=0 note=67 vel=100
+10:03:46.188 rx [voices off] 0: 60 1: 64 2: 67 3: 72 
+10:03:46.229 rx [midi] noteOn  ch=0 note=72 vel=100
+10:03:46.229 rx [voices on ] 0: 60 1: 64 2: 67 3:*72 
+10:03:46.450 rx [midi] noteOff ch=0 note=72 vel=100
+10:03:46.450 rx [voices off] 0: 60 1: 64 2: 67 3: 72 
+10:03:47.807 tx {"type":"setStatic","enabled":true}
+10:03:47.820 rx {"type":"log","msg":"static graph enabled"}
+10:03:47.820 rx {"type":"ack","ok":true,"applied":"setStatic","enabled":true}
+10:03:49.343 tx {"type":"setStatic","enabled":false}
+10:03:49.355 rx {"type":"log","msg":"static graph muted"}
+10:03:49.355 rx {"type":"ack","ok":true,"applied":"setStatic","enabled":false}
+10:03:51.984 rx [midi] noteOn  ch=0 note=65 vel=45
+10:03:51.984 rx [voices on ] 0:*65 1: 64 2: 67 3: 72 
+10:03:52.169 rx [midi] noteOff ch=0 note=65 vel=100
+10:03:52.169 rx [voices off] 0: 65 1: 64 2: 67 3: 72 
+10:03:52.419 rx [midi] noteOn  ch=0 note=65 vel=83
+10:03:52.419 rx [voices on ] 0: 65 1:*65 2: 67 3: 72 
+10:03:52.559 rx [midi] noteOff ch=0 note=65 vel=100
+10:03:52.559 rx [voices off] 0: 65 1: 65 2: 67 3: 72 
+10:05:12.320 tx {"type":"setStatic","enabled":true}
+10:05:12.335 rx {"type":"log","msg":"static graph enabled"}
+10:05:12.335 rx {"type":"ack","ok":true,"applied":"setStatic","enabled":true}
+10:05:14.290 tx {"type":"config","project":{"version":2,"name":"ModularMB","activePatchId":"patch_ursz2ws","modules":[{"id":"mod_xhtwwll","typeId":"tp_mmb_ahdsr"},{"id":"mod_ywrhog4","typeId":"tp_mmb_lfo"},{"id":"mod…
+10:05:14.306 tx {"type":"selectPatch","patchId":"patch_ursz2ws"}
+10:05:14.311 rx {"type":"log","msg":"config received: name=ModularMB"}
+10:05:14.311 rx {"type":"log","msg":"runtime: created=30 unknown=7 total=37 retired=0 active=patch_ursz2ws"}
+10:05:14.311 rx {"type":"ack","ok":true,"applied":"config","modules":37,"patches":2,"racks":4}
+10:05:14.315 rx {"type":"log","msg":"selectPatch: patch_ursz2ws"}
+10:05:14.315 rx {"type":"log","msg":"active patch=patch_ursz2ws connections=9 wired=7 dangling=2 controls=20"}
+10:05:14.315 rx {"type":"log","msg":"static auto-muted for dynamic patch"}
+10:05:14.322 rx {"type":"log","msg":"  wire: mod_j1uxsq3(tp_mmb_vco).out/ch0 -> mod_glhoi9f(tp_mmb_vcf).in/ch0"}
+10:05:14.322 rx {"type":"log","msg":"  wire: mod_glhoi9f(tp_mmb_vcf).out/ch0 -> mod_ar99smd(tp_mmb_vca).in/ch0"}
+10:05:14.322 rx {"type":"log","msg":"  wire: mod_ar99smd(tp_mmb_vca).out/ch0 -> mod_2bwnw3z(tp_mmb_out).l/ch0"}
+10:05:14.328 rx {"type":"log","msg":"  wire: mod_ar99smd(tp_mmb_vca).out/ch0 -> mod_2bwnw3z(tp_mmb_out).r/ch1"}
+10:05:14.328 rx {"type":"log","msg":"  skip(notaudio): mod_5gtp2dg(tp_mmb_ahdsr).cv_out -> mod_ar99smd(tp_mmb_vca).cv"}
+10:05:14.328 rx {"type":"log","msg":"  skip(noinst): mod_f7d2j9u.cv -> mod_j1uxsq3.voct"}
+10:05:14.333 rx {"type":"log","msg":"  skip(noinst): mod_f7d2j9u.gate_out -> mod_5gtp2dg.gate"}
+10:05:14.333 rx {"type":"log","msg":"  skip(notaudio): mod_97g85eg(tp_mmb_midiin).pitch -> mod_j1uxsq3(tp_mmb_vco).voct"}
+10:05:14.338 rx {"type":"log","msg":"  skip(notaudio): mod_97g85eg(tp_mmb_midiin).gate -> mod_5gtp2dg(tp_mmb_ahdsr).gate"}
+10:05:14.338 rx {"type":"log","msg":"AudioGraph: wired=4 skipped=5"}
+10:05:14.338 rx {"type":"log","msg":"  skip(kind): mod_j1uxsq3.out[audio] -> mod_glhoi9f.in[none]"}
+10:05:14.338 rx {"type":"log","msg":"  skip(kind): mod_glhoi9f.out[none] -> mod_ar99smd.in[none]"}
+10:05:14.345 rx {"type":"log","msg":"  skip(kind): mod_ar99smd.out[none] -> mod_2bwnw3z.l[none]"}
+10:05:14.345 rx {"type":"log","msg":"  skip(kind): mod_ar99smd.out[none] -> mod_2bwnw3z.r[none]"}
+10:05:14.345 rx {"type":"log","msg":"  cv-route: mod_5gtp2dg.cv_out[cv] -> mod_ar99smd.cv[cv]"}
+10:05:14.350 rx {"type":"log","msg":"  cv-route: mod_97g85eg.pitch[cv] -> mod_j1uxsq3.voct[cv]"}
+10:05:14.350 rx {"type":"log","msg":"  cv-route: mod_97g85eg.gate[gate] -> mod_5gtp2dg.gate[gate]"}
+10:05:14.351 rx {"type":"log","msg":"CvGraph: routes=3 skipped=6"}
+10:05:14.351 rx {"type":"log","msg":"audio blocks: peak=18 / budget=120"}
+10:05:14.356 rx {"type":"ack","ok":true,"applied":"selectPatch","patchId":"patch_ursz2ws"}
+10:05:14.562 rx [midi] noteOn  ch=0 note=60 vel=100
+10:05:14.562 rx [voices on ] 0: 65 1: 65 2:*60 3: 72 
+10:05:14.783 rx [midi] noteOff ch=0 note=60 vel=100
+10:05:14.783 rx [voices off] 0: 65 1: 65 2: 60 3: 72 
+10:05:14.823 rx [midi] noteOn  ch=0 note=64 vel=100
+10:05:14.823 rx [voices on ] 0: 65 1: 65 2: 60 3:*64 
+10:05:15.044 rx [midi] noteOff ch=0 note=64 vel=100
+10:05:15.044 rx [voices off] 0: 65 1: 65 2: 60 3: 64 
+10:05:15.084 rx [midi] noteOn  ch=0 note=67 vel=100
+10:05:15.084 rx [voices on ] 0:*67 1: 65 2: 60 3: 64 
+10:05:15.305 rx [midi] noteOff ch=0 note=67 vel=100
+10:05:15.309 rx [voices off] 0: 67 1: 65 2: 60 3: 64 
+10:05:15.345 rx [midi] noteOn  ch=0 note=72 vel=100
+10:05:15.345 rx [voices on ] 0: 67 1:*72 2: 60 3: 64 
+10:05:15.567 rx [midi] noteOff ch=0 note=72 vel=100
+10:05:15.567 rx [voices off] 0: 67 1: 72 2: 60 3: 64 
+
+```
+
+ook de static patch geeft geen geluid.
+
+De meeste simpele patch die ik kan bedenken ook niet:
+
+```
+10:10:53.983 tx {"type":"config","project":{"version":2,"name":"ModularMB","activePatchId":"patch_m8vej7i","modules":[{"id":"mod_xhtwwll","typeId":"tp_mmb_ahdsr"},{"id":"mod_ywrhog4","typeId":"tp_mmb_lfo"},{"id":"mod…
+10:10:53.992 rx {"type":"log","msg":"config received: name=ModularMB"}
+10:10:53.994 rx {"type":"log","msg":"runtime: created=30 unknown=7 total=37 retired=0 active=patch_m8vej7i"}
+10:10:53.994 rx {"type":"ack","ok":true,"applied":"config","modules":37,"patches":4,"racks":4}
+10:10:55.943 tx {"type":"selectPatch","patchId":"patch_m8vej7i"}
+10:10:55.946 rx {"type":"log","msg":"selectPatch: patch_m8vej7i"}
+10:10:55.946 rx {"type":"log","msg":"active patch=patch_m8vej7i connections=3 wired=3 dangling=0 controls=2"}
+10:10:55.946 rx {"type":"log","msg":"  skip(notaudio): mod_97g85eg(tp_mmb_midiin).pitch -> mod_j1uxsq3(tp_mmb_vco).voct"}
+10:10:55.946 rx {"type":"log","msg":"  wire: mod_j1uxsq3(tp_mmb_vco).out/ch0 -> mod_2bwnw3z(tp_mmb_out).l/ch0"}
+10:10:55.946 rx {"type":"log","msg":"  wire: mod_j1uxsq3(tp_mmb_vco).out/ch0 -> mod_2bwnw3z(tp_mmb_out).r/ch1"}
+10:10:55.946 rx {"type":"log","msg":"AudioGraph: wired=2 skipped=1"}
+10:10:55.946 rx {"type":"log","msg":"  cv-route: mod_97g85eg.pitch[cv] -> mod_j1uxsq3.voct[cv]"}
+10:10:55.946 rx {"type":"log","msg":"  skip(kind): mod_j1uxsq3.out[audio] -> mod_2bwnw3z.l[none]"}
+10:10:55.947 rx {"type":"log","msg":"  skip(kind): mod_j1uxsq3.out[audio] -> mod_2bwnw3z.r[none]"}
+10:10:55.947 rx {"type":"log","msg":"CvGraph: routes=1 skipped=2"}
+10:10:55.947 rx {"type":"log","msg":"audio blocks: peak=18 / budget=120"}
+10:10:55.947 rx {"type":"ack","ok":true,"applied":"selectPatch","patchId":"patch_m8vej7i"}
+10:10:57.783 tx {"type":"config","project":{"version":2,"name":"ModularMB","activePatchId":"patch_m8vej7i","modules":[{"id":"mod_xhtwwll","typeId":"tp_mmb_ahdsr"},{"id":"mod_ywrhog4","typeId":"tp_mmb_lfo"},{"id":"mod…
+10:10:57.790 tx {"type":"selectPatch","patchId":"patch_m8vej7i"}
+10:10:57.792 rx {"type":"log","msg":"config received: name=ModularMB"}
+10:10:57.794 rx {"type":"log","msg":"runtime: created=30 unknown=7 total=37 retired=0 active=patch_m8vej7i"}
+10:10:57.794 rx {"type":"ack","ok":true,"applied":"config","modules":37,"patches":4,"racks":4}
+10:10:57.794 rx {"type":"log","msg":"selectPatch: patch_m8vej7i"}
+10:10:57.795 rx {"type":"log","msg":"active patch=patch_m8vej7i connections=3 wired=3 dangling=0 controls=2"}
+10:10:57.795 rx {"type":"log","msg":"  skip(notaudio): mod_97g85eg(tp_mmb_midiin).pitch -> mod_j1uxsq3(tp_mmb_vco).voct"}
+10:10:57.795 rx {"type":"log","msg":"  wire: mod_j1uxsq3(tp_mmb_vco).out/ch0 -> mod_2bwnw3z(tp_mmb_out).l/ch0"}
+10:10:57.795 rx {"type":"log","msg":"  wire: mod_j1uxsq3(tp_mmb_vco).out/ch0 -> mod_2bwnw3z(tp_mmb_out).r/ch1"}
+10:10:57.795 rx {"type":"log","msg":"AudioGraph: wired=2 skipped=1"}
+10:10:57.796 rx {"type":"log","msg":"  cv-route: mod_97g85eg.pitch[cv] -> mod_j1uxsq3.voct[cv]"}
+10:10:57.796 rx {"type":"log","msg":"  skip(kind): mod_j1uxsq3.out[audio] -> mod_2bwnw3z.l[none]"}
+10:10:57.796 rx {"type":"log","msg":"  skip(kind): mod_j1uxsq3.out[audio] -> mod_2bwnw3z.r[none]"}
+10:10:57.796 rx {"type":"log","msg":"CvGraph: routes=1 skipped=2"}
+10:10:57.797 rx {"type":"log","msg":"audio blocks: peak=18 / budget=120"}
+10:10:57.797 rx {"type":"ack","ok":true,"applied":"selectPatch","patchId":"patch_m8vej7i"}
+10:10:58.041 rx [midi] noteOn  ch=0 note=60 vel=100
+10:10:58.041 rx [voices on ] 0: 67 1: 72 2:*60 3: 64 
+10:10:58.262 rx [midi] noteOff ch=0 note=60 vel=100
+10:10:58.263 rx [voices off] 0: 67 1: 72 2: 60 3: 64 
+10:10:58.303 rx [midi] noteOn  ch=0 note=64 vel=100
+10:10:58.303 rx [voices on ] 0: 67 1: 72 2: 60 3:*64 
+10:10:58.525 rx [midi] noteOff ch=0 note=64 vel=100
+10:10:58.525 rx [voices off] 0: 67 1: 72 2: 60 3: 64 
+10:10:58.565 rx [midi] noteOn  ch=0 note=67 vel=100
+10:10:58.566 rx [voices on ] 0:*67 1: 72 2: 60 3: 64 
+10:10:58.796 rx [midi] noteOff ch=0 note=67 vel=100
+10:10:58.796 rx [voices off] 0: 67 1: 72 2: 60 3: 64 
+10:10:58.837 rx [midi] noteOn  ch=0 note=72 vel=100
+10:10:58.837 rx [voices on ] 0: 67 1:*72 2: 60 3: 64 
+10:10:59.058 rx [midi] noteOff ch=0 note=72 vel=100
+10:10:59.058 rx [voices off] 0: 67 1: 72 2: 60 3: 64 
+10:11:31.968 tx {"type":"setStatic","enabled":false}
+10:11:31.972 rx {"type":"log","msg":"static graph muted"}
+10:11:31.972 rx {"type":"ack","ok":true,"applied":"setStatic","enabled":false}
+10:11:33.665 tx {"type":"config","project":{"version":2,"name":"ModularMB","activePatchId":"patch_m8vej7i","modules":[{"id":"mod_xhtwwll","typeId":"tp_mmb_ahdsr"},{"id":"mod_ywrhog4","typeId":"tp_mmb_lfo"},{"id":"mod…
+10:11:33.671 tx {"type":"selectPatch","patchId":"patch_m8vej7i"}
+10:11:33.674 rx {"type":"log","msg":"config received: name=ModularMB"}
+10:11:33.675 rx {"type":"log","msg":"runtime: created=30 unknown=7 total=37 retired=0 active=patch_m8vej7i"}
+10:11:33.676 rx {"type":"ack","ok":true,"applied":"config","modules":37,"patches":4,"racks":4}
+10:11:33.676 rx {"type":"log","msg":"selectPatch: patch_m8vej7i"}
+10:11:33.677 rx {"type":"log","msg":"active patch=patch_m8vej7i connections=3 wired=3 dangling=0 controls=2"}
+10:11:33.677 rx {"type":"log","msg":"  skip(notaudio): mod_97g85eg(tp_mmb_midiin).pitch -> mod_j1uxsq3(tp_mmb_vco).voct"}
+10:11:33.677 rx {"type":"log","msg":"  wire: mod_j1uxsq3(tp_mmb_vco).out/ch0 -> mod_2bwnw3z(tp_mmb_out).l/ch0"}
+10:11:33.677 rx {"type":"log","msg":"  wire: mod_j1uxsq3(tp_mmb_vco).out/ch0 -> mod_2bwnw3z(tp_mmb_out).r/ch1"}
+10:11:33.678 rx {"type":"log","msg":"AudioGraph: wired=2 skipped=1"}
+10:11:33.678 rx {"type":"log","msg":"  cv-route: mod_97g85eg.pitch[cv] -> mod_j1uxsq3.voct[cv]"}
+10:11:33.678 rx {"type":"log","msg":"  skip(kind): mod_j1uxsq3.out[audio] -> mod_2bwnw3z.l[none]"}
+10:11:33.678 rx {"type":"log","msg":"  skip(kind): mod_j1uxsq3.out[audio] -> mod_2bwnw3z.r[none]"}
+10:11:33.678 rx {"type":"log","msg":"CvGraph: routes=1 skipped=2"}
+10:11:33.678 rx {"type":"log","msg":"audio blocks: peak=18 / budget=120"}
+10:11:33.678 rx {"type":"ack","ok":true,"applied":"selectPatch","patchId":"patch_m8vej7i"}
+10:11:33.923 rx [midi] noteOn  ch=0 note=60 vel=100
+10:11:33.924 rx [voices on ] 0: 67 1: 72 2:*60 3: 64 
+10:11:34.144 rx [midi] noteOff ch=0 note=60 vel=100
+10:11:34.144 rx [voices off] 0: 67 1: 72 2: 60 3: 64 
+10:11:34.185 rx [midi] noteOn  ch=0 note=64 vel=100
+10:11:34.185 rx [voices on ] 0: 67 1: 72 2: 60 3:*64 
+10:11:34.405 rx [midi] noteOff ch=0 note=64 vel=100
+10:11:34.405 rx [voices off] 0: 67 1: 72 2: 60 3: 64 
+10:11:34.446 rx [midi] noteOn  ch=0 note=67 vel=100
+10:11:34.446 rx [voices on ] 0:*67 1: 72 2: 60 3: 64 
+10:11:34.667 rx [midi] noteOff ch=0 note=67 vel=100
+10:11:34.667 rx [voices off] 0: 67 1: 72 2: 60 3: 64 
+10:11:34.708 rx [midi] noteOn  ch=0 note=72 vel=100
+10:11:34.708 rx [voices on ] 0: 67 1:*72 2: 60 3: 64 
+10:11:34.929 rx [midi] noteOff ch=0 note=72 vel=100
+10:11:34.930 rx [voices off] 0: 67 1: 72 2: 60 3: 64 
+```
+
+---
+
+## 🤖 Assistant
+
+Audio engine draait wel (`peak=18`), MIDI/CV komt aan, en zelfs de simpelste VCO→Out patch is stil — én de static patch. Dat wijst op iets gemeenschappelijks dat recent veranderd is. Laat me eerst kijken wat er sinds de laatste werkende versie is gewijzigd. De main.cpp-wijzigingen ogen onschuldig. Cruciaal: ook de **static** patch is stil, en die gebruikt de dynamische runtime niet. Laat me de audio-uitgangsketen en de gewijzigde modules bekijken.  Registratie-wijzigingen raken de static chain ook niet. Ik moet de daadwerkelijke audio-uitgangsketen lezen. Laat me main.cpp (setup + static chain) en de Out/Vco-modules bekijken.   
+
+*Read main.cpp, lines 30 to 110*
+
+Audio gaat via `AudioOutputUSB usbOut` — beide paden (static mix én dynamische OutModule) voeden dezelfde `usbOut` slots 0/1, en die kunnen elk maar één connectie hebben. Laat me OutModule en de auto-mute-logica lezen.    
+
+*Read OutModule.h*
+
+
+
+*Read main.cpp, lines 30 to 110*
+
+Audio gaat via `AudioOutputUSB usbOut` — beide paden (static mix én dynamische OutModule) voeden dezelfde `usbOut` slots 0/1, en die kunnen elk maar één connectie hebben. Laat me OutModule en de auto-mute-logica lezen.    
+
+*Read OutModule.h*
+
+
+
+*Read OutModule.h · Read main.cpp, lines 170 to 230*
+
+Nu zie ik het mechanisme: `usbOut` slots 0/1 zijn "first-source-wins", en zowel static als dynamische OutModule willen erin. Cruciaal is of `AudioGraph.build()` de vorige connecties afbreekt bij herhaald pushen. Laat me AudioGraph lezen.    
+
+*Searched for files matching `**/AudioGraph.*`, 2 matches · Read AudioGraph.cpp*
+
+
+
+*Searched for files matching `**/AudioGraph.*`, 2 matches · Read AudioGraph.cpp*
+
+AudioGraph doet netjes `tearDown()` eerst, dus herhaald pushen is OK. De kern zit in de AHDSR-refactor: de envelope gaat nu via de CV-bus naar de VCA's interne `cvDc_` proxy i.p.v. een audio-DC-proxy. Laat me VcaModule en de CvGraph-bridge bekijken.    
+
+*Read VcaModule.h*
+
+VcaModule en de CV-bridge naar de VCA zien er correct uit. Nu moet ik verifiëren of `loop()` daadwerkelijk `tickCvModules()` én de CV-bridge aanroept, en hoe CvGraph waarden doorgeeft. Laat me loop() en CvGraph.cpp lezen.     
+
+*Read main.cpp, lines 230 to 300 · Read main.cpp, lines 300 to 358*
+
+loop() en de modules zien er correct uit. Laat me CvGraph.tickBridge en de nieuwe Ahdsr-poorten verifiëren — daar zit de AHDSR-refactor.     
+
+*Read CvGraph.cpp*
+
+
+
+*Read CvGraph.cpp*
+
+CvGraph-bridge is correct. De simpelste VCO→Out patch is óók stil — dat wijst op de VCO-amplitude in de dynamische `VcoModule`. Laat me die lezen.     
+
+*Read VcoModule.h*
+
+VcoModule defaults to amplitude 0.9 — so a bare VCO→Out should drone. The fact that it's silent (and static too) points at the shared `usbOut` slots. Let me verify the new Ahdsr's CV port names and check what changed in the editor since the working commit.    
+
+---
+
+## 🧑 User
+
+hij doet inmiddels iets; ik heb iets met de windows audio settings gedaan
+
+---
+
+## 🤖 Assistant
+
+Dan was het geen firmware-regressie maar een Windows USB-audio-probleem — waarschijnlijk was de sample rate of het standaard-afspeelapparaat niet (meer) op de Teensy ingesteld, of de USB-audio-buffer was vastgelopen na het herflasen.
+
+Veelvoorkomende oorzaken:
+- Windowss geluidsinstellingen zetten bij USB-reconnect soms de Teensy terug naar "niet standaard" of 44100 Hz → 48000 Hz mismatch.
+- Na een flash zonder harde power-cycle houdt Windows soms de oude USB-audio-descriptor vast.
+
+Goed om te onthouden: als na een flash plotseling geen geluid meer is maar `peak=N` wél stijgt, is het Windows-audiokant de eerste verdachte, niet de firmware.
 
 ---

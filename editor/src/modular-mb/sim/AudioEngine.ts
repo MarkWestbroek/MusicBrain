@@ -117,9 +117,19 @@ interface PhaserNode extends BaseNode {
   input: Tone.Gain;
   output: Tone.Gain;
 }
+interface MixerNode extends BaseNode {
+  kind: 'mixer';
+  /** Aantal kanalen (4 of 8). */
+  channels: number;
+  /** Per-kanaal volume-gain (Vol-knop). */
+  inputs: Tone.Gain[];
+  /** Per-kanaal stereo-panner (Pan-knop). */
+  panners: Tone.Panner[];
+  /** Gesommeerde stereo-uitgang (out_l/out_r). */
+  out: Tone.Gain;
+}
 interface MidiInNode extends BaseNode {
   kind: 'midiin';
-  /** VCO module-ids waarvan de voct-input aan onze pitch-out hangt. */
   pitchTargets: string[];
   /** Envelope module-ids waarvan de gate-input aan onze gate-out hangt. */
   gateTargets: string[];
@@ -172,7 +182,7 @@ interface SeqNode extends BaseNode {
   /** True if a MIDI-IN drives our run_in. */
   midiDrivenRun: boolean;
 }
-type EngineNode = VcoNode | VcfNode | VcaNode | EnvNode | LfoNode | OutNode | MidiInNode | SeqNode | NoiseNode | EchoNode | PhaserNode;
+type EngineNode = VcoNode | VcfNode | VcaNode | EnvNode | LfoNode | OutNode | MidiInNode | SeqNode | NoiseNode | EchoNode | PhaserNode | MixerNode;
 
 export class AudioEngine {
   private master: Tone.Gain | null = null;
@@ -601,6 +611,7 @@ export class AudioEngine {
         case 'noise': node.noise.dispose(); node.level.dispose(); break;
         case 'echo': node.delay.dispose(); node.wetGain.dispose(); node.dryGain.dispose(); node.input.dispose(); node.output.dispose(); break;
         case 'phaser': node.phaser.dispose(); node.wetGain.dispose(); node.dryGain.dispose(); node.input.dispose(); node.output.dispose(); break;
+        case 'mixer': node.inputs.forEach((g) => g.dispose()); node.panners.forEach((p) => p.dispose()); node.out.dispose(); break;
         case 'sequencer': /* no Tone nodes */
           if (node.voctMeter) { try { node.voctMeter.dispose(); } catch { /* ignore */ } }
           if (node.runMeter)  { try { node.runMeter.dispose();  } catch { /* ignore */ } }
@@ -661,6 +672,21 @@ export class AudioEngine {
       input.connect(dryG); dryG.connect(output);
       input.connect(ph); ph.connect(wetG); wetG.connect(output);
       return { ...base, kind: 'phaser', phaser: ph, wetGain: wetG, dryGain: dryG, input, output };
+    }
+    if (t.id === 'tp_mmb_mixer' || t.id === 'tp_mmb_mixer8') {
+      const channels = t.id === 'tp_mmb_mixer8' ? 8 : 4;
+      const out = new Tone.Gain(1);
+      const inputs: Tone.Gain[] = [];
+      const panners: Tone.Panner[] = [];
+      for (let i = 1; i <= channels; ++i) {
+        const vol = clamp(readKnob(controls, `vol${i}`, 0.8), 0, 1);
+        const pan = clamp(readKnob(controls, `pan${i}`, 0), -1, 1);
+        const g = new Tone.Gain(vol);
+        const p = new Tone.Panner(pan);
+        g.connect(p); p.connect(out);
+        inputs.push(g); panners.push(p);
+      }
+      return { ...base, kind: 'mixer', channels, inputs, panners, out };
     }
     switch (kind) {
       case 'vco': {
@@ -769,8 +795,11 @@ export class AudioEngine {
 
     // ── audio → audio ──
     if (srcSig === 'audio' && dstSig === 'audio') {
+      // Mixer-uitgang is stereo via één Gain-node; out_l en out_r wijzen naar
+      // dezelfde node. Sluit alleen out_l aan zodat de OUT niet dubbel telt.
+      if (src.kind === 'mixer' && conn.from.portId === 'out_r') return;
       const outNode = audioOutputOf(src);
-      const inNode  = audioInputOf(dst);
+      const inNode  = audioInputOf(dst, conn.to.portId);
       if (outNode && inNode) outNode.connect(inNode);
       return;
     }
@@ -1020,16 +1049,22 @@ function audioOutputOf(n: EngineNode): Tone.ToneAudioNode | null {
     case 'noise': return n.level;
     case 'echo': return n.output;
     case 'phaser': return n.output;
+    case 'mixer': return n.out;
     default: return null;
   }
 }
-function audioInputOf(n: EngineNode): Tone.ToneAudioNode | null {
+function audioInputOf(n: EngineNode, portId?: string): Tone.ToneAudioNode | null {
   switch (n.kind) {
     case 'vcf': return n.filter;
     case 'vca': return n.gain;
     case 'out': return n.inGain;
     case 'echo': return n.input;
     case 'phaser': return n.input;
+    case 'mixer': {
+      // portId 'inN' (1-based) kiest het kanaal; onbekend → kanaal 1.
+      const idx = portId && /^in\d+$/.test(portId) ? Number(portId.slice(2)) - 1 : 0;
+      return n.inputs[idx] ?? n.inputs[0] ?? null;
+    }
     default: return null;
   }
 }

@@ -7,7 +7,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { setProject, updateProject, useModularProject, getProject, undo, redo } from './store';
 import { emptyModularProject } from './types';
-import { seedExampleModules, seedInternals, seedTestPatch, seedCvBridgePatch, seedTwoVoicePatch } from './seedModules';
+import { seedExampleModules, seedInternals, seedTestPatch, seedCvBridgePatch, seedPolyVoicePatch } from './seedModules';
 import { PatchesPanel } from './PatchesPanel';
 import { ModulesPanel } from './ModulesPanel';
 import { CategoriesPanel } from './CategoriesPanel';
@@ -38,6 +38,7 @@ export function ModularMbApp(): JSX.Element {
   const [editingDesc, setEditingDesc] = useState(false);
   const [showPresets, setShowPresets] = useState(false);
   const [showTeensy,  setShowTeensy]  = useState(false);
+  const [showPoly,    setShowPoly]    = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
 
   // ─── Global undo/redo: Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z ───────────────
@@ -213,10 +214,35 @@ export function ModularMbApp(): JSX.Element {
             onClick={() => setProject(seedCvBridgePatch(getProject()))}
             title="CV-bridge patch: MidiIn → VCO → VCF → VCA, 2×AHDSR (filter+amp), velocity via CvMath."
           >✨ CV-bridge</button>
-          <button
-            onClick={() => setProject(seedTwoVoicePatch(getProject()))}
-            title="Tweestemmige patch (ADR 0011): MidiIn (2 stemmen) → 2× voice-keten → MIXER → OUT. MVP voor polyfonie."
-          >✨ Tweestemmig</button>
+          <span style={{ position: 'relative', display: 'inline-block' }}>
+            <button
+              onClick={() => setShowPoly((v) => !v)}
+              title="Seed een N-stemmige polyfonie-testpatch (ADR 0011): MidiIn (N stemmen) → N× voice-keten → MIXER → OUT."
+            >✨ Poly ▾</button>
+            {showPoly && (
+              <div
+                style={{
+                  position: 'absolute', top: '100%', left: 0, zIndex: 20,
+                  background: '#ffffff', border: '1px solid #cbd2d9', borderRadius: 6,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)', marginTop: 2, minWidth: 150,
+                  display: 'flex', flexDirection: 'column',
+                }}
+                onMouseLeave={() => setShowPoly(false)}
+              >
+                {[1, 2, 4, 8].map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => { setProject(seedPolyVoicePatch(getProject(), n)); setShowPoly(false); }}
+                    style={{
+                      textAlign: 'left', border: 'none', background: 'transparent',
+                      padding: '7px 12px', cursor: 'pointer', fontSize: 13,
+                    }}
+                    title={`${n}-stemmige patch${n > 4 ? ' (8-in mixer)' : ''}`}
+                  >{n}-stemmig{n === 1 ? ' (mono)' : ''}</button>
+                ))}
+              </div>
+            )}
+          </span>
           <button className="es-projectbar-reset"
             onClick={() => { if (confirm('Project wissen en opnieuw beginnen?')) setProject(emptyModularProject()); }}
           >Nieuw</button>

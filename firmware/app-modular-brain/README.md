@@ -25,6 +25,34 @@ To be implemented in roadmap stages 5–7.
 
 ## DEVLOG
 
+### 2026-06-01 — 8-in mixer + poly-seeds 1/2/4/8 stemmen (fw 0.5.6)
+
+**8-kanaals mixer (`tp_mmb_mixer8`).** Nieuwe `mmb_link::Mixer8Module` — de 8-in
+broer van `MixerModule`. Teensy's `AudioMixer4` sommeert maar vier ingangen, dus
+elke stereo-bus is opgebouwd uit twee banken (`mixLa_`/`mixLb_`, `mixRa_`/`mixRb_`)
+die een derde mixer (`mixLsum_`/`mixRsum_`) optelt. Per kanaal Vol (0..1) + Pan
+(equal-power), poorten `in1..in8` → `out_l`/`out_r`. Geregistreerd in
+`registerAllRuntimeModules()`. Dit is de sommatie-node voor racks tot 8 stemmen;
+de 4-in `tp_mmb_mixer` blijft voor ≤4 stemmen.
+
+**Poly-seeds (editor).** `seedTwoVoicePatch()` is veralgemeniseerd naar
+`seedPolyVoicePatch(project, N)` met N ∈ {1,2,4,8}. Eén master voice-keten +
+PolyGroups (×N); de flatten expandeert naar N stemmen (MidiIn pitch/gate/vel →
+per stem, VCA → mixer `in1..inN`). N≤4 gebruikt de 4-in mixer, N>4 de 8-in mixer.
+N=1 is monofoon (geen PolyGroups, MidiIn-mode 0). De toolbar-knop "Tweestemmig"
+is vervangen door een **"Poly ▾"-dropdown** (1/2/4/8). `seedTwoVoicePatch` blijft
+als dunne wrapper bestaan.
+
+**Editor-simulatie.** De Tone.js-`AudioEngine` had nog géén mixer-node (zowel de
+4-in als 8-in mixer gaven `null`, waardoor VCA→mixer→OUT stil bleef in de
+Simulatie-tab). Toegevoegd: een `mixer`-node (per kanaal Gain→Panner→stereo-out)
+voor `tp_mmb_mixer` en `tp_mmb_mixer8`, met port-bewuste `audioInputOf(node, portId)`
+(`inN` → kanaal N) en out_r-dedup. Hierdoor zijn de poly-seeds nu ook in de
+editor hoorbaar, niet alleen op de Teensy.
+
+**Validatie.** Core tests 88/0. Firmware build `[SUCCESS]` (FLASH 144 512 B).
+Editor `tsc --noEmit` schoon.
+
 ### 2026-05-31 — Poly-schaling volgt patch + dCV-ontvanger CvBreakIn (fw 0.5.5)
 
 **Poly-schaling.** `onSelectPatch()` leest nu het top-level `voiceCount` van de
@@ -437,7 +465,10 @@ on/off via `sendMidi`.
 **MixerModule (`tp_mmb_mixer`).** 4-input summing audio mixer (`AudioMixer4`):
 inputs `in1..in4` (audio ch 0-3), output `out`, controls `gain1..gain4`
 (default 0.8). Polyphony building block. Editor counterpart `mmbMixer()` seeded
-in `seedModules.ts`.
+in `seedModules.ts`. **`Mixer8Module` (`tp_mmb_mixer8`, fw 0.5.6)** is the 8-in
+sibling for racks up to 8 voices: `in1..in8` summed via two `AudioMixer4` banks
+into a third per stereo bus, controls `vol1..vol8` + `pan1..pan8`. Editor
+counterpart `mmbMixer8()`.
 
 **LFO as a real CV module (`tp_mmb_lfo`).** The core `Lfo` already had the
 waveform / run-mode / depth state machine but was **missing the CV-bridge

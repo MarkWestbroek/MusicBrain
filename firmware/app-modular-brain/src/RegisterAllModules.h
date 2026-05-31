@@ -41,6 +41,7 @@
 #include "VcaModule.h"
 #include "VcfModule.h"
 #include "MixerModule.h"
+#include "Mixer8Module.h"
 #include "OutModule.h"
 #include "mb/runtime/CvMath.h"
 
@@ -59,6 +60,7 @@ inline void registerAllRuntimeModules() {
     VcaModule::registerFactory();
     VcfModule::registerFactory();
     MixerModule::registerFactory();
+    Mixer8Module::registerFactory();
     OutModule::registerFactory();
 }
 
