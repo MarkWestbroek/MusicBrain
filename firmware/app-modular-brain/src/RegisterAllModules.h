@@ -34,10 +34,14 @@
 
 #include "mb/runtime/MidiIn.h"
 #include "mb/runtime/Lfo.h"
+#include "mb/runtime/Seq16.h"
 #include "mb/runtime/Ahdsr.h"
 
 // Audio-domain module wrappers (app-modular-brain specific)
 #include "VcoModule.h"
+#include "OctaVcoModule.h"
+#include "StringModule.h"
+#include "CompDriveModule.h"
 #include "VcaModule.h"
 #include "VcfModule.h"
 #include "MixerModule.h"
@@ -53,11 +57,15 @@ namespace mmb_link {
 inline void registerAllRuntimeModules() {
     mb::runtime::MidiInModule::registerFactory();
     mb::runtime::Lfo::registerFactory();
+    mb::runtime::Seq16::registerFactory();   // FW-SQ-1: 16-step CV/Gate sequencer
     mb::runtime::Ahdsr::registerFactory();   // pure CV-domain envelope
     mb::runtime::CvMath::registerFactory();
 
     // Audio-domain module wrappers.
     VcoModule::registerFactory();
+    OctaVcoModule::registerFactory();   // FW-PM-1: 8-cell shared-control osc
+    StringModule::registerFactory();    // FW-AU-8: Karplus-Strong string
+    CompDriveModule::registerFactory(); // FW-FX-2: compressor + overdrive
     VcaModule::registerFactory();
     VcfModule::registerFactory();
     MixerModule::registerFactory();

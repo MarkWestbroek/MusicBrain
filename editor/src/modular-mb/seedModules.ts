@@ -1273,11 +1273,115 @@ function mmbPhaser() {
   });
 }
 
+// 12. MMB OCTA-VCO — 20 HP. Multi-module met 8 identieke oscillator-cellen die
+//     ALLE dezelfde control-set delen (wave/coarse/fine/level) plus een
+//     gespreide detune. Firmware: tp_mmb_octa_vco (FW-PM-1). Eén v/oct-in en
+//     één audio-out per cel; 'tune' is een gedeelde V/Oct-offset voor alle 8.
+function mmbOctaVco() {
+  const w = W(20);
+  const colX = (i: number) => w * (0.08 + i * 0.119);          // 8 cell centres
+  return assemble({
+    typeId: 'tp_mmb_octa_vco',
+    categoryId: 'vco',
+    variant: 'Octa VCO (shared controls)',
+    brand: 'MMB', model: 'OCTA-VCO-S',
+    hp: 20, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    role: 'multi',
+    cellGroups: [{
+      id: 'osc',
+      label: 'Oscillator',
+      count: 8,
+      portIds: ['voct', 'out'],
+      controlIds: [],   // shared-controls multi-module
+    }],
+    texts: [
+      { x: w/2, y: 8,   text: 'OCTA-VCO-S',  fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: 'shared controls · 8 cells', fontSize: 1.2, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB',         fontSize: 1.8, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      // Shared (module-global) controls — apply to ALL 8 cells.
+      sw  ('wave',   'Wave',   w*0.16, 30, ['Sin','Tri','Saw','Sqr'], 2),
+      knob('coarse', 'Coarse', w*0.36, 34, { size: 'large',  min: -36, max: 36, def: 0,  unit: 'semi', color: '#f9fafb' }),
+      knob('fine',   'Fine',   w*0.54, 34, { size: 'medium', min: -100, max: 100, def: 0, unit: 'ct',  color: '#f9fafb' }),
+      knob('detune', 'Detune', w*0.70, 34, { size: 'medium', min: 0, max: 50, def: 0, unit: 'ct', color: '#f9fafb' }),
+      knob('level',  'Level',  w*0.86, 34, { size: 'medium', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+
+      // Per-cell ports — 8× v/oct in (top row) + 8× audio out (bottom row).
+      ...Array.from({ length: 8 }, (_, i) =>
+        inPort(`voct_${i+1}`, 'V/Oct', 'cv', colX(i), 92, { cellGroupId: 'osc' })),
+      ...Array.from({ length: 8 }, (_, i) =>
+        outPort(`out_${i+1}`, 'Out', 'audio', colX(i), 116, { cellGroupId: 'osc' })),
+
+      // Shared tune (V/Oct offset) input — applies to all 8 cells.
+      inPort ('tune', 'Tune', 'cv', w*0.50, 78),
+    ],
+    notes: 'Multi-module met 8 identieke oscillator-cellen die ALLE dezelfde control-set delen (wave/coarse/fine/level). \'detune\' spreidt de 8 cellen symmetrisch in cents voor een dikke supersaw/unison. Eén v/oct-in en één audio-out per cel; \'tune\' is een gedeelde V/Oct-offset. Firmware: tp_mmb_octa_vco (FW-PM-1).',
+  });
+}
+
+// 13. MMB STRING — 6 HP. Karplus-Strong getokkelde snaar (FW-AU-8). Gate
+//     tokkelt de snaar op de toonhoogte van V/Oct; 'pluck' regelt de
+//     aanslag-helderheid.
+function mmbString() {
+  const w = W(6);
+  return assemble({
+    typeId: 'tp_mmb_string',
+    categoryId: 'vco',
+    variant: 'Karplus-Strong string',
+    brand: 'MMB', model: 'STRING',
+    hp: 6, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'STRING', fontSize: 2.0, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: 'Karplus-Strong', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('pluck', 'Pluck', w*0.30, 36, { size: 'medium', min: 0.01, max: 1, def: 0.8, color: '#f9fafb' }),
+      knob('level', 'Level', w*0.70, 36, { size: 'medium', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      inPort ('voct', 'V/Oct', 'cv',    w*0.30, 92),
+      inPort ('gate', 'Gate',  'gate',  w*0.70, 92),
+      outPort('out',  'Out',   'audio', w/2,    116),
+    ],
+    notes: 'Karplus-Strong physical-modeling snaar (firmware tp_mmb_string, FW-AU-8). Een Gate rising-edge tokkelt de snaar op de toonhoogte uit V/Oct. \'pluck\' bepaalt de helderheid/ruisinhoud van de aanslag (0.01 dof … 1.0 helder).',
+  });
+}
+
+// 14. MMB COMP — 6 HP. Feed-forward compressor met lichte tanh-overdrive
+//     (firmware tp_mmb_comp, FW-FX-2). De Audio-lib heeft geen compressor,
+//     dus dit is een custom AudioStream.
+function mmbComp() {
+  const w = W(6);
+  return assemble({
+    typeId: 'tp_mmb_comp',
+    categoryId: 'effect',
+    variant: 'Compressor + overdrive',
+    brand: 'MMB', model: 'COMP',
+    hp: 6, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'COMP', fontSize: 2.0, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: 'comp + drive', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('threshold', 'Thr',   w*0.28, 30, { size: 'medium', min: -48, max: 0, def: -18, unit: 'dB', color: '#f9fafb' }),
+      knob('ratio',     'Ratio', w*0.72, 30, { size: 'medium', min: 1, max: 20, def: 4, unit: ':1', color: '#f9fafb' }),
+      knob('attack',    'Atk',   w*0.28, 60, { size: 'small', min: 0.1, max: 100, def: 10, unit: 'ms', color: '#f9fafb' }),
+      knob('release',   'Rel',   w*0.72, 60, { size: 'small', min: 5, max: 1000, def: 120, unit: 'ms', color: '#f9fafb' }),
+      knob('makeup',    'Gain',  w*0.28, 86, { size: 'small', min: 0, max: 24, def: 0, unit: 'dB', color: '#f9fafb' }),
+      knob('drive',     'Drive', w*0.72, 86, { size: 'small', min: 0, max: 1, def: 0.2, color: '#f9fafb' }),
+      inPort ('in',  'In',  'audio', w*0.30, 114),
+      outPort('out', 'Out', 'audio', w*0.70, 114),
+    ],
+    notes: 'Feed-forward peak-compressor met makeup-gain en een tanh soft-clip overdrive (firmware tp_mmb_comp, FW-FX-2). De Teensy Audio-lib heeft geen kant-en-klare compressor; dit is een custom AudioStream. \'drive\' voegt na de compressie warme saturatie toe.',
+  });
+}
+
 // ── public entry ───────────────────────────────────────────────────────
 
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbQuadMixerShared(), mmbVcf(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbNoise(), mmbEcho(), mmbPhaser()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbQuadMixerShared(), mmbVcf(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbComp(), mmbNoise(), mmbEcho(), mmbPhaser()];
   const newTypes = all.map((x) => x.type);
   const newModules = all.map((x) => x.module);
 

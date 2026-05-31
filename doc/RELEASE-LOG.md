@@ -10,6 +10,40 @@
 
 ## Firmware
 
+### fw 0.5.13 — octa-osc, string, comp+drive & firmware-sequencer (2026-06-01)
+- **Octa-osc VCO (FW-PM-1).** Nieuwe audio-module `tp_mmb_octa_vco`
+  (`OctaVcoModule.h`): 8× `AudioSynthWaveform` die één control-set delen
+  (wave/coarse/fine/level) plus een symmetrische `detune` (cents-spreiding voor
+  dikke supersaw/unison). Per-cel `voct_1..8` in + `out_1..8` audio uit, plus een
+  gedeelde `tune` V/Oct-offset. Editor-seed `mmbOctaVco()` (OCTA-VCO-S, 20 HP,
+  multi-module met CellGroup count 8).
+- **String-VCO (FW-AU-8).** `tp_mmb_string` (`StringModule.h`) wrapt
+  `AudioSynthKarplusStrong` → `AudioAmplifier`. Een Gate rising-edge tokkelt de
+  snaar op de V/Oct-pitch; `pluck` regelt de aanslag-helderheid, `level` de
+  output. Editor-seed `mmbString()` (STRING, 6 HP). Eerste echte
+  physical-modeling-stem in de firmware.
+- **Compressor + overdrive (FW-FX-2).** De stock Teensy Audio-lib heeft géén
+  compressor, dus `tp_mmb_comp` (`CompDriveModule.h`) bevat een custom
+  `AudioEffectCompDrive` AudioStream: feed-forward peak-compressor
+  (threshold/ratio/attack/release + makeup-gain) gevolgd door een tanh soft-clip
+  overdrive (`drive`). Editor-seed `mmbComp()` (COMP, 6 HP).
+- **Firmware-sequencer (FW-SQ-1).** Nieuwe host-testbare core-`CvModule`
+  `tp_mmb_seq8` (`Seq16.h`/`Seq16.cpp`): 16 stappen semitone-offset, controls
+  root/rate/gate/length + 3-standen run-switch (Free = vrije interne klok,
+  Off = doorlus V+→CV / Run+→Gate, Gate = interne klok loopt alleen terwijl
+  Run+ hoog is). Externe `clock`/`reset`-ingang neemt het stappen over zodra een
+  klok-edge binnenkomt (interne rate wordt dan genegeerd). Uitgangen: V/Oct-`cv`,
+  `gate_out` (gate-fractie per step) en `trig` (korte puls per step); `voct_in`
+  transponeert. 8 nieuwe host-tests in `test_seq16.cpp`. De bestaande editor-
+  `mmbSeq8()` matcht de port-/control-ids al.
+- **Audio-lib verkenning (3 vragen).** Bevestigd in
+  `framework-arduinoteensy/libraries/Audio`: géén los comb-filter (wél met
+  `AudioEffectDelay`+feedback of `AudioEffectFlange` te bouwen — FW-AU-3);
+  fourier-analyse on-device haalbaar via `AudioAnalyzeFFT1024`/`FFT256` +
+  `analyze_notefreq`/`analyze_tonedetect` (FW-AU-7); physical modeling realistisch
+  want de Teensy 4.1 (Cortex-M7 @ 600 MHz + FPU) is krachtiger dan MI Elements'
+  STM32F4 (FW-AU-9). Notities bijgewerkt in BACKLOG.md.
+
 ### fw 0.5.12 — portamento + unison/spread (2026-06-01)
 - **Portamento / glide (FW-1b).** `MidiInModule::tick()` is geen no-op meer: hij
   draait nu elke ~1 ms in de CV-loop (net als `Lfo`/`Ahdsr`) en schuift per stem

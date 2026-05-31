@@ -108,7 +108,7 @@ Brondump gebruiker (idee), nagenoeg ongewijzigd overgenomen:
 
 | # | Prio | Status | Item |
 |---|---|---|---|
-| FW-PM-1 | 2 | ⏳ | **Octa-osc VCO** — interne module met 8 detunable oscillatoren (`AudioSynthWaveform`); performance lijkt haalbaar bij poly 8. |
+| FW-PM-1 | 2 | ✅ | **Octa-osc VCO** — interne module met 8 detunable oscillatoren (`AudioSynthWaveform`); performance lijkt haalbaar bij poly 8. Firmware `tp_mmb_octa_vco` (`OctaVcoModule.h`): 8 cellen die wave/coarse/fine/level + een symmetrische `detune` (cents-spreiding) delen; per-cel `voct_1..8` in + `out_1..8` audio uit; gedeelde `tune` V/Oct-offset. Editor-seed `mmbOctaVco()` (OCTA-VCO-S, 20 HP, multi-module met CellGroup count 8). fw 0.5.13. |
 | FW-PM-2 | 2 | ⏳ | **Octa-VCF** — 8-voudige VCF-module, 1 set globale controllers, losse CV-in/uit per stem. |
 | FW-PM-3 | 2 | ⏳ | **Octa-VCA** — 8-voudige VCA-module, idem. |
 | FW-PM-4 | 2 | ⏳ | **aanvulling agent:** *Firmware-kant van CellGroups: één module-instance die intern N cellen draait en de patch-expand naar N virtuele kabels afhandelt (tegenhanger van ED-CG-1). Sluit aan op de hardware-dCV-module met 1 set globale controllers.* |
@@ -139,13 +139,13 @@ Brondump gebruiker (idee), nagenoeg ongewijzigd overgenomen:
 |---|---|---|---|
 | FW-AU-1 | 2 | ⏳ | **Stereo VCA.** |
 | FW-AU-2 | 2 | ⏳ | **CV-ingangen op phaser en echo** (rate/depth/delaytime stuurbaar). |
-| FW-AU-3 | 3 | ⏳ | **Comb-filter / resonator met CV-ingang** (handmatige phaser); zelf bouwen als de audio-lib het niet heeft — experiment buiten de audio-lib om. |
+| FW-AU-3 | 3 | ⏳ | **Comb-filter / resonator met CV-ingang** (handmatige phaser); zelf bouwen als de audio-lib het niet heeft — experiment buiten de audio-lib om. *Onderzoek: de stock Audio-lib heeft géén los comb-object, maar `AudioEffectDelay` + feedback-mixer bouwt er triviaal een; `AudioEffectFlange` is al een gemoduleerd comb-filter. Zelf bouwen dus prima haalbaar.* |
 | FW-AU-4 | 2 | ⏳ | **FM-VCO** (`AudioSynthFM`). |
 | FW-AU-5 | 2 | ⏳ | **Wavetable-VCO** (`AudioPlayMemory` / wavetable). |
 | FW-AU-6 | 3 | ⏳ | **Draw-waveshape VCO** (zelf golfvorm tekenen in de editor → naar firmware). |
-| FW-AU-7 | 3 | 🔬 | **Fourier-shaper VCO** — fourier-analyse van bestaand geluid, boventoon-verloop schematisch (Fairlight-achtig, additieve synthese); mogelijk FPGA-sidecar nodig. |
-| FW-AU-8 | 3 | ⏳ | **String-VCO** — Karplus-Strong / string-object uit de audio-lib wrappen. |
-| FW-AU-9 | 3 | 🔬 | **Physical-modeling-VCO** (MI-Elements-achtig); mogelijk te zwaar voor Teensy (geen DSP); MI Elements gebruikt ARM STM32 M7. |
+| FW-AU-7 | 3 | 🔬 | **Fourier-shaper VCO** — fourier-analyse van bestaand geluid, boventoon-verloop schematisch (Fairlight-achtig, additieve synthese); mogelijk FPGA-sidecar nodig. *Onderzoek: haalbaar op de Teensy zelf — de Audio-lib heeft `AudioAnalyzeFFT1024`/`FFT256`, `analyze_notefreq` en `analyze_tonedetect`. Een bestaand instrument-sample kan dus on-device op harmonische inhoud geanalyseerd worden.* |
+| FW-AU-8 | 3 | ✅ | **String-VCO** — Karplus-Strong / string-object uit de audio-lib wrappen. Firmware `tp_mmb_string` (`StringModule.h`) wrapt `AudioSynthKarplusStrong` → `AudioAmplifier`; Gate rising-edge tokkelt op de V/Oct-pitch, `pluck` regelt de aanslag-helderheid, `level` de output. Editor-seed `mmbString()` (STRING, 6 HP). fw 0.5.13. |
+| FW-AU-9 | 3 | 🔬 | **Physical-modeling-VCO** (MI-Elements-achtig); mogelijk te zwaar voor Teensy (geen DSP); MI Elements gebruikt ARM STM32 M7. *Onderzoek: Teensy 4.1 = Cortex-M7 @ 600 MHz mét FPU — krachtiger dan MI Elements' STM32F4 (M4 @ 168 MHz). Karplus-Strong (FW-AU-8) is al een simpel physical model; modale/Elements-achtige synthese is haalbaar voor een beperkt aantal stemmen. De M7 heeft de headroom die hier eerder als ontbrekend werd ingeschat.* |
 
 ### 2.4 Effecten
 
@@ -158,7 +158,7 @@ Brondump gebruiker (idee), nagenoeg ongewijzigd overgenomen:
 | # | Prio | Status | Item |
 |---|---|---|---|
 | FW-FX-1 | 2 | ⏳ | **Stereo echo met CV-aansturing** (delaytime/feedback via CV, tap-tempo). |
-| FW-FX-2 | 3 | ⏳ | **Compressor met lichte overdrive** (buizen-emulatie); basis `AudioEffectCompressor` + saturatie. |
+| FW-FX-2 | 3 | ✅ | **Compressor met lichte overdrive** (buizen-emulatie); basis `AudioEffectCompressor` + saturatie. *De stock Audio-lib heeft géén compressor*, dus firmware `tp_mmb_comp` (`CompDriveModule.h`) bevat een custom `AudioEffectCompDrive` AudioStream: feed-forward peak-compressor (threshold/ratio/attack/release/makeup) gevolgd door een tanh soft-clip overdrive (`drive`). Editor-seed `mmbComp()` (COMP, 6 HP). fw 0.5.13. |
 
 ### 2.5 Sequencer
 
@@ -169,7 +169,7 @@ Brondump gebruiker (idee), nagenoeg ongewijzigd overgenomen:
 
 | # | Prio | Status | Item |
 |---|---|---|---|
-| FW-SQ-1 | 2 | ⏳ | **Sequencer in firmware** (nu alleen editor/sim). |
+| FW-SQ-1 | 2 | ✅ | **Sequencer in firmware** (nu alleen editor/sim). Core-`CvModule` `tp_mmb_seq8` (`Seq16.h`/`Seq16.cpp`, host-testbaar): 16 stappen semitone-offset, root/rate/gate/length/run-modi (Free/Off/Gate), interne 1 kHz-klok óf externe `clock`/`reset`-ingang, V/Oct-`cv` + `gate_out` + `trig` uit, `voct_in` transpose. 8 host-tests in `test_seq16.cpp`. Editor `mmbSeq8()` bestond al en matcht de port-/control-ids. fw 0.5.13. |
 | FW-SQ-2 | 2 | 🔬 | **Poly-sequencer-ontwerp** — hoe werkt een step-sequencer N-stemmig; integratie met PolyGroup-expand. |
 
 ---
