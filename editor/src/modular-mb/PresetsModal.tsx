@@ -13,6 +13,7 @@ import {
   type PatchPresetData,
   type ModulePresetData,
   type PatchSetPresetData,
+  type RackPresetData,
   loadLibrary,
   savePatchPreset,
   deletePatchPreset,
@@ -25,6 +26,10 @@ import {
   deletePatchSetPreset,
   renamePatchSetPreset,
   addPatchSetToProject,
+  saveRackPreset,
+  deleteRackPreset,
+  renameRackPreset,
+  addRackToProject,
   exportLibraryJson,
   importLibraryJson,
   factoryPatchPresets,
@@ -37,7 +42,7 @@ interface PresetsModalProps {
 
 export function PresetsModal({ onClose }: PresetsModalProps): JSX.Element {
   const project = useModularProject();
-  const [tab, setTab]   = useState<'project' | 'patches' | 'modules'>('project');
+  const [tab, setTab]   = useState<'project' | 'patches' | 'racks' | 'modules'>('project');
   const [, setBump]     = useState(0);
   const refresh = (): void => setBump((n) => n + 1);
 
@@ -121,7 +126,7 @@ export function PresetsModal({ onClose }: PresetsModalProps): JSX.Element {
 
         {/* ── Tabs ── */}
         <div style={{ display: 'flex', gap: 4, padding: '8px 16px 0', borderBottom: '1px solid #334155' }}>
-          {(['project', 'patches', 'modules'] as const).map((t) => (
+          {(['project', 'patches', 'racks', 'modules'] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -136,7 +141,7 @@ export function PresetsModal({ onClose }: PresetsModalProps): JSX.Element {
                 cursor: 'pointer', fontSize: 13,
               }}
             >
-              {t === 'project' ? 'Project presets' : t === 'patches' ? 'Patch presets' : 'Module presets'}
+              {t === 'project' ? 'Project presets' : t === 'patches' ? 'Patch presets' : t === 'racks' ? 'Rack presets' : 'Module presets'}
             </button>
           ))}
         </div>
@@ -147,6 +152,8 @@ export function PresetsModal({ onClose }: PresetsModalProps): JSX.Element {
             ? <PatchPresetsTab project={project} userPresets={lib.patches} onChange={refresh} onClose={onClose} />
             : tab === 'patches'
             ? <PatchSetPresetsTab userPresets={lib.patchSets} onChange={refresh} onClose={onClose} />
+            : tab === 'racks'
+            ? <RackPresetsTab userPresets={lib.racks} onChange={refresh} onClose={onClose} />
             : <ModulePresetsTab userPresets={lib.modules} onChange={refresh} />}
         </div>
       </div>
@@ -376,6 +383,126 @@ function PatchSetPresetsTab({ userPresets, onChange, onClose }: PatchSetTabProps
                   <div style={{ fontWeight: 600 }}>{p.name}</div>
                   <div style={meta}>
                     {p.patches.length} patch(es) · {new Date(p.createdAt).toLocaleString()}
+                  </div>
+                </div>
+                <button style={btn} onClick={() => onLoad(p)}>＋ Toevoegen</button>
+                <button style={btn} onClick={() => onRename(p)}>✎</button>
+                <button style={{ ...btn, color: '#fca5a5' }} onClick={() => onDelete(p)}>×</button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Rack-presets tab (één rack + zijn modules)
+// ═══════════════════════════════════════════════════════════════════════
+
+interface RackTabProps {
+  userPresets: RackPresetData[];
+  onChange: () => void;
+  onClose: () => void;
+}
+
+function RackPresetsTab({ userPresets, onChange, onClose }: RackTabProps): JSX.Element {
+  const project = useModularProject();
+  const [name, setName] = useState('');
+  const [selectedRackId, setSelectedRackId] = useState<string>(
+    project.activeRackId ?? project.racks[0]?.id ?? '',
+  );
+
+  const selectedRack = project.racks.find((r) => r.id === selectedRackId)
+                    ?? project.racks[0];
+
+  function onSave(): void {
+    const n = name.trim();
+    if (!n) { alert('Geef de preset een naam.'); return; }
+    if (!selectedRack) { alert('Geen rack om op te slaan.'); return; }
+    saveRackPreset(n, selectedRack, project.modules, selectedRack.description);
+    setName('');
+    onChange();
+  }
+
+  function onLoad(p: RackPresetData): void {
+    if (!confirm(`Rack "${p.rack.name}" (${p.modules.length} modules) toevoegen aan het huidige project?`)) return;
+    setProject(addRackToProject(getProject(), p));
+    onClose();
+  }
+
+  function onDelete(p: RackPresetData): void {
+    if (!confirm(`Preset "${p.name}" verwijderen?`)) return;
+    deleteRackPreset(p.id);
+    onChange();
+  }
+
+  function onRename(p: RackPresetData): void {
+    const next = prompt('Nieuwe naam:', p.name);
+    if (next === null) return;
+    renameRackPreset(p.id, next);
+    onChange();
+  }
+
+  const slotCount = selectedRack?.slots.length ?? 0;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <p style={{ margin: 0, color: '#94a3b8' }}>
+        Een <em>rack-preset</em> bewaart één compleet rack: de rij-indeling, alle
+        geplaatste modules en de voice-groups — <strong>niet</strong> de patches/kabels.
+        Laden vóégt het rack (met verse module-id&apos;s) toe aan het huidige project.
+      </p>
+
+      {/* Selecteer + opslaan */}
+      <div style={section}>
+        <div style={sectionTitle}>Rack kiezen en opslaan</div>
+        {project.racks.length === 0 ? (
+          <div style={{ color: '#64748b', fontStyle: 'italic' }}>Dit project heeft nog geen racks.</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <select
+              value={selectedRackId}
+              onChange={(e) => setSelectedRackId(e.target.value)}
+              style={input}
+            >
+              {project.racks.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name} ({r.slots.length} modules)
+                </option>
+              ))}
+            </select>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                type="text" placeholder="Preset-naam…"
+                value={name} onChange={(e) => setName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') onSave(); }}
+                style={input}
+              />
+              <button style={btnPrimary} onClick={onSave}>💾 Opslaan</button>
+            </div>
+            <div style={{ fontSize: 11, color: '#64748b' }}>
+              {slotCount} modules · {selectedRack?.polyGroups?.length ?? 0} voice-group(s)
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Eigen rack-presets */}
+      <div style={section}>
+        <div style={sectionTitle}>Eigen rack-presets ({userPresets.length})</div>
+        {userPresets.length === 0 ? (
+          <div style={{ color: '#64748b', fontStyle: 'italic' }}>Nog geen rack-presets opgeslagen.</div>
+        ) : (
+          <ul style={list}>
+            {[...userPresets].sort((a, b) => b.createdAt - a.createdAt).map((p) => (
+              <li key={p.id} style={listItem}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600 }}>{p.name}</div>
+                  <div style={meta}>
+                    {p.modules.length} modules · {new Date(p.createdAt).toLocaleString()}
+                    {p.description ? ` · ${p.description}` : ''}
                   </div>
                 </div>
                 <button style={btn} onClick={() => onLoad(p)}>＋ Toevoegen</button>

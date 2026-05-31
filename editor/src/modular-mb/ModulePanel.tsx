@@ -64,6 +64,9 @@ export interface ModulePanelProps {
   pxPerMm?: number;
   /** Show port labels (default true). */
   showPortLabels?: boolean;
+  /** Controls that are inactive in the current context (e.g. `steal` in a
+   *  monophonic patch). Rendered greyed-out and non-interactive. */
+  disabledControlIds?: ReadonlySet<string>;
 }
 
 export function ModulePanel({
@@ -75,6 +78,7 @@ export function ModulePanel({
   highlightedPortId,
   pxPerMm = 3,
   showPortLabels = true,
+  disabledControlIds,
 }: ModulePanelProps): JSX.Element {
   const visual   = mod.visual;
   const widthMm  = visual.hpWidth * MM_PER_HP;
@@ -161,19 +165,24 @@ export function ModulePanel({
         const cp = visual.controlPlacements[c.id];
         if (!cp) return null;
         const value = controlState?.[c.id] ?? defaultValueOf(c);
+        const disabled = disabledControlIds?.has(c.id) ?? false;
         return (
-          <ControlGlyph
-            key={`ctl-${c.id}`}
-            control={c}
-            x={cp.x} y={cp.y}
-            rotation={cp.rotation ?? 0}
-            sizeOverride={cp.sizeOverride}
-            value={value}
-            controls={controls}
-            controlState={controlState}
-            onChange={onControlChange ? (v) => onControlChange(c.id, v) : undefined}
-            textCol={textCol}
-          />
+          <g key={`ctl-${c.id}`}
+            opacity={disabled ? 0.35 : 1}
+            style={disabled ? { pointerEvents: 'none' } : undefined}>
+            {disabled && <title>Niet actief in deze patch</title>}
+            <ControlGlyph
+              control={c}
+              x={cp.x} y={cp.y}
+              rotation={cp.rotation ?? 0}
+              sizeOverride={cp.sizeOverride}
+              value={value}
+              controls={controls}
+              controlState={controlState}
+              onChange={!disabled && onControlChange ? (v) => onControlChange(c.id, v) : undefined}
+              textCol={textCol}
+            />
+          </g>
         );
       })}
     </svg>
@@ -204,14 +213,26 @@ function computeCellBoxes(
   if (!groups || groups.length === 0) return [];
 
   const boxes: CellBox[] = [];
-  const PAD = 1.6;
+  const PAD = 1.4;          // breathing room beyond the glyph extents
+  const LABEL_BELOW = 2.6;  // ports/knobs carry a label underneath
 
-  const placementOf = (base: string, cell: number): { x: number; y: number } | undefined => {
+  // Resolve a base id (+cell index) to its placement AND glyph half-extents,
+  // so the box wraps the *whole* jack/knob and its label — not just the centre
+  // point (which made the dashed box look like it sat *inside* the cell).
+  const placementOf = (
+    base: string,
+    cell: number,
+  ): { x: number; y: number; rx: number; ry: number; below: number } | undefined => {
     for (const id of [`${base}_${cell}`, `${base}${cell}`, base]) {
       const pp = visual.portPlacements[id];
-      if (pp) return pp;
+      if (pp) return { x: pp.x, y: pp.y, rx: JACK_R, ry: JACK_R, below: LABEL_BELOW };
       const cp = visual.controlPlacements[id];
-      if (cp) return cp;
+      if (cp) {
+        const ctl = type?.controls?.find((c) => c.id === id);
+        const size = cp.sizeOverride ?? (ctl && 'size' in ctl ? ctl.size : undefined) ?? 'medium';
+        const r = KNOB_R[size] ?? KNOB_R.medium!;
+        return { x: cp.x, y: cp.y, rx: r, ry: r, below: LABEL_BELOW };
+      }
     }
     return undefined;
   };
@@ -219,18 +240,22 @@ function computeCellBoxes(
   groups.forEach((g, gi) => {
     const bases = [...g.portIds, ...g.controlIds, ...(g.displayIds ?? [])];
     for (let cell = 1; cell <= g.count; ++cell) {
-      const pts: { x: number; y: number }[] = [];
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      let any = false;
       for (const base of bases) {
         const pl = placementOf(base, cell);
-        if (pl) pts.push({ x: pl.x, y: pl.y });
+        if (!pl) continue;
+        any = true;
+        minX = Math.min(minX, pl.x - pl.rx);
+        maxX = Math.max(maxX, pl.x + pl.rx);
+        minY = Math.min(minY, pl.y - pl.ry);
+        maxY = Math.max(maxY, pl.y + pl.ry + pl.below);
       }
-      if (pts.length === 0) continue;
-      const xs = pts.map((p) => p.x);
-      const ys = pts.map((p) => p.y);
-      const minX = Math.min(...xs) - PAD;
-      const maxX = Math.max(...xs) + PAD;
-      const minY = Math.min(...ys) - PAD - 1.8; // extra room for the label
-      const maxY = Math.max(...ys) + PAD + 2.2; // extra room for port labels
+      if (!any) continue;
+      minX -= PAD;
+      maxX += PAD;
+      minY -= PAD + 1.8; // extra room above for the cell label
+      maxY += PAD;
       boxes.push({
         key: `${g.id}-${cell}`,
         label: `${cell}/${g.count}`,

@@ -30,6 +30,11 @@ export const SIGNAL_LABEL: Record<SignalType, string> = {
   cv: 'CV', gate: 'Gate', trigger: 'Trig', audio: 'Audio', midi: 'MIDI',
 };
 
+/** Mensvriendelijke labels voor de CV-carrier-formaten (Port.cvFormat). */
+export const CV_FORMAT_LABEL: Record<'analog' | 'dcv12' | 'dcv16', string> = {
+  analog: 'Analoog', dcv12: 'dCV 12-bit', dcv16: 'dCV 16-bit',
+};
+
 export const SIGNAL_COMPATIBILITY: Record<SignalType, SignalType[]> = {
   cv:      ['cv'],
   gate:    ['gate', 'cv'],
@@ -72,6 +77,16 @@ export interface Port {
    *  that group (see `ModuleType.cellGroups`). Unset = module-global port.
    */
   cellGroupId?: string;
+  /**
+   *  CV carrier format (sketch §3.5). Only meaningful for `signalType:'cv'`
+   *  ports. Distinguishes analogue CV from digital CV at 12- or 16-bit so
+   *  the resolution is visible as a port property; a cable inherits the
+   *  format of its source (out) port. Unset = unspecified / analogue.
+   *    'analog' — continuous analogue voltage.
+   *    'dcv12'  — digital CV, 12-bit (e.g. classic DAC).
+   *    'dcv16'  — digital CV, 16-bit (high-resolution).
+   */
+  cvFormat?: 'analog' | 'dcv12' | 'dcv16';
 }
 
 // ═══════════════════════════════════════════════════════════════════════

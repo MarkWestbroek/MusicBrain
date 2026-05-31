@@ -18,6 +18,9 @@ import {
   type ModularProject,
   type ControlValue,
   type Patch,
+  type Rack,
+  type ModuleInstance,
+  type PolyGroup,
   emptyModularProject,
 } from './types';
 import { seedInternals, seedTestPatch } from './seedModules';const STORAGE_KEY = 'mmb.presets.v1';
@@ -54,16 +57,32 @@ export interface PatchSetPresetData {
   createdAt: number;
 }
 
+/** Een rack-preset bewaart één compleet rack (rijen, HP, slots, voice-groups)
+ *  én de module-instances die in dat rack staan — maar GEEN patches/kabels.
+ *  Laden voegt het rack + zijn modules toe aan het project met verse id's, zodat
+ *  je een uitgewerkte rack-indeling kunt hergebruiken zonder een heel project te
+ *  vervangen. */
+export interface RackPresetData {
+  id: string;
+  name: string;
+  description?: string;
+  rack: Rack;
+  modules: ModuleInstance[];
+  createdAt: number;
+}
+
 export interface PresetLibrary {
   version: 1;
   patches: PatchPresetData[];
   modules: ModulePresetData[];
   /** Losse patch-sets (optioneel — oudere bibliotheken hebben dit niet). */
   patchSets: PatchSetPresetData[];
+  /** Rack-presets (optioneel — oudere bibliotheken hebben dit niet). */
+  racks: RackPresetData[];
 }
 
 function emptyLibrary(): PresetLibrary {
-  return { version: 1, patches: [], modules: [], patchSets: [] };
+  return { version: 1, patches: [], modules: [], patchSets: [], racks: [] };
 }
 
 // ─── localStorage I/O ──────────────────────────────────────────────────
@@ -79,6 +98,7 @@ export function loadLibrary(): PresetLibrary {
       patches: Array.isArray(parsed.patches) ? parsed.patches : [],
       modules: Array.isArray(parsed.modules) ? parsed.modules : [],
       patchSets: Array.isArray(parsed.patchSets) ? parsed.patchSets : [],
+      racks: Array.isArray(parsed.racks) ? parsed.racks : [],
     };
   } catch {
     return emptyLibrary();
@@ -230,6 +250,85 @@ export function addPatchSetToProject(
   };
 }
 
+// ─── Rack-presets (één rack + zijn modules, geen patches) ──────────────
+
+/** Bewaar een rack (met zijn voice-groups) plus de module-instances die erin
+ *  staan als preset. */
+export function saveRackPreset(
+  name: string,
+  rack: Rack,
+  allModules: ModuleInstance[],
+  description?: string,
+): RackPresetData {
+  const lib = loadLibrary();
+  const usedIds = new Set(rack.slots.map((s) => s.moduleId));
+  const modules = allModules.filter((m) => usedIds.has(m.id));
+  const data: RackPresetData = {
+    id: uidPreset('rp'),
+    name: name.trim() || 'Naamloos rack',
+    description,
+    rack: JSON.parse(JSON.stringify(rack)) as Rack,
+    modules: JSON.parse(JSON.stringify(modules)) as ModuleInstance[],
+    createdAt: Date.now(),
+  };
+  lib.racks.push(data);
+  saveLibrary(lib);
+  return data;
+}
+
+export function deleteRackPreset(id: string): void {
+  const lib = loadLibrary();
+  lib.racks = lib.racks.filter((r) => r.id !== id);
+  saveLibrary(lib);
+}
+
+export function renameRackPreset(id: string, name: string): void {
+  const lib = loadLibrary();
+  const r = lib.racks.find((x) => x.id === id);
+  if (!r) return;
+  r.name = name.trim() || r.name;
+  saveLibrary(lib);
+}
+
+/** Voeg het rack uit een rack-preset toe aan het project. Alle module-id's en
+ *  het rack-id krijgen verse waarden (zodat ze niet botsen met bestaande), en
+ *  de slot- + voice-group-verwijzingen worden mee-geremapt. Het toegevoegde
+ *  rack wordt het actieve rack. Patches blijven ongemoeid. */
+export function addRackToProject(
+  project: ModularProject,
+  preset: RackPresetData,
+): ModularProject {
+  // 1. Verse id's voor elke module-instance.
+  const idMap = new Map<string, string>();
+  const newModules = preset.modules.map((src) => {
+    const copy = JSON.parse(JSON.stringify(src)) as ModuleInstance;
+    const fresh = uidPreset('mod');
+    idMap.set(copy.id, fresh);
+    copy.id = fresh;
+    return copy;
+  });
+  const remap = (oldId: string): string => idMap.get(oldId) ?? oldId;
+  // 2. Vers rack met geremapte slots + voice-group-leden.
+  const rack = JSON.parse(JSON.stringify(preset.rack)) as Rack;
+  rack.id = uidPreset('rack');
+  rack.slots = rack.slots
+    .filter((s) => idMap.has(s.moduleId))
+    .map((s) => ({ ...s, id: uidPreset('slot'), moduleId: remap(s.moduleId) }));
+  if (rack.polyGroups) {
+    rack.polyGroups = rack.polyGroups.map((g: PolyGroup) => ({
+      ...g,
+      id: uidPreset('pg'),
+      members: g.members.map((mem) => ({ ...mem, moduleId: remap(mem.moduleId) })),
+    }));
+  }
+  return {
+    ...project,
+    modules: [...project.modules, ...newModules],
+    racks: [...project.racks, rack],
+    activeRackId: rack.id,
+  };
+}
+
 /** Apply a module preset to a target module in the active patch. Returns
  *  a new ModularProject (immutable update). Returns null if there is no
  *  active patch or the target module is not found / wrong type. */
@@ -287,6 +386,11 @@ export function importLibraryJson(json: string): { patches: number; modules: num
     for (const s of parsed.patchSets ?? []) {
       if (!s || existingSetIds.has(s.id)) continue;
       lib.patchSets.push(s);
+    }
+    const existingRackIds = new Set(lib.racks.map((r) => r.id));
+    for (const r of parsed.racks ?? []) {
+      if (!r || existingRackIds.has(r.id)) continue;
+      lib.racks.push(r);
     }
     saveLibrary(lib);
     return { patches: addedPatches, modules: addedModules };

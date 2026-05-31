@@ -922,6 +922,7 @@ function mmbMidiIn() {
     texts: [
       { x: w/2, y: 8,   text: 'MIDI-IN', fontSize: 2.2, color: '#f9fafb', align: 'middle' },
       { x: w/2, y: 14,  text: 'voicing · steal · modulatie', fontSize: 1.2, color: '#9ca3af', align: 'middle' },
+      { x: w*0.60, y: 26, text: 'Voices', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
       { x: w*0.24, y: 100, text: 'NOTE', fontSize: 1.2, color: '#9ca3af', align: 'middle' },
       { x: w*0.74, y: 100, text: 'MOD',  fontSize: 1.2, color: '#9ca3af', align: 'middle' },
       { x: w/2, y: 126, text: 'MMB',     fontSize: 1.6, color: '#f9fafb', align: 'middle' },
@@ -932,6 +933,9 @@ function mmbMidiIn() {
       display('chDisp', w*0.26, 30, { digits: 3, style: 'led', bindTo: 'channel', format: 'int' }),
       // Activity-LED: licht op zodra de simulator een MIDI-bron stuurt.
       led('act', w*0.90, 28, { label: 'Act', color: '#22c55e', size: 'medium' }),
+      // Aantal stemmen van de patch (volgt patch.voiceCount). 1 = monofoon.
+      // De waarde wordt door de patcher ingespoten (synthetisch 'voiceCount').
+      display('voicesDisp', w*0.60, 32, { digits: 2, style: 'led', bindTo: 'voiceCount', format: 'int' }),
       // Note-priority (mono): welke ingedrukte toets de mono-stem volgt.
       // 'last' = laatst aangeslagen, 'low' = laagste, 'high' = hoogste.
       // Firmware doet nu altijd last-note; low/high = FW-1.

@@ -48,7 +48,7 @@
 
 | # | Prio | Status | Item |
 |---|---|---|---|
-| ED-CG-1 | 2 | ⏳ | **CellGroups binnen één module.** Quad-VCO met één poly-kabel (N=4), mixer met per-kanaal pan + gedeelde volume. Scaffolding bestaat al (`CellGroup`-type, `Port.cellGroupId`, `role:'multi'`, voorbeeld `mmbQuadVcoShared`). **aanvulling agent:** *Editor-kant deels af — `ModulePanel` tekent nu per-cel een gestippelde box met `cel/N`-label (`computeCellBoxes`), en er is een tweede voorbeeld `mmbQuadMixerShared` (per-cel pan + gedeelde volume) dat het per-cel-controls-geval toont naast de shared-controls quad-VCO. Nog te bouwen: (a) cel-expansie in `polyExpand` (`kind:'cell'`-leden), (b) sim-routing voor multi-modules, (c) firmware-kant (FW-PM-4).* |
+| ED-CG-1 | 2 | ⏳ | **CellGroups binnen één module.** Quad-VCO met één poly-kabel (N=4), mixer met per-kanaal pan + gedeelde volume. Scaffolding bestaat al (`CellGroup`-type, `Port.cellGroupId`, `role:'multi'`, voorbeeld `mmbQuadVcoShared`). **aanvulling agent:** *Editor-kant deels af — `ModulePanel` tekent nu per-cel een gestippelde box met `cel/N`-label (`computeCellBoxes`, rekent per-glyph extents zodat de box rond de volledige jacks/knoppen valt i.p.v. erbinnen), en er is een tweede voorbeeld `mmbQuadMixerShared` (per-cel pan + gedeelde volume) dat het per-cel-controls-geval toont naast de shared-controls quad-VCO. Nog te bouwen: (a) cel-expansie in `polyExpand` (`kind:'cell'`-leden), (b) sim-routing voor multi-modules, (c) firmware-kant (FW-PM-4), (d) één vierkante poly-poort per celgroep i.p.v. N losse poorten (architectuur).* |
 
 ### 1.6 Persistentie & algemeen
 
@@ -56,6 +56,18 @@
 |---|---|---|---|
 | ED-GN-1 | 3 | ⏳ | **D1 — Centrale opslag:** REST-API (Node/Express) + SQLite op de Plesk-host; GET/PUT project-JSON per gebruiker; JWT-auth. |
 | ED-GN-2 | 3 | ⏳ | **D2 — Gebruikersbeheer + sync.** Nodig voor externe Effect-switcher-tester. |
+| ED-GN-3 | 2 | ✅ | **Rack-presets.** Nieuw preset-type (`RackPresetData`) bewaart één compleet rack incl. modules + voice-groups (zonder patches/kabels). Eigen tab in `PresetsModal`; laden (`addRackToProject`) voegt het rack met verse module-id's toe aan het project. |
+
+### 1.7 Design-review fixes (UI/inspector — agent-batch)
+
+| # | Prio | Status | Item |
+|---|---|---|---|
+| ED-RV-1 | 2 | ✅ | **Poly-kabel = centre-stripe i.p.v. stippel.** Poly-bus-kabels zelfde dikte als mono, met een dunne witte streep in de lengte (`BendableEdge` `data.poly`). |
+| ED-RV-2 | 2 | ✅ | **MIDI-IN voices-display + steal grijzen.** `voicesDisp`-LED (`bindTo:'voiceCount'`); bij mono (`voiceCount≤1`) wordt `steal` inactief gemaakt via `disabledControlIds` in `ModulePanel`. |
+| ED-RV-3 | 2 | ✅ | **Rack-inspector poorten/controls.** Per module klikbare **Poorten**- en **Controls**-lijsten met inline detail (signaal, richting, CV-formaat, event-kind, celgroep, bereik / knob-stap, switch-posities, display-binding). |
+| ED-RV-4 | 2 | ✅ | **Per-poort vierkante poly-handle** in de patcher wanneer de poort echt poly is (`eventKind:'voice'` + `voiceCount>1`), anders rond. |
+| ED-RV-5 | 2 | ✅ | **`Port.cvFormat`** (`analog`/`dcv12`/`dcv16`) + `CV_FORMAT_LABEL`; getoond in de rack-inspector en als patcher-tooltip-suffix. |
+| ED-RV-6 | 3 | ⏳ | **VCO eigen tune-CV-ingang** (voor pitch-bend zonder de hoofd-V/Oct te moduleren). Ontwerp besproken, nog te bouwen. |
 
 ---
 

@@ -35,11 +35,18 @@ const PX_PER_MM = 2.4;
 
 // ── Node ───────────────────────────────────────────────────────────────
 
+/** Controls op de MIDI-IN die alleen zin hebben bij een polyfone patch en
+ *  daarom grijs gaan zodra voiceCount === 1. */
+const MIDIIN_MONO_DISABLED: ReadonlySet<string> = new Set(['steal']);
+
 interface ModuleNodeData {
   module: ModuleInstance;
   types: ModuleType[];
   controlState: Record<string, ControlValue>;
   patchId: string;
+  /** Aantal stemmen van de patch (patch.voiceCount). Gebruikt o.a. door de
+   *  MIDI-IN om het stem-aantal te tonen en steal te grijzen bij mono. */
+  voiceCount: number;
   /** When this module is part of a PolyGroup: which group + voice-index.
    *  voiceIndex 0 = master, ≥1 = ghost follower (only present when the
    *  group is expanded in the patcher). */
@@ -49,13 +56,21 @@ interface ModuleNodeData {
 }
 
 function ModuleNode({ data, selected }: NodeProps): JSX.Element {
-  const { module: m, types, controlState, patchId, voice, ghost } = data as unknown as ModuleNodeData;
+  const { module: m, types, controlState, patchId, voice, ghost, voiceCount } = data as unknown as ModuleNodeData;
   // Live-status (step-LEDs etc.) wordt hier lokaal gemerged zodat een
   // engineStatus-tick niet de hele graph laat re-builden — alleen deze
   // node re-rendert.
   const engineStatus = useEngineStatus();
   const liveCtrl = engineStatus.liveControls[m.id];
-  const merged = liveCtrl ? { ...controlState, ...liveCtrl } : controlState;
+  const baseMerged = liveCtrl ? { ...controlState, ...liveCtrl } : controlState;
+  // MIDI-IN: spuit het patch-stem-aantal in als synthetische 'voiceCount'
+  // zodat het Voices-display het toont; grijs `steal` bij een mono-patch
+  // (voice-stealing is een poly-feature).
+  const isMidiIn = types.find((t) => t.id === m.typeId)?.role === 'event-source';
+  const merged = isMidiIn ? { ...baseMerged, voiceCount } : baseMerged;
+  const disabledControlIds = (isMidiIn && voiceCount <= 1)
+    ? MIDIIN_MONO_DISABLED
+    : undefined;
   const ports = resolvePorts(m, types);
   const heightMm = m.visual.heightMm ?? PANEL_HEIGHT_MM;
   const widthMm  = m.visual.hpWidth * MM_PER_HP;
@@ -96,6 +111,7 @@ function ModuleNode({ data, selected }: NodeProps): JSX.Element {
         onControlChange={setControl}
         pxPerMm={PX_PER_MM}
         showPortLabels={true}
+        disabledControlIds={disabledControlIds}
       />
       {voice && (
         <div style={{
@@ -118,11 +134,18 @@ function ModuleNode({ data, selected }: NodeProps): JSX.Element {
         if (!pl) return null;
         const left = pl.x * PX_PER_MM;
         const top  = pl.y * PX_PER_MM;
-        // Poly-poort: zit op een poly-master (ingeklapte groep) → de kabel
-        // draagt N stemmen. Toon vierkant met groep-gekleurde dubbele ring;
-        // single-poorten blijven een ronde stip (backlog B5 / ED-PT-1).
-        const isPoly = !!voice && !ghost;
+        // Poly-poort = vierkant met groep-gekleurde dubbele ring; single =
+        // ronde stip. Een poort is poly wanneer:
+        //  • de module een heel-module poly-master is (elke poort = per stem), of
+        //  • het een event-source voice-poort is (pitch/gate/vel) én de patch
+        //    polyfoon is (voiceCount > 1) — zo blijven mod/bend/cc rond/mono.
+        const portPoly = !ghost && (
+          !!voice
+          || (p.eventKind === 'voice' && voiceCount > 1)
+        );
+        const polyN = voice?.group.voiceCount ?? voiceCount;
         const polyColor = voice?.group.color || '#22d3ee';
+        const isPoly = portPoly;
         return (
           <Handle
             key={p.id}
@@ -130,9 +153,8 @@ function ModuleNode({ data, selected }: NodeProps): JSX.Element {
             type={p.direction === 'in' ? 'target' : 'source'}
             position={p.direction === 'in' ? Position.Left : Position.Right}
             isConnectable={!ghost}
-            title={isPoly
-              ? `${p.id} · poly-poort (×${voice!.group.voiceCount})`
-              : `${p.id} · single-poort`}
+            title={`${isPoly ? `${p.id} · poly-poort (×${polyN})` : `${p.id} · single-poort`}`
+              + (p.signalType === 'cv' && p.cvFormat ? ` · ${p.cvFormat}` : '')}
             style={{
               left, top,
               transform: 'translate(-50%, -50%)',
@@ -445,6 +467,7 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
           types: project.moduleTypes,
           controlState: patch.controlState[m.id] ?? {},
           patchId,
+          voiceCount: patch.voiceCount,
           voice,
           ghost,
         },
@@ -454,7 +477,7 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
         selectable: !ghost,
       };
     }),
-    [visibleModules, rackYOffsetMm, project.moduleTypes, patch.controlState, patchId, selectedNodeId, voiceMap],
+    [visibleModules, rackYOffsetMm, project.moduleTypes, patch.controlState, patch.voiceCount, patchId, selectedNodeId, voiceMap],
   );
 
   const edges: Edge[] = useMemo(

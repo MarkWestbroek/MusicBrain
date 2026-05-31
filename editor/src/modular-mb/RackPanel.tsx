@@ -11,7 +11,8 @@ import { compactRack as compactRackLayout } from './rackLayout';
 import { useEngineStatus } from './sim/engineSingleton';
 import {
   type Rack, type RackSlot, type ModuleInstance, type ModuleType,
-  type PolyGroup, type PolyGroupMember,
+  type PolyGroup, type PolyGroupMember, type Port, type Control,
+  resolvePorts, resolveControls, SIGNAL_LABEL, CV_FORMAT_LABEL,
   MM_PER_HP, PANEL_HEIGHT_MM,
 } from './types';
 
@@ -1196,12 +1197,132 @@ function RackInspector({ rack, modules, types, selectedSlotIds, setSelectedSlotI
       <InspectorRow k="Rij"       v={String(slot.row + 1)} />
       <InspectorRow k="HP-offset" v={String(slot.hpOffset)} />
       <InspectorRow k="Module-id" v={mod.id} />
+      <ModulePortsControls mod={mod} types={types} />
       <button onClick={deleteSelected} style={{ ...inspectorBtn, marginTop: 10, color: '#fca5a5' }}>
         × Verwijder uit rack
       </button>
     </aside>
   );
 }
+
+/** Toont de poorten en controls van de geselecteerde module. Klik op een
+ *  regel om de details (signaaltype/richting resp. bereik/eenheid) uit te
+ *  klappen — zo zie je in het rack óók de poort/control-eigenschappen. */
+function ModulePortsControls({ mod, types }: { mod: ModuleInstance; types: ModuleType[] }): JSX.Element {
+  const ports = resolvePorts(mod, types);
+  const controls = resolveControls(mod, types);
+  const [open, setOpen] = useState<string | null>(null);
+  const toggle = (key: string): void => setOpen((cur) => cur === key ? null : key);
+
+  return (
+    <div style={{ marginTop: 10 }}>
+      <div style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', margin: '6px 0 3px' }}>
+        Poorten ({ports.length})
+      </div>
+      {ports.length === 0 && <div style={{ fontSize: 11, color: '#64748b' }}>Geen poorten.</div>}
+      {ports.map((p) => {
+        const key = `port:${p.id}`;
+        const dot = SIGNAL_COLOUR_LOCAL(p.signalType);
+        return (
+          <div key={key}>
+            <button onClick={() => toggle(key)} style={listRowBtn}>
+              <span style={{ width: 8, height: 8, borderRadius: p.direction === 'in' ? 2 : 8,
+                             background: dot, display: 'inline-block', flexShrink: 0 }} />
+              <span style={{ flex: 1, textAlign: 'left' }}>{p.name}</span>
+              <span style={{ color: '#64748b', fontSize: 10 }}>{p.direction === 'in' ? 'in' : 'uit'}</span>
+            </button>
+            {open === key && (
+              <div style={detailBox}>
+                <InspectorRow k="Poort-id" v={p.id} />
+                <InspectorRow k="Signaal"  v={SIGNAL_LABEL[p.signalType]} />
+                <InspectorRow k="Richting" v={p.direction === 'in' ? 'ingang' : 'uitgang'} />
+                {p.signalType === 'cv' && <InspectorRow k="CV-formaat" v={CV_FORMAT_LABEL[p.cvFormat ?? 'analog']} />}
+                {p.eventKind && <InspectorRow k="Event"  v={p.eventKind === 'voice' ? 'per stem (poly)' : 'globaal'} />}
+                {p.cellGroupId && <InspectorRow k="Celgroep" v={p.cellGroupId} />}
+                {p.range && <InspectorRow k="Bereik" v={`${p.range.min}…${p.range.max} V${p.range.bipolar ? ' (bipolair)' : ''}`} />}
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      <div style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', margin: '10px 0 3px' }}>
+        Controls ({controls.length})
+      </div>
+      {controls.length === 0 && <div style={{ fontSize: 11, color: '#64748b' }}>Geen controls.</div>}
+      {controls.map((c) => {
+        const key = `ctl:${c.id}`;
+        return (
+          <div key={key}>
+            <button onClick={() => toggle(key)} style={listRowBtn}>
+              <span style={{ flex: 1, textAlign: 'left' }}>{controlLabel(c)}</span>
+              <span style={{ color: '#64748b', fontSize: 10 }}>{c.kind}</span>
+            </button>
+            {open === key && (
+              <div style={detailBox}>
+                <InspectorRow k="Control-id" v={c.id} />
+                <InspectorRow k="Soort"      v={c.kind} />
+                {controlDetailRows(c)}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function controlLabel(c: Control): string {
+  return ('label' in c && c.label) ? c.label : c.id;
+}
+
+function controlDetailRows(c: Control): JSX.Element {
+  switch (c.kind) {
+    case 'knob':
+    case 'slider':
+      return (
+        <>
+          <InspectorRow k="Bereik"  v={`${c.min}…${c.max}${c.unit ? ' ' + c.unit : ''}`} />
+          <InspectorRow k="Default" v={String(c.defaultValue)} />
+          {c.kind === 'knob' && c.step !== undefined && <InspectorRow k="Stap" v={String(c.step)} />}
+        </>
+      );
+    case 'switch':
+      return (
+        <>
+          <InspectorRow k="Posities" v={c.positions.join(' / ')} />
+          <InspectorRow k="Default"  v={c.positions[c.defaultIndex] ?? String(c.defaultIndex)} />
+        </>
+      );
+    case 'toggle':
+      return <InspectorRow k="Default" v={c.defaultValue ? 'aan' : 'uit'} />;
+    case 'button':
+      return <InspectorRow k="Type" v={c.momentary ? 'momentary' : 'latch'} />;
+    case 'display':
+      return <InspectorRow k="Bindt aan" v={c.bindTo ?? '(statisch)'} />;
+    default:
+      return <></>;
+  }
+}
+
+// Lokale kleur-helper zodat we geen extra import nodig hebben naast SIGNAL_LABEL.
+function SIGNAL_COLOUR_LOCAL(t: Port['signalType']): string {
+  const map: Record<string, string> = {
+    cv: '#2563eb', gate: '#16a34a', trigger: '#eab308', audio: '#ea580c', midi: '#9333ea',
+  };
+  return map[t] ?? '#64748b';
+}
+
+const listRowBtn: React.CSSProperties = {
+  display: 'flex', alignItems: 'center', gap: 6, width: '100%',
+  background: '#0b1220', border: '1px solid #1e293b', borderRadius: 3,
+  padding: '3px 6px', fontSize: 11, color: '#e2e8f0', cursor: 'pointer',
+  marginBottom: 2,
+};
+const detailBox: React.CSSProperties = {
+  background: '#0b1220', border: '1px solid #1e293b', borderRadius: 3,
+  padding: '4px 6px', margin: '0 0 4px 8px',
+};
 
 function InspectorRow({ k, v }: { k: string; v: string }): JSX.Element {
   return (
