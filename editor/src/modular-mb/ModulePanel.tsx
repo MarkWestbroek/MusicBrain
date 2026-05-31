@@ -552,7 +552,7 @@ function SwitchGlyph({
       <rect x={x - 1.2} y={y - 3 + idx * step + 0.3} width={2.4} height={1.4}
         fill="#e5e7eb" rx={0.2} />
       {c.positions.map((p, i) => (
-        <text key={i} x={x + 2.4} y={y - 2.4 + i * step + 1} fontSize={1.1}
+        <text key={i} x={x + 2.4} y={y - 2.4 + i * step + 1} fontSize={1.6}
           fill={textCol}>{p}</text>
       ))}
       <text x={x} y={y + 5.4} fontSize={1.5} fill={textCol} textAnchor="middle">{c.label}</text>

@@ -217,7 +217,7 @@ export function ModularMbApp(): JSX.Element {
           <span style={{ position: 'relative', display: 'inline-block' }}>
             <button
               onClick={() => setShowPoly((v) => !v)}
-              title="Seed een N-stemmige polyfonie-testpatch (ADR 0011): MidiIn (N stemmen) → N× voice-keten → MIXER → OUT."
+              title="Seed een N-stemmige polyfonie-testpatch (ADR 0011): MidiIn (N stemmen) → N× voice-keten → MIXER → OUT. N≤4=4-in mixer, N≤8=8-in, N≤16=16-in."
             >✨ Poly ▾</button>
             {showPoly && (
               <div
@@ -229,7 +229,7 @@ export function ModularMbApp(): JSX.Element {
                 }}
                 onMouseLeave={() => setShowPoly(false)}
               >
-                {[1, 2, 4, 8].map((n) => (
+                {[1, 2, 4, 8, 16].map((n) => (
                   <button
                     key={n}
                     onClick={() => { setProject(seedPolyVoicePatch(getProject(), n)); setShowPoly(false); }}
@@ -237,7 +237,7 @@ export function ModularMbApp(): JSX.Element {
                       textAlign: 'left', border: 'none', background: 'transparent',
                       padding: '7px 12px', cursor: 'pointer', fontSize: 13,
                     }}
-                    title={`${n}-stemmige patch${n > 4 ? ' (8-in mixer)' : ''}`}
+                    title={`${n}-stemmige patch${n > 8 ? ' (16-in mixer)' : n > 4 ? ' (8-in mixer)' : ''}`}
                   >{n}-stemmig{n === 1 ? ' (mono)' : ''}</button>
                 ))}
               </div>

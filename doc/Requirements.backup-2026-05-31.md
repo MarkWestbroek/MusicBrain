@@ -1727,16 +1727,33 @@ Open vraag voor iter-5.10:
 
 ---
 
-## Backlog & release-log verhuisd (2026-05-31)
+## Backlog-update (sessie 28 jun 2026)
 
-De backlog en het release-log zijn uit dit document gehaald en gesplitst in twee
-beter leesbare views:
+### Geimplementeerd in deze sessie (firmware 0.5.7 + editor iter-5.x)
 
-- **[BACKLOG.md](BACKLOG.md)** — openstaand werk, gegroepeerd per laag
-  (Editor per scherm · Firmware · Hardware-brain · Hardware-modules).
-- **[RELEASE-LOG.md](RELEASE-LOG.md)** — chronologisch overzicht van opgeleverde
-  wijzigingen (editor-iteraties + firmware-versies + hardware-beslissingen).
+| # | Geimplementeerd | Omschrijving |
+|---|---|---|
+| 1 | Mixer16Module.h | 16-kanaals stereo mixer voor Teensy. Vier AudioMixer4-banken per kant (A=ch0-3, B=ch4-7, C=ch8-11, D=ch12-15) + een finale AudioMixer4 voor de sub-mix. Equal-power pan law. typeId: 	p_mmb_mixer16. |
+| 2 | RegisterAllModules.h + FwVersion.h | Mixer16 geregistreerd; firmware gebumpt naar **0.5.7**. |
+| 3 | seedModules.ts: mmbMixer16() | 24 HP, vier kolommen van 4 kanalen. Vol+pan per kanaal. Staat in seedInternals. |
+| 4 | seedPolyVoicePatch: N=16 | Clamp verhoogd naar 16. mixerTypeId: N>8?mixer16, N>4?mixer8, anders mixer. mixerChannels: N>8?16. Rack-description toont MIXER-16 bij N>8. |
+| 5 | AudioEngine.ts: mixer16 sim | 	p_mmb_mixer16 toegevoegd aan de mixer-node-conditie; channels=16 via ternary. |
+| 6 | ModularMbApp.tsx: dropdown | 16-stemmig toegevoegd aan poly-dropdown. Button-hint vermeldt (16-in mixer). |
+| 7 | TeensyLinkModal.tsx: test-dropdowns | State: 	estNotes (1-16), 	estOctave (MIDI 0..72, C-3..C4), 	estBpm (30..240). onTest() bouwt dynamisch C-groot-drieklank-arpeggio. UI: drie select-elementen naast de test-knop. |
+| 8 | RackPanel.tsx: Compact-knop | compactRack(): pakt per rij alle slots op hpOffset-volgorde en schuift ze aaneengesloten naar links. Knop toegevoegd in toolbar naast - Rack. |
+| 9 | ModulePanel.tsx: SwitchGlyph fontSize | Posities-labels (mono/legato/last) vergroot van 1.1 naar 1.6 (fontSize in SVG-mm). |
 
-De volledige historische dev-notities (inclusief alle iter-logs hierboven) zijn
-geback-upt in `Requirements.backup-2026-05-31.md`. Dit document blijft het
-requirements/ontwerp-document.
+### Openstaande backlog-items
+
+| # | Prio | Categorie | Omschrijving |
+|---|---|---|---|
+| B1 | Hoog | MIDI-in CV-outputs | Mod-wheel, pitch-bend en 2 vrij instelbare CC-nummers (CC-picker) als extra CV-outputs op de MIDI-in module. Firmware: extra ports cv_mod, cv_pitch, cv_cc1, cv_cc2. Editor: port-rendering + CC-nummerpicker control. |
+| B2 | Midden | Mode-uitleg (legato/last) | Legato = noot glijdt pitch-CV zonder envelope opnieuw te triggeren (vorige gate blijft open). Last = bij meerdere ingedrukte toetsen altijd de meest recent ingedrukte noot volgen. Moet ergens in de UI zichtbaar zijn (tooltip of info-tekst). |
+| B3 | Midden | Octa-osc VCO | Interne module met 8 detunable oscillatoren (uno-saw, sync, ring-mod). Zwaar maar realistisch op Teensy 4.1 met AudioSynthWaveform. |
+| B4 | Laag | VCF / VCA hardware-uitbreiding | Analoge VCF (CEM3320 of AS3320) + VCA breakout; firmware-support als externe module-types. |
+| B5 | Laag | FM / wavetable / string VCO | Interne module-varianten: FM-VCO (AudioSynthFM), wavetable (AudioPlayMemory), Karplus-Strong string. |
+| B6 | Laag | Stereo effecten met CV | Echo: cv-gestuurde delaytime (tap-tempo). Flanger, chorus, ensemble met stuurbare rate/depth. |
+| B7 | Laag | Compressor / limiter | Interne module op basis van AudioEffectCompressor (Teensy). |
+| B8 | Laag | Poly-sequencer | N-stemmige step-sequencer als interne module; integreert met PolyGroup-expand. |
+| B9 | Laag | Comb-filter / resonator | Karplus-Strong of AudioEffectDelay als resonator/comb. |
+| B10 | Laag | Presets factory-update | Factory patch-presets uitbreiden met 16-stemmig voorbeeld en een acid-bass-preset met Mixer16. |

@@ -72,8 +72,12 @@ export function TeensyLinkModal({ onClose }: Props): JSX.Element {
     catch (err) { alert(`selectPatch faalde: ${(err as Error).message}`); }
   }
 
-  // ── One-click test: push config + select patch + play a short arpeggio ──
+  // ── One-click test: push config + select patch + play a parametric arpeggio ──
   const [testing, setTesting] = useState(false);
+  const [testNotes,  setTestNotes]  = useState(8);   // hoeveel noten in de arpeggio
+  const [testOctave, setTestOctave] = useState(48);  // MIDI-rootnoot (48 = C2)
+  const [testBpm,    setTestBpm]    = useState(120); // tempo in BPM
+
   async function onTest(): Promise<void> {
     if (testing) return;
     setTesting(true);
@@ -82,12 +86,17 @@ export function TeensyLinkModal({ onClose }: Props): JSX.Element {
       if (activePatchId) await sendSelectPatch(activePatchId);
       // Give the firmware a moment to (re)build the audio + CV graph.
       await sleep(250);
-      const arp = [60, 64, 67, 72];   // C-major arpeggio
+      // C-groot drieklank arpeggio (0,4,7 semitonen) herhald omhoog.
+      const triad = [0, 4, 7];
+      const arp = Array.from({ length: testNotes }, (_, i) =>
+        testOctave + triad[i % 3]! + 12 * Math.floor(i / 3));
+      const noteDur = Math.round(60000 / testBpm * 0.82);
+      const noteGap = Math.round(60000 / testBpm * 0.18);
       for (const note of arp) {
         await sendMidi(true, note, 100);
-        await sleep(220);
+        await sleep(noteDur);
         await sendMidi(false, note);
-        await sleep(40);
+        await sleep(noteGap);
       }
     } catch (err) {
       alert(`Test faalde: ${(err as Error).message}`);
@@ -185,12 +194,36 @@ export function TeensyLinkModal({ onClose }: Props): JSX.Element {
             >{staticEnabled ? '🔊 Static ON' : '🔇 Static OFF'}</button>
           </div>
 
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
             <button
               onClick={() => { void onTest(); }}
               disabled={!isConnected || testing}
-              title="Push config + selecteer actieve patch + speel een test-arpeggio"
+              title="Push config + selecteer actieve patch + speel een test-arpeggio (C-groot drieklank)"
             >{testing ? '⏳ Test loopt…' : '▶️ Test patch'}</button>
+            <label style={{ fontSize: 12 }} title="Aantal noten in de arpeggio">
+              Noten 
+              <select value={testNotes} onChange={(e) => setTestNotes(Number(e.target.value))}
+                      disabled={testing} style={{ fontSize: 12 }}>
+                {[1,2,3,4,5,6,7,8,9,10,12,14,16].map((n) => <option key={n} value={n}>{n}</option>)}
+              </select>
+            </label>
+            <label style={{ fontSize: 12 }} title="Startnoot (wortel van de arpeggio)">
+              Start 
+              <select value={testOctave} onChange={(e) => setTestOctave(Number(e.target.value))}
+                      disabled={testing} style={{ fontSize: 12 }}>
+                {([0,12,24,36,48,60,72] as const).map((midi) => {
+                  const labels: Record<number,string> = {0:'C-3',12:'C-2',24:'C-1',36:'C0',48:'C2',60:'C3',72:'C4'};
+                  return <option key={midi} value={midi}>{labels[midi] ?? `MIDI ${midi}`}</option>;
+                })}
+              </select>
+            </label>
+            <label style={{ fontSize: 12 }} title="Tempo in BPM">
+              BPM 
+              <select value={testBpm} onChange={(e) => setTestBpm(Number(e.target.value))}
+                      disabled={testing} style={{ fontSize: 12 }}>
+                {[30,60,90,120,150,180,210,240].map((b) => <option key={b} value={b}>{b}</option>)}
+              </select>
+            </label>
             <button
               onClick={() => { void toggleBridge(); }}
               disabled={!isConnected}

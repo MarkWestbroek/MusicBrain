@@ -997,6 +997,48 @@ function mmbMixer8() {
   });
 }
 
+// 7c. MMB MIXER-16 — 24 HP. 16-kanaals stereo mixer (vier kolommen van 4).
+//     Voor 16-stemmige racks. Firmware gebruikt vier AudioMixer4-banken + sub-mix.
+function mmbMixer16() {
+  const w = W(24);
+  const rowY = (i: number) => 28 + i * 22;     // 28, 50, 72, 94
+  const items: ReturnType<typeof knob | typeof inPort | typeof outPort>[] = [];
+  // Vier kolommen van 4 kanalen.
+  const cols = [
+    { inX: w * 0.05, volX: w * 0.12, panX: w * 0.21 },
+    { inX: w * 0.30, volX: w * 0.37, panX: w * 0.46 },
+    { inX: w * 0.55, volX: w * 0.62, panX: w * 0.71 },
+    { inX: w * 0.80, volX: w * 0.87, panX: w * 0.96 },
+  ];
+  for (let n = 1; n <= 16; ++n) {
+    const colIdx = Math.floor((n - 1) / 4);
+    const col = cols[colIdx]!;
+    const y = rowY((n - 1) % 4);
+    items.push(
+      inPort(`in${n}`, `${n}`, 'audio', col.inX, y),
+      knob(`vol${n}`, 'Vol', col.volX, y, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      knob(`pan${n}`, 'Pan', col.panX, y, { size: 'small', min: -1, max: 1, def: 0, color: '#f9fafb' }),
+    );
+  }
+  items.push(
+    outPort('out_l', 'L', 'audio', w * 0.40, 118),
+    outPort('out_r', 'R', 'audio', w * 0.60, 118),
+  );
+  return assemble({
+    typeId: 'tp_mmb_mixer16',
+    categoryId: 'utility',
+    variant: 'Stereo mixer (16-in)',
+    brand: 'MMB', model: 'MIX16',
+    hp: 24, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'MIXER-16', fontSize: 2.2, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB',      fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items,
+    notes: 'Stereo 16-kanaals mixer (vier kolommen van 4). Per kanaal: Vol (0..1) + Pan (-1 links .. +1 rechts, equal-power). De firmware sommeert via vier AudioMixer4-banken in een sub-mix. Sommatie-node voor racks tot 16 stemmen.',
+  });
+}
+
 // 8. MMB SEQ-8 — 8 HP. 8-step sequencer (semitone-knoppen) + run/length/rate.
 //    Outputs: CV (volt-per-octave proxy) + GATE. De engine draait de
 //    interne clock zodra Start ingedrukt is.
@@ -1148,7 +1190,7 @@ function mmbPhaser() {
 
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbVcf(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbSeq8(), mmbNoise(), mmbEcho(), mmbPhaser()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbVcf(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbNoise(), mmbEcho(), mmbPhaser()];
   const newTypes = all.map((x) => x.type);
   const newModules = all.map((x) => x.module);
 
@@ -1451,8 +1493,8 @@ export function seedCvBridgePatch(project: ModularProject): ModularProject {
  * @param voiceCount Aantal stemmen (1, 2, 4 of 8).
  */
 export function seedPolyVoicePatch(project: ModularProject, voiceCount: number): ModularProject {
-  const N = Math.max(1, Math.min(8, Math.round(voiceCount)));
-  const mixerTypeId = N > 4 ? 'tp_mmb_mixer8' : 'tp_mmb_mixer';
+  const N = Math.max(1, Math.min(16, Math.round(voiceCount)));
+  const mixerTypeId = N > 8 ? 'tp_mmb_mixer16' : N > 4 ? 'tp_mmb_mixer8' : 'tp_mmb_mixer';
   const needed = ['tp_mmb_vco','tp_mmb_vcf','tp_mmb_vca','tp_mmb_out',
                   'tp_mmb_ahdsr','tp_mmb_midiin','tp_mmb_cvmath', mixerTypeId];
   const missing = needed.some((tid) => !project.moduleTypes.some((t) => t.id === tid));
@@ -1482,19 +1524,31 @@ export function seedPolyVoicePatch(project: ModularProject, voiceCount: number):
   }));
   const master = voices[0]!;
 
-  // Layout: MidiIn vooraan, dan elke stem-keten, mixer, OUT — links→rechts.
-  let offset = 0;
-  const place = (m: ModuleInstance): RackSlot => {
-    const s: RackSlot = { id: uid('slot'), moduleId: m.id, row: 0, hpOffset: offset };
-    offset += m.visual.hpWidth;
-    return s;
-  };
-  const slotOrder: ModuleInstance[] = [mi];
-  for (const v of voices) {
-    slotOrder.push(v.vco, v.envFlt, v.vcf, v.envAmp, v.cvmath, v.vca);
+  // Layout: een net grid. Rij 0 = MidiIn + master-keten + mixer + OUT
+  // (links→rechts). Elke follower-stem v komt in rij v, exact onder zijn
+  // master uitgelijnd. Zo blijft rij 0 (de ingeklapte patcher-weergave)
+  // compact en ontstaat er geen gat tussen de laatste VCA en de mixer.
+  const chainOrder: (keyof VoiceChain)[] = ['vco', 'envFlt', 'vcf', 'envAmp', 'cvmath', 'vca'];
+  const colOffset: Record<string, number> = {};
+  let offset = mi.visual.hpWidth;                 // MidiIn staat op kolom 0
+  for (const key of chainOrder) {
+    colOffset[key] = offset;
+    offset += master[key].visual.hpWidth;
   }
-  slotOrder.push(mixer, out);
-  const rackHp = slotOrder.reduce((s, m) => s + m.visual.hpWidth, 0);
+  const mixerOffset = offset; offset += mixer.visual.hpWidth;
+  const outOffset   = offset; offset += out.visual.hpWidth;
+  const rowHp = offset;
+
+  const slots: RackSlot[] = [
+    { id: uid('slot'), moduleId: mi.id, row: 0, hpOffset: 0 },
+  ];
+  voices.forEach((v, vi) => {
+    for (const key of chainOrder) {
+      slots.push({ id: uid('slot'), moduleId: v[key].id, row: vi, hpOffset: colOffset[key]! });
+    }
+  });
+  slots.push({ id: uid('slot'), moduleId: mixer.id, row: 0, hpOffset: mixerOffset });
+  slots.push({ id: uid('slot'), moduleId: out.id,   row: 0, hpOffset: outOffset });
 
   // PolyGroups: één per gevoiceerde moduletype. members[0] = master (stem 1),
   // members[1..] = followers. De flatten gebruikt deze volgorde. Bij N=1 zijn
@@ -1514,9 +1568,9 @@ export function seedPolyVoicePatch(project: ModularProject, voiceCount: number):
 
   const rack: Rack = {
     id: uid('rack'), name: `${N}-stemmig test rack`,
-    description: `MidiIn → [VCO → envFlt → VCF → envAmp → CvMath(vel×env) → VCA] ×${N} (PolyGroups) → ${N > 4 ? 'MIXER-8' : 'MIXER'} → OUT.`,
-    rows: 1, hpPerRow: Math.max(64, rackHp + 4),
-    slots: slotOrder.map(place),
+    description: `MidiIn → [VCO → envFlt → VCF → envAmp → CvMath(vel×env) → VCA] ×${N} (PolyGroups) → ${N > 8 ? 'MIXER-16' : N > 4 ? 'MIXER-8' : 'MIXER'} → OUT. Rij 0 = master + mixer/out, followers in rij 1..${N - 1}.`,
+    rows: Math.max(1, N), hpPerRow: Math.max(64, rowHp + 4),
+    slots,
     kind: 'physical',
     polyGroups,
   };
@@ -1552,7 +1606,7 @@ export function seedPolyVoicePatch(project: ModularProject, voiceCount: number):
   ];
 
   // Mixer-controlstate: kanaal 1..N op vol 0.8 (pan 0), overige kanalen dicht.
-  const mixerChannels = N > 4 ? 8 : 4;
+  const mixerChannels = N > 8 ? 16 : N > 4 ? 8 : 4;
   const mixerState: Record<string, ControlValue> = {};
   for (let ch = 1; ch <= mixerChannels; ++ch) {
     mixerState[`vol${ch}`] = ch <= N ? 0.8 : 0;

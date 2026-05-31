@@ -118,6 +118,11 @@ function ModuleNode({ data, selected }: NodeProps): JSX.Element {
         if (!pl) return null;
         const left = pl.x * PX_PER_MM;
         const top  = pl.y * PX_PER_MM;
+        // Poly-poort: zit op een poly-master (ingeklapte groep) → de kabel
+        // draagt N stemmen. Toon vierkant met groep-gekleurde dubbele ring;
+        // single-poorten blijven een ronde stip (backlog B5 / ED-PT-1).
+        const isPoly = !!voice && !ghost;
+        const polyColor = voice?.group.color || '#22d3ee';
         return (
           <Handle
             key={p.id}
@@ -125,15 +130,20 @@ function ModuleNode({ data, selected }: NodeProps): JSX.Element {
             type={p.direction === 'in' ? 'target' : 'source'}
             position={p.direction === 'in' ? Position.Left : Position.Right}
             isConnectable={!ghost}
+            title={isPoly
+              ? `${p.id} · poly-poort (×${voice!.group.voiceCount})`
+              : `${p.id} · single-poort`}
             style={{
               left, top,
               transform: 'translate(-50%, -50%)',
-              width: 12, height: 12,
+              width: isPoly ? 14 : 12, height: isPoly ? 14 : 12,
               background: SIGNAL_COLOUR[p.signalType],
               border: '1.5px solid rgba(0,0,0,0.55)',
-              borderRadius: ghost ? 2 : '50%',
+              borderRadius: ghost ? 2 : (isPoly ? 3 : '50%'),
               opacity: ghost ? 0.55 : 0.95,
-              boxShadow: '0 0 0 1px rgba(255,255,255,0.35) inset',
+              boxShadow: isPoly
+                ? `0 0 0 1px rgba(255,255,255,0.35) inset, 0 0 0 2px ${polyColor}, 0 0 6px ${polyColor}aa`
+                : '0 0 0 1px rgba(255,255,255,0.35) inset',
               pointerEvents: ghost ? 'none' : 'all',
             }}
           />

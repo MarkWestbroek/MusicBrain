@@ -47,8 +47,15 @@ als dunne wrapper bestaan.
 4-in als 8-in mixer gaven `null`, waardoor VCA→mixer→OUT stil bleef in de
 Simulatie-tab). Toegevoegd: een `mixer`-node (per kanaal Gain→Panner→stereo-out)
 voor `tp_mmb_mixer` en `tp_mmb_mixer8`, met port-bewuste `audioInputOf(node, portId)`
-(`inN` → kanaal N) en out_r-dedup. Hierdoor zijn de poly-seeds nu ook in de
-editor hoorbaar, niet alleen op de Teensy.
+(`inN` → kanaal N) en out_r-dedup. **Plus** een `cvmath`-node: de seed routeert de
+amp-envelope via `envAmp → CvMath(×velocity) → VCA.cv`, en de VCA staat default op
+gain 0 — zonder CvMath-simulatie kreeg de VCA dus nooit CV en bleef de patch
+volledig stil. Mult-mode = `Tone.Multiply` (env op de ingang, velocity op `factor`
+via de MIDI-dispatcher); som-mode = gewogen `Tone.Gain`-sommatie. Hierdoor zijn de
+poly-seeds nu ook in de editor hoorbaar, niet alleen op de Teensy. NB: de sim
+bouwt uit de **master-only** kabels, dus alleen de master-stem klinkt; echte
+N-stemmige polyfonie wordt pas op de Teensy gerealiseerd na een config-push
+(die de geëxpandeerde per-stem-kabels krijgt).
 
 **Validatie.** Core tests 88/0. Firmware build `[SUCCESS]` (FLASH 144 512 B).
 Editor `tsc --noEmit` schoon.

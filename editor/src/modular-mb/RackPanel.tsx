@@ -7,6 +7,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { updateProject, useModularProject, uid } from './store';
 import { ModulePanel } from './ModulePanel';
+import { compactRack as compactRackLayout } from './rackLayout';
 import { useEngineStatus } from './sim/engineSingleton';
 import {
   type Rack, type RackSlot, type ModuleInstance, type ModuleType,
@@ -98,6 +99,19 @@ export function RackPanel(): JSX.Element {
     }));
   }
 
+  /** Schuif alle modules in het actieve rack compact aan: masters (+ niet-poly
+   *  modules) op rij 0, followers per stem in een lagere rij (vult het gat dat
+   *  ontstaat door PolyGroup-inklapping). Zie {@link compactRack}. */
+  function compactRack(): void {
+    updateProject((p) => {
+      const rackId = p.activeRackId ?? p.racks[0]?.id;
+      const r = p.racks.find((x) => x.id === rackId);
+      if (!r) return p;
+      const compacted = compactRackLayout(r, p.modules);
+      return { ...p, racks: p.racks.map((x) => x.id !== r.id ? x : compacted) };
+    });
+  }
+
   if (!rack) {
     return (
       <div>
@@ -120,6 +134,7 @@ export function RackPanel(): JSX.Element {
         <button onClick={addRack} style={{ fontSize: 12 }}>+ Rack</button>
         <button onClick={addInternalRack} style={{ fontSize: 12 }} title="Maak/activeer het MMB Brain (intern) rack">+ Intern</button>
         <button onClick={() => removeRack(rack.id)} style={{ fontSize: 12 }}>− Rack</button>
+        <button onClick={compactRack} style={{ fontSize: 12 }} title="Schuif modules per rij naar links aan (vult gaten na PolyGroup-inklapping)">Compact</button>
         <span style={{ flex: 1 }} />
         <span style={{
           fontSize: 11, padding: '2px 6px', borderRadius: 10,
@@ -226,6 +241,18 @@ function RackGrid({ rack, modules, types, activeRow, onSelectRow,
   const rowWidthMm = rack.hpPerRow * MM_PER_HP;
   const engineStatus = useEngineStatus();
   const voiceMap = buildVoiceMap(rack);
+
+  // Ingeklapte poly-groepen (backlog B4 / ED-RK-2): de master toont één blok
+  // met "×N", de followers (voiceIndex ≥ 1) worden niet getekend. Per-rack
+  // weergavestaat; raakt het project-model niet.
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  function toggleCollapse(groupId: string): void {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId); else next.add(groupId);
+      return next;
+    });
+  }
 
   // After an arrow-move the slot's DOM node is unmounted+remounted under a
   // different row container, so the browser drops focus. We schedule a
@@ -661,6 +688,58 @@ function RackGrid({ rack, modules, types, activeRow, onSelectRow,
     }));
   }
 
+  /** Maak N stemmen uit één module: dupliceer de module (N-1)× in lagere rijen
+   *  (exact onder de master uitgelijnd) en bundel master + followers tot één
+   *  PolyGroup. Snelle weg om een poly-stack te seeden vanuit één module
+   *  (backlog B3 / ED-RK-1) zonder de modules eerst handmatig te dupliceren. */
+  function makePolyGroupOfN(slotId: string): void {
+    const slot = rack.slots.find((s) => s.id === slotId);
+    if (!slot) return;
+    const src = modules.find((m) => m.id === slot.moduleId);
+    if (!src) return;
+    const taken = new Set<string>();
+    for (const g of rack.polyGroups ?? []) {
+      for (const m of g.members) if (m.kind === 'module') taken.add(m.moduleId);
+    }
+    if (taken.has(src.id)) { alert('Deze module zit al in een voice-group.'); return; }
+
+    const raw = window.prompt('Aantal stemmen voor deze poly-voicegroup (2–16):', '4');
+    if (raw === null) return;
+    const N = Math.max(2, Math.min(16, Math.round(Number(raw))));
+    if (!Number.isFinite(N) || N < 2) { alert('Ongeldig aantal stemmen.'); return; }
+
+    // Master blijft op zijn plek; followers komen er recht onder (zelfde HP).
+    const newMods: ModuleInstance[] = [];
+    const newSlots: RackSlot[] = [];
+    for (let i = 1; i < N; ++i) {
+      const m: ModuleInstance = { ...src, id: uid('mod'), name: `${src.name} v${i + 1}` };
+      newMods.push(m);
+      newSlots.push({ id: uid('slot'), moduleId: m.id, row: slot.row + i, hpOffset: slot.hpOffset });
+    }
+    const color = POLY_COLORS[(rack.polyGroups ?? []).length % POLY_COLORS.length];
+    const newGroup: PolyGroup = {
+      id: uid('pg'),
+      label: src.name || `Group ${(rack.polyGroups ?? []).length + 1}`,
+      voiceCount: N,
+      members: [
+        { kind: 'module', moduleId: src.id },
+        ...newMods.map((m) => ({ kind: 'module', moduleId: m.id }) as PolyGroupMember),
+      ],
+      color,
+    };
+    const neededRows = Math.max(rack.rows, slot.row + N);
+    updateProject((p) => ({
+      ...p,
+      modules: [...p.modules, ...newMods],
+      racks: p.racks.map((r) => r.id !== rack.id ? r : ({
+        ...r,
+        rows: neededRows,
+        slots: [...r.slots, ...newSlots],
+        polyGroups: [...(r.polyGroups ?? []), newGroup],
+      })),
+    }));
+  }
+
   function onSlotKeyDown(e: React.KeyboardEvent<HTMLDivElement>, slotId: string): void {
     const big = e.shiftKey ? 4 : 1;
     let handled = true;
@@ -721,6 +800,11 @@ function RackGrid({ rack, modules, types, activeRow, onSelectRow,
       {Array.from({ length: rack.rows }).map((_, rowIdx) => {
         const slotsInRow = rack.slots
           .filter((s) => s.row === rowIdx)
+          .filter((s) => {
+            // Verberg followers van een ingeklapte poly-groep (B4).
+            const v = voiceMap.get(s.moduleId);
+            return !(v && v.voiceIndex >= 1 && collapsedGroups.has(v.group.id));
+          })
           .sort((a, b) => a.hpOffset - b.hpOffset);
         const isActive = rowIdx === activeRow;
         return (
@@ -787,6 +871,7 @@ function RackGrid({ rack, modules, types, activeRow, onSelectRow,
               const isInternal = types.find((x) => x.id === m.typeId)?.internal ?? false;
               const voice = voiceMap.get(m.id);
               const isGroupActive = !!(openGroupId && voice && voice.group.id === openGroupId);
+              const isCollapsedMaster = !!(voice && voice.voiceIndex === 0 && collapsedGroups.has(voice.group.id));
               return (
                 <div key={slot.id}
                   tabIndex={0}
@@ -825,6 +910,29 @@ function RackGrid({ rack, modules, types, activeRow, onSelectRow,
                     setMenu({ x: e.clientX, y: e.clientY, slotId: slot.id });
                   }}
                 >
+                  {/* Poly-groep badge: klik om in/uit te klappen (B4). Op een
+                      ingeklapte master toont hij "×N", anders alleen wanneer
+                      de groep al ingeklapt elders is — hier altijd op master. */}
+                  {voice && voice.voiceIndex === 0 && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); toggleCollapse(voice.group.id); }}
+                      title={isCollapsedMaster
+                        ? `Poly-groep "${voice.group.label}" — klik om uit te klappen (×${voice.group.voiceCount})`
+                        : `Poly-groep "${voice.group.label}" — klik om in te klappen`}
+                      style={{
+                        position: 'absolute', top: 2, left: 2, zIndex: 6,
+                        fontSize: 10, fontWeight: 700, lineHeight: 1,
+                        color: '#0f172a', cursor: 'pointer',
+                        background: voice.group.color || '#22d3ee',
+                        border: 'none', borderRadius: 3, padding: '2px 5px',
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.45)',
+                      }}
+                    >
+                      {isCollapsedMaster
+                        ? `${voice.group.label} ×${voice.group.voiceCount}`
+                        : '⊟'}
+                    </button>
+                  )}
                   {/* Drag-handle bar — versleep naar andere HP/rij */}
                   <div
                     draggable
@@ -951,8 +1059,14 @@ function RackGrid({ rack, modules, types, activeRow, onSelectRow,
                   <li><button style={ctxItem} onClick={() => { moveSlot(menu.slotId,  1);   close(); }}>▶ 1 HP naar rechts</button></li>
                   <li style={ctxSep} />
                   {sharedGroupId
-                    ? <li><button style={ctxItem} onClick={() => { openGroup(sharedGroupId!); close(); }}>⛓ Toon voice-group eigenschappen</button></li>
-                    : <li><button style={ctxItem} onClick={() => { makeVoiceGroupFromSameType(menu.slotId); close(); }}>⛓ Voice-group van alle modules met dit type</button></li>}
+                    ? <>
+                        <li><button style={ctxItem} onClick={() => { openGroup(sharedGroupId!); close(); }}>⛓ Toon voice-group eigenschappen</button></li>
+                        <li><button style={ctxItem} onClick={() => { toggleCollapse(sharedGroupId!); close(); }}>{collapsedGroups.has(sharedGroupId!) ? '⊞ Klap poly-groep uit' : '⊟ Klap poly-groep in'}</button></li>
+                      </>
+                    : <>
+                        <li><button style={ctxItem} onClick={() => { makePolyGroupOfN(menu.slotId); close(); }}>✥ Maak poly-voicegroup ×N…</button></li>
+                        <li><button style={ctxItem} onClick={() => { makeVoiceGroupFromSameType(menu.slotId); close(); }}>⛓ Voice-group van alle modules met dit type</button></li>
+                      </>}
                   <li style={ctxSep} />
                   <li><button style={{ ...ctxItem, color: '#fca5a5' }} onClick={() => { removeSlot(menu.slotId); close(); }}>× Verwijder uit rack</button></li>
                 </>

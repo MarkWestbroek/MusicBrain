@@ -128,11 +128,25 @@ interface MixerNode extends BaseNode {
   /** Gesommeerde stereo-uitgang (out_l/out_r). */
   out: Tone.Gain;
 }
+interface CvMathNode extends BaseNode {
+  kind: 'cvmath';
+  /** 0 = som (a·gA + b·gB + c·gC + offset), 1 = mult (a·b). */
+  mode: number;
+  gainA: number; gainB: number; gainC: number; offset: number;
+  /** Connectbare CV-uitgang (de Multiply- of som-Gain-node). */
+  out: Tone.ToneAudioNode;
+  /** Aanwezig in mult-mode; null in som-mode. `factor` draagt de velocity/B-modulatie. */
+  mult: Tone.Multiply | null;
+  /** Hulp-Gain-nodes (per-input schaling in som-mode) — voor dispose. */
+  extra: Tone.ToneAudioNode[];
+}
 interface MidiInNode extends BaseNode {
   kind: 'midiin';
   pitchTargets: string[];
   /** Envelope module-ids waarvan de gate-input aan onze gate-out hangt. */
   gateTargets: string[];
+  /** CvMath module-ids waarvan een input (vel) aan onze vel-out hangt. */
+  velTargets: string[];
   /** Sequencer module-ids waarvan voct_in aan onze pitch-out hangt. */
   seqVoctTargets: string[];
   /** Sequencer module-ids waarvan run_in aan onze gate-out hangt. */
@@ -182,7 +196,7 @@ interface SeqNode extends BaseNode {
   /** True if a MIDI-IN drives our run_in. */
   midiDrivenRun: boolean;
 }
-type EngineNode = VcoNode | VcfNode | VcaNode | EnvNode | LfoNode | OutNode | MidiInNode | SeqNode | NoiseNode | EchoNode | PhaserNode | MixerNode;
+type EngineNode = VcoNode | VcfNode | VcaNode | EnvNode | LfoNode | OutNode | MidiInNode | SeqNode | NoiseNode | EchoNode | PhaserNode | MixerNode | CvMathNode;
 
 export class AudioEngine {
   private master: Tone.Gain | null = null;
@@ -319,7 +333,7 @@ export class AudioEngine {
     if (this.rafId !== null) { cancelAnimationFrame(this.rafId); this.rafId = null; }
   }
 
-  noteOn(midi: number, _velocity = 0.9): void {
+  noteOn(midi: number, velocity = 0.9): void {
     this.currentKeyboardNote = midi;
     const freq = midiToHz(midi);
 
@@ -344,7 +358,11 @@ export class AudioEngine {
           const n = this.nodes.get(tgt);
           if (n?.kind === 'envelope') n.env.triggerAttack();
         }
-        // Forward to sequencers wired to our voct_out / gate_out.
+        // Velocity → CvMath-factor (mult-mode): bepaalt de VCA-amplitude per noot.
+        for (const tgt of mi.velTargets) {
+          const cm = this.nodes.get(tgt);
+          if (cm?.kind === 'cvmath' && cm.mult) cm.mult.factor.rampTo(clamp(velocity, 0, 1), 0.005);
+        }
         for (const tgt of mi.seqVoctTargets) {
           const seq = this.nodes.get(tgt);
           if (seq?.kind !== 'sequencer') continue;
@@ -612,6 +630,7 @@ export class AudioEngine {
         case 'echo': node.delay.dispose(); node.wetGain.dispose(); node.dryGain.dispose(); node.input.dispose(); node.output.dispose(); break;
         case 'phaser': node.phaser.dispose(); node.wetGain.dispose(); node.dryGain.dispose(); node.input.dispose(); node.output.dispose(); break;
         case 'mixer': node.inputs.forEach((g) => g.dispose()); node.panners.forEach((p) => p.dispose()); node.out.dispose(); break;
+        case 'cvmath': node.out.dispose(); node.extra.forEach((g) => g.dispose()); break;
         case 'sequencer': /* no Tone nodes */
           if (node.voctMeter) { try { node.voctMeter.dispose(); } catch { /* ignore */ } }
           if (node.runMeter)  { try { node.runMeter.dispose();  } catch { /* ignore */ } }
@@ -673,8 +692,22 @@ export class AudioEngine {
       input.connect(ph); ph.connect(wetG); wetG.connect(output);
       return { ...base, kind: 'phaser', phaser: ph, wetGain: wetG, dryGain: dryG, input, output };
     }
-    if (t.id === 'tp_mmb_mixer' || t.id === 'tp_mmb_mixer8') {
-      const channels = t.id === 'tp_mmb_mixer8' ? 8 : 4;
+    if (t.id === 'tp_mmb_cvmath') {
+      // CV-combinator. Mult-mode (a·b) drijft de seed: envAmp · velocity → VCA.cv.
+      const mode   = Math.round(readKnob(controls, 'mode', 0));
+      const gainA  = readKnob(controls, 'gain_a', 1);
+      const gainB  = readKnob(controls, 'gain_b', 1);
+      const gainC  = readKnob(controls, 'gain_c', 1);
+      const offset = readKnob(controls, 'offset', 0);
+      if (mode === 1) {
+        const mult = new Tone.Multiply(1);
+        return { ...base, kind: 'cvmath', mode, gainA, gainB, gainC, offset, out: mult, mult, extra: [] };
+      }
+      const sum = new Tone.Gain(1);
+      return { ...base, kind: 'cvmath', mode, gainA, gainB, gainC, offset, out: sum, mult: null, extra: [] };
+    }
+    if (t.id === 'tp_mmb_mixer' || t.id === 'tp_mmb_mixer8' || t.id === 'tp_mmb_mixer16') {
+      const channels = t.id === 'tp_mmb_mixer16' ? 16 : t.id === 'tp_mmb_mixer8' ? 8 : 4;
       const out = new Tone.Gain(1);
       const inputs: Tone.Gain[] = [];
       const panners: Tone.Panner[] = [];
@@ -730,7 +763,7 @@ export class AudioEngine {
         if (t.id === 'tp_mmb_midiin') {
           return {
             ...base, kind: 'midiin',
-            pitchTargets: [], gateTargets: [],
+            pitchTargets: [], gateTargets: [], velTargets: [],
             seqVoctTargets: [], seqRunTargets: [],
             currentMidi: null,
           };
@@ -806,6 +839,24 @@ export class AudioEngine {
 
     // ── cv → AudioParam (VCF cutoff, VCA gain) ──
     if (srcSig === 'cv') {
+      // CV → CvMath-input (a/b/c). De CvMath-uitgang voedt daarna VCA/VCF.cv.
+      if (dst.kind === 'cvmath') {
+        const port = conn.to.portId; // 'a' | 'b' | 'c'
+        // Velocity uit MIDI-In is geen continu signaal → de dispatcher zet de factor.
+        if (src.kind === 'midiin') { src.velTargets.push(dst.moduleId); return; }
+        const out = cvOutputOf(src);
+        if (!out) return;
+        if (dst.mode === 1 && dst.mult) {
+          // mult: 'a' → hoofdingang, 'b' → factor (signaal-gestuurde modulatie).
+          if (port === 'b') out.connect(dst.mult.factor); else out.connect(dst.mult);
+        } else {
+          const g = port === 'b' ? dst.gainB : port === 'c' ? dst.gainC : dst.gainA;
+          const scaler = new Tone.Gain(g);
+          out.connect(scaler); scaler.connect(dst.out);
+          dst.extra.push(scaler);
+        }
+        return;
+      }
       if (dst.kind === 'vca' && conn.to.portId === 'cv') {
         // Envelope/LFO outputs are 0..1 → add to the gain knob's base value.
         const out = cvOutputOf(src);
@@ -1072,6 +1123,7 @@ function cvOutputOf(n: EngineNode): Tone.ToneAudioNode | null {
   switch (n.kind) {
     case 'envelope': return n.env;
     case 'lfo':      return n.lfo;
+    case 'cvmath':   return n.out;
     default: return null;
   }
 }
