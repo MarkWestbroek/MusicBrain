@@ -62,6 +62,10 @@ classDiagram
     class CvOut12
     class CvOut16
     class GateOut
+    class CvBreakIn {
+        SPI dCV-in -> readCvPort
+        +onFrame(data, len)
+    }
 
     class AudioModule {
         <<abstract>>
@@ -95,6 +99,7 @@ classDiagram
     CvModule <|-- Lfo
     CvModule <|-- MidiInModule
     CvModule <|-- CvBreakout
+    CvModule <|-- CvBreakIn
     Envelope <|-- Ahdsr
     CvBreakout <|-- CvOut12
     CvBreakout <|-- CvOut16
@@ -259,3 +264,20 @@ flowchart LR
 Omdat de routing al volledig via `readCvPort` / `writeCvPort` loopt en niet via
 directe pointers tussen CV- en audio-objecten, verandert er voor de modules zelf
 niets — alleen het transport (in-proces vs. SPI) wisselt.
+
+### Status (fw 0.5.5)
+
+| Onderdeel | Status |
+|-----------|--------|
+| `SpiFrame` encode/decode + CRC (`mb::proto`) | ✅ gebouwd, host-getest |
+| `CvBreakout` → `BreakoutSink` (encode/TX-kant) | ✅ gebouwd, host-getest |
+| `CvBreakIn::onFrame()` (decode/RX-kant) | ✅ gebouwd, host-getest (fw 0.5.5) |
+| Poly: `voiceCount` volgt patch | ✅ `onSelectPatch` → runtime `MidiInModule` |
+| Teensy SPI-master `SpiBreakoutSink` (echte TX) | ⬜ hardware-gebonden |
+| Teensy SPI-slave RX die `onFrame()` voedt | ⬜ hardware-gebonden |
+| Config-schakelaar: CV → bus i.p.v. lokale audio | ⬜ volgende stap |
+
+`CvBreakIn` is bewust transport-agnostisch: de host-test voedt frames via
+`onFrame()` (round-trip met `CvOut12`), zodat de decode-laag volledig zonder
+hardware te valideren is. Alleen de DMA-driver en het bus-bedradingsschema
+blijven hardware-werk.

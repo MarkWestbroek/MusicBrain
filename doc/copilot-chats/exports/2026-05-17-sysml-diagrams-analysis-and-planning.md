@@ -2,7 +2,7 @@
 
 - **Datum**: 2026-05-17 14:32
 - **Sessie-ID**: `4db45503-0a7f-471a-850c-117803aee9d5`
-- **Berichten**: 378
+- **Berichten**: 384
 
 ---
 
@@ -15821,5 +15821,243 @@ Goede vraag — dit raakt de kern van de architectuur. Laat me eerst de echte kl
 *Read CvGraph.h · Read AudioGraph.h · Read Module.h*
 
 
+
+---
+
+## 🧑 User
+
+- diagram 2 geeft een fout
+- in de midiinmodule staat voicegat/voicepitch/voicevelocity -> dat is een raar formaat met slashes in uml
+- de ahdsr heet "ahdsrAudioModule" maar genereert alleen CV
+
+---
+
+## 🤖 Assistant
+
+Laat me eerst even checken wat `AhdsrAudioModule` werkelijk erft en doet. 
+
+*Searched for text `class AhdsrAudioModule` (`**/firmware/app-modular-brain/src/AhdsrAudioModule.h`), 1 result · Read AhdsrAudioModule.h, lines 1 to 80*
+
+Duidelijk: `AhdsrAudioModule` erft van `AudioPortModule` (vanwege de registry/port-infrastructuur) maar **produceert alleen CV** — de naam is misleidend. Ik pas alle drie problemen tegelijk aan. 
+
+*Read 07-modular-brain-runtime.md, lines 30 to 130*
+
+
+
+---
+
+## 🧑 User
+
+Zou je de core/src/runtime map ook een UML diagram willen toevoegen? En de relatie tussen de Module, CvModule, AhdsrAudioModule en Ahdsr en envelope willen laten zien?
+
+Ik vermoed dat er hier misschien iets dubbel gemaakt is: een Ahdsr en een AhdsrAudioModule. Als we de Envelope en filter helemaal via de dCV-datastroom (digitale versie van CV-stroomdraden) laten lopen, lijkt mij de AhdsrAudioModule dubbelop. Klopt dat?
+
+Of wil je eerst die refactor slag maken, en dan kijken wat er nog over is / of er in de AhdsrAudioModule nog steeds functies zitten die niet in de Ahdsr zitten?
+
+Probeer het simpel en overzichtelijk te houden. Zie UML diagram hier (img).
+- een interne module wordt geinstantieerd in code op de brain (de teensy)
+- een externe module niet, er wordt alleen naar gerefereerd, omdat ie in de totale patch-stroom zit, via de breakouts. De teensy hoeft ze eigenlijk niet te kennen, behalve voor een compacte weergave (view) van de patch (het model).
+
+- een (interne) CvModule maakt alleen CV (dCV), geen audio
+- een (interne) AudioModule maakt alleen (digitale) audio, geen dCV
+- beide worden uiteraard wel gestuurd via dCV.
+- een AudioModule kan ook een audio-in poort bezitten
+
+- gemixte interne modules, die zowel audio als cv produceren kan ik nog niet bedenken. Jij?
+
+## review code
+Stel je voor dat je een zeer senior C++ programmeur bent, en dol op puur OO ontwerp. Review de code en maak deze zo robuust als je kunt. Zorg dat het klaar is om met vertrouwen uit te bouwen naar een flexibel model, dat reageert op een patch die monofoon, duofoon of polyfoon kan zijn, zodat we kunnen testen tot hoeveel stemmen de teensy aan kan zonder vol te raken of te crashen.
+
+## doel
+Doel is de combinatie met echte analoge en externe hardware via een dCV-bus.
+De audio modules die we nu hebben zijn om sneller te kunnen testen of de datastroom goed werkt.
+Het kan zijn dat de teensy nu te snel vol loopt / het werk niet aankan dan uiteindelijk, wanneer het geen audio-modules hoeft te laten draaien.
+Als dat zo is, kunnen we ook uitbreiden, door een andere teensy de audio te laten doen en deze alleen de dCV-stroom. Dan kunnen we ook de SPI-bus testen, met in elk geval 1 slave (de audio-teensy).
+Maak daarom de code zo duidelijk dat zo een split goed mogelijk is. In dat geval moet namelijk:
+- de CV-teensy i.p.v. naar audio modules, signalen naar de dCV bus (SPI out) sturen, ter attentie van deze audio modules (extern)
+- de audio-teensy via een SPI dCV-bus ingang deze signalen ontvangen voor de audiomodules (en de audioconnecties leggen)
+- we kunnen de breakouts nog uit beeld houden in dit scenario, maar ze er ook al tussen modelleren. Het zijn eigenlijk de dCV ontvangers en D/A converters aan de eurorack kant, maar dat emuleren we vooralsnog nog met een audio-teensy.
+
+---
+
+## 🤖 Assistant
+
+Dit is een flinke, deels conceptuele vraag. Laat me eerst de echte structuur van de runtime-laag in kaart brengen voordat ik conclusies trek over de mogelijke dubbeling. Ik verken de `core/.../runtime`-map en de app-laag.   
+
+*Read runtime · Read runtime · Read src*
+
+Laat me de kern-hiërarchie lezen: `AudioModule`, `Envelope`, `ExternalModule`, `AudioPortModule`, en de VCF/VCA om de dCV-brug te begrijpen.       
+
+*Read AudioModule.h · Read Envelope.h · Read AudioPortModule.h · Read AhdsrAudioModule.h, lines 80 to 143*
+
+
+
+*Read AudioModule.h · Read Envelope.h · Read AudioPortModule.h · Read AhdsrAudioModule.h, lines 80 to 143*
+
+Nu heb ik de bevestiging die ik zocht. Laat me nog kijken hoe `tick()` gedispatcht wordt in `main.cpp`, hoe registratie loopt, en hoe de VCF de dCV-brug aan de audio-kant gebruikt.         
+
+*Read RegisterAllModules.h, lines 1 to 60 · Searched for regex `tickCv|CvModule|dynamic_cast|->tick\(\)|tickCvModules|for .*instances` (`**/firmware/app-modular-brain/src/main.cpp`), 7 results · Read main.cpp, lines 110 to 135*
+
+Beeld is compleet. De `tick()`-dispatch gebeurt via een `typeId`-stringvergelijking + `static_cast` — een type-switch die precies het soort fragiliteit is dat een OO-refactor moet wegnemen. Laat me alle verwijzingen naar `AhdsrAudioModule` in kaart brengen voor ik iets verwijder.     
+
+*Searched for regex `AhdsrAudioModule` (`**/firmware/app-modular-brain/**`), 20 results*
+
+
+
+*Searched for regex `AhdsrAudioModule` (`**/firmware/app-modular-brain/**`), 20 results*
+
+Laat me de CV-bridge (regel 131-260) lezen om te zien hoe gates naar de envelope worden gestuurd, plus de rest van RegisterAllModules. 
+
+*Read main.cpp, lines 130 to 260*
+
+Ik heb nu het volledige beeld. Laat me `Module.h` lezen om de polymorfe dispatch netjes toe te voegen (zelfde patroon als `supportsAudioPorts()`). 
+
+*Read Module.h*
+
+Ik heb nu alles wat ik nodig heb. De diagnose is helder, en de refactor is goed afgebakend. Laat me een plan opzetten en `FwVersion.h` checken.  
+
+*Read FwVersion.h · Created 6 todos*
+
+Eerst de diagnose bevestigen en de refactor uitvoeren. Ik begin met de polymorfe tick-dispatch in de core. 
+
+*Starting: *Polymorfe CV-tick dispatch (asCvModule)* (1/6)*
+
+
+
+*Starting: *Polymorfe CV-tick dispatch (asCvModule)* (1/6)*
+
+
+Nu de dispatch in `main.cpp` vereenvoudigen en de include verwijderen. Laat me de header van `main.cpp` lezen.     
+
+*Read main.cpp, lines 1 to 40*
+
+
+Todo 1 klaar. Nu Ahdsr direct registreren in `RegisterAllModules.h`. Laat me de rest van dat bestand lezen. 
+
+*Read RegisterAllModules.h, lines 36 to 68*
+
+
+Nu de verouderde doc-comment over registratievolgorde in dezelfde header bijwerken, en daarna `AhdsrAudioModule.h` verwijderen. 
+
+
+*Deleted memory memories*
+
+Het verwijderen moet via de terminal (memory-tool werkt alleen in /memories/).   Todo 2 & 3 grotendeels klaar. Laat me controleren of er nog code-referenties (buiten README) zijn naar AhdsrAudioModule.  
+
+*Searched for regex `AhdsrAudioModule` (`**/firmware/**/*.{h,cpp}`), 6 results*
+
+De index is nog niet ververst (het bestand is weg). De enige echte resterende verwijzing is een comment in `VcaModule.h`. Laat me die corrigeren.     
+
+*Read VcaModule.h, lines 1 to 20*
+
+
+
+*Read VcaModule.h, lines 1 to 20*
+
+
+Todo 1-3 klaar. Laat me nu bouwen en testen voordat ik verder ga. Eerst de core tests.     
+
+*Starting: *Build + core tests + versie bump* (6/6)*
+
+
+
+*Starting: *Build + core tests + versie bump* (6/6)*
+
+Core: 82/0. Nu de firmware build (Teensy).    Firmware bouwt schoon (`[SUCCESS]`; exit 1 is de bekende teensy_size-stderr quirk). FLASH iets kleiner. Versie bumpen naar 0.5.4.  
+
+
+*Starting: *UML diagram core runtime toevoegen* (4/6)*
+
+
+
+*Starting: *Build + core tests + versie bump* (6/6)*
+
+Core: 82/0. Nu de firmware build (Teensy).    Firmware bouwt schoon (`[SUCCESS]`; exit 1 is de bekende teensy_size-stderr quirk). FLASH iets kleiner. Versie bumpen naar 0.5.4.  
+
+
+*Starting: *UML diagram core runtime toevoegen* (4/6)*
+
+Nu het UML-diagram. Laat me de bestaande UML-index en doc 07 bekijken voor stijl/consistentie.     
+
+*Read README.md*
+
+Laat me de basis-klassen van de overige modules verifiëren zodat het diagram klopt.     
+
+*Searched for regex `class (VcoModule|VcfModule|VcaModule|MixerModule|OutModule|MidiInModule|Lfo|CvMath|CvBreakout|CvOut12|CvOut16|GateOut|ExternalModule)\b.*public` (`**/firmware/**/*.h`), 13 results*
+
+Nu heb ik de exacte hiërarchie. Ik maak een nieuw, gericht UML-document.     
+
+*Created 08-core-runtime-hierarchy.md*
+
+Nu de index en de app-README bijwerken.    
+Nu de app-README bijwerken (module-tabel + DEVLOG). Laat me de relevante secties lezen.     
+
+*Read README.md, lines 214 to 235*
+
+
+Laat me de bewerkte README-sectie verifiëren (een replacement had een rare extra key).   
+
+*Read README.md, lines 222 to 235*
+
+
+
+*Read README.md, lines 222 to 235*
+
+Laat me de overige README-verwijzingen (rond regel 303 en 419) checken en bijwerken.     
+
+*Searched for regex `AhdsrAudioModule` (`**/firmware/app-modular-brain/README.md`), 3 results · Read README.md, lines 298 to 307 · Read README.md, lines 413 to 423*
+
+
+Laat me kijken of er een DEVLOG/changelog-sectie is om een entry voor 0.5.4 toe te voegen.     
+
+*Searched for regex `DEVLOG|0\.5\.3|0\.5\.2|## Changelog|Version history|fw 0\.5` (`**/firmware/app-modular-brain/README.md`), 10 results · Read README.md, lines 26 to 30*
+
+
+Alles is gevalideerd (de firmware-build vond ná de verwijdering plaats en gaf `[SUCCESS]`). Laat me de todo's afronden en een repo-memory-notitie toevoegen. Alles is gevalideerd (de firmware-build vond ná de verwijdering plaats en gaf `[SUCCESS]`). Laat me de todo's afronden en een repo-memory-notitie toevoegen.  
+
+*Completed: *UML diagram core runtime toevoegen* (4/6) · Read memory teensy-firmware.md*
+
+
+
+*Completed: *UML diagram core runtime toevoegen* (4/6) · Read memory teensy-firmware.md · Updated memory file teensy-firmware.md*
+
+Klaar. Hier is wat ik heb gevonden en gedaan.
+
+## Je vermoeden klopt — `AhdsrAudioModule` was dubbelop ✅
+
+`AhdsrAudioModule` was een `AudioPortModule`-wrapper die via compositie een `mb::runtime::Ahdsr env_` bezat en *alles* daaraan delegeerde (`setControl`, `setGate`, `tick`, `value`, `readCvPort`, `writeCvPort`, port-kinds). Sinds de audio-DC-proxy weg is, gaf `outputPort()`/`inputPort()` **altijd een ongeldige poort** terug — geen enkele audio-poort meer. De core `Ahdsr` is zélf al een complete `CvModule` (gate-in `gate`/`trig`, CV-out `cv_out`) die volledig via `CvGraph` loopt. De wrapper voegde dus niets toe behalve een factory die de echte overschreef.
+
+## Wat ik heb gerefactord (fw 0.5.4)
+
+- **`AhdsrAudioModule.h` verwijderd**; `tp_mmb_ahdsr` wordt nu direct vanuit `Ahdsr` geregistreerd.
+- **Type-switch weg**: de CV-tick deed `if (tid == AhdsrAudioModule::kTypeId) static_cast<…>` — exact het soort fragiliteit dat OO moet wegnemen. Nu polymorf: `for (mod) if (auto* cv = mod->asCvModule()) cv->tick();`. Nieuwe `CvModule`-types tikken automatisch mee.
+- **`Module::asCvModule()`** toegevoegd (RTTI-vrij, default `nullptr`; `CvModule` → `this`) — zelfde idioom als het bestaande `supportsAudioPorts()`.
+
+Gevalideerd: core tests **82/0**, firmware **`[SUCCESS]`** (FLASH zelfs iets kleiner: 141.504 B). Functioneel identiek, want gate/cv_out liepen al via `CvGraph`.
+
+## UML-diagram — `08-core-runtime-hierarchy.md`
+
+Nieuw, gericht document met (1) de echte C++ hiërarchie `Module → CvModule → Envelope → Ahdsr` plus de audio-tak, (2) jouw whiteboard-model (intern/extern rack, break-in/out, dCV-type & CV-range enums), en (3) de SPI-split. Index in `README.md` bijgewerkt, plus DEVLOG + module-tabel in de app-README.
+
+## Antwoorden op je ontwerpvragen
+
+- **Gemengde interne modules (audio én cv)?** Nee — en bewust niet. Houd generatoren strikt single-domain. Elke domeinovergang is een *expliciete converter*: MIDI-to-CV (al aanwezig als `MidiInModule`), een envelope-follower/pitch-detector (audio-in → CV-out, hoort in CV-domein), en break-in/break-out. Een "gemengde" module zou juist de CV-/audio-Teensy-split breken.
+- **Klaar voor de SPI-split?** Ja — de naad is `CvGraph` + `writeCvPort()`. Omdat routing al volledig via `readCvPort`/`writeCvPort` loopt (geen directe pointers tussen CV- en audio-objecten), verandert er bij een split niets aan de modules zelf; alleen het transport wisselt (in-proces → SPI dCV-frames via `CvOut12/16` → `CvBreakIn`). De breakouts zitten al als klasse in het model, nu nog geëmuleerd door de audio-Teensy.
+
+Volgende logische stap (niet nu gedaan, om het simpel te houden): de echte poly-schaling — `kVoices` laten meebewegen met `patch.voiceCount` en een `CvBreakIn`/SPI-transport implementeren. Wil je dat ik daarmee verderga?
+
+---
+
+## 🧑 User
+
+ja, graag verdergaan met wat je voorstelt: dus poly schalen en SPI bouwen. Kun je nog iets zeggen over of het te doen is om twee teensies tegelijk aan de computer te hebben hangen (en aan de firmware op beide te werken), of dat dat onverstandig of zelfs onmogelijk is?
+
+Wil je wel ook nog even naar 07 modular brain runtime kijken, want daarin staat de nu verdwenen **AhdsrAudioModule** nog (iig) in het diagram.
+
+---
+
+## 🤖 Assistant
+
+Ik fix eerst doc 07, beantwoord dan de twee-Teensy-vraag, en daarna plannen we de poly-schaling + SPI. Eerst de verouderde `AhdsrAudioModule` uit het 07-diagram halen. 
 
 ---

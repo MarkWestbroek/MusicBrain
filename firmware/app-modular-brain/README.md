@@ -25,6 +25,37 @@ To be implemented in roadmap stages 5–7.
 
 ## DEVLOG
 
+### 2026-05-31 — Poly-schaling volgt patch + dCV-ontvanger CvBreakIn (fw 0.5.5)
+
+**Poly-schaling.** `onSelectPatch()` leest nu het top-level `voiceCount` van de
+actieve patch en duwt het via `setControl("voiceCount", N)` naar elke runtime
+`MidiInModule`. Daardoor waaieren de per-stem-poorten (`pitchK`/`gateK`/`velK`)
+uit naar exact N stemmen en routeert `CvGraph` ze naar de door de editor
+geëxpandeerde per-stem-modules. Dit is de hefboom voor de "hoeveel stemmen
+trekt de Teensy"-test: zet `voiceCount` hoger in de editor, push, en lees de
+`audio blocks: peak=…/120`-log. De statische 4-stemmen-fallback (vaste
+`osc/vca/eg`-arrays + `AudioMixer4`) blijft hard op 4 en staat hier los van.
+
+**dCV-ontvanger.** Nieuwe core-klasse `mb::runtime::CvBreakIn` — het spiegelbeeld
+van `CvBreakout`. `CvBreakout` *encodeert* CV-waarden naar `SpiFrame`s en stuurt
+ze de bus op; `CvBreakIn` *decodeert* binnenkomende frames en levert per slot de
+laatste waarde via `readCvPort("inK")`. Transport-agnostisch: de SPI-slave-ISR
+(of een host-test) roept `onFrame(data, len)` aan; de klasse kent geen SPI-DMA.
+Dit is de architectuur-keystone voor de CV-/audio-Teensy-split: de CV-Teensy
+zendt via `CvBreakout` (SPI-master), de audio-Teensy ontvangt via `CvBreakIn`
+(SPI-slave) en stuurt zijn `AudioPortModule`s met `writeCvPort`. Omdat alle
+routing al via `readCvPort`/`writeCvPort` loopt, verandert er niets aan de
+modules zelf — alleen het transport (in-proces ↔ SPI) wisselt.
+
+**Validatie.** Core tests 88/0 (6 nieuwe `CvBreakIn`-tests, incl. round-trip
+`CvOut12` → `CvBreakIn`, gate-decode, adres-filtering, port-mapping). Firmware
+build `[SUCCESS]` (FLASH 141 632 B). Zie `doc/uml/08-core-runtime-hierarchy.md`.
+
+**Nog hardware-gebonden (volgende stap):** de echte Teensy SPI-driver
+(`SpiBreakoutSink` master-TX + slave-RX die `onFrame` voedt) en een patch/config-
+schakelaar die CV naar de bus routeert i.p.v. lokale audio. Die zijn nog niet
+gebouwd omdat ze alleen op hardware te valideren zijn.
+
 ### 2026-05-31 — OO-opschoning: AhdsrAudioModule verwijderd + polymorfe CV-tick (fw 0.5.4)
 
 **Aanleiding.** Code-review van de module-hiërarchie. `AhdsrAudioModule`

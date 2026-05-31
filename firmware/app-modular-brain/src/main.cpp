@@ -144,6 +144,32 @@ void onConfigReceived(JsonObjectConst project) {
     runtime.applyConfig(project);
 }
 
+// ------------------------------------------------------------------
+// Poly scaling — make the runtime voice count follow the active patch.
+//
+// The patch carries a top-level `voiceCount` (1 = mono, 2 = duo, N = poly).
+// Each runtime MidiInModule owns a VoiceAllocator; we push the patch value
+// so per-voice ports (pitchK/gateK/velK) fan out to exactly N voices and
+// CvGraph routes them to the editor-expanded per-voice modules.
+//
+// This is the lever for the "how many voices can the Teensy sustain" test:
+// raise voiceCount in the editor, push, and watch the audio-block peak.
+// The static 4-voice fallback chain (osc/vca/eg arrays + AudioMixer4) is
+// hard-capped at kVoices=4 by fixed Teensy Audio objects and is unaffected.
+// ------------------------------------------------------------------
+void applyPatchVoiceCount(JsonObjectConst patch) {
+    const int vc = patch["voiceCount"] | 0;
+    if (vc < 1) return;  // absent/invalid: leave the module's own default.
+    int configured = 0;
+    for (auto& [id, mod] : runtime.instances()) {
+        if (mod->typeId() != mb::runtime::MidiInModule::kTypeId) continue;
+        mod->setControl("voiceCount", static_cast<int32_t>(vc));
+        ++configured;
+    }
+    mmb_link::TeensyLink::logf("patch voiceCount=%d applied to %d MidiIn module(s)",
+                               vc, configured);
+}
+
 void onSelectPatch(const char* patchId) {
     mmb_link::TeensyLink::logf("selectPatch: %s", patchId);
     if (runtime.activatePatch(patchId)) {
@@ -158,6 +184,7 @@ void onSelectPatch(const char* patchId) {
         }
         JsonObjectConst patch = runtime.activePatchJson();
         if (!patch.isNull()) {
+            applyPatchVoiceCount(patch);
             audioGraph.build(patch, runtime.instances());
             cvGraph.build(patch, runtime.instances());
             // Peak audio-block usage after (re)building. If this approaches the

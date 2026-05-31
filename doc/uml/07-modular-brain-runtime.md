@@ -2,7 +2,7 @@
 
 > Geldt voor de **modular-brain** (`firmware/app-modular-brain/` + `editor/src/modular-mb/`),
 > niet voor het oudere effect-switcher/core-domein in `01-core-classes.md`.
-> Bijgewerkt: mei 2026 (fw 0.5.3).
+> Bijgewerkt: mei 2026 (fw 0.5.4).
 
 Een gekozen **patch** bepaalt drie dingen:
 1. het **aantal stemmen** (`voiceCount`),
@@ -66,8 +66,12 @@ classDiagram
         <<abstract>>
         +audioStreamFor(port) AudioStream*
     }
-    class AhdsrAudioModule {
-        <<CV output only>>
+    class CvModule {
+        <<abstract>>
+        +tick()
+        +asCvModule() this
+    }
+    class Ahdsr {
         +tick()
         +setGate(bool)
         +readCvPort(cv_out) float
@@ -95,7 +99,8 @@ classDiagram
     AudioPortModule <|-- VcaModule
     AudioPortModule <|-- OutModule
     AudioPortModule <|-- MixerModule
-    AudioPortModule <|-- AhdsrAudioModule
+    Module <|-- CvModule
+    CvModule <|-- Ahdsr
     Module <|-- MidiInModule
     MidiInModule *-- VoiceAllocator
 
@@ -106,11 +111,12 @@ classDiagram
     CvGraph ..> Module : raw pointers (Route)
 ```
 
-**Noot — `AhdsrAudioModule` naam vs. domein.** De klasse erft van `AudioPortModule`
-(hergebruikt de port-infrastructuur) maar produceert **uitsluitend CV** via
-`readCvPort("cv_out")`. Er is geen audio-DC-proxy meer; de 44.1 kHz-kant wordt
-volledig afgehandeld door de ontvangende modules (`VcaModule`, `VcfModule`) via
-`writeCvPort`. De naam is historisch en staat op de refactor-backlog.
+**Noot — `Ahdsr` is puur CV.** De envelope is een gewone `CvModule`
+(gate-in `gate`/`trig` → `setGate`, CV-out `cv_out` → `value()`), volledig
+gerouteerd door `CvGraph`. De 44.1 kHz-kant wordt afgehandeld door de
+ontvangende audio-modules (`VcaModule`, `VcfModule`) via `writeCvPort`. De
+vroegere `AhdsrAudioModule`-wrapper is verwijderd (fw 0.5.4) — hij was 100%
+dubbelop nadat de audio-DC-proxy verdween. Zie `08-core-runtime-hierarchy.md`.
 
 **Belangrijk — AudioStream-levensduur.** `AudioGraph`/`CvGraph` houden *rauwe*
 pointers naar de modules in `ProjectRuntime`. Teensy's `AudioStream` schrijft

@@ -10,6 +10,7 @@ add_executable(core_tests
     test_lfo.cpp
     test_midiin.cpp
     test_cvbreakout.cpp
+    test_cvbreakin.cpp
     test_main.cpp
 )
 target_link_libraries(core_tests PRIVATE musicbrain_core)
