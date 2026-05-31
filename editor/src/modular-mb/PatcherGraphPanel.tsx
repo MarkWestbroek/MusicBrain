@@ -100,9 +100,9 @@ function ModuleNode({ data, selected }: NodeProps): JSX.Element {
       {voice && (
         <div style={{
           position: 'absolute', top: 2, left: 2, zIndex: 5,
-          fontSize: 11, fontWeight: 600, color: '#0f172a',
+          fontSize: 9, fontWeight: 600, color: '#0f172a',
           background: voice.group.color || '#22d3ee',
-          padding: '1px 6px', borderRadius: 3,
+          padding: '1px 5px', borderRadius: 3,
           boxShadow: '0 1px 2px rgba(0,0,0,0.4)',
           pointerEvents: 'none',
         }}>
@@ -136,13 +136,13 @@ function ModuleNode({ data, selected }: NodeProps): JSX.Element {
             style={{
               left, top,
               transform: 'translate(-50%, -50%)',
-              width: isPoly ? 14 : 12, height: isPoly ? 14 : 12,
+              width: 11, height: 11,
               background: SIGNAL_COLOUR[p.signalType],
               border: '1.5px solid rgba(0,0,0,0.55)',
               borderRadius: ghost ? 2 : (isPoly ? 3 : '50%'),
               opacity: ghost ? 0.55 : 0.95,
               boxShadow: isPoly
-                ? `0 0 0 1px rgba(255,255,255,0.35) inset, 0 0 0 2px ${polyColor}, 0 0 6px ${polyColor}aa`
+                ? `0 0 0 1px rgba(255,255,255,0.35) inset, 0 0 0 1.5px ${polyColor}`
                 : '0 0 0 1px rgba(255,255,255,0.35) inset',
               pointerEvents: ghost ? 'none' : 'all',
             }}
@@ -163,6 +163,9 @@ interface BendableEdgeData {
   bends?: { x: number; y: number }[];
   patchId: string;
   connectionId: string;
+  /** Poly bus → draw a thin lengthwise centre stripe to mark it as a
+   *  multi-voice cable (instead of a dashed/dotted line). */
+  poly?: boolean;
 }
 
 /** Pad door alle waypoints. Wanneer `smooth=true` wordt door de tussen-
@@ -301,6 +304,19 @@ function BendableEdge(props: EdgeProps): JSX.Element {
       />
       {/* Zichtbare kabel. */}
       <path d={path} fill="none" style={style} pointerEvents="none" strokeLinejoin="round" strokeLinecap="round" />
+      {/* Poly-bus = dunne streep in de lengte (geen stippellijn) zodat het
+          als een speciaal kabeltype leest i.p.v. "onbelangrijk". */}
+      {d?.poly && (
+        <path
+          d={path}
+          fill="none"
+          stroke="rgba(255,255,255,0.85)"
+          strokeWidth={0.7}
+          pointerEvents="none"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+      )}
       {/* Knikpunten — alleen als ze bestaan; geen ruis bij rechte kabels. */}
       {bends.map((b, i) => {
         const r = selected ? 6 : (hover || dragging) ? 5 : 3.2;
@@ -463,27 +479,31 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
       // blue, Gate green, etc. — regardless of which poly group it belongs to.
       // The poly group colour is only used for the ×N label background.
       const groupColor = polyGroup ? (polyGroup.color || colour) : colour;
-      const stroke = polyGroup ? Math.max(isSel ? 7 : 5, 5) : (isSel ? 6 : 3);
+      // Poly cables share the same thickness as mono cables; the dashed
+      // stroke (below) is what visually distinguishes a poly bus carrying N
+      // voices from an ordinary mono cable.
+      const stroke = isSel ? 4 : 2.4;
       return [{
         id: c.id,
         source: c.from.moduleId, sourceHandle: c.from.portId,
         target: c.to.moduleId,   targetHandle: c.to.portId,
         type: 'bendable',
-        data: { bends: c.bends ?? [], patchId, connectionId: c.id },
+        data: { bends: c.bends ?? [], patchId, connectionId: c.id, poly: !!polyGroup },
         selected: isSel,
         zIndex: isSel ? 1500 : 1000,
         interactionWidth: 24,
         reconnectable: true,
         label: polyGroup ? `×${polyGroup.voiceCount}` : undefined,
-        labelStyle: polyGroup ? { fill: '#0f172a', fontWeight: 700, fontSize: 11 } : undefined,
+        labelStyle: polyGroup ? { fill: '#0f172a', fontWeight: 600, fontSize: 9 } : undefined,
         labelBgStyle: polyGroup ? { fill: groupColor } : undefined,
-        labelBgPadding: [4, 2] as [number, number],
-        labelBgBorderRadius: 3,
+        labelBgPadding: [3, 1] as [number, number],
+        labelBgBorderRadius: 2,
         style: {
           stroke: colour,
           strokeWidth: stroke,
           strokeLinecap: 'round',
-          strokeDasharray: polyGroup ? '0' : undefined,
+          // Poly bus wordt onderscheiden door een dunne lengte-streep in
+          // BendableEdge (zie data.poly), niet door een stippellijn.
           filter: isSel
             ? `drop-shadow(0 0 6px ${colour})`
             : (polyGroup
@@ -776,12 +796,17 @@ function PropertiesPanel(props: { patchId: string; selectedNodeId: string | null
             let editor: JSX.Element;
             if (ctrl.kind === 'knob' || ctrl.kind === 'slider') {
               const num = typeof v === 'number' ? v : ctrl.defaultValue;
+              const stp = (ctrl.kind === 'knob' && ctrl.step) ? ctrl.step : (ctrl.max - ctrl.min) / 100;
               editor = (
                 <input
                   type="number" value={num}
                   min={ctrl.min} max={ctrl.max}
-                  step={(ctrl.max - ctrl.min) / 100}
-                  onChange={(e) => setControl(ctrl.id, Number(e.target.value))}
+                  step={stp}
+                  onChange={(e) => {
+                    let n = Number(e.target.value);
+                    if (ctrl.kind === 'knob' && ctrl.step) n = Math.round(n / ctrl.step) * ctrl.step;
+                    setControl(ctrl.id, n);
+                  }}
                   style={{ width: 70 }}
                 />
               );

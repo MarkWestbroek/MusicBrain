@@ -42,7 +42,21 @@ void MidiInModule::setControl(std::string_view controlId, ControlValue value) {
         // Reconfiguring is a destructive op: any held notes from the old
         // layout would point at indices that may no longer be valid.
         allNotesOff();
+    } else if (controlId == "steal") {
+        // Poly voice-stealing strategy. Editor switch indices map 1:1 onto
+        // StealStrategy { Oldest=0, Lowest=1, Highest=2 } (ADR 0011 §3).
+        const auto s = std::clamp<std::int32_t>(asInt(0), 0, 2);
+        alloc_.setStealStrategy(static_cast<StealStrategy>(s));
+    } else if (controlId == "cc1Num") {
+        cc1Num_ = static_cast<std::uint8_t>(std::clamp<std::int32_t>(asInt(74), 0, 127));
+    } else if (controlId == "cc2Num") {
+        cc2Num_ = static_cast<std::uint8_t>(std::clamp<std::int32_t>(asInt(71), 0, 127));
+    } else if (controlId == "bendRange") {
+        bendRange_ = static_cast<std::uint8_t>(std::clamp<std::int32_t>(asInt(2), 1, 24));
     }
+    // `priority` (mono note-priority last/low/high) and `legato` are accepted
+    // by the editor but not yet acted on here: the allocator currently always
+    // uses last-note priority and there is no legato glide (see backlog FW-1).
     // Unknown ids are silently ignored (forward-compat with older patches).
 }
 
@@ -95,6 +109,20 @@ void MidiInModule::allNotesOff() {
     // available for inspection (matches typical hardware behaviour).
 }
 
+void MidiInModule::onControlChange(std::uint8_t channel, std::uint8_t cc, std::uint8_t value) {
+    if (filteredOut(channel)) return;
+    if (cc == 123) { allNotesOff(); return; }   // All Notes Off.
+    const auto v = static_cast<std::uint8_t>(value & 0x7F);
+    if (cc == 1)        modWheel_ = v;           // mod-wheel → cv_mod.
+    if (cc == cc1Num_)  cc1Val_   = v;           // configurable slot 1.
+    if (cc == cc2Num_)  cc2Val_   = v;           // configurable slot 2.
+}
+
+void MidiInModule::onPitchBend(std::uint8_t channel, int value14) {
+    if (filteredOut(channel)) return;
+    bend14_ = std::clamp(value14, 0, 16383);
+}
+
 float MidiInModule::voicePitchV(std::uint8_t voiceIdx) const {
     if (voiceIdx >= kMaxAllocVoices) return 0.0f;
     return noteToVolts(currentNote_[voiceIdx]);
@@ -138,6 +166,13 @@ float MidiInModule::readCvPort(std::string_view portId) const {
             if (gate_[v]) return static_cast<float>(velocity_[v]) * (1.0f / 127.0f);
         return static_cast<float>(velocity_[0]) * (1.0f / 127.0f);
     }
+    // Modulation outputs (ED-MI-4). Continuous controllers that are global to
+    // the module (not per-voice): mod-wheel, pitch-bend and two configurable
+    // CC slots. cv_bend is in V/Oct so it can sum straight onto a VCO's voct.
+    if (portId == "cv_mod")  return modWheel();
+    if (portId == "cv_bend") return pitchBendV();
+    if (portId == "cv_cc1")  return static_cast<float>(cc1Val_) * (1.0f / 127.0f);
+    if (portId == "cv_cc2")  return static_cast<float>(cc2Val_) * (1.0f / 127.0f);
     // Voice-indexed ports (ADR 0011 §4): `pitchK`/`gateK`/`velK`, K = 1-based
     // voice index. These expose a single voice directly so the editor can wire
     // two (or more) independent voice chains by hand, ahead of the voice-stamp

@@ -13,8 +13,10 @@
  * **Supported MIDI events (current):**
  * - NoteOn / NoteOff (zero-velocity NoteOn counts as NoteOff per the MIDI spec).
  * - All Notes Off (CC 123) via `allNotesOff()`.
+ * - Control Change (mod-wheel CC1 + two configurable CC numbers).
+ * - Pitch-bend (14-bit, ± `bendRange` semitones).
  *
- * **Planned:** pitch-bend, mod-wheel, CC-to-CV, aftertouch.
+ * **Planned:** aftertouch.
  *
  * **Platform independence:**
  * The class has no knowledge of Teensy USB-MIDI, DIN-MIDI, or any concrete
@@ -27,6 +29,12 @@
  * |--------------|---------|-----------------------------------------------|
  * | `voiceCount` | int     | 1 .. `kMaxAllocVoices`; resets voice state    |
  * | `channel`    | int     | 0 = omni; 1..16 = listen to specific channel  |
+ * | `steal`      | int     | poly voice-stealing: 0=oldest,1=lowest,2=highest |
+ * | `priority`   | int     | mono note-priority (accepted; FW-1, not yet acted on) |
+ * | `legato`     | int     | mono legato on/off (accepted; FW-1, not yet acted on) |
+ * | `cc1Num`     | int     | CC number routed to `cv_cc1` (0..127; default 74)  |
+ * | `cc2Num`     | int     | CC number routed to `cv_cc2` (0..127; default 71)  |
+ * | `bendRange`  | int     | pitch-bend range in semitones (1..24; default 2)   |
  *
  * **V/Oct convention:**
  * MIDI note 60 (middle C) = 0.0 V; each octave (12 semitones) = ±1.0 V.
@@ -59,17 +67,23 @@ public:
     // --- Module overrides ------------------------------------------------
 
     /** @brief Apply a layer-2 control change from the editor.
-     *  Supported ids: `"channel"` (0–16), `"voiceCount"` (1…kMaxAllocVoices). */
+     *  Supported ids: `"channel"` (0–16), `"voiceCount"` (1…kMaxAllocVoices),
+     *  `"steal"` (0=oldest/1=lowest/2=highest). `"priority"` and `"legato"`
+     *  are accepted but not yet acted on (FW-1). */
     void setControl(std::string_view controlId, ControlValue value) override;
 
     /** @brief Declare the kind of each named output port.
      *  `pitch` → Cv (V/Oct), `gate` → Gate (0.0 / 1.0), `vel` → Cv.
+     *  Modulation outputs `cv_mod` (mod-wheel), `cv_bend` (pitch-bend, V/Oct),
+     *  `cv_cc1`/`cv_cc2` (configurable CC) are all Cv.
      *  Voice-indexed variants `pitchK`/`gateK`/`velK` (K = 1…voiceCount,
      *  1-based) report the same kinds for per-voice routing (ADR 0011 §4). */
     PortKind outputPortKind(std::string_view portId) const override {
         if (portId == "pitch") return PortKind::Cv;
         if (portId == "gate")  return PortKind::Gate;
         if (portId == "vel")   return PortKind::Cv;
+        if (portId == "cv_mod"  || portId == "cv_bend" ||
+            portId == "cv_cc1"  || portId == "cv_cc2") return PortKind::Cv;
         if (parseVoicePort(portId, "pitch") >= 0) return PortKind::Cv;
         if (parseVoicePort(portId, "vel")   >= 0) return PortKind::Cv;
         if (parseVoicePort(portId, "gate")  >= 0) return PortKind::Gate;
@@ -103,6 +117,17 @@ public:
      *  the channel is filtered or no voice holds the note. */
     void onNoteOff(std::uint8_t channel, std::uint8_t note);
 
+    /** @brief Accept a MIDI Control Change event.
+     *  Updates the mod-wheel (CC 1) and the two configurable CC slots
+     *  (`cc1Num`/`cc2Num`). CC 123 (All Notes Off) lowers every gate.
+     *  No-op when the channel is filtered. */
+    void onControlChange(std::uint8_t channel, std::uint8_t cc, std::uint8_t value);
+
+    /** @brief Accept a MIDI pitch-bend event.
+     *  @param value14 raw 14-bit bend value (0–16383; 8192 = centre).
+     *  Mapped to ±`bendRange` semitones on `cv_bend`. No-op when filtered. */
+    void onPitchBend(std::uint8_t channel, int value14);
+
     /** @brief Lower all gates and forget all held notes.
      *  Called on patch load and on MIDI "All Notes Off" (CC 123). */
     void allNotesOff();
@@ -126,6 +151,18 @@ public:
 
     /** @brief Active MIDI channel filter; 0 = omni, 1–16 = specific channel. */
     std::uint8_t channel() const { return channelFilter_; }
+
+    /** @brief Current poly voice-stealing strategy (set via `"steal"`). */
+    StealStrategy stealStrategy() const { return alloc_.stealStrategy(); }
+
+    /** @brief Mod-wheel (CC 1) value, normalised 0.0…1.0. */
+    float modWheel() const { return static_cast<float>(modWheel_) * (1.0f / 127.0f); }
+
+    /** @brief Pitch-bend offset in V/Oct (±`bendRange` semitones). */
+    float pitchBendV() const {
+        const float norm = (static_cast<float>(bend14_) - 8192.0f) / 8192.0f; // -1..~+1
+        return norm * (static_cast<float>(bendRange_) / 12.0f);
+    }
 
     static void registerFactory();
 
@@ -153,6 +190,17 @@ private:
 
     VoiceAllocator             alloc_{};
     std::uint8_t               channelFilter_ = kOmni;
+
+    // Modulation state (ED-MI-4). Mod-wheel and two configurable CC slots are
+    // stored as raw 0..127; pitch-bend keeps the raw 14-bit value (8192 = no
+    // bend) so `pitchBendV()` can rescale when `bendRange` changes.
+    std::uint8_t               modWheel_  = 0;       // CC 1
+    std::uint8_t               cc1Num_    = 74;      // default: filter cutoff
+    std::uint8_t               cc2Num_    = 71;      // default: resonance
+    std::uint8_t               cc1Val_    = 0;
+    std::uint8_t               cc2Val_    = 0;
+    int                        bend14_    = 8192;    // 14-bit centre
+    std::uint8_t               bendRange_ = 2;       // semitones
 
     // Per-voice state, indexed 0..kMaxAllocVoices-1. We keep velocity
     // separate from the allocator's `VoiceState` so the allocator stays

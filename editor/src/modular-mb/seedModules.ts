@@ -26,7 +26,7 @@ const W = (hp: number) => hp * MM_PER_HP;
 
 function knob(id: string, label: string, x: number, y: number,
               opts: Partial<{ min: number; max: number; def: number; size: 'small'|'medium'|'large'; color: string; style: string; unit: string;
-                              ticks: { every?: number; highlight?: number[] } }> = {}) {
+                              step: number; ticks: { every?: number; highlight?: number[] } }> = {}) {
   return {
     control: {
       kind: 'knob' as const, id, label,
@@ -34,6 +34,7 @@ function knob(id: string, label: string, x: number, y: number,
       size: (opts.size ?? 'medium') as 'small'|'medium'|'large',
       color: opts.color, style: (opts.style as never) ?? 'generic',
       unit: opts.unit,
+      ...(opts.step !== undefined ? { step: opts.step } : {}),
       ticks: opts.ticks,
     },
     placement: { x, y },
@@ -784,6 +785,53 @@ function mmbQuadVcoShared() {
   });
 }
 
+// 4c. MMB Quad Mixer (shared) — 12 HP. Multi-module met 4 mix-cellen. Elke
+//     cel heeft een eigen audio-in én een eigen PAN-knop (per-cel control),
+//     maar deelt één globale VOLUME-knop. Demonstreert het per-cel-controls-
+//     geval van CellGroups (controlIds: ['pan']) tegenover de shared-controls
+//     quad-VCO (controlIds: []). Mengt de 4 cellen naar één stereo-out.
+function mmbQuadMixerShared() {
+  const w = W(12);
+  const colX = (i: number) => w * (0.16 + i * 0.22);          // cell centres
+  return assemble({
+    typeId: 'tp_mmb_quad_mixer_shared',
+    categoryId: 'utility',
+    variant: 'Quad Mixer (per-cell pan, shared volume)',
+    brand: 'MMB', model: 'QUAD-MIX-S',
+    hp: 12, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    role: 'multi',
+    cellGroups: [{
+      id: 'chan',
+      label: 'Channel',
+      count: 4,
+      portIds: ['in'],
+      controlIds: ['pan'],   // per-cell control (each cell has its own pan)
+    }],
+    texts: [
+      { x: w/2, y: 8,   text: 'QUAD-MIX-S',  fontSize: 2.2, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: 'per-cel pan · gedeelde volume', fontSize: 1.2, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB',         fontSize: 1.8, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      // Per-cell audio-in (top row) + per-cell pan (mid row).
+      inPort('in_1', 'In', 'audio', colX(0), 30, { cellGroupId: 'chan' }),
+      inPort('in_2', 'In', 'audio', colX(1), 30, { cellGroupId: 'chan' }),
+      inPort('in_3', 'In', 'audio', colX(2), 30, { cellGroupId: 'chan' }),
+      inPort('in_4', 'In', 'audio', colX(3), 30, { cellGroupId: 'chan' }),
+      knob('pan_1', 'Pan', colX(0), 52, { size: 'small', min: -1, max: 1, def: 0, color: '#f9fafb' }),
+      knob('pan_2', 'Pan', colX(1), 52, { size: 'small', min: -1, max: 1, def: 0, color: '#f9fafb' }),
+      knob('pan_3', 'Pan', colX(2), 52, { size: 'small', min: -1, max: 1, def: 0, color: '#f9fafb' }),
+      knob('pan_4', 'Pan', colX(3), 52, { size: 'small', min: -1, max: 1, def: 0, color: '#f9fafb' }),
+      // Shared (module-global) master volume — applies to ALL 4 cells.
+      knob('volume', 'Volume', w/2, 82, { size: 'large', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      // Global stereo output (collapses the 4 cells to a stereo bus).
+      outPort('out_l', 'L', 'audio', w*0.38, 110),
+      outPort('out_r', 'R', 'audio', w*0.62, 110),
+    ],
+    notes: 'Multi-module met 4 mix-cellen. Elke cel heeft een eigen audio-in en een eigen PAN-knop (per-cel control), maar deelt één globale VOLUME-knop (shared control). Mengt naar één stereo-out. Voorbeeld van het per-cel-controls-geval van CellGroups (controlIds: [\'pan\']) — vergelijk met de quad-VCO die juist ALLE controls deelt (controlIds: []). Hardware bestaat nog niet — eerst alleen in simulator gebruiken.',
+  });
+}
+
 // 5. MMB VCF — 6 HP. Cutoff/Q/type-switch, audio-in, cv-cutoff-in, audio-out.
 function mmbVcf() {
   const w = W(6);
@@ -858,37 +906,64 @@ function mmbOut() {
   });
 }
 
-// 7b. MMB MIDI-In — 6 HP. Breakout-module die de actieve MIDI-bron
-//     (USB-keyboard, screen-keyboard of test-sequence) splitst in een
-//     CV-pitch en een Gate. Mono / last-note. Channel-knop is voor nu
-//     informatief; de engine luistert nog naar alle kanalen.
+// 7b. MMB MIDI-In — 14 HP. Breakout-module die de actieve MIDI-bron
+//     (USB-keyboard, screen-keyboard of test-sequence) splitst in pitch/gate/
+//     velocity én modulatie-CV's (mod-wheel, pitch-bend, 2 vrije CC's).
+//     Mono/poly volgt uit voiceCount; steal mapt op firmware StealStrategy.
 function mmbMidiIn() {
-  const w = W(6);
+  const w = W(14);
   return assemble({
     typeId: 'tp_mmb_midiin',
     categoryId: 'utility',
     variant: 'MIDI-to-CV breakout',
     brand: 'MMB', model: 'MIDI-IN',
-    hp: 6, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    hp: 14, texture: 'pcb-black', baseColor: '#111827', internal: true,
     role: 'event-source',
     texts: [
       { x: w/2, y: 8,   text: 'MIDI-IN', fontSize: 2.2, color: '#f9fafb', align: 'middle' },
-      { x: w/2, y: 14,  text: 'mono · last-note', fontSize: 1.2, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 14,  text: 'voicing · steal · modulatie', fontSize: 1.2, color: '#9ca3af', align: 'middle' },
+      { x: w*0.24, y: 100, text: 'NOTE', fontSize: 1.2, color: '#9ca3af', align: 'middle' },
+      { x: w*0.74, y: 100, text: 'MOD',  fontSize: 1.2, color: '#9ca3af', align: 'middle' },
       { x: w/2, y: 126, text: 'MMB',     fontSize: 1.6, color: '#f9fafb', align: 'middle' },
     ],
     items: [
-      knob('channel', 'Ch', w*0.30, 35, { size: 'small', min: 0, max: 16, def: 0, unit: '0=all', color: '#f9fafb' }),
+      knob('channel', 'Ch', w*0.12, 30, { size: 'small', min: 0, max: 16, def: 0, step: 1, unit: '0=all', color: '#f9fafb' }),
       // Live display: kanaal-nummer (0 = all). Mirrort de Ch-knop.
-      display('chDisp', w*0.70, 35, { digits: 3, style: 'led', bindTo: 'channel', format: 'int' }),
-      sw  ('mode',    'Mode', w*0.30, 60, ['mono','legato','last'], 0),
-      // Activity-LED: licht op zodra de simulator een MIDI-bron stuurt (later
-      // koppelbaar aan engine-state; nu altijd "klaar").
-      led('act', w*0.70, 60, { label: 'Act', color: '#22c55e', size: 'medium' }),
-      outPort('pitch', 'V/Oct', 'cv',   w*0.20, 95, { eventKind: 'voice' }),
-      outPort('gate',  'Gate',  'gate', w*0.50, 95, { eventKind: 'voice' }),
-      outPort('vel',   'Vel',   'cv',   w*0.80, 95, { eventKind: 'voice' }),
+      display('chDisp', w*0.26, 30, { digits: 3, style: 'led', bindTo: 'channel', format: 'int' }),
+      // Activity-LED: licht op zodra de simulator een MIDI-bron stuurt.
+      led('act', w*0.90, 28, { label: 'Act', color: '#22c55e', size: 'medium' }),
+      // Note-priority (mono): welke ingedrukte toets de mono-stem volgt.
+      // 'last' = laatst aangeslagen, 'low' = laagste, 'high' = hoogste.
+      // Firmware doet nu altijd last-note; low/high = FW-1.
+      sw  ('priority', 'Prio', w*0.12, 52, ['last','low','high'], 0),
+      // Voice-stealing (poly): welke klinkende stem wordt afgepakt als alle
+      // stemmen bezet zijn. Mapt 1-op-1 op firmware StealStrategy
+      // {Oldest=0, Lowest=1, Highest=2} (VoiceAllocator, ADR 0011).
+      sw  ('steal', 'Steal', w*0.34, 52, ['old','low','hi'], 0),
+      // Legato (mono): nieuwe noot bij nog-ingedrukte vorige glijdt door
+      // zonder envelope-hertrigger. Label/keuze nu aanwezig; firmware-gedrag
+      // = FW-1 (nog te bouwen).
+      sw  ('legato', 'Leg', w*0.56, 52, ['off','on'], 0),
+      // Pitch-bend-bereik in halve tonen (integer).
+      knob('bendRange', 'Bend', w*0.80, 52, { size: 'small', min: 1, max: 24, def: 2, step: 1, unit: 'st', color: '#f9fafb' }),
+      // CC-pickers: welk CC-nummer naar cv_cc1/cv_cc2 gaat (integer). Defaults
+      // 74 (filter-cutoff) en 71 (resonantie). Elke knop heeft een LED-display
+      // dat het gekozen CC-nummer toont.
+      knob   ('cc1Num',  'CC1#', w*0.16, 80, { size: 'small', min: 0, max: 127, def: 74, step: 1, color: '#f9fafb' }),
+      display('cc1Disp', w*0.34, 80, { digits: 3, style: 'led', bindTo: 'cc1Num', format: 'int' }),
+      knob   ('cc2Num',  'CC2#', w*0.58, 80, { size: 'small', min: 0, max: 127, def: 71, step: 1, color: '#f9fafb' }),
+      display('cc2Disp', w*0.76, 80, { digits: 3, style: 'led', bindTo: 'cc2Num', format: 'int' }),
+      // Note-outputs (per stem) — links.
+      outPort('pitch', 'V/Oct', 'cv',   w*0.10, 112, { eventKind: 'voice' }),
+      outPort('gate',  'Gate',  'gate', w*0.24, 112, { eventKind: 'voice' }),
+      outPort('vel',   'Vel',   'cv',   w*0.38, 112, { eventKind: 'voice' }),
+      // Modulatie-outputs (globaal) — rechts.
+      outPort('cv_mod',  'Mod',  'cv', w*0.58, 112),
+      outPort('cv_bend', 'Bend', 'cv', w*0.70, 112),
+      outPort('cv_cc1',  'CC1',  'cv', w*0.82, 112),
+      outPort('cv_cc2',  'CC2',  'cv', w*0.94, 112),
     ],
-    notes: 'Zet inkomende MIDI-noten (USB / screen-keyboard / test-sequence) om in CV (V/Oct) en Gate. De MIDI-bron kies je in het Simulatie-paneel; deze module heeft géén MIDI-poort op de front (er bestaat geen "MIDI-in jack" in modulair-land — alles loopt via de brain). Sluit pitch op een VCO\u2019s voct aan en gate op een envelope.',
+    notes: 'Zet inkomende MIDI om in CV. NOTE-uitgangen (per stem): pitch (V/Oct), gate, velocity. MOD-uitgangen (globaal): Mod (mod-wheel CC1), Bend (pitch-bend, V/Oct, bereik = Bend-knop in halve tonen), CC1/CC2 (vrij kiesbare CC-nummers via CC1#/CC2#; het gekozen nummer staat op het LED-display naast elke knop). De MIDI-bron kies je in het Simulatie-paneel. Mono/poly volgt automatisch uit het aantal stemmen (voiceCount). PRIO = mono note-priority (last/low/high). STEAL = poly voice-stealing → firmware StealStrategy. LEG = legato (firmware-gedrag = FW-1, nog te bouwen). Géén MIDI-jack op de front; alles loopt via de brain.',
   });
 }
 
@@ -1190,7 +1265,7 @@ function mmbPhaser() {
 
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbVcf(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbNoise(), mmbEcho(), mmbPhaser()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbQuadMixerShared(), mmbVcf(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbNoise(), mmbEcho(), mmbPhaser()];
   const newTypes = all.map((x) => x.type);
   const newModules = all.map((x) => x.module);
 
@@ -1349,7 +1424,7 @@ export function seedTestPatch(project: ModularProject): ModularProject {
     [out.id]: { level: 0.8 },
     [seq.id]: { s1: 0, s2: 4, s3: 7, s4: 12, s5: 7, s6: 0, s7: 5, s8: 3,
                 root: 60, rate: 4, gate: 0.5, length: 6, run: 0 },
-    [mi.id]:  { channel: 0, mode: 0 },
+    [mi.id]:  { channel: 0, priority: 0, steal: 0, legato: 0 },
   };
 
   const patch: Patch = {
@@ -1441,7 +1516,7 @@ export function seedCvBridgePatch(project: ModularProject): ModularProject {
   ];
 
   const controlState: Record<string, Record<string, ControlValue>> = {
-    [mi.id]:     { channel: 0, mode: 0 },
+    [mi.id]:     { channel: 0, priority: 0, steal: 0, legato: 0 },
     [vco.id]:    { wave: 2, coarse: 0, fine: 0, level: 0.9 },
     [vcf.id]:    { cutoff: 800, q: 0.8, cv_amt: 1, type: 0 },
     [vca.id]:    { gain: 0, resp: 0 },
@@ -1614,7 +1689,9 @@ export function seedPolyVoicePatch(project: ModularProject, voiceCount: number):
   }
 
   const controlState: Record<string, Record<string, ControlValue>> = {
-    [mi.id]:    { channel: 0, mode: N > 1 ? 1 : 0, voiceCount: N },  // mode 1 = poly, 0 = mono
+    // voiceCount (uit de patch) bepaalt mono vs poly; geen overladen 'mode'
+    // meer. priority/steal/legato op hun defaults (last / oldest / off).
+    [mi.id]:    { channel: 0, priority: 0, steal: 0, legato: 0, voiceCount: N },
     [mixer.id]: mixerState,
     [out.id]:   { level: 0.8 },
   };

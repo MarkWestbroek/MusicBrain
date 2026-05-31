@@ -921,7 +921,7 @@ function RackGrid({ rack, modules, types, activeRow, onSelectRow,
                         : `Poly-groep "${voice.group.label}" — klik om in te klappen`}
                       style={{
                         position: 'absolute', top: 2, left: 2, zIndex: 6,
-                        fontSize: 10, fontWeight: 700, lineHeight: 1,
+                        fontSize: 9, fontWeight: 600, lineHeight: 1,
                         color: '#0f172a', cursor: 'pointer',
                         background: voice.group.color || '#22d3ee',
                         border: 'none', borderRadius: 3, padding: '2px 5px',

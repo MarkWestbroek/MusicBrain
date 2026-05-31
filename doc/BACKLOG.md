@@ -27,7 +27,7 @@
 |---|---|---|---|
 | ED-PT-1 | — | ✅ | **B5 — Visuele indicatie single- vs poly-poort.** Gedaan (iter-5.11): poly-poort = vierkant + groep-gekleurde ring + tooltip; single-poort = ronde stip. (Poly-kabel-styling bestond al.) |
 | ED-PT-2 | 2 | ⏳ | **C5 — Signaalpad-view (symbolisch):** ingedikte view die alleen actieve modules in logische signaalvolgorde toont, los van fysieke rackpositie. |
-| ED-PT-3 | — | ✅ | Patcher **Compact**-knop (vult het gat vóór de mixer na groep-inklapping). |
+| ED-PT-3 | — | ✅ | Patcher **Compact**-knop is verwijderd: hij muteerde het rack (verwarrend). Layout-compactie gebeurt nu alleen via de **Compact**-knop in het Rack-scherm; nieuwe poly-patches worden al als grid geseed zodat er geen gat vóór de mixer ontstaat. |
 
 ### 1.3 Simulatie
 
@@ -39,17 +39,16 @@
 
 | # | Prio | Status | Item |
 |---|---|---|---|
-| ED-MI-1 | 1 | ⏳ | **Mode-switch opschonen.** De `mode`-switch toont `mono/legato/last`, maar `seedPolyVoicePatch` (her)gebruikt index 1 als "poly". Dit is dubbelzinnig: splits in een **Voicing**-keuze (mono/poly) én een aparte **note-priority/legato**-keuze. |
-| ED-MI-2 | 1 | ⏳ | **Legato echt implementeren.** Zie §5 — nu is het alleen een label, geen gedrag (editor-sim noch firmware). |
-| ED-MI-3 | 1 | ⏳ | **Voice-stealing strategie kiesbaar maken.** De firmware heeft `StealStrategy {Oldest, Lowest, Highest}` (`VoiceAllocator`), maar de editor kan die niet instellen of doorpushen. Voeg een control toe + neem op in de config-push. Zie §5. |
-| ED-MI-4 | 1 | ⏳ | **B1 — Modulatie-CV-outputs uit MIDI-in:** mod-wheel, pitch-bend en 2 vrij instelbare CC-nummers (CC-picker). Extra poorten `cv_mod`, `cv_pitch`, `cv_cc1`, `cv_cc2` (firmware + editor + sim). |
-| ED-MI-5 | 2 | ⏳ | **MIDI-POLY module** (`cv1..cv4` + `gate1..gate4`) als poly-bron i.p.v. de SEQ poly te maken; de SEQ blijft mono. |
+| ED-MI-1 | 1 | ✅ | **Mode-switch opgeschoond.** De dubbelzinnige `mode`-switch (`mono/legato/last`, met index 1 hergebruikt als "poly") is vervangen door drie heldere controls: `priority` (note-priority last/low/high), `steal` (poly voice-stealing old/low/hi) en `legato` (off/on). Voicing volgt automatisch uit `voiceCount`; het oude `mode`-overload in `seedPolyVoicePatch` is weg. |
+| ED-MI-2 | 1 | ⏳ | **Legato echt implementeren.** Label/keuze (`legato` off/on) staat nu op de module en wordt meegestuurd, maar het gedrag bestaat nog niet (editor-sim noch firmware). Zie §5 en FW-1. |
+| ED-MI-3 | 1 | ✅ | **Voice-stealing strategie kiesbaar.** De `steal`-control (old/low/hi) mapt 1-op-1 op firmware `StealStrategy {Oldest, Lowest, Highest}` en wordt via de config-push doorgegeven (`setControl("steal", index)`). Zie §5 en FW-2. |
+| ED-MI-4 | 1 | ✅ | **B1 — Modulatie-CV-outputs uit MIDI-in:** extra poorten `cv_mod` (mod-wheel CC1), `cv_bend` (pitch-bend, V/Oct, bereik via `bendRange`-knop in halve tonen) en `cv_cc1`/`cv_cc2` (vrij kiesbare CC-nummers via `cc1Num`/`cc2Num`-knoppen). Firmware: `MidiInModule::onControlChange`/`onPitchBend` + `setControl` voor cc-nummers/bereik, USB-MIDI handlers in `main.cpp`. Editor: module verbreed naar 12 HP met NOTE- en MOD-secties. Sim negeert de mod-poorten (geen mod-bron in de sim). Unit-tests `midiin_modwheel_and_cc_outputs` + `midiin_pitchbend_output_scales_with_range`. |
 
 ### 1.5 Intra-module meervoudigheid (C — groter ontwerp, deels klaar)
 
 | # | Prio | Status | Item |
 |---|---|---|---|
-| ED-CG-1 | 2 | ⏳ | **CellGroups binnen één module.** Quad-VCO met één poly-kabel (N=4), mixer met per-kanaal pan + gedeelde volume. Scaffolding bestaat al (`CellGroup`-type, `Port.cellGroupId`, `role:'multi'`, voorbeeld `mmbQuadVcoShared`). Nog te bouwen: (a) cel-expansie in `polyExpand`, (b) paneel-inzoom-rendering van cellen, (c) firmware-kant. |
+| ED-CG-1 | 2 | ⏳ | **CellGroups binnen één module.** Quad-VCO met één poly-kabel (N=4), mixer met per-kanaal pan + gedeelde volume. Scaffolding bestaat al (`CellGroup`-type, `Port.cellGroupId`, `role:'multi'`, voorbeeld `mmbQuadVcoShared`). **aanvulling agent:** *Editor-kant deels af — `ModulePanel` tekent nu per-cel een gestippelde box met `cel/N`-label (`computeCellBoxes`), en er is een tweede voorbeeld `mmbQuadMixerShared` (per-cel pan + gedeelde volume) dat het per-cel-controls-geval toont naast de shared-controls quad-VCO. Nog te bouwen: (a) cel-expansie in `polyExpand` (`kind:'cell'`-leden), (b) sim-routing voor multi-modules, (c) firmware-kant (FW-PM-4).* |
 
 ### 1.6 Persistentie & algemeen
 
@@ -62,17 +61,97 @@
 
 ## 2. Firmware (brain-software)
 
+### 2.1 Note-gedrag & polyfonie
+
 | # | Prio | Status | Item |
 |---|---|---|---|
 | FW-1 | 1 | ⏳ | **Legato-gedrag** (mono): nieuwe noot bij nog-ingedrukte vorige → pitch-CV glijdt door zónder de envelope te hertriggeren (gate blijft hoog). Vereist note-stack + portamento-tijd. |
-| FW-2 | 1 | ⏳ | **Steal-strategie via config-push** instelbaar maken (Oldest/Lowest/Highest) en koppelen aan de editor-control (ED-MI-3). |
-| FW-3 | 2 | ⏳ | **Octa-osc VCO** — interne module met 8 detunable oscillatoren (uni-saw, sync, ring-mod) op `AudioSynthWaveform`. |
-| FW-4 | 2 | ⏳ | **FM / wavetable / string VCO** — `AudioSynthFM`, `AudioPlayMemory` (wavetable), Karplus-Strong (string). |
-| FW-5 | 2 | ⏳ | **Stereo-effecten met CV** — echo met CV-gestuurde delaytime (tap-tempo), flanger, chorus, ensemble met stuurbare rate/depth. |
-| FW-6 | 3 | ⏳ | **Compressor / limiter** — `AudioEffectCompressor`. |
-| FW-7 | 3 | ⏳ | **Comb-filter / resonator** — Karplus-Strong of `AudioEffectDelay`. |
-| FW-8 | 3 | ⏳ | **Poly-sequencer** — N-stemmige step-sequencer die met PolyGroup-expand integreert. |
+| FW-2 | 1 | ✅ | **Steal-strategie via config-push** instelbaar (Oldest/Lowest/Highest), gekoppeld aan de editor-control (ED-MI-3). `MidiInModule::setControl("steal", idx)` zet `VoiceAllocator::setStealStrategy`; index wordt geclamped op 0..2. Unit-test `midiin_steal_control_sets_strategy`. |
 | FW-9 | — | ✅ | Mixer16 (`tp_mmb_mixer16`) + N=16. Zie release fw 0.5.7. |
+
+### 2.2 Standaard interne poly-modules (naast voice-groups)
+
+Brondump gebruiker (idee), nagenoeg ongewijzigd overgenomen:
+
+- Er is al de **quad-osc**. Eigenlijk is ook een **octa-osc** logischer met
+  poly 8, die qua performance al wel goed lijkt te werken.
+- **Werkt de quad-osc eigenlijk al in de firmware?**
+  > **aanvulling agent:** *Nee. De quad-VCO bestaat momenteel alléén als
+  > editor-scaffolding (`mmbQuadVcoShared`, `CellGroup`-type, `role:'multi'`).
+  > Er is géén firmware-module voor; de firmware kent alleen losse VCO/VCF/VCA.
+  > Zie ook ED-CG-1 (CellGroups) — dat is de editor-kant van ditzelfde idee.*
+- **Octa-VCF en octa-VCA** zijn dan een logisch vervolg. Het maakt niet echt
+  verschil voor de hoeveelheid werk die de Teensy heeft (denk ik), en ook de
+  patches moeten worden uitgepakt naar N virtuele kabels tussen alles, maar het
+  configureert wat makkelijker. Het komt ook overeen met wat ik in hardware wil
+  gaan maken: een hardware-eurorack-module met een dCV-connectie die wél losse
+  CV in/uit heeft, maar slechts **1 set globale controllers**.
+
+| # | Prio | Status | Item |
+|---|---|---|---|
+| FW-PM-1 | 2 | ⏳ | **Octa-osc VCO** — interne module met 8 detunable oscillatoren (`AudioSynthWaveform`); performance lijkt haalbaar bij poly 8. |
+| FW-PM-2 | 2 | ⏳ | **Octa-VCF** — 8-voudige VCF-module, 1 set globale controllers, losse CV-in/uit per stem. |
+| FW-PM-3 | 2 | ⏳ | **Octa-VCA** — 8-voudige VCA-module, idem. |
+| FW-PM-4 | 2 | ⏳ | **aanvulling agent:** *Firmware-kant van CellGroups: één module-instance die intern N cellen draait en de patch-expand naar N virtuele kabels afhandelt (tegenhanger van ED-CG-1). Sluit aan op de hardware-dCV-module met 1 set globale controllers.* |
+
+### 2.3 Audio-modules / geluidsbronnen
+
+Brondump gebruiker (idee), nagenoeg ongewijzigd overgenomen:
+
+- **Stereo VCA.**
+- **Phaser en echo CV-ingangen.**
+- **Comb-filter met CV-ingang** (om handmatig een phaser te maken) → indien niet
+  bestaat, zelf bouwen. Ook een goed experiment om niet álles via de audio-lib
+  te doen.
+- **Meer VCO's:**
+    - **FM**,
+    - **wavetable**,
+    - **draw waveshape** (zelf een golfvorm tekenen),
+    - **fourier shaper** (analyseer een bestaand geluid met fourier-analyse en
+      geef het verloop van de boventonen schematisch weer — ik denk dat de
+      Fairlight ongeveer dat deed, o.a.) → een soort additieve synthese → heeft
+      misschien de **FPGA-sidecar** nodig,
+    - **string** (uit de audio-lib, ken ik niet, leuk om te wrappen),
+    - **wat MI Elements ongeveer doet: physical modeling.** Wellicht ook te zwaar
+      voor de Teensy, die toch geen DSP heeft? MI Elements gebruikt een ARM
+      STM32 M7 meen ik.
+
+| # | Prio | Status | Item |
+|---|---|---|---|
+| FW-AU-1 | 2 | ⏳ | **Stereo VCA.** |
+| FW-AU-2 | 2 | ⏳ | **CV-ingangen op phaser en echo** (rate/depth/delaytime stuurbaar). |
+| FW-AU-3 | 3 | ⏳ | **Comb-filter / resonator met CV-ingang** (handmatige phaser); zelf bouwen als de audio-lib het niet heeft — experiment buiten de audio-lib om. |
+| FW-AU-4 | 2 | ⏳ | **FM-VCO** (`AudioSynthFM`). |
+| FW-AU-5 | 2 | ⏳ | **Wavetable-VCO** (`AudioPlayMemory` / wavetable). |
+| FW-AU-6 | 3 | ⏳ | **Draw-waveshape VCO** (zelf golfvorm tekenen in de editor → naar firmware). |
+| FW-AU-7 | 3 | 🔬 | **Fourier-shaper VCO** — fourier-analyse van bestaand geluid, boventoon-verloop schematisch (Fairlight-achtig, additieve synthese); mogelijk FPGA-sidecar nodig. |
+| FW-AU-8 | 3 | ⏳ | **String-VCO** — Karplus-Strong / string-object uit de audio-lib wrappen. |
+| FW-AU-9 | 3 | 🔬 | **Physical-modeling-VCO** (MI-Elements-achtig); mogelijk te zwaar voor Teensy (geen DSP); MI Elements gebruikt ARM STM32 M7. |
+
+### 2.4 Effecten
+
+Brondump gebruiker (idee), nagenoeg ongewijzigd overgenomen:
+
+- **Stereo echo met CV-aansturing.**
+- **Compressor met lichte overdrive** (buizen-emulatie).
+- **…** (lijst open).
+
+| # | Prio | Status | Item |
+|---|---|---|---|
+| FW-FX-1 | 2 | ⏳ | **Stereo echo met CV-aansturing** (delaytime/feedback via CV, tap-tempo). |
+| FW-FX-2 | 3 | ⏳ | **Compressor met lichte overdrive** (buizen-emulatie); basis `AudioEffectCompressor` + saturatie. |
+
+### 2.5 Sequencer
+
+Brondump gebruiker (idee), nagenoeg ongewijzigd overgenomen:
+
+- De **sequencer ook bouwen in de firmware**.
+- **Nadenken over hoe een sequencer poly werkt.**
+
+| # | Prio | Status | Item |
+|---|---|---|---|
+| FW-SQ-1 | 2 | ⏳ | **Sequencer in firmware** (nu alleen editor/sim). |
+| FW-SQ-2 | 2 | 🔬 | **Poly-sequencer-ontwerp** — hoe werkt een step-sequencer N-stemmig; integratie met PolyGroup-expand. |
 
 ---
 
@@ -93,8 +172,8 @@
 |---|---|---|---|
 | HM-1 | 1 | ✅ | **Standalone MIDI IN/OUT** — discreet schema (6N138 + 2N3904), BOM bekend. Zie release-log. |
 | HM-2 | 2 | ⏳ | **Analoge VCF** (CEM3320 of AS3320) + **VCA-breakout**; firmware-support als externe module-types. |
-| HM-3 | 3 | ⏳ | **Analoge octa-osc** breakout (hardware-tegenhanger van FW-3). |
-| HM-4 | 2 | ⏳ | **CV-breakout-boards** (DAC8568-based) — meerdere CV/gate-uitgangen per board, via de brain-bus. |
+| HM-3 | 3 | ⏳ | **Analoge octa-osc** breakout (hardware-tegenhanger van FW-PM-1). |
+| HM-4 | 2 | ⏳ | **CV-breakout-boards** (DAC8568-based) — meerdere CV/gate-uitgangen per board, via de brain-bus. Sluit aan op de dCV-module met losse CV-in/uit maar 1 set globale controllers (zie 2.2). |
 
 ---
 

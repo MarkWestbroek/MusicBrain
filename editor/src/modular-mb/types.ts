@@ -100,6 +100,13 @@ export interface KnobControl {
   min: number;
   max: number;
   defaultValue: number;
+  /**
+   * Optional quantisation step. When set (e.g. 1 for a CC-number picker),
+   * the knob drag, the properties-panel input and any bound display snap to
+   * multiples of this value, so the stored control value stays an integer
+   * instead of a continuous float.
+   */
+  step?: number;
   unit?: string;
   taper?: Taper;
   style?: KnobStyle;

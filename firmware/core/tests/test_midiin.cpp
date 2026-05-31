@@ -164,6 +164,76 @@ MB_TEST(midiin_reconfigure_voicecount_clears_state) {
     MB_REQUIRE(countHighGates(midi) == 0);   // reconfigure resets gates
 }
 
+MB_TEST(midiin_steal_control_sets_strategy) {
+    MidiInModule midi("m");
+    // Default strategy is Oldest (matches VoiceAllocator default).
+    MB_REQUIRE(midi.stealStrategy() == mb::StealStrategy::Oldest);
+
+    midi.setControl("steal", ControlValue{std::int32_t{1}});
+    MB_REQUIRE(midi.stealStrategy() == mb::StealStrategy::Lowest);
+
+    midi.setControl("steal", ControlValue{std::int32_t{2}});
+    MB_REQUIRE(midi.stealStrategy() == mb::StealStrategy::Highest);
+
+    midi.setControl("steal", ControlValue{std::int32_t{0}});
+    MB_REQUIRE(midi.stealStrategy() == mb::StealStrategy::Oldest);
+
+    // Out-of-range values clamp into the valid 0..2 range.
+    midi.setControl("steal", ControlValue{std::int32_t{99}});
+    MB_REQUIRE(midi.stealStrategy() == mb::StealStrategy::Highest);
+    midi.setControl("steal", ControlValue{std::int32_t{-5}});
+    MB_REQUIRE(midi.stealStrategy() == mb::StealStrategy::Oldest);
+}
+
+MB_TEST(midiin_modwheel_and_cc_outputs) {
+    MidiInModule midi("m");
+    // Defaults: everything at 0.
+    MB_REQUIRE(std::fabs(midi.readCvPort("cv_mod") - 0.0f) < kEps);
+    MB_REQUIRE(std::fabs(midi.readCvPort("cv_cc1") - 0.0f) < kEps);
+    MB_REQUIRE(std::fabs(midi.readCvPort("cv_cc2") - 0.0f) < kEps);
+
+    // Mod-wheel = CC 1; 127 → 1.0.
+    midi.onControlChange(1, 1, 127);
+    MB_REQUIRE(std::fabs(midi.readCvPort("cv_mod") - 1.0f) < kEps);
+
+    // Default configurable CCs: cc1Num=74, cc2Num=71.
+    midi.onControlChange(1, 74, 64);
+    midi.onControlChange(1, 71, 127);
+    MB_REQUIRE(std::fabs(midi.readCvPort("cv_cc1") - (64.0f/127.0f)) < kEps);
+    MB_REQUIRE(std::fabs(midi.readCvPort("cv_cc2") - 1.0f) < kEps);
+
+    // Reassign cc1 to CC 20; CC 74 should no longer move cv_cc1.
+    midi.setControl("cc1Num", ControlValue{std::int32_t{20}});
+    midi.onControlChange(1, 74, 0);                 // old number, now ignored
+    MB_REQUIRE(std::fabs(midi.readCvPort("cv_cc1") - (64.0f/127.0f)) < kEps);
+    midi.onControlChange(1, 20, 127);
+    MB_REQUIRE(std::fabs(midi.readCvPort("cv_cc1") - 1.0f) < kEps);
+
+    // Channel filter applies to CC too.
+    midi.setControl("channel", ControlValue{std::int32_t{2}});
+    midi.onControlChange(5, 1, 0);                  // wrong channel → ignored
+    MB_REQUIRE(std::fabs(midi.readCvPort("cv_mod") - 1.0f) < kEps);
+}
+
+MB_TEST(midiin_pitchbend_output_scales_with_range) {
+    MidiInModule midi("m");
+    // Centre = no bend.
+    MB_REQUIRE(std::fabs(midi.readCvPort("cv_bend") - 0.0f) < kEps);
+
+    // Full up-bend with default range (±2 semitones) → +2/12 V.
+    midi.onPitchBend(1, 16383);
+    MB_REQUIRE(std::fabs(midi.readCvPort("cv_bend") - (2.0f/12.0f)) < 2e-3f);
+
+    // Full down-bend → about -2/12 V.
+    midi.onPitchBend(1, 0);
+    MB_REQUIRE(std::fabs(midi.readCvPort("cv_bend") - (-2.0f/12.0f)) < kEps);
+
+    // Widen range to 12 semitones (1 octave): full up = +1 V.
+    midi.setControl("bendRange", ControlValue{std::int32_t{12}});
+    midi.onPitchBend(1, 16383);
+    MB_REQUIRE(std::fabs(midi.readCvPort("cv_bend") - 1.0f) < 1e-2f);
+}
+
 // ---------- Voice-indexed ports (ADR 0011 §4) ----------
 MB_TEST(midiin_voice_indexed_ports_route_each_voice) {
     MidiInModule midi("m");

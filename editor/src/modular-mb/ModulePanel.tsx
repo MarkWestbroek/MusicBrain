@@ -85,6 +85,13 @@ export function ModulePanel({
   const controls = resolveControls(mod, types);
   const ports    = resolvePorts(mod, types);
 
+  // Cell-group overlays (ED-CG-1): a `role:'multi'` module hosts N internal
+  // cells (e.g. a quad-VCO). Draw a faint box + index label behind the ports
+  // and controls of each cell so the repeated structure is legible ("inzoom"
+  // op de cellen). Purely presentational — derived from the type's cellGroups.
+  const type = types.find((t) => t.id === mod.typeId);
+  const cellBoxes = computeCellBoxes(type, visual);
+
   return (
     <svg
       width={widthMm * pxPerMm}
@@ -100,6 +107,20 @@ export function ModulePanel({
       {/* Mounting screws (corners) */}
       {[[3, 3], [widthMm - 3, 3], [3, heightMm - 3], [widthMm - 3, heightMm - 3]].map(([x, y], i) => (
         <circle key={i} cx={x} cy={y} r={1.2} fill="#666" stroke="#333" strokeWidth={0.1} />
+      ))}
+
+      {/* Cell-group boxes (behind decorations/ports) */}
+      {cellBoxes.map((b) => (
+        <g key={`cell-${b.key}`}>
+          <rect x={b.x} y={b.y} width={b.w} height={b.h} rx={1.2}
+            fill="#ffffff" fillOpacity={0.04}
+            stroke={b.color} strokeOpacity={0.5} strokeWidth={0.25}
+            strokeDasharray="1.2 1.0" />
+          <text x={b.x + b.w / 2} y={b.y + 2.4} fontSize={1.7}
+            fill={b.color} fillOpacity={0.85} textAnchor="middle" fontWeight={600}>
+            {b.label}
+          </text>
+        </g>
       ))}
 
       {/* Decorations */}
@@ -157,6 +178,69 @@ export function ModulePanel({
       })}
     </svg>
   );
+}
+
+// ── Cell-group overlay geometry ────────────────────────────────────────
+
+interface CellBox {
+  key: string; label: string; color: string;
+  x: number; y: number; w: number; h: number;
+}
+
+const CELL_COLORS = ['#38bdf8', '#a78bfa', '#34d399', '#fbbf24',
+                     '#f472b6', '#22d3ee', '#fb923c', '#4ade80'];
+
+/** Build one box per cell of every `cellGroups` entry on the module type.
+ *  `portIds`/`controlIds` on a CellGroup are BASE names (e.g. `"voct"`); the
+ *  concrete placement keys append the 1-based cell index as `"voct_1"` or
+ *  `"pan1"`. We try both spellings. Each box bounds that cell's placements
+ *  with a little padding. Returns [] when the type has no cell-groups, so
+ *  non-multi modules render exactly as before. */
+function computeCellBoxes(
+  type: ModuleType | undefined,
+  visual: ModuleInstance['visual'],
+): CellBox[] {
+  const groups = type?.cellGroups;
+  if (!groups || groups.length === 0) return [];
+
+  const boxes: CellBox[] = [];
+  const PAD = 1.6;
+
+  const placementOf = (base: string, cell: number): { x: number; y: number } | undefined => {
+    for (const id of [`${base}_${cell}`, `${base}${cell}`, base]) {
+      const pp = visual.portPlacements[id];
+      if (pp) return pp;
+      const cp = visual.controlPlacements[id];
+      if (cp) return cp;
+    }
+    return undefined;
+  };
+
+  groups.forEach((g, gi) => {
+    const bases = [...g.portIds, ...g.controlIds, ...(g.displayIds ?? [])];
+    for (let cell = 1; cell <= g.count; ++cell) {
+      const pts: { x: number; y: number }[] = [];
+      for (const base of bases) {
+        const pl = placementOf(base, cell);
+        if (pl) pts.push({ x: pl.x, y: pl.y });
+      }
+      if (pts.length === 0) continue;
+      const xs = pts.map((p) => p.x);
+      const ys = pts.map((p) => p.y);
+      const minX = Math.min(...xs) - PAD;
+      const maxX = Math.max(...xs) + PAD;
+      const minY = Math.min(...ys) - PAD - 1.8; // extra room for the label
+      const maxY = Math.max(...ys) + PAD + 2.2; // extra room for port labels
+      boxes.push({
+        key: `${g.id}-${cell}`,
+        label: `${cell}/${g.count}`,
+        color: CELL_COLORS[gi % CELL_COLORS.length]!,
+        x: minX, y: minY, w: maxX - minX, h: maxY - minY,
+      });
+    }
+  });
+
+  return boxes;
 }
 
 // ── Decorations ────────────────────────────────────────────────────────
@@ -343,6 +427,11 @@ function KnobGlyph({
     // Click-detents: snap to multiples of ticks.every when defined.
     if (c.ticks?.every) {
       next = Math.round(next / c.ticks.every) * c.ticks.every;
+      next = clamp(next, c.min, c.max);
+    }
+    // Quantisation step (e.g. integer CC-number pickers).
+    if (c.step) {
+      next = Math.round(next / c.step) * c.step;
       next = clamp(next, c.min, c.max);
     }
     onChange(next);

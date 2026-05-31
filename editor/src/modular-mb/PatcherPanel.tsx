@@ -9,7 +9,6 @@ import { useState } from 'react';
 import { useModularProject, updateProject, uid } from './store';
 import { PatcherGraphPanel } from './PatcherGraphPanel';
 import { PatcherMatrixPanel } from './PatcherMatrixPanel';
-import { compactRack } from './rackLayout';
 import type { Patch } from './types';
 
 type View = 'graph' | 'matrix';
@@ -41,19 +40,6 @@ export function PatcherPanel(): JSX.Element {
   /** Bewaar de huidige patch onder een nieuwe naam (binnen het project).
    *  Maakt een diepe kopie met een vers id; deze wordt direct actief. Het
    *  programmanummer wordt niet meegekopieerd (zou botsen met origineel). */
-  /** Schuif alle modules in de racks van deze patch compact aan: masters op
-   *  rij 0, followers per stem in lagere rijen (vult het gat dat ontstaat na
-   *  PolyGroup-inklapping). Zie {@link compactRack}. */
-  function compactPatchRacks(): void {
-    if (!patch) return;
-    updateProject((p) => {
-      const rackIds = new Set(patch.rackIds);
-      const newRacks = p.racks.map((r) =>
-        rackIds.has(r.id) ? compactRack(r, p.modules) : r);
-      return { ...p, racks: newRacks };
-    });
-  }
-
   function saveAsNewPatch(): void {
     if (!patch) return;
     const suggested = `${patch.name} (kopie)`;
@@ -81,10 +67,6 @@ export function PatcherPanel(): JSX.Element {
         <button onClick={saveAsNewPatch} style={{ fontSize: 12, padding: '3px 10px' }}
           title="Bewaar deze patch als een nieuwe patch (kopie met nieuwe naam)">
           Bewaar als…
-        </button>
-        <button onClick={compactPatchRacks} style={{ fontSize: 12, padding: '3px 10px' }}
-          title="Schuif modules in alle racks van deze patch per rij naar links (vult gaten na PolyGroup-inklapping)">
-          Compact
         </button>
         <div style={{
           marginLeft: 'auto', display: 'flex', gap: 0,

@@ -275,6 +275,29 @@ void handleNoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
     logVoiceTable("off");
 }
 
+// Continuous controllers (mod-wheel + configurable CCs) and pitch-bend are
+// forwarded to every runtime MidiInModule so their cv_mod/cv_bend/cv_cc*
+// outputs track the controller. These do not retrigger voices, so there's no
+// need to re-sync the static voice table here.
+void handleControlChange(uint8_t channel, uint8_t cc, uint8_t value) {
+    midiIn.onControlChange(channel, cc, value);
+    for (auto& [id, mod] : runtime.instances()) {
+        if (mod->typeId() != mb::runtime::MidiInModule::kTypeId) continue;
+        static_cast<mb::runtime::MidiInModule*>(mod.get())->onControlChange(channel, cc, value);
+    }
+}
+
+void handlePitchChange(uint8_t channel, int pitch) {
+    // Teensy reports bend as a signed -8192..8191 offset; MidiInModule wants
+    // the raw 14-bit value (8192 = centre).
+    const int value14 = pitch + 8192;
+    midiIn.onPitchBend(channel, value14);
+    for (auto& [id, mod] : runtime.instances()) {
+        if (mod->typeId() != mb::runtime::MidiInModule::kTypeId) continue;
+        static_cast<mb::runtime::MidiInModule*>(mod.get())->onPitchBend(channel, value14);
+    }
+}
+
 // Editor MIDI bridge: notes sent over the serial link ({"type":"midi",...})
 // are dispatched through the same path as hardware USB-MIDI so the editor can
 // drive the runtime patch without a separate MIDI connection.
@@ -332,6 +355,8 @@ void setup() {
 
     usbMIDI.setHandleNoteOn (handleNoteOn);
     usbMIDI.setHandleNoteOff(handleNoteOff);
+    usbMIDI.setHandleControlChange(handleControlChange);
+    usbMIDI.setHandlePitchChange  (handlePitchChange);
 
     mmb_link::registerAllRuntimeModules();
     link.begin(onConfigReceived, onSelectPatch, onSetStatic, onMidiNote);
