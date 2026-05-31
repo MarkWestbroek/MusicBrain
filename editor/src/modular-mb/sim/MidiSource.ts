@@ -11,9 +11,10 @@
 //      (Web MIDI API; werkt in Chrome/Edge/Opera/recente Firefox/Safari).
 
 export type MidiEvent =
-  | { kind: 'noteOn';  note: number; velocity: number; }
-  | { kind: 'noteOff'; note: number; }
-  | { kind: 'cc';      controller: number; value: number; };
+  | { kind: 'noteOn';    note: number; velocity: number; }
+  | { kind: 'noteOff';   note: number; }
+  | { kind: 'cc';        controller: number; value: number; }
+  | { kind: 'pitchBend'; value: number; };  // 14-bit 0-16383 (8192 = centre)
 
 export type MidiListener = (e: MidiEvent) => void;
 
@@ -218,6 +219,9 @@ export class WebMidiSource extends BaseSource {
       this.emit({ kind: 'noteOff', note: d1 });
     } else if (status === 0xb0) {
       this.emit({ kind: 'cc', controller: d1, value: d2 });
+    } else if (status === 0xe0) {
+      // Pitch bend: two 7-bit bytes → 14-bit unsigned (LSB first).
+      this.emit({ kind: 'pitchBend', value: (d2 << 7) | d1 });
     }
   };
 }

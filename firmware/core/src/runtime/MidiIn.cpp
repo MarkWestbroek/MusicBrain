@@ -32,6 +32,12 @@ void MidiInModule::setControl(std::string_view controlId, ControlValue value) {
         if (auto* b = std::get_if<bool>(&value))          return *b ? 1 : 0;
         return fallback;
     };
+    auto asFloat = [&](float fallback) -> float {
+        if (auto* f = std::get_if<float>(&value))         return *f;
+        if (auto* i = std::get_if<std::int32_t>(&value))  return static_cast<float>(*i);
+        if (auto* b = std::get_if<bool>(&value))          return *b ? 1.0f : 0.0f;
+        return fallback;
+    };
 
     if (controlId == "channel") {
         const auto c = std::clamp<std::int32_t>(asInt(0), 0, 16);
@@ -62,6 +68,20 @@ void MidiInModule::setControl(std::string_view controlId, ControlValue value) {
             // same destructive policy we use when `voiceCount` changes.
             allNotesOff();
         }
+    } else if (controlId == "glide" || controlId == "portamento") {
+        // Portamento time in ms per octave; clamp negatives to 0 (= off).
+        glideMsPerOct_ = std::max(0.0f, asFloat(0.0f));
+    } else if (controlId == "unison") {
+        const bool on = asInt(0) != 0;
+        if (on != unison_) {
+            unison_ = on;
+            // Same destructive policy as legato/voiceCount: the unison gate
+            // model differs from poly allocation, so resync from a clean slate.
+            allNotesOff();
+        }
+    } else if (controlId == "spread") {
+        // Total unison detune spread in cents; a couple of semitones is plenty.
+        spreadCents_ = std::clamp(asFloat(0.0f), 0.0f, 200.0f);
     }
     // `priority` (mono note-priority last/low/high) is accepted by the editor
     // but not yet acted on here: the allocator currently always uses last-note
@@ -116,6 +136,20 @@ void MidiInModule::onNoteOn(std::uint8_t channel, std::uint8_t note, std::uint8_
         return;
     }
 
+    if (unison_) {
+        // Unison: one key drives every voice (last-note priority via the mono
+        // note-stack). Each voice tracks the same note; `spreadOffsetV()` fans
+        // them out in pitch. Gate stays high while any key is held.
+        monoPush(note);
+        const std::uint8_t n = alloc_.voiceCount();
+        for (std::uint8_t v = 0; v < n; ++v) {
+            currentNote_[v] = note;
+            velocity_   [v] = velocity;
+            gate_       [v] = true;
+        }
+        return;
+    }
+
     const auto r = alloc_.noteOn(note);
     if (r.voiceIdx >= kMaxAllocVoices) return;   // defensive; allocator
                                                  // never returns >=kMax.
@@ -144,6 +178,21 @@ void MidiInModule::onNoteOff(std::uint8_t channel, std::uint8_t note) {
             currentNote_[0] = monoStack_[monoStackLen_ - 1];
         } else {
             gate_[0] = false;
+        }
+        return;
+    }
+
+    if (unison_) {
+        // Unison: drop the released note from the stack. Fall back to the
+        // previous held note on every voice, or lower all gates when the last
+        // key is released.
+        monoRemove(note);
+        const std::uint8_t n = alloc_.voiceCount();
+        if (monoStackLen_ > 0) {
+            const std::uint8_t top = monoStack_[monoStackLen_ - 1];
+            for (std::uint8_t v = 0; v < n; ++v) currentNote_[v] = top;
+        } else {
+            for (std::uint8_t v = 0; v < n; ++v) gate_[v] = false;
         }
         return;
     }
@@ -179,9 +228,43 @@ void MidiInModule::onPitchBend(std::uint8_t channel, int value14) {
     bend14_ = std::clamp(value14, 0, 16383);
 }
 
+void MidiInModule::tick() {
+    // Portamento: glide each voice's output toward its target note at a
+    // constant rate (ms per octave). Off (glideMsPerOct_ == 0) → snap.
+    constexpr float kTickMs = 1.0f;   // CV tick period (see main.cpp loop()).
+    const float stepV = (glideMsPerOct_ > 0.0f) ? (kTickMs / glideMsPerOct_) : 0.0f;
+    for (std::uint8_t v = 0; v < kMaxAllocVoices; ++v) {
+        const float target = noteToVolts(currentNote_[v]);
+        if (!glidePrimed_[v] || stepV <= 0.0f) {
+            pitchV_[v] = target;          // first note per voice / glide off.
+            glidePrimed_[v] = true;
+            continue;
+        }
+        const float d = target - pitchV_[v];
+        if (d > stepV)        pitchV_[v] += stepV;
+        else if (d < -stepV)  pitchV_[v] -= stepV;
+        else                  pitchV_[v] = target;
+    }
+}
+
+float MidiInModule::spreadOffsetV(std::uint8_t v) const {
+    if (!unison_ || spreadCents_ <= 0.0f) return 0.0f;
+    const std::uint8_t n = alloc_.voiceCount();
+    if (n <= 1 || v >= n) return 0.0f;
+    // Distribute voices symmetrically across [-0.5, +0.5] of the total spread.
+    const float pos = (static_cast<float>(v) / static_cast<float>(n - 1)) - 0.5f;
+    return pos * (spreadCents_ / 100.0f) * kInvSemitonesPerOctave;  // cents → V/Oct.
+}
+
 float MidiInModule::voicePitchV(std::uint8_t voiceIdx) const {
     if (voiceIdx >= kMaxAllocVoices) return 0.0f;
-    return noteToVolts(currentNote_[voiceIdx]);
+    // Glide off (or this voice not yet primed) → return the target note
+    // directly, so the output is correct without waiting for a tick. While
+    // gliding, follow the per-tick-advanced `pitchV_`.
+    const float base = (glideMsPerOct_ > 0.0f && glidePrimed_[voiceIdx])
+        ? pitchV_[voiceIdx]
+        : noteToVolts(currentNote_[voiceIdx]);
+    return base + spreadOffsetV(voiceIdx);
 }
 
 bool MidiInModule::voiceGate(std::uint8_t voiceIdx) const {
@@ -203,10 +286,11 @@ float MidiInModule::readCvPort(std::string_view portId) const {
     }
     if (portId == "pitch") {
         // First currently-gated voice wins; if none, last note assigned to
-        // voice 0 (so a release tail keeps its pitch).
+        // voice 0 (so a release tail keeps its pitch). Uses the glided +
+        // spread-detuned output, not the raw note.
         for (std::uint8_t v = 0; v < n; ++v)
-            if (gate_[v]) return noteToVolts(currentNote_[v]);
-        return noteToVolts(currentNote_[0]);
+            if (gate_[v]) return voicePitchV(v);
+        return voicePitchV(0);
     }
     if (portId == "vel") {
         // Velocity of the first currently-gated voice, normalised to 0..1.

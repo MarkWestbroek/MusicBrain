@@ -32,6 +32,9 @@
  * | `steal`      | int     | poly voice-stealing: 0=oldest,1=lowest,2=highest |
  * | `priority`   | int     | mono note-priority (accepted; FW-1, not yet acted on) |
  * | `legato`     | int     | mono legato on/off (accepted; FW-1, not yet acted on) |
+ * | `glide`      | float   | portamento time in ms per octave (0 = off)         |
+ * | `unison`     | int     | one key → all voices (0/1)                         |
+ * | `spread`     | float   | unison detune spread in cents (total, symmetric)   |
  * | `cc1Num`     | int     | CC number routed to `cv_cc1` (0..127; default 74)  |
  * | `cc2Num`     | int     | CC number routed to `cv_cc2` (0..127; default 71)  |
  * | `bendRange`  | int     | pitch-bend range in semitones (1..24; default 2)   |
@@ -50,6 +53,7 @@
 #include "CvModule.h"
 #include "Registry.h"
 #include "mb/VoiceAllocator.h"
+#include <array>
 #include <cstdint>
 
 namespace mb::runtime {
@@ -100,10 +104,11 @@ public:
 
     // --- CvModule override ----------------------------------------------
 
-    /** @brief No-op tick: MidiInModule is event-driven, not scheduled.
-     *  Implements CvModule so it can share the same timer-ISR dispatch loop
-     *  as Lfo and Ahdsr without special-casing in the scheduler. */
-    void tick() override {}
+    /** @brief Per-tick update: advances portamento (pitch glide) toward each
+     *  voice's target note. Called every ~1 ms from the CV tick loop, like
+     *  Lfo and Ahdsr. When glide is off (`glideMsPerOct_ == 0`) the output
+     *  snaps to the target instantly, so this stays effectively a no-op. */
+    void tick() override;
 
     // --- MIDI event sinks (called from MIDI ISR or test code) -----------
 
@@ -204,6 +209,26 @@ private:
     bool monoLegatoActive() const { return legato_ && alloc_.voiceCount() == 1; }
     void monoPush(std::uint8_t note);
     void monoRemove(std::uint8_t note);
+
+    // Portamento / glide (constant-rate). `glideMsPerOct_` is the time in ms
+    // to traverse one octave (1 V); 0 = off (instant jump). `pitchV_` holds
+    // the current, possibly mid-glide, V/Oct output per voice; `glidePrimed_`
+    // forces a snap on the very first note per voice so power-up doesn't sweep
+    // up from the default note. Advanced in `tick()`.
+    float                      glideMsPerOct_ = 0.0f;
+    std::array<float, kMaxAllocVoices> pitchV_{};
+    std::array<bool,  kMaxAllocVoices> glidePrimed_{};
+
+    // Unison (ED-RV-9, firmware slice). When on, one key drives *all* voices
+    // (last-note priority via the mono note-stack) instead of allocating one
+    // voice per note. `spreadCents_` detunes the voices symmetrically around
+    // the centre (total spread in cents) for the classic fat unison sound.
+    bool                       unison_      = false;
+    float                      spreadCents_ = 0.0f;
+
+    /** @brief Symmetric unison detune offset (V/Oct) for voice @p v.
+     *  Returns 0 unless unison is on with a non-zero spread and >1 voice. */
+    float spreadOffsetV(std::uint8_t v) const;
 
     // Modulation state (ED-MI-4). Mod-wheel and two configurable CC slots are
     // stored as raw 0..127; pitch-bend keeps the raw 14-bit value (8192 = no

@@ -10,6 +10,37 @@
 
 ## Firmware
 
+### fw 0.5.12 — portamento + unison/spread (2026-06-01)
+- **Portamento / glide (FW-1b).** `MidiInModule::tick()` is geen no-op meer: hij
+  draait nu elke ~1 ms in de CV-loop (net als `Lfo`/`Ahdsr`) en schuift per stem
+  `pitchV_` met constante snelheid naar de doelnoot. De `glide`/`portamento`-
+  control geeft de tijd in **ms per octaaf** (0 = uit → directe sprong) en werkt
+  zowel mono als poly. De eerste noot per stem snapt direct (geen sweep vanaf 0
+  bij power-up, via `glidePrimed_`). `voicePitchV`/`pitch`/`pitchK` geven nu de
+  geglede waarde. Core-tests `midiin_glide_off_is_instant` +
+  `midiin_glide_ramps_toward_target`.
+- **Unison + spread (ED-RV-9, firmware-helft).** Nieuwe `unison_`/`spreadCents_`.
+  Bij unison aan stuurt één toets álle stemmen (last-note via de mono note-stack:
+  `onNoteOn` broadcast naar `[0..voiceCount)`, `onNoteOff` valt terug op de
+  stack-top of laat alle gates zakken). `spread` (centen, 0..200) waaiert de
+  stemmen symmetrisch uit rond het midden via `spreadOffsetV(v)` → V/Oct-detune.
+  Schakelen reset de held notes (zelfde policy als `legato`/`voiceCount`).
+  Core-tests `midiin_unison_drives_all_voices` +
+  `midiin_unison_spread_detunes_symmetrically`. *Nog open:* de browser-sim poly
+  voice-allocatie (ED-RV-9 tweede helft).
+- **Editor.** `mmbMidiIn()` krijgt op de vrije rij (y=66) een `Glide`-knop
+  (ms/oct), een `Uni`-switch en een `Sprd`-knop (centen). `Uni`/`Sprd` worden
+  grijs bij een monofone patch (`MIDIIN_MONO_DISABLED`). 99 core-tests groen.
+
+### fw 0.5.11 — pitch-bend serial-bridge (2026-06-01)
+- **Pitch-bend door de editor-bridge.** De serial-MIDI-bridge
+  (`{"type":"midi",…}`) droeg alleen note-on/off; KeyStep-pitch-bend kwam dus
+  niet door (VMPK wél, want die gaat direct naar de USB-MIDI-poort van de
+  Teensy). Nieuw parallel `{"type":"bend"}`-pad: `WebMidiSource` emit nu
+  `pitchBend`-events (status `0xe0`), `teensyLink.sendMidiBend` stuurt ze als
+  JSON, en `TeensyLink.h` parst `bend` → `onMidiBend` → `handlePitchChange` →
+  `midiIn.onPitchBend`.
+
 ### fw 0.5.10 — AHDSR retrigger + mono-legato + CC/bend-logging (2026-05-31)
 - **AHDSR retrigger-modus (ED-RV-7, filter-wah-fix).** `Ahdsr` krijgt een
   `retrig_`-vlag (control-id `retrig`|`reset`). Aan = elke rising edge herstart

@@ -308,6 +308,14 @@ void onMidiNote(bool on, uint8_t channel, uint8_t note, uint8_t velocity) {
     else    handleNoteOff(channel, note, velocity);
 }
 
+// Editor MIDI bridge: pitch-bend forwarded via the serial link.
+// The JSON protocol sends a 14-bit unsigned value (0-16383, 8192=centre);
+// TeensyLink converts that back to the signed -8192..8191 offset that
+// handlePitchChange() expects (same convention as usbMIDI).
+void onMidiBend(uint8_t channel, int pitch) {
+    handlePitchChange(channel, pitch);
+}
+
 }  // namespace
 
 void setup() {
@@ -361,7 +369,7 @@ void setup() {
     usbMIDI.setHandlePitchChange  (handlePitchChange);
 
     mmb_link::registerAllRuntimeModules();
-    link.begin(onConfigReceived, onSelectPatch, onSetStatic, onMidiNote);
+    link.begin(onConfigReceived, onSelectPatch, onSetStatic, onMidiNote, onMidiBend);
 }
 
 void loop() {

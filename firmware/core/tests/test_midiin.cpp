@@ -302,3 +302,82 @@ MB_TEST(midiin_voice_indexed_ports_kind_and_bounds) {
     // Index above voiceCount reads as 0 (silent), not garbage.
     MB_REQUIRE(midi.readCvPort("gate3") == 0.0f);
 }
+
+// ---------- Portamento / glide (FW-1 slice) ----------
+MB_TEST(midiin_glide_off_is_instant) {
+    MidiInModule midi("m");
+    // Default glide = 0 (off): pitch jumps immediately, no tick needed.
+    midi.onNoteOn(1, 60, 100);
+    MB_REQUIRE(std::fabs(midi.voicePitchV(0) - 0.0f) < kEps);
+    midi.onNoteOn(1, 72, 100);                 // +1 octave
+    MB_REQUIRE(std::fabs(midi.voicePitchV(0) - 1.0f) < kEps);
+}
+
+MB_TEST(midiin_glide_ramps_toward_target) {
+    MidiInModule midi("m");
+    // 100 ms per octave → 0.01 V per 1 ms tick.
+    midi.setControl("glide", ControlValue{100.0f});
+
+    // First note primes/snaps on the first tick (no upward sweep from 0).
+    midi.onNoteOn(1, 60, 100);                 // target 0 V
+    midi.tick();
+    MB_REQUIRE(std::fabs(midi.voicePitchV(0) - 0.0f) < kEps);
+
+    // Jump an octave up; output should now glide, not snap.
+    midi.onNoteOn(1, 72, 100);                 // target +1 V
+    midi.tick();                               // one 1 ms step → ~0.01 V
+    const float afterOne = midi.voicePitchV(0);
+    MB_REQUIRE(afterOne > 0.0f);
+    MB_REQUIRE(afterOne < 1.0f);
+    MB_REQUIRE(std::fabs(afterOne - 0.01f) < 1e-3f);
+
+    // After enough ticks it reaches and clamps at the target.
+    for (int i = 0; i < 200; ++i) midi.tick();
+    MB_REQUIRE(std::fabs(midi.voicePitchV(0) - 1.0f) < kEps);
+}
+
+// ---------- Unison (ED-RV-9 firmware slice) ----------
+MB_TEST(midiin_unison_drives_all_voices) {
+    MidiInModule midi("m");
+    midi.setControl("voiceCount", ControlValue{std::int32_t{4}});
+    midi.setControl("unison", ControlValue{true});
+
+    // One key gates every voice.
+    midi.onNoteOn(1, 60, 100);
+    for (std::uint8_t v = 0; v < 4; ++v) MB_REQUIRE(midi.voiceGate(v));
+
+    // Last-note priority: a second key moves all voices to the new note.
+    midi.onNoteOn(1, 67, 100);
+    for (std::uint8_t v = 0; v < 4; ++v) MB_REQUIRE(midi.voiceGate(v));
+
+    // Releasing the top note falls back to the still-held note; gates stay up.
+    midi.onNoteOff(1, 67);
+    for (std::uint8_t v = 0; v < 4; ++v) MB_REQUIRE(midi.voiceGate(v));
+
+    // Releasing the last note drops every gate.
+    midi.onNoteOff(1, 60);
+    for (std::uint8_t v = 0; v < 4; ++v) MB_REQUIRE(!midi.voiceGate(v));
+}
+
+MB_TEST(midiin_unison_spread_detunes_symmetrically) {
+    MidiInModule midi("m");
+    midi.setControl("voiceCount", ControlValue{std::int32_t{4}});
+    midi.setControl("unison", ControlValue{true});
+    midi.setControl("spread", ControlValue{100.0f});   // 100 ct total spread
+    midi.onNoteOn(1, 60, 100);                          // centre 0 V
+
+    // Voices fan out symmetrically around the centre note.
+    const float p0 = midi.voicePitchV(0);
+    const float p3 = midi.voicePitchV(3);
+    MB_REQUIRE(p0 < 0.0f);                  // lowest voice below centre
+    MB_REQUIRE(p3 > 0.0f);                  // highest voice above centre
+    MB_REQUIRE(std::fabs(p0 + p3) < kEps);  // symmetric: outer voices mirror
+    // Total span = 100 ct = 1 semitone = 1/12 V across the outer voices.
+    MB_REQUIRE(std::fabs((p3 - p0) - (1.0f / 12.0f)) < 1e-3f);
+
+    // Spread is a unison-only feature: with unison off it has no effect.
+    midi.setControl("unison", ControlValue{false});
+    midi.onNoteOn(1, 60, 100);
+    MB_REQUIRE(std::fabs(midi.voicePitchV(0) - 0.0f) < kEps);
+}
+

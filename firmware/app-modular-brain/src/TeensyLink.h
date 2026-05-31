@@ -46,6 +46,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include "FwVersion.h"
@@ -81,15 +82,21 @@ public:
      *  @p on=true for note-on, false for note-off. */
     using MidiNoteHandler = void (*)(bool on, uint8_t channel, uint8_t note, uint8_t velocity);
 
+    /** Callback invoked when a "bend" message arrives (editor MIDI bridge).
+     *  @p pitch is a signed -8192..8191 offset (same convention as usbMIDI). */
+    using MidiBendHandler = void (*)(uint8_t channel, int pitch);
+
     /** @brief Initialise the link and send the opening hello frame.
      *  Must be called once from Arduino `setup()` after `Serial.begin()`. */
     void begin(ConfigHandler onConfig, SelectPatchHandler onSelectPatch,
                SetStaticHandler onSetStatic = nullptr,
-               MidiNoteHandler onMidiNote = nullptr) {
+               MidiNoteHandler onMidiNote = nullptr,
+               MidiBendHandler onMidiBend = nullptr) {
         onConfig_      = onConfig;
         onSelectPatch_ = onSelectPatch;
         onSetStatic_   = onSetStatic;
         onMidiNote_    = onMidiNote;
+        onMidiBend_    = onMidiBend;
         bufLen_ = 0;
         sendHello();
     }
@@ -138,6 +145,7 @@ private:
     SelectPatchHandler onSelectPatch_ = nullptr;
     SetStaticHandler   onSetStatic_   = nullptr;
     MidiNoteHandler    onMidiNote_    = nullptr;
+    MidiBendHandler    onMidiBend_    = nullptr;
 
     void sendHello() {
         JsonDocument doc;
@@ -227,6 +235,15 @@ private:
             const uint8_t vel  = static_cast<uint8_t>(doc["vel"]  | 0);
             const uint8_t ch   = static_cast<uint8_t>(doc["ch"]   | 0);
             if (onMidiNote_) onMidiNote_(on, ch, note, vel);
+            return;
+        }
+        if (strcmp(type, "bend") == 0) {
+            // Editor MIDI bridge: {"type":"bend","val":int,"ch":int}.
+            // val is 14-bit unsigned (0-16383, 8192 = centre); convert to signed pitch.
+            const uint8_t ch  = static_cast<uint8_t>(doc["ch"]  | 0);
+            const int     val = doc["val"] | 8192;
+            const int pitch   = std::clamp(val, 0, 16383) - 8192;
+            if (onMidiBend_) onMidiBend_(ch, pitch);
             return;
         }
         sendAckErr("unknown type");

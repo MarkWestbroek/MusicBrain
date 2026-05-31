@@ -952,6 +952,12 @@ function mmbMidiIn() {
       sw  ('legato', 'Leg', w*0.56, 52, ['off','on'], 0),
       // Pitch-bend-bereik in halve tonen (integer).
       knob('bendRange', 'Bend', w*0.80, 52, { size: 'small', min: 1, max: 24, def: 2, step: 1, unit: 'st', color: '#f9fafb' }),
+      // Portamento / glide (vrije rij y=66). Glijtijd in ms per octaaf (0 = uit,
+      // directe sprong). Unison = één toets stuurt alle stemmen (last-note);
+      // Sprd = symmetrische unison-detune in centen (fat-sound).
+      knob('glide', 'Glide', w*0.14, 66, { size: 'small', min: 0, max: 2000, def: 0, step: 10, unit: 'ms/oct', color: '#f9fafb' }),
+      sw  ('unison', 'Uni', w*0.40, 66, ['off','on'], 0),
+      knob('spread', 'Sprd', w*0.66, 66, { size: 'small', min: 0, max: 100, def: 0, step: 1, unit: 'ct', color: '#f9fafb' }),
       // CC-pickers: welk CC-nummer naar cv_cc1/cv_cc2 gaat (integer). Defaults
       // 74 (filter-cutoff) en 71 (resonantie). Elke knop heeft een LED-display
       // dat het gekozen CC-nummer toont.
@@ -969,7 +975,7 @@ function mmbMidiIn() {
       outPort('cv_cc1',  'CC1',  'cv', w*0.82, 112),
       outPort('cv_cc2',  'CC2',  'cv', w*0.94, 112),
     ],
-    notes: 'Zet inkomende MIDI om in CV. NOTE-uitgangen (per stem): pitch (V/Oct), gate, velocity. MOD-uitgangen (globaal): Mod (mod-wheel CC1), Bend (pitch-bend, V/Oct, bereik = Bend-knop in halve tonen), CC1/CC2 (vrij kiesbare CC-nummers via CC1#/CC2#; het gekozen nummer staat op het LED-display naast elke knop). De MIDI-bron kies je in het Simulatie-paneel. Mono/poly volgt automatisch uit het aantal stemmen (voiceCount). PRIO = mono note-priority (last/low/high). STEAL = poly voice-stealing → firmware StealStrategy. LEG = legato (firmware-gedrag = FW-1, nog te bouwen). Géén MIDI-jack op de front; alles loopt via de brain.',
+    notes: 'Zet inkomende MIDI om in CV. NOTE-uitgangen (per stem): pitch (V/Oct), gate, velocity. MOD-uitgangen (globaal): Mod (mod-wheel CC1), Bend (pitch-bend, V/Oct, bereik = Bend-knop in halve tonen), CC1/CC2 (vrij kiesbare CC-nummers via CC1#/CC2#; het gekozen nummer staat op het LED-display naast elke knop). De MIDI-bron kies je in het Simulatie-paneel. Mono/poly volgt automatisch uit het aantal stemmen (voiceCount). PRIO = mono note-priority (last/low/high). STEAL = poly voice-stealing → firmware StealStrategy. LEG = legato (firmware-gedrag = FW-1, nog te bouwen). GLIDE = portamento (ms per octaaf, 0 = uit). UNI = unison (één toets → alle stemmen, last-note); SPRD = unison-detune in centen. Géén MIDI-jack op de front; alles loopt via de brain.',
   });
 }
 

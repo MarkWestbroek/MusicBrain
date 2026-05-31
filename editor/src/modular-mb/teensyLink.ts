@@ -254,6 +254,18 @@ export async function sendMidi(
   }), true);  // quiet: don't flood the log while playing
 }
 
+/** Editor MIDI bridge: forward a pitch-bend event to the Teensy over the serial link.
+ *  @param value14  14-bit unsigned pitch-bend value (0-16383, 8192 = centre)
+ *  @param channel  0-based MIDI channel (default 0) */
+export async function sendMidiBend(
+  value14: number, channel = 0,
+): Promise<void> {
+  if (!writer) return;
+  await writeLine(JSON.stringify({
+    type: 'bend', val: value14 | 0, ch: channel | 0,
+  }), true);
+}
+
 /** True when a serial writer is currently attached (connected to a Teensy). */
 export function isConnected(): boolean {
   return writer !== null;

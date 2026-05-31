@@ -36,8 +36,9 @@ const PX_PER_MM = 2.4;
 // ── Node ───────────────────────────────────────────────────────────────
 
 /** Controls op de MIDI-IN die alleen zin hebben bij een polyfone patch en
- *  daarom grijs gaan zodra voiceCount === 1. */
-const MIDIIN_MONO_DISABLED: ReadonlySet<string> = new Set(['steal']);
+ *  daarom grijs gaan zodra voiceCount === 1. Unison/spread verdelen één toets
+ *  over meerdere stemmen en hebben dus minstens twee stemmen nodig. */
+const MIDIIN_MONO_DISABLED: ReadonlySet<string> = new Set(['steal', 'unison', 'spread']);
 
 /** Controls op de MIDI-IN die alleen zin hebben bij een monofone patch en
  *  daarom grijs gaan zodra voiceCount > 1. Legato (mono-glide zonder
