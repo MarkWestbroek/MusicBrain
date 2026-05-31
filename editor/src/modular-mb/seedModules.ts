@@ -629,15 +629,16 @@ function mmbAhdsr() {
       slider('sustain', 'S', colX[3], sliderY, { min: 0,    max: 1,    def: 0.7,  lengthMm: sliderLen }),
       slider('release', 'R', colX[4], sliderY, { min: 0,    max: 8000, def: 400,  lengthMm: sliderLen, unit: 'ms' }),
 
-      toggle('loop',    'Loop',  w*0.30, 96),
-      sw    ('curve',   'Curve', w*0.70, 96, ['Lin','Exp','Log'], 1),
+      toggle('loop',    'Loop',  w*0.20, 96),
+      toggle('retrig',  'Reset', w*0.45, 96),
+      sw    ('curve',   'Curve', w*0.74, 96, ['Lin','Exp','Log'], 1),
 
       inPort ('gate',    'Gate', 'gate',   w*0.20, 112),
       inPort ('trig',    'Trig', 'trigger',w*0.50, 112),
       outPort('cv_out',  'Env',  'cv',     w*0.80, 112),
       outPort('eoc',     'EOC',  'trigger',w*0.50, 122),
     ],
-    notes: 'Interne MMB envelope. Loop=on maakt er een quasi-LFO van; curve schakelt tussen lineair/exp/log per fase.',
+    notes: 'Interne MMB envelope. Loop=on maakt er een quasi-LFO van; curve schakelt tussen lineair/exp/log per fase. Reset=on hertriggert elke noot vanaf 0 (consistente filter-wah); Reset=off vervolgt klikvrij vanaf de huidige waarde (goed voor amp-env).',
   });
 }
 
@@ -723,12 +724,13 @@ function mmbVco() {
       knob('fm_amt', 'FM',     w*0.30, 78, { size: 'medium', min: 0, max: 1, def: 0,  color: '#f9fafb' }),
       knob('level',  'Level',  w*0.70, 78, { size: 'medium', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
 
-      inPort ('voct', '1V/Oct', 'cv',    w*0.20, 104),
-      inPort ('fm',   'FM',     'cv',    w*0.50, 104),
-      inPort ('sync', 'Sync',   'trigger', w*0.80, 104),
+      inPort ('voct', '1V/Oct', 'cv',    w*0.18, 104),
+      inPort ('tune', 'Tune',   'cv',    w*0.40, 104),
+      inPort ('fm',   'FM',     'cv',    w*0.62, 104),
+      inPort ('sync', 'Sync',   'trigger', w*0.84, 104),
       outPort('out',  'Out',    'audio', w/2,    118),
     ],
-    notes: 'Interne MMB VCO. \'wave\' kiest sine/triangle/sawtooth/square; coarse+fine zijn semitonen+cent offsets t.o.v. de inkomende V/Oct.',
+    notes: 'Interne MMB VCO. \'wave\' kiest sine/triangle/sawtooth/square; coarse+fine zijn semitonen+cent offsets t.o.v. de inkomende V/Oct. \'tune\' is een aparte V/Oct-ingang die bij de hoofdpitch wordt opgeteld (voor pitch-bend/detune zonder de noot-V/Oct te overschrijven).',
   });
 }
 
@@ -1525,7 +1527,7 @@ export function seedCvBridgePatch(project: ModularProject): ModularProject {
     [vcf.id]:    { cutoff: 800, q: 0.8, cv_amt: 1, type: 0 },
     [vca.id]:    { gain: 0, resp: 0 },
     [envAmp.id]: { attack: 8, hold: 0, decay: 300, sustain: 0.7, release: 500, loop: false, curve: 1 },
-    [envFlt.id]: { attack: 20, hold: 0, decay: 600, sustain: 0.3, release: 800, loop: false, curve: 1 },
+    [envFlt.id]: { attack: 20, hold: 0, decay: 600, sustain: 0.3, release: 800, loop: false, curve: 1, retrig: true },
     [cvmath.id]: { mode: 1, gain_a: 1, gain_b: 1, gain_c: 1, offset: 0 },  // mult: env × vel
     [out.id]:    { level: 0.8 },
   };
@@ -1673,6 +1675,10 @@ export function seedPolyVoicePatch(project: ModularProject, voiceCount: number):
     c({ m: mi,         port: 'pitch'  }, { m: master.vco,    port: 'voct' }),
     c({ m: mi,         port: 'gate'   }, { m: master.envAmp, port: 'gate' }),
     c({ m: mi,         port: 'gate'   }, { m: master.envFlt, port: 'gate' }),
+    // CV: pitch-bend (globale MOD-out) → VCO tune-ingang. Globaal → group
+    // fan-out: dezelfde bend gaat naar elke stem-VCO. De hoofd-V/Oct (pitch)
+    // blijft de noot; tune verschuift de pitch exponentieel (±bendRange).
+    c({ m: mi,         port: 'cv_bend' }, { m: master.vco,   port: 'tune' }),
     // CV: filter-env → cutoff (group→group)
     c({ m: master.envFlt, port: 'cv_out' }, { m: master.vcf,    port: 'cv' }),
     // CV: amp-env × velocity → VCA
@@ -1704,7 +1710,7 @@ export function seedPolyVoicePatch(project: ModularProject, voiceCount: number):
     controlState[v.vcf.id]    = { cutoff: 800, q: 0.8, cv_amt: 1, type: 0 };
     controlState[v.vca.id]    = { gain: 0, resp: 0 };
     controlState[v.envAmp.id] = { attack: 8, hold: 0, decay: 300, sustain: 0.7, release: 500, loop: false, curve: 1 };
-    controlState[v.envFlt.id] = { attack: 20, hold: 0, decay: 600, sustain: 0.3, release: 800, loop: false, curve: 1 };
+    controlState[v.envFlt.id] = { attack: 20, hold: 0, decay: 600, sustain: 0.3, release: 800, loop: false, curve: 1, retrig: true };
     controlState[v.cvmath.id] = { mode: 1, gain_a: 1, gain_b: 1, gain_c: 1, offset: 0 };
   });
 

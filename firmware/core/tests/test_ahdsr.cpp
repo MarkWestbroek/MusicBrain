@@ -129,3 +129,48 @@ MB_TEST(ahdsr_curve_changes_attack_midpoint) {
     MB_REQUIRE(exp > 0.23f && exp < 0.27f);
     MB_REQUIRE(log > 0.73f && log < 0.77f);
 }
+
+// Default (retrig off): a rising edge during Decay/Sustain/Release continues
+// the slope from the current value — the attack does NOT restart from 0.
+MB_TEST(ahdsr_default_retrigger_continues_from_current_value) {
+    Ahdsr env("e");
+    env.setControl("attack",  ControlValue{100.0f});
+    env.setControl("decay",   ControlValue{ 10.0f});
+    env.setControl("sustain", ControlValue{  0.5f});
+    env.setControl("release", ControlValue{100.0f});
+
+    env.setGate(true);
+    tickN(env, 100 + 10);                       // reach Sustain (≈0.5)
+    MB_REQUIRE(env.phase() == Ahdsr::Phase::Sustain);
+    env.setGate(false);
+    tickN(env, 20);                             // partway down the release
+    const float beforeRetrig = env.value();
+    MB_REQUIRE(beforeRetrig > 0.1f);
+
+    // Rising edge while in Release. Without retrig the value is preserved
+    // (no jump to 0) and the phase clock is advanced to match.
+    env.setGate(true);
+    MB_REQUIRE(env.phase() == Ahdsr::Phase::Attack);
+    MB_REQUIRE(env.value() > beforeRetrig - 0.02f);   // did not reset to 0
+}
+
+// Retrig on: every rising edge restarts the attack from 0, regardless of the
+// current value — the consistent-filter-wah behaviour (ED-RV-7).
+MB_TEST(ahdsr_retrigger_mode_restarts_from_zero) {
+    Ahdsr env("e");
+    env.setControl("attack",  ControlValue{100.0f});
+    env.setControl("decay",   ControlValue{ 10.0f});
+    env.setControl("sustain", ControlValue{  0.5f});
+    env.setControl("release", ControlValue{100.0f});
+    env.setControl("retrig",  ControlValue{true});
+
+    env.setGate(true);
+    tickN(env, 100 + 10);                       // reach Sustain (≈0.5)
+    MB_REQUIRE(env.phase() == Ahdsr::Phase::Sustain);
+    MB_REQUIRE(env.value() > 0.45f);
+
+    // Rising edge while sustaining high → hard restart from 0.
+    env.setGate(true);
+    MB_REQUIRE(env.phase() == Ahdsr::Phase::Attack);
+    MB_REQUIRE(env.value() == 0.0f);
+}

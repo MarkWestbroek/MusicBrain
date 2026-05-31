@@ -53,12 +53,43 @@ void MidiInModule::setControl(std::string_view controlId, ControlValue value) {
         cc2Num_ = static_cast<std::uint8_t>(std::clamp<std::int32_t>(asInt(71), 0, 127));
     } else if (controlId == "bendRange") {
         bendRange_ = static_cast<std::uint8_t>(std::clamp<std::int32_t>(asInt(2), 1, 24));
+    } else if (controlId == "legato") {
+        const bool on = asInt(0) != 0;
+        if (on != legato_) {
+            legato_ = on;
+            // Switching the gate model mid-flight would desync the mono
+            // note-stack from the allocator, so reset all held notes — the
+            // same destructive policy we use when `voiceCount` changes.
+            allNotesOff();
+        }
     }
-    // `priority` (mono note-priority last/low/high) and `legato` are accepted
-    // by the editor but not yet acted on here: the allocator currently always
-    // uses last-note priority and there is no legato glide (see backlog FW-1).
+    // `priority` (mono note-priority last/low/high) is accepted by the editor
+    // but not yet acted on here: the allocator currently always uses last-note
+    // priority (see backlog FW-1).
     // Unknown ids are silently ignored (forward-compat with older patches).
 }
+
+void MidiInModule::monoPush(std::uint8_t note) {
+    // Remove any existing instance so the note moves to the top of the stack.
+    monoRemove(note);
+    if (monoStackLen_ < kMonoStackMax) {
+        monoStack_[monoStackLen_++] = note;
+    } else {
+        // Stack full: drop the oldest entry to make room (very unlikely with
+        // 32 slots, but keeps us bounded and click-free).
+        for (std::uint8_t i = 1; i < kMonoStackMax; ++i) monoStack_[i - 1] = monoStack_[i];
+        monoStack_[kMonoStackMax - 1] = note;
+    }
+}
+
+void MidiInModule::monoRemove(std::uint8_t note) {
+    std::uint8_t w = 0;
+    for (std::uint8_t r = 0; r < monoStackLen_; ++r) {
+        if (monoStack_[r] != note) monoStack_[w++] = monoStack_[r];
+    }
+    monoStackLen_ = w;
+}
+
 
 bool MidiInModule::filteredOut(std::uint8_t channel) const {
     // MIDI channels on the wire are 0..15; user-facing is 1..16. The
@@ -73,6 +104,17 @@ void MidiInModule::onNoteOn(std::uint8_t channel, std::uint8_t note, std::uint8_
 
     // MIDI convention: NoteOn with velocity 0 == NoteOff.
     if (velocity == 0) { onNoteOff(channel, note); return; }
+
+    if (monoLegatoActive()) {
+        // Mono legato: voice 0 changes pitch but the gate stays high while a
+        // previous note is still sounding, so the envelopes are NOT
+        // retriggered (legato glide). The very first note raises the gate.
+        monoPush(note);
+        currentNote_[0] = note;
+        velocity_   [0] = velocity;
+        gate_       [0] = true;
+        return;
+    }
 
     const auto r = alloc_.noteOn(note);
     if (r.voiceIdx >= kMaxAllocVoices) return;   // defensive; allocator
@@ -93,6 +135,19 @@ void MidiInModule::onNoteOn(std::uint8_t channel, std::uint8_t note, std::uint8_
 void MidiInModule::onNoteOff(std::uint8_t channel, std::uint8_t note) {
     if (filteredOut(channel)) return;
 
+    if (monoLegatoActive()) {
+        // Mono legato: drop the released note. If keys remain held, fall back
+        // to the most-recent one (pitch changes, gate stays high); otherwise
+        // lower the gate so the envelopes release.
+        monoRemove(note);
+        if (monoStackLen_ > 0) {
+            currentNote_[0] = monoStack_[monoStackLen_ - 1];
+        } else {
+            gate_[0] = false;
+        }
+        return;
+    }
+
     const auto idx = alloc_.noteOff(note);
     if (idx == 0xFF || idx >= kMaxAllocVoices) return;   // no voice held it.
 
@@ -105,6 +160,7 @@ void MidiInModule::onNoteOff(std::uint8_t channel, std::uint8_t note) {
 void MidiInModule::allNotesOff() {
     alloc_.allOff();
     gate_.fill(false);
+    monoStackLen_ = 0;   // clear the mono legato note-stack too.
     // Keep `velocity_` / `currentNote_` so the last-played values remain
     // available for inspection (matches typical hardware behaviour).
 }

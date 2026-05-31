@@ -185,6 +185,42 @@ MB_TEST(midiin_steal_control_sets_strategy) {
     MB_REQUIRE(midi.stealStrategy() == mb::StealStrategy::Oldest);
 }
 
+MB_TEST(midiin_mono_legato_holds_gate_and_falls_back) {
+    MidiInModule midi("m");          // defaults to 1 voice (mono).
+    midi.setControl("legato", ControlValue{true});
+
+    // First note raises the gate.
+    midi.onNoteOn(1, 60, 100);
+    MB_REQUIRE(midi.voiceGate(0));
+    MB_REQUIRE(std::fabs(midi.voicePitchV(0) - 0.0f) < kEps);   // note 60 → 0 V
+
+    // Overlapping note: pitch changes, gate stays high (no retrigger).
+    midi.onNoteOn(1, 64, 100);
+    MB_REQUIRE(midi.voiceGate(0));
+    MB_REQUIRE(std::fabs(midi.voicePitchV(0) - (4.0f / 12.0f)) < kEps);
+
+    // Release the top note → fall back to the still-held note, gate stays high.
+    midi.onNoteOff(1, 64);
+    MB_REQUIRE(midi.voiceGate(0));
+    MB_REQUIRE(std::fabs(midi.voicePitchV(0) - 0.0f) < kEps);
+
+    // Release the last note → gate finally drops.
+    midi.onNoteOff(1, 60);
+    MB_REQUIRE(!midi.voiceGate(0));
+}
+
+MB_TEST(midiin_mono_legato_only_when_mono) {
+    MidiInModule midi("m");
+    midi.setControl("legato", ControlValue{true});
+    midi.setControl("voiceCount", ControlValue{std::int32_t{2}});  // poly: legato off
+
+    // Two distinct notes occupy two voices (normal poly), not one mono voice.
+    midi.onNoteOn(1, 60, 100);
+    midi.onNoteOn(1, 64, 100);
+    MB_REQUIRE(midi.voiceGate(0));
+    MB_REQUIRE(midi.voiceGate(1));
+}
+
 MB_TEST(midiin_modwheel_and_cc_outputs) {
     MidiInModule midi("m");
     // Defaults: everything at 0.

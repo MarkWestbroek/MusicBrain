@@ -162,6 +162,12 @@ private:
     float         sustainLevel_ = 0.7f;
     std::uint32_t releaseTicks_ = msToTicks(300.0f);
     bool          loop_         = false;
+    // Retrigger mode: when true, every rising gate edge restarts the attack
+    // from 0 (a consistent sweep on every note — essential for a filter
+    // envelope that should "wah" identically per note). When false (default),
+    // a rising edge during D/S/R continues the slope from the current value
+    // to avoid clicks (good for an amp envelope).
+    bool          retrig_       = false;
     Curve         curve_        = Curve::Linear;
 
     // State.

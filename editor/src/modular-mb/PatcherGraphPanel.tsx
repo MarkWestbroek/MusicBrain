@@ -39,6 +39,11 @@ const PX_PER_MM = 2.4;
  *  daarom grijs gaan zodra voiceCount === 1. */
 const MIDIIN_MONO_DISABLED: ReadonlySet<string> = new Set(['steal']);
 
+/** Controls op de MIDI-IN die alleen zin hebben bij een monofone patch en
+ *  daarom grijs gaan zodra voiceCount > 1. Legato (mono-glide zonder
+ *  her-trigger) is per definitie een mono-feature (FW-1). */
+const MIDIIN_POLY_DISABLED: ReadonlySet<string> = new Set(['legato']);
+
 interface ModuleNodeData {
   module: ModuleInstance;
   types: ModuleType[];
@@ -53,10 +58,14 @@ interface ModuleNodeData {
   voice?: { group: PolyGroup; voiceIndex: number };
   /** True when rendered as a ghost (follower of an expanded group). */
   ghost?: boolean;
+  /** When this is a multi-module whose master cell is the head of a cell
+   *  PolyGroup: the group + the master cell's port-ids (ED-CG-2). Used to
+   *  render those jacks as poly ports. */
+  cellPoly?: { group: PolyGroup; masterPortIds: Set<string> };
 }
 
 function ModuleNode({ data, selected }: NodeProps): JSX.Element {
-  const { module: m, types, controlState, patchId, voice, ghost, voiceCount } = data as unknown as ModuleNodeData;
+  const { module: m, types, controlState, patchId, voice, ghost, voiceCount, cellPoly } = data as unknown as ModuleNodeData;
   // Live-status (step-LEDs etc.) wordt hier lokaal gemerged zodat een
   // engineStatus-tick niet de hele graph laat re-builden — alleen deze
   // node re-rendert.
@@ -68,9 +77,11 @@ function ModuleNode({ data, selected }: NodeProps): JSX.Element {
   // (voice-stealing is een poly-feature).
   const isMidiIn = types.find((t) => t.id === m.typeId)?.role === 'event-source';
   const merged = isMidiIn ? { ...baseMerged, voiceCount } : baseMerged;
-  const disabledControlIds = (isMidiIn && voiceCount <= 1)
-    ? MIDIIN_MONO_DISABLED
-    : undefined;
+  const disabledControlIds = !isMidiIn
+    ? undefined
+    : voiceCount <= 1
+      ? MIDIIN_MONO_DISABLED   // mono: steal heeft geen effect
+      : MIDIIN_POLY_DISABLED;  // poly: legato heeft geen effect
   const ports = resolvePorts(m, types);
   const heightMm = m.visual.heightMm ?? PANEL_HEIGHT_MM;
   const widthMm  = m.visual.hpWidth * MM_PER_HP;
@@ -127,6 +138,18 @@ function ModuleNode({ data, selected }: NodeProps): JSX.Element {
             : `× ${voice.group.voiceCount} · ${voice.group.label}`}
         </div>
       )}
+      {!voice && cellPoly && (
+        <div style={{
+          position: 'absolute', top: 2, left: 2, zIndex: 5,
+          fontSize: 9, fontWeight: 600, color: '#0f172a',
+          background: cellPoly.group.color || '#22d3ee',
+          padding: '1px 5px', borderRadius: 3,
+          boxShadow: '0 1px 2px rgba(0,0,0,0.4)',
+          pointerEvents: 'none',
+        }}>
+          {`⊞ ×${cellPoly.group.voiceCount} cellen · ${cellPoly.group.label}`}
+        </div>
+      )}
       {/* Handles — positioned on top of each port using the panel's port
           placements so ReactFlow can draw cables from the actual jacks. */}
       {ports.map((p) => {
@@ -142,9 +165,10 @@ function ModuleNode({ data, selected }: NodeProps): JSX.Element {
         const portPoly = !ghost && (
           !!voice
           || (p.eventKind === 'voice' && voiceCount > 1)
+          || !!cellPoly?.masterPortIds.has(p.id)
         );
-        const polyN = voice?.group.voiceCount ?? voiceCount;
-        const polyColor = voice?.group.color || '#22d3ee';
+        const polyN = voice?.group.voiceCount ?? cellPoly?.group.voiceCount ?? voiceCount;
+        const polyColor = voice?.group.color || cellPoly?.group.color || '#22d3ee';
         const isPoly = portPoly;
         return (
           <Handle
@@ -419,6 +443,28 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
     }
     return map;
   }, [patchRacks]);
+
+  // Cell-poly view-state (ED-CG-2). For a multi-module whose cells are the
+  // members of a PolyGroup, mark the MASTER cell's ports so they render as
+  // poly jacks (square + group-tinted ring), giving a visual hint that a
+  // single cable fans out to all N cells. Keyed by moduleId.
+  const cellPolyMap = useMemo(() => {
+    const map = new Map<string, { group: PolyGroup; masterPortIds: Set<string> }>();
+    for (const r of patchRacks) {
+      for (const g of r.polyGroups ?? []) {
+        const master = g.members[0];
+        if (!master || master.kind !== 'cell') continue;
+        const type = project.moduleTypes.find((t) => t.id ===
+          project.modules.find((m) => m.id === master.moduleId)?.typeId);
+        const cg = type?.cellGroups?.find((x) => x.id === master.cellGroupId);
+        if (!cg) continue;
+        const ids = new Set(cg.portIds.map((p) => `${p}_${master.cellIndex + 1}`));
+        map.set(master.moduleId, { group: g, masterPortIds: ids });
+      }
+    }
+    return map;
+  }, [patchRacks, project.moduleTypes, project.modules]);
+
   const allGroups = useMemo(() => {
     const gs: PolyGroup[] = [];
     for (const r of patchRacks) for (const g of r.polyGroups ?? []) gs.push(g);
@@ -470,6 +516,7 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
           voiceCount: patch.voiceCount,
           voice,
           ghost,
+          cellPoly: cellPolyMap.get(m.id),
         },
         selected: m.id === selectedNodeId,
         // Lock dragging — position derives from rack.
@@ -477,7 +524,7 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
         selectable: !ghost,
       };
     }),
-    [visibleModules, rackYOffsetMm, project.moduleTypes, patch.controlState, patch.voiceCount, patchId, selectedNodeId, voiceMap],
+    [visibleModules, rackYOffsetMm, project.moduleTypes, patch.controlState, patch.voiceCount, patchId, selectedNodeId, voiceMap, cellPolyMap],
   );
 
   const edges: Edge[] = useMemo(

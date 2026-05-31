@@ -191,6 +191,20 @@ private:
     VoiceAllocator             alloc_{};
     std::uint8_t               channelFilter_ = kOmni;
 
+    // Mono legato (FW-1). Only active when voiceCount()==1 && legato_. Holds
+    // the stack of currently-pressed notes in press order so a NoteOff falls
+    // back to the previously-held note (last-note priority), and overlapping
+    // notes change pitch on voice 0 *without* lowering the gate (no envelope
+    // retrigger — that is the whole point of legato).
+    bool                       legato_ = false;
+    static constexpr std::uint8_t kMonoStackMax = 32;
+    std::array<std::uint8_t, kMonoStackMax> monoStack_{};
+    std::uint8_t               monoStackLen_ = 0;
+
+    bool monoLegatoActive() const { return legato_ && alloc_.voiceCount() == 1; }
+    void monoPush(std::uint8_t note);
+    void monoRemove(std::uint8_t note);
+
     // Modulation state (ED-MI-4). Mod-wheel and two configurable CC slots are
     // stored as raw 0..127; pitch-bend keeps the raw 14-bit value (8192 = no
     // bend) so `pitchBendV()` can rescale when `bendRange` changes.

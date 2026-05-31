@@ -29,6 +29,8 @@ void Ahdsr::setControl(std::string_view controlId, ControlValue value) {
     else if (controlId == "sustain") sustainLevel_ = std::clamp(asFloat(0.7f), 0.0f, 1.0f);
     else if (controlId == "release") releaseTicks_ = msToTicks(asFloat(300.0f));
     else if (controlId == "loop")    loop_         = asBool(false);
+    else if (controlId == "retrig" || controlId == "reset")
+        retrig_ = asBool(false);
     else if (controlId == "curve") {
         // Accept either an int (panel switch index) or float (legacy patches).
         std::int32_t idx = 0;
@@ -44,7 +46,15 @@ void Ahdsr::setGate(bool open) {
         // Sustain / Release we retrigger Attack but jump the phase clock
         // forward so the slope continues from the *current* value
         // (avoids audible clicks). Mirrors the prototype's `GateOpen()`.
-        if (phase_ == Phase::Zero) {
+        if (retrig_) {
+            // Retrigger mode overrides the click-suppression: every rising
+            // edge restarts the attack from 0 so the sweep is identical on
+            // every note (consistent filter-wah). CvGraph only writes the
+            // gate on a real transition, so this *is* the rising edge.
+            phase_ = Phase::Attack;
+            phaseTicks_ = 0;
+            value_ = 0.0f;
+        } else if (phase_ == Phase::Zero) {
             phase_ = Phase::Attack;
             phaseTicks_ = 0;
         } else if (phase_ == Phase::Decay || phase_ == Phase::Sustain

@@ -280,6 +280,7 @@ void handleNoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
 // outputs track the controller. These do not retrigger voices, so there's no
 // need to re-sync the static voice table here.
 void handleControlChange(uint8_t channel, uint8_t cc, uint8_t value) {
+    Serial.printf("[midi] cc      ch=%u cc=%u val=%u\n", channel, cc, value);
     midiIn.onControlChange(channel, cc, value);
     for (auto& [id, mod] : runtime.instances()) {
         if (mod->typeId() != mb::runtime::MidiInModule::kTypeId) continue;
@@ -291,6 +292,7 @@ void handlePitchChange(uint8_t channel, int pitch) {
     // Teensy reports bend as a signed -8192..8191 offset; MidiInModule wants
     // the raw 14-bit value (8192 = centre).
     const int value14 = pitch + 8192;
+    Serial.printf("[midi] bend    ch=%u pitch=%d (14b=%d)\n", channel, pitch, value14);
     midiIn.onPitchBend(channel, value14);
     for (auto& [id, mod] : runtime.instances()) {
         if (mod->typeId() != mb::runtime::MidiInModule::kTypeId) continue;

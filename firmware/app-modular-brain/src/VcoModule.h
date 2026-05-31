@@ -9,7 +9,7 @@
  * |-----------|--------|-------------------------|
  * | output    | `out`  | `osc_`, channel 0       |
  *
- * (Inputs `voct`, `fm`, `sync` are CV-domain; not wired as AudioConnections.)
+ * (Inputs `voct`, `fm`, `sync`, `tune` are CV-domain; not wired as AudioConnections.)
  *
  * Controls (via `setControl()`):
  * | controlId | type     | effect                                 |
@@ -60,9 +60,20 @@ public:
      * @param volts  V/Oct value from the upstream CV source.
      */
     void updatePitch(float volts) {
-        const float hz = 261.6256f
-            * powf(2.0f, volts + coarse_ / 12.0f + fine_ / 1200.0f);
-        osc_.frequency(hz);
+        voct_ = volts;
+        recomputeHz();
+    }
+
+    /**
+     * @brief Update the auxiliary tune voltage (pitch-bend / detune input).
+     *
+     * Summed with the main V/Oct value before the Hz conversion, so a
+     * `cv_bend` (or any modulation source) patched to `tune` shifts the
+     * pitch without overwriting the note's V/Oct. 0 V = no shift.
+     */
+    void updateTune(float volts) {
+        tune_ = volts;
+        recomputeHz();
     }
 
     AudioPort outputPort(std::string_view portId) const override {
@@ -82,13 +93,15 @@ public:
         return (portId == "out") ? PortKind::Audio : PortKind::None;
     }
     PortKind inputPortKind(std::string_view portId) const override {
-        if (portId == "voct" || portId == "fm")   return PortKind::Cv;
+        if (portId == "voct" || portId == "fm" || portId == "tune") return PortKind::Cv;
         if (portId == "sync")                     return PortKind::Gate;
         return PortKind::None;
     }
-    /** @brief CV bridge entry point.  `voct` retunes the oscillator. */
+    /** @brief CV bridge entry point.  `voct` retunes the oscillator; `tune`
+     *  adds an auxiliary V/Oct shift (pitch-bend / detune). */
     void writeCvPort(std::string_view portId, float value) override {
-        if (portId == "voct") updatePitch(value);
+        if (portId == "voct")      updatePitch(value);
+        else if (portId == "tune") updateTune(value);
         // fm / sync: not yet implemented
     }
 
@@ -132,9 +145,17 @@ public:
     }
 
 private:
+    void recomputeHz() {
+        const float hz = 261.6256f
+            * powf(2.0f, voct_ + tune_ + coarse_ / 12.0f + fine_ / 1200.0f);
+        osc_.frequency(hz);
+    }
+
     mutable AudioSynthWaveform osc_;
-    float coarse_ = 0.0f;   ///< Semitone offset, applied in updatePitch()
-    float fine_   = 0.0f;   ///< Cent offset, applied in updatePitch()
+    float voct_   = 0.0f;   ///< Main V/Oct value (note pitch)
+    float tune_   = 0.0f;   ///< Auxiliary V/Oct shift (bend/detune), summed in
+    float coarse_ = 0.0f;   ///< Semitone offset, applied in recomputeHz()
+    float fine_   = 0.0f;   ///< Cent offset, applied in recomputeHz()
 };
 
 }  // namespace mmb_link
