@@ -249,6 +249,7 @@ public:
         else if (controlId == "damping")    p->resonator_damping    = asFloat(0.25f);
         else if (controlId == "position")   p->resonator_position   = asFloat(0.3f);
         else if (controlId == "space")      p->space                = asFloat(0.5f);
+        else if (controlId == "envelope")   p->exciter_envelope_shape = asFloat(1.0f);
         else if (controlId == "exciter") {
             // 0 = bow, 1 = blow, 2 = strike (mutually exclusive in the spike).
             const int mode = static_cast<int>(asFloat(2.0f));

@@ -54,6 +54,46 @@ void handleNoteOff(uint8_t /*ch*/, uint8_t /*note*/, uint8_t /*velocity*/) {
     elementsModule.voice().noteOff();
 }
 
+/// Map MIDI CC to Elements controls.
+/// CC 16-21 → Patch parameters (value 0-127 → 0.0-1.0).
+void handleControlChange(uint8_t /*ch*/, uint8_t cc, uint8_t value) {
+    // Log every CC so we see what the Keystep actually sends.
+    Serial.printf("[midi] CC#%u = %u\n", cc, value);
+
+    const float v = value / 127.0f;
+    switch (cc) {
+        case 1:  // mod wheel → exciter envelope shape (attack/decay character)
+            elementsModule.setControl("envelope", v);
+            Serial.printf("[midi]   → envelope=%.2f\n", v);
+            break;
+        case 16: // exciter mode: 0=bow, ~64=blow, 127=strike
+            elementsModule.setControl("exciter", static_cast<int32_t>(v * 2.0f + 0.5f));
+            Serial.printf("[midi]   → exciter=%d (next note)\n",
+                          static_cast<int>(v * 2.0f + 0.5f));
+            break;
+        case 17: // geometry — affects NEXT note only
+            elementsModule.setControl("geometry", v);
+            Serial.printf("[midi]   → geometry=%.2f (next note)\n", v);
+            break;
+        case 18: // brightness — real-time
+            elementsModule.setControl("brightness", v);
+            Serial.printf("[midi]   → brightness=%.2f\n", v);
+            break;
+        case 19: // damping — real-time
+            elementsModule.setControl("damping", v);
+            Serial.printf("[midi]   → damping=%.2f\n", v);
+            break;
+        case 20: // position — affects NEXT note only
+            elementsModule.setControl("position", v);
+            Serial.printf("[midi]   → position=%.2f (next note)\n", v);
+            break;
+        case 21: // space — real-time (reverb amount)
+            elementsModule.setControl("space", v);
+            Serial.printf("[midi]   → space=%.2f\n", v);
+            break;
+    }
+}
+
 }  // namespace
 
 void setup() {
@@ -77,11 +117,14 @@ void setup() {
 
     usbMIDI.setHandleNoteOn(handleNoteOn);
     usbMIDI.setHandleNoteOff(handleNoteOff);
+    usbMIDI.setHandleControlChange(handleControlChange);
 
     // Register the factory so the module is ready for app-modular-brain reuse.
     mmb_link::ElementsModule::registerFactory();
 
     Serial.println("[boot] play MIDI notes to strike the resonator");
+    Serial.println("[boot] MIDI CC: 1=envelope 16=exciter 17=geom 18=bright 19=damp 20=pos 21=space");
+    Serial.println("[boot]   bright/damp/space/envelope → real-time. geom/pos/exciter → new note.");
 }
 
 void loop() {
