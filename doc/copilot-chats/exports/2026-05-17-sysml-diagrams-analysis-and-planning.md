@@ -2,7 +2,7 @@
 
 - **Datum**: 2026-05-17 14:32
 - **Sessie-ID**: `4db45503-0a7f-471a-850c-117803aee9d5`
-- **Berichten**: 440
+- **Berichten**: 442
 
 ---
 
@@ -21644,5 +21644,518 @@ Hoe zou AU-7 werken qua UX? een audio fragment in de audio in van de teensy, of 
 Later of meteen als je wilt:
 - string pluck en level CV's
 - comp CV's
+
+---
+
+## 🧑 User
+
+ja, wil je FW-LIVE-1 al bouwen?
+
+Daarnaast heel graag:
+- AU-1 stereo VCA -> ik bedoel dat je één audio ingang hebt en twee uitgangen. De vol en pan stel je in met twee CV ingangen. Moeten alleen bedenken wat in het midden is, qua CV.
+- Au-2 en 3
+- Au 4
+
+Als het meteen door kan:
+- Au 5 en 6
+
+Hoe zou AU-7 werken qua UX? een audio fragment in de audio in van de teensy, of via de webinterface uploaden, en dan daarvan een sound maken?
+
+Later of meteen als je wilt:
+- string pluck en level CV's
+- comp CV's
+
+---
+
+## 🤖 Assistant
+
+Groot pakket — ik ga het opzetten als todo-lijst en methodisch afwerken. Eerst de bestaande module-patronen lezen zodat de nieuwe modules consistent zijn. 
+
+<details>
+<summary><em>Created 11 todos</em> (+7 meer)</summary>
+
+- Created 11 todos
+- Read src
+- Read VcaModule.h
+- Read VcoModule.h
+- Read AudioModule.h
+- Read CompDriveModule.h
+- Read OctaVcoModule.h, lines 1 to 120
+- Read RegisterAllModules.h
+</details>
+
+Nu `main.cpp` bekijken voor de config/setControl-flow (nodig voor FW-LIVE-1): 
+
+*Searched for regex `setControl|onConfigReceived|applyConfig|instances\(\)|runtime\.|ProjectRuntime` (`**/firmware/app-modular-brain/src/main.cpp`), 20 results · Read main.cpp, lines 110 to 200 · Read ProjectRuntime.h, lines 1 to 250*
+
+
+
+*Searched for regex `setControl|onConfigReceived|applyConfig|instances\(\)|runtime\.|ProjectRuntime` (`**/firmware/app-modular-brain/src/main.cpp`), 20 results · Read main.cpp, lines 110 to 200 · Read ProjectRuntime.h, lines 1 to 250*
+
+Nu de editor-kant en bestaande effecten checken. Bestaan er al phaser/echo-modules?   
+
+*Searched for regex `phaser|echo|delay|Flange|AudioEffectDelay|AudioFilterStateVariable|Freeverb|reverb` (`**/firmware/**`), 20 results*
+
+Geen phaser/echo-module in firmware — AU-2 vereist dat ik die nieuw bouw (mét CV). Laat me de editor-seed-structuur bekijken om straks matchende seeds te maken.  
+
+*Searched for regex `mmbString|mmbComp|mmbOctaVco|tp_mmb_string|tp_mmb_comp` (`**/editor/src/**/seedModules.ts`), 11 results*
+
+Er zijn al editor-seeds `mmbEcho()`, `mmbPhaser()` en `mmbNoise()`. Laat me die en de string/comp-seeds lezen om typeIds en poorten te zien.    
+
+*Read seedModules.ts, lines 1280 to 1390*
+
+
+
+*Searched for regex `function mmbNoise|function mmbEcho|function mmbPhaser|tp_mmb_noise|tp_mmb_echo|tp_mmb_phaser` (`**/editor/src/modular-mb/seedModules.ts`), 6 results · Read seedModules.ts, lines 1204 to 1279 · Read main.cpp, lines 336 to 360*
+
+
+
+*Read seedModules.ts, lines 1280 to 1390 · Searched for regex `function mmbNoise|function mmbEcho|function mmbPhaser|tp_mmb_noise|tp_mmb_echo|tp_mmb_phaser` (`**/editor/src/modular-mb/seedModules.ts`), 6 results · Read seedModules.ts, lines 1204 to 1279 · Read main.cpp, lines 336 to 360*
+
+Dit is een groot pakket. Ik leg eerst een sessie-notitie vast en bouw dan systematisch. Laat me beginnen met de firmware-modules. 
+
+*Created memory file au-batch-task.md*
+
+Nu de VcfModule en StringModule lezen voor de gate/multi-channel patronen:  
+
+*Read StringModule.h, lines 40 to 127 · Searched for regex `enum class PortKind|virtual void writeCvPort|virtual PortKind|virtual void setControl|asCvModule|supportsAudioPorts` (`**/firmware/core/include/mb/runtime/Module.h`), 9 results · Read Module.h, lines 126 to 153*
+
+Nu voeg ik de `setWaveformData`-hook toe aan `Module.h` (voor AU-6, RTTI-vrij):   
+
+
+*Read Module.h, lines 1 to 40*
+
+
+Nu de firmware-modules. Eerst AU-1 Stereo VCA: 
+
+*Created StereoVcaModule.h*
+
+Nu AU-4 FM-VCO:  
+
+*Created FmVcoModule.h*
+
+Nu AU-2 Echo (feedback-delay):   
+
+*Created EchoModule.h*
+
+Nu AU-3 Comb/resonator (gestemd, V/Oct):   
+
+*Created CombModule.h*
+
+Nu AU-2 Phaser (custom AudioStream, editor-seed bestaat al):   
+
+*Created PhaserModule.h*
+
+Nu AU-5 Wavetable-VCO (ingebouwde banken):   
+
+*Created WtVcoModule.h*
+
+Nu AU-6 Draw-waveshape VCO (tekentafel via `setWaveformData`):   
+
+*Created DrawVcoModule.h*
+
+Nu string pluck/level CV's en comp CV's toevoegen aan de bestaande modules:    
+Nu de nieuwe modules registreren:  
+Nu AudioMemory verhogen voor de delay-modules:  
+Nu FW-LIVE-1: de `controlPoke`- en `wavetable`-frames in TeensyLink.h. Eerst de callback-types en begin-signatuur:  
+
+*Read TeensyLink.h, lines 84 to 115*
+
+
+Nu de dispatch-takken voor `controlPoke` en `wavetable`:   
+Nu `pokeControl` + persist + `setWaveform` in ProjectRuntime:    
+
+
+*Searched for regex `private:|JsonDocument projectDoc_|instances_;|retired_` (`**/firmware/app-modular-brain/src/ProjectRuntime.h`), 7 results*
+
+
+
+*Read ProjectRuntime.h, lines 285 to 300*
+
+
+Nu de handlers in `main.cpp` wiren:     
+Nu de firmware bouwen om fouten te vangen voordat ik de editor-kant doe:  
+
+
+*Read StringModule.h, lines 40 to 127 · Searched for regex `enum class PortKind|virtual void writeCvPort|virtual PortKind|virtual void setControl|asCvModule|supportsAudioPorts` (`**/firmware/core/include/mb/runtime/Module.h`), 9 results · Read Module.h, lines 126 to 153*
+
+Nu voeg ik de `setWaveformData`-hook toe aan `Module.h` (voor AU-6, RTTI-vrij):   
+
+
+*Read Module.h, lines 1 to 40*
+
+
+Nu de firmware-modules. Eerst AU-1 Stereo VCA: 
+
+*Created StereoVcaModule.h*
+
+Nu AU-4 FM-VCO:  
+
+*Created FmVcoModule.h*
+
+Nu AU-2 Echo (feedback-delay):   
+
+*Created EchoModule.h*
+
+Nu AU-3 Comb/resonator (gestemd, V/Oct):   
+
+*Created CombModule.h*
+
+Nu AU-2 Phaser (custom AudioStream, editor-seed bestaat al):   
+
+*Created PhaserModule.h*
+
+Nu AU-5 Wavetable-VCO (ingebouwde banken):   
+
+*Created WtVcoModule.h*
+
+Nu AU-6 Draw-waveshape VCO (tekentafel via `setWaveformData`):   
+
+*Created DrawVcoModule.h*
+
+Nu string pluck/level CV's en comp CV's toevoegen aan de bestaande modules:    
+Nu de nieuwe modules registreren:  
+Nu AudioMemory verhogen voor de delay-modules:  
+Nu FW-LIVE-1: de `controlPoke`- en `wavetable`-frames in TeensyLink.h. Eerst de callback-types en begin-signatuur:  
+
+*Read TeensyLink.h, lines 84 to 115*
+
+
+Nu de dispatch-takken voor `controlPoke` en `wavetable`:   
+Nu `pokeControl` + persist + `setWaveform` in ProjectRuntime:    
+
+
+*Searched for regex `private:|JsonDocument projectDoc_|instances_;|retired_` (`**/firmware/app-modular-brain/src/ProjectRuntime.h`), 7 results · Read ProjectRuntime.h, lines 285 to 300*
+
+
+Nu de handlers in `main.cpp` wiren:     
+Nu de firmware bouwen om fouten te vangen voordat ik de editor-kant doe:  
+Firmware compileert. Versie bumpen en flashen:     
+
+
+*Created 11 todos*
+
+Nu de editor-kant. Eerst de `teensyLink.ts` om de send-patronen te zien: 
+
+*Searched for regex `export function sendMidiBend|export function sendMidiCC|function writeFrame|quiet` (`**/editor/src/modular-mb/teensyLink.ts`), 3 results · Read teensyLink.ts, lines 220 to 300*
+
+
+
+
+*Read teensyLink.ts, lines 255 to 287*
+
+
+
+
+*Checked teensyLink.ts, no problems found*
+
+Nu de live knob-wiring in de store. Laat me de control-update vinden:   
+
+*Searched for regex `controlState|setControl|sendMidiCC|sendControlPoke|updateControl|import .* teensyLink` (`**/editor/src/modular-mb/store.ts`), no results · Searched for regex `controlState\[|setControlValue|controlValues|function setControl|updateControlValue` (`**/editor/src/modular-mb/**`), 20 results · Searched for regex `onControlChange|setNodeControl|updateNodeControl|controlState:|patchControl|handleControlChange` (`**/editor/src/**`), 28 results*
+
+
+
+*Read PatcherGraphPanel.tsx, lines 80 to 130 · Read PatcherGraphPanel.tsx, lines 805 to 840 · Searched for regex `from './teensyLink'|import .*teensyLink` (`**/editor/src/modular-mb/PatcherGraphPanel.tsx`), no results*
+
+
+
+*Read PatcherGraphPanel.tsx, lines 1 to 30*
+
+
+Nu beide `setControl`-functies live syncen: 
+Nu de editor-seeds. Laat me bestaande seeds bekijken (echo/phaser/string/comp + helpers):      
+
+*Read seedModules.ts, lines 1140 to 1290*
+
+
+
+
+*Searched for regex `function mmbString|function mmbComp\b|function mmbComp\(` (`**/editor/src/modular-mb/seedModules.ts`), 2 results · Read seedModules.ts, lines 1331 to 1410*
+
+Nu CV-poorten toevoegen aan string en comp, en de nieuwe seeds maken. Eerst string + Nu CV-poorten toevoegen aan string en comp, en de nieuwe seeds maken. Eerst string + comp: 
+
+
+*Searched for regex `function mmbVco\(|function mmbVca\(` (`**/editor/src/modular-mb/seedModules.ts`), 2 results · Read seedModules.ts, lines 708 to 760*
+
+Nu de 5 nieuwe seeds toevoegen vóór de public-entry sectie:  
+
+
+*Searched for regex `export function sendMidiBend|export function sendMidiCC|function writeFrame|quiet` (`**/editor/src/modular-mb/teensyLink.ts`), 3 results · Read teensyLink.ts, lines 220 to 300*
+
+
+
+
+*Read teensyLink.ts, lines 255 to 287*
+
+
+
+
+*Checked teensyLink.ts, no problems found*
+
+Nu de live knob-wiring in de store. Laat me de control-update vinden:   
+
+<details>
+<summary><em>Searched for regex `controlState|setControl|sendMidiCC|sendControlPoke|updateControl|import .* teensyLink` (`**/editor/src/modular-mb/store.ts`), no results</em> (+6 meer)</summary>
+
+- Searched for regex `controlState|setControl|sendMidiCC|sendControlPoke|updateControl|import .* teensyLink` (`**/editor/src/modular-mb/store.ts`), no results
+- Searched for regex `controlState\[|setControlValue|controlValues|function setControl|updateControlValue` (`**/editor/src/modular-mb/**`), 20 results
+- Searched for regex `onControlChange|setNodeControl|updateNodeControl|controlState:|patchControl|handleControlChange` (`**/editor/src/**`), 28 results
+- Read PatcherGraphPanel.tsx, lines 80 to 130
+- Read PatcherGraphPanel.tsx, lines 805 to 840
+- Searched for regex `from './teensyLink'|import .*teensyLink` (`**/editor/src/modular-mb/PatcherGraphPanel.tsx`), no results
+- Read PatcherGraphPanel.tsx, lines 1 to 30
+</details>
+
+
+Nu beide `setControl`-functies live syncen: 
+Nu de editor-seeds. Laat me bestaande seeds bekijken (echo/phaser/string/comp + helpers):      
+
+*Read seedModules.ts, lines 1140 to 1290*
+
+
+
+
+*Searched for regex `function mmbString|function mmbComp\b|function mmbComp\(` (`**/editor/src/modular-mb/seedModules.ts`), 2 results · Read seedModules.ts, lines 1331 to 1410*
+
+Nu CV-poorten toevoegen aan string en comp, en de nieuwe seeds maken. Eerst string + comp: 
+
+
+*Searched for regex `function mmbVco\(|function mmbVca\(` (`**/editor/src/modular-mb/seedModules.ts`), 2 results · Read seedModules.ts, lines 708 to 760*
+
+Nu de 5 nieuwe seeds toevoegen vóór de public-entry sectie:  
+Nu de nieuwe seeds aan de `all`-array toevoegen: 
+Typecheck passt. Nu de docs. Laat me de relevante backlog-items vinden:     
+
+*Searched for regex `FW-AU-1|FW-AU-2|FW-AU-3|FW-AU-4|FW-AU-5|FW-AU-6|FW-AU-7|FW-LIVE-1` (`**/doc/**`), 17 results · Read BACKLOG.md, lines 120 to 155*
+
+
+
+*Searched for regex `FW-AU-1|FW-AU-2|FW-AU-3|FW-AU-4|FW-AU-5|FW-AU-6|FW-AU-7|FW-LIVE-1` (`**/doc/**`), 17 results · Read BACKLOG.md, lines 120 to 155*
+
+
+
+
+*Searched for regex `FW-FX-2` (`**/doc/BACKLOG.md`), 1 result*
+
+
+Nu de RELEASE-LOG en firmware README. Eerst de top van RELEASE-LOG: 
+
+*Read RELEASE-LOG.md, lines 1 to 30*
+
+
+
+*Read RELEASE-LOG.md, lines 1 to 30*
+
+
+Nu de firmware README module-tabel:     
+
+*Searched for regex `tp_mmb_string|tp_mmb_comp|tp_mmb_octa_vco|tp_mmb_noise|tp_mmb_echo` (`**/firmware/app-modular-brain/README.md`), no results · Searched for regex `tp_mmb_|module|Module` (`**/firmware/app-modular-brain/README.md`), 30 results · Read README.md, lines 20 to 30*
+
+
+
+
+*Completed: *Editor: sendControlPoke/sendWaveform + seeds* (1/2)*
+
+Klaar — alles gebouwd, geflasht (fw 0.5.15) en gedocumenteerd. Hieronder kort het resultaat plus je AU-7-vraag.
+
+## Wat er nu draait (fw 0.5.15)
+
+**Nieuwe modules (firmware + editor-seed):**
+- **AU-1 Stereo VCA** (`tp_mmb_stereo_vca`) — 1 in → L/R, `vol`+`pan` als CV. Pan-CV: **0 = midden, −1 = links, +1 = rechts**, equal-power.
+- **AU-2 Echo + Phaser** — echo = `AudioEffectDelay`-feedbacklus (CV op time/fbk/mix); phaser = custom 6-traps all-pass `AudioStream` (CV op rate/depth).
+- **AU-3 Comb/resonator** — getunede delay op V/Oct, hoge feedback = gestemde resonator.
+- **AU-4 FM-VCO** — `AudioSynthWaveformModulated`, audio-FM-in, `fm_amt` in octaven.
+- **AU-5 Wavetable-VCO** — 6 additieve banks (saw/sqr/tri/orgel/pulse/vocaal).
+- **AU-6 Draw-VCO** — editor pusht een single-cycle tabel via een nieuw `wavetable`-frame; teken-UI is nog minimaal (zwarte zone gereserveerd).
+- **String** kreeg pluck/level-CV, **Comp** threshold/drive-CV.
+
+**FW-LIVE-1 — live control-sync:** knob-edits gaan via een `controlPoke`-frame direct naar de Teensy (`ProjectRuntime::pokeControl()`), die de control live toepast én in de actieve patch persist't zodat een latere volledige push een no-op is. Gekoppeld in beide `setControl`-paden van `PatcherGraphPanel.tsx`.
+
+Firmware compileert + geflasht (`[SUCCESS]`), editor `tsc --noEmit` schoon. Docs bijgewerkt in `BACKLOG.md`, `RELEASE-LOG.md` en `README.md`.
+
+## AU-7 (Fourier-shaper) — hoe zou de UX werken?
+
+Beide paden die je noemt zijn haalbaar, en ze sluiten allebei aan op de additieve/`wavetable`-infrastructuur die ik net voor AU-6 heb gebouwd:
+
+**1. Web-upload pad (mijn aanbeveling als hoofdworkflow).**
+Je uploadt of neemt een sample op in de browser. De editor draait een FFT op één periode (of een venster) van de klank, haalt de harmonische amplitudes eruf en toont die als een **boventoon-envelope** — precies het Fairlight-achtige beeld dat je beschrijft: een rijtje balkjes/curves per harmonische die je met de muis kunt bijschaven. Bij "render" rekent de editor dat additief terug naar een single-cycle tabel en stuurt .
+
+## AU-7 (Fourier-shaper) — hoe zou de UX werken?
+
+Beide paden die je noemt zijn haalbaar, en ze sluiten allebei aan op de additieve/`wavetable`-infrastructuur die ik net voor AU-6 heb gebouwd:
+
+**1. Web-upload pad (mijn aanbeveling als hoofdworkflow).**
+Je uploadt of neemt een sample op in de browser. De editor draait een FFT op één periode (of een venster) van de klank, haalt de harmonische amplitudes eruf en toont die als een **boventoon-envelope** — precies het Fairlight-achtige beeld dat je beschrijft: een rijtje balkjes/curves per harmonische die je met de muis kunt bijschaven. Bij "render" rekent de editor dat additief terug naar een single-cycle tabel en stuurt die via het bestaande `wavetable`-frame naar een additieve oscillator op de Teensy. Voordeel: alle zware analyse en de editing-UI zitten in de browser, de Teensy speelt alleen de resulterende tabel af (zelfde goedkope pad als AU-6).
+
+**2. Live audio-in pad (op de Teensy zelf).**
+Je voedt een sample/instrument in de ADC-in van de Teensy. On-device doet `AudioAnalyzeFFT1024` (+ `analyze_notefreq` om de grondtoon te vinden) de spectrale analyse; daaruit volgen de harmonische gewichten en die resynthetiseer je additief. Voordeel: live "capture a sound" zonder browser. Nadeel: minder fijn om de boventonen schematisch te editen, want de UI zit niet in de signaalweg.
+
+**Praktische aanpak:** bouw eerst pad 1 (web-upload → FFT → harmonische-envelope-editor → `wavetable`-push), want dat hergebruikt AU-6 vrijwel volledig en geeft je de Fairlight-achtige edit-ervaring. Voeg pad 2 later toe als "live capture"-knop die hetzelfde harmonische-model vult vanaf de audio-in. Wil je dat ik hier een concrete eerste stap van maak (bijv. de FFT-analyse + harmonische-editor in de editor)?
+
+<details>
+<summary><em>Searched for regex `function mmbSeq8|function mmbMidiIn|seedInternals|export function seedInternals` (`**/editor/src/modular-mb/seedModules.ts`), 4 results</em> (+7 meer)</summary>
+
+- Searched for regex `function mmbSeq8|function mmbMidiIn|seedInternals|export function seedInternals` (`**/editor/src/modular-mb/seedModules.ts`), 4 results
+- Read seedModules.ts, lines 811 to 900
+- Read seedModules.ts, lines 1 to 120
+- Read AudioEngine.ts, lines 1 to 100
+- Read AudioEngine.ts, lines 100 to 300
+- Read AudioEngine.ts, lines 300 to 560
+- Read AudioEngine.ts, lines 560 to 577
+- Searched for regex `categoryId.*'noise'|categoryId.*'effect'|kind.*noise|kind.*effect` (`**/editor/src/modular-mb/**`), 4 results
+</details>
+
+Categorieën bestaan al. Nu E1+E3+B4+B5 in `seedModules.ts` toevoegen plus engine-support. Eerst MidiInNode interface check; daarna SeqNode 16-step + currentStep; daarna Noise+Echo node-kinds.  
+
+*Searched for text `mmbOut, mmbMidiIn, mmbSeq8` (`**/editor/src/modular-mb/seedModules.ts`), no results · Searched for text `mmbAhdsr(), mmbLfo()` (`**/editor/src/modular-mb/seedModules.ts`), 1 result*
+
+Nu E1 Noise + E3 Echo factory's + 16-step SEQ + step-LEDs in één bewerking. Eerst SEQ uitbreiden naar 16 stappen met step-LEDs:  
+Nu de LED's per step uniek koppelen aan `__currentStep == N`. Voeg `bindMatch` toe aan LedControl:  
+
+*Searched for text `LedControl` (`**/editor/src/modular-mb/types.ts`), 2 results · Read types.ts, lines 170 to 188*
+
+
+
+
+*Searched for text `LedGlyph` (`**/editor/src/modular-mb/ModulePanel.tsx`), 2 results · Read ModulePanel.tsx, lines 651 to 685*
+
+
+Nu de `led()` helper en SEQ aanpassen om `bindMatch` te gebruiken:                   
+Nu Noise + Echo factories toevoegen vóór de `seedInternals`:                   
+
+*Read seedModules.ts, lines 760 to 780 · Searched for text `function mmbOut()` (`**/editor/src/modular-mb/seedModules.ts`), 1 result*
+
+Voeg na `mmbSeq8` (vóór de `// ── public entry` comment) Noise + Echo toe:                                   
+
+*Searched for text `// ── public entry` (`**/editor/src/modular-mb/seedModules.ts`), 1 result*
+
+
+Nu de AudioEngine: noise+echo+phaser nodes + 16-step seq + currentStep schrijven naar controlState + Run-override via run_in + voct_in transponering.   
+
+*Starting: *E1 Noise + E3 Echo interne modules* (1/6)*
+
+
+Nu: noise op `start()` starten, currentStep schrijven naar controlState, voct_in / run_in support in `wire()`:                   
+
+*Read AudioEngine.ts, lines 160 to 200 · Searched for text `engine.subscribe` (`**/editor/src/modular-mb/SimulationPanel.tsx`), 1 result · Searched for text `ModulePanel` (`**/editor/src/modular-mb/**/*.tsx`), 15 results*
+
+Voeg `liveControls` aan engine-status toe en emit op elke seq-step:                                               
+
+
+<details>
+<summary><em>Searched for text `emit` (`**/editor/src/modular-mb/sim/AudioEngine.ts`), 10 results</em> (+5 meer)</summary>
+
+- Searched for text `emit` (`**/editor/src/modular-mb/sim/AudioEngine.ts`), 10 results
+- Read AudioEngine.ts, lines 540 to 605
+- Searched for text `controlState` (`**/editor/src/modular-mb/ModulePanel.tsx`), 18 results
+- Searched for text `controlState` (`**/editor/src/modular-mb/RackPanel.tsx`), no results
+- Searched for regex `new AudioEngine|getEngine|useAudioEngine` (`**/editor/src/modular-mb/**/*.tsx`), 1 result
+- Read SimulationPanel.tsx, lines 1 to 110
+</details>
+
+
+
+
+*Searched for text `export` (`**/editor/src/modular-mb/store.ts`), 6 results · Created engineSingleton.ts*
+
+
+
+
+*Searched for text `engine.dispose` (`**/editor/src/modular-mb/SimulationPanel.tsx`), 1 result*
+
+
+Nu RackPanel & PatcherGraphPanel laten doorgeven van `liveControls`:                                        
+
+*Read RackPanel.tsx, lines 270 to 295 · Searched for text `import { ModulePanel` (`**/editor/src/modular-mb/RackPanel.tsx`), 1 result · Read RackPanel.tsx, lines 1 to 25*
+
+
+
+
+<details>
+<summary><em>Read PatcherGraphPanel.tsx, lines 55 to 90</em> (+4 meer)</summary>
+
+- Read PatcherGraphPanel.tsx, lines 55 to 90
+- Read PatcherGraphPanel.tsx, lines 25 to 55
+- Searched for regex `controlState:\s*` (`**/editor/src/modular-mb/PatcherGraphPanel.tsx`), 3 results
+- Read PatcherGraphPanel.tsx, lines 130 to 170
+- Searched for text `import {` (`**/editor/src/modular-mb/PatcherGraphPanel.tsx`), 5 results
+</details>
+
+
+
+
+*Searched for text `const project = useModularProject` (`**/editor/src/modular-mb/PatcherGraphPanel.tsx`), 1 result*
+
+
+Nu een eerste build doen om te zien of de basis groen is:                                           
+
+*Read RackPanel.tsx, lines 395 to 420 · Searched for regex `^function |^export function ` (`**/editor/src/modular-mb/RackPanel.tsx`), 5 results*
+
+Beide gebruiken zitten in sub-components. Voeg `useEngineStatus` daar lokaal toe:                                        
+
+*Read RackPanel.tsx, lines 147 to 160*
+
+
+
+
+*Read RackPanel.tsx, lines 328 to 340*
+
+
+Nu de AudioEngine TS-error (lijn 587):                                           
+
+*Read AudioEngine.ts, lines 580 to 595*
+
+
+Build groen — **745 kB / gzip 219.54 kB**. Nu A5 (live parameter-binding), A1 (rack drag/context-menu), A2 (kabel-buiger). Eerst A5: 
+
+*Starting: *A5 live parameter-binding (no rebuild)* (3/6) · Read AudioEngine.ts, lines 1 to 100 · Searched for regex `^\s*(start|stop|build|dispose|setMaster|noteOn|noteOff|subscribe)\(` (`**/editor/src/modular-mb/sim/AudioEngine.ts`), 6 results · Read AudioEngine.ts, lines 305 to 325*
+
+
+Nu de control-change-flow aansluiten — vind waar `engine.build` op control-change triggert:                                             
+
+*Searched for text `onControlChange` (`**/editor/src/modular-mb/**`), 9 results · Read SimulationPanel.tsx, lines 36 to 60*
+
+
+
+
+*Searched for text `import type` (`**/editor/src/modular-mb/SimulationPanel.tsx`), 1 result*
+
+
+Build check:                                               Groen. Nu A1 — rack drag-handle + context-menu:                        
+
+*Read RackPanel.tsx, lines 240 to 320 · Searched for regex `function (moveSlot|moveRow|duplicateSlot|removeSlot)` (`**/editor/src/modular-mb/RackPanel.tsx`), 4 results · Read RackPanel.tsx, lines 200 to 235*
+
+Voeg `setSlotPosition` toe + drag-handle + context-menu state. Eerst de helper:                           
+
+
+*Searched for text `import { useState }` (`**/editor/src/modular-mb/RackPanel.tsx`), 1 result*
+
+Goed. Nu drag-and-drop op de rij + context-menu UI op het slot:                                                        
+
+*Read RackPanel.tsx, lines 255 to 270*
+
+
+Voeg drag-handle bovenaan het slot toe + onContextMenu:                                                                               
+Voeg context-menu UI toe vóór de sluitende `</div>` van RackGrid:                             
+
+*Read RackPanel.tsx, lines 335 to 355 · Read RackPanel.tsx, lines 352 to 375*
+
+
+Groen. Nu A2 — kabel-buiger via custom edge in xyflow:                                               
+
+*Read PatcherGraphPanel.tsx, lines 170 to 280 · Searched for text `PatchConnection` (`**/editor/src/modular-mb/types.ts`), 3 results · Read types.ts, lines 410 to 425*
+
+
+Maak nu de BendableEdge in PatcherGraphPanel.tsx:                                                
+
+*Read PatcherGraphPanel.tsx, lines 12 to 25*
+
+
+Voeg BendableEdge-component toe. Eerst kijken waar `ModuleNode` eindigt en `nodeTypes` wordt gedefinieerd:                                                                                                               
+
+*Searched for text `nodeTypes` (`**/editor/src/modular-mb/PatcherGraphPanel.tsx`), 5 results · Read PatcherGraphPanel.tsx, lines 105 to 120*
+
+
+Nu de edge-creatie en ReactFlow `edgeTypes` propageren:                                   
 
 ---
