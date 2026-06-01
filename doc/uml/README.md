@@ -15,6 +15,7 @@ Generated: May 2026, based on Stage 6 codebase.
 | `07-modular-brain-runtime.md` | Mermaid class + sequence | Modular-brain runtime (ProjectRuntime/AudioGraph/CvGraph) + editor-datamodel |
 | `08-core-runtime-hierarchy.md` | Mermaid class + flow | Core runtime module-hiërarchie (Module/CvModule/Envelope/Ahdsr), AhdsrAudioModule-opschoning + dCV-bus/SPI-split |
 | `09-modular-brain-audiomodules.md` | Mermaid classDiagram | AudioModule-hiërarchie: alle 18 subklassen met audio-port-mapping, CV-ports en registratie |
+| `10-modular-brain-cv-modules.md` | Mermaid classDiagram | CvModule-hiërarchie: 8 CvModule-subklassen + CvMath, met port-mapping, tick-gedrag en CV-bridge-uitleg |
 | `musicbrain.xmi` | XMI 2.1 | Import in Sparx EA: alle klassen + relaties |
 
 ## Hoe importeren in Sparx EA
