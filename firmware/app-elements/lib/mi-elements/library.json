@@ -1,0 +1,18 @@
+{
+  "name": "mi-elements",
+  "version": "1.0.0",
+  "description": "Vendored Mutable Instruments Elements DSP (modal/exciter physical-modelling voice) plus the minimal stmlib subset it needs, adapted for the Teensy 4.1 (Cortex-M7 + FPU).",
+  "keywords": ["dsp", "physical-modelling", "elements", "mutable-instruments"],
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Emilie Gillet",
+      "email": "emilie.o.gillet@gmail.com",
+      "url": "https://mutable-instruments.net"
+    }
+  ],
+  "build": {
+    "flags": ["-I."],
+    "srcFilter": ["+<elements/>", "+<stmlib/>"]
+  }
+}

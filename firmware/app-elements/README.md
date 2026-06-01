@@ -11,26 +11,39 @@ we still want a **measured** per-voice cost before adding it to
 `app-modular-brain`. This target isolates one voice and prints
 `AudioProcessorUsageMax()` so we can estimate how many voices fit.
 
-## Status: skeleton only
+## Status: real DSP vendored
 
-The real Mutable DSP is **not vendored yet**. `ElementsCore` in
-[src/ElementsModule.h](src/ElementsModule.h) is a placeholder modal stub (a bank
-of decaying inharmonic sine partials struck on note-on) so the target builds,
-makes a plausible struck/metallic sound, and exercises the FPU + audio plumbing.
+The genuine upstream Mutable Instruments **Elements** DSP (MIT, © Emilie Gillet)
+is now vendored byte-exact under [lib/mi-elements/](lib/mi-elements/) (see its
+`VENDORED.md` for provenance, the copied file list, and the two small Teensy
+adaptations). [src/ElementsModule.h](src/ElementsModule.h) drives it through
+`elements::Part`:
 
-## Finishing the port
+- `ElementsVoice` renders `Part` at its native **32 kHz** (blocks of 16) and
+  **linearly resamples to 44.1 kHz** for the Teensy Audio library.
+- The 64 KB reverb delay line lives in OCRAM (`DMAMEM`); the ~380 KB of lookup
+  tables stay in flash (`FLASHMEM`) — neither fits in the M7 DTCM fast RAM.
+- Controls map onto the Elements `Patch`: `geometry`, `brightness`, `damping`,
+  `position`, `space`, and `exciter` (0 = bow, 1 = blow, 2 = strike).
+- `voct`/`gate`/`strength` drive `PerformanceState`; USB-MIDI note-on/off in
+  `main.cpp` raise/lower the gate.
 
-1. Vendor `elements/dsp/` from `mutable-instruments/eurorack` (MIT) into a
-   `lib/elements/` folder (`part.cc`, `voice.cc`, `exciter.cc`, `resonator.cc`,
-   `tube.cc`, `string.cc`, `multistage_envelope.cc`, plus `stmlib` deps).
-2. Replace `ElementsCore` with `elements::Part`; map controls (`exciter`,
-   `geometry`, `brightness`, `damping`, `position`, `space`) onto its
-   `Patch`/`PerformanceState`.
-3. Add the **32 kHz → 44.1 kHz** resampler in `ElementsVoice::update()`
-   (currently the stub runs at the Teensy rate — see `TODO(resample)` and
-   `kElementsRate`). Elements processes blocks of 16 @ 32 kHz; the Teensy gives
-   blocks of 128 @ 44.1 kHz.
-4. Swap `stmlib` fixed-point / CMSIS-DSP intrinsics for plain float math.
+### Build footprint (teensy41)
+
+| Region | Used | Free |
+|--------|------|------|
+| FLASH  | ~485 KB (code 476 KB + tables) | ~7.6 MB |
+| RAM1 (DTCM) | ~135 KB vars | ~257 KB |
+| RAM2 (OCRAM) | ~99 KB (incl. 64 KB reverb + audio blocks) | ~425 KB |
+
+### Remaining work
+
+1. Measure `AudioProcessorUsageMax()` on hardware to estimate polyphony.
+2. Down-sample the external `blow_in` / `strike_in` audio inputs into the Part
+   (currently silence is fed, so only the internal exciters are active).
+3. Integrate `tp_mmb_elements` into `app-modular-brain` (delete the local
+   `AudioModule.h` copy and reuse the shared mixin).
+
 
 ## Port map (target)
 

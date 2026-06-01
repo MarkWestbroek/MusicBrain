@@ -21,12 +21,16 @@
 
 namespace {
 
-mmb_link::ElementsModule elements{"elements1"};
+mmb_link::ElementsModule elementsModule{"elements1"};
 AudioOutputUSB           usbOut;
 
+// Elements' reverb delay line (32768 x uint16_t = 64 KB). Placed in OCRAM via
+// DMAMEM — it is far too large for the Cortex-M7 DTCM fast-RAM region.
+DMAMEM uint16_t elementsReverbBuffer[32768];
+
 // Mono voice -> both USB channels.
-AudioConnection outL{ elements.voice(), 0, usbOut, 0 };
-AudioConnection outR{ elements.voice(), 0, usbOut, 1 };
+AudioConnection outL{ elementsModule.voice(), 0, usbOut, 0 };
+AudioConnection outR{ elementsModule.voice(), 0, usbOut, 1 };
 
 constexpr uint8_t kHeartbeatPin = LED_BUILTIN;
 uint32_t lastBlinkMs = 0;
@@ -40,13 +44,14 @@ inline float noteToHz(uint8_t note) {
 void handleNoteOn(uint8_t /*ch*/, uint8_t note, uint8_t velocity) {
     if (velocity == 0) return;  // running-status note-off
     const float strength = velocity / 127.0f;
-    elements.voice().noteOn(noteToHz(note), strength);
+    elementsModule.voice().noteOn(noteToHz(note), strength);
     Serial.printf("[midi] strike note=%u hz=%.1f strength=%.2f\n",
                   note, noteToHz(note), strength);
 }
 
 void handleNoteOff(uint8_t /*ch*/, uint8_t /*note*/, uint8_t /*velocity*/) {
-    // Modal voice rings out on its own decay; nothing to gate off in the spike.
+    // Release the gate: bow/blow exciters stop, a struck resonator rings out.
+    elementsModule.voice().noteOff();
 }
 
 }  // namespace
@@ -66,6 +71,9 @@ void setup() {
     }
 
     AudioMemory(60);
+
+    // Bind Elements' reverb buffer and initialise the DSP before audio runs.
+    elementsModule.begin(elementsReverbBuffer);
 
     usbMIDI.setHandleNoteOn(handleNoteOn);
     usbMIDI.setHandleNoteOff(handleNoteOff);

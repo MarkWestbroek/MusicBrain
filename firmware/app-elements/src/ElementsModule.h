@@ -12,11 +12,10 @@
  * `mutable-instruments/eurorack` under `elements/dsp/` (`part.cc`,
  * `voice.cc`, `exciter.cc`, `resonator.cc`, `tube.cc`, `string.cc`, …).
  *
- * This file is the **integration skeleton** only.  The real DSP is *not*
- * vendored yet — `ElementsCore` below is a deliberately simple modal stub so
- * the target builds, makes a plausible struck/metallic sound, and lets us
- * measure the audio-block CPU cost of the wrapper + resampling plumbing.
- * Replace `ElementsCore` with the ported `elements::Part` to finish the job.
+ * This file is the **integration layer**.  The real Mutable Instruments DSP is
+ * now vendored byte-exact under `lib/mi-elements/` (see its `VENDORED.md`) and
+ * driven here through `elements::Part`.  `ElementsVoice` renders the Part at its
+ * native 32 kHz and linearly resamples to the Teensy's 44.1 kHz audio rate.
  *
  * ## Porting notes (M4 @ 168 MHz → Teensy 4.1 M7 @ 600 MHz + FPU)
  * - **Sample rate:** Elements runs internally at **32 kHz** in blocks of 16
@@ -53,135 +52,124 @@
 #include "AudioModule.h"
 #include "mb/runtime/Registry.h"
 #include <Audio.h>
-#include <arm_math.h>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <string_view>
+
+// Genuine upstream Mutable Instruments *Elements* DSP (MIT, (c) Emilie Gillet),
+// vendored under firmware/app-elements/lib/mi-elements. See VENDORED.md there.
+#include "elements/dsp/dsp.h"
+#include "elements/dsp/part.h"
 
 namespace mmb_link {
 
 // ---------------------------------------------------------------------------
-// ElementsCore — PLACEHOLDER modal voice.
+// ElementsVoice — Teensy AudioStream wrapper around elements::Part.
 //
-// Stand-in for elements::Part.  A small bank of exponentially-decaying sine
-// "modes" struck by a short noise burst on trigger().  Exists to exercise the
-// FPU and validate the audio plumbing; tonal accuracy is NOT a goal here.
-// Replace with the ported Mutable DSP.
-// ---------------------------------------------------------------------------
-class ElementsCore {
-public:
-    static constexpr int kModes = 24;  ///< Modal partials (real Elements: ~64).
-
-    void init(float sampleRate) {
-        sr_ = sampleRate;
-        for (int m = 0; m < kModes; ++m) {
-            phase_[m] = 0.0f;
-            amp_[m]   = 0.0f;
-        }
-    }
-
-    /** @brief Set base pitch in Hz and recompute modal ratios. */
-    void setFrequency(float hz) { baseHz_ = hz; }
-
-    void setBrightness(float v) { brightness_ = clamp01(v); }
-    void setDamping(float v)    { damping_    = clamp01(v); }
-    void setPosition(float v)   { position_   = clamp01(v); }
-
-    /** @brief Strike the resonator (note-on). @p strength 0..1. */
-    void trigger(float strength) {
-        const float s = clamp01(strength);
-        for (int m = 0; m < kModes; ++m) {
-            // Inharmonic-ish ratio so it sounds metallic rather than a stack
-            // of perfect octaves.
-            const float ratio = 1.0f + m * (1.0f + 0.015f * m);
-            const float bandGain = expf(-(float)m * (1.5f - brightness_));
-            // Excitation position colours which partials are emphasised.
-            const float posGain = fabsf(sinf((m + 1) * position_ * 3.14159265f));
-            amp_[m]   = s * bandGain * posGain;
-            decay_[m] = expf(-(1.0f + 8.0f * damping_) * (1.0f + 0.03f * m) / sr_ * 6.2831853f);
-            ratio_[m] = ratio;
-        }
-    }
-
-    /** @brief Render one sample. @p exc optional external excitation. */
-    inline float process(float exc) {
-        float out = 0.0f;
-        for (int m = 0; m < kModes; ++m) {
-            phase_[m] += 6.2831853f * baseHz_ * ratio_[m] / sr_;
-            if (phase_[m] > 6.2831853f) phase_[m] -= 6.2831853f;
-            out += amp_[m] * arm_sin_f32(phase_[m]);
-            amp_[m] *= decay_[m];          // exponential mode decay
-            amp_[m] += exc * 0.002f;       // external excitation feeds the bank
-        }
-        return out * 0.12f;
-    }
-
-private:
-    static float clamp01(float v) { return v < 0 ? 0 : (v > 1 ? 1 : v); }
-
-    float sr_         = 44100.0f;
-    float baseHz_     = 220.0f;
-    float brightness_ = 0.5f;
-    float damping_    = 0.3f;
-    float position_   = 0.3f;
-    float phase_[kModes] = {};
-    float amp_[kModes]   = {};
-    float decay_[kModes] = {};
-    float ratio_[kModes] = {};
-};
-
-// ---------------------------------------------------------------------------
-// ElementsVoice — Teensy AudioStream wrapper around ElementsCore.
+// elements::Part runs natively at 32 kHz in blocks of up to 16 samples; the
+// Teensy Audio library runs at 44.1 kHz in blocks of 128.  This class renders
+// the Part on demand and linearly resamples 32 kHz -> 44.1 kHz.
 //
-// 2 audio inputs: 0 = blow_in, 1 = strike_in (external excitation, optional).
-// 1 audio output: main voice mix.
+// 2 audio inputs are declared (0 = blow_in, 1 = strike_in) for the future
+// port map, but external excitation is not yet down-sampled into the Part —
+// silence is fed for now (the internal bow/blow/strike exciters are active).
+// 1 audio output carries the mono "main" voice signal.
 // ---------------------------------------------------------------------------
 class ElementsVoice : public AudioStream {
 public:
-    /// Native Elements rate.  TODO(resample): when the real DSP is dropped in,
-    /// run ElementsCore at 32 kHz and resample to AUDIO_SAMPLE_RATE_EXACT.
+    /// Native Elements sample rate (32 kHz).
     static constexpr float kElementsRate = 32000.0f;
+    /// Source-samples consumed per output sample (32000 / 44100 ~= 0.7256).
+    static constexpr float kStep = 32000.0f / AUDIO_SAMPLE_RATE_EXACT;
 
     ElementsVoice()
         : AudioStream(2, inputQueue_)
     {
-        // Skeleton runs the stub at the Teensy rate directly (no resampler yet).
-        core_.init(AUDIO_SAMPLE_RATE_EXACT);
+        ps_.gate       = false;
+        ps_.note       = 69.0f;   // A4
+        ps_.modulation = 0.0f;
+        ps_.strength   = 0.8f;
     }
 
+    /// Bind the Part to its (caller-owned) 32768 x uint16_t reverb delay line
+    /// and initialise the DSP.  Call once from setup() before audio starts.
+    /// The buffer must live in OCRAM (DMAMEM) — it is too big for DTCM.
+    void begin(uint16_t* reverbBuffer) {
+        std::memset(reverbBuffer, 0, 32768 * sizeof(uint16_t));
+        part_.Init(reverbBuffer);
+    }
+
+    /// MIDI-style note-on: convert Hz to a MIDI note number and raise the gate.
     void noteOn(float hz, float strength) {
-        core_.setFrequency(hz);
-        core_.trigger(strength);
+        ps_.note     = 69.0f + 12.0f * log2f(hz / 440.0f);
+        ps_.strength = strength;
+        ps_.gate     = true;
     }
+    /// Release the gate (lets bow/blow exciters stop; strike rings out anyway).
+    void noteOff() { ps_.gate = false; }
 
-    ElementsCore& core() { return core_; }
+    void setGate(bool g)         { ps_.gate     = g; }
+    void setNote(float midiNote) { ps_.note     = midiNote; }
+    void setStrength(float s)    { ps_.strength = s; }
+
+    elements::Part& part() { return part_; }
 
     void update() override {
-        audio_block_t* blow   = receiveReadOnly(0);
-        audio_block_t* strike = receiveReadOnly(1);
-        audio_block_t* out    = allocate();
-        if (!out) {
-            if (blow)   release(blow);
-            if (strike) release(strike);
-            return;
-        }
+        // Drain any connected excitation inputs so blocks don't pile up.
+        if (audio_block_t* blow   = receiveReadOnly(0)) release(blow);
+        if (audio_block_t* strike = receiveReadOnly(1)) release(strike);
+
+        audio_block_t* out = allocate();
+        if (!out) return;
+
         for (int i = 0; i < AUDIO_BLOCK_SAMPLES; ++i) {
-            float exc = 0.0f;
-            if (blow)   exc += blow->data[i]   * (1.0f / 32768.0f);
-            if (strike) exc += strike->data[i] * (1.0f / 32768.0f);
-            float s = core_.process(exc);
-            if (s > 1.0f) s = 1.0f; else if (s < -1.0f) s = -1.0f;
-            out->data[i] = (int16_t)(s * 32767.0f);
+            float y = s0_ + (s1_ - s0_) * phase_;   // linear interpolation
+            phase_ += kStep;
+            while (phase_ >= 1.0f) {
+                phase_ -= 1.0f;
+                s0_ = s1_;
+                s1_ = nextSourceSample();
+            }
+            if (y > 1.0f) y = 1.0f; else if (y < -1.0f) y = -1.0f;
+            out->data[i] = static_cast<int16_t>(y * 32767.0f);
         }
+
         transmit(out, 0);
         release(out);
-        if (blow)   release(blow);
-        if (strike) release(strike);
     }
 
 private:
-    audio_block_t* inputQueue_[2] = { nullptr, nullptr };
-    ElementsCore   core_;
+    /// Pull the next 32 kHz sample, regenerating a Part block when exhausted.
+    inline float nextSourceSample() {
+        if (srcRead_ >= srcAvail_) generateBlock();
+        return srcBuf_[srcRead_++];
+    }
+
+    void generateBlock() {
+        static const float kSilence[elements::kMaxBlockSize] = {};
+        float main[elements::kMaxBlockSize];
+        float aux[elements::kMaxBlockSize];
+        part_.Process(ps_, kSilence, kSilence, main, aux,
+                      elements::kMaxBlockSize);
+        for (size_t i = 0; i < elements::kMaxBlockSize; ++i) {
+            srcBuf_[i] = main[i];   // mono: take the "main" (resonator) output
+        }
+        srcAvail_ = static_cast<int>(elements::kMaxBlockSize);
+        srcRead_  = 0;
+    }
+
+    audio_block_t*             inputQueue_[2] = { nullptr, nullptr };
+    elements::Part             part_;
+    elements::PerformanceState ps_{};
+
+    // 32 kHz -> 44.1 kHz resampler state.
+    float srcBuf_[elements::kMaxBlockSize] = {};
+    int   srcAvail_ = 0;
+    int   srcRead_  = 0;
+    float phase_    = 0.0f;
+    float s0_       = 0.0f;
+    float s1_       = 0.0f;
 };
 
 // ---------------------------------------------------------------------------
@@ -199,6 +187,10 @@ public:
         : AudioModule(kTypeId, id) {}
 
     ElementsVoice& voice() { return voice_; }
+
+    /// Forward to ElementsVoice::begin — bind the OCRAM reverb buffer and
+    /// initialise the DSP.  Call once from setup() before audio starts.
+    void begin(uint16_t* reverbBuffer) { voice_.begin(reverbBuffer); }
 
     AudioPort outputPort(std::string_view portId) const override {
         if (portId == "out")
@@ -228,14 +220,18 @@ public:
     void writeCvPort(std::string_view portId, float value) override {
         if (portId == "voct") {
             voct_ = value;
+            // Port-map convention: MIDI 60 = 0 V.
+            voice_.setNote(60.0f + 12.0f * voct_);
         } else if (portId == "strength") {
             strength_ = value;
+            voice_.setStrength(strength_);
         } else if (portId == "gate") {
             const bool high = value >= 0.5f;
             if (high && !lastGateHigh_) {
-                const float hz = 261.6256f * powf(2.0f, voct_);
-                voice_.noteOn(hz, strength_);
+                voice_.setNote(60.0f + 12.0f * voct_);
+                voice_.setStrength(strength_);
             }
+            voice_.setGate(high);
             lastGateHigh_ = high;
         }
     }
@@ -247,11 +243,19 @@ public:
             if (auto* i = std::get_if<int32_t>(&value)) return static_cast<float>(*i);
             return fallback;
         };
-        ElementsCore& c = voice_.core();
-        if (controlId == "brightness") c.setBrightness(asFloat(0.5f));
-        else if (controlId == "damping")  c.setDamping(asFloat(0.3f));
-        else if (controlId == "position") c.setPosition(asFloat(0.3f));
-        // exciter / geometry / space: TODO once real DSP is in.
+        elements::Patch* p = voice_.part().mutable_patch();
+        if (controlId == "geometry")        p->resonator_geometry   = asFloat(0.2f);
+        else if (controlId == "brightness") p->resonator_brightness = asFloat(0.5f);
+        else if (controlId == "damping")    p->resonator_damping    = asFloat(0.25f);
+        else if (controlId == "position")   p->resonator_position   = asFloat(0.3f);
+        else if (controlId == "space")      p->space                = asFloat(0.5f);
+        else if (controlId == "exciter") {
+            // 0 = bow, 1 = blow, 2 = strike (mutually exclusive in the spike).
+            const int mode = static_cast<int>(asFloat(2.0f));
+            p->exciter_bow_level    = (mode == 0) ? 0.8f : 0.0f;
+            p->exciter_blow_level   = (mode == 1) ? 0.8f : 0.0f;
+            p->exciter_strike_level = (mode == 2) ? 0.8f : 0.0f;
+        }
     }
 
     static void registerFactory() {
