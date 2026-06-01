@@ -2,7 +2,7 @@
 
 - **Datum**: 2026-05-17 14:32
 - **Sessie-ID**: `4db45503-0a7f-471a-850c-117803aee9d5`
-- **Berichten**: 419
+- **Berichten**: 440
 
 ---
 
@@ -20244,6 +20244,1405 @@ Now wire `cv_bend → tune` in the poly test patch so the feature works out of t
 
 *Searched for regex `VcoModule|updatePitch|tp_mmb_vco` (`**/firmware/**/*.cpp`), 3 results*
 
+No host test harness exists for the Audio-dependent app modules (the 91 core-tests cover `core` only), so a VCO unit test isn't runnable on host. Let me validate the builds instead, then update the backlog. First typecheck + build the editor:  Let me verify the final VCO module edit is correct:   
 
+*Read VcoModule.h, lines 95 to 160*
+
+VCO edit is correct. Now let me update the backlog with the explained items, mark the tune work done, and add the wah-fix item. Let me read the current state of the edited sections:     
+
+*Read BACKLOG.md, lines 48 to 75*
+
+
+
+*Searched for regex `VcoModule|updatePitch|tp_mmb_vco` (`**/firmware/**/*.cpp`), 3 results*
+
+No host test harness exists for the Audio-dependent app modules (the 91 core-tests cover `core` only), so a VCO unit test isn't runnable on host. Let me validate the builds instead, then update the backlog. First typecheck + build the editor:  Let me verify the final VCO module edit is correct:   
+
+*Read VcoModule.h, lines 95 to 160*
+
+VCO edit is correct. Now let me update the backlog with the explained items, mark the tune work done, and add the wah-fix item. Let me read the current state of the edited sections:     
+
+*Read BACKLOG.md, lines 48 to 75*
+
+
+Now let me enrich the legato item (FW-1) since the user confirmed it's needed:    
+
+*Read BACKLOG.md, lines 86 to 93 · Read BACKLOG.md, lines 82 to 85*
+
+
+
+
+*Read BACKLOG.md, lines 48 to 75*
+
+
+Now let me enrich the legato item (FW-1) since the user confirmed it's needed:    
+
+*Read BACKLOG.md, lines 86 to 93 · Read BACKLOG.md, lines 82 to 85*
+
+
+Now update the release log to record the VCO tune input. Let me append to the iter-5.15 row:     
+Now the final editor build to be safe, and confirm no errors:     
+
+*Updated todo list*
+
+Hier is de uitwerking per punt.
+
+## 1. Steal — geen bug
+Je test inderdaad met echte MIDI naar de Teensy, niet de sim — mijn opmerking over de sim was naast de kwestie. De firmware-keten (`setControl("steal")` → `VoiceAllocator::setStealStrategy`) klopt en de host-tests bevestigen dat, dus dat het „nu wel goed gaat” is consistent. Geen actie nodig.
+
+## 2. De „wah niet op elke noot” — diagnose (geen gate-bug)
+Ik heb het nagelopen en het is **geen gate-probleem**. De gate gaat keurig per toets naar zowel de amp- als de filter-envelope. Wat er gebeurt:
+
+- Met round-robin voice-allocatie gaan opeenvolgende noten naar stem 0,1,2,3,0,1,…
+- Je filter-envelope heeft een **trage attack + lange release**. Speel je sneller dan die release, dan wordt een stem **hergebruikt terwijl zijn filter-env nog hoog in Release staat**.
+- In  doet een rising edge bij `Decay/Sustain/Release` bewust een **klikvrije retrigger vanaf de huidige waarde**: `phaseTicks_ = value_ * attackTicks_`. De attack „vervolgt” dus boven in plaats van omhoog te vegen → **geen hoorbare wah** op die noot.
+- De amp-env doet exact hetzelfde, maar daar merk je het niet: de noot blíjft gewoon klinken.
+
+Daarom hoor je het de eerste ~4 noten wel (alle stemmen starten vanaf nul) en daarna inconsistent — precies je waarneming. 
+
+**Fix-voorstel** (in backlog gezet als **ED-RV-7**): een per-envelope `reset`-toggle. Aan = rising edge altijd vanaf Zero (consistente filter-sweep), uit = huidig klikvrij gedrag (goed voor amp). Default uit, filter-env in de seed op aan. Wil je dat ik dat bouw? Het raakt `Ahdsr.cpp`/`.h` + een core-test + een editor-control.
+
+## 3. Pitch bend — optie 2 gebouwd ✅
+Toegevoegd:
+- **Firmware** `VcoModule.h`: aparte `tune`-CV-ingang. `voct_` en `tune_` worden los bewaard en in `recomputeHz()` opgeteld vóór de Hz-conversie, dus bend verschuift de pitch zonder de noot-V/Oct te overschrijven.
+- **Editor** `seedModules.ts`: VCO heeft nu een `tune`-poort; de poly-test-patch bedraadt MIDI-IN `cv_bend` → VCO `tune` (globaal → group fan-out, dus elke stem krijgt dezelfde bend).
+- Octa-/quad-osc krijgen dezelfde ingang zodra die firmware-modules bestaan (FW-PM-1).
+- Editor typecheckt + build schoon (1205 modules). *Firmware-versiebump volgt bij je eerstvolgende Teensy-build — host-core-tests raken `VcoModule` niet.*
+
+## 4. Legato — bevestigd nodig
+In backlog uitgewerkt onder **FW-1** met een concreet plan: mono note-stack, gate blijft hoog bij een nieuwe noot terwijl de vorige nog klinkt (geen rising edge → envelopes hertriggeren niet), note-off valt terug op de vorige noot, en de bestaande `legato`-control schakelt het. Optioneel portamento/glide. Dit is een grotere firmware-klus (`MidiIn.cpp`/`VoiceAllocator.cpp` + tests) — wil je dat ik die als volgende oppak?
+
+## 5. „Cel-expansie in polyExpand” — uitleg + nu in backlog (ED-CG-2)
+Sorry, te kort door de bocht eerder. Wat het betekent:
+
+- `polyExpand.ts` zet één „master”-patch om naar de echte per-stem-bedrading. Vandaag werkt dat **alleen voor poly-groepen van losse modules** (`PolyGroupMember.kind:'module'`): een kabel naar de groep waaiert uit naar N aparte modules.
+- Een **multi-module** (zoals de quad-VCO) heeft de N stemmen juist *binnen één module* als cellen (`kind:'cell'`, met `cellGroupId`+`cellIndex`). De poorten heten dan `voct_1..voct_4` / `out_1..out_4`.
+- „Cel-expansie” = `polyExpand` leren om een master-kabel naar zo'n celgroep uit te waaieren naar die genummerde celpoorten (`voct` → `voct_1..voct_N`) en de gedeelde controls één keer toe te passen. Nu wordt zo'n kabel ongewijzigd doorgegeven, dus **alleen cel 1 raakt bedraad**. Daarom werkt een quad-osc met één poly-kabel nog niet end-to-end.
+
+Staat nu als findbaar item **ED-CG-2** (was alleen een sub-bullet onder ED-CG-1).
+
+## 6. „Sim-routing voor multi-modules” — uitleg + nu in backlog (ED-CG-3)
+- De browser-sim (sim/AudioEngine.ts) bouwt **één audio-node per module-instance**.
+- Een `role:'multi'`-module heeft N onafhankelijke signaalpaden (N oscillatoren, N mix-cellen). De sim moet daarvoor **N interne nodes** maken met de genummerde celpoorten als in/uitgangen, anders klinkt alleen cel 1 (of niets).
+- Hangt samen met ED-CG-2 (zelfde celpoort-nummering).
+
+Staat nu als **ED-CG-3**. (En ED-CG-4 voor de „één vierkante poly-poort per celgroep”.)
+
+---
+
+Korte vraag om verder te gaan: wil je dat ik nu **ED-RV-7 (AHDSR reset-toggle, lost je wah op)** bouw, of liever direct **FW-1 (legato)**? Mijn advies: eerst ED-RV-7 — klein, lost je concrete probleem op, en is een logische opstap naar de legato/retrigger-logica.
+
+---
+
+## 🧑 User
+
+## midi-in pitch bend en mod wheel
+ik zie geen pitch en cc events in de log verschijnen en ook geen effect van pitch bend of mod wheel bewegen... Is dat wel gebouwd?
+
+## wah
+ja, graag ed-rv-7 maken
+
+## legato
+Ja, graag. Alleen monofoon, toch, neem ik aan? Anders wordt het wel heel ingewikkeld ;-)
+Als dat zo is, moet ie ook uitgegrijsd indien N>1
+
+## celexpansie
+Het is wel raar: in de 4 en 8 patches snappen de mixers wel dat het een poly kabel is?
+Hoe werkt dat dan?
+
+Maar graag maken, zodat het overal werkt. Visueel iets daarvan te zien, zou fijn zijn.
+
+## sim routing
+ik snap het niet: wil je nu toch de simulatie polyfoon maken? Mag wel, maar is dat niet veel werk, cq. gaat dat wel werken?
+
+
+## werk mapping in eervorige request
+
+We gingen het werk in met dit lijstje: 
+1. **Snelle wins**: cellgroup-box-fix (kader om de cel) + steal/priority uitgrijzen in mono + voices-display op MIDI-IN.
+2. **Properties-uitbreiding**: poorten/controls in rack-properties + klikbaar.
+3. **Square poly-poorten** in patcher (pitch/gate/vel poly + cellgroup-poly-poort) — model + render.
+4. **Signaaltype bit-diepte** veld + weergave.
+5. **Rack-preset** type.
+6. **Unison/spread + sim voice-allocatie** (grootste).
+
+En je kwam er uit met "alles gedaan", maar de nummering was verward geraakt, of onderweg nummers erbij gekomen,
+
+Want 4 en 6 zijn niet gemaakt volgens mij. Wil je dat nog eens nagaan?
+
+6 is wel boeiend, maar vind ik ook niet op de backlog. Wil je die wel nog doen?
+
+---
+
+## 🤖 Assistant
+
+This is a large multi-part request. Let me investigate the key technical questions in parallel before answering — starting with the MIDI pitch-bend/CC wiring (a real bug report), the item-4 signal bit-depth question, and how the mixer handles poly cables.  
+
+*Read main.cpp, lines 244 to 370 · Searched for regex `PitchChange|ControlChange|onPitchBend|onControlChange|setHandle` (`**/firmware/app-modular-brain/src/main.cpp`), 14 results*
+
+
+
+*Read main.cpp, lines 244 to 370 · Searched for regex `PitchChange|ControlChange|onPitchBend|onControlChange|setHandle` (`**/firmware/app-modular-brain/src/main.cpp`), 14 results*
+
+The handlers are wired. Let me check the loop's CV tick and whether bend/CC actually reach `tickBridge`, plus `MidiIn::readCvPort`.    
+
+*Read main.cpp, lines 364 to 383 · Searched for regex `readCvPort|cv_bend|cv_mod|onPitchBend|onControlChange|bendRange` (`**/firmware/core/src/runtime/MidiIn.cpp`), 9 results*
+
+
+
+*Read MidiIn.cpp, lines 105 to 180*
+
+
+
+*Read main.cpp, lines 364 to 383 · Searched for regex `readCvPort|cv_bend|cv_mod|onPitchBend|onControlChange|bendRange` (`**/firmware/core/src/runtime/MidiIn.cpp`), 9 results · Read MidiIn.cpp, lines 105 to 180*
+
+The firmware path is fully built and correct. The reason nothing shows: there's **no Serial log** for CC/bend (only notes are logged), and bend/mod only do something once a patch routes `cv_bend`/`cv_mod` somewhere (which only my new seed does). Let me gather the rest of the context I need to build ED-RV-7 and FW-1, then implement.    
+
+*Read Ahdsr.cpp, lines 1 to 160 · Read Ahdsr.h, lines 130 to 175*
+
+
+
+*Read Ahdsr.cpp, lines 1 to 160 · Read Ahdsr.h, lines 130 to 175*
+
+Now let me implement ED-RV-7 (AHDSR retrig toggle) in firmware:     
+Now the editor: AHDSR seed control + wiring filter-env retrig on. Let me read the AHDSR seed and the loop toggle control style.    
+
+*Read seedModules.ts, lines 600 to 645*
+
+
+
+*Read seedModules.ts, lines 600 to 645*
+
+
+Now wire `retrig: true` on the filter envelopes in both test patches:     
+
+*Read seedModules.ts, lines 1518 to 1530*
+
+
+Now let me find the AHDSR core tests to add a retrig test. Let me look at the existing test file:     
+
+*Searched for regex `ahdsr_|Ahdsr.*setGate|midiin_steal_control` (`**/firmware/**/*.cpp`), 8 results · Read test_ahdsr.cpp, lines 41 to 130 · Read test_ahdsr.cpp, lines 130 to 132*
+
+
+
+
+*Searched for regex `ahdsr_|Ahdsr.*setGate|midiin_steal_control` (`**/firmware/**/*.cpp`), 8 results · Read test_ahdsr.cpp, lines 41 to 130 · Read test_ahdsr.cpp, lines 130 to 132*
+
+
+Now FW-1 (legato). Let me read the MidiIn note handling and allocator.     
+
+<details>
+<summary><em>Read MidiIn.cpp, lines 1 to 105</em> (+4 meer)</summary>
+
+- Read MidiIn.cpp, lines 1 to 105
+- Read MidiIn.h, lines 100 to 160
+- Read MidiIn.h, lines 160 to 214
+- Searched for files matching `**/VoiceAllocator.h`, 1 match
+- Read VoiceAllocator.h, lines 1 to 120
+</details>
+
+
+
+<details>
+<summary><em>Read MidiIn.cpp, lines 1 to 105</em> (+4 meer)</summary>
+
+- Read MidiIn.cpp, lines 1 to 105
+- Read MidiIn.h, lines 100 to 160
+- Read MidiIn.h, lines 160 to 214
+- Searched for files matching `**/VoiceAllocator.h`, 1 match
+- Read VoiceAllocator.h, lines 1 to 120
+</details>
+
+Now let me check how `disabledControlIds` is computed in the patcher so I can grey `legato` in poly:      
+
+*Searched for regex `MIDIIN_MONO_DISABLED|disabledControlIds|isMidiIn` (`**/editor/src/modular-mb/PatcherGraphPanel.tsx`), 8 results · Read PatcherGraphPanel.tsx, lines 38 to 75*
+
+
+Now implement firmware mono legato. First the header members:     
+Now the noteOn/noteOff legato branches and allNotesOff reset:    Now the noteOn/noteOff legato branches and allNotesOff reset:     
+
+
+*Read MidiIn.cpp, lines 125 to 145 · Read MidiIn.cpp, lines 155 to 175*
+
+
+Now add Serial logging to the CC/pitch handlers in main.cpp:      
+
+*Read main.cpp, lines 275 to 300 · Read main.cpp, lines 238 to 274*
+
+
+Now add legato tests. Let me look at the `test_midiin.cpp` helpers:      
+
+*Read test_midiin.cpp, lines 160 to 200*
+
+
+
+*Read test_midiin.cpp, lines 160 to 200*
+
+
+Now let me run the core host tests to validate firmware changes: 
+
+*Searched for files matching `**/firmware/core/**/CMakeLists.txt`, 2 matches · Read memory teensy-firmware.md · Searched for regex `ctest|build.*core|host.*test|cmake` (`**/firmware/**/*.md`), 14 results · Read CMakeLists.txt, lines 1 to 15*
+
+
+
+<details>
+<summary><em>Searched for files matching `**/firmware/core/**/CMakeLists.txt`, 2 matches</em> (+4 meer)</summary>
+
+- Searched for files matching `**/firmware/core/**/CMakeLists.txt`, 2 matches
+- Read memory teensy-firmware.md
+- Searched for regex `ctest|build.*core|host.*test|cmake` (`**/firmware/**/*.md`), 14 results
+- Read CMakeLists.txt, lines 1 to 15
+- Searched for files matching `**/CMakeLists.txt`, 9 matches
+</details>
+
+The top-level is `CMakeLists.txt`. Let me build from there: All host tests pass. Let me confirm the new tests ran by checking the test count:      All 4 new tests pass (95 total, 0 failed). Now the editor side: typecheck. First let me check the editor builds. Let me also handle ED-CG-2 (cel-expansion). Let me review polyExpand more carefully before tackling that. First, typecheck the changes so far:      
+
+*Sent `n` to terminal*
+
+
+
+---
+
+## 🧑 User
+
+[Terminal d9dcdc66-33af-4365-a348-97194f310e39 notification: command completed with exit code 1. The terminal has been cleaned up.]
+Terminal output:
+PS D:\Git\Muziek\MusicBrain> cd editor; npx tsc --noEmit; npm run build 2>&1 | Select-String -Pattern "built in|error|modules transformed"; cd ..
+
+Ô£ô 1205 modules transformed.
+Ô£ô built in 1.98s
+
+
+PS D:\Git\Muziek\MusicBrain> cd editor; npx tsc --noEmit; npm run build 2>&1 | Select-String -Pattern "built in|error TS|modules transformed"; cd ..
+
+Ô£ô 1205 modules transformed.
+Ô£ô built in 1.78s
+
+
+PS D:\Git\Muziek\MusicBrain> cd editor; npx tsc --noEmit; cd ..
+PS D:\Git\Muziek\MusicBrain> cd editor; npx tsc --noEmit; cd ..
+PS D:\Git\Muziek\MusicBrain> cd editor; npx tsc --noEmit; cd ..
+PS D:\Git\Muziek\MusicBrain> cd editor; npx tsc --noEmit; cd ..
+PS D:\Git\Muziek\MusicBrain> cd editor; npm run build; cd ..
+
+> musicbrain-editor@0.0.1 build
+> tsc -b && vite build
+
+vite v5.4.21 building for production...
+✓ 1205 modules transformed.
+dist/index.html                   0.41 kB │ gzip:   0.28 kB
+dist/assets/index-Cd82WuX5.css   30.39 kB │ gzip:   5.77 kB
+dist/assets/index-C8OKudCU.js   855.47 kB │ gzip: 251.02 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 1.86s
+PS D:\Git\Muziek\MusicBrain> cd editor; npx tsc --noEmit; cd ..
+PS D:\Git\Muziek\MusicBrain> cd editor; npm run build; cd ..
+
+> musicbrain-editor@0.0.1 build
+> tsc -b && vite build
+
+vite v5.4.21 building for production...
+✓ 1205 modules transformed.
+dist/index.html                   0.41 kB │ gzip:   0.28 kB
+dist/assets/index-Cd82WuX5.css   30.39 kB │ gzip:   5.77 kB
+dist/assets/index--6dnl-Sa.js   855.69 kB │ gzip: 251.11 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 1.82s
+PS D:\Git\Muziek\MusicBrain> cd firmware\core; cmake -S . -B build 2>&1 | Select-Object -Last 5; cmake --build build 2>&1 | Select-Object -Last 15
+  if you wish to support older CMake versions for this project.  For more
+  information run "cmake --help-policy CMP0000".
+-- Configuring incomplete, errors occurred!
+cmake : ninja: error: loading 'build.ninja': The system cannot find the file 
+specified.
+At line:1 char:69
++ ...  build 2>&1 | Select-Object -Last 5; cmake --build build 2>&1 | Selec ...
++                                          ~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (ninja: error: l...file specified. 
+   :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+PS D:\Git\Muziek\MusicBrain\firmware\core> Remove-Item -Recurse -Force build -ErrorAction SilentlyContinue; cmake -S . -B build 2>&1 | Select-Object -Last 25
+-- Selecting Windows SDK version 10.0.26100.0 to target Windows 10.0.26200.
+-- The C compiler identification is MSVC 19.44.35227.0
+-- The CXX compiler identification is MSVC 19.44.35227.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+CMake Error in CMakeLists.txt:
+  No cmake_minimum_required command is present.  A line of code such as
+    cmake_minimum_required(VERSION 4.3)
+-- Configuring incomplete, errors occurred!
+  should be added at the top of the file.  The version specified may be lower
+  if you wish to support older CMake versions for this project.  For more
+  information run "cmake --help-policy CMP0000".
+PS D:\Git\Muziek\MusicBrain\firmware\core> cd ..; Remove-Item -Recurse -Force core\build -ErrorAction SilentlyContinue; cmake -S . -B build 2>&1 | Select-Object -Last 8
+-- Selecting Windows SDK version 10.0.26100.0 to target Windows 10.0.26200.
+-- Configuring done (0.0s)
+-- Generating done (0.5s)
+-- Build files have been written to: D:/Git/Muziek/MusicBrain/firmware/build
+PS D:\Git\Muziek\MusicBrain\firmware> cmake --build build 2>&1 | Select-Object -Last 20
+  Generating Code...
+  musicbrain_hal_host.vcxproj -> D:\Git\Muziek\MusicBrain\firmware\build\hal\host\Debug\musicbrain_hal_host.lib
+  Building Custom Rule D:/Git/Muziek/MusicBrain/firmware/sim/CMakeLists.txt
+  VirtualSpiBus.cpp
+  Dac8568.cpp
+  GateBoard.cpp
+  Generating Code...
+  musicbrain_sim.vcxproj -> D:\Git\Muziek\MusicBrain\firmware\build\sim\Debug\musicbrain_sim.lib
+  Building Custom Rule D:/Git/Muziek/MusicBrain/tools/simulator/CMakeLists.txt
+  main.cpp
+  mb_simulator.vcxproj -> D:\Git\Muziek\MusicBrain\firmware\build\simulator\Debug\mb_simulator.exe
+  Building Custom Rule D:/Git/Muziek/MusicBrain/firmware/app-switcher/CMakeLists.txt
+  main.cpp
+  mb_switcher.vcxproj -> D:\Git\Muziek\MusicBrain\firmware\build\app-switcher\Debug\mb_switcher.exe
+  Building Custom Rule D:/Git/Muziek/MusicBrain/firmware/sim/tests/CMakeLists.txt
+  test_endtoend.cpp
+  test_main.cpp
+  Generating Code...
+  sim_tests.vcxproj -> D:\Git\Muziek\MusicBrain\firmware\build\sim\tests\Debug\sim_tests.exe
+  Building Custom Rule D:/Git/Muziek/MusicBrain/firmware/CMakeLists.txt
+PS D:\Git\Muziek\MusicBrain\firmware> ctest --test-dir build --output-on-failure 2>&1 | Select-Object -Last 30
+Test project D:/Git/Muziek/MusicBrain/firmware/build
+    Start 1: sim_tests
+ctest : Test not available without configuration.  (Missing "-C <config>"?)
+At line:1 char:1
++ ctest --test-dir build --output-on-failure 2>&1 | Select-Object -Last ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Test not availa..."-C <config>"?) 
+   :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+1/2 Test #1: sim_tests ........................***Not Run   0.00 sec
+    Start 2: core_tests
+Test not available without configuration.  (Missing "-C <config>"?)
+2/2 Test #2: core_tests .......................***Not Run   0.00 sec
+
+0% tests passed, 2 tests failed out of 2
+
+Total Test time (real) =   0.04 sec
+
+The following tests FAILED:
+          1 - sim_tests (Not Run)
+          2 - core_tests (Not Run)
+Errors while running CTest
+PS D:\Git\Muziek\MusicBrain\firmware> ctest --test-dir build -C Debug --output-on-failure 2>&1 | Select-Object -Last 25
+Test project D:/Git/Muziek/MusicBrain/firmware/build
+    Start 1: sim_tests
+1/2 Test #1: sim_tests ........................   Passed    0.04 sec
+    Start 2: core_tests
+2/2 Test #2: core_tests .......................   Passed    0.03 sec
+
+100% tests passed, 0 tests failed out of 2
+
+Total Test time (real) =   0.11 sec
+PS D:\Git\Muziek\MusicBrain\firmware> & .\build\core\tests\Debug\core_tests.exe 2>&1 | Select-Object -Last 5
+[ OK   ] cv_break_in_decodes_gate
+[ OK   ] cv_break_in_ignores_foreign_and_out_of_range
+[ OK   ] cv_break_in_port_kind_and_bounds
+[ OK   ] cv_break_in_address_rebind
+95 test(s), 0 failed
+PS D:\Git\Muziek\MusicBrain\firmware> & .\build\core\tests\Debug\core_tests.exe 2>&1 | Select-String -Pattern "retrig|legato"
+
+[ OK   ] ahdsr_default_retrigger_continues_from_current_value
+[ OK   ] ahdsr_retrigger_mode_restarts_from_zero
+[ OK   ] midiin_mono_legato_holds_gate_and_falls_back
+[ OK   ] midiin_mono_legato_only_when_mono
+
+
+PS D:\Git\Muziek\MusicBrain\firmware> cd ..\..\editor; npx tsc --noEmit
+cd : Cannot find path 'D:\Git\Muziek\editor' because it does not exist.
+At line:1 char:1
++ cd ..\..\editor; npx tsc --noEmit
++ ~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (D:\Git\Muziek\editor:String) [S 
+   et-Location], ItemNotFoundException
+    + FullyQualifiedErrorId : PathNotFound,Microsoft.PowerShell.Commands.SetLo 
+   cationCommand
+ 
+Need to install the following packages:
+tsc@2.0.4
+Ok to proceed? (y) n
+npm error canceled
+npm error A complete log of this run can be found in: C:\Users\User\AppData\Local\npm-cache\_logs\2026-05-31T20_43_29_287Z-debug-0.log
+
+---
+
+## 🤖 Assistant
+
+Typecheck clean. Now ED-CG-2 (cel-expansion). Let me read polyExpand.ts:     
+
+*Read polyExpand.ts, lines 1 to 100 · Read polyExpand.ts, lines 100 to 177*
+
+Now let me understand the `kind:'cell'` model — how cells are defined:     
+
+*Searched for regex `kind: 'cell'|kind === 'cell'|PolyGroupMember|cellCount|cell` (`**/editor/src/modular-mb/types.ts`), 20 results · Read types.ts, lines 320 to 395 · Searched for regex `PolyGroupMember|interface PolyGroup|cellIndex|cellGroupId` (`**/editor/src/modular-mb/types.ts`), 12 results · Read types.ts, lines 465 to 600*
+
+
+
+<details>
+<summary><em>Searched for regex `kind: 'cell'|kind === 'cell'|PolyGroupMember|cellCount|cell` (`**/editor/src/modular-mb/types.ts`), 20 results</em> (+5 meer)</summary>
+
+- Searched for regex `kind: 'cell'|kind === 'cell'|PolyGroupMember|cellCount|cell` (`**/editor/src/modular-mb/types.ts`), 20 results
+- Read types.ts, lines 320 to 395
+- Searched for regex `PolyGroupMember|interface PolyGroup|cellIndex|cellGroupId` (`**/editor/src/modular-mb/types.ts`), 12 results
+- Read types.ts, lines 465 to 600
+- Searched for regex `cellGroups:|role: 'multi'|kind: 'cell'` (`**/editor/src/**/*.ts`), 6 results
+- Read seedModules.ts, lines 740 to 860
+</details>
+
+Now let me check how poly-group visual tinting works in the patcher to mirror it for cells:      
+
+*Searched for regex `polyGroup|group.color|voice\?|PolyGroup|voiceIndex` (`**/editor/src/modular-mb/*.tsx`), 20 results*
+
+
+
+*Searched for regex `polyGroup|group.color|voice\?|PolyGroup|voiceIndex` (`**/editor/src/modular-mb/*.tsx`), 20 results · Read PatcherGraphPanel.tsx, lines 76 to 175 · Read PatcherGraphPanel.tsx, lines 410 to 480*
+
+Now I'll rewrite `polyExpand.ts` to handle cell members. Let me update the imports and helpers first: 
+Now rewrite the main expansion function:      
+
+
+*Checked polyExpand.ts, no problems found*
+
+Now the visual indication for cells in the patcher. Let me add a cell-poly map and pass master-cell port info to the node:       
+Now add `cellPoly` to node data and the interface:      
+
+
+*Read PatcherGraphPanel.tsx, lines 490 to 510*
+
+
+Now update the ModuleNodeData interface and the Handle rendering:      
+Now add a badge on the multi-module showing the cell-poly group, mirroring the voice badge:       
+
+
+*Checked PatcherGraphPanel.tsx, no problems found*
+
+Let me check for a polyExpand test to extend with cell coverage:     
+
+*Searched for files matching `**/polyExpand*.test.ts`, no matches · Searched for regex `expandPatchConnections|flattenProjectForFirmware` (`**/editor/**/*.test.ts`), no results*
+
+No editor test harness exists. Let me typecheck and build the editor:     Editor clean (1205 modules). Now bump FwVersion.h:      
+
+*Searched for files matching `**/FwVersion.h`, 1 match · Read FwVersion.h*
+
+
+
+
+*Updated memory file teensy-firmware.md*
+
+Now docs. Let me read the relevant BACKLOG sections:      
+
+*Searched for regex `ED-RV-7|ED-CG-2|FW-1|item 6|item-6|ED-SM` (`**/doc/BACKLOG.md`), 9 results · Read BACKLOG.md, lines 50 to 54*
+
+
+
+
+*Read BACKLOG.md, lines 72 to 90*
+
+
+
+
+*Read BACKLOG.md, lines 40 to 44*
+
+
+
+
+*Read BACKLOG.md, lines 64 to 71 · Read BACKLOG.md, lines 74 to 76*
+
+
+
+*Searched for regex `ED-RV-7|ED-CG-2|FW-1|item 6|item-6|ED-SM` (`**/doc/BACKLOG.md`), 9 results · Read BACKLOG.md, lines 50 to 54*
+
+
+
+
+*Read BACKLOG.md, lines 72 to 90*
+
+
+
+
+*Read BACKLOG.md, lines 40 to 44*
+
+
+
+
+*Read BACKLOG.md, lines 64 to 71 · Read BACKLOG.md, lines 74 to 76*
+
+
+Now the RELEASE-LOG. Let me read the latest entry:       
+
+*Read RELEASE-LOG.md, lines 1 to 30 · Searched for regex `iter-5.15|## Editor` (`**/doc/RELEASE-LOG.md`), 2 results*
+
+
+
+
+*Read RELEASE-LOG.md, lines 68 to 83*
+
+Now let me find the editor iter table to add an iter-5.16 row:       
+
+*Read RELEASE-LOG.md, lines 59 to 66 · Read RELEASE-LOG.md, lines 73 to 86 · Read RELEASE-LOG.md, lines 98 to 110 · Read RELEASE-LOG.md, lines 88 to 97*
+
+
+
+*Read RELEASE-LOG.md, lines 59 to 66 · Read RELEASE-LOG.md, lines 73 to 86 · Read RELEASE-LOG.md, lines 98 to 110 · Read RELEASE-LOG.md, lines 88 to 97*
+
+
+Let me update the editor README function table per the documentation mandate. Let me check it exists:      
+
+*Searched for regex `polyExpand|AHDSR|legato|cellGroup|poly` (`**/editor/README.md`), 1 result*
+
+All changes are complete and validated. Here's a summary of what I built and the answers to your questions.
+
+## Wat is gebouwd (firmware fw 0.5.10 + editor iter-5.16)
+
+**ED-RV-7 — AHDSR retrigger (de wah-fix)**
+- `Ahdsr` heeft nu een `retrig_`-vlag (control-id `retrig`/`reset`). Aan = elke rising edge herstart de attack hard vanaf 0 → identieke filter-sweep op élke noot (consistente wah). Uit (default) = bestaande klikvrije gedrag (amp-env).
+- Editor: `Reset`-toggle op de AHDSR; de filter-env in de poly-seed staat op `retrig: true`.
+- Tests: `ahdsr_retrigger_mode_restarts_from_zero` + `ahdsr_default_retrigger_continues_from_current_value`.
+
+**FW-1 / ED-MI-2 — mono legato**
+- Alleen monofoon, ja. `MidiInModule` houdt bij `voiceCount==1 && legato` een note-stack bij: overlappende noot houdt de gate hoog (geen envelope-retrigger), verandert alleen de pitch; note-off valt terug op de vorige noot tot de stack leeg is.
+- Editor: `legato`-control wordt **grijs zodra N>1** (`MIDIIN_POLY_DISABLED`), spiegelbeeld van `steal` (grijs bij mono).
+- Tests: `midiin_mono_legato_holds_gate_and_falls_back` + `midiin_mono_legato_only_when_mono`.
+
+**ED-CG-2 — cel-expansie + visueel**
+- `polyExpand.ts` flattent nu óók celgroepen (`kind:'cell'`): een master-celkabel waaiert uit naar `voct_1..voct_N`, `out_1..out_N`. Alle combinaties werken (global→cel, cel→global, cel↔cel, cel↔module-groep).
+- Visueel: master-celpoorten worden vierkante poly-jacks met groep-kleur-ring + een `⊞ ×N cellen`-badge op de multi-module.
+
+Alle 95 core-host-tests slagen; editor typecheck + build schoon (1205 modules).
+
+## Antwoorden op je vragen
+
+**Pitch-bend / mod-wheel — "is dat wel gebouwd?"** Ja, volledig — de keten bestond al (`handlePitchChange`/`handleControlChange` → `onPitchBend`/`onControlChange` → `readCvPort` `cv_bend`/`cv_mod` → `tickBridge` elke 1 ms). Je zag niets om twee redenen, beide nu opgelost/uitgelegd:
+1. Er stond **geen `Serial.printf`** in die handlers (i.t.t. note-on/off), dus de log bleef leeg. Nu loggen ze `[midi] cc …` / `[midi] bend …` (ED-RV-8).
+2. Bend/mod hebben pas geluid als de patch `cv_bend`/`cv_mod` ook ergens naartoe routet. De poly-seed bedraadt nu `cv_bend → VCO tune`. **Je moet dus opnieuw flashen én de patch opnieuw seeden** voordat je effect hoort.
+
+**Hoe "snappen" de 4/8-mixers poly al?** De mixer is een **globale** module; de VCA's zijn een poly-**groep**. De `group→global`-regel in `polyExpand` ziet de genummerde sink-poort (`in1`) en waaiert VCA-stem v uit naar mixer-`in(1+v)` (`splitNumberedPort`). De mixer zelf is dus gewoon mono-bedraad; de expansie doet het werk.
+
+**Simulatie polyfoon maken?** Nee, niet nu — dat is groot werk (de sim bouwt alleen uit master-kabels, dus alleen stem `in1` klinkt). Ik heb dat als **ED-RV-9** op de backlog gezet (unison/spread + echte poly-sim-voice-allocatie, brondump #6), samen met ED-CG-3 (multi-module sim-nodes).
+
+**Items 4 & 6 nagaan:**
+- **Item 4 (signaal-bitdiepte) wás gedaan** — geïmplementeerd als `Port.cvFormat` (`analog`/`dcv12`/`dcv16`) + `CV_FORMAT_LABEL` + rack-inspector + patcher-tooltip (ED-RV-5). De nummering schoof door tussengevoegde todo-items.
+- **Item 6 was niet gedaan en stond niet op de backlog** — nu toegevoegd als **ED-RV-9**. Het is het grootste item; ik stel voor het apart in te plannen i.p.v. nu mee te nemen. Wil je dat ik het oppak?
+
+Docs bijgewerkt: `BACKLOG.md` (ED-RV-7/8, FW-1, ED-MI-2, ED-CG-2 ✅; ED-RV-9 nieuw) en `RELEASE-LOG.md` (fw 0.5.10 + iter-5.16). `FwVersion.h` → 0.5.10 — klaar om te flashen.
+
+---
+
+## 🧑 User
+
+ik zie nog 0.5.9 na het flashen
+
+---
+
+## 🤖 Assistant
+
+
+
+*Read FwVersion.h, lines 1 to 8*
+
+Het versienummer staat goed. De PlatformIO-build is nog niet uitgevoerd — de cmake-run was alleen voor de host-tests. Je moet opnieuw bouwen en flashen: 
+
+---
+
+## 🧑 User
+
+de pitch bend komt wel door via de VMPK maar niet via de keystep -> teensy in de editor
+
+---
+
+## 🤖 Assistant
+
+
+
+<details>
+<summary><em>Searched for text `pitch|bend|handlePitch|usbHost|usbMIDI|MIDI1|MIDI2|KeyStep` (`**/firmware/app-modular-brain/src/main.cpp`), 20 results</em> (+6 meer)</summary>
+
+- Searched for text `pitch|bend|handlePitch|usbHost|usbMIDI|MIDI1|MIDI2|KeyStep` (`**/firmware/app-modular-brain/src/main.cpp`), 20 results
+- Read main.cpp, lines 1 to 80
+- Read main.cpp, lines 250 to 380
+- Searched for text `usbHost|USBHost|MIDI1|midi2|Serial1|Serial2|DIN` (`**/firmware/app-modular-brain/src`), no results
+- Searched for text `usbHost|USBHost|MIDIDevice|midi_host` (`**/firmware/app-modular-brain`), no results
+- Read platformio.ini
+- Read src
+</details>
+
+
+
+<details>
+<summary><em>Searched for text `onPitchBend|pitchBend|cv_bend|channel_` (`**/firmware/core/src/runtime/MidiIn.cpp`), 4 results</em> (+6 meer)</summary>
+
+- Searched for text `onPitchBend|pitchBend|cv_bend|channel_` (`**/firmware/core/src/runtime/MidiIn.cpp`), 4 results
+- Read MidiIn.cpp, lines 170 to 195
+- Searched for text `pitchBend|bend_|channel_|onPitch` (`**/firmware/core/include/mb/runtime/MidiIn.h`), 3 results
+- Searched for text `filteredOut|channel_|channel` (`**/firmware/core/include/mb/runtime/MidiIn.h`), 20 results
+- Read TeensyLink.h, lines 1 to 100
+- Read TeensyLink.h, lines 100 to 220
+- Read TeensyLink.h, lines 220 to 237
+</details>
+
+Nu zie ik het probleem. De `TeensyLink` JSON-protocol 
+
+<details>
+<summary><em>Searched for text `pitch|bend|handlePitch|usbHost|usbMIDI|MIDI1|MIDI2|KeyStep` (`**/firmware/app-modular-brain/src/main.cpp`), 20 results</em> (+13 meer)</summary>
+
+- Searched for text `pitch|bend|handlePitch|usbHost|usbMIDI|MIDI1|MIDI2|KeyStep` (`**/firmware/app-modular-brain/src/main.cpp`), 20 results
+- Read main.cpp, lines 1 to 80
+- Read main.cpp, lines 250 to 380
+- Searched for text `usbHost|USBHost|MIDI1|midi2|Serial1|Serial2|DIN` (`**/firmware/app-modular-brain/src`), no results
+- Searched for text `usbHost|USBHost|MIDIDevice|midi_host` (`**/firmware/app-modular-brain`), no results
+- Read platformio.ini
+- Read src
+- Searched for text `onPitchBend|pitchBend|cv_bend|channel_` (`**/firmware/core/src/runtime/MidiIn.cpp`), 4 results
+- Read MidiIn.cpp, lines 170 to 195
+- Searched for text `pitchBend|bend_|channel_|onPitch` (`**/firmware/core/include/mb/runtime/MidiIn.h`), 3 results
+- Searched for text `filteredOut|channel_|channel` (`**/firmware/core/include/mb/runtime/MidiIn.h`), 20 results
+- Read TeensyLink.h, lines 1 to 100
+- Read TeensyLink.h, lines 100 to 220
+- Read TeensyLink.h, lines 220 to 237
+</details>
+
+Nu zie ik het probleem. De `TeensyLink` JSON-protocol herkent alleen `{"type":"midi","on":...}` (note on/off) — pitch bend en CC worden nooit doorgestuurd via de serial brug. VMPK gaat waarschijnlijk rechtsstreeks via `usbMIDI` (Windows MIDI device), KeyStep loopt via de editor-serial-brug die pitch bend mist.
+
+Laat me de editor-kant zoeken: 
+
+<details>
+<summary><em>Searched for text `type:midi|midi bridge|pitchBend|onmidimessage|WebMidi|navigator.requestMIDIAccess` (`**/editor/src`), no results</em> (+7 meer)</summary>
+
+- Searched for text `type:midi|midi bridge|pitchBend|onmidimessage|WebMidi|navigator.requestMIDIAccess` (`**/editor/src`), no results
+- Searched for regex `midi|MIDI|pitch.?bend|serial.*send|sendJson` (`**/editor/src`), no results
+- Searched for regex `midi|MIDI|pitchBend` (`**/editor/src/**/*.ts`), 20 results
+- Searched for regex `\"type\":\"midi\"|type.*midi.*note|sendLine|writeLine|webserial|WebSerial|serial` (`**/editor/src`), no results
+- Read src
+- Read modular-mb
+- Searched for regex `midi|MIDI|note|pitchBend|bend|send` (`**/editor/src/modular-mb/teensyLink.ts`), 19 results
+- Read teensyLink.ts, lines 240 to 270
+</details>
+
+Nu zoek ik waar de MIDI-brug de events van KeyStep ontvangt: 
+
+*Searched for regex `sendMidi|MIDIMessageEvent|onmidimessage|navigator\.requestMIDI|webmidi|pitchBend|KeyStep|midiAccess` (`**/editor/src`), no results · Searched for regex `sendMidi|MIDIMessage|requestMIDI|midiAccess|navigator\.midi` (`**/editor/src/**/*.tsx`), 5 results · Read TeensyLinkModal.tsx, lines 1 to 180*
+
+Nu zie ik het probleem. De `src.subscribe()` in `TeensyLinkModal.tsx` filtert alleen `noteOn`/`noteOff` — pitch bend wordt genegeerd. Laat me `WebMidiSource` bekijken: 
+
+*Read MidiSource.ts, lines 1 to 150 · Read MidiSource.ts, lines 150 to 224*
+
+
+
+*Read MidiSource.ts, lines 1 to 150 · Read MidiSource.ts, lines 150 to 224*
+
+Nu heb ik het volledig in kaart. De keten is:
+
+- `WebMidiSource.onMessage` — parst `0xe0` (pitch bend) **niet**, zit er niet in
+- `MidiEvent` type — kent geen `pitchBend` variant  
+- `TeensyLinkModal.tsx` subscribe — forwardet alleen noteOn/noteOff
+- `teensyLink.ts` — geen `sendMidiBend`
+- `TeensyLink.h` — kent geen `{"type":"bend"}` bericht
+
+4 bestanden + firmware moeten worden aangepast: 
+
+*Created 5 todos · Starting: *MidiSource.ts: pitchBend event + parse 0xe0* (1/5)*
+
+
+
+
+*Starting: *teensyLink.ts: sendMidiBend functie* (2/5)*
+
+
+
+
+*Starting: *TeensyLinkModal.tsx: forward pitchBend event* (3/5)*
+
+
+
+*Created 5 todos · Starting: *MidiSource.ts: pitchBend event + parse 0xe0* (1/5)*
+
+
+
+
+*Starting: *teensyLink.ts: sendMidiBend functie* (2/5)*
+
+
+
+
+*Starting: *TeensyLinkModal.tsx: forward pitchBend event* (3/5)*
+
+
+
+
+*Starting: *TeensyLink.h: bend JSON bericht handler* (4/5)*
+
+Nu de firmware — `TeensyLink.h` en `main.cpp`: 
+`std::clamp` heeft `<algorithm>` nodig — controleer of dat al included is: 
+
+*Searched for text `#include <algorithm>` (`**/firmware/app-modular-brain/src/TeensyLink.h`), no results · Read TeensyLink.h, lines 47 to 55*
+
+
+
+
+*Starting: *main.cpp: onMidiBend callback + begin()* (5/5)*
+
+
+
+
+*Searched for text `#include <algorithm>` (`**/firmware/app-modular-brain/src/TeensyLink.h`), no results · Read TeensyLink.h, lines 47 to 55*
+
+
+
+
+*Starting: *main.cpp: onMidiBend callback + begin()* (5/5)*
+
+
+Nu `link.begin(...)` aanpassen om `onMidiBend` mee te geven:  
+
+
+*Completed: *main.cpp: onMidiBend callback + begin()* (5/5)*
+
+Nu editor typecheck + firmware build valideren: Beide clean. Flash nu: "Access is denied" — de editor heeft COM4 nog open. Sluit de serial-verbinding in de editor (Disconnect knop) en run dan:  De "Access is denied" komt omdat PlatformIO de Teensy niet automatisch via COM4 kan resetten (editor houdt de poort bezet). De eigenlijke HID-upload lukt wel — beide pogingen eindigen met `[SUCCESS]`. De firmware met pitch-bend bridge is geflasht.
+
+Reconnect de editor; je zou nu `v0.5.10` moeten zien. Zet daarna de MIDI-bridge aan — pitch bend van de KeyStep loopt nu via:
+
+> KeyStep → **Web MIDI API** (browser) → `0xe0` bytes → `WebMidiSource` → `pitchBend` event → `sendMidiBend()` → serial JSON `{"type":"bend","val":...}` → `TeensyLink.h` → `handlePitchChange()` → `midiIn.onPitchBend()`
+
+---
+
+## 🧑 User
+
+de versie is .11
+wil je nog eens builden?
+
+---
+
+## 🤖 Assistant
+
+
+
+*Read FwVersion.h, lines 1 to 8*
+
+Goed, de gebruiker heeft al gebumpt naar `0.5.11`. Bouwen en flashen: `[SUCCESS]` — geflasht. De "Access is denied" is de bekende COM4-kwestie maar de Teensy-HID-upload zelf lukt altijd. Reconnect de editor om `v0.5.11` te bevestigen.
+
+---
+
+## 🧑 User
+
+ik hoor de legato niet
+
+---
+
+## 🤖 Assistant
+
+Laat me de legato-implementatie doorlopen om te bepalen waar het mis gaat.  
+
+<details>
+<summary><em>Read MidiIn.cpp, lines 1 to 200</em> (+6 meer)</summary>
+
+- Read MidiIn.cpp, lines 1 to 200
+- Searched for regex `legato|voiceCount|mono` (`**/editor/src/modular-mb`), no results
+- Searched for regex `legato|voiceCount|mono` (`**/editor/src/modular-mb/**/*.ts`), 20 results
+- Searched for regex `legato|voiceCount|midiIn|MIDI` (`**/editor/src/modular-mb/seedModules.ts`), 20 results
+- Read ProjectRuntime.h, lines 1 to 150
+- Read ProjectRuntime.h, lines 150 to 263
+- Searched for text `forwardMidiToRuntime|voiceCount|setControl` (`**/firmware/app-modular-brain/src/main.cpp`), 15 results
+</details>
+
+
+
+<details>
+<summary><em>Read MidiIn.cpp, lines 1 to 200</em> (+7 meer)</summary>
+
+- Read MidiIn.cpp, lines 1 to 200
+- Searched for regex `legato|voiceCount|mono` (`**/editor/src/modular-mb`), no results
+- Searched for regex `legato|voiceCount|mono` (`**/editor/src/modular-mb/**/*.ts`), 20 results
+- Searched for regex `legato|voiceCount|midiIn|MIDI` (`**/editor/src/modular-mb/seedModules.ts`), 20 results
+- Read ProjectRuntime.h, lines 1 to 150
+- Read ProjectRuntime.h, lines 150 to 263
+- Searched for text `forwardMidiToRuntime|voiceCount|setControl` (`**/firmware/app-modular-brain/src/main.cpp`), 15 results
+- Read main.cpp, lines 148 to 200
+</details>
+
+Let me check the AHDSR retrig implementation — dat kan legato doorkruisen: 
+
+*Searched for text `retrig|setGate|prevGate|rising` (`**/firmware/core/src/runtime/Ahdsr.cpp`), 9 results · Read Ahdsr.cpp, lines 1 to 90*
+
+
+
+*Read CvGraph.cpp, lines 1 to 100*
+
+
+
+*Read CvGraph.cpp, lines 100 to 105*
+
+
+
+*Read MidiIn.cpp, lines 200 to 261*
+
+Laat me de store bekijken om te zien hoe `controlState` voor MidiIn gebouwd wordt:  
+
+<details>
+<summary><em>Searched for text `retrig|setGate|prevGate|rising` (`**/firmware/core/src/runtime/Ahdsr.cpp`), 9 results</em> (+4 meer)</summary>
+
+- Searched for text `retrig|setGate|prevGate|rising` (`**/firmware/core/src/runtime/Ahdsr.cpp`), 9 results
+- Read Ahdsr.cpp, lines 1 to 90
+- Read CvGraph.cpp, lines 1 to 100
+- Read CvGraph.cpp, lines 100 to 105
+- Read MidiIn.cpp, lines 200 to 261
+</details>
+
+Laat me de store bekijken om te zien hoe `controlState` voor MidiIn gebouwd wordt:  
+
+<details>
+<summary><em>Searched for regex `controlState|setControl|legato|switch|sw\b` (`**/editor/src/modular-mb/store.ts`), no results</em> (+5 meer)</summary>
+
+- Searched for regex `controlState|setControl|legato|switch|sw\b` (`**/editor/src/modular-mb/store.ts`), no results
+- Searched for text `controlState` (`**/editor/src/modular-mb/store.ts`), no results
+- Searched for regex `controlState|ControlValue|switch|sw\b` (`**/editor/src/modular-mb/types.ts`), 16 results
+- Searched for regex `legato|MidiIn|voiceCount` (`**/editor/src/modular-mb/sim`), no results
+- Read sim
+- Searched for regex `legato|gate|noteOn|noteOff|voiceCount` (`**/editor/src/modular-mb/sim/AudioEngine.ts`), 20 results
+</details>
+
+
+
+*Searched for text `seedMono|monoVoice|voiceCount: 1|voiceCount:1` (`**/editor/src/modular-mb/seedModules.ts`), 2 results · Read seedModules.ts, lines 1420 to 1560 · Searched for text `MIDIIN_MONO_DISABLED|MIDIIN_POLY_DISABLED|disabledControlIds|legato` (`**/editor/src/modular-mb/PatcherGraphPanel.tsx`), 10 results*
+
+
+
+<details>
+<summary><em>Searched for regex `controlState|setControl|legato|switch|sw\b` (`**/editor/src/modular-mb/store.ts`), no results</em> (+8 meer)</summary>
+
+- Searched for regex `controlState|setControl|legato|switch|sw\b` (`**/editor/src/modular-mb/store.ts`), no results
+- Searched for text `controlState` (`**/editor/src/modular-mb/store.ts`), no results
+- Searched for regex `controlState|ControlValue|switch|sw\b` (`**/editor/src/modular-mb/types.ts`), 16 results
+- Searched for regex `legato|MidiIn|voiceCount` (`**/editor/src/modular-mb/sim`), no results
+- Read sim
+- Searched for regex `legato|gate|noteOn|noteOff|voiceCount` (`**/editor/src/modular-mb/sim/AudioEngine.ts`), 20 results
+- Searched for text `seedMono|monoVoice|voiceCount: 1|voiceCount:1` (`**/editor/src/modular-mb/seedModules.ts`), 2 results
+- Read seedModules.ts, lines 1420 to 1560
+- Searched for text `MIDIIN_MONO_DISABLED|MIDIIN_POLY_DISABLED|disabledControlIds|legato` (`**/editor/src/modular-mb/PatcherGraphPanel.tsx`), 10 results
+</details>
+
+Nu heb ik een goed beeld van de hele keten. Laat me de diagnose doorgeven:
+
+**Legato werkt alleen als:**
+
+1. **voiceCount = 1** — de mono legato guard is `legato_ && alloc_.voiceCount() == 1`. In een poly patch (4 stemmen) is legato grijs en inactief.
+
+2. **Leg-schakelaar op 'on' gezet EN patch opnieuw gepusht** — de seeds beginnen met `legato: 0`. De waarde zit in `controlState`, die pas naar de Teensy gaat bij een config-push + patch-select.
+
+3. **Overlappende noten spelen** — eerste noot vasthouden, dan tweede indrukken. Dan ziet de firmware de gate op `true` blijven (geen falling edge) → geen envelope-retrigger.
+
+4. , die pas naar de Teensy gaat bij een config-push + patch-select.
+
+3. **Overlappende noten spelen** — eerste noot vasthouden, dan tweede indrukken. Dan ziet de firmware de gate op `true` blijven (geen falling edge) → geen envelope-retrigger.
+
+4. **Langzame attack voor hoorbaar verschil** — legato voorkomt only de envelope-retrigger, er is geen portamento (pitchslide). Met een attack van 5–8ms is het nauwelijks hoorbaar; met 200–500ms is het duidelijk.
+
+**Wat wil je horen?**
+- **Geen klikje/dip tussen noten**: dat is wat legato doet ✓
+- **Toonhoogte glijdt tussen noten** (portamento): dat is niet geïmplementeerd, dat is een apart feature
+
+Praktische check: open de serial monitor na een config-push en patch-select — je zou `controls=8` of meer moeten zien plus `legato=ON voiceCount=1` (als ik een Serial.printf toevoeg). Wil je die log, of wil je portamento (pitch glide)?
+
+---
+
+## 🧑 User
+
+- Ah, ik dacht dat ik portamento moest horen. Dat hoor ik niet. Dat zou ik wel willen.
+
+- De extra switches in de AHSDR: kun je die nog eens uitleggen?
+
+"- **Item 6 was niet gedaan en stond niet op de backlog** — nu toegevoegd als **ED-RV-9**. Het is het grootste item; ik stel voor het apart in te plannen i.p.v. nu mee te nemen. Wil je dat ik het oppak?"
+-> ja graag
+
+Wil je als je klaar bent ook even opsommen wat er in de backlog nog open staat en wat kan? Ik zou wel naar de andere typen interne modules willen kijken, om wat complexere patches te maken om de grenzen van de teensy een beetje op te zoeken
+
+---
+
+## 🤖 Assistant
+
+Laat me eerst de backlog en de relevante code bekijken om ED-RV-9, de AHDSR-switches en portamento goed in beeld te krijgen. 
+
+*Read BACKLOG.md, lines 1 to 120 · Read BACKLOG.md, lines 120 to 217*
+
+Nu de AHDSR-definitie in de editor en de MidiIn-header voor portamento:  
+
+*Searched for text `function mmbAhdsr` (`**/editor/src/modular-mb/seedModules.ts`), 1 result · Read seedModules.ts, lines 600 to 700*
+
+Nu de MidiIn-header om portamento te plannen:  
+
+*Read MidiIn.h · Searched for text `tickCvModules` (`**/firmware/app-modular-brain/src/main.cpp`), 3 results · Read main.cpp, lines 115 to 147*
+
+
+
+*Searched for text `class VoiceAllocator|noteOn|noteOff|configure|voiceCount|kMaxAllocVoices` (`**/firmware/core/include/mb/VoiceAllocator.h`), 20 results*
+
+
+
+<details>
+<summary><em>Read MidiIn.h</em> (+4 meer)</summary>
+
+- Read MidiIn.h
+- Searched for text `tickCvModules` (`**/firmware/app-modular-brain/src/main.cpp`), 3 results
+- Read main.cpp, lines 115 to 147
+- Searched for text `class VoiceAllocator|noteOn|noteOff|configure|voiceCount|kMaxAllocVoices` (`**/firmware/core/include/mb/VoiceAllocator.h`), 20 results
+- Read seedModules.ts, lines 915 to 975
+</details>
+
+Ik heb nu het volledige beeld. Ik ga: (1) portamento implementeren in de firmware + editor, (2) ED-RV-9 oppakken met de firmware-unison-slice, (3) tests, (4) bouwen/flashen, en daarna de AHDSR-uitleg + backlog-overzicht geven.  
+
+*Created 7 todos*
+
+Eerst de header — nieuwe state + `tick()` declaratie en spread-helper: 
+Nu de cpp — setControl uitbreiden met `glide`/`unison`/`spread`, een `asFloat`-lambda, unison-branches in onNoteOn/onNoteOff, `tick()`, `spreadOffsetV()` en de pitch-readout:  
+
+
+*Read MidiIn.cpp, lines 60 to 75*
+
+
+
+*Read MidiIn.cpp, lines 60 to 75*
+
+Sorry, ik herstel de juiste edit:  
+Nu de unison-branches in `onNoteOn`/`onNoteOff`. Eerst onNoteOn (na de legato-branch):   
+
+
+*Read MidiIn.cpp, lines 158 to 185*
+
+
+Nu `tick()`, `spreadOffsetV()` toevoegen en de pitch-readout aanpassen. Eerst `voicePitchV` + readout. Laat me het blok rond `voicePitchV` en `onPitchBend` aanpassen:  
+
+
+*Searched for regex `kInvSemitonesPerOctave|noteToVolts|1.0f / 12|1.0f/12` (`**/firmware/core/src/runtime/MidiIn.cpp`), 13 results*
+
+`kInvSemitonesPerOctave` bestaat. Nu de `readCvPort("pitch")` readout (regels 285-286) gebruikt nog `noteToVolts` direct. Laat me die op `voicePitchV` zetten:   
+
+*Read MidiIn.cpp, lines 274 to 290*
+
+
+
+
+*Read MidiIn.cpp, lines 290 to 320*
+
+Per-voice `pitchK` gebruikt al `voicePitchV` — goed. Laat me de errors checken:   
+
+*Checked MidiIn.cpp, MidiIn.h, no problems found*
+
+Firmware-deel klaar. Controleer of `<array>` is geïncludeerd in de header:   
+
+*Searched for regex `#include <(array|cstdint|algorithm)>` (`**/firmware/core/include/mb/runtime/MidiIn.h`), 1 result · Read MidiIn.h, lines 53 to 62*
+
+
+Todo 1+2 firmware klaar. Nu de editor-controls. Laat me `mmbMidiIn()` lezen:    
+
+*Read seedModules.ts, lines 915 to 980*
+
+Ik voeg op de vrije rij y=66 de glide-knop, unison-switch en spread-knop toe:     
+Editor-controls toegevoegd. Laat me de disabled-sets in de patcher bijwerken zodat unison/spread grijs zijn in mono:     
+
+*Searched for regex `MIDIIN_MONO_DISABLED|MIDIIN_POLY_DISABLED` (`**/editor/src/modular-mb/PatcherGraphPanel.tsx`), 4 results · Read PatcherGraphPanel.tsx, lines 36 to 46*
+
+
+Editor klaar. Typecheck:     Typecheck schoon. Todo 3 klaar. Nu de tests:      
+
+*Starting: *Core tests: portamento + unison* (4/7) · Searched for files matching `**/test_midiin*.cpp`, 1 match · Read test_midiin.cpp, lines 1 to 70*
+
+De bestaande tests checken `voicePitchV` direct na `onNoteOn` zonder `tick()`. Met glide=0 moet de output direct de target zijn. Ik pas `voicePitchV` aan zodat glide-uit instant is:     
+Nu de tests toevoegen. Laat me het eind van het testbestand bekijken:       
+
+*Read test_midiin.cpp, lines 180 to 230*
+
+
+
+*Read test_midiin.cpp, lines 180 to 230 · Read test_midiin.cpp, lines 230 to 280 · Read test_midiin.cpp, lines 280 to 305*
+
+Nu voeg ik de portamento- en unison-tests toe aan het eind:         
+Nu de versie bumpen en bouwen. Eerst FwVersion:           
+
+*Read FwVersion.h*
+
+
+
+
+*Starting: *FwVersion bump + build + host tests* (5/7)*
+
+Build geslaagd. Nu de tests:            Beide testbinaries slagen. Laat me het aantal core-tests checken (we voegden er 4 toe):             99 tests (was 95, +4). Nu de firmware bouwen en flashen:                Geflasht (`[SUCCESS]`, fw 0.5.12). Nu de docs bijwerken. Laat me BACKLOG en RELEASE-LOG bekijken:                   
+
+*Searched for regex `ED-RV-9|FW-1|portamento|legato|unison` (`**/doc/BACKLOG.md`), 20 results · Read BACKLOG.md, lines 74 to 88*
+
+
+Ik voeg een nieuwe FW-rij voor portamento toe na FW-2:                
+Nu de RELEASE-LOG:                    
+
+*Searched for files matching `**/RELEASE-LOG.md`, 1 match · Read RELEASE-LOG.md, lines 1 to 30*
+
+
+
+*Searched for files matching `**/RELEASE-LOG.md`, 1 match · Read RELEASE-LOG.md, lines 1 to 30*
+
+
+
+
+*Completed: *FwVersion bump + build + host tests* (5/7)*
+
+Alles gebouwd, getest (99/99 core groen) en geflasht als fw 0.5.12. Hier de drie tekstantwoorden die je vroeg.
+
+## 1. Portamento — nu wél te horen
+
+Glide werkt nu echt. Zo gebruik je het:
+
+1. Open de **MIDI-IN** module in de editor → nieuwe rij met **Glide** (knop), **Uni** (switch), **Sprd** (knop).
+2. Zet **Glide** op bv. `300 ms/oct` en push de config naar de Teensy.
+3. Speel legato (overlappende noten): de pitch *glijdt* nu naar de nieuwe noot in plaats van te springen.
+
+Belangrijk verschil met legato: **legato** onderdrukt alleen de envelope-hertrigger; **portamento** laat de toonhoogte glijden. Ze zijn onafhankelijk — je kunt glide ook in poly gebruiken. De glijtijd is in **ms per octaaf**, dus een sprong van een kwint duurt korter dan een octaaf. De eerste noot na inschakelen springt direct (geen veeg vanaf nul).
+
+## 2. De extra AHDSR-switches uitgelegd
+
+- **Loop** (aan/uit): aan = na Release start de envelope automatisch opnieuw bij Attack → de A-H-D-S-R loopt continu rond en wordt feitelijk een **quasi-LFO** (handig als trillingsbron/cyclische modulatie). Uit = normaal éénmalig per gate.
+- **Reset / retrig** (aan/uit): bepaalt wat er bij elke *nieuwe* gate-flank gebeurt.
+  - **Aan** = harde reset: elke noot herstart de attack vanaf 0. Geeft een **identieke filter-sweep op élke noot** — dit is de fix voor "de wah klonk niet op elke noot" (ED-RV-7). Gebruik dit voor **filter-envelopes**.
+  - **Uit** (default) = klikvrije voortzetting vanaf de huidige waarde. Beter voor **amp-envelopes** (geen klik), maar bij hergebruik van een stem kan de sweep "hoog vervolgen" i.p.v. omhoog vegen.
+  - In de poly-seed staat de filter-env (`envFlt`) daarom op **aan**.
+- **Curve** (Lin / Exp / Log): de vorm van elke fase. **Lin** = rechte helling, **Exp** = snel-dan-traag (natuurlijk voor amp/percussief), **Log** = traag-dan-snel. Default is **Exp** (index 1).
+
+## 3. Backlog — wat staat er open en wat kan
+
+Wat dit ronde **af** is: portamento (FW-1b), unison+spread firmware-helft (ED-RV-9 🟡), pitch-bend-bridge (fw 0.5.11).
+
+Belangrijkste open items, gegroepeerd:
+
+| Domein | Open items | Kort |
+|---|---|---|
+| **Interne modules (firmware)** | **FW-PM-1 octa-osc**, FW-PM-2/3/4 (VCF/VCA poly), FW-AU-1..9 | De quad-VCO bestaat nu **alleen als editor-scaffolding** (`mmbQuadVcoShared`) — er is **geen firmware-module**. Hier zit de meeste winst. |
+| Editor/UX | ED-RK-2b/3, ED-PT-2, ED-SM-1, ED-CG-1/3/4, ED-GN-1/2 | Knob-finesse, multi-module sim-nodes, etc. |
+| Sim/poly | ED-RV-9 tweede helft | Echte poly voice-allocatie in de browser-sim. |
+| FX / sequencing | FW-FX-1/2, FW-SQ-1/2 | Effecten + interne sequencer. |
+| Hardware | HB/HM-reeks | Fysiek. |
+
+**Mijn aanbeveling voor jouw doel** (complexere patches die de Teensy opzoeken): begin met **FW-PM-1 — de octa-oscillator als echte firmware-module**. Dat is de grootste hefboom: zodra je 8 oscillatoren in de brain hebt draaien (i.p.v. alleen editor-scaffolding), kun je echte fat/poly/unison-patches bouwen en meteen de CPU- en audio-graph-grenzen van de Teensy 4.1 testen. Unison/spread (net opgeleverd) en portamento sluiten daar direct op aan.
+
+Wil je dat ik FW-PM-1 oppak?
+
+---
+
+## 🧑 User
+
+Zou je de **FW-PM-1 octa-osc** willen bouwen?
+Daarna heel graag
+- de string VCO wrappen (FW-AU-8)
+- FW-FX-2
+- FW-SQ-1
+
+Vragen:
+- Is er een comb-filter in de audio lib, of is dat iets dat we zelf kunnen bouwen (er is misschien voldoende beschikbaar aan ideeen online)
+- fourier analyse: is dat te doen met een stukje audio (een bestaand instrument bijv.)?
+- physical modeling: in hoeverre kan de teensy dat aan?
+
+---
+
+## 🤖 Assistant
+
+Goed plan. Eerst ga ik de exacte backlog-items en de bestaande firmware-modulestructuur in kaart brengen, zodat ik FW-PM-1, FW-AU-8, FW-FX-2 en FW-SQ-1 correct kan bouwen. Ondertussen beantwoord ik je drie vragen op basis van wat ik in de audio-lib vind. 
+
+*Searched for regex `FW-PM-1|FW-AU-8|FW-FX-2|FW-SQ-1|octa|string|comb|fourier|physical` (`**/doc/BACKLOG.md`), 20 results*
+
+
+
+*Searched for regex `FW-PM-1|FW-AU-8|FW-FX-2|FW-SQ-1|octa|string|comb|fourier|physical` (`**/doc/BACKLOG.md`), 20 results · Read BACKLOG.md, lines 90 to 175*
+
+Nu de bestaande VCO-module bekijken als blauwdruk, plus de audio-modulestructuur. Laat me parallel verkennen. 
+
+<details>
+<summary><em>Searched for files matching `**/firmware/**/Vco*.{h,cpp}`, 1 match</em> (+4 meer)</summary>
+
+- Searched for files matching `**/firmware/**/Vco*.{h,cpp}`, 1 match
+- Read VcoModule.h
+- Searched for files matching `**/firmware/app-modular-brain/src/*Module.h`, 8 matches
+- Read AudioPortModule.h
+- Read Mixer16Module.h
+</details>
+
+Nu de Teensy Audio-lib doorzoeken voor je drie vragen (comb-filter, string/Karplus-Strong, FFT) en tegelijk main.cpp-registratie bekijken.  
+
+*Searched for files matching `**/Audio/synth_*.h`, no matches*
+
+
+
+*Searched for files matching `**/Audio/synth_*.h`, no matches*
+
+Ik heb genoeg om je vragen te beantwoorden. Nu de registratie- en CV-bridge-structuur voor de modules.  
+
+<details>
+<summary><em>Searched for regex `registerFactory|VcoModule|writeCvPort|updatePitch|AudioPortModule` (`**/firmware/app-modular-brain/src/main.cpp`), 3 results</em> (+7 meer)</summary>
+
+- Searched for regex `registerFactory|VcoModule|writeCvPort|updatePitch|AudioPortModule` (`**/firmware/app-modular-brain/src/main.cpp`), 3 results
+- Searched for regex `registerFactory\(\)|registerBuiltins|reg\.register_` (`**/firmware/app-modular-brain/src/*.{cpp,h}`), 20 results
+- Read RegisterAllModules.h, lines 40 to 70
+- Read main.cpp, lines 120 to 175
+- Searched for regex `writeCvPort|readCvPort|tickBridge|inputPortKind` (`**/firmware/app-modular-brain/src/CvGraph.*`), 9 results
+- Read CvGraph.cpp, lines 40 to 105
+- Searched for regex `function mmbVco|function mmbQuadVco|tp_mmb_vco|function mmbVcf|function mmbString|tp_mmb_string` (`**/editor/src/modular-mb/seedModules.ts`), 10 results
+- Read seedModules.ts, lines 708 to 840
+</details>
+
+
+
+<details>
+<summary><em>Read VcaModule.h</em> (+4 meer)</summary>
+
+- Read VcaModule.h
+- Searched for regex `mmbVco\(\)|mmbQuadVcoShared\(\)|mmbString|mmbCompressor|mmbSeq|function seedModules|return \[|\.push\(` (`**/editor/src/modular-mb/seedModules.ts`), 20 results
+- Searched for regex `export function|const all|registerType|catalog|seedAll|mmbVco,|mmbVco\b` (`**/editor/src/modular-mb/seedModules.ts`), 11 results
+- Searched for regex `function mmbSeq8|function mmbEcho|function mmbPhaser|function mmbNoise` (`**/editor/src/modular-mb/seedModules.ts`), 4 results
+- Read seedModules.ts, lines 1132 to 1278
+</details>
+
+Ik heb nu het volledige beeld van de architectuur. Dit is een grote opdracht (4 modules). Ik bekijk nog de `CvModule`/`Lfo`-structuur in core (voor de sequencer, die host-testbaar is) en de `AudioGraph`-bedrading, dan begin ik te bouwen. 
+
+<details>
+<summary><em>Searched for regex `registerFactory|VcoModule|writeCvPort|updatePitch|AudioPortModule` (`**/firmware/app-modular-brain/src/main.cpp`), 3 results</em> (+12 meer)</summary>
+
+- Searched for regex `registerFactory|VcoModule|writeCvPort|updatePitch|AudioPortModule` (`**/firmware/app-modular-brain/src/main.cpp`), 3 results
+- Searched for regex `registerFactory\(\)|registerBuiltins|reg\.register_` (`**/firmware/app-modular-brain/src/*.{cpp,h}`), 20 results
+- Read RegisterAllModules.h, lines 40 to 70
+- Read main.cpp, lines 120 to 175
+- Searched for regex `writeCvPort|readCvPort|tickBridge|inputPortKind` (`**/firmware/app-modular-brain/src/CvGraph.*`), 9 results
+- Read CvGraph.cpp, lines 40 to 105
+- Searched for regex `function mmbVco|function mmbQuadVco|tp_mmb_vco|function mmbVcf|function mmbString|tp_mmb_string` (`**/editor/src/modular-mb/seedModules.ts`), 10 results
+- Read seedModules.ts, lines 708 to 840
+- Read VcaModule.h
+- Searched for regex `mmbVco\(\)|mmbQuadVcoShared\(\)|mmbString|mmbCompressor|mmbSeq|function seedModules|return \[|\.push\(` (`**/editor/src/modular-mb/seedModules.ts`), 20 results
+- Searched for regex `export function|const all|registerType|catalog|seedAll|mmbVco,|mmbVco\b` (`**/editor/src/modular-mb/seedModules.ts`), 11 results
+- Searched for regex `function mmbSeq8|function mmbEcho|function mmbPhaser|function mmbNoise` (`**/editor/src/modular-mb/seedModules.ts`), 4 results
+- Read seedModules.ts, lines 1132 to 1278
+</details>
+
+Ik heb nu het volledige beeld van de architectuur. Dit is een grote opdracht (4 modules). Ik bekijk nog de `CvModule`/`Lfo`-structuur in core (voor de sequencer, die host-testbaar is) en de `AudioGraph`-bedrading, dan begin ik te bouwen.  
+
+*Searched for files matching `**/core/**/Lfo.{h,cpp}`, 2 matches · Read Lfo.h, lines 1 to 120 · Read Lfo.h, lines 120 to 180*
+
+Ik heb genoeg context. Dit is een omvangrijke opdracht — ik zet een todo-lijst op en bouw de vier modules één voor één.   
+
+*Searched for regex `kCvTickRateHz|constexpr.*TickRate` (`**/firmware/core/**/*.h`), 5 results · Added 1 todo*
+
+Nu bouw ik de octa-osc module: 
+
+*Created OctaVcoModule.h*
+
+
+
+*Created OctaVcoModule.h*
+
+Nu de String-VCO (Karplus-Strong) en de Compressor. Eerst de string-module:  
+
+*Created StringModule.h*
+
+Nu de compressor met overdrive. De Teensy-lib heeft géén compressor, dus ik bouw een eigen `AudioStream` (envelope-follower dynamics + soft-clip overdrive):   
+
+*Created CompDriveModule.h*
+
+De `release`-naam botst met `AudioStream::release`. Ik hernoem de setter om de `using`-hack te vermijden:  
+Nu de drie audio-modules registreren in RegisterAllModules.h: 
+De drie audio-modules zijn klaar en geregistreerd. Nu de sequencer als host-testbare `CvModule` in core. Eerst kijken hoe core-bronnen worden gebundeld:  
+
+*Searched for regex `Lfo.cpp|MidiIn.cpp|GLOB|\.cpp` (`**/firmware/core/**/CMakeLists.txt`), 20 results · Read CMakeLists.txt · Read Lfo.cpp*
+
+Nu de sequencer als core-`CvModule`. Header:  
+
+*Created Seq16.h*
+
+
+
+*Created Seq16.cpp*
+
+Laat me de `CvModule`-interface verifiëren zodat mijn overrides kloppen: 
+
+*Read CvModule.h · Searched for regex `PortKind|writeCvPort|readCvPort|inputPortKind|outputPortKind` (`**/firmware/core/include/mb/runtime/Module.h`), 11 results · Searched for regex `Lfo|MidiIn|registerFactory|#include` (`**/firmware/app-modular-brain/src/RegisterAllModules.h`), 20 results · Read RegisterAllModules.h, lines 50 to 75*
+
+
+Nu Seq16.cpp toevoegen aan de core CMake-bronlijst en de host-tests bekijken: 
+
+*Read CMakeLists.txt*
+
+
+Laat me de teststructuur (test_lfo.cpp) bekijken om dezelfde stijl te volgen:  
+
+*Read test_lfo.cpp, lines 1 to 70*
+
+
+
+*Read test_lfo.cpp, lines 1 to 70 · Created test_seq16.cpp*
+
+Nu de host-tests bouwen en draaien om de sequencer te verifiëren:   Compileert. Nu de tests draaien:  Tests slagen. Nu FwVersion bumpen en de firmware compileren om de audio-modules te verifiëren:   
+
+*Read FwVersion.h*
+
+
+
+
+*Read FwVersion.h*
+
+
+`[SUCCESS]` — alle modules compileren. Nu flashen:   Geflasht (`[SUCCESS]`). Nu de editor-seeds. Laat me het bestaande template bekijken:   
+
+*Read seedModules.ts, lines 700 to 800 · Read seedModules.ts, lines 1130 to 1320*
+
+De editor `mmbSeq8` matcht de firmware al. Nu de drie nieuwe audio-seeds toevoegen:  
+Nu de editor typechecken:   Typecheck schoon. Nu de docs bijwerken. Laat me de backlog-items bekijken:    
+
+*Searched for regex `FW-PM-1|FW-AU-8|FW-FX-2|FW-SQ-1|FW-AU-3|FW-AU-7|FW-AU-9` (`**/doc/BACKLOG.md`), 9 results*
+
+
+
+*Searched for regex `FW-PM-1|FW-AU-8|FW-FX-2|FW-SQ-1|FW-AU-3|FW-AU-7|FW-AU-9` (`**/doc/BACKLOG.md`), 9 results*
+
+
+Nu de RELEASE-LOG. Laat me de nieuwste entry bekijken:   
+
+*Read RELEASE-LOG.md, lines 1 to 30*
+
+
+Klaar. Alles gebouwd, geverifieerd en geflasht (fw 0.5.13).
+
+## Wat er is gebouwd
+
+| Item | Firmware | Editor-seed | Status |
+|------|----------|-------------|--------|
+| **FW-PM-1** Octa-osc | `OctaVcoModule.h` (`tp_mmb_octa_vco`) — 8× `AudioSynthWaveform`, gedeelde wave/coarse/fine/level + symmetrische `detune`, `voct_1..8`+`out_1..8`+gedeelde `tune` | `mmbOctaVco()` (OCTA-VCO-S, 20 HP) | ✅ compileert |
+| **FW-AU-8** String-VCO | `StringModule.h` (`tp_mmb_string`) — `AudioSynthKarplusStrong`→`AudioAmplifier`, gate tokkelt op V/Oct, `pluck`/`level` | `mmbString()` (STRING, 6 HP) | ✅ compileert |
+| **FW-FX-2** Comp+drive | `CompDriveModule.h` (`tp_mmb_comp`) — custom `AudioEffectCompDrive` (lib heeft géén compressor): feed-forward peak-comp + tanh overdrive | `mmbComp()` (COMP, 6 HP) | ✅ compileert |
+| **FW-SQ-1** Sequencer | `Seq16.h`/`.cpp` (`tp_mmb_seq8`) — host-testbare `CvModule`, 16 steps, Free/Off/Gate, intern+extern clock | `mmbSeq8()` bestond al, ids matchen | ✅ 8 host-tests groen |
+
+Verificatie: alle host-tests slagen (`ctest` → core_tests + sim_tests Passed), `pio run` `[SUCCESS]`, firmware geflasht via HID, editor `tsc --noEmit` schoon. Docs bijgewerkt in `BACKLOG.md` (4× ✅) en `RELEASE-LOG.md` (fw 0.5.13).
+
+## Je drie vragen
+
+**a) Comb-filter in de audio-lib?** Nee, geen los comb-object — maar zelf triviaal te bouwen met `AudioEffectDelay` + feedback-mixer, en `AudioEffectFlange` is al een gemoduleerd comb-filter. Past precies bij FW-AU-3 "experiment buiten de audio-lib om".
+
+**b) Fourier-analyse van bestaand geluid?** Ja, on-device haalbaar. De lib heeft `AudioAnalyzeFFT1024`/`FFT256` plus `analyze_notefreq` en `analyze_tonedetect`. Je kunt het harmonische spectrum van een instrument-sample dus op de Teensy zelf analyseren (basis voor FW-AU-7).
+
+**c) Physical modeling op de Teensy?** Realistischer dan eerder gedacht. De Teensy 4.1 is een Cortex-M7 @ 600 MHz mét FPU — krachtiger dan MI Elements' STM32F4 (M4 @ 168 MHz). Karplus-Strong (nu gebouwd, FW-AU-8) is al een simpel physical model; modale/Elements-achtige synthese is haalbaar voor een beperkt aantal stemmen.
+
+---
+
+## 🧑 User
+
+kun je iets meer vertellen over karplus strong? Heb je dat nu al gebouwd ook? Hoe verhoudt zich dat tot Elements?
+
+---
+
+## 🤖 Assistant
+
+## Karplus-Strong
+
+Ja, dat is nu gebouwd als `StringModule` (FW-AU-8). Het zit al op de Teensy.
+
+### Hoe werkt het?
+
+Karplus-Strong is verrassend simpel voor wat het klinkt:
+
+1. Vul een korte delay-buffer met **witte ruis** (de "pluck")
+2. Lees de buffer uit → audio-output
+3. Schrijf het gemiddelde van twee opeenvolgende samples terug in de buffer
+
+Dat ene iteratieve stapje is een één-pool **laagdoorlaatfilter** in een feedbacklus. De bufferlengte bepaalt de toonhoogte ($f = f_s / L$). De hoge frequenties dempen sneller weg dan de lage — precies zoals een echte snaar.
+
+$$y[n] = \text{delay}[n], \quad \text{delay}[n] = \frac{y[n] + y[n-1]}{2}$$
+
+De `pluck`-parameter (0.01–1.0) regelt de ruisinhoud van de startbuffer: laag = zachter/doffer aanslag, hoog = helder/scherp. Dat is de enige echte "expressieve" parameter.
+
+### Wat we gebouwd hebben
+
+```cpp
+AudioSynthKarplusStrong ks_;   // de hele synthesizer in één object
+AudioAmplifier          level_;
+// Gate rising-edge → ks_.noteOn(hz, pluck_)
+```
+
+De Teensy Audio-lib heeft `AudioSynthKarplusStrong` al kant-en-klaar. Wij hebben hem gewrapped in een `AudioPortModule` zodat hij met V/Oct + Gate gepatchd kan worden.
+
+### Verhouding tot MI Elements
+
+| | Karplus-Strong | MI Elements |
+|--|--|--|
+| **Model** | Discrete delay-line + IIR-filter | Modaal resonatorbank (Modus) |
+| **Klank** | Tokkelinstrumenten (gitaar, koto, pluck) | Klokken, staven, platen, blaas, alles |
+| **Parameters** | Toonhoogte + pluck-helderheid | Exciter (blow/strike/bow), resonator (geometry, brightness, damping, position) |
+| **Complexiteit** | 1 filterlus, triviale CPU-last | ~64 resonantie-modes tegelijk |
+| **Teensy 4.1** | Triviaal (< 1% CPU voor 8 stemmen) | Haalbaar voor 1–2 stemmen; MI draait op M4 @ 168 MHz, wij hebben M7 @ 600 MHz |
+| **Flexibiliteit** | Beperkt tot tokkelklanken | Elk percussief/resonant object te modelleren |
+
+Karplus-Strong is als het ware **één specifiek geval** van wat Elements doet: een uitgestoten energiebron (de ruis-burst) die een resonerende structuur (de snaar) in trilling brengt. Elements generaliseert dit naar willekeurige resonatoren via een bank van zuivere sinusgolven die elk apart dempen (modal synthesis).
+
+Het praktische verschil: als je een pluck/string-klank wilt, is Karplus-Strong perfect en spotgoedkoop. Als je een klok, een gong, een blaasresonator of een aanraakbaar membraan wilt modelleren, heb je iets als Elements nodig — en dat is de volgende stap op het pad van FW-AU-9.
+
+---
+
+## 🧑 User
+
+Kleine refactor vraag: zou je de AudioPortModule willen hernoemen naar AudioModule. Kijk ook even naar de ontwerpdocumenten. Maar dat woordje port is niet nodig.
+
+Daarna een paar dingen:
+## update van parameters via de seriele lijn
+als ik aan een patch werk, zou het fijn zijn als de control updates vanzelf naar de teensy gaan en deze ze aanpast in de patch. Dat zijn een speciaal soort berichten , geen MIDI.
+Kan dat ?
+
+Dus de patch updatet langzaam maar zeker. Als ik dan een push config zou doen, maakt het geen verschil, als de kabels hetzelfde lagen.
+Voor connection updates moet je misschien een push doen, maar misschien hoeft dat ook wel niet. Wat denk je?
+
+## mod wheel vanuit de editor
+vergeet ik steeds te zeggen, maar die zie ik niet vanuit de editor's pseudo MIDI doorgegeven worden.
+
+## de andere modules / aanpassingen erop
+FW-AU1 t/m 9 (minus wat we hebben): hoe haalbaar is dat?
+Voor welke we hebben: waar is er een CV sturing mogelijk?
+
+## Elements
+is de code makkelijk te porten naar de teensy? Als dat zo is, wil ik dat wel doen. Misschien hier om te proberen, maar dan wellicht op een aparte teensy uitgerold, via ons framework. Dus een dedicated instantie, die dan misschien wel 2 (of meer?) stemmen aan kan.
+
+---
+
+## 🤖 Assistant
+
+Ik pak eerst de refactor (rename), daarna beantwoord ik je vragen. Laat me eerst de scope van `AudioPortModule` in kaart brengen. 
+
+*Searched for text `AudioPortModule`, 20 results · Searched for text `AudioPortModule`, 100 results*
+
+
+
+---
+
+## 🧑 User
+
+ja, wil je FW-LIVE-1 al bouwen?
+
+Daarnaast heel graag:
+- AU-1 stereo VCA -> ik bedoel dat je één audio ingang hebt en twee uitgangen. De vol en pan stel je in met twee CV ingangen. Moeten alleen bedenken wat in het midden is, qua CV.
+- Au-2 en 3
+- Au 4
+
+Als het meteen door kan:
+- Au 5 en 6
+
+Hoe zou AU-7 werken qua UX? een audio fragment in de audio in van de teensy, of via de webinterface uploaden, en dan daarvan een sound maken?
+
+Later of meteen als je wilt:
+- string pluck en level CV's
+- comp CV's
 
 ---

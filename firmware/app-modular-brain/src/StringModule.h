@@ -67,10 +67,12 @@ public:
     PortKind inputPortKind(std::string_view portId) const override {
         if (portId == "voct") return PortKind::Cv;
         if (portId == "gate") return PortKind::Gate;
+        if (portId == "pluck" || portId == "level") return PortKind::Cv;
         return PortKind::None;
     }
     /** @brief CV bridge entry: `voct` sets the pluck pitch, `gate` re-plucks
-     *  the string on a rising edge (0 → 1). */
+     *  the string on a rising edge (0 → 1), `pluck`/`level` modulate the
+     *  brightness and output gain. */
     void writeCvPort(std::string_view portId, float value) override {
         if (portId == "voct") {
             voct_ = value;
@@ -81,6 +83,16 @@ public:
                 ks_.noteOn(hz, pluck_);
             }
             lastGateHigh_ = high;
+        } else if (portId == "pluck") {
+            float p = value;
+            if (p < 0.01f) p = 0.01f;
+            if (p > 1.0f)  p = 1.0f;
+            pluck_ = p;
+        } else if (portId == "level") {
+            float g = value;
+            if (g < 0.0f) g = 0.0f;
+            if (g > 1.0f) g = 1.0f;
+            level_.gain(g);
         }
     }
 

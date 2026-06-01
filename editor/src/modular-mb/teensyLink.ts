@@ -280,6 +280,34 @@ export async function sendMidiCC(
   }), true);
 }
 
+/** Live control-sync (FW-LIVE-1): push one control value to one module on the
+ *  Teensy without a full config re-push. The firmware applies it instantly and
+ *  persists it into the active patch, so a later full push is a no-op.
+ *  @param moduleId   target module id
+ *  @param controlId  control id on that module
+ *  @param value      scalar value (boolean / integer / float) */
+export async function sendControlPoke(
+  moduleId: string, controlId: string, value: boolean | number,
+): Promise<void> {
+  if (!writer) return;
+  await writeLine(JSON.stringify({
+    type: 'controlPoke', mod: moduleId, ctrl: controlId, v: value,
+  }), true);  // quiet: knob drags emit a stream of these
+}
+
+/** Draw-waveshape push (FW-AU-6): send a single-cycle int16 table to a
+ *  draw-waveshape oscillator on the Teensy.
+ *  @param moduleId  target module id
+ *  @param data      sample values, ideally in −32768..32767 (2..256 points) */
+export async function sendWaveform(
+  moduleId: string, data: number[],
+): Promise<void> {
+  if (!writer) return;
+  await writeLine(JSON.stringify({
+    type: 'wavetable', mod: moduleId, data: data.map((x) => x | 0),
+  }));
+}
+
 /** True when a serial writer is currently attached (connected to a Teensy). */
 export function isConnected(): boolean {
   return writer !== null;

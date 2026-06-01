@@ -40,9 +40,16 @@
 // Audio-domain module wrappers (app-modular-brain specific)
 #include "VcoModule.h"
 #include "OctaVcoModule.h"
+#include "FmVcoModule.h"
+#include "WtVcoModule.h"
+#include "DrawVcoModule.h"
 #include "StringModule.h"
 #include "CompDriveModule.h"
+#include "EchoModule.h"
+#include "CombModule.h"
+#include "PhaserModule.h"
 #include "VcaModule.h"
+#include "StereoVcaModule.h"
 #include "VcfModule.h"
 #include "MixerModule.h"
 #include "Mixer8Module.h"
@@ -64,9 +71,16 @@ inline void registerAllRuntimeModules() {
     // Audio-domain module wrappers.
     VcoModule::registerFactory();
     OctaVcoModule::registerFactory();   // FW-PM-1: 8-cell shared-control osc
+    FmVcoModule::registerFactory();     // FW-AU-4: FM oscillator
+    WtVcoModule::registerFactory();     // FW-AU-5: wavetable oscillator (banks)
+    DrawVcoModule::registerFactory();   // FW-AU-6: draw-waveshape oscillator
     StringModule::registerFactory();    // FW-AU-8: Karplus-Strong string
     CompDriveModule::registerFactory(); // FW-FX-2: compressor + overdrive
+    EchoModule::registerFactory();      // FW-AU-2: feedback delay
+    CombModule::registerFactory();      // FW-AU-3: tuned comb resonator
+    PhaserModule::registerFactory();    // FW-AU-2: all-pass phaser
     VcaModule::registerFactory();
+    StereoVcaModule::registerFactory(); // FW-AU-1: stereo VCA / panner
     VcfModule::registerFactory();
     MixerModule::registerFactory();
     Mixer8Module::registerFactory();

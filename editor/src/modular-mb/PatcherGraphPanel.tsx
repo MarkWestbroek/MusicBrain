@@ -22,8 +22,8 @@ import '@xyflow/react/dist/style.css';
 
 import { updateProject, useModularProject, uid } from './store';
 import { ModulePanel } from './ModulePanel';
-import { useEngineStatus } from './sim/engineSingleton';
-import {
+import { sendControlPoke } from './teensyLink';
+import { useEngineStatus } from './sim/engineSingleton';import {
   type ModuleInstance, type ModuleType, type Port, type PatchConnection,
   type ControlValue, type RackSlot, type PolyGroup, type PatchPolyOverride,
   canConnect, resolvePorts,
@@ -88,6 +88,10 @@ function ModuleNode({ data, selected }: NodeProps): JSX.Element {
   const widthMm  = m.visual.hpWidth * MM_PER_HP;
 
   function setControl(controlId: string, value: ControlValue): void {
+    // Live control-sync (FW-LIVE-1): push scalar changes straight to the
+    // device (quiet no-op when disconnected) so knob drags are heard live.
+    if (typeof value === 'number' || typeof value === 'boolean')
+      void sendControlPoke(m.id, controlId, value);
     updateProject((p) => ({
       ...p,
       patches: p.patches.map((px) => {
@@ -817,6 +821,9 @@ function PropertiesPanel(props: { patchId: string; selectedNodeId: string | null
 
   function setControl(controlId: string, value: ControlValue): void {
     if (!m) return;
+    // Live control-sync (FW-LIVE-1): mirror scalar edits to the device.
+    if (typeof value === 'number' || typeof value === 'boolean')
+      void sendControlPoke(m.id, controlId, value);
     updateProject((p) => ({
       ...p,
       patches: p.patches.map((px) => {

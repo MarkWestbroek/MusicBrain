@@ -25,6 +25,30 @@ To be implemented in roadmap stages 5–7.
 
 ## DEVLOG
 
+### 2026-06-02 — AU-modulebatch + live control-sync (fw 0.5.15)
+
+**7 nieuwe audio-modules.** `tp_mmb_stereo_vca` (FW-AU-1, 1-in → L/R met
+equal-power pan-CV), `tp_mmb_echo` (FW-AU-2, `AudioEffectDelay`-feedbacklus,
+CV op time/feedback/mix), `tp_mmb_phaser` (FW-AU-2, custom 6-traps all-pass
+`AudioStream`, CV op rate/depth), `tp_mmb_comb` (FW-AU-3, getunede delay-
+resonator op V/Oct), `tp_mmb_fm_vco` (FW-AU-4, `AudioSynthWaveformModulated`),
+`tp_mmb_wt_vco` (FW-AU-5, `arbitraryWaveform` + 6 additieve banks) en
+`tp_mmb_draw_vco` (FW-AU-6, arbitrary-table met live `wavetable`-push). Elk
+geregistreerd in `RegisterAllModules.h`.
+
+**Live control-sync (FW-LIVE-1).** Nieuw `controlPoke`-serieframe →
+`ProjectRuntime::pokeControl()`: past één control live toe (`setControl`) én
+persist't 'm in de actieve patch, zodat een volledige push een no-op blijft.
+Geen ack (hot-path). Nieuw `wavetable`-frame → `ProjectRuntime::setWaveform()`
+→ RTTI-vrije `Module::setWaveformData()` voor de draw-VCO. Callbacks gewired in
+`main.cpp` via `link.onControlPoke()` / `link.onWaveform()`.
+
+**CV-uitbreidingen.** `tp_mmb_string` kreeg CV op `pluck`/`level`; `tp_mmb_comp`
+op `threshold`/`drive`.
+
+**AudioMemory 120 → 400** voor de echo-/comb-delaylijnen (~1 audioblok per
+2.9 ms delay).
+
 ### 2026-06-01 — 8-in mixer + poly-seeds 1/2/4/8 stemmen (fw 0.5.6)
 
 **8-kanaals mixer (`tp_mmb_mixer8`).** Nieuwe `mmb_link::Mixer8Module` — de 8-in

@@ -29,6 +29,7 @@
  */
 
 #include "../Types.h"
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -143,6 +144,21 @@ public:
      *  parameter setter, a DC waveform amplitude, an SPI DAC code).
      *  The patch and the bus never see those implementation details. */
     virtual void writeCvPort(std::string_view /*portId*/, float /*value*/) {}
+
+    /** @brief Deliver a bulk single-cycle waveform table to the module.
+     *
+     *  Used by the draw-waveshape VCO (FW-AU-6): the editor pushes a 256-sample
+     *  single-cycle waveform over a dedicated serial frame rather than as a
+     *  scalar control.  The default is a no-op returning false (the module does
+     *  not accept waveform data).  Modules that support arbitrary waveforms
+     *  override this and copy the samples into their own buffer.  RTTI-free:
+     *  callers just invoke this on any `Module*`.
+     *  @param data  Pointer to @p count int16 samples (full-scale −32768..32767).
+     *  @param count Number of samples (typically 256).
+     *  @return true if the module accepted and applied the table. */
+    virtual bool setWaveformData(const std::int16_t* /*data*/, std::size_t /*count*/) {
+        return false;
+    }
 
 protected:
     std::string typeId_;

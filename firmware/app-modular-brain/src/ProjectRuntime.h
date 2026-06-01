@@ -213,6 +213,45 @@ public:
         return it == instances_.end() ? nullptr : it->second.get();
     }
 
+    /**
+     * @brief Live control-sync (FW-LIVE-1): apply one control to one module
+     *        instantly *and* persist it into the active patch's controlState.
+     *
+     * Persisting means a later full `push config` with identical cabling is a
+     * no-op for this control — the device already holds the value, and a patch
+     * re-activation (`activatePatch`) re-applies the same number.  Only the
+     * stored value changes; no graph rebuild is triggered.
+     *
+     * @param moduleId   Target module id.
+     * @param controlId  Control id on that module.
+     * @param value      Scalar value (bool / long / float).
+     * @return true if the module exists and the control was applied.
+     */
+    bool pokeControl(const char* moduleId, const char* controlId,
+                     JsonVariantConst value) {
+        auto* mod = find(moduleId);
+        if (!mod) return false;
+        if      (value.is<bool>())  mod->setControl(controlId, value.as<bool>());
+        else if (value.is<long>())  mod->setControl(controlId,
+                                        static_cast<std::int32_t>(value.as<long>()));
+        else if (value.is<float>()) mod->setControl(controlId, value.as<float>());
+        else return false;
+        persistControl(moduleId, controlId, value);
+        return true;
+    }
+
+    /**
+     * @brief Bulk-waveform push (FW-AU-6): hand a single-cycle table to a
+     *        draw-waveshape oscillator.  RTTI-free via `setWaveformData()`.
+     * @return true if the module exists and accepted the table.
+     */
+    bool setWaveform(const char* moduleId, const std::int16_t* data,
+                     std::size_t count) {
+        auto* mod = find(moduleId);
+        if (!mod) return false;
+        return mod->setWaveformData(data, count);
+    }
+
     /** @brief Number of module instances currently held. */
     std::size_t instanceCount() const { return instances_.size(); }
 
@@ -250,6 +289,29 @@ public:
     }
 
 private:
+    /**
+     * @brief Persist a single control value into the active patch's
+     *        controlState (FW-LIVE-1).  Creates the controlState / module
+     *        sub-objects on demand.  std::string keys force ArduinoJson to
+     *        copy them into the document (the source key buffer is transient).
+     */
+    void persistControl(const char* moduleId, const char* controlId,
+                        JsonVariantConst value) {
+        if (activePatchId_.empty()) return;
+        JsonObject project = projectDoc_["project"];
+        for (JsonObject p : project["patches"].as<JsonArray>()) {
+            if (std::strcmp(p["id"] | "", activePatchId_.c_str()) != 0) continue;
+            JsonObject cs = p["controlState"].is<JsonObject>()
+                ? p["controlState"].as<JsonObject>()
+                : p["controlState"].to<JsonObject>();
+            JsonObject mod = cs[std::string{moduleId}].is<JsonObject>()
+                ? cs[std::string{moduleId}].as<JsonObject>()
+                : cs[std::string{moduleId}].to<JsonObject>();
+            mod[std::string{controlId}] = value;  // value deep-copied
+            return;
+        }
+    }
+
     JsonDocument projectDoc_;
     std::unordered_map<std::string, std::unique_ptr<mb::runtime::Module>> instances_;
     /** Modules dropped by a re-config. Kept alive (never destroyed) because

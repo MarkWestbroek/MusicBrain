@@ -10,6 +10,44 @@
 
 ## Firmware
 
+### fw 0.5.15 — AU-modulebatch (stereo-VCA, FM/WT/draw-VCO, echo/phaser/comb) & live control-sync (2026-06-02)
+- **FW-LIVE-1 — live control-sync.** Knob-/control-edits in de editor gaan nu via
+  een `controlPoke`-serieframe (`{type,mod,ctrl,v}`) direct naar de Teensy zonder
+  volledige config-push. `ProjectRuntime::pokeControl()` past de control live toe
+  (`setControl`) én persist't 'm in de actieve patch (`controlState`), zodat een
+  latere volledige push een no-op is en patch-heractivatie hetzelfde getal
+  herstelt. Geen ack (hot-path: een knob-drag spuugt een stroom frames). Editor:
+  `sendControlPoke()` in `teensyLink.ts`, gekoppeld aan beide `setControl`-paden
+  in `PatcherGraphPanel.tsx` (stuurt alleen scalairen).
+- **FW-AU-1 — Stereo VCA (`tp_mmb_stereo_vca`).** Eén audio-in waaiert via een
+  `AudioAmplifier` naar twee (L/R). `vol`+`pan` als CV; equal-power pan
+  (`gainL=cos θ`, `gainR=sin θ`, `θ=(pan+1)·π/4`), pan-CV 0 = midden, −1 = links,
+  +1 = rechts. Seed `mmbStereoVca()` (ST-VCA, 6 HP).
+- **FW-AU-2 — CV op echo & phaser.** Echo (`tp_mmb_echo`, `EchoModule.h`):
+  `AudioEffectDelay`-feedbacklus (max 500 ms) met CV op `time` (sec), `feedback`,
+  `mix`. Phaser (`tp_mmb_phaser`, `PhaserModule.h`): custom 6-traps all-pass
+  `AudioStream` met CV op `rate`/`depth`. Seeds `mmbEcho`/`mmbPhaser` met
+  CV-poorten uitgebreid.
+- **FW-AU-3 — Comb / resonator (`tp_mmb_comb`).** Getunede `AudioEffectDelay`-
+  feedbacklus (0.2–50 ms), V/Oct-CV stemt de toonhoogte (0V=C4), `coarse`
+  semitone-offset, CV op `feedback`/`mix`. Hoge feedback → gestemde resonator.
+  Seed `mmbComb()` (COMB, 6 HP).
+- **FW-AU-4 — FM-VCO (`tp_mmb_fm_vco`).** `AudioSynthWaveformModulated`; audio-FM-in
+  moduleert de carrier, `fm_amt` = FM-diepte in octaven. Seed `mmbFmVco()`
+  (FM-VCO, 8 HP).
+- **FW-AU-5 — Wavetable-VCO (`tp_mmb_wt_vco`).** `AudioSynthWaveform` +
+  `arbitraryWaveform`, 6 additief opgebouwde banks (saw/square/triangle/orgel/
+  25%-pulse/vocaal-formant). Seed `mmbWtVco()` (WT-VCO, 8 HP).
+- **FW-AU-6 — Draw-waveshape VCO (`tp_mmb_draw_vco`).** Arbitrary-table-oscillator;
+  de editor pusht een single-cycle tabel via een nieuw `wavetable`-serieframe →
+  `ProjectRuntime::setWaveform()` → RTTI-vrije `Module::setWaveformData()` (firmware
+  resamplet naar 256 punten). Seed `mmbDrawVco()` (DRAW-VCO, 8 HP; teken-UI nog
+  minimaal). Editor-helper `sendWaveform()`.
+- **String & comp CV.** `tp_mmb_string` kreeg CV op `pluck`/`level`; `tp_mmb_comp`
+  CV op `threshold`/`drive`. Seeds bijgewerkt.
+- **AudioMemory 120 → 400** om de echo-/comb-delaylijnen te voeden (~1 audioblok
+  per 2.9 ms delay). RAM2 ~122 KB in gebruik, ruim binnen budget.
+
 ### fw 0.5.14 — AudioModule-rename & mod-wheel-bridge (2026-06-02)
 - **Refactor `AudioPortModule` → `AudioModule`.** De audio-basisklasse heet nu
   `mmb_link::AudioModule` (bestand `AudioModule.h`); alle 11 subclasses,

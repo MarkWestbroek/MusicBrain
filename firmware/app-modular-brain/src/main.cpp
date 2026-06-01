@@ -322,6 +322,28 @@ void onMidiCc(uint8_t channel, uint8_t controller, uint8_t value) {
     handleControlChange(channel, controller, value);
 }
 
+// Live control-sync (FW-LIVE-1): apply one control value to one module
+// instantly and persist it into the active patch. No graph rebuild.
+void onControlPoke(const char* moduleId, const char* controlId,
+                   JsonVariantConst value) {
+    runtime.pokeControl(moduleId, controlId, value);
+}
+
+// Draw-waveshape push (FW-AU-6): copy the JSON int array into an int16 buffer
+// and hand it to the target oscillator via the RTTI-free setWaveformData hook.
+void onWaveform(const char* moduleId, JsonArrayConst data) {
+    static int16_t buf[256];
+    std::size_t n = 0;
+    for (JsonVariantConst v : data) {
+        if (n >= 256) break;
+        int s = v.as<int>();
+        if (s >  32767) s =  32767;
+        if (s < -32768) s = -32768;
+        buf[n++] = static_cast<int16_t>(s);
+    }
+    if (n >= 2) runtime.setWaveform(moduleId, buf, n);
+}
+
 }  // namespace
 
 void setup() {
@@ -346,8 +368,10 @@ void setup() {
     // Audio block pool. 40 was too tight once the dynamic patch adds a second
     // voice chain (2× VCO/VCF/VCA + envelopes + mixer): exhausting the pool
     // starves the audio ISR and can hard-fault → USB drop. Teensy 4.1 has
-    // ample RAM, so budget generously and report the high-water mark.
-    AudioMemory(120);
+    // ample RAM, so budget generously and report the high-water mark. The
+    // echo/comb delay lines (FW-AU-2/3) each grab ~1 block per 2.9 ms of
+    // delay, so the pool is sized to host a couple of long delays at once.
+    AudioMemory(400);
 
     // Static 4-voice graph (B-step 2)
     for (uint8_t i = 0; i < kVoices; ++i) {
@@ -376,6 +400,8 @@ void setup() {
 
     mmb_link::registerAllRuntimeModules();
     link.begin(onConfigReceived, onSelectPatch, onSetStatic, onMidiNote, onMidiBend, onMidiCc);
+    link.onControlPoke(onControlPoke);   // FW-LIVE-1: live control-sync
+    link.onWaveform(onWaveform);         // FW-AU-6: draw-waveshape push
 }
 
 void loop() {

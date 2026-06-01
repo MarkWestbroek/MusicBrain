@@ -1237,14 +1237,17 @@ function mmbEcho() {
       { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
     ],
     items: [
-      knob('time',     'Time',  w*0.30, 30, { size: 'medium', min: 0.01, max: 2.0, def: 0.30, unit: 's',  color: '#f9fafb' }),
+      knob('time',     'Time',  w*0.30, 30, { size: 'medium', min: 0.01, max: 0.5, def: 0.30, unit: 's',  color: '#f9fafb' }),
       knob('feedback', 'Fbk',   w*0.70, 30, { size: 'medium', min: 0,    max: 0.95,def: 0.45, color: '#f9fafb' }),
       knob('mix',      'Mix',   w*0.30, 70, { size: 'medium', min: 0,    max: 1,   def: 0.35, color: '#f9fafb' }),
       toggle('tempo_sync', 'Sync', w*0.70, 70, false),
-      inPort ('in',  'In',  'audio', w*0.30, 110),
-      outPort('out', 'Out', 'audio', w*0.70, 110),
+      inPort ('time_cv', 'T+',  'cv',    w*0.18, 100),
+      inPort ('fbk_cv',  'F+',  'cv',    w*0.38, 100),
+      inPort ('mix_cv',  'M+',  'cv',    w*0.58, 100),
+      inPort ('in',  'In',  'audio', w*0.30, 116),
+      outPort('out', 'Out', 'audio', w*0.70, 116),
     ],
-    notes: 'Feedback-delay (Tone.FeedbackDelay). Mooi achter een VCA. Sync-toggle haakt later in op de master-clock.',
+    notes: 'Feedback-delay met CV op tijd (sec), feedback en mix. Op de Teensy een AudioEffectDelay-feedbacklus (max 500 ms). Sync-toggle haakt later in op de master-clock.',
   });
 }
 
@@ -1266,10 +1269,12 @@ function mmbPhaser() {
       knob('depth',    'Depth', w*0.70, 30, { size: 'medium', min: 0,   max: 1, def: 0.7, color: '#f9fafb' }),
       knob('feedback', 'Fbk',   w*0.30, 70, { size: 'medium', min: 0,   max: 0.95, def: 0.3, color: '#f9fafb' }),
       knob('mix',      'Mix',   w*0.70, 70, { size: 'medium', min: 0,   max: 1, def: 0.5, color: '#f9fafb' }),
-      inPort ('in',  'In',  'audio', w*0.30, 110),
-      outPort('out', 'Out', 'audio', w*0.70, 110),
+      inPort ('rate_cv',  'R+', 'cv',    w*0.18, 100),
+      inPort ('depth_cv', 'D+', 'cv',    w*0.42, 100),
+      inPort ('in',  'In',  'audio', w*0.30, 116),
+      outPort('out', 'Out', 'audio', w*0.70, 116),
     ],
-    notes: 'Phaser (Tone.Phaser). Klassieke sweep-modulatie; mooi achter een VCF of als send.',
+    notes: '6-traps all-pass phaser (custom AudioStream op de Teensy). CV op rate en depth. Klassieke sweep-modulatie; mooi achter een VCF of als send.',
   });
 }
 
@@ -1339,11 +1344,13 @@ function mmbString() {
     items: [
       knob('pluck', 'Pluck', w*0.30, 36, { size: 'medium', min: 0.01, max: 1, def: 0.8, color: '#f9fafb' }),
       knob('level', 'Level', w*0.70, 36, { size: 'medium', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
-      inPort ('voct', 'V/Oct', 'cv',    w*0.30, 92),
-      inPort ('gate', 'Gate',  'gate',  w*0.70, 92),
-      outPort('out',  'Out',   'audio', w/2,    116),
+      inPort ('voct',  'V/Oct', 'cv',    w*0.20, 92),
+      inPort ('gate',  'Gate',  'gate',  w*0.50, 92),
+      inPort ('pluck_cv', 'P+', 'cv',    w*0.80, 92),
+      inPort ('level_cv', 'L+', 'cv',    w*0.20, 110),
+      outPort('out',   'Out',   'audio', w*0.65, 110),
     ],
-    notes: 'Karplus-Strong physical-modeling snaar (firmware tp_mmb_string, FW-AU-8). Een Gate rising-edge tokkelt de snaar op de toonhoogte uit V/Oct. \'pluck\' bepaalt de helderheid/ruisinhoud van de aanslag (0.01 dof … 1.0 helder).',
+    notes: 'Karplus-Strong physical-modeling snaar (firmware tp_mmb_string, FW-AU-8). Een Gate rising-edge tokkelt de snaar op de toonhoogte uit V/Oct. \'pluck\' bepaalt de helderheid/ruisinhoud van de aanslag (0.01 dof … 1.0 helder); pluck en level zijn ook als CV bestuurbaar.',
   });
 }
 
@@ -1370,18 +1377,165 @@ function mmbComp() {
       knob('release',   'Rel',   w*0.72, 60, { size: 'small', min: 5, max: 1000, def: 120, unit: 'ms', color: '#f9fafb' }),
       knob('makeup',    'Gain',  w*0.28, 86, { size: 'small', min: 0, max: 24, def: 0, unit: 'dB', color: '#f9fafb' }),
       knob('drive',     'Drive', w*0.72, 86, { size: 'small', min: 0, max: 1, def: 0.2, color: '#f9fafb' }),
-      inPort ('in',  'In',  'audio', w*0.30, 114),
-      outPort('out', 'Out', 'audio', w*0.70, 114),
+      inPort ('thr_cv',   'T+', 'cv',    w*0.16, 104),
+      inPort ('drive_cv', 'D+', 'cv',    w*0.40, 104),
+      inPort ('in',  'In',  'audio', w*0.30, 118),
+      outPort('out', 'Out', 'audio', w*0.70, 118),
     ],
-    notes: 'Feed-forward peak-compressor met makeup-gain en een tanh soft-clip overdrive (firmware tp_mmb_comp, FW-FX-2). De Teensy Audio-lib heeft geen kant-en-klare compressor; dit is een custom AudioStream. \'drive\' voegt na de compressie warme saturatie toe.',
+    notes: 'Feed-forward peak-compressor met makeup-gain en een tanh soft-clip overdrive (firmware tp_mmb_comp, FW-FX-2). De Teensy Audio-lib heeft geen kant-en-klare compressor; dit is een custom AudioStream. \'drive\' voegt na de compressie warme saturatie toe; threshold en drive zijn ook als CV bestuurbaar.',
+  });
+}
+
+// 15. MMB STEREO-VCA — 6 HP. Eén audio-in → L/R-out met vol- en pan-CV
+//     (firmware tp_mmb_stereo_vca, FW-AU-1). Pan-CV: 0 = midden, −1 = links,
+//     +1 = rechts, equal-power.
+function mmbStereoVca() {
+  const w = W(6);
+  return assemble({
+    typeId: 'tp_mmb_stereo_vca',
+    categoryId: 'effect',
+    variant: 'Stereo VCA / panner',
+    brand: 'MMB', model: 'ST-VCA',
+    hp: 6, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'ST-VCA', fontSize: 2.0, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: 'vol + pan', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('vol', 'Vol', w*0.30, 36, { size: 'medium', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      knob('pan', 'Pan', w*0.70, 36, { size: 'medium', min: -1, max: 1, def: 0, color: '#f9fafb' }),
+      inPort ('vol_cv', 'V+',  'cv',    w*0.20, 86),
+      inPort ('pan_cv', 'P+',  'cv',    w*0.50, 86),
+      inPort ('in',     'In',  'audio', w*0.80, 86),
+      outPort('l',      'L',   'audio', w*0.32, 112),
+      outPort('r',      'R',   'audio', w*0.68, 112),
+    ],
+    notes: 'Stereo-VCA/panner: één audio-in waaiert naar L+R. \'vol\' regelt het totale niveau, \'pan\' de balans (equal-power). Pan-CV: 0 = midden, −1 = hard links, +1 = hard rechts. Firmware tp_mmb_stereo_vca (FW-AU-1).',
+  });
+}
+
+// 16. MMB FM-VCO — 8 HP. 2-operator FM: een audio-in moduleert de frequentie
+//     (firmware tp_mmb_fm_vco, FW-AU-4). Voed de carrier met een tweede VCO
+//     voor klassieke FM-timbres.
+function mmbFmVco() {
+  const w = W(8);
+  return assemble({
+    typeId: 'tp_mmb_fm_vco',
+    categoryId: 'vco',
+    variant: 'FM VCO (2-op)',
+    brand: 'MMB', model: 'FM-VCO',
+    hp: 8, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'FM-VCO', fontSize: 2.2, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.8, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      sw  ('wave',   'Wave',   w/2,    22, ['Sin','Tri','Saw','Sqr'], 0),
+      knob('coarse', 'Coarse', w*0.30, 50, { size: 'large',  min: -36, max: 36, def: 0,  unit: 'semi', color: '#f9fafb' }),
+      knob('fine',   'Fine',   w*0.70, 50, { size: 'medium', min: -100, max: 100, def: 0, unit: 'ct',  color: '#f9fafb' }),
+      knob('fm_amt', 'FM',     w*0.30, 78, { size: 'medium', min: 0, max: 4, def: 1, unit: 'oct', color: '#f9fafb' }),
+      knob('level',  'Level',  w*0.70, 78, { size: 'medium', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      inPort ('voct', '1V/Oct', 'cv',    w*0.18, 104),
+      inPort ('tune', 'Tune',   'cv',    w*0.40, 104),
+      inPort ('fm',   'FM',     'audio', w*0.62, 104),
+      outPort('out',  'Out',    'audio', w*0.86, 104),
+    ],
+    notes: 'Twee-operator FM-oscillator (AudioSynthWaveformModulated). De audio-FM-ingang moduleert de carrier-frequentie; \'fm_amt\' is de FM-diepte in octaven. Voed FM met een tweede VCO (de modulator) voor klassieke DX-achtige timbres. Firmware tp_mmb_fm_vco (FW-AU-4).',
+  });
+}
+
+// 17. MMB COMB — 6 HP. Comb-/resonator-filter: getunede feedback-delay
+//     bestuurd via V/Oct (firmware tp_mmb_comb, FW-AU-3). Bij hoge feedback
+//     een gestemde resonator; mooi met ruis als excitatie.
+function mmbComb() {
+  const w = W(6);
+  return assemble({
+    typeId: 'tp_mmb_comb',
+    categoryId: 'effect',
+    variant: 'Comb / resonator',
+    brand: 'MMB', model: 'COMB',
+    hp: 6, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'COMB', fontSize: 2.0, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: 'tuned resonator', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('coarse',   'Tune', w*0.30, 30, { size: 'medium', min: -36, max: 36, def: 0, unit: 'semi', color: '#f9fafb' }),
+      knob('feedback', 'Fbk',  w*0.70, 30, { size: 'medium', min: 0, max: 0.99, def: 0.9, color: '#f9fafb' }),
+      knob('mix',      'Mix',  w*0.30, 70, { size: 'medium', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      inPort ('freq_cv', 'V/Oct', 'cv', w*0.18, 100),
+      inPort ('fbk_cv',  'F+',  'cv',   w*0.42, 100),
+      inPort ('mix_cv',  'M+',  'cv',   w*0.66, 100),
+      inPort ('in',  'In',  'audio', w*0.30, 116),
+      outPort('out', 'Out', 'audio', w*0.70, 116),
+    ],
+    notes: 'Comb-filter / resonator: een getunede feedback-delay (0.2–50 ms). De V/Oct-ingang stemt de toonhoogte (0V = C4); \'coarse\' is een semitone-offset. Bij hoge feedback wordt het een gestemde resonator — voed het met ruis of een puls voor plucked/blown timbres. Firmware tp_mmb_comb (FW-AU-3).',
+  });
+}
+
+// 18. MMB WT-VCO — 8 HP. Wavetable-oscillator: 6 banks additieve golfvormen
+//     (firmware tp_mmb_wt_vco, FW-AU-5).
+function mmbWtVco() {
+  const w = W(8);
+  return assemble({
+    typeId: 'tp_mmb_wt_vco',
+    categoryId: 'vco',
+    variant: 'Wavetable VCO',
+    brand: 'MMB', model: 'WT-VCO',
+    hp: 8, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'WT-VCO', fontSize: 2.2, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.8, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      sw  ('bank',   'Bank',   w/2,    22, ['Saw','Sqr','Tri','Organ','Pulse','Vocal'], 0),
+      knob('coarse', 'Coarse', w*0.30, 58, { size: 'large',  min: -36, max: 36, def: 0,  unit: 'semi', color: '#f9fafb' }),
+      knob('fine',   'Fine',   w*0.70, 58, { size: 'medium', min: -100, max: 100, def: 0, unit: 'ct',  color: '#f9fafb' }),
+      knob('level',  'Level',  w/2,    84, { size: 'medium', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      inPort ('voct', '1V/Oct', 'cv',    w*0.25, 104),
+      inPort ('tune', 'Tune',   'cv',    w*0.50, 104),
+      outPort('out',  'Out',    'audio', w*0.78, 104),
+    ],
+    notes: 'Wavetable-oscillator met 6 banks (saw, square, triangle, orgel, 25%-pulse, vocaal/formant) — additief opgebouwd op de Teensy via arbitraryWaveform. \'bank\' kiest de golfvorm; coarse/fine zijn pitch-offsets t.o.v. V/Oct. Firmware tp_mmb_wt_vco (FW-AU-5).',
+  });
+}
+
+// 19. MMB DRAW-VCO — 8 HP. Teken je eigen golfvorm in de editor en push die
+//     live naar de oscillator (firmware tp_mmb_draw_vco, FW-AU-6). De draw-UI
+//     stuurt een 'wavetable'-frame; firmware resamplet naar 256 punten.
+function mmbDrawVco() {
+  const w = W(8);
+  return assemble({
+    typeId: 'tp_mmb_draw_vco',
+    categoryId: 'vco',
+    variant: 'Draw-waveshape VCO',
+    brand: 'MMB', model: 'DRAW-VCO',
+    hp: 8, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'DRAW-VCO', fontSize: 2.0, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.8, color: '#f9fafb', align: 'middle' },
+    ],
+    decorations: [
+      { kind: 'rect', x: w*0.12, y: 22, w: w*0.76, h: 30, color: '#0b1220' },
+    ],
+    items: [
+      knob('coarse', 'Coarse', w*0.30, 70, { size: 'medium', min: -36, max: 36, def: 0,  unit: 'semi', color: '#f9fafb' }),
+      knob('fine',   'Fine',   w*0.70, 70, { size: 'medium', min: -100, max: 100, def: 0, unit: 'ct',  color: '#f9fafb' }),
+      knob('level',  'Level',  w/2,    92, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      inPort ('voct', '1V/Oct', 'cv',    w*0.25, 110),
+      inPort ('tune', 'Tune',   'cv',    w*0.50, 110),
+      outPort('out',  'Out',    'audio', w*0.78, 110),
+    ],
+    notes: 'Teken-golfvorm-oscillator: de editor stuurt een single-cycle tabel via het \'wavetable\'-serieframe (FW-LIVE-1) en de firmware resamplet naar 256 punten. De zwarte balk is de teken-zone (UI volgt). coarse/fine zijn pitch-offsets t.o.v. V/Oct. Firmware tp_mmb_draw_vco (FW-AU-6).',
   });
 }
 
 // ── public entry ───────────────────────────────────────────────────────
-
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbQuadMixerShared(), mmbVcf(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbComp(), mmbNoise(), mmbEcho(), mmbPhaser()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbQuadMixerShared(), mmbVcf(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbComp(), mmbNoise(), mmbEcho(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco()];
   const newTypes = all.map((x) => x.type);
   const newModules = all.map((x) => x.module);
 

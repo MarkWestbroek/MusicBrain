@@ -138,15 +138,16 @@ Brondump gebruiker (idee), nagenoeg ongewijzigd overgenomen:
 
 | # | Prio | Status | Item |
 |---|---|---|---|
-| FW-AU-1 | 2 | ⏳ | **Stereo VCA.** |
-| FW-AU-2 | 2 | ⏳ | **CV-ingangen op phaser en echo** (rate/depth/delaytime stuurbaar). |
-| FW-AU-3 | 3 | ⏳ | **Comb-filter / resonator met CV-ingang** (handmatige phaser); zelf bouwen als de audio-lib het niet heeft — experiment buiten de audio-lib om. *Onderzoek: de stock Audio-lib heeft géén los comb-object, maar `AudioEffectDelay` + feedback-mixer bouwt er triviaal een; `AudioEffectFlange` is al een gemoduleerd comb-filter. Zelf bouwen dus prima haalbaar.* |
-| FW-AU-4 | 2 | ⏳ | **FM-VCO** (`AudioSynthFM`). |
-| FW-AU-5 | 2 | ⏳ | **Wavetable-VCO** (`AudioPlayMemory` / wavetable). |
-| FW-AU-6 | 3 | ⏳ | **Draw-waveshape VCO** (zelf golfvorm tekenen in de editor → naar firmware). |
+| FW-AU-1 | 2 | ✅ | **Stereo VCA.** Firmware `tp_mmb_stereo_vca` (`StereoVcaModule.h`): één audio-in waaiert via een `AudioAmplifier` naar twee `AudioAmplifier`s (L/R). `vol`+`pan` als CV; equal-power pan-wet (`gainL=cos θ`, `gainR=sin θ`, `θ=(pan+1)·π/4`), pan-CV 0 = midden, −1 = links, +1 = rechts. Editor-seed `mmbStereoVca()` (ST-VCA, 6 HP). fw 0.5.15. |
+| FW-AU-2 | 2 | ✅ | **CV-ingangen op phaser en echo** (rate/depth/delaytime stuurbaar). Echo `tp_mmb_echo` (`EchoModule.h`): `AudioEffectDelay`-feedbacklus (max 500 ms) met CV op `time` (sec), `feedback`, `mix`. Phaser `tp_mmb_phaser` (`PhaserModule.h`): custom 6-traps all-pass `AudioStream` met CV op `rate`/`depth`. Seeds `mmbEcho`/`mmbPhaser` uitgebreid met CV-poorten. fw 0.5.15. |
+| FW-AU-3 | 3 | ✅ | **Comb-filter / resonator met CV-ingang.** Firmware `tp_mmb_comb` (`CombModule.h`): getunede `AudioEffectDelay`-feedbacklus (0.2–50 ms), V/Oct-CV stemt de toonhoogte (0V=C4), `coarse` semitone-offset, CV op `feedback`/`mix`. Hoge feedback → gestemde resonator. Editor-seed `mmbComb()` (COMB, 6 HP). fw 0.5.15. |
+| FW-AU-4 | 2 | ✅ | **FM-VCO.** Firmware `tp_mmb_fm_vco` (`FmVcoModule.h`): wrapt `AudioSynthWaveformModulated`; audio-FM-in moduleert de carrier-frequentie, `fm_amt` = FM-diepte in octaven. Editor-seed `mmbFmVco()` (FM-VCO, 8 HP). fw 0.5.15. |
+| FW-AU-5 | 2 | ✅ | **Wavetable-VCO.** Firmware `tp_mmb_wt_vco` (`WtVcoModule.h`): `AudioSynthWaveform` met `arbitraryWaveform`, 6 additief opgebouwde banks (saw/square/triangle/orgel/25%-pulse/vocaal-formant), `bank` selecteert. Editor-seed `mmbWtVco()` (WT-VCO, 8 HP). fw 0.5.15. |
+| FW-AU-6 | 3 | ✅ | **Draw-waveshape VCO.** Firmware `tp_mmb_draw_vco` (`DrawVcoModule.h`): `AudioSynthWaveform` arbitrary-table; editor pusht een single-cycle tabel via het `wavetable`-serieframe (zie FW-LIVE-1), firmware resamplet naar 256 punten via RTTI-vrije `Module::setWaveformData()`. Editor-seed `mmbDrawVco()` (DRAW-VCO, 8 HP; teken-UI nog minimaal). fw 0.5.15. |
 | FW-AU-7 | 3 | 🔬 | **Fourier-shaper VCO** — fourier-analyse van bestaand geluid, boventoon-verloop schematisch (Fairlight-achtig, additieve synthese); mogelijk FPGA-sidecar nodig. *Onderzoek: haalbaar op de Teensy zelf — de Audio-lib heeft `AudioAnalyzeFFT1024`/`FFT256`, `analyze_notefreq` en `analyze_tonedetect`. Een bestaand instrument-sample kan dus on-device op harmonische inhoud geanalyseerd worden.* |
-| FW-AU-8 | 3 | ✅ | **String-VCO** — Karplus-Strong / string-object uit de audio-lib wrappen. Firmware `tp_mmb_string` (`StringModule.h`) wrapt `AudioSynthKarplusStrong` → `AudioAmplifier`; Gate rising-edge tokkelt op de V/Oct-pitch, `pluck` regelt de aanslag-helderheid, `level` de output. Editor-seed `mmbString()` (STRING, 6 HP). fw 0.5.13. |
+| FW-AU-8 | 3 | ✅ | **String-VCO** — Karplus-Strong / string-object uit de audio-lib wrappen. Firmware `tp_mmb_string` (`StringModule.h`) wrapt `AudioSynthKarplusStrong` → `AudioAmplifier`; Gate rising-edge tokkelt op de V/Oct-pitch, `pluck` regelt de aanslag-helderheid, `level` de output. `pluck` en `level` ook als CV-ingang (fw 0.5.15). Editor-seed `mmbString()` (STRING, 6 HP). fw 0.5.13. |
 | FW-AU-9 | 3 | 🔬 | **Physical-modeling-VCO** (MI-Elements-achtig); mogelijk te zwaar voor Teensy (geen DSP); MI Elements gebruikt ARM STM32 M7. *Onderzoek: Teensy 4.1 = Cortex-M7 @ 600 MHz mét FPU — krachtiger dan MI Elements' STM32F4 (M4 @ 168 MHz). Karplus-Strong (FW-AU-8) is al een simpel physical model; modale/Elements-achtige synthese is haalbaar voor een beperkt aantal stemmen. De M7 heeft de headroom die hier eerder als ontbrekend werd ingeschat.* |
+| FW-LIVE-1 | 2 | ✅ | **Live control-sync.** Knob-/control-wijzigingen in de editor gaan via een `controlPoke`-serieframe (`{type,mod,ctrl,v}`) direct naar de Teensy zonder volledige config-push: `ProjectRuntime::pokeControl()` past de control live toe (via `setControl`) én persist't 'm in de actieve patch (`controlState`), zodat een latere volledige push een no-op is. Hot-path (geen ack). Ook nieuw: `wavetable`-frame + `ProjectRuntime::setWaveform()` voor FW-AU-6. Editor: `sendControlPoke()`/`sendWaveform()` in `teensyLink.ts`, gekoppeld aan beide `setControl`-paden in `PatcherGraphPanel.tsx`. fw 0.5.15. |
 
 ### 2.4 Effecten
 
@@ -159,7 +160,7 @@ Brondump gebruiker (idee), nagenoeg ongewijzigd overgenomen:
 | # | Prio | Status | Item |
 |---|---|---|---|
 | FW-FX-1 | 2 | ⏳ | **Stereo echo met CV-aansturing** (delaytime/feedback via CV, tap-tempo). |
-| FW-FX-2 | 3 | ✅ | **Compressor met lichte overdrive** (buizen-emulatie); basis `AudioEffectCompressor` + saturatie. *De stock Audio-lib heeft géén compressor*, dus firmware `tp_mmb_comp` (`CompDriveModule.h`) bevat een custom `AudioEffectCompDrive` AudioStream: feed-forward peak-compressor (threshold/ratio/attack/release/makeup) gevolgd door een tanh soft-clip overdrive (`drive`). Editor-seed `mmbComp()` (COMP, 6 HP). fw 0.5.13. |
+| FW-FX-2 | 3 | ✅ | **Compressor met lichte overdrive** (buizen-emulatie); basis `AudioEffectCompressor` + saturatie. *De stock Audio-lib heeft géén compressor*, dus firmware `tp_mmb_comp` (`CompDriveModule.h`) bevat een custom `AudioEffectCompDrive` AudioStream: feed-forward peak-compressor (threshold/ratio/attack/release/makeup) gevolgd door een tanh soft-clip overdrive (`drive`). CV-ingangen op `threshold` en `drive` (fw 0.5.15). Editor-seed `mmbComp()` (COMP, 6 HP). fw 0.5.13. |
 
 ### 2.5 Sequencer
 

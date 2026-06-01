@@ -90,6 +90,15 @@ public:
      *  Control-change incl. mod-wheel (CC1). */
     using MidiCcHandler = void (*)(uint8_t channel, uint8_t controller, uint8_t value);
 
+    /** Callback invoked when a "controlPoke" message arrives (FW-LIVE-1).
+     *  Live control-sync: apply one control value to one module instantly. */
+    using ControlPokeHandler = void (*)(const char* moduleId, const char* controlId,
+                                        JsonVariantConst value);
+
+    /** Callback invoked when a "wavetable" message arrives (FW-AU-6).
+     *  Bulk single-cycle waveform push to a draw-waveshape oscillator. */
+    using WaveformHandler = void (*)(const char* moduleId, JsonArrayConst data);
+
     /** @brief Initialise the link and send the opening hello frame.
      *  Must be called once from Arduino `setup()` after `Serial.begin()`. */
     void begin(ConfigHandler onConfig, SelectPatchHandler onSelectPatch,
@@ -106,6 +115,11 @@ public:
         bufLen_ = 0;
         sendHello();
     }
+
+    /** @brief Register the live control-sync handler (FW-LIVE-1). */
+    void onControlPoke(ControlPokeHandler h) { onControlPoke_ = h; }
+    /** @brief Register the bulk-waveform handler (FW-AU-6). */
+    void onWaveform(WaveformHandler h) { onWaveform_ = h; }
 
     /** @brief Drain the serial input buffer and dispatch complete lines.
      *  Call on every iteration of Arduino `loop()`. Non-blocking. */
@@ -153,6 +167,8 @@ private:
     MidiNoteHandler    onMidiNote_    = nullptr;
     MidiBendHandler    onMidiBend_    = nullptr;
     MidiCcHandler      onMidiCc_      = nullptr;
+    ControlPokeHandler onControlPoke_ = nullptr;
+    WaveformHandler    onWaveform_    = nullptr;
 
     void sendHello() {
         JsonDocument doc;
@@ -260,6 +276,27 @@ private:
             const uint8_t cc  = static_cast<uint8_t>(doc["cc"]  | 0);
             const uint8_t val = static_cast<uint8_t>(doc["val"] | 0);
             if (onMidiCc_) onMidiCc_(ch, cc, val);
+            return;
+        }
+        if (strcmp(type, "controlPoke") == 0) {
+            // Live control-sync (FW-LIVE-1):
+            //   {"type":"controlPoke","mod":id,"ctrl":id,"v":value}
+            // Applies one control to one module instantly *and* persists it
+            // into the active patch so a later full push is a no-op. No ack
+            // (hot-path: a knob drag emits a stream of these).
+            const char* mod  = doc["mod"]  | "";
+            const char* ctrl = doc["ctrl"] | "";
+            if (*mod && *ctrl && onControlPoke_)
+                onControlPoke_(mod, ctrl, doc["v"]);
+            return;
+        }
+        if (strcmp(type, "wavetable") == 0) {
+            // Draw-waveshape push (FW-AU-6):
+            //   {"type":"wavetable","mod":id,"data":[int16,...]}
+            const char* mod = doc["mod"] | "";
+            JsonArrayConst data = doc["data"].as<JsonArrayConst>();
+            if (*mod && !data.isNull() && onWaveform_)
+                onWaveform_(mod, data);
             return;
         }
         sendAckErr("unknown type");

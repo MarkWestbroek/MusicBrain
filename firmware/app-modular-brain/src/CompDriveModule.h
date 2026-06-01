@@ -158,6 +158,23 @@ public:
         else if (controlId == "drive")     comp_.drive(asFloat(0.2f));
     }
 
+    // --- Port-kind / CV-bridge -----------------------------------------
+
+    /** @brief `threshold` and `drive` are CV-domain inputs (sidechain-style
+     *  dynamic compression / envelope-driven saturation). */
+    PortKind inputPortKind(std::string_view portId) const override {
+        if (portId == "in")                            return PortKind::Audio;
+        if (portId == "threshold" || portId == "drive") return PortKind::Cv;
+        return PortKind::None;
+    }
+    PortKind outputPortKind(std::string_view portId) const override {
+        return (portId == "out") ? PortKind::Audio : PortKind::None;
+    }
+    void writeCvPort(std::string_view portId, float value) override {
+        if      (portId == "threshold") comp_.threshold(value);
+        else if (portId == "drive")     comp_.drive(value);
+    }
+
     /** @brief Register the compressor factory.  Idempotent. */
     static void registerFactory() {
         auto& reg = mb::runtime::Registry::global();
