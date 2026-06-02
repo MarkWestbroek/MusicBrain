@@ -348,30 +348,32 @@ being copied to DTCM.
 sequenceDiagram
     participant KSP as Keystep Pro / DAW
     participant USB as USB-MIDI Host
-    participant Loop as loop() usbMIDI.read()
+    participant Loop as loop -- usbMIDI.read
     participant EV as ElementsVoice
     participant EM as ElementsModule
     participant Part as elements::Part
     participant Patch as elements::Patch
     participant Voice as elements::Voice
+    participant Resonator as elements::Resonator
+    participant Exciter as elements::Exciter
 
     Note over KSP, Voice: Note + gate
     KSP->>USB: NoteOn (channel, note, velocity)
-    Loop->>EM: handleNoteOn()
+    Loop->>EM: handleNoteOn
     EM->>EV: noteOn(hz, strength)
-    EV->>EV: ps_.note = 69+12*log2(hz/440)
-    EV->>EV: ps_.strength = velocity/127
-    EV->>EV: ps_.gate = true
-    Note over EV: on next generateBlock() → Part.Process(gate=true) → Voice.Process(trigger=true)...
+    EV->>EV: ps.note = 69+12*log2(hz/440)
+    EV->>EV: ps.strength = velocity/127
+    EV->>EV: ps.gate = true
+    Note over EV: next genBlock runs Part.Process with gate=true
 
     Note over KSP, Voice: Parameter change (CC)
-    KSP->>USB: ControlChange (channel, CC#18, value)
-    Loop->>EM: handleControlChange()
-    EM->>Part: mutable_patch()→resonator_brightness = v/127
+    KSP->>USB: ControlChange (channel, CC18, value)
+    Loop->>EM: handleControlChange
+    EM->>Part: mutable_patch.resonator_brightness = v/127
 
     Note over Part, Voice: real-time vs. next-note
-    Voice->>Resonator: set_brightness(): applies immediately (filter coeff.)
-    Voice->>Exciter: geometry/position/exciter: cached, applied next strike
+    Voice->>Resonator: set_brightness - applies immediately
+    Voice->>Exciter: geometry, position, exciter model - cached, applied next strike
 ```
 
 ### Parameter Categories
@@ -404,22 +406,22 @@ sequenceDiagram
     Note over Part: patch defaults, voice init, reverb init
 
     Setup->>Setup: usbMIDI.setHandleNoteOn/Off/CC
-    Setup->>Setup: ElementsModule::registerFactory()
+    Setup->>Setup: ElementsModule.registerFactory
     Note over Setup: Audio engine starts (ISR fires)
 
     loop every ~2.9 ms
-        Note over EV: AudioStream::update() called by ISR
-        EV->>Part: generateBlock() → Process(ps, ...)
-        Part->>Part: gate rising-edge → cycle active voice
-        Part->>Part: voice.Process(patch, freq, strength, gate, ...)
+        Note over EV: AudioStream.update called by ISR
+        EV->>Part: genBlock - Part.Process(ps, silence, silence, main, aux)
+        Part->>Part: gate rising-edge, cycle active voice
+        Part->>Part: Voice.Process(patch, freq, strength, gate, ...)
     end
 
     loop every iteration
-        Loop->>Loop: while(usbMIDI.read()) drain MIDI events
+        Loop->>Loop: while(usbMIDI.read) drain MIDI events
     end
 
     loop every 1 sec
-        Loop->>Loop: AudioProcessorUsageMax() + AudioMemoryUsageMax()
+        Loop->>Loop: AudioProcessorUsageMax + AudioMemoryUsageMax
     end
 ```
 
