@@ -192,7 +192,7 @@ in terms of `elements::kSampleRate = 32000.0f`.
 
 ```mermaid
 sequenceDiagram
-    participant Caller as Part caller (our wrapper)
+    participant Caller as Part caller - our wrapper
     participant Part
     participant Voice
     participant Exciter
@@ -201,19 +201,19 @@ sequenceDiagram
 
     Note over Caller, Reverb: 32 kHz, 16-sample blocks
 
-    Caller->>Part: Process(PerformanceState, blow, strike, main, aux, 16)
+    Caller->>Part: Process PerformanceState, blow, strike, main, aux, 16
     Part->>Part: gate rising-edge detection, cycle active voice
     loop each voice (kNumVoices = 1)
-        Part->>Voice: Process(Patch, freq, strength, gate, blow, strike, raw, center, sides, 16)
-        Voice->>Exciter: Process(gate_flags, bow/flow_buffer, 16)
-        Voice->>Exciter: Process(gate_flags, blow_buffer, 16)
-        Voice->>Exciter: Process(gate_flags, strike_buffer, 16)
-        Voice->>Resonator: Process(bow_strength, combined_excitation, center, sides, 16)
-        Voice->>Voice: mixdown (center ± side × spread)
+        Part->>Voice: Process Patch, freq, strength, gate, blow, strike, raw, center, sides, 16
+        Voice->>Exciter: Process gate_flags, bow/flow_buffer, 16
+        Voice->>Exciter: Process gate_flags, blow_buffer, 16
+        Voice->>Exciter: Process gate_flags, strike_buffer, 16
+        Voice->>Resonator: Process bow_strength, combined_excitation, center, sides, 16
+        Voice->>Voice: mixdown center +/- side x spread
     end
     Part->>Part: SoftLimit pre-clipping
-    Part->>Part: metering (exciter_level, resonator_level, panic detection)
-    Part->>Reverb: Process(main, aux, 16)
+    Part->>Part: metering exciter_level, resonator_level, panic detection
+    Part->>Reverb: Process main, aux, 16
 ```
 
 ---
@@ -286,21 +286,21 @@ contained in the `update()` loop:
 
 ```mermaid
 flowchart LR
-    subgraph AudioISR["Audio ISR (every 2.9 ms)"]
+    subgraph AudioISR["Audio ISR -- every 2.9 ms"]
         direction TB
-        A["allocate() output block (128 samples)"] --> B
-        B["for i = 0..127:"] --> C
-        C["y = s0 + (s1−s0)×phase<br/>phase += 0.7256 (32000/44100)"] --> D
-        D{"phase ≥ 1.0?"} -->|yes| E["phase−=1; s0=s1; s1=nextSourceSample()"]
+        A["allocate output block, 128 samples"] --> B
+        B["for i = 0..127"] --> C
+        C["y = s0 + s1-s0 x phase, phase += 0.7256"] --> D
+        D{"phase >= 1.0 ?"} -->|yes| E["phase-=1, s0=s1, s1=nextSourceSample"]
         D -->|no| F["clamp + int16_t convert"]
         E --> F
-        F --> G["transmit(out, 0)"]
+        F --> G["transmit out, 0"]
     end
 
-    subgraph SourceGen["Source Generation (on demand)"]
+    subgraph SourceGen["Source Generation, on demand"]
         direction TB
-        H["generateBlock()"] --> I["part_.Process(ps, silence, silence, main, aux, 16)"]
-        I --> J["copy main[0..15] → srcBuf_[0..15]"]
+        H["generateBlock"] --> I["part_.Process(ps, silence, silence, main, aux, 16)"]
+        I --> J["copy main 0..15 to srcBuf_ 0..15"]
     end
 
     E --> H
@@ -348,7 +348,7 @@ being copied to DTCM.
 sequenceDiagram
     participant KSP as Keystep Pro / DAW
     participant USB as USB-MIDI Host
-    participant Loop as loop -- usbMIDI.read
+    participant Loop as loop - usbMIDI.read
     participant EV as ElementsVoice
     participant EM as ElementsModule
     participant Part as elements::Part
@@ -358,22 +358,22 @@ sequenceDiagram
     participant Exciter as elements::Exciter
 
     Note over KSP, Voice: Note + gate
-    KSP->>USB: NoteOn (channel, note, velocity)
+    KSP->>USB: NoteOn channel, note, velocity
     Loop->>EM: handleNoteOn
-    EM->>EV: noteOn(hz, strength)
-    EV->>EV: ps.note = 69+12*log2(hz/440)
-    EV->>EV: ps.strength = velocity/127
+    EM->>EV: noteOn hz, strength
+    EV->>EV: ps.note = 69 + 12 * log2 hz/440
+    EV->>EV: ps.strength = velocity / 127
     EV->>EV: ps.gate = true
     Note over EV: next genBlock runs Part.Process with gate=true
 
-    Note over KSP, Voice: Parameter change (CC)
-    KSP->>USB: ControlChange (channel, CC18, value)
+    Note over KSP, Voice: Parameter change - CC
+    KSP->>USB: ControlChange channel, CC18, value
     Loop->>EM: handleControlChange
-    EM->>Part: mutable_patch.resonator_brightness = v/127
+    EM->>Part: mutable_patch.resonator_brightness = v / 127
 
     Note over Part, Voice: real-time vs. next-note
     Voice->>Resonator: set_brightness - applies immediately
-    Voice->>Exciter: geometry, position, exciter model - cached, applied next strike
+    Voice->>Exciter: geometry, position, exciter - cached, next strike
 ```
 
 ### Parameter Categories
@@ -394,30 +394,30 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-    participant Setup as setup()
-    participant AM as AudioMemory(60)
+    participant Setup as setup
+    participant AM as AudioMemory 60
     participant EV as ElementsVoice
     participant Part as elements::Part
-    participant Loop as loop()
+    participant Loop as loop
 
-    Setup->>AM: allocate 60 × 128-sample blocks
-    Setup->>EV: begin(elementsReverbBuffer)
-    EV->>Part: Init(reverbBuffer)
+    Setup->>AM: allocate 60 x 128-sample blocks
+    Setup->>EV: begin elementsReverbBuffer
+    EV->>Part: Init reverbBuffer
     Note over Part: patch defaults, voice init, reverb init
 
     Setup->>Setup: usbMIDI.setHandleNoteOn/Off/CC
     Setup->>Setup: ElementsModule.registerFactory
-    Note over Setup: Audio engine starts (ISR fires)
+    Note over Setup: Audio engine starts - ISR fires
 
     loop every ~2.9 ms
         Note over EV: AudioStream.update called by ISR
-        EV->>Part: genBlock - Part.Process(ps, silence, silence, main, aux)
+        EV->>Part: genBlock - Part.Process ps, silence, silence, main, aux
         Part->>Part: gate rising-edge, cycle active voice
-        Part->>Part: Voice.Process(patch, freq, strength, gate, ...)
+        Part->>Part: Voice.Process patch, freq, strength, gate
     end
 
     loop every iteration
-        Loop->>Loop: while(usbMIDI.read) drain MIDI events
+        Loop->>Loop: while usbMIDI.read - drain MIDI events
     end
 
     loop every 1 sec
