@@ -192,7 +192,7 @@ in terms of `elements::kSampleRate = 32000.0f`.
 
 ```mermaid
 sequenceDiagram
-    participant Caller as Part caller - our wrapper
+    participant Caller as Caller
     participant Part
     participant Voice
     participant Exciter
@@ -203,7 +203,7 @@ sequenceDiagram
 
     Caller->>Part: Process PerformanceState, blow, strike, main, aux, 16
     Part->>Part: gate rising-edge detection, cycle active voice
-    loop each voice (kNumVoices = 1)
+    loop
         Part->>Voice: Process Patch, freq, strength, gate, blow, strike, raw, center, sides, 16
         Voice->>Exciter: Process gate_flags, bow/flow_buffer, 16
         Voice->>Exciter: Process gate_flags, blow_buffer, 16
@@ -348,33 +348,30 @@ being copied to DTCM.
 sequenceDiagram
     participant KSP as Keystep Pro / DAW
     participant USB as USB-MIDI Host
-    participant Loop as loop - usbMIDI.read
-    participant EV as ElementsVoice
+    participant Loop as loop
     participant EM as ElementsModule
-    participant Part as elements::Part
-    participant Patch as elements::Patch
-    participant Voice as elements::Voice
-    participant Resonator as elements::Resonator
-    participant Exciter as elements::Exciter
+    participant EV as ElementsVoice
+    participant Part as Part
+    participant Voice as Voice
+    participant Resonator as Resonator
+    participant Exciter as Exciter
 
     Note over KSP, Voice: Note + gate
-    KSP->>USB: NoteOn channel, note, velocity
+    KSP->>USB: NoteOn
     Loop->>EM: handleNoteOn
-    EM->>EV: noteOn hz, strength
-    EV->>EV: ps.note = 69 + 12 * log2 hz/440
-    EV->>EV: ps.strength = velocity / 127
-    EV->>EV: ps.gate = true
-    Note over EV: next genBlock runs Part.Process with gate=true
+    EM->>EV: noteOn
+    EV->>EV: set note, strength, gate
+    Note over EV: next genBlock triggers Part.Process
 
-    Note over KSP, Voice: Parameter change - CC
-    KSP->>USB: ControlChange channel, CC18, value
+    Note over KSP, Voice: Parameter change
+    KSP->>USB: ControlChange
     Loop->>EM: handleControlChange
-    EM->>Part: mutable_patch.resonator_brightness = v / 127
+    EM->>Part: update patch values
 
-    Note over Part, Voice: real-time vs. next-note
-    Voice->>Resonator: set_brightness - applies immediately
-    Voice->>Exciter: geometry, position, exciter - cached, next strike
-    
+    Note over Part, Voice: real-time vs next-note
+    Part->>Resonator: set_brightness immediately
+    Part->>Exciter: store geometry/position for next strike
+
 ```
 
 ### Parameter Categories
@@ -410,18 +407,18 @@ sequenceDiagram
     Setup->>Setup: ElementsModule.registerFactory
     Note over Setup: Audio engine starts - ISR fires
 
-    loop every ~2.9 ms
+    loop
         Note over EV: AudioStream.update called by ISR
         EV->>Part: genBlock - Part.Process ps, silence, silence, main, aux
         Part->>Part: gate rising-edge, cycle active voice
         Part->>Part: Voice.Process patch, freq, strength, gate
     end
 
-    loop every iteration
+    loop
         Loop->>Loop: while usbMIDI.read - drain MIDI events
     end
 
-    loop every 1 sec
+    loop
         Loop->>Loop: AudioProcessorUsageMax + AudioMemoryUsageMax
     end
 ```
