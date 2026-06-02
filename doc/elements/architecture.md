@@ -374,6 +374,7 @@ sequenceDiagram
     Note over Part, Voice: real-time vs. next-note
     Voice->>Resonator: set_brightness - applies immediately
     Voice->>Exciter: geometry, position, exciter - cached, next strike
+    
 ```
 
 ### Parameter Categories
