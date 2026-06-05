@@ -112,6 +112,7 @@ public:
     void setGate(bool g)         { ps_.gate     = g; }
     void setNote(float midiNote) { ps_.note     = midiNote; }
     void setStrength(float s)    { ps_.strength = s; }
+    void setModulation(float m)  { ps_.modulation = m; }
 
     elements::Part& part() { return part_; }
 
@@ -250,8 +251,22 @@ public:
         else if (controlId == "position")   p->resonator_position   = asFloat(0.3f);
         else if (controlId == "space")      p->space                = asFloat(0.5f);
         else if (controlId == "envelope")   p->exciter_envelope_shape = asFloat(1.0f);
+        else if (controlId == "bow_timbre")    p->exciter_bow_timbre    = asFloat(0.5f);
+        else if (controlId == "blow_timbre")   p->exciter_blow_timbre   = asFloat(0.5f);
+        else if (controlId == "strike_timbre") p->exciter_strike_timbre = asFloat(0.5f);
+        else if (controlId == "blow_meta")     p->exciter_blow_meta     = asFloat(0.5f);
+        else if (controlId == "strike_meta")   p->exciter_strike_meta   = asFloat(0.5f);
+        else if (controlId == "signature")     p->exciter_signature     = asFloat(0.0f);
+        else if (controlId == "mod_freq") {
+            const float f = asFloat(0.5f);
+            p->resonator_modulation_frequency = (f * 2.0f) / 32000.0f;
+        }
+        else if (controlId == "mod_offset") p->resonator_modulation_offset = asFloat(0.1f);
+        else if (controlId == "fm") {
+            const float f = asFloat(0.0f);
+            voice_.setModulation(f * 48.0f - 24.0f);
+        }
         else if (controlId == "exciter") {
-            // 0 = bow, 1 = blow, 2 = strike (mutually exclusive in the spike).
             const int mode = static_cast<int>(asFloat(2.0f));
             p->exciter_bow_level    = (mode == 0) ? 0.8f : 0.0f;
             p->exciter_blow_level   = (mode == 1) ? 0.8f : 0.0f;

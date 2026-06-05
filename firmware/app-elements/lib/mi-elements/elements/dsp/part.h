@@ -46,7 +46,8 @@ struct PerformanceState {
 };
 
 // Polyphony is actually possible, but you have to reduce the number of modes
-// to 16, and this doesn't sound very good...
+// to 16, and this doesn't sound very good on the original STM32F4 (168 MHz).
+// On Teensy 4.1 we'll measure first before enabling polyphony.
 const size_t kNumVoices = 1;
 
 class Part {

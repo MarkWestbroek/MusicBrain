@@ -2,7 +2,7 @@
 
 - **Datum**: 2026-06-01 01:44
 - **Sessie-ID**: `23c95ca7-787d-4763-a9ef-3df788b36851`
-- **Berichten**: 36
+- **Berichten**: 58
 
 ---
 
@@ -676,5 +676,478 @@ Nu flashen en testen:
 ```
 
 De mod wheel (CC#1) stuurt nu `exciter_envelope_shape` — dat verandert live de aanslag/uitsterf-envelope. Van een korte percussieve plok tot een langzame zachte aanzet — ideaal voor het mod wheel.
+
+---
+
+## 🧑 User
+
+Zou je een document kunnen maken dat de architectuur van de Elements app beschrijft? Misschien splitsen in de oorspronkelijke Elements code met daaromheen onze wrapper om deze op de teensy te kunnen zetten en MIDI-in te kunnen gebruiken (en audio-out).
+
+Je mag het document wel in doc/elements zetten.
+
+---
+
+## 🤖 Assistant
+
+Goed plan. Ik maak een duidelijk architectuurdocument dat de gelaagde opbouw beschrijft.
+
+*Read ElementsModule.h, lines 1 to 220 · Read ElementsModule.h, lines 220 to 279 · Read VENDORED.md*
+
+
+
+---
+
+## 🧑 User
+
+Zou je een document kunnen maken dat de architectuur van de Elements app beschrijft? Misschien splitsen in de oorspronkelijke Elements code met daaromheen onze wrapper om deze op de teensy te kunnen zetten en MIDI-in te kunnen gebruiken (en audio-out).
+
+Je mag het document wel in doc/elements zetten.
+
+WIl je enkele UML diagrammen maken, zoals we eerder deden (mermaid formaat)?
+
+---
+
+## 🤖 Assistant
+
+
+
+<details>
+<summary><em>Read ElementsModule.h, lines 1 to 60</em> (+7 meer)</summary>
+
+- Read ElementsModule.h, lines 1 to 60
+- Read voice.h, lines 28 to 100
+- Read dsp.h, lines 28 to 42
+- Read voice.h, lines 100 to 120
+- Read exciter.h, lines 28 to 75
+- Read resonator.h, lines 28 to 85
+- Created architecture.md
+- Updated memory file teensy-firmware.md
+</details>
+
+Het document staat in **`architecture.md`**. Het bevat 8 Mermaid-diagrammen en een volledige beschrijving van de architectuur.
+
+## Inhoud
+
+| Sectie | Beschrijving |
+|--------|-------------|
+| **Layer Diagram** | Host ↔ Teensy ↔ Wrapper ↔ Vendored DSP — alle lagen in één overzicht |
+| **DSP Class Diagram** | `elements::Part` → `Voice` → `Exciter` / `Resonator` / `Reverb` met alle relaties |
+| **Native DSP Flow** | 32 kHz / 16-sample verwerking binnen  met alle relaties |
+| **Native DSP Flow** | 32 kHz / 16-sample verwerking binnen Part (sequence diagram) |
+| **Wrapper Class Diagram** | `AudioStream` → `ElementsVoice` → `AudioModule` → `ElementsModule` overerving |
+| **Resampler Flow** | 32→44.1 kHz lineaire interpolatie, block-regeneratie cyclus (flowchart) |
+| **Memory Map** | RAM1 (DTCM), RAM2 (OCRAM), FLASH verdeling (pie chart + tabel) |
+| **MIDI → DSP Sequence** | Note-on / CC path van Keystep tot aan `Voice::Process()` |
+| **Boot & Runtime** | setup() → AudioMemory → Part::Init → ISR-loop tijdlijn |
+| **File Table** | Alle bestanden met rol in het project |
+
+De diagrammen renderen in VS Code's Markdown preview (Ctrl+Shift+V) of op GitHub.
+
+---
+
+## 🧑 User
+
+er zit een fout in
+
+```
+## Control Flow (MIDI → DSP)
+[](https://github.com/MarkWestbroek/MusicBrain/blob/main/doc/elements/architecture.md#control-flow-midi--dsp)
+
+**Unable to render rich display**
+
+Parse error on line 29:...pplied next strike---------------------^Expecting 'SPACE', 'NEWLINE', 'INVALID', 'create', 'box', 'end', 'autonumber', 'activate', 'deactivate', 'title', 'legacy_title', 'acc_title', 'acc_descr', 'acc_descr_multiline_value', 'loop', 'rect', 'opt', 'alt', 'par', 'par_over', 'critical', 'break', 'participant', 'participant_actor', 'destroy', 'note', 'links', 'link', 'properties', 'details', 'ACTOR', got '1'For more information, see https://docs.github.com/get-started/writing-on-github/working-with-advanced-formatting/creating-diagrams#creating-mermaid-diagrams
+```
+
+---
+
+## 🤖 Assistant
+
+
+
+*Read architecture.md, lines 1 to 45 · Searched for text `Control Flow` (`**/doc/elements/architecture.md`), 1 result · Read architecture.md, lines 345 to 405*
+
+De fout zit in het sequence diagram — `()` en niet-gedeclareerde participants (`Exciter`, `Resonator`). Ik herstel het:
+Zou nu moeten werken. De problemen waren:
+1. 
+
+---
+
+## 🧑 User
+
+ook in ## Boot & Runtime Sequence
+[](https://github.com/MarkWestbroek/MusicBrain/blob/main/doc/elements/architecture.md#boot--runtime-sequence)
+
+**Unable to render rich display**
+
+Parse error on line 32:...UsageMax() end--------------------^Expecting 'SPACE', 'NEWLINE', 'INVALID', 'create', 'box', 'end', 'autonumber', 'activate', 'deactivate', 'title', 'legacy_title', 'acc_title', 'acc_descr', 'acc_descr_multiline_value', 'loop', 'rect', 'opt', 'alt', 'par', 'par_over', 'critical', 'break', 'participant', 'participant_actor', 'destroy', 'note', 'links', 'link', 'properties', 'details', 'ACTOR', got '1'For more information, see https://docs.github.com/get-started/writing-on-github/working-with-advanced-formatting/creating-diagrams#creating-mermaid-diagrams
+
+---
+
+## 🤖 Assistant
+
+
+
+*Read architecture.md, lines 405 to 430*
+
+
+De `()` in sequence-diagrammen worden door Mermaid als syntax geïnterpreteerd. Ik heb ze eruit gehaald. Zou nu moeten renderen.
+
+---
+
+## 🧑 User
+
+Toch nog twee fouten
+
+```
+## Control Flow (MIDI → DSP)
+[](https://github.com/MarkWestbroek/MusicBrain/blob/main/doc/elements/architecture.md#control-flow-midi--dsp)
+
+**Unable to render rich display**
+
+Parse error on line 31:...pplied next strike---------------------^Expecting 'SPACE', 'NEWLINE', 'INVALID', 'create', 'box', 'end', 'autonumber', 'activate', 'deactivate', 'title', 'legacy_title', 'acc_title', 'acc_descr', 'acc_descr_multiline_value', 'loop', 'rect', 'opt', 'alt', 'par', 'par_over', 'critical', 'break', 'participant', 'participant_actor', 'destroy', 'note', 'links', 'link', 'properties', 'details', 'ACTOR', got '1'For more information, see https://docs.github.com/get-started/writing-on-github/working-with-advanced-formatting/creating-diagrams#creating-mermaid-diagrams
+
+## Boot & Runtime Sequence
+[](https://github.com/MarkWestbroek/MusicBrain/blob/main/doc/elements/architecture.md#boot--runtime-sequence)
+
+**Unable to render rich display**
+
+Parse error on line 32:...ryUsageMax end--------------------^Expecting 'SPACE', 'NEWLINE', 'INVALID', 'create', 'box', 'end', 'autonumber', 'activate', 'deactivate', 'title', 'legacy_title', 'acc_title', 'acc_descr', 'acc_descr_multiline_value', 'loop', 'rect', 'opt', 'alt', 'par', 'par_over', 'critical', 'break', 'participant', 'participant_actor', 'destroy', 'note', 'links', 'link', 'properties', 'details', 'ACTOR', got '1'For more information, see https://docs.github.com/get-started/writing-on-github/working-with-advanced-formatting/creating-diagrams#creating-mermaid-diagrams
+
+```
+
+---
+
+## 🤖 Assistant
+
+De `loop`-labels met `~` en losse cijfers (`1`) verwarren de Mermaid-parser. Ik quote de labels en haal problematische tekens weg:
+
+*Read architecture.md, lines 395 to 410 · Read architecture.md, lines 396 to 430 · Read architecture.md, lines 348 to 380*
+
+
+
+---
+
+## 🧑 User
+
+weet jij waarom github online deze fout geeft:
+
+## Boot & Runtime Sequence
+[](https://github.com/MarkWestbroek/MusicBrain/blob/main/doc/elements/architecture.md#boot--runtime-sequence)
+
+**Unable to render rich display**
+
+Parse error on line 32:...ryUsageMax end--------------------^Expecting 'SPACE', 'NEWLINE', 'INVALID', 'create', 'box', 'end', 'autonumber', 'activate', 'deactivate', 'title', 'legacy_title', 'acc_title', 'acc_descr', 'acc_descr_multiline_value', 'loop', 'rect', 'opt', 'alt', 'par', 'par_over', 'critical', 'break', 'participant', 'participant_actor', 'destroy', 'note', 'links', 'link', 'properties', 'details', 'ACTOR', got '1'For more information, see https://docs.github.com/get-started/writing-on-github/working-with-advanced-formatting/creating-diagrams#creating-mermaid-diagrams
+
+```
+sequenceDiagram
+    participant Setup as setup
+    participant AM as AudioMemory 60
+    participant EV as ElementsVoice
+    participant Part as elements::Part
+    participant Loop as loop
+
+    Setup->>AM: allocate 60 x 128-sample blocks
+    Setup->>EV: begin elementsReverbBuffer
+    EV->>Part: Init reverbBuffer
+    Note over Part: patch defaults, voice init, reverb init
+
+    Setup->>Setup: usbMIDI.setHandleNoteOn/Off/CC
+    Setup->>Setup: ElementsModule.registerFactory
+    Note over Setup: Audio engine starts - ISR fires
+
+    loop every ~2.9 ms
+        Note over EV: AudioStream.update called by ISR
+        EV->>Part: genBlock - Part.Process ps, silence, silence, main, aux
+        Part->>Part: gate rising-edge, cycle active voice
+        Part->>Part: Voice.Process patch, freq, strength, gate
+    end
+
+    loop every iteration
+        Loop->>Loop: while usbMIDI.read - drain MIDI events
+    end
+
+    loop every 1 sec
+        Loop->>Loop: AudioProcessorUsageMax + AudioMemoryUsageMax
+    end
+```
+
+Binnen vs code zie ik sowieso geen mermaid (meer). Is dat ook te fixen?
+
+---
+
+## 🤖 Assistant
+
+Ik controleer de exacte Mermaid-syntax in het bestand en corrigeer de foutieve `loop`-constructies.
+
+---
+
+## 🧑 User
+
+waar vind ik die setting?
+
+---
+
+## 🤖 Assistant
+
+Je vindt die instelling in VS Code onder de Markdown-instellingen.
+
+### Optie 1: Via de Settings UI
+1. Open Command Palette: `Ctrl+Shift+P`
+2. Typ `Preferences: Open Settings`
+3. Zoek op `mermaid`
+4. Zet **Markdown: Preview Mermaid Enabled** aan
+
+### Optie 2: Direct in `settings.json`
+Open `settings.json` en voeg toe:
+
+```json
+"markdown.preview.mermaidEnabled": true
+```
+
+### Als je nog geen rendering ziet
+- Installeer een Mermaid-extensie zoals:
+  - `Markdown Preview Mermaid Support`
+  - of `Markdown Preview Enhanced`
+
+Daarna preview openen met `Ctrl+Shift+V` of `Markdown: Open Preview to the Side`.
+
+---
+
+## 🧑 User
+
+maar de fout is er nog steeds. Alsof er iets mis is met het einde van de mermaid tekst (zie img)
+
+---
+
+## 🤖 Assistant
+
+Ik controleer de precieze bron van de fout in het diagram en pas alleen dat gedeelte aan.Ik maak het sequence-diagram eenvoudiger en los van de parse-problemen.
+
+---
+
+## 🧑 User
+
+De fout in de SEQ diagrammen blijft. Misschien is het caching, maar ik laat het wel even.
+
+Een andere vraag, over de architectuur zelf.
+
+Zie architecture.md, de code en https://pichenettes.github.io/mutable-instruments-documentation/modules/elements/
+
+Nu heeft een ElementsModule een (1) ElementsVoice
+- Die wrapt het Part uit de oorspronkelijke Elements code
+- Dat Part heeft dan weer een **of meer?!** Voice(s) -> er staat kNumVoices. *Hoe zit dat in de code? Is Elements al mogelijk poly?*
+- Plus:
+     - Patch (instellingen)
+     - Reverb
+     - OminousVoice (een easter egg begreep ik): lijkt polyfoon
+
+- Een Voice bevat:
+  - Exciter
+  - Resonator
+  - String
+  - MultistageEnvelope
+
+  Als we dit nu **polyfoon** willen maken, komen we een paar problemen tegen:
+  1. In de ElementsModule zitten ook de instellingen (op onze manier)
+  2. De ElementsVoice wraps part, en dan dus ook Patch
+
+  We zouden anders moeten wrappen:
+  A. De ElementsModule wrapt of verwijst naar de Part
+  B. De ElementsVoice wrapt de Voice
+  C. De Reverb moet misschien losgekoppeld worden
+  D. De module moet als een QuadOsc een module met parts worden: één set controls en modifiers (CV in); meerdere v/oct, gate, FM, strength en ext in inputs
+
+  ## wrappen en controls en poorten
+  Zijn alle elements controls en poorten nu gewrapped?
+  Ik zie op het panel van de echte Elements:
+  - links: bow, blow, strike, flow, mallet, 3x timbre
+  - rechts: coarse, fine, fm, geometry, brightness, damping, position, space
+
+---
+
+## 🤖 Assistant
+
+Dit zijn uitstekende architectuurvragen. Ik beantwoord ze puntsgewijs op basis van de echte upstream-code.
+
+## 1. Is Elements al polyfoon in de originele code?
+
+**Ja**, maar met een waarschuwing. `elements::Part` heeft een compile-time `kNumVoices` (default = 1). Kijk in `part.h`:
+
+```cpp
+const size_t kNumVoices = 1;  // Polyphony is actually possible, but you have
+                               // to reduce the number of modes to 16, and this
+                               // doesn't sound very good...
+```
+
+Hoe het werkt in `Part::Process`:
+
+```cpp
+// Wanneer een nieuwe gate komt, cycle naar de volgende stem
+if (performance_state.gate && !previous_gate_) {
+    ++active_voice_;
+    if (active_voice_ >= kNumVoices) active_voice_ = 0;
+}
+previous_gate_ = performance_state.gate;
+note_[active_voice_] = performance_state.note;
+
+// Render ALLE voices elke block
+for (size_t i = 0; i < kNumVoices; ++i) {
+    float midi_pitch = note_[i] + performance_state.modulation;
+    voice_[i].Process(patch_, freq, strength,
+        i == active_voice_ && performance_state.gate,  // ← alleen actieve stem krijgt gate
+        (i == active_voice_) ? blow_in : silence_,     // ← alleen actieve stem krijgt externe input
+        ...);
+    // mixdown alle stemmen in main/aux
+}
+Part->>Reverb: Process(main, aux, 16)  // ← één gedeelde reverb op de mix
+```
+
+**Conclusie:** de Part **is** al een polyfone voice-manager: round-robin toewijzing van noten, alle stemmen klinken gelijktijdig, gedeelde reverb. Maar de originele auteur Emilie Gillet waarschuwt dat het geluid achteruitgaat als je de modes reduceert om polyfoon te kunnen zijn op de originele STM32F4 (168 MHz, geen FPU).
+
+Op de Teensy 4.1 (600 MHz + FPU) hebben we véél meer CPU — of het klinkt met 4 stemmen + 64 modes is een meetvraag.
+
+## 2. Jouw voorgestelde herbundeling
+
+Je voorstel is logisch, maar deels al gerealiseerd door de upstream-structuur:
+
+| Jouw voorstel | Wat de upstream al doet |
+|---|---|
+| A. ElementsModule wrapt Part | ✅ Al zo: `ElementsVoice` wrapt `elements::Part` |
+| B. ElementsVoice wrapt Voice | ⚠️ Kan, maar Part is al een polyfone voice-manager |
+| C. Reverb loskoppelen | ⚠️ Part bezit de Reverb en mengt stemmen vóór de reverb — dat is de juiste signaalketen |
+| D. Module als QuadOsc met parts | ✅ Dit past bij de MusicBrain-polyfonie-aanpak |
+
+**Twee architectuuropties voor polyfonie:**
+
+### Optie A: Part's built-in polyfonie gebruiken (simpel)
+
+```mermaid
+graph TD
+    MIDI[USB-MIDI] --> EV[ElementsVoice]
+    EV --> P[Part kNumVoices=4]
+    P --> V1[Voice 0]
+    P --> V2[Voice 1]
+    P --> V3[Voice 2]
+    P --> V4[Voice 3]
+    V1 & V2 & V3 & V4 --> R[Reverb]
+    R --> USB[USB Audio Out]
+```
+
+- Eén `ElementsVoice`, één `Part` met `kNumVoices=4`
+- Part handelt round-robin automatisch af
+- Alle stemmen delen één Patch, één Reverb
+- Minimaal nieuw werk: `kNumVoices` verhogen + meten
+
+### Optie B: Meerdere Parts (MusicBrain-polyfonie-patron)
+
+```mermaid
+graph TD
+    MIDI[USB-MIDI + CvGraph] --> Router[PolyGroup Router]
+    Router --> EM1[ElementsVoice 0]
+    Router --> EM2[ElementsVoice 1]
+    Router --> EM3[ElementsVoice 2]
+    Router --> EM4[ElementsVoice 3]
+    EM1 --> P1[Part kNumVoices=1]
+    EM2 --> P2[Part kNumVoices=1]
+    EM3 --> P3[Part kNumVoices=1]
+    EM4 --> P4[Part kNumVoices=1]
+    P1 & P2 & P3 & P4 --> Mixer --> USB
+```
+
+- Elke stem heeft zijn eigen `Part`, `Patch`, `PerformanceState`
+- Sluit aan bij hoe de editor polyfonie al doet (PolyGroup × N)
+- Vreet meer geheugen: 4× reverb buffer (4×64 KB = 256 KB, past nog in OCRAM)
+
+**Aanbeveling:** begin met **Optie A** voor de spike-meting. Als de CPU het aankan met 64 modes, is dat de simpelste weg.
+
+## 3. Zijn alle controls en poorten nu gewrapped?
+
+Nog niet volledig. Hier de mapping van het echte Elements-paneel:
+
+### Exciter-sectie (links)
+
+| Paneelknop | Patch-veld | Gewrapped? |
+|---|---|---|
+| **Bow** level | `exciter_bow_level` | ✅ via `exciter` mode 0 |
+| **Blow** level | `exciter_blow_level` | ✅ via `exciter` mode 1 |
+| **Strike** level | `exciter_strike_level` | ✅ via `exciter` mode 2 |
+| **Flow** | `exciter_model` + parameters | ❌ |
+| **Mallet** | `exciter_model` | ❌ |
+| Bow **timbre** | `exciter_bow_timbre` | ❌ |
+| Blow **timbre** | `exciter_blow_timbre` | ❌ |
+| Strike **timbre** | `exciter_strike_timbre` | ❌ |
+| Envelope **shape** | `exciter_envelope_shape` | ✅ CC#1 (mod wheel) |
+
+### Resonator-sectie (rechts)
+
+| Paneelknop | Patch-veld | Gewrapped? |
+|---|---|---|
+| **Coarse** | pitch (via PerformanceState) | ✅ MIDI-noot |
+| **Fine** | pitch fine | ❌ (alleen coarse) |
+| **FM** | `PerformanceState.modulation` | ❌ (niet aangesloten) |
+| **Geometry** | `resonator_geometry` | ✅ CC#17 |
+| **Brightness** | `resonator_brightness` | ✅ CC#18 |
+| **Damping** | `resonator_damping` | ✅ CC#19 |
+| **Position** | `resonator_position` | ✅ CC#20 |
+| **Space** | `space` + `reverb_diffusion` + `reverb_lp` | ✅ CC#21 |
+
+### Wat mist er nog?
+
+Dit zijn de belangrijkste ontbrekende controls voor een volledig paneel:
+
+| Control | Patch-veld | Bereik |
+|---|---|---|
+| `blow_meta` | `exciter_blow_meta` | 0..1 |
+| `strike_meta` | `exciter_strike_meta` | 0..1 |
+| `signature` | `exciter_signature` | 0..1 (random seed per module) |
+| `bow_timbre` | `exciter_bow_timbre` | 0..1 |
+| `blow_timbre` | `exciter_blow_timbre` | 0..1 |
+| `strike_timbre` | `exciter_strike_timbre` | 0..1 |
+| `flow` | exciter model + params | 0..1 |
+| `mod_freq` | `resonator_modulation_frequency` | 0..1 |
+| `mod_offset` | `resonator_modulation_offset` | 0..1 |
+
+Wil je dat ik deze nu toevoeg aan `setControl()` en de CC-mapping uitbreid? Met 6 extra controls hebben we 12 CC's nodig (CC#22-27).
+
+---
+
+## 🧑 User
+
+Ja, wil je de mapping uitbreiden? Het aantal voices op 4 zetten mag ook al wel meteen.
+
+Zou het werken als je via het keyboard speelt, omdat je nooit exact op de ms 4 toetsen in kan drukken? Dus ze komen altijd iets na elkaar. (Zou je een 4 noots akkoord spelen zonder bewuste verschuiving in de tijd).
+
+---
+
+## 🤖 Assistant
+
+Twee dingen tegelijk: CC-mapping uitbreiden en polyfonie toevoegen. Eerst de vendored code aanpassen voor 4 stemmen, dan de wrapper bijwerken.
+
+*Read part.h, lines 39 to 55*
+
+
+
+
+---
+
+## 🧑 User
+
+stop maar even met die polyfonie. Moeten we beter overdenken.
+
+---
+
+## 🤖 Assistant
+
+Alleen de CC-mapping uitbreiden. Eerst de nieuwe controls toevoegen aan `setControl()`, dan de CC-handlers.
+
+*Read ElementsModule.h, lines 75 to 105 · Searched for text `setControl` (`**/firmware/app-elements/src/ElementsModule.h`), 1 result · Read ElementsModule.h, lines 239 to 265*
+
+
+De `mod_freq` en `fm` hebben een rekenfout in de berekening. Eerst die herstellen:
+Nu de CC-handlers in `main.cpp` uitbreiden:
+
+*Read main.cpp, lines 56 to 96*
+
+
 
 ---

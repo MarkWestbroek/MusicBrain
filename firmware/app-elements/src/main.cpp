@@ -55,41 +55,76 @@ void handleNoteOff(uint8_t /*ch*/, uint8_t /*note*/, uint8_t /*velocity*/) {
 }
 
 /// Map MIDI CC to Elements controls.
-/// CC 16-21 → Patch parameters (value 0-127 → 0.0-1.0).
+/// CC 1,16-30 → Patch parameters (value 0-127 → 0.0-1.0).
 void handleControlChange(uint8_t /*ch*/, uint8_t cc, uint8_t value) {
     // Log every CC so we see what the Keystep actually sends.
     Serial.printf("[midi] CC#%u = %u\n", cc, value);
 
     const float v = value / 127.0f;
     switch (cc) {
-        case 1:  // mod wheel → exciter envelope shape (attack/decay character)
+        case 1:  // mod wheel → exciter envelope shape
             elementsModule.setControl("envelope", v);
             Serial.printf("[midi]   → envelope=%.2f\n", v);
             break;
         case 16: // exciter mode: 0=bow, ~64=blow, 127=strike
             elementsModule.setControl("exciter", static_cast<int32_t>(v * 2.0f + 0.5f));
-            Serial.printf("[midi]   → exciter=%d (next note)\n",
-                          static_cast<int>(v * 2.0f + 0.5f));
+            Serial.printf("[midi]   → exciter=%d\n", static_cast<int>(v * 2.0f + 0.5f));
             break;
-        case 17: // geometry — affects NEXT note only
+        case 17: // geometry
             elementsModule.setControl("geometry", v);
-            Serial.printf("[midi]   → geometry=%.2f (next note)\n", v);
+            Serial.printf("[midi]   → geometry=%.2f\n", v);
             break;
-        case 18: // brightness — real-time
+        case 18: // brightness
             elementsModule.setControl("brightness", v);
             Serial.printf("[midi]   → brightness=%.2f\n", v);
             break;
-        case 19: // damping — real-time
+        case 19: // damping
             elementsModule.setControl("damping", v);
             Serial.printf("[midi]   → damping=%.2f\n", v);
             break;
-        case 20: // position — affects NEXT note only
+        case 20: // position
             elementsModule.setControl("position", v);
-            Serial.printf("[midi]   → position=%.2f (next note)\n", v);
+            Serial.printf("[midi]   → position=%.2f\n", v);
             break;
-        case 21: // space — real-time (reverb amount)
+        case 21: // space
             elementsModule.setControl("space", v);
             Serial.printf("[midi]   → space=%.2f\n", v);
+            break;
+        case 22: // bow timbre
+            elementsModule.setControl("bow_timbre", v);
+            Serial.printf("[midi]   → bow_timbre=%.2f\n", v);
+            break;
+        case 23: // blow timbre
+            elementsModule.setControl("blow_timbre", v);
+            Serial.printf("[midi]   → blow_timbre=%.2f\n", v);
+            break;
+        case 24: // strike timbre
+            elementsModule.setControl("strike_timbre", v);
+            Serial.printf("[midi]   → strike_timbre=%.2f\n", v);
+            break;
+        case 25: // blow meta
+            elementsModule.setControl("blow_meta", v);
+            Serial.printf("[midi]   → blow_meta=%.2f\n", v);
+            break;
+        case 26: // strike meta
+            elementsModule.setControl("strike_meta", v);
+            Serial.printf("[midi]   → strike_meta=%.2f\n", v);
+            break;
+        case 27: // exciter signature
+            elementsModule.setControl("signature", v);
+            Serial.printf("[midi]   → signature=%.2f\n", v);
+            break;
+        case 28: // resonator modulation frequency
+            elementsModule.setControl("mod_freq", v);
+            Serial.printf("[midi]   → mod_freq=%.2f\n", v);
+            break;
+        case 29: // resonator modulation offset
+            elementsModule.setControl("mod_offset", v);
+            Serial.printf("[midi]   → mod_offset=%.2f\n", v);
+            break;
+        case 30: // FM amount (±24 semitones at extremes)
+            elementsModule.setControl("fm", v);
+            Serial.printf("[midi]   → fm=%.2f\n", v);
             break;
     }
 }
@@ -124,7 +159,8 @@ void setup() {
 
     Serial.println("[boot] play MIDI notes to strike the resonator");
     Serial.println("[boot] MIDI CC: 1=envelope 16=exciter 17=geom 18=bright 19=damp 20=pos 21=space");
-    Serial.println("[boot]   bright/damp/space/envelope → real-time. geom/pos/exciter → new note.");
+    Serial.println("[boot]            22=bowTim 23=blowTim 24=strikeTim 25=blowMeta 26=strikeMeta");
+    Serial.println("[boot]            27=signature 28=modFreq 29=modOffset 30=FM");
 }
 
 void loop() {

@@ -34,9 +34,7 @@
 
 // Teensy 4.1 port: keep the large lookup tables in flash instead of letting
 // the startup code copy them into the (much smaller) DTCM fast RAM.
-#ifndef FLASHMEM
-#define FLASHMEM __attribute__((section(".flashmem")))
-#endif
+#include <avr/pgmspace.h>
 
 namespace elements {
 
