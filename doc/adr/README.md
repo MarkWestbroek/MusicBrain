@@ -16,3 +16,5 @@ Format: based on Michael Nygard's template (Context / Decision / Consequences).
 | [0008](0008-latency-and-interpolation.md) | Latency budget + breakout-side interpolation | Accepted |
 | [0009](0009-module-runtime-classes.md) | Module runtime classes: OO domain layer, shared between TS editor and C++ firmware | Proposed |
 | [0010](0010-midi-in-and-polyphony.md) | MIDI-In, per-patch voice count, and the editor's "voice stamp" | Proposed |
+| [0011](0011-voice-lifecycle-and-two-voice-mvp.md) | ... | Proposed |
+| [0012](0012-elements-modular-separation.md) | Elements modular separation: Reverb and OminousVoice as standalone modules | Proposed |

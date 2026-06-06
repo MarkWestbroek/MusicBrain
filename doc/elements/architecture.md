@@ -480,3 +480,229 @@ When `tp_mmb_elements` is merged into `app-modular-brain`:
    integrates with AudioGraph and CvGraph.
 4. `setControl` integrates with the editor's module panel.
 5. `ElementsModule::registerFactory()` is called from `registerAllRuntimeModules()`.
+
+---
+
+# ADR 0012 Implementation — Modular Separation (2026-06-05)
+
+## What changed
+
+Following [ADR 0012](../adr/0012-elements-modular-separation.md), the monolithic
+`elements::Part` was split into three independent concerns:
+
+| Concern | Before (monolithic) | After (modular) |
+|---------|--------------------|-----------------|
+| **Voice** | `Part` owned `Voice` + `OminousVoice` + `Reverb` | `Part` owns only `Voice` (modal/exciter pipeline) |
+| **Reverb** | Embedded Dattorro reverb inside `Part::Process()` | Standalone `ElementsReverbModule` (`tp_mmb_elements_reverb`) |
+| **OminousVoice** | Easter egg branch (`easter_egg_` flag) | Standalone `OminousVoiceModule` (`tp_mmb_ominous`) |
+
+### Files changed
+
+| File | Change |
+|------|--------|
+| `lib/mi-elements/elements/dsp/part.h` | Removed `#include` for `reverb.h`, `ominous_voice.h`. Removed `easter_egg_`, `reverb_`, `ominous_voice_` members. `Init()` takes no buffer. |
+| `lib/mi-elements/elements/dsp/part.cc` | Removed reverb application block. Removed `easter_egg_` branch. `Init()` no longer calls `reverb_.Init()`. |
+| `lib/mi-elements/elements/dsp/fx/reverb.h` | `Init()` now initialises `amount_`, `input_gain_`, `reverb_time_`, `lp_decay_1_/_2_` (bugfix for standalone use). |
+| `src/ElementsModule.h` | `begin()` takes no buffer. Stereo output via `srcBufMain_`/`srcBufAux_` → `out_l`/`out_r`. Port map gains `out_l`, `out_r`. |
+| `src/ElementsReverbModule.h` | **New.** Wraps `elements::Reverb` as `tp_mmb_elements_reverb`. Stereo in/out. Controls: `amount`, `time`, `diffusion`, `lp`. |
+| `src/OminousVoiceModule.h` | **New.** Wraps `elements::OminousVoice` as `tp_mmb_ominous`. Stereo output. Controls: geometry, brightness, damping, etc. |
+| `src/main.cpp` | Signal path: `ElementsVoice` → `ElementsReverbModule` → `AudioOutputUSB`. CC#31/32 drive standalone reverb. |
+| `src/RegisterAllModules.h` | Added `ElementsModule::registerFactory()` and `ElementsReverbModule::registerFactory()`. |
+| `platformio.ini` (app-modular-brain) | Added `mi-elements` lib dep and include path. |
+| `editor/src/modular-mb/seedModules.ts` | Added `mmbElements()` module type definition (`tp_mmb_elements`). |
+
+## Class Diagram — Post-Separation
+
+```mermaid
+classDiagram
+    class Part {
+        -Patch patch_
+        -Voice voice_[1]
+        -float note_[1]
+        -bool previous_gate_
+        +Init()
+        +Process(PerformanceState, blow_in, strike_in, main, aux, n)
+        +mutable_patch() Patch*
+        +Panic()
+    }
+
+    class Reverb {
+        -FxEngine~32768, FORMAT_16_BIT~ engine_
+        -float amount_
+        -float reverb_time_
+        -float diffusion_
+        -float lp_
+        +Init(uint16_t* buffer)
+        +Process(left, right, n)
+        +set_amount(float)
+        +set_time(float)
+        +set_diffusion(float)
+        +set_lp(float)
+    }
+
+    class OminousVoice {
+        -FmOscillator oscillator_[2]
+        -Spatializer spatializer_[2]
+        -NaiveSvf filter_[2]
+        +Init()
+        +Process(Patch, freq, strength, gate, blow, strike, raw, center, sides, n)
+    }
+
+    class ElementsVoice {
+        -Part part_
+        -PerformanceState ps_
+        -float srcBufMain_[16]
+        -float srcBufAux_[16]
+        +begin()
+        +noteOn(hz, strength)
+        +noteOff()
+        +update()
+    }
+
+    class ElementsModule {
+        -ElementsVoice voice_
+        +begin()
+        +writeCvPort(portId, value)
+        +setControl(controlId, value)
+    }
+
+    class ElementsReverbModule {
+        -ElementsReverbStream stream_
+        +begin(uint16_t* buffer)
+        +setControl(controlId, value)
+    }
+
+    class OminousVoiceModule {
+        -OminousVoiceStream stream_
+        +begin()
+        +setControl(controlId, value)
+    }
+
+    Part "1" *-- "1" Voice
+    ElementsVoice *-- Part
+    ElementsModule *-- ElementsVoice
+    ElementsReverbModule *-- ElementsReverbStream
+    ElementsReverbStream *-- Reverb
+    OminousVoiceModule *-- OminousVoiceStream
+    OminousVoiceStream *-- OminousVoice
+```
+
+## Sequence Diagram — Audio Flow (Stereo Voice + Standalone Reverb)
+
+```mermaid
+sequenceDiagram
+    participant ISR as Audio ISR (2.9 ms)
+    participant EV as ElementsVoice::update()
+    participant Part as elements::Part::Process()
+    participant Voice as elements::Voice::Process()
+    participant Res as elements::Resonator
+    participant Exc as elements::Exciter
+    participant Rev as ElementsReverbStream::update()
+    participant R as elements::Reverb::Process()
+    participant USB as AudioOutputUSB
+
+    Note over ISR,USB: 44.1 kHz, 128-sample blocks
+
+    loop Every 128 samples @ 44.1 kHz
+        ISR->>EV: update()
+        loop 5-6× per block (16-sample @ 32 kHz)
+            EV->>Part: Process(ps, silence, silence, main[16], aux[16], 16)
+            Part->>Part: gate rising-edge, cycle active voice
+            Part->>Voice: Process(patch, freq, strength, gate, silence, silence, raw, center, sides, 16)
+            Voice->>Exc: Process(gate_flags, bow/blow/strike buffers)
+            Voice->>Res: Process(bow_strength, excitation, center, sides, 16)
+            Part->>Part: mixdown: main += center-side×spread, aux += center+side+(raw-center)×raw_gain
+            Part->>Part: SoftLimit(main), SoftLimit(aux)
+        end
+        EV->>EV: linear interpolate main/aux 32k→44.1k
+        EV->>Rev: transmit(out_l, 0), transmit(out_r, 1)
+    end
+
+    loop Every 128 samples @ 44.1 kHz
+        ISR->>Rev: update()
+        Rev->>Rev: convert int16→float L/R buffers
+        Rev->>R: Process(left[128], right[128], 128)
+        R->>R: Dattorro: 4×AP diffuse → 2× loop delay+AP+LP
+        Rev->>Rev: convert float→int16, clamp
+        Rev->>USB: transmit(out_l, 0), transmit(out_r, 1)
+    end
+```
+
+## Port Map (ElementsModule)
+
+| Direction | portId | Domain | Channel | Notes |
+|-----------|--------|--------|---------|-------|
+| input | `voct` | Cv | — | 1V/Oct pitch (MIDI 60 = 0 V) |
+| input | `gate` | Gate | — | rising edge → strike / note-on |
+| input | `strength` | Cv | — | exciter strength / velocity |
+| input | `blow_in` | Audio | 0 | external blow excitation (optional) |
+| input | `strike_in` | Audio | 1 | external strike excitation (optional) |
+| output | `out_l` | Audio | 0 | main channel (resonator) |
+| output | `out_r` | Audio | 1 | aux channel (spatialised) |
+
+## Control Map (ElementsModule)
+
+| controlId | Type | Default | CC# | Maps to Patch field |
+|-----------|------|---------|-----|---------------------|
+| `envelope` | float | 1.0 | 1 | `exciter_envelope_shape` |
+| `exciter` | int | 2 (strike) | 16 | bow/blow/strike levels |
+| `geometry` | float | 0.2 | 17 | `resonator_geometry` |
+| `brightness` | float | 0.5 | 18 | `resonator_brightness` |
+| `damping` | float | 0.25 | 19 | `resonator_damping` |
+| `position` | float | 0.3 | 20 | `resonator_position` |
+| `space` | float | 0.5 | 21 | `space` (stereo spread + raw gain) |
+| `bow_timbre` | float | 0.5 | 22 | `exciter_bow_timbre` |
+| `blow_timbre` | float | 0.5 | 23 | `exciter_blow_timbre` |
+| `strike_timbre` | float | 0.5 | 24 | `exciter_strike_timbre` |
+| `blow_meta` | float | 0.5 | 25 | `exciter_blow_meta` |
+| `strike_meta` | float | 0.5 | 26 | `exciter_strike_meta` |
+| `signature` | float | 0.0 | 27 | `exciter_signature` |
+| `mod_freq` | float | 0.5 | 28 | `resonator_modulation_frequency` |
+| `mod_offset` | float | 0.1 | 29 | `resonator_modulation_offset` |
+| `fm` | float | 0.0 | 30 | `ps_.modulation` (±24 semitones) |
+
+## Control Map (ElementsReverbModule)
+
+| controlId | Type | Default | CC# | Effect |
+|-----------|------|---------|-----|--------|
+| `amount` | float | 0.5 | 31 | Wet/dry mix (0 = dry, 1 = fully wet) |
+| `time` | float | 0.5 | 32 | Decay time (0.35 … 1.55) |
+| `diffusion` | float | 0.625 | — | All-pass coefficient |
+| `lp` | float | 0.7 | — | Loop low-pass filter |
+
+## Memory Budget (Post-Separation)
+
+| Component | Size | Location |
+|-----------|------|----------|
+| `elements::Part` (1 voice) | ~113 kB | DTCM (fast RAM) |
+| `elements::Reverb` (buffer) | 64 kB | OCRAM (`DMAMEM`) |
+| `elements::OminousVoice` | ~3.6 kB | DTCM |
+| Lookup tables | ~380 kB | FLASH (never loaded to RAM) |
+
+With Reverb extracted, each voice drops by ~68 kB. A 4-voice polyphonic rack
+now costs ~4 × 113 kB = **452 kB** (fits in 512 kB DTCM). The single Reverb
+instance lives once in OCRAM.
+
+## Open Questions (for next session)
+
+1. **Polyphony integration:** How to wire N `ElementsModule` instances in
+   `app-modular-brain` via `PolyGroup` expansion? The editor's
+   `flattenProjectForFirmware()` handles per-voice cable expansion; the firmware
+   only sees flat module instances.
+
+2. **`ElementsVoice::begin()` auto-initialisation:** Currently `begin()` must be
+   called manually from `main.cpp`. In `app-modular-brain`, module instances are
+   created dynamically by `ProjectRuntime::applyConfig()`. We need a lifecycle
+   hook (e.g. `Module::onCreated()`) to call `begin()` automatically.
+
+3. **Stereo mixer support:** The current `MixerModule`/`Mixer8Module` accepts
+   mono inputs (`in1`..`inN`). For stereo Elements voices, either:
+   - Use two mixers (one per channel), or
+   - Add stereo input support to the existing mixer modules.
+
+4. **OminousVoice module panel:** The `OminousVoiceModule` is created but not
+   yet registered in the editor's `seedModules.ts`. Add `mmbOminous()` factory.
+
+5. **Reverb sample rate scaling:** The Dattorro engine is tuned for 32 kHz.
+   Running at 44.1 kHz without scaling changes decay times and LFO rates.
+   Options: (a) add a resampler, or (b) scale delay-line lengths by 44100/32000.

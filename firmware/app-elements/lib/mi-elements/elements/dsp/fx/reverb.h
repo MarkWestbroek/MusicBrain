@@ -44,8 +44,13 @@ class Reverb {
     engine_.Init(buffer);
     engine_.SetLFOFrequency(LFO_1, 0.5f / 32000.0f);
     engine_.SetLFOFrequency(LFO_2, 0.3f / 32000.0f);
+    amount_ = 0.0f;
+    input_gain_ = 0.2f;
+    reverb_time_ = 0.35f;
     lp_ = 0.7f;
     diffusion_ = 0.625f;
+    lp_decay_1_ = 0.0f;
+    lp_decay_2_ = 0.0f;
   }
   
   void Process(float* left, float* right, size_t size) {

@@ -18,19 +18,22 @@
 
 #include "FwVersion.h"
 #include "ElementsModule.h"
+#include "ElementsReverbModule.h"
 
 namespace {
 
 mmb_link::ElementsModule elementsModule{"elements1"};
+mmb_link::ElementsReverbModule reverbModule{"reverb1"};
 AudioOutputUSB           usbOut;
 
-// Elements' reverb delay line (32768 x uint16_t = 64 KB). Placed in OCRAM via
-// DMAMEM — it is far too large for the Cortex-M7 DTCM fast-RAM region.
-DMAMEM uint16_t elementsReverbBuffer[32768];
+// 64 KB reverb delay line in OCRAM (DMAMEM) — too large for DTCM.
+DMAMEM uint16_t reverbBuffer[32768];
 
-// Mono voice -> both USB channels.
-AudioConnection outL{ elementsModule.voice(), 0, usbOut, 0 };
-AudioConnection outR{ elementsModule.voice(), 0, usbOut, 1 };
+// Voice -> Reverb -> USB.
+AudioConnection v2rL{ elementsModule.voice(), 0, reverbModule.stream(), 0 };
+AudioConnection v2rR{ elementsModule.voice(), 1, reverbModule.stream(), 1 };
+AudioConnection r2uL{ reverbModule.stream(), 0, usbOut, 0 };
+AudioConnection r2uR{ reverbModule.stream(), 1, usbOut, 1 };
 
 constexpr uint8_t kHeartbeatPin = LED_BUILTIN;
 uint32_t lastBlinkMs = 0;
@@ -126,6 +129,14 @@ void handleControlChange(uint8_t /*ch*/, uint8_t cc, uint8_t value) {
             elementsModule.setControl("fm", v);
             Serial.printf("[midi]   → fm=%.2f\n", v);
             break;
+        case 31: // standalone reverb amount
+            reverbModule.setControl("amount", v);
+            Serial.printf("[midi]   → reverb_amount=%.2f\n", v);
+            break;
+        case 32: // reverb time
+            reverbModule.setControl("time", v);
+            Serial.printf("[midi]   → reverb_time=%.2f\n", v);
+            break;
     }
 }
 
@@ -147,8 +158,14 @@ void setup() {
 
     AudioMemory(60);
 
-    // Bind Elements' reverb buffer and initialise the DSP before audio runs.
-    elementsModule.begin(elementsReverbBuffer);
+    // Initialise the DSP before audio runs.
+    elementsModule.begin();
+    reverbModule.begin(reverbBuffer);
+    reverbModule.setControl("amount", 1.0f);   // FORCE WET for debug
+    reverbModule.setControl("time", 0.8f);
+    reverbModule.setControl("diffusion", 0.625f);
+    reverbModule.setControl("lp", 0.7f);
+    Serial.println("[reverb] FORCED WET amount=1.0 at boot");
 
     usbMIDI.setHandleNoteOn(handleNoteOn);
     usbMIDI.setHandleNoteOff(handleNoteOff);
@@ -157,10 +174,11 @@ void setup() {
     // Register the factory so the module is ready for app-modular-brain reuse.
     mmb_link::ElementsModule::registerFactory();
 
+    Serial.println("[boot] *** REV 2: reverb FORCED WET at boot ***");
     Serial.println("[boot] play MIDI notes to strike the resonator");
     Serial.println("[boot] MIDI CC: 1=envelope 16=exciter 17=geom 18=bright 19=damp 20=pos 21=space");
     Serial.println("[boot]            22=bowTim 23=blowTim 24=strikeTim 25=blowMeta 26=strikeMeta");
-    Serial.println("[boot]            27=signature 28=modFreq 29=modOffset 30=FM");
+    Serial.println("[boot]            27=signature 28=modFreq 29=modOffset 30=FM 31=reverbAmt 32=reverbTime");
 }
 
 void loop() {
@@ -182,4 +200,6 @@ void loop() {
         ledState = !ledState;
         digitalWrite(kHeartbeatPin, ledState ? HIGH : LOW);
     }
+
+    // reverb debug removed
 }

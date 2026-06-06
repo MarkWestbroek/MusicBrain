@@ -10,8 +10,19 @@ void MidiPort::begin(HardwareSerial& serial, int rxPin, int txPin,
                      MessageCallback cb) {
     _serial = &serial;
     if (cb) _cb = std::move(cb);
+    
+#if defined(ARDUINO_ARCH_ESP32)
     // ESP32 HardwareSerial allows per-pin remapping in begin().
     serial.begin(31250, SERIAL_8N1, rxPin, txPin);
+#elif defined(ARDUINO_ARCH_RP2040)
+    // Arduino-Pico: set pins before calling begin().
+    if (rxPin >= 0) serial.setRX(rxPin);
+    if (txPin >= 0) serial.setTX(txPin);
+    serial.begin(31250);
+#else
+    // Fallback: assume standard begin() without pin remapping.
+    serial.begin(31250);
+#endif
 }
 
 void MidiPort::loop() {

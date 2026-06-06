@@ -12,24 +12,9 @@
 #pragma once
 #include <Arduino.h>
 #include <functional>
+#include "midi_types.h"
 
 namespace mb {
-
-/// MIDI 1.0 message type (status nibble).
-enum class MidiType : uint8_t {
-    NoteOff       = 0x8,
-    NoteOn        = 0x9,
-    ControlChange = 0xB,
-    ProgramChange = 0xC,
-};
-
-/// Parsed MIDI 1.0 message delivered to the onMessage callback.
-struct MidiMessage {
-    MidiType type;
-    uint8_t  channel; ///< 1..16
-    uint8_t  data1;   ///< note / CC number / program number
-    uint8_t  data2;   ///< velocity / CC value; always 0 for Program Change
-};
 
 /**
  * Generic MIDI 1.0 port over a HardwareSerial UART (31 250 baud, 8N1).

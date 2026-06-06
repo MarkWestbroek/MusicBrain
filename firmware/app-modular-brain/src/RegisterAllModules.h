@@ -44,6 +44,8 @@
 #include "WtVcoModule.h"
 #include "DrawVcoModule.h"
 #include "StringModule.h"
+#include "ElementsModule.h"
+#include "ElementsReverbModule.h"
 #include "CompDriveModule.h"
 #include "EchoModule.h"
 #include "CombModule.h"
@@ -75,6 +77,8 @@ inline void registerAllRuntimeModules() {
     WtVcoModule::registerFactory();     // FW-AU-5: wavetable oscillator (banks)
     DrawVcoModule::registerFactory();   // FW-AU-6: draw-waveshape oscillator
     StringModule::registerFactory();    // FW-AU-8: Karplus-Strong string
+    ElementsModule::registerFactory();  // FW-AU-9: Mutable Instruments Elements voice
+    ElementsReverbModule::registerFactory(); // FW-FX-3: Elements Dattorro reverb
     CompDriveModule::registerFactory(); // FW-FX-2: compressor + overdrive
     EchoModule::registerFactory();      // FW-AU-2: feedback delay
     CombModule::registerFactory();      // FW-AU-3: tuned comb resonator

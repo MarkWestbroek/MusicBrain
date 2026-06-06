@@ -22158,4 +22158,170 @@ Voeg BendableEdge-component toe. Eerst kijken waar `ModuleNode` eindigt en `node
 
 Nu de edge-creatie en ReactFlow `edgeTypes` propageren:                                   
 
+<details>
+<summary><em>Searched for regex `function mmbSeq8|function mmbMidiIn|seedInternals|export function seedInternals` (`**/editor/src/modular-mb/seedModules.ts`), 4 results</em> (+7 meer)</summary>
+
+- Searched for regex `function mmbSeq8|function mmbMidiIn|seedInternals|export function seedInternals` (`**/editor/src/modular-mb/seedModules.ts`), 4 results
+- Read seedModules.ts, lines 811 to 900
+- Read seedModules.ts, lines 1 to 120
+- Read AudioEngine.ts, lines 1 to 100
+- Read AudioEngine.ts, lines 100 to 300
+- Read AudioEngine.ts, lines 300 to 560
+- Read AudioEngine.ts, lines 560 to 577
+- Searched for regex `categoryId.*'noise'|categoryId.*'effect'|kind.*noise|kind.*effect` (`**/editor/src/modular-mb/**`), 4 results
+</details>
+
+Categorieën bestaan al. Nu E1+E3+B4+B5 in `seedModules.ts` toevoegen plus engine-support. Eerst MidiInNode interface check; daarna SeqNode 16-step + currentStep; daarna Noise+Echo node-kinds.  
+
+*Searched for text `mmbOut, mmbMidiIn, mmbSeq8` (`**/editor/src/modular-mb/seedModules.ts`), no results · Searched for text `mmbAhdsr(), mmbLfo()` (`**/editor/src/modular-mb/seedModules.ts`), 1 result*
+
+Nu E1 Noise + E3 Echo factory's + 16-step SEQ + step-LEDs in één bewerking. Eerst SEQ uitbreiden naar 16 stappen met step-LEDs:  
+Nu de LED's per step uniek koppelen aan `__currentStep == N`. Voeg `bindMatch` toe aan LedControl:  
+
+*Searched for text `LedControl` (`**/editor/src/modular-mb/types.ts`), 2 results · Read types.ts, lines 170 to 188*
+
+
+
+
+*Searched for text `LedGlyph` (`**/editor/src/modular-mb/ModulePanel.tsx`), 2 results · Read ModulePanel.tsx, lines 651 to 685*
+
+
+Nu de `led()` helper en SEQ aanpassen om `bindMatch` te gebruiken:                   
+Nu Noise + Echo factories toevoegen vóór de `seedInternals`:                   
+
+*Read seedModules.ts, lines 760 to 780 · Searched for text `function mmbOut()` (`**/editor/src/modular-mb/seedModules.ts`), 1 result*
+
+Voeg na `mmbSeq8` (vóór de `// ── public entry` comment) Noise + Echo toe:                                   
+
+*Searched for text `// ── public entry` (`**/editor/src/modular-mb/seedModules.ts`), 1 result*
+
+
+Nu de AudioEngine: noise+echo+phaser nodes + 16-step seq + currentStep schrijven naar controlState + Run-override via run_in + voct_in transponering.   
+
+*Starting: *E1 Noise + E3 Echo interne modules* (1/6)*
+
+
+Nu: noise op `start()` starten, currentStep schrijven naar controlState, voct_in / run_in support in `wire()`:                   
+
+*Read AudioEngine.ts, lines 160 to 200 · Searched for text `engine.subscribe` (`**/editor/src/modular-mb/SimulationPanel.tsx`), 1 result · Searched for text `ModulePanel` (`**/editor/src/modular-mb/**/*.tsx`), 15 results*
+
+Voeg `liveControls` aan engine-status toe en emit op elke seq-step:                                               
+
+
+<details>
+<summary><em>Searched for text `emit` (`**/editor/src/modular-mb/sim/AudioEngine.ts`), 10 results</em> (+5 meer)</summary>
+
+- Searched for text `emit` (`**/editor/src/modular-mb/sim/AudioEngine.ts`), 10 results
+- Read AudioEngine.ts, lines 540 to 605
+- Searched for text `controlState` (`**/editor/src/modular-mb/ModulePanel.tsx`), 18 results
+- Searched for text `controlState` (`**/editor/src/modular-mb/RackPanel.tsx`), no results
+- Searched for regex `new AudioEngine|getEngine|useAudioEngine` (`**/editor/src/modular-mb/**/*.tsx`), 1 result
+- Read SimulationPanel.tsx, lines 1 to 110
+</details>
+
+
+
+
+*Searched for text `export` (`**/editor/src/modular-mb/store.ts`), 6 results · Created engineSingleton.ts*
+
+
+
+
+*Searched for text `engine.dispose` (`**/editor/src/modular-mb/SimulationPanel.tsx`), 1 result*
+
+
+Nu RackPanel & PatcherGraphPanel laten doorgeven van `liveControls`:                                        
+
+*Read RackPanel.tsx, lines 270 to 295 · Searched for text `import { ModulePanel` (`**/editor/src/modular-mb/RackPanel.tsx`), 1 result · Read RackPanel.tsx, lines 1 to 25*
+
+
+
+
+<details>
+<summary><em>Read PatcherGraphPanel.tsx, lines 55 to 90</em> (+4 meer)</summary>
+
+- Read PatcherGraphPanel.tsx, lines 55 to 90
+- Read PatcherGraphPanel.tsx, lines 25 to 55
+- Searched for regex `controlState:\s*` (`**/editor/src/modular-mb/PatcherGraphPanel.tsx`), 3 results
+- Read PatcherGraphPanel.tsx, lines 130 to 170
+- Searched for text `import {` (`**/editor/src/modular-mb/PatcherGraphPanel.tsx`), 5 results
+</details>
+
+
+
+
+*Searched for text `const project = useModularProject` (`**/editor/src/modular-mb/PatcherGraphPanel.tsx`), 1 result*
+
+
+Nu een eerste build doen om te zien of de basis groen is:                                           
+
+*Read RackPanel.tsx, lines 395 to 420 · Searched for regex `^function |^export function ` (`**/editor/src/modular-mb/RackPanel.tsx`), 5 results*
+
+Beide gebruiken zitten in sub-components. Voeg `useEngineStatus` daar lokaal toe:                                        
+
+*Read RackPanel.tsx, lines 147 to 160*
+
+
+
+
+*Read RackPanel.tsx, lines 328 to 340*
+
+
+Nu de AudioEngine TS-error (lijn 587):                                           
+
+*Read AudioEngine.ts, lines 580 to 595*
+
+
+Build groen — **745 kB / gzip 219.54 kB**. Nu A5 (live parameter-binding), A1 (rack drag/context-menu), A2 (kabel-buiger). Eerst A5: 
+
+*Starting: *A5 live parameter-binding (no rebuild)* (3/6) · Read AudioEngine.ts, lines 1 to 100 · Searched for regex `^\s*(start|stop|build|dispose|setMaster|noteOn|noteOff|subscribe)\(` (`**/editor/src/modular-mb/sim/AudioEngine.ts`), 6 results · Read AudioEngine.ts, lines 305 to 325*
+
+
+Nu de control-change-flow aansluiten — vind waar `engine.build` op control-change triggert:                                             
+
+*Searched for text `onControlChange` (`**/editor/src/modular-mb/**`), 9 results · Read SimulationPanel.tsx, lines 36 to 60*
+
+
+
+
+*Searched for text `import type` (`**/editor/src/modular-mb/SimulationPanel.tsx`), 1 result*
+
+
+Build check:                                               Groen. Nu A1 — rack drag-handle + context-menu:                        
+
+*Read RackPanel.tsx, lines 240 to 320 · Searched for regex `function (moveSlot|moveRow|duplicateSlot|removeSlot)` (`**/editor/src/modular-mb/RackPanel.tsx`), 4 results · Read RackPanel.tsx, lines 200 to 235*
+
+Voeg `setSlotPosition` toe + drag-handle + context-menu state. Eerst de helper:                           
+
+
+*Searched for text `import { useState }` (`**/editor/src/modular-mb/RackPanel.tsx`), 1 result*
+
+Goed. Nu drag-and-drop op de rij + context-menu UI op het slot:                                                        
+
+*Read RackPanel.tsx, lines 255 to 270*
+
+
+Voeg drag-handle bovenaan het slot toe + onContextMenu:                                                                               
+Voeg context-menu UI toe vóór de sluitende `</div>` van RackGrid:                             
+
+*Read RackPanel.tsx, lines 335 to 355 · Read RackPanel.tsx, lines 352 to 375*
+
+
+Groen. Nu A2 — kabel-buiger via custom edge in xyflow:                                               
+
+*Read PatcherGraphPanel.tsx, lines 170 to 280 · Searched for text `PatchConnection` (`**/editor/src/modular-mb/types.ts`), 3 results · Read types.ts, lines 410 to 425*
+
+
+Maak nu de BendableEdge in PatcherGraphPanel.tsx:                                                
+
+*Read PatcherGraphPanel.tsx, lines 12 to 25*
+
+
+Voeg BendableEdge-component toe. Eerst kijken waar `ModuleNode` eindigt en `nodeTypes` wordt gedefinieerd:                                                                                                               
+
+*Searched for text `nodeTypes` (`**/editor/src/modular-mb/PatcherGraphPanel.tsx`), 5 results · Read PatcherGraphPanel.tsx, lines 105 to 120*
+
+
+Nu de edge-creatie en ReactFlow `edgeTypes` propageren:                                   
+
 ---

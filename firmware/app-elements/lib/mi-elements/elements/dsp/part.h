@@ -31,8 +31,6 @@
 
 #include "stmlib/stmlib.h"
 
-#include "elements/dsp/fx/reverb.h"
-#include "elements/dsp/ominous_voice.h"
 #include "elements/dsp/patch.h"
 #include "elements/dsp/voice.h"
 
@@ -55,7 +53,7 @@ class Part {
   Part() { }
   ~Part() { }
   
-  void Init(uint16_t* reverb_buffer);
+  void Init();
   
   void Process(
       const PerformanceState& performance_state,
@@ -77,20 +75,15 @@ class Part {
   inline bool bypass() const { return bypass_; }
   inline void set_bypass(bool bypass) { bypass_ = bypass; }
 
-  inline bool easter_egg() const { return easter_egg_; }
-  inline void set_easter_egg(bool easter_egg) { easter_egg_ = easter_egg; }
-
   inline ResonatorModel resonator_model() const { return resonator_model_; }
   inline void set_resonator_model(ResonatorModel r) { resonator_model_ = r; }
   
  private:
   Patch patch_;
   Voice voice_[kNumVoices];
-  OminousVoice ominous_voice_[kNumVoices];
   
   bool panic_;
   bool bypass_;
-  bool easter_egg_;
   bool previous_gate_;
   float note_[kNumVoices];
   
@@ -106,8 +99,6 @@ class Part {
   float scaled_exciter_level_;
   float scaled_resonator_level_;
   float resonator_level_;
-  
-  Reverb reverb_;
   
   ResonatorModel resonator_model_;
   

@@ -1354,7 +1354,40 @@ function mmbString() {
   });
 }
 
-// 14. MMB COMP — 6 HP. Feed-forward compressor met lichte tanh-overdrive
+// 14. MMB ELEMENTS — 10 HP. Mutable Instruments Elements modal / physical-modelling voice (FW-AU-9). 
+//     Monofone voice: V/Oct + Gate in, stereo audio uit. 16 parameters via controls.
+function mmbElements() {
+  const w = W(10);
+  return assemble({
+    typeId: 'tp_mmb_elements',
+    categoryId: 'vco',
+    variant: 'Elements (MI)',
+    brand: 'MI', model: 'ELEMENTS',
+    hp: 10, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'ELEMENTS', fontSize: 2.2, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: 'Modal / Physical', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MI', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('geometry',  'Geom',  w*0.20, 26, { size: 'small', min: 0, max: 1, def: 0.2,  color: '#f9fafb' }),
+      knob('brightness','Bright',w*0.50, 26, { size: 'small', min: 0, max: 1, def: 0.5,  color: '#f9fafb' }),
+      knob('damping',   'Damp',  w*0.80, 26, { size: 'small', min: 0, max: 1, def: 0.25, color: '#f9fafb' }),
+      knob('position',  'Pos',   w*0.20, 50, { size: 'small', min: 0, max: 1, def: 0.3,  color: '#f9fafb' }),
+      knob('space',     'Space', w*0.50, 50, { size: 'small', min: 0, max: 1, def: 0.5,  color: '#f9fafb' }),
+      knob('level',     'Level', w*0.80, 50, { size: 'small', min: 0, max: 1, def: 0.8,  color: '#f9fafb' }),
+
+      inPort ('voct',    'V/Oct',  'cv',    w*0.20, 92),
+      inPort ('gate',    'Gate',   'gate',  w*0.45, 92),
+      inPort ('strength','Str',    'cv',    w*0.70, 92),
+      outPort('out_l',   'L',      'audio', w*0.30, 112),
+      outPort('out_r',   'R',      'audio', w*0.70, 112),
+    ],
+    notes: 'Mutable Instruments Elements modal / physical-modelling voice (firmware tp_mmb_elements, FW-AU-9). V/Oct + Gate in, stereo audio uit (L/R). Controls: geometry, brightness, damping, position, space. Monofone voice; voor polyfonie plaats meerdere instanties in een PolyGroup.',
+  });
+}
+
+// 15. MMB COMP — 6 HP. Feed-forward compressor met lichte tanh-overdrive
 //     (firmware tp_mmb_comp, FW-FX-2). De Audio-lib heeft geen compressor,
 //     dus dit is een custom AudioStream.
 function mmbComp() {
@@ -1535,7 +1568,7 @@ function mmbDrawVco() {
 // ── public entry ───────────────────────────────────────────────────────
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbQuadMixerShared(), mmbVcf(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbComp(), mmbNoise(), mmbEcho(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbQuadMixerShared(), mmbVcf(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbComp(), mmbNoise(), mmbEcho(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco()];
   const newTypes = all.map((x) => x.type);
   const newModules = all.map((x) => x.module);
 

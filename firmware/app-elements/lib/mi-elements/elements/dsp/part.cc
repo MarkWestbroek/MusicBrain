@@ -35,7 +35,7 @@ namespace elements {
 using namespace std;
 using namespace stmlib;
 
-void Part::Init(uint16_t* reverb_buffer) {
+void Part::Init() {
   patch_.exciter_envelope_shape = 1.0f;
   patch_.exciter_bow_level = 0.0f;
   patch_.exciter_bow_timbre = 0.5f;
@@ -63,10 +63,7 @@ void Part::Init(uint16_t* reverb_buffer) {
   
   for (size_t i = 0; i < kNumVoices; ++i) {
     voice_[i].Init();
-    ominous_voice_[i].Init();
   }
-  
-  reverb_.Init(reverb_buffer);
   
   scaled_exciter_level_ = 0.0f;
   scaled_resonator_level_ = 0.0f;
@@ -145,53 +142,36 @@ void Part::Process(
   fill(&main[0], &main[size], 0.0f);
   fill(&aux[0], &aux[size], 0.0f);
   
-  // Compute the raw signal gain, stereo spread, and reverb parameters from
-  // the "space" metaparameter.
+  // Compute the raw signal gain and stereo spread from the "space" metaparameter.
   float space = patch_.space >= 1.0f ? 1.0f : patch_.space;
   float raw_gain = space <= 0.05f ? 1.0f : 
     (space <= 0.1f ? 2.0f - space * 20.0f : 0.0f);
   space = space >= 0.1f ? space - 0.1f : 0.0f;
   float spread = space <= 0.7f ? space : 0.7f;
-  float reverb_amount = space >= 0.5f ? 1.0f * (space - 0.5f) : 0.0f;
-  float reverb_time = 0.35f + 1.2f * reverb_amount;
   
   // Render each voice.
   for (size_t i = 0; i < kNumVoices; ++i) {
     float midi_pitch = note_[i] + performance_state.modulation;
-    if (easter_egg_) {
-      ominous_voice_[i].Process(
-          patch_,
-          midi_pitch,
-          performance_state.strength,
-          i == active_voice_ && performance_state.gate,
-          (i == active_voice_) ? blow_in : silence_,
-          (i == active_voice_) ? strike_in : silence_,
-          raw_buffer_,
-          center_buffer_,
-          sides_buffer_,
-          size);
-    } else {
-      // Convert the MIDI pitch to a frequency.
-      int32_t pitch = static_cast<int32_t>((midi_pitch + 48.0f) * 256.0f);
-      if (pitch < 0) {
-        pitch = 0;
-      } else if (pitch >= 65535) {
-        pitch = 65535;
-      }
-      voice_[i].set_resonator_model(resonator_model_);
-      // Render the voice signal.
-      voice_[i].Process(
-          patch_,
-          lut_midi_to_f_high[pitch >> 8] * lut_midi_to_f_low[pitch & 0xff],
-          performance_state.strength,
-          i == active_voice_ && performance_state.gate,
-          (i == active_voice_) ? blow_in : silence_,
-          (i == active_voice_) ? strike_in : silence_,
-          raw_buffer_,
-          center_buffer_,
-          sides_buffer_,
-          size);
+    // Convert the MIDI pitch to a frequency.
+    int32_t pitch = static_cast<int32_t>((midi_pitch + 48.0f) * 256.0f);
+    if (pitch < 0) {
+      pitch = 0;
+    } else if (pitch >= 65535) {
+      pitch = 65535;
     }
+    voice_[i].set_resonator_model(resonator_model_);
+    // Render the voice signal.
+    voice_[i].Process(
+        patch_,
+        lut_midi_to_f_high[pitch >> 8] * lut_midi_to_f_low[pitch & 0xff],
+        performance_state.strength,
+        i == active_voice_ && performance_state.gate,
+        (i == active_voice_) ? blow_in : silence_,
+        (i == active_voice_) ? strike_in : silence_,
+        raw_buffer_,
+        center_buffer_,
+        sides_buffer_,
+        size);
     
     // Mixdown.
     for (size_t j = 0; j < size; ++j) {
@@ -204,11 +184,9 @@ void Part::Process(
   }
   
   // Pre-clipping
-  if (!easter_egg_) {
-    for (size_t i = 0; i < size; ++i) {
-      main[i] = SoftLimit(main[i]);
-      aux[i] = SoftLimit(aux[i]);
-    }
+  for (size_t i = 0; i < size; ++i) {
+    main[i] = SoftLimit(main[i]);
+    aux[i] = SoftLimit(aux[i]);
   }
   
   // Metering.
@@ -223,31 +201,11 @@ void Part::Process(
     panic_ = true;
   }
   
-  if (easter_egg_) {
-    float l = (patch_.exciter_blow_level + patch_.exciter_strike_level) * 0.5f;
-    scaled_exciter_level_ = l * (2.0f - l);
-  } else {
-    exciter_level *= 16.0f;
-    scaled_exciter_level_ = exciter_level > 0.1f ? 1.0f : exciter_level;
-  }
+  exciter_level *= 16.0f;
+  scaled_exciter_level_ = exciter_level > 0.1f ? 1.0f : exciter_level;
 
   resonator_level *= 16.0f;
   scaled_resonator_level_ = resonator_level < 1.0f ? resonator_level : 1.0f;
-  
-  // Apply reverb.
-  reverb_.set_amount(reverb_amount);
-  reverb_.set_diffusion(patch_.reverb_diffusion);
-  bool freeze = patch_.space >= 1.75f;
-  if (freeze) {
-    reverb_.set_time(1.0f);
-    reverb_.set_input_gain(0.0f);
-    reverb_.set_lp(1.0f);
-  } else {
-    reverb_.set_time(reverb_time);
-    reverb_.set_input_gain(0.2f);
-    reverb_.set_lp(patch_.reverb_lp);
-  }
-  reverb_.Process(main, aux, size);
 }
 
 }  // namespace elements
