@@ -9,8 +9,8 @@
   (paper "A4")
   (layers
     (0 "F.Cu" signal)
-    (1 "In1.Cu" dielectric 1)
-    (2 "In2.Cu" dielectric 2)
+    (1 "In1.Cu" dielectric)
+    (2 "In2.Cu" dielectric)
     (3 "B.Cu" signal)
     (4 "F.Adhes" user "Adhesive on front")
     (5 "B.Adhes" user "Adhesive on back")
@@ -111,38 +111,38 @@
   ;; Footprints
   ;; =========================================================================
 
-  ;; ── U1: AD5754R — TSSOP-24 ────────────────────────────────────────────
+  ;; ── U1: AD5754BREZ — TSSOP-24 ────────────────────────────────────────────
   (footprint "Package_SO:TSSOP-24_4.4x7.8mm_P0.65mm"
     (layer "F.Cu")
     (uuid "qdac-pcb-u1-0001")
     (at 45 45 0)
     (property "Reference" "U1" (at 45 38 0) (layer "F.SilkS")
       (effects (font (size 1.0 1.0) (thickness 0.15))))
-    (property "Value" "AD5754R" (at 45 52 0) (layer "F.Fab")
+    (property "Value" "AD5754BREZ" (at 45 52 0) (layer "F.Fab")
       (effects (font (size 1.0 1.0) (thickness 0.15))))
     (pad "1" smd rect (at -6.175 -5.85 0) (size 1.5 0.35) (layers "F.Cu" "F.Paste" "F.Mask") (net 2))
-    (pad "2" smd rect (at -6.175 -5.2 0) (size 1.5 0.35) (layers "F.Cu" "F.Paste" "F.Mask") (net 4))
+    (pad "2" smd rect (at -6.175 -5.2 0) (size 1.5 0.35) (layers "F.Cu" "F.Paste" "F.Mask") (net 0))
     (pad "3" smd rect (at -6.175 -4.55 0) (size 1.5 0.35) (layers "F.Cu" "F.Paste" "F.Mask") (net 9))
     (pad "4" smd rect (at -6.175 -3.9 0) (size 1.5 0.35) (layers "F.Cu" "F.Paste" "F.Mask") (net 10))
     (pad "5" smd rect (at -6.175 -3.25 0) (size 1.5 0.35) (layers "F.Cu" "F.Paste" "F.Mask") (net 0))
     (pad "6" smd rect (at -6.175 -2.6 0) (size 1.5 0.35) (layers "F.Cu" "F.Paste" "F.Mask") (net 0))
-    (pad "7" smd rect (at -6.175 -1.95 0) (size 1.5 0.35) (layers "F.Cu" "F.Paste" "F.Mask") (net 0))
-    (pad "8" smd rect (at -6.175 -1.3 0) (size 1.5 0.35) (layers "F.Cu" "F.Paste" "F.Mask") (net 11))
-    (pad "9" smd rect (at -6.175 -0.65 0) (size 1.5 0.35) (layers "F.Cu" "F.Paste" "F.Mask") (net 12))
+    (pad "7" smd rect (at -6.175 -1.95 0) (size 1.5 0.35) (layers "F.Cu" "F.Paste" "F.Mask") (net 8))
+    (pad "8" smd rect (at -6.175 -1.3 0) (size 1.5 0.35) (layers "F.Cu" "F.Paste" "F.Mask") (net 6))
+    (pad "9" smd rect (at -6.175 -0.65 0) (size 1.5 0.35) (layers "F.Cu" "F.Paste" "F.Mask") (net 5))
     (pad "10" smd rect (at -6.175 0.0 0) (size 1.5 0.35) (layers "F.Cu" "F.Paste" "F.Mask") (net 4))
-    (pad "11" smd rect (at -6.175 0.65 0) (size 1.5 0.35) (layers "F.Cu" "F.Paste" "F.Mask") (net 4))
-    (pad "12" smd rect (at 6.175 0.65 0) (size 1.5 0.35) (layers "F.Cu" "F.Paste" "F.Mask") (net 3))
-    (pad "13" smd rect (at 6.175 0.0 0) (size 1.5 0.35) (layers "F.Cu" "F.Paste" "F.Mask") (net 4))
-    (pad "14" smd rect (at 6.175 -0.65 0) (size 1.5 0.35) (layers "F.Cu" "F.Paste" "F.Mask") (net 6))
-    (pad "15" smd rect (at 6.175 -1.3 0) (size 1.5 0.35) (layers "F.Cu" "F.Paste" "F.Mask") (net 7))
-    (pad "16" smd rect (at 6.175 -1.95 0) (size 1.5 0.35) (layers "F.Cu" "F.Paste" "F.Mask") (net 5))
-    (pad "17" smd rect (at 6.175 -2.6 0) (size 1.5 0.35) (layers "F.Cu" "F.Paste" "F.Mask") (net 8))
+    (pad "11" smd rect (at -6.175 0.65 0) (size 1.5 0.35) (layers "F.Cu" "F.Paste" "F.Mask") (net 14))
+    (pad "12" smd rect (at 6.175 0.65 0) (size 1.5 0.35) (layers "F.Cu" "F.Paste" "F.Mask") (net 0))
+    (pad "13" smd rect (at 6.175 0.0 0) (size 1.5 0.35) (layers "F.Cu" "F.Paste" "F.Mask") (net 0))
+    (pad "14" smd rect (at 6.175 -0.65 0) (size 1.5 0.35) (layers "F.Cu" "F.Paste" "F.Mask") (net 3))
+    (pad "15" smd rect (at 6.175 -1.3 0) (size 1.5 0.35) (layers "F.Cu" "F.Paste" "F.Mask") (net 4))
+    (pad "16" smd rect (at 6.175 -1.95 0) (size 1.5 0.35) (layers "F.Cu" "F.Paste" "F.Mask") (net 7))
+    (pad "17" smd rect (at 6.175 -2.6 0) (size 1.5 0.35) (layers "F.Cu" "F.Paste" "F.Mask") (net 13))
     (pad "18" smd rect (at 6.175 -3.25 0) (size 1.5 0.35) (layers "F.Cu" "F.Paste" "F.Mask") (net 4))
-    (pad "19" smd rect (at 6.175 -3.9 0) (size 1.5 0.35) (layers "F.Cu" "F.Paste" "F.Mask") (net 14))
-    (pad "20" smd rect (at 6.175 -4.55 0) (size 1.5 0.35) (layers "F.Cu" "F.Paste" "F.Mask") (net 0))
+    (pad "19" smd rect (at 6.175 -3.9 0) (size 1.5 0.35) (layers "F.Cu" "F.Paste" "F.Mask") (net 4))
+    (pad "20" smd rect (at 6.175 -4.55 0) (size 1.5 0.35) (layers "F.Cu" "F.Paste" "F.Mask") (net 4))
     (pad "21" smd rect (at 6.175 -5.2 0) (size 1.5 0.35) (layers "F.Cu" "F.Paste" "F.Mask") (net 4))
-    (pad "22" smd rect (at 6.175 -5.85 0) (size 1.5 0.35) (layers "F.Cu" "F.Paste" "F.Mask") (net 13))
-    (pad "23" smd rect (at -6.175 0.65 0) (size 1.5 0.35) (layers "F.Cu" "F.Paste" "F.Mask") (net 4))
+    (pad "22" smd rect (at 6.175 -5.85 0) (size 1.5 0.35) (layers "F.Cu" "F.Paste" "F.Mask") (net 12))
+    (pad "23" smd rect (at -6.175 0.65 0) (size 1.5 0.35) (layers "F.Cu" "F.Paste" "F.Mask") (net 11))
     (pad "24" smd rect (at -6.175 5.85 0) (size 1.5 0.35) (layers "F.Cu" "F.Paste" "F.Mask") (net 1))
   )
 
@@ -377,7 +377,7 @@
   (segment (start 41 38) (end 38.825 38) (width 1.0) (layer "F.Cu") (net 2))
   (segment (start 38.825 38) (end 38.825 39.15) (width 0.5) (layer "F.Cu") (net 2))
 
-  ;; +3V3 — J1.3 → C5 → R1 → U1.12 (DVCC) (+ CLR pull-up)
+  ;; +3V3 — J1.3 → C5 → R1 → U1.14 (DVCC) (+ CLR pull-up)
   (segment (start 12.46 42.46) (end 12.46 46) (width 0.5) (layer "F.Cu") (net 3))
   (segment (start 12.46 46) (end 51.05 46) (width 0.5) (layer "F.Cu") (net 3))
   (segment (start 51.05 46) (end 51.05 45.65) (width 0.5) (layer "F.Cu") (net 3))
@@ -385,7 +385,7 @@
   (segment (start 51.05 41) (end 51.05 41) (width 0.5) (layer "F.Cu") (net 3))
   (segment (start 51.05 45.65) (end 51.175 45.65) (width 0.35) (layer "F.Cu") (net 3))
 
-  ;; CLR pull-up — R1.2 → U1.19 (CLR)
+  ;; CLR pull-up — R1.2 → U1.11 (CLR)
   (segment (start 52.95 41) (end 52.95 41.1) (width 0.35) (layer "F.Cu") (net 14))
   (segment (start 52.95 41.1) (end 51.175 41.1) (width 0.35) (layer "F.Cu") (net 14))
 
@@ -414,27 +414,27 @@
     )
   )
 
-  ;; MOSI — J1.5 → U1.16 (SDIN)
+  ;; MOSI — J1.5 → U1.9 (SDIN)
   (segment (start 12.46 45) (end 30 45) (width 0.35) (layer "F.Cu") (net 5))
   (segment (start 30 45) (end 30 43.05) (width 0.35) (layer "F.Cu") (net 5))
   (segment (start 30 43.05) (end 51.175 43.05) (width 0.35) (layer "F.Cu") (net 5))
 
-  ;; SCK — J1.7 → U1.14 (SCLK)
+  ;; SCK — J1.7 → U1.8 (SCLK)
   (segment (start 12.46 47.54) (end 25 47.54) (width 0.35) (layer "F.Cu") (net 6))
   (segment (start 25 47.54) (end 25 44.35) (width 0.35) (layer "F.Cu") (net 6))
   (segment (start 25 44.35) (end 51.175 44.35) (width 0.35) (layer "F.Cu") (net 6))
 
-  ;; MISO — J1.8 → U1.15 (SDO)
+  ;; MISO — J1.8 → U1.16 (SDO)
   (segment (start 17.54 47.54) (end 20 47.54) (width 0.35) (layer "F.Cu") (net 7))
   (segment (start 20 47.54) (end 20 43.7) (width 0.35) (layer "F.Cu") (net 7))
   (segment (start 20 43.7) (end 51.175 43.7) (width 0.35) (layer "F.Cu") (net 7))
 
-  ;; CS — J1.9 → U1.17 (SYNC)
+  ;; CS — J1.9 → U1.7 (SYNC)
   (segment (start 12.46 50.08) (end 15 50.08) (width 0.35) (layer "F.Cu") (net 8))
   (segment (start 15 50.08) (end 15 42.4) (width 0.35) (layer "F.Cu") (net 8))
   (segment (start 15 42.4) (end 51.175 42.4) (width 0.35) (layer "F.Cu") (net 8))
 
-  ;; REFIN — C6.2 → U1.22 (REFIN/REFOUT)
+  ;; REFIN — C6.2 → U1.17 (REFIN)
   (segment (start 52 37.05) (end 52 35) (width 0.35) (layer "F.Cu") (net 13))
   (segment (start 52 35) (end 51.175 35) (width 0.35) (layer "F.Cu") (net 13))
   (segment (start 51.175 35) (end 51.175 39.15) (width 0.35) (layer "F.Cu") (net 13))
@@ -451,19 +451,19 @@
   (segment (start 65.95 46) (end 75 46) (width 0.5) (layer "F.Cu") (net 10))
   (segment (start 75 46) (end 75 43.73) (width 0.5) (layer "F.Cu") (net 10))
 
-  ;; VOUT_C — U1.8 → R4 → J2.3
+  ;; VOUT_C — U1.23 → R4 → J2.3
   (segment (start 38.825 43.7) (end 64.05 43.7) (width 0.5) (layer "F.Cu") (net 11))
   (segment (start 64.05 43.7) (end 64.05 43) (width 0.5) (layer "F.Cu") (net 11))
   (segment (start 65.95 43) (end 75 43) (width 0.5) (layer "F.Cu") (net 11))
   (segment (start 75 43) (end 75 46.27) (width 0.5) (layer "F.Cu") (net 11))
 
-  ;; VOUT_D — U1.9 → R5 → J2.4
+  ;; VOUT_D — U1.22 → R5 → J2.4
   (segment (start 38.825 44.35) (end 64.05 44.35) (width 0.5) (layer "F.Cu") (net 12))
   (segment (start 64.05 44.35) (end 64.05 40) (width 0.5) (layer "F.Cu") (net 12))
   (segment (start 65.95 40) (end 75 40) (width 0.5) (layer "F.Cu") (net 12))
   (segment (start 75 40) (end 75 48.81) (width 0.5) (layer "F.Cu") (net 12))
 
-  ;; LDAC — U1.18 → GND
+  ;; LDAC — U1.10 → GND
   (segment (start 51.175 41.75) (end 53 41.75) (width 0.35) (layer "F.Cu") (net 4))
   ;; Via to GND pour
   (via (at 53 41.75) (size 0.8) (drill 0.4) (layers "F.Cu" "B.Cu") (net 4))
@@ -485,7 +485,7 @@
   ;; =========================================================================
   (gr_text "MusicBrain Quad DAC" (at 45 92 0) (layer "F.SilkS")
     (effects (font (size 1.5 1.5) (thickness 0.2) (bold yes))))
-  (gr_text "AD5754R — Rev 1.0" (at 45 89 0) (layer "F.SilkS")
+  (gr_text "AD5754BREZ — Rev 1.0" (at 45 89 0) (layer "F.SilkS")
     (effects (font (size 1.0 1.0) (thickness 0.15))))
   (gr_text "J1: Power+SPI" (at 15 34 0) (layer "F.SilkS")
     (effects (font (size 0.8 0.8) (thickness 0.12))))

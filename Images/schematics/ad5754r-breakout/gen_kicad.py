@@ -1,102 +1,68 @@
 #!/usr/bin/env python3
-"""Generate KiCad 8 files for the AD5754R minimal DAC breakout board.
+"""Generate KiCad 8 files for the AD5754BREZ minimal DAC breakout board.
+AD5754BREZ = TSSOP-24, non-R variant (no internal reference, REFIN pin).
+ADR421 external 2.5V reference is MANDATORY for this chip.
+
 Outputs: .kicad_sch, .kicad_pcb, .kicad_pro — all with guaranteed
 parenthesis-balanced S-expression syntax."""
 
 from pathlib import Path
+import json
 
 OUT_DIR = Path(r"d:\Git\Muziek\MusicBrain\Images\schematics\ad5754r-breakout")
 
-# ── Helper: build S-expression strings with guaranteed balance ──────────
-
-class SExpr:
-    """Build a balanced S-expression string."""
-    def __init__(self):
-        self.parts = []
-
-    def open(self, tag, *args):
-        """Open a new (tag args...) group."""
-        inner = " " + " ".join(str(a) for a in args) if args else ""
-        self.parts.append(f"({tag}{inner}")
-        return self
-
-    def close(self):
-        """Close the most recent open group."""
-        self.parts.append(")")
-        return self
-
-    def raw(self, text):
-        """Insert raw text (must be balanced on its own)."""
-        self.parts.append(text)
-        return self
-
-    def prop(self, key, value, at="0 0 0", effects_font="1.27 1.27", hide=False):
-        """Add a (property "key" "value" (at ...) (effects ...)) block."""
-        hide_str = " (hide yes)" if hide else ""
-        self.parts.append(
-            f'(property "{key}" "{value}" (at {at}) (effects (font (size {effects_font})){hide_str}))'
-        )
-        return self
-
-    def pin(self, etype, shape, at, length, name, number, name_size="1.27 1.27", num_size="1.0 1.0", hide_name=False):
-        """Add a pin definition."""
-        hn = " (hide yes)" if hide_name else ""
-        self.parts.append(
-            f'(pin {etype} {shape} (at {at}) (length {length})\n'
-            f'  (name "{name}" (effects (font (size {name_size})){hn}))\n'
-            f'  (number "{number}" (effects (font (size {num_size}))))'
-        )
-        # pin is a complete balanced group, so close it
-        self.parts.append(")")
-        return self
-
-    def build(self):
-        return "\n".join(self.parts)
+# ── AD5754BREZ TSSOP-24 Pinout (from datasheet Table 5) ────────────────
+# Pin  1: AVSS       - Negative analog supply (-12V)
+# Pin  2: NC         - No connect
+# Pin  3: VOUTA      - DAC A output
+# Pin  4: VOUTB      - DAC B output
+# Pin  5: BIN/2sCOMP - Coding select (GND = twos complement)
+# Pin  6: NC         - No connect
+# Pin  7: SYNC       - SPI CS (active low)
+# Pin  8: SCLK       - SPI clock
+# Pin  9: SDIN       - SPI data in
+# Pin 10: LDAC       - Load DAC (GND = immediate update)
+# Pin 11: CLR        - Clear (active low, -> DVCC via 10k)
+# Pin 12: NC         - No connect
+# Pin 13: NC         - No connect
+# Pin 14: DVCC       - Digital supply (+3.3V)
+# Pin 15: GND        - Ground reference
+# Pin 16: SDO        - SPI data out
+# Pin 17: REFIN      - External reference input (ADR421 VOUT -> here)
+# Pin 18: DAC_GND   - DAC ground
+# Pin 19: DAC_GND   - DAC ground
+# Pin 20: SIG_GND   - Output amplifier ground
+# Pin 21: SIG_GND   - Output amplifier ground
+# Pin 22: VOUTD      - DAC D output
+# Pin 23: VOUTC      - DAC C output
+# Pin 24: AVDD       - Positive analog supply (+12V)
+# Exposed paddle: AVSS (thermally connect to copper plane)
 
 
-def gen_sch():
-    """Generate the .kicad_sch file."""
-    s = SExpr()
-
-    # ── Header ──
-    s.open("kicad_sch", "version 20231120")
-    s.raw('(generator "eeschema")')
-    s.raw('(generator_version "8.0")')
-    s.raw('(uuid "mb000003-0000-0000-0000-000000000001")')
-    s.raw('(paper "A4" portrait)')
-    s.close()  # close kicad_sch header group... wait, kicad_sch is the root
-
-    # Actually, let me just build the whole thing as a string with careful tracking.
-    # The SExpr helper is getting complex. Let me use a simpler approach:
-    # build the file as a list of lines, tracking paren depth manually.
-
+def _make_builder():
+    """Create a fresh S-expression builder with tracked paren depth."""
     lines = []
-    _depth = [0]  # mutable container so closures can read/write
+    _depth = [0]
 
     def o(tag, *args):
-        """Open group: (tag args...)"""
         inner = " " + " ".join(str(a) for a in args) if args else ""
         lines.append("  " * _depth[0] + f"({tag}{inner}")
         _depth[0] += 1
 
     def c():
-        """Close group: )"""
         _depth[0] -= 1
         lines.append("  " * _depth[0] + ")")
 
     def r(text):
-        """Raw line (no depth change, must be balanced on its own)."""
         lines.append("  " * _depth[0] + text)
 
     def sym(lib_id, at_str, unit=1):
-        """Open a symbol instance group with correct KiCad 8+ sub-group format."""
         o("symbol")
         r(f'(lib_id "{lib_id}")')
         r(f'(at {at_str})')
         r(f'(unit {unit})')
 
     def pin(etype, shape, at_str, length, name, number, angle=None, hide_name=False):
-        """Add a complete pin group — balanced on its own."""
         hn = " (hide yes)" if hide_name else ""
         indent = "  " * _depth[0]
         angle_str = f" {angle}" if angle is not None else ""
@@ -108,13 +74,19 @@ def gen_sch():
         lines.append(f"{indent})")
 
     def prop(key, value, at_str="0 0 0", font="1.27 1.27", hide=False):
-        """Add a complete property group."""
         hide_str = " (hide yes)" if hide else ""
         indent = "  " * _depth[0]
         lines.append(
             f'{indent}(property "{key}" "{value}" (at {at_str}) '
             f'(effects (font (size {font})){hide_str}))'
         )
+
+    return lines, _depth, o, c, r, sym, pin, prop
+
+
+def gen_sch():
+    """Generate the .kicad_sch file."""
+    lines, _depth, o, c, r, sym, pin, prop = _make_builder()
 
     # ── Root ──
     o("kicad_sch")
@@ -142,7 +114,7 @@ def gen_sch():
     pin("passive", "line", "0 3.81", "1.778", "~", "1", angle="270")
     pin("passive", "line", "0 -3.81", "1.778", "~", "2", angle="90")
     c()
-    c()  # close Device:R
+    c()
 
     # ── Device:C ──
     o("symbol", '"Device:C"')
@@ -159,7 +131,7 @@ def gen_sch():
     pin("passive", "line", "0 3.81", "3.048", "~", "1", angle="270")
     pin("passive", "line", "0 -3.81", "3.048", "~", "2", angle="90")
     c()
-    c()  # close Device:C
+    c()
 
     # ── Device:C_Polarized ──
     o("symbol", '"Device:C_Polarized"')
@@ -177,50 +149,46 @@ def gen_sch():
     pin("passive", "line", "0 3.81", "2.286", "+", "1", angle="270")
     pin("passive", "line", "0 -3.81", "2.286", "-", "2", angle="90")
     c()
-    c()  # close Device:C_Polarized
+    c()
 
-    # ── Custom:AD5754R ──
-    o("symbol", '"Custom:AD5754R"')
-    prop("Reference", "U", "0 20.32 0")
-    prop("Value", "AD5754R", "0 -20.32 0")
-    prop("Footprint", "Package_SO:SSOP-28_5.3x10.2mm_P0.65mm", "0 0 0", hide=True)
-    prop("Datasheet", "https://www.analog.com/media/en/technical-documentation/data-sheets/AD5724R_5734R_5754R.pdf", "0 0 0", hide=True)
-    o("symbol", '"AD5754R_0_1"')
-    r('(rectangle (start -10.16 19.05) (end 10.16 -19.05)\n      (stroke (width 0.254) (type default)) (fill (type background)))')
+    # ── Custom:AD5754BREZ (TSSOP-24) ──
+    o("symbol", '"Custom:AD5754BREZ"')
+    prop("Reference", "U", "0 16.51 0")
+    prop("Value", "AD5754BREZ", "0 -16.51 0")
+    prop("Footprint", "Package_SO:TSSOP-24_4.4x7.8mm_P0.65mm", "0 0 0", hide=True)
+    prop("Datasheet", "https://www.analog.com/media/en/technical-documentation/data-sheets/AD5724_5734_5754.pdf", "0 0 0", hide=True)
+    o("symbol", '"AD5754BREZ_0_1"')
+    r('(rectangle (start -7.62 15.24) (end 7.62 -15.24)\n      (stroke (width 0.254) (type default)) (fill (type background)))')
     c()
-    o("symbol", '"AD5754R_1_1"')
-    # Left side pins (1-14)
-    pin("power_in",  "line", "-12.7 17.78",  "2.54", "AVSS",    "1",  angle="0")
-    pin("output",    "line", "-12.7 15.24",  "2.54", "VOUT_A",  "2",  angle="0")
-    pin("power_in",  "line", "-12.7 12.70",  "2.54", "AGND",    "3",  angle="0")
-    pin("output",    "line", "-12.7 10.16",  "2.54", "VOUT_B",  "4",  angle="0")
-    pin("power_in",  "line", "-12.7 7.62",   "2.54", "AGND",    "5",  angle="0")
-    pin("passive",   "line", "-12.7 5.08",   "2.54", "RSET",    "6",  angle="0")
-    pin("power_in",  "line", "-12.7 2.54",   "2.54", "AGND",    "7",  angle="0")
-    pin("power_in",  "line", "-12.7 0.00",   "2.54", "AGND",    "8",  angle="0")
-    pin("input",     "line", "-12.7 -2.54",  "2.54", "DCEN",    "9",  angle="0")
-    pin("power_in",  "line", "-12.7 -5.08",  "2.54", "DGND",    "10", angle="0")
-    pin("power_in",  "line", "-12.7 -7.62",  "2.54", "DGND",    "11", angle="0")
-    pin("input",     "line", "-12.7 -10.16", "2.54", "SCLK",    "12", angle="0")
-    pin("input",     "line", "-12.7 -12.70", "2.54", "SDIN",    "13", angle="0")
-    pin("power_in",  "line", "-12.7 -15.24", "2.54", "GND",     "14", angle="0")
-    # Right side pins (15-28)
-    pin("power_in",  "line", "12.7 -15.24",  "2.54", "GND",     "15", angle="180")
-    pin("input",     "line", "12.7 -12.70",  "2.54", "BIN/OFF", "16", angle="180")
-    pin("output",    "line", "12.7 -10.16",  "2.54", "SDO",     "17", angle="180")
-    pin("input",     "line", "12.7 -7.62",   "2.54", "SYNC",    "18", angle="180")
-    pin("input",     "line", "12.7 -5.08",   "2.54", "LDAC",    "19", angle="180")
-    pin("input",     "line", "12.7 -2.54",   "2.54", "CLR",     "20", angle="180")
-    pin("power_in",  "line", "12.7 0.00",    "2.54", "DGND",    "21", angle="180")
-    pin("power_in",  "line", "12.7 2.54",    "2.54", "DVCC",    "22", angle="180")
-    pin("passive",   "line", "12.7 5.08",    "2.54", "REFOUT",  "23", angle="180")
-    pin("power_in",  "line", "12.7 7.62",    "2.54", "AGND",    "24", angle="180")
-    pin("output",    "line", "12.7 10.16",   "2.54", "VOUT_C",  "25", angle="180")
-    pin("power_in",  "line", "12.7 12.70",   "2.54", "AGND",    "26", angle="180")
-    pin("output",    "line", "12.7 15.24",   "2.54", "VOUT_D",  "27", angle="180")
-    pin("power_in",  "line", "12.7 17.78",   "2.54", "AVDD",    "28", angle="180")
+    o("symbol", '"AD5754BREZ_1_1"')
+    # Left side pins (1-12)
+    pin("power_in",  "line", "-10.16 14.28",  "2.54", "AVSS",      "1",  angle="0")
+    pin("no_connect","line", "-10.16 11.74",  "2.54", "NC",        "2",  angle="0", hide_name=True)
+    pin("output",    "line", "-10.16 9.20",   "2.54", "VOUTA",     "3",  angle="0")
+    pin("output",    "line", "-10.16 6.66",   "2.54", "VOUTB",     "4",  angle="0")
+    pin("input",     "line", "-10.16 4.12",   "2.54", "BIN/2sCOMP","5",  angle="0")
+    pin("no_connect","line", "-10.16 1.58",   "2.54", "NC",        "6",  angle="0", hide_name=True)
+    pin("input",     "line", "-10.16 -1.02",  "2.54", "SYNC",      "7",  angle="0")
+    pin("input",     "line", "-10.16 -3.56",  "2.54", "SCLK",      "8",  angle="0")
+    pin("input",     "line", "-10.16 -6.10",  "2.54", "SDIN",      "9",  angle="0")
+    pin("input",     "line", "-10.16 -8.64",  "2.54", "LDAC",      "10", angle="0")
+    pin("input",     "line", "-10.16 -11.18", "2.54", "CLR",       "11", angle="0")
+    pin("no_connect","line", "-10.16 -13.72", "2.54", "NC",        "12", angle="0", hide_name=True)
+    # Right side pins (13-24)
+    pin("no_connect","line", "10.16 -13.72",  "2.54", "NC",        "13", angle="180", hide_name=True)
+    pin("power_in",  "line", "10.16 -11.18",  "2.54", "DVCC",      "14", angle="180")
+    pin("power_in",  "line", "10.16 -8.64",   "2.54", "GND",       "15", angle="180")
+    pin("output",    "line", "10.16 -6.10",   "2.54", "SDO",       "16", angle="180")
+    pin("input",     "line", "10.16 -3.56",   "2.54", "REFIN",     "17", angle="180")
+    pin("power_in",  "line", "10.16 -1.02",   "2.54", "DAC_GND",   "18", angle="180")
+    pin("power_in",  "line", "10.16 1.58",    "2.54", "DAC_GND",   "19", angle="180")
+    pin("power_in",  "line", "10.16 4.12",    "2.54", "SIG_GND",   "20", angle="180")
+    pin("power_in",  "line", "10.16 6.66",    "2.54", "SIG_GND",   "21", angle="180")
+    pin("output",    "line", "10.16 9.20",    "2.54", "VOUTD",     "22", angle="180")
+    pin("output",    "line", "10.16 11.74",   "2.54", "VOUTC",     "23", angle="180")
+    pin("power_in",  "line", "10.16 14.28",   "2.54", "AVDD",      "24", angle="180")
     c()
-    c()  # close Custom:AD5754R
+    c()
 
     # ── Custom:ADR421 ──
     o("symbol", '"Custom:ADR421"')
@@ -232,16 +200,16 @@ def gen_sch():
     r('(rectangle (start -5.08 6.35) (end 5.08 -6.35)\n      (stroke (width 0.254) (type default)) (fill (type background)))')
     c()
     o("symbol", '"ADR421_1_1"')
-    pin("no_connect", "line", "-7.62 5.08",  "2.54", "NC",   "1", angle="0")
+    pin("no_connect", "line", "-7.62 5.08",  "2.54", "NC",   "1", angle="0", hide_name=True)
     pin("power_in",   "line", "-7.62 2.54",  "2.54", "VIN",  "2", angle="0")
-    pin("no_connect", "line", "-7.62 0.00",  "2.54", "NC",   "3", angle="0")
+    pin("no_connect", "line", "-7.62 0.00",  "2.54", "NC",   "3", angle="0", hide_name=True)
     pin("power_in",   "line", "-7.62 -2.54", "2.54", "GND",  "4", angle="0")
-    pin("no_connect", "line", "7.62 -2.54",  "2.54", "NC",   "5", angle="180")
-    pin("no_connect", "line", "7.62 0.00",   "2.54", "NC",   "6", angle="180")
-    pin("no_connect", "line", "7.62 2.54",   "2.54", "NC",   "7", angle="180")
+    pin("no_connect", "line", "7.62 -2.54",  "2.54", "NC",   "5", angle="180", hide_name=True)
+    pin("no_connect", "line", "7.62 0.00",   "2.54", "NC",   "6", angle="180", hide_name=True)
+    pin("no_connect", "line", "7.62 2.54",   "2.54", "NC",   "7", angle="180", hide_name=True)
     pin("output",     "line", "7.62 5.08",   "2.54", "VOUT", "8", angle="180")
     c()
-    c()  # close Custom:ADR421
+    c()
 
     # ── Connector_Generic:Conn_01x10 ──
     o("symbol", '"Connector_Generic:Conn_01x10"')
@@ -266,7 +234,7 @@ def gen_sch():
     pin("passive", "line", "-2.54 -10.16", "1.27", "Pin_9",  "9",  angle="0")
     pin("passive", "line", "-2.54 -12.70", "1.27", "Pin_10", "10", angle="0")
     c()
-    c()  # close Conn_01x10
+    c()
 
     # ── Connector_Generic:Conn_01x04 ──
     o("symbol", '"Connector_Generic:Conn_01x04"')
@@ -285,7 +253,7 @@ def gen_sch():
     pin("passive", "line", "-2.54 -2.54", "1.27", "Pin_3", "3", angle="0")
     pin("passive", "line", "-2.54 -5.08", "1.27", "Pin_4", "4", angle="0")
     c()
-    c()  # close Conn_01x04
+    c()
 
     # ── power:GND ──
     o("symbol", '"power:GND"')
@@ -300,7 +268,7 @@ def gen_sch():
     o("symbol", '"GND_1_1"')
     pin("power_in", "line", "0 0", "0", "GND", "1", angle="270", hide_name=True)
     c()
-    c()  # close power:GND
+    c()
 
     # ── power:+12V ──
     o("symbol", '"power:+12V"')
@@ -313,7 +281,7 @@ def gen_sch():
     o("symbol", '"+12V_1_1"')
     pin("power_in", "line", "0 0", "0", "+12V", "1", angle="270", hide_name=True)
     c()
-    c()  # close power:+12V
+    c()
 
     # ── power:-12V ──
     o("symbol", '"power:-12V"')
@@ -326,7 +294,7 @@ def gen_sch():
     o("symbol", '"-12V_1_1"')
     pin("power_in", "line", "0 0", "0", "-12V", "1", angle="90", hide_name=True)
     c()
-    c()  # close power:-12V
+    c()
 
     # ── power:+3V3 ──
     o("symbol", '"power:+3V3"')
@@ -339,7 +307,7 @@ def gen_sch():
     o("symbol", '"+3V3_1_1"')
     pin("power_in", "line", "0 0", "0", "+3V3", "1", angle="270", hide_name=True)
     c()
-    c()  # close power:+3V3
+    c()
 
     c()  # close lib_symbols
 
@@ -348,65 +316,46 @@ def gen_sch():
     r('(label "SDIN" (at 55 85 0) (effects (font (size 1.27 1.27)) (justify left)))')
     r('(label "SDO" (at 55 90 0) (effects (font (size 1.27 1.27)) (justify left)))')
     r('(label "SYNC" (at 55 95 0) (effects (font (size 1.27 1.27)) (justify left)))')
-    r('(label "VOUT_A" (at 55 40 0) (effects (font (size 1.27 1.27)) (justify left)))')
-    r('(label "VOUT_B" (at 55 45 0) (effects (font (size 1.27 1.27)) (justify left)))')
-    r('(label "VOUT_C" (at 55 50 0) (effects (font (size 1.27 1.27)) (justify left)))')
-    r('(label "VOUT_D" (at 55 55 0) (effects (font (size 1.27 1.27)) (justify left)))')
-    r('(label "REF_2V5" (at 130 40 0) (effects (font (size 1.27 1.27)) (justify left)))')
+    r('(label "VOUTA" (at 55 40 0) (effects (font (size 1.27 1.27)) (justify left)))')
+    r('(label "VOUTB" (at 55 45 0) (effects (font (size 1.27 1.27)) (justify left)))')
+    r('(label "VOUTC" (at 55 50 0) (effects (font (size 1.27 1.27)) (justify left)))')
+    r('(label "VOUTD" (at 55 55 0) (effects (font (size 1.27 1.27)) (justify left)))')
+    r('(label "REFIN" (at 130 40 0) (effects (font (size 1.27 1.27)) (justify left)))')
 
-    # ── U1 — AD5754R ──
-    sym("Custom:AD5754R", "80 65 0")
+    # ── U1 — AD5754BREZ ──
+    sym("Custom:AD5754BREZ", "80 65 0")
     r("(in_bom yes) (on_board yes) (uuid \"mb000003-0001-0001-0001-000000000001\")")
     prop("Reference", "U1", "80 45 0")
-    prop("Value", "AD5754R", "80 88 0")
-    prop("Footprint", "Package_SO:SSOP-28_5.3x10.2mm_P0.65mm", "0 0 0", hide=True)
+    prop("Value", "AD5754BREZ", "80 88 0")
+    prop("Footprint", "Package_SO:TSSOP-24_4.4x7.8mm_P0.65mm", "0 0 0", hide=True)
     c()
 
     # ── Power symbols ──
-    # +12V → AVDD
     sym("power:+12V", "95 47 0")
     r("(in_bom yes) (on_board yes) (uuid \"mb000003-0001-0001-0001-000000000002\")")
     prop("Reference", "#PWR01", "95 47 0", hide=True)
     prop("Value", "+12V", "95 44 0")
     c()
 
-    # -12V → AVSS
     sym("power:-12V", "65 47 0")
     r("(in_bom yes) (on_board yes) (uuid \"mb000003-0001-0001-0001-000000000003\")")
     prop("Reference", "#PWR02", "65 47 0", hide=True)
     prop("Value", "-12V", "65 50 0")
     c()
 
-    # +3V3 → DVCC
     sym("power:+3V3", "95 67 0")
     r("(in_bom yes) (on_board yes) (uuid \"mb000003-0001-0001-0001-000000000004\")")
     prop("Reference", "#PWR03", "95 67 0", hide=True)
     prop("Value", "+3V3", "95 64 0")
     c()
 
-    # GND — AGND group
     sym("power:GND", "65 77 0")
     r("(in_bom yes) (on_board yes) (uuid \"mb000003-0001-0001-0001-000000000005\")")
     prop("Reference", "#PWR04", "65 77 0", hide=True)
     prop("Value", "GND", "65 80 0")
     c()
 
-    # GND — DGND group
-    sym("power:GND", "95 65 0")
-    r("(in_bom yes) (on_board yes) (uuid \"mb000003-0001-0001-0001-000000000006\")")
-    prop("Reference", "#PWR05", "95 65 0", hide=True)
-    prop("Value", "GND", "97 63 0")
-    c()
-
-    # GND — GND pins 14,15
-    sym("power:GND", "80 82 0")
-    r("(in_bom yes) (on_board yes) (uuid \"mb000003-0001-0001-0001-000000000007\")")
-    prop("Reference", "#PWR06", "80 82 0", hide=True)
-    prop("Value", "GND", "80 85 0")
-    c()
-
     # ── Decoupling capacitors ──
-    # C1 — 10uF AVDD
     sym("Device:C_Polarized", "100 50 0")
     r("(in_bom yes) (on_board yes) (uuid \"mb000003-0001-0001-0001-000000000008\")")
     prop("Reference", "C1", "103 50 0")
@@ -414,7 +363,6 @@ def gen_sch():
     prop("Footprint", "Capacitor_SMD:CP_Elec_4x5.3", "0 0 0", hide=True)
     c()
 
-    # C2 — 100nF AVDD
     sym("Device:C", "110 50 0")
     r("(in_bom yes) (on_board yes) (uuid \"mb000003-0001-0001-0001-000000000009\")")
     prop("Reference", "C2", "113 50 0")
@@ -422,7 +370,6 @@ def gen_sch():
     prop("Footprint", "Capacitor_SMD:C_0805_2012Metric", "0 0 0", hide=True)
     c()
 
-    # C3 — 10uF AVSS
     sym("Device:C_Polarized", "60 50 0")
     r("(in_bom yes) (on_board yes) (uuid \"mb000003-0001-0001-0001-00000000000a\")")
     prop("Reference", "C3", "63 50 0")
@@ -430,7 +377,6 @@ def gen_sch():
     prop("Footprint", "Capacitor_SMD:CP_Elec_4x5.3", "0 0 0", hide=True)
     c()
 
-    # C4 — 100nF AVSS
     sym("Device:C", "50 50 0")
     r("(in_bom yes) (on_board yes) (uuid \"mb000003-0001-0001-0001-00000000000b\")")
     prop("Reference", "C4", "53 50 0")
@@ -438,7 +384,6 @@ def gen_sch():
     prop("Footprint", "Capacitor_SMD:C_0805_2012Metric", "0 0 0", hide=True)
     c()
 
-    # C5 — 100nF DVCC
     sym("Device:C", "100 70 0")
     r("(in_bom yes) (on_board yes) (uuid \"mb000003-0001-0001-0001-00000000000c\")")
     prop("Reference", "C5", "103 70 0")
@@ -446,7 +391,6 @@ def gen_sch():
     prop("Footprint", "Capacitor_SMD:C_0805_2012Metric", "0 0 0", hide=True)
     c()
 
-    # C6 — 100nF REFOUT
     sym("Device:C", "130 45 0")
     r("(in_bom yes) (on_board yes) (uuid \"mb000003-0001-0001-0001-00000000000d\")")
     prop("Reference", "C6", "133 45 0")
@@ -455,7 +399,7 @@ def gen_sch():
     c()
 
     # ── Resistors ──
-    # R1 — 10k CLR pull-up
+    # R1 — 10k CLR pull-up (pin 11 -> DVCC)
     sym("Device:R", "95 60 90")
     r("(in_bom yes) (on_board yes) (uuid \"mb000003-0001-0001-0001-00000000000e\")")
     prop("Reference", "R1", "95 57 0")
@@ -463,68 +407,56 @@ def gen_sch():
     prop("Footprint", "Resistor_SMD:R_0805_2012Metric", "0 0 0", hide=True)
     c()
 
-    # R2 — 6.8k RSET
-    sym("Device:R", "65 70 90")
-    r("(in_bom yes) (on_board yes) (uuid \"mb000003-0001-0001-0001-00000000000f\")")
-    prop("Reference", "R2", "65 67 0")
-    prop("Value", "6k8", "65 73 0")
-    prop("Footprint", "Resistor_SMD:R_0805_2012Metric", "0 0 0", hide=True)
-    c()
-
-    # R3 — 100R VOUT_A
+    # R2-R5 — 100R VOUT series protection
     sym("Device:R", "55 40 90")
     r("(in_bom yes) (on_board yes) (uuid \"mb000003-0001-0001-0001-000000000010\")")
-    prop("Reference", "R3", "55 37 0")
+    prop("Reference", "R2", "55 37 0")
     prop("Value", "100R", "55 43 0")
     prop("Footprint", "Resistor_SMD:R_0805_2012Metric", "0 0 0", hide=True)
     c()
 
-    # R4 — 100R VOUT_B
     sym("Device:R", "55 45 90")
     r("(in_bom yes) (on_board yes) (uuid \"mb000003-0001-0001-0001-000000000011\")")
-    prop("Reference", "R4", "55 42 0")
+    prop("Reference", "R3", "55 42 0")
     prop("Value", "100R", "55 48 0")
     prop("Footprint", "Resistor_SMD:R_0805_2012Metric", "0 0 0", hide=True)
     c()
 
-    # R5 — 100R VOUT_C
     sym("Device:R", "55 50 90")
     r("(in_bom yes) (on_board yes) (uuid \"mb000003-0001-0001-0001-000000000012\")")
-    prop("Reference", "R5", "55 47 0")
+    prop("Reference", "R4", "55 47 0")
     prop("Value", "100R", "55 53 0")
     prop("Footprint", "Resistor_SMD:R_0805_2012Metric", "0 0 0", hide=True)
     c()
 
-    # R6 — 100R VOUT_D
     sym("Device:R", "55 55 90")
     r("(in_bom yes) (on_board yes) (uuid \"mb000003-0001-0001-0001-000000000013\")")
-    prop("Reference", "R6", "55 52 0")
+    prop("Reference", "R5", "55 52 0")
     prop("Value", "100R", "55 58 0")
     prop("Footprint", "Resistor_SMD:R_0805_2012Metric", "0 0 0", hide=True)
     c()
 
-    # ── LDAC → GND ──
+    # ── LDAC -> GND (pin 10) ──
     sym("power:GND", "95 70 0")
     r("(in_bom yes) (on_board yes) (uuid \"mb000003-0001-0001-0001-000000000014\")")
     prop("Reference", "#PWR07", "95 70 0", hide=True)
     prop("Value", "GND", "97 68 0")
     c()
 
-    # ── DCEN → GND ──
+    # ── BIN/2sCOMP -> GND (pin 5, twos complement coding) ──
     sym("power:GND", "65 62 0")
     r("(in_bom yes) (on_board yes) (uuid \"mb000003-0001-0001-0001-000000000015\")")
     prop("Reference", "#PWR08", "65 62 0", hide=True)
     prop("Value", "GND", "67 60 0")
     c()
 
-    # ── BIN/OFF → GND ──
-    sym("power:GND", "95 52 0")
-    r("(in_bom yes) (on_board yes) (uuid \"mb000003-0001-0001-0001-000000000016\")")
-    prop("Reference", "#PWR09", "95 52 0", hide=True)
-    prop("Value", "GND", "97 50 0")
-    c()
+    # ── NC pins on AD5754BREZ ──
+    r('(no_connect (at 69.84 76.26) (uuid "mb000003-nc01"))')
+    r('(no_connect (at 69.84 66.58) (uuid "mb000003-nc02"))')
+    r('(no_connect (at 69.84 51.28) (uuid "mb000003-nc03"))')
+    r('(no_connect (at 90.16 51.28) (uuid "mb000003-nc04"))')
 
-    # ── U2 — ADR421 ──
+    # ── U2 — ADR421 (MANDATORY for AD5754BREZ) ──
     sym("Custom:ADR421", "130 55 0")
     r("(in_bom yes) (on_board yes) (uuid \"mb000003-0002-0002-0002-000000000001\")")
     prop("Reference", "U2", "130 47 0")
@@ -532,21 +464,18 @@ def gen_sch():
     prop("Footprint", "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm", "0 0 0", hide=True)
     c()
 
-    # +12V → ADR421 VIN
     sym("power:+12V", "122 57 0")
     r("(in_bom yes) (on_board yes) (uuid \"mb000003-0002-0002-0002-000000000002\")")
     prop("Reference", "#PWR10", "122 57 0", hide=True)
     prop("Value", "+12V", "122 54 0")
     c()
 
-    # GND — ADR421 GND
     sym("power:GND", "122 52 0")
     r("(in_bom yes) (on_board yes) (uuid \"mb000003-0002-0002-0002-000000000003\")")
     prop("Reference", "#PWR11", "122 52 0", hide=True)
     prop("Value", "GND", "122 55 0")
     c()
 
-    # C7 — 100nF ADR421 VIN
     sym("Device:C", "120 60 0")
     r("(in_bom yes) (on_board yes) (uuid \"mb000003-0002-0002-0002-000000000004\")")
     prop("Reference", "C7", "123 60 0")
@@ -554,7 +483,6 @@ def gen_sch():
     prop("Footprint", "Capacitor_SMD:C_0805_2012Metric", "0 0 0", hide=True)
     c()
 
-    # C8 — 10uF ADR421 VOUT
     sym("Device:C_Polarized", "140 50 0")
     r("(in_bom yes) (on_board yes) (uuid \"mb000003-0002-0002-0002-000000000005\")")
     prop("Reference", "C8", "143 50 0")
@@ -563,11 +491,11 @@ def gen_sch():
     c()
 
     # ── NC pins on ADR421 ──
-    r('(no_connect (at 122.46 60.08) (uuid "mb000003-nc01"))')
-    r('(no_connect (at 122.46 55.00) (uuid "mb000003-nc02"))')
-    r('(no_connect (at 137.54 52.46) (uuid "mb000003-nc03"))')
-    r('(no_connect (at 137.54 55.00) (uuid "mb000003-nc04"))')
-    r('(no_connect (at 137.54 57.54) (uuid "mb000003-nc05"))')
+    r('(no_connect (at 122.46 60.08) (uuid "mb000003-nc05"))')
+    r('(no_connect (at 122.46 55.00) (uuid "mb000003-nc06"))')
+    r('(no_connect (at 137.54 52.46) (uuid "mb000003-nc07"))')
+    r('(no_connect (at 137.54 55.00) (uuid "mb000003-nc08"))')
+    r('(no_connect (at 137.54 57.54) (uuid "mb000003-nc09"))')
 
     # ── J2 — DAC output connector ──
     sym("Connector_Generic:Conn_01x04", "40 47 0")
@@ -617,25 +545,25 @@ def gen_sch():
     c()
 
     # ── Text annotations ──
-    r('(text "AD5754R Minimal DAC Breakout" (at 30 30 0)\n    (effects (font (size 2.54 2.54) bold) (justify left)))')
-    r('(text "Quad 16-bit DAC - Bipolar +/-5V mode\\nSSOP-28 package, SPI interface\\nDesigned for JLCPCB PCBA assembly" (at 30 35 0)\n    (effects (font (size 1.27 1.27)) (justify left)))')
-    r('(text "Power:\\n  AVDD = +12V (Eurorack)\\n  AVSS = -12V (Eurorack)\\n  DVCC = +3.3V (Teensy)\\n  All GND pins to unified ground plane" (at 30 120 0)\n    (effects (font (size 1.016 1.016)) (justify left)))')
+    r('(text "AD5754BREZ Minimal DAC Breakout" (at 30 30 0)\n    (effects (font (size 2.54 2.54) bold) (justify left)))')
+    r('(text "Quad 16-bit DAC - Bipolar +/-5V mode\\nTSSOP-24 package, SPI interface\\nAD5754BREZ (non-R, no internal ref)\\nDesigned for JLCPCB PCBA assembly" (at 30 35 0)\n    (effects (font (size 1.27 1.27)) (justify left)))')
+    r('(text "Power:\\n  AVDD = +12V (Eurorack)\\n  AVSS = -12V (Eurorack)\\n  DVCC = +3.3V (Teensy)\\n  All GND/DAC_GND/SIG_GND to unified ground plane\\n  Exposed paddle = AVSS (thermal)" (at 30 120 0)\n    (effects (font (size 1.016 1.016)) (justify left)))')
     r('(text "SPI (Teensy 4.1):\\n  SCLK  -> Pin 13 (SCK)\\n  SDIN  -> Pin 11 (MOSI)\\n  SDO   -> Pin 12 (MISO)\\n  SYNC  -> Pin 10 (CS)\\n  SPI Mode 1 (CPOL=0, CPHA=1)" (at 30 135 0)\n    (effects (font (size 1.016 1.016)) (justify left)))')
-    r('(text "Control pins:\\n  LDAC -> DGND (immediate update)\\n  CLR  -> DVCC via 10k (no accidental clear)\\n  DCEN -> DGND (daisy-chain off)\\n  BIN/OFF -> DGND (normal operation)\\n  RSET -> AGND via 6.8k" (at 100 120 0)\n    (effects (font (size 1.016 1.016)) (justify left)))')
-    r('(text "Outputs:\\n  VOUT_A-D -> 100R series -> header\\n  (short-circuit protection)\\n  +/-5V bipolar range (software config)\\n  0x0000=-5V, 0x8000=0V, 0xFFFF=+5V" (at 100 135 0)\n    (effects (font (size 1.016 1.016)) (justify left)))')
-    r('(text "ADR421 Reference:\\n  2.5V ultra-precision (3 ppm/C)\\n  Better than internal ref for 1V/oct\\n  Can omit U2 if internal ref is sufficient\\n  (then just add C6 on REFOUT pin)" (at 100 150 0)\n    (effects (font (size 1.016 1.016)) (justify left)))')
-    r('(text "NOTE: AI chat doc had WRONG pin numbers\\n(described 24-pin package). AD5754R is\\nSSOP-28. This schematic uses CORRECT\\npinout from datasheet Rev G." (at 30 155 0)\n    (effects (font (size 1.016 1.016) bold) (justify left)))')
+    r('(text "Control pins:\\n  LDAC -> GND (immediate update)\\n  CLR  -> DVCC via 10k (no accidental clear)\\n  BIN/2sCOMP -> GND (twos complement coding)\\n  NC pins 2,6,12,13: leave unconnected" (at 100 120 0)\n    (effects (font (size 1.016 1.016)) (justify left)))')
+    r('(text "Outputs:\\n  VOUTA-D -> 100R series -> header\\n  (short-circuit protection)\\n  +/-5V bipolar range (software config)\\n  0x0000=-5V, 0x8000=0V, 0xFFFF=+5V" (at 100 135 0)\n    (effects (font (size 1.016 1.016)) (justify left)))')
+    r('(text "ADR421 Reference (MANDATORY):\\n  AD5754BREZ has NO internal reference\\n  ADR421 provides 2.5V ultra-precision (3 ppm/C)\\n  VOUT -> REFIN pin 17\\n  Cannot omit U2 on this chip variant!" (at 100 150 0)\n    (effects (font (size 1.016 1.016)) (justify left)))')
+    r('(text "NOTE: This is the AD5754BREZ (TSSOP-24)\\nNOT the AD5754R (SSOP-28). Pinout is\\ndifferent! See datasheet Table 5.\\nNo RSET, no DCEN, no BIN/OFF pin." (at 30 155 0)\n    (effects (font (size 1.016 1.016) bold) (justify left)))')
 
     # ── Title block ──
     o("title_block")
-    r('(title "MusicBrain - AD5754R Minimal DAC Breakout Board")')
-    r('(date "2026-06-06")')
-    r('(rev "1.0")')
+    r('(title "MusicBrain - AD5754BREZ Minimal DAC Breakout Board")')
+    r('(date "2026-06-07")')
+    r('(rev "1.1")')
     r('(company "MusicBrain project")')
-    r('(comment 1 "Quad 16-bit DAC, bipolar +/-5V, SSOP-28, SPI interface")')
-    r('(comment 2 "ADR421 external 2.5V reference for 1V/oct pitch tracking")')
-    r('(comment 3 "Designed for JLCPCB PCBA assembly - 0805 passives, SSOP-28 DAC")')
-    r('(comment 4 "Corrected pinout from datasheet (AI chat had wrong 24-pin assignment)")')
+    r('(comment 1 "Quad 16-bit DAC, bipolar +/-5V, TSSOP-24, SPI interface")')
+    r('(comment 2 "AD5754BREZ (non-R) requires ADR421 external 2.5V reference")')
+    r('(comment 3 "Designed for JLCPCB PCBA assembly - 0805 passives, TSSOP-24 DAC")')
+    r('(comment 4 "Pinout from datasheet Table 5 - 4 NC pins, no RSET/DCEN")')
     c()
 
     c()  # close root kicad_sch
@@ -645,21 +573,8 @@ def gen_sch():
 
 
 def gen_pcb():
-    """Generate a minimal .kicad_pcb file — just enough for KiCad to open it."""
-    lines = []
-    _depth = [0]
-
-    def o(tag, *args):
-        inner = " " + " ".join(str(a) for a in args) if args else ""
-        lines.append("  " * _depth[0] + f"({tag}{inner}")
-        _depth[0] += 1
-
-    def c():
-        _depth[0] -= 1
-        lines.append("  " * _depth[0] + ")")
-
-    def r(text):
-        lines.append("  " * _depth[0] + text)
+    """Generate a minimal .kicad_pcb file."""
+    lines, _depth, o, c, r, sym, pin, prop = _make_builder()
 
     o("kicad_pcb")
     r('(version 20231120)')
@@ -671,15 +586,14 @@ def gen_pcb():
     r('(page A4)')
 
     o("title_block")
-    r('(title "MusicBrain - AD5754R Minimal DAC Breakout Board")')
-    r('(date "2026-06-06")')
-    r('(rev "1.0")')
+    r('(title "MusicBrain - AD5754BREZ Minimal DAC Breakout Board")')
+    r('(date "2026-06-07")')
+    r('(rev "1.1")')
     r('(company "MusicBrain project")')
-    r('(comment 1 "Quad 16-bit DAC, bipolar +/-5V, SSOP-28, SPI interface")')
-    r('(comment 2 "ADR421 external 2.5V reference for 1V/oct pitch tracking")')
+    r('(comment 1 "Quad 16-bit DAC, bipolar +/-5V, TSSOP-24, SPI interface")')
+    r('(comment 2 "AD5754BREZ (non-R) requires ADR421 external 2.5V reference")')
     c()
 
-    # ── Layers ──
     o("layers")
     r('(0 F.Cu)')
     r('(31 B.Cu)')
@@ -703,7 +617,6 @@ def gen_pcb():
     r('(49 B.Fab)')
     c()
 
-    # ── Setup ──
     o("setup")
     r('(last_trace_width 0.254)')
     r('(zone_clearance 0.508)')
@@ -727,7 +640,6 @@ def gen_pcb():
     r('(units mm)')
     c()
 
-    # ── Nets ──
     r('(net 0 "")')
     r('(net 1 "AVDD")')
     r('(net 2 "AVSS")')
@@ -737,18 +649,15 @@ def gen_pcb():
     r('(net 6 "SDIN")')
     r('(net 7 "SDO")')
     r('(net 8 "SYNC")')
-    r('(net 9 "VOUT_A")')
-    r('(net 10 "VOUT_B")')
-    r('(net 11 "VOUT_C")')
-    r('(net 12 "VOUT_D")')
-    r('(net 13 "REF_2V5")')
+    r('(net 9 "VOUTA")')
+    r('(net 10 "VOUTB")')
+    r('(net 11 "VOUTC")')
+    r('(net 12 "VOUTD")')
+    r('(net 13 "REFIN")')
     r('(net 14 "CLR")')
     r('(net 15 "LDAC")')
-    r('(net 16 "RSET")')
-    r('(net 17 "DCEN")')
-    r('(net 18 "BIN_OFF")')
+    r('(net 16 "BIN_2sCOMP")')
 
-    # ── Net classes ──
     o("net_class", '"Default"', '"This is the default net class."')
     r("(clearance 0.2)")
     r("(trace_width 0.25)")
@@ -765,15 +674,13 @@ def gen_pcb():
     r("(via_drill 0.6)")
     c()
 
-    # ── Board outline 30x30mm ──
     r('(gr_line (start 0 0) (end 30 0) (layer "Edge.Cuts") (width 0.05) (type solid))')
     r('(gr_line (start 30 0) (end 30 30) (layer "Edge.Cuts") (width 0.05) (type solid))')
     r('(gr_line (start 30 30) (end 0 30) (layer "Edge.Cuts") (width 0.05) (type solid))')
     r('(gr_line (start 0 30) (end 0 0) (layer "Edge.Cuts") (width 0.05) (type solid))')
 
-    # ── Silkscreen labels ──
-    r('(gr_text "AD5754R Breakout" (at 15 28) (layer "F.SilkS") (effects (font (size 1 1) (justify center))))')
-    r('(gr_text "MusicBrain v1.0" (at 15 2) (layer "F.SilkS") (effects (font (size 0.8 0.8) (justify center))))')
+    r('(gr_text "AD5754BREZ Breakout" (at 15 28) (layer "F.SilkS") (effects (font (size 1 1) (justify center))))')
+    r('(gr_text "MusicBrain v1.1" (at 15 2) (layer "F.SilkS") (effects (font (size 0.8 0.8) (justify center))))')
 
     c()  # close root kicad_pcb
 
@@ -783,10 +690,9 @@ def gen_pcb():
 
 def gen_pro():
     """Generate a minimal .kicad_pro file (JSON format for KiCad 8+)."""
-    import json
     pro = {
         "general": {
-            "project_name": "AD5754R Minimal DAC Breakout"
+            "project_name": "AD5754BREZ Minimal DAC Breakout"
         },
         "schematic": {
             "file": "ad5754r-breakout.kicad_sch"
@@ -826,8 +732,6 @@ for p in [sch_path, pcb_path]:
     status = "OK" if bal == 0 else f"BALANCE={bal}"
     print(f"{p.name}: {status}")
 
-# JSON validation for .kicad_pro
-import json
 try:
     json.loads(pro_path.read_text(encoding="utf-8"))
     print(f"{pro_path.name}: OK (valid JSON)")

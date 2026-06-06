@@ -2,7 +2,7 @@
 
 - **Datum**: 2026-06-01 01:44
 - **Sessie-ID**: `23c95ca7-787d-4763-a9ef-3df788b36851`
-- **Berichten**: 175
+- **Berichten**: 181
 
 ---
 
@@ -8222,5 +8222,285 @@ The FPGA (Arty S7-50) could accelerate the Resonator (64 parallel Svf bandpass f
 **Start with the second Teensy**. It's fast, cheap, low-risk, and gives you 10 voices immediately. The FPGA is worth exploring later if you need >10 voices or want to learn HDL development.
 
 I've written a full analysis in `scaling-polyphony-beyond-5-voices.md` with architecture diagrams, bandwidth calculations, implementation plan, and comparison table.
+
+---
+
+## 🧑 User
+
+thank you. But why the slave at 32kHz? We changed all code now to 44.1kHz, didn't we?
+
+---
+
+## 🤖 Assistant
+
+Good question — let me verify what the current code actually does:
+
+*Searched for regex `kSampleRate|32000|44100|kStep|resample|PIT` (`MusicBrain` · `firmware/app-elements/src/main.cpp`), 20 results*
+
+You're right to question this! The current architecture is still **dual-rate**: Part::Process runs natively at **32 kHz** (that's `elements::kSampleRate`), and the PIT ISR resamples from 32 kHz → 44.1 kHz. The code hasn't been changed to 44.1 kHz — the Elements DSP is fundamentally a 32 kHz engine.
+
+But your point is important for the slave design: **why should the slave send 32 kHz audio that the master then has to resample?** The slave could do its own resampling and send 44.1 kHz audio directly, so the master just mixes it in.
+
+Let me think through the implications:
+
+**If slave sends 32 kHz audio**:
+- Master must resample 10 voices (5 local + 5 remote) in its PIT ISR
+- ISR CPU goes from 4.2% (5 voices) to ~8.4% (10 voices) — still fine
+- Slave is simpler (no PIT ISR, no resampler)
+
+**If slave sends 44.1 kHz audio**:
+- Slave needs its own PIT ISR + resampler (same as master currently has)
+- Master PIT ISR just mixes 10 voices at 44.1 kHz — simpler ISR, lower CPU
+- But slave is more complex (needs PIT ISR, resampler, 44.1 kHz ring buffer)
+- Bandwidth increases: 5 voices × 44.1 kHz × 2 channels × 2 bytes = 882 KB/sec (vs 640 KB/sec at 32 kHz)
+
+Actually, there's an even simpler option: **the slave sends pre-mixed 44.1 kHz audio** (one stereo stream, not 5 separate voices). The slave mixes its 5 voices internally and sends a single stereo mix to the master. This dramatically reduces bandwidth and simplifies the master.
+
+Let me update the analysis doc:
+
+*Read scaling-polyphony-beyond-5-voices.md, lines 30 to 80*
+
+
+
+*Read scaling-polyphony-beyond-5-voices.md, lines 30 to 80 · Read scaling-polyphony-beyond-5-voices.md, lines 80 to 120*
+
+Now I understand the full picture. The key insight is: the slave should do its own resampling and send **pre-mixed 44.1 kHz stereo** — not 5 separate 32 kHz voice streams. This is simpler for both sides. Let me update the doc:
+Now update the bandwidth analysis and slave firmware Now update the bandwidth analysis and slave firmware table:
+Now update the opcodes table and the "Does the slave need the Audio Library?" section:
+Now update the "Does the slave need the Audio Library?" section:
+Now update the pros/cons table and latency:
+Now update the implementation plan to reflect the 44.1 kHz Now update the implementation plan to reflect the 44.1 kHz approach:
+Good catch! You're right — the Elements DSP runs natively at 32 kHz, but the **output** is 44.1 kHz (after resampling in the PIT ISR). The slave should send **44.1 kHz pre-mixed stereo**, not 32 kHz per-voice streams.
+
+I've updated the analysis doc with the corrected architecture:
+
+**Key change**: The slave now runs the same dual-rate pattern as the master — Part::Process at 32 kHz in loop(), PIT ISR resamples + mixes to 44.1 kHz stereo, then sends that single stereo stream via SPI to the master.
+
+This is better for three reasons:
+1. **Bandwidth drops from 640 KB/sec to 176 KB/sec** — one stereo stream instead of 5 separate voice streams
+2. **Master ISR stays simple** — just mixes one extra stereo stream, no extra resampling
+3. **Symmetric design** — slave runs the same well-tested dual-rate code as master, just without USB/reverb/MIDI
+
+---
+
+## 🧑 User
+
+but i am surprised. I thought we decided to change the whole speed of the elements to 44.1 and adapt the parameters.
+
+I didn't get this dual speed thing.
+
+If elements would be just 32 kHz, and output that audio, would that save much effort / processor power?
+
+In the end it would output analog audio anyway! This workflow via audio over USB (and MIDI in over USB) is temporary to not have to solder yet.
+
+---
+
+## 🤖 Assistant
+
+Let me first review the analysis document I wrote earlier and the Gemini advice to make sure my response is thorough:
+
+*Read scaling-polyphony-beyond-5-voices.md, lines 1 to 50*
+
+
+
+*Read scaling-polyphony-beyond-5-voices.md, lines 1 to 50 · Read scaling-polyphony-beyond-5-voices.md, lines 50 to 120 · Read scaling-polyphony-beyond-5-voices.md, lines 120 to 200*
+
+Now let me check the actual kSampleRate in the Elements code and understand the resampling situation:
+
+*Searched for regex `kSampleRate|kMaxBlockSize` (`MusicBrain` · `firmware/app-elements/lib/mi-elements`), no results · Searched for regex `kSampleRate|kMaxBlockSize` (`MusicBrain` · `firmware/app-elements/lib/mi-elements/elements/dsp/dsp.h`), 2 results*
+
+Good — confirmed: native 32 kHz, 16-sample blocks. Now let me think about the user's question more carefully.
+
+The user is asking two things:
+1. Whether the slave needs the Audio Library (I already answered this in the doc — no, it doesn't)
+2. How could master talk to slave — SPI or another protocol?
+
+And they're also asking about the FPGA option.
+
+But there's a key insight the user is pointing out: **the output is analog audio anyway**. So why resample to 44.1 kHz at all? The 44.1 kHz is only needed for USB audio output. If the final output is analog (DAC), the native 32 kHz could be used directly.
+
+Let me also reconsider the architecture. The user's question "does slave need the audio library?" is important. And they're right — if the final output is analog, we don't need USB audio at all on either Teensy in production.
+
+Let me update the analysis document to address these points properly, and also refine the architecture based on the user's insight about analog output.
+
+*Updated todo list*
+
+You're raising a really important point. Let me think through this clearly.
+
+**The current dual-rate architecture exists only because of USB audio.** The Teensy Audio Library's USB audio output runs at 44.1 kHz — that's the only reason we resample from 32 kHz to 44.1 kHz. The Elements DSP itself is natively 32 kHz.
+
+If the final output is **analog** (DAC on your PCB), you could run the whole thing at 32 kHz and skip the resampling entirely. That would:
+- **Save the PIT ISR entirely** (currently 4.2% CPU for resampling + mixing)
+- **Save the 44.1 kHz ring buffer** (memory)
+- **Simplify the code significantly** — just Part::Process → mix → DAC
+
+But there's a subtlety: the DAC on your PCB (AD5754R or similar) would need to run at 32 kHz too. Most audio You're raising a really important point. Let me think through this clearly.
+
+**The current dual-rate architecture exists only because of USB audio.** The Teensy Audio Library's USB audio output runs at 44.1 kHz — that's the only reason we resample from 32 kHz to 44.1 kHz. The Elements DSP itself is natively 32 kHz.
+
+If the final output is **analog** (DAC on your PCB), you could run the whole thing at 32 kHz and skip the resampling entirely. That would:
+- **Save the PIT ISR entirely** (currently 4.2% CPU for resampling + mixing)
+- **Save the 44.1 kHz ring buffer** (memory)
+- **Simplify the code significantly** — just Part::Process → mix → DAC
+
+But there's a subtlety: the DAC on your PCB (AD5754R or similar) would need to run at 32 kHz too. Most audio DACs support multiple sample rates, so this is feasible.
+
+**For the slave Teensy specifically**: if both Teensies output analog audio directly (each to its own DAC channel, or mixed externally), neither needs the Audio Library, USB audio, or resampling. The slave becomes even simpler — just Part::Process + SPI for control data.
+
+Let me update the analysis doc to reflect this insight:
+
+*Read scaling-polyphony-beyond-5-voices.md, lines 1 to 30*
+
+Now I need to rewrite the architecture section to present two scenarios: the current USB-audio prototype (dual-rate) and the production analog-output scenario (native 32 kHz). Let me do a comprehensive Now I need to rewrite the architecture section to present two scenarios: the current USB-audio prototype (dual-rate) and the production analog-output scenario (native 32 kHz). Let me do a comprehensive update:
+Now update the bandwidth analysis to show both Now update the bandwidth analysis to show both scenarios:
+Now update the inter-chip communication section to reflect both scenarios:
+
+*Searched for regex `Inter-chip communication|Audio block payload|0x40` (`MusicBrain` · `doc/elements/scaling-polyphony-beyond-5-voices.md`), 3 results · Read scaling-polyphony-beyond-5-voices.md, lines 111 to 160*
+
+
+
+*Searched for regex `Inter-chip communication|Audio block payload|0x40` (`MusicBrain` · `doc/elements/scaling-polyphony-beyond-5-voices.md`), 3 results · Read scaling-polyphony-beyond-5-voices.md, lines 111 to 160*
+
+
+Now update the pros/cons table and the implementation plan:
+Now update the implementation plan to reflect the analog output Now update the implementation plan to reflect the analog output insight:
+
+*Searched for regex `Implementation Plan|Phase 1` (`MusicBrain` · `doc/elements/scaling-polyphony-beyond-5-voices.md`), 2 results · Read scaling-polyphony-beyond-5-voices.md, lines 365 to 400*
+
+
+
+*Searched for regex `Implementation Plan|Phase 1` (`MusicBrain` · `doc/elements/scaling-polyphony-beyond-5-voices.md`), 2 results · Read scaling-polyphony-beyond-5-voices.md, lines 365 to 400*
+
+
+
+
+*Completed: *Refine analysis for analog output* (1/3)*
+
+You're absolutely right — and this is a key insight I missed in the original analysis. Let me clarify:
+
+**The dual-rate (32→44.1 kHz) architecture exists only because of USB audio.** The Elements DSP is natively 32 kHz. The resampling to 44.1 kHz is purely to satisfy the Teensy Audio Library's USB output requirement. In production with analog DAC output, you'd run at 32 kHz directly — no resampling, no PIT ISR, no Audio Library.
+
+**Would running at 32 kHz save CPU?** Yes — the PIT ISR currently costs 4.2% for resampling + mixing. In a native 32 kHz → DAC architecture, that entire ISR disappears. The rendering becomes simply: `loop() → Part::Process → mix → DAC buffer`. Much simpler.
+
+**For the slave, this makes it even simpler:**
+
+| | Prototype (USB audio) | Production (analog DAC) |
+|---|---|---|
+| Slave needs | PIT ISR + resampler + SPI audio TX | **Just Part::Process + SPI control RX** |
+| Audio transport | SPI DMA (176 KB/sec) | **None! Analog mixing** |
+| Slave complexity | Moderate | **Minimal** |
+
+The **analog mixing** approach is the simplest production path: each Teensy outputs its 5 voices to its own DAC channel, and the analog signals are summed externally (opamp or resistor network). No digital audio transport between Teensies at all — only SPI for note/CC control data.
+
+I've updated `scaling-polyphony-beyond-5-voices.md` with:
+- A new "Key insight: 32 kHz vs 44.1 kHz" section explaining why the dual-rate exists
+- Two architecture diagrams: production (native 32 kHz, analog mixing) and prototype (USB audio, dual-rate)
+- Three audio transport options: SPI DMA, I²S, and analog mixing
+- Updated implementation plan with Phase 0 to decide the transport method
+
+---
+
+## 🧑 User
+
+so would 6 voices at 32kHz even be feasible again? :-)
+
+---
+
+## 🤖 Assistant
+
+Great question! Let me think through this carefully.
+
+The 6-voice failure was: **minSrc=1-2** (ring buffers nearly empty). The ISR consumed from ring buffers at ~32,000 samples/sec per voice, and loop() couldn't produce 6 × 32,000 = 192,000 samples/sec fast enough.
+
+In a native 32 kHz architecture (no resampling, no PIT ISR), the consumption rate is **the same** — the DAC still needs 32,000 samples/sec per voice. The question is whether eliminating the ISR overhead frees enough CPU for loop() to produce 192,000 samples/sec.
+
+Let me check the actual numbers:
+
+*Read main.cpp, lines 155 to 200*
+
+
+
+*Read main.cpp, lines 155 to 200 · Read main.cpp, lines 200 to 210*
+
+Now let me think about the math:
+
+**Current 5-voice system (dual-rate)**:
+- ISR CPU: 4.2% (resampling + mixing 5 voices at 44.1 kHz)
+- Part::Process peak: 39% per voice (at 32 kHz rate)
+- Total Part::Process for 5 voices: 5 × 39% = 195% of 32kHz budget
+- But loop() runs continuously, not once per 32kHz period. The question is throughput.
+
+**The key insight**: the ISR at 4.2% doesn't consume much CPU. The real bottleneck is Part::Process throughput. Each Part::Process(16) takes ~117,000 cycles (39% of 300,000 cycle budget). With 6 voices, we need 6 × 117,000 = 702,000 cycles per 16-sample period (300,000 cycles). That's 234% — impossible regardless of whether we resample or not.
+
+Wait — but that's the *peak* per-voice measurement. The average might be lower. And in a native 32 kHz architecture, there's no ISR stealing cycles from loop(). Let me reconsider...
+
+Actually, the ISR runs at 44.1 kHz and takes 4.2% of the 44.1 kHz budget. That's 4.2% × (600,000,000 / 44,100) = 4.2% × 13,605 = ~571 cycles per ISR call. At 44,100 calls/sec, that's ~25 million cycles/sec total ISR overhead.
+
+In a native 32 kHz architecture, the DAC ISR would run at 32 kHz instead of 44.1 kHz. It would just mix (no resampling), so it would be even cheaper. But the **Part::Process throughput** is the real bottleneck — and that doesn't change.
+
+The 6-voice test showed minSrc=1-2 with part=39%. That means loop() couldn't keep up. The ISR overhead (4.2%) is negligible — removing it wouldn't make 6 voices feasible.
+
+**But wait** — there's another factor. In the current architecture, the PIT ISR interrupts loop() at 44.1 kHz. Each ISR call takes ~571 cycles. Over 1 second, that's ~25M cycles of ISR time. The CPU has 600M cycles/sec, so ISR takes ~4.2%. But the ISR also **interrupts** loop(), causing cache flushes and pipeline stalls. The real cost of ISR interrupts might be higher than just the cycle count.
+
+In a native 32 kHz architecture with no ISR (or a much simpler DAC-write ISR), loop() runs uninterrupted. This could improve Part::Process throughput by reducing interrupt overhead. But would it be enough for 6 voices?
+
+Let me calculate more carefully:
+
+- Part::Process peak: 39% of 32kHz/16 budget = 117,000 cycles
+- 6 voices need: 6 × 117,000 = 702,000 cycles per 16-sample period
+- Available per period: 300,000 cycles (600MHz / 32kHz × 16)
+- Shortfall: 702,000 - 300,000 = 402,000 cycles
+
+Even if we remove ALL ISR overhead (4.2% = ~25M cycles/sec = ~8.3% of 32kHz budget), we'd save ~25,000 cycles per 16-sample period. That's not nearly enough to cover the 402,000 cycle shortfall.
+
+**Conclusion: 6 voices is NOT feasible at 32 kHz either.** The bottleneck is Part::Process throughput, not ISR overhead. Removing the resampling saves ~4% CPU, but 6 voices needs ~39% more CPU than 5 voices. 5 × 39% = 195% barely fits; 6 × 39% = 234% doesn't.
+
+However... the 39% is the **peak** measurement. The average Part::Process time might be lower. And with no ISR interrupts, the average might improve further. It's worth testing, but I'd estimate it's unlikely to work.
+
+Actually, let me reconsider one more time. The "39% of 32kHz budget" means the worst single Part::Process call takes 117,000 cycles. But loop() doesn't have a time budget per call — it runs as fast as it can, continuously. The question is: can loop() produce 6 × 32,000 = 192,000 samples/sec?
+
+With 5 voices, loop() produces 5 × 32,000 = 160,000 samples/sec (minSrc=2024, stable). The ISR consumes at ~32,000 × 5 × 0.726 = ~116,000 samples/sec (resampling factor). So loop() has ~44,000 samples/sec of headroom.
+
+With 6 voices, loop() needs to produce 192,000 samples/sec. If each Part::Process(16) takes ~117,000 cycles average, and loop() runs at 600M cycles/sec minus ISR overhead (~25M), that's ~575M available. 575M / 117,000 = ~4,914 calls/sec × 16 samples = ~78,624 samples/sec per voice. For 6 voices: 6 × 78,624... wait, that's not right. Each call produces 16 samples for ONE voice. So 4,914 calls/sec × 16 = 78,624 total samples/sec across all voices. But we need 192,000. That's 78,624 / 192,000 = 41% throughput. Not enough.
+
+Hmm, but with 5 voices it works. 5 × 32,000 = 160,000 samples/sec needed. 4,914 calls/sec × 16 = 78,624... that doesn't add up either. Let me reconsider.
+
+Actually, the Part::Process calls are sequential in loop(). Each call takes ~117,000 cycles for 16 samples. So in 600M cycles/sec, we can do 600M / 117,000 = ~5,128 calls/sec. Each call produces 16 samples for one voice. So total throughput = 5,128 × 16 = 81,920 samples/sec per voice... no, that's per voice if we only call one voice. If we call 5 voices in sequence, each gets 5,128/5 = ~1,026 calls/sec × 16 = ~16,384 samples/sec per voice. But we need 32,000 per voice. That's only 51%!
+
+Wait, this doesn't match the observed behavior. With 5 voices, minSrc=2024 (stable). The ring buffers are well-filled. So loop() IS producing enough samples. Let me reconsider...
+
+The issue is that `partProcessMaxCycles` tracks the **peak** (worst single call), not the average. The average Part::Process time is much lower than the peak. When a voice is idle (gate=false), Part::Process is very cheap. When a voice is active with complex exciter+resonator, it's expensive.
+
+With 5 voices under MIDI load (some active, some idle), the average Part::Process time is much less than 117,000 cycles. That's why 5 voices works — the average throughput exceeds the consumption rate.
+
+With 6 voices, even if the average is lower, the **worst case** (all 6 voices active with complex exciter) would exceed the budget. And the minSrc=1-2 measurement shows that even the average case can't keep up with 6 voices.
+
+So the answer is: **6 voices at 32 kHz is still not feasible**, because the Part::Process throughput is the bottleneck, not the resampling overhead. Removing the ISR saves ~4% CPU but 6 voices needs ~20% more than 5 voices.
+
+But it's close enough that it might be worth testing — maybe with no ISR interrupts, the average Part::Process time improves enough. I'd estimate it's unlikely but not impossible.
+
+Let me give a clear, concise answer.</think>Hmm, tempting thought! But let me work through the math honestly.
+
+**The ISR overhead is only ~4.2%** — that's the resampling + mixing cost. Removing it saves ~4% CPU. But the 6-voice shortfall is much larger than 4%.
+
+Here's why: the bottleneck isn't the ISR, it's **Part::Process throughput**. With 5 voices, the peak per-voice cost is 39% of the 32kHz rendering budget. That means:
+
+| Voices | Total Part::Process (peak) | Budget | Fits? |
+|--------|-----------------------------|--------|-------|
+| 5 | 5 × 39% = **195%** | 100% + ISR headroom | ✅ barely (average is lower) |
+| 6 | 6 × 39% = **234%** | 100% + ISR headroom | ❌ minSrc=1-2 |
+
+The 5-voice system works because the **average** Part::Process time is much lower than the peak (idle voices are cheap). But with 6 active voices under MIDI load, even the average exceeds what loop() can produce.
+
+**Removing the ISR saves ~4% CPU, but 6 voices needs ~20% more than 5 voices.** The math doesn't work:
+
+- 5 voices at 32 kHz native: ~195% peak, ~4% ISR savings → **~191% total** → works (average lower)
+- 6 voices at 32 kHz native: ~234% peak, ~4% ISR savings → **~230% total** → still doesn't fit
+
+The minSrc=1-2 measurement with 6 voices confirms this — the ring buffers starve regardless of resampling overhead.
+
+**However**, there's one caveat worth testing: without ISR interrupts, loop() runs **uninterrupted**. ISR interrupts cause pipeline stalls and cache pressure that may slow Part::Process slightly. Removing that overhead could improve average throughput by a few percent. It's unlikely to bridge the 20% gap, but it's close enough that a test would be interesting.
+
+**Bottom line: probably still not feasible at 32 kHz, but worth a quick test** — the answer might change if the uninterrupted loop() runs Part::Process noticeably faster on average. I'd estimate ~5-10% chance it works. The second Teensy is still the reliable path to >5 voices.
 
 ---
