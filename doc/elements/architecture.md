@@ -836,3 +836,91 @@ Per-voice OCRAM breakdown:
 | 0.3.0 | 4 | DMAMEM Part in OCRAM | ❌ DACCVIOL crash |
 | 0.3.1 | 3 | Part in DTCM | ✅ clean, 3.1% ISR |
 | **0.4.0** | **4** | **DTCM Part + OCRAM buffers** | **✅ clean, 3.8% ISR** |
+| 0.4.1 | 4 | + reverb (CC#31/32) | ✅ clean, 3.8% ISR |
+| 0.4.2 | 4 | + CPU measurement (ARM_DWT_CYCCNT) | ✅ ISR=3.8%, part=39% |
+| **0.5.0** | **5** | **Hybrid DTCM/OCRAM (stretchBuf+reverb→DTCM)** | **✅ ISR=4.2%, part=39%** |
+| 0.5.1 | 5 | Removed blocking Serial.printf from MIDI handlers | ❌ CPU report still blocks |
+| 0.5.2 | 5 | 2048-frame ring buffers + render between prints | ❌ Still blocks ~25 ms |
+| 0.5.3 | 5 | 4096-frame ring buffers | ❌ Still blocks ~25 ms |
+| **0.5.4** | **5** | **Non-blocking Serial.write (1 char/iter)** | **✅ ISR=4.2%, minSrc=2030** |
+
+---
+
+# ADR 0014 — 5-Voice Hybrid DTCM/OCRAM Layout (2026-06-07)
+
+## Problem
+
+4 voices use ~389KB of OCRAM for delay-line buffers. Adding a 5th voice would
+require ~485KB (5 × 96KB), exceeding the 512KB OCRAM limit. Additionally, the
+reverb buffer (64KB) was in OCRAM, further reducing available space.
+
+## Solution: Hybrid DTCM/OCRAM Placement
+
+Move smaller buffers to DTCM to free OCRAM space for the 5th voice:
+
+- **OCRAM** (DMAMEM): `stringBuf`, `resonatorBowBuf`, `diffuserBuf` — large
+  buffers that don't need single-cycle access. Total: ~389KB for 5 voices.
+- **DTCM**: `stretchBuf` (102KB for 5 voices), `reverbBuffer` (64KB) — smaller
+  buffers that benefit from single-cycle access. Total: ~168KB extra in DTCM.
+
+### Memory Layout (v0.5.0)
+
+| Region | Used | Free | Contents |
+|--------|------|------|----------|
+| **RAM1 (DTCM)** | ~263 KB | **195 KB** | Part structs (5×~3KB), stretchBuf (5×20KB), reverbBuffer (64KB), ring buffers, Audio lib, stack |
+| **RAM2 (OCRAM)** | ~389 KB | **~123 KB** | stringBuf (5×40KB), resonatorBowBuf (5×32KB), diffuserBuf (5×4KB), Audio block pool |
+| **FLASH** | ~470 KB | ~7.6 MB | Code + lookup tables |
+
+Per-voice OCRAM breakdown (3 buffer types):
+- 5 × StringDelayLine (2048 floats) = 40,960 bytes
+- 8 × ResonatorBowDelayLine (1024 floats) = 32,768 bytes
+- 1 × DiffuserBuffer (1024 floats) = 4,096 bytes
+- **OCRAM per voice: ~77,824 bytes (~78KB)**
+
+Per-voice DTCM breakdown (1 buffer type):
+- 5 × StiffnessDelayLine (1024 floats) = 20,480 bytes
+- **DTCM per voice: ~20,480 bytes (~20KB)**
+
+### CPU Budget (v0.5.4 — measured under MIDI load)
+
+| Component | Idle | Under MIDI Load | Notes |
+|-----------|------|-----------------|-------|
+| PIT ISR (resample + mix 5 voices) | **4.2%** | **4.1–4.4%** | ~0.84% per voice |
+| Part::Process per voice (peak) | **38.5%** | **40–42%** | ARM_DWT_CYCCNT measured |
+| Ring buffer min level | **2030** | **2019–2035** | 2048-frame buffers, never < 2000 |
+| Audio Library (USB output) | ~1% | ~1% | Minimal feeder only |
+| `-O3` optimization | **no improvement** | — | 39% with both `-O2` and `-O3` |
+
+**Key insight**: The loop() runs continuously and the ring buffers (2048 frames
+= ~64 ms per voice) provide ample throughput. Part::Process at ~39% per voice
+means the loop() can do ~5,128 calls/sec, producing ~81,920 samples/sec per
+voice — far exceeding the ISR consumption rate of ~32,000 samples/sec per voice.
+
+**⚠️ Serial.printf blocking bug (v0.5.0–v0.5.3)**: `Serial.printf()` on Teensy
+4.1 USB CDC blocks the loop() for **~25 ms** per call (not 7 ms as initially
+estimated). This drained ring buffers to 3–16 samples regardless of buffer size
+(512, 2048, or even 4096 frames). The fix in v0.5.4: **non-blocking Serial
+output** — format the CPU report into a static buffer, then drain one character
+per loop() iteration via `Serial.write()`. This keeps the loop() responsive and
+ring buffers stable at > 2000.
+
+| Version | Serial approach | Ring buffers under load |
+|---------|----------------|------------------------|
+| 0.5.0 | Serial.printf in MIDI handlers | **3–16** (underrun!) |
+| 0.5.1 | Removed MIDI Serial.printf | **3–16** (CPU report still blocks!) |
+| 0.5.2 | 2048-frame buffers + render between prints | **3–16** (still blocks ~25 ms) |
+| 0.5.3 | 4096-frame buffers | **3–16** (still blocks ~25 ms) |
+| **0.5.4** | **Non-blocking Serial.write (1 char/iter)** | **2019–2035** ✅ |
+
+### 6-Voice Feasibility
+
+Memory: 6 voices with the same hybrid layout would need:
+- OCRAM: 6 × 78KB = 468KB + Audio pool ≈ 487KB → **25KB free** ✅
+- DTCM: 6 × 20KB + 64KB reverb = 184KB extra → **175KB free** ✅
+
+CPU: 6 × 39% = 234% per renderBackground() peak. Throughput still sufficient
+(5,128 Part::Process calls/sec). But ISR would be ~5% (6 voices in mix).
+
+**Status**: 6 voices is memory-feasible but not yet tested. The CPU throughput
+analysis suggests it would work, but needs real-world validation with all 6
+voices active under MIDI load.

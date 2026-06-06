@@ -1,16 +1,17 @@
-// MusicBrain — app-elements SPIKE, 4-voice polyphony test.
+// MusicBrain — app-elements SPIKE, 5-voice polyphony test.
 //
-// v0.4.0: 4-voice polyphony with dual-thread rendering + OCRAM buffers.
+// v0.5.0: 5-voice polyphony with hybrid DTCM/OCRAM layout.
 // - Part::Process(16) runs in loop() (background, non-ISR)
 // - PIT ISR only does resample + mix from pre-rendered 32 kHz ring buffer
 // - Audio Library only handles USB output via minimal feeder
-// - Part structs in DTCM, delay-line buffers in DMAMEM (OCRAM)
-//   (DMAMEM for C++ objects crashes with DACCVIOL, but plain float[]
-//   buffers work fine with D-Cache flush after Init)
+// - Part structs in DTCM, delay-line buffers split:
+//   stringBuf + resonatorBowBuf + diffuserBuf → DMAMEM (OCRAM)
+//   stretchBuf + reverbBuffer → DTCM
+//   (OCRAM: 389KB for 5 voices, DTCM: ~168KB extra for stretch+reverb)
 //
-// Signal path: loop() → 4× Part::Process(16) → 32 kHz ring buffer
+// Signal path: loop() → 5× Part::Process(16) → 32 kHz ring buffer
 //              PIT ISR → resample → mix → 44.1 kHz ring buffer
-//              Audio ISR → feeder → USB audio
+//              Audio ISR → feeder → reverb → USB audio
 // Control:     USB-MIDI noteOn/off → round-robin voice allocator
 
 #include <Arduino.h>
@@ -22,6 +23,9 @@
 
 #include "elements/dsp/dsp.h"
 #include "elements/dsp/part.h"
+#include "elements/dsp/fx/reverb.h"
+
+#include "ElementsReverbModule.h"
 
 namespace {
 
@@ -29,27 +33,36 @@ namespace {
 // 4× Part instances in DTCM (structs only, ~3KB each).
 // Large delay-line buffers are in DMAMEM (OCRAM) via VoiceBuffers.
 // ---------------------------------------------------------------------------
-constexpr int kNumVoices = 4;
+constexpr int kNumVoices = 5;
 
 elements::Part parts[kNumVoices];
 elements::PerformanceState perfState[kNumVoices];
 
 // ---------------------------------------------------------------------------
-// OCRAM (DMAMEM) delay-line buffers for 4 voices.
-// Each Voice needs:
-//   5 × StringDelayLine  (2048 floats = 8192 bytes)  = 40,960
-//   5 × StiffnessDelayLine (1024 floats = 4096 bytes) = 20,480
-//   8 × ResonatorBowDelayLine (1024 floats = 4096 bytes) = 32,768
-//   1 × DiffuserBuffer (1024 floats = 4096 bytes)       =  4,096
-//   Total per voice: ~98,304 bytes (~96KB)
-//   4 voices: ~393,216 bytes (~384KB) — fits in OCRAM (500KB free)
+// Hybrid DTCM/OCRAM delay-line buffers for 5 voices.
+// OCRAM (DMAMEM) — large buffers that don't need single-cycle access:
+//   stringBuf[5][5][2048]      = 204,800 bytes
+//   resonatorBowBuf[5][8][1024] = 163,840 bytes
+//   diffuserBuf[5][1024]       =  20,480 bytes
+//   OCRAM total: 389,120 bytes (~389KB) — fits in 512KB OCRAM ✅
+//
+// DTCM — smaller buffers that benefit from single-cycle access:
+//   stretchBuf[5][5][1024]    = 102,400 bytes
+//   reverbBuffer[32768]       =  65,536 bytes (uint16_t)
+//   DTCM extra: 167,936 bytes (~168KB) — DTCM had ~363KB free ✅
 // ---------------------------------------------------------------------------
-DMAMEM float stringBuf[kNumVoices][5][2048];       // 5 strings × 2048
-DMAMEM float stretchBuf[kNumVoices][5][1024];      // 5 strings × 1024
-DMAMEM float resonatorBowBuf[kNumVoices][8][1024]; // 8 bow modes × 1024
-DMAMEM float diffuserBuf[kNumVoices][1024];        // 1 diffuser × 1024
+DMAMEM float stringBuf[kNumVoices][5][2048];       // OCRAM: 5 strings × 2048
+float stretchBuf[kNumVoices][5][1024];             // DTCM: 5 strings × 1024
+DMAMEM float resonatorBowBuf[kNumVoices][8][1024]; // OCRAM: 8 bow modes × 1024
+DMAMEM float diffuserBuf[kNumVoices][1024];        // OCRAM: 1 diffuser × 1024
 
 elements::VoiceBuffers voiceBuffers[kNumVoices];
+
+// ---------------------------------------------------------------------------
+// Reverb buffer in DTCM (64KB). Moved from OCRAM to free space for 5th voice.
+// The FxEngine uses an external pointer, so DTCM placement works fine.
+// ---------------------------------------------------------------------------
+uint16_t reverbBuffer[32768];
 
 // ---------------------------------------------------------------------------
 // 32 kHz ring buffer: loop() writes, PIT ISR reads.
@@ -58,8 +71,11 @@ elements::VoiceBuffers voiceBuffers[kNumVoices];
 // We need enough buffer to cover the worst-case PIT ISR consumption rate.
 // PIT ISR consumes ~32000/44100 ≈ 0.726 source samples per output sample.
 // At 44.1 kHz, that's ~0.726 × 44100 = 32000 source samples/sec.
-// Buffer of 256 stereo frames = ~8 ms of audio at 32 kHz.
-constexpr int kSrcRingSize = 512;
+// Buffer of 2048 stereo frames = ~64 ms of audio at 32 kHz.
+// With non-blocking Serial output (one char per loop()), blocking is ~0
+// and 2048 frames is ample. Previous blocking Serial.printf drained 512
+// and 2048 and even 4096-frame buffers to 3–16 samples.
+constexpr int kSrcRingSize = 2048;
 
 struct SrcStereoSample { float l; float r; };
 
@@ -122,6 +138,7 @@ inline OutStereoSample outRingPop() {
 // 32 kHz ring buffers. The ISR just reads from those buffers.
 
 volatile uint32_t isrMaxCycles = 0;
+volatile uint32_t partProcessMaxCycles = 0;
 
 // Per-voice resampler state.
 struct ResamplerState {
@@ -167,8 +184,8 @@ void pitCallback() {
         if (yL > 1.0f) yL = 1.0f; else if (yL < -1.0f) yL = -1.0f;
         if (yR > 1.0f) yR = 1.0f; else if (yR < -1.0f) yR = -1.0f;
 
-        mixL += yL * 0.5f;  // 4 voices × 0.5 = max 2.0, clipsafe
-        mixR += yR * 0.5f;
+        mixL += yL * 0.4f;  // 5 voices × 0.4 = max 2.0, clipsafe
+        mixR += yR * 0.4f;
     }
 
     if (mixL > 1.0f) mixL = 1.0f; else if (mixL < -1.0f) mixL = -1.0f;
@@ -218,8 +235,20 @@ public:
 
 AudioOutputUSB usbOut;
 UsbFeeder      feeder;
-AudioConnection feederToUsbL{ feeder, 0, usbOut, 0 };
-AudioConnection feederToUsbR{ feeder, 1, usbOut, 1 };
+
+// Reverb: mmb_link::ElementsReverbStream processes 44.1 kHz stereo blocks.
+// Signal path: feeder → reverb → USB output.
+mmb_link::ElementsReverbStream reverbStream;
+AudioConnection feederToReverbL{ feeder, 0, reverbStream, 0 };
+AudioConnection feederToReverbR{ feeder, 1, reverbStream, 1 };
+AudioConnection reverbToUsbL{ reverbStream, 0, usbOut, 0 };
+AudioConnection reverbToUsbR{ reverbStream, 1, usbOut, 1 };
+
+// Reverb control state.
+float reverbAmount    = 0.5f;
+float reverbTime      = 0.5f;
+float reverbDiffusion = 0.625f;
+float reverbLp        = 0.7f;
 
 // IntervalTimer for 44.1 kHz sample-by-sample output.
 IntervalTimer pitTimer;
@@ -251,7 +280,7 @@ void noteOn(uint8_t note, uint8_t velocity) {
             perfState[i].note     = 69.0f + 12.0f * log2f(hz / 440.0f);
             perfState[i].strength = strength;
             perfState[i].gate     = true;
-            Serial.printf("[poly] re-trigger note=%u on voice=%d\n", note, i);
+            // No Serial.printf here — it blocks loop() and causes ring buffer underrun.
             return;
         }
     }
@@ -263,7 +292,6 @@ void noteOn(uint8_t note, uint8_t velocity) {
             perfState[i].gate     = true;
             voiceAlloc_[i].note   = note;
             voiceAlloc_[i].gate   = true;
-            Serial.printf("[poly] note=%u → voice=%d\n", note, i);
             return;
         }
     }
@@ -276,7 +304,6 @@ void noteOn(uint8_t note, uint8_t velocity) {
             perfState[i].gate     = true;
             voiceAlloc_[i].note   = note;
             voiceAlloc_[i].gate   = true;
-            Serial.printf("[poly] steal note=%u → voice=%d\n", note, i);
             return;
         }
     }
@@ -331,6 +358,11 @@ void handleControlChange(uint8_t /*ch*/, uint8_t cc, uint8_t value) {
             case 30: perfState[i].modulation = v * 48.0f - 24.0f; break;
         }
     }
+    // Reverb controls (CC#31/32) — apply once, not per-voice.
+    switch (cc) {
+        case 31: reverbAmount = v;    reverbStream.setAmount(v);    break;
+        case 32: reverbTime   = v;    reverbStream.setTime(v);      break;
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -349,8 +381,12 @@ void renderBackground() {
         if (freeSpace >= static_cast<int>(elements::kMaxBlockSize)) {
             float main[elements::kMaxBlockSize];
             float aux[elements::kMaxBlockSize];
+            uint32_t pt0 = ARM_DWT_CYCCNT;
             parts[v].Process(perfState[v], kSilence, kSilence,
                              main, aux, elements::kMaxBlockSize);
+            uint32_t pt1 = ARM_DWT_CYCCNT;
+            uint32_t partCycles = pt1 - pt0;
+            if (partCycles > partProcessMaxCycles) partProcessMaxCycles = partCycles;
             for (size_t i = 0; i < elements::kMaxBlockSize; ++i) {
                 srcRingPush(v, main[i], aux[i]);
             }
@@ -365,7 +401,7 @@ void setup() {
     Serial.begin(115200);
     uint32_t t0 = millis();
     while (!Serial && (millis() - t0) < 1500) { /* spin briefly */ }
-    Serial.printf("[boot] app-elements 4-voice dual-thread %s online\n", FW_VERSION);
+    Serial.printf("[boot] app-elements 5-voice hybrid %s online\n", FW_VERSION);
     Serial.printf("[boot] CPU @ %lu MHz\n",
                   static_cast<unsigned long>(F_CPU_ACTUAL / 1000000));
     if (CrashReport) {
@@ -403,12 +439,19 @@ void setup() {
     // and invalidates them, forcing fresh reads from physical OCRAM.
     arm_dcache_flush_delete(reinterpret_cast<void*>(stringBuf),
                             sizeof(stringBuf));
-    arm_dcache_flush_delete(reinterpret_cast<void*>(stretchBuf),
-                            sizeof(stretchBuf));
+    // stretchBuf is in DTCM — no D-Cache flush needed.
     arm_dcache_flush_delete(reinterpret_cast<void*>(resonatorBowBuf),
                             sizeof(resonatorBowBuf));
     arm_dcache_flush_delete(reinterpret_cast<void*>(diffuserBuf),
                             sizeof(diffuserBuf));
+
+    // Initialise reverb: 64KB buffer in DTCM — no D-Cache flush needed.
+    reverbStream.begin(reverbBuffer);
+    reverbStream.setAmount(reverbAmount);
+    reverbStream.setTime(reverbTime);
+    reverbStream.setDiffusion(reverbDiffusion);
+    reverbStream.setLp(reverbLp);
+
     for (auto& ps : perfState) {
         ps.gate       = false;
         ps.note       = 69.0f;
@@ -421,7 +464,7 @@ void setup() {
 
     // Pre-fill the 32 kHz ring buffers before starting the PIT timer.
     // This ensures the ISR has data from the very first sample.
-    for (int fill = 0; fill < 4; ++fill) {  // 4 × 16 = 64 samples per voice
+    for (int fill = 0; fill < 32; ++fill) {  // 32 × 16 = 512 samples per voice
         renderBackground();
     }
 
@@ -432,10 +475,20 @@ void setup() {
     usbMIDI.setHandleNoteOff(handleNoteOff);
     usbMIDI.setHandleControlChange(handleControlChange);
 
-    Serial.println("[boot] 4-voice dual-thread ready. Part in loop(), resample in ISR.");
-    Serial.println("[boot] Delay-line buffers in OCRAM, Part structs in DTCM.");
-    Serial.println("[boot] Hold 4 notes to test polyphony.");
+    Serial.println("[boot] 5-voice hybrid + reverb ready. Part in loop(), resample in ISR.");
+    Serial.println("[boot] stringBuf+resonatorBowBuf+diffuserBuf in OCRAM, stretchBuf+reverb in DTCM.");
+    Serial.println("[boot] Reverb: CC#31=amount, CC#32=time.");
+    Serial.println("[boot] Hold 5 notes to test polyphony.");
 }
+
+// Non-blocking Serial output: format the CPU report into a static buffer,
+// then drain one character per loop() iteration via Serial.write().
+// Serial.printf() blocks for ~25 ms on USB CDC, which drains the ring
+// buffers to 3–16 samples. Serial.write() of one byte is non-blocking
+// (USB CDC TX buffer is 64 bytes). This keeps the loop() responsive.
+static char cpuReportBuf[128];
+static int cpuReportLen = 0;
+static int cpuReportPos = 0;
 
 void loop() {
     // Background rendering: keep the 32 kHz ring buffers filled.
@@ -448,17 +501,39 @@ void loop() {
     // Render again after MIDI processing (MIDI may have changed perfState).
     renderBackground();
 
+    // Track peak loop() cycles for CPU report.
+    // (Not wrapping in ARM_DWT_CYCCNT to avoid overhead — the per-voice
+    // partProcessMaxCycles already gives the key metric.)
+
     const uint32_t now = millis();
 
-    // CPU report every 5 seconds (less Serial = less blocking).
-    if (now - lastCpuReportMs >= 5000) {
+    // CPU report every 10 seconds: format into buffer, drain non-blocking.
+    if (now - lastCpuReportMs >= 10000 && cpuReportLen == 0) {
         lastCpuReportMs = now;
-        float cpuPct = static_cast<float>(isrMaxCycles) * 100.0f /
+        float isrPct = static_cast<float>(isrMaxCycles) * 100.0f /
                        (F_CPU_ACTUAL / 44100.0f);
-        Serial.printf("[cpu] ISR=%.1f%% src=[%d,%d,%d,%d]\n",
-                      cpuPct, srcRingAvailable(0), srcRingAvailable(1),
-                      srcRingAvailable(2), srcRingAvailable(3));
+        float partPct = static_cast<float>(partProcessMaxCycles) * 100.0f /
+                       (F_CPU_ACTUAL / 32000.0f * 16);
+        // Find minimum ring buffer level across all voices.
+        int minSrc = kSrcRingSize;
+        for (int v = 0; v < kNumVoices; ++v) {
+            int avail = srcRingAvailable(v);
+            if (avail < minSrc) minSrc = avail;
+        }
+        cpuReportLen = snprintf(cpuReportBuf, sizeof(cpuReportBuf),
+                                "[cpu] ISR=%.1f%% part=%.1f%% minSrc=%d\n",
+                                isrPct, partPct, minSrc);
+        cpuReportPos = 0;
         isrMaxCycles = 0;
+        partProcessMaxCycles = 0;
+    }
+
+    // Drain one character per loop() iteration (non-blocking).
+    if (cpuReportPos < cpuReportLen) {
+        Serial.write(cpuReportBuf[cpuReportPos++]);
+        if (cpuReportPos >= cpuReportLen) {
+            cpuReportLen = 0;  // Done — ready for next report.
+        }
     }
 
     if (now - lastBlinkMs >= 500) {
