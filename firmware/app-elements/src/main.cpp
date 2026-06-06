@@ -1,12 +1,10 @@
-// MusicBrain — app-elements SPIKE, 2-voice polyphony test.
+// MusicBrain — app-elements SPIKE, 3-voice polyphony test.
 //
-// v0.2.0: Dual-thread rendering pattern.
+// v0.3.1: 3-voice polyphony with dual-thread rendering.
 // - Part::Process(16) runs in loop() (background, non-ISR)
 // - PIT ISR only does resample + mix from pre-rendered 32 kHz ring buffer
 // - Audio Library only handles USB output via minimal feeder
-//
-// This avoids the bursty CPU load that caused crackling with 2 voices
-// in the Audio Library's single ISR approach.
+// - Parts in DTCM (DMAMEM/OCRAM crashes with DACCVIOL — C++ vtable issue)
 //
 // Signal path: loop() → 2× Part::Process(16) → 32 kHz ring buffer
 //              PIT ISR → resample → mix → 44.1 kHz ring buffer
@@ -26,10 +24,20 @@
 namespace {
 
 // ---------------------------------------------------------------------------
-// 2× Part instances (the raw DSP, no AudioStream wrapper).
+// 4× Part instances in DMAMEM (OCRAM) — too large for DTCM.
+// 4× ~107KB = ~428KB. DTCM has ~184KB free after stack/code.
+// OCRAM has ~425KB free — fits perfectly.
 // ---------------------------------------------------------------------------
-elements::Part parts[2];
-elements::PerformanceState perfState[2];
+constexpr int kNumVoices = 3;
+
+// 3× Part instances in normal RAM (DTCM).
+// 3× ~107KB = ~321KB. DTCM has ~426KB free after code/stack.
+// DMAMEM (OCRAM) doesn't work for C++ objects with vtables/constructors
+// because the D-Cache coherency issue causes DACCVIOL crashes.
+// 4 voices would need ~428KB which exceeds DTCM — we'll need to
+// extract large delay-line buffers to OCRAM separately for that.
+elements::Part parts[kNumVoices];
+elements::PerformanceState perfState[kNumVoices];
 
 // ---------------------------------------------------------------------------
 // 32 kHz ring buffer: loop() writes, PIT ISR reads.
@@ -44,9 +52,9 @@ constexpr int kSrcRingSize = 512;
 struct SrcStereoSample { float l; float r; };
 
 // Per-voice source ring buffers.
-SrcStereoSample srcRing[2][kSrcRingSize];
-volatile int srcWriteIdx[2] = {0, 0};
-volatile int srcReadIdx[2]  = {0, 0};
+SrcStereoSample srcRing[kNumVoices][kSrcRingSize];
+volatile int srcWriteIdx[kNumVoices] = {};
+volatile int srcReadIdx[kNumVoices]  = {};
 
 inline int srcRingAvailable(int v) {
     int avail = srcWriteIdx[v] - srcReadIdx[v];
@@ -113,7 +121,7 @@ struct ResamplerState {
     static constexpr float kStep = 32000.0f / 44100.0f;
 };
 
-ResamplerState rs[2];
+ResamplerState rs[kNumVoices];
 
 void pitCallback() {
     uint32_t entry = ARM_DWT_CYCCNT;
@@ -121,7 +129,7 @@ void pitCallback() {
     float mixL = 0.0f;
     float mixR = 0.0f;
 
-    for (int v = 0; v < 2; ++v) {
+    for (int v = 0; v < kNumVoices; ++v) {
         // Linear interpolation resampling.
         float yL = rs[v].s0L + (rs[v].s1L - rs[v].s0L) * rs[v].phase;
         float yR = rs[v].s0R + (rs[v].s1R - rs[v].s0R) * rs[v].phase;
@@ -147,8 +155,8 @@ void pitCallback() {
         if (yL > 1.0f) yL = 1.0f; else if (yL < -1.0f) yL = -1.0f;
         if (yR > 1.0f) yR = 1.0f; else if (yR < -1.0f) yR = -1.0f;
 
-        mixL += yL * 0.7f;
-        mixR += yR * 0.7f;
+        mixL += yL * 0.5f;  // 4 voices × 0.5 = max 2.0, clipsafe
+        mixR += yR * 0.5f;
     }
 
     if (mixL > 1.0f) mixL = 1.0f; else if (mixL < -1.0f) mixL = -1.0f;
@@ -211,7 +219,7 @@ struct VoiceAlloc {
     uint8_t note = 255;
     bool    gate = false;
 };
-VoiceAlloc voiceAlloc_[2];
+VoiceAlloc voiceAlloc_[kNumVoices];
 
 constexpr uint8_t kHeartbeatPin = LED_BUILTIN;
 uint32_t lastBlinkMs = 0;
@@ -226,35 +234,44 @@ void noteOn(uint8_t note, uint8_t velocity) {
     const float strength = velocity / 127.0f;
     const float hz = noteToHz(note);
 
-    for (int i = 0; i < 2; ++i) {
+    for (int i = 0; i < kNumVoices; ++i) {
         if (voiceAlloc_[i].note == note) {
             perfState[i].note     = 69.0f + 12.0f * log2f(hz / 440.0f);
             perfState[i].strength = strength;
             perfState[i].gate     = true;
+            Serial.printf("[poly] re-trigger note=%u on voice=%d\n", note, i);
             return;
         }
     }
 
-    for (int i = 0; i < 2; ++i) {
+    for (int i = 0; i < kNumVoices; ++i) {
         if (!voiceAlloc_[i].gate) {
             perfState[i].note     = 69.0f + 12.0f * log2f(hz / 440.0f);
             perfState[i].strength = strength;
             perfState[i].gate     = true;
             voiceAlloc_[i].note   = note;
             voiceAlloc_[i].gate   = true;
+            Serial.printf("[poly] note=%u → voice=%d\n", note, i);
             return;
         }
     }
 
-    perfState[0].note     = 69.0f + 12.0f * log2f(hz / 440.0f);
-    perfState[0].strength = strength;
-    perfState[0].gate     = true;
-    voiceAlloc_[0].note   = note;
-    voiceAlloc_[0].gate   = true;
+    // Steal oldest voice (lowest index that's busy).
+    for (int i = 0; i < kNumVoices; ++i) {
+        if (voiceAlloc_[i].gate) {
+            perfState[i].note     = 69.0f + 12.0f * log2f(hz / 440.0f);
+            perfState[i].strength = strength;
+            perfState[i].gate     = true;
+            voiceAlloc_[i].note   = note;
+            voiceAlloc_[i].gate   = true;
+            Serial.printf("[poly] steal note=%u → voice=%d\n", note, i);
+            return;
+        }
+    }
 }
 
 void noteOff(uint8_t note) {
-    for (int i = 0; i < 2; ++i) {
+    for (int i = 0; i < kNumVoices; ++i) {
         if (voiceAlloc_[i].note == note && voiceAlloc_[i].gate) {
             perfState[i].gate     = false;
             voiceAlloc_[i].gate   = false;
@@ -275,7 +292,7 @@ void handleNoteOff(uint8_t /*ch*/, uint8_t note, uint8_t /*velocity*/) {
 
 void handleControlChange(uint8_t /*ch*/, uint8_t cc, uint8_t value) {
     const float v = value / 127.0f;
-    for (int i = 0; i < 2; ++i) {
+    for (int i = 0; i < kNumVoices; ++i) {
         elements::Patch* p = parts[i].mutable_patch();
         switch (cc) {
             case 1:  p->exciter_envelope_shape = v; break;
@@ -313,7 +330,7 @@ void handleControlChange(uint8_t /*ch*/, uint8_t cc, uint8_t value) {
 void renderBackground() {
     static const float kSilence[elements::kMaxBlockSize] = {};
 
-    for (int v = 0; v < 2; ++v) {
+    for (int v = 0; v < kNumVoices; ++v) {
         // Only render if the ring buffer has room for at least 16 samples.
         // (kSrcRingSize - srcRingAvailable(v)) gives free space.
         int freeSpace = kSrcRingSize - srcRingAvailable(v);
@@ -336,7 +353,7 @@ void setup() {
     Serial.begin(115200);
     uint32_t t0 = millis();
     while (!Serial && (millis() - t0) < 1500) { /* spin briefly */ }
-    Serial.printf("[boot] app-elements 2-voice dual-thread %s online\n", FW_VERSION);
+    Serial.printf("[boot] app-elements 3-voice dual-thread %s online\n", FW_VERSION);
     Serial.printf("[boot] CPU @ %lu MHz\n",
                   static_cast<unsigned long>(F_CPU_ACTUAL / 1000000));
     if (CrashReport) {
@@ -374,8 +391,8 @@ void setup() {
     usbMIDI.setHandleNoteOff(handleNoteOff);
     usbMIDI.setHandleControlChange(handleControlChange);
 
-    Serial.println("[boot] 2-voice dual-thread ready. Part in loop(), resample in ISR.");
-    Serial.println("[boot] Hold 2 notes to test polyphony.");
+    Serial.println("[boot] 3-voice dual-thread ready. Part in loop(), resample in ISR.");
+    Serial.println("[boot] Hold 3 notes to test polyphony.");
 }
 
 void loop() {
@@ -396,8 +413,9 @@ void loop() {
         lastCpuReportMs = now;
         float cpuPct = static_cast<float>(isrMaxCycles) * 100.0f /
                        (F_CPU_ACTUAL / 44100.0f);
-        Serial.printf("[cpu] ISR=%.1f%% src=[%d,%d]\n",
-                      cpuPct, srcRingAvailable(0), srcRingAvailable(1));
+        Serial.printf("[cpu] ISR=%.1f%% src=[%d,%d,%d]\n",
+                      cpuPct, srcRingAvailable(0), srcRingAvailable(1),
+                      srcRingAvailable(2));
         isrMaxCycles = 0;
     }
 
