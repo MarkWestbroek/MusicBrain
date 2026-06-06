@@ -6,18 +6,40 @@
 
 ---
 
+## Key insight: 32 kHz vs 44.1 kHz
+
+The Elements DSP runs natively at **32 kHz** (`elements::kSampleRate`). The
+current firmware resamples to 44.1 kHz **only because USB audio requires it** —
+the Teensy Audio Library's USB output is fixed at 44.1 kHz.
+
+In production, the output will be **analog** (DAC on PCB). This means:
+
+- **No resampling needed** — the DAC can run at 32 kHz directly
+- **No Audio Library needed** — no USB audio, no AudioConnection graph
+- **No PIT ISR needed** — Part::Process output goes straight to DAC buffer
+- **CPU savings**: PIT ISR currently costs 4.2% for resampling + mixing
+- **Code simplification**: entire dual-rate layer disappears
+
+This changes the architecture significantly. Below we describe both the
+**current prototype** (USB audio, dual-rate) and the **production target**
+(analog output, native 32 kHz).
+
+---
+
 ## Option 1: Second Teensy as DSP Slave (Recommended)
 
 ### Concept
 
 Run a second Teensy 4.1 as a dedicated DSP slave. The master Teensy handles
-MIDI, voice allocation, reverb, and USB audio. The slave runs 5 additional
-`Part::Process()` voices and sends rendered 32 kHz audio blocks back to the
-master via SPI.
+MIDI, voice allocation, reverb, and output. The slave runs 5 additional
+`Part::Process()` voices and sends rendered audio to the master via SPI.
 
 **Result**: 10 voices (5 master + 5 slave) with minimal inter-chip latency.
 
-### Architecture
+### Architecture — Production (analog output, native 32 kHz)
+
+This is the simpler and final architecture. Both Teensies run Elements at its
+native 32 kHz. No resampling, no Audio Library, no USB audio.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -27,24 +49,64 @@ master via SPI.
 │                              → SPI: overflow notes to slave │
 │                                                             │
 │  loop(): 5× Part::Process(16) → 5× 32kHz ring buffers      │
-│  + SPI RX: 5× 16-sample blocks from slave                  │
-│  PIT ISR: resample + mix 10 voices → 44.1kHz ring buffer   │
-│  Audio ISR: feeder → reverb → USB audio                     │
+│  DAC ISR: mix 5 local voices + slave stream → DAC output    │
+│  Reverb: applied to combined mix before DAC                  │
 └─────────────────────────────────────────────────────────────┘
-          │ MOSI (note/CC data)     │ MISO (audio blocks)
+          │ MOSI (note/CC data)     │ MISO (audio stream)
           │ SCK                     │ CS
           ▼                         ▼
 ┌─────────────────────────────────────────────────────────────┐
 │  Slave Teensy 4.1                                           │
 │                                                             │
 │  SPI RX: noteOn/off + CC → 5 voices                         │
-│  loop(): 5× Part::Process(16) → local 32kHz ring buffers   │
-│  SPI TX: 5× 16-sample stereo blocks → master               │
+│  loop(): 5× Part::Process(16) → 5× 32kHz ring buffers      │
+│  SPI TX: 32kHz pre-mixed stereo blocks → master             │
 │                                                             │
-│  NO: USB audio, USB MIDI, reverb, Audio Library             │
-│  YES: Part::Process, ring buffers, SPI slave driver         │
+│  NO: USB audio, USB MIDI, reverb, Audio Library, PIT ISR    │
+│  YES: Part::Process, ring buffers, SPI slave driver          │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+**Slave is very simple**: just Part::Process in loop() + SPI TX of pre-mixed
+stereo blocks. No PIT ISR, no resampler, no Audio Library. The slave mixes
+its 5 voices internally (same `0.4f` per-voice level) and sends one stereo
+stream at 32 kHz.
+
+### Architecture — Prototype (USB audio, dual-rate 32→44.1 kHz)
+
+This is the current development setup, using USB audio for testing without
+soldering. The master resamples to 44.1 kHz for USB output.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Master Teensy 4.1                                          │
+│                                                             │
+│  USB-MIDI → Voice Allocator → 5 local voices               │
+│                              → SPI: overflow notes to slave │
+│                                                             │
+│  loop(): 5× Part::Process(16) → 5× 32kHz ring buffers      │
+│  PIT ISR: resample 5 local + mix slave stream → 44.1kHz     │
+│  Audio ISR: feeder → reverb → USB audio                     │
+└─────────────────────────────────────────────────────────────┘
+          │ MOSI (note/CC data)     │ MISO (audio stream)
+          │ SCK                     │ CS
+          ▼                         ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Slave Teensy 4.1                                           │
+│                                                             │
+│  SPI RX: noteOn/off + CC → 5 voices                         │
+│  loop(): 5× Part::Process(16) → 5× 32kHz ring buffers      │
+│  PIT ISR: resample + mix 5 voices → 44.1kHz stereo stream  │
+│  SPI TX: 44.1kHz stereo blocks → master                    │
+│                                                             │
+│  NO: USB audio, USB MIDI, reverb, Audio Library             │
+│  YES: Part::Process, ring buffers, PIT ISR, SPI slave       │
+└─────────────────────────────────────────────────────────────┘
+```
+
+In the prototype, the slave also needs a PIT ISR to resample its 5 voices
+to 44.1 kHz before sending via SPI. This is temporary — in production both
+Teensies run native 32 kHz and the PIT ISR disappears.
 
 ### Inter-chip communication
 
@@ -52,69 +114,101 @@ master via SPI.
 The existing SPI frame protocol (`doc/protocols/spi-frame.md`) can be extended
 with new opcodes for audio transport.
 
-**New opcodes needed**:
+**New opcodes needed** (for control data, extending existing SPI frame protocol):
 
 | Opcode | Name | Direction | Payload |
 |-------:|------|-----------|---------|
 | `0x40` | `NoteOn` | master → slave | `u8 voice, u8 note, u8 velocity` |
 | `0x41` | `NoteOff` | master → slave | `u8 voice` |
 | `0x42` | `CcSet` | master → slave | `u8 cc, i16 value` |
-| `0x50` | `AudioBlock` | slave → master | `u8 voice, 16× i16 L, 16× i16 R` (66 bytes) |
 
-**Audio block payload**: 1 voice × 16 samples × 2 channels × 2 bytes = 64 bytes
-+ 1 voice byte + 1 padding = 66 bytes. This exceeds the current 56-byte payload
-limit. Options:
-- (a) Increase max payload to 64 bytes (still fits CAN-FD 64-byte field minus
-  header/CRC, but tight). Or split into two frames per block.
-- (b) Send 5 voices × 16 samples as a bulk transfer: 5×64 = 320 bytes. This
-  needs a multi-frame protocol or raw SPI DMA (no frame overhead).
-- (c) **Simplest**: use raw SPI DMA for audio, not the framed protocol. The
-  framed protocol is for CV/gate (low bandwidth, needs CRC). Audio is high-
-  bandwidth and continuous — DMA with a simple header is better.
+**Audio transport** (slave → master): not using the framed protocol.
+The slave sends a continuous stream of pre-mixed stereo blocks via SPI DMA.
+Each block: `[u8 magic][u8 block_seq][16× i16 L][16× i16 R]` = 66 bytes.
+The magic/seq header allows the master to detect dropped blocks.
 
 **Recommended**: Dual SPI channel approach:
 - **SPI framed protocol** (existing): for note/CC control data (low bandwidth,
   ~100 bytes/sec, needs CRC).
-- **SPI DMA audio stream**: for rendered audio blocks (high bandwidth, continuous,
-  no CRC needed — audio glitches are audible but not catastrophic).
+- **SPI DMA audio stream**: for rendered stereo blocks (128–176 KB/sec,
+  continuous, simple header — no CRC needed, audio glitches are audible but
+  not catastrophic).
 
-Actually, the simplest approach is even simpler: **the master sends MIDI-like
-control via the existing SPI frame protocol, and the slave sends audio back
-via a separate SPI DMA channel or even I²S**.
+**Alternative: I²S for audio transport.** The Teensy 4.1 has a hardware I²S
+peripheral that could carry the audio stream instead of SPI DMA. I²S is
+designed for continuous audio streaming and would be even simpler to set up
+(no custom framing needed). The slave would output I²S, the master would
+receive I²S and mix it with local voices. This keeps SPI free for control
+data only. **I²S is worth investigating** — it may be the cleanest solution
+for audio transport between two Teensies.
+
+**Another alternative: analog mixing.** If both Teensies have DAC outputs,
+the simplest approach is: each Teensy outputs its 5 voices to its own DAC
+channel, and the analog signals are mixed externally (summing opamp or
+resistor network). No inter-chip audio transport at all! Only SPI for
+control data. This is the **absolute simplest** production architecture.
 
 ### Bandwidth analysis
 
-**Control data (master → slave)**:
+**Control data (master → slave)** — same for both scenarios:
 - NoteOn/NoteOff: ~10 events/sec × 4 bytes = 40 bytes/sec
 - CC changes: ~5 events/sec × 4 bytes = 20 bytes/sec
 - Total: ~60 bytes/sec — trivial, even at 1 MHz SPI
 
-**Audio data (slave → master)**:
-- 5 voices × 32 kHz × 2 channels × 2 bytes (int16) = 640 KB/sec
-- At 20 MHz SPI: 2.5 MB/sec raw → 640 KB/sec is 25% utilization ✅
-- At 10 MHz SPI: 1.25 MB/sec raw → 640 KB/sec is 51% utilization ✅
-- Block-based: 5 voices × 16 samples × 4 bytes = 320 bytes per block
-  × 2000 blocks/sec (32kHz/16) = 640 KB/sec ✅
+**Audio data (slave → master)** — depends on scenario:
 
-**Latency**: One 16-sample block = 0.5 ms at 32 kHz. SPI transfer of 320 bytes
-at 20 MHz = 160 µs. Total inter-chip latency: **~0.66 ms** — imperceptible.
+| Scenario | Stream format | Bandwidth | SPI @ 20 MHz util |
+|----------|--------------|-----------|--------------------|
+| **Production** (32 kHz) | 1 pre-mixed stereo × 32kHz × 2ch × 2B | **128 KB/sec** | 5% ✅✅ |
+| **Prototype** (44.1 kHz) | 1 pre-mixed stereo × 44.1kHz × 2ch × 2B | **176 KB/sec** | 7% ✅✅ |
 
-### Slave firmware simplification
+Both are very low — SPI has ample headroom.
 
-The slave Teensy runs a stripped-down version of `app-elements`:
+**Latency**:
+- Production: 1 block at 32 kHz = 0.5 ms. SPI transfer of 64 bytes at 20 MHz
+  = 32 µs. Total: **~0.53 ms** — imperceptible.
+- Prototype: 1 block at 44.1 kHz = 0.36 ms. SPI transfer of 66 bytes at 20 MHz
+  = 33 µs. Total: **~0.39 ms** — imperceptible.
+
+### Slave firmware — Production (native 32 kHz)
+
+The production slave is **very simple** — no PIT ISR, no resampler, no Audio
+Library. Just Part::Process + SPI:
 
 | Component | Master | Slave |
 |-----------|--------|-------|
 | Part::Process(16) | ✅ 5 voices | ✅ 5 voices |
 | Ring buffers (32kHz) | ✅ 5 voices | ✅ 5 voices |
-| PIT ISR (resample) | ✅ 10 voices | ❌ not needed |
-| Audio Library | ✅ USB output | ❌ not needed |
-| Reverb | ✅ | ❌ (master does reverb) |
+| DAC ISR (mix → DAC) | ✅ 5 local + slave stream | ❌ (no DAC) |
+| PIT ISR (resample) | ❌ (native 32kHz → DAC) | ❌ not needed |
+| Audio Library | ❌ (analog output) | ❌ not needed |
+| Reverb | ✅ (on combined mix) | ❌ (master does reverb) |
 | USB MIDI | ✅ | ❌ (control via SPI) |
-| Voice allocator | ✅ round-robin | ❌ (master assigns) |
-| SPI master | ✅ | ❌ |
+| Voice allocator | ✅ round-robin (0–9) | ❌ (master assigns) |
+| SPI master | ✅ (TX control, RX audio) | ❌ |
 | SPI slave | ❌ | ✅ (RX control, TX audio) |
-| Serial debug | ✅ non-blocking | optional (debug only) |
+
+**Slave loop()**: render 5 voices → mix into stereo → push to SPI TX ring
+buffer. The SPI DMA drains the ring buffer continuously. No ISR needed on
+the slave at all — the loop() just keeps the ring buffer filled.
+
+### Slave firmware — Prototype (USB audio, dual-rate)
+
+For the prototype (USB audio testing), the slave also needs a PIT ISR to
+resample to 44.1 kHz:
+
+| Component | Master | Slave |
+|-----------|--------|-------|
+| Part::Process(16) | ✅ 5 voices | ✅ 5 voices |
+| Ring buffers (32kHz) | ✅ 5 voices | ✅ 5 voices |
+| PIT ISR (resample + mix) | ✅ 5 local + slave stream | ✅ 5 voices → 44.1kHz stereo |
+| 44.1 kHz ring buffer | ✅ (to Audio feeder) | ✅ (to SPI TX) |
+| Audio Library | ✅ USB output | ❌ not needed |
+| Reverb | ✅ (on combined mix) | ❌ (master does reverb) |
+| USB MIDI | ✅ | ❌ (control via SPI) |
+| Voice allocator | ✅ round-robin (0–9) | ❌ (master assigns) |
+| SPI master | ✅ (TX control, RX audio) | ❌ |
+| SPI slave | ❌ | ✅ (RX control, TX audio) |
 
 **Slave memory**: same hybrid DTCM/OCRAM layout as master. No Audio Library
 saves ~20KB DTCM. No reverb saves 64KB DTCM. No USB saves some RAM.
@@ -122,9 +216,13 @@ Estimated: **~60KB more free DTCM, ~20KB more free OCRAM** than master.
 
 ### Does the slave need the Audio Library?
 
-**No.** The slave doesn't produce USB audio. It renders Part::Process(16) in
-loop() and sends raw 32kHz float/int16 blocks via SPI. No AudioConnection
-graph, no AudioStream, no AudioMemory. This is a significant simplification.
+**No, in both scenarios.** The slave never produces USB audio.
+
+- **Production**: slave mixes 5 voices at 32 kHz and sends via SPI. No Audio
+  Library, no PIT ISR, no resampler. Very simple.
+- **Prototype**: slave resamples to 44.1 kHz in its own PIT ISR and sends
+  via SPI. Still no Audio Library — the PIT ISR output goes to a ring buffer
+  that SPI DMA drains, not to an Audio feeder.
 
 ### Voice allocation across two Teensies
 
@@ -157,14 +255,15 @@ variant.
 
 | Aspect | Assessment |
 |--------|------------|
-| **Complexity** | Low — reuse existing Part::Process code, add SPI slave driver |
-| **Latency** | ~0.66 ms — imperceptible |
+| **Complexity** | Low — reuse existing code, add SPI slave driver |
+| **Latency** | ~0.4–0.5 ms — imperceptible |
 | **Voice count** | 10 (5+5) — doubles capacity |
 | **Cost** | ~€25 for second Teensy 4.1 |
 | **Development time** | ~1–2 weeks for SPI slave driver + stripped firmware |
 | **Risk** | Low — well-understood SPI on Teensy, proven DSP code |
 | **Power** | Two Teensies ~0.5W each = 1W total |
 | **Size** | Two Teensy boards in one eurorack module (3U × ~8HP) |
+| **Analog mixing option** | Even simpler — no audio over SPI, just analog summing |
 
 ---
 
@@ -265,30 +364,55 @@ practical.
 
 ## Implementation Plan (Option 1)
 
-### Phase 1: SPI audio transport prototype (~1 week)
+### Phase 0: Decide audio transport method (~1 day)
+
+Evaluate three options for getting slave audio to master:
+1. **SPI DMA**: custom framing, moderate complexity, works today.
+2. **I²S**: hardware peripheral, simplest framing, needs Teensy I²S slave mode
+   investigation.
+3. **Analog mixing**: each Teensy → own DAC → external summing. **Simplest
+   production path** — no digital audio transport at all. Only SPI for control.
+
+**Recommendation**: start with analog mixing for production (each Teensy has
+its own DAC channel on the PCB). For the USB-audio prototype, use SPI DMA
+to stream audio back to the master (since there's no DAC yet).
+
+### Phase 1: SPI control transport prototype (~3 days)
 
 1. Create `app-elements-slave` firmware project (stripped-down `app-elements`).
 2. Implement SPI slave driver on slave Teensy:
    - RX: framed protocol for NoteOn/NoteOff/CC (reuse existing `SpiFrame`).
-   - TX: raw DMA for audio blocks (5 voices × 16 samples × stereo).
-3. Implement SPI master audio RX on master Teensy:
+3. Implement SPI master control TX on master Teensy:
    - TX: framed protocol for control data.
-   - RX: DMA for audio blocks from slave.
-4. Test with 1 voice on slave, verify audio quality and latency.
+4. Test: master sends NoteOn/NoteOff via SPI, slave renders and verifies
+   audio output (initially via its own USB audio for debugging).
 
-### Phase 2: 10-voice integration (~1 week)
+### Phase 2: Audio transport (~1 week)
+
+**For prototype (USB audio)**:
+1. Add SPI DMA audio stream from slave → master.
+2. Master PIT ISR mixes slave stream with local voices.
+3. Test 10-voice polyphony via USB audio.
+
+**For production (analog output)**:
+1. Each Teensy outputs to its own DAC channel.
+2. External analog summing (opamp or resistor network).
+3. Reverb applied to combined analog mix (or digitally on master before DAC).
+4. No audio over SPI needed — only control data.
+
+### Phase 3: 10-voice integration (~1 week)
 
 1. Extend voice allocator to 10 voices (0–4 local, 5–9 remote).
-2. Extend PIT ISR to resample + mix 10 voices (5 local + 5 from slave).
-3. Test under MIDI load, measure CPU on both Teensies.
-4. Verify minSrc stability on both sides.
+2. Test under MIDI load, measure CPU on both Teensies.
+3. Verify minSrc stability on both sides.
+4. Tune mix levels (5×0.4 per Teensy, analog summing handles the rest).
 
-### Phase 3: Integration with app-modular-brain (~future)
+### Phase 4: Integration with app-modular-brain (~future)
 
 1. Merge DSP slave concept into the existing two-Teensy architecture
    (`doc/tech/two-teensy-spi.md`).
-2. One Teensy = CV brain + 5 local voices + reverb + USB audio.
-3. Other Teensy = 5 DSP voices + SPI slave.
+2. One Teensy = CV brain + 5 local voices + reverb + DAC output.
+3. Other Teensy = 5 DSP voices + DAC output + SPI slave (control only).
 4. Editor config: `host` field determines voice distribution.
 
 ---
