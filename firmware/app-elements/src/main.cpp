@@ -1,15 +1,17 @@
-// MusicBrain — app-elements SPIKE.
+// MusicBrain — app-elements SPIKE, 2-voice polyphony test.
 //
-// Goal: measure the audio-block CPU cost of one ported Mutable Instruments
-// *Elements* voice on a Teensy 4.1 before integrating `tp_mmb_elements` into
-// app-modular-brain.
+// v0.2.0: Dual-thread rendering pattern.
+// - Part::Process(16) runs in loop() (background, non-ISR)
+// - PIT ISR only does resample + mix from pre-rendered 32 kHz ring buffer
+// - Audio Library only handles USB output via minimal feeder
 //
-// Signal path: ElementsVoice (AudioStream) -> USB audio (L+R).
-// Control:     USB-MIDI noteOn/off -> voice.noteOn(hz, strength).
+// This avoids the bursty CPU load that caused crackling with 2 voices
+// in the Audio Library's single ISR approach.
 //
-// Every second the loop prints AudioProcessorUsageMax() (the headline number
-// for "how many voices fit") and AudioMemoryUsageMax(). Play notes, watch the
-// peak settle, then divide the budget to estimate the voice count.
+// Signal path: loop() → 2× Part::Process(16) → 32 kHz ring buffer
+//              PIT ISR → resample → mix → 44.1 kHz ring buffer
+//              Audio ISR → feeder → USB audio
+// Control:     USB-MIDI noteOn/off → round-robin voice allocator
 
 #include <Arduino.h>
 #include <Audio.h>
@@ -17,126 +19,313 @@
 #include <cmath>
 
 #include "FwVersion.h"
-#include "ElementsModule.h"
-#include "ElementsReverbModule.h"
+
+#include "elements/dsp/dsp.h"
+#include "elements/dsp/part.h"
 
 namespace {
 
-mmb_link::ElementsModule elementsModule{"elements1"};
-mmb_link::ElementsReverbModule reverbModule{"reverb1"};
-AudioOutputUSB           usbOut;
+// ---------------------------------------------------------------------------
+// 2× Part instances (the raw DSP, no AudioStream wrapper).
+// ---------------------------------------------------------------------------
+elements::Part parts[2];
+elements::PerformanceState perfState[2];
 
-// 64 KB reverb delay line in OCRAM (DMAMEM) — too large for DTCM.
-DMAMEM uint16_t reverbBuffer[32768];
+// ---------------------------------------------------------------------------
+// 32 kHz ring buffer: loop() writes, PIT ISR reads.
+// ---------------------------------------------------------------------------
+// Each voice produces stereo (main + aux) at 32 kHz.
+// We need enough buffer to cover the worst-case PIT ISR consumption rate.
+// PIT ISR consumes ~32000/44100 ≈ 0.726 source samples per output sample.
+// At 44.1 kHz, that's ~0.726 × 44100 = 32000 source samples/sec.
+// Buffer of 256 stereo frames = ~8 ms of audio at 32 kHz.
+constexpr int kSrcRingSize = 512;
 
-// Voice -> Reverb -> USB.
-AudioConnection v2rL{ elementsModule.voice(), 0, reverbModule.stream(), 0 };
-AudioConnection v2rR{ elementsModule.voice(), 1, reverbModule.stream(), 1 };
-AudioConnection r2uL{ reverbModule.stream(), 0, usbOut, 0 };
-AudioConnection r2uR{ reverbModule.stream(), 1, usbOut, 1 };
+struct SrcStereoSample { float l; float r; };
+
+// Per-voice source ring buffers.
+SrcStereoSample srcRing[2][kSrcRingSize];
+volatile int srcWriteIdx[2] = {0, 0};
+volatile int srcReadIdx[2]  = {0, 0};
+
+inline int srcRingAvailable(int v) {
+    int avail = srcWriteIdx[v] - srcReadIdx[v];
+    if (avail < 0) avail += kSrcRingSize;
+    return avail;
+}
+
+inline void srcRingPush(int v, float l, float r) {
+    srcRing[v][srcWriteIdx[v]].l = l;
+    srcRing[v][srcWriteIdx[v]].r = r;
+    srcWriteIdx[v] = (srcWriteIdx[v] + 1) % kSrcRingSize;
+}
+
+inline SrcStereoSample srcRingPop(int v) {
+    SrcStereoSample s = srcRing[v][srcReadIdx[v]];
+    srcReadIdx[v] = (srcReadIdx[v] + 1) % kSrcRingSize;
+    return s;
+}
+
+// ---------------------------------------------------------------------------
+// 44.1 kHz ring buffer: PIT ISR writes, Audio feeder reads.
+// ---------------------------------------------------------------------------
+constexpr int kOutRingSize = 256;
+
+struct OutStereoSample { int16_t l; int16_t r; };
+OutStereoSample outRing[kOutRingSize];
+volatile int outWriteIdx = 0;
+volatile int outReadIdx  = 0;
+
+inline int outRingAvailable() {
+    int avail = outWriteIdx - outReadIdx;
+    if (avail < 0) avail += kOutRingSize;
+    return avail;
+}
+
+inline void outRingPush(int16_t l, int16_t r) {
+    outRing[outWriteIdx].l = l;
+    outRing[outWriteIdx].r = r;
+    outWriteIdx = (outWriteIdx + 1) % kOutRingSize;
+}
+
+inline OutStereoSample outRingPop() {
+    OutStereoSample s = outRing[outReadIdx];
+    outReadIdx = (outReadIdx + 1) % kOutRingSize;
+    return s;
+}
+
+// ---------------------------------------------------------------------------
+// PIT ISR — resample + mix, one 44.1 kHz sample per interrupt.
+// ---------------------------------------------------------------------------
+// This ISR is LIGHT: it only does linear interpolation resampling and mixing.
+// The heavy Part::Process() work happens in loop() which pre-fills the
+// 32 kHz ring buffers. The ISR just reads from those buffers.
+
+volatile uint32_t isrMaxCycles = 0;
+
+// Per-voice resampler state.
+struct ResamplerState {
+    float phase = 0.0f;
+    float s0L   = 0.0f;
+    float s1L   = 0.0f;
+    float s0R   = 0.0f;
+    float s1R   = 0.0f;
+    static constexpr float kStep = 32000.0f / 44100.0f;
+};
+
+ResamplerState rs[2];
+
+void pitCallback() {
+    uint32_t entry = ARM_DWT_CYCCNT;
+
+    float mixL = 0.0f;
+    float mixR = 0.0f;
+
+    for (int v = 0; v < 2; ++v) {
+        // Linear interpolation resampling.
+        float yL = rs[v].s0L + (rs[v].s1L - rs[v].s0L) * rs[v].phase;
+        float yR = rs[v].s0R + (rs[v].s1R - rs[v].s0R) * rs[v].phase;
+
+        rs[v].phase += ResamplerState::kStep;
+        while (rs[v].phase >= 1.0f) {
+            rs[v].phase -= 1.0f;
+            rs[v].s0L = rs[v].s1L;
+            rs[v].s0R = rs[v].s1R;
+            // Pull next 32 kHz sample from ring buffer.
+            if (srcRingAvailable(v) > 0) {
+                SrcStereoSample s = srcRingPop(v);
+                rs[v].s1L = s.l;
+                rs[v].s1R = s.r;
+            } else {
+                // Underrun — repeat last sample (causes slight distortion
+                // but avoids silence/crackle).
+                rs[v].s1L = rs[v].s0L;
+                rs[v].s1R = rs[v].s0R;
+            }
+        }
+
+        if (yL > 1.0f) yL = 1.0f; else if (yL < -1.0f) yL = -1.0f;
+        if (yR > 1.0f) yR = 1.0f; else if (yR < -1.0f) yR = -1.0f;
+
+        mixL += yL * 0.7f;
+        mixR += yR * 0.7f;
+    }
+
+    if (mixL > 1.0f) mixL = 1.0f; else if (mixL < -1.0f) mixL = -1.0f;
+    if (mixR > 1.0f) mixR = 1.0f; else if (mixR < -1.0f) mixR = -1.0f;
+
+    outRingPush(static_cast<int16_t>(mixL * 32767.0f),
+               static_cast<int16_t>(mixR * 32767.0f));
+
+    uint32_t exit = ARM_DWT_CYCCNT;
+    uint32_t cycles = exit - entry;
+    if (cycles > isrMaxCycles) isrMaxCycles = cycles;
+}
+
+// ---------------------------------------------------------------------------
+// UsbFeeder — minimal AudioStream that reads from the output ring buffer.
+// ---------------------------------------------------------------------------
+class UsbFeeder : public AudioStream {
+public:
+    UsbFeeder() : AudioStream(0, nullptr) {}
+
+    void update() override {
+        audio_block_t* blockL = allocate();
+        audio_block_t* blockR = allocate();
+        if (!blockL || !blockR) {
+            if (blockL) release(blockL);
+            if (blockR) release(blockR);
+            return;
+        }
+
+        for (int i = 0; i < AUDIO_BLOCK_SAMPLES; ++i) {
+            if (outRingAvailable() > 0) {
+                OutStereoSample s = outRingPop();
+                blockL->data[i] = s.l;
+                blockR->data[i] = s.r;
+            } else {
+                blockL->data[i] = 0;
+                blockR->data[i] = 0;
+            }
+        }
+
+        transmit(blockL, 0);
+        transmit(blockR, 1);
+        release(blockL);
+        release(blockR);
+    }
+};
+
+AudioOutputUSB usbOut;
+UsbFeeder      feeder;
+AudioConnection feederToUsbL{ feeder, 0, usbOut, 0 };
+AudioConnection feederToUsbR{ feeder, 1, usbOut, 1 };
+
+// IntervalTimer for 44.1 kHz sample-by-sample output.
+IntervalTimer pitTimer;
+
+// ---------------------------------------------------------------------------
+// Simple 2-voice allocator.
+// ---------------------------------------------------------------------------
+struct VoiceAlloc {
+    uint8_t note = 255;
+    bool    gate = false;
+};
+VoiceAlloc voiceAlloc_[2];
 
 constexpr uint8_t kHeartbeatPin = LED_BUILTIN;
 uint32_t lastBlinkMs = 0;
-uint32_t lastReportMs = 0;
+uint32_t lastCpuReportMs = 0;
 bool ledState = false;
 
 inline float noteToHz(uint8_t note) {
     return 440.0f * powf(2.0f, (static_cast<int>(note) - 69) / 12.0f);
 }
 
-void handleNoteOn(uint8_t /*ch*/, uint8_t note, uint8_t velocity) {
-    if (velocity == 0) return;  // running-status note-off
+void noteOn(uint8_t note, uint8_t velocity) {
     const float strength = velocity / 127.0f;
-    elementsModule.voice().noteOn(noteToHz(note), strength);
-    Serial.printf("[midi] strike note=%u hz=%.1f strength=%.2f\n",
-                  note, noteToHz(note), strength);
+    const float hz = noteToHz(note);
+
+    for (int i = 0; i < 2; ++i) {
+        if (voiceAlloc_[i].note == note) {
+            perfState[i].note     = 69.0f + 12.0f * log2f(hz / 440.0f);
+            perfState[i].strength = strength;
+            perfState[i].gate     = true;
+            return;
+        }
+    }
+
+    for (int i = 0; i < 2; ++i) {
+        if (!voiceAlloc_[i].gate) {
+            perfState[i].note     = 69.0f + 12.0f * log2f(hz / 440.0f);
+            perfState[i].strength = strength;
+            perfState[i].gate     = true;
+            voiceAlloc_[i].note   = note;
+            voiceAlloc_[i].gate   = true;
+            return;
+        }
+    }
+
+    perfState[0].note     = 69.0f + 12.0f * log2f(hz / 440.0f);
+    perfState[0].strength = strength;
+    perfState[0].gate     = true;
+    voiceAlloc_[0].note   = note;
+    voiceAlloc_[0].gate   = true;
 }
 
-void handleNoteOff(uint8_t /*ch*/, uint8_t /*note*/, uint8_t /*velocity*/) {
-    // Release the gate: bow/blow exciters stop, a struck resonator rings out.
-    elementsModule.voice().noteOff();
+void noteOff(uint8_t note) {
+    for (int i = 0; i < 2; ++i) {
+        if (voiceAlloc_[i].note == note && voiceAlloc_[i].gate) {
+            perfState[i].gate     = false;
+            voiceAlloc_[i].gate   = false;
+            voiceAlloc_[i].note   = 255;
+            return;
+        }
+    }
 }
 
-/// Map MIDI CC to Elements controls.
-/// CC 1,16-30 → Patch parameters (value 0-127 → 0.0-1.0).
+void handleNoteOn(uint8_t /*ch*/, uint8_t note, uint8_t velocity) {
+    if (velocity == 0) { noteOff(note); return; }
+    noteOn(note, velocity);
+}
+
+void handleNoteOff(uint8_t /*ch*/, uint8_t note, uint8_t /*velocity*/) {
+    noteOff(note);
+}
+
 void handleControlChange(uint8_t /*ch*/, uint8_t cc, uint8_t value) {
-    // Log every CC so we see what the Keystep actually sends.
-    Serial.printf("[midi] CC#%u = %u\n", cc, value);
-
     const float v = value / 127.0f;
-    switch (cc) {
-        case 1:  // mod wheel → exciter envelope shape
-            elementsModule.setControl("envelope", v);
-            Serial.printf("[midi]   → envelope=%.2f\n", v);
-            break;
-        case 16: // exciter mode: 0=bow, ~64=blow, 127=strike
-            elementsModule.setControl("exciter", static_cast<int32_t>(v * 2.0f + 0.5f));
-            Serial.printf("[midi]   → exciter=%d\n", static_cast<int>(v * 2.0f + 0.5f));
-            break;
-        case 17: // geometry
-            elementsModule.setControl("geometry", v);
-            Serial.printf("[midi]   → geometry=%.2f\n", v);
-            break;
-        case 18: // brightness
-            elementsModule.setControl("brightness", v);
-            Serial.printf("[midi]   → brightness=%.2f\n", v);
-            break;
-        case 19: // damping
-            elementsModule.setControl("damping", v);
-            Serial.printf("[midi]   → damping=%.2f\n", v);
-            break;
-        case 20: // position
-            elementsModule.setControl("position", v);
-            Serial.printf("[midi]   → position=%.2f\n", v);
-            break;
-        case 21: // space
-            elementsModule.setControl("space", v);
-            Serial.printf("[midi]   → space=%.2f\n", v);
-            break;
-        case 22: // bow timbre
-            elementsModule.setControl("bow_timbre", v);
-            Serial.printf("[midi]   → bow_timbre=%.2f\n", v);
-            break;
-        case 23: // blow timbre
-            elementsModule.setControl("blow_timbre", v);
-            Serial.printf("[midi]   → blow_timbre=%.2f\n", v);
-            break;
-        case 24: // strike timbre
-            elementsModule.setControl("strike_timbre", v);
-            Serial.printf("[midi]   → strike_timbre=%.2f\n", v);
-            break;
-        case 25: // blow meta
-            elementsModule.setControl("blow_meta", v);
-            Serial.printf("[midi]   → blow_meta=%.2f\n", v);
-            break;
-        case 26: // strike meta
-            elementsModule.setControl("strike_meta", v);
-            Serial.printf("[midi]   → strike_meta=%.2f\n", v);
-            break;
-        case 27: // exciter signature
-            elementsModule.setControl("signature", v);
-            Serial.printf("[midi]   → signature=%.2f\n", v);
-            break;
-        case 28: // resonator modulation frequency
-            elementsModule.setControl("mod_freq", v);
-            Serial.printf("[midi]   → mod_freq=%.2f\n", v);
-            break;
-        case 29: // resonator modulation offset
-            elementsModule.setControl("mod_offset", v);
-            Serial.printf("[midi]   → mod_offset=%.2f\n", v);
-            break;
-        case 30: // FM amount (±24 semitones at extremes)
-            elementsModule.setControl("fm", v);
-            Serial.printf("[midi]   → fm=%.2f\n", v);
-            break;
-        case 31: // standalone reverb amount
-            reverbModule.setControl("amount", v);
-            Serial.printf("[midi]   → reverb_amount=%.2f\n", v);
-            break;
-        case 32: // reverb time
-            reverbModule.setControl("time", v);
-            Serial.printf("[midi]   → reverb_time=%.2f\n", v);
-            break;
+    for (int i = 0; i < 2; ++i) {
+        elements::Patch* p = parts[i].mutable_patch();
+        switch (cc) {
+            case 1:  p->exciter_envelope_shape = v; break;
+            case 16: {
+                int mode = static_cast<int>(v * 2.0f + 0.5f);
+                p->exciter_bow_level    = (mode == 0) ? 0.8f : 0.0f;
+                p->exciter_blow_level   = (mode == 1) ? 0.8f : 0.0f;
+                p->exciter_strike_level = (mode == 2) ? 0.8f : 0.0f;
+                break;
+            }
+            case 17: p->resonator_geometry   = v; break;
+            case 18: p->resonator_brightness = v; break;
+            case 19: p->resonator_damping    = v; break;
+            case 20: p->resonator_position   = v; break;
+            case 21: p->space                = v; break;
+            case 22: p->exciter_bow_timbre   = v; break;
+            case 23: p->exciter_blow_timbre  = v; break;
+            case 24: p->exciter_strike_timbre = v; break;
+            case 25: p->exciter_blow_meta    = v; break;
+            case 26: p->exciter_strike_meta  = v; break;
+            case 27: p->exciter_signature    = v; break;
+            case 28: p->resonator_modulation_frequency = (v * 2.0f) / 32000.0f; break;
+            case 29: p->resonator_modulation_offset = v; break;
+            case 30: perfState[i].modulation = v * 48.0f - 24.0f; break;
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Background rendering — runs in loop(), pre-fills 32 kHz ring buffers.
+// ---------------------------------------------------------------------------
+// Each Part::Process(16) call produces 16 stereo samples at 32 kHz.
+// We keep the ring buffers filled so the PIT ISR never underruns.
+
+void renderBackground() {
+    static const float kSilence[elements::kMaxBlockSize] = {};
+
+    for (int v = 0; v < 2; ++v) {
+        // Only render if the ring buffer has room for at least 16 samples.
+        // (kSrcRingSize - srcRingAvailable(v)) gives free space.
+        int freeSpace = kSrcRingSize - srcRingAvailable(v);
+        if (freeSpace >= static_cast<int>(elements::kMaxBlockSize)) {
+            float main[elements::kMaxBlockSize];
+            float aux[elements::kMaxBlockSize];
+            parts[v].Process(perfState[v], kSilence, kSilence,
+                             main, aux, elements::kMaxBlockSize);
+            for (size_t i = 0; i < elements::kMaxBlockSize; ++i) {
+                srcRingPush(v, main[i], aux[i]);
+            }
+        }
     }
 }
 
@@ -147,7 +336,7 @@ void setup() {
     Serial.begin(115200);
     uint32_t t0 = millis();
     while (!Serial && (millis() - t0) < 1500) { /* spin briefly */ }
-    Serial.printf("[boot] app-elements spike %s online\n", FW_VERSION);
+    Serial.printf("[boot] app-elements 2-voice dual-thread %s online\n", FW_VERSION);
     Serial.printf("[boot] CPU @ %lu MHz\n",
                   static_cast<unsigned long>(F_CPU_ACTUAL / 1000000));
     if (CrashReport) {
@@ -156,43 +345,60 @@ void setup() {
         Serial.println("[boot] *** end CrashReport ***");
     }
 
-    AudioMemory(60);
+    // Enable ARM cycle counter for CPU measurement.
+    ARM_DEMCR |= ARM_DEMCR_TRCENA;
+    ARM_DWT_CTRL |= ARM_DWT_CTRL_CYCCNTENA;
 
-    // Initialise the DSP before audio runs.
-    elementsModule.begin();
-    reverbModule.begin(reverbBuffer);
-    reverbModule.setControl("amount", 1.0f);   // FORCE WET for debug
-    reverbModule.setControl("time", 0.8f);
-    reverbModule.setControl("diffusion", 0.625f);
-    reverbModule.setControl("lp", 0.7f);
-    Serial.println("[reverb] FORCED WET amount=1.0 at boot");
+    // Initialise Parts.
+    for (auto& p : parts) p.Init();
+    for (auto& ps : perfState) {
+        ps.gate       = false;
+        ps.note       = 69.0f;
+        ps.modulation = 0.0f;
+        ps.strength   = 0.8f;
+    }
+
+    // Audio library: minimal — just USB output + feeder.
+    AudioMemory(20);
+
+    // Pre-fill the 32 kHz ring buffers before starting the PIT timer.
+    // This ensures the ISR has data from the very first sample.
+    for (int fill = 0; fill < 4; ++fill) {  // 4 × 16 = 64 samples per voice
+        renderBackground();
+    }
+
+    // Start PIT timer for 44.1 kHz sample-by-sample output.
+    pitTimer.begin(pitCallback, 1000000.0f / 44100.0f);
 
     usbMIDI.setHandleNoteOn(handleNoteOn);
     usbMIDI.setHandleNoteOff(handleNoteOff);
     usbMIDI.setHandleControlChange(handleControlChange);
 
-    // Register the factory so the module is ready for app-modular-brain reuse.
-    mmb_link::ElementsModule::registerFactory();
-
-    Serial.println("[boot] *** REV 2: reverb FORCED WET at boot ***");
-    Serial.println("[boot] play MIDI notes to strike the resonator");
-    Serial.println("[boot] MIDI CC: 1=envelope 16=exciter 17=geom 18=bright 19=damp 20=pos 21=space");
-    Serial.println("[boot]            22=bowTim 23=blowTim 24=strikeTim 25=blowMeta 26=strikeMeta");
-    Serial.println("[boot]            27=signature 28=modFreq 29=modOffset 30=FM 31=reverbAmt 32=reverbTime");
+    Serial.println("[boot] 2-voice dual-thread ready. Part in loop(), resample in ISR.");
+    Serial.println("[boot] Hold 2 notes to test polyphony.");
 }
 
 void loop() {
+    // Background rendering: keep the 32 kHz ring buffers filled.
+    // This is the TOP priority — always render before anything else.
+    renderBackground();
+
+    // MIDI input.
     while (usbMIDI.read()) { /* drain */ }
+
+    // Render again after MIDI processing (MIDI may have changed perfState).
+    renderBackground();
 
     const uint32_t now = millis();
 
-    if (now - lastReportMs >= 1000) {
-        lastReportMs = now;
-        Serial.printf("[cpu] audio peak=%.1f%%  mem peak=%u/60 blocks\n",
-                      AudioProcessorUsageMax(),
-                      static_cast<unsigned>(AudioMemoryUsageMax()));
-        AudioProcessorUsageMaxReset();
-        AudioMemoryUsageMaxReset();
+    // CPU report every 5 seconds (less Serial = less blocking).
+    if (now - lastCpuReportMs >= 5000) {
+        lastCpuReportMs = now;
+        float cpuPct = static_cast<float>(isrMaxCycles) * 100.0f /
+                       (F_CPU_ACTUAL / 44100.0f);
+        Serial.printf("[cpu] ISR=%.1f%% src=[%d,%d]\n",
+                      cpuPct, srcRingAvailable(0), srcRingAvailable(1));
+        isrMaxCycles = 0;
     }
 
     if (now - lastBlinkMs >= 500) {
@@ -200,6 +406,4 @@ void loop() {
         ledState = !ledState;
         digitalWrite(kHeartbeatPin, ledState ? HIGH : LOW);
     }
-
-    // reverb debug removed
 }
