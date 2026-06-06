@@ -12,6 +12,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { t } from '../i18n';
+import { DeviceApi } from '../api/deviceApi';
 
 type Transport = 'auto' | 'wifi' | 'usb';
 
@@ -66,21 +67,21 @@ export function SettingsButton(): JSX.Element {
     saveSettings(next);
   }
 
-  /** Simulated connection test. Replace the body with a real fetch() later. */
-  function testConnection(): void {
+  /** Real connection test: GET /api/status from the device. */
+  async function testConnection(): Promise<void> {
     setTesting(true);
     setTest(null);
-    window.setTimeout(() => {
-      // Simulate success 80 % of the time so the UI path is exercisable.
-      const ok = Math.random() > 0.2;
-      if (ok) {
-        setTest(t('settings.ok', { info: 'firmware v0.1.0, uptime 42 s' }));
-        update({ lastSync: new Date().toISOString() });
-      } else {
-        setTest(t('settings.fail', { err: 'ECONNREFUSED (device not reachable)' }));
-      }
+    try {
+      const api = new DeviceApi(`http://${settings.deviceUrl}`);
+      const status = await api.getStatus();
+      const uptimeSec = Math.round(status.uptimeMs / 1000);
+      setTest(`OK — ${status.chip} fw${status.firmware}, WiFi ${status.wifi.ssid} (${status.wifi.ip}), ${uptimeSec}s up`);
+      update({ lastSync: new Date().toISOString() });
+    } catch (err) {
+      setTest(`FAIL — ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
       setTesting(false);
-    }, 900);
+    }
   }
 
   const lastSyncLabel = settings.lastSync

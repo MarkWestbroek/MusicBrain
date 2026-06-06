@@ -1,20 +1,13 @@
-// secrets.h.example — copy to `secrets.h` (which is git-ignored) and fill in.
-//
-// `secrets.h` is included by main.cpp. Do NOT commit your own credentials.
-
+// secrets.h — local WiFi credentials (git-ignored, do NOT commit)
 #pragma once
 
 // ─── WiFi credentials ──────────────────────────────────────────────────────
-#define MB_WIFI_SSID     "MB-FXSwitcher"
+#define MB_WIFI_SSID     "EucaliptaKPN"
 #define MB_WIFI_PASSWORD "tucan8000"
 
 // ─── mDNS hostname ─────────────────────────────────────────────────────────
-// The device will be reachable at http://<MB_HOSTNAME>.local
-// (Bonjour / mDNS must be enabled on the host computer — Windows ships it
-//  with iTunes / Bonjour Print Services; macOS has it built-in.)
-#define MB_HOSTNAME "musicbrain"
+#define MB_HOSTNAME "musicbrain-pico"
 
 // ─── Optional: HTTP basic auth ─────────────────────────────────────────────
-// Leave the values empty to disable authentication.
 #define MB_HTTP_USER ""
 #define MB_HTTP_PASS ""

@@ -18,6 +18,9 @@
 import { useState } from 'react';
 import { useProject } from './store';
 import { t } from '../i18n';
+import { DeviceApi } from '../api/deviceApi';
+import { loadProject } from './actions';
+import { DEFAULT_CATEGORIES, type SwitcherProject } from './types';
 
 // ─── Hardware display variants ───────────────────────────────────────────────
 
@@ -64,58 +67,221 @@ export function EditorSimulationPanel(): JSX.Element {
 
   const variant = DISPLAY_VARIANTS.find((v) => v.id === variantId) ?? DISPLAY_VARIANTS[0]!;
 
+  // Read device URL from localStorage (same key as SettingsPanel)
+  const deviceUrl = (() => {
+    try {
+      const raw = localStorage.getItem('mb.settings.v1');
+      if (raw) return JSON.parse(raw).deviceUrl || 'musicbrain.local';
+    } catch { /* ignore */ }
+    return 'musicbrain.local';
+  })();
+  const api = new DeviceApi(`http://${deviceUrl}`);
+
   /** Append a log line. Keeps the last 40 entries. */
   function push(from: 'browser' | 'device', text: string): void {
     setLog((prev) => [...prev.slice(-39), { t: Date.now(), from, text }]);
   }
 
-  // Simulated requests: just push to log + nudge the device screen.
-  function doConnect(): void {
-    setConnected(true);
-    setScreen({ kind: 'connected' });
-    push('browser', `connect via ${transport.toUpperCase()}`);
-    push('device',  `200 OK — handshake`);
+  // Real HTTP requests to the device.
+  async function doConnect(): Promise<void> {
+    push('browser', `connect via ${transport.toUpperCase()} → ${deviceUrl}`);
+    try {
+      const status = await api.getStatus();
+      setConnected(true);
+      setScreen({ kind: 'connected' });
+      push('device', `200 OK — ${status.chip} fw${status.firmware}, ${status.wifi.ip}`);
+    } catch (err) {
+      push('device', `FAIL — ${err instanceof Error ? err.message : String(err)}`);
+    }
   }
   function doDisconnect(): void {
     setConnected(false);
     setScreen({ kind: 'idle' });
     push('browser', 'disconnect');
   }
-  function doGetConfig(): void {
+  async function doGetConfig(): Promise<void> {
     push('browser', 'GET /api/config');
     setScreen({ kind: 'fetching' });
-    window.setTimeout(() => {
-      const name = project.name || '(unnamed)';
-      const cv   = project.configVersion || '—';
-      push('device', `200 OK — "${name}" v${cv} · ${project.devices.length} devices, ${project.patches.length} patches`);
+    try {
+      const config = await api.getConfig();
+      // Show detailed summary
+      push('device', `200 OK — "${config.name}" v${config.configVersion}`);
+      push('device', `  ${config.devices.length} devices, ${config.patches.length} patches`);
+      if (config.devices.length > 0) {
+        const deviceList = config.devices.slice(0, 5).map((d: any) => `${d.brand} ${d.model}`).join(', ');
+        push('device', `  Devices: ${deviceList}${config.devices.length > 5 ? '...' : ''}`);
+      }
+      if (config.patches.length > 0) {
+        const patchList = config.patches.slice(0, 5).map((p: any) => p.name).join(', ');
+        push('device', `  Patches: ${patchList}${config.patches.length > 5 ? '...' : ''}`);
+      }
       setScreen({ kind: 'connected' });
-    }, 500);
+    } catch (err) {
+      push('device', `FAIL — ${err instanceof Error ? err.message : String(err)}`);
+      setScreen({ kind: 'connected' });
+    }
   }
-  function doPutConfig(): void {
+  async function doLoadFromDevice(): Promise<void> {
+    push('browser', 'Loading config into editor (smart merge)...');
+    setScreen({ kind: 'fetching' });
+    try {
+      const config = await api.getConfig();
+      // Smart merge: match existing devices by brand+model to preserve
+      // images, positions, and the visual chain layout.
+      const existingDevices = project.devices;
+      let matchedCount = 0;
+      let newCount = 0;
+      
+      // Sort devices by relayIndex so the physical signal chain is honoured
+      const sortedConfigDevices = [...config.devices].sort(
+        (a: any, b: any) => a.relayIndex - b.relayIndex
+      );
+      
+      // Build new device list. Matched devices keep x, y, imageDataUrl, categoryId.
+      const devices = sortedConfigDevices.map((d: any) => {
+        const existing = existingDevices.find(
+          e => e.brand === d.brand && e.model === d.model
+        );
+        
+        if (existing) {
+          matchedCount++;
+          // Preserve EVERYTHING from the editor (x, y, image, category, …)
+          // Only update the relayIndex coming from the device.
+          return { ...existing, relayIndex: d.relayIndex };
+        } else {
+          newCount++;
+          // Brand-new device from the firmware — no image, default position
+          return {
+            id: d.id,
+            brand: d.brand,
+            model: d.model,
+            categoryId: 'utility',
+            relayIndex: d.relayIndex,
+            x: 80 + newCount * 220,
+            y: 160,
+          };
+        }
+      });
+      
+      // Build ID mapping so patches point to the right editor device IDs.
+      const idMap = new Map<string, string>();
+      devices.forEach((d: any) => {
+        const cd = config.devices.find(
+          (cd: any) => cd.brand === d.brand && cd.model === d.model && cd.relayIndex === d.relayIndex
+        );
+        if (cd) idMap.set(cd.id, d.id);
+      });
+      
+      const patches = config.patches.map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        bypassed: (p.bypassed || []).map((configId: string) => idMap.get(configId) || configId),
+      }));
+      
+      // ── Edges: preserve existing layout where possible ─────────────────
+      const newDeviceIds = new Set(devices.map((d: any) => d.id));
+      const validNodeIds = new Set([...newDeviceIds, 'input', 'output']);
+      
+      // Keep edges where both source and target still exist.
+      let edges = project.edges.filter(
+        (e) => validNodeIds.has(e.source) && validNodeIds.has(e.target)
+      );
+      
+      // If the user never had edges (fresh project) fall back to linear chain.
+      if (edges.length === 0 && devices.length > 0) {
+        edges = [
+          { id: `e_input_${devices[0].id}`, source: 'input', target: devices[0].id },
+          ...devices.slice(0, -1).map((d: any, i: number) => ({
+            id: `e_${d.id}_${devices[i + 1].id}`,
+            source: d.id,
+            target: devices[i + 1].id,
+          })),
+          {
+            id: `e_${devices[devices.length - 1].id}_output`,
+            source: devices[devices.length - 1].id,
+            target: 'output',
+          },
+        ];
+      }
+
+      const mergedProject: SwitcherProject = {
+        version: 1,
+        name: config.name,
+        configVersion: config.configVersion,
+        relayCount: config.relayCount || 16,
+        categories: DEFAULT_CATEGORIES,
+        activePatchId: config.activePatchId || 0,
+        edges,
+        devices,
+        patches,
+      };
+      
+      loadProject(mergedProject);
+      push('device', `200 OK — merged: ${matchedCount} matched, ${newCount} new`);
+      push('device', `  ${devices.length} devices, ${patches.length} patches`);
+      setScreen({ kind: 'connected' });
+    } catch (err) {
+      push('device', `FAIL — ${err instanceof Error ? err.message : String(err)}`);
+      setScreen({ kind: 'connected' });
+    }
+  }
+  async function doPutConfig(): Promise<void> {
     push('browser', `PUT /api/config (${project.devices.length} devices)`);
     setScreen({ kind: 'receiving' });
-    window.setTimeout(() => {
+    try {
+      // Convert project to device config format
+      // EffectDevice: { id, brand, model, categoryId, relayIndex, x, y }
+      // SwitcherPatch: { id, name, bypassed: string[] }
+      const config = {
+        version: 1,  // required by firmware schema validation
+        activePatchId: project.activePatchId,
+        name: project.name || 'unnamed',
+        configVersion: project.configVersion || '1.0',
+        relayCount: project.relayCount,
+        devices: project.devices.map(d => ({
+          id: d.id,
+          brand: d.brand,
+          model: d.model,
+          relayIndex: d.relayIndex
+        })),
+        patches: project.patches.map(p => ({
+          id: p.id,
+          name: p.name,
+          bypassed: p.bypassed
+        }))
+      };
+      await api.putConfig(config as any);
       push('device', '200 OK — config persisted to LittleFS');
       setScreen({ kind: 'connected' });
-    }, 600);
+    } catch (err) {
+      push('device', `FAIL — ${err instanceof Error ? err.message : String(err)}`);
+      setScreen({ kind: 'connected' });
+    }
   }
-  function doGetStatus(): void {
+  async function doGetStatus(): Promise<void> {
     push('browser', 'GET /api/status');
-    // firmware version and config version are independent:
-    // firmware 0.1.0 = the .bin flashed on the chip
-    // configVersion  = user-managed label on the project (e.g. '2.0.0')
-    const cv = project.configVersion ? ` · config v${project.configVersion}` : '';
-    push('device', `200 OK — firmware v0.1.0${cv}, uptime ${Math.round(performance.now() / 1000)}s, free heap 142 KiB`);
+    try {
+      const status = await api.getStatus();
+      const uptimeSec = Math.round(status.uptimeMs / 1000);
+      const heapKiB = Math.round(status.freeHeap / 1024);
+      push('device', `200 OK — ${status.chip} fw${status.firmware}, uptime ${uptimeSec}s, free heap ${heapKiB} KiB`);
+    } catch (err) {
+      push('device', `FAIL — ${err instanceof Error ? err.message : String(err)}`);
+    }
   }
-  function doActivate(): void {
+  async function doActivate(): Promise<void> {
     const id = activateId;
     const name = project.patches.find((p) => p.id === id)?.name ?? '';
     push('browser', `POST /api/patch/${id}`);
     setScreen({ kind: 'applying', patch: id });
-    window.setTimeout(() => {
+    try {
+      await api.activatePatch(id);
       push('device', `200 OK — relays driven for "${name}" (patch ${id})`);
       setScreen({ kind: 'connected' });
-    }, 400);
+    } catch (err) {
+      push('device', `FAIL — ${err instanceof Error ? err.message : String(err)}`);
+      setScreen({ kind: 'connected' });
+    }
   }
 
   // ─── Screen text ─────────────────────────────────────────────────────────
@@ -156,6 +322,7 @@ export function EditorSimulationPanel(): JSX.Element {
           <button disabled={!connected} onClick={doGetStatus}>{t('sim.editor.getStatus')}</button>
           <button disabled={!connected} onClick={doGetConfig}>{t('sim.editor.getConfig')}</button>
           <button disabled={!connected} onClick={doPutConfig}>{t('sim.editor.putConfig')}</button>
+          <button disabled={!connected} onClick={doLoadFromDevice} title="Load config from device into editor (smart merge: preserves images)">⬇ Load from device</button>
           <div className="es-edsim-activate-row">
             <select
               disabled={!connected}
