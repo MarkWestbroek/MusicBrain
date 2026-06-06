@@ -706,3 +706,133 @@ instance lives once in OCRAM.
 5. **Reverb sample rate scaling:** The Dattorro engine is tuned for 32 kHz.
    Running at 44.1 kHz without scaling changes decay times and LFO rates.
    Options: (a) add a resampler, or (b) scale delay-line lengths by 44100/32000.
+
+---
+
+# ADR 0013 — 4-Voice Polyphony with Dual-Thread Rendering (2026-06-06)
+
+## Problem
+
+The original Audio Library approach (v0.1–v0.2) caused **audio crackling** with
+2+ voices because the Audio Library's ISR calls `update()` for all connected
+streams in one burst, causing both voices to call `Part::Process()` (heavy DSP)
+simultaneously inside the ISR. This creates CPU spikes that exceed the 2.9 ms
+block deadline.
+
+Additionally, placing `DMAMEM elements::Part parts[4]` in OCRAM causes a
+**DACCVIOL crash** at address 0x4 (nullptr dereference) because C++ objects
+with vtables and internal pointers cannot reliably live in OCRAM on Cortex-M7
+without careful D-Cache coherency management.
+
+## Solution: Dual-Thread + OCRAM Delay-Line Buffers
+
+### Architecture (v0.4.0)
+
+```mermaid
+graph TD
+    subgraph Loop["loop() — background thread"]
+        RB["renderBackground()"] --> P1["Part[0].Process(16)"]
+        RB --> P2["Part[1].Process(16)"]
+        RB --> P3["Part[2].Process(16)"]
+        RB --> P4["Part[3].Process(16)"]
+        P1 --> SR0["srcRing[0] ← main,aux"]
+        P2 --> SR1["srcRing[1] ← main,aux"]
+        P3 --> SR2["srcRing[2] ← main,aux"]
+        P4 --> SR3["srcRing[3] ← main,aux"]
+    end
+
+    subgraph ISR["PIT ISR — 44.1 kHz sample-by-sample"]
+        PIT["pitCallback()"] --> RS0["resample voice 0"]
+        PIT --> RS1["resample voice 1"]
+        PIT --> RS2["resample voice 2"]
+        PIT --> RS3["resample voice 3"]
+        RS0 --> MIX["mix L/R × 0.5"]
+        RS1 --> MIX
+        RS2 --> MIX
+        RS3 --> MIX
+        MIX --> OR["outRing ← int16"]
+    end
+
+    subgraph AudioISR["Audio Library ISR — 128-sample blocks"]
+        UF["UsbFeeder::update()"] --> ORR["outRing → int16"]
+        ORR --> USB["AudioOutputUSB"]
+    end
+
+    SR0 -.->|32 kHz ring buffer| RS0
+    SR1 -.->|32 kHz ring buffer| RS1
+    SR2 -.->|32 kHz ring buffer| RS2
+    SR3 -.->|32 kHz ring buffer| RS3
+    OR -.->|44.1 kHz ring buffer| ORR
+```
+
+### Key Design Decisions
+
+1. **Part::Process in loop(), not ISR**: The heavy DSP (107KB struct, 64 Svf
+   filters, 5 Karplus-Strong strings) runs in the background thread. The ISR
+   only does lightweight linear interpolation resampling + mixing (~3.8% CPU).
+
+2. **Ring buffer decoupling**: Two ring buffer layers separate the threads:
+   - 32 kHz `SrcStereoSample` ring (loop writes, ISR reads) — 512 frames per voice
+   - 44.1 kHz `OutStereoSample` ring (ISR writes, Audio feeder reads) — 256 frames
+
+3. **Part structs in DTCM, delay-line buffers in OCRAM**: The `Part`/`Voice`
+   structs (~3KB each) live in DTCM (fast, cache-coherent). The large delay-line
+   buffers (~96KB per voice) live in OCRAM via `DMAMEM` + `VoiceBuffers` pointer
+   indirection. After `Part::Init()`, `arm_dcache_flush_delete()` ensures
+   cache coherency for the OCRAM regions.
+
+4. **VoiceBuffers indirection**: `DelayLine<float, N>` was modified to accept
+   an external `float*` buffer pointer instead of an inline `T line_[N]` array.
+   `VoiceBuffers` structs in `main.cpp` wire each Voice's delay lines to their
+   OCRAM-allocated buffers. This avoids placing C++ objects in OCRAM (which
+   crashes) while still offloading the bulk of the memory.
+
+### Memory Layout (v0.4.0)
+
+| Region | Used | Free | Contents |
+|--------|------|------|----------|
+| **RAM1 (DTCM)** | ~95 KB | **363 KB** | Part structs (4×~3KB), ring buffers, Audio lib, stack |
+| **RAM2 (OCRAM)** | ~417 KB | **108 KB** | Delay-line buffers (4×~96KB), Audio block pool |
+| **FLASH** | ~470 KB | ~7.6 MB | Code + lookup tables |
+
+Per-voice OCRAM breakdown:
+- 5 × StringDelayLine (2048 floats) = 40,960 bytes
+- 5 × StiffnessDelayLine (1024 floats) = 20,480 bytes
+- 8 × ResonatorBowDelayLine (1024 floats) = 32,768 bytes
+- 1 × DiffuserBuffer (1024 floats) = 4,096 bytes
+- **Total: ~98,304 bytes (~96KB) per voice**
+
+### Vendored Code Changes
+
+| File | Change |
+|------|--------|
+| `stmlib/dsp/delay_line.h` | `T line_[max_delay]` → `T* line_` (pointer). Added `Init(T* external_buffer)` overload. `Reset()` checks `line_ != nullptr`. |
+| `elements/dsp/string.h` | `Init(bool, float* string_buf, float* stretch_buf)` — accepts external delay-line buffers. |
+| `elements/dsp/string.cc` | Passes external buffers to `DelayLine::Init()` when provided. |
+| `elements/dsp/resonator.h` | `Init(float** bow_bufs)` — accepts external bow delay-line buffer pointers. |
+| `elements/dsp/resonator.cc` | Passes external buffers to `DelayLine::Init()` when provided. |
+| `elements/dsp/voice.h` | Added `VoiceBuffers` struct (string_buf[5], stretch_buf[5], resonator_bow_buf[8], diffuser_buf). `Init(const VoiceBuffers*)`, `ResetResonator(const VoiceBuffers*)`. |
+| `elements/dsp/voice.cc` | Passes buffers down to String/Resonator/Diffuser init. |
+| `elements/dsp/part.h` | `Init(const VoiceBuffers*)` — passes buffers to Voice::Init(). |
+| `elements/dsp/part.cc` | Passes buffers to `voice_[i].Init(buffers)`. |
+
+### CPU Budget (v0.4.0)
+
+| Component | CPU % | Notes |
+|-----------|-------|-------|
+| PIT ISR (resample + mix 4 voices) | **3.8%** | ~0.7% per voice added |
+| Part::Process × 4 (loop) | ~88% estimated | 4 × ~22% per voice |
+| Audio Library (USB output) | ~1% | Minimal feeder only |
+| **Total** | ~93% | Fits within 600 MHz budget |
+
+### Version History
+
+| Version | Voices | Approach | Status |
+|---------|--------|----------|--------|
+| 0.1.0 | 1 | Audio Library ISR | ✅ works, no crackling |
+| 0.2.0 | 2 | Audio Library ISR | ❌ crackling (bursty ISR) |
+| 0.2.1 | 2 | PIT ISR + Part in ISR | ❌ 738% CPU |
+| 0.2.2 | 2 | Dual-thread (Part in loop) | ✅ clean, 2.5% ISR |
+| 0.3.0 | 4 | DMAMEM Part in OCRAM | ❌ DACCVIOL crash |
+| 0.3.1 | 3 | Part in DTCM | ✅ clean, 3.1% ISR |
+| **0.4.0** | **4** | **DTCM Part + OCRAM buffers** | **✅ clean, 3.8% ISR** |

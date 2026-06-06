@@ -47,6 +47,19 @@ namespace elements {
 
 const size_t kNumStrings = 5;
 
+// External buffer pointers for Voice delay lines.
+// Allows placing large delay-line buffers in OCRAM (DMAMEM) while
+// keeping the Voice struct itself in DTCM.
+struct VoiceBuffers {
+  // String delay lines: 5 strings × (main + stretch).
+  float* string_buf[kNumStrings];      // 5 × kDelayLineSize floats
+  float* stretch_buf[kNumStrings];     // 5 × kDelayLineSize/2 floats
+  // Resonator bow delay lines: 8 × kMaxDelayLineSize floats.
+  float* resonator_bow_buf[kMaxBowedModes];
+  // Diffuser buffer: 1024 floats (also used by FxEngine).
+  float* diffuser_buf;
+};
+
 enum ResonatorModel {
   RESONATOR_MODEL_MODAL,
   RESONATOR_MODEL_STRING,
@@ -58,7 +71,7 @@ class Voice {
   Voice() { }
   ~Voice() { }
   
-  void Init();
+  void Init(const VoiceBuffers* buffers = nullptr);
   void Process(
       const Patch& patch,
       float frequency,
@@ -73,14 +86,14 @@ class Voice {
   // For metering.
   inline float exciter_level() const { return exciter_level_; }
   void Panic() {
-    ResetResonator();
+    ResetResonator(nullptr);
   }
   void set_resonator_model(ResonatorModel resonator_model) {
     resonator_model_ = resonator_model;
   }
   
  private:
-  void ResetResonator();
+  void ResetResonator(const VoiceBuffers* buffers);
   inline uint8_t GetGateFlags(bool gate_in) {
     uint8_t flags = 0;
     if (gate_in) {

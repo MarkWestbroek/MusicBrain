@@ -38,14 +38,18 @@ namespace elements {
 using namespace std;
 using namespace stmlib;
 
-void Voice::Init() {
+void Voice::Init(const VoiceBuffers* buffers) {
   envelope_.Init();
   bow_.Init();
   blow_.Init();
   strike_.Init();
-  diffuser_.Init(diffuser_buffer_);
   
-  ResetResonator();
+  // Use external diffuser buffer if provided, otherwise use inline buffer.
+  diffuser_.Init(buffers && buffers->diffuser_buf
+                 ? buffers->diffuser_buf
+                 : diffuser_buffer_);
+  
+  ResetResonator(buffers);
 
   bow_.set_model(EXCITER_MODEL_FLOW);
   bow_.set_parameter(0.7f);
@@ -64,10 +68,14 @@ void Voice::Init() {
   resonator_model_ = RESONATOR_MODEL_MODAL;
 }
 
-void Voice::ResetResonator() {
-  resonator_.Init();
+void Voice::ResetResonator(const VoiceBuffers* buffers) {
+  // Pass resonator bow delay line buffers if provided.
+  float** bow_bufs = buffers ? buffers->resonator_bow_buf : nullptr;
+  resonator_.Init(bow_bufs);
   for (size_t i = 0; i < kNumStrings; ++i) {
-    string_[i].Init(true);
+    float* s_buf = buffers ? buffers->string_buf[i] : nullptr;
+    float* st_buf = buffers ? buffers->stretch_buf[i] : nullptr;
+    string_[i].Init(true, s_buf, st_buf);
   }
   dc_blocker_.Init(1.0f - 10.0f / kSampleRate);
   resonator_.set_resolution(52);  // Runs with 56 extremely tightly.

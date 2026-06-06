@@ -96,7 +96,12 @@ class String {
   String() { }
   ~String() { }
   
-  void Init(bool enable_dispersion);
+  // Init with externally-provided delay line buffers (e.g. DMAMEM/OCRAM).
+  // string_buf must have kDelayLineSize floats, stretch_buf must have
+  // kDelayLineSize/2 floats.
+  void Init(bool enable_dispersion,
+            float* string_buf = nullptr,
+            float* stretch_buf = nullptr);
   void Process(const float* in, float* out, float* aux, size_t size);
   
   inline void set_frequency(float frequency) {

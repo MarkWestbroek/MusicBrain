@@ -53,7 +53,7 @@ class Part {
   Part() { }
   ~Part() { }
   
-  void Init();
+  void Init(const VoiceBuffers* buffers = nullptr);
   
   void Process(
       const PerformanceState& performance_state,

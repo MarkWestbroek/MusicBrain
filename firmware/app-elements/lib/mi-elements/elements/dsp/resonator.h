@@ -49,7 +49,10 @@ class Resonator {
   Resonator() { }
   ~Resonator() { }
   
-  void Init();
+  // Init with externally-provided delay line buffers (e.g. DMAMEM/OCRAM).
+  // bow_bufs must be an array of kMaxBowedModes float pointers, each
+  // pointing to a buffer of at least kMaxDelayLineSize floats.
+  void Init(float** bow_bufs = nullptr);
   void Process(
       const float* bow_strength,
       const float* in,

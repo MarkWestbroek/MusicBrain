@@ -1,12 +1,14 @@
-// MusicBrain — app-elements SPIKE, 3-voice polyphony test.
+// MusicBrain — app-elements SPIKE, 4-voice polyphony test.
 //
-// v0.3.1: 3-voice polyphony with dual-thread rendering.
+// v0.4.0: 4-voice polyphony with dual-thread rendering + OCRAM buffers.
 // - Part::Process(16) runs in loop() (background, non-ISR)
 // - PIT ISR only does resample + mix from pre-rendered 32 kHz ring buffer
 // - Audio Library only handles USB output via minimal feeder
-// - Parts in DTCM (DMAMEM/OCRAM crashes with DACCVIOL — C++ vtable issue)
+// - Part structs in DTCM, delay-line buffers in DMAMEM (OCRAM)
+//   (DMAMEM for C++ objects crashes with DACCVIOL, but plain float[]
+//   buffers work fine with D-Cache flush after Init)
 //
-// Signal path: loop() → 2× Part::Process(16) → 32 kHz ring buffer
+// Signal path: loop() → 4× Part::Process(16) → 32 kHz ring buffer
 //              PIT ISR → resample → mix → 44.1 kHz ring buffer
 //              Audio ISR → feeder → USB audio
 // Control:     USB-MIDI noteOn/off → round-robin voice allocator
@@ -24,20 +26,30 @@
 namespace {
 
 // ---------------------------------------------------------------------------
-// 4× Part instances in DMAMEM (OCRAM) — too large for DTCM.
-// 4× ~107KB = ~428KB. DTCM has ~184KB free after stack/code.
-// OCRAM has ~425KB free — fits perfectly.
+// 4× Part instances in DTCM (structs only, ~3KB each).
+// Large delay-line buffers are in DMAMEM (OCRAM) via VoiceBuffers.
 // ---------------------------------------------------------------------------
-constexpr int kNumVoices = 3;
+constexpr int kNumVoices = 4;
 
-// 3× Part instances in normal RAM (DTCM).
-// 3× ~107KB = ~321KB. DTCM has ~426KB free after code/stack.
-// DMAMEM (OCRAM) doesn't work for C++ objects with vtables/constructors
-// because the D-Cache coherency issue causes DACCVIOL crashes.
-// 4 voices would need ~428KB which exceeds DTCM — we'll need to
-// extract large delay-line buffers to OCRAM separately for that.
 elements::Part parts[kNumVoices];
 elements::PerformanceState perfState[kNumVoices];
+
+// ---------------------------------------------------------------------------
+// OCRAM (DMAMEM) delay-line buffers for 4 voices.
+// Each Voice needs:
+//   5 × StringDelayLine  (2048 floats = 8192 bytes)  = 40,960
+//   5 × StiffnessDelayLine (1024 floats = 4096 bytes) = 20,480
+//   8 × ResonatorBowDelayLine (1024 floats = 4096 bytes) = 32,768
+//   1 × DiffuserBuffer (1024 floats = 4096 bytes)       =  4,096
+//   Total per voice: ~98,304 bytes (~96KB)
+//   4 voices: ~393,216 bytes (~384KB) — fits in OCRAM (500KB free)
+// ---------------------------------------------------------------------------
+DMAMEM float stringBuf[kNumVoices][5][2048];       // 5 strings × 2048
+DMAMEM float stretchBuf[kNumVoices][5][1024];      // 5 strings × 1024
+DMAMEM float resonatorBowBuf[kNumVoices][8][1024]; // 8 bow modes × 1024
+DMAMEM float diffuserBuf[kNumVoices][1024];        // 1 diffuser × 1024
+
+elements::VoiceBuffers voiceBuffers[kNumVoices];
 
 // ---------------------------------------------------------------------------
 // 32 kHz ring buffer: loop() writes, PIT ISR reads.
@@ -353,7 +365,7 @@ void setup() {
     Serial.begin(115200);
     uint32_t t0 = millis();
     while (!Serial && (millis() - t0) < 1500) { /* spin briefly */ }
-    Serial.printf("[boot] app-elements 3-voice dual-thread %s online\n", FW_VERSION);
+    Serial.printf("[boot] app-elements 4-voice dual-thread %s online\n", FW_VERSION);
     Serial.printf("[boot] CPU @ %lu MHz\n",
                   static_cast<unsigned long>(F_CPU_ACTUAL / 1000000));
     if (CrashReport) {
@@ -366,8 +378,37 @@ void setup() {
     ARM_DEMCR |= ARM_DEMCR_TRCENA;
     ARM_DWT_CTRL |= ARM_DWT_CTRL_CYCCNTENA;
 
-    // Initialise Parts.
-    for (auto& p : parts) p.Init();
+    // Wire up VoiceBuffers: point each VoiceBuffers struct to the
+    // DMAMEM (OCRAM) float arrays for that voice.
+    for (int v = 0; v < kNumVoices; ++v) {
+        for (int s = 0; s < 5; ++s) {
+            voiceBuffers[v].string_buf[s]   = stringBuf[v][s];
+            voiceBuffers[v].stretch_buf[s]   = stretchBuf[v][s];
+        }
+        for (int b = 0; b < 8; ++b) {
+            voiceBuffers[v].resonator_bow_buf[b] = resonatorBowBuf[v][b];
+        }
+        voiceBuffers[v].diffuser_buf = diffuserBuf[v];
+    }
+
+    // Initialise Parts with OCRAM buffers.
+    for (int i = 0; i < kNumVoices; ++i) {
+        parts[i].Init(&voiceBuffers[i]);
+    }
+
+    // Flush D-Cache: Init() wrote to DMAMEM (OCRAM) buffers via the cache.
+    // The Cortex-M7 D-Cache must be flushed so that subsequent reads from
+    // OCRAM (e.g. during Part::Process in loop()) see the initialized data.
+    // arm_dcache_flush_delete() pushes dirty cache lines to physical RAM
+    // and invalidates them, forcing fresh reads from physical OCRAM.
+    arm_dcache_flush_delete(reinterpret_cast<void*>(stringBuf),
+                            sizeof(stringBuf));
+    arm_dcache_flush_delete(reinterpret_cast<void*>(stretchBuf),
+                            sizeof(stretchBuf));
+    arm_dcache_flush_delete(reinterpret_cast<void*>(resonatorBowBuf),
+                            sizeof(resonatorBowBuf));
+    arm_dcache_flush_delete(reinterpret_cast<void*>(diffuserBuf),
+                            sizeof(diffuserBuf));
     for (auto& ps : perfState) {
         ps.gate       = false;
         ps.note       = 69.0f;
@@ -391,8 +432,9 @@ void setup() {
     usbMIDI.setHandleNoteOff(handleNoteOff);
     usbMIDI.setHandleControlChange(handleControlChange);
 
-    Serial.println("[boot] 3-voice dual-thread ready. Part in loop(), resample in ISR.");
-    Serial.println("[boot] Hold 3 notes to test polyphony.");
+    Serial.println("[boot] 4-voice dual-thread ready. Part in loop(), resample in ISR.");
+    Serial.println("[boot] Delay-line buffers in OCRAM, Part structs in DTCM.");
+    Serial.println("[boot] Hold 4 notes to test polyphony.");
 }
 
 void loop() {
@@ -413,9 +455,9 @@ void loop() {
         lastCpuReportMs = now;
         float cpuPct = static_cast<float>(isrMaxCycles) * 100.0f /
                        (F_CPU_ACTUAL / 44100.0f);
-        Serial.printf("[cpu] ISR=%.1f%% src=[%d,%d,%d]\n",
+        Serial.printf("[cpu] ISR=%.1f%% src=[%d,%d,%d,%d]\n",
                       cpuPct, srcRingAvailable(0), srcRingAvailable(1),
-                      srcRingAvailable(2));
+                      srcRingAvailable(2), srcRingAvailable(3));
         isrMaxCycles = 0;
     }
 

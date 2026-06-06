@@ -39,15 +39,25 @@ namespace stmlib {
 template<typename T, size_t max_delay>
 class DelayLine {
  public:
-  DelayLine() { }
+  DelayLine() : line_(nullptr) { }
   ~DelayLine() { }
   
+  // Init with externally-provided buffer (e.g. DMAMEM/OCRAM).
+  // The buffer must have at least max_delay elements and remain
+  // valid for the lifetime of this DelayLine.
+  void Init(T* external_buffer) {
+    line_ = external_buffer;
+    Reset();
+  }
+
   void Init() {
     Reset();
   }
 
   void Reset() {
-    std::fill(&line_[0], &line_[max_delay], T(0));
+    if (line_) {
+      std::fill(&line_[0], &line_[max_delay], T(0));
+    }
     delay_ = 1;
     write_ptr_ = 0;
   }
@@ -107,7 +117,7 @@ class DelayLine {
  private:
   size_t write_ptr_;
   size_t delay_;
-  T line_[max_delay];
+  T* line_;  // Pointer to externally-allocated buffer (DMAMEM/OCRAM).
   
   DISALLOW_COPY_AND_ASSIGN(DelayLine);
 };

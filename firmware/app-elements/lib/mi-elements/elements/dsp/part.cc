@@ -35,7 +35,7 @@ namespace elements {
 using namespace std;
 using namespace stmlib;
 
-void Part::Init() {
+void Part::Init(const VoiceBuffers* buffers) {
   patch_.exciter_envelope_shape = 1.0f;
   patch_.exciter_bow_level = 0.0f;
   patch_.exciter_bow_timbre = 0.5f;
@@ -62,7 +62,7 @@ void Part::Init() {
   fill(&note_[0], &note_[kNumVoices], 69.0f);
   
   for (size_t i = 0; i < kNumVoices; ++i) {
-    voice_[i].Init();
+    voice_[i].Init(buffers);
   }
   
   scaled_exciter_level_ = 0.0f;

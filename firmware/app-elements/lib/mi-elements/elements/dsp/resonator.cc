@@ -41,14 +41,18 @@ namespace elements {
 using namespace std;
 using namespace stmlib;
 
-void Resonator::Init() {
+void Resonator::Init(float** bow_bufs) {
   for (size_t i = 0; i < kMaxModes; ++i) {
     f_[i].Init();
   }
 
   for (size_t i = 0; i < kMaxBowedModes; ++i) {
     f_bow_[i].Init();
-    d_bow_[i].Init();
+    if (bow_bufs && bow_bufs[i]) {
+      d_bow_[i].Init(bow_bufs[i]);
+    } else {
+      d_bow_[i].Init();
+    }
   }
   
   set_frequency(220.0f / kSampleRate);

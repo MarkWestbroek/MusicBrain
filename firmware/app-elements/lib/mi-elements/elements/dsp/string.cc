@@ -43,11 +43,21 @@ namespace elements {
 using namespace std;
 using namespace stmlib;
 
-void String::Init(bool enable_dispersion) {
+void String::Init(bool enable_dispersion,
+                  float* string_buf,
+                  float* stretch_buf) {
   enable_dispersion_ = enable_dispersion;
   
-  string_.Init();
-  stretch_.Init();
+  if (string_buf) {
+    string_.Init(string_buf);
+  } else {
+    string_.Init();
+  }
+  if (stretch_buf) {
+    stretch_.Init(stretch_buf);
+  } else {
+    stretch_.Init();
+  }
   fir_damping_filter_.Init();
   iir_damping_filter_.Init();
   
