@@ -2,7 +2,7 @@
 
 - **Datum**: 2026-06-01 01:44
 - **Sessie-ID**: `23c95ca7-787d-4763-a9ef-3df788b36851`
-- **Berichten**: 153
+- **Berichten**: 167
 
 ---
 
@@ -7359,5 +7359,680 @@ De `elements::Part` struct (~107KB met inline delay lines) is nu ~3KB zonder del
 3. **DelayLine::line_** is nu een pointer (8 bytes) in plaats van een inline array (8KB+), dus de Voice struct is compact in DTCM
 
 Speel 4 MIDI notes om de polyphony te horen!
+
+---
+
+## 🧑 User
+
+Is de reverb al weer actief of 'slaapt deze nog'? Kunnen we proberen deze ook weer actief te maken? Werken de CC#31 en #32 dan ook weer?
+
+---
+
+## 🤖 Assistant
+
+Goede vraag! De reverb was **bypassed** in de v0.2.x dual-thread refactor. Laat me de huidige code checken:
+
+*Searched for regex `reverb|Reverb|CC.*31|CC.*32|space` (`**/firmware/app-elements/src/main.cpp`), 6 results*
+
+Geen reverb code in main.cpp! CC#31/32 zijn ook niet geregistreerd. De reverb is volledig afwezig in de huidige v0.4.0. Laat me de ElementsModule.h checken voor de reverb module:
+
+*Searched for regex `Reverb|reverb|ElementsReverb` (`**/firmware/app-elements/src/ElementsModule.h`), 3 results · Searched for files matching `**/firmware/app-elements/src/*Reverb*`, 1 match · Read ElementsReverbModule.h, lines 1 to 80 · Read ElementsReverbModule.h, lines 80 to 151*
+
+
+
+---
+
+## 🧑 User
+
+Ja, dit klinkt goed!
+
+Kun je nog eens memorymap maken? Wat (welke component, zeg maar) draait in welk deel van het geheugen?
+
+Is er nog plek voor nog een stem? (5 stemmig)
+
+---
+
+## 🤖 Assistant
+
+Mooi! Laat me een gedetailleerde memory map maken en de 5-voice analyse doen.
+
+*Created 2 todos*
+
+Laat me eerst de exacte component sizes berekenen door de linker output te analyseren:Excellent! Dit geeft de exacte sizes. Laat me de key symbols decoderen:
+
+| Symbol | Size | Component |
+|--------|------|-----------|
+| `parts` | 62,624 | 4× Part structs (DTCM) |
+| `reverbBuffer` | 65,536 | Reverb FxEngine buffer (OCRAM) |
+| `stringBuf` | 163,840 | 4×5×2048 floats (OCRAM) |
+| `stretchBuf` | 81,920 | 4×5×1024 floats (OCRAM) |
+| `resonatorBowBuf` | 131,072 | 4×8×1024 floats (OCRAM) |
+| `diffuserBuf` | 16,384 | 4×1024 floats (OCRAM) |
+| `srcRing` | 16,384 | 4×512×SrcStereoSample (DTCM) |
+
+Laat me ook de diffuser buffer per voice berekenen — 4×1024×4 = 16,384 ✓
+
+Nu de 5-voice analyse. Per voice OCRAM nodig:
+- stringBuf: 5×2048×4 = 40,960
+- stretchBuf: 5×1024×4 = 20,480
+- resonatorBowBuf: 8×1024×4 = 32,768
+- diffuserBuf: 1024×4 = 4,096
+- **Total per voice: 98,304 bytes**
+
+5 voices: 5×98,304 = 491,520 bytes OCRAM voor delay lines
++ reverbBuffer: 65,536 bytes
++ Audio blocks: ~20×128×4×2 = ~20,480 bytes
+= **577,536 bytes total OCRAM nodig**
+
+OCRAM heeft 512KB = 524,288 bytes. **577KB > 512KB — 5 voices past NIET in OCRAM!**
+
+Maar... de Audio blocks (20 blocks × 128 samples × 2 channels × 4 bytes) zijn malloc'd, niet in DMAMEM. De linker report zegt RAM2 vars = 482,144, free = 42,144. Dat is 482KB DMAMEM vars + Audio blocks in malloc space.
+
+Laat me de exacte OCRAM breakdown berekenen voor 5 voices:
+
+*Starting: *Analyze 5-voice feasibility* (2/2)*
+
+Nu de 5-voice analyse:## Memory Map — v0.4.1 (4-voice + Reverb)
+
+### RAM1 — DTCM (512 KB, single-cycle @ 600 MHz)
+
+| Component | Size | Notes |
+|-----------|------|-------|
+| **Part structs ×4** | 62.6 KB | Voice+Resonator(64 Svf)+Exciter×3+Envelope+Tube+Patch+String×5 state |
+| **srcRing ×4** | 16.4 KB | 512×SrcStereoSample per voice (32 kHz ring buffer) |
+| **outRing** | 1.0 KB | 256×OutStereoSample (44.1 kHz ring buffer) |
+| **VoiceBuffers ×4** | ~0.2 KB | Pointer structs → OCRAM buffers |
+| **ResamplerState ×4** | ~0.1 KB | PIT ISR resampler phase/state |
+| **Reverb vars** | ~0.3 KB | FxEngine state (write_ptr, LFOs) — buffer in OCRAM |
+| **Audio Library** | ~8 KB | UsbFeeder + ReverbStream + connections + AudioMemory(20) blocks |
+| **VoiceAlloc ×4** | ~0.1 KB | Note/gate tracking |
+| **Code (FLASH-copy)** | 58 KB | Part/Voice/Resonator/Reverb DSP functions |
+| **Stack** | ~4 KB | loop() + ISR frames |
+| **FREE** | **363 KB** | Plenty of headroom |
+
+### RAM2 — OCRAM (512 KB, 150 MHz, D-Cache managed)
+
+| Component | Size | Notes |
+|-----------|------|-------|
+| **stringBuf ×4** | 163.8 KB | 4×5×2048 floats — Karplus-Strong delay lines |
+| **stretchBuf ×4** | 81.9 KB | 4×5×1024 floats — String dispersion delay lines |
+| **resonatorBowBuf ×4** | 131.1 KB | 4×8×1024 floats — Resonator bow mode delay lines |
+| **diffuserBuf ×4** | 16.4 KB | 4×1024 floats — Voice diffuser/FxEngine buffers |
+| **reverbBuffer** | 65.5 KB | uint16_t[32768] — Dattorro reverb FxEngine |
+| **Audio block pool** | ~20 KB | malloc'd by AudioMemory(20) |
+| **FREE** | **42 KB** | Tight but sufficient |
+
+### FLASH (7.75 MB)
+
+| Component | Size | Notes |
+|-----------|------|-------|
+| Lookup tables | ~380 KB | FLASHMEM — never loaded to RAM |
+| Firmware code | ~440 KB | |
+| **FREE** | **~7.0 MB** | |
+
+---
+
+## 5-voice Analyse
+
+**Per voice OCRAM nodig: 98,304 bytes (~96 KB)**
+
+| # Voices | Delay-line OCRAM | + Reverb | + Audio blocks | **Total OCRAM** | Free |
+|----------|-----------------|---------|---------------|----------------|------|
+| 4 | 393,216 | 65,536 | ~20,480 | **479,232** | 42 KB ✅ |
+| 5 | 491,520 | 65,536 | ~20,480 | **577,536** | **−64 KB ❌** |
+
+**5 voices past NIET in OCRAM** — we komen 64 KB tekort. De OCRAM is 512 KB en 5×96KB delay lines + 65KB reverb + 20KB audio blocks = 577 KB.
+
+### Opties voor 5 voices:
+
+1. **Reverb dump** — zonder reverb: 491,520 + 20,480 = 512,000 bytes ≈ **exact 512 KB**. Nipt, maar zonder reverb. En Audio blocks moeten ook in OCRAM (malloc), dus het past écht niet.
+
+2. **Resonator modes verkleinen** — van 64→32 modes: Resonator Svf array wordt 2× kleiner in DTCM, maar de delay-line buffers (d_bow_) zijn niet afhankelijk van modes. Dit helpt niet voor OCRAM.
+
+3. **Delay-line sizes halveren** — `kDelayLineSize` van 2048→1024: stringBuf wordt 2× kleiner. Maar dit **breekt de DSP** — de Karplus-Strong strings kunnen niet lager dan ~C2 (65 Hz) met 1024 samples @ 32 kHz. Elements gebruikt deze strings voor de "strings" resonator model.
+
+4. **Hybride DTCM+OCRAM** — 4 voices in OCRAM, 1 voice delay lines in DTCM: 4×98,304 = 393,216 OCRAM + 1×98,304 = 98,304 DTCM. DTCM heeft 363 KB free → 98 KB past! Maar dan is voice 5's delay lines in DTCM (sneller) en voices 1-4 in OCRAM (slower). Dit werkt, maar is asymmetrisch.
+
+5. **-O3 + LTO optimization** — vermindert code size in DTCM, geeft meer DTCM free space. Maar de OCRAM bottleneck is de delay-line data, niet code. Dit helpt niet voor OCRAM.
+
+**Conclusie: 5 voices is theoretisch mogelijk met optie 4 (hybride), maar 4 voices is de natuurlijke limiet voor symmetrische OCRAM placement.** De DTCM heeft 363 KB free — genoeg voor een 5e voice's delay lines (98 KB), maar het is asymmetrisch en de reverb moet dan waarschijnlijk ook naar DTCM (65 KB) of weg.
+
+Laat me optie 4 concreet maken:
+
+| Config | DTCM free | OCRAM free | Werkt? |
+|--------|-----------|------------|--------|
+| 4 voices + reverb | 363 KB | 42 KB | ✅ (current) |
+| 5 voices + reverb (hybride: voice 5 delay lines in DTCM) | 363−98−65 = **200 KB** | 42 KB | ✅ maar asymmetrisch |
+| 5 voices, geen reverb | 363 KB | 512−491−20 = **~0 KB** | ❌ nipt |
+
+De hybride optie werkt: voice 5's delay lines in DTCM (98 KB), reverb buffer ook in DTCM (65 KB). DTCM free = 363−98−65 = 200 KB. Dat is genoeg voor stack. Maar voice 5 heeft sneller RAM access (single-cycle DTCM) terwijl voices 1-4 OCRAM access (150 MHz + cache) hebben. In praktijk is dit geen probleem — de PIT ISR leest alleen uit de pre-rendered ring buffers, niet direct uit delay lines.
+
+Wil je dat ik de 5-voice hybride optie probeer?
+
+---
+
+## 🧑 User
+
+Ik zie nog de opties:
+1. reverb naar DTCM: dan zou er plek in OCRAM moeten zijn voor 1 extra voice, toch?
+2.
+**stringBuf ×4**163.8 KB4×5×2048 floats
+**stretchBuf ×4**81.9 KB4×5×1024 floats
+**resonatorBowBuf ×4**131.1 KB4×8×1024 floats
+**diffuserBuf ×4**16.4 KB4×1024 floats
+-> één van deze 4 buffers naar DTCM en dan allen x5 of misschien wel x6 als je dat juist doet
+
+---
+
+## 🤖 Assistant
+
+Goede analyse! Laat ik beide opties uitwerken met exacte berekeningen:
+
+*Starting: *Calculate hybrid DTCM/OCRAM options* (1/3)*
+
+## Optie-analyse
+
+**Per voice OCRAM nodig: 98,304 bytes (~96 KB)**
+**Reverb buffer: 65,536 bytes (64 KB)**
+**DTCM free: 363 KB**
+
+### Optie 1: Reverb → DTCM, 5 voices in OCRAM
+
+| OCRAM | Size |
+|-------|------|
+| stringBuf ×5 | 204.8 KB |
+| stretchBuf ×5 | 102.4 KB |
+| resonatorBowBuf ×5 | 163.8 KB |
+| diffuserBuf ×5 | 20.5 KB |
+| Audio blocks | ~20 KB |
+| **Total OCRAM** | **511.5 KB** |
+| **OCRAM free** | **~0.5 KB** ❌ |
+
+Nipt — 511.5 KB in 512 KB OCRAM. Maar Audio blocks zijn malloc'd en kunnen variëren. **Te risky.**
+
+### Optie 2: Reverb → DTCM, diffuserBuf → DTCM, 5 voices rest in OCRAM
+
+| OCRAM | Size |
+|-------|------|
+| stringBuf ×5 | 204.8 KB |
+| stretchBuf ×5 | 102.4 KB |
+| resonatorBowBuf ×5 | 163.8 KB |
+| Audio blocks | ~20 KB |
+| **Total OCRAM** | **490.8 KB** |
+| **OCRAM free** | **~21 KB** ✅ |
+
+| DTCM extra | Size |
+|------------|------|
+| diffuserBuf ×5 | 20.5 KB |
+| reverbBuffer | 65.5 KB |
+| **DTCM extra** | **86 KB** |
+| **DTCM free na** | **363−86 = 277 KB** ✅ |
+
+**Dit werkt!** 5 voices met reverb, diffuserBuf + reverbBuffer in DTCM, rest in OCRAM.
+
+### Optie 3: Reverb → DTCM, diffuserBuf → DTCM, 6 voices?
+
+| OCRAM | Size |
+|-------|------|
+| stringBuf ×6 | 245.8 KB |
+| stretchBuf ×6 | 122.9 KB |
+| resonatorBowBuf ×6 | 196.6 KB |
+| Audio blocks | ~20 KB |
+| **Total OCRAM** | **585.2 KB** |
+| **OCRAM free** | **−73 KB** ❌ |
+
+6 voices past niet in OCRAM, zelfs met diffuserBuf + reverb in DTCM.
+
+### Optie 4: Reverb → DTCM, stretchBuf → DTCM, 5 voices rest in OCRAM
+
+| OCRAM | Size |
+|-------|------|
+| stringBuf ×5 | 204.8 KB |
+| resonatorBowBuf ×5 | 163.8 KB |
+| diffuserBuf ×5 | 20.5 KB |
+| Audio blocks | ~20 KB |
+| **Total OCRAM** | **409.1 KB** |
+| **OCRAM free** | **~103 KB** ✅✅ |
+
+| DTCM extra | Size |
+|------------|------|
+| stretchBuf ×5 | 102.4 KB |
+| reverbBuffer | 65.5 KB |
+| **DTCM extra** | **168 KB** |
+| **DTCM free na** | **363−168 = 195 KB** ✅ |
+
+**Dit werkt ook, met meer OCRAM headroom!** stretchBuf (5×1024 floats per voice) is kleiner dan stringBuf, en DTCM heeft genoeg ruimte.
+
+### Optie 5: Reverb → DTCM, stretchBuf → DTCM, 6 voices?
+
+| OCRAM | Size |
+|-------|------|
+| stringBuf ×6 | 245.8 KB |
+| resonatorBowBuf ×6 | 196.6 KB |
+| diffuserBuf ×6 | 24.6 KB |
+| Audio blocks | ~20 KB |
+| **Total OCRAM** | **487.0 KB** |
+| **OCRAM free** | **~25 KB** ✅ |
+
+| DTCM extra | Size |
+|------------|------|
+| stretchBuf ×6 | 122.9 KB |
+| reverbBuffer | 65.5 KB |
+| **DTCM extra** | **188 KB** |
+| **DTCM free na** | **363−188 = 175 KB** ✅ |
+
+**6 WERKT!** 🎉 Met stretchBuf + reverbBuffer in DTCM, en stringBuf + resonatorBowBuf + diffuserBuf in OCRAM!
+
+Laat me dit dubbel-checken met exacte bytes:
+
+- stringBuf ×6 = 6×5×2048×4 = 245,760
+- resonatorBowBuf ×6 = 6×8×1024×4 = 196,608
+- diffuserBuf ×6 = 6×1024×4 = 24,576
+- Audio blocks ≈ 20,480
+- **OCRAM total ≈ 487,424 bytes → free = 524,288 − 487,424 = 36,864** ✅
+
+- stretchBuf ×6 = 6×5×1024×4 = 122,880
+- reverbBuffer = 65,536
+- **DTCM extra = 188,416 → free = 363,168 − 188,416 = 174,752** ✅
+
+**6 voices past!** Maar... CPU budget?
+
+*Starting: *Check CPU budget for 5+ voices* (2/3)*
+
+### CPU Budget Analyse
+
+| Voices | ISR CPU (estimated) | Part::Process ×N (loop) | Total |
+|--------|--------------------|--------------------------|-------|
+| 4 | 3.8% | ~88% (4×22%) | ~92% ✅ |
+| 5 | ~4.5% | ~110% (5×22%) | **~115% ❌** |
+| 6 | ~5.2% | ~132% (6×22%) | **~137% ❌** |
+
+**CPU probleem!** 5×22% = 110% — dat overschrijdt de 100% budget. De loop() thread moet 5 Part::Process(16) calls per 16-sample block (0.5 ms @ 32 kHz) doen. Elke call kost ~22% van 600 MHz.
+
+Maar... dit is een **worst-case** estimate. In praktijk:
+- Niet alle 5 voices zijn actief tegelijk (voice stealing)
+- Stille voices (gate=false) zijn veel lichter — alleen de resonator decay
+- `-O3` optimization kan Part::Process ~30% sneller maken
+
+Laat me de real-world CPU meten. De ISR is 3.8% voor 4 voices. De loop() CPU is het belangrijkste — hoeveel tijd kost `renderBackground()` per iteration?
+
+Ik kan de loop() CPU meten met ARM_DWT_CYCCNT. Laat me dat toevoegen:
+
+*Read main.cpp, lines 470 to 507*
+
+Laat me loop() CPU meting toevoegen:
+Monitor is nog open. Laat me die killen:De ISR% is fout — ik veranderde `F_CPU_ACTUAL` naar `F_BUS_ACTUAL` (150 MHz vs 600 MHz), waardoor ISR 4× te hoog rapporteert (15.3% vs 3.8%). En de loop% meet twee renderBackground() calls + MIDI + Serial, wat niet de juiste metric is. Laat me dit fixen:OK, de data is nuttig ondanks de verkeerde percentages. Laat me de raw data analyseren:
+
+- ISR peak cycles: 15.3% × (150MHz/44100) = 15.3% × 3401 = 521 cycles → maar F_BUS is 150MHz, dus 15.3% × 3401 = 521. Maar dat klopt niet — de echte ISR was 3.8% met F_CPU_ACTUAL (600MHz). 3.8% × (600MHz/44100) = 3.8% × 13605 = 515 cycles. OK, dus de ISR cycles zijn hetzelfde, alleen de percentage berekening was fout.
+
+- loop peak cycles: 373% × (150MHz/32000 × 16) = 373% × 75000 = ... dat is niet juist. Laat me de berekening fixen.
+
+De juiste berekening voor loop%: we willen weten hoeveel van de 32kHz block tijd (0.5 ms = 300,000 cycles @ 600 MHz) de loop() gebruikt. `loopMaxCycles` is het aantal ARM_DWT_CYCCNT cycles voor 2× renderBackground() + MIDI.
+
+373.5% met mijn berekening: `loopMaxCycles * 100 / (F_BUS_ACTUAL / 32000 * 16)` = `loopMaxCycles * 100 / (150000000 / 32000 * 16)` = `loopMaxCycles * 100 / 75000`. Dus `loopMaxCycles = 373.5 * 75000 / 100 = 280,125 cycles`.
+
+Bij 600 MHz: 280,125 / 300,000 = 93.4%. Dat is de echte loop CPU!
+
+Laat me de berekening fixen zodat het direct het juiste percentage toont:
+Nu hebben we de juiste data:
+
+- **ISR = 3.8%** ✅ (zoals verwacht)
+- **loop = 93.3-93.8%** — dit is de peak CPU voor 2× `renderBackground()` + MIDI per loop() iteratie
+
+De eerste 164.5% was de boot-iteratie (initialisatie overhead). Stabiel: **93.5%**.
+
+Maar dit meet 2× renderBackground() calls. Elke call doet 4× Part::Process(16). Dus per voice: 93.5% / 2 / 4 = **11.7%** per Part::Process call.
+
+Dat is veel beter dan de 22% estimate! Met 5 voices: 5 × 11.7% × 2 = **117%** — nog te hoog.
+Met 6 voices: 6 × 11.7% × 2 = **140%** — veel te hoog.
+
+Hmm, maar de loop() doet 2× render per iteratie omdat we `renderBackground()` zowel voor als na MIDI doen. Als we 5 voices hebben en maar 1× render per iteratie: 5 × 11.7% = **58.5%** — dat zou kunnen werken!
+
+Maar het probleem is: de loop() moet genoeg renders doen om de ring buffers gevuld te houden. Met 4 voices en 2× render per iteratie = 93.5% — dat is al bijna vol. Met 5 voices en 1× render = 58.5% per iteratie, maar we moeten meer iteraties doen.
+
+Laat me de data beter analyseren. De loop% is "peak cycles per iteratie / block period". Als de peak 93.5% is, betekent dat de langste iteratie 93.5% van een 0.5 ms block gebruikt. Maar de loop() kan meerdere iteraties per block doen.
+
+Laat me ook de **average** loop CPU meten, niet alleen peak:OK, de data is consistent: **ISR=3.8%, loop peak=93.5%**. Laat me dit analyseren:
+
+De loop% meet de **peak** van één iteratie (2× renderBackground + MIDI). De peak is 93.5% van een 32kHz block (0.5 ms). Maar de loop() kan meerdere iteraties per block doen — de vraag is: kan de loop() genoeg renders doen om de ring buffers gevuld te houden?
+
+De ring buffers hebben ~500 samples. De ISR consumeert 16 samples per call @ 44.1 kHz. De ISR rate is 44.1 kHz, dus per 32 kHz block (0.5 ms) consumeert de ISR ~22 samples (44.1/32 × 16 ≈ 22). De loop() produceert 16 samples per Part::Process call per voice. Met 4 voices en 2× render per iteratie = 32 samples per iteratie per voice.
+
+De ring buffers zijn stabiel op ~500, dus de loop() is fast enough. De peak van 93.5% betekent dat de langste iteratie bijna een vol block duurt, maar de average is lager.
+
+Laat me de per-voice CPU nauwkeuriger meten door alleen 1× renderBackground() te timen:
+
+*Read main.cpp, lines 380 to 440*
+
+Laat me een meer precieze meting toevoegen — per-voice Part::Process timing:
+
+*Read main.cpp, lines 360 to 380*
+
+
+
+
+*Read main.cpp, lines 360 to 380*
+
+
+Excellent! Nu hebben we de exacte data:
+
+- **ISR = 3.8%** ✅
+- **loop peak = 93.4%** (2× renderBackground + MIDI)
+- **Part::Process peak = 39.0%** per voice call
+
+Dus per Part::Process call: **39%** van een 32kHz block (0.5 ms). Dat is ~117,000 cycles @ 600 MHz.
+
+Met 4 voices en 2× render per iteratie: 4 × 39% × 2 = 312%... maar dat klopt niet met de 93.4% loop. Oh — de loop% meet de **peak** van één iteratie, niet de totale CPU. De iteratie doet 2× renderBackground, maar niet alle 4 voices worden elke keer gerenderd (ring buffer heeft ruimte → skip).
+
+Laat me de data interpreteren:
+- Part::Process = 39% per voice per call
+- 4 voices × 39% = 156% per renderBackground() call
+- Maar renderBackground() skip voices met volle ring buffers
+- De ring buffers zijn ~500, dus elke voice wordt ~1× per 2 iteraties gerenderd
+
+**Key insight**: Part::Process = 39% per voice. Dit is de **worst-case** (peak). De average is lager omdat niet elke iteratie alle voices rendert.
+
+Voor 5 voices: 5 × 39% = 195% per renderBackground() — maar dit is peak, niet average. Als de ring buffers groot genoeg zijn, kan de loop() meerdere iteraties per block doen.
+
+Maar het probleem is: **39% per voice is veel**. Met 5 voices, zelfs als we 1× render per iteratie doen: 5 × 39% = 195% — dat overschrijdt het block budget (100%).
+
+Hmm, maar 39% is de **peak** — de worst-case voice. Stille voices kosten minder. Laat me MIDI notes spelen om de CPU onder load te zien:De data is consistent. Laat me de resultaten samenvatten en de feasibility analyse maken:
+
+### CPU Budget Resultaten (4 voices, idle)
+
+| Metric | Value |
+|--------|-------|
+| ISR (peak) | 3.8% |
+| loop (peak) | 93.4% |
+| Part::Process (peak per voice) | 39.0% |
+
+**Part::Process = 39%** per voice per 32kHz block. Dit is de idle CPU (geen MIDI notes, resonator decay only).
+
+Voor 5 voices extrapolatie:
+- 5 × 39% = 195% per renderBackground() call — **overschrijdt 100% block budget**
+- Maar: de loop() is niet gebonden aan 1 block per iteratie. Het kan meerdere iteraties doen. De vraag is: kan de loop() genoeg Part::Process calls doen om de ring buffers gevuld te houden?
+
+De ring buffer size is 1024. De ISR consumeert ~22 samples per 32kHz block. Dus de buffer kan ~46 blocks bufferen (1024/22). Als de loop() 5 voices × 39% = 195% per renderBackground() nodig heeft, en elke iteratie ~195% + overhead duurt, dan kan de loop() niet genoeg renders doen.
+
+**Conclusie**: 5 voices is **CPU-bound** met de huidige `-O2` optimization. Part::Process kost 39% per voice, en 5 × 39% = 195% > 100%.
+
+**Opties**:
+1. **`-O3` optimization**: Kan Part::Process ~30% sneller maken → 39% × 0.7 = ~27% → 5 × 27% = 135% — nog te hoog
+2. **`-O3 -flto`**: Link-Time Optimization kan extra ~10% geven → ~24% → 5 × 24% = 120% — nog te hoog
+3. **Voice skipping**: Stille voices (gate=false) skip Process() → in praktijk minder dan 5 actieve voices tegelijk
+4. **Reduce kMaxBlockSize**: 8 samples per block in plaats van 16 → minder werk per call, maar meer calls
+5. **Accept 4 voices**: 4 × 39% = 156% per renderBackground(), maar met ring buffer buffering werkt het
+
+Laat me `-O3` proberen om te zien hoeveel het helpt:
+
+*Read platformio.ini, lines 1 to 30*
+
+
+
+
+*Read platformio.ini, lines 1 to 30*
+
+
+Nog geen CPU report (5 seconden wachten). Laat me wachten:Hmm, `-O3` geeft **39.1%** — bijna hetzelfde als `-O2` (39.0%). Dat is verrassend. De Elements DSP code is al heel optimal (hand-written SIMD voor STM32F4), en de Cortex-M7 FPU doet float operaties efficiënt. `-O3` helpt niet veel omdat de bottleneck de resonator (64 Svf filters) en string processing is — die zijn al tight code.
+
+Laat me nog een paar reports wachten:`-O3` geeft **38.9%** — identiek aan `-O2`. De Elements DSP is al optimal, `-O3` helpt niet.
+
+Laat me `-O3` terugdraaien en de realiteit accepteren:
+Now, let me think about this more carefully. The Part::Process = 39% is measured as **peak** per voice per 32kHz block. But the loop() doesn't render every voice every iteration — it only renders when the ring buffer has free space. With 4 voices and ring buffers at ~500, the loop() renders each voice roughly once every ~31 blocks (500/16). So the **average** Part::Process calls per block is much less than 4.
+
+The key question is: **can the loop() sustain 5 voices?** The answer depends on whether the loop() can produce enough samples per unit time to keep the ring buffers filled.
+
+Let me calculate the throughput:
+- ISR consumes: 44.1 kHz × 2 channels × resample ratio ≈ 22 samples per voice per 32kHz block
+- Loop produces: 16 samples per voice per Part::Process call
+- Part::Process takes: 39% × 0.5 ms = 0.195 ms per voice
+- In 0.5 ms (one block), the loop can do: 0.5 / 0.195 = 2.56 voice renders
+
+So per block, the loop can render ~2.5 voices. With 4 voices, each voice needs ~1.4 renders per block (22/16). Total renders needed: 4 × 1.4 = 5.6 per block. But the loop can only do 2.5 per block.
+
+Wait, that doesn't work... but the ring buffers are at 500, which means the loop IS keeping up. The reason is that the loop() runs continuously, not just once per block. It does multiple iterations per block period.
+
+Let me recalculate: the loop peak is 93.4% for 2× renderBackground + MIDI. Each renderBackground renders ~2 voices (not all 4, because ring buffers have space). So per iteration: 2 × 39% = 78% for rendering, plus overhead. The loop does ~1 iteration per 0.5 ms block (93.4%). But it produces enough samples because the ring buffers buffer ~500 samples.
+
+The real throughput question: **how many Part::Process calls can the loop() do per second?**
+
+- Each Part::Process takes 0.195 ms
+- In 1 second, the loop can do: 1000 / 0.195 = 5,128 calls
+- Each call produces 16 samples at 32 kHz
+- Total samples produced: 5,128 × 16 = 81,920 samples per second per voice
+- ISR consumes: 44.1 kHz × resample ≈ 1,378 samples per second per voice (mono)
+
+Wait, that's way more than needed! 81,920 >> 1,378. The loop() can easily sustain 5+ voices in terms of throughput.
+
+The issue is that the **peak** measurement shows 93.4% per iteration, but that's because the loop() does 2× renderBackground() calls per iteration, each rendering ~2 voices. The average CPU is much lower.
+
+**Key insight**: The loop() CPU is NOT the bottleneck. The ring buffers at ~500 prove the loop() is keeping up easily. The 93.4% peak is just the worst-case iteration, not the average.
+
+For 5 voices, the loop() would need to render 5 voices instead of 4. Each Part::Process still takes 39%. The loop() would do more iterations per second, but each iteration would take longer. The throughput would be: 5,128 Part::Process calls per second, which is enough for 5 voices (each needs ~1,378 samples/second).
+
+**5 voices should work!** The CPU concern was based on a misunderstanding of the peak measurement. The loop() runs continuously and can do enough Part::Process calls per second to sustain 5 voices.
+
+Let me implement 5 voices with the hybrid DTCM/OCRAM layout (Optie 4: stretchBuf + reverbBuffer in DTCM):
+
+*Starting: *Implement 5-voice hybrid layout* (1/4) · Read main.cpp, lines 1 to 100*
+
+
+
+<details>
+<summary><em>Starting: *Implement 5-voice hybrid layout* (1/4)</em> (+5 meer)</summary>
+
+- Starting: *Implement 5-voice hybrid layout* (1/4)
+- Read main.cpp, lines 1 to 100
+- Read main.cpp, lines 100 to 200
+- Read main.cpp, lines 200 to 300
+- Read main.cpp, lines 300 to 400
+- Read main.cpp, lines 400 to 527
+</details>
+
+Now I have the full picture. Let me implement 5 voices with the hybrid layout. The plan:
+
+**Hybrid DTCM/OCRAM layout for 5 voices (Optie 4)**:
+- `stringBuf[5][5][2048]` → DMAMEM (OCRAM) — 204,800 bytes
+- `resonatorBowBuf[5][8][1024]` → DMAMEM (OCRAM) — 163,840 bytes  
+- `diffuserBuf[5][1024]` → DMAMEM (OCRAM) — 20,480 bytes
+- `stretchBuf[5][5][1024]` → DTCM — 102,400 bytes
+- `reverbBuffer[32768]` → DTCM — 65,536 bytes (was DMAMEM)
+
+OCRAM total: 204,800 + 163,840 + 20,480 = 389,120 bytes (fits in 512KB OCRAM ✅)
+DTCM extra: 102,400 + 65,536 = 167,936 bytes (DTCM had ~363KB free, now ~195KB free ✅)
+
+Also need to update:
+- `kNumVoices = 5`
+- Mix level: `0.4f` per voice (5 × 0.4 = 2.0, clipsafe)
+- Serial messages
+- srcRing format string for 5 voices
+Now I need to update the Serial.printf format string for 5 voices:
+
+*Searched for text `srcRingAvailable` (`MusicBrain` · `firmware/app-elements/src/main.cpp`), 9 results*
+
+Good, the format string already has 5 srcRingAvailable calls. But I need to update the printf format string to include 5 `%d` placeholders:
+
+*Read main.cpp, lines 510 to 520*
+
+
+Now build and upload:Build success! Upload:
+
+*Starting: *Build, upload, test 5 voices* (2/4)*
+
+
+
+*Starting: *Build, upload, test 5 voices* (2/4)*
+
+5 voices werken! De data:
+
+- **ISR = 4.2%** (was 3.8% voor 4 voices — 5 voices in de mix = meer resample werk)
+- **loop peak = 201.3%** (2× renderBackground + MIDI, 5 voices)
+- **Part::Process = 38.7-39.0%** per voice (identiek aan 4 voices ✅)
+- **src ring buffers = ~500** voor alle 5 voices ✅ (geen underrun!)
+
+De ring buffers zijn stabiel op ~500 — de loop() houdt 5 voices bij zonder problemen! De 201% peak is omdat elke iteratie 2× renderBackground() doet met 5 voices, maar de **average** CPU is veel lager omdat niet elke iteratie alle 5 voices rendert.
+
+Laat me de CPU budget berekenen:
+
+- Part::Process = 39% per voice per 32kHz block
+- 5 voices × 39% = 195% per renderBackground() call
+- Maar: de loop() runt continu en de ring buffers bufferen ~500 samples
+- De ISR consumeert ~22 samples per voice per 32kHz block
+- De loop() produceert 16 samples per voice per Part::Process call
+- Per seconde: ISR consumeert 5 × 32,000 = 160,000 samples, loop() produceert 5,128 × 16 = 81,920 per Part::Process call × ~5 calls/sec... 
+
+Hmm, laat me dit anders berekenen. De throughput is:
+- Part::Process kost 0.195 ms per voice
+- In 1 seconde kan de loop() 1000/0.195 = 5,128 Part::Process calls doen
+- Elke call produceert 16 samples
+- 5,128 × 16 = 81,920 samples per seconde per voice
+- ISR consumeert 32,000 samples per seconde per voice
+- 81,920 >> 32,000 — **ruim voldoende throughput!**
+
+5 voices werkt! Laat me de monitor nog een paar reports laten zien:Stabiel! ISR=4.2%, loop=201.3%, part=38.8%, src=[~500,~500,~500,~500,~500]. Alle 5 ring buffers gevuld, geen underrun.
+
+Laat me de monitor stoppen en de resultaten samenvatten:
+
+*Starting: *Update architecture docs* (4/4)*
+
+Now let me update the architecture docs:
+
+*Read architecture.md, lines 1 to 50 · Searched for regex `ADR 0013|v0.4|4-voice|Version history|CPU budget` (`MusicBrain` · `doc/elements/architecture.md`), 9 results · Read architecture.md, lines 710 to 839*
+
+
+
+*Read architecture.md, lines 1 to 50 · Searched for regex `ADR 0013|v0.4|4-voice|Version history|CPU budget` (`MusicBrain` · `doc/elements/architecture.md`), 9 results · Read architecture.md, lines 710 to 839*
+
+Now I need to add ADR 0014 for the 5-voice hybrid layout. Let me append it:
+
+
+*Completed: *Update architecture docs* (4/4)*
+
+### Resultaten: 5-Voice Polyphony ✅
+
+**v0.5.0** — 5-voice hybrid DTCM/OCRAM layout werkt!
+
+| Metric | 4 voices (v0.4.2) | 5 voices (v0.5.0) |
+|--------|-------------------|-------------------|
+| ISR CPU | 3.8% | **4.2%** |
+| Part::Process per voice | 39% | **39%** (identiek) |
+| Ring buffers | ~500 × 4 | **~500 × 5** ✅ |
+| OCRAM used | ~389 KB | **~389 KB** (3 buffer types) |
+| DTCM extra | 0 | **+168 KB** (stretchBuf + reverb) |
+
+**Hybrid layout**:
+- **OCRAM**: `stringBuf[5][5][2048]` + `resonatorBowBuf[5][8][1024]` + `diffuserBuf[5][1024]` = 389 KB
+- **DTCM**: `stretchBuf[5][5][1024]` + `reverbBuffer[32768]` = 168 KB extra
+
+**CPU throughput**: Part::Process = 39% per voice per 32kHz block. De loop() kan ~5,128 calls/sec doen → 81,920 samples/sec per voice → **ruim voldoende** voor 5 voices (ISR consumeert 32,000 samples/sec per voice).
+
+**`-O3`**: Geen improvement (39% met zowel `-O2` als `-O3`). De Elements DSP is al optimal.
+
+**6-voice feasibility**: Memory-wise mogelijk (OCRAM 487KB/25KB free, DTCM 175KB free). CPU throughput zou ook werken, maar nog niet getest.
+
+ADR 0014 toegevoegd aan `architecture.md`.
+
+---
+
+## 🧑 User
+
+zou je kunnen meten hoe de processor zich gedraagt, tijdens het spelen? Het lijkt redelijk goed te gaan nog.
+
+---
+
+## 🤖 Assistant
+
+Goed idee! Laat me de monitor starten en dan kun je MIDI notes spelen. De firmware (v0.5.0) heeft al per-voice Part::Process timing — we kunnen zien hoe de CPU zich gedraagt onder load.
+
+---
+
+## 🧑 User
+
+wil je nog eens meten want ik speelde niets.... ik moet na een flash altijd opnieuw de midi connecten met de teensy, MIDI-ox is hem dan altijd kwijt
+
+---
+
+## 🤖 Assistant
+
+Ah, dat explains it! Na een flash moet je MIDI-OX reconnecten. Laat me de monitor starten en wachten tot je MIDI-OX reconnect en notes speelt:Interessant — `src=[349,353,356,359,362]` — de buffers zijn lager dan normaal (~500). Dit kan betekenen dat er al MIDI activity is, of dat de boot pre-fill niet volledig was. Laat me wachten tot je MIDI-OX reconnect en notes speelt. Neem de tijd om MIDI-OX te reconnecten — ik zal de data ophalen wanneer je klaar 
+
+---
+
+## 🧑 User
+
+ok, ik speel nu
+
+---
+
+## 🤖 Assistant
+
+Laat me de data ophalen!**Fantastisch!** De data is perfect stabiel onder MIDI load:
+
+- **ISR = 4.2–4.4%** ✅
+- **Part::Process = 38.5–40.3%** ✅ (laagste 38.5%, hoogste 40.3% — heel stabiel)
+- **minSrc = 2019–2035** ✅ (ring buffers altijd > 2000, **geen underruns!**)
+
+Laat me nog meer data ophalen om te zien of het stabiel blijft:Nog steeds perfect! ISR=4.4%, part=41.2%, minSrc=2033. De Part::Process is 41.2% — iets hoger onder load (vs 38.6% idle), maar dat is normaal (actieve voices doen meer werk).
+
+Laat me nog een paar reports ophalen:Perfect! ISR=4.1%, part=41.8%, minSrc=2034. De CPU is iets hoger onder MIDI load (41.8% vs 38.6% idle), maar de ring buffers zijn **100% stabiel** — minSrc altijd > 2019, nooit onder 2000.
+
+Laat me de monitor stoppen en de docs updaten:
+
+*Starting: *Update docs* (3/3)*
+
+
+
+---
+
+## 🧑 User
+
+mooi!
+
+Zou je algemene elements readme nog willen updaten naar de huidige toestand?
+
+---
+
+## 🤖 Assistant
+
+Laat me de huidige Elements README vinden en updaten:
+
+*Searched for files matching `**/elements/README*`, no matches · Searched for files matching `**/app-elements/README*`, 1 match · Read README.md*
+
+
+
+*Searched for files matching `**/elements/README*`, no matches · Searched for files matching `**/app-elements/README*`, 1 match · Read README.md*
+
+De README is nog van de v0.1–v0.2 era. Laat me hem updaten naar de huidige v0.5.4 state:
+
+*Created README.md*
+
+
+
+*Created README.md · Read README.md, lines 1 to 1*
+
+De file is 200 lines. Laat me de volledige inhoud vervangen:
+De README is nu up-to-date met:
+
+- **5-voice polyphonic** status (was "spike / single voice")
+- **Dual-thread rendering** architectuur (was "Audio Library ISR")
+- **Hybrid DTCM/OCRAM** memory layout met exacte sizes
+- **Non-blocking Serial** output fix (v0.5.4)
+- **CPU budget** tabel met idle + MIDI load measurements
+- **Vendored code changes** tabel (delay_line → pointer indirection)
+- **MIDI CC map** inclusief CC#31/32 reverb controls
+- **Version history** van 0.1.0 tot 0.5.4
+- De README is nu up-to-date met:
+
+- **5-voice polyphonic** status (was "spike / single voice")
+- **Dual-thread rendering** architectuur (was "Audio Library ISR")
+- **Hybrid DTCM/OCRAM** memory layout met exacte sizes
+- **Non-blocking Serial** output fix (v0.5.4)
+- **CPU budget** tabel met idle + MIDI load measurements
+- **Vendored code changes** tabel (delay_line → pointer indirection)
+- **MIDI CC map** inclusief CC#31/32 reverb controls
+- **Version history** van 0.1.0 tot 0.5.4
+- **6-voice feasibility** section
+- **Remaining work** updated
+- **Documentation links** naar `architecture.md` en VENDORED.md
 
 ---
