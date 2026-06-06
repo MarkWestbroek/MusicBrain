@@ -843,6 +843,7 @@ Per-voice OCRAM breakdown:
 | 0.5.2 | 5 | 2048-frame ring buffers + render between prints | ❌ Still blocks ~25 ms |
 | 0.5.3 | 5 | 4096-frame ring buffers | ❌ Still blocks ~25 ms |
 | **0.5.4** | **5** | **Non-blocking Serial.write (1 char/iter)** | **✅ ISR=4.2%, minSrc=2030** |
+| 0.6.0-attempt | 6 | 6-voice test | ❌ minSrc=1-2, CPU 234% — ring buffer starvation |
 
 ---
 
@@ -881,7 +882,7 @@ Per-voice DTCM breakdown (1 buffer type):
 - 5 × StiffnessDelayLine (1024 floats) = 20,480 bytes
 - **DTCM per voice: ~20,480 bytes (~20KB)**
 
-### CPU Budget (v0.5.4 — measured under MIDI load)
+### CPU Budget (v0.5.4 — 5 voices, measured under MIDI load)
 
 | Component | Idle | Under MIDI Load | Notes |
 |-----------|------|-----------------|-------|
@@ -891,10 +892,22 @@ Per-voice DTCM breakdown (1 buffer type):
 | Audio Library (USB output) | ~1% | ~1% | Minimal feeder only |
 | `-O3` optimization | **no improvement** | — | 39% with both `-O2` and `-O3` |
 
+### CPU Budget (v0.6.0-attempt — 6 voices, measured)
+
+| Component | Value | Notes |
+|-----------|-------|-------|
+| PIT ISR (resample + mix 6 voices) | **5.1%** | ~0.85% per voice |
+| Part::Process per voice (peak) | **39%** | Same as 5 voices |
+| Ring buffer min level | **1–2** | ❌ Starvation — buffers nearly empty |
+| Total CPU (6 × 39%) | **234%** | Exceeds 32kHz rendering budget |
+
 **Key insight**: The loop() runs continuously and the ring buffers (2048 frames
-= ~64 ms per voice) provide ample throughput. Part::Process at ~39% per voice
-means the loop() can do ~5,128 calls/sec, producing ~81,920 samples/sec per
-voice — far exceeding the ISR consumption rate of ~32,000 samples/sec per voice.
+= ~64 ms per voice) provide ample throughput for 5 voices. Part::Process at
+~39% per voice means 5 voices use ~195% total CPU — the loop() can keep up
+because it runs faster than the 32kHz rate. But 6 voices (234%) exceeds the
+budget: the ISR drains the ring buffers faster than loop() can fill them.
+
+**5 voices is the hard limit** for Elements DSP on Teensy 4.1 @ 600 MHz.
 
 **⚠️ Serial.printf blocking bug (v0.5.0–v0.5.3)**: `Serial.printf()` on Teensy
 4.1 USB CDC blocks the loop() for **~25 ms** per call (not 7 ms as initially
@@ -912,15 +925,17 @@ ring buffers stable at > 2000.
 | 0.5.3 | 4096-frame buffers | **3–16** (still blocks ~25 ms) |
 | **0.5.4** | **Non-blocking Serial.write (1 char/iter)** | **2019–2035** ✅ |
 
-### 6-Voice Feasibility
+### 6-Voice Test Result (v0.6.0-attempt)
 
-Memory: 6 voices with the same hybrid layout would need:
-- OCRAM: 6 × 78KB = 468KB + Audio pool ≈ 487KB → **25KB free** ✅
-- DTCM: 6 × 20KB + 64KB reverb = 184KB extra → **175KB free** ✅
+Memory: 6 voices with the same hybrid layout:
+- OCRAM: stringBuf[6][5][2048] + resonatorBowBuf[6][8][1024] + diffuserBuf[6][1024] = **467KB** → **~34KB free** ✅
+- DTCM: stretchBuf[6][5][1024] + reverbBuffer[32768] + ring buffers + Part structs = **~397KB** → **~60KB free** ✅
 
-CPU: 6 × 39% = 234% per renderBackground() peak. Throughput still sufficient
-(5,128 Part::Process calls/sec). But ISR would be ~5% (6 voices in mix).
+CPU: **FAILS** — ISR=5.1%, part=39% per voice, minSrc=1-2 (ring buffer starvation).
+6 × 39% per-voice peak = 234% total CPU, exceeds the 32 kHz rendering budget.
+The loop() cannot fill 6 ring buffers faster than the ISR drains them.
 
-**Status**: 6 voices is memory-feasible but not yet tested. The CPU throughput
-analysis suggests it would work, but needs real-world validation with all 6
-voices active under MIDI load.
+**Conclusion**: 5 voices is the hard limit for Elements DSP on Teensy 4.1 @ 600 MHz.
+The throughput analysis (5,128 calls/sec) was optimistic — it assumed average
+Part::Process time, but the peak (worst single call) determines whether the
+ring buffers stay filled. With 6 voices, the worst-case total exceeds 100%.

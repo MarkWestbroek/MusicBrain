@@ -1,0 +1,6 @@
+(kicad_pro
+  (version 20231120)
+  (generator "kicad.pro")
+  (schematic_file "minimal-dac.kicad_sch")
+  (board_file "minimal-dac.kicad_pcb")
+)

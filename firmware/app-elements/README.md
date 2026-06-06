@@ -118,12 +118,16 @@ index).
 | 0.5.0 | 5 | Hybrid DTCM/OCRAM (stretchBuf+reverb→DTCM) | ❌ Serial blocks |
 | 0.5.1–0.5.3 | 5 | Various Serial/blocking fixes | ❌ still blocks ~25 ms |
 | **0.5.4** | **5** | **Non-blocking Serial.write (1 char/iter)** | **✅ stable** |
+| 0.6.0-attempt | 6 | 6-voice test | ❌ minSrc=1-2, CPU 234% |
 
-## 6-voice feasibility
+## 6-voice test result (v0.6.0-attempt)
 
-Memory: 6 voices fits (OCRAM ~487 KB / 25 KB free, DTCM ~175 KB free).
-CPU: ISR would be ~5%, Part::Process throughput still sufficient.
-Not yet tested — needs real-world validation with 6 active voices under MIDI.
+Memory: 6 voices fits (OCRAM ~467 KB / ~34 KB free, DTCM ~397 KB / ~60 KB free).
+CPU: **FAILS** — minSrc=1-2 (ring buffer starvation). ISR=5.1%, part=39% per voice.
+6 × 39% per-voice peak = 234% total CPU, exceeds the 32 kHz rendering budget.
+The loop() cannot fill 6 ring buffers faster than the ISR drains them.
+
+**5 voices is the hard limit** for Elements DSP on Teensy 4.1 @ 600 MHz.
 
 ## Remaining work
 
@@ -131,12 +135,13 @@ Not yet tested — needs real-world validation with 6 active voices under MIDI.
    `AudioModule.h` copy, reuse shared mixin).
 2. Down-sample external `blow_in` / `strike_in` audio inputs into Part
    (currently silence — only internal exciters active).
-3. Test 6-voice polyphony (memory fits, CPU needs validation).
-4. Add per-voice CC control (currently all voices share same CC values).
+3. Add per-voice CC control (currently all voices share same CC values).
 
 ## Documentation
 
 - [Architecture & ADRs](../../doc/elements/architecture.md) — detailed memory
   layouts, CPU measurements, decision records.
+- [Scaling beyond 5 voices](../../doc/elements/scaling-polyphony-beyond-5-voices.md) —
+  dual-Teensy vs. FPGA sidecar analysis, implementation plan.
 - [Vendored DSP](lib/mi-elements/VENDORED.md) — provenance, file list,
   Teensy adaptations.

@@ -1,0 +1,14 @@
+(kicad_pro
+  (version 20231120)
+  (generator "pcbnew")
+  (general
+    (project "AD5754R Minimal DAC Breakout")
+  )
+  (sheets
+    (sheet "/ad5754r-breakout.kicad_sch" "Main schematic")
+  )
+)
+  (pcb_design
+    (board_file "ad5754r-breakout.kicad_pcb")
+  )
+)

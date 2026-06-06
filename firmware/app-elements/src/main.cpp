@@ -1,6 +1,6 @@
-// MusicBrain — app-elements SPIKE, 5-voice polyphony test.
+// MusicBrain — app-elements 5-voice polyphony.
 //
-// v0.5.0: 5-voice polyphony with hybrid DTCM/OCRAM layout.
+// v0.5.4: 5-voice polyphony with hybrid DTCM/OCRAM layout.
 // - Part::Process(16) runs in loop() (background, non-ISR)
 // - PIT ISR only does resample + mix from pre-rendered 32 kHz ring buffer
 // - Audio Library only handles USB output via minimal feeder
@@ -13,6 +13,10 @@
 //              PIT ISR → resample → mix → 44.1 kHz ring buffer
 //              Audio ISR → feeder → reverb → USB audio
 // Control:     USB-MIDI noteOn/off → round-robin voice allocator
+//
+// v0.6.0-attempt: 6 voices tested — minSrc=1-2 (ring buffer starvation).
+//   6 × 39% per-voice CPU = 234% total, exceeds 32kHz budget.
+//   5 voices is the hard limit for Elements DSP on Teensy 4.1 @ 600MHz.
 
 #include <Arduino.h>
 #include <Audio.h>
@@ -30,7 +34,7 @@
 namespace {
 
 // ---------------------------------------------------------------------------
-// 4× Part instances in DTCM (structs only, ~3KB each).
+// 5× Part instances in DTCM (structs only, ~3KB each).
 // Large delay-line buffers are in DMAMEM (OCRAM) via VoiceBuffers.
 // ---------------------------------------------------------------------------
 constexpr int kNumVoices = 5;

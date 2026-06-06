@@ -1,0 +1,394 @@
+(kicad_pcb
+  (version 20231120)
+  (generator "pcbnew")
+  (generator_version "8.0")
+  (uuid "mb000003-0000-0000-0000-000000000002")
+
+  (general
+    (thickness 1.6)
+  )
+  (paper "A4" portrait)
+
+  (title_block
+    (title "MusicBrain — AD5754R Minimal DAC Breakout Board")
+    (date "2026-06-06")
+    (rev "1.0")
+    (company "MusicBrain project")
+    (comment 1 "Quad 16-bit DAC, bipolar ±5V, SSOP-28, SPI interface")
+    (comment 2 "ADR421 external 2.5V reference for 1V/oct pitch tracking")
+    (comment 3 "Designed for JLCPCB PCBA assembly — 0805 passives, SSOP-28 DAC")
+    (comment 4 "Corrected pinout from datasheet (AI chat had wrong 24-pin assignment")
+  )
+
+  )
+
+  ;; =========================================================================
+  ;; Design rules — minimal breakout board, 30mm × 30mm
+  ;; =========================================================================
+  (design_settings
+    (stackup 2)
+    (placement 2)
+    (routing 2)
+  )
+
+  (aux_items_origin 2)
+
+  ;; =========================================================================
+  ;; Net classes
+  ;; =========================================================================
+  (net_class "Default"
+    (clearance 0.2)
+    (trace_width 0.25)
+    (via_dia 0.8)
+    (via_drill 0.4)
+    (uvia_dia 0.3)
+    (uvia_drill 0.1)
+  )
+  (net_class "Power"
+    (clearance 0.3)
+    (trace_width 0.5)
+    (via_dia 1.0)
+    (via_drill 0.6)
+    (uvia_dia 0.5)
+    (uvia_drill 0.2)
+  )
+  (net_class "SPI"
+    (clearance 0.2)
+    (trace_width 0.25)
+    (via_dia 0.8)
+    (via_drill 0.4)
+    (uvia_dia 0.3)
+    (uvia_drill 0.1)
+  )
+
+  ;; =========================================================================
+  ;; Nets
+  ;; =========================================================================
+  (net 0 "/AVDD/")
+  (net 1 "/AVSS/")
+  (net 2 "/DVCC/")
+  (net 3 "/GND/")
+  (net 4 "/SCLK/")
+  (net 5 "/SDIN/")
+  (net 6 "/SDO/")
+  (net 7 "/SYNC/")
+  (net 8 "/VOUT_A/")
+  (net 9 "/VOUT_B/")
+  (net 10 "/VOUT_C/")
+  (net 11 "/VOUT_D/")
+  (net 12 "/REF_2V5/")
+  (net 13 "/CLR/")
+  (net 14 "/LDAC/")
+  (net 15 "/RSET/")
+  (net 16 "/DCEN/")
+  (net 17 "/BIN_OFF/")
+  (net 18 "unconnected-(J1-Pad5)")
+  (net 19 "unconnected-(J1-Pad6)")
+  (net 20 "unconnected-(J1-Pad7)")
+  (net 21 "unconnected-(J1-Pad8)")
+  (net 22 "unconnected-(J1-Pad9)")
+  (net 23 "unconnected-(U1-Pad9)")
+  (net 24 "unconnected-(U1-Pad16)")
+
+  (net 25 "unconnected-(U1-Pad17)")
+
+  (net 26 "unconnected-(U2-Pad5)")
+  (net 27 "unconnected-(U2-Pad6)")
+  (net 28 "unconnected-(U2-Pad7)")
+
+  ;; =========================================================================
+  ;; Board outline — 30mm × 30mm
+  ;; =========================================================================
+  (gr_line "Edge1" (start 0 0) (end 30 0) (layer "Edge.Cuts"))
+    (width 0.05) (type solid))
+  )
+  (gr_line "Edge2" (start 30 0) (end 30 30) (layer "Edge.Cuts")
+    (width 0.05) (type solid)
+  )
+  (gr_line "Edge3" (start 30 30) (end 0 30) (layer "Edge.Cuts")
+    (width 0.05) (type solid)
+  )
+  (gr_line "Edge4" (start 0 30) (end 0 0) (layer "Edge.Cuts")
+    (width 0.05) (type solid)
+  )
+
+  ;; =========================================================================
+  ;; Footprints
+  ;; =========================================================================
+
+  ;; U1 — AD5754R SSOP-28
+  (footprint "Package_SO:SSOP-28_5.3x10.2mm_P0.65mm"
+    (pad "1" smd rect (at -5.4  5.08) (size 0.65 2.05) (layers "F.Cu" "F.Paste" "F.Mask"))
+    (pad "2" smd rect (at -5.4  3.81) (size 0.65 2.05) (layers "F.Cu" "F.Paste" "F.Mask"))
+    (pad "3" smd rect (at -5.4  2.54) (size 0.65 2.05) (layers "F.Cu" "F.Paste" "F.Mask"))
+    (pad "4" smd rect (at -5.4  1.27) (size 0.65 2.05) (layers "F.Cu" "F.Paste" "F.Mask"))
+    (pad "5" smd rect (at -5.4  0) (size 0.65 2.05) (layers "F.Cu" "F.Paste" "F.Mask"))
+    (pad "6" smd rect (at -5.4 -1.27) (size 0.65 2.05) (layers "F.Cu" "F.Paste" "F.Mask"))
+    (pad "7" smd rect (at -5.4 -2.54) (size 0.65 2.05) (layers "F.Cu" "F.Paste" "F.Mask"))
+    (pad "8" smd rect (at -5.4 -3.81) (size 0.65 2.05) (layers "F.Cu" "F.Paste" "F.Mask"))
+    (pad "9" smd rect (at -5.4 -5.08) (size 0.65 2.05) (layers "F.Cu" "F.Paste" "F.Mask"))
+    (pad "10" smd rect (at -5.4 -6.35) (size 0.65 2.05) (layers "F.Cu" "F.Paste" "F.Mask"))
+    (pad "11" smd rect (at -5.4 -7.62) (size 0.65 2.05) (layers "F.Cu" "F.Paste" "F.Mask"))
+    (pad "12" smd rect (at -5.4 -8.89) (size 0.65 2.05) (layers "F.Cu" "F.Paste" "F.Mask"))
+    (pad "13" smd rect (at -5.4 -10.16) (size 0.65 2.05) (layers "F.Cu" "F.Paste" "F.Mask"))
+    (pad "14" smd rect (at -5.4 -11.43) (size 0.65 2.05) (layers "F.Cu" "F.Paste" "F.Mask"))
+    (pad "15" smd rect (at  5.4 -11.43) (size 0.65 2.05) (layers "F.Cu" "F.Paste" "F.Mask"))
+    (pad "16" smd rect (at  5.4 -10.16) (size 0.65 2.05) (layers "F.Cu" "F.Paste" "F.Mask"))
+    (pad "17" smd rect (at  5.4 -8.89) (size 0.65 2.05) (layers "F.Cu" "F.Paste" "F.Mask"))
+    (pad "18" smd rect (at  5.4 -7.62) (size 0.65 2.05) (layers "F.Cu" "F.Paste" "F.Mask"))
+    (pad "19" smd rect (at  5.4 -6.35) (size 0.65 2.05) (layers "F.Cu" "F.Paste" "F.Mask"))
+    (pad "20" smd rect (at  5.4 -5.08) (size 0.65 2.05) (layers "F.Cu" "F.Paste" "F.Mask"))
+    (pad "21" smd rect (at  5.4 -3.81) (size 0.65 2.05) (layers "F.Cu" "F.Paste" "F.Mask"))
+    (pad "22" smd rect (at  5.4 -2.54) (size 0.65 2.05) (layers "F.Cu" "F.Paste" "F.Mask"))
+    (pad "23" smd rect (at  5.4 -1.27) (size 0.65 2.05) (layers "F.Cu" "F.Paste" "F.Mask"))
+    (pad "24" smd rect (at  5.4  0) (size 0.65 2.05) (layers "F.Cu" "F.Paste" "F.Mask"))
+    (pad "25" smd rect (at  5.4  1.27) (size 0.65 2.05) (layers "F.Cu" "F.Paste" "F.Mask"))
+    (pad "26" smd rect (at  5.4  2.54) (size 0.65 2.05) (layers "F.Cu" "F.Paste" "F.Mask"))
+    (pad "27" smd rect (at  5.4  3.81) (size 0.65 2.05) (layers "F.Cu" "F.Paste" "F.Mask"))
+    (pad "28" smd rect (at  5.4  5.08) (size 0.65 2.05) (layers "F.Cu" "F.Paste" "F.Mask"))
+    (pad "" thru_hole circle (at 0 -6.35) (size 3.556) (drill 2.4) (layers "*.Cu" "*.Mask")
+    )
+    (pad "" thru_hole circle (at 0  6.35) (size 3.556) (drill 2.4) (layers "*.Cu" "*.Mask")
+    )
+  )
+
+  (footprint "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
+    (pad "1" smd rect (at -3.81  3.81) (size 1.27 0.6) (layers "F.Cu" "F.Paste" "F.Mask"))
+    (pad "2" smd rect (at -3.81  2.54) (size 1.27 0.6) (layers "F.Cu" "F.Paste" "F.Mask"))
+    (pad "3" smd rect (at -3.81  1.27) (size 1.27 0.6) (layers "F.Cu" "F.Paste" "F.Mask"))
+    (pad "4" smd rect (at -3.81  0) (size 1.27 0.6) (layers "F.Cu" "F.Paste" "F.Mask"))
+    (pad "5" smd rect (at -3.81 -1.27) (size 1.27 0.6) (layers "F.Cu" "F.Paste" "F.Mask"))
+    (pad "6" smd rect (at -3.81 -2.54) (size 1.27 0.6) (layers "F.Cu" "F.Paste" "F.Mask"))
+    (pad "7" smd rect (at -3.81 -3.81) (size 1.27 0.6) (layers "F.Cu" "F.Paste" "F.Mask"))
+    (pad "8" smd rect (at  3.81 -3.81) (size 1.27 0.6) (layers "F.Cu" "F.Paste" "F.Mask"))
+    (pad "" thru_hole circle (at 0 -2.54) (size 3.556) (drill 2.4) (layers "*.Cu" "*.Mask")
+    )
+    (pad "" thru_hole circle (at 0  2.54) (size 3.556) (drill 2.4) (layers "*.Cu" "*.Mask")
+    )
+  )
+
+  (footprint "Capacitor_SMD:C_0805_2012Metric"
+    (pad "1" smd round (at 0 -0.95) (size 1.3) (layers "F.Cu" "F.Paste" "F.Mask")
+    )
+    (pad "2" smd round (at 0  0.95) (size 1.3) (layers "F.Cu" "F.Paste" "F.Mask")
+    )
+  )
+  (footprint "Capacitor_SMD:C_0805_2012Metric_Pad1.18x1.45mm"
+    (pad "1" smd round (at 0 -0.95) (size 1.18 1.45) (layers "F.Cu" "F.Paste" "F.Mask")
+    )
+    (pad "2" smd round (at 0  0.95) (size 1.18 1.45) (layers "F.Cu" "F.Paste" "F.Mask")
+    )
+  )
+  (footprint "Capacitor_SMD:CP_Elec_4x5.3"
+    (pad "1" smd round (at -1.75 0) (size 2.4 2.4) (layers "F.Cu" "F.Paste" "F.Mask")
+    )
+    (pad "2" smd round (at  1.75 0) (size 2.4 2.4) (layers "F.Cu" "F.Paste" "F.Mask")
+    )
+  )
+  (footprint "Resistor_SMD:R_0805_2012Metric"
+    (pad "1" smd round (at 0 -0.95) (size 1.3) (layers "F.Cu" "F.Paste" "F.Mask")
+    )
+    (pad "2" smd round (at 0  0.95) (size 1.3) (layers "F.Cu" "F.Paste" "F.Mask")
+    )
+  )
+  (footprint "Resistor_SMD:R_0805_2012Metric_Pad1.18x1.45mm"
+    (pad "1" smd round (at 0 -0.95) (size 1.18 1.45) (layers "F.Cu" "F.Paste" "F.Mask")
+    )
+    (pad "2" smd round (at 0  0.95) (size 1.18 1.45) (layers "F.Cu" "F.Paste" "F.Mask")
+    )
+  )
+  (footprint "Connector_PinHeader_2.54mm:PinHeader_2x05_P2.54mm_Vertical"
+    (pad "1" thru_hole rect (at 0 0) (size 1.7 1.7) (drill 1) (layers "*.Cu" "*.Mask")
+    )
+    (pad "2" thru_hole rect (at 2.54 0) (size 1.7 1.7) (drill 1) (layers "*.Cu" "*.Mask")
+    )
+    (pad "3" thru_hole rect (at 0 -2.54) (size 1.7 1.7) (drill 1) (layers "*.Cu" "*.Mask")
+    )
+    (pad "4" thru_hole rect (at 2.54 -2.54) (size 1.7 1.7) (drill 1) (layers "*.Cu" "*.Mask")
+    )
+    (pad "5" thru_hole rect (at 0 -5.08) (size 1.7 1.7) (drill 1) (layers "*.Cu" "*.Mask")
+    )
+    (pad "6" thru_hole rect (at 2.54 -5.08) (size 1.7 1.7) (drill 1) (layers "*.Cu" "*.Mask")
+    )
+    (pad "7" thru_hole rect (at 0 -7.62) (size 1.7 1.7) (drill 1) (layers "*.Cu" "*.Mask")
+    )
+    (pad "8" thru_hole rect (at 2.54 -7.62) (size 1.7 1.7) (drill 1) (layers "*.Cu" "*.Mask")
+    )
+    (pad "9" thru_hole rect (at 0 -10.16) (size 1.7 1.7) (drill 1) (layers "*.Cu" "*.Mask")
+    )
+    (pad "10" thru_hole rect (at 2.54 -10.16) (size 1.7 1.7) (drill 1) (layers "*.Cu" "*.Mask")
+    )
+  )
+  (footprint "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical"
+    (pad "1" thru_hole rect (at 0 0) (size 1.7 1.7) (drill 1) (layers "*.Cu" "*.Mask")
+    )
+    (pad "2" thru_hole rect (at 0 -2.54) (size 1.7 1.7) (drill 1) (layers "*.Cu" "*.Mask")
+    )
+    (pad "3" thru_hole rect (at 0 -5.08) (size 1.7 1.7) (drill 1) (layers "*.Cu" "*.Mask")
+    )
+    (pad "4" thru_hole rect (at 0 -7.62) (size 1.7 1.7) (drill 1) (layers "*.Cu" "*.Mask")
+    )
+  )
+
+  ;; =========================================================================
+  ;; Module placements — compact layout for 30mm × 30mm board
+  ;; =========================================================================
+
+  ;; U1 — AD5754R (center of board)
+  (module_placement
+    (component "U1"
+    (footprint "Package_SO:SSOP-28_5.3x10.2mm_P0.65mm"
+    (at 15 15)
+    (orientation 0)
+  )
+  )
+
+  ;; U2 — ADR421 (above U1)
+  (module_placement
+    (component "U2"
+    (footprint "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
+    (at 15 5)
+    (orientation 0)
+  )
+  )
+
+  ;; J1 — SPI+Power connector (left side)
+  (module_placement
+    (component "J1"
+    (footprint "Connector_PinHeader_2.54mm:PinHeader_2x05_P2.54mm_Vertical"
+    (at 3 15)
+    (orientation 0)
+  )
+  )
+  ;; J2 — DAC output connector (right side)
+  (module_placement
+    (component "J2"
+    (footprint "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical"
+    (at 27 15)
+    (orientation 0)
+  )
+  )
+
+  ;; Decoupling capacitors — placed close to their respective IC pins
+  ;; C1, C2 — AVDD decoupling (near U1 pin 28)
+  (module_placement
+    (component "C1"
+    (footprint "Capacitor_SMD:C_0805_2012Metric"
+    (at 18 20)
+    (orientation 0)
+  )
+  (module_placement
+    (component "C2"
+    (footprint "Capacitor_SMD:CP_Elec_4x5.3"
+    (at 20 20)
+    (orientation 0)
+  )
+  )
+  ;; C3, C4 — AVSS decoupling (near U1 pin 1)
+  (module_placement
+    (component "C3"
+    (footprint "Capacitor_SMD:C_0805_2012Metric"
+    (at 12 10)
+    (orientation 0)
+  )
+  (module_placement
+    (component "C4"
+    (footprint "Capacitor_SMD:CP_Elec_4x5.3"
+    (at 10 10)
+    (orientation 0)
+  )
+  )
+  ;; C5 — DVCC decoupling (near U1 pin 22)
+  (module_placement
+    (component "C5"
+    (footprint "Capacitor_SMD:C_0805_2012Metric"
+    (at 18 8)
+    (orientation 0)
+  )
+  )
+  ;; C6 — REFOUT decoupling (near U1 pin 23)
+  (module_placement
+    (component "C6"
+    (footprint "Capacitor_SMD:C_0805_2012Metric"
+    (at 18 3)
+    (orientation 0)
+  )
+  )
+  ;; C7 — ADR421 input decoupling (near U2 pin 2)
+  (module_placement
+    (component "C7"
+    (footprint "Capacitor_SMD:C_0805_2012Metric"
+    (at 12 3)
+    (orientation 0)
+  )
+  )
+  ;; C8 — ADR421 output decoupling (near U2 pin 6)
+  (module_placement
+    (component "C8"
+    (footprint "Capacitor_SMD:C_0805_2012Metric"
+    (at 18 1)
+    (orientation 0)
+  )
+  )
+  ;; R1 — CLR pull-up (near U1 pin 20)
+  (module_placement
+    (component "R1"
+    (footprint "Resistor_SMD:R_0805_2012Metric"
+    (at 20 8)
+    (orientation 0)
+  )
+  )
+  ;; R2 — RSET (near U1 pin 6)
+  (module_placement
+    (component "R2"
+    (footprint "Resistor_SMD:R_0805_2012Metric"
+    (at 12 7)
+    (orientation 0)
+  )
+  )
+  ;; R3–R6 — Output series resistors (near J2)
+  (module_placement
+    (component "R3"
+    (footprint "Resistor_SMD:R_0805_2012Metric"
+    (at 25 10)
+    (orientation 0)
+  )
+  (module_placement
+    (component "R4"
+    (footprint "Resistor_SMD:R_0805_2012Metric"
+    (at 25 12)
+    (orientation 0)
+  )
+  (module_placement
+    (component "R5"
+    (footprint "Resistor_SMD:R_0805_2012Metric"
+    (at 25 18)
+    (orientation 0)
+  )
+  (module_placement
+    (component "R6"
+    (footprint "Resistor_SMD:R_0805_2012Metric"
+    (at 25 20)
+    (orientation 0)
+  )
+  )
+
+  ;; =========================================================================
+  ;; Text annotations on PCB
+  ;; =========================================================================
+  (gr_text "AD5754R Breakout" (at 15 28) (layer "F.SilkS")
+    (effects (font (size 1 1) (justify center))
+  )
+  (gr_text "MusicBrain v1.0" (at 15 2) (layer "F.SilkS")
+    (effects (font (size 0.8 0.8) (justify center))
+  )
+  (gr_text "J1: SPI+Power" (at 3 28) (layer "F.SilkS")
+    (effects (font (size 0.7 0.7) (justify left))
+  )
+  (gr_text "J2: DAC Out" (at 27 28) (layer "F.SilkS")
+    (effects (font (size 0.7 0.7) (justify right))
+  )
+  (gr_text "±5V bipolar" (at 15 26) (layer "F.SilkS")
+    (effects (font (size 0.6 0.6) (justify center))
+  )
+)
