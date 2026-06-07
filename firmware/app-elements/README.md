@@ -96,14 +96,33 @@ Program Change (0–127) recalls patch slot 0–127.
 ### Patch bank MVP (v0.5.5)
 
 - Persistent storage via Teensy LittleFS program flash (`patchbank.bin`)
-- 128 slots (`elements::Patch` + perf modulation + reverb amount/time)
-- Save trigger is edge-detected: CC#102 only saves when crossing to `>= 64`
-- Program Change recalls a stored slot immediately
+- 128 slots (`elements::Patch` + perf modulation + reverb amount/time + name[16])
+- **CC#102** (value ≥ 64, edge-detected): save current patch as a **new** slot
+- **Program Change**: recalls slot (PC 1 = first slot, PC 2 = second, etc.)
+- Names: up to 15 characters, set via serial `p name N <text>`
+- Auto-migrates existing bank from v1 → v2 (adds name field)
 
 Serial boot examples:
 - `[patch] loaded bank: count=... next=... current=...`
-- `[patch] saved slot N (count=M)`
-- `[patch] recalled slot N`
+- `[patch] saved prog 1 (count=1)`
+- `[patch] recalled prog 1`
+- `[patch] deleted prog 1 (count=0)`
+- `[patch] prog 1 = "mandolin"`
+
+### Serial commands
+
+Type these in the PlatformIO monitor (or any serial terminal at 115200 baud):
+
+| Command | Action |
+|---------|--------|
+| `p save` | Save current patch to **current** slot (overwrite) |
+| `p save N` | Save to program N (1-based) |
+| `p load N` | Recall program N (same as Program Change N) |
+| `p delete N` | Delete program N, shift subsequent slots back |
+| `p list` | List all stored slots with names |
+| `p info` | Show bank status (count, next, current) |
+| `p name N <text>` | Set name for program N (max 15 chars) |
+| `p name N` | Clear name for program N |
 
 Note-on/off uses a simple round-robin allocator with voice stealing (lowest
 index).
@@ -133,8 +152,18 @@ index).
 | 0.5.0 | 5 | Hybrid DTCM/OCRAM (stretchBuf+reverb→DTCM) | ❌ Serial blocks |
 | 0.5.1–0.5.3 | 5 | Various Serial/blocking fixes | ❌ still blocks ~25 ms |
 | **0.5.4** | **5** | **Non-blocking Serial.write (1 char/iter)** | **✅ stable** |
-| **0.5.5** | **5** | **Patch bank MVP (LittleFS + Program Change recall + CC#102 save)** | **✅ persistent presets** |
+| **0.5.5** | **5** | **PatchBank class (LittleFS + PC recall + CC#102 save + names + serial cmds)** | **✅ persistent presets** |
 | 0.6.0-attempt | 6 | 6-voice test | ❌ minSrc=1-2, CPU 234% |
+
+## Source files
+
+- `src/main.cpp` — main firmware (MIDI handlers, audio pipeline, serial commands)
+- `src/PatchBank.h` / `src/PatchBank.cpp` — persistent patch bank class (128 slots, LittleFS, names)
+- `src/FwVersion.h` — version string
+- `src/ElementsReverbModule.h` — reverb AudioStream wrapper
+- `lib/mi-elements/` — vendored Mutable Instruments Elements DSP (byte-exact)
+
+## 6-voice test result (v0.6.0-attempt)
 
 ## 6-voice test result (v0.6.0-attempt)
 

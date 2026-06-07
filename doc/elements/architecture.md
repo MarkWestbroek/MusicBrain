@@ -853,6 +853,52 @@ found by ear — tweaking controls until you find a sweet spot. Without persiste
 the patch is lost on reboot or firmware update. The MVP adds a 128-slot bank
 stored in Teensy program flash via LittleFS.
 
+**Class structure** (defined in `src/PatchBank.h` / `src/PatchBank.cpp`):
+
+```mermaid
+classDiagram
+    class StoredPatch {
+        +elements::Patch patch
+        +float modulation
+        +float reverbAmount
+        +float reverbTime
+        +char name[16]
+    }
+
+    class PatchBank {
+        -LittleFS_Program fs_
+        -BankFile bank_
+        -bool ready_
+        +begin() bool
+        +saveNew(data) uint16_t
+        +saveToSlot(slot, data) bool
+        +load(slot, out) bool
+        +remove(slot) bool
+        +setName(slot, text) bool
+        +clearName(slot) bool
+        +printList() void
+        +printInfo() void
+        +printSlot(slot) void
+        +count() uint16_t
+        +currentSlot() uint16_t
+        +nextSlot() uint16_t
+        +slotName(slot) const char*
+        +ready() bool
+    }
+
+    class BankFile {
+        +uint32_t magic
+        +uint32_t version
+        +uint16_t count
+        +uint16_t nextSlot
+        +uint16_t currentSlot
+        +StoredPatch slots[128]
+    }
+
+    PatchBank *-- BankFile : contains
+    BankFile *-- StoredPatch : contains 128
+```
+
 **Storage**:
 - Teensy `LittleFS_Program` filesystem on the internal QSPI program flash
   (1 MB partition, `patchbank.bin` file).
@@ -865,9 +911,10 @@ stored in Teensy program flash via LittleFS.
       float modulation;        // CC#30 offset
       float reverbAmount;      // CC#31
       float reverbTime;        // CC#32
+      char name[16];           // null-terminated, 15 visible chars
   };
   ```
-  Total per slot: 92 bytes. Bank file: ~12 KB for 128 slots.
+  Total per slot: 108 bytes (v2, with name). Bank file: ~13.8 KB for 128 slots.
 
 **Save**:
 - CC#102 triggers save when value crosses `>= 64` (edge-detected).
@@ -882,15 +929,32 @@ stored in Teensy program flash via LittleFS.
   and reverb amount/time.
 - Printed to serial: `[patch] recalled slot N`
 
-**Boot behavior**:
-1. `initPatchStorage()` mounts LittleFS (`patchFs.begin(1 MB)`).
-2. Tries to read `patchbank.bin` with magic/version/count validation.
-3. If invalid/missing: creates a fresh empty bank file.
-4. If valid and `count > 0`: applies `slots[currentSlot]` so the last active
-   patch is restored on power-up.
+**Delete**: `p delete N` shifts slots N+1..count back by one, decrements count,
+and adjusts `currentSlot`/`nextSlot` pointers.
 
-**Memory cost**: ~1 KB extra DTCM for the `PatchBankFile` struct (in
-`patchBank` global). LittleFS library adds ~4 KB working buffers. No
+**Serial commands** (over USB CDC at 115200 baud):
+
+| Command | Action |
+|---------|--------|
+| `p save` | Save current patch to current slot (overwrite) |
+| `p save N` | Save to program N (1-based) |
+| `p load N` | Recall program N |
+| `p delete N` | Delete program N, shift subsequent slots back |
+| `p list` | List all stored slots with names |
+| `p info` | Show bank status |
+| `p name N <text>` | Set name for program N (max 15 chars) |
+| `p name N` | Clear name for program N |
+
+**Delete**: shifts slots N..count back by one, decrements count, adjusts pointers.
+
+**Names**: 16-byte `name[16]` field added in bank v2. Auto-migration from v1 on
+first boot. Displayed in `p list` and `p load` messages.
+
+**Memory cost**: ~1 KB extra DTCM for the `PatchBank` instance (BankFile struct).
+LittleFS library adds ~4 KB working buffers. No OCRAM usage. FLASH increases
+by ~28 KB (LittleFS library + new code).
+
+**Boot behavior**:
 OCRAM usage. FLASH increases by ~28 KB (LittleFS library + new code).
 
 **Future improvements**:

@@ -32,6 +32,7 @@
 #include "elements/dsp/fx/reverb.h"
 
 #include "ElementsReverbModule.h"
+#include "PatchBank.h"
 
 namespace {
 
@@ -257,65 +258,26 @@ float reverbDiffusion = 0.625f;
 float reverbLp        = 0.7f;
 
 // ---------------------------------------------------------------------------
-// Patch bank MVP (persistent on Teensy program flash via LittleFS).
-// - Save trigger: CC#102 value >= 64 (edge-triggered)
-// - Recall: MIDI Program Change 0..127
+// Patch bank (persistent on Teensy program flash via LittleFS).
+// CC#102 >= 64 = save new slot, Program Change = recall.
+// Serial: p save, p save N, p load N, p delete N, p list, p info, p name N
 // ---------------------------------------------------------------------------
-constexpr uint8_t kPatchSaveTriggerCC = 102;
-constexpr uint16_t kMaxStoredPatches = 128;
-constexpr size_t kPatchDiskSize = 1024 * 1024;
-const char kPatchBankPath[] = "patchbank.bin";
-constexpr uint32_t kPatchBankMagic = 0x50424E4B;  // 'PBNK'
-constexpr uint32_t kPatchBankVersion = 1;
-
-struct StoredPatch {
-    elements::Patch patch;
-    float modulation;
-    float reverbAmount;
-    float reverbTime;
-};
-
-struct PatchBankFile {
-    uint32_t magic;
-    uint32_t version;
-    uint16_t count;
-    uint16_t nextSlot;
-    uint16_t currentSlot;
-    uint16_t reserved;
-    StoredPatch slots[kMaxStoredPatches];
-};
-
-LittleFS_Program patchFs;
-bool patchFsReady = false;
+PatchBank patchBank;
 bool patchSaveLatched = false;
-PatchBankFile patchBank = {};
+constexpr uint8_t kPatchSaveTriggerCC = 102;
 
-// IntervalTimer for 44.1 kHz sample-by-sample output.
-IntervalTimer pitTimer;
-
-// ---------------------------------------------------------------------------
-// Simple 2-voice allocator.
-// ---------------------------------------------------------------------------
-struct VoiceAlloc {
-    uint8_t note = 255;
-    bool    gate = false;
-};
-VoiceAlloc voiceAlloc_[kNumVoices];
-
-constexpr uint8_t kHeartbeatPin = LED_BUILTIN;
-uint32_t lastBlinkMs = 0;
-uint32_t lastCpuReportMs = 0;
-bool ledState = false;
-
+// Capture current voice-0 state into a StoredPatch for saving.
 StoredPatch captureCurrentPatch() {
     StoredPatch s = {};
     s.patch = *parts[0].mutable_patch();
     s.modulation = perfState[0].modulation;
     s.reverbAmount = reverbAmount;
     s.reverbTime = reverbTime;
+    s.name[0] = '\0';
     return s;
 }
 
+// Apply a StoredPatch to all voices and reverb.
 void applyStoredPatch(const StoredPatch& s) {
     for (int i = 0; i < kNumVoices; ++i) {
         *parts[i].mutable_patch() = s.patch;
@@ -327,103 +289,22 @@ void applyStoredPatch(const StoredPatch& s) {
     reverbStream.setTime(reverbTime);
 }
 
-void resetPatchBank() {
-    std::memset(&patchBank, 0, sizeof(patchBank));
-    patchBank.magic = kPatchBankMagic;
-    patchBank.version = kPatchBankVersion;
-}
+// IntervalTimer for 44.1 kHz sample-by-sample output.
+IntervalTimer pitTimer;
 
-bool writePatchBank() {
-    if (!patchFsReady) return false;
-    File f = patchFs.open(kPatchBankPath, FILE_WRITE_BEGIN);
-    if (!f) return false;
-    size_t written = f.write(reinterpret_cast<const uint8_t*>(&patchBank),
-                             sizeof(patchBank));
-    f.flush();
-    f.close();
-    return written == sizeof(patchBank);
-}
+// ---------------------------------------------------------------------------
+// Simple N-voice allocator.
+// ---------------------------------------------------------------------------
+struct VoiceAlloc {
+    uint8_t note = 255;
+    bool    gate = false;
+};
+VoiceAlloc voiceAlloc_[kNumVoices]; // N
 
-bool readPatchBank() {
-    if (!patchFsReady) return false;
-    File f = patchFs.open(kPatchBankPath, FILE_READ);
-    if (!f) return false;
-    if (f.size() != static_cast<uint64_t>(sizeof(patchBank))) {
-        f.close();
-        return false;
-    }
-    size_t n = f.read(reinterpret_cast<uint8_t*>(&patchBank), sizeof(patchBank));
-    f.close();
-    if (n != sizeof(patchBank)) return false;
-    if (patchBank.magic != kPatchBankMagic || patchBank.version != kPatchBankVersion) {
-        return false;
-    }
-    if (patchBank.count > kMaxStoredPatches) return false;
-    if (patchBank.nextSlot >= kMaxStoredPatches) return false;
-    if (patchBank.currentSlot >= kMaxStoredPatches) return false;
-    return true;
-}
-
-void saveCurrentPatchToNextSlot() {
-    if (!patchFsReady) return;
-    uint16_t slot = patchBank.nextSlot;
-    patchBank.slots[slot] = captureCurrentPatch();
-    if (patchBank.count < kMaxStoredPatches) {
-        patchBank.count++;
-    }
-    patchBank.currentSlot = slot;
-    patchBank.nextSlot = static_cast<uint16_t>((slot + 1) % kMaxStoredPatches);
-    if (writePatchBank()) {
-        Serial.printf("[patch] saved slot %u (count=%u)\n",
-                      static_cast<unsigned>(slot),
-                      static_cast<unsigned>(patchBank.count));
-    } else {
-        Serial.println("[patch] save failed");
-    }
-}
-
-void recallPatchByProgram(uint8_t program) {
-    if (patchBank.count == 0) return;
-    if (program >= patchBank.count) {
-        Serial.printf("[patch] program %u out of range (count=%u)\n",
-                      static_cast<unsigned>(program),
-                      static_cast<unsigned>(patchBank.count));
-        return;
-    }
-    patchBank.currentSlot = program;
-    applyStoredPatch(patchBank.slots[program]);
-    Serial.printf("[patch] recalled slot %u\n", static_cast<unsigned>(program));
-}
-
-void initPatchStorage() {
-    patchFsReady = patchFs.begin(kPatchDiskSize);
-    if (!patchFsReady) {
-        Serial.println("[patch] LittleFS mount failed (patch save/recall disabled)");
-        return;
-    }
-
-    if (!readPatchBank()) {
-        resetPatchBank();
-        if (!writePatchBank()) {
-            Serial.println("[patch] init failed (unable to write bank file)");
-            patchFsReady = false;
-            return;
-        }
-        Serial.println("[patch] created empty patch bank (128 slots)");
-        return;
-    }
-
-    Serial.printf("[patch] loaded bank: count=%u next=%u current=%u\n",
-                  static_cast<unsigned>(patchBank.count),
-                  static_cast<unsigned>(patchBank.nextSlot),
-                  static_cast<unsigned>(patchBank.currentSlot));
-
-    if (patchBank.count > 0 && patchBank.currentSlot < patchBank.count) {
-        applyStoredPatch(patchBank.slots[patchBank.currentSlot]);
-        Serial.printf("[patch] restored slot %u\n",
-                      static_cast<unsigned>(patchBank.currentSlot));
-    }
-}
+constexpr uint8_t kHeartbeatPin = LED_BUILTIN;
+uint32_t lastBlinkMs = 0;
+uint32_t lastCpuReportMs = 0;
+bool ledState = false;
 
 inline float noteToHz(uint8_t note) {
     return 440.0f * powf(2.0f, (static_cast<int>(note) - 69) / 12.0f);
@@ -490,7 +371,7 @@ void handleNoteOff(uint8_t /*ch*/, uint8_t note, uint8_t /*velocity*/) {
 void handleControlChange(uint8_t /*ch*/, uint8_t cc, uint8_t value) {
     if (cc == kPatchSaveTriggerCC) {
         if (value >= 64 && !patchSaveLatched) {
-            saveCurrentPatchToNextSlot();
+            patchBank.saveNew(captureCurrentPatch());
             patchSaveLatched = true;
         } else if (value < 64) {
             patchSaveLatched = false;
@@ -534,7 +415,105 @@ void handleControlChange(uint8_t /*ch*/, uint8_t cc, uint8_t value) {
 }
 
 void handleProgramChange(uint8_t /*ch*/, uint8_t program) {
-    recallPatchByProgram(program);
+    StoredPatch sp;
+    if (patchBank.load(program, sp)) {
+        applyStoredPatch(sp);
+        patchBank.printSlot(program);
+    } else {
+        Serial.printf("[patch] prog %u out of range (count=%u)\n",
+                      static_cast<unsigned>(program + 1),
+                      static_cast<unsigned>(patchBank.count()));
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Serial command line buffer + parser (non-blocking).
+// Commands: p save, p info, p list, p load N, p save N, p delete N, p name N
+// ---------------------------------------------------------------------------
+constexpr int kCmdBufSize = 64;
+static char cmdBuf[kCmdBufSize];
+static int cmdPos = 0;
+
+void processSerialCommand(const char* cmd) {
+    if (!patchBank.ready()) {
+        Serial.println("[patch] bank not available");
+        return;
+    }
+
+    if (strcmp(cmd, "p save") == 0) {
+        patchBank.saveToSlot(patchBank.currentSlot(), captureCurrentPatch());
+        return;
+    }
+
+    if (strcmp(cmd, "p info") == 0) {
+        patchBank.printInfo();
+        return;
+    }
+
+    if (strcmp(cmd, "p list") == 0) {
+        patchBank.printList();
+        return;
+    }
+
+    unsigned n = 0;
+    if (sscanf(cmd, "p load %u", &n) == 1) {
+        if (n == 0) { Serial.println("[patch] use prog 1 for first slot"); return; }
+        StoredPatch sp;
+        uint16_t slot = static_cast<uint16_t>(n - 1);
+        if (patchBank.load(slot, sp)) {
+            applyStoredPatch(sp);
+            patchBank.printSlot(slot);
+        } else {
+            Serial.printf("[patch] prog %u out of range (count=%u)\n",
+                          static_cast<unsigned>(n),
+                          static_cast<unsigned>(patchBank.count()));
+        }
+        return;
+    }
+
+    if (sscanf(cmd, "p save %u", &n) == 1) {
+        if (n == 0) { Serial.println("[patch] use prog 1 for first slot"); return; }
+        patchBank.saveToSlot(static_cast<uint16_t>(n - 1), captureCurrentPatch());
+        return;
+    }
+
+    if (sscanf(cmd, "p delete %u", &n) == 1) {
+        if (n == 0) { Serial.println("[patch] use prog 1 for first slot"); return; }
+        patchBank.remove(static_cast<uint16_t>(n - 1));
+        return;
+    }
+
+    // p name N <text>
+    unsigned nameProg = 0;
+    char nameBuf[32];
+    if (sscanf(cmd, "p name %u %31[^\n]", &nameProg, nameBuf) >= 1) {
+        if (nameProg == 0) { Serial.println("[patch] use prog 1"); return; }
+        if (sscanf(cmd, "p name %u %*s", &nameProg) == 1) {
+            patchBank.setName(static_cast<uint16_t>(nameProg - 1), nameBuf);
+        } else {
+            patchBank.clearName(static_cast<uint16_t>(nameProg - 1));
+        }
+        return;
+    }
+
+    Serial.println("[patch] unknown. Try: p save, p info, p list, p load N, p save N, p delete N, p name N <text>");
+}
+
+void pollSerialCommands() {
+    while (Serial.available() > 0) {
+        char c = static_cast<char>(Serial.read());
+        if (c == '\n' || c == '\r') {
+            if (cmdPos > 0) {
+                cmdBuf[cmdPos] = '\0';
+                processSerialCommand(cmdBuf);
+                cmdPos = 0;
+            }
+        } else if (c == '\b' || c == 0x7F) {
+            if (cmdPos > 0) cmdPos--;
+        } else if (cmdPos < kCmdBufSize - 1) {
+            cmdBuf[cmdPos++] = c;
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -625,7 +604,12 @@ void setup() {
     reverbStream.setLp(reverbLp);
 
     // Initialize persistent patch storage and restore current slot if present.
-    initPatchStorage();
+    if (patchBank.begin() && patchBank.count() > 0) {
+        StoredPatch sp;
+        if (patchBank.load(patchBank.currentSlot(), sp)) {
+            applyStoredPatch(sp);
+        }
+    }
 
     for (auto& ps : perfState) {
         ps.gate       = false;
@@ -654,7 +638,7 @@ void setup() {
     Serial.println("[boot] 5-voice hybrid + reverb ready. Part in loop(), resample in ISR.");
     Serial.println("[boot] stringBuf+resonatorBowBuf+diffuserBuf in OCRAM, stretchBuf+reverb in DTCM.");
     Serial.println("[boot] Reverb: CC#31=amount, CC#32=time.");
-    Serial.println("[boot] Patch bank MVP: CC#102>=64 saves next slot, Program Change recalls slot.");
+    Serial.println("[boot] Patch bank: CC#102>=64 saves new slot, Program Change recalls. Serial: p save, p info, p list, p load N, p save N, p delete N, p name N <text>");
     Serial.println("[boot] Hold 5 notes to test polyphony.");
 }
 
@@ -677,6 +661,9 @@ void loop() {
 
     // Render again after MIDI processing (MIDI may have changed perfState).
     renderBackground();
+
+    // Serial commands (p save / p list / p load N / p delete N).
+    pollSerialCommands();
 
     // Track peak loop() cycles for CPU report.
     // (Not wrapping in ARM_DWT_CYCCNT to avoid overhead — the per-voice

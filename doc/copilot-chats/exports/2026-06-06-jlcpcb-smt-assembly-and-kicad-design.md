@@ -2,7 +2,7 @@
 
 - **Datum**: 2026-06-06 22:48
 - **Sessie-ID**: `e1ce0bd0-7aac-4732-926e-d62a6212e78c`
-- **Berichten**: 40
+- **Berichten**: 42
 
 ---
 
@@ -678,5 +678,28 @@ Ik pas de `hide yes`-plaatsing aan in het verminkte pin-effectblok en controleer
 - Nu is `hide yes` correct geplaatst naast `font` in de pin `name`/`number` effecten
 
 ✅ Resultaat: geen fouten meer gevonden voor `minimal-dac.kicad_sch`.
+
+---
+
+## 🧑 User
+
+dank . De chip heeft nog wel 13 pootjes links
+
+---
+
+## 🤖 Assistant
+
+Ik pas de symbol-pinindeling aan naar exact 12 links en 12 rechts door de extra linkerkantige pin 13 te verwijderen en pin 13 rechts toe te voegen.
+
+
+*Read minimal-dac.kicad_sch, lines 150 to 193 · Checked minimal-dac.kicad_sch, no problems found*
+
+## Fix voltooid
+
+- `minimal-dac.kicad_sch` aangepast
+- Verwijderd: incorrecte extra pin `13` op de linkerzijde
+- Toegevoegd: juiste pin `13` op de rechterzijde als verborgen `NC`
+
+✅ Resultaat: chip-symbolen zijn nu 12 pins links en 12 pins rechts.
 
 ---

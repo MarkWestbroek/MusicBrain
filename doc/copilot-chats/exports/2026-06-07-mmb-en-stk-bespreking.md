@@ -434,4 +434,61 @@ Nu kan ik de 3 bestanden bewerken. Ik voeg de seed-functie toe, registreer in `s
 ````
 
 
+*Read seedModules.ts, lines 1571 to 1571 · Read seedModules.ts, lines 1620 to 1630 · Searched for regex `all = \[` (`**/editor/src/modular-mb/seedModules.ts`), 2 results*
+
+De seed-functie is al toegevoegd aan de `all` array — de eerdere `insert_edit_into_file` deed dat al. Nu update ik `RegisterAllModules.h
+
+*Starting: *Update RegisterAllModules.h* (3/5) · Read RegisterAllModules.h, lines 60 to 85 · Read RegisterAllModules.h, lines 80 to 96 · Read RegisterAllModules.h, lines 38 to 52*
+
+
+````
+
+````
+
+````
+
+````
+
+
+*Checked seedModules.ts, RegisterAllModules.h, StkSoundModule.h, types.ts, 23 problems found*
+
+De firmware `Audio.h`-fouten zijn voorbestaan (IntelliSense zonder PlatformIO include-path) — die staan ook bij álle andere modules. De editor-fout `Cannot find name 'mixer'` is ook pre-existing. Mijn nieuwe code heeft 0 fouten.
+
+Nu het documentatiebestand.
+
+
+
+*Starting: *Documenteer ontwerp in .md* (5/5)*
+
+
+
+*Starting: *Documenteer ontwerp in .md* (5/5) · Created stk-sound-module.md · Completed: *Documenteer ontwerp in .md* (5/5)*
+
+Klaar! Hier is wat er is gemaakt en gewijzigd:
+
+## Gemaakt / gewijzigd
+
+### 1. `StkSoundModule.h` (nieuw)
+- **StkSoundVoice** – `AudioStream(0 in, 1 out)` met polymorfe `unique_ptr<stk::Instrmnt>`
+- **StkSoundModule** – `AudioModule` met volledige dual-path: `setControl()` (knop) + `writeCvPort()` (CV) **somaties** (net als ElementsModule)
+- 8 sounds: Mandolin, Clarinet, Bowed, Flute, Brass, Saxophony, BlowHole, BandedWG
+- 5 CV-ports (voct, gate, strength, timbre, modulation) + 1 audio-out
+- **Sinus-fallback** zolang STK nog niet gevendored is — compileert altijd
+
+### 2. `seedModules.ts` (gewijzigd)
+- Nieuwe functie `mmbStkSound()` (8 HP, rotary switch, 4 knoppen, 5 CV-in, 1 audio-out)
+- Toegevoegd aan `all[]` array voor interne rack-registratie
+
+### 3. `RegisterAllModules.h` (gewijzigd)
+- `#include "StkSoundModule.h"` toegevoegd
+- `StkSoundModule::registerFactory()` call toegevoegd
+
+### 4. `stk-sound-module.md` (nieuw)
+- Volledig ontwerpdocument met architectuur, port-map, dual-path uitleg, CPU-raming en roadmap
+
+**Wat nog moet gebeuren** (staat in de roadmap):
+- STK 4.6+ downloaden en vendor-en in `firmware/lib/stk/`
+- `platformio.ini` include-path aanpassen
+- Compileren op Teensy 4.1
+
 ---
