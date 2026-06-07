@@ -843,7 +843,60 @@ Per-voice OCRAM breakdown:
 | 0.5.2 | 5 | 2048-frame ring buffers + render between prints | ❌ Still blocks ~25 ms |
 | 0.5.3 | 5 | 4096-frame ring buffers | ❌ Still blocks ~25 ms |
 | **0.5.4** | **5** | **Non-blocking Serial.write (1 char/iter)** | **✅ ISR=4.2%, minSrc=2030** |
+| **0.5.5** | **5** | **Patch bank MVP (LittleFS + Program Change + CC#102 save)** | **✅ persistent presets** |
 | 0.6.0-attempt | 6 | 6-voice test | ❌ minSrc=1-2, CPU 234% — ring buffer starvation |
+
+### Patch Bank MVP (v0.5.5)
+
+**Motivation**: Elements patches (20 float parameters + reverb/perf state) are
+found by ear — tweaking controls until you find a sweet spot. Without persistence
+the patch is lost on reboot or firmware update. The MVP adds a 128-slot bank
+stored in Teensy program flash via LittleFS.
+
+**Storage**:
+- Teensy `LittleFS_Program` filesystem on the internal QSPI program flash
+  (1 MB partition, `patchbank.bin` file).
+- Bank file header: magic (`PBNK`), version (`1`), count, next-slot pointer,
+  current-slot pointer.
+- Each slot stores a `StoredPatch` struct:
+  ```c
+  struct StoredPatch {
+      elements::Patch patch;   // 20 floats (80 bytes)
+      float modulation;        // CC#30 offset
+      float reverbAmount;      // CC#31
+      float reverbTime;        // CC#32
+  };
+  ```
+  Total per slot: 92 bytes. Bank file: ~12 KB for 128 slots.
+
+**Save**:
+- CC#102 triggers save when value crosses `>= 64` (edge-detected).
+- Writes current voice-0 `Patch` + `perfState[0].modulation` + reverb state
+  to the next available slot. The `nextSlot` pointer auto-advances (wraps
+  at 128).
+- Printed to serial: `[patch] saved slot N (count=M)`
+
+**Recall**:
+- MIDI Program Change (0–127) recalls the corresponding slot if within range.
+- Applies stored `Patch` to all 5 voices, `modulation` to all perf states,
+  and reverb amount/time.
+- Printed to serial: `[patch] recalled slot N`
+
+**Boot behavior**:
+1. `initPatchStorage()` mounts LittleFS (`patchFs.begin(1 MB)`).
+2. Tries to read `patchbank.bin` with magic/version/count validation.
+3. If invalid/missing: creates a fresh empty bank file.
+4. If valid and `count > 0`: applies `slots[currentSlot]` so the last active
+   patch is restored on power-up.
+
+**Memory cost**: ~1 KB extra DTCM for the `PatchBankFile` struct (in
+`patchBank` global). LittleFS library adds ~4 KB working buffers. No
+OCRAM usage. FLASH increases by ~28 KB (LittleFS library + new code).
+
+**Future improvements**:
+- SysEx patch dump/load for editor round-trip and backup.
+- Per-voice CC control (currently all voices share the same Patch).
+- Named patches (requires variable-length storage).
 
 ---
 

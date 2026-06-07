@@ -58,6 +58,7 @@
 #include "Mixer16Module.h"
 #include "OutModule.h"
 #include "mb/runtime/CvMath.h"
+#include "StkSoundModule.h"    // FW-AU-10: multi-sound STK physical modelling
 
 namespace mmb_link {
 
@@ -77,6 +78,7 @@ inline void registerAllRuntimeModules() {
     WtVcoModule::registerFactory();     // FW-AU-5: wavetable oscillator (banks)
     DrawVcoModule::registerFactory();   // FW-AU-6: draw-waveshape oscillator
     StringModule::registerFactory();    // FW-AU-8: Karplus-Strong string
+    StkSoundModule::registerFactory();  // FW-AU-10: multi-sound STK physical modelling
     ElementsModule::registerFactory();  // FW-AU-9: Mutable Instruments Elements voice
     ElementsReverbModule::registerFactory(); // FW-FX-3: Elements Dattorro reverb
     CompDriveModule::registerFactory(); // FW-FX-2: compressor + overdrive

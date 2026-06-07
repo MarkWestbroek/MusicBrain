@@ -144,14 +144,14 @@
     ;; Analog Devices AD5754R — Quad 16-bit DAC, TSSOP-24
     ;; Internal 2.5V reference, bipolar ±5V/±10V/0-10V output ranges
     (symbol "Custom:AD5754R"
-      (property "Reference" "U" (at 0  17.78 0) (effects (font (size 1.27 1.27))))
+      (property "Reference" "U" (at 0  20.32 0) (effects (font (size 1.27 1.27))))
       (property "Value" "AD5754R" (at 0 -17.78 0) (effects (font (size 1.27 1.27))))
       (property "Footprint" "Package_SO:TSSOP-24_4.4x7.8mm_P0.65mm" (at 0 0 0)
         (effects (font (size 1.27 1.27)) (hide yes)))
       (property "Datasheet" "https://www.analog.com/media/en/technical-documentation/data-sheets/AD5754R.pdf"
         (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
       (symbol "AD5754R_0_1"
-        (rectangle (start -10.16 16.51) (end 10.16 -16.51)
+        (rectangle (start -10.16 19.05) (end 10.16 -16.51)
           (stroke (width 0.254) (type default)) (fill (type background)))
       )
       (symbol "AD5754R_1_1"
@@ -178,7 +178,7 @@
           (name "GND"    (effects (font (size 1.27 1.27)))) (number "10" (effects (font (size 1.27 1.27)))))
         (pin power_in  line (at -12.7 -11.43 0) (length 2.54)
           (name "GND"    (effects (font (size 1.27 1.27)))) (number "11" (effects (font (size 1.27 1.27)))))
-        ;; Right side — digital + power
+        ;; Right side — digital + power (pins 12-24)
         (pin power_in  line (at  12.7 -11.43 180) (length 2.54)
           (name "DVCC"   (effects (font (size 1.27 1.27)))) (number "12" (effects (font (size 1.27 1.27)))))
         (pin power_in  line (at  12.7  -8.89 180) (length 2.54)

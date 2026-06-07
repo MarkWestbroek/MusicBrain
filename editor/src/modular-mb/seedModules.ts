@@ -5,7 +5,7 @@
 // 6 modules:
 //   1. Hexinverter Mutant Snare        12 HP  PCB-zwart + oranje accenten
 //   2. Mutable Instruments Elements    34 HP  mi-cream, kleurcode wit/roze/cyaan
-//   3. Mutable Instruments Shelves+Exp 16 HP  EQ-filter incl. expander-jacks
+//   3. Mutable Instruments Shelves+Exp  16 HP  EQ-filter incl. expander-jacks
 //   4. Analogue Systems RS-110 MkII    10 HP  aluminium multimode-filter
 //   5. Erica Synths Fusion VCO         22 HP  PCB-zwart met 2 buizen
 //   6. Malekko Richter Oscillator II    8 HP  aluminium dual-VCO
@@ -566,22 +566,17 @@ function richterOsc2() {
     ],
     items: [
       knob('fine',     'Fine',      cx,      26, { size: 'large', min: -50, max: 50, def: 0, unit: 'ct', color: '#0a0a0a' }),
-
       inPort('ext_l',  'Ext L',     'cv',    w*0.18, 42),
       inPort('ext_r',  'Ext R',     'cv',    w*0.82, 42),
-
       knob('exp',      'Exp',       w*0.20, 62, { size: 'medium', color: '#0a0a0a' }),
       button('lfo',    'LFO',       cx,      58),
       knob('phase_mod','Phase Mod', w*0.80, 62, { size: 'medium', color: '#0a0a0a' }),
-
       inPort('vct',    '1V/Oct',    'cv',    w*0.18, 84),
       knob('coarse',   'Coarse',    w*0.50, 84, { size: 'medium', min: -36, max: 36, def: 0, unit: 'semi', color: '#0a0a0a' }),
       knob('phase',    'Phase',     w*0.82, 84, { size: 'medium', color: '#0a0a0a' }),
-
       outPort('tri2',  'Tri 2',     'audio', w*0.18, 104),
       outPort('sqr2',  'Sqr 2',     'audio', w*0.40, 104),
       outPort('saw2',  'Saw 2',     'audio', w*0.62, 104),
-
       outPort('tri1',  'Tri 1',     'audio', w*0.10, 116),
       outPort('sqr1',  'Sqr 1',     'audio', w*0.28, 116),
       outPort('saw1',  'Saw 1',     'audio', w*0.46, 116),
@@ -1344,10 +1339,10 @@ function mmbString() {
     items: [
       knob('pluck', 'Pluck', w*0.30, 36, { size: 'medium', min: 0.01, max: 1, def: 0.8, color: '#f9fafb' }),
       knob('level', 'Level', w*0.70, 36, { size: 'medium', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
-      inPort ('voct',  'V/Oct', 'cv',    w*0.20, 92),
+      inPort ('voct',  'V/Oct',  'cv',    w*0.20, 92),
       inPort ('gate',  'Gate',  'gate',  w*0.50, 92),
-      inPort ('pluck_cv', 'P+', 'cv',    w*0.80, 92),
-      inPort ('level_cv', 'L+', 'cv',    w*0.20, 110),
+      inPort ('pluck_cv', 'P+',  'cv',    w*0.80, 92),
+      inPort ('level_cv', 'L+',  'cv',    w*0.20, 110),
       outPort('out',   'Out',   'audio', w*0.65, 110),
     ],
     notes: 'Karplus-Strong physical-modeling snaar (firmware tp_mmb_string, FW-AU-8). Een Gate rising-edge tokkelt de snaar op de toonhoogte uit V/Oct. \'pluck\' bepaalt de helderheid/ruisinhoud van de aanslag (0.01 dof … 1.0 helder); pluck en level zijn ook als CV bestuurbaar.',
@@ -1526,7 +1521,7 @@ function mmbWtVco() {
       sw  ('bank',   'Bank',   w/2,    22, ['Saw','Sqr','Tri','Organ','Pulse','Vocal'], 0),
       knob('coarse', 'Coarse', w*0.30, 58, { size: 'large',  min: -36, max: 36, def: 0,  unit: 'semi', color: '#f9fafb' }),
       knob('fine',   'Fine',   w*0.70, 58, { size: 'medium', min: -100, max: 100, def: 0, unit: 'ct',  color: '#f9fafb' }),
-      knob('level',  'Level',  w/2,    84, { size: 'medium', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      knob('level',  'Level',  w/2,    84, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
       inPort ('voct', '1V/Oct', 'cv',    w*0.25, 104),
       inPort ('tune', 'Tune',   'cv',    w*0.50, 104),
       outPort('out',  'Out',    'audio', w*0.78, 104),
@@ -1565,10 +1560,42 @@ function mmbDrawVco() {
   });
 }
 
+// 20. MMB STK-SOUND — 8 HP. Multi-sound physical-modelling voice via STK
+//     (firmware tp_mmb_stk_sound, FW-AU-10). Sound-keuze via rotary switch.
+function mmbStkSound() {
+  const w = W(8);
+  return assemble({
+    typeId: 'tp_mmb_stk_sound',
+    categoryId: 'vco',
+    variant: 'STK Sound (multi)',
+    brand: 'MMB', model: 'STK-SOUND',
+    hp: 8, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'STK-SOUND', fontSize: 2.0, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: 'physical modelling', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      sw  ('sound',  'Sound',   w/2,    22, ['Mandolin','Clarinet','Bowed','Flute','Brass','Saxophony','BlowHole','BandedWG'], 0),
+      knob('level',  'Level',   w*0.30, 54, { size: 'medium', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      knob('timbre', 'Timbre',  w*0.70, 54, { size: 'medium', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('modulation', 'Mod', w*0.30, 84, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('strength','Str',    w*0.70, 84, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      inPort ('voct',   'V/Oct',   'cv',   w*0.20, 108),
+      inPort ('gate',   'Gate',    'gate',  w*0.45, 108),
+      inPort ('strength','Str+',   'cv',   w*0.20, 120),
+      inPort ('timbre',  'Tim+',   'cv',   w*0.45, 120),
+      inPort ('modulation','Mod+', 'cv',   w*0.70, 108),
+      outPort('out',    'Out',     'audio', w*0.75, 120),
+    ],
+    notes: 'Multi-sound physical-modelling voice (firmware tp_mmb_stk_sound, FW-AU-10). De sound-selector kiest welk STK-algoritme actief is: Mandolin (getokkelde snaar), Clarinet (riet), Bowed (gestreken snaar), Flute (fluit), Brass (koper), Saxophony (saxofoon), BlowHole (enkelriet+klankgat) of BandedWG (modale/waveguide). Alle CV-ingangen tellen op bij de knopwaarde. Monofone voice; polyfonie via PolyGroup.',
+  });
+}
+
 // ── public entry ───────────────────────────────────────────────────────
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbQuadMixerShared(), mmbVcf(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbComp(), mmbNoise(), mmbEcho(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbQuadMixerShared(), mmbVcf(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbComp(), mmbNoise(), mmbEcho(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound()];
   const newTypes = all.map((x) => x.type);
   const newModules = all.map((x) => x.module);
 
@@ -1782,7 +1809,7 @@ export function seedCvBridgePatch(project: ModularProject): ModularProject {
     return s;
   };
   // Volgorde: signaalpad CV + audio leesbaar van links naar rechts:
-  // MidiIn → VCO → envFlt → VCF → envAmp → CvMath → VCA → OUT
+  // MidiIn → VCO → envFlt → VCF → envAmp → CvMath(vel×env) → VCA → OUT
   const slotOrder = [mi, vco, envFlt, vcf, envAmp, cvmath, vca, out];
   const rackHp = slotOrder.reduce((s, m) => s + m.visual.hpWidth, 0);
   const rack: Rack = {
@@ -1814,8 +1841,11 @@ export function seedCvBridgePatch(project: ModularProject): ModularProject {
     c({ m: envFlt, port: 'cv_out' }, { m: vcf,    port: 'cv'    }),
     // CV: amp env × velocity → VCA (CvMath in mult mode)
     c({ m: envAmp, port: 'cv_out' }, { m: cvmath, port: 'a'     }),
-    c({ m: mi,     port: 'vel'    }, { m: cvmath, port: 'b'     }),
+    c({ m: mi,            port: 'vel'    }, { m: cvmath, port: 'b'     }),
     c({ m: cvmath, port: 'out'    }, { m: vca,    port: 'cv'    }),
+    // Mixer → OUT (stereo, global→global)
+    c({ m: mixer, port: 'out_l' }, { m: out, port: 'l' }),
+    c({ m: mixer, port: 'out_r' }, { m: out, port: 'r' }),
   ];
 
   const controlState: Record<string, Record<string, ControlValue>> = {

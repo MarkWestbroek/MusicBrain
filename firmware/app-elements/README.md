@@ -89,6 +89,21 @@ delay-line buffers:
 | 30 | Performance modulation | ±24 |
 | **31** | **Reverb amount** | **0–1** |
 | **32** | **Reverb time** | **0–1** |
+| **102** | **Patch save trigger** | **value ≥ 64 saves current patch to next slot** |
+
+Program Change (0–127) recalls patch slot 0–127.
+
+### Patch bank MVP (v0.5.5)
+
+- Persistent storage via Teensy LittleFS program flash (`patchbank.bin`)
+- 128 slots (`elements::Patch` + perf modulation + reverb amount/time)
+- Save trigger is edge-detected: CC#102 only saves when crossing to `>= 64`
+- Program Change recalls a stored slot immediately
+
+Serial boot examples:
+- `[patch] loaded bank: count=... next=... current=...`
+- `[patch] saved slot N (count=M)`
+- `[patch] recalled slot N`
 
 Note-on/off uses a simple round-robin allocator with voice stealing (lowest
 index).
@@ -118,6 +133,7 @@ index).
 | 0.5.0 | 5 | Hybrid DTCM/OCRAM (stretchBuf+reverb→DTCM) | ❌ Serial blocks |
 | 0.5.1–0.5.3 | 5 | Various Serial/blocking fixes | ❌ still blocks ~25 ms |
 | **0.5.4** | **5** | **Non-blocking Serial.write (1 char/iter)** | **✅ stable** |
+| **0.5.5** | **5** | **Patch bank MVP (LittleFS + Program Change recall + CC#102 save)** | **✅ persistent presets** |
 | 0.6.0-attempt | 6 | 6-voice test | ❌ minSrc=1-2, CPU 234% |
 
 ## 6-voice test result (v0.6.0-attempt)
@@ -135,7 +151,8 @@ The loop() cannot fill 6 ring buffers faster than the ISR drains them.
    `AudioModule.h` copy, reuse shared mixin).
 2. Down-sample external `blow_in` / `strike_in` audio inputs into Part
    (currently silence — only internal exciters active).
-3. Add per-voice CC control (currently all voices share same CC values).
+3. Add SysEx patch dump/load (full editor round-trip, backup/restore).
+4. Add per-voice CC control (currently all voices share same CC values).
 
 ## Documentation
 

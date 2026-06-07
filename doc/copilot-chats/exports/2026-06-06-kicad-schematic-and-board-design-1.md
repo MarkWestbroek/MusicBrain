@@ -2,7 +2,7 @@
 
 - **Datum**: 2026-06-06 22:47
 - **Sessie-ID**: `af8f0474-dbc4-49b9-bb45-bd6defea7a0e`
-- **Berichten**: 24
+- **Berichten**: 29
 
 ---
 
@@ -697,5 +697,162 @@ Dit is de **echte** datasheet pinout! Compleet anders dan wat ik had. Laat me de
 | 15 | GND | Ground |
 | 16 | SDO | SPI data out |
 | 17 | REFIN 
+
+---
+
+## 🧑 User
+
+componenten zijn er, maar geen verbindingen zichtbaar
+
+---
+
+## 🧑 User
+
+@agent Try Again
+
+---
+
+## 🧑 User
+
+@agent Try Again
+
+---
+
+## 🧑 User
+
+de chip staat op het schema, maar heeft of toont geen verbindingen. Kun je daar iets aan doen?
+
+---
+
+## 🤖 Assistant
+
+Ik begrijp het probleem — de componenten staan op het schema maar er zijn geen wires/verbindingen tussen de pinnen en de net labels/power symbols. Alles is op willekeurige posities geplaatst, niet op pin-endpoints. Laat me eerst de referentie-file bekijken voor het wire-format, dan gen_kicad.py herschrijven met proper connections.
+
+*Created 4 todos · Read midi-standalone.kicad_sch, lines 1 to 80*
+
+
+
+*Searched for regex `wire|label|junction|no_connect` (`**/midi-standalone.kicad_sch`), 8 results*
+
+
+
+*Searched for regex `\(wire` (`**/midi-standalone.kicad_sch`), no results · Read midi-standalone.kicad_sch, lines 230 to 300 · Read midi-standalone.kicad_sch, lines 300 to 420*
+
+Ik zie het — de referentie schematic gebruikt **geen `(wire ...)` elementen**. In KiCad 8+ worden verbindingen gemaakt door **net labels** en **power symbols** op dezelfde positie als pin endpoints te plaatsen. De componenten en labels moeten op exact de juiste coördinaten staan zodat de pinnen en labels overlappen.
+
+Het probleem is dat in mijn gen_kicad.py de componenten op willekeurige posities staan en de labels ook op willekeurige posities — ze overlappen niet met de pin endpoints. Ik moet de posities berekenen zodat labels en power symbols exact op de pin-endpoints van de componenten staan.
+
+Laat me de huidige schematic bekijken om het probleem te zien:
+
+*Read ad5754r-breakout.kicad_sch, lines 50 to 370*
+
+Now I understand the key insight from the reference file. In KiCad 8+ schematics:
+- **Power symbols** (GND, +12V, etc.) have `(pin power_in line (at 0 0 angle) (length 0))` — their pin is at the symbol's origin with length 0
+- **Net labels** connect by being placed at the exact same coordinates as pin endpoints
+- **No `(wire ...)` elements needed** — connections are implicit through overlapping coordinates
+
+The problem: my current gen_kicad.py places components at arbitrary positions and labels at arbitrary positions — they don't overlap. I need to calculate the Now I understand the key insight from the reference file. In KiCad 8+ schematics:
+- **Power symbols** (GND, +12V, etc.) have `(pin power_in line (at 0 0 angle) (length 0))` — their pin is at the symbol's origin with length 0
+- **Net labels** connect by being placed at the exact same coordinates as pin endpoints
+- **No `(wire ...)` elements needed** — connections are implicit through overlapping coordinates
+
+The problem: my current gen_kicad.py places components at arbitrary positions and labels at arbitrary positions — they don't overlap. I need to calculate the exact pin endpoint positions for each component instance and place labels/power symbols at those exact coordinates.
+
+For a symbol placed at `(at X Y rotation)`:
+- Pin endpoint = symbol origin + pin offset (rotated by symbol rotation)
+- For rotation=0: pin at `(px, py)` → endpoint at `(X + px, Y + py)` for left-side pins (angle=0), `(X + px, Y + py)` for right-side pins (angle=180)
+- Actually, the pin endpoint is at the **wire end** of the pin, which is `origin + pin_at + length * direction(angle)`
+
+Wait, let me think more carefully. In KiCad, a pin has `(at px py angle)` relative to the symbol origin, and `(length L)`. The pin wire extends from `(px, py)` in the direction opposite to `angle` for length `L`. The **connection point** (where you place a label) is at 
+
+<details>
+<summary><em>Created 4 todos</em> (+5 meer)</summary>
+
+- Created 4 todos
+- Read midi-standalone.kicad_sch, lines 1 to 80
+- Searched for regex `wire|label|junction|no_connect` (`**/midi-standalone.kicad_sch`), 8 results
+- Searched for regex `\(wire` (`**/midi-standalone.kicad_sch`), no results
+- Read midi-standalone.kicad_sch, lines 230 to 300
+- Read midi-standalone.kicad_sch, lines 300 to 420
+</details>
+
+Ik zie het — de referentie schematic gebruikt **geen `(wire ...)` elementen**. In KiCad 8+ worden verbindingen gemaakt door **net labels** en **power symbols** op dezelfde positie als pin endpoints te plaatsen. De componenten en labels moeten op exact de juiste coördinaten staan zodat de pinnen en labels overlappen.
+
+Het probleem is dat in mijn gen_kicad.py de componenten op willekeurige posities staan en de labels ook op willekeurige posities — ze overlappen niet met de pin endpoints. Ik moet de posities berekenen zodat labels en power symbols exact op de pin-endpoints van de componenten staan.
+
+Laat me de huidige schematic bekijken om het probleem te zien:
+
+*Read ad5754r-breakout.kicad_sch, lines 50 to 370*
+
+Now I understand the key insight from the reference file. In KiCad 8+ schematics:
+- **Power symbols** (GND, +12V, etc.) have `(pin power_in line (at 0 0 angle) (length 0))` — their pin is at the symbol's origin with length 0
+- **Net labels** connect by being placed at the exact same coordinates as pin endpoints
+- **No `(wire ...)` elements needed** — connections are implicit through overlapping coordinates
+
+The problem: my current gen_kicad.py places components at arbitrary positions and labels at arbitrary positions — they don't overlap. I need to calculate the exact pin endpoint positions for each component instance and place labels/power symbols at those exact coordinates.
+
+For a symbol placed at `(at X Y rotation)`:
+- Pin endpoint = symbol origin + pin offset (rotated by symbol rotation)
+- For rotation=0: pin at `(px, py)` → endpoint at `(X + px, Y + py)` for left-side pins (angle=0), `(X + px, Y + py)` for right-side pins (angle=180)
+- Actually, the pin endpoint is at the **wire end** of the pin, which is `origin + pin_at + length * direction(angle)`
+
+Wait, let me think more carefully. In KiCad, a pin has `(at px py angle)` relative to the symbol origin, and `(length L)`. The pin wire extends from `(px, py)` in the direction opposite to `angle` for length `L`. The **connection point** (where you place a label) is at `(px, py)` — the pin endpoint.
+
+Actually, looking at the reference file more carefully:
+- The 6N138 is at `(at 90 65 0)` 
+- Its pin 6 (Vout) is at `(at 7.62 2.54 0)` relative to symbol, length 2.54
+- The pin endpoint in absolute coords = `(90 + 7.62, 65 + 2.54)` = `(97.62, 67.54)`
+- The MIDI_RX label is at `(at 122 62.5 0)` — NOT at the pin endpoint!
+
+Hmm, so the reference file also doesn't place labels at pin endpoints. Let me look more carefully at how connections work...
+
+Actually, in KiCad, connections work through **net names**. When a pin has a net name (via a label placed near it, or a power symbol), all pins with the same net name are connected. The label doesn't need to be at the exact pin endpoint — it just needs to be connected to the pin via a wire, OR the pin needs to have the net name directly.
+
+But wait — the reference file has NO wires at all. How does it connect?
+
+Let me re-read the reference file more carefully to understand the connection mechanism:
+
+*Read midi-standalone.kicad_sch, lines 400 to 450*
+
+Now I see the pattern! In the reference file:
+- R3 is at `(at 40 136.19 90)` — rotated 90°
+- The +5V power symbol is at `(at 36.2 136.19 0)` — at the **pin endpoint** of R3's pin 1
+
+For a resistor at `(40, 136.19)` rotated 90°:
+- Pin 1 is at `(0, 3.81)` relative, angle 270 → after 90° rotation, the pin endpoint is at `(40 + 3.81, 136.19)` = `(43.81, 136.19)`... wait that doesn't match 36.2.
+
+Actually, let me think about this differently. In KiCad, when a symbol is placed at `(at X Y R)` where R is the rotation:
+- Pin positions are rotated by R degrees around the symbol origin
+- For R=0: pin at `(px, py)` → absolute `(X+px, Y+py)`
+- For R=90: pin at `(px, py)` → absolute `(X+py, Y-px)` (90° rotation: x→y, y→-x)
+
+Wait, that's not right either. Let me look at the actual KiCad coordinate system.
+
+In KiCad's schematic editor:
+- Rotation 0°: normal (pins on left go left, pins on right go right)
+- Rotation 90°: symbol rotated 90° clockwise
+- The pin endpoint position after rotation:
+  - R=0: endpoint at `(X + px, Y + py)` where px,py are the pin's local coordinates
+  - R=90: endpoint at `(X + py, Y - px)` (90° CW rotation)
+
+For R3 at `(40, 136.19, 90)`:
+- Pin 1 local: `(0, 3.81)` → absolute: `(40 + 3.81, 136.19 - 0)` = `(43.81, 136.19)`
+- Pin 2 local: `(0, -3.81)` → absolute: `(40 + (-3.81), 136.19 - 0)` = `(36.19, 136.19)`
+
+The +5V power symbol is at `(36.2, 136.19)` — that's approximately `(36.19, 136.19)` = R3 pin 2 endpoint! ✓
+
+So the connection mechanism is: **power symbols and net labels must be placed at the exact pin endpoint coordinates**. KiCad connects them when they overlap.
+
+Now I need to completely rewrite gen_kicad.py with proper coordinate calculations. This is a major rewrite — I need to:
+1. Place U1 (AD5754BREZ) at a central position
+2. Calculate all pin endpoint positions for U1
+3. Place power symbols, net labels, resistors, capacitors at the correct pin endpoints
+4. Calculate pin endpoints for R/C components and place their connected items there too
+
+This is complex. Let me write a comprehensive new version.
+
+*Starting: *Rewrite gen_kicad.py with wires* (2/4)*
+
+
 
 ---

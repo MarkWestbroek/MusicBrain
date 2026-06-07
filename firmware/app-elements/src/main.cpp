@@ -22,6 +22,8 @@
 #include <Audio.h>
 #include <usb_midi.h>
 #include <cmath>
+#include <cstring>
+#include <LittleFS.h>
 
 #include "FwVersion.h"
 
@@ -254,6 +256,40 @@ float reverbTime      = 0.5f;
 float reverbDiffusion = 0.625f;
 float reverbLp        = 0.7f;
 
+// ---------------------------------------------------------------------------
+// Patch bank MVP (persistent on Teensy program flash via LittleFS).
+// - Save trigger: CC#102 value >= 64 (edge-triggered)
+// - Recall: MIDI Program Change 0..127
+// ---------------------------------------------------------------------------
+constexpr uint8_t kPatchSaveTriggerCC = 102;
+constexpr uint16_t kMaxStoredPatches = 128;
+constexpr size_t kPatchDiskSize = 1024 * 1024;
+const char kPatchBankPath[] = "patchbank.bin";
+constexpr uint32_t kPatchBankMagic = 0x50424E4B;  // 'PBNK'
+constexpr uint32_t kPatchBankVersion = 1;
+
+struct StoredPatch {
+    elements::Patch patch;
+    float modulation;
+    float reverbAmount;
+    float reverbTime;
+};
+
+struct PatchBankFile {
+    uint32_t magic;
+    uint32_t version;
+    uint16_t count;
+    uint16_t nextSlot;
+    uint16_t currentSlot;
+    uint16_t reserved;
+    StoredPatch slots[kMaxStoredPatches];
+};
+
+LittleFS_Program patchFs;
+bool patchFsReady = false;
+bool patchSaveLatched = false;
+PatchBankFile patchBank = {};
+
 // IntervalTimer for 44.1 kHz sample-by-sample output.
 IntervalTimer pitTimer;
 
@@ -270,6 +306,124 @@ constexpr uint8_t kHeartbeatPin = LED_BUILTIN;
 uint32_t lastBlinkMs = 0;
 uint32_t lastCpuReportMs = 0;
 bool ledState = false;
+
+StoredPatch captureCurrentPatch() {
+    StoredPatch s = {};
+    s.patch = *parts[0].mutable_patch();
+    s.modulation = perfState[0].modulation;
+    s.reverbAmount = reverbAmount;
+    s.reverbTime = reverbTime;
+    return s;
+}
+
+void applyStoredPatch(const StoredPatch& s) {
+    for (int i = 0; i < kNumVoices; ++i) {
+        *parts[i].mutable_patch() = s.patch;
+        perfState[i].modulation = s.modulation;
+    }
+    reverbAmount = s.reverbAmount;
+    reverbTime = s.reverbTime;
+    reverbStream.setAmount(reverbAmount);
+    reverbStream.setTime(reverbTime);
+}
+
+void resetPatchBank() {
+    std::memset(&patchBank, 0, sizeof(patchBank));
+    patchBank.magic = kPatchBankMagic;
+    patchBank.version = kPatchBankVersion;
+}
+
+bool writePatchBank() {
+    if (!patchFsReady) return false;
+    File f = patchFs.open(kPatchBankPath, FILE_WRITE_BEGIN);
+    if (!f) return false;
+    size_t written = f.write(reinterpret_cast<const uint8_t*>(&patchBank),
+                             sizeof(patchBank));
+    f.flush();
+    f.close();
+    return written == sizeof(patchBank);
+}
+
+bool readPatchBank() {
+    if (!patchFsReady) return false;
+    File f = patchFs.open(kPatchBankPath, FILE_READ);
+    if (!f) return false;
+    if (f.size() != static_cast<uint64_t>(sizeof(patchBank))) {
+        f.close();
+        return false;
+    }
+    size_t n = f.read(reinterpret_cast<uint8_t*>(&patchBank), sizeof(patchBank));
+    f.close();
+    if (n != sizeof(patchBank)) return false;
+    if (patchBank.magic != kPatchBankMagic || patchBank.version != kPatchBankVersion) {
+        return false;
+    }
+    if (patchBank.count > kMaxStoredPatches) return false;
+    if (patchBank.nextSlot >= kMaxStoredPatches) return false;
+    if (patchBank.currentSlot >= kMaxStoredPatches) return false;
+    return true;
+}
+
+void saveCurrentPatchToNextSlot() {
+    if (!patchFsReady) return;
+    uint16_t slot = patchBank.nextSlot;
+    patchBank.slots[slot] = captureCurrentPatch();
+    if (patchBank.count < kMaxStoredPatches) {
+        patchBank.count++;
+    }
+    patchBank.currentSlot = slot;
+    patchBank.nextSlot = static_cast<uint16_t>((slot + 1) % kMaxStoredPatches);
+    if (writePatchBank()) {
+        Serial.printf("[patch] saved slot %u (count=%u)\n",
+                      static_cast<unsigned>(slot),
+                      static_cast<unsigned>(patchBank.count));
+    } else {
+        Serial.println("[patch] save failed");
+    }
+}
+
+void recallPatchByProgram(uint8_t program) {
+    if (patchBank.count == 0) return;
+    if (program >= patchBank.count) {
+        Serial.printf("[patch] program %u out of range (count=%u)\n",
+                      static_cast<unsigned>(program),
+                      static_cast<unsigned>(patchBank.count));
+        return;
+    }
+    patchBank.currentSlot = program;
+    applyStoredPatch(patchBank.slots[program]);
+    Serial.printf("[patch] recalled slot %u\n", static_cast<unsigned>(program));
+}
+
+void initPatchStorage() {
+    patchFsReady = patchFs.begin(kPatchDiskSize);
+    if (!patchFsReady) {
+        Serial.println("[patch] LittleFS mount failed (patch save/recall disabled)");
+        return;
+    }
+
+    if (!readPatchBank()) {
+        resetPatchBank();
+        if (!writePatchBank()) {
+            Serial.println("[patch] init failed (unable to write bank file)");
+            patchFsReady = false;
+            return;
+        }
+        Serial.println("[patch] created empty patch bank (128 slots)");
+        return;
+    }
+
+    Serial.printf("[patch] loaded bank: count=%u next=%u current=%u\n",
+                  static_cast<unsigned>(patchBank.count),
+                  static_cast<unsigned>(patchBank.nextSlot),
+                  static_cast<unsigned>(patchBank.currentSlot));
+
+    if (patchBank.count > 0 && patchBank.currentSlot < patchBank.count) {
+        applyStoredPatch(patchBank.slots[patchBank.currentSlot]);
+        Serial.printf("[patch] restored slot %u\n",
+                      static_cast<unsigned>(patchBank.currentSlot));
+    }
+}
 
 inline float noteToHz(uint8_t note) {
     return 440.0f * powf(2.0f, (static_cast<int>(note) - 69) / 12.0f);
@@ -334,6 +488,16 @@ void handleNoteOff(uint8_t /*ch*/, uint8_t note, uint8_t /*velocity*/) {
 }
 
 void handleControlChange(uint8_t /*ch*/, uint8_t cc, uint8_t value) {
+    if (cc == kPatchSaveTriggerCC) {
+        if (value >= 64 && !patchSaveLatched) {
+            saveCurrentPatchToNextSlot();
+            patchSaveLatched = true;
+        } else if (value < 64) {
+            patchSaveLatched = false;
+        }
+        return;
+    }
+
     const float v = value / 127.0f;
     for (int i = 0; i < kNumVoices; ++i) {
         elements::Patch* p = parts[i].mutable_patch();
@@ -367,6 +531,10 @@ void handleControlChange(uint8_t /*ch*/, uint8_t cc, uint8_t value) {
         case 31: reverbAmount = v;    reverbStream.setAmount(v);    break;
         case 32: reverbTime   = v;    reverbStream.setTime(v);      break;
     }
+}
+
+void handleProgramChange(uint8_t /*ch*/, uint8_t program) {
+    recallPatchByProgram(program);
 }
 
 // ---------------------------------------------------------------------------
@@ -456,6 +624,9 @@ void setup() {
     reverbStream.setDiffusion(reverbDiffusion);
     reverbStream.setLp(reverbLp);
 
+    // Initialize persistent patch storage and restore current slot if present.
+    initPatchStorage();
+
     for (auto& ps : perfState) {
         ps.gate       = false;
         ps.note       = 69.0f;
@@ -478,10 +649,12 @@ void setup() {
     usbMIDI.setHandleNoteOn(handleNoteOn);
     usbMIDI.setHandleNoteOff(handleNoteOff);
     usbMIDI.setHandleControlChange(handleControlChange);
+    usbMIDI.setHandleProgramChange(handleProgramChange);
 
     Serial.println("[boot] 5-voice hybrid + reverb ready. Part in loop(), resample in ISR.");
     Serial.println("[boot] stringBuf+resonatorBowBuf+diffuserBuf in OCRAM, stretchBuf+reverb in DTCM.");
     Serial.println("[boot] Reverb: CC#31=amount, CC#32=time.");
+    Serial.println("[boot] Patch bank MVP: CC#102>=64 saves next slot, Program Change recalls slot.");
     Serial.println("[boot] Hold 5 notes to test polyphony.");
 }
 
