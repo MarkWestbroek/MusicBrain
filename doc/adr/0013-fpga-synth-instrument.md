@@ -5,7 +5,8 @@ Proposed (2026-06-22)
 
 ## Context
 
-A separate project, **MS20_synth_voice** (`E:\Dev\Gowin\MS20_synth_voice`),
+A separate project,
+[**FPGA_MS20_synth_voice**](https://github.com/MarkWestbroek/FPGA_MS20_synth_voice),
 implements a physical-modeling voice on a Sipeed Tang Primer 20K FPGA (Gowin
 `GW2A-18C`): a Karplus-Strong string oscillator into a Korg-MS-20-style
 state-variable filter with non-linear (tanh) diode saturation, running in Q12.20
@@ -87,7 +88,12 @@ hardware logic instead of C++.
 
 - Final slot map (which slots = pitch/gate/cutoff/res/drive per voice) — pin down
   alongside the editor's breakout addressing.
-- Pitch-CV scaling (what normalized `i16` range corresponds to which note range /
-  V-oct equivalent) — shared decision with the brain's pitch CV-out.
+- Pitch-CV scaling: which normalized `i16` range corresponds to which note range.
+  The FPGA is a **digital** instrument, so the analog pitch standards of
+  [ADR 0014](0014-pitch-formats-and-cv-ranges.md) (Hz/V, 1.2 V/oct, S-Trig) do
+  **not** apply to it — it works in note/semitone space internally. It only needs
+  a documented linear ("V/oct-like") map `i16 → semitone`, shared with the brain.
+  Current FPGA convention: reference note 69 (A4), 256 LSB = 1 semitone (see the
+  FPGA repo `synth_top.v` / `doc/PITCH_CV.md`). Confirm the brain emits the same.
 - Whether the FPGA also exposes a few per-voice modulation CV inputs later
   (would re-introduce `CvInReport`-style reporting, currently N/A).
