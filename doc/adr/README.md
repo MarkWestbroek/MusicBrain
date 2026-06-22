@@ -18,3 +18,4 @@ Format: based on Michael Nygard's template (Context / Decision / Consequences).
 | [0010](0010-midi-in-and-polyphony.md) | MIDI-In, per-patch voice count, and the editor's "voice stamp" | Proposed |
 | [0011](0011-voice-lifecycle-and-two-voice-mvp.md) | ... | Proposed |
 | [0012](0012-elements-modular-separation.md) | Elements modular separation: Reverb and OminousVoice as standalone modules | Proposed |
+| [0013](0013-fpga-synth-instrument.md) | FPGA synth voice as an SPI-slave instrument on the CV/gate bus | Proposed |
