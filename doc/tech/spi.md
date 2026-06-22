@@ -59,7 +59,10 @@ All multi-byte integers: **big-endian**.
 
 `channel` = `(caseId << 8) | slotId`. Inside a case the chip-select already identifies the board, so `slotId` is the per-board output index and `caseId` tells the bridge whether to route to another case over CAN-FD.
 
-`i16 value` maps `−32768..+32767` → `−1.0..+1.0`. The breakout scales to its DAC bit depth (12 or 16 bit, ADR 0004).
+`value` is 16-bit **offset-binary, full-scale 2¹⁶**: `0x0000` = range minimum,
+`0xFFFF` = one LSB below range maximum (`value = code/65536·(Vmax−Vmin)+Vmin`). Covers
+unipolar (0–10 V: `0x0000`=0 V) and bipolar (±10 V: `0x8000`=0 V). The breakout scales
+to its DAC bit depth (ADR 0004); see [spi-frame.md](../protocols/spi-frame.md) and ADR 0014.
 
 `curve_id` for `CvSegment`:
 

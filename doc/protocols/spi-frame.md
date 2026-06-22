@@ -38,7 +38,25 @@ The `channel` field is a 16-bit `(caseId << 8) | slotId`. Inside a case, the SPI
 
 ## CV value encoding
 
-`i16` value with `−32768..+32767` mapped to `−1.0..+1.0` (the breakout scales to its DAC's actual bit depth — 12 or 16, see [ADR 0004](../adr/0004-dac-resolution.md)).
+16-bit **offset-binary, full-scale = 2¹⁶**: `0x0000` = the bottom of the output's
+configured range, `0xFFFF` = one LSB below the top.
+`value = code / 65536 · (Vmax − Vmin) + Vmin`.
+
+- Using full-scale 2¹⁶ (not /65535) keeps the code↔voltage maths a pure power of
+  two (multiply + shift, no rounding) and matches how the 16-bit DAC (AD5754R)
+  actually behaves: its maximum code sits one LSB below full-scale.
+- Works uniformly for unipolar ranges (0–10 V: `0x0000` = 0 V) and bipolar ranges
+  (±10 V: `0x8000` = 0 V).
+
+The per-output voltage **range** and **pitch format** (1 V/oct / Hz/V …) are
+configuration, see [ADR 0004](../adr/0004-dac-resolution.md) and
+[ADR 0014](../adr/0014-pitch-formats-and-cv-ranges.md). The breakout — or a digital
+type-1 module such as the FPGA voice ([ADR 0013](../adr/0013-fpga-synth-instrument.md)) —
+scales `code` to its DAC bit depth / synthesises the pitch accordingly.
+
+> This supersedes the earlier "`i16` −1.0..+1.0" wording; the wire field is still
+> 16 bits, and for bipolar ranges the offset-binary `0x8000` midpoint equals a
+> signed zero.
 
 ## Interpolation (`CvSegment`)
 
