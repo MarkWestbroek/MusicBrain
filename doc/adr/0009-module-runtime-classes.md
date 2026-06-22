@@ -122,7 +122,7 @@ The `setGate(bool)` convention replaces the earlier `triggerAttack` / `triggerRe
 
 **CV value representation differs by context:**
 - *Simulator (TS):* float in a normalised range (e.g. 0.0–1.0 for gain, –1.0–+1.0 for bipolar CV). Easy to feed directly to Tone.js params.
-- *Firmware / breakout:* integer matching DAC resolution (12-bit: 0–4095; 16-bit: 0–65535). Voltage range (0–5 V, ±5 V, 0–10 V, 0–12 V, …) is a parameter of the `CvBreakout` definition, not of the module sending the signal. The breakout scales the integer to the correct voltage.
+- *Firmware / breakout:* integer matching DAC resolution (12-bit: 0–4095; 16-bit: 0–65535). Voltage range (0–5 V, ±5 V, 0–10 V, 0–12 V, …) is a parameter of the `CvBreakout` definition, not of the module sending the signal. The breakout scales the integer to the correct voltage. The *pitch encoding* (1 V/oct vs. Hz/V) and *gate type* (V-Trig vs. S-Trig) that interpret those voltages are likewise per-output breakout properties — see [ADR 0014](0014-pitch-formats-and-cv-ranges.md).
 
 **In firmware (Teensy — main brain):**
 - Only `CvModule` subclasses run here. Timer ISR calls `tick()` on each registered module in order.
@@ -229,6 +229,7 @@ The main brain Teensy has no audio code. This keeps both processors within their
 - [ADR 0005](0005-patch-storage-format.md) — JSON in editor, CBOR on device. Layer 2 maps to this format.
 - [ADR 0006](0006-multi-case-transport.md) — SPI/CAN-FD internal bus that carries CV/gate between brain and breakouts.
 - [ADR 0008](0008-latency-and-interpolation.md) — latency budget and breakout-side interpolation; relevant for CV update rate choice.
+- [ADR 0014](0014-pitch-formats-and-cv-ranges.md) — pitch encoding (V/oct, Hz/V) and gate type (V-Trig, S-Trig) as per-output breakout properties.
 - [SysML Overview](../SysML/sysML-overview.png) — system-level block diagram showing user-facing controls, internal brain, external modules, and signal types.
 - [SysML Details](../SysML/SysML-more-details.png) — firmware-level detail view with internal vs. external racks, module hierarchies, and bus routing.
 - Mutable Instruments / Yarns `voice.h` — inspiration for `CvModule` composition pattern and two-rate update (control tick + audio ISR).

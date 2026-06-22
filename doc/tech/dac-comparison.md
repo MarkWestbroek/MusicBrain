@@ -2,7 +2,8 @@
 
 For pitch CV we need 16-bit resolution so that the quantisation step (≈ 76 µV at ±5 V range) falls well below 1 cent. This page compares the three realistic candidates noted in the BOM discussions, and addresses whether a Sample-and-Hold stage is still needed at 16-bit precision.
 
-> Selected choice: **DAC8568** (ADR 0004), principally for its 8-channel density. The tradeoffs below explain why.
+> **Selected choice: AD5754R** (ADR 0004, amended 2026-06-22).
+> This page originally selected the **DAC8568** for its 8-channel density and single-supply simplicity, scaling its unipolar 0–5 V output up to Eurorack range with a final op-amp stage. Voortschrijdend inzicht reversed that: the AD5754R's **native, software-selectable bipolar output ranges** (±5 V, ±10 V, 0–10 V, 0–10.8 V) deliver the exact voltages that 1 V/oct *and* Hz/V instruments expect — with no scaling op-amp and therefore no added offset/drift — plus on-chip per-channel offset/gain trim. That directly serves the multi-standard connectivity goal of [ADR 0014](../adr/0014-pitch-formats-and-cv-ranges.md) (Eurorack V/oct alongside a Korg MS-20 on Hz/V + S-Trig). The DAC8568 comparison below is kept for the record; the tradeoffs that flipped the decision are called out in each section.
 
 ---
 
@@ -26,7 +27,9 @@ For pitch CV we need 16-bit resolution so that the quantisation step (≈ 76 µV
 
 ---
 
-## DAC8568 — the choice for MusicBrain
+## DAC8568 — the original pick (since superseded)
+
+> Superseded by the AD5754R. Strong on density and supply simplicity, but unipolar-only: it cannot reach Eurorack/MS-20 voltages without an external op-amp scaling stage, which reintroduces the offset/drift a 16-bit pitch path is trying to avoid.
 
 **Pros**
 - **8 channels in one chip** — drives 8 CVs directly; halves the chip count vs. 4-channel alternatives.
@@ -41,18 +44,18 @@ For pitch CV we need 16-bit resolution so that the quantisation step (≈ 76 µV
 
 ---
 
-## AD5754R — bipolar native
+## AD5754R — bipolar native — **the choice for MusicBrain**
 
 **Pros**
-- **Output ranges are hardware-selectable: ±5 V, ±10 V, 0–10 V** — matches Eurorack pitch range (0–8 V typical, ±5 V modulation) with no extra scaling stage.
-- No drift-introducing output op-amp; offset and gain registers allow on-chip fine-trim.
-- The "R" suffix has an on-chip reference; the non-R needs external.
+- **Output ranges are software-selectable per channel: ±5 V, ±10 V, 0–10 V, 0–10.8 V** — matches Eurorack pitch range (0–8 V typical, ±5 V modulation) *and* gives the headroom Hz/V high notes need, with no extra scaling stage. Re-rangeable in firmware to suit whatever is patched in (ADR 0014).
+- No drift-introducing output op-amp; on-chip per-channel offset and gain registers give a hardware coarse-trim under the software calibration table — valuable for per-unit Hz/V drift (e.g. Korg MS-20).
+- DC-stable and audio-rate capable (SPI to 30 MHz, ~10 µs settling): same part can hold a steady V/oct pitch or, on a fast channel, double as a bipolar audio-rate source.
+- The "R" suffix has an on-chip 2.5 V reference; the non-R needs external.
 
-**Cons**
-- **Needs a ±15 V supply** (or at minimum ±12 V) — requires an extra DC-DC converter, adding cost, board area and noise.
-- Only 4 channels; two chips for 8 outputs.
-- Higher cost.
-- Harder to source reliably in small quantities.
+**Cons (accepted)**
+- **Needs a ±12 V…±15 V analog supply** (AVDD/AVSS) — an extra bipolar rail vs. the single-supply DAC8568. The rack already provides ±12 V, so this is a layout/noise concern, not a blocker.
+- Only 4 channels; two chips for 8 pitch outputs.
+- Higher per-chip cost — but it absorbs the per-channel bipolar op-amp stage the DAC8568 would have required, so parts count nets out closer than the sticker price suggests.
 
 ---
 
@@ -86,14 +89,14 @@ At 12-bit precision the S&H + CD4051 mux trick (one cheap DAC drives 8 channels)
 
 **Bottom line**: architecturally valid at 16-bit but requires careful PCB layout and component selection. Fine for a prototype; borderline for a product.
 
-### Option B — Use the DAC8568 directly (8-channel, no mux/S&H)
+### Option B — Use a multi-channel 16-bit DAC directly (no mux/S&H)
 
 **Simpler analog, higher chip cost.**
 
-- DAC8568 has **8 independent outputs**. No mux, no S&H — each channel holds its value until the MCU writes a new one; the on-chip output amp holds the voltage indefinitely.
+- A direct-drive DAC gives **one independent output per channel**. No mux, no S&H — each channel holds its value until the MCU writes a new one; the on-chip output amp holds the voltage indefinitely.
 - Droop = zero. Glitches = zero. Settling time = ~10 µs per channel, irrelevant at human-ear timescales.
-- Still need the output op-amp stage for bipolar/range shifting — but that is 8× unity-gain difference amps, nothing exotic.
-- **This is what ADR 0004 chooses for the pitch CV bank.**
+- With the **AD5754R** there is no output op-amp stage at all: the bipolar range is selected on-chip, so the DAC pin drives the jack directly. (With the unipolar DAC8568 you would still need an 8× difference-amp stage for bipolar/range shifting — the very stage the AD5754R makes unnecessary.)
+- **This is what ADR 0004 chooses for the pitch CV bank** (AD5754R, 4 channels per chip).
 
 **Bottom line**: preferable for 16-bit pitch CV.
 
@@ -101,9 +104,9 @@ At 12-bit precision the S&H + CD4051 mux trick (one cheap DAC drives 8 channels)
 
 | Use case | Architecture | Why |
 |---|---|---|
-| 16-bit pitch CV (≤ 8 channels) | DAC8568 direct | No droop, simpler, one chip |
+| 16-bit pitch CV (≤ 4 channels) | AD5754R direct | Native bipolar ranges, no op-amp, on-chip trim, no droop |
 | 12-bit mod / gate / env (≤ 8 channels) | MCP4922 + CD4051 + S&H | Cheap, established, droop fine |
-| 16-bit pitch CV (> 8 channels) | Two DAC8568 on the same SPI bus, different CS | Same architecture, just one more chip |
+| 16-bit pitch CV (> 4 channels) | Two AD5754R on the same SPI bus, different CS | Same architecture, just one more chip |
 
 ---
 
