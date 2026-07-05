@@ -216,6 +216,9 @@ export async function sendConfig(project: ModularProject): Promise<void> {
     patches: flat.patches.map((p) => ({
       id:      p.id,
       name:    p.name,
+      // Firmware `applyPatchVoiceCount()` leest dit veld bij patch-activatie
+      // om elke MidiInModule op N stemmen te zetten (poly fan-out pitchK/gateK).
+      voiceCount: p.voiceCount,
       rackIds: p.rackIds,
       connections: p.connections.map((c) => ({
         id:   c.id,
