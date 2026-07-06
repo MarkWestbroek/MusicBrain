@@ -126,3 +126,35 @@ tikt, blips hoorbaar. Contract-tests: 69 groen. Elf bewaard.
 Antwoorden onderweg: sympathetic resonance zit al in Rings (model
 "Sympath"); wavetable deels aanwezig (WT-VCO/Draw-VCO/Plaits engine 5),
 echte morphing-WT-VCO op het menu gezet.
+
+---
+
+## Avond: DX7 op de msfa-engine (0.5.36, tag fw-0.5.36)
+
+**🎹 DX7 (tp_mmb_dx7, FW-AU-13)** — `firmware/lib/msfa`: de kern van
+Google's music-synthesizer-for-android (Apache-2.0; dezelfde engine als
+Dexed/MicroDexed). Eén 6-op FM-stem per instantie (poly via polyExpand),
+native 44.1 kHz (2× msfa-blok N=64 per update), velocity-gevoelig,
+fractionele pitch via de interne pitch-mod (bend is intern 3 semitonen
+fullscale). Default-voice: ingebouwde E.PIANO 1.
+
+**Banken:** nieuw serial-frame `{"type":"dx7bank","data":[4096]}` laadt een
+32-voice bulk-dump in de gedeelde bank van alle DX7-stemmen; `program`
+(0–31) kiest de voice (herladen op de volgende note-on). Editor:
+🎹 DX7-bank (.syx)-knop in de Teensy-modal (4104 met framing of 4096 kaal).
+
+**Port-hobbels:** Controllers-include ontbrak in dx7note.h; `size_t` in
+aligned_buf.h; globale min/max-templates botsen met std op Teensy;
+int/int32_t-signatuurmismatches (op ARM is int32_t een long!); de
+sin/exp2/tanh/freqlut-tabellen (~32 KB BSS) aten de DTCM-stack op tot
+6,6 KB → naar RAM2 via section-attribute (stack terug op 35 KB).
+
+**Hardware-getest:** E.PIANO 1 klinkt (peaks 0.12–0.29), ~2% CPU per
+klinkende stem (16-stemmig ≈ 33%), heap 248K vrij; bank-upload
+end-to-end bewezen (naam-terugkoppeling "MMB TEST00", program-wissel
+hoorbaar). Twee keer geleerd dat een open editor-verbinding de flash
+blokkeert — versie altijd via hello verifiëren.
+
+Commits: `f401e51` (firmware), `8812349` (paneel + syx-upload).
+Contract: 71 tests groen. Volgende op het menu: Warps → Octa-VCF/VCA →
+morphing-wavetable-VCO.
