@@ -1734,7 +1734,7 @@ function mmbDx7() {
       // Groot groen naam-display: lookup[bank][program] → voice-naam.
       // Bank 8 (USR) toont 'USER nn' tot er een .syx geladen is.
       display('voiceName', w/2, 60, {
-        digits: 10, style: 'led-green', size: 'large',
+        digits: 10, style: 'led-green', size: 'medium',
         bindTo: 'program', bindTo2: 'bank',
         lookup: [...DX7_VOICE_NAMES, Array.from({ length: 32 }, (_, i) => `USER ${i}`)],
         text: '----------',
