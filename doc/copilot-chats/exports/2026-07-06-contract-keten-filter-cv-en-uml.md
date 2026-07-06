@@ -100,3 +100,29 @@ zodra COM4 vrijkomt). Elfs: `firmware-0.5.32.elf`, `firmware-0.5.33.elf`.
 `0d8b230` seed out/aux · `9d9d4f6`+`a80fab3` (nacht: strip + ambient-seed) ·
 `31de807` OUT-level + drive-CV (0.5.33) · `5140399` panelen ·
 `94669e3` contract-keten · tsconfig-fix · UML/docs (deze commit).
+
+---
+
+## Middag: MI Marbles geport (0.5.34, tag fw-0.5.34)
+
+Menu-keuze van Mark: alles (Marbles → DX7/msfa → Warps → Octa-VCF/VCA →
+morphing-wavetable). Marbles als eerste gedaan:
+
+**🎲 Marbles (tp_mmb_marbles, FW-CV-2)** — `firmware/lib/mi-marbles`:
+TGenerator + XYGenerator als CvModule op de 1 kHz-tick (zelfde truc als
+Tides: sr=1000, size=1). t1/t2/tclk random gates + x1..x3/y gekwantiseerde
+random-CV's **in volts** — direct patchbaar op voct. Tempo in BPM (rate is
+intern semitonen rond 2 Hz = 120 BPM), déjà-vu-loop, 6 preset-schalen
+(preset_scales.h losgetrokken uit settings.cc — dat hangt aan STM32-flash),
+externe klok. Extra vendor-les: `random_generator.h` heeft
+`stmlib/utils/ring_buffer.h` nodig.
+
+Paneel `mmbMarbles` (14 HP, sequencer-categorie) + **zelfspelende seed
+"🎲 Generative jam"** in het Solo-menu: Marbles (pentatonisch, 180 BPM) →
+Plaits string-engine → Clouds, met Tides-quadratuur op de wolk. Geen MIDI
+nodig. Hardware-getest: x1 wandelt door het pentatonische raster, klok
+tikt, blips hoorbaar. Contract-tests: 69 groen. Elf bewaard.
+
+Antwoorden onderweg: sympathetic resonance zit al in Rings (model
+"Sympath"); wavetable deels aanwezig (WT-VCO/Draw-VCO/Plaits engine 5),
+echte morphing-WT-VCO op het menu gezet.
