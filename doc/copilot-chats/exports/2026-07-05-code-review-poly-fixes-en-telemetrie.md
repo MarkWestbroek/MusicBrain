@@ -319,3 +319,16 @@ Commits: `ad20baf` (firmware-port 0.5.31), `631fde4` (editor-panelen).
 **☁️ Clouds ambient (+Tides)** — Plaits (additive) → Clouds (granular), met
 Tides in loop+phase-mode als quadratuur-LFO op position/texture en elke
 MIDI-noot als korrel-trigger (`a80fab3`).
+
+**✅ Hardware-test geslaagd (0.5.32).** COM4 kwam na ~3,5 uur vrij; de eerste
+run onthulde twee dingen: (1) de Teensy draaide nog 0.5.30 — de nachtelijke
+flash was niet geland → opnieuw geflasht; (2) **Tides zweeg in
+amplitude-mode**: met `shift` op het midden is `channel_index = 0` en zijn
+alle vier de gains exact 0 — upstream-gedrag (shift kiest het actieve
+kanaal), maar een stille verrassing als default. Default output-mode is nu
+**phase (quadratuur)** in firmware én paneel (`f33e7a9`).
+
+Resultaat op de Teensy: **Tides out1 beweegt** (−0.52 → 0.36 bij 3 Hz);
+**Clouds maakt geluid** (peak 11838, ~6% CPU — ruim onder de geschatte 26%)
+en **freeze werkt**: peak blijft ~10400 zonder input. Buffers: 116+63 KB
+heap netjes gealloceerd (`[clouds] init ok`).
