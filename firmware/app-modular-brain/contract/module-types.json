@@ -1,0 +1,775 @@
+{
+  "$comment": "GEGENEREERD door tools/contract_dump.py — niet met de hand bewerken. Poort-ids zijn letterlijk wat de firmware accepteert (aliassen als out/out_l en naam/naam_cv staan er dus allebei in).",
+  "firmwareVersion": "0.5.33",
+  "modules": {
+    "tp_mmb_ahdsr": {
+      "typeId": "tp_mmb_ahdsr",
+      "source": "firmware/core/include/mb/runtime/Ahdsr.h",
+      "ports": [
+        "cv_out",
+        "gate",
+        "trig"
+      ],
+      "controls": [
+        "attack",
+        "curve",
+        "decay",
+        "hold",
+        "loop",
+        "release",
+        "reset",
+        "retrig",
+        "sustain"
+      ]
+    },
+    "tp_mmb_clouds": {
+      "typeId": "tp_mmb_clouds",
+      "source": "firmware/app-modular-brain/src/CloudsModule.h",
+      "ports": [
+        "density",
+        "density_cv",
+        "freeze",
+        "in",
+        "in_l",
+        "in_r",
+        "mix",
+        "mix_cv",
+        "out",
+        "out_l",
+        "out_r",
+        "pitch",
+        "pitch_cv",
+        "position",
+        "position_cv",
+        "size",
+        "size_cv",
+        "texture",
+        "texture_cv",
+        "trig"
+      ],
+      "controls": [
+        "density",
+        "feedback",
+        "freeze",
+        "level",
+        "mix",
+        "mode",
+        "pitch",
+        "position",
+        "reverb",
+        "size",
+        "spread",
+        "texture"
+      ]
+    },
+    "tp_mmb_comb": {
+      "typeId": "tp_mmb_comb",
+      "source": "firmware/app-modular-brain/src/CombModule.h",
+      "ports": [
+        "fbk",
+        "fbk_cv",
+        "freq",
+        "freq_cv",
+        "in",
+        "mix",
+        "mix_cv",
+        "out"
+      ],
+      "controls": [
+        "coarse",
+        "feedback",
+        "mix"
+      ]
+    },
+    "tp_mmb_comp": {
+      "typeId": "tp_mmb_comp",
+      "source": "firmware/app-modular-brain/src/CompDriveModule.h",
+      "ports": [
+        "drive",
+        "drive_cv",
+        "in",
+        "out",
+        "thr_cv",
+        "threshold",
+        "threshold_cv"
+      ],
+      "controls": [
+        "attack",
+        "drive",
+        "makeup",
+        "ratio",
+        "release",
+        "threshold"
+      ]
+    },
+    "tp_mmb_cv_in": {
+      "typeId": "tp_mmb_cv_in",
+      "source": "firmware/core/include/mb/runtime/CvBreakIn.h",
+      "ports": [],
+      "controls": [
+        "addr_case",
+        "addr_first_slot"
+      ]
+    },
+    "tp_mmb_cv_out_12": {
+      "typeId": "tp_mmb_cv_out_12",
+      "source": "firmware/core/include/mb/runtime/CvOut12.h",
+      "ports": [],
+      "controls": []
+    },
+    "tp_mmb_cv_out_16": {
+      "typeId": "tp_mmb_cv_out_16",
+      "source": "firmware/core/include/mb/runtime/CvOut16.h",
+      "ports": [],
+      "controls": []
+    },
+    "tp_mmb_cvmath": {
+      "typeId": "tp_mmb_cvmath",
+      "source": "firmware/core/include/mb/runtime/CvMath.h",
+      "ports": [
+        "a",
+        "b",
+        "c",
+        "out"
+      ],
+      "controls": [
+        "gain_a",
+        "gain_b",
+        "gain_c",
+        "mode",
+        "offset"
+      ]
+    },
+    "tp_mmb_draw_vco": {
+      "typeId": "tp_mmb_draw_vco",
+      "source": "firmware/app-modular-brain/src/DrawVcoModule.h",
+      "ports": [
+        "out",
+        "tune",
+        "voct"
+      ],
+      "controls": [
+        "coarse",
+        "fine",
+        "level"
+      ]
+    },
+    "tp_mmb_echo": {
+      "typeId": "tp_mmb_echo",
+      "source": "firmware/app-modular-brain/src/EchoModule.h",
+      "ports": [
+        "fbk",
+        "fbk_cv",
+        "in",
+        "mix",
+        "mix_cv",
+        "out",
+        "time",
+        "time_cv"
+      ],
+      "controls": [
+        "feedback",
+        "mix",
+        "time"
+      ],
+      "controlsIgnored": [
+        "tempo_sync"
+      ]
+    },
+    "tp_mmb_elements": {
+      "typeId": "tp_mmb_elements",
+      "source": "firmware/app-modular-brain/src/ElementsModule.h",
+      "ports": [
+        "blow_in",
+        "gate",
+        "out",
+        "out_l",
+        "out_r",
+        "strength",
+        "strike_in",
+        "voct"
+      ],
+      "controls": [
+        "blow",
+        "blow_meta",
+        "blow_timbre",
+        "bow",
+        "bow_timbre",
+        "brightness",
+        "coarse",
+        "damping",
+        "envelope",
+        "exciter",
+        "fine",
+        "fm",
+        "geometry",
+        "level",
+        "mod_freq",
+        "mod_offset",
+        "position",
+        "signature",
+        "space",
+        "strike",
+        "strike_meta",
+        "strike_timbre"
+      ]
+    },
+    "tp_mmb_elements_reverb": {
+      "typeId": "tp_mmb_elements_reverb",
+      "source": "firmware/app-modular-brain/src/ElementsReverbModule.h",
+      "ports": [
+        "in_l",
+        "in_r",
+        "out_l",
+        "out_r"
+      ],
+      "controls": [
+        "amount",
+        "diffusion",
+        "lp",
+        "time"
+      ]
+    },
+    "tp_mmb_fm_vco": {
+      "typeId": "tp_mmb_fm_vco",
+      "source": "firmware/app-modular-brain/src/FmVcoModule.h",
+      "ports": [
+        "fm",
+        "out",
+        "tune",
+        "voct"
+      ],
+      "controls": [
+        "coarse",
+        "fine",
+        "fm_amt",
+        "level",
+        "wave"
+      ]
+    },
+    "tp_mmb_gate_out": {
+      "typeId": "tp_mmb_gate_out",
+      "source": "firmware/core/include/mb/runtime/GateOut.h",
+      "ports": [],
+      "controls": []
+    },
+    "tp_mmb_ladder": {
+      "typeId": "tp_mmb_ladder",
+      "source": "firmware/app-modular-brain/src/LadderModule.h",
+      "ports": [
+        "cv",
+        "drive_cv",
+        "in",
+        "out",
+        "q_cv"
+      ],
+      "controls": [
+        "cutoff",
+        "cv_amt",
+        "drive",
+        "drive_cv_amt",
+        "q",
+        "q_cv_amt"
+      ]
+    },
+    "tp_mmb_lfo": {
+      "typeId": "tp_mmb_lfo",
+      "source": "firmware/core/include/mb/runtime/Lfo.h",
+      "ports": [
+        "gate",
+        "out",
+        "out_inv",
+        "rate_cv",
+        "reset"
+      ],
+      "controls": [
+        "amount",
+        "bipolar",
+        "depth",
+        "freq",
+        "rate",
+        "run",
+        "shape",
+        "wave"
+      ]
+    },
+    "tp_mmb_midiin": {
+      "typeId": "tp_mmb_midiin",
+      "source": "firmware/core/include/mb/runtime/MidiIn.h",
+      "ports": [
+        "cv_bend",
+        "cv_cc1",
+        "cv_cc2",
+        "cv_mod",
+        "gate",
+        "pitch",
+        "vel"
+      ],
+      "controls": [
+        "bendRange",
+        "cc1Num",
+        "cc2Num",
+        "channel",
+        "glide",
+        "legato",
+        "portamento",
+        "spread",
+        "steal",
+        "unison",
+        "voiceCount",
+        "voices"
+      ],
+      "controlsIgnored": [
+        "priority"
+      ]
+    },
+    "tp_mmb_mixer": {
+      "typeId": "tp_mmb_mixer",
+      "source": "firmware/app-modular-brain/src/MixerModule.h",
+      "ports": [
+        "in1",
+        "in2",
+        "in3",
+        "in4",
+        "out_l",
+        "out_r"
+      ],
+      "controls": [
+        "pan1",
+        "pan2",
+        "pan3",
+        "pan4",
+        "vol1",
+        "vol2",
+        "vol3",
+        "vol4"
+      ],
+      "controlsIgnored": []
+    },
+    "tp_mmb_mixer16": {
+      "typeId": "tp_mmb_mixer16",
+      "source": "firmware/app-modular-brain/src/Mixer16Module.h",
+      "ports": [
+        "in1",
+        "in10",
+        "in11",
+        "in12",
+        "in13",
+        "in14",
+        "in15",
+        "in16",
+        "in2",
+        "in3",
+        "in4",
+        "in5",
+        "in6",
+        "in7",
+        "in8",
+        "in9",
+        "out_l",
+        "out_r"
+      ],
+      "controls": [
+        "pan1",
+        "pan10",
+        "pan11",
+        "pan12",
+        "pan13",
+        "pan14",
+        "pan15",
+        "pan16",
+        "pan2",
+        "pan3",
+        "pan4",
+        "pan5",
+        "pan6",
+        "pan7",
+        "pan8",
+        "pan9",
+        "vol1",
+        "vol10",
+        "vol11",
+        "vol12",
+        "vol13",
+        "vol14",
+        "vol15",
+        "vol16",
+        "vol2",
+        "vol3",
+        "vol4",
+        "vol5",
+        "vol6",
+        "vol7",
+        "vol8",
+        "vol9"
+      ],
+      "controlsIgnored": []
+    },
+    "tp_mmb_mixer8": {
+      "typeId": "tp_mmb_mixer8",
+      "source": "firmware/app-modular-brain/src/Mixer8Module.h",
+      "ports": [
+        "in1",
+        "in2",
+        "in3",
+        "in4",
+        "in5",
+        "in6",
+        "in7",
+        "in8",
+        "out_l",
+        "out_r"
+      ],
+      "controls": [
+        "pan1",
+        "pan2",
+        "pan3",
+        "pan4",
+        "pan5",
+        "pan6",
+        "pan7",
+        "pan8",
+        "vol1",
+        "vol2",
+        "vol3",
+        "vol4",
+        "vol5",
+        "vol6",
+        "vol7",
+        "vol8"
+      ],
+      "controlsIgnored": []
+    },
+    "tp_mmb_ms20": {
+      "typeId": "tp_mmb_ms20",
+      "source": "firmware/app-modular-brain/src/Ms20Module.h",
+      "ports": [
+        "cv",
+        "drive_cv",
+        "in",
+        "out",
+        "q_cv"
+      ],
+      "controls": [
+        "cutoff",
+        "cv_amt",
+        "drive",
+        "drive_cv_amt",
+        "q",
+        "q_cv_amt",
+        "type"
+      ]
+    },
+    "tp_mmb_octa_vco": {
+      "typeId": "tp_mmb_octa_vco",
+      "source": "firmware/app-modular-brain/src/OctaVcoModule.h",
+      "ports": [
+        "out_1",
+        "out_2",
+        "out_3",
+        "out_4",
+        "out_5",
+        "out_6",
+        "out_7",
+        "out_8",
+        "tune",
+        "voct_1",
+        "voct_2",
+        "voct_3",
+        "voct_4",
+        "voct_5",
+        "voct_6",
+        "voct_7",
+        "voct_8"
+      ],
+      "controls": [
+        "coarse",
+        "detune",
+        "fine",
+        "level",
+        "wave"
+      ],
+      "controlsIgnored": []
+    },
+    "tp_mmb_out": {
+      "typeId": "tp_mmb_out",
+      "source": "firmware/app-modular-brain/src/OutModule.h",
+      "ports": [
+        "l",
+        "r"
+      ],
+      "controls": [
+        "level"
+      ],
+      "controlsIgnored": []
+    },
+    "tp_mmb_phaser": {
+      "typeId": "tp_mmb_phaser",
+      "source": "firmware/app-modular-brain/src/PhaserModule.h",
+      "ports": [
+        "depth",
+        "depth_cv",
+        "in",
+        "out",
+        "rate",
+        "rate_cv"
+      ],
+      "controls": [
+        "depth",
+        "feedback",
+        "mix",
+        "rate"
+      ]
+    },
+    "tp_mmb_plaits": {
+      "typeId": "tp_mmb_plaits",
+      "source": "firmware/app-modular-brain/src/PlaitsModule.h",
+      "ports": [
+        "aux",
+        "gate",
+        "harmonics",
+        "harmonics_cv",
+        "level",
+        "level_cv",
+        "morph",
+        "morph_cv",
+        "out",
+        "out_l",
+        "out_r",
+        "timbre",
+        "timbre_cv",
+        "trig",
+        "voct"
+      ],
+      "controls": [
+        "coarse",
+        "decay",
+        "engine",
+        "fine",
+        "harmonics",
+        "level",
+        "lpg",
+        "morph",
+        "timbre"
+      ]
+    },
+    "tp_mmb_rings": {
+      "typeId": "tp_mmb_rings",
+      "source": "firmware/app-modular-brain/src/RingsModule.h",
+      "ports": [
+        "brightness",
+        "brightness_cv",
+        "damping",
+        "damping_cv",
+        "gate",
+        "out",
+        "out_l",
+        "out_r",
+        "position",
+        "position_cv",
+        "structure",
+        "structure_cv",
+        "strum",
+        "voct"
+      ],
+      "controls": [
+        "brightness",
+        "coarse",
+        "damping",
+        "fine",
+        "level",
+        "model",
+        "polyphony",
+        "position",
+        "structure"
+      ]
+    },
+    "tp_mmb_seq8": {
+      "typeId": "tp_mmb_seq8",
+      "source": "firmware/core/include/mb/runtime/Seq16.h",
+      "ports": [
+        "clock",
+        "cv",
+        "gate_out",
+        "reset",
+        "run_in",
+        "trig",
+        "voct_in"
+      ],
+      "controls": [
+        "freq",
+        "gate",
+        "length",
+        "rate",
+        "root",
+        "run",
+        "s1",
+        "s10",
+        "s11",
+        "s12",
+        "s13",
+        "s14",
+        "s15",
+        "s16",
+        "s2",
+        "s3",
+        "s4",
+        "s5",
+        "s6",
+        "s7",
+        "s8",
+        "s9"
+      ],
+      "controlsIgnored": []
+    },
+    "tp_mmb_stereo_vca": {
+      "typeId": "tp_mmb_stereo_vca",
+      "source": "firmware/app-modular-brain/src/StereoVcaModule.h",
+      "ports": [
+        "in",
+        "l",
+        "pan",
+        "pan_cv",
+        "r",
+        "vol",
+        "vol_cv"
+      ],
+      "controls": [
+        "pan",
+        "vol"
+      ]
+    },
+    "tp_mmb_stk_sound": {
+      "typeId": "tp_mmb_stk_sound",
+      "source": "firmware/app-modular-brain/src/StkSoundModule.h",
+      "ports": [
+        "gate",
+        "modulation",
+        "out",
+        "strength",
+        "timbre",
+        "voct"
+      ],
+      "controls": [
+        "level",
+        "modulation",
+        "sound",
+        "strength",
+        "timbre"
+      ]
+    },
+    "tp_mmb_string": {
+      "typeId": "tp_mmb_string",
+      "source": "firmware/app-modular-brain/src/StringModule.h",
+      "ports": [
+        "gate",
+        "level",
+        "level_cv",
+        "out",
+        "pluck",
+        "pluck_cv",
+        "voct"
+      ],
+      "controls": [
+        "level",
+        "pluck"
+      ]
+    },
+    "tp_mmb_tides": {
+      "typeId": "tp_mmb_tides",
+      "source": "firmware/app-modular-brain/src/TidesModule.h",
+      "ports": [
+        "gate",
+        "out1",
+        "out2",
+        "out3",
+        "out4",
+        "rate_cv",
+        "shape",
+        "shape_cv",
+        "shift",
+        "shift_cv",
+        "slope",
+        "slope_cv",
+        "smooth",
+        "smooth_cv",
+        "trig"
+      ],
+      "controls": [
+        "mode",
+        "output",
+        "rate",
+        "shape",
+        "shift",
+        "slope",
+        "smooth"
+      ]
+    },
+    "tp_mmb_vca": {
+      "typeId": "tp_mmb_vca",
+      "source": "firmware/app-modular-brain/src/VcaModule.h",
+      "ports": [
+        "cv",
+        "in",
+        "out"
+      ],
+      "controls": [],
+      "controlsIgnored": [
+        "gain",
+        "resp"
+      ]
+    },
+    "tp_mmb_vcf": {
+      "typeId": "tp_mmb_vcf",
+      "source": "firmware/app-modular-brain/src/VcfModule.h",
+      "ports": [
+        "cv",
+        "in",
+        "out",
+        "q_cv"
+      ],
+      "controls": [
+        "cutoff",
+        "cv_amt",
+        "q",
+        "q_cv_amt",
+        "type"
+      ]
+    },
+    "tp_mmb_vco": {
+      "typeId": "tp_mmb_vco",
+      "source": "firmware/app-modular-brain/src/VcoModule.h",
+      "ports": [
+        "fm",
+        "out",
+        "sync",
+        "tune",
+        "voct"
+      ],
+      "controls": [
+        "coarse",
+        "fine",
+        "level",
+        "wave"
+      ],
+      "controlsIgnored": [
+        "fm_amt"
+      ]
+    },
+    "tp_mmb_wt_vco": {
+      "typeId": "tp_mmb_wt_vco",
+      "source": "firmware/app-modular-brain/src/WtVcoModule.h",
+      "ports": [
+        "out",
+        "tune",
+        "voct"
+      ],
+      "controls": [
+        "bank",
+        "coarse",
+        "fine",
+        "level"
+      ]
+    }
+  }
+}
