@@ -422,6 +422,15 @@ export async function sendWaveform(
   }));
 }
 
+/** DX7-bank push (FW-AU-13): één 32-voice bank (4096 bytes packed, dus een
+ *  .syx zonder de 8-byte sysex-framing) naar de gedeelde Dx7-bank.
+ *  Alle tp_mmb_dx7-instanties herladen hun program bij de volgende note-on. */
+export async function sendDx7Bank(bytes: Uint8Array): Promise<void> {
+  if (!writer) return;
+  if (bytes.length !== 4096) throw new Error(`dx7bank: verwacht 4096 bytes, kreeg ${bytes.length}`);
+  await writeLine(JSON.stringify({ type: 'dx7bank', data: Array.from(bytes) }));
+}
+
 /** Telemetrie-verzoek: firmware antwoordt met {"type":"status",...} dat in
  *  `lastStatus` belandt (niet in het verkeerslog). Stil no-op indien offline. */
 export async function sendGetStatus(): Promise<void> {

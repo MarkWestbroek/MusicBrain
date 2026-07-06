@@ -271,6 +271,8 @@ export function ModularMbApp(): JSX.Element {
                     c: { strike: 0.8, space: 0.5, level: 0.8 } },
                   { label: '🎻 STK (9 instrumenten)', t: 'tp_mmb_stk_sound', n: 'STK', l: 'out', r: 'out',
                     c: { sound: 0, level: 0.8 } },
+                  { label: '🎹 DX7 (6-op FM)', t: 'tp_mmb_dx7', n: 'DX7', l: 'out', r: 'out',
+                    c: { program: 0, level: 0.8 } },
                 ] as { label: string; t: string; n: string; l: string; r: string; c: Record<string, number> }[]).map((s) => (
                   <button
                     key={s.label}

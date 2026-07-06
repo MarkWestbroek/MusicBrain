@@ -14,6 +14,7 @@ import {
   sendMidiBend,
   sendMidiCC,
   clearLog,
+  sendDx7Bank,
 } from './teensyLink';
 import { TeensyStatusBar } from './TeensyStatusBar';
 import { WebMidiSource } from './sim/MidiSource';
@@ -35,6 +36,7 @@ export function TeensyLinkModal({ onClose }: Props): JSX.Element {
   const project = getProject();
   const activePatchId = project.activePatchId;
   const [staticEnabled, setStaticEnabled] = useState(true);
+  const syxRef = useRef<HTMLInputElement>(null);
 
   // ── Log export ──────────────────────────────────────────────────────
   const [copied, setCopied] = useState(false);
@@ -208,6 +210,29 @@ export function TeensyLinkModal({ onClose }: Props): JSX.Element {
               disabled={!isConnected}
               title="Mute / unmute de statische 4-stem fallback-graph"
             >{staticEnabled ? '🔊 Static ON' : '🔇 Static OFF'}</button>
+            <button
+              onClick={() => syxRef.current?.click()}
+              disabled={!isConnected}
+              title="Laad een DX7 32-voice bank (.syx, 4104 bytes met sysex-framing of 4096 kaal) in alle DX7-modules. Program-knop kiest daarna voice 0–31."
+            >🎹 DX7-bank (.syx)</button>
+            <input ref={syxRef} type="file" accept=".syx,application/octet-stream"
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                void file.arrayBuffer().then(async (ab) => {
+                  let bytes = new Uint8Array(ab);
+                  // 4104 = F0 43 0n 09 20 00 <4096 data> <checksum> F7
+                  if (bytes.length === 4104 && bytes[0] === 0xF0) bytes = bytes.slice(6, 6 + 4096);
+                  try {
+                    await sendDx7Bank(bytes);
+                  } catch (err) {
+                    alert(`DX7-bank laden faalde: ${(err as Error).message}`);
+                  }
+                });
+                e.target.value = '';
+              }}
+            />
           </div>
 
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>

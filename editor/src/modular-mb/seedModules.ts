@@ -1704,6 +1704,38 @@ function mmbMarbles() {
   });
 }
 
+// 14g. MMB DX7 — 8 HP. Yamaha DX7-stem op de msfa-engine (Dexed-kern,
+//     FW-AU-13). Eén stem per instantie (poly via polyExpand); program
+//     kiest voice 0–31 uit de gedeelde bank (laden via Teensy-modal, .syx).
+function mmbDx7() {
+  const w = W(8);
+  return assemble({
+    typeId: 'tp_mmb_dx7',
+    categoryId: 'vco',
+    variant: 'DX7 (msfa 6-op FM)',
+    brand: 'MMB', model: 'DX7',
+    hp: 8, texture: 'pcb-black', baseColor: '#1e1b4b', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'DX7', fontSize: 2.6, color: '#a5b4fc', align: 'middle' },
+      { x: w/2, y: 13,  text: '6-op FM · msfa', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob   ('program', 'Program', w*0.32, 28, { size: 'medium', min: 0, max: 31, def: 0, step: 1, color: '#a5b4fc' }),
+      display('prgDisp', w*0.72, 28, { digits: 2, style: 'led', bindTo: 'program', format: 'int' }),
+      knob('coarse', 'Coarse', w*0.25, 56, { size: 'small', min: -36, max: 36, def: 0, unit: 'semi', color: '#f9fafb' }),
+      knob('fine',   'Fine',   w*0.75, 56, { size: 'small', min: -100, max: 100, def: 0, unit: 'ct', color: '#f9fafb' }),
+      knob('level',  'Level',  w/2,    78, { size: 'medium', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+
+      inPort ('voct', 'V/Oct', 'cv',    w*0.20, 102),
+      inPort ('gate', 'Gate',  'gate',  w*0.50, 102),
+      inPort ('vel',  'Vel',   'cv',    w*0.80, 102),
+      outPort('out',  'Out',   'audio', w/2,    118),
+    ],
+    notes: 'Yamaha DX7-stem op de msfa-engine (Apache-2.0, dezelfde kern als Dexed/MicroDexed; firmware tp_mmb_dx7, FW-AU-13). Eén stem per instantie — polyfoon via de Poly-seeds. Program kiest voice 0–31 uit de gedeelde bank; laad een originele 32-voice .syx via de Teensy-modal (🎹 DX7-bank). Zonder bank klinkt alles als de ingebouwde E.PIANO 1. Velocity stuurt de FM-envelopes zoals op het origineel; pitch is fractioneel (V/Oct + Coarse/Fine via de interne pitch-mod).',
+  });
+}
+
 // 15. MMB COMP — 6 HP. Feed-forward compressor met lichte tanh-overdrive
 //     (firmware tp_mmb_comp, FW-FX-2). De Audio-lib heeft geen compressor,
 //     dus dit is een custom AudioStream.
@@ -1917,7 +1949,7 @@ function mmbStkSound() {
 // ── public entry ───────────────────────────────────────────────────────
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbComp(), mmbNoise(), mmbEcho(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbComp(), mmbNoise(), mmbEcho(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound()];
   const newTypes = all.map((x) => x.type);
   const newModules = all.map((x) => x.module);
 
