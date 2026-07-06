@@ -203,10 +203,15 @@ export interface DisplayControl {
   label?: string;
   /** Aantal tekens dat past op het display. */
   digits: number;
-  /** 'led' = rode 7-segment look, 'oled' = blauw monospace. */
-  style?: 'led' | 'oled';
+  /** 'led' = rode 7-segment look, 'oled' = blauw monospace, 'led-green' = groen. */
+  style?: 'led' | 'oled' | 'led-green';
   /** Wanneer gezet, leest het display de waarde van die control uit het patch-controlState. */
   bindTo?: string;
+  /** Tweede gebonden control voor 2D-lookups (rij-index; zie `lookup`). */
+  bindTo2?: string;
+  /** Tekst-lookup: toont `lookup[bindTo2-waarde ?? 0][bindTo-waarde]`
+   *  (bijv. DX7-voicenamen per bank/program). Buiten bereik → `text`/'--'. */
+  lookup?: string[][];
   format?: 'int' | 'float1' | 'float2' | 'midi' | 'onoff';
   /** Fallback-tekst als bindTo leeg is of niet bestaat. */
   text?: string;

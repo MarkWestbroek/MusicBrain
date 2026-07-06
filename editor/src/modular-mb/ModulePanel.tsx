@@ -756,7 +756,17 @@ function DisplayGlyph({
   const style = c.style ?? 'led';
   // Resolve waarde
   let display = c.text ?? '';
-  if (c.bindTo) {
+  const numOf = (id?: string): number => {
+    if (!id) return 0;
+    const v = controlState?.[id];
+    if (typeof v === 'number') return Math.round(v);
+    const bound = controls?.find((x2) => x2.id === id);
+    const dv = bound ? defaultValueOf(bound) : 0;
+    return typeof dv === 'number' ? Math.round(dv) : 0;
+  };
+  if (c.lookup) {
+    display = c.lookup[numOf(c.bindTo2)]?.[numOf(c.bindTo)] ?? c.text ?? '--';
+  } else if (c.bindTo) {
     const v = controlState?.[c.bindTo];
     if (v === undefined) {
       // Probeer default uit de gekoppelde control op te halen.
@@ -767,10 +777,11 @@ function DisplayGlyph({
       display = formatDisplay(v, c.format);
     }
   }
-  // Pad/cap naar `digits` tekens.
+  // Pad/cap naar `digits` tekens (lookup-tekst links uitgelijnd).
   const text = display.length > c.digits
     ? display.slice(0, c.digits)
-    : display.padStart(c.digits, ' ');
+    : c.lookup ? display.padEnd(c.digits, ' ')
+               : display.padStart(c.digits, ' ');
 
   const sizeKey = c.size ?? 'medium';
   const charW = sizeKey === 'large' ? 3.4 : sizeKey === 'small' ? 1.4 : 2.0;
@@ -779,8 +790,8 @@ function DisplayGlyph({
   const labelOffset = sizeKey === 'large' ? 1.2 : 0.8;
   const yText = sizeKey === 'large' ? y + 2.0 : sizeKey === 'small' ? y + 1.0 : y + 1.3;
   const w = c.digits * charW + 2.0;
-  const bg = style === 'oled' ? '#0a1424' : '#1a0a0a';
-  const fg = style === 'oled' ? '#67e8f9' : '#f87171';
+  const bg = style === 'oled' ? '#0a1424' : style === 'led-green' ? '#06140a' : '#1a0a0a';
+  const fg = style === 'oled' ? '#67e8f9' : style === 'led-green' ? '#4ade80' : '#f87171';
   return (
     <g>
       {c.label && (

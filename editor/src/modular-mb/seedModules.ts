@@ -19,6 +19,7 @@ import {
   MM_PER_HP, PANEL_HEIGHT_MM,
 } from './types';
 import { uid } from './store';
+import { DX7_VOICE_NAMES } from './dx7BankNames';
 
 // ── helpers ────────────────────────────────────────────────────────────
 
@@ -85,7 +86,8 @@ function slider(id: string, label: string, x: number, y: number,
   };
 }
 function display(id: string, x: number, y: number,
-                 opts: Partial<{ label: string; digits: number; style: 'led'|'oled'; bindTo: string;
+                 opts: Partial<{ label: string; digits: number; style: 'led'|'oled'|'led-green'; bindTo: string;
+                                 bindTo2: string; lookup: string[][];
                                  format: 'int'|'float1'|'float2'|'midi'|'onoff'; text: string;
                                  size: 'small'|'medium'|'large' }> = {}) {
   return {
@@ -1727,9 +1729,17 @@ function mmbDx7() {
       display('bnkDisp', w*0.72, 24, { digits: 2, style: 'led', bindTo: 'bank', format: 'int' }),
       knob   ('program', 'Program', w*0.32, 44, { size: 'medium', min: 0, max: 31, def: 0, step: 1, color: '#a5b4fc' }),
       display('prgDisp', w*0.72, 44, { digits: 2, style: 'led', bindTo: 'program', format: 'int' }),
-      knob('coarse', 'Coarse', w*0.25, 64, { size: 'small', min: -36, max: 36, def: 0, unit: 'semi', color: '#f9fafb' }),
-      knob('fine',   'Fine',   w*0.75, 64, { size: 'small', min: -100, max: 100, def: 0, unit: 'ct', color: '#f9fafb' }),
-      knob('level',  'Level',  w/2,    82, { size: 'medium', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      // Groot groen naam-display: lookup[bank][program] → voice-naam.
+      // Bank 8 (USR) toont 'USER nn' tot er een .syx geladen is.
+      display('voiceName', w/2, 60, {
+        digits: 10, style: 'led-green', size: 'large',
+        bindTo: 'program', bindTo2: 'bank',
+        lookup: [...DX7_VOICE_NAMES, Array.from({ length: 32 }, (_, i) => `USER ${i}`)],
+        text: '----------',
+      }),
+      knob('coarse', 'Coarse', w*0.25, 76, { size: 'small', min: -36, max: 36, def: 0, unit: 'semi', color: '#f9fafb' }),
+      knob('fine',   'Fine',   w*0.75, 76, { size: 'small', min: -100, max: 100, def: 0, unit: 'ct', color: '#f9fafb' }),
+      knob('level',  'Level',  w/2,    90, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
 
       inPort ('voct', 'V/Oct', 'cv',    w*0.20, 102),
       inPort ('gate', 'Gate',  'gate',  w*0.50, 102),
