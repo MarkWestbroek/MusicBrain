@@ -2761,6 +2761,80 @@ export function seedSoloVoicePatch(
 }
 
 /**
+ * Vocoder-demo: jouw keyboard bespeelt Warps' interne zaag-carrier (V/Oct),
+ * en een Marbles-geklokte Plaits (string-engine) levert het ritmische
+ * modulator-signaal — de zaag "spreekt" in het ritme van de generatieve
+ * plukjes. Houd een akkoordnoot aan en draai aan Timbre en Déjà vu.
+ */
+export function seedWarpsVocoderPatch(project: ModularProject): ModularProject {
+  const needed = ['tp_mmb_midiin', 'tp_mmb_warps', 'tp_mmb_marbles', 'tp_mmb_plaits', 'tp_mmb_out'];
+  const missing = needed.some((tid) => !project.moduleTypes.some((t) => t.id === tid));
+  const p = missing ? seedInternals(project) : project;
+
+  const fresh = (tid: string): ModuleInstance => {
+    const proto = p.modules.find((m) => m.typeId === tid)!;
+    return { ...proto, id: uid('mod'), internal: false, visual: proto.visual };
+  };
+  const mi     = fresh('tp_mmb_midiin');
+  const mar    = fresh('tp_mmb_marbles');
+  const plaits = fresh('tp_mmb_plaits');
+  const warps  = fresh('tp_mmb_warps');
+  const out    = fresh('tp_mmb_out');
+
+  let offset = 0;
+  const place = (m: ModuleInstance): RackSlot => {
+    const s: RackSlot = { id: uid('slot'), moduleId: m.id, row: 0, hpOffset: offset };
+    offset += m.visual.hpWidth;
+    return s;
+  };
+  const all = [mi, mar, plaits, warps, out];
+  const rack: Rack = {
+    id: uid('rack'), name: 'Warps vocoder',
+    description: 'Keyboard → interne zaag-carrier; Marbles→Plaits als ritmische modulator.',
+    rows: 1, hpPerRow: Math.max(64, all.reduce((n, m) => n + m.visual.hpWidth, 0) + 4),
+    slots: all.map(place),
+    kind: 'physical',
+  };
+
+  const c = (fm: ModuleInstance, fp: string, tm: ModuleInstance, tp: string): PatchConnection => ({
+    id: uid('conn'),
+    from: { moduleId: fm.id, portId: fp },
+    to:   { moduleId: tm.id, portId: tp },
+  });
+  const patch: Patch = {
+    id: uid('patch'), name: 'Warps vocoder',
+    description: 'Speel (en houd) een noot: die bespeelt de interne zaag-carrier van Warps. Marbles klokt Plaits als ritmische modulator door de vocoder. Timbre = vocoder-kleur; Marbles Déjà vu ~0.5 loopt het ritme.',
+    voiceCount: 1,
+    rackIds: [rack.id],
+    connections: [
+      c(mi, 'pitch', warps, 'voct'),
+      c(mar, 'x1', plaits, 'voct'),
+      c(mar, 't1', plaits, 'gate'),
+      c(plaits, 'out', warps, 'in2'),
+      c(warps, 'out', out, 'l'),
+      c(warps, 'aux', out, 'r'),
+    ],
+    controlState: {
+      [mi.id]:     { channel: 0, voiceCount: 1 },
+      [mar.id]:    { tempo: 220, bias: 0.45, jitter: 0.05, model: 0, dejavu: 0, length: 8, spread: 0.5, xbias: 0.5, steps: 0.8, scale: 2, range: 1 },
+      [plaits.id]: { engine: 11, harmonics: 0.5, timbre: 0.5, morph: 0.5, decay: 0.6, lpg: 0.6 },
+      [warps.id]:  { algo: 8, timbre: 0.5, shape: 3, drive1: 1, drive2: 1.3, coarse: 0, level: 0.85 },
+      [out.id]:    { level: 0.85 },
+    },
+    envelopes: [], lfos: [],
+  };
+
+  return {
+    ...p,
+    racks:        [...p.racks, rack],
+    modules:      [...p.modules, ...all],
+    patches:      [...p.patches, patch],
+    activeRackId:  rack.id,
+    activePatchId: patch.id,
+  };
+}
+
+/**
  * 8-stemmige DX7-poly: MidiIn → [DX7]×N (PolyGroup) → Mixer8 → OUT.
  * Geen VCF/VCA/ADSR-keten — de FM-envelopes van de DX7 doen het werk zelf,
  * en velocity gaat rechtstreeks de engine in. Program-knop (master) fant

@@ -7,7 +7,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { setProject, updateProject, useModularProject, getProject, undo, redo } from './store';
 import { emptyModularProject } from './types';
-import { seedExampleModules, seedInternals, seedTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, seedDx7PolyPatch, type PolySeedOptions } from './seedModules';
+import { seedExampleModules, seedInternals, seedTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, seedDx7PolyPatch, seedWarpsVocoderPatch, type PolySeedOptions } from './seedModules';
 import { PatchesPanel } from './PatchesPanel';
 import { ModulesPanel } from './ModulesPanel';
 import { CategoriesPanel } from './CategoriesPanel';
@@ -309,6 +309,14 @@ export function ModularMbApp(): JSX.Element {
                     padding: '7px 12px', cursor: 'pointer', fontSize: 13,
                   }}
                 >🎲 Generative jam (Marbles)</button>
+                <button
+                  onClick={() => { setProject(seedWarpsVocoderPatch(getProject())); setShowSolo(false); }}
+                  title="Vocoder: jouw keyboard bespeelt Warps' interne zaag-carrier; Marbles klokt Plaits als ritmische modulator. Houd een noot aan en draai Timbre."
+                  style={{
+                    textAlign: 'left', border: 'none', background: 'transparent',
+                    padding: '7px 12px', cursor: 'pointer', fontSize: 13,
+                  }}
+                >🗣️ Warps vocoder</button>
               </div>
             )}
           </span>
