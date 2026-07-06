@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xmi:XMI xmi:version="2.1" xmlns:uml="http://schema.omg.org/spec/UML/2.1" xmlns:xmi="http://schema.omg.org/spec/XMI/2.1">
+  <xmi:Documentation exporter="MusicBrain tools/uml_xmi_gen.py" exporterVersion="1.0"/>
+  <uml:Model xmi:type="uml:Model" xmi:id="mmb_model" name="MMB ModuleType-Panel">
+    <packagedElement xmi:type="uml:Package" xmi:id="pkg_Contract" name="Contract">
+      <packagedElement xmi:type="uml:Class" xmi:id="c_ModuleType" name="ModuleType" isAbstract="false">
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_ModuleType_0" name="id : string"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_ModuleType_1" name="categoryId : string"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_ModuleType_2" name="variant : string"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_ModuleType_3" name="role : ModuleRole"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_ModuleType_4" name="internal : bool"/>
+      </packagedElement>
+      <packagedElement xmi:type="uml:Class" xmi:id="c_Port" name="Port" isAbstract="false">
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_Port_0" name="id : string"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_Port_1" name="signalType : cv|gate|trigger|audio|midi"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_Port_2" name="direction : in|out"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_Port_3" name="range : CvRange"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_Port_4" name="cvFormat : analog|dcv12|dcv16"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_Port_5" name="eventKind : voice|global"/>
+      </packagedElement>
+      <packagedElement xmi:type="uml:Class" xmi:id="c_Control" name="Control" isAbstract="true">
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_Control_0" name="id : string"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_Control_1" name="label : string"/>
+      </packagedElement>
+      <packagedElement xmi:type="uml:Class" xmi:id="c_Knob" name="Knob" isAbstract="false">
+        <generalization xmi:type="uml:Generalization" xmi:id="g_Knob_Control" general="c_Control"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_Knob_0" name="min : float"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_Knob_1" name="max : float"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_Knob_2" name="defaultValue : float"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_Knob_3" name="step : float"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_Knob_4" name="taper : lin|log|exp"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_Knob_5" name="style : KnobStyle"/>
+      </packagedElement>
+      <packagedElement xmi:type="uml:Class" xmi:id="c_Slider" name="Slider" isAbstract="false">
+        <generalization xmi:type="uml:Generalization" xmi:id="g_Slider_Control" general="c_Control"/>
+      </packagedElement>
+      <packagedElement xmi:type="uml:Class" xmi:id="c_Toggle" name="Toggle" isAbstract="false">
+        <generalization xmi:type="uml:Generalization" xmi:id="g_Toggle_Control" general="c_Control"/>
+      </packagedElement>
+      <packagedElement xmi:type="uml:Class" xmi:id="c_Switch" name="Switch" isAbstract="false">
+        <generalization xmi:type="uml:Generalization" xmi:id="g_Switch_Control" general="c_Control"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_Switch_0" name="positions : string[]"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_Switch_1" name="defaultIndex : int"/>
+      </packagedElement>
+      <packagedElement xmi:type="uml:Class" xmi:id="c_Button" name="Button" isAbstract="false">
+        <generalization xmi:type="uml:Generalization" xmi:id="g_Button_Control" general="c_Control"/>
+      </packagedElement>
+      <packagedElement xmi:type="uml:Class" xmi:id="c_Joystick" name="Joystick" isAbstract="false">
+        <generalization xmi:type="uml:Generalization" xmi:id="g_Joystick_Control" general="c_Control"/>
+      </packagedElement>
+      <packagedElement xmi:type="uml:Class" xmi:id="c_Exotic" name="Exotic" isAbstract="false">
+        <generalization xmi:type="uml:Generalization" xmi:id="g_Exotic_Control" general="c_Control"/>
+      </packagedElement>
+      <packagedElement xmi:type="uml:Class" xmi:id="c_Indicator" name="Indicator" isAbstract="true">
+        <generalization xmi:type="uml:Generalization" xmi:id="g_Indicator_Control" general="c_Control"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_Indicator_0" name="bindTo : Control.id"/>
+      </packagedElement>
+      <packagedElement xmi:type="uml:Class" xmi:id="c_Display" name="Display" isAbstract="false">
+        <generalization xmi:type="uml:Generalization" xmi:id="g_Display_Indicator" general="c_Indicator"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_Display_0" name="digits : int"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_Display_1" name="format : int|float1|float2|midi|onoff"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_Display_2" name="style : led|oled"/>
+      </packagedElement>
+      <packagedElement xmi:type="uml:Class" xmi:id="c_Led" name="Led" isAbstract="false">
+        <generalization xmi:type="uml:Generalization" xmi:id="g_Led_Indicator" general="c_Indicator"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_Led_0" name="color : string"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_Led_1" name="bindMatch : float"/>
+      </packagedElement>
+      <packagedElement xmi:type="uml:Class" xmi:id="c_CellGroup" name="CellGroup" isAbstract="false">
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_CellGroup_0" name="id : string"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_CellGroup_1" name="label : string"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_CellGroup_2" name="count : int"/>
+      </packagedElement>
+      <packagedElement xmi:type="uml:Association" xmi:id="assoc_0" name="ports" memberEnd="assoc_0_a assoc_0_b">
+        <ownedEnd xmi:type="uml:Property" xmi:id="assoc_0_a" type="c_ModuleType" association="assoc_0" aggregation="composite">
+          <lowerValue xmi:type="uml:LiteralString" xmi:id="assoc_0_al" value="1"/>
+        </ownedEnd>
+        <ownedEnd xmi:type="uml:Property" xmi:id="assoc_0_b" type="c_Port" association="assoc_0">
+          <lowerValue xmi:type="uml:LiteralString" xmi:id="assoc_0_bl" value="1..*"/>
+        </ownedEnd>
+      </packagedElement>
+      <packagedElement xmi:type="uml:Association" xmi:id="assoc_1" name="controls" memberEnd="assoc_1_a assoc_1_b">
+        <ownedEnd xmi:type="uml:Property" xmi:id="assoc_1_a" type="c_ModuleType" association="assoc_1" aggregation="composite">
+          <lowerValue xmi:type="uml:LiteralString" xmi:id="assoc_1_al" value="1"/>
+        </ownedEnd>
+        <ownedEnd xmi:type="uml:Property" xmi:id="assoc_1_b" type="c_Control" association="assoc_1">
+          <lowerValue xmi:type="uml:LiteralString" xmi:id="assoc_1_bl" value="0..*"/>
+        </ownedEnd>
+      </packagedElement>
+      <packagedElement xmi:type="uml:Association" xmi:id="assoc_2" name="cellGroups" memberEnd="assoc_2_a assoc_2_b">
+        <ownedEnd xmi:type="uml:Property" xmi:id="assoc_2_a" type="c_ModuleType" association="assoc_2" aggregation="composite">
+          <lowerValue xmi:type="uml:LiteralString" xmi:id="assoc_2_al" value="1"/>
+        </ownedEnd>
+        <ownedEnd xmi:type="uml:Property" xmi:id="assoc_2_b" type="c_CellGroup" association="assoc_2">
+          <lowerValue xmi:type="uml:LiteralString" xmi:id="assoc_2_bl" value="0..*"/>
+        </ownedEnd>
+      </packagedElement>
+      <packagedElement xmi:type="uml:Association" xmi:id="assoc_3" name="portIds (per cel)" memberEnd="assoc_3_a assoc_3_b">
+        <ownedEnd xmi:type="uml:Property" xmi:id="assoc_3_a" type="c_CellGroup" association="assoc_3">
+          <lowerValue xmi:type="uml:LiteralString" xmi:id="assoc_3_al" value="0..*"/>
+        </ownedEnd>
+        <ownedEnd xmi:type="uml:Property" xmi:id="assoc_3_b" type="c_Port" association="assoc_3">
+          <lowerValue xmi:type="uml:LiteralString" xmi:id="assoc_3_bl" value="0..*"/>
+        </ownedEnd>
+      </packagedElement>
+      <packagedElement xmi:type="uml:Association" xmi:id="assoc_4" name="controlIds (per cel)" memberEnd="assoc_4_a assoc_4_b">
+        <ownedEnd xmi:type="uml:Property" xmi:id="assoc_4_a" type="c_CellGroup" association="assoc_4">
+          <lowerValue xmi:type="uml:LiteralString" xmi:id="assoc_4_al" value="0..*"/>
+        </ownedEnd>
+        <ownedEnd xmi:type="uml:Property" xmi:id="assoc_4_b" type="c_Control" association="assoc_4">
+          <lowerValue xmi:type="uml:LiteralString" xmi:id="assoc_4_bl" value="0..*"/>
+        </ownedEnd>
+      </packagedElement>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Package" xmi:id="pkg_View" name="View">
+      <packagedElement xmi:type="uml:Class" xmi:id="c_Panel" name="Panel" isAbstract="false">
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_Panel_0" name="hpWidth : HP"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_Panel_1" name="heightMm : float"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_Panel_2" name="texture : PanelTexture"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_Panel_3" name="baseColor : string"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_Panel_4" name="minFirmwareVersion : semver (voorstel)"/>
+      </packagedElement>
+      <packagedElement xmi:type="uml:Class" xmi:id="c_ControlPlacement" name="ControlPlacement" isAbstract="false">
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_ControlPlacement_0" name="x : mm"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_ControlPlacement_1" name="y : mm"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_ControlPlacement_2" name="rotation : deg"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_ControlPlacement_3" name="sizeOverride : ControlSize"/>
+      </packagedElement>
+      <packagedElement xmi:type="uml:Class" xmi:id="c_PortPlacement" name="PortPlacement" isAbstract="false">
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_PortPlacement_0" name="x : mm"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_PortPlacement_1" name="y : mm"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_PortPlacement_2" name="labelPos : above|below|left|right|none"/>
+      </packagedElement>
+      <packagedElement xmi:type="uml:Class" xmi:id="c_PanelDecoration" name="PanelDecoration" isAbstract="false">
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_PanelDecoration_0" name="kind : rect|line|text|tubeSlot|ledMarker|jackBlock"/>
+      </packagedElement>
+      <packagedElement xmi:type="uml:Association" xmi:id="assoc_5" name="visualiseert" memberEnd="assoc_5_a assoc_5_b">
+        <ownedEnd xmi:type="uml:Property" xmi:id="assoc_5_a" type="c_Panel" association="assoc_5">
+          <lowerValue xmi:type="uml:LiteralString" xmi:id="assoc_5_al" value="0..*"/>
+        </ownedEnd>
+        <ownedEnd xmi:type="uml:Property" xmi:id="assoc_5_b" type="c_ModuleType" association="assoc_5">
+          <lowerValue xmi:type="uml:LiteralString" xmi:id="assoc_5_bl" value="1"/>
+        </ownedEnd>
+      </packagedElement>
+      <packagedElement xmi:type="uml:Association" xmi:id="assoc_6" name="controlPlacements" memberEnd="assoc_6_a assoc_6_b">
+        <ownedEnd xmi:type="uml:Property" xmi:id="assoc_6_a" type="c_Panel" association="assoc_6" aggregation="composite">
+          <lowerValue xmi:type="uml:LiteralString" xmi:id="assoc_6_al" value="1"/>
+        </ownedEnd>
+        <ownedEnd xmi:type="uml:Property" xmi:id="assoc_6_b" type="c_ControlPlacement" association="assoc_6">
+          <lowerValue xmi:type="uml:LiteralString" xmi:id="assoc_6_bl" value="0..*"/>
+        </ownedEnd>
+      </packagedElement>
+      <packagedElement xmi:type="uml:Association" xmi:id="assoc_7" name="portPlacements" memberEnd="assoc_7_a assoc_7_b">
+        <ownedEnd xmi:type="uml:Property" xmi:id="assoc_7_a" type="c_Panel" association="assoc_7" aggregation="composite">
+          <lowerValue xmi:type="uml:LiteralString" xmi:id="assoc_7_al" value="1"/>
+        </ownedEnd>
+        <ownedEnd xmi:type="uml:Property" xmi:id="assoc_7_b" type="c_PortPlacement" association="assoc_7">
+          <lowerValue xmi:type="uml:LiteralString" xmi:id="assoc_7_bl" value="0..*"/>
+        </ownedEnd>
+      </packagedElement>
+      <packagedElement xmi:type="uml:Association" xmi:id="assoc_8" name="decorations" memberEnd="assoc_8_a assoc_8_b">
+        <ownedEnd xmi:type="uml:Property" xmi:id="assoc_8_a" type="c_Panel" association="assoc_8" aggregation="composite">
+          <lowerValue xmi:type="uml:LiteralString" xmi:id="assoc_8_al" value="1"/>
+        </ownedEnd>
+        <ownedEnd xmi:type="uml:Property" xmi:id="assoc_8_b" type="c_PanelDecoration" association="assoc_8">
+          <lowerValue xmi:type="uml:LiteralString" xmi:id="assoc_8_bl" value="0..*"/>
+        </ownedEnd>
+      </packagedElement>
+      <packagedElement xmi:type="uml:Association" xmi:id="assoc_9" name="per id" memberEnd="assoc_9_a assoc_9_b">
+        <ownedEnd xmi:type="uml:Property" xmi:id="assoc_9_a" type="c_ControlPlacement" association="assoc_9">
+          <lowerValue xmi:type="uml:LiteralString" xmi:id="assoc_9_al" value="0..*"/>
+        </ownedEnd>
+        <ownedEnd xmi:type="uml:Property" xmi:id="assoc_9_b" type="c_Control" association="assoc_9">
+          <lowerValue xmi:type="uml:LiteralString" xmi:id="assoc_9_bl" value="1"/>
+        </ownedEnd>
+      </packagedElement>
+      <packagedElement xmi:type="uml:Association" xmi:id="assoc_10" name="per id" memberEnd="assoc_10_a assoc_10_b">
+        <ownedEnd xmi:type="uml:Property" xmi:id="assoc_10_a" type="c_PortPlacement" association="assoc_10">
+          <lowerValue xmi:type="uml:LiteralString" xmi:id="assoc_10_al" value="0..*"/>
+        </ownedEnd>
+        <ownedEnd xmi:type="uml:Property" xmi:id="assoc_10_b" type="c_Port" association="assoc_10">
+          <lowerValue xmi:type="uml:LiteralString" xmi:id="assoc_10_bl" value="1"/>
+        </ownedEnd>
+      </packagedElement>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Package" xmi:id="pkg_Realisaties" name="Realisaties">
+      <packagedElement xmi:type="uml:Class" xmi:id="c_ModuleInstance" name="ModuleInstance" isAbstract="false">
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_ModuleInstance_0" name="id : string"/>
+      </packagedElement>
+      <packagedElement xmi:type="uml:Class" xmi:id="c_FirmwareModule" name="FirmwareModule" isAbstract="false">
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_FirmwareModule_0" name="kTypeId : const char*"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_FirmwareModule_1" name="inputPortKind(portId)"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_FirmwareModule_2" name="writeCvPort(portId, v)"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="p_FirmwareModule_3" name="setControl(controlId, v)"/>
+      </packagedElement>
+      <packagedElement xmi:type="uml:Class" xmi:id="c_SimModule" name="SimModule" isAbstract="false">
+      </packagedElement>
+      <packagedElement xmi:type="uml:Association" xmi:id="assoc_11" name="typeId" memberEnd="assoc_11_a assoc_11_b">
+        <ownedEnd xmi:type="uml:Property" xmi:id="assoc_11_a" type="c_ModuleInstance" association="assoc_11">
+          <lowerValue xmi:type="uml:LiteralString" xmi:id="assoc_11_al" value="0..*"/>
+        </ownedEnd>
+        <ownedEnd xmi:type="uml:Property" xmi:id="assoc_11_b" type="c_ModuleType" association="assoc_11">
+          <lowerValue xmi:type="uml:LiteralString" xmi:id="assoc_11_bl" value="1"/>
+        </ownedEnd>
+      </packagedElement>
+      <packagedElement xmi:type="uml:Association" xmi:id="assoc_12" name="visual" memberEnd="assoc_12_a assoc_12_b">
+        <ownedEnd xmi:type="uml:Property" xmi:id="assoc_12_a" type="c_ModuleInstance" association="assoc_12" aggregation="composite">
+          <lowerValue xmi:type="uml:LiteralString" xmi:id="assoc_12_al" value="1"/>
+        </ownedEnd>
+        <ownedEnd xmi:type="uml:Property" xmi:id="assoc_12_b" type="c_Panel" association="assoc_12">
+          <lowerValue xmi:type="uml:LiteralString" xmi:id="assoc_12_bl" value="1"/>
+        </ownedEnd>
+      </packagedElement>
+      <packagedElement xmi:type="uml:Realization" xmi:id="real_0" client="c_FirmwareModule" supplier="c_ModuleType"/>
+      <packagedElement xmi:type="uml:Realization" xmi:id="real_1" client="c_SimModule" supplier="c_ModuleType"/>
+    </packagedElement>
+  </uml:Model>
+</xmi:XMI>

@@ -1,0 +1,141 @@
+@startuml mmb-moduletype-panel
+' MMB: ModuleType (Model/contract) — Panel (View) — realisaties.
+' As-built naar editor/src/modular-mb/types.ts (2026-07-06).
+' Bron voor doc/architecture/mmb-moduletype-panel.xmi (EA-import);
+' regenereer die met tools/uml_xmi_gen.py (model als data daarin) na wijzigingen hier.
+
+package "Contract (het midden: ModuleType-data)" {
+  class ModuleType {
+    id : string
+    categoryId : string
+    variant : string
+    role : ModuleRole
+    internal : bool
+  }
+  class Port {
+    id : string
+    signalType : cv|gate|trigger|audio|midi
+    direction : in|out
+    range : CvRange
+    cvFormat : analog|dcv12|dcv16
+    eventKind : voice|global
+  }
+  abstract class Control {
+    id : string
+    label : string
+  }
+  class Knob {
+    min : float
+    max : float
+    defaultValue : float
+    step : float
+    taper : lin|log|exp
+    style : KnobStyle
+  }
+  class Slider
+  class Toggle
+  class Switch {
+    positions : string[]
+    defaultIndex : int
+  }
+  class Button
+  class Joystick
+  class Exotic
+  abstract class Indicator {
+    bindTo : Control.id
+  }
+  class Display {
+    digits : int
+    format : int|float1|float2|midi|onoff
+    style : led|oled
+  }
+  class Led {
+    color : string
+    bindMatch : float
+  }
+  class CellGroup {
+    id : string
+    label : string
+    count : int
+  }
+
+  ModuleType "1" *-- "1..*" Port
+  ModuleType "1" *-- "0..*" Control
+  ModuleType "1" *-- "0..*" CellGroup
+  CellGroup --> "0..*" Port : portIds (per cel)
+  CellGroup --> "0..*" Control : controlIds (per cel)
+  Control <|-- Knob
+  Control <|-- Slider
+  Control <|-- Toggle
+  Control <|-- Switch
+  Control <|-- Button
+  Control <|-- Joystick
+  Control <|-- Exotic
+  Control <|-- Indicator
+  Indicator <|-- Display
+  Indicator <|-- Led
+  note right of Indicator
+    read-only: toont een Control-waarde
+    (bindTo) of statische tekst
+  end note
+}
+
+package "View (paneel)" {
+  class Panel <<View>> {
+    hpWidth : HP
+    heightMm : float
+    texture : PanelTexture
+    baseColor : string
+  }
+  class ControlPlacement {
+    x : mm
+    y : mm
+    rotation : deg
+    sizeOverride : ControlSize
+  }
+  class PortPlacement {
+    x : mm
+    y : mm
+    labelPos : above|below|left|right|none
+  }
+  class PanelDecoration {
+    kind : rect|line|text|tubeSlot|ledMarker|jackBlock
+  }
+
+  Panel "0..*" --> "1" ModuleType : visualiseert
+  Panel *-- "0..*" ControlPlacement
+  Panel *-- "0..*" PortPlacement
+  Panel *-- "0..*" PanelDecoration
+  ControlPlacement --> "1" Control : per id
+  PortPlacement --> "1" Port : per id
+  note bottom of Panel
+    Nu 1-op-1 op de instantie (ModuleVisual);
+    meerdere panels per type = uitbreiding.
+    Voorstel: + minFirmwareVersion : semver
+  end note
+}
+
+package "Realisaties" {
+  class ModuleInstance {
+    id : string
+  }
+  class FirmwareModule <<C++ Teensy>> {
+    kTypeId : const char*
+    inputPortKind(portId)
+    writeCvPort(portId, v)
+    setControl(controlId, v)
+  }
+  class SimModule <<browser>>
+
+  ModuleInstance --> "1" ModuleType : typeId
+  ModuleInstance *-- "1" Panel : visual
+  FirmwareModule ..|> ModuleType : realiseert via strings\n(bewaakt door contract-test)
+  SimModule ..|> ModuleType : realiseert (simulatedBy)
+  note bottom of FirmwareModule
+    Contract gegenereerd uit de broncode:
+    tools/contract_dump.py ->
+    firmware/.../contract/module-types.json;
+    editor-CI valideert (contract.test.ts)
+  end note
+}
+@enduml
