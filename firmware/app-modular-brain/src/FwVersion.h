@@ -5,4 +5,4 @@
 //   MAJOR — protocol / API breaking change
 //   MINOR — feature step (3 = B-step 3, dynamic audio graph)
 //   PATCH — increment each time you flash a new build
-#define FW_VERSION "0.5.34"
+#define FW_VERSION "0.5.35"

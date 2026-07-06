@@ -100,7 +100,14 @@ public:
     clouds::GranularProcessor& processor() { return processor_; }
 
     bool  dspReady() const { return ready_; }
-    float takePeak() { const float p = peak_; peak_ = 0.0f; return p; }
+    /** Genormaliseerd 0..1 (intern rekent Clouds in int16-sample-eenheden),
+     *  zodat de strip-clipkleuring dezelfde schaal ziet als elements/rings/
+     *  plaits. */
+    float takePeak() {
+        const float p = peak_;
+        peak_ = 0.0f;
+        return p * (1.0f / 32768.0f);
+    }
     void  setLevel(float l) { level_ = l; }
     /// Trigger één korrel bij de volgende render (stijgende flank op `trig`).
     void  pulseTrigger() { triggerPending_ = true; }
