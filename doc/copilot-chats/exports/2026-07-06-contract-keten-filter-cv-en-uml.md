@@ -158,3 +158,8 @@ blokkeert — versie altijd via hello verifiëren.
 Commits: `f401e51` (firmware), `8812349` (paneel + syx-upload).
 Contract: 71 tests groen. Volgende op het menu: Warps → Octa-VCF/VCA →
 morphing-wavetable-VCO.
+
+**DX7 poly ×8 hardware-getest** (seed `03719b6`): 8-noots akkoord op de
+platte graaf = **9,3% CPU** (piek 10,2), outPeak 0.173, blocks 18, heap
+216K, hoorbare release-staart. Zestien stemmen zou dus rond de 20% blijven —
+de headroom voor Clouds achter een volle DX7-poly is er ruim.
