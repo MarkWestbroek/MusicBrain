@@ -67,6 +67,18 @@ export interface DeviceStatus {
   elementsGate?: boolean;   // Elements-diagnose: ziet de Part een open gate?
   elementsExc?: number;     // Elements-diagnose: exciter-meter (0..1)
   elementsRes?: number;     // Elements-diagnose: resonator-meter (0..1)
+  // MI-ports: ready = DSP-buffers gebonden, cpu = ISR-aandeel (%),
+  // peak = hoogste |output| sinds vorige poll (0..1).
+  ringsReady?: boolean;
+  ringsCpu?: number;
+  ringsPeak?: number;
+  plaitsReady?: boolean;
+  plaitsCpu?: number;
+  plaitsPeak?: number;
+  cloudsReady?: boolean;
+  cloudsCpu?: number;
+  cloudsPeak?: number;
+  tidesOut1?: number;  // momentane out1 van de Tides-slopegenerator
   ts: number;        // editor-tijdstempel van ontvangst
 }
 
@@ -188,6 +200,16 @@ function handleLine(line: string): void {
           elementsGate:  typeof msg.elementsGate === 'boolean' ? msg.elementsGate : undefined,
           elementsExc:   num(msg.elementsExc),
           elementsRes:   num(msg.elementsRes),
+          ringsReady:  typeof msg.ringsReady  === 'boolean' ? msg.ringsReady  : undefined,
+          ringsCpu:    num(msg.ringsCpu),
+          ringsPeak:   num(msg.ringsPeak),
+          plaitsReady: typeof msg.plaitsReady === 'boolean' ? msg.plaitsReady : undefined,
+          plaitsCpu:   num(msg.plaitsCpu),
+          plaitsPeak:  num(msg.plaitsPeak),
+          cloudsReady: typeof msg.cloudsReady === 'boolean' ? msg.cloudsReady : undefined,
+          cloudsCpu:   num(msg.cloudsCpu),
+          cloudsPeak:  num(msg.cloudsPeak),
+          tidesOut1:   num(msg.tidesOut1),
           ts: Date.now(),
         } });
         break;

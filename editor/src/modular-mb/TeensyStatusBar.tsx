@@ -53,6 +53,29 @@ export function TeensyStatusBar(props: { compact?: boolean }): JSX.Element | nul
           {st.elementsRes !== undefined ? ` res ${st.elementsRes.toFixed(2)}` : ''}
         </span>
       )}
+      {st.ringsReady !== undefined && (
+        <span title="Rings-diagnose: buffers ✓/✗, ISR-aandeel, output-peak">
+          rings {st.ringsReady ? '✓' : '✗'} {st.ringsCpu?.toFixed(1)}%
+          {st.ringsPeak !== undefined ? ` · peak ${st.ringsPeak.toFixed(3)}` : ''}
+        </span>
+      )}
+      {st.plaitsReady !== undefined && (
+        <span title="Plaits-diagnose: buffers ✓/✗, ISR-aandeel, output-peak">
+          plaits {st.plaitsReady ? '✓' : '✗'} {st.plaitsCpu?.toFixed(1)}%
+          {st.plaitsPeak !== undefined ? ` · peak ${st.plaitsPeak.toFixed(3)}` : ''}
+        </span>
+      )}
+      {st.cloudsReady !== undefined && (
+        <span title="Clouds-diagnose: werkbuffers ✓/✗ (✗ = heap-OOM, module zwijgt), ISR-aandeel, output-peak">
+          clouds {st.cloudsReady ? '✓' : '✗'} {st.cloudsCpu?.toFixed(1)}%
+          {st.cloudsPeak !== undefined ? ` · peak ${st.cloudsPeak.toFixed(3)}` : ''}
+        </span>
+      )}
+      {st.tidesOut1 !== undefined && (
+        <span title="Tides: momentane waarde van uitgang 1 — moet bewegen als de generator loopt">
+          tides₁ {st.tidesOut1.toFixed(2)}
+        </span>
+      )}
     </div>
   );
 }
