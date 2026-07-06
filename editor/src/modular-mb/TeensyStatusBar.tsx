@@ -36,6 +36,11 @@ export function TeensyStatusBar(props: { compact?: boolean }): JSX.Element | nul
           heap <b style={{ color: st.heapFree < 50 * 1024 ? '#f87171' : '#34d399' }}>{Math.round(st.heapFree / 1024)}K</b>
         </span>
       )}
+      {st.outPeak !== undefined && (
+        <span title="Master-uitgang: hoogste |sample| sinds de vorige poll — hét 'hoor ik iets?'-signaal. 0.000 = stilte.">
+          uit <b style={{ color: st.outPeak > 0.005 ? '#34d399' : '#64748b' }}>{st.outPeak.toFixed(3)}</b>
+        </span>
+      )}
       {st.stkOom && (
         <span style={{ color: '#f87171' }} title="Een STK-geheugenallocatie is gefaald — alle STK-instrumenten zwijgen tot een herstart. Kleinere patch pushen en power-cyclen.">
           STK-OOM!

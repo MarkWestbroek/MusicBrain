@@ -862,30 +862,32 @@ function mmbVcf() {
 //     AudioFilterLadder). Audio-rate CV op cutoff ÉN resonantie, plus input-
 //     drive (tanh-overdrive). Alleen LP 24 dB/oct — voor HP/BP: de MMB VCF.
 function mmbLadder() {
-  const w = W(6);
+  const w = W(8);
   return assemble({
     typeId: 'tp_mmb_ladder',
     categoryId: 'vcf',
     variant: 'Ladder VCF (Moog-stijl, 24 dB LP)',
     brand: 'MMB', model: 'LADDER',
-    hp: 6, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    hp: 8, texture: 'pcb-black', baseColor: '#111827', internal: true,
     texts: [
       { x: w/2, y: 8,   text: 'LADDER', fontSize: 2.2, color: '#f9fafb', align: 'middle' },
       { x: w/2, y: 126, text: 'MMB',    fontSize: 1.8, color: '#f9fafb', align: 'middle' },
     ],
     items: [
       knob('cutoff',   'Cutoff',   w/2, 22, { size: 'large', min: 20, max: 18000, def: 2000, unit: 'Hz', color: '#f9fafb' }),
-      knob('q',        'Res',      w*0.30, 48, { size: 'medium', min: 0, max: 1.8, def: 0.7, color: '#f9fafb' }),
-      knob('drive',    'Drive',    w*0.70, 48, { size: 'medium', min: 0, max: 4, def: 1, color: '#f9fafb' }),
-      knob('cv_amt',   'CV amt',   w*0.30, 70, { size: 'small', min: 0, max: 7, def: 2, unit: 'oct', color: '#f9fafb' }),
-      knob('q_cv_amt', 'Q CV amt', w*0.70, 70, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('q',        'Res (Q)',  w*0.28, 48, { size: 'medium', min: 0, max: 1.8, def: 0.7, color: '#f9fafb' }),
+      knob('drive',    'Drive',    w*0.72, 48, { size: 'medium', min: 0, max: 4, def: 1, color: '#f9fafb' }),
+      knob('cv_amt',       'F CV amt',   w*0.20, 70, { size: 'small', min: 0, max: 7, def: 2, unit: 'oct', color: '#f9fafb' }),
+      knob('q_cv_amt',     'Res CV amt', w*0.50, 70, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('drive_cv_amt', 'Drv CV amt', w*0.80, 70, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
 
-      inPort ('in',   'In',   'audio', w*0.25, 98),
-      inPort ('cv',   'F CV', 'cv',    w*0.75, 98),
-      inPort ('q_cv', 'Q CV', 'cv',    w*0.25, 112),
-      outPort('out',  'Out',  'audio', w*0.75, 112),
+      inPort ('in',       'In',     'audio', w*0.20, 98),
+      inPort ('cv',       'F CV',   'cv',    w*0.50, 98),
+      inPort ('q_cv',     'Res CV', 'cv',    w*0.80, 98),
+      inPort ('drive_cv', 'Drv CV', 'cv',    w*0.20, 112),
+      outPort('out',      'Out',    'audio', w*0.80, 112),
     ],
-    notes: 'Moog-stijl 4-pole lowpass ladder (Huovilainen-model, firmware tp_mmb_ladder). Beide CV-ingangen zijn audio-rate op de Teensy: F CV in octaven (cv_amt 0–7 oct), Q CV in resonantie-eenheden (q_cv_amt 0–1). Res boven ~1.1 gaat zelf-oscilleren; Drive >1 stuurt de tanh-clipping aan. Alleen lowpass 24 dB/oct — HP/BP doe je met de MMB VCF.',
+    notes: 'Moog-stijl 4-pole lowpass ladder (Huovilainen-model, firmware tp_mmb_ladder). Res = Q: de Res-knop is de basiswaarde, Res CV moduleert erbovenop (diepte via Res CV amt, 0–1 res-eenheden). F CV en Res CV zijn audio-rate op de Teensy; F CV in octaven (F CV amt 0–7 oct). Drv CV moduleert de drive exponentieel: ±1 CV bij amt 1 is ×4…÷4. Res boven ~1.1 gaat zelf-oscilleren; Drive >1 stuurt de tanh-clipping aan. Alleen lowpass 24 dB/oct — HP/BP doe je met de MMB VCF.',
   });
 }
 
@@ -894,31 +896,33 @@ function mmbLadder() {
 //     keuzes als het Gowin FPGA-project (MS20_synth_voice). LP 12 dB / HP 6 dB,
 //     live schakelbaar. Zelf-oscillatie bij Res = 1.
 function mmbMs20() {
-  const w = W(6);
+  const w = W(8);
   return assemble({
     typeId: 'tp_mmb_ms20',
     categoryId: 'vcf',
     variant: 'MS-20 filter (Korg35 Sallen-Key, LP/HP)',
     brand: 'MMB', model: 'MS-20',
-    hp: 6, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    hp: 8, texture: 'pcb-black', baseColor: '#111827', internal: true,
     texts: [
       { x: w/2, y: 8,   text: 'MS-20', fontSize: 2.2, color: '#f9fafb', align: 'middle' },
       { x: w/2, y: 126, text: 'MMB',   fontSize: 1.8, color: '#f9fafb', align: 'middle' },
     ],
     items: [
       knob('cutoff',   'Cutoff',   w/2, 22, { size: 'large', min: 20, max: 18000, def: 2000, unit: 'Hz', color: '#f9fafb' }),
-      knob('q',        'Res',      w*0.30, 48, { size: 'medium', min: 0, max: 1, def: 0.3, color: '#f9fafb' }),
-      knob('drive',    'Drive',    w*0.70, 48, { size: 'medium', min: 0.1, max: 10, def: 1, color: '#f9fafb' }),
-      knob('cv_amt',   'CV amt',   w*0.30, 70, { size: 'small', min: 0, max: 7, def: 2, unit: 'oct', color: '#f9fafb' }),
-      knob('q_cv_amt', 'Q CV amt', w*0.70, 70, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('q',        'Res (Q)',  w*0.28, 48, { size: 'medium', min: 0, max: 1, def: 0.3, color: '#f9fafb' }),
+      knob('drive',    'Drive',    w*0.72, 48, { size: 'medium', min: 0.1, max: 10, def: 1, color: '#f9fafb' }),
+      knob('cv_amt',       'F CV amt',   w*0.20, 70, { size: 'small', min: 0, max: 7, def: 2, unit: 'oct', color: '#f9fafb' }),
+      knob('q_cv_amt',     'Res CV amt', w*0.50, 70, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('drive_cv_amt', 'Drv CV amt', w*0.80, 70, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
       sw  ('type',     'Mode',     w/2, 86, ['LP','HP'], 0),
 
-      inPort ('in',   'In',   'audio', w*0.25, 100),
-      inPort ('cv',   'F CV', 'cv',    w*0.75, 100),
-      inPort ('q_cv', 'Q CV', 'cv',    w*0.25, 113),
-      outPort('out',  'Out',  'audio', w*0.75, 113),
+      inPort ('in',       'In',     'audio', w*0.20, 100),
+      inPort ('cv',       'F CV',   'cv',    w*0.50, 100),
+      inPort ('q_cv',     'Res CV', 'cv',    w*0.80, 100),
+      inPort ('drive_cv', 'Drv CV', 'cv',    w*0.20, 113),
+      outPort('out',      'Out',    'audio', w*0.80, 113),
     ],
-    notes: 'Korg35/MS-20 Sallen-Key filter (zero-delay-feedback naar Pirkle, firmware tp_mmb_ms20) met tanh-diodeclipping in de resonantielus en 2x oversampling — de MS-20 "scream". Res = 1 gaat zelf-oscilleren; Drive bepaalt hoe hard de lus satureert. LP is 12 dB/oct, HP is (Korg35-typisch) 6 dB/oct; de mode-switch schakelt live, zonder rebuild. F CV in octaven, Q CV in resonantie-eenheden; beide control-rate met per-block smoothing.',
+    notes: 'Korg35/MS-20 Sallen-Key filter (zero-delay-feedback naar Pirkle, firmware tp_mmb_ms20) met tanh-diodeclipping in de resonantielus en 2x oversampling — de MS-20 "scream". Res = Q: de Res-knop is de basiswaarde, Res CV moduleert erbovenop (diepte via Res CV amt). Drv CV moduleert de drive exponentieel (±1 CV bij amt 1 = ×4…÷4). Res = 1 gaat zelf-oscilleren; Drive bepaalt hoe hard de lus satureert. LP is 12 dB/oct, HP is (Korg35-typisch) 6 dB/oct; de mode-switch schakelt live, zonder rebuild. Alle CV control-rate met per-block smoothing; F CV in octaven.',
   });
 }
 
@@ -1502,10 +1506,14 @@ function mmbRings() {
       knob('fine',   'Fine',   col(1), 88, { size: 'small', min: -100, max: 100, def: 0, unit: 'ct', color: '#f9fafb' }),
       knob('level',  'Level',  col(3), 88, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
 
-      inPort ('voct',  'V/Oct', 'cv',    col(0), 110),
-      inPort ('gate',  'Strum', 'gate',  col(1), 110),
-      outPort('out_l', 'Odd',   'audio', col(2), 110),
-      outPort('out_r', 'Even',  'audio', col(3), 110),
+      inPort ('voct',  'V/Oct', 'cv',    col(0), 108),
+      inPort ('gate',  'Strum', 'gate',  col(1), 108),
+      outPort('out_l', 'Odd',   'audio', col(2), 108),
+      outPort('out_r', 'Even',  'audio', col(3), 108),
+      inPort ('structure_cv',  'S+', 'cv', col(0), 120),
+      inPort ('brightness_cv', 'B+', 'cv', col(1), 120),
+      inPort ('damping_cv',    'D+', 'cv', col(2), 120),
+      inPort ('position_cv',   'P+', 'cv', col(3), 120),
     ],
     notes: 'Mutable Instruments Rings resonator (firmware tp_mmb_rings, FW-AU-11). Elke stijgende flank op Strum plukt de resonator op de huidige V/Oct-toonhoogte; Poly 2/4 laat strums over stemmen roteren (odd op L, even op R). Modellen: modal (klokken/marimba), sympathetic strings, string (Karplus-achtig), plus de FM/quantized/string+reverb bonus-modellen. Structure = inharmoniciteit/snaarkoppeling, Position = excitatiepunt.',
   });
@@ -1540,13 +1548,16 @@ function mmbPlaits() {
       knob('decay', 'Decay', col(0), 80, { size: 'small', min: 0, max: 1, def: 0.6, color: '#f9fafb' }),
       knob('lpg',   'LPG',   col(1), 80, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
       knob('level', 'Level', col(2), 80, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
-      knob('coarse', 'Coarse', col(0), 98, { size: 'small', min: -36, max: 36, def: 0, unit: 'semi', color: '#f9fafb' }),
-      knob('fine',   'Fine',   col(1), 98, { size: 'small', min: -100, max: 100, def: 0, unit: 'ct', color: '#f9fafb' }),
+      knob('coarse', 'Coarse', col(0), 96, { size: 'small', min: -36, max: 36, def: 0, unit: 'semi', color: '#f9fafb' }),
+      knob('fine',   'Fine',   col(1), 96, { size: 'small', min: -100, max: 100, def: 0, unit: 'ct', color: '#f9fafb' }),
 
-      inPort ('voct', 'V/Oct', 'cv',    w*0.14, 114),
-      inPort ('gate', 'Trig',  'gate',  w*0.38, 114),
-      outPort('out',  'Out',   'audio', w*0.62, 114),
-      outPort('aux',  'Aux',   'audio', w*0.86, 114),
+      inPort ('harmonics_cv', 'H+', 'cv', w*0.14, 106),
+      inPort ('timbre_cv',    'T+', 'cv', w*0.50, 106),
+      inPort ('morph_cv',     'M+', 'cv', w*0.86, 106),
+      inPort ('voct', 'V/Oct', 'cv',    w*0.14, 118),
+      inPort ('gate', 'Trig',  'gate',  w*0.38, 118),
+      outPort('out',  'Out',   'audio', w*0.62, 118),
+      outPort('aux',  'Aux',   'audio', w*0.86, 118),
     ],
     notes: 'Mutable Instruments Plaits macro-oscillator (firmware tp_mmb_plaits, FW-AU-12). Eén knop kiest uit 16 engines: 0 VA · 1 Waveshape · 2 FM · 3 Grain · 4 Additive · 5 Wavetable · 6 Chord · 7 Speech · 8 Swarm · 9 Noise · 10 Particle · 11 String · 12 Modal · 13 BassDrum · 14 Snare · 15 HiHat. Harmonics/Timbre/Morph zijn de drie macro-parameters (per engine anders). De interne low-pass-gate (Decay/LPG) vuurt per Trig; Aux draagt de engine-variant. CV-ingangen: harmonics_cv/timbre_cv/morph_cv/level_cv (alias zonder _cv werkt ook).',
   });
@@ -1587,6 +1598,7 @@ function mmbClouds() {
       inPort ('in_r',   'In R',  'audio', col(1), 102),
       inPort ('freeze', 'Frz',   'gate',  col(2), 102),
       inPort ('trig',   'Trig',  'gate',  col(3), 102),
+      inPort ('size_cv', 'S+',   'cv',    col(4), 102),
       outPort('out_l',  'Out L', 'audio', col(2), 118),
       outPort('out_r',  'Out R', 'audio', col(3), 118),
       inPort ('position_cv', 'P+', 'cv', col(0), 118),
@@ -1621,17 +1633,21 @@ function mmbTides() {
       // output: wat de 4 uitgangen betekenen. Default Phase (quadratuur):
       // Ampl geeft met Shift op het midden op álle uitgangen exact 0.
       sw  ('output', 'Out',    w*0.72, 50, ['Gates','Ampl','Phase','Freq'], 2),
-      knob('shape',  'Shape',  col(0), 74, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
-      knob('slope',  'Slope',  col(1), 74, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
-      knob('smooth', 'Smooth', col(2), 74, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
-      knob('shift',  'Shift',  w/2,    92, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('shape',  'Shape',  w*0.14, 72, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('slope',  'Slope',  w*0.38, 72, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('smooth', 'Smooth', w*0.62, 72, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('shift',  'Shift',  w*0.86, 72, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      inPort ('shape_cv',  'Sh+', 'cv', w*0.14, 84),
+      inPort ('slope_cv',  'Sl+', 'cv', w*0.38, 84),
+      inPort ('smooth_cv', 'Sm+', 'cv', w*0.62, 84),
+      inPort ('shift_cv',  'Sf+', 'cv', w*0.86, 84),
 
-      inPort ('gate',    'Gate', 'gate', col(0), 108),
-      inPort ('rate_cv', 'R+',   'cv',   col(2), 108),
-      outPort('out1', '1', 'cv', w*0.16, 120),
-      outPort('out2', '2', 'cv', w*0.40, 120),
-      outPort('out3', '3', 'cv', w*0.62, 120),
-      outPort('out4', '4', 'cv', w*0.86, 120),
+      inPort ('gate',    'Gate', 'gate', w*0.30, 102),
+      inPort ('rate_cv', 'R+',   'cv',   w*0.70, 102),
+      outPort('out1', '1', 'cv', w*0.14, 118),
+      outPort('out2', '2', 'cv', w*0.38, 118),
+      outPort('out3', '3', 'cv', w*0.62, 118),
+      outPort('out4', '4', 'cv', w*0.86, 118),
     ],
     notes: 'Mutable Instruments Tides (tides2) slope-generator (firmware tp_mmb_tides, FW-CV-1). CV-domein op de 1 kHz-tick: LFO/envelope tot ~100 Hz. Mode: AD = trigger-envelope, Loop = LFO, AR = gate-envelope. Out-mode bepaalt de 4 uitgangen: Gates (slope+EOA+EOR), Ampl (4 niveaus via Shift), Phase (4 fasen — quadratuur-LFO!), Freq (4 gerelateerde snelheden). Rate-CV is exponentieel (±1 = ±1 octaaf). Uitgangen genormaliseerd (fullscale ≈ 1.0). Let op (upstream-gedrag): in Ampl-mode kiest Shift het actieve kanaal — op precies 0.5 zijn alle vier de uitgangen 0.',
   });

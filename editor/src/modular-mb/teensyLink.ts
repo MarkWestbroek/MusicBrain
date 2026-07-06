@@ -60,6 +60,7 @@ export interface DeviceStatus {
   loopHz?: number;   // main-loop iteraties/s (CV-tick-headroom)
   uptimeMs?: number;
   heapFree?: number;  // vrije heap (RAM2) in bytes — module/DSP-budget
+  outPeak?: number;   // hoogste |sample| op de master-uitgang sinds vorige poll (0..1)
   stkOom?: boolean;   // STK-allocatie ooit gefaald → STK-sectie zwijgt
   elementsReady?: boolean;  // Elements-diagnose: DSP-buffers gebonden?
   elementsCpu?: number;     // Elements-diagnose: ISR-aandeel (%)
@@ -193,6 +194,7 @@ function handleLine(line: string): void {
           loopHz:   num(msg.loopHz),
           uptimeMs: num(msg.uptimeMs),
           heapFree: num(msg.heapFree),
+          outPeak:  num(msg.outPeak),
           stkOom:   typeof msg.stkOom === 'boolean' ? msg.stkOom : undefined,
           elementsReady: typeof msg.elementsReady === 'boolean' ? msg.elementsReady : undefined,
           elementsCpu:   num(msg.elementsCpu),
