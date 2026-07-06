@@ -1965,7 +1965,17 @@ function mmbStkSound() {
 export function seedInternals(project: ModularProject): ModularProject {
   const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbComp(), mmbNoise(), mmbEcho(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound()];
   const newTypes = all.map((x) => x.type);
-  const newModules = all.map((x) => x.module);
+
+  // Upgrade-pad: bestaande interne types worden in-place VERVANGEN (zelfde
+  // id), zodat paneel-wijzigingen na een re-seed zichtbaar worden. Alleen
+  // echt nieuwe types krijgen een prototype-module + rackslot. Geplaatste
+  // instanties van een geüpgraded type krijgen het nieuwe visual mee
+  // (positie/controlState blijven staan).
+  const existingIds = new Set(project.moduleTypes.map((t) => t.id));
+  const upgraded = newTypes.filter((t) => existingIds.has(t.id));
+  const brandNew  = all.filter((x) => !existingIds.has(x.type.id));
+  const visualByType = new Map(all.map((x) => [x.type.id, x.module.visual]));
+  const newModules = brandNew.map((x) => x.module);
 
   // Zorg dat het interne rack bestaat
   let racks = project.racks.slice();
@@ -2000,10 +2010,19 @@ export function seedInternals(project: ModularProject): ModularProject {
       ? { ...r, hpPerRow: grownHpPerRow, slots: [...r.slots, ...addSlots] }
       : r);
 
+  const upgradedIds = new Set(upgraded.map((t) => t.id));
   return {
     ...project,
-    moduleTypes: [...project.moduleTypes, ...newTypes],
-    modules:     [...project.modules, ...newModules],
+    moduleTypes: [
+      ...project.moduleTypes.map((t) => upgradedIds.has(t.id)
+        ? newTypes.find((n) => n.id === t.id)! : t),
+      ...brandNew.map((x) => x.type),
+    ],
+    modules: [
+      ...project.modules.map((m) => visualByType.has(m.typeId)
+        ? { ...m, visual: visualByType.get(m.typeId)! } : m),
+      ...newModules,
+    ],
     racks: updatedRacks,
   };
 }

@@ -231,6 +231,11 @@ Vervolg op gebruikersfeedback na de eerste werkende sessie:
   naam ("Elements"), laden vervangt de rijen; modules die niet in de actieve
   patch zitten worden op `typeId` hertarget naar de eerste patch-module van
   hetzelfde type.
+- **Persistentie (2026-07-06)**: het hele MMB-project (dus ook de midiMap)
+  wordt debounced naar localStorage geschreven (`mmb.project.v1` in
+  `store.ts`) en bij het laden hersteld. De surface-poortkeuze overleeft ook
+  (`mmb.surface.v1`, id + naam-fallback) en wordt na een reload stil
+  hersteld zodra de MIDI-permissie al verleend is — inclusief knoppen-sync.
 
 ## Valkuilen (samengevat)
 

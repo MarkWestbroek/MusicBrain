@@ -197,6 +197,52 @@ export function syncSurface(): void {
   diffAndSend();
 }
 
+// ── Persistentie van de poortkeuze ───────────────────────────────────────
+// De gekozen in-/output overleeft een reload: id (stabiel per browser) met
+// de poortnaam als fallback. Herstel gebeurt in refreshPorts(), dus ook als
+// het apparaat pas ná het laden wordt ingeplugd (statechange).
+
+const PORTS_STORAGE_KEY = 'mmb.surface.v1';
+
+interface PersistedPorts {
+  inputId?: string;  inputName?: string;
+  outputId?: string; outputName?: string;
+}
+
+function persistPorts(): void {
+  try {
+    const saved: PersistedPorts = {
+      inputId:    state.inputId  ?? undefined,
+      inputName:  state.inputs.find((p) => p.id === state.inputId)?.name,
+      outputId:   state.outputId ?? undefined,
+      outputName: state.outputs.find((p) => p.id === state.outputId)?.name,
+    };
+    localStorage.setItem(PORTS_STORAGE_KEY, JSON.stringify(saved));
+  } catch { /* private mode/quota: geen persistentie */ }
+}
+
+function loadPersistedPorts(): PersistedPorts | null {
+  try {
+    const raw = localStorage.getItem(PORTS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) as PersistedPorts : null;
+  } catch { return null; }
+}
+
+function tryRestorePorts(): void {
+  const saved = loadPersistedPorts();
+  if (!saved) return;
+  if (!state.inputId && (saved.inputId || saved.inputName)) {
+    const m = state.inputs.find((p) => p.id === saved.inputId)
+           ?? state.inputs.find((p) => p.name === saved.inputName);
+    if (m) selectSurfaceInput(m.id);
+  }
+  if (!state.outputId && (saved.outputId || saved.outputName)) {
+    const m = state.outputs.find((p) => p.id === saved.outputId)
+           ?? state.outputs.find((p) => p.name === saved.outputName);
+    if (m) selectSurfaceOutput(m.id);
+  }
+}
+
 // ── Poortbeheer ──────────────────────────────────────────────────────────
 
 function refreshPorts(): void {
@@ -215,6 +261,9 @@ function refreshPorts(): void {
   if (inputId  === null && input)  { input.onmidimessage = null; input = null; }
   if (outputId === null)           { output = null; }
   setState({ inputs, outputs, inputId, outputId });
+  // Bewaarde keuze herstellen zodra de poort(en) er zijn — ook wanneer het
+  // surface pas na het laden wordt ingeplugd.
+  tryRestorePorts();
 }
 
 export async function connectSurface(): Promise<void> {
@@ -237,13 +286,31 @@ export function selectSurfaceInput(id: string | null): void {
     if (port) { port.onmidimessage = onMidiMessage; input = port; }
   }
   setState({ inputId: input ? id : null });
+  persistPorts();
 }
 
 export function selectSurfaceOutput(id: string | null): void {
   output = access && id ? access.outputs.get(id) ?? null : null;
   setState({ outputId: output ? id : null });
+  persistPorts();
   // Nieuwe output → knoppen meteen naar de huidige stand laten draaien.
   if (output) syncSurface();
+}
+
+// Auto-herstel na een reload: alleen wanneer er een eerdere poortkeuze
+// bewaard is én de browser de MIDI-permissie al verleend heeft — dan opent
+// requestMIDIAccess() zonder prompt en herstelt refreshPorts() de selectie
+// (inclusief een knoppen-sync via selectSurfaceOutput).
+if (state.supported && loadPersistedPorts()) {
+  void (async () => {
+    try {
+      const perm = await navigator.permissions.query({ name: 'midi' as PermissionName });
+      if (perm.state === 'granted') await connectSurface();
+    } catch {
+      // Permissions API kent 'midi' niet (oudere browser): dan handmatig
+      // verbinden via de knop.
+    }
+  })();
 }
 
 // ── Learn ────────────────────────────────────────────────────────────────

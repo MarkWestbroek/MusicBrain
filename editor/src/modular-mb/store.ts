@@ -1,6 +1,9 @@
 // Modular MB store — useSyncExternalStore pattern (mirrors ES).
 // v2 model. `setProject()` migrates v1 inputs on the fly.
 // iter-5.7: undo/redo via past/future stacks (Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z).
+// Persistentie: het project wordt (debounced) naar localStorage geschreven
+// en bij het laden hersteld, zodat een reload werk noch surface-mapping
+// kwijtraakt. "Nieuw" of een import overschrijft de bewaarde versie gewoon.
 
 import { useSyncExternalStore } from 'react';
 import {
@@ -9,7 +12,36 @@ import {
   migrateProject,
 } from './types';
 
-let current: ModularProject = emptyModularProject();
+const STORAGE_KEY = 'mmb.project.v1';
+// Debounce: knopdrags en surface-CC's muteren de store vele keren per
+// seconde; één JSON.stringify per burst is genoeg.
+const SAVE_DEBOUNCE_MS = 500;
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
+
+function loadPersisted(): ModularProject | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return migrateProject(JSON.parse(raw));
+  } catch {
+    return null;   // corrupt/private mode → schone start
+  }
+}
+
+function scheduleSave(): void {
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    saveTimer = null;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(current));
+    } catch {
+      // Quota vol of private mode: dan geen persistentie — export blijft
+      // de betrouwbare route.
+    }
+  }, SAVE_DEBOUNCE_MS);
+}
+
+let current: ModularProject = loadPersisted() ?? emptyModularProject();
 const past: ModularProject[] = [];
 const future: ModularProject[] = [];
 const HISTORY_MAX = 100;
@@ -18,7 +50,10 @@ let lastPushAt = 0;
 
 const listeners = new Set<() => void>();
 
-function emit(): void { for (const l of listeners) l(); }
+function emit(): void {
+  scheduleSave();   // elke mutatie loopt via emit() — één bewaarpunt
+  for (const l of listeners) l();
+}
 
 export function getProject(): ModularProject { return current; }
 

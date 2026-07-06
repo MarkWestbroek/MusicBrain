@@ -193,8 +193,21 @@ function ModuleNode({ data, selected }: NodeProps): JSX.Element {
             title={`${isPoly ? `${p.id} · poly-poort (×${polyN})` : `${p.id} · single-poort`}`
               + (p.signalType === 'cv' && p.cvFormat ? ` · ${p.cvFormat}` : '')}
             style={{
+              // De Handle zelf is een ruime onzichtbare trefzone (19px) zodat
+              // een kabel-drag makkelijk op de jack start/landt; de zichtbare
+              // stip (11px) zit er als kind-element middenin.
               left, top,
               transform: 'translate(-50%, -50%)',
+              width: 19, height: 19,
+              minWidth: 0, minHeight: 0,
+              background: 'transparent',
+              border: 'none',
+              borderRadius: '50%',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              pointerEvents: ghost ? 'none' : 'all',
+            }}
+          >
+            <div style={{
               width: 11, height: 11,
               background: SIGNAL_COLOUR[p.signalType],
               border: '1.5px solid rgba(0,0,0,0.55)',
@@ -203,9 +216,9 @@ function ModuleNode({ data, selected }: NodeProps): JSX.Element {
               boxShadow: isPoly
                 ? `0 0 0 1px rgba(255,255,255,0.35) inset, 0 0 0 1.5px ${polyColor}`
                 : '0 0 0 1px rgba(255,255,255,0.35) inset',
-              pointerEvents: ghost ? 'none' : 'all',
-            }}
-          />
+              pointerEvents: 'none',
+            }} />
+          </Handle>
         );
       })}
       {/* Hidden marker for total size — ensures ReactFlow gives node enough room */}
@@ -349,13 +362,16 @@ function BendableEdge(props: EdgeProps): JSX.Element {
 
   return (
     <>
-      {/* Onzichtbare hit-strip — vangt klikken op de kabel makkelijker op. */}
+      {/* Onzichtbare hit-strip — vangt klikken op de kabel makkelijker op.
+          Bewust smal gehouden: de kabels liggen bóven de module-panelen
+          (zIndex 1000+), dus een brede strip maakt jacks onder een strak
+          gespannen kabel onbereikbaar. */}
       <path
         id={id}
         d={path}
         fill="none"
         stroke="transparent"
-        strokeWidth={20}
+        strokeWidth={10}
         style={{ pointerEvents: 'stroke', cursor: 'crosshair' }}
         onDoubleClick={onCableDoubleClick}
         onPointerEnter={() => setHover(true)}
@@ -508,6 +524,26 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
 
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  // Tijdens het trekken van een nieuwe kabel worden alle bestaande kabels
+  // gedimd én onaanraakbaar (zie .mmb-connecting CSS) zodat ze nooit in de
+  // weg liggen — hoe strak ze ook over een poortenrij gespannen staan.
+  const [connecting, setConnecting] = useState(false);
+
+  // Kabels van/naar een verborgen follower (ingeklapte poly-groep) worden
+  // niet getekend; tel ze per groep zodat de groep-knop kan tonen dat er
+  // wél verbindingen bestaan (bv. gezet via de matrix).
+  const hiddenCableCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const c of patch.connections) {
+      const gids = new Set<string>();
+      for (const mid of [c.from.moduleId, c.to.moduleId]) {
+        const v = voiceMap.get(mid);
+        if (v && v.voiceIndex > 0 && !expandedGroups.has(v.group.id)) gids.add(v.group.id);
+      }
+      for (const gid of gids) counts.set(gid, (counts.get(gid) ?? 0) + 1);
+    }
+    return counts;
+  }, [patch.connections, voiceMap, expandedGroups]);
 
   const nodes: Node[] = useMemo(
     () => visibleModules.map(({ slot, module: m, rackId }) => {
@@ -574,8 +610,12 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
         data: { bends: c.bends ?? [], patchId, connectionId: c.id, poly: !!polyGroup },
         selected: isSel,
         zIndex: isSel ? 1500 : 1000,
-        interactionWidth: 24,
-        reconnectable: true,
+        interactionWidth: 12,
+        // Omsteken is een bewuste actie: eerst de kabel selecteren, dan pas
+        // een uiteinde slepen. Anders "steelt" het onzichtbare reconnect-
+        // anker (dat precies op de jack ligt) de drag wanneer je vanaf een
+        // buurpoort een níeuwe kabel wilt trekken.
+        reconnectable: isSel,
         label: polyGroup ? `×${polyGroup.voiceCount}` : undefined,
         labelStyle: polyGroup ? { fill: '#0f172a', fontWeight: 600, fontSize: 9 } : undefined,
         labelBgStyle: polyGroup ? { fill: groupColor } : undefined,
@@ -733,9 +773,21 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
           stroke-width: 4 !important;
           cursor: pointer;
         }
+        /* Tijdens het trekken van een nieuwe kabel: bestaande kabels dimmen
+           en volledig doorlaatbaar maken voor de muis, zodat elke jack
+           bereikbaar is. De * is nodig omdat kinderen (hit-strip, knikken)
+           eigen inline pointer-events zetten. */
+        .mmb-patcher.mmb-connecting .react-flow__edge,
+        .mmb-patcher.mmb-connecting .react-flow__edge * {
+          pointer-events: none !important;
+        }
+        .mmb-patcher.mmb-connecting .react-flow__edge {
+          opacity: 0.25;
+          transition: opacity 80ms;
+        }
       `}</style>
       <div
-        className="mmb-patcher"
+        className={`mmb-patcher${connecting ? ' mmb-connecting' : ''}`}
         tabIndex={0}
         onKeyDown={(e) => {
           if ((e.key === 'Delete' || e.key === 'Backspace') && selectedEdgeId) {
@@ -762,10 +814,12 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
             <strong style={{ color: '#cbd5e1', fontSize: 11 }}>Voice groups:</strong>
             {allGroups.map((g) => {
               const isOpen = expandedGroups.has(g.id);
+              const hidden = hiddenCableCounts.get(g.id) ?? 0;
               return (
                 <button key={g.id}
                         onClick={() => toggleExpand(g.id)}
-                        title={isOpen ? 'Inklappen (alleen master tonen)' : 'Uitklappen (ghost voices tonen)'}
+                        title={(isOpen ? 'Inklappen (alleen master tonen)' : 'Uitklappen (ghost voices tonen)')
+                          + (hidden > 0 ? ` · ${hidden} kabel(s) op verborgen voices` : '')}
                         style={{
                           display: 'inline-flex', alignItems: 'center', gap: 4,
                           padding: '2px 8px', fontSize: 11,
@@ -777,6 +831,15 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
                   <span>{isOpen ? '▼' : '▶'}</span>
                   <span style={{ width: 8, height: 8, borderRadius: 4, background: g.color || '#888' }} />
                   {g.label} <span style={{ color: '#94a3b8' }}>× {g.voiceCount}</span>
+                  {hidden > 0 && (
+                    <span title={`${hidden} kabel(s) naar verborgen voices — klap uit om ze te zien`}
+                          style={{
+                            background: '#b45309', color: '#fef3c7',
+                            padding: '0 5px', borderRadius: 8, fontSize: 10, fontWeight: 600,
+                          }}>
+                      ⚡{hidden}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -790,7 +853,12 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          onConnectStart={() => setConnecting(true)}
+          onConnectEnd={() => setConnecting(false)}
+          onReconnectStart={() => setConnecting(true)}
+          onReconnectEnd={() => setConnecting(false)}
           onReconnect={onReconnect}
+          reconnectRadius={5}
           onEdgeClick={onEdgeClick}
           onNodeClick={onNodeClick}
           onPaneClick={onPaneClick}
