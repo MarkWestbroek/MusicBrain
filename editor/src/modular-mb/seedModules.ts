@@ -2629,8 +2629,10 @@ export function seedCloudsAmbientPatch(project: ModularProject): ModularProject 
     connections: [
       c(mi, 'pitch', plaits, 'voct'),
       c(mi, 'gate',  plaits, 'gate'),
-      c(plaits, 'out_l', clouds, 'in_l'),
-      c(plaits, 'out_r', clouds, 'in_r'),
+      // Paneel-jacks heten 'out'/'aux' (firmware aliast out_l/out_r):
+      // hoofd-engine links, aux-variant rechts — mooi breed de wolk in.
+      c(plaits, 'out', clouds, 'in_l'),
+      c(plaits, 'aux', clouds, 'in_r'),
       c(mi, 'gate', clouds, 'trig'),          // elke noot vuurt een korrel
       c(tides, 'out1', clouds, 'position_cv'),
       c(tides, 'out2', clouds, 'texture_cv'), // 90° verschoven (phase-mode)
