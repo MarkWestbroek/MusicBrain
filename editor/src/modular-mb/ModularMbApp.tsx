@@ -7,7 +7,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { setProject, updateProject, useModularProject, getProject, undo, redo } from './store';
 import { emptyModularProject } from './types';
-import { seedExampleModules, seedInternals, seedTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, type PolySeedOptions } from './seedModules';
+import { seedExampleModules, seedInternals, seedTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, seedDx7PolyPatch, type PolySeedOptions } from './seedModules';
 import { PatchesPanel } from './PatchesPanel';
 import { ModulesPanel } from './ModulesPanel';
 import { CategoriesPanel } from './CategoriesPanel';
@@ -300,6 +300,14 @@ export function ModularMbApp(): JSX.Element {
                     padding: '7px 12px', cursor: 'pointer', fontSize: 13,
                   }}
                 >🎲 Generative jam (Marbles)</button>
+                <button
+                  onClick={() => { setProject(seedDx7PolyPatch(getProject(), 8)); setShowSolo(false); }}
+                  title="8-stemmige DX7 (msfa/Dexed-kern): MidiIn → 8× DX7 → Mixer8 → OUT, stereo uitgewaaierd. Laad een .syx-bank via de Teensy-modal; Program kiest voice 0–31."
+                  style={{
+                    textAlign: 'left', border: 'none', background: 'transparent',
+                    padding: '7px 12px', cursor: 'pointer', fontSize: 13,
+                  }}
+                >🎹 DX7 poly ×8</button>
               </div>
             )}
           </span>

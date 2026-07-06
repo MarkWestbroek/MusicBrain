@@ -2680,6 +2680,91 @@ export function seedSoloVoicePatch(
 }
 
 /**
+ * 8-stemmige DX7-poly: MidiIn → [DX7]×N (PolyGroup) → Mixer8 → OUT.
+ * Geen VCF/VCA/ADSR-keten — de FM-envelopes van de DX7 doen het werk zelf,
+ * en velocity gaat rechtstreeks de engine in. Program-knop (master) fant
+ * via de poly-groep uit naar alle stemmen. Laad een .syx via de
+ * Teensy-modal voor de andere 31 voices.
+ */
+export function seedDx7PolyPatch(project: ModularProject, voiceCount = 8): ModularProject {
+  const N = Math.max(2, Math.min(16, Math.round(voiceCount)));
+  const mixerTypeId = N > 8 ? 'tp_mmb_mixer16' : N > 4 ? 'tp_mmb_mixer8' : 'tp_mmb_mixer';
+  const needed = ['tp_mmb_midiin', 'tp_mmb_dx7', mixerTypeId, 'tp_mmb_out'];
+  const missing = needed.some((tid) => !project.moduleTypes.some((t) => t.id === tid));
+  const p = missing ? seedInternals(project) : project;
+
+  const fresh = (tid: string): ModuleInstance => {
+    const proto = p.modules.find((m) => m.typeId === tid)!;
+    return { ...proto, id: uid('mod'), internal: false, visual: proto.visual };
+  };
+  const mi     = fresh('tp_mmb_midiin');
+  const dx7s   = Array.from({ length: N }, () => fresh('tp_mmb_dx7'));
+  const master = dx7s[0]!;
+  const mixer  = fresh(mixerTypeId);
+  const out    = fresh('tp_mmb_out');
+
+  const dxOffset    = mi.visual.hpWidth;
+  const mixerOffset = dxOffset + master.visual.hpWidth;
+  const outOffset   = mixerOffset + mixer.visual.hpWidth;
+  const slots: RackSlot[] = [
+    { id: uid('slot'), moduleId: mi.id,    row: 0, hpOffset: 0 },
+    ...dx7s.map((d, vi) => ({ id: uid('slot'), moduleId: d.id, row: vi, hpOffset: dxOffset })),
+    { id: uid('slot'), moduleId: mixer.id, row: 0, hpOffset: mixerOffset },
+    { id: uid('slot'), moduleId: out.id,   row: 0, hpOffset: outOffset },
+  ];
+  const polyGroups: PolyGroup[] = [{
+    id: uid('poly'), label: 'DX7', voiceCount: N,
+    members: dx7s.map((d) => ({ kind: 'module' as const, moduleId: d.id })),
+  }];
+  const rack: Rack = {
+    id: uid('rack'), name: `DX7 poly ×${N}`,
+    description: `MidiIn → [DX7]×${N} (PolyGroup) → ${N > 8 ? 'MIXER-16' : N > 4 ? 'MIXER-8' : 'MIXER'} → OUT. FM-envelopes intern; velocity direct de engine in.`,
+    rows: N, hpPerRow: Math.max(64, outOffset + out.visual.hpWidth + 4),
+    slots,
+    kind: 'physical',
+    polyGroups,
+  };
+
+  const c = (fm: ModuleInstance, fp: string, tm: ModuleInstance, tp: string): PatchConnection => ({
+    id: uid('conn'),
+    from: { moduleId: fm.id, portId: fp },
+    to:   { moduleId: tm.id, portId: tp },
+  });
+  const patch: Patch = {
+    id: uid('patch'), name: `DX7 poly ×${N}`,
+    description: `${N}-stemmige 6-op FM (msfa/Dexed-kern). Zonder geladen bank klinkt alles als E.PIANO 1; laad een .syx via de Teensy-modal en kies met Program (0–31).`,
+    voiceCount: N,
+    rackIds: [rack.id],
+    connections: [
+      c(mi, 'pitch', master, 'voct'),
+      c(mi, 'gate',  master, 'gate'),
+      c(mi, 'vel',   master, 'vel'),
+      c(master, 'out', mixer, 'in1'),
+      c(mixer, 'out_l', out, 'l'),
+      c(mixer, 'out_r', out, 'r'),
+    ],
+    controlState: {
+      [mi.id]:     { channel: 0, voiceCount: N, steal: 0 },
+      [master.id]: { program: 0, level: 0.75 },
+      [mixer.id]:  Object.fromEntries(Array.from({ length: N }, (_, i) => [
+        [`vol${i + 1}`, 0.6], [`pan${i + 1}`, (i / Math.max(1, N - 1)) * 1.2 - 0.6],
+      ]).flat().map(([k, v]) => [k, v])) as Record<string, ControlValue>,
+      [out.id]:    { level: 0.85 },
+    },
+    envelopes: [], lfos: [],
+  };
+
+  return {
+    ...p,
+    racks:        [...p.racks, rack],
+    modules:      [...p.modules, mi, ...dx7s, mixer, out],
+    patches:      [...p.patches, patch],
+    activeRackId:  rack.id,
+    activePatchId: patch.id,
+  };
+}
+
+/**
  * Zelfspelende demo-seed: Marbles klokt en kiest de noten, Plaits speelt ze,
  * Clouds maakt er een wolk van en Tides (quadratuur) beweegt de wolk.
  * Geen MIDI nodig — verbinden en luisteren.
