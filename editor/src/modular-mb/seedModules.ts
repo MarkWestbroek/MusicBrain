@@ -2578,3 +2578,80 @@ export function seedSoloVoicePatch(
     activePatchId: patch.id,
   };
 }
+
+/**
+ * Demo-seed voor de MI-nieuwkomers: MidiIn → Plaits → **Clouds** → OUT, met
+ * **Tides** in phase-mode als quadratuur-LFO op Clouds' position en texture.
+ * Monofoon en bewust rustig afgesteld: lange korrels, veel reverb — speel
+ * één noot en laat de wolk drijven.
+ */
+export function seedCloudsAmbientPatch(project: ModularProject): ModularProject {
+  const needed = ['tp_mmb_midiin', 'tp_mmb_plaits', 'tp_mmb_clouds', 'tp_mmb_tides', 'tp_mmb_out'];
+  const missing = needed.some((tid) => !project.moduleTypes.some((t) => t.id === tid));
+  const p = missing ? seedInternals(project) : project;
+
+  const fresh = (tid: string): ModuleInstance => {
+    const proto = p.modules.find((m) => m.typeId === tid)!;
+    return { ...proto, id: uid('mod'), internal: false, visual: proto.visual };
+  };
+  const mi     = fresh('tp_mmb_midiin');
+  const plaits = fresh('tp_mmb_plaits');
+  const tides  = fresh('tp_mmb_tides');
+  const clouds = fresh('tp_mmb_clouds');
+  const out    = fresh('tp_mmb_out');
+
+  let offset = 0;
+  const place = (m: ModuleInstance): RackSlot => {
+    const s: RackSlot = { id: uid('slot'), moduleId: m.id, row: 0, hpOffset: offset };
+    offset += m.visual.hpWidth;
+    return s;
+  };
+  const all = [mi, plaits, tides, clouds, out];
+  const rack: Rack = {
+    id: uid('rack'), name: 'Clouds ambient',
+    description: 'Plaits → Clouds, Tides (quadratuur) beweegt position/texture.',
+    rows: 1, hpPerRow: Math.max(64, all.reduce((n, m) => n + m.visual.hpWidth, 0) + 4),
+    slots: all.map(place),
+    kind: 'physical',
+  };
+
+  const c = (fm: ModuleInstance, fp: string, tm: ModuleInstance, tp: string): PatchConnection => ({
+    id: uid('conn'),
+    from: { moduleId: fm.id, portId: fp },
+    to:   { moduleId: tm.id, portId: tp },
+  });
+  const patch: Patch = {
+    id: uid('patch'), name: 'Clouds ambient',
+    description: 'Speel één noot en laat de wolk drijven: Plaits door de granular, Tides ademt position en texture.',
+    voiceCount: 1,
+    rackIds: [rack.id],
+    connections: [
+      c(mi, 'pitch', plaits, 'voct'),
+      c(mi, 'gate',  plaits, 'gate'),
+      c(plaits, 'out_l', clouds, 'in_l'),
+      c(plaits, 'out_r', clouds, 'in_r'),
+      c(mi, 'gate', clouds, 'trig'),          // elke noot vuurt een korrel
+      c(tides, 'out1', clouds, 'position_cv'),
+      c(tides, 'out2', clouds, 'texture_cv'), // 90° verschoven (phase-mode)
+      c(clouds, 'out_l', out, 'l'),
+      c(clouds, 'out_r', out, 'r'),
+    ],
+    controlState: {
+      [plaits.id]: { engine: 4, harmonics: 0.55, timbre: 0.5, morph: 0.4, decay: 0.7, lpg: 0.5 },  // additive — draagt lang
+      [tides.id]:  { rate: 0.08, mode: 1, output: 2, shape: 0.5, slope: 0.5, smooth: 0.6, shift: 0.5 },  // loop + phase = quadratuur-LFO
+      [clouds.id]: { position: 0.3, size: 0.7, pitch: 0, density: 0.45, texture: 0.5, mix: 0.7, spread: 0.6, feedback: 0.35, reverb: 0.6, mode: 0 },
+      [out.id]:    { level: 0.8 },
+      [mi.id]:     { channel: 0, voiceCount: 1 },
+    },
+    envelopes: [], lfos: [],
+  };
+
+  return {
+    ...p,
+    racks:        [...p.racks, rack],
+    modules:      [...p.modules, ...all],
+    patches:      [...p.patches, patch],
+    activeRackId:  rack.id,
+    activePatchId: patch.id,
+  };
+}

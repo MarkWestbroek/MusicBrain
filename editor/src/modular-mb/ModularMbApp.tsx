@@ -7,7 +7,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { setProject, updateProject, useModularProject, getProject, undo, redo } from './store';
 import { emptyModularProject } from './types';
-import { seedExampleModules, seedInternals, seedTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, type PolySeedOptions } from './seedModules';
+import { seedExampleModules, seedInternals, seedTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, type PolySeedOptions } from './seedModules';
 import { PatchesPanel } from './PatchesPanel';
 import { ModulesPanel } from './ModulesPanel';
 import { CategoriesPanel } from './CategoriesPanel';
@@ -281,6 +281,15 @@ export function ModularMbApp(): JSX.Element {
                     }}
                   >{s.label}</button>
                 ))}
+                <button
+                  onClick={() => { setProject(seedCloudsAmbientPatch(getProject())); setShowSolo(false); }}
+                  title="Plaits → Clouds (granular) → OUT, met Tides als quadratuur-LFO op position/texture. Speel één noot en laat de wolk drijven."
+                  style={{
+                    textAlign: 'left', border: 'none', background: 'transparent',
+                    padding: '7px 12px', cursor: 'pointer', fontSize: 13,
+                    borderTop: '1px solid #e5e7eb',
+                  }}
+                >☁️ Clouds ambient (+Tides)</button>
               </div>
             )}
           </span>
