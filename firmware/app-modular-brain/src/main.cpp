@@ -30,6 +30,7 @@
 #include "VcoModule.h"
 #include "OutModule.h"
 #include "Dx7Module.h"
+#include "WarpsModule.h"
 
 namespace {
 
@@ -317,6 +318,14 @@ void onGetStatus(JsonObject s) {
     for (auto& [id, mod] : runtime.instances()) {
         if (mod->typeId() != std::string_view{mmb_link::TidesModule::kTypeId}) continue;
         s["tidesOut1"] = mod->readCvPort("out1");
+        break;
+    }
+    // ... Warps: ready + output-peak.
+    for (auto& [id, mod] : runtime.instances()) {
+        if (mod->typeId() != std::string_view{mmb_link::WarpsModule::kTypeId}) continue;
+        auto* wm = static_cast<mmb_link::WarpsModule*>(mod.get());
+        s["warpsReady"] = wm->voice().ready();
+        s["warpsPeak"]  = wm->voice().takePeak();
         break;
     }
     // ... Marbles (CV-domein): x1 + master-klok als teken van leven.

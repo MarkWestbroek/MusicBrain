@@ -51,6 +51,7 @@ SECTIONS
 		*libmi-tides.a:(.text* .rodata*)
 		*libmi-marbles.a:(.text* .rodata*)
 		*libmsfa.a:(.text* .rodata*)
+		*libmi-warps.a:(.text* .rodata*)
 		. = ALIGN(4);
 	} > FLASH
 

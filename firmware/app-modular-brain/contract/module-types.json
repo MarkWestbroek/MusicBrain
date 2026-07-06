@@ -1,6 +1,6 @@
 {
   "$comment": "GEGENEREERD door tools/contract_dump.py — niet met de hand bewerken. Poort-ids zijn letterlijk wat de firmware accepteert (aliassen als out/out_l en naam/naam_cv staan er dus allebei in).",
-  "firmwareVersion": "0.5.37",
+  "firmwareVersion": "0.5.38",
   "modules": {
     "tp_mmb_ahdsr": {
       "typeId": "tp_mmb_ahdsr",
@@ -804,6 +804,35 @@
       ],
       "controlsIgnored": [
         "fm_amt"
+      ]
+    },
+    "tp_mmb_warps": {
+      "typeId": "tp_mmb_warps",
+      "source": "firmware/app-modular-brain/src/WarpsModule.h",
+      "ports": [
+        "algo",
+        "algo_cv",
+        "aux",
+        "carrier",
+        "in",
+        "in1",
+        "in2",
+        "modulator",
+        "out",
+        "out_l",
+        "out_r",
+        "timbre",
+        "timbre_cv",
+        "voct"
+      ],
+      "controls": [
+        "algo",
+        "coarse",
+        "drive1",
+        "drive2",
+        "level",
+        "shape",
+        "timbre"
       ]
     },
     "tp_mmb_wt_vco": {

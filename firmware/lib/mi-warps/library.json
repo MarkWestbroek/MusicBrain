@@ -1,0 +1,11 @@
+{
+  "name": "mi-warps",
+  "version": "1.0.0",
+  "description": "Mutable Instruments Warps — Modulator incl. vocoder (MIT, (c) Emilie Gillet), gevendorde subset voor MMB WarpsModule (tp_mmb_warps). Draait native op 44.1 kHz (Modulator::Init neemt de sample rate; interne oversampling voor xmod). stmlib-headers byte-identiek aan mi-tides/mi-clouds.",
+  "license": "MIT",
+  "homepage": "https://github.com/pichenettes/eurorack",
+  "build": {
+    "flags": ["-I."],
+    "srcFilter": ["+<warps/>"]
+  }
+}

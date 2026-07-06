@@ -1752,6 +1752,47 @@ function mmbDx7() {
   });
 }
 
+// 14h. MMB WARPS — 10 HP. Mutable Instruments Warps meta-modulator
+//     (FW-FX-5): twee audiobronnen door elkaar gevouwen; algoritme-knop
+//     morpht van xfade tot vocoder. Interne carrier-osc via Shape+V/Oct.
+function mmbWarps() {
+  const w = W(10);
+  return assemble({
+    typeId: 'tp_mmb_warps',
+    categoryId: 'effect',
+    variant: 'Warps (MI meta-modulator)',
+    brand: 'MI', model: 'WARPS',
+    hp: 10, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'WARPS', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13,  text: 'xmod · vocoder', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MI', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      // 0=xfade 1=fold 2=ringmod(analoog) 3=ringmod(digitaal) 4=XOR
+      // 5=comparator 6=spectraal 7=morph 8=vocoder — de knop morpht ertussen.
+      knob('algo',   'Algorithm', w*0.35, 30, { size: 'large', min: 0, max: 8, def: 2, color: '#22c55e' }),
+      display('algDisp', w*0.78, 30, { digits: 1, style: 'led', bindTo: 'algo', format: 'int' }),
+      knob('timbre', 'Timbre',    w/2, 58, { size: 'large', min: 0, max: 1, def: 0.5, color: '#e11d48' }),
+      // 0 = externe carrier (In 1); 1..5 = interne osc (sin/tri/saw/puls/ruis).
+      sw  ('shape', 'Carrier', w*0.20, 80, ['Ext','Sin','Tri','Saw','Pls','Nz'], 0),
+      knob('drive1', 'Drv 1',  w*0.55, 80, { size: 'small', min: 0, max: 2, def: 1, color: '#f9fafb' }),
+      knob('drive2', 'Drv 2',  w*0.85, 80, { size: 'small', min: 0, max: 2, def: 1, color: '#f9fafb' }),
+      knob('coarse', 'Coarse', w*0.55, 96, { size: 'small', min: -36, max: 36, def: 0, unit: 'semi', color: '#f9fafb' }),
+      knob('level',  'Level',  w*0.85, 96, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+
+      inPort ('in1',  'In 1',  'audio', w*0.14, 108),
+      inPort ('in2',  'In 2',  'audio', w*0.38, 108),
+      inPort ('voct', 'V/Oct', 'cv',    w*0.62, 108),
+      inPort ('algo_cv', 'A+', 'cv',    w*0.86, 108),
+      inPort ('timbre_cv', 'T+', 'cv',  w*0.14, 120),
+      outPort('out',  'Out',   'audio', w*0.55, 120),
+      outPort('aux',  'Aux',   'audio', w*0.85, 120),
+    ],
+    notes: 'Mutable Instruments Warps meta-modulator (firmware tp_mmb_warps, FW-FX-5). Vouwt In 1 (carrier) en In 2 (modulator) door elkaar; de Algorithm-knop morpht door: 0 xfade · 1 wavefolder · 2 ringmod (analoog model) · 3 ringmod (digitaal) · 4 XOR · 5 comparator · 6 spectraal · 7 morph · 8 vocoder. Timbre kleurt het gekozen algoritme. Carrier ≠ Ext vervangt In 1 door de interne oscillator (V/Oct + Coarse bespeelbaar) — zet 8 (vocoder) en spreek/speel via In 2. Aux draagt de spiegelvariant. Draait native op 44.1 kHz.',
+  });
+}
+
 // 15. MMB COMP — 6 HP. Feed-forward compressor met lichte tanh-overdrive
 //     (firmware tp_mmb_comp, FW-FX-2). De Audio-lib heeft geen compressor,
 //     dus dit is een custom AudioStream.
@@ -1965,7 +2006,7 @@ function mmbStkSound() {
 // ── public entry ───────────────────────────────────────────────────────
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbComp(), mmbNoise(), mmbEcho(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbComp(), mmbNoise(), mmbEcho(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound()];
   const newTypes = all.map((x) => x.type);
 
   // Upgrade-pad: bestaande interne types worden in-place VERVANGEN (zelfde
