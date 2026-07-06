@@ -2013,9 +2013,14 @@ export function seedInternals(project: ModularProject): ModularProject {
   const upgradedIds = new Set(upgraded.map((t) => t.id));
   return {
     ...project,
+    // map + dedupe: eerdere seedInternals-runs stapelden duplicaten van
+    // dezelfde type-ids op — alleen de eerste blijft (geüpgraded).
     moduleTypes: [
-      ...project.moduleTypes.map((t) => upgradedIds.has(t.id)
-        ? newTypes.find((n) => n.id === t.id)! : t),
+      ...project.moduleTypes
+        .map((t) => upgradedIds.has(t.id)
+          ? newTypes.find((n) => n.id === t.id)! : t)
+        .filter((t, i, arr) => !upgradedIds.has(t.id)
+          || arr.findIndex((u) => u.id === t.id) === i),
       ...brandNew.map((x) => x.type),
     ],
     modules: [
