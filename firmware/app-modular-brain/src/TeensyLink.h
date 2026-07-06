@@ -101,6 +101,10 @@ public:
      *  Bulk single-cycle waveform push to a draw-waveshape oscillator. */
     using WaveformHandler = void (*)(const char* moduleId, JsonArrayConst data);
 
+    /** Callback invoked when a "dx7bank" message arrives: één 32-voice
+     *  DX7-bank (4096 bytes packed, zonder sysex-framing) als int-array. */
+    using Dx7BankHandler = void (*)(JsonArrayConst data);
+
     /** Callback invoked when a "getStatus" message arrives. The handler
      *  fills @p status with telemetry fields (cpu, mem, modules, …); the
      *  link serialises it as `{"type":"status",...}` back to the editor. */
@@ -127,6 +131,7 @@ public:
     void onControlPoke(ControlPokeHandler h) { onControlPoke_ = h; }
     /** @brief Register the bulk-waveform handler (FW-AU-6). */
     void onWaveform(WaveformHandler h) { onWaveform_ = h; }
+    void onDx7Bank(Dx7BankHandler h)   { onDx7Bank_ = h; }
     /** @brief Register the telemetry handler for "getStatus" requests. */
     void onGetStatus(StatusHandler h) { onStatus_ = h; }
 
@@ -197,6 +202,7 @@ private:
     MidiCcHandler      onMidiCc_      = nullptr;
     ControlPokeHandler onControlPoke_ = nullptr;
     WaveformHandler    onWaveform_    = nullptr;
+    Dx7BankHandler     onDx7Bank_     = nullptr;
     StatusHandler      onStatus_      = nullptr;
 
     void sendHello() {
@@ -336,6 +342,18 @@ private:
             JsonArrayConst data = doc["data"].as<JsonArrayConst>();
             if (*mod && !data.isNull() && onWaveform_)
                 onWaveform_(mod, data);
+            return;
+        }
+        if (strcmp(type, "dx7bank") == 0) {
+            //   {"type":"dx7bank","data":[4096 bytes]}
+            JsonArrayConst data = doc["data"].as<JsonArrayConst>();
+            if (!data.isNull() && onDx7Bank_) {
+                onDx7Bank_(data);
+                StaticJsonDocument<64> extra;
+                sendAckOk("dx7bank", extra);
+            } else {
+                sendAckErr("dx7bank: bad payload");
+            }
             return;
         }
         sendAckErr("unknown type");

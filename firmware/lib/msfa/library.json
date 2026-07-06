@@ -1,0 +1,11 @@
+{
+  "name": "msfa",
+  "version": "1.0.0",
+  "description": "Google music-synthesizer-for-android DX7-kern (Apache-2.0) — dx7note/env/fm_core/lfo/patch e.d., gevendorde subset voor MMB Dx7Module (tp_mmb_dx7). Rendert native op 44.1 kHz (geen resampler); NEON-paden vallen op Cortex-M7 terug op scalar.",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/google/music-synthesizer-for-android",
+  "build": {
+    "flags": ["-I."],
+    "srcFilter": ["+<msfa/>"]
+  }
+}

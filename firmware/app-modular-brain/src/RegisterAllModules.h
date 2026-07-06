@@ -51,6 +51,7 @@
 #include "CloudsModule.h"
 #include "TidesModule.h"
 #include "MarblesModule.h"
+#include "Dx7Module.h"
 #include "CompDriveModule.h"
 #include "EchoModule.h"
 #include "CombModule.h"
@@ -93,6 +94,7 @@ inline void registerAllRuntimeModules() {
     CloudsModule::registerFactory();    // FW-FX-4: Mutable Clouds granular
     TidesModule::registerFactory();     // FW-CV-1: Mutable Tides slope-gen (CV-domein)
     MarblesModule::registerFactory();   // FW-CV-2: Mutable Marbles random-seq (CV-domein)
+    Dx7Module::registerFactory();       // FW-AU-13: DX7-stem (msfa/Dexed-kern)
     CompDriveModule::registerFactory(); // FW-FX-2: compressor + overdrive
     EchoModule::registerFactory();      // FW-AU-2: feedback delay
     CombModule::registerFactory();      // FW-AU-3: tuned comb resonator

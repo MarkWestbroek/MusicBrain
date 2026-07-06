@@ -29,6 +29,7 @@
 #include "CvGraph.h"
 #include "VcoModule.h"
 #include "OutModule.h"
+#include "Dx7Module.h"
 
 namespace {
 
@@ -470,6 +471,24 @@ void onControlPoke(const char* moduleId, const char* controlId,
 
 // Draw-waveshape push (FW-AU-6): copy the JSON int array into an int16 buffer
 // and hand it to the target oscillator via the RTTI-free setWaveformData hook.
+// DX7-bank push: 4096 bytes (32 voices packed) naar de gedeelde bank van
+// alle Dx7Voice-instanties. Instanties herladen hun program bij de volgende
+// note-on (bankVersion-check), dus geen ISR-fence nodig.
+void onDx7Bank(JsonArrayConst data) {
+    static uint8_t bank[4096];
+    if (data.size() != sizeof(bank)) {
+        mmb_link::TeensyLink::logf("dx7bank: verwacht 4096 bytes, kreeg %u",
+                                   (unsigned)data.size());
+        return;
+    }
+    size_t i = 0;
+    for (JsonVariantConst v : data) bank[i++] = static_cast<uint8_t>(v.as<int>());
+    mmb_link::Dx7Voice::setBank(bank, sizeof(bank));
+    char name[11];
+    mmb_link::Dx7Voice::bankVoiceName(0, name);
+    mmb_link::TeensyLink::logf("dx7bank geladen; voice 0 = \"%s\"", name);
+}
+
 void onWaveform(const char* moduleId, JsonArrayConst data) {
     static int16_t buf[256];
     std::size_t n = 0;
@@ -542,6 +561,7 @@ void setup() {
     link.begin(onConfigReceived, onSelectPatch, onSetStatic, onMidiNote, onMidiBend, onMidiCc);
     link.onControlPoke(onControlPoke);   // FW-LIVE-1: live control-sync
     link.onWaveform(onWaveform);         // FW-AU-6: draw-waveshape push
+    link.onDx7Bank(onDx7Bank);           // FW-AU-13: DX7-bank push
     link.onGetStatus(onGetStatus);       // telemetrie voor de editor
 }
 

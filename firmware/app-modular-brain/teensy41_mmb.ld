@@ -50,6 +50,7 @@ SECTIONS
 		*libmi-clouds.a:(.text* .rodata*)
 		*libmi-tides.a:(.text* .rodata*)
 		*libmi-marbles.a:(.text* .rodata*)
+		*libmsfa.a:(.text* .rodata*)
 		. = ALIGN(4);
 	} > FLASH
 

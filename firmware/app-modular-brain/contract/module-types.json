@@ -1,6 +1,6 @@
 {
   "$comment": "GEGENEREERD door tools/contract_dump.py — niet met de hand bewerken. Poort-ids zijn letterlijk wat de firmware accepteert (aliassen als out/out_l en naam/naam_cv staan er dus allebei in).",
-  "firmwareVersion": "0.5.34",
+  "firmwareVersion": "0.5.36",
   "modules": {
     "tp_mmb_ahdsr": {
       "typeId": "tp_mmb_ahdsr",
@@ -152,6 +152,24 @@
         "coarse",
         "fine",
         "level"
+      ]
+    },
+    "tp_mmb_dx7": {
+      "typeId": "tp_mmb_dx7",
+      "source": "firmware/app-modular-brain/src/Dx7Module.h",
+      "ports": [
+        "gate",
+        "out",
+        "trig",
+        "vel",
+        "velocity",
+        "voct"
+      ],
+      "controls": [
+        "coarse",
+        "fine",
+        "level",
+        "program"
       ]
     },
     "tp_mmb_echo": {
