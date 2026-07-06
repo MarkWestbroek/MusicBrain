@@ -1618,8 +1618,9 @@ function mmbTides() {
       knob('rate',  'Rate',  w/2, 26, { size: 'large', min: 0.01, max: 100, def: 2, unit: 'Hz', color: '#f9fafb' }),
       // mode: 0=AD (envelope) 1=Loop (LFO) 2=AR (gate-envelope).
       sw  ('mode',   'Mode',   w*0.28, 50, ['AD','Loop','AR'], 1),
-      // output: wat de 4 uitgangen betekenen.
-      sw  ('output', 'Out',    w*0.72, 50, ['Gates','Ampl','Phase','Freq'], 1),
+      // output: wat de 4 uitgangen betekenen. Default Phase (quadratuur):
+      // Ampl geeft met Shift op het midden op álle uitgangen exact 0.
+      sw  ('output', 'Out',    w*0.72, 50, ['Gates','Ampl','Phase','Freq'], 2),
       knob('shape',  'Shape',  col(0), 74, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
       knob('slope',  'Slope',  col(1), 74, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
       knob('smooth', 'Smooth', col(2), 74, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
@@ -1632,7 +1633,7 @@ function mmbTides() {
       outPort('out3', '3', 'cv', w*0.62, 120),
       outPort('out4', '4', 'cv', w*0.86, 120),
     ],
-    notes: 'Mutable Instruments Tides (tides2) slope-generator (firmware tp_mmb_tides, FW-CV-1). CV-domein op de 1 kHz-tick: LFO/envelope tot ~100 Hz. Mode: AD = trigger-envelope, Loop = LFO, AR = gate-envelope. Out-mode bepaalt de 4 uitgangen: Gates (slope+EOA+EOR), Ampl (4 niveaus via Shift), Phase (4 fasen — quadratuur-LFO!), Freq (4 gerelateerde snelheden). Rate-CV is exponentieel (±1 = ±1 octaaf). Uitgangen genormaliseerd (fullscale ≈ 1.0).',
+    notes: 'Mutable Instruments Tides (tides2) slope-generator (firmware tp_mmb_tides, FW-CV-1). CV-domein op de 1 kHz-tick: LFO/envelope tot ~100 Hz. Mode: AD = trigger-envelope, Loop = LFO, AR = gate-envelope. Out-mode bepaalt de 4 uitgangen: Gates (slope+EOA+EOR), Ampl (4 niveaus via Shift), Phase (4 fasen — quadratuur-LFO!), Freq (4 gerelateerde snelheden). Rate-CV is exponentieel (±1 = ±1 octaaf). Uitgangen genormaliseerd (fullscale ≈ 1.0). Let op (upstream-gedrag): in Ampl-mode kiest Shift het actieve kanaal — op precies 0.5 zijn alle vier de uitgangen 0.',
   });
 }
 

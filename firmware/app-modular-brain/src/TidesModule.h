@@ -26,8 +26,12 @@
  * | out | `out1`…`out4` | Cv | De vier generator-uitgangen                 |
  *
  * Controls: `rate` (Hz, 0.01–100), `mode` (0=AD, 1=loop, 2=AR),
- * `output` (0=gates, 1=amplitude, 2=phase, 3=frequency),
+ * `output` (0=gates, 1=amplitude, 2=phase [default], 3=frequency),
  * `shape` `slope` `smooth` `shift` (0..1).
+ *
+ * @warning Amplitude-mode (1) verdeelt het signaal over de uitgangen met
+ * `shift` als "kanaal-kiezer"; op precies 0.5 zijn alle vier de gains 0 —
+ * dat is upstream-gedrag, geen bug. Draai shift ≠ 0.5 of kies phase-mode.
  */
 
 #include "mb/runtime/CvModule.h"
@@ -146,7 +150,7 @@ public:
             rampMode_ = static_cast<tides::RampMode>(m);
         }
         else if (controlId == "output") {
-            int m = static_cast<int>(asFloat(1.0f));
+            int m = static_cast<int>(asFloat(2.0f));
             if (m < 0) m = 0;
             if (m >= tides::OUTPUT_MODE_LAST) m = tides::OUTPUT_MODE_LAST - 1;
             const auto next = static_cast<tides::OutputMode>(m);
@@ -182,7 +186,10 @@ private:
 
     tides::PolySlopeGenerator gen_;
     tides::RampMode   rampMode_   = tides::RAMP_MODE_LOOPING;
-    tides::OutputMode outputMode_ = tides::OUTPUT_MODE_AMPLITUDE;
+    // Default phase-mode (quadratuur): amplitude-mode is met shift op het
+    // midden op ALLE uitgangen exact 0 (channel_index=0, gains=0) — een
+    // stille verrassing als default.
+    tides::OutputMode outputMode_ = tides::OUTPUT_MODE_SLOPE_PHASE;
     stmlib::GateFlags lastFlags_  = stmlib::GATE_FLAG_LOW;
 
     float rateHz_ = 2.0f;   ///< Basis-rate in Hz (control `rate`).
