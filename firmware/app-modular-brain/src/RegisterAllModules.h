@@ -55,6 +55,7 @@
 #include "WarpsModule.h"
 #include "OctaVcfModule.h"
 #include "OctaVcaModule.h"
+#include "MorphWtModule.h"
 #include "CompDriveModule.h"
 #include "EchoModule.h"
 #include "CombModule.h"
@@ -101,6 +102,7 @@ inline void registerAllRuntimeModules() {
     WarpsModule::registerFactory();     // FW-FX-5: Mutable Warps meta-modulator
     OctaVcfModule::registerFactory();   // FW-PM-2: 8-cel SVF met gedeelde controllers
     OctaVcaModule::registerFactory();   // FW-PM-3: 8-cel VCA met gedeelde level
+    MorphWtModule::registerFactory();   // FW-AU-14: morphing-wavetable-VCO
     CompDriveModule::registerFactory(); // FW-FX-2: compressor + overdrive
     EchoModule::registerFactory();      // FW-AU-2: feedback delay
     CombModule::registerFactory();      // FW-AU-3: tuned comb resonator

@@ -1833,6 +1833,40 @@ function mmbDx7() {
   });
 }
 
+// 14g2. MMB MORPH-WT — 10 HP. Morphing-wavetable-VCO (FW-AU-14): 8 frames
+//     per bank, vloeiend gemorpht met knop of CV. USER-bank vulbaar via de
+//     wavetable-push (wslot kiest het frame).
+function mmbMorphWt() {
+  const w = W(10);
+  return assemble({
+    typeId: 'tp_mmb_morph_wt',
+    categoryId: 'vco',
+    variant: 'Morph-WT (morphing wavetable)',
+    brand: 'MMB', model: 'MORPH-WT',
+    hp: 10, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'MORPH-WT', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13,  text: '8 frames · vloeiend', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('morph', 'Morph', w/2, 32, { size: 'large', min: 0, max: 7, def: 0, color: '#22c55e' }),
+      // 0 Analog (sin→puls) · 1 Vocal (formants) · 2 Harmonics (drawbars)
+      // 3 Digital (gaten/flips) · 4 USER (wavetable-push per wslot).
+      sw  ('bank', 'Bank', w*0.22, 60, ['Ana','Voc','Hrm','Dig','Usr'], 0),
+      knob('wslot',  'W-slot', w*0.62, 60, { size: 'small', min: 0, max: 7, def: 0, step: 1, color: '#9ca3af' }),
+      knob('level',  'Level',  w*0.88, 60, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      knob('coarse', 'Coarse', w*0.30, 88, { size: 'small', min: -36, max: 36, def: 0, unit: 'semi', color: '#f9fafb' }),
+      knob('fine',   'Fine',   w*0.70, 88, { size: 'small', min: -100, max: 100, def: 0, unit: 'ct', color: '#f9fafb' }),
+
+      inPort ('voct',     'V/Oct', 'cv',    w*0.18, 110),
+      inPort ('morph_cv', 'M+',    'cv',    w*0.50, 110),
+      outPort('out',      'Out',   'audio', w*0.82, 110),
+    ],
+    notes: 'Morphing-wavetable-VCO (firmware tp_mmb_morph_wt, FW-AU-14): 8 frames per bank, per sample geïnterpoleerd én tussen aangrenzende frames gecrossfaded — draai Morph (of stuur M+ met een LFO) voor vloeiende spectrale beweging. Banken: Analog (sin→tri→saw→puls), Vocal (schuivende formants), Harmonics (drawbar-opbouw), Digital (gaten/fase-flips), USER. USER-frames vul je met de wavetable-push van de Draw-VCO-teken-UI: W-slot kiest het doelframe. Let op: v1 aliast zachtjes boven ~C6.',
+  });
+}
+
 // 14h. MMB WARPS — 10 HP. Mutable Instruments Warps meta-modulator
 //     (FW-FX-5): twee audiobronnen door elkaar gevouwen; algoritme-knop
 //     morpht van xfade tot vocoder. Interne carrier-osc via Shape+V/Oct.
@@ -2087,7 +2121,7 @@ function mmbStkSound() {
 // ── public entry ───────────────────────────────────────────────────────
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbComp(), mmbNoise(), mmbEcho(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbComp(), mmbNoise(), mmbEcho(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound()];
   const newTypes = all.map((x) => x.type);
 
   // Upgrade-pad: bestaande interne types worden in-place VERVANGEN (zelfde

@@ -490,6 +490,24 @@
       ],
       "controlsIgnored": []
     },
+    "tp_mmb_morph_wt": {
+      "typeId": "tp_mmb_morph_wt",
+      "source": "firmware/app-modular-brain/src/MorphWtModule.h",
+      "ports": [
+        "morph",
+        "morph_cv",
+        "out",
+        "voct"
+      ],
+      "controls": [
+        "bank",
+        "coarse",
+        "fine",
+        "level",
+        "morph",
+        "wslot"
+      ]
+    },
     "tp_mmb_ms20": {
       "typeId": "tp_mmb_ms20",
       "source": "firmware/app-modular-brain/src/Ms20Module.h",
