@@ -171,3 +171,30 @@ uit de data zelf (dx7BankNames.ts, gegenereerd door tools/dx7_banks_gen.py)
 en de firmware logt de naam bij elke wissel. USER-bank blijft de
 .syx-upload. DX7 poly ×8 verhuisd naar het Poly-menu. Hardware-getest:
 BRASS 1 / PICCOLO / EXPLOSION klinken met correcte namen.
+
+---
+
+## 7 juli: DX7 factory-ROMs, naamdisplay, Warps (0.5.37–0.5.38)
+
+**DX7 afgerond:** 8 factory-ROMs in flash (bank-knop 1A..4B+USR), groen
+voice-naamdisplay op het paneel (generieke 2D-lookup-displays + led-green-
+stijl), DX7 poly ×8 in het Poly-menu. seedInternals is nu een échte
+upgrade (bestaande types in-place vervangen + dedupe) — paneel-wijzigingen
+verschijnen voortaan met één klik op ✨ Internals.
+
+**🌀 Warps geport (tp_mmb_warps, FW-FX-5, 0.5.38, tag fw-0.5.38):**
+meta-modulator met 2 audio-ins; algorithm morpht xfade→fold→ringmod×2→
+XOR→comparator→spectraal→morph→vocoder; interne carrier-osc (shape 1..5)
+bespeelbaar via voct. Draait native op 44.1 kHz (Modulator::Init neemt de
+sample rate — geen resampler). Hardware: alle algoritmes geven signaal
+(peaks 0.62–0.80), ~11.6% CPU incl. twee VCO's. Valkuil voor het recept:
+msfa's globale `N`-macro vergiftigt warps' templates → vangen + #undef.
+
+**Flash-verificatie:** teensy-gui zegt SUCCESS ook als de soft-reboot
+faalt (open poort). Nieuw: `scratchpad/flash_verify.py` — upload +
+agressieve hello-poll tot de doelversie bevestigd is; wint de race van
+de auto-reconnectende editor. Voortaan de standaard flash-route.
+
+**Machine-mysterie:** het "overal volgende rondje" bleek zes parallelle
+Vite-dev-servers (Bitemporal) + één MusicBrain-Vite — allemaal gestopt;
+één per project starten.
