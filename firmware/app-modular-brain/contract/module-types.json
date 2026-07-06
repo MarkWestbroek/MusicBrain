@@ -1,6 +1,6 @@
 {
   "$comment": "GEGENEREERD door tools/contract_dump.py — niet met de hand bewerken. Poort-ids zijn letterlijk wat de firmware accepteert (aliassen als out/out_l en naam/naam_cv staan er dus allebei in).",
-  "firmwareVersion": "0.5.38",
+  "firmwareVersion": "0.5.39",
   "modules": {
     "tp_mmb_ahdsr": {
       "typeId": "tp_mmb_ahdsr",
@@ -509,6 +509,78 @@
         "q_cv_amt",
         "type"
       ]
+    },
+    "tp_mmb_octa_vca": {
+      "typeId": "tp_mmb_octa_vca",
+      "source": "firmware/app-modular-brain/src/OctaVcaModule.h",
+      "ports": [
+        "cv_1",
+        "cv_2",
+        "cv_3",
+        "cv_4",
+        "cv_5",
+        "cv_6",
+        "cv_7",
+        "cv_8",
+        "in_1",
+        "in_2",
+        "in_3",
+        "in_4",
+        "in_5",
+        "in_6",
+        "in_7",
+        "in_8",
+        "out_1",
+        "out_2",
+        "out_3",
+        "out_4",
+        "out_5",
+        "out_6",
+        "out_7",
+        "out_8"
+      ],
+      "controls": [
+        "level"
+      ],
+      "controlsIgnored": []
+    },
+    "tp_mmb_octa_vcf": {
+      "typeId": "tp_mmb_octa_vcf",
+      "source": "firmware/app-modular-brain/src/OctaVcfModule.h",
+      "ports": [
+        "cv",
+        "cv_1",
+        "cv_2",
+        "cv_3",
+        "cv_4",
+        "cv_5",
+        "cv_6",
+        "cv_7",
+        "cv_8",
+        "in_1",
+        "in_2",
+        "in_3",
+        "in_4",
+        "in_5",
+        "in_6",
+        "in_7",
+        "in_8",
+        "out_1",
+        "out_2",
+        "out_3",
+        "out_4",
+        "out_5",
+        "out_6",
+        "out_7",
+        "out_8"
+      ],
+      "controls": [
+        "cutoff",
+        "cv_amt",
+        "q",
+        "type"
+      ],
+      "controlsIgnored": []
     },
     "tp_mmb_octa_vco": {
       "typeId": "tp_mmb_octa_vco",

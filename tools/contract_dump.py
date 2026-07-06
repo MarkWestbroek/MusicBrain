@@ -57,6 +57,10 @@ OVERRIDES: dict[str, dict[str, list[str]]] = {
                        "ports": _rng("in", 16)},
     "tp_mmb_octa_vco": {"implemented": [], "ignored": [],
                         "ports": _rng("voct_", 8) + _rng("out_", 8)},
+    "tp_mmb_octa_vcf": {"implemented": [], "ignored": [],
+                        "ports": _rng("in_", 8) + _rng("cv_", 8) + _rng("out_", 8)},
+    "tp_mmb_octa_vca": {"implemented": [], "ignored": [],
+                        "ports": _rng("in_", 8) + _rng("cv_", 8) + _rng("out_", 8)},
 }
 
 

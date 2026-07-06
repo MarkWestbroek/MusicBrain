@@ -53,6 +53,8 @@
 #include "MarblesModule.h"
 #include "Dx7Module.h"
 #include "WarpsModule.h"
+#include "OctaVcfModule.h"
+#include "OctaVcaModule.h"
 #include "CompDriveModule.h"
 #include "EchoModule.h"
 #include "CombModule.h"
@@ -97,6 +99,8 @@ inline void registerAllRuntimeModules() {
     MarblesModule::registerFactory();   // FW-CV-2: Mutable Marbles random-seq (CV-domein)
     Dx7Module::registerFactory();       // FW-AU-13: DX7-stem (msfa/Dexed-kern)
     WarpsModule::registerFactory();     // FW-FX-5: Mutable Warps meta-modulator
+    OctaVcfModule::registerFactory();   // FW-PM-2: 8-cel SVF met gedeelde controllers
+    OctaVcaModule::registerFactory();   // FW-PM-3: 8-cel VCA met gedeelde level
     CompDriveModule::registerFactory(); // FW-FX-2: compressor + overdrive
     EchoModule::registerFactory();      // FW-AU-2: feedback delay
     CombModule::registerFactory();      // FW-AU-3: tuned comb resonator

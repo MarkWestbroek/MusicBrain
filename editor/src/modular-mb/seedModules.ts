@@ -1394,6 +1394,87 @@ function mmbOctaVco() {
   });
 }
 
+// 12b. MMB OCTA-VCF — 20 HP. Acht SVF-cellen, één gedeelde control-set
+//     (FW-PM-2). Per cel: audio-in, cutoff-CV, audio-uit. Compacte poly.
+function mmbOctaVcf() {
+  const w = W(20);
+  const colX = (i: number) => w * (0.08 + i * 0.119);
+  return assemble({
+    typeId: 'tp_mmb_octa_vcf',
+    categoryId: 'vcf',
+    variant: 'Octa VCF (shared controls)',
+    brand: 'MMB', model: 'OCTA-VCF-S',
+    hp: 20, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    role: 'multi',
+    cellGroups: [{
+      id: 'flt',
+      label: 'Filter',
+      count: 8,
+      portIds: ['in', 'cv', 'out'],
+      controlIds: [],
+    }],
+    texts: [
+      { x: w/2, y: 8,   text: 'OCTA-VCF-S', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: 'shared controls · 8 cells', fontSize: 1.2, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.8, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('cutoff', 'Cutoff', w*0.25, 34, { size: 'large',  min: 20, max: 18000, def: 800, unit: 'Hz', color: '#f9fafb' }),
+      knob('q',      'Res',    w*0.47, 34, { size: 'medium', min: 0.7, max: 5, def: 0.9, color: '#f9fafb' }),
+      knob('cv_amt', 'CV amt', w*0.66, 34, { size: 'medium', min: 0, max: 7, def: 2, unit: 'oct', color: '#f9fafb' }),
+      sw  ('type',   'Type',   w*0.86, 30, ['LP','BP','HP'], 0),
+
+      inPort('cv', 'CV (all)', 'cv', w*0.50, 64),
+
+      ...Array.from({ length: 8 }, (_, i) =>
+        inPort(`in_${i+1}`, 'In', 'audio', colX(i), 84, { cellGroupId: 'flt' })),
+      ...Array.from({ length: 8 }, (_, i) =>
+        inPort(`cv_${i+1}`, 'CV', 'cv', colX(i), 101, { cellGroupId: 'flt' })),
+      ...Array.from({ length: 8 }, (_, i) =>
+        outPort(`out_${i+1}`, 'Out', 'audio', colX(i), 118, { cellGroupId: 'flt' })),
+    ],
+    notes: 'Multi-module met 8 identieke state-variable-filtercellen die één control-set delen (cutoff/res/CV-diepte/type) — de vorm van de latere hardware-module met één set fysieke knoppen. Per cel een eigen audio-in, cutoff-CV (±1 = ±CV-amt octaven, bovenop de gedeelde CV-ingang) en audio-uit. Type kiest LP/BP/HP voor alle cellen (her-push nodig). Firmware: tp_mmb_octa_vcf (FW-PM-2).',
+  });
+}
+
+// 12c. MMB OCTA-VCA — 16 HP. Acht multiply-VCA-cellen, gedeelde level
+//     (FW-PM-3). Typisch: envelopes op cv_N, stemmen op in_N.
+function mmbOctaVca() {
+  const w = W(16);
+  const colX = (i: number) => w * (0.08 + i * 0.119);
+  return assemble({
+    typeId: 'tp_mmb_octa_vca',
+    categoryId: 'vca',
+    variant: 'Octa VCA (shared level)',
+    brand: 'MMB', model: 'OCTA-VCA-S',
+    hp: 16, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    role: 'multi',
+    cellGroups: [{
+      id: 'vca',
+      label: 'VCA',
+      count: 8,
+      portIds: ['in', 'cv', 'out'],
+      controlIds: [],
+    }],
+    texts: [
+      { x: w/2, y: 8,   text: 'OCTA-VCA-S', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: 'shared level · 8 cells', fontSize: 1.2, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.8, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('level', 'Level', w/2, 34, { size: 'large', min: 0, max: 1, def: 1, color: '#f9fafb' }),
+
+      ...Array.from({ length: 8 }, (_, i) =>
+        inPort(`in_${i+1}`, 'In', 'audio', colX(i), 84, { cellGroupId: 'vca' })),
+      ...Array.from({ length: 8 }, (_, i) =>
+        inPort(`cv_${i+1}`, 'CV', 'cv', colX(i), 101, { cellGroupId: 'vca' })),
+      ...Array.from({ length: 8 }, (_, i) =>
+        outPort(`out_${i+1}`, 'Out', 'audio', colX(i), 118, { cellGroupId: 'vca' })),
+    ],
+    notes: 'Multi-module met 8 identieke VCA-cellen (multiply): per cel audio-in, gain-CV (typisch een envelope) en audio-uit. De gedeelde Level-knop schaalt alle cellen. Samen met de Octa-VCO en Octa-VCF maakt dit een complete 8-stemmige poly van drie modules. Firmware: tp_mmb_octa_vca (FW-PM-3).',
+  });
+}
+
 // 13. MMB STRING — 6 HP. Karplus-Strong getokkelde snaar (FW-AU-8). Gate
 //     tokkelt de snaar op de toonhoogte van V/Oct; 'pluck' regelt de
 //     aanslag-helderheid.
@@ -2006,7 +2087,7 @@ function mmbStkSound() {
 // ── public entry ───────────────────────────────────────────────────────
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbComp(), mmbNoise(), mmbEcho(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbComp(), mmbNoise(), mmbEcho(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound()];
   const newTypes = all.map((x) => x.type);
 
   // Upgrade-pad: bestaande interne types worden in-place VERVANGEN (zelfde
