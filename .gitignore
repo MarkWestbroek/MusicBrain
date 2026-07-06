@@ -33,3 +33,5 @@ editor/src/**/*.d.ts
 # OS
 .DS_Store
 Thumbs.db
+pcb/quad-dac/.history/
+COM5
