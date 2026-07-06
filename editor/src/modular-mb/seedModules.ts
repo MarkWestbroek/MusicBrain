@@ -2347,10 +2347,12 @@ export function seedPolyVoicePatch(
       : { wave: 2, coarse: 0, fine: 0, level: 0.9 };
     // Filter-instellingen per type: de envFlt-sweep (0..1 op `cv`) werkt bij
     // ladder/ms20 in octaven (cv_amt), bij de VCF als 0..1-modulatie.
+    // Kalme startwaarden: hoge q/drive + brede sweeps lieten de ladder
+    // piepen; de "scream" draai je zelf open (die pokes gaan live).
     controlState[v.vcf.id] = opts.filterType === 'ladder'
-      ? { cutoff: 500, q: 0.9, drive: 1.5, cv_amt: 3, q_cv_amt: 0.5 }
+      ? { cutoff: 600, q: 0.6, drive: 1.0, cv_amt: 2, q_cv_amt: 0.3 }
       : opts.filterType === 'ms20'
-        ? { cutoff: 500, q: 0.6, drive: 2.5, cv_amt: 3, q_cv_amt: 0.5, type: 0 }
+        ? { cutoff: 600, q: 0.5, drive: 1.5, cv_amt: 2, q_cv_amt: 0.3, type: 0 }
         : { cutoff: 800, q: 0.8, cv_amt: 1, type: 0 };
     controlState[v.vca.id]    = { gain: 0, resp: 0 };
     controlState[v.envAmp.id] = { attack: 8, hold: 0, decay: 300, sustain: 0.7, release: 500, loop: false, curve: 1 };
@@ -2418,4 +2420,77 @@ export function seedPolyVoicePatch(
 /** Seed een tweestemmige testpatch. Dunne wrapper rond {@link seedPolyVoicePatch}. */
 export function seedTwoVoicePatch(project: ModularProject): ModularProject {
   return seedPolyVoicePatch(project, 2);
+}
+
+/**
+ * Solo-seed: de kortst mogelijke speelbare patch rond één instrument-module —
+ * MidiIn (mono) → module (voct + gate) → OUT. Bedoeld om Rings/Plaits/
+ * Elements/STK te leren kennen zonder de hele poly-keten eromheen.
+ *
+ * @param typeId   Instrument-typeId (moet `voct`- en `gate`-CV-ingangen hebben).
+ * @param outL/outR  Audio-uitgangspoorten van de module (mono: 2× dezelfde).
+ */
+export function seedSoloVoicePatch(
+  project: ModularProject,
+  typeId: string, label: string, outL: string, outR: string,
+  controls: Record<string, ControlValue> = {},
+): ModularProject {
+  const needed = [typeId, 'tp_mmb_midiin', 'tp_mmb_out'];
+  const missing = needed.some((tid) => !project.moduleTypes.some((t) => t.id === tid));
+  const p = missing ? seedInternals(project) : project;
+
+  const fresh = (tid: string): ModuleInstance => {
+    const proto = p.modules.find((m) => m.typeId === tid)!;
+    return { ...proto, id: uid('mod'), internal: false, visual: proto.visual };
+  };
+  const mi   = fresh('tp_mmb_midiin');
+  const inst = fresh(typeId);
+  const out  = fresh('tp_mmb_out');
+
+  let offset = 0;
+  const place = (m: ModuleInstance): RackSlot => {
+    const s: RackSlot = { id: uid('slot'), moduleId: m.id, row: 0, hpOffset: offset };
+    offset += m.visual.hpWidth;
+    return s;
+  };
+  const rack: Rack = {
+    id: uid('rack'), name: `${label} solo`,
+    description: `MidiIn → ${label} → OUT.`,
+    rows: 1, hpPerRow: Math.max(64, mi.visual.hpWidth + inst.visual.hpWidth + out.visual.hpWidth + 4),
+    slots: [place(mi), place(inst), place(out)],
+    kind: 'physical',
+  };
+
+  const c = (fm: ModuleInstance, fp: string, tm: ModuleInstance, tp: string): PatchConnection => ({
+    id: uid('conn'),
+    from: { moduleId: fm.id, portId: fp },
+    to:   { moduleId: tm.id, portId: tp },
+  });
+  const patch: Patch = {
+    id: uid('patch'), name: `${label} solo`,
+    description: `Monofoon: speel en draai — alle knoppen gaan live naar de Teensy.`,
+    voiceCount: 1,
+    rackIds: [rack.id],
+    connections: [
+      c(mi, 'pitch', inst, 'voct'),
+      c(mi, 'gate',  inst, 'gate'),
+      c(inst, outL, out, 'l'),
+      c(inst, outR, out, 'r'),
+    ],
+    controlState: {
+      [inst.id]: controls,
+      [out.id]:  { level: 0.8 },
+      [mi.id]:   { channel: 0, voiceCount: 1 },
+    },
+    envelopes: [], lfos: [],
+  };
+
+  return {
+    ...p,
+    racks:        [...p.racks, rack],
+    modules:      [...p.modules, mi, inst, out],
+    patches:      [...p.patches, patch],
+    activeRackId:  rack.id,
+    activePatchId: patch.id,
+  };
 }

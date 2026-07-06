@@ -157,7 +157,10 @@ public:
 #if HAVE_STK
         // Constructor-argument is de láágste speelbare frequentie (bepaalt de
         // delay-line-lengte), niet de speeltoonhoogte — die gaat via setFrequency.
-        constexpr stk::StkFloat kLowestHz = 20.0f;
+        // 27.5 Hz = A0: dekt het hele piano-bereik en scheelt ~27% delay-
+        // geheugen t.o.v. 20 Hz — bij 8 stemmen het verschil tussen passen
+        // en heap-OOM (zie Stk::memoryFailure).
+        constexpr stk::StkFloat kLowestHz = 27.5f;
         const float freq = midiNoteToHz(note_);
         const float amp  = strength_;
         std::unique_ptr<stk::Instrmnt> fresh;
@@ -246,9 +249,14 @@ public:
         if (!out) return;
 
 #if HAVE_STK
+        // Bij een ooit-gefaalde StkFrames-allocatie (heap-OOM) NIET tick'en:
+        // STK's hot-path leest ongeguard door frames heen en zou op adres 0x0
+        // hard-faulten (de Bowed×8-crash). De hele STK-sectie zwijgt dan;
+        // de status-strip toont stkOom zodat je weet waarom.
+        const bool stkOk = !stk::Stk::memoryFailure();
         for (int i = 0; i < AUDIO_BLOCK_SAMPLES; ++i) {
             // Instrmnt::tick() neemt een channel-index, géén audio-input.
-            float y = instr_ ? instr_->tick() : 0.0f;
+            float y = (instr_ && stkOk) ? instr_->tick() : 0.0f;
             if (y >  1.0f) y =  1.0f;
             if (y < -1.0f) y = -1.0f;
             out->data[i] = static_cast<int16_t>(y * 32767.0f * level_);

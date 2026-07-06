@@ -59,6 +59,8 @@ export interface DeviceStatus {
   patch?: string;    // actieve patch-id
   loopHz?: number;   // main-loop iteraties/s (CV-tick-headroom)
   uptimeMs?: number;
+  heapFree?: number;  // vrije heap (RAM2) in bytes — module/DSP-budget
+  stkOom?: boolean;   // STK-allocatie ooit gefaald → STK-sectie zwijgt
   elementsReady?: boolean;  // Elements-diagnose: DSP-buffers gebonden?
   elementsCpu?: number;     // Elements-diagnose: ISR-aandeel (%)
   elementsPeak?: number;    // Elements-diagnose: hoogste |output| sinds vorige poll
@@ -178,6 +180,8 @@ function handleLine(line: string): void {
           patch:    typeof msg.patch === 'string' ? msg.patch : undefined,
           loopHz:   num(msg.loopHz),
           uptimeMs: num(msg.uptimeMs),
+          heapFree: num(msg.heapFree),
+          stkOom:   typeof msg.stkOom === 'boolean' ? msg.stkOom : undefined,
           elementsReady: typeof msg.elementsReady === 'boolean' ? msg.elementsReady : undefined,
           elementsCpu:   num(msg.elementsCpu),
           elementsPeak:  num(msg.elementsPeak),

@@ -56,6 +56,7 @@
 namespace stk {
 
 StkFloat Stk :: srate_ = (StkFloat) SRATE;
+bool Stk :: memoryFailure_ = false;  // MMB: zie Stk.h
 std::string Stk :: rawwavepath_ = RAWWAVE_PATH;
 const Stk::StkFormat Stk :: STK_SINT8   = 0x1;
 const Stk::StkFormat Stk :: STK_SINT16  = 0x2;
@@ -305,8 +306,11 @@ void StkFrames :: resize( size_t nFrames, unsigned int nChannels )
     if ( data_ == NULL ) {
       // MMB: op de Teensy staan exceptions uit en draait handleError niet —
       // upstream schreef hierna gewoon door op een null-pointer (DACCVIOL,
-      // hard fault bij heap-uitputting). Degradeer naar een leeg frame:
-      // het instrument zwijgt dan in plaats van de hele synth te crashen.
+      // hard fault bij heap-uitputting). Degradeer naar een leeg frame en
+      // markeer de globale OOM-vlag: StkSoundVoice::update() stopt dan met
+      // tick'en (lastOut()/operator[] zijn hot-path en ongeguard, dus een
+      // leeg frame zou alsnog op adres 0x0 lezen — de Bowed×8-crash).
+      Stk::memoryFailure_ = true;
       nFrames_ = 0;
       size_ = 0;
       bufferSize_ = 0;

@@ -47,6 +47,15 @@ uint32_t loopCounter   = 0;
 uint32_t loopsPerSec   = 0;
 uint32_t lastLoopMarkMs = 0;
 
+// Vrije heap (RAM2) in bytes — het budget waar module-instanties, STK-delay-
+// lines en MI-buffers uit komen. Gerapporteerd in het status-bericht zodat
+// een naderende OOM (zoals de STK Bowed×8-crash) vooraf zichtbaar is.
+extern "C" char* __brkval;
+extern "C" char _heap_end;
+inline int freeHeapBytes() {
+    return static_cast<int>(&_heap_end - __brkval);
+}
+
 // One MidiInModule owns the allocator + per-voice state. It is the OO
 // entry point: the audio graph just mirrors its state.
 mb::runtime::MidiInModule midiIn{"midi1"};
@@ -251,6 +260,10 @@ void onGetStatus(JsonObject s) {
     s["patch"]    = runtime.activePatchId();
     s["loopHz"]   = loopsPerSec;
     s["uptimeMs"] = millis();
+    s["heapFree"] = freeHeapBytes();
+#if HAVE_STK
+    s["stkOom"]   = stk::Stk::memoryFailure();
+#endif
     // Ad-hoc Elements-diagnose (tot er per-module telemetrie is): rendert de
     // eerste Elements-instantie echt, en wat kost hij in de audio-ISR?
     for (auto& [id, mod] : runtime.instances()) {

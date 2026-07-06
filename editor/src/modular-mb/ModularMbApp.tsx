@@ -7,19 +7,20 @@
 import { useEffect, useRef, useState } from 'react';
 import { setProject, updateProject, useModularProject, getProject, undo, redo } from './store';
 import { emptyModularProject } from './types';
-import { seedExampleModules, seedInternals, seedTestPatch, seedCvBridgePatch, seedPolyVoicePatch, type PolySeedOptions } from './seedModules';
+import { seedExampleModules, seedInternals, seedTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, type PolySeedOptions } from './seedModules';
 import { PatchesPanel } from './PatchesPanel';
 import { ModulesPanel } from './ModulesPanel';
 import { CategoriesPanel } from './CategoriesPanel';
 import { RackPanel } from './RackPanel';
 import { PatcherPanel } from './PatcherPanel';
 import { SimulationPanel } from './SimulationPanel';
+import { ControlSurfacePanel } from './ControlSurfacePanel';
 import { PresetsModal } from './PresetsModal';
 import { TeensyLinkModal } from './TeensyLinkModal';
 // Reuse the ES project-bar CSS classes (.es-projectbar*) — same visual language.
 import '../effect-switcher/styles.css';
 
-type Tab = 'patches' | 'modules' | 'rack' | 'categories' | 'patcher' | 'simulation';
+type Tab = 'patches' | 'modules' | 'rack' | 'categories' | 'patcher' | 'simulation' | 'surface';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'categories', label: 'Categorieën' },
@@ -28,6 +29,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'patches',    label: 'Patches' },
   { id: 'patcher',    label: 'Patcher' },
   { id: 'simulation', label: 'Simulatie' },
+  { id: 'surface',    label: 'Surface' },
 ];
 
 export function ModularMbApp(): JSX.Element {
@@ -40,6 +42,7 @@ export function ModularMbApp(): JSX.Element {
   const [showTeensy,  setShowTeensy]  = useState(false);
   const [showPoly,    setShowPoly]    = useState(false);
   const [showStress,  setShowStress]  = useState(false);
+  const [showSolo,    setShowSolo]    = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
 
   // ─── Global undo/redo: Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z ───────────────
@@ -246,6 +249,43 @@ export function ModularMbApp(): JSX.Element {
           </span>
           <span style={{ position: 'relative', display: 'inline-block' }}>
             <button
+              onClick={() => setShowSolo((v) => !v)}
+              title="Solo-seeds: de kortst mogelijke speelbare patch rond één instrument (MidiIn → module → OUT) — om Rings/Plaits/Elements/STK te leren kennen."
+            >🎹 Solo ▾</button>
+            {showSolo && (
+              <div
+                style={{
+                  position: 'absolute', top: '100%', left: 0, zIndex: 20,
+                  background: '#ffffff', border: '1px solid #cbd2d9', borderRadius: 6,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)', marginTop: 2, minWidth: 210,
+                  display: 'flex', flexDirection: 'column',
+                }}
+                onMouseLeave={() => setShowSolo(false)}
+              >
+                {([
+                  { label: '💍 Rings (resonator)', t: 'tp_mmb_rings', n: 'Rings', l: 'out_l', r: 'out_r',
+                    c: { structure: 0.4, brightness: 0.6, damping: 0.6, position: 0.3, model: 0, polyphony: 1, level: 0.8 } },
+                  { label: '🎛️ Plaits (16 engines)', t: 'tp_mmb_plaits', n: 'Plaits', l: 'out', r: 'aux',
+                    c: { engine: 0, harmonics: 0.5, timbre: 0.5, morph: 0.5, decay: 0.6, lpg: 0.5, level: 0.8 } },
+                  { label: '💎 Elements (modaal)', t: 'tp_mmb_elements', n: 'Elements', l: 'out_l', r: 'out_r',
+                    c: { strike: 0.8, space: 0.5, level: 0.8 } },
+                  { label: '🎻 STK (9 instrumenten)', t: 'tp_mmb_stk_sound', n: 'STK', l: 'out', r: 'out',
+                    c: { sound: 0, level: 0.8 } },
+                ] as { label: string; t: string; n: string; l: string; r: string; c: Record<string, number> }[]).map((s) => (
+                  <button
+                    key={s.label}
+                    onClick={() => { setProject(seedSoloVoicePatch(getProject(), s.t, s.n, s.l, s.r, s.c)); setShowSolo(false); }}
+                    style={{
+                      textAlign: 'left', border: 'none', background: 'transparent',
+                      padding: '7px 12px', cursor: 'pointer', fontSize: 13,
+                    }}
+                  >{s.label}</button>
+                ))}
+              </div>
+            )}
+          </span>
+          <span style={{ position: 'relative', display: 'inline-block' }}>
+            <button
               onClick={() => setShowStress((v) => !v)}
               title="Stress-seeds: energievretende varianten van de poly-patch om de Teensy te pushen. Kijk in de status-strip (CPU / blocks / loop) hoe ver hij gaat."
             >🔥 Stress ▾</button>
@@ -261,9 +301,12 @@ export function ModularMbApp(): JSX.Element {
               >
                 {([
                   { label: '🪕 Strings ×16 (Karplus-Strong)', n: 16, o: { voiceSource: 'string' } },
-                  { label: '🪜 Ladder-filter ×8 (Moog)',      n: 8,  o: { filterType: 'ladder' } },
-                  { label: '⚡ MS-20 scream ×8 (Korg35)',     n: 8,  o: { filterType: 'ms20' } },
-                  { label: '🎻 STK Bowed ×8',                 n: 8,  o: { voiceSource: 'stk', stkSound: 2 } },
+                  // Ladder is duur (2× oversampling): ×8 verzadigde de audio-
+                  // ISR (>90% CPU → kraken); ×4 is de veilige stress-grens.
+                  { label: '🪜 Ladder-filter ×4 (Moog)',      n: 4,  o: { filterType: 'ladder' } },
+                  { label: '⚡ MS-20 scream ×6 (Korg35)',     n: 6,  o: { filterType: 'ms20' } },
+                  // STK Bowed ×8 liep tegen heap-OOM (delay-lines); ×4 past.
+                  { label: '🎻 STK Bowed ×4',                 n: 4,  o: { voiceSource: 'stk', stkSound: 2 } },
                   { label: '🌀 Comb per stem ×16',            n: 16, o: { perVoiceFx: 'comb' } },
                   { label: '〰️ CV-storm ×8 (LFO per stem)',   n: 8,  o: { perVoiceLfo: true } },
                   { label: '🔁 Echo-bus ×8 (2× 0,5 s)',       n: 8,  o: { busEchoSeconds: 0.5 } },
@@ -320,6 +363,9 @@ export function ModularMbApp(): JSX.Element {
       {tab === 'rack'       && <RackPanel />}
       {tab === 'categories' && <CategoriesPanel />}
       {tab === 'patcher'    && <PatcherPanel />}
+      {/* Surface-paneel is UI over de singleton surfaceBridge: de MIDI-
+          koppeling zelf blijft actief als je naar een andere tab gaat. */}
+      {tab === 'surface'    && <ControlSurfacePanel />}
       {/* SimulationPanel blijft altijd gemount zodat de audio-engine en de
           gekozen MIDI-bron (bv. de auto-sequence) blijven draaien als je
           naar een andere tab gaat om aan knoppen te draaien of te patchen. */}

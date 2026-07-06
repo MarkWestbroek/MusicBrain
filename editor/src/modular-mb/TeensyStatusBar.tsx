@@ -31,6 +31,16 @@ export function TeensyStatusBar(props: { compact?: boolean }): JSX.Element | nul
       <span title="Main-loop iteraties per seconde — daalt als de CV-tick verzadigt">
         loop {st.loopHz?.toLocaleString()}/s
       </span>
+      {st.heapFree !== undefined && (
+        <span title="Vrije heap (RAM2) — hieruit komen module-instanties, STK-delay-lines en MI-buffers. Onder ~50 KB wordt een volgende zware push riskant.">
+          heap <b style={{ color: st.heapFree < 50 * 1024 ? '#f87171' : '#34d399' }}>{Math.round(st.heapFree / 1024)}K</b>
+        </span>
+      )}
+      {st.stkOom && (
+        <span style={{ color: '#f87171' }} title="Een STK-geheugenallocatie is gefaald — alle STK-instrumenten zwijgen tot een herstart. Kleinere patch pushen en power-cyclen.">
+          STK-OOM!
+        </span>
+      )}
       <span title="Live module-instanties + gepensioneerde (power-cycle om te legen)">
         modules {st.modules}{(st.retired ?? 0) > 0 ? ` (+${st.retired} retired)` : ''}
       </span>

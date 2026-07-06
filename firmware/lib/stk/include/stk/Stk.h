@@ -157,6 +157,13 @@ public:
   //! Static method that returns the current STK sample rate.
   static StkFloat sampleRate( void ) { return srate_; }
 
+  // MMB: true zodra een StkFrames-allocatie ooit gefaald is (heap-OOM).
+  // De MMB-wrapper (StkSoundVoice) stopt dan met tick'en: STK's hot-path
+  // leest/schrijft ongeguard door frames heen en zou anders op adres 0x0
+  // hard-faulten. Alleen een reboot/power-cycle reset deze vlag.
+  static bool memoryFailure( void ) { return memoryFailure_; }
+  static bool memoryFailure_;
+
   //! Static method that sets the STK sample rate.
   /*!
     The sample rate set using this method is queried by all STK

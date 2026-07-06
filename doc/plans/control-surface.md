@@ -160,18 +160,34 @@ eerst testen op de actuele firmware (gebruiker draait 3.2.1).
   bestaande `{"type":"config"}`-push, persisteren in presets/opslag.
 - Migratie: ontbrekende `midiMap` = lege bindings (geen schema-bump nodig).
 
-### ED-CS-2 — Control-Surface-paneel
+### ED-CS-2 — Control-Surface-paneel (gebouwd 2026-07-06)
 
 - Nieuw paneel: tabel met bindings (kanaal, CC, module, control, range,
   curve), rijen toevoegen/verwijderen/bewerken.
-- WebMIDI-routing: gekozen MIDI-in/uit-poort (de Roto) ↔ TeensyLink-bridge.
-  De note/cc-bridge bestaat al; er komt alleen een uitgaande route bij
-  (`ccOut` → WebMIDI out).
-- **Loop-guard**: de bestaande editor-bridge mag `ccOut`-verkeer nooit terug
-  de Teensy in spiegelen. Zelfde les als de note-echo (zie commentaar in
-  `main.cpp`).
+- **Gebouwd, met een ontwerpafwijking t.o.v. de fase-1-schets hierboven**:
+  de editor stuurt géén rauwe CC's door en heeft geen firmware-`ccOut`
+  nodig. In plaats daarvan past `surfaceBridge.ts` de binding zelf toe:
+  inkomende CC → controlState van de actieve patch bijwerken (patcher-knop
+  beweegt mee op het scherm) + `controlPoke` naar de Teensy — hetzelfde
+  firmware-pad als de midiMap standalone neemt. Uitgaande feedback is een
+  store-diff: elke wijziging van een gebonden controlwaarde (knopdrag,
+  patch-wissel, undo) gaat als CC naar de gekozen WebMIDI-output, met
+  echo-onderdrukking (300 ms / gelijke 7-bit waarde) en tx-dedupe.
+  `syncSurface()` = alle knoppen naar de huidige stand ("snap").
+  FW-CS-2 (`ccOut`) blijft nodig voor fase 2 (standalone), niet voor fase 1.
+- Bestanden: `surfaceBridge.ts` (singleton, blijft actief buiten de tab),
+  `ControlSurfacePanel.tsx` (tab "Surface" in `ModularMbApp.tsx`).
+- **Loop-guards**: de bridge weigert de Teensy's eigen MIDI-poort als
+  in-/output (zelfde heuristiek als `sim/MidiSource.ts`), en wat net van het
+  surface binnenkwam wordt niet teruggezonden.
 
-### ED-CS-3 — Learn-flow
+### ED-CS-3 — Learn-flow (editor-kant geleverd in ED-CS-2)
+
+> ED-CS-2 bevat al een learn-knop per binding-rij: de bridge luistert zelf
+> naar de surface-input, dus de eerstvolgende CC vult kanaal + CC zonder
+> firmware-hulp. De `ccLearn`/`ccSeen`-messages hieronder zijn daarmee
+> alleen nog nodig voor de standalone-fasen (surface direct aan de Teensy,
+> FW-CS-4/5).
 
 1. Gebruiker klikt "learn" op een binding-rij (of op een knob in de patcher).
 2. Editor stuurt `ccLearn on`, wacht op `ccSeen`.
