@@ -318,6 +318,13 @@ void onGetStatus(JsonObject s) {
         s["tidesOut1"] = mod->readCvPort("out1");
         break;
     }
+    // ... Marbles (CV-domein): x1 + master-klok als teken van leven.
+    for (auto& [id, mod] : runtime.instances()) {
+        if (mod->typeId() != std::string_view{mmb_link::MarblesModule::kTypeId}) continue;
+        s["marblesX1"]   = mod->readCvPort("x1");
+        s["marblesTclk"] = mod->readCvPort("tclk");
+        break;
+    }
 }
 
 void onSetStatic(bool enabled) {

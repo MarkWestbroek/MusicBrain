@@ -50,6 +50,7 @@
 #include "PlaitsModule.h"
 #include "CloudsModule.h"
 #include "TidesModule.h"
+#include "MarblesModule.h"
 #include "CompDriveModule.h"
 #include "EchoModule.h"
 #include "CombModule.h"
@@ -91,6 +92,7 @@ inline void registerAllRuntimeModules() {
     PlaitsModule::registerFactory();    // FW-AU-12: Mutable Plaits macro-oscillator
     CloudsModule::registerFactory();    // FW-FX-4: Mutable Clouds granular
     TidesModule::registerFactory();     // FW-CV-1: Mutable Tides slope-gen (CV-domein)
+    MarblesModule::registerFactory();   // FW-CV-2: Mutable Marbles random-seq (CV-domein)
     CompDriveModule::registerFactory(); // FW-FX-2: compressor + overdrive
     EchoModule::registerFactory();      // FW-AU-2: feedback delay
     CombModule::registerFactory();      // FW-AU-3: tuned comb resonator

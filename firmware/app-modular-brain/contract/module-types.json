@@ -1,6 +1,6 @@
 {
   "$comment": "GEGENEREERD door tools/contract_dump.py — niet met de hand bewerken. Poort-ids zijn letterlijk wat de firmware accepteert (aliassen als out/out_l en naam/naam_cv staan er dus allebei in).",
-  "firmwareVersion": "0.5.33",
+  "firmwareVersion": "0.5.34",
   "modules": {
     "tp_mmb_ahdsr": {
       "typeId": "tp_mmb_ahdsr",
@@ -291,6 +291,37 @@
         "run",
         "shape",
         "wave"
+      ]
+    },
+    "tp_mmb_marbles": {
+      "typeId": "tp_mmb_marbles",
+      "source": "firmware/app-modular-brain/src/MarblesModule.h",
+      "ports": [
+        "clock",
+        "dejavu_cv",
+        "rate_cv",
+        "spread_cv",
+        "t1",
+        "t2",
+        "tclk",
+        "x1",
+        "x2",
+        "x3",
+        "y"
+      ],
+      "controls": [
+        "bias",
+        "dejavu",
+        "extclock",
+        "jitter",
+        "length",
+        "model",
+        "range",
+        "scale",
+        "spread",
+        "steps",
+        "tempo",
+        "xbias"
       ]
     },
     "tp_mmb_midiin": {

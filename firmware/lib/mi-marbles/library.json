@@ -1,0 +1,11 @@
+{
+  "name": "mi-marbles",
+  "version": "1.0.0",
+  "description": "Mutable Instruments Marbles — TGenerator + XYGenerator (MIT, (c) Emilie Gillet), gevendorde subset voor MMB MarblesModule (tp_mmb_marbles). CV-domein op de 1 kHz-tick: generatieve gates (t1/t2) + gekwantiseerde random-CV's (x1..x3, y) met déjà-vu-loop. stmlib-headers byte-identiek aan mi-tides.",
+  "license": "MIT",
+  "homepage": "https://github.com/pichenettes/eurorack",
+  "build": {
+    "flags": ["-I."],
+    "srcFilter": ["+<marbles/>"]
+  }
+}
