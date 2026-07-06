@@ -244,6 +244,15 @@ export function ModularMbApp(): JSX.Element {
                     title={`${n}-stemmige patch${n > 8 ? ' (16-in mixer)' : n > 4 ? ' (8-in mixer)' : ''}`}
                   >{n}-stemmig{n === 1 ? ' (mono)' : ''}</button>
                 ))}
+                <button
+                  onClick={() => { setProject(seedDx7PolyPatch(getProject(), 8)); setShowPoly(false); }}
+                  title="8-stemmige DX7 (msfa/Dexed-kern): MidiIn -> 8x DX7 -> Mixer8 -> OUT, stereo uitgewaaierd. Bank-knop kiest een factory-ROM (1A..4B); USER = .syx via de Teensy-modal."
+                  style={{
+                    textAlign: 'left', border: 'none', background: 'transparent',
+                    padding: '7px 12px', cursor: 'pointer', fontSize: 13,
+                    borderTop: '1px solid #e5e7eb',
+                  }}
+                >🎹 DX7 poly ×8</button>
               </div>
             )}
           </span>
@@ -300,14 +309,6 @@ export function ModularMbApp(): JSX.Element {
                     padding: '7px 12px', cursor: 'pointer', fontSize: 13,
                   }}
                 >🎲 Generative jam (Marbles)</button>
-                <button
-                  onClick={() => { setProject(seedDx7PolyPatch(getProject(), 8)); setShowSolo(false); }}
-                  title="8-stemmige DX7 (msfa/Dexed-kern): MidiIn → 8× DX7 → Mixer8 → OUT, stereo uitgewaaierd. Laad een .syx-bank via de Teensy-modal; Program kiest voice 0–31."
-                  style={{
-                    textAlign: 'left', border: 'none', background: 'transparent',
-                    padding: '7px 12px', cursor: 'pointer', fontSize: 13,
-                  }}
-                >🎹 DX7 poly ×8</button>
               </div>
             )}
           </span>

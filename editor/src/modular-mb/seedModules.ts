@@ -1721,18 +1721,22 @@ function mmbDx7() {
       { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
     ],
     items: [
-      knob   ('program', 'Program', w*0.32, 28, { size: 'medium', min: 0, max: 31, def: 0, step: 1, color: '#a5b4fc' }),
-      display('prgDisp', w*0.72, 28, { digits: 2, style: 'led', bindTo: 'program', format: 'int' }),
-      knob('coarse', 'Coarse', w*0.25, 56, { size: 'small', min: -36, max: 36, def: 0, unit: 'semi', color: '#f9fafb' }),
-      knob('fine',   'Fine',   w*0.75, 56, { size: 'small', min: -100, max: 100, def: 0, unit: 'ct', color: '#f9fafb' }),
-      knob('level',  'Level',  w/2,    78, { size: 'medium', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      // Bank 0-7 = ingebouwde factory-ROMs (1A/1B/2A/2B/3A/3B/4A/4B),
+      // 8 = USER (.syx via de Teensy-modal). Voice-namen: dx7BankNames.ts.
+      knob   ('bank', 'Bank', w*0.32, 24, { size: 'small', min: 0, max: 8, def: 0, step: 1, color: '#a5b4fc', ticks: { every: 1, highlight: [0, 8] } }),
+      display('bnkDisp', w*0.72, 24, { digits: 2, style: 'led', bindTo: 'bank', format: 'int' }),
+      knob   ('program', 'Program', w*0.32, 44, { size: 'medium', min: 0, max: 31, def: 0, step: 1, color: '#a5b4fc' }),
+      display('prgDisp', w*0.72, 44, { digits: 2, style: 'led', bindTo: 'program', format: 'int' }),
+      knob('coarse', 'Coarse', w*0.25, 64, { size: 'small', min: -36, max: 36, def: 0, unit: 'semi', color: '#f9fafb' }),
+      knob('fine',   'Fine',   w*0.75, 64, { size: 'small', min: -100, max: 100, def: 0, unit: 'ct', color: '#f9fafb' }),
+      knob('level',  'Level',  w/2,    82, { size: 'medium', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
 
       inPort ('voct', 'V/Oct', 'cv',    w*0.20, 102),
       inPort ('gate', 'Gate',  'gate',  w*0.50, 102),
       inPort ('vel',  'Vel',   'cv',    w*0.80, 102),
       outPort('out',  'Out',   'audio', w/2,    118),
     ],
-    notes: 'Yamaha DX7-stem op de msfa-engine (Apache-2.0, dezelfde kern als Dexed/MicroDexed; firmware tp_mmb_dx7, FW-AU-13). Eén stem per instantie — polyfoon via de Poly-seeds. Program kiest voice 0–31 uit de gedeelde bank; laad een originele 32-voice .syx via de Teensy-modal (🎹 DX7-bank). Zonder bank klinkt alles als de ingebouwde E.PIANO 1. Velocity stuurt de FM-envelopes zoals op het origineel; pitch is fractioneel (V/Oct + Coarse/Fine via de interne pitch-mod).',
+    notes: 'Yamaha DX7-stem op de msfa-engine (Apache-2.0, dezelfde kern als Dexed/MicroDexed; firmware tp_mmb_dx7, FW-AU-13). Eén stem per instantie — polyfoon via de Poly-seeds. De 8 Yamaha factory-ROMs (1A..4B) zitten ingebouwd in de firmware-flash; Bank kiest de ROM en Program de voice 0–31 (namen: zie dx7BankNames.ts — de firmware logt de naam bij elke wissel). Bank USR = eigen 32-voice .syx, geladen via de Teensy-modal (🎹 DX7-bank); zonder upload klinkt USR als E.PIANO 1. Velocity stuurt de FM-envelopes zoals op het origineel; pitch is fractioneel (V/Oct + Coarse/Fine via de interne pitch-mod).',
   });
 }
 
