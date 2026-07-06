@@ -1,0 +1,12 @@
+{
+  "name": "stk",
+  "version": "5.0.1",
+  "description": "The Synthesis ToolKit in C++ (STK) — gevendorde subset voor MMB StkSoundModule (tp_mmb_stk_sound). Physical-modelling instrumenten: Plucked, Clarinet, Bowed, Flute, Brass, Saxofony, BlowHole, BandedWG.",
+  "license": "MIT",
+  "homepage": "https://github.com/thestk/stk",
+  "build": {
+    "flags": ["-Iinclude/stk"],
+    "srcDir": "src",
+    "includeDir": "include"
+  }
+}

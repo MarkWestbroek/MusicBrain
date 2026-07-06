@@ -13,6 +13,8 @@
 #include "mb/runtime/Registry.h"
 #include <Audio.h>
 #include <cstring>
+#include <memory>
+#include <new>
 
 #include "elements/dsp/fx/reverb.h"
 
@@ -21,11 +23,23 @@ namespace mmb_link {
 // ---------------------------------------------------------------------------
 // ElementsReverbStream — Teensy AudioStream wrapper around elements::Reverb.
 // ---------------------------------------------------------------------------
+
 class ElementsReverbStream : public AudioStream {
 public:
     ElementsReverbStream()
         : AudioStream(2, inputQueue_)
     {
+        // Delaybuffer (64 KB) op de heap en direct binden: de Registry-
+        // factory roept begin() nooit aan, en een ongebonden buffer gaf een
+        // nullptr-deref in Reverb::Process() (zelfde valkuil als
+        // ElementsVoice zonder Part::Init()). Bij heap-OOM blijft ready_
+        // false → update() blijft stil in plaats van te crashen. Apps met
+        // een eigen buffer (app-elements, DTCM) re-binden via begin().
+        heapBuf_.reset(new (std::nothrow) uint16_t[32768]);
+        if (heapBuf_) {
+            begin(heapBuf_.get());
+            ready_ = true;
+        }
     }
 
     void begin(uint16_t* buffer) {
@@ -39,6 +53,9 @@ public:
     void setLp(float v)        { reverb_.set_lp(v); }
 
     void update() override {
+        // Niet renderen vóór de ctor de buffer heeft gebonden (AudioStream
+        // linkt zich al in de update-lijst tijdens de basisconstructor).
+        if (!ready_) return;
         audio_block_t* inL = receiveReadOnly(0);
         audio_block_t* inR = receiveReadOnly(1);
 
@@ -80,6 +97,8 @@ public:
 
 private:
     audio_block_t* inputQueue_[2] = { nullptr, nullptr };
+    volatile bool  ready_ = false;   ///< true zodra de buffer gebonden is.
+    std::unique_ptr<uint16_t[]> heapBuf_;  ///< Eigen delaybuffer (ctor-gebonden).
     elements::Reverb reverb_;
 };
 

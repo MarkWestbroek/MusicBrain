@@ -22,6 +22,7 @@
 
 #include "mb/runtime/MidiIn.h"
 #include "TeensyLink.h"
+#include "MidiMap.h"
 #include "ProjectRuntime.h"
 #include "RegisterAllModules.h"
 #include "AudioGraph.h"
@@ -32,6 +33,19 @@
 namespace {
 
 constexpr uint8_t kVoices = 4;
+
+// Audio block pool size — single source for AudioMemory() in setup() and the
+// "audio blocks: peak/budget" diagnostic log after each graph rebuild.
+// 800 blocks ≈ 208 KB RAM2: een 4-stemmige patch piekte al op 271, dus een
+// 16-stemmige heeft ruim de dubbele headroom nodig.
+constexpr unsigned kAudioPoolBlocks = 800;
+
+// Loop-rate meter: iteraties/seconde van loop(). Een dalende loopHz betekent
+// dat de main-thread (CV-tick, serial) verzadigd raakt — de audio-ISR zie je
+// apart via AudioProcessorUsage(). Gerapporteerd in het "status"-bericht.
+uint32_t loopCounter   = 0;
+uint32_t loopsPerSec   = 0;
+uint32_t lastLoopMarkMs = 0;
 
 // One MidiInModule owns the allocator + per-voice state. It is the OO
 // entry point: the audio graph just mirrors its state.
@@ -81,6 +95,9 @@ mmb_link::TeensyLink    link;
 mmb_link::ProjectRuntime runtime;
 mmb_link::AudioGraph    audioGraph;
 mmb_link::CvGraph       cvGraph;
+// FW-CS-1: CC→control-bindings voor een control surface (Roto-Control),
+// meegeleverd in de projectconfig. Zie doc/plans/control-surface.md.
+mmb_link::MidiMap       midiMap;
 
 // Static 4-voice graph on/off. Toggled via the editor's "Static graph" switch
 // (command {"type":"setStatic","enabled":bool}) so you can isolate the
@@ -138,10 +155,27 @@ void tickCvModules() {
 // Editor → Teensy callbacks.
 // ------------------------------------------------------------------
 
+void activatePatchAndBuild(const char* patchId);  // defined below
+
 void onConfigReceived(JsonObjectConst project) {
     const char* name = project["name"] | "(unnamed)";
     mmb_link::TeensyLink::logf("config received: name=%s", name);
     runtime.applyConfig(project);
+    // FW-CS-1: control-surface-bindings reizen mee in de config.
+    const int nBindings = midiMap.load(project);
+    if (nBindings > 0 || midiMap.skipped() > 0) {
+        mmb_link::TeensyLink::logf("midiMap: %d binding(s), %d skipped",
+                                   nBindings, static_cast<int>(midiMap.skipped()));
+    }
+    // Een config die een activePatchId meelevert is meteen speelbaar: bouw de
+    // graphs direct, zonder een aparte selectPatch te vereisen. Dat voorkomt
+    // de volgorde-valkuil "selectPatch vóór config → unknown id".
+    if (!runtime.activePatchId().empty()) {
+        // Kopie: activatePatch() schrijft activePatchId_ opnieuw, dus een
+        // pointer het veld in zou zichzelf aliassen.
+        const std::string id = runtime.activePatchId();
+        activatePatchAndBuild(id.c_str());
+    }
 }
 
 // ------------------------------------------------------------------
@@ -170,8 +204,9 @@ void applyPatchVoiceCount(JsonObjectConst patch) {
                                vc, configured);
 }
 
-void onSelectPatch(const char* patchId) {
-    mmb_link::TeensyLink::logf("selectPatch: %s", patchId);
+// Activeer @p patchId en (her)bouw de audio- + CV-graphs. Gedeeld door de
+// selectPatch-handler en de config-handler (zie onConfigReceived).
+void activatePatchAndBuild(const char* patchId) {
     if (runtime.activatePatch(patchId)) {
         // Teensy AudioConnection::connect() is first-source-wins: if the
         // static mix is still attached to usbOut.ch0/1, the dynamic patch's
@@ -191,9 +226,62 @@ void onSelectPatch(const char* patchId) {
             // AudioMemory() budget the pool is too small for the patch.
             mmb_link::TeensyLink::logf("audio blocks: peak=%u / budget=%u",
                                        (unsigned)AudioMemoryUsageMax(),
-                                       (unsigned)120);
+                                       kAudioPoolBlocks);
             AudioMemoryUsageMaxReset();
         }
+    }
+}
+
+void onSelectPatch(const char* patchId) {
+    mmb_link::TeensyLink::logf("selectPatch: %s", patchId);
+    activatePatchAndBuild(patchId);
+}
+
+// Telemetrie voor de editor ({"type":"getStatus"} → {"type":"status",...}).
+// cpu/cpuMax = audio-ISR-belasting in %, mem/memMax = audio-blocks in gebruik
+// t.o.v. de pool, loopHz = main-loop-iteraties per seconde (CV-tick-headroom).
+void onGetStatus(JsonObject s) {
+    s["cpu"]      = AudioProcessorUsage();
+    s["cpuMax"]   = AudioProcessorUsageMax();
+    s["mem"]      = AudioMemoryUsage();
+    s["memMax"]   = AudioMemoryUsageMax();
+    s["memPool"]  = kAudioPoolBlocks;
+    s["modules"]  = static_cast<int>(runtime.instanceCount());
+    s["retired"]  = static_cast<int>(runtime.retiredCount());
+    s["patch"]    = runtime.activePatchId();
+    s["loopHz"]   = loopsPerSec;
+    s["uptimeMs"] = millis();
+    // Ad-hoc Elements-diagnose (tot er per-module telemetrie is): rendert de
+    // eerste Elements-instantie echt, en wat kost hij in de audio-ISR?
+    for (auto& [id, mod] : runtime.instances()) {
+        if (mod->typeId() != std::string_view{mmb_link::ElementsModule::kTypeId}) continue;
+        auto* em = static_cast<mmb_link::ElementsModule*>(mod.get());
+        s["elementsReady"] = em->voice().dspReady();
+        s["elementsCpu"]   = em->voice().processorUsage();
+        s["elementsPeak"]  = em->voice().takePeak();
+        // Ketendiagnose: gate → exciter → resonator (meters van Part zelf).
+        s["elementsGate"]  = em->voice().part().gate();
+        s["elementsExc"]   = em->voice().part().exciter_level();
+        s["elementsRes"]   = em->voice().part().resonator_level();
+        break;
+    }
+    // Zelfde ad-hoc diagnose voor de eerste Rings-instantie.
+    for (auto& [id, mod] : runtime.instances()) {
+        if (mod->typeId() != std::string_view{mmb_link::RingsModule::kTypeId}) continue;
+        auto* rm = static_cast<mmb_link::RingsModule*>(mod.get());
+        s["ringsReady"] = rm->voice().dspReady();
+        s["ringsCpu"]   = rm->voice().processorUsage();
+        s["ringsPeak"]  = rm->voice().takePeak();
+        break;
+    }
+    // ... en voor de eerste Plaits-instantie.
+    for (auto& [id, mod] : runtime.instances()) {
+        if (mod->typeId() != std::string_view{mmb_link::PlaitsModule::kTypeId}) continue;
+        auto* pm = static_cast<mmb_link::PlaitsModule*>(mod.get());
+        s["plaitsReady"] = pm->voice().dspReady();
+        s["plaitsCpu"]   = pm->voice().processorUsage();
+        s["plaitsPeak"]  = pm->voice().takePeak();
+        break;
     }
 }
 
@@ -281,6 +369,15 @@ void handleNoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
 // need to re-sync the static voice table here.
 void handleControlChange(uint8_t channel, uint8_t cc, uint8_t value) {
     Serial.printf("[midi] cc      ch=%u cc=%u val=%u\n", channel, cc, value);
+    // FW-CS-1: een CC met een binding in de midiMap stuurt één module-control
+    // aan (zelfde pad als controlPoke: toepassen + persisteren) en wordt hier
+    // geconsumeerd — hij mag de MidiInModules niet óók bereiken, anders krijgt
+    // dezelfde knopdraai een tweede betekenis via het cv_cc*-pad.
+    if (const auto* b = midiMap.match(channel, cc)) {
+        runtime.pokeControl(b->moduleId.c_str(), b->controlId.c_str(),
+                            mmb_link::MidiMap::scale(*b, value));
+        return;
+    }
     midiIn.onControlChange(channel, cc, value);
     for (auto& [id, mod] : runtime.instances()) {
         if (mod->typeId() != mb::runtime::MidiInModule::kTypeId) continue;
@@ -371,7 +468,7 @@ void setup() {
     // ample RAM, so budget generously and report the high-water mark. The
     // echo/comb delay lines (FW-AU-2/3) each grab ~1 block per 2.9 ms of
     // delay, so the pool is sized to host a couple of long delays at once.
-    AudioMemory(400);
+    AudioMemory(kAudioPoolBlocks);
 
     // Static 4-voice graph (B-step 2)
     for (uint8_t i = 0; i < kVoices; ++i) {
@@ -402,6 +499,7 @@ void setup() {
     link.begin(onConfigReceived, onSelectPatch, onSetStatic, onMidiNote, onMidiBend, onMidiCc);
     link.onControlPoke(onControlPoke);   // FW-LIVE-1: live control-sync
     link.onWaveform(onWaveform);         // FW-AU-6: draw-waveshape push
+    link.onGetStatus(onGetStatus);       // telemetrie voor de editor
 }
 
 void loop() {
@@ -414,6 +512,14 @@ void loop() {
         lastCvTickMs = now;
         tickCvModules();
         cvGraph.tickBridge();
+    }
+
+    // Loop-rate meter (zie declaratie boven): eens per seconde snapshotten.
+    ++loopCounter;
+    if (now - lastLoopMarkMs >= 1000) {
+        loopsPerSec   = loopCounter;
+        loopCounter   = 0;
+        lastLoopMarkMs = now;
     }
 
     if (now - lastBlinkMs >= kHeartbeatPeriodMs / 2) {

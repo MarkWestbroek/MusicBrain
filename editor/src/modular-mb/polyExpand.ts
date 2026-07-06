@@ -265,6 +265,33 @@ export function expandPatchConnections(
 
 
 /**
+ * All whole-module PolyGroup siblings of `moduleId` visible to `patch`,
+ * including the module itself. Returns `[moduleId]` when the module is not a
+ * whole-module member of any group.
+ *
+ * Used to fan a control edit on a poly master out to every voice: followers
+ * are hidden in the patcher, so the master's knobs must speak for the whole
+ * group — both in `patch.controlState` and in the live controlPoke stream.
+ */
+export function polyControlTargets(
+  patch: Patch, project: ModularProject, moduleId: string,
+): string[] {
+  const rackIds = new Set(patch.rackIds);
+  for (const r of project.racks) {
+    if (!rackIds.has(r.id)) continue;
+    for (const g of r.polyGroups ?? []) {
+      if (g.members.some((mem) => mem.kind === 'module' && mem.moduleId === moduleId)) {
+        return g.members
+          .filter((mem): mem is { kind: 'module'; moduleId: string } => mem.kind === 'module')
+          .map((mem) => mem.moduleId);
+      }
+    }
+  }
+  return [moduleId];
+}
+
+
+/**
  * Return a shallow project clone whose every patch carries the *expanded*
  * (per-voice) connection list. Used by the Teensy link just before pushing
  * config so the firmware receives the already-flattened graph.

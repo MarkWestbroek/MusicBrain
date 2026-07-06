@@ -18,7 +18,7 @@
 import { useState } from 'react';
 import { useProject } from './store';
 import { t } from '../i18n';
-import { DeviceApi } from '../api/deviceApi';
+import { DeviceApi, type DeviceConfig } from '../api/deviceApi';
 import { loadProject } from './actions';
 import { DEFAULT_CATEGORIES, type SwitcherProject } from './types';
 
@@ -134,11 +134,11 @@ export function EditorSimulationPanel(): JSX.Element {
       
       // Sort devices by relayIndex so the physical signal chain is honoured
       const sortedConfigDevices = [...config.devices].sort(
-        (a: any, b: any) => a.relayIndex - b.relayIndex
+        (a, b) => a.relayIndex - b.relayIndex
       );
-      
+
       // Build new device list. Matched devices keep x, y, imageDataUrl, categoryId.
-      const devices = sortedConfigDevices.map((d: any) => {
+      const devices = sortedConfigDevices.map((d) => {
         const existing = existingDevices.find(
           e => e.brand === d.brand && e.model === d.model
         );
@@ -165,21 +165,21 @@ export function EditorSimulationPanel(): JSX.Element {
       
       // Build ID mapping so patches point to the right editor device IDs.
       const idMap = new Map<string, string>();
-      devices.forEach((d: any) => {
+      devices.forEach((d) => {
         const cd = config.devices.find(
-          (cd: any) => cd.brand === d.brand && cd.model === d.model && cd.relayIndex === d.relayIndex
+          (cd) => cd.brand === d.brand && cd.model === d.model && cd.relayIndex === d.relayIndex
         );
         if (cd) idMap.set(cd.id, d.id);
       });
-      
-      const patches = config.patches.map((p: any) => ({
+
+      const patches = config.patches.map((p) => ({
         id: p.id,
         name: p.name,
         bypassed: (p.bypassed || []).map((configId: string) => idMap.get(configId) || configId),
       }));
       
       // ── Edges: preserve existing layout where possible ─────────────────
-      const newDeviceIds = new Set(devices.map((d: any) => d.id));
+      const newDeviceIds = new Set(devices.map((d) => d.id));
       const validNodeIds = new Set([...newDeviceIds, 'input', 'output']);
       
       // Keep edges where both source and target still exist.
@@ -189,16 +189,18 @@ export function EditorSimulationPanel(): JSX.Element {
       
       // If the user never had edges (fresh project) fall back to linear chain.
       if (edges.length === 0 && devices.length > 0) {
+        const first = devices[0]!;
+        const last  = devices[devices.length - 1]!;
         edges = [
-          { id: `e_input_${devices[0].id}`, source: 'input', target: devices[0].id },
-          ...devices.slice(0, -1).map((d: any, i: number) => ({
-            id: `e_${d.id}_${devices[i + 1].id}`,
+          { id: `e_input_${first.id}`, source: 'input', target: first.id },
+          ...devices.slice(0, -1).map((d, i) => ({
+            id: `e_${d.id}_${devices[i + 1]!.id}`,
             source: d.id,
-            target: devices[i + 1].id,
+            target: devices[i + 1]!.id,
           })),
           {
-            id: `e_${devices[devices.length - 1].id}_output`,
-            source: devices[devices.length - 1].id,
+            id: `e_${last.id}_output`,
+            source: last.id,
             target: 'output',
           },
         ];
@@ -232,7 +234,7 @@ export function EditorSimulationPanel(): JSX.Element {
       // Convert project to device config format
       // EffectDevice: { id, brand, model, categoryId, relayIndex, x, y }
       // SwitcherPatch: { id, name, bypassed: string[] }
-      const config = {
+      const config: DeviceConfig = {
         version: 1,  // required by firmware schema validation
         activePatchId: project.activePatchId,
         name: project.name || 'unnamed',
@@ -250,7 +252,7 @@ export function EditorSimulationPanel(): JSX.Element {
           bypassed: p.bypassed
         }))
       };
-      await api.putConfig(config as any);
+      await api.putConfig(config);
       push('device', '200 OK — config persisted to LittleFS');
       setScreen({ kind: 'connected' });
     } catch (err) {

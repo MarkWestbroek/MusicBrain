@@ -54,9 +54,11 @@
 namespace mmb_link {
 
 // Max line buffer. The runtime-only ModularProject payload (no categories/
-// moduleTypes) is typically 5-15 KB. We pre-allocate in BSS so there is no
-// heap fragmentation risk. Teensy 4.1 RAM1 has ~370 KB free for globals.
-inline constexpr size_t kLineMax = 48 * 1024;
+// moduleTypes) is typically 5-15 KB, but a 16-voice poly patch expands to
+// ~100 modules + ~200 connections + controlState and passes 48 KB. We
+// pre-allocate in BSS so there is no heap fragmentation risk; RAM1 has
+// headroom (see teensy_size output).
+inline constexpr size_t kLineMax = 96 * 1024;
 
 /**
  * @brief Handles the USB-Serial JSON protocol (mmb-config.v1).
@@ -99,6 +101,11 @@ public:
      *  Bulk single-cycle waveform push to a draw-waveshape oscillator. */
     using WaveformHandler = void (*)(const char* moduleId, JsonArrayConst data);
 
+    /** Callback invoked when a "getStatus" message arrives. The handler
+     *  fills @p status with telemetry fields (cpu, mem, modules, …); the
+     *  link serialises it as `{"type":"status",...}` back to the editor. */
+    using StatusHandler = void (*)(JsonObject status);
+
     /** @brief Initialise the link and send the opening hello frame.
      *  Must be called once from Arduino `setup()` after `Serial.begin()`. */
     void begin(ConfigHandler onConfig, SelectPatchHandler onSelectPatch,
@@ -120,6 +127,8 @@ public:
     void onControlPoke(ControlPokeHandler h) { onControlPoke_ = h; }
     /** @brief Register the bulk-waveform handler (FW-AU-6). */
     void onWaveform(WaveformHandler h) { onWaveform_ = h; }
+    /** @brief Register the telemetry handler for "getStatus" requests. */
+    void onGetStatus(StatusHandler h) { onStatus_ = h; }
 
     /** @brief Drain the serial input buffer and dispatch complete lines.
      *  Call on every iteration of Arduino `loop()`. Non-blocking. */
@@ -128,12 +137,29 @@ public:
             const int c = Serial.read();
             if (c < 0) break;
             if (c == '\n') {
-                handleLine();
+                if (overflow_) {
+                    // De regel paste niet in de buffer: meld dat expliciet in
+                    // plaats van stil een truncatie-parse-error te geven —
+                    // anders is "16-stemmige patch doet niks" onverklaarbaar.
+                    char tmp[96];
+                    snprintf(tmp, sizeof(tmp),
+                             "line too long: %u bytes (max %u) — payload verkleinen",
+                             static_cast<unsigned>(kLineMax - 1 + overflowLen_),
+                             static_cast<unsigned>(kLineMax - 1));
+                    sendAckErr(tmp);
+                } else {
+                    handleLine();
+                }
                 bufLen_ = 0;
+                overflow_ = false;
+                overflowLen_ = 0;
             } else if (c != '\r') {
-                if (bufLen_ < kLineMax - 1) buf_[bufLen_++] = static_cast<char>(c);
-                // else: overflow — silently drop until next \n (shouldn't happen
-                // after the editor strips categories/moduleTypes from the payload).
+                if (bufLen_ < kLineMax - 1) {
+                    buf_[bufLen_++] = static_cast<char>(c);
+                } else {
+                    overflow_ = true;
+                    ++overflowLen_;
+                }
             }
         }
     }
@@ -161,6 +187,8 @@ public:
 private:
     char   buf_[kLineMax];
     size_t bufLen_ = 0;
+    bool   overflow_    = false;  ///< Huidige regel paste niet in buf_.
+    size_t overflowLen_ = 0;      ///< Aantal gedropte bytes van die regel.
     ConfigHandler      onConfig_      = nullptr;
     SelectPatchHandler onSelectPatch_ = nullptr;
     SetStaticHandler   onSetStatic_   = nullptr;
@@ -169,6 +197,7 @@ private:
     MidiCcHandler      onMidiCc_      = nullptr;
     ControlPokeHandler onControlPoke_ = nullptr;
     WaveformHandler    onWaveform_    = nullptr;
+    StatusHandler      onStatus_      = nullptr;
 
     void sendHello() {
         JsonDocument doc;
@@ -288,6 +317,16 @@ private:
             const char* ctrl = doc["ctrl"] | "";
             if (*mod && *ctrl && onControlPoke_)
                 onControlPoke_(mod, ctrl, doc["v"]);
+            return;
+        }
+        if (strcmp(type, "getStatus") == 0) {
+            // Telemetrie-verzoek van de editor. De handler vult de velden
+            // (cpu/mem/modules/…); wij zetten alleen het bericht-type.
+            JsonDocument out;
+            out["type"] = "status";
+            if (onStatus_) onStatus_(out.as<JsonObject>());
+            serializeJson(out, Serial);
+            Serial.println();
             return;
         }
         if (strcmp(type, "wavetable") == 0) {

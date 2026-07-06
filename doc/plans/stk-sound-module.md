@@ -38,14 +38,27 @@ CV+control-architectuur implementeert.
 
 | Index | Sound       | STK-klasse    | Karakter                 |
 |-------|-------------|---------------|--------------------------|
-| 0     | Mandolin    | `Mandolin`    | Getokkelde snaar         |
+| 0     | Plucked     | `Plucked`     | Getokkelde snaar (KS)    |
 | 1     | Clarinet    | `Clarinet`    | Riet-instrument           |
 | 2     | Bowed       | `Bowed`       | Gestreken snaar          |
 | 3     | Flute       | `Flute`       | Fluit (jet-injectie)     |
 | 4     | Brass       | `Brass`       | Koperblaas               |
-| 5     | Saxophony   | `Saxophony`   | Saxofoon                 |
+| 5     | Saxophony   | `Saxofony`    | Saxofoon                 |
 | 6     | BlowHole    | `BlowHole`    | Enkelriet + klankgat     |
 | 7     | BandedWG    | `BandedWG`    | Waveguide-modale mix     |
+| 8     | Mandolin    | `Mandolin`    | Mandoline (commuted synthesis, dual string) |
+
+> **Mandolin op geëmbedde samples**: `stk::Mandolin` leest normaal
+> `mand1..12.raw` van disk via `FileWvIn`. Op de Teensy is er geen
+> bestandssysteem, dus: de 12 body-excitatiesamples (elk 1024×int16, samen
+> 24 KB) zijn gegenereerd naar `MandolinData.h` (script:
+> `gen_mandolin_data.py`) en worden afgespeeld door `stk::MemoryWvIn`, een
+> MMB-toevoeging die de `FileWvIn`-API-subset (tick/reset/setRate/isFinished)
+> implementeert op een const array. **Let op**: op de Teensy 4 gaat `.rodata`
+> standaard naar DTCM (RAM1) — de arrays staan daarom expliciet in de
+> `.progmem`-sectie (flash, direct memory-mapped leesbaar).
+> `MemoryWvIn` is meteen een generieke wavetable/sample-primitief.
+> STK spelt `Saxofony` overigens met een f; het UI-label blijft "Saxophony".
 
 ### Port map
 
@@ -79,9 +92,28 @@ voice_.setTimbre(clamp(0.7 + 0.3)) → 1.0
 Elke CV-ingang telt op bij de corresponderende knopwaarde, binnen [0,1].
 Dit is hetzelfde patroon als `ElementsModule`.
 
-### STK-vendoring
+### STK-vendoring (gedaan — STK 5.0.1)
 
-STK (MIT-licentie, CCRMA) moet in `firmware/lib/stk/`:
+STK 5.0.1 (MIT-licentie, CCRMA) is gevendored in `firmware/lib/stk/` als
+PlatformIO-library (`library.json`, headers in `include/stk/`, sources in
+`src/`). Alleen de subset voor de 8 sounds is meegenomen (19 .cpp, 27 .h).
+
+**Teensy-patches in de gevendorde kopie** (gemarkeerd met `// MMB`):
+
+1. `Stk.h`: `StkFloat` = `float` i.p.v. `double` (Teensy FPU is single-precision).
+2. `Stk.h`: Arduino's `PI`/`TWO_PI`-macro's worden ge-`#undef`d vóór STK's
+   `const StkFloat`-declaraties (anders expandeert de preprocessor ze stuk).
+3. `Stk.h`/`Stk.cpp`: `std::ostringstream`/`std::cerr` vervangen door een
+   wegwerp-shim (`StkMsgStream`). **Dit is essentieel**: iostream+locale kost
+   ~285 KB ITCM-code + ~65 KB DTCM en liet RAM1 161 KB overlopen; zonder
+   iostream kost STK maar ~44 KB en houdt RAM1 ~125 KB vrij.
+4. `Stk.cpp`: de `throw StkError(...)` staat achter `#ifdef __EXCEPTIONS`
+   (Teensy bouwt met `-fno-exceptions`).
+
+Sample rate: `StkSoundVoice` zet éénmalig
+`stk::Stk::setSampleRate(AUDIO_SAMPLE_RATE_EXACT)` (44117.647 Hz).
+
+Oorspronkelijke structuurschets:
 
 ```
 firmware/lib/stk/
@@ -151,7 +183,10 @@ mixer, CV-routing.
 1. [✅] Firmware `StkSoundModule.h` geschreven (met sinus-fallback)
 2. [✅] Editor seed `mmbStkSound()` geschreven
 3. [✅] Factory-registratie in `RegisterAllModules.h`
-4. [ ] STK 4.6 downloaden en vendor-en in `firmware/lib/stk/`
-5. [ ] `platformio.ini` include-path updaten voor `lib/stk/include`
-6. [ ] Compileren op Teensy 4.1
-7. [ ] Testen met elk sound-type
+4. [✅] STK 5.0.1 gevendored in `firmware/lib/stk/` (2026-07-05, incl. Teensy-patches)
+5. [✅] `platformio.ini`: `../lib` in `lib_extra_dirs`, `stk` in `lib_deps`
+6. [✅] Compileert voor Teensy 4.1 (RAM1: 240 KB code + 137 KB vars, 125 KB vrij)
+7. [ ] Testen op hardware met elk sound-type
+8. [ ] Sim-ondersteuning in de editor (AudioEngine kent `tp_mmb_stk_sound` nog niet)
+9. [✅] Mandolin teruggebracht als sound 8: `MemoryWvIn` + geëmbedde samples
+       in flash/.progmem (2026-07-05; RAM1 onveranderd, +24 KB flash)

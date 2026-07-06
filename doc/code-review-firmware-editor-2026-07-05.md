@@ -108,12 +108,41 @@ Het typeId/portId/controlId-contract leeft dubbel: in `seedModules.ts` en in ~25
 
 ## 4. Prioriteitenlijst
 
-| # | Actie | Impact |
-|---|---|---|
-| 1 | `voiceCount: p.voiceCount` toevoegen in `sendConfig` (teensyLink.ts) | Poly werkt daadwerkelijk op hardware; 1 regel |
-| 2 | Contract-test firmware ↔ seedModules (host-side, in `firmware/core/tests/`) | Vangt deze hele klasse mismatches blijvend af |
-| 3 | `attenuation`/`invert`: implementeren in `CvGraph::tickBridge()` of uit de UI | UI liegt nu |
-| 4 | Editor waarschuwt welke modules "unknown" zijn op de Teensy (fw logt het al) | Sim-klinkt/hardware-zwijgt-verwarring weg |
-| 5 | `asFloat`/`asInt`/`asBool` + `registerFactory` dedup (firmware) | ~300 regels boilerplate weg |
-| 6 | AudioEngine-migratie naar Registry afmaken (editor) | Grootste architectuurwinst editor |
-| 7 | Wavetable-draw-UI bouwen of `sendWaveform` als TODO markeren | Dead end opruimen |
+| # | Actie | Impact | Status |
+|---|---|---|---|
+| 1 | `voiceCount: p.voiceCount` toevoegen in `sendConfig` (teensyLink.ts) | Poly werkt daadwerkelijk op hardware; 1 regel | ✔ gefixt 2026-07-05 |
+| 2 | Contract-test firmware ↔ seedModules (host-side, in `firmware/core/tests/`) | Vangt deze hele klasse mismatches blijvend af | open |
+| 3 | `attenuation`/`invert`: implementeren in `CvGraph::tickBridge()` of uit de UI | UI liegt nu | open |
+| 4 | Editor waarschuwt welke modules "unknown" zijn op de Teensy (fw logt het al) | Sim-klinkt/hardware-zwijgt-verwarring weg | open |
+| 5 | `asFloat`/`asInt`/`asBool` + `registerFactory` dedup (firmware) | ~300 regels boilerplate weg | open |
+| 6 | AudioEngine-migratie naar Registry afmaken (editor) | Grootste architectuurwinst editor | open |
+| 7 | Wavetable-draw-UI bouwen of `sendWaveform` als TODO markeren | Dead end opruimen | open |
+| 8 | Gedeelde Elements-wrappers naar één library (zie §5.2) | Voorkomt drift tussen twee identieke kopieën | open |
+| 9 | `tp_mmb_ominous` registreren + editor-type, of parkeren tot ADR 0012 af is | Onbereikbare module opruimen | open |
+
+Daarnaast gefixt op 2026-07-05 (buiten de oorspronkelijke lijst): `seedModules.ts` verwees in `seedCvBridgePatch` naar een niet-bestaande `mixer` (compile-fout); `DeviceConfig` in `api/deviceApi.ts` beschreef een verzonnen draadformaat en is herschreven naar de werkelijke SwitcherProject-subset die de Pico/ESP32 serveert; `EditorSimulationPanel.tsx` is daarop getypeerd (`as any`-cast weg).
+
+---
+
+## 5. Addendum: app-elements (toegevoegd na de hoofdreview)
+
+*Context (bevestigd door Mark): app-elements is bedoeld voor een **eigen Teensy-instantie**, 5-stemmig polyfoon. Binnen de brain draait Elements (via `tp_mmb_elements`) waarschijnlijk alleen monofoon — de brain-wrapper omvat één `elements::Part`.*
+
+### 5.1 Sterk
+
+- **Beste engineering-documentatie in de repo.** De README legt met gemeten cijfers vast waaróm de architectuur zo is: dual-thread patroon (loop() rendert 32 kHz in ringbuffers; PIT-ISR doet alleen resample+mix, 4,2% ISR-CPU) omdat `Part::Process()` te zwaar is voor de audio-ISR; DTCM/OCRAM-hybride layout incl. de DACCVIOL-analyse (vtables crashen in OCRAM); de ontdekking dat `Serial.printf` ~25 ms blokkeert → één-teken-per-loop() drain. Zelfs de mislukte 6-stemmen-poging (v0.6.0) is met reden gedocumenteerd.
+- De monolithische low-level stijl van main.cpp (708 regels, globale ringbuffers, handmatige ISR) is hier **gerechtvaardigd**: dit is het harde realtime-pad; extra abstractie zou alleen maar CPU en duidelijkheid kosten.
+- `PatchBank` (LittleFS, 128 slots) heeft een geversioneerd bestandsformaat met magic + v1→v2-migratie voor het naamveld.
+
+### 5.2 Bevindingen
+
+1. **Gedupliceerde wrapper-headers — gemiste opruimstap.** `ElementsModule.h` en `ElementsReverbModule.h` zijn byte-identiek aanwezig in app-elements én app-modular-brain; `AudioModule.h` in app-elements is een lokale kopie waarvan het eigen commentaar zegt *"when `tp_mmb_elements` graduates into app-modular-brain, delete this copy"*. De graduatie is gebeurd, de kopieën staan er nog. Omdat Elements bewust op beide targets moet kunnen draaien is verwijderen niet de fix: **verplaats de gedeelde wrappers naar één gedeelde library** (bv. naast `mi-elements` in `app-elements/lib/`), zodat beide apps dezelfde include gebruiken.
+2. **Dode code binnen app-elements:** main.cpp gebruikt alleen `ElementsReverbStream` + `PatchBank`; `ElementsModule.h`, `OminousVoiceModule.h` en `AudioModule.h` zijn daar ongebruikt (ze dienen alleen als thuisbasis voor de brain-wrappers).
+3. **`tp_mmb_ominous` is overal onbereikbaar:** `OminousVoiceModule::registerFactory()` wordt nergens aangeroepen (ook niet in RegisterAllModules.h van de brain) en de editor heeft geen seed-type. ADR 0012 beloofde Ominous als eigen routeerbare module — de wrapper is er, de registratieregel en het editorpaneel ontbreken.
+4. **Hergebruik-mis:** de lokale `VoiceAlloc` + noteOn/noteOff in main.cpp herimplementeert `mb::VoiceAllocator` uit core, simpeler (geen oldest/lowest/highest steal) en zonder de unit-tests die core wél heeft.
+5. **Naamverwarring:** twee ongerelateerde `PatchBank`-klassen (app-elements LittleFS-bank vs `mb::PatchBank` voor switcher-patches). Verschillende namespaces, geen conflict, wel verwarrend → `ElementsPatchBank` hernoemen.
+6. Klein: in `handleControlChange` zit de sample rate in de CC 28-schaling gebakken (`(v * 2.0f) / 32000.0f`) — named constant waard.
+
+### 5.3 Aansluiting
+
+App-elements spreekt bewust een eigen protocol (MIDI CC's + serial-console `p save`/`p load N`), niet mmb-config.v1 — consistent met "eigen hardware-instantie". Het brain-pad (`tp_mmb_elements`, monofoon) loopt via het reguliere module-contract en is in §1 al gecontroleerd (typeId, ports en controls matchen).

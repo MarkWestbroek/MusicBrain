@@ -241,6 +241,21 @@ public:
     }
 
     /**
+     * @brief FW-CS-1: pokeControl-variant voor de MIDI-controlmap.
+     *
+     * De CC-handler heeft alleen een kant-en-klare float (geschaald door
+     * `MidiMap::scale()`), geen JsonVariant — zelfde toepassen + persisteren
+     * als de JSON-variant hierboven.
+     */
+    bool pokeControl(const char* moduleId, const char* controlId, float value) {
+        auto* mod = find(moduleId);
+        if (!mod) return false;
+        mod->setControl(controlId, value);
+        persistControl(moduleId, controlId, value);
+        return true;
+    }
+
+    /**
      * @brief Bulk-waveform push (FW-AU-6): hand a single-cycle table to a
      *        draw-waveshape oscillator.  RTTI-free via `setWaveformData()`.
      * @return true if the module exists and accepted the table.
@@ -254,6 +269,11 @@ public:
 
     /** @brief Number of module instances currently held. */
     std::size_t instanceCount() const { return instances_.size(); }
+
+    /** @brief Number of retired (never-freed) modules from earlier configs.
+     *  Groeit bij elke re-push met gewijzigde module-ids; alleen een
+     *  power-cycle leegt de pool. Gerapporteerd in het status-bericht. */
+    std::size_t retiredCount() const { return retired_.size(); }
 
     /** @brief Id of the most recently activated patch, or empty string if none. */
     const std::string& activePatchId() const { return activePatchId_; }
@@ -294,9 +314,12 @@ private:
      *        controlState (FW-LIVE-1).  Creates the controlState / module
      *        sub-objects on demand.  std::string keys force ArduinoJson to
      *        copy them into the document (the source key buffer is transient).
+     *        Templated zodat zowel JsonVariantConst als een kale float
+     *        (FW-CS-1) dezelfde route nemen.
      */
+    template <typename T>
     void persistControl(const char* moduleId, const char* controlId,
-                        JsonVariantConst value) {
+                        const T& value) {
         if (activePatchId_.empty()) return;
         JsonObject project = projectDoc_["project"];
         for (JsonObject p : project["patches"].as<JsonArray>()) {

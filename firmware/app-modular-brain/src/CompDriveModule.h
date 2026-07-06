@@ -164,15 +164,18 @@ public:
      *  dynamic compression / envelope-driven saturation). */
     PortKind inputPortKind(std::string_view portId) const override {
         if (portId == "in")                            return PortKind::Audio;
-        if (portId == "threshold" || portId == "drive") return PortKind::Cv;
+        // Editor-jacks heten thr_cv/drive_cv; cvPortIs dekt drive_cv,
+        // thr_cv is een verkorte alias die we expliciet accepteren.
+        if (portId == "thr_cv" || cvPortIs(portId, "threshold") ||
+            cvPortIs(portId, "drive"))                 return PortKind::Cv;
         return PortKind::None;
     }
     PortKind outputPortKind(std::string_view portId) const override {
         return (portId == "out") ? PortKind::Audio : PortKind::None;
     }
     void writeCvPort(std::string_view portId, float value) override {
-        if      (portId == "threshold") comp_.threshold(value);
-        else if (portId == "drive")     comp_.drive(value);
+        if      (portId == "thr_cv" || cvPortIs(portId, "threshold")) comp_.threshold(value);
+        else if (cvPortIs(portId, "drive"))                           comp_.drive(value);
     }
 
     /** @brief Register the compressor factory.  Idempotent. */

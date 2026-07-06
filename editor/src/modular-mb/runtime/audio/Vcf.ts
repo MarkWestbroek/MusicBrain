@@ -18,15 +18,17 @@ function asNumber(v: ControlValue | undefined, fallback: number): number {
  * Vcf — internal MMB voltage-controlled filter.
  *
  * Tone.js wrapper around `Tone.Filter`. Controls:
- * - `cutoff`  : 20–18000 Hz, default 2000
- * - `q`       : 0.1–12, default 0.7
- * - `cv_amt`  : 0–1, default 1 (depth of CV-cutoff modulation)
- * - `type`    : 0=LP, 1=HP, 2=BP
+ * - `cutoff`    : 20–18000 Hz, default 2000
+ * - `q`         : 0.7–5 (range the firmware SVF is stable in), default 0.7
+ * - `cv_amt`    : 0–1, default 1 (depth of CV-cutoff modulation)
+ * - `q_cv_amt`  : 0–4.3, default 2 (depth of CV-resonance modulation, Q units)
+ * - `type`      : 0=LP, 1=HP, 2=BP
  *
  * Ports:
- * - `in`  (audio, input)
- * - `cv`  (cv, input)  → modulates cutoff
- * - `out` (audio, output)
+ * - `in`   (audio, input)
+ * - `cv`   (cv, input)  → modulates cutoff
+ * - `q_cv` (cv, input)  → modulates resonance (wired in AudioEngine)
+ * - `out`  (audio, output)
  *
  * This class wraps Tone.Filter by composition. It is not yet wired into
  * `AudioEngine` — the engine still has its `case 'vcf'` branch. The proof
@@ -35,7 +37,7 @@ function asNumber(v: ControlValue | undefined, fallback: number): number {
  * to dispatch via the registry in a follow-up step.
  */
 export class Vcf extends Filter {
-  static readonly typeId = 'tp_mmb_vcf';
+  static readonly typeId: string = 'tp_mmb_vcf';
 
   readonly filter: Tone.Filter;
 
@@ -46,18 +48,29 @@ export class Vcf extends Filter {
   ) {
     super(type, instance, initialControlValues);
     const baseCutoff = clamp(asNumber(this.getControl('cutoff'), 2000), 20, 18000);
-    const q          = clamp(asNumber(this.getControl('q'),       0.7), 0.1, 12);
+    const q          = asNumber(this.getControl('q'), 0.7);
     const tIdx       = asNumber(this.getControl('type'), 0);
     const ftype: VcfFilterType = tIdx === 1 ? 'highpass' : tIdx === 2 ? 'bandpass' : 'lowpass';
-    this.filter = new Tone.Filter({ frequency: baseCutoff, Q: q, type: ftype });
+    this.filter = new Tone.Filter({ frequency: baseCutoff, Q: this.resonanceToQ(q), type: ftype });
   }
 
   setCutoff(hz: number): void {
     this.filter.frequency.rampTo(clamp(hz, 20, 18000), 0.02);
   }
 
+  /**
+   * Map a module-facing resonance control value to the Tone.Filter Q param.
+   * For the state-variable VCF this is 1:1 (clamped to the range the
+   * firmware's AudioFilterStateVariable is stable in); subclasses with a
+   * different resonance scale (e.g. the ladder's 0–1.8) override this.
+   * AudioEngine also uses it to calibrate the q_cv Scale range.
+   */
+  resonanceToQ(q: number): number {
+    return clamp(q, 0.7, 5);
+  }
+
   setResonance(q: number): void {
-    this.filter.Q.rampTo(clamp(q, 0.1, 12), 0.02);
+    this.filter.Q.rampTo(this.resonanceToQ(q), 0.02);
   }
 
   /** Audio input node (for connection). */

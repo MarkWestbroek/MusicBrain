@@ -1,0 +1,11 @@
+{
+  "name": "mi-rings",
+  "version": "1.0.0",
+  "description": "Mutable Instruments Rings — resonator DSP (MIT, (c) Emilie Gillet), gevendorde subset voor MMB RingsModule (tp_mmb_rings). Modal/sympathetic-string/string resonator, 48 kHz, Part+Strummer API. stmlib-headers zijn byte-identiek aan mi-elements (gedeelde .cc's linken uit mi-elements); delay_line.h heeft de MMB heap-fallback.",
+  "license": "MIT",
+  "homepage": "https://github.com/pichenettes/eurorack",
+  "build": {
+    "flags": ["-I."],
+    "srcFilter": ["+<rings/>"]
+  }
+}

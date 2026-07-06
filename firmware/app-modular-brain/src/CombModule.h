@@ -79,13 +79,15 @@ public:
     }
     PortKind inputPortKind(std::string_view portId) const override {
         if (portId == "in")                                   return PortKind::Audio;
-        if (portId == "freq" || portId == "fbk" || portId == "mix") return PortKind::Cv;
+        // cvPortIs: accepteert ook de editor-aliassen freq_cv/fbk_cv/mix_cv.
+        if (cvPortIs(portId, "freq") || cvPortIs(portId, "fbk") ||
+            cvPortIs(portId, "mix"))                          return PortKind::Cv;
         return PortKind::None;
     }
     void writeCvPort(std::string_view portId, float value) override {
-        if      (portId == "freq") { voct_ = value; retune(); }
-        else if (portId == "fbk")  setFeedback(value);
-        else if (portId == "mix")  setMix(value);
+        if      (cvPortIs(portId, "freq")) { voct_ = value; retune(); }
+        else if (cvPortIs(portId, "fbk"))  setFeedback(value);
+        else if (cvPortIs(portId, "mix"))  setMix(value);
     }
 
     void setControl(std::string_view controlId,

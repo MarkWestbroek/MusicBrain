@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { useModularProject, updateProject, uid } from './store';
 import { PatcherGraphPanel } from './PatcherGraphPanel';
 import { PatcherMatrixPanel } from './PatcherMatrixPanel';
+import { TeensyStatusBar } from './TeensyStatusBar';
 import type { Patch } from './types';
 
 type View = 'graph' | 'matrix';
@@ -68,6 +69,7 @@ export function PatcherPanel(): JSX.Element {
           title="Bewaar deze patch als een nieuwe patch (kopie met nieuwe naam)">
           Bewaar als…
         </button>
+        <TeensyStatusBar compact />
         <div style={{
           marginLeft: 'auto', display: 'flex', gap: 0,
           border: '1px solid #cbd2d9', borderRadius: 6, overflow: 'hidden',

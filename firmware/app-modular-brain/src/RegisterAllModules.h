@@ -46,6 +46,8 @@
 #include "StringModule.h"
 #include "ElementsModule.h"
 #include "ElementsReverbModule.h"
+#include "RingsModule.h"
+#include "PlaitsModule.h"
 #include "CompDriveModule.h"
 #include "EchoModule.h"
 #include "CombModule.h"
@@ -53,6 +55,8 @@
 #include "VcaModule.h"
 #include "StereoVcaModule.h"
 #include "VcfModule.h"
+#include "LadderModule.h"
+#include "Ms20Module.h"
 #include "MixerModule.h"
 #include "Mixer8Module.h"
 #include "Mixer16Module.h"
@@ -81,6 +85,8 @@ inline void registerAllRuntimeModules() {
     StkSoundModule::registerFactory();  // FW-AU-10: multi-sound STK physical modelling
     ElementsModule::registerFactory();  // FW-AU-9: Mutable Instruments Elements voice
     ElementsReverbModule::registerFactory(); // FW-FX-3: Elements Dattorro reverb
+    RingsModule::registerFactory();     // FW-AU-11: Mutable Rings resonator
+    PlaitsModule::registerFactory();    // FW-AU-12: Mutable Plaits macro-oscillator
     CompDriveModule::registerFactory(); // FW-FX-2: compressor + overdrive
     EchoModule::registerFactory();      // FW-AU-2: feedback delay
     CombModule::registerFactory();      // FW-AU-3: tuned comb resonator
@@ -88,6 +94,8 @@ inline void registerAllRuntimeModules() {
     VcaModule::registerFactory();
     StereoVcaModule::registerFactory(); // FW-AU-1: stereo VCA / panner
     VcfModule::registerFactory();
+    LadderModule::registerFactory();    // Moog-style ladder VCF (audio-rate F+Q CV)
+    Ms20Module::registerFactory();      // Korg35/MS-20 Sallen-Key ZDF VCF (tanh loop)
     MixerModule::registerFactory();
     Mixer8Module::registerFactory();
     Mixer16Module::registerFactory();

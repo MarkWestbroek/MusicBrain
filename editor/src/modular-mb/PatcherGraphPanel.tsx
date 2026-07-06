@@ -23,6 +23,7 @@ import '@xyflow/react/dist/style.css';
 import { updateProject, useModularProject, uid } from './store';
 import { ModulePanel } from './ModulePanel';
 import { sendControlPoke } from './teensyLink';
+import { polyControlTargets } from './polyExpand';
 import { useEngineStatus } from './sim/engineSingleton';import {
   type ModuleInstance, type ModuleType, type Port, type PatchConnection,
   type ControlValue, type RackSlot, type PolyGroup, type PatchPolyOverride,
@@ -88,19 +89,26 @@ function ModuleNode({ data, selected }: NodeProps): JSX.Element {
   const widthMm  = m.visual.hpWidth * MM_PER_HP;
 
   function setControl(controlId: string, value: ControlValue): void {
+    // Poly-groep: de master spreekt voor alle stemmen. Followers zijn in de
+    // patcher verborgen, dus een edit op de master moet naar élk groepslid —
+    // zowel live (controlPoke) als persistent (controlState). Anders raakt
+    // bv. de filter-ADSR alleen stem 1 en klinken de andere stemmen anders.
+    const targets = voice
+      ? voice.group.members
+          .filter((mem): mem is { kind: 'module'; moduleId: string } => mem.kind === 'module')
+          .map((mem) => mem.moduleId)
+      : [m.id];
     // Live control-sync (FW-LIVE-1): push scalar changes straight to the
     // device (quiet no-op when disconnected) so knob drags are heard live.
     if (typeof value === 'number' || typeof value === 'boolean')
-      void sendControlPoke(m.id, controlId, value);
+      for (const id of targets) void sendControlPoke(id, controlId, value);
     updateProject((p) => ({
       ...p,
       patches: p.patches.map((px) => {
         if (px.id !== patchId) return px;
-        const prev = px.controlState[m.id] ?? {};
-        return {
-          ...px,
-          controlState: { ...px.controlState, [m.id]: { ...prev, [controlId]: value } },
-        };
+        const cs = { ...px.controlState };
+        for (const id of targets) cs[id] = { ...(cs[id] ?? {}), [controlId]: value };
+        return { ...px, controlState: cs };
       }),
     }));
   }
@@ -820,19 +828,20 @@ function PropertiesPanel(props: { patchId: string; selectedNodeId: string | null
   const t = m ? project.moduleTypes.find((tp) => tp.id === m.typeId) : undefined;
 
   function setControl(controlId: string, value: ControlValue): void {
-    if (!m) return;
+    if (!m || !patch) return;
+    // Poly-groep: edit op een groepslid geldt voor alle stemmen (zie
+    // ModuleNode.setControl / polyControlTargets).
+    const targets = polyControlTargets(patch, project, m.id);
     // Live control-sync (FW-LIVE-1): mirror scalar edits to the device.
     if (typeof value === 'number' || typeof value === 'boolean')
-      void sendControlPoke(m.id, controlId, value);
+      for (const id of targets) void sendControlPoke(id, controlId, value);
     updateProject((p) => ({
       ...p,
       patches: p.patches.map((px) => {
         if (px.id !== patchId) return px;
-        const prev = px.controlState[m.id] ?? {};
-        return {
-          ...px,
-          controlState: { ...px.controlState, [m.id]: { ...prev, [controlId]: value } },
-        };
+        const cs = { ...px.controlState };
+        for (const id of targets) cs[id] = { ...(cs[id] ?? {}), [controlId]: value };
+        return { ...px, controlState: cs };
       }),
     }));
   }

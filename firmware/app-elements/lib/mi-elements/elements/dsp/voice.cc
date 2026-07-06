@@ -43,6 +43,11 @@ void Voice::Init(const VoiceBuffers* buffers) {
   bow_.Init();
   blow_.Init();
   strike_.Init();
+  // MMB-fix: tube_ werd nooit geïnitialiseerd. Op targets waar Voice als
+  // global static leeft (BSS = genuld) gaat dat toevallig goed, maar op de
+  // heap (app-modular-brain) is delay_ptr_ garbage en schrijft
+  // Tube::Process buiten delay_line_ → hard fault (DACCVIOL, wild adres).
+  tube_.Init();
   
   // Use external diffuser buffer if provided, otherwise use inline buffer.
   diffuser_.Init(buffers && buffers->diffuser_buf

@@ -15,21 +15,28 @@ export interface DeviceStatus {
   };
 }
 
+/** Wire format of GET/PUT `/api/config` — the SwitcherProject subset the
+ *  editor pushes to the device (images, edges and categories are stripped;
+ *  they live only in the editor). The firmware persists the JSON verbatim,
+ *  so GET returns exactly what was last PUT.
+ *  Mirrors `firmware/app-effect-switcher/{pico,esp32}/src/main.cpp` and
+ *  `editor/src/effect-switcher/types.ts` (EffectDevice / SwitcherPatch). */
 export interface DeviceConfig {
+  version: 1;               // schema version, required by firmware validation
   name: string;
   configVersion: string;
+  relayCount?: number;      // firmware defaults to 16 when absent
+  activePatchId?: number;
   devices: Array<{
-    id: number;
-    name: string;
-    type: string;
+    id: string;             // stable EffectDevice.id
+    brand: string;
+    model: string;
+    relayIndex: number;     // 0-based; -1 = unassigned
   }>;
   patches: Array<{
-    id: number;
+    id: number;             // doubles as MIDI program number (0..127)
     name: string;
-    effects: Array<{
-      deviceId: number;
-      enabled: boolean;
-    }>;
+    bypassed: string[];     // EffectDevice.id[] with relay OFF in this patch
   }>;
 }
 

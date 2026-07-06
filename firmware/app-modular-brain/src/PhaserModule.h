@@ -122,12 +122,13 @@ public:
     }
     PortKind inputPortKind(std::string_view portId) const override {
         if (portId == "in")                     return PortKind::Audio;
-        if (portId == "rate" || portId == "depth") return PortKind::Cv;
+        // cvPortIs: accepteert ook de editor-aliassen rate_cv/depth_cv.
+        if (cvPortIs(portId, "rate") || cvPortIs(portId, "depth")) return PortKind::Cv;
         return PortKind::None;
     }
     void writeCvPort(std::string_view portId, float value) override {
-        if      (portId == "rate")  fx_.rate(value);
-        else if (portId == "depth") fx_.depth(value);
+        if      (cvPortIs(portId, "rate"))  fx_.rate(value);
+        else if (cvPortIs(portId, "depth")) fx_.depth(value);
     }
 
     void setControl(std::string_view controlId,

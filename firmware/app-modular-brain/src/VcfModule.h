@@ -9,6 +9,7 @@
  * |-----------|--------|--------|--------------------------------------|
  * | input     | `in`   | Audio  | `vcf_`, channel 0                    |
  * | input     | `cv`   | Cv     | internal `cvDc_` -> `vcf_` channel 1 |
+ * | input     | `q_cv` | Cv     | control-rate `resonance()` update    |
  * | output    | `out`  | Audio  | `vcf_`, channel 0/1/2 (see `type`)   |
  *
  * Output channel mapping for `type` control:
@@ -28,13 +29,22 @@
  * implementation detail and is **not** exposed as an audio port, so
  * `AudioGraph` never wires `cv`.
  *
+ * **Q modulation (`q_cv`).**
+ * `AudioFilterStateVariable` has no audio-rate resonance input (only signal +
+ * frequency-control), so `q_cv` takes the PhaserModule route instead: the CV
+ * scalar lands in `writeCvPort("q_cv", v)` at the ~1 kHz control tick and we
+ * call `resonance()` directly with `baseQ + q_cv_amt * v`, clamped to the
+ * stable 0.7 … 5.0 range.  Effectively per-audio-block resonance updates —
+ * plenty for LFO/envelope sweeps, not for audio-rate Q-FM.
+ *
  * Controls:
- * | controlId | type    | effect                              |
- * |-----------|---------|-------------------------------------|
- * | `cutoff`  | float   | Base cutoff frequency in Hz         |
- * | `q`       | float   | Resonance (0.7 … 5.0 range)         |
- * | `cv_amt`  | float   | CV modulation depth in octaves      |
- * | `type`    | int32_t | 0=LP, 1=HP, 2=BP                    |
+ * | controlId  | type    | effect                                    |
+ * |------------|---------|-------------------------------------------|
+ * | `cutoff`   | float   | Base cutoff frequency in Hz               |
+ * | `q`        | float   | Base resonance (0.7 … 5.0 range)          |
+ * | `cv_amt`   | float   | Cutoff-CV modulation depth in octaves     |
+ * | `q_cv_amt` | float   | Q-CV modulation depth in resonance units  |
+ * | `type`     | int32_t | 0=LP, 1=HP, 2=BP                          |
  *
  * **Note:** changing `type` at runtime only takes effect after the next
  * `AudioGraph::build()` call (the output channel is fixed per connection).
@@ -91,7 +101,11 @@ public:
         if (controlId == "cutoff") {
             vcf_.frequency(asFloat(2000.0f));
         } else if (controlId == "q") {
-            vcf_.resonance(asFloat(0.7f));
+            baseQ_ = asFloat(0.7f);
+            applyResonance();
+        } else if (controlId == "q_cv_amt") {
+            qCvAmt_ = asFloat(2.0f);
+            applyResonance();
         } else if (controlId == "cv_amt") {
             cvAmt_ = asFloat(2.0f);
             vcf_.octaveControl(cvAmt_);
@@ -103,17 +117,24 @@ public:
 
     // --- Port-kind / CV-bridge -----------------------------------------
 
-    /** @brief `cv` is a CV-domain cutoff-modulation input. */
+    /** @brief `cv` (cutoff) and `q_cv` (resonance) are CV-domain inputs. */
     PortKind inputPortKind(std::string_view portId) const override {
-        return (portId == "cv") ? PortKind::Cv : PortKind::None;
+        return (portId == "cv" || portId == "q_cv") ? PortKind::Cv : PortKind::None;
     }
 
-    /** @brief CV bridge entry point: drive the cutoff-modulation DC proxy.
-     *  The value is scaled to +/- `cv_amt` octaves by `octaveControl()`.
-     *  Slewed over `kCvSlewMs` to de-zipper the ~1 kHz control tick (see
-     *  VcaModule for the same rationale). */
+    /** @brief CV bridge entry point.
+     *  `cv`: drives the cutoff-modulation DC proxy, scaled to +/- `cv_amt`
+     *  octaves by `octaveControl()`.  Slewed over `kCvSlewMs` to de-zipper
+     *  the ~1 kHz control tick (see VcaModule for the same rationale).
+     *  `q_cv`: no audio-rate resonance input exists on the SVF, so the
+     *  scalar updates `resonance()` directly (per-block, see file header). */
     void writeCvPort(std::string_view portId, float value) override {
-        if (portId == "cv") cvDc_.amplitude(value, kCvSlewMs);
+        if (portId == "cv") {
+            cvDc_.amplitude(value, kCvSlewMs);
+        } else if (portId == "q_cv") {
+            qCv_ = value;
+            applyResonance();
+        }
     }
 
     /** @brief Register the VCF factory with the global Registry.  Idempotent. */
@@ -127,11 +148,23 @@ public:
     }
 
 private:
+    /// Recompute effective resonance from base Q + Q-CV, clamped to the
+    /// range `AudioFilterStateVariable` is stable in (0.7 … 5.0).
+    void applyResonance() {
+        float q = baseQ_ + qCvAmt_ * qCv_;
+        if (q < 0.7f) q = 0.7f;
+        else if (q > 5.0f) q = 5.0f;
+        vcf_.resonance(q);
+    }
+
     mutable AudioFilterStateVariable vcf_;
     mutable AudioSynthWaveformDc cvDc_;  ///< CV-bridge cutoff-modulation proxy.
     /// Internal patch: CV proxy -> filter control input (channel 1), always on.
     AudioConnection cvPatch_{ cvDc_, 0, vcf_, 1 };
-    float   cvAmt_ = 2.0f;  ///< Modulation depth in octaves (octaveControl).
+    float   cvAmt_  = 2.0f;  ///< Cutoff-mod depth in octaves (octaveControl).
+    float   baseQ_  = 0.7f;  ///< Base resonance from the `q` control.
+    float   qCvAmt_ = 2.0f;  ///< Q-mod depth in resonance units per full-scale CV.
+    float   qCv_    = 0.0f;  ///< Last `q_cv` scalar from the CV bridge.
     uint8_t type_  = 0;     ///< 0=LP, 1=HP, 2=BP; used in outputPort() channel selection
 
     /// DC slew time (ms) per CV update — de-zippers the ~1 kHz control tick.

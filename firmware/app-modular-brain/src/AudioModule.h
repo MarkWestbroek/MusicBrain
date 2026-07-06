@@ -26,6 +26,22 @@
 
 namespace mmb_link {
 
+/**
+ * @brief Match a CV-port id tegen zijn canonieke naam, inclusief de
+ *        `_cv`-gesuffixte alias die de editor-panelen gebruiken.
+ *
+ * De editor noemt CV-jacks op effect-/bron-panelen `fbk_cv`, `rate_cv`, …
+ * terwijl de firmware de kale naam hanteert. Beide zijn geldig:
+ * `cvPortIs("fbk_cv", "fbk")` en `cvPortIs("fbk", "fbk")` → true.
+ */
+inline bool cvPortIs(std::string_view portId, std::string_view name) {
+    if (portId == name) return true;
+    constexpr std::string_view kSuffix = "_cv";
+    return portId.size() == name.size() + kSuffix.size()
+        && portId.substr(0, name.size()) == name
+        && portId.substr(name.size()) == kSuffix;
+}
+
 /** @brief Describes one endpoint of a dynamic audio cable. */
 struct AudioPort {
     AudioStream* stream  = nullptr; ///< Backing Teensy AudioStream object.

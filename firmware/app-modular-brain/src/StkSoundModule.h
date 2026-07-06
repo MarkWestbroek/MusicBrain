@@ -11,14 +11,21 @@
  *
  * | Index | Sound       | Model                  | Karakter                 |
  * |-------|-------------|------------------------|--------------------------|
- * | 0     | Mandolin    | stk::Mandolin          | Getokkelde snaar         |
+ * | 0     | Plucked     | stk::Plucked           | Getokkelde snaar (KS)    |
  * | 1     | Clarinet    | stk::Clarinet          | Riet-instrument           |
  * | 2     | Bowed       | stk::Bowed             | Gestreken snaar          |
  * | 3     | Flute       | stk::Flute             | Fluit (jet-injectie)     |
  * | 4     | Brass       | stk::Brass             | Koperblaas               |
- * | 5     | Saxophony   | stk::Saxophony         | Saxofoon                 |
+ * | 5     | Saxophony   | stk::Saxofony          | Saxofoon                 |
  * | 6     | BlowHole    | stk::BlowHole          | Enkelriet + klankgat     |
  * | 7     | BandedWG    | stk::BandedWG          | Waveguide-modale mix     |
+ * | 8     | Mandolin    | stk::Mandolin          | Mandoline (commuted)     |
+ *
+ * @note stk::Mandolin draait op geëmbedde samples: de mand*.raw body-excitatie
+ *       zit als C-array in flash (MandolinData.h) en wordt afgespeeld via
+ *       stk::MemoryWvIn (MMB-toevoeging) i.p.v. FileWvIn — er is geen
+ *       bestandssysteem op de Teensy. STK spelt "Saxofony" met een f;
+ *       het UI-label blijft Saxophony.
  *
  * ## Port map
  * | Direction | portId       | Domain | Betekenis per sound                          |
@@ -73,14 +80,15 @@
 // Stub-polyfill wanneer STK nog niet gevendored is: een simpele sinus-tone
 // zodat de module in ieder geval compileert en geluid maakt.
 #if __has_include("stk/Instrmnt.h")
-#  include "stk/Mandolin.h"
+#  include "stk/Plucked.h"
 #  include "stk/Clarinet.h"
 #  include "stk/Bowed.h"
 #  include "stk/Flute.h"
 #  include "stk/Brass.h"
-#  include "stk/Saxophony.h"
+#  include "stk/Saxofony.h"
 #  include "stk/BlowHole.h"
 #  include "stk/BandedWG.h"
+#  include "stk/Mandolin.h"
 #  define HAVE_STK 1
 #else
 #  define HAVE_STK 0
@@ -92,7 +100,7 @@ namespace mmb_link {
 // Sound enum — moet synchroon blijven met de editor seed (stkSound-options).
 // ---------------------------------------------------------------------------
 enum class Sound : uint8_t {
-    Mandolin   = 0,
+    Plucked    = 0,
     Clarinet   = 1,
     Bowed      = 2,
     Flute      = 3,
@@ -100,13 +108,14 @@ enum class Sound : uint8_t {
     Saxophony  = 5,
     BlowHole   = 6,
     BandedWG   = 7,
-    kCount     = 8
+    Mandolin   = 8,
+    kCount     = 9
 };
 
 /// @brief Human-readable labels — synchroon met de editor.
 static constexpr const char* kSoundName(enum Sound s) {
     switch (s) {
-        case Sound::Mandolin:  return "Mandolin";
+        case Sound::Plucked:   return "Plucked";
         case Sound::Clarinet:  return "Clarinet";
         case Sound::Bowed:     return "Bowed";
         case Sound::Flute:     return "Flute";
@@ -114,6 +123,7 @@ static constexpr const char* kSoundName(enum Sound s) {
         case Sound::Saxophony: return "Saxophony";
         case Sound::BlowHole:  return "BlowHole";
         case Sound::BandedWG:  return "BandedWG";
+        case Sound::Mandolin:  return "Mandolin";
         default:               return "?";
     }
 }
@@ -126,50 +136,73 @@ public:
     StkSoundVoice()
         : AudioStream(0, nullptr)  // geen audio-inputs
     {
-        selectSound(Sound::Mandolin);
+#if HAVE_STK
+        // Eén keer, vóór het eerste instrument: STK op de exacte Teensy-rate.
+        stk::Stk::setSampleRate(AUDIO_SAMPLE_RATE_EXACT);
+#endif
+        selectSound(Sound::Plucked);
     }
 
-    /// @brief Wissel van STK-instrument. Zelfs tijdens het spelen veilig.
+    /// @brief Wissel van STK-instrument.
+    ///
+    /// ISR-veiligheid: het nieuwe instrument wordt éérst volledig gebouwd
+    /// (heap-werk buiten de audio-fence), daarna wordt de pointer geswapt
+    /// en het oude instrument vernietigd bínnen `AudioNoInterrupts()`. Een
+    /// kale `instr_ = make_unique<…>` gaf een use-after-free: de audio-ISR
+    /// kon midden in `instr_->tick()` zitten terwijl de assignment het oude
+    /// object al vrijgaf → heap-corruptie → de StkFrames::resize-crashes
+    /// (DACCVIOL) bij sound-wissels tijdens het spelen.
     void selectSound(Sound s) {
         currentSound_ = s;
 #if HAVE_STK
+        // Constructor-argument is de láágste speelbare frequentie (bepaalt de
+        // delay-line-lengte), niet de speeltoonhoogte — die gaat via setFrequency.
+        constexpr stk::StkFloat kLowestHz = 20.0f;
         const float freq = midiNoteToHz(note_);
         const float amp  = strength_;
+        std::unique_ptr<stk::Instrmnt> fresh;
         switch (s) {
-            case Sound::Mandolin:
-                instr_ = std::make_unique<stk::Mandolin>(freq);
+            case Sound::Plucked:
+                fresh = std::make_unique<stk::Plucked>(kLowestHz);
                 break;
             case Sound::Clarinet:
-                instr_ = std::make_unique<stk::Clarinet>(freq);
+                fresh = std::make_unique<stk::Clarinet>(kLowestHz);
                 break;
             case Sound::Bowed:
-                instr_ = std::make_unique<stk::Bowed>(freq);
+                fresh = std::make_unique<stk::Bowed>(kLowestHz);
                 break;
             case Sound::Flute:
-                instr_ = std::make_unique<stk::Flute>(freq);
+                fresh = std::make_unique<stk::Flute>(kLowestHz);
                 break;
             case Sound::Brass:
-                instr_ = std::make_unique<stk::Brass>(freq);
+                fresh = std::make_unique<stk::Brass>(kLowestHz);
                 break;
             case Sound::Saxophony:
-                instr_ = std::make_unique<stk::Saxophony>(freq);
+                fresh = std::make_unique<stk::Saxofony>(kLowestHz);
                 break;
             case Sound::BlowHole:
-                instr_ = std::make_unique<stk::BlowHole>(freq);
+                fresh = std::make_unique<stk::BlowHole>(kLowestHz);
                 break;
             case Sound::BandedWG:
-                instr_ = std::make_unique<stk::BandedWG>();
+                fresh = std::make_unique<stk::BandedWG>();
+                break;
+            case Sound::Mandolin:
+                fresh = std::make_unique<stk::Mandolin>(kLowestHz);
                 break;
             default:
                 break;
         }
-        if (instr_ && gate_) {
-            instr_->noteOn(freq, amp);
+        if (fresh) {
+            fresh->setFrequency(freq);
+            if (gate_) fresh->noteOn(freq, amp);
         }
+        AudioNoInterrupts();
+        instr_ = std::move(fresh);   // oude instrument sterft binnen de fence
+        AudioInterrupts();
         applyControlChanges();
 #else
-        // Fallback: simpele sinus — geen STK nodig.
-        (void)freq; (void)amp;
+        // Fallback: simpele sinus — geen STK nodig. (freq/amp bestaan alleen
+        // in de HAVE_STK-tak; de stub leest note_/strength_ zelf in update().)
         stubPhase_ = 0.0f;
 #endif
     }
@@ -192,7 +225,14 @@ public:
 #endif
     }
 
-    void setPitch(float voct) { note_ = 60.0f + 12.0f * voct; }
+    void setPitch(float voct) {
+        note_ = 60.0f + 12.0f * voct;
+#if HAVE_STK
+        if (instr_) instr_->setFrequency(midiNoteToHz(note_));  // live tracking
+#else
+        stubFreq_ = midiNoteToHz(note_);
+#endif
+    }
     void setGate(bool g)      { if (g != gate_) { if (g) noteOn(note_, strength_); else noteOff(); } }
     void setStrength(float s) { strength_ = s; }
     void setTimbre(float t)   { timbre_ = t; applyControlChanges(); }
@@ -207,7 +247,10 @@ public:
 
 #if HAVE_STK
         for (int i = 0; i < AUDIO_BLOCK_SAMPLES; ++i) {
-            float y = instr_ ? instr_->tick(0.0f) : 0.0f;
+            // Instrmnt::tick() neemt een channel-index, géén audio-input.
+            float y = instr_ ? instr_->tick() : 0.0f;
+            if (y >  1.0f) y =  1.0f;
+            if (y < -1.0f) y = -1.0f;
             out->data[i] = static_cast<int16_t>(y * 32767.0f * level_);
         }
 #else
@@ -242,7 +285,7 @@ private:
 #endif
     }
 
-    Sound           currentSound_ = Sound::Mandolin;
+    Sound           currentSound_ = Sound::Plucked;
     float           note_         = 60.0f;   ///< MIDI-noot (C4)
     float           strength_     = 0.8f;
     float           timbre_       = 0.5f;

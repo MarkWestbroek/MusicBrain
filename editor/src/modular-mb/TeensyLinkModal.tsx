@@ -15,6 +15,7 @@ import {
   sendMidiCC,
   clearLog,
 } from './teensyLink';
+import { TeensyStatusBar } from './TeensyStatusBar';
 import { WebMidiSource } from './sim/MidiSource';
 
 interface Props {
@@ -64,7 +65,13 @@ export function TeensyLinkModal({ onClose }: Props): JSX.Element {
   }
 
   async function onPush(): Promise<void> {
-    try { await sendConfig(project); }
+    try {
+      await sendConfig(project);
+      // Een config-push alléén laat de firmware nog op de oude graph spelen
+      // (die bouwt pas bij selectPatch). Activeer de actieve patch dus meteen
+      // mee, anders antwoordt een eerdere "Activeer patch" met unknown id.
+      if (activePatchId) await sendSelectPatch(activePatchId);
+    }
     catch (err) { alert(`Push faalde: ${(err as Error).message}`); }
   }
 
@@ -145,6 +152,9 @@ export function TeensyLinkModal({ onClose }: Props): JSX.Element {
     }
   }, [isConnected, bridging]);
 
+  // Telemetrie wordt door teensyLink zelf gepolld zolang de poort open is;
+  // de weergave zit in het gedeelde <TeensyStatusBar /> (ook in de patcher).
+
   function statusLabel(): string {
     switch (link.status.kind) {
       case 'unsupported':  return '⚠ Web Serial niet beschikbaar (gebruik Chrome/Edge)';
@@ -169,6 +179,8 @@ export function TeensyLinkModal({ onClose }: Props): JSX.Element {
           <div style={{ fontFamily: 'ui-monospace, monospace', fontSize: 13 }}>
             {statusLabel()}
           </div>
+
+          <TeensyStatusBar />
 
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             <button

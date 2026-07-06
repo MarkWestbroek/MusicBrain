@@ -23,7 +23,7 @@ import {
   type PolyGroup,
   emptyModularProject,
 } from './types';
-import { seedInternals, seedTestPatch } from './seedModules';const STORAGE_KEY = 'mmb.presets.v1';
+import { seedInternals, seedTestPatch, seedPolyVoicePatch } from './seedModules';const STORAGE_KEY = 'mmb.presets.v1';
 
 export interface PatchPresetData {
   id: string;
@@ -434,6 +434,19 @@ function findId(project: ModularProject, typeId: string): string | undefined {
   return project.modules.find((m) => m.typeId === typeId)?.id;
 }
 
+/** Tweak de controlState van álle modules van een type in de actieve patch —
+ *  handig voor poly-seeds, waar elke stem zijn eigen instanties heeft. */
+function tweakAllOfType(
+  project: ModularProject,
+  typeId: string,
+  values: Record<string, ControlValue>,
+): ModularProject {
+  const ids = project.modules.filter((m) => m.typeId === typeId).map((m) => m.id);
+  return tweakActivePatch(project, (cs) => {
+    for (const id of ids) if (cs[id]) cs[id] = { ...cs[id], ...values };
+  });
+}
+
 export const factoryPatchPresets: FactoryPatchPreset[] = [
   {
     id: 'fp_init',
@@ -465,10 +478,52 @@ export const factoryPatchPresets: FactoryPatchPreset[] = [
       const seq = findId(base, 'tp_mmb_seq8');
       return tweakActivePatch(base, (cs) => {
         if (vco && cs[vco]) cs[vco] = { ...cs[vco], wave: 2, coarse: -12, level: 0.9 };
-        if (vcf && cs[vcf]) cs[vcf] = { ...cs[vcf], cutoff: 600, q: 8, cv_amt: 2 };
+        if (vcf && cs[vcf]) cs[vcf] = { ...cs[vcf], cutoff: 600, q: 5, cv_amt: 1 };
         if (env && cs[env]) cs[env] = { ...cs[env], attack: 1, decay: 120, sustain: 0.1, release: 80 };
         if (seq && cs[seq]) cs[seq] = { ...cs[seq], rate: 8, gate: 0.4 };
       });
+    },
+  },
+  {
+    id: 'fp_poly_clarinet',
+    name: 'Poly STK — Clarinet ×4',
+    description: '4-stemmige STK Clarinet met stem-LFO op de cutoff, filter-envelope en mod-wheel → adem-modulatie.',
+    apply: () => {
+      let prj = seedPolyVoicePatch(emptyModularProject(), 4, {
+        voiceSource: 'stk', stkSound: 1, perVoiceLfo: true, label: 'STK Clarinet ×4',
+      });
+      // Riet is zelf al donker — filter verder open dan de poly-default.
+      prj = tweakAllOfType(prj, 'tp_mmb_vcf', { cutoff: 2200, q: 0.8 });
+      return prj;
+    },
+  },
+  {
+    id: 'fp_poly_mandolin',
+    name: 'Poly STK — Mandolin ×8',
+    description: '8-stemmige STK Mandolin (commuted synthesis) met snappy envelopes en korte bus-echo.',
+    apply: () => {
+      let prj = seedPolyVoicePatch(emptyModularProject(), 8, {
+        voiceSource: 'stk', stkSound: 8, busEchoSeconds: 0.3, label: 'STK Mandolin ×8',
+      });
+      prj = tweakAllOfType(prj, 'tp_mmb_ahdsr',
+        { attack: 1, hold: 0, decay: 220, sustain: 0.15, release: 260 });
+      prj = tweakAllOfType(prj, 'tp_mmb_vcf', { cutoff: 3500, q: 0.7 });
+      return prj;
+    },
+  },
+  {
+    id: 'fp_poly_bowed',
+    name: 'Poly STK — Bowed pad ×4',
+    description: '4-stemmige STK Bowed (gestreken snaar) als pad: trage envelopes, stem-LFO en ruime bus-echo.',
+    apply: () => {
+      let prj = seedPolyVoicePatch(emptyModularProject(), 4, {
+        voiceSource: 'stk', stkSound: 2, perVoiceLfo: true, busEchoSeconds: 0.45,
+        label: 'STK Bowed pad ×4',
+      });
+      prj = tweakAllOfType(prj, 'tp_mmb_ahdsr',
+        { attack: 350, hold: 0, decay: 500, sustain: 0.8, release: 1400 });
+      prj = tweakAllOfType(prj, 'tp_mmb_vcf', { cutoff: 1400, q: 1.2 });
+      return prj;
     },
   },
   {
@@ -498,7 +553,7 @@ export const factoryModulePresets: ModulePresetData[] = [
     name: 'Acid resonance',
     description: 'Lage cutoff, hoge Q, ruime CV-modulatie.',
     typeId: 'tp_mmb_vcf',
-    controlValues: { cutoff: 600, q: 8, cv_amt: 2, type: 0 },
+    controlValues: { cutoff: 600, q: 5, cv_amt: 1, type: 0 },
     createdAt: 0,
   },
   {

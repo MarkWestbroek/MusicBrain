@@ -624,6 +624,36 @@ export interface Patch {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
+//  MIDI control-surface map (ED-CS-1 / FW-CS-1)
+//  Bindt CC's van een extern surface (Roto-Control) aan module-controls.
+//  Zie doc/plans/control-surface.md.
+// ═══════════════════════════════════════════════════════════════════════
+
+export interface MidiBinding {
+  /** MIDI-kanaal 1–16; 0 = omni. Volgt de usbMIDI-conventie van de firmware;
+   *  NB: de editor-MIDI-bridge stuurt historisch 0-based kanalen, dus
+   *  surface-verkeer via de bridge moet 1-based zenden (ED-CS-2). */
+  ch: number;
+  /** CC-nummer 0–127. */
+  cc: number;
+  /** Doelmodule + control — zelfde adressering als controlPoke. */
+  mod: string;
+  ctrl: string;
+  /** Controlbereik waarop CC 0–127 wordt afgebeeld. */
+  min: number;
+  max: number;
+  /** Responscurve; weggelaten = 'lin'. */
+  curve?: 'lin' | 'exp';
+}
+
+export interface MidiMapConfig {
+  /** Kanaal (1–16) waarop program change een patch kiest; weglaten = uit.
+   *  (Firmware-kant is een latere stap; zie het plan.) */
+  pcChannel?: number;
+  bindings: MidiBinding[];
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 //  Top-level project
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -638,6 +668,9 @@ export interface ModularProject {
   modules:     ModuleInstance[];
   racks:       Rack[];
   patches:     Patch[];
+
+  /** Control-surface-bindings (ED-CS-1); ontbreken = geen surface gekoppeld. */
+  midiMap?: MidiMapConfig;
 
   activeRackId?:  string;
   activePatchId?: string;

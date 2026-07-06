@@ -54,7 +54,10 @@
 #include <Audio.h>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
+#include <memory>
+#include <new>
 #include <string_view>
 
 // Genuine upstream Mutable Instruments *Elements* DSP (MIT, (c) Emilie Gillet),
@@ -83,6 +86,19 @@ public:
     /// Source-samples consumed per output sample (32000 / 44100 ~= 0.7256).
     static constexpr float kStep = 32000.0f / AUDIO_SAMPLE_RATE_EXACT;
 
+    // Delay-line-geheugen voor één Part (float-aantallen). LET OP: de
+    // vendored `DelayLine::Init()` zónder buffer laat `line_` op nullptr
+    // staan en `Write()` checkt niet — Part::Init(nullptr) is dus een
+    // tijdbom die afgaat zodra het bowed/string-pad één sample schrijft
+    // (DACCVIOL @0x0). Daarom alloceren we hier één heap-blok en slicen
+    // dat in een VoiceBuffers, net als app-elements met zijn statische
+    // OCRAM-arrays doet.
+    static constexpr size_t kDelayFloats =
+        elements::kNumStrings * elements::kDelayLineSize          // string
+      + elements::kNumStrings * (elements::kDelayLineSize / 2)    // stretch
+      + elements::kMaxBowedModes * elements::kMaxDelayLineSize    // bow
+      + 1024;                                                     // diffuser
+
     ElementsVoice()
         : AudioStream(2, inputQueue_)
     {
@@ -90,11 +106,43 @@ public:
         ps_.note       = 69.0f;   // A4
         ps_.modulation = 0.0f;
         ps_.strength   = 0.8f;
+        // DSP hier initialiseren: de Registry-factory roept begin() nooit
+        // aan. Bij heap-OOM blijft ready_ false → update() blijft stil in
+        // plaats van te crashen (~96 KB per instantie).
+        delayMem_.reset(new (std::nothrow) float[kDelayFloats]());
+        if (delayMem_) {
+            float* p = delayMem_.get();
+            for (size_t i = 0; i < elements::kNumStrings; ++i) {
+                bufs_.string_buf[i] = p;  p += elements::kDelayLineSize;
+            }
+            for (size_t i = 0; i < elements::kNumStrings; ++i) {
+                bufs_.stretch_buf[i] = p; p += elements::kDelayLineSize / 2;
+            }
+            for (size_t i = 0; i < elements::kMaxBowedModes; ++i) {
+                bufs_.resonator_bow_buf[i] = p; p += elements::kMaxDelayLineSize;
+            }
+            bufs_.diffuser_buf = p;
+            part_.Init(&bufs_);
+            ready_ = true;
+            Serial.printf("[elements] delay-buffers ok: %u KB @ %p\n",
+                          static_cast<unsigned>(kDelayFloats * sizeof(float) / 1024),
+                          static_cast<void*>(delayMem_.get()));
+        } else {
+            Serial.printf("[elements] delay-buffer alloc FAILED (%u KB) — module blijft stil\n",
+                          static_cast<unsigned>(kDelayFloats * sizeof(float) / 1024));
+        }
     }
 
-    /// Initialise the DSP.  Call once from setup() before audio starts.
+    /// True wanneer de DSP-buffers gebonden zijn en de voice rendert.
+    bool dspReady() const { return ready_; }
+
+    /// Hoogste |output| sinds de vorige aanroep (0..~1); reset bij uitlezen.
+    float takePeak() { const float p = peak_; peak_ = 0.0f; return p; }
+
+    /// Initialise the DSP. Idempotent — de constructor doet dit al; blijft
+    /// bestaan voor expliciete re-inits vanuit setup()-code.
     void begin() {
-        part_.Init();
+        if (delayMem_) part_.Init(&bufs_);
     }
 
     /// MIDI-style note-on: convert Hz to a MIDI note number and raise the gate.
@@ -110,10 +158,15 @@ public:
     void setNote(float midiNote) { ps_.note     = midiNote; }
     void setStrength(float s)    { ps_.strength = s; }
     void setModulation(float m)  { ps_.modulation = m; }
+    /// Uitgangsniveau (0..1) — toegepast in de resample-lus van update().
+    void setLevel(float l)       { level_ = l; }
 
     elements::Part& part() { return part_; }
 
     void update() override {
+        // AudioStream's basisconstructor linkt dit object al in de update-
+        // lijst vóórdat Part::Init() heeft gedraaid — tot die tijd stil zijn.
+        if (!ready_) return;
         // Drain any connected excitation inputs so blocks don't pile up.
         if (audio_block_t* blow   = receiveReadOnly(0)) release(blow);
         if (audio_block_t* strike = receiveReadOnly(1)) release(strike);
@@ -136,6 +189,18 @@ public:
                 s0R_ = s1R_;
                 nextSourceSample(s1L_, s1R_);
             }
+            // NaN-vangnet: een NaN uit de DSP zou anders geruisloos naar 0
+            // casten én alle meters blind maken (NaN-vergelijkingen zijn
+            // altijd false). Flush naar 0 zodat de rest van het graph
+            // schoon blijft.
+            if (!(yL == yL)) yL = 0.0f;
+            if (!(yR == yR)) yR = 0.0f;
+            // Peak-meter op de rauwe DSP-output (vóór level) — telemetrie
+            // voor "rendert hij wel maar horen we niks?" (status-bericht).
+            const float aL = yL < 0.0f ? -yL : yL;
+            if (aL > peak_) peak_ = aL;
+            yL *= level_;
+            yR *= level_;
             if (yL > 1.0f) yL = 1.0f; else if (yL < -1.0f) yL = -1.0f;
             if (yR > 1.0f) yR = 1.0f; else if (yR < -1.0f) yR = -1.0f;
             outL->data[i] = static_cast<int16_t>(yL * 32767.0f);
@@ -171,6 +236,11 @@ private:
     }
 
     audio_block_t*             inputQueue_[2] = { nullptr, nullptr };
+    volatile bool              ready_ = false;  ///< true zodra Part::Init() klaar is.
+    float                      level_ = 0.8f;   ///< Uitgangsniveau (control `level`).
+    volatile float             peak_  = 0.0f;   ///< Peak-meter (zie takePeak()).
+    std::unique_ptr<float[]>   delayMem_;       ///< Eén blok voor alle delay-lines.
+    elements::VoiceBuffers     bufs_{};         ///< Slices in delayMem_.
     elements::Part             part_;
     elements::PerformanceState ps_{};
 
@@ -196,6 +266,23 @@ private:
 class ElementsModule final : public AudioModule {
 public:
     static constexpr const char* kTypeId = "tp_mmb_elements";
+
+    /**
+     * Genulde allocatie. De Mutable-DSP is geschreven voor globale statics
+     * (BSS = genuld bij boot); diverse interne filter/exciter-velden hebben
+     * geen Init en rekenen daar stilzwijgend op. Op een verse heap staat er
+     * garbage → NaN's in de hele signaalketen (symptoom: res-meter klemt op
+     * 1.00, exc = NaN, output stil) of wilde pointers (tube_-crash). Door
+     * het complete object op nul te zetten vóór constructie krijgt de DSP
+     * exact de omgeving waarvoor hij ontworpen is; member-initializers
+     * overschrijven daarna gewoon hun eigen velden.
+     */
+    static void* operator new(std::size_t n) {
+        void* p = ::malloc(n);
+        if (p) std::memset(p, 0, n);
+        return p;
+    }
+    static void operator delete(void* p) { ::free(p); }
 
     explicit ElementsModule(std::string_view id)
         : AudioModule(kTypeId, id) {}
@@ -237,15 +324,14 @@ public:
     void writeCvPort(std::string_view portId, float value) override {
         if (portId == "voct") {
             voct_ = value;
-            // Port-map convention: MIDI 60 = 0 V.
-            voice_.setNote(60.0f + 12.0f * voct_);
+            applyPitch();
         } else if (portId == "strength") {
             strength_ = value;
             voice_.setStrength(strength_);
         } else if (portId == "gate") {
             const bool high = value >= 0.5f;
             if (high && !lastGateHigh_) {
-                voice_.setNote(60.0f + 12.0f * voct_);
+                applyPitch();
                 voice_.setStrength(strength_);
             }
             voice_.setGate(high);
@@ -282,7 +368,18 @@ public:
             const float f = asFloat(0.0f);
             voice_.setModulation(f * 48.0f - 24.0f);
         }
+        // Continue exciter-levels — zoals de drie level-knoppen op de echte
+        // Elements (mengbaar, i.p.v. de exclusieve `exciter`-switch hieronder).
+        else if (controlId == "bow")    p->exciter_bow_level    = asFloat(0.0f);
+        else if (controlId == "blow")   p->exciter_blow_level   = asFloat(0.0f);
+        else if (controlId == "strike") p->exciter_strike_level = asFloat(0.8f);
+        // Pitch-offsets t.o.v. de inkomende V/Oct (zoals VcoModule).
+        else if (controlId == "coarse") { coarse_ = asFloat(0.0f); applyPitch(); }
+        else if (controlId == "fine")   { fine_   = asFloat(0.0f); applyPitch(); }
+        // Uitgangsniveau van de wrapper (0..1).
+        else if (controlId == "level")  voice_.setLevel(asFloat(0.8f));
         else if (controlId == "exciter") {
+            // Legacy 3-standen-switch (0=bow, 1=blow, 2=strike, exclusief).
             const int mode = static_cast<int>(asFloat(2.0f));
             p->exciter_bow_level    = (mode == 0) ? 0.8f : 0.0f;
             p->exciter_blow_level   = (mode == 1) ? 0.8f : 0.0f;
@@ -300,9 +397,17 @@ public:
     }
 
 private:
+    /// V/Oct + coarse (semitonen) + fine (centen) → MIDI-noot voor de voice.
+    /// Port-map-conventie: MIDI 60 = 0 V.
+    void applyPitch() {
+        voice_.setNote(60.0f + 12.0f * voct_ + coarse_ + fine_ / 100.0f);
+    }
+
     mutable ElementsVoice voice_;
     float voct_         = 0.0f;
     float strength_     = 0.8f;
+    float coarse_       = 0.0f;   ///< Semitoon-offset (control `coarse`).
+    float fine_         = 0.0f;   ///< Cent-offset (control `fine`).
     bool  lastGateHigh_ = false;
 };
 

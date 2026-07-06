@@ -1,0 +1,11 @@
+{
+  "name": "mi-plaits",
+  "version": "1.0.0",
+  "description": "Mutable Instruments Plaits — macro-oscillator DSP (MIT, (c) Emilie Gillet), gevendorde subset voor MMB PlaitsModule (tp_mmb_plaits). 16+ synth-engines, 48 kHz, Voice/Patch/Modulations API met 16 KB BufferAllocator. stmlib-headers byte-identiek aan mi-elements waar overlappend; gedeelde .cc's (units/random) linken uit mi-elements.",
+  "license": "MIT",
+  "homepage": "https://github.com/pichenettes/eurorack",
+  "build": {
+    "flags": ["-I."],
+    "srcFilter": ["+<plaits/>"]
+  }
+}

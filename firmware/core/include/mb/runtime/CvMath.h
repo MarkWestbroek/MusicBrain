@@ -16,10 +16,13 @@
  *
  * **1 — mult**
  * ```
- * out = a * b
+ * out = (a * gain_a) * (b * gain_b)
  * ```
- * Multiplies input `a` by input `b` (ring-mod / VCA-of-CV style).
- * Typical use: `envelope × velocity → VCA CV`.
+ * Multiplies input `a` by input `b` (ring-mod / VCA-of-CV style), each
+ * pre-scaled by its gain. Let op: dit blijft een echt product — `gain_b = 0`
+ * maakt de uitgang 0 (stilte), het schakelt niet "alleen de invloed van b"
+ * uit. Typical use: `envelope × velocity → VCA CV`; `gain_b > 1` compenseert
+ * dan zachte aanslagen, `gain_b < 1` dempt het geheel.
  *
  * Port map:
  * | Dir   | portId | Kind | Description                   |
@@ -32,10 +35,10 @@
  * Controls:
  * | controlId | type  | default | Description                  |
  * |-----------|-------|---------|------------------------------|
- * | `gain_a`  | float | 1.0     | Scale applied to input `a`   |
- * | `gain_b`  | float | 1.0     | Scale applied to input `b`   |
- * | `gain_c`  | float | 1.0     | Scale applied to input `c`   |
- * | `offset`  | float | 0.0     | Additive bias (sum mode)     |
+ * | `gain_a`  | float | 1.0     | Scale on input `a` (beide modes)  |
+ * | `gain_b`  | float | 1.0     | Scale on input `b` (beide modes)  |
+ * | `gain_c`  | float | 1.0     | Scale on input `c` (sum mode)     |
+ * | `offset`  | float | 0.0     | Additive bias (sum mode)          |
  * | `mode`    | int   | 0       | 0=sum, 1=mult(a×b)           |
  *
  * No tick needed — output is computed on demand in `readCvPort("out")`.
@@ -78,7 +81,9 @@ public:
 
     float readCvPort(std::string_view portId) const override {
         if (portId != "out") return 0.0f;
-        if (mode_ == 1) return a_ * b_;
+        // Mult: beide inputs eerst door hun gain, daarna het product. Een
+        // gain van 0 maakt de uitgang dus 0 (stilte), zie de header-doc.
+        if (mode_ == 1) return (a_ * gainA_) * (b_ * gainB_);
         // Sum mode
         float v = a_ * gainA_ + b_ * gainB_ + c_ * gainC_ + offset_;
         return std::max(-10.0f, std::min(10.0f, v));

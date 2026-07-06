@@ -829,7 +829,7 @@ function mmbQuadMixerShared() {
   });
 }
 
-// 5. MMB VCF — 6 HP. Cutoff/Q/type-switch, audio-in, cv-cutoff-in, audio-out.
+// 5. MMB VCF — 6 HP. Cutoff/Q/type-switch, audio-in, cutoff-CV + Q-CV in, audio-out.
 function mmbVcf() {
   const w = W(6);
   return assemble({
@@ -843,16 +843,82 @@ function mmbVcf() {
       { x: w/2, y: 126, text: 'MMB',  fontSize: 1.8, color: '#f9fafb', align: 'middle' },
     ],
     items: [
-      knob('cutoff', 'Cutoff', w/2, 24, { size: 'large', min: 20, max: 18000, def: 2000, unit: 'Hz', color: '#f9fafb' }),
-      knob('q',      'Q',      w*0.30, 54, { size: 'medium', min: 0.1, max: 12, def: 0.7, color: '#f9fafb' }),
-      knob('cv_amt', 'CV amt', w*0.70, 54, { size: 'medium', min: 0, max: 1, def: 1, color: '#f9fafb' }),
-      sw  ('type',   'Type',   w/2,    78, ['LP','HP','BP'], 0),
+      knob('cutoff',   'Cutoff',   w/2, 22, { size: 'large', min: 20, max: 18000, def: 2000, unit: 'Hz', color: '#f9fafb' }),
+      knob('q',        'Q',        w*0.30, 48, { size: 'medium', min: 0.7, max: 5, def: 0.7, color: '#f9fafb' }),
+      knob('cv_amt',   'CV amt',   w*0.70, 48, { size: 'medium', min: 0, max: 1, def: 1, color: '#f9fafb' }),
+      knob('q_cv_amt', 'Q CV amt', w*0.30, 70, { size: 'small', min: 0, max: 4.3, def: 2, color: '#f9fafb' }),
+      sw  ('type',     'Type',     w*0.70, 72, ['LP','HP','BP'], 0),
 
-      inPort ('in',   'In',     'audio', w*0.25, 104),
-      inPort ('cv',   'Cut CV', 'cv',    w*0.75, 104),
-      outPort('out',  'Out',    'audio', w/2,    118),
+      inPort ('in',   'In',   'audio', w*0.25, 98),
+      inPort ('cv',   'F CV', 'cv',    w*0.75, 98),
+      inPort ('q_cv', 'Q CV', 'cv',    w*0.25, 112),
+      outPort('out',  'Out',  'audio', w*0.75, 112),
     ],
-    notes: 'Interne MMB filter. Cutoff-knop is de basis; CV-input moduleert via cv_amt (1V/oct-achtig, ~5 octaven full-swing).',
+    notes: 'Interne MMB filter (state-variable). Cutoff-knop is de basis; F CV moduleert via cv_amt (1V/oct-achtig). Q CV telt op bij de Q-knop met q_cv_amt als diepte (in Q-eenheden, control-rate — prima voor LFO/envelope-sweeps). Q stabiel tussen 0.7 en 5.0.',
+  });
+}
+
+// 5b. MMB LADDER — 6 HP. Moog-stijl 4-pole lowpass ladder (Huovilainen-model,
+//     AudioFilterLadder). Audio-rate CV op cutoff ÉN resonantie, plus input-
+//     drive (tanh-overdrive). Alleen LP 24 dB/oct — voor HP/BP: de MMB VCF.
+function mmbLadder() {
+  const w = W(6);
+  return assemble({
+    typeId: 'tp_mmb_ladder',
+    categoryId: 'vcf',
+    variant: 'Ladder VCF (Moog-stijl, 24 dB LP)',
+    brand: 'MMB', model: 'LADDER',
+    hp: 6, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'LADDER', fontSize: 2.2, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB',    fontSize: 1.8, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('cutoff',   'Cutoff',   w/2, 22, { size: 'large', min: 20, max: 18000, def: 2000, unit: 'Hz', color: '#f9fafb' }),
+      knob('q',        'Res',      w*0.30, 48, { size: 'medium', min: 0, max: 1.8, def: 0.7, color: '#f9fafb' }),
+      knob('drive',    'Drive',    w*0.70, 48, { size: 'medium', min: 0, max: 4, def: 1, color: '#f9fafb' }),
+      knob('cv_amt',   'CV amt',   w*0.30, 70, { size: 'small', min: 0, max: 7, def: 2, unit: 'oct', color: '#f9fafb' }),
+      knob('q_cv_amt', 'Q CV amt', w*0.70, 70, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+
+      inPort ('in',   'In',   'audio', w*0.25, 98),
+      inPort ('cv',   'F CV', 'cv',    w*0.75, 98),
+      inPort ('q_cv', 'Q CV', 'cv',    w*0.25, 112),
+      outPort('out',  'Out',  'audio', w*0.75, 112),
+    ],
+    notes: 'Moog-stijl 4-pole lowpass ladder (Huovilainen-model, firmware tp_mmb_ladder). Beide CV-ingangen zijn audio-rate op de Teensy: F CV in octaven (cv_amt 0–7 oct), Q CV in resonantie-eenheden (q_cv_amt 0–1). Res boven ~1.1 gaat zelf-oscilleren; Drive >1 stuurt de tanh-clipping aan. Alleen lowpass 24 dB/oct — HP/BP doe je met de MMB VCF.',
+  });
+}
+
+// 5c. MMB MS-20 — 6 HP. Korg35 Sallen-Key ZDF-filter (Pirkle-model) met tanh-
+//     diodeclipping in de resonantielus en 2x oversampling — dezelfde karakter-
+//     keuzes als het Gowin FPGA-project (MS20_synth_voice). LP 12 dB / HP 6 dB,
+//     live schakelbaar. Zelf-oscillatie bij Res = 1.
+function mmbMs20() {
+  const w = W(6);
+  return assemble({
+    typeId: 'tp_mmb_ms20',
+    categoryId: 'vcf',
+    variant: 'MS-20 filter (Korg35 Sallen-Key, LP/HP)',
+    brand: 'MMB', model: 'MS-20',
+    hp: 6, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'MS-20', fontSize: 2.2, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB',   fontSize: 1.8, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('cutoff',   'Cutoff',   w/2, 22, { size: 'large', min: 20, max: 18000, def: 2000, unit: 'Hz', color: '#f9fafb' }),
+      knob('q',        'Res',      w*0.30, 48, { size: 'medium', min: 0, max: 1, def: 0.3, color: '#f9fafb' }),
+      knob('drive',    'Drive',    w*0.70, 48, { size: 'medium', min: 0.1, max: 10, def: 1, color: '#f9fafb' }),
+      knob('cv_amt',   'CV amt',   w*0.30, 70, { size: 'small', min: 0, max: 7, def: 2, unit: 'oct', color: '#f9fafb' }),
+      knob('q_cv_amt', 'Q CV amt', w*0.70, 70, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      sw  ('type',     'Mode',     w/2, 86, ['LP','HP'], 0),
+
+      inPort ('in',   'In',   'audio', w*0.25, 100),
+      inPort ('cv',   'F CV', 'cv',    w*0.75, 100),
+      inPort ('q_cv', 'Q CV', 'cv',    w*0.25, 113),
+      outPort('out',  'Out',  'audio', w*0.75, 113),
+    ],
+    notes: 'Korg35/MS-20 Sallen-Key filter (zero-delay-feedback naar Pirkle, firmware tp_mmb_ms20) met tanh-diodeclipping in de resonantielus en 2x oversampling — de MS-20 "scream". Res = 1 gaat zelf-oscilleren; Drive bepaalt hoe hard de lus satureert. LP is 12 dB/oct, HP is (Korg35-typisch) 6 dB/oct; de mode-switch schakelt live, zonder rebuild. F CV in octaven, Q CV in resonantie-eenheden; beide control-rate met per-block smoothing.',
   });
 }
 
@@ -999,7 +1065,7 @@ function mmbCvMath() {
       inPort ('c',   'C',   'cv', w*0.80, 92),
       outPort('out', 'Out', 'cv', w/2,    114),
     ],
-    notes: 'Sum-mode: out = a×gain_a + b×gain_b + c×gain_c + offset. Mult-mode: out = a × b (ring-mod stijl, bijv. envelope × velocity). Gain-waarden kunnen negatief zijn voor inversie.',
+    notes: 'Sum-mode: out = a×gain_a + b×gain_b + c×gain_c + offset. Mult-mode: out = (a×gain_a) × (b×gain_b) — ring-mod stijl, bijv. envelope × velocity; let op: gain 0 maakt het product 0 (stilte). Gain-waarden kunnen negatief zijn voor inversie.',
   });
 }
 
@@ -1349,36 +1415,140 @@ function mmbString() {
   });
 }
 
-// 14. MMB ELEMENTS — 10 HP. Mutable Instruments Elements modal / physical-modelling voice (FW-AU-9). 
-//     Monofone voice: V/Oct + Gate in, stereo audio uit. 16 parameters via controls.
+// 14. MMB ELEMENTS — 20 HP. Mutable Instruments Elements modal / physical-
+//     modelling voice (FW-AU-9). Monofone voice: V/Oct + Gate in, stereo uit.
+//     Paneel volgt de hardware-indeling: exciter-sectie links (wit/roze/cyaan
+//     zoals MI), resonator rechts. Alle control-ids matchen de firmware
+//     (`ElementsModule::setControl`); bow/blow/strike zijn continue levels.
 function mmbElements() {
-  const w = W(10);
+  const w = W(20);
+  const col = (i: number): number => w * (0.09 + i * 0.164);   // 6 kolommen
+  const rowA = 24, rowB = 46, rowC = 70, rowD = 90;
   return assemble({
     typeId: 'tp_mmb_elements',
     categoryId: 'vco',
     variant: 'Elements (MI)',
     brand: 'MI', model: 'ELEMENTS',
-    hp: 10, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    hp: 20, texture: 'pcb-black', baseColor: '#111827', internal: true,
     texts: [
-      { x: w/2, y: 8,   text: 'ELEMENTS', fontSize: 2.2, color: '#f9fafb', align: 'middle' },
-      { x: w/2, y: 14,  text: 'Modal / Physical', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 8,   text: 'ELEMENTS', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13,  text: 'modal / physical modelling', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
       { x: w/2, y: 126, text: 'MI', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
     ],
     items: [
-      knob('geometry',  'Geom',  w*0.20, 26, { size: 'small', min: 0, max: 1, def: 0.2,  color: '#f9fafb' }),
-      knob('brightness','Bright',w*0.50, 26, { size: 'small', min: 0, max: 1, def: 0.5,  color: '#f9fafb' }),
-      knob('damping',   'Damp',  w*0.80, 26, { size: 'small', min: 0, max: 1, def: 0.25, color: '#f9fafb' }),
-      knob('position',  'Pos',   w*0.20, 50, { size: 'small', min: 0, max: 1, def: 0.3,  color: '#f9fafb' }),
-      knob('space',     'Space', w*0.50, 50, { size: 'small', min: 0, max: 1, def: 0.5,  color: '#f9fafb' }),
-      knob('level',     'Level', w*0.80, 50, { size: 'small', min: 0, max: 1, def: 0.8,  color: '#f9fafb' }),
+      // Rij A — envelope-contour + de drie continue exciter-levels + tuning.
+      knob('envelope', 'Contour', col(0), rowA, { size: 'small', min: 0, max: 1, def: 1,   color: '#f9fafb' }),
+      knob('bow',      'Bow',     col(1), rowA, { size: 'small', min: 0, max: 1, def: 0,   color: '#f9fafb' }),
+      knob('blow',     'Blow',    col(2), rowA, { size: 'small', min: 0, max: 1, def: 0,   color: '#e11d48' }),
+      knob('strike',   'Strike',  col(3), rowA, { size: 'small', min: 0, max: 1, def: 0.8, color: '#0891b2' }),
+      knob('coarse',   'Coarse',  col(4), rowA, { size: 'small', min: -36, max: 36, def: 0, unit: 'semi', color: '#f9fafb' }),
+      knob('fine',     'Fine',    col(5), rowA, { size: 'small', min: -100, max: 100, def: 0, unit: 'ct', color: '#f9fafb' }),
+      // Rij B — meta-morphs (Flow/Mallet) + resonator-hoofdknoppen + FM.
+      // FM: firmware mapt 0..1 → ±24 st (f×48−24); 0.5 = neutraal.
+      knob('blow_meta',   'Flow',    col(1), rowB, { size: 'large', min: 0, max: 1, def: 0.5, color: '#e11d48' }),
+      knob('strike_meta', 'Mallet',  col(2), rowB, { size: 'large', min: 0, max: 1, def: 0.5, color: '#0891b2' }),
+      knob('fm',          'FM',      col(3), rowB, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('geometry',    'Geometry',col(4), rowB, { size: 'large', min: 0, max: 1, def: 0.2, color: '#f9fafb' }),
+      knob('brightness',  'Bright',  col(5), rowB, { size: 'large', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      // Rij C — timbres per exciter + resonator-detail.
+      knob('bow_timbre',    'Bow Tim',   col(0), rowC, { size: 'small', min: 0, max: 1, def: 0.5,  color: '#f9fafb' }),
+      knob('blow_timbre',   'Blow Tim',  col(1), rowC, { size: 'small', min: 0, max: 1, def: 0.5,  color: '#e11d48' }),
+      knob('strike_timbre', 'Strike Tim',col(2), rowC, { size: 'small', min: 0, max: 1, def: 0.5,  color: '#0891b2' }),
+      knob('damping',       'Damping',   col(3), rowC, { size: 'small', min: 0, max: 1, def: 0.25, color: '#f9fafb' }),
+      knob('position',      'Position',  col(4), rowC, { size: 'small', min: 0, max: 1, def: 0.3,  color: '#f9fafb' }),
+      knob('space',         'Space',     col(5), rowC, { size: 'small', min: 0, max: 1, def: 0.5,  color: '#f9fafb' }),
+      // Rij D — exotica + uitgangsniveau.
+      knob('signature',  'Signat', col(0), rowD, { size: 'small', min: 0, max: 1, def: 0,   color: '#9ca3af' }),
+      knob('mod_freq',   'ModFrq', col(1), rowD, { size: 'small', min: 0, max: 1, def: 0.5, color: '#9ca3af' }),
+      knob('mod_offset', 'ModOff', col(2), rowD, { size: 'small', min: 0, max: 1, def: 0.1, color: '#9ca3af' }),
+      knob('level',      'Level',  col(5), rowD, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
 
-      inPort ('voct',    'V/Oct',  'cv',    w*0.20, 92),
-      inPort ('gate',    'Gate',   'gate',  w*0.45, 92),
-      inPort ('strength','Str',    'cv',    w*0.70, 92),
-      outPort('out_l',   'L',      'audio', w*0.30, 112),
-      outPort('out_r',   'R',      'audio', w*0.70, 112),
+      inPort ('voct',    'V/Oct',  'cv',    col(0), 108),
+      inPort ('gate',    'Gate',   'gate',  col(1), 108),
+      inPort ('strength','Str',    'cv',    col(2), 108),
+      outPort('out_l',   'L',      'audio', col(4), 108),
+      outPort('out_r',   'R',      'audio', col(5), 108),
     ],
-    notes: 'Mutable Instruments Elements modal / physical-modelling voice (firmware tp_mmb_elements, FW-AU-9). V/Oct + Gate in, stereo audio uit (L/R). Controls: geometry, brightness, damping, position, space. Monofone voice; voor polyfonie plaats meerdere instanties in een PolyGroup.',
+    notes: 'Mutable Instruments Elements modal / physical-modelling voice (firmware tp_mmb_elements, FW-AU-9). V/Oct + Gate in, stereo uit (L/R). Exciters: Bow/Blow/Strike zijn continue levels (mengbaar, zoals de hardware); Flow/Mallet zijn de meta-morphs, Contour de exciter-envelope. FM: 0.5 = neutraal (±24 st bereik). Coarse/fine verschuiven de pitch t.o.v. V/Oct. Monofone voice; voor polyfonie plaats meerdere instanties in een PolyGroup.',
+  });
+}
+
+// 14b. MMB RINGS — 14 HP. Mutable Instruments Rings resonator (FW-AU-11).
+//     Strum via de gate-ingang; intern 1/2/4-stemmig (roterend per strum).
+//     Control-ids matchen firmware RingsModule; stemsplit odd/even op L/R.
+function mmbRings() {
+  const w = W(14);
+  const col = (i: number): number => w * (0.14 + i * 0.24);   // 4 kolommen
+  return assemble({
+    typeId: 'tp_mmb_rings',
+    categoryId: 'vco',
+    variant: 'Rings (MI resonator)',
+    brand: 'MI', model: 'RINGS',
+    hp: 14, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'RINGS', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13,  text: 'resonator · strum', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MI', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('structure',  'Structure', col(0), 30, { size: 'large', min: 0, max: 1, def: 0.4, color: '#f9fafb' }),
+      knob('brightness', 'Bright',    col(1), 30, { size: 'large', min: 0, max: 1, def: 0.6, color: '#f9fafb' }),
+      knob('damping',    'Damping',   col(2), 30, { size: 'large', min: 0, max: 1, def: 0.6, color: '#f9fafb' }),
+      knob('position',   'Position',  col(3), 30, { size: 'large', min: 0, max: 1, def: 0.3, color: '#f9fafb' }),
+      // Model: de 3 hoofdmodellen + de 3 "bonus"-modellen van de hardware.
+      sw  ('model',     'Model', w*0.30, 62, ['Modal','Sympath','String','FM','Quant','Str+Rev'], 0),
+      sw  ('polyphony', 'Poly',  w*0.72, 62, ['1','2','4'], 1),
+      knob('coarse', 'Coarse', col(0), 88, { size: 'small', min: -36, max: 36, def: 0, unit: 'semi', color: '#f9fafb' }),
+      knob('fine',   'Fine',   col(1), 88, { size: 'small', min: -100, max: 100, def: 0, unit: 'ct', color: '#f9fafb' }),
+      knob('level',  'Level',  col(3), 88, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+
+      inPort ('voct',  'V/Oct', 'cv',    col(0), 110),
+      inPort ('gate',  'Strum', 'gate',  col(1), 110),
+      outPort('out_l', 'Odd',   'audio', col(2), 110),
+      outPort('out_r', 'Even',  'audio', col(3), 110),
+    ],
+    notes: 'Mutable Instruments Rings resonator (firmware tp_mmb_rings, FW-AU-11). Elke stijgende flank op Strum plukt de resonator op de huidige V/Oct-toonhoogte; Poly 2/4 laat strums over stemmen roteren (odd op L, even op R). Modellen: modal (klokken/marimba), sympathetic strings, string (Karplus-achtig), plus de FM/quantized/string+reverb bonus-modellen. Structure = inharmoniciteit/snaarkoppeling, Position = excitatiepunt.',
+  });
+}
+
+// 14c. MMB PLAITS — 12 HP. Mutable Instruments Plaits macro-oscillator
+//     (FW-AU-12): 16 synth-engines achter één engine-knop. Interne LPG
+//     (decay/colour) vuurt per trigger op de gate-ingang.
+function mmbPlaits() {
+  const w = W(12);
+  const col = (i: number): number => w * (0.16 + i * 0.34);   // 3 kolommen
+  return assemble({
+    typeId: 'tp_mmb_plaits',
+    categoryId: 'vco',
+    variant: 'Plaits (MI macro-osc)',
+    brand: 'MI', model: 'PLAITS',
+    hp: 12, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'PLAITS', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13,  text: '16 engines · macro-osc', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MI', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      // Engine-keuze: 0=VA 1=Waveshape 2=FM 3=Grain 4=Additive 5=Wavetable
+      // 6=Chord 7=Speech 8=Swarm 9=Noise 10=Particle 11=String 12=Modal
+      // 13=BassDrum 14=Snare 15=HiHat.
+      knob   ('engine', 'Engine', w*0.28, 26, { size: 'medium', min: 0, max: 15, def: 0, step: 1, color: '#f9fafb' }),
+      display('engDisp', w*0.66, 26, { digits: 2, style: 'led', bindTo: 'engine', format: 'int' }),
+      knob('harmonics', 'Harmonics', col(0), 52, { size: 'large', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('timbre',    'Timbre',    col(1), 52, { size: 'large', min: 0, max: 1, def: 0.5, color: '#e11d48' }),
+      knob('morph',     'Morph',     col(2), 52, { size: 'large', min: 0, max: 1, def: 0.5, color: '#0891b2' }),
+      knob('decay', 'Decay', col(0), 80, { size: 'small', min: 0, max: 1, def: 0.6, color: '#f9fafb' }),
+      knob('lpg',   'LPG',   col(1), 80, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('level', 'Level', col(2), 80, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      knob('coarse', 'Coarse', col(0), 98, { size: 'small', min: -36, max: 36, def: 0, unit: 'semi', color: '#f9fafb' }),
+      knob('fine',   'Fine',   col(1), 98, { size: 'small', min: -100, max: 100, def: 0, unit: 'ct', color: '#f9fafb' }),
+
+      inPort ('voct', 'V/Oct', 'cv',    w*0.14, 114),
+      inPort ('gate', 'Trig',  'gate',  w*0.38, 114),
+      outPort('out',  'Out',   'audio', w*0.62, 114),
+      outPort('aux',  'Aux',   'audio', w*0.86, 114),
+    ],
+    notes: 'Mutable Instruments Plaits macro-oscillator (firmware tp_mmb_plaits, FW-AU-12). Eén knop kiest uit 16 engines: 0 VA · 1 Waveshape · 2 FM · 3 Grain · 4 Additive · 5 Wavetable · 6 Chord · 7 Speech · 8 Swarm · 9 Noise · 10 Particle · 11 String · 12 Modal · 13 BassDrum · 14 Snare · 15 HiHat. Harmonics/Timbre/Morph zijn de drie macro-parameters (per engine anders). De interne low-pass-gate (Decay/LPG) vuurt per Trig; Aux draagt de engine-variant. CV-ingangen: harmonics_cv/timbre_cv/morph_cv/level_cv (alias zonder _cv werkt ook).',
   });
 }
 
@@ -1576,7 +1746,7 @@ function mmbStkSound() {
       { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
     ],
     items: [
-      sw  ('sound',  'Sound',   w/2,    22, ['Mandolin','Clarinet','Bowed','Flute','Brass','Saxophony','BlowHole','BandedWG'], 0),
+      sw  ('sound',  'Sound',   w/2,    22, ['Plucked','Clarinet','Bowed','Flute','Brass','Saxophony','BlowHole','BandedWG','Mandolin'], 0),
       knob('level',  'Level',   w*0.30, 54, { size: 'medium', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
       knob('timbre', 'Timbre',  w*0.70, 54, { size: 'medium', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
       knob('modulation', 'Mod', w*0.30, 84, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
@@ -1588,14 +1758,14 @@ function mmbStkSound() {
       inPort ('modulation','Mod+', 'cv',   w*0.70, 108),
       outPort('out',    'Out',     'audio', w*0.75, 120),
     ],
-    notes: 'Multi-sound physical-modelling voice (firmware tp_mmb_stk_sound, FW-AU-10). De sound-selector kiest welk STK-algoritme actief is: Mandolin (getokkelde snaar), Clarinet (riet), Bowed (gestreken snaar), Flute (fluit), Brass (koper), Saxophony (saxofoon), BlowHole (enkelriet+klankgat) of BandedWG (modale/waveguide). Alle CV-ingangen tellen op bij de knopwaarde. Monofone voice; polyfonie via PolyGroup.',
+    notes: 'Multi-sound physical-modelling voice (firmware tp_mmb_stk_sound, FW-AU-10). De sound-selector kiest welk STK-algoritme actief is: Plucked (getokkelde snaar, Karplus-Strong), Clarinet (riet), Bowed (gestreken snaar), Flute (fluit), Brass (koper), Saxophony (saxofoon), BlowHole (enkelriet+klankgat), BandedWG (modale/waveguide) of Mandolin (commuted synthesis, geëmbedde body-samples). Alle CV-ingangen tellen op bij de knopwaarde. Monofone voice; polyfonie via PolyGroup.',
   });
 }
 
 // ── public entry ───────────────────────────────────────────────────────
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbQuadMixerShared(), mmbVcf(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbComp(), mmbNoise(), mmbEcho(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbComp(), mmbNoise(), mmbEcho(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound()];
   const newTypes = all.map((x) => x.type);
   const newModules = all.map((x) => x.module);
 
@@ -1843,9 +2013,6 @@ export function seedCvBridgePatch(project: ModularProject): ModularProject {
     c({ m: envAmp, port: 'cv_out' }, { m: cvmath, port: 'a'     }),
     c({ m: mi,            port: 'vel'    }, { m: cvmath, port: 'b'     }),
     c({ m: cvmath, port: 'out'    }, { m: vca,    port: 'cv'    }),
-    // Mixer → OUT (stereo, global→global)
-    c({ m: mixer, port: 'out_l' }, { m: out, port: 'l' }),
-    c({ m: mixer, port: 'out_r' }, { m: out, port: 'r' }),
   ];
 
   const controlState: Record<string, Record<string, ControlValue>> = {
@@ -1898,13 +2065,57 @@ export function seedCvBridgePatch(project: ModularProject): ModularProject {
  * Zo blijft het editor-model schoon (één voice-keten + PolyGroups) en blijft de
  * brain "dom": die ziet enkel de platte connectie-lijst (ADR 0009/0010).
  *
- * @param voiceCount Aantal stemmen (1, 2, 4 of 8).
+ * @param voiceCount Aantal stemmen (1, 2, 4, 8 of 16).
+ * @param opts       Stress-opties — zie {@link PolySeedOptions}.
  */
-export function seedPolyVoicePatch(project: ModularProject, voiceCount: number): ModularProject {
+export interface PolySeedOptions {
+  /** Stem-kern: 'vco' (default), 'string' (Karplus-Strong physical modeling)
+   *  of 'stk' (STK multi-sound physical modelling, zie `stkSound`).
+   *  Bij 'string'/'stk' vervalt de vibrato/bend→tune-route (geen tune-ingang);
+   *  bij 'stk' gaat de mod-wheel-LFO naar de `modulation`-poort en velocity
+   *  naar `strength`. */
+  voiceSource?: 'vco' | 'string' | 'stk';
+  /** Sound-index voor de STK-bron (0=Plucked, 1=Clarinet, 2=Bowed, 3=Flute,
+   *  4=Brass, 5=Saxophony, 6=BlowHole, 7=BandedWG, 8=Mandolin). Default 0. */
+  stkSound?: number;
+  /** Filter per stem: 'vcf' (state-variable, default), 'ladder' (Moog-stijl
+   *  Huovilainen) of 'ms20' (Korg35 ZDF met tanh-scream). Zelfde poorten
+   *  (in/out/cv), dus drop-in in de keten; controlState per type afgestemd. */
+  filterType?: 'vcf' | 'ladder' | 'ms20';
+  /** Extra audio-schakel per stem tussen VCF en VCA (comb-resonator of phaser). */
+  perVoiceFx?: 'comb' | 'phaser';
+  /** LFO per stem die via een sum-CvMath samen met envFlt op de filter-cutoff
+   *  moduleert. Verdubbelt zo'n beetje het aantal CV-routes (1 kHz tick-load). */
+  perVoiceLfo?: boolean;
+  /** Stereo echo-paar achter de mixer (tijd in s; firmware-cap 0.5 s). Vreet
+   *  audio-blocks uit de pool — kijk naar "blocks" in de status-strip. */
+  busEchoSeconds?: number;
+  /** Eén Mutable-Elements-stem (mono bespeeld) naast het stack — de zwaarste
+   *  module in het arsenaal. Claimt 2 extra mixerkanalen (stereo). */
+  withElements?: boolean;
+  /** Patch-naamlabel (default: afgeleid van de opties). */
+  label?: string;
+}
+
+export function seedPolyVoicePatch(
+  project: ModularProject, voiceCount: number, opts: PolySeedOptions = {},
+): ModularProject {
   const N = Math.max(1, Math.min(16, Math.round(voiceCount)));
-  const mixerTypeId = N > 8 ? 'tp_mmb_mixer16' : N > 4 ? 'tp_mmb_mixer8' : 'tp_mmb_mixer';
-  const needed = ['tp_mmb_vco','tp_mmb_vcf','tp_mmb_vca','tp_mmb_out',
-                  'tp_mmb_ahdsr','tp_mmb_midiin','tp_mmb_cvmath', mixerTypeId];
+  const srcTypeId = opts.voiceSource === 'string' ? 'tp_mmb_string'
+                  : opts.voiceSource === 'stk'    ? 'tp_mmb_stk_sound' : 'tp_mmb_vco';
+  const vcfTypeId = opts.filterType === 'ladder' ? 'tp_mmb_ladder'
+                  : opts.filterType === 'ms20'   ? 'tp_mmb_ms20' : 'tp_mmb_vcf';
+  const fxTypeId  = opts.perVoiceFx === 'comb'   ? 'tp_mmb_comb'
+                  : opts.perVoiceFx === 'phaser' ? 'tp_mmb_phaser' : null;
+  // Mixer-kanalen: N stemmen + evt. 2 voor de stereo Elements-uitgang.
+  const channelsNeeded = N + (opts.withElements ? 2 : 0);
+  const mixerTypeId = channelsNeeded > 8 ? 'tp_mmb_mixer16'
+                    : channelsNeeded > 4 ? 'tp_mmb_mixer8' : 'tp_mmb_mixer';
+  const needed = [srcTypeId, vcfTypeId,'tp_mmb_vca','tp_mmb_out',
+                  'tp_mmb_ahdsr','tp_mmb_midiin','tp_mmb_cvmath','tp_mmb_lfo', mixerTypeId,
+                  ...(fxTypeId ? [fxTypeId] : []),
+                  ...(opts.busEchoSeconds ? ['tp_mmb_echo'] : []),
+                  ...(opts.withElements ? ['tp_mmb_elements'] : [])];
   const missing = needed.some((tid) => !project.moduleTypes.some((t) => t.id === tid));
   let p = missing ? seedInternals(project) : project;
 
@@ -1916,19 +2127,33 @@ export function seedPolyVoicePatch(project: ModularProject, voiceCount: number):
   const mi    = fresh('tp_mmb_midiin');
   const mixer = fresh(mixerTypeId);
   const out   = fresh('tp_mmb_out');
+  // Vibrato-sectie (globaal, fan-out naar alle stemmen):
+  //   lfo.out × cv_mod (mod wheel = depth) → + cv_bend → VCO.tune.
+  const lfo      = fresh('tp_mmb_lfo');
+  const vibDepth = fresh('tp_mmb_cvmath');  // mult: lfo × mod-wheel
+  const bendSum  = fresh('tp_mmb_cvmath');  // sum:  vibrato·0.04 + bend
+  // Globale stress-extra's (alleen aangemaakt wanneer de optie aan staat).
+  const echoL    = opts.busEchoSeconds ? fresh('tp_mmb_echo') : null;
+  const echoR    = opts.busEchoSeconds ? fresh('tp_mmb_echo') : null;
+  const elements = opts.withElements   ? fresh('tp_mmb_elements') : null;
 
   // Per-voice ketens. index 0 → master (stem 1), 1..N-1 → followers.
+  // `vco` is de stem-kern (VCO óf String); fx/lfoV/lfoSum zijn optioneel.
   type VoiceChain = {
     vco: ModuleInstance; vcf: ModuleInstance; vca: ModuleInstance;
     envAmp: ModuleInstance; envFlt: ModuleInstance; cvmath: ModuleInstance;
+    fx?: ModuleInstance; lfoV?: ModuleInstance; lfoSum?: ModuleInstance;
   };
   const voices: VoiceChain[] = Array.from({ length: N }, () => ({
-    vco:    fresh('tp_mmb_vco'),
-    vcf:    fresh('tp_mmb_vcf'),
+    vco:    fresh(srcTypeId),
+    vcf:    fresh(vcfTypeId),
     vca:    fresh('tp_mmb_vca'),
     envAmp: fresh('tp_mmb_ahdsr'),
     envFlt: fresh('tp_mmb_ahdsr'),
     cvmath: fresh('tp_mmb_cvmath'),
+    ...(fxTypeId          ? { fx:     fresh(fxTypeId) }       : {}),
+    ...(opts.perVoiceLfo  ? { lfoV:   fresh('tp_mmb_lfo'),
+                              lfoSum: fresh('tp_mmb_cvmath') } : {}),
   }));
   const master = voices[0]!;
 
@@ -1936,15 +2161,30 @@ export function seedPolyVoicePatch(project: ModularProject, voiceCount: number):
   // (links→rechts). Elke follower-stem v komt in rij v, exact onder zijn
   // master uitgelijnd. Zo blijft rij 0 (de ingeklapte patcher-weergave)
   // compact en ontstaat er geen gat tussen de laatste VCA en de mixer.
-  const chainOrder: (keyof VoiceChain)[] = ['vco', 'envFlt', 'vcf', 'envAmp', 'cvmath', 'vca'];
+  const chainOrder: (keyof VoiceChain)[] = [
+    'vco', 'envFlt',
+    ...(opts.perVoiceLfo ? (['lfoV', 'lfoSum'] as const) : []),
+    'vcf',
+    ...(fxTypeId ? (['fx'] as const) : []),
+    'envAmp', 'cvmath', 'vca',
+  ];
   const colOffset: Record<string, number> = {};
   let offset = mi.visual.hpWidth;                 // MidiIn staat op kolom 0
   for (const key of chainOrder) {
     colOffset[key] = offset;
-    offset += master[key].visual.hpWidth;
+    offset += master[key]!.visual.hpWidth;
   }
   const mixerOffset = offset; offset += mixer.visual.hpWidth;
   const outOffset   = offset; offset += out.visual.hpWidth;
+  const lfoOffset   = offset; offset += lfo.visual.hpWidth;
+  const vibOffset   = offset; offset += vibDepth.visual.hpWidth;
+  const sumOffset   = offset; offset += bendSum.visual.hpWidth;
+  // Globale extra's achteraan rij 0.
+  const extras: ModuleInstance[] = [
+    ...(echoL ? [echoL] : []), ...(echoR ? [echoR] : []),
+    ...(elements ? [elements] : []),
+  ];
+  const extraOffsets = extras.map((m) => { const o = offset; offset += m.visual.hpWidth; return o; });
   const rowHp = offset;
 
   const slots: RackSlot[] = [
@@ -1952,23 +2192,32 @@ export function seedPolyVoicePatch(project: ModularProject, voiceCount: number):
   ];
   voices.forEach((v, vi) => {
     for (const key of chainOrder) {
-      slots.push({ id: uid('slot'), moduleId: v[key].id, row: vi, hpOffset: colOffset[key]! });
+      slots.push({ id: uid('slot'), moduleId: v[key]!.id, row: vi, hpOffset: colOffset[key]! });
     }
   });
-  slots.push({ id: uid('slot'), moduleId: mixer.id, row: 0, hpOffset: mixerOffset });
-  slots.push({ id: uid('slot'), moduleId: out.id,   row: 0, hpOffset: outOffset });
+  slots.push({ id: uid('slot'), moduleId: mixer.id,    row: 0, hpOffset: mixerOffset });
+  slots.push({ id: uid('slot'), moduleId: out.id,      row: 0, hpOffset: outOffset });
+  slots.push({ id: uid('slot'), moduleId: lfo.id,      row: 0, hpOffset: lfoOffset });
+  slots.push({ id: uid('slot'), moduleId: vibDepth.id, row: 0, hpOffset: vibOffset });
+  slots.push({ id: uid('slot'), moduleId: bendSum.id,  row: 0, hpOffset: sumOffset });
+  extras.forEach((m, i) => {
+    slots.push({ id: uid('slot'), moduleId: m.id, row: 0, hpOffset: extraOffsets[i]! });
+  });
 
   // PolyGroups: één per gevoiceerde moduletype. members[0] = master (stem 1),
   // members[1..] = followers. De flatten gebruikt deze volgorde. Bij N=1 zijn
   // er geen groepen (de master-keten is al de complete patch).
   const grp = (label: string, key: keyof VoiceChain): PolyGroup => ({
     id: uid('poly'), label, voiceCount: N,
-    members: voices.map((v) => ({ kind: 'module' as const, moduleId: v[key].id })),
+    members: voices.map((v) => ({ kind: 'module' as const, moduleId: v[key]!.id })),
   });
   const polyGroups: PolyGroup[] = N >= 2 ? [
-    grp('VCO',  'vco'),
+    grp(opts.voiceSource === 'string' ? 'String'
+      : opts.voiceSource === 'stk'    ? 'STK' : 'VCO', 'vco'),
     grp('envFlt', 'envFlt'),
-    grp('VCF',  'vcf'),
+    ...(opts.perVoiceLfo ? [grp('LFO', 'lfoV'), grp('LfoSum', 'lfoSum')] : []),
+    grp(opts.filterType === 'ladder' ? 'Ladder' : opts.filterType === 'ms20' ? 'MS-20' : 'VCF', 'vcf'),
+    ...(fxTypeId ? [grp(opts.perVoiceFx === 'comb' ? 'Comb' : 'Phaser', 'fx')] : []),
     grp('envAmp', 'envAmp'),
     grp('CvMath', 'cvmath'),
     grp('VCA',  'vca'),
@@ -1994,35 +2243,81 @@ export function seedPolyVoicePatch(project: ModularProject, voiceCount: number):
   //   VCO→VCF, VCF→VCA, envFlt→VCF, envAmp→CvMath, CvMath→VCA zijn group→group
   //   (stem v → stem v). VCA→mixer is group→genummerde sink (in1→in1..inN).
   const connections: PatchConnection[] = [
-    // Audio: VCO → VCF → VCA → mixer (master = mixer-kanaal in1; stem v → inv)
+    // Audio: bron → VCF → (fx →) VCA → mixer (master = in1; stem v → inv)
     c({ m: master.vco, port: 'out'    }, { m: master.vcf, port: 'in'    }),
-    c({ m: master.vcf, port: 'out'    }, { m: master.vca, port: 'in'    }),
+    ...(master.fx
+      ? [c({ m: master.vcf, port: 'out' }, { m: master.fx,  port: 'in' }),
+         c({ m: master.fx,  port: 'out' }, { m: master.vca, port: 'in' })]
+      : [c({ m: master.vcf, port: 'out' }, { m: master.vca, port: 'in' })]),
     c({ m: master.vca, port: 'out'    }, { m: mixer,      port: 'in1'   }),
     // CV: mono MIDI-poorten (voice-event) → master; fan-out per stem
     c({ m: mi,         port: 'pitch'  }, { m: master.vco,    port: 'voct' }),
     c({ m: mi,         port: 'gate'   }, { m: master.envAmp, port: 'gate' }),
     c({ m: mi,         port: 'gate'   }, { m: master.envFlt, port: 'gate' }),
-    // CV: pitch-bend (globale MOD-out) → VCO tune-ingang. Globaal → group
-    // fan-out: dezelfde bend gaat naar elke stem-VCO. De hoofd-V/Oct (pitch)
-    // blijft de noot; tune verschuift de pitch exponentieel (±bendRange).
-    c({ m: mi,         port: 'cv_bend' }, { m: master.vco,   port: 'tune' }),
-    // CV: filter-env → cutoff (group→group)
-    c({ m: master.envFlt, port: 'cv_out' }, { m: master.vcf,    port: 'cv' }),
+    // String/STK-bron: de gate plukt de snaar / triggert noteOn (VCO heeft
+    // simpelweg geen gate-poort, dus alleen bij deze bronnen bedraden).
+    ...(opts.voiceSource === 'string' || opts.voiceSource === 'stk'
+      ? [c({ m: mi, port: 'gate' }, { m: master.vco, port: 'gate' })]
+      : []),
+    // CV: vibrato + pitch-bend → tune (alleen bij VCO-bron; String en STK
+    // hebben geen tune-ingang).
+    ...(opts.voiceSource !== 'string' && opts.voiceSource !== 'stk' ? [
+      c({ m: lfo,      port: 'out'     }, { m: vibDepth, port: 'a' }),
+      c({ m: mi,       port: 'cv_mod'  }, { m: vibDepth, port: 'b' }),
+      c({ m: vibDepth, port: 'out'     }, { m: bendSum,  port: 'a' }),
+      c({ m: mi,       port: 'cv_bend' }, { m: bendSum,  port: 'b' }),
+      c({ m: bendSum,  port: 'out'     }, { m: master.vco, port: 'tune' }),
+    ] : []),
+    // STK-bron: mod-wheel-LFO → modulation-poort (CC#11-laag van het model:
+    // noiseGain, bowVelocity, vibrato, …) en velocity → strength (aanslag/
+    // embouchure — telt in de firmware op bij de strength-knop).
+    ...(opts.voiceSource === 'stk' ? [
+      c({ m: lfo,      port: 'out'    }, { m: vibDepth,   port: 'a' }),
+      c({ m: mi,       port: 'cv_mod' }, { m: vibDepth,   port: 'b' }),
+      c({ m: vibDepth, port: 'out'    }, { m: master.vco, port: 'modulation' }),
+      c({ m: mi,       port: 'vel'    }, { m: master.vco, port: 'strength' }),
+    ] : []),
+    // CV: filter-env → cutoff. Met perVoiceLfo loopt hij via een sum-CvMath
+    // zodat envelope én stem-LFO samen de cutoff moduleren (group→group).
+    ...(master.lfoSum && master.lfoV ? [
+      c({ m: master.envFlt, port: 'cv_out' }, { m: master.lfoSum, port: 'a' }),
+      c({ m: master.lfoV,   port: 'out'    }, { m: master.lfoSum, port: 'b' }),
+      c({ m: master.lfoSum, port: 'out'    }, { m: master.vcf,    port: 'cv' }),
+    ] : [
+      c({ m: master.envFlt, port: 'cv_out' }, { m: master.vcf,    port: 'cv' }),
+    ]),
     // CV: amp-env × velocity → VCA
     c({ m: master.envAmp, port: 'cv_out' }, { m: master.cvmath, port: 'a'  }),
     c({ m: mi,            port: 'vel'    }, { m: master.cvmath, port: 'b'  }),
     c({ m: master.cvmath, port: 'out'    }, { m: master.vca,    port: 'cv' }),
-    // Mixer → OUT (stereo, global→global)
-    c({ m: mixer, port: 'out_l' }, { m: out, port: 'l' }),
-    c({ m: mixer, port: 'out_r' }, { m: out, port: 'r' }),
+    // Mixer → (echo →) OUT (stereo, global→global)
+    ...(echoL && echoR ? [
+      c({ m: mixer, port: 'out_l' }, { m: echoL, port: 'in' }),
+      c({ m: echoL, port: 'out'   }, { m: out,   port: 'l'  }),
+      c({ m: mixer, port: 'out_r' }, { m: echoR, port: 'in' }),
+      c({ m: echoR, port: 'out'   }, { m: out,   port: 'r'  }),
+    ] : [
+      c({ m: mixer, port: 'out_l' }, { m: out, port: 'l' }),
+      c({ m: mixer, port: 'out_r' }, { m: out, port: 'r' }),
+    ]),
+    // Elements-stem (mono bespeeld, stereo naar de 2 extra mixerkanalen).
+    ...(elements ? [
+      c({ m: mi,       port: 'pitch' }, { m: elements, port: 'voct'         }),
+      c({ m: mi,       port: 'gate'  }, { m: elements, port: 'gate'         }),
+      c({ m: elements, port: 'out_l' }, { m: mixer,    port: `in${N + 1}`   }),
+      c({ m: elements, port: 'out_r' }, { m: mixer,    port: `in${N + 2}`   }),
+    ] : []),
   ];
 
-  // Mixer-controlstate: kanaal 1..N op vol 0.8 (pan 0), overige kanalen dicht.
-  const mixerChannels = N > 8 ? 16 : N > 4 ? 8 : 4;
+  // Mixer-controlstate: kanaal 1..N op vol 0.8 (pan 0), daarna evt. 2 stereo
+  // Elements-kanalen (L/R gepand), overige kanalen dicht.
+  const mixerChannels = channelsNeeded > 8 ? 16 : channelsNeeded > 4 ? 8 : 4;
   const mixerState: Record<string, ControlValue> = {};
   for (let ch = 1; ch <= mixerChannels; ++ch) {
-    mixerState[`vol${ch}`] = ch <= N ? 0.8 : 0;
-    mixerState[`pan${ch}`] = 0;
+    const isVoice    = ch <= N;
+    const isElements = elements !== null && (ch === N + 1 || ch === N + 2);
+    mixerState[`vol${ch}`] = isVoice ? 0.8 : isElements ? 0.7 : 0;
+    mixerState[`pan${ch}`] = isElements ? (ch === N + 1 ? -0.7 : 0.7) : 0;
   }
 
   const controlState: Record<string, Record<string, ControlValue>> = {
@@ -2031,25 +2326,78 @@ export function seedPolyVoicePatch(project: ModularProject, voiceCount: number):
     [mi.id]:    { channel: 0, priority: 0, steal: 0, legato: 0, voiceCount: N },
     [mixer.id]: mixerState,
     [out.id]:   { level: 0.8 },
+    // Vibrato: 5.5 Hz sinus, bipolair. Mod wheel (cv_mod 0..1) is de depth
+    // via de mult-CvMath; de sum-CvMath schaalt naar ±0.04 V (≈ ±½ semitoon)
+    // en telt de pitch-bend erbij op.
+    [lfo.id]:      { rate: 5.5, wave: 0, depth: 1, bipolar: true, run: 0 },
+    [vibDepth.id]: { mode: 1, gain_a: 1, gain_b: 1, gain_c: 1, offset: 0 },
+    [bendSum.id]:  { mode: 0, gain_a: 0.04, gain_b: 1, gain_c: 0, offset: 0 },
   };
+  // Bus-echo: tijd gecapt op de firmware-limiet (kMaxDelayMs = 500 ms).
+  if (echoL && echoR) {
+    const t = Math.min(0.5, Math.max(0.05, opts.busEchoSeconds ?? 0.5));
+    controlState[echoL.id] = { time: t,        feedback: 0.55, mix: 0.4 };
+    controlState[echoR.id] = { time: t * 0.75, feedback: 0.55, mix: 0.4 };  // L≠R = breedte
+  }
   voices.forEach((v) => {
-    controlState[v.vco.id]    = { wave: 2, coarse: 0, fine: 0, level: 0.9 };
-    controlState[v.vcf.id]    = { cutoff: 800, q: 0.8, cv_amt: 1, type: 0 };
+    controlState[v.vco.id] = opts.voiceSource === 'string'
+      ? { pluck: 0.9, level: 0.9 }
+      : opts.voiceSource === 'stk'
+      ? { sound: opts.stkSound ?? 0, level: 0.9, strength: 0.7, timbre: 0.5, modulation: 0.5 }
+      : { wave: 2, coarse: 0, fine: 0, level: 0.9 };
+    // Filter-instellingen per type: de envFlt-sweep (0..1 op `cv`) werkt bij
+    // ladder/ms20 in octaven (cv_amt), bij de VCF als 0..1-modulatie.
+    controlState[v.vcf.id] = opts.filterType === 'ladder'
+      ? { cutoff: 500, q: 0.9, drive: 1.5, cv_amt: 3, q_cv_amt: 0.5 }
+      : opts.filterType === 'ms20'
+        ? { cutoff: 500, q: 0.6, drive: 2.5, cv_amt: 3, q_cv_amt: 0.5, type: 0 }
+        : { cutoff: 800, q: 0.8, cv_amt: 1, type: 0 };
     controlState[v.vca.id]    = { gain: 0, resp: 0 };
     controlState[v.envAmp.id] = { attack: 8, hold: 0, decay: 300, sustain: 0.7, release: 500, loop: false, curve: 1 };
     controlState[v.envFlt.id] = { attack: 20, hold: 0, decay: 600, sustain: 0.3, release: 800, loop: false, curve: 1, retrig: true };
     controlState[v.cvmath.id] = { mode: 1, gain_a: 1, gain_b: 1, gain_c: 1, offset: 0 };
+    if (v.fx) {
+      controlState[v.fx.id] = opts.perVoiceFx === 'comb'
+        ? { coarse: 0, feedback: 0.85, mix: 0.4 }
+        : { rate: 0.4, depth: 0.7, mix: 0.5 };
+    }
+    if (v.lfoV && v.lfoSum) {
+      // Stem-LFO: traag filter-wobble; sum weegt envelope zwaarder dan LFO.
+      controlState[v.lfoV.id]   = { rate: 0.7, wave: 1, depth: 1, bipolar: true, run: 0 };
+      controlState[v.lfoSum.id] = { mode: 0, gain_a: 1, gain_b: 0.25, gain_c: 0, offset: 0 };
+    }
   });
 
   const allModules: ModuleInstance[] = [mi];
-  for (const v of voices) allModules.push(v.vco, v.vcf, v.vca, v.envAmp, v.envFlt, v.cvmath);
-  allModules.push(mixer, out);
+  for (const v of voices) {
+    allModules.push(v.vco, v.vcf, v.vca, v.envAmp, v.envFlt, v.cvmath);
+    if (v.fx)     allModules.push(v.fx);
+    if (v.lfoV)   allModules.push(v.lfoV);
+    if (v.lfoSum) allModules.push(v.lfoSum);
+  }
+  allModules.push(mixer, out, lfo, vibDepth, bendSum, ...extras);
 
+  const stkSoundNames = ['Plucked','Clarinet','Bowed','Flute','Brass','Saxophony','BlowHole','BandedWG','Mandolin'];
+  const extrasLabel = [
+    opts.voiceSource === 'string' ? 'string-voices' : null,
+    opts.voiceSource === 'stk'    ? `STK ${stkSoundNames[opts.stkSound ?? 0] ?? '?'}` : null,
+    opts.filterType && opts.filterType !== 'vcf' ? `${opts.filterType}-filter` : null,
+    fxTypeId ? `${opts.perVoiceFx}/stem` : null,
+    opts.perVoiceLfo ? 'LFO/stem' : null,
+    echoL ? 'bus-echo' : null,
+    elements ? '+Elements' : null,
+  ].filter(Boolean).join(' · ');
   const patch: Patch = {
-    id: uid('patch'), name: `${N}-stemmige patch`,
-    description: N >= 2
+    id: uid('patch'),
+    name: opts.label ?? (extrasLabel ? `${N}-stemmig 🔥 ${extrasLabel}` : `${N}-stemmige patch`),
+    description: (N >= 2
       ? `Eén master voice-keten + PolyGroups (×${N}). De flatten expandeert naar ${N} stemmen via MidiIn pitch/gate/vel en VCA→${N > 4 ? 'MIXER-8' : 'mixer'} in1..in${N} (ADR 0011 optie B).`
-      : 'Monofone voice-keten (geen PolyGroups): MidiIn → VCO → VCF → VCA → mixer → OUT.',
+      : 'Monofone voice-keten (geen PolyGroups): MidiIn → bron → VCF → VCA → mixer → OUT.')
+      + (opts.voiceSource === 'stk'
+        ? ' Mod-wheel-LFO → STK modulation, velocity → strength (alle stemmen).'
+        : opts.voiceSource !== 'string'
+        ? ' Vibrato: LFO×mod-wheel + pitch-bend → VCO tune (alle stemmen).' : '')
+      + (extrasLabel ? ` Stress-opties: ${extrasLabel}.` : ''),
     voiceCount: N,
     rackIds: [rack.id],
     connections,

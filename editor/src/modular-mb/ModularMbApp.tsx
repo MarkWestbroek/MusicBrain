@@ -7,7 +7,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { setProject, updateProject, useModularProject, getProject, undo, redo } from './store';
 import { emptyModularProject } from './types';
-import { seedExampleModules, seedInternals, seedTestPatch, seedCvBridgePatch, seedPolyVoicePatch } from './seedModules';
+import { seedExampleModules, seedInternals, seedTestPatch, seedCvBridgePatch, seedPolyVoicePatch, type PolySeedOptions } from './seedModules';
 import { PatchesPanel } from './PatchesPanel';
 import { ModulesPanel } from './ModulesPanel';
 import { CategoriesPanel } from './CategoriesPanel';
@@ -39,6 +39,7 @@ export function ModularMbApp(): JSX.Element {
   const [showPresets, setShowPresets] = useState(false);
   const [showTeensy,  setShowTeensy]  = useState(false);
   const [showPoly,    setShowPoly]    = useState(false);
+  const [showStress,  setShowStress]  = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
 
   // ─── Global undo/redo: Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z ───────────────
@@ -239,6 +240,46 @@ export function ModularMbApp(): JSX.Element {
                     }}
                     title={`${n}-stemmige patch${n > 8 ? ' (16-in mixer)' : n > 4 ? ' (8-in mixer)' : ''}`}
                   >{n}-stemmig{n === 1 ? ' (mono)' : ''}</button>
+                ))}
+              </div>
+            )}
+          </span>
+          <span style={{ position: 'relative', display: 'inline-block' }}>
+            <button
+              onClick={() => setShowStress((v) => !v)}
+              title="Stress-seeds: energievretende varianten van de poly-patch om de Teensy te pushen. Kijk in de status-strip (CPU / blocks / loop) hoe ver hij gaat."
+            >🔥 Stress ▾</button>
+            {showStress && (
+              <div
+                style={{
+                  position: 'absolute', top: '100%', left: 0, zIndex: 20,
+                  background: '#ffffff', border: '1px solid #cbd2d9', borderRadius: 6,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)', marginTop: 2, minWidth: 240,
+                  display: 'flex', flexDirection: 'column',
+                }}
+                onMouseLeave={() => setShowStress(false)}
+              >
+                {([
+                  { label: '🪕 Strings ×16 (Karplus-Strong)', n: 16, o: { voiceSource: 'string' } },
+                  { label: '🪜 Ladder-filter ×8 (Moog)',      n: 8,  o: { filterType: 'ladder' } },
+                  { label: '⚡ MS-20 scream ×8 (Korg35)',     n: 8,  o: { filterType: 'ms20' } },
+                  { label: '🎻 STK Bowed ×8',                 n: 8,  o: { voiceSource: 'stk', stkSound: 2 } },
+                  { label: '🌀 Comb per stem ×16',            n: 16, o: { perVoiceFx: 'comb' } },
+                  { label: '〰️ CV-storm ×8 (LFO per stem)',   n: 8,  o: { perVoiceLfo: true } },
+                  { label: '🔁 Echo-bus ×8 (2× 0,5 s)',       n: 8,  o: { busEchoSeconds: 0.5 } },
+                  { label: '💎 Elements + 4-stemmig',         n: 4,  o: { withElements: true } },
+                  { label: '🔥 Alles tegelijk ×8',            n: 8,  o: {
+                      voiceSource: 'string', perVoiceFx: 'comb', perVoiceLfo: true,
+                      busEchoSeconds: 0.5, withElements: true } },
+                ] as { label: string; n: number; o: PolySeedOptions }[]).map((s) => (
+                  <button
+                    key={s.label}
+                    onClick={() => { setProject(seedPolyVoicePatch(getProject(), s.n, s.o)); setShowStress(false); }}
+                    style={{
+                      textAlign: 'left', border: 'none', background: 'transparent',
+                      padding: '7px 12px', cursor: 'pointer', fontSize: 13,
+                    }}
+                  >{s.label}</button>
                 ))}
               </div>
             )}

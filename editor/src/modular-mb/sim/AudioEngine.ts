@@ -7,7 +7,7 @@
 //
 // Port-naming-conventies (zie seedModules.ts → mmbVco/Vcf/Vca/Out/Ahdsr/Seq):
 //   VCO : out 'out' (audio), in 'voct' (cv 1V/oct), 'fm' (cv)
-//   VCF : out 'out' (audio), in 'in' (audio), 'cv' (cv → cutoff)
+//   VCF : out 'out' (audio), in 'in' (audio), 'cv' (cv → cutoff), 'q_cv' (cv → resonance)
 //   VCA : out 'out' (audio), in 'in' (audio), 'cv' (cv → gain)
 //   ENV : out 'cv_out' (cv 0..1), 'eoc' (trig); in 'gate' (gate), 'trig' (trig)
 //   LFO : out 'out' (cv), 'out_inv' (cv); in 'rate_cv' (cv), 'reset' (trig)
@@ -28,7 +28,7 @@ import type {
   ModularProject, Patch, ModuleInstance, ModuleType,
   PatchConnection, ControlValue, SignalType,
 } from '../types';
-import { registry, Vcf, Vco, Vca, Ahdsr, Lfo } from '../runtime';
+import { registry, Vcf, Ladder, Ms20, Vco, Vca, Ahdsr, Lfo } from '../runtime';
 
 export interface EngineStatus {
   running: boolean;
@@ -69,6 +69,12 @@ interface VcfNode extends BaseNode {
   baseCutoff: number;
   /** Scale node injected during wire() when a CV source is connected. */
   cvScale: Tone.Scale | null;
+  /** Base resonance from the q knob (module units: Q for VCF, 0–1.8 for ladder). */
+  baseQ: number;
+  /** Q-CV depth from the q_cv_amt knob (module units, added to baseQ at full-scale CV). */
+  qCvAmt: number;
+  /** Scale node injected during wire() when a Q-CV source is connected. */
+  qCvScale: Tone.Scale | null;
 }
 interface VcaNode extends BaseNode {
   kind: 'vca';
@@ -361,7 +367,8 @@ export class AudioEngine {
         // Velocity → CvMath-factor (mult-mode): bepaalt de VCA-amplitude per noot.
         for (const tgt of mi.velTargets) {
           const cm = this.nodes.get(tgt);
-          if (cm?.kind === 'cvmath' && cm.mult) cm.mult.factor.rampTo(clamp(velocity, 0, 1), 0.005);
+          // Spiegelt firmware-mult: factor = velocity × gain_b.
+          if (cm?.kind === 'cvmath' && cm.mult) cm.mult.factor.rampTo(clamp(velocity, 0, 1) * cm.gainB, 0.005);
         }
         for (const tgt of mi.seqVoctTargets) {
           const seq = this.nodes.get(tgt);
@@ -487,7 +494,12 @@ export class AudioEngine {
         return true;
       }
       case 'vcf': {
-        if (controlId === 'type') return false;
+        if (controlId === 'type') {
+          // MS-20 switches LP/HP live (runtime flips Tone.Filter.type);
+          // the SVF VCF needs a rebuild (output-channel mapping).
+          if (node.type.id === Ms20.typeId) { node.runtime.setControl('type', num); return true; }
+          return false;
+        }
         if (controlId === 'cutoff') {
           node.baseCutoff = num;
           if (node.cvScale) {
@@ -500,8 +512,29 @@ export class AudioEngine {
           }
           return true;
         }
-        if (controlId === 'q' || controlId === 'res') { node.runtime.setControl('q', num); return true; }
-        if (controlId === 'cv_amt') { node.cvAmt = num; return true; }
+        if (controlId === 'q' || controlId === 'res') {
+          node.baseQ = num;
+          if (node.qCvScale) {
+            // filter.Q is overridden by the Q-CV Scale; shift the scale range
+            // instead (same pattern as cutoff above).
+            node.qCvScale.min = node.runtime.resonanceToQ(num);
+            node.qCvScale.max = node.runtime.resonanceToQ(num + node.qCvAmt);
+          } else {
+            node.runtime.setControl('q', num);
+          }
+          return true;
+        }
+        if (controlId === 'q_cv_amt') {
+          node.qCvAmt = num;
+          if (node.qCvScale) node.qCvScale.max = node.runtime.resonanceToQ(node.baseQ + num);
+          return true;
+        }
+        if (controlId === 'drive') { node.runtime.setControl('drive', num); return true; }
+        if (controlId === 'cv_amt') {
+          const octaveCv = node.type.id === Ladder.typeId || node.type.id === Ms20.typeId;
+          node.cvAmt = octaveCv ? clamp(num / 7, 0, 1) : num;
+          return true;
+        }
         return true;
       }
       case 'vca': {
@@ -621,7 +654,7 @@ export class AudioEngine {
     for (const node of this.nodes.values()) {
       switch (node.kind) {
         case 'vco': node.runtime.dispose(); break;
-        case 'vcf': node.runtime.dispose(); break;
+        case 'vcf': node.runtime.dispose(); node.cvScale?.dispose(); node.qCvScale?.dispose(); break;
         case 'vca': node.runtime.dispose(); node.cvSum?.dispose(); break;
         case 'envelope': node.runtime.dispose(); break;
         case 'lfo': node.runtime.dispose(); break;
@@ -729,10 +762,17 @@ export class AudioEngine {
       }
       case 'vcf': {
         if (!registry.has(t.id)) return null;
-        const cvAmt = clamp(readKnob(controls, 'cv_amt', 1), 0, 1);
+        // Ladder & MS-20 cv_amt is in octaves (0–7); normalize to the 0–1
+        // depth the cutoff-CV Scale wiring expects. The VCF knob is already 0–1.
+        const octaveCvAmt = t.id === Ladder.typeId || t.id === Ms20.typeId;
+        const cvAmtRaw = readKnob(controls, 'cv_amt', 1);
+        const cvAmt = octaveCvAmt ? clamp(cvAmtRaw / 7, 0, 1) : clamp(cvAmtRaw, 0, 1);
         const rt = registry.create(t, m, controls) as Vcf;
         const baseCutoff = clamp(readKnob(controls, 'cutoff', 2000), 20, 18000);
-        return { ...base, kind: 'vcf', runtime: rt, filter: rt.filter, cvAmt, baseCutoff, cvScale: null };
+        const baseQ = readKnob(controls, 'q', 0.7);
+        const qCvAmt = readKnob(controls, 'q_cv_amt', 0);
+        return { ...base, kind: 'vcf', runtime: rt, filter: rt.filter, cvAmt, baseCutoff, cvScale: null,
+                 baseQ, qCvAmt, qCvScale: null };
       }
       case 'vca': {
         if (!registry.has(t.id)) return null;
@@ -848,7 +888,12 @@ export class AudioEngine {
         if (!out) return;
         if (dst.mode === 1 && dst.mult) {
           // mult: 'a' → hoofdingang, 'b' → factor (signaal-gestuurde modulatie).
-          if (port === 'b') out.connect(dst.mult.factor); else out.connect(dst.mult);
+          // Beide eerst door hun gain — spiegelt firmware (a·gain_a)×(b·gain_b).
+          const g = port === 'b' ? dst.gainB : dst.gainA;
+          const scaler = new Tone.Gain(g);
+          out.connect(scaler);
+          if (port === 'b') scaler.connect(dst.mult.factor); else scaler.connect(dst.mult);
+          dst.extra.push(scaler);
         } else {
           const g = port === 'b' ? dst.gainB : port === 'c' ? dst.gainC : dst.gainA;
           const scaler = new Tone.Gain(g);
@@ -872,6 +917,22 @@ export class AudioEngine {
         out.connect(scale);
         scale.connect(dst.filter.frequency);
         dst.cvScale = scale;
+        return;
+      }
+      if (dst.kind === 'vcf' && conn.to.portId === 'q_cv') {
+        // Map 0..1 CV → resonance offset on top of the Q knob: baseQ at CV 0,
+        // baseQ + q_cv_amt at full-scale. resonanceToQ translates module
+        // resonance units to the biquad Q param (1:1 for the VCF, mapped for
+        // the ladder). Connecting the Scale overrides filter.Q (Tone.js).
+        const out = cvOutputOf(src);
+        if (!out) return;
+        const scale = new Tone.Scale(
+          dst.runtime.resonanceToQ(dst.baseQ),
+          dst.runtime.resonanceToQ(dst.baseQ + dst.qCvAmt),
+        );
+        out.connect(scale);
+        scale.connect(dst.filter.Q);
+        dst.qCvScale = scale;
         return;
       }
       // VCO V/Oct uit een SEQ-module → handled door step-update, niet via signal.

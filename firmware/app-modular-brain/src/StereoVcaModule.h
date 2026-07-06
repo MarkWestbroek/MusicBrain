@@ -71,12 +71,13 @@ public:
     }
     PortKind inputPortKind(std::string_view portId) const override {
         if (portId == "in")                  return PortKind::Audio;
-        if (portId == "vol" || portId == "pan") return PortKind::Cv;
+        // cvPortIs: accepteert ook de editor-aliassen vol_cv/pan_cv.
+        if (cvPortIs(portId, "vol") || cvPortIs(portId, "pan")) return PortKind::Cv;
         return PortKind::None;
     }
     void writeCvPort(std::string_view portId, float value) override {
-        if      (portId == "vol") { vol_ = clampf(value, 0.0f, 1.0f); recompute(); }
-        else if (portId == "pan") { pan_ = clampf(value, -1.0f, 1.0f); recompute(); }
+        if      (cvPortIs(portId, "vol")) { vol_ = clampf(value, 0.0f, 1.0f); recompute(); }
+        else if (cvPortIs(portId, "pan")) { pan_ = clampf(value, -1.0f, 1.0f); recompute(); }
     }
 
     void setControl(std::string_view controlId,
