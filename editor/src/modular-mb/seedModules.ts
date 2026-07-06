@@ -1552,6 +1552,90 @@ function mmbPlaits() {
   });
 }
 
+// 14d. MMB CLOUDS — 14 HP. Mutable Instruments Clouds granular processor
+//     (FW-FX-4): stereo in → korrelwolk → stereo uit. 4 playback-modes.
+function mmbClouds() {
+  const w = W(14);
+  const col = (i: number): number => w * (0.12 + i * 0.19);   // 5 kolommen
+  return assemble({
+    typeId: 'tp_mmb_clouds',
+    categoryId: 'effect',
+    variant: 'Clouds (MI granular)',
+    brand: 'MI', model: 'CLOUDS',
+    hp: 14, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'CLOUDS', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13,  text: 'granular · texture', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MI', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('position', 'Position', col(0), 28, { size: 'large', min: 0, max: 1, def: 0.3, color: '#f9fafb' }),
+      knob('size',     'Size',     col(1), 28, { size: 'large', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('pitch',    'Pitch',    col(2), 28, { size: 'large', min: -24, max: 24, def: 0, unit: 'semi', color: '#f9fafb' }),
+      knob('density',  'Density',  col(3), 28, { size: 'large', min: 0, max: 1, def: 0.6, color: '#e11d48' }),
+      knob('texture',  'Texture',  col(4), 28, { size: 'large', min: 0, max: 1, def: 0.5, color: '#0891b2' }),
+      knob('mix',      'Mix',      col(0), 56, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('spread',   'Spread',   col(1), 56, { size: 'small', min: 0, max: 1, def: 0.3, color: '#f9fafb' }),
+      knob('feedback', 'Feedbk',   col(2), 56, { size: 'small', min: 0, max: 1, def: 0.3, color: '#f9fafb' }),
+      knob('reverb',   'Reverb',   col(3), 56, { size: 'small', min: 0, max: 1, def: 0.3, color: '#f9fafb' }),
+      knob('level',    'Level',    col(4), 56, { size: 'small', min: 0, max: 1, def: 1, color: '#f9fafb' }),
+      // 0=Granular 1=Stretch 2=Looping-delay 3=Spectral.
+      sw    ('mode',   'Mode',   w*0.28, 80, ['Gran','Strch','Loop','Spect'], 0),
+      toggle('freeze', 'Freeze', w*0.72, 80),
+
+      inPort ('in_l',   'In L',  'audio', col(0), 102),
+      inPort ('in_r',   'In R',  'audio', col(1), 102),
+      inPort ('freeze', 'Frz',   'gate',  col(2), 102),
+      inPort ('trig',   'Trig',  'gate',  col(3), 102),
+      outPort('out_l',  'Out L', 'audio', col(2), 118),
+      outPort('out_r',  'Out R', 'audio', col(3), 118),
+      inPort ('position_cv', 'P+', 'cv', col(0), 118),
+      inPort ('density_cv',  'D+', 'cv', col(1), 118),
+      inPort ('texture_cv',  'T+', 'cv', col(4), 118),
+    ],
+    notes: 'Mutable Instruments Clouds granular processor (firmware tp_mmb_clouds, FW-FX-4). Stereo in → korrelwolk → stereo uit; mono-bron op In L werkt ook. Freeze bevriest de audiobuffer (jack of toggle), Trig vuurt één korrel. Modes: granular / pitch-stretch / looping delay / spectral. CV-ingangen: position/density/texture (ook size_cv/pitch_cv/mix_cv via kabel). Let op: één instantie kost ~26% CPU en ~180 KB heap.',
+  });
+}
+
+// 14e. MMB TIDES — 10 HP. Mutable Instruments Tides (tides2) slope-generator
+//     (FW-CV-1): CV-domein op de 1 kHz-tick — LFO/envelope tot ~100 Hz,
+//     vier samenhangende uitgangen.
+function mmbTides() {
+  const w = W(10);
+  const col = (i: number): number => w * (0.16 + i * 0.34);
+  return assemble({
+    typeId: 'tp_mmb_tides',
+    categoryId: 'lfo',
+    variant: 'Tides (MI slopes)',
+    brand: 'MI', model: 'TIDES',
+    hp: 10, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'TIDES', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13,  text: 'slopes · 4 uitgangen', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MI', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('rate',  'Rate',  w/2, 26, { size: 'large', min: 0.01, max: 100, def: 2, unit: 'Hz', color: '#f9fafb' }),
+      // mode: 0=AD (envelope) 1=Loop (LFO) 2=AR (gate-envelope).
+      sw  ('mode',   'Mode',   w*0.28, 50, ['AD','Loop','AR'], 1),
+      // output: wat de 4 uitgangen betekenen.
+      sw  ('output', 'Out',    w*0.72, 50, ['Gates','Ampl','Phase','Freq'], 1),
+      knob('shape',  'Shape',  col(0), 74, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('slope',  'Slope',  col(1), 74, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('smooth', 'Smooth', col(2), 74, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('shift',  'Shift',  w/2,    92, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+
+      inPort ('gate',    'Gate', 'gate', col(0), 108),
+      inPort ('rate_cv', 'R+',   'cv',   col(2), 108),
+      outPort('out1', '1', 'cv', w*0.16, 120),
+      outPort('out2', '2', 'cv', w*0.40, 120),
+      outPort('out3', '3', 'cv', w*0.62, 120),
+      outPort('out4', '4', 'cv', w*0.86, 120),
+    ],
+    notes: 'Mutable Instruments Tides (tides2) slope-generator (firmware tp_mmb_tides, FW-CV-1). CV-domein op de 1 kHz-tick: LFO/envelope tot ~100 Hz. Mode: AD = trigger-envelope, Loop = LFO, AR = gate-envelope. Out-mode bepaalt de 4 uitgangen: Gates (slope+EOA+EOR), Ampl (4 niveaus via Shift), Phase (4 fasen — quadratuur-LFO!), Freq (4 gerelateerde snelheden). Rate-CV is exponentieel (±1 = ±1 octaaf). Uitgangen genormaliseerd (fullscale ≈ 1.0).',
+  });
+}
+
 // 15. MMB COMP — 6 HP. Feed-forward compressor met lichte tanh-overdrive
 //     (firmware tp_mmb_comp, FW-FX-2). De Audio-lib heeft geen compressor,
 //     dus dit is een custom AudioStream.
@@ -1765,7 +1849,7 @@ function mmbStkSound() {
 // ── public entry ───────────────────────────────────────────────────────
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbComp(), mmbNoise(), mmbEcho(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbComp(), mmbNoise(), mmbEcho(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound()];
   const newTypes = all.map((x) => x.type);
   const newModules = all.map((x) => x.module);
 
