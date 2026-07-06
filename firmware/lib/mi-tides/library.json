@@ -1,0 +1,11 @@
+{
+  "name": "mi-tides",
+  "version": "1.0.0",
+  "description": "Mutable Instruments Tides (tides2) — PolySlopeGenerator (MIT, (c) Emilie Gillet), gevendorde subset voor MMB TidesModule (tp_mmb_tides). Op de brain als CV-domein-module op de 1 kHz-tick: 4-kanaals slope/LFO/envelope-generator (AD/loop/AR × gates/amplitude/phase/frequency).",
+  "license": "MIT",
+  "homepage": "https://github.com/pichenettes/eurorack",
+  "build": {
+    "flags": ["-I."],
+    "srcFilter": ["+<tides2/>"]
+  }
+}

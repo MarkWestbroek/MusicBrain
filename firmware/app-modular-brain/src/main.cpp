@@ -296,6 +296,21 @@ void onGetStatus(JsonObject s) {
         s["plaitsPeak"]  = pm->voice().takePeak();
         break;
     }
+    // ... Clouds (granular FX).
+    for (auto& [id, mod] : runtime.instances()) {
+        if (mod->typeId() != std::string_view{mmb_link::CloudsModule::kTypeId}) continue;
+        auto* cm = static_cast<mmb_link::CloudsModule*>(mod.get());
+        s["cloudsReady"] = cm->voice().dspReady();
+        s["cloudsCpu"]   = cm->voice().processorUsage();
+        s["cloudsPeak"]  = cm->voice().takePeak();
+        break;
+    }
+    // ... Tides (CV-domein): live waarde van out1 als teken van leven.
+    for (auto& [id, mod] : runtime.instances()) {
+        if (mod->typeId() != std::string_view{mmb_link::TidesModule::kTypeId}) continue;
+        s["tidesOut1"] = mod->readCvPort("out1");
+        break;
+    }
 }
 
 void onSetStatic(bool enabled) {

@@ -1,6 +1,8 @@
-mi-elements
-bblanchon/ArduinoJson@^7.1.0
-mi-rings
-core
-mi-plaits
 stk
+bblanchon/ArduinoJson@^7.1.0
+mi-elements
+core
+mi-clouds
+mi-plaits
+mi-tides
+mi-rings

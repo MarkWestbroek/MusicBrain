@@ -1,0 +1,11 @@
+{
+  "name": "mi-clouds",
+  "version": "1.0.0",
+  "description": "Mutable Instruments Clouds — granular audio processor (MIT, (c) Emilie Gillet), gevendorde subset voor MMB CloudsModule (tp_mmb_clouds). 32 kHz, GranularProcessor met 118+64 KB werkbuffers (heap), 4 playback-modes. stmlib-headers byte-identiek aan mi-elements waar overlappend.",
+  "license": "MIT",
+  "homepage": "https://github.com/pichenettes/eurorack",
+  "build": {
+    "flags": ["-I."],
+    "srcFilter": ["+<clouds/>", "+<stmlib/dsp/atan.cc>"]
+  }
+}

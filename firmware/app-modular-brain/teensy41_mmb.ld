@@ -47,6 +47,8 @@ SECTIONS
 	.text.mmbdsp : {
 		*libmi-plaits.a:(.text* .rodata*)
 		*libmi-rings.a:(.text* .rodata*)
+		*libmi-clouds.a:(.text* .rodata*)
+		*libmi-tides.a:(.text* .rodata*)
 		. = ALIGN(4);
 	} > FLASH
 
