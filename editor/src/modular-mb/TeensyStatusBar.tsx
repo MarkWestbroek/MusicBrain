@@ -37,8 +37,12 @@ export function TeensyStatusBar(props: { compact?: boolean }): JSX.Element | nul
         </span>
       )}
       {st.outPeak !== undefined && (
-        <span title="Master-uitgang: hoogste |sample| sinds de vorige poll — hét 'hoor ik iets?'-signaal. 0.000 = stilte.">
-          uit <b style={{ color: st.outPeak > 0.005 ? '#34d399' : '#64748b' }}>{st.outPeak.toFixed(3)}</b>
+        <span title="Master-uitgang: hoogste |sample| sinds de vorige poll (1.000 = digitale full scale). 0.000 = stilte; ≥0.999 = clipping — draai OUT-level of module-levels terug.">
+          uit <b style={{
+            color: st.outPeak >= 0.999 ? '#f87171'
+                 : st.outPeak > 0.9    ? '#fbbf24'
+                 : st.outPeak > 0.005  ? '#34d399' : '#64748b',
+          }}>{st.outPeak.toFixed(3)}{st.outPeak >= 0.999 ? ' CLIP!' : ''}</b>
         </span>
       )}
       {st.stkOom && (
