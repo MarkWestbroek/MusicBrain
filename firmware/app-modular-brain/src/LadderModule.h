@@ -37,6 +37,7 @@
  * | `drive`    | float | Input drive 0 … 4 (>1 overdrives, tanh clipping) |
  * | `cv_amt`   | float | Cutoff-CV depth in octaves (0 … 7)               |
  * | `q_cv_amt` | float | Q-CV depth in resonance units (0 … 1)            |
+ * | `drive_cv_amt` | float | Drive-CV depth: ±1 CV ⇒ drive ×4…÷4 bij amt 1 |
  *
  * CPU (Teensy 4.x): ~1% static, ~2-3% with both CV inputs active.
  */
@@ -44,6 +45,7 @@
 #include "AudioModule.h"
 #include "mb/runtime/Registry.h"
 #include <Audio.h>
+#include <cmath>
 #include <string_view>
 
 namespace mmb_link {
@@ -91,27 +93,37 @@ public:
         } else if (controlId == "q") {
             ladder_.resonance(asFloat(0.7f));  // clamps to 0 … 1.8 internally
         } else if (controlId == "drive") {
-            ladder_.inputDrive(asFloat(1.0f)); // clamps to 0 … 4 internally
+            driveBase_ = asFloat(1.0f);
+            applyDrive();                      // clamps to 0 … 4 internally
         } else if (controlId == "cv_amt") {
             cvAmt_ = asFloat(2.0f);
             ladder_.octaveControl(cvAmt_);     // clamps to 0 … 7 internally
         } else if (controlId == "q_cv_amt") {
             qCvAmt_ = asFloat(0.5f);
+        } else if (controlId == "drive_cv_amt") {
+            driveCvAmt_ = asFloat(0.5f);
         }
     }
 
     // --- Port-kind / CV-bridge -----------------------------------------
 
-    /** @brief `cv` (cutoff) and `q_cv` (resonance) are CV-domain inputs. */
+    /** @brief `cv` (cutoff), `q_cv` (resonance) en `drive_cv` zijn CV-domein. */
     PortKind inputPortKind(std::string_view portId) const override {
-        return (portId == "cv" || portId == "q_cv") ? PortKind::Cv : PortKind::None;
+        return (portId == "cv" || portId == "q_cv" || portId == "drive_cv")
+                   ? PortKind::Cv : PortKind::None;
     }
 
     /** @brief CV bridge entry point: drive the DC proxies.  Both slewed over
-     *  `kCvSlewMs` to de-zipper the ~1 kHz control tick (see VcaModule). */
+     *  `kCvSlewMs` to de-zipper the ~1 kHz control tick (see VcaModule).
+     *  Drive heeft geen CV-ingang op `AudioFilterLadder`; die gaat als
+     *  setter-write op de 1 kHz-tick (single-float write, ISR-veilig). */
     void writeCvPort(std::string_view portId, float value) override {
         if      (portId == "cv")   fcDc_.amplitude(value, kCvSlewMs);
         else if (portId == "q_cv") qDc_.amplitude(value * qCvAmt_, kCvSlewMs);
+        else if (portId == "drive_cv") {
+            driveCv_ = value < -1.0f ? -1.0f : (value > 1.0f ? 1.0f : value);
+            applyDrive();
+        }
     }
 
     /** @brief Register the ladder factory with the global Registry.  Idempotent. */
@@ -131,8 +143,16 @@ private:
     /// Internal patches: DC proxies -> ladder control inputs, always on.
     AudioConnection fcPatch_{ fcDc_, 0, ladder_, 1 };
     AudioConnection qPatch_ { qDc_,  0, ladder_, 2 };
-    float cvAmt_  = 2.0f;  ///< Cutoff-mod depth in octaves (octaveControl).
-    float qCvAmt_ = 0.5f;  ///< Q-mod depth in resonance units per full-scale CV.
+    /// Effectieve drive = base × 2^(2·amt·cv), door inputDrive op 0…4 geklemd.
+    void applyDrive() {
+        ladder_.inputDrive(driveBase_ * exp2f(2.0f * driveCvAmt_ * driveCv_));
+    }
+
+    float cvAmt_      = 2.0f;  ///< Cutoff-mod depth in octaves (octaveControl).
+    float qCvAmt_     = 0.5f;  ///< Q-mod depth in resonance units per full-scale CV.
+    float driveBase_  = 1.0f;  ///< Basis-drive (control `drive`).
+    float driveCv_    = 0.0f;  ///< Drive-CV scalar (±1).
+    float driveCvAmt_ = 0.5f;  ///< Drive-CV-diepte (doseerknop).
 
     /// DC slew time (ms) per CV update — de-zippers the ~1 kHz control tick.
     static constexpr float kCvSlewMs = 2.0f;

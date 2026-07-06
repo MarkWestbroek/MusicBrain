@@ -116,8 +116,12 @@ bool staticEnabled = true;
 void applyStaticEnabled() {
     AudioNoInterrupts();
     if (staticEnabled) {
-        if (!mixToUsbL) mixToUsbL = std::make_unique<AudioConnection>(mixL, 0, usbOut, 0);
-        if (!mixToUsbR) mixToUsbR = std::make_unique<AudioConnection>(mixR, 0, usbOut, 1);
+        // Via het master-gain-paar (OutModule::level); usbOut zelf wordt
+        // exclusief door die amps gevoed.
+        if (!mixToUsbL) mixToUsbL = std::make_unique<AudioConnection>(
+            mixL, 0, mmb_link::OutModule::masterAmpL(), 0);
+        if (!mixToUsbR) mixToUsbR = std::make_unique<AudioConnection>(
+            mixR, 0, mmb_link::OutModule::masterAmpR(), 0);
         for (uint8_t i = 0; i < kVoices; ++i) {
             mixL.gain(i, 0.25f);
             mixR.gain(i, 0.25f);
@@ -261,6 +265,9 @@ void onGetStatus(JsonObject s) {
     s["loopHz"]   = loopsPerSec;
     s["uptimeMs"] = millis();
     s["heapFree"] = freeHeapBytes();
+    // Generieke output-meter: hoogste |sample| op de master-uitgang (L/R)
+    // sinds de vorige poll — hét "hoor ik iets?"-signaal voor tests/strip.
+    s["outPeak"]  = mmb_link::OutModule::takeMasterPeak();
 #if HAVE_STK
     s["stkOom"]   = stk::Stk::memoryFailure();
 #endif
@@ -508,11 +515,12 @@ void setup() {
         mixL.gain(i, 0.25f);
         mixR.gain(i, 0.25f);
     }
-    mixToUsbL = std::make_unique<AudioConnection>(mixL, 0, usbOut, 0);
-    mixToUsbR = std::make_unique<AudioConnection>(mixR, 0, usbOut, 1);
-
-    // Point OutModule instances at the shared USB output
-    mmb_link::OutModule::sharedOutput = &usbOut;
+    // Master-gain-paar (OutModule::level) tussen alles en de USB-sink.
+    mmb_link::OutModule::attachSink(&usbOut);
+    mixToUsbL = std::make_unique<AudioConnection>(
+        mixL, 0, mmb_link::OutModule::masterAmpL(), 0);
+    mixToUsbR = std::make_unique<AudioConnection>(
+        mixR, 0, mmb_link::OutModule::masterAmpR(), 0);
 
     midiIn.setControl("channel",    static_cast<int32_t>(0));         // omni
     midiIn.setControl("voiceCount", static_cast<int32_t>(kVoices));

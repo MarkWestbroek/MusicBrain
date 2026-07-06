@@ -31,6 +31,7 @@
  * | input     | `in`   | Audio  | `k35_`, channel 0                       |
  * | input     | `cv`   | Cv     | cutoff mod, ±`cv_amt` octaves           |
  * | input     | `q_cv` | Cv     | resonance mod, +`q_cv_amt` at full CV   |
+ * | input     | `drive_cv` | Cv | drive mod, ±2·`drive_cv_amt` "octaven" (×4…÷4) |
  * | output    | `out`  | Audio  | `k35_`, channel 0                       |
  *
  * Both CV ports are control-rate (~1 kHz tick -> per-block smoothing in the
@@ -45,6 +46,7 @@
  * | `drive`    | float   | 0.1…10     | 1       | tanh drive in resonance loop  |
  * | `cv_amt`   | float   | 0…7 oct    | 2       | Cutoff-CV depth in octaves    |
  * | `q_cv_amt` | float   | 0…1        | 0.5     | Q-CV depth (resonance units)  |
+ * | `drive_cv_amt` | float | 0…1      | 0.5     | Drive-CV depth (×4…÷4 bij 1)  |
  * | `type`     | int32_t | 0/1        | 0       | 0=LP (12 dB), 1=HP (6 dB)     |
  */
 
@@ -74,6 +76,8 @@ public:
     void frequencyCv(float v)  { fcCv_ = clampf(v, -1.0f, 1.0f); }
     /** Control-rate resonance CV, already scaled to resonance units (0…1 adds to `q`). */
     void resonanceCv(float v)  { resCv_ = clampf(v, -1.0f, 1.0f); }
+    /** Control-rate drive CV (al ×amt): ±1 schaalt de drive ±2 "octaven" (×4 … ÷4). */
+    void driveCv(float v)      { driveCv_ = clampf(v, -1.0f, 1.0f); }
 
     void update() override {
         audio_block_t* block = receiveWritable(0);
@@ -84,6 +88,8 @@ public:
         fcSm_ += 0.35f * (clampf(fcMod, 20.0f, 18000.0f) - fcSm_);
         const float kMod = kTarget_ + 1.99f * resCv_;   // res units -> K units
         kSm_  += 0.35f * (clampf(kMod, 0.01f, 2.0f) - kSm_);
+        const float driveMod = drive_ * exp2f(2.0f * driveCv_);
+        driveSm_ += 0.35f * (clampf(driveMod, 0.1f, 10.0f) - driveSm_);
 
         const float fsInt = AUDIO_SAMPLE_RATE_EXACT * kOversample;
         const float g  = tanf(3.14159265f * fcSm_ / fsInt);
@@ -102,14 +108,14 @@ public:
                     // LP: x -> LP1 -> Σ -> LP2 -> ×K -> y, fb y -> HP1 -> Σ
                     const float y1 = lp(s1_, x, G);
                     const float u0 = alpha0 * (y1 + K * mG * mG * s2_ - mG * s3_);
-                    const float u  = tanhf(drive_ * u0);
+                    const float u  = tanhf(driveSm_ * u0);
                     y = K * lp(s2_, u, G);
                     hpUpd(s3_, y, G);
                 } else {
                     // HP: x -> HP1 -> Σ -> ×K -> y, fb y -> HP2 -> LP1 -> Σ
                     const float y1 = x - lp(s1_, x, G);
                     const float u0 = alpha0 * (y1 - G * mG * s2_ + mG * s3_);
-                    const float u  = tanhf(drive_ * u0);
+                    const float u  = tanhf(driveSm_ * u0);
                     y = K * u;
                     const float yhp2 = y - lp(s2_, y, G);
                     lp(s3_, yhp2, G);
@@ -152,7 +158,9 @@ private:
     float kTarget_  = 0.607f;   ///< Base K from the `q` control (res 0.3).
     float resCv_    = 0.0f;     ///< Resonance CV scalar, already ×q_cv_amt.
     float kSm_      = 0.607f;   ///< Smoothed effective K.
-    float drive_    = 1.0f;     ///< tanh drive in the resonance loop.
+    float drive_    = 1.0f;     ///< Basis-drive (control `drive`).
+    float driveCv_  = 0.0f;     ///< Drive-CV scalar (al ×amt), ±1.
+    float driveSm_  = 1.0f;     ///< Gesmoothde effectieve drive.
     float octaves_  = 2.0f;     ///< Cutoff-CV depth in octaves.
     bool  hp_       = false;    ///< false = LP (12 dB), true = HP (6 dB).
 };
@@ -189,6 +197,7 @@ public:
         else if (controlId == "drive")    k35_.drive(asFloat(1.0f));
         else if (controlId == "cv_amt")   k35_.octaveControl(asFloat(2.0f));
         else if (controlId == "q_cv_amt") qCvAmt_ = asFloat(0.5f);
+        else if (controlId == "drive_cv_amt") driveCvAmt_ = asFloat(0.5f);
         else if (controlId == "type") {
             if (auto* i = std::get_if<int32_t>(&value))
                 k35_.mode(static_cast<uint8_t>(*i));   // live, no rebuild needed
@@ -198,13 +207,15 @@ public:
     // --- Port-kind / CV-bridge -----------------------------------------
 
     PortKind inputPortKind(std::string_view portId) const override {
-        return (portId == "cv" || portId == "q_cv") ? PortKind::Cv : PortKind::None;
+        return (portId == "cv" || portId == "q_cv" || portId == "drive_cv")
+                   ? PortKind::Cv : PortKind::None;
     }
 
     /** @brief CV bridge: control-rate scalars, smoothed per block in the DSP. */
     void writeCvPort(std::string_view portId, float value) override {
-        if      (portId == "cv")   k35_.frequencyCv(value);
-        else if (portId == "q_cv") k35_.resonanceCv(value * qCvAmt_);
+        if      (portId == "cv")       k35_.frequencyCv(value);
+        else if (portId == "q_cv")     k35_.resonanceCv(value * qCvAmt_);
+        else if (portId == "drive_cv") k35_.driveCv(value * driveCvAmt_);
     }
 
     /** @brief Register the MS-20 factory with the global Registry.  Idempotent. */
@@ -219,7 +230,8 @@ public:
 
 private:
     mutable AudioFilterKorg35 k35_;
-    float qCvAmt_ = 0.5f;  ///< Q-mod depth in resonance units per full-scale CV.
+    float qCvAmt_     = 0.5f;  ///< Q-mod depth in resonance units per full-scale CV.
+    float driveCvAmt_ = 0.5f;  ///< Drive-mod depth (±2·amt "octaven") per full-scale CV.
 };
 
 }  // namespace mmb_link
