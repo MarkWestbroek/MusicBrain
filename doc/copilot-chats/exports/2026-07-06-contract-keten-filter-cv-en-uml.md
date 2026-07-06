@@ -163,3 +163,11 @@ morphing-wavetable-VCO.
 platte graaf = **9,3% CPU** (piek 10,2), outPeak 0.173, blocks 18, heap
 216K, hoorbare release-staart. Zestien stemmen zou dus rond de 20% blijven —
 de headroom voor Clouds achter een volle DX7-poly is er ruim.
+
+**Factory-ROMs ingebouwd (0.5.37, tag fw-0.5.37):** de 8 klassieke
+Yamaha-banken (ROM1A..4B, 32 KB) zitten nu in de firmware-flash —
+Bank-knop (1A..4B + USR) naast Program op het paneel, voice-namen komen
+uit de data zelf (dx7BankNames.ts, gegenereerd door tools/dx7_banks_gen.py)
+en de firmware logt de naam bij elke wissel. USER-bank blijft de
+.syx-upload. DX7 poly ×8 verhuisd naar het Poly-menu. Hardware-getest:
+BRASS 1 / PICCOLO / EXPLOSION klinken met correcte namen.
