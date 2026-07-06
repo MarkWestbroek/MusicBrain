@@ -198,12 +198,39 @@ eerst testen op de actuele firmware (gebruiker draait 3.2.1).
    de editor, de feedback-CC komt bij de Roto binnen, en de Roto's eigen
    LEARN pikt hem op.
 
-### ED-CS-4 — ROTO-SETUP-generatie (onderzoek)
+### ED-CS-4 — ROTO-SETUP-generatie (gebouwd 2026-07-06)
 
-Onderzoeken of ROTO-SETUP zijn setups in een leesbaar formaat bewaart. Zo ja:
-"Exporteer Roto-setup"-knop die per patch een setup met labels/kleuren/ranges
-uit de midiMap genereert. Zo nee: documenteren dat labels handwerk in de app
-blijven.
+Het onderzoek is beslecht: ROTO-SETUP (app-versie 3.2.1) exporteert leesbare
+JSON — voorbeeld in `doc/RotoControl/SETUP 01.json`. Per knob: `controlIndex`
+(0–31), `controlMode` (0 = CC), `controlChannel`, `controlParam` (CC-nummer),
+`minValue`/`maxValue`, `controlName` (displaylabel!), `colorScheme`,
+`hapticMode`/`hapticIndent1..2`/`hapticSteps` + `stepNames`.
+
+Gebouwd in `rotoSetup.ts` + knoppen in het Surface-paneel:
+
+- **⤓ Export**: bindings → setup-bestand, labels uit de controlnamen
+  (afgekapt op 8 tekens), knob-index = rijvolgorde. Dit is de route naar
+  tekst op de Roto-displays: genereren → importeren in ROTO-SETUP → naar het
+  apparaat pushen.
+- **⤒ Import**: kanaal + CC-nummers uit een setup-export voorvullen;
+  bestaande rijen met dezelfde CC behouden hun module/control.
+- Formaat-aannames staan als commentaar in `rotoSetup.ts`; bij een nieuwe
+  app-versie een verse export vergelijken.
+
+### ED-CS-2b — Patch-scoping, poly-filtering, binding-groepen (gebouwd 2026-07-06)
+
+Vervolg op gebruikersfeedback na de eerste werkende sessie:
+
+- Module-dropdown toont alleen modules die de actieve patch raakt (kabels +
+  rack-slots), plus — gemarkeerd "(buiten patch)" — de module van een
+  bestaande binding die buiten de patch valt.
+- Poly-volgers zijn verborgen: van elke rack-PolyGroup telt alleen de master
+  (bij patch-`polyOverrides`: de eerste member van elke partitie); de
+  overige stemmen volgen de master toch al via de poly-expansie.
+- Binding-groepen (`MidiMapConfig.groups`): huidige rijen opslaan onder een
+  naam ("Elements"), laden vervangt de rijen; modules die niet in de actieve
+  patch zitten worden op `typeId` hertarget naar de eerste patch-module van
+  hetzelfde type.
 
 ## Valkuilen (samengevat)
 

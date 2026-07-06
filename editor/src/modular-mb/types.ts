@@ -646,11 +646,24 @@ export interface MidiBinding {
   curve?: 'lin' | 'exp';
 }
 
+/** Benoemd setje bindings ("Elements") dat los van de actieve bindings
+ *  bewaard blijft en later aan een andere patch/module gekoppeld kan worden.
+ *  `typeId` is een snapshot van het moduletype van `mod` op het moment van
+ *  opslaan: bij het laden in een patch waar `mod` niet bestaat, wordt de
+ *  binding hertarget naar de eerste patch-module met hetzelfde type. */
+export interface MidiBindingGroup {
+  id: string;
+  name: string;
+  bindings: (MidiBinding & { typeId?: string })[];
+}
+
 export interface MidiMapConfig {
   /** Kanaal (1–16) waarop program change een patch kiest; weglaten = uit.
    *  (Firmware-kant is een latere stap; zie het plan.) */
   pcChannel?: number;
   bindings: MidiBinding[];
+  /** Opgeslagen binding-groepen (ED-CS-2b). */
+  groups?: MidiBindingGroup[];
 }
 
 // ═══════════════════════════════════════════════════════════════════════

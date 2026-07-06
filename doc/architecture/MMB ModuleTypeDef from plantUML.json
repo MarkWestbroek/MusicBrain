@@ -1,0 +1,323 @@
+{
+  "versie": "1.5-studio05-test",
+  "naam": "np-loc + register",
+  "beschrijving": "V3 export vanuit UML editor (codegen-ready)",
+  "datatypes": [],
+  "enums": [],
+  "entiteiten": [
+    {
+      "typenaam": "ModuleType",
+      "isMaterieel": false,
+      "kleur": "#bfdbfe",
+      "meervoud": "moduletypes",
+      "positie": {
+        "x": 3555,
+        "y": -390
+      },
+      "gegevenselementen": [],
+      "relaties": []
+    },
+    {
+      "typenaam": "Port",
+      "isMaterieel": false,
+      "kleur": "#bfdbfe",
+      "meervoud": "ports",
+      "positie": {
+        "x": 3240,
+        "y": -105
+      },
+      "gegevenselementen": [],
+      "relaties": []
+    },
+    {
+      "typenaam": "Knob",
+      "erft": "Control",
+      "isMaterieel": false,
+      "kleur": "#bfdbfe",
+      "meervoud": "knobs",
+      "positie": {
+        "x": 2580,
+        "y": 300
+      },
+      "gegevenselementen": [],
+      "relaties": []
+    },
+    {
+      "typenaam": "Switch",
+      "erft": "Control",
+      "isMaterieel": false,
+      "kleur": "#bfdbfe",
+      "meervoud": "switchs",
+      "positie": {
+        "x": 2955,
+        "y": 465
+      },
+      "gegevenselementen": [],
+      "relaties": []
+    },
+    {
+      "typenaam": "Display",
+      "erft": "Indicator",
+      "isMaterieel": false,
+      "kleur": "#bfdbfe",
+      "meervoud": "displays",
+      "positie": {
+        "x": 2175,
+        "y": 225
+      },
+      "gegevenselementen": [],
+      "relaties": []
+    },
+    {
+      "typenaam": "Led",
+      "erft": "Indicator",
+      "isMaterieel": false,
+      "kleur": "#bfdbfe",
+      "meervoud": "leds",
+      "positie": {
+        "x": 2385,
+        "y": 225
+      },
+      "gegevenselementen": [],
+      "relaties": []
+    },
+    {
+      "typenaam": "CellGroup",
+      "isMaterieel": false,
+      "kleur": "#bfdbfe",
+      "meervoud": "cellgroups",
+      "positie": {
+        "x": 3045,
+        "y": -360
+      },
+      "gegevenselementen": [],
+      "relaties": []
+    },
+    {
+      "typenaam": "Panel",
+      "isMaterieel": false,
+      "kleur": "#bfdbfe",
+      "meervoud": "panels",
+      "positie": {
+        "x": 4095,
+        "y": -75
+      },
+      "gegevenselementen": [],
+      "relaties": []
+    },
+    {
+      "typenaam": "ControlPlacement",
+      "isMaterieel": false,
+      "kleur": "#bfdbfe",
+      "meervoud": "controlplacements",
+      "positie": {
+        "x": 3570,
+        "y": 165
+      },
+      "gegevenselementen": [],
+      "relaties": []
+    },
+    {
+      "typenaam": "PortPlacement",
+      "isMaterieel": false,
+      "kleur": "#bfdbfe",
+      "meervoud": "portplacements",
+      "positie": {
+        "x": 3570,
+        "y": 30
+      },
+      "gegevenselementen": [],
+      "relaties": []
+    },
+    {
+      "typenaam": "PanelDecoration",
+      "isMaterieel": false,
+      "kleur": "#bfdbfe",
+      "meervoud": "paneldecorations",
+      "positie": {
+        "x": 4110,
+        "y": 300
+      },
+      "gegevenselementen": [],
+      "relaties": []
+    },
+    {
+      "typenaam": "ModuleInstance",
+      "isMaterieel": false,
+      "kleur": "#bfdbfe",
+      "meervoud": "moduleinstances",
+      "positie": {
+        "x": 4095,
+        "y": -345
+      },
+      "gegevenselementen": [],
+      "relaties": []
+    },
+    {
+      "typenaam": "FirmwareModule",
+      "erft": "ModuleType",
+      "naamLabelHeen": "realiseert via strings\\n(bewaakt door contract-test)",
+      "isMaterieel": false,
+      "kleur": "#bfdbfe",
+      "meervoud": "firmwaremodules",
+      "positie": {
+        "x": 3510,
+        "y": -120
+      },
+      "gegevenselementen": [],
+      "relaties": []
+    },
+    {
+      "typenaam": "Control",
+      "isMaterieel": false,
+      "kleur": "#bfdbfe",
+      "meervoud": "controls",
+      "positie": {
+        "x": 2475,
+        "y": -270
+      },
+      "gegevenselementen": [],
+      "relaties": []
+    },
+    {
+      "typenaam": "Slider",
+      "erft": "Control",
+      "isMaterieel": false,
+      "kleur": "#bfdbfe",
+      "meervoud": "sliders",
+      "positie": {
+        "x": 2520,
+        "y": 390
+      },
+      "gegevenselementen": [],
+      "relaties": []
+    },
+    {
+      "typenaam": "Toggle",
+      "erft": "Control",
+      "isMaterieel": false,
+      "kleur": "#bfdbfe",
+      "meervoud": "toggles",
+      "positie": {
+        "x": 2625,
+        "y": 510
+      },
+      "gegevenselementen": [],
+      "relaties": []
+    },
+    {
+      "typenaam": "Button",
+      "erft": "Control",
+      "isMaterieel": false,
+      "kleur": "#bfdbfe",
+      "meervoud": "buttons",
+      "positie": {
+        "x": 2970,
+        "y": 360
+      },
+      "gegevenselementen": [],
+      "relaties": []
+    },
+    {
+      "typenaam": "Joystick",
+      "erft": "Control",
+      "isMaterieel": false,
+      "kleur": "#bfdbfe",
+      "meervoud": "joysticks",
+      "positie": {
+        "x": 3000,
+        "y": 285
+      },
+      "gegevenselementen": [],
+      "relaties": []
+    },
+    {
+      "typenaam": "Exotic",
+      "erft": "Control",
+      "isMaterieel": false,
+      "kleur": "#bfdbfe",
+      "meervoud": "exotics",
+      "positie": {
+        "x": 2805,
+        "y": 600
+      },
+      "gegevenselementen": [],
+      "relaties": []
+    },
+    {
+      "typenaam": "Indicator",
+      "erft": "Control",
+      "isMaterieel": false,
+      "kleur": "#bfdbfe",
+      "meervoud": "indicators",
+      "positie": {
+        "x": 2310,
+        "y": 45
+      },
+      "gegevenselementen": [],
+      "relaties": []
+    },
+    {
+      "typenaam": "read",
+      "isMaterieel": false,
+      "kleur": "#bfdbfe",
+      "meervoud": "reads",
+      "positie": {
+        "x": 4410,
+        "y": -240
+      },
+      "gegevenselementen": [],
+      "relaties": []
+    },
+    {
+      "typenaam": "nly",
+      "isMaterieel": false,
+      "kleur": "#bfdbfe",
+      "meervoud": "nlys",
+      "positie": {
+        "x": 4411,
+        "y": -50
+      },
+      "gegevenselementen": [],
+      "relaties": []
+    },
+    {
+      "typenaam": "Vo",
+      "isMaterieel": false,
+      "kleur": "#bfdbfe",
+      "meervoud": "vos",
+      "positie": {
+        "x": 4653,
+        "y": -238
+      },
+      "gegevenselementen": [],
+      "relaties": []
+    },
+    {
+      "typenaam": "rstel",
+      "isMaterieel": false,
+      "kleur": "#bfdbfe",
+      "meervoud": "rstels",
+      "positie": {
+        "x": 4654,
+        "y": -48
+      },
+      "gegevenselementen": [],
+      "relaties": []
+    },
+    {
+      "typenaam": "SimModule",
+      "erft": "ModuleType",
+      "naamLabelHeen": "realiseert (simulatedBy)",
+      "isMaterieel": false,
+      "kleur": "#bfdbfe",
+      "meervoud": "simmodules",
+      "positie": {
+        "x": 3735,
+        "y": -120
+      },
+      "gegevenselementen": [],
+      "relaties": []
+    }
+  ]
+}

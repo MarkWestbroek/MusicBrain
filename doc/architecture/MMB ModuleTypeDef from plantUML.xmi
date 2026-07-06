@@ -1,0 +1,796 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<XMI xmi.version="1.1" xmlns:UML="omg.org/UML1.4">
+  <XMI.header>
+    <XMI.documentation>
+      <XMI.exporter>UML-editor</XMI.exporter>
+      <XMI.exporterVersion>1.0</XMI.exporterVersion>
+    </XMI.documentation>
+  </XMI.header>
+  <XMI.content>
+    <UML:Model xmi.id="EAID_model_54" name="Metamodel" visibility="public"
+              isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false">
+      <UML:Namespace.ownedElement>
+        <UML:Package xmi.id="EAID_pkg_1" name="Bitemporeel Register"
+                     visibility="public" isSpecification="false"
+                     isRoot="false" isLeaf="false" isAbstract="false">
+          <UML:Namespace.ownedElement>
+            <UML:Class xmi.id="EAID_node_2" name="ModuleType" visibility="public"
+                       isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false">
+              <UML:ModelElement.stereotype>
+                <UML:Stereotype name="entiteit"/>
+              </UML:ModelElement.stereotype>
+            </UML:Class>
+            <UML:Class xmi.id="EAID_node_3" name="Port" visibility="public"
+                       isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false">
+              <UML:ModelElement.stereotype>
+                <UML:Stereotype name="entiteit"/>
+              </UML:ModelElement.stereotype>
+            </UML:Class>
+            <UML:Class xmi.id="EAID_node_4" name="Knob" visibility="public"
+                       isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false">
+              <UML:ModelElement.stereotype>
+                <UML:Stereotype name="entiteit"/>
+              </UML:ModelElement.stereotype>
+            </UML:Class>
+            <UML:Class xmi.id="EAID_node_5" name="Switch" visibility="public"
+                       isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false">
+              <UML:ModelElement.stereotype>
+                <UML:Stereotype name="entiteit"/>
+              </UML:ModelElement.stereotype>
+            </UML:Class>
+            <UML:Class xmi.id="EAID_node_6" name="Display" visibility="public"
+                       isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false">
+              <UML:ModelElement.stereotype>
+                <UML:Stereotype name="entiteit"/>
+              </UML:ModelElement.stereotype>
+            </UML:Class>
+            <UML:Class xmi.id="EAID_node_7" name="Led" visibility="public"
+                       isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false">
+              <UML:ModelElement.stereotype>
+                <UML:Stereotype name="entiteit"/>
+              </UML:ModelElement.stereotype>
+            </UML:Class>
+            <UML:Class xmi.id="EAID_node_8" name="CellGroup" visibility="public"
+                       isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false">
+              <UML:ModelElement.stereotype>
+                <UML:Stereotype name="entiteit"/>
+              </UML:ModelElement.stereotype>
+            </UML:Class>
+            <UML:Class xmi.id="EAID_node_9" name="Panel" visibility="public"
+                       isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false">
+              <UML:ModelElement.stereotype>
+                <UML:Stereotype name="entiteit"/>
+              </UML:ModelElement.stereotype>
+            </UML:Class>
+            <UML:Class xmi.id="EAID_node_10" name="ControlPlacement" visibility="public"
+                       isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false">
+              <UML:ModelElement.stereotype>
+                <UML:Stereotype name="entiteit"/>
+              </UML:ModelElement.stereotype>
+            </UML:Class>
+            <UML:Class xmi.id="EAID_node_11" name="PortPlacement" visibility="public"
+                       isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false">
+              <UML:ModelElement.stereotype>
+                <UML:Stereotype name="entiteit"/>
+              </UML:ModelElement.stereotype>
+            </UML:Class>
+            <UML:Class xmi.id="EAID_node_12" name="PanelDecoration" visibility="public"
+                       isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false">
+              <UML:ModelElement.stereotype>
+                <UML:Stereotype name="entiteit"/>
+              </UML:ModelElement.stereotype>
+            </UML:Class>
+            <UML:Class xmi.id="EAID_node_13" name="ModuleInstance" visibility="public"
+                       isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false">
+              <UML:ModelElement.stereotype>
+                <UML:Stereotype name="entiteit"/>
+              </UML:ModelElement.stereotype>
+            </UML:Class>
+            <UML:Class xmi.id="EAID_node_14" name="FirmwareModule" visibility="public"
+                       isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false">
+              <UML:ModelElement.stereotype>
+                <UML:Stereotype name="entiteit"/>
+              </UML:ModelElement.stereotype>
+            </UML:Class>
+            <UML:Class xmi.id="EAID_node_15" name="Control" visibility="public"
+                       isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false">
+              <UML:ModelElement.stereotype>
+                <UML:Stereotype name="entiteit"/>
+              </UML:ModelElement.stereotype>
+            </UML:Class>
+            <UML:Class xmi.id="EAID_node_16" name="Slider" visibility="public"
+                       isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false">
+              <UML:ModelElement.stereotype>
+                <UML:Stereotype name="entiteit"/>
+              </UML:ModelElement.stereotype>
+            </UML:Class>
+            <UML:Class xmi.id="EAID_node_17" name="Toggle" visibility="public"
+                       isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false">
+              <UML:ModelElement.stereotype>
+                <UML:Stereotype name="entiteit"/>
+              </UML:ModelElement.stereotype>
+            </UML:Class>
+            <UML:Class xmi.id="EAID_node_18" name="Button" visibility="public"
+                       isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false">
+              <UML:ModelElement.stereotype>
+                <UML:Stereotype name="entiteit"/>
+              </UML:ModelElement.stereotype>
+            </UML:Class>
+            <UML:Class xmi.id="EAID_node_19" name="Joystick" visibility="public"
+                       isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false">
+              <UML:ModelElement.stereotype>
+                <UML:Stereotype name="entiteit"/>
+              </UML:ModelElement.stereotype>
+            </UML:Class>
+            <UML:Class xmi.id="EAID_node_20" name="Exotic" visibility="public"
+                       isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false">
+              <UML:ModelElement.stereotype>
+                <UML:Stereotype name="entiteit"/>
+              </UML:ModelElement.stereotype>
+            </UML:Class>
+            <UML:Class xmi.id="EAID_node_21" name="Indicator" visibility="public"
+                       isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false">
+              <UML:ModelElement.stereotype>
+                <UML:Stereotype name="entiteit"/>
+              </UML:ModelElement.stereotype>
+            </UML:Class>
+            <UML:Class xmi.id="EAID_node_22" name="read" visibility="public"
+                       isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false">
+              <UML:ModelElement.stereotype>
+                <UML:Stereotype name="entiteit"/>
+              </UML:ModelElement.stereotype>
+            </UML:Class>
+            <UML:Class xmi.id="EAID_node_23" name="nly" visibility="public"
+                       isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false">
+              <UML:ModelElement.stereotype>
+                <UML:Stereotype name="entiteit"/>
+              </UML:ModelElement.stereotype>
+            </UML:Class>
+            <UML:Class xmi.id="EAID_node_24" name="Vo" visibility="public"
+                       isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false">
+              <UML:ModelElement.stereotype>
+                <UML:Stereotype name="entiteit"/>
+              </UML:ModelElement.stereotype>
+            </UML:Class>
+            <UML:Class xmi.id="EAID_node_25" name="rstel" visibility="public"
+                       isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false">
+              <UML:ModelElement.stereotype>
+                <UML:Stereotype name="entiteit"/>
+              </UML:ModelElement.stereotype>
+            </UML:Class>
+            <UML:Class xmi.id="EAID_node_26" name="SimModule" visibility="public"
+                       isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false">
+              <UML:ModelElement.stereotype>
+                <UML:Stereotype name="entiteit"/>
+              </UML:ModelElement.stereotype>
+            </UML:Class>
+            <UML:Association xmi.id="EAID_edge_27" name="" visibility="public"
+                             isRoot="false" isLeaf="false" isAbstract="false">
+              <UML:ModelElement.taggedValue>
+                <UML:TaggedValue tag="direction" value="Unspecified"/>
+                <UML:TaggedValue tag="ea_sourceName" value="Port"/>
+                <UML:TaggedValue tag="ea_targetName" value="ModuleType"/>
+                <UML:TaggedValue tag="momentvoorkomen" value="meervoudig"/>
+                <UML:TaggedValue tag="lb" value="1..*"/>
+                <UML:TaggedValue tag="lt" value=""/>
+                <UML:TaggedValue tag="mt" value=""/>
+                <UML:TaggedValue tag="rb" value="1"/>
+              </UML:ModelElement.taggedValue>
+              <UML:Association.connection>
+                <UML:AssociationEnd visibility="public" multiplicity="1..*" name=""
+                                    aggregation="none" isOrdered="false"
+                                    targetScope="instance" isNavigable="false"
+                                    type="EAID_node_3">
+                  <UML:ModelElement.taggedValue>
+                    <UML:TaggedValue tag="sourcestyle" value="Owned=0;Navigable=Unspecified;"/>
+                    <UML:TaggedValue tag="ea_end" value="source"/>
+                  </UML:ModelElement.taggedValue>
+                </UML:AssociationEnd>
+                <UML:AssociationEnd visibility="public" multiplicity="1"
+                                    aggregation="none" isOrdered="false"
+                                    targetScope="instance" isNavigable="false"
+                                    type="EAID_node_2">
+                  <UML:ModelElement.taggedValue>
+                    <UML:TaggedValue tag="deststyle" value="Navigable=Unspecified;Owned=0;"/>
+                    <UML:TaggedValue tag="ea_end" value="target"/>
+                  </UML:ModelElement.taggedValue>
+                </UML:AssociationEnd>
+              </UML:Association.connection>
+            </UML:Association>
+            <UML:Association xmi.id="EAID_edge_28" name="" visibility="public"
+                             isRoot="false" isLeaf="false" isAbstract="false">
+              <UML:ModelElement.taggedValue>
+                <UML:TaggedValue tag="direction" value="Unspecified"/>
+                <UML:TaggedValue tag="ea_sourceName" value="Control"/>
+                <UML:TaggedValue tag="ea_targetName" value="ModuleType"/>
+                <UML:TaggedValue tag="momentvoorkomen" value="meervoudig"/>
+                <UML:TaggedValue tag="lb" value="0..*"/>
+                <UML:TaggedValue tag="lt" value=""/>
+                <UML:TaggedValue tag="mt" value=""/>
+                <UML:TaggedValue tag="rb" value="1"/>
+              </UML:ModelElement.taggedValue>
+              <UML:Association.connection>
+                <UML:AssociationEnd visibility="public" multiplicity="0..*" name=""
+                                    aggregation="none" isOrdered="false"
+                                    targetScope="instance" isNavigable="false"
+                                    type="EAID_node_15">
+                  <UML:ModelElement.taggedValue>
+                    <UML:TaggedValue tag="sourcestyle" value="Owned=0;Navigable=Unspecified;"/>
+                    <UML:TaggedValue tag="ea_end" value="source"/>
+                  </UML:ModelElement.taggedValue>
+                </UML:AssociationEnd>
+                <UML:AssociationEnd visibility="public" multiplicity="1"
+                                    aggregation="none" isOrdered="false"
+                                    targetScope="instance" isNavigable="false"
+                                    type="EAID_node_2">
+                  <UML:ModelElement.taggedValue>
+                    <UML:TaggedValue tag="deststyle" value="Navigable=Unspecified;Owned=0;"/>
+                    <UML:TaggedValue tag="ea_end" value="target"/>
+                  </UML:ModelElement.taggedValue>
+                </UML:AssociationEnd>
+              </UML:Association.connection>
+            </UML:Association>
+            <UML:Association xmi.id="EAID_edge_29" name="" visibility="public"
+                             isRoot="false" isLeaf="false" isAbstract="false">
+              <UML:ModelElement.taggedValue>
+                <UML:TaggedValue tag="direction" value="Unspecified"/>
+                <UML:TaggedValue tag="ea_sourceName" value="CellGroup"/>
+                <UML:TaggedValue tag="ea_targetName" value="ModuleType"/>
+                <UML:TaggedValue tag="momentvoorkomen" value="meervoudig"/>
+                <UML:TaggedValue tag="lb" value="0..*"/>
+                <UML:TaggedValue tag="lt" value=""/>
+                <UML:TaggedValue tag="mt" value=""/>
+                <UML:TaggedValue tag="rb" value="1"/>
+              </UML:ModelElement.taggedValue>
+              <UML:Association.connection>
+                <UML:AssociationEnd visibility="public" multiplicity="0..*" name=""
+                                    aggregation="none" isOrdered="false"
+                                    targetScope="instance" isNavigable="false"
+                                    type="EAID_node_8">
+                  <UML:ModelElement.taggedValue>
+                    <UML:TaggedValue tag="sourcestyle" value="Owned=0;Navigable=Unspecified;"/>
+                    <UML:TaggedValue tag="ea_end" value="source"/>
+                  </UML:ModelElement.taggedValue>
+                </UML:AssociationEnd>
+                <UML:AssociationEnd visibility="public" multiplicity="1"
+                                    aggregation="none" isOrdered="false"
+                                    targetScope="instance" isNavigable="false"
+                                    type="EAID_node_2">
+                  <UML:ModelElement.taggedValue>
+                    <UML:TaggedValue tag="deststyle" value="Navigable=Unspecified;Owned=0;"/>
+                    <UML:TaggedValue tag="ea_end" value="target"/>
+                  </UML:ModelElement.taggedValue>
+                </UML:AssociationEnd>
+              </UML:Association.connection>
+            </UML:Association>
+            <UML:Association xmi.id="EAID_edge_30" name="portIds (per cel)" visibility="public"
+                             isRoot="false" isLeaf="false" isAbstract="false">
+              <UML:ModelElement.taggedValue>
+                <UML:TaggedValue tag="direction" value="Unspecified"/>
+                <UML:TaggedValue tag="ea_sourceName" value="Port"/>
+                <UML:TaggedValue tag="ea_targetName" value="CellGroup"/>
+                <UML:TaggedValue tag="momentvoorkomen" value="meervoudig"/>
+                <UML:TaggedValue tag="lb" value="0..*"/>
+                <UML:TaggedValue tag="lt" value="portIds (per cel)"/>
+                <UML:TaggedValue tag="mt" value="portIds (per cel)"/>
+                <UML:TaggedValue tag="rb" value="1"/>
+              </UML:ModelElement.taggedValue>
+              <UML:Association.connection>
+                <UML:AssociationEnd visibility="public" multiplicity="0..*" name="portIds (per cel)"
+                                    aggregation="none" isOrdered="false"
+                                    targetScope="instance" isNavigable="false"
+                                    type="EAID_node_3">
+                  <UML:ModelElement.taggedValue>
+                    <UML:TaggedValue tag="sourcestyle" value="Owned=0;Navigable=Unspecified;"/>
+                    <UML:TaggedValue tag="ea_end" value="source"/>
+                  </UML:ModelElement.taggedValue>
+                </UML:AssociationEnd>
+                <UML:AssociationEnd visibility="public" multiplicity="1"
+                                    aggregation="none" isOrdered="false"
+                                    targetScope="instance" isNavigable="false"
+                                    type="EAID_node_8">
+                  <UML:ModelElement.taggedValue>
+                    <UML:TaggedValue tag="deststyle" value="Navigable=Unspecified;Owned=0;"/>
+                    <UML:TaggedValue tag="ea_end" value="target"/>
+                  </UML:ModelElement.taggedValue>
+                </UML:AssociationEnd>
+              </UML:Association.connection>
+            </UML:Association>
+            <UML:Association xmi.id="EAID_edge_31" name="controlIds (per cel)" visibility="public"
+                             isRoot="false" isLeaf="false" isAbstract="false">
+              <UML:ModelElement.taggedValue>
+                <UML:TaggedValue tag="direction" value="Unspecified"/>
+                <UML:TaggedValue tag="ea_sourceName" value="Control"/>
+                <UML:TaggedValue tag="ea_targetName" value="CellGroup"/>
+                <UML:TaggedValue tag="momentvoorkomen" value="meervoudig"/>
+                <UML:TaggedValue tag="lb" value="0..*"/>
+                <UML:TaggedValue tag="lt" value="controlIds (per cel)"/>
+                <UML:TaggedValue tag="mt" value="controlIds (per cel)"/>
+                <UML:TaggedValue tag="rb" value="1"/>
+              </UML:ModelElement.taggedValue>
+              <UML:Association.connection>
+                <UML:AssociationEnd visibility="public" multiplicity="0..*" name="controlIds (per cel)"
+                                    aggregation="none" isOrdered="false"
+                                    targetScope="instance" isNavigable="false"
+                                    type="EAID_node_15">
+                  <UML:ModelElement.taggedValue>
+                    <UML:TaggedValue tag="sourcestyle" value="Owned=0;Navigable=Unspecified;"/>
+                    <UML:TaggedValue tag="ea_end" value="source"/>
+                  </UML:ModelElement.taggedValue>
+                </UML:AssociationEnd>
+                <UML:AssociationEnd visibility="public" multiplicity="1"
+                                    aggregation="none" isOrdered="false"
+                                    targetScope="instance" isNavigable="false"
+                                    type="EAID_node_8">
+                  <UML:ModelElement.taggedValue>
+                    <UML:TaggedValue tag="deststyle" value="Navigable=Unspecified;Owned=0;"/>
+                    <UML:TaggedValue tag="ea_end" value="target"/>
+                  </UML:ModelElement.taggedValue>
+                </UML:AssociationEnd>
+              </UML:Association.connection>
+            </UML:Association>
+            <UML:Association xmi.id="EAID_edge_42" name="toont een Control-waarde" visibility="public"
+                             isRoot="false" isLeaf="false" isAbstract="false">
+              <UML:ModelElement.taggedValue>
+                <UML:TaggedValue tag="direction" value="Unspecified"/>
+                <UML:TaggedValue tag="ea_sourceName" value="nly"/>
+                <UML:TaggedValue tag="ea_targetName" value="read"/>
+                <UML:TaggedValue tag="momentvoorkomen" value="meervoudig"/>
+                <UML:TaggedValue tag="lb" value="0..*"/>
+                <UML:TaggedValue tag="lt" value="toont een Control-waarde"/>
+                <UML:TaggedValue tag="mt" value="toont een Control-waarde"/>
+                <UML:TaggedValue tag="rb" value="1"/>
+              </UML:ModelElement.taggedValue>
+              <UML:Association.connection>
+                <UML:AssociationEnd visibility="public" multiplicity="0..*" name="toont een Control-waarde"
+                                    aggregation="none" isOrdered="false"
+                                    targetScope="instance" isNavigable="false"
+                                    type="EAID_node_23">
+                  <UML:ModelElement.taggedValue>
+                    <UML:TaggedValue tag="sourcestyle" value="Owned=0;Navigable=Unspecified;"/>
+                    <UML:TaggedValue tag="ea_end" value="source"/>
+                  </UML:ModelElement.taggedValue>
+                </UML:AssociationEnd>
+                <UML:AssociationEnd visibility="public" multiplicity="1"
+                                    aggregation="none" isOrdered="false"
+                                    targetScope="instance" isNavigable="false"
+                                    type="EAID_node_22">
+                  <UML:ModelElement.taggedValue>
+                    <UML:TaggedValue tag="deststyle" value="Navigable=Unspecified;Owned=0;"/>
+                    <UML:TaggedValue tag="ea_end" value="target"/>
+                  </UML:ModelElement.taggedValue>
+                </UML:AssociationEnd>
+              </UML:Association.connection>
+            </UML:Association>
+            <UML:Association xmi.id="EAID_edge_43" name="visualiseert" visibility="public"
+                             isRoot="false" isLeaf="false" isAbstract="false">
+              <UML:ModelElement.taggedValue>
+                <UML:TaggedValue tag="direction" value="Unspecified"/>
+                <UML:TaggedValue tag="ea_sourceName" value="ModuleType"/>
+                <UML:TaggedValue tag="ea_targetName" value="Panel"/>
+                <UML:TaggedValue tag="momentvoorkomen" value="enkelvoudig"/>
+                <UML:TaggedValue tag="lb" value="1"/>
+                <UML:TaggedValue tag="lt" value="visualiseert"/>
+                <UML:TaggedValue tag="mt" value="visualiseert"/>
+                <UML:TaggedValue tag="rb" value="1"/>
+              </UML:ModelElement.taggedValue>
+              <UML:Association.connection>
+                <UML:AssociationEnd visibility="public" multiplicity="1" name="visualiseert"
+                                    aggregation="none" isOrdered="false"
+                                    targetScope="instance" isNavigable="false"
+                                    type="EAID_node_2">
+                  <UML:ModelElement.taggedValue>
+                    <UML:TaggedValue tag="sourcestyle" value="Owned=0;Navigable=Unspecified;"/>
+                    <UML:TaggedValue tag="ea_end" value="source"/>
+                  </UML:ModelElement.taggedValue>
+                </UML:AssociationEnd>
+                <UML:AssociationEnd visibility="public" multiplicity="1"
+                                    aggregation="none" isOrdered="false"
+                                    targetScope="instance" isNavigable="false"
+                                    type="EAID_node_9">
+                  <UML:ModelElement.taggedValue>
+                    <UML:TaggedValue tag="deststyle" value="Navigable=Unspecified;Owned=0;"/>
+                    <UML:TaggedValue tag="ea_end" value="target"/>
+                  </UML:ModelElement.taggedValue>
+                </UML:AssociationEnd>
+              </UML:Association.connection>
+            </UML:Association>
+            <UML:Association xmi.id="EAID_edge_44" name="" visibility="public"
+                             isRoot="false" isLeaf="false" isAbstract="false">
+              <UML:ModelElement.taggedValue>
+                <UML:TaggedValue tag="direction" value="Unspecified"/>
+                <UML:TaggedValue tag="ea_sourceName" value="ControlPlacement"/>
+                <UML:TaggedValue tag="ea_targetName" value="Panel"/>
+                <UML:TaggedValue tag="momentvoorkomen" value="meervoudig"/>
+                <UML:TaggedValue tag="lb" value="0..*"/>
+                <UML:TaggedValue tag="lt" value=""/>
+                <UML:TaggedValue tag="mt" value=""/>
+                <UML:TaggedValue tag="rb" value="1"/>
+              </UML:ModelElement.taggedValue>
+              <UML:Association.connection>
+                <UML:AssociationEnd visibility="public" multiplicity="0..*" name=""
+                                    aggregation="none" isOrdered="false"
+                                    targetScope="instance" isNavigable="false"
+                                    type="EAID_node_10">
+                  <UML:ModelElement.taggedValue>
+                    <UML:TaggedValue tag="sourcestyle" value="Owned=0;Navigable=Unspecified;"/>
+                    <UML:TaggedValue tag="ea_end" value="source"/>
+                  </UML:ModelElement.taggedValue>
+                </UML:AssociationEnd>
+                <UML:AssociationEnd visibility="public" multiplicity="1"
+                                    aggregation="none" isOrdered="false"
+                                    targetScope="instance" isNavigable="false"
+                                    type="EAID_node_9">
+                  <UML:ModelElement.taggedValue>
+                    <UML:TaggedValue tag="deststyle" value="Navigable=Unspecified;Owned=0;"/>
+                    <UML:TaggedValue tag="ea_end" value="target"/>
+                  </UML:ModelElement.taggedValue>
+                </UML:AssociationEnd>
+              </UML:Association.connection>
+            </UML:Association>
+            <UML:Association xmi.id="EAID_edge_45" name="" visibility="public"
+                             isRoot="false" isLeaf="false" isAbstract="false">
+              <UML:ModelElement.taggedValue>
+                <UML:TaggedValue tag="direction" value="Unspecified"/>
+                <UML:TaggedValue tag="ea_sourceName" value="PortPlacement"/>
+                <UML:TaggedValue tag="ea_targetName" value="Panel"/>
+                <UML:TaggedValue tag="momentvoorkomen" value="meervoudig"/>
+                <UML:TaggedValue tag="lb" value="0..*"/>
+                <UML:TaggedValue tag="lt" value=""/>
+                <UML:TaggedValue tag="mt" value=""/>
+                <UML:TaggedValue tag="rb" value="1"/>
+              </UML:ModelElement.taggedValue>
+              <UML:Association.connection>
+                <UML:AssociationEnd visibility="public" multiplicity="0..*" name=""
+                                    aggregation="none" isOrdered="false"
+                                    targetScope="instance" isNavigable="false"
+                                    type="EAID_node_11">
+                  <UML:ModelElement.taggedValue>
+                    <UML:TaggedValue tag="sourcestyle" value="Owned=0;Navigable=Unspecified;"/>
+                    <UML:TaggedValue tag="ea_end" value="source"/>
+                  </UML:ModelElement.taggedValue>
+                </UML:AssociationEnd>
+                <UML:AssociationEnd visibility="public" multiplicity="1"
+                                    aggregation="none" isOrdered="false"
+                                    targetScope="instance" isNavigable="false"
+                                    type="EAID_node_9">
+                  <UML:ModelElement.taggedValue>
+                    <UML:TaggedValue tag="deststyle" value="Navigable=Unspecified;Owned=0;"/>
+                    <UML:TaggedValue tag="ea_end" value="target"/>
+                  </UML:ModelElement.taggedValue>
+                </UML:AssociationEnd>
+              </UML:Association.connection>
+            </UML:Association>
+            <UML:Association xmi.id="EAID_edge_46" name="" visibility="public"
+                             isRoot="false" isLeaf="false" isAbstract="false">
+              <UML:ModelElement.taggedValue>
+                <UML:TaggedValue tag="direction" value="Unspecified"/>
+                <UML:TaggedValue tag="ea_sourceName" value="PanelDecoration"/>
+                <UML:TaggedValue tag="ea_targetName" value="Panel"/>
+                <UML:TaggedValue tag="momentvoorkomen" value="meervoudig"/>
+                <UML:TaggedValue tag="lb" value="0..*"/>
+                <UML:TaggedValue tag="lt" value=""/>
+                <UML:TaggedValue tag="mt" value=""/>
+                <UML:TaggedValue tag="rb" value="1"/>
+              </UML:ModelElement.taggedValue>
+              <UML:Association.connection>
+                <UML:AssociationEnd visibility="public" multiplicity="0..*" name=""
+                                    aggregation="none" isOrdered="false"
+                                    targetScope="instance" isNavigable="false"
+                                    type="EAID_node_12">
+                  <UML:ModelElement.taggedValue>
+                    <UML:TaggedValue tag="sourcestyle" value="Owned=0;Navigable=Unspecified;"/>
+                    <UML:TaggedValue tag="ea_end" value="source"/>
+                  </UML:ModelElement.taggedValue>
+                </UML:AssociationEnd>
+                <UML:AssociationEnd visibility="public" multiplicity="1"
+                                    aggregation="none" isOrdered="false"
+                                    targetScope="instance" isNavigable="false"
+                                    type="EAID_node_9">
+                  <UML:ModelElement.taggedValue>
+                    <UML:TaggedValue tag="deststyle" value="Navigable=Unspecified;Owned=0;"/>
+                    <UML:TaggedValue tag="ea_end" value="target"/>
+                  </UML:ModelElement.taggedValue>
+                </UML:AssociationEnd>
+              </UML:Association.connection>
+            </UML:Association>
+            <UML:Association xmi.id="EAID_edge_47" name="per id" visibility="public"
+                             isRoot="false" isLeaf="false" isAbstract="false">
+              <UML:ModelElement.taggedValue>
+                <UML:TaggedValue tag="direction" value="Unspecified"/>
+                <UML:TaggedValue tag="ea_sourceName" value="Control"/>
+                <UML:TaggedValue tag="ea_targetName" value="ControlPlacement"/>
+                <UML:TaggedValue tag="momentvoorkomen" value="enkelvoudig"/>
+                <UML:TaggedValue tag="lb" value="1"/>
+                <UML:TaggedValue tag="lt" value="per id"/>
+                <UML:TaggedValue tag="mt" value="per id"/>
+                <UML:TaggedValue tag="rb" value="1"/>
+              </UML:ModelElement.taggedValue>
+              <UML:Association.connection>
+                <UML:AssociationEnd visibility="public" multiplicity="1" name="per id"
+                                    aggregation="none" isOrdered="false"
+                                    targetScope="instance" isNavigable="false"
+                                    type="EAID_node_15">
+                  <UML:ModelElement.taggedValue>
+                    <UML:TaggedValue tag="sourcestyle" value="Owned=0;Navigable=Unspecified;"/>
+                    <UML:TaggedValue tag="ea_end" value="source"/>
+                  </UML:ModelElement.taggedValue>
+                </UML:AssociationEnd>
+                <UML:AssociationEnd visibility="public" multiplicity="1"
+                                    aggregation="none" isOrdered="false"
+                                    targetScope="instance" isNavigable="false"
+                                    type="EAID_node_10">
+                  <UML:ModelElement.taggedValue>
+                    <UML:TaggedValue tag="deststyle" value="Navigable=Unspecified;Owned=0;"/>
+                    <UML:TaggedValue tag="ea_end" value="target"/>
+                  </UML:ModelElement.taggedValue>
+                </UML:AssociationEnd>
+              </UML:Association.connection>
+            </UML:Association>
+            <UML:Association xmi.id="EAID_edge_48" name="per id" visibility="public"
+                             isRoot="false" isLeaf="false" isAbstract="false">
+              <UML:ModelElement.taggedValue>
+                <UML:TaggedValue tag="direction" value="Unspecified"/>
+                <UML:TaggedValue tag="ea_sourceName" value="Port"/>
+                <UML:TaggedValue tag="ea_targetName" value="PortPlacement"/>
+                <UML:TaggedValue tag="momentvoorkomen" value="enkelvoudig"/>
+                <UML:TaggedValue tag="lb" value="1"/>
+                <UML:TaggedValue tag="lt" value="per id"/>
+                <UML:TaggedValue tag="mt" value="per id"/>
+                <UML:TaggedValue tag="rb" value="1"/>
+              </UML:ModelElement.taggedValue>
+              <UML:Association.connection>
+                <UML:AssociationEnd visibility="public" multiplicity="1" name="per id"
+                                    aggregation="none" isOrdered="false"
+                                    targetScope="instance" isNavigable="false"
+                                    type="EAID_node_3">
+                  <UML:ModelElement.taggedValue>
+                    <UML:TaggedValue tag="sourcestyle" value="Owned=0;Navigable=Unspecified;"/>
+                    <UML:TaggedValue tag="ea_end" value="source"/>
+                  </UML:ModelElement.taggedValue>
+                </UML:AssociationEnd>
+                <UML:AssociationEnd visibility="public" multiplicity="1"
+                                    aggregation="none" isOrdered="false"
+                                    targetScope="instance" isNavigable="false"
+                                    type="EAID_node_11">
+                  <UML:ModelElement.taggedValue>
+                    <UML:TaggedValue tag="deststyle" value="Navigable=Unspecified;Owned=0;"/>
+                    <UML:TaggedValue tag="ea_end" value="target"/>
+                  </UML:ModelElement.taggedValue>
+                </UML:AssociationEnd>
+              </UML:Association.connection>
+            </UML:Association>
+            <UML:Association xmi.id="EAID_edge_49" name="+ minFirmwareVersion : semver" visibility="public"
+                             isRoot="false" isLeaf="false" isAbstract="false">
+              <UML:ModelElement.taggedValue>
+                <UML:TaggedValue tag="direction" value="Unspecified"/>
+                <UML:TaggedValue tag="ea_sourceName" value="rstel"/>
+                <UML:TaggedValue tag="ea_targetName" value="Vo"/>
+                <UML:TaggedValue tag="momentvoorkomen" value="meervoudig"/>
+                <UML:TaggedValue tag="lb" value="0..*"/>
+                <UML:TaggedValue tag="lt" value="+ minFirmwareVersion : semver"/>
+                <UML:TaggedValue tag="mt" value="+ minFirmwareVersion : semver"/>
+                <UML:TaggedValue tag="rb" value="1"/>
+              </UML:ModelElement.taggedValue>
+              <UML:Association.connection>
+                <UML:AssociationEnd visibility="public" multiplicity="0..*" name="+ minFirmwareVersion : semver"
+                                    aggregation="none" isOrdered="false"
+                                    targetScope="instance" isNavigable="false"
+                                    type="EAID_node_25">
+                  <UML:ModelElement.taggedValue>
+                    <UML:TaggedValue tag="sourcestyle" value="Owned=0;Navigable=Unspecified;"/>
+                    <UML:TaggedValue tag="ea_end" value="source"/>
+                  </UML:ModelElement.taggedValue>
+                </UML:AssociationEnd>
+                <UML:AssociationEnd visibility="public" multiplicity="1"
+                                    aggregation="none" isOrdered="false"
+                                    targetScope="instance" isNavigable="false"
+                                    type="EAID_node_24">
+                  <UML:ModelElement.taggedValue>
+                    <UML:TaggedValue tag="deststyle" value="Navigable=Unspecified;Owned=0;"/>
+                    <UML:TaggedValue tag="ea_end" value="target"/>
+                  </UML:ModelElement.taggedValue>
+                </UML:AssociationEnd>
+              </UML:Association.connection>
+            </UML:Association>
+            <UML:Association xmi.id="EAID_edge_50" name="typeId" visibility="public"
+                             isRoot="false" isLeaf="false" isAbstract="false">
+              <UML:ModelElement.taggedValue>
+                <UML:TaggedValue tag="direction" value="Unspecified"/>
+                <UML:TaggedValue tag="ea_sourceName" value="ModuleType"/>
+                <UML:TaggedValue tag="ea_targetName" value="ModuleInstance"/>
+                <UML:TaggedValue tag="momentvoorkomen" value="enkelvoudig"/>
+                <UML:TaggedValue tag="lb" value="1"/>
+                <UML:TaggedValue tag="lt" value="typeId"/>
+                <UML:TaggedValue tag="mt" value="typeId"/>
+                <UML:TaggedValue tag="rb" value="1"/>
+              </UML:ModelElement.taggedValue>
+              <UML:Association.connection>
+                <UML:AssociationEnd visibility="public" multiplicity="1" name="typeId"
+                                    aggregation="none" isOrdered="false"
+                                    targetScope="instance" isNavigable="false"
+                                    type="EAID_node_2">
+                  <UML:ModelElement.taggedValue>
+                    <UML:TaggedValue tag="sourcestyle" value="Owned=0;Navigable=Unspecified;"/>
+                    <UML:TaggedValue tag="ea_end" value="source"/>
+                  </UML:ModelElement.taggedValue>
+                </UML:AssociationEnd>
+                <UML:AssociationEnd visibility="public" multiplicity="1"
+                                    aggregation="none" isOrdered="false"
+                                    targetScope="instance" isNavigable="false"
+                                    type="EAID_node_13">
+                  <UML:ModelElement.taggedValue>
+                    <UML:TaggedValue tag="deststyle" value="Navigable=Unspecified;Owned=0;"/>
+                    <UML:TaggedValue tag="ea_end" value="target"/>
+                  </UML:ModelElement.taggedValue>
+                </UML:AssociationEnd>
+              </UML:Association.connection>
+            </UML:Association>
+            <UML:Association xmi.id="EAID_edge_51" name="visual" visibility="public"
+                             isRoot="false" isLeaf="false" isAbstract="false">
+              <UML:ModelElement.taggedValue>
+                <UML:TaggedValue tag="direction" value="Unspecified"/>
+                <UML:TaggedValue tag="ea_sourceName" value="Panel"/>
+                <UML:TaggedValue tag="ea_targetName" value="ModuleInstance"/>
+                <UML:TaggedValue tag="momentvoorkomen" value="enkelvoudig"/>
+                <UML:TaggedValue tag="lb" value="1"/>
+                <UML:TaggedValue tag="lt" value="visual"/>
+                <UML:TaggedValue tag="mt" value="visual"/>
+                <UML:TaggedValue tag="rb" value="1"/>
+              </UML:ModelElement.taggedValue>
+              <UML:Association.connection>
+                <UML:AssociationEnd visibility="public" multiplicity="1" name="visual"
+                                    aggregation="none" isOrdered="false"
+                                    targetScope="instance" isNavigable="false"
+                                    type="EAID_node_9">
+                  <UML:ModelElement.taggedValue>
+                    <UML:TaggedValue tag="sourcestyle" value="Owned=0;Navigable=Unspecified;"/>
+                    <UML:TaggedValue tag="ea_end" value="source"/>
+                  </UML:ModelElement.taggedValue>
+                </UML:AssociationEnd>
+                <UML:AssociationEnd visibility="public" multiplicity="1"
+                                    aggregation="none" isOrdered="false"
+                                    targetScope="instance" isNavigable="false"
+                                    type="EAID_node_13">
+                  <UML:ModelElement.taggedValue>
+                    <UML:TaggedValue tag="deststyle" value="Navigable=Unspecified;Owned=0;"/>
+                    <UML:TaggedValue tag="ea_end" value="target"/>
+                  </UML:ModelElement.taggedValue>
+                </UML:AssociationEnd>
+              </UML:Association.connection>
+            </UML:Association>
+            <UML:Generalization xmi.id="EAID_gen_32" isSpecification="false">
+              <UML:Generalization.child>
+                <UML:Class xmi.idref="EAID_node_4"/>
+              </UML:Generalization.child>
+              <UML:Generalization.parent>
+                <UML:Class xmi.idref="EAID_node_15"/>
+              </UML:Generalization.parent>
+            </UML:Generalization>
+            <UML:Generalization xmi.id="EAID_gen_33" isSpecification="false">
+              <UML:Generalization.child>
+                <UML:Class xmi.idref="EAID_node_16"/>
+              </UML:Generalization.child>
+              <UML:Generalization.parent>
+                <UML:Class xmi.idref="EAID_node_15"/>
+              </UML:Generalization.parent>
+            </UML:Generalization>
+            <UML:Generalization xmi.id="EAID_gen_34" isSpecification="false">
+              <UML:Generalization.child>
+                <UML:Class xmi.idref="EAID_node_17"/>
+              </UML:Generalization.child>
+              <UML:Generalization.parent>
+                <UML:Class xmi.idref="EAID_node_15"/>
+              </UML:Generalization.parent>
+            </UML:Generalization>
+            <UML:Generalization xmi.id="EAID_gen_35" isSpecification="false">
+              <UML:Generalization.child>
+                <UML:Class xmi.idref="EAID_node_5"/>
+              </UML:Generalization.child>
+              <UML:Generalization.parent>
+                <UML:Class xmi.idref="EAID_node_15"/>
+              </UML:Generalization.parent>
+            </UML:Generalization>
+            <UML:Generalization xmi.id="EAID_gen_36" isSpecification="false">
+              <UML:Generalization.child>
+                <UML:Class xmi.idref="EAID_node_18"/>
+              </UML:Generalization.child>
+              <UML:Generalization.parent>
+                <UML:Class xmi.idref="EAID_node_15"/>
+              </UML:Generalization.parent>
+            </UML:Generalization>
+            <UML:Generalization xmi.id="EAID_gen_37" isSpecification="false">
+              <UML:Generalization.child>
+                <UML:Class xmi.idref="EAID_node_19"/>
+              </UML:Generalization.child>
+              <UML:Generalization.parent>
+                <UML:Class xmi.idref="EAID_node_15"/>
+              </UML:Generalization.parent>
+            </UML:Generalization>
+            <UML:Generalization xmi.id="EAID_gen_38" isSpecification="false">
+              <UML:Generalization.child>
+                <UML:Class xmi.idref="EAID_node_20"/>
+              </UML:Generalization.child>
+              <UML:Generalization.parent>
+                <UML:Class xmi.idref="EAID_node_15"/>
+              </UML:Generalization.parent>
+            </UML:Generalization>
+            <UML:Generalization xmi.id="EAID_gen_39" isSpecification="false">
+              <UML:Generalization.child>
+                <UML:Class xmi.idref="EAID_node_21"/>
+              </UML:Generalization.child>
+              <UML:Generalization.parent>
+                <UML:Class xmi.idref="EAID_node_15"/>
+              </UML:Generalization.parent>
+            </UML:Generalization>
+            <UML:Generalization xmi.id="EAID_gen_40" isSpecification="false">
+              <UML:Generalization.child>
+                <UML:Class xmi.idref="EAID_node_6"/>
+              </UML:Generalization.child>
+              <UML:Generalization.parent>
+                <UML:Class xmi.idref="EAID_node_21"/>
+              </UML:Generalization.parent>
+            </UML:Generalization>
+            <UML:Generalization xmi.id="EAID_gen_41" isSpecification="false">
+              <UML:Generalization.child>
+                <UML:Class xmi.idref="EAID_node_7"/>
+              </UML:Generalization.child>
+              <UML:Generalization.parent>
+                <UML:Class xmi.idref="EAID_node_21"/>
+              </UML:Generalization.parent>
+            </UML:Generalization>
+            <UML:Generalization xmi.id="EAID_gen_52" isSpecification="false">
+              <UML:Generalization.child>
+                <UML:Class xmi.idref="EAID_node_14"/>
+              </UML:Generalization.child>
+              <UML:Generalization.parent>
+                <UML:Class xmi.idref="EAID_node_2"/>
+              </UML:Generalization.parent>
+            </UML:Generalization>
+            <UML:Generalization xmi.id="EAID_gen_53" isSpecification="false">
+              <UML:Generalization.child>
+                <UML:Class xmi.idref="EAID_node_26"/>
+              </UML:Generalization.child>
+              <UML:Generalization.parent>
+                <UML:Class xmi.idref="EAID_node_2"/>
+              </UML:Generalization.parent>
+            </UML:Generalization>
+          </UML:Namespace.ownedElement>
+        </UML:Package>
+      </UML:Namespace.ownedElement>
+    </UML:Model>
+  </XMI.content>
+  <XMI.extension extender="UML-editor">
+    <diagrams>
+      <diagram>
+        <elements>
+          <element subject="EAID_node_2" left="3555" right="3870" top="390" bottom="252"/>
+          <element subject="EAID_node_3" left="3240" right="3420" top="105" bottom="57"/>
+          <element subject="EAID_node_4" left="2580" right="2760" top="-300" bottom="-348"/>
+          <element subject="EAID_node_5" left="2955" right="3135" top="-465" bottom="-513"/>
+          <element subject="EAID_node_6" left="2175" right="2355" top="-225" bottom="-273"/>
+          <element subject="EAID_node_7" left="2385" right="2565" top="-225" bottom="-273"/>
+          <element subject="EAID_node_8" left="3045" right="3225" top="360" bottom="312"/>
+          <element subject="EAID_node_9" left="4095" right="4320" top="75" bottom="-63"/>
+          <element subject="EAID_node_10" left="3570" right="3750" top="-165" bottom="-213"/>
+          <element subject="EAID_node_11" left="3570" right="3750" top="-30" bottom="-76"/>
+          <element subject="EAID_node_12" left="4110" right="4290" top="-300" bottom="-348"/>
+          <element subject="EAID_node_13" left="4095" right="4320" top="345" bottom="252"/>
+          <element subject="EAID_node_14" left="3510" right="3690" top="120" bottom="72"/>
+          <element subject="EAID_node_15" left="2475" right="2925" top="270" bottom="42"/>
+          <element subject="EAID_node_16" left="2520" right="2700" top="-390" bottom="-438"/>
+          <element subject="EAID_node_17" left="2625" right="2805" top="-510" bottom="-558"/>
+          <element subject="EAID_node_18" left="2970" right="3150" top="-360" bottom="-408"/>
+          <element subject="EAID_node_19" left="3000" right="3180" top="-285" bottom="-333"/>
+          <element subject="EAID_node_20" left="2805" right="2985" top="-600" bottom="-648"/>
+          <element subject="EAID_node_21" left="2310" right="2520" top="-45" bottom="-138"/>
+          <element subject="EAID_node_22" left="4410" right="4590" top="240" bottom="192"/>
+          <element subject="EAID_node_23" left="4411" right="4591" top="50" bottom="2"/>
+          <element subject="EAID_node_24" left="4653" right="4833" top="238" bottom="190"/>
+          <element subject="EAID_node_25" left="4654" right="4834" top="48" bottom="0"/>
+          <element subject="EAID_node_26" left="3735" right="3915" top="120" bottom="72"/>
+        </elements>
+      </diagram>
+    </diagrams>
+  </XMI.extension>
+</XMI>
