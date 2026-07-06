@@ -276,3 +276,46 @@ haalbaar, geheugen-audit eerst. Tides = tides2 (62.5 kHz slope-generator) —
 beter als CV-domein-module (CvModule op de 1 kHz-tick voor LFO-snelheden, of
 audio-wrapper voor audio-rate). Beide passen in het bewezen patroon:
 vendor → zero-init wrapper → resample → peak-telemetrie → autonome serial-test.
+
+---
+
+## Nachtsessie deel 3 (6 jul, slaapsessie): Clouds + Tides geport
+
+**☁️ Clouds geport (tp_mmb_clouds, FW-FX-4)** — `firmware/lib/mi-clouds`:
+GranularProcessor met alle 4 playback-modes (granular / pitch-stretch /
+looping delay / spectral). Eerste MI-port mét **audio-ingangen**, dus een
+dubbele resampler: input-accumulator 44.1k→32k naar 32-frames-blokken,
+output-interpolator 32k→44.1k. Werkbuffers 118+64 KB op de heap
+(nothrow, stilte bij OOM), `Prepare()` 1× per update. Hobbels: `debug_pin.h`
+(STM32) eruit; `stmlib::atan_lut` ontbrak → `stmlib/dsp/atan.cc` mee-gevendord.
+Panel: 14 HP met position/size/pitch/density/texture + mix/spread/feedback/
+reverb, mode-switch, freeze-toggle, freeze/trig-gates, CV-jacks.
+
+**🌊 Tides geport (tp_mmb_tides, FW-CV-1)** — `firmware/lib/mi-tides`:
+tides2 `PolySlopeGenerator`. Bewust **géén AudioStream maar een CvModule**:
+1 sample per 1 kHz-tick (`f = hz/1000`), goed tot ~100 Hz — precies het
+LFO/envelope-domein. Vier uitgangen met betekenis per output-mode
+(gates / amplitude / phase / frequency), exponentiële rate-CV
+(±1 = ±1 octaaf), uitgangen ÷8 naar de MMB-CV-conventie. Eerste MI-port in
+het CV-domein — bewijst dat het recept ook buiten audio werkt.
+Panel: 10 HP in de lfo-categorie, rate/mode/output/shape/slope/smooth/shift.
+
+Beide libs via `teensy41_mmb.ld` naar QSPI-flash; RAM1 hield 48.9 KB vrij
+voor de stack. Telemetrie: `cloudsReady/Cpu/Peak` + `tidesOut1`.
+Firmware **0.5.31** gebouwd en geflasht; elf bewaard
+(`scratchpad/firmware-0.5.31.elf`).
+
+**⏳ Hardware-test pending:** COM4 was de hele nacht bezet (vermoedelijk het
+parallelle Gowin/FPGA-venster). Testharnas staat klaar:
+`scratchpad/clouds_tides_test.py` (VCO→Clouds→OUT met freeze/trig +
+tidesOut1-beweging); een achtergrond-wachter pollt de poort. Handmatig
+draaien kan ook: poort vrijgeven en
+`C:/Users/User/.platformio/penv/Scripts/python.exe scratchpad/clouds_tides_test.py`.
+
+Commits: `ad20baf` (firmware-port 0.5.31), `631fde4` (editor-panelen).
+
+**Toegift:** status-strip toont nu ook rings/plaits/clouds/tides-telemetrie
+(`9d9d4f6`), en er staat een nieuwe demo-seed in het Solo-menu:
+**☁️ Clouds ambient (+Tides)** — Plaits (additive) → Clouds (granular), met
+Tides in loop+phase-mode als quadratuur-LFO op position/texture en elke
+MIDI-noot als korrel-trigger (`a80fab3`).
