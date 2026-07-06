@@ -198,3 +198,34 @@ de auto-reconnectende editor. Voortaan de standaard flash-route.
 **Machine-mysterie:** het "overal volgende rondje" bleek zes parallelle
 Vite-dev-servers (Bitemporal) + één MusicBrain-Vite — allemaal gestopt;
 één per project starten.
+
+---
+
+## Nacht 7→8 juli (slaapsessie): vocoder-seed, Octa's, Morph-WT (0.5.39)
+
+**🗣️ Seed "Warps vocoder"** (Solo-menu): keyboard bespeelt Warps' interne
+zaag-carrier (V/Oct), Marbles klokt Plaits (string) als ritmische modulator
+door de vocoder. `28596ad`.
+
+**Octa-VCF + Octa-VCA (FW-PM-2/3 ✅, `4c23480`):** het OctaVco-cellenpatroon
+toegepast op filter en VCA — 8× SVF resp. 8× multiply met één gedeelde
+control-set, per cel in_N/cv_N/out_N. Een 8-stemmige poly is nu drie
+modules (Octa-VCO → Octa-VCF → Octa-VCA) + mixer. Hardware: LFO op alle
+8 VCA-cellen moduleert (96% variatie) op 6,5% CPU.
+
+**Morph-WT (FW-AU-14, `bc4ef11`):** morphing-wavetable-VCO — 8 frames per
+bank, per sample geïnterpoleerd én tussen frames gecrossfaded; morph-knop
++ CV. Banken Analog/Vocal/Harmonics/Digital (additief opgebouwd) + USER,
+vulbaar via de bestaande wavetable-push (wslot kiest het frame → de
+Draw-VCO-teken-UI werkt ervoor). 1,5% CPU. v1 aliast licht boven ~C6.
+
+**RAM1-crisis + structurele fix:** met alle nieuwe modules zakte de
+DTCM-stack naar 2 KB (!). `main.cpp.o` (alle module-code) is naar de
+gecachte QSPI-flash verhuisd (zelfde route als de MI-libs) → **172 KB
+stack vrij**, en de regressietest (DX7→Warps-vocoderketen, 13,9% CPU)
+toont geen merkbare vertraging. Sectie-les: function-local statics met
+`.dmabuffers`-attribuut botsen met de AudioMemory-pool in dezelfde TU —
+heap gebruiken.
+
+Alle drie hardware-getest via flash_verify (0.5.39, tag fw-0.5.39):
+Morph-WT 4 banken klinken; octa-keten leeft; regressie OK.
