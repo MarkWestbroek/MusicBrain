@@ -4,6 +4,15 @@
 
 import { useTeensyLink } from './teensyLink';
 
+/** Module-peak met clip-kleur: ≥1.0 clipt de module intern (rood). */
+function peakLabel(v: number): JSX.Element {
+  return (
+    <b style={{ color: v >= 1.0 ? '#f87171' : v > 0.9 ? '#fbbf24' : 'inherit' }}>
+      {v.toFixed(3)}{v >= 1.0 ? '!' : ''}
+    </b>
+  );
+}
+
 export function TeensyStatusBar(props: { compact?: boolean }): JSX.Element | null {
   const link = useTeensyLink();
   const st = link.lastStatus;
@@ -54,30 +63,30 @@ export function TeensyStatusBar(props: { compact?: boolean }): JSX.Element | nul
         modules {st.modules}{(st.retired ?? 0) > 0 ? ` (+${st.retired} retired)` : ''}
       </span>
       {st.elementsReady !== undefined && (
-        <span title="Elements-diagnose: buffers ✓/✗, ISR-aandeel, output-peak, en de keten gate→exciter→resonator (waar stopt het signaal?)">
+        <span title="Elements-diagnose: buffers ✓/✗, ISR-aandeel, output-peak (≥1.0 = module clipt intern — level terugdraaien), en de keten gate→exciter→resonator (waar stopt het signaal?)">
           elements {st.elementsReady ? '✓' : '✗'} {st.elementsCpu?.toFixed(1)}%
-          {st.elementsPeak !== undefined ? ` · peak ${st.elementsPeak.toFixed(3)}` : ''}
+          {st.elementsPeak !== undefined && <> · peak {peakLabel(st.elementsPeak)}</>}
           {st.elementsGate !== undefined ? ` · gate ${st.elementsGate ? '▮' : '▯'}` : ''}
           {st.elementsExc !== undefined ? ` exc ${st.elementsExc.toFixed(2)}` : ''}
           {st.elementsRes !== undefined ? ` res ${st.elementsRes.toFixed(2)}` : ''}
         </span>
       )}
       {st.ringsReady !== undefined && (
-        <span title="Rings-diagnose: buffers ✓/✗, ISR-aandeel, output-peak">
+        <span title="Rings-diagnose: buffers ✓/✗, ISR-aandeel, output-peak (≥1.0 = module clipt intern)">
           rings {st.ringsReady ? '✓' : '✗'} {st.ringsCpu?.toFixed(1)}%
-          {st.ringsPeak !== undefined ? ` · peak ${st.ringsPeak.toFixed(3)}` : ''}
+          {st.ringsPeak !== undefined && <> · peak {peakLabel(st.ringsPeak)}</>}
         </span>
       )}
       {st.plaitsReady !== undefined && (
-        <span title="Plaits-diagnose: buffers ✓/✗, ISR-aandeel, output-peak">
+        <span title="Plaits-diagnose: buffers ✓/✗, ISR-aandeel, output-peak (≥1.0 = module clipt intern)">
           plaits {st.plaitsReady ? '✓' : '✗'} {st.plaitsCpu?.toFixed(1)}%
-          {st.plaitsPeak !== undefined ? ` · peak ${st.plaitsPeak.toFixed(3)}` : ''}
+          {st.plaitsPeak !== undefined && <> · peak {peakLabel(st.plaitsPeak)}</>}
         </span>
       )}
       {st.cloudsReady !== undefined && (
-        <span title="Clouds-diagnose: werkbuffers ✓/✗ (✗ = heap-OOM, module zwijgt), ISR-aandeel, output-peak">
+        <span title="Clouds-diagnose: werkbuffers ✓/✗ (✗ = heap-OOM, module zwijgt), ISR-aandeel, output-peak (≥1.0 = module clipt intern)">
           clouds {st.cloudsReady ? '✓' : '✗'} {st.cloudsCpu?.toFixed(1)}%
-          {st.cloudsPeak !== undefined ? ` · peak ${st.cloudsPeak.toFixed(3)}` : ''}
+          {st.cloudsPeak !== undefined && <> · peak {peakLabel(st.cloudsPeak)}</>}
         </span>
       )}
       {st.tidesOut1 !== undefined && (

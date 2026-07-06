@@ -217,3 +217,17 @@ Gevraagd door de gebruiker; vastgelegd zodat de items hierboven kloppen.
   kan al **Oldest / Lowest / Highest** (last-note priority bij release,
   oldest-steal als default), maar dit is in de editor **niet kiesbaar of
   doorpushbaar** (zie ED-MI-3 / FW-2).
+
+## 6. Panels & telemetrie (sessie 2026-07-06)
+
+- **ED-P-1 — Panels los exporteren/importeren.** ↓ Exporteer pakt nu het hele
+  project; gewenst: één paneel (ModuleType + visual) als los JSON-bestand
+  exporteren/importeren, richting een `panels/`-bibliotheek. Panels zijn
+  logisch 1→* t.o.v. ModuleType (zie doc/architecture/mmb-moduletype-panel.puml).
+- **ED-P-2 — VU/clip-meter op het OUT-paneel.** outPeak staat al in de strip
+  (met CLIP-indicatie ≥0.999); een echte meter op het paneel zelf vraagt
+  live telemetrie-doorvoer naar de panel-renderer. Meenemen in de
+  UI-designsessie (kabels/knoppen-bedienbaarheid).
+- **ED-P-3 — `minFirmwareVersion` op Panel.** Waarschuwing bij verbinden als
+  het paneel meer belooft dan de aangesloten firmware levert (koppelt aan de
+  contract-keten en de fw-X.Y.Z-tags).
