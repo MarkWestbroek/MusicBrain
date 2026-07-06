@@ -1653,6 +1653,57 @@ function mmbTides() {
   });
 }
 
+// 14f. MMB MARBLES — 14 HP. Mutable Instruments Marbles: generatieve
+//     random-sequencer in het CV-domein (FW-CV-2). t1/t2 = random gates,
+//     x1..x3 = gekwantiseerde random-CV's (volts → direct op V/Oct!),
+//     y = trage random-CV. Déjà-vu rond 0.5 bevriest de loop.
+function mmbMarbles() {
+  const w = W(14);
+  const col = (i: number): number => w * (0.10 + i * 0.135);   // 7 kolommen
+  return assemble({
+    typeId: 'tp_mmb_marbles',
+    categoryId: 'sequencer',
+    variant: 'Marbles (MI random)',
+    brand: 'MI', model: 'MARBLES',
+    hp: 14, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'MARBLES', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13,  text: 'random · déjà vu', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w*0.25, y: 20, text: '— t —', fontSize: 1.2, color: '#9ca3af', align: 'middle' },
+      { x: w*0.75, y: 20, text: '— X —', fontSize: 1.2, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MI', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('tempo',  'Tempo',  w*0.25, 32, { size: 'large', min: 10, max: 480, def: 120, unit: 'bpm', color: '#f9fafb' }),
+      knob('spread', 'Spread', w*0.75, 32, { size: 'large', min: 0, max: 1, def: 0.5, color: '#e11d48' }),
+      knob('bias',   'Bias',   w*0.12, 56, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('jitter', 'Jitter', w*0.37, 56, { size: 'small', min: 0, max: 1, def: 0, color: '#f9fafb' }),
+      knob('xbias',  'Bias X', w*0.62, 56, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('steps',  'Steps',  w*0.87, 56, { size: 'small', min: 0, max: 1, def: 0.5, color: '#0891b2' }),
+      knob('dejavu', 'Déjà vu', w*0.25, 76, { size: 'medium', min: 0, max: 1, def: 0, color: '#0891b2' }),
+      knob('length', 'Loop',    w*0.55, 76, { size: 'small', min: 1, max: 16, def: 8, step: 1, color: '#f9fafb' }),
+      // 0=Bernoulli (muntje t1/t2), 1=clusters, 2=drums.
+      sw ('model', 'Model', w*0.85, 76, ['Coin','Clus','Drum'], 0),
+      sw ('scale', 'Scale', w*0.18, 93, ['Maj','Min','Pent','Pelog','Bhai','Shri'], 0),
+      sw ('range', 'Range', w*0.50, 93, ['+2V','+5V','±5V'], 2),
+      toggle('extclock', 'ExtClk', w*0.82, 93),
+
+      inPort ('clock',     'Clk', 'gate', col(0), 106),
+      inPort ('rate_cv',   'R+',  'cv',   col(2), 106),
+      inPort ('dejavu_cv', 'DV+', 'cv',   col(4), 106),
+      inPort ('spread_cv', 'Sp+', 'cv',   col(6), 106),
+      outPort('t1',   't1', 'gate', col(0), 119),
+      outPort('t2',   't2', 'gate', col(1), 119),
+      outPort('tclk', 'tK', 'gate', col(2), 119),
+      outPort('x1',   'X1', 'cv',   col(3), 119),
+      outPort('x2',   'X2', 'cv',   col(4), 119),
+      outPort('x3',   'X3', 'cv',   col(5), 119),
+      outPort('y',    'Y',  'cv',   col(6), 119),
+    ],
+    notes: 'Mutable Instruments Marbles (firmware tp_mmb_marbles, FW-CV-2): generatieve random-sequencer in het CV-domein (1 kHz-tick). t1/t2 zijn random gates rond de interne klok (Tempo, of ExtClk + Clk-jack); tK is de master-klok. X1..X3 zijn gekwantiseerde random-CV\'s in volts — patch X1 direct op een V/Oct-ingang en kies een Scale. Déjà vu rond 0.5 bevriest de loop (Loop = lengte); Steps maakt gladde CV\'s trapsgewijs; Spread/Bias X sturen de spreiding. Y is een trage random-CV (klok ÷16). Range: octaafbereik van X (±5V = ±5 octaven rond C4).',
+  });
+}
+
 // 15. MMB COMP — 6 HP. Feed-forward compressor met lichte tanh-overdrive
 //     (firmware tp_mmb_comp, FW-FX-2). De Audio-lib heeft geen compressor,
 //     dus dit is een custom AudioStream.
@@ -1866,7 +1917,7 @@ function mmbStkSound() {
 // ── public entry ───────────────────────────────────────────────────────
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbComp(), mmbNoise(), mmbEcho(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbComp(), mmbNoise(), mmbEcho(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound()];
   const newTypes = all.map((x) => x.type);
   const newModules = all.map((x) => x.module);
 
@@ -2590,6 +2641,82 @@ export function seedSoloVoicePatch(
     ...p,
     racks:        [...p.racks, rack],
     modules:      [...p.modules, mi, inst, out],
+    patches:      [...p.patches, patch],
+    activeRackId:  rack.id,
+    activePatchId: patch.id,
+  };
+}
+
+/**
+ * Zelfspelende demo-seed: Marbles klokt en kiest de noten, Plaits speelt ze,
+ * Clouds maakt er een wolk van en Tides (quadratuur) beweegt de wolk.
+ * Geen MIDI nodig — verbinden en luisteren.
+ */
+export function seedGenerativeJamPatch(project: ModularProject): ModularProject {
+  const needed = ['tp_mmb_marbles', 'tp_mmb_plaits', 'tp_mmb_clouds', 'tp_mmb_tides', 'tp_mmb_out'];
+  const missing = needed.some((tid) => !project.moduleTypes.some((t) => t.id === tid));
+  const p = missing ? seedInternals(project) : project;
+
+  const fresh = (tid: string): ModuleInstance => {
+    const proto = p.modules.find((m) => m.typeId === tid)!;
+    return { ...proto, id: uid('mod'), internal: false, visual: proto.visual };
+  };
+  const mar    = fresh('tp_mmb_marbles');
+  const plaits = fresh('tp_mmb_plaits');
+  const tides  = fresh('tp_mmb_tides');
+  const clouds = fresh('tp_mmb_clouds');
+  const out    = fresh('tp_mmb_out');
+
+  let offset = 0;
+  const place = (m: ModuleInstance): RackSlot => {
+    const s: RackSlot = { id: uid('slot'), moduleId: m.id, row: 0, hpOffset: offset };
+    offset += m.visual.hpWidth;
+    return s;
+  };
+  const all = [mar, plaits, tides, clouds, out];
+  const rack: Rack = {
+    id: uid('rack'), name: 'Generative jam',
+    description: 'Marbles → Plaits → Clouds; Tides beweegt de wolk. Zelfspelend.',
+    rows: 1, hpPerRow: Math.max(64, all.reduce((n, m) => n + m.visual.hpWidth, 0) + 4),
+    slots: all.map(place),
+    kind: 'physical',
+  };
+
+  const c = (fm: ModuleInstance, fp: string, tm: ModuleInstance, tp: string): PatchConnection => ({
+    id: uid('conn'),
+    from: { moduleId: fm.id, portId: fp },
+    to:   { moduleId: tm.id, portId: tp },
+  });
+  const patch: Patch = {
+    id: uid('patch'), name: 'Generative jam',
+    description: 'Zelfspelend: Marbles kiest noten (pentatonisch) en klokt Plaits; Clouds + Tides maken er een drijvende wolk van. Draai aan Déjà vu (~0.5) om de melodie te laten loopen.',
+    voiceCount: 1,
+    rackIds: [rack.id],
+    connections: [
+      c(mar, 'x1', plaits, 'voct'),
+      c(mar, 't1', plaits, 'gate'),
+      c(plaits, 'out', clouds, 'in_l'),
+      c(plaits, 'aux', clouds, 'in_r'),
+      c(mar, 't2', clouds, 'trig'),
+      c(tides, 'out1', clouds, 'position_cv'),
+      c(tides, 'out2', clouds, 'texture_cv'),
+      c(clouds, 'out_l', out, 'l'),
+      c(clouds, 'out_r', out, 'r'),
+    ],
+    controlState: {
+      [mar.id]:    { tempo: 180, bias: 0.4, jitter: 0.1, model: 0, dejavu: 0, length: 8, spread: 0.5, xbias: 0.5, steps: 0.8, scale: 2, range: 1 },
+      [plaits.id]: { engine: 11, harmonics: 0.5, timbre: 0.45, morph: 0.5, decay: 0.55, lpg: 0.6 },  // string — tokkelt mooi
+      [tides.id]:  { rate: 0.07, mode: 1, output: 2, shape: 0.5, slope: 0.5, smooth: 0.6, shift: 0.5 },
+      [clouds.id]: { position: 0.35, size: 0.6, pitch: 0, density: 0.5, texture: 0.5, mix: 0.55, spread: 0.6, feedback: 0.3, reverb: 0.55, mode: 0 },
+      [out.id]:    { level: 0.8 },
+    },
+    envelopes: [], lfos: [],
+  };
+
+  return {
+    ...p,
+    racks:        [...p.racks, rack],
+    modules:      [...p.modules, ...all],
     patches:      [...p.patches, patch],
     activeRackId:  rack.id,
     activePatchId: patch.id,

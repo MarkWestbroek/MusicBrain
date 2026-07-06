@@ -7,7 +7,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { setProject, updateProject, useModularProject, getProject, undo, redo } from './store';
 import { emptyModularProject } from './types';
-import { seedExampleModules, seedInternals, seedTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, type PolySeedOptions } from './seedModules';
+import { seedExampleModules, seedInternals, seedTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, type PolySeedOptions } from './seedModules';
 import { PatchesPanel } from './PatchesPanel';
 import { ModulesPanel } from './ModulesPanel';
 import { CategoriesPanel } from './CategoriesPanel';
@@ -290,6 +290,14 @@ export function ModularMbApp(): JSX.Element {
                     borderTop: '1px solid #e5e7eb',
                   }}
                 >☁️ Clouds ambient (+Tides)</button>
+                <button
+                  onClick={() => { setProject(seedGenerativeJamPatch(getProject())); setShowSolo(false); }}
+                  title="Zelfspelend: Marbles kiest noten en klokt Plaits (string-engine), Clouds + Tides maken er een drijvende wolk van. Geen MIDI nodig."
+                  style={{
+                    textAlign: 'left', border: 'none', background: 'transparent',
+                    padding: '7px 12px', cursor: 'pointer', fontSize: 13,
+                  }}
+                >🎲 Generative jam (Marbles)</button>
               </div>
             )}
           </span>
