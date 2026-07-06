@@ -110,8 +110,8 @@ Brondump gebruiker (idee), nagenoeg ongewijzigd overgenomen:
 | # | Prio | Status | Item |
 |---|---|---|---|
 | FW-PM-1 | 2 | ✅ | **Octa-osc VCO** — interne module met 8 detunable oscillatoren (`AudioSynthWaveform`); performance lijkt haalbaar bij poly 8. Firmware `tp_mmb_octa_vco` (`OctaVcoModule.h`): 8 cellen die wave/coarse/fine/level + een symmetrische `detune` (cents-spreiding) delen; per-cel `voct_1..8` in + `out_1..8` audio uit; gedeelde `tune` V/Oct-offset. Editor-seed `mmbOctaVco()` (OCTA-VCO-S, 20 HP, multi-module met CellGroup count 8). fw 0.5.13. |
-| FW-PM-2 | 2 | ⏳ | **Octa-VCF** — 8-voudige VCF-module, 1 set globale controllers, losse CV-in/uit per stem. |
-| FW-PM-3 | 2 | ⏳ | **Octa-VCA** — 8-voudige VCA-module, idem. |
+| FW-PM-2 | 2 | ✅ | **Octa-VCF** — firmware `tp_mmb_octa_vcf` (`OctaVcfModule.h`): 8× SVF met gedeelde cutoff/res/CV-diepte/type; per cel in_N/cv_N/out_N + gedeelde cv-ingang. Paneel OCTA-VCF-S (20HP, CellGroup). fw 0.5.39. |
+| FW-PM-3 | 2 | ✅ | **Octa-VCA** — firmware `tp_mmb_octa_vca` (`OctaVcaModule.h`): 8× multiply-VCA, per cel in_N/cv_N/out_N, gedeelde level. Paneel OCTA-VCA-S (16HP, CellGroup). fw 0.5.39. |
 | FW-PM-4 | 2 | ⏳ | **aanvulling agent:** *Firmware-kant van CellGroups: één module-instance die intern N cellen draait en de patch-expand naar N virtuele kabels afhandelt (tegenhanger van ED-CG-1). Sluit aan op de hardware-dCV-module met 1 set globale controllers.* |
 
 ### 2.3 Audio-modules / geluidsbronnen
