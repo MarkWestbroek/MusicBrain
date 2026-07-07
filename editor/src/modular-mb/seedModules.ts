@@ -2957,6 +2957,88 @@ export function seedSoloVoicePatch(
 }
 
 /**
+ * Krell-patch: het archetype van de zelfspelende synth. Stages genereert in
+ * loop-mode een steeds wisselende envelope; z'n EOC-puls triggert Marbles
+ * (nieuwe random noot) én de envelope zelf → een oneindige, nooit-herhalende
+ * melodie. Morph-WT is de stem (envelope op morph + VCA), Clouds maakt er een
+ * ruimte omheen. Verbinden en laten spelen.
+ */
+export function seedKrellPatch(project: ModularProject): ModularProject {
+  const needed = ['tp_mmb_stages', 'tp_mmb_marbles', 'tp_mmb_morph_wt', 'tp_mmb_vca', 'tp_mmb_clouds', 'tp_mmb_out'];
+  const missing = needed.some((tid) => !project.moduleTypes.some((t) => t.id === tid));
+  const p = missing ? seedInternals(project) : project;
+
+  const fresh = (tid: string): ModuleInstance => {
+    const proto = p.modules.find((m) => m.typeId === tid)!;
+    return { ...proto, id: uid('mod'), internal: false, visual: proto.visual };
+  };
+  const st   = fresh('tp_mmb_stages');
+  const mar  = fresh('tp_mmb_marbles');
+  const wt   = fresh('tp_mmb_morph_wt');
+  const vca  = fresh('tp_mmb_vca');
+  const cl   = fresh('tp_mmb_clouds');
+  const out  = fresh('tp_mmb_out');
+
+  let offset = 0;
+  const place = (m: ModuleInstance): RackSlot => {
+    const s: RackSlot = { id: uid('slot'), moduleId: m.id, row: 0, hpOffset: offset };
+    offset += m.visual.hpWidth;
+    return s;
+  };
+  const all = [st, mar, wt, vca, cl, out];
+  const rack: Rack = {
+    id: uid('rack'), name: 'Krell',
+    description: 'Stages (loop) triggert zichzelf + Marbles; Morph-WT stem in Clouds. Zelfspelend.',
+    rows: 1, hpPerRow: Math.max(64, all.reduce((n, m) => n + m.visual.hpWidth, 0) + 4),
+    slots: all.map(place),
+    kind: 'physical',
+  };
+
+  const c = (fm: ModuleInstance, fp: string, tm: ModuleInstance, tp: string): PatchConnection => ({
+    id: uid('conn'),
+    from: { moduleId: fm.id, portId: fp },
+    to:   { moduleId: tm.id, portId: tp },
+  });
+  const patch: Patch = {
+    id: uid('patch'), name: 'Krell',
+    description: 'Zelfspelend (Buchla-Krell): Stages loopt en triggert via EOC zichzelf + Marbles (nieuwe noot). De envelope stuurt de VCA en Morph-WT’s morph; Clouds maakt de ruimte. Draai aan Stages T2/rate en Marbles Deja vu.',
+    voiceCount: 1,
+    rackIds: [rack.id],
+    connections: [
+      c(st, 'eoc', st, 'gate'),          // self-trigger: nooit stil
+      c(st, 'eoc', mar, 'clock'),        // elke cyclus een nieuwe noot
+      c(mar, 'x1', wt, 'voct'),
+      c(st, 'out', wt, 'morph_cv'),      // envelope ademt door de wavetable
+      c(wt, 'out', vca, 'in'),
+      c(st, 'out', vca, 'cv'),           // envelope = amplitude
+      c(vca, 'out', cl, 'in_l'),
+      c(vca, 'out', cl, 'in_r'),
+      c(cl, 'out_l', out, 'l'),
+      c(cl, 'out_r', out, 'r'),
+    ],
+    controlState: {
+      [st.id]:  { segments: 2, loop: 1, loop_start: 0, loop_end: 1, rate: 1,
+                  t1: 0.15, s1: 0.6, type1: 0, t2: 0.5, s2: 0.3, type2: 0 },
+      [mar.id]: { tempo: 60, bias: 0.5, jitter: 0.2, model: 0, dejavu: 0.2, length: 8, spread: 0.6, steps: 0.9, scale: 2, range: 1, extclock: 1 },
+      [wt.id]:  { bank: 0, morph: 0, level: 0.9 },
+      [vca.id]: { gain: 0, resp: 0 },
+      [cl.id]:  { position: 0.4, size: 0.7, density: 0.4, texture: 0.5, mix: 0.6, reverb: 0.6, spread: 0.7, mode: 0, level: 0.9 },
+      [out.id]: { level: 0.85 },
+    },
+    envelopes: [], lfos: [],
+  };
+
+  return {
+    ...p,
+    racks:        [...p.racks, rack],
+    modules:      [...p.modules, ...all],
+    patches:      [...p.patches, patch],
+    activeRackId:  rack.id,
+    activePatchId: patch.id,
+  };
+}
+
+/**
  * 808-jam: Marbles klokt drie Peaks-drums (kick/snare/hat) door een mixer.
  * Zelfspelend — de generatieve gates (t1 = kick op de tel, t2 = snare/hat)
  * maken een steeds wisselend ritme. Draai aan Marbles Déjà vu om een groove
