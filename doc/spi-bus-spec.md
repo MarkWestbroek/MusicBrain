@@ -155,12 +155,17 @@ uitvoert voor experimenten met insteekkabeltjes.
 1. **Busconnector = haakse (horizontal) male 2×10** aan de onderrand van de
    kaart, pennen wijzen langs het kaartvlak naar beneden het slot in.
    (v1.0 van GATE8/ADC8 heeft nog rechte headers — wordt v1.1.)
-2. **Frontconnector = haakse female** aan de frontrand (de rand haaks op de
-   busrand, aan de paneelzijde), hart op **44 mm boven de busrand** — zodat
-   alle jack-printjes op alle kaarten passen.
-3. **Jack-printjes** dragen een rechte female socket op de *achterzijde*
-   en prikken parallel aan het paneel op de frontconnector. TN-normalling
-   via soldeerjumper (dicht = inputs, open = outputs!).
+2. **Frontconnector = haakse male** aan de frontrand (de rand haaks op de
+   busrand, aan de paneelzijde), pennen langs het kaartvlak naar het paneel
+   toe; hart op **44 mm boven de busrand** — zodat alle jack-printjes op
+   alle kaarten passen.
+3. **Jack-printjes** dragen een **rechte female socket op de achterzijde**
+   (opening richting kaart) en prikken haaks op de kaart, parallel aan het
+   paneel. TN-normalling via soldeerjumper (dicht = inputs, open = outputs!).
+
+   Vuistregel: **per koppeling precies één haakse connector, altijd aan de
+   kaartzijde (male)**; busboard-slots en jack-printjes hebben rechte
+   female sockets. De kaart draagt dus twee haakse males (bus + front).
 4. **Silkscreen-link**: `musicbrain.nl/hw/<bord>` + rev. Kort, drukbaar en
    stabiel: het domein redirect naar de actuele documentatie (GitHub-pad
    kan wijzigen; een redirect is één regel). Richt op musicbrain.nl een
