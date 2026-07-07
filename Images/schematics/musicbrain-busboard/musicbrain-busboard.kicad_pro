@@ -1,0 +1,12 @@
+{
+  "meta": {
+    "filename": "musicbrain-busboard.kicad_pro",
+    "version": 3
+  },
+  "general": {
+    "project_name": "MusicBrain SPI-busboard"
+  },
+  "schematic": {
+    "file": "musicbrain-busboard.kicad_sch"
+  }
+}

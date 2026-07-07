@@ -1,0 +1,15 @@
+{
+  "meta": {
+    "filename": "musicbrain-gate8.kicad_pro",
+    "version": 3
+  },
+  "general": {
+    "project_name": "MusicBrain GATE8"
+  },
+  "schematic": {
+    "file": "musicbrain-gate8.kicad_sch"
+  },
+  "pcb": {
+    "file": "musicbrain-gate8.kicad_pcb"
+  }
+}
