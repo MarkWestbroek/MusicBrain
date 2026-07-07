@@ -7,7 +7,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { setProject, updateProject, useModularProject, getProject, undo, redo } from './store';
 import { emptyModularProject } from './types';
-import { seedExampleModules, seedInternals, seedTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, seedDx7PolyPatch, seedWarpsVocoderPatch, type PolySeedOptions } from './seedModules';
+import { seedExampleModules, seedInternals, seedTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, seedDx7PolyPatch, seedWarpsVocoderPatch, seed808JamPatch, type PolySeedOptions } from './seedModules';
 import { PatchesPanel } from './PatchesPanel';
 import { ModulesPanel } from './ModulesPanel';
 import { CategoriesPanel } from './CategoriesPanel';
@@ -317,6 +317,14 @@ export function ModularMbApp(): JSX.Element {
                     padding: '7px 12px', cursor: 'pointer', fontSize: 13,
                   }}
                 >🗣️ Warps vocoder</button>
+                <button
+                  onClick={() => { setProject(seed808JamPatch(getProject())); setShowSolo(false); }}
+                  title="Zelfspelend 808-ritme: Marbles klokt kick/snare/hat (Peaks-drums) door een mixer. Draai aan Marbles Deja vu voor een vaste groove."
+                  style={{
+                    textAlign: 'left', border: 'none', background: 'transparent',
+                    padding: '7px 12px', cursor: 'pointer', fontSize: 13,
+                  }}
+                >🥁 808 jam (Peaks)</button>
               </div>
             )}
           </span>

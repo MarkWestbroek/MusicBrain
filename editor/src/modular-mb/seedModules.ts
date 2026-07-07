@@ -1958,6 +1958,37 @@ function mmbStages() {
   });
 }
 
+// 14j. MMB PEAKS — 8 HP. Mutable Instruments Peaks drums (FW-AU-15):
+//     808-achtige analoge-model-drums (kick/snare/hat/fm), gate-getriggerd.
+function mmbPeaks() {
+  const w = W(8);
+  return assemble({
+    typeId: 'tp_mmb_peaks',
+    categoryId: 'drum',
+    variant: 'Peaks (MI drums)',
+    brand: 'MI', model: 'PEAKS',
+    hp: 8, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'PEAKS', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13,  text: '808 drums', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MI', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      sw  ('drum', 'Drum', w/2, 26, ['Kick','Snare','Hat','FM'], 0),
+      knob('tone',  'Tone',  w*0.28, 50, { size: 'medium', min: 0, max: 1, def: 0.5, color: '#e11d48' }),
+      knob('decay', 'Decay', w*0.72, 50, { size: 'medium', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('snap',  'Snap',  w*0.28, 74, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('coarse','Coarse',w*0.72, 74, { size: 'small', min: -36, max: 36, def: 0, unit: 'semi', color: '#f9fafb' }),
+      knob('level', 'Level', w/2,    92, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+
+      inPort ('gate', 'Trig',  'gate', w*0.20, 110),
+      inPort ('voct', 'V/Oct', 'cv',   w*0.50, 110),
+      outPort('out',  'Out',   'audio', w*0.80, 110),
+    ],
+    notes: 'Mutable Instruments Peaks drums (firmware tp_mmb_peaks, FW-AU-15): 808-achtige analoge-model-drums. Drum kiest Kick / Snare / Hat / FM; elke stijgende flank op Trig slaat de drum. Tone en Decay zijn de macro-knoppen; Snap = punch (kick) / snappy (snare) / FM-amount (fm). V/Oct + Coarse stemmen de kick/snare/fm. Eén drum per module — plaats er meerdere en klok ze met Marbles t1/t2 of een sequencer. Rendert op 48 kHz, geresampled naar 44.1.',
+  });
+}
+
 // 15. MMB COMP — 6 HP. Feed-forward compressor met lichte tanh-overdrive
 //     (firmware tp_mmb_comp, FW-FX-2). De Audio-lib heeft geen compressor,
 //     dus dit is een custom AudioStream.
@@ -2171,7 +2202,7 @@ function mmbStkSound() {
 // ── public entry ───────────────────────────────────────────────────────
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbComp(), mmbNoise(), mmbEcho(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbComp(), mmbNoise(), mmbEcho(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound()];
   const newTypes = all.map((x) => x.type);
 
   // Upgrade-pad: bestaande interne types worden in-place VERVANGEN (zelfde
@@ -2919,6 +2950,84 @@ export function seedSoloVoicePatch(
     ...p,
     racks:        [...p.racks, rack],
     modules:      [...p.modules, mi, inst, out],
+    patches:      [...p.patches, patch],
+    activeRackId:  rack.id,
+    activePatchId: patch.id,
+  };
+}
+
+/**
+ * 808-jam: Marbles klokt drie Peaks-drums (kick/snare/hat) door een mixer.
+ * Zelfspelend — de generatieve gates (t1 = kick op de tel, t2 = snare/hat)
+ * maken een steeds wisselend ritme. Draai aan Marbles Déjà vu om een groove
+ * vast te zetten.
+ */
+export function seed808JamPatch(project: ModularProject): ModularProject {
+  const needed = ['tp_mmb_marbles', 'tp_mmb_peaks', 'tp_mmb_mixer', 'tp_mmb_out'];
+  const missing = needed.some((tid) => !project.moduleTypes.some((t) => t.id === tid));
+  const p = missing ? seedInternals(project) : project;
+
+  const fresh = (tid: string): ModuleInstance => {
+    const proto = p.modules.find((m) => m.typeId === tid)!;
+    return { ...proto, id: uid('mod'), internal: false, visual: proto.visual };
+  };
+  const mar   = fresh('tp_mmb_marbles');
+  const kick  = fresh('tp_mmb_peaks');
+  const snare = fresh('tp_mmb_peaks');
+  const hat   = fresh('tp_mmb_peaks');
+  const mixer = fresh('tp_mmb_mixer');
+  const out   = fresh('tp_mmb_out');
+
+  let offset = 0;
+  const place = (m: ModuleInstance): RackSlot => {
+    const s: RackSlot = { id: uid('slot'), moduleId: m.id, row: 0, hpOffset: offset };
+    offset += m.visual.hpWidth;
+    return s;
+  };
+  const all = [mar, kick, snare, hat, mixer, out];
+  const rack: Rack = {
+    id: uid('rack'), name: '808 jam',
+    description: 'Marbles klokt kick/snare/hat door een mixer. Zelfspelend.',
+    rows: 1, hpPerRow: Math.max(64, all.reduce((n, m) => n + m.visual.hpWidth, 0) + 4),
+    slots: all.map(place),
+    kind: 'physical',
+  };
+
+  const c = (fm: ModuleInstance, fp: string, tm: ModuleInstance, tp: string): PatchConnection => ({
+    id: uid('conn'),
+    from: { moduleId: fm.id, portId: fp },
+    to:   { moduleId: tm.id, portId: tp },
+  });
+  const patch: Patch = {
+    id: uid('patch'), name: '808 jam',
+    description: 'Zelfspelend 808-ritme: Marbles t1 = kick (op de tel), t2 = snare, tK = hat. Draai Marbles Bias/Déjà vu voor variatie; Peaks Tone/Decay per drum voor het geluid.',
+    voiceCount: 1,
+    rackIds: [rack.id],
+    connections: [
+      c(mar, 't1', kick,  'gate'),
+      c(mar, 't2', snare, 'gate'),
+      c(mar, 'tclk', hat, 'gate'),
+      c(kick,  'out', mixer, 'in1'),
+      c(snare, 'out', mixer, 'in2'),
+      c(hat,   'out', mixer, 'in3'),
+      c(mixer, 'out_l', out, 'l'),
+      c(mixer, 'out_r', out, 'r'),
+    ],
+    controlState: {
+      [mar.id]:   { tempo: 120, bias: 0.5, jitter: 0.05, model: 0, dejavu: 0, length: 8, spread: 0.5, steps: 1, scale: 0, range: 1 },
+      [kick.id]:  { drum: 0, tone: 0.4, decay: 0.6, snap: 0.6, coarse: 0, level: 0.9 },
+      [snare.id]: { drum: 1, tone: 0.6, decay: 0.4, snap: 0.5, coarse: 0, level: 0.7 },
+      [hat.id]:   { drum: 2, tone: 0.5, decay: 0.25, snap: 0.5, coarse: 0, level: 0.5 },
+      [mixer.id]: { vol1: 0.9, vol2: 0.7, vol3: 0.5, pan1: 0, pan2: -0.2, pan3: 0.3 },
+      [out.id]:   { level: 0.85 },
+    },
+    envelopes: [], lfos: [],
+  };
+
+  return {
+    ...p,
+    racks:        [...p.racks, rack],
+    modules:      [...p.modules, ...all],
     patches:      [...p.patches, patch],
     activeRackId:  rack.id,
     activePatchId: patch.id,

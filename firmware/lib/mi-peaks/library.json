@@ -1,0 +1,8 @@
+{
+  "name": "mi-peaks",
+  "version": "1.0.0",
+  "description": "Mutable Instruments Peaks — 808-achtige drum-synthese (MIT, (c) Emilie Gillet): BassDrum/SnareDrum/HighHat/FmDrum. Gevendorde subset voor MMB PeaksModule (tp_mmb_peaks). Rendert op 48 kHz, resamplet naar 44.1 kHz.",
+  "license": "MIT",
+  "homepage": "https://github.com/pichenettes/eurorack",
+  "build": { "flags": ["-I."], "srcFilter": ["+<peaks/>"] }
+}
