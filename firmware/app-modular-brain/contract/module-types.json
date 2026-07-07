@@ -1,6 +1,6 @@
 {
   "$comment": "GEGENEREERD door tools/contract_dump.py — niet met de hand bewerken. Poort-ids zijn letterlijk wat de firmware accepteert (aliassen als out/out_l en naam/naam_cv staan er dus allebei in).",
-  "firmwareVersion": "0.5.41",
+  "firmwareVersion": "0.5.44",
   "modules": {
     "tp_mmb_ahdsr": {
       "typeId": "tp_mmb_ahdsr",
@@ -643,6 +643,26 @@
       ],
       "controlsIgnored": []
     },
+    "tp_mmb_peaks": {
+      "typeId": "tp_mmb_peaks",
+      "source": "firmware/app-modular-brain/src/PeaksModule.h",
+      "ports": [
+        "accent",
+        "accent_cv",
+        "gate",
+        "out",
+        "trig",
+        "voct"
+      ],
+      "controls": [
+        "coarse",
+        "decay",
+        "drum",
+        "level",
+        "snap",
+        "tone"
+      ]
+    },
     "tp_mmb_phaser": {
       "typeId": "tp_mmb_phaser",
       "source": "firmware/app-modular-brain/src/PhaserModule.h",
@@ -691,6 +711,27 @@
         "lpg",
         "morph",
         "timbre"
+      ]
+    },
+    "tp_mmb_resonator": {
+      "typeId": "tp_mmb_resonator",
+      "source": "firmware/app-modular-brain/src/ResonatorModule.h",
+      "ports": [
+        "in",
+        "mix",
+        "out",
+        "struct",
+        "struct_cv",
+        "voct"
+      ],
+      "controls": [
+        "damping",
+        "decay",
+        "level",
+        "mix",
+        "root",
+        "scale",
+        "structure"
       ]
     },
     "tp_mmb_rings": {

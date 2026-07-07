@@ -2199,10 +2199,47 @@ function mmbStkSound() {
   });
 }
 
+// 21. MMB RESONATOR — 10 HP. Sympathetic-resonator-bank (firmware
+//     tp_mmb_resonator, FW-FX-6): 12 Karplus-achtige snaar-resonatoren
+//     gestemd op een schaal rond de grondtoon; het ingangssignaal excite't
+//     ze allemaal → sitar/piano-klankkast-resonantie, berekend.
+function mmbResonator() {
+  const w = W(10);
+  return assemble({
+    typeId: 'tp_mmb_resonator',
+    categoryId: 'effect',
+    variant: 'Resonator (sympathetic)',
+    brand: 'MMB', model: 'RESONATOR',
+    hp: 10, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'RESONATOR', fontSize: 2.2, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13,  text: '12 sympathetic strings', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('root',  'Root',  w*0.30, 30, { size: 'large', min: -24, max: 24, def: 0, unit: 'semi', color: '#f9fafb' }),
+      // 0=chromatisch 1=majeur 2=mineur 3=kwint/octaaf 4=harmonische reeks.
+      sw  ('scale', 'Scale', w*0.72, 30, ['Chrom','Maj','Min','5th','Harm'], 1),
+      knob('structure', 'Struct', w*0.25, 60, { size: 'medium', min: 0, max: 1, def: 0.3, color: '#e11d48' }),
+      knob('decay',     'Decay',  w*0.75, 60, { size: 'medium', min: 0, max: 1, def: 0.7, color: '#f9fafb' }),
+      knob('damping', 'Damp',  w*0.20, 86, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('mix',     'Mix',   w*0.50, 86, { size: 'small', min: 0, max: 1, def: 0.6, color: '#0891b2' }),
+      knob('level',   'Level', w*0.80, 86, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+
+      inPort ('in',        'In',    'audio', w*0.18, 104),
+      inPort ('voct',      'V/Oct', 'cv',    w*0.50, 104),
+      inPort ('struct_cv', 'St+',   'cv',    w*0.82, 104),
+      outPort('out',       'Out',   'audio', w*0.32, 118),
+      outPort('mix',       'Mix',   'audio', w*0.68, 118),
+    ],
+    notes: 'Sympathetic-resonator-bank (firmware tp_mmb_resonator, FW-FX-6). Twaalf Karplus-achtige comb-resonatoren gestemd op een schaal rond Root (semitonen rond C2, V/Oct verschuift mee). Audio op In excite\'t alle snaren tegelijk: harmonisch verwante snaren klinken mee (sitar/piano-klankkast), ook zonder direct te zijn aangeslagen. Struct spreidt de stemming (koor-detune), Decay = resonantietijd, Damp = helderheid (laag = donker). Out en Mix dragen hetzelfde signaal (dry/wet volgens de Mix-knob) — patch op Out. ~75 KB heap, enkele % CPU.',
+  });
+}
+
 // ── public entry ───────────────────────────────────────────────────────
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbComp(), mmbNoise(), mmbEcho(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbComp(), mmbNoise(), mmbEcho(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound()];
   const newTypes = all.map((x) => x.type);
 
   // Upgrade-pad: bestaande interne types worden in-place VERVANGEN (zelfde

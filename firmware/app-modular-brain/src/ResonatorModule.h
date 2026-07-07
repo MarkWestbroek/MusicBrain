@@ -59,7 +59,10 @@ public:
     void setScale(int s)        { scale_ = (s < 0 ? 0 : s > 4 ? 4 : s); retune(); }
     void setStructure(float v)  { structure_ = clamp01(v); retune(); }
     void setStructureCv(float v){ structCv_ = v; retune(); }
-    void setDecay(float v)      { feedback_ = 0.80f + 0.199f * clamp01(v); }
+    void setDecay(float v)      { // perceptueel: ringtijd ~ 1/ln(1/fb), dus
+                                  // kwadratisch naar fb→0.999 voor lange staart
+                                  const float u = 1.0f - clamp01(v);
+                                  feedback_ = 0.999f - 0.199f * u * u; }
     void setDamping(float v)    { // laag = donker: demp-lowpass-coëfficiënt
                                   damp_ = 0.05f + 0.9f * clamp01(v); }
     void setMix(float v)        { mix_ = clamp01(v); }
@@ -148,7 +151,7 @@ private:
 
     float root_ = 0.0f, voct_ = 0.0f, structure_ = 0.3f, structCv_ = 0.0f;
     int   scale_ = 1;
-    float feedback_ = 0.97f, damp_ = 0.5f, mix_ = 0.6f, level_ = 0.8f;
+    float feedback_ = 0.981f, damp_ = 0.5f, mix_ = 0.6f, level_ = 0.8f;  // = decay 0.7
     volatile float peak_ = 0.0f;
 };
 
@@ -177,6 +180,7 @@ public:
         return (portId == "out" || portId == "mix") ? PortKind::Audio : PortKind::None;
     }
     PortKind inputPortKind(std::string_view portId) const override {
+        if (portId == "in")   return PortKind::Audio;
         if (portId == "voct") return PortKind::Cv;
         if (cvPortIs(portId, "struct")) return PortKind::Cv;
         return PortKind::None;
