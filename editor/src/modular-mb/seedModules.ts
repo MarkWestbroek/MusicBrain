@@ -1908,6 +1908,56 @@ function mmbWarps() {
   });
 }
 
+// 14i. MMB STAGES — 16 HP. Mutable Instruments Stages segment-generator
+//     (FW-CV-3): 6 ketenbare segmenten → complexe envelope / multi-stage
+//     LFO / step-sequencer, in het CV-domein.
+function mmbStages() {
+  const w = W(16);
+  return assemble({
+    typeId: 'tp_mmb_stages',
+    categoryId: 'envelope',
+    variant: 'Stages (MI segment-gen)',
+    brand: 'MI', model: 'STAGES',
+    hp: 16, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'STAGES', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13,  text: '6 segmenten · env/LFO/seq', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MI', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('t1', 'T1', w * (0.10 + 0 * 0.152), 34, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('s1', 'S1', w * (0.10 + 0 * 0.152), 54, { size: 'small', min: 0, max: 1, def: 0.5, color: '#9ca3af' }),
+      sw  ('type1', '', w * (0.10 + 0 * 0.152), 72, ['R','H','S','A'], 0),
+      knob('t2', 'T2', w * (0.10 + 1 * 0.152), 34, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('s2', 'S2', w * (0.10 + 1 * 0.152), 54, { size: 'small', min: 0, max: 1, def: 0.5, color: '#9ca3af' }),
+      sw  ('type2', '', w * (0.10 + 1 * 0.152), 72, ['R','H','S','A'], 0),
+      knob('t3', 'T3', w * (0.10 + 2 * 0.152), 34, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('s3', 'S3', w * (0.10 + 2 * 0.152), 54, { size: 'small', min: 0, max: 1, def: 0.5, color: '#9ca3af' }),
+      sw  ('type3', '', w * (0.10 + 2 * 0.152), 72, ['R','H','S','A'], 0),
+      knob('t4', 'T4', w * (0.10 + 3 * 0.152), 34, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('s4', 'S4', w * (0.10 + 3 * 0.152), 54, { size: 'small', min: 0, max: 1, def: 0.5, color: '#9ca3af' }),
+      sw  ('type4', '', w * (0.10 + 3 * 0.152), 72, ['R','H','S','A'], 0),
+      knob('t5', 'T5', w * (0.10 + 4 * 0.152), 34, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('s5', 'S5', w * (0.10 + 4 * 0.152), 54, { size: 'small', min: 0, max: 1, def: 0.5, color: '#9ca3af' }),
+      sw  ('type5', '', w * (0.10 + 4 * 0.152), 72, ['R','H','S','A'], 0),
+      knob('t6', 'T6', w * (0.10 + 5 * 0.152), 34, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('s6', 'S6', w * (0.10 + 5 * 0.152), 54, { size: 'small', min: 0, max: 1, def: 0.5, color: '#9ca3af' }),
+      sw  ('type6', '', w * (0.10 + 5 * 0.152), 72, ['R','H','S','A'], 0),
+
+      knob   ('segments',  'Active', w*0.16, 96, { size: 'small', min: 1, max: 6, def: 3, step: 1, color: '#f9fafb' }),
+      toggle ('loop',      'Loop',   w*0.36, 96),
+      knob   ('loop_start','L-start',w*0.54, 96, { size: 'small', min: 0, max: 5, def: 0, step: 1, color: '#9ca3af' }),
+      knob   ('loop_end',  'L-end',  w*0.72, 96, { size: 'small', min: 0, max: 5, def: 2, step: 1, color: '#9ca3af' }),
+      knob   ('rate',      'Rate',   w*0.88, 96, { size: 'small', min: 0.05, max: 20, def: 1, color: '#f9fafb' }),
+
+      inPort ('gate', 'Gate', 'gate', w*0.20, 114),
+      outPort('out',  'Out',  'cv',   w*0.55, 114),
+      outPort('eoc',  'EOC',  'gate', w*0.82, 114),
+    ],
+    notes: 'Mutable Instruments Stages (firmware tp_mmb_stages, FW-CV-3): 6 ketenbare segmenten in het CV-domein (1 kHz-tick). Elk segment heeft een type — R(amp) / H(old) / S(tep) / A(lt) — en twee knoppen (T = primary, S = secondary; betekenis per type: ramp = tijd+vorm, hold = niveau+tijd, step = niveau+portamento). Active kiest hoeveel segmenten meedoen; Loop + L-start/L-end laat een deel herhalen → een multi-stage-LFO. Gate triggert/gatet de keten; EOC pulseert bij de cyclusstart. Zonder loop is het een complexe multi-breakpoint-envelope.',
+  });
+}
+
 // 15. MMB COMP — 6 HP. Feed-forward compressor met lichte tanh-overdrive
 //     (firmware tp_mmb_comp, FW-FX-2). De Audio-lib heeft geen compressor,
 //     dus dit is een custom AudioStream.
@@ -2121,7 +2171,7 @@ function mmbStkSound() {
 // ── public entry ───────────────────────────────────────────────────────
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbComp(), mmbNoise(), mmbEcho(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbComp(), mmbNoise(), mmbEcho(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound()];
   const newTypes = all.map((x) => x.type);
 
   // Upgrade-pad: bestaande interne types worden in-place VERVANGEN (zelfde

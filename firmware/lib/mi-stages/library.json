@@ -1,0 +1,8 @@
+{
+  "name": "mi-stages",
+  "version": "1.0.0",
+  "description": "Mutable Instruments Stages — SegmentGenerator (MIT, (c) Emilie Gillet), gevendorde subset voor MMB StagesModule (tp_mmb_stages). Multi-segment envelope/LFO/sequencer op de 1 kHz CV-tick.",
+  "license": "MIT",
+  "homepage": "https://github.com/pichenettes/eurorack",
+  "build": { "flags": ["-I."], "srcFilter": ["+<stages/>", "+<tides2/ramp/ramp_extractor.cc>"] }
+}

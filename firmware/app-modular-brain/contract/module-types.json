@@ -1,6 +1,6 @@
 {
   "$comment": "GEGENEREERD door tools/contract_dump.py — niet met de hand bewerken. Poort-ids zijn letterlijk wat de firmware accepteert (aliassen als out/out_l en naam/naam_cv staan er dus allebei in).",
-  "firmwareVersion": "0.5.39",
+  "firmwareVersion": "0.5.41",
   "modules": {
     "tp_mmb_ahdsr": {
       "typeId": "tp_mmb_ahdsr",
@@ -759,6 +759,42 @@
         "s7",
         "s8",
         "s9"
+      ],
+      "controlsIgnored": []
+    },
+    "tp_mmb_stages": {
+      "typeId": "tp_mmb_stages",
+      "source": "firmware/app-modular-brain/src/StagesModule.h",
+      "ports": [
+        "eoc",
+        "gate",
+        "out",
+        "trig"
+      ],
+      "controls": [
+        "loop",
+        "loop_end",
+        "loop_start",
+        "rate",
+        "s1",
+        "s2",
+        "s3",
+        "s4",
+        "s5",
+        "s6",
+        "segments",
+        "t1",
+        "t2",
+        "t3",
+        "t4",
+        "t5",
+        "t6",
+        "type1",
+        "type2",
+        "type3",
+        "type4",
+        "type5",
+        "type6"
       ],
       "controlsIgnored": []
     },
