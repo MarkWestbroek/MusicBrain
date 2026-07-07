@@ -150,6 +150,24 @@ Gebruikt: 2–13, 18, 19, 28–33, 40, 41. **Vrij: 0, 1, 14–17, 20–27, 34–
 Busboard v1.1 krijgt een EXP-header (2×13) die deze pinnen + 3V3/GND
 uitvoert voor experimenten met insteekkabeltjes.
 
+## Mechanica-standaard kaarten (besluit 2026-07-08, Alt-3-review)
+
+1. **Busconnector = haakse (horizontal) male 2×10** aan de onderrand van de
+   kaart, pennen wijzen langs het kaartvlak naar beneden het slot in.
+   (v1.0 van GATE8/ADC8 heeft nog rechte headers — wordt v1.1.)
+2. **Frontconnector = haakse female** aan de frontrand (de rand haaks op de
+   busrand, aan de paneelzijde), hart op **44 mm boven de busrand** — zodat
+   alle jack-printjes op alle kaarten passen.
+3. **Jack-printjes** dragen een rechte female socket op de *achterzijde*
+   en prikken parallel aan het paneel op de frontconnector. TN-normalling
+   via soldeerjumper (dicht = inputs, open = outputs!).
+4. **Silkscreen-link**: `musicbrain.nl/hw/<bord>` + rev. Kort, drukbaar en
+   stabiel: het domein redirect naar de actuele documentatie (GitHub-pad
+   kan wijzigen; een redirect is één regel). Richt op musicbrain.nl een
+   redirect in per bord.
+5. Kaartdiepte mag per kaart verschillen; wie een steunrail over de
+   kaartenrij wil, standaardiseert op 80 mm (ADC8-maat).
+
 ## Mechanica
 
 - **Busboard v1.1**: 4–6 × M3-montagegat (Ø3,2, 5 mm van de rand).
