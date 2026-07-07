@@ -106,7 +106,9 @@ kaartgeleider.
 | 8× gate out | SPI (write-only) | 74HCT595 @ +5V (lokale 78L05/AMS1117-5.0), 1 k serie-uit | **klaar**: `Images/schematics/musicbrain-gate8/` (sch + geroute PCB); latch = CS↑, mode 0 |
 | 8× ADC in | SPI + IRQ + CONVST | **AD7606** (16-bit, 8-ch, simultaan, ±10V direct, 1 MΩ) | **sch klaar, PCB geplaatst**: `Images/schematics/musicbrain-adc8/`; CS→CS, BUSY→IRQ, CONVST→SPARE1, RESET→SPARE2 (+100k pulldown), RANGE via JP1 (3V3=±10V / GND=±5V), OS0-2=GND, seriële mode (DOUTA→MISO, DB's→GND), VDRIVE=3V3, AVCC=5V lokaal, interne 2.5V-referentie; J2-contract identiek aan GATE8 (1=GND, 2-9=kanaal, 10=GND) |
 | 8× CV out (2× AD5754) | SPI + LDAC | 2× AD5754 + ADR421 | ontwerp volgt (zelfde recept als breakout) |
-| 8× pot/encoder | I2C (+IRQ) | MCP23017 (encoders/knoppen) + ADS1115/ADS7830 (pots) | traag verkeer hoort op I2C; gepland |
+| 8× pot | SPI | MCP3208 (12-bit, 8-ch, tri-state MISO) | gewone buskaart met geografische CS; gepland |
+| 8× encoder/knop | I2C + IRQ | MCP23017 | interrupt-gedreven; encoders zijn groter → 8 als het past, anders 4; gepland |
+| 8× gate **in** | SPI (read-only) | 74HC165 + 74HC125-buffer (¼, CS-gated, voor tri-state MISO) + per kanaal 100k serie / 100k pulldown / BAT54S-clamp naar 3V3 | latch op CS↓, dan 8 bits klokken; gepland |
 | jack8-printje | passief | 8× Thonkiconn (PJ398SM) + male 1×10 | prikt op J2 van GATE8/ADC8 (contract: 1=GND, 2-9=kanaal, 10=GND); gepland |
 | jack4-printje | passief | 4× Thonkiconn + male 1×5 | prikt op J2 van AD5754-breakout (1=GND, 2-5=A-D); gepland |
 
@@ -126,6 +128,38 @@ Twee sporen, allebei voorzien op het busboard (v1.1):
 De AD7606-keuze scheelt een compleet opamp-frontend per kanaal: ±10V mag
 rechtstreeks de chip in (interne clamps, 1 MΩ). Serieel uitlezen: na CONVST↓↑
 gaat BUSY hoog (~4 µs), op BUSY↓ (IRQ) 8×16 bit klokken via MISO.
+
+## Delegated modules (2e Teensy / FPGA's)
+
+Besluit 2026-07-08:
+- **FPGA-kaarten mogen op de hoofdbus**: een FPGA is een gedisciplineerde
+  SPI-slave (snel, deterministisch, tri-state MISO). Voorwaarde: korte
+  transacties (≤ ~10 µs), anders blokkeren ze de CV-timing.
+- **Teensy-delegates (bijv. 5×Elements) NIET op de SPI-bus**: Teensy als
+  SPI-slave is onbetrouwbaar/vertragend. Besturing loopt per delegate over
+  een **eigen UART-link** (point-to-point, DMA-vriendelijk, tot 6 Mbaud).
+  De hoofd-Teensy heeft 6 vrije Serial-poorten: Serial1 (0/1), Serial3
+  (14/15), Serial4 (16/17), Serial5 (20/21), Serial6 (24/25), Serial8 (34/35).
+- **Audio van delegates** gaat níet over SPI of UART maar via I2S/TDM naar
+  het audiosysteem van de hoofd-Teensy, of analoog (som/mixer).
+
+## Vrije Teensy-pinnen → EXP-header (busboard v1.1)
+
+Gebruikt: 2–13, 18, 19, 28–33, 40, 41. **Vrij: 0, 1, 14–17, 20–27, 34–39**
+(20 stuks, incl. SPI1 op 26/27/1/0, zes UART's en analoge ingangen A0–A3).
+Busboard v1.1 krijgt een EXP-header (2×13) die deze pinnen + 3V3/GND
+uitvoert voor experimenten met insteekkabeltjes.
+
+## Mechanica
+
+- **Busboard v1.1**: 4–6 × M3-montagegat (Ø3,2, 5 mm van de rand).
+- **Slotkaarten**: 2 × M3-gat in de bovenhoeken; optioneel een gemeen-
+  schappelijke steunrail/afstandsbussen over de kaartenrij.
+- **Jack-printjes = frontpaneeldragers**: de Thonkiconn-bussen steken door
+  het paneel en de moeren klemmen paneel + printje samen — het paneel
+  draagt dus het printje (standaard Eurorack-DIY-constructie). Haakse
+  female header naar de kaart. Maat: 3U-hoogte; jack8 ≈ 1 kolom van 8 op
+  ~14 mm steek, jack4 half zo hoog of zelfde paneel half gevuld.
 
 ## Open punten (v2-kandidaten)
 
