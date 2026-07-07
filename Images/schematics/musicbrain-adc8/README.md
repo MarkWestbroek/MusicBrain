@@ -1,9 +1,9 @@
 # MusicBrain ADC8 — 8× CV-ingang (slotkaart)
 
-**Status**: schema ERC-schoon + netlist geverifieerd; PCB **geplaatst**
-(DRC 0 fouten), routing volgt — het NE-kwadrant (V-ingangen × ref-condensatoren
-× +5V-toevoer) wordt in een volgende sessie hergefloorplan'd.
-**Spec**: `doc/spi-bus-spec.md`. Bord: 80×44 mm, 2 lagen.
+**Status**: v1.1 — schema ERC-schoon + netlist geverifieerd; PCB **volledig
+geroute** (DRC 0 fouten, 0 unconnected).
+**Spec**: `doc/spi-bus-spec.md`. Bord: 40 mm breed × **80 mm hoog**
+(standaard-kaarthoogte H voor de gedeelde bovenplaat), 2 lagen.
 
 ## Wat het is
 
@@ -40,7 +40,20 @@ klokken via MISO → CS hoog.
 
 ## Aansluitingen
 
-- **J1** (male 2×10, linkerrand): bus-slotcontract; MOSI/LDAC/SDA/SCL nc.
-- **J2** (male 1×10, rechterrand): 1 = GND, 2–9 = IN1..8, 10 = GND —
-  **identiek contract als GATE8-J2**, dus hetzelfde jack8-printje past.
+- **J1** (haakse male 2×10, onderrand): bus-slotcontract; MOSI/LDAC/SDA/SCL nc.
+- **J2** (haakse male 1×10, bovenrand, recht boven het midden van J1):
+  1 = GND, 2–9 = IN1..8, 10 = GND — **identiek contract als GATE8-J2**,
+  dus hetzelfde jack8-printje past.
 - **JP1** (1×3): RANGE-keuze ±10V / ±5V.
+
+## PCB-notities (v1.1)
+
+De volgorde-omkering tussen de chip-ingangen (V1 oost … V8 west op de
+noordrij) en het J2-contract (IN1 west … IN8 oost) is opgelost met
+**Manhattan-routing**: F.Cu draagt uitsluitend verticalen (escape onder elk
+V-pad, drop naar elke serieweerstand), B.Cu draagt acht horizontale lanes
+(y 118,4–124,0, steek 0,8 mm) — zo kruist niets op dezelfde laag. De
+SPI/stuur-lijnen bereiken de westkolom van de chip via zes F-verticalen
+("diepste entry → oostelijkste verticaal"), gevoed vanaf J1 via korte
+B-lanes onderin. De GND-pads tussen de V-escapes hangen aan een eigen
+verzamelrail (y 130,5) met via's naar het B-vlak.
