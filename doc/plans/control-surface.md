@@ -231,6 +231,16 @@ Vervolg op gebruikersfeedback na de eerste werkende sessie:
   naam ("Elements"), laden vervangt de rijen; modules die niet in de actieve
   patch zitten worden op `typeId` hertarget naar de eerste patch-module van
   hetzelfde type.
+- **Poly-fan-out + step-kwantisatie (2026-07-07)**: een binding op een
+  poly-master vuurt nu op álle stemmen, met dezelfde semantiek als een
+  knopdrag in de patcher (gedeelde helper `polyControlTargets()` in
+  `polyExpand.ts`, incl. `polyOverrides`). Gevonden via de DX7 ×8-patch:
+  alleen stem 1 kreeg de program change. Bindings dragen ook de
+  kwantisatiestap van de doel-control mee (`MidiBinding.step`, voorgevuld
+  uit `KnobControl.step`): de bridge poket hele waardes en de firmware
+  (`Binding.integer`) poket int32 — nodig voor integer-controls als DX7
+  bank/program. Firmware-push vouwt bindings per stem uit en
+  `MidiMap::forEachMatch()` past ze allemaal toe (één CC → N stemmen).
 - **Persistentie (2026-07-06)**: het hele MMB-project (dus ook de midiMap)
   wordt debounced naar localStorage geschreven (`mmb.project.v1` in
   `store.ts`) en bij het laden hersteld. De surface-poortkeuze overleeft ook

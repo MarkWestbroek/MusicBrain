@@ -255,6 +255,17 @@ public:
         return true;
     }
 
+    /** @brief FW-CS-1: int-variant voor integer-controls (step-gekwantiseerd,
+     *  bv. DX7 bank/program) — modules die alleen int32 verstaan blijven werken. */
+    bool pokeControl(const char* moduleId, const char* controlId,
+                     std::int32_t value) {
+        auto* mod = find(moduleId);
+        if (!mod) return false;
+        mod->setControl(controlId, value);
+        persistControl(moduleId, controlId, value);
+        return true;
+    }
+
     /**
      * @brief Bulk-waveform push (FW-AU-6): hand a single-cycle table to a
      *        draw-waveshape oscillator.  RTTI-free via `setWaveformData()`.

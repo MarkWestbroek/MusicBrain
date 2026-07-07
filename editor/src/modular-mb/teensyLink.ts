@@ -9,7 +9,7 @@
 
 import { useSyncExternalStore } from 'react';
 import type { ModularProject } from './types';
-import { flattenProjectForFirmware } from './polyExpand';
+import { flattenProjectForFirmware, polyControlTargets } from './polyExpand';
 
 // ── Web Serial type shims ──────────────────────────────────────────────
 // (Chrome/Edge ship these globally; we add minimal types so TS compiles
@@ -304,15 +304,19 @@ export async function sendConfig(project: ModularProject): Promise<void> {
       flat.racks.find((r) => r.id === rid)?.slots.forEach((s) => usedIds.add(s.moduleId));
     }
   }
+  // Control-surface-bindings (ED-CS-1/FW-CS-1): per poly-groep uitgevouwen
+  // naar álle stemmen — de firmware kent geen poly-groepen, dus een binding
+  // op de master wordt N bindings op dezelfde (ch, cc). De editor-`groups`
+  // gaan bewust niet mee (alleen de actieve rijen zijn runtime-relevant).
+  const surfacePatch = pushPatches[0];
+  const midiBindings = (flat.midiMap?.bindings ?? []).flatMap((b) =>
+    (surfacePatch ? polyControlTargets(surfacePatch, flat, b.mod) : [b.mod])
+      .map((mod) => ({ ...b, mod })));
   const runtime = {
     version:       flat.version,
     name:          flat.name,
     activePatchId: flat.activePatchId,
-    // Control-surface-bindings (ED-CS-1/FW-CS-1): alleen meesturen als er
-    // echt bindings zijn — de firmware leest project.midiMap.bindings.
-    ...(flat.midiMap && flat.midiMap.bindings.length > 0
-      ? { midiMap: flat.midiMap }
-      : {}),
+    ...(midiBindings.length > 0 ? { midiMap: { bindings: midiBindings } } : {}),
     modules: flat.modules.filter((m) => usedIds.has(m.id)).map((m) => ({
       id:     m.id,
       typeId: m.typeId,

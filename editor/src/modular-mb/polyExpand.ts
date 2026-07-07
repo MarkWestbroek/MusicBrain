@@ -272,6 +272,11 @@ export function expandPatchConnections(
  * Used to fan a control edit on a poly master out to every voice: followers
  * are hidden in the patcher, so the master's knobs must speak for the whole
  * group — both in `patch.controlState` and in the live controlPoke stream.
+ * Callers: PatcherGraphPanel (knopdrag), surfaceBridge (Roto-CC, ED-CS-2b)
+ * en teensyLink (midiMap-expansie voor de firmware-push, FW-CS-1).
+ *
+ * Patch-`polyOverrides` worden gerespecteerd: dan telt alleen de partitie
+ * waar `moduleId` in zit (een ge-ungroupte module → alleen zichzelf).
  */
 export function polyControlTargets(
   patch: Patch, project: ModularProject, moduleId: string,
@@ -280,11 +285,19 @@ export function polyControlTargets(
   for (const r of project.racks) {
     if (!rackIds.has(r.id)) continue;
     for (const g of r.polyGroups ?? []) {
-      if (g.members.some((mem) => mem.kind === 'module' && mem.moduleId === moduleId)) {
-        return g.members
-          .filter((mem): mem is { kind: 'module'; moduleId: string } => mem.kind === 'module')
-          .map((mem) => mem.moduleId);
+      const idx = g.members.findIndex(
+        (mem) => mem.kind === 'module' && mem.moduleId === moduleId);
+      if (idx < 0) continue;
+      const asModuleIds = (indices: number[]): string[] => indices
+        .map((mi) => g.members[mi])
+        .filter((mem): mem is { kind: 'module'; moduleId: string } => mem?.kind === 'module')
+        .map((mem) => mem.moduleId);
+      const ov = patch.polyOverrides?.find((o) => o.rackPolyGroupId === g.id);
+      if (ov) {
+        const part = ov.partition.find((pt) => pt.memberIndices.includes(idx));
+        return part ? asModuleIds(part.memberIndices) : [moduleId];
       }
+      return asModuleIds(g.members.map((_, i) => i));
     }
   }
   return [moduleId];
@@ -305,3 +318,4 @@ export function flattenProjectForFirmware(project: ModularProject): ModularProje
     })),
   };
 }
+

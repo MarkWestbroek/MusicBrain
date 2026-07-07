@@ -20,3 +20,4 @@ Format: based on Michael Nygard's template (Context / Decision / Consequences).
 | [0012](0012-elements-modular-separation.md) | Elements modular separation: Reverb and OminousVoice as standalone modules | Proposed |
 | [0013](0013-fpga-synth-instrument.md) | FPGA synth voice as an SPI-slave instrument on the CV/gate bus | Proposed |
 | [0014](0014-pitch-formats-and-cv-ranges.md) | Pitch CV formats and output voltage ranges (V/oct, Hz/V, S-Trig) | Proposed |
+| [0015](0015-poly-instrument-slot-addressing.md) | Poly-instrument slot addressing and the FPGA voice contract | Proposed |

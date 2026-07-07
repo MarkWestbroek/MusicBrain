@@ -421,15 +421,23 @@ void handleNoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
 // need to re-sync the static voice table here.
 void handleControlChange(uint8_t channel, uint8_t cc, uint8_t value) {
     Serial.printf("[midi] cc      ch=%u cc=%u val=%u\n", channel, cc, value);
-    // FW-CS-1: een CC met een binding in de midiMap stuurt één module-control
-    // aan (zelfde pad als controlPoke: toepassen + persisteren) en wordt hier
+    // FW-CS-1: een CC met bindings in de midiMap stuurt module-controls aan
+    // (zelfde pad als controlPoke: toepassen + persisteren) en wordt hier
     // geconsumeerd — hij mag de MidiInModules niet óók bereiken, anders krijgt
-    // dezelfde knopdraai een tweede betekenis via het cv_cc*-pad.
-    if (const auto* b = midiMap.match(channel, cc)) {
-        runtime.pokeControl(b->moduleId.c_str(), b->controlId.c_str(),
-                            mmb_link::MidiMap::scale(*b, value));
-        return;
-    }
+    // dezelfde knopdraai een tweede betekenis via het cv_cc*-pad. Eén CC kan
+    // meerdere bindings hebben: poly-bindings zijn editor-kant per stem
+    // uitgevouwen. Integer-controls (DX7 bank/program) krijgen een int32-poke.
+    const int hits = midiMap.forEachMatch(channel, cc,
+        [value](const mmb_link::MidiMap::Binding& b) {
+            const float v = mmb_link::MidiMap::scale(b, value);
+            if (b.integer) {
+                runtime.pokeControl(b.moduleId.c_str(), b.controlId.c_str(),
+                                    static_cast<int32_t>(lroundf(v)));
+            } else {
+                runtime.pokeControl(b.moduleId.c_str(), b.controlId.c_str(), v);
+            }
+        });
+    if (hits > 0) return;
     midiIn.onControlChange(channel, cc, value);
     for (auto& [id, mod] : runtime.instances()) {
         if (mod->typeId() != mb::runtime::MidiInModule::kTypeId) continue;

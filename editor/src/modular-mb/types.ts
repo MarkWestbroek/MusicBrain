@@ -649,6 +649,10 @@ export interface MidiBinding {
   max: number;
   /** Responscurve; weggelaten = 'lin'. */
   curve?: 'lin' | 'exp';
+  /** Kwantisatiestap van de doel-control (KnobControl.step), zodat een
+   *  integer-control (DX7 bank/program) hele waardes gepoket krijgt.
+   *  Weggelaten = continu. */
+  step?: number;
 }
 
 /** Benoemd setje bindings ("Elements") dat los van de actieve bindings

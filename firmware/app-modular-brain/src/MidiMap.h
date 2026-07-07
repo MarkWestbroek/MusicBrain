@@ -36,6 +36,8 @@
 #pragma once
 
 #include <ArduinoJson.h>
+#include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -56,6 +58,10 @@ public:
         float       min = 0.0f; ///< Controlwaarde bij CC 0.
         float       max = 1.0f; ///< Controlwaarde bij CC 127.
         bool        exp = false;///< Curve: false = lineair, true = exponentieel.
+        /** Kwantisatiestap van de doel-control (KnobControl.step); 0 = continu. */
+        float       step = 0.0f;
+        /** Afgeleid: step en min zijn heel → poke als int32 (DX7 bank/program). */
+        bool        integer = false;
     };
 
     /**
@@ -91,24 +97,44 @@ public:
             e.min       = b["min"] | 0.0f;
             e.max       = b["max"] | 1.0f;
             e.exp       = std::strcmp(b["curve"] | "lin", "exp") == 0;
+            e.step      = b["step"] | 0.0f;
+            e.integer   = e.step > 0.0f
+                       && e.step == std::floor(e.step)
+                       && e.min  == std::floor(e.min);
         }
         return static_cast<int>(count_);
     }
 
-    /** @brief Eerste binding die (kanaal, CC) matcht, of nullptr. */
-    const Binding* match(uint8_t ch, uint8_t cc) const {
+    /**
+     * @brief Roep @p fn aan voor elke binding die (kanaal, CC) matcht.
+     *
+     * Meerdere matches zijn normaal: de editor vouwt een binding op een
+     * poly-master uit naar één binding per stem, allemaal op dezelfde
+     * (ch, cc).
+     *
+     * @return Aantal matches (0 = CC is ongebonden).
+     */
+    template <typename F>
+    int forEachMatch(uint8_t ch, uint8_t cc, F&& fn) const {
+        int n = 0;
         for (std::size_t i = 0; i < count_; ++i) {
             const Binding& b = bindings_[i];
-            if (b.cc == cc && (b.ch == 0 || b.ch == ch)) return &b;
+            if (b.cc == cc && (b.ch == 0 || b.ch == ch)) { fn(b); ++n; }
         }
-        return nullptr;
+        return n;
     }
 
-    /** @brief Beeld een 7-bit CC-waarde af op het controlbereik van @p b. */
+    /** @brief Beeld een 7-bit CC-waarde af op het controlbereik van @p b,
+     *  met step-kwantisatie (geclamped) wanneer de control die heeft. */
     static float scale(const Binding& b, uint8_t value) {
         float t = static_cast<float>(value) / 127.0f;
         if (b.exp) t *= t;
-        return b.min + (b.max - b.min) * t;
+        float v = b.min + (b.max - b.min) * t;
+        if (b.step > 0.0f) {
+            v = b.min + std::round((v - b.min) / b.step) * b.step;
+            v = std::clamp(v, std::min(b.min, b.max), std::max(b.min, b.max));
+        }
+        return v;
     }
 
     std::size_t size()    const { return count_; }

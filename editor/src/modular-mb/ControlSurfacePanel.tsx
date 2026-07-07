@@ -120,13 +120,18 @@ export function ControlSurfacePanel(): JSX.Element {
     updateBindings((bs) => bs.filter((_, j) => j !== i));
   }
 
-  /** Control gekozen: min/max uit de controldefinitie voorvullen. */
+  /** Control gekozen: min/max (en kwantisatiestap) uit de controldefinitie
+   *  voorvullen — een integer-control (DX7 bank/program) krijgt zo hele
+   *  waardes gepoket, net als bij een knopdrag in de patcher. */
   function onSelectControl(i: number, moduleId: string, ctrlId: string): void {
     const def = continuousControls(project, moduleId).find((c) => c.id === ctrlId);
     if (def && (def.kind === 'knob' || def.kind === 'slider')) {
-      setBinding(i, { ctrl: ctrlId, min: def.min, max: def.max });
+      setBinding(i, {
+        ctrl: ctrlId, min: def.min, max: def.max,
+        step: def.kind === 'knob' ? def.step : undefined,
+      });
     } else {
-      setBinding(i, { ctrl: ctrlId });
+      setBinding(i, { ctrl: ctrlId, step: undefined });
     }
   }
 
@@ -286,12 +291,12 @@ export function ControlSurfacePanel(): JSX.Element {
         ))}
         <span style={{ borderLeft: '1px solid #cbd2d9', height: 18 }} />
         <button onClick={onRotoExport} disabled={bindings.length === 0}
-          title="Genereer een ROTO-SETUP-bestand met labels uit de controlnamen; importeer dat in de ROTO-SETUP-app om de displays te vullen">
-          ⤓ ROTO-setup
+          title="Genereer een ROTO-SETUP-bestand (met labels uit de controlnamen) om in de ROTO-SETUP-app te importeren en naar de Roto te pushen">
+          ROTO-setup maken…
         </button>
         <button onClick={() => rotoImportRef.current?.click()}
-          title="Lees kanaal + CC-nummers uit een ROTO-SETUP-export (MIDI-mode)">
-          ⤒ ROTO-setup
+          title="Lees kanaal + CC-nummers uit een bestaande ROTO-SETUP-export (MIDI-mode)">
+          ROTO-setup inlezen…
         </button>
         <input ref={rotoImportRef} type="file" accept=".json,application/json"
           style={{ display: 'none' }} onChange={onRotoImportFile} />

@@ -23,6 +23,7 @@
 import { useSyncExternalStore } from 'react';
 import { getProject, updateProject, subscribe as subscribeStore } from './store';
 import { sendControlPoke } from './teensyLink';
+import { polyControlTargets } from './polyExpand';
 import { resolveControls } from './types';
 import type { MidiBinding, ModularProject, Patch } from './types';
 
@@ -83,7 +84,14 @@ function isOwnDevicePort(p: MIDIInput | MIDIOutput): boolean {
 function ccToValue(b: MidiBinding, v7: number): number {
   let t = v7 / 127;
   if (b.curve === 'exp') t = t * t;
-  return b.min + (b.max - b.min) * t;
+  let v = b.min + (b.max - b.min) * t;
+  // Integer-controls (DX7 bank/program: step 1) krijgen hele waardes —
+  // dezelfde kwantisatie als de knopdrag in de patcher.
+  if (b.step && b.step > 0) {
+    v = b.min + Math.round((v - b.min) / b.step) * b.step;
+    v = Math.max(Math.min(b.min, b.max), Math.min(Math.max(b.min, b.max), v));
+  }
+  return v;
 }
 
 function valueToCc(b: MidiBinding, v: number): number {
@@ -131,18 +139,22 @@ function applyIncomingCc(ch1: number, cc: number, val: number): void {
 
   const v = ccToValue(b, val);
   const patch = activePatchOf(p);
+  // Poly-fan-out: een binding op een master geldt voor alle stemmen van de
+  // groep — zelfde semantiek als setControl in PatcherGraphPanel, anders
+  // wisselt bv. een DX7-program maar op 1 van de 8 stemmen.
+  const targets = patch ? polyControlTargets(patch, p, b.mod) : [b.mod];
   if (patch) {
     updateProject((px) => ({
       ...px,
       patches: px.patches.map((pa) => {
         if (pa.id !== patch.id) return pa;
         const cs = { ...pa.controlState };
-        cs[b.mod] = { ...(cs[b.mod] ?? {}), [b.ctrl]: v };
+        for (const id of targets) cs[id] = { ...(cs[id] ?? {}), [b.ctrl]: v };
         return { ...pa, controlState: cs };
       }),
     }));
   }
-  void sendControlPoke(b.mod, b.ctrl, v);
+  for (const id of targets) void sendControlPoke(id, b.ctrl, v);
 }
 
 function onMidiMessage(ev: MIDIMessageEvent): void {

@@ -88,6 +88,10 @@ hardware logic instead of C++.
 
 - Final slot map (which slots = pitch/gate/cutoff/res/drive per voice) — pin down
   alongside the editor's breakout addressing.
+  **✅ Resolved (2026-07-07) by [ADR 0015](0015-poly-instrument-slot-addressing.md):**
+  per-voice ports in blocks of 8 slots (port base + voice), exciter/morph as a
+  per-voice CV, global controls from slot 48. Canonical contract:
+  `doc/SPI_SLOTMAP.md` in the FPGA repo.
 - Pitch-CV scaling: which normalized `i16` range corresponds to which note range.
   The FPGA is a **digital** instrument, so the analog pitch standards of
   [ADR 0014](0014-pitch-formats-and-cv-ranges.md) (Hz/V, 1.2 V/oct, S-Trig) do
@@ -95,5 +99,11 @@ hardware logic instead of C++.
   a documented linear ("V/oct-like") map `i16 → semitone`, shared with the brain.
   Current FPGA convention: reference note 69 (A4), 256 LSB = 1 semitone (see the
   FPGA repo `synth_top.v` / `doc/PITCH_CV.md`). Confirm the brain emits the same.
+  **✅ Resolved (2026-07-07) by [ADR 0015](0015-poly-instrument-slot-addressing.md):**
+  the "note 69 / 256 LSB" wording above is superseded — pitch is a dCV
+  (offset-binary, ADR 0014), default 0–10 V @ 1 V/oct with 0 V = MIDI note 0:
+  `note = (code · 120) >> 16`.
 - Whether the FPGA also exposes a few per-voice modulation CV inputs later
   (would re-introduce `CvInReport`-style reporting, currently N/A).
+  **Partially addressed by ADR 0015:** slots 40–47 are reserved for per-voice
+  expression (pressure); `CvInReport` remains N/A.
