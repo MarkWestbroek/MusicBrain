@@ -260,3 +260,102 @@ op het paneel, de dropdown is de "spring direct naar voice X"-variant.
 Tags fw-0.5.40 t/m fw-0.5.42. Tests: 81 groen. Alles via flash_verify.
 Modulearsenaal nu 42 types; MI-catalogus: Elements/Rings/Plaits/Clouds/
 Tides/Marbles/Warps/Stages/Peaks geport.
+
+---
+
+## 8 juli overdag (interactief): naamdisplay, machine-debug, voice-picker/VU, nieuwe ideeën
+
+Na de nachtsessie kwam een reeks kleinere, interactieve verbeteringen en één
+mooi debug-avontuur — plus de start van een nieuwe bouwronde.
+
+### DX7-naamdisplay: van nummer naar groene naam
+- **Aanleiding:** het paneel toonde bij Program alleen het nummer, de sounds
+  wisselden wel. De banken zaten al ín de flash (0.5.37), alleen de editor
+  toonde de naam niet.
+- **Generieke oplossing:** `DisplayControl` kreeg een 2D-tekst-**lookup**
+  (`lookup[bindTo2][bindTo]`, links uitgelijnd) + een `led-green`-stijl
+  (`ModulePanel.tsx`/`types.ts`). Het DX7-paneel toont daarmee de voice-naam
+  groot-groen: `lookup` = de 8 factory-banken uit `dx7BankNames.ts` + een
+  USER-rij. Herbruikbaar voor STK-/Plaits-namen later.
+- **Twee bugs onderweg, beide door de user gespot:**
+  1. **Naam bleef onzichtbaar na reload** → niet de reload, maar
+     `seedInternals` *appendde alleen en verving nooit*. Herschreven tot een
+     **upgrade-pad** (bestaande interne types in-place vervangen + dedupe;
+     geplaatste instanties krijgen het nieuwe visual, positie/controlState
+     blijven). Sindsdien: één klik op ✨ Internals trekt elk project bij.
+     Dit was een sluimerend probleem achter álle eerdere paneelwijzigingen.
+  2. **Display toonde tóch het nummer** → de `display()`-helper kopieerde de
+     velden expliciet en liet `lookup`/`bindTo2` vallen. Doorgezet.
+- Daarna nog een maat kleiner gemaakt (large → medium) op verzoek.
+
+### Het machine-mysterie ("een rondje dat me overal volgt")
+De editor leek te hangen bij ✨ Internals; de user had een systeembreed
+wachtcursor-rondje. Diagnose stapsgewijs uitgesloten: de seed-functie
+(10× herhaald + upgrade < 100 ms in node), de surface-bridge (early-returns),
+`uid()`. Toen de Teensy zelf gecheckt: **stabiel, geen crash-lus**. Uiteindelijk
+via `Get-CimInstance Win32_Process`: **zes parallelle Vite-dev-servers** (van
+het Bitemporal-project) + één MusicBrain-Vite draaiden naast elkaar, telkens
+opnieuw gestart in een nieuwe terminal. **21 processen gestopt** → rust. Les:
+een "kwijt" terminal draait meestal nog; een tweede `npm run dev` stapelt een
+extra server. (Ik heb per ongeluk óók de MusicBrain-Vite gestopt — die moet de
+user opnieuw starten.)
+
+### Voice-picker + on-panel VU (0.5.42-tak, `e9104c4`)
+Beide bewust búiten de patcher-render-files gehouden waar de andere sessie
+werkte — tot bleek dat `PatcherGraphPanel.tsx` weer clean was.
+- **DX7 voice-picker:** het Program-veld in de properties-panel is nu een
+  dropdown met de voice-namen van de actieve bank (`00 BRASS 1`, …); USER-bank
+  toont nummers. Poked bank/program live.
+- **OUT-VU op het paneel:** `ModulePanel.tsx` tekent voor `tp_mmb_out` een
+  verticale VU-bar die de live `outPeak`-telemetrie leest (dim bij geen
+  verbinding), via een eigen hook-component zodat alleen OUT-panelen
+  re-renderen. Naast de eerdere VU-bargraph in de status-strip (ED-P-2).
+
+### Ongelukje + correctie (belangrijk voor het vervolg)
+Bij een memory-commit greep `git commit -a` per ongeluk de **niet-gecommitte
+wijzigingen van de parallelle sessie** mee (ControlSurface/MidiMap/polyExpand/…).
+Meteen teruggedraaid met `git reset --soft HEAD~1` + `git reset` → die ~13
+bestanden staan weer keurig uncommitted zoals de andere sessie ze achterliet.
+**Regel voortaan: altijd expliciet `git add <mijn bestanden>`, nooit `-a`/`-A`.**
+
+### Nieuwe ideeën verkend (user: "ik vind alle ideeën erg goed")
+- **CR-78 drums, berekend i.p.v. gesampeld:** zeer haalbaar met de Peaks-
+  techniek (bridged-T-oscillatoren + gefilterde ruis + envelope-VCA's);
+  berekend geeft de dynamiek (velocity→pitch, accent) die een sample mist.
+- **Sympathetic resonance — "is dat zwaar?":** nee, en deels al aanwezig
+  (Rings model 1 = sympathetic strings voor één stem). De goedkope, novel
+  variant is een **resonator-bank als effect**: ~12 gestemde resonatoren die
+  meetrillen met de ingang; enkele % CPU. De echt-gekoppelde-stemmen-variant
+  is wél zwaar → overgeslagen.
+- **Wave tekenen:** firmware is er al (Draw-VCO + Morph-WT USER-bank slikken
+  een getekend golfje via de wavetable-push); wat mist is een teken-canvas in
+  de editor. Self-contained.
+- Extra geopperd: quantizer/scale, chord (1 V/Oct → 4 stemmen), losse
+  plate/hall-reverb, Grids-achtige drum-sequencer.
+
+### Sympathetic-resonator-bank gestart (WIP, `fb02509`)
+`ResonatorModule.h` (`tp_mmb_resonator`, FW-FX-6) geschreven: 12 Karplus-achtige
+comb-resonatoren (feedback-delaylijn + demp-lowpass), gestemd op een schaal
+(chromatisch/majeur/mineur/kwint-octaaf/harmonisch) rond een grondtoon; het
+ingangssignaal excite't ze allemaal → sympathische resonantie. Heap ~75 KB,
+goedkoop. **Nog niet gewired** (registratie werd onderbroken door de
+model-switch terug naar Opus).
+
+### Handover naar een nieuwe Fable-chat (`fb02509`)
+De user wil de bouwronde door Fable laten uitvoeren. Volledig
+handover-document geschreven: `doc/copilot-chats/handover-2026-07-08-fable.md`
+— exacte git-staat, alle workflow-regels (flash_verify, contract-keten,
+ldscript, seedInternals-upgrade, controlPoke/LFO-run/outPeak-valkuilen),
+de parallelle-sessie-caveat (14 uncommitted bestanden, nooit `git add -A`),
+en de werkbon: **resonator afmaken → CR-78 → quantizer/chord/reverb/Grids →
+wave-teken-canvas.**
+
+### Balans van de week
+Van code-review (5 jul) tot een modulearsenaal van **42 types**. Geporte
+MI-DSP: Elements, Rings, Plaits, Clouds, Tides, Marbles, Warps, Stages, Peaks.
+Eigen: Morph-WT (mip-levels), DX7 (msfa/Dexed, 8 factory-ROMs in flash),
+Octa-VCO/VCF/VCA, plus het MMB-basisarsenaal. Structureel: de contract-keten
+(firmware leidend, 81 vitest-tests), `flash_verify.py`, per-versie git-tags
+(fw-0.5.32 … fw-0.5.42), app-code in QSPI-flash (172 KB stack terug), en een
+UML van het Model/View-ontwerp. Zelfspelende demo-seeds: Generative jam, Clouds
+ambient, Warps vocoder, 808 jam, Krell. Alles hardware-getest via peak-telemetrie.
