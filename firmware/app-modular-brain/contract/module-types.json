@@ -1,6 +1,6 @@
 {
   "$comment": "GEGENEREERD door tools/contract_dump.py — niet met de hand bewerken. Poort-ids zijn letterlijk wat de firmware accepteert (aliassen als out/out_l en naam/naam_cv staan er dus allebei in).",
-  "firmwareVersion": "0.5.45",
+  "firmwareVersion": "0.5.46",
   "modules": {
     "tp_mmb_ahdsr": {
       "typeId": "tp_mmb_ahdsr",
@@ -730,6 +730,20 @@
         "lpg",
         "morph",
         "timbre"
+      ]
+    },
+    "tp_mmb_quant": {
+      "typeId": "tp_mmb_quant",
+      "source": "firmware/app-modular-brain/src/QuantModule.h",
+      "ports": [
+        "in",
+        "out",
+        "trig"
+      ],
+      "controls": [
+        "glide",
+        "root",
+        "scale"
       ]
     },
     "tp_mmb_resonator": {

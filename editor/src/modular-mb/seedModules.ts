@@ -2268,10 +2268,39 @@ function mmbCr78() {
   });
 }
 
+// 23. MMB QUANT — 6 HP. V/Oct-quantizer naar schaal (firmware tp_mmb_quant,
+//     FW-CV-4). Ruwe CV (Marbles/S&H/LFO) erin, muzikale noten eruit;
+//     trig-puls bij elke nootwissel.
+function mmbQuant() {
+  const w = W(6);
+  return assemble({
+    typeId: 'tp_mmb_quant',
+    categoryId: 'utility',
+    variant: 'Quantizer (schaal)',
+    brand: 'MMB', model: 'QUANT',
+    hp: 6, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'QUANT', fontSize: 2.2, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13,  text: 'CV → schaal', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      sw  ('scale', 'Scale', w/2, 26, ['Chrom','Maj','Min','PentM','Pentm','Dor','5th','Whole'], 1),
+      knob('root',  'Root',  w*0.30, 58, { size: 'medium', min: 0, max: 11, def: 0, step: 1, unit: 'semi', color: '#e11d48' }),
+      knob('glide', 'Glide', w*0.70, 58, { size: 'medium', min: 0, max: 1, def: 0, color: '#0891b2' }),
+
+      inPort ('in',   'In',   'cv',   w*0.25, 100),
+      outPort('out',  'Out',  'cv',   w*0.75, 100),
+      outPort('trig', 'Trig', 'gate', w*0.75, 116),
+    ],
+    notes: 'V/Oct-quantizer (firmware tp_mmb_quant, FW-CV-4): klikt de CV op In vast op de dichtstbijzijnde noot van de gekozen schaal. Root verschuift de grondtoon (semitonen), Glide is een one-pole portamento (0–500 ms) tussen de noten. Trig vuurt een 10 ms-puls bij elke nootwissel — trigger er een envelope of pluk mee. Klassiek achter Marbles X-uitgangen, een S&H of een trage LFO.',
+  });
+}
+
 // ── public entry ───────────────────────────────────────────────────────
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbComp(), mmbNoise(), mmbEcho(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbComp(), mmbNoise(), mmbEcho(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound()];
   const newTypes = all.map((x) => x.type);
 
   // Upgrade-pad: bestaande interne types worden in-place VERVANGEN (zelfde
