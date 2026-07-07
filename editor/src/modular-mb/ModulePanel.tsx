@@ -11,6 +11,7 @@
 // rely on CSS `width`/`height` for actual display scaling.
 
 import { useRef, useState } from 'react';
+import { useTeensyLink } from './teensyLink';
 import {
   type ModuleInstance,
   type ModuleType,
@@ -185,7 +186,41 @@ export function ModulePanel({
           </g>
         );
       })}
+      {/* Live master-VU op het OUT-paneel (ED-P-2): leest de outPeak-
+          telemetrie; leeg/dim wanneer er geen Teensy verbonden is. */}
+      {mod.typeId === 'tp_mmb_out' && <OutVuMeter cx={widthMm / 2} yTop={46} />}
     </svg>
+  );
+}
+
+/** Verticale VU-bar op het OUT-paneel — segmenten van onder (groen) naar
+ *  boven (rood), gevuld naar de live master-outPeak. */
+function OutVuMeter({ cx, yTop }: { cx: number; yTop: number }): JSX.Element {
+  const link = useTeensyLink();
+  const peak = link.status.kind === 'connected'
+    ? (link.lastStatus?.outPeak ?? 0) : undefined;
+  const segs = 12;
+  const lit = peak === undefined ? -1 : Math.round(Math.max(0, Math.min(1, peak)) * segs);
+  const segH = 2.0, gap = 0.5, wSeg = 4.2;
+  return (
+    <g>
+      <rect x={cx - wSeg / 2 - 0.6} y={yTop - 0.6}
+        width={wSeg + 1.2} height={segs * (segH + gap) + 0.6}
+        rx={0.6} fill="#0a0a0a" stroke="#000" strokeWidth={0.2} />
+      {Array.from({ length: segs }, (_, i) => {
+        const frac = (segs - i) / segs;                 // rij 0 = boven
+        const base = frac > 0.92 ? '#ef4444' : frac > 0.75 ? '#fbbf24' : '#34d399';
+        const on = lit >= 0 && (segs - i) <= lit;
+        return (
+          <rect key={i} x={cx - wSeg / 2} y={yTop + i * (segH + gap)}
+            width={wSeg} height={segH} rx={0.3}
+            fill={on ? base : '#1b2531'}
+            opacity={on ? 1 : (lit < 0 ? 0.5 : 0.9)} />
+        );
+      })}
+      <text x={cx} y={yTop + segs * (segH + gap) + 3} fontSize={1.5}
+        fill="#9ca3af" textAnchor="middle">VU</text>
+    </g>
   );
 }
 

@@ -24,6 +24,7 @@ import { updateProject, useModularProject, uid } from './store';
 import { ModulePanel } from './ModulePanel';
 import { sendControlPoke } from './teensyLink';
 import { polyControlTargets } from './polyExpand';
+import { DX7_VOICE_NAMES, DX7_BANK_SHORT } from './dx7BankNames';
 import { useEngineStatus } from './sim/engineSingleton';import {
   type ModuleInstance, type ModuleType, type Port, type PatchConnection,
   type ControlValue, type RackSlot, type PolyGroup, type PatchPolyOverride,
@@ -949,7 +950,27 @@ function PropertiesPanel(props: { patchId: string; selectedNodeId: string | null
             const v = cs[ctrl.id];
             const lbl = ctrl.label || ctrl.id;
             let editor: JSX.Element;
-            if (ctrl.kind === 'knob' || ctrl.kind === 'slider') {
+            // DX7 voice-picker: kies een program-voice op naam (per bank).
+            // Namen uit dx7BankNames.ts (bank 8 = USER → nummers).
+            if (t.id === 'tp_mmb_dx7' && ctrl.id === 'program') {
+              const bankV = cs['bank'];
+              const bank = typeof bankV === 'number' ? bankV : 0;
+              const prog = typeof v === 'number' ? v : 0;
+              const names = DX7_VOICE_NAMES[bank]
+                ?? Array.from({ length: 32 }, (_, i) => `USER ${i}`);
+              editor = (
+                <select
+                  value={prog}
+                  title={`Bank ${DX7_BANK_SHORT[bank] ?? '?'} — kies voice op naam`}
+                  onChange={(e) => setControl(ctrl.id, Number(e.target.value))}
+                  style={{ maxWidth: 150 }}
+                >
+                  {names.map((nm, i) => (
+                    <option key={i} value={i}>{`${i.toString().padStart(2, '0')} ${nm.trim()}`}</option>
+                  ))}
+                </select>
+              );
+            } else if (ctrl.kind === 'knob' || ctrl.kind === 'slider') {
               const num = typeof v === 'number' ? v : ctrl.defaultValue;
               const stp = (ctrl.kind === 'knob' && ctrl.step) ? ctrl.step : (ctrl.max - ctrl.min) / 100;
               editor = (
