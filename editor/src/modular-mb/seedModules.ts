@@ -2359,10 +2359,50 @@ function mmbElementsReverb() {
   });
 }
 
+// 26. MMB GRIDS — 10 HP. Topologische drum-sequencer (firmware tp_mmb_grids,
+//     FW-SQ-2). Eigen patroondata (upstream Grids is GPL); zelfde spelidee:
+//     X/Y-kaart, density per stem, accenten, chaos.
+function mmbGrids() {
+  const w = W(10);
+  const col = (i: number): number => w * (0.14 + i * 0.24);
+  return assemble({
+    typeId: 'tp_mmb_grids',
+    categoryId: 'sequencer',
+    variant: 'Grids (drum-kaart)',
+    brand: 'MMB', model: 'GRIDS',
+    hp: 10, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'GRIDS', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13,  text: 'drum-kaart · X/Y', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('x',     'X',     w*0.28, 30, { size: 'large', min: 0, max: 1, def: 0.5, color: '#e11d48' }),
+      knob('y',     'Y',     w*0.72, 30, { size: 'large', min: 0, max: 1, def: 0.5, color: '#0891b2' }),
+      knob('bd',    'BD',    w*0.18, 60, { size: 'small', min: 0, max: 1, def: 0.75, color: '#f9fafb' }),
+      knob('sd',    'SD',    w*0.42, 60, { size: 'small', min: 0, max: 1, def: 0.6, color: '#f9fafb' }),
+      knob('hh',    'HH',    w*0.66, 60, { size: 'small', min: 0, max: 1, def: 0.7, color: '#f9fafb' }),
+      knob('chaos', 'Chaos', w*0.88, 60, { size: 'small', min: 0, max: 1, def: 0, color: '#e11d48' }),
+      knob('tempo', 'Tempo', w*0.30, 84, { size: 'medium', min: 20, max: 300, def: 120, unit: 'bpm', color: '#f9fafb' }),
+      toggle('extclock', 'ExtClk', w*0.75, 84),
+
+      inPort ('clock', 'Clk', 'gate', w*0.14, 102),
+      inPort ('reset', 'Rst', 'gate', w*0.38, 102),
+      inPort ('x_cv',  'X+',  'cv',   w*0.62, 102),
+      inPort ('y_cv',  'Y+',  'cv',   w*0.86, 102),
+      outPort('bd',  'BD',  'gate', col(0), 118),
+      outPort('sd',  'SD',  'gate', col(1), 118),
+      outPort('hh',  'HH',  'gate', col(2), 118),
+      outPort('acc', 'Acc', 'gate', col(3), 118),
+    ],
+    notes: 'Topologische drum-sequencer (firmware tp_mmb_grids, FW-SQ-2), geïnspireerd op MI Grids maar met eigen patroondata (upstream is GPL-3.0). X morpht basis→druk, Y mengt syncopatie erin; elke plek op de kaart heeft eigen karakter (value-noise op een 5×5-rooster). BD/SD/HH zijn density-drempels per stem; hits met hoge prioriteit krijgen Acc (accent) — stuur die naar de accent-CV van de CR-78. Chaos randomiseert per patroonronde. 32 stappen (2 maten zestienden), interne klok (Tempo) of ExtClk + Clk-jack. Reset springt naar stap 0.',
+  });
+}
+
 // ── public entry ───────────────────────────────────────────────────────
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbComp(), mmbNoise(), mmbEcho(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbEcho(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound()];
   const newTypes = all.map((x) => x.type);
 
   // Upgrade-pad: bestaande interne types worden in-place VERVANGEN (zelfde

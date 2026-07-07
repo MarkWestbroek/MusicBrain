@@ -1,6 +1,6 @@
 {
   "$comment": "GEGENEREERD door tools/contract_dump.py — niet met de hand bewerken. Poort-ids zijn letterlijk wat de firmware accepteert (aliassen als out/out_l en naam/naam_cv staan er dus allebei in).",
-  "firmwareVersion": "0.5.47",
+  "firmwareVersion": "0.5.48",
   "modules": {
     "tp_mmb_ahdsr": {
       "typeId": "tp_mmb_ahdsr",
@@ -306,6 +306,32 @@
       "source": "firmware/core/include/mb/runtime/GateOut.h",
       "ports": [],
       "controls": []
+    },
+    "tp_mmb_grids": {
+      "typeId": "tp_mmb_grids",
+      "source": "firmware/app-modular-brain/src/GridsModule.h",
+      "ports": [
+        "acc",
+        "bd",
+        "clock",
+        "hh",
+        "reset",
+        "sd",
+        "x",
+        "x_cv",
+        "y",
+        "y_cv"
+      ],
+      "controls": [
+        "bd",
+        "chaos",
+        "extclock",
+        "hh",
+        "sd",
+        "tempo",
+        "x",
+        "y"
+      ]
     },
     "tp_mmb_ladder": {
       "typeId": "tp_mmb_ladder",
