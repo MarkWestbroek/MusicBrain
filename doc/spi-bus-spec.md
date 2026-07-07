@@ -150,28 +150,40 @@ Gebruikt: 2–13, 18, 19, 28–33, 40, 41. **Vrij: 0, 1, 14–17, 20–27, 34–
 Busboard v1.1 krijgt een EXP-header (2×13) die deze pinnen + 3V3/GND
 uitvoert voor experimenten met insteekkabeltjes.
 
-## Mechanica-standaard kaarten (besluit 2026-07-08, Alt-3-review)
+## Mechanica-standaard kaarten (besluit 2026-07-08/09, Alt-3-review)
 
-1. **Busconnector = haakse (horizontal) male 2×10** aan de onderrand van de
-   kaart, pennen wijzen langs het kaartvlak naar beneden het slot in.
-   (v1.0 van GATE8/ADC8 heeft nog rechte headers — wordt v1.1.)
-2. **Frontconnector = haakse male** aan de frontrand (de rand haaks op de
-   busrand, aan de paneelzijde), pennen langs het kaartvlak naar het paneel
-   toe; hart op **44 mm boven de busrand** — zodat alle jack-printjes op
-   alle kaarten passen.
-3. **Jack-printjes** dragen een **rechte female socket op de achterzijde**
-   (opening richting kaart) en prikken haaks op de kaart, parallel aan het
-   paneel. TN-normalling via soldeerjumper (dicht = inputs, open = outputs!).
+**Assenstelsel** (definitief): **L** (lengte) = lange as van het busboard,
+de richting waarin de kaarten naast elkaar staan (slotsteek 20 mm).
+**B** (breedte) = diepte van het busboard; de slots en de kaartvlakken
+lopen in deze richting. **H** (hoogte) = hoe hoog een kaart boven het
+busboard uitsteekt.
 
-   Vuistregel: **per koppeling precies één haakse connector, altijd aan de
+Model: busboard ligt plat (L x B), kaarten staan verticaal, en boven alle
+kaarten komt **een vlakke bovenplaat** waar jacks, potmeters en encoders
+doorheen steken.
+
+1. **H = 80 mm voor alle kaarten** - dit maakt de gedeelde bovenplaat
+   mogelijk. (ADC8 is al 80; GATE8 groeit in v1.1 van 60 naar 80.)
+2. **Busconnector = haakse (horizontal) male 2x10** aan de onderrand,
+   pennen langs het kaartvlak omlaag het slot in.
+   (v1.0 van GATE8/ADC8 heeft nog rechte headers - wordt v1.1.)
+3. **Paneelconnector = haakse male** aan de **bovenrand** (tegenover de
+   busrand), pennen langs het kaartvlak omhoog; hart **recht boven het
+   midden van de slot-pinrij** - zodat alle jack-printjes op alle kaarten
+   passen en de strips op de bovenplaat netjes uitlijnen.
+4. **Jack-printjes** liggen horizontaal (parallel aan de bovenplaat),
+   dragen een **rechte female socket aan de onderzijde**, header in het
+   **midden van de strip**; de strip loopt in de B-richting en mag voor en
+   achter de kaart uitsteken (de bovenplaat draagt de jacks via de
+   Thonkiconn-moeren). TN-normalling via soldeerjumper (dicht = inputs,
+   open = outputs!).
+
+   Vuistregel: **per koppeling precies een haakse connector, altijd aan de
    kaartzijde (male)**; busboard-slots en jack-printjes hebben rechte
-   female sockets. De kaart draagt dus twee haakse males (bus + front).
-4. **Silkscreen-link**: `musicbrain.nl/hw/<bord>` + rev. Kort, drukbaar en
-   stabiel: het domein redirect naar de actuele documentatie (GitHub-pad
-   kan wijzigen; een redirect is één regel). Richt op musicbrain.nl een
-   redirect in per bord.
-5. Kaartdiepte mag per kaart verschillen; wie een steunrail over de
-   kaartenrij wil, standaardiseert op 80 mm (ADC8-maat).
+   female sockets. Elke kaart draagt dus twee haakse males (onder + boven).
+5. **Silkscreen-link**: `musicbrain.nl/hw/<bord>` + rev. Kort, drukbaar en
+   stabiel: het domein redirect naar de actuele documentatie. Richt op
+   musicbrain.nl een redirect in per bord.
 
 ## Mechanica
 

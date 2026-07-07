@@ -7,7 +7,7 @@
 
 Een passieve strip met **4× Thonkiconn** (PJ398SM = PJ301M-12 = WQP518MA,
 onderling uitwisselbaar) op 15 mm steek, die als **frontpaneel-drager**
-dient: de schroefbussen steken door het paneel en de moeren klemmen paneel
+dient: de strip ligt horizontaal onder de bovenplaat, de schroefbussen steken erdoorheen en de moeren klemmen paneel
 en printje op elkaar — geen extra steunen nodig.
 
 ## Aansluiting op de kaarten
@@ -17,9 +17,9 @@ en printje op elkaar — geen extra steunen nodig.
 - **Montage**: de female socket wordt op de **achterzijde** gesoldeerd
   (opening richting kaart); de kaart krijgt aan zijn frontrand een haakse
   male header. Het silkscreen op de achterzijde markeert de positie.
-- Headerpositie: hart op **44 mm boven de onderrand** — de
-  standaard-fronthoogte uit `doc/spi-bus-spec.md`, zodat elk jack-printje
-  op elke kaart past.
+- Headerpositie: hart in het **midden van de strip**; de kaart heeft zijn
+  paneelconnector recht boven het slotcentrum (spec-standaard), zodat elk
+  jack-printje op elke kaart past en de strips op de bovenplaat uitlijnen.
 
 ## JP1: schakelcontact-normalling
 
