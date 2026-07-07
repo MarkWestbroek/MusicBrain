@@ -229,3 +229,34 @@ heap gebruiken.
 
 Alle drie hardware-getest via flash_verify (0.5.39, tag fw-0.5.39):
 Morph-WT 4 banken klinken; octa-keten leeft; regressie OK.
+
+---
+
+## Nacht 8 juli (2e slaapsessie): Morph-WT v2, Stages, Peaks, editor-features
+
+Zes deelopdrachten, elk eigen versie + commit (kunnen los afvallen):
+
+- **Morph-WT v2 (0.5.40):** per-octaaf mip-levels (≤24/≤8/≤2 harm., int16,
+  ~61 KB heap) tegen aliasing; per blok kiest de osc het niveau onder
+  Nyquist. Hardware: hoge saw schoon op 1,6% CPU.
+- **🎚️ Stages (tp_mmb_stages, FW-CV-3, 0.5.41):** 6-segment envelope/LFO/
+  sequencer als CvModule; segment-type R/H/S/A + T/S per segment, Active/
+  Loop/L-start/L-end. Loop-LFO op VCA moduleert (88%).
+- **🥁 Peaks (tp_mmb_peaks, FW-AU-15, 0.5.42):** 808-drums (kick/snare/hat/
+  fm), 1 drum/instantie, gate-getriggerd, 48k→44.1k resample. Alle 4
+  klinken. Seed **808 jam** (Marbles klokt 3 drums).
+- **Editor (geen flash):** panel-export/import (ED-P-1, `panelIO.ts` +
+  Panels-menu, mmb-panel.v1); OUT-VU bargraph in de status-strip (ED-P-2).
+  Beide bewust búiten de patcher-renderer gehouden (parallelle design-
+  sessie op PatcherGraphPanel).
+- **Surprise: seed 🌌 Krell** — Stages triggert via EOC zichzelf + Marbles;
+  envelope → Morph-WT-morph + VCA → Clouds. Zelfspelend, oneindig.
+
+**DX7 voice-picker** bewust NIET gebouwd: die hoort in de patcher-control-
+UI (design-sessie-terrein). Concept: dropdown die de namen uit
+dx7BankNames.ts toont en bank/program poked — de naam staat al groot-groen
+op het paneel, de dropdown is de "spring direct naar voice X"-variant.
+
+Tags fw-0.5.40 t/m fw-0.5.42. Tests: 81 groen. Alles via flash_verify.
+Modulearsenaal nu 42 types; MI-catalogus: Elements/Rings/Plaits/Clouds/
+Tides/Marbles/Warps/Stages/Peaks geport.

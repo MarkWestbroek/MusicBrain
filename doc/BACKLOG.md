@@ -220,11 +220,13 @@ Gevraagd door de gebruiker; vastgelegd zodat de items hierboven kloppen.
 
 ## 6. Panels & telemetrie (sessie 2026-07-06)
 
-- **ED-P-1 — Panels los exporteren/importeren.** ↓ Exporteer pakt nu het hele
+- **ED-P-1 — Panels los exporteren/importeren.** ✅ (0.5.42-sessie) `panelIO.ts` + Panels-toolbarmenu, mmb-panel.v1 (ModuleType+visual); import upgradet in-place.
+- **ED-P-1b (oorspronkelijk):** ↓ Exporteer pakt nu het hele
   project; gewenst: één paneel (ModuleType + visual) als los JSON-bestand
   exporteren/importeren, richting een `panels/`-bibliotheek. Panels zijn
   logisch 1→* t.o.v. ModuleType (zie doc/architecture/mmb-moduletype-panel.puml).
-- **ED-P-2 — VU/clip-meter op het OUT-paneel.** outPeak staat al in de strip
+- **ED-P-2 — VU/clip-meter.** ✅ (0.5.42-sessie) bargraph in de status-strip (buiten de patcher-renderer). Echte meter óp het OUT-paneel-SVG blijft open (patcher-renderer + live telemetrie).
+- **ED-P-2b (oorspronkelijk):** outPeak staat al in de strip
   (met CLIP-indicatie ≥0.999); een echte meter op het paneel zelf vraagt
   live telemetrie-doorvoer naar de panel-renderer. Meenemen in de
   UI-designsessie (kabels/knoppen-bedienbaarheid).
