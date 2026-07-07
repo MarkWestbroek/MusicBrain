@@ -1,7 +1,9 @@
 # MusicBrain GATE8 — 8× gate-uitgang (slotkaart)
 
-**Status**: schema ERC-schoon; PCB volledig geroute (DRC 0 fouten, 0 unconnected).
-**Spec**: `doc/spi-bus-spec.md`. Bord: 60×34 mm, 2 lagen.
+**Status**: v1.1 — schema ERC-schoon; PCB volledig geroute (DRC 0 fouten,
+0 unconnected). **Spec**: `doc/spi-bus-spec.md`. Bord: 35 mm breed ×
+**80 mm hoog** (de standaard-kaarthoogte H, zodat één vlakke bovenplaat
+alle kaarten dekt), 2 lagen.
 
 ## Wat het is
 
@@ -34,17 +36,23 @@ Bit 0 = QA = GATE1 … bit 7 = QH = GATE8.
 
 ## Aansluitingen
 
-- **J1** (male 2×10, onderrand): het bus-slotcontract uit de spec.
-- **J2** (male 1×10, bovenrand): 1 = GND, 2–9 = GATE1..8, 10 = GND.
+- **J1** (haakse male 2×10, onderrand): het bus-slotcontract uit de spec.
+  Pennen steken 6 mm onder de kaartrand uit, het slot-socket in.
+- **J2** (haakse male 1×10, bovenrand): 1 = GND, 2–9 = GATE1..8, 10 = GND.
   Zelfde contract als de ADC8-kaart → één jack8-printje past op beide.
+  J2 staat **recht boven het midden van J1** (spec-standaard), zodat de
+  jack-strips van alle kaarten op de bovenplaat uitlijnen.
 
-## PCB-notities
+## PCB-notities (v1.1)
 
-De chip staat 180° gedraaid zodat de ingangen naar J1 wijzen en de
-uitgangen naar de weerstandskolom. De volgorde-omkering (chip telt QH→QB
-van boven naar beneden, de connector GATE1→8 andersom) is opgelost met
-zeven korte B.Cu-baantjes ("busomkering"); QA loopt bovenlangs.
-GND via vlakken op beide lagen + stitching-via's.
+Signaalstroom van onder naar boven: J1 (bus) → 74HCT595 → weerstandsrij →
+J2 (paneel). De Q-uitgangen verlaten de chip via een via-kolom en lopen als
+L-paden over B.Cu (oost, dan noord) naar hun weerstand — exits en doelen
+staan in dezelfde volgorde, dus dat is kruisingsvrij; QA komt van de
+oostkolom en loopt bovenlangs om de "Q-wal" heen. SCLK en CS hebben elk
+één B.Cu-hop om de aanvoer vanaf J1 te ontvlechten. De AMS1117 met C1–C3
+zit in de zuidoosthoek; +5V loopt via één B.Cu-run (y=157,5) naar VCC,
+~SRCLR en de condensatoren. GND via vlakken op beide lagen + stitching-via's.
 
 ## Uitbreidingsideeën (v2)
 
