@@ -45,7 +45,9 @@ Eurorack PSU ──► busboard (Teensy 4.1 + 3V3/5V regeling)
 
 SPARE1 is gereserveerd als **CONVST**: busbrede "sample nu"-strobe voor
 ADC-kaarten — het spiegelbeeld van LDAC. Alle DAC's updaten synchroon op
-LDAC, alle ADC's samplen synchroon op CONVST.
+LDAC, alle ADC's samplen synchroon op CONVST. SPARE2 is gereserveerd als
+**ADC_RESET** (AD7606 wil een resetpuls na power-up; firmware-gestuurd,
+busbreed, 100k pulldown op elke ADC-kaart).
 
 Connector op busboard: **PinSocket 2×10** (female); op de kaart: male pin
 header 2×10 aan de onderrand. Mechanisch aanvullen met M3-afstandsbus of
@@ -102,9 +104,24 @@ kaartgeleider.
 |---|---|---|---|
 | 4× CV out (breakout) | SPI via hub | AD5754BREZ + ADR421 | **klaar**: `Images/schematics/ad5754r-breakout/` (sch + geroute PCB) |
 | 8× gate out | SPI (write-only) | 74HCT595 @ +5V (lokale 78L05/AMS1117-5.0), 1 k serie-uit | **klaar**: `Images/schematics/musicbrain-gate8/` (sch + geroute PCB); latch = CS↑, mode 0 |
-| 8× ADC in | SPI + IRQ + CONVST | **AD7606** (16-bit, 8-ch, simultaan, ±10V direct, 1 MΩ) | gekozen (naar Nic Newdigate's teensy-eurorack-breakout); CS→CS, BUSY→IRQ, CONVST→SPARE1, RANGE via jumper, VDRIVE=3V3, AVCC=5V lokaal, interne referentie |
+| 8× ADC in | SPI + IRQ + CONVST | **AD7606** (16-bit, 8-ch, simultaan, ±10V direct, 1 MΩ) | **sch klaar, PCB geplaatst**: `Images/schematics/musicbrain-adc8/`; CS→CS, BUSY→IRQ, CONVST→SPARE1, RESET→SPARE2 (+100k pulldown), RANGE via JP1 (3V3=±10V / GND=±5V), OS0-2=GND, seriële mode (DOUTA→MISO, DB's→GND), VDRIVE=3V3, AVCC=5V lokaal, interne 2.5V-referentie; J2-contract identiek aan GATE8 (1=GND, 2-9=kanaal, 10=GND) |
 | 8× CV out (2× AD5754) | SPI + LDAC | 2× AD5754 + ADR421 | ontwerp volgt (zelfde recept als breakout) |
-| 8× pot/encoder | I2C (+IRQ) | MCP23017 / ADS7830 | traag verkeer hoort op I2C |
+| 8× pot/encoder | I2C (+IRQ) | MCP23017 (encoders/knoppen) + ADS1115/ADS7830 (pots) | traag verkeer hoort op I2C; gepland |
+| jack8-printje | passief | 8× Thonkiconn (PJ398SM) + male 1×10 | prikt op J2 van GATE8/ADC8 (contract: 1=GND, 2-9=kanaal, 10=GND); gepland |
+| jack4-printje | passief | 4× Thonkiconn + male 1×5 | prikt op J2 van AD5754-breakout (1=GND, 2-5=A-D); gepland |
+
+## Display
+
+Twee sporen, allebei voorzien op het busboard (v1.1):
+
+1. **I2C (traag, klein)**: SSD1306/SH1106-OLED direct op de bus-I2C. Aanrader:
+   een **Qwiic/StemmaQT-connector** (JST-SH 4-pens: GND, 3V3, SDA, SCL) op het
+   busboard — de-facto standaard, honderden modules pluggen direct in.
+2. **SPI (snel, groot TFT)**: níet op de CV-bus (displayframes blokkeren het
+   CV-verkeer), maar op een **eigen SPI-poort van de Teensy** (SPI1: pin 26 =
+   MOSI1, 27 = SCK1 — nu ongebruikt). Dedicated 2×5 display-header: 3V3, 5V
+   (backlight), GND, SCK1, MOSI1, D/C, CS, RST. Nic's teensy-eurorack doet
+   het ook zo (aparte TFT_SCK/TFT_MOSI/TFT_DC/TFT_CS-lijnen).
 
 De AD7606-keuze scheelt een compleet opamp-frontend per kanaal: ±10V mag
 rechtstreeks de chip in (interne clamps, 1 MΩ). Serieel uitlezen: na CONVST↓↑
