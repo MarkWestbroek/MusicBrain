@@ -2236,10 +2236,42 @@ function mmbResonator() {
   });
 }
 
+// 22. MMB CR-78 — 8 HP. Roland CR-78 drumstem, berekend (firmware
+//     tp_mmb_cr78, FW-AU-16): bridged-T gedempte sinussen voor de vellen,
+//     gefilterde ruis + envelope-VCA's voor de rest. Eén drum per instantie.
+function mmbCr78() {
+  const w = W(8);
+  return assemble({
+    typeId: 'tp_mmb_cr78',
+    categoryId: 'drum',
+    variant: 'CR-78 drum (berekend)',
+    brand: 'MMB', model: 'CR-78',
+    hp: 8, texture: 'pcb-black', baseColor: '#3b2413', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'CR-78', fontSize: 2.4, color: '#fbe8c8', align: 'middle' },
+      { x: w/2, y: 13,  text: 'CompuRhythm · berekend', fontSize: 1.0, color: '#c8a878', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#fbe8c8', align: 'middle' },
+    ],
+    items: [
+      sw  ('drum', 'Drum', w/2, 26, ['Kick','Snare','Rim','Claves','Cowbell','HiHat','Cymbal','Maracas','Guiro','Bongo','Conga','Tamb'], 0),
+      knob('tone',  'Tone',  w*0.28, 54, { size: 'medium', min: 0, max: 1, def: 0.5, color: '#e11d48' }),
+      knob('decay', 'Decay', w*0.72, 54, { size: 'medium', min: 0, max: 1, def: 0.5, color: '#fbe8c8' }),
+      knob('bend',  'Bend',  w*0.28, 80, { size: 'small', min: 0, max: 1, def: 0.5, color: '#0891b2' }),
+      knob('level', 'Level', w*0.72, 80, { size: 'small', min: 0, max: 1, def: 0.8, color: '#fbe8c8' }),
+
+      inPort ('gate',      'Trig',  'gate',  w*0.16, 104),
+      inPort ('voct',      'V/Oct', 'cv',    w*0.50, 104),
+      inPort ('accent_cv', 'Acc',   'cv',    w*0.84, 104),
+      outPort('out',       'Out',   'audio', w*0.50, 118),
+    ],
+    notes: 'Roland CR-78 drumstem, berekend i.p.v. gesampeld (firmware tp_mmb_cr78, FW-AU-16). Drum kiest een van 12 stemmen: Kick/Bongo/Conga zijn bridged-T gedempte sinussen met aanslag-pitchbuiging, Snare mengt vel + hiss, Rim/Claves korte hoge sinussen, Cowbell twee onharmonische sinussen door een soft-clip, HiHat/Cymbal/Maracas/Tamb gefilterde ruis met envelope-VCA, Guiro een pulstrein-geratel. Accent-CV maakt de slag luider én buigt de pitch harder (het accent-circuit — dat mist een sample). Tone = kleur/pitch per stem, Bend = buigdiepte, V/Oct stemt de vellen. Eén drum per module, zoals Peaks.',
+  });
+}
+
 // ── public entry ───────────────────────────────────────────────────────
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbComp(), mmbNoise(), mmbEcho(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbComp(), mmbNoise(), mmbEcho(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound()];
   const newTypes = all.map((x) => x.type);
 
   // Upgrade-pad: bestaande interne types worden in-place VERVANGEN (zelfde

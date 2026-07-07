@@ -1,6 +1,6 @@
 {
   "$comment": "GEGENEREERD door tools/contract_dump.py — niet met de hand bewerken. Poort-ids zijn letterlijk wat de firmware accepteert (aliassen als out/out_l en naam/naam_cv staan er dus allebei in).",
-  "firmwareVersion": "0.5.44",
+  "firmwareVersion": "0.5.45",
   "modules": {
     "tp_mmb_ahdsr": {
       "typeId": "tp_mmb_ahdsr",
@@ -100,6 +100,25 @@
         "ratio",
         "release",
         "threshold"
+      ]
+    },
+    "tp_mmb_cr78": {
+      "typeId": "tp_mmb_cr78",
+      "source": "firmware/app-modular-brain/src/Cr78Module.h",
+      "ports": [
+        "accent",
+        "accent_cv",
+        "gate",
+        "out",
+        "trig",
+        "voct"
+      ],
+      "controls": [
+        "bend",
+        "decay",
+        "drum",
+        "level",
+        "tone"
       ]
     },
     "tp_mmb_cv_in": {
