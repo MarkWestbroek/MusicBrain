@@ -1,6 +1,6 @@
 {
   "$comment": "GEGENEREERD door tools/contract_dump.py — niet met de hand bewerken. Poort-ids zijn letterlijk wat de firmware accepteert (aliassen als out/out_l en naam/naam_cv staan er dus allebei in).",
-  "firmwareVersion": "0.5.46",
+  "firmwareVersion": "0.5.47",
   "modules": {
     "tp_mmb_ahdsr": {
       "typeId": "tp_mmb_ahdsr",
@@ -20,6 +20,22 @@
         "reset",
         "retrig",
         "sustain"
+      ]
+    },
+    "tp_mmb_chord": {
+      "typeId": "tp_mmb_chord",
+      "source": "firmware/app-modular-brain/src/ChordModule.h",
+      "ports": [
+        "out1",
+        "out2",
+        "out3",
+        "out4",
+        "voct"
+      ],
+      "controls": [
+        "chord",
+        "inv",
+        "spread"
       ]
     },
     "tp_mmb_clouds": {

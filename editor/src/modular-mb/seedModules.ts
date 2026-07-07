@@ -2297,10 +2297,41 @@ function mmbQuant() {
   });
 }
 
+// 24. MMB CHORD — 6 HP. Chord-generator (firmware tp_mmb_chord, FW-CV-5):
+//     1 V/Oct in → 4 gestemde CV-uitgangen. Voedt Octa-VCO / 4 VCO's /
+//     de resonator-bank; achter de quantizer blijft alles in de toonsoort.
+function mmbChord() {
+  const w = W(6);
+  return assemble({
+    typeId: 'tp_mmb_chord',
+    categoryId: 'utility',
+    variant: 'Chord (4 stemmen)',
+    brand: 'MMB', model: 'CHORD',
+    hp: 6, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'CHORD', fontSize: 2.2, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13,  text: '1 in · 4 stemmen', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      sw  ('chord', 'Chord', w/2, 26, ['Maj','Min','Maj7','Min7','Dom7','Sus2','Sus4','Dim7','Aug','5th'], 0),
+      knob('inv',    'Inv',    w*0.30, 58, { size: 'medium', min: 0, max: 3, def: 0, step: 1, color: '#e11d48' }),
+      knob('spread', 'Spread', w*0.70, 58, { size: 'medium', min: 0, max: 1, def: 0, color: '#0891b2' }),
+
+      inPort ('voct', 'V/Oct', 'cv', w/2,    92),
+      outPort('out1', '1', 'cv', w*0.20, 112),
+      outPort('out2', '2', 'cv', w*0.40, 112),
+      outPort('out3', '3', 'cv', w*0.60, 112),
+      outPort('out4', '4', 'cv', w*0.80, 112),
+    ],
+    notes: 'Chord-generator (firmware tp_mmb_chord, FW-CV-5): zet vier akkoordstemmen rond de V/Oct-ingang. Inv is de klassieke inversie (laagste stemmen een octaaf omhoog), Spread opent de voicing trapsgewijs in octaven (blijft dus akkoordeigen). Stuur out1..4 naar vier VCO-cellen (Octa-VCO), vier DX7\'s of de resonator-bank. Achter de quantizer (tp_mmb_quant) blijft de grondtoon in de toonsoort.',
+  });
+}
+
 // ── public entry ───────────────────────────────────────────────────────
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbComp(), mmbNoise(), mmbEcho(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbComp(), mmbNoise(), mmbEcho(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound()];
   const newTypes = all.map((x) => x.type);
 
   // Upgrade-pad: bestaande interne types worden in-place VERVANGEN (zelfde

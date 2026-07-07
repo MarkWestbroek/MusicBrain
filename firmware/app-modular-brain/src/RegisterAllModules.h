@@ -61,6 +61,7 @@
 #include "ResonatorModule.h"
 #include "Cr78Module.h"
 #include "QuantModule.h"
+#include "ChordModule.h"
 #include "CompDriveModule.h"
 #include "EchoModule.h"
 #include "CombModule.h"
@@ -113,6 +114,7 @@ inline void registerAllRuntimeModules() {
     ResonatorModule::registerFactory(); // FW-FX-6: sympathetic-resonator-bank
     Cr78Module::registerFactory();      // FW-AU-16: CR-78 drums (berekend)
     QuantModule::registerFactory();     // FW-CV-4: V/Oct-quantizer naar schaal
+    ChordModule::registerFactory();     // FW-CV-5: chord-generator (4 stemmen)
     CompDriveModule::registerFactory(); // FW-FX-2: compressor + overdrive
     EchoModule::registerFactory();      // FW-AU-2: feedback delay
     CombModule::registerFactory();      // FW-AU-3: tuned comb resonator
