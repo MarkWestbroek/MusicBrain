@@ -2328,10 +2328,41 @@ function mmbChord() {
   });
 }
 
+// 25. MMB REVERB — 8 HP. Elements' Dattorro-reverb als losse stereo-module
+//     (firmware tp_mmb_elements_reverb, FW-FX-3). Bestond al in de firmware
+//     maar had geen editor-paneel (code-review 2026-07-05, punt 3/9).
+function mmbElementsReverb() {
+  const w = W(8);
+  return assemble({
+    typeId: 'tp_mmb_elements_reverb',
+    categoryId: 'effect',
+    variant: 'Reverb (Dattorro)',
+    brand: 'MI', model: 'REVERB',
+    hp: 8, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'REVERB', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13,  text: 'Dattorro · stereo', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MI', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('amount', 'Amount', w*0.28, 34, { size: 'large', min: 0, max: 1, def: 0.5, color: '#e11d48' }),
+      knob('time',   'Time',   w*0.72, 34, { size: 'large', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('diffusion', 'Diff', w*0.28, 66, { size: 'small', min: 0, max: 1, def: 0.625, color: '#f9fafb' }),
+      knob('lp',        'Damp', w*0.72, 66, { size: 'small', min: 0, max: 1, def: 0.7, color: '#0891b2' }),
+
+      inPort ('in_l',  'In L',  'audio', w*0.25, 96),
+      inPort ('in_r',  'In R',  'audio', w*0.75, 96),
+      outPort('out_l', 'Out L', 'audio', w*0.25, 114),
+      outPort('out_r', 'Out R', 'audio', w*0.75, 114),
+    ],
+    notes: 'Mutable Instruments Elements\' Dattorro-plate-reverb als losse stereo-module (firmware tp_mmb_elements_reverb, FW-FX-3). Amount = dry/wet, Time = staartlengte, Diff = diffusie (echodichtheid), Damp = lowpass in de staart (laag = donkerder). Mono-bron: alleen In L aansluiten werkt (de plate spreidt naar stereo). 64 KB delaybuffer op de heap; draait native op 44.1 kHz.',
+  });
+}
+
 // ── public entry ───────────────────────────────────────────────────────
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbComp(), mmbNoise(), mmbEcho(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbComp(), mmbNoise(), mmbEcho(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound()];
   const newTypes = all.map((x) => x.type);
 
   // Upgrade-pad: bestaande interne types worden in-place VERVANGEN (zelfde
