@@ -103,27 +103,29 @@ kaartgeleider.
 | Kaart | Interface | Kernonderdelen | Status |
 |---|---|---|---|
 | 4× CV out (breakout) | SPI via hub | AD5754BREZ + ADR421 | **klaar**: `Images/schematics/ad5754r-breakout/` (sch + geroute PCB) |
-| 8× gate out | SPI (write-only) | 74HCT595 @ +5V (lokale 78L05/AMS1117-5.0), 1 k serie-uit | **klaar**: `Images/schematics/musicbrain-gate8/` (sch + geroute PCB); latch = CS↑, mode 0 |
-| 8× ADC in | SPI + IRQ + CONVST | **AD7606** (16-bit, 8-ch, simultaan, ±10V direct, 1 MΩ) | **sch klaar, PCB geplaatst**: `Images/schematics/musicbrain-adc8/`; CS→CS, BUSY→IRQ, CONVST→SPARE1, RESET→SPARE2 (+100k pulldown), RANGE via JP1 (3V3=±10V / GND=±5V), OS0-2=GND, seriële mode (DOUTA→MISO, DB's→GND), VDRIVE=3V3, AVCC=5V lokaal, interne 2.5V-referentie; J2-contract identiek aan GATE8 (1=GND, 2-9=kanaal, 10=GND) |
-| 8× CV out (2× AD5754) | SPI + LDAC | 2× AD5754 + ADR421 | ontwerp volgt (zelfde recept als breakout) |
-| 8× pot | SPI | MCP3208 (12-bit, 8-ch, tri-state MISO) | gewone buskaart met geografische CS; gepland |
+| 8× gate out | SPI (write-only) | 74HCT595 @ +5V (lokale 78L05/AMS1117-5.0), 1 k serie-uit | **klaar (v1.1)**: `Images/schematics/musicbrain-gate8/` — 35×80 mm, haakse connectoren, volledig geroute; latch = CS↑, mode 0 |
+| 8× ADC in | SPI + IRQ + CONVST | **AD7606** (16-bit, 8-ch, simultaan, ±10V direct, 1 MΩ) | **klaar (v1.1)**: `Images/schematics/musicbrain-adc8/` — 40×80 mm, haakse connectoren, volledig geroute; CS→CS, BUSY→IRQ, CONVST→SPARE1, RESET→SPARE2 (+100k pulldown), RANGE via JP1 (3V3=±10V / GND=±5V), OS0-2=GND, seriële mode (DOUTA→MISO, DB's→GND), VDRIVE=3V3, AVCC=5V lokaal, interne 2.5V-referentie; J2-contract identiek aan GATE8 (1=GND, 2-9=kanaal, 10=GND) |
+| 8× CV out ("DAC8", 2× AD5754) | SPI + LDAC | 2× AD5754 + ADR421 | **bevestigd 2026-07-08**: zelfde vormfactor als GATE8/ADC8 (H=80, J2-contract 1=GND/2-9=CV/10=GND); zelfde recept als de breakout; ontwerp volgt |
+| 8× pot | SPI | MCP3208 (12-bit, 8-ch, tri-state MISO) + **RK097N**-potmeters (9 mm, haaks, zelfde opbouwhoogte als Thonkiconn) | potten haaks aan de bovenrand van de kaart, assen door de bovenplaat; gewone buskaart met geografische CS; gepland |
 | 8× encoder/knop | I2C + IRQ | MCP23017 | interrupt-gedreven; encoders zijn groter → 8 als het past, anders 4; gepland |
 | 8× gate **in** | SPI (read-only) | 74HC165 + 74HC125-buffer (¼, CS-gated, voor tri-state MISO) + per kanaal 100k serie / 100k pulldown / BAT54S-clamp naar 3V3 | latch op CS↓, dan 8 bits klokken; gepland |
-| jack8-printje | passief | 8× Thonkiconn (PJ398SM) + male 1×10 | prikt op J2 van GATE8/ADC8 (contract: 1=GND, 2-9=kanaal, 10=GND); gepland |
-| jack4-printje | passief | 4× Thonkiconn + male 1×5 | prikt op J2 van AD5754-breakout (1=GND, 2-5=A-D); gepland |
+| jack8-printje | passief | 8× Thonkiconn (PJ398SM) + female socket onderzijde | **klaar**: `Images/schematics/musicbrain-jack8/` — prikt op J2 van GATE8/ADC8 (contract: 1=GND, 2-9=kanaal, 10=GND) |
+| jack4-printje | passief | 4× Thonkiconn + female socket onderzijde | **klaar**: `Images/schematics/musicbrain-jack4/` — voor de oude AD5754-breakout via kabel (1=GND, 2-5=A-D) |
 
 ## Display
 
-Twee sporen, allebei voorzien op het busboard (v1.1):
+Twee sporen, beide **gerealiseerd op busboard v1.1**:
 
-1. **I2C (traag, klein)**: SSD1306/SH1106-OLED direct op de bus-I2C. Aanrader:
-   een **Qwiic/StemmaQT-connector** (JST-SH 4-pens: GND, 3V3, SDA, SCL) op het
-   busboard — de-facto standaard, honderden modules pluggen direct in.
-2. **SPI (snel, groot TFT)**: níet op de CV-bus (displayframes blokkeren het
-   CV-verkeer), maar op een **eigen SPI-poort van de Teensy** (SPI1: pin 26 =
-   MOSI1, 27 = SCK1 — nu ongebruikt). Dedicated 2×5 display-header: 3V3, 5V
-   (backlight), GND, SCK1, MOSI1, D/C, CS, RST. Nic's teensy-eurorack doet
-   het ook zo (aparte TFT_SCK/TFT_MOSI/TFT_DC/TFT_CS-lijnen).
+1. **I2C (traag, klein)** — **J12 "QWIIC"** (1×4, 2,54 mm): GND, 3V3, SDA,
+   SCL — de Qwiic/StemmaQT-pinvolgorde. Soldeer er een JST-SH-pigtail of
+   los 4-pins kabeltje aan; SSD1306/SH1106-OLED's en alle Qwiic-modules
+   werken direct (pull-ups 2k2 zitten al op de bus).
+2. **SPI (snel, groot TFT)** — **J11 "DISPLAY"** (1×9) op eigen SPI1, níet
+   op de CV-bus (displayframes zouden het CV-verkeer blokkeren). Pinvolgorde
+   = de standaard ILI9341-module (dupontkabel 1-op-1): 1 VCC(3V3), 2 GND,
+   3 CS (Teensy 0), 4 RESET (25), 5 DC (24), 6 SDI/MOSI1 (26), 7 SCK1 (27),
+   8 LED (3V3), 9 SDO (nc — readback ongebruikt). Nic's teensy-eurorack
+   doet het ook zo (aparte TFT-lijnen).
 
 De AD7606-keuze scheelt een compleet opamp-frontend per kanaal: ±10V mag
 rechtstreeks de chip in (interne clamps, 1 MΩ). Serieel uitlezen: na CONVST↓↑
@@ -138,17 +140,31 @@ Besluit 2026-07-08:
 - **Teensy-delegates (bijv. 5×Elements) NIET op de SPI-bus**: Teensy als
   SPI-slave is onbetrouwbaar/vertragend. Besturing loopt per delegate over
   een **eigen UART-link** (point-to-point, DMA-vriendelijk, tot 6 Mbaud).
-  De hoofd-Teensy heeft 6 vrije Serial-poorten: Serial1 (0/1), Serial3
-  (14/15), Serial4 (16/17), Serial5 (20/21), Serial6 (24/25), Serial8 (34/35).
+  Beschikbare Serial-poorten: Serial3 (14/15), Serial4 (16/17), Serial5
+  (20/21) — alle drie op de EXP-header — plus Serial8 (34/35, vrije pads).
+  Serial1 (0/1) en Serial6 (24/25) zijn in v1.1 aan het display vergeven
+  (CS/DC/RST); pin 1 is nog vrij.
 - **Audio van delegates** gaat níet over SPI of UART maar via I2S/TDM naar
   het audiosysteem van de hoofd-Teensy, of analoog (som/mixer).
 
-## Vrije Teensy-pinnen → EXP-header (busboard v1.1)
+## Vrije Teensy-pinnen → EXP-header (busboard v1.1, gerealiseerd)
 
-Gebruikt: 2–13, 18, 19, 28–33, 40, 41. **Vrij: 0, 1, 14–17, 20–27, 34–39**
-(20 stuks, incl. SPI1 op 26/27/1/0, zes UART's en analoge ingangen A0–A3).
-Busboard v1.1 krijgt een EXP-header (2×13) die deze pinnen + 3V3/GND
-uitvoert voor experimenten met insteekkabeltjes.
+Bus gebruikt 2–13, 18, 19, 28–33, 40, 41; display (J11) gebruikt 0, 24–27.
+**J10 "EXP"** (2×7) voert de acht overige DIP-pinnen uit + voeding:
+
+| pad | net | pad | net |
+|---|---|---|---|
+| 1 | +3V3 | 2 | GND |
+| 3 | +5V | 4 | GND |
+| 5 | D15 | 6 | D14 |
+| 7 | D17 | 8 | D16 |
+| 9 | D21 | 10 | D20 |
+| 11 | GND | 12 | D22 |
+| 13 | D23 | 14 | GND |
+
+D14–D17/D20–D23 zijn analoog-capabel (A0/A1/A6/A7/A3…) en dragen Serial3/4/5.
+Daarnaast blijven **pin 1 (MISO1) en pins 34–39** (o.a. Serial8) vrij op de
+Teensy zelf.
 
 ## Mechanica-standaard kaarten (besluit 2026-07-08/09, Alt-3-review)
 
@@ -185,23 +201,34 @@ doorheen steken.
    stabiel: het domein redirect naar de actuele documentatie. Richt op
    musicbrain.nl een redirect in per bord.
 
-## Mechanica
+## Mechanica: dragen en geleiden
 
-- **Busboard v1.1**: 4–6 × M3-montagegat (Ø3,2, 5 mm van de rand).
-- **Slotkaarten**: 2 × M3-gat in de bovenhoeken; optioneel een gemeen-
-  schappelijke steunrail/afstandsbussen over de kaartenrij.
-- **Jack-printjes = frontpaneeldragers**: de Thonkiconn-bussen steken door
-  het paneel en de moeren klemmen paneel + printje samen — het paneel
-  draagt dus het printje (standaard Eurorack-DIY-constructie). Haakse
-  female header naar de kaart. Maat: 3U-hoogte; jack8 ≈ 1 kolom van 8 op
-  ~14 mm steek, jack4 half zo hoog of zelfde paneel half gevuld.
+Hoe een kaart vastzit (drie niveaus, van onder naar boven):
+
+1. **Het slot zelf**: de female 2×10-socket klemt de haakse pennen — dat
+   geeft prima elektrisch contact en houdt de kaart op zijn plek, maar
+   biedt weinig zijdelingse stijfheid (de kaart kan wiebelen).
+2. **De bovenplaat**: elke kaart steekt zijn haakse paneelconnector in de
+   female socket van een jack-strip, en die strip hangt met de
+   Thonkiconn-moeren aan de bovenplaat. Zodra de plaat er op zit, is elke
+   kaart dus **boven én onder vastgepakt** — dit is de primaire fixatie.
+3. **Standoffs**: het busboard heeft 5× M3 (Ø3,2): drie aan de noordrand,
+   twee aan de zuidrand — daarmee staat het geheel op afstandsbussen in
+   een kast; de bovenplaat krijgt eigen standoffs naar het busboard op
+   dezelfde gaten (lange bussen door alles heen, of aparte kolommen).
+
+Aparte printgeleiders (rails zoals in 19"-racks) zijn daarmee **niet
+nodig**; wie extra stijfheid wil bij zware kaarten (potmeterkaart) kan een
+steunlat over de kaartenrij leggen die in de bovenhoeken van de kaarten
+grijpt (kaart-v1.2: 2× M3-gat in de bovenhoeken reserveren).
 
 ## Open punten (v2-kandidaten)
 
-- Aux-header op busboard voor ongebruikte Teensy-pins (audio, USB-host, SD).
 - +5V ook naar de slots (nu alleen intern voor Teensy/LDO; gates gebruiken
   eigen 5V? → beslissen bij gate-kaartontwerp: optie is SPARE1 herbestemmen).
 - Gebufferde bus (74LVC244/245 per segment) als er >6 kaarten of langere
   backplane nodig blijkt.
-- Teensy-footprint op busboard-PCB (socket 2×24) — symbool bestaat al in het
-  KiCad-schema; footprint volgt bij de PCB-stap.
+- Encoderkeuze voor het encoderbord: op specs kiezen — advies **Bourns
+  PEC11R** (12 mm, 24 det., drukknop) of het 9 mm-zusje PEC09: degelijk,
+  overal leverbaar, met datasheet; alternatief Alps EC11. Sluit aan op
+  MCP23017 met 10k pull-ups + 100n ontdender per fase.

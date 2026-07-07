@@ -1,7 +1,8 @@
 # MusicBrain busboard — Teensy 4.1 backplane
 
-**Status**: schema ERC-schoon; PCB volledig geroute (DRC 0 fouten, 0 unconnected).
-**Leidende spec**: `doc/spi-bus-spec.md`. Bestanden: `.kicad_sch` / `.kicad_pcb`, PDF's ernaast.
+**Status**: v1.1 — schema ERC-schoon; PCB volledig geroute (DRC 0 fouten,
+0 unconnected). **Leidende spec**: `doc/spi-bus-spec.md`. Bestanden:
+`.kicad_sch` / `.kicad_pcb`, PDF's ernaast.
 
 ## Wat het is
 
@@ -47,6 +48,20 @@ Start de firmware op 2–4 MHz SPI; opvoeren kan daarna.
   van Teensy-VIN en de R-78E naar de ontkoppelrij (C1–C8, onderrand).
 - **GND**: geen sporen — massieve vlakken op beide lagen (solid connect),
   15 stitching-via's.
+
+## Nieuw in v1.1: EXP, DISPLAY, QWIIC, montagegaten
+
+- **J10 "EXP"** (2×7, noordwesthoek): 8 vrije GPIO (D14–D17, D20–D23 =
+  analoog-capabel + Serial3/4/5) plus +3V3/+5V/GND — voor experimenten met
+  insteekkabeltjes. Pinout in de spec. De acht signalen lopen als
+  B.Cu-lanen door de tussenrijen van de Teensy-padkolommen westwaarts.
+- **J11 "DISPLAY"** (1×9, noordstrook): eigen SPI1-poort in de pinvolgorde
+  van standaard ILI9341-modules (VCC GND CS RESET DC SDI SCK LED SDO) —
+  dupontkabel 1-op-1, SDO = nc. CS=0, RESET=25, DC=24, MOSI1=26, SCK1=27.
+- **J12 "QWIIC"** (1×4, zuidrand tussen slot 5/6): GND, 3V3, SDA, SCL in
+  Qwiic-volgorde, rechtstreeks op de bus-I2C (pull-ups zitten er al).
+- **5× M3-montagegat** (H1–H5): drie noordrand, twee zuidrand — voor
+  standoffs naar kast én bovenplaat.
 
 ## Aandachtspunten
 
