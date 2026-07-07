@@ -18,6 +18,7 @@ import { SimulationPanel } from './SimulationPanel';
 import { ControlSurfacePanel } from './ControlSurfacePanel';
 import { PresetsModal } from './PresetsModal';
 import { TeensyLinkModal } from './TeensyLinkModal';
+import { WaveDrawModal } from './WaveDrawModal';
 // Reuse the ES project-bar CSS classes (.es-projectbar*) — same visual language.
 import '../effect-switcher/styles.css';
 
@@ -41,6 +42,7 @@ export function ModularMbApp(): JSX.Element {
   const [editingDesc, setEditingDesc] = useState(false);
   const [showPresets, setShowPresets] = useState(false);
   const [showTeensy,  setShowTeensy]  = useState(false);
+  const [showWave,    setShowWave]    = useState(false);
   const [showPoly,    setShowPoly]    = useState(false);
   const [showStress,  setShowStress]  = useState(false);
   const [showSolo,    setShowSolo]    = useState(false);
@@ -261,6 +263,10 @@ export function ModularMbApp(): JSX.Element {
             onClick={() => setShowTeensy(true)}
             title="Verbinden met Teensy via USB Serial en config pushen"
           >🔌 Teensy</button>
+          <button
+            onClick={() => setShowWave(true)}
+            title="Teken een single-cycle golfvorm en push die live naar een Draw-VCO of Morph-WT (USER-bank)"
+          >🖊 Wave</button>
           <button
             onClick={() => setProject(seedExampleModules(getProject()))}
             title="Voeg 6 voorbeeld-modules toe aan dit project en plaats ze in het actieve rack"
@@ -486,6 +492,7 @@ export function ModularMbApp(): JSX.Element {
 
       {showPresets && <PresetsModal onClose={() => setShowPresets(false)} />}
       {showTeensy  && <TeensyLinkModal onClose={() => setShowTeensy(false)} />}
+      <WaveDrawModal open={showWave} onClose={() => setShowWave(false)} />
     </section>
   );
 }
