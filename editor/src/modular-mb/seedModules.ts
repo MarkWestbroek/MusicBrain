@@ -1863,7 +1863,7 @@ function mmbMorphWt() {
       inPort ('morph_cv', 'M+',    'cv',    w*0.50, 110),
       outPort('out',      'Out',   'audio', w*0.82, 110),
     ],
-    notes: 'Morphing-wavetable-VCO (firmware tp_mmb_morph_wt, FW-AU-14): 8 frames per bank, per sample geïnterpoleerd én tussen aangrenzende frames gecrossfaded — draai Morph (of stuur M+ met een LFO) voor vloeiende spectrale beweging. Banken: Analog (sin→tri→saw→puls), Vocal (schuivende formants), Harmonics (drawbar-opbouw), Digital (gaten/fase-flips), USER. USER-frames vul je met de wavetable-push van de Draw-VCO-teken-UI: W-slot kiest het doelframe. Let op: v1 aliast zachtjes boven ~C6.',
+    notes: 'Morphing-wavetable-VCO (firmware tp_mmb_morph_wt, FW-AU-14): 8 frames per bank, per sample geïnterpoleerd én tussen aangrenzende frames gecrossfaded — draai Morph (of stuur M+ met een LFO) voor vloeiende spectrale beweging. Banken: Analog (sin→tri→saw→puls), Vocal (schuivende formants), Harmonics (drawbar-opbouw), Digital (gaten/fase-flips), USER. USER-frames vul je met de wavetable-push van de Draw-VCO-teken-UI: W-slot kiest het doelframe. v2 is per-octaaf gebandlimit (3 mip-levels), dus ook hoog schoon.',
   });
 }
 

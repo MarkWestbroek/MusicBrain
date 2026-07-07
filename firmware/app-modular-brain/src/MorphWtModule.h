@@ -1,35 +1,32 @@
 #pragma once
 /**
  * @file MorphWtModule.h
- * @brief Morphing-wavetable-VCO (typeId `tp_mmb_morph_wt`): 8 frames per
- *        bank, vloeiend gemorpht met knop of CV.
+ * @brief Morphing-wavetable-VCO (typeId `tp_mmb_morph_wt`, FW-AU-14 v2):
+ *        8 frames per bank, vloeiend gemorpht, per-octaaf gebandlimit.
  *
  * @details
- * De bestaande WT-VCO (FW-AU-5) schakelt hard tussen vaste tabellen; deze
- * module morpht **vloeiend** door een bank van 8 frames (256 samples elk):
- * per sample wordt binnen het frame lineair geïnterpoleerd én tussen de
- * twee aangrenzende frames gecrossfaded. Vier ingebouwde banken (additief
- * opgebouwd, max 24 harmonischen) + een USER-bank waarvan de frames via het
- * bestaande `wavetable`-serieframe gevuld worden (`wslot` kiest het frame,
- * de Draw-VCO-teken-UI kan dus hergebruikt worden).
+ * v2 lost het aliasen van v1 op met **mip-levels**: elke bank bestaat in
+ * drie band-gelimiteerde versies (≤24, ≤8 en ≤2 harmonischen). Per blok
+ * kiest de oscillator het niveau waarvan de hoogste harmonische onder
+ * Nyquist blijft — tot ~A5 het volle spectrum, daarboven trapsgewijs
+ * schoner. Opslag: int16, 3×5×8×256 ≈ 61 KB heap (eenmalig).
  *
- * Banken: 0 **Analog** (sin→tri→saw→sqr→pulse), 1 **Vocal** (formant-
- * pieken A→O→E→I), 2 **Harmonics** (orgel-drawbar-opbouw), 3 **Digital**
- * (harde reeksen/bit-achtig), 4 **USER**.
- *
- * @note v1 is niet per-octaaf gebandlimit: één tabel per frame met ≤24
- *       harmonischen — boven ~C6 gaat het zachtjes aliasen. Mip-levels
- *       kunnen later binnen dezelfde ports/controls.
+ * Banken: 0 **Analog** (sin→tri→saw→puls), 1 **Vocal** (schuivende
+ * formanten), 2 **Harmonics** (drawbar-opbouw), 3 **Digital** (gaten/
+ * fase-flips), 4 **USER** — frames vulbaar via het `wavetable`-serieframe
+ * (`wslot` kiest het frame; de Draw-VCO-teken-UI werkt er dus voor).
+ * USER-frames worden naar alle mip-levels gekopieerd (getekende golven
+ * bandlimiten kan later met een FFT-pass).
  *
  * Port map:
  * | Dir | portId     | Kind  | Betekenis                            |
  * |-----|------------|-------|--------------------------------------|
  * | in  | `voct`     | Cv    | 1 V/oct rond C4                      |
- * | in  | `morph_cv` | Cv    | 0..1 → frame 0..7 (optelt bij knop)  |
+ * | in  | `morph_cv` | Cv    | ±1 → ±7 frames bovenop de knop       |
  * | out | `out`      | Audio | Oscillator-uitgang                   |
  *
  * Controls: `bank` (0..4), `morph` (0..7), `coarse` (semi), `fine` (ct),
- * `level` (0..1). USER-frames: `wslot` (0..7) + wavetable-push.
+ * `level` (0..1), `wslot` (0..7, doelframe voor de wavetable-push).
  */
 
 #include "AudioModule.h"
@@ -43,12 +40,13 @@
 
 namespace mmb_link {
 
-/** @brief Morphing-wavetable-oscillator als AudioStream. */
+/** @brief Morphing-wavetable-oscillator met mip-levels, als AudioStream. */
 class MorphWtVoice : public AudioStream {
 public:
     static constexpr int kFrames  = 8;
     static constexpr int kSamples = 256;
     static constexpr int kBanks   = 5;   ///< 4 ingebouwd + USER.
+    static constexpr int kMips    = 3;   ///< ≤24, ≤8, ≤2 harmonischen.
 
     MorphWtVoice() : AudioStream(0, nullptr) {
         ensureBanks();
@@ -71,31 +69,36 @@ public:
         if (s >= kFrames) s = kFrames - 1;
         writeSlot_ = s;
     }
-    /** USER-frame vullen (256 samples, int16) — via Module::setWaveformData. */
+    /** USER-frame vullen (256 samples) — gekopieerd naar alle mip-levels. */
     bool writeUserFrame(const std::int16_t* data, std::size_t count) {
-        if (count != kSamples) return false;
-        float* dst = banks()[4][writeSlot_];
-        for (int i = 0; i < kSamples; ++i)
-            dst[i] = static_cast<float>(data[i]) * (1.0f / 32768.0f);
+        if (count != kSamples || !tables()) return false;
+        for (int m = 0; m < kMips; ++m)
+            std::memcpy(frame(m, 4, writeSlot_), data,
+                        kSamples * sizeof(std::int16_t));
         return true;
     }
 
     void update() override {
         audio_block_t* out = allocate();
         if (!out) return;
-        if (!banks()) {
+        if (!tables()) {
             std::memset(out->data, 0, sizeof(out->data));
             transmit(out, 0);
             release(out);
             return;
         }
+        // Mip-keuze: hoogste harmonische van dit niveau moet onder Nyquist
+        // blijven. hz = phaseInc·fs; toegestaan = (fs/2)/hz = 0.5/phaseInc.
+        const float allowed = phaseInc_ > 0.0f ? 0.5f / phaseInc_ : 24.0f;
+        const int mip = allowed >= 24.0f ? 0 : (allowed >= 8.0f ? 1 : 2);
+
         float m = clampf(morphBase_ + morphCv_, 0.0f, 6.999f);
         const int   f0   = static_cast<int>(m);
         const float fMix = m - static_cast<float>(f0);
-        const float (*bank)[kSamples] = banks()[bank_];
-        const float* a = bank[f0];
-        const float* b = bank[f0 + 1];
+        const std::int16_t* a = frame(mip, bank_, f0);
+        const std::int16_t* b = frame(mip, bank_, f0 + 1);
 
+        constexpr float kInv = 1.0f / 32768.0f;
         for (int i = 0; i < AUDIO_BLOCK_SAMPLES; ++i) {
             const float pos = phase_ * kSamples;
             const int   i0  = static_cast<int>(pos) & (kSamples - 1);
@@ -103,7 +106,7 @@ public:
             const float sf  = pos - std::floor(pos);
             const float sa  = a[i0] + (a[i1] - a[i0]) * sf;
             const float sb  = b[i0] + (b[i1] - b[i0]) * sf;
-            float y = (sa + (sb - sa) * fMix) * level_;
+            float y = (sa + (sb - sa) * fMix) * kInv * level_;
             if (y >  1.0f) y =  1.0f;
             if (y < -1.0f) y = -1.0f;
             out->data[i] = static_cast<int16_t>(y * 32767.0f);
@@ -119,101 +122,106 @@ private:
         return v < lo ? lo : (v > hi ? hi : v);
     }
 
-    /// Banken: [bank][frame][sample], ~40 KB float — éénmalig op de heap
-    /// (RAM2) gebouwd, ≤24 harmonischen tegen het ergste aliasen. (Een
-    /// function-local static met .dmabuffers-sectie botst met de
-    /// AudioMemory-pool in dezelfde TU — vandaar heap.)
-    using Frame = float[kSamples];
-    using BankArray = Frame[kFrames];
-    static BankArray* banks() {
-        static BankArray* b = [] {
-            auto* mem = new (std::nothrow) float[kBanks * kFrames * kSamples]();
-            return reinterpret_cast<BankArray*>(mem);
-        }();
-        return b;
+    /// Tabellen: [mip][bank][frame][sample], int16 — eenmalig op de heap
+    /// (~61 KB). (Function-local statics met .dmabuffers-sectie botsen met
+    /// de AudioMemory-pool in dezelfde TU, vandaar heap.)
+    static std::int16_t* tables() {
+        static std::int16_t* t = new (std::nothrow)
+            std::int16_t[kMips * kBanks * kFrames * kSamples]();
+        return t;
+    }
+    static std::int16_t* frame(int mip, int bank, int fr) {
+        return tables() + ((mip * kBanks + bank) * kFrames + fr) * kSamples;
     }
 
     static void ensureBanks() {
         static bool done = false;
         if (done) return;
-        if (!banks()) return;   // heap-OOM: stilte, geen crash
+        if (!tables()) return;   // heap-OOM: stilte, geen crash
         done = true;
-        auto add = [](float* f, int h, float amp, float phase = 0.0f) {
+
+        static constexpr int kMaxH[kMips] = { 24, 8, 2 };
+        float work[kSamples];
+        auto add = [&work](int h, float amp, float phase = 0.0f) {
             for (int i = 0; i < kSamples; ++i)
-                f[i] += amp * sinf(6.2831853f * (h * i / float(kSamples)) + phase);
+                work[i] += amp * sinf(6.2831853f * (h * i / float(kSamples)) + phase);
         };
-        auto normalize = [](float* f) {
+        auto store = [&work](int mip, int bank, int fr) {
             float mx = 0.0f;
             for (int i = 0; i < kSamples; ++i) {
-                const float a = f[i] < 0 ? -f[i] : f[i];
+                const float a = work[i] < 0 ? -work[i] : work[i];
                 if (a > mx) mx = a;
             }
-            if (mx > 0.0001f)
-                for (int i = 0; i < kSamples; ++i) f[i] *= 0.95f / mx;
+            const float g = mx > 0.0001f ? 0.95f / mx : 0.0f;
+            std::int16_t* dst = frame(mip, bank, fr);
+            for (int i = 0; i < kSamples; ++i)
+                dst[i] = static_cast<std::int16_t>(work[i] * g * 32767.0f);
         };
-        auto* B = banks();
 
-        // Bank 0 — Analog: sin → tri → saw → sqr → smalle puls.
-        for (int fr = 0; fr < kFrames; ++fr) {
-            float* f = B[0][fr];
-            const float t = fr / 7.0f;                    // 0..1
-            for (int h = 1; h <= 24; ++h) {
-                const bool odd = h & 1;
-                float amp = 0.0f;
-                if (t < 0.33f) {          // sin → tri
-                    const float u = t / 0.33f;
-                    if (h == 1) amp = 1.0f;
-                    else if (odd) amp = u / float(h * h) * ((h / 2) % 2 ? -1.0f : 1.0f);
-                } else if (t < 0.66f) {   // tri → saw
-                    const float u = (t - 0.33f) / 0.33f;
-                    const float tri = odd ? 1.0f / float(h * h) : 0.0f;
-                    const float saw = 1.0f / float(h);
-                    amp = tri + (saw - tri) * u;
-                } else {                  // saw → sqr/puls
-                    const float u = (t - 0.66f) / 0.34f;
-                    const float saw = 1.0f / float(h);
-                    const float sqr = odd ? 1.0f / float(h) : 0.0f;
-                    amp = saw + (sqr - saw) * u;
+        for (int mip = 0; mip < kMips; ++mip) {
+            const int maxH = kMaxH[mip];
+
+            // Bank 0 — Analog: sin → tri → saw → sqr/puls.
+            for (int fr = 0; fr < kFrames; ++fr) {
+                std::memset(work, 0, sizeof(work));
+                const float t = fr / 7.0f;
+                for (int h = 1; h <= maxH; ++h) {
+                    const bool odd = h & 1;
+                    float amp = 0.0f;
+                    if (t < 0.33f) {
+                        const float u = t / 0.33f;
+                        if (h == 1) amp = 1.0f;
+                        else if (odd) amp = u / float(h * h) * ((h / 2) % 2 ? -1.0f : 1.0f);
+                    } else if (t < 0.66f) {
+                        const float u = (t - 0.33f) / 0.33f;
+                        const float tri = odd ? 1.0f / float(h * h) : 0.0f;
+                        const float saw = 1.0f / float(h);
+                        amp = tri + (saw - tri) * u;
+                    } else {
+                        const float u = (t - 0.66f) / 0.34f;
+                        const float saw = 1.0f / float(h);
+                        const float sqr = odd ? 1.0f / float(h) : 0.0f;
+                        amp = saw + (sqr - saw) * u;
+                    }
+                    if (amp != 0.0f) add(h, amp);
                 }
-                if (amp != 0.0f) add(f, h, amp);
+                store(mip, 0, fr);
             }
-            normalize(f);
-        }
-        // Bank 1 — Vocal: twee formant-pieken die door de reeks schuiven.
-        for (int fr = 0; fr < kFrames; ++fr) {
-            float* f = B[1][fr];
-            const float f1 = 2.0f + fr * 0.9f;      // formant 1 (harm.)
-            const float f2 = 6.0f + fr * 2.0f;      // formant 2
-            for (int h = 1; h <= 24; ++h) {
-                const float d1 = (h - f1) / 1.2f;
-                const float d2 = (h - f2) / 2.0f;
-                const float amp = expf(-d1 * d1) + 0.6f * expf(-d2 * d2)
-                                + 0.15f / float(h);
-                add(f, h, amp);
+            // Bank 1 — Vocal: twee formant-pieken die door de reeks schuiven.
+            for (int fr = 0; fr < kFrames; ++fr) {
+                std::memset(work, 0, sizeof(work));
+                const float f1 = 2.0f + fr * 0.9f;
+                const float f2 = 6.0f + fr * 2.0f;
+                for (int h = 1; h <= maxH; ++h) {
+                    const float d1 = (h - f1) / 1.2f;
+                    const float d2 = (h - f2) / 2.0f;
+                    add(h, expf(-d1 * d1) + 0.6f * expf(-d2 * d2) + 0.15f / float(h));
+                }
+                store(mip, 1, fr);
             }
-            normalize(f);
-        }
-        // Bank 2 — Harmonics: drawbar-opbouw 1 → 1+2 → ... → vol orgel.
-        for (int fr = 0; fr < kFrames; ++fr) {
-            float* f = B[2][fr];
-            static constexpr int kBars[] = { 1, 2, 3, 4, 6, 8, 10, 12 };
-            for (int k = 0; k <= fr; ++k) add(f, kBars[k], 1.0f / (k + 1));
-            normalize(f);
-        }
-        // Bank 3 — Digital: spectra met gaten en fase-flips (klokkig/hard).
-        for (int fr = 0; fr < kFrames; ++fr) {
-            float* f = B[3][fr];
-            for (int h = 1; h <= 24; ++h) {
-                if (((h * (fr + 2)) % (fr + 3)) == 0) continue;   // gaten
-                const float amp = 1.0f / float(1 + ((h * 7) % (fr + 2)));
-                add(f, h, amp, (h % 3) * 2.0f);
+            // Bank 2 — Harmonics: drawbar-opbouw.
+            for (int fr = 0; fr < kFrames; ++fr) {
+                std::memset(work, 0, sizeof(work));
+                static constexpr int kBars[] = { 1, 2, 3, 4, 6, 8, 10, 12 };
+                for (int k = 0; k <= fr; ++k)
+                    if (kBars[k] <= maxH) add(kBars[k], 1.0f / (k + 1));
+                store(mip, 2, fr);
             }
-            normalize(f);
-        }
-        // Bank 4 — USER: start als sinus zodat hij nooit stil is.
-        for (int fr = 0; fr < kFrames; ++fr) {
-            add(B[4][fr], 1, 1.0f);
-            normalize(B[4][fr]);
+            // Bank 3 — Digital: spectra met gaten en fase-flips.
+            for (int fr = 0; fr < kFrames; ++fr) {
+                std::memset(work, 0, sizeof(work));
+                for (int h = 1; h <= maxH; ++h) {
+                    if (((h * (fr + 2)) % (fr + 3)) == 0) continue;
+                    add(h, 1.0f / float(1 + ((h * 7) % (fr + 2))), (h % 3) * 2.0f);
+                }
+                store(mip, 3, fr);
+            }
+            // Bank 4 — USER: start als sinus zodat hij nooit stil is.
+            for (int fr = 0; fr < kFrames; ++fr) {
+                std::memset(work, 0, sizeof(work));
+                add(1, 1.0f);
+                store(mip, 4, fr);
+            }
         }
     }
 
@@ -258,8 +266,8 @@ public:
     }
 
     void writeCvPort(std::string_view portId, float value) override {
-        if      (portId == "voct")             voice_.setVoct(value);
-        else if (cvPortIs(portId, "morph"))    voice_.setMorphCv(value);
+        if      (portId == "voct")          voice_.setVoct(value);
+        else if (cvPortIs(portId, "morph")) voice_.setMorphCv(value);
     }
 
     void setControl(std::string_view controlId,
