@@ -35,3 +35,7 @@ editor/src/**/*.d.ts
 Thumbs.db
 pcb/quad-dac/.history/
 COM5
+
+# PlatformIO-administratie: wijzigt bij elke dependency-check (libdeps zelf
+# blijft bewust getrackt - ArduinoJson is gevendord en staat niet in lib_deps)
+firmware/*/.pio/libdeps/*/integrity.dat
