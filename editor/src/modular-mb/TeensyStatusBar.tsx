@@ -4,6 +4,30 @@
 
 import { useTeensyLink } from './teensyLink';
 
+/** Horizontale VU-bar met vaste groen/amber/rood-zones; de vulling volgt de
+ *  master-outPeak. Segmenten zodat het als een klassieke bargraph oogt. */
+function VuBar({ value, compact }: { value: number; compact?: boolean }): JSX.Element {
+  const segs = compact ? 10 : 14;
+  const lit = Math.round(Math.max(0, Math.min(1, value)) * segs);
+  return (
+    <span style={{ display: 'inline-flex', gap: 1, alignItems: 'center' }}>
+      {Array.from({ length: segs }, (_, i) => {
+        const frac = (i + 1) / segs;
+        const base = frac > 0.92 ? '#ef4444' : frac > 0.78 ? '#fbbf24' : '#34d399';
+        const on = i < lit;
+        return (
+          <span key={i} style={{
+            width: compact ? 2 : 3, height: compact ? 7 : 9,
+            background: on ? base : '#1e293b',
+            borderRadius: 1,
+            boxShadow: on ? `0 0 2px ${base}` : 'none',
+          }} />
+        );
+      })}
+    </span>
+  );
+}
+
 /** Module-peak met clip-kleur: ≥1.0 clipt de module intern (rood). */
 function peakLabel(v: number): JSX.Element {
   return (
@@ -46,8 +70,11 @@ export function TeensyStatusBar(props: { compact?: boolean }): JSX.Element | nul
         </span>
       )}
       {st.outPeak !== undefined && (
-        <span title="Master-uitgang: hoogste |sample| sinds de vorige poll (1.000 = digitale full scale). 0.000 = stilte; ≥0.999 = clipping — draai OUT-level of module-levels terug.">
-          uit <b style={{
+        <span title="Master-uitgang (OUT-VU): hoogste |sample| sinds de vorige poll (1.000 = digitale full scale). Groen < 0.9, amber 0.9–0.999, rood = clipping — draai OUT-level of module-levels terug."
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+          uit
+          <VuBar value={st.outPeak} compact={props.compact} />
+          <b style={{
             color: st.outPeak >= 0.999 ? '#f87171'
                  : st.outPeak > 0.9    ? '#fbbf24'
                  : st.outPeak > 0.005  ? '#34d399' : '#64748b',

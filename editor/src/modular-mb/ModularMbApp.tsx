@@ -7,6 +7,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { setProject, updateProject, useModularProject, getProject, undo, redo } from './store';
 import { emptyModularProject } from './types';
+import { exportPanel, importPanel, parsePanelFile } from './panelIO';
 import { seedExampleModules, seedInternals, seedTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, seedDx7PolyPatch, seedWarpsVocoderPatch, seed808JamPatch, type PolySeedOptions } from './seedModules';
 import { PatchesPanel } from './PatchesPanel';
 import { ModulesPanel } from './ModulesPanel';
@@ -44,6 +45,8 @@ export function ModularMbApp(): JSX.Element {
   const [showStress,  setShowStress]  = useState(false);
   const [showSolo,    setShowSolo]    = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
+  const panelInRef = useRef<HTMLInputElement>(null);
+  const [showPanels, setShowPanels] = useState(false);
 
   // ─── Global undo/redo: Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z ───────────────
   useEffect(() => {
@@ -107,6 +110,36 @@ export function ModularMbApp(): JSX.Element {
         }
       } catch {
         alert('Kon het bestand niet verwerken. Zorg dat het een geldig MMB-JSON is.');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  }
+
+  // ─── Panel-I/O (ED-P-1): één paneel los exporteren/importeren ─────────
+  function onExportPanel(typeId: string): void {
+    const panel = exportPanel(project, typeId);
+    if (!panel) { alert('Geen paneel voor dit type gevonden.'); return; }
+    const blob = new Blob([JSON.stringify(panel, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${typeId}.panel.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setShowPanels(false);
+  }
+  function onImportPanelFile(e: React.ChangeEvent<HTMLInputElement>): void {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const panel = parsePanelFile(JSON.parse(reader.result as string));
+        if (!panel) { alert('Geen geldig paneelbestand (mmb-panel.v1).'); return; }
+        setProject(importPanel(getProject(), panel));
+      } catch {
+        alert('Kon het paneelbestand niet verwerken.');
       }
     };
     reader.readAsText(file);
@@ -194,6 +227,32 @@ export function ModularMbApp(): JSX.Element {
           <button onClick={() => importRef.current?.click()} title="JSON-bestand laden">↑ Importeer</button>
           <input ref={importRef} type="file" accept=".json,application/json"
             style={{ display: 'none' }} onChange={onImportFile} />
+          <span style={{ position: 'relative', display: 'inline-block' }}>
+            <button onClick={() => setShowPanels((v) => !v)}
+              title="Eén paneel los exporteren of importeren (mmb-panel.v1)"
+            >🎛️ Panels ▾</button>
+            {showPanels && (
+              <div style={{
+                position: 'absolute', top: '100%', left: 0, zIndex: 20,
+                background: '#ffffff', border: '1px solid #cbd2d9', borderRadius: 6,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)', marginTop: 2, minWidth: 220,
+                maxHeight: 360, overflowY: 'auto', display: 'flex', flexDirection: 'column',
+              }} onMouseLeave={() => setShowPanels(false)}>
+                <button onClick={() => panelInRef.current?.click()}
+                  style={{ textAlign: 'left', border: 'none', borderBottom: '1px solid #e5e7eb',
+                           background: 'transparent', padding: '7px 12px', cursor: 'pointer', fontSize: 13 }}
+                >↑ Paneel importeren…</button>
+                {project.moduleTypes.filter((t) => t.id.startsWith('tp_mmb_')).map((t) => (
+                  <button key={t.id} onClick={() => onExportPanel(t.id)}
+                    style={{ textAlign: 'left', border: 'none', background: 'transparent',
+                             padding: '6px 12px', cursor: 'pointer', fontSize: 12 }}
+                  >↓ {t.variant}</button>
+                ))}
+              </div>
+            )}
+          </span>
+          <input ref={panelInRef} type="file" accept=".json,application/json"
+            style={{ display: 'none' }} onChange={onImportPanelFile} />
           <button
             onClick={() => setShowPresets(true)}
             title="Presets opslaan/laden (project of per module)"
