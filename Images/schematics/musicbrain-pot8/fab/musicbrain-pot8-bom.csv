@@ -1,0 +1,6 @@
+"Comment","Designator","Footprint","Qty","LCSC Part #"
+"100n","C1-C9","Capacitor_SMD:C_0805_2012Metric","9",""
+"10u","C10","Capacitor_SMD:CP_Elec_4x5.3","1",""
+"BUS","J1","Connector_PinHeader_2.54mm:PinHeader_2x10_P2.54mm_Horizontal","1",""
+"10k RK097N","RV1-RV8","MusicBrain:RK097N_Horizontal","8",""
+"MCP3208","U1","Package_SO:SOIC-16_3.9x9.9mm_P1.27mm","1",""

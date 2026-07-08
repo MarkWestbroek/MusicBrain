@@ -1,0 +1,6 @@
+"Comment","Designator","Footprint","Qty","LCSC Part #"
+"100n","C1","Capacitor_SMD:C_0805_2012Metric","1",""
+"10u","C2","Capacitor_SMD:CP_Elec_4x5.3","1",""
+"BUS","J1","Connector_PinHeader_2.54mm:PinHeader_2x10_P2.54mm_Horizontal","1",""
+"PEC12R","SW1-SW4","Rotary_Encoder:RotaryEncoder_Bourns_Horizontal_PEC12R-2x17F-Sxxxx","4",""
+"MCP23017","U1","Package_SO:SOIC-28W_7.5x17.9mm_P1.27mm","1",""

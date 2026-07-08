@@ -1,0 +1,4 @@
+"Comment","Designator","Footprint","Qty","LCSC Part #"
+"NAAR KAART","J1","Connector_PinSocket_2.54mm:PinSocket_1x10_P2.54mm_Vertical","1",""
+"PJ398SM","J2-J9","MusicBrain:Jack_3.5mm_PJ398SM_Thonkiconn","8",""
+"NORM=GND (dicht voor inputs)","JP1","Jumper:SolderJumper-2_P1.3mm_Open_TrianglePad1.0x1.5mm","1",""
