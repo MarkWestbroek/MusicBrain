@@ -4,10 +4,10 @@ Teensy 4.1-drivers voor de MusicBrain-slotkaarten uit **`doc/spi-bus-spec.md`**:
 domme peripherals (schuifregisters, DAC's, ADC, I2C-expanders) op één gedeelde
 SPI-bus met **geografische CS**. Header-only, `namespace mb`.
 
-> **Status:** nog **niet op hardware getest** — dit is de bring-up-basis. De drie
-> geïmplementeerde drivers volgen rechtstreeks uit de spec + kaart-README's; de
-> IC-register-drivers (Dac8/Adc8/Enc4) staan hieronder als to-do, bewust nog niet
-> uit het geheugen geschreven (zie de AD5754-pinout-les).
+> **Status:** alle zes de kaart-drivers zijn er (compileert schoon met
+> clang++ tegen Arduino-stubs), maar **nog niet op hardware getest** — dit is de
+> bring-up-basis. De IC-register-drivers zijn geadapteerd van Nick's bewezen code,
+> niet uit het geheugen (zie de AD5754-pinout-les).
 
 ## Verhouding tot `firmware/breakouts/`
 
@@ -47,7 +47,7 @@ Voor DAC-kaarten: schrijf alle kanalen weg en roep dan **`bus.ldacStrobe()`** aa
 voor een sample-synchrone update over álle DAC-kaarten tegelijk. Voor ADC-kaarten:
 `bus.convstStrobe()` (busbreed samplen), wacht op de IRQ (`slotIrq(n)`), lees uit.
 
-## Geïmplementeerd (verifieerbaar uit de spec)
+## Alle zes de drivers (compileert schoon, nog niet op hardware getest)
 
 | Header | Kaart | Kern |
 |---|---|---|
@@ -55,29 +55,22 @@ voor een sample-synchrone update over álle DAC-kaarten tegelijk. Voor ADC-kaart
 | `MbGate8.h` | GATE8 | 74HCT595, `write(bits)`, bit0=GATE1, latch op CS↑ |
 | `MbGateIn8.h` | GATEIN8 | 74HC165, `read()` → bit0=IN1; ~PL-wacht ≥5 µs; bit-ontwarring |
 | `MbPot8.h` | POT8 | MCP3208, `read(ch)` 12-bit, ratiometrisch |
+| `MbDac8.h` | DAC8 | 2× AD5754 daisy, `set8(codes)`/`set(cv,code)` + `bus.ldacStrobe()` |
+| `MbAdc8.h` | ADC8 | AD7606, `read(out)` na `bus.convstStrobe()`, signed 16-bit |
+| `MbEnc4.h` | ENC4 | MCP23017 @0x20, `poll()` → `position()`/`pressed()` |
 
-## Nog te doen (IC-register-drivers — adapteer Nick's bewezen code, niet uit geheugen)
+`MbDac8`/`MbAdc8` zijn geadapteerd van **Nic Newdigate's bewezen firmware**
+(`teensy-eurorack/software/src/ad5754.h` + `input_output_spi.cpp`), niet uit het
+geheugen. `MbEnc4` gebruikt de standaard MCP23017-registers (BANK=0).
 
-De AD5754/AD7606-register-sequences **overnemen van Nic Newdigate's bewezen
-firmware**, net zoals we de pinout daar verifieerden:
+### Bring-up-aandachtspunten (vóór je op hardware vertrouwt)
 
-- **DAC8** (`MbDac8.h`) — 2× AD5754 in daisy-chain (MOSI→U1→U2→MISO, één CS,
-  48-bit frames), update via `bus.ldacStrobe()`. Basis:
-  `D:/Git/Muziek/Nick/teensy-eurorack/software/src/ad5754.h` en het voorbeeld
-  `software/examples/ad5754/02_write_both_ad5754/` (registerdefs
-  `AD5754R_REG_DAC`, `AD5754R_REG_POWER_CONTROL`, `AD5754R_RangeSelect`,
-  `AD5754R_LoadDac` + de daisy-variant `AD5754R_SetRegisterValue2`).
-  Setup: power-control (alle kanalen aan), output-range ±10V, offset binary.
-  **Kanaal → DAC** (uit de kaart-README): CV1=U1·B, CV2=U1·A, CV3=U1·C,
-  CV4=U1·D, CV5=U2·A, CV6=U2·B, CV7=U2·C, CV8=U2·D.
-- **ADC8** (`MbAdc8.h`) — AD7606 serieel. `bus.convstStrobe()` → wacht op IRQ
-  (BUSY↓) → 8×16 bit klokken via MISO. RANGE via JP1 op de kaart; verifieer de
-  CONVST/RESET-polariteit tegen de datasheet. Basis: Nick's
-  `teensy-eurorack-breakout` (AD7606-deel).
-- **ENC4** (`MbEnc4.h`) — MCP23017 @ I2C-adres 0x20 (`Wire`). Zet GPPU-pull-ups
-  aan, INTA/INTB-mirror → IRQ. Lees GPIOA+GPIOB, decodeer 4 encoders
-  (quadratuur-toestandsmachine) + drukknoppen. **GPIO-map** (uit de README):
-  GPA0–7 = E1B E1S E1A E2B E2S E2A E3B E3S; GPB0–3 = E4A E4S E4B E3A.
-
-Wanneer die er zijn: de mapping-tabellen zitten al in de kaart-README's en
-hierboven, dus de drivers hoeven alleen de register-/decode-logica toe te voegen.
+- **DAC8**: coding = offset binary (BIN→DVCC op de kaart): `0x8000` = 0 V bij
+  ±10V. `set8()` schrijft 4 daisy-frames; daarna `bus.ldacStrobe()` voor de
+  gelijktijdige update. SDO blijft aan (nodig voor de daisy). Kanaal→DAC-map zit
+  in `MbDac8::map()`.
+- **ADC8**: de **SPI-mode staat als MODE2 met een TODO** — verifieer tegen de
+  AD7606-datasheet en corrigeer als de uitlezing verschoven is. Data is two's
+  complement; het bereik hangt van de RANGE-jumper (JP1) af.
+- **ENC4**: `position()` is in **kwart-stappen**; deel door 4 voor detents
+  (PEC12R = 4/detent). `poll()` periodiek of op de IRQ aanroepen.
