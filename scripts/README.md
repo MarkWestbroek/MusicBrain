@@ -89,9 +89,17 @@ python scripts/export-claude-chats.py --session <id>
 python scripts/export-claude-chats.py --all
 ```
 
+Ook als VS Code Task: **Export Claude Chats (all)** en **Export Claude Chats
+(latest)**. `--all` is idempotent — het slaat sessies over die al een export
+hebben (getiteld of niet; de session-id staat in de kopregel). Forceer
+her-exporteren met `--force`. Een titel geven kan alleen via de CLI (een task
+kan er niet naar vragen), dus voor een nette bestandsnaam draai je
+`--latest --title <onderwerp>` zelf.
+
 Gebruiker- en assistentteksten komen letterlijk mee; tool-aanroepen als
 compacte `🔧`-annotaties (hun output niet); interne redeneerblokken weggelaten.
-De bestandsnaam is `YYYY-MM-DD-<titel-slug>.md` (datum = sessiestart).
+De bestandsnaam is `YYYY-MM-DD-<titel-slug>.md` (datum = sessiestart), of
+`YYYY-MM-DD-claude-<8hex>.md` zonder titel.
 
 ---
 

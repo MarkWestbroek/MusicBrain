@@ -252,6 +252,24 @@ def _output_stem(jsonl_path: Path, session_id: str, title: str | None) -> str:
     return f"{datum}-claude-{session_id[:8]}"
 
 
+def _already_exported_ids(out_dir: Path) -> set[str]:
+    """Session-id's die al in een bestaande export voorkomen (getiteld of niet).
+
+    Zo blijft ``--all`` idempotent en maakt het geen dubbel van een sessie die
+    eerder met ``--title`` is geëxporteerd (de id staat in de kopregel)."""
+    ids: set[str] = set()
+    pat = re.compile(r"\*\*Sessie-id:\*\*\s*`([0-9a-fA-F-]+)`")
+    for md in out_dir.glob("*.md"):
+        try:
+            head = md.read_text(encoding="utf-8")[:600]
+        except OSError:
+            continue
+        m = pat.search(head)
+        if m:
+            ids.add(m.group(1))
+    return ids
+
+
 # ── CLI ──────────────────────────────────────────────────────────────────────
 
 
@@ -264,6 +282,7 @@ def main() -> None:
     parser.add_argument("--title", help="Titelslug voor de bestandsnaam (alleen bij één sessie)")
     parser.add_argument("--project-dir", help="Override ~/.claude/projects/<...> map")
     parser.add_argument("--out-dir", help="Output-map (default: doc/copilot-chats/exports)")
+    parser.add_argument("--force", action="store_true", help="Bij --all: ook sessies met een bestaande export opnieuw wegschrijven")
     args = parser.parse_args()
 
     project_dir = find_project_dir(args.project_dir)
@@ -287,8 +306,15 @@ def main() -> None:
     out_dir = Path(args.out_dir) if args.out_dir else repo_root / "doc" / "copilot-chats" / "exports"
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    # In bulk-modus (--all) sessies overslaan die al een export hebben, tenzij
+    # --force. Bij een expliciete keuze (--session/--latest) altijd (her)exporteren.
+    skip_ids = _already_exported_ids(out_dir) if (args.all and not args.force) else set()
+
     for pad in gekozen:
         session_id = pad.stem
+        if session_id in skip_ids:
+            print(f"overgeslagen (al geëxporteerd): {session_id[:8]}")
+            continue
         markdown = render_session(pad, session_id)
         stem = _output_stem(pad, session_id, args.title if len(gekozen) == 1 else None)
         dst = out_dir / f"{stem}.md"
