@@ -105,10 +105,10 @@ kaartgeleider.
 | 4× CV out (breakout) | SPI via hub | AD5754BREZ + ADR421 | **klaar**: `Images/schematics/ad5754r-breakout/` (sch + geroute PCB) |
 | 8× gate out | SPI (write-only) | 74HCT595 @ +5V (lokale 78L05/AMS1117-5.0), 1 k serie-uit | **klaar (v1.1)**: `Images/schematics/musicbrain-gate8/` — 35×80 mm, haakse connectoren, volledig geroute; latch = CS↑, mode 0 |
 | 8× ADC in | SPI + IRQ + CONVST | **AD7606** (16-bit, 8-ch, simultaan, ±10V direct, 1 MΩ) | **klaar (v1.1)**: `Images/schematics/musicbrain-adc8/` — 40×80 mm, haakse connectoren, volledig geroute; CS→CS, BUSY→IRQ, CONVST→SPARE1, RESET→SPARE2 (+100k pulldown), RANGE via JP1 (3V3=±10V / GND=±5V), OS0-2=GND, seriële mode (DOUTA→MISO, DB's→GND), VDRIVE=3V3, AVCC=5V lokaal, interne 2.5V-referentie; J2-contract identiek aan GATE8 (1=GND, 2-9=kanaal, 10=GND) |
-| 8× CV out ("DAC8", 2× AD5754) | SPI + LDAC | 2× AD5754 + ADR421 | **bevestigd 2026-07-08**: zelfde vormfactor als GATE8/ADC8 (H=80, J2-contract 1=GND/2-9=CV/10=GND); zelfde recept als de breakout; ontwerp volgt |
-| 8× pot | SPI | MCP3208 (12-bit, 8-ch, tri-state MISO) + **RK097N**-potmeters (9 mm, haaks, zelfde opbouwhoogte als Thonkiconn) | potten haaks aan de bovenrand van de kaart, assen door de bovenplaat; gewone buskaart met geografische CS; gepland |
-| 8× encoder/knop | I2C + IRQ | MCP23017 | interrupt-gedreven; encoders zijn groter → 8 als het past, anders 4; gepland |
-| 8× gate **in** | SPI (read-only) | 74HC165 + 74HC125-buffer (¼, CS-gated, voor tri-state MISO) + per kanaal 100k serie / 100k pulldown / BAT54S-clamp naar 3V3 | latch op CS↓, dan 8 bits klokken; gepland |
+| 8× CV out ("DAC8", 2× AD5754) | SPI + LDAC | 2× AD5754 (daisy-chain, 1 CS) + ADR421 | **klaar**: `Images/schematics/musicbrain-dac8/` — 50×80 mm, volledig geroute; LDAC = buslijn, offset binary, J2-contract identiek |
+| 8× pot | SPI | MCP3208 + **RK097N** (9 mm, haaks) | **klaar**: `Images/schematics/musicbrain-pot8/` — 110×80 mm, potten op 13,5 mm steek met de assen door de bovenplaat; alleen +3V3; volledig geroute |
+| 4× encoder/knop | I2C + IRQ | MCP23017 (0x20) + **Bourns PEC12R** haaks (met drukknop) | **klaar**: `Images/schematics/musicbrain-enc4/` — 70×80 mm, 4 encoders op 16,7 mm steek (beugels begrenzen; 8 paste niet), INT→IRQ; volledig geroute |
+| 8× gate **in** | SPI (read-only) | 74HC165 + 74LVC1G125 (CS-gated tri-state MISO) + per kanaal 100k serie / 100k pulldown / BAT54S-clamp | **klaar**: `Images/schematics/musicbrain-gatein8/` — 40×80 mm; ~PL-latchpuls uit CS↓ via 220p/10k (fw wacht ≥5 µs); volledig geroute |
 | jack8-printje | passief | 8× Thonkiconn (PJ398SM) + female socket onderzijde | **klaar**: `Images/schematics/musicbrain-jack8/` — prikt op J2 van GATE8/ADC8 (contract: 1=GND, 2-9=kanaal, 10=GND) |
 | jack4-printje | passief | 4× Thonkiconn + female socket onderzijde | **klaar**: `Images/schematics/musicbrain-jack4/` — voor de oude AD5754-breakout via kabel (1=GND, 2-5=A-D) |
 
