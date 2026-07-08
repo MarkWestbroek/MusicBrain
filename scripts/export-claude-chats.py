@@ -239,16 +239,46 @@ def render_session(jsonl_path: Path, session_id: str) -> str:
 # ── Naamgeving + output ──────────────────────────────────────────────────────
 
 
-def _slugify(tekst: str) -> str:
+def _slugify(tekst: str, maxlen: int = 60) -> str:
     tekst = tekst.strip().lower()
-    tekst = re.sub(r"[^a-z0-9]+", "-", tekst)
-    return tekst.strip("-")
+    tekst = re.sub(r"[^a-z0-9]+", "-", tekst).strip("-")
+    if len(tekst) > maxlen:
+        tekst = tekst[:maxlen].rsplit("-", 1)[0]  # afkappen op woordgrens
+    return tekst
+
+
+def _derive_title(jsonl_path: Path) -> str | None:
+    """Leid een titel af uit de sessie zelf: bij voorkeur het door Claude Code
+    gegenereerde ``ai-title`` (laatste, want dat is de actueelste), anders de
+    eerste echte gebruikersprompt."""
+    ai_title = None
+    first_user = None
+    for rec in _iter_records(jsonl_path):
+        t = rec.get("type")
+        if t == "ai-title" and rec.get("aiTitle"):
+            ai_title = rec["aiTitle"]  # blijf overschrijven -> laatste wint
+        elif first_user is None and t == "user" and not rec.get("isMeta"):
+            content = (rec.get("message") or {}).get("content")
+            txt = ""
+            if isinstance(content, str):
+                txt = content
+            elif isinstance(content, list):
+                for blok in content:
+                    if isinstance(blok, dict) and blok.get("type") == "text":
+                        txt = blok.get("text", ""); break
+            txt = _strip_reminders(txt)
+            if txt and not _is_ruis(txt):
+                first_user = " ".join(txt.split()[:9])
+    return ai_title or first_user
 
 
 def _output_stem(jsonl_path: Path, session_id: str, title: str | None) -> str:
     datum, _ = _first_meta(jsonl_path)
-    if title:
-        return f"{datum}-{_slugify(title)}"
+    if not title:
+        title = _derive_title(jsonl_path)
+    slug = _slugify(title) if title else ""
+    if slug:
+        return f"{datum}-{slug}"
     return f"{datum}-claude-{session_id[:8]}"
 
 
@@ -316,7 +346,9 @@ def main() -> None:
             print(f"overgeslagen (al geëxporteerd): {session_id[:8]}")
             continue
         markdown = render_session(pad, session_id)
-        stem = _output_stem(pad, session_id, args.title if len(gekozen) == 1 else None)
+        # --title (alleen bij één sessie) wint; anders leidt _output_stem de
+        # titel af uit de sessie (ai-title) i.p.v. een kale session-id.
+        stem = _output_stem(pad, session_id, args.title)
         dst = out_dir / f"{stem}.md"
         dst.write_text(markdown, encoding="utf-8", newline="\n")
         try:
