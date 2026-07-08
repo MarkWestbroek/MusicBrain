@@ -102,6 +102,12 @@ sessie). Pas als er echt geen titel te vinden is valt hij terug op
 
 Gebruiker- en assistentteksten komen letterlijk mee; tool-aanroepen als
 compacte `🔧`-annotaties (hun output niet); interne redeneerblokken weggelaten.
+Extra opties: `--summary` (samenvattingsstub) en `--force` (bij `--all` bestaande
+overschrijven).
+
+> Dit is een kopie van de gedeelde, project-onafhankelijke versie in
+> `D:\Git\_VScode-scripts\export-claude-chats.py` (bron van waarheid; zie de
+> README daar voor een globale VS Code-task die vanuit elk project werkt).
 
 ---
 
