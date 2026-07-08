@@ -258,6 +258,8 @@
     (pad "8" thru_hole oval (at 0 17.78) (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 9 "/CH7"))
     (pad "9" thru_hole oval (at 0 20.32) (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 10 "/CH8"))
     (pad "10" thru_hole oval (at 0 22.86) (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 1 "GND"))
+    (model "${KICAD10_3DMODEL_DIR}/Connector_PinSocket_2.54mm.3dshapes/PinSocket_1x10_P2.54mm_Vertical.step"
+      (offset (xyz 0 11.43 0)) (scale (xyz 1 1 1)) (rotate (xyz 0 0 0)))
   )
   (footprint "Jumper:SolderJumper-2_P1.3mm_Open_TrianglePad1.0x1.5mm"
     (layer "F.Cu")
