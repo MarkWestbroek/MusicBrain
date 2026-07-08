@@ -1,0 +1,11 @@
+{
+  "name": "mb-bus-cards",
+  "version": "0.1.0",
+  "description": "Teensy 4.1 host-drivers voor de MusicBrain SPI-bus-kaarten (doc/spi-bus-spec.md): domme peripherals op een gedeelde SPI-bus met geografische CS. Aparte concept van de slimme SPI-slave breakouts in firmware/breakouts/.",
+  "frameworks": ["arduino"],
+  "platforms": ["teensy"],
+  "dependencies": {
+    "SPI": "*",
+    "Wire": "*"
+  }
+}
