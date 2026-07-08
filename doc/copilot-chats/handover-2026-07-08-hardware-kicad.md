@@ -35,9 +35,13 @@ daartegen (net als de firmware-contract-keten).
 | `musicbrain-jack8` / `jack4` | passieve Thonkiconn-strips | — | paneel |
 
 - **⚠️ Onafgemaakt / bekend:**
-  - **AD5754-breakout: pin 12 (~LDAC) FLOAT** (nc in het schema). Hoort aan
-    GND (transparante updates). Kleine **v2.1-fix**. Op de nieuwe DAC8 is het
-    goed (LDAC → buslijn).
+  - **AD5754-pinout — les geleerd (opgelost):** de AD5754 heeft ~LDAC op
+    **pin 10** (pin 12/13 = NC), per Nic Newdigate's bewezen ontwerp
+    (`D:/Git/Muziek/Nick/teensy-eurorack/.../teensy-eurorack-breakout-cache.lib`).
+    De **breakout is correct** (pin 10 al aan GND). De nieuwe DAC8 had de
+    pinout eerst verhaspeld (LDAC op 12); **gefixt** in commit `2e994df`
+    (geverifieerd tegen Nick). **Altijd de chip-pinnummering tegen Nick's
+    lib checken, niet uit het geheugen typen.**
   - **Cosmetisch:** op de vroegste borden (gate8/adc8) staan sommige 0805's
     90° gedraaid in de silk/fab door een generator-bug die later gefixt is
     (padvormen draaiden niet mee). Functioneel niets mis (DRC 0/0); alleen bij
@@ -162,8 +166,8 @@ Dit is de belangrijkste sectie voor een verse chat — dit is met bloed betaald.
 
 ## 5. Volgende stappen (open)
 
-1. **AD5754-breakout v2.1:** ~LDAC (pin 12) aan GND. Klein: schema-net + herroute
-   dat stukje + fab opnieuw.
+1. ~~AD5754-breakout v2.1~~ — bleek een misdiagnose; de breakout was al goed,
+   de fout zat in DAC8 (pinout), inmiddels gefixt (`2e994df`). Niks meer te doen.
 2. **Firmware-drivers per kaart** (het logische vervolg). De mapping-tabellen
    staan in de per-bord README's:
    - GATE8: bit0=QA=GATE1..bit7=GATE8, latch op CS↑, mode 0.
