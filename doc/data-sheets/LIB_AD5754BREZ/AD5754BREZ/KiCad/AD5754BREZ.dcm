@@ -1,0 +1,9 @@
+EESchema-DOCLIB  Version 2.0
+#
+$CMP AD5754BREZ
+D 4-channel 16-bit Serial DAC, 100ksps
+K
+F https://datasheet.datasheetarchive.com/originals/distributors/Datasheets-SFU1/DSASFU10003180.pdf
+$ENDCMP
+#
+#End Doc Library

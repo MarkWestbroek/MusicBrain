@@ -1,0 +1,9 @@
+Manufacturer=Analog Devices
+PartNumber=AD5754BREZ
+PartCategory=Integrated Circuit
+PackageCategory=Small Outline Packages
+PinCount=25
+Version=3.1
+Released=2015-10-13 11:35:45
+Downloaded=2026-07-08 13:43:26
+3D=Y
