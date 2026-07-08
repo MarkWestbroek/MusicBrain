@@ -175,16 +175,16 @@ Dit is de belangrijkste sectie voor een verse chat — dit is met bloed betaald.
 
 1. ~~AD5754-breakout v2.1~~ — bleek een misdiagnose; de breakout was al goed,
    de fout zat in DAC8 (pinout), inmiddels gefixt (`2e994df`). Niks meer te doen.
-2. **Firmware-drivers per kaart** — begonnen in `firmware/lib/mb-bus-cards/`
-   (host-drivers, `namespace mb`, header-only, compileert schoon maar **niet op
-   hardware getest**). **Klaar:** MbBus (pin-map + strobes), MbGate8, MbGateIn8,
-   MbPot8. **Nog te doen:** MbDac8/MbAdc8/MbEnc4 — de AD5754/AD7606-register-
-   sequences **adapteren van Nick's bewezen firmware** (`.../teensy-eurorack/
-   software/src/ad5754.h` + het daisy-voorbeeld), níet uit geheugen. Zie de
-   lib-README. **Architectuur-let-op:** `firmware/breakouts/` beschrijft een
-   ander, ouder transport (slimme SPI-slave-breakouts + frame-protocol, ADR
-   0004/0006/0008) — reconcilieer dat met de spec-kaarten of kies expliciet.
-   Mapping-tabellen staan in de per-bord README's:
+2. **Firmware-drivers per kaart** — **alle zes klaar** in
+   `firmware/lib/mb-bus-cards/` (host-drivers, `namespace mb`, header-only,
+   compileert schoon met clang++ maar **nog niet op hardware getest**): MbBus,
+   MbGate8, MbGateIn8, MbPot8, MbDac8, MbAdc8, MbEnc4. MbDac8/MbAdc8 zijn
+   geadapteerd van Nick's bewezen `ad5754.h` + `input_output_spi.cpp`. Bring-up-
+   punten in de lib-README (o.a. **AD7606-SPI-mode nog verifiëren** — staat als
+   MODE2-TODO). **Architectuur-let-op (openstaand):** `firmware/breakouts/`
+   beschrijft een ander, ouder transport (slimme SPI-slave-breakouts + frame-
+   protocol, ADR 0004/0006/0008) — reconcilieer dat met de spec-kaarten of kies
+   expliciet. Mapping-tabellen staan in de per-bord README's:
    - GATE8: bit0=QA=GATE1..bit7=GATE8, latch op CS↑, mode 0.
    - GATEIN8: bitvolgorde IN6 IN5 IN4 IN3 IN1 IN2 IN7 IN8; **fw wacht ≥5 µs na
      CS-laag** (RC-latchpuls).
