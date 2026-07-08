@@ -1455,3 +1455,431 @@ Nu is alles duidelijk. De bestaande handover gaat over de firmware/DSP-kant (and
 Nu het script draaien op deze sessie:
 > 🔧 `Bash` — Export current session and verify output
 
+**🤖 Claude:**
+
+De sessie begon op 3 juli (de AD5754-start), dus de exportnaam gebruikt die datum. Even verifiëren:
+> 🔧 `Bash` — Verify export size and content
+
+**🤖 Claude:**
+
+Export is compleet (127 KB, 25 gebruikersbeurten). Nu de hardware-handover schrijven — het startdocument voor een verse chat. Eerst de exacte git-staat ophalen:
+> 🔧 `Bash` — Get git state and board list for handover
+> 🔧 `Write` — d:\Git\Muziek\MusicBrain\doc\copilot-chats\handover-2026-07-08-hardware-kicad.md
+
+**🤖 Claude:**
+
+Nu de scripts/README aanvullen met het nieuwe script, en committen:
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\scripts\README.md
+> 🔧 `Bash` — Commit export script, export, and handover doc
+
+**🤖 Claude:**
+
+Alles gecommit. Ik leg nog een kort geheugen-spoor aan zodat een verse sessie meteen weet dat het handover-document en het exportscript bestaan:
+> 🔧 `Write` — C:\Users\User\.claude\projects\d--Git-Muziek-MusicBrain\memory\hardware-handover.md
+> 🔧 `Edit` — C:\Users\User\.claude\projects\d--Git-Muziek-MusicBrain\memory\MEMORY.md
+
+**🤖 Claude:**
+
+Beide dingen zijn klaar en gecommit (`31142c7`).
+
+**1. Chat-export.** Dit project had al Copilot-export-tooling maar nog geen Claude-variant. Ik heb het bitemporal-patroon overgenomen als [scripts/export-claude-chats.py](scripts/export-claude-chats.py) — het vindt de Claude-projectmap zélf via de git-repo-root (werkt dus ook vanuit een worktree) en schrijft naar dezelfde map als de Copilot-exports. Deze sessie is geëxporteerd naar [doc/copilot-chats/exports/2026-07-03-hardware-kicad-slotkaarten-en-fab.md](doc/copilot-chats/exports/2026-07-03-hardware-kicad-slotkaarten-en-fab.md) (127 KB, 25 gebruikersbeurten; de datum is de sessiestart, 3 juli, toen het AD5754-werk begon). Gebruik voortaan:
+
+```
+python scripts/export-claude-chats.py --latest --title <onderwerp>
+```
+
+De opties `--session <id>` / `--all` / `--project-dir` / `--out-dir` zitten erin; `scripts/README.md` is aangevuld. (Ik heb géén `--summary`-stub-optie overgenomen zoals bij bitemporal, omdat dit project geen summaries/templates-map heeft — de handover-doc vervult die rol hier.)
+
+**2. Startdocument.** Er bestond al een handover van vandaag, maar die gaat over het **firmware/DSP-spoor**. De hardware-kant stond nergens gedocumenteerd, dus ik heb een aparte [handover-2026-07-08-hardware-kicad.md](doc/copilot-chats/handover-2026-07-08-hardware-kicad.md) geschreven. Die is bewust geschikt om een verse chat mee te starten zonder deze context mee te slepen, en bevat:
+
+- **Git-staat + kaartentabel** — alle 10 borden geroute (DRC 0/0) mét fab-pakket, plus de bekende openstaande punten (de AD5754 ~LDAC-float, de cosmetische 90°-padrotatie op de vroegste borden).
+- **De GUI-loze werkwijze** — de kernloop (generate → ERC → **netcheck pad-voor-pad** → DRC met zone-refill) en de generator-toolkit in de scratchpad (`cardlib.py`, `schlib.py`, `make_fab.sh`).
+- **De mechanica-standaard** — L/B/H, H=80, bovenplaat, haakse males, de connector-plaatsingsformules.
+- **De problemen-en-fixes-sectie** — het meest waardevolle voor een cold start: de 90°-padbug, Manhattan-routing voor volgorde-omkeringen, lane-nesting, "diepste entry → oostelijkste verticaal", vialoze THT-routing, zone-eilanden, de `.history`-geneste-repo-valkuil en de bash-quoting-workaround.
+- **Volgende stappen + stijl/omgang.**
+
+Ik heb ook een kort geheugen-spoor (`hardware-handover.md`) toegevoegd met een pointer naar het startdocument en het exportcommando, zodat een nieuwe sessie meteen weet dat ze bestaan.
+
+Eén ding dat ik bewust *niet* heb gedaan: het exportscript als git pre-commit hook installeren (zoals de Copilot-variant kan). Dat zou elke commit vertragen met een 9 MB-parse. Zeg het als je dat toch wilt; anders draai je 'm handmatig aan het eind van een sessie.
+
+---
+
+## 👤 Gebruiker (26)
+
+het export script als een task kunnen draaien is wel handig. Dan waarschijnlijk met de optie --all? Of kan het ook op het huidige script?
+
+Dan: de bug die je noemde:
+"Bug gevonden in de bestaande AD5754-breakout: pin 12 (~LDAC) staat daar als not connected. Een zwevende LDAC is ongedefinieerd gedrag — op de breakout (die geen LDAC-lijn in het hub-contract heeft) hoort die pin aan GND (transparante updates). Kleine v2.1-fix; op de nieuwe DAC8 is het goed (LDAC → buslijn)."
+
+Het werk dat nog ligt is deze bug fixen en de firmware zijde:
+"Wil je dat ik nu de firmware-kant oppak — SPI/I2C-drivers per kaart met de mapping-tabellen uit de README's (de gate-in-bitvolgorde, de DAC8-kanaaltoewijzing, de encoder-GPIO-map)? Of eerst de kleine AD5754-breakout v2.1-fix (die zwevende ~LDAC-pin naar GND) die ik onderweg tegenkwam?"
+
+Klopt dat en wil je beide zaken oppakken?
+
+**🤖 Claude:**
+
+Ja, dat klopt precies — dat zijn de twee resterende zaken. Ik pak ze allebei op, plus de export-task. Even alles wat ik nodig heb in kaart brengen:
+> 🔧 `Bash` — Inspect tasks.json, breakout files, dac generators
+
+**🤖 Claude:**
+
+Ik zie het beeld. Let me first do the export-task (met een robuustheidsverbetering zodat `--all` geen dubbele exports maakt van sessies die al een getitelde export hebben), dan de AD5754-fix, dan de drivers.
+
+Een aandachtspunt vooraf: er ligt een `~ad5754r-breakout.kicad_sch.lck` — dat betekent dat het schema mogelijk in KiCad geopend is. Ik check dat zo. Eerst het script robuuster maken:
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\scripts\export-claude-chats.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\scripts\export-claude-chats.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\scripts\export-claude-chats.py
+
+**🤖 Claude:**
+
+Nu de TodoWrite en het testen van `--all` (moet deze sessie overslaan omdat er al een getitelde export is):
+> 🔧 `ToolSearch`
+> 🔧 `Bash` — Test --all with dedup
+
+**🤖 Claude:**
+
+`--all` werkt precies goed: deze sessie overgeslagen (al getiteld geëxporteerd), de 8 andere Claude-sessies van dit project weggeschreven. Even de groottes checken en meteen de AD5754-lock + pin 12 bekijken:
+> 🔧 `TodoWrite` — takenlijst bijgewerkt
+> 🔧 `Bash` — Check export sizes and AD5754 lock status
+
+**🤖 Claude:**
+
+De exports zijn klein (5–40 KB, één 397 KB) en de `.sch.lck` is 5 dagen oud — een verweesde lock van 3 juli, KiCad staat niet open. Veilig om te bewerken. Nu de twee VS Code-tasks toevoegen:
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\.vscode\tasks.json
+> 🔧 `Read` — d:\Git\Muziek\MusicBrain\.vscode\tasks.json
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\.vscode\tasks.json
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\scripts\README.md
+> 🔧 `Bash` — Validate tasks.json and commit export tooling + backups
+
+**🤖 Claude:**
+
+`.vscode` is gitignored in dit project (net als de bestaande Copilot-tasks — die staan dus ook alleen lokaal). De tasks werken lokaal prima, ze worden alleen niet getrackt. Ik commit de rest zonder `.vscode`:
+> 🔧 `Bash` — Commit export tooling and backups without .vscode
+> 🔧 `Bash` — Verify commit contents
+
+**🤖 Claude:**
+
+Task 1 klaar. Nu de AD5754-fix. Ik moet de U1-instantie, pin 12's positie en hoe GND in dit (handgebouwde) schema is gedaan begrijpen:
+> 🔧 `Bash` — Find U1 instance, GND method, no_connects
+
+**🤖 Claude:**
+
+Er zijn geen schema-`no_connect`-vlaggen; pins 2/6/12/13 hangen gewoon los (ERC liet dat door). Ik moet U1's positie en pin 12's coördinaat precies weten. Even de instantie en de symbool-pindefinitie lezen:
+> 🔧 `Bash` — Read U1 instance and LDAC pin definition
+
+**🤖 Claude:**
+
+Even de volledige pin-map van het AD5754-symbool uitlezen — de nummering lijkt af te wijken en dat wil ik zeker weten voor ik iets aanraak:
+> 🔧 `Bash` — Parse all AD5754 symbol pins name/number/pos
+
+**🤖 Claude:**
+
+Belangrijke vondst — dit vereist verificatie vóór ik iets aanraak. Het AD5754-symbool in de breakout heeft een **andere pin-nummering** dan het symbool dat ik voor de nieuwe DAC8 gebruikte (breakout: ~LDAC = pin 10, pin 12/13 = NC; mijn DAC8: pin 12 = ~LDAC). Eén van beide klopt niet met de echte chip. Ik moet de échte AD5754-pinout uit een betrouwbare bron halen voordat ik doorga:
+> 🔧 `Bash` — Search KiCad libs and Nick's project for AD5754 pinout
+
+**🤖 Claude:**
+
+Nick's bewezen ontwerp heeft het AD5754-symbool. Dat is de referentie — ik haal de pin-nummering eruit (oud `.lib`-formaat: `X <naam> <num> ...`):
+> 🔧 `Bash` — Extract AD5754 pin numbering from Nick's proven lib
+
+**🤖 Claude:**
+
+Dit verandert het verhaal volledig — en het is belangrijk. Nick's bewezen ontwerp (fysiek gebouwd) zegt: **AD5754 pin 10 = ~LDAC, pin 12/13 = NC**. De breakout matcht dat exact, en de breakout heeft pin 10 (~LDAC) **al aan GND** — er is dus **géén zwevende-LDAC-bug in de breakout**. Ik had me vergist, gebaseerd op een verkeerde pinout.
+
+De échte fout zit in de **nieuwe DAC8** die ik deze sessie maakte: daar heb ik de AD5754-pinout verhaspeld (LDAC op pin 12 i.p.v. 10). Gevolg: de bus-LDAC-lijn gaat naar een NC-pad (pin 12) en de echte LDAC (pin 10) hangt aan GND → de sample-synchrone updates werken niet. Goed dat dit vóór productie boven water komt. Ik fix de DAC8. Even de exacte regio's lezen:
+> 🔧 `Bash` — Locate DAC8 pinmap and LDAC/GND routing lines
+
+**🤖 Claude:**
+
+Alle regels gevonden. Even het GND-reddingsblok volledig lezen zodat ik pin 15 (echte DGND) niet per ongeluk losmaak bij het verwijderen van de pin-10-redding:
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\99e404c8-b02c-48a1-b346-1e9bb9c444c9\scrat...
+
+**🤖 Claude:**
+
+Pin 15 (echte DGND) heeft een eigen redding op de oostkolom — onafhankelijk van de pin-10-redding. Veilig. Ik pas de DAC8-generator aan (pin 10↔12 recht, symboolnamen, routing) via een patchbestand:
+> 🔧 `Write` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\99e404c8-b02c-48a1-b346-1e9bb9c444c9\scrat...
+> 🔧 `Bash` — Apply DAC8 pinfix and full re-validation
+
+**🤖 Claude:**
+
+Goede voortgang: ERC 0 en netcheck OK — de pinout klopt nu. De 5 DRC-fouten zijn allemaal hetzelfde: pin 10 ligt ten noorden van pin 11/12 in de 0,65 mm-kolom, dus mijn oude rechte LDAC-verticaal (die naar de zuidelijkste pin liep) kruist nu pin 11/12. LDAC moet net als CLR horizontaal-vanuit-west de pad in. Even de west-entry-routing lezen om het consistent in te passen:
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\99e404c8-b02c-48a1-b346-1e9bb9c444c9\scrat...
+
+**🤖 Claude:**
+
+De pinout klopt nu (ERC/netcheck groen); alleen de LDAC-baan moet als "trap" de pin in (zoals CLR doet), want pin 10 ligt nu tussen pin 9 en 11. Ik herschrijf de LDAC-routing:
+> 🔧 `Write` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\99e404c8-b02c-48a1-b346-1e9bb9c444c9\scrat...
+> 🔧 `Bash` — Apply LDAC staircase and re-run DRC
+
+**🤖 Claude:**
+
+De west-waaier is te vol voor een 5e ingeklemde verticaal. Ik route LDAC in plaats daarvan via een vrije B.Cu-kolom ver-west langs de power-banden heen, en onder de chips door naar beide pin-10's:
+> 🔧 `Bash` — Reroute LDAC via far-west B.Cu column, re-run DRC
+
+**🤖 Claude:**
+
+De far-west-omweg botst met de power-banden en GND-via's. De juiste oplossing is de west-waaier heringedeeld: ik schuif CLR 0,6 mm op en zet LDAC op CLR's oude staging-x (0,6 mm-spacing = DRC-veilig). LDAC-verticalen kruisen alleen B-hops op de andere laag, dus dat mag:
+> 🔧 `Bash` — Re-space CLR, insert LDAC staircase, DRC
+
+**🤖 Claude:**
+
+Nog één kruising: de LDAC B-hop kruist CS's B-verticaal op x=120. Ik laat de U2-tak op F.Cu oostwaarts lopen (kruist de CS/SCLK-verticalen alleen noordelijk, dus niet), en alleen de U1-tak via B-hop west:
+> 🔧 `Bash` — Split LDAC U2 to F.Cu, re-run DRC
+
+**🤖 Claude:**
+
+DRC 0/0. Nu de volledige verificatie plus expliciete controle dat pin 10 = /LDAC (bus) en pin 12 = geen net (NC):
+> 🔧 `Bash` — ERC, netcheck, and pin 10/12/5/14/15 verification
+
+**🤖 Claude:**
+
+Pinout klopt nu volledig: pin 10 = /LDAC (bus, beide chips), pin 12 = NC, BIN/DVCC/DGND correct. ERC 0, netcheck OK, DRC 0/0. Nu PDF's + fab-pakket van de DAC8 opnieuw, en committen:
+> 🔧 `Bash` — Regenerate DAC8 PDFs and fab package
+
+**🤖 Claude:**
+
+De DAC8 is nu correct. Ik vul de README aan met de geverifieerde pinout en commit de fix:
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\Images\schematics\musicbrain-dac8\README.md
+> 🔧 `Bash` — Commit DAC8 pinout fix
+
+**🤖 Claude:**
+
+Nu de handover en memory corrigeren — ze bevatten nog de verkeerde "breakout LDAC float"-claim. Eerst het handover-document:
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\doc\copilot-chats\handover-2026-07-08-hardware-kicad.md
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\doc\copilot-chats\handover-2026-07-08-hardware-kicad.md
+> 🔧 `Edit` — C:\Users\User\.claude\projects\d--Git-Muziek-MusicBrain\memory\hardware-handover.md
+> 🔧 `Bash` — Find LDAC references in bus memory
+> 🔧 `Edit` — C:\Users\User\.claude\projects\d--Git-Muziek-MusicBrain\memory\spi-bus-architectuur.md
+> 🔧 `Bash` — Commit corrected handover
+
+**🤖 Claude:**
+
+Taken 1 en 2 klaar. Nu de firmware-drivers. Eerst kijken hoe `firmware/` is opgebouwd zodat ik een zelfstandige bibliotheek neerzet zonder de parallelle sessie te raken:
+> 🔧 `TodoWrite` — takenlijst bijgewerkt
+> 🔧 `Bash` — Inspect firmware folder structure
+> 🔧 `Bash` — Inspect firmware/lib and breakouts structure
+
+**🤖 Claude:**
+
+`firmware/breakouts/` bestaat al met alleen een README — dat is de logische plek voor de kaart-drivers. Even de intentie lezen:
+> 🔧 `Read` — d:\Git\Muziek\MusicBrain\firmware\breakouts\README.md
+
+**🤖 Claude:**
+
+Belangrijk om te weten vóór ik firmware schrijf: `firmware/breakouts/` beschrijft een **andere, oudere architectuur** (slimme SPI-slave-breakouts met eigen MCU, caseId/slotId, CAN-FD-bridge, een frame-protocol — ADR 0004/0006/0008). Dat is niet hetzelfde als de directe-SPI-bus-kaarten die ik deze sessie bouwde (domme 595/AD7606/etc. met geografische CS). Ik wil geen register-code uit mijn geheugen verzinnen (net als de pinout-les). Even kijken of Nick's bewezen firmware AD5754/AD7606-drivercode heeft om tegen te ijken:
+> 🔧 `Bash` — Look for Nick's proven AD5754/AD7606 driver code
+
+**🤖 Claude:**
+
+Nick heeft **bewezen AD5754-drivercode** (`software/src/ad5754.h` + een daisy-chain-voorbeeld) en AD7606-code. Dat is precies waar ik de register-sequences vandaan moet halen in plaats van uit mijn geheugen — de pinout-les indachtig. 
+
+Ik lever nu het deel dat ik uit de spec zélf kan verifiëren (busabstractie + de drie drivers waar ik zeker van ben: Gate8, GateIn8, Pot8, mét de mapping-tabellen), en documenteer Dac8/Adc8/Enc4 als volgende stap tegen Nick's bewezen code. Eerst de bibliotheekopzet:
+> 🔧 `Write` — d:\Git\Muziek\MusicBrain\firmware\lib\mb-bus-cards\library.json
+> 🔧 `Write` — d:\Git\Muziek\MusicBrain\firmware\lib\mb-bus-cards\src\MbBus.h
+> 🔧 `Write` — d:\Git\Muziek\MusicBrain\firmware\lib\mb-bus-cards\src\MbGate8.h
+> 🔧 `Write` — d:\Git\Muziek\MusicBrain\firmware\lib\mb-bus-cards\src\MbGateIn8.h
+> 🔧 `Write` — d:\Git\Muziek\MusicBrain\firmware\lib\mb-bus-cards\src\MbPot8.h
+
+**🤖 Claude:**
+
+Nu de README die de bibliotheek documenteert, de relatie met `breakouts/` uitlegt, en Dac8/Adc8/Enc4 als volgende stap vastlegt mét de mapping-tabellen en verwijzing naar Nick's bewezen code:
+> 🔧 `Write` — d:\Git\Muziek\MusicBrain\firmware\lib\mb-bus-cards\README.md
+
+**🤖 Claude:**
+
+De pure logica (GateIn8-ontwarring, MCP3208-bits) klopt op papier. Laat ik een syntax-check doen met stubs voor de Arduino-headers, zodat typefouten eruit komen ondanks dat ik niet tegen Teensy kan compileren:
+> 🔧 `Bash` — Check for a host C++ compiler
+> 🔧 `Bash` — Stub-compile the driver headers to catch syntax errors
+
+**🤖 Claude:**
+
+Schoon gecompileerd met clang++ (C++14, `-Wall -Wextra`, geen waarschuwingen) tegen Arduino-stubs — syntax en logica kloppen. Committen (alleen mijn eigen bestanden):
+> 🔧 `Bash` — Commit firmware driver library
+
+**🤖 Claude:**
+
+Nu de handover bijwerken zodat een verse chat weet wat er van de firmware staat:
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\doc\copilot-chats\handover-2026-07-08-hardware-kicad.md
+> 🔧 `Bash` — Commit handover update and show recent log
+> 🔧 `TodoWrite` — takenlijst bijgewerkt
+
+**🤖 Claude:**
+
+Beide zaken opgepakt — plus de export-task. Belangrijkste eerst: de "AD5754-bug" bleek een misdiagnose van mijzelf, en dat leidde tot het vinden van een échte fout die ik deze sessie had gemaakt.
+
+## Export-task
+De VS Code-tasks **"Export Claude Chats (all)"** en **"(latest)"** staan in `.vscode/tasks.json` (lokaal, want `.vscode` is gitignored — net als jullie bestaande Copilot-tasks). Op je vraag `--all` vs. huidige sessie: **beide kunnen**, dus ik heb twee tasks gemaakt. De `--all`-variant heb ik idempotent gemaakt: hij slaat sessies over die al een export hebben (herkent de session-id in de kopregel), zodat hij geen dubbele maakt van de getitelde export. `--force` overschrijft alsnog. Voor een nette bestandsnaam draai je zelf `--latest --title <onderwerp>` op de CLI (een task kan niet om een titel vragen). Draaien deed ik al: de 8 andere Claude-sessies van dit project zijn nu ook als backup weggeschreven.
+
+## De AD5754 — anders dan gedacht
+Toen ik de "v2.1-fix" wilde doen, checkte ik de pinout tegen **Nick's bewezen ontwerp** (fysiek gebouwd). Uitkomst: **~LDAC = pin 10, pin 12/13 = NC**. De **breakout was al helemaal correct** (pin 10 hangt daar al aan GND) — er was dus nooit een zwevende-LDAC-bug. Mijn eerdere "vondst" was gebaseerd op een verkeerde pinout uit mijn geheugen.
+
+De échte fout zat in de **DAC8 die ik deze sessie nieuw maakte**: daar had ik de AD5754-pinout verhaspeld (LDAC op pin 12 i.p.v. 10). Gevolg zou zijn geweest dat de bus-LDAC-lijn naar een dood NC-pad ging en de DAC's transparant updateten in plaats van sample-synchroon — precies de kernfunctie kapot. **Nu gefixt** (`2e994df`): pinout gecorrigeerd tegen Nick, LDAC opnieuw geroute naar pin 10, ERC 0 / netcheck OK / DRC 0/0, PDF's en fab-pakket herzien. De breakout heb ik niet aangeraakt. Goed dat dit vóór productie boven water kwam.
+
+De les (nu in de handover + memory): **chip-pinnummers altijd tegen Nick's lib checken, niet uit het geheugen typen.**
+
+## Firmware — bus + 3 drivers, plus een architectuurvraag
+Ik heb `firmware/lib/mb-bus-cards/` opgezet (header-only, `namespace mb`, compileert schoon met clang++ maar **niet op hardware getest**):
+- **MbBus.h** — pin-map uit de spec, `slotCs/slotIrq/hubCs`, en de LDAC/CONVST/RESET-strobes.
+- **MbGate8 / MbGateIn8 / MbPot8** — de drie drivers die ik uit de spec + kaart-README's kan verifiëren, inclusief de mapping-tabellen die je noemde (met name de GateIn8-bitontwarring `Q7-first = IN6 IN5 IN4 IN3 IN1 IN2 IN7 IN8`).
+
+**Dac8/Adc8/Enc4 heb ik bewust nog niet geschreven** — juist vanwege de pinout-les. Die AD5754/AD7606-register-sequences moet ik **adapteren van Nick's bewezen firmware** (hij heeft `software/src/ad5754.h` mét een daisy-chain-voorbeeld), niet uit mijn geheugen verzinnen. De mapping-tabellen en referenties staan al in de lib-README klaar.
+
+Eén ding dat ik onderweg tegenkwam en waar ik je aandacht voor vraag: `firmware/breakouts/` beschrijft een **ander, ouder transport-model** — slimme SPI-slave-breakouts met eigen MCU, `(caseId, slotId)`-adressering en een frame-protocol (ADR 0004/0006/0008, multi-case, CAN-FD/RS-485). De kaarten die we deze sessie bouwden zijn juist *dom* (direct op de Teensy-SPI). Dat zijn twee verschillende visies. Ze kunnen naast elkaar, maar het is goed om te weten voordat de firmware verder groeit. Wil je dat ik de spec-kaarten als de canonieke route neem, of moet ik ze verzoenen met het breakouts/ADR-plan?
+
+Als je wilt dat ik doorpak op Dac8/Adc8/Enc4, doe ik dat door Nick's `ad5754.h` en zijn AD7606-code in te lezen en te adapteren — dan hebben we alle zes de drivers.
+
+---
+
+## 👤 Gebruiker (27)
+
+VS-tasks: ah, jammer dat de task de titel niet kan invullen, nu is het <datum>-claude-<id>.md
+Kan het script dat zelf niet doen dan? Nu zijn er dubbelingen inderdaad.
+
+**🤖 Claude:**
+
+Terechte kritiek — de task levert nu `<datum>-claude-<id>.md`. Laat ik kijken of de sessie zelf een bruikbare titel/samenvatting in de log heeft, zodat het script die automatisch kan afleiden:
+> 🔧 `Bash` — Inspect jsonl for summary/title records
+
+**🤖 Claude:**
+
+Er is een **`ai-title`**-recordtype (de titel die Claude Code zelf genereert voor de sessielijst). Even de structuur bekijken:
+> 🔧 `Bash` — Inspect ai-title and last-prompt record structure
+
+**🤖 Claude:**
+
+De sessie bevat een **`aiTitle`** — precies wat we nodig hebben ("KiCad schema voor AD5754BREZ DAC breakout board"). Ik laat het script die automatisch als bestandsnaam gebruiken. Eerst het script:
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\scripts\export-claude-chats.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\scripts\export-claude-chats.py
+
+**🤖 Claude:**
+
+Nu de 8 kaal-genoemde exports weg, script draaien voor nette namen, en verifiëren:
+> 🔧 `Bash` — Remove untitled exports, regenerate with auto-titles
+> 🔧 `Bash` — Check which claude- files are on disk vs tracked
+
+**🤖 Claude:**
+
+Er staat ook een niet-getrackte dubbele van deze sessie op schijf. Ik verwijder die los, git-rm de 8 getrackte, en regenereer met auto-titels (deze sessie wordt overgeslagen want die heeft al de getitelde export):
+> 🔧 `Bash` — Remove untitled exports and regenerate with auto-titles
+
+**🤖 Claude:**
+
+Nu hebben de exports nette namen uit de `ai-title`. Ik werk de README bij (auto-titel), en commit alles:
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\scripts\README.md
+> 🔧 `Bash` — Commit auto-title script and renamed exports
+
+**🤖 Claude:**
+
+Opgelost. Git zag het netjes als **renames** (`R100`) — de 8 kale `…-claude-<id>.md` zijn hernoemd naar hun `ai-title`:
+
+| was | nu |
+|---|---|
+| `…-claude-fe297ea1.md` | `…-review-teensy-firmware-and-react-editor-architecture.md` |
+| `…-claude-938bfd6a.md` | `…-verbeteren-kabelbeheer-in-patcher-interface.md` |
+| `…-claude-f5aea14b.md` | `…-musicbrain-marketing-en-branding-strategie.md` |
+| … | (en zo de rest) |
+
+Ja, het script kan de titel nu zelf invullen. Claude Code bewaart per sessie een **`ai-title`**-record (de titel die je in de resume-lijst ziet, bv. "KiCad schema voor AD5754BREZ DAC breakout board"); het script pakt de laatste daarvan, slugificeert hem (max ~60 tekens, op woordgrens afgekapt), en maakt er `YYYY-MM-DD-<titel>.md` van. Is er geen `ai-title`, dan valt hij terug op de eerste gebruikersprompt, en pas als laatste redmiddel op de oude `-claude-<id>`-vorm.
+
+Daardoor levert **de task nu ook nette namen** — je hoeft er niets meer voor te typen. Wil je toch een eigen titel, dan overrult `--title <onderwerp>` het (zoals bij deze sessie, die zijn handmatige `2026-07-03-hardware-kicad-slotkaarten-en-fab.md` houdt omdat de dedup 'm aan de session-id in de kopregel herkent en overslaat).
+
+Twee kanttekeningen:
+- Deze sessie zelf staat nog geëxporteerd als `…-hardware-kicad-slotkaarten-en-fab` (mijn handmatige titel), terwijl z'n `ai-title` "KiCad schema voor AD5754BREZ DAC breakout board" is — die laatste dekt de lading van vandaag (busboard v1.1, 4 nieuwe kaarten, fab, DAC8-fix) eigenlijk niet meer. Als je liever de actuele `ai-title` of een verse handmatige titel wilt, kan ik de bestaande export hernoemen; zeg maar.
+- De `ai-title` is Engels of Nederlands afhankelijk van hoe de sessie begon — vandaar de mix (`review-teensy-firmware…` vs `verbeteren-kabelbeheer…`). Dat volgt gewoon wat Claude Code zelf genereerde.
+
+---
+
+## 👤 Gebruiker (28)
+
+## chat export
+Mooi! Nog 1 ding: deze sessie is nu niet tot het eind geexporteerd. De naam is niet te wijzigen, toch? Dus dat is exporteren en hernoemen? Wil je deze sessie nog updaten?
+
+## DAC pinout
+Dan over de DAC pinout.
+
+Ja, Nic gebruikt de AD5754BREZ. Die heb ik ook liggen en bij Mouser gekocht. De datasheet hier @doc/data-sheets/AD5724R_5734R_5754R.pdf  komt van de Mouser website.
+
+Dan heb ik via mouser nog gekeken bij https://componentsearchengine.com/part-view/AD5754BREZ/Analog%20Devices
+
+Beide geven dezelfde pin configuration. Zie img 1 (componentsearchengine) en 2 (pdf, p10).
+
+Ik heb een andere chat gevraagd om dat allemaal nog even samen te vatten in @doc/data-sheets/AD5754BREZ data.md 
+
+-> Is nu alles voor het DAC8 board duidelijk? Is het al gereviseerd? Let op: er kwam nog een bevinding uit over dat BREZ geen interne referentie heeft. Daarom de ADR421 op de breakout. Deze bevindt zich ook op de DAC8 toch? Ik kan de DAC8 nu niet openen in KiCad, er is geen project. Deze moet dus nog opnieuw gedaan / bijwerkt?
+
+## overig
+Op D:\Git\Muziek\Nick\teensy-eurorack\hardware\boards\footprints.pretty staat misschien ook nog goed materiaal.
+
+Misschien goed om het e.e.a. nog even dubbel te checken?
+
+**🤖 Claude:**
+
+Goed nieuws vooraf: je datasheet-plaatjes **bevestigen exact mijn DAC8-fix** — pin 10 = LDAC, 11 = CLR, 12/13 = NC, 5 = BIN/2sCOMP, 14 = DVCC, 15 = GND, 17 = REFIN. Dat is precies wat ik heb gecorrigeerd. Laat ik nu je punten aflopen; eerst het concrete blokkeerpunt (geen KiCad-project) en de bronnen checken:
+> 🔧 `Bash` — Check for .kicad_pro files and Nick's footprints
+
+**🤖 Claude:**
+
+Bevestigd: het concrete probleem is dat **dac8/pot8/gatein8/enc4 geen `.kicad_pro`-projectbestand hebben** (mijn generatoren maakten alleen `.sch` + `.pcb`) — daarom kun je de DAC8 niet openen. Dat fix ik. En Nick heeft geen eigen AD5754-footprint (hij gebruikt net als ik een standaard KiCad-TSSOP), dus daar zit geen verschil. Even de samenvatting-md lezen en de ADR421/VREF-bedrading op de DAC8 controleren:
+> 🔧 `Read` — d:\Git\Muziek\MusicBrain\doc\data-sheets\AD5754BREZ data.md
+
+**🤖 Claude:**
+
+Alles is nu drievoudig bevestigd (datasheet + Nick + CSE): mijn DAC8-pinoutfix klopt, en de md legt precies vast wat ik moet checken. Ik pak de punten aan — todo-lijst en meteen de DAC8-bedrading (ADR421/VREF/EPAD) verifiëren én de ontbrekende `.kicad_pro`-projectbestanden maken:
+> 🔧 `ToolSearch`
+> 🔧 `Bash` — Verify DAC8 VREF/ADR421/EPAD/AVSS wiring
+
+**🤖 Claude:**
+
+DAC8 volledig geverifieerd tegen de datasheet-samenvatting — alles klopt:
+- **~LDAC = pin 10, ~CLR = pin 11, NC = 12/13** ✓ (mijn fix)
+- **ADR421 (U3):** VIN(2)=+12V, GND(4), VOUT(8)=/VREF → gevoed naar **beide** REFIN-pinnen (U1.17, U2.17) ✓
+- **BIN/2sCOMP (pin 5) = +3V3** (offset binary) ✓
+- **EPAD (pin 25) = −12V (AVSS)**, niet GND ✓ — precies zoals de md waarschuwt
+- **DVCC (14) = +3V3, GND (15) = GND** ✓
+
+Eén hiaat vond ik wél: op /VREF zit alleen C6 (0,1 µF), maar de md schrijft **0,1 µF + 10 µF** op de referentiepen voor. Dat vul ik aan. Eerst het blokkeerpunt — de ontbrekende `.kicad_pro`-projectbestanden:
+> 🔧 `TodoWrite` — takenlijst bijgewerkt
+> 🔧 `Bash` — Create .kicad_pro files for the 4 cards
+
+**🤖 Claude:**
+
+Alle vier de kaarten hebben nu een projectbestand — je kunt ze in KiCad openen. Committen, en dan de VREF-cap toevoegen:
+> 🔧 `Bash` — Commit the 4 project files
+
+**🤖 Claude:**
+
+Nu de 10 µF op /VREF (ADR421-ontkoppeling). Even de cap-secties en VREF-routing in de generator opzoeken:
+> 🔧 `Bash` — Locate CAPS lists and VREF routing in gen_dac8
+
+**🤖 Claude:**
+
+Blind een elco in een volle print plaatsen is foutgevoelig; laat ik eerst de bezette plekken uit het bord halen om een vrije plek bij de ADR421 te vinden:
+> 🔧 `Bash` — Dump DAC8 footprint courtyards to find free space
+
+**🤖 Claude:**
+
+R1 zit op (114,8·160), U3 op (126,8·150) — de zuid-centrale zone rond (121·159) is open. Ik plaats C14 (10 µF) daar en tak VREF eraan:
+> 🔧 `Bash` — Add C14 10uF on VREF, generate, DRC
+
+**🤖 Claude:**
+
+De zuid-centrale zone zit vol met mijn eigen LDAC/CLR/SCLK-banen — geen goede plek. De oost-rand bij (145,5·141) is vrij (tussen de +12V-spine en C1). Ik verplaats C14 daarheen:
+> 🔧 `Bash` — Relocate C14 to east edge, re-route, DRC
+
+**🤖 Claude:**
+
+Eén clearance: een GND-stitch-via op (146·145) zit te dicht op de VREF-stub. Ik verschuif die via:
+> 🔧 `Bash` — Move GND via, regenerate, full validation
+
+**🤖 Claude:**
+
+DAC8 compleet: C14 (10 µF) + C6 (0,1 µF) op VREF, ERC 0 / netcheck OK / DRC 0/0. PDF's + fab herzien, README bijwerken, committen:
+> 🔧 `Bash` — Regenerate DAC8 PDFs and fab
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\Images\schematics\musicbrain-dac8\README.md
+> 🔧 `Bash` — Commit DAC8 VREF cap
+
+**🤖 Claude:**
+
+Nu de sessie-export bijwerken. Geen hernoemen nodig — ik re-exporteer met dezelfde titel, dan overschrijft hij hetzelfde bestand met de actuele inhoud:
+> 🔧 `Bash` — Re-export current session to refresh content
+

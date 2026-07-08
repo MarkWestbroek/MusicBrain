@@ -42,6 +42,13 @@ daartegen (net als de firmware-contract-keten).
     pinout eerst verhaspeld (LDAC op 12); **gefixt** in commit `2e994df`
     (geverifieerd tegen Nick). **Altijd de chip-pinnummering tegen Nick's
     lib checken, niet uit het geheugen typen.**
+  - **`.kicad_pro` ontbrak** op de generator-kaarten (dac8/pot8/gatein8/enc4) →
+    niet als project in KiCad te openen. Opgelost door per kaart een projectbestand
+    (kopie van de adc8-template) toe te voegen. **Nieuwe kaarten: vergeet de
+    `.kicad_pro` niet** (kopieer er een en pas projectnaam + top-sheet-uuid aan).
+  - **AD5754-datasheet-samenvatting** staat in `doc/data-sheets/AD5754BREZ data.md`
+    (pinout 3× bevestigd, registers, ranges, BREZ = geen interne ref → ADR421).
+    DAC8 kreeg ook de voorgeschreven 10 µF bulk op VREF (C14) naast C6.
   - **Cosmetisch:** op de vroegste borden (gate8/adc8) staan sommige 0805's
     90° gedraaid in de silk/fab door een generator-bug die later gefixt is
     (padvormen draaiden niet mee). Functioneel niets mis (DRC 0/0); alleen bij
