@@ -19,8 +19,12 @@ GATE8/ADC8.
 - **LDAC = buslijn** (slotpin 15): beide chips laden hun uitgangsregisters
   tegelijk op LDAC↓ — en tegelijk met álle andere DAC-kaarten op de bus.
   Dat is precies waarvoor de LDAC-lijn in de spec bestaat.
-- **Offset binary** (BIN/2sCOMP → DVCC), ~CLR met 10k pull-up (R1),
-  interne versterkers op ±12V (AVDD/AVSS), EP-pads aan AVSS.
+- **Offset binary** (BIN/2sCOMP = pin 5 → +3V3), ~CLR (pin 11) met 10k
+  pull-up (R1), DVCC (pin 14) = +3V3, DGND (pin 15) = GND, interne
+  versterkers op ±12V (AVDD/AVSS), EP-pads aan AVSS.
+- **~LDAC = pin 10** → de bus-LDAC-lijn (slotpin 15); pin 12/13 = NC.
+  De AD5754-pinnummering is geverifieerd tegen Nic Newdigate's bewezen
+  ontwerp (dezelfde bron als de AD5754-breakout).
 - 100 Ω serie per uitgang (R2–R9), kortsluitbescherming.
 
 ## Kanaaltoewijzing
