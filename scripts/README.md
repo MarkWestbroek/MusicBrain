@@ -73,6 +73,28 @@ lege code-blocks verwijderd door `_remove_empty_fences()`.
 
 ---
 
+## export-claude-chats.py
+
+Tegenhanger voor **Claude Code**-sessies (Fable/Opus/…). Claude bewaart zijn
+sessies als JSONL onder `~/.claude/projects/<geëncodeerde-projectpad>/`. Dit
+script vindt die map zelf via de git-hoofd-repo-root en schrijft een leesbare
+export naar dezelfde map als de Copilot-exports (`doc/copilot-chats/exports/`).
+
+```powershell
+# Laatste sessie met een nette titel
+python scripts/export-claude-chats.py --latest --title hardware-kicad-fab
+
+# Eén specifieke sessie / alle sessies
+python scripts/export-claude-chats.py --session <id>
+python scripts/export-claude-chats.py --all
+```
+
+Gebruiker- en assistentteksten komen letterlijk mee; tool-aanroepen als
+compacte `🔧`-annotaties (hun output niet); interne redeneerblokken weggelaten.
+De bestandsnaam is `YYYY-MM-DD-<titel-slug>.md` (datum = sessiestart).
+
+---
+
 ## run-chat-backup.ps1
 
 PowerShell-wrapper die `export-copilot-chats.py` aanroept.
