@@ -23,8 +23,13 @@ GATE8/ADC8.
   pull-up (R1), DVCC (pin 14) = +3V3, DGND (pin 15) = GND, interne
   versterkers op ±12V (AVDD/AVSS), EP-pads aan AVSS.
 - **~LDAC = pin 10** → de bus-LDAC-lijn (slotpin 15); pin 12/13 = NC.
-  De AD5754-pinnummering is geverifieerd tegen Nic Newdigate's bewezen
-  ontwerp (dezelfde bron als de AD5754-breakout).
+  De AD5754-pinnummering is geverifieerd tegen de datasheet
+  (`doc/data-sheets/AD5754BREZ data.md`), Nic Newdigate's ontwerp én het
+  ComponentSearchEngine-symbool — drie onafhankelijke bronnen.
+- **AD5754BREZ heeft géén interne referentie** (de "R" in de datasheet-titel
+  slaat op de R-variant die dat wél heeft). Vandaar de **ADR421** (U3, 2,5 V
+  precisie) → REFIN (pin 17) van beide chips, met **0,1 µF (C6) + 10 µF (C14)**
+  ontkoppeling op VREF zoals de datasheet voorschrijft.
 - 100 Ω serie per uitgang (R2–R9), kortsluitbescherming.
 
 ## Kanaaltoewijzing

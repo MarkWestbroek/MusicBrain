@@ -1,5 +1,5 @@
 "Comment","Designator","Footprint","Qty","LCSC Part #"
-"10u","C1,C3,C8","Capacitor_SMD:CP_Elec_4x5.3","3",""
+"10u","C1,C3,C8,C14","Capacitor_SMD:CP_Elec_4x5.3","4",""
 "100n","C2,C4-C7,C10,C12,C13","Capacitor_SMD:C_0805_2012Metric","8",""
 "BUS","J1","Connector_PinHeader_2.54mm:PinHeader_2x10_P2.54mm_Horizontal","1",""
 "CV OUT","J2","Connector_PinHeader_2.54mm:PinHeader_1x10_P2.54mm_Horizontal","1",""
