@@ -213,3 +213,47 @@ Dit is de belangrijkste sectie voor een verse chat — dit is met bloed betaald.
   ERC 0 + netlijst-check OK + DRC 0/0 — niet fysiek gebouwd/getest.
 - Een chat exporteren: `python scripts/export-claude-chats.py --latest --title <onderwerp>`
   (schrijft naar `doc/copilot-chats/exports/`).
+
+---
+
+## Update 2026-07-09 — mechanica/paneel vastgelegd + riser gebouwd
+
+**Mechanisch model (definitief, Eurorack 3U):** L = busboard-lengte 200 (= paneelbreedte);
+B = 110 (busboard-diepte = Eurorack-PCB-maxhoogte); H = kaarthoogte = **80 mm** (blijft
+80; DAC8 is de drukste en heeft ~67 mm nodig — de ~15% besparing weegt niet op tegen
+4 werkende kaarten herspinnen). Frontplaat = 200 × 128,5 mm (3U). Concept: `doc/mechanics/
+frontpanel-v1.svg` (genereren: `scratchpad/gen_panel.py`).
+
+**Paneel-v1 (akkoord):** links een *brain-console* (display + 4 soft-knoppen + 2 druk-
+encoders + MIDI 2×IN/1×UIT + USB-host); midden 6 performance-kaarten op 20 mm:
+ADC8 · GATEIN8 · POT8 · **ENC5** (5 enc + 2 knop) · DAC8 · GATE8; audio NIET op het
+hoofdpaneel maar als losse strips (2×N IDC-lint): audio-in (6 + gat + TUNE-IN) + audio-uit (8).
+
+**Twee-PCB-model voor bediening (pot/enc):** de paneelcomponenten zitten NIET op de
+verticale kaart maar op een horizontaal *front-bord*; daartussen een **generieke riser**.
+- **`musicbrain-riser`** is GEBOUWD (DRC 0/0, ERC 0, netcheck OK): een dunne verticale
+  print die de VOLLEDIGE 2×10-slotbus 1-op-1 omhoog draagt (J1 haaks in het slot, J2 haaks
+  naar het front). Front-koppel-pinout (J2 x-gematcht t.o.v. J1) staat in de riser-README.
+- Front-borden gebruiken hun eigen deel: **POT8 = SPI** (MCP3208), **ENC = I2C** (MCP23017).
+  Eén riser past onder elk front.
+
+**Beslissingen deze sessie:** ENC = 5 encoders + 2 knopjes (A+B → 12 GPIO, 1× MCP23017);
+ADC8 → **v1.1 recht-toe-bedrading + firmware-remap** (kanaalvolgorde in `MbAdc8`, niet in
+koper); MIDI = **2× IN + 1× UIT** (geen thru) op het busboard, Serial8 (34/35) + 1 UART-RX
+erbij, kabels naar paneel-DIN's; USB-host via de dedicated Teensy-poort; TUNE-IN = losse
+jack op de audio-in-strip + DAC8-sweep om VCO's te ijken; audio-codec **CS42448** via de
+Teensy Audio-library **TDM (I2S1 = pinnen 7,8,20,21,23)** — botst met bus-CS4/CS5 + EXP,
+dus vergt een **pin-herplan** (of I2S2/SAI2); I2C-control op 18/19.
+
+**Nog te bouwen (prioriteit):**
+1. **POT8-front** (horizontaal, 8 pots RK09K + MCP3208 + 2×10 female riser-socket). LET OP:
+   8 pots in één kolom op 20 mm → de 8 wipers moeten vanuit één x-kolom naar de MCP
+   waaieren; dat vergt een nette **8-baans-fan** (B.Cu-lanes in de west-gap x 100–105,
+   pin3/+3V3 en pin1/GND apart afvoeren). Generator-aanzet: `scratchpad/gen_pot8front.py`
+   (routete nog niet schoon — floorplan herzien). Gebruik `Potentiometer_Alps_RK09K_Single_
+   Vertical` (heeft 3D-model).
+2. **ENC5-front** (5 enc + 2 knop + MCP23017 + 2×10 socket) — zelfde patroon.
+3. **ADC8 v1.1** (recht-toe + `MbAdc8`-remaptabel).
+4. **Silk-fixes** op dac8/gatein8/gate8 (URL-positie) — kan ik niet blind verifiëren zonder
+   de render; doen mét de user erbij.
+5. **Busboard-v2**: MIDI-DIN-blok (2×IN/1×UIT), TUNE-IN-timerpin, codec-I2S-pinreserve.
