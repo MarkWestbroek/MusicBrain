@@ -257,3 +257,16 @@ dus vergt een **pin-herplan** (of I2S2/SAI2); I2C-control op 18/19.
 4. **Silk-fixes** op dac8/gatein8/gate8 (URL-positie) — kan ik niet blind verifiëren zonder
    de render; doen mét de user erbij.
 5. **Busboard-v2**: MIDI-DIN-blok (2×IN/1×UIT), TUNE-IN-timerpin, codec-I2S-pinreserve.
+
+### ⚠️ Front-borden geblokkeerd op een besluit (2026-07-09, nacht)
+
+Bij het bouwen van POT8-front bleek de mechanische envelope te strak voor de naïeve
+aanpak: **RK09K-courtyard 13,3 mm** (steek ≥13,3), **pot-body vult ~15 mm van de 20 mm
+breedte** (routekanaal ~4,6 mm), en **bruikbare kolomhoogte ≈110 mm achter de rails** —
+te kort voor 8 pots + MCP + een **2×10 board-mount socket** in serie (≈129 mm).
+
+→ Volledige analyse + de twee opties (A: generieke riser + slim front met subset-connector;
+B: slim buskaart + passief front met centrale connector — **aanbevolen**) staan in
+**`doc/mechanics/front-board-constraints.md`**. Dit is een architectuurkeuze voor Mark;
+niet blind dichtgerouteerd. De generator-aanzet staat in `scratchpad/gen_pot8front.py`.
+De rest van de bouwlijst (ADC8 v1.1, silk-fixes, busboard-v2) staat hierboven ongewijzigd.
