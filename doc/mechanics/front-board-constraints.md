@@ -54,7 +54,28 @@ elke kant → max 4 banen in het 4,6 mm-kanaal → **triviaal, één laag**. Pas
 als de pots iets asymmetrisch staan, of steek 12,5). Nadeel: **laat de generieke riser
 los** voor pot/enc — die kaarten krijgen dan hun eigen (bestaande) buskaart + dom front.
 
-## Aanbeveling
+## BESLUIT (Mark, 2026-07-09): **Optie B**
+
+Optie B gekozen. Twee belangrijke verduidelijkingen uit het gesprek:
+
+1. **8 pots alléén passen wél in ~110 mm** (@13,3 mm steek ≈ 106 mm courtyard-span, ~4 mm
+   marge). Het knelpunt was nooit de pots, maar waar de MCP + connector heen gaan.
+   De courtyard (13,3 mm) is bovendien conservatief; de fysieke 9 mm-pot is ~10-11 mm →
+   krappere steek kan fysiek werken. **Mark test de echte minimale steek met de pots in huis.**
+
+2. **"Slimme riser"-variant (B-voorkeur):** zet de **MCP3208 op de riser** (die staat
+   verticaal in het slot en heeft daar ruimte, net als de 80 mm-kaarten), en houd het
+   **front-bord puur dom** (8 pots + een compacte koppeling omlaag: plat soldeer-lintje of
+   haakse connector in het ~4,6 mm zijkanaal, met 8 wipers + 3V3 + GND). Zo blijft het
+   nette riser+front-model behouden; nadeel is dat de riser dan pot/enc-specifiek wordt
+   (pot-riser = +MCP3208, enc-riser = +MCP23017) i.p.v. de ene generieke riser.
+   Alternatief blijft: hergebruik simpelweg de bestaande `musicbrain-pot8` (110×80, MCP
+   ernaast) als buskaart + een dom front met kabel — functioneel gelijk.
+
+**Openstaand (Mark test + beslist fysiek):** exacte pot-steek + de koppelvorm (lintje vs
+haakse connector) op het domme front. Daarna is het front in enkele generate→DRC-rondes af.
+
+## Oorspronkelijke aanbeveling
 
 **Optie B** voor bouwbaarheid en betrouwbaarheid: hergebruikt de al werkende pot8-buskaart,
 de front-routing is triviaal (centrale connector), en het schaalt 1-op-1 naar ENC. De
