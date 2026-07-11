@@ -1,9 +1,9 @@
-Ref,Val,Package,PosX,PosY,Rot,Side
-"C1","100n","C_0805_2012Metric",135.100000,-143.400000,180.000000,top
-"C2","10u","CP_Elec_4x5.3",147.000000,-155.500000,90.000000,top
-"J1","BUS","PinHeader_2x10_P2.54mm_Horizontal",146.430000,-173.420000,-90.000000,top
-"SW1","PEC12R","RotaryEncoder_Bourns_Horizontal_PEC12R-2x17F-Sxxxx",111.000000,-109.000000,-90.000000,top
-"SW2","PEC12R","RotaryEncoder_Bourns_Horizontal_PEC12R-2x17F-Sxxxx",127.700000,-109.000000,-90.000000,top
-"SW3","PEC12R","RotaryEncoder_Bourns_Horizontal_PEC12R-2x17F-Sxxxx",144.400000,-109.000000,-90.000000,top
-"SW4","PEC12R","RotaryEncoder_Bourns_Horizontal_PEC12R-2x17F-Sxxxx",161.100000,-109.000000,-90.000000,top
-"U1","MCP23017","SOIC-28W_7.5x17.9mm_P1.27mm",135.000000,-135.000000,90.000000,top
+"Designator","Val","Package","Mid X","Mid Y","Rotation","Layer"
+"C1","100n","C_0805_2012Metric","135.100000","-143.400000","180.000000","top"
+"C2","10u","CP_Elec_4x5.3","147.000000","-155.500000","90.000000","top"
+"J1","BUS","PinHeader_2x10_P2.54mm_Horizontal","146.430000","-173.420000","-90.000000","top"
+"SW1","PEC12R","RotaryEncoder_Bourns_Horizontal_PEC12R-2x17F-Sxxxx","111.000000","-109.000000","-90.000000","top"
+"SW2","PEC12R","RotaryEncoder_Bourns_Horizontal_PEC12R-2x17F-Sxxxx","127.700000","-109.000000","-90.000000","top"
+"SW3","PEC12R","RotaryEncoder_Bourns_Horizontal_PEC12R-2x17F-Sxxxx","144.400000","-109.000000","-90.000000","top"
+"SW4","PEC12R","RotaryEncoder_Bourns_Horizontal_PEC12R-2x17F-Sxxxx","161.100000","-109.000000","-90.000000","top"
+"U1","MCP23017","SOIC-28W_7.5x17.9mm_P1.27mm","135.000000","-135.000000","90.000000","top"

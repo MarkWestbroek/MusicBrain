@@ -45,7 +45,9 @@ for entry in $BOARDS; do
       -o "$fab/$base-bom.csv" "$sch" >/dev/null 2>&1
   fi
 
+  python "$(dirname "$0")/jlc_fix.py" "$fab" >/dev/null
+
   gcount=$(ls "$gerb" | wc -l)
-  echo "$dir : $gcount gerber/drill-bestanden, CPL + BOM"
+  echo "$dir : $gcount gerber/drill-bestanden, CPL + BOM (JLC-formaat)"
 done
 echo "GEREED"
