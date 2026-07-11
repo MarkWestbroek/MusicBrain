@@ -1,0 +1,6 @@
+{
+  "meta": {"filename": "musicbrain-pot8front.kicad_pro", "version": 3},
+  "general": {"project_name": "MusicBrain pot8front"},
+  "schematic": {"file": "musicbrain-pot8front.kicad_sch"},
+  "pcb": {"file": "musicbrain-pot8front.kicad_pcb"}
+}

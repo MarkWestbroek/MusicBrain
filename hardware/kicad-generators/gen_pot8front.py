@@ -1,147 +1,407 @@
-"""MusicBrain POT8-FRONT - horizontaal front-bord: 8 pots + MCP3208 + 2x10 socket.
+"""POT8-FRONT: dom horizontaal front-bord, 8x RK097N verticaal + 1x10 socket achterop.
 
-Floorplan (na de eerste mislukte poging herzien):
-- Pots RK09K VERTICAAL, rot180 -> body/montagepennen naar WEST (x=100, boardrand),
-  de 3 elektrische pinnen op x=107. Zo is de OOST-zijde (x 107..119) vrij voor routing.
-- MCP3208 rot90 in het zuiden, naar oost geschoven: CH0..7 op een horizontale rij,
-  x = 109..118 (ruim oostelijk van de pot-pin-kolom x=107). Elke wiper = 1 B.Cu-stub
-  (op eigen y) + 1 F.Cu-verticaal (op eigen chX) -> kruisingsvrij (V en H op aparte laag).
-- Kanaaltoewijzing = identiteit: MCP-pin i = /POTi (geen firmware-remap nodig).
-- Socket (2x10 female, riser-J2-pinout) + SPI/voeding gegroepeerd in het zuiden bij de MCP.
-- GND via het vlak (beide lagen). Zie doc/spi-bus-spec.md + musicbrain-riser (koppel-pinout).
+Route-2-model (besluit Mark 2026-07-11): het front ligt plat aan het paneel in een
+20 mm-kolom; de assen op de HARTLIJN 8,0 mm van de westrand (= jack8-standaard);
+de koppeling (1x10 female, achterzijde) in de ooststrook. Contract:
+pin 1 = GND, 2..9 = W1..W8 (lopers), 10 = +3V3.
+
+RK097N-verticaal, maten uit doc/data-sheets/RK097N/ (AliExpress RongLan):
+3 pinnen 2,5 mm steek (span 5,0; gat 1,0), 2 beugelsleuven 1,2x1,5 op span 11,2,
+7,5 mm achter de pinnenrij. SHAFT_OFFSET = afstand pinnenrij -> as-hart:
+AANNAME 4,5 mm (uit de tekening: 6,5 - 2,0) - MEET DIT AAN DE FYSIEKE POT
+en regenereer als het afwijkt (bepaalt of de as echt op de hartlijn valt).
 """
-import sys
-sys.path.insert(0, r'C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\99e404c8-b02c-48a1-b346-1e9bb9c444c9\scratchpad')
-from cardlib import Board, fmt
 import os
 
-OUT_DIR = r"d:\Git\Muziek\MusicBrain\Images\schematics\musicbrain-pot8front"
-os.makedirs(OUT_DIR, exist_ok=True)
-DATE = "2026-07-09"
+BASE = r"d:\Git\Muziek\MusicBrain\Images\schematics"
+NAME = "pot8front"
+N = 8
+PITCH = 13.75            # 110 / 8
+SHAFT_OFFSET = 4.5       # pinnenrij -> as (VERIFIEREN aan fysieke pot!)
+HART = 108.0             # as-hartlijn: 8,0 mm van de westrand (bord x 100..120)
 
-SLOT = {1: 'GND', 2: '+12V', 3: 'GND', 4: '-12V', 5: 'GND', 6: '+3V3',
-        7: '/SCLK', 8: 'GND', 9: '/MOSI', 10: 'GND', 11: '/MISO', 12: 'GND',
-        13: '/CS', 14: 'GND', 15: '/LDAC', 16: '/IRQ', 17: '/SDA', 18: '/SCL',
-        19: '/SPARE1', 20: '/SPARE2'}
-def sock_net(q):                       # riser-J2-pinout (x-matching), zie riser-README
-    return SLOT[(20 - q) if q % 2 else (22 - q)]
+def g(v):
+    s = f"{v:.4f}".rstrip("0").rstrip(".")
+    return s if s else "0"
 
-NETS = (['', 'GND', '+3V3', '/SCLK', '/MOSI', '/MISO', '/CS']
-        + [f'/POT{k}' for k in range(1, 9)]
-        + ['+12V', '-12V', '/LDAC', '/IRQ', '/SDA', '/SCL', '/SPARE1', '/SPARE2'])
-b = Board("MusicBrain POT8-FRONT - 8 pots + MCP3208", "1.0", (108.0, 250.0, 90),
-          100, 100, 119, 252, NETS, DATE)
-b.silk_name = 'pot8front'
-P = b.P
-SW = 0.25
-T, V = b.T, b.V
+SY = [100 + PITCH / 2 + PITCH * k for k in range(N)]   # as-y per pot
+PIN_X = HART + SHAFT_OFFSET                            # 112.5 (pinnen oost)
+JX = 116.5                                             # socket-kolom
+JY0 = 155 - 4.5 * 2.54                                 # pad 1 (10 pads gecentreerd rond 155)
 
-# ---- 8 verticale RK09K-pots, rot180 (body/pennen naar west), pinnen op x=107 ----
-POTX = 107.0
-PY = [110.0 + 12.0 * k for k in range(8)]      # pin1(GND) y; pin2(wiper) y-2.5; pin3(+3V3) y-5
-for k, y in enumerate(PY, start=1):
-    b.fp('Potentiometer_THT.pretty\\Potentiometer_Alps_RK09K_Single_Vertical.kicad_mod',
-         'Potentiometer_THT:Potentiometer_Alps_RK09K_Single_Vertical',
-         f'RV{k}', '10k', POTX, y, 180,
-         b.nm({'1': 'GND', '2': f'/POT{k}', '3': '+3V3'}))
+# ---------------- schematic ----------------
+def make_sch():
+    root = "f8000001-0000-4000-8000"
+    _u = [0]
+    def uid():
+        _u[0] += 1
+        return f"{root}-{_u[0]:012d}"
+    items = []
+    def wire(x1, y1, x2, y2):
+        items.append(f'  (wire (pts (xy {g(x1)} {g(y1)}) (xy {g(x2)} {g(y2)})) '
+                     f'(stroke (width 0) (type default)) (uuid "{uid()}"))')
+    def label(nm, x, y):
+        items.append(f'  (label "{nm}" (at {g(x)} {g(y)} 0) (effects (font (size 1.27 1.27)) '
+                     f'(justify left bottom)) (uuid "{uid()}"))')
+    _p = [0]
+    def power(sym, x, y):
+        _p[0] += 1
+        val = sym.split(":")[1]
+        vy = y - 3.302 if val == "+3V3" else y + 3.81
+        items.append(f'''  (symbol (lib_id "{sym}") (at {g(x)} {g(y)} 0)
+    (unit 1) (exclude_from_sim no) (in_bom yes) (on_board yes) (dnp no)
+    (uuid "{uid()}")
+    (property "Reference" "#PWR{_p[0]:03d}" (at {g(x)} {g(y)} 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    (property "Value" "{val}" (at {g(x)} {g(vy)} 0) (effects (font (size 1.016 1.016))))
+    (property "Footprint" "" (at {g(x)} {g(y)} 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    (property "Datasheet" "" (at {g(x)} {g(y)} 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    (instances (project "musicbrain-{NAME}" (path "/{root}0" (reference "#PWR{_p[0]:03d}") (unit 1))))
+  )''')
+    _f = [0]
+    def flag(x, y):
+        _f[0] += 1
+        items.append(f'''  (symbol (lib_id "power:PWR_FLAG") (at {g(x)} {g(y)} 0)
+    (unit 1) (exclude_from_sim no) (in_bom yes) (on_board yes) (dnp no)
+    (uuid "{uid()}")
+    (property "Reference" "#FLG{_f[0]:02d}" (at {g(x)} {g(y)} 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    (property "Value" "PWR_FLAG" (at {g(x)} {g(y-4.5)} 0) (effects (font (size 1.016 1.016))))
+    (property "Footprint" "" (at {g(x)} {g(y)} 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    (property "Datasheet" "" (at {g(x)} {g(y)} 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    (instances (project "musicbrain-{NAME}" (path "/{root}0" (reference "#FLG{_f[0]:02d}") (unit 1))))
+  )''')
+    def component(lib, ref, val, x, y, fp, ry, vy):
+        items.append(f'''  (symbol (lib_id "{lib}") (at {g(x)} {g(y)} 0)
+    (unit 1) (exclude_from_sim no) (in_bom yes) (on_board yes) (dnp no)
+    (uuid "{uid()}")
+    (property "Reference" "{ref}" (at {g(x)} {g(ry)} 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "{val}" (at {g(x)} {g(vy)} 0) (effects (font (size 1.27 1.27))))
+    (property "Footprint" "{fp}" (at {g(x)} {g(y)} 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    (property "Datasheet" "" (at {g(x)} {g(y)} 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    (instances (project "musicbrain-{NAME}" (path "/{root}0" (reference "{ref}") (unit 1))))
+  )''')
+    # 8 potmeters (pin 3 = CW-eind aan +3V3 boven, pin 1 = CCW aan GND onder, pin 2 = loper)
+    for k in range(N):
+        px, py = 60 + 45 * (k % 4), 60 + 50 * (k // 4)
+        component("Device:R_Potentiometer", f"RV{k+1}", "RK097N 10k lin", px, py,
+                  "MusicBrain:RK097N_Vertical", py - 8.89, py + 8.89)
+        wire(px, py - 3.81, px, py - 6.35); power("power:+3V3", px, py - 6.35)
+        wire(px, py + 3.81, px, py + 6.35); power("power:GND", px, py + 6.35)
+        wire(px + 2.54, py, px + 7.62, py); label(f"W{k+1}", px + 7.62, py)
+    # socket J1 (1x10)
+    hx, hy = 60, 170
+    component("Custom:Conn_01x10", "J1", "NAAR RISER (achterzijde)", hx, hy,
+              "MusicBrain:Socket_1x10_backside", hy - 16.51, hy + 16.51)
+    for k in range(10):
+        y = hy - 11.43 + 2.54 * k
+        wire(hx - 2.54, y, hx - 7.62, y)
+        if k == 0:
+            power("power:GND", hx - 7.62, y)
+        elif k == 9:
+            power("power:+3V3", hx - 7.62, y)
+        else:
+            label(f"W{k}", hx - 7.62, y)
+    # PWR_FLAGs (voeding komt via J1 binnen)
+    wire(130, 170, 135.08, 170); power("power:GND", 130, 170); flag(135.08, 170)
+    wire(130, 160, 135.08, 160); power("power:+3V3", 130, 160); flag(135.08, 160)
 
-# ---- MCP3208 (SOIC-16) rot90 in het zuiden, naar oost ----
-MCPX, MCPY = 113.5, 210.0
-U1_MAP = b.nm({**{str(i): f'/POT{i}' for i in range(1, 9)},      # pin1..8 = CH0..7 = POT1..8
-               '9': 'GND', '10': '/CS', '11': '/MOSI', '12': '/MISO',
-               '13': '/SCLK', '14': 'GND', '15': '+3V3', '16': '+3V3'})
-b.fp('Package_SO.pretty\\SOIC-16_3.9x9.9mm_P1.27mm.kicad_mod',
-     'Package_SO:SOIC-16_3.9x9.9mm_P1.27mm', 'U1', 'MCP3208', MCPX, MCPY, 90, U1_MAP)
+    pot_sym = '''    (symbol "Device:R_Potentiometer"
+      (pin_names (offset 0) (hide yes)) (pin_numbers (hide yes))
+      (property "Reference" "RV" (at 2.54 0 90) (effects (font (size 1.27 1.27))))
+      (property "Value" "R_Potentiometer" (at -2.54 0 90) (effects (font (size 1.27 1.27))))
+      (property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (property "Datasheet" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (symbol "R_Potentiometer_0_1"
+        (polyline (pts (xy -1.016 -2.032) (xy 1.016 -2.032) (xy 1.016 2.032) (xy -1.016 2.032) (xy -1.016 -2.032))
+          (stroke (width 0) (type default)) (fill (type none)))
+        (polyline (pts (xy 1.27 0) (xy 2.286 0)) (stroke (width 0) (type default)) (fill (type none)))
+      )
+      (symbol "R_Potentiometer_1_1"
+        (pin passive line (at 0 3.81 270) (length 1.778)
+          (name "CW" (effects (font (size 1.27 1.27))))
+          (number "3" (effects (font (size 1.0 1.0)))))
+        (pin passive line (at 2.54 0 180) (length 0.254)
+          (name "W" (effects (font (size 1.27 1.27))))
+          (number "2" (effects (font (size 1.0 1.0)))))
+        (pin passive line (at 0 -3.81 90) (length 1.778)
+          (name "CCW" (effects (font (size 1.27 1.27))))
+          (number "1" (effects (font (size 1.0 1.0)))))
+      )
+    )'''
+    conn_pins = "\n".join(f'''        (pin passive line (at -2.54 {g(11.43 - 2.54 * k)} 0) (length 1.27)
+          (name "Pin_{k+1}" (effects (font (size 1.27 1.27))))
+          (number "{k+1}" (effects (font (size 1.0 1.0)))))''' for k in range(10))
+    conn_sym = f'''    (symbol "Custom:Conn_01x10"
+      (pin_names (offset 1.016) (hide yes)) (pin_numbers (hide yes))
+      (property "Reference" "J" (at 0 15.24 0) (effects (font (size 1.27 1.27))))
+      (property "Value" "Conn" (at 0 -15.24 0) (effects (font (size 1.27 1.27))))
+      (property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (property "Datasheet" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (symbol "Conn_01x10_0_1"
+        (rectangle (start -1.27 12.7) (end 0 -12.7)
+          (stroke (width 0.254) (type default)) (fill (type background)))
+      )
+      (symbol "Conn_01x10_1_1"
+{conn_pins}
+      )
+    )'''
+    gnd_sym = '''    (symbol "power:GND"
+      (power)
+      (pin_numbers (hide yes)) (pin_names (offset 0) (hide yes))
+      (property "Reference" "#PWR" (at 0 -1.27 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (property "Value" "GND" (at 0 -3.81 0) (effects (font (size 1.27 1.27))))
+      (property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (property "Datasheet" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (symbol "GND_0_1"
+        (polyline (pts (xy 0 0) (xy 0 -1.27)) (stroke (width 0) (type default)) (fill (type none)))
+        (polyline (pts (xy -1.27 -1.27) (xy 1.27 -1.27)) (stroke (width 0) (type default)) (fill (type none)))
+        (polyline (pts (xy -0.762 -1.778) (xy 0.762 -1.778)) (stroke (width 0) (type default)) (fill (type none)))
+        (polyline (pts (xy -0.254 -2.286) (xy 0.254 -2.286)) (stroke (width 0) (type default)) (fill (type none)))
+      )
+      (symbol "GND_1_1"
+        (pin power_in line (at 0 0 270) (length 0)
+          (name "GND" (effects (font (size 1.27 1.27)) (hide yes)))
+          (number "1" (effects (font (size 1.0 1.0)))))
+      )
+    )'''
+    v33_sym = '''    (symbol "power:+3V3"
+      (power)
+      (pin_numbers (hide yes)) (pin_names (offset 0) (hide yes))
+      (property "Reference" "#PWR" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (property "Value" "+3V3" (at 0 3.302 0) (effects (font (size 1.27 1.27))))
+      (property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (property "Datasheet" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (symbol "+3V3_0_1"
+        (polyline (pts (xy 0 0) (xy 0 1.27)) (stroke (width 0) (type default)) (fill (type none)))
+        (polyline (pts (xy -0.762 1.27) (xy 0 2.54) (xy 0.762 1.27)) (stroke (width 0) (type default)) (fill (type none)))
+      )
+      (symbol "+3V3_1_1"
+        (pin power_in line (at 0 0 90) (length 0)
+          (name "+3V3" (effects (font (size 1.27 1.27)) (hide yes)))
+          (number "1" (effects (font (size 1.0 1.0)))))
+      )
+    )'''
+    flag_sym = '''    (symbol "power:PWR_FLAG"
+      (power)
+      (pin_numbers (hide yes)) (pin_names (offset 0) (hide yes))
+      (property "Reference" "#FLG" (at 0 1.905 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (property "Value" "PWR_FLAG" (at 0 3.81 0) (effects (font (size 1.27 1.27))))
+      (property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (property "Datasheet" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (symbol "PWR_FLAG_0_1"
+        (polyline (pts (xy 0 0) (xy 0 1.27) (xy -1.016 1.905) (xy 0 2.54) (xy 1.016 1.905) (xy 0 1.27))
+          (stroke (width 0) (type default)) (fill (type none)))
+      )
+      (symbol "PWR_FLAG_1_1"
+        (pin power_out line (at 0 0 90) (length 0)
+          (name "pwr" (effects (font (size 1.27 1.27)) (hide yes)))
+          (number "1" (effects (font (size 1.0 1.0)))))
+      )
+    )'''
+    doc = f'''(kicad_sch
+  (version 20231120)
+  (generator "eeschema")
+  (generator_version "8.0")
+  (uuid "{root}0")
+  (paper "A4")
+  (title_block
+    (title "MusicBrain POT8-FRONT - dom front, 8x RK097N verticaal")
+    (date "2026-07-11")
+    (rev "1.0")
+    (company "MusicBrain project")
+    (comment 1 "Route 2: plat front aan het paneel; as-hartlijn 8,0 mm; socket 1x10 achterop")
+    (comment 2 "Contract J1: 1=GND, 2..9=W1..W8, 10=+3V3 - naar pot-riser of pot8-kaart")
+  )
+  (lib_symbols
+{pot_sym}
+{conn_sym}
+{gnd_sym}
+{v33_sym}
+{flag_sym}
+  )
+  (text "SHAFT_OFFSET-aanname 4,5 mm (pinnenrij->as).\\nMeet aan de fysieke pot; paneelgaten volgen de as-lijn!" (exclude_from_sim no) (at 20.32 190 0)
+    (effects (font (size 1.27 1.27)) (justify left)))
+{chr(10).join(items)}
+  (sheet_instances (path "/" (page "1")))
+)
+'''
+    d = os.path.join(BASE, f"musicbrain-{NAME}")
+    os.makedirs(d, exist_ok=True)
+    open(os.path.join(d, f"musicbrain-{NAME}.kicad_sch"), "w", encoding="utf-8", newline="\n").write(doc)
 
-# ontkoppeling: 100n dicht bij VDD (pin16), 10u wat verder
-b.fp('Capacitor_SMD.pretty\\C_0805_2012Metric.kicad_mod',
-     'Capacitor_SMD:C_0805_2012Metric', 'C1', '100n', 116.5, 205.0, 0, b.rc('+3V3', 'GND'))
-b.fp('Capacitor_SMD.pretty\\C_0805_2012Metric.kicad_mod',
-     'Capacitor_SMD:C_0805_2012Metric', 'C2', '10u', 116.5, 216.0, 0, b.rc('+3V3', 'GND'))
-
-# ---- female 2x10 koppel-socket (achterzijde), riser-J2-pinout, zuidrand ----
-SOCKX, SOCKY0 = 104.0, 224.0
-hp = []
-for q in range(1, 21):
-    col = 0 if q % 2 else 1
-    row = (q - 1) // 2
-    x = SOCKX + 2.54 * col
-    y = SOCKY0 + 2.54 * row
-    net = sock_net(q)
-    idx = b.NI[net]
-    shape = 'rect' if q == 1 else 'oval'
-    hp.append(f'    (pad "{q}" thru_hole {shape} (at {fmt(x-SOCKX)} {fmt(y-SOCKY0)}) '
-              f'(size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net {idx} "{net}"))')
-    b.P.setdefault('J1', {})[str(q)] = (round(x, 3), round(y, 3))
-b.raw_fp(f'''  (footprint "MusicBrain:Header_2x10_backside"
+# ---------------- pcb ----------------
+def make_pcb():
+    root = "f8000002-0000-4000-8000"
+    _u = [0]
+    def uid():
+        _u[0] += 1
+        return f"{root}-b{_u[0]:011d}"
+    NETS = ['', 'GND', '+3V3'] + [f'/W{k}' for k in range(1, N + 1)]
+    NI = {nm: i for i, nm in enumerate(NETS)}
+    fps, tracks, vias = [], [], []
+    def T(net, layer, w, *pts):
+        tracks.append((NI[net], layer, w, pts))
+    # potten (anker = as-hart; pinnen oost op +SHAFT_OFFSET, beugels west)
+    for k in range(N):
+        sy = SY[k]
+        pads = []
+        for num, dy, net in (('1', -2.5, 'GND'), ('2', 0.0, f'/W{k+1}'), ('3', 2.5, '+3V3')):
+            pads.append(f'    (pad "{num}" thru_hole circle (at {g(SHAFT_OFFSET)} {g(dy)}) '
+                        f'(size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net {NI[net]} "{net}"))')
+        for dy in (-5.6, 5.6):
+            # koperloze montagesleuf: het front hangt aan de M7-moeren; zo geen
+            # rand-clearance- of netlijst-gedoe met de beugels
+            pads.append(f'    (pad "" np_thru_hole oval (at {g(-(7.5 - SHAFT_OFFSET))} {g(dy)}) '
+                        f'(size 1.2 1.5) (drill oval 1.2 1.5) (layers "*.Cu" "*.Mask"))')
+        fps.append(f'''  (footprint "MusicBrain:RK097N_Vertical"
     (layer "F.Cu")
-    (uuid "{b.uid()}")
-    (at {fmt(SOCKX)} {fmt(SOCKY0)})
+    (uuid "{uid()}")
+    (at {g(HART)} {g(sy)})
     (path "/")
-    (descr "2x10 female koppel-socket naar de riser - OP ACHTERZIJDE monteren")
-    (property "Reference" "J1" (at -2.2 -2.2 0) (layer "F.SilkS")
+    (descr "RK097N 9mm verticaal, M7-bus; anker = as-hart (SHAFT_OFFSET {SHAFT_OFFSET})")
+    (property "Reference" "RV{k+1}" (at 0 -7.6 0) (layer "F.SilkS")
       (effects (font (size 1 1) (thickness 0.15))))
-    (property "Value" "RISER-SOCKET" (at 1.27 {fmt(2.54*9+3)} 0) (layer "F.Fab")
+    (property "Value" "RK097N 10k" (at 0 7.6 0) (layer "F.Fab")
       (effects (font (size 1 1) (thickness 0.15))))
     (attr through_hole)
-    (fp_rect (start -1.6 -1.6) (end {fmt(2.54+1.6)} {fmt(2.54*9+1.6)})
+    (fp_circle (center 0 0) (end 4.75 0) (stroke (width 0.12) (type solid)) (fill no) (layer "F.SilkS"))
+    (fp_circle (center 0 0) (end 3.5 0) (stroke (width 0.1) (type solid)) (fill no) (layer "F.Fab"))
+    (fp_rect (start -6.2 -6.05) (end 6.2 6.05)
       (stroke (width 0.05) (type solid)) (fill no) (layer "F.CrtYd"))
-{chr(10).join(hp)}
+{chr(10).join(pads)}
   )''')
+    # socket 1x10 op de ACHTERZIJDE (zelfde recept als jack-strips v1.1)
+    hp = []
+    for k in range(10):
+        net = 'GND' if k == 0 else ('+3V3' if k == 9 else f'/W{k}')
+        shape = 'rect' if k == 0 else 'oval'
+        hp.append(f'    (pad "{k+1}" thru_hole {shape} (at 0 {g(2.54 * k)}) (size 1.7 1.7) '
+                  f'(drill 1.0) (layers "*.Cu" "*.Mask") (net {NI[net]} "{net}"))')
+    fps.append(f'''  (footprint "MusicBrain:Socket_1x10_backside"
+    (layer "B.Cu")
+    (uuid "{uid()}")
+    (at {g(JX)} {g(JY0)})
+    (path "/")
+    (descr "1x10 female socket op de achterzijde; opening omlaag naar riser/kaart")
+    (property "Reference" "J1" (at 2.8 -2.2 0) (layer "B.SilkS")
+      (effects (font (size 1 1) (thickness 0.15)) (justify mirror)))
+    (property "Value" "SOCKET-BACK" (at 0 25.9 0) (layer "B.Fab")
+      (effects (font (size 1 1) (thickness 0.15)) (justify mirror)))
+    (attr through_hole)
+    (fp_rect (start -1.6 -1.6) (end 1.6 24.46)
+      (stroke (width 0.12) (type solid)) (fill no) (layer "B.SilkS"))
+    (fp_rect (start -1.8 -1.8) (end 1.8 24.66)
+      (stroke (width 0.05) (type solid)) (fill no) (layer "B.CrtYd"))
+{chr(10).join(hp)}
+    (model "${{KICAD10_3DMODEL_DIR}}/Connector_PinSocket_2.54mm.3dshapes/PinSocket_1x10_P2.54mm_Vertical.step"
+      (offset (xyz 0 11.43 0)) (scale (xyz 1 1 1)) (rotate (xyz 0 0 0)))
+  )''')
+    # ---- routing ----
+    # lopers: noordgroep W1-4 zuidwaarts, zuidgroep W5-8 noordwaarts;
+    # nesting: ondiepste doel = oostelijkste laan (jack8-recept, 0,5 mm pitch)
+    LANE = {1: 115.2, 2: 114.7, 3: 114.2, 4: 113.7,
+            5: 113.7, 6: 114.2, 7: 114.7, 8: 115.2}
+    for k in range(1, N + 1):
+        wy = SY[k - 1]
+        ty = JY0 + 2.54 * k          # pad k+1
+        lx = LANE[k]
+        T(f'/W{k}', 'F.Cu', 0.25, (PIN_X, wy), (lx, wy), (lx, ty), (JX, ty))
+    # +3V3: B.Cu-rail west van de pinnenrij langs alle pin-3's + socket pin 10
+    rail_x = 110.5
+    T('+3V3', 'B.Cu', 0.3, (rail_x, SY[0] + 2.5), (rail_x, SY[-1] + 2.5))
+    for k in range(N):
+        T('+3V3', 'B.Cu', 0.3, (PIN_X, SY[k] + 2.5), (rail_x, SY[k] + 2.5))
+    p10y = JY0 + 2.54 * 9
+    T('+3V3', 'B.Cu', 0.3, (rail_x, p10y - 1.2), (JX - 1.2, p10y - 1.2), (JX, p10y))
+    # GND-hechtvia's
+    for sx, sy in ((102, 102), (118, 102), (102, 208), (118, 208), (102, 155),
+                   (118, 128), (118, 186)):
+        vias.append((NI['GND'], sx, sy))
 
-# ================= ROUTING =================
-def ch(n): return P['U1'][str(n)]
+    tt = []
+    for net, layer, w, pts in tracks:
+        for a, b in zip(pts, pts[1:]):
+            if tuple(a) == tuple(b):
+                continue
+            tt.append(f'  (segment (start {g(a[0])} {g(a[1])}) (end {g(b[0])} {g(b[1])}) '
+                      f'(width {w}) (layer "{layer}") (net {net}) (uuid "{uid()}"))')
+    for net, x, y in vias:
+        tt.append(f'  (via (at {g(x)} {g(y)}) (size 0.5) (drill 0.3) '
+                  f'(layers "F.Cu" "B.Cu") (net {net}) (uuid "{uid()}"))')
+    nets_block = '\n'.join(f'  (net {i} "{nm}")' for i, nm in enumerate(NETS))
+    zones = ''
+    for layer in ('F.Cu', 'B.Cu'):
+        zones += f'''
+  (zone (net {NI['GND']}) (net_name "GND") (layer "{layer}")
+    (uuid "{uid()}")
+    (hatch edge 0.5)
+    (connect_pads yes (clearance 0.3))
+    (min_thickness 0.2) (filled_areas_thickness no)
+    (fill yes (thermal_gap 0.5) (thermal_bridge_width 0.5) (island_removal_mode 1) (island_area_min 10))
+    (polygon (pts (xy 100.5 100.5) (xy 119.5 100.5) (xy 119.5 209.5) (xy 100.5 209.5)))
+  )'''
+    doc = f'''(kicad_pcb
+  (version 20240108)
+  (generator "pcbnew")
+  (generator_version "8.0")
+  (general (thickness 1.6) (legacy_teardrops no))
+  (paper "A4")
+  (title_block
+    (title "MusicBrain POT8-FRONT")
+    (date "2026-07-11")
+    (rev "1.0")
+    (company "MusicBrain project")
+  )
+  (layers
+    (0 "F.Cu" signal)
+    (31 "B.Cu" signal)
+    (32 "B.Adhes" user "B.Adhesive")
+    (33 "F.Adhes" user "F.Adhesive")
+    (34 "B.Paste" user)
+    (35 "F.Paste" user)
+    (36 "B.SilkS" user "B.Silkscreen")
+    (37 "F.SilkS" user "F.Silkscreen")
+    (38 "B.Mask" user)
+    (39 "F.Mask" user)
+    (40 "Dwgs.User" user "User.Drawings")
+    (41 "Cmts.User" user "User.Comments")
+    (42 "Eco1.User" user "User.Eco1")
+    (43 "Eco2.User" user "User.Eco2")
+    (44 "Edge.Cuts" user)
+    (45 "Margin" user)
+    (46 "B.CrtYd" user "B.Courtyard")
+    (47 "F.CrtYd" user "F.Courtyard")
+    (48 "B.Fab" user)
+    (49 "F.Fab" user)
+  )
+  (setup
+    (pad_to_mask_clearance 0)
+    (allow_soldermask_bridges_in_footprints no)
+    (aux_axis_origin 100 100)
+    (grid_origin 100 100)
+  )
+{nets_block}
+{chr(10).join(fps)}
+{chr(10).join(tt)}
+  (gr_rect (start 100 100) (end 120 210)
+    (stroke (width 0.1) (type default)) (fill none)
+    (layer "Edge.Cuts") (uuid "{uid()}"))
+  (gr_text "musicbrain.nl/hw/pot8front rev 1.0" (at 101.3 206 90) (layer "F.SilkS")
+    (uuid "{uid()}")
+    (effects (font (size 1 1) (thickness 0.15))))
+  (gr_text "as-hartlijn 8.0" (at 108 101.2 0) (layer "F.Fab")
+    (uuid "{uid()}")
+    (effects (font (size 0.8 0.8) (thickness 0.12))))
+{zones}
+)
+'''
+    d = os.path.join(BASE, f"musicbrain-{NAME}")
+    open(os.path.join(d, f"musicbrain-{NAME}.kicad_pcb"), "w", encoding="utf-8", newline="\n").write(doc)
+    open(os.path.join(d, f"musicbrain-{NAME}.kicad_pro"), "w", encoding="utf-8", newline="\n").write(
+        '{\n  "meta": {"filename": "musicbrain-%s.kicad_pro", "version": 3},\n'
+        '  "general": {"project_name": "MusicBrain %s"},\n'
+        '  "schematic": {"file": "musicbrain-%s.kicad_sch"},\n'
+        '  "pcb": {"file": "musicbrain-%s.kicad_pcb"}\n}\n' % (NAME, NAME, NAME, NAME))
 
-# ---- wipers: pot pin2 (107, wy) -> B.Cu-stub naar chX -> via -> F.Cu-verticaal -> CH-pad ----
-for k in range(1, 9):
-    wy = PY[k-1] - 2.5                 # wiper (pin2) y, rot180
-    chp = ch(k)                        # CH(k-1)=pin k, op (chX, ~212.5)
-    chx = chp[0]
-    T(f'/POT{k}', 'B.Cu', SW, (POTX, wy), (chx, wy))   # stub (eigen y)
-    V(f'/POT{k}', chx, wy)
-    T(f'/POT{k}', 'F.Cu', SW, (chx, wy), chp)          # verticaal (eigen x) tot in pad
-
-# ---- +3V3-rail: verticaal op x=104 (west), stubs oost naar elke pot-pin3 (107, PY-5) ----
-railx = 104.0
-T('+3V3', 'F.Cu', 0.3, (railx, PY[0]-5), (railx, PY[-1]-5))
-for y in PY:
-    T('+3V3', 'F.Cu', SW, (railx, y-5), (POTX, y-5))
-# +3V3 rail zuidwaarts naar MCP VREF/VDD (pin15/16) + caps
-T('+3V3', 'F.Cu', 0.3, (railx, PY[-1]-5), (railx, 208.0))
-T('+3V3', 'F.Cu', 0.3, (railx, 208.0), (ch('15')[0], 208.0))
-V('+3V3', ch('15')[0], 208.0)
-T('+3V3', 'B.Cu', SW, (ch('15')[0], 208.0), ch('15'))     # naar VREF (pin15)
-T('+3V3', 'B.Cu', SW, ch('15'), ch('16'))                 # VREF->VDD (naast elkaar op zuidrij)
-V('+3V3', ch('16')[0], ch('16')[1])
-T('+3V3', 'F.Cu', SW, ch('16'), P['C1']['1'])             # VDD -> C1
-T('+3V3', 'F.Cu', SW, P['C1']['1'], P['C2']['1'])         # -> C2
-
-# ---- SPI: socket -> MCP (pin10 CS, 11 MOSI, 12 MISO, 13 SCLK) via zuid-lanes ----
-spi = [('/CS', '10'), ('/MOSI', '11'), ('/MISO', '12'), ('/SCLK', '13')]
-for i, (net, mpin) in enumerate(spi):
-    sq = next(q for q in range(1, 21) if sock_net(q) == net)
-    sp = P['J1'][str(sq)]
-    mp = ch(mpin)
-    lane = 244.0 + 1.2 * i            # eigen B.Cu-lane, ruim zuidelijk van alles
-    T(net, 'F.Cu', SW, sp, (sp[0], lane))
-    V(net, sp[0], lane)
-    T(net, 'B.Cu', SW, (sp[0], lane), (mp[0], lane))
-    V(net, mp[0], lane)
-    T(net, 'F.Cu', SW, (mp[0], lane), mp)
-
-# ---- +3V3 van socket (pin met +3V3) naar de rail ----
-sq3 = next(q for q in range(1, 21) if sock_net(q) == '+3V3')
-sp3 = P['J1'][str(sq3)]
-T('+3V3', 'F.Cu', SW, sp3, (sp3[0], 222.0))
-V('+3V3', sp3[0], 222.0)
-T('+3V3', 'B.Cu', SW, (sp3[0], 222.0), (railx, 222.0))
-V('+3V3', railx, 222.0)
-T('+3V3', 'F.Cu', 0.3, (railx, 222.0), (railx, 208.0))
-
-# ---- GND-stitching (pot pin1, MCP 9/14, socket-GND, caps -> via het vlak) ----
-for x, y in ((101, 103), (118, 103), (101, 250), (118, 250), (101, 160),
-             (118, 160), (110, 240), (117, 230), (102, 200), (109, 202)):
-    V('GND', x, y)
-
-b.write(OUT_DIR + r"\musicbrain-pot8front.kicad_pcb")
-print("POT8-front PCB geschreven")
+make_sch()
+make_pcb()
+print("written musicbrain-" + NAME)
