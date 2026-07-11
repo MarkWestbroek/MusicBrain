@@ -32,29 +32,51 @@ LCSC_PASSIVE = {
     "220p": "C107145",   # 220pF 50V X7R 0805  (Basic)
     "1u":   "C5137478",  # 1uF 50V X7R 0805    (Extended)
     "10u":  "C440198",   # 10uF 50V X5R 0805 ceramic (Basic)
+    "10R":  "C17415",    # 10Ohm 0805          (Basic)
+    "33R":  "C17634",    # 33Ohm 0805          (Basic)
+    "120R": "C17437",    # 120Ohm 0805         (Basic)
+    "220R": "C17557",    # 220Ohm 0805         (Basic)
     "1k":   "C17513",    # 1kOhm 0805          (Basic)
+    "2k2":  "C17520",    # 2.2kOhm 0805        (Basic)
     "10k":  "C17414",    # 10kOhm 0805         (Basic)
     "100R": "C17408",    # 100Ohm 0805         (Basic)
     "100k": "C149504",   # 100kOhm 0805        (Basic)
 }
 
 # Actieve/unieke onderdelen: match op comment (na strippen van " (...)").
+# Alleen SMD (machine-plaats). THT-delen (R-78E5.0 DCDC-module, H11L1 DIP-6
+# optocoupler, Teensy4.1) bewust NIET hier -> hand-soldeer, blijven leeg.
 LCSC_DEVICE = {
-    "AD5754BREZ":    "C650230",  # 16-bit 4ch DAC, TSSOP-24-EP (REEL7)
-    "ADR421":        "C29739",   # 2.5V ref, B-grade, SOIC-8 (REEL7)
-    "AD7606BSTZ":    "C398827",  # 8ch 16-bit ADC, LQFP-64
-    "AMS1117-5.0":   "C6187",    # 5V LDO, SOT-223 (Basic)
-    "74HCT595":      "C282339",  # shift-register, SOIC-16
-    "74HC165":       "C5613",    # PISO shift-register, SOIC-16
-    "74LVC1G125":    "C12518",   # 3-state buffer, SOT-23-5
-    "BAT54S":        "C7420333", # dual Schottky, SOT-23
-    "MCP3208":       "C16939",   # 8ch 12-bit SPI-ADC, SOIC-16
-    "MCP23017-E/ML": "C639770",  # 16-bit I/O-expander, QFN-28
+    "AD5754BREZ":    "C650230",   # 16-bit 4ch DAC, TSSOP-24-EP (REEL7)
+    "ADR421":        "C29739",    # 2.5V ref, B-grade, SOIC-8 (REEL7)
+    "AD7606BSTZ":    "C398827",   # 8ch 16-bit ADC, LQFP-64
+    "AMS1117-5.0":   "C6187",     # 5V LDO, SOT-223 (Basic)
+    "AMS1117-3.3":   "C6186",     # 3.3V LDO, SOT-223 (Basic)
+    "74HCT595":      "C282339",   # shift-register, SOIC-16
+    "74HC165":       "C5613",     # PISO shift-register, SOIC-16
+    "74HC154":       "C2832236",  # 4->16 decoder, SOIC-24W (CD74HC154M96/TI, tape-reel, 1300+ stock)
+    "74LVC245":      "C6080",     # octal bus-transceiver, SOIC-20W
+    "74LVC1G125":    "C12518",    # 3-state buffer, SOT-23-5
+    "74LVC1G17":     "C19829593", # Schmitt-buffer, SOT-23-5
+    "BAT54S":        "C7420333",  # dual Schottky, SOT-23
+    "1N4148WS":      "C2128",     # schakeldiode, SOD-323
+    "SN65HVD230":    "C12084",    # CAN-transceiver, SOIC-8
+    "MCP3208":       "C16939",    # 8ch 12-bit SPI-ADC, SOIC-16
+    "MCP23017-E/ML": "C639770",   # 16-bit I/O-expander, QFN-28
+}
+
+# Delen waar de waarde alleen niet volstaat -> match op (comment, exacte
+# footprint). Bv. 10u bestaat als 0805-ceramic (C440198, via LCSC_PASSIVE)
+# EN als SMD alu-elco op CP_Elec.
+LCSC_BY_FOOTPRINT = {
+    ("10u", "CP_Elec_4x5.3"): "C3343",  # 10uF 25V SMD alu-elco, D4xL5.4mm (SMT)
 }
 
 def lookup_lcsc(comment, footprint):
     """Geef het LCSC-nummer voor (comment, footprint), of "" als handwerk."""
     c = re.sub(r"\s*\([^)]*\)\s*$", "", (comment or "").strip())
+    if (c, footprint) in LCSC_BY_FOOTPRINT:
+        return LCSC_BY_FOOTPRINT[(c, footprint)]
     if footprint in _SMD_0805 and c in LCSC_PASSIVE:
         return LCSC_PASSIVE[c]
     return LCSC_DEVICE.get(c, "")
