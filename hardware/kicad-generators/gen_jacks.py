@@ -260,7 +260,8 @@ def make_pcb(name, n, root, silk):
     NI = {nm: i for i, nm in enumerate(NETS)}
     BY1 = 100 + 15 * n + 5   # board bottom
     JY = [108 + 15 * k for k in range(n)]           # jack centers
-    HY0 = (100 + BY1) / 2 - 1.27 * (rows - 1)       # header gecentreerd op de strip
+    JX = 116.5               # front-koppel-standaard: socketkolom (= pot8front)
+    HY0 = 143.57             # front-koppel-standaard: pin 1 (= pot8front JY0)
     fps, tracks, vias = [], [], []
     def T(net, layer, w, *pts):
         tracks.append((NI[net], layer, w, pts))
@@ -270,27 +271,31 @@ def make_pcb(name, n, root, silk):
                                   (NI[f'/CH{k+1}'], f'/CH{k+1}'),
                                   (NI['GND'], 'GND'), (NI['/NORM'], '/NORM')))
     # header (holes; socket op achterzijde monteren)
+    # CANONIEKE geflipte vorm (zoals pcbnew zelf een geflipte footprint opslaat):
+    # footprint-rot 180 + lokale y genegeerd -> absolute padposities identiek,
+    # maar de 3D-viewer zet het model nu WEL op de gatenrij (rot-0-emissie gaf
+    # een om het anker gespiegelde body naast de gaten).
+    L = 2.54 * (rows - 1)
     hp = []
     for k in range(rows):
-        y = HY0 + 2.54 * k
         net = ('GND' if k in (0, rows - 1) else f'/CH{k}')
         shape = 'rect' if k == 0 else 'oval'
-        hp.append(f'    (pad "{k+1}" thru_hole {shape} (at 0 {g(y - HY0)}) (size 1.7 1.7) '
+        hp.append(f'    (pad "{k+1}" thru_hole {shape} (at 0 {g(-2.54 * k)} 180) (size 1.7 1.7) '
                   f'(drill 1.0) (layers "*.Cu" "*.Mask") (net {NI[net]} "{net}"))')
     fps.append(f'''  (footprint "MusicBrain:Header_1x{rows:02d}_backside"
     (layer "B.Cu")
     (uuid "{uid()}")
-    (at 115 {g(HY0)})
+    (at {g(JX)} {g(HY0)} 180)
     (path "/")
     (descr "1x{rows} female socket op de ACHTERZIJDE (opening omlaag, naar de kaart)")
-    (property "Reference" "J1" (at 2.8 -2.2 0) (layer "B.SilkS")
+    (property "Reference" "J1" (at -2.8 2.2 0) (layer "B.SilkS")
       (effects (font (size 1 1) (thickness 0.15)) (justify mirror)))
-    (property "Value" "SOCKET-BACK" (at 0 {g(2.54 * (rows - 1) + 3)} 0) (layer "B.Fab")
+    (property "Value" "SOCKET-BACK" (at 0 {g(-(L + 3))} 0) (layer "B.Fab")
       (effects (font (size 1 1) (thickness 0.15)) (justify mirror)))
     (attr through_hole)
-    (fp_rect (start -1.6 -1.6) (end 1.6 {g(2.54 * (rows - 1) + 1.6)})
+    (fp_rect (start -1.6 {g(-(L + 1.6))}) (end 1.6 1.6)
       (stroke (width 0.12) (type solid)) (fill no) (layer "B.SilkS"))
-    (fp_rect (start -1.8 -1.8) (end 1.8 {g(2.54 * (rows - 1) + 1.8)})
+    (fp_rect (start -1.8 {g(-(L + 1.8))}) (end 1.8 1.8)
       (stroke (width 0.05) (type solid)) (fill no) (layer "B.CrtYd"))
 {chr(10).join(hp)}
     (model "${{KICAD10_3DMODEL_DIR}}/Connector_PinSocket_2.54mm.3dshapes/PinSocket_1x{rows:02d}_P2.54mm_Vertical.step"
@@ -330,7 +335,7 @@ def make_pcb(name, n, root, silk):
         tip_y = JY[k-1] - 4.92
         pin_y = HY0 + 2.54 * k
         lx = lanes[k]
-        T(f'/CH{k}', 'F.Cu', 0.25, (115, pin_y), (lx, pin_y), (lx, tip_y), (108, tip_y))
+        T(f'/CH{k}', 'F.Cu', 0.25, (JX, pin_y), (lx, pin_y), (lx, tip_y), (108, tip_y))
     # NORM rail
     pts = [(103.5, JY[0] + 3.38)]
     for k in range(1, n):
@@ -369,11 +374,11 @@ def make_pcb(name, n, root, silk):
   (generator "pcbnew")
   (generator_version "8.0")
   (general (thickness 1.6) (legacy_teardrops no))
-  (paper "A4")
+  (paper "A3")
   (title_block
     (title "MusicBrain {name}")
-    (date "2026-07-08")
-    (rev "1.1")
+    (date "2026-07-11")
+    (rev "1.2")
     (company "MusicBrain project")
   )
   (layers
@@ -410,7 +415,7 @@ def make_pcb(name, n, root, silk):
   (gr_rect (start 100 100) (end 120 {g(BY1)})
     (stroke (width 0.1) (type default)) (fill none)
     (layer "Edge.Cuts") (uuid "{uid()}"))
-  (gr_text "{silk}" (at 101.3 {g(BY1 - 2)} 90) (layer "F.SilkS")
+  (gr_text "{silk}" (at 101.3 {g((100 + BY1) / 2)} 90) (layer "F.SilkS")
     (uuid "{uid()}")
     (effects (font (size 1 1) (thickness 0.15))))
 {zones}
@@ -426,7 +431,7 @@ def make_pcb(name, n, root, silk):
 
 
 d8 = make_sch("jack8", 8, "e8000001-0000-4000-8000")
-make_pcb("jack8", 8, "e8000002-0000-4000-8000", "musicbrain.nl/hw/jack8 rev 1.1")
+make_pcb("jack8", 8, "e8000002-0000-4000-8000", "musicbrain.nl/hw/jack8 rev 1.2")
 d4 = make_sch("jack4", 4, "e4000001-0000-4000-8000")
-make_pcb("jack4", 4, "e4000002-0000-4000-8000", "musicbrain.nl/hw/jack4 rev 1.1")
+make_pcb("jack4", 4, "e4000002-0000-4000-8000", "musicbrain.nl/hw/jack4 rev 1.2")
 print("written", d8, "and", d4)

@@ -3,20 +3,31 @@
 set -u
 ROOT="d:/Git/Muziek/MusicBrain/hardware/schematics"
 
-# dir:base  (base = bestandsnaam zonder extensie)
+# dir:base  (base = bestandsnaam zonder extensie); deprecated/ doet niet mee
 BOARDS="
 ad5754r-breakout:ad5754r-breakout
-musicbrain-busboard:musicbrain-busboard
 musicbrain-gate8:musicbrain-gate8
 musicbrain-adc8:musicbrain-adc8
 musicbrain-dac8:musicbrain-dac8
 musicbrain-gatein8:musicbrain-gatein8
-musicbrain-pot8:musicbrain-pot8
-musicbrain-enc4:musicbrain-enc4
 musicbrain-jack8:musicbrain-jack8
 musicbrain-jack4:musicbrain-jack4
 musicbrain-riser:musicbrain-riser
+musicbrain-pot8front:musicbrain-pot8front
+musicbrain-potriser:musicbrain-potriser
+musicbrain-enc5front:musicbrain-enc5front
 "
+
+# optioneel: alleen geselecteerde borden (komma-gescheiden dir-namen als arg 1)
+if [ -n "${1:-}" ]; then
+  SEL=",$1,"
+  FILTERED=""
+  for entry in $BOARDS; do
+    dir="${entry%%:*}"
+    case "$SEL" in *",$dir,"*|*",${dir#musicbrain-},"*) FILTERED="$FILTERED $entry";; esac
+  done
+  BOARDS="$FILTERED"
+fi
 
 GLAYERS="F.Cu,B.Cu,F.Mask,B.Mask,F.SilkS,B.SilkS,Edge.Cuts,F.Paste,B.Paste"
 
@@ -46,6 +57,14 @@ for entry in $BOARDS; do
   fi
 
   python "$(dirname "$0")/jlc_fix.py" "$fab" >/dev/null
+
+  python - "$gerb" "$fab/$base-gerbers.zip" <<'PYZIP'
+import sys, os, zipfile
+src, dst = sys.argv[1], sys.argv[2]
+with zipfile.ZipFile(dst, 'w', zipfile.ZIP_DEFLATED) as z:
+    for f in sorted(os.listdir(src)):
+        z.write(os.path.join(src, f), f)
+PYZIP
 
   gcount=$(ls "$gerb" | wc -l)
   echo "$dir : $gcount gerber/drill-bestanden, CPL + BOM (JLC-formaat)"

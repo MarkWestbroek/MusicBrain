@@ -271,27 +271,29 @@ def make_pcb():
       (stroke (width 0.05) (type solid)) (fill no) (layer "F.CrtYd"))
 {chr(10).join(pads)}
   )''')
-    # socket 1x10 op de ACHTERZIJDE (zelfde recept als jack-strips v1.1)
+    # socket 1x10 op de ACHTERZIJDE, in CANONIEKE geflipte vorm (zoals pcbnew
+    # een geflipte footprint opslaat: rot 180 + lokale y genegeerd). Absolute
+    # padposities identiek; de 3D-viewer zet het model nu wel op de gatenrij.
     hp = []
     for k in range(10):
         net = 'GND' if k == 0 else ('+3V3' if k == 9 else f'/W{k}')
         shape = 'rect' if k == 0 else 'oval'
-        hp.append(f'    (pad "{k+1}" thru_hole {shape} (at 0 {g(2.54 * k)}) (size 1.7 1.7) '
+        hp.append(f'    (pad "{k+1}" thru_hole {shape} (at 0 {g(-2.54 * k)} 180) (size 1.7 1.7) '
                   f'(drill 1.0) (layers "*.Cu" "*.Mask") (net {NI[net]} "{net}"))')
     fps.append(f'''  (footprint "MusicBrain:Socket_1x10_backside"
     (layer "B.Cu")
     (uuid "{uid()}")
-    (at {g(JX)} {g(JY0)})
+    (at {g(JX)} {g(JY0)} 180)
     (path "/")
     (descr "1x10 female socket op de achterzijde; opening omlaag naar riser/kaart")
-    (property "Reference" "J1" (at 2.8 -2.2 0) (layer "B.SilkS")
+    (property "Reference" "J1" (at -2.8 2.2 0) (layer "B.SilkS")
       (effects (font (size 1 1) (thickness 0.15)) (justify mirror)))
-    (property "Value" "SOCKET-BACK" (at 0 25.9 0) (layer "B.Fab")
+    (property "Value" "SOCKET-BACK" (at 0 -25.9 0) (layer "B.Fab")
       (effects (font (size 1 1) (thickness 0.15)) (justify mirror)))
     (attr through_hole)
-    (fp_rect (start -1.6 -1.6) (end 1.6 24.46)
+    (fp_rect (start -1.6 -24.46) (end 1.6 1.6)
       (stroke (width 0.12) (type solid)) (fill no) (layer "B.SilkS"))
-    (fp_rect (start -1.8 -1.8) (end 1.8 24.66)
+    (fp_rect (start -1.8 -24.66) (end 1.8 1.8)
       (stroke (width 0.05) (type solid)) (fill no) (layer "B.CrtYd"))
 {chr(10).join(hp)}
     (model "${{KICAD10_3DMODEL_DIR}}/Connector_PinSocket_2.54mm.3dshapes/PinSocket_1x10_P2.54mm_Vertical.step"
@@ -346,11 +348,11 @@ def make_pcb():
   (generator "pcbnew")
   (generator_version "8.0")
   (general (thickness 1.6) (legacy_teardrops no))
-  (paper "A4")
+  (paper "A3")
   (title_block
     (title "MusicBrain POT8-FRONT")
     (date "2026-07-11")
-    (rev "1.0")
+    (rev "1.1")
     (company "MusicBrain project")
   )
   (layers
@@ -387,7 +389,7 @@ def make_pcb():
   (gr_rect (start 100 100) (end 120 210)
     (stroke (width 0.1) (type default)) (fill none)
     (layer "Edge.Cuts") (uuid "{uid()}"))
-  (gr_text "musicbrain.nl/hw/pot8front rev 1.0" (at 101.3 206 90) (layer "F.SilkS")
+  (gr_text "musicbrain.nl/hw/pot8front rev 1.1" (at 101.3 155 90) (layer "F.SilkS")
     (uuid "{uid()}")
     (effects (font (size 1 1) (thickness 0.15))))
   (gr_text "as-hartlijn 8.0" (at 108 101.2 0) (layer "F.Fab")
