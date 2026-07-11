@@ -222,6 +222,27 @@ nodig**; wie extra stijfheid wil bij zware kaarten (potmeterkaart) kan een
 steunlat over de kaartenrij leggen die in de bovenhoeken van de kaarten
 grijpt (kaart-v1.2: 2× M3-gat in de bovenhoeken reserveren).
 
+## Front-standaard (besluit 2026-07-11)
+
+Bediening en jacks liggen op **front-borden**: platte printjes in het vlak van
+het paneel, per 20 mm-kolom, gedragen door de M7-moeren (pots/encoders) of
+Thonkiconn-moeren (jacks).
+
+1. **As-hartlijn = 8,0 mm van de westrand** van de kolom - voor jacks, pots
+   en encoders, zodat het paneel overal hetzelfde ritme heeft.
+2. **Koppeling zit op de achterzijde** van het front-bord (female socket,
+   opening omlaag), in-lijn (jacks) of in de ooststrook (pots).
+3. **Pot-keten**: `musicbrain-pot8front` (dom: 8x RK097N verticaal) op
+   `musicbrain-potriser` (MCP3208 + 100n/loper) - frontcontract 1x10:
+   **1 = GND, 2..9 = W1..W8, 10 = +3V3**.
+4. **Enc-keten** (in ontwerp): slim front (MCP23017) op de generieke
+   `musicbrain-riser` (volledige bus, 2x10, x-gematcht - zie riser-README).
+5. Pin-1-orientatie van elke koppeling bij de eerste fysieke passing
+   verifieren; bij spiegeling de J2-map in de generator omdraaien.
+
+**Vervangen door dit model** (in `deprecated/` zodra de mapstructuur is
+omgezet): pot8-slotkaart (haakse pots), enc4-slotkaart (haakse encoders).
+
 ## Open punten (v2-kandidaten)
 
 - +5V ook naar de slots (nu alleen intern voor Teensy/LDO; gates gebruiken
