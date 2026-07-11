@@ -109,6 +109,39 @@ decoder en gaat IRQ een schuifregister in. Alles wat af is, kan besteld worden.
 Slots J1–J6, hubs J7/J8, power-entry J9 + R-78E5.0 + LDO-recept, display J11
 (SPI1), Qwiic J12, 33 Ω serie in SCLK/MOSI bij de Teensy, 200×115 mm, M3-gaten.
 
+## PCB-aanpak (stand 2026-07-11)
+
+**Schema is af** (`Images/schematics/musicbrain-busboard-v2/`, ERC 0, netlijst
+geverifieerd: 120 netten, alle single-node-netten zijn bewuste no-connects).
+
+**PCB: v2 krijgt een eigen floorplan.** Analyse tegen het v1-layout leerde:
+
+- Vrijgekomen v1-zones: de oude CS/IRQ-waaier (x 47–68) en de noordstrook
+  (y 12–36, boven de slots) zijn leeg; het kanaal ónder de Teensy (x 33–43)
+  is bruikbaar voor SMD mits de Teensy-courtyard als **twee socketstroken**
+  wordt gedefinieerd (Teensy staat op sockets — fysiek klopt dat).
+- Maar: de westzone raakt overvol (display-feeds, EXP-voeding, J17-codec,
+  CAN_TX/RX vanaf pins 30/31, LDAC-omleiding en de CSA-kolommen vechten om
+  dezelfde 15 mm), en elke oplossing forceert laagconflicten met de
+  B.Cu-lanebundel (y 65–105).
+- Conclusie: niet het v1-layout oplappen maar **herindelen**: decoder + 165-keten
+  + 245-buffer als cluster bij de Teensy, headers (MIDI/CAN/DLG/J21/J17) langs
+  noord- en oostrand, laan-systeem v1-stijl handhaven (bewezen), slot-/hub-
+  posities en de slotpinout ongewijzigd.
+
+Deelbeslissingen die al vaststaan (uit de analyse):
+
+1. Teensy-courtyard → twee stroken (socketrijen); silk-noot "SMD ≤ 6 mm onder
+   Teensy". 2. Inter-slot-kolommen x = slot+1,5…+3,5 zijn de enige schone
+   F.Cu-verticalen door het slotveld (taps bezetten slot+4…+16). 3. J12 (Qwiic)
+   verhuist naar de zuidoosthoek; SDA/SCL-lanes verlengen oostwaarts. 4. J11
+   (display) schuift naar y≈18. 5. CS1–CS8-waaier hergebruikt de v1-kolommen
+   x 58,5–64,8 (nu vanaf de decoder). 6. Expansie (J21) + U6 + U8 + 33R's in de
+   noordstrook; taps op de lanes via de inter-slot-kolommen bij slot 1/2.
+
+De generator-toolkit + v2-generators staan nu **in de repo** onder
+`hardware/kicad-generators/` (niet meer alleen in een sessie-scratchpad).
+
 ## Firmware-impact (MbBus)
 
 - `select(n)`: adres op 3/4/5/6, /E0 (9) laag ipv digitalWrite(CSx).
