@@ -109,7 +109,7 @@ s.write(os.path.join(OUT_DIR, "musicbrain-potriser.kicad_sch"))
 
 # ================= PCB =================
 NETS = ['', 'GND', '+3V3', '/SCLK', '/MOSI', '/MISO', '/CS'] + [f'/W{k}' for k in range(1, 9)]
-b = Board("MusicBrain POT-RISER - MCP3208-riser", "1.0", (116, 178.4, 0),
+b = Board("MusicBrain POT-RISER - MCP3208-riser", "1.0", (116, 155, 0),
           102, 100, 130, 180, NETS, DATE)
 b.silk_name = 'potriser'
 CX = 116.0

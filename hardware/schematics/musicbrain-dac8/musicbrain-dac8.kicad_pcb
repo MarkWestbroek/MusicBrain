@@ -7367,7 +7367,7 @@
   (gr_rect (start 100 100) (end 150 180)
     (stroke (width 0.1) (type default)) (fill none)
     (layer "Edge.Cuts") (uuid "ca4d0000-0000-4000-8000-000000000238"))
-  (gr_text "musicbrain.nl/hw/dac8 rev 1.0" (at 146.5 140 90) (layer "F.SilkS")
+  (gr_text "musicbrain.nl/hw/dac8 rev 1.0" (at 129 161 0) (layer "F.SilkS")
     (uuid "ca4d0000-0000-4000-8000-000000000239")
     (effects (font (size 1 1) (thickness 0.15))))
 
@@ -7376,7 +7376,7 @@
     (hatch edge 0.5)
     (connect_pads yes (clearance 0.3))
     (min_thickness 0.2) (filled_areas_thickness no)
-    (fill yes (thermal_gap 0.5) (thermal_bridge_width 0.5) (island_removal_mode 1) (island_area_min 10))
+    (fill yes (thermal_gap 0.5) (thermal_bridge_width 0.5))
     (polygon (pts
       (xy 100.5 100.5) (xy 149.5 100.5)
       (xy 149.5 179.5) (xy 100.5 179.5)
@@ -7387,7 +7387,7 @@
     (hatch edge 0.5)
     (connect_pads yes (clearance 0.3))
     (min_thickness 0.2) (filled_areas_thickness no)
-    (fill yes (thermal_gap 0.5) (thermal_bridge_width 0.5) (island_removal_mode 1) (island_area_min 10))
+    (fill yes (thermal_gap 0.5) (thermal_bridge_width 0.5))
     (polygon (pts
       (xy 100.5 100.5) (xy 149.5 100.5)
       (xy 149.5 179.5) (xy 100.5 179.5)

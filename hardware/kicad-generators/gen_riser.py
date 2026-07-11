@@ -22,7 +22,7 @@ SLOT = {1: 'GND', 2: '+12V', 3: 'GND', 4: '-12V', 5: 'GND', 6: '+3V3',
 
 NETS = ['', 'GND', '+12V', '-12V', '+3V3', '/SCLK', '/MOSI', '/MISO', '/CS',
         '/LDAC', '/IRQ', '/SDA', '/SCL', '/SPARE1', '/SPARE2']
-b = Board("MusicBrain RISER - slot-verlenger 2x10", "1.0", (117.5, 178.0, 0),
+b = Board("MusicBrain RISER - slot-verlenger 2x10", "1.0", (117.5, 140, 0),
           102, 100, 133, 180, NETS, DATE)
 b.silk_name = 'riser'
 CX = 117.5

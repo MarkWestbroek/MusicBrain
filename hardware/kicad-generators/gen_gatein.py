@@ -151,7 +151,7 @@ s.write(OUT_DIR + r"\musicbrain-gatein8.kicad_sch")
 # ================= PCB =================
 NETS = (['', '+3V3', 'GND', '/SCLK', '/MISO', '/CS', '/PL', '/Q7']
         + [f'/IN{k}' for k in range(1, 9)] + [f'/N{k}' for k in range(1, 9)])
-b = Board("MusicBrain GATEIN8 - 8x gate in slot card", "1.0", (108, 178.4, 0),
+b = Board("MusicBrain GATEIN8 - 8x gate in slot card", "1.0", (120, 158, 0),
           100, 100, 140, 180, NETS, DATE)
 b.silk_name = 'gatein8'
 P = b.P

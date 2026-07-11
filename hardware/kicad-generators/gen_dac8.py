@@ -168,7 +168,7 @@ NETS = (['', '+12V', '-12V', '+3V3', 'GND', '/SCLK', '/MOSI', '/MISO', '/CS',
          '/LDAC', '/CLR', '/DAISY', '/VREF']
         + [f'/CV{k}' for k in range(1, 9)]
         + ['/VA1', '/VB1', '/VC1', '/VD1', '/VA2', '/VB2', '/VC2', '/VD2'])
-b = Board("MusicBrain DAC8 - 8x CV out slot card", "1.0", (146.5, 140, 90),
+b = Board("MusicBrain DAC8 - 8x CV out slot card", "1.0", (129, 161, 0),
           100, 100, 150, 180, NETS, DATE)
 b.silk_name = 'dac8'
 P = b.P
