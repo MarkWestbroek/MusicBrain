@@ -263,9 +263,11 @@ def make_pcb():
     (property "Value" "RK097N 10k" (at 0 7.6 0) (layer "F.Fab")
       (effects (font (size 1 1) (thickness 0.15))))
     (attr through_hole)
-    (fp_circle (center 0 0) (end 4.75 0) (stroke (width 0.12) (type solid)) (fill no) (layer "F.SilkS"))
-    (fp_circle (center 0 0) (end 3.5 0) (stroke (width 0.1) (type solid)) (fill no) (layer "F.Fab"))
-    (fp_rect (start -6.2 -6.05) (end 6.2 6.05)
+    (fp_rect (start -4.5 -6.05) (end 6.5 6.05)
+      (stroke (width 0.12) (type solid)) (fill no) (layer "F.SilkS"))
+    (fp_circle (center 0 0) (end 3.5 0) (stroke (width 0.12) (type solid)) (fill no) (layer "F.SilkS"))
+    (fp_circle (center 0 0) (end 3.0 0) (stroke (width 0.1) (type solid)) (fill no) (layer "F.Fab"))
+    (fp_rect (start -4.75 -6.3) (end 6.75 6.3)
       (stroke (width 0.05) (type solid)) (fill no) (layer "F.CrtYd"))
 {chr(10).join(pads)}
   )''')
@@ -293,7 +295,7 @@ def make_pcb():
       (stroke (width 0.05) (type solid)) (fill no) (layer "B.CrtYd"))
 {chr(10).join(hp)}
     (model "${{KICAD10_3DMODEL_DIR}}/Connector_PinSocket_2.54mm.3dshapes/PinSocket_1x10_P2.54mm_Vertical.step"
-      (offset (xyz 0 11.43 0)) (scale (xyz 1 1 1)) (rotate (xyz 0 0 0)))
+      (offset (xyz 0 0 0)) (scale (xyz 1 1 1)) (rotate (xyz 0 0 0)))
   )''')
     # ---- routing ----
     # lopers: noordgroep W1-4 zuidwaarts, zuidgroep W5-8 noordwaarts;

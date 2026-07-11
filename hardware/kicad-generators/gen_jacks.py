@@ -294,7 +294,7 @@ def make_pcb(name, n, root, silk):
       (stroke (width 0.05) (type solid)) (fill no) (layer "B.CrtYd"))
 {chr(10).join(hp)}
     (model "${{KICAD10_3DMODEL_DIR}}/Connector_PinSocket_2.54mm.3dshapes/PinSocket_1x{rows:02d}_P2.54mm_Vertical.step"
-      (offset (xyz 0 {g(2.54*(rows-1)/2)} 0)) (scale (xyz 1 1 1)) (rotate (xyz 0 0 0)))
+      (offset (xyz 0 0 0)) (scale (xyz 1 1 1)) (rotate (xyz 0 0 0)))
   )''')
     # solder jumper (SMD, on back? keep front) near bottom
     sj_y = BY1 - 3

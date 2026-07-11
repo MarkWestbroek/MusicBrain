@@ -212,7 +212,7 @@ class Board:
     (hatch edge 0.5)
     (connect_pads yes (clearance 0.3))
     (min_thickness 0.2) (filled_areas_thickness no)
-    (fill yes (thermal_gap 0.5) (thermal_bridge_width 0.5) (island_removal_mode 1) (island_area_min 10))
+    (fill yes (thermal_gap 0.5) (thermal_bridge_width 0.5))
     (polygon (pts
       (xy {bx0+0.5} {by0+0.5}) (xy {bx1-0.5} {by0+0.5})
       (xy {bx1-0.5} {by1-0.5}) (xy {bx0+0.5} {by1-0.5})
