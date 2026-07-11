@@ -1,7 +1,9 @@
 # MusicBrain busboard v2 — 16×CS / 12×IRQ + expansie + MIDI/CAN/codec/TUNE
 
-**Status**: schema AF (ERC 0, geometrie-gedreven pinvolgordes); placement AF
-(courtyard-DRC 0); **koper in aanbouw** (freerouting) — **nog niet bestellen**.
+**Status**: rev 2.0 AF — ERC 0, netlijst pad-voor-pad geverifieerd, **DRC 0/0**;
+koper via de freerouting-pijplijn (+ hybride narun voor /CAN_TX en /IRQ5,
+GND-hechtvia's automatisch geplaatst met `gnd_stitch.py`/`gnd_bridge.py`).
+Fab-pakket in `fab/`. **Bestelbaar.**
 **Plan + pintabel**: `doc/busboard-v2-plan.md` (leidend voor alle pinnummers).
 
 ## Blokken

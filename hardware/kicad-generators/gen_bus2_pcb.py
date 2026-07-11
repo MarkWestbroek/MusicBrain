@@ -1112,6 +1112,17 @@ for sx_, sy_ in ((20, 22), (210, 20), (20, 122), (210, 118), (120, 36.8), (66, 3
                  (150, 124), (90, 12), (150, 20.3), (57, 124), (110, 124),
                  (44, 22), (100, 11), (170, 12), (62, 11)):
     V('GND', sx_, sy_)
+# eiland-hechtvia's: automatisch geplaatst door gnd_stitch.py (clearance-gecheckt)
+import json as _json
+_stitch = _os_path = None
+try:
+    import os as _os3
+    _sf = _os3.path.join(_os3.path.dirname(OUT), 'gnd_stitch.json')
+    if _os3.path.exists(_sf):
+        for _sx, _sy in _json.load(open(_sf)):
+            V('GND', _sx, _sy)
+except Exception as _e:
+    print('gnd_stitch:', _e)
 
 _tu = [0]
 def tuid():
@@ -1130,17 +1141,33 @@ if _os2.environ.get('BUS2_NOROUTE') or _os2.path.exists(_ses_path):
     vias = [v for v in vias if v[0] == NI['GND']]
 if not _os2.environ.get('BUS2_NOROUTE') and _os2.path.exists(_ses_path):
     import seslib as _seslib
+    # /CAN_TX en /IRQ5 komen volledig uit de hybride na-run (bus2-hybrid.ses);
+    # hun partiele stukken in de hoofd-SES slaan we over
+    _ses2 = _os2.path.join(_os2.path.dirname(OUT), 'bus2-hybrid.ses')
+    _HYB = {'/CAN_TX', '/IRQ5'} if _os2.path.exists(_ses2) else set()
     _st, _sv = _seslib.load_ses(_ses_path)
     _n = _nv = 0
     for _name, _layer, _width, _pts in _st:
-        if _name in NI and _name != 'GND':
+        if _name in NI and _name != 'GND' and _name not in _HYB:
             tracks.append((NI[_name], _layer, max(_width, 0.2), _pts))
             _n += 1
     for _name, _x, _y in _sv:
-        if _name in NI and _name != 'GND':
+        if _name in NI and _name != 'GND' and _name not in _HYB:
             vias.append((NI[_name], _x, _y))
             _nv += 1
     print(f'SES: {_n} sporen, {_nv} vias overgenomen')
+    if _HYB:
+        _st2, _sv2 = _seslib.load_ses(_ses2)
+        _n2 = _nv2 = 0
+        for _name, _layer, _width, _pts in _st2:
+            if _name in _HYB:
+                tracks.append((NI[_name], _layer, max(_width, 0.2), _pts))
+                _n2 += 1
+        for _name, _x, _y in _sv2:
+            if _name in _HYB:
+                vias.append((NI[_name], _x, _y))
+                _nv2 += 1
+        print(f'SES2 (hybride CAN_TX/IRQ5): {_n2} sporen, {_nv2} vias')
 
 track_txt = []
 for net, layer, w, pts in tracks:
@@ -1213,7 +1240,7 @@ def zone(layer):
     (hatch edge 0.5)
     (connect_pads yes (clearance 0.3))
     (min_thickness 0.2) (filled_areas_thickness no)
-    (fill yes (thermal_gap 0.5) (thermal_bridge_width 0.5) (island_removal_mode 1) (island_area_min 10))
+    (fill yes (thermal_gap 0.5) (thermal_bridge_width 0.5))
     (polygon (pts
       (xy {BX0+0.5} {BY0+0.5}) (xy {BX1-0.5} {BY0+0.5})
       (xy {BX1-0.5} {BY1-0.5}) (xy {BX0+0.5} {BY1-0.5})

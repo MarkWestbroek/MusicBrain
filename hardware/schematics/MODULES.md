@@ -4,24 +4,24 @@ Actuele stand per bord. **Bestelbaar** = ERC 0 + netcheck OK + DRC 0/0 +
 fab-pakket (`<bord>/fab/…-gerbers.zip` + BOM/CPL in JLC-formaat) ververst.
 Vul zelf *aantal besteld* en *besteldatum* in bij het bestellen.
 
-| Module | Versie | Status | Opmerkingen | Aantal besteld | Besteldatum |
-|---|---|---|---|---|---|
-| ad5754r-breakout | 1.0 | bestelbaar | 4× CV-uit breakout (AD5754 + ADR421) | | |
-| musicbrain-adc8 | 1.2 | bestelbaar | recht-toe-bedrading; fw-spiegel zit in `MbAdc8` | | |
-| musicbrain-dac8 | 1.0 | bestelbaar | silk-URL verplaatst 2026-07-11 (koper gelijk) | | |
-| musicbrain-gate8 | 1.1 | bestelbaar | | | |
-| musicbrain-gatein8 | 1.0 | bestelbaar | silk-URL verplaatst 2026-07-11 (koper gelijk) | | |
-| musicbrain-jack8 | 1.2 | bestelbaar | socket op front-koppel-standaard (x16,5 / pin1 43,57) | | |
-| musicbrain-jack4 | 1.2 | bestelbaar | idem; alleen nodig voor kabel-breakout | | |
-| musicbrain-riser | 1.0 | bestelbaar | generieke slot-verlenger (prototyping/toekomstige fronts) | | |
-| musicbrain-pot8front | 1.1 | bestelbaar | ⚠️ SHAFT_OFFSET (4,5 aanname) aan fysieke pot meten vóór paneel-fab | | |
-| musicbrain-potriser | 1.0 | bestelbaar | MCP3208-riser onder pot8front; pin-1-passing checken | | |
-| musicbrain-enc5front | 2.0 | bestelbaar | 30 mm breed, uiterst links/rechts; ⚠️ QFN-pinout checken vóór assemblage | | |
-| musicbrain-i2criser | 1.0 | bestelbaar | domme I²C-riser onder enc5front | | |
-| musicbrain-busboard-v2 | 2.0 | in aanbouw | schema af (ERC 0); PCB-koper nog niet klaar — NIET bestellen | | |
-| ~~musicbrain-busboard~~ | 1.1 | deprecated | vervangen door v2 (16×CS/12×IRQ + expansie) — in `deprecated/` | | |
-| ~~musicbrain-enc4~~ | 1.0 | deprecated | vervangen door enc5front + i2criser — in `deprecated/` | | |
-| ~~musicbrain-pot8~~ | 1.0 | deprecated | vervangen door pot8front + potriser — in `deprecated/` | | |
+| Module | Versie | Status | Opmerkingen | Aantal besteld | Prijs | Besteldatum |
+|---|---|---|---|---|---|---|
+| ad5754r-breakout | 1.0 | bestelbaar | 4× CV-uit breakout (AD5754 + ADR421) | | | |
+| musicbrain-adc8 | 1.2 | bestelbaar | recht-toe-bedrading; fw-spiegel zit in `MbAdc8` | 5 | 110 | |
+| musicbrain-dac8 | 1.0 | bestelbaar | silk-URL verplaatst 2026-07-11 (koper gelijk) | 5 (2 pcbc) | 160 | |
+| musicbrain-gate8 | 1.1 | bestelbaar | | 20 | 31 | |
+| musicbrain-gatein8 | 1.0 | bestelbaar | silk-URL verplaatst 2026-07-11 (koper gelijk) | 30 | 40 | |
+| musicbrain-jack8 | 1.2 | bestelbaar | socket op front-koppel-standaard (x16,5 / pin1 43,57) | 30 | 10 | |
+| musicbrain-jack4 | 1.2 | bestelbaar | idem; alleen nodig voor kabel-breakout | 30 | 7,50 | |
+| musicbrain-riser | 1.0 | bestelbaar | generieke slot-verlenger (prototyping/toekomstige fronts) | 30 | 10 | |
+| musicbrain-pot8front | 1.1 | bestelbaar | ⚠️ SHAFT_OFFSET (4,5 aanname) aan fysieke pot meten vóór paneel-fab | 30 | 10 | |
+| musicbrain-potriser | 1.0 | bestelbaar | MCP3208-riser onder pot8front; pin-1-passing checken | 10 | 46 | |
+| musicbrain-enc5front | 2.0 | bestelbaar | 30 mm breed, uiterst links/rechts; ⚠️ QFN-pinout checken vóór assemblage | 10 | 53 | | |
+| musicbrain-i2criser | 1.0 | bestelbaar | domme I²C-riser onder enc5front | 30|10 | |
+| musicbrain-busboard-v2 | 2.0 | bestelbaar | DRC 0/0 2026-07-11 avond; 16×CS/12×IRQ + expansie/MIDI/CAN/codec/TUNE | | | |
+| ~~musicbrain-busboard~~ | 1.1 | deprecated | vervangen door v2 (16×CS/12×IRQ + expansie) — in `deprecated/` | | | |
+| ~~musicbrain-enc4~~ | 1.0 | deprecated | vervangen door enc5front + i2criser — in `deprecated/` | | | |
+| ~~musicbrain-pot8~~ | 1.0 | deprecated | vervangen door pot8front + potriser — in `deprecated/` | | | |
 
 ## Samenhang (wat heb je samen nodig)
 
