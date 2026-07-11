@@ -5,17 +5,17 @@
       "Application": "Pcbnew",
       "Version": "10.0.3"
     },
-    "CreationDate": "2026-07-11T15:12:05+02:00"
+    "CreationDate": "2026-07-11T15:12:07+02:00"
   },
   "GeneralSpecs": {
     "ProjectId": {
-      "Name": "musicbrain-enc5front",
-      "GUID": "6d757369-6362-4726-9169-6e2d656e6335",
-      "Revision": "2.0"
+      "Name": "musicbrain-i2criser",
+      "GUID": "6d757369-6362-4726-9169-6e2d69326372",
+      "Revision": "1.0"
     },
     "Size": {
-      "X": 30.1,
-      "Y": 110.1
+      "X": 28.1,
+      "Y": 80.1
     },
     "LayerNumber": 2,
     "BoardThickness": 1.6,
@@ -24,57 +24,57 @@
   "DesignRules": [
     {
       "Layers": "Outer",
-      "PadToPad": 0.15,
-      "PadToTrack": 0.15,
-      "TrackToTrack": 0.15,
-      "MinLineWidth": 0.2,
+      "PadToPad": 0.2,
+      "PadToTrack": 0.2,
+      "TrackToTrack": 0.2,
+      "MinLineWidth": 0.25,
       "TrackToRegion": 0.3,
       "RegionToRegion": 0.3
     }
   ],
   "FilesAttributes": [
     {
-      "Path": "musicbrain-enc5front-F_Cu.gbr",
+      "Path": "musicbrain-i2criser-F_Cu.gbr",
       "FileFunction": "Copper,L1,Top",
       "FilePolarity": "Positive"
     },
     {
-      "Path": "musicbrain-enc5front-B_Cu.gbr",
+      "Path": "musicbrain-i2criser-B_Cu.gbr",
       "FileFunction": "Copper,L2,Bot",
       "FilePolarity": "Positive"
     },
     {
-      "Path": "musicbrain-enc5front-F_Paste.gbr",
+      "Path": "musicbrain-i2criser-F_Paste.gbr",
       "FileFunction": "SolderPaste,Top",
       "FilePolarity": "Positive"
     },
     {
-      "Path": "musicbrain-enc5front-B_Paste.gbr",
+      "Path": "musicbrain-i2criser-B_Paste.gbr",
       "FileFunction": "SolderPaste,Bot",
       "FilePolarity": "Positive"
     },
     {
-      "Path": "musicbrain-enc5front-F_Silkscreen.gbr",
+      "Path": "musicbrain-i2criser-F_Silkscreen.gbr",
       "FileFunction": "Legend,Top",
       "FilePolarity": "Positive"
     },
     {
-      "Path": "musicbrain-enc5front-B_Silkscreen.gbr",
+      "Path": "musicbrain-i2criser-B_Silkscreen.gbr",
       "FileFunction": "Legend,Bot",
       "FilePolarity": "Positive"
     },
     {
-      "Path": "musicbrain-enc5front-F_Mask.gbr",
+      "Path": "musicbrain-i2criser-F_Mask.gbr",
       "FileFunction": "SolderMask,Top",
       "FilePolarity": "Negative"
     },
     {
-      "Path": "musicbrain-enc5front-B_Mask.gbr",
+      "Path": "musicbrain-i2criser-B_Mask.gbr",
       "FileFunction": "SolderMask,Bot",
       "FilePolarity": "Negative"
     },
     {
-      "Path": "musicbrain-enc5front-Edge_Cuts.gbr",
+      "Path": "musicbrain-i2criser-Edge_Cuts.gbr",
       "FileFunction": "Profile",
       "FilePolarity": "Positive"
     }

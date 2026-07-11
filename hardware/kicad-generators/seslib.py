@@ -76,21 +76,26 @@ def load_ses(path):
     return tracks, vias
 
 
-def apply_ses(board, path, net_prefix=''):
-    """Zet SES-routing op een cardlib.Board. Netnamen moeten in board.NI staan."""
+def apply_ses(board, path, net_prefix='', only=None, skip=()):
+    """Zet SES-routing op een cardlib.Board. Netnamen moeten in board.NI staan.
+    only: optionele verzameling netnamen - alleen die worden overgenomen.
+    skip: netnamen die worden overgeslagen (bijv. voorgezaaide seeds die de
+    generator zelf al als sporen emit)."""
     tracks, vias = load_ses(path)
     nt = nv = 0
     for name, layer, width, pts in tracks:
         if name not in board.NI:
             name = net_prefix + name
-        if name not in board.NI:
+        if (name not in board.NI or name in skip
+                or (only is not None and name not in only)):
             continue
         board.T(name, layer, max(width, 0.2), *pts)
         nt += 1
     for name, x, y in vias:
         if name not in board.NI:
             name = net_prefix + name
-        if name not in board.NI:
+        if (name not in board.NI or name in skip
+                or (only is not None and name not in only)):
             continue
         board.V(name, x, y)
         nv += 1

@@ -79,8 +79,10 @@ class Board:
         self.NI = {n: i for i, n in enumerate(nets)}
         self.date = date
         self.P = {}
+        self.PNET = {}         # ref -> {pad: net-index} (alleen fp()-pads)
         self.fp_texts = []
         self.tracks, self.vias, self.extra = [], [], []
+        self.paper = "A4"      # zet op "A3" voor borden die van A4-landscape vallen
         self._u = 0
 
     def uid(self):
@@ -127,6 +129,7 @@ class Board:
                     if num in netmap:
                         idx, name = netmap[num]
                         node.append(['net', str(idx), f'"{name}"'])
+                        self.PNET.setdefault(ref, {})[key] = idx
             body.append(node)
         at = ['at', fmt(x), fmt(y), str(rot)] if rot else ['at', fmt(x), fmt(y)]
         tree[2:] = [['uuid', f'"{self.uid()}"'], at, ['path', f'"/{path_uuid}"']] + body
@@ -141,6 +144,39 @@ class Board:
     def V(self, net, x, y):
         self.vias.append((self.NI[net], x, y))
 
+    def snap_stubs(self, r=1.4):
+        """Verleng bungelende SES-spooruiteinden naar het dichtstbijzijnde pad
+        van hetzelfde net binnen r mm. Freerouting eindigt soms 0,1-1,3 mm voor
+        een (QFN-)padcentrum omdat zijn padbenadering iets groter is dan die
+        van KiCad; DRC ziet dat als unconnected."""
+        import math
+        from collections import Counter
+        pads = []
+        for ref, m in self.PNET.items():
+            for pad, ni in m.items():
+                px, py = self.P[ref][pad]
+                pads.append((ni, px, py))
+        ends = Counter()
+        for net, layer, w, pts in self.tracks:
+            ends[(net, round(pts[0][0], 3), round(pts[0][1], 3))] += 1
+            ends[(net, round(pts[-1][0], 3), round(pts[-1][1], 3))] += 1
+        added = 0
+        for net, layer, w, pts in list(self.tracks):
+            for end in (pts[0], pts[-1]):
+                if ends[(net, round(end[0], 3), round(end[1], 3))] != 1:
+                    continue    # geen bungelend uiteinde
+                best = None
+                for ni, px, py in pads:
+                    if ni != net:
+                        continue
+                    d = math.hypot(end[0] - px, end[1] - py)
+                    if 0.05 < d <= r and (best is None or d < best[0]):
+                        best = (d, px, py)
+                if best:
+                    self.tracks.append((net, layer, w, (tuple(end), (best[1], best[2]))))
+                    added += 1
+        return added
+
     def write(self, out):
         bx0, by0, bx1, by1 = self.b
         header = f'''(kicad_pcb
@@ -148,7 +184,7 @@ class Board:
   (generator "pcbnew")
   (generator_version "8.0")
   (general (thickness 1.6) (legacy_teardrops no))
-  (paper "A4")
+  (paper "{self.paper}")
   (title_block
     (title "{self.title}")
     (date "{self.date}")

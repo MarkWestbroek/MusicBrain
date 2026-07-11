@@ -1,7 +1,11 @@
-# MusicBrain jack4 — Thonkiconn-paneeldrager (8 jacks)
+# MusicBrain jack4 — Thonkiconn-paneeldrager (4 jacks)
 
-**Status**: schema ERC-schoon; PCB volledig geroute (DRC 0/0). Bord 20×65 mm.
+**Status**: rev 1.2 — schema ERC-schoon; PCB volledig geroute (DRC 0/0). Bord 20×65 mm.
 **Zusje: `musicbrain-jack8/` (8 jacks + 1×10 header).**
+
+**v1.2 (2026-07-11)**: socket op de **front-koppel-standaard** (kolom x = 16,5
+van de westrand, pin 1 op 43,57 van de bovenrand); 3D-model op de gatenrij;
+silk-URL naar bordmidden; PCB-papier A3.
 
 ## Wat het is
 

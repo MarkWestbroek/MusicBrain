@@ -1,8 +1,12 @@
 # MusicBrain POT8-FRONT — dom front, 8× RK097N verticaal
 
-**Status**: ERC 0, netlijst pad-voor-pad geverifieerd, DRC 0/0. Bord 20×110 mm, 2 lagen.
+**Status**: rev 1.1 — ERC 0, netlijst pad-voor-pad geverifieerd, DRC 0/0. Bord 20×110 mm, 2 lagen.
 **Model**: route 2 (2026-07-11): plat front-bord aan het paneel; elektronica zit
 op de riser/kaart eronder. Dit bord is puur passief.
+
+**v1.1 (2026-07-11)**: 3D-model van de socket staat nu óp de gatenrij
+(canonieke geflipte footprint-vorm); silk-URL naar bordmidden (viel over de
+rand); PCB-papier A3. Koper identiek aan v1.0.
 
 ## Geometrie (de front-standaard)
 

@@ -16,6 +16,7 @@ musicbrain-riser:musicbrain-riser
 musicbrain-pot8front:musicbrain-pot8front
 musicbrain-potriser:musicbrain-potriser
 musicbrain-enc5front:musicbrain-enc5front
+musicbrain-i2criser:musicbrain-i2criser
 "
 
 # optioneel: alleen geselecteerde borden (komma-gescheiden dir-namen als arg 1)

@@ -15,9 +15,13 @@ paneel liggen terwijl de elektronica (chip) op het front-bord zit.
 - **J2** (haakse male 2×10, bovenrand): naar het front-bord — draagt **alle**
   buslijnen mee (power + SPI + CS + LDAC + I2C + IRQ + SPARE).
 
-Eén riser past onder **elk** front-bord: POT8 gebruikt de SPI-lijnen
-(MCP3208), ENC de I2C-lijnen (MCP23017), enz. Ongebruikte lijnen liggen stil —
-precies zoals een gewone kaart niet alle buslijnen gebruikt.
+Eén riser past onder **elk** front-bord dat de volledige 2×10-bus wil zien.
+Let op (stand 2026-07-11): de twee bestaande front-sporen gebruiken inmiddels
+**eigen smalle risers** — het pot-spoor de `musicbrain-potriser` (MCP3208 op
+de riser, 1×10 naar het front) en het enc-spoor de `musicbrain-i2criser`
+(domme I2C-doorlus, 1×10 naar het front). De generieke riser blijft nuttig
+als slot-verlenger voor prototyping en voor toekomstige fronts die meer
+buslijnen nodig hebben.
 
 ## Front-koppel-pinout (J2)
 

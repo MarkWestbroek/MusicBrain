@@ -1,7 +1,12 @@
 # MusicBrain jack8 — Thonkiconn-paneeldrager (8 jacks)
 
-**Status**: schema ERC-schoon; PCB volledig geroute (DRC 0/0). Bord 20×125 mm.
+**Status**: rev 1.2 — schema ERC-schoon; PCB volledig geroute (DRC 0/0). Bord 20×125 mm.
 **Zusje**: `musicbrain-jack4/` (4 jacks + 1×6 header, half zo hoog).
+
+**v1.2 (2026-07-11)**: socket op de **front-koppel-standaard** (kolom x = 16,5
+van de westrand, pin 1 op 43,57 van de bovenrand — identiek aan pot8front);
+3D-model staat nu óp de gatenrij (canonieke geflipte footprint-vorm);
+silk-URL naar bordmidden; PCB-papier A3.
 
 ## Wat het is
 
@@ -17,9 +22,9 @@ en printje op elkaar — geen extra steunen nodig.
 - **Montage**: de female socket wordt op de **achterzijde** gesoldeerd
   (opening richting kaart); de kaart krijgt aan zijn frontrand een haakse
   male header. Het silkscreen op de achterzijde markeert de positie.
-- Headerpositie: hart in het **midden van de strip**; de kaart heeft zijn
-  paneelconnector recht boven het slotcentrum (spec-standaard), zodat elk
-  jack-printje op elke kaart past en de strips op de bovenplaat uitlijnen.
+- Headerpositie (v1.2): **front-koppel-standaard** — kolom x = 16,5 van de
+  westrand, pin 1 op y = 43,57 van de bovenrand; identiek op jack8, jack4,
+  pot8front en enc5front, zodat strips en risers overal uitlijnen.
 
 ## JP1: schakelcontact-normalling
 
