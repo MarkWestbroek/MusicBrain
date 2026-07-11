@@ -350,7 +350,7 @@ FPS += [
     ('Package_TO_SOT_SMD.pretty\\SOT-23.kicad_mod', 'Package_TO_SOT_SMD:SOT-23',
      'D3', 'BAT54S', 62, 16.5, D3_MAP, 0),
     ('Resistor_SMD.pretty\\R_0805_2012Metric.kicad_mod', 'Resistor_SMD:R_0805_2012Metric',
-     'R14', '100k', 48.9, 11.4, rc('/TUNE_J', '/TUNE_N'), 90),
+     'R14', '100k', 48.9, 12.6, rc('/TUNE_J', '/TUNE_N'), 90),
     ('Resistor_SMD.pretty\\R_0805_2012Metric.kicad_mod', 'Resistor_SMD:R_0805_2012Metric',
      'R15', '100k', 51.5, 12.2, rc('/TUNE_N', 'GND'), 90),
     ('Capacitor_SMD.pretty\\C_0805_2012Metric.kicad_mod', 'Capacitor_SMD:C_0805_2012Metric',
@@ -386,15 +386,15 @@ FPS += [
     ('Capacitor_SMD.pretty\\C_0805_2012Metric.kicad_mod', 'Capacitor_SMD:C_0805_2012Metric',
      'C9', '220p', 40.9, 92.5, rc('/IRQSTAT', '/PL'), 0),
     ('Resistor_SMD.pretty\\R_0805_2012Metric.kicad_mod', 'Resistor_SMD:R_0805_2012Metric',
-     'R33', '10k', 143, 8.7, rc('+3V3', '/PL2'), 90),
+     'R33', '10k', 142.5, 12.8, rc('+3V3', '/PL2'), 90),
     ('Capacitor_SMD.pretty\\C_0805_2012Metric.kicad_mod', 'Capacitor_SMD:C_0805_2012Metric',
-     'C18', '220p', 146, 8.7, rc('/IRQSTAT', '/PL2'), 90),
+     'C18', '220p', 145, 12.5, rc('/IRQSTAT', '/PL2'), 90),
     ('Capacitor_SMD.pretty\\C_0805_2012Metric.kicad_mod', 'Capacitor_SMD:C_0805_2012Metric',
      'C10', '100n', 49.5, 66.5, rc('+3V3', 'GND'), 90),   # U4
     ('Capacitor_SMD.pretty\\C_0805_2012Metric.kicad_mod', 'Capacitor_SMD:C_0805_2012Metric',
      'C15', '100n', 34.6, 99.2, rc('+3V3', 'GND'), 0),  # U5
     ('Capacitor_SMD.pretty\\C_0805_2012Metric.kicad_mod', 'Capacitor_SMD:C_0805_2012Metric',
-     'C16', '100n', 153, 8.2, rc('+3V3', 'GND'), 90),  # U6
+     'C16', '100n', 152, 22.8, rc('+3V3', 'GND'), 90),  # U6
     ('Capacitor_SMD.pretty\\C_0805_2012Metric.kicad_mod', 'Capacitor_SMD:C_0805_2012Metric',
      'C17', '100n', 63, 80, rc('+3V3', 'GND'), 0),        # U7
     ('Capacitor_SMD.pretty\\C_0805_2012Metric.kicad_mod', 'Capacitor_SMD:C_0805_2012Metric',
@@ -1117,6 +1117,30 @@ _tu = [0]
 def tuid():
     _tu[0] += 1
     return f'c4000000-0000-4000-8000-{_tu[0]:012d}'
+
+# Koper-modus (2026-07-11): de handrouting hierboven stamt van vóór de
+# placement-reparatie en is grotendeels kapot (99 netten met DRC-fouten).
+# BUS2_NOROUTE=1 -> alleen GND-hechtvia's emitten (placement-bord voor de
+# DSN-export); zonder env-var wordt een aanwezige SES (freerouting) native
+# toegepast bovenop de GND-via's.
+import os as _os2
+_ses_path = _os2.path.join(_os2.path.dirname(OUT), 'musicbrain-busboard-v2.ses')
+if _os2.environ.get('BUS2_NOROUTE') or _os2.path.exists(_ses_path):
+    tracks = []
+    vias = [v for v in vias if v[0] == NI['GND']]
+if not _os2.environ.get('BUS2_NOROUTE') and _os2.path.exists(_ses_path):
+    import seslib as _seslib
+    _st, _sv = _seslib.load_ses(_ses_path)
+    _n = _nv = 0
+    for _name, _layer, _width, _pts in _st:
+        if _name in NI and _name != 'GND':
+            tracks.append((NI[_name], _layer, max(_width, 0.2), _pts))
+            _n += 1
+    for _name, _x, _y in _sv:
+        if _name in NI and _name != 'GND':
+            vias.append((NI[_name], _x, _y))
+            _nv += 1
+    print(f'SES: {_n} sporen, {_nv} vias overgenomen')
 
 track_txt = []
 for net, layer, w, pts in tracks:
