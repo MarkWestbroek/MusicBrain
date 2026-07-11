@@ -282,9 +282,9 @@ FPS = [
     ('Connector_IDC.pretty\\IDC-Header_2x05_P2.54mm_Vertical.kicad_mod',
      'Connector_IDC:IDC-Header_2x05_P2.54mm_Vertical', 'J9', 'PWR IN', 22, 108, J9_MAP, 0),
     ('Converter_DCDC.pretty\\Converter_DCDC_RECOM_R-78E-0.5_THT.kicad_mod',
-     'Converter_DCDC:Converter_DCDC_RECOM_R-78E-0.5_THT', 'U2', 'R-78E5.0-0.5', 62, 108, U2_MAP, 0),
+     'Converter_DCDC:Converter_DCDC_RECOM_R-78E-0.5_THT', 'U2', 'R-78E5.0-0.5', 62, 72, U2_MAP, 0),
     ('Package_TO_SOT_SMD.pretty\\SOT-223-3_TabPin2.kicad_mod',
-     'Package_TO_SOT_SMD:SOT-223-3_TabPin2', 'U3', 'AMS1117-3.3', 80, 104, U3_MAP, 0),
+     'Package_TO_SOT_SMD:SOT-223-3_TabPin2', 'U3', 'AMS1117-3.3', 80, 91, U3_MAP, 0),
     ('Resistor_SMD.pretty\\R_0805_2012Metric.kicad_mod',
      'Resistor_SMD:R_0805_2012Metric', 'R1', '33R', 53, 73.02,
      rc('Net-(U1-13{slash}SCK)', '/SCLK'), 0),
@@ -348,9 +348,9 @@ FPS += [
     ('Package_TO_SOT_SMD.pretty\\SOT-23-5.kicad_mod', 'Package_TO_SOT_SMD:SOT-23-5',
      'U13', '74LVC1G17', 54, 16.5, U13_MAP, 0),
     ('Package_TO_SOT_SMD.pretty\\SOT-23.kicad_mod', 'Package_TO_SOT_SMD:SOT-23',
-     'D3', 'BAT54S', 48, 16.5, D3_MAP, 0),
+     'D3', 'BAT54S', 62, 16.5, D3_MAP, 0),
     ('Resistor_SMD.pretty\\R_0805_2012Metric.kicad_mod', 'Resistor_SMD:R_0805_2012Metric',
-     'R14', '100k', 46.5, 12.2, rc('/TUNE_J', '/TUNE_N'), 90),
+     'R14', '100k', 48.9, 11.4, rc('/TUNE_J', '/TUNE_N'), 90),
     ('Resistor_SMD.pretty\\R_0805_2012Metric.kicad_mod', 'Resistor_SMD:R_0805_2012Metric',
      'R15', '100k', 51.5, 12.2, rc('/TUNE_N', 'GND'), 90),
     ('Capacitor_SMD.pretty\\C_0805_2012Metric.kicad_mod', 'Capacitor_SMD:C_0805_2012Metric',
@@ -359,11 +359,11 @@ FPS += [
 # decoder + IRQ-keten + buffer
 FPS += [
     ('Package_SO.pretty\\SOIC-24W_7.5x15.4mm_P1.27mm.kicad_mod',
-     'Package_SO:SOIC-24W_7.5x15.4mm_P1.27mm', 'U4', '74HC154', 53, 57, U4_MAP, 180),
+     'Package_SO:SOIC-24W_7.5x15.4mm_P1.27mm', 'U4', '74HC154', 55.5, 57, U4_MAP, 180),
     ('Package_SO.pretty\\SOIC-16_3.9x9.9mm_P1.27mm.kicad_mod',
-     'Package_SO:SOIC-16_3.9x9.9mm_P1.27mm', 'U5', '74HC165', 37, 103.2, U5_MAP, 90),
+     'Package_SO:SOIC-16_3.9x9.9mm_P1.27mm', 'U5', '74HC165', 37, 107, U5_MAP, 90),
     ('Package_SO.pretty\\SOIC-16_3.9x9.9mm_P1.27mm.kicad_mod',
-     'Package_SO:SOIC-16_3.9x9.9mm_P1.27mm', 'U6', '74HC165', 146, 15.5, U6_MAP, 90),
+     'Package_SO:SOIC-16_3.9x9.9mm_P1.27mm', 'U6', '74HC165', 153, 15.5, U6_MAP, 90),
     ('Package_TO_SOT_SMD.pretty\\SOT-23-5.kicad_mod', 'Package_TO_SOT_SMD:SOT-23-5',
      'U7', '74LVC1G125', 59, 84, U7_MAP, 0),
     ('Package_SO.pretty\\SOIC-20W_7.5x12.8mm_P1.27mm.kicad_mod',
@@ -371,7 +371,7 @@ FPS += [
     ('Connector_IDC.pretty\\IDC-Header_2x13_P2.54mm_Vertical.kicad_mod',
      'Connector_IDC:IDC-Header_2x13_P2.54mm_Vertical', 'J21', 'EXPANSION', 108, 22.5, J21_MAP, 90),
     ('Package_SO.pretty\\SOIC-8_3.9x4.9mm_P1.27mm.kicad_mod',
-     'Package_SO:SOIC-8_3.9x4.9mm_P1.27mm', 'U12', 'SN65HVD230', 86, 102, U12_MAP, 0),
+     'Package_SO:SOIC-8_3.9x4.9mm_P1.27mm', 'U12', 'SN65HVD230', 92, 99, U12_MAP, 0),
     ('Package_DIP.pretty\\DIP-6_W7.62mm.kicad_mod', 'Package_DIP:DIP-6_W7.62mm',
      'U9', 'H11L1', 52, 100, U9_MAP, 0),
     ('Package_DIP.pretty\\DIP-6_W7.62mm.kicad_mod', 'Package_DIP:DIP-6_W7.62mm',
@@ -382,27 +382,27 @@ FPS += [
 # RC's / pulldowns / serie-R's / jumpers
 FPS += [
     ('Resistor_SMD.pretty\\R_0805_2012Metric.kicad_mod', 'Resistor_SMD:R_0805_2012Metric',
-     'R5', '10k', 31.5, 96.2, rc('+3V3', '/PL'), 0),
+     'R5', '10k', 34.3, 96.2, rc('+3V3', '/PL'), 0),
     ('Capacitor_SMD.pretty\\C_0805_2012Metric.kicad_mod', 'Capacitor_SMD:C_0805_2012Metric',
-     'C9', '220p', 45.0, 92.5, rc('/IRQSTAT', '/PL'), 0),
+     'C9', '220p', 40.9, 92.5, rc('/IRQSTAT', '/PL'), 0),
     ('Resistor_SMD.pretty\\R_0805_2012Metric.kicad_mod', 'Resistor_SMD:R_0805_2012Metric',
-     'R33', '10k', 138, 13, rc('+3V3', '/PL2'), 90),
+     'R33', '10k', 143, 8.7, rc('+3V3', '/PL2'), 90),
     ('Capacitor_SMD.pretty\\C_0805_2012Metric.kicad_mod', 'Capacitor_SMD:C_0805_2012Metric',
-     'C18', '220p', 138, 17.5, rc('/IRQSTAT', '/PL2'), 90),
+     'C18', '220p', 146, 8.7, rc('/IRQSTAT', '/PL2'), 90),
     ('Capacitor_SMD.pretty\\C_0805_2012Metric.kicad_mod', 'Capacitor_SMD:C_0805_2012Metric',
-     'C10', '100n', 47, 64.8, rc('+3V3', 'GND'), 90),   # U4
+     'C10', '100n', 49.5, 66.5, rc('+3V3', 'GND'), 90),   # U4
     ('Capacitor_SMD.pretty\\C_0805_2012Metric.kicad_mod', 'Capacitor_SMD:C_0805_2012Metric',
-     'C15', '100n', 28.6, 103, rc('+3V3', 'GND'), 0),  # U5
+     'C15', '100n', 34.6, 99.2, rc('+3V3', 'GND'), 0),  # U5
     ('Capacitor_SMD.pretty\\C_0805_2012Metric.kicad_mod', 'Capacitor_SMD:C_0805_2012Metric',
-     'C16', '100n', 152.5, 12.2, rc('+3V3', 'GND'), 90),  # U6
+     'C16', '100n', 153, 8.2, rc('+3V3', 'GND'), 90),  # U6
     ('Capacitor_SMD.pretty\\C_0805_2012Metric.kicad_mod', 'Capacitor_SMD:C_0805_2012Metric',
      'C17', '100n', 63, 80, rc('+3V3', 'GND'), 0),        # U7
     ('Capacitor_SMD.pretty\\C_0805_2012Metric.kicad_mod', 'Capacitor_SMD:C_0805_2012Metric',
-     'C11', '100n', 88, 27, rc('+3V3', 'GND'), 90),       # U8
+     'C11', '100n', 85.8, 24, rc('+3V3', 'GND'), 90),       # U8
     ('Capacitor_SMD.pretty\\C_0805_2012Metric.kicad_mod', 'Capacitor_SMD:C_0805_2012Metric',
-     'C12', '100n', 63.5, 93, rc('+3V3', 'GND'), 0),       # optos
+     'C12', '100n', 58, 93, rc('+3V3', 'GND'), 0),       # optos
     ('Capacitor_SMD.pretty\\C_0805_2012Metric.kicad_mod', 'Capacitor_SMD:C_0805_2012Metric',
-     'C13', '100n', 86, 97.5, rc('+3V3', 'GND'), 90),       # CAN
+     'C13', '100n', 88, 93.5, rc('+3V3', 'GND'), 90),       # CAN
 ]
 PDXY = [(78, 100.16), (98, 101.43), (118, 102.7), (138, 103.97),
         (158, 106.51), (178, 105.24)]
@@ -420,38 +420,38 @@ XR = [('R16', '/XSCLK0', '/XSCLK'), ('R17', '/XMOSI0', '/XMOSI'),
 for k, (ref, a, b) in enumerate(XR):   # 33R serie -> J21 (staand, noord van U8)
     FPS.append(('Resistor_SMD.pretty\\R_0805_2012Metric.kicad_mod',
                 'Resistor_SMD:R_0805_2012Metric', ref, '33R',
-                102.5 + 2.2 * k, 30.5, nm({'1': a, '2': b}), 270))
+                103.4 + 2.2 * k, 30.5, nm({'1': a, '2': b}), 270))
 # MIDI passief
 FPS += [
     ('Resistor_SMD.pretty\\R_0805_2012Metric.kicad_mod', 'Resistor_SMD:R_0805_2012Metric',
-     'R6', '220R', 54, 98.2, rc('/MIN1_4', '/MIN1_A'), 90),
+     'R6', '220R', 50, 94.8, rc('/MIN1_4', '/MIN1_A'), 90),
     ('Resistor_SMD.pretty\\R_0805_2012Metric.kicad_mod', 'Resistor_SMD:R_0805_2012Metric',
      'R7', '220R', 79.5, 116.5, rc('/MIN2_4', '/MIN2_A'), 270),
     ('Diode_SMD.pretty\\D_SOD-323.kicad_mod', 'Diode_SMD:D_SOD-323',
-     'D1', '1N4148WS', 56, 101.6, rc('/MIN1_A', '/MIN1_5'), 0),
+     'D1', '1N4148WS', 54, 91.5, rc('/MIN1_A', '/MIN1_5'), 0),
     ('Diode_SMD.pretty\\D_SOD-323.kicad_mod', 'Diode_SMD:D_SOD-323',
-     'D2', '1N4148WS', 78.5, 108.5, rc('/MIN2_A', '/MIN2_5'), 0),
+     'D2', '1N4148WS', 88.5, 108, rc('/MIN2_A', '/MIN2_5'), 0),
     ('Resistor_SMD.pretty\\R_0805_2012Metric.kicad_mod', 'Resistor_SMD:R_0805_2012Metric',
      'R8', '1k', 70, 100.4, rc('+3V3', '/MIDI_RX1'), 180),
     ('Resistor_SMD.pretty\\R_0805_2012Metric.kicad_mod', 'Resistor_SMD:R_0805_2012Metric',
-     'R9', '1k', 90.5, 106.5, rc('+3V3', '/MIDI_RX2'), 0),
+     'R9', '1k', 87.5, 105.3, rc('+3V3', '/MIDI_RX2'), 0),
     ('Resistor_SMD.pretty\\R_0805_2012Metric.kicad_mod', 'Resistor_SMD:R_0805_2012Metric',
-     'R10', '10R', 89.5, 113.5, rc('/MOUT_Y', '/MOUT5'), 0),
+     'R10', '10R', 92.5, 116, rc('/MOUT_Y', '/MOUT5'), 0),
     ('Resistor_SMD.pretty\\R_0805_2012Metric.kicad_mod', 'Resistor_SMD:R_0805_2012Metric',
-     'R11', '33R', 87.5, 119.5, rc('+3V3', '/MOUT4'), 90),
+     'R11', '33R', 87.5, 111.5, rc('+3V3', '/MOUT4'), 90),
 ]
 # CAN passief
 FPS += [
     ('Resistor_SMD.pretty\\R_0805_2012Metric.kicad_mod', 'Resistor_SMD:R_0805_2012Metric',
-     'R13', '10k', 91, 97, rc('/CAN_RS', 'GND'), 180),
+     'R13', '10k', 91, 93.8, rc('/CAN_RS', 'GND'), 180),
     ('Resistor_SMD.pretty\\R_0805_2012Metric.kicad_mod', 'Resistor_SMD:R_0805_2012Metric',
-     'R12', '120R', 98.5, 104, rc('/CANH', '/CAN_TRM'), 90),
+     'R12', '120R', 102, 104, rc('/CANH', '/CAN_TRM'), 90),
     ('Jumper.pretty\\SolderJumper-2_P1.3mm_Open_TrianglePad1.0x1.5mm.kicad_mod',
      'Jumper:SolderJumper-2_P1.3mm_Open_TrianglePad1.0x1.5mm',
      'JP1', 'TERM', 98.5, 107, JP1_MAP, 0),
 ]
 for hn, (hx, hy) in enumerate(((18, 13), (163, 13), (212, 13),
-                               (60, 122), (140, 122)), start=1):
+                               (125, 122), (140, 122)), start=1):
     FPS.append(('MountingHole.pretty\\MountingHole_3.2mm_M3.kicad_mod',
                 'MountingHole:MountingHole_3.2mm_M3',
                 f'H{hn}', 'M3', hx, hy, {}, 0))
@@ -1177,7 +1177,7 @@ extras = f'''
   (gr_rect (start {BX0} {BY0}) (end {BX1} {BY1})
     (stroke (width 0.1) (type default)) (fill none)
     (layer "Edge.Cuts") (uuid "{uid()}"))
-  (gr_text "musicbrain.nl/hw/busboard rev 2.0 - 16xCS/12xIRQ + expansie + MIDI/CAN/codec/TUNE" (at 132 119 0) (layer "F.SilkS")
+  (gr_text "musicbrain.nl/hw/busboard rev 2.0 - 16xCS/12xIRQ + expansie + MIDI/CAN/codec/TUNE" (at 140 86 0) (layer "F.SilkS")
     (uuid "{uid()}")
     (effects (font (size 1.5 1.5) (thickness 0.25))))
 '''
