@@ -5,13 +5,13 @@
       "Application": "Pcbnew",
       "Version": "10.0.3"
     },
-    "CreationDate": "2026-07-08T12:05:23+02:00"
+    "CreationDate": "2026-07-11T12:19:42+02:00"
   },
   "GeneralSpecs": {
     "ProjectId": {
       "Name": "musicbrain-adc8",
       "GUID": "6d757369-6362-4726-9169-6e2d61646338",
-      "Revision": "1.1"
+      "Revision": "1.2"
     },
     "Size": {
       "X": 40.1,

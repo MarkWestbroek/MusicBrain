@@ -34,7 +34,9 @@ class Adc8 {
     // Meest genoemde is MODE2 (CPOL=1, CPHA=0); pas aan als de data verschoven is.
     SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE2));
     digitalWriteFast(cs_, LOW);
-    for (uint8_t i = 0; i < 8; i++) out[i] = (int16_t)SPI.transfer16(0);
+    // ADC8 v1.2 (recht-toe-bedrading): AD7606-stream V1..V8 = paneeljack 8..1;
+    // terugspiegelen zodat out[0..7] = jack 1..8 (paneel boven->onder).
+    for (uint8_t i = 0; i < 8; i++) out[7 - i] = (int16_t)SPI.transfer16(0);
     digitalWriteFast(cs_, HIGH);
     SPI.endTransaction();
     return true;

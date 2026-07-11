@@ -56,7 +56,7 @@ voor een sample-synchrone update over álle DAC-kaarten tegelijk. Voor ADC-kaart
 | `MbGateIn8.h` | GATEIN8 | 74HC165, `read()` → bit0=IN1; ~PL-wacht ≥5 µs; bit-ontwarring |
 | `MbPot8.h` | POT8 | MCP3208, `read(ch)` 12-bit, ratiometrisch |
 | `MbDac8.h` | DAC8 | 2× AD5754 daisy, `set8(codes)`/`set(cv,code)` + `bus.ldacStrobe()` |
-| `MbAdc8.h` | ADC8 | AD7606, `read(out)` na `bus.convstStrobe()`, signed 16-bit |
+| `MbAdc8.h` | ADC8 | AD7606, `read(out)` na `bus.convstStrobe()`, signed 16-bit; v1.2-bord: stream gespiegeld zodat out[0..7] = paneeljack 1..8 |
 | `MbEnc4.h` | ENC4 | MCP23017 @0x20, `poll()` → `position()`/`pressed()` |
 
 `MbDac8`/`MbAdc8` zijn geadapteerd van **Nic Newdigate's bewezen firmware**

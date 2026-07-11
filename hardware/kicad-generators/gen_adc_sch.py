@@ -175,7 +175,8 @@ for k, (name, num, typ) in enumerate(RIGHT):
                   "Resistor_SMD:R_0805_2012Metric",
                   XR + 6.35, y - 1.45, XR + 13, y - 1.45, fs=1.0)
         wire(XR + 10.16, y, XR + 15.24, y)
-        label(f"IN{ch}", XR + 15.24, y)
+        # v1.2: recht-toe-bedrading - paneeljack j = V(9-j); remap in MbAdc8
+        label(f"IN{9-ch}", XR + 15.24, y)
 
 # ================= J1: bus connector =================
 BX, BY = 60, 110
@@ -508,7 +509,7 @@ doc = f'''(kicad_sch
   (title_block
     (title "MusicBrain ADC8 - 8x CV input slot card")
     (date "2026-07-07")
-    (rev "1.0")
+    (rev "1.2")
     (company "MusicBrain project")
     (comment 1 "AD7606 16-bit 8-ch simultaneous SAR, +/-10V direct, serial mode")
     (comment 2 "Bus slot card per doc/spi-bus-spec.md; CONVST=SPARE1, RESET=SPARE2")

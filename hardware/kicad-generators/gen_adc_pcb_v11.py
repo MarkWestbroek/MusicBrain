@@ -1,4 +1,4 @@
-"""Generate musicbrain-adc8.kicad_pcb v1.1 - H=80, haakse connectoren, volledig geroute.
+"""Generate musicbrain-adc8.kicad_pcb v1.2 - H=80, haakse connectoren, volledig geroute.
 
 Kaartmodel: x = B-richting (40mm: 100..140), y = H (80mm: 100..180).
 J1 haaks 2x10 onder (rot 270), J2 haaks 1x10 boven (rot 90), zelfde midden x=120.
@@ -202,8 +202,8 @@ FPS = [
 for k in range(8):
     FPS.append(('Resistor_SMD.pretty\\R_0805_2012Metric.kicad_mod',
                 'Resistor_SMD:R_0805_2012Metric', f'R{k+1}', '1k',
-                111.11 + 2.54 * k, 111.8, 90,
-                rc(f'Net-(U1-V{k+1})', f'/IN{k+1}')))
+                111.11 + 2.54 * (7 - k), 111.8, 90,
+                rc(f'Net-(U1-V{k+1})', f'/IN{8-k}')))
 
 fp_texts = []
 for f, lib, ref, val, x, y, rot, netmap in FPS:
@@ -246,18 +246,13 @@ def urow(pin):                 # y van west/oost-kolompin
 def ucol(pin):                 # x van noord/zuid-rijpin
     return P['U1'][str(pin)][0]
 
-# --- V-omkering: F-verticalen + B-lanes ---
-# lane-volgorde: y5<y4<y6<y1 en y5<y3<y8 (bijna-collineaire paren ontvlochten)
-LANE = {5: 118.4, 4: 119.2, 6: 120.0, 3: 120.8, 8: 121.6, 2: 122.4, 7: 123.2, 1: 124.0}
+# --- v1.2 recht-toe: ordebehoudende F-waaier (geen B-lanes/vias) ---
+JOG = {1: 120.3, 2: 119.6, 3: 118.9, 4: 118.2, 5: 118.2, 6: 118.9, 7: 119.6, 8: 120.3}
 for k in range(1, 9):
     xs = ucol(48 + 2 * k - 1)                 # chip-pin x (V_k)
-    xt = P[f'R{k}']['1'][0]                   # doelkolom
-    yl = LANE[k]
-    T(f'Net-(U1-V{k})', 'F.Cu', SW, (xs, YN), (xs, yl))
-    V(f'Net-(U1-V{k})', xs, yl)
-    T(f'Net-(U1-V{k})', 'B.Cu', SW, (xs, yl), (xt, yl))
-    V(f'Net-(U1-V{k})', xt, yl)
-    T(f'Net-(U1-V{k})', 'F.Cu', SW, (xt, yl), P[f'R{k}']['1'])
+    xt = P[f'R{k}']['1'][0]                   # doelkolom (= IN(9-k))
+    yj = JOG[k]
+    T(f'Net-(U1-V{k})', 'F.Cu', SW, (xs, YN), (xs, yj), (xt, yj), P[f'R{k}']['1'])
 # IN-stubs: R pad2 recht omhoog naar J2
 for k in range(1, 9):
     xt = P[f'R{k}']['2'][0]
@@ -413,7 +408,7 @@ header = f'''(kicad_pcb
   (title_block
     (title "MusicBrain ADC8 - 8x CV input slot card")
     (date "2026-07-08")
-    (rev "1.1")
+    (rev "1.2")
     (company "MusicBrain project")
   )
   (layers
@@ -463,7 +458,7 @@ extras = f'''
   (gr_rect (start {BX0} {BY0}) (end {BX1} {BY1})
     (stroke (width 0.1) (type default)) (fill none)
     (layer "Edge.Cuts") (uuid "{uid()}"))
-  (gr_text "musicbrain.nl/hw/adc8 rev 1.1" (at 102.5 140 90) (layer "F.SilkS")
+  (gr_text "musicbrain.nl/hw/adc8 rev 1.2" (at 102.5 140 90) (layer "F.SilkS")
     (uuid "{uid()}")
     (effects (font (size 1 1) (thickness 0.15))))
 '''

@@ -57,3 +57,11 @@ SPI/stuur-lijnen bereiken de westkolom van de chip via zes F-verticalen
 ("diepste entry → oostelijkste verticaal"), gevoed vanaf J1 via korte
 B-lanes onderin. De GND-pads tussen de V-escapes hangen aan een eigen
 verzamelrail (y 130,5) met via's naar het B-vlak.
+
+## v1.2 (2026-07-11): recht-toe-bedrading + firmware-remap
+
+De V-omkering (kruisende B.Cu-lanes) is eruit: **V-kanaal V_k is nu recht
+bedraad naar paneeljack (9−k)** — simpeler koper, minder via's. De remap zit
+in de firmware: `MbAdc8::read()` spiegelt de AD7606-stream zodat
+`out[0..7]` = paneeljack 1..8 (boven→onder). Jack-contract op J2 ongewijzigd
+(1=GND, 2..9=jack 1..8, 10=GND).

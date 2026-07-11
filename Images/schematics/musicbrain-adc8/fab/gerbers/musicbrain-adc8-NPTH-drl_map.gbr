@@ -1,12 +1,12 @@
 %TF.GenerationSoftware,KiCad,Pcbnew,10.0.3*%
-%TF.CreationDate,2026-07-08T12:05:23+02:00*%
-%TF.ProjectId,musicbrain-adc8,6d757369-6362-4726-9169-6e2d61646338,1.1*%
+%TF.CreationDate,2026-07-11T12:19:42+02:00*%
+%TF.ProjectId,musicbrain-adc8,6d757369-6362-4726-9169-6e2d61646338,1.2*%
 %TF.SameCoordinates,Original*%
 %TF.FileFunction,Drillmap*%
 %TF.FilePolarity,Positive*%
 %FSLAX45Y45*%
 G04 Gerber Fmt 4.5, Leading zero omitted, Abs format (unit mm)*
-G04 Created by KiCad (PCBNEW 10.0.3) date 2026-07-08 12:05:23*
+G04 Created by KiCad (PCBNEW 10.0.3) date 2026-07-11 12:19:42*
 %MOMM*%
 %LPD*%
 G01*
