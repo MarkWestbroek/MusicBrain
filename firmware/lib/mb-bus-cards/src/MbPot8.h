@@ -1,5 +1,5 @@
 // POT8 — 8 potmeters via MCP3208 (12-bit SAR, SPI).
-// Zie Images/schematics/musicbrain-pot8/. Ratiometrisch: VREF = VDD = +3V3,
+// Zie hardware/schematics/musicbrain-pot8/. Ratiometrisch: VREF = VDD = +3V3,
 // dus de uitlezing is direct de deler-stand 0..4095. Mode 0, <=2 MHz.
 #pragma once
 #include "MbBus.h"

@@ -1,5 +1,5 @@
 // DAC8 — 8 CV-uitgangen via 2x AD5754 in daisy-chain + ADR421-referentie.
-// Zie Images/schematics/musicbrain-dac8/. Geadapteerd van Nic Newdigate's
+// Zie hardware/schematics/musicbrain-dac8/. Geadapteerd van Nic Newdigate's
 // bewezen ad5754.h (register-map + 24-bit woordopbouw) en zijn daisy-voorbeeld
 // (02_write_both_ad5754): MOSI->U1->U2->MISO, één CS (= ~SYNC), 48-bit frames.
 //

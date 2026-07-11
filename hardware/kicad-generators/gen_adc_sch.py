@@ -1,7 +1,7 @@
 """Generate musicbrain-adc8.kicad_sch — 8x CV-in slot card (AD7606, serial mode)."""
 import os
 
-OUT_DIR = r"d:\Git\Muziek\MusicBrain\Images\schematics\musicbrain-adc8"
+OUT_DIR = r"d:\Git\Muziek\MusicBrain\hardware\schematics\musicbrain-adc8"
 OUT = OUT_DIR + r"\musicbrain-adc8.kicad_sch"
 ROOT = "f0000000-0000-4000-8000-000000000000"
 PROJ = "musicbrain-adc8"

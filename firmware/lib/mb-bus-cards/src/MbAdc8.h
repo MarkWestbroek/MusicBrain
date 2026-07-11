@@ -1,5 +1,5 @@
 // ADC8 — 8 CV-ingangen via AD7606 (16-bit, 8-ch simultaan, serieel).
-// Zie Images/schematics/musicbrain-adc8/. Geadapteerd van Nic Newdigate's
+// Zie hardware/schematics/musicbrain-adc8/. Geadapteerd van Nic Newdigate's
 // input_output_spi.cpp: CONVST idle-hoog, puls laag->hoog start de conversie
 // (op de stijgende flank); BUSY hoog tijdens ~4 us conversie; op BUSY-laag
 // klok je 8x16 bit uit DOUTA. RANGE staat via JP1 op de kaart (geen firmware).

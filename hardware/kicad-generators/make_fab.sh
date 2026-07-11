@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Genereer JLCPCB-fab-pakketten voor alle MusicBrain-borden.
 set -u
-ROOT="d:/Git/Muziek/MusicBrain/Images/schematics"
+ROOT="d:/Git/Muziek/MusicBrain/hardware/schematics"
 
 # dir:base  (base = bestandsnaam zonder extensie)
 BOARDS="

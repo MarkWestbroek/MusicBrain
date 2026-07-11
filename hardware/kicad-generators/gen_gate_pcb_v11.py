@@ -10,7 +10,7 @@ Kaartmodel (spec 'Mechanica-standaard kaarten'):
 import math, re
 
 FP_DIR = r"C:\Program Files\KiCad\10.0\share\kicad\footprints"
-OUT = r"d:\Git\Muziek\MusicBrain\Images\schematics\musicbrain-gate8\musicbrain-gate8.kicad_pcb"
+OUT = r"d:\Git\Muziek\MusicBrain\hardware\schematics\musicbrain-gate8\musicbrain-gate8.kicad_pcb"
 
 def tokenize(text):
     i, n = 0, len(text)
@@ -127,7 +127,7 @@ U2_MAP = nm({'1': 'GND', '2': '+5V', '3': '+12V'})
 J2_MAP = nm({'1': 'GND', '10': 'GND', **{str(k+1): f'/GATE{k}' for k in range(1, 9)}})
 def rc(a, b): return nm({'1': a, '2': b})
 
-sch_txt = open(r'd:\Git\Muziek\MusicBrain\Images\schematics\musicbrain-gate8\musicbrain-gate8.kicad_sch', encoding='utf-8').read()
+sch_txt = open(r'd:\Git\Muziek\MusicBrain\hardware\schematics\musicbrain-gate8\musicbrain-gate8.kicad_sch', encoding='utf-8').read()
 sym_uuid = {}
 for m in re.finditer(r'\(uuid "([0-9a-f-]+)"\)\s*\n\s*\(property "Reference" "([A-Z][A-Z0-9]*)"', sch_txt):
     sym_uuid[m.group(2)] = m.group(1)

@@ -1,12 +1,12 @@
 """MusicBrain DAC8 - 8x CV out (2x AD5754 daisy-chain + ADR421), sch + PCB."""
 import sys
-sys.path.insert(0, r'C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\99e404c8-b02c-48a1-b346-1e9bb9c444c9\scratchpad')
+import os as _os; sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
 from schlib import (Sch, conn_symbol, conn1_symbol, box_symbol, R_SYM, C_SYM,
                     CP_SYM, FLAG_SYM, power_symbol)
 from cardlib import Board
 import os
 
-OUT_DIR = r"d:\Git\Muziek\MusicBrain\Images\schematics\musicbrain-dac8"
+OUT_DIR = r"d:\Git\Muziek\MusicBrain\hardware\schematics\musicbrain-dac8"
 os.makedirs(OUT_DIR, exist_ok=True)
 DATE = "2026-07-08"
 

@@ -2,7 +2,7 @@
 import re
 
 FP_DIR = r"C:\Program Files\KiCad\10.0\share\kicad\footprints"
-OUT = r"d:\Git\Muziek\MusicBrain\Images\schematics\ad5754r-breakout\ad5754r-breakout.kicad_pcb"
+OUT = r"d:\Git\Muziek\MusicBrain\hardware\schematics\ad5754r-breakout\ad5754r-breakout.kicad_pcb"
 
 # ---------- minimal s-expression parser / serializer ----------
 

@@ -9,7 +9,7 @@ Gebruik: python jlc_fix.py <bord-fab-dir> [...]  (of zonder args: alle borden)
 """
 import csv, io, os, re, sys
 
-ROOT = r"d:\Git\Muziek\MusicBrain\Images\schematics"
+ROOT = r"d:\Git\Muziek\MusicBrain\hardware\schematics"
 
 def expand_refs(field):
     out = []

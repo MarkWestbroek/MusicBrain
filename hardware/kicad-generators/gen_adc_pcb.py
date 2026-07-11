@@ -2,11 +2,11 @@
 import re
 import sys
 
-sys.path.insert(0, r'C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\99e404c8-b02c-48a1-b346-1e9bb9c444c9\scratchpad')
+import os as _os; sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
 
 FP_DIR = r"C:\Program Files\KiCad\10.0\share\kicad\footprints"
-OUT = r"d:\Git\Muziek\MusicBrain\Images\schematics\musicbrain-adc8\musicbrain-adc8.kicad_pcb"
-SCH_FILE = r"d:\Git\Muziek\MusicBrain\Images\schematics\musicbrain-adc8\musicbrain-adc8.kicad_sch"
+OUT = r"d:\Git\Muziek\MusicBrain\hardware\schematics\musicbrain-adc8\musicbrain-adc8.kicad_pcb"
+SCH_FILE = r"d:\Git\Muziek\MusicBrain\hardware\schematics\musicbrain-adc8\musicbrain-adc8.kicad_sch"
 
 def tokenize(text):
     i, n = 0, len(text)

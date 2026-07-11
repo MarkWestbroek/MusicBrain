@@ -20,7 +20,7 @@ daartegen (net als de firmware-contract-keten).
 
 - **HEAD:** `9c806a4` "Fab-pakketten voor alle 10 borden".
 - **Alle borden af, geroute (DRC 0/0), ERC-schoon, netlijst pad-voor-pad
-  geverifieerd, én met een fab-pakket** in `Images/schematics/<bord>/fab/`:
+  geverifieerd, én met een fab-pakket** in `hardware/schematics/<bord>/fab/`:
 
 | Bord | Kern | Maat | Bus |
 |---|---|---|---|
@@ -88,7 +88,7 @@ bord:
   De busboard/ADC8/DAC8 hebben oudere standalone generators (`gen_bus_*.py`,
   `gen_adc_pcb_v11.py`, `gen_dac8.py`).
 - **`make_fab.sh`** — genereert voor álle borden gerbers + Excellon-drill + CPL
-  + JLCPCB-BOM; python-zip erachteraan. Zie `Images/schematics/FABRICATION.md`.
+  + JLCPCB-BOM; python-zip erachteraan. Zie `hardware/schematics/FABRICATION.md`.
 
 Deze bestanden staan in de **scratchpad** (niet in de repo). Als je verder
 bouwt, hergebruik ze; ze zijn de facto de "bibliotheek".

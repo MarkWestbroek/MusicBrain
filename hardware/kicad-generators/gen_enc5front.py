@@ -19,7 +19,7 @@ from cardlib import Board
 import os
 import re
 
-OUT_DIR = r"d:\Git\Muziek\MusicBrain\Images\schematics\musicbrain-enc5front"
+OUT_DIR = r"d:\Git\Muziek\MusicBrain\hardware\schematics\musicbrain-enc5front"
 os.makedirs(OUT_DIR, exist_ok=True)
 DATE = "2026-07-11"
 

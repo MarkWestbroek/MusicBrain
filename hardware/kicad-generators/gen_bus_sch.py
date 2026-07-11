@@ -1,7 +1,7 @@
 """Generate musicbrain-busboard.kicad_sch — Teensy 4.1 backplane per doc/spi-bus-spec.md."""
 import os
 
-OUT_DIR = r"d:\Git\Muziek\MusicBrain\Images\schematics\musicbrain-busboard"
+OUT_DIR = r"d:\Git\Muziek\MusicBrain\hardware\schematics\musicbrain-busboard"
 OUT = OUT_DIR + r"\musicbrain-busboard.kicad_sch"
 ROOT = "c0000000-0000-4000-8000-000000000000"
 PROJ = "musicbrain-busboard"

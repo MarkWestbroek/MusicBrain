@@ -1,5 +1,5 @@
 // GATE8 — 8 gate/trigger-uitgangen via 74HCT595 (write-only).
-// Zie Images/schematics/musicbrain-gate8/. SPI-mode 0; de stijgende CS-flank
+// Zie hardware/schematics/musicbrain-gate8/. SPI-mode 0; de stijgende CS-flank
 // (RCLK) klikt alle 8 bits glitch-vrij en gelijktijdig naar de uitgangen.
 #pragma once
 #include "MbBus.h"

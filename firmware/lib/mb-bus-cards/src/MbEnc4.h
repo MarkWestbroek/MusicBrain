@@ -1,5 +1,5 @@
 // ENC4 — 4 draai-encoders + drukknoppen via MCP23017 (I2C).
-// Zie Images/schematics/musicbrain-enc4/. Adres 0x20. Interne pull-ups (GPPU)
+// Zie hardware/schematics/musicbrain-enc4/. Adres 0x20. Interne pull-ups (GPPU)
 // aan, INTA/INTB gespiegeld -> IRQ. Standaard MCP23017-registers (BANK=0).
 //
 // GPIO-map (kaart-README): GPA0-7 = E1B E1S E1A E2B E2S E2A E3B E3S;

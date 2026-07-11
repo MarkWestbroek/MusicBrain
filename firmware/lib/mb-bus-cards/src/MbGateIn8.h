@@ -1,5 +1,5 @@
 // GATEIN8 — 8 gate/trigger-ingangen via 74HC165 (read-only) + 74LVC1G125.
-// Zie Images/schematics/musicbrain-gatein8/. De CS-neerflank maakt via een
+// Zie hardware/schematics/musicbrain-gatein8/. De CS-neerflank maakt via een
 // RC (220p/10k) een korte ~PL-latchpuls; daarna klokken we 8 bits. De
 // bitvolgorde op de draad is routinggedreven en wordt hier ontward naar
 // IN1..IN8 (README-tabel: Q7-first = IN6 IN5 IN4 IN3 IN1 IN2 IN7 IN8).

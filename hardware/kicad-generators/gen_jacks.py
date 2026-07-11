@@ -1,7 +1,7 @@
 """Generate jack8 + jack4 panel-carrier boards (sch + routed pcb each)."""
 import os
 
-BASE = r"d:\Git\Muziek\MusicBrain\Images\schematics"
+BASE = r"d:\Git\Muziek\MusicBrain\hardware\schematics"
 
 def g(v):
     s = f"{v:.4f}".rstrip("0").rstrip(".")

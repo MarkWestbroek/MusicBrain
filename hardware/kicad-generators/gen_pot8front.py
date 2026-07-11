@@ -13,7 +13,7 @@ en regenereer als het afwijkt (bepaalt of de as echt op de hartlijn valt).
 """
 import os
 
-BASE = r"d:\Git\Muziek\MusicBrain\Images\schematics"
+BASE = r"d:\Git\Muziek\MusicBrain\hardware\schematics"
 NAME = "pot8front"
 N = 8
 PITCH = 13.75            # 110 / 8

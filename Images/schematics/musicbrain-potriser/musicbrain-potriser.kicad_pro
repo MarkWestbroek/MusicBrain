@@ -1,6 +1,0 @@
-{
-  "meta": {"filename": "musicbrain-potriser.kicad_pro", "version": 3},
-  "general": {"project_name": "MusicBrain potriser"},
-  "schematic": {"file": "musicbrain-potriser.kicad_sch"},
-  "pcb": {"file": "musicbrain-potriser.kicad_pcb"}
-}

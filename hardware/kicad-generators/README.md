@@ -1,6 +1,6 @@
 # KiCad-generators (GUI-loze workflow)
 
-De borden in `Images/schematics/` zijn machine-gegenereerd met deze Python-
+De borden in `hardware/schematics/` zijn machine-gegenereerd met deze Python-
 generators (v8-sexpr) en machine-geverifieerd met `kicad-cli` 10.0:
 
     generate -> `sch erc --severity-error` -> netlijst + pad-voor-pad netcheck

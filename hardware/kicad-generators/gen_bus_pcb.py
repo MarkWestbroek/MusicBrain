@@ -2,8 +2,8 @@
 import re
 
 FP_DIR = r"C:\Program Files\KiCad\10.0\share\kicad\footprints"
-OUT = r"d:\Git\Muziek\MusicBrain\Images\schematics\musicbrain-busboard\musicbrain-busboard.kicad_pcb"
-SCH_FILE = r"d:\Git\Muziek\MusicBrain\Images\schematics\musicbrain-busboard\musicbrain-busboard.kicad_sch"
+OUT = r"d:\Git\Muziek\MusicBrain\hardware\schematics\musicbrain-busboard\musicbrain-busboard.kicad_pcb"
+SCH_FILE = r"d:\Git\Muziek\MusicBrain\hardware\schematics\musicbrain-busboard\musicbrain-busboard.kicad_sch"
 
 def tokenize(text):
     i, n = 0, len(text)

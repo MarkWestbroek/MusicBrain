@@ -14,7 +14,7 @@ from schlib import (Sch, conn_symbol, conn1_symbol, box_symbol, R_SYM, C_SYM,
 from cardlib import Board
 import os
 
-OUT_DIR = r"d:\Git\Muziek\MusicBrain\Images\schematics\musicbrain-potriser"
+OUT_DIR = r"d:\Git\Muziek\MusicBrain\hardware\schematics\musicbrain-potriser"
 os.makedirs(OUT_DIR, exist_ok=True)
 DATE = "2026-07-11"
 

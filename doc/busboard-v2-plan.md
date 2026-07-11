@@ -111,7 +111,7 @@ Slots J1–J6, hubs J7/J8, power-entry J9 + R-78E5.0 + LDO-recept, display J11
 
 ## PCB-aanpak (stand 2026-07-11)
 
-**Schema is af** (`Images/schematics/musicbrain-busboard-v2/`, ERC 0, netlijst
+**Schema is af** (`hardware/schematics/musicbrain-busboard-v2/`, ERC 0, netlijst
 geverifieerd: 120 netten, alle single-node-netten zijn bewuste no-connects).
 
 **PCB: v2 krijgt een eigen floorplan.** Analyse tegen het v1-layout leerde:

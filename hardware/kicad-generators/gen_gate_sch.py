@@ -1,7 +1,7 @@
 ﻿"""Generate musicbrain-gate8.kicad_sch â€” 8x gate output slot card (74HCT595)."""
 import os
 
-OUT_DIR = r"d:\Git\Muziek\MusicBrain\Images\schematics\musicbrain-gate8"
+OUT_DIR = r"d:\Git\Muziek\MusicBrain\hardware\schematics\musicbrain-gate8"
 OUT = OUT_DIR + r"\musicbrain-gate8.kicad_sch"
 ROOT = "d0000000-0000-4000-8000-000000000000"
 PROJ = "musicbrain-gate8"

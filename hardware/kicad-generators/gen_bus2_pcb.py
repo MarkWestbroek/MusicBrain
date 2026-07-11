@@ -13,8 +13,8 @@ zuidwest, B.Cu-lanebundel y 65..105) met de v2-clusters:
 import math, re
 
 FP_DIR = r"C:\Program Files\KiCad\10.0\share\kicad\footprints"
-OUT = r"d:\Git\Muziek\MusicBrain\Images\schematics\musicbrain-busboard-v2\musicbrain-busboard-v2.kicad_pcb"
-SCH_FILE = r"d:\Git\Muziek\MusicBrain\Images\schematics\musicbrain-busboard-v2\musicbrain-busboard-v2.kicad_sch"
+OUT = r"d:\Git\Muziek\MusicBrain\hardware\schematics\musicbrain-busboard-v2\musicbrain-busboard-v2.kicad_pcb"
+SCH_FILE = r"d:\Git\Muziek\MusicBrain\hardware\schematics\musicbrain-busboard-v2\musicbrain-busboard-v2.kicad_sch"
 
 def tokenize(text):
     i, n = 0, len(text)

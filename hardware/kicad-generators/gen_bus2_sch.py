@@ -9,7 +9,7 @@ import os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from schlib import box_symbol
 
-OUT_DIR = r"d:\Git\Muziek\MusicBrain\Images\schematics\musicbrain-busboard-v2"
+OUT_DIR = r"d:\Git\Muziek\MusicBrain\hardware\schematics\musicbrain-busboard-v2"
 OUT = OUT_DIR + r"\musicbrain-busboard-v2.kicad_sch"
 ROOT = "c2000000-0000-4000-8000-000000000000"
 PROJ = "musicbrain-busboard-v2"
