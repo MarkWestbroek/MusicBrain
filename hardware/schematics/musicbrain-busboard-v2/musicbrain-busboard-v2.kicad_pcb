@@ -6228,7 +6228,7 @@
     (descr "Through hole straight pin header, 2x07, 2.54mm pitch, double rows")
     (tags "Through hole pin header THT 2x07 2.54mm double row")
     (property "Reference" "J10"
-      (at 1.27 -2.38 0)
+      (at 3.9 7.62 0)
       (layer "F.SilkS")
       (effects
         (font
@@ -6517,7 +6517,7 @@
     (descr "Through hole straight pin header, 1x03, 2.54mm pitch, single row")
     (tags "Through hole pin header THT 1x03 2.54mm single row")
     (property "Reference" "J13"
-      (at 0 -2.38 0)
+      (at 3.9 2.54 0)
       (layer "F.SilkS")
       (effects
         (font
@@ -6699,7 +6699,7 @@
     (descr "Through hole straight pin header, 1x03, 2.54mm pitch, single row")
     (tags "Through hole pin header THT 1x03 2.54mm single row")
     (property "Reference" "J14"
-      (at 0 -2.38 0)
+      (at 3.9 2.54 0)
       (layer "F.SilkS")
       (effects
         (font
@@ -6881,7 +6881,7 @@
     (descr "Through hole straight pin header, 1x03, 2.54mm pitch, single row")
     (tags "Through hole pin header THT 1x03 2.54mm single row")
     (property "Reference" "J15"
-      (at 0 -2.38 0)
+      (at 3.9 2.54 0)
       (layer "F.SilkS")
       (effects
         (font
@@ -7064,7 +7064,7 @@
     (descr "Through hole straight pin header, 1x04, 2.54mm pitch, single row")
     (tags "Through hole pin header THT 1x04 2.54mm single row")
     (property "Reference" "J16"
-      (at 0 -2.38 0)
+      (at 3.9 3.81 0)
       (layer "F.SilkS")
       (effects
         (font
@@ -7255,7 +7255,7 @@
     (descr "Through hole straight pin header, 1x04, 2.54mm pitch, single row")
     (tags "Through hole pin header THT 1x04 2.54mm single row")
     (property "Reference" "J19"
-      (at 0 -2.38 0)
+      (at 3.9 3.81 0)
       (layer "F.SilkS")
       (effects
         (font
@@ -7446,7 +7446,7 @@
     (descr "Through hole straight pin header, 1x04, 2.54mm pitch, single row")
     (tags "Through hole pin header THT 1x04 2.54mm single row")
     (property "Reference" "J20"
-      (at 0 -2.38 0)
+      (at 3.9 3.81 0)
       (layer "F.SilkS")
       (effects
         (font
@@ -7867,7 +7867,7 @@
     (descr "Through hole straight pin header, 1x04, 2.54mm pitch, single row")
     (tags "Through hole pin header THT 1x04 2.54mm single row")
     (property "Reference" "J12"
-      (at 0 -2.38 0)
+      (at 3.9 3.81 0)
       (layer "F.SilkS")
       (effects
         (font

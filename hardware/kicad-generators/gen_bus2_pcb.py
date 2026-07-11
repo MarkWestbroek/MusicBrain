@@ -84,6 +84,17 @@ def rotxy(px, py, rot):
 
 P = {}  # ref -> pad -> (x, y)
 
+# Reference-labelpositie per ref (lokale coords; teksthoek blijft 0 =
+# horizontaal). Zuidrand-headers (rot 90) kregen hun lib-label ONDER de body;
+# rot 90: global = anker + (ly, -lx) -> lx = 3.9 zet het label 3,9 mm noord
+# van de pinnenrij, ly = halve rijlengte centreert het boven de connector.
+REF_AT = {
+    'J10': (3.9, 7.62),                                          # EXP 2x7
+    'J19': (3.9, 3.81), 'J20': (3.9, 3.81),                      # DLG 1x4
+    'J13': (3.9, 2.54), 'J14': (3.9, 2.54), 'J15': (3.9, 2.54),  # MIDI 1x3
+    'J16': (3.9, 3.81), 'J12': (3.9, 3.81),                      # CAN / QWIIC
+}
+
 def load_footprint(relpath, lib_id, ref, value, x, y, path_uuid, netmap, rot=0):
     tree = parse(open(FP_DIR + '\\' + relpath, encoding='utf-8').read())
     tree[1] = f'"{lib_id}"'
@@ -97,6 +108,13 @@ def load_footprint(relpath, lib_id, ref, value, x, y, path_uuid, netmap, rot=0):
                 continue
             if node[0] == 'property' and node[1] == '"Reference"':
                 node[2] = f'"{ref}"'
+                if ref in REF_AT:
+                    _lx, _ly = REF_AT[ref]
+                    for _sub in node:
+                        if isinstance(_sub, list) and _sub[0] == 'at':
+                            _sub[1], _sub[2] = fmt(_lx), fmt(_ly)
+                            if len(_sub) > 3:
+                                _sub[3] = '0'
             if node[0] == 'property' and node[1] == '"Value"':
                 node[2] = f'"{value}"'
             if node[0] == 'pad':
