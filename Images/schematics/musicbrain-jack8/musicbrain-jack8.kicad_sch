@@ -7,7 +7,7 @@
   (title_block
     (title "MusicBrain jack8 - Thonkiconn paneeldrager (8 jacks)")
     (date "2026-07-08")
-    (rev "1.0")
+    (rev "1.1")
     (company "MusicBrain project")
     (comment 1 "Prikt op frontconnector van GATE8/ADC8 (jack8 contract: 1=GND, 2..9=CH, 10=GND)")
     (comment 2 "JP1 dicht = schakelcontacten (TN) aan GND: alleen voor INPUT-kaarten")

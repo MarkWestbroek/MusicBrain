@@ -5,13 +5,13 @@
       "Application": "Pcbnew",
       "Version": "10.0.3"
     },
-    "CreationDate": "2026-07-08T12:05:29+02:00"
+    "CreationDate": "2026-07-11T03:56:28+02:00"
   },
   "GeneralSpecs": {
     "ProjectId": {
       "Name": "musicbrain-jack8",
       "GUID": "6d757369-6362-4726-9169-6e2d6a61636b",
-      "Revision": "1.0"
+      "Revision": "1.1"
     },
     "Size": {
       "X": 20.1,

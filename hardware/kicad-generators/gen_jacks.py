@@ -196,7 +196,7 @@ def make_sch(name, n, root):
   (title_block
     (title "MusicBrain {name} - Thonkiconn paneeldrager ({n} jacks)")
     (date "2026-07-08")
-    (rev "1.0")
+    (rev "1.1")
     (company "MusicBrain project")
     (comment 1 "Prikt op frontconnector van GATE8/ADC8 ({name} contract: 1=GND, 2..{n+1}=CH, {n+2}=GND)")
     (comment 2 "JP1 dicht = schakelcontacten (TN) aan GND: alleen voor INPUT-kaarten")
@@ -256,7 +256,7 @@ def make_pcb(name, n, root, silk):
         _u[0] += 1
         return f"{root}-b{_u[0]:011d}"
     rows = n + 2
-    NETS = ['', 'GND', 'NORM'] + [f'/CH{k}' for k in range(1, n + 1)]
+    NETS = ['', 'GND', '/NORM'] + [f'/CH{k}' for k in range(1, n + 1)]
     NI = {nm: i for i, nm in enumerate(NETS)}
     BY1 = 100 + 15 * n + 5   # board bottom
     JY = [108 + 15 * k for k in range(n)]           # jack centers
@@ -268,7 +268,7 @@ def make_pcb(name, n, root, silk):
     for k in range(n):
         fps.append(jack_footprint(f'J{k+2}', 108, JY[k], uid(), '',
                                   (NI[f'/CH{k+1}'], f'/CH{k+1}'),
-                                  (NI['GND'], 'GND'), (NI['NORM'], 'NORM')))
+                                  (NI['GND'], 'GND'), (NI['/NORM'], '/NORM')))
     # header (holes; socket op achterzijde monteren)
     hp = []
     for k in range(rows):
@@ -278,23 +278,23 @@ def make_pcb(name, n, root, silk):
         hp.append(f'    (pad "{k+1}" thru_hole {shape} (at 0 {g(y - HY0)}) (size 1.7 1.7) '
                   f'(drill 1.0) (layers "*.Cu" "*.Mask") (net {NI[net]} "{net}"))')
     fps.append(f'''  (footprint "MusicBrain:Header_1x{rows:02d}_backside"
-    (layer "F.Cu")
+    (layer "B.Cu")
     (uuid "{uid()}")
     (at 115 {g(HY0)})
     (path "/")
-    (descr "1x{rows} female socket - OP ACHTERZIJDE monteren (opening naar de kaart)")
-    (property "Reference" "J1" (at 2.8 -2.2 0) (layer "F.SilkS")
-      (effects (font (size 1 1) (thickness 0.15))))
-    (property "Value" "SOCKET-BACK" (at 0 {g(2.54 * (rows - 1) + 3)} 0) (layer "F.Fab")
-      (effects (font (size 1 1) (thickness 0.15))))
+    (descr "1x{rows} female socket op de ACHTERZIJDE (opening omlaag, naar de kaart)")
+    (property "Reference" "J1" (at 2.8 -2.2 0) (layer "B.SilkS")
+      (effects (font (size 1 1) (thickness 0.15)) (justify mirror)))
+    (property "Value" "SOCKET-BACK" (at 0 {g(2.54 * (rows - 1) + 3)} 0) (layer "B.Fab")
+      (effects (font (size 1 1) (thickness 0.15)) (justify mirror)))
     (attr through_hole)
     (fp_rect (start -1.6 -1.6) (end 1.6 {g(2.54 * (rows - 1) + 1.6)})
       (stroke (width 0.12) (type solid)) (fill no) (layer "B.SilkS"))
     (fp_rect (start -1.8 -1.8) (end 1.8 {g(2.54 * (rows - 1) + 1.8)})
-      (stroke (width 0.05) (type solid)) (fill no) (layer "F.CrtYd"))
+      (stroke (width 0.05) (type solid)) (fill no) (layer "B.CrtYd"))
 {chr(10).join(hp)}
     (model "${{KICAD10_3DMODEL_DIR}}/Connector_PinSocket_2.54mm.3dshapes/PinSocket_1x{rows:02d}_P2.54mm_Vertical.step"
-      (offset (xyz 0 {g(2.54*(rows-1)/2)} 0)) (scale (xyz 1 1 1)) (rotate (xyz 0 0 0)))
+      (offset (xyz 0 {g(2.54*(rows-1)/2)} -1.6)) (scale (xyz 1 1 1)) (rotate (xyz 180 0 0)))
   )''')
     # solder jumper (SMD, on back? keep front) near bottom
     sj_y = BY1 - 3
@@ -311,7 +311,7 @@ def make_pcb(name, n, root, silk):
     (pad "1" smd custom (at -0.65 0) (size 1 1.5) (layers "F.Cu" "F.Mask")
       (options (clearance outline) (anchor rect))
       (primitives (gr_poly (pts (xy 0.5 0.75) (xy 0.5 -0.75) (xy -0.5 0) ) (width 0) (fill yes)))
-      (net {NI['NORM']} "NORM"))
+      (net {NI['/NORM']} "/NORM"))
     (pad "2" smd custom (at 0.65 0) (size 1 1.5) (layers "F.Cu" "F.Mask")
       (options (clearance outline) (anchor rect))
       (primitives (gr_poly (pts (xy -0.5 0.75) (xy -0.5 -0.75) (xy 0.5 0) ) (width 0) (fill yes)))
@@ -335,10 +335,10 @@ def make_pcb(name, n, root, silk):
     pts = [(103.5, JY[0] + 3.38)]
     for k in range(1, n):
         pass
-    T('NORM', 'F.Cu', 0.3, (108, JY[0] + 3.38), (103.5, JY[0] + 3.38),
+    T('/NORM', 'F.Cu', 0.3, (108, JY[0] + 3.38), (103.5, JY[0] + 3.38),
       (103.5, sj_y - 3), (102.85, sj_y - 3), (102.85, sj_y))
     for k in range(1, n):
-        T('NORM', 'F.Cu', 0.3, (108, JY[k] + 3.38), (103.5, JY[k] + 3.38))
+        T('/NORM', 'F.Cu', 0.3, (108, JY[k] + 3.38), (103.5, JY[k] + 3.38))
     # GND stitching
     for sx, sy in ((102, 102), (118, 102), (102, BY1 - 1.8), (118, BY1 - 2),
                    (118, (100 + BY1) / 2)):
@@ -373,7 +373,7 @@ def make_pcb(name, n, root, silk):
   (title_block
     (title "MusicBrain {name}")
     (date "2026-07-08")
-    (rev "1.0")
+    (rev "1.1")
     (company "MusicBrain project")
   )
   (layers
@@ -426,7 +426,7 @@ def make_pcb(name, n, root, silk):
 
 
 d8 = make_sch("jack8", 8, "e8000001-0000-4000-8000")
-make_pcb("jack8", 8, "e8000002-0000-4000-8000", "musicbrain.nl/hw/jack8 rev 1.0")
+make_pcb("jack8", 8, "e8000002-0000-4000-8000", "musicbrain.nl/hw/jack8 rev 1.1")
 d4 = make_sch("jack4", 4, "e4000001-0000-4000-8000")
-make_pcb("jack4", 4, "e4000002-0000-4000-8000", "musicbrain.nl/hw/jack4 rev 1.0")
+make_pcb("jack4", 4, "e4000002-0000-4000-8000", "musicbrain.nl/hw/jack4 rev 1.1")
 print("written", d8, "and", d4)
