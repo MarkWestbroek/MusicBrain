@@ -193,7 +193,7 @@ tpin_label(22, "CAN_RX")    # D30 CRX3
 tpin_label(23, "CAN_TX")    # D31 CTX3
 tpin_label(24, "D32")       # D32 vrij -> EXP
 # rechts: 25=D33 ... 33=D41, 35=D13, 36..45=D14..D23
-tpin_label(25, "CODEC_RST") # D33 -> codec-header
+tpin_label(25, "D33")       # D33 vrij -> EXP
 tpin_label(26, "MIDI_RX1")  # D34 RX8
 tpin_label(27, "MIDI_TX")   # D35 TX8
 tpin_label(28, "D36")
@@ -210,7 +210,7 @@ tpin_label(40, "SDA")       # D18
 tpin_label(41, "SCL")       # D19
 tpin_label(42, "LRCLK1")    # D20
 tpin_label(43, "BCLK1")     # D21
-tpin_label(44, "D22")       # D22 vrij -> EXP
+tpin_label(44, "CODEC_RST") # D22 -> codec-header (bovenaan kolom)
 tpin_label(45, "MCLK1")     # D23
 
 # series R: MOSI (pin13, links) en SCLK (pin35, rechts)
@@ -387,19 +387,23 @@ libs_extra.append(boxdef("74HC165",
      ("12", "D1", "input"), ("11", "D0", "input"),
      ("9", "Q7", "output"), ("7", "~{Q7}", "output")]))
 # U5 = eerste byte (bit15..8 van het statuswoord): IRQ1..IRQ6 op D7..D2
+# D-toewijzing volgt de bordgeometrie (noordrij = IRQ1-4, D7/D6 = IRQ5/6);
+# firmware-bitvolgorde: eerste byte = [IRQ5,IRQ6,x,x,IRQ1,IRQ2,IRQ3,IRQ4] (D7..D0).
 place_box("74HC165", "U5", "74HC165", 200, 62,
           "Package_SO:SOIC-16_3.9x9.9mm_P1.27mm",
           {"1": ("label", "PL"), "2": ("label", "SCLK"),
            "15": ("power", "power:GND"), "10": ("label", "CHAIN"),
            "16": ("power", "power:+3V3"), "8": ("power", "power:GND"),
-           "6": ("label", "IRQ1"), "5": ("label", "IRQ2"), "4": ("label", "IRQ3"),
-           "3": ("label", "IRQ4"), "14": ("label", "IRQ5"), "13": ("label", "IRQ6"),
-           "12": ("power", "power:GND"), "11": ("power", "power:GND"),
+           "6": ("label", "IRQ5"), "5": ("label", "IRQ6"), "4": ("power", "power:GND"),
+           "3": ("power", "power:GND"), "14": ("label", "IRQ1"), "13": ("label", "IRQ2"),
+           "12": ("label", "IRQ3"), "11": ("label", "IRQ4"),
            "9": ("label", "Q7A"), "7": ("nc",)})
-# U6 = tweede byte: IRQ7..IRQ12 (expansie) op D7..D2
+# U6 = tweede byte: IRQ7..IRQ12 (expansie) op D7..D2 — eigen ~PL-RC (PL2),
+# zodat de puls lokaal bij U6 (noordstrook) wordt opgewekt i.p.v. het halve
+# bord over te reizen; beide RC's hangen aan dezelfde IRQSTAT-flank.
 place_box("74HC165", "U6", "74HC165", 200, 120,
           "Package_SO:SOIC-16_3.9x9.9mm_P1.27mm",
-          {"1": ("label", "PL"), "2": ("label", "SCLK"),
+          {"1": ("label", "PL2"), "2": ("label", "SCLK"),
            "15": ("power", "power:GND"), "10": ("power", "power:GND"),
            "16": ("power", "power:+3V3"), "8": ("power", "power:GND"),
            "6": ("label", "IRQ7"), "5": ("label", "IRQ8"), "4": ("label", "IRQ9"),
@@ -425,6 +429,13 @@ wire(*c9b, c9b[0] + 3.81, c9b[1]); label("PL", c9b[0] + 3.81, c9b[1])
 (r5t, r5b) = rcomp("R5", "10k", 128, 122, 0)
 power("power:+3V3", *r5t)
 wire(*r5b, r5b[0], r5b[1] + 2.54); label("PL", r5b[0], r5b[1] + 2.54)
+# tweede PL-RC voor U6 (PL2)
+(c18a, c18b) = rcomp("C18", "220p", 155, 138, 90)
+wire(*c18a, c18a[0] - 3.81, c18a[1]); label("IRQSTAT", c18a[0] - 3.81, c18a[1])
+wire(*c18b, c18b[0] + 3.81, c18b[1]); label("PL2", c18b[0] + 3.81, c18b[1])
+(r33t, r33b) = rcomp("R33", "10k", 155, 122, 0)
+power("power:+3V3", *r33t)
+wire(*r33b, r33b[0], r33b[1] + 2.54); label("PL2", r33b[0], r33b[1] + 2.54)
 # IRQ-pulldowns (12x 100k): gedefinieerd niveau voor lege slots/expansie
 for k in range(12):
     xr = 88 + 5.08 * k
@@ -463,10 +474,13 @@ for k, (a, b) in enumerate((("XSCLK0", "XSCLK"), ("XMOSI0", "XMOSI"),
     wire(*r, r[0] + 2.54, r[1]); label(b, r[0] + 2.54, r[1])
 
 # ============ v2: expansieheader J21 (2x13) ============
-J21_L = ["GND", "GND", "MISO", "XLDAC", "XRST", "CS9", "CS11", "CS13",
-         "GND", "IRQ8", "IRQ10", "IRQ12", "SDA"]
-J21_R = ["XSCLK", "XMOSI", "GND", "XCONVST", "GND", "CS10", "CS12", "CS14",
-         "IRQ7", "IRQ9", "IRQ11", "GND", "SCL"]
+# Pinvolgorde volgt de bordgeometrie (rot 90: oneven = zuidrij, even = noordrij,
+# paren west->oost): CS'en + X-lijnen zuid, IRQ's + I2C noord. MISO zit er niet
+# in als aparte pin: het 2e segment prikt MISO... wel dus: pin 13.
+J21_L = ["CS9", "CS10", "CS11", "CS12", "CS13", "CS14", "MISO",
+         "XSCLK", "XMOSI", "XLDAC", "XCONVST", "XRST", "GND"]
+J21_R = ["IRQ7", "IRQ8", "IRQ9", "IRQ10", "IRQ11", "IRQ12", "GND",
+         "GND", "GND", "GND", "SDA", "SCL", "GND"]
 J21X, J21Y = 55, 45
 component("Custom:Conn_02x13", "J21", "EXPANSION (2e segment)", J21X, J21Y, 0,
           "Connector_IDC:IDC-Header_2x13_P2.54mm_Vertical",
@@ -589,7 +603,7 @@ wire(358.38, 291.27, 355.84, 291.27); label("CANL", 355.84, 291.27)
 component("Custom:Conn_01x04", "J16", "CAN BUS", 385, 272, 0,
           "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical",
           extra_props=rprop("J16", "CAN", 385, 272, 385, 272 - 8, 385, 272 + 8))
-J16_P = ["CANH", "CANL", "GND", "+12V"]
+J16_P = ["+12V", "CANH", "CANL", "GND"]
 for k in range(4):
     y = 272 - 3.81 + 2.54 * k
     nmP = J16_P[k]
@@ -637,8 +651,10 @@ for jref, nm, tx, rx, xj in (("J19", "DLG1 (Serial3)", "DLG1_TX", "DLG1_RX", 152
             label(nmP, xj - 12.7, y)
 
 # ============ v2: codec-header J17 (I2S1 TDM, CS42448-bord) ============
-J17_L = ["+12V", "GND", "+3V3", "MCLK1", "LRCLK1", "I2S_IN", "SDA"]
-J17_R = ["-12V", "+5V", "GND", "BCLK1", "I2S_OUT", "CODEC_RST", "SCL"]
+# oneven (zuidrij) = voeding, even (noordrij) = signalen; I2C loopt via
+# de Qwiic-keten (J12), niet over deze header.
+J17_L = ["+3V3", "+5V", "GND", "GND", "GND", "+12V", "-12V"]
+J17_R = ["CODEC_RST", "MCLK1", "BCLK1", "LRCLK1", "I2S_OUT", "I2S_IN", "GND"]
 J17X, J17Y = 315, 127
 component("Custom:Conn_02x07", "J17", "AUDIO/CODEC (TDM)", J17X, J17Y, 0,
           "Connector_PinHeader_2.54mm:PinHeader_2x07_P2.54mm_Vertical",
@@ -659,7 +675,7 @@ component("Custom:Conn_02x07", "J10", "EXP", J10X, J10Y, 0,
           "Connector_PinHeader_2.54mm:PinHeader_2x07_P2.54mm_Vertical",
           extra_props=rprop("J10", "EXP", J10X, J10Y, J10X, J10Y - 12.7, J10X, J10Y + 12.7))
 J10_L = ["+3V3", "+5V", "D10", "D29", "D36", "D38", "GND"]
-J10_R = ["GND", "GND", "D22", "D32", "D37", "D39", "GND"]
+J10_R = ["GND", "GND", "D33", "D32", "D37", "D39", "GND"]
 for k in range(7):
     y = J10Y - 7.62 + 2.54 * k
     nmL = J10_L[k]
