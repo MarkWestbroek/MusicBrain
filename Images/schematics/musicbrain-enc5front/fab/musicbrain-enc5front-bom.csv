@@ -1,0 +1,5 @@
+"Comment","Designator","Footprint","LCSC Part #"
+"100n","C10","C_0805_2012Metric",""
+"NAAR RISER (achterzijde)","J1","Socket_2x10_backside",""
+"EC11E (switch)","SW1,SW2,SW3,SW4,SW5","RotaryEncoder_Alps_EC11E-Switch_Vertical_H20mm",""
+"MCP23017-E/ML","U1","QFN-28-1EP_6x6mm_P0.65mm_EP4.25x4.25mm",""

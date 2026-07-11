@@ -1,0 +1,7 @@
+{
+  "meta": {"filename": "musicbrain-enc5front.kicad_pro", "version": 3},
+  "board": {"design_settings": {"rules": {"min_copper_edge_clearance": 0.25}}},
+  "general": {"project_name": "MusicBrain enc5front"},
+  "schematic": {"file": "musicbrain-enc5front.kicad_sch"},
+  "pcb": {"file": "musicbrain-enc5front.kicad_pcb"}
+}
