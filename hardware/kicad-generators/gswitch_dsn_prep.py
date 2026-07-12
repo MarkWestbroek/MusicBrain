@@ -7,8 +7,17 @@
 import re
 import sys
 
-SRC = r"d:\Git\Muziek\MusicBrain\hardware\schematics\gswitch-loop8\gswitch-loop8.dsn"
-DST = SRC.replace('.dsn', '-fr.dsn')
+SRC = sys.argv[1] if len(sys.argv) > 1 else \
+    r"d:\Git\Muziek\MusicBrain\hardware\schematics\gswitch-loop8\gswitch-loop8.dsn"
+KEEPOUT = '--no-keepout' not in sys.argv
+CLR150 = '--clearance-150' in sys.argv   # bij krappe handroutes: DSN-clearance
+# hybride narun (WERKWIJZE): --narun=/NET1,/NET2 -> wiring van díé netten
+# strippen (router legt ze vers), al het andere protect.
+NARUN = set()
+for _a in sys.argv:
+    if _a.startswith('--narun='):
+        NARUN = set(_a.split('=', 1)[1].split(','))
+DST = SRC.replace('.dsn', '-fr.dsn')     # klemmen + Default-netclass 0,15!
 STRIP_NETS = {'GND', '/AGND', '"/AGND"', '/CHASSIS', '"/CHASSIS"'}
 
 
@@ -75,7 +84,7 @@ for a, bnd in blocks(txt, 'wire'):
     blk = txt[a:bnd]
     nm = net_of(blk)
     out.append(txt[pos:a])
-    if nm in ('GND', '/AGND', '/CHASSIS'):
+    if nm in ('GND', '/AGND', '/CHASSIS') or nm in NARUN:
         pass  # weg
     else:
         if '(type ' in blk:
@@ -96,7 +105,7 @@ for a, bnd in blocks(txt, 'via '):
         out.append(txt[pos:bnd]); pos = bnd
         continue
     out.append(txt[pos:a])
-    if nm in ('GND', '/AGND', '/CHASSIS'):
+    if nm in ('GND', '/AGND', '/CHASSIS') or nm in NARUN:
         pass
     else:
         if '(type ' in blk:
@@ -107,6 +116,15 @@ for a, bnd in blocks(txt, 'via '):
     pos = bnd
 out.append(txt[pos:])
 txt = ''.join(out)
+
+# 3b. clearance klemmen op 150 um (WERKWIJZE: freerouting keurt anders
+#     krappe-maar-legale handroutes af -> eeuwige violations; .kicad_pro
+#     Default-netclass moet dan ook op 0,15 staan!)
+if CLR150:
+    def _clamp(m):
+        v = float(m.group(1))
+        return f'(clearance {150 if v > 150 else m.group(1)}'
+    txt = re.sub(r'\(clearance\s+([\d.]+)', _clamp, txt)
 
 # 4. boundary inkrimpen (0,6 mm; KiCad-DSN: unit um -> 1 mm = 1000 eenheden)
 mres = re.search(r'\(resolution\s+(\w+)\s+(\d+)\)', txt)
@@ -128,6 +146,10 @@ txt = re.sub(r'(\(path\s+pcb\s+\d+\s+)([\d\s.eE+-]+)\)', shrink_boundary,
 
 # 5. keepout over het audiogebied (freerouting-netten horen in de zuidstrook;
 #    zonder keepout gaat hij door de AGND-zone of de zone-spleet zwerven)
+if not KEEPOUT:
+    open(DST, 'w', encoding='utf-8', newline='\n').write(txt)
+    print('written', DST, '(zonder keepout)')
+    sys.exit(0)
 KO_Y = -131600   # tot net boven de relais-COM-pads
 ko = ''
 for layer in ('F.Cu', 'B.Cu'):

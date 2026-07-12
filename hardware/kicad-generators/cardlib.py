@@ -95,7 +95,10 @@ class Board:
     def rc(self, a, b):
         return self.nm({'1': a, '2': b})
 
-    def fp(self, relpath, lib_id, ref, val, x, y, rot, netmap, path_uuid=''):
+    def fp(self, relpath, lib_id, ref, val, x, y, rot, netmap, path_uuid='',
+           skip_pad_drill=None):
+        """skip_pad_drill: laat pads met deze boring weg (bv. 0.2mm
+        thermal-vias in module-EP's die onder de fab-minimumboring vallen)."""
         tree = parse(open(FP_DIR + '\\' + relpath, encoding='utf-8').read())
         tree[1] = f'"{lib_id}"'
         body = []
@@ -103,6 +106,12 @@ class Board:
         for node in tree[2:]:
             if isinstance(node, list):
                 if node[0] in STRIP_HEADS:
+                    continue
+                if (skip_pad_drill is not None and node[0] == 'pad'
+                        and any(isinstance(sub, list) and sub[0] == 'drill'
+                                and len(sub) > 1 and not isinstance(sub[1], list)
+                                and abs(float(sub[1]) - skip_pad_drill) < 1e-6
+                                for sub in node)):
                     continue
                 if node[0] == 'property' and node[1] == '"KiLib_Generator"':
                     continue

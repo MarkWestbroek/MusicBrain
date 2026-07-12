@@ -42,4 +42,4 @@ elektrisch identiek; alleen opnieuw downloaden als je de nette silk wilt.
 | Module | Versie | Status | Opmerkingen | Aantal besteld | Prijs | Besteldatum |
 |---|---|---|---|---|---|---|
 | gswitch-loop8 | 0.1 | geroute (ERC 0/netcheck/DRC 0/0) | 8× relaisloop; vóór fab: jack-doorpiep + LCSC-match — NIET bestellen | | | |
-| gswitch-brain | — | nog niet gestart | ESP32-S3 + OLED + MIDI-DIN + 2× chain | | | |
+| gswitch-brain | 0.1 | geroute (ERC 0/netcheck/DRC 0/0) | ESP32-S3-WROOM-1U, 100×70; vóór fab: LCSC-match + fab-pakket — NIET bestellen | | | |

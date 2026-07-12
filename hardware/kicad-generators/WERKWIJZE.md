@@ -72,6 +72,34 @@ Generators mogen eerder (WIP-koper expliciet benoemen). Nooit `git add -A`.
   rerunnen maar het ontwerp aanpassen** — pinvolgorde/GPIO-toewijzing naar de
   geografie (enc5front: U1 noord = E1-E4, U2 zuid = E5+knoppen), blokkerende
   ontkoppel-C's verplaatsen, of het bord breder maken.
+- **Protected handroutes kunnen een muur vormen** (gswitch-loop8): een bundel
+  parallelle B-lanes + hun verticalen sloot de router volledig op → vast op
+  N unrouted vanaf pass 1, eeuwige lus. Oplossing: de drive-netten óók aan
+  freerouting geven i.p.v. hand-lanen. En bij gescheiden zones (AGND/GND):
+  **keepout over het analoge deel** in de DSN zetten, anders zwerft de router
+  door het gestripte-plane-gebied.
+- gnd_stitch.py **overschrijft** gnd_stitch.json, gnd_bridge.py **appendt**:
+  volgorde = stitch → regen → bridge → regen → stoppen. Niet nogmaals
+  stitchen op een bord dat de via's al heeft (json wordt dan leeg).
+  gnd_bridge zoekt alleen B-hoofdvlak-onder-F-fragment; het spiegelbeeld
+  (F-hoofdvlak boven B-fragment) handmatig met een via/stub oplossen.
+- **SES-echo's van handroutes** (gswitch-brain): protected wiring komt terug
+  in de SES. Wijzig je daarna een handroute, dan legt `apply_ses` de oude
+  echo er alsnog naast → kruisingen met jezelf. Elk volledig hand-geroute
+  net **permanent in de skip-set** van `apply_ses` zetten.
+- **Auto-skip-voorronde** (gswitch-brain): na het verleggen van hand-lanen
+  botsen oude SES-routes van ándere netten met de nieuwe corridors. Vóór
+  `apply_ses` de SES parsen (seslib.load_ses), elke corridor als
+  laag+bbox beschrijven en elk SES-net dat er met een segment doorheen
+  loopt (sample om de 0,4 mm) aan de skiplijst toevoegen — die netten
+  routeert de volgende freerouting-ronde opnieuw om de corridors heen.
+- **USB-C 16-pins (HRO-M-12)**: DP/DM/VBUS-padparen liggen geïnterleaved op
+  0,5 mm steek — dat haalt freerouting nooit. Recept: eigen `usb`-netclass
+  (clearance 0,1/spoor 0,15; bordminimum `min_track_width` 0,127 in het
+  .kicad_pro), padparen met korte F-bondlusjes koppelen **ná**
+  `snap_stubs()` (anders maakt snap er pad-op-pad-shorts van), en let op:
+  de VBUS-bondlus omsluit de DP-uitgang — de oostzijde van die lus op B
+  leggen (2 vias) zodat DP/DM op F oostwaarts kunnen ontsnappen.
 
 ### Waarheidsmeting (niet op DRC-teksten of freerouting vertrouwen)
 

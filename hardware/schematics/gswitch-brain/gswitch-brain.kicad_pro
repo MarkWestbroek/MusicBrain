@@ -1,0 +1,15 @@
+{
+  "meta": {"filename": "gswitch-brain.kicad_pro", "version": 3},
+  "general": {"project_name": "gswitch-brain"},
+  "board": {"design_settings": {"rules": {"min_track_width": 0.127,
+    "min_clearance": 0.0}}},
+  "net_settings": {"classes": [{"name": "Default", "clearance": 0.15,
+    "track_width": 0.2, "via_diameter": 0.5, "via_drill": 0.3,
+    "priority": -1},
+   {"name": "usb", "clearance": 0.1, "track_width": 0.15,
+    "via_diameter": 0.5, "via_drill": 0.3, "priority": 0}],
+   "netclass_patterns": [{"netclass": "usb", "pattern": "/USB_D*"}],
+   "meta": {"version": 5}},
+  "schematic": {"file": "gswitch-brain.kicad_sch"},
+  "pcb": {"file": "gswitch-brain.kicad_pcb"}
+}
