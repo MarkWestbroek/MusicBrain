@@ -4,6 +4,11 @@
 **Nog niet bestellen**: eerst `jlc_fix.py`-LCSC-match + fab-pakket + review.
 Leidende spec: [`doc/guitar-switcher-spec.md`](../../../doc/guitar-switcher-spec.md).
 
+![Aansluitoverzicht](gswitch-brain-overzicht.svg)
+
+*(Regenereren: `python hardware/kicad-generators/gswitch_overzicht.py` —
+exporteert de topview via kicad-cli en zet de callouts erbij.)*
+
 ## Wat dit bord is
 
 Het "moederbord" van de switcher: ESP32-S3-WROOM-**1U** (U.FL-antenne →

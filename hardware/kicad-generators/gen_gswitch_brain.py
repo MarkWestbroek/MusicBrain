@@ -424,6 +424,13 @@ class BBoard(Board):
             tt.append(f'  (via (at {fmt(x)} {fmt(y)}) (size 0.5) (drill 0.3) '
                       f'(layers "F.Cu" "B.Cu") (net {net}) (uuid "{self.uid()}"))')
         sx, sy, srot = self.silk
+        _texts = getattr(self, 'silk_texts', None) or \
+            [(self.silk_text, sx, sy, srot)]
+        silk_block = '\n'.join(
+            f'  (gr_text "{_t}" (at {fmt(_x)} {fmt(_y)} {_r}) '
+            f'(layer "F.SilkS")\n    (uuid "{self.uid()}")\n'
+            f'    (effects (font (size 1 1) (thickness 0.15))))'
+            for _t, _x, _y, _r in _texts)
         header = f'''(kicad_pcb
   (version 20240108)
   (generator "pcbnew")
@@ -470,9 +477,7 @@ class BBoard(Board):
   (gr_rect (start {bx0} {by0}) (end {bx1} {by1})
     (stroke (width 0.1) (type default)) (fill none)
     (layer "Edge.Cuts") (uuid "{self.uid()}"))
-  (gr_text "{self.silk_text}" (at {fmt(sx)} {fmt(sy)} {srot}) (layer "F.SilkS")
-    (uuid "{self.uid()}")
-    (effects (font (size 1 1) (thickness 0.15))))
+{silk_block}
 '''
         out_txt = (header + nets_block + '\n' + '\n'.join(self.fp_texts) + '\n'
                    + '\n'.join(tt) + extras + '\n'.join(self.extra) + '\n)\n')
@@ -481,7 +486,13 @@ class BBoard(Board):
 
 b = BBoard(TITLE, REV, (150, 167.3, 0), BX0, BY0, BX1, BY1, NETS, DATE)
 b.paper = "A3"
-b.silk_text = f"GSWITCH BRAIN rev {REV} - 12V center-negatief - doc/guitar-switcher-spec.md"
+# Silk-teksten op verzoek van Mark tussen de RJ45's + verticaal langs de
+# oostrand (de oude één-regel op y=167,3 verdween onder J11/H4).
+b.silk_texts = [
+    (f"GSWITCH BRAIN rev {REV}", 146, 153.9, 0),
+    ("12V center-negatief", 146, 157.0, 0),
+    ("doc/guitar-switcher-spec.md", 184.6, 156.5, 90),
+]
 P = b.P
 
 def raw_pads(ref, x, y, rot, pads, netmap):
