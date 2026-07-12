@@ -1,0 +1,9 @@
+Manufacturer=Amphenol Sine Systems
+PartNumber=ACJS-MHD
+PartCategory=Connector
+PackageCategory=Other
+PinCount=12
+Version=3.2
+Released=2025-02-25 04:32:17
+Downloaded=2026-07-11 22:21:59
+3D=N

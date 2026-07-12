@@ -1,0 +1,10 @@
+(unit MM)
+
+(package "ACJSMHD"
+    (type UNDEF)
+    (uver 2)
+    (mountForm default
+        (footprintRef "ACJSMHD")
+        (spec "default")
+    )
+)
