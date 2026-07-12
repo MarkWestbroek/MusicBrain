@@ -1,0 +1,25 @@
+{
+  "titel": "musicbrain-busboard rev 2.0 — aansluitoverzicht",
+  "voetnoot": "U4 = 74HC154 CS-decoder · U5/U6 = 74HC165 IRQ-keten · JP1 = CAN-terminator · H1..H5 = M3",
+  "bbox_mm": [15, 10, 215, 125],
+  "render": {"w": 1500, "h": 900},
+  "callouts": [
+    {"label": "audio/codec-poort (J17, I²S)", "mm": [32, 13.5], "kant": "links"},
+    {"label": "Teensy 4.1 (op socketstrips)", "mm": [37, 70], "kant": "links"},
+    {"label": "voeding: 12V → 5V → 3,3V", "mm": [80, 91], "kant": "links"},
+    {"label": "12V-in (J9, 2×5 IDC)", "mm": [22, 108], "kant": "links"},
+    {"label": "display (J11)", "mm": [33, 20], "kant": "boven"},
+    {"label": "TUNE-in (J18)", "mm": [44, 13.5], "kant": "boven"},
+    {"label": "expansie 2e segment (J21)", "mm": [123, 22.5], "kant": "boven"},
+    {"label": "IRQ 7-12 (U6-keten)", "mm": [153, 15.5], "kant": "boven"},
+    {"label": "slot 1", "mm": [70, 42], "kant": "boven"},
+    {"label": "slot 6", "mm": [170, 42], "kant": "boven"},
+    {"label": "hub 1 (J7)", "mm": [193, 42], "kant": "rechts"},
+    {"label": "hub 2 (J8)", "mm": [193, 104], "kant": "rechts"},
+    {"label": "Qwiic / I²C (J12)", "mm": [204, 121.5], "kant": "rechts"},
+    {"label": "EXP (J10)", "mm": [40, 121.5], "kant": "onder"},
+    {"label": "DLG1/DLG2 (Serial3/4)", "mm": [61, 121.5], "kant": "onder"},
+    {"label": "MIDI IN×2 + UIT", "mm": [84, 121.5], "kant": "onder"},
+    {"label": "CAN-bus (J16)", "mm": [105, 121.5], "kant": "onder"}
+  ]
+}

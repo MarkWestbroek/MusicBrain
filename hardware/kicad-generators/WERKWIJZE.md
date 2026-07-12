@@ -203,3 +203,25 @@ Kopieer het dichtstbijzijnde `gen_*.py` (slotkaart: `gen_gatein.py`; front:
 + los schema-script). Nieuwe bordmap onder `hardware/schematics/musicbrain-<naam>/`,
 bord in `make_fab.sh`-lijst, README met status/contract/firmware-mapping,
 regel in `MODULES.md`.
+
+## Documentatie-graphics (aansluitoverzichten)
+
+Geannoteerde 3D-overzichten ("gswitch-brain-stijl") zijn volledig scriptbaar
+met **`board_overview.py`** — geen KiCad-GUI nodig:
+
+    python board_overview.py <bord.kicad_pcb> <overzicht.json> [uit.svg]
+
+- 3D-render via `kicad-cli pcb render --background transparent` (op wit
+  gecomposit met PIL), automatisch strak bijgesneden.
+- Het bord wordt in de PNG **teruggevonden** (achtergrond-scan) zodat
+  callouts in gewone **bord-mm** worden opgegeven; mm→pixel gaat vanzelf.
+- Spec = json naast het bord (titel, voetnoot, `bbox_mm` = Edge.Cuts, en
+  callouts met `label`/`mm`/`kant` links|rechts|boven|onder). Labels per
+  kant worden overlapvrij gespreid. Voorbeeld:
+  `musicbrain-busboard-v2/musicbrain-busboard-v2-overzicht.json`.
+- Zelf visueel checken: rasteriseer de SVG met headless Chrome
+  (`chrome.exe --headless --screenshot=... --window-size=... file:///...svg`,
+  met `MSYS_NO_PATHCONV=1` in Git Bash) en bekijk de PNG.
+- Render-varianten: `--side bottom` voor achterzijde-overzichten; kicad-cli
+  kent ook `--rotate`/`--zoom`/`--perspective` voor sfeerplaatjes (maar de
+  mm→pixel-mapping klopt alleen bij de rechte top/bottom-view).
