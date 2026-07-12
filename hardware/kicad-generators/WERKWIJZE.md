@@ -130,8 +130,12 @@ Generators mogen eerder (WIP-koper expliciet benoemen). Nooit `git add -A`.
 - B-zijde-THT-footprints **canoniek geflipt** emitten: `(at x y 180)` + lokale
   y genegeerd + pad-rot 180 (zoals pcbnew zelf flipt). Koper is anders ook
   goed, maar het 3D-model klapt om het anker → "connector naast de gaten".
-- 3D-modellen van lib-connectors: offset (0,0,0) laten; KiCad spiegelt B-zijde
-  zelf (geen eigen 180°).
+- 3D-modellen van lib-connectors op de **B-zijde**: offset (0,0,0) laat het
+  model náást de gaten vallen (pads staan in de neg. kwadrant door de canonieke
+  flip, het model in de pos.). Fix: model `(rotate (xyz 0 0 180))` — of nudge de
+  Offset X/Y live in de Footprint Editor tot de body op de gatenrij valt
+  (backside-flip maakt blind rekenen vals). Raakt alleen de render, niet de fab.
+  Vastgesteld op enc5front J1/J2 (2026-07-12).
 - Lange borden: `b.paper = "A3"` (cardlib) — 110+ mm valt van A4-landscape af.
 - Silk-URL/labels: center-justified! Anker = midden van de tekst. Labels van
   geroteerde headers via een `REF_AT`-tabel boven de body zetten (teksthoek 0
@@ -153,12 +157,31 @@ Generators mogen eerder (WIP-koper expliciet benoemen). Nooit `git add -A`.
 - Capabilities 2-laags: 0,127/0,127 kan, wij ontwerpen op 0,2/0,2 (of 0,15 —
   dan expliciet als netclass in het .kicad_pro, gedocumenteerd in de README
   van het bord). Via 0,6/0,3 standaard, 0,5/0,3 mag.
-- SMT-assemblage: BOM heeft een `LCSC`-veld per symbool nodig; CPL-rotaties
-  kunnen bij JLC afwijken (controle in hun viewer; tot nu toe geen correcties
-  nodig geweest). THT (headers, encoders, pots, jacks) = zelf solderen —
-  `exclude_from_pos_files` op dat soort parts waar zinvol.
+- **Parts-database** (`~/.kicad-mcp/data/jlcpcb_parts.db`, sinds 2026-07-12
+  gevuld: 616k in-stock parts uit de cdfer-bron): zoeken via MCP
+  `search_jlcpcb_parts`. Twee valkuilen: (1) de download-tool loopt tegen de
+  30s-MCP-timeout — de 1,6 GB cache-file landt wél, daarna de import zelf
+  doen (ATTACH + INSERT…SELECT uit `jlcparts_cache/cdfer.sqlite3` en FTS
+  `rebuild`); (2) de FTS-zoekopdracht verslikt zich in **streepjes**: zoek
+  "ESP32 S3 WROOM 1U", niet "ESP32-S3-WROOM-1U".
+- SMT-assemblage: BOM heeft een `LCSC`-veld per symbool nodig (of `jlc_fix.py`'s
+  parts-library vult 'm). **CPL-rotaties wijken bij JLC per package af** van
+  KiCad — `jlc_fix.py` corrigeert dat automatisch via `ROT_FIX` (per footprint)
+  + `ROT_FIX_VAL` (per part-waarde; zelfde package kan per chip verschillen, bv.
+  74LVC1G125 vs 74LVC1G17). **Alleen SMD corrigeren** (machine plaatst blind);
+  **THT blijft raw** (mens volgt de gaten/silk → 90/270 in de preview is het
+  3D-model, niet de echte plaatsing). Offsets aflezen in JLC's
+  Component-Placements-preview; zie `hardware/schematics/FABRICATION.md`.
+  THT (headers, encoders, pots, jacks) = zelf solderen —
+  `exclude_from_pos_files` waar zinvol.
 - Groot bord (busboard ~200×115) valt buiten het prototype-tarief; fronts en
   slotkaarten (≤100×110) zijn goedkoop — reken daarmee bij paneelkeuzes.
+- **Lokale JLCPCB parts-DB** (voor `search_jlcpcb_parts`/voorraad via de MCP):
+  nog **niet** betrouwbaar te downloaden — `download_jlcpcb_database` kapt af op
+  de 30s-tool-limiet (~1,5 GB in-stock subset) en de bronnen erroren. Voor
+  later: de downloader van de KiCAD-MCP-Server **direct** in een terminal
+  draaien (geen 30s-cap), of de SQLite handmatig op
+  `C:/Users/User/.kicad-mcp/data/jlcpcb_parts.db` zetten.
 
 ## Praktische valkuilen (Windows/omgeving)
 
