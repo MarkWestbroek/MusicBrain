@@ -163,7 +163,12 @@ Generators mogen eerder (WIP-koper expliciet benoemen). Nooit `git add -A`.
   30s-MCP-timeout — de 1,6 GB cache-file landt wél, daarna de import zelf
   doen (ATTACH + INSERT…SELECT uit `jlcparts_cache/cdfer.sqlite3` en FTS
   `rebuild`); (2) de FTS-zoekopdracht verslikt zich in **streepjes**: zoek
-  "ESP32 S3 WROOM 1U", niet "ESP32-S3-WROOM-1U".
+  "ESP32 S3 WROOM 1U", niet "ESP32-S3-WROOM-1U". (3) FTS is een **AND van alle
+  tokens, exact**: te veel/te specifieke tokens = 0 hits. Vermijd `2.54mm` als
+  losse token (breekt de query) en gebruik de echte omschrijving-tokens: male =
+  `Pin Header` (pincount mét x: `2x10P`), IDC = `IDC Header`, female =
+  `Female Header`, haaks = `Right Angle` (of Chinees `弯插`). Werkt bv.
+  `2x10P Pin Header` / `Right Angle Pin Header`; faalt `header 2x10 2.54mm`.
 - SMT-assemblage: BOM heeft een `LCSC`-veld per symbool nodig (of `jlc_fix.py`'s
   parts-library vult 'm). **CPL-rotaties wijken bij JLC per package af** van
   KiCad — `jlc_fix.py` corrigeert dat automatisch via `ROT_FIX` (per footprint)

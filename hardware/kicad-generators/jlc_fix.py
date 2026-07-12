@@ -70,6 +70,9 @@ LCSC_DEVICE = {
 # EN als SMD alu-elco op CP_Elec.
 LCSC_BY_FOOTPRINT = {
     ("10u", "CP_Elec_4x5.3"): "C3343",  # 10uF 25V SMD alu-elco, D4xL5.4mm (SMT)
+    # adc8 JP1 RANGE (recht 1x3 male). Comment-specifiek zodat de busboard-MIDI
+    # 1x3-headers (comment "MIDI IN1" enz.) NIET meegepakt worden.
+    ("RANGE", "PinHeader_1x03_P2.54mm_Vertical"): "C49257",
 }
 
 # Connectoren op footprint alleen (comment varieert per stuk, part is gelijk).
@@ -77,7 +80,10 @@ LCSC_BY_FOOTPRINT = {
 LCSC_CONN = {
     "PinSocket_2x10_P2.54mm_Vertical": "C92266",     # busboard SLOT-sockets J1-J6
     "IDC-Header_2x13_P2.54mm_Vertical": "C2884553",  # busboard EXPANSION J21 (X9555WV, 2.54mm)
-    "IDC-Header_2x05_P2.54mm_Vertical": "C5665",     # busboard HUB1/HUB2/PWRIN J7-J9 (2.54mm)
+    "IDC-Header_2x05_P2.54mm_Vertical": "C5665",        # busboard HUB1/HUB2/PWRIN J7-J9 (2.54mm)
+    "PinHeader_2x10_P2.54mm_Horizontal": "C19190505",   # slotkaart J1 BUS (haaks male 2x10)
+    "PinHeader_1x10_P2.54mm_Horizontal": "C2687688",    # slotkaart J2 CV/gates (A2541WR-10P, haaks)
+    "SW_PUSH_6mm": "C110153",                           # enc5front SW6/SW7 knopjes (6x6mm THT tact)
 }
 
 def lookup_lcsc(comment, footprint):
@@ -130,9 +136,10 @@ ROT_FIX = {
     # Geverifieerd in JLCPCB-preview (busboard). Alleen niet-nul correcties.
     "SOT-223-3_TabPin2":           180,  # U3 AMS1117
     "SOIC-8_3.9x4.9mm_P1.27mm":    270,  # U12
-    "SOIC-16_3.9x9.9mm_P1.27mm":   270,  # U5/U6 (74HC165)
+    "SOIC-16_3.9x9.9mm_P1.27mm":   270,  # 74HC165/74HCT595/MCP3208 (cross-chip geverifieerd)
     "SOIC-20W_7.5x12.8mm_P1.27mm": 270,  # U8
-    "SOIC-24W_7.5x15.4mm_P1.27mm":  90,  # U4 (geverifieerd)
+    "SOIC-24W_7.5x15.4mm_P1.27mm":  90,  # U4 74HC154
+    "HTSSOP-24-1EP_4.4x7.8mm_P0.65mm_EP3.2x5mm": 270,  # dac8 AD5754 (geverifieerd)
     "SOT-23-5":                    270,  # U11/U13 (74LVC1G17); U7 -> ROT_FIX_VAL
     "SOT-23":                      180,  # D3 (BAT54S)
     # THT (pinnen in vaste gaten -> alleen 0/180 fysiek mogelijk; 90/270 in preview

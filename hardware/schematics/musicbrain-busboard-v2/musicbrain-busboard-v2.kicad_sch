@@ -4569,7 +4569,7 @@
     (unit 1) (exclude_from_sim no) (in_bom yes) (on_board yes) (dnp no)
     (uuid "c2000001-0000-4000-8000-000000001028")
     (property "Reference" "J11" (at 225 264 0) (effects (font (size 1.27 1.27))))
-    (property "Value" "DISPLAY" (at 225 292 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "connector to DISPLAY" (at 225 292 0) (effects (font (size 1.27 1.27))))
     (property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x09_P2.54mm_Vertical" (at 225 278 0) (effects (font (size 1.27 1.27)) (hide yes)))
     (property "Datasheet" "" (at 225 278 0) (effects (font (size 1.27 1.27)) (hide yes)))
     (instances (project "musicbrain-busboard-v2" (path "/c2000000-0000-4000-8000-000000000000" (reference "J11") (unit 1))))
