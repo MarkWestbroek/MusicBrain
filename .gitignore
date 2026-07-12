@@ -45,3 +45,16 @@ COM5
 # PlatformIO-administratie: wijzigt bij elke dependency-check (libdeps zelf
 # blijft bewust getrackt - ArduinoJson is gevendord en staat niet in lib_deps)
 firmware/*/.pio/libdeps/*/integrity.dat
+
+# KiCad-werkbestanden uit de generator/validatie-lus (WERKWIJZE):
+# rapporten, netlist-tussenstap, SES-backups, render-checks, DSN-prep
+drc.rpt
+erc.rpt
+*.ses.bak
+*-fr.dsn
+render-top.png
+render-bottom.png
+render-persp.png
+board-top.svg
+hardware/schematics/*/*.net
+hardware/kicad-generators/__pycache__/
