@@ -1,0 +1,154 @@
+# KiCad-borden genereren zonder GUI — werkwijze & geleerde lessen
+
+Instructie voor (parallelle) chats die borden ontwerpen in dit repo
+(MusicBrain, Effect Switcher, …). Stand: 2026-07-12, na 13 borden waarvan
+alle op DRC 0/0. Leidende spec voor de bus: `doc/spi-bus-spec.md`;
+bordstatus: `hardware/schematics/MODULES.md`.
+
+## TL;DR — de vaste lus
+
+```
+Python-generator (gen_*.py)  →  .kicad_sch + .kicad_pcb + .kicad_pro
+  → kicad-cli sch erc --severity-error --exit-code-violations
+  → kicad-cli sch export netlist  →  cardlib.netcheck(netlist, pcb)   ← pad-voor-pad!
+  → kicad-cli pcb drc --severity-error --exit-code-violations --refill-zones
+  → kicad-cli pcb render --side top/bottom   ← visuele check (3D-modellen, silk!)
+  → bash make_fab.sh "<bord>"   → fab/<bord>-gerbers.zip + BOM/CPL (JLC-formaat)
+```
+
+**Commit-regel**: bordbestanden pas committen bij ERC 0 + netcheck OK + DRC 0/0.
+Generators mogen eerder (WIP-koper expliciet benoemen). Nooit `git add -A`.
+
+## Gereedschap: wat waarvoor
+
+| Tool | Waarvoor | Waarvoor NIET |
+|---|---|---|
+| **Eigen generators** (`cardlib.py`/`schlib.py`/`seslib.py`) | Alles wat het bord IS: placement, netten, footprints, zones, handroutes. Deterministisch, diff-baar, reproduceerbaar. | — |
+| **kicad-cli** (10.0, op PATH) | ERC/DRC/netlist/gerbers/PDF én `pcb render` (snelle 3D-png's — dé manier om silk/3D-fouten zelf te zien vóór de gebruiker ze ziet). | — |
+| **KiCAD-MCP-server** (`.mcp.json` in de repo-root) | Vrijwel alleen `open_project` + `export_dsn` (Specctra-export voor freerouting). | `import_ses` (pcbnew-hersave breekt netcheck!), `autoroute` (30s client-timeout), bord-edits (de generator is de bron van waarheid). Let op: `open_project` "verrijkt" het .kicad_pro met defaults — die werkkopie-ruis terugdraaien met `git checkout --`. |
+| **Freerouting v2.1** (Docker, jar in `C:/Users/User/.kicad-mcp/`) | Signaalkoper voor drukke borden. | GND (gaat via vlakken), voedingssporen breder dan tussen-pad-gaten. |
+| **pcbnew-python** (`"C:/Program Files/KiCad/10.0/bin/python.exe"` + PYTHONPATH `.../bin/Lib/site-packages`) | Waarheidsmetingen: cluster-/connectiviteitsanalyse, zone-fill-inspectie, `gnd_stitch.py`/`gnd_bridge.py`. | Bordbestanden schrijven (hersave ≠ generatoruitvoer). |
+
+## De freerouting-pijplijn (het recept)
+
+1. Generator draaien **zonder** SES (placement + netten + evt. seeds + GND-via's).
+2. MCP: `open_project` → `export_dsn`.
+3. **DSN prepareren** (script-matig, haakjes-balans-parser):
+   - `(plane GND …)`-blokken en het `(net GND …)`-blok strippen, GND uit de
+     class-lijsten en alle wiring-regels met `(net GND)` weg. *Anders ziet
+     freerouting geen routeerruimte of gaat het GND routeren.*
+   - **Boundary 0,6 mm inkrimpen** (anders plakt hij tegen de bordrand →
+     copper_edge_clearance-fouten).
+   - Evt. `(clearance 200)` → `160`: **zet dan óók de Default-netclass op
+     0,15 in het .kicad_pro**, anders keurt KiCad de uitkomst af (enc5front).
+   - Voedingsnetten in een eigen class: **breedte moet tussen de THT-padgaten
+     passen**: 2,54-steek ⇒ gat 0,84 ⇒ max ≈ 0,84 − 2×clearance. 0,35 mm werkt;
+     0,5 mm maakt de zaak onrouteerbaar → eindeloze rip-up-stormen (4 uur/53 passes).
+4. `MSYS_NO_PATHCONV=1 docker run --rm --name fr-X -v "D:/…/bord:/work" -v
+   "C:/Users/User/.kicad-mcp:/jar" eclipse-temurin:21-jre java -jar
+   /jar/freerouting.jar -de /work/X.dsn -do /work/X.ses -mp 300 -da`
+   (achtergrond; voortgang via `docker logs`).
+5. Generator opnieuw: `seslib.apply_ses()` bakt de SES **native** in de
+   pcb-uitvoer (skip/only-filters beschikbaar). Daarna netcheck + DRC.
+
+### Freerouting-gedrag (v2.1.0) — belangrijk
+
+- **`-mp` wordt genegeerd**; hij stopt pas bij 0 unrouted + 0 violations, of
+  bij "geen vooruitgang". **Vaste conflicten in de input** (bijv. component
+  buiten de bordrand — de courtyard-DRC vangt dat níét!) geven eeuwige
+  "violations" → hij stopt nooit. Eerst input schoon, dan routen.
+- **SIGTERM/docker stop = resultaat weg** (SES wordt alleen bij natuurlijke
+  terminatie geschreven). Nooit killen als je de uitkomst wilt.
+- **Runs zijn stochastisch** (multithreaded): draai een **best-of-N-lus** en
+  beoordeel elke run met een échte connectiviteitsmeting (zie hieronder) —
+  freeroutings eigen "N unrouted" wijkt af van wat KiCad ziet.
+- **`(type protect)`-seeds**: werkt voor een handvol korte handroutes en voor
+  de **hybride narun** (bijna-af bord → alles protected, alleen de missende
+  netten hun wiring-regels uit de DSN halen → hij legt alleen die). Grote
+  seed-bundels averechts: ze blokkeren zijn eigen corridors.
+- Route-uiteinden stoppen soms 0,1–1,3 mm vóór een fijn (QFN-)pad
+  (padbenadering verschilt) → `cardlib.snap_stubs()` dicht dat generiek.
+- Convergeert hij structureel niet op een handvol netten: **niet blijven
+  rerunnen maar het ontwerp aanpassen** — pinvolgorde/GPIO-toewijzing naar de
+  geografie (enc5front: U1 noord = E1-E4, U2 zuid = E5+knoppen), blokkerende
+  ontkoppel-C's verplaatsen, of het bord breder maken.
+
+### Waarheidsmeting (niet op DRC-teksten of freerouting vertrouwen)
+
+- `cardlib.netcheck(netlist, pcb)` — pad-voor-pad netten vergelijken (altijd).
+- **Cluster-analyse** met pcbnew-python (union-find over pads/sporen/vias per
+  net, zones vullen met `ZONE_FILLER`): vertelt exact wélke netten in hoeveel
+  stukken liggen. kicad-cli's "unconnected"-teksten husselen netlabels.
+- `kicad-cli pcb render` na elke ronde: 3D-modellen op de gatenrij? Silk vrij?
+
+## GND-vlakken
+
+- Twee zones (F+B), `connect_pads yes`, **géén `island_removal_mode 1`**
+  (= eilanden BEHOUDEN — twee keer op stukgelopen; weglaten = verwijderen).
+- Na het routen fragmenteert het F-vlak. Automatisch dichten:
+  1. `gnd_stitch.py <bord.kicad_pcb>` — zoekt per losliggend F-fragment een
+     via-plek ≥0,45 mm van vreemd koper → `gnd_stitch.json` (generator leest in).
+  2. `gnd_bridge.py <bord.kicad_pcb>` — vindt F+B-fragmentgroepen die wél
+     onderling maar niet met het hoofdvlak verbonden zijn en zet een brugvia
+     waar het B-hóófdvlak onder het F-fragment ligt.
+  3. Herhaal 1×: de vlakvorm verandert door elke via.
+
+## Placement-lessen
+
+- **Courtyards uit de echte bestanden lezen** (fp-bestand of gegenereerd bord),
+  niet schatten — twee volle iteratierondes verspild aan gis-courtyards.
+- De courtyard-check dekt **niet**: bordrand (copper_edge_clearance apart
+  checken!), silk, en 3D-botsingen. Renders maken.
+- B-zijde-THT-footprints **canoniek geflipt** emitten: `(at x y 180)` + lokale
+  y genegeerd + pad-rot 180 (zoals pcbnew zelf flipt). Koper is anders ook
+  goed, maar het 3D-model klapt om het anker → "connector naast de gaten".
+- 3D-modellen van lib-connectors: offset (0,0,0) laten; KiCad spiegelt B-zijde
+  zelf (geen eigen 180°).
+- Lange borden: `b.paper = "A3"` (cardlib) — 110+ mm valt van A4-landscape af.
+- Silk-URL/labels: center-justified! Anker = midden van de tekst. Labels van
+  geroteerde headers via een `REF_AT`-tabel boven de body zetten (teksthoek 0
+  blijft horizontaal renderen).
+- Vaste maten die overal terugkomen: THT 2,54-steek ⇒ padgat-corridor 0,84 mm
+  breed (0,25-spoor past met 0,29 marge); front-koppel-standaard socket
+  x=16,5 / pin 1 op 43,57 van de bovenrand; hartlijn 8,0 van de westrand.
+
+## Richting JLCPCB
+
+- `bash make_fab.sh "<bord1>,<bord2>"` doet alles: gerbers (`--no-protel-ext
+  --check-zones`), excellon + map, CPL (`pos --side both`), BOM via
+  `sch export bom` met LCSC-veld, dan `jlc_fix.py` (kolomnamen naar
+  JLC-formaat, designator-reeksen uitvouwen, LCSC-matching via de
+  parts-library) en de **zip-stap** (zit sinds cc-2026-07-11 in het script).
+- Upload: `fab/<bord>-gerbers.zip` + `-bom.csv` + `-cpl.csv`. **JLC "ververst"
+  niet**: cart-item verwijderen en de nieuwe zip opnieuw uploaden; check in
+  hun gerber-viewer de rev-tekst op de silk.
+- Capabilities 2-laags: 0,127/0,127 kan, wij ontwerpen op 0,2/0,2 (of 0,15 —
+  dan expliciet als netclass in het .kicad_pro, gedocumenteerd in de README
+  van het bord). Via 0,6/0,3 standaard, 0,5/0,3 mag.
+- SMT-assemblage: BOM heeft een `LCSC`-veld per symbool nodig; CPL-rotaties
+  kunnen bij JLC afwijken (controle in hun viewer; tot nu toe geen correcties
+  nodig geweest). THT (headers, encoders, pots, jacks) = zelf solderen —
+  `exclude_from_pos_files` op dat soort parts waar zinvol.
+- Groot bord (busboard ~200×115) valt buiten het prototype-tarief; fronts en
+  slotkaarten (≤100×110) zijn goedkoop — reken daarmee bij paneelkeuzes.
+
+## Praktische valkuilen (Windows/omgeving)
+
+- Multiline-patches op generators: **Edit-tool of per-regel Python-`io`**,
+  nooit bash-heredoc-sed (backslashes/CRLF eten patches op — herhaaldelijk
+  misgegaan).
+- Windows-Python begrijpt geen `/d/Git/...`-paden — altijd `d:/Git/...` in
+  Python-argumenten; Git Bash zelf wil juist `/d/`.
+- Docker in Git Bash: `MSYS_NO_PATHCONV=1` anders worden `/jar`-paden gemangeld.
+- KiCad houdt bestanden gelockt (ook stale `~*.lck`) — mapoperaties pas na
+  het sluiten van KiCad; stale locks mogen weg.
+- pcbnew-python: zones éérst vullen (`ZONE_FILLER`), `IsOnLayer` checken vóór
+  `GetFilledPolysList` (assert), `GetParentFootprint()` i.p.v. `GetParent()`.
+
+## Startpunt voor een nieuw bord
+
+Kopieer het dichtstbijzijnde `gen_*.py` (slotkaart: `gen_gatein.py`; front:
+`gen_pot8front.py`; riser: `gen_i2criser.py`; groot/complex: `gen_bus2_pcb.py`
++ los schema-script). Nieuwe bordmap onder `hardware/schematics/musicbrain-<naam>/`,
+bord in `make_fab.sh`-lijst, README met status/contract/firmware-mapping,
+regel in `MODULES.md`.

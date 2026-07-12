@@ -1,5 +1,9 @@
 # KiCad-generators (GUI-loze workflow)
 
+> **Nieuw hier (of parallelle chat)? Lees eerst [`WERKWIJZE.md`](WERKWIJZE.md)**
+> — het volledige recept incl. freerouting-pijplijn, GND-vlakken, placement-
+> lessen, JLCPCB-checklist en alle valkuilen.
+
 De borden in `hardware/schematics/` zijn machine-gegenereerd met deze Python-
 generators (v8-sexpr) en machine-geverifieerd met `kicad-cli` 10.0:
 
