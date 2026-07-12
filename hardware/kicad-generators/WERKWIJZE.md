@@ -176,12 +176,6 @@ Generators mogen eerder (WIP-koper expliciet benoemen). Nooit `git add -A`.
   `exclude_from_pos_files` waar zinvol.
 - Groot bord (busboard ~200×115) valt buiten het prototype-tarief; fronts en
   slotkaarten (≤100×110) zijn goedkoop — reken daarmee bij paneelkeuzes.
-- **Lokale JLCPCB parts-DB** (voor `search_jlcpcb_parts`/voorraad via de MCP):
-  nog **niet** betrouwbaar te downloaden — `download_jlcpcb_database` kapt af op
-  de 30s-tool-limiet (~1,5 GB in-stock subset) en de bronnen erroren. Voor
-  later: de downloader van de KiCAD-MCP-Server **direct** in een terminal
-  draaien (geen 30s-cap), of de SQLite handmatig op
-  `C:/Users/User/.kicad-mcp/data/jlcpcb_parts.db` zetten.
 
 ## Praktische valkuilen (Windows/omgeving)
 

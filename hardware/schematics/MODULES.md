@@ -9,7 +9,7 @@ Vul zelf *aantal besteld* en *besteldatum* in bij het bestellen.
 | ad5754r-breakout | 1.0 | bestelbaar | 4× CV-uit breakout (AD5754 + ADR421) | rot checken vóór PCBA: AD5754 (HTSSOP), ADR421 (SOIC-8) | | | |
 | musicbrain-adc8 | 1.2 | bestelbaar | recht-toe-bedrading; fw-spiegel zit in `MbAdc8` | rot checken: AD7606 (LQFP-64, niet gekalibreerd) | 5 | 110 | |
 | musicbrain-dac8 | 1.0 | bestelbaar | silk-URL verplaatst 2026-07-11 (koper gelijk) | rot checken: AD5754 (HTSSOP), ADR421 (SOIC-8, ander chip) | 5 (2 pcbc) | 160 | |
-| musicbrain-gate8 | 1.1 | bestelbaar | | rot checken: 74HCT595 (SOIC-16, ander chip dan ijking) | 20 | 31 | |
+| musicbrain-gate8 | 1.1 | bestelbaar | | rot checken: 74HCT595 (SOIC-16, ander chip dan ijking) | 30 | 34 / 59| |
 | musicbrain-gatein8 | 1.0 | bestelbaar | silk-URL verplaatst 2026-07-11 (koper gelijk) | rot ✅ (matcht busboard-ijking) | 30 | 40 | |
 | musicbrain-jack8 | 1.2 | bestelbaar | socket op front-koppel-standaard (x16,5 / pin1 43,57) | — (PCB-only) | 30 | 10 | |
 | musicbrain-jack4 | 1.2 | bestelbaar | idem; alleen nodig voor kabel-breakout | — (PCB-only) | 30 | 7,50 | |
