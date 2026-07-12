@@ -181,7 +181,7 @@ for k, (name, num, typ) in enumerate(RIGHT):
 # ================= J1: bus connector =================
 BX, BY = 60, 110
 component("Custom:Conn_02x10", "J1", "BUS", BX, BY, 0,
-          "Connector_PinHeader_2.54mm:PinHeader_2x10_P2.54mm_Vertical",
+          "Connector_PinHeader_2.54mm:PinHeader_2x10_P2.54mm_Horizontal",
           BX, BY - 16.51, BX, BY + 16.51)
 ROWS = [("GND", "+12V"), ("GND", None), ("GND", "+3V3"),
         ("SCLK", "GND"), (None, "GND"), ("MISO", "GND"), ("CS", "GND"),
@@ -212,7 +212,7 @@ for k, (lf, rf) in enumerate(ROWS):
 # ================= J2: input header =================
 JX, JY = 215, 120
 component("Custom:Conn_01x10", "J2", "CV IN", JX, JY, 0,
-          "Connector_PinHeader_2.54mm:PinHeader_1x10_P2.54mm_Vertical",
+          "Connector_PinHeader_2.54mm:PinHeader_1x10_P2.54mm_Horizontal",
           JX, JY - 13.97, JX, JY + 16.51)
 for k in range(10):
     y = JY - 11.43 + 2.54 * k

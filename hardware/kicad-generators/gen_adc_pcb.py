@@ -133,14 +133,14 @@ for m in re.finditer(r'\(uuid "([0-9a-f-]+)"\)\s*\n\s*\(property "Reference" "([
     sym_uuid[m.group(2)] = m.group(1)
 
 FPS = [
-    ('Connector_PinHeader_2.54mm.pretty\\PinHeader_2x10_P2.54mm_Vertical.kicad_mod',
-     'Connector_PinHeader_2.54mm:PinHeader_2x10_P2.54mm_Vertical',
+    ('Connector_PinHeader_2.54mm.pretty\\PinHeader_2x10_P2.54mm_Horizontal.kicad_mod',
+     'Connector_PinHeader_2.54mm:PinHeader_2x10_P2.54mm_Horizontal',
      'J1', 'BUS', 104, 104.5, J1_MAP, 0),
     ('Package_QFP.pretty\\LQFP-64_10x10mm_P0.5mm.kicad_mod',
      'Package_QFP:LQFP-64_10x10mm_P0.5mm',
      'U1', 'AD7606BSTZ', 135, 119, U1_MAP, 0),
-    ('Connector_PinHeader_2.54mm.pretty\\PinHeader_1x10_P2.54mm_Vertical.kicad_mod',
-     'Connector_PinHeader_2.54mm:PinHeader_1x10_P2.54mm_Vertical',
+    ('Connector_PinHeader_2.54mm.pretty\\PinHeader_1x10_P2.54mm_Horizontal.kicad_mod',
+     'Connector_PinHeader_2.54mm:PinHeader_1x10_P2.54mm_Horizontal',
      'J2', 'CV IN', 168, 104.5, J2_MAP, 0),
     ('Connector_PinHeader_2.54mm.pretty\\PinHeader_1x03_P2.54mm_Vertical.kicad_mod',
      'Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical',
