@@ -3100,3 +3100,232 @@ Continue the conversation from where it left off without asking the user any fur
 Let me reconsider the POT8-front floorplan properly. First I'll check the actual RK09K footprint geometry, since the routing congestion depends on exactly where the 3 pins sit:
 > 🔧 `Bash` — Find and inspect RK09K vertical footprint pads
 
+**🤖 Claude:**
+
+`find /` is too slow on Windows. Let me locate the KiCad footprint library directly:
+> 🔧 `Bash` — Locate KiCad footprint dir and RK09K variants
+> 🔧 `Bash` — Inspect RK09K vertical pads and model
+> 🔧 `Bash` — Get RK09K pad positions
+
+**🤖 Claude:**
+
+RK09K vertical: pins 1/2/3 in a line at local (0,0),(0,2.5),(0,5); mounting posts at x=+7 (body to the east). So the **west side is a free routing channel**. Also key: for POT8 I can freely choose which pot maps to which ADC channel (fixed in firmware), which makes a crossing-free Manhattan fan possible. Let me recheck the cardlib API before rewriting the generator:
+> 🔧 `Bash` — Recall cardlib API signatures
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\99e404c8-b02c-48a1-b346-1e9bb9c444c9\scrat...
+> 🔧 `Bash` — Read SOIC-16 pad geometry
+
+**🤖 Claude:**
+
+I have a clean floorplan now. Key decisions:
+- **Pots rotated 180°** → bodies/posts to the west (board edge), pins at x=107, freeing the **east** side for routing.
+- **MCP3208 rot90** at the south, pushed east (CH pins at x=109–118, clear of the pot-pin column at x=107) → each wiper = one B.Cu stub + one F.Cu vertical lane, crossing-free (V and H on separate layers).
+- **Identity channel map** (pin i = POT i) → no firmware remap needed.
+- Socket + SPI/power grouped at the south near the MCP; GND via the zone.
+
+Let me rewrite the generator:
+> 🔧 `Write` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\99e404c8-b02c-48a1-b346-1e9bb9c444c9\scrat...
+> 🔧 `Bash` — Generate POT8-front PCB
+
+**🤖 Claude:**
+
+PCB generated. Let me run DRC:
+> 🔧 `Bash` — Run DRC on POT8-front
+
+**🤖 Claude:**
+
+Many crossings/shorts — my geometric assumptions need verifying against actual pad coordinates. Let me dump them and inspect a few violation locations:
+> 🔧 `Bash` — Inspect violation coordinates
+
+**🤖 Claude:**
+
+The rot90 was wrong: CH pins ended up on the far (south) side so wiper verticals crossed the near-row power pins. And my hand-rolled socket causes 61 mask-bridge violations. Let me check the pot courtyard size and use a real PinSocket footprint:
+> 🔧 `Bash` — Check RK09K courtyard bounds and PinSocket availability
+
+**🤖 Claude:**
+
+Critical mechanical findings from the footprint geometry that change the whole floorplan:
+
+- **RK09K courtyard is 13.3mm in the pot-axis** → pot pitch must be ≥13.5mm (mine was 12mm → courtyards overlapped).
+- **The pot body/courtyard extends 13.25mm from the pin row** → on a 19–20mm-wide board the body eats most of the width; pins sit at one edge with only a **~4.6mm routing channel** beside them.
+- Most importantly: the front board is **parallel to the panel** (one 20mm column × **≤128.5mm** tall), so the MCP **and** a 2×10 socket must fit *within the column length* alongside 8 pots — and 8×13.5 + MCP + a full 2×10 socket ≈ 130mm **exceeds** the panel height.
+
+This isn't a routing bug I can brute-force clean tonight — it's a floorplan/architecture constraint. Let me clean up the broken output and check the exact numbers before deciding:
+> 🔧 `Bash` — Remove broken output and compute length budget
+
+**🤖 Claude:**
+
+The decisive constraint: behind the Eurorack rails the usable PCB height is **~110mm** (that's the project's `B=110`), not 128.5mm. Let me confirm that from the spec, then I'll stop blind-routing and document this properly — the front↔riser connector strategy is a real architecture decision, not a detail I should guess:
+> 🔧 `Bash` — Confirm usable-height figure in spec
+
+**🤖 Claude:**
+
+Confirmed — line 109: the existing `musicbrain-pot8` is already **110×80mm with 8 pots at 13.5mm pitch, fully routed**, proving pots+MCP fit in ~110mm but leaving no in-line room for a full 2×10 socket. This is a genuine architecture fork, not something to guess at 2am. Let me write it up properly:
+> 🔧 `Write` — d:\Git\Muziek\MusicBrain\doc\mechanics\front-board-constraints.md
+
+**🤖 Claude:**
+
+Now update the handover to point at this decision and mark POT8-front as blocked-on-decision:
+> 🔧 `Bash` — Commit constraint doc + handover update
+
+**🤖 Claude:**
+
+The fork is documented and committed cleanly (the `19bd9f4 doc` between my commits is the parallel firmware session — my commits only staged my own files). 
+
+Now let me make use of remaining autonomy on something **non-blocked and verifiable**: the new riser doesn't yet have a fab package like the other 10 boards. Let me verify its completeness and generate its fab output:
+> 🔧 `Bash` — Check riser completeness and re-verify ERC/DRC
+
+**🤖 Claude:**
+
+DRC output path failed (Windows `/tmp`). Let me write locally:
+> 🔧 `Bash` — Re-run riser DRC to local file
+
+**🤖 Claude:**
+
+Riser is clean (ERC 0, DRC 0/0). It lacks a `fab/` package. Let me check how the other boards' fab packages are structured and replicate for the riser:
+> 🔧 `Bash` — Inspect fab package structure and script
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\99e404c8-b02c-48a1-b346-1e9bb9c444c9\scrat...
+
+**🤖 Claude:**
+
+Let me generate the riser's fab package the same way (gerbers + drill + CPL + BOM + zip):
+> 🔧 `Bash` — Generate riser fab package
+> 🔧 `Bash` — Verify riser BOM and CPL contents
+
+**🤖 Claude:**
+
+Fab package is sane. Let me add the riser to `make_fab.sh` for future regen and update `FABRICATION.md` if it enumerates boards, then commit:
+> 🔧 `Bash` — Check FABRICATION.md board enumeration
+> 🔧 `Read` — d:\Git\Muziek\MusicBrain\Images\schematics\FABRICATION.md
+> 🔧 `Read` — d:\Git\Muziek\MusicBrain\Images\schematics\FABRICATION.md
+
+**🤖 Claude:**
+
+FABRICATION.md is generic (no per-board list to bump). Let me add the riser to the regen script and commit the fab package:
+> 🔧 `Edit` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\99e404c8-b02c-48a1-b346-1e9bb9c444c9\scrat...
+> 🔧 `Bash` — Commit riser fab package
+
+**🤖 Claude:**
+
+Let me clean up the stray ERC report artifact (check if other boards commit theirs):
+> 🔧 `Bash` — Remove stray ERC report if not tracked elsewhere
+
+**🤖 Claude:**
+
+Riser tree is clean now. Let me verify I haven't left any `.prl` or other unintended modifications from my kicad-cli runs, then update the todos and memory:
+> 🔧 `Bash` — Check for stray artifacts from my runs
+> 🔧 `Bash` — Full working tree status
+
+**🤖 Claude:**
+
+Working tree is completely clean (the earlier `.prl`/`.history` noise is now handled — `.gitignore` covers `.history/`, and the rest was committed by the parallel session). Let me update my todos and the memory pointer to reflect the night's outcome:
+> 🔧 `Read` — C:\Users\User\.claude\projects\d--Git-Muziek-MusicBrain\memory\hardware-handover.md
+> 🔧 `Edit` — C:\Users\User\.claude\projects\d--Git-Muziek-MusicBrain\memory\hardware-handover.md
+> 🔧 `Skill` — TodoWrite
+> 🔧 `ToolSearch`
+> 🔧 `TodoWrite` — takenlijst bijgewerkt
+
+**🤖 Claude:**
+
+Alles is committed en de working tree is schoon. Ik ben op een punt gekomen waar de volgende stap echt jouw keuze is, dus ik stop daar netjes. Hier is wat er vannacht gebeurd is:
+
+## Wat af is
+- **`musicbrain-riser`** — de generieke slot-verlenger is compleet: sch + pcb + pro + README, **ERC 0, netcheck OK, DRC 0/0**, en nu ook een **fab-pakket** (gerbers/drill/CPL/BOM) net als de andere 10 borden. (commits `3008b01`, `ef52dd8`)
+- **Handover + paneelmodel vastgelegd** (`0f115e1`): Eurorack-3U-envelope, paneel-v1, twee-PCB-model, alle sessiebeslissingen en de bouwlijst.
+
+## Waar ik op ben gestopt (bewust — jouw keuze)
+Bij het bouwen van **POT8-front** liep ik tegen harde mechanische maten aan die de hele floorplan veranderen:
+- RK09K-pot heeft een **courtyard van 13,3 mm** → steek ≥13,3 (mijn 12 mm liet ze overlappen).
+- De **pot-body vult ~15 mm van de 20 mm-kolom** → routekanaal maar ~4,6 mm.
+- **Bruikbare hoogte achter de rails ≈110 mm** → 8 pots + MCP + een **2×10 board-mount socket** (23 mm) past **niet in-lijn** (≈129 mm).
+
+Dit is geen route-bug die ik moet forceren, maar een **architectuurkeuze**. Ik heb 'm volledig uitgewerkt in **`doc/mechanics/front-board-constraints.md`** (`f867cc0`):
+
+- **Optie A** — generieke riser + *slim* front (MCP op het front). Puurst, maar vergt een kleinere subset-connector + een strak blind-route.
+- **Optie B** (mijn aanbeveling) — *slim* buskaart (≈ de al werkende `pot8`) + *passief* front met een **centrale connector**. Triviale routing, maar laat de generieke riser voor pot/enc los.
+
+Ik heb géén kapot/hacky bord gecommit. De generator-aanzet staat in scratchpad, klaar om af te maken zodra je kiest.
+
+## Nog open (deels wachtend op jou)
+- **POT8/ENC5-front** — wacht op de A/B-keuze hierboden.
+- **ADC8 v1.1**, **silk-URL-fixes** (die wil ik mét jou doen — kan silk-plaatsing niet blind verifiëren), **busboard-v2** (MIDI-blok).
+
+Kies je 's ochtends A of B, dan bouw ik het betreffende front in een paar generate→DRC-rondes af.
+
+---
+
+## 👤 Gebruiker (43)
+
+Paar vragen:
+- wat is een courtyard?
+- passen er dus geen 8 op een rij in ca 110mm? Of wel met een slimme riser?
+
+Ik denk dat optie B beter is, dus wat we eigenlijk al hadden. Maar passen de potmeters dan wel? Eventueel probeer ik het zelf. Ik heb ze in huis.
+
+Zou je een handover document willen maken? Dan kan ik fable nog even de boel laten superviseren.
+
+**🤖 Claude:**
+
+Goede vragen — ik beantwoord ze en maak daarna het handover-document.
+
+## 1. Wat is een courtyard?
+
+De **courtyard** is de "verboden zone" rond een onderdeel op de print: de fysieke ruimte die het part inneemt — body + soldeerlippen + een kleine montagemarge — als een rechthoek om de footprint. Het is **geen koper**, puur mechanisch: "hier mag geen ander onderdeel-lichaam komen, anders botsen ze of kun je ze niet solderen." DRC geeft `courtyards_overlap` als twee parts elkaar zouden raken.
+
+Belangrijk: de courtyard is **conservatief**. De RK09K-courtyard is 13,3 mm, maar dat is body + lippen + marge. De échte "9 mm-pot" is fysiek ~10-11 mm breed. Dus een krappere steek dan 13,3 mm kán fysiek best werken, ook al klaagt DRC. **Daarom is het slim dat je ze in huis hebt en zelf even neerlegt** — dan zie je de echte minimale steek.
+
+## 2. Passen er 8 op een rij in ~110 mm?
+
+**Ja — 8 potmeters alléén passen (net):**
+- 8 pots @ 13,3 mm steek = 93,1 mm hart-op-hart + een halve courtyard aan elk eind ≈ **106 mm**. Past in 110 mm, met ~2-4 mm marge.
+- (De bestaande `musicbrain-pot8` doet dit al: 8 pots @ 13,5 mm langs de 110 mm-as.)
+
+**Het echte probleem was nooit de pots — het is: waar gaat de MCP + de connector heen?** In-lijn erbij (8 pots + MCP + 2×10 socket) = ~129 mm → past niet. De bestaande pot8-kaart lost dat op doordat hij **110 × 80 mm** is: de MCP zit in de 80 mm-hoogte, *naast* de pot-rij, niet erachteraan.
+
+**En de "slimme riser"?** Ja — dat is precies de goede intuïtie en het maakt optie B mooi:
+- De **riser** staat verticaal in het slot en heeft daar (net als de 80 mm-kaarten) wél ruimte → zet de **MCP3208 op de riser**.
+- Het **front-bord is dan puur dom**: 8 pots + een compacte connector (of een plat lintje) omlaag naar de riser, met 8 analoge wiper-signalen + 3V3 + GND.
+- Wél: zo'n riser is niet meer generiek (pot-riser heeft MCP3208, enc-riser heeft MCP23017) — maar het zijn kleine printjes, en je houdt het nette riser+front-model.
+
+Voor de connector op het domme front (waar ~3 mm in-lijn over is): een **plat soldeer-lintje** langs de rand, of een haakse connector in het ~4,6 mm zijkanaal. Dat test je het beste met de echte pot in de hand.
+
+Laat me het handover-document maken:
+> 🔧 `Read` — d:\Git\Muziek\MusicBrain\doc\mechanics\front-board-constraints.md
+
+**🤖 Claude:**
+
+Let me record Mark's decision (Option B, with the "MCP-on-riser" refinement) in the constraints doc, then write the supervision handover:
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\doc\mechanics\front-board-constraints.md
+
+**🤖 Claude:**
+
+Now the supervision handover document:
+> 🔧 `Write` — d:\Git\Muziek\MusicBrain\doc\copilot-chats\handover-2026-07-09-front-borden.md
+> 🔧 `Bash` — Commit decision + supervision handover
+
+**🤖 Claude:**
+
+Klaar en gecommit (`97b10c8`). Laat me de memory nog even naar het nieuwe startdoc laten wijzen:
+> 🔧 `Edit` — C:\Users\User\.claude\projects\d--Git-Muziek-MusicBrain\memory\hardware-handover.md
+> 🔧 `TodoWrite` — takenlijst bijgewerkt
+
+**🤖 Claude:**
+
+Alles vastgelegd en gecommit. Samengevat:
+
+## Antwoorden op je vragen
+- **Courtyard** = de mechanische keep-out rond een part (body + lippen + marge), geen koper. Conservatief bedoeld — de echte 9 mm-pot is kleiner dan de 13,3 mm-courtyard, dus jouw fysieke test bepaalt de echte minimale steek.
+- **Passen 8 pots in 110 mm?** Ja, net (~106 mm courtyard-span, ~4 mm marge). De pots waren nooit het probleem — het was de MCP + connector die er niet ook nog in-lijn bij konden.
+- **Slimme riser?** Precies de goede intuïtie: **MCP op de riser** (die heeft ruimte in het slot), front puur dom. Dat is optie B in de nette riser+front-vorm.
+
+## Wat ik heb vastgelegd (commit `97b10c8`)
+- **Besluit B** genoteerd in `doc/mechanics/front-board-constraints.md` (§BESLUIT), inclusief de MCP-op-riser-variant en jouw fysieke test.
+- **Nieuw supervisie-startdoc**: `doc/copilot-chats/handover-2026-07-09-front-borden.md` — werkbon met de stand, de volgende stappen (POT-front dom + POT-riser slim → ENC → losse punten), de werkwijze-herinneringen (kicad-cli-loop, alleen eigen werk committen, DRC 0/0), en onderaan de open vragen. Hier kan Fable op sturen.
+- Memory bijgewerkt zodat een verse sessie het startdoc vindt.
+
+## Voor jou om te testen/beslissen (dit deblokkeert de build)
+1. **Pot-steek** in mm (leg de pots neer) → wordt de paneel-gatsteek én board-steek.
+2. **Koppelvorm** front↔riser: plat soldeer-lintje of haakse connector in het ~4,6 mm zijkanaal.
+3. **Pot-riser nieuw** (met MCP) óf gewoon de bestaande `musicbrain-pot8` als buskaart — functioneel gelijk.
+
+Zodra je die drie doorgeeft, is het POT-front + POT-riser in een paar generate→DRC-rondes af. Fable kan met het nieuwe handover-doc de boel prima superviseren.
+
