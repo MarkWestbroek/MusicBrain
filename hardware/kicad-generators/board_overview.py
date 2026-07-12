@@ -25,11 +25,76 @@ labels per kant worden automatisch gespreid zodat ze niet overlappen.
 import base64
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
 
 from PIL import Image
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from cardlib import parse as sexpr_parse
+
+
+def auto_spec(pcb_path):
+    """Skelet-overzicht.json uit het bord zelf: bbox uit Edge.Cuts (gr_rect),
+    titel uit het title_block, callouts = alle J*-connectors (label = ref +
+    value, kant = dichtstbijzijnde rand)."""
+    tree = sexpr_parse(open(pcb_path, encoding='utf-8').read())
+    bbox = None
+    titel = os.path.splitext(os.path.basename(pcb_path))[0]
+    rev = ''
+    for node in tree:
+        if isinstance(node, list) and node[0] == 'gr_rect':
+            lay = [s for s in node if isinstance(s, list) and s[0] == 'layer']
+            if lay and lay[0][1].strip('"') == 'Edge.Cuts':
+                st = next(s for s in node if isinstance(s, list) and s[0] == 'start')
+                en = next(s for s in node if isinstance(s, list) and s[0] == 'end')
+                bbox = [float(st[1]), float(st[2]), float(en[1]), float(en[2])]
+        if isinstance(node, list) and node[0] == 'title_block':
+            for s in node:
+                if isinstance(s, list) and s[0] == 'rev':
+                    rev = s[1].strip('"')
+    if not bbox:
+        raise SystemExit('geen Edge.Cuts gr_rect gevonden — geef zelf een json op')
+    x0, y0, x1, y1 = min(bbox[0], bbox[2]), min(bbox[1], bbox[3]), \
+        max(bbox[0], bbox[2]), max(bbox[1], bbox[3])
+    callouts = []
+    for node in tree:
+        if not (isinstance(node, list) and node[0] == 'footprint'):
+            continue
+        ref = val = None
+        fx = fy = rot = 0.0
+        pads = []
+        for sub in node:
+            if isinstance(sub, list) and sub[0] == 'property':
+                if sub[1] == '"Reference"':
+                    ref = sub[2].strip('"')
+                if sub[1] == '"Value"':
+                    val = sub[2].strip('"')
+            if isinstance(sub, list) and sub[0] == 'at':
+                fx, fy = float(sub[1]), float(sub[2])
+                rot = float(sub[3]) if len(sub) > 3 else 0.0
+            if isinstance(sub, list) and sub[0] == 'pad':
+                at = next(s for s in sub if isinstance(s, list) and s[0] == 'at')
+                pads.append((float(at[1]), float(at[2])))
+        if not ref or not re.fullmatch(r'J\d+', ref) or not pads:
+            continue
+        import math
+        c = math.cos(math.radians(rot))
+        s_ = math.sin(math.radians(rot))
+        mx = sum(fx + px * c + py * s_ for px, py in pads) / len(pads)
+        my = sum(fy - px * s_ + py * c for px, py in pads) / len(pads)
+        afst = {'links': mx - x0, 'rechts': x1 - mx,
+                'boven': my - y0, 'onder': y1 - my}
+        kant = min(afst, key=afst.get)
+        lbl = ref if not val or val == ref else f'{val} ({ref})'
+        callouts.append({'label': lbl, 'mm': [round(mx, 1), round(my, 1)],
+                         'kant': kant})
+    return {'titel': f'{titel}' + (f' rev {rev}' if rev else '')
+                     + ' — aansluitoverzicht',
+            'bbox_mm': [x0, y0, x1, y1],
+            'callouts': callouts}
 
 FONT = 15          # px
 PAD = 10           # px marge rond tekst
@@ -76,10 +141,21 @@ def esc(s):
 
 def main():
     pcb = sys.argv[1]
-    spec = json.load(open(sys.argv[2], encoding='utf-8'))
-    uit = sys.argv[3] if len(sys.argv) > 3 else os.path.join(
-        os.path.dirname(pcb),
-        os.path.splitext(os.path.basename(pcb))[0] + '-overzicht.svg')
+    basis = os.path.join(os.path.dirname(pcb),
+                         os.path.splitext(os.path.basename(pcb))[0])
+    if len(sys.argv) > 2 and sys.argv[2] == '--auto':
+        # skelet-json schrijven als die nog niet bestaat, dan renderen
+        jsonpad = basis + '-overzicht.json'
+        if not os.path.exists(jsonpad):
+            spec = auto_spec(pcb)
+            json.dump(spec, open(jsonpad, 'w', encoding='utf-8'),
+                      indent=1, ensure_ascii=False)
+            print('json-skelet geschreven:', jsonpad)
+        spec = json.load(open(jsonpad, encoding='utf-8'))
+        uit = basis + '-overzicht.svg'
+    else:
+        spec = json.load(open(sys.argv[2], encoding='utf-8'))
+        uit = sys.argv[3] if len(sys.argv) > 3 else basis + '-overzicht.svg'
 
     r = spec.get('render', {})
     png = render_png(pcb, r.get('w', 1600), r.get('h', 1000), r.get('zoom'))

@@ -31,3 +31,13 @@ Pin 3 (CW-eind) → +3V3, pin 1 (CCW) → GND, pin 2 (loper) → W-k: rechtsom
 draaien = hogere spanning = hogere ADC-waarde. De MCP3208 zit op de pot-riser
 (of gebruik de bestaande `musicbrain-pot8`-kaart als drager); 100 nF-reservoirs
 per loper zitten dáár, niet op dit front.
+
+## Aansluitoverzicht
+
+![aansluitoverzicht](musicbrain-pot8front-overzicht.svg)
+
+### Pinouts
+
+Bovenaanzicht van het bord (kijkend op de pinnen); pin 1 = vierkant. Gegenereerd uit het bordbestand met `hardware/kicad-generators/pinout_svg.py`.
+
+![J1](pinouts/J1.svg)

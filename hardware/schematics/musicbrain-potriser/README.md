@@ -28,3 +28,14 @@ De pot8-slotkaart (110×80, met haakse pots erop) is geen drager voor het
 front-model: pots zitten in de weg, geen frontconnector en onnodig breed
 (besluit 2026-07-11). Deze riser vervangt hem in het pot-spoor; de pot8-kaart
 blijft bruikbaar als losstaand alternatief zonder front.
+
+## Aansluitoverzicht
+
+![aansluitoverzicht](musicbrain-potriser-overzicht.svg)
+
+### Pinouts
+
+Bovenaanzicht van het bord (kijkend op de pinnen); pin 1 = vierkant. Gegenereerd uit het bordbestand met `hardware/kicad-generators/pinout_svg.py`.
+
+![J1](pinouts/J1.svg)
+![J2](pinouts/J2.svg)

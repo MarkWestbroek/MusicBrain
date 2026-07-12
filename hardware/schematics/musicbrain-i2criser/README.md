@@ -27,3 +27,14 @@ elektronica (I²C-pull-ups zitten aan de busmaster-kant, Qwiic-keten).
 
 ⚠️ Pin-1-oriëntatie van J2 t.o.v. de front-socket bij de eerste fysieke
 passing controleren (zelfde controlepunt als bij de potriser).
+
+## Aansluitoverzicht
+
+![aansluitoverzicht](musicbrain-i2criser-overzicht.svg)
+
+### Pinouts
+
+Bovenaanzicht van het bord (kijkend op de pinnen); pin 1 = vierkant. Gegenereerd uit het bordbestand met `hardware/kicad-generators/pinout_svg.py`.
+
+![J1](pinouts/J1.svg)
+![J2](pinouts/J2.svg)

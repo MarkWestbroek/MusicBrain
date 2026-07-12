@@ -65,3 +65,14 @@ bedraad naar paneeljack (9−k)** — simpeler koper, minder via's. De remap zit
 in de firmware: `MbAdc8::read()` spiegelt de AD7606-stream zodat
 `out[0..7]` = paneeljack 1..8 (boven→onder). Jack-contract op J2 ongewijzigd
 (1=GND, 2..9=jack 1..8, 10=GND).
+
+## Aansluitoverzicht
+
+![aansluitoverzicht](musicbrain-adc8-overzicht.svg)
+
+### Pinouts
+
+Bovenaanzicht van het bord (kijkend op de pinnen); pin 1 = vierkant. Gegenereerd uit het bordbestand met `hardware/kicad-generators/pinout_svg.py`.
+
+![J1](pinouts/J1.svg)
+![J2](pinouts/J2.svg)

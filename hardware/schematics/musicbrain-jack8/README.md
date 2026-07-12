@@ -42,3 +42,13 @@ tegen de tip ligt. Alle TN's zijn gebust naar één soldeerjumper **JP1**:
 3U Eurorack: paneelhoogte 128,5 mm; boorpatroon = 8× Ø6 mm gat op 15 mm
 steek, gecentreerd op de jackposities (eerste jack 8 mm van de bovenrand
 van het printje). Printje zelf is 125 mm hoog.
+
+## Aansluitoverzicht
+
+![aansluitoverzicht](musicbrain-jack8-overzicht.svg)
+
+### Pinouts
+
+Bovenaanzicht van het bord (kijkend op de pinnen); pin 1 = vierkant. Gegenereerd uit het bordbestand met `hardware/kicad-generators/pinout_svg.py`.
+
+![J1](pinouts/J1.svg)

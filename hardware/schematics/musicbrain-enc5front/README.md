@@ -71,3 +71,14 @@ de generator), clearance **0,15 mm** (netclass in het .kicad_pro; JLC kan
    assemblage-order nogmaals tegen de datasheet houden.
 2. ⚠️ **Pin-1-oriëntatie** socket ↔ i2criser-J2 bij de eerste fysieke
    passing verifiëren.
+
+## Aansluitoverzicht
+
+![aansluitoverzicht](musicbrain-enc5front-overzicht.svg)
+
+### Pinouts
+
+Bovenaanzicht van het bord (kijkend op de pinnen); pin 1 = vierkant. Gegenereerd uit het bordbestand met `hardware/kicad-generators/pinout_svg.py`.
+
+![J1](pinouts/J1.svg)
+![J2](pinouts/J2.svg)

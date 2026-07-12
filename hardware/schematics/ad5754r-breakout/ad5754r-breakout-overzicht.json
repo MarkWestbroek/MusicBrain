@@ -1,0 +1,27 @@
+{
+ "titel": "ad5754r-breakout rev 2.0 — aansluitoverzicht",
+ "bbox_mm": [
+  100.0,
+  105.0,
+  150.0,
+  140.0
+ ],
+ "callouts": [
+  {
+   "label": "SPI+Power (J1)",
+   "mm": [
+    106.8,
+    117.1
+   ],
+   "kant": "links"
+  },
+  {
+   "label": "GND+DAC A-D (J2)",
+   "mm": [
+    145.5,
+    119.1
+   ],
+   "kant": "rechts"
+  }
+ ]
+}

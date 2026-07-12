@@ -49,3 +49,14 @@ langs de oostflank (ADR421 → C6 → REFIN); de SPI-fanout zit links; de
 (2 thermische via's). GND-vlakken op beide lagen, solid connect,
 stitching-via's; één bewust GND-brugspoor tussen J1-pin 6 en 8 bindt het
 zuidelijke vlakdeel aan het hoofdvlak.
+
+## Aansluitoverzicht
+
+![aansluitoverzicht](ad5754r-breakout-overzicht.svg)
+
+### Pinouts
+
+Bovenaanzicht van het bord (kijkend op de pinnen); pin 1 = vierkant. Gegenereerd uit het bordbestand met `hardware/kicad-generators/pinout_svg.py`.
+
+![J1](pinouts/J1.svg)
+![J2](pinouts/J2.svg)

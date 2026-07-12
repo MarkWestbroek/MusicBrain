@@ -1,0 +1,27 @@
+{
+ "titel": "musicbrain-enc5front rev 2.0 — aansluitoverzicht",
+ "bbox_mm": [
+  100.0,
+  100.0,
+  130.0,
+  210.0
+ ],
+ "callouts": [
+  {
+   "label": "Socket_1x10_backside (J1)",
+   "mm": [
+    116.5,
+    155.0
+   ],
+   "kant": "rechts"
+  },
+  {
+   "label": "Header_2x08_backside (J2)",
+   "mm": [
+    124.0,
+    198.7
+   ],
+   "kant": "rechts"
+  }
+ ]
+}

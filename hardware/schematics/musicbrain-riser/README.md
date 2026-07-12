@@ -38,3 +38,14 @@ komt vanzelf goed.
 Bus onder, front boven; hoogte H = 80 mm (gelijk aan de signaalkaarten, zodat
 alle front-borden coplanair zijn). Dun in de slot-steek-richting (PCB-dikte),
 past ruim binnen de 20 mm slotafstand.
+
+## Aansluitoverzicht
+
+![aansluitoverzicht](musicbrain-riser-overzicht.svg)
+
+### Pinouts
+
+Bovenaanzicht van het bord (kijkend op de pinnen); pin 1 = vierkant. Gegenereerd uit het bordbestand met `hardware/kicad-generators/pinout_svg.py`.
+
+![J1](pinouts/J1.svg)
+![J2](pinouts/J2.svg)

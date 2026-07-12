@@ -1,0 +1,19 @@
+{
+ "titel": "musicbrain-pot8front rev 1.1 — aansluitoverzicht",
+ "bbox_mm": [
+  100.0,
+  100.0,
+  120.0,
+  210.0
+ ],
+ "callouts": [
+  {
+   "label": "SOCKET-BACK (J1)",
+   "mm": [
+    116.5,
+    155.0
+   ],
+   "kant": "rechts"
+  }
+ ]
+}

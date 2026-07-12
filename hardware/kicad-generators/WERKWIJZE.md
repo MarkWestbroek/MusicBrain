@@ -225,3 +225,24 @@ met **`board_overview.py`** — geen KiCad-GUI nodig:
 - Render-varianten: `--side bottom` voor achterzijde-overzichten; kicad-cli
   kent ook `--rotate`/`--zoom`/`--perspective` voor sfeerplaatjes (maar de
   mm→pixel-mapping klopt alleen bij de rechte top/bottom-view).
+- **`--auto`**: schrijft een json-skelet uit het bord zelf (bbox uit
+  Edge.Cuts, titel + rev uit het title_block, callouts = alle J*-connectors
+  met value als label, kant = dichtstbijzijnde rand) en rendert meteen.
+  Bestaat de json al, dan blijft die leidend — dus polijsten mag.
+
+**Pinout-diagrammen per connector** met **`pinout_svg.py`**:
+
+    python pinout_svg.py <bord.kicad_pcb> J9          # één connector
+    python pinout_svg.py <bord.kicad_pcb> --alle      # alle J* (>=4 pins)
+                                                      # -> <bordmap>/pinouts/
+
+Leest pads + netten **rechtstreeks uit het bordbestand** (beide formaten:
+generator `(net idx "naam")` én pcbnew-hersave `(net "naam")`) — kan dus
+nooit uit de pas lopen met het ontwerp. Bovenaanzicht, pin 1 = vierkant,
+IDC-shroud met nok (oneven-pinnen-zijde), kleuren: GND grijs, +voeding
+rood, −voeding blauw, signaal geel, nc licht. 1×3's e.d. vallen buiten
+`--alle` — die per ref genereren.
+
+SVG's embedden gewoon in de bord-README's (`![...](x.svg)`) — GitHub
+rendert ze; de render zit als data-URI ín de SVG dus er is geen externe
+resource die geblokkeerd wordt.

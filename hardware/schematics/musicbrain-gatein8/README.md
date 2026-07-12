@@ -48,3 +48,14 @@ De acht knopen bereiken de '165 via B.Cu-lanes: vier bovenlangs
 tussen de SOIC-padrijen door naar de zuidrij. De +3V3-spine loopt langs
 de oostrand met B-aftakrijen voor de diodes (y 122,9/127,3), VCC (132,9)
 en R9 (148,9). MISO duikt onder de J1-padrij door (B.Cu) het THT-pad in.
+
+## Aansluitoverzicht
+
+![aansluitoverzicht](musicbrain-gatein8-overzicht.svg)
+
+### Pinouts
+
+Bovenaanzicht van het bord (kijkend op de pinnen); pin 1 = vierkant. Gegenereerd uit het bordbestand met `hardware/kicad-generators/pinout_svg.py`.
+
+![J1](pinouts/J1.svg)
+![J2](pinouts/J2.svg)

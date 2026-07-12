@@ -39,3 +39,33 @@ en leest een freerouting-SES native in (zelfde pijplijn als enc5front:
 DSN-export via de KiCad-MCP-server → GND-vlakken uit de DSN strippen → rand
 0,6 mm inkrimpen → power-class 0,5 mm → Docker-freerouting, best-of-N →
 netcheck + DRC als poortwachters).
+
+## Aansluitoverzicht
+
+![aansluitoverzicht](musicbrain-busboard-v2-overzicht.svg)
+
+### Pinouts
+
+Bovenaanzicht van het bord (kijkend op de pinnen); pin 1 = vierkant. Gegenereerd uit het bordbestand met `hardware/kicad-generators/pinout_svg.py`.
+
+![J1](pinouts/J1.svg)
+![J2](pinouts/J2.svg)
+![J3](pinouts/J3.svg)
+![J4](pinouts/J4.svg)
+![J5](pinouts/J5.svg)
+![J6](pinouts/J6.svg)
+![J7](pinouts/J7.svg)
+![J8](pinouts/J8.svg)
+![J9](pinouts/J9.svg)
+![J10](pinouts/J10.svg)
+![J11](pinouts/J11.svg)
+![J12](pinouts/J12.svg)
+![J13](pinouts/J13.svg)
+![J14](pinouts/J14.svg)
+![J15](pinouts/J15.svg)
+![J16](pinouts/J16.svg)
+![J17](pinouts/J17.svg)
+![J18](pinouts/J18.svg)
+![J19](pinouts/J19.svg)
+![J20](pinouts/J20.svg)
+![J21](pinouts/J21.svg)

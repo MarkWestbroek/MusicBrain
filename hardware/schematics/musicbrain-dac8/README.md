@@ -68,3 +68,14 @@ aan eigen redding-via's.
 Setup per chip (via de keten): power-up register (alle kanalen aan),
 output range ±10V, BIN-coding. Daarna per sample: 2×24 bit data door de
 keten schuiven, CS hoog, en LDAC↓ (buslijn) voor de synchrone update.
+
+## Aansluitoverzicht
+
+![aansluitoverzicht](musicbrain-dac8-overzicht.svg)
+
+### Pinouts
+
+Bovenaanzicht van het bord (kijkend op de pinnen); pin 1 = vierkant. Gegenereerd uit het bordbestand met `hardware/kicad-generators/pinout_svg.py`.
+
+![J1](pinouts/J1.svg)
+![J2](pinouts/J2.svg)

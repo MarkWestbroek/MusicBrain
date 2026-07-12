@@ -59,3 +59,14 @@ zit in de zuidoosthoek; +5V loopt via één B.Cu-run (y=157,5) naar VCC,
 - LED + weerstand per gate (visuele feedback).
 - TPIC6B595 i.p.v. HCT595 voor 10V-gates of zwaardere belasting.
 - Tweede 595 in ketting (QH' → SER) voor 16 gates met dezelfde CS.
+
+## Aansluitoverzicht
+
+![aansluitoverzicht](musicbrain-gate8-overzicht.svg)
+
+### Pinouts
+
+Bovenaanzicht van het bord (kijkend op de pinnen); pin 1 = vierkant. Gegenereerd uit het bordbestand met `hardware/kicad-generators/pinout_svg.py`.
+
+![J1](pinouts/J1.svg)
+![J2](pinouts/J2.svg)
