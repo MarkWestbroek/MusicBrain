@@ -229,6 +229,13 @@ met **`board_overview.py`** — geen KiCad-GUI nodig:
   Edge.Cuts, titel + rev uit het title_block, callouts = alle J*-connectors
   met value als label, kant = dichtstbijzijnde rand) en rendert meteen.
   Bestaat de json al, dan blijft die leidend — dus polijsten mag.
+- **Missende 3D-modellen** (custom footprints renderen als kale pads):
+  (1) lib-STEP van een gelijkende connector hergebruiken en de offset op de
+  render ijken (RJ45 → `RJ45_Amphenol_RJHSE538X.step`, ander pinraster maar
+  zelfde behuizing); (2) simpele WRL-dozen genereren met `gen_3dshapes.py`
+  → `schematics/3dshapes/`, ref via `${KIPRJMOD}/../3dshapes/…` (let op:
+  1 VRML-eenheid = 2,54 mm, y = −bord-y); (3) lib-model met nét andere naam
+  checken: `ESP32-S3-WROOM-1U.step` bestaat niet, `…-1.step` wél.
 
 **Pinout-diagrammen per connector** met **`pinout_svg.py`**:
 

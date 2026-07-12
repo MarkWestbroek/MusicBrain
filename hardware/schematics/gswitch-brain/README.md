@@ -46,6 +46,8 @@ pin 4 voert 12 V!
 |---|---|---|---|---|---|---|---|---|---|
 | functie | CLK | GND | DATA | **+12V** | GND | DRET (terug) | LATCH | EN | GND |
 
+![J10 pinout](pinouts/J10.svg)
+
 **J3 — MIDI UIT / J4 — MIDI IN (DIN-5, 180°).**
 
 | DIN-pin | J3 (uit) | J4 (in) |
@@ -54,6 +56,8 @@ pin 4 voert 12 V!
 | 5 | data via 220R (HCT14-buffer) | stroomlus → H11L1 |
 | 2 | GND | n.c. (galvanisch gescheiden) |
 | scherm (E) | GND | GND |
+
+![J3 pinout](pinouts/J3.svg) ![J4 pinout](pinouts/J4.svg)
 
 **Headers (oostrand + debug).** Alle logica op de headers is 3,3 V.
 
@@ -68,6 +72,10 @@ pin 4 voert 12 V!
 **J1 — voeding (2,1 mm barrel):** center = **GND**, mantel = +12 V
 (center-negatief, pedaalconventie); ompoolbeveiligd (P-FET) en
 polyfuse + TVS.
+
+Diagrammen van álle connectoren staan in [`pinouts/`](pinouts/)
+(gegenereerd met `pinout_svg.py` — leest netten uit het bordbestand,
+loopt dus nooit uit de pas met het ontwerp).
 
 ## Onderdelen-notities
 

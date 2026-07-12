@@ -42,6 +42,8 @@ dezelfde signalen als 2×4-header (interne doorlink, pin 1…8 = RJ45
 |---|---|---|---|---|---|---|---|---|
 | functie | CLK | GND | DATA | **+12V** | GND | DRET (terug) | LATCH | EN |
 
+![J1 pinout](pinouts/J1.svg)
+
 **Loop-jacks J11–J18 (ACJS-MHD, gestapeld):** bovenste jack = SEND,
 onderste = RETURN. Return-tip-verbreekcontact is genormaliseerd naar de
 send-tip (lege loop = signaal door); ring + sleeve → AGND.
@@ -49,6 +51,9 @@ send-tip (lege loop = signaal door); ring + sleeve → AGND.
 **J7 audio IN / J8 audio UIT (ACJS-MH):** tip = signaal, ring/sleeve →
 AGND; J7-tip-verbreek → JP2 (mute lege ingang). J5/J6 = dezelfde audio
 als soldeerpads: pin 1 = signaal, pin 2 = AGND.
+
+Diagrammen van álle connectoren staan in [`pinouts/`](pinouts/)
+(gegenereerd met `pinout_svg.py` — leest netten uit het bordbestand).
 
 ## Jumpers
 
