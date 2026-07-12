@@ -460,6 +460,9 @@ def acjs_mhd(ref, x, y, netmap):
                   f'(size 2.4 2.4) (drill 1.4) (layers "*.Cu" "*.Mask"){nn})')
     pt.append('    (pad "" np_thru_hole circle (at -17.33 -5.7) (size 2.05 2.05) '
               '(drill 2.05) (layers "*.Cu" "*.Mask"))')
+    pt.append('    (model "${KIPRJMOD}/../3dshapes/ACJS_MHD.wrl"\n'
+              '      (offset (xyz 0 0 0)) (scale (xyz 1 1 1)) '
+              '(rotate (xyz 0 0 0)))')
     b.raw_fp(f'''  (footprint "GSwitch:ACJS_MHD"
     (layer "F.Cu")
     (uuid "{b.uid()}")
@@ -491,6 +494,9 @@ def acjs_mh(ref, x, y, rot, netmap):
         nn = f' (net {nm[0]} "{nm[1]}")' if nm else ''
         pt.append(f'    (pad "{num}" thru_hole circle (at {fmt(px)} {fmt(py)}) '
                   f'(size 2.5 2.5) (drill 1.5) (layers "*.Cu" "*.Mask"){nn})')
+    pt.append('    (model "${KIPRJMOD}/../3dshapes/ACJS_MH.wrl"\n'
+              '      (offset (xyz 0 0 0)) (scale (xyz 1 1 1)) '
+              '(rotate (xyz 0 0 0)))')
     b.raw_fp(f'''  (footprint "GSwitch:ACJS_MH"
     (layer "F.Cu")
     (uuid "{b.uid()}")
@@ -530,6 +536,11 @@ def rj45(ref, x, y, rot, netmap):
     for px, py in ((-1.27, 6.35), (10.16, 6.35)):
         pt.append(f'    (pad "" np_thru_hole circle (at {fmt(px)} {fmt(py)}) '
                   f'(size 3.25 3.25) (drill 3.25) (layers "*.Cu" "*.Mask"))')
+    # render-model: Amphenol RJHSE (ander pinraster, zelfde behuizing)
+    pt.append('    (model "${KICAD10_3DMODEL_DIR}/Connector_RJ.3dshapes/'
+              'RJ45_Amphenol_RJHSE538X.step"\n'
+              '      (offset (xyz 0.9 -7.7 0)) (scale (xyz 1 1 1)) '
+              '(rotate (xyz 0 0 0)))')
     b.raw_fp(f'''  (footprint "GSwitch:RJ45_shielded"
     (layer "F.Cu")
     (uuid "{b.uid()}")

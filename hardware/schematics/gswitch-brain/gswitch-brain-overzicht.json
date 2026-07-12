@@ -1,0 +1,21 @@
+{
+  "titel": "gswitch-brain rev 0.1 — aansluitoverzicht",
+  "voetnoot": "SW1 = RESET · SW2 = BOOT · U2 = 74HCT541 chain-buffer · U4 = H11L1 MIDI-in · U3 = 74HCT14 MIDI-uit · H1–H4 = M3 (GND/chassis)",
+  "bbox_mm": [100, 100, 200, 170],
+  "render": {"w": 1500, "h": 1100},
+  "callouts": [
+    {"label": "12V DC in (center-negatief!)", "mm": [104, 120], "kant": "links"},
+    {"label": "voeding 12V→5V→3,3V", "mm": [117, 110], "kant": "links"},
+    {"label": "debug-UART (J9)", "mm": [105.5, 140.5], "kant": "links"},
+    {"label": "USB-C flash/debug (J2)", "mm": [102, 152], "kant": "links"},
+    {"label": "MIDI UIT (J3)", "mm": [137, 104], "kant": "boven"},
+    {"label": "MIDI IN (J4)", "mm": [166, 104], "kant": "boven"},
+    {"label": "ESP32-S3-WROOM-1U (antenne → U.FL)", "mm": [184, 116], "kant": "boven"},
+    {"label": "OLED-display I²C (J5)", "mm": [197, 105], "kant": "rechts"},
+    {"label": "knoppen 1-4 (J6)", "mm": [197, 118], "kant": "rechts"},
+    {"label": "encoder (J7)", "mm": [197, 132], "kant": "rechts"},
+    {"label": "spare-GPIO (J8)", "mm": [197, 149], "kant": "rechts"},
+    {"label": "chain A → loop8-kastjes (J10)", "mm": [125, 166], "kant": "onder"},
+    {"label": "chain B → loop8-kastjes (J11)", "mm": [165, 166], "kant": "onder"}
+  ]
+}

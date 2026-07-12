@@ -151,6 +151,8 @@
     (pad "11" thru_hole circle (at -9.6 -11.95) (size 2.4 2.4) (drill 1.4) (layers "*.Cu" "*.Mask") (net 4 "/AGND"))
     (pad "12" thru_hole circle (at -15.95 -11.95) (size 2.4 2.4) (drill 1.4) (layers "*.Cu" "*.Mask") (net 15 "/SEND1"))
     (pad "" np_thru_hole circle (at -17.33 -5.7) (size 2.05 2.05) (drill 2.05) (layers "*.Cu" "*.Mask"))
+    (model "${KIPRJMOD}/../3dshapes/ACJS_MHD.wrl"
+      (offset (xyz 0 0 0)) (scale (xyz 1 1 1)) (rotate (xyz 0 0 0)))
   )
   (footprint "Relay_SMD:Relay_DPDT_Kemet_EE2_NU"
     (uuid "ca4d0000-0000-4000-8000-000000000002")
@@ -779,6 +781,8 @@
     (pad "11" thru_hole circle (at -9.6 -11.95) (size 2.4 2.4) (drill 1.4) (layers "*.Cu" "*.Mask") (net 4 "/AGND"))
     (pad "12" thru_hole circle (at -15.95 -11.95) (size 2.4 2.4) (drill 1.4) (layers "*.Cu" "*.Mask") (net 16 "/SEND2"))
     (pad "" np_thru_hole circle (at -17.33 -5.7) (size 2.05 2.05) (drill 2.05) (layers "*.Cu" "*.Mask"))
+    (model "${KIPRJMOD}/../3dshapes/ACJS_MHD.wrl"
+      (offset (xyz 0 0 0)) (scale (xyz 1 1 1)) (rotate (xyz 0 0 0)))
   )
   (footprint "Relay_SMD:Relay_DPDT_Kemet_EE2_NU"
     (uuid "ca4d0000-0000-4000-8000-000000000006")
@@ -1407,6 +1411,8 @@
     (pad "11" thru_hole circle (at -9.6 -11.95) (size 2.4 2.4) (drill 1.4) (layers "*.Cu" "*.Mask") (net 4 "/AGND"))
     (pad "12" thru_hole circle (at -15.95 -11.95) (size 2.4 2.4) (drill 1.4) (layers "*.Cu" "*.Mask") (net 17 "/SEND3"))
     (pad "" np_thru_hole circle (at -17.33 -5.7) (size 2.05 2.05) (drill 2.05) (layers "*.Cu" "*.Mask"))
+    (model "${KIPRJMOD}/../3dshapes/ACJS_MHD.wrl"
+      (offset (xyz 0 0 0)) (scale (xyz 1 1 1)) (rotate (xyz 0 0 0)))
   )
   (footprint "Relay_SMD:Relay_DPDT_Kemet_EE2_NU"
     (uuid "ca4d0000-0000-4000-8000-000000000010")
@@ -2035,6 +2041,8 @@
     (pad "11" thru_hole circle (at -9.6 -11.95) (size 2.4 2.4) (drill 1.4) (layers "*.Cu" "*.Mask") (net 4 "/AGND"))
     (pad "12" thru_hole circle (at -15.95 -11.95) (size 2.4 2.4) (drill 1.4) (layers "*.Cu" "*.Mask") (net 18 "/SEND4"))
     (pad "" np_thru_hole circle (at -17.33 -5.7) (size 2.05 2.05) (drill 2.05) (layers "*.Cu" "*.Mask"))
+    (model "${KIPRJMOD}/../3dshapes/ACJS_MHD.wrl"
+      (offset (xyz 0 0 0)) (scale (xyz 1 1 1)) (rotate (xyz 0 0 0)))
   )
   (footprint "Relay_SMD:Relay_DPDT_Kemet_EE2_NU"
     (uuid "ca4d0000-0000-4000-8000-000000000014")
@@ -2663,6 +2671,8 @@
     (pad "11" thru_hole circle (at -9.6 -11.95) (size 2.4 2.4) (drill 1.4) (layers "*.Cu" "*.Mask") (net 4 "/AGND"))
     (pad "12" thru_hole circle (at -15.95 -11.95) (size 2.4 2.4) (drill 1.4) (layers "*.Cu" "*.Mask") (net 19 "/SEND5"))
     (pad "" np_thru_hole circle (at -17.33 -5.7) (size 2.05 2.05) (drill 2.05) (layers "*.Cu" "*.Mask"))
+    (model "${KIPRJMOD}/../3dshapes/ACJS_MHD.wrl"
+      (offset (xyz 0 0 0)) (scale (xyz 1 1 1)) (rotate (xyz 0 0 0)))
   )
   (footprint "Relay_SMD:Relay_DPDT_Kemet_EE2_NU"
     (uuid "ca4d0000-0000-4000-8000-000000000018")
@@ -3291,6 +3301,8 @@
     (pad "11" thru_hole circle (at -9.6 -11.95) (size 2.4 2.4) (drill 1.4) (layers "*.Cu" "*.Mask") (net 4 "/AGND"))
     (pad "12" thru_hole circle (at -15.95 -11.95) (size 2.4 2.4) (drill 1.4) (layers "*.Cu" "*.Mask") (net 20 "/SEND6"))
     (pad "" np_thru_hole circle (at -17.33 -5.7) (size 2.05 2.05) (drill 2.05) (layers "*.Cu" "*.Mask"))
+    (model "${KIPRJMOD}/../3dshapes/ACJS_MHD.wrl"
+      (offset (xyz 0 0 0)) (scale (xyz 1 1 1)) (rotate (xyz 0 0 0)))
   )
   (footprint "Relay_SMD:Relay_DPDT_Kemet_EE2_NU"
     (uuid "ca4d0000-0000-4000-8000-000000000022")
@@ -3919,6 +3931,8 @@
     (pad "11" thru_hole circle (at -9.6 -11.95) (size 2.4 2.4) (drill 1.4) (layers "*.Cu" "*.Mask") (net 4 "/AGND"))
     (pad "12" thru_hole circle (at -15.95 -11.95) (size 2.4 2.4) (drill 1.4) (layers "*.Cu" "*.Mask") (net 21 "/SEND7"))
     (pad "" np_thru_hole circle (at -17.33 -5.7) (size 2.05 2.05) (drill 2.05) (layers "*.Cu" "*.Mask"))
+    (model "${KIPRJMOD}/../3dshapes/ACJS_MHD.wrl"
+      (offset (xyz 0 0 0)) (scale (xyz 1 1 1)) (rotate (xyz 0 0 0)))
   )
   (footprint "Relay_SMD:Relay_DPDT_Kemet_EE2_NU"
     (uuid "ca4d0000-0000-4000-8000-000000000026")
@@ -4547,6 +4561,8 @@
     (pad "11" thru_hole circle (at -9.6 -11.95) (size 2.4 2.4) (drill 1.4) (layers "*.Cu" "*.Mask") (net 4 "/AGND"))
     (pad "12" thru_hole circle (at -15.95 -11.95) (size 2.4 2.4) (drill 1.4) (layers "*.Cu" "*.Mask") (net 22 "/SEND8"))
     (pad "" np_thru_hole circle (at -17.33 -5.7) (size 2.05 2.05) (drill 2.05) (layers "*.Cu" "*.Mask"))
+    (model "${KIPRJMOD}/../3dshapes/ACJS_MHD.wrl"
+      (offset (xyz 0 0 0)) (scale (xyz 1 1 1)) (rotate (xyz 0 0 0)))
   )
   (footprint "Relay_SMD:Relay_DPDT_Kemet_EE2_NU"
     (uuid "ca4d0000-0000-4000-8000-000000000030")
@@ -5168,6 +5184,8 @@
     (pad "TN" thru_hole circle (at 16.5 8.15) (size 2.5 2.5) (drill 1.5) (layers "*.Cu" "*.Mask") (net 82 "/INTN"))
     (pad "RN" thru_hole circle (at 10.25 8.15) (size 2.5 2.5) (drill 1.5) (layers "*.Cu" "*.Mask") (net 4 "/AGND"))
     (pad "SN" thru_hole circle (at 4 8.15) (size 2.5 2.5) (drill 1.5) (layers "*.Cu" "*.Mask") (net 4 "/AGND"))
+    (model "${KIPRJMOD}/../3dshapes/ACJS_MH.wrl"
+      (offset (xyz 0 0 0)) (scale (xyz 1 1 1)) (rotate (xyz 0 0 0)))
   )
   (footprint "GSwitch:ACJS_MH"
     (layer "F.Cu")
@@ -5192,6 +5210,8 @@
     (pad "TN" thru_hole circle (at 16.5 8.15) (size 2.5 2.5) (drill 1.5) (layers "*.Cu" "*.Mask"))
     (pad "RN" thru_hole circle (at 10.25 8.15) (size 2.5 2.5) (drill 1.5) (layers "*.Cu" "*.Mask") (net 4 "/AGND"))
     (pad "SN" thru_hole circle (at 4 8.15) (size 2.5 2.5) (drill 1.5) (layers "*.Cu" "*.Mask") (net 4 "/AGND"))
+    (model "${KIPRJMOD}/../3dshapes/ACJS_MH.wrl"
+      (offset (xyz 0 0 0)) (scale (xyz 1 1 1)) (rotate (xyz 0 0 0)))
   )
   (footprint "GSwitch:RJ45_shielded"
     (layer "F.Cu")
@@ -5222,6 +5242,8 @@
     (pad "SH" thru_hole circle (at 12.215 9.4) (size 2.5 2.5) (drill 1.6) (layers "*.Cu" "*.Mask") (net 5 "/CHASSIS"))
     (pad "" np_thru_hole circle (at -1.27 6.35) (size 3.25 3.25) (drill 3.25) (layers "*.Cu" "*.Mask"))
     (pad "" np_thru_hole circle (at 10.16 6.35) (size 3.25 3.25) (drill 3.25) (layers "*.Cu" "*.Mask"))
+    (model "${KICAD10_3DMODEL_DIR}/Connector_RJ.3dshapes/RJ45_Amphenol_RJHSE538X.step"
+      (offset (xyz 0.9 -7.7 0)) (scale (xyz 1 1 1)) (rotate (xyz 0 0 0)))
   )
   (footprint "GSwitch:RJ45_shielded"
     (layer "F.Cu")
@@ -5252,6 +5274,8 @@
     (pad "SH" thru_hole circle (at 12.215 9.4) (size 2.5 2.5) (drill 1.6) (layers "*.Cu" "*.Mask") (net 5 "/CHASSIS"))
     (pad "" np_thru_hole circle (at -1.27 6.35) (size 3.25 3.25) (drill 3.25) (layers "*.Cu" "*.Mask"))
     (pad "" np_thru_hole circle (at 10.16 6.35) (size 3.25 3.25) (drill 3.25) (layers "*.Cu" "*.Mask"))
+    (model "${KICAD10_3DMODEL_DIR}/Connector_RJ.3dshapes/RJ45_Amphenol_RJHSE538X.step"
+      (offset (xyz 0.9 -7.7 0)) (scale (xyz 1 1 1)) (rotate (xyz 0 0 0)))
   )
   (footprint "Connector_PinHeader_2.54mm:PinHeader_2x04_P2.54mm_Vertical"
     (uuid "ca4d0000-0000-4000-8000-000000000037")

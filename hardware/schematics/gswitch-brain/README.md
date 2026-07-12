@@ -6,8 +6,9 @@ Leidende spec: [`doc/guitar-switcher-spec.md`](../../../doc/guitar-switcher-spec
 
 ![Aansluitoverzicht](gswitch-brain-overzicht.svg)
 
-*(Regenereren: `python hardware/kicad-generators/gswitch_overzicht.py` —
-exporteert de topview via kicad-cli en zet de callouts erbij.)*
+*(Regenereren: `python hardware/kicad-generators/board_overview.py
+<pcb> gswitch-brain-overzicht.json` — 3D-render via kicad-cli met
+callouts in bord-mm.)*
 
 ## Wat dit bord is
 
@@ -35,6 +36,38 @@ voor de DATA_RET-teruglezing).
 | Spare-header | 21/14/47/48/1/2 | | Debug-UART | 43/44 |
 
 Strapping-pinnen IO0/IO3/IO45/IO46 zijn vrijgehouden (IO0 = BOOT-knop).
+
+## Connector-pinouts
+
+**J10/J11 — chain A/B (RJ45, naar loop8-borden).** ⚠️ Géén ethernet:
+pin 4 voert 12 V!
+
+| pin | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | scherm |
+|---|---|---|---|---|---|---|---|---|---|
+| functie | CLK | GND | DATA | **+12V** | GND | DRET (terug) | LATCH | EN | GND |
+
+**J3 — MIDI UIT / J4 — MIDI IN (DIN-5, 180°).**
+
+| DIN-pin | J3 (uit) | J4 (in) |
+|---|---|---|
+| 4 | +5V via 220R | stroomlus → H11L1 (220R) |
+| 5 | data via 220R (HCT14-buffer) | stroomlus → H11L1 |
+| 2 | GND | n.c. (galvanisch gescheiden) |
+| scherm (E) | GND | GND |
+
+**Headers (oostrand + debug).** Alle logica op de headers is 3,3 V.
+
+| conn. | pin 1 → n |
+|---|---|
+| J5 OLED | GND · +3V3 · SCL · SDA |
+| J6 knoppen | BTN1 · BTN2 · BTN3 · BTN4 · GND |
+| J7 encoder | ENC_A · GND · ENC_B · ENC_SW · GND |
+| J8 spare | +3V3 · GND · SPARE1…SPARE6 |
+| J9 debug-UART | TX · RX · GND |
+
+**J1 — voeding (2,1 mm barrel):** center = **GND**, mantel = +12 V
+(center-negatief, pedaalconventie); ompoolbeveiligd (P-FET) en
+polyfuse + TVS.
 
 ## Onderdelen-notities
 

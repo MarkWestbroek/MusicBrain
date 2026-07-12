@@ -892,6 +892,8 @@
     (pad "E" thru_hole circle (at 2.5 10) (size 2.2 2.2) (drill 1.4) (layers "*.Cu" "*.Mask") (net 4 "GND"))
     (pad "" np_thru_hole circle (at -7.5 5) (size 2.4 2.4) (drill 2.4) (layers "*.Cu" "*.Mask"))
     (pad "" np_thru_hole circle (at 7.5 5) (size 2.4 2.4) (drill 2.4) (layers "*.Cu" "*.Mask"))
+    (model "${KIPRJMOD}/../3dshapes/DIN5_SDS50J.wrl"
+      (offset (xyz 0 0 0)) (scale (xyz 1 1 1)) (rotate (xyz 0 0 0)))
   )
   (footprint "GSwitch:DIN5_SDS50J"
     (layer "F.Cu")
@@ -919,6 +921,8 @@
     (pad "E" thru_hole circle (at 2.5 10) (size 2.2 2.2) (drill 1.4) (layers "*.Cu" "*.Mask") (net 4 "GND"))
     (pad "" np_thru_hole circle (at -7.5 5) (size 2.4 2.4) (drill 2.4) (layers "*.Cu" "*.Mask"))
     (pad "" np_thru_hole circle (at 7.5 5) (size 2.4 2.4) (drill 2.4) (layers "*.Cu" "*.Mask"))
+    (model "${KIPRJMOD}/../3dshapes/DIN5_SDS50J.wrl"
+      (offset (xyz 0 0 0)) (scale (xyz 1 1 1)) (rotate (xyz 0 0 0)))
   )
   (footprint "GSwitch:RJ45_shielded"
     (layer "F.Cu")
@@ -949,6 +953,8 @@
     (pad "SH" thru_hole circle (at 12.215 9.4) (size 2.5 2.5) (drill 1.6) (layers "*.Cu" "*.Mask") (net 4 "GND"))
     (pad "" np_thru_hole circle (at -1.27 6.35) (size 3.25 3.25) (drill 3.25) (layers "*.Cu" "*.Mask"))
     (pad "" np_thru_hole circle (at 10.16 6.35) (size 3.25 3.25) (drill 3.25) (layers "*.Cu" "*.Mask"))
+    (model "${KICAD10_3DMODEL_DIR}/Connector_RJ.3dshapes/RJ45_Amphenol_RJHSE538X.step"
+      (offset (xyz 0.9 -7.7 0)) (scale (xyz 1 1 1)) (rotate (xyz 0 0 0)))
   )
   (footprint "GSwitch:RJ45_shielded"
     (layer "F.Cu")
@@ -979,6 +985,8 @@
     (pad "SH" thru_hole circle (at 12.215 9.4) (size 2.5 2.5) (drill 1.6) (layers "*.Cu" "*.Mask") (net 4 "GND"))
     (pad "" np_thru_hole circle (at -1.27 6.35) (size 3.25 3.25) (drill 3.25) (layers "*.Cu" "*.Mask"))
     (pad "" np_thru_hole circle (at 10.16 6.35) (size 3.25 3.25) (drill 3.25) (layers "*.Cu" "*.Mask"))
+    (model "${KICAD10_3DMODEL_DIR}/Connector_RJ.3dshapes/RJ45_Amphenol_RJHSE538X.step"
+      (offset (xyz 0.9 -7.7 0)) (scale (xyz 1 1 1)) (rotate (xyz 0 0 0)))
   )
   (footprint "RF_Module:ESP32-S3-WROOM-1U"
     (uuid "ca4d0000-0000-4000-8000-000000000007")
@@ -1607,7 +1615,7 @@
       (uuid "dfda57a3-f97d-4f9a-bba2-393823e00670")
       (net 4 "GND")
     )
-    (model "${KICAD10_3DMODEL_DIR}/RF_Module.3dshapes/ESP32-S3-WROOM-1U.step"
+    (model "${KICAD10_3DMODEL_DIR}/RF_Module.3dshapes/ESP32-S3-WROOM-1.step"
       (offset
         (xyz 0 0 0)
       )

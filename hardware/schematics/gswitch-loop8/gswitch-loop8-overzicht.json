@@ -1,0 +1,20 @@
+{
+  "titel": "gswitch-loop8 rev 0.1 — aansluitoverzicht",
+  "voetnoot": "K1–K8 = relais (NC = bypass) · U1 = 595 · U2/U3 = HC14 · U4 = ULN2803 · JP1 = DRET-term (laatste bord) · JP2 = mute lege IN · JP3 = AGND→chassis",
+  "bbox_mm": [100, 100, 300, 158],
+  "render": {"w": 2600, "h": 1000},
+  "callouts": [
+    {"label": "loop 1: send + return (J11)", "mm": [133.5, 103], "kant": "boven"},
+    {"label": "… 8× ACJS-MHD stapeljack …", "mm": [199, 102], "kant": "boven"},
+    {"label": "loop 8 (J18)", "mm": [266.5, 103], "kant": "boven"},
+    {"label": "audio IN (J7)", "mm": [101, 110.5], "kant": "links"},
+    {"label": "audio-doorlink in (J5)", "mm": [103, 123.2], "kant": "links"},
+    {"label": "chain IN ← brain (J1, RJ45)", "mm": [107, 142.5], "kant": "links"},
+    {"label": "audio UIT (J8)", "mm": [299, 110.5], "kant": "rechts"},
+    {"label": "audio-doorlink uit (J6)", "mm": [297, 123.2], "kant": "rechts"},
+    {"label": "chain THRU (J2, RJ45)", "mm": [293, 152], "kant": "rechts"},
+    {"label": "chain-doorlink in (J3)", "mm": [125.4, 147.5], "kant": "onder"},
+    {"label": "chain-doorlink thru (J4)", "mm": [271.8, 147.5], "kant": "onder"},
+    {"label": "schuifregister + relaisdrivers", "mm": [214, 146], "kant": "onder"}
+  ]
+}

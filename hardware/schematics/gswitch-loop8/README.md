@@ -5,6 +5,12 @@
 LCSC-matching/fab-pakket maken (`make_fab.sh` + `jlc_fix.py`).
 Leidende spec: [`doc/guitar-switcher-spec.md`](../../../doc/guitar-switcher-spec.md).
 
+![Aansluitoverzicht](gswitch-loop8-overzicht.svg)
+
+*(Regenereren: `python hardware/kicad-generators/board_overview.py
+<pcb> gswitch-loop8-overzicht.json` — 3D-render via kicad-cli met
+callouts in bord-mm.)*
+
 ## Wat dit bord is
 
 8 effect-loops met elk één DPDT-signaalrelais (bypass op het NC-contact:
@@ -24,6 +30,25 @@ naar SEND-tip: lege loop = doorgeven. Keten-besturing via RJ45
   let op: op de 595 is D8 = Q0 (pin 15), D1..D7 = Q1..Q7. De
   ULN-toewijzing is geografisch gespiegeld voor de oostgroep
   (RLY6→pin18, RLY7→17, RLY8→16) — zie `OUTPIN` in de generator.
+
+## Connector-pinouts
+
+**J1 — chain IN (RJ45, van de brain) / J2 — chain THRU (naar het
+volgende bord).** ⚠️ Géén ethernet: pin 4 voert 12 V! J3/J4 zijn
+dezelfde signalen als 2×4-header (interne doorlink, pin 1…8 = RJ45
+1…8); RJ45-schermen → CHASSIS.
+
+| pin | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+|---|---|---|---|---|---|---|---|---|
+| functie | CLK | GND | DATA | **+12V** | GND | DRET (terug) | LATCH | EN |
+
+**Loop-jacks J11–J18 (ACJS-MHD, gestapeld):** bovenste jack = SEND,
+onderste = RETURN. Return-tip-verbreekcontact is genormaliseerd naar de
+send-tip (lege loop = signaal door); ring + sleeve → AGND.
+
+**J7 audio IN / J8 audio UIT (ACJS-MH):** tip = signaal, ring/sleeve →
+AGND; J7-tip-verbreek → JP2 (mute lege ingang). J5/J6 = dezelfde audio
+als soldeerpads: pin 1 = signaal, pin 2 = AGND.
 
 ## Jumpers
 
