@@ -72,11 +72,21 @@ LCSC_BY_FOOTPRINT = {
     ("10u", "CP_Elec_4x5.3"): "C3343",  # 10uF 25V SMD alu-elco, D4xL5.4mm (SMT)
 }
 
+# Connectoren op footprint alleen (comment varieert per stuk, part is gelijk).
+# Bewuste uitzondering op "headers = handwerk": deze wil je machinaal.
+LCSC_CONN = {
+    "PinSocket_2x10_P2.54mm_Vertical": "C92266",     # busboard SLOT-sockets J1-J6
+    "IDC-Header_2x13_P2.54mm_Vertical": "C2884553",  # busboard EXPANSION J21 (X9555WV, 2.54mm)
+    "IDC-Header_2x05_P2.54mm_Vertical": "C5665",     # busboard HUB1/HUB2/PWRIN J7-J9 (2.54mm)
+}
+
 def lookup_lcsc(comment, footprint):
     """Geef het LCSC-nummer voor (comment, footprint), of "" als handwerk."""
     c = re.sub(r"\s*\([^)]*\)\s*$", "", (comment or "").strip())
     if (c, footprint) in LCSC_BY_FOOTPRINT:
         return LCSC_BY_FOOTPRINT[(c, footprint)]
+    if footprint in LCSC_CONN:
+        return LCSC_CONN[footprint]
     if footprint in _SMD_0805 and c in LCSC_PASSIVE:
         return LCSC_PASSIVE[c]
     return LCSC_DEVICE.get(c, "")
@@ -111,17 +121,53 @@ def fix_bom(path):
 CPL_HDR = {"Ref": "Designator", "Val": "Val", "Package": "Package",
            "PosX": "Mid X", "PosY": "Mid Y", "Rot": "Rotation", "Side": "Layer"}
 
+# Rotatie-correctie: JLCPCB hanteert per package een andere 0deg-referentie dan
+# KiCad. Deze graden worden bij de CPL-rotatie opgeteld. Afgelezen uit de
+# JLCPCB "Component Placements"-preview (NIET de KiCad-render, die klopt al!).
+# Alleen gepolariseerde/pinned SMD-delen; 0805-R/C zijn symmetrisch -> 0.
+# Per FOOTPRINT, dus geldt automatisch voor alle borden met dat package.
+ROT_FIX = {
+    # Geverifieerd in JLCPCB-preview (busboard). Alleen niet-nul correcties.
+    "SOT-223-3_TabPin2":           180,  # U3 AMS1117
+    "SOIC-8_3.9x4.9mm_P1.27mm":    270,  # U12
+    "SOIC-16_3.9x9.9mm_P1.27mm":   270,  # U5/U6 (74HC165)
+    "SOIC-20W_7.5x12.8mm_P1.27mm": 270,  # U8
+    "SOIC-24W_7.5x15.4mm_P1.27mm":  90,  # U4 (geverifieerd)
+    "SOT-23-5":                    270,  # U11/U13 (74LVC1G17); U7 -> ROT_FIX_VAL
+    "SOT-23":                      180,  # D3 (BAT54S)
+    # THT (pinnen in vaste gaten -> alleen 0/180 fysiek mogelijk; 90/270 in preview
+    # is het 3D-model). KiCad klopt -> raw = goed, dus GEEN correctie voor:
+    #   DIP-6 (U9/U10), DCDC (U2), connectoren J1-9/J21. Alleen bij een echte
+    #   180-spiegeling van pin-1/sleuf zou hier een 180 komen.
+    # Ook 0: CP_Elec (C1/3/5/7, SMD maar goed), D_SOD-323 (D1: - links = ok)
+}
+
+# Uitzonderingen per part-WAARDE: JLCPCB's 0deg-referentie zit per LCSC-part,
+# dus zelfde footprint kan verschillen. Waarde-match wint van footprint-default.
+ROT_FIX_VAL = {
+    "74LVC1G125": 180,  # U7: wijkt af van 74LVC1G17 (270) ondanks zelfde SOT-23-5
+}
+
 def fix_cpl(path):
     with open(path, newline="", encoding="utf-8-sig") as f:
-        rdr = csv.reader(f)
-        rows = list(rdr)
+        rows = list(csv.reader(f))
     if not rows:
         return
     hdr = [CPL_HDR.get(h, h) for h in rows[0]]
+    ipkg = hdr.index("Package") if "Package" in hdr else 2
+    irot = hdr.index("Rotation") if "Rotation" in hdr else 5
+    ival = hdr.index("Val") if "Val" in hdr else 1
     with open(path, "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f, quoting=csv.QUOTE_ALL)
         w.writerow(hdr)
         for r in rows[1:]:
+            if len(r) > max(ipkg, irot, ival):
+                off = ROT_FIX_VAL.get(r[ival], ROT_FIX.get(r[ipkg].split(":")[-1]))
+                if off:
+                    try:
+                        r[irot] = f"{(float(r[irot]) + off) % 360:.6f}"
+                    except ValueError:
+                        pass
             w.writerow(r)
 
 def fix_dir(fabdir):

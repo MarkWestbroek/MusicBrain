@@ -57,12 +57,29 @@ KiCad (lege LCSC-kolom) en laat `jlc_fix.py` 'm daarna vullen.
 > pik je dus alleen op via een **verse export** (make_fab.sh), niet door
 > jlc_fix nog eens over een bestaande BOM te draaien.
 
-## Rotatie-let-op (assembly)
+## Rotatie-correctie (assembly)
 
-Het CPL-bestand gebruikt de KiCad-rotatieconventie. JLCPCB hanteert voor
-sommige packages (SOT-23, SOT-223, elco's, TSSOP) een eigen 0°-referentie —
-controleer bij het uploaden de preview en corrigeer per part als er iets
-90°/180° verdraaid staat. Dit raakt alleen geplaatste SMD-delen.
+JLCPCB hanteert per LCSC-part een andere 0°-referentie dan KiCad. `jlc_fix.py`
+corrigeert dat **automatisch** in de CPL via `ROT_FIX` (per footprint) +
+`ROT_FIX_VAL` (per part-waarde, voor uitzonderingen — bv. 74LVC1G125 wijkt af
+van 74LVC1G17 in dezelfde SOT-23-5).
+
+Cruciaal onderscheid:
+
+- **SMD**: de machine plaatst blind op de CPL-rotatie → correctie is écht en
+  nodig. Waarden lees je af in de JLCPCB Component-Placements-preview (draai
+  één part per package tot pin-1 klopt, dat aantal graden gaat in `ROT_FIX`).
+- **THT** (DIP, IDC, sockets, DCDC, Teensy): een mens steekt het in de vaste
+  gaten en volgt de silk/sleutel → volgt je (correcte) KiCad-layout, dus
+  **geen correctie** (blijft raw). De 90/270 + verschuiving die je in de
+  preview ziet is het 3D-model, niet de echte plaatsing.
+
+Door de per-part-referentie kan hetzelfde package per chip verschillen → bij
+een nieuw bord even per package spot-checken in de preview.
+
+> **Dubbel-toepassen:** `jlc_fix` telt de rotatie-offset bij élke run op. Draai
+> 'm dus op een **vers geëxporteerde** CPL (make_fab.sh), nooit twee keer over
+> dezelfde — zelfde regel als bij de BOM hierboven.
 
 ## Custom footprints
 
