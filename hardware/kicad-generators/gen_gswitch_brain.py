@@ -489,8 +489,8 @@ b.paper = "A3"
 # Silk-teksten op verzoek van Mark tussen de RJ45's + verticaal langs de
 # oostrand (de oude één-regel op y=167,3 verdween onder J11/H4).
 b.silk_texts = [
-    (f"GSWITCH BRAIN rev {REV}", 146, 153.9, 0),
-    ("12V center-negatief", 146, 157.0, 0),
+    (f"GSWITCH BRAIN rev {REV}", 148.5, 153.9, 0),
+    ("12V center-negatief", 148.5, 157.0, 0),
     ("doc/guitar-switcher-spec.md", 184.6, 156.5, 90),
 ]
 P = b.P
