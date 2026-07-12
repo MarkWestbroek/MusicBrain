@@ -1,0 +1,109 @@
+{
+ "title": "musicbrain-busboard rev 2.0 — aansluitoverzicht",
+ "image": "/boards/musicbrain-busboard-v2.png",
+ "alt": "3D-render van musicbrain-busboard-v2",
+ "points": [
+  {
+   "x": 0.104,
+   "y": 0.0654,
+   "label": "audio/codec-poort (J17, I²S)",
+   "markdown": "**audio/codec-poort (J17, I²S)**\n\n| pin | net |\n|--|--|\n| 1 | +3V3 |\n| 2 | CODEC_RST |\n| 3 | +5V |\n| 4 | MCLK1 |\n| 5 | GND |\n| 6 | BCLK1 |\n| 7 | GND |\n| 8 | LRCLK1 |\n| 9 | GND |\n| 10 | I2S_OUT |\n| 11 | +12V |\n| 12 | I2S_IN |\n| 13 | -12V |\n| 14 | GND |"
+  },
+  {
+   "x": 0.1279,
+   "y": 0.5201,
+   "label": "Teensy 4.1 (op socketstrips)",
+   "markdown": "**Teensy 4.1 (op socketstrips)**"
+  },
+  {
+   "x": 0.333,
+   "y": 0.6891,
+   "label": "voeding: 12V → 5V → 3,3V",
+   "markdown": "**voeding: 12V → 5V → 3,3V**"
+  },
+  {
+   "x": 0.0563,
+   "y": 0.826,
+   "label": "12V-in (J9, 2×5 IDC)",
+   "markdown": "**12V-in (J9, 2×5 IDC)**\n\n| pin | net |\n|--|--|\n| 1 | -12V |\n| 2 | -12V |\n| 3 | GND |\n| 4 | GND |\n| 5 | GND |\n| 6 | GND |\n| 7 | GND |\n| 8 | GND |\n| 9 | +12V |\n| 10 | +12V |"
+  },
+  {
+   "x": 0.1088,
+   "y": 0.1177,
+   "label": "display (J11)",
+   "markdown": "**display (J11)**\n\n| pin | net |\n|--|--|\n| 1 | +3V3 |\n| 2 | GND |\n| 3 | DISP_CS |\n| 4 | DISP_RST |\n| 5 | DISP_DC |\n| 6 | MOSI1 |\n| 7 | SCK1 |\n| 8 | +3V3 |\n| 9 | — |"
+  },
+  {
+   "x": 0.1613,
+   "y": 0.0654,
+   "label": "TUNE-in (J18)",
+   "markdown": "**TUNE-in (J18)**\n\n| pin | net |\n|--|--|\n| 1 | TUNE_J |\n| 2 | GND |"
+  },
+  {
+   "x": 0.5382,
+   "y": 0.1378,
+   "label": "expansie 2e segment (J21)",
+   "markdown": "**expansie 2e segment (J21)**\n\n| pin | net |\n|--|--|\n| 1 | CS9 |\n| 2 | IRQ7 |\n| 3 | CS10 |\n| 4 | IRQ8 |\n| 5 | CS11 |\n| 6 | IRQ9 |\n| 7 | CS12 |\n| 8 | IRQ10 |\n| 9 | CS13 |\n| 10 | IRQ11 |\n| 11 | CS14 |\n| 12 | IRQ12 |\n| 13 | MISO |\n| 14 | GND |\n| 15 | XSCLK |\n| 16 | GND |\n| 17 | XMOSI |\n| 18 | GND |\n| 19 | XLDAC |\n| 20 | GND |\n| 21 | XCONVST |\n| 22 | SDA |\n| 23 | XRST |\n| 24 | SCL |\n| 25 | GND |\n| 26 | GND |"
+  },
+  {
+   "x": 0.6813,
+   "y": 0.0815,
+   "label": "IRQ 7-12 (U6-keten)",
+   "markdown": "**IRQ 7-12 (U6-keten)**"
+  },
+  {
+   "x": 0.2853,
+   "y": 0.2948,
+   "label": "slot 1",
+   "markdown": "**slot 1**"
+  },
+  {
+   "x": 0.7624,
+   "y": 0.2948,
+   "label": "slot 6",
+   "markdown": "**slot 6**"
+  },
+  {
+   "x": 0.8721,
+   "y": 0.2948,
+   "label": "hub 1 (J7)",
+   "markdown": "**hub 1 (J7)**\n\n| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | CS7 |\n| 3 | MISO |\n| 4 | MOSI |\n| 5 | SCLK |\n| 6 | GND |\n| 7 | +3V3 |\n| 8 | GND |\n| 9 | -12V |\n| 10 | +12V |"
+  },
+  {
+   "x": 0.8721,
+   "y": 0.7938,
+   "label": "hub 2 (J8)",
+   "markdown": "**hub 2 (J8)**\n\n| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | CS8 |\n| 3 | MISO |\n| 4 | MOSI |\n| 5 | SCLK |\n| 6 | GND |\n| 7 | +3V3 |\n| 8 | GND |\n| 9 | -12V |\n| 10 | +12V |"
+  },
+  {
+   "x": 0.9246,
+   "y": 0.9346,
+   "label": "Qwiic / I²C (J12)",
+   "markdown": "**Qwiic / I²C (J12)**\n\n| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | +3V3 |\n| 3 | SDA |\n| 4 | SCL |"
+  },
+  {
+   "x": 0.1422,
+   "y": 0.9346,
+   "label": "EXP (J10)",
+   "markdown": "**EXP (J10)**\n\n| pin | net |\n|--|--|\n| 1 | +3V3 |\n| 2 | GND |\n| 3 | +5V |\n| 4 | GND |\n| 5 | D10 |\n| 6 | D33 |\n| 7 | D29 |\n| 8 | D32 |\n| 9 | D36 |\n| 10 | D37 |\n| 11 | D38 |\n| 12 | D39 |\n| 13 | GND |\n| 14 | GND |"
+  },
+  {
+   "x": 0.2424,
+   "y": 0.9346,
+   "label": "DLG1/DLG2 (Serial3/4)",
+   "markdown": "**DLG1/DLG2 (Serial3/4)**"
+  },
+  {
+   "x": 0.3521,
+   "y": 0.9346,
+   "label": "MIDI IN×2 + UIT",
+   "markdown": "**MIDI IN×2 + UIT**"
+  },
+  {
+   "x": 0.4523,
+   "y": 0.9346,
+   "label": "CAN-bus (J16)",
+   "markdown": "**CAN-bus (J16)**\n\n| pin | net |\n|--|--|\n| 1 | +12V |\n| 2 | CANH |\n| 3 | CANL |\n| 4 | GND |"
+  }
+ ]
+}
