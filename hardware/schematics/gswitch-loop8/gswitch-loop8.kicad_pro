@@ -1,0 +1,6 @@
+{
+  "meta": {"filename": "gswitch-loop8.kicad_pro", "version": 3},
+  "general": {"project_name": "gswitch-loop8"},
+  "schematic": {"file": "gswitch-loop8.kicad_sch"},
+  "pcb": {"file": "gswitch-loop8.kicad_pcb"}
+}
