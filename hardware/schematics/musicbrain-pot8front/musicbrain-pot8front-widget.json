@@ -1,0 +1,13 @@
+{
+ "title": "musicbrain-pot8front rev 1.1 — aansluitoverzicht",
+ "image": "/boards/musicbrain-pot8front.png",
+ "alt": "3D-render van musicbrain-pot8front",
+ "points": [
+  {
+   "x": 0.7759,
+   "y": 0.5,
+   "label": "SOCKET-BACK (J1)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | W1 |\n| 3 | W2 |\n| 4 | W3 |\n| 5 | W4 |\n| 6 | W5 |\n| 7 | W6 |\n| 8 | W7 |\n| 9 | W8 |\n| 10 | +3V3 |"
+  }
+ ]
+}

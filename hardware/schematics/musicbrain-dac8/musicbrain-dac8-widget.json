@@ -1,0 +1,19 @@
+{
+ "title": "musicbrain-dac8 rev 1.0 — aansluitoverzicht",
+ "image": "/boards/musicbrain-dac8.png",
+ "alt": "3D-render van musicbrain-dac8",
+ "points": [
+  {
+   "x": 0.5,
+   "y": 0.9337,
+   "label": "BUS (J1)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | +12V |\n| 3 | GND |\n| 4 | -12V |\n| 5 | GND |\n| 6 | +3V3 |\n| 7 | SCLK |\n| 8 | GND |\n| 9 | MOSI |\n| 10 | GND |\n| 11 | MISO |\n| 12 | GND |\n| 13 | CS |\n| 14 | GND |\n| 15 | LDAC |\n| 16 | — |\n| 17 | — |\n| 18 | — |\n| 19 | — |\n| 20 | — |"
+  },
+  {
+   "x": 0.5,
+   "y": 0.0825,
+   "label": "CV OUT (J2)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | CV1 |\n| 3 | CV2 |\n| 4 | CV3 |\n| 5 | CV4 |\n| 6 | CV5 |\n| 7 | CV6 |\n| 8 | CV7 |\n| 9 | CV8 |\n| 10 | GND |"
+  }
+ ]
+}

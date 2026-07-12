@@ -1,0 +1,19 @@
+{
+ "title": "musicbrain-enc5front rev 2.0 — aansluitoverzicht",
+ "image": "/boards/musicbrain-enc5front.png",
+ "alt": "3D-render van musicbrain-enc5front",
+ "points": [
+  {
+   "x": 0.5441,
+   "y": 0.5,
+   "label": "Socket_1x10_backside (J1)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | SDA |\n| 3 | SCL |\n| 4 | IRQ |\n| 5 | — |\n| 6 | — |\n| 7 | — |\n| 8 | — |\n| 9 | — |\n| 10 | +3V3 |"
+  },
+  {
+   "x": 0.7648,
+   "y": 0.8973,
+   "label": "Header_2x08_backside (J2)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | +3V3 |\n| 3 | X_E6A |\n| 4 | X_E6B |\n| 5 | X_E6S |\n| 6 | X_E7A |\n| 7 | X_E7B |\n| 8 | X_E7S |\n| 9 | X_K1 |\n| 10 | X_K2 |\n| 11 | X_K3 |\n| 12 | X_K4 |\n| 13 | X_SP1 |\n| 14 | X_SP2 |\n| 15 | GND |\n| 16 | GND |"
+  }
+ ]
+}

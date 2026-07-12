@@ -1,0 +1,19 @@
+{
+ "title": "musicbrain-i2criser rev 1.0 — aansluitoverzicht",
+ "image": "/boards/musicbrain-i2criser.png",
+ "alt": "3D-render van musicbrain-i2criser",
+ "points": [
+  {
+   "x": 0.5,
+   "y": 0.9337,
+   "label": "BUS (J1)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | — |\n| 3 | GND |\n| 4 | — |\n| 5 | GND |\n| 6 | +3V3 |\n| 7 | — |\n| 8 | GND |\n| 9 | — |\n| 10 | GND |\n| 11 | — |\n| 12 | GND |\n| 13 | — |\n| 14 | GND |\n| 15 | — |\n| 16 | IRQ |\n| 17 | SDA |\n| 18 | SCL |\n| 19 | — |\n| 20 | — |"
+  },
+  {
+   "x": 0.5,
+   "y": 0.0825,
+   "label": "NAAR FRONT (J2)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | SDA |\n| 3 | SCL |\n| 4 | IRQ |\n| 5 | — |\n| 6 | — |\n| 7 | — |\n| 8 | — |\n| 9 | — |\n| 10 | +3V3 |"
+  }
+ ]
+}

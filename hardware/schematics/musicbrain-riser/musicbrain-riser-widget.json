@@ -1,0 +1,19 @@
+{
+ "title": "musicbrain-riser rev 1.0 — aansluitoverzicht",
+ "image": "/boards/musicbrain-riser.png",
+ "alt": "3D-render van musicbrain-riser",
+ "points": [
+  {
+   "x": 0.5,
+   "y": 0.9337,
+   "label": "BUS (J1)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | +12V |\n| 3 | GND |\n| 4 | -12V |\n| 5 | GND |\n| 6 | +3V3 |\n| 7 | SCLK |\n| 8 | GND |\n| 9 | MOSI |\n| 10 | GND |\n| 11 | MISO |\n| 12 | GND |\n| 13 | CS |\n| 14 | GND |\n| 15 | LDAC |\n| 16 | IRQ |\n| 17 | SDA |\n| 18 | SCL |\n| 19 | SPARE1 |\n| 20 | SPARE2 |"
+  },
+  {
+   "x": 0.5,
+   "y": 0.0662,
+   "label": "NAAR FRONT (J2)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | SPARE1 |\n| 2 | SPARE2 |\n| 3 | SDA |\n| 4 | SCL |\n| 5 | LDAC |\n| 6 | IRQ |\n| 7 | CS |\n| 8 | GND |\n| 9 | MISO |\n| 10 | GND |\n| 11 | MOSI |\n| 12 | GND |\n| 13 | SCLK |\n| 14 | GND |\n| 15 | GND |\n| 16 | +3V3 |\n| 17 | GND |\n| 18 | -12V |\n| 19 | GND |\n| 20 | +12V |"
+  }
+ ]
+}

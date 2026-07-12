@@ -1,0 +1,19 @@
+{
+ "title": "ad5754r-breakout rev 2.0 — aansluitoverzicht",
+ "image": "/boards/ad5754r-breakout.png",
+ "alt": "3D-render van ad5754r-breakout",
+ "points": [
+  {
+   "x": 0.152,
+   "y": 0.3549,
+   "label": "SPI+Power (J1)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | SYNC |\n| 3 | SDO |\n| 4 | SDIN |\n| 5 | SCLK |\n| 6 | GND |\n| 7 | +3V3 |\n| 8 | GND |\n| 9 | -12V |\n| 10 | +12V |"
+  },
+  {
+   "x": 0.892,
+   "y": 0.4086,
+   "label": "GND+DAC A-D (J2)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | Net-(J2-Pin_2) |\n| 3 | Net-(J2-Pin_3) |\n| 4 | Net-(J2-Pin_4) |\n| 5 | Net-(J2-Pin_5) |"
+  }
+ ]
+}
