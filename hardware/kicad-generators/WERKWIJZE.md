@@ -131,11 +131,14 @@ Generators mogen eerder (WIP-koper expliciet benoemen). Nooit `git add -A`.
   y genegeerd + pad-rot 180 (zoals pcbnew zelf flipt). Koper is anders ook
   goed, maar het 3D-model klapt om het anker → "connector naast de gaten".
 - 3D-modellen van lib-connectors op de **B-zijde**: offset (0,0,0) laat het
-  model náást de gaten vallen (pads staan in de neg. kwadrant door de canonieke
-  flip, het model in de pos.). Fix: model `(rotate (xyz 0 0 180))` — of nudge de
-  Offset X/Y live in de Footprint Editor tot de body op de gatenrij valt
-  (backside-flip maakt blind rekenen vals). Raakt alleen de render, niet de fab.
-  Vastgesteld op enc5front J1/J2 (2026-07-12).
+  model náást de gaten vallen (pads in neg. kwadrant door de canonieke flip,
+  model in pos.). **Fix: model-offset `(-W, +0.1)`**, W = kolomspan =
+  `2.54*(cols-1)`. X = -kolomspan (centreert loodrecht op de pin-rijen),
+  Y = +0.1 (tikkie langs de rij). Zo: J1 1x10 = `(0, +0.1)`, J2 2x8 =
+  `(-2.6, +0.1)`. (`rotate 180` schiet door — niet gebruiken.) **As-mapping bij
+  handmatig nudgen** (verwarrend door de flip): **Y = links/rechts** (+Y rechts),
+  **X = op/neer** (+X weg van de lange rand). Raakt alleen de render, niet de
+  fab. Enc5front J1/J2, 2026-07-14.
 - Lange borden: `b.paper = "A3"` (cardlib) — 110+ mm valt van A4-landscape af.
 - Silk-URL/labels: center-justified! Anker = midden van de tekst. Labels van
   geroteerde headers via een `REF_AT`-tabel boven de body zetten (teksthoek 0

@@ -4152,7 +4152,7 @@
     (pad "9" thru_hole oval (at -0.0 -20.32 180) (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask"))
     (pad "10" thru_hole oval (at -0.0 -22.86 180) (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 2 "+3V3"))
     (model "${KICAD10_3DMODEL_DIR}/Connector_PinSocket_2.54mm.3dshapes/PinSocket_1x10_P2.54mm_Vertical.step"
-      (offset (xyz 0 0 0)) (scale (xyz 1 1 1)) (rotate (xyz 0 0 0)))
+      (offset (xyz 0 0.1 0)) (scale (xyz 1 1 1)) (rotate (xyz 0 0 0)))
   )
   (footprint "MusicBrain:Header_2x08_backside"
     (layer "B.Cu")
@@ -4186,7 +4186,7 @@
     (pad "15" thru_hole oval (at -0.0 -17.78 180) (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 1 "GND"))
     (pad "16" thru_hole oval (at -2.54 -17.78 180) (size 1.7 1.7) (drill 1.0) (layers "*.Cu" "*.Mask") (net 1 "GND"))
     (model "${KICAD10_3DMODEL_DIR}/Connector_PinHeader_2.54mm.3dshapes/PinHeader_2x08_P2.54mm_Vertical.step"
-      (offset (xyz 0 0 0)) (scale (xyz 1 1 1)) (rotate (xyz 0 0 0)))
+      (offset (xyz -2.6 0.1 0)) (scale (xyz 1 1 1)) (rotate (xyz 0 0 0)))
   )
   (segment (start 125.31 197.42) (end 128.7 197.42) (width 0.25) (layer "B.Cu") (net 28) (uuid "ca4d0000-0000-4000-8000-000000000014"))
   (segment (start 128.7 197.42) (end 128.7 175.35) (width 0.25) (layer "B.Cu") (net 28) (uuid "ca4d0000-0000-4000-8000-000000000015"))

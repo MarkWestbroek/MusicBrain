@@ -218,7 +218,11 @@ b.fp('Capacitor_SMD.pretty\\C_0805_2012Metric.kicad_mod',
 def _backside_conn(name, ref, anchor_x, anchor_y, cols, rows, pinnet, model, descr):
     """THT-connector op de ACHTERZIJDE in KiCads canonieke geflipte vorm
     (rot 180 + lokale y genegeerd): absolute padposities = anchor + (col*2.54
-    oost, row*2.54 zuid); 3D-model valt dan op de gatenrij."""
+    oost, row*2.54 zuid). Het 3D-model valt met offset 0 NAAST de gaten (pads
+    in neg. kwadrant, model in pos.); model-offset (-W, +0.1) centreert het.
+    W = kolomspan = 2.54*(cols-1): X = -kolomspan (loodrecht op de pin-rijen),
+    Y = +0.1 (tikkie langs de rij). Empirisch op J1 1x10 + J2 2x8 (2026-07-14).
+    Render-cosmetiek, raakt de fab niet. Zie WERKWIJZE.md."""
     L = 2.54 * (rows - 1)
     W = 2.54 * (cols - 1)
     hp = []
@@ -246,7 +250,7 @@ def _backside_conn(name, ref, anchor_x, anchor_y, cols, rows, pinnet, model, des
       (stroke (width 0.05) (type solid)) (fill no) (layer "B.CrtYd"))
 {chr(10).join(hp)}
     (model "${{KICAD10_3DMODEL_DIR}}/{model}"
-      (offset (xyz 0 0 0)) (scale (xyz 1 1 1)) (rotate (xyz 0 0 0)))
+      (offset (xyz {-W} 0.1 0)) (scale (xyz 1 1 1)) (rotate (xyz 0 0 0)))
   )''')
 
 

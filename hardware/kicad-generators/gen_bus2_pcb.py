@@ -89,10 +89,15 @@ P = {}  # ref -> pad -> (x, y)
 # rot 90: global = anker + (ly, -lx) -> lx = 3.9 zet het label 3,9 mm noord
 # van de pinnenrij, ly = halve rijlengte centreert het boven de connector.
 REF_AT = {
-    'J10': (3.9, 7.62),                                          # EXP 2x7
-    'J19': (3.9, 3.81), 'J20': (3.9, 3.81),                      # DLG 1x4
+    'J7': (1.27, -6.5), 'J8': (2, -6.5), 'J9': (1.27, -6.5),     # HUB1/HUB2/PWRIN IDC 2x5
+    'J10': (5.5, 9),                                             # EXP 2x7
+    'J11': (-1, -3.5),                                           # DISPLAY 1x9
+    'J12': (3.9, 3.81), 'J16': (3.9, 3.81),                      # QWIIC / CAN
     'J13': (3.9, 2.54), 'J14': (3.9, 2.54), 'J15': (3.9, 2.54),  # MIDI 1x3
-    'J16': (3.9, 3.81), 'J12': (3.9, 3.81),                      # CAN / QWIIC
+    'J17': (2.5, -6.15),                                         # AUDIO/CODEC 2x7
+    'J18': (-3.5, -1),                                           # TUNE 1x2
+    'J19': (3.9, 3.81), 'J20': (3.9, 3.81),                      # DLG 1x4
+    'J21': (2.5, -7.5),                                          # EXPANSION IDC 2x13
 }
 
 def load_footprint(relpath, lib_id, ref, value, x, y, path_uuid, netmap, rot=0):
