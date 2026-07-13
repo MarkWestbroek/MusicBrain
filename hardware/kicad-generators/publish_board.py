@@ -21,16 +21,50 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import requests
+from PIL import Image
 from pinout_svg import lees_connector
+
+RAND = 24   # px marge bij bijsnijden — MOET gelijk zijn aan widget_export.RAND,
+            # anders matchen de point-x/y uit de widget-json niet met deze render
 
 
 def render_top(pcb):
+    """Render transparant en snijd bij tot bord+RAND (identiek aan
+    widget_export), zodat de hotspot-x/y uit de widget-json kloppen."""
     fd, tmp = tempfile.mkstemp(suffix='.png')
     os.close(fd)
     subprocess.run(['kicad-cli', 'pcb', 'render', '--side', 'top', '-w', '1600',
                     '-h', '1000', '--quality', 'high', '--background', 'transparent',
                     '-o', tmp, pcb], check=True, capture_output=True)
-    return tmp
+    img = Image.open(tmp).convert('RGBA')
+    os.remove(tmp)
+    bb = img.split()[-1].getbbox()
+    img = img.crop((max(0, bb[0] - RAND), max(0, bb[1] - RAND),
+                    min(img.size[0], bb[2] + RAND), min(img.size[1], bb[3] + RAND)))
+    fd, out = tempfile.mkstemp(suffix='.png')
+    os.close(fd)
+    img.save(out)
+    return out
+
+
+def widget_points(widget_json, pinouts):
+    """Zet de hotspots uit de widget-json om naar board-spec-points:
+    connector-punten linken hun pinout-SVG (D10), de rest houdt z'n label."""
+    if not os.path.exists(widget_json):
+        return []
+    pts = json.load(open(widget_json, encoding='utf-8')).get('points', [])
+    out = []
+    for p in pts:
+        pt = {'x': p['x'], 'y': p['y']}
+        if p.get('label'):
+            pt['label'] = p['label']
+        m = re.search(r'\bJ\d+\b', p.get('label', ''))
+        if m and m.group(0) in pinouts:
+            pt['connector'] = m.group(0)   # site linkt assets.pinouts[ref]
+        elif p.get('label'):
+            pt['markdown'] = f'**{p["label"]}**'
+        out.append(pt)
+    return out
 
 
 def connectors(pcb, refs, labels):
@@ -131,6 +165,7 @@ def main():
             files[fn] = p
             pinouts[c['ref']] = fn
 
+    points = widget_points(os.path.join(d, f'{base_name}-widget.json'), pinouts)
     doc = {
         'slug': slug,
         'component': a.component,
@@ -139,12 +174,14 @@ def main():
         'assets': {'renderTop': 'render-top.png',
                    'overview': 'overview.svg' if 'overview.svg' in files else None,
                    'pinouts': pinouts},
+        'points': points,
         'sections': readme_sections(os.path.join(d, 'README.md')),
     }
 
     if a.dry:
-        print(json.dumps(doc, indent=1, ensure_ascii=False)[:2000])
-        print(f'\n[{len(files)} assets, {len(conns)} connectors] — dry-run, niets gepost')
+        print(json.dumps(doc.get('points', []), indent=1, ensure_ascii=False))
+        print(f'\n[{len(files)} assets, {len(conns)} connectors, {len(points)} points]'
+              ' — dry-run, niets gepost')
         os.remove(rt)
         return
 
