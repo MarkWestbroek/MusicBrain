@@ -59,7 +59,8 @@ board-top.svg
 hardware/schematics/*/*.net
 hardware/kicad-generators/__pycache__/
 
-# Fab-uitvoer: de losse gerber/drill-exports zijn regenereerbaar en redundant
-# met de <bord>-gerbers.zip (dat is de upload-deliverable). BOM/CPL-CSV's en de
-# zip blijven wel getrackt.
-fab/gerbers/
+# Fab-uitvoer: gerber/drill-exports EN de gebundelde zip zijn regenereerbaar uit
+# de KiCad-bron (make_fab) - niet tracken. BOM/CPL-CSV's blijven wel getrackt
+# (klein, diff-baar, ordergeschiedenis); regenereer de zip vóór het uploaden.
+**/fab/gerbers/
+**/fab/*-gerbers.zip
