@@ -78,7 +78,9 @@ def connectors(pcb, refs, labels):
             continue
         xs = {round(p[1], 2) for p in pads}
         ys = {round(p[2], 2) for p in pads}
-        rows = min(len(xs), len(ys))
+        # schema: 1 of 2 (enkel- of dubbelrijige header). Alles met >=2 op de
+        # korte as telt als dubbelrij; een 1D-rij als enkelrij.
+        rows = 1 if min(len(xs), len(ys)) <= 1 else 2
         pins = [{'pin': n, 'net': (net or '').lstrip('/')}
                 for n, _x, _y, net in sorted(pads, key=lambda p: int(p[0]) if p[0].isdigit() else 0)]
         out.append({'ref': ref, 'label': labels.get(ref, val), 'rows': rows, 'pins': pins})
