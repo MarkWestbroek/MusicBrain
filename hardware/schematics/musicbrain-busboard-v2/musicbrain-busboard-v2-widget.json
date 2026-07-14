@@ -54,14 +54,14 @@
   {
    "x": 0.2853,
    "y": 0.2948,
-   "label": "slot 1",
-   "markdown": ""
+   "label": "slot 1 (J1)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | +12V |\n| 3 | GND |\n| 4 | -12V |\n| 5 | GND |\n| 6 | +3V3 |\n| 7 | SCLK |\n| 8 | GND |\n| 9 | MOSI |\n| 10 | GND |\n| 11 | MISO |\n| 12 | GND |\n| 13 | CS1 |\n| 14 | GND |\n| 15 | LDAC |\n| 16 | IRQ1 |\n| 17 | SDA |\n| 18 | SCL |\n| 19 | SPARE1 |\n| 20 | SPARE2 |"
   },
   {
    "x": 0.7624,
    "y": 0.2948,
-   "label": "slot 6",
-   "markdown": ""
+   "label": "slot 6 (J6)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | +12V |\n| 3 | GND |\n| 4 | -12V |\n| 5 | GND |\n| 6 | +3V3 |\n| 7 | SCLK |\n| 8 | GND |\n| 9 | MOSI |\n| 10 | GND |\n| 11 | MISO |\n| 12 | GND |\n| 13 | CS6 |\n| 14 | GND |\n| 15 | LDAC |\n| 16 | IRQ6 |\n| 17 | SDA |\n| 18 | SCL |\n| 19 | SPARE1 |\n| 20 | SPARE2 |"
   },
   {
    "x": 0.8721,
