@@ -1550,3 +1550,1402 @@ Pass 123: nog 21. De curve vlakt af — ik laat hem tot het einde (300 passes) l
 
 Pass 167: 20 — plateau in zicht. Ik wacht het einde van de run af.
 
+---
+
+## 👤 Gebruiker (22)
+
+<task-notification>
+<task-id>b5c6om0x8</task-id>
+<summary>Monitor event: "busboard-v2 freerouting voortgang (unrouted-teller)"</summary>
+<event>pass #216 (19 unrouted and 14 violations)</event>
+</task-notification>
+
+**🤖 Claude:**
+
+Plateau bevestigd op ~19 — zelfde als vanochtend, dus structureel en geen placement-effect. Ik bereid alvast de netanalyse voor zodat we bij het einde van de run meteen zien wélke netten blijven liggen:
+> 🔧 `Bash` — Prepare cluster analysis script for busboard v2
+
+**🤖 Claude:**
+
+Script staat klaar. Zodra de run stopt: SES toepassen → clusteranalyse → gerichte aanpak van de restnetten.
+
+---
+
+## 👤 Gebruiker (23)
+
+<task-notification>
+<task-id>b5c6om0x8</task-id>
+<summary>Monitor event: "busboard-v2 freerouting voortgang (unrouted-teller)"</summary>
+<event>pass #263 (26 unrouted and 14 violations)</event>
+</task-notification>
+
+**🤖 Claude:**
+
+Even omhoog (rip-up-exploratie; hij bewaart de beste stand). Wachten op het einde.
+
+---
+
+## 👤 Gebruiker (24)
+
+<task-notification>
+<task-id>b5c6om0x8</task-id>
+<summary>Monitor event: "busboard-v2 freerouting voortgang (unrouted-teller)"</summary>
+<event>pass #315 (17 unrouted and 14 violations)</event>
+</task-notification>
+
+**🤖 Claude:**
+
+Pass 315 (hij telt de optimalisatiefase door): 17 — nieuw beste punt. Nog even.
+
+---
+
+## 👤 Gebruiker (25)
+
+<task-notification>
+<task-id>b5c6om0x8</task-id>
+<summary>Monitor event: "busboard-v2 freerouting voortgang (unrouted-teller)"</summary>
+<event>pass #371 (10 unrouted and 14 violations)</event>
+</task-notification>
+
+**🤖 Claude:**
+
+**10!** Hij breekt door het oude plateau heen — de placement-fixes en de 0,35mm-power betalen zich uit. Laten doorlopen.
+
+---
+
+## 👤 Gebruiker (26)
+
+<task-notification>
+<task-id>b5c6om0x8</task-id>
+<summary>Monitor event: "busboard-v2 freerouting voortgang (unrouted-teller)"</summary>
+<event>pass #444 (20 unrouted and 14 violations)</event>
+</task-notification>
+
+**🤖 Claude:**
+
+Weer exploratiefase (beste stand blijft 10 en wordt bewaard). Wachten.
+
+---
+
+## 👤 Gebruiker (27)
+
+<task-notification>
+<task-id>b5c6om0x8</task-id>
+<summary>Monitor event: "busboard-v2 freerouting voortgang (unrouted-teller)"</summary>
+<event>pass #507 (10 unrouted and 14 violations)</event>
+</task-notification>
+
+**🤖 Claude:**
+
+Terug op 10 (pass 507). Hij zit nu in de optimalisatiefase; ik laat hem netjes zelf stoppen — dan schrijft hij de SES gegarandeerd weg.
+
+---
+
+## 👤 Gebruiker (28)
+
+<task-notification>
+<task-id>b5c6om0x8</task-id>
+<summary>Monitor event: "busboard-v2 freerouting voortgang (unrouted-teller)"</summary>
+<event>pass #567 (8 unrouted and 14 violations)</event>
+</task-notification>
+
+**🤖 Claude:**
+
+**8!** Blijft zakken. Doorlaten lopen.
+
+---
+
+## 👤 Gebruiker (29)
+
+<task-notification>
+<task-id>b5c6om0x8</task-id>
+<summary>Monitor event: "busboard-v2 freerouting voortgang (unrouted-teller)"</summary>
+<event>pass #628 (8 unrouted and 14 violations)</event>
+</task-notification>
+
+**🤖 Claude:**
+
+Stabiel op 8, maar hij stopt niet vanzelf — vermoedelijk blijft hij hangen op die 14 onoplosbare "violations" (vaste-objectconflicten, al vanaf pass 2). Even kijken wat die zijn en of een nette stop de SES oplevert:
+> 🔧 `Bash` — Inspect the 14 violations and run phase
+> 🔧 `Bash` — Gracefully stop freerouting and check for SES output
+> 🔧 `Bash` — Check whether SES was written after stop
+> 🔧 `Bash` — Check freerouting CLI options for pass limits
+> 🔧 `Bash` — Show freerouting help output
+> 🔧 `Bash` — Show freerouting help
+> 🔧 `Bash` — Move parts inside board edge and verify placement plus netcheck
+> 🔧 `Bash` — Final edge fixes and placement check
+
+**🤖 Claude:**
+
+Placement + rand nu helemaal schoon. Verse DSN maken en de run opnieuw starten:
+> 🔧 `mcp__kicad__open_project`
+> 🔧 `mcp__kicad__export_dsn`
+> 🔧 `Bash` — Prepare clean DSN and restart freerouting
+> 🔧 `Monitor` — busboard-v2 freerouting run 2 (unrouted/violations)
+> 🔧 `Bash` — Commit edge placement fixes
+> 🔧 `TodoWrite` — takenlijst bijgewerkt
+
+**🤖 Claude:**
+
+Samenvatting van waar we staan met de busboard-routing:
+
+**Doorbraak van vanavond**: de vorige run brak al door het oude 19/119-plateau heen naar **8 open verbindingen** — de placement-reparatie werkt. Maar hij kon nooit stoppen (en dus nooit een SES schrijven) door 14 "onoplosbare" violations, en die bleken van mijzelf te zijn: R14/R33/C16/C18 stonden deels **buiten de bordrand** (de courtyard-check vangt dat niet, freerouting wel). 
+
+**Nu**: die vier staan netjes binnen de rand (`c05d637`), placement- én rand-DRC op 0, en run 2 draait op volledig schone input. Zonder die vaste violations kan freerouting nu wél naar "alles gerouteerd, nul violations" convergeren — en dan schrijft hij vanzelf de SES weg. De monitor meldt de voortgang; zodra de SES er is: toepassen in de generator, netcheck + DRC, en bij 0/0 committen met fab-pakket. Dan kan de busboard als laatste bij je bestelling.
+
+---
+
+## 👤 Gebruiker (30)
+
+<task-notification>
+<task-id>bnznpy5gy</task-id>
+<tool-use-id>toolu_01JVV6bnU6exsWBjyzCJG1uh</tool-use-id>
+<output-file>C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\fef2f349-f66e-47b1-9213-d70beae9d778\tasks\bnznpy5gy.output</output-file>
+<status>completed</status>
+<summary>Background command "Prepare clean DSN and restart freerouting" completed (exit code 0)</summary>
+</task-notification>
+
+**🤖 Claude:**
+
+Run 2 is klaar met exit 0 — natuurlijke terminatie, dus er moet een SES liggen:
+> 🔧 `Bash` — Check run 2 result and SES
+> 🔧 `Bash` — Apply SES to busboard v2 and run netcheck plus DRC
+
+**🤖 Claude:**
+
+KiCad zegt: **0 violations**, nog 16 unconnected. Welke netten:
+> 🔧 `Bash` — Analyze unconnected items on busboard v2
+> 🔧 `Bash` — Backup best SES and clear for new run
+> 🔧 `Bash` — Freerouting run 3 on busboard v2
+
+**🤖 Claude:**
+
+Run 3 loopt. Ondertussen bouw ik het GND-eiland-script dat voorstelt waar hechtvia's moeten komen:
+> 🔧 `Bash` — Write GND island finder script
+> 🔧 `Bash` — Test GND island finder
+
+**🤖 Claude:**
+
+Run 3 is al klaar — resultaat checken:
+> 🔧 `Bash` — Check run 3 result
+> 🔧 `Bash` — Apply run 3 SES and check clusters
+> 🔧 `Bash` — Restore best SES and stage run 4 in scratch dir
+> 🔧 `Bash` — Freerouting run 4 in scratch directory
+> 🔧 `Bash` — Restore run 2 board and inspect the two incomplete nets
+> 🔧 `mcp__kicad__open_project`
+> 🔧 `Bash` — Evaluate run 4
+> 🔧 `Bash` — Restore run 2 best board
+> 🔧 `mcp__kicad__open_project`
+> 🔧 `mcp__kicad__export_dsn`
+> 🔧 `Bash` — Prepare hybrid DSN and route only CAN_TX and IRQ5
+
+**🤖 Claude:**
+
+Hybride run gestart: alleen /CAN_TX en /IRQ5 zijn vrij, de overige 514 sporen staan vastgepind — freerouting hoeft dus alleen die twee lange oost-west-verbindingen te leggen. Zodra dat lukt: GND-hechtvia's op de eilanden (script staat klaar), volledige DRC, en dan committen.
+
+---
+
+## 👤 Gebruiker (31)
+
+<task-notification>
+<task-id>bsdc23c58</task-id>
+<tool-use-id>toolu_01GLkrbceRbcjsoR2GmXTnMV</tool-use-id>
+<output-file>C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\fef2f349-f66e-47b1-9213-d70beae9d778\tasks\bsdc23c58.output</output-file>
+<status>completed</status>
+<summary>Background command "Prepare hybrid DSN and route only CAN_TX and IRQ5" completed (exit code 0)</summary>
+</task-notification>
+> 🔧 `Bash` — Check hybrid run result for the two nets
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_bus2_pcb.py
+> 🔧 `Read` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_bus2_pcb.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_bus2_pcb.py
+> 🔧 `Bash` — Assemble board with hybrid routes and check clusters
+> 🔧 `Bash` — Assemble and validate from correct directory
+> 🔧 `Bash` — Find GND islands on final routing
+> 🔧 `Bash` — Add island stitch vias and recheck islands
+> 🔧 `Bash` — Identify what each GND fragment touches
+> 🔧 `Bash` — Wait for fragment analysis output
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\fef2f349-f66e-47b1-9213-d70beae9d778\tasks...
+
+**🤖 Claude:**
+
+Analyse draait nog — de wachter meldt zich zo.
+> 🔧 `Bash` — Wait briefly then read fragment analysis
+> 🔧 `TaskOutput`
+> 🔧 `Bash` — Read fragment analysis result
+> 🔧 `Bash` — Locate fragment analysis output
+
+**🤖 Claude:**
+
+Output ging verloren — script gewoon synchroon draaien:
+> 🔧 `Bash` — Run fragment-touch analysis synchronously
+> 🔧 `TaskOutput`
+> 🔧 `ToolSearch`
+> 🔧 `TaskStop`
+> 🔧 `Bash` — Fix layer guard and rerun fragment analysis
+> 🔧 `Bash` — Check zone island settings in busboard generator
+> 🔧 `Bash` — Fix island removal, add U6 vias, recheck fragments
+> 🔧 `Bash` — Add fragment vias and stub, recheck
+> 🔧 `Bash` — Full DRC on busboard v2 with stitch vias
+> 🔧 `Bash` — Replace hardcoded island vias with json-driven mechanism
+> 🔧 `Bash` — Auto-place clearance-checked stitch vias per fragment
+> 🔧 `Bash` — Refine stitch placement, rebuild, full DRC
+
+**🤖 Claude:**
+
+Bijna — 0 violations, nog 2 unconnected:
+> 🔧 `Bash` — Identify final 2 unconnected items
+> 🔧 `Bash` — Two-layer GND connectivity graph analysis
+> 🔧 `Bash` — Find bridge vias where main B-plane underlies isolated F-fragments
+> 🔧 `Bash` — Rebuild with bridge vias and final DRC
+> 🔧 `Bash` — Render final busboard v2
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\fef2f349-f66e-47b1-9213-d70beae9d778\scrat...
+
+**🤖 Claude:**
+
+Ziet er goed uit. Fab, README/MODULES-status, tools in de toolkit, commit:
+> 🔧 `Bash` — Copy GND stitch tools into toolkit with argv board path
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\make_fab.sh
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\schematics\musicbrain-busboard-v2\README.md
+> 🔧 `Read` — d:\Git\Muziek\MusicBrain\hardware\schematics\MODULES.md
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\schematics\MODULES.md
+> 🔧 `Bash` — Generate busboard v2 fab package and PDFs
+> 🔧 `Bash` — Commit fully routed busboard v2
+> 🔧 `Bash` — Verify enc5front clearance setting intact
+> 🔧 `Bash` — Revert MCP-expanded project files and show today's commits
+
+**🤖 Claude:**
+
+Geheugen bijwerken en afronden:
+> 🔧 `Edit` — C:\Users\User\.claude\projects\d--Git-Muziek-MusicBrain\memory\hardware-handover.md
+> 🔧 `TodoWrite` — takenlijst bijgewerkt
+
+**🤖 Claude:**
+
+# Busboard v2 is AF — DRC 0/0, netcheck OK, fab-pakket klaar (`d3b7849`)
+
+Daarmee is **elk bord van het systeem nu bestelbaar**. De laatste loodjes van vanavond:
+
+**Hoe het lukte**: na de placement-reparatie brak freerouting al door het oude plateau (19 → 8), maar hij kon nooit netjes stoppen door 14 "onoplosbare violations" — die bleken vier componenten te zijn die ik deels búiten de bordrand had gezet (R14/R33/C16/C18; de courtyard-check vangt dat niet). Na die fix konden runs natuurlijk termineren: run 2 kwam tot 2 open netten, en een hybride narun (alles vastgepind behalve /CAN_TX en /IRQ5) legde die laatste twee. De voedingsnetten liggen op 0,35 mm (0,5 paste niet tussen de slotpads — dát was de oorzaak van de vastloper van vanmiddag).
+
+**GND netjes gedicht** met twee nieuwe toolkit-scripts: `gnd_stitch.py` zoekt per losliggend vlakfragment automatisch een via-plek mét clearance-check, en `gnd_bridge.py` legt brugvia's voor fragmentgroepen die front én achterkant delen maar los van het hoofdvlak liggen. Eindstand: **0 violations, 0 unconnected**.
+
+**Voor je bestelling**:
+- Zip: `hardware/schematics/musicbrain-busboard-v2/fab/musicbrain-busboard-v2-gerbers.zip` + BOM/CPL ernaast (JLC-formaat). Bord is ~200×115, dus die valt buiten het goedkoopste tarief — reken op wat meer.
+- MODULES.md staat bijgewerkt op "bestelbaar" (jouw prijs-kolom en aantallen heb ik uiteraard laten staan, mooi dat die al gevuld raakt).
+- **Let op de bovenplaat**: beide M3-gaten zijn verplaatst t.o.v. v1 (noord-midden 115→163, zuid-west 60→125) — boor de v2-plaat op de nieuwe tekening.
+
+**Openstaande fysieke checks voor assemblage** (niets blokkeert de PCB-bestelling): SHAFT_OFFSET van de pot meten vóór paneel-fab, MCP23017-QFN-pinout nog één keer tegen de datasheet, en de pin-1-oriëntatie van de risers bij de eerste passing.
+
+Elf commits vandaag, van mapverhuizing tot een compleet routebaar systeem. Veel plezier met bestellen — en meld het als de JLC-viewer ergens iets geks laat zien!
+
+---
+
+## 👤 Gebruiker (32)
+
+Super! Misschien 1 klein ding: de labels van de expansiebussen liggen onder de connectoren...
+
+Kunnen die er boven?
+
+**🤖 Claude:**
+
+Goed gezien — de referentie-labels van de zuidrand-headers erven hun positie uit de lib en komen bij rot 90 onder de body uit. Ik verplaats ze naar de noordkant. Even kijken hoe de properties in de generator lopen:
+> 🔧 `Bash` — Inspect load_footprint property handling
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_bus2_pcb.py
+> 🔧 `Read` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_bus2_pcb.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_bus2_pcb.py
+> 🔧 `Bash` — Regenerate with label positions and render
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\fef2f349-f66e-47b1-9213-d70beae9d778\scrat...
+> 🔧 `Bash` — Verify DRC, refresh fab, commit label fix
+
+**🤖 Claude:**
+
+Gefixt en gecommit (`cc3a0e4`). De labels van J10 (EXP), J19/J20 (DLG), J13-J15 (MIDI), J16 (CAN) en J12 (QWIIC) staan nu gecentreerd **boven** hun connector, 3,9 mm van de pinnenrij — netjes leesbaar op het vrije stuk board. Het zit als `REF_AT`-tabel in de generator, dus toekomstige regeneraties houden dit vast.
+
+DRC blijft 0/0 (het is alleen silk) en het fab-pakket is ververst — **pak dus de nieuwe zip** (`hardware/schematics/musicbrain-busboard-v2/fab/musicbrain-busboard-v2-gerbers.zip`) als je de busboard in de mand legt. Daarmee is het hele systeem besteld-klaar. 🎛️
+
+---
+
+## 👤 Gebruiker (33)
+
+Dank. Zou je voor latere chats en nu een parallelle chat die aan de Effect Switcher gaat werken een instructiebestand kunnen schrijven over wat je geleerd hebt over het genereren van KiCad bestanden?
+
+Welke tools gebruik je nu het liefst (de eigen python generator, en de MCP server die we hebben aangezet)? Waar moet je aan denken als het naar JLPCB gaat?
+
+Nog een andere parallelle chat is de JLPCB componenten catalogus aan het downloaden... 
+
+Maar wil je vooral jouw bevindingen in het proces vastleggen voor latere chats. Zodat het steeds efficienter kan gaan.
+
+Dank!
+
+**🤖 Claude:**
+
+Goed idee — dit is precies het moment om alles vast te leggen. Ik schrijf een werkwijze-document in de toolkit-map, zodat elke chat (deze, de Effect Switcher, de catalogus-chat) hetzelfde recept pakt:
+> 🔧 `Write` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\WERKWIJZE.md
+> 🔧 `Read` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\README.md
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\README.md
+> 🔧 `Edit` — C:\Users\User\.claude\projects\d--Git-Muziek-MusicBrain\memory\hardware-handover.md
+> 🔧 `Bash` — Commit workflow instruction document
+
+**🤖 Claude:**
+
+Staat erin: **[`hardware/kicad-generators/WERKWIJZE.md`](hardware/kicad-generators/WERKWIJZE.md)** (`1ab682d`), gelinkt bovenaan de toolkit-README én in mijn geheugen, zodat elke verse chat er direct naartoe gaat.
+
+Wat erin zit, in het kort:
+
+**Toolkeuzes** (jouw vraag): de **eigen Python-generators blijven de bron van waarheid** — deterministisch, diff-baar, en netcheck/DRC kunnen erop poortwachten. De **MCP-server gebruik ik bewust minimaal**: vrijwel alleen `open_project` + `export_dsn` voor de freerouting-pijplijn. Zijn bord-bewerkende tools (import_ses, autoroute) omzeil ik, omdat een pcbnew-hersave de netcheck breekt en de 30s-timeout lange runs afkapt. Freerouting draait via Docker, en pcbnew-python dient als meetinstrument (clusteranalyse, GND-fill-inspectie).
+
+**De duurste lessen** staan er expliciet in: GND uit de DSN strippen, bordrand inkrimpen, power-sporen die tussen de padgaten moeten passen (0,35 wel / 0,5 niet — dat was de 4-uurs-vastloper), freerouting v2.1 dat `-mp` negeert en bij vaste input-conflicten nooit stopt, SIGTERM = resultaat weg, best-of-N met een échte connectiviteitsmeting, en "bij structureel niet-convergeren: het ontwérp aanpassen" (de GPIO-herverdeling van het enc5front).
+
+**JLCPCB-sectie**: het make_fab-pakket, jlc_fix + de LCSC-parts-library die jij net hebt toegevoegd (`bb2b29e` — die catalogus-download sluit hier mooi op aan: hoe voller de library, hoe meer BOM-regels automatisch matchen), het "verversen = verwijderen + opnieuw uploaden"-punt, en de capability-grenzen waarop we ontwerpen.
+
+Voor de Effect-Switcher-chat is vooral de slotparagraaf handig: welk bestaand `gen_*.py` je als startpunt kopieert per bordsoort, en het rijtje administratie (make_fab-lijst, README, MODULES.md) dat bij een nieuw bord hoort.
+
+---
+
+## 👤 Gebruiker (34)
+
+<task-notification>
+<task-id>bdkqtxwpt</task-id>
+<tool-use-id>toolu_01W2nsjbXt5Bg7g7H5ftXzjm</tool-use-id>
+<output-file>C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\fef2f349-f66e-47b1-9213-d70beae9d778\tasks\bdkqtxwpt.output</output-file>
+<status>completed</status>
+<summary>Background command "Identify what each GND fragment touches" completed (exit code 0)</summary>
+</task-notification>
+
+**🤖 Claude:**
+
+Dat was nog een oude, allang ingehaalde analysetaak die afsloot — geen actie nodig. Alles staat er: alle 13 borden op DRC 0/0 en bestelbaar, en de werkwijze-documentatie is vastgelegd in `WERKWIJZE.md` voor de volgende chats.
+
+---
+
+## 👤 Gebruiker (35)
+
+De parts catalogus downloaden is nog bezig, daar waren nog struggles, maar ik heb nog een vraag over documentatie.
+
+Is het mogelijk zoiets als dit te maken, rondom 3D renders van de borden? (zie img)
+
+DIt is een mix van wat een andere chat gemaakt heeft: @hardware/schematics/gswitch-brain/gswitch-brain-overzicht.svg  voor de effect switcher brain.
+
+Die 3D renders moet ik zelf maken in de Kicad UI, of kan dat ook programmatisch?
+
+**🤖 Claude:**
+
+Ja, dat kan volledig programmatisch — de 3D-renders maak ik al de hele tijd met `kicad-cli pcb render` (alle plaatjes die ik je vandaag liet zien kwamen daaruit, geen GUI aan te pas). Wat ontbreekt is het jasje eromheen: titel, callout-lijnen, labels. Ik bouw er een toolkit-scriptje voor. Eerst even kijken hoe de andere chat het SVG opbouwde:
+> 🔧 `Bash` — Inspect gswitch-brain overview SVG structure
+> 🔧 `Bash` — Check PIL availability
+> 🔧 `Bash` — Install Pillow in project venv
+> 🔧 `Write` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\board_overview.py
+
+**🤖 Claude:**
+
+Nu een annotatie-spec voor de busboard als demo en de tool draaien:
+> 🔧 `Write` — d:\Git\Muziek\MusicBrain\hardware\schematics\musicbrain-busboard-v2\musicbrain-busboard-v2-overzicht.json
+> 🔧 `Bash` — Generate annotated overview SVG for busboard v2
+> 🔧 `Bash` — Find an SVG rasterizer
+> 🔧 `Bash` — Rasterize overview SVG with headless Chrome
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\fef2f349-f66e-47b1-9213-d70beae9d778\scrat...
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\board_overview.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\board_overview.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\board_overview.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\board_overview.py
+> 🔧 `Bash` — Regenerate overview and rasterize for check
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\fef2f349-f66e-47b1-9213-d70beae9d778\scrat...
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\board_overview.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\board_overview.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\board_overview.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\board_overview.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\board_overview.py
+> 🔧 `Bash` — Regenerate and rasterize third check
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\fef2f349-f66e-47b1-9213-d70beae9d778\scrat...
+> 🔧 `Bash` — Read current tail of WERKWIJZE.md
+> 🔧 `Read` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\WERKWIJZE.md
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\WERKWIJZE.md
+> 🔧 `Bash` — Commit board overview tool and example
+> 🔧 `Bash` — Commit from repo root
+
+**🤖 Claude:**
+
+Ja dus — **volledig programmatisch, geen KiCad-GUI nodig**. Gecommit als `01cbf28`:
+
+**De renders**: die maakte ik deze hele sessie al met `kicad-cli pcb render` (alle 3D-plaatjes die je van mij zag kwamen daaruit). Het commando kent `--side top/bottom`, resolutie, kwaliteit, en `--background transparent` — dat laatste gebruikt de nieuwe tool om de render strak op wit te zetten, net als in jouw voorbeeld.
+
+**Het jasje eromheen**: nieuw script **`hardware/kicad-generators/board_overview.py`**:
+
+```bash
+python board_overview.py <bord.kicad_pcb> <overzicht.json>
+```
+
+Het slimme eraan: je geeft callouts op in **gewone bord-millimeters** (dezelfde coördinaten als in de generator!), met alleen een label en een kant:
+
+```json
+{"label": "hub 1 (J7)", "mm": [193, 42], "kant": "rechts"}
+```
+
+Het script rendert, vindt het bord in de pixels terug, rekent mm→pixels zelf uit, snijdt bij, en spreidt de labels per kant overlapvrij. Als voorbeeld staat er nu een **busboard-v2-aansluitoverzicht** naast het bord ([musicbrain-busboard-v2-overzicht.svg](hardware/schematics/musicbrain-busboard-v2/musicbrain-busboard-v2-overzicht.svg)) — zeventien callouts, van Teensy tot Qwiic, allemaal met de stip op de juiste connector.
+
+Voor de andere borden is het nu alleen nog een json'netje schrijven (de mm-coördinaten staan letterlijk in de generators). En het staat in WERKWIJZE.md gedocumenteerd, dus de Effect-Switcher-chat kan hetzelfde doen voor de gswitch-borden — inclusief de tip hoe je de SVG met headless Chrome naar PNG rasteriseert om je eigen werk te controleren. Leuk detail: die chat heeft intussen al flink wat eigen lessen aan WERKWIJZE.md toegevoegd (USB-C-routing, CPL-rotaties, de parts-DB) — het document begint echt te werken zoals je hoopte.
+
+---
+
+## 👤 Gebruiker (36)
+
+Ik heb van jou geen 3D renders te zien gekregen, denk ik, maar ik ben heel blij dat dit kan! Super!
+
+De svg ziet er goed uit. Is het mogelijk om zo'n svg in een md te embedden en rendert dat dan netjes hier en in github?
+
+Wat welkom zou zijn is de readme's van alle borden voorzien van zo'n aansluitschema. Daarnaast zouden van elk van de verschillende connectoren op alle borden een pinout diagram goed zijn. Dat kan ook op deze wijze, maar misschien is daar gewoon een tabelletje voldoende. Alleen weet ik niet hoe je dat netjes doet met shrouded headers. Dus daar is grafisch misschien toch beter.
+
+-> **Zou je dat willen doen?**
+
+Dit zou ik uiteindelijk ook op de MusicBrain website willen laten landen. Daar ben ik parallel een klein CMS voor aan het schrijven, waarin ik widgets kan opnemen.
+
+* Idee: een interactief widget dat op een bord alle details weergeeft op een component on mouse over :-)
+CMS: D:\Git\Web\Imprint-engine
+
+**🤖 Claude:**
+
+3D-renders zaten inderdaad alleen in mijn eigen controle-lussen — vanaf nu krijg je ze dus als nette overzichten. Antwoord op de embed-vraag: **ja** — `![...](musicbrain-busboard-v2-overzicht.svg)` in een README rendert netjes op GitHub (en hier); de render zit als data-URI ín de SVG, dus er zijn geen externe verwijzingen die GitHub blokkeert.
+
+En ja, dat wil ik doen: overzichten in alle bord-README's + grafische pinout-diagrammen per connector (zeker voor de shrouded IDC's is grafisch beter — daar gaat het om de nok en pin 1). Ik bouw eerst de pinout-tool; die leest de netten **rechtstreeks uit het bordbestand**, dus hij kan nooit uit de pas lopen met het ontwerp. Even de IDC-footprint bekijken voor de nok-oriëntatie:
+> 🔧 `Bash` — Inspect IDC header footprint for notch orientation
+> 🔧 `Write` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\pinout_svg.py
+> 🔧 `Bash` — Test pinout tool on IDC and slot header
+> 🔧 `Bash` — Generate and rasterize test pinouts
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\pinout_svg.py
+> 🔧 `Bash` — Regenerate and rasterize test pinouts
+> 🔧 `Bash` — Test pinouts from correct directory
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\fef2f349-f66e-47b1-9213-d70beae9d778\scrat...
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\fef2f349-f66e-47b1-9213-d70beae9d778\scrat...
+> 🔧 `Bash` — Inspect J9 pad net format in board file
+> 🔧 `Bash` — Debug J9 pad extraction
+> 🔧 `Bash` — Show raw J9 pad 1 block
+> 🔧 `Bash` — Check board file modification status
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\pinout_svg.py
+> 🔧 `Bash` — Retest J9 pinout with fixed net parsing
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\fef2f349-f66e-47b1-9213-d70beae9d778\scrat...
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\board_overview.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\board_overview.py
+> 🔧 `Bash` — Batch: auto overviews and pinouts for all boards
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\pinout_svg.py
+> 🔧 `Bash` — Clean jack noise and regenerate with pad filter
+> 🔧 `Bash` — Rasterize adc8 auto overview for check
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\fef2f349-f66e-47b1-9213-d70beae9d778\scrat...
+> 🔧 `Bash` — Inspect adc8 auto json
+> 🔧 `Bash` — Generate all busboard v2 pinouts
+
+**🤖 Claude:**
+
+MIDI-connectoren (1×3) vielen buiten het ≥4-filter — die expliciet erbij:
+> 🔧 `Bash` — Generate MIDI and TUNE pinouts explicitly
+> 🔧 `Bash` — Append overview and pinout sections to all board READMEs
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\WERKWIJZE.md
+> 🔧 `Bash` — Commit overview and pinout docs for all boards
+> 🔧 `Bash` — Verify commit contents and remaining foreign changes
+
+**🤖 Claude:**
+
+Klaar — **`091b0be`, 82 bestanden**: alle 13 borden hebben nu een aansluitoverzicht + pinout-diagrammen in hun README. De wijzigingen van de parallelle chats (gswitch, fab-regens) heb ik netjes buiten de commit gehouden.
+
+Wat er nu per bord staat:
+
+- **`<bord>-overzicht.svg`** — 3D-render met callouts, embedded in de README via gewoon `![...](x.svg)`. Dat rendert netjes op GitHub én hier: de render zit als data-URI *in* de SVG, dus GitHub's sandbox heeft niets externs te blokkeren.
+- **`pinouts/J*.svg`** — per connector een diagram, **rechtstreeks uit het bordbestand gelezen** (kan dus nooit uit de pas lopen met het ontwerp): bovenaanzicht, pin 1 = vierkant, kleurcodering (GND grijs, +voeding rood, −12V blauw, signaal geel, nc licht), en bij de IDC's de **shroud mét nok** getekend — precies het punt waar een tabel tekortschiet. De busboard heeft er 21, inclusief de MIDI 1×3'jes.
+
+Twee gereedschappen erbij in de toolkit, beide gedocumenteerd in WERKWIJZE.md zodat de Effect-Switcher-chat ze zo op de gswitch-borden kan loslaten:
+
+```bash
+python board_overview.py <bord.kicad_pcb> --auto   # json-skelet uit het bord + render
+python pinout_svg.py <bord.kicad_pcb> --alle       # alle connectoren → pinouts/
+```
+
+De `--auto` schrijft een json-skelet dat je daarna mag polijsten (bestaande json blijft leidend — de handgemaakte busboard-versie wordt dus niet overschreven). De labels komen uit de Value-velden van de generators ("BUS", "CV IN", "NAAR FRONT"), dus de automatische versies zijn al goed leesbaar.
+
+**Over het Imprint-engine-widget-idee**: dat past hier verrassend goed op. Alle ingrediënten voor een mouse-over-widget liggen er al — de generators kennen van elk component de exacte positie, waarde en netten, en `board_overview.py` kent de mm→pixel-mapping van de render. Een `component-map.json` per bord (ref, waarde, bbox in render-pixels, beschrijving) is een kleine uitbreiding; je CMS-widget hoeft dan alleen een `<img>` met een hover-laag te tekenen. Zeg het als je het CMS zover hebt (D:\Git\Web\Imprint-engine), dan genereer ik die export erbij — dat lijkt me iets om samen met die chat vorm te geven zodat het dataformaat meteen op de widget past.
+
+---
+
+## 👤 Gebruiker (37)
+
+Dank. Moeten er nog dingen gecommit worden?
+
+De widget: Imprint heeft wat geschreven over het widget formaat. Wil je die widget bouwen?
+
+------------
+Het widget-contract in Imprint
+Een widget bestaat uit drie delen. Alleen deel 1 en 2 zijn verplicht; deel 3 heeft een default.
+
+1. Config-schema — sites/musicbrain/src/widgets/registry.ts
+Een zod-object dat beschrijft welke instellingen de widget heeft. Géén React- of store-imports in dit bestand (het wordt ook server-side gebruikt om configs te valideren). Registreren = één regel toevoegen aan widgetCatalog:
+
+
+export const BoardConfig = z.object({
+  title: z.string().optional(),
+  image: z.string(),                 // URL of /public-pad naar de 3D-render
+  alt: z.string().default(""),
+  points: z.array(z.object({
+    x: z.number().min(0).max(1),     // relatieve positie (0..1), schaalt mee
+    y: z.number().min(0).max(1),
+    label: z.string().optional(),    // korte titel bij de punt
+    markdown: z.string(),            // uitleg, getoond bij mouseover
+  })).default([]),
+});
+// in widgetCatalog:
+{ name: "board", label: "Board annotations", configSchema: BoardConfig }
+2. Viewer — sites/musicbrain/src/widgets/components.tsx
+De render op de site. Standaard een async server component die { config } krijgt (al gevalideerd). Belangrijkste aansluitvoorwaarde voor jullie geval: mouseover-interactie is client-side, dus de server-viewer is dun en delegeert het interactieve deel aan een "use client"-eiland:
+
+
+// components.tsx (server): kiest data/afbeelding, geeft door aan het eiland
+async function BoardWidget({ config }: { config: BoardConfig }) {
+  return (
+    <WidgetFrame title={config.title}>
+      <BoardCanvas image={config.image} alt={config.alt} points={config.points} />
+    </WidgetFrame>
+  );
+}
+// registreren in widgetComponents: board: BoardWidget as WidgetComponent
+Het BoardCanvas-eiland (apart "use client"-bestand) doet de hover-tooltips (punt = absoluut gepositioneerd op x*breedte, y*hoogte; markdown render je met de bestaande Markdown-component).
+
+3. Editor (optioneel) — sites/musicbrain/src/widgets/editors.tsx
+Zonder registratie krijgt de widget automatisch het formulier uit het schema (dat is prima voor titel/alt, maar niet voor het plaatsen van punten). Voor jullie widget registreer je een custom editor — een client component die { config, onChange, schema } krijgt: klik op de afbeelding → nieuw punt op die relatieve x/y, per punt een markdown-veldje. onChange moet een object teruggeven dat aan BoardConfig voldoet:
+
+
+// widgetEditors.board = BoardEditor   (client component)
+De vaste regels (de "aansluitvoorwaarden")
+Config moet JSON-serialiseerbaar zijn — het wordt als JSON in de database/bestand opgeslagen. Dus strings/numbers/arrays/objects, geen functies, geen Date-objecten (gebruik ISO-strings).
+De store valideert elke config tegen het schema bij lezen én opslaan (WidgetTypeRegistry.parse). Een kapotte of onvolledige config faalt luid — hij rendert nooit stil verkeerd. In de studio toont een nog-niet-geldige config automatisch een "needs configuration"-plaatshouder.
+Interactiviteit = client-eiland. Viewers zijn server components; alles met hover/klik/drag zet je in een "use client"-subcomponent die de server-viewer rendert. (Precies wat de treeview- en api-widgets al niet nodig hebben, maar jullie board wel.)
+Coördinaten relatief opslaan (0..1), niet in pixels — dan blijft de annotatie kloppen bij elke kolombreedte in de vakken-layout.
+Zelfvoorzienend. Een widget krijgt alleen zijn eigen config. Data die hij nodig heeft haalt hij zelf op (fetch in de server-viewer, of via de content-API), niet uit pagina-context.
+Geen extra bedrading. Zodra schema + viewer geregistreerd zijn, verschijnt de widget vanzelf in de "+ Add widget"-catalogus van de studio en is hij plaatsbaar in elk vak.
+Twee dingen om vooraf te beslissen
+Statische render of echte 3D? Als de "3D PCB rendering" een afbeelding is (een gerenderde PNG/opname), dan volstaat het bovenstaande 2D-model met relatieve punten. Is het een interactief 3D-model (bijv. glTF met three.js, punten hangend aan mesh-namen), dan wordt de viewer zwaarder (client-canvas, punten als 3D-ankers) — het contract blijft identiek, alleen BoardCanvas en de coördinaten in het schema veranderen. Zeg dit tegen de andere chat, want het bepaalt het schema.
+Waar staat de afbeelding? Er is nog geen asset-upload; voorlopig verwijst image naar een URL of een bestand in sites/musicbrain/public/. Een echte media-bibliotheek is een aparte bouwstap.
+Als referentie: de widget die ik nu net aan het bouwen ben (image, met straks een custom point-editor voor exact dit soort annotaties) staat na deze sessie in components.tsx/editors.tsx — dan heeft de andere chat een levend voorbeeld van precies dit patroon om te kopiëren.
+----------------
+
+**🤖 Claude:**
+
+Twee vragen: eerst even de git-status checken, dan de widget. Laat me kijken wat er nog los staat en meteen de Imprint-repo verkennen:
+> 🔧 `Bash` — Check git status for uncommitted overview/widget work
+> 🔧 `Bash` — See what changed in WERKWIJZE.md since last commit
+
+**🤖 Claude:**
+
+Mijn overzicht/pinout-werk zit compleet in `091b0be`. De resterende wijzigingen (jlc_fix + fab-regens, gswitch-borden, de FTS-tips in WERKWIJZE.md, gen_enc5front) zijn van de parallelle chats — die commit ik bewust niet; die horen bij hun werk. **Dus van mij hoeft niets meer gecommit.**
+
+Nu de widget. Laat me eerst de Imprint-repo verkennen om het bestaande widget-patroon te volgen:
+> 🔧 `Bash` — Explore Imprint-engine repo structure
+> 🔧 `Read` — D:\Git\Web\Imprint-engine\sites\musicbrain\src\widgets\registry.ts
+> 🔧 `Read` — D:\Git\Web\Imprint-engine\sites\musicbrain\src\widgets\components.tsx
+> 🔧 `Read` — D:\Git\Web\Imprint-engine\sites\musicbrain\src\widgets\editors.tsx
+> 🔧 `Bash` — Find client component convention and Markdown component
+> 🔧 `Bash` — Read Markdown component and repo conventions
+
+**🤖 Claude:**
+
+Ik heb het patroon door. Beslissingen: statische PNG-render + relatieve punten (2D-model, precies wat het contract beschrijft), afbeelding in `public/`. Ik bouw `board` als een **aparte, additieve** widget zodat ik de `image`-widget van de parallelle Imprint-chat niet in de weg zit. Eerst het schema:
+> 🔧 `Edit` — D:\Git\Web\Imprint-engine\sites\musicbrain\src\widgets\registry.ts
+> 🔧 `Edit` — D:\Git\Web\Imprint-engine\sites\musicbrain\src\widgets\registry.ts
+
+**🤖 Claude:**
+
+Nu het client-eiland met de hover-hotspots:
+> 🔧 `Write` — D:\Git\Web\Imprint-engine\sites\musicbrain\src\widgets\board-canvas.tsx
+
+**🤖 Claude:**
+
+Nu de server-viewer in components.tsx:
+> 🔧 `Edit` — D:\Git\Web\Imprint-engine\sites\musicbrain\src\widgets\components.tsx
+> 🔧 `Edit` — D:\Git\Web\Imprint-engine\sites\musicbrain\src\widgets\components.tsx
+> 🔧 `Edit` — D:\Git\Web\Imprint-engine\sites\musicbrain\src\widgets\components.tsx
+
+**🤖 Claude:**
+
+Nu de custom editor (klik-om-punt-te-plaatsen, sleep-om-te-verplaatsen, markdown per punt):
+> 🔧 `Edit` — D:\Git\Web\Imprint-engine\sites\musicbrain\src\widgets\editors.tsx
+> 🔧 `Edit` — D:\Git\Web\Imprint-engine\sites\musicbrain\src\widgets\editors.tsx
+
+**🤖 Claude:**
+
+Nu typecheck en lint draaien om te bevestigen dat het compileert:
+> 🔧 `Bash` — Find typecheck/lint scripts
+> 🔧 `Bash` — Run typecheck focusing on widget files
+> 🔧 `Bash` — Confirm clean typecheck and lint widget files
+
+**🤖 Claude:**
+
+Widget compileert schoon (typecheck + lint groen). Nu de brug aan de MusicBrain-kant: een tool die uit een bord de widget-config produceert — render naar `public/`, callouts naar relatieve coördinaten, en per connector een pin-tabel als hover-markdown:
+> 🔧 `Write` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\widget_export.py
+> 🔧 `Bash` — Export busboard v2 widget config and render
+
+**🤖 Claude:**
+
+De ref-extractie pakte "J17, I²S" i.p.v. "J17" bij de handgeschreven labels. Regex-fix:
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\widget_export.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\widget_export.py
+> 🔧 `Bash` — Re-export and verify J9 pin table in markdown
+
+**🤖 Claude:**
+
+Nu verifiëren dat de hotspots op de juiste connectoren landen. Ik maak een lichtgewicht HTML-mock met de echte PNG + JSON en screenshot die:
+> 🔧 `Bash` — Build and screenshot widget mock to verify hotspot placement
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\fef2f349-f66e-47b1-9213-d70beae9d778\scrat...
+
+**🤖 Claude:**
+
+De hotspots landen precies op de connectoren — de zes slots, beide hubs, J9-voeding, J17-codec, J21-expansie, de zuidrand-headers en J12. De transparante render zit mooi op de donkere kaart. Coördinaten kloppen dus. Even de Imprint git-status checken vóór ik daar commit — de parallelle chat werkt in dezelfde bestanden:
+> 🔧 `Bash` — Check Imprint repo git state before committing
+
+**🤖 Claude:**
+
+Belangrijk: de Imprint-werkboom heeft al **niet-gecommitte wijzigingen van de parallelle chat** (docs, package.json, markdown-editor, studio-parts) én de drie widget-bestanden staan als modified. Ik moet hier dus **niet committen** — dan pak ik hun halve werk mee. Even kijken of mijn toevoegingen naast hun werk in dezelfde bestanden staan:
+> 🔧 `Bash` — Check for parallel-chat additions in registry alongside mine
+
+**🤖 Claude:**
+
+De Imprint-werkboom is een mix: de parallelle chat heeft daar Table/Image/Callout/Embed-widgets + docs in aanbouw, en mijn board-widget staat daar netjes bovenop. Ik commit daar dus **niets** — dat is aan de Imprint-chat/jou om samen te doen. Ik commit alleen de MusicBrain-kant:
+> 🔧 `Bash` — Commit widget export tool and example on MusicBrain side
+
+**🤖 Claude:**
+
+De widget is gebouwd, getypecheckt, gelint én de data is visueel geverifieerd. Hier is de stand.
+
+## Git — wat is gecommit
+
+**MusicBrain** (jouw hoofdrepo): niets van mij stond meer open; de widget-export is nu `1833ebb`. Alle overige losse wijzigingen (jlc_fix/fab-regens, gswitch, de FTS-tips in WERKWIJZE.md, gen_enc5front) zijn van de parallelle chats — die laat ik met rust.
+
+**Imprint** (`D:\Git\Web\Imprint-engine`): hier heb ik **bewust niet gecommit**. De werkboom daar zit vol niet-gecommit werk van de parallelle Imprint-chat (Table/Image/Callout/Embed-widgets, docs, markdown-editor). Mijn board-widget-code staat er netjes bovenop en compileert schoon, maar committen zou hun halve werk meepakken. Dat is aan die chat / aan jou om samen te doen.
+
+## De widget (klaar, in Imprint's working tree)
+
+Ik heb `board` als **aparte, additieve** widget gebouwd — precies volgens jullie contract — zodat ik de `image`-widget van de andere chat niet in de weg zit:
+
+- **`registry.ts`** — `BoardConfig` zod-schema + catalogus-regel (`board`, "Board annotations").
+- **`components.tsx`** — dunne server-viewer `BoardWidget` die delegeert naar het client-eiland.
+- **`board-canvas.tsx`** (nieuw client-eiland) — de render met absoluut gepositioneerde hotspots op `x*breedte / y*hoogte`; hover/focus toont de markdown-tooltip (react-markdown, keyboard-toegankelijk, tooltip klapt naar de vrije kant).
+- **`editors.tsx`** — `BoardEditor`: klik op de render → nieuw punt, sleep om te verplaatsen, per punt een label + markdown-veld.
+
+`npm run typecheck` en `npm run lint` allebei schoon.
+
+## De brug (MusicBrain, gecommit)
+
+**`widget_export.py`** maakt uit een bord de kant-en-klare config:
+```bash
+python widget_export.py <bord.kicad_pcb>
+```
+Het rendert transparant naar `Imprint/sites/musicbrain/public/boards/<bord>.png`, zet de callouts uit `<bord>-overzicht.json` om naar relatieve (0..1) coördinaten, en geeft **elk connector-punt een pin→net-tabel als hover-markdown** — rechtstreeks uit het bordbestand, dus altijd in sync. De busboard-config (17 hotspots) zit erbij als voorbeeld.
+
+De screenshot-verificatie hierboven laat zien dat de hotspots exact op de connectoren landen en de transparante render mooi op je donkere kaart zit — precies het mouse-over-idee dat je voor je had.
+
+## Twee dingen voor jou / de Imprint-chat
+
+1. **Committen in Imprint**: mijn 4 widget-bestanden (`board-canvas.tsx` nieuw + additieve regels in de drie andere) zijn klaar om mee te gaan met de commit van de parallelle chat.
+2. **Rest van de borden**: ik heb alleen de busboard geëxporteerd als bewijs. Zal ik voor alle 13 borden de widget-config + PNG genereren? Dat is één batch-run — zeg maar of je dat wilt, dan staat de hele set klaar voor je CMS.
+
+---
+
+## 👤 Gebruiker (38)
+
+ik zie nu een widget editor, maar hoe krijg ik nu het busboard daarin?
+
+**🤖 Claude:**
+
+Je hebt de editor, maar er mist een stap: de 17 hotspots die ik al gegenereerd heb naar binnen krijgen zonder ze met de hand te plaatsen. Twee dingen — de exacte afbeeldingsnaam, en een import-knop in de editor. Even checken hoe het bestand heet:
+> 🔧 `Bash` — Verify PNG filename and widget json
+
+**🤖 Claude:**
+
+Afbeeldingspad is `/boards/musicbrain-busboard-v2.png`. Nu de ontbrekende schakel: een import-veld in de editor zodat je de gegenereerde config in één keer laadt i.p.v. 17 punten met de hand te plaatsen. Ik voeg dat toe aan de BoardEditor:
+> 🔧 `Edit` — D:\Git\Web\Imprint-engine\sites\musicbrain\src\widgets\editors.tsx
+> 🔧 `Edit` — D:\Git\Web\Imprint-engine\sites\musicbrain\src\widgets\editors.tsx
+> 🔧 `Bash` — Typecheck and lint after adding import field
+
+**🤖 Claude:**
+
+Klaar — typecheck + lint schoon. Nu kun je de busboard er in twee manieren in krijgen. **Ververs eerst de studio-pagina** even (de editor heeft nu een nieuw "Import"-veld dat je zo gaat gebruiken).
+
+## Snelste weg — hele config in één keer (alle 17 hotspots)
+
+1. Open in de editor onderaan **"Import exported config (widget_export.py)"**.
+2. Open dit bestand en kopieer de **volledige** inhoud:
+   `hardware/schematics/musicbrain-busboard-v2/musicbrain-busboard-v2-widget.json`
+3. Plak het in het import-veld. De afbeelding + alle 17 punten verschijnen meteen; je kunt daarna nog slepen/bijschaven.
+
+Dat vult `image` op `/boards/musicbrain-busboard-v2.png` en alle hotspots met hun pin-tabellen.
+
+## Handmatige weg — alleen de render, zelf punten plaatsen
+
+Typ in het **IMAGE**-veld: `/boards/musicbrain-busboard-v2.png` — de render verschijnt (Next serveert `public/` op de root), en dan klik je zelf punten.
+
+Let op: het bestand heet `musicbrain-busboard-v2.png`, niet `busboard-v2.png` (dat "/boards/busboard-" in je scherm was mijn placeholder-tekst).
+
+---
+
+Waarom de import nodig was: de studio-editor is bedoeld voor hand-auteuren, maar ik had de 17 punten al machinaal gegenereerd uit het bord — die twee moesten nog gekoppeld. Het import-veld is die brug: `widget_export.py` → json → plakken → klaar. Voor de andere borden werkt het straks identiek (elk bord krijgt zijn eigen `<bord>-widget.json`).
+
+Zal ik meteen voor alle 13 borden de PNG + widget-json genereren, zodat je ze allemaal kunt plakken? Dan staat de hele set klaar. En de Imprint-kant (mijn 5 widget-bestanden) is nog steeds niet door mij gecommit — die gaan mee met de commit van je Imprint-chat.
+
+---
+
+## 👤 Gebruiker (39)
+
+Testen vd widget:
+- de kop komt altijd 2x: img
+- soms steekt ie teveel uit naar boven: img2
+
+Wil je de rest ook genereren idd?
+
+**🤖 Claude:**
+
+Twee echte bugs. Ik fix ze allebei:
+
+1. **Kop dubbel**: de tooltip toont het label als kop én de markdown begint óók met het label. Fix: `widget_export.py` moet dat `**label**`-voorvoegsel niet meer zetten — de tooltip toont het label al.
+2. **Steekt te ver naar boven**: de tooltip staat altijd bóven de stip. Voor punten in de bovenhelft moet hij naar ónderen klappen.
+> 🔧 `Edit` — D:\Git\Web\Imprint-engine\sites\musicbrain\src\widgets\board-canvas.tsx
+> 🔧 `Edit` — D:\Git\Web\Imprint-engine\sites\musicbrain\src\widgets\board-canvas.tsx
+> 🔧 `Edit` — D:\Git\Web\Imprint-engine\sites\musicbrain\src\widgets\board-canvas.tsx
+
+**🤖 Claude:**
+
+Nu de dubbele kop bij de bron: `widget_export.py` moet alleen de pin-tabel als markdown geven (label staat al in de tooltip-kop):
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\widget_export.py
+> 🔧 `Bash` — Typecheck and lint after tooltip fixes
+
+**🤖 Claude:**
+
+Nu batch-genereren voor alle 13 borden (busboard incluis, met de fix):
+> 🔧 `Bash` — Batch-generate widget configs for all boards
+
+**🤖 Claude:**
+
+Jack8 kreeg 9 hotspots (elke jack + de header) — logisch. Even de fixes visueel bevestigen met een top-punt (tooltip moet nu naar onderen) en geen dubbele kop:
+> 🔧 `Bash` — Rebuild mock with vertical flip and no double header
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\fef2f349-f66e-47b1-9213-d70beae9d778\scrat...
+
+**🤖 Claude:**
+
+Beide fixes bevestigd: **J17** (bovenaan) klapt de tooltip nu naar **onderen**, **J12** (onderaan) naar **boven** — allebei netjes binnen beeld, en de kop staat nog maar één keer boven de pin-tabel. Committen (MusicBrain-kant):
+> 🔧 `Bash` — Commit all widget configs and export fix
+
+**🤖 Claude:**
+
+Beide bugs gefixt en de hele set staat klaar.
+
+## De twee bugs
+
+1. **Dubbele kop** — de tooltip toonde het label als kop én de markdown begon nóg een keer met het label. Opgelost bij de bron: `widget_export.py` zet nu alleen de pin→net-tabel in de markdown; het label komt alleen uit de tooltip-kop. (Regenereer je een oude config, dan is dat weg.)
+2. **Tooltip steekt uit naar boven** — stond altijd bóven de stip. Nu klapt hij slim: punten in de **bovenhelft** tonen de tooltip **onder** de stip, de onderhelft erboven — net zoals de links/rechts-flip die er al was. In de mock zie je J17 (bovenaan) netjes naar onderen en J12 (onderaan) naar boven, allebei binnen beeld.
+
+Beide fixes zitten in `board-canvas.tsx` (typecheck + lint schoon). **Ververs de studio** even zodat de nieuwe viewer/editor geladen wordt.
+
+## Alle 13 borden gegenereerd (`a488a1a`)
+
+Elk bord heeft nu zijn PNG in `Imprint/public/boards/` en een `<bord>-widget.json` in de MusicBrain-repo:
+
+| bord | hotspots | bord | hotspots |
+|---|---|---|---|
+| busboard-v2 | 17 | jack8 | 9 |
+| jack4 | 5 | adc8/dac8/gate8/gatein8 | 2 elk |
+| riser/potriser/i2criser | 2 | pot8front | 1 |
+| ad5754r-breakout | 2 | enc5front | 2 |
+
+Voor elk plak je in de studio de inhoud van `hardware/schematics/<bord>/<bord>-widget.json` in het **Import**-veld → afbeelding + alle punten in één keer.
+
+De busboard-widget zit al goed bij jou; herlaad even en plak de verse json opnieuw (of laat 'm staan — dan zie je alleen de oude dubbele kop tot je opnieuw plakt).
+
+## Nog te doen door jou / Imprint-chat
+
+De Imprint-kant (mijn widget-bestanden: `board-canvas.tsx` + additieve regels in `registry.ts`/`components.tsx`/`editors.tsx`) is **nog steeds niet door mij gecommit** — de werkboom daar heeft parallel-chat-WIP. Die 5 stukjes gaan mee met de commit van je Imprint-chat. Wil je dat ik daar een kort briefje/README bij leg zodat die chat weet wat van mij is?
+
+---
+
+## 👤 Gebruiker (40)
+
+ja, graag
+
+**🤖 Claude:**
+
+Even de exacte wijzigingen ophalen zodat het briefje klopt:
+> 🔧 `Bash` — Get diff stats for board widget files
+> 🔧 `Write` — D:\Git\Web\Imprint-engine\sites\musicbrain\src\widgets\BOARD-WIDGET-NOTE.md
+
+**🤖 Claude:**
+
+Het briefje staat klaar: **`D:\Git\Web\Imprint-engine\sites\musicbrain\src\widgets\BOARD-WIDGET-NOTE.md`** — pal naast de widget-bestanden, dus de Imprint-chat vindt het meteen.
+
+Wat erin staat:
+- **Wat van mij is** (5 stukjes, additief): `board-canvas.tsx` volledig nieuw, en in `registry.ts` / `components.tsx` / `editors.tsx` alleen de `board`-hunks. Expliciet vermeld dat de Table/Image/Callout/Embed-regels in diezelfde bestanden **van hen** zijn — zodat ze bij het committen niet twijfelen wie wat schreef.
+- **Dat ik bewust niet heb gecommit** en waarom (hun WIP in de werkboom), met de uitnodiging het mee te nemen in hun eigen commit en het briefje daarna weg te gooien.
+- **Hoe te testen**: widget toevoegen → Import-veld → busboard-json plakken.
+- **De data-kant** in de andere repo (widget_export.py, waar de PNG's en json's landen).
+- Een **samensmelt-notitie**: als hun `image`-widget en mijn `board` naar elkaar toe groeien, is `board` gewoon `image` + `points[]` — zelfde contract, dus later samenvoegen kan.
+
+Dat is alles voor dit spoor. Samengevat wat er deze sessie klaarkwam: alle 13 borden op DRC 0/0 en bestelbaar, aansluitoverzichten + pinout-diagrammen in elke README, de `board`-widget gebouwd en geverifieerd (klaar om te committen door de Imprint-chat), en de hele werkwijze vastgelegd in WERKWIJZE.md voor de volgende chats. Alles wat van mij is, is gecommit in de MusicBrain-repo; de Imprint-kant wacht netjes op de andere chat.
+
+---
+
+## 👤 Gebruiker (41)
+
+Ja, een leuke extra op de board widget kan zijn: gebruiker kan kiezen voor mouseover of uitklappen. Alle commentaar klapt dan permanent open in boxjes buiten de jpg (die wordt dan kleiner) met lijntjes naar de bussen enz..
+-> lange lijsten werken dan waarschijnlijk niet zo: beter tabelletjes dan; iets compactere rechthoekiger uitlegblokjes.
+
+**🤖 Claude:**
+
+Leuk idee — dat is precies de "aansluitoverzicht"-stijl (zoals de gswitch-SVG en mijn `board_overview.py`), maar dan als permanente modus in de widget. Ik voeg een `mode: "hover" | "expanded"` toe. In expanded-modus wordt de afbeelding kleiner, staan de blokjes in de zijkanten, en trek ik **gemeten leader-lijntjes** van elk blok naar de connector (gemeten uit de DOM, dus responsive). Eerst het schema:
+> 🔧 `Edit` — D:\Git\Web\Imprint-engine\sites\musicbrain\src\widgets\registry.ts
+
+**🤖 Claude:**
+
+Nu de canvas herschrijven met beide modi:
+> 🔧 `Write` — D:\Git\Web\Imprint-engine\sites\musicbrain\src\widgets\board-canvas.tsx
+
+**🤖 Claude:**
+
+De `onLoad` moet de herberekening triggeren — even fixen met een tick:
+> 🔧 `Edit` — D:\Git\Web\Imprint-engine\sites\musicbrain\src\widgets\board-canvas.tsx
+> 🔧 `Edit` — D:\Git\Web\Imprint-engine\sites\musicbrain\src\widgets\board-canvas.tsx
+> 🔧 `Edit` — D:\Git\Web\Imprint-engine\sites\musicbrain\src\widgets\board-canvas.tsx
+
+**🤖 Claude:**
+
+Nu components.tsx en de editor (mode-toggle):
+> 🔧 `Edit` — D:\Git\Web\Imprint-engine\sites\musicbrain\src\widgets\components.tsx
+> 🔧 `Edit` — D:\Git\Web\Imprint-engine\sites\musicbrain\src\widgets\editors.tsx
+> 🔧 `Edit` — D:\Git\Web\Imprint-engine\sites\musicbrain\src\widgets\editors.tsx
+> 🔧 `Bash` — Typecheck and lint the expanded mode additions
+
+**🤖 Claude:**
+
+De nested `Column`-component moet een render-functie worden, niet een component:
+> 🔧 `Edit` — D:\Git\Web\Imprint-engine\sites\musicbrain\src\widgets\board-canvas.tsx
+> 🔧 `Bash` — Re-verify typecheck and lint clean
+
+**🤖 Claude:**
+
+Typecheck + lint schoon. Nu de expanded-modus visueel testen met een mock die de leader-lijnen echt uit de DOM meet (net als de React-component):
+> 🔧 `Bash` — Build and screenshot expanded-mode mock with leader lines
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\fef2f349-f66e-47b1-9213-d70beae9d778\scrat...
+
+**🤖 Claude:**
+
+De **expanded-modus** werkt precies zoals je bedoelde — kleinere render in het midden, compacte pin-tabellen in blokjes links/rechts, en oranje leader-lijntjes naar elke connector. De lijnen worden uit de DOM gemeten, dus ze blijven kloppen bij elke kolombreedte. Ik werk het overdrachtsbriefje bij:
+> 🔧 `Edit` — D:\Git\Web\Imprint-engine\sites\musicbrain\src\widgets\BOARD-WIDGET-NOTE.md
+> 🔧 `Edit` — D:\Git\Web\Imprint-engine\sites\musicbrain\src\widgets\BOARD-WIDGET-NOTE.md
+
+**🤖 Claude:**
+
+Klaar — de **expanded-modus** zit erin en is geverifieerd. Je kiest nu per widget in de editor (nieuw **mode**-dropdown) tussen:
+
+- **`hover`** — compact, hotspots tonen detail op mouseover (zoals je al had).
+- **`expanded`** — de "aansluitoverzicht"-look: kleinere render in het midden, alle uitleg permanent in compacte blokjes links/rechts, met leader-lijntjes naar de connectoren. De lijnen worden **uit de DOM gemeten** (ResizeObserver + image-onload), dus ze blijven kloppen bij elke kolombreedte. Punten links van het midden gaan naar de linkerkolom, de rest naar rechts.
+
+De pin-tabellen zijn compact gestyled (11px, strakke regels) — precies je punt dat lange lijsten beter als tabelletjes in rechthoekige blokjes werken. De screenshot van de busboard laat zien dat het werkt: 17 blokjes met hun pin→net-tabellen, allemaal met een lijntje naar de juiste bus. Voor de simpelere borden (2 connectoren) wordt het vanzelf luchtiger.
+
+`npm run typecheck` en `npm run lint` allebei schoon.
+
+**Git**: aan mijn kant hoeft niets — `widget_export.py` en de data waren al gecommit, en de expanded-modus is puur Imprint-code. Die Imprint-kant blijft (bewust) ongecommit vanwege de parallel-chat-WIP; het bijgewerkte **BOARD-WIDGET-NOTE.md** vermeldt nu ook de twee modi + het `mode`-veld, zodat je Imprint-chat weet wat mee moet.
+
+Eén ontwerpkeuze om te weten: in expanded-modus toont een connector met een lange pinlijst (bijv. J21 met 26 pinnen, of een slot met 20) een navenant hoog blokje — dat is inherent aan "alles permanent tonen". Wil je dat compacter, dan zijn er twee opties: (a) per punt kortere markdown auteuren voor de expanded-weergave, of (b) ik kan de pin-tabel horizontaal laten uitvouwen (`1:GND 2:+3V3 3:SDA …`) i.p.v. verticaal, wat veel platter is. Zeg maar of je die horizontale variant wilt, dan bouw ik 'm erbij.
+
+---
+
+## 👤 Gebruiker (42)
+
+Mooi! De lange lijsten zijn onhandig inderdaad. Ik dacht: de meeste headers zijn met een dubbele rij. - Dus waarom niet die mimicken?
+- En: dat hebben we al gedaan. In elke map van een board staat de map 'pinouts'.
+- dan hebben we wel een extra functie, namelijk geen tekst die oppopt / expandt-met-een-lijntje, maar nog een svg. Maar hij is wel mooier.
+
+Verder: ik zou de beheerlast zo laag mogelijk willen hebben, dus wil ik eigenlijk dat je vanuit hier een API op de website-backend aan kunt roepen en deze gegevens kunt posten. svg's kunnen gewoon mee in een POST toch? Ook als ze groot zijn, toch? Dan kan de imprint-backend kiezen of ie ze wil opslaan als bestand, als BLOB of in een datastore als Minio. Die laatste optie zal nu echter niet kunnen werken, omdat ik host bij een hosting provider met Plesk en een mariadb. Dus daar zal persisteren als bestand misschien het slimst zijn.
+
+Ik ben daar bezig met een aantal contenttypen: product, release, component, zie UML.
+Onder al die dingen hangt Documentation, wat nog te defninieren is.
+
+Kun jij je requirements formuleren omtrent een benodigde Documentation ContentItem-type waar we de informatie over de borden in kwijt kunnen?
+
+**🤖 Claude:**
+
+Goede punten, en een mooie richting. Voordat ik de requirements voor een `Documentation`-ContentItem formuleer, wil ik ze op jullie bestaande contentmodel en schema-idioom laten aansluiten. Even de kern lezen:
+> 🔧 `Bash` — Survey content-core schemas structure
+> 🔧 `Read` — D:\Git\Web\Imprint-engine\packages\content-core\src\schemas.ts
+> 🔧 `Bash` — Check writable store, API routes, and requirements for docs/assets
+> 🔧 `Read` — D:\Git\Web\Imprint-engine\packages\content-core\src\store.ts
+
+**🤖 Claude:**
+
+Nu heb ik het contentmodel scherp: `Documentation` is nog niet gedefinieerd, boards passen het beste als **Component** (herbruikbaar bouwblok; busboard bevat modules via `children`), en er is al een read-only content-API + `WritableContentStore.putItem`. De ideeën (pinout-SVG als hotspot-inhoud, POST-ingestie met bestand-opslag) neem ik mee. Ik schrijf de requirements als document zodat je Imprint-chat er direct mee verder kan:
+> 🔧 `Write` — d:\Git\Muziek\MusicBrain\doc\documentation-contenttype-requirements.md
+> 🔧 `Bash` — Commit Documentation content-type requirements
+
+**🤖 Claude:**
+
+Requirements staan als document in de MusicBrain-repo (`1091e2f`: [doc/documentation-contenttype-requirements.md](doc/documentation-contenttype-requirements.md)) — deelbaar met je Imprint-chat. De kern, met je drie punten erin verwerkt:
+
+## Modelkeuzes
+
+- **Een bord = een `Component`** (herbruikbaar bouwblok; de busboard bevat modules via `children`). Past precies op jullie bestaande `ComponentSchema`.
+- **`Documentation` hangt aan een subject** `{ type: "component" | "product", slug }` — zo hangt het "onder al die dingen" uit je UML zonder aparte relaties per type.
+- **Eén huidige Documentation per bord**; bordrevisie (bijv. "2.0") is een véld, en de historie loopt via jullie bitemporal-store — nieuwe revisie posten = oude blijft als historie staan. Geen aparte slugs per rev.
+
+## Je pinout-idee (D10)
+
+Helemaal mee eens: de meeste headers zijn dubbelrijig, en onze `pinouts/J*.svg` mimicken dat al (mét nok). Dus i.p.v. de lange tekst-tabel wordt het per-punt-payload van de widget **een SVG-ref** — `points[].svgRef?` naast `points[].markdown?`, één van beide. Mooier én al gegenereerd, dus nul extra werk. Dat lost precies de "lange lijsten zijn onhandig" op.
+
+## API-ingestie (D5–D7) — jouw lage-beheerlast-wens
+
+- **Eén multipart-POST** draagt het hele bord: `doc` (JSON) + de assets (SVG's mogen inline óf als bestand, PNG's als bestand). SVG's zijn tekst, dus grote overzichten (~350 KB) gaan prima mee; reken op enkele MB per bord.
+- **Opslagkeuze is aan de backend, achter een `AssetStore`-interface** — nu op Plesk/MariaDB dus **bestanden op schijf**, metadata in de DB. MinIO/S3 later = config-wissel, geen herschrijving (net als jullie file-vs-DB ContentStore-splitsing).
+- **Idempotent** per (bord, revisie) + auth via een deploy-token dat de toolkit vasthoudt.
+
+Concreet voorstel in het doc:
+```
+POST /api/ingest/board  (Bearer <token>, multipart)
+  doc=<JSON>  files=render-top.png, overview.svg, pinout-J1.svg …
+→ valideer → AssetStore.put → refs naar URL's → putItem("documentation", slug, data)
+```
+
+## Twee dingen die eerst jullie beslissing zijn
+
+1. **Connector-data first-class of niet** (D2): ik stel voor de pin→net-lijst als gestructureerd veld op te slaan (niet als markdown), zodat de site zelf kiest tussen tabel of diagram. Dat is iets meer schema, maar dan is er één bron.
+2. **Taal**: bord-data (tabellen, pinouts) is taalneutraal; alleen de proza-secties zijn eventueel per `lang`. Wil je die splitsing?
+
+Zodra jij + de Imprint-chat het schema + endpoint vastzetten, schrijf ik de toolkit-kant (`publish_board.py`): de data-generatie staat al (`widget_export.py` / `board_overview.py` / `pinout_svg.py`), alleen de schema-mapping + de POST ontbreken nog. Wil je dat ik dat nu alvast als losse stap bouw tegen het voorgestelde formaat, of wachten we op jullie schema-besluit?
+
+---
+
+## 👤 Gebruiker (43)
+
+ad reqs document:
+"Een enkele module kan ook een Product zijn." -> lijkt mij niet juist. Als een module een component is, kan het ook los als product verkocht worden, maar dan is dat een product, bestaande uit 1 component. We hebben bewust componenten onafhankelijk van product gemaakt: geen compositie. Het kan in meerdere producten voorkomen.
+
+"Documentation is een ContentItem-subtype (UML: title + /content) dat aan een subject hangt: { type: "component" | "product", slug }. Zo hangt het "onder al die dingen" (UML) zonder aparte relaties per type." -> je introduceert het concept subject, dat niet bestaat in de imprint architectuur.
+Ik heb bewust Documentation vaag gelaten, omdat ik denk dat het betekent: ContentItemType (CIT) X kan CIT Y bevatten, en CIT A kan ook CIT Y maar ook CIT Z bevatten. Eventueel beperkt via een matrix, of vrij kiesbaar.
+
+In ons geval hebben we een CIT "board-spec" nodig, denk ik, dat ruimte biedt om al die svg-tjes op te slaan. Of jpg of png en wat tekst. Het versienummer zit al in het component CIT denk ik.
+
+ad 1: beide opslaan, bedoel je toch? Ja, lijkt mij goed.
+ad 2: ja, meertaligheid is wel van belang, op ongeveer alle content, denk ik, maar altijd naar keuze. MISO en MOSI hoeven niet vertaald, inderdaad. Maar de uitleg eventueel wel.
+
+# volgorde
+Zal ik eerst de requirements naar Imprint sturen en even wachten op antwoord? Wil je ze eerst nog iets bijstellen n.a.v. mijn comments?
+
+**🤖 Claude:**
+
+Scherpe correcties — alle drie terecht. Ik pas het document aan vóór je het doorstuurt:
+
+1. **Board = Component, punt.** Los verkocht wordt het een Product dat naar dat component verwíjst (1 component); geen compositie, herbruikbaar over producten. Ik haal "kan ook een Product zijn" eruit.
+2. **Geen verzonnen `subject`.** Ik gebruik jullie bestaande referentie-patroon (zoals `Component.children` / `docs` al slugs refereren) en noem het concrete type **`board-spec`** onder de vage `Documentation`-paraplu. Versie zit al in het Component (ComponentVersion), dus board-spec draagt die niet dubbel.
+3. **Beide opslaan** (gestructureerde connector-data én de gerenderde SVG's) — ze worden samen uit dezelfde KiCad-bron gegenereerd, dus geen drift. En **meertaligheid per veld, naar keuze**: techniek (MISO/MOSI, diagrammen) taalneutraal, proza vertaalbaar.
+
+Ik herschrijf het document:
+> 🔧 `Write` — d:\Git\Muziek\MusicBrain\doc\documentation-contenttype-requirements.md
+
+**🤖 Claude:**
+
+Nu committen (met een naam die de lading dekt):
+> 🔧 `Bash` — Rename and commit revised requirements
+
+**🤖 Claude:**
+
+Bijgesteld en gecommit (`6be1b4b`, nu [doc/board-spec-contenttype-requirements.md](doc/board-spec-contenttype-requirements.md)). De drie correcties zitten erin:
+
+- **Board = Component**, nooit een Product. Los verkocht = een Product dat het component refereert; geen compositie, herbruikbaar over producten.
+- **Geen `subject`.** `board-spec` is een nieuw CIT dat een `Component` via een slug refereert — jullie bestaande patroon (zoals `children`/`components`/`docs`). `Documentation` blijft de vage paraplu (welk CIT mag welk bevatten, evt. via matrix); `board-spec` is het ene concrete geval dat wij nodig hebben.
+- **Versie uit `ComponentVersion`**, niet dubbel in board-spec. Ik beveel aan: **één board-spec per ComponentVersion**, zodat oude revisies hun eigen renders/pinouts houden — maar dat is jullie keuze (D8).
+- **Beide opslaan** (connector-data én pinout-SVG's, samen gegenereerd → geen drift), en **meertaligheid per veld naar keuze** (techniek neutraal, proza vertaalbaar).
+
+## Volgorde — mijn advies
+
+**Ja, stuur de requirements eerst naar Imprint en wacht op antwoord.** Reden: het `board-spec`-schema en het ingestie-endpoint zijn hún ontwerpbeslissingen (contentmodel, opslag, auth, en de bredere "welk CIT bevat welk"-matrix). Zodra die vaststaan is mijn kant klein en mechanisch: `publish_board.py` die de bestaande data (`widget_export.py` / `board_overview.py` / `pinout_svg.py` + `lees_connector()`) op hun schema mapt en in één multipart-POST verstuurt. Dat nu al bouwen tegen een gok-formaat is verspilde moeite als hun schema afwijkt.
+
+Twee dingen die goed zijn om expliciet aan de Imprint-chat mee te geven, want ze raken hún model breder dan alleen boards:
+1. **De "Documentation = containment tussen CIT's"-vraag** (vrij kiesbaar of via matrix) — dat is een Imprint-brede keuze, niet bord-specifiek.
+2. **De `AssetStore`-interface** (D7): nu bestand-opslag op Plesk, later swappable naar MinIO/S3. Dat is nieuwe infrastructuur aan hun kant; goed om vroeg te beleggen.
+
+Als hun antwoord terug is, geef me het schema + endpoint en dan lever ik `publish_board.py` + een `--publish`-vlag op de bestaande tools, zodat één commando alle 13 borden naar de site pusht. Tot die tijd hoef ik hier niets te doen — de bal ligt netjes bij Imprint.
+
+---
+
+## 👤 Gebruiker (44)
+
+N.B. Widgets hebben nu een versienummer in het contract.
+
+Uit bouw-chat Imprint:
+"Widgets
+Software-versie: ja, ingebouwd. Elke widget draagt nu een version en een help in z'n definitie (het contract, WidgetTypeDef + catalogus). De studio-sidebar toont per widget een klein v1.0.0-labeltje en een ⓘ met de help-regel. En je grap klopt precies: een widget is een component van het product Imprint-Engine — dus dit is letterlijk hetzelfde VersionNumber-idee als bij je hardware-componenten, alleen dan voor software-bouwstenen.
+
+Handleiding: ja, die help-regel is de mini-handleiding die de site-editor in de sidebar ziet. Nu een one-liner per widget; als je uitgebreidere docs wilt (markdown, voorbeelden), is het logisch om help te laten groeien naar een help-markdownveld met een "meer info"-uitklap. Zeg het als je dat wilt.
+
+Inline-code: gedaan — de </>-knop wrapt je selectie in `code`.
+"
+De instructie voor het publiceren van de borden: D:\Git\Web\Imprint-engine\docs\mmb-ingest-guide.md
+
+WIl je kijken of je 1 bord (het busboard) kunt publiceren op de website?
+
+**🤖 Claude:**
+
+De Imprint-chat heeft `board-spec` + het ingest-endpoint al gebouwd. Ik lees eerst de publicatie-instructie:
+> 🔧 `Read` — D:\Git\Web\Imprint-engine\docs\mmb-ingest-guide.md
+
+**🤖 Claude:**
+
+Duidelijk contract. Nu kijken waar de site draait en of er een ingest-token is voor lokaal:
+> 🔧 `Bash` — Locate ingest token and check if dev server runs
+
+**🤖 Claude:**
+
+Dev-server draait (200) en er is een `INGEST_TOKEN`. Ik lees het lokale token en de products-lijst om te weten welke slugs bestaan:
+> 🔧 `Bash` — Read ingest token and list existing products/components
+
+**🤖 Claude:**
+
+Token `test-ingest-token-123`, base `localhost:3000`, componenten nog leeg. Volgens de gids moet ik éérst het component `busboard-v2` posten, dan de board-spec (multipart). Ik bouw een `publish_board.py` die de connector-data + assets samenstelt en beide POSTs doet. Even checken of `requests` er is:
+> 🔧 `Bash` — Check requests lib and asset availability
+
+**🤖 Claude:**
+
+Alles aanwezig — `requests` 2.34.2, 22 SVG's, render. Ik schrijf `publish_board.py` (connector-data + assets + de twee POSTs):
+> 🔧 `Write` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\publish_board.py
+
+**🤖 Claude:**
+
+Eerst een dry-run om het doc te inspecteren voor ik post:
+> 🔧 `Bash` — Dry-run to inspect board-spec doc
+> 🔧 `Bash` — Check dry-run summary counts
+
+**🤖 Claude:**
+
+21 connectors, 23 assets, doc ziet er goed uit. Nu echt publiceren:
+> 🔧 `Bash` — Publish busboard-v2 board-spec to the site
+
+**🤖 Claude:**
+
+Beide POSTs **200** — component + board-spec aangemaakt, 23 assets opgeslagen onder `/api/assets/busboard-v2/v2.0/`. Even verifiëren dat het terugleesbaar is en de assets geserveerd worden:
+> 🔧 `Bash` — Verify component, board-spec readback, and asset serving
+
+**🤖 Claude:**
+
+Alles werkt. Even de opgeslagen board-spec bekijken (asset-URL's herschreven? connectors + secties aanwezig?):
+> 🔧 `Bash` — Inspect stored board-spec content and rewritten asset URLs
+
+**🤖 Claude:**
+
+**De busboard staat op de site** — volledig gepubliceerd en terugleesbaar:
+
+- **Component** `busboard-v2` aangemaakt, met versie `v2.0` → spec `busboard-v2@v2.0`.
+- **Board-spec** opgeslagen: 21 connectors (pin→net), 4 proza-secties (Overzicht, Blokken, Mechanica-afwijkingen, Werkwijze koper), en de asset-URL's netjes herschreven naar `/api/assets/busboard-v2/v2.0/…`.
+- **Assets serveren**: `overview.svg` (200, image/svg+xml), `render-top.png` (200, image/png), plus 21 pinout-SVG's.
+
+Ik commit de publicatietool:
+> 🔧 `Bash` — Commit publish_board.py
+
+**🤖 Claude:**
+
+Gepubliceerd en gecommit (`c379f69`). De hele keten werkt nu end-to-end: van `.kicad_pcb` → gegenereerde assets → één commando → live op de site.
+
+## Wat er gebeurde
+
+`publish_board.py` volgt de ingest-gids precies:
+1. **Component** `busboard-v2` ge-POST via read-modify-post (behoudt bestaande velden; voegt versie v2.0 + spec-referentie toe).
+2. **Board-spec** via `POST /api/ingest/board-spec` multipart: het doc-JSON (21 connectors met pin→net, 4 README-secties, asset-map) plus 23 bestanden (render + aansluitoverzicht + 21 pinout-SVG's). De backend sloeg de assets op als bestand (Plesk-compatibel), herschreef de namen naar `/api/assets/…`-URL's, en bewaarde de spec bitemporaal.
+
+De connector-data komt rechtstreeks uit het bordbestand (`lees_connector`), dus de gepubliceerde pinouts kunnen niet uit de pas lopen met het KiCad-ontwerp. Opnieuw draaien maakt gewoon een nieuwe versie — idempotent.
+
+## Om het op een pagina te zien
+
+De data staat er; om 'm te tónen zet iemand in de studio een **`board-spec`-widget** die naar `busboard-v2@v2.0` wijst (de `BoardSpecWidget` + `BoardSpecView` die je Imprint-chat net heeft toegevoegd, render `getBoardSpec` server-side). Dat pagina-componeren is de site-kant — jouw of de Imprint-chat's terrein.
+
+## Klein aandachtspunt
+
+Ik gebruikte het **lokale dev-token** (`test-ingest-token-123`) tegen `localhost:3000`. Voor productie draai je hetzelfde commando met `--base https://<site>` en `--token <echte deploy-token>` (of via de env-variabelen `IMPRINT_BASE` / `INGEST_TOKEN`), zodat het token niet in een commando-history belandt.
+
+Wil je dat ik nu de **overige 12 borden** publiceer (elk met hun component + board-spec)? Dan draai ik `publish_board.py` in een lus met de juiste component-slugs en versies — dan staat de hele set op de site. Of wachten we eerst tot je één board-spec-pagina hebt gezien en goedgekeurd?
+
+---
+
+## 👤 Gebruiker (45)
+
+AANDACHTSPUNTJE: we hebben twee versies van het bord: expanded en mouseover. VOor mouseover zijn nog punten nodig om dat te kunnen renderen. Kun je die toevoegen aan de export naar Imprint?
+
+**🤖 Claude:**
+
+Goed punt — de board-spec die ik postte heeft wél connectors + assets, maar géén `points[]` met x/y-posities die de hover-modus nodig heeft. Even kijken hoe het board-spec-schema aan de Imprint-kant eruitziet, zodat ik de punten in het juiste veld meestuur:
+> 🔧 `Bash` — Locate board-spec content schema and view
+
+**🤖 Claude:**
+
+Het schema **heeft** een `points`-veld (regel 191). Even de exacte vorm lezen:
+> 🔧 `Read` — D:\Git\Web\Imprint-engine\packages\content-core\src\schemas.ts
+
+**🤖 Claude:**
+
+Het schema is elegant: een point heeft `{x, y, label?, connector?, markdown?}`, en **`connector: "J1"` linkt automatisch de pinout-SVG** (D10) — dus ik hoef alleen ref + positie mee te geven. De x/y staan al in de `<board>-widget.json`. Eén ding om op te letten: die x/y zijn berekend tegen de **bijgesneden** render, dus `publish_board.py` moet dezelfde crop posten. Ik pas de tool aan:
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\publish_board.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\publish_board.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\publish_board.py
+> 🔧 `Bash` — Dry-run to inspect points
+
+**🤖 Claude:**
+
+Alleen een console-encoding-dingetje bij het printen (de → in labels). Even met UTF-8 stdout:
+> 🔧 `Bash` — Dry-run with UTF-8 to inspect points
+
+**🤖 Claude:**
+
+Points kloppen: connector-punten krijgen `connector: "Jxx"` (linkt automatisch de pinout), de rest houdt z'n label. Nu opnieuw publiceren (wordt een nieuwe versie met points):
+> 🔧 `Bash` — Publish with points and verify readback
+
+**🤖 Claude:**
+
+Gepubliceerd met **17 points** (10 met connector-link naar hun pinout-SVG). De hover-modus kan nu renderen — elk connector-punt toont bij mouseover automatisch zijn dubbelrij-pinout, de overige punten hun label. Ik commit de aanpassing:
+> 🔧 `Bash` — Commit points addition to publish_board
+
+**🤖 Claude:**
+
+Opgelost en gepubliceerd (`4a35a64`). De board-spec heeft nu de **17 hotspot-points** die de hover-modus nodig heeft.
+
+Wat er nu in de gepubliceerde busboard-spec zit voor de widget:
+- **`points[]`** met relatieve x/y (0..1), uit de `<bord>-widget.json`.
+- **10 connector-punten** met `connector: "Jxx"` — het schema linkt daarmee automatisch `assets.pinouts[ref]`, dus op hover verschijnt de **dubbelrij-pinout-SVG** (precies jouw D10-idee: de pinout mimickt de fysieke header i.p.v. een lange tekstlijst).
+- **7 overige punten** (Teensy, voeding, slots, IRQ-keten, MIDI) houden hun label als hover-tekst.
+
+Twee dingen om te weten:
+
+1. **Crop-consistentie**: de x/y in de widget-json zijn berekend tegen de bijgesneden render. `publish_board.py` snijdt de geposte `render-top.png` nu identiek bij (RAND=24), zodat de punten precies op de connectoren vallen — zowel in hover als expanded. Dat zat er eerst niet in; nu wel.
+
+2. **"slot 1" en "slot 6"** krijgen (nog) geen pinout-link, omdat hun label in de handgemaakte busboard-`overzicht.json` letterlijk "slot 1"/"slot 6" is zonder `(J1)`/`(J6)`. Wil je dat die óók hun pinout tonen, dan verander ik die twee labels in de overzicht.json naar "slot 1 (J1)" / "slot 6 (J6)" — dan pakt de regex de ref op. Zeg maar of dat de moeite is.
+
+De keten is nu compleet voor beide modi. Klaar om de andere 12 borden in een lus te publiceren zodra je één board-spec-pagina hebt gezien en groen licht geeft — of ik doe die twee slot-labels eerst nog even als je dat wilt.
+
+---
+
+## 👤 Gebruiker (46)
+
+wil je die slots even doen?
+
+**🤖 Claude:**
+
+Ja. Ik pas de twee slot-labels aan zodat ze de J-ref bevatten, regenereer overzicht + widget-json, en publiceer opnieuw:
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\schematics\musicbrain-busboard-v2\musicbrain-busboard-v2-overzicht.json
+> 🔧 `Bash` — Regenerate overview + widget json, re-publish
+> 🔧 `Bash` — Verify J1 and J6 now have pinout links
+
+**🤖 Claude:**
+
+J1 en J6 zitten er nu bij — **12 points met pinout-link** (was 10). Ik commit de bijgewerkte artefacten:
+> 🔧 `Bash` — Commit slot label fix and regenerated artifacts
+
+**🤖 Claude:**
+
+Gedaan (`d4158e7`). "slot 1" en "slot 6" heten nu "slot 1 (J1)" / "slot 6 (J6)", dus die twee punten tonen op hover hun pinout-diagram net als de andere connectoren — **12 van de 17 points hebben nu een pinout-link** (was 10). De busboard is opnieuw gepubliceerd met de update.
+
+De vijf punten die (bewust) alleen een label tonen zijn de niet-connectors: Teensy, voeding, IRQ 7-12-keten, en MIDI IN×2+UIT — die hebben geen enkele connector, dus daar past geen pinout.
+
+De keten staat nu compleet: één `publish_board.py`-run zet component + board-spec + alle assets + hover-points op de site, hover én expanded werken. Klaar om de andere 12 borden in een lus te publiceren zodra je een board-spec-pagina hebt gezien en groen licht geeft.
+
+---
+
+## 👤 Gebruiker (47)
+
+ja, ziet er supergoed uit! graag de andere ook!
+
+**🤖 Claude:**
+
+Top! Ik haal eerst de exacte versies uit MODULES.md zodat de `<component>@<versie>`-slugs kloppen, en draai dan de lus:
+> 🔧 `Bash` — Read board versions from MODULES.md
+
+**🤖 Claude:**
+
+Versies compleet. Ik draai de lus voor de 12 borden (component-slugs zonder `musicbrain-`-prefix, versies uit MODULES.md):
+> 🔧 `Bash` — Publish all 12 remaining boards
+
+**🤖 Claude:**
+
+Alle 12 op **200** gepubliceerd. Even de volledige set op de site tellen, en dan kijk ik naar de reflex-borden:
+> 🔧 `Bash` — Verify all board-specs and check gswitch board data
+
+**🤖 Claude:**
+
+Alle 13 staan op de site — compleet. De gswitch-borden vind ik zo niet; even goed kijken waar ze staan en in welke staat ze zijn (het is werk van de parallelle chat):
+> 🔧 `Bash` — Find gswitch board files and their git state
+
+**🤖 Claude:**
+
+De gswitch-borden bestaan wél (mijn glob faalde). `gswitch-brain` heeft al een overzicht; widget.json + pinouts moet ik nog genereren. Even de revs + DRC-status checken en de ontbrekende data maken:
+> 🔧 `Bash` — Check gswitch revs, overview presence, DRC
+
+**🤖 Claude:**
+
+Beide rev 0.1, overzicht aanwezig, **DRC 0/0** — netjes afgerond werk. Ik genereer de ontbrekende pinouts + widget-json en publiceer:
+> 🔧 `Bash` — Generate data and publish both gswitch boards
+
+**🤖 Claude:**
+
+Twee dingen. Eerst de 422-fout: mijn `rows`-berekening gaf >2 voor sommige gswitch-connectoren (het schema wil 1 of 2). En je tussenvraag over de release pak ik meteen mee. Eerst de fix:
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\publish_board.py
+> 🔧 `Bash` — Republish both gswitch boards after rows fix
+
+**🤖 Claude:**
+
+Beide reflex-borden nu **200** gepubliceerd — 15 board-specs op de site. Nu je tussenvraag: de componenten aan de **cortex-v0.1**-release toevoegen. Ik lees de release, voeg alle cortex-borden toe (de reflex-borden horen bij een reflex-release, niet cortex), en post terug met behoud van de andere velden:
+> 🔧 `Bash` — Read current cortex-v0.1 release
+> 🔧 `Bash` — Inspect releases response shape
+
+**🤖 Claude:**
+
+De GET geeft de hele lijst; ik pak de cortex v0.1 eruit, vul de componenten aan (alle 13 cortex-borden met hun versies) en post het volledige object terug:
+> 🔧 `Bash` — Add all cortex components to cortex-v0.1 release
+
+**🤖 Claude:**
+
+De **cortex-v0.1-release** heeft nu alle 13 componenten. Ik commit de tool-fix (de gswitch-doc-artefacten laat ik ongecommit — die dirs zijn van de parallelle chat):
+> 🔧 `Bash` — Commit rows fix, show uncommitted gswitch artifacts
+
+**🤖 Claude:**
+
+Klaar — alles staat op de site.
+
+## Wat er nu live is
+
+**15 board-specs** gepubliceerd, elk met connector-data, hover-points (met pinout-links), render + aansluitoverzicht + pinout-SVG's, en README-secties:
+- **13 cortex-borden**: busboard-v2, adc8, dac8, gate8, gatein8, jack8, jack4, riser, potriser, pot8front, enc5front, i2criser, ad5754r-breakout.
+- **2 reflex-borden**: gswitch-brain (v0.1) en gswitch-loop8 (v0.1) — DRC 0/0, dus afgerond werk.
+
+**cortex-v0.1-release**: uitgebreid van 1 → **13 componenten** (elk met versie), met behoud van de andere velden (datum, channel, highlights).
+
+Twee kleine dingen onderweg gefixt: de `rows`-waarde in de board-spec moest 1 of 2 zijn (2D-rasterconnectoren op de gswitch-borden gaven >2 → 422); nu geclampt. En bij het reflex-publiceren gebruikte ik dezelfde crop-consistente render + points als bij cortex.
+
+`publish_board.py` is gecommit (`deb7355`). De gswitch-doc-artefacten (widget.json, pinouts) liet ik ongecommit — die board-dirs zijn van de parallelle chat; de board-specs staan sowieso al op de site.
+
+## Nog open (jouw keuze)
+
+1. **Reflex heeft nog geen release.** De 2 reflex-borden zijn wél board-specs, maar staan in geen enkele release. Wil je een `reflex-v0.1`-release met `gswitch-brain@v0.1` + `gswitch-loop8@v0.1`? Eén POST.
+2. **Product ↔ component-koppeling** (stap 2 uit de gids) is iets anders dan de release: als je wilt dat de borden ook direct onder de *producten* (`cortex`, `reflex`) verschijnen via `product.components`, dan zet ik die slugs er via read-modify-post in (zonder de placeholder-teksten te overschrijven).
+3. **rows-semantiek**: voor echte 2D-connectoren (modules, USB-C) is `rows: 2` een vereenvoudiging — klopt niet letterlijk maar is onschadelijk voor de docs. Zeg maar als je daar liever een `rows: 1` of een apart type voor wilt.
+
+Zal ik de reflex-release en/of de product-koppelingen ook doen?
+
+---
+
+## 👤 Gebruiker (48)
+
+ad 1: ja graag!
+ENC5front: dit is nog een iets verouderde 3D render. WIl je die verversen?
+
+**🤖 Claude:**
+
+Allebei. Eerst de reflex-release, dan de enc5front-render verversen.
+> 🔧 `Bash` — Create reflex-v0.1 release with both gswitch boards
+
+**🤖 Claude:**
+
+Reflex-release aangemaakt (200). Nu de enc5front-render verversen — hele asset-keten opnieuw uit het huidige bord en herpubliceren:
+> 🔧 `Bash` — Refresh enc5front assets and republish
+
+**🤖 Claude:**
+
+Herpubliceerd met verse render. Even visueel bevestigen dat het nu de actuele stand toont:
+> 🔧 `Bash` — Fetch the live enc5front render from the site
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\fef2f349-f66e-47b1-9213-d70beae9d778\scrat...
+
+**🤖 Claude:**
+
+De live render toont nu de **actuele enc5front rev 2.0**: 5 encoders, 2 tactknopjes (SW6/SW7), beide QFN-MCP23017's (U1/U2), de 1×10-socketkolom en de 2×8-expansieheader onderaan. Ververst.
+
+Beide klaar:
+
+- **`reflex-v0.1`-release** aangemaakt (200), met `gswitch-brain@v0.1` + `gswitch-loop8@v0.1`, channel `beta`, gekoppeld aan product `reflex`.
+- **enc5front-render ververst** op de site — nieuwe render + overzicht + pinouts + widget-points uit het huidige bord, opnieuw gepubliceerd (`enc5front@v2.0`).
+
+Even de MusicBrain-repo-status checken voor de ververste artefacten:
+> 🔧 `Bash` — Check if enc5front artifacts changed materially
+
+**🤖 Claude:**
+
+Alleen de `overzicht.svg` veranderde (verse ingebedde render) — die commit ik zodat het repo-artefact matcht met de site:
+> 🔧 `Bash` — Commit refreshed enc5front overview
+
+**🤖 Claude:**
+
+Beide klaar en gecommit (`bacff79`).
+
+## Samenvatting
+
+- **`reflex-v0.1`-release** aangemaakt: `gswitch-brain@v0.1` + `gswitch-loop8@v0.1`, gekoppeld aan product `reflex`, channel `beta` (v0.1 = eerste hardware-rev; makkelijk aan te passen in de studio als je `stable` wilt).
+- **enc5front-render ververst**: nieuwe render + overzicht + pinouts + points uit het huidige bord, herpubliceerd. De live render toont nu de actuele rev 2.0 (5 encoders, 2 knopjes, beide QFN's, socketkolom, 2×8-expansieheader). Het repo-artefact is meegecommit zodat het matcht.
+
+## Stand op de site
+
+- **15 board-specs** live (13 cortex + 2 reflex), allemaal met hover-points + pinouts.
+- **2 releases**: `cortex-v0.1` (13 componenten) en `reflex-v0.1` (2 componenten).
+
+Nog los (als je wilt): de **product↔component-koppeling** (`product.components` voor cortex/reflex) — dat is iets anders dan de release en zorgt dat de borden ook direct onder de productpagina's verschijnen. Zeg maar of ik die read-modify-post ook doe.
+
+---
+
+## 👤 Gebruiker (49)
+
+hmm, de enc5 render is nog de oude.
+
+**🤖 Claude:**
+
+Vreemd — de asset die ik van de server ophaalde tóónde de nieuwe rev 2.0. Dan is er iets anders aan de hand: caching, óf je pagina gebruikt een ándere afbeelding dan de board-spec-asset. Even uitzoeken welke render je precies ziet:
+> 🔧 `Bash` — Check enc5front pcb git state and compare both site images
+
+**🤖 Claude:**
+
+Nu snap ik het. De asset op de server is correct (die haal ik op en die klopt), maar je site-página toont de oude — dat is **caching op een stabiele URL**. Twee dingen bevestigen dit:
+
+- Er is zelfs een commit `04d1698` die het backside-3D-model centreerde ná mijn eerste publish — mijn re-render pakt die mee, dus de serverbytes zijn actueel.
+- De asset-URL is identiek (`/api/assets/enc5front/v2.0/render-top.png`), dus je browser (of Next) serveert de gecachete oude versie.
+
+Even de cache-headers checken om te bevestigen:
+> 🔧 `Bash` — Inspect cache-control headers on asset endpoints
+
+**🤖 Claude:**
+
+**Gevonden.** De asset-URL stuurt `Cache-Control: public, max-age=31536000, immutable` — één jaar, onveranderlijk. Zodra je browser `…/enc5front/v2.0/render-top.png` één keer heeft opgehaald, vraagt hij 'm een jaar lang niet opnieuw op. Ik heb de nieuwe render op **dezelfde URL** gezet (in-place update), dus je browser blijft de oude tonen. De serverbytes zijn wél correct (die haal ik op en die tonen rev 2.0).
+
+## Nu meteen zien
+
+**Hard-refresh** op de enc5front-pagina: **Ctrl+Shift+R** (of Ctrl+F5). Dat negeert de `immutable`-cache en haalt de verse render op. Een gewone refresh helpt niet — juist door dat `immutable`.
+
+## De echte oorzaak (voor de Imprint-chat)
+
+Dit is een backend-ontwerpdingetje, niet iets dat ik aan de publiceer-kant kan fixen (de asset-URL's worden door de ingest-backend gegenereerd). `immutable` is alleen veilig als de **URL verandert zodra de inhoud verandert**. Nu is de URL `…/<component>/<versie>/<naam>` stabiel, terwijl een board-spec **opnieuw gepubliceerd kan worden met nieuwe bytes op dezelfde versie** → permanente staleness bij iedereen die 'm al zag (browsers én een eventuele CDN/Plesk-cache).
+
+Twee nette oplossingen aan Imprint-kant:
+1. **Content-hash in de bestandsnaam** — `render-top.<hash>.png`. Dan is `immutable` correct: nieuwe render = nieuwe URL = cache-miss = vers. Dit is het standaardpatroon (zoals Next zelf met z'n static assets doet).
+2. **Of `immutable` laten vallen** en revalidatie gebruiken (zoals de `public/boards`-png nu al doet: `max-age=0` + ETag) — simpeler, iets minder cache-efficiënt.
+
+Optie 1 is het mooist. Goed om aan de Imprint-chat mee te geven, want het raakt élke her-publicatie van élke board-spec — niet alleen enc5front.
+
+Wil je dat ik dit als kort puntje aan het `BOARD-WIDGET-NOTE.md` (of een apart briefje) toevoeg voor de Imprint-chat, zodat het niet verdwijnt? En probeer even die Ctrl+Shift+R — dan weten we zeker dat het puur caching was.
+
+---
+
+## 👤 Gebruiker (50)
+
+ja, graag een note. control shift R werkt, maar ik weet dat er een nieuwe moet zijn. Een normale gebruiker niet. Dus dit is te harde caching
+
+**🤖 Claude:**
+
+Klopt precies — Ctrl+Shift+R bewijst dat het caching is, maar een gewone bezoeker doet dat nooit, dus die ziet de oude render permanent. Dat is te harde caching. Ik leg een gerichte note neer voor de Imprint-chat:
+> 🔧 `Write` — D:\Git\Web\Imprint-engine\docs\asset-cache-note.md
+
+**🤖 Claude:**
+
+Note staat klaar: **`D:\Git\Web\Imprint-engine\docs\asset-cache-note.md`** — naast de ingest-gids, dus de Imprint-chat vindt 'm.
+
+De kern die erin staat:
+
+- **Het probleem**: de asset-endpoint stuurt `Cache-Control: public, max-age=31536000, immutable`, terwijl een board-spec op **dezelfde versie-URL** kan worden herpubliceerd met nieuwe bytes. Stabiele URL + `immutable` = elke bezoeker (en een eventuele CDN/Plesk-cache) ziet de oude render een jaar lang. Alleen hard-refresh helpt — wat een gewone bezoeker nooit doet.
+- **Twee fixes**, met optie 1 als aanbeveling:
+  1. **Content-hash in de bestandsnaam** (`render-top.<sha8>.png`) — nieuwe inhoud = nieuwe URL, dan is `immutable` juist wél correct en maximaal efficiënt. Standaardpatroon.
+  2. Of `immutable` laten vallen en revalideren met ETag — precies wat de `public/boards`-map nu al goed doet.
+- **Reproduceerbaar bewijs** (de twee curl-headers naast elkaar: de API-asset is te hard, de public-map doet het al goed).
+
+Ik heb 'm bewust niet gecommit — de Imprint-werkboom heeft parallel-WIP, dus die note gaat mee met hun commit (net als BOARD-WIDGET-NOTE.md en de asset-note).
+
+Belangrijk punt dat je zelf al zag: dit raakt **elke** her-publicatie van elke board-spec, niet alleen enc5front. Zolang de fix er niet is, geldt: na een her-publish zie jij (en ik) het pas na Ctrl+Shift+R, en nieuwe bezoekers zien wél meteen het juiste (die hadden nog niks gecachet). Het is dus vooral een probleem voor terugkerende bezoekers na een update — precies waarom optie 1 het waard is.
+
