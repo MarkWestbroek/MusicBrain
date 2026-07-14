@@ -1,0 +1,79 @@
+{
+ "title": "gswitch-loop8 rev 0.1 — aansluitoverzicht",
+ "image": "/boards/gswitch-loop8.png",
+ "alt": "3D-render van gswitch-loop8",
+ "points": [
+  {
+   "x": 0.1819,
+   "y": 0.1019,
+   "label": "loop 1: send + return (J11)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | AGND |\n| 2 | AGND |\n| 3 | SEND1 |\n| 4 | AGND |\n| 5 | AGND |\n| 6 | RET1 |\n| 7 | AGND |\n| 8 | AGND |\n| 9 | — |\n| 10 | AGND |\n| 11 | AGND |\n| 12 | SEND1 |"
+  },
+  {
+   "x": 0.4952,
+   "y": 0.0866,
+   "label": "… 8× ACJS-MHD stapeljack …",
+   "markdown": ""
+  },
+  {
+   "x": 0.8181,
+   "y": 0.1019,
+   "label": "loop 8 (J18)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | AGND |\n| 2 | AGND |\n| 3 | SEND8 |\n| 4 | AGND |\n| 5 | AGND |\n| 6 | RET8 |\n| 7 | AGND |\n| 8 | AGND |\n| 9 | — |\n| 10 | AGND |\n| 11 | AGND |\n| 12 | SEND8 |"
+  },
+  {
+   "x": 0.0265,
+   "y": 0.2167,
+   "label": "audio IN (J7)",
+   "markdown": "| pin | net |\n|--|--|\n| T | N0 |\n| R | AGND |\n| S | AGND |\n| TN | INTN |\n| RN | AGND |\n| SN | AGND |"
+  },
+  {
+   "x": 0.036,
+   "y": 0.4112,
+   "label": "audio-doorlink in (J5)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | N0 |\n| 2 | AGND |"
+  },
+  {
+   "x": 0.0552,
+   "y": 0.7067,
+   "label": "chain IN ← brain (J1, RJ45)",
+   "markdown": "| pin | net |\n|--|--|\n| SH | CHASSIS |\n| SH | CHASSIS |\n| 1 | CLK_J |\n| 2 | GND |\n| 3 | DATA_J |\n| 4 | +12V |\n| 5 | GND |\n| 6 | DRET_J |\n| 7 | LATCH_J |\n| 8 | EN_J |"
+  },
+  {
+   "x": 0.9735,
+   "y": 0.2167,
+   "label": "audio UIT (J8)",
+   "markdown": "| pin | net |\n|--|--|\n| T | N8 |\n| R | AGND |\n| S | AGND |\n| TN | — |\n| RN | AGND |\n| SN | AGND |"
+  },
+  {
+   "x": 0.964,
+   "y": 0.4112,
+   "label": "audio-doorlink uit (J6)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | N8 |\n| 2 | AGND |"
+  },
+  {
+   "x": 0.9448,
+   "y": 0.8522,
+   "label": "chain THRU (J2, RJ45)",
+   "markdown": "| pin | net |\n|--|--|\n| SH | CHASSIS |\n| SH | CHASSIS |\n| 1 | CLK_T |\n| 2 | GND |\n| 3 | SER_T |\n| 4 | +12V |\n| 5 | GND |\n| 6 | DRETT_J |\n| 7 | LATCH_T |\n| 8 | EN_T |"
+  },
+  {
+   "x": 0.1432,
+   "y": 0.7833,
+   "label": "chain-doorlink in (J3)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | CLK_J |\n| 2 | GND |\n| 3 | DATA_J |\n| 4 | +12V |\n| 5 | GND |\n| 6 | DRET_J |\n| 7 | LATCH_J |\n| 8 | EN_J |"
+  },
+  {
+   "x": 0.8434,
+   "y": 0.7833,
+   "label": "chain-doorlink thru (J4)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | CLK_T |\n| 2 | GND |\n| 3 | SER_T |\n| 4 | +12V |\n| 5 | GND |\n| 6 | DRETT_J |\n| 7 | LATCH_T |\n| 8 | EN_T |"
+  },
+  {
+   "x": 0.567,
+   "y": 0.7603,
+   "label": "schuifregister + relaisdrivers",
+   "markdown": ""
+  }
+ ]
+}
