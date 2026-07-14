@@ -39,6 +39,8 @@
 //        [--assets-dir <dir met render-PNG's>] [--dry]
 //
 //   Env-fallbacks: INGEST_TOKEN, IMPRINT_BASE, IMPRINT_BOARDS (assets-dir).
+//   Deze worden ook uit een gitignored `.env` naast dit script gelezen (zie
+//   .env.example); een expliciete `export` of --flag wint daarboven.
 //   --dry  = bouw + toon de payloads, post niets.
 //   Zonder --boards wordt de modulaire cortex-set genomen: alle
 //   hardware/schematics/musicbrain-* (excl. deprecated) + ad5754r-breakout.
@@ -50,6 +52,20 @@ import { fileURLToPath } from "node:url";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SCHEMATICS = path.resolve(HERE, "../schematics");
+
+// Laad een gitignored .env naast dit script (KEY=VALUE per regel). Een variabele
+// die al in de omgeving staat (export / CLI) wint — we vullen alleen aan.
+function loadDotenv(file) {
+  if (!fs.existsSync(file)) return;
+  for (const line of fs.readFileSync(file, "utf8").split("\n")) {
+    const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/);
+    if (!m || line.trim().startsWith("#")) continue;
+    const key = m[1];
+    const val = m[2].replace(/^["']|["']$/g, "");
+    if (process.env[key] === undefined) process.env[key] = val;
+  }
+}
+loadDotenv(path.join(HERE, ".env"));
 // Renders leven (nog) in de Imprint-repo public/boards; overschrijfbaar met --assets-dir.
 const DEFAULT_ASSETS = path.resolve(
   HERE,
@@ -261,6 +277,7 @@ async function main() {
   }
 
   console.log(`Imprint: ${base}  |  assets-dir: ${assetsDir}`);
+  console.log(`token: ${token ? `geladen (${token.length} tekens)` : "GEEN — schrijven uit"}`);
   console.log(`Borden (${boardDirs.length}): ${boardDirs.join(", ")}`);
   if (product) console.log(`Product: ${product}`);
   console.log("");

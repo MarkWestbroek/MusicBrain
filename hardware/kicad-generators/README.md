@@ -52,12 +52,22 @@ eerst repo-lokaal (`<bord>/<bord>.png`) en anders in de map achter `--assets-dir
 zonder `musicbrain-`-prefix, en de versie en naam komen uit de widget-titel
 (`… rev X.Y`).
 
+Het token geef je *niet* op de commandoregel mee (dat lekt in shell-history en
+chat-backups). In plaats daarvan staat het in een gitignored `.env` naast de
+scripts, dat `publish_product.mjs` automatisch inleest. Eenmalig opzetten:
+
+    cp .env.example .env       # en plak je INGEST_TOKEN erin
+
+`.env` staat in `.gitignore`, dus het komt nooit in git terecht; `.env.example`
+(zonder waardes) is het sjabloon dat wél getrackt wordt. Standaard post het naar
+`http://localhost:3000`; zet `IMPRINT_BASE=https://musicbrain.nl` in `.env` — of
+geef per run `--base` mee — om naar productie te posten. Een `export` of `--flag`
+wint altijd boven de waardes in `.env`.
+
 Een typische sessie: eerst een dry-run om de payloads te zien, dan echt posten.
+De beginregels tonen naar welke site je post en of het token geladen is.
 
-    # token uit de Imprint-deployomgeving (of je lokale .env)
-    export INGEST_TOKEN=…   IMPRINT_BASE=http://localhost:3000
-
-    # controleren zonder te posten
+    # controleren zonder te posten (post niets, toont de payloads)
     node publish_product.mjs --product cortex --dry
 
     # de hele modulaire cortex-set + een release. Zonder --boards pakt het
