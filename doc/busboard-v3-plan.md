@@ -18,9 +18,15 @@
 | 7 | **audio-lijnen aanlanden** (zie hieronder) | besluit 6/11 |
 
 **Ongewijzigd**: Teensy-pintoewijzing v2 (op pin 29 na), CS-decoder 74HC154,
-IRQ-keten 2×74HC165+1G125, expansieheader J21, MIDI-IN-blokken, CAN, codec-
-header J17, TUNE-IN, DLG-UARTs, display J11, Qwiic J12 (zuidoost), power-entry
-J9 10-pins, hub-headers J7/J8, slot-pinnen 1–18.
+IRQ-keten 2×74HC165+1G125, expansieheader J21 (één detail: **ADCRST_X wordt
+reservepin** — ADC_RESET is in gen 2 geen buslijn meer), MIDI-IN-blokken,
+CAN, codec-header J17, TUNE-IN, DLG-UARTs, display J11, Qwiic J12 (zuidoost),
+power-entry J9 10-pins, hub-headers J7/J8, slot-pinnen 1–18.
+
+**Expander-segment, het complete beeld**: twee lintkabels — J21↔J21 voor
+SPI/besturing (CS9–14, IRQ7–12), J24↔mixer voor audio (klokken heen, zes
+datalijnen terug). J24 = de digitale-audiohub, het broertje van de
+SPI-hubs J7/J8; volledig passief.
 
 ## Audio-aanlanding (voorstel)
 
