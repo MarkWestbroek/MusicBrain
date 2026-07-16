@@ -1,0 +1,6 @@
+{
+  "meta": {"filename": "musicbrain-busboard.kicad_pro", "version": 3},
+  "general": {"project_name": "MusicBrain busboard"},
+  "schematic": {"file": "musicbrain-busboard.kicad_sch"},
+  "pcb": {"file": "musicbrain-busboard.kicad_pcb"}
+}

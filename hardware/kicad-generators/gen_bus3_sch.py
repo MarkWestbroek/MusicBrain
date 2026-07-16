@@ -1064,4 +1064,9 @@ doc = f'''(kicad_sch
 '''
 os.makedirs(OUT_DIR, exist_ok=True)
 open(OUT, "w", encoding="utf-8", newline="\n").write(doc)
+open(OUT_DIR + r"\musicbrain-busboard.kicad_pro", "w", encoding="utf-8", newline="\n").write(
+    '{\n  "meta": {"filename": "musicbrain-busboard.kicad_pro", "version": 3},\n'
+    '  "general": {"project_name": "MusicBrain busboard"},\n'
+    '  "schematic": {"file": "musicbrain-busboard.kicad_sch"},\n'
+    '  "pcb": {"file": "musicbrain-busboard.kicad_pcb"}\n}\n')
 print("written", OUT, f"({len(doc.splitlines())} lines, {_pwr[0]} power syms, {_flg[0]} flags)")
