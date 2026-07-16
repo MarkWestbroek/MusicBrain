@@ -37,7 +37,7 @@ contentTypes:
 
 ## Acceptatie
 
-- `https://musicbrain.nl/hw/adc8` → 301 → `https://musicbrain.nl/components/adc8`
+- `https://musicbrain.nl/hw/adc8` → 308 (of 301) → `https://musicbrain.nl/components/adc8`
 - geldt voor alle dertien (straks meer) gepubliceerde borden zonder
   per-bord-configuratie.
 
