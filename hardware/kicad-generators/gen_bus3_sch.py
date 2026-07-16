@@ -1064,9 +1064,25 @@ doc = f'''(kicad_sch
 '''
 os.makedirs(OUT_DIR, exist_ok=True)
 open(OUT, "w", encoding="utf-8", newline="\n").write(doc)
+# power-klasse 0,35: v2-les - 0,5 past niet tussen de slotpads, 0,35 wel;
+# de DSN-export geeft de klassebreedtes aan freerouting door
 open(OUT_DIR + r"\musicbrain-busboard.kicad_pro", "w", encoding="utf-8", newline="\n").write(
     '{\n  "meta": {"filename": "musicbrain-busboard.kicad_pro", "version": 3},\n'
     '  "general": {"project_name": "MusicBrain busboard"},\n'
+    '  "net_settings": {\n'
+    '    "classes": [\n'
+    '      {"name": "Default", "clearance": 0.2, "track_width": 0.25,\n'
+    '       "via_diameter": 0.6, "via_drill": 0.3},\n'
+    '      {"name": "power", "clearance": 0.2, "track_width": 0.35,\n'
+    '       "via_diameter": 0.6, "via_drill": 0.3}\n'
+    '    ],\n'
+    '    "netclass_patterns": [\n'
+    '      {"netclass": "power", "pattern": "+12V"},\n'
+    '      {"netclass": "power", "pattern": "-12V"},\n'
+    '      {"netclass": "power", "pattern": "+5V"},\n'
+    '      {"netclass": "power", "pattern": "+3V3"}\n'
+    '    ]\n'
+    '  },\n'
     '  "schematic": {"file": "musicbrain-busboard.kicad_sch"},\n'
     '  "pcb": {"file": "musicbrain-busboard.kicad_pcb"}\n}\n')
 print("written", OUT, f"({len(doc.splitlines())} lines, {_pwr[0]} power syms, {_flg[0]} flags)")
