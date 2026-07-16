@@ -9,7 +9,7 @@
     (date "2026-07-16")
     (rev "2.0")
     (company "MusicBrain project")
-    (comment 1 "Gen 2: slot 2x12 (spi-bus-spec v2.0), kaart 80x45")
+    (comment 1 "Gen 2: slot 2x12 (spi-bus-spec v2.0), kaart 60x45")
     (comment 2 "2x AD5754BREZ in daisy-chain (48-bit frames) + ADR421 2.5V-ref")
     (comment 3 "LDAC = buslijn (sample-synchrone updates); offset binary (BIN->DVCC)")
   )

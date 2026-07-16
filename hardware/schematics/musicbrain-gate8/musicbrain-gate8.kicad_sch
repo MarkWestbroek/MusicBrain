@@ -9,7 +9,7 @@
     (date "2026-07-16")
     (rev "2.0")
     (company "MusicBrain project")
-    (comment 1 "Gen 2: slot 2x12 (spi-bus-spec v2.0), kaart 80x45")
+    (comment 1 "Gen 2: slot 2x12 (spi-bus-spec v2.0), kaart 55x45")
     (comment 2 "74HCT595 @ +5V (AMS1117 vanaf +12V); SPI mode 0, latch op CS-flank")
     (comment 3 "gates 0-5V via 1k serie; bit0=QA=GATE1 .. bit7=QH=GATE8")
   )

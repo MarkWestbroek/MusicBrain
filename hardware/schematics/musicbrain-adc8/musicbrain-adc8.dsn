@@ -21,7 +21,7 @@
       )
     )
     (boundary
-      (path pcb 0  100600.0 -144400.0  179400.0 -144400.0  179400.0 -100600.0  100600.0 -100600.0  100600.0 -144400.0)
+      (path pcb 0  108100.0 -144400.0  171900.0 -144400.0  171900.0 -100600.0  108100.0 -100600.0  108100.0 -144400.0)
     )
     
     
@@ -72,7 +72,7 @@
       (place C2 158000 -121000 front 90 (PN 10u))
     )
     (component Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical
-      (place JP1 112000 -112000 front 0 (PN RANGE))
+      (place JP1 114000 -112000 front 0 (PN RANGE))
     )
     (component Resistor_SMD:R_0805_2012Metric::1
       (place R9 124000 -125500 front 0 (PN 100k))
@@ -832,13 +832,13 @@
             137000 -119500)(net GND)(type route))
     (via "Via[0-1]_500:300_um"  138500 -122500 (net GND)(type route))
     (via "Via[0-1]_500:300_um"  141500 -122500 (net GND)(type route))
-    (via "Via[0-1]_500:300_um"  102000 -102000 (net GND)(type route))
-    (via "Via[0-1]_500:300_um"  178000 -102000 (net GND)(type route))
-    (via "Via[0-1]_500:300_um"  102000 -143000 (net GND)(type route))
-    (via "Via[0-1]_500:300_um"  178000 -143000 (net GND)(type route))
-    (via "Via[0-1]_500:300_um"  102000 -122000 (net GND)(type route))
-    (via "Via[0-1]_500:300_um"  178000 -122000 (net GND)(type route))
-    (via "Via[0-1]_500:300_um"  112000 -135000 (net GND)(type route))
-    (via "Via[0-1]_500:300_um"  168000 -135000 (net GND)(type route))
+    (via "Via[0-1]_500:300_um"  109500 -102000 (net GND)(type route))
+    (via "Via[0-1]_500:300_um"  170500 -102000 (net GND)(type route))
+    (via "Via[0-1]_500:300_um"  109500 -143000 (net GND)(type route))
+    (via "Via[0-1]_500:300_um"  170500 -143000 (net GND)(type route))
+    (via "Via[0-1]_500:300_um"  109500 -122000 (net GND)(type route))
+    (via "Via[0-1]_500:300_um"  170500 -122000 (net GND)(type route))
+    (via "Via[0-1]_500:300_um"  113500 -135000 (net GND)(type route))
+    (via "Via[0-1]_500:300_um"  166500 -135000 (net GND)(type route))
   )
 )

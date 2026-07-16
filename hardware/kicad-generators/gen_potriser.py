@@ -1,8 +1,7 @@
 """MusicBrain POT-RISER (gen 2): MCP3208-riser voor het POT8-FRONT.
 
-Gen 2 (spi-bus-spec v2.0): slot 2x12, H=45. Bord 80x50 (was 28x80): de 2x12
-spant 27,94 mm en de vrije kernband tussen de connector-courtyards is 33,3 mm
-- ruim genoeg voor de MCP3208 + 9 caps (137 mm2 = 5% dichtheid).
+Gen 2 (spi-bus-spec v2.0): slot 2x12, H=45. Bord 40x45 (was 28x80; 80 breed
+in de eerste gen-2-ronde, afgeslankt 2026-07-16): de 2x12 spant 27,94 mm.
 
 Onder: haakse male 2x12 in het slot (gebruikt alleen SPI/3V3/GND).
 Boven: haakse male 1x10 naar het POT8-FRONT (contract ongewijzigd:
@@ -29,7 +28,7 @@ GEBRUIKT = {'GND', '+3V3', '/SCLK', '/MOSI', '/MISO', '/CS'}
 # ================= SCHEMA =================
 s = Sch("d0710000-0000-4000-8000-000000000000", "musicbrain-potriser",
         "MusicBrain POT-RISER - MCP3208-riser voor POT8-FRONT", REV, DATE,
-        ("Gen 2: slot 2x12 (spi-bus-spec v2.0), H=45, bord 80x50",
+        ("Gen 2: slot 2x12 (spi-bus-spec v2.0), H=45, bord 40x45",
          "Boven: POT8-FRONT (1x10: 1=GND, 2..9=W1..8, 10=+3V3)"))
 s.libs += [C_SYM, FLAG_SYM, conn_symbol("Conn_02x12", 12), conn1_symbol("Conn_01x10", 10),
            box_symbol("MCP3208",
@@ -108,7 +107,7 @@ s.write(os.path.join(OUT_DIR, "musicbrain-potriser.kicad_sch"))
 
 # ================= PCB (placement; koper via freerouting) =================
 NETS = ['', 'GND', '+3V3', '/SCLK', '/MOSI', '/MISO', '/CS'] + [f'/W{k}' for k in range(1, 9)]
-BX0, BX1 = 100.0, 180.0            # 80 mm (= bus.KAART_B)
+BX0, BX1 = 120.0, 160.0            # 40 mm (afslank-ronde: 80 was maximum, geen eis)
 CX = (BX0 + BX1) / 2               # 140.0
 b = Board("MusicBrain POT-RISER - MCP3208-riser", REV,
           (CX, bus.BY1 - 12.5, 0), BX0, bus.BY0, BX1, bus.BY1, NETS, DATE)
@@ -148,9 +147,9 @@ if os.path.exists(ses):
     nt, nv = apply_ses(b, ses)
     print(f"SES: {nt} sporen, {nv} vias overgenomen")
     print(f"snap_stubs: {b.snap_stubs()} stubs aangevuld")
-for x, y in ((102, bus.BY0 + 2), (178, bus.BY0 + 2), (102, bus.BY1 - 2),
-             (178, bus.BY1 - 2), (102, 122), (178, 122),
-             (112, bus.BY1 - 10), (168, bus.BY1 - 10)):
+for x, y in ((BX0 + 2, bus.BY0 + 2), (BX1 - 2, bus.BY0 + 2), (BX0 + 2, bus.BY1 - 2),
+             (BX1 - 2, bus.BY1 - 2), (BX0 + 2, 122), (BX1 - 2, 122),
+             (BX0 + 12, bus.BY1 - 10), (BX1 - 12, bus.BY1 - 10)):
     b.V('GND', x, y)
 # eiland-hechtvia's van gnd_stitch.py/gnd_bridge.py (clearance-gecheckt)
 import json as _json

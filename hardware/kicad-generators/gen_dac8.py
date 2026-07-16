@@ -1,6 +1,6 @@
 """MusicBrain DAC8 (gen 2) - 8x CV out (2x AD5754 daisy-chain + ADR421).
 
-Gen 2 (spi-bus-spec v2.0): slot 2x12, kaart 80x45 (bus.KAART_B x bus.H).
+Gen 2 (spi-bus-spec v2.0): slot 2x12, kaart 60x45.
 Onder: haakse male 2x12 in het slot. Boven: haakse male 1x10 naar het
 jack-front, gecentreerd op het kaarthart. Beide AD5754's met de VOUT-pinnen
 richting de CV-kolommen; signaalroutes via freerouting (SES naast dit
@@ -40,7 +40,7 @@ AD_R = [("24", "AVDD", "power_in"), ("23", "VOUTC", "output"),
 # ================= SCHEMA =================
 s = Sch("d0900000-0000-4000-8000-000000000000", "musicbrain-dac8",
         "MusicBrain DAC8 - 8x CV out slot card", REV, DATE,
-        ("Gen 2: slot 2x12 (spi-bus-spec v2.0), kaart 80x45",
+        ("Gen 2: slot 2x12 (spi-bus-spec v2.0), kaart 60x45",
          "2x AD5754BREZ in daisy-chain (48-bit frames) + ADR421 2.5V-ref",
          "LDAC = buslijn (sample-synchrone updates); offset binary (BIN->DVCC)"))
 s.libs += [R_SYM, C_SYM, CP_SYM, FLAG_SYM,
@@ -180,10 +180,10 @@ NETS = (['', '+12V', '-12V', '+3V3', 'GND', '/SCLK', '/MOSI', '/MISO', '/CS',
          '/LDAC', '/CLR', '/DAISY', '/VREF']
         + [f'/CV{k}' for k in range(1, 9)]
         + ['/VA1', '/VB1', '/VC1', '/VD1', '/VA2', '/VB2', '/VC2', '/VD2'])
-BX0, BX1 = 100.0, bus.KAART_B + 100.0     # 80 mm
+BX0, BX1 = 110.0, 170.0                   # 60 mm (afslank-ronde)
 CX = (BX0 + BX1) / 2                      # 140.0
 b = Board("MusicBrain DAC8 - 8x CV out slot card", REV,
-          (113, 138, 0), BX0, bus.BY0, BX1, bus.BY1, NETS, DATE)
+          (111.5, 120, 90), BX0, bus.BY0, BX1, bus.BY1, NETS, DATE)
 b.silk_name = 'dac8'
 P = b.P
 
@@ -233,7 +233,7 @@ b.fp('Resistor_SMD.pretty\\R_0805_2012Metric.kicad_mod',
 CAPS_P = [
     ('C1', 'CP', 158.0, 130.5, 90, b.rc('+12V', 'GND')),     # bulk +12V bij J1
     ('C2', 'C', 136.9, 115.8, 90, b.rc('+12V', 'GND')),      # U1 AVDD (24)
-    ('C3', 'CP', 110.0, 128.0, 90, b.rc('-12V', 'GND')),     # bulk -12V west
+    ('C3', 'CP', 115.0, 128.0, 90, b.rc('-12V', 'GND')),     # bulk -12V west
     ('C4', 'C', 125.2, 115.8, 90, b.rc('-12V', 'GND')),      # U1 AVSS (1)
     ('C5', 'C', 127.0, 128.1, 270, b.rc('+3V3', 'GND')),     # U1 DVCC/BIN (GND-pad zuid, open corridor)
     ('C6', 'C', 158.5, 120.5, 0, b.rc('/VREF', 'GND')),      # U3 uit
@@ -269,9 +269,9 @@ if os.path.exists(ses):
     print(f"snap_stubs: {b.snap_stubs()} stubs aangevuld")
 
 # GND-hechtvia's: hoeken/randen + eiland-via's uit gnd_stitch.json
-for x, y in ((102, bus.BY0 + 2), (178, bus.BY0 + 2), (102, bus.BY1 - 2),
-             (178, bus.BY1 - 2), (102, 122), (178, 122),
-             (112, bus.BY1 - 10), (168, bus.BY1 - 10)):
+for x, y in ((BX0 + 2, bus.BY0 + 2), (BX1 - 2, bus.BY0 + 2), (BX0 + 2, bus.BY1 - 2),
+             (BX1 - 2, bus.BY1 - 2), (BX0 + 2, 122), (BX1 - 2, 122),
+             (BX0 + 6, bus.BY1 - 10), (BX1 - 6, bus.BY1 - 10)):
     b.V('GND', x, y)
 import json as _json
 _sf = os.path.join(OUT_DIR, 'gnd_stitch.json')

@@ -1,6 +1,6 @@
 """MusicBrain ADC8 (gen 2) - 8x CV in (AD7606 serial mode), PCB.
 
-Gen 2 (spi-bus-spec v2.0): slot 2x12, kaart 80x45 (bus.KAART_B x bus.H).
+Gen 2 (spi-bus-spec v2.0): slot 2x12, kaart 65x45.
 Schema: gen_adc_sch.py (zelfde map). Onder: haakse male 2x12 in het slot;
 CONVST = /SPARE1 (pin 19), RESET is lokaal (C15/R9 RC-power-up, geen buslijn
 meer). Boven: haakse male 1x10 naar het jack-front, gecentreerd.
@@ -26,10 +26,10 @@ NETS = (['', '+12V', '+5V', '+3V3', 'GND', '/SCLK', '/MISO', '/CS', '/IRQ',
          '/CONVST', '/RANGE', '/RESET', '/REGCAP1', '/REGCAP2', '/REF',
          '/REFCAP']
         + [f'/IN{k}' for k in range(1, 9)] + [f'/V{k}' for k in range(1, 9)])
-BX0, BX1 = 100.0, bus.KAART_B + 100.0     # 80 mm
+BX0, BX1 = 107.5, 172.5                   # 65 mm (afslank-ronde)
 CX = (BX0 + BX1) / 2                      # 140.0
 b = Board("MusicBrain ADC8 - 8x CV in slot card", REV,
-          (113, 138, 0), BX0, bus.BY0, BX1, bus.BY1, NETS, DATE)
+          (109, 122, 90), BX0, bus.BY0, BX1, bus.BY1, NETS, DATE)
 b.silk_name = 'adc8'
 P = b.P
 
@@ -111,7 +111,7 @@ b.fp('Capacitor_SMD.pretty\\C_0805_2012Metric.kicad_mod',
 # RANGE-jumper + RESET-RC in de westhelft
 b.fp('Connector_PinHeader_2.54mm.pretty\\PinHeader_1x03_P2.54mm_Vertical.kicad_mod',
      'Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical',
-     'JP1', 'RANGE', 112.0, 112.0, 0,
+     'JP1', 'RANGE', 114.0, 112.0, 0,
      b.nm({'1': '+3V3', '2': '/RANGE', '3': 'GND'}))
 b.fp('Capacitor_SMD.pretty\\C_0805_2012Metric.kicad_mod',
      'Capacitor_SMD:C_0805_2012Metric', 'C15', '100n', 124.0, 122.5, 0,
@@ -150,9 +150,9 @@ if os.path.exists(ses):
     print(f"snap_stubs: {b.snap_stubs()} stubs aangevuld")
 
 # GND-hechtvia's: hoeken/randen + eiland-via's uit gnd_stitch.json
-for x, y in ((102, bus.BY0 + 2), (178, bus.BY0 + 2), (102, bus.BY1 - 2),
-             (178, bus.BY1 - 2), (102, 122), (178, 122),
-             (112, bus.BY1 - 10), (168, bus.BY1 - 10)):
+for x, y in ((BX0 + 2, bus.BY0 + 2), (BX1 - 2, bus.BY0 + 2), (BX0 + 2, bus.BY1 - 2),
+             (BX1 - 2, bus.BY1 - 2), (BX0 + 2, 122), (BX1 - 2, 122),
+             (BX0 + 6, bus.BY1 - 10), (BX1 - 6, bus.BY1 - 10)):
     b.V('GND', x, y)
 import json as _json
 _sf = os.path.join(OUT_DIR, 'gnd_stitch.json')

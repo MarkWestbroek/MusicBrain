@@ -1,6 +1,6 @@
 """MusicBrain GATEIN8 (gen 2) - 8x gate/trigger-ingang (74HC165 + LVC1G125).
 
-Gen 2 (spi-bus-spec v2.0): slot 2x12, kaart 80x45 (bus.KAART_B x bus.H).
+Gen 2 (spi-bus-spec v2.0): slot 2x12, kaart 50x45.
 Onder: haakse male 2x12 in het slot (alleen GND/3V3/SCLK/MISO/CS gebruikt).
 Boven: haakse male 1x10 naar het jack-front, gecentreerd op het kaarthart.
 Signaalroutes via freerouting (SES naast dit script); GND via de vlakken +
@@ -27,7 +27,7 @@ D_OF_IN = {1: 'D3', 2: 'D2', 3: 'D4', 4: 'D5', 5: 'D6', 6: 'D7', 7: 'D1', 8: 'D0
 # ================= SCHEMA =================
 s = Sch("d0800000-0000-4000-8000-000000000000", "musicbrain-gatein8",
         "MusicBrain GATEIN8 - 8x gate in slot card", REV, DATE,
-        ("Gen 2: slot 2x12 (spi-bus-spec v2.0), kaart 80x45",
+        ("Gen 2: slot 2x12 (spi-bus-spec v2.0), kaart 50x45",
          "74HC165 + 74LVC1G125 (tri-state MISO); RC-latchpuls op ~PL vanaf CS",
          "per kanaal: 100k serie, 100k pulldown, BAT54S-clamp naar 3V3"))
 s.libs += [R_SYM, C_SYM, CP_SYM, FLAG_SYM,
@@ -166,10 +166,10 @@ s.write(OUT_DIR + r"\musicbrain-gatein8.kicad_sch")
 # ================= PCB =================
 NETS = (['', '+3V3', 'GND', '/SCLK', '/MISO', '/CS', '/PL', '/Q7']
         + [f'/IN{k}' for k in range(1, 9)] + [f'/N{k}' for k in range(1, 9)])
-BX0, BX1 = 100.0, bus.KAART_B + 100.0     # 80 mm
+BX0, BX1 = 115.0, 165.0                   # 50 mm (afslank-ronde)
 CX = (BX0 + BX1) / 2                      # 140.0
 b = Board("MusicBrain GATEIN8 - 8x gate in slot card", REV,
-          (114, 128, 0), BX0, bus.BY0, BX1, bus.BY1, NETS, DATE)
+          (118.5, 122, 90), BX0, bus.BY0, BX1, bus.BY1, NETS, DATE)
 b.silk_name = 'gatein8'
 P = b.P
 
@@ -227,9 +227,9 @@ if os.path.exists(ses):
     print(f"snap_stubs: {b.snap_stubs()} stubs aangevuld")
 
 # GND-hechtvia's: hoeken/randen + eiland-via's uit gnd_stitch.json
-for x, y in ((102, bus.BY0 + 2), (178, bus.BY0 + 2), (102, bus.BY1 - 2),
-             (178, bus.BY1 - 2), (102, 122), (178, 122),
-             (112, bus.BY1 - 10), (168, bus.BY1 - 10)):
+for x, y in ((BX0 + 2, bus.BY0 + 2), (BX1 - 2, bus.BY0 + 2), (BX0 + 2, bus.BY1 - 2),
+             (BX1 - 2, bus.BY1 - 2), (BX0 + 2, 122), (BX1 - 2, 122),
+             (BX0 + 6, bus.BY1 - 10), (BX1 - 6, bus.BY1 - 10)):
     b.V('GND', x, y)
 import json as _json
 _sf = os.path.join(OUT_DIR, 'gnd_stitch.json')

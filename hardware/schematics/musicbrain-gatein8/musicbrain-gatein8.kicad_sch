@@ -9,7 +9,7 @@
     (date "2026-07-16")
     (rev "2.0")
     (company "MusicBrain project")
-    (comment 1 "Gen 2: slot 2x12 (spi-bus-spec v2.0), kaart 80x45")
+    (comment 1 "Gen 2: slot 2x12 (spi-bus-spec v2.0), kaart 50x45")
     (comment 2 "74HC165 + 74LVC1G125 (tri-state MISO); RC-latchpuls op ~PL vanaf CS")
     (comment 3 "per kanaal: 100k serie, 100k pulldown, BAT54S-clamp naar 3V3")
   )

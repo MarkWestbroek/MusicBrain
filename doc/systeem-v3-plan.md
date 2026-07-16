@@ -121,8 +121,8 @@ Front heeft een **TOSLINK TOTX/TORX-module** nodig. Nog narekenen: 3V3-budget
 6. **Busboard v3**: floorplan + placement, dan freerouting (grootste klus). ✔
 7. **Slotkaarten afslanken** (observatie Mark 2026-07-16): 80 mm is een
    maximum, geen eis — de kaarten mogen smaller en asymmetrisch, zolang
-   J1/J2 op één hartlijn blijven (front boven het slot). Richtwaarden:
-   potriser ~40, gatein8 ~50, gate8 ~55, dac8 ~60, adc8 ~65.
+   J1/J2 op één hartlijn blijven (front boven het slot). Uitgevoerd:
+   potriser 40, gatein8 50, gate8 55, dac8 60, adc8 65. ✔
 8. Fab + README's + MODULES.md + herpubliceren naar de site.
 
 Poortwachters ongewijzigd: ERC 0 + netcheck OK + DRC 0/0 vóór commit.

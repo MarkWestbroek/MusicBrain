@@ -1,6 +1,6 @@
 """MusicBrain GATE8 (gen 2) - 8x gate-uitgang (74HCT595 @ +5V), sch + PCB.
 
-Gen 2 (spi-bus-spec v2.0): slot 2x12, kaart 80x45 (bus.KAART_B x bus.H).
+Gen 2 (spi-bus-spec v2.0): slot 2x12, kaart 55x45.
 Onder: haakse male 2x12 in het slot (GND/+12V/SCLK/MOSI/CS gebruikt; +5V is
 lokaal via AMS1117-5.0). Boven: haakse male 1x10 naar het jack-front,
 gecentreerd op het kaarthart. U1 rot 270: uitgangen (QA-QH) noordwaarts naar
@@ -28,7 +28,7 @@ Q = ['QA', 'QB', 'QC', 'QD', 'QE', 'QF', 'QG', 'QH']   # QA=GATE1 .. QH=GATE8
 # ================= SCHEMA =================
 s = Sch("d0000000-0000-4000-8000-000000000000", "musicbrain-gate8",
         "MusicBrain GATE8 - 8x gate output slot card", REV, DATE,
-        ("Gen 2: slot 2x12 (spi-bus-spec v2.0), kaart 80x45",
+        ("Gen 2: slot 2x12 (spi-bus-spec v2.0), kaart 55x45",
          "74HCT595 @ +5V (AMS1117 vanaf +12V); SPI mode 0, latch op CS-flank",
          "gates 0-5V via 1k serie; bit0=QA=GATE1 .. bit7=QH=GATE8"))
 s.libs += [R_SYM, C_SYM, CP_SYM, FLAG_SYM,
@@ -146,10 +146,10 @@ s.write(OUT_DIR + r"\musicbrain-gate8.kicad_sch")
 # ================= PCB =================
 NETS = (['', '+12V', '+5V', 'GND', '/SCLK', '/MOSI', '/CS']
         + [f'/GATE{k}' for k in range(1, 9)] + [f'/{q}' for q in Q])
-BX0, BX1 = 100.0, bus.KAART_B + 100.0     # 80 mm
+BX0, BX1 = 112.5, 167.5                   # 55 mm (afslank-ronde)
 CX = (BX0 + BX1) / 2                      # 140.0
 b = Board("MusicBrain GATE8 - 8x gate out slot card", REV,
-          (114, 128, 0), BX0, bus.BY0, BX1, bus.BY1, NETS, DATE)
+          (116, 122, 90), BX0, bus.BY0, BX1, bus.BY1, NETS, DATE)
 b.silk_name = 'gate8'
 P = b.P
 
@@ -183,7 +183,7 @@ b.fp('Package_TO_SOT_SMD.pretty\\SOT-223-3_TabPin2.kicad_mod',
      'Package_TO_SOT_SMD:SOT-223-3_TabPin2', 'U2', 'AMS1117-5.0',
      162.0, 126.0, 0, U2_MAP)
 b.fp('Capacitor_SMD.pretty\\C_0805_2012Metric.kicad_mod',
-     'Capacitor_SMD:C_0805_2012Metric', 'C1', '100n', 170.5, 126.0, 90,
+     'Capacitor_SMD:C_0805_2012Metric', 'C1', '100n', 162.0, 119.0, 90,
      b.rc('+12V', 'GND'))
 b.fp('Capacitor_SMD.pretty\\CP_Elec_4x5.3.kicad_mod',
      'Capacitor_SMD:CP_Elec_4x5.3', 'C2', '10u', 153.0, 126.0, 90,
@@ -201,9 +201,9 @@ if os.path.exists(ses):
     print(f"snap_stubs: {b.snap_stubs()} stubs aangevuld")
 
 # GND-hechtvia's: hoeken/randen + eiland-via's uit gnd_stitch.json
-for x, y in ((102, bus.BY0 + 2), (178, bus.BY0 + 2), (102, bus.BY1 - 2),
-             (178, bus.BY1 - 2), (102, 122), (178, 122),
-             (112, bus.BY1 - 10), (168, bus.BY1 - 10)):
+for x, y in ((BX0 + 2, bus.BY0 + 2), (BX1 - 2, bus.BY0 + 2), (BX0 + 2, bus.BY1 - 2),
+             (BX1 - 2, bus.BY1 - 2), (BX0 + 2, 122), (BX1 - 2, 122),
+             (BX0 + 6, bus.BY1 - 10), (BX1 - 6, bus.BY1 - 10)):
     b.V('GND', x, y)
 import json as _json
 _sf = os.path.join(OUT_DIR, 'gnd_stitch.json')
