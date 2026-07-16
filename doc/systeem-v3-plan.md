@@ -117,7 +117,7 @@ Front heeft een **TOSLINK TOTX/TORX-module** nodig. Nog narekenen: 3V3-budget
    `j1_map()`. ✔
 3. **Risers** eerst (dom, snel = vroege validatie van de 2×12-keten). ✔
 4. **Slotkaarten** (adc8/dac8/gate8/gatein8): herindelen 80×45 → freerouting.
-5. **jack8/jack4** herindelen.
+5. **jack8/jack4** herindelen. ✔
 6. **Busboard v3**: floorplan + placement, dan freerouting (grootste klus).
 7. Fab + README's + MODULES.md + herpubliceren naar de site.
 

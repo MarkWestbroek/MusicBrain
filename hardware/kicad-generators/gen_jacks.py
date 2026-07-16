@@ -195,8 +195,8 @@ def make_sch(name, n, root):
   (paper "A4")
   (title_block
     (title "MusicBrain {name} - Thonkiconn paneeldrager ({n} jacks)")
-    (date "2026-07-08")
-    (rev "1.1")
+    (date "2026-07-16")
+    (rev "2.0")
     (company "MusicBrain project")
     (comment 1 "Prikt op frontconnector van GATE8/ADC8 ({name} contract: 1=GND, 2..{n+1}=CH, {n+2}=GND)")
     (comment 2 "JP1 dicht = schakelcontacten (TN) aan GND: alleen voor INPUT-kaarten")
@@ -217,9 +217,11 @@ def make_sch(name, n, root):
 
 
 def jack_footprint(ref, x, y, uid, path, tnet, snet, nnet):
+    # pads in y geslankt voor steek 13,75 (buurjack: sleeve->tip 2,35 c-c);
+    # slot 0,6 -> annular >= 0,65 blijft royaal
     pads = [
-        ('1', 0, -4.92, 'roundrect', 2.6, 2.6, tnet),
-        ('2', 0, 6.48, 'oval', 3.1, 2.3, snet),
+        ('1', 0, -4.92, 'roundrect', 2.6, 1.8, tnet),
+        ('2', 0, 6.48, 'oval', 3.1, 1.5, snet),
         ('3', 0, 3.38, 'roundrect', 2.6, 2.6, nnet),
     ]
     pt = []
@@ -242,7 +244,7 @@ def jack_footprint(ref, x, y, uid, path, tnet, snet, nnet):
       (stroke (width 0.12) (type solid)) (fill no) (layer "F.SilkS"))
     (fp_circle (center 0 0) (end 3 0)
       (stroke (width 0.12) (type solid)) (fill no) (layer "F.Fab"))
-    (fp_rect (start -5 -7.25) (end 5 7.58)
+    (fp_rect (start -5 -6.05) (end 5 7.45)
       (stroke (width 0.05) (type solid)) (fill no) (layer "F.CrtYd"))
 {chr(10).join(pt)}
     (model "${{KIPRJMOD}}/../3d/PJ301M-12_Thonkiconn.stp"
@@ -250,7 +252,10 @@ def jack_footprint(ref, x, y, uid, path, tnet, snet, nnet):
   )'''
 
 
-def make_pcb(name, n, root, silk):
+def make_pcb(name, n, root, silk, jy0, by1):
+    """Gen 2: jacksteek 13,75 (= pot8front); jack8 110 mm met de socket
+    gecentreerd op de frontlengte (HY0 143,57 + span 22,86 -> hart op 155 =
+    bordhart). jack4 hangt via een kabel aan de hub-DAC: alleen de steek."""
     _u = [0]
     def uid():
         _u[0] += 1
@@ -258,8 +263,8 @@ def make_pcb(name, n, root, silk):
     rows = n + 2
     NETS = ['', 'GND', '/NORM'] + [f'/CH{k}' for k in range(1, n + 1)]
     NI = {nm: i for i, nm in enumerate(NETS)}
-    BY1 = 100 + 15 * n + 5   # board bottom
-    JY = [108 + 15 * k for k in range(n)]           # jack centers
+    BY1 = by1                # board bottom
+    JY = [jy0 + 13.75 * k for k in range(n)]        # jack centers (4 HP-front)
     JX = 116.5               # front-koppel-standaard: socketkolom (= pot8front)
     HY0 = 143.57             # front-koppel-standaard: pin 1 (= pot8front JY0)
     fps, tracks, vias = [], [], []
@@ -302,7 +307,7 @@ def make_pcb(name, n, root, silk):
       (offset (xyz 0 0 0)) (scale (xyz 1 1 1)) (rotate (xyz 0 0 0)))
   )''')
     # solder jumper (SMD, on back? keep front) near bottom
-    sj_y = BY1 - 3
+    sj_y = BY1 - 1.5     # vrij van de laatste NORM-tap (jack8: 206,5)
     fps.append(f'''  (footprint "Jumper:SolderJumper-2_P1.3mm_Open_TrianglePad1.0x1.5mm"
     (layer "F.Cu")
     (uuid "{uid()}")
@@ -341,11 +346,11 @@ def make_pcb(name, n, root, silk):
     for k in range(1, n):
         pass
     T('/NORM', 'F.Cu', 0.3, (108, JY[0] + 3.38), (103.5, JY[0] + 3.38),
-      (103.5, sj_y - 3), (102.85, sj_y - 3), (102.85, sj_y))
+      (103.5, sj_y - 1.8), (102.85, sj_y - 1.8), (102.85, sj_y))
     for k in range(1, n):
         T('/NORM', 'F.Cu', 0.3, (108, JY[k] + 3.38), (103.5, JY[k] + 3.38))
     # GND stitching
-    for sx, sy in ((102, 102), (118, 102), (102, BY1 - 1.8), (118, BY1 - 2),
+    for sx, sy in ((102, 102), (118, 102), (101.2, BY1 - 1.8), (118, BY1 - 2),
                    (118, (100 + BY1) / 2)):
         vias.append((NI['GND'], sx, sy))
 
@@ -377,8 +382,8 @@ def make_pcb(name, n, root, silk):
   (paper "A3")
   (title_block
     (title "MusicBrain {name}")
-    (date "2026-07-11")
-    (rev "1.2")
+    (date "2026-07-16")
+    (rev "2.0")
     (company "MusicBrain project")
   )
   (layers
@@ -423,15 +428,24 @@ def make_pcb(name, n, root, silk):
 '''
     d = os.path.join(BASE, f"musicbrain-{name}")
     open(os.path.join(d, f"musicbrain-{name}.kicad_pcb"), "w", encoding="utf-8", newline="\n").write(doc)
+    # rand-marge 0,3 (JLC-minimum): 8 jacks @13,75 gecentreerd + 0,5 default
+    # past niet in de 110 tussen de rails (pad-envelop 109,3)
     open(os.path.join(d, f"musicbrain-{name}.kicad_pro"), "w", encoding="utf-8", newline="\n").write(
         '{\n  "meta": {"filename": "musicbrain-%s.kicad_pro", "version": 3},\n'
         '  "general": {"project_name": "MusicBrain %s"},\n'
+        '  "board": {"design_settings": {"rules": {"min_copper_edge_clearance": 0.3}}},\n'
         '  "schematic": {"file": "musicbrain-%s.kicad_sch"},\n'
         '  "pcb": {"file": "musicbrain-%s.kicad_pcb"}\n}\n' % (name, name, name, name))
 
 
 d8 = make_sch("jack8", 8, "e8000001-0000-4000-8000")
-make_pcb("jack8", 8, "e8000002-0000-4000-8000", "musicbrain.nl/hw/jack8 rev 1.2")
+# jack8: 110 mm front (100..210); 8 @ 13,75 gecentreerd -> marge 6,875
+# jackkolom 0,7 noordwaarts: de pad-envelop (tip -5,92 .. sleeve +7,33) is
+# asymmetrisch en past alleen zo binnen de 110; socket blijft op het hart
+make_pcb("jack8", 8, "e8000002-0000-4000-8000", "musicbrain.nl/hw/jack8 rev 2.0",
+         106.17, 210)
 d4 = make_sch("jack4", 4, "e4000001-0000-4000-8000")
-make_pcb("jack4", 4, "e4000002-0000-4000-8000", "musicbrain.nl/hw/jack4 rev 1.2")
+# jack4: kabelbord (hub-DAC), centrering irrelevant; 4 @ 13,75
+make_pcb("jack4", 4, "e4000002-0000-4000-8000", "musicbrain.nl/hw/jack4 rev 2.0",
+         108.0, 160)
 print("written", d8, "and", d4)

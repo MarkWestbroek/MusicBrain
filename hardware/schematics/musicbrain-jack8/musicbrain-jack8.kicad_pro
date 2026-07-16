@@ -1,6 +1,7 @@
 {
   "meta": {"filename": "musicbrain-jack8.kicad_pro", "version": 3},
   "general": {"project_name": "MusicBrain jack8"},
+  "board": {"design_settings": {"rules": {"min_copper_edge_clearance": 0.3}}},
   "schematic": {"file": "musicbrain-jack8.kicad_sch"},
   "pcb": {"file": "musicbrain-jack8.kicad_pcb"}
 }
