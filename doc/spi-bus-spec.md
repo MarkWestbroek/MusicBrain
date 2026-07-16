@@ -1,7 +1,16 @@
 # MusicBrain SPI-bus specificatie (busboard + expansiekaarten)
 
-**Status**: voorstel v1.0 — 2026-07-07
-**KiCad-referentie**: `hardware/schematics/musicbrain-busboard/musicbrain-busboard.kicad_sch`
+**Documentversie**: **v2.0** — 2026-07-16 · beschrijft **bus-generatie 2 (2×12)**
+**KiCad-referentie**: `hardware/schematics/musicbrain-busboard-v2/` (wordt v3)
+
+> **Let op — versienummers lopen onafhankelijk.** Dit versienummer is dat van
+> *dit document*. Een bord heeft zijn eigen rev (busboard rev 3.0, gate8 rev
+> 2.0, …) die kan opschuiven zonder dat de spec verandert. Om verwarring te
+> voorkomen noemt de spec expliciet welke **bus-generatie** hij definieert:
+> - **gen 1** = slot 2×10 (v1.x van dit doc) — busboard v1.1 en v2.0
+> - **gen 2** = slot 2×12, +MCLK/BCLK/LRCLK/I2S_DATA, H=50 — vanaf busboard v3
+>
+> Besluiten en rationale: `doc/systeem-v3-plan.md`.
 
 Dit document is de leidende definitie voor de backplane ("busboard") en alle
 expansiekaarten. Elke nieuwe kaart wordt tegen deze pinout en designregels
@@ -12,8 +21,9 @@ waarheid, alles valideert daartegen.
 
 ```
 Eurorack PSU ──► busboard (Teensy 4.1 + 3V3/5V regeling)
-                    │ 6 verticale slots (2x10)  +  2 hub-headers (2x5, IDC-kabel)
-                    ├── slot 1..6: expansiekaarten (CV-out, gate, ADC-in, ...)
+                    │ 6 verticale slots (2x12)  +  2 hub-headers (2x5, IDC-kabel)
+                    ├── slot 1..6: expansiekaarten (CV-out, gate, ADC-in,
+                    │              gedelegeerde Teensy/FPGA met gemixte audio)
                     └── hub 1..2: bestaande breakouts (o.a. AD5754 rev 2.0)
 ```
 
@@ -28,7 +38,9 @@ Eurorack PSU ──► busboard (Teensy 4.1 + 3V3/5V regeling)
 - **I2C (3V3)** voor traag spul: potmeters, encoders, displays.
 - **IRQ per slot** (zelfde geografische truc) voor data-ready/encoder-events.
 
-## Slot-pinout (2×10, 2.54 mm — J1..J6 op busboard)
+## Slot-pinout (2×12, 2.54 mm — J1..J6 op busboard) — gen 2
+
+Pinnen **1–18 zijn identiek aan gen 1**; 19–24 zijn nieuw of gewijzigd.
 
 | Pin | Functie | Pin | Functie |
 |----:|---------|----:|---------|
@@ -41,17 +53,36 @@ Eurorack PSU ──► busboard (Teensy 4.1 + 3V3/5V regeling)
 | 13  | **CS** (geografisch) | 14 | GND |
 | 15  | LDAC    | 16  | **IRQ** (geografisch) |
 | 17  | SDA     | 18  | SCL     |
-| 19  | SPARE1 (= CONVST) | 20  | SPARE2  |
+| 19  | SPARE1 (= CONVST) | 20  | **GND** (guard, was SPARE2) |
+| 21  | **MCLK** (gedeeld) | 22  | **BCLK** (gedeeld) |
+| 23  | **LRCLK** (gedeeld) | 24  | **I2S_DATA** (per slot, slave → master) |
 
 SPARE1 is gereserveerd als **CONVST**: busbrede "sample nu"-strobe voor
 ADC-kaarten — het spiegelbeeld van LDAC. Alle DAC's updaten synchroon op
-LDAC, alle ADC's samplen synchroon op CONVST. SPARE2 is gereserveerd als
-**ADC_RESET** (AD7606 wil een resetpuls na power-up; firmware-gestuurd,
-busbreed, 100k pulldown op elke ADC-kaart).
+LDAC, alle ADC's samplen synchroon op CONVST.
 
-Connector op busboard: **PinSocket 2×10** (female); op de kaart: male pin
-header 2×10 aan de onderrand. Mechanisch aanvullen met M3-afstandsbus of
-kaartgeleider.
+> **Gewijzigd t.o.v. gen 1**: SPARE2 (was ADC_RESET) vervalt als buslijn en
+> wordt GND-guard vóór het audioblok. De AD7606-resetpuls wordt lokaal op de
+> ADC-kaart opgelost (RC-reset op power-up + 100k pulldown), niet meer busbreed.
+
+### Audio-lijnen (21–24)
+
+Hiermee kan **elk slot** een gedelegeerde module met **gemixte** audio dragen
+(2e Teensy, codec, FPGA):
+
+- **BCLK/LRCLK/MCLK zijn gedeeld** en komen van de **klokmaster**. Er mag er
+  exact één zijn (master-Teensy, codec óf FPGA — te kiezen); twee klokbronnen
+  geven drift en klikken.
+- **I2S_DATA is per slot** (slave → master). Twee Teensy's kunnen niet één
+  datalijn delen; TDM-slots tri-staten kan de Teensy-SAI niet betrouwbaar.
+- **MCLK = 256×fs = exact de ADAT-bitklok** (48 kHz → 12,288 MHz). Een
+  FPGA-kaart gebruikt MCLK dus rechtstreeks als ADAT-bitklok: geen PLL, geen
+  extra oscillator.
+- ⚠️ **Nog te reviewen**: signaalintegriteit van 21–24 (MCLK/BCLK ~12 MHz);
+  pin 20 als GND-guard is een voorstel, geen bewezen keuze.
+
+Connector op busboard: **PinSocket 2×12** (female); op de kaart: haakse male
+pin header 2×12 aan de onderrand.
 
 ## Hub-headers (2×5 IDC — J7..J8, compatibel met AD5754-breakout J1)
 
@@ -77,9 +108,14 @@ kaartgeleider.
 
 - Bus draagt **+12V, −12V, GND** (Eurorack, 10-pens entry: 1-2 = −12V met
   rode streep, 3-8 = GND, 9-10 = +12V) plus **+3V3** voor logica.
-- **+3V3 komt van een eigen regelaar op het busboard** (R-78E5.0 buck
-  12→5 V, daarna LDO 5→3.3 V) — níet van de Teensy-regulator (te weinig
-  reserve) en níet parallel daaraan (twee regelaars op één net = verboden).
+- **De 10-pens eurorack-standaard voert géén +5V** — alleen de 16-pens versie
+  heeft +5V/CV/Gate. Bus-5V is dus geen optie bij een 10-pens entry; het
+  busboard maakt zijn eigen 5V. (Geverifieerd bij Doepfer, 2026-07-16.)
+- **+3V3 komt van een eigen regelaar op het busboard** (**R-78E5.0-1.0**, buck
+  12→5 V **@ 1 A** — gen 2; was 0,5 A — daarna LDO 5→3.3 V) — níet van de
+  Teensy-regulator (te weinig reserve) en níet parallel daaraan (twee
+  regelaars op één net = verboden). 1 A is nodig omdat de **USB-host** tot
+  500 mA @ 5 V mag trekken.
 - Teensy VIN hangt aan de +5V-rail. **Let op**: als USB tegelijk met
   busvoeding gebruikt wordt, de VUSB/VIN-brug op de Teensy doorsnijden
   (standaard PJRC-advies) of een diode plaatsen.
@@ -169,7 +205,7 @@ Teensy zelf.
 ## Mechanica-standaard kaarten (besluit 2026-07-08/09, Alt-3-review)
 
 **Assenstelsel** (definitief): **L** (lengte) = lange as van het busboard,
-de richting waarin de kaarten naast elkaar staan (slotsteek 20 mm).
+de richting waarin de kaarten naast elkaar staan (**slotsteek 20,32 mm = 4 HP**).
 **B** (breedte) = diepte van het busboard; de slots en de kaartvlakken
 lopen in deze richting. **H** (hoogte) = hoe hoog een kaart boven het
 busboard uitsteekt.
@@ -178,26 +214,45 @@ Model: busboard ligt plat (L x B), kaarten staan verticaal, en boven alle
 kaarten komt **een vlakke bovenplaat** waar jacks, potmeters en encoders
 doorheen steken.
 
-1. **H = 80 mm voor alle kaarten** - dit maakt de gedeelde bovenplaat
-   mogelijk. (ADC8 is al 80; GATE8 groeit in v1.1 van 60 naar 80.)
-2. **Busconnector = haakse (horizontal) male 2x10** aan de onderrand,
+1. **H = 50 mm voor alle kaarten** (gen 2; was 80 in gen 1) — dit maakt de
+   gedeelde bovenplaat mogelijk én houdt de box laag. De kaarten waren op
+   80 mm voor 87–92% lucht; **80 mm kaartbreedte** (in B) geeft bij de
+   gemeten dichtheid 49 mm hoogte, ook voor de drukste kaart (adc8:
+   416 mm² componenten, AD7606 13,4×13,4). De hoogte wordt bepaald door de
+   mechanische stapel (J1 onder → J2 boven), niet door de componenten:
+   ~13 mm J1-zone + ~15 mm componentband + ~13 mm J2-zone + routemarge.
+   Een Teensy 4.1 (61×18) past liggend op een 80×50-kaart.
+2. **Slotsteek = 20,32 mm (4 HP)**, 1 HP = 5,08 mm — zodat de fronts op de
+   standaard gatenrij van een rack vallen. Fronts blijven 20 mm breed
+   (0,32 mm lucht ertussen).
+3. **Slots staan gecentreerd op het bordhart** (B-richting). Dit was in gen 1
+   fout: de slots stonden 16,07 mm uit het hart, waardoor de fronts scheef
+   boven het busboard hingen.
+4. **Busconnector = haakse (horizontal) male 2×12** aan de onderrand,
    pennen langs het kaartvlak omlaag het slot in.
-   (v1.0 van GATE8/ADC8 heeft nog rechte headers - wordt v1.1.)
-3. **Paneelconnector = haakse male** aan de **bovenrand** (tegenover de
+5. **Paneelconnector = haakse male** aan de **bovenrand** (tegenover de
    busrand), pennen langs het kaartvlak omhoog; hart **recht boven het
    midden van de slot-pinrij** - zodat alle jack-printjes op alle kaarten
    passen en de strips op de bovenplaat netjes uitlijnen.
-4. **Jack-printjes** liggen horizontaal (parallel aan de bovenplaat),
-   dragen een **rechte female socket aan de onderzijde**, header in het
-   **midden van de strip**; de strip loopt in de B-richting en mag voor en
-   achter de kaart uitsteken (de bovenplaat draagt de jacks via de
-   Thonkiconn-moeren). TN-normalling via soldeerjumper (dicht = inputs,
-   open = outputs!).
+6. **Front-borden** liggen horizontaal (parallel aan de bovenplaat) en dragen
+   een **rechte female socket aan de onderzijde**. Twee harde regels:
+   - **Socket gecentreerd op de lengte van het front** (niet op een vaste
+     absolute y!). Het front hangt aan zijn socket, en die zit recht boven het
+     slot; alleen bij centrering hangt het front symmetrisch. In gen 1 stond de
+     socket op een vaste y — voor 110 mm-borden is dat hetzelfde, maar jack8
+     (125 mm) hing daardoor 7,5 mm scheef en jack4 (65 mm) zelfs 17,4 mm.
+   - **Hartlijn componenten = 8,0 mm vanaf de westrand**, socketkolom op
+     16,5 mm. Zo liggen de middens van pots, encoders en jacks overal op
+     dezelfde afstand — ook bij een breder front (enc5front is 30 mm en aan
+     één kant breder; de hartlijn blijft 8,0).
+   - Bruikbare frontlengte = **110 mm** (`doc/mechanics/front-board-constraints.md`:
+     de rails eten boven+onder ~9 mm van de 128,5 mm paneelhoogte).
+   TN-normalling via soldeerjumper (dicht = inputs, open = outputs!).
 
    Vuistregel: **per koppeling precies een haakse connector, altijd aan de
    kaartzijde (male)**; busboard-slots en jack-printjes hebben rechte
    female sockets. Elke kaart draagt dus twee haakse males (onder + boven).
-5. **Silkscreen-link**: `musicbrain.nl/hw/<bord>` + rev. Kort, drukbaar en
+7. **Silkscreen-link**: `musicbrain.nl/hw/<bord>` + rev. Kort, drukbaar en
    stabiel: het domein redirect naar de actuele documentatie. Richt op
    musicbrain.nl een redirect in per bord.
 
@@ -205,7 +260,7 @@ doorheen steken.
 
 Hoe een kaart vastzit (drie niveaus, van onder naar boven):
 
-1. **Het slot zelf**: de female 2×10-socket klemt de haakse pennen — dat
+1. **Het slot zelf**: de female 2×12-socket klemt de haakse pennen — dat
    geeft prima elektrisch contact en houdt de kaart op zijn plek, maar
    biedt weinig zijdelingse stijfheid (de kaart kan wiebelen).
 2. **De bovenplaat**: elke kaart steekt zijn haakse paneelconnector in de
@@ -236,7 +291,8 @@ Thonkiconn-moeren (jacks).
    `musicbrain-potriser` (MCP3208 + 100n/loper) - frontcontract 1x10:
    **1 = GND, 2..9 = W1..W8, 10 = +3V3**.
 4. **Enc-keten** (in ontwerp): slim front (MCP23017) op de generieke
-   `musicbrain-riser` (volledige bus, 2x10, x-gematcht - zie riser-README).
+   `musicbrain-riser` (volledige bus, 2x12, x-gematcht - zie riser-README).
+   De enc-keten gebruikt inmiddels de smalle `musicbrain-i2criser`.
 5. Pin-1-orientatie van elke koppeling bij de eerste fysieke passing
    verifieren; bij spiegeling de J2-map in de generator omdraaien.
 
