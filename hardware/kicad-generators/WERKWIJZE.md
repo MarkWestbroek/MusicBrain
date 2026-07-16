@@ -198,6 +198,15 @@ Generators mogen eerder (WIP-koper expliciet benoemen). Nooit `git add -A`.
 - pcbnew-python: zones éérst vullen (`ZONE_FILLER`), `IsOnLayer` checken vóór
   `GetFilledPolysList` (assert), `GetParentFootprint()` i.p.v. `GetParent()`.
 
+## Release-archief per bord
+
+Bij een site-release wordt de stand van elk bord bevroren in een submap
+`<bord>/rel-vX.Y/` (KiCad-bronnen, README, overzicht, widget-json, pinouts,
+bom/cpl — gerbers zijn regenereerbaar). Repo-breed markeert een **prefix-tag**
+(`hw-rel-vX.Y`) dezelfde stand; fw/web taggen onafhankelijk met hun eigen
+prefix (een git-tag kan niet op een submap slaan — de prefix is de conventie).
+De site bewaart zijn kant al per versie (`/api/assets/<component>/<versie>/`).
+
 ## Startpunt voor een nieuw bord
 
 Kopieer het dichtstbijzijnde `gen_*.py` (slotkaart: `gen_gatein.py`; front:
