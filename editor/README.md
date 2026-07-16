@@ -24,6 +24,20 @@ Drie projectmodi via knoppen bovenin:
 
 Device-discovery + WebSerial upload (synchroniseren met firmware) komt in Stage 7.
 
+## Screenshots
+
+Gemaakt met de demo-data (knop **Demo** resp. **✨ Voorbeelden**/**✨ Test-patch**);
+bron in `screenshots/`, ook gebruikt voor de site.
+
+| | |
+|---|---|
+| ![effect chain](screenshots/effect-switcher-chain.png) | ![simulatie](screenshots/effect-switcher-simulation.png) |
+| Effect-chain-editor (React Flow) | Simulatie: footswitch → MIDI → brain → relaismatrix |
+| ![patches](screenshots/effect-switcher-patches.png) | |
+| Patches met bypass-toggling en relais-masker | |
+| ![modular rack](screenshots/modular-rack.png) | ![modular patcher](screenshots/modular-patcher.png) |
+| Modular MB: rack met panelen | Modular MB: patcher met signaalkleuren |
+
 ## Effect-switcher editor
 
 Alles wordt opgeslagen in `localStorage` onder key `mb.effect-switcher.v1`. Geen backend. Knop **Demo laden** vervangt het project met 5 demo-pedalen en 5 patches; **Reset** wist alles.
