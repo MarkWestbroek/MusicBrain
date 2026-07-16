@@ -618,7 +618,7 @@ for k in range(5):
 # krijgt via zijn eigen J24 de klokken aangeleverd).
 J24_L = ["MCLK", "LRCLK", "I2SD1", "I2SD3", "I2SD5", "GND", "GND"]
 J24_R = ["BCLK", "GND", "I2SD2", "I2SD4", "I2SD6", "GND", "GND"]
-J24X, J24Y = 247, 290
+J24X, J24Y = 250, 258
 component("Custom:Conn_02x07", "J24", "AUDIOHUB (I2S)", J24X, J24Y, 0,
           "Connector_PinHeader_2.54mm:PinHeader_2x07_P2.54mm_Vertical",
           extra_props=rprop("J24", "AUDIOHUB", J24X, J24Y, J24X, J24Y - 12.7, J24X, J24Y + 12.7))
@@ -637,39 +637,39 @@ libs_extra.append(boxdef("SN65HVD230",
     [("1", "D", "input"), ("4", "R", "output"), ("8", "RS", "passive"),
      ("5", "VREF", "passive"), ("3", "VCC", "power_in"), ("2", "GND", "power_in")],
     [("7", "CANH", "passive"), ("6", "CANL", "passive")]))
-place_box("SN65HVD230", "U12", "SN65HVD230", 320, 272,
+place_box("SN65HVD230", "U12", "SN65HVD230", 320, 227,
           "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
           {"1": ("label", "CAN_TX"), "4": ("label", "CAN_RX"),
            "8": ("label", "CAN_RS"), "5": ("nc",),
            "3": ("power", "power:+3V3"), "2": ("power", "power:GND"),
            "7": ("label", "CANH"), "6": ("label", "CANL")})
-(t, b) = rcomp("R13", "10k", 300, 287, 0)
+(t, b) = rcomp("R13", "10k", 302, 246, 0)
 wire(t[0], t[1], t[0], t[1] - 1.27); label("CAN_RS", t[0], t[1] - 1.27)
 power("power:GND", *b)
-cap100n("C13", 288, 272)
+cap100n("C13", 288, 227)
 # terminatie: 120R + soldeerjumper JP1 in serie over CANH/CANL
-(l, r) = rcomp("R12", "120R", 345, 285, 90)
+(l, r) = rcomp("R12", "120R", 330, 244, 90)
 wire(*l, l[0] - 2.54, l[1]); label("CANH", l[0] - 2.54, l[1])
 wire(*r, r[0] + 2.54, r[1]); label("CAN_TRM", r[0] + 2.54, r[1])
-component("Custom:Conn_01x02", "JP1", "TERM 120R", 366, 290, 0,
+component("Custom:Conn_01x02", "JP1", "TERM 120R", 366, 214, 0,
           "Jumper:SolderJumper-2_P1.3mm_Open_TrianglePad1.0x1.5mm",
-          extra_props=rprop("JP1", "TERM", 366, 290, 366, 290 - 5.08, 366, 290 + 5.08))
-wire(358.38, 288.73, 355.84, 288.73); label("CAN_TRM", 355.84, 288.73)
-wire(358.38, 291.27, 355.84, 291.27); label("CANL", 355.84, 291.27)
+          extra_props=rprop("JP1", "TERM", 366, 214, 366, 214 - 5.08, 366, 214 + 5.08))
+wire(358.38, 212.73, 355.84, 212.73); label("CAN_TRM", 355.84, 212.73)
+wire(358.38, 215.27, 355.84, 215.27); label("CANL", 355.84, 215.27)
 # header naar de satellieten (+12V mee voor voeding)
-component("Custom:Conn_01x04", "J16", "CAN BUS", 385, 272, 0,
+component("Custom:Conn_01x04", "J16", "CAN BUS", 390, 214, 0,
           "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical",
-          extra_props=rprop("J16", "CAN", 385, 272, 385, 272 - 8, 385, 272 + 8))
+          extra_props=rprop("J16", "CAN", 390, 214, 390, 214 - 8, 390, 214 + 8))
 J16_P = ["+12V", "CANH", "CANL", "GND"]
 for k in range(4):
-    y = 272 - 3.81 + 2.54 * k
+    y = 214 - 3.81 + 2.54 * k
     nmP = J16_P[k]
-    wire(377.38, y, 372.3, y)
+    wire(382.38, y, 377.3, y)
     if nmP in RAILS:
-        power(f"power:{nmP}", 372.3, y, 0,
-              vx=372.3, vy=(y - 3.302 if nmP != "GND" else y + 3.81))
+        power(f"power:{nmP}", 377.3, y, 0,
+              vx=377.3, vy=(y - 3.302 if nmP != "GND" else y + 3.81))
     else:
-        label(nmP, 372.3, y)
+        label(nmP, 377.3, y)
 
 # ============ v2: TUNE-IN-conditionering ============
 component("Custom:Conn_01x02", "J18", "TUNE IN", 30, 272, 0,
