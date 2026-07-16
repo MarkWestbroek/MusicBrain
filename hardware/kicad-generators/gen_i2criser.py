@@ -85,7 +85,7 @@ J2_MAP = b.nm({str(k + 1): n for k, n in enumerate(J2SPEC) if n})
 b.fp(bus.HDR_BUS[0], bus.HDR_BUS[1], 'J1', 'BUS',
      CX + bus.BUS_HALF, bus.BY1 - bus.CONN_INSET, 270, J1_MAP)
 b.fp(bus.HDR_PANEEL[0], bus.HDR_PANEEL[1], 'J2', 'NAAR FRONT',
-     CX - bus.PANEEL_HALF, bus.BY0 + bus.CONN_INSET, 90, J2_MAP)
+     CX - bus.PANEEL_HALF, bus.BY0 + bus.CONN_INSET_PANEEL, 90, J2_MAP)
 
 P = b.P
 SW = 0.25

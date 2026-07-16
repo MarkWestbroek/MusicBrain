@@ -1,0 +1,27 @@
+{
+ "titel": "musicbrain-riser rev 1.0 — aansluitoverzicht",
+ "bbox_mm": [
+  102.0,
+  100.0,
+  133.0,
+  180.0
+ ],
+ "callouts": [
+  {
+   "label": "BUS (J1)",
+   "mm": [
+    117.5,
+    174.7
+   ],
+   "kant": "onder"
+  },
+  {
+   "label": "NAAR FRONT (J2)",
+   "mm": [
+    117.5,
+    105.3
+   ],
+   "kant": "boven"
+  }
+ ]
+}

@@ -1,0 +1,27 @@
+{
+ "titel": "musicbrain-potriser rev 1.0 — aansluitoverzicht",
+ "bbox_mm": [
+  102.0,
+  100.0,
+  130.0,
+  180.0
+ ],
+ "callouts": [
+  {
+   "label": "BUS (J1)",
+   "mm": [
+    116.0,
+    174.7
+   ],
+   "kant": "onder"
+  },
+  {
+   "label": "NAAR FRONT (J2)",
+   "mm": [
+    116.0,
+    106.6
+   ],
+   "kant": "boven"
+  }
+ ]
+}

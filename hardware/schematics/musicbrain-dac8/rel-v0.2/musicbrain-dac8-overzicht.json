@@ -1,0 +1,27 @@
+{
+ "titel": "musicbrain-dac8 rev 1.0 — aansluitoverzicht",
+ "bbox_mm": [
+  100.0,
+  100.0,
+  150.0,
+  180.0
+ ],
+ "callouts": [
+  {
+   "label": "BUS (J1)",
+   "mm": [
+    125.0,
+    174.7
+   ],
+   "kant": "onder"
+  },
+  {
+   "label": "CV OUT (J2)",
+   "mm": [
+    125.0,
+    106.6
+   ],
+   "kant": "boven"
+  }
+ ]
+}

@@ -1,0 +1,27 @@
+{
+ "titel": "musicbrain-gatein8 rev 1.0 — aansluitoverzicht",
+ "bbox_mm": [
+  100.0,
+  100.0,
+  140.0,
+  180.0
+ ],
+ "callouts": [
+  {
+   "label": "BUS (J1)",
+   "mm": [
+    120.0,
+    174.7
+   ],
+   "kant": "onder"
+  },
+  {
+   "label": "GATES IN (J2)",
+   "mm": [
+    120.0,
+    106.6
+   ],
+   "kant": "boven"
+  }
+ ]
+}

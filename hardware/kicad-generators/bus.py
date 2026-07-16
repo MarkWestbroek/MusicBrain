@@ -19,7 +19,15 @@ HP = 5.08
 # Kaart-assenstelsel: de generators tekenen op een vaste plek in het vel.
 BY0 = 100.0              # paneelrand (boven)
 BY1 = BY0 + H            # busrand (onder)  -> 150.0
-CONN_INSET = 6.58        # anker-afstand van de rand voor de haakse headers
+
+# Anker-inzet (padrij -> bordrand) PER CONNECTORTYPE, zo gekozen dat de
+# body exact op de bordrand eindigt en de volle 6,0 mm paarpin uitsteekt:
+#   2-rijer (bus):    body 4,04..6,58, pin 6,58..12,58  -> inzet 6,58
+#   1-rijer (paneel): body 1,50..4,04, pin 4,04..10,04  -> inzet 4,04
+# (gen-1 gebruikte 6,58 voor beide; de 1-rijer greep daardoor maar 3,46 mm
+#  in de front-socket — vondst Mark 2026-07-16, per gen 2 gefixt.)
+CONN_INSET = 6.58        # 2-rijers (bus-header)
+CONN_INSET_PANEEL = 4.04  # 1-rijers (paneel-header)
 
 # ---- slot-pinout gen 2 (spi-bus-spec v2.0) ----
 SLOT = {

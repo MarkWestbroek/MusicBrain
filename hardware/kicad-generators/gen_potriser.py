@@ -125,7 +125,7 @@ U1_MAP = b.nm({'1': '/W1', '2': '/W2', '3': '/W3', '4': '/W4', '5': '/W5',
 b.fp(bus.HDR_BUS[0], bus.HDR_BUS[1], 'J1', 'BUS',
      CX + bus.BUS_HALF, bus.BY1 - bus.CONN_INSET, 270, J1_MAP)
 b.fp(bus.HDR_PANEEL[0], bus.HDR_PANEEL[1], 'J2', 'NAAR FRONT',
-     CX - bus.PANEEL_HALF, bus.BY0 + bus.CONN_INSET, 90, J2_MAP)
+     CX - bus.PANEEL_HALF, bus.BY0 + bus.CONN_INSET_PANEEL, 90, J2_MAP)
 # U1 midden in de vrije band (108,35 .. 141,65)
 b.fp('Package_SO.pretty\\SOIC-16_3.9x9.9mm_P1.27mm.kicad_mod',
      'Package_SO:SOIC-16_3.9x9.9mm_P1.27mm', 'U1', 'MCP3208', CX, 126.0, 90, U1_MAP)

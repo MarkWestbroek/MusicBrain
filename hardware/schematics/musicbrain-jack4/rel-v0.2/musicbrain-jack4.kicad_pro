@@ -1,0 +1,6 @@
+{
+  "meta": {"filename": "musicbrain-jack4.kicad_pro", "version": 3},
+  "general": {"project_name": "MusicBrain jack4"},
+  "schematic": {"file": "musicbrain-jack4.kicad_sch"},
+  "pcb": {"file": "musicbrain-jack4.kicad_pcb"}
+}

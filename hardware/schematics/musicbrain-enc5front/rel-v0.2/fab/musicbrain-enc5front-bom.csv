@@ -1,0 +1,8 @@
+"Comment","Designator","Footprint","LCSC Part #"
+"100n","C10,C11","C_0805_2012Metric","C49678"
+"NAAR I2C-RISER (achterzijde)","J1","Socket_1x10_backside",""
+"DISPLAY-EXPANSIE (achterzijde)","J2","Header_2x08_backside",""
+"EC11E (switch)","SW1,SW2,SW3,SW4,SW5","RotaryEncoder_Alps_EC11E-Switch_Vertical_H20mm",""
+"6mm tact","SW6,SW7","SW_PUSH_6mm","C110153"
+"MCP23017-E/ML (0x20)","U1","QFN-28-1EP_6x6mm_P0.65mm_EP4.25x4.25mm","C639770"
+"MCP23017-E/ML (0x21)","U2","QFN-28-1EP_6x6mm_P0.65mm_EP4.25x4.25mm","C639770"
