@@ -152,6 +152,8 @@ for k, (name, num, typ) in enumerate(RIGHT):
         val = "1u" if name.startswith("REGCAP") else "10u"
         ref = {"REGCAP1": "C6", "REGCAP2": "C7", "REFIN/REFOUT": "C8"}[name]
         wire(XR, y, XR + 5.08, y)
+        label({"REGCAP1": "REGCAP1", "REGCAP2": "REGCAP2",
+               "REFIN/REFOUT": "REF"}[name], XR + 3.0, y)
         component("Device:C", ref, val, XR + 8.89, y, 90,
                   "Capacitor_SMD:C_0805_2012Metric",
                   XR + 8.89, y - 1.45, XR + 15.5, y - 1.45, fs=1.0)
@@ -163,6 +165,7 @@ for k, (name, num, typ) in enumerate(RIGHT):
         wire(XR, y, XR + 2.54, y)
         wire(XR + 2.54, y - 2.54, XR + 2.54, y)   # vertical tie A-B
         junction(XR + 2.54, y)
+        label("REFCAP", XR + 1.0, y)
         component("Device:C", "C9", "10u", XR + 6.35, y, 90,
                   "Capacitor_SMD:C_0805_2012Metric",
                   XR + 6.35, y - 1.45, XR + 13, y - 1.45, fs=1.0)
@@ -171,6 +174,7 @@ for k, (name, num, typ) in enumerate(RIGHT):
     elif name.startswith("V") and not name.endswith("GND"):
         ch = int(name[1:])
         wire(XR, y, XR + 2.54, y)
+        label(f"V{ch}", XR + 0.5, y)
         component("Device:R", f"R{ch}", "1k", XR + 6.35, y, 90,
                   "Resistor_SMD:R_0805_2012Metric",
                   XR + 6.35, y - 1.45, XR + 13, y - 1.45, fs=1.0)
@@ -178,18 +182,21 @@ for k, (name, num, typ) in enumerate(RIGHT):
         # v1.2: recht-toe-bedrading - paneeljack j = V(9-j); remap in MbAdc8
         label(f"IN{9-ch}", XR + 15.24, y)
 
-# ================= J1: bus connector =================
+# ================= J1: bus connector (gen 2: slot 2x12) =================
+# pinout = bus.py/spi-bus-spec v2.0; CONVST = /SPARE1 (pin 19); RESET is
+# per gen 2 LOKAAL (RC-power-up + 100k pulldown), niet langer een buslijn.
 BX, BY = 60, 110
-component("Custom:Conn_02x10", "J1", "BUS", BX, BY, 0,
-          "Connector_PinHeader_2.54mm:PinHeader_2x10_P2.54mm_Horizontal",
-          BX, BY - 16.51, BX, BY + 16.51)
+component("Custom:Conn_02x12", "J1", "BUS (slot, 2x12)", BX, BY, 0,
+          "Connector_PinHeader_2.54mm:PinHeader_2x12_P2.54mm_Horizontal",
+          BX, BY - 19.05, BX, BY + 19.05)
 ROWS = [("GND", "+12V"), ("GND", None), ("GND", "+3V3"),
         ("SCLK", "GND"), (None, "GND"), ("MISO", "GND"), ("CS", "GND"),
-        (None, "IRQ"), (None, None), ("CONVST", "RESET")]
-L_STUB = [12.7, 17.78, 17.78, 12.7, 0, 12.7, 12.7, 0, 0, 12.7]
-R_STUB = [12.7, 0, 12.7, 17.78, 12.7, 17.78, 12.7, 12.7, 0, 12.7]
+        (None, "IRQ"), (None, None), ("CONVST", "GND"),
+        (None, None), (None, None)]
+L_STUB = [12.7, 17.78, 17.78, 12.7, 0, 12.7, 12.7, 0, 0, 12.7, 0, 0]
+R_STUB = [12.7, 0, 12.7, 17.78, 12.7, 17.78, 12.7, 12.7, 0, 12.7, 0, 0]
 for k, (lf, rf) in enumerate(ROWS):
-    y = BY - 11.43 + 2.54 * k
+    y = BY - 13.97 + 2.54 * k
     if lf is None:
         nc(BX - 7.62, y)
     else:
@@ -232,10 +239,16 @@ wire(97.46, 57.46, 92.38, 57.46); power("power:+3V3", 92.38, 57.46)
 wire(97.46, 60, 92.38, 60); label("RANGE", 92.38, 60)
 wire(97.46, 62.54, 92.38, 62.54); power("power:GND", 92.38, 62.54)
 
-# ================= RESET pull-down =================
+# ================= RESET: lokale RC-power-up (gen 2) =================
+# C15 koppelt de 3V3-flank in bij opstarten (puls hoog), R9 trekt daarna
+# naar GND: tau = 100k x 100n = 10 ms actieve-hoog resetpuls.
+component("Device:C", "C15", "100n", 110, 60, 90,
+          "Capacitor_SMD:C_0805_2012Metric", 110, 56, 110, 64, fs=1.0)
+wire(106.19, 60, 103.65, 60)
+power("power:+3V3", 103.65, 60)
+wire(113.81, 60, 120, 60)
 component("Device:R", "R9", "100k", 123.81, 60, 90,
           "Resistor_SMD:R_0805_2012Metric", 123.81, 57.5, 123.81, 62.5, fs=1.0)
-wire(117.46, 60, 120, 60)
 label("RESET", 117.46, 60)
 wire(127.62, 60, 130.16, 60)
 power("power:GND", 130.16, 60)
@@ -265,7 +278,7 @@ for k, rail in enumerate(("+12V", "GND", "+3V3")):
 # ================= texts =================
 items.append('''  (text "MusicBrain ADC8 - 8x CV in (slot card, AD7606 serial mode)" (exclude_from_sim no) (at 20.32 20.32 0)
     (effects (font (size 2.54 2.54) bold) (justify left)))''')
-items.append('''  (text "AD7606: 16-bit, 8-ch simultaneous, +/-10V or +/-5V direct in (1 Mohm, clamps)\\nSerial mode: PAR/SER=high, DB0-6/DB9-15=GND, DOUTA=MISO, DOUTB=nc\\nInternal 2.5V ref (REF_SELECT=high); REGCAP 2x1u, REFCAP 10u, REFIN 10u\\nCONVST=SPARE1 (bus-wide sample strobe), RESET=SPARE2 (+100k pulldown)\\nBUSY -> IRQ (falling edge = data ready); RANGE via JP1: +3V3=+/-10V, GND=+/-5V\\nAVCC=5V local (AMS1117-5.0), VDRIVE=+3V3 bus\\nSpec: doc/spi-bus-spec.md" (exclude_from_sim no) (at 20.32 180 0)
+items.append('''  (text "AD7606: 16-bit, 8-ch simultaneous, +/-10V or +/-5V direct in (1 Mohm, clamps)\\nSerial mode: PAR/SER=high, DB0-6/DB9-15=GND, DOUTA=MISO, DOUTB=nc\\nInternal 2.5V ref (REF_SELECT=high); REGCAP 2x1u, REFCAP 10u, REFIN 10u\\nCONVST=SPARE1/pin19 (bus-wide sample strobe); RESET=lokale RC-power-up (C15/R9)\\nBUSY -> IRQ (falling edge = data ready); RANGE via JP1: +3V3=+/-10V, GND=+/-5V\\nAVCC=5V local (AMS1117-5.0), VDRIVE=+3V3 bus\\nSpec: doc/spi-bus-spec.md" (exclude_from_sim no) (at 20.32 180 0)
     (effects (font (size 1.27 1.27)) (justify left)))''')
 items.append('''  (text "J2: 1=GND, 2-9=IN1..8, 10=GND (zelfde contract als GATE8 J2)\\nfirmware: CONVST-puls -> wacht IRQ (BUSY laag) -> 8x16 bit via MISO" (exclude_from_sim no) (at 150 180 0)
     (effects (font (size 1.27 1.27)) (justify left)))''')
@@ -490,7 +503,7 @@ FLAG_SYM = '''    (symbol "power:PWR_FLAG"
 
 libs = "\n".join([
     R_SYM, C_SYM, CP_SYM, ad7606_symbol(), REG,
-    conn_symbol_2xN("Conn_02x10", 10),
+    conn_symbol_2xN("Conn_02x12", 12),
     conn_symbol_1xN("Conn_01x10", 10),
     conn_symbol_1xN("Conn_01x03", 3),
     power_symbol("GND", False),
@@ -508,11 +521,11 @@ doc = f'''(kicad_sch
   (paper "A3")
   (title_block
     (title "MusicBrain ADC8 - 8x CV input slot card")
-    (date "2026-07-07")
-    (rev "1.2")
+    (date "2026-07-16")
+    (rev "2.0")
     (company "MusicBrain project")
     (comment 1 "AD7606 16-bit 8-ch simultaneous SAR, +/-10V direct, serial mode")
-    (comment 2 "Bus slot card per doc/spi-bus-spec.md; CONVST=SPARE1, RESET=SPARE2")
+    (comment 2 "Gen 2: slot 2x12 per spi-bus-spec v2.0; CONVST=SPARE1, RESET=lokale RC")
   )
   (lib_symbols
 {libs}

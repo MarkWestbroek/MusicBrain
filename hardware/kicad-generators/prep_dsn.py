@@ -68,9 +68,17 @@ for m in (re.finditer(r'\(wire\s*\(path\s+(\S+)\s+([\d.]+)((?:\s+[-\d.]+)+)\s*\)
             keepouts.append(
                 f'    (keepout "" (circle {lay} {2*r:.0f} {x:.1f} {y:.1f}))')
 
-for op in ('(plane GND', '(plane "GND"', '(net GND', '(net "GND"'):
-    src = strip_block(src, op)
-src = re.sub(r'(?<=[\s(])"?GND"?(?=[\s)])', '', src)
+# --route-gnd: GND blijft een routeerbaar net (alleen de planes eruit).
+# Freerouting ziet dan ook vaste GND-wiring uit de generator (reddings-
+# sporen, binnenringen) en routeert eromheen/erop verder. Nodig voor borden
+# met fijne-steek GND-pads die de zone-vulling nooit bereikt (adc8 LQFP).
+if '--route-gnd' in sys.argv:
+    for op in ('(plane GND', '(plane "GND"'):
+        src = strip_block(src, op)
+else:
+    for op in ('(plane GND', '(plane "GND"', '(net GND', '(net "GND"'):
+        src = strip_block(src, op)
+    src = re.sub(r'(?<=[\s(])"?GND"?(?=[\s)])', '', src)
 
 if keepouts:
     src = src.replace('(boundary', '\n'.join(keepouts) + '\n    (boundary', 1)
