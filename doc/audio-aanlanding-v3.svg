@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="640" viewBox="0 0 960 640" font-family="sans-serif">
+  <rect width="960" height="640" fill="#fafaf7"/>
+  <text x="480" y="30" text-anchor="middle" font-size="19" font-weight="bold">Audio over de bus (gen 2) — klokken gedeeld, data per slot</text>
+
+  <!-- busboard -->
+  <rect x="40" y="220" width="880" height="290" fill="#e8f0e4" stroke="#4a7040" stroke-width="2" rx="6"/>
+  <text x="55" y="245" font-size="14" font-weight="bold" fill="#4a7040">busboard v3 (backplane)</text>
+
+  <!-- Teensy -->
+  <rect x="60" y="330" width="120" height="150" fill="#fff" stroke="#333" stroke-width="1.5" rx="4"/>
+  <text x="120" y="352" text-anchor="middle" font-size="13" font-weight="bold">master-Teensy</text>
+  <text x="120" y="368" text-anchor="middle" font-size="11">pin 23 = MCLK</text>
+  <text x="120" y="382" text-anchor="middle" font-size="11">pin 21 = BCLK</text>
+  <text x="120" y="396" text-anchor="middle" font-size="11">pin 20 = LRCLK</text>
+  <text x="120" y="420" text-anchor="middle" font-size="11" fill="#666">I2S1 = zelfde netten</text>
+  <text x="120" y="434" text-anchor="middle" font-size="11" fill="#666">als codec-header J17</text>
+  <text x="120" y="462" text-anchor="middle" font-size="11" fill="#a04000">audio-UIT blijft</text>
+  <text x="120" y="476" text-anchor="middle" font-size="11" fill="#a04000">analoog via de codec</text>
+
+  <!-- klokrails -->
+  <g stroke-width="2.5" fill="none">
+    <line x1="180" y1="360" x2="880" y2="360" stroke="#2060c0"/>
+    <line x1="180" y1="376" x2="880" y2="376" stroke="#20a040"/>
+    <line x1="180" y1="392" x2="880" y2="392" stroke="#e08000"/>
+  </g>
+  <text x="890" y="364" font-size="11" fill="#2060c0">MCLK</text>
+  <text x="890" y="380" font-size="11" fill="#20a040">BCLK</text>
+  <text x="890" y="396" font-size="11" fill="#e08000">LRCLK</text>
+  <text x="530" y="352" text-anchor="middle" font-size="11" fill="#555">gedeelde klokrails — pins 21/22/23 van élk slot, één klokmaster tegelijk (metronoom)</text>
+
+  <!-- slots -->
+  <g>
+    <!-- slot template -->
+    <g transform="translate(230,405)">
+      <rect width="70" height="85" fill="#fff" stroke="#333" rx="3"/>
+      <text x="35" y="18" text-anchor="middle" font-size="12" font-weight="bold">SLOT 1</text>
+      <text x="35" y="34" text-anchor="middle" font-size="10" fill="#555">21–23: klok</text>
+      <text x="35" y="48" text-anchor="middle" font-size="10" fill="#c02020">24: DATA1</text>
+    </g>
+    <g transform="translate(320,405)">
+      <rect width="70" height="85" fill="#fff" stroke="#333" rx="3"/>
+      <text x="35" y="18" text-anchor="middle" font-size="12" font-weight="bold">SLOT 2</text>
+      <text x="35" y="34" text-anchor="middle" font-size="10" fill="#555">21–23: klok</text>
+      <text x="35" y="48" text-anchor="middle" font-size="10" fill="#c02020">24: DATA2</text>
+    </g>
+    <g transform="translate(410,405)">
+      <rect width="70" height="85" fill="#fff" stroke="#8020a0" stroke-width="2.5" rx="3"/>
+      <text x="35" y="18" text-anchor="middle" font-size="12" font-weight="bold">SLOT 3</text>
+      <text x="35" y="34" text-anchor="middle" font-size="10" fill="#555">21–23: klok</text>
+      <text x="35" y="48" text-anchor="middle" font-size="10" fill="#c02020">24: DATA3</text>
+      <text x="35" y="66" text-anchor="middle" font-size="10" fill="#8020a0">gedelegeerde</text>
+      <text x="35" y="78" text-anchor="middle" font-size="10" fill="#8020a0">kaart hier ↑</text>
+    </g>
+    <g transform="translate(500,405)">
+      <rect width="70" height="85" fill="#fff" stroke="#333" rx="3"/>
+      <text x="35" y="18" text-anchor="middle" font-size="12" font-weight="bold">SLOT 4</text>
+      <text x="35" y="34" text-anchor="middle" font-size="10" fill="#555">21–23: klok</text>
+      <text x="35" y="48" text-anchor="middle" font-size="10" fill="#c02020">24: DATA4</text>
+    </g>
+    <g transform="translate(590,405)">
+      <rect width="70" height="85" fill="#fff" stroke="#333" rx="3"/>
+      <text x="35" y="18" text-anchor="middle" font-size="12" font-weight="bold">SLOT 5</text>
+      <text x="35" y="34" text-anchor="middle" font-size="10" fill="#555">21–23: klok</text>
+      <text x="35" y="48" text-anchor="middle" font-size="10" fill="#c02020">24: DATA5</text>
+    </g>
+    <g transform="translate(680,405)">
+      <rect width="70" height="85" fill="#fff" stroke="#333" rx="3"/>
+      <text x="35" y="18" text-anchor="middle" font-size="12" font-weight="bold">SLOT 6</text>
+      <text x="35" y="34" text-anchor="middle" font-size="10" fill="#555">21–23: klok</text>
+      <text x="35" y="48" text-anchor="middle" font-size="10" fill="#c02020">24: DATA6</text>
+    </g>
+  </g>
+  <!-- klokrail-aftakkingen naar slots -->
+  <g stroke="#999" stroke-width="1" stroke-dasharray="3,2">
+    <line x1="265" y1="392" x2="265" y2="405"/>
+    <line x1="355" y1="392" x2="355" y2="405"/>
+    <line x1="445" y1="392" x2="445" y2="405"/>
+    <line x1="535" y1="392" x2="535" y2="405"/>
+    <line x1="625" y1="392" x2="625" y2="405"/>
+    <line x1="715" y1="392" x2="715" y2="405"/>
+  </g>
+
+  <!-- gedelegeerde kaart boven slot 3 -->
+  <rect x="400" y="120" width="90" height="90" fill="#f5ecfa" stroke="#8020a0" stroke-width="2" rx="4"/>
+  <text x="445" y="145" text-anchor="middle" font-size="12" font-weight="bold" fill="#8020a0">slave-Teensy/</text>
+  <text x="445" y="160" text-anchor="middle" font-size="12" font-weight="bold" fill="#8020a0">FPGA-kaart</text>
+  <text x="445" y="180" text-anchor="middle" font-size="10" fill="#555">maakt audio,</text>
+  <text x="445" y="193" text-anchor="middle" font-size="10" fill="#555">luistert naar de klok</text>
+  <line x1="445" y1="210" x2="445" y2="405" stroke="#8020a0" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <text x="455" y="240" font-size="10" fill="#8020a0">staat in het slot</text>
+
+  <!-- DATA-lijnen: elk slot een eigen draad naar J24 -->
+  <g stroke="#c02020" stroke-width="1.8" fill="none">
+    <path d="M 265 490 L 265 500 L 790 500 L 790 470"/>
+    <path d="M 355 494 L 355 504 L 794 504 L 794 470"/>
+    <path d="M 445 498 L 445 508 L 798 508 L 798 470"/>
+    <path d="M 535 498 L 535 512 L 802 512 L 802 470"/>
+    <path d="M 625 494 L 625 516 L 806 516 L 806 470"/>
+    <path d="M 715 490 L 715 520 L 810 520 L 810 470"/>
+  </g>
+  <text x="530" y="535" text-anchor="middle" font-size="11" fill="#c02020">zes áparte datalijnen (pin 24 van elk slot) — twee zenders kunnen nooit één draad delen</text>
+
+  <!-- J24 -->
+  <rect x="775" y="410" width="80" height="60" fill="#fff" stroke="#c02020" stroke-width="2" rx="3"/>
+  <text x="815" y="430" text-anchor="middle" font-size="13" font-weight="bold" fill="#c02020">J24</text>
+  <text x="815" y="445" text-anchor="middle" font-size="10">2×5 header</text>
+  <text x="815" y="458" text-anchor="middle" font-size="10">DATA1–6 + GND</text>
+
+  <!-- toekomstige mixer -->
+  <rect x="760" y="90" width="150" height="100" fill="#fff" stroke="#888" stroke-width="1.5" stroke-dasharray="6,4" rx="4"/>
+  <text x="835" y="115" text-anchor="middle" font-size="12" font-weight="bold" fill="#666">toekomstige mixer</text>
+  <text x="835" y="131" text-anchor="middle" font-size="11" fill="#666">(FPGA / TDM-bord)</text>
+  <text x="835" y="150" text-anchor="middle" font-size="10" fill="#888">leest alle zes lijnen,</text>
+  <text x="835" y="163" text-anchor="middle" font-size="10" fill="#888">mixt, en levert de som</text>
+  <text x="835" y="176" text-anchor="middle" font-size="10" fill="#888">aan het master-audiosysteem</text>
+  <line x1="815" y1="190" x2="815" y2="410" stroke="#888" stroke-width="1.5" stroke-dasharray="6,4"/>
+  <text x="825" y="250" font-size="10" fill="#888">lintkabel — pas als dat</text>
+  <text x="825" y="263" font-size="10" fill="#888">bord er is; tot dan is</text>
+  <text x="825" y="276" font-size="10" fill="#888">J24 gewoon reserve</text>
+
+  <!-- onderschrift -->
+  <text x="480" y="575" text-anchor="middle" font-size="12" fill="#333">Het punt van gen 2: de bedrading dóór de backplane ligt er alvast.</text>
+  <text x="480" y="593" text-anchor="middle" font-size="12" fill="#333">Elke kaart die later audio wil maken, prikt gewoon in een slot — er hoeft nooit meer een draadje bij.</text>
+  <text x="480" y="617" text-anchor="middle" font-size="11" fill="#777">Klokken (21/22/23) = metronoom: iedereen hoort dezelfde tel, precies één mag tikken (nu: master-Teensy, later evt. de FPGA — firmwarekeuze).</text>
+</svg>

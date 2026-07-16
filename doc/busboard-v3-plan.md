@@ -24,6 +24,8 @@ J9 10-pins, hub-headers J7/J8, slot-pinnen 1–18.
 
 ## Audio-aanlanding (voorstel)
 
+![audio-aanlanding](audio-aanlanding-v3.svg)
+
 - **MCLK/BCLK/LRCLK (gedeeld)**: doorverbinden met de bestaande I2S1-netten
   van J17/Teensy (MCLK1 = 23, BCLK1 = 21, LRCLK1 = 20). Er komt géén extra
   hardware: wie klokmaster is (Teensy, codec óf FPGA-kaart) drijft de lijnen,
