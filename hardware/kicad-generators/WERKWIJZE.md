@@ -202,9 +202,10 @@ Generators mogen eerder (WIP-koper expliciet benoemen). Nooit `git add -A`.
 
 Bij een site-release wordt de stand van elk bord bevroren in een submap
 `<bord>/rel-vX.Y/` (KiCad-bronnen, README, overzicht, widget-json, pinouts,
-bom/cpl — gerbers zijn regenereerbaar). Repo-breed markeert een **prefix-tag**
-(`hw-rel-vX.Y`) dezelfde stand; fw/web taggen onafhankelijk met hun eigen
-prefix (een git-tag kan niet op een submap slaan — de prefix is de conventie).
+bom/cpl — gerbers zijn regenereerbaar). Repo-breed markeert een **slash-tag**
+(`hw/vX.Y`) dezelfde stand; fw/web taggen onafhankelijk (`fw/vX.Y`, `web/vX.Y`).
+Een git-tag kan niet op een submap slaan — de slash-prefix is de conventie
+(zoals Go-monorepo's en Nx; filteren met `git tag -l 'hw/*'`).
 De site bewaart zijn kant al per versie (`/api/assets/<component>/<versie>/`).
 
 ## Startpunt voor een nieuw bord
