@@ -59,6 +59,12 @@ board-top.svg
 hardware/schematics/*/*.net
 hardware/kicad-generators/__pycache__/
 
+# Secrets: env-bestanden met o.a. de Imprint INGEST_TOKEN — NOOIT committen.
+# Het sjabloon .env.example (zonder waardes) blijft wel getrackt.
+.env
+.env.*
+!.env.example
+
 # Fab-uitvoer: gerber/drill-exports EN de gebundelde zip zijn regenereerbaar uit
 # de KiCad-bron (make_fab) - niet tracken. BOM/CPL-CSV's blijven wel getrackt
 # (klein, diff-baar, ordergeschiedenis); regenereer de zip vóór het uploaden.
