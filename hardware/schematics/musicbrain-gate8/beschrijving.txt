@@ -1,1 +1,1 @@
-Eight gate/trigger outputs. Starts envelopes, advances sequencers and clocks external gear from the software brain - 0-5 V outputs with per-channel series protection.
+Eight gate and trigger outputs for starting envelopes, advancing sequencers and clocking external gear. The outputs swing 0-5 V and every channel has its own series protection, so a patching mistake never hurts. Pairs with a jack8 front.

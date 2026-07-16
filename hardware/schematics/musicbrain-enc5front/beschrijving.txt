@@ -1,1 +1,1 @@
-Five encoders and two buttons on the panel - the hands-on menu and parameter interface of the system, connected over I2C via the i2criser.
+Five encoders and two buttons on the panel: the hands-on interface for menus and parameters. It talks I2C and connects to the bus through the i2criser.

@@ -1,1 +1,1 @@
-A standalone 4-channel CV output board on a hub cable: precision +/-10 V outputs (AD5754 + reference) without using a card slot.
+A standalone four-channel CV output board on a hub cable, built around the same 16-bit AD5754 and a precision reference as the dac8. It delivers accurate +/-10 V outputs without occupying a card slot; the jack4 breakout provides the panel jacks.

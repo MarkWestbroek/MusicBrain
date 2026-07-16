@@ -1,1 +1,1 @@
-Eight gate/trigger inputs. Brings external clocks, triggers and footswitches into the software brain, with input protection and defined idle levels on every channel.
+Eight gate and trigger inputs that bring external clocks, triggers and footswitches into the software brain. Every channel is protected against overvoltage and reads a defined level when nothing is plugged in. Pairs with a jack8 front.

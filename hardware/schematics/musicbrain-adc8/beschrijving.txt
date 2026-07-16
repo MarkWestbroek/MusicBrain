@@ -1,1 +1,1 @@
-Eight CV inputs for your patch. Reads external control voltages (LFOs, envelopes, sequencers, expression pedals) into the software brain, +/-10 V directly, sampled simultaneously on all channels.
+Eight control-voltage inputs for reading the analog world into the software brain: LFOs, envelopes, sequencers or expression pedals. All eight channels are sampled at the same instant, at 16-bit resolution, and accept +/-10 V directly. Pairs with a jack8 front for the panel jacks.

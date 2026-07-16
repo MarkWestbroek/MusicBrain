@@ -1,1 +1,1 @@
-Eight CV outputs. Lets the software brain drive analog gear: sequences, LFOs, envelopes or random voltages out to any Eurorack-level input, updated sample-synchronously across all channels.
+Eight control-voltage outputs that let the software brain play your analog gear: sequences, LFOs, envelopes or slow random drifts, updated on all channels at the same instant. The DACs are 16-bit - fine enough for stable pitch CV - and each output can pick its own range in software, from 0-5 V up to +/-10 V. Pairs with a jack8 front.

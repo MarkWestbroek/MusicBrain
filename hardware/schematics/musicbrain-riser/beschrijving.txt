@@ -1,1 +1,1 @@
-Extends a bus slot 1:1 upwards, including the audio lines. The development board for delegated Teensy/FPGA cards and for probing a live slot.
+Extends a bus slot straight upwards, carrying the complete bus including the audio lines. This is the development board of the system: probe a live slot, or breadboard a delegated Teensy or FPGA card before it becomes a real one.

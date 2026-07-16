@@ -1,1 +1,1 @@
-The panel side of an 8-channel card: eight 3.5 mm jacks on a 4 HP grid that plug straight onto an adc8, dac8, gate8 or gatein8 slot card.
+The panel side of an eight-channel card: eight 3.5 mm jacks on the standard 4 HP grid. It plugs straight onto the front connector of an adc8, dac8, gate8 or gatein8 - no wiring involved.
