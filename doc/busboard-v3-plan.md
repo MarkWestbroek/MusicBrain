@@ -69,10 +69,13 @@ zuidwest, B.Cu-lanebundel onder het slotveld. Verschuivingen:
    v2-les: 0,5 past niet tussen de slotpads).
 4. Gates: ERC 0 + netcheck OK + DRC 0/0 vóór commit; daarna render-check.
 
-## Open punten (voor Mark)
+## Open punten
 
-1. **Klokmaster**: voorstel = master-Teensy als default (firmware), FPGA
-   neemt over zodra die er is. Akkoord?
-2. **J24-vorm**: 2×5 IDC-baar zoals voorgesteld, of liever 1×8?
-3. **v2-map**: na v3-DRC-0/0 verhuist `musicbrain-busboard-v2/` naar
-   `deprecated/` (zelfde route als v1)?
+1. **Klokmaster**: master-Teensy als default (firmware), FPGA neemt later
+   over. — **akkoord Mark 2026-07-16**.
+2. **J24-vorm**: 2×5 IDC-baar voorgesteld; wacht op Mark.
+3. **Versienummers (besluit Mark 2026-07-16)**: v2 blijft gearchiveerd in
+   `rel-v0.2/` (staat er al), níet naar deprecated. Bord-revs blijven
+   overal MAJOR.MINOR — het busboard wordt **rev 3.0**; de "v2/v3" in de
+   map-/bordnaam vervalt: de nieuwe map heet `musicbrain-busboard`
+   (hernoemen bij de herpublicatie, stap 8).
