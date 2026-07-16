@@ -1,0 +1,6 @@
+Browser-based editor for the Reflex effect switcher. You lay out your
+pedalboard as a signal chain, group sounds into patches, and try the whole
+rig in a built-in simulation before touching any hardware: the on-screen
+footswitch sends real MIDI program-change bytes through the same parser
+that runs in the firmware. Everything works offline in the browser; a JSON
+export carries the configuration to the device.

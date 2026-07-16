@@ -80,6 +80,18 @@ curl -s <base>/api/content/releases | python -m json.tool
 curl -s <base>/api/content/components/<slug>
 ```
 
+## Software-componenten (editor)
+
+Zelfde keten, maar zonder bordbestand: `publish_software.py` post een
+component + spec met screenshots als assets (hero = renderTop, tweede =
+overview) en een Engels markdown-bestand (## secties) als spec-tekst. De
+ingest accepteert lege `connectors`/`points` gewoon — getest 2026-07-17.
+Bronnen in `editor/site/` (md + beschrijving.txt per component), screenshots
+in `editor/screenshots/`. De editor releaset per product: `editor-reflex`
+(pin in reflex-releases, recept `publish_release_reflex.py`) en
+`editor-cortex` (pin in cortex-releases, recept `publish_release.py`);
+tags `editor/<product>/vX.Y.Z`.
+
 ## Fout gepost? Terugtrekken (tombstone)
 
 ```bash

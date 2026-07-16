@@ -1,0 +1,7 @@
+Browser-based patch editor for the Cortex modular system. You assemble a
+rack from module panels, patch them with colour-coded cables for CV, gates,
+triggers, audio and MIDI, and play the result right away: the built-in
+engine simulates the patch polyphonically, from a single synth voice up to
+an eight-voice DX7. The same patch then uploads to the Teensy over USB,
+where the firmware reproduces it — a contract test keeps editor and
+firmware in step, so the editor version follows the firmware series.
