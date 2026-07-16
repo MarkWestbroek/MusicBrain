@@ -1,128 +1,125 @@
-"""MusicBrain I2C-RISER: domme riser voor slimme I2C-fronts (ENC5-FRONT).
+"""MusicBrain I2C-RISER (gen 2) — domme riser voor I2C-fronts (ENC5-FRONT).
 
-Zelfde mechanica als de potriser (28 x 80): onder een haakse male 2x10 in het
-slot, boven een haakse male 1x10 naar het front op de FRONT-KOPPEL-STANDAARD.
-Geen elektronica - lust alleen GND/+3V3/SDA/SCL/IRQ door.
-Front-contract (1x10): 1 = GND, 2 = SDA, 3 = SCL, 4 = /IRQ, 5..9 = nc, 10 = +3V3.
+Gen 2 (spi-bus-spec v2.0): slot 2x12, H=50. Bord 40x50: de 2x12 spant
+27,94 mm, dus de oude 28 mm-riser was te smal (pads op de bordrand).
+Onder: haakse male 2x12 in het slot. Boven: haakse male 1x10 naar het front
+(front-contract: 1 = GND, 2 = SDA, 3 = SCL, 4 = /IRQ, 5..9 = nc, 10 = +3V3).
+Geen elektronica; pull-ups zitten aan de busmaster-kant (Qwiic-keten).
 """
 import sys
 import os as _os
 sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
 from schlib import Sch, conn_symbol, conn1_symbol, FLAG_SYM, power_symbol
 from cardlib import Board
+import bus
 import os
 
 OUT_DIR = r"d:\Git\Muziek\MusicBrain\hardware\schematics\musicbrain-i2criser"
 os.makedirs(OUT_DIR, exist_ok=True)
-DATE = "2026-07-11"
-REV = "1.0"
+DATE = "2026-07-16"
+REV = "2.0"
+
+GEBRUIKT = {'GND', '+3V3', '/SDA', '/SCL', '/IRQ'}
+# front-contract (1x10) — ongewijzigd t.o.v. gen 1
+J2SPEC = ['GND', '/SDA', '/SCL', '/IRQ', None, None, None, None, None, '+3V3']
 
 # ================= SCHEMA =================
 s = Sch("d0730000-0000-4000-8000-000000000000", "musicbrain-i2criser",
         "MusicBrain I2C-RISER - domme riser voor I2C-fronts", REV, DATE,
-        ("Onder: slot (2x10). Boven: front (1x10: 1=GND, 2=SDA, 3=SCL, 4=IRQ, 10=+3V3)",
-         "Leidende spec: doc/spi-bus-spec.md; front-standaard x=116,5 / pin1 y=143,57"))
-s.libs += [FLAG_SYM, conn_symbol("Conn_02x10", 10), conn1_symbol("Conn_01x10", 10),
+        ("Gen 2: slot 2x12 (spi-bus-spec v2.0), H=50",
+         "Boven: front 1x10 (1=GND, 2=SDA, 3=SCL, 4=IRQ, 10=+3V3)"))
+s.libs += [FLAG_SYM, conn_symbol("Conn_02x12", 12), conn1_symbol("Conn_01x10", 10),
            power_symbol("GND", False), power_symbol("+3V3", True)]
 
-# J1 (bus, 2x10) - alleen GND/3V3/I2C/IRQ gebruikt
 JX, JY = 60, 120
-s.component("Custom:Conn_02x10", "J1", "BUS",
-            JX, JY, 0, "Connector_PinHeader_2.54mm:PinHeader_2x10_P2.54mm_Horizontal")
-J1_L = ["GND", "GND", "GND", None, None, None, None, None, "SDA", None]
-J1_R = [None, None, "+3V3", "GND", "GND", "GND", "GND", "IRQ", "SCL", None]
-for k in range(10):
-    y = JY - 11.43 + 2.54 * k
-    for nm, west in ((J1_L[k], True), (J1_R[k], False)):
-        x = JX + (-7.62 if west else 7.62)
-        xe = JX + (-12.7 if west else 12.7)
-        if nm is None:
-            s.nc(x, y)
-        elif nm in ("GND", "+3V3"):
-            s.wire(x, y, xe, y)
-            s.power(f"power:{nm}", xe, y, 0, vx=xe, vy=(y - 3.302 if nm == "+3V3" else y + 3.81))
-        else:
-            s.wire(x, y, xe, y); s.label(nm, xe, y)
+s.component("Custom:Conn_02x12", "J1", "BUS (slot, 2x12)", JX, JY, 0,
+            bus.HDR_BUS[1])
+for q in range(1, bus.SLOT_PINS + 1):
+    row = (q - 1) // 2
+    west = (q % 2 == 1)
+    y = JY - 13.97 + 2.54 * row
+    x = JX + (-7.62 if west else 7.62)
+    xe = JX + (-12.7 if west else 12.7)
+    net = bus.SLOT[q]
+    if net not in GEBRUIKT:
+        s.nc(x, y)
+    elif net in ('GND', '+3V3'):
+        s.wire(x, y, xe, y)
+        s.power(f"power:{net}", xe, y, 0, vx=xe,
+                vy=(y - 3.302 if net == '+3V3' else y + 3.81))
+    else:
+        s.wire(x, y, xe, y); s.label(net.lstrip('/'), xe, y)
 
-# J2 (naar front, 1x10)
 FX, FY = 160, 120
-s.component("Custom:Conn_01x10", "J2", "NAAR FRONT", FX, FY, 0,
-            "Connector_PinHeader_2.54mm:PinHeader_1x10_P2.54mm_Horizontal")
-J2SPEC = ["GND", "SDA", "SCL", "IRQ", None, None, None, None, None, "+3V3"]
+s.component("Custom:Conn_01x10", "J2", "NAAR FRONT", FX, FY, 0, bus.HDR_PANEEL[1])
 for k in range(10):
     y = FY - 11.43 + 2.54 * k
     nm = J2SPEC[k]
     if nm is None:
-        s.nc(FX - 7.62, y)
-        continue
+        s.nc(FX - 7.62, y); continue
     s.wire(FX - 7.62, y, FX - 12.7, y)
-    if nm == "GND":
+    if nm == 'GND':
         s.power("power:GND", FX - 12.7, y)
-    elif nm == "+3V3":
+    elif nm == '+3V3':
         s.power("power:+3V3", FX - 12.7, y, 0, vx=FX - 12.7, vy=y - 3.302)
     else:
-        s.label(nm, FX - 12.7, y)
+        s.label(nm.lstrip('/'), FX - 12.7, y)
 
-# PWR_FLAGs (voeding komt via J1)
 s.wire(20, 175, 25.08, 175); s.power("power:GND", 20, 175); s.flag(25.08, 175)
 s.wire(20, 165, 25.08, 165); s.power("power:+3V3", 20, 165); s.flag(25.08, 165)
-s.text("I2C-RISER: domme doorlus slot -> I2C-front (ENC5). Pull-ups zitten op de\\n"
-       "busmaster-kant (Qwiic-keten); hier niets actiefs.", 20, 190)
+s.text("I2C-RISER gen 2: domme doorlus slot -> I2C-front (ENC5). De audio-lijnen\\n"
+       "(21-24) en SPI lopen hier niet mee; alleen GND/3V3/SDA/SCL/IRQ.", 20, 190)
 s.write(os.path.join(OUT_DIR, "musicbrain-i2criser.kicad_sch"))
 
 # ================= PCB =================
 NETS = ['', 'GND', '+3V3', '/SDA', '/SCL', '/IRQ']
-b = Board("MusicBrain I2C-RISER - domme riser voor I2C-fronts", REV, (116, 145, 0),
-          102, 100, 130, 180, NETS, DATE)
+BX0, BX1 = 100.0, 140.0           # 40 mm breed (2x12 = 27,94 + marge)
+CX = (BX0 + BX1) / 2              # 120.0
+b = Board("MusicBrain I2C-RISER - domme riser voor I2C-fronts", REV,
+          (CX, (bus.BY0 + bus.BY1) / 2, 0), BX0, bus.BY0, BX1, bus.BY1, NETS, DATE)
 b.silk_name = 'i2criser'
-CX = 116.0
-HDR2 = ('Connector_PinHeader_2.54mm.pretty\\PinHeader_2x10_P2.54mm_Horizontal.kicad_mod',
-        'Connector_PinHeader_2.54mm:PinHeader_2x10_P2.54mm_Horizontal')
-HDR1 = ('Connector_PinHeader_2.54mm.pretty\\PinHeader_1x10_P2.54mm_Horizontal.kicad_mod',
-        'Connector_PinHeader_2.54mm:PinHeader_1x10_P2.54mm_Horizontal')
 
-J1_MAP = b.nm({'1': 'GND', '3': 'GND', '5': 'GND', '6': '+3V3',
-               '8': 'GND', '10': 'GND', '12': 'GND', '14': 'GND',
-               '16': '/IRQ', '17': '/SDA', '18': '/SCL'})
-J2_MAP = b.nm({'1': 'GND', '2': '/SDA', '3': '/SCL', '4': '/IRQ', '10': '+3V3'})
+J1_MAP = bus.j1_map(b, GEBRUIKT)
+J2_MAP = b.nm({str(k + 1): n for k, n in enumerate(J2SPEC) if n})
 
-b.fp(HDR2[0], HDR2[1], 'J1', 'BUS', CX + 11.43, 173.42, 270, J1_MAP)         # onder, slot in
-b.fp(HDR1[0], HDR1[1], 'J2', 'NAAR FRONT', CX - 11.43, 106.58, 90, J2_MAP)   # boven, front in
+b.fp(bus.HDR_BUS[0], bus.HDR_BUS[1], 'J1', 'BUS',
+     CX + bus.BUS_HALF, bus.BY1 - bus.CONN_INSET, 270, J1_MAP)
+b.fp(bus.HDR_PANEEL[0], bus.HDR_PANEEL[1], 'J2', 'NAAR FRONT',
+     CX - bus.PANEEL_HALF, bus.BY0 + bus.CONN_INSET, 90, J2_MAP)
 
 P = b.P
 SW = 0.25
+# J1 (rot 270): ONEVEN pinnen op de noordrij (richting J2), EVEN op de zuidrij.
+# Een even pin moet dus langs zijn oneven buurman heen: via de rijcorridor naar
+# een gap-kolom (halve steek naast de pads), en dan noordwaarts.
+ROWMID = (P['J1']['1'][1] + P['J1']['2'][1]) / 2      # corridor tussen de rijen
+GAP = 1.27
 
+# Volgorde is kritisch: /SDA komt van x=113,65 maar moet naar J2-2 (x=111,11),
+# terwijl /SCL juist naar x=113,65 moet. /SDA jogt daarom METEEN westwaarts
+# (laan vlak bij J1), zodat de kolom 113,65 vrij komt voor /SCL.
+sda, scl, irq = P['J1']['17'], P['J1']['18'], P['J1']['16']
+f2, f3, f4 = P['J2']['2'], P['J2']['3'], P['J2']['4']
 
-def _pad_x(ref, pin):
-    return P[ref][pin][0]
+# /SDA: noordrij -> vroege jog naar de doelkolom -> recht noord
+b.T('/SDA', 'B.Cu', SW, sda, (sda[0], 140.0), (f2[0], 140.0), f2)
+# /SCL: zuidrij -> corridor -> gap-kolom -> laan 112 -> doelkolom
+b.T('/SCL', 'B.Cu', SW, scl, (scl[0], ROWMID), (scl[0] + GAP, ROWMID),
+    (scl[0] + GAP, 112.0), (f3[0], 112.0), f3)
+# /IRQ: zuidrij -> corridor -> gap-kolom -> laan 112,5 -> doelkolom
+b.T('/IRQ', 'B.Cu', SW, irq, (irq[0], ROWMID), (irq[0] + GAP, ROWMID),
+    (irq[0] + GAP, 112.5), (f4[0], 112.5), f4)
 
-
-# signalen op B.Cu (vlak op F blijft dicht op de +3V3-rail na).
-# J1: oneven pinnen = noordrij y173,42, even = zuidrij y175,96; vrije
-# corridors: tussen de rijen y=174,69 en tussen de kolommen op gap-mid.
-ROWMID = 174.69
-# SDA: J1-17 (noordrij, x107,11) en J2-2 delen de kolom -> gap-mid west
-sda_j, sda_f = P['J1']['17'], P['J2']['2']
-b.T('/SDA', 'B.Cu', SW, sda_j, (105.84, sda_j[1]), (105.84, 109.5),
-    (sda_f[0], 109.5), sda_f)
-# SCL: J1-18 (zuidrij, onder pad 17!) -> rijcorridor -> kolom-gap oost ->
-# laan y110,3 -> J2-3
-scl_j, scl_f = P['J1']['18'], P['J2']['3']
-b.T('/SCL', 'B.Cu', SW, scl_j, (scl_j[0], ROWMID), (108.38, ROWMID),
-    (108.38, 110.3), (scl_f[0], 110.3), scl_f)
-# IRQ: J1-16 (zuidrij, onder pad 15) -> rijcorridor -> kolom-gap oost ->
-# laan y111,1 -> J2-4
-irq_j, irq_f = P['J1']['16'], P['J2']['4']
-b.T('/IRQ', 'B.Cu', SW, irq_j, (irq_j[0], ROWMID), (110.92, ROWMID),
-    (110.92, 111.1), (irq_f[0], 111.1), irq_f)
-# +3V3: oostrand-rail op F.Cu (potriser-recept)
-p6 = P['J1']['6']
-j2_10 = P['J2']['10']
-b.T('+3V3', 'F.Cu', .4, p6, (p6[0], 177.4), (128.8, 177.4), (128.8, 107.5),
-    (j2_10[0], 107.5), j2_10)
+# +3V3: J1-6 zuidwaarts de vrije strook in (bij H=50 is er 4 mm onder J1),
+# dan oostrand-rail noordwaarts naar J2-10. Breed (0,4) mag hier: geen corridor.
+p6, j2_10 = P['J1']['6'], P['J2']['10']
+ZUID = bus.BY1 - 2.0          # 148.0
+RAIL = BX1 - 2.2              # 137.8
+b.T('+3V3', 'F.Cu', .4, p6, (p6[0], ZUID), (RAIL, ZUID), (RAIL, 109.0),
+    (j2_10[0], 109.0), j2_10)
 # GND-hechtvia's
-for x, y in ((103.5, 101.5), (128.5, 101.5), (103.5, 178.5), (126, 178.5),
-             (103.5, 140), (127, 140), (116, 120), (116, 160)):
+for x, y in ((102, 101.5), (138, 101.5), (102, 148.5), (124, 148.8),
+             (102, 125), (135.5, 125), (120, 118), (126, 118)):
     b.V('GND', x, y)
 
 b.write(os.path.join(OUT_DIR, "musicbrain-i2criser.kicad_pcb"))
@@ -131,4 +128,4 @@ open(os.path.join(OUT_DIR, "musicbrain-i2criser.kicad_pro"), "w", encoding="utf-
     '  "general": {"project_name": "MusicBrain i2criser"},\n'
     '  "schematic": {"file": "musicbrain-i2criser.kicad_sch"},\n'
     '  "pcb": {"file": "musicbrain-i2criser.kicad_pcb"}\n}\n')
-print("written musicbrain-i2criser")
+print("written musicbrain-i2criser (gen 2)")
