@@ -527,8 +527,8 @@ def rj45(ref, x, y, rot, netmap):
     # render-model: Amphenol RJHSE (ander pinraster, zelfde behuizing)
     pt.append('    (model "${KICAD10_3DMODEL_DIR}/Connector_RJ.3dshapes/'
               'RJ45_Amphenol_RJHSE538X.step"\n'
-              '      (offset (xyz 0.9 -7.7 0)) (scale (xyz 1 1 1)) '
-              '(rotate (xyz 0 0 0)))')
+              '      (offset (xyz 7.99 -2.61 0)) (scale (xyz 1 1 1)) '
+              '(rotate (xyz 0 0 180)))')
     b.raw_fp(f'''  (footprint "GSwitch:RJ45_shielded"
     (layer "F.Cu")
     (uuid "{b.uid()}")
@@ -621,9 +621,11 @@ b.fp('RF_Module.pretty\\ESP32-S3-WROOM-1U.kicad_mod',
          '31': '/BTN4', '32': '/ENC_A', '33': '/ENC_B', '34': '/ENC_SW',
          '35': '/LEDK_A', '36': '/DBG_TX', '37': '/DBG_RX', '38': '/SPARE5',
          '39': '/SPARE6', '40': 'GND', '41': 'GND'}), skip_pad_drill=0.2)
-# de KiCad-lib heeft geen -1U-STEP; het -1-model is visueel gelijk genoeg
-b.fp_texts[-1] = b.fp_texts[-1].replace('ESP32-S3-WROOM-1U.step',
-                                        'ESP32-S3-WROOM-1.step')
+# de KiCad-lib heeft geen -1U-STEP; het -1-model (25,5 met antennezone)
+# prikt in de DIN erboven -> eigen 1U-model (gen_3dshapes.py)
+b.fp_texts[-1] = b.fp_texts[-1].replace(
+    '${KICAD10_3DMODEL_DIR}/RF_Module.3dshapes/ESP32-S3-WROOM-1U.step',
+    '${KIPRJMOD}/../3dshapes/ESP32_WROOM1U.wrl')
 b.fp('Package_SO.pretty\\SOIC-20W_7.5x12.8mm_P1.27mm.kicad_mod',
      'Package_SO:SOIC-20W_7.5x12.8mm_P1.27mm', 'U2', '74HCT541', 147.5, 142, 90,
      b.nm({'1': 'GND', '2': '/A_CLK', '3': '/A_DATA', '4': '/A_LATCH',

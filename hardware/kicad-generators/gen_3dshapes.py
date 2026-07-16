@@ -64,6 +64,12 @@ schrijf('DIN5_SDS50J.wrl',
         cyl_y(0, 12.5, 14.3, 8.0, 6.7, ZILVER),
         cyl_y(0, 14.3, 14.9, 8.0, 4.2, ZWART))
 
+# ESP32-S3-WROOM-1U: 18x19.2, geen antennezone (lib heeft alleen -1-STEP,
+# die is 25,5 lang en prikt in de buurcomponenten); PCB-slab + schermkap
+schrijf('ESP32_WROOM1U.wrl',
+        box(-9, -9.6, 0, 9, 9.6, 0.8, GRIJS),
+        box(-7.9, -8.1, 0.8, 7.9, 8.1, 3.2, ZILVER))
+
 # ACJS-MHD: dubbele stapeljack; fab-rect -19.7,-14 .. 4.25,2.6; twee bussen
 # aan de -y-kant (noordwand), gaten boven elkaar (H ~24,5)
 schrijf('ACJS_MHD.wrl',

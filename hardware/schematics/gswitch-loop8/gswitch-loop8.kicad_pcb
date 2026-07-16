@@ -5243,7 +5243,7 @@
     (pad "" np_thru_hole circle (at -1.27 6.35) (size 3.25 3.25) (drill 3.25) (layers "*.Cu" "*.Mask"))
     (pad "" np_thru_hole circle (at 10.16 6.35) (size 3.25 3.25) (drill 3.25) (layers "*.Cu" "*.Mask"))
     (model "${KICAD10_3DMODEL_DIR}/Connector_RJ.3dshapes/RJ45_Amphenol_RJHSE538X.step"
-      (offset (xyz 0.9 -7.7 0)) (scale (xyz 1 1 1)) (rotate (xyz 0 0 0)))
+      (offset (xyz 7.99 -2.61 0)) (scale (xyz 1 1 1)) (rotate (xyz 0 0 180)))
   )
   (footprint "GSwitch:RJ45_shielded"
     (layer "F.Cu")
@@ -5275,7 +5275,7 @@
     (pad "" np_thru_hole circle (at -1.27 6.35) (size 3.25 3.25) (drill 3.25) (layers "*.Cu" "*.Mask"))
     (pad "" np_thru_hole circle (at 10.16 6.35) (size 3.25 3.25) (drill 3.25) (layers "*.Cu" "*.Mask"))
     (model "${KICAD10_3DMODEL_DIR}/Connector_RJ.3dshapes/RJ45_Amphenol_RJHSE538X.step"
-      (offset (xyz 0.9 -7.7 0)) (scale (xyz 1 1 1)) (rotate (xyz 0 0 0)))
+      (offset (xyz 7.99 -2.61 0)) (scale (xyz 1 1 1)) (rotate (xyz 0 0 180)))
   )
   (footprint "Connector_PinHeader_2.54mm:PinHeader_2x04_P2.54mm_Vertical"
     (uuid "ca4d0000-0000-4000-8000-000000000037")

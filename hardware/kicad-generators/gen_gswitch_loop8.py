@@ -539,8 +539,8 @@ def rj45(ref, x, y, rot, netmap):
     # render-model: Amphenol RJHSE (ander pinraster, zelfde behuizing)
     pt.append('    (model "${KICAD10_3DMODEL_DIR}/Connector_RJ.3dshapes/'
               'RJ45_Amphenol_RJHSE538X.step"\n'
-              '      (offset (xyz 0.9 -7.7 0)) (scale (xyz 1 1 1)) '
-              '(rotate (xyz 0 0 0)))')
+              '      (offset (xyz 7.99 -2.61 0)) (scale (xyz 1 1 1)) '
+              '(rotate (xyz 0 0 180)))')
     b.raw_fp(f'''  (footprint "GSwitch:RJ45_shielded"
     (layer "F.Cu")
     (uuid "{b.uid()}")
