@@ -64,9 +64,10 @@ for p in range(1, N + 1):
         b.T(net, 'F.Cu', SW, j1, (x, j1[1]), (x, j2[1]), j2)
 
 # GND-stitching (40x50)
-for x, y in ((102, 102), (138, 102), (102, 148), (138, 148),
-             (102, 125), (138, 125), (105, 118), (135, 118),
-             (105, 132), (135, 132)):
+MID = (bus.BY0 + bus.BY1) / 2
+for x, y in ((102, bus.BY0 + 2), (138, bus.BY0 + 2), (102, bus.BY1 - 2),
+             (138, bus.BY1 - 2), (102, MID), (138, MID),
+             (105, MID - 7), (135, MID - 7), (105, MID + 7), (135, MID + 7)):
     b.V('GND', x, y)
 
 b.write(OUT_DIR + r"\musicbrain-riser.kicad_pcb")

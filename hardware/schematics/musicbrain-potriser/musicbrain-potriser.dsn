@@ -1,4 +1,4 @@
-(pcb "d:\Git\Muziek\MusicBrain\hardware\schematics\musicbrain-potriser\musicbrain-potriser.dsn"
+(pcb "d:/Git/Muziek/MusicBrain/hardware/schematics/musicbrain-potriser/musicbrain-potriser.dsn"
   (parser
     (string_quote ")
     (space_in_quoted_tokens on)
@@ -21,8 +21,7 @@
       )
     )
     (boundary
-      (path pcb 0  179400 -149400  100600 -149400  100600 -100600  179400 -100600
-            179400 -149400)
+      (path pcb 0  100600.0 -144400.0  179400.0 -144400.0  179400.0 -100600.0  100600.0 -100600.0  100600.0 -144400.0)
     )
     
     
@@ -35,13 +34,13 @@
   )
   (placement
     (component Connector_PinHeader_2.54mm:PinHeader_2x12_P2.54mm_Horizontal
-      (place J1 153970 -143420 front -90 (PN BUS))
+      (place J1 153970 -138420 front -90 (PN BUS))
     )
     (component Connector_PinHeader_2.54mm:PinHeader_1x10_P2.54mm_Horizontal
       (place J2 128570 -104040 front 90 (PN "NAAR FRONT"))
     )
     (component "Package_SO:SOIC-16_3.9x9.9mm_P1.27mm"
-      (place U1 140000 -126000 front 90 (PN MCP3208))
+      (place U1 140000 -126000 front -90 (PN MCP3208))
     )
     (component Capacitor_SMD:C_0805_2012Metric
       (place C1 131110 -113500 front -90 (PN 100n))
@@ -397,9 +396,9 @@
       (pin Round[A]Pad_1700.000000_um 10 0 -22860)
     )
     (image "Package_SO:SOIC-16_3.9x9.9mm_P1.27mm"
-      (outline (polygon signal 0  2195 -4995  2195 -5195  -2195 -5195  -2195 -4995  -3695 -4995
-            -3695 4995  -2195 4995  -2195 5195  2195 5195  2195 4995  3695 4995
-            3695 -4995))
+      (outline (polygon signal 0  -2195 4995  -2195 5195  2195 5195  2195 4995  3695 4995
+            3695 -4995  2195 -4995  2195 -5195  -2195 -5195  -2195 -4995
+            -3695 -4995  -3695 4995))
       (outline (path signal 120  -2060 5060  2060 5060))
       (outline (path signal 120  -2060 5005  -2060 5060))
       (outline (path signal 120  -2060 -5060  -2060 -5005))
@@ -533,11 +532,11 @@
   (wiring
     (via "Via[0-1]_500:300_um"  102000 -102000 (type route))
     (via "Via[0-1]_500:300_um"  178000 -102000 (type route))
-    (via "Via[0-1]_500:300_um"  102000 -148000 (type route))
-    (via "Via[0-1]_500:300_um"  178000 -148000 (type route))
-    (via "Via[0-1]_500:300_um"  102000 -125000 (type route))
-    (via "Via[0-1]_500:300_um"  178000 -125000 (type route))
-    (via "Via[0-1]_500:300_um"  112000 -140000 (type route))
-    (via "Via[0-1]_500:300_um"  168000 -140000 (type route))
+    (via "Via[0-1]_500:300_um"  102000 -143000 (type route))
+    (via "Via[0-1]_500:300_um"  178000 -143000 (type route))
+    (via "Via[0-1]_500:300_um"  102000 -122000 (type route))
+    (via "Via[0-1]_500:300_um"  178000 -122000 (type route))
+    (via "Via[0-1]_500:300_um"  112000 -135000 (type route))
+    (via "Via[0-1]_500:300_um"  168000 -135000 (type route))
   )
 )

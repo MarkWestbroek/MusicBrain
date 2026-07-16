@@ -1,6 +1,6 @@
 """MusicBrain POT-RISER (gen 2): MCP3208-riser voor het POT8-FRONT.
 
-Gen 2 (spi-bus-spec v2.0): slot 2x12, H=50. Bord 80x50 (was 28x80): de 2x12
+Gen 2 (spi-bus-spec v2.0): slot 2x12, H=45. Bord 80x50 (was 28x80): de 2x12
 spant 27,94 mm en de vrije kernband tussen de connector-courtyards is 33,3 mm
 - ruim genoeg voor de MCP3208 + 9 caps (137 mm2 = 5% dichtheid).
 
@@ -29,7 +29,7 @@ GEBRUIKT = {'GND', '+3V3', '/SCLK', '/MOSI', '/MISO', '/CS'}
 # ================= SCHEMA =================
 s = Sch("d0710000-0000-4000-8000-000000000000", "musicbrain-potriser",
         "MusicBrain POT-RISER - MCP3208-riser voor POT8-FRONT", REV, DATE,
-        ("Gen 2: slot 2x12 (spi-bus-spec v2.0), H=50, bord 80x50",
+        ("Gen 2: slot 2x12 (spi-bus-spec v2.0), H=45, bord 80x50",
          "Boven: POT8-FRONT (1x10: 1=GND, 2..9=W1..8, 10=+3V3)"))
 s.libs += [C_SYM, FLAG_SYM, conn_symbol("Conn_02x12", 12), conn1_symbol("Conn_01x10", 10),
            box_symbol("MCP3208",
@@ -111,7 +111,7 @@ NETS = ['', 'GND', '+3V3', '/SCLK', '/MOSI', '/MISO', '/CS'] + [f'/W{k}' for k i
 BX0, BX1 = 100.0, 180.0            # 80 mm (= bus.KAART_B)
 CX = (BX0 + BX1) / 2               # 140.0
 b = Board("MusicBrain POT-RISER - MCP3208-riser", REV,
-          (CX, 137.0, 0), BX0, bus.BY0, BX1, bus.BY1, NETS, DATE)
+          (CX, bus.BY1 - 12.5, 0), BX0, bus.BY0, BX1, bus.BY1, NETS, DATE)
 b.silk_name = 'potriser'
 
 J1_MAP = bus.j1_map(b, GEBRUIKT)
@@ -128,7 +128,10 @@ b.fp(bus.HDR_PANEEL[0], bus.HDR_PANEEL[1], 'J2', 'NAAR FRONT',
      CX - bus.PANEEL_HALF, bus.BY0 + bus.CONN_INSET_PANEEL, 90, J2_MAP)
 # U1 midden in de vrije band (108,35 .. 141,65)
 b.fp('Package_SO.pretty\\SOIC-16_3.9x9.9mm_P1.27mm.kicad_mod',
-     'Package_SO:SOIC-16_3.9x9.9mm_P1.27mm', 'U1', 'MCP3208', CX, 126.0, 90, U1_MAP)
+     'Package_SO:SOIC-16_3.9x9.9mm_P1.27mm', 'U1', 'MCP3208', CX, 126.0, 270, U1_MAP)
+# rot 270: kanalen (1-8) noordwaarts naar de caps/J2, SPI+GND (9-16) zuidwaarts
+# naar J1 en het open vlak. Bij rot 90 wikkelden de wiper-banen zich om de
+# GND-pads heen en raakte pad 14 (AGND) opgesloten van het vlak (H=45-les).
 # reservoirs: staand, recht onder hun J2-loperpin (korte route)
 for k in range(1, 9):
     x = b.P['J2'][str(k + 1)][0]
@@ -145,9 +148,18 @@ if os.path.exists(ses):
     nt, nv = apply_ses(b, ses)
     print(f"SES: {nt} sporen, {nv} vias overgenomen")
     print(f"snap_stubs: {b.snap_stubs()} stubs aangevuld")
-for x, y in ((102, 102), (178, 102), (102, 148), (178, 148),
-             (102, 125), (178, 125), (112, 140), (168, 140)):
+for x, y in ((102, bus.BY0 + 2), (178, bus.BY0 + 2), (102, bus.BY1 - 2),
+             (178, bus.BY1 - 2), (102, 122), (178, 122),
+             (112, bus.BY1 - 10), (168, bus.BY1 - 10)):
     b.V('GND', x, y)
+# eiland-hechtvia's van gnd_stitch.py/gnd_bridge.py (clearance-gecheckt)
+import json as _json
+_sf = os.path.join(OUT_DIR, 'gnd_stitch.json')
+if os.path.exists(_sf):
+    _st = _json.load(open(_sf))
+    for _sx, _sy in _st:
+        b.V('GND', _sx, _sy)
+    print('gnd_stitch-via\'s:', len(_st))
 
 b.write(os.path.join(OUT_DIR, "musicbrain-potriser.kicad_pcb"))
 open(os.path.join(OUT_DIR, "musicbrain-potriser.kicad_pro"), "w", encoding="utf-8", newline="\n").write(

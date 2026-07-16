@@ -9,7 +9,7 @@
     (date "2026-07-16")
     (rev "2.0")
     (company "MusicBrain project")
-    (comment 1 "Gen 2: slot 2x12 (spi-bus-spec v2.0), H=50")
+    (comment 1 "Gen 2: slot 2x12 (spi-bus-spec v2.0), H=45")
     (comment 2 "Boven: front 1x10 (1=GND, 2=SDA, 3=SCL, 4=IRQ, 10=+3V3)")
   )
   (lib_symbols

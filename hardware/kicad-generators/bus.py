@@ -6,19 +6,19 @@ importeren hieruit; niemand tikt de pinout nog zelf over.
 Gen 2 (2026-07-16, besluit Mark — zie doc/systeem-v3-plan.md):
   - slot 2x12: 1-18 identiek aan gen 1, 19=SPARE1/CONVST, 20=GND-guard,
     21-24 = MCLK/BCLK/LRCLK/I2S_DATA
-  - H = 50 (was 80); kaarten 80 mm breed (B-richting)
+  - H = 45 (was 80); kaarten 80 mm breed (B-richting)
   - slotsteek 20,32 mm (4 HP); slots gecentreerd op het bordhart
 """
 
 # ---- mechanica ----
-H = 50.0                 # kaarthoogte boven het busboard (was 80 in gen 1)
+H = 45.0                 # kaarthoogte boven het busboard (was 80 in gen 1; 50->45 na de inzet-fix: band 30,8 = bewezen gen-1-dichtheid)
 KAART_B = 80.0           # standaard kaartbreedte in de B-richting
 SLOT_STEEK = 20.32       # 4 HP (1 HP = 5,08)
 HP = 5.08
 
 # Kaart-assenstelsel: de generators tekenen op een vaste plek in het vel.
 BY0 = 100.0              # paneelrand (boven)
-BY1 = BY0 + H            # busrand (onder)  -> 150.0
+BY1 = BY0 + H            # busrand (onder)  -> 145.0
 
 # Anker-inzet (padrij -> bordrand) PER CONNECTORTYPE, zo gekozen dat de
 # body exact op de bordrand eindigt en de volle 6,0 mm paarpin uitsteekt:

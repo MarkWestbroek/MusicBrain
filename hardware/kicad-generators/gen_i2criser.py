@@ -1,6 +1,6 @@
 """MusicBrain I2C-RISER (gen 2) — domme riser voor I2C-fronts (ENC5-FRONT).
 
-Gen 2 (spi-bus-spec v2.0): slot 2x12, H=50. Bord 40x50: de 2x12 spant
+Gen 2 (spi-bus-spec v2.0): slot 2x12, H=45. Bord 40x50: de 2x12 spant
 27,94 mm, dus de oude 28 mm-riser was te smal (pads op de bordrand).
 Onder: haakse male 2x12 in het slot. Boven: haakse male 1x10 naar het front
 (front-contract: 1 = GND, 2 = SDA, 3 = SCL, 4 = /IRQ, 5..9 = nc, 10 = +3V3).
@@ -26,7 +26,7 @@ J2SPEC = ['GND', '/SDA', '/SCL', '/IRQ', None, None, None, None, None, '+3V3']
 # ================= SCHEMA =================
 s = Sch("d0730000-0000-4000-8000-000000000000", "musicbrain-i2criser",
         "MusicBrain I2C-RISER - domme riser voor I2C-fronts", REV, DATE,
-        ("Gen 2: slot 2x12 (spi-bus-spec v2.0), H=50",
+        ("Gen 2: slot 2x12 (spi-bus-spec v2.0), H=45",
          "Boven: front 1x10 (1=GND, 2=SDA, 3=SCL, 4=IRQ, 10=+3V3)"))
 s.libs += [FLAG_SYM, conn_symbol("Conn_02x12", 12), conn1_symbol("Conn_01x10", 10),
            power_symbol("GND", False), power_symbol("+3V3", True)]
@@ -102,7 +102,8 @@ sda, scl, irq = P['J1']['17'], P['J1']['18'], P['J1']['16']
 f2, f3, f4 = P['J2']['2'], P['J2']['3'], P['J2']['4']
 
 # /SDA: noordrij -> vroege jog naar de doelkolom -> recht noord
-b.T('/SDA', 'B.Cu', SW, sda, (sda[0], 140.0), (f2[0], 140.0), f2)
+SDALAAN = sda[1] - 3.0     # vlak boven J1's noordrij
+b.T('/SDA', 'B.Cu', SW, sda, (sda[0], SDALAAN), (f2[0], SDALAAN), f2)
 # /SCL: zuidrij -> corridor -> gap-kolom -> laan 112 -> doelkolom
 b.T('/SCL', 'B.Cu', SW, scl, (scl[0], ROWMID), (scl[0] + GAP, ROWMID),
     (scl[0] + GAP, 112.0), (f3[0], 112.0), f3)
@@ -110,7 +111,7 @@ b.T('/SCL', 'B.Cu', SW, scl, (scl[0], ROWMID), (scl[0] + GAP, ROWMID),
 b.T('/IRQ', 'B.Cu', SW, irq, (irq[0], ROWMID), (irq[0] + GAP, ROWMID),
     (irq[0] + GAP, 112.5), (f4[0], 112.5), f4)
 
-# +3V3: J1-6 zuidwaarts de vrije strook in (bij H=50 is er 4 mm onder J1),
+# +3V3: J1-6 zuidwaarts de vrije strook in (bij H=45 is er 4 mm onder J1),
 # dan oostrand-rail noordwaarts naar J2-10. Breed (0,4) mag hier: geen corridor.
 p6, j2_10 = P['J1']['6'], P['J2']['10']
 ZUID = bus.BY1 - 2.0          # 148.0
@@ -118,8 +119,8 @@ RAIL = BX1 - 2.2              # 137.8
 b.T('+3V3', 'F.Cu', .4, p6, (p6[0], ZUID), (RAIL, ZUID), (RAIL, 109.0),
     (j2_10[0], 109.0), j2_10)
 # GND-hechtvia's
-for x, y in ((102, 101.5), (138, 101.5), (102, 148.5), (124, 148.8),
-             (102, 125), (135.5, 125), (120, 118), (126, 118)):
+for x, y in ((102, bus.BY0 + 1.5), (138, bus.BY0 + 1.5), (102, bus.BY1 - 1.5),
+             (124, bus.BY1 - 1.2), (102, 122), (135.5, 122), (120, 116), (126, 116)):
     b.V('GND', x, y)
 
 b.write(os.path.join(OUT_DIR, "musicbrain-i2criser.kicad_pcb"))

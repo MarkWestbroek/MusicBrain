@@ -29,12 +29,12 @@ later naar 115 mm diep en de slots zijn nooit meegecentreerd.
 | 2 | **Slotsteek 20,00 → 20,32 mm (4 HP)** | 1 HP = 5,08; aansluiten op de standaard gatenrij |
 | 3 | **Busboard 40 HP breed (203,2 mm) × 128,5 mm diep** | 3U-paneelvlak; paneel, fronts en grondbord delen één footprint → zelfstandige unit |
 | 4 | **U2 (R-78E5.0) verplaatsen** | blokkeert het zuidwaarts schuiven van de slots |
-| 5 | **H 80 → 50 mm** (kaarten **80 mm breed** × 50 hoog) | kaarten zijn nu 87–92% lucht; 80 mm breed geeft 49 mm hoog bij de huidige dichtheid. Box wordt 30 mm lager |
+| 5 | **H 80 → 45 mm** (kaarten **80 mm breed** × 45 hoog) | kaarten zijn nu 87–92% lucht; connectorzones kosten 14,16 mm, dus band = 30,84 mm → adc8 op ~17% = bewezen gen-1-dichtheid. Box wordt 35 mm lager. (Eerst 50; 45 na de inzet-fix — besluit Mark) |
 | 6 | **Slot 2×10 → 2×12** (+MCLK/BCLK/LRCLK/DATA) | zonder deze lijnen is een gedelegeerde slave-module met **gemixte** audio structureel onmogelijk |
 | 7 | **Voeding: 10-pins houden + R-78E5.0-0.5 → -1.0 (1A)** | de 10-pins eurorack-standaard voert géén +5V (alleen 16-pins doet dat); een jumper tussen bus-5V en eigen regelaar is een risicovol faalpad. 1A is nodig voor USB-host (500 mA) |
 | 8 | **MIDI 2×IN / 2×UIT** | symmetrisch; **pin 29 (TX7) stond al vrij** en hoort bij pin 28 (RX7 = MIDI IN2). Kosten: 1× 74LVC1G17 + 3-pins header |
 | 9 | **USB-host toevoegen** | Teensy 4.1 heeft aparte USB-host-pads (nog niet in onze footprint) |
-| 10 | **jack8 → 110 mm, 8 jacks @ 13,75 mm; jack4 → 4 jacks @ 13,75; socket gecentreerd** | jack8 was 125 mm terwijl de bruikbare hoogte tussen de rails 110 mm is (`front-board-constraints.md`); socket stond 7,5 mm (jack8) resp. 17,4 mm (jack4) uit het midden |
+| 10 | **jack8 → 110 mm, 8 jacks @ 13,75 mm, socket gecentreerd; jack4 → alleen steek 13,75** | jack8 was 125 mm terwijl de bruikbare hoogte tussen de rails 110 mm is (`front-board-constraints.md`); socket stond 7,5 mm uit het midden. jack4 hangt via een kabel aan de hub-DAC — centrering is daar irrelevant |
 | 11 | **ADAT: bus-lijnen reserveren, geen slot** | met 2×12 kan élk slot een FPGA-/codec-/slave-kaart worden |
 
 ### Wat NIET verandert
@@ -112,11 +112,11 @@ Front heeft een **TOSLINK TOTX/TORX-module** nodig. Nog narekenen: 3V3-budget
 
 ## Actielijst (volgorde)
 
-1. **`doc/spi-bus-spec.md` → v2.0**: slot 2×12 + nieuwe pinout + H=50 vastleggen.
-2. **cardlib/schlib**: H=50-parametrisering + 2×12-slotfootprint + de nieuwe
-   `nm()`-map.
-3. **Risers** eerst (dom, snel = vroege validatie van de 2×12-keten).
-4. **Slotkaarten** (adc8/dac8/gate8/gatein8): herindelen 80×50 → freerouting.
+1. **`doc/spi-bus-spec.md` → v2.0**: slot 2×12 + nieuwe pinout + H=45 vastleggen. ✔
+2. **`bus.py`**: H=45-parametrisering + 2×12-slotfootprint + de nieuwe
+   `j1_map()`. ✔
+3. **Risers** eerst (dom, snel = vroege validatie van de 2×12-keten). ✔
+4. **Slotkaarten** (adc8/dac8/gate8/gatein8): herindelen 80×45 → freerouting.
 5. **jack8/jack4** herindelen.
 6. **Busboard v3**: floorplan + placement, dan freerouting (grootste klus).
 7. Fab + README's + MODULES.md + herpubliceren naar de site.

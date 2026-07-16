@@ -9,7 +9,7 @@
     (date "2026-07-16")
     (rev "2.0")
     (company "MusicBrain project")
-    (comment 1 "Gen 2: slot 2x12 (spi-bus-spec v2.0), H=50, bord 80x50")
+    (comment 1 "Gen 2: slot 2x12 (spi-bus-spec v2.0), H=45, bord 80x50")
     (comment 2 "Boven: POT8-FRONT (1x10: 1=GND, 2..9=W1..8, 10=+3V3)")
   )
   (lib_symbols

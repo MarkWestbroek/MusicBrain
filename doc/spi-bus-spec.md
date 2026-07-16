@@ -8,7 +8,7 @@
 > 2.0, …) die kan opschuiven zonder dat de spec verandert. Om verwarring te
 > voorkomen noemt de spec expliciet welke **bus-generatie** hij definieert:
 > - **gen 1** = slot 2×10 (v1.x van dit doc) — busboard v1.1 en v2.0
-> - **gen 2** = slot 2×12, +MCLK/BCLK/LRCLK/I2S_DATA, H=50 — vanaf busboard v3
+> - **gen 2** = slot 2×12, +MCLK/BCLK/LRCLK/I2S_DATA, H=45 — vanaf busboard v3
 >
 > Besluiten en rationale: `doc/systeem-v3-plan.md`.
 
@@ -214,14 +214,15 @@ Model: busboard ligt plat (L x B), kaarten staan verticaal, en boven alle
 kaarten komt **een vlakke bovenplaat** waar jacks, potmeters en encoders
 doorheen steken.
 
-1. **H = 50 mm voor alle kaarten** (gen 2; was 80 in gen 1) — dit maakt de
+1. **H = 45 mm voor alle kaarten** (gen 2; was 80 in gen 1) — dit maakt de
    gedeelde bovenplaat mogelijk én houdt de box laag. De kaarten waren op
-   80 mm voor 87–92% lucht; **80 mm kaartbreedte** (in B) geeft bij de
-   gemeten dichtheid 49 mm hoogte, ook voor de drukste kaart (adc8:
-   416 mm² componenten, AD7606 13,4×13,4). De hoogte wordt bepaald door de
-   mechanische stapel (J1 onder → J2 boven), niet door de componenten:
-   ~13 mm J1-zone + ~15 mm componentband + ~13 mm J2-zone + routemarge.
-   Een Teensy 4.1 (61×18) past liggend op een 80×50-kaart.
+   80 mm voor 87–92% lucht. De hoogte wordt bepaald door de mechanische
+   stapel (J1 onder → J2 boven), niet door de componenten: de connectorzones
+   (padrij + courtyard) kosten samen 14,16 mm, dus bij H=45 blijft een
+   **componentband van 30,84 mm** over — de drukste kaart (adc8: 416 mm²
+   componenten, AD7606 13,4×13,4) komt daarmee op ~17% dichtheid, gelijk
+   aan de bewezen gen-1-dichtheid. Een Teensy 4.1 (61×18) past liggend op
+   een 80×45-kaart.
 2. **Slotsteek = 20,32 mm (4 HP)**, 1 HP = 5,08 mm — zodat de fronts op de
    standaard gatenrij van een rack vallen. Fronts blijven 20 mm breed
    (0,32 mm lucht ertussen).
