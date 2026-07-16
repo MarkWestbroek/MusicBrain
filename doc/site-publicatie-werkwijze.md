@@ -105,4 +105,11 @@ de les van 2026-07-16).
   terugtrekken).
 - Vraag & antwoord juli 2026: `doc/imprint-vragen-2026-07.md`.
 - Alles-in-één-alternatief: `publish_product.mjs` (zelfde keten, hele set
-  in één run; leest `.env` automatisch).
+  in één run; leest `.env` automatisch). ⚠ De default `--assets-dir` wijst
+  naar `D:\Git\imprint-engine\...`, maar de Imprint-repo staat op
+  `D:\Git\Web\Imprint-engine\...` — geef
+  `--assets-dir "D:/Git/Web/Imprint-engine/sites/musicbrain/public/boards"`
+  mee, anders "geen render-PNG gevonden". Een bestaande release bijwerken
+  (zelfde versie, extra bord) = gewoon opnieuw posten met dezelfde
+  `--release proj@vN.M` en de volledige boardset (2026-07-17: zo is
+  gswitch-loop8sh aan guitar-switcher-v0.1 toegevoegd).
