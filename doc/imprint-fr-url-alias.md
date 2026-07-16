@@ -21,11 +21,15 @@ contentTypes:
     alias: hw        # /hw/<slug> -> /components/<slug>
 ```
 
+> **Status 2026-07-17**: geïmplementeerd door Imprint als **308-redirect**
+> — zelfde permanente semantiek als de gevraagde 301, akkoord. Live na de
+> Plesk-pull + alias via admin → Site.
+
 ## Gewenst gedrag
 
-1. `GET /hw/<slug>` beantwoordt met een **301-redirect** naar
-   `/components/<slug>` (canoniek pad blijft het contenttype-pad; geen
-   duplicate content).
+1. `GET /hw/<slug>` beantwoordt met een **permanente redirect** (301 of
+   308 — beide voldoen) naar `/components/<slug>` (canoniek pad blijft
+   het contenttype-pad; geen duplicate content).
 2. Onbekende slug onder de alias → gewone 404.
 3. Meerdere aliassen per type mogen (array), maar één is genoeg.
 4. Alias geldt alleen voor de detailpagina's; de overzichtspagina

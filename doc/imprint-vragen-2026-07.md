@@ -5,6 +5,15 @@ release `cortex-v0.2` — had `v0.3` moeten heten, zie vraag 2). Alles via de
 ingest-keten uit `docs/mmb-ingest-guide.md`. Daarbij kwamen de volgende
 punten boven.
 
+> **Beantwoord door Imprint 2026-07-17** — alle zes geregeld: alias als
+> 308 (zie status in `imprint-fr-url-alias.md`), DELETE = bitemporale
+> tombstone (gids §6), release-lijst toont project+versie, componentpagina
+> toont álle versies (releaseweging = backlog), testcase =
+> `npm run testcase:bitemporal` (groen tegen prod incl. oude assets),
+> ingest-response heeft `pinned_by` + warning. Punten 1/2/3/6 live na de
+> Plesk-pull. cortex-v0.2 → v0.3 lokaal uitgevoerd met
+> `publish_release.py --withdraw` (prod volgt na de pull).
+
 ## 1. URL-alias per contenttype (feature request)
 
 De borden dragen een silk-opdruk `musicbrain.nl/hw/<naam>`; het echte pad is
