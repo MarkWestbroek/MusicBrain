@@ -46,9 +46,13 @@ SPI-hubs J7/J8; volledig passief.
   De klokken zitten mee op J24 (vraag Mark 2026-07-16, expansie): zo is
   één lintkabel per segment compleet — een expansiesegment (zonder Teensy)
   krijgt zijn klokrails vía zijn J24 aangeleverd en levert zijn zes
-  datalijnen over dezelfde kabel terug. Eén FPGA-mixer bedient daarmee het
-  busboard + twee expansiesegmenten (18 datalijnen; zie capaciteitsnoot in
-  het J24-hoofdstukje hieronder).
+  datalijnen over dezelfde kabel terug.
+  **Capaciteit** (correctie 2026-07-16): het systeem voorziet in **één**
+  expander-segment — de begrenzing is de bésturing, niet de audio. De
+  74HC154 heeft 16 CS-lijnen: Y0–5 eigen slots, Y6/7 hubs, Y8–13 = CS9–14
+  (= precies één segment), Y14 IRQSTAT, Y15 reserve. Voor de FPGA-mixer
+  zou een derde segment triviaal zijn (extra lintkabel, 6 datalijnen);
+  meer segmenten = v4-discussie (eigen decoder op de expander, of CAN).
 - ⚠️ open (ongewijzigd uit de spec): SI-review pinnen 21–24; klokmaster-keuze.
 
 ## Floorplan (uitgangspunt)
@@ -87,11 +91,11 @@ zuidwest, B.Cu-lanebundel onder het slotveld. Verschuivingen:
 1. **Klokmaster**: master-Teensy als default (firmware), FPGA neemt later
    over. — **akkoord Mark 2026-07-16**.
 2. **J24-vorm**: **2×7 IDC-baar** (klokken mee op de header — zie
-   audio-aanlanding). Capaciteit mixer: mixen is MAC-werk; één Tang Nano 9K
-   doet bij 48 kHz duizenden MAC's per sample — 18 datalijnen (3 segmenten)
-   kosten ~1k LUT aan deserializers + een opteller. De grens is kabels/
-   FPGA-pinnen, niet rekenkracht; 18 lijnen + klokken + SPI past op de
-   Nano-9K-headers.
+   audio-aanlanding). Mixer-capaciteit is geen zorg: mixen is MAC-werk,
+   één Tang Nano 9K doet bij 48 kHz duizenden MAC's per sample; 12
+   datalijnen (hoofd + expander) kosten ~800 LUT aan deserializers + een
+   opteller. De systeemgrens ligt bij de CS-lijnen (zie audio-aanlanding),
+   niet bij de FPGA.
 3. **Versienummers (besluit Mark 2026-07-16)**: v2 blijft gearchiveerd in
    `rel-v0.2/` (staat er al), níet naar deprecated. Bord-revs blijven
    overal MAJOR.MINOR — het busboard wordt **rev 3.0**; de "v2/v3" in de
