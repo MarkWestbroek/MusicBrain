@@ -411,7 +411,7 @@ FPS += [
 # ---- stuurcluster: decoder + IRQ-keten + expansiebuffer ----
 FPS += [
     ('Package_SO.pretty\\SOIC-24W_7.5x15.4mm_P1.27mm.kicad_mod',
-     'Package_SO:SOIC-24W_7.5x15.4mm_P1.27mm', 'U4', '74HC154', 54, 57, U4_MAP, 180),
+     'Package_SO:SOIC-24W_7.5x15.4mm_P1.27mm', 'U4', '74HC154', 70, 32, U4_MAP, 90),
     ('Package_SO.pretty\\SOIC-16_3.9x9.9mm_P1.27mm.kicad_mod',
      'Package_SO:SOIC-16_3.9x9.9mm_P1.27mm', 'U5', '74HC165', 37, 112, U5_MAP, 90),
     ('Package_SO.pretty\\SOIC-16_3.9x9.9mm_P1.27mm.kicad_mod',
@@ -427,7 +427,7 @@ FPS += [
      'J24', 'AUDIOHUB', 115, 103, J24_MAP, 90),
     # MIDI/CAN-cluster (v2-indeling, 12 mm zuidwaarts op het diepere bord)
     ('Package_SO.pretty\\SOIC-8_3.9x4.9mm_P1.27mm.kicad_mod',
-     'Package_SO:SOIC-8_3.9x4.9mm_P1.27mm', 'U12', 'SN65HVD230', 92, 111, U12_MAP, 0),
+     'Package_SO:SOIC-8_3.9x4.9mm_P1.27mm', 'U12', 'SN65HVD230', 150, 112, U12_MAP, 0),
     ('Package_DIP.pretty\\DIP-6_W7.62mm.kicad_mod', 'Package_DIP:DIP-6_W7.62mm',
      'U9', 'H11L1', 52, 112, U9_MAP, 0),
     ('Package_DIP.pretty\\DIP-6_W7.62mm.kicad_mod', 'Package_DIP:DIP-6_W7.62mm',
@@ -443,13 +443,13 @@ FPS += [
     CSMD + ('C9', '220p', 40.9, 97.5, rc('/IRQSTAT', '/PL'), 0),
     RSMD + ('R33', '10k', 142.5, 12.8, rc('+3V3', '/PL2'), 90),
     CSMD + ('C18', '220p', 145, 12.5, rc('/IRQSTAT', '/PL2'), 90),
-    CSMD + ('C10', '100n', 40, 64, rc('+3V3', 'GND'), 90),       # U4 (tussen de Teensy-stroken)
+    CSMD + ('C10', '100n', 60, 27, rc('+3V3', 'GND'), 0),        # U4 (noordstrook)
     CSMD + ('C15', '100n', 34.6, 104.2, rc('+3V3', 'GND'), 0),   # U5
     CSMD + ('C16', '100n', 152, 22.8, rc('+3V3', 'GND'), 90),    # U6
     CSMD + ('C17', '100n', 59, 91, rc('+3V3', 'GND'), 0),        # U7
     CSMD + ('C11', '100n', 85.8, 24, rc('+3V3', 'GND'), 90),     # U8
     CSMD + ('C12', '100n', 58, 105, rc('+3V3', 'GND'), 0),       # optos
-    CSMD + ('C13', '100n', 88, 105.5, rc('+3V3', 'GND'), 90),    # CAN
+    CSMD + ('C13', '100n', 143, 112, rc('+3V3', 'GND'), 0),      # CAN
     CSMD + ('C19', '100n', 93, 123.5, rc('+3V3', 'GND'), 90),    # U14
 ]
 # IRQ1-6 pulldowns onder hun slot (IRQ-pin = even kolom, rij 8)
@@ -483,11 +483,11 @@ FPS += [
 ]
 # CAN passief
 FPS += [
-    RSMD + ('R13', '10k', 91, 105.8, rc('/CAN_RS', 'GND'), 180),
-    RSMD + ('R12', '120R', 103, 116, rc('/CANH', '/CAN_TRM'), 90),
+    RSMD + ('R13', '10k', 150, 118, rc('/CAN_RS', 'GND'), 180),
+    RSMD + ('R12', '120R', 158, 112, rc('/CANH', '/CAN_TRM'), 90),
     ('Jumper.pretty\\SolderJumper-2_P1.3mm_Open_TrianglePad1.0x1.5mm.kicad_mod',
      'Jumper:SolderJumper-2_P1.3mm_Open_TrianglePad1.0x1.5mm',
-     'JP1', 'TERM', 99.5, 119, JP1_MAP, 0),
+     'JP1', 'TERM', 157.5, 117.5, JP1_MAP, 0),
 ]
 # M3-gaten: 4 hoeken + noord/zuid-midden (paneel deelt dit patroon)
 for hn, (hx, hy) in enumerate(((18.5, 14), (164, 12.5), (213, 15),
@@ -515,7 +515,7 @@ def V(net, x, y):
 for sx_, sy_ in ((20, 22), (213, 20), (20, 116), (213, 130), (28, 90),
                  (45, 30), (90, 12), (116, 12), (180, 12), (200, 30),
                  (60, 50), (116, 50), (170, 50),
-                 (60, 92), (150, 92), (186, 92),
+                 (60, 92), (186, 92),
                  (40, 110), (70, 118), (110, 110), (150, 124), (190, 118),
                  (70, 132), (130, 132), (180, 132)):
     V('GND', sx_, sy_)

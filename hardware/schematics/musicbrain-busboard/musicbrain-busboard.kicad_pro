@@ -1,6 +1,20 @@
 {
   "meta": {"filename": "musicbrain-busboard.kicad_pro", "version": 3},
   "general": {"project_name": "MusicBrain busboard"},
+  "net_settings": {
+    "classes": [
+      {"name": "Default", "clearance": 0.2, "track_width": 0.25,
+       "via_diameter": 0.6, "via_drill": 0.3},
+      {"name": "power", "clearance": 0.2, "track_width": 0.35,
+       "via_diameter": 0.6, "via_drill": 0.3}
+    ],
+    "netclass_patterns": [
+      {"netclass": "power", "pattern": "+12V"},
+      {"netclass": "power", "pattern": "-12V"},
+      {"netclass": "power", "pattern": "+5V"},
+      {"netclass": "power", "pattern": "+3V3"}
+    ]
+  },
   "schematic": {"file": "musicbrain-busboard.kicad_sch"},
   "pcb": {"file": "musicbrain-busboard.kicad_pcb"}
 }
