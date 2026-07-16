@@ -1,25 +1,25 @@
 {
- "titel": "musicbrain-jack8 rev 1.2 — aansluitoverzicht",
+ "titel": "musicbrain-jack8 rev 2.0 — aansluitoverzicht",
  "bbox_mm": [
   100.0,
   100.0,
   120.0,
-  225.0
+  210.0
  ],
  "callouts": [
   {
    "label": "PJ398SM (J2)",
    "mm": [
     108.0,
-    109.6
+    106.17
    ],
-   "kant": "links"
+   "kant": "boven"
   },
   {
    "label": "PJ398SM (J3)",
    "mm": [
     108.0,
-    124.6
+    119.92
    ],
    "kant": "links"
   },
@@ -27,7 +27,7 @@
    "label": "PJ398SM (J4)",
    "mm": [
     108.0,
-    139.6
+    133.67
    ],
    "kant": "links"
   },
@@ -35,7 +35,7 @@
    "label": "PJ398SM (J5)",
    "mm": [
     108.0,
-    154.6
+    147.42
    ],
    "kant": "links"
   },
@@ -43,7 +43,7 @@
    "label": "PJ398SM (J6)",
    "mm": [
     108.0,
-    169.6
+    161.17
    ],
    "kant": "links"
   },
@@ -51,7 +51,7 @@
    "label": "PJ398SM (J7)",
    "mm": [
     108.0,
-    184.6
+    174.92
    ],
    "kant": "links"
   },
@@ -59,23 +59,31 @@
    "label": "PJ398SM (J8)",
    "mm": [
     108.0,
-    199.6
+    188.67
    ],
    "kant": "links"
+  },
+  {
+   "label": "NORM=GND (JP1)",
+   "mm": [
+    103.5,
+    208.5
+   ],
+   "kant": "onder"
   },
   {
    "label": "PJ398SM (J9)",
    "mm": [
     108.0,
-    214.6
+    202.42
    ],
-   "kant": "links"
+   "kant": "onder"
   },
   {
    "label": "SOCKET-BACK (J1)",
    "mm": [
     116.5,
-    155.0
+    143.57
    ],
    "kant": "rechts"
   }

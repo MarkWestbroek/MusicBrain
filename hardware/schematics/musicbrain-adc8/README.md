@@ -1,9 +1,19 @@
 # MusicBrain ADC8 — 8× CV-ingang (slotkaart)
 
-**Status**: v1.1 — schema ERC-schoon + netlist geverifieerd; PCB **volledig
-geroute** (DRC 0 fouten, 0 unconnected).
-**Spec**: `doc/spi-bus-spec.md`. Bord: 40 mm breed × **80 mm hoog**
-(standaard-kaarthoogte H voor de gedeelde bovenplaat), 2 lagen.
+**Status**: rev 2.0 — ERC 0, netlijst pad-voor-pad geverifieerd, DRC 0/0.
+**Spec**: `doc/spi-bus-spec.md` v2.0. Bord **65 × 45 mm**, 2 lagen.
+
+## Gen 2 (rev 2.0, 2026-07-16)
+
+- Slot **2×12**: CONVST = pin 19 (busbrede sample-strobe).
+- **RESET is lokaal** (C15/R9 RC-power-up, τ = 10 ms) — de SPARE2-buslijn
+  is in gen 2 vervallen.
+- GND-binnenring onder de LQFP (zone-vulling haalt 0,5 mm-pads niet);
+  koper via freerouting met `--route-gnd`. v1.2-kanaalmapping blijft.
+
+De schakelingbeschrijving hieronder is ongewijzigd; waar de lopende
+tekst nog gen-1-maten of 2×10 noemt, geldt bovenstaande. Overzicht en
+pinouts hieronder zijn gen-2-gegenereerd.
 
 ## Wat het is
 

@@ -1,35 +1,41 @@
 {
- "title": "musicbrain-jack4 rev 1.2 — aansluitoverzicht",
+ "title": "musicbrain-jack4 rev 2.0 — aansluitoverzicht",
  "image": "/boards/musicbrain-jack4.png",
  "alt": "3D-render van musicbrain-jack4",
  "points": [
   {
-   "x": 0.409,
-   "y": 0.1477,
+   "x": 0.4084,
+   "y": 0.1333,
    "label": "PJ398SM (J2)",
    "markdown": "| pin | net |\n|--|--|\n| 1 | CH1 |\n| 2 | GND |\n| 3 | NORM |"
   },
   {
-   "x": 0.409,
-   "y": 0.3785,
+   "x": 0.4084,
+   "y": 0.3625,
    "label": "PJ398SM (J3)",
    "markdown": "| pin | net |\n|--|--|\n| 1 | CH2 |\n| 2 | GND |\n| 3 | NORM |"
   },
   {
-   "x": 0.409,
-   "y": 0.6092,
+   "x": 0.4084,
+   "y": 0.5917,
    "label": "PJ398SM (J4)",
    "markdown": "| pin | net |\n|--|--|\n| 1 | CH3 |\n| 2 | GND |\n| 3 | NORM |"
   },
   {
-   "x": 0.409,
-   "y": 0.84,
+   "x": 0.4084,
+   "y": 0.8208,
    "label": "PJ398SM (J5)",
    "markdown": "| pin | net |\n|--|--|\n| 1 | CH4 |\n| 2 | GND |\n| 3 | NORM |"
   },
   {
-   "x": 0.7958,
-   "y": 0.7677,
+   "x": 0.2022,
+   "y": 0.975,
+   "label": "NORM=GND (JP1)",
+   "markdown": ""
+  },
+  {
+   "x": 0.7978,
+   "y": 0.7262,
    "label": "SOCKET-BACK (J1)",
    "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | CH1 |\n| 3 | CH2 |\n| 4 | CH3 |\n| 5 | CH4 |\n| 6 | GND |"
   }

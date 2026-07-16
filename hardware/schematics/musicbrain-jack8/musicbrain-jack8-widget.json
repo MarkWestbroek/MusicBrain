@@ -1,59 +1,65 @@
 {
- "title": "musicbrain-jack8 rev 1.2 — aansluitoverzicht",
+ "title": "musicbrain-jack8 rev 2.0 — aansluitoverzicht",
  "image": "/boards/musicbrain-jack8.png",
  "alt": "3D-render van musicbrain-jack8",
  "points": [
   {
-   "x": 0.4157,
-   "y": 0.0768,
+   "x": 0.4142,
+   "y": 0.0561,
    "label": "PJ398SM (J2)",
    "markdown": "| pin | net |\n|--|--|\n| 1 | CH1 |\n| 2 | GND |\n| 3 | NORM |"
   },
   {
-   "x": 0.4157,
-   "y": 0.1968,
+   "x": 0.4142,
+   "y": 0.1811,
    "label": "PJ398SM (J3)",
    "markdown": "| pin | net |\n|--|--|\n| 1 | CH2 |\n| 2 | GND |\n| 3 | NORM |"
   },
   {
-   "x": 0.4157,
-   "y": 0.3168,
+   "x": 0.4142,
+   "y": 0.3061,
    "label": "PJ398SM (J4)",
    "markdown": "| pin | net |\n|--|--|\n| 1 | CH3 |\n| 2 | GND |\n| 3 | NORM |"
   },
   {
-   "x": 0.4157,
-   "y": 0.4368,
+   "x": 0.4142,
+   "y": 0.4311,
    "label": "PJ398SM (J5)",
    "markdown": "| pin | net |\n|--|--|\n| 1 | CH4 |\n| 2 | GND |\n| 3 | NORM |"
   },
   {
-   "x": 0.4157,
-   "y": 0.5568,
+   "x": 0.4142,
+   "y": 0.5561,
    "label": "PJ398SM (J6)",
    "markdown": "| pin | net |\n|--|--|\n| 1 | CH5 |\n| 2 | GND |\n| 3 | NORM |"
   },
   {
-   "x": 0.4157,
-   "y": 0.6768,
+   "x": 0.4142,
+   "y": 0.6811,
    "label": "PJ398SM (J7)",
    "markdown": "| pin | net |\n|--|--|\n| 1 | CH6 |\n| 2 | GND |\n| 3 | NORM |"
   },
   {
-   "x": 0.4157,
-   "y": 0.7968,
+   "x": 0.4142,
+   "y": 0.8061,
    "label": "PJ398SM (J8)",
    "markdown": "| pin | net |\n|--|--|\n| 1 | CH7 |\n| 2 | GND |\n| 3 | NORM |"
   },
   {
-   "x": 0.4157,
-   "y": 0.9168,
+   "x": 0.2212,
+   "y": 0.9864,
+   "label": "NORM=GND (JP1)",
+   "markdown": ""
+  },
+  {
+   "x": 0.4142,
+   "y": 0.9311,
    "label": "PJ398SM (J9)",
    "markdown": "| pin | net |\n|--|--|\n| 1 | CH8 |\n| 2 | GND |\n| 3 | NORM |"
   },
   {
-   "x": 0.7739,
-   "y": 0.44,
+   "x": 0.7788,
+   "y": 0.3961,
    "label": "SOCKET-BACK (J1)",
    "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | CH1 |\n| 3 | CH2 |\n| 4 | CH3 |\n| 5 | CH4 |\n| 6 | CH5 |\n| 7 | CH6 |\n| 8 | CH7 |\n| 9 | CH8 |\n| 10 | GND |"
   }

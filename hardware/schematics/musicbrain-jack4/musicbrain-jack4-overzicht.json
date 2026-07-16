@@ -1,17 +1,17 @@
 {
- "titel": "musicbrain-jack4 rev 1.2 — aansluitoverzicht",
+ "titel": "musicbrain-jack4 rev 2.0 — aansluitoverzicht",
  "bbox_mm": [
   100.0,
   100.0,
   120.0,
-  165.0
+  160.0
  ],
  "callouts": [
   {
    "label": "PJ398SM (J2)",
    "mm": [
     108.0,
-    109.6
+    108.0
    ],
    "kant": "links"
   },
@@ -19,7 +19,7 @@
    "label": "PJ398SM (J3)",
    "mm": [
     108.0,
-    124.6
+    121.75
    ],
    "kant": "links"
   },
@@ -27,7 +27,7 @@
    "label": "PJ398SM (J4)",
    "mm": [
     108.0,
-    139.6
+    135.5
    ],
    "kant": "links"
   },
@@ -35,15 +35,23 @@
    "label": "PJ398SM (J5)",
    "mm": [
     108.0,
-    154.6
+    149.25
    ],
    "kant": "links"
+  },
+  {
+   "label": "NORM=GND (JP1)",
+   "mm": [
+    103.5,
+    158.5
+   ],
+   "kant": "onder"
   },
   {
    "label": "SOCKET-BACK (J1)",
    "mm": [
     116.5,
-    149.9
+    143.57
    ],
    "kant": "rechts"
   }

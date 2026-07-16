@@ -1,19 +1,19 @@
 {
- "title": "musicbrain-gate8 rev 1.1 — aansluitoverzicht",
+ "title": "musicbrain-gate8 rev 2.0 — aansluitoverzicht",
  "image": "/boards/musicbrain-gate8.png",
  "alt": "3D-render van musicbrain-gate8",
  "points": [
   {
-   "x": 0.5,
-   "y": 0.9337,
-   "label": "BUS (J1)",
-   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | +12V |\n| 3 | GND |\n| 4 | — |\n| 5 | GND |\n| 6 | — |\n| 7 | SCLK |\n| 8 | GND |\n| 9 | MOSI |\n| 10 | GND |\n| 11 | — |\n| 12 | GND |\n| 13 | CS |\n| 14 | GND |\n| 15 | — |\n| 16 | — |\n| 17 | — |\n| 18 | — |\n| 19 | — |\n| 20 | — |"
-  },
-  {
-   "x": 0.5,
-   "y": 0.0825,
+   "x": 0.3014,
+   "y": 0.0898,
    "label": "GATES OUT (J2)",
    "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | GATE1 |\n| 3 | GATE2 |\n| 4 | GATE3 |\n| 5 | GATE4 |\n| 6 | GATE5 |\n| 7 | GATE6 |\n| 8 | GATE7 |\n| 9 | GATE8 |\n| 10 | GND |"
+  },
+  {
+   "x": 0.7427,
+   "y": 0.8538,
+   "label": "BUS (J1)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | +12V |\n| 3 | GND |\n| 4 | — |\n| 5 | GND |\n| 6 | — |\n| 7 | SCLK |\n| 8 | GND |\n| 9 | MOSI |\n| 10 | GND |\n| 11 | — |\n| 12 | GND |\n| 13 | CS |\n| 14 | GND |\n| 15 | — |\n| 16 | — |\n| 17 | — |\n| 18 | — |\n| 19 | — |\n| 20 | GND |\n| 21 | — |\n| 22 | — |\n| 23 | — |\n| 24 | — |"
   }
  ]
 }

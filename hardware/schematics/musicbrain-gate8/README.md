@@ -1,9 +1,17 @@
 # MusicBrain GATE8 — 8× gate-uitgang (slotkaart)
 
-**Status**: v1.1 — schema ERC-schoon; PCB volledig geroute (DRC 0 fouten,
-0 unconnected). **Spec**: `doc/spi-bus-spec.md`. Bord: 35 mm breed ×
-**80 mm hoog** (de standaard-kaarthoogte H, zodat één vlakke bovenplaat
-alle kaarten dekt), 2 lagen.
+**Status**: rev 2.0 — ERC 0, netlijst pad-voor-pad geverifieerd, DRC 0/0.
+**Spec**: `doc/spi-bus-spec.md` v2.0. Bord **55 × 45 mm**, 2 lagen.
+
+## Gen 2 (rev 2.0, 2026-07-16)
+
+- Slot **2×12**; H 80 → 45; 74HCT595 met de Q-uitgangen noordwaarts
+  naar de 1k-kolommen. J2-contract en bitvolgorde ongewijzigd.
+- Generator geport naar cardlib (`gen_gate.py`); koper via freerouting.
+
+De schakelingbeschrijving hieronder is ongewijzigd; waar de lopende
+tekst nog gen-1-maten of 2×10 noemt, geldt bovenstaande. Overzicht en
+pinouts hieronder zijn gen-2-gegenereerd.
 
 ## Wat het is
 

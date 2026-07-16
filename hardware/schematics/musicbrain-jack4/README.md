@@ -1,6 +1,16 @@
 # MusicBrain jack4 — Thonkiconn-paneeldrager (4 jacks)
 
-**Status**: rev 1.2 — schema ERC-schoon; PCB volledig geroute (DRC 0/0). Bord 20×65 mm.
+**Status**: rev 2.0 — ERC 0, netlijst geverifieerd, DRC 0/0. Bord **20 × 60 mm**.
+
+## Gen 2 (rev 2.0, 2026-07-16)
+
+- 4 jacks op steek **13,75**; kabelbord aan de hub-DAC (centrering van de
+  socket is hier niet relevant).
+- Zelfde pad-slanking en randmarge als jack8.
+
+De schakelingbeschrijving hieronder is ongewijzigd; waar de lopende
+tekst nog gen-1-maten of 2×10 noemt, geldt bovenstaande. Overzicht en
+pinouts hieronder zijn gen-2-gegenereerd.
 **Zusje: `musicbrain-jack8/` (8 jacks + 1×10 header).**
 
 **v1.2 (2026-07-11)**: socket op de **front-koppel-standaard** (kolom x = 16,5

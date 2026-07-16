@@ -1,0 +1,211 @@
+{
+ "titel": "musicbrain-busboard rev 3.0 — aansluitoverzicht",
+ "bbox_mm": [
+  15.0,
+  10.0,
+  218.2,
+  138.5
+ ],
+ "callouts": [
+  {
+   "label": "DISPLAY (J11)",
+   "mm": [
+    33.0,
+    20.0
+   ],
+   "kant": "boven"
+  },
+  {
+   "label": "AUDIO/CODEC (J17)",
+   "mm": [
+    39.35,
+    13.5
+   ],
+   "kant": "boven"
+  },
+  {
+   "label": "TUNE (J18)",
+   "mm": [
+    43.0,
+    13.5
+   ],
+   "kant": "boven"
+  },
+  {
+   "label": "SLOT 2 (J2)",
+   "mm": [
+    84.85,
+    60.28
+   ],
+   "kant": "boven"
+  },
+  {
+   "label": "SLOT 3 (J3)",
+   "mm": [
+    105.17,
+    60.28
+   ],
+   "kant": "boven"
+  },
+  {
+   "label": "EXPANSION (J21)",
+   "mm": [
+    108.0,
+    22.5
+   ],
+   "kant": "boven"
+  },
+  {
+   "label": "SLOT 4 (J4)",
+   "mm": [
+    125.49,
+    60.28
+   ],
+   "kant": "boven"
+  },
+  {
+   "label": "SLOT 5 (J5)",
+   "mm": [
+    145.81,
+    60.28
+   ],
+   "kant": "boven"
+  },
+  {
+   "label": "SLOT 6 (J6)",
+   "mm": [
+    166.13,
+    60.28
+   ],
+   "kant": "boven"
+  },
+  {
+   "label": "USB HOST (J23)",
+   "mm": [
+    22.0,
+    33.0
+   ],
+   "kant": "links"
+  },
+  {
+   "label": "PWR IN (J9)",
+   "mm": [
+    22.0,
+    121.5
+   ],
+   "kant": "links"
+  },
+  {
+   "label": "SLOT 1 (J1)",
+   "mm": [
+    64.53,
+    60.28
+   ],
+   "kant": "links"
+  },
+  {
+   "label": "EXP (J10)",
+   "mm": [
+    41.0,
+    135.0
+   ],
+   "kant": "onder"
+  },
+  {
+   "label": "DLG1 (J19)",
+   "mm": [
+    60.0,
+    135.0
+   ],
+   "kant": "onder"
+  },
+  {
+   "label": "DLG2 (J20)",
+   "mm": [
+    71.5,
+    135.0
+   ],
+   "kant": "onder"
+  },
+  {
+   "label": "MIDI IN1 (J13)",
+   "mm": [
+    83.0,
+    135.0
+   ],
+   "kant": "onder"
+  },
+  {
+   "label": "MIDI IN2 (J14)",
+   "mm": [
+    92.0,
+    135.0
+   ],
+   "kant": "onder"
+  },
+  {
+   "label": "MIDI OUT (J15)",
+   "mm": [
+    101.0,
+    135.0
+   ],
+   "kant": "onder"
+  },
+  {
+   "label": "MIDI OUT2 (J22)",
+   "mm": [
+    110.0,
+    135.0
+   ],
+   "kant": "onder"
+  },
+  {
+   "label": "CAN (J16)",
+   "mm": [
+    120.0,
+    135.0
+   ],
+   "kant": "onder"
+  },
+  {
+   "label": "TERM (JP1)",
+   "mm": [
+    157.5,
+    117.5
+   ],
+   "kant": "onder"
+  },
+  {
+   "label": "QWIIC (J12)",
+   "mm": [
+    198.0,
+    135.0
+   ],
+   "kant": "onder"
+  },
+  {
+   "label": "AUDIOHUB (J24)",
+   "mm": [
+    182.0,
+    72.0
+   ],
+   "kant": "rechts"
+  },
+  {
+   "label": "HUB 1 (J7)",
+   "mm": [
+    196.0,
+    45.0
+   ],
+   "kant": "rechts"
+  },
+  {
+   "label": "HUB 2 (J8)",
+   "mm": [
+    196.0,
+    100.0
+   ],
+   "kant": "rechts"
+  }
+ ]
+}

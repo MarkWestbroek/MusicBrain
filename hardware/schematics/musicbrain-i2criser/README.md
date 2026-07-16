@@ -1,7 +1,17 @@
 # MusicBrain I2C-RISER — domme riser voor I²C-fronts
 
-**Status**: rev 1.0 — ERC 0, netlijst pad-voor-pad geverifieerd, DRC 0/0.
-Bord 28×80 mm (zelfde mechanica als de potriser), 2 lagen, geen componenten.
+**Status**: rev 2.0 — ERC 0, netlijst pad-voor-pad geverifieerd, DRC 0/0.
+Bord **40 × 45 mm**, 2 lagen, geen componenten.
+
+## Gen 2 (rev 2.0, 2026-07-16)
+
+- Slot **2×12** (alleen GND/3V3/SDA/SCL/IRQ aangesloten; audio loopt niet mee).
+- H 80 → 45; bord 28 → 40 breed (de 2×12 paste niet meer op 28).
+- Paneelheader-inzet gecorrigeerd (volle 6 mm paarpin).
+
+De schakelingbeschrijving hieronder is ongewijzigd; waar de lopende
+tekst nog gen-1-maten of 2×10 noemt, geldt bovenstaande. Overzicht en
+pinouts hieronder zijn gen-2-gegenereerd.
 
 ## Wat het is
 

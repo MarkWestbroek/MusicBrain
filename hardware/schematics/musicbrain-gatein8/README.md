@@ -1,8 +1,17 @@
 # MusicBrain GATEIN8 — 8× gate/trigger-ingang (slotkaart)
 
-**Status**: schema ERC-schoon + netlist geverifieerd; PCB volledig geroute
-(DRC 0 fouten, 0 unconnected). **Spec**: `doc/spi-bus-spec.md`.
-Bord: 40 mm breed × **80 mm hoog** (H-standaard), 2 lagen.
+**Status**: rev 2.0 — ERC 0, netlijst pad-voor-pad geverifieerd, DRC 0/0.
+**Spec**: `doc/spi-bus-spec.md` v2.0. Bord **50 × 45 mm**, 2 lagen.
+
+## Gen 2 (rev 2.0, 2026-07-16)
+
+- Slot **2×12** via `bus.j1_map`; H 80 → 45; kanaalkolommen recht onder
+  de J2-pinnen. D_OF_IN-mapping (firmware-contract) ongewijzigd.
+- Koper via freerouting; GND via de vlakken + hechtvia's.
+
+De schakelingbeschrijving hieronder is ongewijzigd; waar de lopende
+tekst nog gen-1-maten of 2×10 noemt, geldt bovenstaande. Overzicht en
+pinouts hieronder zijn gen-2-gegenereerd.
 
 ## Wat het is
 

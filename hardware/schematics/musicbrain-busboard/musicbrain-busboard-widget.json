@@ -1,0 +1,157 @@
+{
+ "title": "musicbrain-busboard rev 3.0 — aansluitoverzicht",
+ "image": "/boards/musicbrain-busboard.png",
+ "alt": "3D-render van musicbrain-busboard",
+ "points": [
+  {
+   "x": 0.1075,
+   "y": 0.1068,
+   "label": "DISPLAY (J11)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | +3V3 |\n| 2 | GND |\n| 3 | DISP_CS |\n| 4 | DISP_RST |\n| 5 | DISP_DC |\n| 6 | MOSI1 |\n| 7 | SCK1 |\n| 8 | +3V3 |\n| 9 | — |"
+  },
+  {
+   "x": 0.1373,
+   "y": 0.0597,
+   "label": "AUDIO/CODEC (J17)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | +3V3 |\n| 2 | CODEC_RST |\n| 3 | +5V |\n| 4 | MCLK |\n| 5 | GND |\n| 6 | BCLK |\n| 7 | GND |\n| 8 | LRCLK |\n| 9 | GND |\n| 10 | I2S_OUT |\n| 11 | +12V |\n| 12 | I2S_IN |\n| 13 | -12V |\n| 14 | GND |"
+  },
+  {
+   "x": 0.1544,
+   "y": 0.0597,
+   "label": "TUNE (J18)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | TUNE_J |\n| 2 | GND |"
+  },
+  {
+   "x": 0.3509,
+   "y": 0.3987,
+   "label": "SLOT 2 (J2)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | +12V |\n| 3 | GND |\n| 4 | -12V |\n| 5 | GND |\n| 6 | +3V3 |\n| 7 | SCLK |\n| 8 | GND |\n| 9 | MOSI |\n| 10 | GND |\n| 11 | MISO |\n| 12 | GND |\n| 13 | CS2 |\n| 14 | GND |\n| 15 | LDAC |\n| 16 | IRQ2 |\n| 17 | SDA |\n| 18 | SCL |\n| 19 | CONVST |\n| 20 | GND |\n| 21 | MCLK |\n| 22 | BCLK |\n| 23 | LRCLK |\n| 24 | I2SD2 |"
+  },
+  {
+   "x": 0.4463,
+   "y": 0.3987,
+   "label": "SLOT 3 (J3)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | +12V |\n| 3 | GND |\n| 4 | -12V |\n| 5 | GND |\n| 6 | +3V3 |\n| 7 | SCLK |\n| 8 | GND |\n| 9 | MOSI |\n| 10 | GND |\n| 11 | MISO |\n| 12 | GND |\n| 13 | CS3 |\n| 14 | GND |\n| 15 | LDAC |\n| 16 | IRQ3 |\n| 17 | SDA |\n| 18 | SCL |\n| 19 | CONVST |\n| 20 | GND |\n| 21 | MCLK |\n| 22 | BCLK |\n| 23 | LRCLK |\n| 24 | I2SD3 |"
+  },
+  {
+   "x": 0.4596,
+   "y": 0.1249,
+   "label": "EXPANSION (J21)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | CS9 |\n| 2 | IRQ7 |\n| 3 | CS10 |\n| 4 | IRQ8 |\n| 5 | CS11 |\n| 6 | IRQ9 |\n| 7 | CS12 |\n| 8 | IRQ10 |\n| 9 | CS13 |\n| 10 | IRQ11 |\n| 11 | CS14 |\n| 12 | IRQ12 |\n| 13 | MISO |\n| 14 | GND |\n| 15 | XSCLK |\n| 16 | GND |\n| 17 | XMOSI |\n| 18 | GND |\n| 19 | XLDAC |\n| 20 | GND |\n| 21 | XCONVST |\n| 22 | SDA |\n| 23 | XRST |\n| 24 | SCL |\n| 25 | GND |\n| 26 | GND |"
+  },
+  {
+   "x": 0.5417,
+   "y": 0.3987,
+   "label": "SLOT 4 (J4)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | +12V |\n| 3 | GND |\n| 4 | -12V |\n| 5 | GND |\n| 6 | +3V3 |\n| 7 | SCLK |\n| 8 | GND |\n| 9 | MOSI |\n| 10 | GND |\n| 11 | MISO |\n| 12 | GND |\n| 13 | CS4 |\n| 14 | GND |\n| 15 | LDAC |\n| 16 | IRQ4 |\n| 17 | SDA |\n| 18 | SCL |\n| 19 | CONVST |\n| 20 | GND |\n| 21 | MCLK |\n| 22 | BCLK |\n| 23 | LRCLK |\n| 24 | I2SD4 |"
+  },
+  {
+   "x": 0.6372,
+   "y": 0.3987,
+   "label": "SLOT 5 (J5)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | +12V |\n| 3 | GND |\n| 4 | -12V |\n| 5 | GND |\n| 6 | +3V3 |\n| 7 | SCLK |\n| 8 | GND |\n| 9 | MOSI |\n| 10 | GND |\n| 11 | MISO |\n| 12 | GND |\n| 13 | CS5 |\n| 14 | GND |\n| 15 | LDAC |\n| 16 | IRQ5 |\n| 17 | SDA |\n| 18 | SCL |\n| 19 | CONVST |\n| 20 | GND |\n| 21 | MCLK |\n| 22 | BCLK |\n| 23 | LRCLK |\n| 24 | I2SD5 |"
+  },
+  {
+   "x": 0.7326,
+   "y": 0.3987,
+   "label": "SLOT 6 (J6)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | +12V |\n| 3 | GND |\n| 4 | -12V |\n| 5 | GND |\n| 6 | +3V3 |\n| 7 | SCLK |\n| 8 | GND |\n| 9 | MOSI |\n| 10 | GND |\n| 11 | MISO |\n| 12 | GND |\n| 13 | CS6 |\n| 14 | GND |\n| 15 | LDAC |\n| 16 | IRQ6 |\n| 17 | SDA |\n| 18 | SCL |\n| 19 | CONVST |\n| 20 | GND |\n| 21 | MCLK |\n| 22 | BCLK |\n| 23 | LRCLK |\n| 24 | I2SD6 |"
+  },
+  {
+   "x": 0.0558,
+   "y": 0.201,
+   "label": "USB HOST (J23)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | USBH_1 |\n| 2 | USBH_1 |\n| 3 | USBH_2 |\n| 4 | USBH_2 |\n| 5 | USBH_3 |\n| 6 | USBH_3 |\n| 7 | USBH_4 |\n| 8 | USBH_4 |\n| 9 | USBH_5 |\n| 10 | USBH_5 |"
+  },
+  {
+   "x": 0.0558,
+   "y": 0.8425,
+   "label": "PWR IN (J9)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | -12V |\n| 2 | -12V |\n| 3 | GND |\n| 4 | GND |\n| 5 | GND |\n| 6 | GND |\n| 7 | GND |\n| 8 | GND |\n| 9 | +12V |\n| 10 | +12V |"
+  },
+  {
+   "x": 0.2555,
+   "y": 0.3987,
+   "label": "SLOT 1 (J1)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | +12V |\n| 3 | GND |\n| 4 | -12V |\n| 5 | GND |\n| 6 | +3V3 |\n| 7 | SCLK |\n| 8 | GND |\n| 9 | MOSI |\n| 10 | GND |\n| 11 | MISO |\n| 12 | GND |\n| 13 | CS1 |\n| 14 | GND |\n| 15 | LDAC |\n| 16 | IRQ1 |\n| 17 | SDA |\n| 18 | SCL |\n| 19 | CONVST |\n| 20 | GND |\n| 21 | MCLK |\n| 22 | BCLK |\n| 23 | LRCLK |\n| 24 | I2SD1 |"
+  },
+  {
+   "x": 0.145,
+   "y": 0.9403,
+   "label": "EXP (J10)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | +3V3 |\n| 2 | GND |\n| 3 | +5V |\n| 4 | GND |\n| 5 | D10 |\n| 6 | D33 |\n| 7 | — |\n| 8 | D32 |\n| 9 | D36 |\n| 10 | D37 |\n| 11 | D38 |\n| 12 | D39 |\n| 13 | GND |\n| 14 | GND |"
+  },
+  {
+   "x": 0.2342,
+   "y": 0.9403,
+   "label": "DLG1 (J19)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | DLG1_TX |\n| 3 | DLG1_RX |\n| 4 | GND |"
+  },
+  {
+   "x": 0.2882,
+   "y": 0.9403,
+   "label": "DLG2 (J20)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | DLG2_TX |\n| 3 | DLG2_RX |\n| 4 | GND |"
+  },
+  {
+   "x": 0.3422,
+   "y": 0.9403,
+   "label": "MIDI IN1 (J13)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | MIN1_4 |\n| 2 | MIN1_5 |\n| 3 | — |"
+  },
+  {
+   "x": 0.3845,
+   "y": 0.9403,
+   "label": "MIDI IN2 (J14)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | MIN2_4 |\n| 2 | MIN2_5 |\n| 3 | — |"
+  },
+  {
+   "x": 0.4268,
+   "y": 0.9403,
+   "label": "MIDI OUT (J15)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | MOUT5 |\n| 2 | MOUT4 |\n| 3 | GND |"
+  },
+  {
+   "x": 0.469,
+   "y": 0.9403,
+   "label": "MIDI OUT2 (J22)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | MOUT2_5 |\n| 2 | MOUT2_4 |\n| 3 | GND |"
+  },
+  {
+   "x": 0.516,
+   "y": 0.9403,
+   "label": "CAN (J16)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | +12V |\n| 2 | CANH |\n| 3 | CANL |\n| 4 | GND |"
+  },
+  {
+   "x": 0.692,
+   "y": 0.8135,
+   "label": "TERM (JP1)",
+   "markdown": ""
+  },
+  {
+   "x": 0.8822,
+   "y": 0.9403,
+   "label": "QWIIC (J12)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | +3V3 |\n| 3 | SDA |\n| 4 | SCL |"
+  },
+  {
+   "x": 0.8071,
+   "y": 0.4837,
+   "label": "AUDIOHUB (J24)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | MCLK |\n| 2 | BCLK |\n| 3 | LRCLK |\n| 4 | GND |\n| 5 | I2SD1 |\n| 6 | I2SD2 |\n| 7 | I2SD3 |\n| 8 | I2SD4 |\n| 9 | I2SD5 |\n| 10 | I2SD6 |\n| 11 | GND |\n| 12 | GND |\n| 13 | GND |\n| 14 | GND |"
+  },
+  {
+   "x": 0.8728,
+   "y": 0.288,
+   "label": "HUB 1 (J7)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | CS7 |\n| 3 | MISO |\n| 4 | MOSI |\n| 5 | SCLK |\n| 6 | GND |\n| 7 | +3V3 |\n| 8 | GND |\n| 9 | -12V |\n| 10 | +12V |"
+  },
+  {
+   "x": 0.8728,
+   "y": 0.6866,
+   "label": "HUB 2 (J8)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | CS8 |\n| 3 | MISO |\n| 4 | MOSI |\n| 5 | SCLK |\n| 6 | GND |\n| 7 | +3V3 |\n| 8 | GND |\n| 9 | -12V |\n| 10 | +12V |"
+  }
+ ]
+}

@@ -17,7 +17,7 @@ musicbrain-pot8front:musicbrain-pot8front
 musicbrain-potriser:musicbrain-potriser
 musicbrain-enc5front:musicbrain-enc5front
 musicbrain-i2criser:musicbrain-i2criser
-musicbrain-busboard-v2:musicbrain-busboard-v2
+musicbrain-busboard:musicbrain-busboard
 "
 
 # optioneel: alleen geselecteerde borden (komma-gescheiden dir-namen als arg 1)

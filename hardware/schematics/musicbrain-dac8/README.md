@@ -1,8 +1,17 @@
 # MusicBrain DAC8 — 8× CV-uitgang (slotkaart)
 
-**Status**: schema ERC-schoon + netlist geverifieerd; PCB volledig geroute
-(DRC 0 fouten, 0 unconnected). **Spec**: `doc/spi-bus-spec.md`.
-Bord: 50 mm breed × **80 mm hoog** (H-standaard), 2 lagen.
+**Status**: rev 2.0 — ERC 0, netlijst pad-voor-pad geverifieerd, DRC 0/0.
+**Spec**: `doc/spi-bus-spec.md` v2.0. Bord **60 × 45 mm**, 2 lagen.
+
+## Gen 2 (rev 2.0, 2026-07-16)
+
+- Slot **2×12**; H 80 → 45; DACs onder hun CV-kolommen (U1 → CV1–4,
+  U2 → CV5–8). Daisy-chain, LDAC-buslijn en J2-contract ongewijzigd.
+- DGND-reddingsspoor (pin 15) vast in de generator; koper via freerouting.
+
+De schakelingbeschrijving hieronder is ongewijzigd; waar de lopende
+tekst nog gen-1-maten of 2×10 noemt, geldt bovenstaande. Overzicht en
+pinouts hieronder zijn gen-2-gegenereerd.
 
 ## Wat het is
 

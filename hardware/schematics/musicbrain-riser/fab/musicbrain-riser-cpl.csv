@@ -1,3 +1,3 @@
 "Designator","Val","Package","Mid X","Mid Y","Rotation","Layer"
-"J1","BUS","PinHeader_2x10_P2.54mm_Horizontal","128.930000","-173.420000","-90.000000","top"
-"J2","NAAR FRONT","PinHeader_2x10_P2.54mm_Horizontal","106.070000","-106.580000","90.000000","top"
+"J1","BUS","PinHeader_2x12_P2.54mm_Horizontal","133.970000","-138.420000","-90.000000","top"
+"J2","NAAR FRONT","PinHeader_2x12_P2.54mm_Horizontal","106.030000","-106.580000","90.000000","top"

@@ -1,7 +1,19 @@
 # MusicBrain RISER — generieke slot-verlenger
 
-**Status**: schema ERC-schoon + netlist geverifieerd; PCB DRC 0/0.
-**Spec**: `doc/spi-bus-spec.md`. Bord: ~31 mm × 80 mm (H-standaard), 2 lagen.
+**Status**: rev 2.0 — ERC 0, netlijst pad-voor-pad geverifieerd, DRC 0/0.
+**Spec**: `doc/spi-bus-spec.md` v2.0. Bord **40 × 45 mm** (H=45), 2 lagen.
+
+## Gen 2 (rev 2.0, 2026-07-16)
+
+- Slot **2×12** (was 2×10): draagt nu de **volledige** gen-2-bus omhoog,
+  inclusief de audio-lijnen (MCLK/BCLK/LRCLK/I2SD) — dit is het
+  ontwikkelbord voor een gedelegeerde Teensy-/FPGA-kaart.
+- H 80 → 45; bord 40 breed (2×12 spant 27,94).
+- Paneelheader-inzet gecorrigeerd (volle 6 mm paarpin; vondst Mark).
+
+De schakelingbeschrijving hieronder is ongewijzigd; waar de lopende
+tekst nog gen-1-maten of 2×10 noemt, geldt bovenstaande. Overzicht en
+pinouts hieronder zijn gen-2-gegenereerd.
 
 ## Wat het is
 

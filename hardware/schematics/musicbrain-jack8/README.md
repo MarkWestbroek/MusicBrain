@@ -1,6 +1,18 @@
 # MusicBrain jack8 — Thonkiconn-paneeldrager (8 jacks)
 
-**Status**: rev 1.2 — schema ERC-schoon; PCB volledig geroute (DRC 0/0). Bord 20×125 mm.
+**Status**: rev 2.0 — ERC 0, netlijst geverifieerd, DRC 0/0. Bord **20 × 110 mm**
+(past nu tussen de rails).
+
+## Gen 2 (rev 2.0, 2026-07-16)
+
+- 8 jacks op steek **13,75** (4 HP-front, = pot8front); bord 125 → 110.
+- Socket exact gecentreerd op de frontlengte (front-koppel-standaard).
+- Thonkiconn-pads in y geslankt (buurjacks raakten elkaar op 13,75);
+  randmarge expliciet 0,3 mm (JLC-minimum).
+
+De schakelingbeschrijving hieronder is ongewijzigd; waar de lopende
+tekst nog gen-1-maten of 2×10 noemt, geldt bovenstaande. Overzicht en
+pinouts hieronder zijn gen-2-gegenereerd.
 **Zusje**: `musicbrain-jack4/` (4 jacks + 1×6 header, half zo hoog).
 
 **v1.2 (2026-07-11)**: socket op de **front-koppel-standaard** (kolom x = 16,5

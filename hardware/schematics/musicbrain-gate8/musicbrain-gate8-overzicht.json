@@ -1,27 +1,27 @@
 {
- "titel": "musicbrain-gate8 rev 1.1 — aansluitoverzicht",
+ "titel": "musicbrain-gate8 rev 2.0 — aansluitoverzicht",
  "bbox_mm": [
+  112.5,
   100.0,
-  100.0,
-  135.0,
-  180.0
+  167.5,
+  145.0
  ],
  "callouts": [
   {
-   "label": "BUS (J1)",
-   "mm": [
-    117.5,
-    174.7
-   ],
-   "kant": "onder"
-  },
-  {
    "label": "GATES OUT (J2)",
    "mm": [
-    117.5,
-    106.6
+    128.57,
+    104.04
    ],
    "kant": "boven"
+  },
+  {
+   "label": "BUS (J1)",
+   "mm": [
+    153.97,
+    138.42
+   ],
+   "kant": "onder"
   }
  ]
 }

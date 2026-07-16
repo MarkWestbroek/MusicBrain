@@ -1,19 +1,19 @@
 {
- "title": "musicbrain-potriser rev 1.0 — aansluitoverzicht",
+ "title": "musicbrain-potriser rev 2.0 — aansluitoverzicht",
  "image": "/boards/musicbrain-potriser.png",
  "alt": "3D-render van musicbrain-potriser",
  "points": [
   {
-   "x": 0.5,
-   "y": 0.9337,
-   "label": "BUS (J1)",
-   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | — |\n| 3 | GND |\n| 4 | — |\n| 5 | GND |\n| 6 | +3V3 |\n| 7 | SCLK |\n| 8 | GND |\n| 9 | MOSI |\n| 10 | GND |\n| 11 | MISO |\n| 12 | GND |\n| 13 | CS |\n| 14 | GND |\n| 15 | — |\n| 16 | — |\n| 17 | — |\n| 18 | — |\n| 19 | — |\n| 20 | — |"
-  },
-  {
-   "x": 0.5,
-   "y": 0.0825,
+   "x": 0.2281,
+   "y": 0.0898,
    "label": "NAAR FRONT (J2)",
    "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | W1 |\n| 3 | W2 |\n| 4 | W3 |\n| 5 | W4 |\n| 6 | W5 |\n| 7 | W6 |\n| 8 | W7 |\n| 9 | W8 |\n| 10 | +3V3 |"
+  },
+  {
+   "x": 0.8323,
+   "y": 0.8538,
+   "label": "BUS (J1)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | — |\n| 3 | GND |\n| 4 | — |\n| 5 | GND |\n| 6 | +3V3 |\n| 7 | SCLK |\n| 8 | GND |\n| 9 | MOSI |\n| 10 | GND |\n| 11 | MISO |\n| 12 | GND |\n| 13 | CS |\n| 14 | GND |\n| 15 | — |\n| 16 | — |\n| 17 | — |\n| 18 | — |\n| 19 | — |\n| 20 | GND |\n| 21 | — |\n| 22 | — |\n| 23 | — |\n| 24 | — |"
   }
  ]
 }

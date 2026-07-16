@@ -6,19 +6,20 @@ Vul zelf *aantal besteld* en *besteldatum* in bij het bestellen.
 
 | Module | Versie | Status | Opmerkingen | Todo (rot/fab) | Aantal besteld | Prijs | Besteldatum |
 |---|---|---|---|---|---|---|---|
-| ad5754r-breakout | 1.0 | bestelbaar | 4× CV-uit breakout (AD5754 + ADR421) | rot checken vóór PCBA: AD5754 (HTSSOP), ADR421 (SOIC-8) | | | |
-| musicbrain-adc8 | 1.2 | bestelbaar | recht-toe-bedrading; fw-spiegel zit in `MbAdc8` | rot checken: AD7606 (LQFP-64, niet gekalibreerd) | 5 | 110 | |
-| musicbrain-dac8 | 1.0 | bestelbaar | silk-URL verplaatst 2026-07-11 (koper gelijk) | rot checken: AD5754 (HTSSOP), ADR421 (SOIC-8, ander chip) | 5 (2 pcbc) | 160 | |
-| musicbrain-gate8 | 1.1 | bestelbaar | | rot checken: 74HCT595 (SOIC-16, ander chip dan ijking) | 30 | 34 / 59| |
-| musicbrain-gatein8 | 1.0 | bestelbaar | silk-URL verplaatst 2026-07-11 (koper gelijk) | rot ✅ (matcht busboard-ijking) | 30 | 40 | |
-| musicbrain-jack8 | 1.2 | bestelbaar | socket op front-koppel-standaard (x16,5 / pin1 43,57) | — (PCB-only) | 30 | 10 | |
-| musicbrain-jack4 | 1.2 | bestelbaar | idem; alleen nodig voor kabel-breakout | — (PCB-only) | 30 | 7,50 | |
-| musicbrain-riser | 1.0 | bestelbaar | generieke slot-verlenger (prototyping/toekomstige fronts) | — (PCB-only) | 30 | 10 | |
+| ad5754r-breakout | 1.0 | bestelbaar (gen 1: hub-kabel, geen slot) | 4× CV-uit breakout (AD5754 + ADR421) | rot checken vóór PCBA: AD5754 (HTSSOP), ADR421 (SOIC-8) | | | |
+| musicbrain-adc8 | 2.0 | bestelbaar | gen 2: 65×45, slot 2×12, RESET lokaal (RC), CONVST=pin 19; fw-spiegel `MbAdc8` | rot checken: AD7606 (LQFP-64) | | | |
+| musicbrain-dac8 | 2.0 | bestelbaar | gen 2: 60×45, slot 2×12; daisy/LDAC/J2-contract gelijk | rot checken: AD5754 (HTSSOP), ADR421 (SOIC-8) | | | |
+| musicbrain-gate8 | 2.0 | bestelbaar | gen 2: 55×45, slot 2×12; bitvolgorde gelijk | rot checken: 74HCT595 (SOIC-16) | | | |
+| musicbrain-gatein8 | 2.0 | bestelbaar | gen 2: 50×45, slot 2×12; D_OF_IN-contract gelijk | rot ✅ | | | |
+| musicbrain-jack8 | 2.0 | bestelbaar | gen 2: 20×110 (past tussen de rails), 8 @13,75, socket gecentreerd | — (PCB-only) | | | |
+| musicbrain-jack4 | 2.0 | bestelbaar | gen 2: 20×60, 4 @13,75; kabel-breakout hub-DAC | — (PCB-only) | | | |
+| musicbrain-riser | 2.0 | bestelbaar | gen 2: 40×45, 2×12 vólledige bus incl. audio (dev-bord delegates) | — (PCB-only) | | | |
 | musicbrain-pot8front | 1.1 | bestelbaar | ⚠️ SHAFT_OFFSET (4,5 aanname) aan fysieke pot meten vóór paneel-fab | — (geen SMD) | 30 | 10 | |
-| musicbrain-potriser | 1.0 | bestelbaar | MCP3208-riser onder pot8front; pin-1-passing checken | rot checken: MCP3208 (SOIC-16, ander chip) | 10 | 46 | |
+| musicbrain-potriser | 2.0 | bestelbaar | gen 2: 40×45, slot 2×12; pin-1-passing checken | rot checken: MCP3208 (SOIC-16) | | | |
 | musicbrain-enc5front | 2.0 | bestelbaar | 30 mm breed, uiterst links/rechts; ⚠️ QFN-pinout checken vóór assemblage | 3D-model J1/J2 nudge (render, cosmetisch); rot QFN ✅ | 10 | 53 | |
-| musicbrain-i2criser | 1.0 | bestelbaar | domme I²C-riser onder enc5front | — (PCB-only) | 30 | 10 | |
-| musicbrain-busboard-v2 | 2.0 | bestelbaar | DRC 0/0 2026-07-11 avond; 16×CS/12×IRQ + expansie/MIDI/CAN/codec/TUNE | rot ✅ (SMD gecorr., THT raw); connectoren J1-9/J21 + oriëntatie afronden | | | |
+| musicbrain-i2criser | 2.0 | bestelbaar | gen 2: 40×45, slot 2×12 | — (PCB-only) | | | |
+| musicbrain-busboard | 3.0 | bestelbaar | gen 2: 203,2×128,5 (40 HP), slots 2×12 gecentreerd, audio + J24-hub, MIDI 2×2, USB-host, 1A-regelaar | rot checken (nieuwe placement); connectoren + oriëntatie nalopen | | | |
+| ~~musicbrain-busboard-v2~~ | 2.0 | vervangen | gen-1-stand bevroren in `musicbrain-busboard-v2/rel-v0.2/`; nooit besteld | — | | | |
 | ~~musicbrain-busboard~~ | 1.1 | deprecated | vervangen door v2 (16×CS/12×IRQ + expansie) — in `deprecated/` | — | | | |
 | ~~musicbrain-enc4~~ | 1.0 | deprecated | vervangen door enc5front + i2criser — in `deprecated/` | — | | | |
 | ~~musicbrain-pot8~~ | 1.0 | deprecated | vervangen door pot8front + potriser — in `deprecated/` | — | | | |
@@ -32,10 +33,12 @@ Vul zelf *aantal besteld* en *besteldatum* in bij het bestellen.
 - **Gates uit/in**: gate8 / gatein8 (slot) + jack8 (front)
 - **Potten**: potriser (slot) + pot8front (front)
 - **Encoders/knoppen**: i2criser (slot) + enc5front (front, uiterst links/rechts)
-- **Alles**: busboard (v2, zodra af) + Teensy 4.1
+- **Alles**: busboard (rev 3.0, gen 2) + Teensy 4.1
 
-Silk-URL's zijn cosmetisch: dac8/gatein8-zips van vóór 2026-07-11 zijn
-elektrisch identiek; alleen opnieuw downloaden als je de nette silk wilt.
+**Gen 2 (2026-07-16)**: systeembrede renovatie — slots 2×12 met audio-lijnen,
+H=45, 4 HP-steek, slots gecentreerd. Gen-1-zips in oude JLC-mandjes NIET meer
+bestellen; alle fab-pakketten zijn ververst. Gen-1-stand per bord bevroren in
+`<bord>/rel-v0.2/` (tag `hw/v0.2`).
 
 ## Guitar Effect Switcher (apart project — spec: doc/guitar-switcher-spec.md)
 
