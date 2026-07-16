@@ -1,5 +1,9 @@
 # MusicBrain GATE8 — 8× gate-uitgang (slotkaart)
 
+**Praktisch:** acht gate/trigger-uitgangen. Start envelopes, klokt
+sequencers en triggert extern gear vanuit de software — 0–5 V per
+kanaal met serieweerstand. Combineer met een jack8 als front.
+
 **Status**: rev 2.0 — ERC 0, netlijst pad-voor-pad geverifieerd, DRC 0/0.
 **Spec**: `doc/spi-bus-spec.md` v2.0. Bord **55 × 45 mm**, 2 lagen.
 

@@ -1,0 +1,1 @@
+Eight CV outputs. Lets the software brain drive analog gear: sequences, LFOs, envelopes or random voltages out to any Eurorack-level input, updated sample-synchronously across all channels.

@@ -1,5 +1,8 @@
 # MusicBrain jack4 — Thonkiconn-paneeldrager (4 jacks)
 
+**Praktisch:** 4-kanaals jack-breakout aan een kabel, voor CV-uit via
+een hub-connector (bijv. de AD5754-breakout) — kost geen slot.
+
 **Status**: rev 2.0 — ERC 0, netlijst geverifieerd, DRC 0/0. Bord **20 × 60 mm**.
 
 ## Gen 2 (rev 2.0, 2026-07-16)

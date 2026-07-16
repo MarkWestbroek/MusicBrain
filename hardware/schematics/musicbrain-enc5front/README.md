@@ -1,5 +1,9 @@
 # MusicBrain ENC5-FRONT — slim front: 5× encoder + 2 knoppen + display-expansie
 
+**Praktisch:** vijf encoders en twee knoppen aan het paneel — de
+menu- en parameterbediening van het systeem, via de i2criser aan de
+bus.
+
 **Status**: rev 2.0 — ERC 0, netlijst pad-voor-pad geverifieerd, DRC 0/0. Bord **30×110 mm**, 2 lagen.
 **Riser**: `musicbrain-i2criser/` (domme I²C-doorlus; de generieke riser past NIET meer — rev 2.0 gebruikt de 1×10-front-koppeling).
 

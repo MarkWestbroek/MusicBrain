@@ -1,0 +1,1 @@
+Eight gate/trigger inputs. Brings external clocks, triggers and footswitches into the software brain, with input protection and defined idle levels on every channel.

@@ -1,5 +1,8 @@
 # MusicBrain I2C-RISER — domme riser voor I²C-fronts
 
+**Praktisch:** koppelt een encoder/knoppen-front (enc5front) aan de
+bus via I²C — passieve riser, alleen voeding + Qwiic-keten.
+
 **Status**: rev 2.0 — ERC 0, netlijst pad-voor-pad geverifieerd, DRC 0/0.
 Bord **40 × 45 mm**, 2 lagen, geen componenten.
 

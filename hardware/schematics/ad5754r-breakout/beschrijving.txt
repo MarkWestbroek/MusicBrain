@@ -1,0 +1,1 @@
+A standalone 4-channel CV output board on a hub cable: precision +/-10 V outputs (AD5754 + reference) without using a card slot.

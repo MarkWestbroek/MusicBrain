@@ -1,0 +1,1 @@
+Eight gate/trigger outputs. Starts envelopes, advances sequencers and clocks external gear from the software brain - 0-5 V outputs with per-channel series protection.

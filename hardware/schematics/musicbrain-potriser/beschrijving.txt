@@ -1,0 +1,1 @@
+Turns eight panel potentiometers into CV sources: sits in a slot, reads the pot8front via its ADC and puts all eight values on the bus.

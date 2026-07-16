@@ -194,6 +194,11 @@ def main():
         comp = {}
     comp.setdefault('slug', a.component)
     comp.setdefault('name', a.name or a.component)
+    # functionele beschrijving (praktisch doel) uit <bordmap>/beschrijving.txt;
+    # die wint van wat er op de site staat - het bestand in git is de bron
+    _besch = os.path.join(d, 'beschrijving.txt')
+    if os.path.exists(_besch):
+        comp['description'] = open(_besch, encoding='utf-8').read().strip()
     comp.setdefault('description', '')
     comp.setdefault('children', [])
     versions = comp.get('versions') or []

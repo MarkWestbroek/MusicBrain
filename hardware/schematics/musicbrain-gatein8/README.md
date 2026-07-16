@@ -1,5 +1,9 @@
 # MusicBrain GATEIN8 — 8× gate/trigger-ingang (slotkaart)
 
+**Praktisch:** acht gate/trigger-ingangen. Leest externe klokken,
+triggers en voetschakelaars de software in, met ingangsbeveiliging en
+een gedefinieerd rustniveau per kanaal. Combineer met een jack8.
+
 **Status**: rev 2.0 — ERC 0, netlijst pad-voor-pad geverifieerd, DRC 0/0.
 **Spec**: `doc/spi-bus-spec.md` v2.0. Bord **50 × 45 mm**, 2 lagen.
 

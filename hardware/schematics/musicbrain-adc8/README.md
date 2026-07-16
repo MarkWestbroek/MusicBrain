@@ -1,5 +1,10 @@
 # MusicBrain ADC8 — 8× CV-ingang (slotkaart)
 
+**Praktisch:** acht CV-ingangen voor je patch. Hiermee lees je externe
+stuurspanningen (LFO's, envelopes, sequencers, expressiepedalen) de
+software-synth in — ±10 V direct erop, alle kanalen tegelijk gesampled.
+Combineer met een jack8 als front.
+
 **Status**: rev 2.0 — ERC 0, netlijst pad-voor-pad geverifieerd, DRC 0/0.
 **Spec**: `doc/spi-bus-spec.md` v2.0. Bord **65 × 45 mm**, 2 lagen.
 

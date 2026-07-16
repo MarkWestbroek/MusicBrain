@@ -1,5 +1,8 @@
 # MusicBrain POT-RISER — MCP3208-riser voor het POT8-FRONT
 
+**Praktisch:** maakt van acht paneelpotmeters CV-bronnen: staat in een
+slot, leest het pot8front uit en zet alle acht waardes op de bus.
+
 **Status**: rev 2.0 — ERC 0, netlijst pad-voor-pad geverifieerd, DRC 0/0.
 Bord **40 × 45 mm**, 2 lagen.
 

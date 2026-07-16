@@ -1,5 +1,9 @@
 # MusicBrain POT8-FRONT — dom front, 8× RK097N verticaal
 
+**Praktisch:** acht potmeters aan het paneel op één strak
+13,75mm-raster; samen met de potriser worden het acht vrij toewijsbare
+stuurspanningen.
+
 **Status**: rev 1.1 — ERC 0, netlijst pad-voor-pad geverifieerd, DRC 0/0. Bord 20×110 mm, 2 lagen.
 **Model**: route 2 (2026-07-11): plat front-bord aan het paneel; elektronica zit
 op de riser/kaart eronder. Dit bord is puur passief.

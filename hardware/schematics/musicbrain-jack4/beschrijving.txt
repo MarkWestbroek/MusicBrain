@@ -1,0 +1,1 @@
+A 4-channel jack breakout on a cable, for CV outputs driven through a hub connector (e.g. the AD5754 breakout) - no slot required.

@@ -1,5 +1,9 @@
 # MusicBrain jack8 — Thonkiconn-paneeldrager (8 jacks)
 
+**Praktisch:** de paneelkant van een 8-kanaals kaart — acht
+3,5mm-jacks op het 4 HP-raster die rechtstreeks op de front-connector
+van een adc8/dac8/gate8/gatein8 prikken.
+
 **Status**: rev 2.0 — ERC 0, netlijst geverifieerd, DRC 0/0. Bord **20 × 110 mm**
 (past nu tussen de rails).
 

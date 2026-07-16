@@ -1,0 +1,1 @@
+Eight CV inputs for your patch. Reads external control voltages (LFOs, envelopes, sequencers, expression pedals) into the software brain, +/-10 V directly, sampled simultaneously on all channels.

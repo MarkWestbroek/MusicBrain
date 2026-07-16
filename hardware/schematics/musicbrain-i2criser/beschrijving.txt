@@ -1,0 +1,1 @@
+Connects an encoder/button front (enc5front) to the bus over I2C - a passive riser that carries only power and the Qwiic chain.

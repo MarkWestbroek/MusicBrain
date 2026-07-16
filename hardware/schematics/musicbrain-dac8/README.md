@@ -1,5 +1,10 @@
 # MusicBrain DAC8 — 8× CV-uitgang (slotkaart)
 
+**Praktisch:** acht CV-uitgangen. Hiermee stuurt de software analoge
+modules aan: sequenties, LFO's, envelopes of random spanningen naar
+elke Eurorack-ingang, sample-synchroon over alle kanalen (LDAC).
+Combineer met een jack8 als front.
+
 **Status**: rev 2.0 — ERC 0, netlijst pad-voor-pad geverifieerd, DRC 0/0.
 **Spec**: `doc/spi-bus-spec.md` v2.0. Bord **60 × 45 mm**, 2 lagen.
 

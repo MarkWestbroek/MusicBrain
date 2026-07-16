@@ -1,5 +1,10 @@
 # MusicBrain busboard — Teensy 4.1-backplane (rev 3.0, gen 2)
 
+**Praktisch:** dit is de ruggengraat van het systeem. Eén Teensy 4.1
+bestuurt alle functiekaarten die je in de zes slots prikt; het bord
+verzorgt voeding, de SPI-bus, MIDI (2 in / 2 uit), USB-host, CAN, het
+display en de gedeelde audio-lijnen. Hier begint elke MusicBrain-bouw.
+
 **Status**: rev 3.0 AF — ERC 0, netlijst pad-voor-pad geverifieerd, **DRC 0/0**;
 koper volledig via de freerouting-pijplijn (`--route-gnd`). Fab-pakket in
 `fab/`. **Bestelbaar.**

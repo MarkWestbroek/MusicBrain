@@ -1,5 +1,8 @@
 # AD5754 Quad DAC Breakout — 4× CV-uitgang
 
+**Praktisch:** losse 4-kanaals CV-uit aan een hub-kabel: precisie
+±10 V-uitgangen zonder een slot te gebruiken; jacks via de jack4.
+
 **Status**: schema ERC-schoon; PCB volledig geroute (DRC 0 fouten,
 0 unconnected). Bord: 50×35 mm, 2 lagen. Rev 2.0.
 

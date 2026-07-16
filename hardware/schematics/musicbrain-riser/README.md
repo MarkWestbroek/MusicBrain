@@ -1,5 +1,9 @@
 # MusicBrain RISER — generieke slot-verlenger
 
+**Praktisch:** verlengt een slot 1-op-1 omhoog, inclusief de
+audio-lijnen. Hét ontwikkelbord voor gedelegeerde Teensy-/FPGA-kaarten
+en om live op een slot mee te meten.
+
 **Status**: rev 2.0 — ERC 0, netlijst pad-voor-pad geverifieerd, DRC 0/0.
 **Spec**: `doc/spi-bus-spec.md` v2.0. Bord **40 × 45 mm** (H=45), 2 lagen.
 
