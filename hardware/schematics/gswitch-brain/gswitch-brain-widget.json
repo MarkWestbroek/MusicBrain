@@ -5,79 +5,79 @@
  "points": [
   {
    "x": 0.0606,
-   "y": 0.2972,
+   "y": 0.2973,
    "label": "12V DC in (center-negatief!)",
    "markdown": ""
   },
   {
    "x": 0.1848,
-   "y": 0.162,
+   "y": 0.1622,
    "label": "voeding 12V→5V→3,3V",
    "markdown": ""
   },
   {
    "x": 0.0749,
-   "y": 0.5744,
+   "y": 0.5743,
    "label": "debug-UART (J9)",
    "markdown": "| pin | net |\n|--|--|\n| 1 | DBG_TX |\n| 2 | DBG_RX |\n| 3 | GND |"
   },
   {
    "x": 0.0415,
-   "y": 0.7299,
+   "y": 0.7297,
    "label": "USB-C flash/debug (J2)",
    "markdown": "| pin | net |\n|--|--|\n| A1 | GND |\n| A4 | VBUS |\n| A5 | CC1 |\n| A6 | USB_DP |\n| A7 | USB_DM |\n| A8 | — |\n| A9 | VBUS |\n| A12 | GND |\n| B1 | GND |\n| B4 | VBUS |\n| B5 | CC2 |\n| B6 | USB_DP |\n| B7 | USB_DM |\n| B8 | — |\n| B9 | VBUS |\n| B12 | GND |\n| SH | GND |\n| SH | GND |\n| SH | GND |\n| SH | GND |"
   },
   {
    "x": 0.3758,
-   "y": 0.0808,
+   "y": 0.0812,
    "label": "MIDI UIT (J3)",
    "markdown": "| pin | net |\n|--|--|\n| E | GND |\n| E | GND |\n| 1 | — |\n| 2 | GND |\n| 3 | — |\n| 4 | MOUT4 |\n| 5 | MOUT5 |"
   },
   {
    "x": 0.6528,
-   "y": 0.0808,
+   "y": 0.0812,
    "label": "MIDI IN (J4)",
    "markdown": "| pin | net |\n|--|--|\n| E | GND |\n| E | GND |\n| 1 | — |\n| 2 | — |\n| 3 | — |\n| 4 | MIN4 |\n| 5 | MIN5 |"
   },
   {
    "x": 0.8248,
-   "y": 0.2431,
+   "y": 0.2433,
    "label": "ESP32-S3-WROOM-1U (antenne → U.FL)",
    "markdown": ""
   },
   {
-   "x": 0.949,
-   "y": 0.0944,
+   "x": 0.9489,
+   "y": 0.0947,
    "label": "OLED-display I²C (J5)",
    "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | +3V3 |\n| 3 | SCL |\n| 4 | SDA |"
   },
   {
-   "x": 0.949,
-   "y": 0.2701,
+   "x": 0.9489,
+   "y": 0.2703,
    "label": "knoppen 1-4 (J6)",
    "markdown": "| pin | net |\n|--|--|\n| 1 | BTN1 |\n| 2 | BTN2 |\n| 3 | BTN3 |\n| 4 | BTN4 |\n| 5 | GND |"
   },
   {
-   "x": 0.949,
-   "y": 0.4594,
+   "x": 0.9489,
+   "y": 0.4595,
    "label": "encoder (J7)",
    "markdown": "| pin | net |\n|--|--|\n| 1 | ENC_A |\n| 2 | GND |\n| 3 | ENC_B |\n| 4 | ENC_SW |\n| 5 | GND |"
   },
   {
-   "x": 0.949,
-   "y": 0.6893,
+   "x": 0.9489,
+   "y": 0.6892,
    "label": "spare-GPIO (J8)",
    "markdown": "| pin | net |\n|--|--|\n| 1 | +3V3 |\n| 2 | GND |\n| 3 | SPARE1 |\n| 4 | SPARE2 |\n| 5 | SPARE3 |\n| 6 | SPARE4 |\n| 7 | SPARE5 |\n| 8 | SPARE6 |"
   },
   {
    "x": 0.2612,
-   "y": 0.9192,
+   "y": 0.9188,
    "label": "chain A → loop8-kastjes (J10)",
    "markdown": "| pin | net |\n|--|--|\n| SH | GND |\n| SH | GND |\n| 1 | A_CLKJ |\n| 2 | GND |\n| 3 | A_DATAJ |\n| 4 | +12V |\n| 5 | GND |\n| 6 | A_DRETJ |\n| 7 | A_LATCHJ |\n| 8 | A_ENJ |"
   },
   {
    "x": 0.6433,
-   "y": 0.9192,
+   "y": 0.9188,
    "label": "chain B → loop8-kastjes (J11)",
    "markdown": "| pin | net |\n|--|--|\n| SH | GND |\n| SH | GND |\n| 1 | B_CLKJ |\n| 2 | GND |\n| 3 | B_DATAJ |\n| 4 | +12V |\n| 5 | GND |\n| 6 | B_DRETJ |\n| 7 | B_LATCHJ |\n| 8 | B_ENJ |"
   }

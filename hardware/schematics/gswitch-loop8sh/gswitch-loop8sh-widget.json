@@ -1,77 +1,77 @@
 {
- "title": "gswitch-loop8 rev 0.1 — aansluitoverzicht",
- "image": "/boards/gswitch-loop8.png",
- "alt": "3D-render van gswitch-loop8",
+ "title": "gswitch-loop8sh rev 0.1 — aansluitoverzicht",
+ "image": "/boards/gswitch-loop8sh.png",
+ "alt": "3D-render van gswitch-loop8sh",
  "points": [
   {
-   "x": 0.1813,
-   "y": 0.0985,
-   "label": "loop 1: send + return (J11)",
-   "markdown": "| pin | net |\n|--|--|\n| 1 | AGND |\n| 2 | AGND |\n| 3 | SEND1 |\n| 4 | AGND |\n| 5 | AGND |\n| 6 | RET1 |\n| 7 | AGND |\n| 8 | AGND |\n| 9 | — |\n| 10 | AGND |\n| 11 | AGND |\n| 12 | SEND1 |"
+   "x": 0.2439,
+   "y": 0.0859,
+   "label": "loop 1: klem SEND/AGND/RETURN (J11)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | SEND1 |\n| 2 | AGND |\n| 3 | RET1 |"
   },
   {
-   "x": 0.4952,
-   "y": 0.0831,
-   "label": "… 8× ACJS-MHD stapeljack …",
+   "x": 0.5128,
+   "y": 0.0758,
+   "label": "… 8× schroefklem 3,5 mm …",
    "markdown": ""
   },
   {
-   "x": 0.8187,
-   "y": 0.0985,
+   "x": 0.7817,
+   "y": 0.0859,
    "label": "loop 8 (J18)",
-   "markdown": "| pin | net |\n|--|--|\n| 1 | AGND |\n| 2 | AGND |\n| 3 | SEND8 |\n| 4 | AGND |\n| 5 | AGND |\n| 6 | RET8 |\n| 7 | AGND |\n| 8 | AGND |\n| 9 | — |\n| 10 | AGND |\n| 11 | AGND |\n| 12 | SEND8 |"
+   "markdown": "| pin | net |\n|--|--|\n| 1 | SEND8 |\n| 2 | AGND |\n| 3 | RET8 |"
   },
   {
-   "x": 0.0255,
-   "y": 0.2143,
+   "x": 0.0263,
+   "y": 0.2677,
    "label": "audio IN (J7)",
    "markdown": "| pin | net |\n|--|--|\n| T | N0 |\n| R | AGND |\n| S | AGND |\n| TN | INTN |\n| RN | AGND |\n| SN | AGND |"
   },
   {
-   "x": 0.0351,
-   "y": 0.4104,
-   "label": "audio-doorlink in (J5)",
+   "x": 0.1582,
+   "y": 0.4838,
+   "label": "audio-doorlink in (J5, soldeerpads)",
    "markdown": "| pin | net |\n|--|--|\n| 1 | N0 |\n| 2 | AGND |"
   },
   {
-   "x": 0.0542,
-   "y": 0.7085,
+   "x": 0.0519,
+   "y": 0.7626,
    "label": "chain IN ← brain (J1, RJ45)",
    "markdown": "| pin | net |\n|--|--|\n| SH | CHASSIS |\n| SH | CHASSIS |\n| 1 | CLK_J |\n| 2 | GND |\n| 3 | DATA_J |\n| 4 | +12V |\n| 5 | GND |\n| 6 | DRET_J |\n| 7 | LATCH_J |\n| 8 | EN_J |"
   },
   {
-   "x": 0.9745,
-   "y": 0.2143,
+   "x": 0.9737,
+   "y": 0.2677,
    "label": "audio UIT (J8)",
    "markdown": "| pin | net |\n|--|--|\n| T | N8 |\n| R | AGND |\n| S | AGND |\n| TN | — |\n| RN | AGND |\n| SN | AGND |"
   },
   {
-   "x": 0.9649,
-   "y": 0.4104,
-   "label": "audio-doorlink uit (J6)",
+   "x": 0.9282,
+   "y": 0.4838,
+   "label": "audio-doorlink uit (J6, soldeerpads)",
    "markdown": "| pin | net |\n|--|--|\n| 1 | N8 |\n| 2 | AGND |"
   },
   {
-   "x": 0.9458,
-   "y": 0.8552,
+   "x": 0.9481,
+   "y": 0.8313,
    "label": "chain THRU (J2, RJ45)",
    "markdown": "| pin | net |\n|--|--|\n| SH | CHASSIS |\n| SH | CHASSIS |\n| 1 | CLK_T |\n| 2 | GND |\n| 3 | SER_T |\n| 4 | +12V |\n| 5 | GND |\n| 6 | DRETT_J |\n| 7 | LATCH_T |\n| 8 | EN_T |"
   },
   {
-   "x": 0.1424,
-   "y": 0.7857,
+   "x": 0.1697,
+   "y": 0.904,
    "label": "chain-doorlink in (J3)",
    "markdown": "| pin | net |\n|--|--|\n| 1 | CLK_J |\n| 2 | GND |\n| 3 | DATA_J |\n| 4 | +12V |\n| 5 | GND |\n| 6 | DRET_J |\n| 7 | LATCH_J |\n| 8 | EN_J |"
   },
   {
-   "x": 0.8441,
-   "y": 0.7857,
+   "x": 0.8226,
+   "y": 0.904,
    "label": "chain-doorlink thru (J4)",
    "markdown": "| pin | net |\n|--|--|\n| 1 | CLK_T |\n| 2 | GND |\n| 3 | SER_T |\n| 4 | +12V |\n| 5 | GND |\n| 6 | DRETT_J |\n| 7 | LATCH_T |\n| 8 | EN_T |"
   },
   {
-   "x": 0.5671,
-   "y": 0.7625,
+   "x": 0.5192,
+   "y": 0.9242,
    "label": "schuifregister + relaisdrivers",
    "markdown": ""
   }
