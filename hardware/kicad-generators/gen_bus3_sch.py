@@ -580,7 +580,7 @@ wire(390.38, 160, 385.3, 160); label("MOUT4", 385.3, 160)
 wire(390.38, 162.54, 387.84, 162.54); power("power:GND", 387.84, 162.54)
 
 # ============ v3: MIDI OUT2 (TX7 -> 1G17 -> J22) ============
-place_box("74LVC1G17", "U14", "74LVC1G17", 352, 182, "Package_TO_SOT_SMD:SOT-23-5",
+place_box("74LVC1G17", "U14", "74LVC1G17", 318, 186, "Package_TO_SOT_SMD:SOT-23-5",
           {"2": ("label", "MIDI_TX2"), "5": ("power", "power:+3V3"),
            "3": ("power", "power:GND"), "4": ("label", "MOUT2_Y"), "1": ("nc",)})
 (l, r) = rcomp("R34", "10R", 374, 176, 90)
@@ -596,7 +596,7 @@ component("Custom:Conn_01x03", "J22", "MIDI OUT2", 398, 184, 0,
 wire(390.38, 181.46, 385.3, 181.46); label("MOUT2_5", 385.3, 181.46)
 wire(390.38, 184, 385.3, 184); label("MOUT2_4", 385.3, 184)
 wire(390.38, 186.54, 387.84, 186.54); power("power:GND", 387.84, 186.54)
-cap100n("C19", 330, 176)
+cap100n("C19", 306, 172)
 
 # ============ v3: USB-host-doorvoer J23 (2x5, 1-op-1) ============
 # Rij A (oneven) = kabeltje van de Teensy-hostpads; rij B (even) = kabeltje
@@ -648,7 +648,7 @@ wire(t[0], t[1], t[0], t[1] - 1.27); label("CAN_RS", t[0], t[1] - 1.27)
 power("power:GND", *b)
 cap100n("C13", 288, 227)
 # terminatie: 120R + soldeerjumper JP1 in serie over CANH/CANL
-(l, r) = rcomp("R12", "120R", 330, 244, 90)
+(l, r) = rcomp("R12", "120R", 330, 208, 90)
 wire(*l, l[0] - 2.54, l[1]); label("CANH", l[0] - 2.54, l[1])
 wire(*r, r[0] + 2.54, r[1]); label("CAN_TRM", r[0] + 2.54, r[1])
 component("Custom:Conn_01x02", "JP1", "TERM 120R", 366, 214, 0,
@@ -788,7 +788,7 @@ for k in range(4):
 # ============ teksten ============
 items.append('''  (text "MusicBrain SPI-busboard v3 - Teensy 4.1 backplane (gen 2)" (exclude_from_sim no) (at 20.32 20.32 0)
     (effects (font (size 2.54 2.54) bold) (justify left)))''')
-items.append('''  (text "v3 (gen 2): slots 2x12 met audio (MCLK/BCLK/LRCLK gedeeld, I2SD per slot ->\\naudiohub J24), CONVST = slotpin 19, MIDI 2xIN/2xUIT (J22 = TX7), USB-host-doorvoer\\nJ23, R-78E5.0-1.0. Architectuur v2: 74HC154-CS-decoder (16 CS), 74HC165-IRQ-keten\\n(Y14=IRQSTAT), expansie J21 (CS9-14, IRQ7-12; XRST = reserve), CAN3, codec-I2S1,\\nTUNE-IN. Klokmaster: default de master-Teensy (firmwarekeuze)." (exclude_from_sim no) (at 20.32 285 0)
+items.append('''  (text "v3 (gen 2): slots 2x12 met audio (MCLK/BCLK/LRCLK gedeeld, I2SD per slot ->\\naudiohub J24), CONVST = slotpin 19, MIDI 2xIN/2xUIT (J22 = TX7), USB-host-doorvoer\\nJ23, R-78E5.0-1.0. Architectuur v2: 74HC154-CS-decoder (16 CS), 74HC165-IRQ-keten\\n(Y14=IRQSTAT), expansie J21 (CS9-14, IRQ7-12; XRST = reserve), CAN3, codec-I2S1,\\nTUNE-IN. Klokmaster: default de master-Teensy (firmwarekeuze)." (exclude_from_sim no) (at 20.32 240 0)
     (effects (font (size 1.27 1.27)) (justify left)))''')
 items.append('''  (text "Spec: doc/spi-bus-spec.md v2.0 + doc/busboard-v3-plan.md\\n\\nSlot pinout (2x12, gen 2):\\n  1 GND      2 +12V\\n  3 GND      4 -12V\\n  5 GND      6 +3V3\\n  7 SCLK     8 GND\\n  9 MOSI    10 GND\\n 11 MISO    12 GND\\n 13 CS*     14 GND\\n 15 LDAC    16 IRQ*\\n 17 SDA     18 SCL\\n 19 CONVST  20 GND\\n 21 MCLK    22 BCLK\\n 23 LRCLK   24 I2SD*\\n  (* = geografisch per slot)" (exclude_from_sim no) (at 20.32 200.66 0)
     (effects (font (size 1.27 1.27)) (justify left)))''')
