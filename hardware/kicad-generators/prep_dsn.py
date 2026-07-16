@@ -3,7 +3,9 @@
 Gebruik: python prep_dsn.py <bord.dsn>   (overschrijft het bestand in situ)
 
 GND gaat via de koperzones + hechtvia's (gnd_stitch.py), niet via freerouting;
-de randkrimp voorkomt rand-clearance-fouten (zie WERKWIJZE.md).
+de randkrimp voorkomt rand-clearance-fouten (zie WERKWIJZE.md). Vaste
+GND-koper uit de generator (reddings-sporen + via's) wordt als keepout
+achtergelaten, anders routeert freerouting er blind doorheen.
 """
 import re
 import sys
@@ -36,9 +38,43 @@ def strip_block(text, opener):
     return ''.join(out)
 
 
+# vaste GND-wiring (reddings-sporen/via's uit de generator) -> keepouts,
+# vóór het strippen. Via's: cirkel ring 250 + clearance 200 = straal 450.
+# LET OP: alleen met --keepout; freerouting v2.1 raakt door keepouts van
+# slag (meldt 0 incompleet terwijl netten aantoonbaar gebroken zijn,
+# gemeten dac8 2026-07-16). Zonder keepouts is de router blind voor het
+# vaste GND-koper - DRC vangt eventuele botsingen achteraf.
+keepouts = []
+if '--keepout' not in sys.argv:
+    keepouts = None
+for m in (re.finditer(r'\(via\s+"[^"]*?(\d+):(\d+)[^"]*"\s+([-\d.]+)\s+([-\d.]+)'
+                      r'\s*\(net "?GND"?\)', src)
+          if keepouts is not None else ()):
+    r = float(m.group(1)) / 2 + 200
+    x, y = m.group(3), m.group(4)
+    for lay in ('F.Cu', 'B.Cu'):
+        keepouts.append(f'    (keepout "" (circle {lay} {2*r:.0f} {x} {y}))')
+for m in (re.finditer(r'\(wire\s*\(path\s+(\S+)\s+([\d.]+)((?:\s+[-\d.]+)+)\s*\)'
+                      r'\s*\(net "?GND"?\)', src)
+          if keepouts is not None else ()):
+    lay, w = m.group(1), float(m.group(2))
+    pts = [float(v) for v in m.group(3).split()]
+    r = w / 2 + 200
+    seg = [(pts[k], pts[k + 1]) for k in range(0, len(pts) - 1, 2)]
+    for (x1, y1), (x2, y2) in zip(seg, seg[1:]):
+        n = max(1, int(((x2 - x1) ** 2 + (y2 - y1) ** 2) ** .5 / 800))
+        for t in range(n + 1):
+            x, y = x1 + (x2 - x1) * t / n, y1 + (y2 - y1) * t / n
+            keepouts.append(
+                f'    (keepout "" (circle {lay} {2*r:.0f} {x:.1f} {y:.1f}))')
+
 for op in ('(plane GND', '(plane "GND"', '(net GND', '(net "GND"'):
     src = strip_block(src, op)
 src = re.sub(r'(?<=[\s(])"?GND"?(?=[\s)])', '', src)
+
+if keepouts:
+    src = src.replace('(boundary', '\n'.join(keepouts) + '\n    (boundary', 1)
+    print(f"keepouts voor vaste GND-koper: {len(keepouts)}")
 
 
 def shrink(m):
