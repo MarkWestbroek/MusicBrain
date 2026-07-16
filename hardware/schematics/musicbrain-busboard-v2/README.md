@@ -6,6 +6,16 @@ GND-hechtvia's automatisch geplaatst met `gnd_stitch.py`/`gnd_bridge.py`).
 Fab-pakket in `fab/`. **Bestelbaar.**
 **Plan + pintabel**: `doc/busboard-v2-plan.md` (leidend voor alle pinnummers).
 
+## Audio over de bus (gen 2 / v3 — vooruitblik)
+
+Vanaf busboard v3 dragen de slots ook de audio-lijnen (2×12, pinnen 21–24):
+gedeelde klokrails + één datalijn per slot, verzameld op header J24 voor een
+toekomstige FPGA-/TDM-mixer. Hoe dat samenhangt:
+
+![audio-aanlanding gen 2](audio-aanlanding-v3.svg)
+
+Details: `doc/busboard-v3-plan.md` + `doc/spi-bus-spec.md` v2.0.
+
 ## Blokken
 
 - **Teensy 4.1** (west, verticaal, op 2× 1×24 socketstrip; SMD ≤ 6 mm mag

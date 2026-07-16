@@ -33,9 +33,16 @@ J9 10-pins, hub-headers J7/J8, slot-pinnen 1–18.
   voor alle drie de opties zonder bordwijziging.
 - **I2S_DATA1–6 (per slot)**: de master-Teensy heeft geen 6 SAI-ingangen,
   dus de zes lijnen kunnen niet rechtstreeks de Teensy in. Ze landen op een
-  **verzamelheader J24 (2×5): DATA1–6 + 3×GND + key**, naast J17. Een
-  toekomstige mixer (FPGA-kaart via kabel, of codec-TDM-bord) prikt daar in.
-  Tot die tijd is J24 gewoon reserve — de backplane-bedrading is het punt.
+  **verzamelheader J24 (2×7): MCLK/BCLK/LRCLK + DATA1–6 + 5×GND**, naast
+  J17. Een toekomstige mixer (FPGA-kaart via kabel, of codec-TDM-bord)
+  prikt daar in. Tot die tijd is J24 gewoon reserve — de backplane-
+  bedrading is het punt.
+  De klokken zitten mee op J24 (vraag Mark 2026-07-16, expansie): zo is
+  één lintkabel per segment compleet — een expansiesegment (zonder Teensy)
+  krijgt zijn klokrails vía zijn J24 aangeleverd en levert zijn zes
+  datalijnen over dezelfde kabel terug. Eén FPGA-mixer bedient daarmee het
+  busboard + twee expansiesegmenten (18 datalijnen; zie capaciteitsnoot in
+  het J24-hoofdstukje hieronder).
 - ⚠️ open (ongewijzigd uit de spec): SI-review pinnen 21–24; klokmaster-keuze.
 
 ## Floorplan (uitgangspunt)
@@ -73,7 +80,12 @@ zuidwest, B.Cu-lanebundel onder het slotveld. Verschuivingen:
 
 1. **Klokmaster**: master-Teensy als default (firmware), FPGA neemt later
    over. — **akkoord Mark 2026-07-16**.
-2. **J24-vorm**: 2×5 IDC-baar voorgesteld; wacht op Mark.
+2. **J24-vorm**: **2×7 IDC-baar** (klokken mee op de header — zie
+   audio-aanlanding). Capaciteit mixer: mixen is MAC-werk; één Tang Nano 9K
+   doet bij 48 kHz duizenden MAC's per sample — 18 datalijnen (3 segmenten)
+   kosten ~1k LUT aan deserializers + een opteller. De grens is kabels/
+   FPGA-pinnen, niet rekenkracht; 18 lijnen + klokken + SPI past op de
+   Nano-9K-headers.
 3. **Versienummers (besluit Mark 2026-07-16)**: v2 blijft gearchiveerd in
    `rel-v0.2/` (staat er al), níet naar deprecated. Bord-revs blijven
    overal MAJOR.MINOR — het busboard wordt **rev 3.0**; de "v2/v3" in de
