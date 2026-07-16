@@ -535,68 +535,68 @@ for k, (uref, jref, rser, rpu, dref, rxnet) in enumerate((
         ("U10", "J14", "R7", "R9", "D2", "MIDI_RX2"))):
     yb = 95 + 32 * k
     # DIN-header: 1 = DIN-4 (+), 2 = DIN-5 (-), 3 = afscherming (nc op IN)
-    component("Custom:Conn_01x03", jref, f"MIDI IN{k+1}", 398, yb, 0,
+    component("Custom:Conn_01x03", jref, f"MIDI IN{k+1}", 438, yb, 0,
               "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical",
-              extra_props=rprop(jref, f"MIDI IN{k+1}", 398, yb, 398, yb - 6.35, 398, yb + 6.35))
-    wire(390.38, yb - 2.54, 385.3, yb - 2.54); label(f"MIN{k+1}_4", 385.3, yb - 2.54)
-    wire(390.38, yb, 385.3, yb); label(f"MIN{k+1}_5", 385.3, yb)
-    nc(390.38, yb + 2.54)
+              extra_props=rprop(jref, f"MIDI IN{k+1}", 438, yb, 438, yb - 6.35, 438, yb + 6.35))
+    wire(430.38, yb - 2.54, 425.3, yb - 2.54); label(f"MIN{k+1}_4", 425.3, yb - 2.54)
+    wire(430.38, yb, 425.3, yb); label(f"MIN{k+1}_5", 425.3, yb)
+    nc(430.38, yb + 2.54)
     # 220R serie
-    (l, r) = rcomp(rser, "220R", 330, yb - 6, 90)
+    (l, r) = rcomp(rser, "220R", 370, yb - 6, 90)
     wire(*l, l[0] - 2.54, l[1]); label(f"MIN{k+1}_4", l[0] - 2.54, l[1])
     wire(*r, r[0] + 2.54, r[1]); label(f"MIN{k+1}_A", r[0] + 2.54, r[1])
     # opto
-    place_box("H11L1", uref, "H11L1", 352, yb, "Package_DIP:DIP-6_W7.62mm",
+    place_box("H11L1", uref, "H11L1", 392, yb, "Package_DIP:DIP-6_W7.62mm",
               {"1": ("label", f"MIN{k+1}_A"), "2": ("label", f"MIN{k+1}_5"),
                "6": ("power", "power:+3V3"), "4": ("label", rxnet),
                "5": ("power", "power:GND"), "3": ("nc",)})
     # 1N4148 antiparallel over de LED (K aan anode-net, A aan kathode-net)
-    component("Device:D", dref, "1N4148WS", 334, yb + 6, 0, "Diode_SMD:D_SOD-323",
-              extra_props=rprop(dref, "1N4148WS", 334, yb + 6, 334, yb + 3.5, 334, yb + 8.6))
-    wire(330.19, yb + 6, 327.66, yb + 6); label(f"MIN{k+1}_A", 327.66, yb + 6)
-    wire(337.81, yb + 6, 340.34, yb + 6); label(f"MIN{k+1}_5", 340.34, yb + 6)
+    component("Device:D", dref, "1N4148WS", 374, yb + 6, 0, "Diode_SMD:D_SOD-323",
+              extra_props=rprop(dref, "1N4148WS", 374, yb + 6, 374, yb + 3.5, 374, yb + 8.6))
+    wire(370.19, yb + 6, 367.66, yb + 6); label(f"MIN{k+1}_A", 367.66, yb + 6)
+    wire(377.81, yb + 6, 380.34, yb + 6); label(f"MIN{k+1}_5", 380.34, yb + 6)
     # pull-up op de open-collector-uitgang
-    (t, b) = rcomp(rpu, "1k", 371, yb - 8, 0)
+    (t, b) = rcomp(rpu, "1k", 411, yb - 8, 0)
     power("power:+3V3", *t)
     wire(*b, b[0], b[1] + 1.27); label(rxnet, b[0], b[1] + 1.27)
-cap100n("C12", 322, 90)
+cap100n("C12", 362, 90)
 
 # MIDI OUT: 1G17-buffer + 10R/33R per 3V3-MIDI-spec
-place_box("74LVC1G17", "U11", "74LVC1G17", 352, 158, "Package_TO_SOT_SMD:SOT-23-5",
+place_box("74LVC1G17", "U11", "74LVC1G17", 392, 158, "Package_TO_SOT_SMD:SOT-23-5",
           {"2": ("label", "MIDI_TX"), "5": ("power", "power:+3V3"),
            "3": ("power", "power:GND"), "4": ("label", "MOUT_Y"), "1": ("nc",)})
-(l, r) = rcomp("R10", "10R", 374, 152, 90)
+(l, r) = rcomp("R10", "10R", 414, 152, 90)
 wire(*l, l[0] - 2.54, l[1]); label("MOUT_Y", l[0] - 2.54, l[1])
 wire(*r, r[0] + 2.54, r[1]); label("MOUT5", r[0] + 2.54, r[1])
-(l, r) = rcomp("R11", "33R", 374, 160, 90)
+(l, r) = rcomp("R11", "33R", 414, 160, 90)
 power("power:+3V3", l[0] - 1.27, l[1], vx=l[0] - 1.27, vy=l[1] - 3.302)
 wire(*l, l[0] - 1.27, l[1])
 wire(*r, r[0] + 2.54, r[1]); label("MOUT4", r[0] + 2.54, r[1])
-component("Custom:Conn_01x03", "J15", "MIDI OUT", 398, 160, 0,
+component("Custom:Conn_01x03", "J15", "MIDI OUT", 438, 160, 0,
           "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical",
-          extra_props=rprop("J15", "MIDI OUT", 398, 160, 398, 160 - 6.35, 398, 160 + 6.35))
-wire(390.38, 157.46, 385.3, 157.46); label("MOUT5", 385.3, 157.46)
-wire(390.38, 160, 385.3, 160); label("MOUT4", 385.3, 160)
-wire(390.38, 162.54, 387.84, 162.54); power("power:GND", 387.84, 162.54)
+          extra_props=rprop("J15", "MIDI OUT", 438, 160, 438, 160 - 6.35, 438, 160 + 6.35))
+wire(430.38, 157.46, 425.3, 157.46); label("MOUT5", 425.3, 157.46)
+wire(430.38, 160, 425.3, 160); label("MOUT4", 425.3, 160)
+wire(430.38, 162.54, 427.84, 162.54); power("power:GND", 427.84, 162.54)
 
 # ============ v3: MIDI OUT2 (TX7 -> 1G17 -> J22) ============
-place_box("74LVC1G17", "U14", "74LVC1G17", 318, 186, "Package_TO_SOT_SMD:SOT-23-5",
+place_box("74LVC1G17", "U14", "74LVC1G17", 392, 182, "Package_TO_SOT_SMD:SOT-23-5",
           {"2": ("label", "MIDI_TX2"), "5": ("power", "power:+3V3"),
            "3": ("power", "power:GND"), "4": ("label", "MOUT2_Y"), "1": ("nc",)})
-(l, r) = rcomp("R34", "10R", 374, 176, 90)
+(l, r) = rcomp("R34", "10R", 414, 176, 90)
 wire(*l, l[0] - 2.54, l[1]); label("MOUT2_Y", l[0] - 2.54, l[1])
 wire(*r, r[0] + 2.54, r[1]); label("MOUT2_5", r[0] + 2.54, r[1])
-(l, r) = rcomp("R35", "33R", 374, 184, 90)
+(l, r) = rcomp("R35", "33R", 414, 184, 90)
 power("power:+3V3", l[0] - 1.27, l[1], vx=l[0] - 1.27, vy=l[1] - 3.302)
 wire(*l, l[0] - 1.27, l[1])
 wire(*r, r[0] + 2.54, r[1]); label("MOUT2_4", r[0] + 2.54, r[1])
-component("Custom:Conn_01x03", "J22", "MIDI OUT2", 398, 184, 0,
+component("Custom:Conn_01x03", "J22", "MIDI OUT2", 438, 184, 0,
           "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical",
-          extra_props=rprop("J22", "MIDI OUT2", 398, 184, 398, 184 - 6.35, 398, 184 + 6.35))
-wire(390.38, 181.46, 385.3, 181.46); label("MOUT2_5", 385.3, 181.46)
-wire(390.38, 184, 385.3, 184); label("MOUT2_4", 385.3, 184)
-wire(390.38, 186.54, 387.84, 186.54); power("power:GND", 387.84, 186.54)
-cap100n("C19", 306, 172)
+          extra_props=rprop("J22", "MIDI OUT2", 438, 184, 438, 184 - 6.35, 438, 184 + 6.35))
+wire(430.38, 181.46, 425.3, 181.46); label("MOUT2_5", 425.3, 181.46)
+wire(430.38, 184, 425.3, 184); label("MOUT2_4", 425.3, 184)
+wire(430.38, 186.54, 427.84, 186.54); power("power:GND", 427.84, 186.54)
+cap100n("C19", 362, 176)
 
 # ============ v3: USB-host-doorvoer J23 (2x5, 1-op-1) ============
 # Rij A (oneven) = kabeltje van de Teensy-hostpads; rij B (even) = kabeltje
@@ -618,7 +618,7 @@ for k in range(5):
 # krijgt via zijn eigen J24 de klokken aangeleverd).
 J24_L = ["MCLK", "LRCLK", "I2SD1", "I2SD3", "I2SD5", "GND", "GND"]
 J24_R = ["BCLK", "GND", "I2SD2", "I2SD4", "I2SD6", "GND", "GND"]
-J24X, J24Y = 250, 258
+J24X, J24Y = 378, 305
 component("Custom:Conn_02x07", "J24", "AUDIOHUB (I2S)", J24X, J24Y, 0,
           "Connector_PinHeader_2.54mm:PinHeader_2x07_P2.54mm_Vertical",
           extra_props=rprop("J24", "AUDIOHUB", J24X, J24Y, J24X, J24Y - 12.7, J24X, J24Y + 12.7))
@@ -672,34 +672,34 @@ for k in range(4):
         label(nmP, 377.3, y)
 
 # ============ v2: TUNE-IN-conditionering ============
-component("Custom:Conn_01x02", "J18", "TUNE IN", 30, 272, 0,
+component("Custom:Conn_01x02", "J18", "TUNE IN", 30, 305, 0,
           "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical",
-          extra_props=rprop("J18", "TUNE", 30, 272, 30, 272 - 5.08, 30, 272 + 5.08))
-wire(22.38, 270.73, 19.84, 270.73); label("TUNE_J", 19.84, 270.73)
-wire(22.38, 273.27, 19.84, 273.27); power("power:GND", 19.84, 273.27)
-(l, r) = rcomp("R14", "100k", 46, 270.73, 90)
+          extra_props=rprop("J18", "TUNE", 30, 305, 30, 305 - 5.08, 30, 305 + 5.08))
+wire(22.38, 303.73, 19.84, 303.73); label("TUNE_J", 19.84, 303.73)
+wire(22.38, 306.27, 19.84, 306.27); power("power:GND", 19.84, 306.27)
+(l, r) = rcomp("R14", "100k", 46, 303.73, 90)
 wire(*l, l[0] - 2.54, l[1]); label("TUNE_J", l[0] - 2.54, l[1])
 wire(*r, r[0] + 2.54, r[1]); label("TUNE_N", r[0] + 2.54, r[1])
-(t, b) = rcomp("R15", "100k", 60, 285, 0)
+(t, b) = rcomp("R15", "100k", 60, 318, 0)
 wire(t[0], t[1], t[0], t[1] - 1.27); label("TUNE_N", t[0], t[1] - 1.27)
 power("power:GND", *b)
-place_box("BAT54S", "D3", "BAT54S", 80, 272, "Package_TO_SOT_SMD:SOT-23",
+place_box("BAT54S", "D3", "BAT54S", 80, 305, "Package_TO_SOT_SMD:SOT-23",
           {"1": ("power", "power:GND"), "3": ("label", "TUNE_N"),
            "2": ("power", "power:+3V3")})
-place_box("74LVC1G17", "U13", "74LVC1G17", 108, 272, "Package_TO_SOT_SMD:SOT-23-5",
+place_box("74LVC1G17", "U13", "74LVC1G17", 108, 305, "Package_TO_SOT_SMD:SOT-23-5",
           {"2": ("label", "TUNE_N"), "5": ("power", "power:+3V3"),
            "3": ("power", "power:GND"), "4": ("label", "TUNE_T"), "1": ("nc",)})
-cap100n("C14", 126, 285)
+cap100n("C14", 126, 318)
 
 # ============ v2: delegate-UART-poorten ============
 for jref, nm, tx, rx, xj in (("J19", "DLG1 (Serial3)", "DLG1_TX", "DLG1_RX", 152),
                              ("J20", "DLG2 (Serial4)", "DLG2_TX", "DLG2_RX", 182)):
-    component("Custom:Conn_01x04", jref, nm, xj, 245, 0,
+    component("Custom:Conn_01x04", jref, nm, xj, 305, 0,
               "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical",
-              extra_props=rprop(jref, nm, xj, 245, xj, 245 - 8, xj, 245 + 8))
+              extra_props=rprop(jref, nm, xj, 305, xj, 305 - 8, xj, 305 + 8))
     pn = ["GND", tx, rx, "GND"]
     for k in range(4):
-        y = 245 - 3.81 + 2.54 * k
+        y = 305 - 3.81 + 2.54 * k
         nmP = pn[k]
         wire(xj - 7.62, y, xj - 12.7, y)
         if nmP in RAILS:
@@ -727,7 +727,7 @@ for k in range(7):
             label(name, xe, y)
 
 # ============ v1.1-headers: EXP (v2-pinset) / DISPLAY / QWIIC ============
-J10X, J10Y = 150, 278
+J10X, J10Y = 215, 305
 component("Custom:Conn_02x07", "J10", "EXP", J10X, J10Y, 0,
           "Connector_PinHeader_2.54mm:PinHeader_2x07_P2.54mm_Vertical",
           extra_props=rprop("J10", "EXP", J10X, J10Y, J10X, J10Y - 12.7, J10X, J10Y + 12.7))
@@ -752,7 +752,7 @@ for k in range(7):
     else:
         label(nmR, J10X + 12.7, y)
 
-J11X, J11Y = 225, 278
+J11X, J11Y = 280, 305
 component("Custom:Conn_01x09", "J11", "DISPLAY (SPI1)", J11X, J11Y, 0,
           "Connector_PinHeader_2.54mm:PinHeader_1x09_P2.54mm_Vertical",
           extra_props=rprop("J11", "DISPLAY", J11X, J11Y, J11X, J11Y - 14, J11X, J11Y + 14))
@@ -770,7 +770,7 @@ for k in range(9):
         wire(J11X - 7.62, y, J11X - 12.7, y)
         label(nmP, J11X - 12.7, y)
 
-J12X, J12Y = 280, 275.5
+J12X, J12Y = 335, 305
 component("Custom:Conn_01x04", "J12", "QWIIC/I2C", J12X, J12Y, 0,
           "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical",
           extra_props=rprop("J12", "QWIIC", J12X, J12Y, J12X, J12Y - 8, J12X, J12Y + 8))
@@ -1045,7 +1045,7 @@ doc = f'''(kicad_sch
   (generator "eeschema")
   (generator_version "8.0")
   (uuid "{ROOT}")
-  (paper "A3")
+  (paper "A2")
   (title_block
     (title "MusicBrain SPI-busboard")
     (date "2026-07-16")
