@@ -422,9 +422,11 @@ FPS += [
      'Package_SO:SOIC-20W_7.5x12.8mm_P1.27mm', 'U8', '74LVC245', 95, 31, U8_MAP, 90),
     ('Connector_IDC.pretty\\IDC-Header_2x13_P2.54mm_Vertical.kicad_mod',
      'Connector_IDC:IDC-Header_2x13_P2.54mm_Vertical', 'J21', 'EXPANSION', 108, 22.5, J21_MAP, 90),
-    # audiohub in de zuidstrook, midden onder het slotveld
+    # audiohub aan de oostrand naast de hubs: buiten het kaartvolume
+    # (kaarten beslaan y 34..114 op de slotvlakken - een kabel midden op het
+    #  bord kan nergens heen; observatie Mark 2026-07-16)
     (PH + '2x07_P2.54mm_Vertical.kicad_mod', PHL + '2x07_P2.54mm_Vertical',
-     'J24', 'AUDIOHUB', 115, 103, J24_MAP, 90),
+     'J24', 'AUDIOHUB', 182, 72, J24_MAP, 0),
     # MIDI/CAN-cluster (v2-indeling, 12 mm zuidwaarts op het diepere bord)
     ('Package_SO.pretty\\SOIC-8_3.9x4.9mm_P1.27mm.kicad_mod',
      'Package_SO:SOIC-8_3.9x4.9mm_P1.27mm', 'U12', 'SN65HVD230', 150, 112, U12_MAP, 0),
@@ -541,12 +543,14 @@ if not _os2.environ.get('BUS3_NOROUTE') and _os2.path.exists(_ses_path):
     import seslib as _seslib
     _st, _sv = _seslib.load_ses(_ses_path)
     _n = _nv = 0
+    # GND komt sinds --route-gnd ook uit de SES (router ziet dan de
+    # GND-pads met clearance en maakt het net zelf af; vlakken = bonus)
     for _name, _layer, _width, _pts in _st:
-        if _name in NI and _name != 'GND':
+        if _name in NI:
             tracks.append((NI[_name], _layer, max(_width, 0.2), _pts))
             _n += 1
     for _name, _x, _y in _sv:
-        if _name in NI and _name != 'GND':
+        if _name in NI:
             vias.append((NI[_name], _x, _y))
             _nv += 1
     print(f'SES: {_n} sporen, {_nv} vias overgenomen')
