@@ -45,4 +45,5 @@ bestellen; alle fab-pakketten zijn ververst. Gen-1-stand per bord bevroren in
 | Module | Versie | Status | Opmerkingen | Aantal besteld | Prijs | Besteldatum |
 |---|---|---|---|---|---|---|
 | gswitch-loop8 | 0.1 | geroute (ERC 0/netcheck/DRC 0/0) | 8× relaisloop; vóór fab: jack-doorpiep + LCSC-match — NIET bestellen | | | |
+| gswitch-loop8sh | 0.1 | geroute (ERC 0/netcheck/DRC 0/0) | klem-variant (Sander van Herk), 150×44; geen normalling — lege loop niet activeren; vóór fab: LCSC-match — NIET bestellen | | | |
 | gswitch-brain | 0.1 | geroute (ERC 0/netcheck/DRC 0/0) | ESP32-S3-WROOM-1U, 100×70; vóór fab: LCSC-match + fab-pakket — NIET bestellen | | | |

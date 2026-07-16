@@ -14,9 +14,12 @@ CLR150 = '--clearance-150' in sys.argv   # bij krappe handroutes: DSN-clearance
 # hybride narun (WERKWIJZE): --narun=/NET1,/NET2 -> wiring van díé netten
 # strippen (router legt ze vers), al het andere protect.
 NARUN = set()
+KO_BOX = None      # --keepout-box=x0,y0,x1,y1 (bord-mm): generieke audio-keepout
 for _a in sys.argv:
     if _a.startswith('--narun='):
         NARUN = set(_a.split('=', 1)[1].split(','))
+    if _a.startswith('--keepout-box='):
+        KO_BOX = [float(v) for v in _a.split('=', 1)[1].split(',')]
 DST = SRC.replace('.dsn', '-fr.dsn')     # klemmen + Default-netclass 0,15!
 STRIP_NETS = {'GND', '/AGND', '"/AGND"', '/CHASSIS', '"/CHASSIS"'}
 
@@ -146,16 +149,24 @@ txt = re.sub(r'(\(path\s+pcb\s+\d+\s+)([\d\s.eE+-]+)\)', shrink_boundary,
 
 # 5. keepout over het audiogebied (freerouting-netten horen in de zuidstrook;
 #    zonder keepout gaat hij door de AGND-zone of de zone-spleet zwerven)
-if not KEEPOUT:
+if not KEEPOUT and not KO_BOX:
     open(DST, 'w', encoding='utf-8', newline='\n').write(txt)
     print('written', DST, '(zonder keepout)')
     sys.exit(0)
-KO_Y = -131600   # tot net boven de relais-COM-pads
-ko = ''
-for layer in ('F.Cu', 'B.Cu'):
-    ko += (f'\n    (keepout "ko_audio_{layer}" (polygon {layer} 0'
-           f'  100600 -100600  299400 -100600  299400 {KO_Y}'
-           f'  100600 {KO_Y}  100600 -100600))')
+if KO_BOX:
+    kx0, ky0, kx1, ky1 = (int(v * 1000) for v in KO_BOX)
+    ko = ''
+    for layer in ('F.Cu', 'B.Cu'):
+        ko += (f'\n    (keepout "ko_audio_{layer}" (polygon {layer} 0'
+               f'  {kx0} {-ky0}  {kx1} {-ky0}  {kx1} {-ky1}'
+               f'  {kx0} {-ky1}  {kx0} {-ky0}))')
+else:
+    KO_Y = -131600   # loop8: tot net boven de relais-COM-pads
+    ko = ''
+    for layer in ('F.Cu', 'B.Cu'):
+        ko += (f'\n    (keepout "ko_audio_{layer}" (polygon {layer} 0'
+               f'  100600 -100600  299400 -100600  299400 {KO_Y}'
+               f'  100600 {KO_Y}  100600 -100600))')
 txt = txt.replace('(plane ', ko + '\n    (plane ', 1) if '(plane ' in txt else txt
 if 'ko_audio' not in txt:
     # planes zijn al gestript: hang de keepouts achter de boundary

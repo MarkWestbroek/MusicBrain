@@ -1,0 +1,20 @@
+{
+  "titel": "gswitch-loop8sh rev 0.1 — aansluitoverzicht",
+  "voetnoot": "K1–K8 = relais (NC = bypass) · U1 = 595 · U2/U3 = HC14 · U4 = ULN2803 · JP1 = DRET-term (laatste bord) · JP2 = mute lege IN · JP3 = AGND→chassis · klem: 1=SEND 2=AGND 3=RETURN",
+  "bbox_mm": [100, 100, 250, 144],
+  "render": {"w": 2600, "h": 900},
+  "callouts": [
+    {"label": "loop 1: klem SEND/AGND/RETURN (J11)", "mm": [135, 101.5], "kant": "boven"},
+    {"label": "… 8× schroefklem 3,5 mm …", "mm": [177, 101], "kant": "boven"},
+    {"label": "loop 8 (J18)", "mm": [219, 101.5], "kant": "boven"},
+    {"label": "audio IN (J7)", "mm": [101, 110.5], "kant": "links"},
+    {"label": "audio-doorlink in (J5, soldeerpads)", "mm": [121.6, 121.2], "kant": "links"},
+    {"label": "chain IN ← brain (J1, RJ45)", "mm": [105, 135], "kant": "links"},
+    {"label": "audio UIT (J8)", "mm": [249, 110.5], "kant": "rechts"},
+    {"label": "audio-doorlink uit (J6, soldeerpads)", "mm": [241.9, 121.2], "kant": "rechts"},
+    {"label": "chain THRU (J2, RJ45)", "mm": [245, 138.4], "kant": "rechts"},
+    {"label": "chain-doorlink in (J3)", "mm": [123.4, 142], "kant": "onder"},
+    {"label": "chain-doorlink thru (J4)", "mm": [225.4, 142], "kant": "onder"},
+    {"label": "schuifregister + relaisdrivers", "mm": [178, 143], "kant": "onder"}
+  ]
+}
