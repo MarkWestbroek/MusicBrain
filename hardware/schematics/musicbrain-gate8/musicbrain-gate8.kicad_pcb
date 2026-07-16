@@ -6,8 +6,8 @@
   (paper "A4")
   (title_block
     (title "MusicBrain GATE8 - 8x gate out slot card")
-    (date "2026-07-08")
-    (rev "1.1")
+    (date "2026-07-16")
+    (rev "2.0")
     (company "MusicBrain project")
   )
   (layers
@@ -35,8 +35,8 @@
   (setup
     (pad_to_mask_clearance 0)
     (allow_soldermask_bridges_in_footprints no)
-    (aux_axis_origin 100 100)
-    (grid_origin 100 100)
+    (aux_axis_origin 100.0 100.0)
+    (grid_origin 100.0 100.0)
   )
   (net 0 "")
   (net 1 "+12V")
@@ -53,21 +53,21 @@
   (net 12 "/GATE6")
   (net 13 "/GATE7")
   (net 14 "/GATE8")
-  (net 15 "Net-(U1-QA)")
-  (net 16 "Net-(U1-QB)")
-  (net 17 "Net-(U1-QC)")
-  (net 18 "Net-(U1-QD)")
-  (net 19 "Net-(U1-QE)")
-  (net 20 "Net-(U1-QF)")
-  (net 21 "Net-(U1-QG)")
-  (net 22 "Net-(U1-QH)")
-  (footprint "Connector_PinHeader_2.54mm:PinHeader_2x10_P2.54mm_Horizontal"
-    (uuid "e0000000-0000-4000-8000-000000000001")
-    (at 128.93 173.42 270)
-    (path "/d0000001-0000-4000-8000-000000000001")
+  (net 15 "/QA")
+  (net 16 "/QB")
+  (net 17 "/QC")
+  (net 18 "/QD")
+  (net 19 "/QE")
+  (net 20 "/QF")
+  (net 21 "/QG")
+  (net 22 "/QH")
+  (footprint "Connector_PinHeader_2.54mm:PinHeader_2x12_P2.54mm_Horizontal"
+    (uuid "ca4d0000-0000-4000-8000-000000000001")
+    (at 153.97 138.42 270)
+    (path "/")
     (layer "F.Cu")
-    (descr "Through hole angled pin header, 2x10, 2.54mm pitch, 6mm pin length, double rows")
-    (tags "Through hole angled pin header THT 2x10 2.54mm double row")
+    (descr "Through hole angled pin header, 2x12, 2.54mm pitch, 6mm pin length, double rows")
+    (tags "Through hole angled pin header THT 2x12 2.54mm double row")
     (property "Reference" "J1"
       (at 5.655 -2.27 0)
       (layer "F.SilkS")
@@ -79,7 +79,7 @@
       )
     )
     (property "Value" "BUS"
-      (at 5.655 25.13 0)
+      (at 5.655 30.21 0)
       (layer "F.Fab")
       (effects
         (font
@@ -263,6 +263,42 @@
     (fp_line
       (start 1.077358 23.29)
       (end 1.462642 23.29)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start 1.077358 24.97)
+      (end 1.462642 24.97)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start 1.077358 25.83)
+      (end 1.462642 25.83)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start 1.077358 27.51)
+      (end 1.462642 27.51)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start 1.077358 28.37)
+      (end 1.462642 28.37)
       (stroke
         (width 0.12)
         (type solid)
@@ -468,6 +504,42 @@
       (layer "F.SilkS")
     )
     (fp_line
+      (start 3.617358 24.97)
+      (end 3.93 24.97)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start 3.617358 25.83)
+      (end 3.93 25.83)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start 3.617358 27.51)
+      (end 3.93 27.51)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start 3.617358 28.37)
+      (end 3.93 28.37)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
       (start 3.93 1.27)
       (end 6.69 1.27)
       (stroke
@@ -549,6 +621,24 @@
       (layer "F.SilkS")
     )
     (fp_line
+      (start 3.93 24.13)
+      (end 6.69 24.13)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start 3.93 26.67)
+      (end 6.69 26.67)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
       (start 6.69 2.11)
       (end 12.69 2.11)
       (stroke
@@ -623,6 +713,24 @@
     (fp_line
       (start 6.69 22.43)
       (end 12.69 22.43)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start 6.69 24.97)
+      (end 12.69 24.97)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start 6.69 27.51)
+      (end 12.69 27.51)
       (stroke
         (width 0.12)
         (type solid)
@@ -791,9 +899,45 @@
       )
       (layer "F.SilkS")
     )
+    (fp_line
+      (start 12.69 24.97)
+      (end 12.69 25.83)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start 12.69 25.83)
+      (end 6.69 25.83)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start 12.69 27.51)
+      (end 12.69 28.37)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start 12.69 28.37)
+      (end 6.69 28.37)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
     (fp_rect
       (start 3.93 -1.38)
-      (end 6.69 24.24)
+      (end 6.69 29.32)
       (stroke
         (width 0.12)
         (type solid)
@@ -813,7 +957,7 @@
     )
     (fp_rect
       (start -1.77 -1.77)
-      (end 13.09 24.63)
+      (end 13.09 29.71)
       (stroke
         (width 0.05)
         (type solid)
@@ -1092,6 +1236,60 @@
       (layer "F.Fab")
     )
     (fp_line
+      (start -0.32 25.08)
+      (end -0.32 25.72)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start -0.32 25.08)
+      (end 4.04 25.08)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start -0.32 25.72)
+      (end 4.04 25.72)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start -0.32 27.62)
+      (end -0.32 28.26)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start -0.32 27.62)
+      (end 4.04 27.62)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start -0.32 28.26)
+      (end 4.04 28.26)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
       (start 4.04 -0.635)
       (end 4.675 -1.27)
       (stroke
@@ -1101,7 +1299,7 @@
       (layer "F.Fab")
     )
     (fp_line
-      (start 4.04 24.13)
+      (start 4.04 29.21)
       (end 4.04 -0.635)
       (stroke
         (width 0.1)
@@ -1120,7 +1318,7 @@
     )
     (fp_line
       (start 6.58 -1.27)
-      (end 6.58 24.13)
+      (end 6.58 29.21)
       (stroke
         (width 0.1)
         (type solid)
@@ -1308,8 +1506,44 @@
       (layer "F.Fab")
     )
     (fp_line
-      (start 6.58 24.13)
-      (end 4.04 24.13)
+      (start 6.58 25.08)
+      (end 12.58 25.08)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start 6.58 25.72)
+      (end 12.58 25.72)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start 6.58 27.62)
+      (end 12.58 27.62)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start 6.58 28.26)
+      (end 12.58 28.26)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start 6.58 29.21)
+      (end 4.04 29.21)
       (stroke
         (width 0.1)
         (type solid)
@@ -1406,8 +1640,26 @@
       )
       (layer "F.Fab")
     )
+    (fp_line
+      (start 12.58 25.08)
+      (end 12.58 25.72)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start 12.58 27.62)
+      (end 12.58 28.26)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
     (fp_text user "${REFERENCE}"
-      (at 5.31 11.43 90)
+      (at 5.31 13.97 90)
       (layer "F.Fab")
       (effects
         (font
@@ -1417,7 +1669,7 @@
       )
     )
     (pad "1" thru_hole rect
-      (at 0 0)
+      (at 0 0 270)
       (size 1.7 1.7)
       (drill 1)
       (layers "*.Cu" "*.Mask")
@@ -1425,7 +1677,7 @@
       (net 3 "GND")
     )
     (pad "2" thru_hole circle
-      (at 2.54 0)
+      (at 2.54 0 270)
       (size 1.7 1.7)
       (drill 1)
       (layers "*.Cu" "*.Mask")
@@ -1433,7 +1685,7 @@
       (net 1 "+12V")
     )
     (pad "3" thru_hole circle
-      (at 0 2.54)
+      (at 0 2.54 270)
       (size 1.7 1.7)
       (drill 1)
       (layers "*.Cu" "*.Mask")
@@ -1441,14 +1693,14 @@
       (net 3 "GND")
     )
     (pad "4" thru_hole circle
-      (at 2.54 2.54)
+      (at 2.54 2.54 270)
       (size 1.7 1.7)
       (drill 1)
       (layers "*.Cu" "*.Mask")
       (remove_unused_layers no)
     )
     (pad "5" thru_hole circle
-      (at 0 5.08)
+      (at 0 5.08 270)
       (size 1.7 1.7)
       (drill 1)
       (layers "*.Cu" "*.Mask")
@@ -1456,14 +1708,14 @@
       (net 3 "GND")
     )
     (pad "6" thru_hole circle
-      (at 2.54 5.08)
+      (at 2.54 5.08 270)
       (size 1.7 1.7)
       (drill 1)
       (layers "*.Cu" "*.Mask")
       (remove_unused_layers no)
     )
     (pad "7" thru_hole circle
-      (at 0 7.62)
+      (at 0 7.62 270)
       (size 1.7 1.7)
       (drill 1)
       (layers "*.Cu" "*.Mask")
@@ -1471,7 +1723,7 @@
       (net 4 "/SCLK")
     )
     (pad "8" thru_hole circle
-      (at 2.54 7.62)
+      (at 2.54 7.62 270)
       (size 1.7 1.7)
       (drill 1)
       (layers "*.Cu" "*.Mask")
@@ -1479,7 +1731,7 @@
       (net 3 "GND")
     )
     (pad "9" thru_hole circle
-      (at 0 10.16)
+      (at 0 10.16 270)
       (size 1.7 1.7)
       (drill 1)
       (layers "*.Cu" "*.Mask")
@@ -1487,7 +1739,7 @@
       (net 5 "/MOSI")
     )
     (pad "10" thru_hole circle
-      (at 2.54 10.16)
+      (at 2.54 10.16 270)
       (size 1.7 1.7)
       (drill 1)
       (layers "*.Cu" "*.Mask")
@@ -1495,14 +1747,14 @@
       (net 3 "GND")
     )
     (pad "11" thru_hole circle
-      (at 0 12.7)
+      (at 0 12.7 270)
       (size 1.7 1.7)
       (drill 1)
       (layers "*.Cu" "*.Mask")
       (remove_unused_layers no)
     )
     (pad "12" thru_hole circle
-      (at 2.54 12.7)
+      (at 2.54 12.7 270)
       (size 1.7 1.7)
       (drill 1)
       (layers "*.Cu" "*.Mask")
@@ -1510,7 +1762,7 @@
       (net 3 "GND")
     )
     (pad "13" thru_hole circle
-      (at 0 15.24)
+      (at 0 15.24 270)
       (size 1.7 1.7)
       (drill 1)
       (layers "*.Cu" "*.Mask")
@@ -1518,7 +1770,7 @@
       (net 6 "/CS")
     )
     (pad "14" thru_hole circle
-      (at 2.54 15.24)
+      (at 2.54 15.24 270)
       (size 1.7 1.7)
       (drill 1)
       (layers "*.Cu" "*.Mask")
@@ -1526,48 +1778,77 @@
       (net 3 "GND")
     )
     (pad "15" thru_hole circle
-      (at 0 17.78)
+      (at 0 17.78 270)
       (size 1.7 1.7)
       (drill 1)
       (layers "*.Cu" "*.Mask")
       (remove_unused_layers no)
     )
     (pad "16" thru_hole circle
-      (at 2.54 17.78)
+      (at 2.54 17.78 270)
       (size 1.7 1.7)
       (drill 1)
       (layers "*.Cu" "*.Mask")
       (remove_unused_layers no)
     )
     (pad "17" thru_hole circle
-      (at 0 20.32)
+      (at 0 20.32 270)
       (size 1.7 1.7)
       (drill 1)
       (layers "*.Cu" "*.Mask")
       (remove_unused_layers no)
     )
     (pad "18" thru_hole circle
-      (at 2.54 20.32)
+      (at 2.54 20.32 270)
       (size 1.7 1.7)
       (drill 1)
       (layers "*.Cu" "*.Mask")
       (remove_unused_layers no)
     )
     (pad "19" thru_hole circle
-      (at 0 22.86)
+      (at 0 22.86 270)
       (size 1.7 1.7)
       (drill 1)
       (layers "*.Cu" "*.Mask")
       (remove_unused_layers no)
     )
     (pad "20" thru_hole circle
-      (at 2.54 22.86)
+      (at 2.54 22.86 270)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 3 "GND")
+    )
+    (pad "21" thru_hole circle
+      (at 0 25.4 270)
       (size 1.7 1.7)
       (drill 1)
       (layers "*.Cu" "*.Mask")
       (remove_unused_layers no)
     )
-    (model "${KICAD10_3DMODEL_DIR}/Connector_PinHeader_2.54mm.3dshapes/PinHeader_2x10_P2.54mm_Horizontal.step"
+    (pad "22" thru_hole circle
+      (at 2.54 25.4 270)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+    )
+    (pad "23" thru_hole circle
+      (at 0 27.94 270)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+    )
+    (pad "24" thru_hole circle
+      (at 2.54 27.94 270)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+    )
+    (model "${KICAD10_3DMODEL_DIR}/Connector_PinHeader_2.54mm.3dshapes/PinHeader_2x12_P2.54mm_Horizontal.step"
       (offset
         (xyz 0 0 0)
       )
@@ -1580,9 +1861,9 @@
     )
   )
   (footprint "Connector_PinHeader_2.54mm:PinHeader_1x10_P2.54mm_Horizontal"
-    (uuid "e0000000-0000-4000-8000-000000000002")
-    (at 106.07 106.58 90)
-    (path "/d0000001-0000-4000-8000-000000000081")
+    (uuid "ca4d0000-0000-4000-8000-000000000002")
+    (at 128.57 104.04 90)
+    (path "/")
     (layer "F.Cu")
     (descr "Through hole angled pin header, 1x10, 2.54mm pitch, 6mm pin length, single row")
     (tags "Through hole angled pin header THT 1x10 2.54mm single row")
@@ -2755,7 +3036,7 @@
       )
     )
     (pad "1" thru_hole rect
-      (at 0 0)
+      (at 0 0 90)
       (size 1.7 1.7)
       (drill 1)
       (layers "*.Cu" "*.Mask")
@@ -2763,7 +3044,7 @@
       (net 3 "GND")
     )
     (pad "2" thru_hole circle
-      (at 0 2.54)
+      (at 0 2.54 90)
       (size 1.7 1.7)
       (drill 1)
       (layers "*.Cu" "*.Mask")
@@ -2771,7 +3052,7 @@
       (net 7 "/GATE1")
     )
     (pad "3" thru_hole circle
-      (at 0 5.08)
+      (at 0 5.08 90)
       (size 1.7 1.7)
       (drill 1)
       (layers "*.Cu" "*.Mask")
@@ -2779,7 +3060,7 @@
       (net 8 "/GATE2")
     )
     (pad "4" thru_hole circle
-      (at 0 7.62)
+      (at 0 7.62 90)
       (size 1.7 1.7)
       (drill 1)
       (layers "*.Cu" "*.Mask")
@@ -2787,7 +3068,7 @@
       (net 9 "/GATE3")
     )
     (pad "5" thru_hole circle
-      (at 0 10.16)
+      (at 0 10.16 90)
       (size 1.7 1.7)
       (drill 1)
       (layers "*.Cu" "*.Mask")
@@ -2795,7 +3076,7 @@
       (net 10 "/GATE4")
     )
     (pad "6" thru_hole circle
-      (at 0 12.7)
+      (at 0 12.7 90)
       (size 1.7 1.7)
       (drill 1)
       (layers "*.Cu" "*.Mask")
@@ -2803,7 +3084,7 @@
       (net 11 "/GATE5")
     )
     (pad "7" thru_hole circle
-      (at 0 15.24)
+      (at 0 15.24 90)
       (size 1.7 1.7)
       (drill 1)
       (layers "*.Cu" "*.Mask")
@@ -2811,7 +3092,7 @@
       (net 12 "/GATE6")
     )
     (pad "8" thru_hole circle
-      (at 0 17.78)
+      (at 0 17.78 90)
       (size 1.7 1.7)
       (drill 1)
       (layers "*.Cu" "*.Mask")
@@ -2819,7 +3100,7 @@
       (net 13 "/GATE7")
     )
     (pad "9" thru_hole circle
-      (at 0 20.32)
+      (at 0 20.32 90)
       (size 1.7 1.7)
       (drill 1)
       (layers "*.Cu" "*.Mask")
@@ -2827,7 +3108,7 @@
       (net 14 "/GATE8")
     )
     (pad "10" thru_hole circle
-      (at 0 22.86)
+      (at 0 22.86 90)
       (size 1.7 1.7)
       (drill 1)
       (layers "*.Cu" "*.Mask")
@@ -2846,10 +3127,826 @@
       )
     )
   )
+  (footprint "Resistor_SMD:R_0805_2012Metric"
+    (uuid "ca4d0000-0000-4000-8000-000000000003")
+    (at 131.11 108.3 90)
+    (path "/")
+    (layer "F.Cu")
+    (descr "Resistor SMD 0805 (2012 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)")
+    (tags "resistor")
+    (property "Reference" "R1"
+      (at 0 -1.65 0)
+      (layer "F.SilkS")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Value" "1k"
+      (at 0 1.65 0)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (attr smd)
+    (fp_line
+      (start -0.227064 -0.735)
+      (end 0.227064 -0.735)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -0.227064 0.735)
+      (end 0.227064 0.735)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_rect
+      (start -1.68 -0.95)
+      (end 1.68 0.95)
+      (stroke
+        (width 0.05)
+        (type solid)
+      )
+      (fill no)
+      (layer "F.CrtYd")
+    )
+    (fp_rect
+      (start -1 -0.625)
+      (end 1 0.625)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (fill no)
+      (layer "F.Fab")
+    )
+    (fp_text user "${REFERENCE}"
+      (at 0 0 0)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 0.5 0.5)
+          (thickness 0.08)
+        )
+      )
+    )
+    (pad "1" smd roundrect
+      (at -0.9125 0 90)
+      (size 1.025 1.4)
+      (layers "F.Cu" "F.Mask" "F.Paste")
+      (roundrect_rratio 0.243902)
+      (net 15 "/QA")
+    )
+    (pad "2" smd roundrect
+      (at 0.9125 0 90)
+      (size 1.025 1.4)
+      (layers "F.Cu" "F.Mask" "F.Paste")
+      (roundrect_rratio 0.243902)
+      (net 7 "/GATE1")
+    )
+    (model "${KICAD10_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_0805_2012Metric.step"
+      (offset
+        (xyz 0 0 0)
+      )
+      (scale
+        (xyz 1 1 1)
+      )
+      (rotate
+        (xyz 0 0 0)
+      )
+    )
+  )
+  (footprint "Resistor_SMD:R_0805_2012Metric"
+    (uuid "ca4d0000-0000-4000-8000-000000000004")
+    (at 133.65 108.3 90)
+    (path "/")
+    (layer "F.Cu")
+    (descr "Resistor SMD 0805 (2012 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)")
+    (tags "resistor")
+    (property "Reference" "R2"
+      (at 0 -1.65 0)
+      (layer "F.SilkS")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Value" "1k"
+      (at 0 1.65 0)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (attr smd)
+    (fp_line
+      (start -0.227064 -0.735)
+      (end 0.227064 -0.735)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -0.227064 0.735)
+      (end 0.227064 0.735)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_rect
+      (start -1.68 -0.95)
+      (end 1.68 0.95)
+      (stroke
+        (width 0.05)
+        (type solid)
+      )
+      (fill no)
+      (layer "F.CrtYd")
+    )
+    (fp_rect
+      (start -1 -0.625)
+      (end 1 0.625)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (fill no)
+      (layer "F.Fab")
+    )
+    (fp_text user "${REFERENCE}"
+      (at 0 0 0)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 0.5 0.5)
+          (thickness 0.08)
+        )
+      )
+    )
+    (pad "1" smd roundrect
+      (at -0.9125 0 90)
+      (size 1.025 1.4)
+      (layers "F.Cu" "F.Mask" "F.Paste")
+      (roundrect_rratio 0.243902)
+      (net 16 "/QB")
+    )
+    (pad "2" smd roundrect
+      (at 0.9125 0 90)
+      (size 1.025 1.4)
+      (layers "F.Cu" "F.Mask" "F.Paste")
+      (roundrect_rratio 0.243902)
+      (net 8 "/GATE2")
+    )
+    (model "${KICAD10_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_0805_2012Metric.step"
+      (offset
+        (xyz 0 0 0)
+      )
+      (scale
+        (xyz 1 1 1)
+      )
+      (rotate
+        (xyz 0 0 0)
+      )
+    )
+  )
+  (footprint "Resistor_SMD:R_0805_2012Metric"
+    (uuid "ca4d0000-0000-4000-8000-000000000005")
+    (at 136.19 108.3 90)
+    (path "/")
+    (layer "F.Cu")
+    (descr "Resistor SMD 0805 (2012 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)")
+    (tags "resistor")
+    (property "Reference" "R3"
+      (at 0 -1.65 0)
+      (layer "F.SilkS")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Value" "1k"
+      (at 0 1.65 0)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (attr smd)
+    (fp_line
+      (start -0.227064 -0.735)
+      (end 0.227064 -0.735)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -0.227064 0.735)
+      (end 0.227064 0.735)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_rect
+      (start -1.68 -0.95)
+      (end 1.68 0.95)
+      (stroke
+        (width 0.05)
+        (type solid)
+      )
+      (fill no)
+      (layer "F.CrtYd")
+    )
+    (fp_rect
+      (start -1 -0.625)
+      (end 1 0.625)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (fill no)
+      (layer "F.Fab")
+    )
+    (fp_text user "${REFERENCE}"
+      (at 0 0 0)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 0.5 0.5)
+          (thickness 0.08)
+        )
+      )
+    )
+    (pad "1" smd roundrect
+      (at -0.9125 0 90)
+      (size 1.025 1.4)
+      (layers "F.Cu" "F.Mask" "F.Paste")
+      (roundrect_rratio 0.243902)
+      (net 17 "/QC")
+    )
+    (pad "2" smd roundrect
+      (at 0.9125 0 90)
+      (size 1.025 1.4)
+      (layers "F.Cu" "F.Mask" "F.Paste")
+      (roundrect_rratio 0.243902)
+      (net 9 "/GATE3")
+    )
+    (model "${KICAD10_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_0805_2012Metric.step"
+      (offset
+        (xyz 0 0 0)
+      )
+      (scale
+        (xyz 1 1 1)
+      )
+      (rotate
+        (xyz 0 0 0)
+      )
+    )
+  )
+  (footprint "Resistor_SMD:R_0805_2012Metric"
+    (uuid "ca4d0000-0000-4000-8000-000000000006")
+    (at 138.73 108.3 90)
+    (path "/")
+    (layer "F.Cu")
+    (descr "Resistor SMD 0805 (2012 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)")
+    (tags "resistor")
+    (property "Reference" "R4"
+      (at 0 -1.65 0)
+      (layer "F.SilkS")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Value" "1k"
+      (at 0 1.65 0)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (attr smd)
+    (fp_line
+      (start -0.227064 -0.735)
+      (end 0.227064 -0.735)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -0.227064 0.735)
+      (end 0.227064 0.735)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_rect
+      (start -1.68 -0.95)
+      (end 1.68 0.95)
+      (stroke
+        (width 0.05)
+        (type solid)
+      )
+      (fill no)
+      (layer "F.CrtYd")
+    )
+    (fp_rect
+      (start -1 -0.625)
+      (end 1 0.625)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (fill no)
+      (layer "F.Fab")
+    )
+    (fp_text user "${REFERENCE}"
+      (at 0 0 0)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 0.5 0.5)
+          (thickness 0.08)
+        )
+      )
+    )
+    (pad "1" smd roundrect
+      (at -0.9125 0 90)
+      (size 1.025 1.4)
+      (layers "F.Cu" "F.Mask" "F.Paste")
+      (roundrect_rratio 0.243902)
+      (net 18 "/QD")
+    )
+    (pad "2" smd roundrect
+      (at 0.9125 0 90)
+      (size 1.025 1.4)
+      (layers "F.Cu" "F.Mask" "F.Paste")
+      (roundrect_rratio 0.243902)
+      (net 10 "/GATE4")
+    )
+    (model "${KICAD10_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_0805_2012Metric.step"
+      (offset
+        (xyz 0 0 0)
+      )
+      (scale
+        (xyz 1 1 1)
+      )
+      (rotate
+        (xyz 0 0 0)
+      )
+    )
+  )
+  (footprint "Resistor_SMD:R_0805_2012Metric"
+    (uuid "ca4d0000-0000-4000-8000-000000000007")
+    (at 141.27 108.3 90)
+    (path "/")
+    (layer "F.Cu")
+    (descr "Resistor SMD 0805 (2012 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)")
+    (tags "resistor")
+    (property "Reference" "R5"
+      (at 0 -1.65 0)
+      (layer "F.SilkS")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Value" "1k"
+      (at 0 1.65 0)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (attr smd)
+    (fp_line
+      (start -0.227064 -0.735)
+      (end 0.227064 -0.735)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -0.227064 0.735)
+      (end 0.227064 0.735)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_rect
+      (start -1.68 -0.95)
+      (end 1.68 0.95)
+      (stroke
+        (width 0.05)
+        (type solid)
+      )
+      (fill no)
+      (layer "F.CrtYd")
+    )
+    (fp_rect
+      (start -1 -0.625)
+      (end 1 0.625)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (fill no)
+      (layer "F.Fab")
+    )
+    (fp_text user "${REFERENCE}"
+      (at 0 0 0)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 0.5 0.5)
+          (thickness 0.08)
+        )
+      )
+    )
+    (pad "1" smd roundrect
+      (at -0.9125 0 90)
+      (size 1.025 1.4)
+      (layers "F.Cu" "F.Mask" "F.Paste")
+      (roundrect_rratio 0.243902)
+      (net 19 "/QE")
+    )
+    (pad "2" smd roundrect
+      (at 0.9125 0 90)
+      (size 1.025 1.4)
+      (layers "F.Cu" "F.Mask" "F.Paste")
+      (roundrect_rratio 0.243902)
+      (net 11 "/GATE5")
+    )
+    (model "${KICAD10_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_0805_2012Metric.step"
+      (offset
+        (xyz 0 0 0)
+      )
+      (scale
+        (xyz 1 1 1)
+      )
+      (rotate
+        (xyz 0 0 0)
+      )
+    )
+  )
+  (footprint "Resistor_SMD:R_0805_2012Metric"
+    (uuid "ca4d0000-0000-4000-8000-000000000008")
+    (at 143.81 108.3 90)
+    (path "/")
+    (layer "F.Cu")
+    (descr "Resistor SMD 0805 (2012 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)")
+    (tags "resistor")
+    (property "Reference" "R6"
+      (at 0 -1.65 0)
+      (layer "F.SilkS")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Value" "1k"
+      (at 0 1.65 0)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (attr smd)
+    (fp_line
+      (start -0.227064 -0.735)
+      (end 0.227064 -0.735)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -0.227064 0.735)
+      (end 0.227064 0.735)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_rect
+      (start -1.68 -0.95)
+      (end 1.68 0.95)
+      (stroke
+        (width 0.05)
+        (type solid)
+      )
+      (fill no)
+      (layer "F.CrtYd")
+    )
+    (fp_rect
+      (start -1 -0.625)
+      (end 1 0.625)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (fill no)
+      (layer "F.Fab")
+    )
+    (fp_text user "${REFERENCE}"
+      (at 0 0 0)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 0.5 0.5)
+          (thickness 0.08)
+        )
+      )
+    )
+    (pad "1" smd roundrect
+      (at -0.9125 0 90)
+      (size 1.025 1.4)
+      (layers "F.Cu" "F.Mask" "F.Paste")
+      (roundrect_rratio 0.243902)
+      (net 20 "/QF")
+    )
+    (pad "2" smd roundrect
+      (at 0.9125 0 90)
+      (size 1.025 1.4)
+      (layers "F.Cu" "F.Mask" "F.Paste")
+      (roundrect_rratio 0.243902)
+      (net 12 "/GATE6")
+    )
+    (model "${KICAD10_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_0805_2012Metric.step"
+      (offset
+        (xyz 0 0 0)
+      )
+      (scale
+        (xyz 1 1 1)
+      )
+      (rotate
+        (xyz 0 0 0)
+      )
+    )
+  )
+  (footprint "Resistor_SMD:R_0805_2012Metric"
+    (uuid "ca4d0000-0000-4000-8000-000000000009")
+    (at 146.35 108.3 90)
+    (path "/")
+    (layer "F.Cu")
+    (descr "Resistor SMD 0805 (2012 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)")
+    (tags "resistor")
+    (property "Reference" "R7"
+      (at 0 -1.65 0)
+      (layer "F.SilkS")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Value" "1k"
+      (at 0 1.65 0)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (attr smd)
+    (fp_line
+      (start -0.227064 -0.735)
+      (end 0.227064 -0.735)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -0.227064 0.735)
+      (end 0.227064 0.735)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_rect
+      (start -1.68 -0.95)
+      (end 1.68 0.95)
+      (stroke
+        (width 0.05)
+        (type solid)
+      )
+      (fill no)
+      (layer "F.CrtYd")
+    )
+    (fp_rect
+      (start -1 -0.625)
+      (end 1 0.625)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (fill no)
+      (layer "F.Fab")
+    )
+    (fp_text user "${REFERENCE}"
+      (at 0 0 0)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 0.5 0.5)
+          (thickness 0.08)
+        )
+      )
+    )
+    (pad "1" smd roundrect
+      (at -0.9125 0 90)
+      (size 1.025 1.4)
+      (layers "F.Cu" "F.Mask" "F.Paste")
+      (roundrect_rratio 0.243902)
+      (net 21 "/QG")
+    )
+    (pad "2" smd roundrect
+      (at 0.9125 0 90)
+      (size 1.025 1.4)
+      (layers "F.Cu" "F.Mask" "F.Paste")
+      (roundrect_rratio 0.243902)
+      (net 13 "/GATE7")
+    )
+    (model "${KICAD10_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_0805_2012Metric.step"
+      (offset
+        (xyz 0 0 0)
+      )
+      (scale
+        (xyz 1 1 1)
+      )
+      (rotate
+        (xyz 0 0 0)
+      )
+    )
+  )
+  (footprint "Resistor_SMD:R_0805_2012Metric"
+    (uuid "ca4d0000-0000-4000-8000-000000000010")
+    (at 148.89 108.3 90)
+    (path "/")
+    (layer "F.Cu")
+    (descr "Resistor SMD 0805 (2012 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)")
+    (tags "resistor")
+    (property "Reference" "R8"
+      (at 0 -1.65 0)
+      (layer "F.SilkS")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Value" "1k"
+      (at 0 1.65 0)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (attr smd)
+    (fp_line
+      (start -0.227064 -0.735)
+      (end 0.227064 -0.735)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -0.227064 0.735)
+      (end 0.227064 0.735)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_rect
+      (start -1.68 -0.95)
+      (end 1.68 0.95)
+      (stroke
+        (width 0.05)
+        (type solid)
+      )
+      (fill no)
+      (layer "F.CrtYd")
+    )
+    (fp_rect
+      (start -1 -0.625)
+      (end 1 0.625)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (fill no)
+      (layer "F.Fab")
+    )
+    (fp_text user "${REFERENCE}"
+      (at 0 0 0)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 0.5 0.5)
+          (thickness 0.08)
+        )
+      )
+    )
+    (pad "1" smd roundrect
+      (at -0.9125 0 90)
+      (size 1.025 1.4)
+      (layers "F.Cu" "F.Mask" "F.Paste")
+      (roundrect_rratio 0.243902)
+      (net 22 "/QH")
+    )
+    (pad "2" smd roundrect
+      (at 0.9125 0 90)
+      (size 1.025 1.4)
+      (layers "F.Cu" "F.Mask" "F.Paste")
+      (roundrect_rratio 0.243902)
+      (net 14 "/GATE8")
+    )
+    (model "${KICAD10_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_0805_2012Metric.step"
+      (offset
+        (xyz 0 0 0)
+      )
+      (scale
+        (xyz 1 1 1)
+      )
+      (rotate
+        (xyz 0 0 0)
+      )
+    )
+  )
   (footprint "Package_SO:SOIC-16_3.9x9.9mm_P1.27mm"
-    (uuid "e0000000-0000-4000-8000-000000000003")
-    (at 110.5 150)
-    (path "/d0000001-0000-4000-8000-000000000033")
+    (uuid "ca4d0000-0000-4000-8000-000000000011")
+    (at 140 118.5 270)
+    (path "/")
     (layer "F.Cu")
     (descr "SOIC, 16 Pin (JEDEC MS-012, variation AC, https://www.jedec.org/document_search?search_api_views_fulltext=MS-012, https://www.analog.com/media/en/package-pcb-resources/package/pkg_pdf/soic_narrow-r/r_16.pdf)")
     (tags "SOIC SO 16-pin-NSOP R-16 R-16-S D0016A M2B SO16 SOT109-1 751B SOIC_N narrow")
@@ -3075,111 +4172,111 @@
       )
     )
     (pad "1" smd roundrect
-      (at -2.475 -4.445)
+      (at -2.475 -4.445 270)
       (size 1.95 0.6)
       (layers "F.Cu" "F.Mask" "F.Paste")
       (roundrect_rratio 0.25)
-      (net 16 "Net-(U1-QB)")
+      (net 16 "/QB")
     )
     (pad "2" smd roundrect
-      (at -2.475 -3.175)
+      (at -2.475 -3.175 270)
       (size 1.95 0.6)
       (layers "F.Cu" "F.Mask" "F.Paste")
       (roundrect_rratio 0.25)
-      (net 17 "Net-(U1-QC)")
+      (net 17 "/QC")
     )
     (pad "3" smd roundrect
-      (at -2.475 -1.905)
+      (at -2.475 -1.905 270)
       (size 1.95 0.6)
       (layers "F.Cu" "F.Mask" "F.Paste")
       (roundrect_rratio 0.25)
-      (net 18 "Net-(U1-QD)")
+      (net 18 "/QD")
     )
     (pad "4" smd roundrect
-      (at -2.475 -0.635)
+      (at -2.475 -0.635 270)
       (size 1.95 0.6)
       (layers "F.Cu" "F.Mask" "F.Paste")
       (roundrect_rratio 0.25)
-      (net 19 "Net-(U1-QE)")
+      (net 19 "/QE")
     )
     (pad "5" smd roundrect
-      (at -2.475 0.635)
+      (at -2.475 0.635 270)
       (size 1.95 0.6)
       (layers "F.Cu" "F.Mask" "F.Paste")
       (roundrect_rratio 0.25)
-      (net 20 "Net-(U1-QF)")
+      (net 20 "/QF")
     )
     (pad "6" smd roundrect
-      (at -2.475 1.905)
+      (at -2.475 1.905 270)
       (size 1.95 0.6)
       (layers "F.Cu" "F.Mask" "F.Paste")
       (roundrect_rratio 0.25)
-      (net 21 "Net-(U1-QG)")
+      (net 21 "/QG")
     )
     (pad "7" smd roundrect
-      (at -2.475 3.175)
+      (at -2.475 3.175 270)
       (size 1.95 0.6)
       (layers "F.Cu" "F.Mask" "F.Paste")
       (roundrect_rratio 0.25)
-      (net 22 "Net-(U1-QH)")
+      (net 22 "/QH")
     )
     (pad "8" smd roundrect
-      (at -2.475 4.445)
+      (at -2.475 4.445 270)
       (size 1.95 0.6)
       (layers "F.Cu" "F.Mask" "F.Paste")
       (roundrect_rratio 0.25)
       (net 3 "GND")
     )
     (pad "9" smd roundrect
-      (at 2.475 4.445)
+      (at 2.475 4.445 270)
       (size 1.95 0.6)
       (layers "F.Cu" "F.Mask" "F.Paste")
       (roundrect_rratio 0.25)
     )
     (pad "10" smd roundrect
-      (at 2.475 3.175)
+      (at 2.475 3.175 270)
       (size 1.95 0.6)
       (layers "F.Cu" "F.Mask" "F.Paste")
       (roundrect_rratio 0.25)
       (net 2 "+5V")
     )
     (pad "11" smd roundrect
-      (at 2.475 1.905)
+      (at 2.475 1.905 270)
       (size 1.95 0.6)
       (layers "F.Cu" "F.Mask" "F.Paste")
       (roundrect_rratio 0.25)
       (net 4 "/SCLK")
     )
     (pad "12" smd roundrect
-      (at 2.475 0.635)
+      (at 2.475 0.635 270)
       (size 1.95 0.6)
       (layers "F.Cu" "F.Mask" "F.Paste")
       (roundrect_rratio 0.25)
       (net 6 "/CS")
     )
     (pad "13" smd roundrect
-      (at 2.475 -0.635)
+      (at 2.475 -0.635 270)
       (size 1.95 0.6)
       (layers "F.Cu" "F.Mask" "F.Paste")
       (roundrect_rratio 0.25)
       (net 3 "GND")
     )
     (pad "14" smd roundrect
-      (at 2.475 -1.905)
+      (at 2.475 -1.905 270)
       (size 1.95 0.6)
       (layers "F.Cu" "F.Mask" "F.Paste")
       (roundrect_rratio 0.25)
       (net 5 "/MOSI")
     )
     (pad "15" smd roundrect
-      (at 2.475 -3.175)
+      (at 2.475 -3.175 270)
       (size 1.95 0.6)
       (layers "F.Cu" "F.Mask" "F.Paste")
       (roundrect_rratio 0.25)
-      (net 15 "Net-(U1-QA)")
+      (net 15 "/QA")
     )
     (pad "16" smd roundrect
-      (at 2.475 -4.445)
+      (at 2.475 -4.445 270)
       (size 1.95 0.6)
       (layers "F.Cu" "F.Mask" "F.Paste")
       (roundrect_rratio 0.25)
@@ -3198,9 +4295,9 @@
     )
   )
   (footprint "Package_TO_SOT_SMD:SOT-223-3_TabPin2"
-    (uuid "e0000000-0000-4000-8000-000000000004")
-    (at 126 163)
-    (path "/d0000001-0000-4000-8000-000000000102")
+    (uuid "ca4d0000-0000-4000-8000-000000000012")
+    (at 162 126)
+    (path "/")
     (layer "F.Cu")
     (descr "module CMS SOT223 4 pins")
     (tags "CMS SOT")
@@ -3454,9 +4551,9 @@
     )
   )
   (footprint "Capacitor_SMD:C_0805_2012Metric"
-    (uuid "e0000000-0000-4000-8000-000000000005")
-    (at 133.3 171 90)
-    (path "/d0000001-0000-4000-8000-000000000108")
+    (uuid "ca4d0000-0000-4000-8000-000000000013")
+    (at 170.5 126 90)
+    (path "/")
     (layer "F.Cu")
     (descr "Capacitor SMD 0805 (2012 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 76, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf, https://docs.google.com/spreadsheets/d/1BsfQQcO9C6DZCsRaXUlFlo91Tg2WpOkGARC1WS5S8t0/edit?usp=sharing)")
     (tags "capacitor")
@@ -3530,14 +4627,14 @@
       )
     )
     (pad "1" smd roundrect
-      (at -0.95 0)
+      (at -0.95 0 90)
       (size 1 1.45)
       (layers "F.Cu" "F.Mask" "F.Paste")
       (roundrect_rratio 0.25)
       (net 1 "+12V")
     )
     (pad "2" smd roundrect
-      (at 0.95 0)
+      (at 0.95 0 90)
       (size 1 1.45)
       (layers "F.Cu" "F.Mask" "F.Paste")
       (roundrect_rratio 0.25)
@@ -3556,9 +4653,9 @@
     )
   )
   (footprint "Capacitor_SMD:CP_Elec_4x5.3"
-    (uuid "e0000000-0000-4000-8000-000000000006")
-    (at 109.5 160 180)
-    (path "/d0000001-0000-4000-8000-000000000111")
+    (uuid "ca4d0000-0000-4000-8000-000000000014")
+    (at 153 126 90)
+    (path "/")
     (layer "F.Cu")
     (descr "SMD capacitor, aluminum electrolytic, Vishay, 4.0x5.3mm")
     (tags "capacitor electrolytic")
@@ -3892,14 +4989,14 @@
       )
     )
     (pad "1" smd roundrect
-      (at -1.8 0)
+      (at -1.8 0 90)
       (size 2.6 1.6)
       (layers "F.Cu" "F.Mask" "F.Paste")
       (roundrect_rratio 0.15625)
       (net 2 "+5V")
     )
     (pad "2" smd roundrect
-      (at 1.8 0)
+      (at 1.8 0 90)
       (size 2.6 1.6)
       (layers "F.Cu" "F.Mask" "F.Paste")
       (roundrect_rratio 0.15625)
@@ -3918,9 +5015,9 @@
     )
   )
   (footprint "Capacitor_SMD:C_0805_2012Metric"
-    (uuid "e0000000-0000-4000-8000-000000000007")
-    (at 109.5 164.6 180)
-    (path "/d0000001-0000-4000-8000-000000000114")
+    (uuid "ca4d0000-0000-4000-8000-000000000015")
+    (at 148 122 90)
+    (path "/")
     (layer "F.Cu")
     (descr "Capacitor SMD 0805 (2012 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 76, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf, https://docs.google.com/spreadsheets/d/1BsfQQcO9C6DZCsRaXUlFlo91Tg2WpOkGARC1WS5S8t0/edit?usp=sharing)")
     (tags "capacitor")
@@ -3994,14 +5091,14 @@
       )
     )
     (pad "1" smd roundrect
-      (at -0.95 0)
+      (at -0.95 0 90)
       (size 1 1.45)
       (layers "F.Cu" "F.Mask" "F.Paste")
       (roundrect_rratio 0.25)
       (net 2 "+5V")
     )
     (pad "2" smd roundrect
-      (at 0.95 0)
+      (at 0.95 0 90)
       (size 1 1.45)
       (layers "F.Cu" "F.Mask" "F.Paste")
       (roundrect_rratio 0.25)
@@ -4019,959 +5116,140 @@
       )
     )
   )
-  (footprint "Resistor_SMD:R_0805_2012Metric"
-    (uuid "e0000000-0000-4000-8000-000000000008")
-    (at 108.61 112 90)
-    (path "/d0000001-0000-4000-8000-000000000049")
-    (layer "F.Cu")
-    (descr "Resistor SMD 0805 (2012 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)")
-    (tags "resistor")
-    (property "Reference" "R1"
-      (at 0 -1.65 0)
-      (layer "F.SilkS")
-      (effects
-        (font
-          (size 1 1)
-          (thickness 0.15)
-        )
-      )
-    )
-    (property "Value" "1k"
-      (at 0 1.65 0)
-      (layer "F.Fab")
-      (effects
-        (font
-          (size 1 1)
-          (thickness 0.15)
-        )
-      )
-    )
-    (attr smd)
-    (fp_line
-      (start -0.227064 -0.735)
-      (end 0.227064 -0.735)
-      (stroke
-        (width 0.12)
-        (type solid)
-      )
-      (layer "F.SilkS")
-    )
-    (fp_line
-      (start -0.227064 0.735)
-      (end 0.227064 0.735)
-      (stroke
-        (width 0.12)
-        (type solid)
-      )
-      (layer "F.SilkS")
-    )
-    (fp_rect
-      (start -1.68 -0.95)
-      (end 1.68 0.95)
-      (stroke
-        (width 0.05)
-        (type solid)
-      )
-      (fill no)
-      (layer "F.CrtYd")
-    )
-    (fp_rect
-      (start -1 -0.625)
-      (end 1 0.625)
-      (stroke
-        (width 0.1)
-        (type solid)
-      )
-      (fill no)
-      (layer "F.Fab")
-    )
-    (fp_text user "${REFERENCE}"
-      (at 0 0 0)
-      (layer "F.Fab")
-      (effects
-        (font
-          (size 0.5 0.5)
-          (thickness 0.08)
-        )
-      )
-    )
-    (pad "1" smd roundrect
-      (at -0.9125 0)
-      (size 1.025 1.4)
-      (layers "F.Cu" "F.Mask" "F.Paste")
-      (roundrect_rratio 0.243902)
-      (net 15 "Net-(U1-QA)")
-    )
-    (pad "2" smd roundrect
-      (at 0.9125 0)
-      (size 1.025 1.4)
-      (layers "F.Cu" "F.Mask" "F.Paste")
-      (roundrect_rratio 0.243902)
-      (net 7 "/GATE1")
-    )
-    (model "${KICAD10_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_0805_2012Metric.step"
-      (offset
-        (xyz 0 0 0)
-      )
-      (scale
-        (xyz 1 1 1)
-      )
-      (rotate
-        (xyz 0 0 0)
-      )
-    )
-  )
-  (footprint "Resistor_SMD:R_0805_2012Metric"
-    (uuid "e0000000-0000-4000-8000-000000000009")
-    (at 111.15 112 90)
-    (path "/d0000001-0000-4000-8000-000000000053")
-    (layer "F.Cu")
-    (descr "Resistor SMD 0805 (2012 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)")
-    (tags "resistor")
-    (property "Reference" "R2"
-      (at 0 -1.65 0)
-      (layer "F.SilkS")
-      (effects
-        (font
-          (size 1 1)
-          (thickness 0.15)
-        )
-      )
-    )
-    (property "Value" "1k"
-      (at 0 1.65 0)
-      (layer "F.Fab")
-      (effects
-        (font
-          (size 1 1)
-          (thickness 0.15)
-        )
-      )
-    )
-    (attr smd)
-    (fp_line
-      (start -0.227064 -0.735)
-      (end 0.227064 -0.735)
-      (stroke
-        (width 0.12)
-        (type solid)
-      )
-      (layer "F.SilkS")
-    )
-    (fp_line
-      (start -0.227064 0.735)
-      (end 0.227064 0.735)
-      (stroke
-        (width 0.12)
-        (type solid)
-      )
-      (layer "F.SilkS")
-    )
-    (fp_rect
-      (start -1.68 -0.95)
-      (end 1.68 0.95)
-      (stroke
-        (width 0.05)
-        (type solid)
-      )
-      (fill no)
-      (layer "F.CrtYd")
-    )
-    (fp_rect
-      (start -1 -0.625)
-      (end 1 0.625)
-      (stroke
-        (width 0.1)
-        (type solid)
-      )
-      (fill no)
-      (layer "F.Fab")
-    )
-    (fp_text user "${REFERENCE}"
-      (at 0 0 0)
-      (layer "F.Fab")
-      (effects
-        (font
-          (size 0.5 0.5)
-          (thickness 0.08)
-        )
-      )
-    )
-    (pad "1" smd roundrect
-      (at -0.9125 0)
-      (size 1.025 1.4)
-      (layers "F.Cu" "F.Mask" "F.Paste")
-      (roundrect_rratio 0.243902)
-      (net 16 "Net-(U1-QB)")
-    )
-    (pad "2" smd roundrect
-      (at 0.9125 0)
-      (size 1.025 1.4)
-      (layers "F.Cu" "F.Mask" "F.Paste")
-      (roundrect_rratio 0.243902)
-      (net 8 "/GATE2")
-    )
-    (model "${KICAD10_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_0805_2012Metric.step"
-      (offset
-        (xyz 0 0 0)
-      )
-      (scale
-        (xyz 1 1 1)
-      )
-      (rotate
-        (xyz 0 0 0)
-      )
-    )
-  )
-  (footprint "Resistor_SMD:R_0805_2012Metric"
-    (uuid "e0000000-0000-4000-8000-000000000010")
-    (at 113.69 112 90)
-    (path "/d0000001-0000-4000-8000-000000000057")
-    (layer "F.Cu")
-    (descr "Resistor SMD 0805 (2012 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)")
-    (tags "resistor")
-    (property "Reference" "R3"
-      (at 0 -1.65 0)
-      (layer "F.SilkS")
-      (effects
-        (font
-          (size 1 1)
-          (thickness 0.15)
-        )
-      )
-    )
-    (property "Value" "1k"
-      (at 0 1.65 0)
-      (layer "F.Fab")
-      (effects
-        (font
-          (size 1 1)
-          (thickness 0.15)
-        )
-      )
-    )
-    (attr smd)
-    (fp_line
-      (start -0.227064 -0.735)
-      (end 0.227064 -0.735)
-      (stroke
-        (width 0.12)
-        (type solid)
-      )
-      (layer "F.SilkS")
-    )
-    (fp_line
-      (start -0.227064 0.735)
-      (end 0.227064 0.735)
-      (stroke
-        (width 0.12)
-        (type solid)
-      )
-      (layer "F.SilkS")
-    )
-    (fp_rect
-      (start -1.68 -0.95)
-      (end 1.68 0.95)
-      (stroke
-        (width 0.05)
-        (type solid)
-      )
-      (fill no)
-      (layer "F.CrtYd")
-    )
-    (fp_rect
-      (start -1 -0.625)
-      (end 1 0.625)
-      (stroke
-        (width 0.1)
-        (type solid)
-      )
-      (fill no)
-      (layer "F.Fab")
-    )
-    (fp_text user "${REFERENCE}"
-      (at 0 0 0)
-      (layer "F.Fab")
-      (effects
-        (font
-          (size 0.5 0.5)
-          (thickness 0.08)
-        )
-      )
-    )
-    (pad "1" smd roundrect
-      (at -0.9125 0)
-      (size 1.025 1.4)
-      (layers "F.Cu" "F.Mask" "F.Paste")
-      (roundrect_rratio 0.243902)
-      (net 17 "Net-(U1-QC)")
-    )
-    (pad "2" smd roundrect
-      (at 0.9125 0)
-      (size 1.025 1.4)
-      (layers "F.Cu" "F.Mask" "F.Paste")
-      (roundrect_rratio 0.243902)
-      (net 9 "/GATE3")
-    )
-    (model "${KICAD10_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_0805_2012Metric.step"
-      (offset
-        (xyz 0 0 0)
-      )
-      (scale
-        (xyz 1 1 1)
-      )
-      (rotate
-        (xyz 0 0 0)
-      )
-    )
-  )
-  (footprint "Resistor_SMD:R_0805_2012Metric"
-    (uuid "e0000000-0000-4000-8000-000000000011")
-    (at 116.23 112 90)
-    (path "/d0000001-0000-4000-8000-000000000061")
-    (layer "F.Cu")
-    (descr "Resistor SMD 0805 (2012 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)")
-    (tags "resistor")
-    (property "Reference" "R4"
-      (at 0 -1.65 0)
-      (layer "F.SilkS")
-      (effects
-        (font
-          (size 1 1)
-          (thickness 0.15)
-        )
-      )
-    )
-    (property "Value" "1k"
-      (at 0 1.65 0)
-      (layer "F.Fab")
-      (effects
-        (font
-          (size 1 1)
-          (thickness 0.15)
-        )
-      )
-    )
-    (attr smd)
-    (fp_line
-      (start -0.227064 -0.735)
-      (end 0.227064 -0.735)
-      (stroke
-        (width 0.12)
-        (type solid)
-      )
-      (layer "F.SilkS")
-    )
-    (fp_line
-      (start -0.227064 0.735)
-      (end 0.227064 0.735)
-      (stroke
-        (width 0.12)
-        (type solid)
-      )
-      (layer "F.SilkS")
-    )
-    (fp_rect
-      (start -1.68 -0.95)
-      (end 1.68 0.95)
-      (stroke
-        (width 0.05)
-        (type solid)
-      )
-      (fill no)
-      (layer "F.CrtYd")
-    )
-    (fp_rect
-      (start -1 -0.625)
-      (end 1 0.625)
-      (stroke
-        (width 0.1)
-        (type solid)
-      )
-      (fill no)
-      (layer "F.Fab")
-    )
-    (fp_text user "${REFERENCE}"
-      (at 0 0 0)
-      (layer "F.Fab")
-      (effects
-        (font
-          (size 0.5 0.5)
-          (thickness 0.08)
-        )
-      )
-    )
-    (pad "1" smd roundrect
-      (at -0.9125 0)
-      (size 1.025 1.4)
-      (layers "F.Cu" "F.Mask" "F.Paste")
-      (roundrect_rratio 0.243902)
-      (net 18 "Net-(U1-QD)")
-    )
-    (pad "2" smd roundrect
-      (at 0.9125 0)
-      (size 1.025 1.4)
-      (layers "F.Cu" "F.Mask" "F.Paste")
-      (roundrect_rratio 0.243902)
-      (net 10 "/GATE4")
-    )
-    (model "${KICAD10_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_0805_2012Metric.step"
-      (offset
-        (xyz 0 0 0)
-      )
-      (scale
-        (xyz 1 1 1)
-      )
-      (rotate
-        (xyz 0 0 0)
-      )
-    )
-  )
-  (footprint "Resistor_SMD:R_0805_2012Metric"
-    (uuid "e0000000-0000-4000-8000-000000000012")
-    (at 118.77 112 90)
-    (path "/d0000001-0000-4000-8000-000000000065")
-    (layer "F.Cu")
-    (descr "Resistor SMD 0805 (2012 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)")
-    (tags "resistor")
-    (property "Reference" "R5"
-      (at 0 -1.65 0)
-      (layer "F.SilkS")
-      (effects
-        (font
-          (size 1 1)
-          (thickness 0.15)
-        )
-      )
-    )
-    (property "Value" "1k"
-      (at 0 1.65 0)
-      (layer "F.Fab")
-      (effects
-        (font
-          (size 1 1)
-          (thickness 0.15)
-        )
-      )
-    )
-    (attr smd)
-    (fp_line
-      (start -0.227064 -0.735)
-      (end 0.227064 -0.735)
-      (stroke
-        (width 0.12)
-        (type solid)
-      )
-      (layer "F.SilkS")
-    )
-    (fp_line
-      (start -0.227064 0.735)
-      (end 0.227064 0.735)
-      (stroke
-        (width 0.12)
-        (type solid)
-      )
-      (layer "F.SilkS")
-    )
-    (fp_rect
-      (start -1.68 -0.95)
-      (end 1.68 0.95)
-      (stroke
-        (width 0.05)
-        (type solid)
-      )
-      (fill no)
-      (layer "F.CrtYd")
-    )
-    (fp_rect
-      (start -1 -0.625)
-      (end 1 0.625)
-      (stroke
-        (width 0.1)
-        (type solid)
-      )
-      (fill no)
-      (layer "F.Fab")
-    )
-    (fp_text user "${REFERENCE}"
-      (at 0 0 0)
-      (layer "F.Fab")
-      (effects
-        (font
-          (size 0.5 0.5)
-          (thickness 0.08)
-        )
-      )
-    )
-    (pad "1" smd roundrect
-      (at -0.9125 0)
-      (size 1.025 1.4)
-      (layers "F.Cu" "F.Mask" "F.Paste")
-      (roundrect_rratio 0.243902)
-      (net 19 "Net-(U1-QE)")
-    )
-    (pad "2" smd roundrect
-      (at 0.9125 0)
-      (size 1.025 1.4)
-      (layers "F.Cu" "F.Mask" "F.Paste")
-      (roundrect_rratio 0.243902)
-      (net 11 "/GATE5")
-    )
-    (model "${KICAD10_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_0805_2012Metric.step"
-      (offset
-        (xyz 0 0 0)
-      )
-      (scale
-        (xyz 1 1 1)
-      )
-      (rotate
-        (xyz 0 0 0)
-      )
-    )
-  )
-  (footprint "Resistor_SMD:R_0805_2012Metric"
-    (uuid "e0000000-0000-4000-8000-000000000013")
-    (at 121.31 112 90)
-    (path "/d0000001-0000-4000-8000-000000000069")
-    (layer "F.Cu")
-    (descr "Resistor SMD 0805 (2012 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)")
-    (tags "resistor")
-    (property "Reference" "R6"
-      (at 0 -1.65 0)
-      (layer "F.SilkS")
-      (effects
-        (font
-          (size 1 1)
-          (thickness 0.15)
-        )
-      )
-    )
-    (property "Value" "1k"
-      (at 0 1.65 0)
-      (layer "F.Fab")
-      (effects
-        (font
-          (size 1 1)
-          (thickness 0.15)
-        )
-      )
-    )
-    (attr smd)
-    (fp_line
-      (start -0.227064 -0.735)
-      (end 0.227064 -0.735)
-      (stroke
-        (width 0.12)
-        (type solid)
-      )
-      (layer "F.SilkS")
-    )
-    (fp_line
-      (start -0.227064 0.735)
-      (end 0.227064 0.735)
-      (stroke
-        (width 0.12)
-        (type solid)
-      )
-      (layer "F.SilkS")
-    )
-    (fp_rect
-      (start -1.68 -0.95)
-      (end 1.68 0.95)
-      (stroke
-        (width 0.05)
-        (type solid)
-      )
-      (fill no)
-      (layer "F.CrtYd")
-    )
-    (fp_rect
-      (start -1 -0.625)
-      (end 1 0.625)
-      (stroke
-        (width 0.1)
-        (type solid)
-      )
-      (fill no)
-      (layer "F.Fab")
-    )
-    (fp_text user "${REFERENCE}"
-      (at 0 0 0)
-      (layer "F.Fab")
-      (effects
-        (font
-          (size 0.5 0.5)
-          (thickness 0.08)
-        )
-      )
-    )
-    (pad "1" smd roundrect
-      (at -0.9125 0)
-      (size 1.025 1.4)
-      (layers "F.Cu" "F.Mask" "F.Paste")
-      (roundrect_rratio 0.243902)
-      (net 20 "Net-(U1-QF)")
-    )
-    (pad "2" smd roundrect
-      (at 0.9125 0)
-      (size 1.025 1.4)
-      (layers "F.Cu" "F.Mask" "F.Paste")
-      (roundrect_rratio 0.243902)
-      (net 12 "/GATE6")
-    )
-    (model "${KICAD10_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_0805_2012Metric.step"
-      (offset
-        (xyz 0 0 0)
-      )
-      (scale
-        (xyz 1 1 1)
-      )
-      (rotate
-        (xyz 0 0 0)
-      )
-    )
-  )
-  (footprint "Resistor_SMD:R_0805_2012Metric"
-    (uuid "e0000000-0000-4000-8000-000000000014")
-    (at 123.85 112 90)
-    (path "/d0000001-0000-4000-8000-000000000073")
-    (layer "F.Cu")
-    (descr "Resistor SMD 0805 (2012 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)")
-    (tags "resistor")
-    (property "Reference" "R7"
-      (at 0 -1.65 0)
-      (layer "F.SilkS")
-      (effects
-        (font
-          (size 1 1)
-          (thickness 0.15)
-        )
-      )
-    )
-    (property "Value" "1k"
-      (at 0 1.65 0)
-      (layer "F.Fab")
-      (effects
-        (font
-          (size 1 1)
-          (thickness 0.15)
-        )
-      )
-    )
-    (attr smd)
-    (fp_line
-      (start -0.227064 -0.735)
-      (end 0.227064 -0.735)
-      (stroke
-        (width 0.12)
-        (type solid)
-      )
-      (layer "F.SilkS")
-    )
-    (fp_line
-      (start -0.227064 0.735)
-      (end 0.227064 0.735)
-      (stroke
-        (width 0.12)
-        (type solid)
-      )
-      (layer "F.SilkS")
-    )
-    (fp_rect
-      (start -1.68 -0.95)
-      (end 1.68 0.95)
-      (stroke
-        (width 0.05)
-        (type solid)
-      )
-      (fill no)
-      (layer "F.CrtYd")
-    )
-    (fp_rect
-      (start -1 -0.625)
-      (end 1 0.625)
-      (stroke
-        (width 0.1)
-        (type solid)
-      )
-      (fill no)
-      (layer "F.Fab")
-    )
-    (fp_text user "${REFERENCE}"
-      (at 0 0 0)
-      (layer "F.Fab")
-      (effects
-        (font
-          (size 0.5 0.5)
-          (thickness 0.08)
-        )
-      )
-    )
-    (pad "1" smd roundrect
-      (at -0.9125 0)
-      (size 1.025 1.4)
-      (layers "F.Cu" "F.Mask" "F.Paste")
-      (roundrect_rratio 0.243902)
-      (net 21 "Net-(U1-QG)")
-    )
-    (pad "2" smd roundrect
-      (at 0.9125 0)
-      (size 1.025 1.4)
-      (layers "F.Cu" "F.Mask" "F.Paste")
-      (roundrect_rratio 0.243902)
-      (net 13 "/GATE7")
-    )
-    (model "${KICAD10_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_0805_2012Metric.step"
-      (offset
-        (xyz 0 0 0)
-      )
-      (scale
-        (xyz 1 1 1)
-      )
-      (rotate
-        (xyz 0 0 0)
-      )
-    )
-  )
-  (footprint "Resistor_SMD:R_0805_2012Metric"
-    (uuid "e0000000-0000-4000-8000-000000000015")
-    (at 126.39 112 90)
-    (path "/d0000001-0000-4000-8000-000000000077")
-    (layer "F.Cu")
-    (descr "Resistor SMD 0805 (2012 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)")
-    (tags "resistor")
-    (property "Reference" "R8"
-      (at 0 -1.65 0)
-      (layer "F.SilkS")
-      (effects
-        (font
-          (size 1 1)
-          (thickness 0.15)
-        )
-      )
-    )
-    (property "Value" "1k"
-      (at 0 1.65 0)
-      (layer "F.Fab")
-      (effects
-        (font
-          (size 1 1)
-          (thickness 0.15)
-        )
-      )
-    )
-    (attr smd)
-    (fp_line
-      (start -0.227064 -0.735)
-      (end 0.227064 -0.735)
-      (stroke
-        (width 0.12)
-        (type solid)
-      )
-      (layer "F.SilkS")
-    )
-    (fp_line
-      (start -0.227064 0.735)
-      (end 0.227064 0.735)
-      (stroke
-        (width 0.12)
-        (type solid)
-      )
-      (layer "F.SilkS")
-    )
-    (fp_rect
-      (start -1.68 -0.95)
-      (end 1.68 0.95)
-      (stroke
-        (width 0.05)
-        (type solid)
-      )
-      (fill no)
-      (layer "F.CrtYd")
-    )
-    (fp_rect
-      (start -1 -0.625)
-      (end 1 0.625)
-      (stroke
-        (width 0.1)
-        (type solid)
-      )
-      (fill no)
-      (layer "F.Fab")
-    )
-    (fp_text user "${REFERENCE}"
-      (at 0 0 0)
-      (layer "F.Fab")
-      (effects
-        (font
-          (size 0.5 0.5)
-          (thickness 0.08)
-        )
-      )
-    )
-    (pad "1" smd roundrect
-      (at -0.9125 0)
-      (size 1.025 1.4)
-      (layers "F.Cu" "F.Mask" "F.Paste")
-      (roundrect_rratio 0.243902)
-      (net 22 "Net-(U1-QH)")
-    )
-    (pad "2" smd roundrect
-      (at 0.9125 0)
-      (size 1.025 1.4)
-      (layers "F.Cu" "F.Mask" "F.Paste")
-      (roundrect_rratio 0.243902)
-      (net 14 "/GATE8")
-    )
-    (model "${KICAD10_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_0805_2012Metric.step"
-      (offset
-        (xyz 0 0 0)
-      )
-      (scale
-        (xyz 1 1 1)
-      )
-      (rotate
-        (xyz 0 0 0)
-      )
-    )
-  )
-  (segment (start 121.31 173.42) (end 121.31 172.15) (width 0.25) (layer "F.Cu") (net 4) (uuid "e0000000-0000-4000-8000-000000000016"))
-  (segment (start 121.31 172.15) (end 120.3 172.15) (width 0.25) (layer "F.Cu") (net 4) (uuid "e0000000-0000-4000-8000-000000000017"))
-  (segment (start 120.3 172.15) (end 117.9 172.15) (width 0.25) (layer "B.Cu") (net 4) (uuid "e0000000-0000-4000-8000-000000000018"))
-  (segment (start 117.9 172.15) (end 117.9 151.905) (width 0.25) (layer "F.Cu") (net 4) (uuid "e0000000-0000-4000-8000-000000000019"))
-  (segment (start 117.9 151.905) (end 112.975 151.905) (width 0.25) (layer "F.Cu") (net 4) (uuid "e0000000-0000-4000-8000-000000000020"))
-  (segment (start 118.77 173.42) (end 118.77 171.4) (width 0.25) (layer "F.Cu") (net 5) (uuid "e0000000-0000-4000-8000-000000000021"))
-  (segment (start 118.77 171.4) (end 119.5 171.4) (width 0.25) (layer "F.Cu") (net 5) (uuid "e0000000-0000-4000-8000-000000000022"))
-  (segment (start 119.5 171.4) (end 119.5 148.095) (width 0.25) (layer "F.Cu") (net 5) (uuid "e0000000-0000-4000-8000-000000000023"))
-  (segment (start 119.5 148.095) (end 112.975 148.095) (width 0.25) (layer "F.Cu") (net 5) (uuid "e0000000-0000-4000-8000-000000000024"))
-  (segment (start 113.69 173.42) (end 113.69 170.6) (width 0.25) (layer "F.Cu") (net 6) (uuid "e0000000-0000-4000-8000-000000000025"))
-  (segment (start 113.69 170.6) (end 116.5 170.6) (width 0.25) (layer "F.Cu") (net 6) (uuid "e0000000-0000-4000-8000-000000000026"))
-  (segment (start 116.5 170.6) (end 118.7 170.6) (width 0.25) (layer "B.Cu") (net 6) (uuid "e0000000-0000-4000-8000-000000000027"))
-  (segment (start 118.7 170.6) (end 118.7 150.635) (width 0.25) (layer "F.Cu") (net 6) (uuid "e0000000-0000-4000-8000-000000000028"))
-  (segment (start 118.7 150.635) (end 112.975 150.635) (width 0.25) (layer "F.Cu") (net 6) (uuid "e0000000-0000-4000-8000-000000000029"))
-  (segment (start 108.025 145.555) (end 106.6 145.555) (width 0.25) (layer "F.Cu") (net 16) (uuid "e0000000-0000-4000-8000-000000000030"))
-  (segment (start 106.6 145.555) (end 111.15 145.555) (width 0.25) (layer "B.Cu") (net 16) (uuid "e0000000-0000-4000-8000-000000000031"))
-  (segment (start 111.15 145.555) (end 111.15 113.9) (width 0.25) (layer "B.Cu") (net 16) (uuid "e0000000-0000-4000-8000-000000000032"))
-  (segment (start 111.15 113.9) (end 111.15 112.9125) (width 0.25) (layer "F.Cu") (net 16) (uuid "e0000000-0000-4000-8000-000000000033"))
-  (segment (start 108.025 146.825) (end 106.6 146.825) (width 0.25) (layer "F.Cu") (net 17) (uuid "e0000000-0000-4000-8000-000000000034"))
-  (segment (start 106.6 146.825) (end 113.69 146.825) (width 0.25) (layer "B.Cu") (net 17) (uuid "e0000000-0000-4000-8000-000000000035"))
-  (segment (start 113.69 146.825) (end 113.69 113.9) (width 0.25) (layer "B.Cu") (net 17) (uuid "e0000000-0000-4000-8000-000000000036"))
-  (segment (start 113.69 113.9) (end 113.69 112.9125) (width 0.25) (layer "F.Cu") (net 17) (uuid "e0000000-0000-4000-8000-000000000037"))
-  (segment (start 108.025 148.095) (end 106.6 148.095) (width 0.25) (layer "F.Cu") (net 18) (uuid "e0000000-0000-4000-8000-000000000038"))
-  (segment (start 106.6 148.095) (end 116.23 148.095) (width 0.25) (layer "B.Cu") (net 18) (uuid "e0000000-0000-4000-8000-000000000039"))
-  (segment (start 116.23 148.095) (end 116.23 113.9) (width 0.25) (layer "B.Cu") (net 18) (uuid "e0000000-0000-4000-8000-000000000040"))
-  (segment (start 116.23 113.9) (end 116.23 112.9125) (width 0.25) (layer "F.Cu") (net 18) (uuid "e0000000-0000-4000-8000-000000000041"))
-  (segment (start 108.025 149.365) (end 106.6 149.365) (width 0.25) (layer "F.Cu") (net 19) (uuid "e0000000-0000-4000-8000-000000000042"))
-  (segment (start 106.6 149.365) (end 118.77 149.365) (width 0.25) (layer "B.Cu") (net 19) (uuid "e0000000-0000-4000-8000-000000000043"))
-  (segment (start 118.77 149.365) (end 118.77 113.9) (width 0.25) (layer "B.Cu") (net 19) (uuid "e0000000-0000-4000-8000-000000000044"))
-  (segment (start 118.77 113.9) (end 118.77 112.9125) (width 0.25) (layer "F.Cu") (net 19) (uuid "e0000000-0000-4000-8000-000000000045"))
-  (segment (start 108.025 150.635) (end 106.6 150.635) (width 0.25) (layer "F.Cu") (net 20) (uuid "e0000000-0000-4000-8000-000000000046"))
-  (segment (start 106.6 150.635) (end 121.31 150.635) (width 0.25) (layer "B.Cu") (net 20) (uuid "e0000000-0000-4000-8000-000000000047"))
-  (segment (start 121.31 150.635) (end 121.31 113.9) (width 0.25) (layer "B.Cu") (net 20) (uuid "e0000000-0000-4000-8000-000000000048"))
-  (segment (start 121.31 113.9) (end 121.31 112.9125) (width 0.25) (layer "F.Cu") (net 20) (uuid "e0000000-0000-4000-8000-000000000049"))
-  (segment (start 108.025 151.905) (end 106.6 151.905) (width 0.25) (layer "F.Cu") (net 21) (uuid "e0000000-0000-4000-8000-000000000050"))
-  (segment (start 106.6 151.905) (end 123.85 151.905) (width 0.25) (layer "B.Cu") (net 21) (uuid "e0000000-0000-4000-8000-000000000051"))
-  (segment (start 123.85 151.905) (end 123.85 113.9) (width 0.25) (layer "B.Cu") (net 21) (uuid "e0000000-0000-4000-8000-000000000052"))
-  (segment (start 123.85 113.9) (end 123.85 112.9125) (width 0.25) (layer "F.Cu") (net 21) (uuid "e0000000-0000-4000-8000-000000000053"))
-  (segment (start 108.025 153.175) (end 106.6 153.175) (width 0.25) (layer "F.Cu") (net 22) (uuid "e0000000-0000-4000-8000-000000000054"))
-  (segment (start 106.6 153.175) (end 126.39 153.175) (width 0.25) (layer "B.Cu") (net 22) (uuid "e0000000-0000-4000-8000-000000000055"))
-  (segment (start 126.39 153.175) (end 126.39 113.9) (width 0.25) (layer "B.Cu") (net 22) (uuid "e0000000-0000-4000-8000-000000000056"))
-  (segment (start 126.39 113.9) (end 126.39 112.9125) (width 0.25) (layer "F.Cu") (net 22) (uuid "e0000000-0000-4000-8000-000000000057"))
-  (segment (start 112.975 146.825) (end 114.8 146.825) (width 0.25) (layer "F.Cu") (net 15) (uuid "e0000000-0000-4000-8000-000000000058"))
-  (segment (start 114.8 146.825) (end 114.8 113.25) (width 0.25) (layer "B.Cu") (net 15) (uuid "e0000000-0000-4000-8000-000000000059"))
-  (segment (start 114.8 113.25) (end 108.61 113.25) (width 0.25) (layer "B.Cu") (net 15) (uuid "e0000000-0000-4000-8000-000000000060"))
-  (segment (start 108.61 113.25) (end 108.61 113.9) (width 0.25) (layer "B.Cu") (net 15) (uuid "e0000000-0000-4000-8000-000000000061"))
-  (segment (start 108.61 113.9) (end 108.61 112.9125) (width 0.25) (layer "F.Cu") (net 15) (uuid "e0000000-0000-4000-8000-000000000062"))
-  (segment (start 108.61 111.0875) (end 108.61 106.58) (width 0.25) (layer "F.Cu") (net 7) (uuid "e0000000-0000-4000-8000-000000000063"))
-  (segment (start 111.15 111.0875) (end 111.15 106.58) (width 0.25) (layer "F.Cu") (net 8) (uuid "e0000000-0000-4000-8000-000000000064"))
-  (segment (start 113.69 111.0875) (end 113.69 106.58) (width 0.25) (layer "F.Cu") (net 9) (uuid "e0000000-0000-4000-8000-000000000065"))
-  (segment (start 116.23 111.0875) (end 116.23 106.58) (width 0.25) (layer "F.Cu") (net 10) (uuid "e0000000-0000-4000-8000-000000000066"))
-  (segment (start 118.77 111.0875) (end 118.77 106.58) (width 0.25) (layer "F.Cu") (net 11) (uuid "e0000000-0000-4000-8000-000000000067"))
-  (segment (start 121.31 111.0875) (end 121.31 106.58) (width 0.25) (layer "F.Cu") (net 12) (uuid "e0000000-0000-4000-8000-000000000068"))
-  (segment (start 123.85 111.0875) (end 123.85 106.58) (width 0.25) (layer "F.Cu") (net 13) (uuid "e0000000-0000-4000-8000-000000000069"))
-  (segment (start 126.39 111.0875) (end 126.39 106.58) (width 0.25) (layer "F.Cu") (net 14) (uuid "e0000000-0000-4000-8000-000000000070"))
-  (segment (start 128.93 175.96) (end 131.8 175.96) (width 0.5) (layer "F.Cu") (net 1) (uuid "e0000000-0000-4000-8000-000000000071"))
-  (segment (start 131.8 175.96) (end 131.8 169.3) (width 0.5) (layer "F.Cu") (net 1) (uuid "e0000000-0000-4000-8000-000000000072"))
-  (segment (start 131.8 169.3) (end 122.85 169.3) (width 0.5) (layer "F.Cu") (net 1) (uuid "e0000000-0000-4000-8000-000000000073"))
-  (segment (start 122.85 169.3) (end 122.85 165.3) (width 0.5) (layer "F.Cu") (net 1) (uuid "e0000000-0000-4000-8000-000000000074"))
-  (segment (start 131.8 171.95) (end 133.3 171.95) (width 0.25) (layer "F.Cu") (net 1) (uuid "e0000000-0000-4000-8000-000000000075"))
-  (segment (start 122.85 163) (end 129.15 163) (width 0.5) (layer "F.Cu") (net 2) (uuid "e0000000-0000-4000-8000-000000000076"))
-  (segment (start 129.15 163) (end 129.15 157.5) (width 0.5) (layer "F.Cu") (net 2) (uuid "e0000000-0000-4000-8000-000000000077"))
-  (segment (start 129.15 157.5) (end 114.9 157.5) (width 0.5) (layer "B.Cu") (net 2) (uuid "e0000000-0000-4000-8000-000000000078"))
-  (segment (start 114.9 157.5) (end 105.2 157.5) (width 0.5) (layer "B.Cu") (net 2) (uuid "e0000000-0000-4000-8000-000000000079"))
-  (segment (start 105.2 157.5) (end 105.2 144.2) (width 0.5) (layer "B.Cu") (net 2) (uuid "e0000000-0000-4000-8000-000000000080"))
-  (segment (start 105.2 144.2) (end 112.975 144.2) (width 0.25) (layer "F.Cu") (net 2) (uuid "e0000000-0000-4000-8000-000000000081"))
-  (segment (start 112.975 144.2) (end 112.975 145.555) (width 0.25) (layer "F.Cu") (net 2) (uuid "e0000000-0000-4000-8000-000000000082"))
-  (segment (start 114.9 157.5) (end 114.9 153.175) (width 0.25) (layer "F.Cu") (net 2) (uuid "e0000000-0000-4000-8000-000000000083"))
-  (segment (start 114.9 153.175) (end 112.975 153.175) (width 0.25) (layer "F.Cu") (net 2) (uuid "e0000000-0000-4000-8000-000000000084"))
-  (segment (start 111.3 157.5) (end 111.3 160) (width 0.5) (layer "F.Cu") (net 2) (uuid "e0000000-0000-4000-8000-000000000085"))
-  (segment (start 111.3 160) (end 111.3 164.6) (width 0.25) (layer "F.Cu") (net 2) (uuid "e0000000-0000-4000-8000-000000000086"))
-  (segment (start 111.3 164.6) (end 110.45 164.6) (width 0.25) (layer "F.Cu") (net 2) (uuid "e0000000-0000-4000-8000-000000000087"))
-  (segment (start 133.3 170.05) (end 133.3 168.3) (width 0.25) (layer "F.Cu") (net 3) (uuid "e0000000-0000-4000-8000-000000000088"))
-  (via (at 120.3 172.15) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 4) (uuid "e0000000-0000-4000-8000-000000000089"))
-  (via (at 117.9 172.15) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 4) (uuid "e0000000-0000-4000-8000-000000000090"))
-  (via (at 116.5 170.6) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 6) (uuid "e0000000-0000-4000-8000-000000000091"))
-  (via (at 118.7 170.6) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 6) (uuid "e0000000-0000-4000-8000-000000000092"))
-  (via (at 106.6 145.555) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 16) (uuid "e0000000-0000-4000-8000-000000000093"))
-  (via (at 111.15 113.9) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 16) (uuid "e0000000-0000-4000-8000-000000000094"))
-  (via (at 106.6 146.825) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 17) (uuid "e0000000-0000-4000-8000-000000000095"))
-  (via (at 113.69 113.9) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 17) (uuid "e0000000-0000-4000-8000-000000000096"))
-  (via (at 106.6 148.095) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 18) (uuid "e0000000-0000-4000-8000-000000000097"))
-  (via (at 116.23 113.9) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 18) (uuid "e0000000-0000-4000-8000-000000000098"))
-  (via (at 106.6 149.365) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 19) (uuid "e0000000-0000-4000-8000-000000000099"))
-  (via (at 118.77 113.9) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 19) (uuid "e0000000-0000-4000-8000-000000000100"))
-  (via (at 106.6 150.635) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 20) (uuid "e0000000-0000-4000-8000-000000000101"))
-  (via (at 121.31 113.9) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 20) (uuid "e0000000-0000-4000-8000-000000000102"))
-  (via (at 106.6 151.905) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 21) (uuid "e0000000-0000-4000-8000-000000000103"))
-  (via (at 123.85 113.9) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 21) (uuid "e0000000-0000-4000-8000-000000000104"))
-  (via (at 106.6 153.175) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 22) (uuid "e0000000-0000-4000-8000-000000000105"))
-  (via (at 126.39 113.9) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 22) (uuid "e0000000-0000-4000-8000-000000000106"))
-  (via (at 114.8 146.825) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 15) (uuid "e0000000-0000-4000-8000-000000000107"))
-  (via (at 108.61 113.9) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 15) (uuid "e0000000-0000-4000-8000-000000000108"))
-  (via (at 129.15 157.5) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 2) (uuid "e0000000-0000-4000-8000-000000000109"))
-  (via (at 105.2 144.2) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 2) (uuid "e0000000-0000-4000-8000-000000000110"))
-  (via (at 114.9 157.5) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 2) (uuid "e0000000-0000-4000-8000-000000000111"))
-  (via (at 111.3 157.5) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 2) (uuid "e0000000-0000-4000-8000-000000000112"))
-  (via (at 133.3 168.3) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 3) (uuid "e0000000-0000-4000-8000-000000000113"))
-  (via (at 102 102) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 3) (uuid "e0000000-0000-4000-8000-000000000114"))
-  (via (at 133 102) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 3) (uuid "e0000000-0000-4000-8000-000000000115"))
-  (via (at 102 178) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 3) (uuid "e0000000-0000-4000-8000-000000000116"))
-  (via (at 133 178) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 3) (uuid "e0000000-0000-4000-8000-000000000117"))
-  (via (at 102 140) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 3) (uuid "e0000000-0000-4000-8000-000000000118"))
-  (via (at 102 168) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 3) (uuid "e0000000-0000-4000-8000-000000000119"))
-  (via (at 117 102.5) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 3) (uuid "e0000000-0000-4000-8000-000000000120"))
-  (via (at 130.5 150) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 3) (uuid "e0000000-0000-4000-8000-000000000121"))
-  (via (at 120 120) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 3) (uuid "e0000000-0000-4000-8000-000000000122"))
-  (via (at 110 170) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 3) (uuid "e0000000-0000-4000-8000-000000000123"))
-  (via (at 103 120) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 3) (uuid "e0000000-0000-4000-8000-000000000124"))
-  (via (at 131 155) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 3) (uuid "e0000000-0000-4000-8000-000000000125"))
-  (gr_rect (start 100 100) (end 135 180)
+  (segment (start 170.5 126.95) (end 169.15 128.3) (width 0.2) (layer "F.Cu") (net 1) (uuid "ca4d0000-0000-4000-8000-000000000016"))
+  (segment (start 169.15 128.3) (end 158.85 128.3) (width 0.2) (layer "F.Cu") (net 1) (uuid "ca4d0000-0000-4000-8000-000000000017"))
+  (segment (start 158.85 128.3) (end 158.85 136.08) (width 0.2) (layer "F.Cu") (net 1) (uuid "ca4d0000-0000-4000-8000-000000000018"))
+  (segment (start 158.85 136.08) (end 153.97 140.96) (width 0.2) (layer "F.Cu") (net 1) (uuid "ca4d0000-0000-4000-8000-000000000019"))
+  (segment (start 144.445 123.7217) (end 143.704 123.7217) (width 0.2) (layer "F.Cu") (net 2) (uuid "ca4d0000-0000-4000-8000-000000000020"))
+  (segment (start 144.445 123.7217) (end 143.704 123.7217) (width 0.2) (layer "B.Cu") (net 2) (uuid "ca4d0000-0000-4000-8000-000000000021"))
+  (segment (start 143.704 123.7217) (end 144.445 123.7217) (width 0.2) (layer "F.Cu") (net 2) (uuid "ca4d0000-0000-4000-8000-000000000022"))
+  (segment (start 143.704 123.7217) (end 144.445 123.7217) (width 0.2) (layer "B.Cu") (net 2) (uuid "ca4d0000-0000-4000-8000-000000000023"))
+  (segment (start 144.445 120.975) (end 144.445 122.9807) (width 0.2) (layer "F.Cu") (net 2) (uuid "ca4d0000-0000-4000-8000-000000000024"))
+  (segment (start 144.445 122.9807) (end 143.704 123.7217) (width 0.2) (layer "F.Cu") (net 2) (uuid "ca4d0000-0000-4000-8000-000000000025"))
+  (segment (start 136.2363 123.7217) (end 136.2363 121.5637) (width 0.2) (layer "F.Cu") (net 2) (uuid "ca4d0000-0000-4000-8000-000000000026"))
+  (segment (start 136.2363 121.5637) (end 136.825 120.975) (width 0.2) (layer "F.Cu") (net 2) (uuid "ca4d0000-0000-4000-8000-000000000027"))
+  (segment (start 143.704 123.7217) (end 136.2363 123.7217) (width 0.2) (layer "B.Cu") (net 2) (uuid "ca4d0000-0000-4000-8000-000000000028"))
+  (segment (start 148 122.95) (end 146.025 120.975) (width 0.2) (layer "F.Cu") (net 2) (uuid "ca4d0000-0000-4000-8000-000000000029"))
+  (segment (start 146.025 120.975) (end 144.445 120.975) (width 0.2) (layer "F.Cu") (net 2) (uuid "ca4d0000-0000-4000-8000-000000000030"))
+  (segment (start 153 127.8) (end 152.85 127.8) (width 0.2) (layer "F.Cu") (net 2) (uuid "ca4d0000-0000-4000-8000-000000000031"))
+  (segment (start 152.85 127.8) (end 148 122.95) (width 0.2) (layer "F.Cu") (net 2) (uuid "ca4d0000-0000-4000-8000-000000000032"))
+  (segment (start 158.85 126) (end 154.8 126) (width 0.2) (layer "F.Cu") (net 2) (uuid "ca4d0000-0000-4000-8000-000000000033"))
+  (segment (start 154.8 126) (end 153 127.8) (width 0.2) (layer "F.Cu") (net 2) (uuid "ca4d0000-0000-4000-8000-000000000034"))
+  (segment (start 165.15 126) (end 158.85 126) (width 0.2) (layer "F.Cu") (net 2) (uuid "ca4d0000-0000-4000-8000-000000000035"))
+  (segment (start 146.35 138.42) (end 145.1915 139.5785) (width 0.2) (layer "F.Cu") (net 4) (uuid "ca4d0000-0000-4000-8000-000000000036"))
+  (segment (start 145.1915 139.5785) (end 138.2001 139.5785) (width 0.2) (layer "F.Cu") (net 4) (uuid "ca4d0000-0000-4000-8000-000000000037"))
+  (segment (start 138.2001 139.5785) (end 137.5094 138.8878) (width 0.2) (layer "F.Cu") (net 4) (uuid "ca4d0000-0000-4000-8000-000000000038"))
+  (segment (start 137.5094 138.8878) (end 137.5094 121.5606) (width 0.2) (layer "F.Cu") (net 4) (uuid "ca4d0000-0000-4000-8000-000000000039"))
+  (segment (start 137.5094 121.5606) (end 138.095 120.975) (width 0.2) (layer "F.Cu") (net 4) (uuid "ca4d0000-0000-4000-8000-000000000040"))
+  (segment (start 141.9065 135.1611) (end 141.9065 120.9765) (width 0.2) (layer "F.Cu") (net 5) (uuid "ca4d0000-0000-4000-8000-000000000041"))
+  (segment (start 141.9065 120.9765) (end 141.905 120.975) (width 0.2) (layer "F.Cu") (net 5) (uuid "ca4d0000-0000-4000-8000-000000000042"))
+  (segment (start 142.0713 135.3259) (end 141.9065 135.1611) (width 0.2) (layer "F.Cu") (net 5) (uuid "ca4d0000-0000-4000-8000-000000000043"))
+  (segment (start 142.0713 135.3259) (end 141.9065 135.1611) (width 0.2) (layer "F.Cu") (net 5) (uuid "ca4d0000-0000-4000-8000-000000000044"))
+  (segment (start 143.81 138.42) (end 143.81 137.0646) (width 0.2) (layer "F.Cu") (net 5) (uuid "ca4d0000-0000-4000-8000-000000000045"))
+  (segment (start 143.81 137.0646) (end 142.0713 135.3259) (width 0.2) (layer "F.Cu") (net 5) (uuid "ca4d0000-0000-4000-8000-000000000046"))
+  (segment (start 138.73 138.42) (end 138.73 121.61) (width 0.2) (layer "F.Cu") (net 6) (uuid "ca4d0000-0000-4000-8000-000000000047"))
+  (segment (start 138.73 121.61) (end 139.365 120.975) (width 0.2) (layer "F.Cu") (net 6) (uuid "ca4d0000-0000-4000-8000-000000000048"))
+  (segment (start 131.11 104.04) (end 131.11 107.3875) (width 0.2) (layer "F.Cu") (net 7) (uuid "ca4d0000-0000-4000-8000-000000000049"))
+  (segment (start 133.65 104.04) (end 133.65 107.3875) (width 0.2) (layer "F.Cu") (net 8) (uuid "ca4d0000-0000-4000-8000-000000000050"))
+  (segment (start 136.19 107.3875) (end 136.19 104.04) (width 0.2) (layer "F.Cu") (net 9) (uuid "ca4d0000-0000-4000-8000-000000000051"))
+  (segment (start 138.73 107.3875) (end 138.73 104.04) (width 0.2) (layer "F.Cu") (net 10) (uuid "ca4d0000-0000-4000-8000-000000000052"))
+  (segment (start 141.27 104.04) (end 141.27 107.3875) (width 0.2) (layer "F.Cu") (net 11) (uuid "ca4d0000-0000-4000-8000-000000000053"))
+  (segment (start 143.81 107.3875) (end 143.81 104.04) (width 0.2) (layer "F.Cu") (net 12) (uuid "ca4d0000-0000-4000-8000-000000000054"))
+  (segment (start 146.35 107.3875) (end 146.35 104.04) (width 0.2) (layer "F.Cu") (net 13) (uuid "ca4d0000-0000-4000-8000-000000000055"))
+  (segment (start 148.89 104.04) (end 148.89 107.3875) (width 0.2) (layer "F.Cu") (net 14) (uuid "ca4d0000-0000-4000-8000-000000000056"))
+  (segment (start 143.175 120.975) (end 143.175 120.601) (width 0.2) (layer "F.Cu") (net 15) (uuid "ca4d0000-0000-4000-8000-000000000057"))
+  (segment (start 143.175 120.601) (end 142.0642 119.4902) (width 0.2) (layer "F.Cu") (net 15) (uuid "ca4d0000-0000-4000-8000-000000000058"))
+  (segment (start 142.0642 119.4902) (end 137.3342 119.4902) (width 0.2) (layer "F.Cu") (net 15) (uuid "ca4d0000-0000-4000-8000-000000000059"))
+  (segment (start 137.3342 119.4902) (end 131.11 113.266) (width 0.2) (layer "F.Cu") (net 15) (uuid "ca4d0000-0000-4000-8000-000000000060"))
+  (segment (start 131.11 113.266) (end 131.11 109.2125) (width 0.2) (layer "F.Cu") (net 15) (uuid "ca4d0000-0000-4000-8000-000000000061"))
+  (segment (start 143.0263 118.2764) (end 142.7924 118.5103) (width 0.2) (layer "F.Cu") (net 16) (uuid "ca4d0000-0000-4000-8000-000000000062"))
+  (segment (start 142.7924 118.5103) (end 138.955 118.5103) (width 0.2) (layer "F.Cu") (net 16) (uuid "ca4d0000-0000-4000-8000-000000000063"))
+  (segment (start 138.955 118.5103) (end 137.46 117.0153) (width 0.2) (layer "F.Cu") (net 16) (uuid "ca4d0000-0000-4000-8000-000000000064"))
+  (segment (start 137.46 117.0153) (end 137.46 113.0225) (width 0.2) (layer "F.Cu") (net 16) (uuid "ca4d0000-0000-4000-8000-000000000065"))
+  (segment (start 137.46 113.0225) (end 133.65 109.2125) (width 0.2) (layer "F.Cu") (net 16) (uuid "ca4d0000-0000-4000-8000-000000000066"))
+  (segment (start 143.0263 118.2764) (end 143.0716 118.2311) (width 0.2) (layer "F.Cu") (net 16) (uuid "ca4d0000-0000-4000-8000-000000000067"))
+  (segment (start 143.0263 118.2764) (end 143.0716 118.2311) (width 0.2) (layer "F.Cu") (net 16) (uuid "ca4d0000-0000-4000-8000-000000000068"))
+  (segment (start 143.0716 118.2311) (end 143.1099 118.1928) (width 0.2) (layer "F.Cu") (net 16) (uuid "ca4d0000-0000-4000-8000-000000000069"))
+  (segment (start 143.1099 118.1928) (end 143.2043 118.1928) (width 0.2) (layer "F.Cu") (net 16) (uuid "ca4d0000-0000-4000-8000-000000000070"))
+  (segment (start 143.2043 118.1928) (end 144.445 116.9521) (width 0.2) (layer "F.Cu") (net 16) (uuid "ca4d0000-0000-4000-8000-000000000071"))
+  (segment (start 144.445 116.9521) (end 144.445 116.025) (width 0.2) (layer "F.Cu") (net 16) (uuid "ca4d0000-0000-4000-8000-000000000072"))
+  (segment (start 143.175 116.025) (end 143.175 116.9917) (width 0.2) (layer "F.Cu") (net 17) (uuid "ca4d0000-0000-4000-8000-000000000073"))
+  (segment (start 143.175 116.9917) (end 142.4598 117.7069) (width 0.2) (layer "F.Cu") (net 17) (uuid "ca4d0000-0000-4000-8000-000000000074"))
+  (segment (start 142.4598 117.7069) (end 139.3977 117.7069) (width 0.2) (layer "F.Cu") (net 17) (uuid "ca4d0000-0000-4000-8000-000000000075"))
+  (segment (start 139.3977 117.7069) (end 138.73 117.0392) (width 0.2) (layer "F.Cu") (net 17) (uuid "ca4d0000-0000-4000-8000-000000000076"))
+  (segment (start 138.73 117.0392) (end 138.73 112.3204) (width 0.2) (layer "F.Cu") (net 17) (uuid "ca4d0000-0000-4000-8000-000000000077"))
+  (segment (start 138.73 112.3204) (end 136.19 109.7804) (width 0.2) (layer "F.Cu") (net 17) (uuid "ca4d0000-0000-4000-8000-000000000078"))
+  (segment (start 136.19 109.7804) (end 136.19 109.2125) (width 0.2) (layer "F.Cu") (net 17) (uuid "ca4d0000-0000-4000-8000-000000000079"))
+  (segment (start 138.73 109.2125) (end 141.905 112.3875) (width 0.2) (layer "F.Cu") (net 18) (uuid "ca4d0000-0000-4000-8000-000000000080"))
+  (segment (start 141.905 112.3875) (end 141.905 116.025) (width 0.2) (layer "F.Cu") (net 18) (uuid "ca4d0000-0000-4000-8000-000000000081"))
+  (segment (start 141.27 109.2125) (end 142.5727 110.5152) (width 0.2) (layer "F.Cu") (net 19) (uuid "ca4d0000-0000-4000-8000-000000000082"))
+  (segment (start 142.5727 110.5152) (end 142.5727 117.026) (width 0.2) (layer "F.Cu") (net 19) (uuid "ca4d0000-0000-4000-8000-000000000083"))
+  (segment (start 142.5727 117.026) (end 142.2935 117.3052) (width 0.2) (layer "F.Cu") (net 19) (uuid "ca4d0000-0000-4000-8000-000000000084"))
+  (segment (start 142.2935 117.3052) (end 141.5705 117.3052) (width 0.2) (layer "F.Cu") (net 19) (uuid "ca4d0000-0000-4000-8000-000000000085"))
+  (segment (start 141.5705 117.3052) (end 140.635 116.3697) (width 0.2) (layer "F.Cu") (net 19) (uuid "ca4d0000-0000-4000-8000-000000000086"))
+  (segment (start 140.635 116.3697) (end 140.635 116.025) (width 0.2) (layer "F.Cu") (net 19) (uuid "ca4d0000-0000-4000-8000-000000000087"))
+  (segment (start 143.81 109.2125) (end 142.9647 108.3672) (width 0.2) (layer "F.Cu") (net 20) (uuid "ca4d0000-0000-4000-8000-000000000088"))
+  (segment (start 142.9647 108.3672) (end 138.0119 108.3672) (width 0.2) (layer "F.Cu") (net 20) (uuid "ca4d0000-0000-4000-8000-000000000089"))
+  (segment (start 138.0119 108.3672) (end 137.667 108.7121) (width 0.2) (layer "F.Cu") (net 20) (uuid "ca4d0000-0000-4000-8000-000000000090"))
+  (segment (start 137.667 108.7121) (end 137.667 110.1236) (width 0.2) (layer "F.Cu") (net 20) (uuid "ca4d0000-0000-4000-8000-000000000091"))
+  (segment (start 137.667 110.1236) (end 139.365 111.8216) (width 0.2) (layer "F.Cu") (net 20) (uuid "ca4d0000-0000-4000-8000-000000000092"))
+  (segment (start 139.365 111.8216) (end 139.365 116.025) (width 0.2) (layer "F.Cu") (net 20) (uuid "ca4d0000-0000-4000-8000-000000000093"))
+  (segment (start 146.35 109.2125) (end 143.81 111.7525) (width 0.2) (layer "F.Cu") (net 21) (uuid "ca4d0000-0000-4000-8000-000000000094"))
+  (segment (start 143.81 111.7525) (end 143.81 117.019) (width 0.2) (layer "F.Cu") (net 21) (uuid "ca4d0000-0000-4000-8000-000000000095"))
+  (segment (start 143.81 117.019) (end 143.2028 117.6262) (width 0.2) (layer "F.Cu") (net 21) (uuid "ca4d0000-0000-4000-8000-000000000096"))
+  (segment (start 143.2028 117.6262) (end 143.1085 117.6262) (width 0.2) (layer "F.Cu") (net 21) (uuid "ca4d0000-0000-4000-8000-000000000097"))
+  (segment (start 143.1085 117.6262) (end 142.6261 118.1086) (width 0.2) (layer "F.Cu") (net 21) (uuid "ca4d0000-0000-4000-8000-000000000098"))
+  (segment (start 142.6261 118.1086) (end 139.1838 118.1086) (width 0.2) (layer "F.Cu") (net 21) (uuid "ca4d0000-0000-4000-8000-000000000099"))
+  (segment (start 139.1838 118.1086) (end 138.095 117.0198) (width 0.2) (layer "F.Cu") (net 21) (uuid "ca4d0000-0000-4000-8000-000000000100"))
+  (segment (start 138.095 117.0198) (end 138.095 116.025) (width 0.2) (layer "F.Cu") (net 21) (uuid "ca4d0000-0000-4000-8000-000000000101"))
+  (segment (start 143.1926 118.6781) (end 142.9572 118.9135) (width 0.2) (layer "F.Cu") (net 22) (uuid "ca4d0000-0000-4000-8000-000000000102"))
+  (segment (start 142.9572 118.9135) (end 138.6994 118.9135) (width 0.2) (layer "F.Cu") (net 22) (uuid "ca4d0000-0000-4000-8000-000000000103"))
+  (segment (start 138.6994 118.9135) (end 136.825 117.0391) (width 0.2) (layer "F.Cu") (net 22) (uuid "ca4d0000-0000-4000-8000-000000000104"))
+  (segment (start 136.825 117.0391) (end 136.825 116.025) (width 0.2) (layer "F.Cu") (net 22) (uuid "ca4d0000-0000-4000-8000-000000000105"))
+  (segment (start 143.1926 118.6781) (end 143.2379 118.6328) (width 0.2) (layer "F.Cu") (net 22) (uuid "ca4d0000-0000-4000-8000-000000000106"))
+  (segment (start 143.1926 118.6781) (end 143.2379 118.6328) (width 0.2) (layer "F.Cu") (net 22) (uuid "ca4d0000-0000-4000-8000-000000000107"))
+  (segment (start 143.2379 118.6328) (end 143.2419 118.6288) (width 0.2) (layer "F.Cu") (net 22) (uuid "ca4d0000-0000-4000-8000-000000000108"))
+  (segment (start 143.2419 118.6288) (end 143.5047 118.6288) (width 0.2) (layer "F.Cu") (net 22) (uuid "ca4d0000-0000-4000-8000-000000000109"))
+  (segment (start 143.5047 118.6288) (end 148.89 113.2435) (width 0.2) (layer "F.Cu") (net 22) (uuid "ca4d0000-0000-4000-8000-000000000110"))
+  (segment (start 148.89 113.2435) (end 148.89 109.2125) (width 0.2) (layer "F.Cu") (net 22) (uuid "ca4d0000-0000-4000-8000-000000000111"))
+  (via (at 136.2363 123.7217) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 2) (uuid "ca4d0000-0000-4000-8000-000000000112"))
+  (via (at 143.704 123.7217) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 2) (uuid "ca4d0000-0000-4000-8000-000000000113"))
+  (via (at 102 102) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 3) (uuid "ca4d0000-0000-4000-8000-000000000114"))
+  (via (at 178 102) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 3) (uuid "ca4d0000-0000-4000-8000-000000000115"))
+  (via (at 102 143) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 3) (uuid "ca4d0000-0000-4000-8000-000000000116"))
+  (via (at 178 143) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 3) (uuid "ca4d0000-0000-4000-8000-000000000117"))
+  (via (at 102 122) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 3) (uuid "ca4d0000-0000-4000-8000-000000000118"))
+  (via (at 178 122) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 3) (uuid "ca4d0000-0000-4000-8000-000000000119"))
+  (via (at 112 135) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 3) (uuid "ca4d0000-0000-4000-8000-000000000120"))
+  (via (at 168 135) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 3) (uuid "ca4d0000-0000-4000-8000-000000000121"))
+  (via (at 140.38 135.96) (size 0.5) (drill 0.3) (layers "F.Cu" "B.Cu") (net 3) (uuid "ca4d0000-0000-4000-8000-000000000122"))
+  (gr_rect (start 100.0 100.0) (end 180.0 145.0)
     (stroke (width 0.1) (type default)) (fill none)
-    (layer "Edge.Cuts") (uuid "e0000000-0000-4000-8000-000000000126"))
-  (gr_text "musicbrain.nl/hw/gate8 rev 1.1" (at 117.5 132 90) (layer "F.SilkS")
-    (uuid "e0000000-0000-4000-8000-000000000127")
+    (layer "Edge.Cuts") (uuid "ca4d0000-0000-4000-8000-000000000123"))
+  (gr_text "musicbrain.nl/hw/gate8 rev 2.0" (at 114 128 0) (layer "F.SilkS")
+    (uuid "ca4d0000-0000-4000-8000-000000000124")
     (effects (font (size 1 1) (thickness 0.15))))
 
   (zone (net 3) (net_name "GND") (layer "F.Cu")
-    (uuid "e0000000-0000-4000-8000-000000000128")
+    (uuid "ca4d0000-0000-4000-8000-000000000125")
     (hatch edge 0.5)
-    (connect_pads (clearance 0.5))
-    (min_thickness 0.25) (filled_areas_thickness no)
+    (connect_pads yes (clearance 0.3))
+    (min_thickness 0.2) (filled_areas_thickness no)
     (fill yes (thermal_gap 0.5) (thermal_bridge_width 0.5))
     (polygon (pts
-      (xy 100.5 100.5) (xy 134.5 100.5)
-      (xy 134.5 179.5) (xy 100.5 179.5)
+      (xy 100.5 100.5) (xy 179.5 100.5)
+      (xy 179.5 144.5) (xy 100.5 144.5)
     ))
   )
   (zone (net 3) (net_name "GND") (layer "B.Cu")
-    (uuid "e0000000-0000-4000-8000-000000000129")
+    (uuid "ca4d0000-0000-4000-8000-000000000126")
     (hatch edge 0.5)
-    (connect_pads (clearance 0.5))
-    (min_thickness 0.25) (filled_areas_thickness no)
+    (connect_pads yes (clearance 0.3))
+    (min_thickness 0.2) (filled_areas_thickness no)
     (fill yes (thermal_gap 0.5) (thermal_bridge_width 0.5))
     (polygon (pts
-      (xy 100.5 100.5) (xy 134.5 100.5)
-      (xy 134.5 179.5) (xy 100.5 179.5)
+      (xy 100.5 100.5) (xy 179.5 100.5)
+      (xy 179.5 144.5) (xy 100.5 144.5)
     ))
   )
 )
