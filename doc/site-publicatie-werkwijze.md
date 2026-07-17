@@ -92,6 +92,24 @@ in `editor/screenshots/`. De editor releaset per product: `editor-reflex`
 `editor-cortex` (pin in cortex-releases, recept `publish_release.py`);
 tags `editor/<product>/vX.Y.Z`.
 
+## 3D-tab (view3d) en component-kind — status 2026-07-17
+
+Imprint heeft beide FR's geïmplementeerd (zie
+`Imprint-engine/docs/mmb-request-3d-tab.md` en
+`doc/imprint-fr-component-kind.md`); **live pas na de eerstvolgende
+site-deploy**. Afspraken: GLB gaat als versioned spec-asset mee
+(`assets.model3d`, onze publish doet dat al), lichte GLB-variant is de
+standaard, viewer = zelf-gehoste model-viewer, lazy bij tab-activatie.
+Lokaal staat alles er al (incl. kind=software op de editor-componenten —
+component-level read-modify-post volstaat, paginakop toont "Software").
+
+**Nog te doen zodra de deploy live is + go van Mark:**
+1. gswitch-set naar live posten (zelfde publish_product.mjs-commando als
+   altijd; de GLB's staan al in public/boards);
+2. editor-reflex/editor-cortex kind-herpost naar live (read-modify-post
+   `kind: software` op de component-docs);
+3. daarna cortex-borden: per bord `widget_export.py --3d` + herpublicatie.
+
 ## Fout gepost? Terugtrekken (tombstone)
 
 ```bash
