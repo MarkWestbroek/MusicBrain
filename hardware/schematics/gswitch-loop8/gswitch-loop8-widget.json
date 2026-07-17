@@ -75,5 +75,10 @@
    "label": "schuifregister + relaisdrivers",
    "markdown": ""
   }
- ]
+ ],
+ "view3d": {
+  "mode": "glb",
+  "src": "/boards/gswitch-loop8.glb",
+  "poster": "/boards/gswitch-loop8.png"
+ }
 }

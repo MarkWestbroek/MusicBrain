@@ -202,6 +202,14 @@ function prepareBoard(dirName, assetsDir) {
     assets.overview = "overview.svg";
   }
 
+  // 3D-model voor de view3d-tab (widget_export.py --3d): glb naast de
+  // render-PNG in de assets-dir; gaat ook mee als versioned spec-asset
+  const glb = path.join(assetsDir, `${base}.glb`);
+  if (fs.existsSync(glb)) {
+    files["model.glb"] = glb;
+    assets.model3d = "model.glb";
+  }
+
   for (const [ref, p] of Object.entries(pinoutFiles)) {
     const fn = `pinout-${ref}.svg`;
     files[fn] = p;
@@ -217,6 +225,7 @@ function prepareBoard(dirName, assetsDir) {
     points,
     sections: [{ heading: "Aansluitoverzicht", markdown: widget.title || name }],
   };
+  if (widget.view3d) doc.view3d = widget.view3d; // 3D-tab (contract-voorstel)
 
   return { dirName, slug, version, name, doc, files, render: !!render };
 }

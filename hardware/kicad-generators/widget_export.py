@@ -37,6 +37,18 @@ def render_transparant(pcb):
     return tmp
 
 
+def export_glb(pcb, uit, vol=False):
+    """GLB voor de 3D-tab (voorstel: doc/imprint-widget-3d-voorstel.md).
+    Default de lichte variant (~2,5 MB: mask+silk, geen kopergeometrie);
+    vol=True voegt sporen/zones toe (~2x zo groot)."""
+    cmd = ['kicad-cli', 'pcb', 'export', 'glb', '--subst-models',
+           '--include-soldermask', '--include-silkscreen', '-f', '-o', uit]
+    if vol:
+        cmd += ['--include-tracks', '--include-zones']
+    subprocess.run(cmd + [pcb], check=True, capture_output=True)
+    return uit
+
+
 def board_bbox_alpha(img):
     """bounding box van niet-transparante pixels (het bord)."""
     a = img.split()[-1]
@@ -106,6 +118,14 @@ def main():
            'image': f'/boards/{imgname}',
            'alt': f'3D-render van {base}',
            'points': points}
+    if '--3d' in args:
+        glbname = f'{base}.glb'
+        export_glb(pcb, os.path.join(boards_dir, glbname),
+                   vol='--3d-full' in args)
+        kb = os.path.getsize(os.path.join(boards_dir, glbname)) // 1024
+        cfg['view3d'] = {'mode': 'glb', 'src': f'/boards/{glbname}',
+                         'poster': f'/boards/{imgname}'}
+        print(f'GLB : {os.path.join(boards_dir, glbname)} ({kb} KB)')
     buf = io.StringIO()
     json.dump(cfg, buf, indent=1, ensure_ascii=False)
     open(outjson, 'w', encoding='utf-8', newline='\n').write(buf.getvalue())
