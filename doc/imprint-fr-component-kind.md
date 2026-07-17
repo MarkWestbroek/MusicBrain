@@ -24,6 +24,13 @@ zodat alles wat er nu staat ongewijzigd blijft:
 { "slug": "editor-cortex@v0.5.48", "kind": "software", ... }
 ```
 
+> **Status 2026-07-17**: geïmplementeerd door Imprint (kind bewaard in
+> component- én spec-doc, spec wint; default board). Lokaal herpost en
+> geverifieerd: koppen zeggen "Software v…". Live na Marks deploy + één
+> herpost van beide editors. renderTop blijft ook voor software via de
+> widget-viewer lopen (punt 5 niet overgenomen) — de simulatie-GIF blijft
+> dus in het overview-slot, dat werkt prima.
+
 ## Gewenst gedrag
 
 1. `kind` ontbreekt → gedrag als nu (`board`); geen migratie nodig.
