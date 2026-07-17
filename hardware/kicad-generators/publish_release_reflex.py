@@ -16,9 +16,11 @@ VERSIE = 'v0.1'
 DATUM = '2026-07-14'
 KANAAL = 'beta'
 PINS = [('gswitch-brain', 'v0.1'), ('gswitch-loop8', 'v0.1'),
+        ('gswitch-loop8sh', 'v0.1'),   # klem-variant, bijgepind 2026-07-17
         ('editor-reflex', 'v0.2.0')]   # software x.y.z
 HIGHLIGHTS = [
     'Eerste gitaar-effectswitcher (brain + loop8)',
+    'loop8sh: compacte schroefklem-variant van het loopbord',
     'Reflex editor 0.2.0: chain-editor + end-to-end MIDI-simulatie in de browser',
 ]
 # -----------------------------------------------------------------------------
