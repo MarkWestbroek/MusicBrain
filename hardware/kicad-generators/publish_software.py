@@ -57,16 +57,19 @@ def main():
     slug = f'{a.component}@{a.version}'
     H = {'Authorization': f'Bearer {a.token}'}
 
-    files = {'render-top.png': a.hero}
+    ext = os.path.splitext(a.hero)[1].lower() or '.png'
+    files = {f'render-top{ext}': a.hero}
     if a.overview:
-        files['overview.png'] = a.overview
+        oext = os.path.splitext(a.overview)[1].lower() or '.png'
+        files[f'overview{oext}'] = a.overview
     doc = {
         'slug': slug,
         'component': a.component,
         'version': a.version,
+        'kind': 'software',   # FR doc/imprint-fr-component-kind.md; default = board
         'connectors': [],
-        'assets': {'renderTop': 'render-top.png',
-                   'overview': 'overview.png' if a.overview else None,
+        'assets': {'renderTop': f'render-top{ext}',
+                   'overview': f'overview{oext}' if a.overview else None,
                    'pinouts': {}},
         'points': [],
         'sections': doc_sections(a.doc),
@@ -84,6 +87,7 @@ def main():
         comp = {}
     comp.setdefault('slug', a.component)
     comp['name'] = a.name
+    comp['kind'] = 'software'   # FR doc/imprint-fr-component-kind.md
     if a.desc and os.path.exists(a.desc):
         comp['description'] = open(a.desc, encoding='utf-8').read().strip()
     comp.setdefault('description', '')
@@ -102,9 +106,12 @@ def main():
         sys.exit('component-post faalde')
 
     # 2) spec-ingest (zelfde endpoint als borden)
+    CT = {'.png': 'image/png', '.gif': 'image/gif', '.svg': 'image/svg+xml',
+          '.webp': 'image/webp'}
     multipart = [('doc', (None, json.dumps(doc, ensure_ascii=False), 'application/json'))]
     for i, (fn, path) in enumerate(files.items()):
-        multipart.append((f'f{i}', (fn, open(path, 'rb').read(), 'image/png')))
+        ct = CT.get(os.path.splitext(fn)[1], 'application/octet-stream')
+        multipart.append((f'f{i}', (fn, open(path, 'rb').read(), ct)))
     r2 = requests.post(f'{a.base}/api/ingest/board-spec', headers=H, files=multipart)
     print('board-spec:', r2.status_code, r2.text[:400])
     if r2.status_code >= 300:
