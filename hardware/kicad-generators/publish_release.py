@@ -62,12 +62,14 @@ if a.withdraw:
     print(f'withdraw {a.withdraw}: {r.status_code} {r.text[:150]}')
     assert r.status_code in (200, 404), 'terugtrekken faalde'
 
-# 1) product koppelen (read-modify-post)
+# 1) product koppelen (read-modify-post). De productpagina toont
+# product.components; de release pint alleen de versies - een component die
+# hier ontbreekt is dus onzichtbaar op de productpagina (les 2026-07-17).
 p = requests.get(f'{a.base}/api/content/products').json()
 prod = next(x for x in p if x.get('slug') == PROJECT)
 comps = [c for c in (prod.get('components') or []) if c not in PRODUCT_COMPONENTS_WEG]
 for c, _v in PINS:
-    if c == 'busboard' and c not in comps:
+    if c in ('busboard', 'editor-cortex') and c not in comps:
         comps.append(c)
 prod['components'] = comps
 check('product', requests.post(f'{a.base}/api/content/product/{PROJECT}',

@@ -44,7 +44,18 @@ if a.withdraw:
     print(f'withdraw {a.withdraw}: {r.status_code} {r.text[:150]}')
     assert r.status_code in (200, 404), 'terugtrekken faalde'
 
-# 1) release (read-modify: bestaande velden zoals downloads/body behouden)
+# 1) product koppelen: de productpagina toont product.components, dus de
+# editor moet daar ook in (de bord-slugs zet de Reflex-bordenflow er al in)
+p = requests.get(f'{a.base}/api/content/products').json()
+prod = next(x for x in p if x.get('slug') == PROJECT)
+comps = prod.get('components') or []
+if 'editor-reflex' not in comps:
+    comps.append('editor-reflex')
+    prod['components'] = comps
+    check('product', requests.post(f'{a.base}/api/content/product/{PROJECT}',
+                                   headers=H, json=prod))
+
+# 2) release (read-modify: bestaande velden zoals downloads/body behouden)
 cur = requests.get(f'{a.base}/api/content/releases').json()
 rel = next((x for x in cur if x.get('project') == PROJECT
             and x.get('version') == VERSIE), {})
