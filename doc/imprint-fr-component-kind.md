@@ -34,6 +34,11 @@ zodat alles wat er nu staat ongewijzigd blijft:
    verborgen wanneer ze leeg zijn — dat doen ze nu al.
 4. Soorten zijn een open lijstje (string), geen enum-migratie bij elke
    nieuwe soort; `board` en `software` zijn genoeg voor nu.
+5. Bij `kind: software` graag de **renderTop als gewone `<img>`** in
+   plaats van via de widget-viewer: die tekent op een canvas en dan speelt
+   een geanimeerde GIF niet af (hotspots zijn er toch niet). Workaround nu:
+   wij zetten de GIF in het overview-slot, dat al een `<img>` is — met een
+   `<img>`-renderTop kan de animatie gewoon de hero zijn.
 
 ## Acceptatie
 
