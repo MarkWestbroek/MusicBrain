@@ -35,10 +35,7 @@ def box(x0, y0, z0, x1, y1, z1, kleur):
 }}'''
 
 
-def _prisma(p0, p1, r, kleur, n=24):
-    """Cilinder als IndexedFaceSet-prisma tussen fp-punten p0/p1 (bord-mm).
-    KiCads WRL-parser rendert het Cylinder-primitief NIET (les 2026-07-17:
-    alleen Box; bussen/kragen ontbraken geruisloos) -> zelf mesh bakken."""
+def _assen(p0, p1):
     import math
     ax = tuple((b - a) for a, b in zip(p0, p1))
     ln = math.sqrt(sum(c * c for c in ax))
@@ -50,27 +47,62 @@ def _prisma(p0, p1, r, kleur, n=24):
     u = tuple(c / ul for c in u)
     v = (ax[1] * u[2] - ax[2] * u[1], ax[2] * u[0] - ax[0] * u[2],
          ax[0] * u[1] - ax[1] * u[0])
-    pts = []
-    for p in (p0, p1):
-        for k in range(n):
-            t = 2 * math.pi * k / n
-            pts.append(tuple(p[i] + r * (math.cos(t) * u[i] + math.sin(t) * v[i])
-                             for i in range(3)))
+    return u, v
+
+
+def _ring(p, r, u, v, n):
+    import math
+    return [tuple(p[i] + r * (math.cos(2 * math.pi * k / n) * u[i]
+                              + math.sin(2 * math.pi * k / n) * v[i])
+                  for i in range(3)) for k in range(n)]
+
+
+def _shape(pts, idx, kleur):
     # fp-mm -> WRL-file-coords: (x, -y, z) / S
     coord = ' '.join(f'{px / S:.4f} {-py / S:.4f} {pz / S:.4f}'
                      for px, py, pz in pts)
-    idx = []
-    for k in range(n):
-        k2 = (k + 1) % n
-        idx.append(f'{k} {k2} {n + k2} {n + k} -1')            # mantel
-    idx.append(' '.join(str(k) for k in range(n - 1, -1, -1)) + ' -1')   # kap p0
-    idx.append(' '.join(str(n + k) for k in range(n)) + ' -1')           # kap p1
     return f'''Shape {{ {_mat(kleur, 0.6)}
   geometry IndexedFaceSet {{
     solid FALSE creaseAngle 0.8
     coord Coordinate {{ point [ {coord} ] }}
     coordIndex [ {' '.join(idx)} ]
   }} }}'''
+
+
+def _prisma(p0, p1, r, kleur, n=24):
+    """Cilinder als IndexedFaceSet-prisma tussen fp-punten p0/p1 (bord-mm).
+    KiCads WRL-parser rendert het Cylinder-primitief NIET (les 2026-07-17:
+    alleen Box; bussen/kragen ontbraken geruisloos) -> zelf mesh bakken.
+    Eindkappen als driehoeken-waaier: KiCads renderer laat grote n-gon-
+    kappen vallen, de GLB-export niet (les 2: DIN-gezicht dichtgesmeerd
+    op de site) -> alleen driehoeken/quads geeft in beide hetzelfde."""
+    u, v = _assen(p0, p1)
+    pts = _ring(p0, r, u, v, n) + _ring(p1, r, u, v, n) + [p0, p1]
+    c0, c1 = 2 * n, 2 * n + 1
+    idx = []
+    for k in range(n):
+        k2 = (k + 1) % n
+        idx.append(f'{k} {k2} {n + k2} {n + k} -1')       # mantel
+        idx.append(f'{c0} {k2} {k} -1')                   # kap p0 (waaier)
+        idx.append(f'{c1} {n + k} {n + k2} -1')           # kap p1 (waaier)
+    return _shape(pts, idx, kleur)
+
+
+def _buis(p0, p1, r_uit, r_in, kleur, n=24):
+    """Buis (ring-doorsnede) met echt gat: buiten- en binnenmantel plus
+    ring-kappen. Voor kragen waar je in moet kunnen kijken (DIN)."""
+    u, v = _assen(p0, p1)
+    pts = (_ring(p0, r_uit, u, v, n) + _ring(p1, r_uit, u, v, n)
+           + _ring(p0, r_in, u, v, n) + _ring(p1, r_in, u, v, n))
+    b0, b1, i0, i1 = 0, n, 2 * n, 3 * n
+    idx = []
+    for k in range(n):
+        k2 = (k + 1) % n
+        idx.append(f'{b0 + k} {b0 + k2} {b1 + k2} {b1 + k} -1')   # buitenmantel
+        idx.append(f'{i0 + k} {i1 + k} {i1 + k2} {i0 + k2} -1')   # binnenmantel
+        idx.append(f'{b0 + k} {i0 + k} {i0 + k2} {b0 + k2} -1')   # ringkap p0
+        idx.append(f'{b1 + k} {b1 + k2} {i1 + k2} {i1 + k} -1')   # ringkap p1
+    return _shape(pts, idx, kleur)
 
 
 def cyl_y(x, y0, y1, z, r, kleur):
@@ -131,8 +163,8 @@ for _a in (-90, -45, 0, 45, 90):
                            8.0 + 3.5 * _m.cos(_r), 0.45, ZILVER))
 schrijf('DIN5_SDS50J.wrl',
         box(-10, -3.3, 0, 10, 12.5, 15, ZWART),
-        cyl_y(0, 12.5, 16.2, 8.0, 7.3, ZILVER),     # schermkraag
-        cyl_y(0, 14.4, 15.0, 8.0, 5.6, ZWART),      # insert (dieper verzonken)
+        _buis((0, 12.5, 8.0), (0, 16.2, 8.0), 7.3, 6.2, ZILVER),  # kraag, open
+        cyl_y(0, 14.4, 15.0, 8.0, 6.25, ZWART),     # insert (verzonken bodem)
         *_din_pins)
 
 # ESP32-S3-WROOM-1U: 18x19.2, geen antennezone (lib heeft alleen -1-STEP,
