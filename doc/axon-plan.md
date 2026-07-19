@@ -1,4 +1,4 @@
-# ESP32-netbridge voor Cortex — voorlopig plan v0.1
+# Axon — ESP32-netbridge voor Cortex, voorlopig plan v0.1
 
 *2026-07-20. Aanleiding: Mark constateert dat de geplande ESP32 naast de
 Teensy (UTP + WiFi + API naar de frontend) nooit op het busboard is
@@ -47,11 +47,21 @@ heb je er nog steeds niet. Kan later altijd nog **naast** de netbridge
 (de pads blijven bereikbaar); voor de patch/instellingen-API is de
 ESP32-route de architectuur die de ADR's al kozen.
 
-## Naamsuggestie
+## Naam
 
-In de merkenlijst (doc/marketing/) staat **Axon** nog vrij — een axon is
-de zenuwvezel die signalen het systeem uit draagt; dat is precies wat
-deze kaart doet. Niet bekrachtigd; werktitel hier: netbridge.
+**Axon** — bekrachtigd door Mark 2026-07-20. Een axon is de zenuwvezel
+die signalen het systeem uit draagt; precies wat deze kaart doet.
+
+## USB-host staat hier los van (vraag Mark 2026-07-20)
+
+De DLG-poorten J19/J20 zijn kale UART's (GND/TX/RX/GND) — de
+**USB-host-doorvoer is J23** (2×5, Teensy-hostpads ↔ paneel-USB-A, netten
+USBH_1..5). Axon raakt USB dus niet aan; de paneel-USB-A blijft volledig
+vrij voor bijv. een USB-MIDI-controller. En klopt: meerdere USB-apparaten
+op die ene poort vergt een hub — de Teensy-hoststack (USBHost_t36)
+ondersteunt hubs, dus een klein hubje achter/aan de paneelpoort werkt;
+Axon voegt daar geen apparaat aan toe (zijn USB-C is alleen voor de
+eerste flash en hangt aan de ESP32, niet aan de Teensy).
 
 ## Volgende stappen
 
