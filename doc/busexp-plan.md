@@ -53,12 +53,15 @@ display, codec-poort, TUNE, DLG-UART's.
 
 ## Mechanica
 
-Zelfde bordframe als het hoofdbord: 203,2 × 128,5 mm, zelfde M3-raster,
-slots op dezelfde coördinaten. De westzone (waar op het hoofdbord de
-Teensy zit) is hier vrijwel leeg: daar landen J21, J24 en de voedingshoek.
-J21 aan de **westrand** zodat de lintkabel naar het hoofdbord kort blijft
-als de segmenten naast elkaar hangen; totale buslengte ≤ 20 cm blijft de
-regel.
+**Kleiner dan het hoofdbord** (besluit Mark 2026-07-20: geen ruimte
+verspillen): hoogte en slot-y-posities identiek (kaarten passen
+ongewijzigd), maar de breedte krimpt naar **32 HP = 162,56 mm** — de
+Teensy-/MIDI-/CAN-zones van het hoofdbord vervallen immers. Indeling:
+compacte westzone (~35 mm) met J21, J24 en de voedingshoek, daarna de zes
+slots op de vaste 4 HP-steek. M3-raster: 4 hoeken + noord/zuid-midden,
+zelfde randafstanden als het hoofdbord. J21 aan de **westrand** zodat de
+lintkabel naar het hoofdbord kort blijft; totale buslengte ≤ 20 cm blijft
+de regel.
 
 ## Open punten (voor de definitieve versie)
 
