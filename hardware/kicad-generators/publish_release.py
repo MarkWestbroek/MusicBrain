@@ -25,7 +25,7 @@ VERSIE = 'v0.3'          # gen 2 (2026-07-16); de hardware-set-reeks volgt
                          # modular-mb@v0.2 (gen 1) - zelfde reeks als tag hw/v0.3
 DATUM = '2026-07-16'
 KANAAL = 'stable'
-PINS = [('busboard', 'v3.0'), ('adc8', 'v2.0'), ('dac8', 'v2.0'),
+PINS = [('busboard', 'v3.1'), ('adc8', 'v2.0'), ('dac8', 'v2.0'),
         ('gate8', 'v2.0'), ('gatein8', 'v2.0'), ('jack8', 'v2.0'),
         ('jack4', 'v2.0'), ('riser', 'v2.0'), ('potriser', 'v2.0'),
         ('i2criser', 'v2.0'), ('pot8front', 'v1.1'), ('enc5front', 'v2.0'),
@@ -33,7 +33,7 @@ PINS = [('busboard', 'v3.0'), ('adc8', 'v2.0'), ('dac8', 'v2.0'),
         ('editor-cortex', 'v0.5.48')]   # software x.y.z; volgt fw-contract
 HIGHLIGHTS = [
     'Gen 2: slots 2x12 met audio-lijnen (MCLK/BCLK/LRCLK + I2S-data per slot)',
-    'Busboard rev 3.0: 40 HP, slots gecentreerd op 4 HP-steek, MIDI 2x2, USB-host, J24-audiohub',
+    'Busboard rev 3.1: 40 HP, slots gecentreerd op 4 HP-steek, MIDI 2x2, USB-host, J24-audiohub, J25 Axon-voeding',
     'Kaarten H=45 en op maat (40-65 mm breed); jack8 past nu tussen de rails',
     'Cortex editor 0.5.48: browser-patcher + polyfone simulatie, contract-gekoppeld aan fw 0.5.48',
 ]

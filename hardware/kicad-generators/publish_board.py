@@ -119,6 +119,7 @@ def main():
     ap.add_argument('--name')
     ap.add_argument('--base', default=os.environ.get('IMPRINT_BASE', 'http://localhost:3000'))
     ap.add_argument('--token', default=os.environ.get('INGEST_TOKEN', 'test-ingest-token-123'))
+    ap.add_argument('--glb', help='pad naar model.glb voor de 3D-tab (assets.model3d)')
     ap.add_argument('--dry', action='store_true', help='alleen doc tonen, niet posten')
     a = ap.parse_args()
 
@@ -167,6 +168,9 @@ def main():
             files[fn] = p
             pinouts[c['ref']] = fn
 
+    if a.glb and os.path.exists(a.glb):
+        files['model.glb'] = a.glb
+
     points = widget_points(os.path.join(d, f'{base_name}-widget.json'), pinouts)
     doc = {
         'slug': slug,
@@ -175,6 +179,7 @@ def main():
         'connectors': conns,
         'assets': {'renderTop': 'render-top.png',
                    'overview': 'overview.svg' if 'overview.svg' in files else None,
+                   'model3d': 'model.glb' if 'model.glb' in files else None,
                    'pinouts': pinouts},
         'points': points,
         'sections': readme_sections(os.path.join(d, 'README.md')),
@@ -217,7 +222,8 @@ def main():
     # 2) board-spec multipart
     multipart = [('doc', (None, json.dumps(doc, ensure_ascii=False), 'application/json'))]
     for i, (fn, path) in enumerate(files.items()):
-        ct = 'image/png' if fn.endswith('.png') else 'image/svg+xml'
+        ct = {'png': 'image/png', 'glb': 'model/gltf-binary'}.get(
+            fn.rsplit('.', 1)[-1], 'image/svg+xml')
         multipart.append((f'f{i}', (fn, open(path, 'rb').read(), ct)))
     r2 = requests.post(f'{a.base}/api/ingest/board-spec', headers=H, files=multipart)
     print('board-spec:', r2.status_code, r2.text[:400])
