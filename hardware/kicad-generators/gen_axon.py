@@ -420,11 +420,8 @@ b.paper = "A3"
 b.silk_texts = [
     ("MUSICBRAIN AXON", 123.5, 102.3, 0),
     (f"musicbrain.nl/hw/axon  ({REV})", 143, 128.5, 0),
-    # J1-pin-legende, per pin uitgelijnd (pin 1 = oost x=134 .. pin 6 = west);
-    # groep 5V/GND -> J25, groep GND/RX/TX/GND -> J19 (beide rechte 1:1 kabel)
-    ("5V", 134.0, 143.6, 0, 0.8), ("GND", 131.46, 143.6, 0, 0.8),
-    ("GND", 128.92, 143.6, 0, 0.8), ("RX", 126.38, 143.6, 0, 0.8),
-    ("TX", 123.84, 143.6, 0, 0.8), ("GND", 121.3, 143.6, 0, 0.8),
+    # J1-pin-legende wordt ná plaatsing toegevoegd uit b.P['J1'] (de echte
+    # pad-x): pin 1 = west, pin 6 = oost. Zie onder de J1-fp.
 ]
 P = b.P
 import re as _re
@@ -497,6 +494,11 @@ b.fp('Connector_PinHeader_2.54mm.pretty\\PinHeader_1x06_P2.54mm_Vertical.kicad_m
      'BUSBOARD', 134, 141.5, 90, b.nm({'1': '+5V', '2': 'GND', '3': 'GND',
                                        '4': '/AXON_RX', '5': '/AXON_TX',
                                        '6': 'GND'}))
+# pin-legende uit de echte pad-x (pin 1 west .. pin 6 oost), 2,1 mm zuid
+_J1LAB = {'1': '5V', '2': 'GND', '3': 'GND', '4': 'RX', '5': 'TX', '6': 'GND'}
+for _pn, _lab in _J1LAB.items():
+    _px, _py = b.P['J1'][_pn]
+    b.silk_texts.append((_lab, _px, _py + 2.1, 0, 0.8))
 b.fp('Connector_PinHeader_2.54mm.pretty\\PinHeader_2x07_P2.54mm_Vertical.kicad_mod',
      'Connector_PinHeader_2.54mm:PinHeader_2x07_P2.54mm_Vertical', 'J3',
      'MAGJACK', 164.5, 110.5, 0,

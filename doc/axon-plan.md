@@ -77,10 +77,14 @@ Als Axon rechtstreeks in een 1×6-socket op busboard 3.2 prikt (haakse header
 op Axon), is er **geen kabel meer die een verkeerde oriëntatie opvangt**. De
 socket-pinout op het busboard moet exact spiegelen met de werkelijke
 mechanische stand van de staande Axon — één verkeerde spiegeling en +5V
-staat op een GND-pin. Daarom voor 3.2:
+staat op een GND-pin. Aanpak (voorkeur Mark 2026-07-20):
 
-1. **Gekeyde/geshroude connector** (boxed header + notch) zodat er maar één
-   stand past — bij een directe board-to-board-koppeling geen luxe maar nodig.
+1. **Kale header, geen shroud.** Een haakse geshroude connector is lastig te
+   vinden, groter en waarschijnlijk niet nodig. In plaats daarvan in de
+   bouwinstructie duidelijk opnemen dat **componenten en kabelconnectoren naar
+   binnen wijzen** (vaste stand). We zien bij het passen of het lekker zit —
+   als het makkelijk past en steviger blijkt, prima; een shroud blijft de
+   terugvaloptie als de oriëntatie in de praktijk toch fout gaat.
 2. De busboard-socketpinout **afleiden uit de gemonteerde geometrie** (welke
    Axon-rand naar welke kant), niet uit het schema-nummer; verifiëren met een
    doorbel-check op een sample vóór fab.

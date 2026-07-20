@@ -50,7 +50,8 @@ Nog niet besteld; eerst firmware-bring-up-plan.
   > **2-pin (+5V/GND)** omgekeerd = voeding omgepoold (schade). De **4-pin**
   > lijkt symmetrisch (GND aan beide kanten) maar omgedraaid wisselen RX↔TX.
   > Pin 1 (silk "5V") van elke kabel markeren. Bij de directe koppeling op
-  > busboard 3.2 (geen kabel): gekeyde/geshroude connector — zie
+  > busboard 3.2 (geen kabel): kale header, in de bouwinstructie vastleggen
+  > dat connectoren/componenten naar binnen wijzen (shroud = terugval) — zie
   > `doc/axon-plan.md`.
 - **J2 USB-C** — alleen eerste flash/debug; VBUS voedt het bord via een
   SS34 (bus-5V wint als beide aangesloten zijn). Daarna gaat firmware
