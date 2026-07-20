@@ -213,7 +213,7 @@ def hdr1xn(ref, val, x, y, nets):
             s.label(nm, x - 11.43, yy)
 
 hdr1xn("J1", "BUSBOARD (J25+J19)", 30, 55,
-       ["+5V", "GND", "AXON_TX", "AXON_RX", "GND", None])
+       ["+5V", "GND", "GND", "AXON_RX", "AXON_TX", "GND"])
 hdr1xn("J4", "DEBUG", 30, 80, ["DBG_TX", "DBG_RX", "GND"])
 sbox("U3", "AMS1117-33", 70, 55, ["+5V", "GND"], ["+3V3"],
      "Package_TO_SOT_SMD:SOT-223-3_TabPin2")
@@ -353,11 +353,15 @@ class BBoard(Board):
         sx, sy, srot = self.silk
         _texts = getattr(self, 'silk_texts', None) or \
             [(self.silk_text, sx, sy, srot)]
-        silk_block = '\n'.join(
-            f'  (gr_text "{_t}" (at {fmt(_x)} {fmt(_y)} {_r}) '
-            f'(layer "F.SilkS")\n    (uuid "{self.uid()}")\n'
-            f'    (effects (font (size 1 1) (thickness 0.15))))'
-            for _t, _x, _y, _r in _texts)
+        def _silk(entry):
+            _t, _x, _y, _r = entry[0], entry[1], entry[2], entry[3]
+            _sz = entry[4] if len(entry) > 4 else 1
+            _th = 0.15 if _sz >= 1 else 0.12
+            return (f'  (gr_text "{_t}" (at {fmt(_x)} {fmt(_y)} {_r}) '
+                    f'(layer "F.SilkS")\n    (uuid "{self.uid()}")\n'
+                    f'    (effects (font (size {fmt(_sz)} {fmt(_sz)}) '
+                    f'(thickness {_th}))))')
+        silk_block = '\n'.join(_silk(e) for e in _texts)
         header = f'''(kicad_pcb
   (version 20240108)
   (generator "pcbnew")
@@ -416,7 +420,11 @@ b.paper = "A3"
 b.silk_texts = [
     ("MUSICBRAIN AXON", 123.5, 102.3, 0),
     (f"musicbrain.nl/hw/axon  ({REV})", 143, 128.5, 0),
-    ("5V GND TX RX GND -", 134, 143.6, 0),
+    # J1-pin-legende, per pin uitgelijnd (pin 1 = oost x=134 .. pin 6 = west);
+    # groep 5V/GND -> J25, groep GND/RX/TX/GND -> J19 (beide rechte 1:1 kabel)
+    ("5V", 134.0, 143.6, 0, 0.8), ("GND", 131.46, 143.6, 0, 0.8),
+    ("GND", 128.92, 143.6, 0, 0.8), ("RX", 126.38, 143.6, 0, 0.8),
+    ("TX", 123.84, 143.6, 0, 0.8), ("GND", 121.3, 143.6, 0, 0.8),
 ]
 P = b.P
 import re as _re
@@ -486,9 +494,9 @@ b.fp('Crystal.pretty\\Crystal_SMD_3225-4Pin_3.2x2.5mm.kicad_mod',
 # headers
 b.fp('Connector_PinHeader_2.54mm.pretty\\PinHeader_1x06_P2.54mm_Vertical.kicad_mod',
      'Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical', 'J1',
-     'BUSBOARD', 134, 141.5, 90, b.nm({'1': '+5V', '2': 'GND',
-                                       '3': '/AXON_TX', '4': '/AXON_RX',
-                                       '5': 'GND'}))
+     'BUSBOARD', 134, 141.5, 90, b.nm({'1': '+5V', '2': 'GND', '3': 'GND',
+                                       '4': '/AXON_RX', '5': '/AXON_TX',
+                                       '6': 'GND'}))
 b.fp('Connector_PinHeader_2.54mm.pretty\\PinHeader_2x07_P2.54mm_Vertical.kicad_mod',
      'Connector_PinHeader_2.54mm:PinHeader_2x07_P2.54mm_Vertical', 'J3',
      'MAGJACK', 164.5, 110.5, 0,

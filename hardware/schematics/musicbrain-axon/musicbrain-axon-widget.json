@@ -19,7 +19,7 @@
    "x": 0.4863,
    "y": 0.8955,
    "label": "BUSBOARD (J1)",
-   "markdown": "| pin | net |\n|--|--|\n| 1 | +5V |\n| 2 | GND |\n| 3 | AXON_TX |\n| 4 | AXON_RX |\n| 5 | GND |\n| 6 | — |"
+   "markdown": "| pin | net |\n|--|--|\n| 1 | +5V |\n| 2 | GND |\n| 3 | GND |\n| 4 | AXON_RX |\n| 5 | AXON_TX |\n| 6 | GND |"
   },
   {
    "x": 0.9028,

@@ -89,10 +89,12 @@ Alle drie staan aan een bordrand, dus een **haakse (right-angle) THT-header
 deelt exact hetzelfde padpatroon** als de rechte variant — de gefabriceerde
 PCB steunt beide; het is een bestockings-/BOM-keuze, geen bordwijziging.
 
-- **J1 (1×6, zuidrand)** — voeding+UART naar het busboard. Rechte header nu
-  (twee kabeltjes naar J25+J19). Haaks → pinnen wijzen zuid, van het bord af:
-  dan kan Axon **verticaal** in een socket op busboard rev 3.2 staan. Padrij
-  ligt al op de rand, dus geen herplaatsing nodig.
+- **J1 (1×6, zuidrand)** — voeding+UART naar het busboard, **2+4 gegroepeerd**
+  (besluit Mark 2026-07-20, alle 6 pinnen in gebruik): pin 1-2 = +5V/GND → J25,
+  pin 3-6 = GND/RX/TX/GND → J19. RX op 4 en TX op 5 zodat **beide kabels recht
+  1:1** zijn (de UART-TX↔RX-wissel zit in de pinvolgorde, niet in de kabel).
+  Rechte header nu; haaks → pinnen zuid = Axon **verticaal** in socket op
+  busboard rev 3.2. Padrij ligt al op de rand, geen herplaatsing nodig.
 - **J3 (2×7, oostrand)** — magjack-header naar de **paneel-RJ45 (UTP)** met
   geïntegreerde magnetics; gaat sowieso met een lintkabel naar het paneel, dus
   rechte of haakse header maakt alleen uit voor de kabelbocht. Geen bord-Ethernet-

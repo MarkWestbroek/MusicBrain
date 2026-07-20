@@ -31,9 +31,20 @@ Nog niet besteld; eerst firmware-bring-up-plan.
 - **J3 MAGJACK (2×7)** — kabel naar een paneel-RJ45 mét geïntegreerde
   magnetics (HanRun HR911105A-klasse). **Kabel kort houden (<15 cm) en de
   TX/RX-paren bij elkaar**; shield via 1n/2kV + 1M aan GND.
-- **J1 BUSBOARD (1×6)**: +5V, GND, TX, RX, GND, reserve — twee kabeltjes
-  naar busboard **J25** (+5V) en **J19** (DLG1-UART), of straks
-  rechtstreeks in de verticale socket van busboard rev 3.2.
+- **J1 BUSBOARD (1×6)** — twee **rechte 1:1-kabeltjes** naar het busboard.
+  Pin-volgorde bewust zó dat er niets gekruist hoeft (de UART-TX↔RX-wissel
+  zit al in de pinvolgorde):
+
+  | J1 | signaal | → busboard | kabel |
+  |----|---------|-----------|-------|
+  | 1  | +5V     | J25.1 +5V | power (2 draden) |
+  | 2  | GND     | J25.2 GND | power |
+  | 3  | GND     | J19.1 GND | UART (4 draden) |
+  | 4  | RX (AXON_RX) | J19.2 DLG1_TX | UART |
+  | 5  | TX (AXON_TX) | J19.3 DLG1_RX | UART |
+  | 6  | GND     | J19.4 GND | UART |
+
+  Op busboard rev 3.2 kan dezelfde 1×6 rechtstreeks in een verticale socket.
 - **J2 USB-C** — alleen eerste flash/debug; VBUS voedt het bord via een
   SS34 (bus-5V wint als beide aangesloten zijn). Daarna gaat firmware
   via WiFi-OTA.
