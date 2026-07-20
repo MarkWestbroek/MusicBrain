@@ -414,11 +414,22 @@ class BBoard(Board):
 b = BBoard(TITLE, REV, (135, 142.8, 0), BX0, BY0, BX1, BY1, NETS, DATE)
 b.paper = "A3"
 b.silk_texts = [
-    (f"MUSICBRAIN AXON rev {REV}", 150.5, 129.3, 0),
-    ("musicbrain.nl/hw/axon", 150.5, 131.7, 0),
-    ("5V GND TX RX GND -", 135.35, 138.7, 0),
+    (f"MUSICBRAIN AXON  rev {REV}", 133, 101.2, 0),
+    ("musicbrain.nl/hw/axon", 133, 103.2, 0),
+    ("5V GND TX RX GND -", 134, 143.6, 0),
 ]
 P = b.P
+import re as _re
+
+def ref_off(dx, dy, rot=0):
+    """Verschuif de Reference-silk van het laatst geplaatste onderdeel naar
+    een offset (dx,dy) in het fp-lokale frame - hoek-onderdelen zetten hun
+    ref anders over de bordrand."""
+    t = b.fp_texts[-1]
+    t = _re.sub(r'(\(property "Reference" "[^"]+"\s*\(at )[-\d.]+ [-\d.]+ ?[-\d.]*(\))',
+                lambda m: f'{m.group(1)}{fmt(dx)} {fmt(dy)} {rot}{m.group(2)}',
+                t, count=1)
+    b.fp_texts[-1] = t
 
 # ---------- plaatsing (70x45) ----------
 # west: USB-C + module; zuid: J1 + LDO + debug; oost: W5500 + magjack-header
@@ -429,6 +440,7 @@ b.fp('Connector_USB.pretty\\USB_C_Receptacle_HRO_TYPE-C-31-M-12.kicad_mod',
                             'A9': '/VBUS', 'B4': '/VBUS', 'A5': '/CC1',
                             'B5': '/CC2', 'A6': '/USB_DP', 'B6': '/USB_DP',
                             'A7': '/USB_DM', 'B7': '/USB_DM', 'SH': 'GND'}))
+ref_off(0, 5.5)   # J2-ref oost van de connector (default valt west, buiten)
 b.fp('RF_Module.pretty\\ESP32-S3-WROOM-1U.kicad_mod',
      'RF_Module:ESP32-S3-WROOM-1U', 'U1', 'ESP32-S3-WROOM-1U-N8R2',
      123, 116.5, 0, b.nm({
@@ -546,12 +558,13 @@ b.fp('Capacitor_SMD.pretty\\C_1206_3216Metric.kicad_mod',
      'Capacitor_SMD:C_1206_3216Metric', 'C22', '1n-2kV', 156.5, 137.5, 0,
      b.rc('/SHLD', 'GND'))
 
-# montagegaten
-for ref, x, y in (('H1', 104, 104), ('H2', 166, 104),
-                  ('H3', 104, 141), ('H4', 166, 141)):
+# montagegaten (ref naar binnen: default valt over de bordrand)
+for ref, x, y, rdx, rdy in (('H1', 104, 104, 2.6, 1.8), ('H2', 166, 104, -2.6, 1.8),
+                            ('H3', 104, 141, 2.6, -1.8), ('H4', 166, 141, -2.6, -1.8)):
     b.fp('MountingHole.pretty\\MountingHole_3.2mm_M3_Pad.kicad_mod',
          'MountingHole:MountingHole_3.2mm_M3_Pad', ref, 'M3', x, y, 0,
          b.nm({'1': 'GND'}))
+    ref_off(rdx, rdy)
 
 # ---------- handwerk: USB-C-padparen (gswitch-les) ----------
 YJ = 122.0
