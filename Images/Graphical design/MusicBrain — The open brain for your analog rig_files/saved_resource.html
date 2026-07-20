@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<!-- saved from url=(0253)https://a1554274-74bd-4b07-a9cc-598fb42d6231.frame.claudeusercontent.com/_f/1783310022-a83c/?__frame_t=H2RKpjI06HCJTw6S9f3VJo86.5b7994f6-500c-42e1-8ede-3f8499dbbad2.b8a95275-6ff5-4396-8c2a-a925446a46fd.1784296861&__frame_v=manifest.4af8359bd414963e.json -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><!-- frame-runtime --><!--<base href="/_f/1783310022-a83c/">--><base href="."><script>window.__FRAME_PREAMBLE={"capabilities":{"downloads":"downloads.DUzXFHNF.js","mcp":"mcp.CLzOm9JX.js","permissions":"permissions.C9OCnDjh.js","self":"self.DqF_PxOe.js"},"transforms":"_transforms.DYk1Ltlh.js","comments":"_comments.Dp6RDy7J.js"}</script><script>(function(){"use strict";const ce="modulepreload",le=function(e){return"/"+e},ue={},x=function(t,n,u){let o=Promise.resolve();function s(f){const a=new Event("vite:preloadError",{cancelable:!0});if(a.payload=f,window.dispatchEvent(a),!a.defaultPrevented)throw f}return o.then(f=>{for(const a of f||[])a.status==="rejected"&&s(a.reason);return t().catch(s)})},K=["light","dark","system"];function G(e){if(e==null||typeof e!="object")return!1;const t=e.__frame_init;return t!=null&&typeof t=="object"}function J(e){return e!=null&&typeof e=="object"&&e.__frame_size_poke===!0}function V(e){if(e==null||typeof e!="object")return!1;const t=e.__frame_theme;if(t==null||typeof t!="object")return!1;const n=t.theme;return typeof n=="string"&&K.includes(n)}function Y(e){try{typeof reportError=="function"?reportError(e):setTimeout(()=>{throw e},0)}catch{}}function z(e){if(window===top||e.type==="auxclick"&&e.button!==1)return;const t=e.composedPath?e.composedPath():[e.target];let n=null;for(let f=0;f<t.length;f++){const a=t[f];if(a&&a.matches&&a.matches("a[href],area[href]")){n=a;break}}if(!n&&e.target&&e.target.closest&&(n=e.target.closest("a[href],area[href]")),!n)return;const u=n.getAttribute("href");if(!u)return;let o,s;try{o=new URL(u,document.baseURI),s=new URL(document.baseURI).origin}catch{return}(o.protocol==="http:"||o.protocol==="https:")&&o.origin!==s&&(e.preventDefault(),parent.postMessage({__frame_nav:!0,url:o.href},"*"))}const D={};function T(e){if(window===top)return;const t=Date.now();t-(D[e]||0)<500||(D[e]=t,parent.postMessage({__frame_engaged:!0,kind:e},"*"))}const Q=2e3,U=["wheel","touchstart","touchmove","keydown","pointerdown"];let B=0;function X(e){e.isTrusted&&(B=Date.now())}function Z(){addEventListener("click",z,!0),addEventListener("auxclick",z,!0)}function ee(){for(let e=0;e<U.length;e++)addEventListener(U[e],X,{capture:!0,passive:!0});addEventListener("scroll",e=>{e.isTrusted&&Date.now()-B<Q&&T("scroll")},{capture:!0,passive:!0}),addEventListener("pointermove",e=>{e.isTrusted&&T("pointer")},{capture:!0,passive:!0}),addEventListener("click",e=>{e.isTrusted&&T("click")},{capture:!0,passive:!0})}function te(e,t,n){const u=[...t.values()].filter(o=>o.targets.some(s=>s.startsWith(e+".")));return{wrap(o,s){const f=`${e}.${o}`,a=u.filter(i=>i.targets.includes(f));return a.length===0?(...i)=>{try{return s(...i)}catch(p){return Promise.reject(p)}}:(...i)=>{let p=i;for(const c of a){const l=c.module.parameters;if(l)try{p=l(p)}catch{return Promise.reject({code:"transform_error",id:c.id,scope:e,message:"parameters transform failed"})}}let h;try{h=s(...p)}catch(c){h=Promise.reject(c)}return h.then(c=>{for(let l=a.length-1;l>=0;l--){const m=a[l],d=m.module.returns;if(d)try{c=d(c)}catch{return n({id:m.id,scope:e,leg:"returns"}),c}}return c},c=>{for(let l=a.length-1;l>=0;l--){const m=a[l],d=m.module.throws;if(d)try{c=d(c)}catch{return n({id:m.id,scope:e,leg:"throws"}),Promise.reject(c)}}return Promise.reject(c)})}}}}function ne(e,t,n,u=()=>{}){const o=new Set(e.changes??[]),s=new Map;for(const f of o){const a=t[f];a&&s.set(f,a)}return{contract:e.contract,changes:o,flags:new Set(e.flags??[]),capabilities:e.capabilities??{},capBudgets:e.capBudgets??{},transforms:s,shellOrigin:n.shellOrigin,mount:n.mount,pipe:f=>te(f,s,u)}}(function(){const e=Object.defineProperty,t=globalThis,n=["RTCPeerConnection","webkitRTCPeerConnection","RTCDataChannel","RTCIceCandidate","RTCSessionDescription","RTCRtpSender","RTCRtpReceiver"];let u=0;for(let o=0;o<n.length;o++){const s=n[o];try{e(t,s,{value:void 0,writable:!1,configurable:!1})}catch{try{delete t[s]}catch{}try{e(t,s,{value:void 0,writable:!1,configurable:!0})}catch{}}typeof t[s]=="function"&&u++}if(u&&window!==top)try{parent.postMessage({__frame_rtc_lockdown_failed:u},"*")}catch{}})();const re=1e4,oe=Object.freeze([...window.__FRAME_PREAMBLE?.origins??["https://claude.ai","https://preview.claude.ai"]]);function se(e){for(const t of oe)if(t.endsWith(":*"))try{const n=new URL(e);if(`${n.protocol}//${n.hostname}:*`===t)return!0}catch{}else if(e===t)return!0;return!1}const R=Object.freeze({...window.__FRAME_PREAMBLE?.capabilities??{}}),A=window.__FRAME_PREAMBLE?.transforms,k=window.__FRAME_PREAMBLE?.comments,C=/^[\w.-]+\.js$/,ie=/^[a-z][a-z0-9_-]{0,63}$/;let F=null,v=null;function N(e,t,n){try{Object.defineProperty(e,t,{value:n,writable:!1,configurable:!1,enumerable:!0})}catch{try{Object.defineProperty(e,t,{value:n,writable:!1,configurable:!0,enumerable:!0})}catch{}}}let I=!1;function H(e){const t=document.documentElement;e==="light"||e==="dark"?(t.dataset.theme=e,t.style.colorScheme=e,I=!0):I&&(delete t.dataset.theme,t.style.colorScheme="",I=!1)}const E={mcp:{watchTool:{handlerArg:3}}},P=new Map;function ae(e,t){const n=P.get(e);if(!n)return;Object.assign(n.impl,t),n.impl.__settled=()=>Promise.reject({code:"capability_removed",message:`${e}: method not in this runtime`});const u=n.queue;n.queue=[];for(const o of u){const s=t[o.method];if(s)if(E[e]?.[o.method])try{o.resolve(s(...o.args))}catch{O(o,E[e][o.method].handlerArg,{code:"transform_error",message:`${e}.${o.method} rejected its arguments`})}else s(...o.args).then(o.resolve,o.reject);else{const f={code:"capability_removed",message:`${e}.${o.method} is not in this runtime`},a=E[e]?.[o.method];if(a){O(o,a.handlerArg,f);continue}o.reject(f)}}}function $(e,t){const n=P.get(e);if(!n)return;n.impl.__settled=()=>Promise.reject(t);const u=n.queue;n.queue=[];for(const o of u){const s=E[e]?.[o.method];if(s){O(o,s.handlerArg,t);continue}o.reject(t)}}function O(e,t,n){if(e.syncState?.dead)return;const u=e.args[t];typeof u=="function"&&queueMicrotask(()=>{if(!e.syncState?.dead)try{u({type:"error",error:n})}catch(o){Y(o)}})}const q=Object.getOwnPropertyDescriptor(window,"claude");if(window!==top&&!(q&&q.writable===!1)){Z(),ee();const e=q?.value??{};N(window,"claude",e);const t=i=>{const p={impl:Object.create(null),queue:[]};P.set(i,p);const h=new Proxy(p.impl,{get:(c,l)=>{if(typeof l!="string"||l==="then"||l==="toJSON"||l==="valueOf")return;if(l==="toString")return Object.prototype.toString;const m=E[i]?.[l];return m?(...d)=>{if(typeof d[m.handlerArg]!="function")throw new TypeError(`${i}.${l} requires a handler function`);const g=c[l];if(g)return g(...d);if(c.__settled){const _={dead:!1},S={args:[...d],syncState:_};return c.__settled().catch(j=>O(S,m.handlerArg,j)),()=>{_.dead=!0}}let y=null;const w={dead:!1};return p.queue.push({method:l,args:d,resolve:_=>{y=typeof _=="function"?_:null,w.dead&&y?.()},reject:()=>{},syncState:w}),()=>{w.dead=!0,y?.()}}:(...d)=>{const g=c[l]??c.__settled;return g?g(...d):new Promise((y,w)=>{p.queue.push({method:l,args:d,resolve:y,reject:w})})}},set:()=>!1});N(e,i,h)};for(const i of Object.keys(R)){if(e[i]!==void 0){N(e,i,e[i]);continue}t(i)}let n=null,u=null,o=0;const s=i=>{i.source!==parent||!se(i.origin)||G(i.data)&&(n=i.data.__frame_init,v=i.origin,removeEventListener("message",s),clearTimeout(o),u?.())};addEventListener("message",s),parent.postMessage({__frame_connect:!0},"*");const f=new Promise(i=>{u=i,o=setTimeout(()=>{removeEventListener("message",s),i()},re)}),a=document.readyState==="loading"?new Promise(i=>document.addEventListener("DOMContentLoaded",()=>i(),{once:!0})):Promise.resolve();f.then(async()=>{if(!n||!v){for(const r of P.keys())$(r,{code:"not_granted",message:"frame initialization did not arrive - capability unavailable"});return}H(n.theme);const i=v;let p=!1;addEventListener("message",r=>{if(r.source!==parent||r.origin!==i)return;V(r.data)&&H(r.data.__frame_theme.theme);const b=r.data?.__fc_mode;b&&typeof b=="object"&&!p&&k&&C.test(k)&&(p=!0,h(k).then(L=>L.install?.(i,b.on===!0)).catch(()=>{}))});const h=r=>x(()=>import("/_runtime/"+r),void 0),c=Object.keys(n.capabilities??{});for(const r of c)Object.hasOwn(R,r)||ie.test(r)&&e[r]===void 0&&(t(r),$(r,{code:"capability_disabled",message:"capability not in this runtime generation"}));const l=c.filter(r=>Object.hasOwn(R,r)).map(r=>[r,R[r]]).filter(r=>typeof r[1]=="string"&&C.test(r[1])),[m,...d]=await Promise.allSettled([A&&C.test(A)?h(A):Promise.resolve({}),...l.map(([,r])=>h(r))]),g=v;F=ne(n,m.status==="fulfilled"&&m.value?.TRANSFORMS||{},{shellOrigin:g,mount:ae},r=>parent.postMessage({__frame_cap_telemetry:r},g));const y=r=>parent.postMessage({__frame_cap_telemetry:{kind:"cap-load-error",cap:r}},g),w=F;d.forEach((r,b)=>{const L=l[b][0];if(r.status!=="fulfilled"){y(L);return}try{r.value?.install?.(w)}catch{y(L)}});for(const[r,b]of P)b.queue.length===0&&Object.keys(b.impl).length>0||$(r,{code:c.includes(r)?"capability_disabled":"not_granted",message:"capability not available in this session"});await a,parent.postMessage({__frame_ready:!0},v);let _=-1,S=0;const j=()=>{S=0;const r=Math.max(document.documentElement.scrollHeight,document.body?document.body.scrollHeight:0);r!==_&&(_=r,parent.postMessage({__frame_size:!0,h:r},g))},M=()=>{S||(S=setTimeout(j,200))},W=new ResizeObserver(M);W.observe(document.documentElement),document.body&&W.observe(document.body),document.addEventListener("load",M,!0),document.fonts?.ready.then(M,()=>{}),addEventListener("beforeprint",()=>{_=-1,j()}),M(),addEventListener("message",r=>{r.source!==parent||r.origin!==g||J(r.data)&&(_=-1,M())})})}})();</script><!-- /frame-runtime --><meta name="viewport" content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}</style></head><body>
+<title>MusicBrain — The open brain for your analog rig</title>
+<style>
+  :root {
+    --bg: #0E1116;
+    --panel: #151B23;
+    --panel-2: #10151C;
+    --ink: #F2F4F8;
+    --muted: #8C96A5;
+    --amber: #F5A623;
+    --amber-dim: #B87F1F;
+    --cyan: #3EC9D8;
+    --line: #232B36;
+    --display: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --mono: "Cascadia Code", "JetBrains Mono", Consolas, "SF Mono", monospace;
+  }
+  html { background: var(--bg); }
+  body {
+    margin: 0;
+    color: var(--ink);
+    font-family: var(--display);
+    line-height: 1.55;
+    background:
+      radial-gradient(ellipse 90% 40% at 50% -5%, rgba(245,166,35,0.07), transparent 70%),
+      radial-gradient(circle 1px at 1px 1px, rgba(140,150,165,0.13) 1px, transparent 1px) 0 0 / 26px 26px,
+      var(--bg);
+  }
+  .page { max-width: 780px; margin: 0 auto; padding: 56px 28px 64px; }
+
+  /* ---------- hero ---------- */
+  .mark { display: flex; align-items: center; gap: 18px; margin-bottom: 34px; }
+  .wordmark { font-size: 26px; font-weight: 700; letter-spacing: 0.01em; }
+  .wordmark span { color: var(--amber); }
+  .est { font-family: var(--mono); font-size: 11px; color: var(--muted); letter-spacing: 0.14em; text-transform: uppercase; margin-top: 2px; }
+
+  h1 {
+    font-size: clamp(38px, 7vw, 58px);
+    line-height: 1.04;
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    margin: 0 0 20px;
+    text-wrap: balance;
+  }
+  h1 em { font-style: normal; color: var(--amber); }
+  .lede { font-size: 19px; color: var(--muted); max-width: 58ch; margin: 0 0 8px; }
+  .lede strong { color: var(--ink); font-weight: 600; }
+
+  /* ---------- scope divider ---------- */
+  .scope { display: block; width: 100%; height: 46px; margin: 34px 0 30px; }
+
+  /* ---------- section labels ---------- */
+  .eyebrow {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.22em;
+    text-transform: uppercase; color: var(--amber); margin: 0 0 14px;
+  }
+
+  /* ---------- product cards ---------- */
+  .family { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  @media (max-width: 640px) { .family { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    padding: 20px 18px 18px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .card h3 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
+  .card h3 small { display: block; font-family: var(--mono); font-size: 10px; font-weight: 400; color: var(--muted); letter-spacing: 0.16em; text-transform: uppercase; margin-bottom: 4px; }
+  .card p { margin: 0; font-size: 14px; color: var(--muted); flex: 1; }
+  .badge {
+    align-self: flex-start;
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em;
+    color: var(--amber); border: 1px solid var(--amber-dim);
+    padding: 3px 8px; border-radius: 2px;
+  }
+  .badge.dim { color: var(--muted); border-color: var(--line); }
+
+  /* ---------- specs strip ---------- */
+  .specs {
+    margin: 30px 0 0;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    padding: 18px 22px;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+    font-family: var(--mono);
+  }
+  @media (max-width: 640px) { .specs { grid-template-columns: repeat(2, 1fr); } }
+  .spec b { display: block; font-size: 17px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .spec span { font-size: 10.5px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+
+  /* ---------- open / try blocks ---------- */
+  .twocol { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 30px; }
+  @media (max-width: 640px) { .twocol { grid-template-columns: 1fr; } }
+  .block { border: 1px solid var(--line); background: var(--panel); padding: 22px 20px; }
+  .block h2 { margin: 0 0 10px; font-size: 20px; letter-spacing: -0.015em; }
+  .block p { margin: 0; font-size: 14.5px; color: var(--muted); }
+  .block p strong { color: var(--ink); }
+
+  /* ---------- footer ---------- */
+  footer { margin-top: 36px; border-top: 1px solid var(--line); padding-top: 22px;
+           display: flex; flex-wrap: wrap; gap: 10px 26px; align-items: baseline; justify-content: space-between; }
+  .cta { font-family: var(--mono); font-size: 12.5px; letter-spacing: 0.06em; }
+  .cta a { color: var(--amber); text-decoration: none; border-bottom: 1px solid var(--amber-dim); padding-bottom: 1px; }
+  .cta a:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; }
+  .fine { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+</style>
+
+<div class="page">
+  <header class="mark">
+    <!-- Patch-brain mark: jack-nodes + cable arcs suggesting a brain (richting A) -->
+    <svg width="56" height="48" viewBox="0 0 70 60" aria-label="MusicBrain mark" role="img">
+      <g fill="none" stroke="#F5A623" stroke-width="3" stroke-linecap="round">
+        <path d="M14 42 Q 12 18 33 13"></path>
+        <path d="M33 13 Q 58 12 57 33"></path>
+        <path d="M14 42 Q 20 54 38 51"></path>
+        <path d="M38 51 Q 54 48 57 33"></path>
+        <path d="M25 32 Q 35 24 46 33"></path>
+      </g>
+      <g fill="#0E1116" stroke="#F5A623" stroke-width="3">
+        <circle cx="14" cy="42" r="5.5"></circle>
+        <circle cx="33" cy="13" r="5.5"></circle>
+        <circle cx="57" cy="33" r="5.5"></circle>
+        <circle cx="38" cy="51" r="5.5"></circle>
+      </g>
+      <circle cx="35.5" cy="31" r="4" fill="#F5A623"></circle>
+    </svg>
+    <div>
+      <div class="wordmark">Music<span>Brain</span></div>
+      <div class="est">open hardware · est. NL</div>
+    </div>
+  </header>
+
+  <h1>The open brain for your <em>analog</em> rig.</h1>
+  <p class="lede">
+    Pedalboards, amp racks and modular synths have one thing in common:
+    <strong>they forget.</strong> Every setting, every routing, every patch —
+    gone the moment you touch it. MusicBrain gives them memory.
+    Your audio stays 100% analog; the brain speaks only relays, CV and gate.
+  </p>
+
+  <!-- scope step-line divider: gate + CV trace, cyan reserved for scope only -->
+  <svg class="scope" viewBox="0 0 780 46" preserveAspectRatio="none" aria-hidden="true">
+    <line x1="0" y1="23" x2="780" y2="23" stroke="#232B36" stroke-width="1"></line>
+    <path d="M0 36 H90 V10 H210 V36 H330 V10 H400 V36 H560 V18 H660 V36 H780" fill="none" stroke="#3EC9D8" stroke-width="2" opacity="0.9"></path>
+  </svg>
+
+  <p class="eyebrow">One platform · three machines</p>
+  <div class="family">
+    <div class="card">
+      <h3><small>for modular synths</small>Cortex</h3>
+      <p>Save and recall full patches. Play your analog oscillators
+         polyphonically — up to 16 voices, allocated live from MIDI.</p>
+      <span class="badge">fw 0.5 · on hardware</span>
+    </div>
+    <div class="card">
+      <h3><small>for pedalboards</small>Reflex</h3>
+      <p>Silent relay switching for your whole board in one tap.
+         Configure over WiFi from any browser — no app.</p>
+      <span class="badge">working prototype</span>
+    </div>
+    <div class="card">
+      <h3><small>for studios</small>Relay</h3>
+      <p>Any pre-amp to any power amp to any cab. Pop-free, pure
+         relays, recalled from your desk.</p>
+      <span class="badge dim">in design</span>
+    </div>
+  </div>
+
+  <div class="specs">
+    <div class="spec"><b>≤ 5 ms</b><span>note-on → CV</span></div>
+    <div class="spec"><b>16-bit</b><span>pitch CV · 1V/oct</span></div>
+    <div class="spec"><b>16</b><span>voices, multi-case</span></div>
+    <div class="spec"><b>MIT</b><span>everything open</span></div>
+  </div>
+
+  <div class="twocol">
+    <div class="block">
+      <h2>Try it before it exists.</h2>
+      <p>The <strong>free browser editor</strong> patches modules, turns knobs
+         live and shows every CV on a built-in scope. No hardware yet? The
+         <strong>simulator</strong> runs the exact same firmware core on your
+         laptop.</p>
+    </div>
+    <div class="block">
+      <h2>Open, top to bottom.</h2>
+      <p>Firmware, editor, schematics and protocols are
+         <strong>MIT-licensed</strong>. No lock-in, no orphaned gear — extend
+         it, port to it, fix it at 2 a.m. Rings &amp; Plaits already run on it.</p>
+    </div>
+  </div>
+
+  <footer>
+    <div class="cta">
+      <a href="https://a1554274-74bd-4b07-a9cc-598fb42d6231.frame.claudeusercontent.com/_f/1783310022-a83c/#">github.com/…</a> &nbsp;·&nbsp;
+      <a href="https://a1554274-74bd-4b07-a9cc-598fb42d6231.frame.claudeusercontent.com/_f/1783310022-a83c/#">discord</a> &nbsp;·&nbsp;
+      <a href="https://a1554274-74bd-4b07-a9cc-598fb42d6231.frame.claudeusercontent.com/_f/1783310022-a83c/#">newsletter / beta list</a>
+    </div>
+    <div class="fine">in active development — built in the open</div>
+  </footer>
+</div>
+
+</body></html>
