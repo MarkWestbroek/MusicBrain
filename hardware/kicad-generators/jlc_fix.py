@@ -41,6 +41,10 @@ LCSC_PASSIVE = {
     "10k":  "C17414",    # 10kOhm 0805         (Basic)
     "100R": "C17408",    # 100Ohm 0805         (Basic)
     "100k": "C149504",   # 100kOhm 0805        (Basic)
+    "20k":  "C4328",     # 20kOhm 1% 0805      (Basic)     - vca8 RIN/RFB
+    "100p": "C1790",     # 100pF 50V C0G 0805  (Basic)     - vca8 CFB
+    "1n2":  "C2176739",  # 1.2nF 100V C0G 0805 (Extended)  - vca8 stab-RC
+    "4u7":  "C1779",     # 4.7uF 25V X5R 0805  (Basic)     - vca8 slew
 }
 
 # Actieve/unieke onderdelen: match op comment (na strippen van " (...)").
@@ -63,6 +67,9 @@ LCSC_DEVICE = {
     "SN65HVD230":    "C12084",    # CAN-transceiver, SOIC-8
     "MCP3208":       "C16939",    # 8ch 12-bit SPI-ADC, SOIC-16
     "MCP23017-E/ML": "C639770",   # 16-bit I/O-expander, QFN-28
+    "TL074":         "C12594",    # quad opamp TL074CDR, SOIC-14 - vca8
+    "DAC128S085CIMTX": "C882851", # octaal 12-bit DAC, TSSOP-16 (tape) - vca8
+    # "SSI2164": bewust LEEG - Sound Semi, niet bij LCSC; zelf solderen
 }
 
 # Delen waar de waarde alleen niet volstaat -> match op (comment, exacte
@@ -81,7 +88,8 @@ LCSC_CONN = {
     "PinSocket_2x10_P2.54mm_Vertical": "C92266",     # busboard SLOT-sockets J1-J6
     "IDC-Header_2x13_P2.54mm_Vertical": "C2884553",  # busboard EXPANSION J21 (X9555WV, 2.54mm)
     "IDC-Header_2x05_P2.54mm_Vertical": "C5665",        # busboard HUB1/HUB2/PWRIN J7-J9 (2.54mm)
-    "PinHeader_2x10_P2.54mm_Horizontal": "C19190505",   # slotkaart J1 BUS (haaks male 2x10)
+    "PinHeader_2x10_P2.54mm_Horizontal": "C19190505",   # slotkaart J1 BUS gen-1 (haaks male 2x10)
+    "PinHeader_2x12_P2.54mm_Horizontal": "C2894992",    # slotkaart J1 BUS gen-2 (PZ254-2-12-W-8.5, haaks male 2x12)
     "PinHeader_1x10_P2.54mm_Horizontal": "C2687688",    # slotkaart J2 CV/gates (A2541WR-10P, haaks)
     "SW_PUSH_6mm": "C110153",                           # enc5front SW6/SW7 knopjes (6x6mm THT tact)
 }
@@ -137,6 +145,8 @@ ROT_FIX = {
     "SOT-223-3_TabPin2":           180,  # U3 AMS1117
     "SOIC-8_3.9x4.9mm_P1.27mm":    270,  # U12
     "SOIC-16_3.9x9.9mm_P1.27mm":   270,  # 74HC165/74HCT595/MCP3208 (cross-chip geverifieerd)
+    "SOIC-14_3.9x8.7mm_P1.27mm":   270,  # vca8 TL074 U3/U4 (preview-geverifieerd 2026-07-20)
+    "TSSOP-16_4.4x5mm_P0.65mm":    270,  # vca8 DAC128S085 U5 (preview-geverifieerd 2026-07-20)
     "SOIC-20W_7.5x12.8mm_P1.27mm": 270,  # U8
     "SOIC-24W_7.5x15.4mm_P1.27mm":  90,  # U4 74HC154
     "HTSSOP-24-1EP_4.4x7.8mm_P0.65mm_EP3.2x5mm": 270,  # dac8 AD5754 (geverifieerd)

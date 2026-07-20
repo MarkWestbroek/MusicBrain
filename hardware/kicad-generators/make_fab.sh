@@ -20,6 +20,7 @@ musicbrain-i2criser:musicbrain-i2criser
 musicbrain-busboard:musicbrain-busboard
 musicbrain-axon:musicbrain-axon
 musicbrain-vca8:musicbrain-vca8
+musicbrain-matrix:musicbrain-matrix
 "
 
 # optioneel: alleen geselecteerde borden (komma-gescheiden dir-namen als arg 1)
