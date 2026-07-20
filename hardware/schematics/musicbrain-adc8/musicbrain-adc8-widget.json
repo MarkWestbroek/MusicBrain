@@ -21,5 +21,10 @@
    "label": "BUS (J1)",
    "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | +12V |\n| 3 | GND |\n| 4 | — |\n| 5 | GND |\n| 6 | +3V3 |\n| 7 | SCLK |\n| 8 | GND |\n| 9 | — |\n| 10 | GND |\n| 11 | MISO |\n| 12 | GND |\n| 13 | CS |\n| 14 | GND |\n| 15 | — |\n| 16 | IRQ |\n| 17 | — |\n| 18 | — |\n| 19 | CONVST |\n| 20 | GND |\n| 21 | — |\n| 22 | — |\n| 23 | — |\n| 24 | — |"
   }
- ]
+ ],
+ "view3d": {
+  "mode": "glb",
+  "src": "/boards/musicbrain-adc8.glb",
+  "poster": "/boards/musicbrain-adc8.png"
+ }
 }

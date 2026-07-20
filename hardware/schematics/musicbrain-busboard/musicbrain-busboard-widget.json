@@ -159,5 +159,10 @@
    "label": "HUB 2 (J8)",
    "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | CS8 |\n| 3 | MISO |\n| 4 | MOSI |\n| 5 | SCLK |\n| 6 | GND |\n| 7 | +3V3 |\n| 8 | GND |\n| 9 | -12V |\n| 10 | +12V |"
   }
- ]
+ ],
+ "view3d": {
+  "mode": "glb",
+  "src": "/boards/musicbrain-busboard.glb",
+  "poster": "/boards/musicbrain-busboard.png"
+ }
 }

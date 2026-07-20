@@ -46,7 +46,7 @@
    "markdown": "| pin | net |\n|--|--|\n| 1 | CH7 |\n| 2 | GND |\n| 3 | NORM |"
   },
   {
-   "x": 0.2212,
+   "x": 0.2213,
    "y": 0.9864,
    "label": "NORM=GND (JP1)",
    "markdown": ""
@@ -58,10 +58,15 @@
    "markdown": "| pin | net |\n|--|--|\n| 1 | CH8 |\n| 2 | GND |\n| 3 | NORM |"
   },
   {
-   "x": 0.7788,
+   "x": 0.7787,
    "y": 0.3961,
    "label": "SOCKET-BACK (J1)",
    "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | CH1 |\n| 3 | CH2 |\n| 4 | CH3 |\n| 5 | CH4 |\n| 6 | CH5 |\n| 7 | CH6 |\n| 8 | CH7 |\n| 9 | CH8 |\n| 10 | GND |"
   }
- ]
+ ],
+ "view3d": {
+  "mode": "glb",
+  "src": "/boards/musicbrain-jack8.glb",
+  "poster": "/boards/musicbrain-jack8.png"
+ }
 }

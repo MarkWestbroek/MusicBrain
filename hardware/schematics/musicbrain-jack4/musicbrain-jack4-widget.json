@@ -39,5 +39,10 @@
    "label": "SOCKET-BACK (J1)",
    "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | CH1 |\n| 3 | CH2 |\n| 4 | CH3 |\n| 5 | CH4 |\n| 6 | GND |"
   }
- ]
+ ],
+ "view3d": {
+  "mode": "glb",
+  "src": "/boards/musicbrain-jack4.glb",
+  "poster": "/boards/musicbrain-jack4.png"
+ }
 }

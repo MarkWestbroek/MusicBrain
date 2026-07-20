@@ -15,5 +15,10 @@
    "label": "BUS (J1)",
    "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | +12V |\n| 3 | GND |\n| 4 | -12V |\n| 5 | GND |\n| 6 | +3V3 |\n| 7 | SCLK |\n| 8 | GND |\n| 9 | MOSI |\n| 10 | GND |\n| 11 | MISO |\n| 12 | GND |\n| 13 | CS |\n| 14 | GND |\n| 15 | LDAC |\n| 16 | IRQ |\n| 17 | SDA |\n| 18 | SCL |\n| 19 | SPARE1 |\n| 20 | GND |\n| 21 | MCLK |\n| 22 | BCLK |\n| 23 | LRCLK |\n| 24 | I2S_DATA |"
   }
- ]
+ ],
+ "view3d": {
+  "mode": "glb",
+  "src": "/boards/musicbrain-riser.glb",
+  "poster": "/boards/musicbrain-riser.png"
+ }
 }

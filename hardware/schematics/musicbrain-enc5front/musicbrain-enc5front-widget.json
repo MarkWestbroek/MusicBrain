@@ -15,5 +15,10 @@
    "label": "Header_2x08_backside (J2)",
    "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | +3V3 |\n| 3 | X_E6A |\n| 4 | X_E6B |\n| 5 | X_E6S |\n| 6 | X_E7A |\n| 7 | X_E7B |\n| 8 | X_E7S |\n| 9 | X_K1 |\n| 10 | X_K2 |\n| 11 | X_K3 |\n| 12 | X_K4 |\n| 13 | X_SP1 |\n| 14 | X_SP2 |\n| 15 | GND |\n| 16 | GND |"
   }
- ]
+ ],
+ "view3d": {
+  "mode": "glb",
+  "src": "/boards/musicbrain-enc5front.glb",
+  "poster": "/boards/musicbrain-enc5front.png"
+ }
 }

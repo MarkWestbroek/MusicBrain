@@ -15,5 +15,10 @@
    "label": "GND+DAC A-D (J2)",
    "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | Net-(J2-Pin_2) |\n| 3 | Net-(J2-Pin_3) |\n| 4 | Net-(J2-Pin_4) |\n| 5 | Net-(J2-Pin_5) |"
   }
- ]
+ ],
+ "view3d": {
+  "mode": "glb",
+  "src": "/boards/ad5754r-breakout.glb",
+  "poster": "/boards/ad5754r-breakout.png"
+ }
 }
