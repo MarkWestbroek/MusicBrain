@@ -18,7 +18,7 @@ Vul zelf *aantal besteld* en *besteldatum* in bij het bestellen.
 | musicbrain-potriser | 2.0 | bestelbaar | gen 2: 40×45, slot 2×12; pin-1-passing checken | rot checken: MCP3208 (SOIC-16) | | | |
 | musicbrain-enc5front | 2.0 | bestelbaar | 30 mm breed, uiterst links/rechts; ⚠️ QFN-pinout checken vóór assemblage | 3D-model J1/J2 nudge (render, cosmetisch); rot QFN ✅ | 10 | 53 | |
 | musicbrain-i2criser | 2.0 | bestelbaar | gen 2: 40×45, slot 2×12 | — (PCB-only) | | | |
-| musicbrain-busboard | 3.0 | bestelbaar | gen 2: 203,2×128,5 (40 HP), slots 2×12 gecentreerd, audio + J24-hub, MIDI 2×2, USB-host, 1A-regelaar | rot checken (nieuwe placement); connectoren + oriëntatie nalopen | | | |
+| musicbrain-busboard | 3.1 | bestelbaar | gen 2: 203,2×128,5 (40 HP), slots 2×12 gecentreerd, audio + J24-hub, MIDI 2×2, USB-host, 1A-regelaar, J25 Axon-voeding | rot checken (nieuwe placement); connectoren + oriëntatie nalopen | | | |
 | ~~musicbrain-busboard-v2~~ | 2.0 | vervangen | gen-1-stand bevroren in `musicbrain-busboard-v2/rel-v0.2/`; nooit besteld | — | | | |
 | ~~musicbrain-busboard~~ | 1.1 | deprecated | vervangen door v2 (16×CS/12×IRQ + expansie) — in `deprecated/` | — | | | |
 | ~~musicbrain-enc4~~ | 1.0 | deprecated | vervangen door enc5front + i2criser — in `deprecated/` | — | | | |
@@ -33,7 +33,7 @@ Vul zelf *aantal besteld* en *besteldatum* in bij het bestellen.
 - **Gates uit/in**: gate8 / gatein8 (slot) + jack8 (front)
 - **Potten**: potriser (slot) + pot8front (front)
 - **Encoders/knoppen**: i2criser (slot) + enc5front (front, uiterst links/rechts)
-- **Alles**: busboard (rev 3.0, gen 2) + Teensy 4.1
+- **Alles**: busboard (rev 3.1, gen 2) + Teensy 4.1
 
 **Gen 2 (2026-07-16)**: systeembrede renovatie — slots 2×12 met audio-lijnen,
 H=45, 4 HP-steek, slots gecentreerd. Gen-1-zips in oude JLC-mandjes NIET meer

@@ -1,5 +1,5 @@
 {
- "titel": "musicbrain-busboard rev 3.0 — aansluitoverzicht",
+ "titel": "musicbrain-busboard rev 3.1 — aansluitoverzicht",
  "bbox_mm": [
   15.0,
   10.0,
@@ -116,6 +116,14 @@
    "mm": [
     60.0,
     135.0
+   ],
+   "kant": "onder"
+  },
+  {
+   "label": "AXON +5V (J25)",
+   "mm": [
+    66.3,
+    129.19
    ],
    "kant": "onder"
   },

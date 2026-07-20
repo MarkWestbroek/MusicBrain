@@ -707,6 +707,13 @@ for jref, nm, tx, rx, xj in (("J19", "DLG1 (Serial3)", "DLG1_TX", "DLG1_RX", 152
         else:
             label(nmP, xj - 12.7, y)
 
+# ============ v3.1: J25 Axon-voeding (+5V/GND, op het bord naast J19) ============
+component("Custom:Conn_01x02", "J25", "AXON PWR", 207, 305, 0,
+          "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical",
+          extra_props=rprop("J25", "AXON PWR", 207, 305, 207, 305 - 5.08, 207, 305 + 5.08))
+wire(199.38, 303.73, 196.84, 303.73); power("power:+5V", 196.84, 303.73)
+wire(199.38, 306.27, 196.84, 306.27); power("power:GND", 196.84, 306.27)
+
 # ============ v2: codec-header J17 (I2S1 TDM, CS42448-bord) ============
 # oneven (zuidrij) = voeding, even (noordrij) = signalen; I2C loopt via
 # de Qwiic-keten (J12), niet over deze header.
@@ -1049,7 +1056,7 @@ doc = f'''(kicad_sch
   (title_block
     (title "MusicBrain SPI-busboard")
     (date "2026-07-16")
-    (rev "3.0")
+    (rev "3.1")
     (company "MusicBrain project")
     (comment 1 "v3 (gen 2): slots 2x12 + audio, J24-audiohub, MIDI 2x2, USB-host, 1A-regelaar")
     (comment 2 "Leidend: doc/spi-bus-spec.md v2.0 + doc/busboard-v3-plan.md")

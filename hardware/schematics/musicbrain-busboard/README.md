@@ -1,11 +1,11 @@
-# MusicBrain busboard — Teensy 4.1-backplane (rev 3.0, gen 2)
+# MusicBrain busboard — Teensy 4.1-backplane (rev 3.1, gen 2)
 
 **Praktisch:** dit is de ruggengraat van het systeem. Eén Teensy 4.1
 bestuurt alle functiekaarten die je in de zes slots prikt; het bord
 verzorgt voeding, de SPI-bus, MIDI (2 in / 2 uit), USB-host, CAN, het
 display en de gedeelde audio-lijnen. Hier begint elke MusicBrain-bouw.
 
-**Status**: rev 3.0 AF — ERC 0, netlijst pad-voor-pad geverifieerd, **DRC 0/0**;
+**Status**: rev 3.1 AF — ERC 0, netlijst pad-voor-pad geverifieerd, **DRC 0/0**;
 koper volledig via de freerouting-pijplijn (`--route-gnd`). Fab-pakket in
 `fab/`. **Bestelbaar.**
 **Plannen**: `doc/busboard-v3-plan.md` (v3-delta's) + `doc/busboard-v2-plan.md`
@@ -29,6 +29,9 @@ koper volledig via de freerouting-pijplijn (`--route-gnd`). Fab-pakket in
   rij B = kabeltje naar de paneel-USB-A; pin-voor-pin doorverbonden en
   volgorde-ongevoelig. VBUS loopt via VIN = de +5V-rail → daarom U2 nu
   **R-78E5.0-1.0** (1 A).
+- **J25 Axon-voeding** (1×2, rev 3.1): +5V/GND naast J19, voedt de
+  Axon-netbridge (ESP32-sidecar aan DLG1 — `doc/axon-plan.md`). Pin 1
+  landt op het +5V-spoor van de voedingsbundel.
 
 ![audio-aanlanding gen 2](audio-aanlanding-v3.svg)
 
@@ -90,3 +93,4 @@ Gegenereerd uit het bordbestand met `hardware/kicad-generators/pinout_svg.py`.
 ![J22](pinouts/J22.svg)
 ![J23](pinouts/J23.svg)
 ![J24](pinouts/J24.svg)
+![J25](pinouts/J25.svg)

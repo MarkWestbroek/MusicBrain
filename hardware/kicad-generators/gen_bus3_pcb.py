@@ -97,6 +97,7 @@ REF_AT = {
     'J17': (2.5, -6.15),                                         # AUDIO/CODEC 2x7
     'J18': (-3.5, -1),                                           # TUNE 1x2
     'J19': (3.9, 3.81), 'J20': (3.9, 3.81),                      # DLG 1x4
+    'J25': (-2.6, 1.27),                                         # AXON 1x2 (rot180: ref oost)
     'J21': (2.5, -7.5),                                          # EXPANSION IDC 2x13
     'J22': (3.9, 2.54),                                          # MIDI OUT2 1x3
     'J23': (1.27, -6.5),                                         # USB HOST 2x5
@@ -257,6 +258,7 @@ J17_MAP = nm({'1': '+3V3', '3': '+5V', '5': 'GND', '7': 'GND', '9': 'GND',
               '10': '/I2S_OUT', '12': '/I2S_IN', '14': 'GND'})
 J18_MAP = nm({'1': '/TUNE_J', '2': 'GND'})
 J19_MAP = nm({'1': 'GND', '2': '/DLG1_TX', '3': '/DLG1_RX', '4': 'GND'})
+J25_MAP = nm({'1': '+5V', '2': 'GND'})   # v3.1: Axon-voeding, haaks boven J19
 J20_MAP = nm({'1': 'GND', '2': '/DLG2_TX', '3': '/DLG2_RX', '4': 'GND'})
 JP1_MAP = nm({'1': '/CAN_TRM', '2': '/CANL'})
 J23_MAP = nm({'1': '/USBH_1', '2': '/USBH_1', '3': '/USBH_2', '4': '/USBH_2',
@@ -375,6 +377,13 @@ FPS += [
      'J10', 'EXP', 41, 135, J10_MAP, 90),
     (PH + '1x04_P2.54mm_Vertical.kicad_mod', PHL + '1x04_P2.54mm_Vertical',
      'J19', 'DLG1', 60, 135, J19_MAP, 90),
+    # v3.1: Axon-voeding — verticaal, pin 1 (+5V) landt óp het +5V-spoor
+    # (B.Cu, y=129,25), pin 2 (GND) noordwaarts (rot 180) boven de bundel;
+    # x=66,3 ontwijkt de DLG-verticalen (64,5/65,1), de GND-verticaal (x=70)
+    # en de U3-courtyard (oostrand 64,35); J19/J20-courtyards beginnen pas
+    # op y=133,2 en blijven zo vrij
+    (PH + '1x02_P2.54mm_Vertical.kicad_mod', PHL + '1x02_P2.54mm_Vertical',
+     'J25', 'AXON +5V', 66.3, 129.19, J25_MAP, 180),
     (PH + '1x04_P2.54mm_Vertical.kicad_mod', PHL + '1x04_P2.54mm_Vertical',
      'J20', 'DLG2', 71.5, 135, J20_MAP, 90),
     (PH + '1x03_P2.54mm_Vertical.kicad_mod', PHL + '1x03_P2.54mm_Vertical',
@@ -521,6 +530,10 @@ for sx_, sy_ in ((20, 22), (213, 20), (20, 116), (213, 130), (28, 90),
                  (40, 110), (70, 118), (110, 110), (150, 124), (190, 118),
                  (70, 132), (130, 132), (180, 132)):
     V('GND', sx_, sy_)
+# v3.1: J25-pin1 (+5V) ligt op het +5V-spoor zelf (geen stub nodig);
+# pin2 (GND) een kort stubje oost naar de GND-verticaal op F.Cu (x=70)
+T('GND', 'F.Cu', 0.25, (66.3, 126.65), (70, 126.65))
+
 # eiland-hechtvia's: automatisch geplaatst door gnd_stitch.py (clearance-gecheckt)
 import json as _json
 try:
@@ -575,7 +588,7 @@ header = f'''(kicad_pcb
   (title_block
     (title "MusicBrain SPI-busboard")
     (date "2026-07-16")
-    (rev "3.0")
+    (rev "3.1")
     (company "MusicBrain project")
   )
   (layers
@@ -614,7 +627,7 @@ extras = f'''
   (gr_rect (start {BX0} {BY0}) (end {BX1} {BY1})
     (stroke (width 0.1) (type default)) (fill none)
     (layer "Edge.Cuts") (uuid "{uid()}"))
-  (gr_text "musicbrain.nl/hw/busboard rev 3.0 - gen 2: 6x slot 2x12 + audio, 16xCS/12xIRQ, MIDI 2x2, USB-host" (at 116.6 98.5 0) (layer "F.SilkS")
+  (gr_text "musicbrain.nl/hw/busboard rev 3.1 - gen 2: 6x slot 2x12 + audio, 16xCS/12xIRQ, MIDI 2x2, USB-host" (at 116.6 98.5 0) (layer "F.SilkS")
     (uuid "{uid()}")
     (effects (font (size 1.5 1.5) (thickness 0.25))))
 '''

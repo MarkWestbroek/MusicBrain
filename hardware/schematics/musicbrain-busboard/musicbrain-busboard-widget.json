@@ -1,5 +1,5 @@
 {
- "title": "musicbrain-busboard rev 3.0 — aansluitoverzicht",
+ "title": "musicbrain-busboard rev 3.1 — aansluitoverzicht",
  "image": "/boards/musicbrain-busboard.png",
  "alt": "3D-render van musicbrain-busboard",
  "points": [
@@ -46,7 +46,7 @@
    "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | +12V |\n| 3 | GND |\n| 4 | -12V |\n| 5 | GND |\n| 6 | +3V3 |\n| 7 | SCLK |\n| 8 | GND |\n| 9 | MOSI |\n| 10 | GND |\n| 11 | MISO |\n| 12 | GND |\n| 13 | CS4 |\n| 14 | GND |\n| 15 | LDAC |\n| 16 | IRQ4 |\n| 17 | SDA |\n| 18 | SCL |\n| 19 | CONVST |\n| 20 | GND |\n| 21 | MCLK |\n| 22 | BCLK |\n| 23 | LRCLK |\n| 24 | I2SD4 |"
   },
   {
-   "x": 0.6372,
+   "x": 0.6371,
    "y": 0.3987,
    "label": "SLOT 5 (J5)",
    "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | +12V |\n| 3 | GND |\n| 4 | -12V |\n| 5 | GND |\n| 6 | +3V3 |\n| 7 | SCLK |\n| 8 | GND |\n| 9 | MOSI |\n| 10 | GND |\n| 11 | MISO |\n| 12 | GND |\n| 13 | CS5 |\n| 14 | GND |\n| 15 | LDAC |\n| 16 | IRQ5 |\n| 17 | SDA |\n| 18 | SCL |\n| 19 | CONVST |\n| 20 | GND |\n| 21 | MCLK |\n| 22 | BCLK |\n| 23 | LRCLK |\n| 24 | I2SD5 |"
@@ -82,10 +82,16 @@
    "markdown": "| pin | net |\n|--|--|\n| 1 | +3V3 |\n| 2 | GND |\n| 3 | +5V |\n| 4 | GND |\n| 5 | D10 |\n| 6 | D33 |\n| 7 | — |\n| 8 | D32 |\n| 9 | D36 |\n| 10 | D37 |\n| 11 | D38 |\n| 12 | D39 |\n| 13 | GND |\n| 14 | GND |"
   },
   {
-   "x": 0.2342,
+   "x": 0.2343,
    "y": 0.9403,
    "label": "DLG1 (J19)",
    "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | DLG1_TX |\n| 3 | DLG1_RX |\n| 4 | GND |"
+  },
+  {
+   "x": 0.2638,
+   "y": 0.8982,
+   "label": "AXON +5V (J25)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | +5V |\n| 2 | GND |"
   },
   {
    "x": 0.2882,
