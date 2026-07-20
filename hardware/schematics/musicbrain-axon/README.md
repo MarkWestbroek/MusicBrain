@@ -45,6 +45,13 @@ Nog niet besteld; eerst firmware-bring-up-plan.
   | 6  | GND     | J19.4 GND | UART |
 
   Op busboard rev 3.2 kan dezelfde 1×6 rechtstreeks in een verticale socket.
+
+  > ⚠️ **Oriëntatie bij assemblage**: enkelrijige headers keyen niet. De
+  > **2-pin (+5V/GND)** omgekeerd = voeding omgepoold (schade). De **4-pin**
+  > lijkt symmetrisch (GND aan beide kanten) maar omgedraaid wisselen RX↔TX.
+  > Pin 1 (silk "5V") van elke kabel markeren. Bij de directe koppeling op
+  > busboard 3.2 (geen kabel): gekeyde/geshroude connector — zie
+  > `doc/axon-plan.md`.
 - **J2 USB-C** — alleen eerste flash/debug; VBUS voedt het bord via een
   SS34 (bus-5V wint als beide aangesloten zijn). Daarna gaat firmware
   via WiFi-OTA.

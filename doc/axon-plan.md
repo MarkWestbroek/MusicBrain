@@ -58,6 +58,35 @@ socket op een rev 3.2. Busboard 3.2 pas spinnen als Axon rev 0.1 bestaat
 en de maten vastliggen; antenne (U.FL) en RJ45 gaan sowieso per kabel
 naar het paneel.
 
+## J1-kabels: oriëntatie-valkuilen (let op bij assemblage!)
+
+Enkelrijige 0,1"-headers **keyen niet** — een kabel kan omgekeerd in. Twee
+vallen (Mark 2026-07-20):
+
+- **2-pin naar J25 (+5V/GND)** — omgekeerd = **voeding omgepoold** → schade
+  aan de LDO/ESP32. Kritisch: pin 1 (+5V, vierkante pad + silk "5V")
+  consequent markeren; overweeg een gekeyde/geshroude connector.
+- **4-pin naar J19 (GND/RX/TX/GND)** — lijkt symmetrisch (GND aan beide
+  uiteinden) maar is het níét: omgedraaid wisselen **RX↔TX**. Geen comms +
+  TX-TX-contentie (geen serieweerstand). GND-GND matcht wél, dus de fout is
+  onzichtbaar aan de connector. Pin 1-kant van élke kabel markeren.
+
+## Busboard 3.2 — directe koppeling (geen kabel): extra opletten
+
+Als Axon rechtstreeks in een 1×6-socket op busboard 3.2 prikt (haakse header
+op Axon), is er **geen kabel meer die een verkeerde oriëntatie opvangt**. De
+socket-pinout op het busboard moet exact spiegelen met de werkelijke
+mechanische stand van de staande Axon — één verkeerde spiegeling en +5V
+staat op een GND-pin. Daarom voor 3.2:
+
+1. **Gekeyde/geshroude connector** (boxed header + notch) zodat er maar één
+   stand past — bij een directe board-to-board-koppeling geen luxe maar nodig.
+2. De busboard-socketpinout **afleiden uit de gemonteerde geometrie** (welke
+   Axon-rand naar welke kant), niet uit het schema-nummer; verifiëren met een
+   doorbel-check op een sample vóór fab.
+3. J25 (nu apart, 1×2) en J19 (1×4) worden dan één 1×6 op het busboard;
+   pinvolgorde 1:1 kopiëren van Axon J1 ná de spiegel-analyse.
+
 ## Alternatief, bekeken en geparkeerd
 
 **Teensy 4.1 native Ethernet** (de PHY zit al op de Teensy; PJRC-kit naar
