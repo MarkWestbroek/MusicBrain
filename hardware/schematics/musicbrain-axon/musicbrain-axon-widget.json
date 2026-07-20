@@ -1,0 +1,31 @@
+{
+ "title": "musicbrain-axon rev 0.1 — aansluitoverzicht",
+ "image": "/boards/musicbrain-axon.png",
+ "alt": "3D-render van musicbrain-axon",
+ "points": [
+  {
+   "x": 0.0979,
+   "y": 0.4896,
+   "label": "USB-C (J2)",
+   "markdown": "| pin | net |\n|--|--|\n| A1 | GND |\n| A4 | VBUS |\n| A5 | CC1 |\n| A6 | USB_DP |\n| A7 | USB_DM |\n| A8 | — |\n| A9 | VBUS |\n| A12 | GND |\n| B1 | GND |\n| B4 | VBUS |\n| B5 | CC2 |\n| B6 | USB_DP |\n| B7 | USB_DM |\n| B8 | — |\n| B9 | VBUS |\n| B12 | GND |\n| SH | GND |\n| SH | GND |\n| SH | GND |\n| SH | GND |"
+  },
+  {
+   "x": 0.4863,
+   "y": 0.8946,
+   "label": "BUSBOARD (J1)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | +5V |\n| 2 | GND |\n| 3 | AXON_TX |\n| 4 | AXON_RX |\n| 5 | GND |\n| 6 | — |"
+  },
+  {
+   "x": 0.7458,
+   "y": 0.8946,
+   "label": "DEBUG (J4)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | DBG_TX |\n| 2 | DBG_RX |\n| 3 | GND |"
+  },
+  {
+   "x": 0.9028,
+   "y": 0.2508,
+   "label": "MAGJACK (J3)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | TXP |\n| 2 | TCT |\n| 3 | TXN |\n| 4 | GND |\n| 5 | RD_P |\n| 6 | RCT |\n| 7 | RD_N |\n| 8 | GND |\n| 9 | +3V3 |\n| 10 | LINK_K |\n| 11 | +3V3 |\n| 12 | ACT_K |\n| 13 | SHLD |\n| 14 | GND |"
+  }
+ ]
+}

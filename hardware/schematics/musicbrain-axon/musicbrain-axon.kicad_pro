@@ -1,0 +1,20 @@
+{
+  "meta": {"filename": "musicbrain-axon.kicad_pro", "version": 3},
+  "general": {"project_name": "musicbrain-axon"},
+  "board": {"design_settings": {"rules": {"min_track_width": 0.127,
+    "min_clearance": 0.0}}},
+  "net_settings": {"classes": [{"name": "Default", "clearance": 0.15,
+    "track_width": 0.25, "via_diameter": 0.5, "via_drill": 0.3,
+    "priority": -1},
+   {"name": "usb", "clearance": 0.1, "track_width": 0.15,
+    "via_diameter": 0.6, "via_drill": 0.3, "priority": 0},
+   {"name": "power", "clearance": 0.15, "track_width": 0.3,
+    "via_diameter": 0.5, "via_drill": 0.3, "priority": 1}],
+   "netclass_patterns": [{"netclass": "usb", "pattern": "/USB_D*"},
+    {"netclass": "power", "pattern": "+5V"},
+    {"netclass": "power", "pattern": "+3V3"},
+    {"netclass": "power", "pattern": "+3V3A"}],
+   "meta": {"version": 5}},
+  "schematic": {"file": "musicbrain-axon.kicad_sch"},
+  "pcb": {"file": "musicbrain-axon.kicad_pcb"}
+}

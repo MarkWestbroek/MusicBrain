@@ -1,0 +1,43 @@
+{
+ "titel": "musicbrain-axon rev 0.1 — aansluitoverzicht",
+ "bbox_mm": [
+  100.0,
+  100.0,
+  170.0,
+  145.0
+ ],
+ "callouts": [
+  {
+   "label": "USB-C (J2)",
+   "mm": [
+    105.55,
+    122.0
+   ],
+   "kant": "links"
+  },
+  {
+   "label": "BUSBOARD (J1)",
+   "mm": [
+    134.0,
+    141.5
+   ],
+   "kant": "onder"
+  },
+  {
+   "label": "DEBUG (J4)",
+   "mm": [
+    153.0,
+    141.5
+   ],
+   "kant": "onder"
+  },
+  {
+   "label": "MAGJACK (J3)",
+   "mm": [
+    164.5,
+    110.5
+   ],
+   "kant": "rechts"
+  }
+ ]
+}
