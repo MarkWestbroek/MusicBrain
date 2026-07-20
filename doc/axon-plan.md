@@ -38,6 +38,26 @@ Blokken (grotendeels hergebruik van gswitch-brain, zelfde recepten):
   de ontkoppelbank (soldeertap, nette draad). Bij een toekomstige rev 3.1
   van het busboard: 1×2 header **J25 (+5V/GND)** naast J19 — micro-delta.
 
+## Ethernet-feiten (vraag Mark 2026-07-20)
+
+Geen enkele ESP32 heeft een kant-en-klare UTP-uitgang. De klassieke ESP32
+heeft een Ethernet-MAC maar geen PHY (LAN8720 + magnetics + RJ45 ernaast);
+de **ESP32-S3 heeft geen Ethernet-MAC** — bekabeld gaat daar via
+SPI-Ethernet, vandaar de W5500 in dit plan (ESP-IDF-driver, ruim genoeg
+voor patches/API). De S3 blijft de keuze vanwege USB-flash/OTA en het
+gswitch-recept.
+
+## Verticaal op het busboard (idee Mark 2026-07-20, voor een rev 3.2)
+
+De westzone naast de Teensy (tussen J23 en de voedingshoek) ligt buiten
+het kaartvolume — daar kan de Axon als **staande kaart** in een verticale
+socket. Ontwerpkeuze nu: de Axon-kaart krijgt aan de onderrand **één
+1×6-connector** (+5V, GND, TX, RX, GND, reserve). Dezelfde kaart werkt
+dan met twee kabeltjes aan J19+J25 (rev 3.1) én rechtstreeks in een
+socket op een rev 3.2. Busboard 3.2 pas spinnen als Axon rev 0.1 bestaat
+en de maten vastliggen; antenne (U.FL) en RJ45 gaan sowieso per kabel
+naar het paneel.
+
 ## Alternatief, bekeken en geparkeerd
 
 **Teensy 4.1 native Ethernet** (de PHY zit al op de Teensy; PJRC-kit naar
