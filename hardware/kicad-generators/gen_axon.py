@@ -414,8 +414,8 @@ class BBoard(Board):
 b = BBoard(TITLE, REV, (135, 142.8, 0), BX0, BY0, BX1, BY1, NETS, DATE)
 b.paper = "A3"
 b.silk_texts = [
-    (f"MUSICBRAIN AXON  rev {REV}", 133, 101.2, 0),
-    ("musicbrain.nl/hw/axon", 133, 103.2, 0),
+    ("MUSICBRAIN AXON", 123.5, 102.3, 0),
+    (f"musicbrain.nl/hw/axon  ({REV})", 143, 128.5, 0),
     ("5V GND TX RX GND -", 134, 143.6, 0),
 ]
 P = b.P
@@ -498,8 +498,9 @@ b.fp('Connector_PinHeader_2.54mm.pretty\\PinHeader_2x07_P2.54mm_Vertical.kicad_m
            '13': '/SHLD', '14': 'GND'}))
 b.fp('Connector_PinHeader_2.54mm.pretty\\PinHeader_1x03_P2.54mm_Vertical.kicad_mod',
      'Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical', 'J4',
-     'DEBUG', 153, 141.5, 90, b.nm({'1': '/DBG_TX', '2': '/DBG_RX',
-                                    '3': 'GND'}))
+     'DEBUG', 136, 101.8, 0, b.nm({'1': '/DBG_TX', '2': '/DBG_RX',
+                                   '3': 'GND'}))
+ref_off(2.54, 3.0)   # J4-ref zuid van de header (noordrand: default clipt)
 
 # R/C-strooigoed
 RC = [

@@ -8,6 +8,14 @@
  ],
  "callouts": [
   {
+   "label": "DEBUG (J4)",
+   "mm": [
+    136.0,
+    101.8
+   ],
+   "kant": "boven"
+  },
+  {
    "label": "USB-C (J2)",
    "mm": [
     105.55,
@@ -19,14 +27,6 @@
    "label": "BUSBOARD (J1)",
    "mm": [
     134.0,
-    141.5
-   ],
-   "kant": "onder"
-  },
-  {
-   "label": "DEBUG (J4)",
-   "mm": [
-    153.0,
     141.5
    ],
    "kant": "onder"

@@ -67,7 +67,7 @@
       (place J3 164500 -110500 front 0 (PN MAGJACK))
     )
     (component Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical
-      (place J4 153000 -141500 front 90 (PN DEBUG))
+      (place J4 136000 -101800 front 0 (PN DEBUG))
     )
     (component Capacitor_SMD:C_0805_2012Metric
       (place C1 131500 -132300 front 90 (PN 22u))
@@ -487,7 +487,7 @@
       (pin Round[A]Pad_1700.000000_um 14 2540 -15240)
     )
     (image Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical
-      (outline (polygon signal 0  -1765 -6845  -1765 1765  1765 1765  1765 -6845))
+      (outline (polygon signal 0  1765 -6845  -1765 -6845  -1765 1765  1765 1765))
       (outline (path signal 120  -1380 1380  0 1380))
       (outline (path signal 120  -1380 0  -1380 1380))
       (outline (path signal 120  -1380 -1270  -1380 -6460))
@@ -938,6 +938,7 @@
     (wire (path F.Cu 150  125250 -120662  125250 -124500  130720 -124500  130720 -125350
             133200 -125350  133900 -124950)(net /LEDK_A)(type route))
     (wire (path F.Cu 250  133900 -123050  136300 -123050)(net /LEDK)(type route))
+    (wire (path F.Cu 150  125250 -124500  126175 -125850)(net /LEDK_A)(type route))
     (via "Via[0-1]_500:300_um"  103100 -121750 (net /USB_DM)(type route))
     (via "Via[0-1]_500:300_um"  103100 -122750 (net /USB_DM)(type route))
     (via "Via[0-1]_500:300_um"  103800 -123980 (net /VBUS)(type route))
@@ -952,7 +953,7 @@
     (via "Via[0-1]_500:300_um"  168000 -102000 (net GND)(type route))
     (via "Via[0-1]_500:300_um"  102000 -143000 (net GND)(type route))
     (via "Via[0-1]_500:300_um"  168000 -143000 (net GND)(type route))
-    (via "Via[0-1]_500:300_um"  135000 -101500 (net GND)(type route))
+    (via "Via[0-1]_500:300_um"  135000 -101500 (net /DBG_TX)(type route))
     (via "Via[0-1]_500:300_um"  112000 -128000 (net GND)(type route))
     (via "Via[0-1]_500:300_um"  128000 -130000 (net GND)(type route))
     (via "Via[0-1]_500:300_um"  140000 -128000 (net GND)(type route))

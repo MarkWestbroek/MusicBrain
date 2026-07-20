@@ -97,11 +97,13 @@ PCB steunt beide; het is een bestockings-/BOM-keuze, geen bordwijziging.
   geïntegreerde magnetics; gaat sowieso met een lintkabel naar het paneel, dus
   rechte of haakse header maakt alleen uit voor de kabelbocht. Geen bord-Ethernet-
   connector: dat zit op het paneel.
-- **J4 (1×3, zuidrand)** — **debug-UART (UART0, TX0/RX0/GND)**, alleen tijdens
-  firmware-bring-up. In een platte montage boven het busboard (waar de Teensy
-  hoog zit) J4 **onbestockt laten** of haaks uitvoeren; standaard-deploy heeft
-  hem niet nodig. Op busboard 3.2 moet de zone onder J1/J4 vrij van hoge
-  onderdelen blijven, of Axon staat verticaal (dan speelt het niet).
+- **J4 (1×3, noordrand)** — **debug-UART (UART0, TX0/RX0/GND)**, alleen tijdens
+  firmware-bring-up. **Naar de noordrand verplaatst (2026-07-20)**: de DBG-pinnen
+  (module 36/37) liggen op de NO-hoek van de module, dus dit was een korte,
+  makkelijke route (loterij meteen DRC 0/0). Zo staat J4 weg van de zuidrand
+  waar J1 en — op het busboard — de Teensy zitten; een staande of haakse
+  debug-header botst daar niet meer. Haaks omhoog op de oude zuidplek paste
+  níét (R18/C22 stonden ~6 mm noordelijk in de weg).
 
 ## Volgende stappen
 
