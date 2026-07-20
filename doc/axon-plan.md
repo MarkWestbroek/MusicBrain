@@ -83,6 +83,26 @@ ondersteunt hubs, dus een klein hubje achter/aan de paneelpoort werkt;
 Axon voegt daar geen apparaat aan toe (zijn USB-C is alleen voor de
 eerste flash en hangt aan de ESP32, niet aan de Teensy).
 
+## Connectors J1/J3/J4 — oriëntatie (vragen Mark 2026-07-20)
+
+Alle drie staan aan een bordrand, dus een **haakse (right-angle) THT-header
+deelt exact hetzelfde padpatroon** als de rechte variant — de gefabriceerde
+PCB steunt beide; het is een bestockings-/BOM-keuze, geen bordwijziging.
+
+- **J1 (1×6, zuidrand)** — voeding+UART naar het busboard. Rechte header nu
+  (twee kabeltjes naar J25+J19). Haaks → pinnen wijzen zuid, van het bord af:
+  dan kan Axon **verticaal** in een socket op busboard rev 3.2 staan. Padrij
+  ligt al op de rand, dus geen herplaatsing nodig.
+- **J3 (2×7, oostrand)** — magjack-header naar de **paneel-RJ45 (UTP)** met
+  geïntegreerde magnetics; gaat sowieso met een lintkabel naar het paneel, dus
+  rechte of haakse header maakt alleen uit voor de kabelbocht. Geen bord-Ethernet-
+  connector: dat zit op het paneel.
+- **J4 (1×3, zuidrand)** — **debug-UART (UART0, TX0/RX0/GND)**, alleen tijdens
+  firmware-bring-up. In een platte montage boven het busboard (waar de Teensy
+  hoog zit) J4 **onbestockt laten** of haaks uitvoeren; standaard-deploy heeft
+  hem niet nodig. Op busboard 3.2 moet de zone onder J1/J4 vrij van hoge
+  onderdelen blijven, of Axon staat verticaal (dan speelt het niet).
+
 ## Volgende stappen
 
 1. Firmware-kant: `Transport`-implementatie over Serial3 + ESP32-app
