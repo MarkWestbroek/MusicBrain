@@ -180,8 +180,17 @@ Generators mogen eerder (WIP-koper expliciet benoemen). Nooit `git add -A`.
   **THT blijft raw** (mens volgt de gaten/silk → 90/270 in de preview is het
   3D-model, niet de echte plaatsing). Offsets aflezen in JLC's
   Component-Placements-preview; zie `hardware/schematics/FABRICATION.md`.
-  THT (headers, encoders, pots, jacks) = zelf solderen —
-  `exclude_from_pos_files` waar zinvol.
+- **THT-beleid (gewijzigd 2026-07-21, besluit Mark)**: headers en sockets
+  worden **wél door JLC bestukt** (LCSC-nummers per footprint in
+  `jlc_fix.py` LCSC_CONN). **Economic PCBA kan dat gewoon** (THT gaat via
+  de Manual-Assembly/hand-soldering-fee, ~€20-25/order); **Standard PCBA is
+  alleen nodig als een part "Standard Only" is** (bv. de ESP32-S3-module op
+  de axon) — les busboard-order 2026-07-21.
+  Blijft handwerk: pots/encoders/Thonkiconn-jacks (fit-kritisch of niet in
+  catalogus), moduul-parts (Teensy, R-78E, SSI/AS-chips, ESP32-modules) en
+  solderjumpers (koper-only). B-zijde-THT (Socket_1x10_backside e.d.):
+  vóór de order checken of JLC die zijde meeneemt. Onderdeel-index:
+  `hardware/schematics/PARTS.md` (gegenereerd door `parts_index.py`).
 - Groot bord (busboard ~200×115) valt buiten het prototype-tarief; fronts en
   slotkaarten (≤100×110) zijn goedkoop — reken daarmee bij paneelkeuzes.
 

@@ -162,11 +162,11 @@ def main():
                     if (isinstance(sub, list) and sub[0] == 'property'
                             and sub[1] == '"Reference"'):
                         r = sub[2].strip('"')
-                        if re.fullmatch(r'J\d+', r):
+                        if re.fullmatch(r'J[A-Z]*\d+', r):
                             refs.append(r)
         outdir = os.path.join(os.path.dirname(pcb), 'pinouts')
         os.makedirs(outdir, exist_ok=True)
-        for ref in sorted(refs, key=lambda r: int(r[1:])):
+        for ref in sorted(refs, key=lambda r: (re.sub(r'\d+$', '', r), int(re.search(r'\d+$', r).group()))):
             fpname, val, pads = lees_connector(pcb, ref)
             if len(pads) < 4:      # jacks/kleine parts overslaan
                 continue

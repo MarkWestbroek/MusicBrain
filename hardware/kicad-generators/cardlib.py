@@ -71,6 +71,33 @@ def rotxy(px, py, rot):
     s = {0: 0, 90: 1, 180: 0, 270: -1}[rot]
     return (px * c + py * s, -px * s + py * c)
 
+
+_FLIP_LAY = re.compile(r'"([FB])\.(Cu|Paste|Mask|SilkS|Fab|CrtYd|Adhes)"')
+
+
+def flip_tree(node):
+    """Spiegel een footprint-boom naar de B-zijde (pcbnew-flip om de x-as):
+    lokale y negeren, F.<laag> <-> B.<laag>, tekst (justify mirror)."""
+    if not isinstance(node, list) or not node:
+        return
+    head = node[0]
+    if head in ('at', 'start', 'end', 'xy', 'center', 'mid') and len(node) >= 3 \
+            and not isinstance(node[2], list):
+        try:
+            node[2] = fmt(-float(node[2]))
+        except ValueError:
+            pass
+    if head in ('layer', 'layers'):
+        for i in range(1, len(node)):
+            if not isinstance(node[i], list):
+                m = _FLIP_LAY.fullmatch(node[i])
+                if m:
+                    node[i] = f'"{"B" if m.group(1) == "F" else "F"}.{m.group(2)}"'
+    if head == 'effects':
+        node.append(['justify', 'mirror'])
+    for sub in node:
+        flip_tree(sub)
+
 class Board:
     def __init__(self, title, rev, silk, bx0, by0, bx1, by1, nets, date):
         self.title, self.rev, self.silk = title, rev, silk
@@ -80,9 +107,17 @@ class Board:
         self.date = date
         self.P = {}
         self.PNET = {}         # ref -> {pad: net-index} (alleen fp()-pads)
+        self.PADS = []         # (netidx|None, x, y, hx, hy, side 'F'/'B'/'*')
         self.fp_texts = []
         self.tracks, self.vias, self.extra = [], [], []
         self.paper = "A4"      # zet op "A3" voor borden die van A4-landscape vallen
+        # Koperstapel. Standaard 2 lagen (F/B). Voor 4 lagen:
+        #   b.copper = ['F.Cu', 'In1.Cu', 'In2.Cu', 'B.Cu']
+        # GND-zones komen op elke laag in gnd_zone_layers (None = alle koperlagen).
+        self.copper = ['F.Cu', 'B.Cu']
+        self.gnd_zone_layers = None
+        self.zone_clearance = 0.3      # GND-zone pad-clearance
+        self.zone_min_thickness = 0.2  # GND-zone minimale koperdikte
         self._u = 0
 
     def uid(self):
@@ -96,11 +131,17 @@ class Board:
         return self.nm({'1': a, '2': b})
 
     def fp(self, relpath, lib_id, ref, val, x, y, rot, netmap, path_uuid='',
-           skip_pad_drill=None):
+           skip_pad_drill=None, flip=False):
         """skip_pad_drill: laat pads met deze boring weg (bv. 0.2mm
-        thermal-vias in module-EP's die onder de fab-minimumboring vallen)."""
+        thermal-vias in module-EP's die onder de fab-minimumboring vallen).
+        flip=True: footprint op de B-zijde (canonieke pcbnew-flip; alleen
+        rot 0 ondersteund — genoeg voor 0603-passieven)."""
         tree = parse(open(FP_DIR + '\\' + relpath, encoding='utf-8').read())
         tree[1] = f'"{lib_id}"'
+        if flip:
+            assert rot in (0, 180), "flip alleen met rot 0/180"
+            for node in tree[2:]:
+                flip_tree(node)
         body = []
         self.P[ref] = {}
         for node in tree[2:]:
@@ -117,11 +158,34 @@ class Board:
                     continue
                 if node[0] == 'property' and node[1] == '"Reference"':
                     node[2] = f'"{ref}"'
+                    # optionele label-herplaatsing (lokale coords):
+                    # b.ref_at = {ref: (lx, ly[, hoek])}. Hoek default 0 =
+                    # horizontaal; 90 = verticaal. Zie bus2-REF_AT:
+                    # rot 90 -> global = anker + (ly, -lx).
+                    _ra = getattr(self, 'ref_at', None)
+                    if _ra and ref in _ra:
+                        _lx, _ly = _ra[ref][0], _ra[ref][1]
+                        _ang = _ra[ref][2] if len(_ra[ref]) > 2 else 0
+                        for _sub in node:
+                            if isinstance(_sub, list) and _sub[0] == 'at':
+                                _sub[1], _sub[2] = fmt(_lx), fmt(_ly)
+                                if len(_sub) > 3:
+                                    _sub[3] = fmt(_ang)
+                                else:
+                                    _sub.append(fmt(_ang))
                 if node[0] == 'property' and node[1] == '"Value"':
                     node[2] = f'"{val}"'
                 if node[0] == 'pad':
                     num = node[1].strip('"')
+                    _sz, _tht, _onB = None, False, False
                     for sub in node:
+                        if isinstance(sub, list) and sub[0] == 'size':
+                            _sz = (float(sub[1]), float(sub[2]))
+                        if isinstance(sub, list) and sub[0] == 'drill':
+                            _tht = True
+                        if isinstance(sub, list) and sub[0] == 'layers':
+                            _onB = any(t in ('"B.Cu"', 'B.Cu') for t in sub[1:]
+                                       if not isinstance(t, list))
                         if isinstance(sub, list) and sub[0] == 'at':
                             px, py = float(sub[1]), float(sub[2])
                             dx, dy = rotxy(px, py, rot)
@@ -135,10 +199,18 @@ class Board:
                                     sub.append(fmt(rot))
                                 else:
                                     sub[3] = fmt((float(sub[3]) + rot) % 360)
+                    ni = None
                     if num in netmap:
                         idx, name = netmap[num]
                         node.append(['net', str(idx), f'"{name}"'])
                         self.PNET.setdefault(ref, {})[key] = idx
+                        ni = idx
+                    hx, hy = (_sz or (0.5, 0.5))
+                    hx, hy = hx / 2, hy / 2
+                    if rot % 180:
+                        hx, hy = hy, hx
+                    side = '*' if _tht else ('B' if _onB else 'F')
+                    self.PADS.append((ni, *self.P[ref][key], hx, hy, side))
             body.append(node)
         at = ['at', fmt(x), fmt(y), str(rot)] if rot else ['at', fmt(x), fmt(y)]
         tree[2:] = [['uuid', f'"{self.uid()}"'], at, ['path', f'"/{path_uuid}"']] + body
@@ -188,6 +260,10 @@ class Board:
 
     def write(self, out):
         bx0, by0, bx1, by1 = self.b
+        _LAYNUM = {'F.Cu': 0, 'In1.Cu': 1, 'In2.Cu': 2, 'In3.Cu': 3,
+                   'In4.Cu': 4, 'B.Cu': 31}
+        cu_lines = '\n'.join(f'    ({_LAYNUM[l]} "{l}" signal)'
+                             for l in self.copper)
         header = f'''(kicad_pcb
   (version 20240108)
   (generator "pcbnew")
@@ -201,8 +277,7 @@ class Board:
     (company "MusicBrain project")
   )
   (layers
-    (0 "F.Cu" signal)
-    (31 "B.Cu" signal)
+{cu_lines}
     (32 "B.Adhes" user "B.Adhesive")
     (33 "F.Adhes" user "F.Adhesive")
     (34 "B.Paste" user)
@@ -230,14 +305,54 @@ class Board:
   )
 '''
         nets_block = '\n'.join(f'  (net {i} "{n}")' for i, n in enumerate(self.NETS))
-        tt = []
+        # Collineaire aansluitende/overlappende segmenten van hetzelfde net
+        # samenvoegen tot maximale segmenten. SES-echo's + snap_stubs leveren
+        # kettingen en deel-overlaps op; freerouting's DSN-import loopt daar
+        # in een oneindige combine-recursie op vast (StackOverflow, vcf8kern
+        # 2026-07-21). Zelfde-net-T-punten blijven geometrisch verbonden.
+        import math as _math
+        _groups = {}
         for net, layer, w, pts in self.tracks:
             for a, b in zip(pts, pts[1:]):
                 if tuple(a) == tuple(b):
                     continue
-                tt.append(f'  (segment (start {fmt(a[0])} {fmt(a[1])}) (end {fmt(b[0])} {fmt(b[1])}) '
-                          f'(width {w}) (layer "{layer}") (net {net}) (uuid "{self.uid()}"))')
+                x1, y1, x2, y2 = a[0], a[1], b[0], b[1]
+                dx, dy = x2 - x1, y2 - y1
+                ln = _math.hypot(dx, dy)
+                ux, uy = dx / ln, dy / ln
+                if ux < -1e-9 or (abs(ux) <= 1e-9 and uy < 0):
+                    ux, uy = -ux, -uy
+                    x1, y1, x2, y2 = x2, y2, x1, y1
+                key = (net, layer, w, round(ux, 5), round(uy, 5),
+                       round(-uy * x1 + ux * y1, 3))
+                _groups.setdefault(key, []).append(
+                    (ux * x1 + uy * y1, ux * x2 + uy * y2, x1, y1, x2, y2))
+        tt = []
+
+        def _emit(net, layer, w, seg):
+            tt.append(f'  (segment (start {fmt(seg[2])} {fmt(seg[3])}) '
+                      f'(end {fmt(seg[4])} {fmt(seg[5])}) '
+                      f'(width {w}) (layer "{layer}") (net {net}) (uuid "{self.uid()}"))')
+
+        for (net, layer, w, _ux, _uy, _c), iv in _groups.items():
+            iv.sort()
+            cur = None
+            for t1, t2, x1, y1, x2, y2 in iv:
+                if cur is not None and t1 <= cur[1] + 1e-3:
+                    if t2 > cur[1]:
+                        cur = (cur[0], t2, cur[2], cur[3], x2, y2)
+                else:
+                    if cur is not None:
+                        _emit(net, layer, w, cur)
+                    cur = (t1, t2, x1, y1, x2, y2)
+            if cur is not None:
+                _emit(net, layer, w, cur)
+        seen_via = set()      # dedup co-located via's (freerouting-artefact)
         for net, x, y in self.vias:
+            key = (round(x, 3), round(y, 3))
+            if key in seen_via:
+                continue
+            seen_via.add(key)
             tt.append(f'  (via (at {fmt(x)} {fmt(y)}) (size 0.5) (drill 0.3) '
                       f'(layers "F.Cu" "B.Cu") (net {net}) (uuid "{self.uid()}"))')
         sx, sy, srot = self.silk
@@ -255,17 +370,19 @@ class Board:
   (zone (net {self.NI['GND']}) (net_name "GND") (layer "{layer}")
     (uuid "{self.uid()}")
     (hatch edge 0.5)
-    (connect_pads yes (clearance 0.3))
-    (min_thickness 0.2) (filled_areas_thickness no)
+    (connect_pads yes (clearance {self.zone_clearance}))
+    (min_thickness {self.zone_min_thickness}) (filled_areas_thickness no)
     (fill yes (thermal_gap 0.5) (thermal_bridge_width 0.5))
     (polygon (pts
       (xy {bx0+0.5} {by0+0.5}) (xy {bx1-0.5} {by0+0.5})
       (xy {bx1-0.5} {by1-0.5}) (xy {bx0+0.5} {by1-0.5})
     ))
   )'''
+        gnd_layers = (self.gnd_zone_layers if self.gnd_zone_layers is not None
+                      else self.copper)
         out_txt = (header + nets_block + '\n' + '\n'.join(self.fp_texts) + '\n'
                    + '\n'.join(tt) + extras + '\n'.join(self.extra)
-                   + zone('F.Cu') + zone('B.Cu') + '\n)\n')
+                   + ''.join(zone(l) for l in gnd_layers) + '\n)\n')
         open(out, 'w', encoding='utf-8', newline='\n').write(out_txt)
         print('written', out, f'({len(tt)} routed items)')
 

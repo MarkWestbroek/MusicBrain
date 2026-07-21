@@ -575,7 +575,99 @@ tune-mux al dekt) en maakt per-stem instelpots overbodig (poly-spec B10).
 
 ## Status
 
-`gen_matrix.py` gebouwd 2026-07-20 (musicbrain-matrix rev 0.1, 115×140,
-ERC 0/netcheck OK/plaatsing 0 overlappen) — freerouting + DRC + fab in een
-routingsessie; 2 lagen proberen (THT), anders 4.
+`gen_matrix.py` gebouwd 2026-07-20 (rev 0.1); **rev 0.2 herontwerp + geroute
+2026-07-21**: 175×142 4-laags, ERC 0 / netcheck OK / **DRC 0/0**, fab-pakket
+ververst (MODULES.md: bestelbaar). Wijzigingen t.o.v. het plan hierboven:
+
+- **CS is NIET meer broadcast**: elke chip een eigen CS via een 74HC238
+  (3→8, actief-hoog; A0-2←G0-2, E3←DECEN uit de tweede 595). Winst: per-chip
+  pin-mapping (routeerbaarheid) + per stem onafhankelijk schakelen (8→2×4
+  splitsen kan). Een poly-broadcast is nu een firmware-lus over 8 groepen.
+- **Plaatsing "tussenkanaal"**: per bordzijde 2 chipkolommen met de binnenste
+  UIT-headersubkolom in het kanaal ertussen — elke chip heeft aan beide
+  zijden een headerkolom direct naast zich.
+- NB: elk OUT/IN-net is 2-punts (headerpin k+1 ↔ chip Uk); chips delen alleen
+  control/voeding. Eén header = één bus × 8 stemmen (jack8) — pins 2-9 van
+  elke header gaan dus naar 8 verschillende chips.
+
+## Firmware-contract rev 0.2 (2026-07-21)
+
+> Naamgeving 2026-07-21: headers heten JOUT/JIN (Engels; "JUIT" las als
+> woord), netten /OUTnVk. Zelfde nummering als de UIT-labels hieronder.
+
+Logisch adres = `<groep:3><y:3><x:4>` (10 bits). G2G1G0 = groep g →
+238.Y(g) → CS van chip U(g+1) = stem g+1. AX/AY/DATA/STROBE/RESET broadcast;
+alleen de chip met CS hoog latcht. Schrijfvolgorde per kruispunt: adres+data
+in de 595's schuiven, STROBE via U10 pulsen (adres stabiel vóór STROBE↑,
+data stabiel op STROBE↓).
+
+**Per-chip AX/AY→bus-tabel (Hungarian, deterministisch uit gen_matrix.py —
+elke chip anders!):** de actuele tabel staat in de docstring van
+`hardware/kicad-generators/gen_matrix.py` en wordt bij elke generator-run
+geprint. Kolommen = AX-index 0-15 → OUT-bus (1-16), AY-index 0-7 → IN-bus
+(1-8):
+
+```
+chip  AX0..AX15 -> OUT                                    AY0..AY7 -> IN
+U1 g0 13 14 10  2 15 11  9  6  3  4  7  8 16 12  5  1    4 3 2 1 7 5 6 8
+U2 g1  9 13 14 10 15 11  6  7  2  8  3  4 16 12  1  5    4 3 2 1 8 6 5 7
+U3 g2  9 10 14 11 15  4  1  2  7  3 13  8 12 16  5  6    4 3 2 1 6 5 7 8
+U4 g3  9 13 10 14 11 15  3  5  6  7  8  4 12 16  1  2    4 3 2 1 7 6 5 8
+U5 g4  9 13 14 15 10 16  6  2  7  3  8  4 11 12  1  5    1 4 3 2 8 7 6 5
+U6 g5 13  3 10 14 11 12  5  6  2  7  8  4 15 16  9  1    1 2 4 3 8 7 6 5
+U7 g6  9 10 11 13 14 15  2  6  3  7  8  4 16 12  1  5    2 4 3 1 8 7 6 5
+U8 g7 13 14  9 10 15  4  5  2  6  3  7  8 12 16  1 11    1 3 4 2 8 7 6 5
+```
+
+(Firmware inverteert dit: gewenst (bus, stem) → chip g = stem−1, AX = index
+waar OUT-bus staat, AY = index waar IN-bus staat.)
+
+## Center-variant rev 0.3c (2026-07-21) — alternatieve plaatsing
+
+`musicbrain-matrix-c` (zelfde schema/BOM, `gen_matrix.py center`): plaatsing
+"gedistribueerd midden" naar Marks schets 6 — 4 chipkolommen × 2 rijen, alle
+OUT-headers in de verticale kanalen tussen de kolommen (4-8-4), IN-headers in
+2 horizontale rijen in de middengap, logica+bus op de weststrook. Rationale:
+audio kort (elke chip raakt elke header binnen ~2 kolombreedtes), control
+lang maar traag/zeldzaam actief. 154×133 (vs 175×142), 4-laags, DRC 0/0.
+
+**Gemeten audiobaanlengte (192 netten, gerouteerd):**
+
+| | edge rev 0.2 | center rev 0.3c | verschil |
+|---|---|---|---|
+| totaal | 17.316 mm | 11.358 mm | −34% |
+| gemiddeld | 90,2 mm | 59,2 mm | −34% |
+| mediaan | 86,7 mm | 54,9 mm | −37% |
+| max | 230,4 mm | 153,8 mm | −33% |
+
+(Airline-ondergrens Hungarian: 15.066 vs 9.431 mm.)
+
+**Circulaire "bloem"-opstelling geëvalueerd en afgewezen (2026-07-21,
+zonder te routen):** 8 chips radiaal op 45°, 2 OUT-headers per tussenruimte,
+IN-hart in het midden, doorgerekend met dezelfde airline/Hungarian-maat
+(die de gerouteerde uitkomst op ~1,15-1,20× voorspelt). Beste haalbare bloem
+≈ 11.038 mm (fysiek passende radii; zelfs met onhaalbaar krappe radii
+10.356) vs center-raster 9.431 mm → bloem is **10-17% slechter** én het
+bord wordt ~160×160 i.p.v. 154×133. Reden: (1) de chips zijn lange
+rechthoeken — hun tangentiële breedte duwt de binneneinden tot r≈25 en de
+verre Y-pads dus tot r≈75 van het hart; (2) het "midden" is geen punt maar
+24 headers van 26 mm — het raster legt chips áán beide kanten tegen de
+headervelden aan, de cirkel kan dat niet; (3) de OUT-wiggen worden pas op
+r≈37 breed genoeg voor een header. Het gedistribueerde raster ís de goede
+benadering van het cirkel-idee voor rechthoekige onderdelen.
+
+**Firmware-contract center-variant** (adresformaat gelijk; mapping ANDERS —
+elke chip anders, en anders dan de edge-tabel hierboven!):
+
+```
+chip  AX0..AX15 -> OUT                                   AY0..AY7 -> IN
+U1 g0 13 14  2  6 15 16  9 10 12  8  3  4 11  7  1  5    3 8 4 7 2 5 1 6
+U2 g1 13 14 10  6 15 16  9  2 12  8  3  4 11  7  1  5    3 8 4 1 7 6 2 5
+U3 g2 13 14  7 11  8 12  1  2  6 10  3  4 15 16  9  5    8 4 5 1 7 3 6 2
+U4 g3 13  4  7 11  8 12  1  2  6 10 14  3 15 16  9  5    6 2 5 1 8 4 7 3
+U5 g4  3 14  7 11 15 16  5  9  6 10 13 12  8  4  1  2    3 6 2 1 8 4 7 5
+U6 g5 13  7 14 11 15 16  5  9  6  3 10  4 12  8  1  2    7 3 6 2 8 4 5 1
+U7 g6 13 14  9  5 10 15  2 11  7  3  4  8 12 16  6  1    4 7 3 2 8 5 1 6
+U8 g7 13 14  9  5 10  8  2 15 11  7  3  4 12 16  6  1    3 8 4 7 2 5 1 6
+```
 

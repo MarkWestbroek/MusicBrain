@@ -78,7 +78,7 @@ def auto_spec(pcb_path):
             if isinstance(sub, list) and sub[0] == 'pad':
                 at = next(s for s in sub if isinstance(s, list) and s[0] == 'at')
                 pads.append((float(at[1]), float(at[2])))
-        if not ref or not re.fullmatch(r'J\d+', ref) or not pads:
+        if not ref or not re.fullmatch(r'J[A-Z]*\d+', ref) or not pads:
             continue
         import math
         c = math.cos(math.radians(rot))

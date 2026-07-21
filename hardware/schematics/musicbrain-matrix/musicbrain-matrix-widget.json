@@ -1,0 +1,157 @@
+{
+ "title": "musicbrain-matrix rev 0.2 — aansluitoverzicht",
+ "image": "/boards/musicbrain-matrix.png",
+ "alt": "3D-render van musicbrain-matrix",
+ "points": [
+  {
+   "x": 0.2215,
+   "y": 0.1826,
+   "label": "OUT1 (JOUT1)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | OUT1V1 |\n| 3 | OUT1V2 |\n| 4 | OUT1V3 |\n| 5 | OUT1V4 |\n| 6 | OUT1V5 |\n| 7 | OUT1V6 |\n| 8 | OUT1V7 |\n| 9 | OUT1V8 |\n| 10 | GND |"
+  },
+  {
+   "x": 0.2215,
+   "y": 0.3826,
+   "label": "OUT2 (JOUT2)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | OUT2V1 |\n| 3 | OUT2V2 |\n| 4 | OUT2V3 |\n| 5 | OUT2V4 |\n| 6 | OUT2V5 |\n| 7 | OUT2V6 |\n| 8 | OUT2V7 |\n| 9 | OUT2V8 |\n| 10 | GND |"
+  },
+  {
+   "x": 0.2215,
+   "y": 0.5827,
+   "label": "OUT3 (JOUT3)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | OUT3V1 |\n| 3 | OUT3V2 |\n| 4 | OUT3V3 |\n| 5 | OUT3V4 |\n| 6 | OUT3V5 |\n| 7 | OUT3V6 |\n| 8 | OUT3V7 |\n| 9 | OUT3V8 |\n| 10 | GND |"
+  },
+  {
+   "x": 0.2215,
+   "y": 0.7827,
+   "label": "OUT4 (JOUT4)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | OUT4V1 |\n| 3 | OUT4V2 |\n| 4 | OUT4V3 |\n| 5 | OUT4V4 |\n| 6 | OUT4V5 |\n| 7 | OUT4V6 |\n| 8 | OUT4V7 |\n| 9 | OUT4V8 |\n| 10 | GND |"
+  },
+  {
+   "x": 0.0549,
+   "y": 0.1826,
+   "label": "OUT5 (JOUT5)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | OUT5V1 |\n| 3 | OUT5V2 |\n| 4 | OUT5V3 |\n| 5 | OUT5V4 |\n| 6 | OUT5V5 |\n| 7 | OUT5V6 |\n| 8 | OUT5V7 |\n| 9 | OUT5V8 |\n| 10 | GND |"
+  },
+  {
+   "x": 0.0549,
+   "y": 0.3826,
+   "label": "OUT6 (JOUT6)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | OUT6V1 |\n| 3 | OUT6V2 |\n| 4 | OUT6V3 |\n| 5 | OUT6V4 |\n| 6 | OUT6V5 |\n| 7 | OUT6V6 |\n| 8 | OUT6V7 |\n| 9 | OUT6V8 |\n| 10 | GND |"
+  },
+  {
+   "x": 0.0549,
+   "y": 0.5827,
+   "label": "OUT7 (JOUT7)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | OUT7V1 |\n| 3 | OUT7V2 |\n| 4 | OUT7V3 |\n| 5 | OUT7V4 |\n| 6 | OUT7V5 |\n| 7 | OUT7V6 |\n| 8 | OUT7V7 |\n| 9 | OUT7V8 |\n| 10 | GND |"
+  },
+  {
+   "x": 0.0549,
+   "y": 0.7827,
+   "label": "OUT8 (JOUT8)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | OUT8V1 |\n| 3 | OUT8V2 |\n| 4 | OUT8V3 |\n| 5 | OUT8V4 |\n| 6 | OUT8V5 |\n| 7 | OUT8V6 |\n| 8 | OUT8V7 |\n| 9 | OUT8V8 |\n| 10 | GND |"
+  },
+  {
+   "x": 0.7785,
+   "y": 0.1826,
+   "label": "OUT9 (JOUT9)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | OUT9V1 |\n| 3 | OUT9V2 |\n| 4 | OUT9V3 |\n| 5 | OUT9V4 |\n| 6 | OUT9V5 |\n| 7 | OUT9V6 |\n| 8 | OUT9V7 |\n| 9 | OUT9V8 |\n| 10 | GND |"
+  },
+  {
+   "x": 0.7785,
+   "y": 0.3826,
+   "label": "OUT10 (JOUT10)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | OUT10V1 |\n| 3 | OUT10V2 |\n| 4 | OUT10V3 |\n| 5 | OUT10V4 |\n| 6 | OUT10V5 |\n| 7 | OUT10V6 |\n| 8 | OUT10V7 |\n| 9 | OUT10V8 |\n| 10 | GND |"
+  },
+  {
+   "x": 0.7785,
+   "y": 0.5827,
+   "label": "OUT11 (JOUT11)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | OUT11V1 |\n| 3 | OUT11V2 |\n| 4 | OUT11V3 |\n| 5 | OUT11V4 |\n| 6 | OUT11V5 |\n| 7 | OUT11V6 |\n| 8 | OUT11V7 |\n| 9 | OUT11V8 |\n| 10 | GND |"
+  },
+  {
+   "x": 0.7785,
+   "y": 0.7827,
+   "label": "OUT12 (JOUT12)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | OUT12V1 |\n| 3 | OUT12V2 |\n| 4 | OUT12V3 |\n| 5 | OUT12V4 |\n| 6 | OUT12V5 |\n| 7 | OUT12V6 |\n| 8 | OUT12V7 |\n| 9 | OUT12V8 |\n| 10 | GND |"
+  },
+  {
+   "x": 0.9451,
+   "y": 0.1826,
+   "label": "OUT13 (JOUT13)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | OUT13V1 |\n| 3 | OUT13V2 |\n| 4 | OUT13V3 |\n| 5 | OUT13V4 |\n| 6 | OUT13V5 |\n| 7 | OUT13V6 |\n| 8 | OUT13V7 |\n| 9 | OUT13V8 |\n| 10 | GND |"
+  },
+  {
+   "x": 0.9451,
+   "y": 0.3826,
+   "label": "OUT14 (JOUT14)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | OUT14V1 |\n| 3 | OUT14V2 |\n| 4 | OUT14V3 |\n| 5 | OUT14V4 |\n| 6 | OUT14V5 |\n| 7 | OUT14V6 |\n| 8 | OUT14V7 |\n| 9 | OUT14V8 |\n| 10 | GND |"
+  },
+  {
+   "x": 0.9451,
+   "y": 0.5827,
+   "label": "OUT15 (JOUT15)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | OUT15V1 |\n| 3 | OUT15V2 |\n| 4 | OUT15V3 |\n| 5 | OUT15V4 |\n| 6 | OUT15V5 |\n| 7 | OUT15V6 |\n| 8 | OUT15V7 |\n| 9 | OUT15V8 |\n| 10 | GND |"
+  },
+  {
+   "x": 0.9451,
+   "y": 0.7827,
+   "label": "OUT16 (JOUT16)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | OUT16V1 |\n| 3 | OUT16V2 |\n| 4 | OUT16V3 |\n| 5 | OUT16V4 |\n| 6 | OUT16V5 |\n| 7 | OUT16V6 |\n| 8 | OUT16V7 |\n| 9 | OUT16V8 |\n| 10 | GND |"
+  },
+  {
+   "x": 0.139,
+   "y": 0.0666,
+   "label": "IN1 (JIN1)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | IN1V1 |\n| 3 | IN1V2 |\n| 4 | IN1V3 |\n| 5 | IN1V4 |\n| 6 | IN1V5 |\n| 7 | IN1V6 |\n| 8 | IN1V7 |\n| 9 | IN1V8 |\n| 10 | GND |"
+  },
+  {
+   "x": 0.2919,
+   "y": 0.0666,
+   "label": "IN2 (JIN2)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | IN2V1 |\n| 3 | IN2V2 |\n| 4 | IN2V3 |\n| 5 | IN2V4 |\n| 6 | IN2V5 |\n| 7 | IN2V6 |\n| 8 | IN2V7 |\n| 9 | IN2V8 |\n| 10 | GND |"
+  },
+  {
+   "x": 0.7075,
+   "y": 0.0666,
+   "label": "IN3 (JIN3)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | IN3V1 |\n| 3 | IN3V2 |\n| 4 | IN3V3 |\n| 5 | IN3V4 |\n| 6 | IN3V5 |\n| 7 | IN3V6 |\n| 8 | IN3V7 |\n| 9 | IN3V8 |\n| 10 | GND |"
+  },
+  {
+   "x": 0.8605,
+   "y": 0.0666,
+   "label": "IN4 (JIN4)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | IN4V1 |\n| 3 | IN4V2 |\n| 4 | IN4V3 |\n| 5 | IN4V4 |\n| 6 | IN4V5 |\n| 7 | IN4V6 |\n| 8 | IN4V7 |\n| 9 | IN4V8 |\n| 10 | GND |"
+  },
+  {
+   "x": 0.139,
+   "y": 0.9334,
+   "label": "IN5 (JIN5)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | IN5V1 |\n| 3 | IN5V2 |\n| 4 | IN5V3 |\n| 5 | IN5V4 |\n| 6 | IN5V5 |\n| 7 | IN5V6 |\n| 8 | IN5V7 |\n| 9 | IN5V8 |\n| 10 | GND |"
+  },
+  {
+   "x": 0.2919,
+   "y": 0.9334,
+   "label": "IN6 (JIN6)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | IN6V1 |\n| 3 | IN6V2 |\n| 4 | IN6V3 |\n| 5 | IN6V4 |\n| 6 | IN6V5 |\n| 7 | IN6V6 |\n| 8 | IN6V7 |\n| 9 | IN6V8 |\n| 10 | GND |"
+  },
+  {
+   "x": 0.7075,
+   "y": 0.9334,
+   "label": "IN7 (JIN7)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | IN7V1 |\n| 3 | IN7V2 |\n| 4 | IN7V3 |\n| 5 | IN7V4 |\n| 6 | IN7V5 |\n| 7 | IN7V6 |\n| 8 | IN7V7 |\n| 9 | IN7V8 |\n| 10 | GND |"
+  },
+  {
+   "x": 0.8605,
+   "y": 0.9334,
+   "label": "IN8 (JIN8)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | IN8V1 |\n| 3 | IN8V2 |\n| 4 | IN8V3 |\n| 5 | IN8V4 |\n| 6 | IN8V5 |\n| 7 | IN8V6 |\n| 8 | IN8V7 |\n| 9 | IN8V8 |\n| 10 | GND |"
+  },
+  {
+   "x": 0.4902,
+   "y": 0.2266,
+   "label": "BUS (J1)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | +12V |\n| 3 | GND |\n| 4 | -12V |\n| 5 | GND |\n| 6 | — |\n| 7 | SCLK |\n| 8 | GND |\n| 9 | MOSI |\n| 10 | GND |\n| 11 | — |\n| 12 | GND |\n| 13 | CS |\n| 14 | GND |\n| 15 | — |\n| 16 | — |\n| 17 | — |\n| 18 | — |\n| 19 | — |\n| 20 | GND |\n| 21 | — |\n| 22 | — |\n| 23 | — |\n| 24 | — |"
+  }
+ ]
+}

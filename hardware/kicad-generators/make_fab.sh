@@ -21,6 +21,9 @@ musicbrain-busboard:musicbrain-busboard
 musicbrain-axon:musicbrain-axon
 musicbrain-vca8:musicbrain-vca8
 musicbrain-matrix:musicbrain-matrix
+musicbrain-matrix-c:musicbrain-matrix-c
+musicbrain-vcf8kern:musicbrain-vcf8kern
+musicbrain-vcf8kern-testadapter:musicbrain-vcf8kern-testadapter
 "
 
 # optioneel: alleen geselecteerde borden (komma-gescheiden dir-namen als arg 1)
@@ -35,6 +38,8 @@ if [ -n "${1:-}" ]; then
 fi
 
 GLAYERS="F.Cu,B.Cu,F.Mask,B.Mask,F.SilkS,B.SilkS,Edge.Cuts,F.Paste,B.Paste"
+# 4-laags borden (matrix): binnenlagen automatisch meenemen
+GLAYERS4="F.Cu,In1.Cu,In2.Cu,B.Cu,F.Mask,B.Mask,F.SilkS,B.SilkS,Edge.Cuts,F.Paste,B.Paste"
 
 for entry in $BOARDS; do
   dir="${entry%%:*}"; base="${entry##*:}"
@@ -46,8 +51,10 @@ for entry in $BOARDS; do
   [ -f "$pcb" ] || { echo "SKIP $dir (geen pcb)"; continue; }
   rm -rf "$fab"; mkdir -p "$gerb"
 
+  layers="$GLAYERS"
+  grep -q '"In1.Cu"' "$pcb" && layers="$GLAYERS4"
   kicad-cli pcb export gerbers --no-protel-ext --check-zones \
-    --layers "$GLAYERS" -o "$gerb/" "$pcb" >/dev/null 2>&1
+    --layers "$layers" -o "$gerb/" "$pcb" >/dev/null 2>&1
   kicad-cli pcb export drill --format excellon --excellon-separate-th \
     --generate-map --map-format gerberx2 -o "$gerb/" "$pcb" >/dev/null 2>&1
   kicad-cli pcb export pos --format csv --units mm --side both \

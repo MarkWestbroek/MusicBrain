@@ -1,0 +1,211 @@
+{
+ "titel": "musicbrain-matrix rev 0.2 — aansluitoverzicht",
+ "bbox_mm": [
+  42.0,
+  26.0,
+  217.0,
+  168.0
+ ],
+ "callouts": [
+  {
+   "label": "OUT1 (JOUT1)",
+   "mm": [
+    78.5,
+    49.4
+   ],
+   "kant": "boven"
+  },
+  {
+   "label": "OUT2 (JOUT2)",
+   "mm": [
+    78.5,
+    79.4
+   ],
+   "kant": "links"
+  },
+  {
+   "label": "OUT3 (JOUT3)",
+   "mm": [
+    78.5,
+    109.4
+   ],
+   "kant": "links"
+  },
+  {
+   "label": "OUT4 (JOUT4)",
+   "mm": [
+    78.5,
+    139.4
+   ],
+   "kant": "onder"
+  },
+  {
+   "label": "OUT5 (JOUT5)",
+   "mm": [
+    48.0,
+    49.4
+   ],
+   "kant": "links"
+  },
+  {
+   "label": "OUT6 (JOUT6)",
+   "mm": [
+    48.0,
+    79.4
+   ],
+   "kant": "links"
+  },
+  {
+   "label": "OUT7 (JOUT7)",
+   "mm": [
+    48.0,
+    109.4
+   ],
+   "kant": "links"
+  },
+  {
+   "label": "OUT8 (JOUT8)",
+   "mm": [
+    48.0,
+    139.4
+   ],
+   "kant": "links"
+  },
+  {
+   "label": "OUT9 (JOUT9)",
+   "mm": [
+    180.5,
+    49.4
+   ],
+   "kant": "boven"
+  },
+  {
+   "label": "OUT10 (JOUT10)",
+   "mm": [
+    180.5,
+    79.4
+   ],
+   "kant": "rechts"
+  },
+  {
+   "label": "OUT11 (JOUT11)",
+   "mm": [
+    180.5,
+    109.4
+   ],
+   "kant": "rechts"
+  },
+  {
+   "label": "OUT12 (JOUT12)",
+   "mm": [
+    180.5,
+    139.4
+   ],
+   "kant": "onder"
+  },
+  {
+   "label": "OUT13 (JOUT13)",
+   "mm": [
+    211.0,
+    49.4
+   ],
+   "kant": "rechts"
+  },
+  {
+   "label": "OUT14 (JOUT14)",
+   "mm": [
+    211.0,
+    79.4
+   ],
+   "kant": "rechts"
+  },
+  {
+   "label": "OUT15 (JOUT15)",
+   "mm": [
+    211.0,
+    109.4
+   ],
+   "kant": "rechts"
+  },
+  {
+   "label": "OUT16 (JOUT16)",
+   "mm": [
+    211.0,
+    139.4
+   ],
+   "kant": "rechts"
+  },
+  {
+   "label": "IN1 (JIN1)",
+   "mm": [
+    63.4,
+    32.0
+   ],
+   "kant": "boven"
+  },
+  {
+   "label": "IN2 (JIN2)",
+   "mm": [
+    91.4,
+    32.0
+   ],
+   "kant": "boven"
+  },
+  {
+   "label": "IN3 (JIN3)",
+   "mm": [
+    167.5,
+    32.0
+   ],
+   "kant": "boven"
+  },
+  {
+   "label": "IN4 (JIN4)",
+   "mm": [
+    195.5,
+    32.0
+   ],
+   "kant": "boven"
+  },
+  {
+   "label": "IN5 (JIN5)",
+   "mm": [
+    63.4,
+    162.0
+   ],
+   "kant": "onder"
+  },
+  {
+   "label": "IN6 (JIN6)",
+   "mm": [
+    91.4,
+    162.0
+   ],
+   "kant": "onder"
+  },
+  {
+   "label": "IN7 (JIN7)",
+   "mm": [
+    167.5,
+    162.0
+   ],
+   "kant": "onder"
+  },
+  {
+   "label": "IN8 (JIN8)",
+   "mm": [
+    195.5,
+    162.0
+   ],
+   "kant": "onder"
+  },
+  {
+   "label": "BUS (J1)",
+   "mm": [
+    127.7,
+    56.0
+   ],
+   "kant": "boven"
+  }
+ ]
+}

@@ -109,7 +109,7 @@ def main():
         px = bx0 + (cmx - mx0) * sx
         py = by0 + (cmy - my0) * sy
         # label staat al als kop in de tooltip; markdown = alleen de pin-tabel
-        m = re.search(r'\bJ\d+\b', c['label'])
+        m = re.search(r'\bJ[A-Z]*\d+\b', c['label'])
         md = pin_tabel_md(pcb, m.group(0)) if m else ''
         points.append({'x': round(px / W, 4), 'y': round(py / H, 4),
                        'label': c['label'], 'markdown': md})

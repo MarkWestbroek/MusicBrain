@@ -24,6 +24,16 @@ import requests
 from PIL import Image
 from pinout_svg import lees_connector
 
+# .env naast dit script (GITIGNORED) levert INGEST_TOKEN/IMPRINT_BASE —
+# zelfde conventie als publish_product.mjs; echte env-vars winnen.
+_envp = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+if os.path.exists(_envp):
+    for _ln in open(_envp, encoding='utf-8'):
+        _ln = _ln.strip()
+        if _ln and not _ln.startswith('#') and '=' in _ln:
+            _k, _v = _ln.split('=', 1)
+            os.environ.setdefault(_k.strip(), _v.strip())
+
 RAND = 24   # px marge bij bijsnijden — MOET gelijk zijn aan widget_export.RAND,
             # anders matchen de point-x/y uit de widget-json niet met deze render
 
@@ -58,7 +68,7 @@ def widget_points(widget_json, pinouts):
         pt = {'x': p['x'], 'y': p['y']}
         if p.get('label'):
             pt['label'] = p['label']
-        m = re.search(r'\bJ\d+\b', p.get('label', ''))
+        m = re.search(r'\bJ[A-Z]*\d+\b', p.get('label', ''))
         if m and m.group(0) in pinouts:
             pt['connector'] = m.group(0)   # site linkt assets.pinouts[ref]
         elif p.get('label'):
@@ -134,7 +144,7 @@ def main():
     ovj = os.path.join(d, f'{base_name}-overzicht.json')
     if os.path.exists(ovj):
         for c in json.load(open(ovj, encoding='utf-8'))['callouts']:
-            m = re.search(r'\bJ\d+\b', c['label'])
+            m = re.search(r'\bJ[A-Z]*\d+\b', c['label'])
             if m:
                 labels[m.group(0)] = c['label']
 
@@ -147,9 +157,9 @@ def main():
             for sub in node:
                 if isinstance(sub, list) and sub[0] == 'property' and sub[1] == '"Reference"':
                     r = sub[2].strip('"')
-                    if re.fullmatch(r'J\d+', r):
+                    if re.fullmatch(r'J[A-Z]*\d+', r):
                         refs.append(r)
-    refs.sort(key=lambda r: int(r[1:]))
+    refs.sort(key=lambda r: (re.sub(r'\d+$', '', r), int(re.search(r'\d+$', r).group())))
     conns = connectors(pcb, refs, labels)
 
     # assets: render + overzicht + pinouts (bestandsnamen zoals in doc.assets)
@@ -177,10 +187,11 @@ def main():
         'component': a.component,
         'version': a.version,
         'connectors': conns,
-        'assets': {'renderTop': 'render-top.png',
+        'assets': {k: v for k, v in {
+                   'renderTop': 'render-top.png',
                    'overview': 'overview.svg' if 'overview.svg' in files else None,
                    'model3d': 'model.glb' if 'model.glb' in files else None,
-                   'pinouts': pinouts},
+                   'pinouts': pinouts}.items() if v is not None},
         'points': points,
         'sections': readme_sections(os.path.join(d, 'README.md')),
     }
