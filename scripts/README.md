@@ -73,41 +73,19 @@ lege code-blocks verwijderd door `_remove_empty_fences()`.
 
 ---
 
-## export-claude-chats.py
+## export-claude-chats.py → verplaatst
 
-Tegenhanger voor **Claude Code**-sessies (Fable/Opus/…). Claude bewaart zijn
-sessies als JSONL onder `~/.claude/projects/<geëncodeerde-projectpad>/`. Dit
-script vindt die map zelf via de git-hoofd-repo-root en schrijft een leesbare
-export naar dezelfde map als de Copilot-exports (`doc/copilot-chats/exports/`).
+De Claude Code-chat-exporter woont niet meer hier. Hij is nu een gedeelde,
+project-onafhankelijke tool in een eigen repo:
 
-```powershell
-# Laatste sessie met een nette titel
-python scripts/export-claude-chats.py --latest --title hardware-kicad-fab
+- **https://github.com/MarkWestbroek/VScode-scripts**
+- Lokaal: `D:\Git\_VScode-scripts\export-claude-chats.py`.
+- Draai je via de **globale** VS Code-tasks "Export Claude Chats (all)/(latest)"
+  (User-tasks), die vanuit elk project werken — geen kopie per repo meer nodig.
 
-# Eén specifieke sessie / alle sessies
-python scripts/export-claude-chats.py --session <id>
-python scripts/export-claude-chats.py --all
-```
-
-Ook als VS Code Task: **Export Claude Chats (all)** en **Export Claude Chats
-(latest)**. `--all` is idempotent — het slaat sessies over die al een export
-hebben (de session-id staat in de kopregel); forceer met `--force`.
-
-**Bestandsnaam:** `YYYY-MM-DD-<titel-slug>.md` (datum = sessiestart). De titel
-wordt automatisch afgeleid uit de sessie zelf — bij voorkeur het door Claude
-Code gegenereerde **`ai-title`**, anders de eerste gebruikersprompt. Zo krijgt
-óók de task nette namen. Overrulen kan met `--title <onderwerp>` (alleen bij één
-sessie). Pas als er echt geen titel te vinden is valt hij terug op
-`YYYY-MM-DD-claude-<8hex>.md`.
-
-Gebruiker- en assistentteksten komen letterlijk mee; tool-aanroepen als
-compacte `🔧`-annotaties (hun output niet); interne redeneerblokken weggelaten.
-Extra opties: `--summary` (samenvattingsstub) en `--force` (bij `--all` bestaande
-overschrijven).
-
-> Dit is een kopie van de gedeelde, project-onafhankelijke versie in
-> `D:\Git\_VScode-scripts\export-claude-chats.py` (bron van waarheid; zie de
-> README daar voor een globale VS Code-task die vanuit elk project werkt).
+De oude lokale kopie is verwijderd om te voorkomen dat twee versies uiteenlopen.
+Voor Claude-chats van dit project schrijft de gedeelde tool naar
+`doc/ai-chats/exports/` (voorheen `doc/copilot-chats/exports/`).
 
 ---
 
