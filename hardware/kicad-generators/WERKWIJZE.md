@@ -109,6 +109,53 @@ Generators mogen eerder (WIP-koper expliciet benoemen). Nooit `git add -A`.
   stukken liggen. kicad-cli's "unconnected"-teksten husselen netlabels.
 - `kicad-cli pcb render` na elke ronde: 3D-modellen op de gatenrij? Silk vrij?
 
+## Dichte borden: de vcf8kern-lessen (2026-07-21)
+
+Het dichtste bord tot nu toe (44 passieven/stem, dubbelzijdig, 4-laags).
+Freerouting alléén redde het niet; het winnende recept:
+
+1. **Plaatsing wint van routing**: grid-clusters van passieven (ook met
+   ruime steek) geven freerouting-plateaus. NET-BEWUST plaatsen — elk
+   onderdeel in een rij naast zijn IC-pin, pin-net-pad naar het IC gericht
+   (rot 180 waar nodig) — bracht het bord van plateau-88 naar 7 unrouted
+   in 8 passes. Zie `place_voice_passives()` in gen_vcf8kern.py.
+2. **GND nooit als freerouting-net** op pad-rijke borden (~200 GND-pads =
+   plateau): GND strippen, zones op ALLE lagen + gnd_stitch/gnd_bridge,
+   en de rest met `finish_routes.py` (zie 4).
+3. **freerouting-versies**: v2.1 = NPE-crash op dit bord; v2.2.4 (Java 25,
+   jar in ~/.kicad-mcp) routeert wél en respecteert `-mp` (v2.1 niet!) —
+   `-mp N` = natuurlijke terminatie = SES gegarandeerd. De hybride narun
+   (protected import) crasht/hangt in BEIDE versies op grote wiring-sets
+   (StackOverflow in PolylineTrace.combine) — niet meer gebruiken; de
+   staart doet `finish_routes.py`.
+4. **`finish_routes.py`** (nieuw): deterministische afmaker in de
+   generator — purge (mini-DRC), weld (micro-gaatjes), trim (dangles),
+   maze-router (0,2 mm-grid, eigenaar-kaart, aparte via-kaart met
+   gat-tot-gat-marges), force_gnd_via (stub naar dichtstbijzijnde LEGALE
+   via-plek — inzicht: bij GND is elke via-plek een anker, de planes doen
+   de rest). Fasen in een FIXPOINT-lus draaien (elke fase eenmalig laat
+   brokstukken achter voor een eerdere fase).
+5. **Valkuilen die dagen kostten**:
+   - **Paste-only EP-subpads** (naamloos, alleen F.Paste) zijn GEEN koper —
+     wie footprint-pads als obstakel inleest moet pads zonder `.Cu`-laag
+     overslaan (cardlib doet dat nu). Anders: fantoom-obstakels midden in
+     elke EP die alles daar kapot-purgen.
+   - **THT-pads zijn cirkels**, geen (round)rects: het rect-model
+     overschat hoeken ~0,25 en keurt legale header-passages af.
+   - **Rip-up cascadeert**: soft-rip is alleen veilig op een kleine staart
+     (<±5 netten) met voeding/GND onschendbaar en nooit door pad-cellen;
+     op schaal divergeert het altijd (3× gezien).
+   - Segments-ketens uit SES + snap_stubs: collineair mergen in write()
+     (cardlib doet dat nu) — anders slikt geen router de re-export.
+6. **Smalle afmaak-routes** (0,2 spoor / 0,15-clearance-netclass in het
+   .kicad_pro, enc5front-precedent) glippen door gaten waar 0,25/0,2 niet
+   meer past; zone-vulling mag dan ook strakker (0,2/0,15 — cardlib
+   `zone_clearance`/`zone_min_thickness`).
+7. **Waarheidsmeting GND**: `gnd_orphans.py` (pcbnew union-find inclusief
+   zone-fragmenten) → cumulatieve json → `force_gnd_via`. De DRC-teller is
+   de enige waarheid; eigen union-finds zonder zone-kennis liegen in beide
+   richtingen (eiland-interne snaps telden als succes).
+
 ## GND-vlakken
 
 - Twee zones (F+B), `connect_pads yes`, **géén `island_removal_mode 1`**
