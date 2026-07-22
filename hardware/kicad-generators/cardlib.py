@@ -177,15 +177,18 @@ class Board:
                     node[2] = f'"{val}"'
                 if node[0] == 'pad':
                     num = node[1].strip('"')
-                    _sz, _tht, _onB = None, False, False
+                    _sz, _tht, _onB, _cu = None, False, False, False
                     for sub in node:
                         if isinstance(sub, list) and sub[0] == 'size':
                             _sz = (float(sub[1]), float(sub[2]))
                         if isinstance(sub, list) and sub[0] == 'drill':
                             _tht = True
                         if isinstance(sub, list) and sub[0] == 'layers':
-                            _onB = any(t in ('"B.Cu"', 'B.Cu') for t in sub[1:]
-                                       if not isinstance(t, list))
+                            toks = [t.strip('"') for t in sub[1:]
+                                    if not isinstance(t, list)]
+                            _onB = 'B.Cu' in toks
+                            _cu = any(t.endswith('.Cu') or t == '*.Cu'
+                                      for t in toks)
                         if isinstance(sub, list) and sub[0] == 'at':
                             px, py = float(sub[1]), float(sub[2])
                             dx, dy = rotxy(px, py, rot)
@@ -205,12 +208,14 @@ class Board:
                         node.append(['net', str(idx), f'"{name}"'])
                         self.PNET.setdefault(ref, {})[key] = idx
                         ni = idx
-                    hx, hy = (_sz or (0.5, 0.5))
-                    hx, hy = hx / 2, hy / 2
-                    if rot % 180:
-                        hx, hy = hy, hx
-                    side = '*' if _tht else ('B' if _onB else 'F')
-                    self.PADS.append((ni, *self.P[ref][key], hx, hy, side))
+                    if _cu:      # paste/mask-only apertures (EP-subpads
+                                 # zonder nummer) zijn GEEN koper-obstakel!
+                        hx, hy = (_sz or (0.5, 0.5))
+                        hx, hy = hx / 2, hy / 2
+                        if rot % 180:
+                            hx, hy = hy, hx
+                        side = '*' if _tht else ('B' if _onB else 'F')
+                        self.PADS.append((ni, *self.P[ref][key], hx, hy, side))
             body.append(node)
         at = ['at', fmt(x), fmt(y), str(rot)] if rot else ['at', fmt(x), fmt(y)]
         tree[2:] = [['uuid', f'"{self.uid()}"'], at, ['path', f'"/{path_uuid}"']] + body

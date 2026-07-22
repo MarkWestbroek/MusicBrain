@@ -72,7 +72,18 @@ for m in (re.finditer(r'\(wire\s*\(path\s+(\S+)\s+([\d.]+)((?:\s+[-\d.]+)+)\s*\)
 # Freerouting ziet dan ook vaste GND-wiring uit de generator (reddings-
 # sporen, binnenringen) en routeert eromheen/erop verder. Nodig voor borden
 # met fijne-steek GND-pads die de zone-vulling nooit bereikt (adc8 LQFP).
-if '--route-gnd' in sys.argv:
+# 4-laags: binnenlagen ALTIJD op 'power' zodat freerouting er geen signaal
+# op legt (In1/In2 = massieve GND-planes; no-op op 2-laags borden). Let op
+# (vcf8kern 2026-07-21): --keep-gnd laat GND als gewoon freerouting-net
+# staan -> op borden met ~200 GND-pads plateaut de router op het
+# GND+rails-residu. Standaard-strip (GND eruit, zones op alle lagen in de
+# generator + gnd_stitch) converteert wel.
+src = re.sub(r'(\(layer In[12]\.Cu\s*\(type )signal', r'\1power', src)
+if '--keep-gnd' in sys.argv:
+    # GND-planes (In1/In2) + GND-net BLIJVEN; freerouting laat GND naar de
+    # binnenvlakken vallen (korte via's) i.p.v. lange sporen op F/B.
+    pass
+elif '--route-gnd' in sys.argv:
     for op in ('(plane GND', '(plane "GND"'):
         src = strip_block(src, op)
 else:
