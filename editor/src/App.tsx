@@ -10,7 +10,8 @@ export function App(): JSX.Element {
 
   return (
     <main style={{ fontFamily: 'var(--mb-font-sans)', padding: 16 }}>
-      <header style={{ display: 'flex', alignItems: 'baseline', gap: 16, marginBottom: 16 }}>
+      <header style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+        <BrainMark />
         <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, letterSpacing: '-0.01em' }}>
           Music<span style={{ color: 'var(--mb-accent)' }}>Brain</span>{' '}
           <span
@@ -65,6 +66,28 @@ export function App(): JSX.Element {
         </section>
       )}
     </main>
+  );
+}
+
+/** Patch-brain merk — jack-nodes + kabelbogen; amber, matcht de site-header. */
+function BrainMark(): JSX.Element {
+  return (
+    <svg width="40" height="34" viewBox="0 0 70 60" role="img" aria-label="MusicBrain">
+      <g fill="none" stroke="var(--mb-accent)" strokeWidth={3} strokeLinecap="round">
+        <path d="M14 42 Q 12 18 33 13" />
+        <path d="M33 13 Q 58 12 57 33" />
+        <path d="M14 42 Q 20 54 38 51" />
+        <path d="M38 51 Q 54 48 57 33" />
+        <path d="M25 32 Q 35 24 46 33" />
+      </g>
+      <g fill="#ffffff" stroke="var(--mb-accent)" strokeWidth={3}>
+        <circle cx={14} cy={42} r={5.5} />
+        <circle cx={33} cy={13} r={5.5} />
+        <circle cx={57} cy={33} r={5.5} />
+        <circle cx={38} cy={51} r={5.5} />
+      </g>
+      <circle cx={35.5} cy={31} r={4} fill="var(--mb-accent)" />
+    </svg>
   );
 }
 

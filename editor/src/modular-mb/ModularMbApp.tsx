@@ -149,7 +149,7 @@ export function ModularMbApp(): JSX.Element {
   }
 
   return (
-    <section style={{ fontFamily: 'system-ui, sans-serif' }}>
+    <section style={{ fontFamily: 'var(--mb-font-sans)' }}>
 
       {/* ── Project header bar ── */}
       <div className="es-projectbar">
@@ -232,7 +232,7 @@ export function ModularMbApp(): JSX.Element {
           <span style={{ position: 'relative', display: 'inline-block' }}>
             <button onClick={() => setShowPanels((v) => !v)}
               title="Eén paneel los exporteren of importeren (mmb-panel.v1)"
-            >🎛️ Panels ▾</button>
+            >Panels ▾</button>
             {showPanels && (
               <div style={{
                 position: 'absolute', top: '100%', left: 0, zIndex: 20,
@@ -258,11 +258,11 @@ export function ModularMbApp(): JSX.Element {
           <button
             onClick={() => setShowPresets(true)}
             title="Presets opslaan/laden (project of per module)"
-          >💾 Presets</button>
+          >Presets</button>
           <button
             onClick={() => setShowTeensy(true)}
             title="Verbinden met Teensy via USB Serial en config pushen"
-          >🔌 Teensy</button>
+          >Teensy</button>
           <button
             onClick={() => setShowWave(true)}
             title="Teken een single-cycle golfvorm en push die live naar een Draw-VCO of Morph-WT (USER-bank)"
@@ -270,24 +270,24 @@ export function ModularMbApp(): JSX.Element {
           <button
             onClick={() => setProject(seedExampleModules(getProject()))}
             title="Voeg 6 voorbeeld-modules toe aan dit project en plaats ze in het actieve rack"
-          >✨ Voorbeelden</button>
+          >Voorbeelden</button>
           <button
             onClick={() => setProject(seedInternals(getProject()))}
             title="Voeg MMB-modules (AHDSR, LFO, S&H, VCO, VCF, VCA, OUT, SEQ-8) toe aan het virtuele rack"
-          >✨ Internals</button>
+          >Internals</button>
           <button
             onClick={() => setProject(seedTestPatch(getProject()))}
             title="Maak een nieuw Test rack + Test patch: VCO → VCF → VCA → OUT met ENV → VCA. Klaar om in de Simulatie-tab af te spelen."
-          >✨ Test-patch</button>
+          >Test-patch</button>
           <button
             onClick={() => setProject(seedCvBridgePatch(getProject()))}
             title="CV-bridge patch: MidiIn → VCO → VCF → VCA, 2×AHDSR (filter+amp), velocity via CvMath."
-          >✨ CV-bridge</button>
+          >CV-bridge</button>
           <span style={{ position: 'relative', display: 'inline-block' }}>
             <button
               onClick={() => setShowPoly((v) => !v)}
               title="Seed een N-stemmige polyfonie-testpatch (ADR 0011): MidiIn (N stemmen) → N× voice-keten → MIXER → OUT. N≤4=4-in mixer, N≤8=8-in, N≤16=16-in."
-            >✨ Poly ▾</button>
+            >Poly ▾</button>
             {showPoly && (
               <div
                 style={{
@@ -325,7 +325,7 @@ export function ModularMbApp(): JSX.Element {
             <button
               onClick={() => setShowSolo((v) => !v)}
               title="Solo-seeds: de kortst mogelijke speelbare patch rond één instrument (MidiIn → module → OUT) — om Rings/Plaits/Elements/STK te leren kennen."
-            >🎹 Solo ▾</button>
+            >Solo ▾</button>
             {showSolo && (
               <div
                 style={{
@@ -405,7 +405,7 @@ export function ModularMbApp(): JSX.Element {
             <button
               onClick={() => setShowStress((v) => !v)}
               title="Stress-seeds: energievretende varianten van de poly-patch om de Teensy te pushen. Kijk in de status-strip (CPU / blocks / loop) hoe ver hij gaat."
-            >🔥 Stress ▾</button>
+            >Stress ▾</button>
             {showStress && (
               <div
                 style={{
@@ -461,10 +461,10 @@ export function ModularMbApp(): JSX.Element {
               padding: '6px 14px',
               borderRadius: '6px 6px 0 0',
               border: '1px solid #cbd2d9',
-              borderTop: tab === t.id ? '2px solid var(--mb-accent)' : '1px solid #cbd2d9',
               borderBottom: 'none',
               background: tab === t.id ? '#ffffff' : '#f5f7fa',
-              fontWeight: tab === t.id ? 600 : 400,
+              boxShadow: tab === t.id ? 'inset 0 3px 0 var(--mb-accent)' : undefined,
+              fontWeight: tab === t.id ? 700 : 400,
               cursor: 'pointer',
               fontSize: 13,
               position: 'relative',
