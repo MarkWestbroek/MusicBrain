@@ -1318,3 +1318,1147 @@ Ik heb de labels van de brain (url enzo) anders gezet, want die kwamen onder de 
 
 Is het ook mogelijk om documentatie te genereren die meer grafisch is (zie heeeel ruwe schets rond top view van het bord - img3)  ?
 
+**🤖 Claude:**
+
+Dank! Ik loop je vragen langs, kijk eerst even wat je precies aan de labels hebt veranderd:
+> 🔧 `PowerShell` — Check user's label edits in pcb
+> 🔧 `PowerShell` — Extract user's text positions
+> 🔧 `Write` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `PowerShell` — List gr_text items in user's pcb
+> 🔧 `Edit` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `PowerShell` — List all gr_text items
+> 🔧 `Grep` — GSWITCH BRAIN|gr_text|board_text|\.text|T_text|silk
+> 🔧 `Read` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_gswitch_brain.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_gswitch_brain.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_gswitch_brain.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_gswitch_brain.py
+> 🔧 `PowerShell` — Regen with new labels + DRC + render
+> 🔧 `Read` — d:\Git\Muziek\MusicBrain\hardware\schematics\gswitch-brain\render-top.png
+> 🔧 `PowerShell` — Export board SVG + inspect viewBox
+> 🔧 `PowerShell` — Header positions
+> 🔧 `Grep` — 'J5'|'J6'|'J7'|'J8'|J5|J6|J7|J8
+
+**🤖 Claude:**
+
+J5=OLED, J6=knoppen, J7=encoder, J8=spare. Nu het overzichtsscript:
+> 🔧 `Write` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gswitch_overzicht.py
+> 🔧 `PowerShell` — Generate annotated overview SVG
+> 🔧 `PowerShell` — Screenshot SVG via headless Edge
+> 🔧 `PowerShell` — Retry headless screenshot in scratchpad cwd
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+
+**🤖 Claude:**
+
+Het overzicht klopt — alle pijlen wijzen goed. README bijwerken, geheugen vastleggen en committen:
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\schematics\gswitch-brain\README.md
+> 🔧 `Write` — C:\Users\User\.claude\projects\d--Git-Muziek-MusicBrain\memory\silk-en-doc-voorkeuren.md
+> 🔧 `PowerShell` — Memory index + stage label/doc changes
+> 🔧 `PowerShell` — Commit silk labels + overview doc
+> 🔧 `PowerShell` — Commit silk labels + overview doc
+
+**🤖 Claude:**
+
+Gecommit (abee2fe). Dan nu je vragen:
+
+**J3/J4 = MIDI DIN?** Ja — J3 is MIDI IN, J4 MIDI UIT (CUI SDS-50J, DIN-5). Ze renderen als witte omtrekken omdat het custom footprints uit de maattekening zijn, zonder 3D-model. Datzelfde geldt voor J1 (DC-jack), J2 (USB-C), de RJ45's en de ESP-module. Dat is puur cosmetisch — elektrisch is alles compleet. 3D-modellen (STEP) zijn los toe te voegen aan de footprints (van SnapEDA/SamacSys of de KiCad-libs); kan ik een keer doen als je mooiere renders wilt.
+
+**U1 = ESP32-S3, SMD, kan JLC die plaatsen?** Ja: ESP32-S3-WROOM-**1U**-N8R2, een SMD-module met castellated randpads plus één thermisch pad eronder — precies wat je níét met de hand wilt doen, en precies wat JLCPCB's assemblage goed kan (het is een "extended part" in hun catalogus). De hele SMD-kant van dit bord is op JLC-assemblage ontworpen. De THT-onderdelen (DIN's, RJ45's, DC-jack, headers) kun je desgewenst zelf solderen — dat is het makkelijke werk — of tegen meerprijs door JLC laten doen. Bij de orderronde checkt `jlc_fix.py` of de -1U-variant op voorraad is.
+
+**J10/J11 netwerk?** Het zijn RJ45-*connectors*, maar géén ethernet: dit zijn de chain-poorten A en B naar de loop8-kastjes (CLK/DATA/LATCH/EN/12V/DRET over een gewone netwerkkabel, pinout in de spec). Nooit in een echte netwerkpoort prikken — er staat 12V op pin 4. Een silk-tekstje "geen ethernet!" bij de jacks is misschien een goed idee voor rev 0.2.
+
+**Waarom center-negatief?** Pedaalconventie (de Boss-standaard). Vrijwel elke gitarist heeft al 9V/12V-adapters en voedingsblokken met center-negatieve pluggen op zijn board; door die standaard te volgen kan je klant zijn bestaande voeding gebruiken en steekt hij nooit per ongeluk een pedaaladapter "verkeerd om" in. Het bord heeft bovendien ompoolbeveiliging (P-FET), dus ook een center-positieve adapter maakt niets kapot.
+
+**Renders automatisch?** Ja — dat gebeurt al headless: `kicad-cli pcb render --side top -o render-top.png bord.kicad_pcb` (zo maak ik na elke routingronde de visuele check; `--side bottom`, `--zoom`, `--rotate` kunnen ook). Geen GUI nodig.
+
+**Labels onthouden** ✓ — ik heb je indeling in de *generator* gezet (titel + spanning tussen de RJ45's, URL verticaal langs de oostrand) en als voorkeur in mijn geheugen opgeslagen: silk nooit onder connectors, altijd op de render checken. Let op: je KiCad-sessie heeft die wijziging waarschijnlijk nog openstaan — niet meer opslaan vanuit de GUI, want het bestand op schijf is nu opnieuw gegenereerd mét jouw labelposities (DRC nog steeds 0/0).
+
+**Grafische documentatie** ✓ — gemaakt naar je schets: [gswitch-brain-overzicht.svg](hardware/schematics/gswitch-brain/gswitch-brain-overzicht.svg), gelinkt bovenaan de [README](hardware/schematics/gswitch-brain/README.md). Het script [gswitch_overzicht.py](hardware/kicad-generators/gswitch_overzicht.py) exporteert de topview als vector-SVG en zet er callouts omheen op exacte bordcoördinaten: MIDI in/uit, USB, 12V-ingang, de vier headers met functie, chain A/B → loop8-kastjes, en een legenda (SW1=RESET, SW2=BOOT, enz.). GitHub en VSCode renderen het direct in de README. Zoiets kan ik ook voor loop8 maken als je wilt.
+
+---
+
+## 👤 Gebruiker (21)
+
+- is de jlc parts catalogus inmiddels hier op de computer geland?
+- labels: bijna goed, de middelste moeten iets naar het oosten, zie img
+> 🔧 `ToolSearch`
+> 🔧 `mcp__kicad__get_jlcpcb_database_stats`
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_gswitch_brain.py
+> 🔧 `PowerShell` — Regen + DRC + render
+> 🔧 `Read` — d:\Git\Muziek\MusicBrain\hardware\schematics\gswitch-brain\render-top.png
+> 🔧 `PowerShell` — Commit label nudge
+> 🔧 `mcp__kicad__download_jlcpcb_database`
+> 🔧 `PowerShell` — Check if download continues server-side
+> 🔧 `PowerShell` — Check cache dir growth
+> 🔧 `PowerShell` — Inspect both SQLite schemas
+> 🔧 `Write` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `PowerShell` — Dump JLC db schemas + row counts
+
+**🤖 Claude:**
+
+Bron heeft 616.593 onderdelen; de doeltabel verwacht ze in een iets ander formaat. Ik doe de import direct:
+> 🔧 `Write` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `PowerShell` — Import cdfer catalog into MCP parts db
+
+**🤖 Claude:**
+
+Import klaar. Verifiëren via de MCP-server en meteen de kritieke onderdelen checken:
+> 🔧 `mcp__kicad__get_jlcpcb_database_stats`
+> 🔧 `ToolSearch`
+> 🔧 `mcp__kicad__search_jlcpcb_parts`
+> 🔧 `mcp__kicad__search_jlcpcb_parts`
+> 🔧 `mcp__kicad__search_jlcpcb_parts`
+> 🔧 `Read` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\WERKWIJZE.md
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\WERKWIJZE.md
+> 🔧 `PowerShell` — Commit WERKWIJZE note
+
+**🤖 Claude:**
+
+Beide punten geregeld:
+
+**JLC-catalogus: ja, nu wel.** De 1,6 GB brondata stond er al (eerdere downloadpoging was gelukt), maar de import naar de zoekdatabase was nooit afgemaakt — de MCP-downloadtool liep stuk op zijn eigen 30-secondentimeout. Ik heb de import handmatig gedaan: **616.593 in-stock onderdelen** staan nu in de parts-database, doorzoekbaar via de MCP-server. Meteen de spannendste check gedaan: de exacte module **ESP32-S3-WROOM-1U-N8R2 = LCSC C3013944**, $4,98/stuk, 4399 op voorraad (extended part, dus $3 setup-fee — verwaarloosbaar). JLC kan hem dus gewoon plaatsen. Eén zoek-eigenaardigheid voor later: de zoekfunctie verslikt zich in streepjes — "ESP32 S3 WROOM 1U" werkt, "ESP32-S3-WROOM-1U" niet. Dat recept staat nu in de WERKWIJZE (commit eaf21da, samen met jouw eerdere aanpassingen aan dat bestand).
+
+**Labels:** het titelblok staat 2,5 mm oostelijker en is nu netjes gecentreerd tussen J10 en J11 — op de render gecheckt, DRC blijft 0/0, gecommit (de0cbc6).
+
+Daarmee is de weg vrij voor de volgende stap richting bestelling: `jlc_fix.py`-run op de BOM's van beide borden tegen de nu gevulde database, plus de jack-doorpiepcheck die nog openstaat.
+
+---
+
+## 👤 Gebruiker (22)
+
+Een parallelle chat heeft een methode uitgevonden om de echte 3D renders programmatisch te maken en daar de uitleg op te projecteren. Zie @hardware/schematics/musicbrain-busboard-v2/musicbrain-busboard-v2-overzicht.svg  voor het resultaat en @hardware/kicad-generators/WERKWIJZE.md voor de uitleg.
+
+Zou je dat (methode en python script) willen gebruiken om de brain en het relaisbord te documenteren? De pinouts van de connectoren moeten dan ook nog. Kan dat samen in 1 readme.md per bord, waarbij de 3D svg embedded is?
+
+Eerst is het alleen misschien goed om eventuele missende 3d-componenten (hoe heten die) uit de verse database te vissen. De UTP en DIN connector bijv.. Zodat het nog wat realistischer overkomt.
+
+Lukt je dat?
+
+**🤖 Claude:**
+
+Ja, dat lukt. Plan: (1) missende 3D-modellen (STEP/WRL — "3D-modellen" heten die) aan de custom footprints hangen, (2) per bord een overzicht-JSON + `board_overview.py`-run, (3) README's per bord herschrijven met embedded SVG + pinout-tabellen. Eerst het nieuwe script en de spec-vorm bekijken:
+> 🔧 `Read` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\board_overview.py
+> 🔧 `Read` — d:\Git\Muziek\MusicBrain\hardware\schematics\musicbrain-busboard-v2\musicbrain-busboard-v2-overzicht.json
+> 🔧 `Write` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `PowerShell` — Inventory 3D models on both boards
+> 🔧 `PowerShell` — Search 3D model candidates
+> 🔧 `PowerShell` — List RJ45/DIN models + jack lib contents
+> 🔧 `PowerShell` — Check 3D dir + model refs
+> 🔧 `PowerShell` — Read Amphenol RJ45 lib footprint pads + model
+> 🔧 `Grep` — def raw_fp|def raw_pads|RJ45|rj45|DIN5|SDS50J
+> 🔧 `Read` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_gswitch_brain.py
+> 🔧 `PowerShell` — cardlib fp storage + loop8 jack extents
+> 🔧 `Grep` — def acjs|GSwitch:ACJS|fp_rect|descr
+> 🔧 `Write` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_3dshapes.py
+> 🔧 `TodoWrite` — takenlijst bijgewerkt
+> 🔧 `PowerShell` — Generate WRL models
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_gswitch_brain.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_gswitch_brain.py
+> 🔧 `Read` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_gswitch_brain.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_gswitch_brain.py
+> 🔧 `PowerShell` — Regen brain + render with models
+> 🔧 `Read` — d:\Git\Muziek\MusicBrain\hardware\schematics\gswitch-brain\render-top.png
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_gswitch_brain.py
+> 🔧 `PowerShell` — Regen + top render + perspective check
+> 🔧 `Read` — d:\Git\Muziek\MusicBrain\hardware\schematics\gswitch-brain\render-top.png
+
+**🤖 Claude:**
+
+Top klopt nu. Even het perspectief checken voor de DIN-bussen:
+> 🔧 `Read` — d:\Git\Muziek\MusicBrain\hardware\schematics\gswitch-brain\render-persp.png
+> 🔧 `Read` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_gswitch_loop8.py
+> 🔧 `Read` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_gswitch_loop8.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_gswitch_loop8.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_gswitch_loop8.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_gswitch_loop8.py
+> 🔧 `PowerShell` — Regen loop8 + DRC + render
+> 🔧 `Read` — d:\Git\Muziek\MusicBrain\hardware\schematics\gswitch-loop8\render-top.png
+> 🔧 `Write` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `PowerShell` — Loop8 connector anchors
+> 🔧 `Read` — d:\Git\Muziek\MusicBrain\hardware\schematics\gswitch-loop8\README.md
+> 🔧 `PowerShell` — Pin nets J9/J8 (brain), J1/J3/J5/J7 (loop8)
+> 🔧 `Write` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `PowerShell` — Pin context brain J9/J8, loop8 connectors
+> 🔧 `Write` — d:\Git\Muziek\MusicBrain\hardware\schematics\gswitch-brain\gswitch-brain-overzicht.json
+> 🔧 `Write` — d:\Git\Muziek\MusicBrain\hardware\schematics\gswitch-loop8\gswitch-loop8-overzicht.json
+> 🔧 `PowerShell` — Generate both overview SVGs
+> 🔧 `PowerShell` — Rasterize both SVGs for visual check
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `PowerShell` — Rasterize SVGs (absolute paths)
+> 🔧 `PowerShell` — Check screenshot output
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\schematics\gswitch-brain\gswitch-brain-overzicht.json
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\schematics\gswitch-loop8\gswitch-loop8-overzicht.json
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\schematics\gswitch-loop8\gswitch-loop8-overzicht.json
+> 🔧 `PowerShell` — Regenerate overviews + raster loop8
+
+**🤖 Claude:**
+
+De zoom-parameter breekt de render-aanroep (insert-index-bug in board_overview.py). Zoom weglaten en gewoon groter renderen:
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\schematics\gswitch-loop8\gswitch-loop8-overzicht.json
+> 🔧 `PowerShell` — Regen loop8 overview + raster both
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\schematics\gswitch-brain\README.md
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\schematics\gswitch-brain\README.md
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\schematics\gswitch-loop8\README.md
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\schematics\gswitch-loop8\README.md
+
+**🤖 Claude:**
+
+Oude script vervangen, alles valideren en committen:
+> 🔧 `PowerShell` — Remove old script + DRC both boards
+> 🔧 `PowerShell` — Stage doc/model changes
+> 🔧 `PowerShell` — Commit 3D models + overview docs
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\WERKWIJZE.md
+> 🔧 `Read` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\WERKWIJZE.md
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\WERKWIJZE.md
+> 🔧 `PowerShell` — Generate pinout SVGs for both boards
+> 🔧 `PowerShell` — Rasterize sample pinout SVGs
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+
+**🤖 Claude:**
+
+Beide diagramtypes kloppen. In de README's opnemen:
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\schematics\gswitch-brain\README.md
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\schematics\gswitch-brain\README.md
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\schematics\gswitch-brain\README.md
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\schematics\gswitch-loop8\README.md
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\schematics\gswitch-loop8\README.md
+> 🔧 `Edit` — C:\Users\User\.claude\projects\d--Git-Muziek-MusicBrain\memory\silk-en-doc-voorkeuren.md
+> 🔧 `PowerShell` — Update memory + commit pinout docs
+> 🔧 `TodoWrite` — takenlijst bijgewerkt
+
+**🤖 Claude:**
+
+Gelukt — beide borden hebben nu volledige grafische documentatie in hun README (commits a0e03b9 en bc89842).
+
+**3D-modellen aangevuld** (dat heten 3D-modellen, STEP- of WRL-bestanden aan een footprint):
+- **RJ45's**: het echte Amphenol RJHSE-538X-STEP-model uit de KiCad-bibliotheek — ander pinraster dan onze "56-klasse", maar dezelfde behuizing; offset op de render geijkt.
+- **ESP32-module**: verwees naar `ESP32-S3-WROOM-1U.step` dat niet in de bibliotheek bestáát (alleen `-1`); nu wijst hij naar het -1-model en rendert de module met schild en al.
+- **DIN-5 en de ACJS-jacks**: nergens een fabrikantsmodel te vinden (de SamacSys-lib van de jack bevat geen 3D), dus die genereer ik zelf als eenvoudige zwarte behuizingen met zilveren bussen (`gen_3dshapes.py` → `hardware/schematics/3dshapes/`). Goed genoeg voor realistische overzichten.
+- DRC bleef op beide borden 0/0 (modellen zijn puur cosmetisch).
+
+**Documentatie per bord**, met de methode van de parallelle chat:
+- [gswitch-brain README](hardware/schematics/gswitch-brain/README.md): bovenaan het `board_overview.py`-overzicht (echte 3D-render met 13 callouts), daarna pinout-tabellen mét de veiligheidspunten (chain-RJ45: **pin 4 voert 12 V — geen ethernet insteken**; J1: center = GND), en de DIN/RJ45-diagrammen inline.
+- [gswitch-loop8 README](hardware/schematics/gswitch-loop8/README.md): zelfde opzet — overzicht met loops/audio/chain-callouts, RJ45- en jack-pinouts, doorlink-uitleg.
+- Alle connectoren staan bovendien als los diagram in `pinouts/` per bord, gegenereerd met de nieuwe `pinout_svg.py` die de netten rechtstreeks uit het bordbestand leest — die kunnen dus nooit uit de pas lopen met het ontwerp.
+- Kleine reparatie onderweg: in mijn eerdere platte overzicht stonden MIDI IN en UIT verwisseld (J3 is de **uitgang**, J4 de ingang) — in de nieuwe overzichten klopt het. En mijn oude `gswitch_overzicht.py` is verwijderd ten gunste van `board_overview.py`.
+
+Eén ding om te weten: de overzicht-JSON's (callout-teksten en -posities) staan naast de borden; als je een label wilt aanpassen is dat één regeltje json en een her-run.
+
+---
+
+## 👤 Gebruiker (23)
+
+Super. Heb je al het e.e.a. gecommit? Er staat veel open, van een aantal parallelle chats. Zou je al jouw werk onder een zinvolle commit titel en beschrijving willen committen?
+> 🔧 `PowerShell` — Working tree status + recent commits
+> 🔧 `PowerShell` — Inspect kicad_pro diff + .gitignore
+> 🔧 `PowerShell` — Revert pro-noise + check ignorable patterns
+> 🔧 `PowerShell` — Verify pro revert + tracked .net check
+> 🔧 `PowerShell` — Add gitignore for loop intermediates + commit
+
+**🤖 Claude:**
+
+Ja — alles van mij staat er nu in. Deze sessie leverde zeven commits op:
+
+| commit | inhoud |
+|---|---|
+| `da5a5af` | **gswitch-brain rev 0.1 geroute** (ERC 0 / netcheck OK / DRC 0/0) — bord, generator, SES-rondes, README, PDF's |
+| `abee2fe` | silk-labels op jouw indeling + eerste grafisch aansluitoverzicht |
+| `de0cbc6` | titelblok 2,5 mm naar oost (gecentreerd tussen de RJ45's) |
+| `eaf21da` | WERKWIJZE: JLCPCB-database gevuld (importrecept + streepjes-valkuil) |
+| `a0e03b9` | 3D-modellen (DIN/ACJS-WRL's, RJ45-STEP, ESP32-fix) + board_overview-overzichten beide borden |
+| `bc89842` | pinout-diagrammen van alle connectors, embedded in beide README's |
+| `b4fb63b` | .gitignore voor de validatie-tussenbestanden (drc/erc-rapporten, `.ses.bak`-rondes, render-checks, `-fr.dsn`) |
+
+Daarnaast opgeruimd: de gswitch-brain `.kicad_pro` stond als gewijzigd door GUI-verrijkingsruis (het bekende open_project/KiCad-effect) — teruggedraaid conform de WERKWIJZE-regel; de generator is daarvoor de bron.
+
+**Wat er nog open staat is niet van mij** en heb ik bewust laten liggen: de fab-regeneraties van adc8/dac8/gate8/enc5front, de busboard-v2-bestanden en `gen_enc5front.py` (parallelle chats), de copilot-chat-export, en jouw eigen `gswitch-brain/3D/`-mapje met render-PNG's plus de `.kicad_prl` (viewer-state; mag wat mij betreft blijven of weg). Die kunnen de betreffende chats het beste zelf onder een passende titel committen.
+
+---
+
+## 👤 Gebruiker (24)
+
+vraagje: ik heb nu de relais die de klant zelf in zijn huidige project heeft gebruikt, gekregen:
+- https://nl.aliexpress.com/item/1005005659959759.html?spm=a2g0o.order_list.order_list_main.514.1a1c79d2MsYyOs&gatewayAdapt=glo2nld
+- SMD G6K-2F-Y G6K-2P-Y Signal Relays 8PIN For Relay DC 3V 5V 12V 24V G6K-2F-Y5VDC G6K-2F-Y-12VDC G6K-2F-Y24VDC 10*6.5*5mm
+= https://nl.farnell.com/en-NL/omron/g6k-2fy-dc24/relay-signal-dpdt-30vdc-1a/dp/4446252?srsltid=AfmBOoo9G_0v359H8rzOLLN94fxB5NKc7fdNsdZKrmDlvSSYDT1jv7Vz
+
+Hebben die dezelfde vorm-factor, of een andere, dan die wij gekozen hebben.
+
+Verder heeft hij ervoor gekozen geen jacksockets te doen, maar gewoon schroefconnectoren en zelf de jack kabels te maken. (Hij soldeert graag.)
+
+Zouden we eventueel een variant van het relaisbord kunnen maken met schroefconnectoren ipv jacksockets?
+
+**🤖 Claude:**
+
+Twee goeie vragen. Even de feiten checken — de KiCad-lib heeft footprints van beide families, en de JLC-database is nu gevuld dus voorraad kan ik ook meteen zien:
+> 🔧 `PowerShell` — List relay footprints in KiCad lib
+> 🔧 `Write` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `PowerShell` — Compare EE2 vs G6K footprints
+
+**🤖 Claude:**
+
+Footprints zijn totaal verschillend — nu even de voorraadkant:
+> 🔧 `mcp__kicad__search_jlcpcb_parts`
+> 🔧 `mcp__kicad__search_jlcpcb_parts`
+> 🔧 `mcp__kicad__search_jlcpcb_parts`
+
+**🤖 Claude:**
+
+Beide vragen uitgezocht — dit is een beoordeling, ik heb nog niets omgebouwd.
+
+## 1. G6K-2F-Y vs. onze relaiskeuze: **andere vormfactor, niet uitwisselbaar**
+
+| | Omron G6K-2F-Y (klant) | EE2 / TQ2SA / HFD4 (loop8 rev 0.1) |
+|---|---|---|
+| behuizing | 10 × 6,5 × 5,2 mm | 14 × 9 × 5 mm |
+| pads | gull-wing 1,8×0,8, padveld 7,0 × 7,6 mm | 1,11×3, padveld 7,3 × 10,2 mm |
+| pinvolgorde | 1–8 doorgenummerd | 1/3/4/5–8/9/10/12 (EE2-nummering) |
+| elektrisch | DPDT, 1 A/30 VDC, ±100 mW spoel | DPDT, 1–2 A/30 VDC, ±140 mW spoel |
+
+Zelfde relaisklasse dus (prima geschikt voor het werk, en de ULN2803 kan hem makkelijk aansturen), maar het landpatroon is totaal anders — hij past niet op onze gedeelde EE2-footprint. KiCad heeft wél een kant-en-klare `Relay_DPDT_Omron_G6K-2F-Y`-footprint, dus een variant is goed maakbaar.
+
+Twee aandachtspunten vóór we die kant op gaan:
+- **Spoelspanning van zijn zak relais checken.** De AliExpress-listing verkoopt 3/5/12/24 V door elkaar. Ons bord voedt de spoelen uit 12 V; een 5 V-G6K kan niet zomaar (8× 21 mA zou de 78L05 overbelasten — dan moeten er serieweerstanden of een dikkere 5V-tak bij). Met een 12 V-zak is het plug-and-play.
+- **JLC-voorraad**: G6K-2F-Y ligt er vooral in 3 V/5 V (~$1,10); de 12 V-versie is er praktisch niet. Onze TQ2SA-12V-Z ligt er wél gewoon (C2684447, $1,72, 807 stuks). Dus: als JLC de relais moet plaatsen → bij de huidige footprint blijven; wil de klant zíjn G6K's zelf solderen (SMD-gullwing, goed te doen voor iemand die graag soldeert) → G6K-variant.
+
+## 2. Schroefklemmen i.p.v. jacks: **ja, goed te doen als bordvariant**
+
+Het audiodeel per loop is maar drie netten (SEND, RETURN, AGND) — dat past prima op een schroefklem. Concreet zou ik doen:
+
+- Per loop een **4-polige 3,5 mm-klem** (SEND · AGND · RETURN · AGND, 14 mm breed — past ruim in de bestaande 19 mm-steek), plus 2-polige klemmen voor audio in/uit. Elke zelfgemaakte kabel krijgt zo netjes signaal + scherm onder één klemmenpaar.
+- Besturingsdeel (RJ45-keten, 595/ULN, relais) blijft identiek; alleen de noordrand wisselt. In de generator wordt dat een variant-vlag (`--klemmen`) — zelfde bordomtrek, dus zelfde kastmaat, en de audio-handroutes in de noordstrook opnieuw leggen is een overzichtelijke klus.
+- **Eén functioneel verschil om te weten**: de jack-verbreekcontacten vervallen. Bij de jacks geeft een lege loop het signaal door zelfs als je hem per ongeluk inschakelt (normalisatie), en JP2 kon een lege ingang muten. Met klemmen geldt: een niet-bedrade loop is gewoon stil zodra je hem activeert — de relais-bypass (NC) vangt alles af zolang de loop uit staat, en in de firmware kunnen we ongebruikte loops gewoon uitvinken. Voor iemand die zijn bedrading zelf maakt is dat geen echt bezwaar, wel iets om in de handleiding te zetten.
+
+De logische combinatie is dan een **"klant-variant" loop8-st**: schroefklemmen + G6K-footprint (zijn eigen relais, zelf solderen), naast de bestaande jack/TQ2SA-versie voor JLC-assemblage. Zeg maar of ik hem zo mag opzetten — en vraag de klant even welke spoelspanning er op zijn G6K's staat (staat op de bovenkant: bijv. "G6K-2F-Y 12VDC"), want daar hangt de voedingskeuze aan.
+
+---
+
+## 👤 Gebruiker (25)
+
+# spanning
+hij heeft nu 5V, maar het maakt niet uit
+
+# parameteriseerbaar
+doel van de klant is vooral afmeting: zo klein en zo laag mogelijk. Dan zou het denk ik gewoon een nieuwe versie zijn die daarop gericht is.
+De Omrons zijn een fractie kleiner. Nu is het bord deze afmeting vanwege de jacksockets.
+Zou je uitgaan van een klemschroefstrip, is dat (veel) compacter.
+Dan bepalen de relais waarschijnlijk de maat. Die kunnen dichter bij elkaar.
+
+# relaiskeuze
+De netwerksockets blijven en die zijn toch het hoogst. Dus in die zin maakt de relaiskeuze ook weer niet zoveel uit.
+De prijs van de omrons is lager, maar is de kwaliteit gelijk?
+Ik zou voor 5-6 euro meer voor de 8 relais (zoiets scheelt het toch maximaal?), en de voorraad zodat ze in China gesoldeerd kunnen worden, kiezen voor die we al hadden.
+Maar als het bord echt kleiner kan met handgesoldeerde omrons, of door naar 5V te gaan, is dat wellicht toch een optie.
+Sorry voor de keuzes.
+
+# echt ander bord, zou ik zeggen
+Ik zou echt een ander bord maken, de loop8-xx
+-> waarom -st?
+-> special kan ook, of cr, customer request. Of sh, Sander van Herk, de naam vd klant :-) (bekende gitarist uit de jaren 80-90 in NL, trouwens.)
+
+# werk
+Wil je dat doen? Kijken hoe compact ie kan zonder de dubbele jacks, **maar wel met de jack in en uitgang**. UTP blijft ook, en de mogelijkheid direct de audio uit naar in volgend bord te doen, naast de UTP kabel.
+Dus queeste: klein en laag, zelfde functionaliteit!
+
+**🤖 Claude:**
+
+5 V-zak, maar dat maakt niet uit — mooi, want mijn analyse wijst toch naar de bestaande relais. Korte redenering vooraf, dan bouw ik **gswitch-loop8-sh** (Sander van Herk — en stiekem ook "schroef" 🙂):
+
+**Relais-conclusie**: de klemmenstrip bepaalt de steek, niet het relais. Een 3-polige 3,5 mm-klem (SEND·AGND·RETURN) is ~10,5 mm breed → loopsteek ~12,5 mm. De TQ2SA (courtyard ~11 mm) past daar precies in; de kleinere Omron wint dus **geen** bordbreedte, en de 12V-TQ2SA ligt bij JLC op voorraad ($1,72; het prijsverschil op 8 relais is inderdaad ~€4–5). Dus: zelfde relais, zelfde 12V-rail, machinaal gesoldeerd — en tóch het kleine bord. Hoogte: de RJ45 (13,5 mm) blijft sowieso het hoogste punt.
+
+**Doel**: van 200×58 naar ~140×40 mm, zelfde functionaliteit (jack in/uit blijven, RJ45's blijven, audio- en chain-doorlink blijven, jumpers blijven). Eerst de footprint-keuze voor de klemmen checken:
+> 🔧 `PowerShell` — Find 3.5mm terminal footprints
+> 🔧 `PowerShell` — PT-1,5/3-3,5 terminal geometry
+> 🔧 `Read` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_gswitch_loop8.py
+> 🔧 `TodoWrite` — takenlijst bijgewerkt
+> 🔧 `Read` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_gswitch_loop8.py
+> 🔧 `Read` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_gswitch_loop8.py
+> 🔧 `PowerShell` — PT terminal courtyard/fab extents
+> 🔧 `PowerShell` — PT courtyard bbox
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gswitch_dsn_prep.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gswitch_dsn_prep.py
+
+**🤖 Claude:**
+
+Nu de generator — een volledige, zelfstandige kopie-met-transformatie van loop8:
+> 🔧 `Write` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_gswitch_loop8sh.py
+> 🔧 `PowerShell` — First run loop8sh generator
+> 🔧 `PowerShell` — ERC + netcheck + DRC first pass
+> 🔧 `PowerShell` — Full DRC violation list
+
+**🤖 Claude:**
+
+Systematische fixronde. Eerst de echte ULN-padposities:
+> 🔧 `Write` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `PowerShell` — U4 + terminal pad positions
+
+**🤖 Claude:**
+
+U4-pinnen staan verticaal; COM zit zuidoost naast de CHASSIS-trace. Alle fixes in één ronde:
+> 🔧 `Write` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `PowerShell` — Apply fix1 + full validation
+> 🔧 `Write` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `PowerShell` — Apply fix2 + validate
+> 🔧 `PowerShell` — Full hole_clearance message
+
+**🤖 Claude:**
+
+H2 zit 0,075 te dicht op de CHASSIS-trace — 0,3 mm omhoog:
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_gswitch_loop8sh.py
+> 🔧 `PowerShell` — Regen + DRC + render
+> 🔧 `Read` — d:\Git\Muziek\MusicBrain\hardware\schematics\gswitch-loop8sh\render-top.png
+> 🔧 `Read` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_gswitch_loop8sh.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_gswitch_loop8sh.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_gswitch_loop8sh.py
+> 🔧 `PowerShell` — Regen + DRC check
+> 🔧 `mcp__kicad__open_project`
+> 🔧 `mcp__kicad__export_dsn`
+> 🔧 `TodoWrite` — takenlijst bijgewerkt
+> 🔧 `PowerShell` — Prep DSN with audio keepout box
+> 🔧 `Bash` — Freerouting loop8sh ronde 1
+
+**🤖 Claude:**
+
+Freerouting draait op de sh-variant (ronde 1). De tussenstand: **gswitch-loop8sh staat op ERC 0 / netcheck OK / DRC 0 pre-routing**, 150 × 44 mm — 44% minder oppervlak dan loop8, zelfde functionaliteit, en dezelfde JLC-monteerbare TQ2SA-relais (de Omrons winnen geen ruimte omdat de klemmenstrip de steek bepaalt). Zodra de router klaar is volgen de SES-inbak, GND-stitching en de documentatieronde.
+
+---
+
+## 👤 Gebruiker (26)
+
+Is de freerouting nog bezig?
+
+---
+
+## 👤 Gebruiker (27)
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+   Mark (Dutch-speaking) develops the **Guitar Effect Switcher** client project in the MusicBrain repo. Completed this session: gswitch-brain rev 0.1 fully routed and committed; documentation upgrades; JLC parts database import. The **current active request**: build **gswitch-loop8sh** — a new compact board version for client Sander van Herk ("klein en laag, zelfde functionaliteit!"):
+   - Screw terminals (klemmen) instead of the 8 dual stacked jacks (client solders own cables)
+   - **Keep** jack audio IN/OUT (ACJS-MH), RJ45 chain in/thru, audio-doorlink (naast UTP), chain-doorlink
+   - Relay decision (mine, accepted): keep EE2/TQ2SA-12V footprint — terminal strip sets 12mm pitch, so smaller Omron G6K (client's 5V relays) wins nothing; TQ2SA-12V-Z = JLC C2684447 in stock
+   - Board name loop8-sh per user's suggestion (Sander van Herk pun)
+   Also standing conventions: WERKWIJZE.md pipeline (generator → ERC → netlist+netcheck → DRC → renders → commit only at 0/0), never `git add -A`, commits end with `Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>`, silk never under connectors, docs per board = board_overview.py 3D-overzicht + pinout_svg.py diagrams embedded in README.
+   The user's **last message asks: "Is de freerouting nog bezig?"** (is freerouting still running?).
+
+2. Key Technical Concepts:
+   - Pipeline: gen_*.py → kicad-cli ERC/netlist/DRC (--severity-error --refill-zones) → cardlib.netcheck → freerouting (Docker eclipse-temurin:21-jre + C:/Users/User/.kicad-mcp/freerouting.jar, MSYS_NO_PATHCONV=1) → seslib.apply_ses → gnd_stitch.py/gnd_bridge.py (KiCad python + PYTHONPATH) → renders → docs → commit
+   - gswitch_dsn_prep.py options: `--no-keepout`, `--clearance-150`, `--narun=/NET1,/NET2` (strip named nets' wiring, protect rest — hybrid narun), **new** `--keepout-box=x0,y0,x1,y1` (mm, generic audio keepout; DSN units µm, y negated)
+   - Lessons in WERKWIJZE: SES-echo permanent skip; auto-skip pre-pass only for STALE SES; USB-C 16-pin bond recipe; missing 3D-model recipe (lib-STEP reuse/gen_3dshapes.py WRL/name variants); JLC DB import (ATTACH+INSERT+FTS rebuild) + FTS hyphen pitfall
+   - board_overview.py (pcb + overzicht.json → annotated 3D SVG, callouts in board-mm, kant links/rechts/boven/onder; NO zoom param — it breaks cmd insertion) and pinout_svg.py (--alle; reads nets from board file)
+   - cardlib: rotxy (rot90: dx=py,dy=-px; rot270: dx=-py,dy=px), fp_texts list, raw_fp, b.nm/b.rc, snap_stubs
+   - GBoard class: separate AGND (north)/GND (south) rectangular zones, silk_texts multi-text support ported
+   - SOIC rot0 in cardlib = **vertical pin columns** (U4 ULN: west col 1-9 top→bottom, east col 10-18 bottom→top; pin10 COM = SE corner)
+   - Phoenix PT-1,5/3-3,5-H 1x03: pads 0/3.5/7, courtyard x -2.25..9.25 (11.5 wide), y -3.6..5.23; has 3D STEP
+
+3. Files and Code Sections:
+   - **hardware/kicad-generators/gen_gswitch_loop8sh.py** (NEW, the current work): full generator. Geometry: `BX0,BY0,BX1,BY1=100,100,250,144`; `TX=[131.5+12.0*k for k in range(8)]`; `TY=103.75`; `RY=119.5` (relay rot180: NO_Y=115.69, COM_Y=118.23, NC_Y=120.77, COIL_Y=125.85; rxw=tx+3.5-3.645, rxe=tx+7.145); `BLEED_Y=110.15` (bleeds rot0 at tx+0.95 / tx+7.95 so pad1 lands exactly on the SEND/RET verticals); `Z_AGND_S=127.8, Z_GND_N=128.6, RAIL12=128.2`; OUTPIN mirrored east group. Placement: J7 ACJS_MH (100,110.5,0), J8 (250,110.5,180); J1 RJ45 (114.8,129.6,rot270), J2 (235.2,138.4,rot90); J3 2x04 (123.4,129.6), J4 (225.4,129.6); J5/J6 = **LINK2** raw fp (2 THT pads 2.54 pitch, courtyard -1.45..3.99×±1.45) at (121.6,122.3)/(241.9,122.25); JP2 (113.6,122.3) rc('/AGND','/INTN'); JP3 (108.9,122.3); C7 (133.5,140.6,270) rc('GND','/CHASSIS'), R33 (135.7,140.6,270) same; strip: series west x=131.4 y129.6+2j, pulls (135.4+3j,131.0,90), U2 (140.6,138.1), U3 (151.4,138.1), U1 (162.6,138.1), U4 (177.5,137.3), C1 (189.4,137.7), U5 (199.4,137.7,180), D1 (189.4,131.2), C-row pitch 3.6 (C5 150.9, C6 154.5, C4 158.1, D2 162.6, R32 166.2, C2 169.8, C3 195.8), JP1 (206.5,131.4); H1 (128.8,141.25), H2 (220.8,141.2). Hand routes: SEND `(tx,TY)→(tx,113.2)→(rxw,113.2)→(rxw,NO_Y)`; RET via tx+7; BYP NC-bridge; N-chain on COM_Y; coil stubs (rxe,COIL_Y)→RAIL12+via; +12V B-rail (119.3→230.9,128.2) with feeds (J1.4, J2.4, ULN COM east detour `com→(184.3,com.y)→(184.3,129.4)→via→rail`, U5, C1/C2/D1, J3.4/J4.4 stubs x=127.6/229.4); N0 `(131.355,COM_Y)→(119,COM_Y)→(119,102.35)→(116.5,102.35)` + B-branch via (119,120.5)→B→(121.6,120.5)→J5.1; N8 similar east with via (231.5,120.3)→B→(241.9,120.3)→J6.1; INTN (116.5,118.65)→(116.5,122.3)→JP2.2; shared AGND via (110.9,122.3) for JP2.1+JP3.2; JP3.1 CHASSIS `→(106.9,122.3)→(106.9,124.0)→(105.4,124.0)→(105.4,126.275)`; CHASSIS south trace y=143.3 sh1↔sh2 + taps to C7.2/R33.2 at x 133.5/135.7 with GND vias (133.5/136.4→135.7,138.6); silk_texts `[("GSWITCH LOOP8-SH rev 0.1",200.6,142.6,0),("doc/guitar-switcher-spec.md",175,127.15,0)]`; reads gnd_stitch.json; applies SES_FILE plain (no skip yet).
+   - **hardware/kicad-generators/gswitch_dsn_prep.py**: added `--keepout-box=` parsing and emission (`kx0 {-ky0} ...` µm)
+   - **hardware/schematics/gswitch-loop8sh/**: generated kicad_sch/pcb/pro, gswitch-loop8sh-fr.dsn (prepped with keepout-box), render-top.png; freerouting writing gswitch-loop8sh.ses
+   - Earlier this session (committed): gen_gswitch_brain.py (USB/bus hand routes, narun logic, silk_texts, 3D model refs), gen_gswitch_loop8.py (3D model refs), gen_3dshapes.py + hardware/schematics/3dshapes/*.wrl, board overview JSONs+SVGs, pinouts/ dirs, READMEs, WERKWIJZE.md, .gitignore
+   - Memory: guitar-switcher.md, silk-en-doc-voorkeuren.md (+ MEMORY.md index updated)
+
+4. Errors and fixes:
+   - **Brain (earlier)**: ESP32 module has pins on 3 sides (bottom row from x=177 blocked my columns) → DP via C10-gap x=173.5 + jog around R22, DM outside via x=175.0; VBUS bond loop imprisoned DP → loop east side on B (vias x=105.2); SW1/SW2 pads at y=131.15 shorted my B_EN lane → lanes at y≤130.2 + diagonal pad entries; auto-skip pre-pass wrongly skipped fresh r6 routes → AUTO_SKIP=False (fresh SES respects corridors); +3V3 in SKIP lost its SES branches → SKIP only fully-hand nets; narun3 worsened cluster → hand bus + narun4/5; stitch via clashes → moved (155,144.5→149.8)
+   - **MCP JLC download 30s timeout** → manual sqlite import; **FTS hyphens** → space-separated queries
+   - **PowerShell inline python with regex/quotes fails** → always write scratchpad .py files
+   - **board_overview.py "zoom"** broke kicad-cli invocation (bad cmd insertion) → don't use zoom, increase w/h
+   - **loop8sh DRC 47→8→1→0**: pad1 orientation of rot270 R/C and jumpers opposite to assumption → net swaps in BOTH pcb rc() and schematic sR/sj (netcheck consistency); J1/J2 RJ45 courtyards (rot270: x 99.57..119.72, y 124.02..144.07) swallow the west/east corners → JP/J5 band at y=122.3 (window J7-court 120.6 .. J1-court 124.02 = 3.42mm); 1x02 header courtyard (3.5) doesn't fit → LINK2 solder-pad footprint; SOIC rot0 = vertical columns → hybrid RC moved west of U2 col (x 138.125); ULN COM stub would wall east column → east detour x=184.3 through C1 gap; H2 hole 0.075 from CHASSIS trace → y 141.5→141.2
+
+5. Problem Solving:
+   gswitch-brain completed to ERC 0/netcheck/DRC 0/0 via 6 freerouting rounds + hand corridors; full graphical documentation toolchain established (3D models + board_overview + pinout_svg); JLC database operational (616k parts); relay/terminal analysis concluded terminal pitch dominates → keep TQ2SA-12V; loop8sh designed and validated pre-routing (ERC 0, netcheck OK, DRC 0 violations/73 unconnected) in 3 fix rounds; freerouting round 1 launched.
+
+6. All user messages:
+   - Questions about brain render: "zijn J3 en J4 de MIDI DIN sockets? Heb je daar ook 3D modellen van?... is U1 de ESP32-S3? Zit die SMD? Kan JLPCB dat voor mij er op zetten?... J10 en J11 zijn de netwerkaansluitingen? waarom center negative?... 3D renders... automatisch via een KiCad API?... labels anders gezet... Wil je dat onthouden?... documentatie genereren die meer grafisch is?"
+   - "is de jlc parts catalogus inmiddels hier op de computer geland? labels: bijna goed, de middelste moeten iets naar het oosten, zie img"
+   - "Een parallelle chat heeft een methode uitgevonden om de echte 3D renders programmatisch te maken... Zou je dat (methode en python script) willen gebruiken om de brain en het relaisbord te documenteren? De pinouts van de connectoren moeten dan ook nog. Kan dat samen in 1 readme.md per bord, waarbij de 3D svg embedded is? Eerst... missende 3d-componenten... uit de verse database te vissen. De UTP en DIN connector bijv."
+   - "Super. Heb je al het e.e.a. gecommit? Er staat veel open, van een aantal parallelle chats. Zou je al jouw werk onder een zinvolle commit titel en beschrijving willen committen?"
+   - Relay question: G6K-2F-Y AliExpress/Farnell links — "Hebben die dezelfde vorm-factor...? Verder heeft hij ervoor gekozen geen jacksockets te doen, maar gewoon schroefconnectoren... Zouden we eventueel een variant van het relaisbord kunnen maken met schroefconnectoren ipv jacksockets?"
+   - Decision message: 5V coils "maakt niet uit"; goal klein/laag; "Ik zou echt een ander bord maken, de loop8-xx... sh, Sander van Herk"; keep relais we had unless smaller helps; "Wil je dat doen? Kijken hoe compact ie kan zonder de dubbele jacks, **maar wel met de jack in en uitgang**. UTP blijft ook, en de mogelijkheid direct de audio uit naar in volgend bord... queeste: klein en laag, zelfde functionaliteit!"
+   - "Is de freerouting nog bezig?" (current question)
+
+7. Pending Tasks (loop8-sh completion):
+   - Wait for freerouting round 1 (background task **bgh9bt1pr**, output file ...tasks\bgh9bt1pr.output, echoes "SH-R1-KLAAR" when done, writes gswitch-loop8sh.ses)
+   - Regen (bakes SES) → DRC iterate; possibly more rounds/naruns for unrouted control nets
+   - gnd_stitch.py → regen → gnd_bridge.py → regen (KiCad python, PYTHONPATH=C:\Program Files\KiCad\10.0\bin\Lib\site-packages); manual bridge vias if "GEEN brugplek"
+   - Final ERC 0 + netcheck OK + DRC 0/0; renders visual check
+   - Docs: gswitch-loop8sh-overzicht.json + board_overview.py; pinout_svg.py --alle; README (status, klem-pinout 1=SEND 2=AGND 3=RETURN, geen-normalling caveat: lege loop niet activeren/firmware uitvinken, regenereer-instructies); MODULES.md row; memory guitar-switcher.md update
+   - Commit (kicad files + dsn + ses + json/svg + pinouts + README + generator + prep-script change), Co-Authored-By: Claude Fable 5; do NOT commit parallel-chat changes (adc8/dac8/gate8/enc5front fab, busboard, gen_enc5front.py, copilot-chats export) or user's gswitch-brain/3D/ + .kicad_prl
+   - Noted for later: fab packages + jlc_fix.py LCSC matching for all three gswitch boards; ACJS-MHD doorpiep check
+
+8. Current Work:
+   loop8-sh reached **ERC 0 / netcheck OK / DRC 0 violations (73 unconnected)** pre-routing. I exported the DSN via MCP (open_project + export_dsn), prepped it with `python gswitch_dsn_prep.py '...gswitch-loop8sh.dsn' "--keepout-box=100.5,100.5,249.5,124.0"` and launched freerouting round 1 in Docker background (task id **bgh9bt1pr**): `MSYS_NO_PATHCONV=1 docker run --rm -v "D:/Git/Muziek/MusicBrain/hardware/schematics/gswitch-loop8sh:/work" -v "C:/Users/User/.kicad-mcp:/jar" eclipse-temurin:21-jre java -jar /jar/freerouting.jar -de /work/gswitch-loop8sh-fr.dsn -do /work/gswitch-loop8sh.ses -mp 8`. My last status to the user: "Freerouting draait op de sh-variant (ronde 1)... Zodra de router klaar is volgen de SES-inbak, GND-stitching en de documentatieronde." The user then asked "Is de freerouting nog bezig?" — no completion notification for bgh9bt1pr has arrived yet in the conversation.
+
+9. Optional Next Step:
+   Answer the user's question by checking the background task: Read `C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\tasks\bgh9bt1pr.output` (looking for "SH-R1-KLAAR" / the freerouting JSON tail) and/or check `docker ps` to report whether round 1 is still running. If finished: proceed with the established pipeline — regenerate `gen_gswitch_loop8sh.py` (bakes the SES), run DRC, and continue per my stated plan: "Zodra de router klaar is volgen de SES-inbak, GND-stitching en de documentatieronde." If still running: report progress (freerouting stops only at 0 unrouted/violations or no-progress; SIGTERM loses the SES, so never kill it).
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: C:\Users\User\.claude\projects\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.
+> 🔧 `Bash` — Check freerouting task output and running containers
+
+**🤖 Claude:**
+
+Freerouting is klaar — geen container meer actief, 0 clearance violations in de eindstatistiek. Even de volledige uitkomst en de SES checken.
+> 🔧 `Bash` — Show freerouting result tail and SES file
+> 🔧 `Bash` — Check unrouted counts in freerouting output
+> 🔧 `Bash` — Show larger tail of freerouting log
+> 🔧 `Bash` — Read full freerouting task output
+> 🔧 `Bash` — Regenerate loop8sh board with SES baked in
+> 🔧 `Bash` — Run DRC on regenerated board
+> 🔧 `Bash` — Show DRC violation details
+> 🔧 `Bash` — Locate GND via definitions in generator
+> 🔧 `Bash` — List tracks near colliding GND vias
+> 🔧 `Bash` — Dump LATCH_O and EN_A track paths
+> 🔧 `Read` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_gswitch_loop8sh.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_gswitch_loop8sh.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_gswitch_loop8sh.py
+> 🔧 `Bash` — Regenerate and run DRC
+> 🔧 `Bash` — Show remaining violations
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_gswitch_loop8sh.py
+> 🔧 `Bash` — Regenerate and run DRC again
+> 🔧 `Bash` — Check gnd_stitch.py usage
+> 🔧 `Bash` — Run GND stitch script with KiCad python
+> 🔧 `Bash` — Regen with stitch vias and DRC
+
+**🤖 Claude:**
+
+**DRC 0/0!** Nu de eindcontrole: ERC + netcheck, en renders voor de visuele check.
+> 🔧 `Bash` — Run ERC and netcheck
+> 🔧 `Bash` — Render top and bottom views
+> 🔧 `Read` — d:\Git\Muziek\MusicBrain\hardware\schematics\gswitch-loop8sh\render-top.png
+> 🔧 `TodoWrite` — takenlijst bijgewerkt
+> 🔧 `Bash` — Inspect loop8 overzicht.json as template
+> 🔧 `Write` — d:\Git\Muziek\MusicBrain\hardware\schematics\gswitch-loop8sh\gswitch-loop8sh-overzicht.json
+> 🔧 `Bash` — Check CLI of doc tools
+> 🔧 `Bash` — Generate overview SVG and pinout SVGs
+> 🔧 `Bash` — List pinout SVGs and check overview SVG
+> 🔧 `Bash` — List all refs on board
+
+**🤖 Claude:**
+
+Klemmen heten J11–J18. Ik corrigeer de callouts en maak ook een klem-pinout.
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\schematics\gswitch-loop8sh\gswitch-loop8sh-overzicht.json
+> 🔧 `Bash` — Try pinout for terminal J11
+> 🔧 `Bash` — Regen overview SVG; read loop8 README as template
+> 🔧 `Bash` — Read rest of loop8 README
+
+**🤖 Claude:**
+
+Nu de README voor het sh-bord.
+> 🔧 `Write` — d:\Git\Muziek\MusicBrain\hardware\schematics\gswitch-loop8sh\README.md
+> 🔧 `Bash` — Find loop8 row in MODULES.md
+> 🔧 `Bash` — Locate MODULES.md
+> 🔧 `Bash` — Show MODULES.md table context
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\schematics\MODULES.md
+> 🔧 `Read` — d:\Git\Muziek\MusicBrain\hardware\schematics\MODULES.md
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\schematics\MODULES.md
+
+**🤖 Claude:**
+
+Memory bijwerken en dan committen.
+> 🔧 `Read` — C:\Users\User\.claude\projects\d--Git-Muziek-MusicBrain\memory\guitar-switcher.md
+> 🔧 `Edit` — C:\Users\User\.claude\projects\d--Git-Muziek-MusicBrain\memory\guitar-switcher.md
+> 🔧 `Bash` — Review changes before commit
+> 🔧 `Bash` — Compare tracked loop8 files with loop8sh dir
+> 🔧 `Bash` — Export schematic and board PDFs
+> 🔧 `Bash` — Generate J5/J6 pinout SVGs
+> 🔧 `Bash` — Generate J6 pinout separately
+> 🔧 `Bash` — Stage loop8sh files
+> 🔧 `Bash` — Stage loop8sh files (without ignored)
+> 🔧 `Bash` — Commit loop8sh board
+> 🔧 `TodoWrite` — takenlijst bijgewerkt
+
+**🤖 Claude:**
+
+Freerouting was al klaar — en de rest van de pipeline is nu ook afgerond en gecommit (`9d14eab`):
+
+- **Routing**: ronde 1 routeerde alles; 4 restviolations waren botsingen met mijn eigen GND-via's (R33-stubvia verplaatst naar y=139,5; drukke seed-stitchvia op x=150 verwijderd) → gnd_stitch (10 via's) → **ERC 0, netcheck OK, DRC 0/0**
+- **Docs**: 3D-aansluitoverzicht, pinout-SVG's (incl. klem J11 en soldeerpads J5/J6), README met klem-pinout (1=SEND 2=AGND 3=RETURN) en de geen-normalling-waarschuwing, MODULES.md-regel
+
+Het bord is 150×44 mm (loop8 was 200×58). Nog vóór fab-order: LCSC-match (`jlc_fix.py`) + fab-pakketten voor alle drie de gswitch-borden.
+
+---
+
+## 👤 Gebruiker (28)
+
+Dank! ik ga in kicad kijken!
+
+**🤖 Claude:**
+
+De overzicht-labels zijn in de JSON bijgewerkt naar J11/J18 — ik ververs de SVG even mee, anders staat de oude tekst nog in het gecommitte overzicht.
+> 🔧 `Bash` — Regenerate overview SVG and commit label fix
+> 🔧 `Bash` — Verify which file changed in follow-up commit
+
+**🤖 Claude:**
+
+Veel plezier! Twee dingen die handig zijn bij het openen van [gswitch-loop8sh.kicad_pcb](hardware/schematics/gswitch-loop8sh/gswitch-loop8sh.kicad_pcb):
+
+- **Zones**: druk even `B` (refill) — de generator schrijft de zone-omtrekken, de vulling wordt pas in KiCad zelf berekend.
+- Je label-correctie in de overzicht-JSON (T1→J11) heb ik meegenomen; de SVG is opnieuw gegenereerd en als `b419934` gecommit.
+
+Als je iets ziet dat anders moet (plaatsing, silk, routing), hoor ik het graag — aanpassingen gaan via [gen_gswitch_loop8sh.py](hardware/kicad-generators/gen_gswitch_loop8sh.py), niet in KiCad zelf, anders overschrijft de volgende generator-run je handwerk.
+
+---
+
+## 👤 Gebruiker (29)
+
+het netwerk socket zit achterstevoren denk ik:
+
+**🤖 Claude:**
+
+Ik vergelijk de J1/J2-rotaties met die op loop8 (daar stond hij goed).
+> 🔧 `Bash` — Compare RJ45 placements loop8 vs loop8sh
+> 🔧 `Bash` — Find rj45 placement calls
+> 🔧 `Bash` — Read rj45 footprint function incl 3D model ref
+> 🔧 `Bash` — Render west side view
+> 🔧 `Bash` — Find RJ45 model refs in all generators
+> 🔧 `Bash` — Show model lines in all three
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `Bash` — Rotate RJ45 model 180deg in all generators, regen loop8sh
+> 🔧 `Bash` — Render perspective view of west corner
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `Bash` — Regenerate loop8 and brain, check diff scope
+> 🔧 `Bash` — Restore loop8 kicad_pro, verify diff
+
+**🤖 Claude:**
+
+Nu de drie overzichts-SVG's verversen (daar staat de RJ45 ook verkeerd op).
+> 🔧 `Bash` — Regenerate overview SVGs loop8sh and loop8
+
+**🤖 Claude:**
+
+Ik check de brain: posities en courtyards van U1 en J4.
+> 🔧 `Bash` — Get U1/J4 positions and courtyards on brain
+> 🔧 `Bash` — Compute courtyard extents of U1 and J4
+> 🔧 `Bash` — Find DIN5 footprint and model in brain generator
+> 🔧 `Bash` — Find din5 footprint function and model line
+
+**🤖 Claude:**
+
+Footprint klopt (body 20×15,8, paneel noord). Het WRL-model zelf is verdacht — ik check gen_3dshapes.py.
+> 🔧 `Bash` — Inspect DIN5 WRL generation
+> 🔧 `Bash` — Read gen_3dshapes.py helpers
+> 🔧 `Bash` — Show U1 model attachment in brain generator
+> 🔧 `Bash` — Get body outline and model transform from lib footprint
+> 🔧 `Bash` — Get fab body extents of 1U footprint
+> 🔧 `Bash` — Add WROOM-1U model to gen_3dshapes and regenerate WRLs
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_gswitch_brain.py
+> 🔧 `Bash` — Regen brain and render U1/J4 area
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `Bash` — Render panned to U1/J4 area
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `Bash` — Render full brain tilted view
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `Bash` — Regen brain overview, list changes
+> 🔧 `Bash` — Check brain pro/pcb diff size
+> 🔧 `Bash` — Commit 3D model fixes
+
+**🤖 Claude:**
+
+Beide 3D-kwesties zijn gefixt en gecommit:
+
+1. **RJ45 achterstevoren** — op alle drie de borden (loop8sh, loop8 én brain: gedeelde `rj45()`-code). Het model staat nu 180° gedraaid met een herberekend anker; de kabelmond wijst naar buiten en er steken geen pennen meer doorheen. De pads en het koper waren altijd al goed (opening richting bordrand), dus routing/DRC zijn onaangetast — de pcb-diffs waren exact de modelregels.
+
+2. **U1 × J4 op de brain** — geen echte botsing: J4's courtyard eindigt op y=116,25 en U1 begint op y=117,15. Wat je zag was het geleende WROOM-**1**-STEP (25,5 mm, mét antennezone) omdat de KiCad-lib geen 1U-model heeft; die antennezone stak 6 mm onder de DIN. Ik heb er nu een eigen WROOM-1U-model (18×19,2, printslab + schermkap) voor gebouwd in [gen_3dshapes.py](hardware/kicad-generators/gen_3dshapes.py) — in de nieuwe render zit er weer lucht tussen. Op het echte bord speelde er dus nooit iets.
+
+De overzichts-SVG's van alle drie de borden zijn ververst. Herlaad de projecten even in KiCad (of open loop8/brain opnieuw) om de nieuwe modellen te zien.
+
+---
+
+## 👤 Gebruiker (30)
+
+ja, mooi.
+
+Weet jij ook hoe je deze gegevens naar de website moet posten?
+
+**🤖 Claude:**
+
+Even kijken hoe de ingest-keten in de repo werkt — daar is recent aan gewerkt (publish_release.py).
+> 🔧 `Bash` — Locate publish/ingest tooling
+> 🔧 `Bash` — Read publish scripts headers
+> 🔧 `Bash` — Check kicad-generators README for publish recipe
+> 🔧 `Bash` — Check widget_export usage and env/assets state
+
+**🤖 Claude:**
+
+Er is inderdaad documentatie over — ik pak de relevante md's erbij.
+> 🔧 `Bash` — Locate imprint/ingest docs
+> 🔧 `Bash` — Find ingest guide md
+> 🔧 `Bash` — Search for imprint-engine repo
+> 🔧 `Bash` — Read ingest guide
+> 🔧 `Bash` — Check .env target and export loop8sh widget
+
+**🤖 Claude:**
+
+Prima, ik wacht. Er is **niets gepost** — ik heb alleen lokaal voorbereid:
+
+- [gswitch-loop8sh-widget.json](hardware/schematics/gswitch-loop8sh/gswitch-loop8sh-widget.json) (12 hotspots) + de transparante render-PNG in Imprints `public/boards/` — de assets die `publish_product.mjs` straks nodig heeft.
+
+Wat ik tot nu toe zie, ter vergelijking met de uitleg die je krijgt: de keten is `widget_export.py` per bord → `node publish_product.mjs --product <slug> --boards ... --release ...` (leest het token uit `.env`; posten gaat in de volgorde component → board-spec → product → release). Let wel: jullie `.env` heeft `IMPRINT_BASE=https://musicbrain.nl` aanstaan, dus een run zonder `--base` gaat direct naar **productie**, niet naar localhost.
+
+Zodra je de uitleg van de andere chat hebt, hoor ik het — dan leg ik die naast wat hier staat en voeren we het uit zoals jij wilt.
+
+---
+
+## 👤 Gebruiker (31)
+
+Zie @doc/site-publicatie-werkwijze.md  
+
+Het gaat er in dit geval om dat we een update willen doen, geen nieuwe release, van de borden in Reflex (de gswitch heet op de site zo). Want de netwerk sockets stonden achterstevoren.
+
+En het nieuwe -sh bord mag erbij.
+
+Verder: als het je lukt, zou het heel fijn zijn als de jacksockets en MIDI sockets een beter 3D image hebben.
+
+**🤖 Claude:**
+
+Duidelijk plan: (1) mooiere 3D-modellen voor de jacks en DIN's, (2) assets verversen, (3) update posten naar Reflex — bestaande release bijpinnen (geen nieuwe), met loop8sh erbij. Eerst kijken of de KiCad-lib bruikbare STEP-modellen heeft die op de ACJS/DIN lijken.
+> 🔧 `Bash` — List audio and DIN 3D model libraries
+> 🔧 `Bash` — Full listing audio and DIN 3D shapes
+> 🔧 `Bash` — Search for STEP models in data-sheets
+> 🔧 `Bash` — List SamacSys ACJS-MHD lib contents
+> 🔧 `Bash` — List zip contents of SamacSys lib
+> 🔧 `Bash` — Check for 3D model in zip
+> 🔧 `Read` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_3dshapes.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_3dshapes.py
+
+**🤖 Claude:**
+
+Nu de modeldefinities zelf:
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_3dshapes.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_3dshapes.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_3dshapes.py
+> 🔧 `Bash` — Regenerate WRLs and render loop8sh jack view
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `Bash` — Render west-facing view of jack
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+
+**🤖 Claude:**
+
+De moer domineert; de bus moet er verder doorheen steken met het gat zichtbaar. Ik verleng de schroefbussen:
+> 🔧 `Bash` — Lengthen jack bushings and re-render
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_3dshapes.py
+> 🔧 `Bash` — Regen WRLs and render jack close-up
+> 🔧 `Bash` — Regen WRLs from correct dir and render
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+
+**🤖 Claude:**
+
+De jack valt steeds buiten beeld — ik render groot en snijd het westdeel uit:
+> 🔧 `Bash` — Render large and crop west section
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `Bash` — Slim bushings, render loop8 with dual jacks
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `Bash` — Render loop8 from north side
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `Bash` — Crop jack close-ups
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `Bash` — Rewrite WRL helpers to VRML y-up convention
+
+**🤖 Claude:**
+
+Het script schreef niets weg (assert vóór de write) — ik doe het met losse edits:
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_3dshapes.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_3dshapes.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_3dshapes.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_3dshapes.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_3dshapes.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_3dshapes.py
+> 🔧 `Bash` — Regen WRLs and re-render loop8 north view
+> 🔧 `Bash` — Regen WRLs, render north view, crop
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `Bash` — Flip VRML z sign, regen, render north view
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `Bash` — Check jack placement rotations
+> 🔧 `Bash` — Check acjs footprint local orientation and placement
+> 🔧 `Bash` — Render loop8sh from southwest, crop J7
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `Bash` — Top renders of both loop boards
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `Bash` — Read acjs_mhd footprint function
+> 🔧 `Bash` — Add calibration markers to MHD wrl and render top
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+
+**🤖 Claude:**
+
+Close-up van de kalibratie voor een precieze aflezing:
+> 🔧 `Bash` — Locate marker pixels numerically
+> 🔧 `Bash` — Measure board bbox and blue marker centers in pixels
+> 🔧 `Bash` — Get loop8 geometry constants
+> 🔧 `Bash` — Measure bbox and marker centers
+> 🔧 `Bash` — Cluster blue markers by x-gap
+> 🔧 `Bash` — Calibrate via green board extents
+> 🔧 `Bash` — Revert helpers to z-up, rebuild MHD in rot90 frame, render
+> 🔧 `Bash` — Apply helper revert + MHD frame fix, regen, top render
+> 🔧 `Bash` — Inspect exact _bus_y region
+> 🔧 `Bash` — Diff pattern vs file char by char
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_3dshapes.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_3dshapes.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_3dshapes.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_3dshapes.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_3dshapes.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_3dshapes.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_3dshapes.py
+> 🔧 `Bash` — Regen WRLs and render loop8 top
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `Bash` — Render brain and crop DIN area
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `Bash` — Render brain from north, crop DIN faces
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `Bash` — Render north side view of brain
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `Bash` — Render front side view
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `Bash` — Crop J4 face from north side render
+> 🔧 `Bash` — Zoomed north side render
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+
+**🤖 Claude:**
+
+De kraag is er wel maar de zwarte insert vult 'm bijna helemaal — meer rand en diepere insert voor contrast:
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_3dshapes.py
+> 🔧 `TodoWrite` — takenlijst bijgewerkt
+> 🔧 `Bash` — Regen and render DIN faces at zoom 5
+> 🔧 `Bash` — Regen WRLs (right dir) and render zoom 5
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `Bash` — Inspect generated DIN WRL
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_3dshapes.py
+> 🔧 `Bash` — Regen and render DIN faces again
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `Bash` — Locate KiCad 3D cache
+> 🔧 `Bash` — Purge 3D cache and re-render
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+
+**🤖 Claude:**
+
+Ik isoleer het DIN-model op een minibordje om het zonder ruis te bekijken:
+> 🔧 `Write` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `Bash` — Render isolated DIN model
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `Read` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_3dshapes.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_3dshapes.py
+> 🔧 `Bash` — Regen with mesh cylinders, render test board
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `Bash` — Final check renders loop8 and brain
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `Bash` — Commit 3D model improvements
+> 🔧 `Bash` — Refresh overview SVGs and widget exports for all three boards
+> 🔧 `Bash` — Commit refreshed assets
+
+**🤖 Claude:**
+
+Nu de publicatie. Eerst kijken wat er al staat (lokaal én live):
+> 🔧 `Bash` — Check live releases and local server availability
+> 🔧 `Bash` — Inspect guitar-switcher release and products live
+> 🔧 `Bash` — Find release slug field
+> 🔧 `Bash` — Probe release slug variants
+> 🔧 `Bash` — See how publish_product builds release slug
+> 🔧 `Bash` — See release slug construction
+
+**🤖 Claude:**
+
+De release-slug is `guitar-switcher-v0.1`. Ik gebruik het alles-in-één-script — eerst dry-run:
+> 🔧 `Bash` — Dry-run publish of reflex set
+> 🔧 `Bash` — Dry-run with correct assets dir
+
+**🤖 Claude:**
+
+Dry-run schoon. Eerst lokaal posten, dan live:
+> 🔧 `Bash` — Publish reflex set to localhost
+> 🔧 `Bash` — Verify local release update
+> 🔧 `Bash` — Publish reflex set to production
+> 🔧 `Bash` — Verify live release and product
+> 🔧 `TodoWrite` — takenlijst bijgewerkt
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\doc\site-publicatie-werkwijze.md
+> 🔧 `Edit` — C:\Users\User\.claude\projects\d--Git-Muziek-MusicBrain\memory\guitar-switcher.md
+> 🔧 `Bash` — Commit werkwijze doc update
+
+**🤖 Claude:**
+
+Klaar — de update staat lokaal én live op de site, en de 3D-modellen zijn flink opgeknapt.
+
+**Site (Reflex):**
+- Release **guitar-switcher v0.1** is bijgewerkt (geen nieuwe release): pint nu `gswitch-brain@v0.1`, `gswitch-loop8@v0.1` én het nieuwe `gswitch-loop8sh@v0.1`; product reflex heeft alle drie de componenten. Board-specs en assets (verse renders, overzichten, pinouts) zijn opnieuw gepost — geverifieerd met GET op beide omgevingen.
+
+**3D-modellen** — dit bleek een diepere vondst dan alleen "mooier maken":
+1. **KiCads WRL-parser rendert het VRML-`Cylinder`-primitief helemaal niet** (alleen `Box`). Alle bussen en kragen ontbraken dus al die tijd geruisloos — daarom waren de jacks kale zwarte dozen. `gen_3dshapes.py` bouwt cilinders nu als IndexedFaceSet-mesh (24-zijdige prisma's), bewezen met een geïsoleerd testbordje.
+2. De **stapeljack (ACJS-MHD)** had daarbovenop een framefout: die footprint heeft rot-90-gebakken pads, dus het paneel ligt in modelcoördinaten op +x, niet −y.
+3. Resultaat: jacks met schroefbus, zeskantmoer en donker pluggat; MIDI-DIN's met metalen kraag, verzonken insert en de 5 contacten in een 180°-boog (zie de nieuwe overzichten op de site).
+
+Beide lessen staan in de docstring van [gen_3dshapes.py](hardware/kicad-generators/gen_3dshapes.py), en in [site-publicatie-werkwijze.md](doc/site-publicatie-werkwijze.md) heb ik de valkuil toegevoegd dat de default `--assets-dir` van `publish_product.mjs` naar het verkeerde pad wijst (`D:\Git\imprint-engine` i.p.v. `D:\Git\Web\Imprint-engine`) plus het update-recept. Drie commits: modellen, assets, doc.
+
+---
+
+## 👤 Gebruiker (32)
+
+oh ja, hoe is het doorlinken van loop8 naar loop8 ook al weer: alleen de data via de kleine header mogelijk, of juist de audio, of beide?
+
+**🤖 Claude:**
+
+Beide — maar via twee aparte voorzieningen:
+
+**Data/besturing: J3 (in) / J4 (thru), de 2×4-headers.** Die staan parallel aan de RJ45's (zelfde 8 signalen: CLK/GND/DATA/**+12V**/GND/DRET/LATCH/EN). Voor een 16-loops-kastje met twee prints verbind je bord 1 J4 → bord 2 J3 met een korte flatcable; de RJ45's aan de binnenkant laat je dan onbestukt. De voeding gaat dus mee over deze link (pin 4).
+
+**Audio: J5 (in) / J6 (uit), de soldeerpads** — niet de header. Ze staan parallel aan de tip van J7/J8. Bord 1 J6 → bord 2 J5 met een kort afgeschermd draadje (kern = signaal op pad 1, scherm = AGND op pad 2); de audio blijft zo netjes gescheiden van de besturing. J8 van bord 1 en J7 van bord 2 (de binnenste jacks) laat je onbestukt.
+
+Twee aandachtspunten daarbij:
+- **JP2 (IN-TN=AGND) op bord 2 open laten**: die jumper mute't een lege IN-jack via het verbreekcontact, en bij doorlink via J5 zit er geen plug in — dicht zou hij je doorgelinkte audio kortsluiten.
+- **JP3 (AGND=CHASSIS) maar op één van de twee borden dicht** (één sterpunt per kastje), en JP1 (TERM) alleen op het láátste bord in de keten.
+
+Zelfde verhaal geldt voor de loop8sh-variant (daar heten de audio-pads LINK2, zelfde J5/J6-refs).
+
+---
+
+## 👤 Gebruiker (33)
+
+Twee vragen.
+# beschrijvingen
+Kun je van de modules beschrijvingen maken. Niet te staccato. Waarin doel en functie wordt uitgelegd. En bijv. rustig hoe dit linken gebeurt.
+
+# 3D 3D
+De 3D renders zijn al geweldig. Vanuit meerdere hoeken kijken op de site zou helemaal tof zijn. Dan moet natuurlijk de Widget ook aangepast/uitgebreid. Misschien met een derde tab: 3D (eigenlijk: meerdere hoeken).
+Wil je nadenken wat haalbaar is? Hoeveel renders heb je nodig voor een smoothe overgang? En anders: hoeveel hoeken zouden interessant zijn? Niet alleen de haakse hoeken, vaak zijn de iets gedraaide meer informatief qua gevoel van ruimte.
+
+Als de Widget aangepast moet, kun je de reqs aan Imprint geven of zelf een voorzet doen aan hen.
+
+**🤖 Claude:**
+
+Twee mooie klussen. Eerst kijken hoe de componenten er nu bij staan (waar de beschrijving landt), dan de teksten schrijven; daarna het 3D-onderzoek.
+> 🔧 `Bash` — Inspect current component object shape
+> 🔧 `Bash` — Check board-spec fields
+> 🔧 `Bash` — Check spec sections field
+> 🔧 `Bash` — Check language and reflex product texts
+> 🔧 `Bash` — Check GLB export options
+> 🔧 `Bash` — Export GLB of loop8sh and measure size
+> 🔧 `Bash` — Export lighter GLB variant
+> 🔧 `Bash` — Render 3 sprite angles and measure webp sizes
+> 🔧 `Write` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `Bash` — Post descriptions to localhost
+> 🔧 `Bash` — Post descriptions to live and verify
+> 🔧 `Bash` — Post descriptions to live and verify
+> 🔧 `Write` — d:\Git\Muziek\MusicBrain\doc\imprint-widget-3d-voorstel.md
+> 🔧 `Bash` — Commit 3D proposal doc
+
+**🤖 Claude:**
+
+Beide klaar.
+
+**1. Beschrijvingen** — geschreven en gepost (lokaal + live) in het `description`-veld van de drie componenten, in het Engels (voertaal van de site). Rustig proza in 2–3 alinea's per bord:
+
+- **gswitch-brain**: wat het bord bestuurt (footswitches, encoder, OLED, MIDI, USB-C-flash → WiFi-OTA), hoe de RJ45-keten werkt (gebufferde 5V-logica + 12V op pin 4, "not Ethernet"), wat DATA_RET doet (borden tellen en elk commando verifiëren) en waarom de enable-lijn failsafe is (stroomuitval = alles terug naar true bypass).
+- **gswitch-loop8**: hoe een loop werkt (relais in rust = NC = true bypass, ook stroomloos), normalling van lege loops, en een eigen alinea over het doorlinken: flatcable tussen de 2×4-headers voor besturing + 12V, afgeschermd draadje tussen de audio-link-pads voor het signaal, binnenste jacks onbestukt, plus de drie jumpers.
+- **gswitch-loop8sh**: de klem-variant, waarom hij bestaat (vast bedraade rigs, laag/klein), dat jacks in/uit en de hele keten identiek blijven (mixen met loop8 kan), en de geen-normalling-waarschuwing met beide oplossingen.
+
+**2. 3D-tab** — haalbaarheid onderzocht met echte metingen aan loop8sh, voorstel staat in [doc/imprint-widget-3d-voorstel.md](doc/imprint-widget-3d-voorstel.md) (gecommit, klaar om aan de Imprint-chat te geven):
+
+| optie | wat | gewicht |
+|---|---|---|
+| **A. GLB + model-viewer** (mijn aanbeveling) | `kicad-cli pcb export glb` → echt traploos draaien/zoomen in de browser | 2,5 MB (5,5 met kopersporen), export 2 s |
+| B. Sprite-turntable | vooraf gerenderde frames, slepen wisselt beeld | 36 frames à 10° = soepel, ~32 KB/frame WebP = **1,1 MB**; 24 frames kan nog net |
+| C. Hoekengalerij | 6–8 vaste views, geen widget-wijziging nodig | ~0,3 MB |
+
+Voor "smooth" is 10° per stap de grens (36 frames, één elevatiering op −35° volstaat) — maar het opvallende is dat écht 3D (GLB) nauwelijks zwaarder is dan één sprite-ring en oneindig vloeiend. Vandaar de aanbeveling. In het voorstel zit ook een concreet `view3d`-contractblok voor de widget-config (met gallery-hoekenlijst: de driekwarten op −35° plus een vlakke −65°-view voor het "paneelgevoel") en de toezegging dat wij `widget_export.py --3d` bouwen zodra Imprint kiest.
+
+---
+
+## 👤 Gebruiker (34)
+
+B is technisch interessant, omdat we nog wat moeten doen, maar A is praktischer in heeft een betere beleveing, vermoed ik. Wil je A opzetten? Je kunt een verzoek doen aan Imprint. De chat is nu toevallig idle en wacht op werk :-)
+Dan kun je de andere kant klaar maken.
+Is dat iets?
+
+**🤖 Claude:**
+
+Prima plan — A het doel, en ik maak onze kant af terwijl Imprint de widget doet. Eerst even in de scripts kijken hoe widget-json en assets nu opgebouwd worden:
+> 🔧 `Bash` — Inspect widget_export and asset collection
+> 🔧 `Bash` — See rest of asset collection and widget json build
+
+**🤖 Claude:**
+
+Aan de slag. Eerst `widget_export.py` uitbreiden met `--3d` (GLB-export + `view3d`-blok in de config):
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\widget_export.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\widget_export.py
+> 🔧 `Bash` — See exact asset block to edit
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\publish_product.mjs
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\publish_product.mjs
+> 🔧 `TodoWrite` — takenlijst bijgewerkt
+> 🔧 `Bash` — Generate GLBs and updated widget jsons for all three boards
+> 🔧 `Bash` — Verify GLBs and view3d blocks
+> 🔧 `Bash` — Post with GLB and view3d to localhost
+> 🔧 `Bash` — Verify view3d and glb asset landed
+> 🔧 `Bash` — Check Imprint docs dir
+> 🔧 `Write` — D:\Git\Web\Imprint-engine\docs\mmb-request-3d-tab.md
+
+**🤖 Claude:**
+
+Nu de MMB-kant committen en memory bijwerken:
+> 🔧 `Bash` — Commit MMB 3D-tab tooling
+> 🔧 `Edit` — C:\Users\User\.claude\projects\d--Git-Muziek-MusicBrain\memory\guitar-switcher.md
+> 🔧 `TodoWrite` — takenlijst bijgewerkt
+
+**🤖 Claude:**
+
+Ja, dat is precies iets — en het staat klaar aan beide kanten:
+
+**Verzoek aan Imprint** — ligt op [D:\Git\Web\Imprint-engine\docs\mmb-request-3d-tab.md](D:/Git/Web/Imprint-engine/docs/mmb-request-3d-tab.md) (bewust niet in hun git gecommit; dat is aan die chat). Het vraagt concreet:
+1. **Ingest-schema openen**: `view3d`-blok en `assets.model3d`/.glb-bestanden doorlaten — ik heb al proefondervindelijk vastgesteld dat de ingest die nu wegstript (post slaagt, veld verdwijnt), dus dat is hun eerste stap.
+2. **Widget: derde tab "3D"** met zelf-gehost `<model-viewer>`: lazy laden (GLB pas bij tab-klik, tot die tijd de bestaande render als poster), beginstand driekwart van schuin boven, geen tab als `view3d` ontbreekt.
+3. Acceptatiecriteria + het herpost-commando, en drie keuzevragen terug aan ons (statisch pad vs. versioned asset, model-viewer vs. three.js, GLB met of zonder kopersporen).
+
+**Onze kant is af** (gecommit):
+- `widget_export.py --3d` exporteert per bord een GLB (lichte variant, mask+silk, 2,6–2,9 MB; `--3d-full` voegt kopersporen toe) en zet het `view3d`-blok in de widget-config.
+- `publish_product.mjs` stuurt de GLB mee als versioned spec-asset en geeft `view3d` door aan het spec-document.
+- De drie gswitch-GLB's staan al in Imprints `public/boards/`, en de set is al naar **localhost** gepost — zodra Imprint het schema openzet, kunnen zij direct tegen echte data ontwikkelen (herpost-commando staat in het verzoek).
+
+Live posten doen we pas als de tab echt rendert en jij go geeft; daarna kunnen de Cortex-borden met exact dezelfde tooling mee (één `widget_export.py --3d`-run per bord).
+
+---
+
+## 👤 Gebruiker (35)
+
+Antwoord van Imprint (ook op een andere feature request vanuit MMB) (component-type)
+
+Hoi MMB,
+
+Beide requests zijn geïmplementeerd; na de eerstvolgende site-update werkt het live.
+
+Component-soort: kind wordt nu bewaard (component-doc én spec-doc; spec wint). Default board, open string zoals gevraagd. Herpost editor-cortex en editor-reflex één keer en de koppen worden "Software v…"; adc8 blijft ongewijzigd (getest).
+
+3D-tab, en jullie drie vragen:
+
+(a) src: de versioned spec-asset heeft de voorkeur — stuur de GLB als assets.model3d ("model.glb") in de multipart, dan krijgt hij een content-hash-URL en blijft de immutable cache correct bij herposts. view3d.src (statisch pad) blijft werken, maar assets.model3d wint als beide er zijn. view3d.poster mag; ontbreekt hij, dan pakken we renderTop.
+(b) viewer: <model-viewer>, zelf gehost (geen CDN). Lazy zoals gevraagd: bundel en GLB laden pas bij activatie van de tab; beginstand camera-orbit 30°/55°, auto-rotate uit; geen tab zonder model.
+(c) GLB-variant: houd de lichte aan — 2,6–2,9 MB is al stevig voor mobiel en de kopersporen-variant verdubbelt dat voor marginaal meer realisme. Als een specifiek bord erom vraagt kan die altijd per bord alsnog.
+Jullie localhost-post van de guitar-switcher-set hebben wij al herpost mét GLB als proef; die staat er goed in. Naar live posten kan zodra Mark go geeft na de deploy.
+
+Groet, Imprint
+
+**🤖 Claude:**
+
+Mooi nieuws. Ik verifieer even wat er nu lokaal staat en of onze tooling al helemaal aansluit op hun antwoorden:
+> 🔧 `Bash` — Verify localhost spec state and kind support in scripts
+> 🔧 `Bash` — Check publish_software.py usage
+> 🔧 `Bash` — Inspect editor site sources and current components
+> 🔧 `Bash` — Find recorded publish_software invocations
+> 🔧 `Bash` — Read the component-kind FR doc
+> 🔧 `Bash` — Set kind=software on editor components locally
+> 🔧 `Bash` — Check component page header locally
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\doc\site-publicatie-werkwijze.md
+> 🔧 `Edit` — C:\Users\User\.claude\projects\d--Git-Muziek-MusicBrain\memory\guitar-switcher.md
+> 🔧 `Bash` — Commit werkwijze status update
+
+**🤖 Claude:**
+
+Alles verwerkt. Stand van zaken:
+
+**3D-tab** — onze kant sloot al aan op alle drie hun antwoorden: we sturen de GLB als `assets.model3d` mee (a ✓, geverifieerd: lokaal staat hij er met content-hash-URL), de lichte variant is onze default (c ✓), en de poster gaat mee (a ✓). Geen tooling-aanpassing nodig; hun proef-herpost staat er lokaal goed in.
+
+**Component-kind** — de herpost heb ik lokaal alvast gedaan, maar bewust minimaal: alleen `kind: software` via read-modify-post op de twee component-docs, zónder de spec-assets (screenshots/GIF-keuzes van de editor-chat) opnieuw aan te raken. De pagina toont lokaal nu "Software v0.5.48" — component-level volstaat dus.
+
+**Wat rest, na de site-deploy en jouw go** (checklist staat in [site-publicatie-werkwijze.md](doc/site-publicatie-werkwijze.md)):
+1. gswitch-set naar **live** posten (GLB's gaan dan automatisch mee);
+2. dezelfde kind-herpost op live voor de twee editor-componenten;
+3. daarna de Cortex-borden: per bord één `widget_export.py --3d`-run + herpublicatie.
+
+Zeg maar "go" zodra de deploy er is, dan draai ik de drie stappen achter elkaar.
+
+---
+
+## 👤 Gebruiker (36)
+
+go
+
+**🤖 Claude:**
+
+Go — stap 1: de gswitch-set naar live, en meteen verifiëren dat de nieuwe velden nu bewaard blijven:
+> 🔧 `Bash` — Publish gswitch set with GLBs to live
+> 🔧 `Bash` — Verify live spec has 3D fields
+> 🔧 `Bash` — Check live GLB asset and set editor kind live
+> 🔧 `Bash` — Check live pages for Software header and 3D tab
+> 🔧 `Bash` — Check component page for 3D viewer markers
+> 🔧 `Bash` — List cortex board dirs and check overzicht jsons
+> 🔧 `Bash` — Match pcb files with overzicht jsons per board
+> 🔧 `Bash` — Generate GLBs and widget jsons for all cortex boards
+
+**🤖 Claude:**
+
+Even kijken of het aan onze data ligt of aan de site — de specs per component opvragen:
+> 🔧 `Bash` — Compare the three specs on live
+> 🔧 `Bash` — Check which render assets the product pages embed
+> 🔧 `Bash` — Publish cortex set to localhost (no new release)
+> 🔧 `Bash` — Remove busboard-v2 from cortex components on localhost
+> 🔧 `Bash` — Publish 13 cortex boards to live
+> 🔧 `Bash` — List all localhost releases with pins
+> 🔧 `Bash` — Read reflex release recipe script
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\publish_release_reflex.py
+> 🔧 `Bash` — Repin reflex-v0.1 locally with loop8sh
+> 🔧 `Bash` — Repin reflex-v0.1 live with loop8sh
+> 🔧 `Bash` — Commit release recipe update
+> 🔧 `Write` — D:\Git\Web\Imprint-engine\docs\mmb-bug-product-widget-zelfde-bord.md
+> 🔧 `Edit` — C:\Users\User\.claude\projects\d--Git-Muziek-MusicBrain\memory\guitar-switcher.md
+> 🔧 `Bash` — Verify cortex spec has GLB live
+
+**🤖 Claude:**
+
+Alles van de go-lijst is live, plus de twee dingen die je tussendoor zag:
+
+**Uitgevoerd:**
+1. **gswitch-set live** met GLB's — geverifieerd: `assets.model3d` met content-hash staat op de specs, de GLB-asset serveert (200), en de componentpagina's tonen de 3D-tab.
+2. **Editor-kind live**: beide editor-componenten op `kind: software`, de koppen tonen "Software v…".
+3. **Cortex**: 13 borden met GLB gegenereerd (0,4–5,9 MB per bord) en lokaal + live gepost, zonder nieuwe release — de bestaande pins (cortex-v0.3) tonen de bijgewerkte specs. Geverifieerd op adc8.
+
+**Je meldingen:**
+- **loop8sh miste in de release**: klopt — de productpagina volgt de nieuwste release (`reflex-v0.1`, beta, van de editor-publicatie) en die pinde alleen brain/loop8/editor. Ik heb `gswitch-loop8sh@v0.1` bijgepind via het receptscript [publish_release_reflex.py](hardware/kicad-generators/publish_release_reflex.py) (lokaal én live, recept gecommit). Dank voor het diagram — release als primaire aggregatie staat nu ook zo in mijn memory.
+- **"Zelfde bord onder alle drie"**: de data is uitgesloten als oorzaak (drie verschillende specs, en de SSR-HTML bevat de juiste vier render-hashes) — het dupliceren gebeurt client-side, vermoedelijk omdat de widget op *versie* keyt en alle drie "v0.1" heten. Bugmelding met die bewijsvoering ligt klaar voor de Imprint-chat: [mmb-bug-product-widget-zelfde-bord.md](D:/Git/Web/Imprint-engine/docs/mmb-bug-product-widget-zelfde-bord.md).
+
+**Twee kanttekeningen uit de cortex-run** (staan ook in memory): `ad5754r-breakout` postte als v2.0 terwijl de release v1.0 pint — die nieuwe spec is onzichtbaar tot er bewust gerepind wordt (bordrev eerst checken); en de default-boardset van `publish_product.mjs` bevat nog `busboard-v2` — die had zich op localhost even teruggekoppeld aan het product, dat heb ik hersteld en live met een expliciete lijst voorkomen.
+
+---
+
+## 👤 Gebruiker (37)
+
+Ziet er goed uit. De 3D start nog in een klein venster, maar heb ik imprint gevraagd groter te maken.
+
+Vraag over de MIDI sockets: die renderen zonder gaatjes in de 3D. Zie img 
+
+In KiCad zijn ze wel zichtbaar (de gaatjes). zie img 2
+
+De jacks en UTP zijn wel okee: img3
+
+**🤖 Claude:**
+
+Goed gezien — en de verklaring is leerzaam: mijn cilinder-mesh sluit de voorkant af met één 24-hoekige eindkap. KiCads eigen renderer laat die grote polygon stilletjes vallen (daarom kijk je dáár in de buis en zie je insert + pennen), maar de GLB-export trianguleert hem netjes — en dan zit er dus een dichte zilveren schijf vóór de insert. De jacks ogen goed omdat het zwarte gat daar vóór de kap uitsteekt. Echte fix: de kraag als **buis met echt gat** modelleren (ring i.p.v. schijf), en alle eindkappen als driehoekjes zodat KiCad en GLB hetzelfde laten zien:
+> 🔧 `Read` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_3dshapes.py
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_3dshapes.py
+
+**🤖 Claude:**
+
+Nu de DIN-kraag als buis met echt gat:
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\hardware\kicad-generators\gen_3dshapes.py
+> 🔧 `Bash` — Regen models, purge cache, render DIN test board
+> 🔧 `Bash` — Regen models and render DIN test
+> 🔧 `Read` — C:\Users\User\AppData\Local\Temp\claude\d--Git-Muziek-MusicBrain\ae2777cd-b3d1-4348-b44d-9ef46eaff8cc\scrat...
+> 🔧 `Bash` — Refresh assets and GLBs for gswitch boards
+> 🔧 `Bash` — Republish gswitch set locally and live
+> 🔧 `Bash` — Verify new GLB live and stage model fix
+> 🔧 `Bash` — Commit tube fix and refreshed assets
+
+**🤖 Claude:**
+
+Gefixt en live. De oorzaak was een mooi renderer-verschil: mijn cilindermesh sloot elk uiteinde af met één 24-hoekige polygonkap. **KiCads renderer laat zo'n grote polygon stilletjes vallen** — daarom keek je in KiCad gewoon de kraag ín en zag je insert en pennen — maar **de GLB-export trianguleert hem wél netjes**, dus op de site zat er een dichte zilveren schijf vóór het DIN-gezicht. De jacks ontsnapten omdat hun zwarte gat vóór de kap uitsteekt.
+
+De fix maakt het verschil onmogelijk in plaats van het te omzeilen:
+- de DIN-kraag is nu een **buis met een écht gat** (binnen- en buitenmantel plus ringkappen — nieuwe `_buis()`-helper), 
+- en alle overige eindkappen zijn driehoekswaaiers in plaats van één n-gon, zodat beide pijplijnen per definitie dezelfde geometrie tonen.
+
+Testbord-render bevestigt het gezicht (ring, verzonken insert, 5 pennen); GLB's en assets zijn ververst en herpost naar lokaal én live — de brain-spec wijst nu naar `model.69978c70.glb`. Omdat de asset-URL een nieuwe content-hash heeft, hoeft er niets aan cache verjaagd te worden: tab opnieuw openen (of pagina verversen) laadt automatisch het nieuwe model.
+
+En leuk om te zien dat de tab er al zo goed bij staat — met het grotere venster erbij wordt dat een prima 3D-beleving.
+

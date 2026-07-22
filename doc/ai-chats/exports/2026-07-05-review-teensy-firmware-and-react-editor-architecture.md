@@ -1,6 +1,6 @@
 # Claude Code-sessie-export
 
-> **Let op:** export van een **Claude Code**-sessie (geen Copilot-chat). Gebruiker- en assistentteksten zijn letterlijk overgenomen uit de sessielog; tool-aanroepen staan als compacte `🔧`-annotaties (hun output niet). Interne redeneerblokken zijn weggelaten.
+> **Let op:** export van een **Claude Code**-sessie. Gebruiker- en assistentteksten zijn letterlijk overgenomen; tool-aanroepen staan als compacte `🔧`-annotaties (hun output niet); interne redeneerblokken weggelaten.
 >
 > - **Datum:** 2026-07-05
 > - **Sessie-id:** `fe297ea1-e05f-4f60-9b5d-f759e28522ff`
