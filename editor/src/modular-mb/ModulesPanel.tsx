@@ -109,7 +109,7 @@ function TypesPane({
               <tr key={t.id}
                   onClick={() => onSelect(isSel ? null : t.id)}
                   style={{
-                    background: isSel ? '#eff6ff' : undefined,
+                    background: isSel ? 'var(--mb-accent-tint)' : undefined,
                     cursor: 'pointer',
                     borderBottom: '1px solid #f3f4f6',
                   }}>
@@ -224,7 +224,7 @@ function ModulesPane({
               <tr key={m.id}
                   onClick={() => onSelect(isSel ? null : m.id)}
                   style={{
-                    background: isSel ? '#eff6ff' : (m.internal ? '#fefce8' : undefined),
+                    background: isSel ? 'var(--mb-accent-tint)' : (m.internal ? '#fefce8' : undefined),
                     cursor: 'pointer',
                     borderBottom: '1px solid #f3f4f6',
                   }}>

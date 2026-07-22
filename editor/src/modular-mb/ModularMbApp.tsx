@@ -461,6 +461,7 @@ export function ModularMbApp(): JSX.Element {
               padding: '6px 14px',
               borderRadius: '6px 6px 0 0',
               border: '1px solid #cbd2d9',
+              borderTop: tab === t.id ? '2px solid var(--mb-accent)' : '1px solid #cbd2d9',
               borderBottom: 'none',
               background: tab === t.id ? '#ffffff' : '#f5f7fa',
               fontWeight: tab === t.id ? 600 : 400,

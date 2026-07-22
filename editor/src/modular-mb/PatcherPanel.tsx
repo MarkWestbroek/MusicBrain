@@ -81,8 +81,8 @@ export function PatcherPanel(): JSX.Element {
               style={{
                 padding: '4px 12px',
                 border: 'none',
-                background: view === v ? '#2563eb' : '#f5f7fa',
-                color:      view === v ? 'white'   : '#1f2933',
+                background: view === v ? 'var(--mb-accent)'    : '#f5f7fa',
+                color:      view === v ? 'var(--mb-on-accent)' : '#1f2933',
                 fontSize: 12,
                 fontWeight: view === v ? 600 : 400,
                 cursor: 'pointer',

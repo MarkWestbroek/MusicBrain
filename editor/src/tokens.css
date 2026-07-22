@@ -1,0 +1,27 @@
+/*
+ * MusicBrain brand tokens voor de editor — bron: doc/styleguide.md.
+ * De editor blijft een LICHT werkinstrument (leesbaar overdag); dit levert de
+ * merk-accenten (amber i.p.v. blauw) en de merk-fonts. Twee dingen horen hier
+ * bewust NIET in en blijven met rust:
+ *   - de signaalkleuren (CV/Gate/Trig/Audio/MIDI) — dat is betekenis, geen stijl;
+ *   - het donkere patcher/rack-canvas — dat is een bewuste keuze (kabels poppen).
+ */
+:root {
+  --mb-accent: #f5a623;          /* amber — actief / geselecteerd / primair   */
+  --mb-accent-strong: #d98e12;   /* dieper amber — hover/rand op licht         */
+  --mb-accent-tint: #fef3c7;     /* zachte amber-wash — geselecteerde rijen    */
+  --mb-accent-tint-border: #fcd34d;
+  --mb-accent-ring: #fde68a;     /* focusring                                  */
+  --mb-on-accent: #1a1205;       /* tekst op een amber vlak (amber+wit = slecht contrast) */
+
+  --mb-font-sans: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --mb-font-mono: "Cascadia Code", "JetBrains Mono", Consolas, "SF Mono", monospace;
+
+  --mb-radius-sm: 2px;
+  --mb-radius-md: 4px;
+}
+
+body {
+  margin: 0;
+  font-family: var(--mb-font-sans);
+}

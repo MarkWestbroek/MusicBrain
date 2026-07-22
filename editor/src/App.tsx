@@ -9,9 +9,23 @@ export function App(): JSX.Element {
   const [project, setProject] = useState<Project>('switcher');
 
   return (
-    <main style={{ fontFamily: 'system-ui, sans-serif', padding: 16 }}>
+    <main style={{ fontFamily: 'var(--mb-font-sans)', padding: 16 }}>
       <header style={{ display: 'flex', alignItems: 'baseline', gap: 16, marginBottom: 16 }}>
-        <h1 style={{ margin: 0 }}>MusicBrain editor</h1>
+        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, letterSpacing: '-0.01em' }}>
+          Music<span style={{ color: 'var(--mb-accent)' }}>Brain</span>{' '}
+          <span
+            style={{
+              fontFamily: 'var(--mb-font-mono)',
+              fontSize: 11,
+              fontWeight: 400,
+              textTransform: 'uppercase',
+              letterSpacing: '0.14em',
+              color: '#6b7280',
+            }}
+          >
+            editor
+          </span>
+        </h1>
         <nav style={{ display: 'flex', gap: 4 }}>
           <ProjectButton current={project} value="switcher" set={setProject}>
             Effect-switcher
@@ -67,9 +81,9 @@ function ProjectButton(props: {
       style={{
         padding: '4px 12px',
         borderRadius: 4,
-        border: '1px solid #cbd2d9',
-        background: active ? '#2563eb' : '#f5f7fa',
-        color: active ? 'white' : '#1f2933',
+        border: active ? '1px solid var(--mb-accent-strong)' : '1px solid #cbd2d9',
+        background: active ? 'var(--mb-accent)' : '#f5f7fa',
+        color: active ? 'var(--mb-on-accent)' : '#1f2933',
         cursor: 'pointer',
         fontSize: 13,
         fontWeight: active ? 600 : 400,

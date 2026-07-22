@@ -12,6 +12,22 @@ npm run dev
 
 Then open http://localhost:5173.
 
+## Live demo
+
+Draait als demo op **[editor.musicbrain.nl](https://editor.musicbrain.nl)**
+(de website zelf staat op [www.musicbrain.nl](https://www.musicbrain.nl)).
+
+## Styling
+
+De huisstijl staat als stijlgids in het hoofd-repo:
+**[doc/styleguide.md](../doc/styleguide.md)** — een kant-en-klaar
+`tokens.css`-blok, typografie-specs en CSS-recepten voor paneel/badge/knop/
+specs-strip/scope-trace. Geschreven op wat deze editor werkelijk is (gewone
+CSS-klassen + inline styles, geen Tailwind). Migratie: importeer `tokens.css`
+vóór bestaande styles en vervang hardcoded kleuren/fonts stap voor stap door
+de variabelen (§5 van de gids). De tokens lopen gelijk met het "amber"-thema
+van de site; wijzigt de huisstijl, pas dan beide aan (§6).
+
 ## Status
 
 Drie projectmodi via knoppen bovenin:

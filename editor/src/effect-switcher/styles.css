@@ -1,7 +1,7 @@
 /* Effect-switcher editor styles. Plain CSS – no framework. */
 
 .es-app {
-  font-family: system-ui, sans-serif;
+  font-family: var(--mb-font-sans);
   color: #1f2933;
 }
 
@@ -25,7 +25,7 @@
 .es-projectbar-name-input {
   font-size: 14px;
   font-weight: 600;
-  border: 1px solid #93c5fd;
+  border: 1px solid var(--mb-accent);
   border-radius: 4px;
   padding: 2px 8px;
   min-width: 200px;
@@ -43,7 +43,7 @@
 .es-projectbar-ver-input {
   font-size: 11px;
   font-family: ui-monospace, monospace;
-  border: 1px solid #93c5fd;
+  border: 1px solid var(--mb-accent);
   border-radius: 4px;
   padding: 1px 6px;
   width: 70px;
@@ -60,7 +60,7 @@
 .es-projectbar-desc--empty { color: #cbd5e1; font-style: italic; }
 .es-projectbar-desc-input {
   font-size: 12px;
-  border: 1px solid #93c5fd;
+  border: 1px solid var(--mb-accent);
   border-radius: 4px;
   padding: 2px 6px;
   min-width: 280px;
@@ -93,6 +93,7 @@
 }
 .es-tab[aria-selected='true'] {
   background: #ffffff;
+  border-top: 2px solid var(--mb-accent);
   font-weight: 600;
   position: relative;
   top: 1px;
@@ -122,11 +123,11 @@
   background: #f5f7fa;
 }
 .es-toolbar button.primary {
-  background: #2563eb;
-  color: white;
-  border-color: #2563eb;
+  background: var(--mb-accent);
+  color: var(--mb-on-accent);
+  border-color: var(--mb-accent-strong);
 }
-.es-toolbar button.primary:hover { background: #1d4ed8; }
+.es-toolbar button.primary:hover { background: var(--mb-accent-strong); }
 .es-toolbar button.danger {
   background: #fef2f2;
   color: #b91c1c;
@@ -193,8 +194,8 @@
   cursor: pointer;
 }
 .es-node-selected {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 2px #bfdbfe;
+  border-color: var(--mb-accent);
+  box-shadow: 0 0 0 2px var(--mb-accent-ring);
 }
 .es-node-relay {
   font-size: 11px;
@@ -268,8 +269,8 @@
 }
 .es-patch-row:hover { background: #e4e7eb; }
 .es-patch-row[aria-selected='true'] {
-  background: #dbeafe;
-  border-color: #93c5fd;
+  background: var(--mb-accent-tint);
+  border-color: var(--mb-accent-tint-border);
 }
 .es-patch-pgm  { font-family: monospace; color: #6b7280; min-width: 36px; font-size: 11px; }
 .es-patch-name { flex: 1; font-size: 13px; }

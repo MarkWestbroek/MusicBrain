@@ -36,6 +36,15 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
+## Design language
+
+One visual language covers the whole product — website, editor and future tools. The style guide lives in [doc/styleguide.md](doc/styleguide.md): copy-paste `tokens.css`, typography specs, and component recipes (panel/badge/button/scope-trace). It is written on what the editor actually is (plain CSS + inline styles) and is kept in lock-step with the site's "amber" theme (the Imprint repo). See §6 of the guide for the relationship with the site.
+
+## Live
+
+- **Website:** [www.musicbrain.nl](https://www.musicbrain.nl) — built with Imprint.
+- **Editor (demo):** [editor.musicbrain.nl](https://editor.musicbrain.nl) — the React editor in [`editor/`](editor/), styled per [doc/styleguide.md](doc/styleguide.md).
+
 ## Status
 
 Scaffolding only — see [doc/Plan.md](doc/Plan.md) section 7 (phased roadmap) for what comes next. Stage 1 (this commit) puts the directory tree, the `core/` skeleton with stub types, the host build, and the ADRs in place.
