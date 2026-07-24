@@ -2042,3 +2042,108 @@ Alles is afgerond en vastgelegd. De eindbalans van de sessie:
 
 Over je zorg: die was terecht en het spijt me dat de staart zo duur werd — de laatste ~1% heeft onevenredig veel gekost aan iteraties die ik achteraf eerder had moeten afkappen naar handwerk. De les staat nu letterlijk in de werkwijze: bij de laatste paar netten op een dicht bord niet door-automatiseren maar afronden in de GUI. Niets committen heb ik gedaan (conform de commit-regel: pas bij DRC 0/0); alles staat als werkkopie klaar voor het afrondklusje.
 
+---
+
+## 👤 Gebruiker (105)
+
+Wil je toch committen waar we staan? Ik ga een aantal weken weg, en werk dan op mijn mac laptop i.p.v. hier op mijn windows desktop, en dat is de manier om het te kunnen overdragen.
+
+Wil je eventueel ook een overdrachtsdocumentje maken voor de chat die het daar overneemt?
+
+**🤖 Claude:**
+
+Ja, dat is precies de juiste reden om de commit-regel te doorbreken — cross-machine overdracht kan alleen via git. Ik maak eerst het Mac-overdrachtsdocument, bekijk dan wat er precies gecommit moet worden (selectief, geen `git add -A`), en commit met een heldere WIP-boodschap.
+
+Eerst even de volledige stand in kaart:
+> 🔧 `Bash` — Full git status + branch + recent commits
+
+**🤖 Claude:**
+
+Er zijn een paar dingen die aandacht vragen vóór de commit. Laat me de nieuwe mappen en de losse bestanden bekijken:
+> 🔧 `Bash` — Inspect new dirs and stray files
+
+**🤖 Claude:**
+
+Voordat ik commit — er klopt iets niet. Ik heb de hele sessie `gen_vcf8kern.py`, `cardlib.py`, `prep_dsn.py` bewerkt en `finish_routes.py`/`gnd_orphans.py` gemaakt, maar die staan niet in de git-status. Dat moet ik uitzoeken, anders commit ik de kern van het werk niet:
+> 🔧 `Bash` — Investigate why generator files not in status
+> 🔧 `Bash` — Verify generator work is captured in HEAD
+
+**🤖 Claude:**
+
+Mysterie opgelost: mijn generator-werk (`gen_vcf8kern.py`, `finish_routes.py`, `cardlib.py`, etc.) is al gecommit in `75acd09 "handover en py scripts made during VCF8 routing"` — inclusief mijn laatste revert. Dat staat dus veilig. Wat nog open staat is de **board-output** zelf (nog helemaal untracked) plus wat ruis. Even de conventie checken zodat ik selectief commit:
+> 🔧 `Bash` — Check commit conventions for board artifacts
+
+**🤖 Claude:**
+
+Nu is het beeld helder. De conventie: andere borden committen `.ses`, `.dsn`, `.json`, svg's mee — maar niet de `drc-gate*/drc-fin*`-ruis (matrix heeft één `drc.json`). En `hardware/tools/` is een map met ~20 MB foto's van 23-07 (niet van mij, losstaand). Even de handover-doc checken en dan opruimen:
+> 🔧 `Bash` — Check handover doc tracking + count drc noise
+
+**🤖 Claude:**
+
+Alles van mij op één ding na (WERKWIJZE.md + de board-output) is al gecommit in `75acd09`. Ik maak nu het Mac-overdrachtsdocument, ruim de 49 drc-ruisbestanden + het verdwaalde root-`.prl` op, en commit dan selectief.
+
+Eerst het Mac-overdrachtsdocument:
+> 🔧 `Write` — d:\Git\Muziek\MusicBrain\doc\plans\vcf8kern-mac-overdracht.md
+
+**🤖 Claude:**
+
+Even mijn `FP_DIR`-claim in het overdrachtsdoc verifiëren, en dan opruimen:
+> 🔧 `Bash` — Verify FP_DIR and other hardcoded Windows paths
+
+**🤖 Claude:**
+
+Belangrijke aanvulling: het is niet alleen `FP_DIR` — regel 139 en de `FP`-dicts gebruiken ook `\\`-scheidingstekens (Windows). Dat corrigeer ik in het overdrachtsdoc zodat de Mac-chat niet struikelt:
+> 🔧 `Edit` — d:\Git\Muziek\MusicBrain\doc\plans\vcf8kern-mac-overdracht.md
+
+**🤖 Claude:**
+
+Nu opruimen — verdwaald root-`.prl` en de 49 drc-ruisbestanden weg (regenereerbaar), dan selectief stagen:
+> 🔧 `Bash` — Delete stray prl + drc noise
+
+**🤖 Claude:**
+
+Nog de `-erc.rpt` weg (andere borden committen die ook niet), dan selectief stagen — de twee board-mappen, mijn WERKWIJZE-edit en het nieuwe Mac-doc. De `publish_*.py`, chat-export en foto's laat ik met rust (Marks eigen losse WIP):
+> 🔧 `Bash` — Stage board dirs + WERKWIJZE + Mac doc selectively
+
+**🤖 Claude:**
+
+Staging is schoon: alleen de board-output (beide mappen), mijn WERKWIJZE-edit en het Mac-doc. De `publish_*.py`, chat-export en foto's blijven ongemoeid.
+
+Eén ding wil ik nog zeker weten vóór ik commit: dat de **gecommite generator het gecommite bord exact reproduceert** (dat is precies wat de overdracht betrouwbaar maakt). De board op schijf komt van de laatste voltooide run; ik draai de generator één keer met de teruggedraaide single-pass-code en check ERC/netcheck/DRC:
+> 🔧 `Bash` — Verification run of committed single-pass generator
+
+**🤖 Claude:**
+
+Reproduceert exact (dezelfde 17/17 + 3 fails als de gecommite stand). Nu ERC + netcheck + DRC bevestigen en het herschreven bord opnieuw stagen:
+> 🔧 `Bash` — Final ERC + netcheck + DRC validation
+
+**🤖 Claude:**
+
+ERC 0, netcheck OK, DRC 1 viol + 9 unconn — consistent. De generator reproduceert het bord exact. Nu het verse bord opnieuw stagen en committen:
+> 🔧 `Bash` — Commit board work with WIP message
+
+**🤖 Claude:**
+
+Commit `a84d4a9` staat. Maar een lokale commit bereikt de Mac nog niet — daarvoor moet het naar de remote gepusht. Dat is precies wat "overdragen naar Mac" vereist, dus ik push:
+> 🔧 `Bash` — Check remote and push to enable Mac transfer
+> 🔧 `TodoWrite` — takenlijst bijgewerkt
+
+**🤖 Claude:**
+
+Gepusht naar `origin/main` (`b9479d6..a84d4a9`, 2 commits: de generator-scripts uit `75acd09` + de board-output nu). De Mac kan het na een `git pull` oppikken.
+
+**Wat er nu op GitHub staat en meereist:**
+- De volledige board-output (`.kicad_pcb`, 12 schema-pagina's, README, renders, svg's) plus de drie generator-invoerbestanden (`.ses`, `gnd_stitch.json`, `gnd_orphans.json`) — bord is dus reproduceerbaar uit `python gen_vcf8kern.py`.
+- De testadapter.
+- `WERKWIJZE.md` met de nieuwe sectie "Dichte borden: de vcf8kern-lessen".
+- Twee overdrachtsdocs: [vcf8kern-handover.md](doc/plans/vcf8kern-handover.md) (stand + het genummerde restklusje met exacte coördinaten) en [vcf8kern-mac-overdracht.md](doc/plans/vcf8kern-mac-overdracht.md) (Mac-specifiek).
+
+**Eerste actie op de Mac** (staat ook in het Mac-doc): in [cardlib.py:10](hardware/kicad-generators/cardlib.py#L10) `FP_DIR` naar de Mac-footprintmap zetten én de `\\`-padseparators in `cardlib.fp()` normaliseren — anders faalt elke footprint-load. Ik heb voorgesteld het meteen OS-afhankelijk te maken zodat het bord ook op je Windows-desktop blijft bouwen als je terug bent.
+
+**Drie dingen die bewust NIET meereizen** (jouw eigen losse WIP van 23-07, staan nog als lokale wijziging op deze desktop):
+- `publish_board.py` / `publish_release.py` / `publish_software.py`
+- de chat-export `2026-07-23-chat-sessies-bewaarbeleid-en-archivering.md`
+- de foto's in `hardware/tools/proto dev board/` (~20 MB, untracked)
+
+Als je wilt dat een of meer van die vier tóch mee naar de Mac gaan, moet je ze vóór vertrek apart committen — zeg het en ik doe het. Anders: het VCF8-werk is veilig overgedragen, en het enige dat nog rest is het restklusje (±20–30 min GUI-handwerk → DRC 0/0 → fab), dat je daar met volle tegoed oppakt. Fijne weken weg.
+
