@@ -1,0 +1,2749 @@
+(kicad_pcb
+  (version 20240108)
+  (generator "pcbnew")
+  (generator_version "8.0")
+  (general (thickness 1.6) (legacy_teardrops no))
+  (paper "A4")
+  (title_block
+    (title "MusicBrain VCF8-kern test-adapter")
+    (date "2026-07-21")
+    (rev "0.1")
+    (company "MusicBrain project")
+  )
+  (layers
+    (0 "F.Cu" signal)
+    (31 "B.Cu" signal)
+    (32 "B.Adhes" user "B.Adhesive")
+    (33 "F.Adhes" user "F.Adhesive")
+    (34 "B.Paste" user)
+    (35 "F.Paste" user)
+    (36 "B.SilkS" user "B.Silkscreen")
+    (37 "F.SilkS" user "F.Silkscreen")
+    (38 "B.Mask" user)
+    (39 "F.Mask" user)
+    (40 "Dwgs.User" user "User.Drawings")
+    (41 "Cmts.User" user "User.Comments")
+    (42 "Eco1.User" user "User.Eco1")
+    (43 "Eco2.User" user "User.Eco2")
+    (44 "Edge.Cuts" user)
+    (45 "Margin" user)
+    (46 "B.CrtYd" user "B.Courtyard")
+    (47 "F.CrtYd" user "F.Courtyard")
+    (48 "B.Fab" user)
+    (49 "F.Fab" user)
+  )
+  (setup
+    (pad_to_mask_clearance 0)
+    (allow_soldermask_bridges_in_footprints no)
+    (aux_axis_origin 100.0 100.0)
+    (grid_origin 100.0 100.0)
+  )
+  (net 0 "")
+  (net 1 "+12V")
+  (net 2 "-12V")
+  (net 3 "+3V3")
+  (net 4 "GND")
+  (net 5 "/SCLK")
+  (net 6 "/MOSI")
+  (net 7 "/MISO")
+  (net 8 "/CS")
+  (net 9 "/LDAC")
+  (net 10 "/IRQ")
+  (net 11 "/SDO2")
+  (net 12 "/FMCV")
+  (net 13 "/TOUT")
+  (net 14 "/MODE0")
+  (net 15 "/MODE1")
+  (net 16 "/MODE2")
+  (net 17 "/TSEL0")
+  (net 18 "/TSEL1")
+  (net 19 "/TSEL2")
+  (net 20 "/TEN")
+  (footprint "Connector_PinHeader_2.54mm:PinHeader_2x12_P2.54mm_Vertical"
+    (uuid "ca4d0000-0000-4000-8000-000000000001")
+    (at 118.76 106 90)
+    (path "/")
+    (layer "F.Cu")
+    (descr "Through hole straight pin header, 2x12, 2.54mm pitch, double rows")
+    (tags "Through hole pin header THT 2x12 2.54mm double row")
+    (property "Reference" "J1"
+      (at 1.27 -2.38 0)
+      (layer "F.SilkS")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Value" "BUS"
+      (at 1.27 30.32 0)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (attr through_hole)
+    (fp_line
+      (start -1.38 -1.38)
+      (end 0 -1.38)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 0)
+      (end -1.38 -1.38)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 1.27)
+      (end -1.38 29.32)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 1.27)
+      (end 1.27 1.27)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 29.32)
+      (end 3.92 29.32)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start 1.27 -1.38)
+      (end 3.92 -1.38)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start 1.27 1.27)
+      (end 1.27 -1.38)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start 3.92 -1.38)
+      (end 3.92 29.32)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_rect
+      (start -1.77 -1.77)
+      (end 4.32 29.71)
+      (stroke
+        (width 0.05)
+        (type solid)
+      )
+      (fill no)
+      (layer "F.CrtYd")
+    )
+    (fp_line
+      (start -1.27 0)
+      (end 0 -1.27)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start -1.27 29.21)
+      (end -1.27 0)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start 0 -1.27)
+      (end 3.81 -1.27)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start 3.81 -1.27)
+      (end 3.81 29.21)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start 3.81 29.21)
+      (end -1.27 29.21)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_text user "${REFERENCE}"
+      (at 1.27 13.97 90)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (pad "1" thru_hole rect
+      (at 0 0 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 4 "GND")
+    )
+    (pad "2" thru_hole circle
+      (at 2.54 0 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 1 "+12V")
+    )
+    (pad "3" thru_hole circle
+      (at 0 2.54 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 4 "GND")
+    )
+    (pad "4" thru_hole circle
+      (at 2.54 2.54 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 2 "-12V")
+    )
+    (pad "5" thru_hole circle
+      (at 0 5.08 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 4 "GND")
+    )
+    (pad "6" thru_hole circle
+      (at 2.54 5.08 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 3 "+3V3")
+    )
+    (pad "7" thru_hole circle
+      (at 0 7.62 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 5 "/SCLK")
+    )
+    (pad "8" thru_hole circle
+      (at 2.54 7.62 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 4 "GND")
+    )
+    (pad "9" thru_hole circle
+      (at 0 10.16 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 6 "/MOSI")
+    )
+    (pad "10" thru_hole circle
+      (at 2.54 10.16 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 4 "GND")
+    )
+    (pad "11" thru_hole circle
+      (at 0 12.7 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 7 "/MISO")
+    )
+    (pad "12" thru_hole circle
+      (at 2.54 12.7 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 4 "GND")
+    )
+    (pad "13" thru_hole circle
+      (at 0 15.24 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 8 "/CS")
+    )
+    (pad "14" thru_hole circle
+      (at 2.54 15.24 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 4 "GND")
+    )
+    (pad "15" thru_hole circle
+      (at 0 17.78 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 9 "/LDAC")
+    )
+    (pad "16" thru_hole circle
+      (at 2.54 17.78 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 10 "/IRQ")
+    )
+    (pad "17" thru_hole circle
+      (at 0 20.32 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+    )
+    (pad "18" thru_hole circle
+      (at 2.54 20.32 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+    )
+    (pad "19" thru_hole circle
+      (at 0 22.86 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+    )
+    (pad "20" thru_hole circle
+      (at 2.54 22.86 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 4 "GND")
+    )
+    (pad "21" thru_hole circle
+      (at 0 25.4 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+    )
+    (pad "22" thru_hole circle
+      (at 2.54 25.4 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+    )
+    (pad "23" thru_hole circle
+      (at 0 27.94 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+    )
+    (pad "24" thru_hole circle
+      (at 2.54 27.94 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+    )
+    (model "${KICAD10_3DMODEL_DIR}/Connector_PinHeader_2.54mm.3dshapes/PinHeader_2x12_P2.54mm_Vertical.step"
+      (offset
+        (xyz 0 0 0)
+      )
+      (scale
+        (xyz 1 1 1)
+      )
+      (rotate
+        (xyz 0 0 0)
+      )
+    )
+  )
+  (footprint "Connector_PinSocket_2.54mm:PinSocket_2x12_P2.54mm_Vertical"
+    (uuid "ca4d0000-0000-4000-8000-000000000002")
+    (at 118.76 152 90)
+    (path "/")
+    (layer "F.Cu")
+    (descr "Through hole straight socket strip, 2x12, 2.54mm pitch, double rows (from Kicad 4.0.7), script generated")
+    (tags "Through hole socket strip THT 2x12 2.54mm double row")
+    (property "Reference" "J2"
+      (at -1.27 -2.77 0)
+      (layer "F.SilkS")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Value" "KERNSLOT"
+      (at -1.27 30.71 0)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (attr through_hole)
+    (fp_line
+      (start -3.87 -1.33)
+      (end -3.87 29.27)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -3.87 -1.33)
+      (end -1.27 -1.33)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -3.87 29.27)
+      (end 1.33 29.27)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.27 -1.33)
+      (end -1.27 1.27)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.27 1.27)
+      (end 1.33 1.27)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start 0 -1.33)
+      (end 1.33 -1.33)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start 1.33 -1.33)
+      (end 1.33 0)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start 1.33 1.27)
+      (end 1.33 29.27)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -4.31 -1.77)
+      (end 1.77 -1.77)
+      (stroke
+        (width 0.05)
+        (type solid)
+      )
+      (layer "F.CrtYd")
+    )
+    (fp_line
+      (start -4.31 29.71)
+      (end -4.31 -1.77)
+      (stroke
+        (width 0.05)
+        (type solid)
+      )
+      (layer "F.CrtYd")
+    )
+    (fp_line
+      (start 1.77 -1.77)
+      (end 1.77 29.71)
+      (stroke
+        (width 0.05)
+        (type solid)
+      )
+      (layer "F.CrtYd")
+    )
+    (fp_line
+      (start 1.77 29.71)
+      (end -4.31 29.71)
+      (stroke
+        (width 0.05)
+        (type solid)
+      )
+      (layer "F.CrtYd")
+    )
+    (fp_line
+      (start -3.81 -1.27)
+      (end 0.27 -1.27)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start -3.81 29.21)
+      (end -3.81 -1.27)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start 0.27 -1.27)
+      (end 1.27 -0.27)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start 1.27 -0.27)
+      (end 1.27 29.21)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start 1.27 29.21)
+      (end -3.81 29.21)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_text user "${REFERENCE}"
+      (at -1.27 13.97 90)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (pad "1" thru_hole rect
+      (at 0 0 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 4 "GND")
+    )
+    (pad "2" thru_hole circle
+      (at -2.54 0 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 1 "+12V")
+    )
+    (pad "3" thru_hole circle
+      (at 0 2.54 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 4 "GND")
+    )
+    (pad "4" thru_hole circle
+      (at -2.54 2.54 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 2 "-12V")
+    )
+    (pad "5" thru_hole circle
+      (at 0 5.08 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 12 "/FMCV")
+    )
+    (pad "6" thru_hole circle
+      (at -2.54 5.08 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 3 "+3V3")
+    )
+    (pad "7" thru_hole circle
+      (at 0 7.62 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 5 "/SCLK")
+    )
+    (pad "8" thru_hole circle
+      (at -2.54 7.62 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 4 "GND")
+    )
+    (pad "9" thru_hole circle
+      (at 0 10.16 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 6 "/MOSI")
+    )
+    (pad "10" thru_hole circle
+      (at -2.54 10.16 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 7 "/MISO")
+    )
+    (pad "11" thru_hole circle
+      (at 0 12.7 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 8 "/CS")
+    )
+    (pad "12" thru_hole circle
+      (at -2.54 12.7 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 9 "/LDAC")
+    )
+    (pad "13" thru_hole circle
+      (at 0 15.24 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 5 "/SCLK")
+    )
+    (pad "14" thru_hole circle
+      (at -2.54 15.24 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 6 "/MOSI")
+    )
+    (pad "15" thru_hole circle
+      (at 0 17.78 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 11 "/SDO2")
+    )
+    (pad "16" thru_hole circle
+      (at -2.54 17.78 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 10 "/IRQ")
+    )
+    (pad "17" thru_hole circle
+      (at 0 20.32 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 14 "/MODE0")
+    )
+    (pad "18" thru_hole circle
+      (at -2.54 20.32 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 15 "/MODE1")
+    )
+    (pad "19" thru_hole circle
+      (at 0 22.86 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 16 "/MODE2")
+    )
+    (pad "20" thru_hole circle
+      (at -2.54 22.86 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 17 "/TSEL0")
+    )
+    (pad "21" thru_hole circle
+      (at 0 25.4 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 18 "/TSEL1")
+    )
+    (pad "22" thru_hole circle
+      (at -2.54 25.4 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 19 "/TSEL2")
+    )
+    (pad "23" thru_hole circle
+      (at 0 27.94 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 20 "/TEN")
+    )
+    (pad "24" thru_hole circle
+      (at -2.54 27.94 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 13 "/TOUT")
+    )
+    (model "${KICAD10_3DMODEL_DIR}/Connector_PinSocket_2.54mm.3dshapes/PinSocket_2x12_P2.54mm_Vertical.step"
+      (offset
+        (xyz 0 0 0)
+      )
+      (scale
+        (xyz 1 1 1)
+      )
+      (rotate
+        (xyz 0 0 0)
+      )
+    )
+  )
+  (footprint "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical"
+    (uuid "ca4d0000-0000-4000-8000-000000000003")
+    (at 110 122 90)
+    (path "/")
+    (layer "F.Cu")
+    (descr "Through hole straight pin header, 1x03, 2.54mm pitch, single row")
+    (tags "Through hole pin header THT 1x03 2.54mm single row")
+    (property "Reference" "JP1"
+      (at 0 -2.38 0)
+      (layer "F.SilkS")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Value" "MODE0"
+      (at 0 7.46 0)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (attr through_hole)
+    (fp_line
+      (start -1.38 -1.38)
+      (end 0 -1.38)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 0)
+      (end -1.38 -1.38)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 1.27)
+      (end -1.38 6.46)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 1.27)
+      (end 1.38 1.27)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 6.46)
+      (end 1.38 6.46)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start 1.38 1.27)
+      (end 1.38 6.46)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_rect
+      (start -1.77 -1.77)
+      (end 1.77 6.85)
+      (stroke
+        (width 0.05)
+        (type solid)
+      )
+      (fill no)
+      (layer "F.CrtYd")
+    )
+    (fp_line
+      (start -1.27 -0.635)
+      (end -0.635 -1.27)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start -1.27 6.35)
+      (end -1.27 -0.635)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start -0.635 -1.27)
+      (end 1.27 -1.27)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start 1.27 -1.27)
+      (end 1.27 6.35)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start 1.27 6.35)
+      (end -1.27 6.35)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_text user "${REFERENCE}"
+      (at 0 2.54 90)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (pad "1" thru_hole rect
+      (at 0 0 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 3 "+3V3")
+    )
+    (pad "2" thru_hole circle
+      (at 0 2.54 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 14 "/MODE0")
+    )
+    (pad "3" thru_hole circle
+      (at 0 5.08 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 4 "GND")
+    )
+    (model "${KICAD10_3DMODEL_DIR}/Connector_PinHeader_2.54mm.3dshapes/PinHeader_1x03_P2.54mm_Vertical.step"
+      (offset
+        (xyz 0 0 0)
+      )
+      (scale
+        (xyz 1 1 1)
+      )
+      (rotate
+        (xyz 0 0 0)
+      )
+    )
+  )
+  (footprint "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical"
+    (uuid "ca4d0000-0000-4000-8000-000000000004")
+    (at 123 122 90)
+    (path "/")
+    (layer "F.Cu")
+    (descr "Through hole straight pin header, 1x03, 2.54mm pitch, single row")
+    (tags "Through hole pin header THT 1x03 2.54mm single row")
+    (property "Reference" "JP2"
+      (at 0 -2.38 0)
+      (layer "F.SilkS")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Value" "MODE1"
+      (at 0 7.46 0)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (attr through_hole)
+    (fp_line
+      (start -1.38 -1.38)
+      (end 0 -1.38)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 0)
+      (end -1.38 -1.38)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 1.27)
+      (end -1.38 6.46)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 1.27)
+      (end 1.38 1.27)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 6.46)
+      (end 1.38 6.46)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start 1.38 1.27)
+      (end 1.38 6.46)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_rect
+      (start -1.77 -1.77)
+      (end 1.77 6.85)
+      (stroke
+        (width 0.05)
+        (type solid)
+      )
+      (fill no)
+      (layer "F.CrtYd")
+    )
+    (fp_line
+      (start -1.27 -0.635)
+      (end -0.635 -1.27)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start -1.27 6.35)
+      (end -1.27 -0.635)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start -0.635 -1.27)
+      (end 1.27 -1.27)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start 1.27 -1.27)
+      (end 1.27 6.35)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start 1.27 6.35)
+      (end -1.27 6.35)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_text user "${REFERENCE}"
+      (at 0 2.54 90)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (pad "1" thru_hole rect
+      (at 0 0 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 3 "+3V3")
+    )
+    (pad "2" thru_hole circle
+      (at 0 2.54 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 15 "/MODE1")
+    )
+    (pad "3" thru_hole circle
+      (at 0 5.08 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 4 "GND")
+    )
+    (model "${KICAD10_3DMODEL_DIR}/Connector_PinHeader_2.54mm.3dshapes/PinHeader_1x03_P2.54mm_Vertical.step"
+      (offset
+        (xyz 0 0 0)
+      )
+      (scale
+        (xyz 1 1 1)
+      )
+      (rotate
+        (xyz 0 0 0)
+      )
+    )
+  )
+  (footprint "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical"
+    (uuid "ca4d0000-0000-4000-8000-000000000005")
+    (at 136 122 90)
+    (path "/")
+    (layer "F.Cu")
+    (descr "Through hole straight pin header, 1x03, 2.54mm pitch, single row")
+    (tags "Through hole pin header THT 1x03 2.54mm single row")
+    (property "Reference" "JP3"
+      (at 0 -2.38 0)
+      (layer "F.SilkS")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Value" "MODE2"
+      (at 0 7.46 0)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (attr through_hole)
+    (fp_line
+      (start -1.38 -1.38)
+      (end 0 -1.38)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 0)
+      (end -1.38 -1.38)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 1.27)
+      (end -1.38 6.46)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 1.27)
+      (end 1.38 1.27)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 6.46)
+      (end 1.38 6.46)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start 1.38 1.27)
+      (end 1.38 6.46)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_rect
+      (start -1.77 -1.77)
+      (end 1.77 6.85)
+      (stroke
+        (width 0.05)
+        (type solid)
+      )
+      (fill no)
+      (layer "F.CrtYd")
+    )
+    (fp_line
+      (start -1.27 -0.635)
+      (end -0.635 -1.27)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start -1.27 6.35)
+      (end -1.27 -0.635)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start -0.635 -1.27)
+      (end 1.27 -1.27)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start 1.27 -1.27)
+      (end 1.27 6.35)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start 1.27 6.35)
+      (end -1.27 6.35)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_text user "${REFERENCE}"
+      (at 0 2.54 90)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (pad "1" thru_hole rect
+      (at 0 0 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 3 "+3V3")
+    )
+    (pad "2" thru_hole circle
+      (at 0 2.54 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 16 "/MODE2")
+    )
+    (pad "3" thru_hole circle
+      (at 0 5.08 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 4 "GND")
+    )
+    (model "${KICAD10_3DMODEL_DIR}/Connector_PinHeader_2.54mm.3dshapes/PinHeader_1x03_P2.54mm_Vertical.step"
+      (offset
+        (xyz 0 0 0)
+      )
+      (scale
+        (xyz 1 1 1)
+      )
+      (rotate
+        (xyz 0 0 0)
+      )
+    )
+  )
+  (footprint "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical"
+    (uuid "ca4d0000-0000-4000-8000-000000000006")
+    (at 149 122 90)
+    (path "/")
+    (layer "F.Cu")
+    (descr "Through hole straight pin header, 1x03, 2.54mm pitch, single row")
+    (tags "Through hole pin header THT 1x03 2.54mm single row")
+    (property "Reference" "JP4"
+      (at 0 -2.38 0)
+      (layer "F.SilkS")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Value" "TSEL0"
+      (at 0 7.46 0)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (attr through_hole)
+    (fp_line
+      (start -1.38 -1.38)
+      (end 0 -1.38)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 0)
+      (end -1.38 -1.38)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 1.27)
+      (end -1.38 6.46)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 1.27)
+      (end 1.38 1.27)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 6.46)
+      (end 1.38 6.46)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start 1.38 1.27)
+      (end 1.38 6.46)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_rect
+      (start -1.77 -1.77)
+      (end 1.77 6.85)
+      (stroke
+        (width 0.05)
+        (type solid)
+      )
+      (fill no)
+      (layer "F.CrtYd")
+    )
+    (fp_line
+      (start -1.27 -0.635)
+      (end -0.635 -1.27)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start -1.27 6.35)
+      (end -1.27 -0.635)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start -0.635 -1.27)
+      (end 1.27 -1.27)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start 1.27 -1.27)
+      (end 1.27 6.35)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start 1.27 6.35)
+      (end -1.27 6.35)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_text user "${REFERENCE}"
+      (at 0 2.54 90)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (pad "1" thru_hole rect
+      (at 0 0 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 3 "+3V3")
+    )
+    (pad "2" thru_hole circle
+      (at 0 2.54 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 17 "/TSEL0")
+    )
+    (pad "3" thru_hole circle
+      (at 0 5.08 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 4 "GND")
+    )
+    (model "${KICAD10_3DMODEL_DIR}/Connector_PinHeader_2.54mm.3dshapes/PinHeader_1x03_P2.54mm_Vertical.step"
+      (offset
+        (xyz 0 0 0)
+      )
+      (scale
+        (xyz 1 1 1)
+      )
+      (rotate
+        (xyz 0 0 0)
+      )
+    )
+  )
+  (footprint "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical"
+    (uuid "ca4d0000-0000-4000-8000-000000000007")
+    (at 110 131 90)
+    (path "/")
+    (layer "F.Cu")
+    (descr "Through hole straight pin header, 1x03, 2.54mm pitch, single row")
+    (tags "Through hole pin header THT 1x03 2.54mm single row")
+    (property "Reference" "JP5"
+      (at 0 -2.38 0)
+      (layer "F.SilkS")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Value" "TSEL1"
+      (at 0 7.46 0)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (attr through_hole)
+    (fp_line
+      (start -1.38 -1.38)
+      (end 0 -1.38)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 0)
+      (end -1.38 -1.38)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 1.27)
+      (end -1.38 6.46)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 1.27)
+      (end 1.38 1.27)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 6.46)
+      (end 1.38 6.46)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start 1.38 1.27)
+      (end 1.38 6.46)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_rect
+      (start -1.77 -1.77)
+      (end 1.77 6.85)
+      (stroke
+        (width 0.05)
+        (type solid)
+      )
+      (fill no)
+      (layer "F.CrtYd")
+    )
+    (fp_line
+      (start -1.27 -0.635)
+      (end -0.635 -1.27)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start -1.27 6.35)
+      (end -1.27 -0.635)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start -0.635 -1.27)
+      (end 1.27 -1.27)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start 1.27 -1.27)
+      (end 1.27 6.35)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start 1.27 6.35)
+      (end -1.27 6.35)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_text user "${REFERENCE}"
+      (at 0 2.54 90)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (pad "1" thru_hole rect
+      (at 0 0 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 3 "+3V3")
+    )
+    (pad "2" thru_hole circle
+      (at 0 2.54 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 18 "/TSEL1")
+    )
+    (pad "3" thru_hole circle
+      (at 0 5.08 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 4 "GND")
+    )
+    (model "${KICAD10_3DMODEL_DIR}/Connector_PinHeader_2.54mm.3dshapes/PinHeader_1x03_P2.54mm_Vertical.step"
+      (offset
+        (xyz 0 0 0)
+      )
+      (scale
+        (xyz 1 1 1)
+      )
+      (rotate
+        (xyz 0 0 0)
+      )
+    )
+  )
+  (footprint "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical"
+    (uuid "ca4d0000-0000-4000-8000-000000000008")
+    (at 123 131 90)
+    (path "/")
+    (layer "F.Cu")
+    (descr "Through hole straight pin header, 1x03, 2.54mm pitch, single row")
+    (tags "Through hole pin header THT 1x03 2.54mm single row")
+    (property "Reference" "JP6"
+      (at 0 -2.38 0)
+      (layer "F.SilkS")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Value" "TSEL2"
+      (at 0 7.46 0)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (attr through_hole)
+    (fp_line
+      (start -1.38 -1.38)
+      (end 0 -1.38)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 0)
+      (end -1.38 -1.38)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 1.27)
+      (end -1.38 6.46)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 1.27)
+      (end 1.38 1.27)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 6.46)
+      (end 1.38 6.46)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start 1.38 1.27)
+      (end 1.38 6.46)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_rect
+      (start -1.77 -1.77)
+      (end 1.77 6.85)
+      (stroke
+        (width 0.05)
+        (type solid)
+      )
+      (fill no)
+      (layer "F.CrtYd")
+    )
+    (fp_line
+      (start -1.27 -0.635)
+      (end -0.635 -1.27)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start -1.27 6.35)
+      (end -1.27 -0.635)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start -0.635 -1.27)
+      (end 1.27 -1.27)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start 1.27 -1.27)
+      (end 1.27 6.35)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start 1.27 6.35)
+      (end -1.27 6.35)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_text user "${REFERENCE}"
+      (at 0 2.54 90)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (pad "1" thru_hole rect
+      (at 0 0 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 3 "+3V3")
+    )
+    (pad "2" thru_hole circle
+      (at 0 2.54 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 19 "/TSEL2")
+    )
+    (pad "3" thru_hole circle
+      (at 0 5.08 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 4 "GND")
+    )
+    (model "${KICAD10_3DMODEL_DIR}/Connector_PinHeader_2.54mm.3dshapes/PinHeader_1x03_P2.54mm_Vertical.step"
+      (offset
+        (xyz 0 0 0)
+      )
+      (scale
+        (xyz 1 1 1)
+      )
+      (rotate
+        (xyz 0 0 0)
+      )
+    )
+  )
+  (footprint "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical"
+    (uuid "ca4d0000-0000-4000-8000-000000000009")
+    (at 136 131 90)
+    (path "/")
+    (layer "F.Cu")
+    (descr "Through hole straight pin header, 1x03, 2.54mm pitch, single row")
+    (tags "Through hole pin header THT 1x03 2.54mm single row")
+    (property "Reference" "JP7"
+      (at 0 -2.38 0)
+      (layer "F.SilkS")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Value" "TEN"
+      (at 0 7.46 0)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (attr through_hole)
+    (fp_line
+      (start -1.38 -1.38)
+      (end 0 -1.38)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 0)
+      (end -1.38 -1.38)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 1.27)
+      (end -1.38 6.46)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 1.27)
+      (end 1.38 1.27)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 6.46)
+      (end 1.38 6.46)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start 1.38 1.27)
+      (end 1.38 6.46)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_rect
+      (start -1.77 -1.77)
+      (end 1.77 6.85)
+      (stroke
+        (width 0.05)
+        (type solid)
+      )
+      (fill no)
+      (layer "F.CrtYd")
+    )
+    (fp_line
+      (start -1.27 -0.635)
+      (end -0.635 -1.27)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start -1.27 6.35)
+      (end -1.27 -0.635)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start -0.635 -1.27)
+      (end 1.27 -1.27)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start 1.27 -1.27)
+      (end 1.27 6.35)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start 1.27 6.35)
+      (end -1.27 6.35)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_text user "${REFERENCE}"
+      (at 0 2.54 90)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (pad "1" thru_hole rect
+      (at 0 0 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 3 "+3V3")
+    )
+    (pad "2" thru_hole circle
+      (at 0 2.54 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 20 "/TEN")
+    )
+    (pad "3" thru_hole circle
+      (at 0 5.08 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 4 "GND")
+    )
+    (model "${KICAD10_3DMODEL_DIR}/Connector_PinHeader_2.54mm.3dshapes/PinHeader_1x03_P2.54mm_Vertical.step"
+      (offset
+        (xyz 0 0 0)
+      )
+      (scale
+        (xyz 1 1 1)
+      )
+      (rotate
+        (xyz 0 0 0)
+      )
+    )
+  )
+  (footprint "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical"
+    (uuid "ca4d0000-0000-4000-8000-000000000010")
+    (at 149 131 90)
+    (path "/")
+    (layer "F.Cu")
+    (descr "Through hole straight pin header, 1x03, 2.54mm pitch, single row")
+    (tags "Through hole pin header THT 1x03 2.54mm single row")
+    (property "Reference" "JP8"
+      (at 0 -2.38 0)
+      (layer "F.SilkS")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Value" "FMCV"
+      (at 0 7.46 0)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (attr through_hole)
+    (fp_line
+      (start -1.38 -1.38)
+      (end 0 -1.38)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 0)
+      (end -1.38 -1.38)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 1.27)
+      (end -1.38 6.46)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 1.27)
+      (end 1.38 1.27)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 6.46)
+      (end 1.38 6.46)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start 1.38 1.27)
+      (end 1.38 6.46)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_rect
+      (start -1.77 -1.77)
+      (end 1.77 6.85)
+      (stroke
+        (width 0.05)
+        (type solid)
+      )
+      (fill no)
+      (layer "F.CrtYd")
+    )
+    (fp_line
+      (start -1.27 -0.635)
+      (end -0.635 -1.27)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start -1.27 6.35)
+      (end -1.27 -0.635)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start -0.635 -1.27)
+      (end 1.27 -1.27)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start 1.27 -1.27)
+      (end 1.27 6.35)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start 1.27 6.35)
+      (end -1.27 6.35)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_text user "${REFERENCE}"
+      (at 0 2.54 90)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (pad "1" thru_hole rect
+      (at 0 0 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 4 "GND")
+    )
+    (pad "2" thru_hole circle
+      (at 0 2.54 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 12 "/FMCV")
+    )
+    (pad "3" thru_hole circle
+      (at 0 5.08 90)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 4 "GND")
+    )
+    (model "${KICAD10_3DMODEL_DIR}/Connector_PinHeader_2.54mm.3dshapes/PinHeader_1x03_P2.54mm_Vertical.step"
+      (offset
+        (xyz 0 0 0)
+      )
+      (scale
+        (xyz 1 1 1)
+      )
+      (rotate
+        (xyz 0 0 0)
+      )
+    )
+  )
+  (footprint "Resistor_SMD:R_0603_1608Metric"
+    (uuid "ca4d0000-0000-4000-8000-000000000011")
+    (at 158 122)
+    (path "/")
+    (layer "F.Cu")
+    (descr "Resistor SMD 0603 (1608 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)")
+    (tags "resistor")
+    (property "Reference" "R1"
+      (at 0 -1.43 0)
+      (layer "F.SilkS")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Value" "4k7"
+      (at 0 1.43 0)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (attr smd)
+    (fp_line
+      (start -0.237258 -0.5225)
+      (end 0.237258 -0.5225)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -0.237258 0.5225)
+      (end 0.237258 0.5225)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_rect
+      (start -1.48 -0.73)
+      (end 1.48 0.73)
+      (stroke
+        (width 0.05)
+        (type solid)
+      )
+      (fill no)
+      (layer "F.CrtYd")
+    )
+    (fp_rect
+      (start -0.8 -0.4125)
+      (end 0.8 0.4125)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (fill no)
+      (layer "F.Fab")
+    )
+    (fp_text user "${REFERENCE}"
+      (at 0 0 0)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 0.4 0.4)
+          (thickness 0.06)
+        )
+      )
+    )
+    (pad "1" smd roundrect
+      (at -0.825 0)
+      (size 0.8 0.95)
+      (layers "F.Cu" "F.Mask" "F.Paste")
+      (roundrect_rratio 0.25)
+      (net 3 "+3V3")
+    )
+    (pad "2" smd roundrect
+      (at 0.825 0)
+      (size 0.8 0.95)
+      (layers "F.Cu" "F.Mask" "F.Paste")
+      (roundrect_rratio 0.25)
+      (net 13 "/TOUT")
+    )
+    (model "${KICAD10_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_0603_1608Metric.step"
+      (offset
+        (xyz 0 0 0)
+      )
+      (scale
+        (xyz 1 1 1)
+      )
+      (rotate
+        (xyz 0 0 0)
+      )
+    )
+  )
+  (footprint "Connector_PinHeader_2.54mm:PinHeader_1x01_P2.54mm_Vertical"
+    (uuid "ca4d0000-0000-4000-8000-000000000012")
+    (at 158 128)
+    (path "/")
+    (layer "F.Cu")
+    (descr "Through hole straight pin header, 1x01, 2.54mm pitch, single row")
+    (tags "Through hole pin header THT 1x01 2.54mm single row")
+    (property "Reference" "TP1"
+      (at 0 -2.38 0)
+      (layer "F.SilkS")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Value" "TOUT"
+      (at 0 2.38 0)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (attr through_hole)
+    (fp_line
+      (start -1.38 -1.38)
+      (end 0 -1.38)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 0)
+      (end -1.38 -1.38)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 1.27)
+      (end -1.38 1.38)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 1.27)
+      (end 1.38 1.27)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 1.38)
+      (end 1.38 1.38)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start 1.38 1.27)
+      (end 1.38 1.38)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_rect
+      (start -1.77 -1.77)
+      (end 1.77 1.77)
+      (stroke
+        (width 0.05)
+        (type solid)
+      )
+      (fill no)
+      (layer "F.CrtYd")
+    )
+    (fp_line
+      (start -1.27 -0.635)
+      (end -0.635 -1.27)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start -1.27 1.27)
+      (end -1.27 -0.635)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start -0.635 -1.27)
+      (end 1.27 -1.27)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start 1.27 -1.27)
+      (end 1.27 1.27)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start 1.27 1.27)
+      (end -1.27 1.27)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_text user "${REFERENCE}"
+      (at 0 0 90)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (pad "1" thru_hole rect
+      (at 0 0)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 13 "/TOUT")
+    )
+    (model "${KICAD10_3DMODEL_DIR}/Connector_PinHeader_2.54mm.3dshapes/PinHeader_1x01_P2.54mm_Vertical.step"
+      (offset
+        (xyz 0 0 0)
+      )
+      (scale
+        (xyz 1 1 1)
+      )
+      (rotate
+        (xyz 0 0 0)
+      )
+    )
+  )
+  (footprint "Connector_PinHeader_2.54mm:PinHeader_1x01_P2.54mm_Vertical"
+    (uuid "ca4d0000-0000-4000-8000-000000000013")
+    (at 158 134)
+    (path "/")
+    (layer "F.Cu")
+    (descr "Through hole straight pin header, 1x01, 2.54mm pitch, single row")
+    (tags "Through hole pin header THT 1x01 2.54mm single row")
+    (property "Reference" "TP2"
+      (at 0 -2.38 0)
+      (layer "F.SilkS")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Value" "SDO2"
+      (at 0 2.38 0)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (attr through_hole)
+    (fp_line
+      (start -1.38 -1.38)
+      (end 0 -1.38)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 0)
+      (end -1.38 -1.38)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 1.27)
+      (end -1.38 1.38)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 1.27)
+      (end 1.38 1.27)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start -1.38 1.38)
+      (end 1.38 1.38)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_line
+      (start 1.38 1.27)
+      (end 1.38 1.38)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (layer "F.SilkS")
+    )
+    (fp_rect
+      (start -1.77 -1.77)
+      (end 1.77 1.77)
+      (stroke
+        (width 0.05)
+        (type solid)
+      )
+      (fill no)
+      (layer "F.CrtYd")
+    )
+    (fp_line
+      (start -1.27 -0.635)
+      (end -0.635 -1.27)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start -1.27 1.27)
+      (end -1.27 -0.635)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start -0.635 -1.27)
+      (end 1.27 -1.27)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start 1.27 -1.27)
+      (end 1.27 1.27)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_line
+      (start 1.27 1.27)
+      (end -1.27 1.27)
+      (stroke
+        (width 0.1)
+        (type solid)
+      )
+      (layer "F.Fab")
+    )
+    (fp_text user "${REFERENCE}"
+      (at 0 0 90)
+      (layer "F.Fab")
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (pad "1" thru_hole rect
+      (at 0 0)
+      (size 1.7 1.7)
+      (drill 1)
+      (layers "*.Cu" "*.Mask")
+      (remove_unused_layers no)
+      (net 11 "/SDO2")
+    )
+    (model "${KICAD10_3DMODEL_DIR}/Connector_PinHeader_2.54mm.3dshapes/PinHeader_1x01_P2.54mm_Vertical.step"
+      (offset
+        (xyz 0 0 0)
+      )
+      (scale
+        (xyz 1 1 1)
+      )
+      (rotate
+        (xyz 0 0 0)
+      )
+    )
+  )
+
+  (gr_rect (start 100.0 100.0) (end 168.0 158.0)
+    (stroke (width 0.1) (type default)) (fill none)
+    (layer "Edge.Cuts") (uuid "ca4d0000-0000-4000-8000-000000000014"))
+  (gr_text "musicbrain.nl/hw/vcf8kern-testadapter rev 0.1" (at 134 129 0) (layer "F.SilkS")
+    (uuid "ca4d0000-0000-4000-8000-000000000015")
+    (effects (font (size 1 1) (thickness 0.15))))
+
+  (zone (net 4) (net_name "GND") (layer "F.Cu")
+    (uuid "ca4d0000-0000-4000-8000-000000000016")
+    (hatch edge 0.5)
+    (connect_pads yes (clearance 0.3))
+    (min_thickness 0.2) (filled_areas_thickness no)
+    (fill yes (thermal_gap 0.5) (thermal_bridge_width 0.5))
+    (polygon (pts
+      (xy 100.5 100.5) (xy 167.5 100.5)
+      (xy 167.5 157.5) (xy 100.5 157.5)
+    ))
+  )
+  (zone (net 4) (net_name "GND") (layer "B.Cu")
+    (uuid "ca4d0000-0000-4000-8000-000000000017")
+    (hatch edge 0.5)
+    (connect_pads yes (clearance 0.3))
+    (min_thickness 0.2) (filled_areas_thickness no)
+    (fill yes (thermal_gap 0.5) (thermal_bridge_width 0.5))
+    (polygon (pts
+      (xy 100.5 100.5) (xy 167.5 100.5)
+      (xy 167.5 157.5) (xy 100.5 157.5)
+    ))
+  )
+)

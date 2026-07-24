@@ -321,3 +321,24 @@ rood, −voeding blauw, signaal geel, nc licht. 1×3's e.d. vallen buiten
 SVG's embedden gewoon in de bord-README's (`![...](x.svg)`) — GitHub
 rendert ze; de render zit als data-URI ín de SVG dus er is geen externe
 resource die geblokkeerd wordt.
+
+## Publiceren naar de Imprint-site (board-spec + 3D-tab)
+
+`publish_board.py` post component + board-spec (render/overzicht/pinouts/
+points/connectors) via de ingest-API; `publish_matrix.py`/`publish_product.mjs`
+doen een hele set. Token/base uit `.env` (gitignored). **Interactieve 3D-tab**:
+`widget_export.py --3d` genereert een GLB (`kicad-cli pcb export glb`) in de
+Imprint-`public/boards/`-map + een `view3d`-blok in de widget-json;
+`publish_board.py --glb` stuurt het mee.
+
+⚠️ **Les 2026-07-23 (matrix-3D):** een board-spec-POST is een **volledige
+documentvervanging, GEEN veld-merge** (bitemporaal snapshot). Laat een POST
+`view3d`/`model3d` weg, dan wist de nieuwe versie ze — dus een gewone
+`publish_board`-nabrander ná een 3D-publish sloopt de 3D-tab. Fix zit nu in
+de tool: `publish_board.py` neemt het 3D-blok **altijd** mee (uit de
+widget-json of auto-gedetecteerde GLB), dus elke publish is 3D-compleet.
+**Verifiëren via het MEERVOUD-endpoint**: `GET …/api/content/board-specs/
+<slug>` (enkelvoud `/board-spec/` bestaat niet → "Unknown content type",
+lokaal én live — dat is geen build-verschil). De frontend toont de tab als
+`assets.model3d ?? view3d.src` gevuld is (versioned asset wint van statisch
+pad; één van de twee volstaat).
