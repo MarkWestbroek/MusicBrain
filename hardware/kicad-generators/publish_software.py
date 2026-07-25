@@ -68,9 +68,9 @@ def main():
         'version': a.version,
         'kind': 'software',   # FR doc/imprint-fr-component-kind.md; default = board
         'connectors': [],
-        'assets': {'renderTop': f'render-top{ext}',
-                   'overview': f'overview{oext}' if a.overview else None,
-                   'pinouts': {}},
+        # zonder --overview het veld weglaten: de ingest weigert null (422)
+        'assets': {'renderTop': f'render-top{ext}', 'pinouts': {},
+                   **({'overview': f'overview{oext}'} if a.overview else {})},
         'points': [],
         'sections': doc_sections(a.doc),
     }

@@ -30,12 +30,15 @@ PINS = [('busboard', 'v3.1'), ('adc8', 'v2.0'), ('dac8', 'v2.0'),
         ('jack4', 'v2.0'), ('riser', 'v2.0'), ('potriser', 'v2.0'),
         ('i2criser', 'v2.0'), ('pot8front', 'v1.1'), ('enc5front', 'v2.0'),
         ('ad5754r-breakout', 'v1.0'),
-        ('editor-cortex', 'v0.5.48')]   # software x.y.z; volgt fw-contract
+        ('matrix', 'v0.3c'),            # poly-analog patchmatrix (center-variant)
+        ('editor-cortex', 'v0.5.48'),   # software x.y.z; volgt fw-contract
+        ('fpga-voice', 'v0.3.0')]       # FPGA-instrument (MS20_synth_voice-repo, tag 0.3-wavetable)
 HIGHLIGHTS = [
     'Gen 2: slots 2x12 met audio-lijnen (MCLK/BCLK/LRCLK + I2S-data per slot)',
     'Busboard rev 3.1: 40 HP, slots gecentreerd op 4 HP-steek, MIDI 2x2, USB-host, J24-audiohub, J25 Axon-voeding',
     'Kaarten H=45 en op maat (40-65 mm breed); jack8 past nu tussen de rails',
     'Cortex editor 0.5.48: browser-patcher + polyfone simulatie, contract-gekoppeld aan fw 0.5.48',
+    'FPGA voice 0.3.0: 8-stemmige Karplus-Strong + MS-20-filter (Tang Primer 20K) als SPI-instrument aan de CV/gate-bus',
 ]
 PRODUCT_COMPONENTS_WEG = ['busboard-v2']   # uit product.components (vervangen)
 # -----------------------------------------------------------------------------

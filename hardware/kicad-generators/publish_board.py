@@ -37,6 +37,9 @@ if os.path.exists(_envp):
 RAND = 24   # px marge bij bijsnijden — MOET gelijk zijn aan widget_export.RAND,
             # anders matchen de point-x/y uit de widget-json niet met deze render
 
+# statische GLB/PNG-map van de Imprint-site (gelijk aan widget_export default)
+PUBLIC_BOARDS = r"D:\Git\Web\Imprint-engine\sites\musicbrain\public\boards"
+
 
 def render_top(pcb):
     """Render transparant en snijd bij tot bord+RAND (identiek aan
@@ -181,7 +184,21 @@ def main():
     if a.glb and os.path.exists(a.glb):
         files['model.glb'] = a.glb
 
-    points = widget_points(os.path.join(d, f'{base_name}-widget.json'), pinouts)
+    wj = os.path.join(d, f'{base_name}-widget.json')
+    points = widget_points(wj, pinouts)
+    # view3d-blok uit de widget-json (widget_export.py --3d zet het). MOET
+    # in DEZELFDE POST mee: een board-spec-POST is een volledige document-
+    # vervanging (geen merge) - laat je view3d/model3d weg, dan wist de
+    # nieuwe versie ze. Auto-detect ook de statische GLB, zodat 3D "plakt"
+    # zelfs als de widget-json ooit zonder --3d hergenereerd wordt.
+    view3d = None
+    if os.path.exists(wj):
+        view3d = json.load(open(wj, encoding='utf-8')).get('view3d')
+    if not view3d:
+        _glb = os.path.join(PUBLIC_BOARDS, f'{base_name}.glb')
+        if os.path.exists(_glb):
+            view3d = {'mode': 'glb', 'src': f'/boards/{base_name}.glb',
+                      'poster': f'/boards/{base_name}.png'}
     doc = {
         'slug': slug,
         'component': a.component,
@@ -194,6 +211,7 @@ def main():
                    'pinouts': pinouts}.items() if v is not None},
         'points': points,
         'sections': readme_sections(os.path.join(d, 'README.md')),
+        **({'view3d': view3d} if view3d else {}),
     }
 
     if a.dry:
