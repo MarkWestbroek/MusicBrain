@@ -170,3 +170,44 @@ Kort antwoord: nee, bestel liever meteen een **ESP32-S3-devkit** in plaats van (
 
 Mijn advies voor het bestellijstje vóór de bordenorder: **1× ESP32-S3-DevKitC-1U** (axon-validatie), optioneel 1× goedkope ESP32-S voor de socket, en — als je die nog niet hebt liggen — een **Raspberry Pi Pico** voor de SPI-slave-test uit het poly-plan, want dát is de test die de backbone-order echt blokkeert.
 
+---
+
+## 👤 Gebruiker (4)
+
+ik vond nog wat: @hardware/Sourcing/WT32-ETH01/WT32-ETH01-bag.jpg @hardware/Sourcing/WT32-ETH01/WT32-ETH01-chip.jpg  @hardware/Sourcing/WT32-ETH01/WT32-ETH01-front.jpg  @hardware/Sourcing/WT32-ETH01/WT32-ETH01-back.jpg 
+
+Is dat de ESP32-S, of nog weer een andere variant?
+
+**🤖 Claude:**
+
+Dat is geen ESP32-S devkit maar een **WT32-ETH01** (staat ook op de achterkant: "ESP32-ETH01 V1.4") van Wireless-Tag — en dat is goed nieuws: **chip-technisch is dit precies de "oude ESP32"** die ik bedoelde. Op de module zit een klassieke ESP32 (dual-core LX6, WiFi + Bluetooth Classic/BLE 4.2), dus voor UART-protocol-experimenten met de Teensy hoef je géén losse ESP32-S meer te bestellen.
+
+Wel drie praktische verschillen met een NodeMCU-stijl devkit:
+
+1. **Hij past niet in de socket van het Proto-bord.** Andere vorm, andere pinout (2×10 i.p.v. 2×19). Je verbindt hem dus met jumpers: TX/RX van de WT32 naar de Serial1-pinnen (D0/D1) van de Teensy, plus GND en 5V. Let op: de labels op de bag zeggen "Not welded" — de headers zitten er los bij en moet je eerst zelf solderen (klopt met je foto's: de gaten zijn leeg).
+
+2. **Geen USB-poort.** Flashen gaat via een externe **USB-UART-adapter (3,3V!)** op TX0/RX0, met **IO0 naar GND tijdens reset** om in bootloader-mode te komen. Heb je nog geen USB-TTL-dongle (CP2102/FT232), dan is dát het ding om te bestellen (~€3). Sommige verkopers leveren er een bijpassend flash-adaptertje bij, maar bij jouw tweedehands zakje zat dat vermoedelijk niet.
+
+3. **Bonus: 100 Mbit Ethernet** (LAN8720-PHY achter die RJ45). Dat maakt dit bordje eigenlijk interessanter dan een kale ESP32-S voor de side-car-architectuur: je kunt het JSON-RPC/WebSocket-verhaal niet alleen over WiFi maar ook bedraad testen — en het Proto-bord heeft zelf óók een MagJack aan de Teensy-kant, dus je kunt zelfs beide in één switch prikken.
+
+Conclusie voor je bestellijstje: de oude-ESP32-aanschaf kan geschrapt worden — dit dekt die rol. Wat overblijft: **1× ESP32-S3-DevKitC-1U** voor de echte axon-validatie, een **Pico** voor de SPI-slave-test (als je die nog niet hebt), en eventueel een **USB-TTL-adapter** om deze WT32-ETH01 te kunnen flashen.
+
+---
+
+## 👤 Gebruiker (5)
+
+de USB-TTL adapter is niet deze? @hardware/tools/ST-link/ST-link.jpg
+
+**🤖 Claude:**
+
+Nee, helaas — dat is een **ST-Link V2** (kloon), een **SWD/SWIM-programmer voor STM8- en STM32-chips**, geen USB-UART-adapter. Kijk maar naar de pinlabels: RST, SWDIO, SWCLK, SWIM, GND en voeding — er zit geen TX/RX op. Hij praat het SWD-debugprotocol, niet "gewoon serieel", en de ESP32-bootloader verwacht juist een kale seriële verbinding.
+
+Voor jouw spullen is deze dongle eigenlijk nergens voor nodig: de Teensy flasht via zijn eigen USB-bootloader en de ESP32 via UART. Hij wordt pas nuttig als je ooit een STM32 gaat debuggen (of firmware van bijv. een goedkoop STM32-bordje wilt flashen). Bewaren dus, maar hij lost het WT32-ETH01-flashprobleem niet op.
+
+Wat je wél nodig hebt is een simpele **USB-naar-TTL-serieel-adapter** met een CP2102-, CH340- of FT232-chip (~€2–5, bij TinyTronics/AliExpress/Amazon). Herkenbaar aan pinnen **TXD/RXD/GND/3V3/5V**. Twee aandachtspunten bij het bestellen:
+
+- **3,3V-logica** — de meeste adapters hebben een 3.3V/5V-jumpertje; zet hem op 3,3V voor de ESP32.
+- Handig maar niet verplicht: een variant die ook **RTS/DTR** uitvoert kan de ESP32 automatisch in bootloader-mode zetten; anders doe je het handmatig (IO0 naar GND houden tijdens reset), wat op de WT32-ETH01 prima te doen is.
+
+Overigens: check ook even je andere zakjes — bij Teensy/Arduino-spul zwerft zo'n USB-TTL-dongle vaak al ergens rond, en elk NodeMCU/devkit-bordje met USB-poort kan in een noodgeval als serial bridge dienen.
+
