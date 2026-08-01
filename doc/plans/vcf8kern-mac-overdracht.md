@@ -9,13 +9,11 @@ voegt alléén de **machine-specifieke** dingen toe.
 
 ## Waar het bord staat (samenvatting)
 
-`musicbrain-vcf8kern` is **99 % geroute**: ERC 0, netcheck OK, alle signalen
-+ voedingen liggen erin. Laatste DRC-stand: **1 violation + 9 unconnected**
-(6 daarvan GND-zone-eilandjes). Het **restklusje** (±20–30 min, exacte
-coördinaten in `vcf8kern-handover.md` §RESTKLUSJE) is het laatste stapje
-naar DRC 0/0, en is **handwerk in de pcbnew-GUI** — niet nóg een
-generator-iteratie (dat is bewust afgekapt; zie WERKWIJZE §5 "rip-cascades"
-en de weld-fixpoint-val).
+`musicbrain-vcf8kern` is volledig gerouteerd: ERC 0, netcheck OK en een verse
+volledige generatorrun gevolgd door KiCad DRC geeft **0 violations +
+0 unconnected** (2026-07-31). De laatste routes zijn als definitieve
+`b.T(...)`/`b.V(...)`-handroutes in `gen_vcf8kern.py` opgenomen; er is geen
+pcbnew-GUI-handwerk meer nodig om het resultaat te reproduceren.
 
 ## Reproduceren vanaf de generator (Mac)
 
@@ -44,23 +42,13 @@ De WERKWIJZE.md-commando's noemen Windows-paden. Mac-equivalenten:
 | freerouting-jar | `C:/Users/User/.kicad-mcp/freerouting-2.2.4.jar` | jar meenemen/opnieuw downloaden (freerouting v2.2.4 release); mount z'n map als `/jar`. **Java 25 nodig** (`eclipse-temurin:25-jre`) |
 | scratchpad | Windows temp | eigen sessie-scratchpad |
 
-De meeste Python in `hardware/kicad-generators/` draait ongewijzigd op Mac,
-maar er zitten **twee Windows-ismen in het footprint-laadpad** die je eerst
-moet fixen, anders faalt elke `b.fp(...)`:
+De meeste Python in `hardware/kicad-generators/` draait ongewijzigd op Mac.
+De twee oorspronkelijke Windows-ismen in het footprint-laadpad zijn op
+2026-07-31 platformonafhankelijk gemaakt:
 
-1. **`FP_DIR`** in `cardlib.py` (regel 10) = absoluut Windows-pad
-   `C:\Program Files\KiCad\10.0\share\kicad\footprints`. Zet naar de Mac-
-   locatie (bv. `/Applications/KiCad/KiCad.app/Contents/SharedSupport/footprints`).
-2. **Backslash-separators**: `cardlib.fp()` doet `FP_DIR + '\\' + relpath`
-   (regel ~139) en de `FP`-dicts in de generators geven relpaths met `\\`
-   (bv. `'Package_SO.pretty\\SSOP-20….kicad_mod'`). Op Mac breekt dat.
-   Simpelste fix: in `cardlib.fp()` het pad bouwen met `os.path.join` en
-   inkomende `relpath.replace('\\\\', os.sep)` normaliseren — dan hoeven de
-   generator-dicts niet aangepast.
-
-Zoek eventueel op de andere borden of `cardlib` al een Mac-tak had; zo niet,
-maak `FP_DIR` OS-afhankelijk (`platform.system()`) zodat het bord ook op de
-Windows-desktop blijft bouwen als Mark terugkomt.
+1. **`FP_DIR`** in `cardlib.py` kiest per platform de KiCad-footprintmap.
+2. **Backslash-separators** worden door `cardlib.fp()` genormaliseerd en het
+  pad wordt met `os.path.join` opgebouwd.
 
 ## Wat NIET meegecommit is (bewust)
 
@@ -76,11 +64,10 @@ Windows-desktop blijft bouwen als Mark terugkomt.
 
 ## Wanneer je klaar bent (DRC 0/0)
 
-Na het restklusje in de GUI: hand-fixes als `b.T(...)`/`b.V(...)`-regels
-terug in `gen_vcf8kern.py` zetten (coördinaten uit het bordbestand) **of**
-het bord bevriezen en de generator alleen nog voor documentatie gebruiken —
-de generator blijft anders bij de volgende run de handroutes overschrijven.
-Dan `kicad-cli pcb drc --severity-error --exit-code-violations
---refill-zones` → 0/0 → `bash make_fab.sh "musicbrain-vcf8kern"` (doet
-4-laags automatisch). Rot-check alle SMD in de JLC-preview (nieuwe placement,
-dubbelzijdig!) vóór PCBA; AD5754 pas op een gevalideerd board (Route B).
+De hand-fixes staan inmiddels in `gen_vcf8kern.py`. Draai vanuit
+`hardware/kicad-generators/` eerst `python3 gen_vcf8kern.py` en daarna
+`kicad-cli pcb drc --severity-error --exit-code-violations --refill-zones`;
+de gevalideerde uitkomst is 0/0. Vervolgens `bash make_fab.sh
+"musicbrain-vcf8kern"` (doet 4-laags automatisch). Rot-check alle SMD in de
+JLC-preview (nieuwe placement, dubbelzijdig!) vóór PCBA; AD5754 pas op een
+gevalideerd board (Route B).

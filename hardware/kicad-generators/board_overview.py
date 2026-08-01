@@ -34,6 +34,7 @@ from PIL import Image
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from cardlib import parse as sexpr_parse
+from kicadcli import KICAD_CLI
 
 
 def auto_spec(pcb_path):
@@ -104,7 +105,7 @@ MARGE = 210        # px annotatiestrook per kant
 def render_png(pcb, w, h, zoom, side='top'):
     fd, tmp = tempfile.mkstemp(suffix='.png')
     os.close(fd)
-    cmd = ['kicad-cli', 'pcb', 'render', '--side', side, '-w', str(w),
+    cmd = [KICAD_CLI, 'pcb', 'render', '--side', side, '-w', str(w),
            '-h', str(h), '--quality', 'high', '--background', 'transparent',
            '-o', tmp, pcb]
     if zoom and abs(zoom - 1.0) > 1e-6:

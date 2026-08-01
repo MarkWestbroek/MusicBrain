@@ -31,6 +31,7 @@ PINS = [('busboard', 'v3.1'), ('adc8', 'v2.0'), ('dac8', 'v2.0'),
         ('i2criser', 'v2.0'), ('pot8front', 'v1.1'), ('enc5front', 'v2.0'),
         ('ad5754r-breakout', 'v1.0'),
         ('matrix', 'v0.3c'),            # poly-analog patchmatrix (center-variant)
+        ('vcf8kern', 'v0.1'),           # poly-analog 8x multimode VCF-kernkaart
         ('editor-cortex', 'v0.5.48'),   # software x.y.z; volgt fw-contract
         ('fpga-voice', 'v0.3.0')]       # FPGA-instrument (MS20_synth_voice-repo, tag 0.3-wavetable)
 HIGHLIGHTS = [
@@ -72,7 +73,7 @@ p = requests.get(f'{a.base}/api/content/products').json()
 prod = next(x for x in p if x.get('slug') == PROJECT)
 comps = [c for c in (prod.get('components') or []) if c not in PRODUCT_COMPONENTS_WEG]
 for c, _v in PINS:
-    if c in ('busboard', 'editor-cortex') and c not in comps:
+    if c in ('busboard', 'editor-cortex', 'vcf8kern') and c not in comps:
         comps.append(c)
 prod['components'] = comps
 check('product', requests.post(f'{a.base}/api/content/product/{PROJECT}',

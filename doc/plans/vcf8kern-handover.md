@@ -1,11 +1,12 @@
 # VCF8-kern — overdracht naar verse chat (2026-07-21, bijgewerkt na de routeersessie)
 
-## ⚡ STAND NA DE ROUTEER-MARATHON (22-07 00:30) — LEES DIT EERST
+## EINDSTAND (2026-07-31) — ROUTING AF
 
-Het bord is **99% geroute**: alle 8 stemmen, alle signalen en voedingen
-liggen erin; laatste stand `drc-gate29.rpt` = **1 violation + 9 unconnected**
-(waarvan 6 GND-zone-eilandjes). Schema ongewijzigd geldig: **ERC 0 +
-NETCHECK OK**. Renders: `render-top.png` / `render-bottom.png`.
+Het bord is volledig gerouteerd. Een verse volledige run van
+`gen_vcf8kern.py` schrijft het PCB opnieuw; aansluitend geeft KiCad 10.0.4
+met opnieuw gevulde zones **0 violations + 0 unconnected**. Schema blijft
+geldig: **ERC 0 + NETCHECK OK**. Renders: `render-top.png` /
+`render-bottom.png`.
 
 **Het recept dat won** (details: WERKWIJZE.md §"Dichte borden"):
 net-bewuste plaatsing (elk passief naast zijn pin) → freerouting v2.2.4
@@ -13,7 +14,7 @@ net-bewuste plaatsing (elk passief naast zijn pin) → freerouting v2.2.4
 (nieuwe deterministische afmaker) → gnd_stitch/bridge → chirurgische
 GND-via-ankers (`force_gnd_via` + cumulatieve `gnd_orphans.json`).
 
-**RESTKLUSJE (±20–30 min, pcbnew-GUI of verse sessie)** — uit `drc-fin16.json`:
+**Afgeronde restklus** — de oude punten uit `drc-fin16.json` waren:
 1. kruising MOUT7 × OUT48 op F.Cu bij (196.9, 130.3) — één van beide
    verleggen (kort stukje);
 2. MODE0: U18 pin 11 (200.9, 157.0) hangt los van het MODE0-B-spoor op
@@ -27,12 +28,20 @@ GND-via-ankers (`force_gnd_via` + cumulatieve `gnd_orphans.json`).
    gevangen in de IN12-wikkel; IN12 lokaal verleggen), U18.8 (195.1,
    158.3) + 3 zone-fragmentjes — korte stubs/via's met de hand.
 
-Daarna: `kicad-cli pcb drc --severity-error --exit-code-violations
---refill-zones` moet 0/0 geven → dan `bash make_fab.sh "musicbrain-vcf8kern"`.
-⚠️ Handroutes uit de GUI NIET door de generator laten overschrijven: de
-generator is bron van waarheid — hand-fixes daarna als `b.T`/`b.V`-regels
-in gen_vcf8kern.py overnemen (coördinaten uit het bordbestand) of het bord
-bevriezen en de generator alleen nog voor documentatie gebruiken.
+Alle punten hierboven zijn opgelost in `gen_vcf8kern.py`: MOUT7 gaat lokaal
+via In1.Cu onder OUT48 door, MODE0/MODE1/AOUT3 zijn gesloten en de laatste
+GND-eilanden hebben reproduceerbare handroutes/via's. De tussenmeldingen
+`MISLUKT (1): ['GND']` en `NIET: ['C905.2', 'U18.8', 'U2.10']` tijdens een
+generatorrun zijn verwacht: de definitieve handroutes staan na de algemene
+afmaker en lossen de resterende gevallen alsnog op.
+
+Eindcontrole:
+```
+kicad-cli pcb drc --severity-error --exit-code-violations --refill-zones \
+  hardware/schematics/musicbrain-vcf8kern/musicbrain-vcf8kern.kicad_pcb
+```
+Resultaat op 2026-07-31: **0 violations / 0 unconnected**. Volgende stap:
+`bash make_fab.sh "musicbrain-vcf8kern"` en de JLC-preview controleren.
 
 ---
 

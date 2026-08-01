@@ -22,6 +22,7 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from PIL import Image
 from pinout_svg import lees_connector
+from kicadcli import KICAD_CLI
 
 RENDER_W, RENDER_H = 1600, 1000
 RAND = 24          # px marge rond het bord bij bijsnijden
@@ -30,7 +31,7 @@ RAND = 24          # px marge rond het bord bij bijsnijden
 def render_transparant(pcb):
     fd, tmp = tempfile.mkstemp(suffix='.png')
     os.close(fd)
-    subprocess.run(['kicad-cli', 'pcb', 'render', '--side', 'top',
+    subprocess.run([KICAD_CLI, 'pcb', 'render', '--side', 'top',
                     '-w', str(RENDER_W), '-h', str(RENDER_H), '--quality', 'high',
                     '--background', 'transparent', '-o', tmp, pcb],
                    check=True, capture_output=True)
@@ -41,7 +42,7 @@ def export_glb(pcb, uit, vol=False):
     """GLB voor de 3D-tab (voorstel: doc/imprint-widget-3d-voorstel.md).
     Default de lichte variant (~2,5 MB: mask+silk, geen kopergeometrie);
     vol=True voegt sporen/zones toe (~2x zo groot)."""
-    cmd = ['kicad-cli', 'pcb', 'export', 'glb', '--subst-models',
+    cmd = [KICAD_CLI, 'pcb', 'export', 'glb', '--subst-models',
            '--include-soldermask', '--include-silkscreen', '-f', '-o', uit]
     if vol:
         cmd += ['--include-tracks', '--include-zones']

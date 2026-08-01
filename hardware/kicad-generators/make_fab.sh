@@ -1,7 +1,28 @@
 #!/usr/bin/env bash
 # Genereer JLCPCB-fab-pakketten voor alle MusicBrain-borden.
 set -u
-ROOT="d:/Git/Muziek/MusicBrain/hardware/schematics"
+
+# Cross-platform (macOS + Windows/git-bash), net als cardlib.py:
+# - ROOT wordt afgeleid van de scriptlocatie i.p.v. een hardgecodeerd pad;
+# - kicad-cli en python worden autogedetecteerd.
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT="$(cd "$SCRIPT_DIR/../schematics" && pwd)"
+
+if command -v kicad-cli >/dev/null 2>&1; then
+  KCLI="kicad-cli"
+elif [ -x "/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli" ]; then
+  KCLI="/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli"
+else
+  echo "kicad-cli niet gevonden (PATH of /Applications/KiCad/...)"; exit 1
+fi
+
+if command -v python3 >/dev/null 2>&1; then
+  PY="python3"
+elif command -v python >/dev/null 2>&1; then
+  PY="python"
+else
+  echo "python niet gevonden"; exit 1
+fi
 
 # dir:base  (base = bestandsnaam zonder extensie); deprecated/ doet niet mee
 BOARDS="
@@ -53,14 +74,14 @@ for entry in $BOARDS; do
 
   layers="$GLAYERS"
   grep -q '"In1.Cu"' "$pcb" && layers="$GLAYERS4"
-  kicad-cli pcb export gerbers --no-protel-ext --check-zones \
+  "$KCLI" pcb export gerbers --no-protel-ext --check-zones \
     --layers "$layers" -o "$gerb/" "$pcb" >/dev/null 2>&1
-  kicad-cli pcb export drill --format excellon --excellon-separate-th \
+  "$KCLI" pcb export drill --format excellon --excellon-separate-th \
     --generate-map --map-format gerberx2 -o "$gerb/" "$pcb" >/dev/null 2>&1
-  kicad-cli pcb export pos --format csv --units mm --side both \
+  "$KCLI" pcb export pos --format csv --units mm --side both \
     -o "$fab/$base-cpl.csv" "$pcb" >/dev/null 2>&1
   if [ -f "$sch" ]; then
-    kicad-cli sch export bom \
+    "$KCLI" sch export bom \
       --fields "Value,Reference,Footprint,QUANTITY,LCSC" \
       --labels "Comment,Designator,Footprint,Qty,LCSC Part #" \
       --group-by "Value,Footprint" \
@@ -68,9 +89,9 @@ for entry in $BOARDS; do
       -o "$fab/$base-bom.csv" "$sch" >/dev/null 2>&1
   fi
 
-  python "$(dirname "$0")/jlc_fix.py" "$fab" >/dev/null
+  "$PY" "$(dirname "$0")/jlc_fix.py" "$fab" >/dev/null
 
-  python - "$gerb" "$fab/$base-gerbers.zip" <<'PYZIP'
+  "$PY" - "$gerb" "$fab/$base-gerbers.zip" <<'PYZIP'
 import sys, os, zipfile
 src, dst = sys.argv[1], sys.argv[2]
 with zipfile.ZipFile(dst, 'w', zipfile.ZIP_DEFLATED) as z:

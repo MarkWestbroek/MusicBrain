@@ -1,0 +1,30 @@
+{
+ "title": "musicbrain-vcf8kern rev 0.1 — aansluitoverzicht",
+ "image": "/boards/musicbrain-vcf8kern.png",
+ "alt": "3D-render van musicbrain-vcf8kern",
+ "points": [
+  {
+   "x": 0.1665,
+   "y": 0.0463,
+   "label": "AUDIO IN (J2)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | AIN1 |\n| 3 | AIN2 |\n| 4 | AIN3 |\n| 5 | AIN4 |\n| 6 | AIN5 |\n| 7 | AIN6 |\n| 8 | AIN7 |\n| 9 | AIN8 |\n| 10 | GND |"
+  },
+  {
+   "x": 0.6351,
+   "y": 0.0463,
+   "label": "AUDIO UIT (J3)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | AOUT1 |\n| 3 | AOUT2 |\n| 4 | AOUT3 |\n| 5 | AOUT4 |\n| 6 | AOUT5 |\n| 7 | AOUT6 |\n| 8 | AOUT7 |\n| 9 | AOUT8 |\n| 10 | GND |"
+  },
+  {
+   "x": 0.6212,
+   "y": 0.9283,
+   "label": "KERNSLOT (J1)",
+   "markdown": "| pin | net |\n|--|--|\n| 1 | GND |\n| 2 | +12V |\n| 3 | GND |\n| 4 | -12V |\n| 5 | FMCV |\n| 6 | +3V3 |\n| 7 | SCLK |\n| 8 | GND |\n| 9 | SDIN |\n| 10 | SDO |\n| 11 | CS |\n| 12 | LDAC |\n| 13 | SCLK2 |\n| 14 | SDIN2 |\n| 15 | SDO2 |\n| 16 | CS2 |\n| 17 | MODE0 |\n| 18 | MODE1 |\n| 19 | MODE2 |\n| 20 | TSEL0 |\n| 21 | TSEL1 |\n| 22 | TSEL2 |\n| 23 | TEN |\n| 24 | TOUT |"
+  }
+ ],
+ "view3d": {
+  "mode": "glb",
+  "src": "/boards/musicbrain-vcf8kern.glb",
+  "poster": "/boards/musicbrain-vcf8kern.png"
+ }
+}

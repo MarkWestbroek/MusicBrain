@@ -5,9 +5,14 @@ busrand onder (BY1), paneelrand boven (BY0).
 J1 = PinHeader_2x10_Horizontal rot 270 op (CX+11.43, BY1-6.58);
 J2 = PinHeader_1x10_Horizontal rot 90 op (CX-11.43, BY0+6.58).
 """
+import os
+import platform
 import re
 
-FP_DIR = r"C:\Program Files\KiCad\10.0\share\kicad\footprints"
+if platform.system() == 'Darwin':
+    FP_DIR = '/Applications/KiCad/KiCad.app/Contents/SharedSupport/footprints'
+else:
+    FP_DIR = r"C:\Program Files\KiCad\10.0\share\kicad\footprints"
 
 def tokenize(text):
     i, n = 0, len(text)
@@ -136,7 +141,8 @@ class Board:
         thermal-vias in module-EP's die onder de fab-minimumboring vallen).
         flip=True: footprint op de B-zijde (canonieke pcbnew-flip; alleen
         rot 0 ondersteund — genoeg voor 0603-passieven)."""
-        tree = parse(open(FP_DIR + '\\' + relpath, encoding='utf-8').read())
+        footprint_path = os.path.join(FP_DIR, relpath.replace('\\', os.sep))
+        tree = parse(open(footprint_path, encoding='utf-8').read())
         tree[1] = f'"{lib_id}"'
         if flip:
             assert rot in (0, 180), "flip alleen met rot 0/180"

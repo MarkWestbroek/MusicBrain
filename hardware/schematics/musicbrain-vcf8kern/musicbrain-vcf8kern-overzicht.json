@@ -1,0 +1,35 @@
+{
+ "titel": "musicbrain-vcf8kern rev 0.1 — aansluitoverzicht",
+ "bbox_mm": [
+  100.0,
+  100.0,
+  210.0,
+  192.0
+ ],
+ "callouts": [
+  {
+   "label": "AUDIO IN (J2)",
+   "mm": [
+    116.57,
+    102.0
+   ],
+   "kant": "boven"
+  },
+  {
+   "label": "AUDIO UIT (J3)",
+   "mm": [
+    170.57,
+    102.0
+   ],
+   "kant": "boven"
+  },
+  {
+   "label": "KERNSLOT (J1)",
+   "mm": [
+    168.97,
+    185.42
+   ],
+   "kant": "onder"
+  }
+ ]
+}

@@ -23,6 +23,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import requests
 from PIL import Image
 from pinout_svg import lees_connector
+from kicadcli import KICAD_CLI
 
 # .env naast dit script (GITIGNORED) levert INGEST_TOKEN/IMPRINT_BASE —
 # zelfde conventie als publish_product.mjs; echte env-vars winnen.
@@ -46,7 +47,7 @@ def render_top(pcb):
     widget_export), zodat de hotspot-x/y uit de widget-json kloppen."""
     fd, tmp = tempfile.mkstemp(suffix='.png')
     os.close(fd)
-    subprocess.run(['kicad-cli', 'pcb', 'render', '--side', 'top', '-w', '1600',
+    subprocess.run([KICAD_CLI, 'pcb', 'render', '--side', 'top', '-w', '1600',
                     '-h', '1000', '--quality', 'high', '--background', 'transparent',
                     '-o', tmp, pcb], check=True, capture_output=True)
     img = Image.open(tmp).convert('RGBA')

@@ -19,10 +19,12 @@ in het TD-12-interposer-schema). Cross-pagina-netten (VCUT/VQ/FMCVB/MOUT/MODE)
 Bron: `gen_vcf8kern.py` (+`schlib_hier.py`). *Dicht maar leesbaar; kan verder
 uitgespreid worden.*
 
-**Status: routing 99% af** (2026-07-22) — ERC 0, netcheck OK, plaatsing
-net-bewust (v3), alle signalen + voedingen geroute; rest = ±10 kleine
-hand-fixes (exacte lijst in `doc/plans/vcf8kern-handover.md` §restklusje),
-daarna DRC 0/0 + fab. Recept + valkuilen: WERKWIJZE.md §"Dichte borden".
+**Status: routing af, reproduceerbaar DRC 0/0** (2026-07-31) — ERC 0,
+netcheck OK, plaatsing net-bewust (v3), alle signalen + voedingen geroute.
+Een volledige run van `gen_vcf8kern.py`, gevolgd door KiCad DRC met opnieuw
+gevulde zones, geeft **0 violations + 0 unconnected**. De definitieve
+handroutes staan in de generator; het PCB is dus niet afhankelijk van
+handwerk in pcbnew. Recept + valkuilen: WERKWIJZE.md §"Dichte borden".
 Dit is een **rev-0.1-validatiekaart**: verwacht een respin na de bench-test
 (SSI2140-niveaus, pole-mix-matching, tune-lus).
 
@@ -162,9 +164,27 @@ MODE/TSEL-jumpers en een TOUT-pullup — bench-test vóór de VCF8-backbone best
 
 ## Openstaand vóór fab
 
-- Routing (aparte sessie); daarna DRC 0/0 + fab-pakket.
+- Fab-pakket genereren en de JLC-preview controleren; routing en DRC 0/0 zijn
+  afgerond.
 - RP2040-PIO-SPI-slave-test (poly-spec open punt) staat los van deze kaart.
 - Pole-mix-matching: AN701 waarschuwt dat stopband-diepte volledig van de
   weerstandstolerantie afhangt — 1%-serie minimaal; bij respin evt. array's.
 - Interne niveaus (SSI ±1 V, in-attenuatie ÷5 / uit-versterking ×5) op de
   bench meten en het noise-budget vastleggen.
+
+## Aansluitoverzicht
+
+![aansluitoverzicht](musicbrain-vcf8kern-overzicht.svg)
+
+De kaart heeft drie connectoren: **J1 KERNSLOT** (de kernslot-bus naar de
+Brain: SPI, LDAC, TOUT, voedingen), **J2 AUDIO IN** en **J3 AUDIO UIT**
+(elk 8 kanalen tussen twee GND-pinnen).
+
+### Pinouts
+
+Bovenaanzicht van het bord (kijkend op de pinnen); pin 1 = vierkant.
+Gegenereerd uit het bordbestand met `hardware/kicad-generators/pinout_svg.py`.
+
+![J1](pinouts/J1.svg)
+![J2](pinouts/J2.svg)
+![J3](pinouts/J3.svg)

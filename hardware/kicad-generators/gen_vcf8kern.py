@@ -41,7 +41,8 @@ from schlib import (Sch, conn_symbol, conn1_symbol, box_symbol, R_SYM, C_SYM,
                     CP_SYM, FLAG_SYM, power_symbol)
 from cardlib import Board
 
-OUT_DIR = r"d:\Git\Muziek\MusicBrain\hardware\schematics\musicbrain-vcf8kern"
+OUT_DIR = os.path.abspath(os.path.join(
+    os.path.dirname(__file__), '..', 'schematics', 'musicbrain-vcf8kern'))
 os.makedirs(OUT_DIR, exist_ok=True)
 DATE = "2026-07-20"
 REV = "0.1"
@@ -501,7 +502,7 @@ def voice_sheet(k):
     d.text(f"STEM {k} - SSI2140 4-pole cascade (Fig 3) + pole-mixing (Fig 20/AN701).", 60, 40)
     d.text("Signaalketen via de tap-bus AINB/OUT1..OUT4 (globale labels); de lokale", 60, 44)
     d.text("subcircuits (gm-trap-knopen, caps, EXPO, Q, pole-mix) zijn met lijnen bedraad.", 60, 47.5)
-    d.write(OUT_DIR + "\\" + SFILE[f'v{k}'])
+    d.write(os.path.join(OUT_DIR, SFILE[f'v{k}']))
 
 
 def io_sheet():
@@ -550,7 +551,7 @@ def io_sheet():
         gx = 25 + (j % 14) * 21
         gy = 172 + (j // 14) * 11
         epass(d, ref, kind, val, na, nb, gx, gy)
-    d.write(OUT_DIR + "\\" + SFILE['io'])
+    d.write(os.path.join(OUT_DIR, SFILE['io']))
 
 
 def root_sheet():
@@ -585,7 +586,7 @@ def root_sheet():
                 45, 20, ROOT_UUID, SHEET_UUID[f'v{k}'], 2 + k)
     d.text("VCF8-kern: root. Zie de pagina's 'stem1..8' (identiek, andere ref/net) en", 25, 25)
     d.text("'in-uit-DACs'. Netten verbinden via GLOBALE labels (= kale PCB-netnamen).", 25, 28.5)
-    d.write(OUT_DIR + "\\" + PROJ + ".kicad_sch")
+    d.write(os.path.join(OUT_DIR, PROJ + ".kicad_sch"))
 
 
 def build_schematic():
@@ -972,6 +973,80 @@ if os.path.exists(ses):
     # zone-wees-pads (gemeten met gnd_orphans.py; union-find zonder
     # zone-kennis acht ze verbonden): forceer een link naar een GND-via
 
+    # Definitieve handroutes na de afmaker, zodat purge/rip ze niet aantast.
+    # MOUT7 kruiste OUT48 op F.Cu; duik lokaal onder de kruising door op In1.Cu.
+    _mout7_old = {
+        ((195.7561, 143.65), (196.9561, 142.45)),
+        ((196.9561, 130.2461), (196.9561, 142.45)),
+        ((195.735, 129.025), (196.9561, 130.2461)),
+    }
+    b.tracks[:] = [(n, l, w, pts) for (n, l, w, pts) in b.tracks
+                   if not (n == b.NI['MOUT7'] and l == 'F.Cu'
+                           and len(pts) == 2
+                           and (tuple(pts) in _mout7_old
+                                or tuple(reversed(pts)) in _mout7_old))]
+    b.T('MOUT7', 'F.Cu', 0.2, (195.735, 129.025), (196.9561, 130.2461),
+        (196.9561, 132.8), (198.4, 132.8))
+    b.V('MOUT7', 198.4, 132.8)
+    b.T('MOUT7', 'In1.Cu', 0.2, (198.4, 132.8), (196.9561, 135.4))
+    b.V('MOUT7', 196.9561, 135.4)
+    b.T('MOUT7', 'F.Cu', 0.2, (196.9561, 135.4),
+        (196.9561, 142.45), (195.7561, 143.65))
+    b.T('MODE0', 'F.Cu', 0.2, (199.2, 157.0), b.P['U18']['11'])
+    b.T('MODE1', 'B.Cu', 0.2, (147.518, 189.092), (149.4, 188.6))
+    b.T('AOUT3', 'In1.Cu', 0.2, (135.8, 135.4), (141.6, 129.4),
+        (143.0, 129.2), (151.0, 122.8), (152.0, 123.5),
+        (155.8, 122.5), (157.0, 121.5), (162.5, 116.0), b.P['J3']['4'])
 
-b.write(OUT_DIR + r"\musicbrain-vcf8kern.kicad_pcb")
+    # U2.10 zat opgesloten in een redundante IN12-lus. Open de lus links,
+    # verbind IN12 kort rechts en geef het GND-pad daar ruimte voor een via.
+    _u2_in12_old = {
+        ((108.5483, 172.2225), (109.4, 172.2225)),
+        ((108.5483, 172.2225), (108.5483, 173.1618)),
+        ((108.5483, 173.1618), (108.706, 173.3195)),
+        ((108.706, 173.3195), (110.1789, 173.3195)),
+        ((110.1789, 173.3195), (110.2517, 173.2467)),
+    }
+    b.tracks[:] = [(n, l, w, pts) for (n, l, w, pts) in b.tracks
+                   if not (n == b.NI['IN12'] and l == 'F.Cu'
+                           and len(pts) == 2
+                           and (tuple(pts) in _u2_in12_old
+                                or tuple(reversed(pts)) in _u2_in12_old))]
+    b.T('IN12', 'F.Cu', 0.2, b.P['U2']['9'], (110.2517, 172.2225))
+    b.V('GND', 108.4, 172.8575)
+    b.T('GND', 'F.Cu', 0.2, (108.4, 172.8575), b.P['U2']['10'])
+
+    # MN8_7 liep op B.Cu onder U18.8 door. Leg die tak zuidelijk om en
+    # veranker het vrijgekomen GND-pad rechtstreeks met een via-in-pad.
+    _mn8_7_old = {
+        ((195.4, 157.2), (195.4, 158.2)),
+        ((193.6, 158.2), (195.4, 158.2)),
+    }
+    def _rounded_seg(pts):
+        return tuple((round(x, 4), round(y, 4)) for x, y in pts)
+
+    b.tracks[:] = [(n, l, w, pts) for (n, l, w, pts) in b.tracks
+                   if not (n == b.NI['MN8_7'] and l == 'B.Cu'
+                           and len(pts) == 2
+                           and (_rounded_seg(pts) in _mn8_7_old
+                                or tuple(reversed(_rounded_seg(pts)))
+                                in _mn8_7_old))]
+    b.T('MN8_7', 'B.Cu', 0.2, (195.4, 157.2), (194.0, 157.2),
+        (194.0, 159.2),
+        (193.325, 159.2))
+    _u18_3v3_old = {
+        ((193.846, 158.7548), (195.9096, 158.7548)),
+        ((195.9096, 158.7548), (196.4026, 158.2618)),
+    }
+    b.tracks[:] = [(n, l, w, pts) for (n, l, w, pts) in b.tracks
+                   if not (n == b.NI['+3V3'] and l == 'F.Cu'
+                           and len(pts) == 2
+                           and (tuple(pts) in _u18_3v3_old
+                                or tuple(reversed(pts)) in _u18_3v3_old))]
+    b.T('+3V3', 'F.Cu', 0.2, (193.846, 158.7548), (193.846, 159.0),
+        (196.0, 159.0), (196.4026, 158.6), (196.4026, 158.2618))
+    b.V('GND', 195.1375, 158.275)
+
+
+b.write(os.path.join(OUT_DIR, "musicbrain-vcf8kern.kicad_pcb"))
 print("written musicbrain-vcf8kern (rev 0.1)")
