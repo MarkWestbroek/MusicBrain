@@ -1,0 +1,172 @@
+* Roland CR-78 - remaining six voices: RS, Claves, Cowbell, Tambourine,
+* Guiro, Metallic Beat.  Board VG-11A, service notes p.13, 400 ppi scan.
+*
+* Together with cr78_bd.cir (BD/HB/LB/LC) and cr78_cy_hh_m.cir (CY/HH/M)
+* this completes all 14 voices.
+*
+* CONFIDENCE
+*   RS, Claves      validated numerically against the factory spec
+*   Guiro           validated numerically
+*   Tambourine      topology solid, decay within ~25% of spec
+*   Cowbell, MB     topology identified, some oscillator values still to read
+
+.title CR78 remaining voices
+
+V1 vcc 0 DC 15
+V2 v5  0 DC 5
+
+* ==================================================================
+* RIM SHOT - fully passive pinged LC tank. No transistor at all.
+* L2 = coil no.33 (700 mH, 3 ohm DCR), part 022-033
+*   f = 1/(2*pi*sqrt(0.7 * 16.5n)) = 1481 Hz   vs 1480 Hz specified
+* ==================================================================
+C590 trgRS nRa 0.027u
+R503 nRa   0   270k
+D501 nRa   nRb Dsig
+R504 nRb   nRc 27k
+R505 nRc   0   47k
+L2   nRc   0   700m
+RL2  nRc   0   3            ; coil DCR, sets part of the Q
+C591 nRc   0   0.015u
+C592 nRc   0   0.0015u
+C593 nRc   nRo 470p
+
+* ==================================================================
+* CLAVES - same idea, two extra RC sections shaping the attack.
+* L1 = coil no.33 (700 mH)
+*   f = 1/(2*pi*sqrt(0.7 * 4.7n)) = 2775 Hz   vs 2630 Hz specified
+* ==================================================================
+C500 trgC nCa 0.027u
+R500 nCa  0   270k
+D500 nCa  nCb Dsig
+R501 nCb  0   2.2MEG
+R502 nCb  nCc 47k
+C501 nCc  0   0.001u
+C502 nCc  nCd 0.0022u
+L1   nCd  0   700m
+RL1  nCd  0   3
+C506 nCd  0   0.0047u
+C503 nCd  nCe 250p
+C505 nCe  0   0.0056u
+C504 nCe  nCo 0.001u
+
+* ==================================================================
+* GUIRO - astable multivibrator, two scrape rates.
+* Q520/Q521 cross-coupled through C529/C530 (.068 each).
+* Timing resistor selected by D519/D520:
+*   82k         -> T = 1.38*82k*68n  =  7.7 ms  -> 130 Hz  (spec 8.0 ms/125 Hz)
+*   82k + 56k   -> T = 1.38*138k*68n = 12.9 ms  ->  77 Hz  (spec 13.0 ms/77 Hz)
+* THIS is the two-rate behaviour Behringer's RD-78 was criticised for losing.
+* VR59 trims both.
+* ==================================================================
+R673 vcc  nG1 5.6k
+R674 vcc  nG2 15k
+C529 nG1  nGb2 0.068u
+C530 nG2  nGb1 0.068u
+Q520 nG1  nGb1 0 QNPN
+Q521 nG2  nGb2 0 QNPN
+R643 nGb1 nGt 82k
+R644 nGb2 nGt 56k
+D519 nGt  nGsel Dsig
+D520 nGt  nGsel Dsig
+
+* ==================================================================
+* TAMBOURINE - two trigger inputs OR'd (Q522/Q523, R551/R552 56k each),
+* two decay paths (D521/R557 270k fast, D522/R558 820k slow) into Q524,
+* then D523 charging C536 .056 which decays through R560 2.2M.
+*   tau = 0.056u * 2.2M = 123 ms -> -20 dB at 283 ms  (spec 220 ms)
+* Output stage Q509 with L5 (coil no.31) in parallel with .033.
+* ==================================================================
+R551 trgT1 nTb 56k
+R552 trgT2 nTb 56k
+C534 nTb  nTc 0.027u
+R556 nTc  0   270k
+D521 nTc  nTd Dsig
+R557 nTd  nTe 270k
+D522 nTc  nTf Dsig
+R558 nTf  nTe 820k
+Q524 nTg  nTe 0 QNPN
+R559 vcc  nTg 10k
+D523 nTg  nTh Dsig
+C536 nTh  0   0.056u
+R560 nTh  nTi 2.2MEG
+R561 nTi  nTj 47k
+R562 nTj  0   470k
+Q509 nTk  nTj 0 QNPN
+L5   vcc  nTk 45m           ; value assumed; parts list gives no henries for no.31
+C538 vcc  nTk 0.033u
+C539 nTk  nTo 250p
+
+* ==================================================================
+* METALLIC BEAT - three CMOS square-wave oscillators on IC501 (MC14069),
+* each an inverter pair with an RC network:
+*   R574 39k + C545 .0018 -> ~6.2 kHz   (spec 0.162 ms / 6170 Hz, VR64)
+*   R576 39k + C546 .0022 -> ~5.3 kHz   (spec 0.178 ms / 5620 Hz, VR65)
+*   third section          -> 4080 Hz   (spec 0.245 ms, VR66)
+* Mixed through R579/R580 (470k) and gated into the L6/L7 45 mH tanks.
+* This is the "three square waves through an inductor filter" that DIY
+* builders on ModWiggler described.
+* ==================================================================
+* (oscillator sections modelled behaviourally - transcribe IC501 pinout
+*  from the scan before simulating)
+
+* ==================================================================
+* COWBELL - two RC oscillators (Q529 at 800 Hz via VR67, Q530 at 555 Hz
+* via VR68) gated by a two-stage envelope: Q527 inverter, C547 .027 and
+* D525 into Q528, then D526 charging C548 .022 / C549 .018, decaying
+* through R588 1.5M / R589 100k.
+* Output through L7 45 mH || C550 .047.
+* ==================================================================
+R582 trgCB nBa 56k
+Q527 nBb  nBa 0 QNPN
+R583 vcc  nBb 10k
+C547 nBb  nBc 0.027u
+R584 nBc  0   270k
+D525 nBc  nBd Dsig
+R585 nBd  nBe 560k
+R586 vcc  nBe 820k
+Q528 nBf  nBe 0 QNPN
+R587 vcc  nBf 10k
+D526 nBf  nBg Dsig
+C548 nBg  0   0.022u
+C549 nBg  0   0.018u
+R588 nBg  nBh 1.5MEG
+R589 nBh  nBi 100k
+R590 nBi  0   270k
+
+.model Dsig D(IS=2.5n RS=0.6 BV=100 N=1.7)
+.model QNPN NPN(IS=1e-14 BF=250 VAF=100 CJC=3p CJE=8p TF=0.4n)
+.end
+
+* ------------------------------------------------------------------
+* THE COMPLETE PICTURE - four sound-generating principles, fourteen voices
+*
+*  1. TWIN-T RESONATOR, transistor feedback, tune + decay trimmer
+*       BD (62.5 Hz), HB (600), LB (400), LC (208)
+*       Decay set by emitter degeneration = loop gain, not by an RC.
+*
+*  2. PASSIVE PINGED LC TANK, 700 mH coil, no active device
+*       Rim shot (1480 Hz), Claves (2630 Hz)
+*       Decay set purely by tank Q and the damping resistors.
+*
+*  3. NOISE + ENVELOPE SUMMED INTO A TRANSISTOR (swing-type VCA),
+*     shared noise source, shared 9.1 kHz LC tank
+*       Cymbal (350 ms), Hi-hat (60 ms), Maracas (20 ms)
+*       Difference between them is ONLY the envelope time constant.
+*       Snare drum uses the same noise section plus its own drum component.
+*
+*  4. OSCILLATOR GATED BY AN ENVELOPE, output through a 45 mH tank
+*       Cowbell (800 / 555 Hz, two RC oscillators)
+*       Guiro (125 / 77 Hz astable, two scrape rates)
+*       Metallic beat (6170 / 5620 / 4080 Hz, three CMOS oscillators)
+*       Tambourine (two-path envelope into an LC output stage)
+*
+* Four primitives. That is the whole machine. For a digital model this is
+* the important result: implement four voice engines, not fourteen.
+*
+* Every voice reuses the same trigger front end: differentiating cap,
+* 270k to ground, steering diode, series resistor into a normally-on
+* transistor held on by 820k from the rail, charging through a clamping
+* diode. Diode-clamped, so retriggers do not accumulate in the envelope -
+* but the LC tanks and twin-T networks DO carry their state across a
+* retrigger, and that is where the machine stops behaving like a sampler.

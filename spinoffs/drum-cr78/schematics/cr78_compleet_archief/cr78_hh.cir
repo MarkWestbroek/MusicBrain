@@ -1,0 +1,74 @@
+* Roland CR-78 - Hi-Hat (HH) voice, board VG-11A
+* Transcribed from service notes p.13, scan at 400 ppi.
+*
+* STATUS: trigger conditioning and envelope VALIDATED against the factory
+* spec (service notes p.15: HH decay 60 ms, 0.4 Vpp).
+*   C525 * R537 = 0.018u * 1.5MEG = 27 ms time constant
+*   time to -20 dB = 2.30 * 27 ms = 62 ms   vs   60 ms specified
+* The noise injection / VCA node is NOT yet resolved - see NOTES.
+
+.title CR78 hi-hat
+
+V1   vcc  0   DC 15
+* CR-78 voice triggers are negative-going on this board: the differentiated
+* falling edge is what turns Q516 off. Verify polarity against the GL-9 board.
+Vtrg trig 0   PULSE(15 0 1m 20u 20u 2m 1)
+
+* ---- trigger conditioning ----
+C524 trig nA   0.027u
+R533 nA   0    270k
+* D513 injects a second trigger source from the bus above (CY / accent line)
+D513 nBus nA   Dsig
+* D514 conducts on the negative excursion, pulling Q516's base down
+D514 nBas nA   Dsig
+R534 nBas nA2  330k
+* nBas/nA2 are the same net; R534 is in series between D514 and the base
+R535 vcc  nBas 820k
+
+* ---- envelope generator ----
+Q516 nCol nBas 0     QNPN
+R536 vcc  nCol 10k
+* D515 clamps: C525 charges fast through Q516's collector load, then decays
+D515 nCol nEnv Dsig
+C525 nEnv 0    0.018u
+R537 nEnv nSum 1.5MEG
+
+* ---- output coupling ----
+C528 nSum nOut 0.0082u
+Rload nOut 0   100k
+
+.model Dsig D(IS=2.5n RS=0.6 BV=100 N=1.7)
+.model QNPN NPN(IS=1e-14 BF=200 VAF=100 CJC=3p CJE=8p TF=0.4n)
+
+.tran 50u 400m
+.end
+
+* ------------------------------------------------------------------
+* NOTES
+*
+* 1. This is the SAME building block as the noise envelope in the WGD/CR-78
+*    snare module: a normally-on transistor held on by a high-value base
+*    resistor from the rail, switched off by a differentiated trigger edge,
+*    charging a cap through a diode. Diode-clamped, so a retrigger tops the
+*    cap back up to the same peak - it does NOT accumulate. Second hit is
+*    the same level as the first.
+*
+* 2. UNRESOLVED: where the noise enters. Node nSum (right of R537) appears
+*    to be shared with the cymbal circuit - the vertical line that also
+*    carries R529/R530 from Q515. If the CR-78 uses the same "swing-type"
+*    VCA that Roland used for metal voices across its drum machines, the
+*    envelope and the noise are summed at this node and a diode pair does
+*    the gating. Needs one more read.
+*
+* 3. The cymbal shares the trigger/envelope topology but adds a resonant
+*    output stage: Q507 with L3 (45 mH) in parallel with C521 (.0068) in the
+*    collector. That tank sits at
+*       f = 1 / (2*pi*sqrt(45e-3 * 6.8e-9)) = 9.1 kHz
+*    which is the cymbal's metallic band. Output via C522/C523 (470p each).
+*    L3 is "Coil no.30, 45 mH" in the parts list (022-030).
+*
+* 4. CY component readings still uncertain: R530 reads as 47M, which does
+*    not reconcile with the 350 ms cymbal decay under any obvious discharge
+*    path. Candidate misread: 4.7M.
+*
+* 5. Q516 is from the Q514-532 group = 2SC1815-GR. Beta 200-400.

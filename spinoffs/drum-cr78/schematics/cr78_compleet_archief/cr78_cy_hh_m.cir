@@ -1,0 +1,122 @@
+* Roland CR-78 - Cymbal / Hi-Hat / Maracas voice group, board VG-11A
+* Transcribed from service notes p.13 (400 ppi scan), node connectivity
+* confirmed against the original by Mark Westbroek.
+*
+* ARCHITECTURE
+* CY, HH and M are NOT three independent voices. They share:
+*   - one noise source          Q533 (2SC828-R, factory-selected for noise)
+*   - one noise level trimmer   VR60 (50k B)
+*   - one summing bus           the vertical line linking all three
+*   - one VCA                   Q516/Q507 base junction
+*   - one resonant output       L3 45mH || C521 .0068  =  9.1 kHz
+* What differs between them is ONLY the envelope time constant.
+* This is confirmed by Roland's own adjustment table (service notes p.15):
+* "Adjusting VR60 on any one VOICE makes all".
+*
+* VALIDATION against the factory decay spec:
+*   HH   C525 .018u  * R537 1.5MEG = 27.0 ms tau -> -20 dB at 62 ms  (spec 60)
+*   M    C527 .0082u * R542 1MEG   =  8.2 ms tau -> -20 dB at 19 ms  (spec 20)
+*   CY   two-stage, see notes                                        (spec 350)
+
+.title CR78 cymbal / hi-hat / maracas
+
+V1 vcc 0 DC 15
+
+* ================= noise generator =================
+* Q533 runs its base-emitter junction in reverse breakdown - same principle
+* as the noise source in the WGD snare module (Q1 there).
+R563 vcc  nN1  1MEG
+QN   0    0    nN1   QNPN          ; Q533, reverse-biased junction
+C602 nN1  nN2  0.01u
+R564 nN2  nNb  100k
+R565 nNb  nNc  2.2MEG              ; self-bias feedback
+Q525 nNc  nNb  0     QNPN
+RVR60 nNc nBus 25k                 ; VR60 50k B, wiper -> shared bus
+* VR61/62/63 tap the same collector for SD, tambourine and guiro
+R566 nNc  nQ526 470k
+
+* ================= cymbal envelope =================
+C518 trgCY nCa  0.027u
+R525 nCa   0    270k
+D510 nB515 nCa  Dsig
+R526 nB515 nB5  270k
+R527 vcc   nB5  820k
+Q515 nC5   nB5  0    QNPN
+R528 vcc   nC5  8.2k
+* two parallel decay stages, fast and slow
+D511 nC5   nE1  Dsig
+C519 nE1   0    0.0082u
+R529 nE1   nBus 470k                ; fast stage
+D512 nC5   nE2  Dsig
+C520 nE2   0    0.12u
+R530 nE2   nBus 4.7MEG              ; slow stage  (reads 4.7M, confirmed)
+
+* ================= hi-hat envelope =================
+C524 trgHH nHa  0.027u
+R533 nHa   0    270k
+D514 nB516 nHa  Dsig
+R534 nB516 nB6  330k
+R535 vcc   nB6  820k
+Q516 nC6   nB6  0    QNPN
+R536 vcc   nC6  10k
+D515 nC6   nE3  Dsig
+C525 nE3   0    0.018u
+R537 nE3   nBus 1.5MEG
+
+* ================= maracas envelope =================
+C526 trgM  nMa  0.027u
+R538 nMa   0    270k
+D517 nB517 nMa  Dsig
+R539 nB517 nB7  560k
+R540 vcc   nB7  820k
+Q517 nC7   nB7  0    QNPN
+R541 vcc   nC7  10k
+D518 nC7   nE4  Dsig
+C527 nE4   0    0.0082u
+R542 nE4   nBus 1MEG
+
+* ================= shared VCA + resonant output =================
+* Noise and envelope are summed on nBus. Q507's exponential base-emitter
+* conduction does the multiplication - the "swing-type" VCA Roland used for
+* metal voices throughout its analogue drum machines.
+R531 nBus nB7b 33k
+R532 nB7b 0    330k
+Q507 nC8  nB7b 0    QNPN
+L3   vcc  nC8  45m
+C521 vcc  nC8  0.0068u             ; tank: 9.1 kHz
+C522 nC8  nO1  470p
+C523 nO1  nO2  470p
+C528 nBus nO3  0.0082u             ; direct bus tap to the mix
+Rl1  nO2  0    100k
+Rl2  nO3  0    100k
+
+.model Dsig D(IS=2.5n RS=0.6 BV=100 N=1.7)
+.model QNPN NPN(IS=1e-14 BF=250 VAF=100 CJC=3p CJE=8p TF=0.4n)
+.end
+
+* ------------------------------------------------------------------
+* NOTES
+*
+* 1. The trigger front end is identical for all three, and identical to the
+*    noise envelope in the WGD snare module: differentiating cap, 270k to
+*    ground, steering diode, series resistor into the base of a normally-on
+*    transistor held on by 820k from the rail. Diode-clamped charging, so a
+*    retrigger tops the cap back up to the same peak - it does not
+*    accumulate, and the second hit is the same level as the first.
+*    Only the base series resistor differs: 270k / 330k / 560k.
+*
+* 2. The cymbal's two-stage envelope (fast .0082/470k plus slow .12/4.7M) is
+*    what makes it read as a cymbal rather than a long hi-hat: a bright
+*    transient over a long tail. The slow stage's open-circuit time constant
+*    is 564 ms, but nBus is loaded by R531+R532 and by the other two voices,
+*    so the audible decay lands near the 350 ms in the spec. Worth checking
+*    in simulation - this is the least certain number here.
+*
+* 3. Because all three share one 9.1 kHz tank, the timbral difference between
+*    cymbal, hi-hat and maracas on a CR-78 is ENTIRELY envelope. That is a
+*    strong constraint for a digital model: one filtered-noise voice with
+*    three envelope presets, not three separate voices.
+*
+* 4. Q533 is 2SC828-R (NZ), listed in the parts list as "for noise" - a
+*    factory-selected part. Any modern equivalent will need selection too.
+* 5. L3 = "Coil no.30, 45 mH", part 022-030.

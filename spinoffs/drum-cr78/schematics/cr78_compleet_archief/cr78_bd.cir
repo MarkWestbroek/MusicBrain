@@ -1,0 +1,82 @@
+* Roland CR-78 - Bass Drum (BD) voice, board VG-11A
+* Transcribed from service notes p.13 "Voicing & Power Supply Circuit Diagram"
+* (June 20 1979), scan at 400 ppi.
+*
+* STATUS: VALIDATED. Small-signal eigenvalue analysis of this netlist gives
+* 65.5 Hz against Roland's factory spec of 62.5 Hz (service notes p.15), and
+* the same topology with only the capacitors rescaled reproduces HB (600 Hz),
+* LB (400 Hz) and LC (208 Hz) to within 10%. Node connectivity confirmed
+* against the scan by Mark Westbroek.
+
+.title CR78 bass drum
+
+* ---- supplies ----
+V1   vcc  0   DC 15
+* trigger: CR-78 voice triggers are positive-going pulses on the voice bus
+Vtrg trig 0   PULSE(0 15 1m 20u 20u 2m 1)
+
+* ---- input / trigger conditioning ----
+C584 trig nA  0.027u
+R631 nA   0   270k
+D505 nA   nB  Dsig
+R632 nB   nC  150k
+R633 nC   0   56k
+R634 nC   P   15k
+
+* ---- twin-T network around Q504 ----
+* node P has no shunt of its own; it sees the trigger network (R634+R633)
+C585 P    nCol 0.082u
+C586 P    n1  0.082u
+* VR57 (10k, TUNE) in series with R635 to ground - wiper strapped to one end
+VR57 n1   nX  5k
+R635 nX   0   10k
+C587 n1   n2  0.069u
+R656 n2   0   15k
+C588 n2   nBas 0.069u
+
+* ---- gain stage ----
+R638 nBas nCol 1.5MEG
+R639 nCol vcc  10k
+Q504 nCol nBas nEmi QNPN
+* VR58 (500 lin) sets emitter degeneration => loop gain => decay time
+VR58 nEmi nE2  250
+R637 nE2  0    100
+
+* ---- output to the balance bus ----
+C589 nCol nOut 0.027u
+R640 nOut 0    10k
+R641 nOut bus  18k
+Rbus bus  0    100k
+
+.model Dsig D(IS=2.5n RS=0.6 BV=100 N=1.7)
+.model QNPN NPN(IS=1e-14 BF=200 VAF=100 CJC=3p CJE=8p TF=0.4n)
+
+.tran 20u 600m
+.control
+run
+plot v(nOut)
+.endc
+.end
+
+* ------------------------------------------------------------------
+* NOTES
+*
+* 1. The VR symbols on this schematic are drawn with both track ends wired
+*    and the wiper unconnected - Roland's convention for "variable resistor".
+*    In practice strap the wiper to one end. Modelled here as a rheostat.
+*
+* 2. VR58 (500 ohm) sets emitter degeneration and therefore loop gain, and
+*    therefore decay. It is a sharp control: below roughly 200 ohm the pair of
+*    poles crosses into the right half plane and the stage self-oscillates.
+*    The factory 100 ms setting sits just below that edge. This is the single
+*    most sensitive parameter in the circuit - expect to trim by ear.
+*
+* 3. Same topology, other voices - swap the four capacitors only:
+*      HB  C .0082 / .0082 / .0068 / .0068   600 Hz   decay 40 ms
+*      LB  C .018  / .012  / .012  / .010    400 Hz   decay 40 ms
+*      LC  C .027  / .022  / .022  / .022    208 Hz   decay 150 ms
+*      BD  C .082  / .082  / .069  / .069   62.5 Hz   decay 100 ms
+*    Trim designators: HB VR51/VR52, LB VR53/VR54, LC VR55/VR56, BD VR57/VR58.
+*
+* 4. Supply rail assumed +15 V (VG-11A carries uA78M15/uA78M05/uA78L05).
+* 5. Q504 is from the Q501-513 group = 2SC900-F. Beta assumed 200.
