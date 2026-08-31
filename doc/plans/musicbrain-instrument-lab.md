@@ -525,9 +525,23 @@ Deze lijn volgt dus na de eerste Voice Lab-metingen en kan de AudioHub en
 performancecontrollers hergebruiken. Ze hoeft de analoge historische
 drumreconstructie niet te vertragen.
 
+## Langetermijnlijn: nieuwe bespeelbare materialen
+
+Naast reconstructie kan dezelfde infrastructuur nieuwe instrumentmodellen
+onderzoeken. [State-Graph Synthesis](state-graph-synthesis.md) beschrijft een
+netwerk waarin knopen energie bewaren, verbindingen materiaalgedrag vertonen en
+de speler tijdens een noot de topologie kan veranderen. Hysterese geeft het
+virtuele materiaal geheugen: eerdere belasting beïnvloedt de volgende aanslag.
+
+Het voorstel omvat ook Resource-Coupled, Excitable-Media,
+Negotiated-Resonance, Observer-Coupled en Morphogenetic Synthesis. Dit zijn
+onderzoekshypothesen, geen claims dat alle onderliggende technieken nieuw zijn.
+Een klein softwareprototype moet eerst aantonen dat gedeelde energie en
+materiaalgeheugen voorspelbaar bespeelbaar zijn.
+
 ## Productfamilies
 
-Het Instrument Lab maakt vier MusicBrain-lijnen duidelijker:
+Het Instrument Lab maakt zes MusicBrain-lijnen duidelijker:
 
 | Lijn | Functie |
 |---|---|
@@ -536,6 +550,7 @@ Het Instrument Lab maakt vier MusicBrain-lijnen duidelijker:
 | Performance Instruments | trackpad en freestyle-machine als zelfstandige instrumenten |
 | Hybrid Poly Instruments | FPGA-voices, CS-achtige filters en vocoder |
 | Historical Keyboard Models | compacte String Ensemble-, toonwiel- en tapemodellen |
+| Experimental Synthesis | state graphs, materiaalgeheugen en gedeelde resources |
 
 Niet iedere lijn hoeft de oorspronkelijke belofte "audio blijft volledig
 analoog" te voeren. Het gedeelde fundament is patching, timing, kalibratie en
@@ -580,6 +595,13 @@ een controleerbaar verband tussen editor, firmware en hardware.
 3. Mellotron-proef met globale capstan en toestand per toets.
 4. Dezelfde editor- en meetinfrastructuur voor alle drie engines gebruiken.
 5. Alleen gemeten onderscheidende analoge trappen naar tiles vertalen.
+
+### Fase 5: State-Graph-onderzoeksinstrument
+
+1. Softwareprototype met 8 tot 16 knopen, twee exciters en twee pickups.
+2. Eén hysteretische brug en één klikvrije topologiemutatie bewijzen.
+3. Testen of spelers gedeelde toestand en herstel kunnen voorspellen.
+4. Alleen na een positieve A/B-test een editor- en FPGA-uitvoering ontwerpen.
 
 ## Go/no-go voor het eerste baseboard
 
