@@ -65,8 +65,9 @@ hardware/kicad-generators/__pycache__/
 .env.*
 !.env.example
 
-# Fab-uitvoer: gerber/drill-exports EN de gebundelde zip zijn regenereerbaar uit
-# de KiCad-bron (make_fab) - niet tracken. BOM/CPL-CSV's blijven wel getrackt
-# (klein, diff-baar, ordergeschiedenis); regenereer de zip vóór het uploaden.
+# Fab-uitvoer: de losse gerber/drill-exports zijn regenereerbaar uit de KiCad-
+# bron (make_fab) en blijven ongetrackt. De gebundelde -gerbers.zip WORDT wel
+# getrackt: dat is het upload-klare productiebestand, zodat elke machine het
+# heeft zonder KiCad. BOM/CPL-CSV's blijven eveneens getrackt (klein, diff-baar,
+# ordergeschiedenis).
 **/fab/gerbers/
-**/fab/*-gerbers.zip

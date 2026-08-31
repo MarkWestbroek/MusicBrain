@@ -1,0 +1,8 @@
+# Fab-CSV's (BOM/CPL) altijd met LF opslaan. kicad-cli exporteert CSV met CRLF
+# op macOS; zonder deze regel diffen ze als pure regel-eind-ruis bij elke
+# regeneratie op een ander platform.
+**/fab/*-bom.csv text eol=lf
+**/fab/*-cpl.csv text eol=lf
+
+# Gebundelde gerber-zips zijn binair: geen diff/merge, geen eol-normalisatie.
+**/fab/*-gerbers.zip binary
