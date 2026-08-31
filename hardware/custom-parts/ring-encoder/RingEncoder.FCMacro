@@ -1,0 +1,210 @@
+# -*- coding: utf-8 -*-
+"""
+RingEncoder.FCMacro
+Parametrische ring-encoder met vast rond display (GC9A01 1,28"),
+kogellager 6807, diametrale ringmagneet en AS5600 aan de rand.
+
+Alle maten in mm. Pas de PARAMETERS aan en draai de macro opnieuw.
+Onderdelen komen als losse bodies in een groep, elk met eigen kleur.
+De pilaar en de bedieningsring zijn de printbare delen.
+"""
+
+import FreeCAD as App
+import FreeCADGui as Gui
+import Part
+from FreeCAD import Vector
+
+# ----------------------------------------------------------------------
+# PARAMETERS
+# ----------------------------------------------------------------------
+P = dict(
+    # display GC9A01 1,28" module
+    disp_glass_d      = 32.4,   # actief glas / rand
+    disp_module_d     = 35.0,   # buitenmaat module incl. rand
+    disp_module_h     = 2.5,    # dikte glas + PCB
+    disp_flex_w       = 14.0,   # breedte flexkabel
+    disp_flex_t       = 0.4,
+    disp_panel_w      = 35.6,   # breedte D-paneel (check je datasheet)
+    disp_panel_l      = 38.1,   # lengte paneel incl. chin
+    bezel_t           = 1.0,    # sierrand boven het paneel
+
+    # pilaar (print)
+    pillar_d          = 35.0,   # buitendiameter, = lager binnendiameter
+    pillar_bore_d     = 16.0,   # kabelboring
+    pillar_flex_slot_w = 15.0,  # sleuf voor 90 graden vouw
+    pillar_flex_slot_h = 6.0,
+    pillar_mount_bolt_d = 2.2,  # M2 doorlopers
+    pillar_mount_pcd  = 26.0,   # steekcirkel bouten
+    pillar_mount_n    = 3,
+
+    # lager 6807-2RS
+    brg_id            = 35.0,
+    brg_od            = 47.0,
+    brg_h             = 7.0,
+    brg_z             = 6.0,    # onderkant lager boven PCB
+
+    # ringmagneet, diametraal
+    mag_od            = 48.0,
+    mag_id            = 41.0,
+    mag_h             = 3.0,
+    mag_gap           = 1.8,    # luchtspleet naar sensor
+
+    # bedieningsring (print)
+    ring_od           = 53.0,
+    ring_top_z        = 16.5,   # bovenkant ring boven PCB
+    ring_knurl_n      = 36,     # aantal vlakjes, 0 = glad
+    ring_knurl_depth  = 0.5,
+
+    # sensor AS5600 (SOIC-8)
+    sensor_w          = 5.0,
+    sensor_l          = 4.0,
+    sensor_h          = 1.5,
+    sensor_r          = 22.25,  # straal hart magneet ring
+
+    # frontplaat
+    plate_t           = 3.0,
+    plate_z           = 9.0,    # onderkant plaat boven PCB
+    plate_hole_clear  = 1.5,    # speling om de ring
+    plate_size        = 70.0,   # vierkant blok voor de preview
+
+    # PCB
+    pcb_t             = 1.6,
+    pcb_size          = 70.0,
+)
+
+# ----------------------------------------------------------------------
+# HULPFUNCTIES
+# ----------------------------------------------------------------------
+def cyl(d, h, z=0.0, x=0.0, y=0.0):
+    return Part.makeCylinder(d / 2.0, h, Vector(x, y, z))
+
+def tube(od, idd, h, z=0.0):
+    return cyl(od, h, z).cut(cyl(idd, h + 2, z - 1))
+
+def box(l, w, h, x=0.0, y=0.0, z=0.0):
+    return Part.makeBox(l, w, h, Vector(x, y, z))
+
+def add(doc, name, shape, color, grp):
+    o = doc.addObject("Part::Feature", name)
+    o.Shape = shape
+    if o.ViewObject is not None:
+        o.ViewObject.ShapeColor = color
+    grp.addObject(o)
+    return o
+
+# ----------------------------------------------------------------------
+# AFGELEIDE MATEN
+# ----------------------------------------------------------------------
+sensor_top   = P['sensor_h']
+mag_z        = sensor_top + P['mag_gap']              # onderkant magneet
+brg_top      = P['brg_z'] + P['brg_h']
+pillar_h     = P['ring_top_z'] + P['bezel_t']         # sierrand steekt boven de ring
+disp_z       = pillar_h - P['bezel_t'] - P['disp_module_h']
+head_d       = P['disp_panel_l'] + 3.0                # verbrede kop boven het lager
+ring_bottom  = mag_z                                  # ring omsluit magneet én lager
+ring_id_low  = P['mag_od'] + 0.4                      # uitsparing magneet
+plate_hole_d = P['ring_od'] + 2 * P['plate_hole_clear']
+
+# ----------------------------------------------------------------------
+# DOCUMENT
+# ----------------------------------------------------------------------
+doc = App.newDocument("RingEncoder")
+grp = doc.addObject("App::DocumentObjectGroup", "RingEncoder")
+
+# PCB
+pcb = box(P['pcb_size'], P['pcb_size'], P['pcb_t'],
+          -P['pcb_size']/2, -P['pcb_size']/2, -P['pcb_t'])
+add(doc, "PCB", pcb, (0.20, 0.45, 0.25), grp)
+
+# Sensor
+s = box(P['sensor_l'], P['sensor_w'], P['sensor_h'],
+        -P['sensor_l']/2, -P['sensor_r'] - P['sensor_w']/2, 0)
+add(doc, "AS5600", s, (0.85, 0.65, 0.10), grp)
+
+# Pilaar
+pil = cyl(P['pillar_d'], brg_top + 0.3)
+pil = pil.fuse(cyl(head_d, pillar_h - (brg_top + 0.3), brg_top + 0.3))
+pil = pil.cut(cyl(P['pillar_bore_d'], disp_z + 1.2, -1))
+# zitting: cirkel + tab voor de chin (rechte paneelrand met driver-IC, aan flex-zijde)
+seat = cyl(P['disp_panel_w'] + 0.3, P['disp_module_h'] + 0.2, disp_z - 0.1)
+chin = box(P['disp_panel_w'] + 0.3, P['disp_panel_l'] - P['disp_panel_w']/2 + 0.5,
+           P['disp_module_h'] + 0.2,
+           -(P['disp_panel_w'] + 0.3)/2, 0, disp_z - 0.1)
+pil = pil.cut(seat.fuse(chin))
+# sierrand: opening = alleen het actieve ronde beeld, chin blijft verborgen
+pil = pil.cut(cyl(P['disp_glass_d'], P['bezel_t'] + 1.0, disp_z + P['disp_module_h'] - 0.5))
+# flex-sleuf: van zitting naar boring, aan +Y zijde
+slot = box(P['pillar_flex_slot_w'], head_d/2 + 1, P['pillar_flex_slot_h'],
+           -P['pillar_flex_slot_w']/2, 0, disp_z - P['pillar_flex_slot_h'])
+pil = pil.cut(slot)
+# montagegaten
+import math
+for i in range(P['pillar_mount_n']):
+    a = 2*math.pi*i/P['pillar_mount_n'] + math.pi/2 + math.pi/P['pillar_mount_n']
+    x = P['pillar_mount_pcd']/2*math.cos(a)
+    y = P['pillar_mount_pcd']/2*math.sin(a)
+    pil = pil.cut(cyl(P['pillar_mount_bolt_d'], pillar_h + 2, -1, x, y))
+add(doc, "Pilaar", pil, (0.60, 0.60, 0.60), grp)
+
+# Display
+dsp = cyl(P['disp_panel_w'], P['disp_module_h'], disp_z)
+dsp = dsp.fuse(box(P['disp_panel_w'], P['disp_panel_l'] - P['disp_panel_w']/2,
+                   P['disp_module_h'], -P['disp_panel_w']/2, 0, disp_z))
+glass = cyl(P['disp_glass_d'], 0.3, disp_z + P['disp_module_h'])
+add(doc, "Display_module", dsp, (0.15, 0.15, 0.20), grp)
+add(doc, "Display_glas", glass, (0.20, 0.55, 0.90), grp)
+flex = box(P['disp_flex_w'], P['disp_flex_t'], disp_z + 3,
+           -P['disp_flex_w']/2, P['pillar_bore_d']/2 - P['disp_flex_t'], -0.5)
+add(doc, "Display_flex", flex, (0.85, 0.55, 0.20), grp)
+
+# Lager
+brg = tube(P['brg_od'], P['brg_id'], P['brg_h'], P['brg_z'])
+add(doc, "Lager_6807", brg, (0.45, 0.35, 0.75), grp)
+
+# Magneet
+mag = tube(P['mag_od'], P['mag_id'], P['mag_h'], mag_z)
+add(doc, "Ringmagneet", mag, (0.85, 0.65, 0.10), grp)
+
+# Bedieningsring
+ring = cyl(P['ring_od'], P['ring_top_z'] - ring_bottom, ring_bottom)
+# uitsparing lager-buitenring
+ring = ring.cut(cyl(P['brg_od'] + 0.1, P['brg_h'] + 0.4, P['brg_z'] - 0.2))
+# uitsparing magneet
+ring = ring.cut(cyl(ring_id_low, P['mag_h'] + 0.4, mag_z - 0.2))
+# vrijloop boven lager rond pilaar/display
+ring = ring.cut(cyl(max(head_d + 1.0, P['brg_od'] + 0.1), P['ring_top_z'], brg_top - 0.1))
+# tussenwand onder het lager tot de magneet: laat 1 mm lip staan
+# (de cuts hierboven laten die vanzelf staan)
+# kartel
+if P['ring_knurl_n'] > 0:
+    for i in range(P['ring_knurl_n']):
+        a = 2*math.pi*i/P['ring_knurl_n']
+        r = P['ring_od']/2
+        kb = box(P['ring_knurl_depth']*2, 1.2, P['ring_top_z'] - ring_bottom + 2,
+                 r - P['ring_knurl_depth'], -0.6, ring_bottom - 1)
+        kb.rotate(Vector(0,0,0), Vector(0,0,1), math.degrees(a))
+        ring = ring.cut(kb)
+add(doc, "Bedieningsring", ring, (0.85, 0.30, 0.20), grp)
+
+# Frontplaat
+plate = box(P['plate_size'], P['plate_size'], P['plate_t'],
+            -P['plate_size']/2, -P['plate_size']/2, P['plate_z'])
+plate = plate.cut(cyl(plate_hole_d, P['plate_t'] + 2, P['plate_z'] - 1))
+add(doc, "Frontplaat", plate, (0.30, 0.30, 0.30), grp)
+
+doc.recompute()
+if App.GuiUp:
+    Gui.SendMsgToActiveView("ViewFit")
+    Gui.activeDocument().activeView().viewIsometric()
+
+App.Console.PrintMessage(
+    "\nRingEncoder:\n"
+    f"  pilaar hoogte      {pillar_h:.1f} mm\n"
+    f"  display zitting z  {disp_z:.1f} mm\n"
+    f"  magneet z          {mag_z:.1f} - {mag_z+P['mag_h']:.1f} mm\n"
+    f"  lager z            {P['brg_z']:.1f} - {brg_top:.1f} mm\n"
+    f"  ring z             {ring_bottom:.1f} - {P['ring_top_z']:.1f} mm\n"
+    f"  kop-diameter       {head_d:.1f} mm (moet < ring-binnenmaat)\n"
+    f"  gat frontplaat     {plate_hole_d:.1f} mm\n"
+    f"  ring steekt        {P['ring_top_z']-P['plate_z']-P['plate_t']:.1f} mm boven plaat uit\n"
+)

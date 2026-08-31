@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720">
+  <defs>
+    <style>
+      text { font-family: Helvetica, Arial, sans-serif; fill: #17212b; }
+      .title { font-size: 24px; font-weight: 700; }
+      .subtitle { font-size: 16px; font-weight: 700; }
+      .label { font-size: 14px; }
+      .small { font-size: 12px; fill: #425466; }
+      .fixed { fill: #aeb7c2; stroke: #485563; stroke-width: 2; }
+      .rotor { fill: #df7454; stroke: #8d3523; stroke-width: 2; }
+      .bearing { fill: #7769a8; stroke: #453d6f; stroke-width: 2; }
+      .magnet { fill: #e0b33d; stroke: #866815; stroke-width: 2; }
+      .display { fill: #4296c7; stroke: #14557a; stroke-width: 2; }
+      .pcb { fill: #4b8b63; stroke: #245338; stroke-width: 2; }
+      .sensor { fill: #f0cf67; stroke: #866815; stroke-width: 2; }
+      .cut { fill: #fff; stroke: #75808b; stroke-width: 1; stroke-dasharray: 5 4; }
+      .bad { fill: #d93025; stroke: #8b1710; stroke-width: 2; }
+      .guide { fill: none; stroke: #526170; stroke-width: 1.5; marker-end: url(#arrow); }
+      .dim { fill: none; stroke: #d93025; stroke-width: 2; marker-start: url(#arrow-red); marker-end: url(#arrow-red); }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#526170"/>
+    </marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#d93025"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="720" fill="#f7f9fb"/>
+  <text x="50" y="48" class="title">RingEncoder 42 mm - conceptuele doorsnede</text>
+  <text x="50" y="74" class="small">Links: huidige macro. Rechts: voorgestelde krachtpaden voor het alpha-prototype. Niet als productiemaatvoering gebruiken.</text>
+
+  <rect x="40" y="100" width="535" height="550" rx="6" fill="#fff" stroke="#c9d1d9"/>
+  <rect x="625" y="100" width="535" height="550" rx="6" fill="#fff" stroke="#c9d1d9"/>
+  <text x="70" y="137" class="subtitle">Huidige stapeling</text>
+  <text x="655" y="137" class="subtitle">Voorgestelde alpha-architectuur</text>
+
+  <!-- Current section -->
+  <rect x="105" y="560" width="405" height="28" class="pcb"/>
+  <rect x="154" y="503" width="307" height="36" class="fixed"/>
+  <rect x="194" y="300" width="55" height="260" class="rotor"/>
+  <rect x="366" y="300" width="55" height="260" class="rotor"/>
+  <rect x="249" y="322" width="117" height="238" class="fixed"/>
+  <rect x="270" y="270" width="75" height="45" class="display"/>
+  <rect x="250" y="369" width="32" height="126" class="bearing"/>
+  <rect x="333" y="369" width="32" height="126" class="bearing"/>
+  <rect x="231" y="489" width="51" height="45" class="magnet"/>
+  <rect x="333" y="489" width="51" height="45" class="magnet"/>
+  <rect x="244" y="483" width="38" height="11" class="bad"/>
+  <rect x="333" y="483" width="38" height="11" class="bad"/>
+  <rect x="290" y="541" width="35" height="19" class="sensor"/>
+  <rect x="294" y="315" width="27" height="245" class="cut"/>
+
+  <path d="M 390 486 C 470 465, 500 442, 520 414" class="guide"/>
+  <text x="399" y="399" class="label">0,3 mm overlap</text>
+  <text x="399" y="418" class="small">magneet / lager</text>
+  <path d="M 249 358 C 150 340, 120 325, 95 300" class="guide"/>
+  <text x="72" y="278" class="label">Geen axiale borging</text>
+  <text x="72" y="297" class="small">van binnen- of buitenring</text>
+  <path d="M 345 287 C 450 260, 485 244, 505 220" class="guide"/>
+  <text x="360" y="195" class="label">Displaymaten voorlopig</text>
+  <text x="360" y="214" class="small">retentierand nominaal nul</text>
+
+  <!-- Proposed section -->
+  <rect x="690" y="560" width="405" height="28" class="pcb"/>
+  <rect x="739" y="503" width="307" height="36" class="fixed"/>
+  <rect x="779" y="300" width="55" height="260" class="rotor"/>
+  <rect x="951" y="300" width="55" height="260" class="rotor"/>
+  <rect x="834" y="322" width="117" height="238" class="fixed"/>
+  <rect x="855" y="270" width="75" height="45" class="display"/>
+  <rect x="835" y="374" width="31" height="121" class="bearing"/>
+  <rect x="919" y="374" width="31" height="121" class="bearing"/>
+  <rect x="822" y="502" width="44" height="31" class="magnet"/>
+  <rect x="919" y="502" width="44" height="31" class="magnet"/>
+  <rect x="875" y="541" width="35" height="19" class="sensor"/>
+  <rect x="879" y="315" width="27" height="245" class="cut"/>
+
+  <!-- shoulders and clamp -->
+  <rect x="828" y="491" width="45" height="12" class="fixed"/>
+  <rect x="912" y="491" width="45" height="12" class="fixed"/>
+  <rect x="828" y="355" width="45" height="19" class="fixed"/>
+  <rect x="912" y="355" width="45" height="19" class="fixed"/>
+  <rect x="816" y="495" width="50" height="7" fill="#6e7781"/>
+  <rect x="919" y="495" width="50" height="7" fill="#6e7781"/>
+
+  <path d="M 957 361 C 1040 337, 1070 315, 1090 285" class="guide"/>
+  <text x="980" y="248" class="label">Demontabele klemring</text>
+  <text x="980" y="267" class="small">binnenring axiaal opgesloten</text>
+  <path d="M 965 472 C 1050 450, 1080 425, 1100 395" class="guide"/>
+  <text x="985" y="360" class="label">Buitenring op schouder</text>
+  <text x="985" y="379" class="small">passing of beheerste lijmvoeg</text>
+  <path d="M 952 518 C 1040 521, 1070 530, 1094 550" class="guide"/>
+  <text x="972" y="574" class="label">Aparte magneetdrager</text>
+  <text x="972" y="593" class="small">axiale shims tijdens validatie</text>
+  <line x1="972" y1="496" x2="972" y2="503" class="dim"/>
+  <text x="984" y="507" class="small">positieve vrije ruimte</text>
+
+  <!-- Legend -->
+  <rect x="70" y="616" width="16" height="12" class="fixed"/><text x="93" y="627" class="small">vaste kern</text>
+  <rect x="175" y="616" width="16" height="12" class="rotor"/><text x="198" y="627" class="small">draairing</text>
+  <rect x="280" y="616" width="16" height="12" class="bearing"/><text x="303" y="627" class="small">lager</text>
+  <rect x="365" y="616" width="16" height="12" class="magnet"/><text x="388" y="627" class="small">magneet</text>
+  <rect x="455" y="616" width="16" height="12" class="sensor"/><text x="478" y="627" class="small">sensor</text>
+  <text x="655" y="627" class="small">De flex loopt door de holle kern; exacte route volgt uit het gekozen display.</text>
+</svg>

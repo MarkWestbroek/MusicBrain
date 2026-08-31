@@ -1,0 +1,81 @@
+# -*- coding: utf-8 -*-
+"""Generate colored FCStd reference models from both RingEncoder macros.
+
+Run this macro from the FreeCAD GUI. View properties such as ShapeColor do not
+exist in freecadcmd console mode and therefore cannot be saved headlessly.
+"""
+
+import os
+
+import FreeCAD as App
+
+
+if not App.GuiUp:
+    raise RuntimeError("Run GenerateColoredFCStd.FCMacro from the FreeCAD GUI")
+
+
+def find_root():
+    script_path = globals().get("__file__")
+    candidates = []
+    if script_path:
+        candidates.append(os.path.dirname(os.path.abspath(script_path)))
+    candidates.extend((
+        os.path.join(os.getcwd(), "hardware", "custom-parts", "ring-encoder"),
+        os.path.expanduser(
+            "~/Documents/GitHub/Muziek/MusicBrain/hardware/custom-parts/ring-encoder"
+        ),
+    ))
+
+    for candidate in candidates:
+        if os.path.isfile(os.path.join(candidate, "RingEncoder_42mm.FCMacro")):
+            return candidate
+    raise RuntimeError(
+        "Cannot find the ring-encoder folder; run this macro from its file in FreeCAD"
+    )
+
+
+ROOT = find_root()
+OUTPUT_DIR = os.path.join(ROOT, "visuals")
+MODELS = (
+    ("RingEncoder_42mm.FCMacro", "current-42mm.FCStd"),
+    ("RingEncoder.FCMacro", "current-53mm.FCStd"),
+)
+
+
+def generate(source_name, output_name):
+    source_path = os.path.join(ROOT, source_name)
+    output_path = os.path.join(OUTPUT_DIR, output_name)
+    documents_before = set(App.listDocuments())
+
+    namespace = {"__file__": source_path, "__name__": "__ringencoder_export__"}
+    with open(source_path, "rb") as source_file:
+        exec(compile(source_file.read(), source_path, "exec"), namespace)
+
+    new_documents = set(App.listDocuments()) - documents_before
+    if len(new_documents) != 1:
+        raise RuntimeError(
+            f"Expected one new document from {source_name}, got {len(new_documents)}"
+        )
+
+    document = App.getDocument(new_documents.pop())
+    colored_objects = [
+        obj for obj in document.Objects
+        if obj.ViewObject is not None and hasattr(obj.ViewObject, "ShapeColor")
+    ]
+    if not colored_objects:
+        App.closeDocument(document.Name)
+        raise RuntimeError(f"No colored view objects found in {source_name}")
+
+    document.recompute()
+    document.saveAs(output_path)
+    App.Console.PrintMessage(
+        f"Saved {output_path} with {len(colored_objects)} colored objects\n"
+    )
+    App.closeDocument(document.Name)
+
+
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+for source_name, output_name in MODELS:
+    generate(source_name, output_name)
+
+App.Console.PrintMessage("Colored RingEncoder FCStd export complete.\n")
