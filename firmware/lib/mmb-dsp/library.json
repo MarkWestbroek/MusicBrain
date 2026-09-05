@@ -1,0 +1,9 @@
+{
+  "name": "mmb-dsp",
+  "version": "0.1.0",
+  "description": "MusicBrain's eigen header-only DSP-kernen (float, samplerate-onafhankelijk, geen Arduino/Teensy-afhankelijkheden). Eén bron voor de Teensy-wrapper (app-modular-brain/src/<X>Module.h) én de browser-simulator (tools/mmb-wasm).",
+  "license": "MIT",
+  "build": {
+    "flags": ["-I."]
+  }
+}

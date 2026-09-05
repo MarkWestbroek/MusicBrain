@@ -100,4 +100,6 @@ sel warps && build warps tp_mmb_warps "$LIB/mi-warps" -- \
   "$LIB"/mi-warps/warps/dsp/oscillator.cc "$LIB"/mi-warps/warps/dsp/vocoder.cc \
   "$LIB"/mi-warps/warps/resources.cc $STMLIB_CC
 
+sel tapeecho && build tapeecho tp_mmb_tape_echo "$LIB/mmb-dsp" --
+
 [ -z "$FAILED" ] && echo "klaar." || { echo "mislukt:$FAILED"; exit 1; }

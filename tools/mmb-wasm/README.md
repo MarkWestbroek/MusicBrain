@@ -17,6 +17,7 @@ WebAssembly gecompileerd en draaien in een AudioWorklet.
 | Plaits | `tp_mmb_plaits` | mi-plaits | 48 kHz / 24 |
 | Tides | `tp_mmb_tides` | mi-tides (tides2) | 1 kHz / 1 (CV-tick) |
 | Warps | `tp_mmb_warps` | mi-warps | 44,1 kHz / 32 |
+| Tape echo | `tp_mmb_tape_echo` | eigen (`firmware/lib/mmb-dsp/mmb_dsp/tape_echo.h`, header-only — dezelfde kern als de Teensy-wrapper) | 44,1 kHz / 32 |
 
 Daarmee spelen o.a. de **Krell**- en **808-jam**-seeds in de browser.
 (De DX7 heeft zijn eigen worklet, zie `tools/dx7-wasm`.)

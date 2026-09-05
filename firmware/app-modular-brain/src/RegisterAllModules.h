@@ -65,6 +65,7 @@
 #include "GridsModule.h"
 #include "CompDriveModule.h"
 #include "EchoModule.h"
+#include "TapeEchoModule.h"
 #include "CombModule.h"
 #include "PhaserModule.h"
 #include "VcaModule.h"
@@ -119,6 +120,7 @@ inline void registerAllRuntimeModules() {
     GridsModule::registerFactory();     // FW-SQ-2: topologische drum-sequencer
     CompDriveModule::registerFactory(); // FW-FX-2: compressor + overdrive
     EchoModule::registerFactory();      // FW-AU-2: feedback delay
+    TapeEchoModule::registerFactory();  // bandecho (mmb-dsp), ook als wasm in de simulator
     CombModule::registerFactory();      // FW-AU-3: tuned comb resonator
     PhaserModule::registerFactory();    // FW-AU-2: all-pass phaser
     VcaModule::registerFactory();

@@ -1320,6 +1320,41 @@ function mmbEcho() {
   });
 }
 
+// 10b. MMB TAPE ECHO — 8 HP. Bandecho: één-koppige tape-delay met verzadiging,
+//      toonverlies per omloop en wow/flutter (firmware TapeEchoModule.h op de
+//      header-only kern mmb_dsp::TapeEcho; dezelfde kern draait als wasm in de
+//      simulator). Feedback mag boven 1 — de verzadiger houdt het in toom.
+function mmbTapeEcho() {
+  const w = W(8);
+  return assemble({
+    typeId: 'tp_mmb_tape_echo',
+    categoryId: 'effect',
+    variant: 'Tape echo',
+    brand: 'MMB', model: 'TAPE',
+    hp: 8, texture: 'pcb-black', baseColor: '#1f1a14', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'TAPE ECHO', fontSize: 2.0, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: 'sat · tone · wow/flutter', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('time',     'Time',    w*0.25, 30, { size: 'medium', min: 0.02, max: 1.0, def: 0.35, unit: 's', color: '#f5a623' }),
+      knob('feedback', 'Fbk',     w*0.75, 30, { size: 'medium', min: 0,    max: 1.1, def: 0.5,  color: '#f5a623' }),
+      knob('mix',      'Mix',     w*0.25, 58, { size: 'small',  min: 0,    max: 1,   def: 0.4,  color: '#f9fafb' }),
+      knob('tone',     'Tone',    w*0.75, 58, { size: 'small',  min: 0,    max: 1,   def: 0.6,  color: '#f9fafb' }),
+      knob('wow',      'Wow',     w*0.20, 82, { size: 'small',  min: 0,    max: 1,   def: 0.3,  color: '#9ca3af' }),
+      knob('flutter',  'Flutter', w*0.50, 82, { size: 'small',  min: 0,    max: 1,   def: 0.2,  color: '#9ca3af' }),
+      knob('drive',    'Drive',   w*0.80, 82, { size: 'small',  min: 0,    max: 1,   def: 0.3,  color: '#9ca3af' }),
+      inPort ('time_cv', 'T+',  'cv',    w*0.15, 102),
+      inPort ('fbk_cv',  'F+',  'cv',    w*0.38, 102),
+      inPort ('mix_cv',  'M+',  'cv',    w*0.61, 102),
+      inPort ('in',  'In',  'audio', w*0.30, 118),
+      outPort('out', 'Out', 'audio', w*0.70, 118),
+    ],
+    notes: 'Bandecho: de band is een int16-buffer (max 1 s), de leeskop staat op tijd + wow + flutter achter de schrijfkop en de tijd wordt traag geslewd — draaien aan Time zwiept de toonhoogte zoals een bandmotor. Feedback door een verzadiger (Drive) en een toon-lowpass (Tone): elke omloop doffer. Firmware tp_mmb_tape_echo (mmb_dsp::TapeEcho); dezelfde kern als wasm in de simulator.',
+  });
+}
+
 // 11. MMB PHASER — 6 HP. Klassiek phaser-effect (Tone.Phaser).
 function mmbPhaser() {
   const w = W(6);
@@ -2402,7 +2437,7 @@ function mmbGrids() {
 // ── public entry ───────────────────────────────────────────────────────
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbEcho(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbEcho(), mmbTapeEcho(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound()];
   const newTypes = all.map((x) => x.type);
 
   // Upgrade-pad: bestaande interne types worden in-place VERVANGEN (zelfde

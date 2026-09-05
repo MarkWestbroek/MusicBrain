@@ -21,7 +21,7 @@ export class WasmModule extends AudioModule {
   static readonly typeIds: ReadonlySet<string> = new Set([
     'tp_mmb_elements', 'tp_mmb_rings', 'tp_mmb_marbles', 'tp_mmb_stages',
     'tp_mmb_peaks', 'tp_mmb_morph_wt', 'tp_mmb_clouds',
-    'tp_mmb_plaits', 'tp_mmb_tides', 'tp_mmb_warps',
+    'tp_mmb_plaits', 'tp_mmb_tides', 'tp_mmb_warps', 'tp_mmb_tape_echo',
   ]);
   static supports(typeId: string): boolean { return WasmModule.typeIds.has(typeId); }
 
