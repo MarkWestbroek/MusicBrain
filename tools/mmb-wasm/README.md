@@ -73,6 +73,8 @@ wat een lib mist vindt de build in de andere (zoals de firmware-LDF).
 
 - De simulator is monofoon; een PolyGroup speelt hier alleen de master.
 - Gates van wasm-modules kunnen Tone-envelopes (ADSR-module) niet triggeren
-  (die worden per JS-aanroep getriggerd, niet per signaal); wasm→wasm en
-  wasm→VCA/VCF-cv werken wel.
+  en wasm-CV kan de Tone-VCO's niet stemmen (die worden per JS-aanroep
+  aangestuurd, niet per signaal); wasm→wasm, wasm→VCA/VCF-cv en
+  LFO/ADSR/sequencer/MIDI-In→wasm werken wel. Marbles → Plaits/Morph-WT/
+  Rings/Elements is dus de route voor generatieve patches.
 - CPU per instantie (node, -O3 -msimd128): Elements ~33 %, Rings ~23 %, de rest ≤ 2 %.

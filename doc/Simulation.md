@@ -270,3 +270,31 @@ The two views answer different questions:
 Mixing them into one screen would force one view to compromise — the
 musician doesn't care about `PUT /api/config` and the tech doesn't need
 to see pedal cards with brand logos.
+
+## 9. Modular MB in de browser: Tone.js-proxies + wasm-kernen (2026-09)
+
+De Modular-MB-simulator (`editor/src/modular-mb/sim/AudioEngine.ts`) bouwt
+per module een Web-Audio-node en bekabelt die volgens de patch. Twee soorten:
+
+| Soort | Modules | Hoe |
+|---|---|---|
+| Tone.js-proxy | VCO, VCF (SVF/ladder/MS-20), VCA, ADSR, LFO, noise, echo, phaser, mixer, cvmath, sequencer, MIDI-in, FM-VCO | benadering met Tone-nodes; note/gate per JS-aanroep |
+| **wasm-kern** | DX7, Elements, Rings, Marbles, Stages, Peaks, Morph-WT, Clouds, Plaits, Tides, Warps, tape echo | **dezelfde C++ als de firmware**, met wasi-sdk naar `.wasm` gecompileerd, in een AudioWorklet |
+
+De wasm-route is het principe "wat je in de browser hoort ís wat de Teensy
+speelt": de gevendorde MI-kernen (`firmware/lib/mi-*`) en MusicBrain's eigen
+header-only kernen (`firmware/lib/mmb-dsp`) worden zonder Arduino-schil
+gecompileerd; een dunne C-wrapper per module spiegelt de control- en
+poortafhandeling van `<X>Module.h`. Eén generieke worklet-host leest poorten
+en controls uit de wasm (mmb-wasm ABI), resamplet van/naar de contextrate en
+mengt kabel- en klavierwaarden. Audio én CV/gate zijn in de worklet
+audio-rate signalen, dus wasm-modules bekabelen onderling zonder engine-code
+(Stages → Marbles → Plaits, Marbles → Peaks). Details, bouwen en testen:
+[`tools/mmb-wasm/README.md`](../tools/mmb-wasm/README.md) en
+[`tools/dx7-wasm/README.md`](../tools/dx7-wasm/README.md) (de DX7 heeft
+bovendien een sample-exact geteste JS-port als fallback).
+
+Bekende grenzen (backlog ED-SM-3..6): de engine-note-dispatch is mono
+(PolyGroups spelen alleen de master; de DX7 is intern 16-stemmig), wasm-gates
+triggeren geen Tone-ADSR en wasm-CV stemt geen Tone-VCO, en Elements kost
+~33 % van één core per stem.

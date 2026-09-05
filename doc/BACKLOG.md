@@ -34,6 +34,11 @@
 | # | Prio | Status | Item |
 |---|---|---|---|
 | ED-SM-1 | 3 | 🔬 | **A4 — Latency toets→geluid.** WebAudio look-ahead ~50-100 ms; onderzoek lagere `Tone.context.lookAhead` + directe `triggerAttack`. |
+| ED-SM-2 | — | ✅ | **Teensy-modules als wasm in de simulator (2026-09-06).** DX7 (msfa) en Elements, Rings, Marbles, Stages, Peaks, Morph-WT, Clouds, Plaits, Tides, Warps en Tape-echo draaien in AudioWorklets op dezelfde C++-kern als de firmware (`tools/dx7-wasm`, `tools/mmb-wasm`, generieke mmb-wasm ABI). Krell-, 808-jam- en Warps-vocoder-seeds spelen in de browser. Zie release-log editor 0.7.0. |
+| ED-SM-3 | 2 | ⏳ | **Polyfonie in de simulator.** De engine-note-dispatch is mono; wasm-nodes zijn intern poly (DX7, 16 stemmen) of spelen alleen de PolyGroup-master. Nodig: stem-allocatie per PolyGroup in `AudioEngine` (N wasm-nodes, round-robin/steal zoals de firmware). |
+| ED-SM-4 | 2 | ⏳ | **wasm-gates → Tone-ADSR en wasm-CV → Tone-VCO.** Envelopes en VCO-pitch worden per JS-aanroep aangestuurd, niet per signaal; Marbles.t1 → ADSR.gate en Marbles.x1 → VCO.voct werken daarom nog niet. Opties: flankdetector in de worklet die `postMessage` doet, of ADSR/VCO ook als wasm-module. |
+| ED-SM-5 | 3 | 🔬 | **Elements-CPU in wasm.** ~33 % van één core per stem (-O3 -msimd128; Rings 23 %). Onderzoek: resonator-lus vectoriseren, of meerdere stemmen in één worklet. |
+| ED-SM-6 | 2 | ⏳ | **USER-bank/.syx en wavetables ook naar de browser.** `Dx7.setUserBank()` bestaat; de Teensy-modal stuurt de .syx nog alleen naar de Teensy. Idem `wavetable`-push → Morph-WT-wasm (USER-bank) en Draw-VCO. |
 
 ### 1.4 MIDI-in & note-gedrag
 
@@ -116,6 +121,13 @@ Brondump gebruiker (idee), nagenoeg ongewijzigd overgenomen:
 
 ### 2.3 Audio-modules / geluidsbronnen
 
+- **Sampler (`tp_mmb_sampler`) — bestaat nog niet** (🔬 prio 2, 2026-09-06). Eerst de
+  opslagvraag: RAM op de Teensy (≤ ~100 KB vrij ≈ 1 s mono int16), de PSRAM-pads
+  van de 4.1 (8–16 MB, chip solderen) of SD. Voorstel daarna: mono int16-sample per
+  instantie, V/Oct + gate, start/end/loop/reverse, upload via een serial-frame zoals
+  `dx7bank` (chunked), en dezelfde kern als wasm in de simulator (mmb-dsp-patroon van
+  de tape echo). Clouds dekt intussen "live sampling" (freeze + korrels).
+
 Brondump gebruiker (idee), nagenoeg ongewijzigd overgenomen:
 
 - **Stereo VCA.**
@@ -150,6 +162,13 @@ Brondump gebruiker (idee), nagenoeg ongewijzigd overgenomen:
 | FW-LIVE-1 | 2 | ✅ | **Live control-sync.** Knob-/control-wijzigingen in de editor gaan via een `controlPoke`-serieframe (`{type,mod,ctrl,v}`) direct naar de Teensy zonder volledige config-push: `ProjectRuntime::pokeControl()` past de control live toe (via `setControl`) én persist't 'm in de actieve patch (`controlState`), zodat een latere volledige push een no-op is. Hot-path (geen ack). Ook nieuw: `wavetable`-frame + `ProjectRuntime::setWaveform()` voor FW-AU-6. Editor: `sendControlPoke()`/`sendWaveform()` in `teensyLink.ts`, gekoppeld aan beide `setControl`-paden in `PatcherGraphPanel.tsx`. fw 0.5.15. |
 
 ### 2.4 Effecten
+
+- **Tape echo (`tp_mmb_tape_echo`) — op hardware verifiëren** (⏳ prio 1, gebouwd
+  2026-09-06). Header-only kern `firmware/lib/mmb-dsp/mmb_dsp/tape_echo.h` (int16-band
+  1 s ≈ 96 KB heap, wow/flutter, verzadiger, toon-LP, HP tegen DC, feedback tot 1,1);
+  `TapeEchoModule.h` + registratie in `RegisterAllModules.h` + `lib_deps mmb-dsp`. De
+  kern is via de wasm-build gecompileerd en getest (repeats 0,43 → 0,24 → 0,14 bij
+  fbk 0,6); de AudioStream-wrapper is nog **niet** met PlatformIO gebouwd/geflasht.
 
 Brondump gebruiker (idee), nagenoeg ongewijzigd overgenomen:
 
