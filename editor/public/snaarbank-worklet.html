@@ -111,11 +111,19 @@ input[type="range"]:focus-visible,
 
 /* ---- specs-strip ---- */
 .specs {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px;
   background: var(--surface-2); border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 16px 20px; font-family: var(--font-mono);
 }
+.specs select {
+  display: block; width: 100%; max-width: 100%;
+  font: 600 13px var(--font-mono); color: var(--foreground);
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 3px 4px; margin: 0 0 3px;
+  text-overflow: ellipsis;
+}
+.specs select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .specs b {
   display: block; font-size: 17px; font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -139,6 +147,12 @@ input[type="range"]:focus-visible,
   font-family: var(--font-mono); font-size: 10px;
   letter-spacing: 0.16em; text-transform: uppercase;
   color: var(--muted); pointer-events: none;
+}
+.scope .scopenote {
+  position: absolute; bottom: 9px; left: 12px;
+  font-family: var(--font-mono); font-size: 10px;
+  letter-spacing: 0.1em; color: var(--muted);
+  font-variant-numeric: tabular-nums; pointer-events: none;
 }
 .scope .scopeval {
   position: absolute; top: 9px; right: 12px;
@@ -217,6 +231,18 @@ input[type="range"]::-moz-range-thumb {
 .modebtn:hover { border-color: var(--accent-strong); }
 .modebtn[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
 
+/* ---- modulatie ---- */
+.modgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px 22px; }
+.modpanel .badge .val { font-weight: 600; margin-left: 6px; color: var(--accent-2); }
+.ctl > label .sel {
+  font: 500 10.5px var(--font-mono); letter-spacing: 0.06em; text-transform: none;
+  color: var(--foreground); background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 1px 4px; margin-left: 4px; cursor: pointer;
+}
+.ctl > label .sel:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 860px) { .modgrid { grid-template-columns: 1fr 1fr; } }
+
 /* ---- klavier ---- */
 .kbpanel {
   background: var(--surface);
@@ -277,6 +303,7 @@ input[type="range"]::-moz-range-thumb {
   .arrow { display: none; }
   .foot { grid-template-columns: 1fr; }
   .specs { grid-template-columns: repeat(2, 1fr); }
+  .specs > div:last-child { grid-column: 1 / -1; }
 }
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
@@ -307,12 +334,14 @@ input[type="range"]::-moz-range-thumb {
     <div><b id="statSr">&mdash;</b><span>Samplerate</span></div>
     <div><b id="statLat">&mdash;</b><span>Blok &middot; backend</span></div>
     <div><b id="statMidi">Zoeken&hellip;</b><span>MIDI-invoer</span></div>
+    <div><select id="midiOut" aria-label="MIDI-uitvoer"><option value="">&mdash; geen &mdash;</option></select><span>MIDI-uit &middot; motor-feedback</span></div>
   </div>
   <p class="lede" id="midiHint" hidden style="font-size:13px; margin-top:-10px;"></p>
 
   <div class="scope">
     <span class="scopelabel">Uitgang &mdash; oscilloscoop</span>
     <span class="scopeval" id="scopePeak">0.00</span>
+    <span class="scopenote" id="scopeNote">&mdash;</span>
     <canvas id="scope" width="1600" height="264"></canvas>
   </div>
 
@@ -426,6 +455,46 @@ input[type="range"]::-moz-range-thumb {
     </section>
   </div>
 
+  <section class="stage modpanel">
+    <div class="stagehead">
+      <p class="eyebrow">Modulatie</p>
+      <span class="badge badge--dim">Aftertouch <b class="val" id="vAt">0.00</b></span>
+    </div>
+    <div class="modgrid">
+      <div class="ctl">
+        <label for="pAtBow">Aftertouch &rarr; bow-druk</label>
+        <span class="val" id="vAtBow">0.60</span>
+        <span class="cc">alleen in Bow &mdash; harder drukken = harder strijken</span>
+        <input type="range" id="pAtBow" min="0" max="1" step="0.001" value="0.60">
+      </div>
+      <div class="ctl">
+        <label for="pAtAmt">Aftertouch &rarr;
+          <select id="atTarget" class="sel" aria-label="Aftertouch-doel">
+            <option value="bright" selected>Brightness</option>
+            <option value="damp">Damping</option>
+            <option value="geometry">Geometry</option>
+            <option value="position">Position</option>
+            <option value="timbre">Timbre</option>
+          </select></label>
+        <span class="val" id="vAtAmt">0.50</span>
+        <span class="cc">bipolair &mdash; negatief = druk dempt / verdonkert</span>
+        <input type="range" id="pAtAmt" min="-1" max="1" step="0.001" value="0.50">
+      </div>
+      <div class="ctl">
+        <label for="pModFreq">Mod freq</label>
+        <span class="val" id="vModFreq">0.25</span>
+        <span class="cc">CC 28 &mdash; LFO op de stereo-positie, 0&ndash;2 Hz</span>
+        <input type="range" id="pModFreq" min="0" max="1" step="0.001" value="0.25">
+      </div>
+      <div class="ctl">
+        <label for="pModOffset">Mod offset</label>
+        <span class="val" id="vModOffset">0.10</span>
+        <span class="cc">CC 29 &mdash; startpositie van het side-kanaal</span>
+        <input type="range" id="pModOffset" min="0" max="1" step="0.001" value="0.10">
+      </div>
+    </div>
+  </section>
+
   <section class="kbpanel">
     <div class="kbhead">
       <p class="eyebrow">Klavier</p>
@@ -481,6 +550,20 @@ function lutStiffness(g) {
   return LUT_STIFFNESS[i] + (LUT_STIFFNESS[i + 1] - LUT_STIFFNESS[i]) * f;
 }
 var MODAL_GAIN = 0.4;   // genormaliseerd op het snaarniveau (gemeten in node)
+var NUM_BOWED = 8;      // kMaxBowedModes: banded waveguides op de eerste modi
+var BOW_DELAY = 1024;   // kMaxDelayLineSize (macht van 2: index & (BOW_DELAY-1))
+var BOW_PRESSURE = 1.0; // schaal op Elements' 0,13·velocity in BowTable
+
+// Elements Resonator::BowTable — frictiekromme van de strijkstok.
+function bowTable(x, velocity) {
+  x = 0.13 * velocity - x;
+  var bow = Math.abs(x * 6) + 0.75;
+  bow *= bow; bow *= bow;
+  bow = 0.25 / bow;
+  if (bow < 0.0025) bow = 0.0025;
+  if (bow > 0.245) bow = 0.245;
+  return x * bow;
+}
 
 // Karplus–Strong snaar.
 //
@@ -522,13 +605,28 @@ function Voice() {
   this.ms2 = new Float32Array(NUM_MODES);
   this.mampC = new Float32Array(NUM_MODES); // positie-gewicht, center
   this.mampS = new Float32Array(NUM_MODES); // positie-gewicht, side (LFO)
+  this.mpf = new Float32Array(NUM_MODES);   // modusfrequentie (genormaliseerd)
   this.mnum = 0;
   this.mf0 = 0.01;                          // grondtoon, genormaliseerd op sr
   this.lfoPhase = Math.random();
+  this.vel = 1;
+  // Banded waveguides (bow): per band een delay van één periode + bandpass.
+  this.bd = new Float32Array(NUM_BOWED * BOW_DELAY);
+  this.bwIdx = new Int32Array(NUM_BOWED);
+  this.bper = new Int32Array(NUM_BOWED);
+  this.bg = new Float32Array(NUM_BOWED);
+  this.br = new Float32Array(NUM_BOWED);
+  this.bh = new Float32Array(NUM_BOWED);
+  this.bs1 = new Float32Array(NUM_BOWED);
+  this.bs2 = new Float32Array(NUM_BOWED);
+  this.nb = 0;
+  this.bowSignal = 0;
+  this.flowState = 0.5;
 }
 Voice.prototype.reset = function () {
   this.buf.fill(0);
   this.ms1.fill(0); this.ms2.fill(0);
+  this.bd.fill(0); this.bs1.fill(0); this.bs2.fill(0); this.bowSignal = 0;
   this.w = 0; this.lp = 0; this.apX = 0; this.apY = 0; this.excLp = 0;
   this.burst = 0; this.env = 0; this.peak = 0;
 };
@@ -537,7 +635,13 @@ function Engine(sr) {
   this.sr = sr;
   // 0..1 genormaliseerd — exact de CC-map van app-elements.
   this.P = { mode: 2, shape: 0.35, timbre: 0.60, mallet: 0.50, geometry: 0.20,
-             bright: 0.70, damp: 0.72, position: 0.28, model: 0.2 };
+             bright: 0.70, damp: 0.72, position: 0.28, model: 0.2,
+             atBow: 0.6, atTarget: "bright", atAmt: 0.5,   // aftertouch
+             modFreq: 0.25, modOffset: 0.1 };              // CC 28 / 29
+  this.at = 0;          // kanaal-aftertouch 0..1 (ruw, van de UI-thread)
+  this.atSmooth = 0;    // per blok gladgestreken — tegen zipper
+  this.Q = {};          // P na modulatie; de DSP leest hieruit
+  this.applyModulation();
   this.voices = [];
   for (var i = 0; i < NUM_VOICES; i++) this.voices.push(new Voice());
   this.ageCounter = 0;
@@ -546,8 +650,21 @@ function Engine(sr) {
   this.updateCoeffs();
 }
 
+// Aftertouch op één kiesbaar doel (bipolair) → Q; bow-druk gaat apart.
+Engine.prototype.applyModulation = function () {
+  var P = this.P, Q = this.Q;
+  this.atSmooth += (this.at - this.atSmooth) * 0.3;
+  Q.timbre = P.timbre; Q.geometry = P.geometry; Q.bright = P.bright;
+  Q.damp = P.damp; Q.position = P.position;
+  var t = P.atTarget;
+  if (Q[t] !== undefined) {
+    var x = P[t] + this.atSmooth * P.atAmt;
+    Q[t] = x < 0 ? 0 : (x > 1 ? 1 : x);
+  }
+};
+
 Engine.prototype.updateCoeffs = function () {
-  var P = this.P;
+  var P = this.Q;
   this.cBright   = 0.04 + 0.95 * (P.bright * P.bright);
   this.cFeedback = 0.90 + 0.0995 * Math.pow(P.damp, 0.6);
   this.cStiff    = 0.45 * P.geometry;
@@ -559,9 +676,9 @@ Engine.prototype.updateCoeffs = function () {
 // f0 · stretch, waarbij stretch per modus met `stiffness` groeit en stiffness
 // zelf afzwakt (0,93 / 0,98). q daalt per modus met q_loss (brightness), en
 // die afname vlakt af met geometry — zodat hoge partialen niet te snel sterven.
-Engine.prototype.computeModes = function (v, blockLen) {
-  var P = this.P;
-  var geometry = P.geometry, damping = P.damp;
+Engine.prototype.computeModes = function (v, blockLen, damping) {
+  var P = this.Q;
+  var geometry = P.geometry;
   var stiffness = lutStiffness(geometry);
   var harmonic = v.mf0;
   var stretch = 1;
@@ -577,6 +694,7 @@ Engine.prototype.computeModes = function (v, blockLen) {
     var g = Math.tan(Math.PI * pf);
     var r = 1 / (1 + pf * q);
     v.mg[i] = g; v.mr[i] = r; v.mh[i] = 1 / (1 + r * g + g * g);
+    v.mpf[i] = pf;
     stretch += stiffness;
     stiffness *= stiffness < 0 ? 0.93 : 0.98;
     qLoss += qLossRate * (1 - qLoss);
@@ -585,13 +703,28 @@ Engine.prototype.computeModes = function (v, blockLen) {
   }
   v.mnum = num;
 
+  // Banded waveguides op de eerste NUM_BOWED modi: delay = één periode
+  // (gehalveerd tot hij past), bandpass met resonantie 1 + f·1500.
+  var nb = num < NUM_BOWED ? num : NUM_BOWED;
+  for (var b = 0; b < nb; b++) {
+    var pfb = v.mpf[b];
+    var period = (1 / pfb) | 0;
+    while (period >= BOW_DELAY) period >>= 1;
+    v.bper[b] = period < 1 ? 1 : period;
+    var gb = v.mg[b];
+    var rb = 1 / (1 + pfb * 1500);
+    v.bg[b] = gb; v.br[b] = rb; v.bh[b] = 1 / (1 + rb * gb + gb * gb);
+  }
+  v.nb = nb;
+
   // Positie → cosinus-gewicht per modus (CosineOscillator: 0,5 + 0,5·cos(iθ)).
   // Side-kanaal: tweede positie die met een 0,5 Hz-driehoek-LFO wandelt.
-  v.lfoPhase += 0.5 * blockLen / this.sr;
+  // mod freq (CC 28): 0..2 Hz zoals de firmware; mod offset (CC 29).
+  v.lfoPhase += (this.P.modFreq * 2) * blockLen / this.sr;
   if (v.lfoPhase >= 1) v.lfoPhase -= 1;
   var lfo = v.lfoPhase > 0.5 ? 1 - v.lfoPhase : v.lfoPhase;
   var thC = 2 * Math.PI * P.position;
-  var thS = 2 * Math.PI * (0.1 + lfo);
+  var thS = 2 * Math.PI * (this.P.modOffset + lfo);
   for (var k = 0; k < num; k++) {
     v.mampC[k] = 0.5 + 0.5 * Math.cos(k * thC);
     v.mampS[k] = 0.5 + 0.5 * Math.cos(k * thS);
@@ -627,11 +760,12 @@ Engine.prototype.noteOn = function (note, velocity) {
   // Modale grondtoon met een paar cent per-stem-spreiding — houdt akkoorden levend.
   v.mf0 = (440 * Math.pow(2, (note - 69) / 12)) / this.sr * (1 + (Math.random() - 0.5) * 0.004);
   v.note = note;
-  // Velocity: steiler dan lineair (vel 64 ≈ −10 dB, vel 20 ≈ −24 dB), en een
+  // Velocity: vel^1,7 (vel 64 ≈ −10 dB, vel 32 ≈ −20 dB), en een
   // zachte aanslag maakt de exciter ook doffer — zoals een echte snaar.
   var vel = velocity / 127;
-  v.strength = vel * (0.3 + 0.7 * vel);
-  v.velTimbre = 0.35 + 0.65 * vel;
+  v.vel = vel;
+  v.strength = Math.pow(vel, 1.7);
+  v.velTimbre = 0.2 + 0.8 * vel;
   v.gate = true;
   v.active = true;
   v.age = ++this.ageCounter;
@@ -670,6 +804,7 @@ Engine.prototype.activeCount = function () {
 };
 
 Engine.prototype.render = function (outL, outR, n) {
+  this.applyModulation();
   this.updateCoeffs();
   var sr = this.sr, mode = this.P.mode;
   var cBright = this.cBright, cFeedback = this.cFeedback, cStiff = this.cStiff, cExcLp = this.cExcLp;
@@ -695,9 +830,20 @@ Engine.prototype.render = function (outL, outR, n) {
     var v = this.voices[vi];
     if (!v.active) continue;
 
-    this.computeModes(v, n);
+    // Bow: strijkdruk = gate-envelope × velocity; bij loslaten "palm mute"
+    // (damping − 0,0625, zoals voice.cc).
+    var bowing = mode === 0;
+    var bowStrength = bowing
+      ? v.env * (0.6 + 0.4 * v.vel) * BOW_PRESSURE * (1 + this.P.atBow * this.atSmooth)
+      : 0;
+    var dampNow = this.Q.damp;
+    if (bowing) { dampNow -= (1 - v.env) * 0.0625; if (dampNow < 0) dampNow = 0; }
+    this.computeModes(v, n, dampNow);
     var mnum = v.mnum, mg = v.mg, mr = v.mr, mh = v.mh, ms1 = v.ms1, ms2 = v.ms2;
     var mampC = v.mampC, mampS = v.mampS;
+    var nb = v.nb, bd = v.bd, bwIdx = v.bwIdx, bper = v.bper;
+    var bg = v.bg, br = v.br, bh = v.bh, bs1 = v.bs1, bs2 = v.bs2;
+    var bowSignal = v.bowSignal, flowState = v.flowState;
 
     var buf = v.buf, w = v.w, delay = v.delay, tap = v.posTap;
     var lp = v.lp, apX = v.apX, apY = v.apY, excLp = v.excLp;
@@ -751,7 +897,14 @@ Engine.prototype.render = function (outL, outR, n) {
       if (burst > 0) {
         exc = (Math.random() * 2 - 1) * burstAmp;
         burst--;
-      } else if (gate && mode !== 2) {
+      } else if (gate && mode === 0) {
+        // Bow: Elements' Flow-ruis (parameter 0,7) — een random
+        // telegraafsignaal ±0,5 met wat ruis erbovenop, als strijkgeruis.
+        env += (1 - env) * attack;
+        if (Math.random() < 0.03) flowState = -flowState;
+        var flow = flowState + (Math.random() - 0.5 - flowState) * 0.24;
+        exc = flow * strength * env * driveLevel;
+      } else if (gate && mode === 1) {
         env += (1 - env) * attack;
         exc = (Math.random() * 2 - 1) * strength * env * driveLevel;
       }
@@ -786,6 +939,30 @@ Engine.prototype.render = function (outL, outR, n) {
       }
       var sides = (sumS - sumC) * 0.5;
 
+      // --- banded waveguides + strijkstok (Resonator::Process, bowed modes) ---
+      if (modMix > 0) {
+        var bowSig = 0;
+        var inB = exc * modIn + bowSignal;
+        for (var b = 0; b < nb; b++) {
+          var base = b * BOW_DELAY;
+          var ri = (bwIdx[b] - bper[b]) & (BOW_DELAY - 1);
+          var sd = 0.99 * bd[base + ri];
+          bowSig += sd;
+          var xb = inB + sd;
+          var gb = bg[b], rb = br[b], t1 = bs1[b], t2 = bs2[b];
+          var hpb = (xb - rb * t1 - gb * t1 - t2) * bh[b];
+          var bpb = gb * hpb + t1;
+          bs1[b] = gb * hpb + bpb;
+          var lpb = gb * bpb + t2;
+          bs2[b] = gb * bpb + lpb;
+          var ob = bpb * rb;                      // BAND_PASS_NORMALIZED
+          bd[base + bwIdx[b]] = ob;
+          bwIdx[b] = (bwIdx[b] + 1) & (BOW_DELAY - 1);
+          sumC += ob * mampC[b] * 8;
+        }
+        bowSignal = bowTable(bowSig, bowStrength);
+      }
+
       var ys = y * strMix;
       outL[s] += ys + (sumC + sides) * modMix;
       outR[s] += ys + (sumC - sides) * modMix;
@@ -799,6 +976,7 @@ Engine.prototype.render = function (outL, outR, n) {
     v.w = w; v.lp = lp; v.apX = apX; v.apY = apY; v.excLp = excLp;
     v.burst = burst; v.burstAmp = burstAmp; v.env = env; v.peak = peak;
     v.pState = pState; v.pRange = pRange; v.pDelay = pDelay;
+    v.bowSignal = bowSignal; v.flowState = flowState;
 
     // Vrijgeven zodra stil; in strike-modus ook terwijl de toets nog vast
     // zit — behalve als de particles nog stuiteren, die hebben de gate nodig.
@@ -826,6 +1004,7 @@ Engine.prototype.render = function (outL, outR, n) {
     "      if (m.t === 'p') { Object.assign(this.engine.P, m.p); }\n" +
     "      else if (m.t === 'on') this.engine.noteOn(m.n, m.v);\n" +
     "      else if (m.t === 'off') this.engine.noteOff(m.n);\n" +
+    "      else if (m.t === 'at') this.engine.at = m.v;\n" +
     "      else if (m.t === 'all') this.engine.allNotesOff(); }; }\n" +
     "  process(inputs, outputs) { var o = outputs[0]; if (!o || !o[0]) return true;\n" +
     "    this.engine.render(o[0], o[1] || o[0], o[0].length);\n" +
@@ -838,6 +1017,7 @@ Engine.prototype.render = function (outL, outR, n) {
   var P = {
     mode: 2, shape: 0.35, timbre: 0.60, mallet: 0.50, geometry: 0.20,
     bright: 0.70, damp: 0.72, position: 0.28, model: 0.2,
+    atBow: 0.6, atTarget: "bright", atAmt: 0.5, modFreq: 0.25, modOffset: 0.1,
     revAmt: 0.30, revTime: 0.45, volume: 0.70
   };
   var NUM_VOICES = 8;
@@ -862,19 +1042,29 @@ Engine.prototype.render = function (outL, outR, n) {
   function pushParams() {
     var p = { mode: P.mode, shape: P.shape, timbre: P.timbre, mallet: P.mallet,
               geometry: P.geometry, bright: P.bright, damp: P.damp, position: P.position,
-              model: P.model };
+              model: P.model, atBow: P.atBow, atTarget: P.atTarget, atAmt: P.atAmt,
+              modFreq: P.modFreq, modOffset: P.modOffset };
     if (fallbackEngine) Object.assign(fallbackEngine.P, p);
     else if (node && node.port) node.port.postMessage({ t: "p", p: p });
   }
 
+  var NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+  var scopeNote = document.getElementById("scopeNote");
   function noteOn(note, velocity) {
     if (!running) return;
+    scopeNote.textContent = NOTE_NAMES[note % 12] + (Math.floor(note / 12) - 1) + " \u00b7 vel " + velocity;
     if (fallbackEngine) fallbackEngine.noteOn(note, velocity);
     else if (node && node.port) node.port.postMessage({ t: "on", n: note, v: velocity });
   }
   function noteOff(note) {
     if (fallbackEngine) fallbackEngine.noteOff(note);
     else if (node && node.port) node.port.postMessage({ t: "off", n: note });
+  }
+  var vAt = document.getElementById("vAt");
+  function setAftertouch(v) {
+    vAt.textContent = v.toFixed(2);
+    if (fallbackEngine) fallbackEngine.at = v;
+    else if (node && node.port) node.port.postMessage({ t: "at", v: v });
   }
   function allNotesOff() {
     if (fallbackEngine) fallbackEngine.allNotesOff();
@@ -1067,6 +1257,7 @@ Engine.prototype.render = function (outL, outR, n) {
       out.textContent = P[key].toFixed(2);
       pushParams();
       applyMix();
+      if (KEY_TO_CC[key] !== undefined) sendCc(KEY_TO_CC[key], P[key]);
     });
     if (onDone) el.addEventListener("change", onDone);
   }
@@ -1074,6 +1265,12 @@ Engine.prototype.render = function (outL, outR, n) {
   bind("pTimbre", "timbre", "vTimbre");
   bind("pMallet", "mallet", "vMallet");
   bind("pModel", "model", "vModel");
+  bind("pAtBow", "atBow", "vAtBow");
+  bind("pAtAmt", "atAmt", "vAtAmt");
+  bind("pModFreq", "modFreq", "vModFreq");
+  bind("pModOffset", "modOffset", "vModOffset");
+  var atTargetSel = document.getElementById("atTarget");
+  atTargetSel.addEventListener("change", function () { P.atTarget = atTargetSel.value; pushParams(); });
   bind("pGeom", "geometry", "vGeom");
   bind("pBright", "bright", "vBright");
   bind("pDamp", "damp", "vDamp");
@@ -1083,12 +1280,13 @@ Engine.prototype.render = function (outL, outR, n) {
   bind("pVol", "volume", "vVol");
 
   var modeBtns = document.querySelectorAll(".modebtn");
-  function setMode(m) {
+  function setMode(m, fromMidi) {
     P.mode = m;
     Array.prototype.forEach.call(modeBtns, function (o) {
       o.setAttribute("aria-pressed", parseInt(o.dataset.mode, 10) === m ? "true" : "false");
     });
     pushParams();
+    if (!fromMidi) sendCc(16, m === 0 ? 0 : (m === 1 ? 0.5 : 1));
   }
   Array.prototype.forEach.call(modeBtns, function (b) {
     b.addEventListener("click", function () { setMode(parseInt(b.dataset.mode, 10)); });
@@ -1208,15 +1406,18 @@ Engine.prototype.render = function (outL, outR, n) {
   // -------------------------------------------------------------------------
   // CC 24 = strike_timbre, CC 26 = strike_meta (Mallet) — zie app-elements main.cpp.
   var CC_MAP = { 1: "shape", 17: "geometry", 18: "bright", 19: "damp",
-                 20: "position", 24: "timbre", 26: "mallet", 31: "revAmt", 32: "revTime" };
+                 20: "position", 24: "timbre", 26: "mallet", 28: "modFreq", 29: "modOffset",
+                 31: "revAmt", 32: "revTime" };
   var CC_SLIDER = { shape: "pShape", geometry: "pGeom", bright: "pBright", damp: "pDamp",
-                    position: "pPos", timbre: "pTimbre", mallet: "pMallet", revAmt: "pRevAmt", revTime: "pRevTime" };
+                    position: "pPos", timbre: "pTimbre", mallet: "pMallet", modFreq: "pModFreq",
+                    modOffset: "pModOffset", revAmt: "pRevAmt", revTime: "pRevTime" };
   var CC_LABEL = { shape: "vShape", geometry: "vGeom", bright: "vBright", damp: "vDamp",
-                   position: "vPos", timbre: "vTimbre", mallet: "vMallet", revAmt: "vRevAmt", revTime: "vRevTime" };
+                   position: "vPos", timbre: "vTimbre", mallet: "vMallet", modFreq: "vModFreq",
+                   modOffset: "vModOffset", revAmt: "vRevAmt", revTime: "vRevTime" };
 
   function handleCc(cc, val) {
     if (cc === 16) {
-      setMode(val < 0.33 ? 0 : (val < 0.66 ? 1 : 2));
+      setMode(val < 0.33 ? 0 : (val < 0.66 ? 1 : 2), true);
     } else if (CC_MAP[cc]) {
       var key = CC_MAP[cc];
       P[key] = val;
@@ -1251,11 +1452,69 @@ Engine.prototype.render = function (outL, outR, n) {
       noteOff(d[1]);
     } else if (status === 0xb0) {
       handleCc(d[1], d[2] / 127);
+    } else if (status === 0xd0) {
+      setAftertouch(d[1] / 127);          // kanaal-aftertouch
+    } else if (status === 0xa0) {
+      setAftertouch(d[2] / 127);          // poly-aftertouch: laatste toets telt
     }
   }
 
   var midiEl = document.getElementById("statMidi");
   var midiAccess = null;
+
+  // -------------------------------------------------------------------------
+  // MIDI-uit (motor-feedback, bv. Roto-Control): elke wijziging vanaf de
+  // pagina gaat als CC naar de gekozen output op kanaal 1. Wat via MIDI
+  // bínnenkomt wordt niet teruggestuurd — anders vecht de motor met de hand
+  // (zelfde echo-regel als surfaceBridge in de editor).
+  // -------------------------------------------------------------------------
+  var KEY_TO_CC = { shape: 1, geometry: 17, bright: 18, damp: 19, position: 20,
+                    timbre: 24, mallet: 26, modFreq: 28, modOffset: 29, revAmt: 31, revTime: 32 };
+  var midiOutSel = document.getElementById("midiOut");
+  var midiOutput = null;
+
+  function sendCc(cc, val) {
+    if (!midiOutput) return;
+    var v7 = Math.round(val * 127);
+    if (v7 < 0) v7 = 0; if (v7 > 127) v7 = 127;
+    try { midiOutput.send([0xb0, cc, v7]); } catch (e) { /* poort weg */ }
+  }
+
+  function syncOut() {
+    if (!midiOutput) return;
+    for (var key in KEY_TO_CC) sendCc(KEY_TO_CC[key], P[key]);
+    sendCc(16, P.mode === 0 ? 0 : (P.mode === 1 ? 0.5 : 1));
+  }
+
+  function selectOutput(id) {
+    midiOutput = null;
+    if (midiAccess && id) {
+      midiAccess.outputs.forEach(function (o) { if (o.id === id) midiOutput = o; });
+    }
+    try { localStorage.setItem("snaarbank.midiOut", midiOutput ? midiOutput.name : ""); } catch (e) {}
+    syncOut();
+  }
+
+  midiOutSel.addEventListener("change", function () { selectOutput(midiOutSel.value); });
+
+  function scanOutputs() {
+    var wanted = "";
+    try { wanted = localStorage.getItem("snaarbank.midiOut") || ""; } catch (e) {}
+    var current = midiOutput ? midiOutput.name : wanted;
+    midiOutSel.innerHTML = "";
+    var none = document.createElement("option");
+    none.value = ""; none.textContent = "— geen —";
+    midiOutSel.appendChild(none);
+    var pick = "";
+    midiAccess.outputs.forEach(function (o) {
+      var opt = document.createElement("option");
+      opt.value = o.id; opt.textContent = o.name;
+      midiOutSel.appendChild(opt);
+      if (o.name === current) pick = o.id;
+    });
+    midiOutSel.value = pick;
+    if (!midiOutput || (midiOutput && midiOutput.id !== pick)) selectOutput(pick);
+  }
 
   function scanMidi() {
     var names = [];
@@ -1263,6 +1522,7 @@ Engine.prototype.render = function (outL, outR, n) {
       input.onmidimessage = onMidi;
       names.push(input.name);
     });
+    scanOutputs();
     if (names.length) {
       midiEl.textContent = names.length === 1 ? names[0] : names[0] + " +" + (names.length - 1);
       midiEl.className = "live";
