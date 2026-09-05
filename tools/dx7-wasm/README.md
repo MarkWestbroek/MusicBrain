@@ -7,8 +7,8 @@ engine). Er zijn twee backends met één interface, gekozen in
 
 | Backend | Bestand | Hoe |
 |---|---|---|
-| **JS-port** (default) | `editor/public/dx7/dx7-core.js` | Regel-voor-regel port van msfa naar JavaScript (int32-DSP, één BigInt-shift per blok). Geen toolchain nodig. |
-| **wasm** (default zodra aanwezig) | `editor/public/dx7/dx7.wasm` | `dx7_wasm.cc` + msfa gecompileerd met wasi-sdk (`build.sh`). Wordt gebruikt zodra het bestand bestaat. |
+| **JS-port** (fallback) | `editor/public/dx7/dx7-core.js` | Regel-voor-regel port van msfa naar JavaScript (int32-DSP, één BigInt-shift per blok). Geen toolchain nodig. |
+| **wasm** (default) | `editor/public/dx7/dx7.wasm` | `dx7_wasm.cc` + msfa gecompileerd met wasi-sdk (`build.sh`). Wordt gebruikt zodra het bestand bestaat. |
 
 Beide renderen op 44,1 kHz (zoals `Dx7Module.h`) in een AudioWorklet die
 lineair naar de contextfrequentie resamplet, met 16-stemmige polyfonie en
