@@ -164,7 +164,7 @@ input[type="range"]:focus-visible,
 /* ---- signaalketen ---- */
 .chain {
   display: grid;
-  grid-template-columns: 1fr 18px 1fr 18px 1fr;
+  grid-template-columns: 1fr 18px 1fr 18px 1fr 18px 1fr;
   align-items: stretch;
   gap: 0;
 }
@@ -230,6 +230,7 @@ input[type="range"]::-moz-range-thumb {
 }
 .modebtn:hover { border-color: var(--accent-strong); }
 .modebtn[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+.fxtoggle { flex: 0 0 auto; padding: 3px 9px; }
 
 /* ---- modulatie ---- */
 .modgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px 22px; }
@@ -428,7 +429,44 @@ input[type="range"]::-moz-range-thumb {
 
     <section class="stage">
       <div class="stagehead">
-        <p class="eyebrow">3 &middot; Space</p>
+        <p class="eyebrow">3 &middot; Tape echo</p>
+        <button class="modebtn fxtoggle" id="echoOn" aria-pressed="true" title="Echo aan/uit">Aan</button>
+      </div>
+
+      <div class="ctl">
+        <label for="pEchoAmt">Echo mix</label>
+        <span class="val" id="vEchoAmt">0.35</span>
+        <span class="cc">CC 33</span>
+        <input type="range" id="pEchoAmt" min="0" max="1" step="0.001" value="0.35">
+      </div>
+
+      <div class="ctl">
+        <label for="pEchoTime">Tape time</label>
+        <span class="val" id="vEchoTime">0.55</span>
+        <span class="cc">CC 34 &mdash; glijdt zoals een bandkop</span>
+        <input type="range" id="pEchoTime" min="0" max="1" step="0.001" value="0.55">
+      </div>
+
+      <div class="ctl">
+        <label for="pEchoFb">Feedback</label>
+        <span class="val" id="vEchoFb">0.45</span>
+        <span class="cc">CC 35</span>
+        <input type="range" id="pEchoFb" min="0" max="1" step="0.001" value="0.45">
+      </div>
+
+      <div class="ctl">
+        <label for="pEchoWow">Wow &amp; flutter</label>
+        <span class="val" id="vEchoWow">0.30</span>
+        <span class="cc">CC 36</span>
+        <input type="range" id="pEchoWow" min="0" max="1" step="0.001" value="0.30">
+      </div>
+    </section>
+
+    <div class="arrow" aria-hidden="true">&#9656;</div>
+
+    <section class="stage">
+      <div class="stagehead">
+        <p class="eyebrow">4 &middot; Space</p>
         <span class="badge badge--dim">Galm</span>
       </div>
 
@@ -512,6 +550,7 @@ input[type="range"]::-moz-range-thumb {
         met <span class="num">5</span> stemmen als harde grens. Deze pagina benadert dat met
         &eacute;&eacute;n Karplus&ndash;Strong-snaar per stem: dezelfde keten
         exciter&nbsp;&rarr;&nbsp;resonator&nbsp;&rarr;&nbsp;space, veel goedkoper, andere klank.
+        De tape echo is een extraatje van deze pagina en zit niet in de firmware.
       </p>
     </div>
     <div>
@@ -1018,12 +1057,12 @@ Engine.prototype.render = function (outL, outR, n) {
     mode: 2, shape: 0.35, timbre: 0.60, mallet: 0.50, geometry: 0.20,
     bright: 0.70, damp: 0.72, position: 0.28, model: 0.2,
     atBow: 0.6, atTarget: "bright", atAmt: 0.5, modFreq: 0.25, modOffset: 0.1,
+    echoOn: true, echoAmt: 0.35, echoTime: 0.55, echoFb: 0.45, echoWow: 0.30,
     revAmt: 0.30, revTime: 0.45, volume: 0.70
   };
   var NUM_VOICES = 8;
 
   var ctx = null, node = null, analyser = null, outGain = null;
-  var dryGain = null, wetGain = null, convolver = null;
   var sr = 48000, running = false, backend = "";
   var fallbackEngine = null;   // alleen bij ScriptProcessor
   var voiceCount = 0;
@@ -1072,31 +1111,103 @@ Engine.prototype.render = function (outL, outR, n) {
   }
 
   // -------------------------------------------------------------------------
-  // Galm — gegenereerde impulsrespons (exponentieel dovende ruis).
+  // Effecten. Elk blok is { input, output, apply(t) } — een kleine vaste
+  // keten (FX_ORDER), bewust geen patcher. Wil je later herschikken of
+  // blokken toevoegen, dan is dat de enige plek die je hoeft te raken.
   // -------------------------------------------------------------------------
-  function buildImpulse() {
-    if (!ctx) return;
-    var dur = 0.35 + P.revTime * 3.4;
-    var len = Math.max(1, Math.floor(sr * dur));
-    var ir = ctx.createBuffer(2, len, sr);
-    for (var ch = 0; ch < 2; ch++) {
-      var d = ir.getChannelData(ch);
-      var lp = 0;
-      for (var i = 0; i < len; i++) {
-        var t = i / len;
-        var decay = Math.pow(1 - t, 2.2);
-        lp += ((Math.random() * 2 - 1) - lp) * 0.42;
-        d[i] = i < sr * 0.012 ? 0 : lp * decay;
-      }
+  var FX_ORDER = ["echo", "reverb"];
+  var fx = {};
+
+  // Tape echo: delay met feedback door een verzadiger + lowpass (band wordt
+  // per omloop doffer), en wow/flutter als twee LFO's op de bandsnelheid.
+  function makeTapeEcho(ctx) {
+    var input = ctx.createGain(), output = ctx.createGain();
+    var dry = ctx.createGain(), wet = ctx.createGain();
+    var delay = ctx.createDelay(2.0);
+    var fb = ctx.createGain();
+    var sat = ctx.createWaveShaper();
+    var curve = new Float32Array(1024);
+    for (var i = 0; i < 1024; i++) {
+      var x = i / 511.5 - 1;
+      curve[i] = Math.tanh(1.8 * x) / 1.8;   // versterking 1 rond nul, zacht plafond op ~0.5
     }
-    convolver.buffer = ir;
+    sat.curve = curve;
+    var lp = ctx.createBiquadFilter();
+    lp.type = "lowpass"; lp.frequency.value = 3200; lp.Q.value = 0.4;
+    var hp = ctx.createBiquadFilter();
+    hp.type = "highpass"; hp.frequency.value = 140;
+
+    var wow = ctx.createOscillator();      wow.frequency.value = 0.7;
+    var flutter = ctx.createOscillator();  flutter.frequency.value = 6.3;
+    var wowDepth = ctx.createGain(), flutDepth = ctx.createGain();
+    wowDepth.gain.value = 0; flutDepth.gain.value = 0;
+    wow.connect(wowDepth);         wowDepth.connect(delay.delayTime);
+    flutter.connect(flutDepth);    flutDepth.connect(delay.delayTime);
+    wow.start(); flutter.start();
+
+    input.connect(dry);   dry.connect(output);
+    input.connect(delay);
+    delay.connect(sat);   sat.connect(lp);   lp.connect(hp);
+    hp.connect(wet);      wet.connect(output);
+    hp.connect(fb);       fb.connect(delay);
+
+    return {
+      input: input, output: output,
+      apply: function (t) {
+        var on = P.echoOn;
+        var mix = on ? P.echoAmt : 0;
+        wet.gain.setTargetAtTime(mix * 0.9, t, 0.02);
+        dry.gain.setTargetAtTime(1 - mix * 0.4, t, 0.02);
+        // 60 ms … 1,2 s, exponentieel. Trage overgang = pitch-zwiep zoals bij echte band.
+        delay.delayTime.setTargetAtTime(0.06 * Math.pow(20, P.echoTime), t, 0.08);
+        fb.gain.setTargetAtTime(on ? P.echoFb * 0.92 : 0, t, 0.02);
+        wowDepth.gain.setTargetAtTime(P.echoWow * 0.0035, t, 0.05);
+        flutDepth.gain.setTargetAtTime(P.echoWow * 0.00025, t, 0.05);
+      }
+    };
+  }
+
+  // Galm — convolver met een gegenereerde impulsrespons (exponentieel dovende ruis).
+  function makeReverb(ctx) {
+    var input = ctx.createGain(), output = ctx.createGain();
+    var dry = ctx.createGain(), wet = ctx.createGain();
+    var conv = ctx.createConvolver();
+    input.connect(dry);   dry.connect(output);
+    input.connect(conv);  conv.connect(wet);  wet.connect(output);
+
+    return {
+      input: input, output: output,
+      apply: function (t) {
+        wet.gain.setTargetAtTime(P.revAmt * 0.9, t, 0.02);
+        dry.gain.setTargetAtTime(1 - P.revAmt * 0.55, t, 0.02);
+      },
+      rebuild: function () {
+        var dur = 0.35 + P.revTime * 3.4;
+        var len = Math.max(1, Math.floor(sr * dur));
+        var ir = ctx.createBuffer(2, len, sr);
+        for (var ch = 0; ch < 2; ch++) {
+          var d = ir.getChannelData(ch);
+          var lp = 0;
+          for (var i = 0; i < len; i++) {
+            var t = i / len;
+            var decay = Math.pow(1 - t, 2.2);
+            lp += ((Math.random() * 2 - 1) - lp) * 0.42;
+            d[i] = i < sr * 0.012 ? 0 : lp * decay;
+          }
+        }
+        conv.buffer = ir;
+      }
+    };
+  }
+
+  function buildImpulse() {
+    if (fx.reverb) fx.reverb.rebuild();
   }
 
   function applyMix() {
     if (!ctx) return;
     var t = ctx.currentTime;
-    wetGain.gain.setTargetAtTime(P.revAmt * 0.9, t, 0.02);
-    dryGain.gain.setTargetAtTime(1 - P.revAmt * 0.55, t, 0.02);
+    for (var i = 0; i < FX_ORDER.length; i++) fx[FX_ORDER[i]].apply(t);
     outGain.gain.setTargetAtTime(P.volume * 0.9, t, 0.02);
   }
 
@@ -1104,19 +1215,19 @@ Engine.prototype.render = function (outL, outR, n) {
   // Audio starten: eerst AudioWorklet, anders ScriptProcessor.
   // -------------------------------------------------------------------------
   function connectChain(source) {
-    convolver = ctx.createConvolver();
-    dryGain = ctx.createGain();
-    wetGain = ctx.createGain();
+    fx.echo = makeTapeEcho(ctx);
+    fx.reverb = makeReverb(ctx);
     outGain = ctx.createGain();
     analyser = ctx.createAnalyser();
     analyser.fftSize = 2048;
     scopeBuf = new Float32Array(analyser.fftSize);
 
-    source.connect(dryGain);
-    source.connect(convolver);
-    convolver.connect(wetGain);
-    dryGain.connect(outGain);
-    wetGain.connect(outGain);
+    var head = source;
+    for (var i = 0; i < FX_ORDER.length; i++) {
+      head.connect(fx[FX_ORDER[i]].input);
+      head = fx[FX_ORDER[i]].output;
+    }
+    head.connect(outGain);
     outGain.connect(analyser);
     analyser.connect(ctx.destination);
 
@@ -1275,11 +1386,23 @@ Engine.prototype.render = function (outL, outR, n) {
   bind("pBright", "bright", "vBright");
   bind("pDamp", "damp", "vDamp");
   bind("pPos", "position", "vPos");
+  bind("pEchoAmt", "echoAmt", "vEchoAmt");
+  bind("pEchoTime", "echoTime", "vEchoTime");
+  bind("pEchoFb", "echoFb", "vEchoFb");
+  bind("pEchoWow", "echoWow", "vEchoWow");
+  var echoBtn = document.getElementById("echoOn");
+  function setEchoOn(on) {
+    P.echoOn = on;
+    echoBtn.setAttribute("aria-pressed", on ? "true" : "false");
+    echoBtn.textContent = on ? "Aan" : "Uit";
+    applyMix();
+  }
+  echoBtn.addEventListener("click", function () { setEchoOn(!P.echoOn); });
   bind("pRevAmt", "revAmt", "vRevAmt");
   bind("pRevTime", "revTime", "vRevTime", buildImpulse);
   bind("pVol", "volume", "vVol");
 
-  var modeBtns = document.querySelectorAll(".modebtn");
+  var modeBtns = document.querySelectorAll(".modes .modebtn");
   function setMode(m, fromMidi) {
     P.mode = m;
     Array.prototype.forEach.call(modeBtns, function (o) {
@@ -1407,13 +1530,16 @@ Engine.prototype.render = function (outL, outR, n) {
   // CC 24 = strike_timbre, CC 26 = strike_meta (Mallet) — zie app-elements main.cpp.
   var CC_MAP = { 1: "shape", 17: "geometry", 18: "bright", 19: "damp",
                  20: "position", 24: "timbre", 26: "mallet", 28: "modFreq", 29: "modOffset",
-                 31: "revAmt", 32: "revTime" };
+                 31: "revAmt", 32: "revTime",
+                 33: "echoAmt", 34: "echoTime", 35: "echoFb", 36: "echoWow" };
   var CC_SLIDER = { shape: "pShape", geometry: "pGeom", bright: "pBright", damp: "pDamp",
                     position: "pPos", timbre: "pTimbre", mallet: "pMallet", modFreq: "pModFreq",
-                    modOffset: "pModOffset", revAmt: "pRevAmt", revTime: "pRevTime" };
+                    modOffset: "pModOffset", revAmt: "pRevAmt", revTime: "pRevTime",
+                    echoAmt: "pEchoAmt", echoTime: "pEchoTime", echoFb: "pEchoFb", echoWow: "pEchoWow" };
   var CC_LABEL = { shape: "vShape", geometry: "vGeom", bright: "vBright", damp: "vDamp",
                    position: "vPos", timbre: "vTimbre", mallet: "vMallet", modFreq: "vModFreq",
-                   modOffset: "vModOffset", revAmt: "vRevAmt", revTime: "vRevTime" };
+                   modOffset: "vModOffset", revAmt: "vRevAmt", revTime: "vRevTime",
+                   echoAmt: "vEchoAmt", echoTime: "vEchoTime", echoFb: "vEchoFb", echoWow: "vEchoWow" };
 
   function handleCc(cc, val) {
     if (cc === 16) {
@@ -1469,7 +1595,8 @@ Engine.prototype.render = function (outL, outR, n) {
   // (zelfde echo-regel als surfaceBridge in de editor).
   // -------------------------------------------------------------------------
   var KEY_TO_CC = { shape: 1, geometry: 17, bright: 18, damp: 19, position: 20,
-                    timbre: 24, mallet: 26, modFreq: 28, modOffset: 29, revAmt: 31, revTime: 32 };
+                    timbre: 24, mallet: 26, modFreq: 28, modOffset: 29, revAmt: 31, revTime: 32,
+                    echoAmt: 33, echoTime: 34, echoFb: 35, echoWow: 36 };
   var midiOutSel = document.getElementById("midiOut");
   var midiOutput = null;
 
