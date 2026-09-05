@@ -10,6 +10,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useModularProject } from './store';
 import { AudioEngine, type EngineStatus } from './sim/AudioEngine';
 import { getEngine } from './sim/engineSingleton';
+import { Dx7 } from './runtime';
 import {
   ScreenKeyboardSource, TestSequenceSource, WebMidiSource,
   type MidiSource, type MidiEvent,
@@ -143,6 +144,11 @@ export function SimulationPanel(): JSX.Element {
               ? `${status.voiceFreqHz.toFixed(1)} Hz`
               : '— (geen noot)'}
           </span>
+          {Dx7.info() && (
+            <span style={{ color: Dx7.lastError ? '#b91c1c' : '#475569' }} title="DX7-worklet (msfa-kern) in de browser">
+              {Dx7.info()}
+            </span>
+          )}
           <span style={{ marginLeft: 'auto', display: 'inline-flex', gap: 6 }}>
             {!status.running
               ? <button onClick={startAll} className="primary">▶ Start</button>

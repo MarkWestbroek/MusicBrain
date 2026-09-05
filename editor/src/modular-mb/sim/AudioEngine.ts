@@ -28,7 +28,7 @@ import type {
   ModularProject, Patch, ModuleInstance, ModuleType,
   PatchConnection, ControlValue, SignalType,
 } from '../types';
-import { registry, Vcf, Ladder, Ms20, Vco, FmVco, Vca, Ahdsr, Lfo } from '../runtime';
+import { registry, Vcf, Ladder, Ms20, Vco, FmVco, Vca, Ahdsr, Lfo, Dx7 } from '../runtime';
 
 export interface EngineStatus {
   running: boolean;
@@ -202,7 +202,13 @@ interface SeqNode extends BaseNode {
   /** True if a MIDI-IN drives our run_in. */
   midiDrivenRun: boolean;
 }
-type EngineNode = VcoNode | VcfNode | VcaNode | EnvNode | LfoNode | OutNode | MidiInNode | SeqNode | NoiseNode | EchoNode | PhaserNode | MixerNode | CvMathNode;
+/** DX7 (msfa-wasm in een AudioWorklet). Krijgt note-events rechtstreeks
+ *  van de engine — alle noten, niet alleen de laatste — en is intern poly. */
+interface Dx7Node extends BaseNode {
+  kind: 'dx7';
+  runtime: Dx7;
+}
+type EngineNode = VcoNode | VcfNode | VcaNode | EnvNode | LfoNode | OutNode | MidiInNode | SeqNode | NoiseNode | EchoNode | PhaserNode | MixerNode | CvMathNode | Dx7Node;
 
 export class AudioEngine {
   private master: Tone.Gain | null = null;
@@ -230,6 +236,13 @@ export class AudioEngine {
     const racks = project.racks.filter((r) => patch.rackIds.includes(r.id));
     const inRack = new Set<string>();
     for (const r of racks) for (const s of r.slots) inRack.add(s.moduleId);
+    // Niet-master-leden van PolyGroups: op de Teensy elk één stem, hier
+    // zou dat unisono worden. De DX7-node is zelf al poly, dus alleen de
+    // master (members[0]) krijgt een node.
+    const polyVoiceIds = new Set<string>();
+    for (const r of racks) for (const g of r.polyGroups ?? []) {
+      for (const mem of g.members.slice(1)) if (mem.kind === 'module') polyVoiceIds.add(mem.moduleId);
+    }
     for (const m of project.modules) {
       if (!inRack.has(m.id)) continue;
       const t = project.moduleTypes.find((x) => x.id === m.typeId);
@@ -244,6 +257,7 @@ export class AudioEngine {
       if (!inRack.has(m.id)) continue;
       const tRaw = project.moduleTypes.find((x) => x.id === m.typeId);
       if (!tRaw) continue;
+      if (tRaw.id === Dx7.typeId && polyVoiceIds.has(m.id)) continue;
       // ADR 0009 — external simulation proxy. If the type declares a
       // `simulatedBy`, resolve to the proxy type and remap controls; the
       // engine then treats this external module as if it were the proxy.
@@ -325,6 +339,7 @@ export class AudioEngine {
     for (const node of this.nodes.values()) {
       if (node.kind === 'sequencer') this.stopSequencer(node);
       if (node.kind === 'envelope') node.env.triggerRelease();
+      if (node.kind === 'dx7') node.runtime.allOff();
       if (node.kind === 'noise') { try { node.noise.stop(); } catch { /* ignore */ } }
     }
     for (const o of this.startedOscs) {
@@ -342,6 +357,11 @@ export class AudioEngine {
   noteOn(midi: number, velocity = 0.9): void {
     this.currentKeyboardNote = midi;
     const freq = midiToHz(midi);
+
+    // DX7-nodes krijgen élke noot (intern poly); zie Dx7.ts.
+    for (const node of this.nodes.values()) {
+      if (node.kind === 'dx7') node.runtime.noteOn(midi, velocity);
+    }
 
     // Verzamel alle MIDI-In modules; als die er zijn, fungeren zij als
     // dispatcher: keyboard/sequence-source rijdt via hen naar VCO/ENV.
@@ -421,6 +441,9 @@ export class AudioEngine {
   }
 
   noteOff(midi: number): void {
+    for (const node of this.nodes.values()) {
+      if (node.kind === 'dx7') node.runtime.noteOff(midi);
+    }
     if (this.currentKeyboardNote !== midi) return;
     // MIDI-In dispatch.
     for (const node of this.nodes.values()) {
@@ -493,6 +516,10 @@ export class AudioEngine {
         if (controlId === 'detune') { node.runtime.setControl('detune', num); return true; }
         // FM-VCO: FM-diepte (octaven) en level lopen live via de runtime.
         if (controlId === 'fm_amt' || controlId === 'level') { node.runtime.setControl(controlId, num); return true; }
+        return true;
+      }
+      case 'dx7': {
+        node.runtime.setControl(controlId, value);
         return true;
       }
       case 'vcf': {
@@ -656,6 +683,7 @@ export class AudioEngine {
     for (const node of this.nodes.values()) {
       switch (node.kind) {
         case 'vco': node.runtime.dispose(); break;
+        case 'dx7': node.runtime.dispose(); break;
         case 'vcf': node.runtime.dispose(); node.cvScale?.dispose(); node.qCvScale?.dispose(); break;
         case 'vca': node.runtime.dispose(); node.cvSum?.dispose(); break;
         case 'envelope': node.runtime.dispose(); break;
@@ -755,6 +783,11 @@ export class AudioEngine {
         inputs.push(g); panners.push(p);
       }
       return { ...base, kind: 'mixer', channels, inputs, panners, out };
+    }
+    // DX7: eigen node-soort (worklet), los van de Tone-VCO's.
+    if (t.id === Dx7.typeId) {
+      const rt = registry.create(t, m, controls) as Dx7;
+      return { ...base, kind: 'dx7', runtime: rt };
     }
     switch (kind) {
       case 'vco': {
@@ -1158,6 +1191,7 @@ export class AudioEngine {
 function audioOutputOf(n: EngineNode): Tone.ToneAudioNode | null {
   switch (n.kind) {
     case 'vco': return n.osc;
+    case 'dx7': return n.runtime.out;
     case 'vcf': return n.filter;
     case 'vca': return n.gain;
     case 'noise': return n.level;
