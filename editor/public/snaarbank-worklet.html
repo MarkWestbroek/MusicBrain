@@ -290,7 +290,7 @@ input[type="range"]::-moz-range-thumb {
       <div>
         <p class="eyebrow">Elements &mdash; draagbare demo</p>
         <h1 class="wordmark">Music<b>Brain</b> Snaarbank</h1>
-        <p class="tagline machine">Karplus&ndash;Strong resonator &middot; 8 stemmen &middot; web audio</p>
+        <p class="tagline machine">Modale + Karplus&ndash;Strong resonator &middot; 8 stemmen &middot; web audio</p>
       </div>
       <button class="btn" id="startBtn">Audio starten</button>
     </div>
@@ -357,6 +357,13 @@ input[type="range"]::-moz-range-thumb {
       <div class="stagehead">
         <p class="eyebrow">2 &middot; Resonator</p>
         <span class="badge badge--dim">Snaar</span>
+      </div>
+
+      <div class="ctl">
+        <label for="pModel">Model</label>
+        <span class="val" id="vModel">0.20</span>
+        <span class="cc">geen CC &mdash; modaal (Elements) &larr;&rarr; snaar (Karplus&ndash;Strong)</span>
+        <input type="range" id="pModel" min="0" max="1" step="0.001" value="0.20">
       </div>
 
       <div class="ctl">
@@ -462,6 +469,18 @@ input[type="range"]::-moz-range-thumb {
 <script type="text/plain" id="dsp-src">
 var MAX_DELAY = 4096;   // laagste toon ~11,7 Hz bij 48 kHz
 var NUM_VOICES = 8;
+var NUM_MODES = 48;     // Elements draait er 52 per stem
+
+// Elements' lut_stiffness (resources.cc), 33 steunpunten over geometry 0..1:
+// negatief = partialen gedrukt, 0 bij 0,25 = harmonisch (snaar), daarna
+// steeds verder uitgerekt = staaf → klok.
+var LUT_STIFFNESS = [-0.0625, -0.054688, -0.046875, -0.039062, -0.03125, -0.023438, -0.015625, -0.0078125, 0, 0, 0.0010096, 0.0040023, 0.0078084, 0.012649, 0.018806, 0.026636, 0.036594, 0.04926, 0.065368, 0.085855, 0.11191, 0.14505, 0.18719, 0.2408, 0.30897, 0.39567, 0.50595, 0.64619, 0.82456, 1, 1.048, 1.4571, 2];
+function lutStiffness(g) {
+  var x = g * 32; if (x < 0) x = 0; if (x > 31.999) x = 31.999;
+  var i = x | 0, f = x - i;
+  return LUT_STIFFNESS[i] + (LUT_STIFFNESS[i + 1] - LUT_STIFFNESS[i]) * f;
+}
+var MODAL_GAIN = 0.4;   // genormaliseerd op het snaarniveau (gemeten in node)
 
 // Karplus–Strong snaar.
 //
@@ -495,9 +514,21 @@ function Voice() {
   this.strength = 1;
   this.velTimbre = 1;
   this.age = 0;
+  // Modale resonator (Elements resonator.cc): per modus een SVF-bandpass.
+  this.mg = new Float32Array(NUM_MODES);    // tan(pi f)
+  this.mr = new Float32Array(NUM_MODES);    // 1 / resonantie
+  this.mh = new Float32Array(NUM_MODES);    // 1 / (1 + r g + g^2)
+  this.ms1 = new Float32Array(NUM_MODES);   // filtertoestand
+  this.ms2 = new Float32Array(NUM_MODES);
+  this.mampC = new Float32Array(NUM_MODES); // positie-gewicht, center
+  this.mampS = new Float32Array(NUM_MODES); // positie-gewicht, side (LFO)
+  this.mnum = 0;
+  this.mf0 = 0.01;                          // grondtoon, genormaliseerd op sr
+  this.lfoPhase = Math.random();
 }
 Voice.prototype.reset = function () {
   this.buf.fill(0);
+  this.ms1.fill(0); this.ms2.fill(0);
   this.w = 0; this.lp = 0; this.apX = 0; this.apY = 0; this.excLp = 0;
   this.burst = 0; this.env = 0; this.peak = 0;
 };
@@ -506,7 +537,7 @@ function Engine(sr) {
   this.sr = sr;
   // 0..1 genormaliseerd — exact de CC-map van app-elements.
   this.P = { mode: 2, shape: 0.35, timbre: 0.60, mallet: 0.50, geometry: 0.20,
-             bright: 0.70, damp: 0.72, position: 0.28 };
+             bright: 0.70, damp: 0.72, position: 0.28, model: 0.2 };
   this.voices = [];
   for (var i = 0; i < NUM_VOICES; i++) this.voices.push(new Voice());
   this.ageCounter = 0;
@@ -522,6 +553,49 @@ Engine.prototype.updateCoeffs = function () {
   this.cStiff    = 0.45 * P.geometry;
   this.cExcLp    = 0.02 + 0.96 * (P.timbre * P.timbre);
   this.cPos      = 0.02 + 0.48 * P.position;
+};
+
+// Elements Resonator::ComputeFilters, één keer per blok. Modus i ligt op
+// f0 · stretch, waarbij stretch per modus met `stiffness` groeit en stiffness
+// zelf afzwakt (0,93 / 0,98). q daalt per modus met q_loss (brightness), en
+// die afname vlakt af met geometry — zodat hoge partialen niet te snel sterven.
+Engine.prototype.computeModes = function (v, blockLen) {
+  var P = this.P;
+  var geometry = P.geometry, damping = P.damp;
+  var stiffness = lutStiffness(geometry);
+  var harmonic = v.mf0;
+  var stretch = 1;
+  var q = 500 * Math.pow(10, 4 * damping * 0.8);
+  var ba = 1 - geometry; ba *= ba; ba *= ba; ba *= ba;
+  var brightness = P.bright * (1 - 0.2 * ba);
+  var qLoss = brightness * (2 - brightness) * 0.85 + 0.15;
+  var qLossRate = geometry * (2 - geometry) * 0.1;
+  var num = 0;
+  for (var i = 0; i < NUM_MODES; i++) {
+    var pf = harmonic * stretch;
+    if (pf >= 0.49) pf = 0.49; else num = i + 1;
+    var g = Math.tan(Math.PI * pf);
+    var r = 1 / (1 + pf * q);
+    v.mg[i] = g; v.mr[i] = r; v.mh[i] = 1 / (1 + r * g + g * g);
+    stretch += stiffness;
+    stiffness *= stiffness < 0 ? 0.93 : 0.98;
+    qLoss += qLossRate * (1 - qLoss);
+    harmonic += v.mf0;
+    q *= qLoss;
+  }
+  v.mnum = num;
+
+  // Positie → cosinus-gewicht per modus (CosineOscillator: 0,5 + 0,5·cos(iθ)).
+  // Side-kanaal: tweede positie die met een 0,5 Hz-driehoek-LFO wandelt.
+  v.lfoPhase += 0.5 * blockLen / this.sr;
+  if (v.lfoPhase >= 1) v.lfoPhase -= 1;
+  var lfo = v.lfoPhase > 0.5 ? 1 - v.lfoPhase : v.lfoPhase;
+  var thC = 2 * Math.PI * P.position;
+  var thS = 2 * Math.PI * (0.1 + lfo);
+  for (var k = 0; k < num; k++) {
+    v.mampC[k] = 0.5 + 0.5 * Math.cos(k * thC);
+    v.mampS[k] = 0.5 + 0.5 * Math.cos(k * thS);
+  }
 };
 
 Engine.prototype.noteOn = function (note, velocity) {
@@ -550,6 +624,8 @@ Engine.prototype.noteOn = function (note, velocity) {
 
   v.delay = d;
   v.posTap = Math.max(1, Math.round(this.cPos * d));
+  // Modale grondtoon met een paar cent per-stem-spreiding — houdt akkoorden levend.
+  v.mf0 = (440 * Math.pow(2, (note - 69) / 12)) / this.sr * (1 + (Math.random() - 0.5) * 0.004);
   v.note = note;
   // Velocity: steiler dan lineair (vel 64 ≈ −10 dB, vel 20 ≈ −24 dB), en een
   // zachte aanslag maakt de exciter ook doffer — zoals een echte snaar.
@@ -609,11 +685,19 @@ Engine.prototype.render = function (outL, outR, n) {
   var pRangeMul = 1 - pDecayFactor * pDecayFactor * 0.5;
   var pHitLen = Math.max(2, Math.round(24 * (0.2 + 0.8 * this.P.shape)));
 
-  for (var i = 0; i < n; i++) outL[i] = 0;
+  for (var i = 0; i < n; i++) { outL[i] = 0; outR[i] = 0; }
+
+  // Model: 0 = Elements' modale bank, 1 = Karplus–Strong-snaar.
+  var strMix = this.P.model, modMix = 1 - this.P.model;
+  var modIn = 0.125 * MODAL_GAIN;
 
   for (var vi = 0; vi < NUM_VOICES; vi++) {
     var v = this.voices[vi];
     if (!v.active) continue;
+
+    this.computeModes(v, n);
+    var mnum = v.mnum, mg = v.mg, mr = v.mr, mh = v.mh, ms1 = v.ms1, ms2 = v.ms2;
+    var mampC = v.mampC, mampS = v.mampS;
 
     var buf = v.buf, w = v.w, delay = v.delay, tap = v.posTap;
     var lp = v.lp, apX = v.apX, apY = v.apY, excLp = v.excLp;
@@ -685,9 +769,31 @@ Engine.prototype.render = function (outL, outR, n) {
       }
       w++; if (w >= MAX_DELAY) w = 0;
 
+      // --- modale bank: dezelfde exciter door NUM_MODES bandpass-SVF's ---
+      var sumC = 0, sumS = 0;
+      if (modMix > 0) {
+        var mi = exc * modIn;
+        for (var m = 0; m < mnum; m++) {
+          var gg = mg[m], rr = mr[m], s1 = ms1[m], s2 = ms2[m];
+          var hp = (mi - rr * s1 - gg * s1 - s2) * mh[m];
+          var bp = gg * hp + s1;
+          ms1[m] = gg * hp + bp;
+          var lpm = gg * bp + s2;
+          ms2[m] = gg * bp + lpm;
+          sumC += bp * mampC[m];
+          sumS += bp * mampS[m];
+        }
+      }
+      var sides = (sumS - sumC) * 0.5;
+
+      var ys = y * strMix;
+      outL[s] += ys + (sumC + sides) * modMix;
+      outR[s] += ys + (sumC - sides) * modMix;
+
       var a = y < 0 ? -y : y;
+      var ac = sumC < 0 ? -sumC : sumC;
+      if (ac > a) a = ac;
       peak = a > peak ? a : peak * peakDecay;
-      outL[s] += y;
     }
 
     v.w = w; v.lp = lp; v.apX = apX; v.apY = apY; v.excLp = excLp;
@@ -700,9 +806,8 @@ Engine.prototype.render = function (outL, outR, n) {
   }
 
   for (var k = 0; k < n; k++) {
-    var o = Math.tanh(outL[k] * 0.42);
-    outL[k] = o;
-    outR[k] = o;
+    outL[k] = Math.tanh(outL[k] * 0.42);
+    outR[k] = Math.tanh(outR[k] * 0.42);
   }
 };
 </script>
@@ -732,7 +837,7 @@ Engine.prototype.render = function (outL, outR, n) {
   // Parameters op de UI-thread — gespiegeld naar de engine.
   var P = {
     mode: 2, shape: 0.35, timbre: 0.60, mallet: 0.50, geometry: 0.20,
-    bright: 0.70, damp: 0.72, position: 0.28,
+    bright: 0.70, damp: 0.72, position: 0.28, model: 0.2,
     revAmt: 0.30, revTime: 0.45, volume: 0.70
   };
   var NUM_VOICES = 8;
@@ -756,7 +861,8 @@ Engine.prototype.render = function (outL, outR, n) {
 
   function pushParams() {
     var p = { mode: P.mode, shape: P.shape, timbre: P.timbre, mallet: P.mallet,
-              geometry: P.geometry, bright: P.bright, damp: P.damp, position: P.position };
+              geometry: P.geometry, bright: P.bright, damp: P.damp, position: P.position,
+              model: P.model };
     if (fallbackEngine) Object.assign(fallbackEngine.P, p);
     else if (node && node.port) node.port.postMessage({ t: "p", p: p });
   }
@@ -967,6 +1073,7 @@ Engine.prototype.render = function (outL, outR, n) {
   bind("pShape", "shape", "vShape");
   bind("pTimbre", "timbre", "vTimbre");
   bind("pMallet", "mallet", "vMallet");
+  bind("pModel", "model", "vModel");
   bind("pGeom", "geometry", "vGeom");
   bind("pBright", "bright", "vBright");
   bind("pDamp", "damp", "vDamp");
