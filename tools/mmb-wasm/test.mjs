@@ -77,6 +77,11 @@ for (const f of files) {
   else if (id === 'tp_mmb_tides') { script = (s) => m.setIn('gate', s < 0.01 ? 1 : 0); }
   else if (id === 'tp_mmb_warps') { m.setCtl('shape', 1); m.setCtl('algo', 2); let ph = 0; script = () => { const b = m.inBuf(1); for (let k = 0; k < m.block; k++) { b[k] = 0.5 * Math.sin(ph); ph += 2 * Math.PI * 330 / m.rate; } m.ex.mmb_input_connected(1, 1); m.setIn('voct', 0); }; }
   else if (id === 'tp_mmb_tape_echo') { m.setCtl('feedback', 0.6); m.setCtl('mix', 1); let ph = 0; script = (s) => { const b = m.inBuf(0); for (let k = 0; k < m.block; k++) { b[k] = s < 0.05 ? 0.5 * Math.sin(ph) : 0; ph += 2 * Math.PI * 440 / m.rate; } m.ex.mmb_input_connected(0, 1); }; }
+  else if (id === 'tp_mmb_sampler') {
+    // 0,5 s sinus van 220 Hz als sample in slot 0; gate 0,3 s → toon op 220 Hz (voct 0, root 60)
+    const n = 22050, i16 = new Int16Array(n); for (let i = 0; i < n; i++) i16[i] = Math.round(12000 * Math.sin(2 * Math.PI * 220 * i / 44100));
+    const p = m.ex.mmb_blob_ptr(0, n * 2); new Uint8Array(m.ex.memory.buffer).set(new Uint8Array(i16.buffer), p); m.ex.mmb_blob_commit(0, n, 44100);
+    m.setCtl('loop', 1); m.setCtl('mode', 1); m.setIn('voct', 0); script = (s) => m.setIn('gate', s < 1.0 ? 1 : 0); }
   else if (id === 'tp_mmb_peaks') { script = (s) => m.setIn('gate', (s % 0.5) < 0.01 ? 1 : 0); }
   else { m.setIn('voct', 0); script = (s) => m.setIn('gate', s < 0.6 ? 1 : 0); }
   const t0 = process.hrtime.bigint();

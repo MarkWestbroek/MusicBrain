@@ -17,6 +17,7 @@ WebAssembly gecompileerd en draaien in een AudioWorklet.
 | Plaits | `tp_mmb_plaits` | mi-plaits | 48 kHz / 24 |
 | Tides | `tp_mmb_tides` | mi-tides (tides2) | 1 kHz / 1 (CV-tick) |
 | Warps | `tp_mmb_warps` | mi-warps | 44,1 kHz / 32 |
+| Sampler | `tp_mmb_sampler` | eigen (`mmb_dsp/sample_player.h`; samples via de blob-exports `mmb_blob_ptr/commit`, 16 slots) | 44,1 kHz / 32 |
 | Tape echo | `tp_mmb_tape_echo` | eigen (`firmware/lib/mmb-dsp/mmb_dsp/tape_echo.h`, header-only — dezelfde kern als de Teensy-wrapper) | 44,1 kHz / 32 |
 
 Daarmee spelen o.a. de **Krell**- en **808-jam**-seeds in de browser.
@@ -71,7 +72,10 @@ wat een lib mist vindt de build in de andere (zoals de firmware-LDF).
 
 ## Afwijkingen van de Teensy
 
-- De simulator is monofoon; een PolyGroup speelt hier alleen de master.
+- PolyGroups van wasm-modules spelen polyfoon: de engine bouwt alle leden, vouwt de
+  kabels uit zoals `polyExpand` (fan-out, `in1→in1..inN`, stem v → stem v) en verdeelt
+  noten met een allocator (zelfde noot → hertrigger, vrije stem, anders oudste stelen).
+  Tone-VCO-PolyGroups blijven mono (de Tone-engine kent geen stemmen).
 - Gates van wasm-modules kunnen Tone-envelopes (ADSR-module) niet triggeren
   en wasm-CV kan de Tone-VCO's niet stemmen (die worden per JS-aanroep
   aangestuurd, niet per signaal); wasm→wasm, wasm→VCA/VCF-cv en

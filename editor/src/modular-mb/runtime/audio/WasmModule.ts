@@ -21,7 +21,7 @@ export class WasmModule extends AudioModule {
   static readonly typeIds: ReadonlySet<string> = new Set([
     'tp_mmb_elements', 'tp_mmb_rings', 'tp_mmb_marbles', 'tp_mmb_stages',
     'tp_mmb_peaks', 'tp_mmb_morph_wt', 'tp_mmb_clouds',
-    'tp_mmb_plaits', 'tp_mmb_tides', 'tp_mmb_warps', 'tp_mmb_tape_echo',
+    'tp_mmb_plaits', 'tp_mmb_tides', 'tp_mmb_warps', 'tp_mmb_tape_echo', 'tp_mmb_sampler',
   ]);
   static supports(typeId: string): boolean { return WasmModule.typeIds.has(typeId); }
 
@@ -29,6 +29,24 @@ export class WasmModule extends AudioModule {
   private static readonly wasm = new Map<string, Promise<Uint8Array>>();
   private static readonly instances = new Set<WasmModule>();
   static lastError: string | null = null;
+
+  /** Blobs (samples) per typeId en slot — gedeeld door alle instanties van
+   *  dat type, zoals de PSRAM-bank op de Teensy. */
+  private static readonly blobs = new Map<string, Map<number, { data: Int16Array; rate: number; name: string }>>();
+
+  /** Sample naar slot `slot` van alle (huidige en toekomstige) instanties van `typeId`. */
+  static setBlob(typeId: string, slot: number, data: Int16Array, rate: number, name = ''): void {
+    let m = WasmModule.blobs.get(typeId);
+    if (!m) { m = new Map(); WasmModule.blobs.set(typeId, m); }
+    m.set(slot, { data, rate, name });
+    for (const inst of WasmModule.instances) if (inst.typeId === typeId) inst.postBlob(slot, data, rate);
+  }
+  static blobList(typeId: string): { slot: number; name: string; seconds: number }[] {
+    const m = WasmModule.blobs.get(typeId);
+    if (!m) return [];
+    return [...m.entries()].map(([slot, b]) => ({ slot, name: b.name, seconds: b.data.length / b.rate }))
+      .sort((a, b) => a.slot - b.slot);
+  }
 
   static info(): string | null {
     if (WasmModule.lastError) return `wasm: ${WasmModule.lastError}`;
@@ -117,6 +135,8 @@ export class WasmModule extends AudioModule {
         if (typeof v === 'number' || typeof v === 'boolean') this.post({ t: 'ctl', id, v: Number(v) });
       }
       for (const id of this.cabled) this.post({ t: 'cabled', id, on: true });
+      const blobs = WasmModule.blobs.get(type.id);
+      if (blobs) for (const [slot, b] of blobs) this.postBlob(slot, b.data, b.rate);
       for (const m of this.pending) this.post(m);
       this.pending = [];
     }).catch((err: unknown) => {
@@ -131,6 +151,10 @@ export class WasmModule extends AudioModule {
   private post(m: unknown): void {
     if (this.node) this.node.port.postMessage(m);
     else this.pending.push(m);
+  }
+  private postBlob(slot: number, data: Int16Array, rate: number): void {
+    // Kopie per worklet (structured clone); het origineel blijft in de bank.
+    if (this.node) this.node.port.postMessage({ t: 'blob', slot, rate, data: data.slice() });
   }
 
   /** Tone-ingang voor poort `id` (audio/cv/gate — allemaal signaal). */

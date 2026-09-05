@@ -102,4 +102,6 @@ sel warps && build warps tp_mmb_warps "$LIB/mi-warps" -- \
 
 sel tapeecho && build tapeecho tp_mmb_tape_echo "$LIB/mmb-dsp" --
 
+sel sampler && build sampler tp_mmb_sampler "$LIB/mmb-dsp" --
+
 [ -z "$FAILED" ] && echo "klaar." || { echo "mislukt:$FAILED"; exit 1; }

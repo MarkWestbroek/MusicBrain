@@ -1320,6 +1320,43 @@ function mmbEcho() {
   });
 }
 
+// 10a. MMB SAMPLER — 8 HP. Sample-speler op de header-only kern
+//      mmb_dsp::SamplePlayer (firmware SamplerModule.h, PSRAM + SD; dezelfde
+//      kern als wasm in de simulator). Samples laden via de 🎧 Sample-knop;
+//      `slot` kiest er een uit de gedeelde 16-slots bank.
+function mmbSampler() {
+  const w = W(8);
+  return assemble({
+    typeId: 'tp_mmb_sampler',
+    categoryId: 'vco',
+    variant: 'Sampler',
+    brand: 'MMB', model: 'SAMPLER',
+    hp: 8, texture: 'pcb-black', baseColor: '#14261f', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'SAMPLER', fontSize: 2.0, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: 'PSRAM · SD · 16 slots', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('slot',    'Slot',   w*0.25, 28, { size: 'medium', min: 0, max: 15, def: 0, step: 1, color: '#f5a623', ticks: { every: 1, highlight: [0, 15] } }),
+      knob('root',    'Root',   w*0.75, 28, { size: 'medium', min: 24, max: 96, def: 60, step: 1, unit: 'midi', color: '#f9fafb' }),
+      knob('start',   'Start',  w*0.20, 54, { size: 'small', min: 0, max: 1, def: 0, color: '#f9fafb' }),
+      knob('end',     'End',    w*0.50, 54, { size: 'small', min: 0, max: 1, def: 1, color: '#f9fafb' }),
+      knob('level',   'Level',  w*0.80, 54, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      knob('coarse',  'Coarse', w*0.20, 76, { size: 'small', min: -24, max: 24, def: 0, unit: 'semi', color: '#9ca3af' }),
+      knob('fine',    'Fine',   w*0.50, 76, { size: 'small', min: -100, max: 100, def: 0, unit: 'ct', color: '#9ca3af' }),
+      knob('attack',  'Att',    w*0.80, 76, { size: 'small', min: 0.5, max: 500, def: 2, unit: 'ms', color: '#9ca3af' }),
+      knob('release', 'Rel',    w*0.20, 96, { size: 'small', min: 1, max: 2000, def: 30, unit: 'ms', color: '#9ca3af' }),
+      toggle('loop', 'Loop', w*0.50, 96, false),
+      sw('mode', 'Mode', w*0.80, 96, ['1shot', 'Gate'], 0),
+      inPort ('voct', 'V/Oct', 'cv',   w*0.25, 116),
+      inPort ('gate', 'Gate',  'gate', w*0.50, 116),
+      outPort('out',  'Out',   'audio', w*0.80, 116),
+    ],
+    notes: 'Sample-speler: één mono int16-sample uit de gedeelde 16-slots bank (Slot), V/Oct via fractionele interpolatie (Root = MIDI-noot waarop het sample staat), Start/End, Loop, one-shot of gate-modus, lineaire attack/release. Op de Teensy staan de samples in PSRAM en op SD (/mmb/samples/NN.raw); laden via de 🎧 Sample-knop, die ook de simulator vult. Firmware tp_mmb_sampler (mmb_dsp::SamplePlayer).',
+  });
+}
+
 // 10b. MMB TAPE ECHO — 8 HP. Bandecho: één-koppige tape-delay met verzadiging,
 //      toonverlies per omloop en wow/flutter (firmware TapeEchoModule.h op de
 //      header-only kern mmb_dsp::TapeEcho; dezelfde kern draait als wasm in de
@@ -2437,7 +2474,7 @@ function mmbGrids() {
 // ── public entry ───────────────────────────────────────────────────────
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbEcho(), mmbTapeEcho(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbEcho(), mmbTapeEcho(), mmbSampler(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound()];
   const newTypes = all.map((x) => x.type);
 
   // Upgrade-pad: bestaande interne types worden in-place VERVANGEN (zelfde

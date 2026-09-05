@@ -70,6 +70,17 @@ class MmbProcessor extends AudioWorkletProcessor {
         case 'ctl': { const i = this.ctlIdx.get(m.id); if (i !== undefined) ex.mmb_set_control(i, +m.v); break; }
         case 'in': { const p = this.byId.get(m.id); if (p) { p.manual = +m.v; p.connected = true; } break; }
         case 'cabled': { const p = this.byId.get(m.id); if (p) { p.cabled = !!m.on; p.connected = p.cabled || p.connected; } break; }
+        case 'blob': {
+          // Sample/blob naar een slot (sampler): {slot, rate, data: Int16Array}.
+          if (!ex.mmb_blob_ptr || !m.data) break;
+          const bytes = m.data.byteLength;
+          const p = ex.mmb_blob_ptr(m.slot | 0, bytes);
+          if (!p) break;
+          // memory.buffer kan na groei een nieuw object zijn: altijd opnieuw pakken.
+          new Uint8Array(ex.memory.buffer).set(new Uint8Array(m.data.buffer, m.data.byteOffset, bytes), p);
+          ex.mmb_blob_commit(m.slot | 0, m.data.length, +m.rate || 44100);
+          break;
+        }
         case 'dispose': this.alive = false; break;
       }
     };

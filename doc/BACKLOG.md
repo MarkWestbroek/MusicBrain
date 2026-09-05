@@ -35,7 +35,7 @@
 |---|---|---|---|
 | ED-SM-1 | 3 | 🔬 | **A4 — Latency toets→geluid.** WebAudio look-ahead ~50-100 ms; onderzoek lagere `Tone.context.lookAhead` + directe `triggerAttack`. |
 | ED-SM-2 | — | ✅ | **Teensy-modules als wasm in de simulator (2026-09-06).** DX7 (msfa) en Elements, Rings, Marbles, Stages, Peaks, Morph-WT, Clouds, Plaits, Tides, Warps en Tape-echo draaien in AudioWorklets op dezelfde C++-kern als de firmware (`tools/dx7-wasm`, `tools/mmb-wasm`, generieke mmb-wasm ABI). Krell-, 808-jam- en Warps-vocoder-seeds spelen in de browser. Zie release-log editor 0.7.0. |
-| ED-SM-3 | 2 | ⏳ | **Polyfonie in de simulator.** De engine-note-dispatch is mono; wasm-nodes zijn intern poly (DX7, 16 stemmen) of spelen alleen de PolyGroup-master. Nodig: stem-allocatie per PolyGroup in `AudioEngine` (N wasm-nodes, round-robin/steal zoals de firmware). |
+| ED-SM-3 | — | ✅ | **Polyfonie in de simulator (wasm-PolyGroups, 2026-09-06).** Engine bouwt alle leden, vouwt kabels uit als `polyExpand` en verdeelt noten met een allocator (hertrigger / vrije stem / oudste stelen). Tone-VCO-groepen blijven mono. Oorspronkelijk: De engine-note-dispatch is mono; wasm-nodes zijn intern poly (DX7, 16 stemmen) of spelen alleen de PolyGroup-master. Nodig: stem-allocatie per PolyGroup in `AudioEngine` (N wasm-nodes, round-robin/steal zoals de firmware). |
 | ED-SM-4 | 2 | ⏳ | **wasm-gates → Tone-ADSR en wasm-CV → Tone-VCO.** Envelopes en VCO-pitch worden per JS-aanroep aangestuurd, niet per signaal; Marbles.t1 → ADSR.gate en Marbles.x1 → VCO.voct werken daarom nog niet. Opties: flankdetector in de worklet die `postMessage` doet, of ADSR/VCO ook als wasm-module. |
 | ED-SM-5 | 3 | 🔬 | **Elements-CPU in wasm.** ~33 % van één core per stem (-O3 -msimd128; Rings 23 %). Onderzoek: resonator-lus vectoriseren, of meerdere stemmen in één worklet. |
 | ED-SM-6 | 2 | ⏳ | **USER-bank/.syx en wavetables ook naar de browser.** `Dx7.setUserBank()` bestaat; de Teensy-modal stuurt de .syx nog alleen naar de Teensy. Idem `wavetable`-push → Morph-WT-wasm (USER-bank) en Draw-VCO. |
@@ -121,7 +121,7 @@ Brondump gebruiker (idee), nagenoeg ongewijzigd overgenomen:
 
 ### 2.3 Audio-modules / geluidsbronnen
 
-- **Sampler (`tp_mmb_sampler`) — bestaat nog niet** (🔬 prio 2, 2026-09-06). Eerst de
+- **Sampler (`tp_mmb_sampler`) — gebouwd 2026-09-06, op hardware verifiëren** (⏳ prio 1). Kern `mmb_dsp/sample_player.h`; `SamplerModule.h` met `SampleBank` (16 slots in PSRAM via `extmem_malloc`, SD `/mmb/samples/NN.raw`), serial-frame `sample` (chunks van 512), editor 🎧 Sample-modal, wasm in de simulator. Niet met PlatformIO gebouwd. Oorspronkelijke ontwerpnotitie: Eerst de
   opslagvraag: RAM op de Teensy (≤ ~100 KB vrij ≈ 1 s mono int16), de PSRAM-pads
   van de 4.1 (8–16 MB, chip solderen) of SD. Voorstel daarna: mono int16-sample per
   instantie, V/Oct + gate, start/end/loop/reverse, upload via een serial-frame zoals

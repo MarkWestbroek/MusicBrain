@@ -435,6 +435,26 @@ export async function sendDx7Bank(bytes: Uint8Array): Promise<void> {
   await writeLine(JSON.stringify({ type: 'dx7bank', data: Array.from(bytes) }));
 }
 
+/** Sample-upload (tp_mmb_sampler): mono int16 naar slot `slot` van de
+ *  samplebank op de Teensy (PSRAM + SD), in chunks van 512 samples:
+ *    {"type":"sample","slot":n,"rate":44100,"seq":i,"total":m,"data":[int16…]}
+ *  `total` = totaal aantal samples; seq telt chunks. De firmware reserveert bij
+ *  seq 0, plakt de chunks aan elkaar en schrijft na de laatste naar SD. */
+export async function sendSample(
+  slot: number, rate: number, data: Int16Array,
+  onProgress?: (done: number, total: number) => void,
+): Promise<void> {
+  if (!writer) return;
+  const CHUNK = 512;
+  const total = data.length;
+  const chunks = Math.ceil(total / CHUNK);
+  for (let i = 0; i < chunks; i++) {
+    const part = Array.from(data.subarray(i * CHUNK, Math.min(total, (i + 1) * CHUNK)));
+    await writeLine(JSON.stringify({ type: 'sample', slot, rate, seq: i, total, data: part }), true);
+    onProgress?.(Math.min(total, (i + 1) * CHUNK), total);
+  }
+}
+
 /** Telemetrie-verzoek: firmware antwoordt met {"type":"status",...} dat in
  *  `lastStatus` belandt (niet in het verkeerslog). Stil no-op indien offline. */
 export async function sendGetStatus(): Promise<void> {

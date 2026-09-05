@@ -105,6 +105,14 @@ public:
      *  DX7-bank (4096 bytes packed, zonder sysex-framing) als int-array. */
     using Dx7BankHandler = void (*)(JsonArrayConst data);
 
+    /** Callback voor een "sample"-chunk (tp_mmb_sampler): mono int16-sample
+     *  naar slot `slot` van de samplebank, in chunks:
+     *    {"type":"sample","slot":n,"rate":44100,"seq":i,"total":m,"data":[int16…]}
+     *  `total` = totaal aantal samples, `seq` = chunk-index (0 = begin).
+     *  Return false → nack. */
+    using SampleHandler = bool (*)(int slot, int rate, int seq, uint32_t total,
+                                   JsonArrayConst data);
+
     /** Callback invoked when a "getStatus" message arrives. The handler
      *  fills @p status with telemetry fields (cpu, mem, modules, …); the
      *  link serialises it as `{"type":"status",...}` back to the editor. */
@@ -132,6 +140,7 @@ public:
     /** @brief Register the bulk-waveform handler (FW-AU-6). */
     void onWaveform(WaveformHandler h) { onWaveform_ = h; }
     void onDx7Bank(Dx7BankHandler h)   { onDx7Bank_ = h; }
+    void onSample(SampleHandler h)     { onSample_ = h; }
     /** @brief Register the telemetry handler for "getStatus" requests. */
     void onGetStatus(StatusHandler h) { onStatus_ = h; }
 
@@ -203,6 +212,7 @@ private:
     ControlPokeHandler onControlPoke_ = nullptr;
     WaveformHandler    onWaveform_    = nullptr;
     Dx7BankHandler     onDx7Bank_     = nullptr;
+    SampleHandler      onSample_      = nullptr;
     StatusHandler      onStatus_      = nullptr;
 
     void sendHello() {
@@ -353,6 +363,23 @@ private:
                 sendAckOk("dx7bank", extra);
             } else {
                 sendAckErr("dx7bank: bad payload");
+            }
+            return;
+        }
+        if (strcmp(type, "sample") == 0) {
+            // Sample-chunk (tp_mmb_sampler), zie SampleHandler.
+            const int      slot  = doc["slot"]  | 0;
+            const int      rate  = doc["rate"]  | 44100;
+            const int      seq   = doc["seq"]   | 0;
+            const uint32_t total = doc["total"] | 0u;
+            JsonArrayConst data = doc["data"].as<JsonArrayConst>();
+            if (!data.isNull() && onSample_ && onSample_(slot, rate, seq, total, data)) {
+                StaticJsonDocument<64> extra;
+                extra["slot"] = slot;
+                extra["seq"]  = seq;
+                sendAckOk("sample", extra);
+            } else {
+                sendAckErr("sample: bad payload of geen geheugen");
             }
             return;
         }
