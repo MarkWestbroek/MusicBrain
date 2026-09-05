@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 // SampleModal — laad een audiobestand in een slot van de samplebank (16
 // slots, gedeeld door alle tp_mmb_sampler-instanties): decodeert in de
 // browser naar mono int16 op 44,1 kHz, zet 'm in de wasm-sampler van de
@@ -11,6 +12,8 @@ const TYPE_ID = 'tp_mmb_sampler';
 const SLOTS = 16;
 const MAX_SECONDS = 20;
 const RATE = 44100;
+
+interface ExampleSample { file: string; name: string; root: number; seconds: number; source: string }
 
 /** Decodeer een bestand naar mono int16 op 44,1 kHz (OfflineAudioContext resamplet). */
 async function decodeToInt16(file: File): Promise<{ data: Int16Array; seconds: number }> {
@@ -33,6 +36,17 @@ export function SampleModal({ open, onClose }: { open: boolean; onClose: () => v
   const [busy, setBusy] = useState<string>('');
   const [, bump] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [examples, setExamples] = useState<ExampleSample[]>([]);
+  const [example, setExample] = useState('');
+  const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+
+  // Voorbeelden: door MusicBrain zelf gerenderd (tools/mmb-wasm/render-samples.mjs).
+  useEffect(() => {
+    if (!open || examples.length) return;
+    fetch(`${base}samples/index.json`).then((r) => (r.ok ? r.json() : []))
+      .then((list: ExampleSample[]) => { setExamples(list); if (list[0]) setExample(list[0].file); })
+      .catch(() => { /* geen voorbeelden */ });
+  }, [open, examples.length, base]);
 
   useEffect(() => {
     if (!open) return;
@@ -43,6 +57,19 @@ export function SampleModal({ open, onClose }: { open: boolean; onClose: () => v
 
   if (!open) return null;
   const list = WasmModule.blobList(TYPE_ID);
+
+  async function loadExample(): Promise<void> {
+    const ex = examples.find((e) => e.file === example);
+    if (!ex) return;
+    try {
+      setBusy(`ophalen: ${ex.name}…`);
+      const r = await fetch(`${base}samples/${ex.file}`);
+      if (!r.ok) throw new Error(`${ex.file} niet gevonden`);
+      await load(new File([await r.blob()], ex.name, { type: 'audio/wav' }));
+    } catch (err) {
+      setBusy(`mislukt: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
 
   async function load(file: File): Promise<void> {
     try {
@@ -96,6 +123,17 @@ export function SampleModal({ open, onClose }: { open: boolean; onClose: () => v
           <input ref={fileRef} type="file" accept="audio/*,.wav,.aif,.aiff,.mp3,.flac,.ogg"
             onChange={(e) => { const f = e.target.files?.[0]; if (f) void load(f); e.currentTarget.value = ''; }} />
         </div>
+        {examples.length > 0 && (
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
+            <label>Voorbeeld
+              <select value={example} onChange={(e) => setExample(e.target.value)} style={{ marginLeft: 6 }}>
+                {examples.map((e) => <option key={e.file} value={e.file}>{e.name} · {e.seconds.toFixed(1)} s · root {e.root}</option>)}
+              </select>
+            </label>
+            <button onClick={() => void loadExample()}>Laden in slot {slot}</button>
+            <span style={{ color: '#94a3b8', fontSize: 12 }}>gerenderd door de wasm-modules zelf; zet Root op de module gelijk aan de root hier</span>
+          </div>
+        )}
         <div style={{ minHeight: 18, color: busy.startsWith('mislukt') ? '#b91c1c' : '#334155' }}>{busy}</div>
         {list.length > 0 && (
           <table style={{ width: '100%', marginTop: 10, borderCollapse: 'collapse' }}>

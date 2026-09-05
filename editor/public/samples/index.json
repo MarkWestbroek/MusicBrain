@@ -1,0 +1,65 @@
+[
+  {
+    "file": "peaks-kick.wav",
+    "name": "Peaks kick (808)",
+    "root": 60,
+    "seconds": 1.2,
+    "source": "tp_mmb_peaks"
+  },
+  {
+    "file": "peaks-snare.wav",
+    "name": "Peaks snare (808)",
+    "root": 60,
+    "seconds": 0.21,
+    "source": "tp_mmb_peaks"
+  },
+  {
+    "file": "peaks-hat.wav",
+    "name": "Peaks hi-hat (808)",
+    "root": 60,
+    "seconds": 0.17,
+    "source": "tp_mmb_peaks"
+  },
+  {
+    "file": "peaks-fmdrum.wav",
+    "name": "Peaks FM-drum",
+    "root": 60,
+    "seconds": 0.41,
+    "source": "tp_mmb_peaks"
+  },
+  {
+    "file": "rings-modal-c3.wav",
+    "name": "Rings modal pluk (C3)",
+    "root": 48,
+    "seconds": 1.4,
+    "source": "tp_mmb_rings"
+  },
+  {
+    "file": "rings-string-c3.wav",
+    "name": "Rings sympathetic string (C3)",
+    "root": 48,
+    "seconds": 3,
+    "source": "tp_mmb_rings"
+  },
+  {
+    "file": "plaits-string-c4.wav",
+    "name": "Plaits string (C4)",
+    "root": 60,
+    "seconds": 2,
+    "source": "tp_mmb_plaits"
+  },
+  {
+    "file": "plaits-modal-c4.wav",
+    "name": "Plaits modal (C4)",
+    "root": 60,
+    "seconds": 2,
+    "source": "tp_mmb_plaits"
+  },
+  {
+    "file": "elements-strike-c4.wav",
+    "name": "Elements strike (C4)",
+    "root": 60,
+    "seconds": 0.89,
+    "source": "tp_mmb_elements"
+  }
+]
