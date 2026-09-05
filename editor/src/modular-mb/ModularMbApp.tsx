@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import { setProject, updateProject, useModularProject, getProject, undo, redo } from './store';
 import { emptyModularProject } from './types';
 import { exportPanel, importPanel, parsePanelFile } from './panelIO';
-import { seedExampleModules, seedInternals, seedTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, seedDx7PolyPatch, seedWarpsVocoderPatch, seed808JamPatch, seedKrellPatch, type PolySeedOptions } from './seedModules';
+import { seedExampleModules, seedInternals, seedTestPatch, seedFmTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, seedDx7PolyPatch, seedWarpsVocoderPatch, seed808JamPatch, seedKrellPatch, type PolySeedOptions } from './seedModules';
 import { PatchesPanel } from './PatchesPanel';
 import { ModulesPanel } from './ModulesPanel';
 import { CategoriesPanel } from './CategoriesPanel';
@@ -279,6 +279,10 @@ export function ModularMbApp(): JSX.Element {
             onClick={() => setProject(seedTestPatch(getProject()))}
             title="Maak een nieuw Test rack + Test patch: VCO → VCF → VCA → OUT met ENV → VCA. Klaar om in de Simulatie-tab af te spelen."
           >Test-patch</button>
+          <button
+            onClick={() => setProject(seedFmTestPatch(getProject()))}
+            title="FM-testpatch (2-op): MIDI-IN → VCO (sinus-modulator, +12 st) → FM-VCO → VCF → VCA → OUT met ENV → VCA. Speelbaar in de Simulatie-tab."
+          >FM-test</button>
           <button
             onClick={() => setProject(seedCvBridgePatch(getProject()))}
             title="CV-bridge patch: MidiIn → VCO → VCF → VCA, 2×AHDSR (filter+amp), velocity via CvMath."

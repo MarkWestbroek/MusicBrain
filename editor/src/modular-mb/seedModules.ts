@@ -2608,6 +2608,92 @@ export function seedTestPatch(project: ModularProject): ModularProject {
   };
 }
 
+/** FM-testpatch (2-op): MIDI-IN → VCO (modulator, sinus, +12 st = ratio 2:1)
+ *  → FM-VCO.fm; FM-VCO → VCF → VCA → OUT met ENV → VCA. Beide oscillators
+ *  hangen aan MIDI-IN.pitch zodat de ratio vast blijft over het klavier.
+ *  Draait in de simulator (FmVco-runtime) én op de Teensy (tp_mmb_fm_vco). */
+export function seedFmTestPatch(project: ModularProject): ModularProject {
+  const needed = ['tp_mmb_vco','tp_mmb_fm_vco','tp_mmb_vcf','tp_mmb_vca','tp_mmb_out','tp_mmb_ahdsr','tp_mmb_midiin'];
+  const missing = needed.some((tid) => !project.moduleTypes.some((t) => t.id === tid));
+  const p = missing ? seedInternals(project) : project;
+
+  function fresh(typeId: string, label: string): ModuleInstance {
+    const proto = p.modules.find((m) => m.typeId === typeId)!;
+    return { ...proto, id: uid('mod'), internal: false,
+             name: `${proto.brand ?? ''} ${proto.modelNumber ?? ''} (${label})`.trim(),
+             visual: proto.visual };
+  }
+  const mi  = fresh('tp_mmb_midiin', 'fm');
+  const mod = fresh('tp_mmb_vco',    'modulator');
+  const fm  = fresh('tp_mmb_fm_vco', 'carrier');
+  const vcf = fresh('tp_mmb_vcf',    'fm');
+  const vca = fresh('tp_mmb_vca',    'fm');
+  const env = fresh('tp_mmb_ahdsr',  'fm');
+  const out = fresh('tp_mmb_out',    'fm');
+  const order = [mi, mod, fm, vcf, vca, env, out];
+
+  let offset = 0;
+  const place = (m: ModuleInstance): RackSlot => {
+    const slot: RackSlot = { id: uid('slot'), moduleId: m.id, row: 0, hpOffset: offset };
+    offset += m.visual.hpWidth;
+    return slot;
+  };
+  const slots = order.map(place);
+  const rack: Rack = {
+    id: uid('rack'), name: 'FM test rack',
+    description: 'Automatisch gegenereerd door "FM-test": MIDI-IN → VCO (mod) → FM-VCO → VCF → VCA → OUT met ENV → VCA.',
+    rows: 1, hpPerRow: Math.max(64, offset + 4),
+    slots,
+    kind: 'physical',
+  };
+
+  const c = (from: { m: ModuleInstance; port: string }, to: { m: ModuleInstance; port: string }): PatchConnection => ({
+    id: uid('conn'),
+    from: { moduleId: from.m.id, portId: from.port },
+    to:   { moduleId: to.m.id,   portId: to.port },
+  });
+  const connections: PatchConnection[] = [
+    c({ m: mod, port: 'out' },    { m: fm,  port: 'fm'   }),   // modulator → FM-ingang
+    c({ m: fm,  port: 'out' },    { m: vcf, port: 'in'   }),
+    c({ m: vcf, port: 'out' },    { m: vca, port: 'in'   }),
+    c({ m: vca, port: 'out' },    { m: out, port: 'l'    }),
+    c({ m: vca, port: 'out' },    { m: out, port: 'r'    }),
+    c({ m: env, port: 'cv_out' }, { m: vca, port: 'cv'   }),
+    c({ m: mi,  port: 'pitch' },  { m: mod, port: 'voct' }),   // beide volgen het klavier
+    c({ m: mi,  port: 'pitch' },  { m: fm,  port: 'voct' }),
+    c({ m: mi,  port: 'gate' },   { m: env, port: 'gate' }),
+  ];
+
+  const controlState: Record<string, Record<string, ControlValue>> = {
+    [mod.id]: { wave: 0, coarse: 12, fine: 0, level: 0.8 },           // sinus, ratio 2:1
+    [fm.id]:  { wave: 0, coarse: 0, fine: 0, fm_amt: 1.5, level: 0.8 }, // 1,5 octaaf FM-diepte
+    [vcf.id]: { cutoff: 6000, q: 0.3, cv_amt: 1, type: 0 },            // open LP, alleen wat top eraf
+    [vca.id]: { gain: 0, resp: 0 },
+    [env.id]: { attack: 5, hold: 0, decay: 350, sustain: 0.35, release: 500, loop: false, curve: 1 },
+    [out.id]: { level: 0.8 },
+    [mi.id]:  { channel: 0, priority: 0, steal: 0, legato: 0 },
+  };
+
+  const patch: Patch = {
+    id: uid('patch'), name: 'FM test (2-op)',
+    description: 'Sinus-modulator (+12 st) in de FM-ingang van de FM-VCO; draai Coarse op de modulator voor andere ratio\'s en FM op de carrier voor de diepte.',
+    voiceCount: 1,
+    rackIds: [rack.id],
+    connections,
+    controlState,
+    envelopes: [], lfos: [],
+  };
+
+  return {
+    ...p,
+    racks:        [...p.racks, rack],
+    modules:      [...p.modules, ...order],
+    patches:      [...p.patches, patch],
+    activeRackId:  rack.id,
+    activePatchId: patch.id,
+  };
+}
+
 /** Test-patch voor de CV-bridge: MidiIn → VCO + 2×AHDSR (filter-env + amp-env),
  *  velocity via CvMath(mult) → VCA, filter-env → VCF.
  *  Requires seedInternals() zodat tp_mmb_cvmath beschikbaar is. */

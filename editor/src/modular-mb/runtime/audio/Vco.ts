@@ -25,7 +25,7 @@ function pickWaveform(controls: Record<string, ControlValue>): Wave {
  * Ports: out (audio), voct (cv 1V/oct), fm (cv).
  */
 export class Vco extends AudioModule {
-  static readonly typeId = 'tp_mmb_vco';
+  static readonly typeId: string = 'tp_mmb_vco';  // string: subklassen (FmVco) overriden hem
 
   readonly osc: Tone.Oscillator;
 

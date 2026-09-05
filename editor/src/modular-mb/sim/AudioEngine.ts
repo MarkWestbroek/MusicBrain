@@ -28,7 +28,7 @@ import type {
   ModularProject, Patch, ModuleInstance, ModuleType,
   PatchConnection, ControlValue, SignalType,
 } from '../types';
-import { registry, Vcf, Ladder, Ms20, Vco, Vca, Ahdsr, Lfo } from '../runtime';
+import { registry, Vcf, Ladder, Ms20, Vco, FmVco, Vca, Ahdsr, Lfo } from '../runtime';
 
 export interface EngineStatus {
   running: boolean;
@@ -491,6 +491,8 @@ export class AudioEngine {
           return true;
         }
         if (controlId === 'detune') { node.runtime.setControl('detune', num); return true; }
+        // FM-VCO: FM-diepte (octaven) en level lopen live via de runtime.
+        if (controlId === 'fm_amt' || controlId === 'level') { node.runtime.setControl(controlId, num); return true; }
         return true;
       }
       case 'vcf': {
@@ -1167,6 +1169,8 @@ function audioOutputOf(n: EngineNode): Tone.ToneAudioNode | null {
 }
 function audioInputOf(n: EngineNode, portId?: string): Tone.ToneAudioNode | null {
   switch (n.kind) {
+    // Alleen de FM-VCO heeft een audio-ingang (fm → carrier-detune).
+    case 'vco': return portId === 'fm' && n.runtime instanceof FmVco ? n.runtime.fmIn : null;
     case 'vcf': return n.filter;
     case 'vca': return n.gain;
     case 'out': return n.inGain;

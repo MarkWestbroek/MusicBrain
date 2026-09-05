@@ -23,7 +23,7 @@ import {
   type PolyGroup,
   emptyModularProject,
 } from './types';
-import { seedInternals, seedTestPatch, seedPolyVoicePatch } from './seedModules';const STORAGE_KEY = 'mmb.presets.v1';
+import { seedInternals, seedTestPatch, seedFmTestPatch, seedPolyVoicePatch } from './seedModules';const STORAGE_KEY = 'mmb.presets.v1';
 
 export interface PatchPresetData {
   id: string;
@@ -465,6 +465,12 @@ export const factoryPatchPresets: FactoryPatchPreset[] = [
     name: 'Test patch (klassiek)',
     description: 'Standaard testpatch: SEQ + MIDI-IN → VCO → VCF → VCA → OUT met ENV → VCA.',
     apply: () => seedTestPatch(emptyModularProject()),
+  },
+  {
+    id: 'fp_fm',
+    name: 'FM test (2-op)',
+    description: 'MIDI-IN → VCO (sinus-modulator, +12 st) → FM-VCO → VCF → VCA → OUT met ENV → VCA. Klinkt in de simulator én op de Teensy.',
+    apply: () => seedFmTestPatch(emptyModularProject()),
   },
   {
     id: 'fp_acid',
