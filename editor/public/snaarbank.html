@@ -1,0 +1,1121 @@
+<title>MusicBrain Snaarbank</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+/* MusicBrain "open brain" tokens — bron: doc/styleguide.md.
+ * Bewust één donker thema: "donker instrument, geen app" (§1). */
+:root {
+  --background:    #0e1116;
+  --surface:       #151b23;
+  --surface-2:     #10151c;
+  --border:        #232b36;
+  --foreground:    #f2f4f8;
+  --muted:         #8c96a5;
+  --accent:        #f5a623;
+  --accent-strong: #b87f1f;
+  --accent-2:      #3ec9d8;
+  --status-ok:     #34d399;
+
+  --font-sans: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Code", Consolas, "SF Mono", monospace;
+
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  line-height: 1.55;
+  background:
+    radial-gradient(ellipse 90% 40% at 50% -5%,
+      color-mix(in srgb, var(--accent) 7%, transparent), transparent 70%),
+    radial-gradient(circle 1px at 1px 1px,
+      color-mix(in srgb, var(--muted) 13%, transparent) 1px, transparent 1px)
+      0 0 / 26px 26px,
+    var(--background);
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 30px 22px 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+/* ---- typografie ---- */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px; font-weight: 500;
+  letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--accent);
+  margin: 0;
+}
+.machine {
+  font-family: var(--font-mono);
+  font-size: 10px; text-transform: uppercase;
+  letter-spacing: 0.16em; color: var(--muted);
+}
+
+/* ---- header ---- */
+header { display: flex; flex-direction: column; gap: 16px; }
+.brandrow {
+  display: flex; align-items: flex-end;
+  justify-content: space-between; gap: 20px; flex-wrap: wrap;
+}
+.wordmark {
+  font-size: clamp(30px, 5.2vw, 44px);
+  font-weight: 800; letter-spacing: -0.025em; line-height: 1.02;
+  margin: 0; text-wrap: balance;
+}
+.wordmark b { color: var(--accent); font-weight: 800; }
+.tagline { margin: 6px 0 0; }
+.lede {
+  margin: 0; max-width: 62ch;
+  font-size: 15px; color: var(--muted);
+}
+.lede strong { color: var(--foreground); font-weight: 600; }
+
+.badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--accent);
+  border: 1px solid var(--accent-strong);
+  border-radius: var(--radius-sm);
+  padding: 3px 8px;
+}
+.badge--dim { color: var(--muted); border-color: var(--border); }
+
+.btn {
+  font: 600 14px var(--font-sans);
+  color: var(--background); background: var(--accent);
+  border: none; border-radius: var(--radius-md);
+  padding: 11px 22px; cursor: pointer;
+  white-space: nowrap;
+}
+.btn:hover { background: var(--accent-strong); }
+.btn[disabled] { opacity: 0.45; cursor: default; }
+.btn:focus-visible,
+.key:focus-visible,
+input[type="range"]:focus-visible,
+.modebtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/* ---- specs-strip ---- */
+.specs {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px 20px; font-family: var(--font-mono);
+}
+.specs b {
+  display: block; font-size: 17px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.specs span {
+  font-size: 10.5px; color: var(--muted);
+  letter-spacing: 0.08em; text-transform: uppercase;
+}
+.specs .live { color: var(--accent-2); }
+
+/* ---- scope ---- */
+.scope {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0; position: relative; overflow: hidden;
+}
+.scope canvas { display: block; width: 100%; height: 132px; }
+.scope .scopelabel {
+  position: absolute; top: 9px; left: 12px;
+  font-family: var(--font-mono); font-size: 10px;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--muted); pointer-events: none;
+}
+.scope .scopeval {
+  position: absolute; top: 9px; right: 12px;
+  font-family: var(--font-mono); font-size: 10px;
+  letter-spacing: 0.08em; color: var(--accent-2);
+  font-variant-numeric: tabular-nums; pointer-events: none;
+}
+
+/* ---- signaalketen ---- */
+.chain {
+  display: grid;
+  grid-template-columns: 1fr 18px 1fr 18px 1fr;
+  align-items: stretch;
+  gap: 0;
+}
+.arrow {
+  display: flex; align-items: center; justify-content: center;
+  color: var(--border); font-family: var(--font-mono); font-size: 13px;
+}
+.stage {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px 16px 18px;
+  display: flex; flex-direction: column; gap: 13px;
+}
+.stagehead { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+
+/* ---- regelaars ---- */
+.ctl { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: baseline; }
+.ctl > label {
+  font-family: var(--font-mono); font-size: 10.5px;
+  letter-spacing: 0.13em; text-transform: uppercase; color: var(--muted);
+}
+.ctl > .val {
+  font-family: var(--font-mono); font-size: 11.5px;
+  font-variant-numeric: tabular-nums; color: var(--foreground);
+}
+.ctl > .cc {
+  grid-column: 1 / -1;
+  font-family: var(--font-mono); font-size: 9px;
+  letter-spacing: 0.1em; color: var(--accent-strong);
+  margin-top: -2px;
+}
+.ctl > input { grid-column: 1 / -1; margin: 3px 0 0; }
+
+input[type="range"] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 18px; background: none; cursor: pointer;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 3px; background: var(--border); border-radius: 2px;
+}
+input[type="range"]::-moz-range-track {
+  height: 3px; background: var(--border); border-radius: 2px;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 4px; height: 15px; margin-top: -6px;
+  background: var(--accent); border: none; border-radius: 1px;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 4px; height: 15px;
+  background: var(--accent); border: none; border-radius: 1px;
+}
+
+.modes { display: flex; gap: 6px; }
+.modebtn {
+  flex: 1;
+  font-family: var(--font-mono); font-size: 10px;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--muted); background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 7px 4px; cursor: pointer;
+}
+.modebtn:hover { border-color: var(--accent-strong); }
+.modebtn[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+
+/* ---- klavier ---- */
+.kbpanel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px 16px 18px;
+  display: flex; flex-direction: column; gap: 13px;
+}
+.kbhead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.keys {
+  position: relative; height: 122px;
+  display: flex; gap: 3px;
+  touch-action: none;
+}
+.key {
+  border: 1px solid var(--border);
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  cursor: pointer; padding: 0 0 8px;
+  display: flex; align-items: flex-end; justify-content: center;
+  font-family: var(--font-mono); font-size: 10px;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  user-select: none; -webkit-user-select: none;
+}
+.key.white {
+  flex: 1; background: var(--surface-2); color: var(--muted);
+}
+.key.black {
+  position: absolute; top: 0; width: 5.4%; height: 62%;
+  background: #080b0f; color: var(--muted);
+  border-color: #05070a; z-index: 2; padding-bottom: 6px;
+}
+.key.white:hover { border-color: var(--accent-strong); }
+.key.black:hover { border-color: var(--accent-strong); }
+.key.on { background: var(--accent); color: var(--background); border-color: var(--accent); }
+.key.black.on { background: var(--accent-strong); color: var(--background); }
+
+/* ---- voetnoot ---- */
+.foot {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 18px 28px;
+}
+.foot h3 {
+  margin: 0 0 6px; font-size: 13px; font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.foot p { margin: 0; font-size: 13.5px; color: var(--muted); }
+.foot code {
+  font-family: var(--font-mono); font-size: 12px;
+  color: var(--foreground);
+}
+.foot .num { color: var(--accent); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+@media (max-width: 860px) {
+  .chain { grid-template-columns: 1fr; gap: 12px; }
+  .arrow { display: none; }
+  .foot { grid-template-columns: 1fr; }
+  .specs { grid-template-columns: repeat(2, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+</style>
+
+<div class="wrap">
+
+  <header>
+    <div class="brandrow">
+      <div>
+        <p class="eyebrow">Elements &mdash; draagbare demo</p>
+        <h1 class="wordmark">Music<b>Brain</b> Snaarbank</h1>
+        <p class="tagline machine">Karplus&ndash;Strong resonator &middot; 8 stemmen &middot; web audio</p>
+      </div>
+      <button class="btn" id="startBtn">Audio starten</button>
+    </div>
+    <p class="lede">
+      Een <strong>fysisch-model-snaar</strong> met dezelfde signaalketen en dezelfde MIDI-CC-nummers
+      als de Elements-firmware op de Teensy&nbsp;4.1 &mdash; maar met een Karplus&ndash;Strong-snaar
+      in plaats van Elements' modale resonator. Speel met het toetsenbord, de muis, of een
+      aangesloten MIDI-controller.
+    </p>
+  </header>
+
+  <div class="specs">
+    <div><b id="statVoices">0 / 8</b><span>Actieve stemmen</span></div>
+    <div><b id="statSr">&mdash;</b><span>Samplerate</span></div>
+    <div><b id="statLat">&mdash;</b><span>Blokgrootte</span></div>
+    <div><b id="statMidi">Zoeken&hellip;</b><span>MIDI-invoer</span></div>
+  </div>
+  <p class="lede" id="midiHint" hidden style="font-size:13px; margin-top:-10px;"></p>
+
+  <div class="scope">
+    <span class="scopelabel">Uitgang &mdash; oscilloscoop</span>
+    <span class="scopeval" id="scopePeak">0.00</span>
+    <canvas id="scope" width="1600" height="264"></canvas>
+  </div>
+
+  <div class="chain">
+    <section class="stage">
+      <div class="stagehead">
+        <p class="eyebrow">1 &middot; Exciter</p>
+        <span class="badge badge--dim">Aanslag</span>
+      </div>
+
+      <div class="modes" role="group" aria-label="Exciter-modus">
+        <button class="modebtn" data-mode="0" aria-pressed="false">Bow</button>
+        <button class="modebtn" data-mode="1" aria-pressed="false">Blow</button>
+        <button class="modebtn" data-mode="2" aria-pressed="true">Strike</button>
+      </div>
+
+      <div class="ctl">
+        <label for="pShape">Envelope shape</label>
+        <span class="val" id="vShape">0.35</span>
+        <span class="cc">CC 1</span>
+        <input type="range" id="pShape" min="0" max="1" step="0.001" value="0.35">
+      </div>
+
+      <div class="ctl">
+        <label for="pTimbre">Timbre</label>
+        <span class="val" id="vTimbre">0.60</span>
+        <span class="cc">CC 22</span>
+        <input type="range" id="pTimbre" min="0" max="1" step="0.001" value="0.60">
+      </div>
+    </section>
+
+    <div class="arrow" aria-hidden="true">&#9656;</div>
+
+    <section class="stage">
+      <div class="stagehead">
+        <p class="eyebrow">2 &middot; Resonator</p>
+        <span class="badge badge--dim">Snaar</span>
+      </div>
+
+      <div class="ctl">
+        <label for="pGeom">Geometry</label>
+        <span class="val" id="vGeom">0.20</span>
+        <span class="cc">CC 17 &mdash; stijfheid / inharmoniciteit</span>
+        <input type="range" id="pGeom" min="0" max="1" step="0.001" value="0.20">
+      </div>
+
+      <div class="ctl">
+        <label for="pBright">Brightness</label>
+        <span class="val" id="vBright">0.70</span>
+        <span class="cc">CC 18</span>
+        <input type="range" id="pBright" min="0" max="1" step="0.001" value="0.70">
+      </div>
+
+      <div class="ctl">
+        <label for="pDamp">Damping</label>
+        <span class="val" id="vDamp">0.72</span>
+        <span class="cc">CC 19 &mdash; uitklinktijd</span>
+        <input type="range" id="pDamp" min="0" max="1" step="0.001" value="0.72">
+      </div>
+
+      <div class="ctl">
+        <label for="pPos">Position</label>
+        <span class="val" id="vPos">0.28</span>
+        <span class="cc">CC 20 &mdash; aanslagpositie</span>
+        <input type="range" id="pPos" min="0" max="1" step="0.001" value="0.28">
+      </div>
+    </section>
+
+    <div class="arrow" aria-hidden="true">&#9656;</div>
+
+    <section class="stage">
+      <div class="stagehead">
+        <p class="eyebrow">3 &middot; Space</p>
+        <span class="badge badge--dim">Galm</span>
+      </div>
+
+      <div class="ctl">
+        <label for="pRevAmt">Reverb amount</label>
+        <span class="val" id="vRevAmt">0.30</span>
+        <span class="cc">CC 31</span>
+        <input type="range" id="pRevAmt" min="0" max="1" step="0.001" value="0.30">
+      </div>
+
+      <div class="ctl">
+        <label for="pRevTime">Reverb time</label>
+        <span class="val" id="vRevTime">0.45</span>
+        <span class="cc">CC 32 &mdash; loslaten om te herbouwen</span>
+        <input type="range" id="pRevTime" min="0" max="1" step="0.001" value="0.45">
+      </div>
+
+      <div class="ctl">
+        <label for="pVol">Volume</label>
+        <span class="val" id="vVol">0.70</span>
+        <span class="cc">Uitgangsniveau</span>
+        <input type="range" id="pVol" min="0" max="1" step="0.001" value="0.70">
+      </div>
+    </section>
+  </div>
+
+  <section class="kbpanel">
+    <div class="kbhead">
+      <p class="eyebrow">Klavier</p>
+      <span class="machine" id="octLabel">Octaaf C3 &mdash; Z omlaag / X omhoog</span>
+    </div>
+    <div class="keys" id="keys"></div>
+  </section>
+
+  <div class="foot">
+    <div>
+      <h3>Wat dit wel en niet is</h3>
+      <p>
+        Elements' echte DSP &mdash; 64 Svf-filters en 5 gekoppelde snaren per stem &mdash;
+        draait op de Teensy&nbsp;4.1 op <span class="num">38,5&nbsp;%</span> CPU per stem,
+        met <span class="num">5</span> stemmen als harde grens. Deze pagina benadert dat met
+        &eacute;&eacute;n Karplus&ndash;Strong-snaar per stem: dezelfde keten
+        exciter&nbsp;&rarr;&nbsp;resonator&nbsp;&rarr;&nbsp;space, veel goedkoper, andere klank.
+      </p>
+    </div>
+    <div>
+      <h3>Waarom niet op de Teensy 3.2</h3>
+      <p>
+        E&eacute;n Elements-stem heeft <span class="num">96&nbsp;KB</span> aan delay lines nodig
+        (3.2 heeft <span class="num">64&nbsp;KB</span> RAM totaal), de sample-tabellen zijn
+        <span class="num">338&nbsp;KB</span> (3.2 heeft <span class="num">256&nbsp;KB</span> flash),
+        en de 3.2 is een 96&nbsp;MHz M4 <em>zonder</em> FPU terwijl alle DSP in float staat.
+        Karplus&ndash;Strong past er w&eacute;l op &mdash; in fixed point, met een delay line van
+        <code>4&nbsp;KB</code> per stem.
+      </p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // -------------------------------------------------------------------------
+  // Parameters — 0..1 genormaliseerd, exact de CC-map van app-elements.
+  // -------------------------------------------------------------------------
+  var P = {
+    mode: 2,        // 0 = bow, 1 = blow, 2 = strike   (CC 16)
+    shape: 0.35,    // CC 1
+    timbre: 0.60,   // CC 22
+    geometry: 0.20, // CC 17
+    bright: 0.70,   // CC 18
+    damp: 0.72,     // CC 19
+    position: 0.28, // CC 20
+    revAmt: 0.30,   // CC 31
+    revTime: 0.45,  // CC 32
+    volume: 0.70
+  };
+
+  var NUM_VOICES = 8;
+  var MAX_DELAY = 4096;   // laagste toon ~11,7 Hz bij 48 kHz
+  var BLOCK = 512;
+
+  // -------------------------------------------------------------------------
+  // Karplus–Strong snaar.
+  //
+  //   buf[w] = allpass( lowpass( interp(buf, w - delay) ) ) * feedback + exciter
+  //
+  // De loop-lowpass is `brightness`, de feedback is `damping`, de allpass geeft
+  // stijfheid (inharmoniciteit) = `geometry`. De aanslagpositie wordt gezet
+  // door de exciter tweemaal in de buffer te injecteren, met omgekeerd teken —
+  // dat is de klassieke pick-position kamfilter.
+  // -------------------------------------------------------------------------
+  function Voice() {
+    this.buf = new Float32Array(MAX_DELAY);
+    this.w = 0;
+    this.delay = 200;
+    this.posTap = 40;
+    this.lp = 0;          // loop-lowpass toestand
+    this.apX = 0;         // allpass in
+    this.apY = 0;         // allpass uit
+    this.excLp = 0;       // exciter-lowpass toestand
+    this.burst = 0;       // resterende samples aanslag (strike)
+    this.env = 0;         // gate-envelope (bow/blow)
+    this.peak = 0;        // leaky peak follower voor stem-vrijgave
+    this.active = false;
+    this.gate = false;
+    this.note = -1;
+    this.strength = 1;
+    this.age = 0;
+  }
+
+  Voice.prototype.reset = function () {
+    this.buf.fill(0);
+    this.w = 0; this.lp = 0; this.apX = 0; this.apY = 0; this.excLp = 0;
+    this.burst = 0; this.env = 0; this.peak = 0;
+  };
+
+  // -------------------------------------------------------------------------
+  // Engine
+  // -------------------------------------------------------------------------
+  var ctx = null, node = null, analyser = null, outGain = null;
+  var dryGain = null, wetGain = null, convolver = null;
+  var voices = [], sr = 48000, running = false, ageCounter = 0;
+  var scopeBuf = null;
+
+  function initVoices() {
+    voices = [];
+    for (var i = 0; i < NUM_VOICES; i++) voices.push(new Voice());
+  }
+  initVoices();
+
+  function midiToHz(n) { return 440 * Math.pow(2, (n - 69) / 12); }
+
+  // Gemapte coëfficiënten, één keer per blok herberekend.
+  var cBright = 0.7, cFeedback = 0.99, cStiff = 0.2, cExcLp = 0.5, cPos = 0.28;
+
+  function updateCoeffs() {
+    // Brightness: one-pole lowpass in de loop. Laag = dof, hoog = helder.
+    cBright = 0.04 + 0.95 * (P.bright * P.bright);
+    // Damping: feedback. 0.90 (kort) .. 0.9995 (lang uitklinkend).
+    cFeedback = 0.90 + 0.0995 * Math.pow(P.damp, 0.6);
+    // Geometry: allpass-coëfficiënt → inharmoniciteit, zoals een stijve snaar.
+    cStiff = 0.45 * P.geometry;
+    // Timbre: lowpass op de exciter-ruis.
+    cExcLp = 0.02 + 0.96 * (P.timbre * P.timbre);
+    // Position: 0,02 .. 0,5 van de periode.
+    cPos = 0.02 + 0.48 * P.position;
+  }
+  updateCoeffs();
+
+  function noteOn(note, velocity) {
+    if (!running) return;
+    var i, v, free = -1, oldest = 0;
+
+    for (i = 0; i < NUM_VOICES; i++) {
+      if (voices[i].active && voices[i].note === note) { free = i; break; }
+    }
+    if (free < 0) {
+      for (i = 0; i < NUM_VOICES; i++) {
+        if (!voices[i].active) { free = i; break; }
+        if (voices[i].age < voices[oldest].age) oldest = i;
+      }
+    }
+    if (free < 0) { free = oldest; voices[free].reset(); }
+
+    v = voices[free];
+    var hz = midiToHz(note);
+    var d = sr / hz;
+
+    // Compenseer de fasevertraging van de loop-lowpass, anders klinkt de snaar
+    // te laag naarmate brightness daalt. Bij hoge tonen is de delay zelf kort,
+    // dus de correctie wordt begrensd — anders slaat de stemming juist door.
+    var comp = (1 - cBright) / cBright;
+    if (comp > d * 0.4) comp = d * 0.4;
+    d -= comp;
+    if (d < 4) d = 4;
+    if (d > MAX_DELAY - 2) d = MAX_DELAY - 2;
+
+    v.delay = d;
+    v.posTap = Math.max(1, Math.round(cPos * d));
+    v.note = note;
+    v.strength = velocity / 127;
+    v.gate = true;
+    v.active = true;
+    v.age = ++ageCounter;
+    v.peak = 1;
+
+    if (P.mode === 2) {
+      // Strike: eenmalige ruisburst, lengte gestuurd door shape.
+      v.burst = Math.max(2, Math.round(d * (0.05 + 0.95 * P.shape)));
+    } else {
+      v.burst = 0;
+    }
+  }
+
+  function noteOff(note) {
+    for (var i = 0; i < NUM_VOICES; i++) {
+      if (voices[i].active && voices[i].note === note) {
+        voices[i].gate = false;
+        voices[i].burst = 0;
+      }
+    }
+  }
+
+  function allNotesOff() {
+    for (var i = 0; i < NUM_VOICES; i++) { voices[i].gate = false; voices[i].burst = 0; }
+  }
+
+  // -------------------------------------------------------------------------
+  // Renderlus
+  // -------------------------------------------------------------------------
+  function render(ev) {
+    var outL = ev.outputBuffer.getChannelData(0);
+    var outR = ev.outputBuffer.getChannelData(1);
+    var n = outL.length;
+
+    updateCoeffs();
+
+    // Gate-envelope: snelle attack, korte release — voorkomt klikken.
+    var attack = 1 - Math.exp(-1 / (0.004 * sr));
+    var release = 1 - Math.exp(-1 / (0.05 * sr));
+    var mode = P.mode;
+    // Bow blaast continu heel weinig in de snaar, blow duidelijk meer.
+    var driveLevel = mode === 0 ? 0.014 : 0.075;
+    var peakDecay = Math.exp(-1 / (0.02 * sr));
+
+    for (var i = 0; i < n; i++) outL[i] = 0;
+
+    for (var vi = 0; vi < NUM_VOICES; vi++) {
+      var v = voices[vi];
+      if (!v.active) continue;
+
+      var buf = v.buf, w = v.w, delay = v.delay, tap = v.posTap;
+      var lp = v.lp, apX = v.apX, apY = v.apY, excLp = v.excLp;
+      var burst = v.burst, env = v.env, peak = v.peak;
+      var gate = v.gate, strength = v.strength;
+
+      for (var s = 0; s < n; s++) {
+        // --- fractionele delay-uitlezing ---
+        var rp = w - delay;
+        while (rp < 0) rp += MAX_DELAY;
+        var i0 = rp | 0;
+        var frac = rp - i0;
+        var i1 = i0 + 1; if (i1 >= MAX_DELAY) i1 = 0;
+        var x = buf[i0] + (buf[i1] - buf[i0]) * frac;
+
+        // --- brightness: one-pole lowpass in de loop ---
+        lp += (x - lp) * cBright;
+        var y = lp;
+
+        // --- geometry: allpass → inharmoniciteit ---
+        var ap = -cStiff * y + apX + cStiff * apY;
+        apX = y; apY = ap;
+        y = ap;
+
+        // --- damping: feedback ---
+        y *= cFeedback;
+
+        // --- exciter ---
+        var exc = 0;
+        if (burst > 0) {
+          exc = (Math.random() * 2 - 1) * strength;
+          burst--;
+        } else if (gate && mode !== 2) {
+          env += (1 - env) * attack;
+          exc = (Math.random() * 2 - 1) * strength * env * driveLevel;
+        }
+        if (!gate) env += (0 - env) * release;
+
+        if (exc !== 0) {
+          // timbre: lowpass op de ruis
+          excLp += (exc - excLp) * cExcLp;
+          exc = excLp;
+        }
+
+        // --- schrijven, met pick-position kamfilter ---
+        buf[w] = y + exc;
+        if (exc !== 0) {
+          var pw = w - tap; if (pw < 0) pw += MAX_DELAY;
+          buf[pw] -= exc;
+        }
+
+        w++; if (w >= MAX_DELAY) w = 0;
+
+        var a = y < 0 ? -y : y;
+        peak = a > peak ? a : peak * peakDecay;
+
+        outL[s] += y;
+      }
+
+      v.w = w; v.lp = lp; v.apX = apX; v.apY = apY; v.excLp = excLp;
+      v.burst = burst; v.env = env; v.peak = peak;
+
+      // Stem vrijgeven zodra hij stil is. In strike-modus voedt de gate de
+      // snaar niet meer, dus een uitgeklonken aanslag mag ook los terwijl de
+      // toets nog vastgehouden wordt.
+      if ((!gate || mode === 2) && peak < 0.00012) { v.active = false; v.note = -1; }
+    }
+
+    // Zachte begrenzing, dan naar beide kanalen.
+    for (var k = 0; k < n; k++) {
+      var o = outL[k] * 0.42;
+      o = Math.tanh(o);
+      outL[k] = o;
+      outR[k] = o;
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Galm — gegenereerde impulsrespons (exponentieel dovende ruis).
+  // -------------------------------------------------------------------------
+  function buildImpulse() {
+    if (!ctx) return;
+    var dur = 0.35 + P.revTime * 3.4;
+    var len = Math.max(1, Math.floor(sr * dur));
+    var ir = ctx.createBuffer(2, len, sr);
+    for (var ch = 0; ch < 2; ch++) {
+      var d = ir.getChannelData(ch);
+      var lp = 0;
+      for (var i = 0; i < len; i++) {
+        var t = i / len;
+        var decay = Math.pow(1 - t, 2.2);
+        var noise = (Math.random() * 2 - 1);
+        lp += (noise - lp) * 0.42;           // iets gedempte staart
+        // korte pre-delay laat de aanslag intact
+        d[i] = i < sr * 0.012 ? 0 : lp * decay;
+      }
+    }
+    convolver.buffer = ir;
+  }
+
+  function applyMix() {
+    if (!ctx) return;
+    var t = ctx.currentTime;
+    wetGain.gain.setTargetAtTime(P.revAmt * 0.9, t, 0.02);
+    dryGain.gain.setTargetAtTime(1 - P.revAmt * 0.55, t, 0.02);
+    outGain.gain.setTargetAtTime(P.volume * 0.9, t, 0.02);
+  }
+
+  // -------------------------------------------------------------------------
+  // Audio starten
+  // -------------------------------------------------------------------------
+  function start() {
+    if (ctx) { if (ctx.state === "suspended") ctx.resume(); return; }
+
+    var AC = window.AudioContext || window.webkitAudioContext;
+    ctx = new AC({ latencyHint: "interactive" });
+    sr = ctx.sampleRate;
+
+    // Eén (ongebruikte) ingang: Safari vuurt onaudioprocess niet betrouwbaar
+    // op een processor die met nul ingangskanalen is aangemaakt.
+    node = ctx.createScriptProcessor(BLOCK, 1, 2);
+    node.onaudioprocess = render;
+
+    convolver = ctx.createConvolver();
+    dryGain = ctx.createGain();
+    wetGain = ctx.createGain();
+    outGain = ctx.createGain();
+    analyser = ctx.createAnalyser();
+    analyser.fftSize = 2048;
+    scopeBuf = new Float32Array(analyser.fftSize);
+
+    node.connect(dryGain);
+    node.connect(convolver);
+    convolver.connect(wetGain);
+    dryGain.connect(outGain);
+    wetGain.connect(outGain);
+    outGain.connect(analyser);
+    analyser.connect(ctx.destination);
+
+    buildImpulse();
+    applyMix();
+
+    running = true;
+    document.getElementById("statSr").textContent = Math.round(sr / 100) / 10 + " kHz";
+    document.getElementById("statLat").textContent =
+      BLOCK + " sp / " + (Math.round(BLOCK / sr * 10000) / 10) + " ms";
+
+    var btn = document.getElementById("startBtn");
+    btn.textContent = "Audio actief";
+    btn.disabled = true;
+    btn.style.background = "var(--status-ok)";
+
+    drawScope();
+  }
+
+  document.getElementById("startBtn").addEventListener("click", start);
+
+  // -------------------------------------------------------------------------
+  // Oscilloscoop — triggert op nuldoorgang zodat het beeld stilstaat.
+  // -------------------------------------------------------------------------
+  var scopeCanvas = document.getElementById("scope");
+  var g = scopeCanvas.getContext("2d");
+  var peakEl = document.getElementById("scopePeak");
+
+  function paintScopeFrame(data, peak) {
+    var W = scopeCanvas.width, H = scopeCanvas.height;
+    var css = getComputedStyle(document.documentElement);
+    var cBorder = css.getPropertyValue("--border").trim() || "#232b36";
+    var cSignal = css.getPropertyValue("--accent-2").trim() || "#3ec9d8";
+
+    g.clearRect(0, 0, W, H);
+
+    // baseline
+    g.strokeStyle = cBorder;
+    g.lineWidth = 2;
+    g.beginPath(); g.moveTo(0, H / 2); g.lineTo(W, H / 2); g.stroke();
+
+    if (!data) return;
+
+    // zoek een opgaande nuldoorgang als trigger
+    var trig = 0, half = (data.length / 2) | 0;
+    for (var i = 1; i < half; i++) {
+      if (data[i - 1] <= 0 && data[i] > 0) { trig = i; break; }
+    }
+
+    var span = half;
+    var gain = H * 0.42 / Math.max(0.06, peak);
+    if (gain > H * 0.44) gain = H * 0.44;
+
+    g.strokeStyle = cSignal;
+    g.lineWidth = 3;
+    g.lineJoin = "round";
+    g.beginPath();
+    for (var x = 0; x < W; x++) {
+      var idx = trig + ((x / W) * span) | 0;
+      var val = data[idx] || 0;
+      var y = H / 2 - val * gain;
+      if (x === 0) g.moveTo(x, y); else g.lineTo(x, y);
+    }
+    g.stroke();
+  }
+
+  function drawScope() {
+    requestAnimationFrame(drawScope);
+    if (!analyser) return;
+
+    analyser.getFloatTimeDomainData(scopeBuf);
+    var peak = 0;
+    for (var i = 0; i < scopeBuf.length; i++) {
+      var a = scopeBuf[i] < 0 ? -scopeBuf[i] : scopeBuf[i];
+      if (a > peak) peak = a;
+    }
+    paintScopeFrame(scopeBuf, peak);
+    peakEl.textContent = peak.toFixed(2);
+
+    var n = 0;
+    for (var v = 0; v < NUM_VOICES; v++) if (voices[v].active) n++;
+    document.getElementById("statVoices").textContent = n + " / " + NUM_VOICES;
+  }
+
+  // Rustbeeld: platte lijn tot de gebruiker audio start.
+  paintScopeFrame(null, 0);
+
+  // -------------------------------------------------------------------------
+  // Regelaars
+  // -------------------------------------------------------------------------
+  function bind(id, key, valId, onDone) {
+    var el = document.getElementById(id);
+    var out = document.getElementById(valId);
+    el.addEventListener("input", function () {
+      P[key] = parseFloat(el.value);
+      out.textContent = P[key].toFixed(2);
+      applyMix();
+    });
+    if (onDone) el.addEventListener("change", onDone);
+  }
+
+  bind("pShape", "shape", "vShape");
+  bind("pTimbre", "timbre", "vTimbre");
+  bind("pGeom", "geometry", "vGeom");
+  bind("pBright", "bright", "vBright");
+  bind("pDamp", "damp", "vDamp");
+  bind("pPos", "position", "vPos");
+  bind("pRevAmt", "revAmt", "vRevAmt");
+  bind("pRevTime", "revTime", "vRevTime", buildImpulse);
+  bind("pVol", "volume", "vVol");
+
+  var modeBtns = document.querySelectorAll(".modebtn");
+  Array.prototype.forEach.call(modeBtns, function (b) {
+    b.addEventListener("click", function () {
+      P.mode = parseInt(b.dataset.mode, 10);
+      Array.prototype.forEach.call(modeBtns, function (o) {
+        o.setAttribute("aria-pressed", o === b ? "true" : "false");
+      });
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Klavier — C3 t/m E4, precies het bereik dat op de computertoetsen past.
+  // -------------------------------------------------------------------------
+  var WHITE = [0, 2, 4, 5, 7, 9, 11, 12, 14, 16];
+  var BLACK = [
+    { semi: 1, after: 0 }, { semi: 3, after: 1 },
+    { semi: 6, after: 3 }, { semi: 8, after: 4 }, { semi: 10, after: 5 },
+    { semi: 13, after: 7 }, { semi: 15, after: 8 }
+  ];
+  var WHITE_KEYS = ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";"];
+  var BLACK_KEYS = ["w", "e", "t", "y", "u", "o", "p"];
+
+  var baseOct = 3;
+  var baseNote = 12 * (baseOct + 1); // MIDI 48 bij octaaf 3
+  var keyEls = {};   // semitoon-offset -> element
+  var keyForChar = {};
+  var held = {};
+
+  var keysWrap = document.getElementById("keys");
+
+  function buildKeyboard() {
+    keysWrap.innerHTML = "";
+    keyEls = {};
+    var i;
+
+    for (i = 0; i < WHITE.length; i++) {
+      var el = document.createElement("div");
+      el.className = "key white";
+      el.tabIndex = 0;
+      el.dataset.semi = WHITE[i];
+      el.textContent = WHITE_KEYS[i];
+      keysWrap.appendChild(el);
+      keyEls[WHITE[i]] = el;
+      keyForChar[WHITE_KEYS[i]] = WHITE[i];
+    }
+
+    // Zwarte toetsen liggen op de grens tussen twee witte toetsen.
+    var wPct = 100 / WHITE.length;
+    for (i = 0; i < BLACK.length; i++) {
+      var b = document.createElement("div");
+      b.className = "key black";
+      b.tabIndex = 0;
+      b.dataset.semi = BLACK[i].semi;
+      b.textContent = BLACK_KEYS[i];
+      b.style.left = "calc(" + (wPct * (BLACK[i].after + 1)) + "% - 2.7%)";
+      keysWrap.appendChild(b);
+      keyEls[BLACK[i].semi] = b;
+      keyForChar[BLACK_KEYS[i]] = BLACK[i].semi;
+    }
+  }
+  buildKeyboard();
+
+  function press(semi, velocity) {
+    if (held[semi]) return;
+    held[semi] = true;
+    var el = keyEls[semi];
+    if (el) el.classList.add("on");
+    if (!running) start();
+    noteOn(baseNote + semi, velocity || 100);
+  }
+
+  function releaseKey(semi) {
+    if (!held[semi]) return;
+    delete held[semi];
+    var el = keyEls[semi];
+    if (el) el.classList.remove("on");
+    noteOff(baseNote + semi);
+  }
+
+  // Muis / touch
+  var pointerDown = false;
+  keysWrap.addEventListener("pointerdown", function (e) {
+    var t = e.target.closest(".key");
+    if (!t) return;
+    pointerDown = true;
+    keysWrap.setPointerCapture(e.pointerId);
+    press(parseInt(t.dataset.semi, 10), 100);
+    e.preventDefault();
+  });
+  keysWrap.addEventListener("pointermove", function (e) {
+    if (!pointerDown) return;
+    var t = document.elementFromPoint(e.clientX, e.clientY);
+    t = t && t.closest ? t.closest(".key") : null;
+    var semi = t ? parseInt(t.dataset.semi, 10) : -1;
+    for (var k in held) {
+      if (parseInt(k, 10) !== semi) releaseKey(parseInt(k, 10));
+    }
+    if (semi >= 0) press(semi, 100);
+  });
+  function endPointer() {
+    pointerDown = false;
+    for (var k in held) releaseKey(parseInt(k, 10));
+  }
+  keysWrap.addEventListener("pointerup", endPointer);
+  keysWrap.addEventListener("pointercancel", endPointer);
+  keysWrap.addEventListener("pointerleave", function () { if (pointerDown) endPointer(); });
+
+  // Toetsenbord
+  function setOctave(o) {
+    baseOct = Math.max(0, Math.min(7, o));
+    baseNote = 12 * (baseOct + 1);
+    document.getElementById("octLabel").textContent =
+      "Octaaf C" + baseOct + " — Z omlaag / X omhoog";
+  }
+
+  window.addEventListener("keydown", function (e) {
+    if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
+    var tag = e.target.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA") return;
+
+    var c = e.key.toLowerCase();
+    if (c === "z") { allNotesOff(); setOctave(baseOct - 1); e.preventDefault(); return; }
+    if (c === "x") { allNotesOff(); setOctave(baseOct + 1); e.preventDefault(); return; }
+
+    if (Object.prototype.hasOwnProperty.call(keyForChar, c)) {
+      press(keyForChar[c], 100);
+      e.preventDefault();
+    }
+  });
+
+  window.addEventListener("keyup", function (e) {
+    var c = e.key.toLowerCase();
+    if (Object.prototype.hasOwnProperty.call(keyForChar, c)) {
+      releaseKey(keyForChar[c]);
+      e.preventDefault();
+    }
+  });
+
+  window.addEventListener("blur", function () {
+    for (var k in held) releaseKey(parseInt(k, 10));
+  });
+
+  // -------------------------------------------------------------------------
+  // Web MIDI — zelfde CC-map als de firmware.
+  // -------------------------------------------------------------------------
+  var CC_MAP = {
+    1: "shape", 17: "geometry", 18: "bright", 19: "damp",
+    20: "position", 22: "timbre", 31: "revAmt", 32: "revTime"
+  };
+  var CC_SLIDER = {
+    shape: "pShape", geometry: "pGeom", bright: "pBright", damp: "pDamp",
+    position: "pPos", timbre: "pTimbre", revAmt: "pRevAmt", revTime: "pRevTime"
+  };
+  var CC_LABEL = {
+    shape: "vShape", geometry: "vGeom", bright: "vBright", damp: "vDamp",
+    position: "vPos", timbre: "vTimbre", revAmt: "vRevAmt", revTime: "vRevTime"
+  };
+
+  function handleCc(cc, val) {
+    if (cc === 16) {
+      var m = val < 0.33 ? 0 : (val < 0.66 ? 1 : 2);
+      P.mode = m;
+      Array.prototype.forEach.call(modeBtns, function (o) {
+        o.setAttribute("aria-pressed", parseInt(o.dataset.mode, 10) === m ? "true" : "false");
+      });
+    } else if (CC_MAP[cc]) {
+      var key = CC_MAP[cc];
+      P[key] = val;
+      var sl = document.getElementById(CC_SLIDER[key]);
+      if (sl) sl.value = val;
+      var lb = document.getElementById(CC_LABEL[key]);
+      if (lb) lb.textContent = val.toFixed(2);
+      if (key === "revTime") buildImpulse();
+      applyMix();
+    } else if (cc === 123) {
+      midiHeld = {};
+      allNotesOff();
+    }
+  }
+
+  // Een controller met meerdere poorten (de KeyStep Pro publiceert er twee)
+  // levert elke toetsaanslag één keer per poort af. Zonder deze set krijg je
+  // twee stemmen op dezelfde toon die tegen elkaar in zweven.
+  var midiHeld = {};
+
+  function onMidi(msg) {
+    var d = msg.data;
+    var status = d[0] & 0xf0;
+
+    if (status === 0x90 && d[2] > 0) {
+      if (midiHeld[d[1]]) return;
+      midiHeld[d[1]] = true;
+      if (!running) start();
+      noteOn(d[1], d[2]);
+    } else if (status === 0x80 || (status === 0x90 && d[2] === 0)) {
+      if (!midiHeld[d[1]]) return;
+      delete midiHeld[d[1]];
+      noteOff(d[1]);
+    } else if (status === 0xb0) {
+      handleCc(d[1], d[2] / 127);
+    }
+  }
+
+  var midiEl = document.getElementById("statMidi");
+  var midiHint = document.getElementById("midiHint");
+  var midiAccess = null;
+
+  function scanMidi() {
+    var names = [];
+    midiAccess.inputs.forEach(function (input) {
+      input.onmidimessage = onMidi;
+      names.push(input.name);
+    });
+    if (names.length) {
+      midiEl.textContent = names.length === 1 ? names[0] : names[0] + " +" + (names.length - 1);
+      midiEl.className = "live";
+      midiHint.hidden = true;
+    } else {
+      midiEl.textContent = "Geen apparaat";
+      midiEl.className = "";
+      midiHint.textContent = "Web MIDI werkt, maar er is geen ingang gevonden. Sluit de controller aan of zet hem aan; de lijst ververst vanzelf.";
+      midiHint.hidden = false;
+    }
+  }
+
+  function initMidi() {
+    if (midiAccess) return;
+    if (!navigator.requestMIDIAccess) {
+      midiEl.textContent = "Niet ondersteund";
+      midiHint.textContent = "Deze browser heeft geen Web MIDI. Open de pagina in Chrome of Edge.";
+      midiHint.hidden = false;
+      return;
+    }
+    navigator.requestMIDIAccess({ sysex: false }).then(function (access) {
+      midiAccess = access;
+      access.onstatechange = scanMidi;
+      scanMidi();
+    }).catch(function (err) {
+      var name = err && err.name ? err.name : "fout";
+      midiEl.textContent = "Geweigerd";
+      midiHint.textContent = "Web MIDI geweigerd (" + name + "). Binnen een ingesloten frame mag de browser geen MIDI vrijgeven: open deze pagina in een eigen tabblad, of lokaal via localhost in Chrome, en sta MIDI toe als daarom gevraagd wordt.";
+      midiHint.hidden = false;
+    });
+  }
+
+  // Eerste poging meteen; als de browser een gebaar eist, nog een keer bij
+  // 'Audio starten' (die klik is er dan sowieso).
+  initMidi();
+  document.getElementById("startBtn").addEventListener("click", function () {
+    if (!midiAccess) initMidi();
+  });
+})();
+</script>
