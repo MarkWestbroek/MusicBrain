@@ -74,6 +74,8 @@ for (const f of files) {
   if (id === 'tp_mmb_marbles') { script = () => {}; }
   else if (id === 'tp_mmb_stages') { m.setCtl('loop', 1); m.setCtl('segments', 2); m.setCtl('t1', 0.3); m.setCtl('t2', 0.3); script = (s) => m.setIn('gate', s < 0.01 ? 1 : 0); }
   else if (id === 'tp_mmb_clouds') { m.setCtl('mix', 1.0); let ph = 0; script = () => { const b = m.inBuf(0); for (let k = 0; k < m.block; k++) { b[k] = 0.5 * Math.sin(ph); ph += 2 * Math.PI * 220 / m.rate; } m.ex.mmb_input_connected(0, 1); }; }
+  else if (id === 'tp_mmb_tides') { script = (s) => m.setIn('gate', s < 0.01 ? 1 : 0); }
+  else if (id === 'tp_mmb_warps') { m.setCtl('shape', 1); m.setCtl('algo', 2); let ph = 0; script = () => { const b = m.inBuf(1); for (let k = 0; k < m.block; k++) { b[k] = 0.5 * Math.sin(ph); ph += 2 * Math.PI * 330 / m.rate; } m.ex.mmb_input_connected(1, 1); m.setIn('voct', 0); }; }
   else if (id === 'tp_mmb_peaks') { script = (s) => m.setIn('gate', (s % 0.5) < 0.01 ? 1 : 0); }
   else { m.setIn('voct', 0); script = (s) => m.setIn('gate', s < 0.6 ? 1 : 0); }
   const t0 = process.hrtime.bigint();

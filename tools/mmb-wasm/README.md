@@ -14,6 +14,9 @@ WebAssembly gecompileerd en draaien in een AudioWorklet.
 | Peaks | `tp_mmb_peaks` | mi-peaks | 48 kHz / 32 |
 | Morph-WT | `tp_mmb_morph_wt` | eigen (MorphWtModule.h) | 44,1 kHz / 32 |
 | Clouds | `tp_mmb_clouds` | mi-clouds | 32 kHz / 32 |
+| Plaits | `tp_mmb_plaits` | mi-plaits | 48 kHz / 24 |
+| Tides | `tp_mmb_tides` | mi-tides (tides2) | 1 kHz / 1 (CV-tick) |
+| Warps | `tp_mmb_warps` | mi-warps | 44,1 kHz / 32 |
 
 Daarmee spelen o.a. de **Krell**- en **808-jam**-seeds in de browser.
 (De DX7 heeft zijn eigen worklet, zie `tools/dx7-wasm`.)
@@ -71,4 +74,4 @@ wat een lib mist vindt de build in de andere (zoals de firmware-LDF).
 - Gates van wasm-modules kunnen Tone-envelopes (ADSR-module) niet triggeren
   (die worden per JS-aanroep getriggerd, niet per signaal); wasm→wasm en
   wasm→VCA/VCF-cv werken wel.
-- Elements kost ~35 % van één core per stem (zonder SIMD); Rings ~14 %.
+- CPU per instantie (node, -O3 -msimd128): Elements ~33 %, Rings ~23 %, de rest ≤ 2 %.

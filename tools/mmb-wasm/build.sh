@@ -38,7 +38,7 @@ build() {  # naam typeId include-dirs... -- bronnen...
   if ! "$WASI_SDK/bin/clang++" \
     --target="$TARGET" --sysroot="$SYSROOT" \
     -std=c++17 -O3 -msimd128 -fno-exceptions -fno-rtti -DTEST \
-    -Wno-unused-value -Wno-deprecated-register \
+    -Wno-unused-value -Wno-deprecated-register -include cstdio \
     -I"$HERE" -I"$HERE/shim" ${incs[@]+"${incs[@]}"} $FALLBACK_INC \
     -nostartfiles -Wl,--no-entry -Wl,--export-memory -Wl,--initial-memory=8388608 -Wl,-z,stack-size=262144 \
     -o "$OUTDIR/$typeId.wasm" \
@@ -88,5 +88,16 @@ sel clouds && build clouds tp_mmb_clouds "$LIB/mi-clouds" -- \
   "$LIB"/mi-clouds/clouds/dsp/mu_law.cc "$LIB"/mi-clouds/clouds/dsp/pvoc/frame_transformation.cc \
   "$LIB"/mi-clouds/clouds/dsp/pvoc/phase_vocoder.cc "$LIB"/mi-clouds/clouds/dsp/pvoc/stft.cc \
   "$LIB"/mi-clouds/clouds/resources.cc "$LIB"/mi-clouds/stmlib/dsp/atan.cc $STMLIB_CC
+
+sel plaits && build plaits tp_mmb_plaits "$LIB/mi-plaits" -- \
+  $(find "$LIB/mi-plaits/plaits" -name "*.cc" | sort) $STMLIB_CC
+
+sel tides && build tides tp_mmb_tides "$LIB/mi-tides" -- \
+  "$LIB"/mi-tides/tides2/poly_slope_generator.cc "$LIB"/mi-tides/tides2/resources.cc $STMLIB_CC
+
+sel warps && build warps tp_mmb_warps "$LIB/mi-warps" -- \
+  "$LIB"/mi-warps/warps/dsp/filter_bank.cc "$LIB"/mi-warps/warps/dsp/modulator.cc \
+  "$LIB"/mi-warps/warps/dsp/oscillator.cc "$LIB"/mi-warps/warps/dsp/vocoder.cc \
+  "$LIB"/mi-warps/warps/resources.cc $STMLIB_CC
 
 [ -z "$FAILED" ] && echo "klaar." || { echo "mislukt:$FAILED"; exit 1; }
