@@ -28,7 +28,7 @@ import type {
   ModularProject, Patch, ModuleInstance, ModuleType,
   PatchConnection, ControlValue, SignalType,
 } from '../types';
-import { registry, Vcf, Ladder, Ms20, Vco, FmVco, Vca, Ahdsr, Lfo, Dx7 } from '../runtime';
+import { registry, Vcf, Ladder, Ms20, Vco, FmVco, Vca, Ahdsr, Lfo, Dx7, WasmModule } from '../runtime';
 
 export interface EngineStatus {
   running: boolean;
@@ -208,7 +208,26 @@ interface Dx7Node extends BaseNode {
   kind: 'dx7';
   runtime: Dx7;
 }
-type EngineNode = VcoNode | VcfNode | VcaNode | EnvNode | LfoNode | OutNode | MidiInNode | SeqNode | NoiseNode | EchoNode | PhaserNode | MixerNode | CvMathNode | Dx7Node;
+/** Teensy-module als wasm in een AudioWorklet (Elements, Rings, Marbles…).
+ *  Elke poort is een Tone.Gain; cv/gate zijn audio-rate signalen. */
+interface WasmNode extends BaseNode {
+  kind: 'wasm';
+  runtime: WasmModule;
+  /** voct/gate worden door een kabel, MIDI-In of sequencer gestuurd → klavier-fallback uit. */
+  voctDriven: boolean;
+  gateDriven: boolean;
+}
+type EngineNode = VcoNode | VcfNode | VcaNode | EnvNode | LfoNode | OutNode | MidiInNode | SeqNode | NoiseNode | EchoNode | PhaserNode | MixerNode | CvMathNode | Dx7Node | WasmNode;
+
+/** Gate-poortnaam van een wasm-module ('gate' of 'trig'). */
+function wasmGatePort(rt: WasmModule): string | null {
+  return rt.hasInput('gate') ? 'gate' : rt.hasInput('trig') ? 'trig' : null;
+}
+/** Velocity-achtige ingang van een wasm-module. */
+function wasmVelPort(rt: WasmModule): string | null {
+  for (const p of ['vel', 'velocity', 'strength', 'accent_cv', 'accent']) if (rt.hasInput(p)) return p;
+  return null;
+}
 
 export class AudioEngine {
   private master: Tone.Gain | null = null;
@@ -257,7 +276,7 @@ export class AudioEngine {
       if (!inRack.has(m.id)) continue;
       const tRaw = project.moduleTypes.find((x) => x.id === m.typeId);
       if (!tRaw) continue;
-      if (tRaw.id === Dx7.typeId && polyVoiceIds.has(m.id)) continue;
+      if ((tRaw.id === Dx7.typeId || WasmModule.supports(tRaw.id)) && polyVoiceIds.has(m.id)) continue;
       // ADR 0009 — external simulation proxy. If the type declares a
       // `simulatedBy`, resolve to the proxy type and remap controls; the
       // engine then treats this external module as if it were the proxy.
@@ -340,6 +359,7 @@ export class AudioEngine {
       if (node.kind === 'sequencer') this.stopSequencer(node);
       if (node.kind === 'envelope') node.env.triggerRelease();
       if (node.kind === 'dx7') node.runtime.allOff();
+      if (node.kind === 'wasm') { const p = wasmGatePort(node.runtime); if (p) node.runtime.setInput(p, 0); }
       if (node.kind === 'noise') { try { node.noise.stop(); } catch { /* ignore */ } }
     }
     for (const o of this.startedOscs) {
@@ -378,17 +398,21 @@ export class AudioEngine {
           if (n?.kind === 'vco') {
             const off = readKnob(n.controls, 'coarse', 0) + readKnob(n.controls, 'fine', 0) / 100;
             n.osc.frequency.rampTo(midiToHz(midi + off), 0.005);
+          } else if (n?.kind === 'wasm') {
+            n.runtime.setInput('voct', (midi - 60) / 12);   // coarse/fine doet de module zelf
           }
         }
         for (const tgt of mi.gateTargets) {
           const n = this.nodes.get(tgt);
           if (n?.kind === 'envelope') n.env.triggerAttack();
+          else if (n?.kind === 'wasm') { const p = wasmGatePort(n.runtime); if (p) n.runtime.setInput(p, 1); }
         }
         // Velocity → CvMath-factor (mult-mode): bepaalt de VCA-amplitude per noot.
         for (const tgt of mi.velTargets) {
           const cm = this.nodes.get(tgt);
           // Spiegelt firmware-mult: factor = velocity × gain_b.
           if (cm?.kind === 'cvmath' && cm.mult) cm.mult.factor.rampTo(clamp(velocity, 0, 1) * cm.gainB, 0.005);
+          else if (cm?.kind === 'wasm') { const p = wasmVelPort(cm.runtime); if (p) cm.runtime.setInput(p, clamp(velocity, 0, 1)); }
         }
         for (const tgt of mi.seqVoctTargets) {
           const seq = this.nodes.get(tgt);
@@ -435,6 +459,12 @@ export class AudioEngine {
       if (node.kind === 'envelope' && !node.gateDriven) {
         node.env.triggerAttack();
       }
+      if (node.kind === 'wasm') {
+        if (!node.voctDriven && node.runtime.hasInput('voct')) node.runtime.setInput('voct', (midi - 60) / 12);
+        if (!node.gateDriven) { const p = wasmGatePort(node.runtime); if (p) node.runtime.setInput(p, 1); }
+        const vp = wasmVelPort(node.runtime);
+        if (vp && !node.runtime.cabled.has(vp)) node.runtime.setInput(vp, clamp(velocity, 0, 1));
+      }
     }
     this.status.voiceFreqHz = freq;
     this.emit();
@@ -452,6 +482,7 @@ export class AudioEngine {
         for (const tgt of node.gateTargets) {
           const n = this.nodes.get(tgt);
           if (n?.kind === 'envelope') n.env.triggerRelease();
+          else if (n?.kind === 'wasm') { const p = wasmGatePort(n.runtime); if (p) n.runtime.setInput(p, 0); }
         }
         // Forward release to connected sequencers.
         for (const tgt of node.seqRunTargets) {
@@ -477,6 +508,7 @@ export class AudioEngine {
     // Fallback.
     for (const node of this.nodes.values()) {
       if (node.kind === 'envelope' && !node.gateDriven) node.env.triggerRelease();
+      if (node.kind === 'wasm' && !node.gateDriven) { const p = wasmGatePort(node.runtime); if (p) node.runtime.setInput(p, 0); }
     }
     this.currentKeyboardNote = null;
     this.emit();
@@ -519,6 +551,10 @@ export class AudioEngine {
         return true;
       }
       case 'dx7': {
+        node.runtime.setControl(controlId, value);
+        return true;
+      }
+      case 'wasm': {
         node.runtime.setControl(controlId, value);
         return true;
       }
@@ -684,6 +720,7 @@ export class AudioEngine {
       switch (node.kind) {
         case 'vco': node.runtime.dispose(); break;
         case 'dx7': node.runtime.dispose(); break;
+        case 'wasm': node.runtime.dispose(); break;
         case 'vcf': node.runtime.dispose(); node.cvScale?.dispose(); node.qCvScale?.dispose(); break;
         case 'vca': node.runtime.dispose(); node.cvSum?.dispose(); break;
         case 'envelope': node.runtime.dispose(); break;
@@ -788,6 +825,11 @@ export class AudioEngine {
     if (t.id === Dx7.typeId) {
       const rt = registry.create(t, m, controls) as Dx7;
       return { ...base, kind: 'dx7', runtime: rt };
+    }
+    // Teensy-modules als wasm (Elements, Rings, Marbles, Stages, Peaks, …).
+    if (WasmModule.supports(t.id)) {
+      const rt = registry.create(t, m, controls) as WasmModule;
+      return { ...base, kind: 'wasm', runtime: rt, voctDriven: false, gateDriven: false };
     }
     switch (kind) {
       case 'vco': {
@@ -906,9 +948,54 @@ export class AudioEngine {
       // Mixer-uitgang is stereo via één Gain-node; out_l en out_r wijzen naar
       // dezelfde node. Sluit alleen out_l aan zodat de OUT niet dubbel telt.
       if (src.kind === 'mixer' && conn.from.portId === 'out_r') return;
-      const outNode = audioOutputOf(src);
+      const outNode = audioOutputOf(src, conn.from.portId);
       const inNode  = audioInputOf(dst, conn.to.portId);
-      if (outNode && inNode) outNode.connect(inNode);
+      if (outNode && inNode) {
+        if (src.kind === 'wasm' && dst.kind === 'wasm') {
+          // Zie de cv/gate-tak: wasm→wasm altijd via een DelayNode tegen lus-demping.
+          const d = new Tone.Delay(128 / Tone.getContext().sampleRate);
+          outNode.connect(d); d.connect(inNode);
+          dst.runtime.extra.push(d);
+        } else {
+          outNode.connect(inNode);
+        }
+        if (dst.kind === 'wasm') dst.runtime.markCabled(conn.to.portId);
+      }
+      return;
+    }
+
+    // ── cv/gate → wasm-module: alles is signaal in de worklet ──
+    if (dst.kind === 'wasm' && (srcSig === 'cv' || srcSig === 'gate' || srcSig === 'trigger')) {
+      const toPort = conn.to.portId;
+      if (src.kind === 'midiin') {
+        if (srcSig === 'cv' && toPort === 'voct') { src.pitchTargets.push(dst.moduleId); dst.voctDriven = true; }
+        else if (srcSig === 'cv') { src.velTargets.push(dst.moduleId); }
+        else { src.gateTargets.push(dst.moduleId); dst.gateDriven = true; }
+        return;
+      }
+      if (src.kind === 'sequencer') {
+        if (srcSig === 'cv') { src.cvTargets.push(dst.moduleId); dst.voctDriven = true; src.active = true; }
+        else if (conn.from.portId === 'trig') { src.trigTargets.push(dst.moduleId); dst.gateDriven = true; src.active = true; }
+        else { src.gateTargets.push(dst.moduleId); dst.gateDriven = true; src.active = true; }
+        return;
+      }
+      const out = cvOutputOf(src, conn.from.portId) ?? audioOutputOf(src, conn.from.portId);
+      const g = dst.runtime.inGain(toPort);
+      if (out && g) {
+        if (src.kind === 'wasm') {
+          // Web Audio dempt een lus zonder DelayNode (Stages.eoc → Marbles.clock
+          // → … → Stages.gate, of eoc → eigen gate). Eén render-quantum
+          // vertraging (~2,7 ms) houdt zulke zelfspelende patches in leven.
+          const d = new Tone.Delay(128 / Tone.getContext().sampleRate);
+          out.connect(d); d.connect(g);
+          dst.runtime.extra.push(d);
+        } else {
+          out.connect(g);
+        }
+        dst.runtime.markCabled(toPort);
+        if (toPort === 'voct') dst.voctDriven = true;
+        if (toPort === 'gate' || toPort === 'trig') dst.gateDriven = true;
+      }
       return;
     }
 
@@ -919,7 +1006,7 @@ export class AudioEngine {
         const port = conn.to.portId; // 'a' | 'b' | 'c'
         // Velocity uit MIDI-In is geen continu signaal → de dispatcher zet de factor.
         if (src.kind === 'midiin') { src.velTargets.push(dst.moduleId); return; }
-        const out = cvOutputOf(src);
+        const out = cvOutputOf(src, conn.from.portId);
         if (!out) return;
         if (dst.mode === 1 && dst.mult) {
           // mult: 'a' → hoofdingang, 'b' → factor (signaal-gestuurde modulatie).
@@ -939,14 +1026,14 @@ export class AudioEngine {
       }
       if (dst.kind === 'vca' && conn.to.portId === 'cv') {
         // Envelope/LFO outputs are 0..1 → add to the gain knob's base value.
-        const out = cvOutputOf(src);
+        const out = cvOutputOf(src, conn.from.portId);
         if (out) out.connect(dst.gain.gain);
         return;
       }
       if (dst.kind === 'vcf' && conn.to.portId === 'cv') {
         // Map 0..1 CV → cutoff multiplier (1x..16x = 4 octaves up). We use
         // Tone.Scale to translate the 0..1 signal into a freq-offset.
-        const out = cvOutputOf(src);
+        const out = cvOutputOf(src, conn.from.portId);
         if (!out) return;
         const scale = new Tone.Scale(0, dst.baseCutoff * 8 * dst.cvAmt);
         out.connect(scale);
@@ -959,7 +1046,7 @@ export class AudioEngine {
         // baseQ + q_cv_amt at full-scale. resonanceToQ translates module
         // resonance units to the biquad Q param (1:1 for the VCF, mapped for
         // the ladder). Connecting the Scale overrides filter.Q (Tone.js).
-        const out = cvOutputOf(src);
+        const out = cvOutputOf(src, conn.from.portId);
         if (!out) return;
         const scale = new Tone.Scale(
           dst.runtime.resonanceToQ(dst.baseQ),
@@ -991,7 +1078,7 @@ export class AudioEngine {
           dst.active = true;
           return;
         }
-        const out = cvOutputOf(src);
+        const out = cvOutputOf(src, conn.from.portId);
         if (!out) return;
         const meter = new Tone.Meter({ normalRange: true, smoothing: 0 });
         out.connect(meter);
@@ -1009,7 +1096,7 @@ export class AudioEngine {
         dst.active = true;
         return;
       }
-      const out = cvOutputOf(src) ?? audioOutputOf(src);
+      const out = cvOutputOf(src, conn.from.portId) ?? audioOutputOf(src, conn.from.portId);
       if (!out) return;
       const meter = new Tone.Meter({ normalRange: true, smoothing: 0 });
       out.connect(meter);
@@ -1126,24 +1213,30 @@ export class AudioEngine {
         __runActive: 1,
       };
 
-      // Drive CV targets (VCO voct inputs).
+      // Drive CV targets (VCO voct inputs, wasm-modules).
       for (const tgt of seq.cvTargets) {
         const n = this.nodes.get(tgt);
         if (n?.kind === 'vco') {
           const offset = readKnob(n.controls, 'coarse', 0) + readKnob(n.controls, 'fine', 0) / 100;
           n.osc.frequency.rampTo(midiToHz(note + offset), 0.005);
+        } else if (n?.kind === 'wasm') {
+          n.runtime.setInput('voct', (note - 60) / 12);
         }
       }
-      // Trigger gate targets (envelopes) — gehouden gate (gateRatio).
+      // Trigger gate targets (envelopes, wasm-gates) — gehouden gate (gateRatio).
       for (const tgt of seq.gateTargets) {
         const env = this.nodes.get(tgt);
         if (env?.kind === 'envelope') env.env.triggerAttack();
+        else if (env?.kind === 'wasm') { const p = wasmGatePort(env.runtime); if (p) env.runtime.setInput(p, 1); }
       }
       // Trig-out: korte puls per step (drum-trigger), onafhankelijk van gateRatio.
       for (const tgt of seq.trigTargets) {
         const env = this.nodes.get(tgt);
         if (env?.kind === 'envelope') {
           env.env.triggerAttackRelease(0.005);
+        } else if (env?.kind === 'wasm') {
+          const p = wasmGatePort(env.runtime);
+          if (p) { env.runtime.setInput(p, 1); window.setTimeout(() => env.runtime.setInput(p, 0), 5); }
         }
       }
       this.status.voiceFreqHz = midiToHz(note);
@@ -1154,6 +1247,7 @@ export class AudioEngine {
         for (const tgt of seq.gateTargets) {
           const env = this.nodes.get(tgt);
           if (env?.kind === 'envelope' && seq.lastNote === note) env.env.triggerRelease();
+          else if (env?.kind === 'wasm' && seq.lastNote === note) { const p = wasmGatePort(env.runtime); if (p) env.runtime.setInput(p, 0); }
         }
       }, intervalMs * seq.gateRatio);
     };
@@ -1188,10 +1282,11 @@ export class AudioEngine {
 
 // ── node-port lookups ────────────────────────────────────────────────
 
-function audioOutputOf(n: EngineNode): Tone.ToneAudioNode | null {
+function audioOutputOf(n: EngineNode, portId?: string): Tone.ToneAudioNode | null {
   switch (n.kind) {
     case 'vco': return n.osc;
     case 'dx7': return n.runtime.out;
+    case 'wasm': return n.runtime.outGain(portId ?? n.runtime.outputIds[0] ?? '') ?? n.runtime.outGain(portId === 'out' ? 'out_l' : 'out') ?? null;
     case 'vcf': return n.filter;
     case 'vca': return n.gain;
     case 'noise': return n.level;
@@ -1205,6 +1300,7 @@ function audioInputOf(n: EngineNode, portId?: string): Tone.ToneAudioNode | null
   switch (n.kind) {
     // Alleen de FM-VCO heeft een audio-ingang (fm → carrier-detune).
     case 'vco': return portId === 'fm' && n.runtime instanceof FmVco ? n.runtime.fmIn : null;
+    case 'wasm': return n.runtime.inGain(portId ?? '') ?? n.runtime.inGain(portId === 'in' ? 'in_l' : 'in') ?? null;
     case 'vcf': return n.filter;
     case 'vca': return n.gain;
     case 'out': return n.inGain;
@@ -1218,11 +1314,12 @@ function audioInputOf(n: EngineNode, portId?: string): Tone.ToneAudioNode | null
     default: return null;
   }
 }
-function cvOutputOf(n: EngineNode): Tone.ToneAudioNode | null {
+function cvOutputOf(n: EngineNode, portId?: string): Tone.ToneAudioNode | null {
   switch (n.kind) {
     case 'envelope': return n.env;
     case 'lfo':      return n.lfo;
     case 'cvmath':   return n.out;
+    case 'wasm':     return n.runtime.outGain(portId ?? '') ?? null;
     default: return null;
   }
 }

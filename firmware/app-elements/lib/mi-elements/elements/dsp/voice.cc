@@ -75,7 +75,8 @@ void Voice::Init(const VoiceBuffers* buffers) {
 
 void Voice::ResetResonator(const VoiceBuffers* buffers) {
   // Pass resonator bow delay line buffers if provided.
-  float** bow_bufs = buffers ? buffers->resonator_bow_buf : nullptr;
+  // const_cast: VoiceBuffers is const, de bow-buffers zelf niet (GCC/-fpermissive liet dit door, clang niet).
+  float** bow_bufs = buffers ? const_cast<float**>(buffers->resonator_bow_buf) : nullptr;
   resonator_.Init(bow_bufs);
   for (size_t i = 0; i < kNumStrings; ++i) {
     float* s_buf = buffers ? buffers->string_buf[i] : nullptr;

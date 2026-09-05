@@ -10,7 +10,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useModularProject } from './store';
 import { AudioEngine, type EngineStatus } from './sim/AudioEngine';
 import { getEngine } from './sim/engineSingleton';
-import { Dx7 } from './runtime';
+import { Dx7, WasmModule } from './runtime';
 import {
   ScreenKeyboardSource, TestSequenceSource, WebMidiSource,
   type MidiSource, type MidiEvent,
@@ -147,6 +147,11 @@ export function SimulationPanel(): JSX.Element {
           {Dx7.info() && (
             <span style={{ color: Dx7.lastError ? '#b91c1c' : '#475569' }} title="DX7-worklet (msfa-kern) in de browser">
               {Dx7.info()}
+            </span>
+          )}
+          {WasmModule.info() && (
+            <span style={{ color: WasmModule.lastError ? '#b91c1c' : '#475569' }} title="Teensy-modules als wasm in de browser (tools/mmb-wasm)">
+              {WasmModule.info()}
             </span>
           )}
           <span style={{ marginLeft: 'auto', display: 'inline-flex', gap: 6 }}>

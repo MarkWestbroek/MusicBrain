@@ -87,10 +87,10 @@ public:
 
         stages::SegmentGenerator::Output out;
         gen_.Process(&flags, &out, 1);
-        // Stages levert ±8 V-achtige waarden; ÷8 naar MMB-CV (0..1-conventie,
-        // bipolaire vormen geven dan ±1). rate schaalt de tijd (fase-frequentie
-        // laat de generator zelf; hier alleen output doorgeven).
-        out_    = out.value * 0.125f;
+        // SegmentGenerator levert al genormaliseerd 0..1 (ramp/hold/step:
+        // `out->value = lp_`; de ramp-extractor ×5/8) — de vorige ÷8 ging
+        // uit van ±8 V en liet de VCA in de Krell-patch maar tot 12,5 % open.
+        out_    = out.value;
         eocHigh_ = (out.segment == 0);
     }
 
