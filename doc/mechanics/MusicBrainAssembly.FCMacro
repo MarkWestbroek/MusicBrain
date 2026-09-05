@@ -1,0 +1,476 @@
+# -*- coding: utf-8 -*-
+"""Parametric 3D concept of the assembled MusicBrain Eurorack system.
+
+The model combines the 40 HP main unit, a separate 8 HP audio-I/O panel and
+the planned 32 HP expansion unit. All dimensions are in millimetres.
+"""
+
+import math
+import os
+
+import FreeCAD as App
+import Draft
+import Part
+from FreeCAD import Vector
+
+
+# ---------------------------------------------------------------------------
+# PARAMETERS
+# ---------------------------------------------------------------------------
+P = dict(
+    expansion_side="right",       # "left", "right" or "none"
+    audio_side="right",           # side of the main panel
+    save_fcstd=True,
+    panel_height=128.5,            # Eurorack 3U panel envelope
+    panel_thickness=2.0,
+    main_hp=40,
+    audio_hp=8,                    # concept width; no final audio front exists
+    expansion_hp=32,
+    hp=5.08,
+    unit_gap=0.0,
+    busboard_depth=59.6,            # 13 mm controls + 1.6 mm front PCB + 45 mm card
+    busboard_thickness=1.6,
+    card_depth=45.0,               # bus.py H
+    card_height=80.0,              # bus.py KAART_B
+    card_thickness=1.6,
+    front_pcb_depth=13.0,
+    front_pcb_thickness=1.6,
+    front_pcb_width=18.0,
+    front_pcb_height=110.0,
+    rail_depth=10.0,
+    rail_height=7.0,
+)
+
+COLORS = dict(
+    panel=(0.82, 0.83, 0.80),
+    panel_edge=(0.32, 0.34, 0.36),
+    pcb=(0.12, 0.38, 0.20),
+    expansion_pcb=(0.12, 0.30, 0.38),
+    card=(0.18, 0.46, 0.27),
+    expansion_card=(0.20, 0.38, 0.52),
+    front_pcb=(0.15, 0.42, 0.24),
+    component_body=(0.20, 0.22, 0.21),
+    connector_socket=(0.08, 0.09, 0.09),
+    connector_header=(0.72, 0.62, 0.38),
+    connector_pin=(0.72, 0.72, 0.68),
+    display=(0.08, 0.12, 0.16),
+    display_glass=(0.10, 0.55, 0.72),
+    control=(0.22, 0.23, 0.24),
+    button=(0.72, 0.20, 0.15),
+    jack=(0.12, 0.13, 0.14),
+    midi=(0.16, 0.18, 0.17),
+    cable_control=(0.88, 0.55, 0.10),
+    cable_audio=(0.72, 0.15, 0.12),
+    rail=(0.48, 0.50, 0.52),
+)
+
+FONT_FILE = "/System/Library/Fonts/Supplemental/Arial.ttf"
+
+
+def add_feature(document, group, name, label, shape, color):
+    obj = document.addObject("Part::Feature", name)
+    obj.Label = label
+    obj.Shape = shape
+    if obj.ViewObject is not None:
+        obj.ViewObject.ShapeColor = color
+    group.addObject(obj)
+    return obj
+
+
+def box(width, depth, height, x=0.0, y=0.0, z=0.0):
+    return Part.makeBox(width, depth, height, Vector(x, y, z))
+
+
+def cylinder_y(diameter, length, x, y, z):
+    return Part.makeCylinder(
+        diameter / 2.0, length, Vector(x, y, z), Vector(0, -1, 0)
+    )
+
+
+def cylinder_positive_y(diameter, length, x, y, z):
+    return Part.makeCylinder(
+        diameter / 2.0, length, Vector(x, y, z), Vector(0, 1, 0)
+    )
+
+
+def panel_shape(x, width):
+    shape = box(width, P["panel_thickness"], P["panel_height"], x, 0, 0)
+    hole_xs = (x + 7.5, x + width - 7.5)
+    hole_zs = (3.0, P["panel_height"] - 3.1)
+    for hole_x in hole_xs:
+        for hole_z in hole_zs:
+            hole = cylinder_y(3.2, P["panel_thickness"] + 2, hole_x, 1, hole_z)
+            shape = shape.cut(hole)
+    return shape
+
+
+def add_panel(document, group, name, label, x, width, color=None):
+    return add_feature(
+        document,
+        group,
+        name,
+        label,
+        panel_shape(x, width),
+        color or COLORS["panel"],
+    )
+
+
+def add_label(document, group, name, text, x, z, size=2.5):
+    obj = Draft.makeShapeString(
+        String=text,
+        FontFile=FONT_FILE,
+        Size=size,
+        Tracking=0,
+    )
+    obj.Label = "Label: " + text
+    obj.addProperty("App::PropertyString", "ModelName").ModelName = name
+    bounds = obj.Shape.BoundBox
+    obj.Placement = App.Placement(
+        Vector(x - bounds.Center.x, -0.15, z - bounds.Center.y),
+        App.Rotation(Vector(1, 0, 0), 90),
+    )
+    if obj.ViewObject is not None:
+        obj.ViewObject.ShapeColor = (0.08, 0.08, 0.08)
+        obj.ViewObject.LineColor = (0.08, 0.08, 0.08)
+        obj.ViewObject.LineWidth = 2.0
+    group.addObject(obj)
+    return obj
+
+
+def add_rotary_control(document, group, name, x, z, knob_diameter, knob_length,
+                       body_size):
+    bushing = cylinder_y(7.0, 3.0, x, 0.0, z)
+    add_feature(document, group, name + "Bushing", name.replace("_", " ") + " bushing",
+                bushing, COLORS["connector_pin"])
+    knob = cylinder_y(knob_diameter, knob_length, x, -2.0, z)
+    add_feature(document, group, name, name.replace("_", " ") + " knob",
+                knob, COLORS["control"])
+    body = box(body_size, P["front_pcb_depth"] - P["panel_thickness"], body_size,
+               x - body_size / 2.0, P["panel_thickness"], z - body_size / 2.0)
+    add_feature(document, group, name + "Body", name.replace("_", " ") + " rear body",
+                body, COLORS["component_body"])
+    return knob
+
+
+def add_pot(document, group, name, x, z):
+    return add_rotary_control(document, group, name, x, z, 12.0, 10.0, 9.5)
+
+
+def add_encoder(document, group, name, x, z):
+    return add_rotary_control(document, group, name, x, z, 14.0, 11.0, 12.0)
+
+
+def add_pushbutton(document, group, name, x, z):
+    cap = cylinder_y(6.0, 3.5, x, 0.0, z)
+    add_feature(document, group, name, name.replace("_", " "), cap, COLORS["button"])
+    body = box(6.5, P["front_pcb_depth"] - P["panel_thickness"], 6.5,
+               x - 3.25, P["panel_thickness"], z - 3.25)
+    add_feature(document, group, name + "Body", name.replace("_", " ") + " rear body",
+                body, COLORS["component_body"])
+    return cap
+
+
+def add_jack(document, group, name, x, z, diameter=9.0):
+    body = cylinder_y(diameter, 2.6, x, 0.0, z)
+    bore = cylinder_y(3.5, 3.6, x, 0.5, z)
+    jack = add_feature(
+        document, group, name, name.replace("_", " "), body.cut(bore), COLORS["jack"]
+    )
+    rear_body = box(10.0, P["front_pcb_depth"] - P["panel_thickness"], 11.5,
+                    x - 5.0, P["panel_thickness"], z - 5.75)
+    add_feature(document, group, name + "Body", name.replace("_", " ") + " socket body",
+                rear_body, COLORS["component_body"])
+    return jack
+
+
+def add_midi_socket(document, group, name, label, x, z):
+    flange = cylinder_y(15.5, 2.4, x, 0.0, z)
+    recess = cylinder_y(12.0, 1.0, x, 0.2, z)
+    add_feature(document, group, name, label, flange.cut(recess), COLORS["midi"])
+    rear_body = cylinder_positive_y(15.5, P["front_pcb_depth"] - P["panel_thickness"],
+                                    x, P["panel_thickness"], z)
+    add_feature(document, group, name + "Body", label + " rear body", rear_body,
+                COLORS["component_body"])
+
+
+def add_front_pcb(document, group, name, label, x, width=None):
+    board_width = width or P["front_pcb_width"]
+    board = box(board_width, P["front_pcb_thickness"], P["front_pcb_height"],
+                x - board_width / 2.0, P["front_pcb_depth"],
+                (P["panel_height"] - P["front_pcb_height"]) / 2.0)
+    return add_feature(document, group, name, label, board, COLORS["front_pcb"])
+
+
+def add_card_connectors(document, group, prefix, x, card_z):
+    """Add coarse 1x10 front and 2x12 bus mating connector pairs."""
+    connector_z = card_z + P["card_height"] / 2.0
+    front_socket = box(5.0, 4.5, 27.0, x - 2.5, P["front_pcb_depth"] - 4.5,
+                       connector_z - 13.5)
+    add_feature(document, group, prefix + "FrontSocket", "Front PCB 1x10 socket",
+                front_socket, COLORS["connector_socket"])
+    card_front_y = P["front_pcb_depth"] + P["front_pcb_thickness"]
+    front_header = box(5.0, 5.0, 27.0, x - 2.5, card_front_y - 5.0,
+                       connector_z - 13.5)
+    add_feature(document, group, prefix + "FrontHeader", "Card 1x10 right-angle header",
+                front_header, COLORS["connector_header"])
+    for pin_index in range(10):
+        pin_z = connector_z - 11.43 + pin_index * 2.54
+        pin = cylinder_positive_y(0.65, 6.1, x, P["front_pcb_depth"] - 4.5, pin_z)
+        add_feature(document, group, "%sFrontPin%d" % (prefix, pin_index + 1),
+                    "Front connector pin %d" % (pin_index + 1), pin,
+                    COLORS["connector_pin"])
+
+    bus_socket = box(7.0, 5.0, 32.0, x - 3.5, P["busboard_depth"] - 5.0,
+                     connector_z - 16.0)
+    add_feature(document, group, prefix + "BusSocket", "Busboard 2x12 socket",
+                bus_socket, COLORS["connector_socket"])
+    bus_header = box(7.0, 5.5, 32.0, x - 3.5, P["busboard_depth"] - 6.0,
+                     connector_z - 16.0)
+    add_feature(document, group, prefix + "BusHeader", "Card 2x12 right-angle header",
+                bus_header, COLORS["connector_header"])
+    for row_index, row_x in enumerate((x - 1.27, x + 1.27), 1):
+        for pin_index in range(12):
+            pin_z = connector_z - 13.97 + pin_index * 2.54
+            pin = cylinder_positive_y(0.65, 5.0, row_x,
+                                      P["busboard_depth"] - 5.0, pin_z)
+            add_feature(document, group,
+                        "%sBusPin%d_%d" % (prefix, row_index, pin_index + 1),
+                        "Bus connector pin", pin, COLORS["connector_pin"])
+
+
+def add_cable(document, group, name, points, diameter, color):
+    edges = []
+    for start, end in zip(points[:-1], points[1:]):
+        edges.append(Part.makeLine(Vector(*start), Vector(*end)))
+    wire = Part.Wire(edges)
+    shape = Part.Wire(wire).makePipeShell(
+        [Part.Wire(Part.makeCircle(diameter / 2.0, Vector(*points[0]), Vector(0, 1, 0)))],
+        True,
+        False,
+    )
+    return add_feature(document, group, name, name.replace("_", " "), shape, color)
+
+
+def add_main_unit(document, x):
+    width = P["main_hp"] * P["hp"]
+    group = document.addObject("App::DocumentObjectGroup", "MainUnit")
+    group.Label = "40 HP main unit"
+    add_panel(document, group, "MainFront", "MusicBrain main front - 40 HP", x, width)
+
+    # Brain console from the approved frontpanel-v1 concept.
+    screen = box(58, 5, 33, x + 10, -7, P["panel_height"] - 46)
+    add_feature(document, group, "Display", "58 x 33 mm display", screen, COLORS["display"])
+    glass = box(54, 0.5, 29, x + 12, -7.5, P["panel_height"] - 44)
+    add_feature(document, group, "DisplayGlass", "Display active area", glass, COLORS["display_glass"])
+    add_label(document, group, "MusicBrainLabel", "MUSICBRAIN", x + 39, 122.0, 3.2)
+    for index, control_x in enumerate((16, 32, 48, 64), 1):
+        add_pushbutton(document, group, "SoftButton%d" % index, x + control_x,
+                       P["panel_height"] - 54)
+    for index, control_x in enumerate((26, 54), 1):
+        add_encoder(document, group, "NavigationEncoder%d" % index, x + control_x,
+                    P["panel_height"] - 74)
+    for index, control_x in enumerate((15, 40, 65), 1):
+        label = ("MIDI IN " + str(index)) if index < 3 else "MIDI OUT"
+        add_midi_socket(document, group, "Midi%d" % index, label, x + control_x,
+                        P["panel_height"] - 100)
+        add_label(document, group, "MidiLabel%d" % index, label, x + control_x, 41.0, 2.2)
+    usb = box(24, 7, 7, x + 28, -9, P["panel_height"] - 123)
+    add_feature(document, group, "UsbHost", "USB host", usb, COLORS["control"])
+
+    # Six 4 HP performance columns from frontpanel-v1.
+    column_names = ("ADC8", "GATEIN8", "POT8", "ENC5", "DAC8", "GATE8")
+    column_labels = ("CV IN", "GATE IN", "POT", "ENC", "CV OUT", "GATE OUT")
+    column_xs = tuple(x + 84 + 20 * index for index in range(6))
+    for column_name, column_label, column_x in zip(column_names, column_labels, column_xs):
+        add_front_pcb(document, group, column_name + "FrontPCB",
+                      column_name + " front PCB - 18 x 110 mm", column_x)
+        add_label(document, group, column_name + "Label", column_label, column_x, 7.0, 2.2)
+        if column_name == "POT8":
+            for row in range(8):
+                add_pot(document, group, "%s_%d" % (column_name, row + 1), column_x,
+                        P["panel_height"] - (16 + 12.6 * row))
+        elif column_name == "ENC5":
+            for row in range(5):
+                add_encoder(document, group, "%s_%d" % (column_name, row + 1), column_x,
+                            P["panel_height"] - (9.6 + 17.6 * row))
+            for button_index, panel_y in enumerate((94.0, 103.0), 1):
+                add_pushbutton(document, group, "ENC5_Button%d" % button_index,
+                               column_x, P["panel_height"] - panel_y)
+        else:
+            for row in range(8):
+                add_jack(document, group, "%s_%d" % (column_name, row + 1), column_x,
+                         P["panel_height"] - (16 + 12.6 * row))
+
+    busboard = box(width, P["busboard_thickness"], P["panel_height"],
+                   x, P["busboard_depth"], 0)
+    add_feature(document, group, "MainBusboard", "Busboard rev 3.1 - 203.2 x 128.5 mm",
+                busboard, COLORS["pcb"])
+    for index, slot_x in enumerate(column_xs, 1):
+        card_z = (P["panel_height"] - P["card_height"]) / 2
+        card = box(P["card_thickness"], P["card_depth"], P["card_height"],
+                   slot_x - P["card_thickness"] / 2,
+                   P["busboard_depth"] - P["card_depth"],
+                   card_z)
+        add_feature(document, group, "MainCard%d" % index,
+                    "Slot %d - %s card" % (index, column_names[index - 1]),
+                    card, COLORS["card"])
+        add_card_connectors(document, group, "MainCard%d" % index, slot_x, card_z)
+
+    teensy = box(18, 2, 61, x + 22, P["busboard_depth"] - 2, 34)
+    add_feature(document, group, "Teensy41", "Teensy 4.1", teensy, (0.18, 0.20, 0.22))
+    return group, width
+
+
+def add_audio_unit(document, x):
+    width = P["audio_hp"] * P["hp"]
+    group = document.addObject("App::DocumentObjectGroup", "AudioIO")
+    group.Label = "Separate 8 HP audio I/O front (concept)"
+    add_panel(document, group, "AudioFront", "Audio I/O front - provisional 8 HP", x, width,
+              (0.74, 0.76, 0.73))
+    add_front_pcb(document, group, "AudioFrontPCB", "Audio I/O front PCB",
+                  x + width / 2.0, width - 5.0)
+    columns = (x + width * 0.32, x + width * 0.68)
+    add_label(document, group, "AudioInLabel", "AUDIO IN", columns[0], 122.0, 2.0)
+    add_label(document, group, "AudioOutLabel", "AUDIO OUT", columns[1], 122.0, 2.0)
+    for row in range(6):
+        add_jack(document, group, "AudioIn%d" % (row + 1), columns[0],
+                 112 - row * 18)
+        add_jack(document, group, "AudioOut%d" % (row + 1), columns[1],
+                 112 - row * 18)
+    return group, width
+
+
+def add_expansion_unit(document, x):
+    width = P["expansion_hp"] * P["hp"]
+    group = document.addObject("App::DocumentObjectGroup", "ExpansionUnit")
+    group.Label = "Planned 32 HP expansion unit"
+    add_panel(document, group, "ExpansionFront", "Expansion front - 32 HP concept", x, width,
+              (0.70, 0.74, 0.76))
+    busboard = box(width, P["busboard_thickness"], P["panel_height"],
+                   x, P["busboard_depth"], 0)
+    add_feature(document, group, "ExpansionBusboard",
+                "Planned passive expansion busboard - not yet designed",
+                busboard, COLORS["expansion_pcb"])
+    first_slot = x + 40.64
+    for index in range(6):
+        slot_x = first_slot + index * 20.32
+        add_label(document, group, "ExpansionLabel%d" % (index + 1),
+                  "EXP %d" % (index + 1), slot_x, 7.0, 2.2)
+        add_front_pcb(document, group, "ExpansionFrontPCB%d" % (index + 1),
+                      "Expansion slot %d front PCB" % (index + 1), slot_x)
+        card_z = (P["panel_height"] - P["card_height"]) / 2
+        card = box(P["card_thickness"], P["card_depth"], P["card_height"],
+                   slot_x - P["card_thickness"] / 2,
+                   P["busboard_depth"] - P["card_depth"],
+                   card_z)
+        add_feature(document, group, "ExpansionCard%d" % (index + 1),
+                    "Expansion slot %d concept card" % (index + 1),
+                    card, COLORS["expansion_card"])
+        add_card_connectors(document, group, "ExpansionCard%d" % (index + 1),
+                            slot_x, card_z)
+        for row in range(6):
+            add_jack(document, group, "ExpansionControl%d_%d" % (index + 1, row + 1),
+                     slot_x, 108 - row * 18)
+    return group, width
+
+
+def add_rack(document, x, width):
+    group = document.addObject("App::DocumentObjectGroup", "EurorackRails")
+    group.Label = "80 HP Eurorack mounting envelope"
+    for name, z in (("BottomRail", -P["rail_height"]),
+                    ("TopRail", P["panel_height"])):
+        rail = box(width, P["rail_depth"], P["rail_height"], x, -2, z)
+        add_feature(document, group, name, name.replace("Rail", " rail"), rail, COLORS["rail"])
+    return group
+
+
+def output_path():
+    script_path = globals().get("__file__")
+    if script_path and os.path.isfile(script_path):
+        base = os.path.dirname(os.path.abspath(script_path))
+    else:
+        base = os.path.join(os.getcwd(), "doc", "mechanics")
+    output_dir = os.path.join(base, "visuals")
+    if not os.path.isdir(output_dir):
+        os.makedirs(output_dir)
+    return os.path.join(output_dir, "musicbrain-assembly.FCStd")
+
+
+if P["expansion_side"] not in ("left", "right", "none"):
+    raise ValueError("expansion_side must be 'left', 'right' or 'none'")
+if P["audio_side"] not in ("left", "right"):
+    raise ValueError("audio_side must be 'left' or 'right'")
+
+doc = App.newDocument("MusicBrainAssembly")
+configuration = doc.addObject("App::FeaturePython", "Configuration")
+configuration.Label = "MODEL PARAMETERS AND ASSUMPTIONS"
+configuration.addProperty("App::PropertyString", "ExpansionSide").ExpansionSide = P["expansion_side"]
+configuration.addProperty("App::PropertyString", "AudioFrontStatus").AudioFrontStatus = "Concept - 8 HP assumed"
+configuration.addProperty("App::PropertyString", "ExpansionStatus").ExpansionStatus = "Planned - no PCB design yet"
+configuration.addProperty("App::PropertyString", "MainSource").MainSource = "musicbrain-busboard rev 3.1 / frontpanel-v1"
+
+main_width = P["main_hp"] * P["hp"]
+audio_width = P["audio_hp"] * P["hp"]
+expansion_width = P["expansion_hp"] * P["hp"] if P["expansion_side"] != "none" else 0
+
+if P["expansion_side"] == "left":
+    expansion_x = 0.0
+    main_x = expansion_width
+else:
+    main_x = 0.0
+    expansion_x = main_width + audio_width
+
+if P["audio_side"] == "left":
+    audio_x = main_x - audio_width
+    if P["expansion_side"] == "left":
+        expansion_x = audio_x - expansion_width
+else:
+    audio_x = main_x + main_width
+    if P["expansion_side"] == "right":
+        expansion_x = audio_x + audio_width
+
+main_group, unused = add_main_unit(doc, main_x)
+audio_group, unused = add_audio_unit(doc, audio_x)
+if P["expansion_side"] != "none":
+    expansion_group, unused = add_expansion_unit(doc, expansion_x)
+
+assembly_x = min(main_x, audio_x, expansion_x if expansion_width else main_x)
+assembly_width = main_width + audio_width + expansion_width
+add_rack(doc, assembly_x, assembly_width)
+
+# Schematic harnesses make the physical separation and cable routing explicit.
+cables = doc.addObject("App::DocumentObjectGroup", "Cables")
+cables.Label = "Rear interconnect cables"
+codec_start = (main_x + 188, P["busboard_depth"] + 2, 62)
+audio_end = (audio_x + audio_width / 2, 8, 62)
+add_cable(doc, cables, "CodecToAudioFront",
+          (codec_start, (codec_start[0], 66, 62), (audio_end[0], 66, 62), audio_end),
+          2.8, COLORS["cable_audio"])
+if expansion_width:
+    main_header = (main_x + main_width - 8, P["busboard_depth"] + 2, 92)
+    expansion_header_x = expansion_x + (8 if expansion_x > main_x else expansion_width - 8)
+    expansion_header = (expansion_header_x, P["busboard_depth"] + 2, 92)
+    add_cable(doc, cables, "ExpansionControlRibbon",
+              (main_header, (main_header[0], 72, 92),
+               (expansion_header[0], 72, 92), expansion_header),
+              3.5, COLORS["cable_control"])
+    add_cable(doc, cables, "ExpansionAudioRibbon",
+              ((main_header[0], main_header[1], 76), (main_header[0], 78, 76),
+               (expansion_header[0], 78, 76), (expansion_header[0], expansion_header[1], 76)),
+              3.5, COLORS["cable_audio"])
+
+doc.recompute()
+if P["save_fcstd"]:
+    destination = output_path()
+    doc.saveAs(destination)
+    App.Console.PrintMessage("Saved MusicBrain assembly to %s\n" % destination)
+
+if App.GuiUp:
+    import FreeCADGui as Gui
+    Gui.activeDocument().activeView().viewAxonometric()
+    Gui.activeDocument().activeView().fitAll()
+
+App.Console.PrintMessage(
+    "MusicBrain assembly: %.1f mm / %.0f HP wide, expansion=%s\n" %
+    (assembly_width, assembly_width / P["hp"], P["expansion_side"])
+)
