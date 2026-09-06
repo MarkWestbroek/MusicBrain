@@ -4,14 +4,25 @@
 //
 // Layout: split-pane. Left = ModuleTypes list, right = Modules list.
 // Selecting a type filters the Modules table to instances of that type.
+//
+// Both panes carry a search box and clickable column headers. With 50+
+// internal types an insertion-order list stopped being findable; sorting and
+// filtering live in the view only — `project.moduleTypes` / `.modules` keep
+// their stored order.
+//
+// De Sim-kolom komt uit `sim/simSupport.ts` — dezelfde functie waar de engine
+// zijn nodes op bouwt, dus wat hier "speelt" heet, klinkt ook echt.
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { updateProject, useModularProject, uid } from './store';
 import { ModulePanel } from './ModulePanel';
 import {
   type ModuleType, type ModuleInstance, type Control, type Port,
   type ModuleCategory, MM_PER_HP,
 } from './types';
+import {
+  simSupportOf, SIM_LABEL, SIM_TITLE, type SimSupport,
+} from './sim/simSupport';
 
 export function ModulesPanel(): JSX.Element {
   const project = useModularProject();
@@ -26,13 +37,15 @@ export function ModulesPanel(): JSX.Element {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
         <TypesPane categories={project.categories} types={project.moduleTypes}
                    selectedId={selTypeId} onSelect={setSelTypeId} />
-        <ModulesPane types={project.moduleTypes} modules={project.modules}
+        <ModulesPane types={project.moduleTypes} categories={project.categories}
+                     modules={project.modules}
                      filterTypeId={selTypeId}
                      selectedId={selModuleId} onSelect={setSelModuleId} />
       </div>
 
       {selType && (
-        <TypeEditor type={selType} categories={project.categories} />
+        <TypeEditor type={selType} types={project.moduleTypes}
+                    categories={project.categories} />
       )}
 
       {selModule && (
@@ -42,7 +55,132 @@ export function ModulesPanel(): JSX.Element {
   );
 }
 
+// ── Search + sort (shared by both panes) ───────────────────────────────
+
+type SortDir = 'asc' | 'desc';
+interface SortState<K extends string> { key: K; dir: SortDir }
+type Scope = 'all' | 'internal' | 'external';
+
+/**
+ * Substring match, case-insensitive, over a few fields of one row.
+ * Space-separated terms must all hit ("mixer 8", "moog ladder"); plain
+ * substring rather than fuzzy, because the names here are short and typing
+ * a second word filters better than a lenient guess at one.
+ */
+function matches(query: string, ...fields: (string | undefined)[]): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  const hay = fields.filter(Boolean).join(' ').toLowerCase();
+  return q.split(/\s+/).every((term) => hay.includes(term));
+}
+
+/** `numeric` so "Mixer 8" sorts before "Mixer 16", not after. */
+const collator = new Intl.Collator('nl', { numeric: true, sensitivity: 'base' });
+
+function cmp(a: string | number, b: string | number): number {
+  if (typeof a === 'number' && typeof b === 'number') return a - b;
+  return collator.compare(String(a), String(b));
+}
+
+/** Column header that sorts on click; clicking the active column flips it. */
+function SortTh<K extends string>({
+  label, sortKey, sort, onSort,
+}: {
+  label: string;
+  sortKey: K;
+  sort: SortState<K>;
+  onSort: (s: SortState<K>) => void;
+}): JSX.Element {
+  const active = sort.key === sortKey;
+  return (
+    <th style={{ ...th, cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',
+                 color: active ? '#1f2937' : undefined }}
+        title={`Sorteer op ${label.toLowerCase()}`}
+        onClick={() => onSort(active
+          ? { key: sortKey, dir: sort.dir === 'asc' ? 'desc' : 'asc' }
+          : { key: sortKey, dir: 'asc' })}>
+      {label}{active ? (sort.dir === 'asc' ? ' \u25B2' : ' \u25BC') : ''}
+    </th>
+  );
+}
+
+/** Search field + intern/extern scope, above a list. */
+function ListFilter({
+  query, onQuery, scope, onScope, placeholder, shown, total, children,
+}: {
+  query: string;
+  onQuery: (v: string) => void;
+  scope: Scope;
+  onScope: (v: Scope) => void;
+  placeholder: string;
+  shown: number;
+  total: number;
+  /** Extra filters, tussen het zoekveld en het intern/extern-menu. */
+  children?: React.ReactNode;
+}): JSX.Element {
+  return (
+    <div style={{ display: 'flex', gap: 4, marginBottom: 8, alignItems: 'center' }}>
+      <input type="search" value={query} placeholder={placeholder}
+             onChange={(e) => onQuery(e.target.value)}
+             style={{ flex: 1, fontSize: 12, minWidth: 0 }} />
+      {children}
+      <select value={scope} onChange={(e) => onScope(e.target.value as Scope)}
+              style={{ fontSize: 12 }} title="Filter op intern/extern">
+        <option value="all">alles</option>
+        <option value="internal">intern</option>
+        <option value="external">extern</option>
+      </select>
+      <span style={{ fontSize: 11, color: '#6b7280', whiteSpace: 'nowrap' }}>
+        {shown === total ? `${total}` : `${shown}/${total}`}
+      </span>
+    </div>
+  );
+}
+
+function inScope(scope: Scope, internal: boolean | undefined): boolean {
+  return scope === 'all' || (scope === 'internal') === (internal === true);
+}
+
+type SimFilter = 'all' | 'plays' | 'silent';
+
+function inSimFilter(f: SimFilter, sim: SimSupport): boolean {
+  return f === 'all' || (f === 'plays') === (sim !== 'none');
+}
+
+/** Sorteervolgorde: stil eerst, dan de benaderingen, dan de echte DSP. */
+const SIM_RANK: Record<SimSupport, number> = { none: 0, tone: 1, wasm: 2 };
+
+const SIM_COLOR: Record<SimSupport, string> = {
+  wasm: '#15803d', tone: '#0369a1', none: '#9ca3af',
+};
+
+function SimCell({ sim }: { sim: SimSupport }): JSX.Element {
+  return (
+    <span title={SIM_TITLE[sim]}
+          style={{ color: SIM_COLOR[sim], whiteSpace: 'nowrap',
+                   fontVariant: 'small-caps', fontSize: 11 }}>
+      {sim !== 'none' && '\u25CF '}{SIM_LABEL[sim]}
+    </span>
+  );
+}
+
+/** Keuzelijstje "speelt in de simulator", naast het intern/extern-filter. */
+function SimSelect({ value, onChange }: {
+  value: SimFilter; onChange: (v: SimFilter) => void;
+}): JSX.Element {
+  return (
+    <select value={value} onChange={(e) => onChange(e.target.value as SimFilter)}
+            style={{ fontSize: 12 }} title="Filter op simulator-ondersteuning">
+      <option value="all">sim: alles</option>
+      <option value="plays">sim: speelt</option>
+      <option value="silent">sim: stil</option>
+    </select>
+  );
+}
+
 // ── ModuleType list + create ───────────────────────────────────────────
+
+type TypeSortKey = 'category' | 'variant' | 'size' | 'sim';
 
 function TypesPane({
   categories, types, selectedId, onSelect,
@@ -54,6 +192,38 @@ function TypesPane({
 }): JSX.Element {
   const [newCatId,   setNewCatId]   = useState(categories[0]?.id ?? '');
   const [newVariant, setNewVariant] = useState('');
+  const [query, setQuery] = useState('');
+  const [scope, setScope] = useState<Scope>('all');
+  const [simF,  setSimF]  = useState<SimFilter>('all');
+  const [sort,  setSort]  = useState<SortState<TypeSortKey>>({ key: 'category', dir: 'asc' });
+
+  const sim = useMemo(() => {
+    const m = new Map<string, SimSupport>();
+    for (const t of types) m.set(t.id, simSupportOf(t, types, categories));
+    return m;
+  }, [types, categories]);
+
+  const shown = useMemo(() => {
+    const label = (t: ModuleType): string =>
+      categories.find((c) => c.id === t.categoryId)?.label ?? t.categoryId;
+    const simOf = (t: ModuleType): SimSupport => sim.get(t.id) ?? 'none';
+    // typeId is searchable too: it is what firmware, wasm filenames and the
+    // seed functions call the module, so it is often what you know. The sim
+    // label rides along so "wasm" or "stil" work as search terms.
+    const rows = types.filter((t) => inScope(scope, t.internal)
+      && inSimFilter(simF, simOf(t))
+      && matches(query, label(t), t.variant, t.id, t.notes,
+                 SIM_LABEL[simOf(t)], simOf(t) === 'none' ? 'stil' : 'speelt'));
+    const dir = sort.dir === 'asc' ? 1 : -1;
+    return rows.sort((a, b) => {
+      const primary = sort.key === 'category' ? cmp(label(a), label(b))
+        : sort.key === 'variant'              ? cmp(a.variant, b.variant)
+        : sort.key === 'sim'                  ? cmp(SIM_RANK[simOf(a)], SIM_RANK[simOf(b)])
+        : cmp(a.ports.length + a.controls.length, b.ports.length + b.controls.length);
+      // Ties fall back to variant so the order is stable and readable.
+      return (primary || cmp(a.variant, b.variant)) * dir;
+    });
+  }, [types, categories, sim, query, scope, simF, sort]);
 
   function addType(): void {
     if (!newCatId) return;
@@ -78,6 +248,13 @@ function TypesPane({
   return (
     <section style={paneStyle}>
       <h3 style={paneH3}>ModuleTypes</h3>
+
+      <ListFilter query={query} onQuery={setQuery} scope={scope} onScope={setScope}
+                  placeholder="Zoek type (categorie, variant, typeId)…"
+                  shown={shown.length} total={types.length}>
+        <SimSelect value={simF} onChange={setSimF} />
+      </ListFilter>
+
       <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
         <select value={newCatId} onChange={(e) => setNewCatId(e.target.value)} style={{ fontSize: 12 }}>
           {categories.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
@@ -90,19 +267,22 @@ function TypesPane({
       <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
         <thead>
           <tr style={{ color: '#6b7280', textAlign: 'left', borderBottom: '1px solid #e5e7eb' }}>
-            <th style={th}>Categorie</th>
-            <th style={th}>Variant</th>
-            <th style={th}>Ports/Ctrls</th>
+            <SortTh label="Categorie"   sortKey="category" sort={sort} onSort={setSort} />
+            <SortTh label="Variant"     sortKey="variant"  sort={sort} onSort={setSort} />
+            <SortTh label="Ports/Ctrls" sortKey="size"     sort={sort} onSort={setSort} />
+            <SortTh label="Sim"         sortKey="sim"      sort={sort} onSort={setSort} />
             <th />
           </tr>
         </thead>
         <tbody>
-          {types.length === 0 && (
-            <tr><td colSpan={4} style={{ color: '#6b7280', padding: 8 }}>
-              Nog geen types. Maak een type aan om concrete modules erop te baseren.
+          {shown.length === 0 && (
+            <tr><td colSpan={5} style={{ color: '#6b7280', padding: 8 }}>
+              {types.length === 0
+                ? 'Nog geen types. Maak een type aan om concrete modules erop te baseren.'
+                : 'Geen type gevonden.'}
             </td></tr>
           )}
-          {types.map((t) => {
+          {shown.map((t) => {
             const cat = categories.find((c) => c.id === t.categoryId);
             const isSel = selectedId === t.id;
             return (
@@ -116,6 +296,7 @@ function TypesPane({
                 <td style={td}>{cat?.label ?? t.categoryId}</td>
                 <td style={td}>{t.variant}</td>
                 <td style={td}>{t.ports.length} / {t.controls.length}</td>
+                <td style={td}><SimCell sim={sim.get(t.id) ?? 'none'} /></td>
                 <td style={{ ...td, textAlign: 'right' }}>
                   <button onClick={(e) => { e.stopPropagation(); removeType(t.id); }}
                           style={{ fontSize: 11 }}>×</button>
@@ -131,18 +312,57 @@ function TypesPane({
 
 // ── Module list + create ────────────────────────────────────────────────
 
+type ModuleSortKey = 'name' | 'type' | 'hp' | 'io' | 'sim';
+
 function ModulesPane({
-  types, modules, filterTypeId, selectedId, onSelect,
+  types, categories, modules, filterTypeId, selectedId, onSelect,
 }: {
   types: ModuleType[];
+  categories: ModuleCategory[];
   modules: ModuleInstance[];
   filterTypeId: string | null;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
 }): JSX.Element {
   const [pickedTypeId, setPickedTypeId] = useState(types[0]?.id ?? '');
+  const [query, setQuery] = useState('');
+  const [scope, setScope] = useState<Scope>('all');
+  const [simF,  setSimF]  = useState<SimFilter>('all');
+  const [sort,  setSort]  = useState<SortState<ModuleSortKey>>({ key: 'name', dir: 'asc' });
 
-  const shown = filterTypeId ? modules.filter((m) => m.typeId === filterTypeId) : modules;
+  // Een module erft de simulator-status van zijn type.
+  const sim = useMemo(() => {
+    const m = new Map<string, SimSupport>();
+    for (const t of types) m.set(t.id, simSupportOf(t, types, categories));
+    return m;
+  }, [types, categories]);
+
+  // The type selected on the left is a hard filter; search narrows within it.
+  const inType = useMemo(
+    () => filterTypeId ? modules.filter((m) => m.typeId === filterTypeId) : modules,
+    [modules, filterTypeId],
+  );
+
+  const shown = useMemo(() => {
+    const variant = (m: ModuleInstance): string =>
+      types.find((x) => x.id === m.typeId)?.variant ?? '';
+    const portCount = (m: ModuleInstance): number =>
+      (m.portsOverride ?? types.find((x) => x.id === m.typeId)?.ports ?? []).length;
+    const simOf = (m: ModuleInstance): SimSupport => sim.get(m.typeId) ?? 'none';
+    const rows = inType.filter((m) => inScope(scope, m.internal)
+      && inSimFilter(simF, simOf(m))
+      && matches(query, m.name, variant(m), m.brand, m.modelNumber, m.typeId,
+                 SIM_LABEL[simOf(m)], simOf(m) === 'none' ? 'stil' : 'speelt'));
+    const dir = sort.dir === 'asc' ? 1 : -1;
+    return rows.sort((a, b) => {
+      const primary = sort.key === 'name' ? cmp(a.name, b.name)
+        : sort.key === 'type'             ? cmp(variant(a), variant(b))
+        : sort.key === 'hp'               ? cmp(a.visual.hpWidth, b.visual.hpWidth)
+        : sort.key === 'sim'              ? cmp(SIM_RANK[simOf(a)], SIM_RANK[simOf(b)])
+        : cmp(portCount(a), portCount(b));
+      return (primary || cmp(a.name, b.name)) * dir;
+    });
+  }, [inType, types, sim, query, scope, simF, sort]);
 
   function addModule(): void {
     const typeId = filterTypeId ?? pickedTypeId;
@@ -184,13 +404,20 @@ function ModulesPane({
         Modules{filterTypeId ? ' (gefilterd op geselecteerd type)' : ''}
       </h3>
 
+      <ListFilter query={query} onQuery={setQuery} scope={scope} onScope={setScope}
+                  placeholder="Zoek module (naam, type, merk)…"
+                  shown={shown.length} total={inType.length}>
+        <SimSelect value={simF} onChange={setSimF} />
+      </ListFilter>
+
       <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
         {!filterTypeId && (
           <select value={pickedTypeId} onChange={(e) => setPickedTypeId(e.target.value)}
                   style={{ fontSize: 12, flex: 1 }} disabled={types.length === 0}>
             {types.length === 0
               ? <option>(eerst type aanmaken)</option>
-              : types.map((t) => <option key={t.id} value={t.id}>{t.variant}</option>)}
+              : [...types].sort((a, b) => cmp(a.variant, b.variant))
+                  .map((t) => <option key={t.id} value={t.id}>{t.variant}</option>)}
           </select>
         )}
         <button onClick={addModule}
@@ -203,17 +430,18 @@ function ModulesPane({
       <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
         <thead>
           <tr style={{ color: '#6b7280', textAlign: 'left', borderBottom: '1px solid #e5e7eb' }}>
-            <th style={th}>Naam</th>
-            <th style={th}>Type</th>
-            <th style={th}>HP</th>
-            <th style={th}>I/O</th>
+            <SortTh label="Naam" sortKey="name" sort={sort} onSort={setSort} />
+            <SortTh label="Type" sortKey="type" sort={sort} onSort={setSort} />
+            <SortTh label="HP"   sortKey="hp"   sort={sort} onSort={setSort} />
+            <SortTh label="I/O"  sortKey="io"   sort={sort} onSort={setSort} />
+            <SortTh label="Sim"  sortKey="sim"  sort={sort} onSort={setSort} />
             <th />
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 && (
-            <tr><td colSpan={5} style={{ color: '#6b7280', padding: 8 }}>
-              Nog geen modules.
+            <tr><td colSpan={6} style={{ color: '#6b7280', padding: 8 }}>
+              {inType.length === 0 ? 'Nog geen modules.' : 'Geen module gevonden.'}
             </td></tr>
           )}
           {shown.map((m) => {
@@ -237,6 +465,7 @@ function ModulesPane({
                 <td style={td}>{t?.variant ?? <span style={{ color: '#dc2626' }}>?</span>}</td>
                 <td style={td}>{m.visual.hpWidth}</td>
                 <td style={td}>{portCount}</td>
+                <td style={td}><SimCell sim={sim.get(m.typeId) ?? 'none'} /></td>
                 <td style={{ ...td, textAlign: 'right' }}>
                   <button onClick={(e) => { e.stopPropagation(); removeModule(m.id); }}
                           style={{ fontSize: 11 }}>×</button>
@@ -252,7 +481,11 @@ function ModulesPane({
 
 // ── Type editor (ports + controls CRUD) ────────────────────────────────
 
-function TypeEditor({ type: t, categories }: { type: ModuleType; categories: ModuleCategory[] }): JSX.Element {
+function TypeEditor({ type: t, types, categories }: {
+  type: ModuleType; types: ModuleType[]; categories: ModuleCategory[];
+}): JSX.Element {
+  const sim = simSupportOf(t, types, categories);
+
   function update(fn: (t: ModuleType) => ModuleType): void {
     updateProject((p) => ({
       ...p,
@@ -334,6 +567,13 @@ function TypeEditor({ type: t, categories }: { type: ModuleType; categories: Mod
                  onChange={(e) => update((x) => ({ ...x, variant: e.target.value }))}
                  style={{ marginLeft: 4, fontSize: 12 }} />
         </label>
+      </div>
+
+      {/* Afgeleid, niet instelbaar: de simulator kan een type spelen of niet.
+          Dat volgt uit wat de engine ervan kan bouwen, niet uit een veld. */}
+      <div style={{ fontSize: 12, color: '#4b5563', marginBottom: 10 }}>
+        Simulator: <SimCell sim={sim} /> — {SIM_TITLE[sim]}
+        {t.simulatedBy && ` Gespeeld via ${t.simulatedBy}.`}
       </div>
 
       {/* Ports */}

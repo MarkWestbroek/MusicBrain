@@ -35,7 +35,7 @@ Drie projectmodi via knoppen bovenin:
 | Modus | Status |
 |---|---|
 | **Effect-switcher** | Volledig werkende offline editor + simulatie (zie hieronder) |
-| **Modular MB** | Rack, patcher, presets, Teensy-link én een browser-simulator die de Teensy-DSP als wasm draait (DX7, Elements, Rings, Marbles, Plaits, …) — zie [tools/mmb-wasm/README.md](../tools/mmb-wasm/README.md) en [doc/Simulation.md §9](../doc/Simulation.md) |
+| **Modular MB** | Rack, patcher, presets, Teensy-link én een browser-simulator die de Teensy-DSP als wasm draait (DX7, Elements, Rings, Marbles, Plaits, …) — zie [tools/mmb-wasm/README.md](../tools/mmb-wasm/README.md) en [doc/Simulation.md §9](../doc/Simulation.md). De Modules-tab heeft zoeken, sorteerbare kolommen en een Sim-kolom die per type laat zien of de simulator hem speelt (`src/modular-mb/sim/simSupport.ts`) |
 | **Amp-switcher** | Placeholder — moet nog uitgewerkt worden |
 | **Poly-synth (scope)** | Live CV/gate-trace van `mb_simulator` via `tools/scope-bridge` |
 
