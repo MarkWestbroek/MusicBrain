@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   segmentRecording, detectPitch, measureDecay, findLoop, bakeCrossfade,
   assignVelocityLayers, spreadKeyRanges, enforceAscending, toMono,
+  parseNoteList, applyExpectedNotes, midiToHz, refinePitchNear, safeTuneCents,
   type Segment, type PitchResult,
 } from './sampleAnalysis';
 import { WasmModule, type WasmZone } from './runtime';
@@ -41,9 +42,14 @@ export function SampleImportModal({ open, onClose }: { open: boolean; onClose: (
   const [layers, setLayers] = useState(3);
   const [minGap, setMinGap] = useState(0.35);
   const [ascending, setAscending] = useState(true);
+  const [expected, setExpected] = useState('');
+  const [tuningHz, setTuningHz] = useState(440);
+  const [detune, setDetune] = useState(true);      // detectie-afwijking wegstemmen
+  const [toConcert, setToConcert] = useState(false); // naar A440 trekken
   const [busy, setBusy] = useState('');
   const [bankName, setBankName] = useState('bank');
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
 
   useEffect(() => {
     if (!open) return;
@@ -78,20 +84,54 @@ export function SampleImportModal({ open, onClose }: { open: boolean; onClose: (
     }
   }
 
+  /** Meegeleverde testopname (tools/mmb-wasm/make-test-bank.mjs). */
+  async function loadDemo(): Promise<void> {
+    try {
+      setBusy('testopname ophalen…');
+      const r = await fetch(`${base}samples/elements-take.wav`);
+      if (!r.ok) throw new Error('elements-take.wav niet gevonden');
+      setExpected('C3 G3 C4');
+      await loadFile(new File([await r.blob()], 'elements-take.wav', { type: 'audio/wav' }));
+      setBusy((b) => `${b} — noten al ingevuld (C3 G3 C4); dit materiaal is inharmonisch, dus detectie zou ernaast zitten`);
+    } catch (err) {
+      setBusy(`mislukt: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
   function analyse(): void {
     if (!audio) return;
     setBusy('segmenteren…');
     const segs = segmentRecording(audio.mono, audio.rate, { minGap, minLength: 0.15 });
     if (!segs.length) { setBusy('geen aanslagen gevonden — verlaag de stilte-drempel of check de opname'); return; }
 
-    const items = segs.map((s) => ({ segment: s, pitch: detectPitch(audio.mono, audio.rate, s.start, s.end) }));
+    const items = segs.map((s) => ({
+      segment: s,
+      pitch: detectPitch(audio.mono, audio.rate, s.start, s.end, 25, 2200, tuningHz),
+    }));
     let midis = items.map((it) => it.pitch.midi);
     let fixed = 0;
-    if (ascending) {
+    let how = 'gedetecteerd';
+    const wanted = parseNoteList(expected);
+    if (wanted.length) {
+      // Noten van tevoren opgegeven: geen detectie-gokwerk (klokken, schalen).
+      midis = applyExpectedNotes(items.map((it) => it.pitch), wanted, layers);
+      how = `opgegeven (${wanted.length} noten)`;
+    } else if (ascending) {
       const r = enforceAscending(items.map((it) => it.pitch), layers);
       midis = r.midi; fixed = r.changed;
     }
-    const withMidi = items.map((it, i) => ({ segment: it.segment, pitch: { ...it.pitch, midi: midis[i]! } }));
+    // Ken je de noot, hermeet dan met de zoekruimte rond die noot: dat geeft
+    // een bruikbare afwijking in plaats van een octaaffout.
+    const withMidi = items.map((it, i) => {
+      const midi = midis[i]!;
+      if (midi < 0) return { segment: it.segment, pitch: it.pitch };
+      if (wanted.length) {
+        return { segment: it.segment, pitch: refinePitchNear(audio.mono, audio.rate, it.segment.start, it.segment.end, midi, tuningHz) };
+      }
+      const cents = it.pitch.hz > 0
+        ? Math.round(1200 * Math.log2(it.pitch.hz / midiToHz(midi, tuningHz))) : 0;
+      return { segment: it.segment, pitch: { ...it.pitch, midi, cents } };
+    });
     const layered = assignVelocityLayers(withMidi, layers);
     const ranges = spreadKeyRanges(layered.map((l) => l.pitch.midi));
 
@@ -105,8 +145,9 @@ export function SampleImportModal({ open, onClose }: { open: boolean; onClose: (
       };
     });
     setRows(next);
-    setBusy(`${next.length} aanslagen · ${new Set(next.map((r) => r.midi)).size} noten` +
-      (fixed ? ` · ${fixed} octaafcorrecties` : ''));
+    setBusy(`${next.length} aanslagen · ${new Set(next.map((r) => r.midi)).size} noten · noten ${how}` +
+      (fixed ? ` · ${fixed} octaafcorrecties` : '') +
+      (tuningHz !== 440 ? ` · stemreferentie A${tuningHz}` : ''));
   }
 
   function searchLoops(): void {
@@ -144,7 +185,13 @@ export function SampleImportModal({ open, onClose }: { open: boolean; onClose: (
         slot: i,
         lowKey: r.lowKey, highKey: r.highKey,
         lowVel: r.lowVel, highVel: r.highVel,
-        root: r.midi, tuneCents: -r.pitch.cents,   // stem de detectie-afwijking weg
+        root: r.midi,
+        // Detectie-afwijking wegstemmen (zodat de keymap zuiver speelt) en
+        // desgewenst het hele instrument naar concert-A trekken. Staat
+        // `toConcert` uit, dan behoudt bv. een op 432 gestemde klankschaal
+        // zijn eigen stemming.
+        tuneCents: (detune ? safeTuneCents(r.pitch.cents, r.pitch.confidence) : 0)
+                 + (toConcert ? 1200 * Math.log2(440 / tuningHz) : 0),
         gain: 1, pan: 0,
         loopMode: r.loop ? r.loopMode : 0,
         loopStart: r.loop ? ls : 0, loopEnd: r.loop ? le : 0,
@@ -238,19 +285,44 @@ export function SampleImportModal({ open, onClose }: { open: boolean; onClose: (
         <p style={{ color: '#475569', margin: '8px 0 12px' }}>
           Neem op met <strong>één gain-instelling</strong>, oplopend, {layers} aanslagen per noot,
           en laat elke noot helemaal uitklinken. De importer splitst op stilte, meet toonhoogte
-          (YIN), luidheid en uitsterving, en verdeelt de velocity-lagen.
+          (YIN), luidheid en uitsterving, en verdeelt de velocity-lagen. Weet je de noten al?
+          Vul ze hieronder in — bij klokken en klankschalen is dat betrouwbaarder dan detectie,
+          want de gehoorde grondtoon zit daar vaak niet eens in het spectrum.
         </p>
 
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
           <input type="file" accept="audio/*,.wav,.aif,.aiff,.flac,.mp3"
             onChange={(e) => { const f = e.target.files?.[0]; if (f) void loadFile(f); e.currentTarget.value = ''; }} />
+          <button onClick={() => void loadDemo()}
+            title="Testopname: Elements, C3/G3/C4 × zacht/midden/hard, stereo — inharmonisch, dus vul de noten in">
+            Testopname</button>
           <label>Lagen/noot <input type="number" min={1} max={8} value={layers} style={{ width: 48 }}
             onChange={(e) => setLayers(Math.max(1, Math.min(8, Number(e.target.value))))} /></label>
           <label>Min. stilte <input type="number" min={0.05} max={3} step={0.05} value={minGap} style={{ width: 58 }}
             onChange={(e) => setMinGap(Number(e.target.value))} /> s</label>
-          <label><input type="checkbox" checked={ascending} onChange={(e) => setAscending(e.target.checked)} /> oplopend gespeeld</label>
+          <label><input type="checkbox" checked={ascending} onChange={(e) => setAscending(e.target.checked)}
+            disabled={parseNoteList(expected).length > 0} /> oplopend gespeeld</label>
           <button onClick={analyse} disabled={!audio} className="primary">Analyseren</button>
           <button onClick={searchLoops} disabled={!rows.length}>Loops zoeken</button>
+        </div>
+
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
+          <label style={{ flex: '1 1 260px' }}>Verwachte noten{' '}
+            <input value={expected} onChange={(e) => setExpected(e.target.value)}
+              placeholder="leeg = detecteren · bv. C1 C2 C3 C4 C5 · of C1..C5/12"
+              style={{ width: '70%' }} />
+          </label>
+          <label>Stemreferentie A ={' '}
+            <input type="number" min={380} max={500} step={1} value={tuningHz} style={{ width: 60 }}
+              onChange={(e) => setTuningHz(Number(e.target.value) || 440)} /> Hz</label>
+          <button onClick={() => setTuningHz(432)} disabled={tuningHz === 432}>432</button>
+          <button onClick={() => setTuningHz(440)} disabled={tuningHz === 440}>440</button>
+          <label title="stem elk sample zuiver op zijn noot (detectie-afwijking wegwerken)">
+            <input type="checkbox" checked={detune} onChange={(e) => setDetune(e.target.checked)} /> afwijking wegstemmen</label>
+          {tuningHz !== 440 && (
+            <label title="trek het hele instrument naar concert-A 440; uit = eigen stemming behouden">
+              <input type="checkbox" checked={toConcert} onChange={(e) => setToConcert(e.target.checked)} /> naar A440</label>
+          )}
         </div>
 
         <canvas ref={canvasRef} width={1880} height={200}

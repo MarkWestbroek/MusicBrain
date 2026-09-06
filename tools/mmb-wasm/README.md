@@ -56,11 +56,23 @@ tools/mmb-wasm/build.sh rings      # één module
 node tools/mmb-wasm/test.mjs       # rooktest: poorten, pieken, flanken, CPU
 node tools/mmb-wasm/test-analysis.mjs   # sample-analyse op een kunstmatige take
 node tools/mmb-wasm/test-sampler.mjs    # take → keymap → sampler, end-to-end
-node tools/mmb-wasm/render-samples.mjs  # voorbeeldsamples renderen
+node tools/mmb-wasm/render-samples.mjs   # voorbeeldsamples renderen
+node tools/mmb-wasm/make-test-bank.mjs   # testopname (Elements) + .mmbk-bank
 ```
 
 `test-analysis.mjs` en `test-sampler.mjs` bundelen `sampleAnalysis.ts` met
-esbuild, zodat de analyse zonder browser te testen is.
+esbuild, zodat de analyse zonder browser te testen is. `make-test-bank.mjs`
+rendert met de Elements-wasm een "opname" (C3/G3/C4 × zacht/midden/hard,
+stereo, stiltes ertussen) naar `editor/public/samples/elements-take.wav` en
+bouwt daar een `.mmbk` van — te openen met de knop **Testopname** in de
+Multisample-import.
+
+Let op bij die take: Elements staat op geometry 0,42 en dan liggen de
+partialen uitgerekt, waardoor de waargenomen toon 60–95 cent boven de
+nominale noot ligt (bij geometry 0,25 klopt Elements exact, tot op 0 cent).
+Dat is echt gedrag van het model, geen stemfout — en precies waarom je bij
+inharmonisch materiaal de noten van tevoren opgeeft in plaats van ze te
+laten detecteren.
 
 wasi-sdk: https://github.com/WebAssembly/wasi-sdk/releases, uitgepakt in
 `~/.wasi-sdk/` (of `$WASI_SDK`). De MI-libs dragen elk een stmlib-subset;

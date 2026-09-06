@@ -25,7 +25,8 @@ export interface Segment {
 
 export interface PitchResult {
   hz: number;
-  /** Dichtstbijzijnde MIDI-noot en de afwijking in centen. */
+  /** Dichtstbijzijnde MIDI-noot en de afwijking in centen, t.o.v. de gekozen
+   *  stemreferentie (A = `tuningHz`; 440 standaard, 432 voor klankschalen). */
   midi: number;
   cents: number;
   /** 0..1; onder ~0.5 is de meting onbetrouwbaar (inharmonisch materiaal). */
@@ -174,7 +175,7 @@ function makeSegment(mono: Float32Array, sr: number, start: number, end: number)
  */
 export function detectPitch(
   mono: Float32Array, sr: number, from: number, to: number,
-  minHz = 25, maxHz = 2200,
+  minHz = 25, maxHz = 2200, tuningHz = 440,
 ): PitchResult {
   // Venster net na de aanslag, waar de klank het stabielst is.
   const len = to - from;
@@ -224,7 +225,7 @@ export function detectPitch(
   const shift = denom !== 0 ? (y2 - y0) / denom : 0;
   const period = best + Math.max(-1, Math.min(1, shift));
   const hz = sr / period;
-  const midiF = 69 + 12 * Math.log2(hz / 440);
+  const midiF = hzToMidi(hz, tuningHz);
   const midi = Math.round(midiF);
   return {
     hz,
@@ -281,6 +282,96 @@ export function enforceAscending(
     }
   }
   return { midi, changed };
+}
+
+/** Frequentie → (fractionele) MIDI-noot bij stemreferentie `tuningHz`. */
+export function hzToMidi(hz: number, tuningHz = 440): number {
+  return 69 + 12 * Math.log2(hz / tuningHz);
+}
+/** MIDI-noot → frequentie bij stemreferentie `tuningHz`. */
+export function midiToHz(midi: number, tuningHz = 440): number {
+  return tuningHz * Math.pow(2, (midi - 69) / 12);
+}
+
+/**
+ * Parseer een lijst verwachte noten: "C1 C2 C3 C4 C5", "36,48,60" of een
+ * bereik met stap ("C1..C5/12" = elke octaaf). Namen volgen de conventie
+ * C4 = 60. Onbekende tekens worden overgeslagen.
+ */
+export function parseNoteList(text: string): number[] {
+  const out: number[] = [];
+  const one = (tok: string): number | null => {
+    const t = tok.trim();
+    if (!t) return null;
+    if (/^-?\d+$/.test(t)) return Number(t);
+    const m = /^([A-Ga-g])([#b]?)(-?\d+)$/.exec(t);
+    if (!m) return null;
+    const base = { c: 0, d: 2, e: 4, f: 5, g: 7, a: 9, b: 11 }[m[1]!.toLowerCase()]!;
+    const acc = m[2] === '#' ? 1 : m[2] === 'b' ? -1 : 0;
+    return (Number(m[3]) + 1) * 12 + base + acc;
+  };
+  for (const part of text.split(/[\s,;]+/)) {
+    const range = /^(.+?)\.\.(.+?)(?:\/(\d+))?$/.exec(part);
+    if (range) {
+      const a = one(range[1]!), b = one(range[2]!);
+      const step = range[3] ? Number(range[3]) : 1;
+      if (a !== null && b !== null && step > 0) {
+        for (let n = a; a <= b ? n <= b : n >= b; n += a <= b ? step : -step) out.push(n);
+      }
+      continue;
+    }
+    const v = one(part);
+    if (v !== null) out.push(v);
+  }
+  return out;
+}
+
+/**
+ * Hermeet de toonhoogte met de zoekruimte beperkt tot ±`semitones` rond een
+ * *bekende* noot. Nodig zodra je de noten van tevoren opgeeft: vrije YIN
+ * grijpt bij inharmonisch materiaal (klokken, klankschalen, modale
+ * resonatoren) makkelijk een octaaf mis, en dan is de gemeten afwijking geen
+ * stemming maar een verkeerde noot. Met de zoekruimte dichtgeknepen levert
+ * dit wél een bruikbare afwijking in centen.
+ */
+export function refinePitchNear(
+  mono: Float32Array, sr: number, from: number, to: number,
+  midi: number, tuningHz = 440, semitones = 6,
+): PitchResult {
+  const centre = midiToHz(midi, tuningHz);
+  const lo = centre * Math.pow(2, -semitones / 12);
+  const hi = centre * Math.pow(2, semitones / 12);
+  const p = detectPitch(mono, sr, from, to, lo, hi, tuningHz);
+  if (p.hz <= 0) return { hz: 0, midi, cents: 0, confidence: 0 };
+  return { ...p, midi, cents: Math.round(1200 * Math.log2(p.hz / centre)) };
+}
+
+/**
+ * Stemcorrectie voor één zone, in centen. Een afwijking van meer dan een
+ * halve toon betekent dat de *detectie* een andere noot zag — niet dat het
+ * instrument zo ver ontstemd is. Zulke waarden negeren we, anders verschuift
+ * het sample octaven (de klassieke valkuil bij inharmonisch materiaal).
+ */
+export function safeTuneCents(cents: number, confidence = 1): number {
+  if (!Number.isFinite(cents) || Math.abs(cents) > 50 || confidence < 0.35) return 0;
+  return -cents;
+}
+
+/**
+ * Leg de noten van tevoren vast in plaats van ze te detecteren: handig bij
+ * inharmonisch materiaal (klokken, klankschalen) waar de gehoorde grondtoon
+ * fysiek niet in het spectrum hoeft te zitten. `expected` is één noot per
+ * *groep* aanslagen; met `layersPerNote` = 3 hoort C1 C2 C3 bij negen
+ * segmenten. Ontbreken er noten, dan blijft de detectie voor de rest staan.
+ */
+export function applyExpectedNotes(
+  pitches: PitchResult[], expected: number[], layersPerNote: number,
+): number[] {
+  return pitches.map((p, i) => {
+    const group = Math.floor(i / Math.max(1, layersPerNote));
+    const want = expected[group];
+    return want === undefined ? p.midi : want;
+  });
 }
 
 // ── 3. uitstervingskromme ─────────────────────────────────────────────

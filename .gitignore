@@ -71,3 +71,4 @@ hardware/kicad-generators/__pycache__/
 # heeft zonder KiCad. BOM/CPL-CSV's blijven eveneens getrackt (klein, diff-baar,
 # ordergeschiedenis).
 **/fab/gerbers/
+editor/public/banks/

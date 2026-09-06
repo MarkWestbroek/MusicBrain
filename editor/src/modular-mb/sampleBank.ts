@@ -2,8 +2,11 @@
 // firmware/lib/mmb-dsp/mmb_dsp/sample_bank.h): één bestand met alle samples
 // én de keymap, zodat de Teensy het zonder parser in PSRAM kan zetten.
 //
+// `.mmbk` = "MusicBrain bank" (familie-extensie); de magic-bytes zeggen welke
+// soort bank erin zit — `MMBS` voor een samplebank.
+//
 // Layout (little-endian):
-//   BankHeader  44 bytes   "MMBK", versie, aantal slots/zones, naam[32]
+//   BankHeader  44 bytes   "MMBS", versie, aantal slots/zones, naam[32]
 //   SlotHeader  16 × slots frameOffset, frames, channels, rate
 //   ZoneRecord  40 × zones slot, key/vel-bereik, root, gain, pan, loop, decay
 //   int16       data       alle samples achter elkaar, interleaved
@@ -28,7 +31,7 @@ export function buildBank(name: string, slots: BankSlot[], zones: WasmZone[]): A
   const bytes = new Uint8Array(buf);
 
   // ── header ──
-  bytes.set([0x4d, 0x4d, 0x42, 0x4b], 0);           // "MMBK"
+  bytes.set([0x4d, 0x4d, 0x42, 0x53], 0);           // "MMBS" — samplebank
   dv.setUint32(4, 1, true);                          // versie
   dv.setUint32(8, slots.length, true);
   dv.setUint32(12, zones.length, true);

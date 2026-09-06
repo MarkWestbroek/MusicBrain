@@ -1,12 +1,17 @@
 #pragma once
 /**
  * @file sample_bank.h
- * @brief `.mmbk` — MusicBrain-samplebank: één bestand met alle samples én de
- *        keymap, zodat de Teensy hem zonder parser in PSRAM kan zetten.
+ * @brief `.mmbk` — MusicBrain-bank met samples + keymap in één bestand, zodat
+ *        de Teensy hem zonder parser in PSRAM kan zetten.
  * @details
+ * `.mmbk` is de **familie-extensie** ("MusicBrain bank"); de vier magic-bytes
+ * zeggen welke soort bank erin zit. Nu: `MMBS` = samplebank. Toekomstige
+ * soorten (wavetables, DX7-banken) kunnen dezelfde extensie delen met een
+ * eigen magic, zodat er niet voor elk type een nieuwe extensie bijkomt.
+ *
  * Layout (little-endian, alles 4-byte uitgelijnd):
  *
- *     char     magic[4]   "MMBK"
+ *     char     magic[4]   "MMBS"  (samplebank)
  *     uint32   version    1
  *     uint32   numSlots
  *     uint32   numZones
@@ -25,13 +30,13 @@
 
 namespace mmb_dsp {
 
-constexpr uint32_t kBankMagic   = 0x4B424D4Du;   ///< 'MMBK' little-endian
+constexpr uint32_t kSampleBankMagic = 0x53424D4Du;   ///< 'MMBS' little-endian
 constexpr uint32_t kBankVersion = 1;
 
 #pragma pack(push, 1)
 
 struct BankHeader {
-    char     magic[4];      ///< "MMBK"
+    char     magic[4];      ///< "MMBS"
     uint32_t version;
     uint32_t numSlots;
     uint32_t numZones;

@@ -85,7 +85,7 @@ public:
 
         mmb_dsp::BankHeader h{};
         if (f.read(reinterpret_cast<uint8_t*>(&h), sizeof(h)) != sizeof(h)
-            || std::memcmp(h.magic, "MMBK", 4) != 0 || h.version != mmb_dsp::kBankVersion
+            || std::memcmp(h.magic, "MMBS", 4) != 0 || h.version != mmb_dsp::kBankVersion
             || h.numSlots == 0 || h.numSlots > kMaxSlots || h.numZones > kMaxZones) {
             Serial.printf("[sampler] %s: ongeldige bank\n", path);
             f.close();
