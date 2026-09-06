@@ -288,23 +288,20 @@ export function enforceAscending(
 export function hzToMidi(hz: number, tuningHz = 440): number {
   return 69 + 12 * Math.log2(hz / tuningHz);
 }
+export interface SpectralPeak { hz: number; db: number }
+
 /**
- * Toonhoogte als de **sterkste partiaal** — voor klokken, bellen en
- * klankschalen. YIN zoekt een periode, en bij inharmonisch materiaal is dat
- * vaak een gemeenschappelijke subharmonische van een paar partialen: een
- * octaaf of meer onder wat je hoort. Bij een kleine bel of een klankschaal
- * is de toon die je hoort domweg de luidste piek in het spectrum; die meten
- * we hier met een FFT vlak na de aanslag en een parabolische verfijning.
- * `confidence` is de voorsprong van die piek op de op-één-na sterkste
- * (1,0 bij ≥ 20 dB).
+ * Sterkste spectrale pieken vlak na de aanslag (FFT van 32k punten,
+ * parabolisch verfijnd), gesorteerd van luid naar zacht; `db` is relatief
+ * aan de luidste. Pieken binnen ±3 % van elkaar tellen als één.
  */
-export function detectPeakPitch(
+export function spectralPeaks(
   mono: Float32Array, sr: number, from: number, to: number,
-  minHz = 60, maxHz = 8000, tuningHz = 440,
-): PitchResult {
+  minHz = 60, maxHz = 8000, top = 6,
+): SpectralPeak[] {
   const n = 32768;
   const start = from + Math.min(Math.round(0.08 * sr), Math.round((to - from) * 0.15));
-  if (start + 1024 > mono.length) return { hz: 0, midi: -1, cents: 0, confidence: 0 };
+  if (start + 1024 > mono.length) return [];
   const re = new Float64Array(n), im = new Float64Array(n);
   const avail = Math.min(n, mono.length - start);
   for (let i = 0; i < avail; i++) re[i] = mono[start + i]! * (0.5 - 0.5 * Math.cos((2 * Math.PI * i) / avail));
@@ -312,27 +309,116 @@ export function detectPeakPitch(
   const mag = new Float64Array(n >> 1);
   for (let k = 0; k < (n >> 1); k++) mag[k] = Math.hypot(re[k]!, im[k]!);
   const kMin = Math.max(2, Math.floor((minHz * n) / sr)), kMax = Math.min((n >> 1) - 2, Math.ceil((maxHz * n) / sr));
-  let best = -1, bestM = 0;
-  for (let k = kMin; k <= kMax; k++) {
-    const m = mag[k]!;
-    if (m > mag[k - 1]! && m >= mag[k + 1]!) { if (m > bestM) { bestM = m; best = k; } }
+  const cands: { k: number; m: number }[] = [];
+  for (let k = kMin; k <= kMax; k++) if (mag[k]! > mag[k - 1]! && mag[k]! >= mag[k + 1]!) cands.push({ k, m: mag[k]! });
+  cands.sort((a, b) => b.m - a.m);
+  const sel: { k: number; m: number }[] = [];
+  for (const c of cands) {
+    if (sel.every((s) => Math.abs(c.k - s.k) > s.k * 0.03)) sel.push(c);
+    if (sel.length >= top) break;
   }
-  if (best < 0 || bestM <= 0) return { hz: 0, midi: -1, cents: 0, confidence: 0 };
-  // Op-één-na sterkste piek, buiten ±3 % rond de winnaar — anders telt de
-  // zijlob van dezelfde piek mee en lijkt elke bel onzeker.
-  let second = 0;
-  for (let k = kMin; k <= kMax; k++) {
-    const m = mag[k]!;
-    if (m > mag[k - 1]! && m >= mag[k + 1]! && Math.abs(k - best) > best * 0.03 && m > second) second = m;
-  }
-  // Parabolische interpolatie rond de piek — anders zit je aan de bin-resolutie vast (1,3 Hz bij 44,1 kHz).
-  const a = mag[best - 1]!, b = bestM, c = mag[best + 1]!;
-  const delta = (a - c) / (2 * (a - 2 * b + c) || 1);
-  const hz = ((best + (Number.isFinite(delta) ? delta : 0)) * sr) / n;
-  const m = hzToMidi(hz, tuningHz);
+  if (!sel.length) return [];
+  const mx = sel[0]!.m;
+  return sel.map(({ k, m }) => {
+    // Parabolische interpolatie rond de piek — anders zit je aan de bin-resolutie vast (1,3 Hz bij 44,1 kHz).
+    const a = mag[k - 1]!, c = mag[k + 1]!;
+    const delta = (a - c) / (2 * (a - 2 * m + c) || 1);
+    return { hz: ((k + (Number.isFinite(delta) ? delta : 0)) * sr) / n, db: 20 * Math.log10(m / mx) };
+  });
+}
+
+function peakToPitch(p: SpectralPeak | undefined, confidence: number, tuningHz: number): PitchResult {
+  if (!p) return { hz: 0, midi: -1, cents: 0, confidence: 0 };
+  const m = hzToMidi(p.hz, tuningHz);
   const midi = Math.round(m);
-  const leadDb = second > 0 ? 20 * Math.log10(bestM / second) : 60;
-  return { hz, midi, cents: (m - midi) * 100, confidence: Math.max(0, Math.min(1, leadDb / 20)) };
+  return { hz: p.hz, midi, cents: (m - midi) * 100, confidence: Math.max(0, Math.min(1, confidence)) };
+}
+
+/**
+ * Toonhoogte als de **sterkste partiaal** — voor klokken, bellen en
+ * klankschalen. YIN zoekt een periode, en bij inharmonisch materiaal is dat
+ * vaak een gemeenschappelijke subharmonische van een paar partialen: een
+ * octaaf of meer onder wat je hoort. Bij een kleine bel of een klankschaal
+ * is de toon die je hoort domweg de luidste piek in het spectrum.
+ * `confidence` is de voorsprong van die piek op de op-één-na sterkste
+ * (1,0 bij ≥ 20 dB).
+ */
+export function detectPeakPitch(
+  mono: Float32Array, sr: number, from: number, to: number,
+  minHz = 60, maxHz = 8000, tuningHz = 440,
+): PitchResult {
+  const pk = spectralPeaks(mono, sr, from, to, minHz, maxHz, 2);
+  return peakToPitch(pk[0], pk.length > 1 ? -pk[1]!.db / 20 : 1, tuningHz);
+}
+
+/**
+ * Toonhoogtes voor een hele reeks aanslagen van een **gestemd slaginstrument**
+ * — handpan, tongue drum, tabla. Twee dingen die daar anders zijn dan bij een
+ * bel:
+ *
+ * 1. **Eén lichaamsresonantie klinkt onder élke slag** (bij een handpan de
+ *    ding/luchtresonantie, hier 143 Hz). Bij een zachte slag is die zelfs de
+ *    luidste piek, en dan "hoort" een detector overal dezelfde noot. Een piek
+ *    die in het merendeel van de aanslagen voorkomt is het instrument, niet de
+ *    noot — die sluiten we uit, tenzij er niets anders van betekenis is (de
+ *    ding zélf).
+ * 2. **Elk klankveld is gestemd met grondtoon, octaaf en kwint.** De luidste
+ *    piek is vaak het octaaf, niet de grondtoon. De noot is daarom de laagste
+ *    sterke piek die een partner op 2× heeft.
+ *
+ * Een zachte slag waar de grondtoon onder de resonantie wegvalt neemt de noot
+ * van zijn buur (dezelfde slag, zacht en hard na elkaar) als die grondtoon of
+ * zijn octaaf in het eigen spectrum terug te vinden is.
+ */
+export function pitchesRejectingDrone(
+  peakLists: SpectralPeak[][], tuningHz = 440, minDb = -24,
+): PitchResult[] {
+  const segs = peakLists.length;
+  const near = (a: number, b: number, tol = 0.045): boolean => Math.abs(Math.log2(a / b)) < tol;
+  // Resonanties: pieken (≥ minDb) die in ≥ 60 % van de aanslagen terugkomen.
+  const clusters: { hz: number; count: number }[] = [];
+  for (const list of peakLists) {
+    const seen = new Set<number>();
+    for (const p of list) {
+      if (p.db < minDb) continue;
+      let c = clusters.findIndex((x) => near(p.hz, x.hz));
+      if (c < 0) { clusters.push({ hz: p.hz, count: 0 }); c = clusters.length - 1; }
+      if (!seen.has(c)) { clusters[c]!.count++; seen.add(c); }
+    }
+  }
+  const drones = segs >= 4 ? clusters.filter((c) => c.count >= Math.max(3, Math.ceil(segs * 0.6))) : [];
+  const isDrone = (hz: number): boolean => drones.some((d) => near(hz, d.hz));
+
+  const picks: { peak: SpectralPeak | undefined; conf: number }[] = peakLists.map((list) => {
+    const strong = list.filter((p) => p.db >= minDb);
+    const hasOctave = (p: SpectralPeak): boolean => strong.some((q) => near(q.hz, 2 * p.hz, 0.06));
+    const cands = strong.filter((p) => !isDrone(p.hz) && hasOctave(p));
+    if (cands.length) {
+      // Laagste kandidaat binnen 12 dB van de sterkste: de grondtoon, niet het
+      // octaaf. Niet ruimer: dan winnen de buurvelden die sympathisch
+      // meetrillen (op de handpan stond A3 15 dB onder een Bb3-slag).
+      const top = Math.max(...cands.map((c) => c.db));
+      const pick = cands.filter((c) => c.db >= top - 12).sort((a, b) => a.hz - b.hz)[0]!;
+      return { peak: pick, conf: Math.max(0, Math.min(1, 1 + pick.db / 20)) };
+    }
+    // Niets buiten de resonantie: dan is de resonantie de noot (de ding).
+    const withOct = strong.find(hasOctave);
+    return { peak: withOct ?? list[0], conf: withOct ? 0.5 : 0.2 };
+  });
+
+  // Zwakke keuzes: kijk bij de buren (zachte en harde slag van hetzelfde veld).
+  for (let i = 0; i < segs; i++) {
+    const me = picks[i]!;
+    if (me.conf >= 0.5 || !me.peak) continue;
+    for (const j of [i + 1, i - 1]) {
+      const nb = picks[j];
+      if (!nb?.peak || nb.conf < 0.5 || isDrone(nb.peak.hz)) continue;
+      const f = nb.peak.hz;
+      const echo = peakLists[i]!.find((p) => near(p.hz, f, 0.06) || near(p.hz, 2 * f, 0.06));
+      if (echo) { picks[i] = { peak: { hz: near(echo.hz, f, 0.06) ? echo.hz : echo.hz / 2, db: echo.db }, conf: 0.5 }; break; }
+    }
+  }
+  return picks.map((p) => peakToPitch(p.peak, p.conf, tuningHz));
 }
 
 function fftInPlace(re: Float64Array, im: Float64Array): void {

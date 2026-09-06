@@ -11,7 +11,7 @@
 // dit bestand is de UI eromheen.
 import { useEffect, useRef, useState } from 'react';
 import {
-  segmentRecording, detectPitch, detectPeakPitch, measureDecay, findLoop, bakeCrossfade,
+  segmentRecording, detectPitch, detectPeakPitch, spectralPeaks, pitchesRejectingDrone, measureDecay, findLoop, bakeCrossfade,
   assignVelocityLayers, spreadKeyRanges, enforceAscending, toMono,
   parseNoteList, applyExpectedNotes, midiToHz, refinePitchNear, safeTuneCents,
   type Segment, type PitchResult,
@@ -177,10 +177,14 @@ export function SampleImportModal({ open, onClose }: { open: boolean; onClose: (
     const segs = segmentRecording(audio.mono, audio.rate, { minGap, minLength: 0.15 });
     if (!segs.length) { setBusy('geen aanslagen gevonden — verlaag de stilte-drempel of check de opname'); return; }
 
-    const items = segs.map((s) => ({
+    // Klok/bel: sterkste partiaal per aanslag, met onderdrukking van een
+    // resonantie die onder álle aanslagen meeklinkt (handpan, tongue drum).
+    const dronePitches = peakMode
+      ? pitchesRejectingDrone(segs.map((s) => spectralPeaks(audio.mono, audio.rate, s.start, s.end, 60, 8000, 6)), tuningHz)
+      : null;
+    const items = segs.map((s, i) => ({
       segment: s,
-      pitch: peakMode ? detectPeakPitch(audio.mono, audio.rate, s.start, s.end, 60, 8000, tuningHz)
-                      : detectPitch(audio.mono, audio.rate, s.start, s.end, 25, 2200, tuningHz),
+      pitch: dronePitches ? dronePitches[i]! : detectPitch(audio.mono, audio.rate, s.start, s.end, 25, 2200, tuningHz),
     }));
     let midis = items.map((it) => it.pitch.midi);
     let fixed = 0;
