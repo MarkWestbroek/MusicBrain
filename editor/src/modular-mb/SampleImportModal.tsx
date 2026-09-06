@@ -200,7 +200,13 @@ export function SampleImportModal({ open, onClose }: { open: boolean; onClose: (
       const midi = midis[i]!;
       if (midi < 0) return { segment: it.segment, pitch: it.pitch };
       if (wanted.length) {
-        return { segment: it.segment, pitch: refinePitchNear(audio.mono, audio.rate, it.segment.start, it.segment.end, midi, tuningHz) };
+        // Klok/bel: sterkste partiaal binnen ±6 halve tonen rond de opgegeven noot;
+        // anders YIN met diezelfde zoekruimte.
+        const pitch = peakMode
+          ? detectPeakPitch(audio.mono, audio.rate, it.segment.start, it.segment.end,
+              midiToHz(midi - 6, tuningHz), midiToHz(midi + 6, tuningHz), tuningHz)
+          : refinePitchNear(audio.mono, audio.rate, it.segment.start, it.segment.end, midi, tuningHz);
+        return { segment: it.segment, pitch };
       }
       const cents = it.pitch.hz > 0
         ? Math.round(1200 * Math.log2(it.pitch.hz / midiToHz(midi, tuningHz))) : 0;
@@ -212,10 +218,15 @@ export function SampleImportModal({ open, onClose }: { open: boolean; onClose: (
     const next: Row[] = layered.map((l) => {
       const dec = measureDecay(audio.mono, audio.rate, l.segment.start, l.segment.end);
       const r = ranges.get(l.pitch.midi) ?? { low: 0, high: 127 };
+      // Ondergrens: de opname zelf. De klank was nog te horen toen het segment
+      // eindigde, dus korter dan (ruwweg) het segment sterft hij niet uit. Dit
+      // is wat een geloopte zone straks als envelope-decay krijgt — met een
+      // foute korte T60 werd een geloopte bel een tik van 0,2 s.
+      const segSeconds = (l.segment.end - l.segment.start) / audio.rate;
       return {
         segment: l.segment, pitch: l.pitch, midi: l.pitch.midi, layer: l.layer,
         lowVel: l.lowVel, highVel: l.highVel, lowKey: r.low, highKey: r.high,
-        decay: dec.slowT60, loop: null, loopMode: 0, include: true,
+        decay: Math.max(dec.slowT60, 0.8 * segSeconds), loop: null, loopMode: 0, include: true,
       };
     });
     setRows(next);

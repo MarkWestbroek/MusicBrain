@@ -462,28 +462,56 @@ export function measureDecay(mono: Float32Array, sr: number, from: number, to: n
   for (let i = 0; i < env.length; i++) if (env[i]! > peak) { peak = env[i]!; peakIdx = i; }
   if (peak <= 0) return { fastT60: 0, slowT60: 0, stableFrom: from };
 
+  // Bovenomhullende: lopend maximum over ~150 ms. Bellen en klankschalen
+  // zwevingen — twee partialen vlak bij elkaar — en dan golft de RMS met
+  // tientallen dB op en neer. Een rechte-lijn-fit door zo'n golf geeft
+  // willekeur (0,2 s of 180 s, allebei gezien). De bovenomhullende zakt
+  // monotoon en volgt de échte uitsterving.
+  const span = Math.max(1, Math.round((0.15 * sr) / hop));
+  const top = new Float32Array(env.length);
+  for (let i = 0; i < env.length; i++) {
+    let m = 0;
+    for (let k = Math.max(0, i - span); k <= Math.min(env.length - 1, i + span); k++) if (env[k]! > m) m = env[k]!;
+    top[i] = m;
+  }
   const db = (v: number): number => 20 * Math.log10(Math.max(v, peak * 1e-6) / peak);
-  // Lineaire fit van dB tegen tijd over een dB-venster.
-  const fit = (loDb: number, hiDb: number): number => {
-    let n = 0, sx = 0, sy = 0, sxx = 0, sxy = 0;
-    for (let i = peakIdx; i < env.length; i++) {
-      const y = db(env[i]!);
-      if (y > hiDb || y < loDb) continue;
-      const x = ((i - peakIdx) * hop) / sr;
-      n++; sx += x; sy += y; sxx += x * x; sxy += x * y;
-    }
-    if (n < 4) return 0;
-    const denom = n * sxx - sx * sx;
-    if (Math.abs(denom) < 1e-12) return 0;
-    const slope = (n * sxy - sx * sy) / denom;    // dB per seconde (negatief)
-    return slope < -0.05 ? -60 / slope : 0;       // T60 in seconden
+  // Ruisvloer: het niveau aan het eind van het segment. Daaronder meten heeft geen zin.
+  const floorDb = db(top[env.length - 1]!);
+
+  /** Tijd (s) na de piek waarop de bovenomhullende voor het eerst onder `level` dB komt; −1 = nooit. */
+  const crossing = (level: number): number => {
+    for (let i = peakIdx; i < env.length; i++) if (db(top[i]!) < level) return ((i - peakIdx) * hop) / sr;
+    return -1;
+  };
+  /**
+   * T60 uit twee drempels: helling tussen hun kruisingen, doorgetrokken naar
+   * −60 dB. De onderste drempel wordt boven de ruisvloer gehouden — een
+   * opname die is afgekapt terwijl de bel nog op −20 dB stond (komt voor:
+   * "trimmed") levert dan de helling over het stuk dat er wél is, in plaats
+   * van niets of onzin.
+   */
+  const t60From = (hi: number, wantLo: number): number => {
+    const lo = Math.max(wantLo, floorDb + 3);
+    if (hi - lo < 4) return 0;                     // te weinig bereik om een helling te zien
+    const tHi = crossing(hi), tLo = crossing(lo);
+    if (tHi < 0 || tLo <= tHi) return 0;
+    return ((tLo - tHi) * 60) / (hi - lo);
   };
 
-  const fastT60 = fit(-14, -3);
-  const slowT60 = fit(-48, -16);
-  // Begin van de trage fase: waar we onder −14 dB zakken.
+  // Snelle fase: −3 → −14 dB. Trage fase: −16 → −40 dB, of zo diep als de opname reikt.
+  const fastT60 = t60From(-3, -14);
+  let slowT60 = t60From(-16, -40);
+  if (!slowT60) slowT60 = t60From(-8, -40);
+  if (!slowT60) slowT60 = t60From(-3, -40);
+  if (!slowT60) slowT60 = t60From(-1, -40);
+  // Laatste redmiddel: de hele beschikbare val, van de piek tot het eind.
+  // Een bel die in 4,4 s maar 11 dB zakt, is geen bel zonder uitsterving —
+  // het is een bel van ~24 s waarvan we 4,4 s hebben.
+  if (!slowT60 && floorDb < -3 && env.length - 1 > peakIdx) {
+    slowT60 = (((env.length - 1 - peakIdx) * hop) / sr) * (60 / -floorDb);
+  }
   let stable = peakIdx;
-  for (let i = peakIdx; i < env.length; i++) { if (db(env[i]!) < -14) { stable = i; break; } }
+  for (let i = peakIdx; i < env.length; i++) { if (db(top[i]!) < -14) { stable = i; break; } }
   return { fastT60, slowT60: slowT60 || fastT60, stableFrom: from + stable * hop };
 }
 
