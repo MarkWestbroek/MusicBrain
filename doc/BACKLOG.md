@@ -127,12 +127,12 @@ Brondump gebruiker (idee), nagenoeg ongewijzigd overgenomen:
 - **Multisampler (`tp_mmb_sampler`) — gebouwd 2026-09-06, op hardware verifiëren** (⏳ prio 1).
   Kern `mmb_dsp/sample_player.h`: keymap met key- én velocity-zones, 1–4 kanalen
   (interleaved, loop-punten op frame-niveau), vier loop-modes incl. `loop_sustain`,
-  per zone root/tune/gain/pan/decay/release. `SamplerModule.h` laadt een `.mmbk`-bank
+  per zone root/tune/gain/pan/decay/release. `SamplerModule.h` laadt een `.mmbs`-bank
   (`mmb_dsp/sample_bank.h`) van SD naar PSRAM (`extmem_malloc`, heap-fallback) en
   speelt 8 stemmen. Editor: 🎹 Multisample-import (segmentatie, YIN, decay-fit,
-  loop-zoeker, velocity-lagen) schrijft de `.mmbk`. **Nog te doen op hardware:**
+  loop-zoeker, velocity-lagen) schrijft de `.mmbs`. **Nog te doen op hardware:**
   PlatformIO-build, `SD.begin(BUILTIN_SDCARD)` en `extmem_malloc` verifiëren, en de
-  bank-index-conventie `/mmb/banks/NN.mmbk` uitproberen. Oorspronkelijke notitie: Eerst de
+  bank-index-conventie `/mmb/banks/NN.mmbs` uitproberen. Oorspronkelijke notitie: Eerst de
   opslagvraag: RAM op de Teensy (≤ ~100 KB vrij ≈ 1 s mono int16), de PSRAM-pads
   van de 4.1 (8–16 MB, chip solderen) of SD. Voorstel daarna: mono int16-sample per
   instantie, V/Oct + gate, start/end/loop/reverse, upload via een serial-frame zoals

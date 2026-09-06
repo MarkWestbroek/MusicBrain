@@ -2,12 +2,12 @@
 /**
  * @file SamplerModule.h
  * @brief Multisample-speler (typeId `tp_mmb_sampler`) op de header-only kern
- *        `mmb_dsp::SamplePlayer`, met een `.mmbk`-bank in PSRAM.
+ *        `mmb_dsp::SamplePlayer`, met een `.mmbs`-bank in PSRAM.
  * @details
- * **Bank.** `SampleBank` laadt één `.mmbk`-bestand (zie `mmb_dsp/sample_bank.h`)
+ * **Bank.** `SampleBank` laadt één `.mmbs`-bestand (zie `mmb_dsp/sample_bank.h`)
  * van de SD-kaart naar PSRAM: samples én keymap in één blok, zonder parser.
  * De editor schrijft dat bestand (🎹 Multisample-import); kopieer het naar
- * `/mmb/banks/NN.mmbk` op de SD. De `bank`-control kiest NN (0–15).
+ * `/mmb/banks/NN.mmbs` op de SD. De `bank`-control kiest NN (0–15).
  * Zonder PSRAM valt de allocatie terug op de gewone heap; past de bank niet,
  * dan blijft de module stil in plaats van te crashen.
  *
@@ -47,7 +47,7 @@ extern "C" void  extmem_free(void*);
 
 namespace mmb_link {
 
-/** @brief Gedeelde `.mmbk`-bank: samples + keymap in PSRAM, geladen van SD. */
+/** @brief Gedeelde `.mmbs`-bank: samples + keymap in PSRAM, geladen van SD. */
 class SampleBank {
 public:
     static constexpr int kMaxSlots = 64;
@@ -70,7 +70,7 @@ public:
     const mmb_dsp::Zone* zones() const { return zones_; }
     int numZones() const { return numZones_; }
 
-    /** Laad `/mmb/banks/NN.mmbk`; idempotent per index. */
+    /** Laad `/mmb/banks/NN.mmbs`; idempotent per index. */
     bool load(int index) {
         if (index == loaded_) return numSlots_ > 0;
         numSlots_ = numZones_ = 0;
@@ -79,7 +79,7 @@ public:
         if (!sdOk_) return false;
 
         char path[40];
-        snprintf(path, sizeof(path), "%s/%02d.mmbk", kDir, index);
+        snprintf(path, sizeof(path), "%s/%02d.mmbs", kDir, index);
         File f = SD.open(path, FILE_READ);
         if (!f) { Serial.printf("[sampler] %s niet gevonden\n", path); return false; }
 

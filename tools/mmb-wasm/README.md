@@ -57,14 +57,14 @@ node tools/mmb-wasm/test.mjs       # rooktest: poorten, pieken, flanken, CPU
 node tools/mmb-wasm/test-analysis.mjs   # sample-analyse op een kunstmatige take
 node tools/mmb-wasm/test-sampler.mjs    # take → keymap → sampler, end-to-end
 node tools/mmb-wasm/render-samples.mjs   # voorbeeldsamples renderen
-node tools/mmb-wasm/make-test-bank.mjs   # testopname (Elements) + .mmbk-bank
+node tools/mmb-wasm/make-test-bank.mjs   # testopname (Elements) + .mmbs-bank
 ```
 
 `test-analysis.mjs` en `test-sampler.mjs` bundelen `sampleAnalysis.ts` met
 esbuild, zodat de analyse zonder browser te testen is. `make-test-bank.mjs`
 rendert met de Elements-wasm een "opname" (C3/G3/C4 × zacht/midden/hard,
 stereo, stiltes ertussen) naar `editor/public/samples/elements-take.wav` en
-bouwt daar een `.mmbk` van — te openen met de knop **Testopname** in de
+bouwt daar een `.mmbs` van — te openen met de knop **Testopname** in de
 Multisample-import.
 
 Let op bij die take: Elements staat op geometry 0,42 en dan liggen de

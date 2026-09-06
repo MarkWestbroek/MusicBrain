@@ -1,10 +1,11 @@
-// sampleBank — schrijft het `.mmbk`-formaat (zie
+// sampleBank — schrijft het `.mmbs`-formaat (zie
 // firmware/lib/mmb-dsp/mmb_dsp/sample_bank.h): één bestand met alle samples
 // én de keymap, zodat de Teensy het zonder parser in PSRAM kan zetten.
 //
-// `.mmbk` = Modular Music Brain banK (familie-extensie, zelfde `mmb`-prefix
-// als `mmb_link` / `mmb_dsp` / `tp_mmb_*`); de magic-bytes zeggen welke soort
-// bank erin zit — `MMBS` voor een samplebank.
+// Naamgeving: `mmb` is de prefix van dit deelproject (Modular Music Brain),
+// en de vierde letter zegt welke soort bank het is — gelijk aan de vierde
+// magic-byte, zodat naam en inhoud niet uiteen kunnen lopen:
+//   .mmbs / "MMBS"  samplebank   ·   .mmbw / .mmbd  gereserveerd
 //
 // Layout (little-endian):
 //   BankHeader  44 bytes   "MMBS", versie, aantal slots/zones, naam[32]

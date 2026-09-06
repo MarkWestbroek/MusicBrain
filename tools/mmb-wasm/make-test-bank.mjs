@@ -3,7 +3,7 @@
 //
 //   editor/public/samples/elements-take.wav   "opname": Elements, 3 noten ×
 //                                             3 aanslagen, stereo, stiltes
-//   editor/public/banks/elements.mmbk         de resulterende samplebank
+//   editor/public/banks/elements.mmbs         de resulterende samplebank
 //
 // De take komt uit de Elements-wasm zelf — inharmonisch materiaal met een
 // echte aanslag en uitsterving, dus een eerlijker proef dan een sinus. Let op:
@@ -12,7 +12,7 @@
 // echt gedrag van het model, geen stemfout — en meteen een goede oefening in
 // "geef de noten van tevoren op" bij inharmonisch materiaal.
 //
-// De .mmbk wordt hier alleen ter controle geschreven en staat niet in git:
+// De .mmbs wordt hier alleen ter controle geschreven en staat niet in git:
 // het maken van de bank ís de oefening in de importer.
 //   node tools/mmb-wasm/make-test-bank.mjs
 import { execFileSync } from 'node:child_process';
@@ -161,7 +161,7 @@ layered.forEach((l, i) => {
     `${l.pitch.cents >= 0 ? '+' : ''}${l.pitch.cents} ct  T60 ${dec.slowT60.toFixed(1)} s`);
 });
 const bank = B.buildBank('elements-test', slots, zones);
-const bankPath = join(root, 'editor/public/banks/elements.mmbk');
+const bankPath = join(root, 'editor/public/banks/elements.mmbs');
 writeFileSync(bankPath, Buffer.from(bank));
 console.log(`\nbank: ${bankPath} — ${B.bankSummary(slots, zones)}`);
 

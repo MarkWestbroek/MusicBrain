@@ -132,7 +132,7 @@ export function SampleModal({ open, onClose }: { open: boolean; onClose: () => v
         <div style={{ minHeight: 18, color: busy.startsWith('mislukt') ? '#b91c1c' : '#334155' }}>{busy}</div>
         <p style={{ color: '#94a3b8', marginTop: 12, marginBottom: 0, fontSize: 12 }}>
           Samples blijven in de browser tot een herlaad. Voor de Teensy schrijf je een
-          <code> .mmbk</code>-bank met de Multisample-import en kopieer je die naar
+          <code> .mmbs</code>-bank met de Multisample-import en kopieer je die naar
           <code> /mmb/banks</code> op de SD-kaart.
         </p>
       </div>

@@ -1352,7 +1352,7 @@ function mmbSampler() {
       outPort('out_3', '3',  'audio', w*0.62, 122),
       outPort('out_4', '4',  'audio', w*0.86, 122),
     ],
-    notes: 'Multisample-speler: een keymap met key- én velocity-zones kiest per noot en aanslag het juiste sample; V/Oct transponeert vanaf de root-noot van die zone. 1–4 kanalen (mono komt op L+R, stereo op L/R, quad op alle vier). Acht stemmen per instantie, dus akkoorden en overlappende uitstervingen. Loop-modes: geen, one-shot, continu, of tot note-off (dan speelt de staart erna af). Banken maak je met de 🎹 Multisample-import; die schrijft een .mmbk die je naar /mmb/banks/NN.mmbk op de SD kopieert — Bank kiest NN. In de simulator draait dezelfde kern (mmb_dsp::SamplePlayer) als wasm. Firmware tp_mmb_sampler.',
+    notes: 'Multisample-speler: een keymap met key- én velocity-zones kiest per noot en aanslag het juiste sample; V/Oct transponeert vanaf de root-noot van die zone. 1–4 kanalen (mono komt op L+R, stereo op L/R, quad op alle vier). Acht stemmen per instantie, dus akkoorden en overlappende uitstervingen. Loop-modes: geen, one-shot, continu, of tot note-off (dan speelt de staart erna af). Banken maak je met de 🎹 Multisample-import; die schrijft een .mmbs die je naar /mmb/banks/NN.mmbs op de SD kopieert — Bank kiest NN. In de simulator draait dezelfde kern (mmb_dsp::SamplePlayer) als wasm. Firmware tp_mmb_sampler.',
   });
 }
 

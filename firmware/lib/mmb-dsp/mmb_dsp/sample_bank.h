@@ -1,18 +1,21 @@
 #pragma once
 /**
  * @file sample_bank.h
- * @brief `.mmbk` — MMB-bank met samples + keymap in één bestand, zodat de
+ * @brief `.mmbs` — MMB-samplebank: samples + keymap in één bestand, zodat de
  *        Teensy hem zonder parser in PSRAM kan zetten.
  * @details
- * `.mmbk` is de **familie-extensie** (Modular Music Brain banK, dezelfde
- * `mmb`-prefix als `mmb_link` / `mmb_dsp` / `tp_mmb_*`); de vier magic-bytes
- * zeggen welke soort bank erin zit. Nu: `MMBS` = samplebank. Toekomstige
- * soorten (wavetables, DX7-banken) kunnen dezelfde extensie delen met een
- * eigen magic, zodat er niet voor elk type een nieuwe extensie bijkomt.
+ * **Naamgeving.** `mmb` is de prefix van dit deelproject (Modular Music
+ * Brain, net als `mmb_link` / `mmb_dsp` / `tp_mmb_*`); de vierde letter zegt
+ * welke soort bank het is, en is *gelijk aan de vierde magic-byte*. Zo kan de
+ * extensie nooit met de inhoud in tegenspraak zijn:
+ *
+ *     .mmbs / "MMBS"   samplebank   (dit bestand)
+ *     .mmbw / "MMBW"   wavetables   (gereserveerd)
+ *     .mmbd / "MMBD"   DX7-banken   (gereserveerd)
  *
  * Layout (little-endian, alles 4-byte uitgelijnd):
  *
- *     char     magic[4]   "MMBS"  (samplebank)
+ *     char     magic[4]   "MMBS"  (samplebank; laatste letter = extensie)
  *     uint32   version    1
  *     uint32   numSlots
  *     uint32   numZones

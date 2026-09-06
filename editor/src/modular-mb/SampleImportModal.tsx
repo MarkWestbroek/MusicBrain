@@ -5,7 +5,7 @@
 // stiltes ertussen), gooi hem hierin, en de importer splitst de aanslagen,
 // meet toonhoogte, luidheid en uitsterving, verdeelt de velocity-lagen en
 // zoekt desgewenst loop-punten. Corrigeer wat ernaast zit in de tabel en
-// stuur het naar de simulator, of schrijf een `.mmbk` voor de SD-kaart.
+// stuur het naar de simulator, of schrijf een `.mmbs` voor de SD-kaart.
 //
 // De analyse zelf staat in sampleAnalysis.ts (los te testen onder node);
 // dit bestand is de UI eromheen.
@@ -218,10 +218,10 @@ export function SampleImportModal({ open, onClose }: { open: boolean; onClose: (
     const buf = buildBank(bankName, slots, zones);
     const url = URL.createObjectURL(new Blob([buf], { type: 'application/octet-stream' }));
     const a = document.createElement('a');
-    a.href = url; a.download = `${bankName}.mmbk`;
+    a.href = url; a.download = `${bankName}.mmbs`;
     a.click();
     URL.revokeObjectURL(url);
-    setBusy(`${bankName}.mmbk geschreven — ${bankSummary(slots, zones)} · kopieer naar /mmb/banks op de SD`);
+    setBusy(`${bankName}.mmbs geschreven — ${bankSummary(slots, zones)} · kopieer naar /mmb/banks op de SD`);
   }
 
   // ── golfvorm ────────────────────────────────────────────────────────
@@ -377,7 +377,7 @@ export function SampleImportModal({ open, onClose }: { open: boolean; onClose: (
             <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 12, flexWrap: 'wrap' }}>
               <button onClick={toSimulator} className="primary">→ Simulator</button>
               <label>Banknaam <input value={bankName} onChange={(e) => setBankName(e.target.value)} style={{ width: 140 }} /></label>
-              <button onClick={downloadBank}>⤓ .mmbk opslaan</button>
+              <button onClick={downloadBank}>⤓ .mmbs opslaan</button>
               <span style={{ color: '#94a3b8', fontSize: 12 }}>
                 Kopieer het bestand naar <code>/mmb/banks</code> op de SD-kaart van de Teensy.
               </span>
