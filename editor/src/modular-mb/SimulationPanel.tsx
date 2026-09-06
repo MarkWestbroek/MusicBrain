@@ -10,6 +10,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useModularProject } from './store';
 import { AudioEngine, type EngineStatus } from './sim/AudioEngine';
 import { getEngine } from './sim/engineSingleton';
+import {
+  MasterRecorder, encodeWav, dbfs, wavFileName, downloadWav,
+} from './sim/wavRecorder';
 import { dx7Host, WasmModule } from './runtime';
 import {
   ScreenKeyboardSource, TestSequenceSource, WebMidiSource,
@@ -41,6 +44,16 @@ export function SimulationPanel(): JSX.Element {
     { running: false, voiceFreqHz: 0, level: 0, liveControls: {} });
   const [masterVol, setMasterVol] = useState(0.7);
   const [error, setError] = useState<string | null>(null);
+
+  // Opname van de master-som. De recorder leeft buiten React (hij hangt aan de
+  // audiograaf), dus alleen de afgeleide tijd en de nabeschouwing staan in
+  // state.
+  const recRef = useRef<MasterRecorder | null>(null);
+  if (recRef.current === null) recRef.current = new MasterRecorder();
+  const recorder = recRef.current;
+  const [recording, setRecording] = useState(false);
+  const [recSecs, setRecSecs] = useState(0);
+  const [recDone, setRecDone] = useState<string | null>(null);
 
   // (Re)bouw de signal-graph zodra topologie van de patch verandert.
   // Live-knop-wijzigingen worden via engine.updateControl direct verwerkt
@@ -123,6 +136,12 @@ export function SimulationPanel(): JSX.Element {
     // engine is singleton — niet disposen op unmount.
   }, [engine, sources]);
 
+  useEffect(() => {
+    if (!recording) return undefined;
+    const id = window.setInterval(() => setRecSecs(recorder.seconds), 200);
+    return () => window.clearInterval(id);
+  }, [recording, recorder]);
+
   async function startAll(): Promise<void> {
     try {
       setError(null);
@@ -136,6 +155,40 @@ export function SimulationPanel(): JSX.Element {
     source.stop();
     engine.stop();
   }
+
+  async function startRec(): Promise<void> {
+    try {
+      setError(null); setRecDone(null); setRecSecs(0);
+      // Opnemen terwijl de engine stilstaat levert een bestand vol nullen op;
+      // dan is meteen starten wat je bedoelde.
+      if (!status.running) await startAll();
+      await recorder.start(engine.recorderTap());
+      setRecording(true);
+    } catch (err) {
+      setRecording(false);
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  async function stopRec(): Promise<void> {
+    try {
+      const r = await recorder.stop();
+      setRecording(false);
+      if (r.frames === 0) { setRecDone('niets opgenomen — de tap kreeg geen blokken door'); return; }
+      const name = wavFileName(patch?.name ?? 'patch');
+      downloadWav(encodeWav(r.channels, r.sampleRate, 'i24'), name);
+      const db = dbfs(r.peak);
+      // De piek erbij, want een zachte render merk je anders pas als de
+      // bank-import er int16 van maakt en je drie bits kwijt bent.
+      const level = db === null ? 'stilte' : `piek ${db.toFixed(1)} dBFS`;
+      setRecDone(`${name} · ${r.seconds.toFixed(1)} s · ${r.sampleRate} Hz · ${level}`
+               + (r.clipped ? ' · ⚠ overstuurd' : ''));
+    } catch (err) {
+      setRecording(false);
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
+
   function switchSource(next: SourceId): void {
     source.stop();
     setSourceId(next);
@@ -175,6 +228,14 @@ export function SimulationPanel(): JSX.Element {
             {!status.running
               ? <button onClick={startAll} className="primary">▶ Start</button>
               : <button onClick={stopAll}>■ Stop</button>}
+            {!recording
+              ? <button onClick={() => void startRec()}
+                  title="Schrijft de master-som rechtstreeks mee als WAV — geen BlackHole of DAW nodig">
+                  ⏺ Opname
+                </button>
+              : <button onClick={() => void stopRec()} style={{ color: '#b91c1c', fontWeight: 600 }}>
+                  ⏹ Stop · {recSecs.toFixed(1)} s
+                </button>}
           </span>
         </div>
         <div style={row}>
@@ -192,6 +253,17 @@ export function SimulationPanel(): JSX.Element {
           </label>
           <LevelMeter level={status.level} />
         </div>
+        {recording && (
+          <p style={{ color: '#b91c1c', fontSize: 12, margin: '6px 0 0' }}>
+            ⏺ Opname loopt — speel je noten en klik dan op <em>Stop</em>.
+            Het volume hierboven zit in de opname, dus laat het staan waar het staat.
+          </p>
+        )}
+        {recDone && !recording && (
+          <p style={{ color: '#475569', fontSize: 12, margin: '6px 0 0' }}>
+            ✔ {recDone}
+          </p>
+        )}
         {error && (
           <p style={{ color: '#b91c1c', fontSize: 12, margin: '6px 0 0' }}>
             ⚠ {error}

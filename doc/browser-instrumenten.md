@@ -289,3 +289,60 @@ niet vrij te herdistribueren. Grote banken en afgeleiden van bronnen die dat
 niet toestaan horen niet in deze repo: `editor/public/banks/` staat in
 `.gitignore`, met een uitzondering voor de kleine banken die er wél in mogen
 (zie [`editor/public/banks/README.md`](../editor/public/banks/README.md)).
+
+---
+
+## 9. De opnameknop
+
+Om browsergeluid in een bestand te krijgen moest je op de Mac langs een
+virtueel audioapparaat: BlackHole installeren, een apparaat met meerdere
+uitvoerkanalen maken zodat je zelf nog wat hoort, en dan in een DAW meelezen.
+Dat is een omweg langs het luidsprekerpad, met twee klokken die uit elkaar
+lopen en een microfoon-achtig rondzing-risico als je je uitgang verkeerd zet.
+Terwijl de graaf waar het om gaat gewoon in de pagina staat.
+
+Vandaar **⏺ Opname** naast Start/Stop in het Simulatie-paneel. Hij tapt de
+master-som af, schrijft mee, en levert bij Stop een 24-bits WAV af — met de
+patchnaam en een sorteerbare tijdstempel erin.
+
+De keuzes die eronder zitten:
+
+- **Een AudioWorklet, geen `MediaRecorder`.** Die laatste levert Opus, en een
+  lossy codec is geen bron voor een samplerbank. De worklet
+  ([`public/rec/tap-worklet.js`](../editor/public/rec/tap-worklet.js)) kopieert
+  alleen, buffert tot 4096 frames en post dat als transferable.
+- **Ook geen `ScriptProcessorNode`.** Die draait op de hoofdthread, en dan lekt
+  elke hapering in React of in het tekenen van de golfvorm als een gat in de
+  opname.
+- **Een `recordBus` die een rebuild overleeft.** `AudioEngine.build()` gooit de
+  master weg en maakt een nieuwe; hing de tap daaraan, dan viel de opname stil
+  zodra je tijdens het opnemen een kabel verlegde. De bus wordt daarom niet in
+  `dispose()` opgeruimd — één Gain voor de duur van de pagina.
+- **De piek staat in de afloopregel**, in dBFS. Een zachte opname merk je
+  anders pas als de bankimport er int16 van maakt en je drie bits kwijt bent;
+  bij oversturing komt er `⚠ overstuurd` achter. Het mastervolume zit ín de
+  opname, dus dat is de knop om aan te draaien, niet achteraf normaliseren.
+
+Twee dingen die het bouwen opleverde:
+
+- **`new AudioWorkletNode(ctx.rawContext, …)` werkt niet.** Tone's `rawContext`
+  is niet altijd een echte `BaseAudioContext` — het kan de schil van
+  standardized-audio-context zijn, en de globale constructor weigert die met
+  *"parameter 1 is not of type 'BaseAudioContext'"*. Het moet via
+  `ctx.createAudioWorkletNode()`, dezelfde route als `WasmModule` al gebruikte.
+- **Stilte doorschrijven is niet hetzelfde als niets schrijven.** Tijdens een
+  rebuild hangt er even niets aan de bus. Schrijft de tap dan niets, dan wordt
+  de opname stiekem korter dan wat je speelde en loopt alles erna uit de pas.
+  Hij schrijft nu nullen door.
+
+`encodeWav()` is zuiver en staat los van de audiograaf, dus de RIFF-kop, de
+kanaalvolgorde en het klemmen bij oversturing zijn onder node getest — zonder
+klem wordt +1,5 in int24 een grote negatieve waarde, en dat hoor je als een tik
+in plaats van een luide piek. De boekhouding van de worklet draait daar met een
+schil omheen: 5120 frames erin als oplopende reeks, dezelfde reeks eruit, één
+keer per monster, ook over de blokgrens van 4096 heen.
+
+Wat dit **niet** is: een offline render. Het loopt op ware snelheid, want het
+tapt de draaiende graaf af. Sneller dan realtime zou een `OfflineAudioContext`
+vragen waarin de hele engine opnieuw wordt opgebouwd — Tone-singleton en
+worklets incluis — en dat is een eigen klus.
