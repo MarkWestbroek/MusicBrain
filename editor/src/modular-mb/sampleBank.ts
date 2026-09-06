@@ -8,7 +8,7 @@
 //   .mmbs / "MMBS"  samplebank   ·   .mmbw / .mmbd  gereserveerd
 //
 // Layout (little-endian):
-//   BankHeader  44 bytes   "MMBS", versie, aantal slots/zones, naam[32]
+//   BankHeader  44 bytes   "MMBS", versie, aantal slots/zones, naam[28]
 //   SlotHeader  16 × slots frameOffset, frames, channels, rate
 //   ZoneRecord  40 × zones slot, key/vel-bereik, root, gain, pan, loop, decay
 //   int16       data       alle samples achter elkaar, interleaved
@@ -37,7 +37,9 @@ export function buildBank(name: string, slots: BankSlot[], zones: WasmZone[]): A
   dv.setUint32(4, 1, true);                          // versie
   dv.setUint32(8, slots.length, true);
   dv.setUint32(12, zones.length, true);
-  const nameBytes = new TextEncoder().encode(name).subarray(0, 31);
+  // Naamveld is 28 bytes (16..43): 27 tekens plus de afsluitende nul. Langer
+  // zou over de slot-tabel op offset 44 heen schrijven.
+  const nameBytes = new TextEncoder().encode(name).subarray(0, 27);
   bytes.set(nameBytes, 16);
 
   // ── slot-tabel; offsets in frames vanaf het begin van het datablok ──
@@ -105,8 +107,8 @@ export function parseBank(buf: ArrayBuffer): { name: string; slots: BankSlot[]; 
   if (version !== 1) throw new Error(`bankversie ${version} wordt niet ondersteund`);
   const slotCount = dv.getUint32(8, true);
   const zoneCount = dv.getUint32(12, true);
-  const nameEnd = bytes.subarray(16, 48).indexOf(0);
-  const name = new TextDecoder().decode(bytes.subarray(16, 16 + (nameEnd < 0 ? 31 : nameEnd)));
+  const nameEnd = bytes.subarray(16, 44).indexOf(0);
+  const name = new TextDecoder().decode(bytes.subarray(16, 16 + (nameEnd < 0 ? 28 : nameEnd)));
 
   let off = 44;
   const table: { frameOffset: number; frames: number; channels: number; rate: number }[] = [];

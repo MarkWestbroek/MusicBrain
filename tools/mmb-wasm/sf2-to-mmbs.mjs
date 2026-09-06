@@ -89,6 +89,24 @@ console.log(`  toetsen ${keys[0]}–${keys[1]} · ${layerCount} velocity-la${lay
 console.log(`  rates: ${[...new Set(slots.map((s) => s.rate))].sort((a, b) => a - b).join(', ')} Hz` +
   `${velTrackDb ? ` · velocity-tracking ${velTrackDb} dB` : ' · geen velocity-tracking'}`);
 
+// Uitsterving: bij een loopende zone komt die uit de volume-envelope van de
+// SoundFont, anders draagt het sample hem zelf. Zonder decay op een loop zou
+// de toon eeuwig doordreunen — behalve als hij dat hoort te doen (orgel, pad).
+const decaying = zones.filter((z) => z.decay > 0).map((z) => z.decay);
+const holding = zones.filter((z) => z.loopMode !== 0 && z.decay === 0).length;
+console.log(`  uitsterving: ${decaying.length
+  ? `${decaying.length} zones ${Math.min(...decaying).toFixed(1)}–${Math.max(...decaying).toFixed(1)} s uit de envelope`
+  : 'volledig uit de samples'}` +
+  `${holding ? ` · ${holding} zones houden aan tot note-off (orgel/pad)` : ''}`);
+
+// De firmware leest de bank met vaste tabellen (SamplerModule.h).
+const KMAX_SLOTS = 64, KMAX_ZONES = 256;
+if (slots.length > KMAX_SLOTS || zones.length > KMAX_ZONES) {
+  console.log(`  ⚠ ${slots.length} slots / ${zones.length} zones — de Teensy laadt hoogstens ` +
+    `${KMAX_SLOTS} slots en ${KMAX_ZONES} zones en slaat deze bank over. In de browser werkt hij wel;`);
+  console.log(`    voor hardware: --vel-layers=<n> knijpt beide tegelijk.`);
+}
+
 // De Teensy leest de hele bank in PSRAM; 8 MB is de kleine variant.
 const mb = slots.reduce((n, s) => n + s.data.length * 2, 0) / 1048576;
 if (mb > 7) {
@@ -97,7 +115,7 @@ if (mb > 7) {
 }
 
 const out = outArg ?? join(dirname(sf2Path), `${(name || basename(sf2Path)).replace(/[^\w-]+/g, '_')}.mmbs`);
-writeFileSync(out, Buffer.from(B.buildBank(name.slice(0, 31), slots, zones)));
+writeFileSync(out, Buffer.from(B.buildBank(name.slice(0, 27), slots, zones)));
 console.log(`\ngeschreven: ${out}`);
 
 // Terugleescontrole — dezelfde parser die de editor gebruikt.

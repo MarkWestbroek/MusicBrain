@@ -89,7 +89,7 @@ export function SampleImportModal({ open, onClose }: { open: boolean; onClose: (
       }
       const mono = toMono(inter, ch);
       setAudio({ data: inter, mono, ch, rate: b.sampleRate, name: file.name });
-      setBankName(file.name.replace(/\.[^.]+$/, '').slice(0, 31) || 'bank');
+      setBankName(file.name.replace(/\.[^.]+$/, '').slice(0, 27) || 'bank');
       setBusy(`${(b.length / b.sampleRate).toFixed(1)} s · ${ch === 1 ? 'mono' : ch === 2 ? 'stereo' : ch + ' kanalen'} · ${b.sampleRate} Hz — klik Analyseren`);
     } catch (err) {
       setBusy(`mislukt: ${err instanceof Error ? err.message : String(err)}`);
@@ -132,7 +132,7 @@ export function SampleImportModal({ open, onClose }: { open: boolean; onClose: (
     try {
       const f = readSf2(buf);
       setSf2(f);
-      setBankName((f.name || label).slice(0, 31));
+      setBankName((f.name || label).slice(0, 27));
       const withZones = f.presets.filter((p) => p.zones > 0);
       setBusy(`${f.name}${f.engineer ? ` — ${f.engineer}` : ''}: ${withZones.length} presets — kies er een`);
       if (withZones[0]) useSf2Preset(f, withZones[0].index);
@@ -147,7 +147,7 @@ export function SampleImportModal({ open, onClose }: { open: boolean; onClose: (
       if (!slots.length) { setBusy(`preset "${name}" heeft geen samples`); return; }
       slots.forEach((s, i) => WasmModule.setBlob(TYPE_ID, i, s.data, s.rate, s.name ?? '', s.channels));
       WasmModule.setZones(TYPE_ID, zones);
-      setBankName(name.slice(0, 31));
+      setBankName(name.slice(0, 27));
       setLoaded({ slots, zones });
       const keys = zones.reduce((r, z) => [Math.min(r[0]!, z.lowKey), Math.max(r[1]!, z.highKey)], [127, 0]);
       const layers = new Set(zones.map((z) => `${z.lowVel}-${z.highVel}`)).size;
@@ -471,7 +471,7 @@ export function SampleImportModal({ open, onClose }: { open: boolean; onClose: (
         {loaded && rows.length === 0 && (
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
             <button onClick={toSimulator} className="primary">→ Simulator</button>
-            <label>Naam <input value={bankName} maxLength={31} style={{ width: 160 }}
+            <label>Naam <input value={bankName} maxLength={27} style={{ width: 160 }}
               onChange={(e) => setBankName(e.target.value)} /></label>
             <button onClick={downloadBank}>⤓ .mmbs opslaan</button>
             <span style={{ color: '#94a3b8', fontSize: 12 }}>

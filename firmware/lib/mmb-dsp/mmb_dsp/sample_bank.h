@@ -19,7 +19,7 @@
  *     uint32   version    1
  *     uint32   numSlots
  *     uint32   numZones
- *     char     name[32]   bank-naam (nul-getermineerd)
+ *     char     name[28]   bank-naam (nul-getermineerd; 27 tekens + nul)
  *     SlotHdr  slots[numSlots]     (16 bytes elk)
  *     ZoneRec  zones[numZones]     (40 bytes elk)
  *     int16    data[...]           alle samples achter elkaar, interleaved
@@ -44,7 +44,7 @@ struct BankHeader {
     uint32_t version;
     uint32_t numSlots;
     uint32_t numZones;
-    char     name[32];
+    char     name[28];      // 16 + 28 = 44: de slot-tabel begint op offset 44
 };                          // 44 bytes
 
 struct SlotHeader {
