@@ -22,9 +22,16 @@
  * | in  | `voct_k` | Cv   | Toonhoogte cel k (1 V/oct, MIDI 60 = 0 V)  |
  * | in  | `gate_k` | Gate | Note-on/off cel k                           |
  * | in  | `vel_k`  | Cv   | Velocity cel k, 0..1 → kiest de laag        |
+ * | in  | `cutoff_k` | Cv | Cutoff-CV van stem k (±1 → ±`cv_amt` octaven)  |
+ * | out | `env_k`  | Cv   | Envelope-follower van stem k (vóór het filter) |
  * (k = 1..8; kale `voct`/`gate`/`vel` = cel 1. Multi-module: de
  *  stemtoewijzer zit in MIDI-in, niet hier — construct B in
  *  doc/uml/11-simulation-wasm.md.)
+ * Filter in de cel: `filter` (0 geen / 1 SVF / 2 MS-20), `cutoff` (Hz), `q`
+ * (0..1), `fmode` (0 LP / 1 HP / 2 BP), `drive`, `cv_amt` (octaven),
+ * `env_rel` (ms). Dezelfde kernels als VcfModule en Ms20Module; de stem
+ * verlaat de module niet, dus stereo en quad blijven intact. Auto-wah is de
+ * multikabel env_k → cutoff_k in de patcher.
  * | out | `out_l` `out_r` `out_3` `out_4` | Audio | mono → L+R, stereo → 1/2, quad → 1–4 |
  * Controls: `bank` (0–15), `coarse` (semi), `fine` (ct), `start` (0..1),
  * `attack` (ms), `level` (0..1).
@@ -226,6 +233,15 @@ public:
         }
         gate_[k] = high;
     }
+    void setCutoffCv(int k, float v) { if (k >= 0 && k < kVoices) voice_[k].set_cutoff_cv(v); }
+    float env(int k) const { return (k >= 0 && k < kVoices) ? voice_[k].env() : 0.0f; }
+    void setFilterType(int t)     { for (auto& v : voice_) v.set_filter_type(t); }
+    void setFilterCutoff(float hz){ for (auto& v : voice_) v.set_filter_cutoff(hz); }
+    void setFilterQ(float q)      { for (auto& v : voice_) v.set_filter_resonance(q); }
+    void setFilterMode(int m)     { for (auto& v : voice_) v.set_filter_mode(m); }
+    void setFilterDrive(float d)  { for (auto& v : voice_) v.set_filter_drive(d); }
+    void setCvAmount(float oct)   { for (auto& v : voice_) v.set_cutoff_cv_amount(oct); }
+    void setEnvRelease(float ms)  { for (auto& v : voice_) v.set_env_times(2.0f, ms); }
     void setTranspose(float semis) { for (auto& v : voice_) v.set_transpose(semis); }
     void setStart(float s)  { for (auto& v : voice_) v.set_startOffset(s); }
     void setAttack(float ms){ for (auto& v : voice_) v.setAttackMs(ms); }
@@ -233,6 +249,7 @@ public:
 
     void update() override {
         if (boundVersion_ != SampleBank::instance().version()) rebind();
+        for (auto& v : voice_) v.PrepareBlock();
         audio_block_t* out[4];
         for (int c = 0; c < 4; ++c) {
             out[c] = allocate();
@@ -283,6 +300,7 @@ public:
     }
     AudioPort inputPort(std::string_view) const override { return {}; }
     PortKind outputPortKind(std::string_view portId) const override {
+        if (cellOf(portId, "env") >= 0) return PortKind::Cv;
         return (portId == "out" || portId == "out_l" || portId == "out_r" ||
                 portId == "out_3" || portId == "out_4") ? PortKind::Audio : PortKind::None;
     }
@@ -304,6 +322,7 @@ public:
         if (cellOf(portId, "voct") >= 0) return PortKind::Cv;
         if (cellOf(portId, "gate") >= 0 || cellOf(portId, "trig") >= 0) return PortKind::Gate;
         if (cellOf(portId, "vel") >= 0) return PortKind::Cv;
+        if (cellOf(portId, "cutoff") >= 0) return PortKind::Cv;
         return PortKind::None;
     }
     void writeCvPort(std::string_view portId, float value) override {
@@ -311,6 +330,12 @@ public:
         if ((k = cellOf(portId, "voct")) >= 0) stream_.setVoct(k, value);
         else if ((k = cellOf(portId, "gate")) >= 0 || (k = cellOf(portId, "trig")) >= 0) stream_.gate(k, value >= 0.5f);
         else if ((k = cellOf(portId, "vel")) >= 0) stream_.setVelocity(k, value);
+        else if ((k = cellOf(portId, "cutoff")) >= 0) stream_.setCutoffCv(k, value);
+    }
+    /** `env_k`: envelope-follower van stem k (CV-uitgang); env_k → cutoff_k is de auto-wah. */
+    float readCvPort(std::string_view portId) const override {
+        const int k = cellOf(portId, "env");
+        return k >= 0 ? stream_.env(k) : 0.0f;
     }
 
     void setControl(std::string_view controlId,
@@ -327,6 +352,13 @@ public:
         else if (controlId == "start")  stream_.setStart(asFloat(0.0f));
         else if (controlId == "attack") stream_.setAttack(asFloat(1.5f));
         else if (controlId == "level")  stream_.setLevel(asFloat(0.8f));
+        else if (controlId == "filter") stream_.setFilterType(static_cast<int>(asFloat(0.0f)));
+        else if (controlId == "cutoff") stream_.setFilterCutoff(asFloat(2000.0f));
+        else if (controlId == "q")      stream_.setFilterQ(asFloat(0.3f));
+        else if (controlId == "fmode")  stream_.setFilterMode(static_cast<int>(asFloat(0.0f)));
+        else if (controlId == "drive")  stream_.setFilterDrive(asFloat(1.0f));
+        else if (controlId == "cv_amt") stream_.setCvAmount(asFloat(4.0f));
+        else if (controlId == "env_rel") stream_.setEnvRelease(asFloat(120.0f));
     }
 
     static void registerFactory() {

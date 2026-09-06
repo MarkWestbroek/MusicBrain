@@ -33,6 +33,11 @@
 #include "WarpsModule.h"
 #include "SamplerModule.h"
 
+// Vrij heap-geheugen (Teensy-linker-symbolen). Buiten de anonieme namespace,
+// anders krijgt extern "C" interne linkage en linkt het niet.
+extern "C" char* __brkval;
+extern "C" char _heap_end;
+
 namespace {
 
 constexpr uint8_t kVoices = 4;
@@ -53,8 +58,6 @@ uint32_t lastLoopMarkMs = 0;
 // Vrije heap (RAM2) in bytes — het budget waar module-instanties, STK-delay-
 // lines en MI-buffers uit komen. Gerapporteerd in het status-bericht zodat
 // een naderende OOM (zoals de STK Bowed×8-crash) vooraf zichtbaar is.
-extern "C" char* __brkval;
-extern "C" char _heap_end;
 inline int freeHeapBytes() {
     return static_cast<int>(&_heap_end - __brkval);
 }

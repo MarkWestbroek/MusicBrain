@@ -1,8 +1,11 @@
 #pragma once
 /**
  * @file Ms20Module.h
- * @brief MS-20 filter (typeId `tp_mmb_ms20`): custom `AudioStream` Korg35
- *        Sallen-Key VCF with tanh diode-clipping in the resonance loop.
+ * @brief MS-20 filter (typeId `tp_mmb_ms20`): Korg35 Sallen-Key VCF met
+ *        tanh-diodeclipper in de resonantielus. De DSP zelf is de kernel
+ *        `mmb_dsp::Korg35` (firmware/lib/mmb-dsp), gedeeld met de browser en
+ *        met het filter per stem in de sampler; dit bestand is de AudioStream-
+ *        en Module-schil eromheen.
  *
  * @details
  * The Korg35 is the Sallen-Key filter of the MS-10 / early MS-20.  This is a
@@ -57,112 +60,46 @@
 #include <cstdint>
 #include <string_view>
 
+#include "mmb_dsp/korg35.h"
+
 namespace mmb_link {
 
-/** @brief Korg35 ZDF Sallen-Key filter (LP 12 dB / HP 6 dB) with tanh loop. */
+/** @brief AudioStream-schil rond de kernel @ref mmb_dsp::Korg35 (LP 12 dB / HP 6 dB). */
 class AudioFilterKorg35 : public AudioStream {
 public:
-    static constexpr int kOversample = 2;   // internal rate = 2 * AUDIO_SAMPLE_RATE
+    AudioFilterKorg35() : AudioStream(1, inputQueueArray_) { k35_.Init(AUDIO_SAMPLE_RATE_EXACT); }
 
-    AudioFilterKorg35() : AudioStream(1, inputQueueArray_) {}
-
-    void frequency(float hz)   { fcTarget_ = clampf(hz, 20.0f, 18000.0f); }
+    void frequency(float hz)   { k35_.set_cutoff(hz); }
     /** res 0…1 -> K 0.01…2.0 (self-oscillation at 1.0). */
-    void resonance(float res)  { kTarget_ = 0.01f + clampf(res, 0.0f, 1.0f) * 1.99f; }
-    void drive(float d)        { drive_ = clampf(d, 0.1f, 10.0f); }
-    void mode(uint8_t m)       { hp_ = (m == 1); }
-    void octaveControl(float octaves) { octaves_ = clampf(octaves, 0.0f, 7.0f); }
+    void resonance(float res)  { k35_.set_resonance(res); }
+    void drive(float d)        { k35_.set_drive(d); }
+    void mode(uint8_t m)       { k35_.set_mode(m); }
+    void octaveControl(float octaves) { octaves_ = octaves < 0.0f ? 0.0f : (octaves > 7.0f ? 7.0f : octaves); apply(); }
     /** Control-rate cutoff CV: ±1.0 shifts the cutoff by ±`octaveControl` octaves. */
-    void frequencyCv(float v)  { fcCv_ = clampf(v, -1.0f, 1.0f); }
-    /** Control-rate resonance CV, already scaled to resonance units (0…1 adds to `q`). */
-    void resonanceCv(float v)  { resCv_ = clampf(v, -1.0f, 1.0f); }
+    void frequencyCv(float v)  { fcCv_ = v < -1.0f ? -1.0f : (v > 1.0f ? 1.0f : v); apply(); }
+    /** Control-rate resonance CV, already scaled to resonance units. */
+    void resonanceCv(float v)  { k35_.set_resonance_cv(v); }
     /** Control-rate drive CV (al ×amt): ±1 schaalt de drive ±2 "octaven" (×4 … ÷4). */
-    void driveCv(float v)      { driveCv_ = clampf(v, -1.0f, 1.0f); }
+    void driveCv(float v)      { k35_.set_drive_cv(v); }
 
     void update() override {
         audio_block_t* block = receiveWritable(0);
         if (!block) return;
-
-        // ── per-block coefficient cook (smoothed, at the oversampled rate) ──
-        const float fcMod = fcTarget_ * exp2f(octaves_ * fcCv_);
-        fcSm_ += 0.35f * (clampf(fcMod, 20.0f, 18000.0f) - fcSm_);
-        const float kMod = kTarget_ + 1.99f * resCv_;   // res units -> K units
-        kSm_  += 0.35f * (clampf(kMod, 0.01f, 2.0f) - kSm_);
-        const float driveMod = drive_ * exp2f(2.0f * driveCv_);
-        driveSm_ += 0.35f * (clampf(driveMod, 0.1f, 10.0f) - driveSm_);
-
-        const float fsInt = AUDIO_SAMPLE_RATE_EXACT * kOversample;
-        const float g  = tanf(3.14159265f * fcSm_ / fsInt);
-        const float G  = g / (1.0f + g);
-        const float mG = 1.0f - G;                       // == 1/(1+g)
-        const float K  = kSm_;
-        const float alpha0 = 1.0f / (1.0f - K * G + K * G * G);
-        const float norm   = 1.0f / K;                   // passband gain compensation
-
+        k35_.Prepare();
         for (int i = 0; i < AUDIO_BLOCK_SAMPLES; ++i) {
-            const float x = block->data[i] * (1.0f / 32768.0f);
-            float acc = 0.0f;
-            for (int os = 0; os < kOversample; ++os) {   // zero-order hold input
-                float y;
-                if (!hp_) {
-                    // LP: x -> LP1 -> Σ -> LP2 -> ×K -> y, fb y -> HP1 -> Σ
-                    const float y1 = lp(s1_, x, G);
-                    const float u0 = alpha0 * (y1 + K * mG * mG * s2_ - mG * s3_);
-                    const float u  = tanhf(driveSm_ * u0);
-                    y = K * lp(s2_, u, G);
-                    hpUpd(s3_, y, G);
-                } else {
-                    // HP: x -> HP1 -> Σ -> ×K -> y, fb y -> HP2 -> LP1 -> Σ
-                    const float y1 = x - lp(s1_, x, G);
-                    const float u0 = alpha0 * (y1 - G * mG * s2_ + mG * s3_);
-                    const float u  = tanhf(driveSm_ * u0);
-                    y = K * u;
-                    const float yhp2 = y - lp(s2_, y, G);
-                    lp(s3_, yhp2, G);
-                }
-                acc += y;
-            }
-            float out = (acc / kOversample) * norm;
-            if (out >  1.0f) out =  1.0f;
-            if (out < -1.0f) out = -1.0f;
-            block->data[i] = static_cast<int16_t>(out * 32767.0f);
+            const float y = k35_.Tick(block->data[i] * (1.0f / 32768.0f));
+            block->data[i] = static_cast<int16_t>(y * 32767.0f);
         }
-
         transmit(block, 0);
         release(block);
     }
 
 private:
-    static float clampf(float v, float lo, float hi) {
-        return v < lo ? lo : (v > hi ? hi : v);
-    }
-    /** One-pole TPT lowpass step on state `s` (v-form: zero-input out = (1-G)·s). */
-    static inline float lp(float& s, float x, float G) {
-        const float v = G * (x - s);
-        const float y = v + s;
-        s = y + v;
-        return y;
-    }
-    /** Highpass step where only the state update matters (feedback tap HP1). */
-    static inline void hpUpd(float& s, float x, float G) { (void)lp(s, x, G); }
-
+    void apply() { k35_.set_cutoff_octaves(octaves_ * fcCv_); }
     audio_block_t* inputQueueArray_[1] = { nullptr };
-
-    // One-pole states.  LP mode: s1=LPF1, s2=LPF2, s3=HPF1's internal LP.
-    // HP mode: s1=HPF1's internal LP, s2=HPF2's internal LP, s3=LPF1.
-    float s1_ = 0.0f, s2_ = 0.0f, s3_ = 0.0f;
-
-    float fcTarget_ = 2000.0f;  ///< Base cutoff from the `cutoff` control.
-    float fcCv_     = 0.0f;     ///< Cutoff CV scalar (±1), control-rate.
-    float fcSm_     = 2000.0f;  ///< Smoothed effective cutoff (per-block slew).
-    float kTarget_  = 0.607f;   ///< Base K from the `q` control (res 0.3).
-    float resCv_    = 0.0f;     ///< Resonance CV scalar, already ×q_cv_amt.
-    float kSm_      = 0.607f;   ///< Smoothed effective K.
-    float drive_    = 1.0f;     ///< Basis-drive (control `drive`).
-    float driveCv_  = 0.0f;     ///< Drive-CV scalar (al ×amt), ±1.
-    float driveSm_  = 1.0f;     ///< Gesmoothde effectieve drive.
-    float octaves_  = 2.0f;     ///< Cutoff-CV depth in octaves.
-    bool  hp_       = false;    ///< false = LP (12 dB), true = HP (6 dB).
+    mmb_dsp::Korg35 k35_;
+    float octaves_ = 2.0f;   ///< Cutoff-CV depth in octaves.
+    float fcCv_    = 0.0f;   ///< Cutoff CV scalar (±1), control-rate.
 };
 
 /** @brief Module wrapper around @ref AudioFilterKorg35. */

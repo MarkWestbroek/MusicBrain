@@ -29,6 +29,7 @@ import type {
   PatchConnection, ControlValue, SignalType,
 } from '../types';
 import { registry, Vcf, Ladder, Ms20, Vco, FmVco, Vca, Ahdsr, Lfo, WasmModule } from '../runtime';
+import { simSupportByKind } from './simSupport';
 
 export interface EngineStatus {
   running: boolean;
@@ -240,6 +241,12 @@ function wasmVelPort(rt: WasmModule, sfx = ''): string | null {
 export class AudioEngine {
   private master: Tone.Gain | null = null;
   private meter: Tone.Meter | null = null;
+  /** Aftakpunt voor de recorder. Blijft met opzet leven over een `build()`
+   *  heen — verleg je tijdens het opnemen een kabel, dan wordt de master
+   *  vervangen maar valt de opname niet stil. Wordt daarom ook niet in
+   *  `dispose()` opgeruimd; het is één Gain voor de duur van de pagina. */
+  private recordBus: Tone.Gain | null = null;
+  private recordBusWired = false;
   private nodes = new Map<string, EngineNode>();
   private connections: PatchConnection[] = [];
   private portIndex = new Map<string, { signalType: SignalType; direction: 'in' | 'out' }>();
@@ -266,6 +273,8 @@ export class AudioEngine {
     this.meter  = new Tone.Meter({ smoothing: 0.85 });
     this.master.connect(this.meter);
     this.master.toDestination();
+    this.recordBusWired = false;
+    if (this.recordBus) { this.master.connect(this.recordBus); this.recordBusWired = true; }
 
     // 1. Index ports.
     const racks = project.racks.filter((r) => patch.rackIds.includes(r.id));
@@ -358,6 +367,18 @@ export class AudioEngine {
       if (dst.kind === 'vco' && conn.to.portId === 'voct') dst.voctDriven = true;
       if (dst.kind === 'envelope' && conn.to.portId === 'gate') dst.gateDriven = true;
     }
+  }
+
+  /** Node waarop een opname mag meeluisteren: de master-som ná het volume dat
+   *  je ook hoort. Maakt de bus bij de eerste aanroep en hangt de huidige
+   *  master eraan; latere rebuilds doen dat zelf in `build()`. */
+  recorderTap(): Tone.Gain {
+    if (!this.recordBus) this.recordBus = new Tone.Gain(1);
+    if (this.master && !this.recordBusWired) {
+      this.master.connect(this.recordBus);
+      this.recordBusWired = true;
+    }
+    return this.recordBus;
   }
 
   async start(): Promise<void> {
@@ -779,6 +800,8 @@ export class AudioEngine {
     this.connections = [];
     this.master?.dispose(); this.meter?.dispose();
     this.master = null; this.meter = null;
+    // recordBus bewust niet disposen — zie het veld.
+    this.recordBusWired = false;
   }
 
   // ── helpers ────────────────────────────────────────────────────────
@@ -788,6 +811,12 @@ export class AudioEngine {
     controlMap?: Record<string, string>,
   ): EngineNode | null {
     const base = { moduleId: m.id, type: t, controls, controlMap };
+    // Eén rem voor alles wat de simulator niet speelt — dezelfde functie die
+    // de Modules-tab het Sim-kolommetje geeft, zodat een module die daar
+    // "speelt" heet hier ook echt een node krijgt. Vangt onder meer Grids,
+    // dat als categorie 'sequencer' anders een SEQ-16 met standaardwaarden
+    // kreeg die nergens op aangesloten stond en tóch elke 250 ms tikte.
+    if (simSupportByKind(t, kind) === 'none') return null;
     // Speciale interne modules waarvan de categorie-`kind` niet aansluit
     // op het standaard switch-vocabulaire (utility/vco/vcf/...). Deze
     // worden op typeId herkend zodat ze altijd worden gebouwd, los van
@@ -975,7 +1004,45 @@ export class AudioEngine {
       const m = /^(.*?)(\d+)$/.exec(id);
       return m ? { base: m[1]!, num: Number(m[2]) } : null;
     };
+    // Cel-groepen (construct B): een kabel op de master-cel (`env_1`,
+    // `cutoff_1`) staat voor alle cellen. Zelfde regels als hieronder voor
+    // modules, maar dan op het poortnummer: cel → cel is stem k → stem k,
+    // global → cel waaiert uit, cel → global gaat genummerd of als som.
+    const cellPort = (id: string): { base: string; k: number } | null => {
+      const m = /^(.*?)_(\d+)$/.exec(id);
+      return m ? { base: m[1]!, k: Number(m[2]) } : null;
+    };
+    const cellGroupOf = (moduleId: string, portId: string): string[] | null => {
+      const cp = cellPort(portId);
+      if (!cp || cp.k !== 1) return null;                       // alleen de master-cel draagt kabels
+      const master = this.cellMasterOf.get(moduleId);
+      return master ? this.wasmGroups.get(master) ?? null : null;
+    };
     for (const c of conns) {
+      const srcCells = cellGroupOf(c.from.moduleId, c.from.portId);
+      const dstCells = cellGroupOf(c.to.moduleId, c.to.portId);
+      const srcNode0 = this.nodes.get(c.from.moduleId);
+      const srcEvent = srcNode0?.kind === 'midiin' || srcNode0?.kind === 'sequencer';
+      if (srcCells || dstCells) {
+        const N = (srcCells ?? dstCells)!.length;
+        const sp = cellPort(c.from.portId), dp = cellPort(c.to.portId);
+        if (srcCells && dstCells && srcCells.length === dstCells.length) {
+          for (let v = 0; v < N; v++) out.push({ ...c, id: `${c.id}#v${v}`,
+            from: { moduleId: c.from.moduleId, portId: `${sp!.base}_${v + 1}` },
+            to:   { moduleId: c.to.moduleId,   portId: `${dp!.base}_${v + 1}` } });
+        } else if (!srcCells && dstCells && !srcEvent) {
+          for (let v = 0; v < N; v++) out.push({ ...c, id: `${c.id}#v${v}`,
+            to: { moduleId: c.to.moduleId, portId: `${dp!.base}_${v + 1}` } });
+        } else if (srcCells && !dstCells) {
+          const n = numbered(c.to.portId);
+          for (let v = 0; v < N; v++) out.push({ ...c, id: `${c.id}#v${v}`,
+            from: { moduleId: c.from.moduleId, portId: `${sp!.base}_${v + 1}` },
+            to: { moduleId: c.to.moduleId, portId: n ? `${n.base}${n.num + v}` : c.to.portId } });
+        } else {
+          out.push(c);                                          // MIDI-in/sequencer → master: de toewijzer doet de rest
+        }
+        continue;
+      }
       const sg = this.wasmGroups.get(c.from.moduleId);
       const dg = this.wasmGroups.get(c.to.moduleId);
       const srcNode = this.nodes.get(c.from.moduleId);

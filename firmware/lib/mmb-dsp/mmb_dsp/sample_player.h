@@ -29,6 +29,10 @@
 #include <cmath>
 #include <cstdint>
 
+#include "svf.h"
+#include "korg35.h"
+#include "env_follower.h"
+
 namespace mmb_dsp {
 
 constexpr int kMaxChannels = 4;
@@ -93,6 +97,10 @@ public:
         slots_ = nullptr; numSlots_ = 0;
         zones_ = nullptr; numZones_ = 0;
         setAttackMs(1.5f);
+        for (int c = 0; c < kMaxChannels; ++c) { svf_[c].Init(sr); k35_[c].Init(sr); }
+        follower_.Init(sr);
+        follower_.set_attack_ms(2.0f);
+        follower_.set_release_ms(120.0f);
         reset();
     }
 
@@ -109,6 +117,34 @@ public:
     void set_transpose(float semitones) { transpose_ = semitones; }
     /** Startpunt 0..1 binnen het sample (0 = zoals opgenomen). */
     void set_startOffset(float s) { startOffset_ = s < 0.0f ? 0.0f : (s > 0.99f ? 0.99f : s); }
+
+    // ── filter in de cel + envelope-follower per stem ───────────────────
+    // De filterkernels zijn dezelfde klassen als de losse VCF (Svf) en MS-20
+    // (Korg35) uit de catalogus; hier draaien ze per kanaal van de stem, vóór
+    // de mix. Wie welke cutoff krijgt regelt de aanroeper via set_cutoff_cv —
+    // in de patcher is dat de multikabel env_k → cutoff_k (auto-wah).
+    enum FilterType { FILTER_NONE = 0, FILTER_SVF = 1, FILTER_MS20 = 2 };
+    void set_filter_type(int t) {
+        const int nt = t == FILTER_SVF ? FILTER_SVF : (t == FILTER_MS20 ? FILTER_MS20 : FILTER_NONE);
+        if (nt != filterType_) { filterType_ = nt; for (int c = 0; c < kMaxChannels; ++c) { svf_[c].Reset(); k35_[c].Reset(); } }
+    }
+    void set_filter_cutoff(float hz)    { svfBase_ = hz; for (int c = 0; c < kMaxChannels; ++c) k35_[c].set_cutoff(hz); applyCutoffCv(); }
+    void set_filter_resonance(float r)  { for (int c = 0; c < kMaxChannels; ++c) { svf_[c].set_resonance(r); k35_[c].set_resonance(r); } }
+    /** 0 = LP, 1 = HP, 2 = BP (de MS-20 kent geen BP en neemt dan LP). */
+    void set_filter_mode(int m)         { for (int c = 0; c < kMaxChannels; ++c) { svf_[c].set_mode(m); k35_[c].set_mode(m == 1 ? 1 : 0); } }
+    void set_filter_drive(float d)      { for (int c = 0; c < kMaxChannels; ++c) k35_[c].set_drive(d); }
+    /** Diepte van de cutoff-CV in octaven (module-control). */
+    void set_cutoff_cv_amount(float oct){ cvAmt_ = oct; applyCutoffCv(); }
+    /** Cutoff-CV van déze stem (cel-ingang), ±1 → ±cvAmt octaven. */
+    void set_cutoff_cv(float v)         { cutoffCv_ = v; applyCutoffCv(); }
+    void set_env_times(float attackMs, float releaseMs) { follower_.set_attack_ms(attackMs); follower_.set_release_ms(releaseMs); }
+    /** Envelope van deze stem (0..1-ish, vóór het filter) — cel-uitgang env_k. */
+    float env() const { return follower_.env(); }
+    /** Eén keer per blok: filtercoëfficiënten bijwerken. */
+    inline void PrepareBlock() {
+        if (filterType_ == FILTER_SVF)       for (int c = 0; c < kMaxChannels; ++c) svf_[c].Prepare();
+        else if (filterType_ == FILTER_MS20) for (int c = 0; c < kMaxChannels; ++c) k35_[c].Prepare();
+    }
 
     bool active() const { return active_; }
     int  note()   const { return note_; }
@@ -195,9 +231,17 @@ public:
         const int16_t* base1 = slot_->data + static_cast<long>(i1) * ch;
 
         float v[kMaxChannels];
+        float mono = 0.0f;
         for (int c = 0; c < ch && c < kMaxChannels; ++c) {
             v[c] = (base0[c] + (base1[c] - base0[c]) * f) * amp;
+            mono += v[c];
         }
+        // Follower op de stem zelf, vóór het filter — een auto-wah reageert op
+        // wat er ín gaat, niet op wat er na het filter overblijft.
+        const float monoIn = mono / static_cast<float>(ch < kMaxChannels ? ch : kMaxChannels);
+        follower_.ProcessBlock(&monoIn, 1);
+        if (filterType_ == FILTER_SVF)       for (int c = 0; c < ch && c < kMaxChannels; ++c) v[c] = svf_[c].Tick(v[c]);
+        else if (filterType_ == FILTER_MS20) for (int c = 0; c < ch && c < kMaxChannels; ++c) v[c] = k35_[c].Tick(v[c]);
         // Mono → beide (of alle) uitgangen; pan werkt op de eerste twee.
         if (ch == 1) {
             const float p = zone_->pan;
@@ -256,6 +300,21 @@ private:
     float env_ = 0.0f, attackInc_ = 0.02f, releaseInc_ = 0.01f;
     float decayGain_ = 1.0f, decayMul_ = 1.0f;
     EnvState envState_ = ENV_IDLE;
+
+    void applyCutoffCv() {
+        const float oct = cvAmt_ * cutoffCv_;
+        for (int c = 0; c < kMaxChannels; ++c) {
+            k35_[c].set_cutoff_octaves(oct);
+            svfOct_ = oct;
+        }
+        // De Svf kent geen octaaf-offset; die krijgt de verschoven cutoff zelf.
+        for (int c = 0; c < kMaxChannels; ++c) svf_[c].set_cutoff(svfBase_ * std::exp2(oct));
+    }
+    int   filterType_ = FILTER_NONE;
+    float cvAmt_ = 4.0f, cutoffCv_ = 0.0f, svfBase_ = 2000.0f, svfOct_ = 0.0f;
+    Svf         svf_[kMaxChannels];
+    Korg35      k35_[kMaxChannels];
+    EnvFollower follower_;
 };
 
 }  // namespace mmb_dsp

@@ -31,23 +31,34 @@ MmbPort MMB_INPUTS[] = {
     { "gate_5", MMB_GATE, 0, {} }, { "gate_6", MMB_GATE, 0, {} }, { "gate_7", MMB_GATE, 0, {} }, { "gate_8", MMB_GATE, 0, {} },
     { "vel_1", MMB_CV, 0, {} }, { "vel_2", MMB_CV, 0, {} }, { "vel_3", MMB_CV, 0, {} }, { "vel_4", MMB_CV, 0, {} },
     { "vel_5", MMB_CV, 0, {} }, { "vel_6", MMB_CV, 0, {} }, { "vel_7", MMB_CV, 0, {} }, { "vel_8", MMB_CV, 0, {} },
+    // Cutoff-CV per cel: het filter zit in de stem, de modulatie komt van buiten.
+    { "cutoff_1", MMB_CV, 0, {} }, { "cutoff_2", MMB_CV, 0, {} }, { "cutoff_3", MMB_CV, 0, {} }, { "cutoff_4", MMB_CV, 0, {} },
+    { "cutoff_5", MMB_CV, 0, {} }, { "cutoff_6", MMB_CV, 0, {} }, { "cutoff_7", MMB_CV, 0, {} }, { "cutoff_8", MMB_CV, 0, {} },
 };
-const int MMB_NUM_INPUTS = 3 * kVoices;
-inline int IN_VOCT(int k) { return k; }
-inline int IN_GATE(int k) { return kVoices + k; }
-inline int IN_VEL(int k)  { return 2 * kVoices + k; }
+const int MMB_NUM_INPUTS = 4 * kVoices;
+inline int IN_VOCT(int k)   { return k; }
+inline int IN_GATE(int k)   { return kVoices + k; }
+inline int IN_VEL(int k)    { return 2 * kVoices + k; }
+inline int IN_CUTOFF(int k) { return 3 * kVoices + k; }
 
 MmbPort MMB_OUTPUTS[] = {
     { "out_l", MMB_AUDIO, 0, {} }, { "out_r", MMB_AUDIO, 0, {} },
     { "out_3", MMB_AUDIO, 0, {} }, { "out_4", MMB_AUDIO, 0, {} },
+    // Envelope-follower per cel (CV): env_k → cutoff_k is de auto-wah.
+    { "env_1", MMB_CV, 0, {} }, { "env_2", MMB_CV, 0, {} }, { "env_3", MMB_CV, 0, {} }, { "env_4", MMB_CV, 0, {} },
+    { "env_5", MMB_CV, 0, {} }, { "env_6", MMB_CV, 0, {} }, { "env_7", MMB_CV, 0, {} }, { "env_8", MMB_CV, 0, {} },
 };
-const int MMB_NUM_OUTPUTS = 4;
+const int MMB_NUM_OUTPUTS = 4 + kVoices;
+constexpr int kAudioOuts = 4;
+inline int OUT_ENV(int k) { return kAudioOuts + k; }
 
-enum { C_COARSE, C_FINE, C_START, C_ATTACK, C_LEVEL };
+enum { C_COARSE, C_FINE, C_START, C_ATTACK, C_LEVEL, C_FILTER, C_CUTOFF, C_Q, C_FMODE, C_DRIVE, C_CV_AMT, C_ENV_REL };
 MmbControl MMB_CONTROLS[] = {
     { "coarse", 0.f }, { "fine", 0.f }, { "start", 0.f }, { "attack", 1.5f }, { "level", 0.8f },
+    { "filter", 0.f }, { "cutoff", 2000.f }, { "q", 0.3f }, { "fmode", 0.f }, { "drive", 1.f },
+    { "cv_amt", 4.f }, { "env_rel", 120.f },
 };
-const int MMB_NUM_CONTROLS = 5;
+const int MMB_NUM_CONTROLS = 12;
 
 namespace {
 // Ruimer dan de firmware: in de browser is het geheugen dynamisch en een
@@ -68,14 +79,25 @@ mmb_dsp::SamplePlayer g_voice[kVoices];
 bool                  g_gate[kVoices];
 
 float g_coarse = 0.f, g_fine = 0.f, g_start = 0.f, g_attack = 1.5f, g_level = 0.8f;
+int   g_filter = 0; float g_cutoff = 2000.f, g_q = 0.3f; int g_fmode = 0; float g_drive = 1.f, g_cvAmt = 4.f, g_envRel = 120.f;
 
+void applyControls(mmb_dsp::SamplePlayer& v) {
+    v.set_transpose(g_coarse + g_fine * 0.01f);
+    v.set_startOffset(g_start);
+    v.setAttackMs(g_attack);
+    v.set_level(g_level);
+    v.set_filter_type(g_filter);
+    v.set_filter_cutoff(g_cutoff);
+    v.set_filter_resonance(g_q);
+    v.set_filter_mode(g_fmode);
+    v.set_filter_drive(g_drive);
+    v.set_cutoff_cv_amount(g_cvAmt);
+    v.set_env_times(2.f, g_envRel);
+}
 void rebind() {
     for (int i = 0; i < kVoices; ++i) {
         g_voice[i].bind(g_slots, kSlots, g_zones, g_numZones);
-        g_voice[i].set_transpose(g_coarse + g_fine * 0.01f);
-        g_voice[i].set_startOffset(g_start);
-        g_voice[i].setAttackMs(g_attack);
-        g_voice[i].set_level(g_level);
+        applyControls(g_voice[i]);
     }
 }
 }
@@ -144,13 +166,15 @@ void mmb_on_control(int idx, float v) {
         case C_START:  g_start = v; break;
         case C_ATTACK: g_attack = v; break;
         case C_LEVEL:  g_level = v; break;
+        case C_FILTER: g_filter = static_cast<int>(v); break;
+        case C_CUTOFF: g_cutoff = v; break;
+        case C_Q:      g_q = v; break;
+        case C_FMODE:  g_fmode = static_cast<int>(v); break;
+        case C_DRIVE:  g_drive = v; break;
+        case C_CV_AMT: g_cvAmt = v; break;
+        case C_ENV_REL: g_envRel = v; break;
     }
-    for (int i = 0; i < kVoices; ++i) {
-        g_voice[i].set_transpose(g_coarse + g_fine * 0.01f);
-        g_voice[i].set_startOffset(g_start);
-        g_voice[i].setAttackMs(g_attack);
-        g_voice[i].set_level(g_level);
-    }
+    for (int i = 0; i < kVoices; ++i) applyControls(g_voice[i]);
 }
 
 void mmb_process(int frames) {
@@ -170,6 +194,9 @@ void mmb_process(int frames) {
             g_voice[k].set_voct(voct);
         }
         g_gate[k] = high;
+        // Cutoff-CV van deze cel (0 als er niets op staat), coëfficiënten per blok.
+        g_voice[k].set_cutoff_cv(mmb_connected(IN_CUTOFF(k)) ? mmb_in0(IN_CUTOFF(k)) : 0.f);
+        g_voice[k].PrepareBlock();
     }
 
     for (int o = 0; o < MMB_NUM_OUTPUTS; ++o)
@@ -178,11 +205,12 @@ void mmb_process(int frames) {
     float mix[mmb_dsp::kMaxChannels];
     for (int k = 0; k < frames; ++k) {
         for (int c = 0; c < mmb_dsp::kMaxChannels; ++c) mix[c] = 0.f;
-        for (int i = 0; i < kVoices; ++i) g_voice[i].Process(mix, MMB_NUM_OUTPUTS);
-        for (int o = 0; o < MMB_NUM_OUTPUTS; ++o) {
+        for (int i = 0; i < kVoices; ++i) g_voice[i].Process(mix, kAudioOuts);
+        for (int o = 0; o < kAudioOuts; ++o) {
             float y = mix[o];
             if (!(y == y)) y = 0.f;
             MMB_OUTPUTS[o].buf[k] = y > 1.f ? 1.f : (y < -1.f ? -1.f : y);
         }
+        for (int i = 0; i < kVoices; ++i) MMB_OUTPUTS[OUT_ENV(i)].buf[k] = g_voice[i].env();
     }
 }

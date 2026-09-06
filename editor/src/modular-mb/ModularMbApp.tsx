@@ -348,6 +348,14 @@ export function ModularMbApp(): JSX.Element {
                     padding: '7px 12px', cursor: 'pointer', fontSize: 13,
                   }}
                 >🎧 Sampler ×8 (cellen)</button>
+                <button
+                  onClick={() => { setProject(seedSamplerPolyPatch(getProject(), 8, true)); setShowPoly(false); }}
+                  title="Sampler ×8 met per stem een MS-20 in de cel, gestuurd door de envelope-follower van diezelfde stem: env_k → cutoff_k. Eén kabel in de patcher, uitgevouwen over alle stemmen."
+                  style={{
+                    textAlign: 'left', border: 'none', background: 'transparent',
+                    padding: '7px 12px', cursor: 'pointer', fontSize: 13,
+                  }}
+                >🎧 Sampler ×8 auto-wah</button>
               </div>
             )}
           </span>

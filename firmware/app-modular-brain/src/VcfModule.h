@@ -1,7 +1,10 @@
 #pragma once
 /**
  * @file VcfModule.h
- * @brief VCF module (typeId `tp_mmb_vcf`): wraps `AudioFilterStateVariable`.
+ * @brief VCF module (typeId `tp_mmb_vcf`): state-variable filter op de kernel
+ *        `mmb_dsp::Svf` (float, TPT). Tot 2026-09 wikkelde dit bestand Teensy's
+ *        int16-`AudioFilterStateVariable`; de kernel is nu dezelfde klasse die de
+ *        sampler per stem-kanaal gebruikt, en `type` schakelt live.
  *
  * @details
  * Port map:
@@ -53,12 +56,44 @@
 #include "AudioModule.h"
 #include "mb/runtime/Registry.h"
 #include <Audio.h>
+#include <cmath>
 #include <cstdint>
 #include <string_view>
 
+#include "mmb_dsp/svf.h"
+
 namespace mmb_link {
 
-/** @brief State-variable filter backed by `AudioFilterStateVariable`. */
+/** @brief AudioStream-schil rond de kernel @ref mmb_dsp::Svf: één ingang, één
+ *  uitgang, LP/HP/BP als live schakelaar (geen graph-rebuild meer nodig). */
+class AudioFilterSvf : public AudioStream {
+public:
+    AudioFilterSvf() : AudioStream(1, inputQueueArray_) { svf_.Init(AUDIO_SAMPLE_RATE_EXACT); }
+    void frequency(float hz)     { base_ = hz; apply(); }
+    void resonance(float r01)    { svf_.set_resonance(r01); }
+    void mode(int m)             { svf_.set_mode(m); }
+    void octaveControl(float oc) { octaves_ = oc; apply(); }
+    void frequencyCv(float v)    { cv_ = v < -1.0f ? -1.0f : (v > 1.0f ? 1.0f : v); apply(); }
+    void update() override {
+        audio_block_t* block = receiveWritable(0);
+        if (!block) return;
+        svf_.Prepare();
+        for (int i = 0; i < AUDIO_BLOCK_SAMPLES; ++i) {
+            float y = svf_.Tick(block->data[i] * (1.0f / 32768.0f));
+            if (y > 1.0f) y = 1.0f; else if (y < -1.0f) y = -1.0f;
+            block->data[i] = static_cast<int16_t>(y * 32767.0f);
+        }
+        transmit(block, 0);
+        release(block);
+    }
+private:
+    void apply() { svf_.set_cutoff(base_ * exp2f(octaves_ * cv_)); }
+    audio_block_t* inputQueueArray_[1] = { nullptr };
+    mmb_dsp::Svf svf_;
+    float base_ = 2000.0f, octaves_ = 2.0f, cv_ = 0.0f;
+};
+
+/** @brief State-variable filter op de kernel `mmb_dsp::Svf`. */
 class VcfModule final : public AudioModule {
 public:
     static constexpr const char* kTypeId = "tp_mmb_vcf";
@@ -67,27 +102,16 @@ public:
         : AudioModule(kTypeId, id)
     {
         vcf_.frequency(2000.0f);
-        vcf_.resonance(0.7f);
-        vcf_.octaveControl(cvAmt_);  // CV depth in octaves (default 2)
-        cvDc_.amplitude(0.0f);       // no modulation until the CV bridge drives it
+        vcf_.octaveControl(cvAmt_);
+        applyResonance();
     }
 
     AudioPort outputPort(std::string_view portId) const override {
-        if (portId == "out") {
-            // Map filter type to the correct output channel
-            uint8_t ch = 0;                // LP default
-            if (type_ == 1) ch = 2;        // HP
-            else if (type_ == 2) ch = 1;   // BP
-            return { const_cast<AudioFilterStateVariable*>(&vcf_), ch, true };
-        }
+        if (portId == "out") return { const_cast<AudioFilterSvf*>(&vcf_), 0, true };
         return {};
     }
-
-    /* Only `in` is an audio port.  `cv` is CV-domain (see file header) and is
-     * intentionally not resolvable here, so AudioGraph never wires it. */
     AudioPort inputPort(std::string_view portId) const override {
-        if (portId == "in")
-            return { const_cast<AudioFilterStateVariable*>(&vcf_), 0, true };
+        if (portId == "in") return { const_cast<AudioFilterSvf*>(&vcf_), 0, true };
         return {};
     }
 
@@ -110,8 +134,7 @@ public:
             cvAmt_ = asFloat(2.0f);
             vcf_.octaveControl(cvAmt_);
         } else if (controlId == "type") {
-            if (auto* i = std::get_if<int32_t>(&value))
-                type_ = static_cast<uint8_t>(*i);
+            if (auto* i = std::get_if<int32_t>(&value)) vcf_.mode(static_cast<int>(*i));   // live
         }
     }
 
@@ -122,15 +145,10 @@ public:
         return (portId == "cv" || portId == "q_cv") ? PortKind::Cv : PortKind::None;
     }
 
-    /** @brief CV bridge entry point.
-     *  `cv`: drives the cutoff-modulation DC proxy, scaled to +/- `cv_amt`
-     *  octaves by `octaveControl()`.  Slewed over `kCvSlewMs` to de-zipper
-     *  the ~1 kHz control tick (see VcaModule for the same rationale).
-     *  `q_cv`: no audio-rate resonance input exists on the SVF, so the
-     *  scalar updates `resonance()` directly (per-block, see file header). */
+    /** @brief CV bridge: control-rate scalars, per blok gesmootht in de kernel. */
     void writeCvPort(std::string_view portId, float value) override {
         if (portId == "cv") {
-            cvDc_.amplitude(value, kCvSlewMs);
+            vcf_.frequencyCv(value);
         } else if (portId == "q_cv") {
             qCv_ = value;
             applyResonance();
@@ -148,27 +166,19 @@ public:
     }
 
 private:
-    /// Recompute effective resonance from base Q + Q-CV, clamped to the
-    /// range `AudioFilterStateVariable` is stable in (0.7 … 5.0).
+    /// De catalogus geeft `q` in de oude AudioFilterStateVariable-eenheid
+    /// (0,7 … 5,0); de kernel wil 0 … 1. Lineair omgezet, geclampt.
     void applyResonance() {
         float q = baseQ_ + qCvAmt_ * qCv_;
-        if (q < 0.7f) q = 0.7f;
-        else if (q > 5.0f) q = 5.0f;
-        vcf_.resonance(q);
+        if (q < 0.7f) q = 0.7f; else if (q > 5.0f) q = 5.0f;
+        vcf_.resonance((q - 0.7f) / 4.3f);
     }
 
-    mutable AudioFilterStateVariable vcf_;
-    mutable AudioSynthWaveformDc cvDc_;  ///< CV-bridge cutoff-modulation proxy.
-    /// Internal patch: CV proxy -> filter control input (channel 1), always on.
-    AudioConnection cvPatch_{ cvDc_, 0, vcf_, 1 };
-    float   cvAmt_  = 2.0f;  ///< Cutoff-mod depth in octaves (octaveControl).
-    float   baseQ_  = 0.7f;  ///< Base resonance from the `q` control.
-    float   qCvAmt_ = 2.0f;  ///< Q-mod depth in resonance units per full-scale CV.
-    float   qCv_    = 0.0f;  ///< Last `q_cv` scalar from the CV bridge.
-    uint8_t type_  = 0;     ///< 0=LP, 1=HP, 2=BP; used in outputPort() channel selection
-
-    /// DC slew time (ms) per CV update — de-zippers the ~1 kHz control tick.
-    static constexpr float kCvSlewMs = 2.0f;
+    mutable AudioFilterSvf vcf_;
+    float cvAmt_  = 2.0f;  ///< Cutoff-mod depth in octaves.
+    float baseQ_  = 0.7f;  ///< Base resonance from the `q` control (0,7 … 5,0).
+    float qCvAmt_ = 2.0f;  ///< Q-mod depth in resonance units per full-scale CV.
+    float qCv_    = 0.0f;  ///< Last `q_cv` scalar from the CV bridge.
 };
 
 }  // namespace mmb_link

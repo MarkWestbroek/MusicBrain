@@ -1342,34 +1342,46 @@ function mmbSampler() {
       id: 'voice',
       label: 'Stem',
       count: 8,
-      portIds: ['voct', 'gate', 'vel'],
+      portIds: ['voct', 'gate', 'vel', 'cutoff', 'env'],
       controlIds: [],
     }],
     texts: [
       { x: w/2, y: 8,   text: 'SAMPLER', fontSize: 2.0, color: '#f9fafb', align: 'middle' },
-      { x: w/2, y: 14,  text: 'keymap · 8 stemmen · PSRAM · SD', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 14,  text: 'keymap · 8 stemmen · filter per stem', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
       { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
-      { x: 3, y: 95,  text: 'V/Oct', fontSize: 1.0, color: '#9ca3af', align: 'start' },
-      { x: 3, y: 107, text: 'Gate',  fontSize: 1.0, color: '#9ca3af', align: 'start' },
-      { x: 3, y: 119, text: 'Vel',   fontSize: 1.0, color: '#9ca3af', align: 'start' },
+      { x: 3, y: 73,  text: 'Env',   fontSize: 1.0, color: '#9ca3af', align: 'start' },
+      { x: 3, y: 85,  text: 'Cut',   fontSize: 1.0, color: '#9ca3af', align: 'start' },
+      { x: 3, y: 97,  text: 'V/Oct', fontSize: 1.0, color: '#9ca3af', align: 'start' },
+      { x: 3, y: 109, text: 'Gate',  fontSize: 1.0, color: '#9ca3af', align: 'start' },
+      { x: 3, y: 121, text: 'Vel',   fontSize: 1.0, color: '#9ca3af', align: 'start' },
     ],
     items: [
-      knob('bank',   'Bank',   w*0.14, 30, { size: 'medium', min: 0, max: 15, def: 0, step: 1, color: '#f5a623', ticks: { every: 1, highlight: [0, 15] } }),
-      knob('level',  'Level',  w*0.32, 30, { size: 'medium', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
-      knob('coarse', 'Coarse', w*0.50, 30, { size: 'small', min: -24, max: 24, def: 0, unit: 'semi', color: '#f9fafb' }),
-      knob('fine',   'Fine',   w*0.62, 30, { size: 'small', min: -100, max: 100, def: 0, unit: 'ct', color: '#f9fafb' }),
-      knob('start',  'Start',  w*0.74, 30, { size: 'small', min: 0, max: 1, def: 0, color: '#9ca3af' }),
-      knob('attack', 'Att',    w*0.86, 30, { size: 'small', min: 0.2, max: 500, def: 1.5, unit: 'ms', color: '#9ca3af' }),
-      outPort('out_l', 'L',  'audio', w*0.62, 62),
-      outPort('out_r', 'R',  'audio', w*0.74, 62),
+      knob('bank',   'Bank',   w*0.10, 28, { size: 'medium', min: 0, max: 15, def: 0, step: 1, color: '#f5a623', ticks: { every: 1, highlight: [0, 15] } }),
+      knob('level',  'Level',  w*0.25, 28, { size: 'medium', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      knob('coarse', 'Coarse', w*0.40, 28, { size: 'small', min: -24, max: 24, def: 0, unit: 'semi', color: '#f9fafb' }),
+      knob('fine',   'Fine',   w*0.52, 28, { size: 'small', min: -100, max: 100, def: 0, unit: 'ct', color: '#f9fafb' }),
+      knob('start',  'Start',  w*0.64, 28, { size: 'small', min: 0, max: 1, def: 0, color: '#9ca3af' }),
+      knob('attack', 'Att',    w*0.76, 28, { size: 'small', min: 0.2, max: 500, def: 1.5, unit: 'ms', color: '#9ca3af' }),
+      knob('env_rel', 'Env rel', w*0.90, 28, { size: 'small', min: 10, max: 2000, def: 120, unit: 'ms', color: '#9ca3af' }),
+      // Filter in de cel — dezelfde kernels als VCF (SVF) en MS-20 (Korg35).
+      sw  ('filter', 'Filter', w*0.08, 50, ['Uit', 'SVF', 'MS-20'], 0),
+      knob('cutoff', 'Cutoff', w*0.24, 50, { size: 'medium', min: 20, max: 18000, def: 2000, unit: 'Hz', color: '#38bdf8' }),
+      knob('q',      'Res',    w*0.38, 50, { size: 'small', min: 0, max: 1, def: 0.3, color: '#38bdf8' }),
+      sw  ('fmode',  'Mode',   w*0.50, 50, ['LP', 'HP', 'BP'], 0),
+      knob('drive',  'Drive',  w*0.62, 50, { size: 'small', min: 0.1, max: 10, def: 1, color: '#38bdf8' }),
+      knob('cv_amt', 'CV amt', w*0.74, 50, { size: 'small', min: 0, max: 8, def: 4, unit: 'oct', color: '#38bdf8' }),
+      outPort('out_l', 'L',  'audio', w*0.86, 50),
+      outPort('out_r', 'R',  'audio', w*0.93, 50),
       outPort('out_3', '3',  'audio', w*0.86, 62),
-      outPort('out_4', '4',  'audio', w*0.98 - 4, 62),
-      // Per cel: V/Oct, Gate, Vel — ids `<base>_<k>`, gebonden aan 'voice'.
-      ...cells.map((k) => inPort(`voct_${k}`, `${k}`, 'cv',   colX(k - 1), 92,  { cellGroupId: 'voice' })),
-      ...cells.map((k) => inPort(`gate_${k}`, '',     'gate', colX(k - 1), 104, { cellGroupId: 'voice' })),
-      ...cells.map((k) => inPort(`vel_${k}`,  '',     'cv',   colX(k - 1), 116, { cellGroupId: 'voice' })),
+      outPort('out_4', '4',  'audio', w*0.93, 62),
+      // Per cel: Env (uit), Cutoff (in), V/Oct, Gate, Vel — ids `<base>_<k>`, gebonden aan 'voice'.
+      ...cells.map((k) => outPort(`env_${k}`,   `${k}`, 'cv',   colX(k - 1), 72,  { cellGroupId: 'voice' })),
+      ...cells.map((k) => inPort(`cutoff_${k}`, '',     'cv',   colX(k - 1), 84,  { cellGroupId: 'voice' })),
+      ...cells.map((k) => inPort(`voct_${k}`,   '',     'cv',   colX(k - 1), 96,  { cellGroupId: 'voice' })),
+      ...cells.map((k) => inPort(`gate_${k}`,   '',     'gate', colX(k - 1), 108, { cellGroupId: 'voice' })),
+      ...cells.map((k) => inPort(`vel_${k}`,    '',     'cv',   colX(k - 1), 120, { cellGroupId: 'voice' })),
     ],
-    notes: 'Multisample-speler als multi-module: acht stem-cellen (voct_k/gate_k/vel_k) die één keymap-bank delen. Een keymap met key- én velocity-zones kiest per noot en aanslag het juiste sample; V/Oct transponeert vanaf de root-noot van die zone. 1–4 kanalen (mono komt op L+R, stereo op L/R, quad op alle vier), gemengd over alle cellen. Loop-modes: geen, one-shot, continu, of tot note-off. Polyfoon spelen = een PolyGroup over de cellen (Poly ▾ → Sampler ×8): MIDI-in verdeelt de noten, de sampler doet niets slims. Banken maak je met de 🎹 Multisample-import; die schrijft een .mmbs die je naar /mmb/banks/NN.mmbs op de SD kopieert — Bank kiest NN. In de simulator draait dezelfde kern (mmb_dsp::SamplePlayer) als wasm. Firmware tp_mmb_sampler.',
+    notes: 'Multisample-speler als multi-module: acht stem-cellen (voct_k/gate_k/vel_k) die één keymap-bank delen, elk met een filter in de stem (Filter: uit/SVF/MS-20 — dezelfde kernels als de losse VCF en MS-20) dat via cutoff_k gestuurd wordt, en een envelope-follower per stem op env_k. Auto-wah = env_k → cutoff_k. Een keymap met key- én velocity-zones kiest per noot en aanslag het juiste sample; V/Oct transponeert vanaf de root-noot van die zone. 1–4 kanalen (mono komt op L+R, stereo op L/R, quad op alle vier), gemengd over alle cellen. Loop-modes: geen, one-shot, continu, of tot note-off. Polyfoon spelen = een PolyGroup over de cellen (Poly ▾ → Sampler ×8): MIDI-in verdeelt de noten, de sampler doet niets slims. Banken maak je met de 🎹 Multisample-import; die schrijft een .mmbs die je naar /mmb/banks/NN.mmbs op de SD kopieert — Bank kiest NN. In de simulator draait dezelfde kern (mmb_dsp::SamplePlayer) als wasm. Firmware tp_mmb_sampler.',
   });
 }
 
@@ -2487,10 +2499,86 @@ function mmbGrids() {
   });
 }
 
+// 12d. MMB ENV-FOLLOWER — 16 HP. Acht envelope-follower-cellen met gedeelde
+//     tijden/drempel (FW-CV-6). Audio erin, CV eruit: zet de sampler op in_1
+//     en env_1 op de cutoff-CV van een filter en het filter ademt mee.
+function mmbEnvFollower() {
+  const w = W(16);
+  const colX = (i: number) => w * (0.08 + i * 0.119);
+  return assemble({
+    typeId: 'tp_mmb_env_follower',
+    categoryId: 'envelope',
+    variant: 'Envelope follower (8 cellen)',
+    brand: 'MMB', model: 'ENV-FOLLOW-8',
+    hp: 16, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    role: 'multi',
+    cellGroups: [{
+      id: 'follow',
+      label: 'Follower',
+      count: 8,
+      portIds: ['in', 'env', 'gate'],
+      controlIds: [],
+    }],
+    texts: [
+      { x: w/2, y: 8,   text: 'ENV-FOLLOW-8', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: 'audio \u2192 cv \u00b7 8 cellen', fontSize: 1.2, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.8, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      // Lineaire ms-schalen: de editor kent (nog) geen log-taper, dus de
+      // bereiken blijven zo dat de hele draai bruikbaar is.
+      knob('attack',  'Attack',  w*0.20, 34, { size: 'medium', min: 0.1, max: 100,  def: 5,    unit: 'ms', color: '#f9fafb' }),
+      knob('release', 'Release', w*0.42, 34, { size: 'medium', min: 5,   max: 1000, def: 150,  unit: 'ms', color: '#f9fafb' }),
+      knob('sens',    'Sens',    w*0.64, 34, { size: 'medium', min: -12, max: 36,   def: 0,    unit: 'dB', color: '#0891b2' }),
+      knob('thresh',  'Thresh',  w*0.86, 34, { size: 'medium', min: 0,   max: 1,    def: 0.10,             color: '#e11d48' }),
+      sw('mode', 'Mode', w/2, 60, ['Peak', 'RMS'], 1),
+
+      ...Array.from({ length: 8 }, (_, i) =>
+        inPort(`in_${i+1}`, 'In', 'audio', colX(i), 84, { cellGroupId: 'follow' })),
+      ...Array.from({ length: 8 }, (_, i) =>
+        outPort(`env_${i+1}`, 'Env', 'cv', colX(i), 101, { cellGroupId: 'follow' })),
+      ...Array.from({ length: 8 }, (_, i) =>
+        outPort(`gate_${i+1}`, 'Gate', 'gate', colX(i), 118, { cellGroupId: 'follow' })),
+    ],
+    notes: 'Multi-module met 8 identieke envelope-follower-cellen: per cel een audio-in, de gevolgde envelope als CV (0..1) en een gate zodra die boven Thresh komt. Attack/Release zijn tijdconstanten van de detector; Sens is de gevoeligheid in dB; Mode kiest tussen piek (scherp, reageert op transi\u00ebnten) en RMS (rustiger, volgt het gemiddelde vermogen). De gate heeft 25 % hysterese zodat een uitstervende staart niet klappert. Typisch: sampler \u2192 in_1, env_1 \u2192 cutoff-CV van een VCF. Detectie loopt op audiotempo, niet op de CV-tick, zodat een aanslag van 2 ms niet wordt gemist. Firmware: tp_mmb_env_follower (FW-CV-6), gedeelde DSP mmb_dsp::EnvFollower \u2014 in de simulator draait dezelfde code als wasm.',
+  });
+}
+
+// 12e. MMB ENV-FOLLOW — 6 HP. Dezelfde follower als hierboven, maar met één
+//     cel en kale jacknamen: voor als je er maar één nodig hebt.
+function mmbEnvFollowerMono() {
+  const w = W(6);
+  return assemble({
+    typeId: 'tp_mmb_env_follower_mono',
+    categoryId: 'envelope',
+    variant: 'Envelope follower (enkel)',
+    brand: 'MMB', model: 'ENV-FOLLOW',
+    hp: 6, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'ENV', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13,  text: 'FOLLOW', fontSize: 2.0, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 18,  text: 'audio \u2192 cv', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 124, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('attack',  'Att',  w*0.28, 30, { size: 'small', min: 0.1, max: 100,  def: 5,   unit: 'ms', color: '#f9fafb' }),
+      knob('release', 'Rel',  w*0.72, 30, { size: 'small', min: 5,   max: 1000, def: 150, unit: 'ms', color: '#f9fafb' }),
+      knob('sens',    'Sens', w*0.28, 52, { size: 'small', min: -12, max: 36,   def: 0,   unit: 'dB', color: '#0891b2' }),
+      knob('thresh',  'Thr',  w*0.72, 52, { size: 'small', min: 0,   max: 1,    def: 0.10,            color: '#e11d48' }),
+      sw('mode', 'Mode', w/2, 72, ['Peak', 'RMS'], 1),
+
+      inPort ('in',   'In',   'audio', w/2,    92),
+      outPort('env',  'Env',  'cv',    w*0.28, 112),
+      outPort('gate', 'Gate', 'gate',  w*0.72, 112),
+    ],
+    notes: 'Enkelvoudige envelope follower: audio erin, de gevolgde envelope als CV (0..1) eruit, plus een gate zodra die boven Thresh komt. Attack/Release zijn tijdconstanten van de detector; Sens is de gevoeligheid in dB; Mode kiest tussen piek (scherp, reageert op transi\u00ebnten) en RMS (rustiger, volgt het gemiddelde vermogen). De gate heeft 25 % hysterese zodat een uitstervende staart niet klappert. Typisch: sampler \u2192 In, Env \u2192 cutoff-CV van een VCF. Firmware: tp_mmb_env_follower_mono (FW-CV-6), dezelfde romp en dezelfde DSP als de 8-cel versie \u2014 alleen \u00e9\u00e9n cel. In de simulator draait dezelfde code als wasm.',
+  });
+}
+
 // ── public entry ───────────────────────────────────────────────────────
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbEcho(), mmbTapeEcho(), mmbSampler(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbEcho(), mmbTapeEcho(), mmbSampler(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbEnvFollower(), mmbEnvFollowerMono()];
   const newTypes = all.map((x) => x.type);
 
   // Upgrade-pad: bestaande interne types worden in-place VERVANGEN (zelfde
@@ -3655,7 +3743,7 @@ export function seedDx7PolyPatch(project: ModularProject, voiceCount = 8): Modul
  * Construct B uit doc/uml/11-simulation-wasm.md — de sampler deelt één bank
  * en MIDI-in verdeelt de noten.
  */
-export function seedSamplerPolyPatch(project: ModularProject, voiceCount = 8): ModularProject {
+export function seedSamplerPolyPatch(project: ModularProject, voiceCount = 8, autoWah = false): ModularProject {
   const N = Math.max(2, Math.min(8, Math.round(voiceCount)));
   const needed = ['tp_mmb_midiin', 'tp_mmb_sampler', 'tp_mmb_out'];
   const missing = needed.some((tid) => !project.moduleTypes.some((t) => t.id === tid));
@@ -3672,7 +3760,7 @@ export function seedSamplerPolyPatch(project: ModularProject, voiceCount = 8): M
   const smpOffset = mi.visual.hpWidth;
   const outOffset = smpOffset + smp.visual.hpWidth;
   const rack: Rack = {
-    id: uid('rack'), name: `Sampler ×${N}`,
+    id: uid('rack'), name: autoWah ? `Sampler ×${N} auto-wah` : `Sampler ×${N}`,
     description: `MidiIn → SAMPLER (${N} stem-cellen als PolyGroup) → OUT. Eén bank, MIDI-in verdeelt de noten.`,
     rows: 1, hpPerRow: Math.max(64, outOffset + out.visual.hpWidth + 4),
     slots: [
@@ -3695,8 +3783,10 @@ export function seedSamplerPolyPatch(project: ModularProject, voiceCount = 8): M
     to:   { moduleId: tm.id, portId: tp },
   });
   const patch: Patch = {
-    id: uid('patch'), name: `Sampler ×${N}`,
-    description: `${N}-stemmige multisampler. Laad een bank via 🎹 Multisample (Testbank, ⤒ .mmbs of een .sf2) en speel.`,
+    id: uid('patch'), name: autoWah ? `Sampler ×${N} auto-wah` : `Sampler ×${N}`,
+    description: autoWah
+      ? `${N}-stemmige multisampler met per stem een MS-20 in de cel, gestuurd door de envelope-follower van diezelfde stem (env_k → cutoff_k). Laad een bank via 🎹 Multisample en speel hard en zacht.`
+      : `${N}-stemmige multisampler. Laad een bank via 🎹 Multisample (Testbank, ⤒ .mmbs of een .sf2) en speel.`,
     voiceCount: N,
     rackIds: [rack.id],
     connections: [
@@ -3705,10 +3795,15 @@ export function seedSamplerPolyPatch(project: ModularProject, voiceCount = 8): M
       c(mi, 'vel',   smp, 'vel_1'),
       c(smp, 'out_l', out, 'l'),
       c(smp, 'out_r', out, 'r'),
+      // Auto-wah: de follower van stem k stuurt het filter van stem k. Eén
+      // kabel op de master-cel; polyExpand (en de sim) vouwt hem uit naar 1..N.
+      ...(autoWah ? [c(smp, 'env_1', smp, 'cutoff_1')] : []),
     ],
     controlState: {
       [mi.id]:  { channel: 0, voiceCount: N, steal: 0 },
-      [smp.id]: { bank: 0, level: 0.8 },
+      [smp.id]: autoWah
+        ? { bank: 0, level: 0.8, filter: 2, cutoff: 300, q: 0.55, fmode: 0, drive: 1.5, cv_amt: 4, env_rel: 150 }
+        : { bank: 0, level: 0.8 },
       [out.id]: { level: 0.85 },
     },
     envelopes: [], lfos: [],
