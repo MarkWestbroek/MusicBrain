@@ -34,6 +34,10 @@ export interface EngineStatus {
   running: boolean;
   voiceFreqHz: number;
   level: number;
+  /** Laatste noot die binnenkwam: MIDI-nummer, velocity 0..127 en de tijd.
+   *  Puur voor de UI — zonder dit kun je bij een sampler niet zien of een
+   *  zachte aanslag ook werkelijk zacht binnenkomt. */
+  lastNote?: { midi: number; vel: number; ts: number; on: boolean };
   /** Per-module transient values written by the engine (e.g. SEQ __currentStep). */
   liveControls: Record<string, Record<string, ControlValue>>;
 }
@@ -399,6 +403,7 @@ export class AudioEngine {
   noteOn(midi: number, velocity = 0.9): void {
     this.currentKeyboardNote = midi;
     const freq = midiToHz(midi);
+    this.status.lastNote = { midi, vel: Math.round(clamp(velocity, 0, 1) * 127), ts: Date.now(), on: true };
 
     // DX7-nodes krijgen élke noot (intern poly); zie Dx7.ts.
     for (const node of this.nodes.values()) {
@@ -491,6 +496,7 @@ export class AudioEngine {
   }
 
   noteOff(midi: number): void {
+    if (this.status.lastNote?.midi === midi) this.status.lastNote = { ...this.status.lastNote, on: false };
     for (const node of this.nodes.values()) {
       if (node.kind === 'dx7') node.runtime.noteOff(midi);
     }

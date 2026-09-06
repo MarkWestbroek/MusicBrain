@@ -64,9 +64,19 @@ const NOTE_SECONDS = 2.0, GAP_SECONDS = 1.2;
 const RATE = el.rate;                     // Elements rendert op 32 kHz
 const CH = 2;
 
+// Zet de CV's en laat ze *eerst* inregelen. Zonder deze pauze gebruikt de
+// eerste aanslag na een wissel nog de vorige `strength` — Elements smoothet
+// zijn ingangen, en de mallet vuurt op t=0 voordat de nieuwe waarde er is.
+// Gemeten: zonder settle kwamen de drie lagen van G3 uit op 0,86 / 0,28 / 0,78
+// (zacht harder dan hard), met settle op 0,19 / 0,47 / 0,90. Voor een échte
+// opname is het dezelfde regel: laat het instrument tot rust komen.
+const SETTLE_SECONDS = 0.25;
+
 function renderNote(midi, strength) {
   el.setIn('voct', (midi - 60) / 12);
   el.setIn('strength', strength);
+  el.setIn('gate', 0);
+  for (let t = 0; t < SETTLE_SECONDS * RATE; t += el.block) el.ex.mmb_render(el.block);
   const frames = Math.round(NOTE_SECONDS * RATE);
   const gapFrames = Math.round(GAP_SECONDS * RATE);
   const out = new Float32Array((frames + gapFrames) * CH);
@@ -84,7 +94,21 @@ function renderNote(midi, strength) {
 }
 
 const parts = [];
-for (const midi of NOTES) for (const s of STRENGTH) parts.push(renderNote(midi, s));
+for (const midi of NOTES) {
+  const peaks = [];
+  for (const s of STRENGTH) {
+    const part = renderNote(midi, s);
+    let pk = 0;
+    for (const v of part) { const a = Math.abs(v); if (a > pk) pk = a; }
+    peaks.push(pk);
+    parts.push(part);
+  }
+  // De lagen moeten oplopen — anders kiest de importer straks wel de goede
+  // zone, maar hoor je geen verschil tussen zacht en hard.
+  const db = peaks.map((p) => (20 * Math.log10(p / Math.max(...peaks))).toFixed(1));
+  const mono = peaks.every((p, i) => i === 0 || p > peaks[i - 1]);
+  console.log(`  noot ${midi}: pieken ${peaks.map((p) => p.toFixed(3)).join(' ')} (${db.join(' / ')} dB)${mono ? '' : '  ⚠ niet oplopend'}`);
+}
 const totalFrames = parts.reduce((n, p) => n + p.length / CH, 0);
 const take = new Float32Array(totalFrames * CH);
 let off = 0;

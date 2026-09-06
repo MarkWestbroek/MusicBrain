@@ -160,6 +160,7 @@ export function SimulationPanel(): JSX.Element {
               ? `${status.voiceFreqHz.toFixed(1)} Hz`
               : '— (geen noot)'}
           </span>
+          <NoteReadout note={status.lastNote} />
           {Dx7.info() && (
             <span style={{ color: Dx7.lastError ? '#b91c1c' : '#475569' }} title="DX7-worklet (msfa-kern) in de browser">
               {Dx7.info()}
@@ -407,3 +408,34 @@ const row: React.CSSProperties = {
   display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
 };
 const btn: React.CSSProperties = { fontSize: 12 };
+
+const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+/**
+ * Laatst ontvangen noot met velocity — een balkje erbij, want bij een
+ * multisampler is de vraag meestal niet *of* er een noot binnenkomt maar of de
+ * aanslag echt varieert. De zonegrenzen van de meegeleverde testbank liggen op
+ * 42 en 85; die staan als streepjes in de balk, zodat je ziet wanneer je in een
+ * andere velocity-laag terechtkomt.
+ */
+function NoteReadout({ note }: { note?: { midi: number; vel: number; ts: number; on: boolean } }): JSX.Element {
+  if (!note) return <span style={{ color: '#94a3b8' }}>geen noot ontvangen</span>;
+  const name = `${NOTE_NAMES[note.midi % 12]}${Math.floor(note.midi / 12) - 1}`;
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#334155' }}
+      title="Laatste note-on: noot, MIDI-nummer en velocity zoals de engine ze doorgeeft">
+      <strong style={{ opacity: note.on ? 1 : 0.45 }}>{name}</strong>
+      <span style={{ color: '#94a3b8', fontVariantNumeric: 'tabular-nums' }}>{note.midi}</span>
+      <span style={{ fontVariantNumeric: 'tabular-nums' }}>vel {String(note.vel).padStart(3)}</span>
+      <span style={{ position: 'relative', width: 90, height: 8, background: '#e2e8f0', borderRadius: 4, overflow: 'hidden' }}>
+        <span style={{
+          position: 'absolute', inset: 0, width: `${(note.vel / 127) * 100}%`,
+          background: note.vel < 43 ? '#38bdf8' : note.vel < 86 ? '#22c55e' : '#f59e0b',
+        }} />
+        {[42, 85].map((b) => (
+          <span key={b} style={{ position: 'absolute', top: 0, bottom: 0, left: `${(b / 127) * 100}%`, width: 1, background: '#94a3b8' }} />
+        ))}
+      </span>
+    </span>
+  );
+}
