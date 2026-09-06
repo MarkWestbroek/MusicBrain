@@ -334,6 +334,39 @@ wrapper vervangt.
 
 ---
 
+## 3b. Recursie: een module in een module?
+
+De vraag kwam op bij de auto-wah: kan de sampler een MS-20 *per stem* bevatten,
+en is dat dan dezelfde MS-20 als in de catalogus? Ja — maar niet op het niveau
+van `Module`. Die interface is de *graaf* (poorten, int16-blokken, CV-tick);
+een module in een module zou een geneste graaf zijn, en dat is de "buiten"-route
+met al zijn jacks, verstopt achter een paneel.
+
+De recursie zit een laag lager: de **kernel** (`mmb_dsp::…`, header-only
+float, zonder Arduino). `Svf`, `Korg35`, `EnvFollower`, `TapeEcho`,
+`SamplePlayer` — elk zit in een Teensy-module, in een wasm-wrapper, én mag in
+een andere kernel zitten. `SamplePlayer` heeft per kanaal een `Svf` en een
+`Korg35` en één `EnvFollower`; `Ms20Module` en `VcfModule` zijn schillen om
+diezelfde klassen. Vast of los maakt daardoor niet uit: de wiskunde is
+gedeeld, alleen de lijm verschilt — poorten op een paneel, of cel-controls op
+de sampler.
+
+```mermaid
+classDiagram
+    direction LR
+    class Kernel["mmb_dsp (kernel-laag)"] {
+        Svf · Korg35 · EnvFollower · TapeEcho · SamplePlayer
+        Init(sr) · Prepare() · Tick(x)
+        geen Arduino, geen poorten
+    }
+    class FwModule["Teensy-module"] { AudioStream-schil + Module-poorten }
+    class WasmWrapper["<x>_wasm.cc"] { mmb_abi-schil }
+    class SamplePlayer { per kanaal: Svf, Korg35 · per stem: EnvFollower }
+    FwModule --> Kernel : gebruikt
+    WasmWrapper --> Kernel : gebruikt
+    SamplePlayer --> Kernel : bevat (recursie)
+```
+
 ## 4. Stand van zaken
 
 1. ✅ **Sampler → B** (6 sept, zelfde dag). Vast acht cellen; `countControl`
@@ -342,6 +375,7 @@ wrapper vervangt.
    eigen allocator is weg; `tools/dx7-wasm` houdt alleen de JS-port, het
    referentieharnas en `compare.mjs`.
 3. ✅ **Note-API weg.** `mmb_note_on`, `WasmModule.polyTypeIds`, `Dx7Node`.
-4. Open: **firmware bouwen** voor de nieuwe `SamplerModule.h` (cel-poorten) —
-   geen toolchain op deze Mac, zie eerdere notities.
+4. ✅ **Firmware gebouwd** (6 sept, avond): PlatformIO staat wél op deze Mac
+   (`~/.platformio/penv/bin/pio`); `pio run -e teensy41` slaagt met de
+   cel-sampler, de kernels en de bankfix. Nog niet op hardware gedraaid.
 5. Dit document bijhouden als er een vierde vorm dreigt te ontstaan.
