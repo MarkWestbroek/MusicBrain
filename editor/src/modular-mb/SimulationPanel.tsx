@@ -102,6 +102,22 @@ export function SimulationPanel(): JSX.Element {
 
   useEffect(() => engine.subscribe(setStatus), [engine]);
 
+  // De DX7- en wasm-statusregels komen uit statische velden die asynchroon
+  // bijgewerkt worden (worklet geladen, voice-naam, actieve stemmen). Zonder
+  // eigen tik blijft er "worklet laden…" staan lang nadat hij klaar is — en
+  // dan lees je een verkeerde diagnose. Alleen hertekenen als de tekst wijzigt.
+  const [engineInfo, setEngineInfo] = useState('');
+  useEffect(() => {
+    const tick = (): void => {
+      const next = `${Dx7.info() ?? ''}|${WasmModule.info() ?? ''}`;
+      setEngineInfo((prev) => (prev === next ? prev : next));
+    };
+    tick();
+    const id = window.setInterval(tick, 500);
+    return () => window.clearInterval(id);
+  }, []);
+  void engineInfo;
+
   useEffect(() => () => {
     Object.values(sources).forEach((s) => s.stop());
     // engine is singleton — niet disposen op unmount.

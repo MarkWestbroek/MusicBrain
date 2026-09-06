@@ -3,6 +3,7 @@ import * as Tone from 'tone';
 import type { ModuleInstance, ModuleType, ControlValue } from '../../types';
 import { AudioModule } from '../AudioModule';
 import { registry } from '../Registry';
+import { addWorkletModule } from './workletLoader';
 
 /**
  * Dx7 — MMB DX7-stem (firmware tp_mmb_dx7) in de browser.
@@ -61,7 +62,7 @@ export class Dx7 extends AudioModule {
           const w = await fetch(`${base}dx7/dx7.wasm`);
           if (w.ok && (w.headers.get('content-type') ?? '').includes('wasm')) wasm = new Uint8Array(await w.arrayBuffer());
         } catch { /* geen wasm: JS-kern */ }
-        await Tone.getContext().addAudioWorkletModule(`${base}dx7/dx7-worklet.js`);
+        await addWorkletModule(`${base}dx7/dx7-worklet.js`);
         return { wasm, roms };
       })();
       Dx7.assets.catch((err: unknown) => {

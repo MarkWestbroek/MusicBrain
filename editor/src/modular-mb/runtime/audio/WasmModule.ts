@@ -18,6 +18,7 @@ export interface WasmZone {
 import type { ModuleInstance, ModuleType, ControlValue } from '../../types';
 import { AudioModule } from '../AudioModule';
 import { registry } from '../Registry';
+import { addWorkletModule } from './workletLoader';
 
 /**
  * WasmModule — een Teensy-module die als WebAssembly in de simulator draait
@@ -89,7 +90,7 @@ export class WasmModule extends AudioModule {
   private static ensureWorklet(): Promise<void> {
     if (!WasmModule.worklet) {
       const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
-      WasmModule.worklet = Tone.getContext().addAudioWorkletModule(`${base}wasm/mmb-worklet.js`);
+      WasmModule.worklet = addWorkletModule(`${base}wasm/mmb-worklet.js`);
       WasmModule.worklet.catch((err: unknown) => {
         WasmModule.worklet = null;
         WasmModule.lastError = err instanceof Error ? err.message : String(err);
