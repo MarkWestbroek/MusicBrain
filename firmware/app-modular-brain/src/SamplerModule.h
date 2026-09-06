@@ -134,6 +134,7 @@ public:
             z.root = zr[i].root; z.tuneCents = zr[i].tuneCents;
             z.gain = zr[i].gain; z.pan = zr[i].pan;
             z.loopMode = zr[i].loopMode;
+            z.velTrack = zr[i].velTrack;
             z.loopStart = static_cast<int>(zr[i].loopStart);
             z.loopEnd = static_cast<int>(zr[i].loopEnd);
             z.decay = zr[i].decay; z.release = zr[i].release;

@@ -60,7 +60,8 @@ struct ZoneRecord {
     uint8_t  lowKey, highKey;
     uint8_t  lowVel, highVel;
     uint8_t  loopMode;
-    uint8_t  reserved;
+    uint8_t  velTrack;   ///< dB velocity-tracking binnen de zone; 0 = uit
+                         ///  (was padding, dus oudere banken lezen als 0)
     float    root;
     float    tuneCents;
     float    gain;

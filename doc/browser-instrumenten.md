@@ -219,3 +219,46 @@ Details en de CC-map: [`snaarbank-testlab.md`](snaarbank-testlab.md) en
   de echte machine.
 - **`.mmbp`** — een generieke patchbank met type-id in de header, in plaats van
   een eigen extensie per module (`.mmbe` voor Elements enz.). Nog niet gebouwd.
+
+---
+
+## 8. SoundFonts als bron
+
+Een SF2 heeft precies het model dat onze sampler ook heeft — samples in één
+blok plus een keymap van zones — dus de vertaling is vooral boekhouding.
+[`editor/src/modular-mb/sf2.ts`](../editor/src/modular-mb/sf2.ts) leest het
+formaat; de editor gebruikt het in de Multisample-import (**⤒ .mmbs / .sf2**,
+daarna een preset kiezen), en
+[`tools/mmb-wasm/sf2-to-mmbs.mjs`](../tools/mmb-wasm/sf2-to-mmbs.mjs) doet
+hetzelfde vanaf de opdrachtregel:
+
+```sh
+node tools/mmb-wasm/sf2-to-mmbs.mjs piano.sf2                 # welke presets zitten erin
+node tools/mmb-wasm/sf2-to-mmbs.mjs piano.sf2 "grand" uit.mmbs --vel-layers=2
+```
+
+Preset- en instrument-zones worden platgevouwen (de preset-laag is een
+*offset* op de instrument-laag), bereiken snijden, en key-range, velocity-range,
+root, stemming, pan, gain en loop-punten gaan één op één mee. Wat we niet
+overnemen: filter, LFO's, modulatoren en de volledige volume-envelope — het
+sample draagt zijn eigen uitsterving.
+
+Twee dingen die deze route aan het licht bracht:
+
+- **SF2 laat de dynamiek aan een modulator over.** Alle lagen staan op gain
+  1,0; dat velocity het volume stuurt regelt een *default modulator* die wij
+  niet nabouwen. Zonder meer klonken alle vijf de lagen van een gesampelde
+  vleugel even hard. Daarom heeft een zone er een veld bij: `velTrack`, de
+  velocity-gevoeligheid *binnen* de zone in dB (kwadratische kromme, 0 = uit).
+  Het zat in het padding-byte van `ZoneRecord`, dus het bankformaat blijft 40
+  bytes per zone en oudere banken lezen als 0 — wat voor een opname met genoeg
+  lagen ook precies goed is.
+- **Grootte.** De YDP-vleugel (FreePats, CC0) is 121 samples in 150 zones:
+  113 MB. In de browser geen probleem, in 8 MB PSRAM onmogelijk. `--vel-layers`
+  dunt de lagen uit; de tool waarschuwt zodra een bank niet meer op hardware
+  past. De wasm-sampler kreeg ruimere tabellen (256 sloten, 512 zones); de
+  firmware houdt zijn eigen limieten.
+
+Let op de licentie van de SoundFont die je omzet: vrij te gebruiken betekent
+niet vrij te herdistribueren. Een omgezette bank is een afgeleide en hoort
+daarom niet in deze repo — `editor/public/banks/` staat in `.gitignore`.

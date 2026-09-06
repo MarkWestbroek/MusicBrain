@@ -62,7 +62,25 @@ struct Zone {
     int      loopStart = 0, loopEnd = 0;   ///< frames
     float    decay    = 0.0f;    ///< s tot −60 dB; 0 = sample draagt zijn eigen verloop
     float    release  = 0.08f;   ///< s na note-off
+    /**
+     * Velocity-gevoeligheid *binnen* deze zone, in dB tussen aanslag 1 en 127.
+     * 0 = uit: het niveau komt volledig uit het sample, wat klopt zodra je
+     * genoeg lagen hebt (zo werkt de Elements-testbank). Heb je er weinig — of
+     * kom je uit een SoundFont, waar de dynamiek in een modulator zit die wij
+     * niet nabouwen — dan legt dit de ontbrekende dynamiek eroverheen.
+     * Kwadratische kromme: bij de helft van de aanslag is de demping 3/4 van
+     * de volle waarde, zoals de meeste samplers het doen.
+     */
+    uint8_t  velTrack = 0;
 };
+
+/** Gain-factor van de velocity-tracking; 1,0 als de zone hem uit heeft. */
+inline float velTrackGain(uint8_t velTrack, int velocity) {
+    if (velTrack == 0) return 1.0f;
+    const float n = (velocity < 1 ? 1 : (velocity > 127 ? 127 : velocity)) * (1.0f / 127.0f);
+    const float db = -static_cast<float>(velTrack) * (1.0f - n * n);
+    return powf(10.0f, db * 0.05f);
+}
 
 /**
  * Eén stem: kiest bij note-on een zone en speelt die af. Meerdere stemmen
@@ -118,6 +136,7 @@ public:
         slot_ = &slots_[zone_->slot];
         note_ = midi;
         vel_  = velocity;
+        velGain_ = velTrackGain(zone_->velTrack, velocity);
         posInt_ = static_cast<int>(startOffset_ * static_cast<float>(slot_->frames - 1));
         posFrac_ = 0.0f;
         env_ = 0.0f; envState_ = ENV_ATTACK;
@@ -171,7 +190,7 @@ public:
             i1 = i0;
         }
         const float f = posFrac_;
-        const float amp = env_ * decayGain_ * zone_->gain * level_ * (1.0f / 32768.0f);
+        const float amp = env_ * decayGain_ * zone_->gain * velGain_ * level_ * (1.0f / 32768.0f);
         const int16_t* base0 = slot_->data + static_cast<long>(i0) * ch;
         const int16_t* base1 = slot_->data + static_cast<long>(i1) * ch;
 
@@ -230,6 +249,7 @@ private:
     int   posInt_ = 0;
     float posFrac_ = 0.0f, inc_ = 1.0f;
     float voct_ = 0.0f, transpose_ = 0.0f, startOffset_ = 0.0f, level_ = 0.8f;
+    float velGain_ = 1.0f;
     int   note_ = -1, vel_ = 100;
     bool  active_ = false, gate_ = false;
 

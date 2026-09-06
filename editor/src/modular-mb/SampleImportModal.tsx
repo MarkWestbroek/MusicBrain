@@ -18,6 +18,7 @@ import {
 } from './sampleAnalysis';
 import { WasmModule, type WasmZone } from './runtime';
 import { buildBank, parseBank, bankSummary, type BankSlot } from './sampleBank';
+import { readSf2, sf2ToBank, type Sf2 } from './sf2';
 
 const TYPE_ID = 'tp_mmb_sampler';
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -48,6 +49,10 @@ export function SampleImportModal({ open, onClose }: { open: boolean; onClose: (
   const [toConcert, setToConcert] = useState(false); // naar A440 trekken
   const [busy, setBusy] = useState('');
   const [bankName, setBankName] = useState('bank');
+  const [sf2, setSf2] = useState<Sf2 | null>(null);
+  // Laatst geladen bank (uit .mmbs of een SoundFont) — zodat ⤓ opslaan ook
+  // werkt zonder dat er een opname geanalyseerd is.
+  const [loaded, setLoaded] = useState<{ slots: BankSlot[]; zones: WasmZone[] } | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
 
@@ -106,9 +111,43 @@ export function SampleImportModal({ open, onClose }: { open: boolean; onClose: (
       slots.forEach((s, i) => WasmModule.setBlob(TYPE_ID, i, s.data, s.rate, s.name ?? '', s.channels));
       WasmModule.setZones(TYPE_ID, zones);
       setBankName(name || label);
+      setLoaded({ slots, zones });
       setBusy(`bank "${name || label}" in de simulator: ${bankSummary(slots, zones)} — zet een SAMPLER in het rack (Solo ▾) en speel`);
     } catch (err) {
       setBusy(`bank lezen mislukt: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  /** Een SoundFont: presets tonen, en de gekozen preset omzetten. Een SF2
+   *  heeft hetzelfde model als onze bank — samples plus een keymap — dus dit
+   *  is de kortste weg naar een gevulde sampler zonder zelf op te nemen. */
+  function loadSf2(buf: ArrayBuffer, label: string): void {
+    try {
+      const f = readSf2(buf);
+      setSf2(f);
+      setBankName((f.name || label).slice(0, 31));
+      const withZones = f.presets.filter((p) => p.zones > 0);
+      setBusy(`${f.name}${f.engineer ? ` — ${f.engineer}` : ''}: ${withZones.length} presets — kies er een`);
+      if (withZones[0]) useSf2Preset(f, withZones[0].index);
+    } catch (err) {
+      setBusy(`SoundFont lezen mislukt: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  function useSf2Preset(f: Sf2, index: number): void {
+    try {
+      const { name, slots, zones, skipped } = sf2ToBank(f, index);
+      if (!slots.length) { setBusy(`preset "${name}" heeft geen samples`); return; }
+      slots.forEach((s, i) => WasmModule.setBlob(TYPE_ID, i, s.data, s.rate, s.name ?? '', s.channels));
+      WasmModule.setZones(TYPE_ID, zones);
+      setBankName(name.slice(0, 31));
+      setLoaded({ slots, zones });
+      const keys = zones.reduce((r, z) => [Math.min(r[0]!, z.lowKey), Math.max(r[1]!, z.highKey)], [127, 0]);
+      const layers = new Set(zones.map((z) => `${z.lowVel}-${z.highVel}`)).size;
+      setBusy(`"${name}" in de simulator: ${bankSummary(slots, zones)} · toetsen ${keys[0]}–${keys[1]} · ` +
+        `${layers} velocity-laag${layers === 1 ? '' : 'en'}${skipped ? ` · ${skipped} zones overgeslagen` : ''}`);
+    } catch (err) {
+      setBusy(`preset omzetten mislukt: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
@@ -126,6 +165,7 @@ export function SampleImportModal({ open, onClose }: { open: boolean; onClose: (
 
   function analyse(): void {
     if (!audio) return;
+    setLoaded(null);
     setBusy('segmenteren…');
     const segs = segmentRecording(audio.mono, audio.rate, { minGap, minLength: 0.15 });
     if (!segs.length) { setBusy('geen aanslagen gevonden — verlaag de stilte-drempel of check de opname'); return; }
@@ -231,7 +271,7 @@ export function SampleImportModal({ open, onClose }: { open: boolean; onClose: (
   }
 
   function toSimulator(): void {
-    const { slots, zones } = build();
+    const { slots, zones } = rows.length ? build() : (loaded ?? { slots: [], zones: [] });
     if (!slots.length) { setBusy('niets te sturen'); return; }
     slots.forEach((s, i) => WasmModule.setBlob(TYPE_ID, i, s.data, s.rate, s.name ?? '', s.channels));
     WasmModule.setZones(TYPE_ID, zones);
@@ -239,7 +279,7 @@ export function SampleImportModal({ open, onClose }: { open: boolean; onClose: (
   }
 
   function downloadBank(): void {
-    const { slots, zones } = build();
+    const { slots, zones } = rows.length ? build() : (loaded ?? { slots: [], zones: [] });
     if (!slots.length) { setBusy('niets te schrijven'); return; }
     const buf = buildBank(bankName, slots, zones);
     const url = URL.createObjectURL(new Blob([buf], { type: 'application/octet-stream' }));
@@ -325,13 +365,16 @@ export function SampleImportModal({ open, onClose }: { open: boolean; onClose: (
           <button onClick={() => void loadTestBank()}
             title="De kant-en-klare bank die bij die testopname hoort — gaat rechtstreeks naar de simulator, zonder analyse">
             Testbank</button>
-          <label style={{ cursor: 'pointer' }} title="Een eerder opgeslagen .mmbs terug inladen">
-            ⤒ .mmbs
-            <input type="file" accept=".mmbs,application/octet-stream" style={{ display: 'none' }}
+          <label style={{ cursor: 'pointer' }} title="Een eerder opgeslagen .mmbs, of een SoundFont (.sf2) — die heeft dezelfde keymap-structuur">
+            ⤒ .mmbs / .sf2
+            <input type="file" accept=".mmbs,.sf2,application/octet-stream" style={{ display: 'none' }}
               onChange={(e) => {
                 const f = e.target.files?.[0];
                 e.currentTarget.value = '';
-                if (f) void f.arrayBuffer().then((b) => loadBankBuffer(b, f.name.replace(/\.mmbs$/i, '')));
+                if (!f) return;
+                const stem = f.name.replace(/\.(mmbs|sf2)$/i, '');
+                setBusy(`${f.name} lezen…`);
+                void f.arrayBuffer().then((b) => (/\.sf2$/i.test(f.name) ? loadSf2(b, stem) : loadBankBuffer(b, stem)));
               }} />
           </label>
           <label>Lagen/noot <input type="number" min={1} max={8} value={layers} style={{ width: 48 }}
@@ -343,6 +386,28 @@ export function SampleImportModal({ open, onClose }: { open: boolean; onClose: (
           <button onClick={analyse} disabled={!audio} className="primary">Analyseren</button>
           <button onClick={searchLoops} disabled={!rows.length}>Loops zoeken</button>
         </div>
+
+        {sf2 && (
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10,
+                        padding: 8, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6 }}>
+            <strong style={{ color: '#475569' }}>SoundFont</strong>
+            <span style={{ color: '#64748b', fontSize: 12 }}>{sf2.name}{sf2.engineer ? ` — ${sf2.engineer}` : ''}</span>
+            <label>preset{' '}
+              <select onChange={(e) => useSf2Preset(sf2, Number(e.target.value))} style={{ maxWidth: 280 }}>
+                {sf2.presets.filter((p) => p.zones > 0).map((p) => (
+                  <option key={p.index} value={p.index}>
+                    {p.bank ? `${p.bank}:` : ''}{p.program} · {p.name} ({p.zones})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button onClick={() => setSf2(null)}>sluiten</button>
+            <span style={{ color: '#94a3b8', fontSize: 11 }}>
+              Kiezen zet de preset meteen in de simulator; ⤓ .mmbs schrijft hem weg.
+              Let op de licentie van de SoundFont — de bank is een afgeleide.
+            </span>
+          </div>
+        )}
 
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
           <label style={{ flex: '1 1 260px' }}>Verwachte noten{' '}
@@ -366,6 +431,20 @@ export function SampleImportModal({ open, onClose }: { open: boolean; onClose: (
         <canvas ref={canvasRef} width={1880} height={200}
           style={{ width: '100%', height: 130, borderRadius: 4, background: '#0b1220' }} />
         <div style={{ minHeight: 18, margin: '8px 0', color: busy.startsWith('mislukt') ? '#b91c1c' : '#334155' }}>{busy}</div>
+
+        {/* Een ingeladen bank (.mmbs of SoundFont) heeft geen analysetabel;
+            de twee acties die er wél bij horen staan hier. */}
+        {loaded && rows.length === 0 && (
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
+            <button onClick={toSimulator} className="primary">→ Simulator</button>
+            <label>Naam <input value={bankName} maxLength={31} style={{ width: 160 }}
+              onChange={(e) => setBankName(e.target.value)} /></label>
+            <button onClick={downloadBank}>⤓ .mmbs opslaan</button>
+            <span style={{ color: '#94a3b8', fontSize: 12 }}>
+              {loaded.slots.length} samples · {loaded.zones.length} zones staan klaar
+            </span>
+          </div>
+        )}
 
         {rows.length > 0 && (
           <>

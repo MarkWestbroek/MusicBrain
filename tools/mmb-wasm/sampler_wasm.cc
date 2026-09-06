@@ -33,8 +33,13 @@ MmbControl MMB_CONTROLS[] = {
 const int MMB_NUM_CONTROLS = 5;
 
 namespace {
-constexpr int kSlots  = 32;
-constexpr int kZones  = 128;
+// Ruimer dan de firmware: in de browser is het geheugen dynamisch en een
+// geconverteerde SoundFont loopt zo tegen honderd samples aan (de YDP-vleugel
+// heeft er 121 in 150 zones). De tabellen zelf kosten ~25 KB statisch; de
+// sampledata hangt eronder aan losse allocaties. Op de Teensy blijft de
+// limiet staan wat het PSRAM aankan — zie SamplerModule.h.
+constexpr int kSlots  = 256;
+constexpr int kZones  = 512;
 constexpr int kVoices = 8;
 
 int16_t*             g_blob[kSlots];
@@ -89,7 +94,8 @@ MMB_EXPORT(mmb_blob_commit) void mmb_blob_commit(int slot, int frames, float rat
 MMB_EXPORT(mmb_zone_set) void mmb_zone_set(
     int idx, int slot, int lowKey, int highKey, int lowVel, int highVel,
     float root, float tuneCents, float gain, float pan,
-    int loopMode, int loopStart, int loopEnd, float decay, float release) {
+    int loopMode, int loopStart, int loopEnd, float decay, float release,
+    int velTrack) {
     if (idx < 0 || idx >= kZones) return;
     mmb_dsp::Zone& z = g_zones[idx];
     z.slot = static_cast<uint8_t>(slot);
@@ -99,6 +105,7 @@ MMB_EXPORT(mmb_zone_set) void mmb_zone_set(
     z.loopMode = static_cast<uint8_t>(loopMode);
     z.loopStart = loopStart; z.loopEnd = loopEnd;
     z.decay = decay; z.release = release;
+    z.velTrack = static_cast<uint8_t>(velTrack < 0 ? 0 : (velTrack > 127 ? 127 : velTrack));
 }
 MMB_EXPORT(mmb_zone_count) void mmb_zone_count(int n) {
     g_numZones = n < 0 ? 0 : (n > kZones ? kZones : n);

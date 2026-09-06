@@ -14,6 +14,8 @@ export interface WasmZone {
   /** 0 = geen, 1 = one-shot, 2 = continu, 3 = tot note-off. */
   loopMode: number; loopStart: number; loopEnd: number;
   decay: number; release: number;
+  /** dB velocity-tracking binnen de zone; 0 = uit (niveau komt uit het sample). */
+  velTrack?: number;
 }
 import type { ModuleInstance, ModuleType, ControlValue } from '../../types';
 import { AudioModule } from '../AudioModule';

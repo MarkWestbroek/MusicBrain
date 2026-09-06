@@ -59,7 +59,7 @@ export function buildBank(name: string, slots: BankSlot[], zones: WasmZone[]): A
     dv.setUint16(off, z.slot, true);
     dv.setUint8(off + 2, z.lowKey);   dv.setUint8(off + 3, z.highKey);
     dv.setUint8(off + 4, z.lowVel);   dv.setUint8(off + 5, z.highVel);
-    dv.setUint8(off + 6, z.loopMode); dv.setUint8(off + 7, 0);
+    dv.setUint8(off + 6, z.loopMode); dv.setUint8(off + 7, Math.max(0, Math.min(127, Math.round(z.velTrack ?? 0))));
     dv.setFloat32(off + 8, z.root, true);
     dv.setFloat32(off + 12, z.tuneCents, true);
     dv.setFloat32(off + 16, z.gain, true);
@@ -126,6 +126,7 @@ export function parseBank(buf: ArrayBuffer): { name: string; slots: BankSlot[]; 
       lowKey:    dv.getUint8(off + 2),  highKey: dv.getUint8(off + 3),
       lowVel:    dv.getUint8(off + 4),  highVel: dv.getUint8(off + 5),
       loopMode:  dv.getUint8(off + 6),
+      velTrack:  dv.getUint8(off + 7),
       root:      dv.getFloat32(off + 8, true),
       tuneCents: dv.getFloat32(off + 12, true),
       gain:      dv.getFloat32(off + 16, true),
@@ -138,13 +139,18 @@ export function parseBank(buf: ArrayBuffer): { name: string; slots: BankSlot[]; 
     off += 40;
   }
 
-  const all = new Int16Array((buf.byteLength - off) >> 1);
-  new Uint8Array(all.buffer).set(bytes.subarray(off, off + (all.length << 1)));
+  // Per slot rechtstreeks uit het bestand kopiëren; één tussenkopie van het
+  // hele datablok zou bij een geconverteerde SoundFont zomaar 100 MB extra
+  // kosten. De byte-offset is niet gegarandeerd even, dus een Int16Array-view
+  // op de buffer kan niet — vandaar de kopie per slot.
+  const dataSamples = (buf.byteLength - off) >> 1;
   const slots: BankSlot[] = table.map((t, i) => {
     const start = t.frameOffset * t.channels;
     const len = t.frames * t.channels;
-    if (start + len > all.length) throw new Error(`slot ${i} valt buiten het bestand`);
-    return { data: all.slice(start, start + len), channels: t.channels, rate: t.rate, name: `slot ${i}` };
+    if (start + len > dataSamples) throw new Error(`slot ${i} valt buiten het bestand`);
+    const data = new Int16Array(len);
+    new Uint8Array(data.buffer).set(bytes.subarray(off + start * 2, off + (start + len) * 2));
+    return { data, channels: t.channels, rate: t.rate, name: `slot ${i}` };
   });
   return { name, slots, zones };
 }
