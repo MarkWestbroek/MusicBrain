@@ -29,6 +29,8 @@ STMLIB_CC="$ELEM/stmlib/dsp/units.cc $ELEM/stmlib/utils/random.cc"
 FALLBACK_INC="-I$LIB/mi-plaits -I$ELEM -I$LIB/mi-rings -I$LIB/mi-clouds -I$LIB/mi-marbles"
 
 build() {  # naam typeId include-dirs... -- bronnen...
+           # EXTRA="-DFOO=1" ervoor zet extra compilervlaggen (één bron,
+           # meer binaries — zie de envfollower hieronder).
   local name="$1"; shift
   local typeId="$1"; shift
   local incs=()
@@ -39,7 +41,7 @@ build() {  # naam typeId include-dirs... -- bronnen...
     --target="$TARGET" --sysroot="$SYSROOT" \
     -std=c++17 -O3 -msimd128 -fno-exceptions -fno-rtti -DTEST \
     -Wno-unused-value -Wno-deprecated-register -include cstdio \
-    -I"$HERE" -I"$HERE/shim" ${incs[@]+"${incs[@]}"} $FALLBACK_INC \
+    -I"$HERE" -I"$HERE/shim" ${incs[@]+"${incs[@]}"} $FALLBACK_INC ${EXTRA:-} \
     -nostartfiles -Wl,--no-entry -Wl,--export-memory -Wl,--initial-memory=8388608 -Wl,-z,stack-size=262144 \
     -o "$OUTDIR/$typeId.wasm" \
     "$HERE/${name}_wasm.cc" "$@" 2> "$OUTDIR/$typeId.log"; then
@@ -101,6 +103,9 @@ sel warps && build warps tp_mmb_warps "$LIB/mi-warps" -- \
   "$LIB"/mi-warps/warps/resources.cc $STMLIB_CC
 
 sel tapeecho && build tapeecho tp_mmb_tape_echo "$LIB/mmb-dsp" --
+
+sel envfollower && build envfollower tp_mmb_env_follower "$LIB/mmb-dsp" --
+sel envfollower && EXTRA="-DMMB_EF_CELLS=1" build envfollower tp_mmb_env_follower_mono "$LIB/mmb-dsp" --
 
 sel sampler && build sampler tp_mmb_sampler "$LIB/mmb-dsp" --
 MSFA="$LIB/msfa"

@@ -90,8 +90,19 @@ for (const f of files) {
     m.ex.mmb_blob_commit(0, n, 44100, 2);
     m.ex.mmb_zone_set(0, 0, 0, 127, 1, 127, 60, 0, 1, 0, 2, 0, n - 1, 0, 0.1);
     m.ex.mmb_zone_count(1);
-    m.setIn('voct', 1); m.setIn('vel', 0.9);
-    script = (s) => m.setIn('gate', s < 1.5 ? 1 : 0);
+    m.setIn('voct_1', 1); m.setIn('vel_1', 0.9);
+    script = (s) => m.setIn('gate_1', s < 1.5 ? 1 : 0);
+  }
+  else if (id === 'tp_mmb_env_follower' || id === 'tp_mmb_env_follower_mono') {
+    // Burst van 440 Hz op in_1 gedurende de eerste seconde; env_1 moet
+    // meestijgen en daarna terugvallen, gate_1 geeft twee flanken (aan/uit).
+    m.setCtl('attack', 5); m.setCtl('release', 150); m.setCtl('thresh', 0.1);
+    let ph = 0;
+    script = (s) => {
+      const b = m.inBuf(0);
+      for (let k = 0; k < m.block; k++) { b[k] = s < 1.0 ? 0.5 * Math.sin(ph) : 0; ph += 2 * Math.PI * 440 / m.rate; }
+      m.ex.mmb_input_connected(0, 1);
+    };
   }
   else if (id === 'tp_mmb_peaks') { script = (s) => m.setIn('gate', (s % 0.5) < 0.01 ? 1 : 0); }
   else { m.setIn('voct', 0); script = (s) => m.setIn('gate', s < 0.6 ? 1 : 0); }

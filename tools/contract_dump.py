@@ -62,14 +62,32 @@ OVERRIDES: dict[str, dict[str, list[str]]] = {
     "tp_mmb_octa_vca": {"implemented": [], "ignored": [],
                         "ports": _rng("in_", 8) + _rng("cv_", 8) + _rng("out_", 8)},
     "tp_mmb_stages": {"implemented": _rng("t", 6) + _rng("s", 6) + _rng("type", 6), "ignored": []},
+    "tp_mmb_env_follower": {"implemented": [], "ignored": [],
+                            "ports": _rng("in_", 8) + _rng("env_", 8) + _rng("gate_", 8)},
+    # Mono-variant: kale jacks (EnvFollowerBase accepteert bij Cells==1 zowel
+    # `in` als `in_1`); alleen de kale namen staan op het paneel.
+    "tp_mmb_env_follower_mono": {"implemented": [], "ignored": [],
+                                 "ports": ["in", "env", "gate"]},
+    # Sampler: 8 stemmen met char-geïndexeerde jacks (voiceIndex(), zie
+    # SamplerModule.h) — dezelfde blinde vlek als de octa-modules.
+    "tp_mmb_sampler": {"implemented": [], "ignored": [],
+                       "ports": _rng("voct_", 8) + _rng("gate_", 8) + _rng("vel_", 8)
+                                + _rng("cutoff_", 8) + _rng("env_", 8)},
 }
 
 
-def parse_module(header: str, extra_sources: list[str]) -> dict | None:
+def parse_module(header: str, extra_sources: list[str]) -> list[dict]:
+    """Alle modules in één header.
+
+    Meestal één klasse per bestand, maar een header mag varianten bevatten die
+    dezelfde romp delen (EnvFollowerModule.h: 8 cellen en 1 cel). De gescrapete
+    poorten/controls zijn dan per definitie die van het hele bestand — waar dat
+    te grof is, zet OVERRIDES de poortlijst per typeId recht.
+    """
     text = io.open(header, encoding="utf-8", errors="replace").read()
-    m = re.search(r'kTypeId\s*=\s*"([^"]+)"', text)
-    if not m:
-        return None
+    type_ids = re.findall(r'kTypeId\s*=\s*"([^"]+)"', text)
+    if not type_ids:
+        return []
     for src in extra_sources:
         text += io.open(src, encoding="utf-8", errors="replace").read()
 
@@ -81,12 +99,13 @@ def parse_module(header: str, extra_sources: list[str]) -> dict | None:
         ports.add(x + "_cv")
     controls = sorted(set(re.findall(r'controlId\s*==\s*"([^"]+)"', text)))
 
-    return {
-        "typeId": m.group(1),
-        "source": os.path.relpath(header, ROOT).replace(os.sep, "/"),
+    source = os.path.relpath(header, ROOT).replace(os.sep, "/")
+    return [{
+        "typeId": tid,
+        "source": source,
         "ports": sorted(ports),
         "controls": controls,
-    }
+    } for tid in type_ids]
 
 
 def main() -> int:
@@ -102,20 +121,18 @@ def main() -> int:
     for h in headers:
         stem = os.path.splitext(os.path.basename(h))[0]
         extra = [p for p in (os.path.join(CORE_SRC, stem + ".cpp"),) if os.path.exists(p)]
-        mod = parse_module(h, extra)
-        if not mod:
-            continue
-        tid = mod["typeId"]
-        if ov := OVERRIDES.get(tid):
-            mod["controls"] = sorted(set(mod["controls"]) | set(ov["implemented"]))
-            mod["controlsIgnored"] = sorted(ov["ignored"])
-            mod["ports"] = sorted(set(mod["ports"]) | set(ov.get("ports", [])))
-        if tid in modules:
-            # Zelfde typeId in meerdere headers (hoort niet): eerste wint, meld het.
-            print(f"  waarschuwing: {tid} dubbel ({modules[tid]['source']} en {mod['source']})",
-                  file=sys.stderr)
-            continue
-        modules[tid] = mod
+        for mod in parse_module(h, extra):
+            tid = mod["typeId"]
+            if ov := OVERRIDES.get(tid):
+                mod["controls"] = sorted(set(mod["controls"]) | set(ov["implemented"]))
+                mod["controlsIgnored"] = sorted(ov["ignored"])
+                mod["ports"] = sorted(set(mod["ports"]) | set(ov.get("ports", [])))
+            if tid in modules:
+                # Zelfde typeId in meerdere headers (hoort niet): eerste wint, meld het.
+                print(f"  waarschuwing: {tid} dubbel ({modules[tid]['source']} en {mod['source']})",
+                      file=sys.stderr)
+                continue
+            modules[tid] = mod
 
     contract = {
         "$comment": "GEGENEREERD door tools/contract_dump.py — niet met de hand bewerken. "

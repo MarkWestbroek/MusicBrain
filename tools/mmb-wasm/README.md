@@ -19,6 +19,7 @@ WebAssembly gecompileerd en draaien in een AudioWorklet.
 | Warps | `tp_mmb_warps` | mi-warps | 44,1 kHz / 32 |
 | Sampler | `tp_mmb_sampler` | eigen (`mmb_dsp/sample_player.h`; keymap + 1–4 kanalen, samples via `mmb_blob_ptr/commit`, zones via `mmb_zone_set/count`) | 44,1 kHz / 32 |
 | Tape echo | `tp_mmb_tape_echo` | eigen (`firmware/lib/mmb-dsp/mmb_dsp/tape_echo.h`, header-only — dezelfde kern als de Teensy-wrapper) | 44,1 kHz / 32 |
+| Env-follower | `tp_mmb_env_follower` · `…_mono` | eigen (`firmware/lib/mmb-dsp/mmb_dsp/env_follower.h`, header-only — dezelfde kern als de Teensy-wrapper); audio in → cv + gate uit. Eén bron, twee binaries: `envfollower_wasm.cc` wordt ook met `-DMMB_EF_CELLS=1` gebouwd voor de enkelvoudige variant | 44,1 kHz / 32 |
 
 Daarmee spelen o.a. de **Krell**- en **808-jam**-seeds in de browser.
 (De DX7 heeft zijn eigen worklet, zie `tools/dx7-wasm`.)

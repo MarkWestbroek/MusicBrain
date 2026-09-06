@@ -1,6 +1,6 @@
 {
   "$comment": "GEGENEREERD door tools/contract_dump.py — niet met de hand bewerken. Poort-ids zijn letterlijk wat de firmware accepteert (aliassen als out/out_l en naam/naam_cv staan er dus allebei in).",
-  "firmwareVersion": "0.5.48",
+  "firmwareVersion": "0.5.49",
   "modules": {
     "tp_mmb_ahdsr": {
       "typeId": "tp_mmb_ahdsr",
@@ -283,6 +283,61 @@
         "lp",
         "time"
       ]
+    },
+    "tp_mmb_env_follower": {
+      "typeId": "tp_mmb_env_follower",
+      "source": "firmware/app-modular-brain/src/EnvFollowerModule.h",
+      "ports": [
+        "env_1",
+        "env_2",
+        "env_3",
+        "env_4",
+        "env_5",
+        "env_6",
+        "env_7",
+        "env_8",
+        "gate_1",
+        "gate_2",
+        "gate_3",
+        "gate_4",
+        "gate_5",
+        "gate_6",
+        "gate_7",
+        "gate_8",
+        "in_1",
+        "in_2",
+        "in_3",
+        "in_4",
+        "in_5",
+        "in_6",
+        "in_7",
+        "in_8"
+      ],
+      "controls": [
+        "attack",
+        "mode",
+        "release",
+        "sens",
+        "thresh"
+      ],
+      "controlsIgnored": []
+    },
+    "tp_mmb_env_follower_mono": {
+      "typeId": "tp_mmb_env_follower_mono",
+      "source": "firmware/app-modular-brain/src/EnvFollowerModule.h",
+      "ports": [
+        "env",
+        "gate",
+        "in"
+      ],
+      "controls": [
+        "attack",
+        "mode",
+        "release",
+        "sens",
+        "thresh"
+      ],
+      "controlsIgnored": []
     },
     "tp_mmb_fm_vco": {
       "typeId": "tp_mmb_fm_vco",
@@ -840,6 +895,73 @@
         "structure"
       ]
     },
+    "tp_mmb_sampler": {
+      "typeId": "tp_mmb_sampler",
+      "source": "firmware/app-modular-brain/src/SamplerModule.h",
+      "ports": [
+        "cutoff_1",
+        "cutoff_2",
+        "cutoff_3",
+        "cutoff_4",
+        "cutoff_5",
+        "cutoff_6",
+        "cutoff_7",
+        "cutoff_8",
+        "env_1",
+        "env_2",
+        "env_3",
+        "env_4",
+        "env_5",
+        "env_6",
+        "env_7",
+        "env_8",
+        "gate_1",
+        "gate_2",
+        "gate_3",
+        "gate_4",
+        "gate_5",
+        "gate_6",
+        "gate_7",
+        "gate_8",
+        "out",
+        "out_3",
+        "out_4",
+        "out_l",
+        "out_r",
+        "vel_1",
+        "vel_2",
+        "vel_3",
+        "vel_4",
+        "vel_5",
+        "vel_6",
+        "vel_7",
+        "vel_8",
+        "voct_1",
+        "voct_2",
+        "voct_3",
+        "voct_4",
+        "voct_5",
+        "voct_6",
+        "voct_7",
+        "voct_8"
+      ],
+      "controls": [
+        "attack",
+        "bank",
+        "coarse",
+        "cutoff",
+        "cv_amt",
+        "drive",
+        "env_rel",
+        "filter",
+        "fine",
+        "fmode",
+        "level",
+        "q",
+        "start"
+      ],
+      "controlsIgnored": []
+    },
     "tp_mmb_seq8": {
       "typeId": "tp_mmb_seq8",
       "source": "firmware/core/include/mb/runtime/Seq16.h",
@@ -965,6 +1087,29 @@
       "controls": [
         "level",
         "pluck"
+      ]
+    },
+    "tp_mmb_tape_echo": {
+      "typeId": "tp_mmb_tape_echo",
+      "source": "firmware/app-modular-brain/src/TapeEchoModule.h",
+      "ports": [
+        "fbk",
+        "fbk_cv",
+        "in",
+        "mix",
+        "mix_cv",
+        "out",
+        "time",
+        "time_cv"
+      ],
+      "controls": [
+        "drive",
+        "feedback",
+        "flutter",
+        "mix",
+        "time",
+        "tone",
+        "wow"
       ]
     },
     "tp_mmb_tides": {
