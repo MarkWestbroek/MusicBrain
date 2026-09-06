@@ -87,3 +87,64 @@ export function bankSummary(slots: BankSlot[], zones: WasmZone[]): string {
   return `${slots.length} samples · ${zones.length} zones · ${(frames / rate).toFixed(1)} s ` +
     `${ch === 1 ? 'mono' : ch === 2 ? 'stereo' : ch + ' kanalen'} · ${(bytes / 1048576).toFixed(2)} MB`;
 }
+
+/**
+ * Lees een `.mmbs` terug — de tegenhanger van `buildBank`, zodat een bank die
+ * je bewaard hebt (of die `make-test-bank.mjs` schreef) weer in de simulator
+ * te laden is. De Teensy doet dit niet: die leest het bestand rechtstreeks van
+ * SD naar PSRAM. Hier kopiëren we het datablok, want een Int16Array wil
+ * uitgelijnd zijn en de tabellen ervoor garanderen dat niet.
+ */
+export function parseBank(buf: ArrayBuffer): { name: string; slots: BankSlot[]; zones: WasmZone[] } {
+  if (buf.byteLength < 44) throw new Error('te klein voor een .mmbs');
+  const dv = new DataView(buf);
+  const bytes = new Uint8Array(buf);
+  const magic = String.fromCharCode(...bytes.subarray(0, 4));
+  if (magic !== 'MMBS') throw new Error(`geen samplebank (magic "${magic}", verwacht "MMBS")`);
+  const version = dv.getUint32(4, true);
+  if (version !== 1) throw new Error(`bankversie ${version} wordt niet ondersteund`);
+  const slotCount = dv.getUint32(8, true);
+  const zoneCount = dv.getUint32(12, true);
+  const nameEnd = bytes.subarray(16, 48).indexOf(0);
+  const name = new TextDecoder().decode(bytes.subarray(16, 16 + (nameEnd < 0 ? 31 : nameEnd)));
+
+  let off = 44;
+  const table: { frameOffset: number; frames: number; channels: number; rate: number }[] = [];
+  for (let i = 0; i < slotCount; i++) {
+    table.push({
+      frameOffset: dv.getUint32(off, true),
+      frames:      dv.getUint32(off + 4, true),
+      channels:    dv.getUint16(off + 8, true) || 1,
+      rate:        dv.getFloat32(off + 12, true) || 44100,
+    });
+    off += 16;
+  }
+  const zones: WasmZone[] = [];
+  for (let i = 0; i < zoneCount; i++) {
+    zones.push({
+      slot:      dv.getUint16(off, true),
+      lowKey:    dv.getUint8(off + 2),  highKey: dv.getUint8(off + 3),
+      lowVel:    dv.getUint8(off + 4),  highVel: dv.getUint8(off + 5),
+      loopMode:  dv.getUint8(off + 6),
+      root:      dv.getFloat32(off + 8, true),
+      tuneCents: dv.getFloat32(off + 12, true),
+      gain:      dv.getFloat32(off + 16, true),
+      pan:       dv.getFloat32(off + 20, true),
+      loopStart: dv.getUint32(off + 24, true),
+      loopEnd:   dv.getUint32(off + 28, true),
+      decay:     dv.getFloat32(off + 32, true),
+      release:   dv.getFloat32(off + 36, true),
+    });
+    off += 40;
+  }
+
+  const all = new Int16Array((buf.byteLength - off) >> 1);
+  new Uint8Array(all.buffer).set(bytes.subarray(off, off + (all.length << 1)));
+  const slots: BankSlot[] = table.map((t, i) => {
+    const start = t.frameOffset * t.channels;
+    const len = t.frames * t.channels;
+    if (start + len > all.length) throw new Error(`slot ${i} valt buiten het bestand`);
+    return { data: all.slice(start, start + len), channels: t.channels, rate: t.rate, name: `slot ${i}` };
+  });
+  return { name, slots, zones };
+}

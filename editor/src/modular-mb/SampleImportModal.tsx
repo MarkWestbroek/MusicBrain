@@ -17,7 +17,7 @@ import {
   type Segment, type PitchResult,
 } from './sampleAnalysis';
 import { WasmModule, type WasmZone } from './runtime';
-import { buildBank, bankSummary, type BankSlot } from './sampleBank';
+import { buildBank, parseBank, bankSummary, type BankSlot } from './sampleBank';
 
 const TYPE_ID = 'tp_mmb_sampler';
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -95,6 +95,32 @@ export function SampleImportModal({ open, onClose }: { open: boolean; onClose: (
       setBusy((b) => `${b} — noten al ingevuld (C3 G3 C4); dit materiaal is inharmonisch, dus detectie zou ernaast zitten`);
     } catch (err) {
       setBusy(`mislukt: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  /** Een bestaande `.mmbs` terug de simulator in — de weg terug van
+   *  ⤓ opslaan, en de manier om een bank van de SD-kaart te controleren. */
+  function loadBankBuffer(buf: ArrayBuffer, label: string): void {
+    try {
+      const { name, slots, zones } = parseBank(buf);
+      slots.forEach((s, i) => WasmModule.setBlob(TYPE_ID, i, s.data, s.rate, s.name ?? '', s.channels));
+      WasmModule.setZones(TYPE_ID, zones);
+      setBankName(name || label);
+      setBusy(`bank "${name || label}" in de simulator: ${bankSummary(slots, zones)} — zet een SAMPLER in het rack (Solo ▾) en speel`);
+    } catch (err) {
+      setBusy(`bank lezen mislukt: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  /** De bank die tools/mmb-wasm/make-test-bank.mjs naast de testopname schrijft. */
+  async function loadTestBank(): Promise<void> {
+    setBusy('testbank ophalen…');
+    try {
+      const r = await fetch(`${base}banks/elements.mmbs`);
+      if (!r.ok) throw new Error('niet gevonden');
+      loadBankBuffer(await r.arrayBuffer(), 'elements');
+    } catch {
+      setBusy('testbank niet gevonden — draai eerst: node tools/mmb-wasm/make-test-bank.mjs');
     }
   }
 
@@ -296,6 +322,18 @@ export function SampleImportModal({ open, onClose }: { open: boolean; onClose: (
           <button onClick={() => void loadDemo()}
             title="Testopname: Elements, C3/G3/C4 × zacht/midden/hard, stereo — inharmonisch, dus vul de noten in">
             Testopname</button>
+          <button onClick={() => void loadTestBank()}
+            title="De kant-en-klare bank die bij die testopname hoort — gaat rechtstreeks naar de simulator, zonder analyse">
+            Testbank</button>
+          <label style={{ cursor: 'pointer' }} title="Een eerder opgeslagen .mmbs terug inladen">
+            ⤒ .mmbs
+            <input type="file" accept=".mmbs,application/octet-stream" style={{ display: 'none' }}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.currentTarget.value = '';
+                if (f) void f.arrayBuffer().then((b) => loadBankBuffer(b, f.name.replace(/\.mmbs$/i, '')));
+              }} />
+          </label>
           <label>Lagen/noot <input type="number" min={1} max={8} value={layers} style={{ width: 48 }}
             onChange={(e) => setLayers(Math.max(1, Math.min(8, Number(e.target.value))))} /></label>
           <label>Min. stilte <input type="number" min={0.05} max={3} step={0.05} value={minGap} style={{ width: 58 }}
