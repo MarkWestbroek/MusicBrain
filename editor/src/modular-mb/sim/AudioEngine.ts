@@ -418,7 +418,7 @@ export class AudioEngine {
       for (const mi of midiIns) {
         mi.currentMidi = midi;
         for (const tgt of mi.pitchTargets) {
-          const n = this.nodes.get(tgt);
+          const n = this.nodes.get(voiceModuleId(tgt));
           if (n?.kind === 'vco') {
             const off = readKnob(n.controls, 'coarse', 0) + readKnob(n.controls, 'fine', 0) / 100;
             n.osc.frequency.rampTo(midiToHz(midi + off), 0.005);
@@ -427,19 +427,19 @@ export class AudioEngine {
           }
         }
         for (const tgt of mi.gateTargets) {
-          const n = this.nodes.get(tgt);
+          const n = this.nodes.get(voiceModuleId(tgt));
           if (n?.kind === 'envelope') n.env.triggerAttack();
           else if (n?.kind === 'wasm') this.wasmNoteOn(tgt, midi, velocity, wasmDone);
         }
         // Velocity → CvMath-factor (mult-mode): bepaalt de VCA-amplitude per noot.
         for (const tgt of mi.velTargets) {
-          const cm = this.nodes.get(tgt);
+          const cm = this.nodes.get(voiceModuleId(tgt));
           // Spiegelt firmware-mult: factor = velocity × gain_b.
           if (cm?.kind === 'cvmath' && cm.mult) cm.mult.factor.rampTo(clamp(velocity, 0, 1) * cm.gainB, 0.005);
-          else if (cm?.kind === 'wasm') { const p = wasmVelPort(cm.runtime); if (p) cm.runtime.setInput(p, clamp(velocity, 0, 1)); }
+          else if (cm?.kind === 'wasm') { const p = wasmVelPort(cm.runtime, voiceSuffix(tgt)); if (p) cm.runtime.setInput(p, clamp(velocity, 0, 1)); }
         }
         for (const tgt of mi.seqVoctTargets) {
-          const seq = this.nodes.get(tgt);
+          const seq = this.nodes.get(voiceModuleId(tgt));
           if (seq?.kind !== 'sequencer') continue;
           seq.extVoctMidi = midi;
           if (seq.runMode === 1) {
@@ -454,14 +454,14 @@ export class AudioEngine {
           }
         }
         for (const tgt of mi.seqRunTargets) {
-          const seq = this.nodes.get(tgt);
+          const seq = this.nodes.get(voiceModuleId(tgt));
           if (seq?.kind !== 'sequencer') continue;
           const wasActive = seq.extGateActive;
           seq.extGateActive = true;
           if (seq.runMode === 1) {
             // Off / passthrough: gate-on → trigger seq.gate_out targets.
             for (const gTgt of seq.gateTargets) {
-              const env = this.nodes.get(gTgt);
+              const env = this.nodes.get(voiceModuleId(gTgt));
               if (env?.kind === 'envelope') env.env.triggerAttack();
             }
           } else if (seq.runMode === 2 && !wasActive) {
@@ -493,41 +493,57 @@ export class AudioEngine {
 
   noteOff(midi: number): void {
     if (this.status.lastNote?.midi === midi) this.status.lastNote = { ...this.status.lastNote, on: false };
-    if (this.currentKeyboardNote !== midi) return;
-    // MIDI-In dispatch.
+
+    // Wasm-stemmen eerst, en zonder de mono-bewaking hieronder: die kijkt
+    // naar de láátste toets en zou bij een akkoord alle eerdere noten laten
+    // hangen. De stemtoewijzer weet zelf welke stem deze noot vasthoudt.
+    let wasmViaMidiIn = false;
+    for (const node of this.nodes.values()) {
+      if (node.kind !== 'midiin') continue;
+      for (const tgt of node.gateTargets) {
+        const n = this.nodes.get(voiceModuleId(tgt));
+        if (n?.kind === 'wasm') { this.wasmNoteOff(tgt, midi); wasmViaMidiIn = true; }
+      }
+    }
+    if (!wasmViaMidiIn) {
+      for (const node of this.nodes.values()) {
+        if (node.kind === 'wasm' && !node.gateDriven && !this.wasmFollowerOf.has(node.moduleId)) this.wasmNoteOff(node.moduleId, midi);
+      }
+    }
+
+    if (this.currentKeyboardNote !== midi) { this.emit(); return; }
+    // MIDI-In dispatch (mono: envelopes, sequencers).
     for (const node of this.nodes.values()) {
       if (node.kind === 'midiin' && node.currentMidi === midi) {
         node.currentMidi = null;
         for (const tgt of node.gateTargets) {
-          const n = this.nodes.get(tgt);
+          const n = this.nodes.get(voiceModuleId(tgt));
           if (n?.kind === 'envelope') n.env.triggerRelease();
-          else if (n?.kind === 'wasm') this.wasmNoteOff(tgt, midi);
         }
         // Forward release to connected sequencers.
         for (const tgt of node.seqRunTargets) {
-          const seq = this.nodes.get(tgt);
+          const seq = this.nodes.get(voiceModuleId(tgt));
           if (seq?.kind !== 'sequencer') continue;
           seq.extGateActive = false;
           if (seq.runMode === 1) {
             for (const gTgt of seq.gateTargets) {
-              const env = this.nodes.get(gTgt);
+              const env = this.nodes.get(voiceModuleId(gTgt));
               if (env?.kind === 'envelope') env.env.triggerRelease();
             }
           } else if (seq.runMode === 2) {
             // Gate mode: gate low → stop sequencer + release any open gate.
             if (seq.intervalId !== null) this.stopSequencer(seq);
             for (const gTgt of seq.gateTargets) {
-              const env = this.nodes.get(gTgt);
+              const env = this.nodes.get(voiceModuleId(gTgt));
               if (env?.kind === 'envelope') env.env.triggerRelease();
             }
           }
         }
       }
     }
-    // Fallback.
+    // Fallback (mono).
     for (const node of this.nodes.values()) {
       if (node.kind === 'envelope' && !node.gateDriven) node.env.triggerRelease();
-      if (node.kind === 'wasm' && !node.gateDriven && !this.wasmFollowerOf.has(node.moduleId)) this.wasmNoteOff(node.moduleId, midi);
     }
     this.currentKeyboardNote = null;
     this.emit();
@@ -1256,7 +1272,7 @@ export class AudioEngine {
         if (!seq.runGate) {
           if (seq.lastNote !== null) {
             for (const tgt of seq.gateTargets) {
-              const env = this.nodes.get(tgt);
+              const env = this.nodes.get(voiceModuleId(tgt));
               if (env?.kind === 'envelope') env.env.triggerRelease();
             }
             seq.lastNote = null;
@@ -1268,7 +1284,7 @@ export class AudioEngine {
       if (seq.runMode === 2 && !this.shouldRunSeq(seq)) {
         if (seq.lastNote !== null) {
           for (const tgt of seq.gateTargets) {
-            const env = this.nodes.get(tgt);
+            const env = this.nodes.get(voiceModuleId(tgt));
             if (env?.kind === 'envelope') env.env.triggerRelease();
           }
           seq.lastNote = null;
@@ -1290,7 +1306,7 @@ export class AudioEngine {
       // Release previous gate (note off on connected envelopes).
       if (seq.lastNote !== null) {
         for (const tgt of seq.gateTargets) {
-          const env = this.nodes.get(tgt);
+          const env = this.nodes.get(voiceModuleId(tgt));
           if (env?.kind === 'envelope') env.env.triggerRelease();
         }
         seq.lastNote = null;
@@ -1313,7 +1329,7 @@ export class AudioEngine {
       const seqDone = new Set<string>();
       // Drive CV targets (VCO voct inputs, wasm-modules).
       for (const tgt of seq.cvTargets) {
-        const n = this.nodes.get(tgt);
+        const n = this.nodes.get(voiceModuleId(tgt));
         if (n?.kind === 'vco') {
           const offset = readKnob(n.controls, 'coarse', 0) + readKnob(n.controls, 'fine', 0) / 100;
           n.osc.frequency.rampTo(midiToHz(note + offset), 0.005);
@@ -1323,13 +1339,13 @@ export class AudioEngine {
       }
       // Trigger gate targets (envelopes, wasm-gates) — gehouden gate (gateRatio).
       for (const tgt of seq.gateTargets) {
-        const env = this.nodes.get(tgt);
+        const env = this.nodes.get(voiceModuleId(tgt));
         if (env?.kind === 'envelope') env.env.triggerAttack();
         else if (env?.kind === 'wasm') this.wasmNoteOn(env.moduleId, note, 0.8, seqDone);
       }
       // Trig-out: korte puls per step (drum-trigger), onafhankelijk van gateRatio.
       for (const tgt of seq.trigTargets) {
-        const env = this.nodes.get(tgt);
+        const env = this.nodes.get(voiceModuleId(tgt));
         if (env?.kind === 'envelope') {
           env.env.triggerAttackRelease(0.005);
         } else if (env?.kind === 'wasm') {
@@ -1343,7 +1359,7 @@ export class AudioEngine {
       // Schedule note-off at gateRatio of the step.
       window.setTimeout(() => {
         for (const tgt of seq.gateTargets) {
-          const env = this.nodes.get(tgt);
+          const env = this.nodes.get(voiceModuleId(tgt));
           if (env?.kind === 'envelope' && seq.lastNote === note) env.env.triggerRelease();
           else if (env?.kind === 'wasm' && seq.lastNote === note) this.wasmNoteOff(env.moduleId, note);
         }
