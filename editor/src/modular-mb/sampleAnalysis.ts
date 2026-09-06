@@ -288,6 +288,77 @@ export function enforceAscending(
 export function hzToMidi(hz: number, tuningHz = 440): number {
   return 69 + 12 * Math.log2(hz / tuningHz);
 }
+/**
+ * Toonhoogte als de **sterkste partiaal** — voor klokken, bellen en
+ * klankschalen. YIN zoekt een periode, en bij inharmonisch materiaal is dat
+ * vaak een gemeenschappelijke subharmonische van een paar partialen: een
+ * octaaf of meer onder wat je hoort. Bij een kleine bel of een klankschaal
+ * is de toon die je hoort domweg de luidste piek in het spectrum; die meten
+ * we hier met een FFT vlak na de aanslag en een parabolische verfijning.
+ * `confidence` is de voorsprong van die piek op de op-één-na sterkste
+ * (1,0 bij ≥ 20 dB).
+ */
+export function detectPeakPitch(
+  mono: Float32Array, sr: number, from: number, to: number,
+  minHz = 60, maxHz = 8000, tuningHz = 440,
+): PitchResult {
+  const n = 32768;
+  const start = from + Math.min(Math.round(0.08 * sr), Math.round((to - from) * 0.15));
+  if (start + 1024 > mono.length) return { hz: 0, midi: -1, cents: 0, confidence: 0 };
+  const re = new Float64Array(n), im = new Float64Array(n);
+  const avail = Math.min(n, mono.length - start);
+  for (let i = 0; i < avail; i++) re[i] = mono[start + i]! * (0.5 - 0.5 * Math.cos((2 * Math.PI * i) / avail));
+  fftInPlace(re, im);
+  const mag = new Float64Array(n >> 1);
+  for (let k = 0; k < (n >> 1); k++) mag[k] = Math.hypot(re[k]!, im[k]!);
+  const kMin = Math.max(2, Math.floor((minHz * n) / sr)), kMax = Math.min((n >> 1) - 2, Math.ceil((maxHz * n) / sr));
+  let best = -1, bestM = 0;
+  for (let k = kMin; k <= kMax; k++) {
+    const m = mag[k]!;
+    if (m > mag[k - 1]! && m >= mag[k + 1]!) { if (m > bestM) { bestM = m; best = k; } }
+  }
+  if (best < 0 || bestM <= 0) return { hz: 0, midi: -1, cents: 0, confidence: 0 };
+  // Op-één-na sterkste piek, buiten ±3 % rond de winnaar — anders telt de
+  // zijlob van dezelfde piek mee en lijkt elke bel onzeker.
+  let second = 0;
+  for (let k = kMin; k <= kMax; k++) {
+    const m = mag[k]!;
+    if (m > mag[k - 1]! && m >= mag[k + 1]! && Math.abs(k - best) > best * 0.03 && m > second) second = m;
+  }
+  // Parabolische interpolatie rond de piek — anders zit je aan de bin-resolutie vast (1,3 Hz bij 44,1 kHz).
+  const a = mag[best - 1]!, b = bestM, c = mag[best + 1]!;
+  const delta = (a - c) / (2 * (a - 2 * b + c) || 1);
+  const hz = ((best + (Number.isFinite(delta) ? delta : 0)) * sr) / n;
+  const m = hzToMidi(hz, tuningHz);
+  const midi = Math.round(m);
+  const leadDb = second > 0 ? 20 * Math.log10(bestM / second) : 60;
+  return { hz, midi, cents: (m - midi) * 100, confidence: Math.max(0, Math.min(1, leadDb / 20)) };
+}
+
+function fftInPlace(re: Float64Array, im: Float64Array): void {
+  const n = re.length;
+  for (let i = 1, j = 0; i < n; i++) {
+    let bit = n >> 1;
+    for (; j & bit; bit >>= 1) j ^= bit;
+    j ^= bit;
+    if (i < j) { [re[i], re[j]] = [re[j]!, re[i]!]; [im[i], im[j]] = [im[j]!, im[i]!]; }
+  }
+  for (let len = 2; len <= n; len <<= 1) {
+    const ang = (-2 * Math.PI) / len, wr = Math.cos(ang), wi = Math.sin(ang);
+    for (let i = 0; i < n; i += len) {
+      let cr = 1, ci = 0;
+      for (let j = 0; j < len / 2; j++) {
+        const ur = re[i + j]!, ui = im[i + j]!;
+        const xr = re[i + j + len / 2]!, xi = im[i + j + len / 2]!;
+        const vr = xr * cr - xi * ci, vi = xr * ci + xi * cr;
+        re[i + j] = ur + vr; im[i + j] = ui + vi;
+        re[i + j + len / 2] = ur - vr; im[i + j + len / 2] = ui - vi;
+        const nr = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = nr;
+      }
+    }
+  }
+}
+
 /** MIDI-noot → frequentie bij stemreferentie `tuningHz`. */
 export function midiToHz(midi: number, tuningHz = 440): number {
   return tuningHz * Math.pow(2, (midi - 69) / 12);

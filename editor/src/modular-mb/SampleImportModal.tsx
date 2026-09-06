@@ -11,7 +11,7 @@
 // dit bestand is de UI eromheen.
 import { useEffect, useRef, useState } from 'react';
 import {
-  segmentRecording, detectPitch, measureDecay, findLoop, bakeCrossfade,
+  segmentRecording, detectPitch, detectPeakPitch, measureDecay, findLoop, bakeCrossfade,
   assignVelocityLayers, spreadKeyRanges, enforceAscending, toMono,
   parseNoteList, applyExpectedNotes, midiToHz, refinePitchNear, safeTuneCents,
   type Segment, type PitchResult,
@@ -46,6 +46,8 @@ export function SampleImportModal({ open, onClose }: { open: boolean; onClose: (
   // noot is dit de enige plek waar zacht en hard vandaan kunnen komen.
   const [velTrackDb, setVelTrackDb] = useState(24);
   const [velTrackTouched, setVelTrackTouched] = useState(false);
+  // Klok/bel: toonhoogte = sterkste partiaal in plaats van YIN's periode.
+  const [peakMode, setPeakMode] = useState(false);
   const [minGap, setMinGap] = useState(0.35);
   const [ascending, setAscending] = useState(true);
   const [expected, setExpected] = useState('');
@@ -177,7 +179,8 @@ export function SampleImportModal({ open, onClose }: { open: boolean; onClose: (
 
     const items = segs.map((s) => ({
       segment: s,
-      pitch: detectPitch(audio.mono, audio.rate, s.start, s.end, 25, 2200, tuningHz),
+      pitch: peakMode ? detectPeakPitch(audio.mono, audio.rate, s.start, s.end, 60, 8000, tuningHz)
+                      : detectPitch(audio.mono, audio.rate, s.start, s.end, 25, 2200, tuningHz),
     }));
     let midis = items.map((it) => it.pitch.midi);
     let fixed = 0;
@@ -397,6 +400,8 @@ export function SampleImportModal({ open, onClose }: { open: boolean; onClose: (
             onChange={(e) => setMinGap(Number(e.target.value))} /> s</label>
           <label><input type="checkbox" checked={ascending} onChange={(e) => setAscending(e.target.checked)}
             disabled={parseNoteList(expected).length > 0} /> oplopend gespeeld</label>
+          <label title="Toonhoogte = de luidste piek in het spectrum, niet YIN's periode. Voor bellen, klokken en klankschalen: YIN vindt daar vaak een subharmonische, een octaaf of meer onder wat je hoort.">
+            <input type="checkbox" checked={peakMode} onChange={(e) => setPeakMode(e.target.checked)} /> klok/bel</label>
           <button onClick={analyse} disabled={!audio} className="primary">Analyseren</button>
           <button onClick={searchLoops} disabled={!rows.length}>Loops zoeken</button>
         </div>
