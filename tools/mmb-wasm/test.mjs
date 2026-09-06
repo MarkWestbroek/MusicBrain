@@ -88,7 +88,8 @@ for (const f of files) {
     const p = m.ex.mmb_blob_ptr(0, i16.byteLength);
     new Uint8Array(m.ex.memory.buffer).set(new Uint8Array(i16.buffer), p);
     m.ex.mmb_blob_commit(0, n, 44100, 2);
-    m.ex.mmb_zone_set(0, 0, 0, 127, 1, 127, 60, 0, 1, 0, 2, 0, n - 1, 0, 0.1);
+    //   idx slot low/highKey low/highVel root tune gain pan loop start/end decay release velTrack attack
+    m.ex.mmb_zone_set(0, 0, 0, 127, 1, 127, 60, 0, 1, 0, 2, 0, n - 1, 0, 0.1, 0, 0);
     m.ex.mmb_zone_count(1);
     m.setIn('voct_1', 1); m.setIn('vel_1', 0.9);
     script = (s) => m.setIn('gate_1', s < 1.5 ? 1 : 0);

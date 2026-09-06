@@ -16,6 +16,9 @@ export interface WasmZone {
   decay: number; release: number;
   /** dB velocity-tracking binnen de zone; 0 = uit (niveau komt uit het sample). */
   velTrack?: number;
+  /** s opkomst uit de bank; 0 = de inzet zit in het sample. Telt op bij de
+   *  `attack`-control van de module. */
+  attack?: number;
 }
 import type { ModuleInstance, ModuleType, ControlValue } from '../../types';
 import { AudioModule } from '../AudioModule';

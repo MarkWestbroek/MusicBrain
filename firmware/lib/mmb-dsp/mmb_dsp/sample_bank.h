@@ -16,12 +16,12 @@
  * Layout (little-endian, alles 4-byte uitgelijnd):
  *
  *     char     magic[4]   "MMBS"  (samplebank; laatste letter = extensie)
- *     uint32   version    1
+ *     uint32   version    2  (1 leest nog: zones van 40 i.p.v. 44 bytes)
  *     uint32   numSlots
  *     uint32   numZones
  *     char     name[28]   bank-naam (nul-getermineerd; 27 tekens + nul)
  *     SlotHdr  slots[numSlots]     (16 bytes elk)
- *     ZoneRec  zones[numZones]     (40 bytes elk)
+ *     ZoneRec  zones[numZones]     (44 bytes elk; v1 = 40, zonder `attack`)
  *     int16    data[...]           alle samples achter elkaar, interleaved
  *
  * De offsets in `SlotHdr` zijn in **frames vanaf het begin van het datablok**;
@@ -30,12 +30,14 @@
  * naar PSRAM, dan wijzen `SampleSlot::data` in dat blok.
  */
 
+#include <cstddef>
 #include <cstdint>
 
 namespace mmb_dsp {
 
 constexpr uint32_t kSampleBankMagic = 0x53424D4Du;   ///< 'MMBS' little-endian
-constexpr uint32_t kBankVersion = 1;
+constexpr uint32_t kBankVersion = 2;      ///< 2 = `ZoneRecord` met attack
+constexpr uint32_t kBankVersionMin = 1;   ///< 1 leest nog (40-byte zones)
 
 #pragma pack(push, 1)
 
@@ -55,7 +57,8 @@ struct SlotHeader {
     float    rate;
 };                          // 16 bytes
 
-struct ZoneRecord {
+/** Zone zoals versie 1 hem schreef; de eerste 40 bytes van `ZoneRecord`. */
+struct ZoneRecordV1 {
     uint16_t slot;
     uint8_t  lowKey, highKey;
     uint8_t  lowVel, highVel;
@@ -72,10 +75,30 @@ struct ZoneRecord {
     float    release;
 };                          // 40 bytes
 
+struct ZoneRecord {
+    uint16_t slot;
+    uint8_t  lowKey, highKey;
+    uint8_t  lowVel, highVel;
+    uint8_t  loopMode;
+    uint8_t  velTrack;
+    float    root;
+    float    tuneCents;
+    float    gain;
+    float    pan;
+    uint32_t loopStart;
+    uint32_t loopEnd;
+    float    decay;
+    float    release;
+    float    attack;     ///< s opkomst (v2); 0 = de inzet zit in het sample
+};                          // 44 bytes
+
 #pragma pack(pop)
 
 static_assert(sizeof(BankHeader) == 44, "BankHeader layout");
 static_assert(sizeof(SlotHeader) == 16, "SlotHeader layout");
-static_assert(sizeof(ZoneRecord) == 40, "ZoneRecord layout");
+static_assert(sizeof(ZoneRecordV1) == 40, "ZoneRecordV1 layout");
+static_assert(sizeof(ZoneRecord) == 44, "ZoneRecord layout");
+static_assert(offsetof(ZoneRecord, release) == offsetof(ZoneRecordV1, release),
+              "v2 moet v1 als voorvoegsel houden");
 
 }  // namespace mmb_dsp

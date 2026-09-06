@@ -15,6 +15,11 @@
 
 import type { WasmZone } from './runtime';
 
+/** Wat we schrijven; `parseBank` leest 1 (40-byte zones) en 2 (44) allebei. */
+export const kBankVersion = 2;
+const kZoneRecord = 44;
+const kZoneRecordV1 = 40;
+
 export interface BankSlot {
   /** Interleaved int16, `channels` waarden per frame. */
   data: Int16Array;
@@ -26,7 +31,7 @@ export interface BankSlot {
 export function buildBank(name: string, slots: BankSlot[], zones: WasmZone[]): ArrayBuffer {
   const headerSize = 44;
   const slotTable = 16 * slots.length;
-  const zoneTable = 40 * zones.length;
+  const zoneTable = kZoneRecord * zones.length;
   const dataSamples = slots.reduce((s, x) => s + x.data.length, 0);
   const buf = new ArrayBuffer(headerSize + slotTable + zoneTable + dataSamples * 2);
   const dv = new DataView(buf);
@@ -34,7 +39,7 @@ export function buildBank(name: string, slots: BankSlot[], zones: WasmZone[]): A
 
   // ── header ──
   bytes.set([0x4d, 0x4d, 0x42, 0x53], 0);           // "MMBS" — samplebank
-  dv.setUint32(4, 1, true);                          // versie
+  dv.setUint32(4, kBankVersion, true);               // versie
   dv.setUint32(8, slots.length, true);
   dv.setUint32(12, zones.length, true);
   // Naamveld is 28 bytes (16..43): 27 tekens plus de afsluitende nul. Langer
@@ -70,7 +75,8 @@ export function buildBank(name: string, slots: BankSlot[], zones: WasmZone[]): A
     dv.setUint32(off + 28, z.loopEnd, true);
     dv.setFloat32(off + 32, z.decay, true);
     dv.setFloat32(off + 36, z.release, true);
-    off += 40;
+    dv.setFloat32(off + 40, Math.max(0, z.attack ?? 0), true);   // v2
+    off += kZoneRecord;
   }
 
   // ── sampledata ──
@@ -104,7 +110,10 @@ export function parseBank(buf: ArrayBuffer): { name: string; slots: BankSlot[]; 
   const magic = String.fromCharCode(...bytes.subarray(0, 4));
   if (magic !== 'MMBS') throw new Error(`geen samplebank (magic "${magic}", verwacht "MMBS")`);
   const version = dv.getUint32(4, true);
-  if (version !== 1) throw new Error(`bankversie ${version} wordt niet ondersteund`);
+  if (version !== 1 && version !== 2) throw new Error(`bankversie ${version} wordt niet ondersteund`);
+  // v1 heeft geen `attack` en dus zones van 40 in plaats van 44 bytes; de
+  // eerste 40 zijn in beide versies hetzelfde.
+  const zoneRecord = version >= 2 ? kZoneRecord : kZoneRecordV1;
   const slotCount = dv.getUint32(8, true);
   const zoneCount = dv.getUint32(12, true);
   const nameEnd = bytes.subarray(16, 44).indexOf(0);
@@ -137,8 +146,9 @@ export function parseBank(buf: ArrayBuffer): { name: string; slots: BankSlot[]; 
       loopEnd:   dv.getUint32(off + 28, true),
       decay:     dv.getFloat32(off + 32, true),
       release:   dv.getFloat32(off + 36, true),
+      attack:    version >= 2 ? dv.getFloat32(off + 40, true) : 0,
     });
-    off += 40;
+    off += zoneRecord;
   }
 
   // Per slot rechtstreeks uit het bestand kopiëren; één tussenkopie van het

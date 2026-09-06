@@ -246,11 +246,11 @@ node tools/mmb-wasm/sf2-to-mmbs.mjs piano.sf2 "grand" uit.mmbs --vel-layers=2
 
 Preset- en instrument-zones worden platgevouwen (de preset-laag is een
 *offset* op de instrument-laag), bereiken snijden, en key-range, velocity-range,
-root, stemming, pan, gain en loop-punten gaan één op één mee. Wat we niet
-overnemen: filter, LFO's, modulatoren en de volledige volume-envelope — het
-sample draagt zijn eigen uitsterving.
+root, stemming, pan, gain en loop-punten gaan één op één mee, en sinds
+bankversie 2 ook de volume-envelope: `attack`, en `hold`/`decay`/`sustain` +
+`release` (zie hieronder). Wat we niet overnemen: filter, LFO's en modulatoren.
 
-Twee dingen die deze route aan het licht bracht:
+Drie dingen die deze route aan het licht bracht:
 
 - **SF2 laat de dynamiek aan een modulator over.** Alle lagen staan op gain
   1,0; dat velocity het volume stuurt regelt een *default modulator* die wij
@@ -260,6 +260,24 @@ Twee dingen die deze route aan het licht bracht:
   Het zat in het padding-byte van `ZoneRecord`, dus het bankformaat blijft 40
   bytes per zone en oudere banken lezen als 0 — wat voor een opname met genoeg
   lagen ook precies goed is.
+- **Een loop zonder envelope dreunt door.** Een SF2 laat een sample vaak
+  eeuwig loopen en laat de *volume-envelope* het einde maken: na `hold` zakt
+  hij in `decay` seconden naar `sustain`. Namen we die niet over, dan bleef
+  een marimba of Rhodes staan tot je de toets losliet — de loop had immers
+  geen einde en onze `decay` stond op 0. Nu rekent de import uit wanneer die
+  SF2-kromme op −60 dB staat en zet `decay` daarop; bij een `sustain` van
+  vrijwel 0 dB (orgel, pad, koor) blijft `decay` 0, want dan hóórt de toon
+  aan te houden. Een zone die niet loopt houdt `decay = 0`: daar draagt het
+  sample zijn eigen uitsterving en zou een extra kromme dubbelop zijn.
+- **Een pad zet zijn opkomst niet in het sample.** De Warm Pad van
+  GeneralUser wil 0,8 s zwellen en het koor 0,1–0,6 s; dat staat in
+  `attackVolEnv`, niet in de opname. Daarvoor heeft een zone er een veld bij
+  (`attack`, seconden) en ging de bank naar **versie 2**: `ZoneRecord` is 44
+  bytes in plaats van 40. Versie 1 leest gewoon door — de eerste 40 bytes zijn
+  ongewijzigd en `attack` wordt dan 0. Andersom niet: een v2-bank op oude
+  firmware wordt geweigerd, dus banken die op de SD staan opnieuw wegschrijven.
+  De `attack`-control van de module telt bij die van de zone op, zodat de knop
+  blijft doen wat hij deed.
 - **Grootte.** De YDP-vleugel (FreePats, CC0) is 121 samples in 150 zones:
   113 MB. In de browser geen probleem, in 8 MB PSRAM onmogelijk. `--vel-layers`
   dunt de lagen uit; de tool waarschuwt zodra een bank niet meer op hardware
@@ -267,5 +285,7 @@ Twee dingen die deze route aan het licht bracht:
   firmware houdt zijn eigen limieten.
 
 Let op de licentie van de SoundFont die je omzet: vrij te gebruiken betekent
-niet vrij te herdistribueren. Een omgezette bank is een afgeleide en hoort
-daarom niet in deze repo — `editor/public/banks/` staat in `.gitignore`.
+niet vrij te herdistribueren. Grote banken en afgeleiden van bronnen die dat
+niet toestaan horen niet in deze repo: `editor/public/banks/` staat in
+`.gitignore`, met een uitzondering voor de kleine banken die er wél in mogen
+(zie [`editor/public/banks/README.md`](../editor/public/banks/README.md)).

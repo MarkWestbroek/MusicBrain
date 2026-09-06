@@ -131,7 +131,7 @@ MMB_EXPORT(mmb_zone_set) void mmb_zone_set(
     int idx, int slot, int lowKey, int highKey, int lowVel, int highVel,
     float root, float tuneCents, float gain, float pan,
     int loopMode, int loopStart, int loopEnd, float decay, float release,
-    int velTrack) {
+    int velTrack, float attack) {
     if (idx < 0 || idx >= kZones) return;
     mmb_dsp::Zone& z = g_zones[idx];
     z.slot = static_cast<uint8_t>(slot);
@@ -142,6 +142,8 @@ MMB_EXPORT(mmb_zone_set) void mmb_zone_set(
     z.loopStart = loopStart; z.loopEnd = loopEnd;
     z.decay = decay; z.release = release;
     z.velTrack = static_cast<uint8_t>(velTrack < 0 ? 0 : (velTrack > 127 ? 127 : velTrack));
+    // Oudere aanroepers laten `attack` weg; die komt dan als NaN binnen.
+    z.attack = attack > 0.0f ? attack : 0.0f;
 }
 MMB_EXPORT(mmb_zone_count) void mmb_zone_count(int n) {
     g_numZones = n < 0 ? 0 : (n > kZones ? kZones : n);

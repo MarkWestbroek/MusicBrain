@@ -34,7 +34,8 @@
  * multikabel env_k → cutoff_k in de patcher.
  * | out | `out_l` `out_r` `out_3` `out_4` | Audio | mono → L+R, stereo → 1/2, quad → 1–4 |
  * Controls: `bank` (0–15), `coarse` (semi), `fine` (ct), `start` (0..1),
- * `attack` (ms), `level` (0..1).
+ * `attack` (ms; telt op bij de opkomst die de zone zelf meebrengt),
+ * `level` (0..1).
  */
 
 #include "AudioModule.h"
@@ -95,7 +96,8 @@ public:
 
         mmb_dsp::BankHeader h{};
         if (f.read(reinterpret_cast<uint8_t*>(&h), sizeof(h)) != sizeof(h)
-            || std::memcmp(h.magic, "MMBS", 4) != 0 || h.version != mmb_dsp::kBankVersion
+            || std::memcmp(h.magic, "MMBS", 4) != 0
+            || h.version < mmb_dsp::kBankVersionMin || h.version > mmb_dsp::kBankVersion
             || h.numSlots == 0 || h.numSlots > kMaxSlots || h.numZones > kMaxZones) {
             Serial.printf("[sampler] %s: ongeldige bank\n", path);
             f.close();
@@ -106,9 +108,14 @@ public:
         mmb_dsp::SlotHeader sh[kMaxSlots];
         if (f.read(reinterpret_cast<uint8_t*>(sh), sizeof(mmb_dsp::SlotHeader) * h.numSlots)
             != static_cast<int>(sizeof(mmb_dsp::SlotHeader) * h.numSlots)) { f.close(); return false; }
-        mmb_dsp::ZoneRecord zr[kMaxZones];
-        if (h.numZones && f.read(reinterpret_cast<uint8_t*>(zr), sizeof(mmb_dsp::ZoneRecord) * h.numZones)
-            != static_cast<int>(sizeof(mmb_dsp::ZoneRecord) * h.numZones)) { f.close(); return false; }
+        // Zone-records: v1 is 40 bytes, v2 44 (`attack` erbij). De eerste 40
+        // zijn identiek, dus we lezen ze als bytes en lopen er met de juiste
+        // stap doorheen — één buffer, beide versies.
+        const size_t zrSize = h.version >= 2 ? sizeof(mmb_dsp::ZoneRecord)
+                                             : sizeof(mmb_dsp::ZoneRecordV1);
+        alignas(4) uint8_t zbuf[kMaxZones * sizeof(mmb_dsp::ZoneRecord)];
+        if (h.numZones && f.read(zbuf, zrSize * h.numZones)
+            != static_cast<int>(zrSize * h.numZones)) { f.close(); return false; }
 
         // Sampledata: één blok in PSRAM.
         uint32_t totalFrames = 0, totalSamples = 0;
@@ -137,17 +144,22 @@ public:
             sampleOffset += sh[i].frames * sh[i].channels;
         }
         for (uint32_t i = 0; i < h.numZones; ++i) {
+            const uint8_t* rec = zbuf + static_cast<size_t>(i) * zrSize;
+            const mmb_dsp::ZoneRecordV1& zr =
+                *reinterpret_cast<const mmb_dsp::ZoneRecordV1*>(rec);
             mmb_dsp::Zone& z = zones_[i];
-            z.slot = static_cast<uint8_t>(zr[i].slot);
-            z.lowKey = zr[i].lowKey; z.highKey = zr[i].highKey;
-            z.lowVel = zr[i].lowVel; z.highVel = zr[i].highVel;
-            z.root = zr[i].root; z.tuneCents = zr[i].tuneCents;
-            z.gain = zr[i].gain; z.pan = zr[i].pan;
-            z.loopMode = zr[i].loopMode;
-            z.velTrack = zr[i].velTrack;
-            z.loopStart = static_cast<int>(zr[i].loopStart);
-            z.loopEnd = static_cast<int>(zr[i].loopEnd);
-            z.decay = zr[i].decay; z.release = zr[i].release;
+            z.slot = static_cast<uint8_t>(zr.slot);
+            z.lowKey = zr.lowKey; z.highKey = zr.highKey;
+            z.lowVel = zr.lowVel; z.highVel = zr.highVel;
+            z.root = zr.root; z.tuneCents = zr.tuneCents;
+            z.gain = zr.gain; z.pan = zr.pan;
+            z.loopMode = zr.loopMode;
+            z.velTrack = zr.velTrack;
+            z.loopStart = static_cast<int>(zr.loopStart);
+            z.loopEnd = static_cast<int>(zr.loopEnd);
+            z.decay = zr.decay; z.release = zr.release;
+            z.attack = h.version >= 2
+                ? reinterpret_cast<const mmb_dsp::ZoneRecord*>(rec)->attack : 0.0f;
         }
         numSlots_ = static_cast<int>(h.numSlots);
         numZones_ = static_cast<int>(h.numZones);

@@ -17,10 +17,10 @@
 // snijden en de meeste generatoren tellen op. Dat vouwen we hier plat tot
 // één lijst zones, want dat is wat `mmb_dsp::SamplePlayer` leest.
 //
-// Wat we *niet* overnemen: filter, LFO's, modulatoren en de volledige
-// volume-envelope. Onze sampler heeft geen filter per zone, en het sample
-// draagt zijn eigen uitsterving (`decay = 0`); alleen de release nemen we
-// mee, want die hoor je bij het loslaten.
+// Van de volume-envelope nemen we hold/decay/sustain en release mee: een
+// loopend sample heeft geen einde, dus zonder dat verloop blijft een marimba
+// of Rhodes eeuwig staan (zie `volEnvDecay`). Wat we *niet* overnemen: filter,
+// LFO's en modulatoren.
 import type { WasmZone } from './runtime';
 import type { BankSlot } from './sampleBank';
 
@@ -30,7 +30,8 @@ const GEN = {
   startloopAddrsOffset: 2, endloopAddrsOffset: 3,
   startAddrsCoarseOffset: 4, endAddrsCoarseOffset: 12,
   startloopAddrsCoarseOffset: 45, endloopAddrsCoarseOffset: 50,
-  pan: 17, releaseVolEnv: 38,
+  pan: 17,
+  attackVolEnv: 34, holdVolEnv: 35, decayVolEnv: 36, sustainVolEnv: 37, releaseVolEnv: 38,
   instrument: 41, keyRange: 43, velRange: 44,
   initialAttenuation: 48, coarseTune: 51, fineTune: 52,
   sampleID: 53, sampleModes: 54, scaleTuning: 56, overridingRootKey: 58,
@@ -207,6 +208,34 @@ const intersect = (a: [number, number], b: [number, number]): [number, number] =
 /** Timecents → seconden (SF2's tijdmaat: 1200 tc = ×2). */
 const timecents = (tc: number): number => (tc <= -12000 ? 0 : Math.pow(2, tc / 1200));
 
+/**
+ * SF2's hold/decay/sustain → onze ene `decay` (seconden tot −60 dB).
+ *
+ * Een SF2 laat een *loopend* sample eeuwig doorlopen en laat de volume-
+ * envelope het einde maken: na `hold` zakt hij in `decay` seconden naar
+ * `sustain` (een demping in dB) en blijft daar staan. Onze speler heeft geen
+ * sustain-niveau, alleen één exponentiële uitsterving — dus rekenen we uit
+ * wanneer die kromme op −60 dB zou staan en zetten `decay` daarop.
+ *
+ * Twee gevallen die er echt toe doen:
+ *  - `sustain` bijna 0 dB (orgel, pad, koor): de toon blijft staan → 0, het
+ *    sample loopt door tot note-off, precies als in de SoundFont.
+ *  - diepe `sustain` (marimba, harp, Rhodes): de toon sterft uit → wij leggen
+ *    er dezelfde uitstervingstijd overheen. Zonder dit *dreunt de loop door*,
+ *    want ons `decay` stond op 0 en het sample loopt eeuwig.
+ *
+ * Wat we niet nabouwen: het knikpunt op het sustain-niveau (onze kromme zakt
+ * gestaag door) en `keynumToVolEnvHold/Decay`, waarmee sommige banken de
+ * uitsterving per toets korter maken — die banken splitsen meestal toch al
+ * per toetsgroep, en dan zit het verschil al in de zones.
+ */
+function volEnvDecay(holdS: number, decayS: number, sustainDb: number): number {
+  if (sustainDb < 3) return 0;               // blijft staan; loop doet het werk
+  const t60 = holdS + decayS * (60 / sustainDb);
+  if (t60 > 40) return 0;                    // zo traag dat je het niet hoort
+  return Math.max(0.05, t60);
+}
+
 export interface Sf2BankOptions {
   /** Zones buiten dit key-bereik weglaten (bv. om drumkits te snoeien). */
   keyRange?: [number, number];
@@ -269,7 +298,12 @@ export function sf2ToBank(
     const pPan  = merged.get(GEN.pan)?.amount ?? 0;
     const pCoarse = merged.get(GEN.coarseTune)?.amount ?? 0;
     const pFine   = merged.get(GEN.fineTune)?.amount ?? 0;
-    const pRel  = merged.get(GEN.releaseVolEnv)?.amount;
+    // Volume-envelope; de preset-laag is hier een *offset* op de instrument-laag.
+    const pAtk  = merged.get(GEN.attackVolEnv)?.amount ?? 0;
+    const pHold = merged.get(GEN.holdVolEnv)?.amount ?? 0;
+    const pDec  = merged.get(GEN.decayVolEnv)?.amount ?? 0;
+    const pSus  = merged.get(GEN.sustainVolEnv)?.amount ?? 0;
+    const pRel  = merged.get(GEN.releaseVolEnv)?.amount ?? 0;
 
     // ── instrument-zones ──
     const instIdx = instGen.uAmount;
@@ -332,7 +366,16 @@ export function sf2ToBank(
       const pan = (g.get(GEN.pan)?.amount ?? 0) + pPan;                          // ±500 = ±100 %
       const coarse = (g.get(GEN.coarseTune)?.amount ?? 0) + pCoarse;
       const fine   = (g.get(GEN.fineTune)?.amount ?? 0) + pFine;
-      const relTc  = g.get(GEN.releaseVolEnv)?.amount ?? pRel;
+      // Envelope-generatoren: instrumentwaarde (of de SF2-default) plus de
+      // preset-laag als offset (§9.4). Defaults: tijden −12000 tc ≈ 0 s,
+      // sustain 0 cB = geen demping.
+      const env = (op: number, def: number, offset: number): number =>
+        (g.get(op)?.amount ?? def) + offset;
+      const relTc     = env(GEN.releaseVolEnv, -12000, pRel);
+      const attackS   = timecents(env(GEN.attackVolEnv, -12000, pAtk));
+      const holdS     = timecents(env(GEN.holdVolEnv, -12000, pHold));
+      const decayS    = timecents(env(GEN.decayVolEnv, -12000, pDec));
+      const sustainDb = Math.max(0, Math.min(144, env(GEN.sustainVolEnv, 0, pSus) / 10));
 
       zones.push({
         slot,
@@ -345,9 +388,16 @@ export function sf2ToBank(
         loopMode,
         loopStart: loopOk ? loopStart : 0,
         loopEnd: loopOk ? loopEnd : 0,
-        decay: 0,                                   // het sample sterft zelf uit
+        // Loopt de zone niet, dan draagt het sample zijn eigen uitsterving en
+        // blijft `decay` 0; loopt hij wel, dan komt het verloop uit de
+        // volume-envelope — anders dreunt de loop eeuwig door.
+        decay: loopMode === 0 ? 0 : volEnvDecay(holdS, decayS, sustainDb),
+        // Opkomst: een pad of koor zet die in de envelope in plaats van in
+        // het sample. Onder ~5 ms laten we hem 0 — dat is de inzet van het
+        // sample zelf, en de module-control legt er al 1,5 ms overheen.
+        attack: attackS < 0.005 ? 0 : Math.min(10, attackS),
         velTrack: opts.velTrackDb ?? 24,
-        release: relTc === undefined ? 0.12 : Math.min(4, Math.max(0.02, timecents(relTc))),
+        release: Math.min(4, Math.max(0.02, timecents(relTc))),
       });
     }
   }

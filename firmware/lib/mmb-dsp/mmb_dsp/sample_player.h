@@ -24,6 +24,11 @@
  * op, dan draagt het sample zijn eigen verloop en staat `decay` op 0. Loop
  * je (orgel, klankschaal, geheugendruk), dan is de loop stationair en legt
  * `decay` — gemeten uit de opname — het verloop er weer overheen.
+ *
+ * **Attack.** Zelfde gedachte aan de voorkant: een aangeslagen instrument
+ * draagt zijn eigen inzet en houdt `attack` op 0, een pad of koor zet die in
+ * de envelope en geeft de zone een opkomsttijd. De `attack`-control van de
+ * module telt daar bovenop, zodat de knop altijd iets doet.
  */
 
 #include <cmath>
@@ -66,6 +71,16 @@ struct Zone {
     int      loopStart = 0, loopEnd = 0;   ///< frames
     float    decay    = 0.0f;    ///< s tot −60 dB; 0 = sample draagt zijn eigen verloop
     float    release  = 0.08f;   ///< s na note-off
+    /**
+     * Opkomsttijd uit de bank, in seconden; 0 = de aanslag zit al in het
+     * sample. Telt op bij de `attack`-control van de module, zodat die knop
+     * blijft doen wat hij deed: een bank zonder eigen opkomst (alle oude
+     * banken, en elke opname van een aangeslagen instrument) klinkt precies
+     * als voorheen, en de knop kan er altijd nog tijd bovenop leggen.
+     * Nodig voor pads en koren: die zetten hun opkomst niet in het sample maar
+     * in de envelope, en zonder dit veld zetten ze keihard in.
+     */
+    float    attack   = 0.0f;
     /**
      * Velocity-gevoeligheid *binnen* deze zone, in dB tussen aanslag 1 en 127.
      * 0 = uit: het niveau komt volledig uit het sample, wat klopt zodra je
@@ -111,7 +126,8 @@ public:
         reset();
     }
 
-    void setAttackMs(float ms) { attackInc_ = 1.0f / (sr_ * (ms < 0.2f ? 0.2f : ms) * 0.001f); }
+    /** Opkomsttijd van de module-control; de zone telt de zijne erbij op. */
+    void setAttackMs(float ms) { ctlAttackS_ = (ms < 0.2f ? 0.2f : ms) * 0.001f; }
     void set_level(float l)    { level_ = l < 0.0f ? 0.0f : (l > 1.0f ? 1.0f : l); }
     /** Extra transponering bovenop de zone (module-controls coarse/fine). */
     void set_transpose(float semitones) { transpose_ = semitones; }
@@ -180,6 +196,10 @@ public:
         // Gemeten uitsterving: −60 dB in `decay` seconden (0 = sample zelf).
         decayMul_ = zone_->decay > 0.0f
             ? std::exp(-6.907755f / (zone_->decay * sr_)) : 1.0f;
+        // Opkomst: die van de bank plus die van de knop (NaN uit een oude
+        // bank valt door de vergelijking heen en telt dus niet mee).
+        const float atk = ctlAttackS_ + (zone_->attack > 0.0f ? zone_->attack : 0.0f);
+        attackInc_ = 1.0f / (sr_ * (atk < 0.0002f ? 0.0002f : atk));
         releaseInc_ = 1.0f / (sr_ * (zone_->release < 0.005f ? 0.005f : zone_->release));
         gate_ = true;
         active_ = true;
@@ -297,7 +317,7 @@ private:
     int   note_ = -1, vel_ = 100;
     bool  active_ = false, gate_ = false;
 
-    float env_ = 0.0f, attackInc_ = 0.02f, releaseInc_ = 0.01f;
+    float env_ = 0.0f, attackInc_ = 0.02f, releaseInc_ = 0.01f, ctlAttackS_ = 0.0015f;
     float decayGain_ = 1.0f, decayMul_ = 1.0f;
     EnvState envState_ = ENV_IDLE;
 
