@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>MusicBrain Snaarbank</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -26,6 +27,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 
 body {
   margin: 0;
@@ -243,6 +245,36 @@ input[type="range"]::-moz-range-thumb {
 }
 .ctl > label .sel:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (max-width: 860px) { .modgrid { grid-template-columns: 1fr 1fr; } }
+
+/* ---- modulatiepad ---- */
+.padwrap { display: grid; grid-template-columns: 1fr 232px; gap: 18px; }
+#pad {
+  display: block; width: 100%; height: 250px;
+  background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--radius-md);
+  touch-action: none; cursor: crosshair;
+}
+#pad:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.padrow { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; align-items: baseline; }
+.padrow + .padrow { margin-top: 11px; }
+.padrow > .padlabel {
+  font-family: var(--font-mono); font-size: 10px;
+  letter-spacing: 0.13em; text-transform: uppercase; color: var(--muted);
+}
+.padrow > .val { font-family: var(--font-mono); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.padrow > .sel {
+  grid-column: 1 / -1; width: 100%; margin: 3px 0 0;
+  font: 500 10.5px var(--font-mono); letter-spacing: 0.06em;
+  color: var(--foreground); background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 3px 4px; cursor: pointer;
+}
+.padrow > .sel:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.padhint {
+  margin: 0; color: var(--muted); line-height: 1.65;
+  font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.02em;
+}
+@media (max-width: 860px) { .padwrap { grid-template-columns: 1fr; } }
 
 /* ---- klavier ---- */
 .kbpanel {
@@ -531,6 +563,54 @@ input[type="range"]::-moz-range-thumb {
         <input type="range" id="pModOffset" min="0" max="1" step="0.001" value="0.10">
       </div>
     </div>
+  </section>
+
+  <section class="stage padpanel">
+    <div class="stagehead">
+      <p class="eyebrow">Modulatiepad</p>
+      <span class="badge badge--dim" id="padPenBadge" hidden>Pen <b class="val" id="vPen">0.00</b></span>
+      <button class="modebtn fxtoggle" id="padSpring" aria-pressed="true"
+              title="Na loslaten terug naar de waarde van v&oacute;&oacute;r het aanraken">Terugveren</button>
+    </div>
+
+    <div class="padwrap">
+      <canvas id="pad" width="1200" height="500"
+              aria-label="Modulatiepad &mdash; sleep voor X en Y, scroll met twee vingers, pinch"></canvas>
+
+      <div>
+        <div class="padrow">
+          <span class="padlabel">Sleep &mdash; X</span>
+          <span class="val" id="vPadX">0.50</span>
+          <select class="sel" id="padTx" aria-label="Doel van de X-as"></select>
+        </div>
+        <div class="padrow">
+          <span class="padlabel">Sleep &mdash; Y</span>
+          <span class="val" id="vPadY">0.50</span>
+          <select class="sel" id="padTy" aria-label="Doel van de Y-as"></select>
+        </div>
+        <div class="padrow">
+          <span class="padlabel">Twee-vinger scroll</span>
+          <span class="val" id="vPadScroll">0.50</span>
+          <select class="sel" id="padTs" aria-label="Doel van de scroll"></select>
+        </div>
+        <div class="padrow">
+          <span class="padlabel">Pinch</span>
+          <span class="val" id="vPadPinch">0.50</span>
+          <select class="sel" id="padTp" aria-label="Doel van de pinch"></select>
+        </div>
+        <div class="padrow" id="padPenRow" hidden>
+          <span class="padlabel">Pendruk</span>
+          <span class="val" id="vPadPen">0.00</span>
+          <select class="sel" id="padTpen" aria-label="Doel van de pendruk"></select>
+        </div>
+      </div>
+    </div>
+
+    <p class="padhint">
+      Scroll werkt zodra de aanwijzer boven het vlak zweeft, dus zonder klikken en met je
+      andere hand aan het klavier. Op een Wacom in aanraakstand gedraagt de hand zich als
+      een grote trackpad; een pen wordt herkend en voegt dan een drukrij toe.
+    </p>
   </section>
 
   <section class="kbpanel">
@@ -1360,9 +1440,14 @@ Engine.prototype.render = function (outL, outR, n) {
   // -------------------------------------------------------------------------
   // Regelaars
   // -------------------------------------------------------------------------
+  // Elke regelaar meldt zich aan in CTL, zodat het modulatiepad dezelfde
+  // sliders kan aansturen als de muis en de MIDI-CC's.
+  var CTL = {};
+
   function bind(id, key, valId, onDone) {
     var el = document.getElementById(id);
     var out = document.getElementById(valId);
+    CTL[key] = { el: el, out: out };
     el.addEventListener("input", function () {
       P[key] = parseFloat(el.value);
       out.textContent = P[key].toFixed(2);
@@ -1401,6 +1486,245 @@ Engine.prototype.render = function (outL, outR, n) {
   bind("pRevAmt", "revAmt", "vRevAmt");
   bind("pRevTime", "revTime", "vRevTime", buildImpulse);
   bind("pVol", "volume", "vVol");
+
+  // -------------------------------------------------------------------------
+  // Modulatiepad. Vier bronnen (sleep-X, sleep-Y, scroll, pinch) met elk een
+  // vrij te kiezen bestemming. Alles loopt via setParam, zodat de sliders,
+  // de engine en de MIDI-uitgang hetzelfde zien als bij een muisbeweging.
+  // -------------------------------------------------------------------------
+
+  // Alleen doelen die continu mogen bewegen. revTime staat er bewust niet bij:
+  // die bouwt een impulsrespons opnieuw op en is te duur om te slepen.
+  var PAD_TARGETS = [
+    ["", "\u2014 uit \u2014"],
+    ["bright", "Brightness"], ["damp", "Damping"], ["position", "Position"],
+    ["geometry", "Geometry"], ["timbre", "Timbre"], ["shape", "Envelope shape"],
+    ["mallet", "Mallet"], ["model", "Model"],
+    ["echoAmt", "Echo mix"], ["echoTime", "Tape time"],
+    ["echoFb", "Echo feedback"], ["echoWow", "Wow & flutter"],
+    ["revAmt", "Reverb amount"],
+    ["modFreq", "Mod freq"], ["modOffset", "Mod offset"],
+    ["volume", "Volume"]
+  ];
+
+  var lastCcSent = {};
+  function setParam(key, v) {
+    var c = CTL[key];
+    if (!c) return;
+    var lo = parseFloat(c.el.min), hi = parseFloat(c.el.max);
+    v = v < lo ? lo : (v > hi ? hi : v);
+    P[key] = v;
+    c.el.value = v;
+    c.out.textContent = v.toFixed(2);
+    pushParams();
+    applyMix();
+    // Pas versturen als de 7-bits waarde echt verandert; anders overstemt één
+    // veeg de MIDI-uitgang met honderden identieke berichten.
+    if (KEY_TO_CC[key] !== undefined) {
+      var q = Math.round(v * 127);
+      if (lastCcSent[key] !== q) { lastCcSent[key] = q; sendCc(KEY_TO_CC[key], v); }
+    }
+  }
+
+  var padCanvas = document.getElementById("pad");
+  var pg = padCanvas.getContext("2d");
+  var padSel = {
+    x: document.getElementById("padTx"), y: document.getElementById("padTy"),
+    scroll: document.getElementById("padTs"), pinch: document.getElementById("padTp"),
+    pen: document.getElementById("padTpen")
+  };
+  var padOut = {
+    x: document.getElementById("vPadX"), y: document.getElementById("vPadY"),
+    scroll: document.getElementById("vPadScroll"), pinch: document.getElementById("vPadPinch"),
+    pen: document.getElementById("vPadPen")
+  };
+  var padVal = { x: 0.5, y: 0.5, scroll: 0.5, pinch: 0.5, pen: 0 };
+  var padDown = false, padSpringOn = true, padSpringing = false;
+  var padRest = { x: 0.5, y: 0.5 };
+  var padTrail = [];
+
+  function fillTargets(sel, def) {
+    for (var i = 0; i < PAD_TARGETS.length; i++) {
+      var o = document.createElement("option");
+      o.value = PAD_TARGETS[i][0];
+      o.textContent = PAD_TARGETS[i][1];
+      if (PAD_TARGETS[i][0] === def) o.selected = true;
+      sel.appendChild(o);
+    }
+  }
+  fillTargets(padSel.x, "bright");
+  fillTargets(padSel.y, "damp");
+  fillTargets(padSel.scroll, "echoAmt");
+  fillTargets(padSel.pinch, "echoTime");
+  fillTargets(padSel.pen, "");
+
+  function clamp01(v) { return v < 0 ? 0 : (v > 1 ? 1 : v); }
+
+  function padApply(src, v) {
+    padVal[src] = v;
+    padOut[src].textContent = v.toFixed(2);
+    var key = padSel[src].value;
+    if (key) setParam(key, v);
+  }
+
+  // Rustwaarde = wat de bestemming had vóór het aanraken. Loslaten brengt de
+  // klank dus terug naar de patch, niet naar het midden van het vlak.
+  function padCaptureRest() {
+    ["x", "y"].forEach(function (src) {
+      var key = padSel[src].value;
+      padRest[src] = key && CTL[key] ? P[key] : 0.5;
+    });
+  }
+
+  function padFromEvent(e) {
+    var r = padCanvas.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    padApply("x", clamp01((e.clientX - r.left) / r.width));
+    padApply("y", clamp01(1 - (e.clientY - r.top) / r.height));
+    padTrail.push([padVal.x, padVal.y]);
+    if (padTrail.length > 40) padTrail.shift();
+  }
+
+  padCanvas.addEventListener("pointerdown", function (e) {
+    padDown = true; padSpringing = false;
+    padCaptureRest();
+    padTrail.length = 0;
+    try { padCanvas.setPointerCapture(e.pointerId); } catch (err) { /* geen capture nodig */ }
+    padFromEvent(e);
+    e.preventDefault();
+  });
+
+  padCanvas.addEventListener("pointermove", function (e) {
+    if (e.pointerType === "pen") {
+      document.getElementById("padPenRow").hidden = false;
+      document.getElementById("padPenBadge").hidden = false;
+      document.getElementById("vPen").textContent = e.pressure.toFixed(2);
+      padApply("pen", e.pressure);
+    }
+    if (padDown) padFromEvent(e);
+  });
+
+  function padRelease() {
+    if (!padDown) return;
+    padDown = false;
+    if (padSpringOn) padSpringing = true;
+  }
+  padCanvas.addEventListener("pointerup", padRelease);
+  padCanvas.addEventListener("pointercancel", padRelease);
+  padCanvas.addEventListener("pointerleave", function () { if (!padDown) padTrail.length = 0; });
+
+  // Scroll en pinch zijn relatieve bronnen. Bij het begin van een beweging
+  // nemen ze de stand van hun bestemming over, zodat de klank niet springt
+  // omdat de bron ergens anders stond. macOS stuurt tijdens een veeg continu
+  // door en valt daarna stil; een gat van 250 ms markeert dus een nieuwe veeg.
+  var padLastWheel = { scroll: 0, pinch: 0 };
+
+  function padAdopt(src) {
+    var key = padSel[src].value;
+    if (!key || !CTL[key]) return;
+    padVal[src] = P[key];
+    padOut[src].textContent = P[key].toFixed(2);
+  }
+
+  function padWheel(src, delta) {
+    var now = (window.performance && performance.now) ? performance.now() : Date.now();
+    if (now - padLastWheel[src] > 250) padAdopt(src);
+    padLastWheel[src] = now;
+    padApply(src, clamp01(padVal[src] + delta));
+  }
+
+  padSel.scroll.addEventListener("change", function () { padAdopt("scroll"); });
+  padSel.pinch.addEventListener("change", function () { padAdopt("pinch"); });
+  padAdopt("scroll");
+  padAdopt("pinch");
+
+  // deltaY telt omlaag positief, dus omkeren. Vol bereik is ongeveer 400 px
+  // scrollen of een normale knijpbeweging.
+  padCanvas.addEventListener("wheel", function (e) {
+    e.preventDefault();
+    if (e.ctrlKey) padWheel("pinch", -e.deltaY / 60);
+    else padWheel("scroll", -e.deltaY / 400);
+  }, { passive: false });
+
+  var springBtn = document.getElementById("padSpring");
+  springBtn.addEventListener("click", function () {
+    padSpringOn = !padSpringOn;
+    springBtn.setAttribute("aria-pressed", padSpringOn ? "true" : "false");
+    springBtn.textContent = padSpringOn ? "Terugveren" : "Vasthouden";
+    if (!padSpringOn) padSpringing = false;
+  });
+
+  function padResize() {
+    var r = padCanvas.getBoundingClientRect();
+    if (!r.width) return;
+    var dpr = Math.min(2, window.devicePixelRatio || 1);
+    padCanvas.width = Math.max(1, Math.round(r.width * dpr));
+    padCanvas.height = Math.max(1, Math.round(r.height * dpr));
+  }
+  if (window.ResizeObserver) new ResizeObserver(padResize).observe(padCanvas);
+  else window.addEventListener("resize", padResize);
+
+  function drawPad() {
+    var w = padCanvas.width, h = padCanvas.height;
+    pg.clearRect(0, 0, w, h);
+
+    pg.strokeStyle = "rgba(140,150,165,0.13)";
+    pg.lineWidth = 1;
+    for (var i = 1; i < 8; i++) {
+      var gx = Math.round(w * i / 8) + 0.5, gy = Math.round(h * i / 8) + 0.5;
+      pg.beginPath(); pg.moveTo(gx, 0); pg.lineTo(gx, h); pg.stroke();
+      pg.beginPath(); pg.moveTo(0, gy); pg.lineTo(w, gy); pg.stroke();
+    }
+
+    var px = padVal.x * w, py = (1 - padVal.y) * h;
+
+    if (padTrail.length > 1) {
+      pg.strokeStyle = "rgba(62,201,216,0.32)";
+      pg.lineWidth = Math.max(1, w / 600);
+      pg.beginPath();
+      for (var t = 0; t < padTrail.length; t++) {
+        var tx = padTrail[t][0] * w, ty = (1 - padTrail[t][1]) * h;
+        if (t === 0) pg.moveTo(tx, ty); else pg.lineTo(tx, ty);
+      }
+      pg.stroke();
+    }
+
+    pg.strokeStyle = padDown ? "rgba(245,166,35,0.75)" : "rgba(245,166,35,0.38)";
+    pg.lineWidth = 1;
+    pg.setLineDash([4, 5]);
+    pg.beginPath(); pg.moveTo(px, 0); pg.lineTo(px, h); pg.stroke();
+    pg.beginPath(); pg.moveTo(0, py); pg.lineTo(w, py); pg.stroke();
+    pg.setLineDash([]);
+
+    pg.fillStyle = "#f5a623";
+    pg.beginPath(); pg.arc(px, py, Math.max(3, w / 210), 0, Math.PI * 2); pg.fill();
+
+    // Scroll als meter rechts, pinch als meter onderaan.
+    var inset = Math.max(12, w / 42), bar = Math.max(4, w / 190);
+    var trackH = h - inset * 2, trackW = w - inset * 2;
+    pg.fillStyle = "rgba(62,201,216,0.14)";
+    pg.fillRect(w - inset - bar, inset, bar, trackH);
+    pg.fillRect(inset, h - inset - bar, trackW, bar);
+    pg.fillStyle = "rgba(62,201,216,0.72)";
+    pg.fillRect(w - inset - bar, inset + trackH * (1 - padVal.scroll), bar, trackH * padVal.scroll);
+    pg.fillRect(inset, h - inset - bar, trackW * padVal.pinch, bar);
+  }
+
+  function padTick() {
+    if (padSpringing) {
+      var done = true;
+      ["x", "y"].forEach(function (src) {
+        var d = padRest[src] - padVal[src];
+        if (Math.abs(d) > 0.0015) { padApply(src, padVal[src] + d * 0.22); done = false; }
+        else padApply(src, padRest[src]);
+      });
+      if (done) { padSpringing = false; padTrail.length = 0; }
+    }
+    drawPad();
+    requestAnimationFrame(padTick);
+  }
+  padResize();
+  padTick();
 
   var modeBtns = document.querySelectorAll(".modes .modebtn");
   function setMode(m, fromMidi) {
