@@ -13,11 +13,27 @@ import { useEffect, useRef, useState } from 'react';
 import { Dx7 } from './runtime';
 import {
   DX7, opOffset, unpackPatch, packPatch, patchName, setPatchName,
-  algorithmRouting, modulationTargets, opRatio, LFO_WAVES,
+  algorithmRouting, modulationTargets, modulatorsOf, opRatio, LFO_WAVES,
 } from './dx7Patch';
 import { DX7_BANK_SHORT, DX7_BANK_LABELS, DX7_VOICE_NAMES } from './dx7BankNames';
+import {
+  DX7_ROTO_CHANNEL, DX7_ROTO_PAGES, DX7_ROTO_BUTTONS, knobCc, buttonCc,
+  paramForCc, buttonForCc, paramOffset, rotoFeedback, exportDx7RotoSetup,
+} from './dx7Roto';
+import { addCcTap, sendCc, useSurfaceBridge } from './surfaceBridge';
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+// Output level → dB, zoals msfa's Env::scaleoutlevel (env.cc): boven 19 is het
+// 28 + level, daaronder een tabel; elke stap is 0,75 dB. Gemeten tegen de wasm:
+// level 90 = −6 dB, 50 = −36 dB, 35 = −47 dB, 0 = helemaal uit. Dat is de reden
+// dat een operator op 35 naast een op 99 niet meer te horen is.
+const LEVEL_LUT = [0, 5, 9, 13, 17, 20, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 42, 43, 45, 46];
+function levelDb(level: number): string {
+  if (level <= 0) return 'stil';
+  const scaled = level >= 20 ? 28 + level : LEVEL_LUT[level]!;
+  return `${((scaled - 127) * 0.75).toFixed(0)} dB`;
+}
 const noteName = (m: number): string => `${NOTE_NAMES[m % 12]}${Math.floor(m / 12) - 1}`;
 
 export function Dx7EditorModal({ open, onClose }: { open: boolean; onClose: () => void }): JSX.Element | null {
@@ -25,8 +41,14 @@ export function Dx7EditorModal({ open, onClose }: { open: boolean; onClose: () =
   const [bank, setBank] = useState(0);
   const [program, setProgram] = useState(0);
   const [busy, setBusy] = useState('');
+  const [rotoOp, setRotoOp] = useState(1);
   const [, bump] = useState(0);
   const held = useRef<number | null>(null);
+  const surface = useSurfaceBridge();
+  // De CC-tap leeft langer dan één render; via een ref ziet hij altijd de
+  // huidige patch en operator in plaats van die van zijn registratiemoment.
+  const live = useRef<{ patch: Uint8Array | null; op: number }>({ patch: null, op: 1 });
+  live.current = { patch, op: rotoOp };
 
   useEffect(() => {
     if (!open) return;
@@ -34,6 +56,40 @@ export function Dx7EditorModal({ open, onClose }: { open: boolean; onClose: () =
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
+
+  // Roto-Control: encoders en buttons van kanaal 16 rechtstreeks op de patch.
+  // De tap ziet de CC vóór de project-bindings, zodat het Surface-paneel op
+  // kanaal 1 gewoon kan blijven draaien.
+  useEffect(() => {
+    if (!open) return;
+    return addCcTap((ch, cc, val) => {
+      if (ch !== DX7_ROTO_CHANNEL) return false;
+      const cur = live.current;
+      const knob = paramForCc(cc);
+      if (knob && cur.patch) {
+        const off = paramOffset(knob.param, cur.op);
+        cur.patch[off] = Math.max(0, Math.min(knob.param.max, val));
+        Dx7.setEditPatch(cur.patch);
+        bump((n) => n + 1);
+        return true;
+      }
+      const btn = buttonForCc(cc);
+      if (btn && val > 0) {
+        if (btn.kind === 'selectOp') setRotoOp(btn.op);
+        else if (btn.kind === 'bankVoice') { Dx7.setEditPatch(null); setBusy('terug naar de bank-voice'); }
+        else if (btn.kind === 'nextVoice') { const n = (program + 1) & 31; setProgram(n); void loadFromRom(bank, n); }
+        return true;
+      }
+      return cc >= 20 && cc <= 61;              // ons CC-blok, verder niets mee
+    });
+  }, [open, bank, program]);
+
+  // Knoppenstand terug naar het apparaat na een voicewissel of een andere
+  // operator — anders staan de ringen op de vorige patch.
+  useEffect(() => {
+    if (!open || !patch) return;
+    for (const { cc, val } of rotoFeedback(patch, rotoOp)) sendCc(DX7_ROTO_CHANNEL, cc, val);
+  }, [open, patch, rotoOp]);
 
   // Eerste opening: begin bij de patch die al klinkt, of bij ROM1A #1.
   useEffect(() => {
@@ -64,6 +120,11 @@ export function Dx7EditorModal({ open, onClose }: { open: boolean; onClose: () =
     patch[offset] = v;
     Dx7.setEditPatch(patch);
     bump((n) => n + 1);
+    // Staat deze parameter op een Roto-knop van de huidige operator, laat de
+    // ring dan meedraaien.
+    DX7_ROTO_PAGES.forEach((pg, page) => pg.params.forEach((param, slot) => {
+      if (paramOffset(param, rotoOp) === offset) sendCc(DX7_ROTO_CHANNEL, knobCc(page, slot), v);
+    }));
   }
 
   function exportSyx(): void {
@@ -87,6 +148,17 @@ export function Dx7EditorModal({ open, onClose }: { open: boolean; onClose: () =
     setBusy('.syx geschreven — laadt in onze USER-bank én in een echte DX7');
   }
 
+  function exportRoto(): void {
+    const setup = exportDx7RotoSetup('MMB DX7');
+    const url = URL.createObjectURL(new Blob([JSON.stringify(setup, null, 1)], { type: 'application/json' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'MMB DX7.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    setBusy('setup geschreven — importeer in ROTO-SETUP en push naar het apparaat');
+  }
+
   function play(midi: number, on: boolean): void {
     if (Dx7.instanceCount() === 0) { setBusy('geen DX7 in de patch — zet er een in het rack en start de simulatie'); return; }
     Dx7.preview(midi, 0.85, on);
@@ -94,6 +166,7 @@ export function Dx7EditorModal({ open, onClose }: { open: boolean; onClose: () =
 
   const routing = patch ? algorithmRouting(patch[DX7.algorithm] ?? 0) : [];
   const targets = patch ? modulationTargets(patch[DX7.algorithm] ?? 0) : new Map<number, number[]>();
+  const modBy   = patch ? modulatorsOf(patch[DX7.algorithm] ?? 0) : new Map<number, number[]>();
 
   const overlay: React.CSSProperties = {
     position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 60,
@@ -153,20 +226,20 @@ export function Dx7EditorModal({ open, onClose }: { open: boolean; onClose: () =
               </div>
               <div style={{ fontFamily: 'var(--mb-font-mono, monospace)', fontSize: 12, color: '#334155' }}>
                 {routing.map((r) => {
-                  const t = targets.get(r.op);
+                  const t = targets.get(r.op) ?? [];
                   return (
                     <div key={r.op}>
-                      OP{r.op} {r.carrier ? '→ uitgang' : `→ OP${t?.[0] ?? '?'}`}
+                      OP{r.op} → {r.carrier ? 'uitgang' : t.sort((a, b) => a - b).map((x) => `OP${x}`).join(', ')}
                       {r.feedback ? '  ⟲ feedback' : ''}
-                      {r.carrier ? '' : ''}
                     </div>
                   );
                 })}
               </div>
-              <div style={{ color: '#64748b', maxWidth: 300, fontSize: 12 }}>
-                Dragers gaan rechtstreeks naar de uitgang; de rest moduleert. Zet je de
-                output-level van een modulator hoger, dan wordt de klank feller — dat is
-                de FM-knop die geen filter is.
+              <div style={{ color: '#64748b', maxWidth: 320, fontSize: 12 }}>
+                Dragers gaan rechtstreeks naar de uitgang; de rest moduleert. Eén modulator
+                kan meerdere dragers tegelijk voeden — in algoritme 22 voedt OP6 er drie,
+                en daarom doet die knop zoveel. De output-level van een modulator is de
+                FM-diepte, niet het volume.
               </div>
             </div>
 
@@ -183,13 +256,24 @@ export function Dx7EditorModal({ open, onClose }: { open: boolean; onClose: () =
                 {[1, 2, 3, 4, 5, 6].map((uiOp) => {
                   const o = opOffset(uiOp);
                   const r = routing.find((x) => x.op === uiOp)!;
+                  const mods = (modBy.get(uiOp) ?? []).slice().sort((a, b) => a - b);
+                  const lvl = patch[o + DX7.op.outputLevel] ?? 0;
                   return (
                     <tr key={uiOp}>
                       <td style={td}><strong>{uiOp}</strong></td>
-                      <td style={{ ...td, color: r.carrier ? '#15803d' : '#b45309' }}>{r.carrier ? 'drager' : 'mod'}</td>
-                      <td style={td}><input type="number" min={0} max={99} style={num()}
-                        value={patch[o + DX7.op.outputLevel] ?? 0}
-                        onChange={(e) => set(o + DX7.op.outputLevel, Number(e.target.value))} /></td>
+                      <td style={{ ...td, color: r.carrier ? '#15803d' : '#b45309' }}>
+                        {r.carrier ? 'drager' : 'mod'}
+                        {mods.length > 0 && <span style={{ color: '#94a3b8' }}> ←{mods.join(',')}</span>}
+                      </td>
+                      <td style={td}>
+                        <input type="number" min={0} max={99} style={num()}
+                          value={lvl}
+                          onChange={(e) => set(o + DX7.op.outputLevel, Number(e.target.value))} />
+                        <span style={{ marginLeft: 4, fontSize: 11, color: lvl < 45 ? '#b91c1c' : '#94a3b8' }}
+                          title="Niveau van deze operator t.o.v. 99. Elke stap is ~0,75 dB, dus 35 ligt 47 dB onder 99 — naast een luide drager hoor je die niet meer.">
+                          {levelDb(lvl)}
+                        </span>
+                      </td>
                       <td style={td}>
                         <select value={patch[o + DX7.op.oscMode] ?? 0}
                           onChange={(e) => set(o + DX7.op.oscMode, Number(e.target.value), 0, 1)}>
@@ -244,6 +328,56 @@ export function Dx7EditorModal({ open, onClose }: { open: boolean; onClose: () =
               ))}
               <label>mod-gevoeligheid <input type="number" min={0} max={7} style={num(40)}
                 value={patch[DX7.pitchModSens] ?? 0} onChange={(e) => set(DX7.pitchModSens, Number(e.target.value), 0, 7)} /></label>
+            </div>
+
+            {/* ── Roto-Control ── */}
+            <div style={{ marginTop: 12, padding: 10, background: '#f8fafc', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                <strong style={{ color: '#475569' }}>🎛 Roto-Control</strong>
+                <span style={{ color: '#64748b', fontSize: 12 }}>kanaal {DX7_ROTO_CHANNEL}</span>
+                <span style={{ display: 'inline-flex', gap: 3 }}>
+                  {[1, 2, 3, 4, 5, 6].map((n) => (
+                    <button key={n} onClick={() => setRotoOp(n)}
+                      style={{
+                        padding: '2px 8px',
+                        background: n === rotoOp ? '#0ea5e9' : '#fff',
+                        color: n === rotoOp ? '#fff' : '#334155',
+                        border: '1px solid #cbd5e1', borderRadius: 3, cursor: 'pointer',
+                      }}>OP{n}</button>
+                  ))}
+                </span>
+                <span style={{ color: '#64748b', fontSize: 12 }}>
+                  {surface.inputId ? 'knoppen actief' : 'kies een MIDI-in in het Surface-paneel'}
+                  {surface.outputId ? ' · ringen volgen' : ''}
+                </span>
+                <button onClick={exportRoto} style={{ marginLeft: 'auto' }}>⤓ ROTO-SETUP</button>
+              </div>
+              <table style={{ marginTop: 8, borderCollapse: 'collapse', fontSize: 11, color: '#475569' }}>
+                <tbody>
+                  {DX7_ROTO_PAGES.map((pg, page) => (
+                    <tr key={pg.name}>
+                      <td style={{ padding: '1px 8px 1px 0', color: '#94a3b8' }}>{page + 1}. {pg.name}</td>
+                      {pg.params.map((param, slot) => (
+                        <td key={param.label} style={{ padding: '1px 8px', fontVariantNumeric: 'tabular-nums' }}
+                          title={`CC ${knobCc(page, slot)}`}>
+                          {param.label} <strong>{patch[paramOffset(param, rotoOp)] ?? 0}</strong>
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                  <tr>
+                    <td style={{ padding: '1px 8px 1px 0', color: '#94a3b8' }}>buttons</td>
+                    {DX7_ROTO_BUTTONS.map((b, i) => (
+                      <td key={b.label} style={{ padding: '1px 8px' }} title={`CC ${buttonCc(i)}`}>{b.label}</td>
+                    ))}
+                  </tr>
+                </tbody>
+              </table>
+              <div style={{ color: '#94a3b8', fontSize: 11, marginTop: 4 }}>
+                Zes buttons kiezen de operator, de acht encoders tonen steeds díé operator.
+                Elke knop stuurt zijn eigen bereik (0–99 voor een level, 0–31 voor het
+                algoritme), dus het Roto-display toont hetzelfde getal als de tabel hierboven.
+              </div>
             </div>
 
             {/* ── klavier ── */}

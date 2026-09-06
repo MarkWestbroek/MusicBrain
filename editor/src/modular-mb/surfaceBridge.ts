@@ -173,8 +173,36 @@ function onMidiMessage(ev: MIDIMessageEvent): void {
     cb(ch1, cc);
     return;                                   // learn consumeert de CC
   }
+  for (const tap of ccTaps) {
+    if (tap(ch1, cc, val)) return;            // tap consumeert de CC
+  }
   applyIncomingCc(ch1, cc, val);
 }
+
+// ── Rauwe CC-tap ─────────────────────────────────────────────────────────
+// De DX7-patcheditor stuurt zijn eigen kanaal aan (zie dx7Roto.ts): 155
+// parameters passen niet in het bindings-model, dat één CC aan één
+// module-control koppelt. Een tap ziet de CC vóór de bindings en geeft
+// `true` terug als hij hem opgegeten heeft.
+
+type CcTap = (ch: number, cc: number, val: number) => boolean;
+const ccTaps = new Set<CcTap>();
+
+/** Registreer een tap; de returnwaarde maakt hem weer los. */
+export function addCcTap(tap: CcTap): () => void {
+  ccTaps.add(tap);
+  return () => { ccTaps.delete(tap); };
+}
+
+/** Stuur één CC naar de gekozen output (kanaal 1–16). Doet niets zonder
+ *  output — de editor hoeft dat niet te weten. */
+export function sendCc(ch: number, cc: number, val: number): void {
+  if (!output) return;
+  output.send([0xb0 | ((Math.max(1, Math.min(16, ch)) - 1) & 0x0f), cc & 0x7f, Math.max(0, Math.min(127, val)) & 0x7f]);
+}
+
+/** Is er een output gekozen? (voor de UI: "knoppen bewegen mee") */
+export function hasSurfaceOutput(): boolean { return output !== null; }
 
 // ── Uitgaand: editor-state → surface (motorized feedback) ───────────────
 

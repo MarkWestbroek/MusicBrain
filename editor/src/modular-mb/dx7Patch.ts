@@ -141,16 +141,37 @@ export function algorithmRouting(alg: number): OpRouting[] {
   return out.sort((a, b) => a.op - b.op);
 }
 
-/** Welke operators voedt `op` rechtstreeks? (voor de diagramlijnen) */
+/**
+ * Welke operators voedt `op` rechtstreeks?
+ *
+ * De bussen werken sequentieel, zoals `FmCore::compute` ze afloopt (tabel-index
+ * 0..5 = OP6..OP1): een operator schrijft zijn uitgang op bus 1 of 2, en élke
+ * latere operator die van die bus leest wordt erdoor gemoduleerd — tot iemand
+ * de bus *overschrijft* (schrijven zonder OUT_BUS_ADD, 0x04). Vandaar dat OP6
+ * in algoritme 22 niet één maar drie dragers voedt.
+ */
 export function modulationTargets(alg: number): Map<number, number[]> {
-  const rt = algorithmRouting(alg);
+  const rows = ALGORITHMS[Math.max(0, Math.min(31, alg))]!;
   const map = new Map<number, number[]>();
-  for (const src of rt) {
-    if (src.outBus === 0) continue;
-    // De ontvanger is de eerstvolgende operator (lagere index in de tabel,
-    // dus hoger UI-nummer → lager) die van diezelfde bus leest.
-    const targets = rt.filter((d) => d.inBus === src.outBus && d.op < src.op).map((d) => d.op);
-    if (targets.length) map.set(src.op, [Math.max(...targets)]);
+  for (let i = 0; i < 6; i++) {
+    const outBus = rows[i]! & 3;
+    if (outBus === 0) continue;             // drager: gaat naar de uitgang
+    const targets: number[] = [];
+    for (let j = i + 1; j < 6; j++) {
+      const g = rows[j]!;
+      if (((g >> 4) & 3) === outBus) targets.push(6 - j);
+      if ((g & 3) === outBus && (g & 0x04) === 0) break;   // bus overschreven
+    }
+    if (targets.length) map.set(6 - i, targets);
+  }
+  return map;
+}
+
+/** Omgekeerd: welke operators moduleren `op`? (voor de rol-kolom) */
+export function modulatorsOf(alg: number): Map<number, number[]> {
+  const map = new Map<number, number[]>();
+  for (const [src, dsts] of modulationTargets(alg)) {
+    for (const d of dsts) map.set(d, [...(map.get(d) ?? []), src]);
   }
   return map;
 }
