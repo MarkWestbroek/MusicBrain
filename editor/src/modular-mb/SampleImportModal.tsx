@@ -41,6 +41,11 @@ export function SampleImportModal({ open, onClose }: { open: boolean; onClose: (
   const [audio, setAudio] = useState<{ data: Float32Array; mono: Float32Array; ch: number; rate: number; name: string } | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
   const [layers, setLayers] = useState(3);
+  // Velocity-gevoeligheid *binnen* een zone, in dB. Bij meerdere lagen dragen
+  // de samples zelf de dynamiek en hoort dit laag te staan; bij één laag per
+  // noot is dit de enige plek waar zacht en hard vandaan kunnen komen.
+  const [velTrackDb, setVelTrackDb] = useState(24);
+  const [velTrackTouched, setVelTrackTouched] = useState(false);
   const [minGap, setMinGap] = useState(0.35);
   const [ascending, setAscending] = useState(true);
   const [expected, setExpected] = useState('');
@@ -264,6 +269,7 @@ export function SampleImportModal({ open, onClose }: { open: boolean; onClose: (
         // Sample draagt zijn eigen uitsterving, tenzij we loopen.
         decay: r.loop && r.loopMode !== 0 ? r.decay : 0,
         release: 0.12,
+        velTrack: velTrackDb,
       });
       void frames;
     });
@@ -378,7 +384,15 @@ export function SampleImportModal({ open, onClose }: { open: boolean; onClose: (
               }} />
           </label>
           <label>Lagen/noot <input type="number" min={1} max={8} value={layers} style={{ width: 48 }}
-            onChange={(e) => setLayers(Math.max(1, Math.min(8, Number(e.target.value))))} /></label>
+            onChange={(e) => {
+              const n = Math.max(1, Math.min(8, Number(e.target.value)));
+              setLayers(n);
+              // Eén laag: alle dynamiek uit velocity-tracking; meer lagen: uit de samples, met een klein beetje tracking ertussen.
+              if (!velTrackTouched) setVelTrackDb(n === 1 ? 24 : 6);
+            }} /></label>
+          <label title="Zachter bij een lagere aanslag, binnen één zone. Kwadratische kromme; 24 dB is een goede pianowaarde. Bij meerdere lagen laag houden — de samples doen het dan zelf.">
+            Velocity <input type="number" min={0} max={60} step={1} value={velTrackDb} style={{ width: 48 }}
+              onChange={(e) => { setVelTrackTouched(true); setVelTrackDb(Math.max(0, Math.min(60, Number(e.target.value)))); }} /> dB</label>
           <label>Min. stilte <input type="number" min={0.05} max={3} step={0.05} value={minGap} style={{ width: 58 }}
             onChange={(e) => setMinGap(Number(e.target.value))} /> s</label>
           <label><input type="checkbox" checked={ascending} onChange={(e) => setAscending(e.target.checked)}
