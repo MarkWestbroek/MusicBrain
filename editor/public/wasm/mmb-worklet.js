@@ -94,6 +94,15 @@ class MmbProcessor extends AudioWorkletProcessor {
           ex.mmb_zone_count(m.zones.length);
           break;
         }
+        case 'note': {
+          // Polyfone modules (sampler) krijgen élke noot apart, zoals de DX7,
+          // in plaats van één gate-flank met één V/Oct. Wie de exports niet
+          // heeft negeert dit stilzwijgend.
+          if (m.on) { if (ex.mmb_note_on) ex.mmb_note_on(m.n | 0, m.v | 0); }
+          else if (m.n === null || m.n === undefined) { if (ex.mmb_all_notes_off) ex.mmb_all_notes_off(); }
+          else if (ex.mmb_note_off) ex.mmb_note_off(m.n | 0);
+          break;
+        }
         case 'dispose': this.alive = false; break;
       }
     };

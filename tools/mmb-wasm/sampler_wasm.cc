@@ -54,6 +54,10 @@ uint32_t              g_ageCounter = 0;
 
 float g_coarse = 0.f, g_fine = 0.f, g_start = 0.f, g_attack = 1.5f, g_level = 0.8f;
 bool  g_gate = false;
+// Zodra de host één noot via mmb_note_on stuurt, is dit een note-instrument
+// en negeren we de gate-flank. Terug kan niet binnen een sessie — dat hoeft
+// ook niet: de host kiest één van beide en houdt zich eraan.
+bool  g_noteApi = false;
 
 void rebind() {
     for (int i = 0; i < kVoices; ++i) {
@@ -111,6 +115,42 @@ MMB_EXPORT(mmb_zone_count) void mmb_zone_count(int n) {
     g_numZones = n < 0 ? 0 : (n > kZones ? kZones : n);
     rebind();
 }
+namespace {
+/** Stem kiezen: zelfde noot → hertrigger, anders vrij, anders de oudste. */
+int allocate(int midi) {
+    for (int i = 0; i < kVoices; ++i) if (g_voice[i].active() && g_voice[i].note() == midi) return i;
+    for (int i = 0; i < kVoices; ++i) if (!g_voice[i].active()) return i;
+    int best = 0;
+    for (int i = 1; i < kVoices; ++i) if (g_age[i] < g_age[best]) best = i;
+    return best;
+}
+}
+
+// ── note-API ──────────────────────────────────────────────────────────
+// Aanwezigheid van deze exports is voor de host het teken dat deze module
+// polyfoon aan te sturen is (zie WasmModule.isPoly in de editor).
+
+/** Aantal stemmen dat deze module intern heeft. */
+MMB_EXPORT(mmb_poly_voices) int mmb_poly_voices() { return kVoices; }
+
+MMB_EXPORT(mmb_note_on) void mmb_note_on(int midi, int velocity) {
+    g_noteApi = true;
+    if (midi < 0 || midi > 127) return;
+    const int v = allocate(midi);
+    g_age[v] = ++g_ageCounter;
+    g_voice[v].set_voct((static_cast<float>(midi) - 60.0f) / 12.0f);
+    g_voice[v].noteOn(midi, velocity < 1 ? 1 : (velocity > 127 ? 127 : velocity));
+}
+
+MMB_EXPORT(mmb_note_off) void mmb_note_off(int midi) {
+    g_noteApi = true;
+    for (int i = 0; i < kVoices; ++i) g_voice[i].noteOff(midi);
+}
+
+MMB_EXPORT(mmb_all_notes_off) void mmb_all_notes_off() {
+    for (int i = 0; i < kVoices; ++i) g_voice[i].allOff();
+}
+
 /** Diagnose voor de editor: hoeveel stemmen klinken er? */
 MMB_EXPORT(mmb_active_voices) int mmb_active_voices() {
     int n = 0;
@@ -139,30 +179,26 @@ void mmb_on_control(int idx, float v) {
     }
 }
 
-namespace {
-/** Stem kiezen: zelfde noot → hertrigger, anders vrij, anders de oudste. */
-int allocate(int midi) {
-    for (int i = 0; i < kVoices; ++i) if (g_voice[i].active() && g_voice[i].note() == midi) return i;
-    for (int i = 0; i < kVoices; ++i) if (!g_voice[i].active()) return i;
-    int best = 0;
-    for (int i = 1; i < kVoices; ++i) if (g_age[i] < g_age[best]) best = i;
-    return best;
-}
-}
-
 void mmb_process(int frames) {
+    // Twee manieren om een noot te starten. De CV-weg (gate-flank + V/Oct) is
+    // wat een sequencer of een gate-kabel doet en is per definitie monofoon:
+    // één gate, één toonhoogte. De note-weg (mmb_note_on hieronder) geeft elke
+    // noot apart door, zodat de acht stemmen hierbinnen ook echt akkoorden
+    // spelen. Zodra er noten via de note-weg binnenkomen laten we de
+    // gate-flank met rust — anders zou een losgelaten toets alles afkappen.
     const float voct = mmb_in0(IN_VOCT);
     const float velIn = mmb_connected(IN_VEL) ? mmb_in0(IN_VEL) : 0.8f;
     const bool high = mmb_gate_in(IN_GATE);
-    if (high && !g_gate) {
-        // V/Oct → noot; de zone kiest zelf het sample en de laag.
-        const int midi = static_cast<int>(std::lround(60.0f + 12.0f * voct));
-        const int v = allocate(midi);
-        g_age[v] = ++g_ageCounter;
-        g_voice[v].set_voct(voct);
-        g_voice[v].noteOn(midi, static_cast<int>(velIn * 127.0f));
-    } else if (!high && g_gate) {
-        for (int i = 0; i < kVoices; ++i) g_voice[i].noteOff(-1);
+    if (!g_noteApi) {
+        if (high && !g_gate) {
+            const int midi = static_cast<int>(std::lround(60.0f + 12.0f * voct));
+            const int v = allocate(midi);
+            g_age[v] = ++g_ageCounter;
+            g_voice[v].set_voct(voct);
+            g_voice[v].noteOn(midi, static_cast<int>(velIn * 127.0f));
+        } else if (!high && g_gate) {
+            for (int i = 0; i < kVoices; ++i) g_voice[i].noteOff(-1);
+        }
     }
     g_gate = high;
 

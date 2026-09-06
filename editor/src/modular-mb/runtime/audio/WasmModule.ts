@@ -43,6 +43,16 @@ export class WasmModule extends AudioModule {
   ]);
   static supports(typeId: string): boolean { return WasmModule.typeIds.has(typeId); }
 
+  /**
+   * Modules die hun eigen stemmen hebben en dus élke noot los willen krijgen,
+   * in plaats van één gate-flank met één V/Oct. De wasm-kant herken je aan de
+   * export `mmb_note_on`; de engine moet het al bij het bouwen weten, vandaar
+   * deze lijst. Voor de rest blijft de CV-weg gelden — Elements en Rings zijn
+   * per instantie één stem, daar is een PolyGroup het antwoord.
+   */
+  static readonly polyTypeIds: ReadonlySet<string> = new Set(['tp_mmb_sampler']);
+  static isPoly(typeId: string): boolean { return WasmModule.polyTypeIds.has(typeId); }
+
   private static worklet: Promise<void> | null = null;
   private static readonly wasm = new Map<string, Promise<Uint8Array>>();
   private static readonly instances = new Set<WasmModule>();
@@ -210,6 +220,14 @@ export class WasmModule extends AudioModule {
     if (!this.inGains.has(id)) return;
     this.post({ t: 'in', id, v });
   }
+
+  /** Noot aanzetten op een polyfone module (zie `isPoly`). */
+  noteOn(midi: number, velocity01: number): void {
+    const v = Math.max(1, Math.min(127, Math.round((velocity01 > 1 ? velocity01 / 127 : velocity01) * 127) || 1));
+    this.post({ t: 'note', on: true, n: midi, v });
+  }
+  noteOff(midi: number): void { this.post({ t: 'note', on: false, n: midi }); }
+  allNotesOff(): void { this.post({ t: 'note', on: false, n: null }); }
 
   protected override onControlChanged(id: string, value: ControlValue): void {
     const n = typeof value === 'boolean' ? (value ? 1 : 0) : Number(value);
