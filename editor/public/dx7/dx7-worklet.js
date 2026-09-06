@@ -777,6 +777,7 @@ class Dx7Processor extends AudioWorkletProcessor {
         case 'level':    this.be.setLevel(m.v); break;
         case 'userbank': if (m.data && m.data.length === 4096) { this.be.writeBank(8, m.data); this.postName(); } break;
         case 'edit':     this.be.setEditPatch(m.data || null); this.postName(); break;
+        case 'poll':     this.postName(); break;
         case 'dispose':  this.alive = false; break;
       }
     };

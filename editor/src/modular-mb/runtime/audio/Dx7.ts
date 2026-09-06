@@ -33,13 +33,17 @@ export class Dx7 extends AudioModule {
   /** Laatste laad-/worklet-fout, voor de UI (SimulationPanel). */
   static lastError: string | null = null;
 
-  /** Korte statusregel voor de UI: backend + voice van de eerste instantie. */
+  /** Korte statusregel voor de UI: backend, voice en actieve stemmen van de
+   *  eerste instantie. Het stemgetal is de diagnose bij "ik hoor niets": staat
+   *  het op 0 terwijl je speelt, dan komen de noten niet aan (engine/patch);
+   *  telt het mee, dan zit het probleem verderop in de keten. */
   static info(): string | null {
     if (Dx7.lastError) return `DX7: ${Dx7.lastError}`;
     const first = Dx7.instances.values().next().value as Dx7 | undefined;
     if (!first) return null;
     if (!first.node) return 'DX7: worklet laden…';
-    return `DX7 (${first.backend || '…'}): "${first.voiceName.trim()}"`;
+    const n = Dx7.instances.size > 1 ? ` ×${Dx7.instances.size}` : '';
+    return `DX7 (${first.backend || '…'})${n}: "${first.voiceName.trim()}" · ${first.activeVoices} st.`;
   }
 
   /** Laadt ROMs (+ optioneel dx7.wasm) en registreert de worklet — één
@@ -105,6 +109,8 @@ export class Dx7 extends AudioModule {
   voiceName = '';
   /** 'js' of 'wasm' — welke kern de worklet draait. */
   backend = '';
+  /** Stemmen die de kern op dit moment vasthoudt (0 = er komt niets binnen). */
+  activeVoices = 0;
 
   readonly out: Tone.Gain;
   private node: AudioWorkletNode | null = null;
@@ -131,6 +137,7 @@ export class Dx7 extends AudioModule {
         if (e.data?.t === 'name') {
           this.voiceName = String(e.data.name);
           this.backend = String(e.data.backend ?? '');
+          this.activeVoices = Number(e.data.voices ?? 0);
         }
       };
       node.onprocessorerror = () => { Dx7.lastError = 'worklet-processor gecrasht'; };
@@ -161,10 +168,14 @@ export class Dx7 extends AudioModule {
   }
 
   noteOn(midi: number, velocity01: number): void {
-    const v = Math.max(1, Math.min(127, Math.round(velocity01 * 127)));
+    // De engine levert 0..1; een bron die al 0..127 stuurt zou anders op 127
+    // vastlopen en een bron die 0 stuurt op stilte. Beide bereiken toestaan.
+    const v01 = velocity01 > 1 ? velocity01 / 127 : velocity01;
+    const v = Math.max(1, Math.min(127, Math.round(v01 * 127) || 1));
     this.post({ t: 'on', n: midi, v });
+    this.post({ t: 'poll' });
   }
-  noteOff(midi: number): void { this.post({ t: 'off', n: midi }); }
+  noteOff(midi: number): void { this.post({ t: 'off', n: midi }); this.post({ t: 'poll' }); }
   allOff(): void { this.post({ t: 'all' }); }
 
   protected override onControlChanged(id: string, value: ControlValue): void {
