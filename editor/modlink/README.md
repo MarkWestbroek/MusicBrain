@@ -45,6 +45,13 @@ kan tonen wat elke as doet en waar hij staat.
 | `public/pad-phone.html` | het aanraakvlak voor de telefoon |
 | `public/snaarbank-worklet.html` | eerste host, als testlab |
 
+## Achtergrond
+
+De afweging achter dit ontwerp staat in
+[ADR 0016](../../doc/adr/0016-modulation-surfaces-over-cc.md); wat een browser
+van een trackpad, een Wacom en een telefoon kan aflezen staat in
+[doc/snaarbank-testlab.md](../../doc/snaarbank-testlab.md).
+
 ## Naar de editor
 
 De snaarbank is het proeflab. Voor een modulator-tab in de MusicBrain-editor

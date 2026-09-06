@@ -41,6 +41,27 @@ Drie projectmodi via knoppen bovenin:
 
 Device-discovery + WebSerial upload (synchroniseren met firmware) komt in Stage 7.
 
+## Losse demo-pagina's
+
+Naast de React-app staan er zelfstandige pagina's in `public/`. Ze hebben geen
+bouwstap, draaien op zichzelf, en dienen als proeflab voor bedieningsvormen
+die later in de editor kunnen landen.
+
+| Pagina | Wat |
+|---|---|
+| `snaarbank-worklet.html` | Fysisch-model-snaar met exciter, resonator, tape echo en galm. Modulatiepad voor trackpad, Wacom en aanraakscherm. Zie [doc/snaarbank-testlab.md](../doc/snaarbank-testlab.md) |
+| `pad-phone.html` | Aanraakvlak voor de telefoon; drie vingers, elk een assenpaar |
+| `modlink.js` | Client die beide bovenstaande met elkaar verbindt |
+
+Voor de telefoonpagina moet de dev-server op het netwerk luisteren; dat staat
+aan via `server.host` in `vite.config.ts`. Open op het toestel
+`http://<ip-van-je-mac>:5173/pad-phone.html`. Het doorgeefluik zit als plugin
+in de dev-server, zie [modlink/README.md](modlink/README.md) en
+[ADR 0016](../doc/adr/0016-modulation-surfaces-over-cc.md).
+
+> Let op: `server.host` maakt de dev-server bereikbaar voor alles in je
+> lokale netwerk, niet alleen voor localhost.
+
 ## Screenshots
 
 Gemaakt met de demo-data (knop **Demo** resp. **✨ Voorbeelden**/**✨ Test-patch**);
