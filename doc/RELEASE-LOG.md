@@ -10,6 +10,59 @@
 
 ## Firmware
 
+> **Gat: 0.5.16 t/m 0.5.48 (juni–september 2026) staan hier niet.** Die
+> modulebatch — o.a. Elements, Rings, Plaits, Clouds, Tides, Marbles, Stages,
+> Peaks, Warps, DX7, Morph-WT, sampler, tape echo, resonator, CR-78,
+> quantizer, chord en Grids — is alleen in de commit-berichten en deels in de
+> Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
+> `git log firmware/`.
+
+### fw 0.5.49 — Envelope follower, 8 cellen en enkelvoudig (FW-CV-6) (2026-09-07)
+- **FW-CV-6 — Envelope follower (`tp_mmb_env_follower`, `tp_mmb_env_follower_mono`).**
+  Audio erin, stuurspanning eruit, plus een gate boven een drempel. Twee
+  varianten uit dezelfde romp: 16 HP met acht cellen voor poly-werk naast de
+  octa-modules, en 6 HP met één cel. Bij één cel heten de jacks kaal
+  (`in`/`env`/`gate`); de `_1`-vorm blijft aanvaard, zodat een patch die van de
+  8-cel versie komt niet stukloopt. Gedeelde controls `attack` (0,1–100 ms),
+  `release` (5–1000 ms), `sens` (dB), `mode` (peak/RMS) en `thresh`; de gate
+  heeft 25 % hysterese zodat een uitstervende staart niet klappert.
+- **Gedeelde kern `mmb_dsp/env_follower.h`.** Header-only, samplerate-
+  onafhankelijk; `EnvFollowerModule.h` en `tools/mmb-wasm/envfollower_wasm.cc`
+  draaien letterlijk dezelfde code, dus sim en hardware kunnen niet uit elkaar
+  lopen — hetzelfde patroon als `tape_echo.h` en `sample_player.h`.
+- **RMS middelt eerst, dan pas de wortel.** Een asymmetrische attack/release
+  op x² klimt naar de *piek* van de rimpel in plaats van naar het gemiddelde;
+  dan meet "RMS" gewoon weer piek (een sinus van 0,5 las 0,47 in plaats van
+  0,354). De RMS-tak middelt daarom symmetrisch over een vast venster van
+  10 ms en trekt daarna de wortel, zodat de attack/release in beide modi in
+  het amplitude-domein loopt en de tijden in beide standen hetzelfde betekenen.
+- **Detectie op audiotempo, niet op de 1 kHz CV-tick.** Een aanslag van 2 ms
+  zou anders door de mazen vallen. Het meten gebeurt in een eigen
+  `AudioStream::update()`; `readCvPort()` leest alleen de laatste stand af en
+  is vrij van bijwerkingen — nodig, want de CV-brug leest een bron één keer
+  per *route*, en dat is niet noodzakelijk één keer per tick.
+- **`EnvFollowerBase<Cells>` als template**, zodat de mono-variant écht één
+  `AudioStream` heeft: de audiobibliotheek roept `update()` aan op elk levend
+  stream-object, dus zeven ongebruikte cellen zouden elke blok 128 samples
+  stilte staan verwerken.
+- **Wasm: één bron, twee binaries.** `build.sh` compileert
+  `envfollower_wasm.cc` nog een keer met `-DMMB_EF_CELLS=1`; `build()` kreeg
+  daarvoor een optionele `EXTRA=`-vlaggenset. 67 KB / 1,2 % CPU tegen
+  36 KB / 0,4 %.
+- **Contract-gereedschap.** `contract_dump.py` `parse_module()` geeft nu een
+  lijst terug — één header mag varianten bevatten die dezelfde romp delen
+  (`EnvFollowerModule.h` is het enige bestand met meer dan één `kTypeId`).
+  Overrides erbij voor de celgenummerde jacks van beide followers en voor de
+  sampler (`voct_`/`gate_`/`vel_`/`cutoff_`/`env_`), die nog helemaal niet in
+  het contract stond. Contract nu 52 modules.
+- **Gemeten** via `tools/mmb-wasm/test.mjs`, beide varianten identiek: env-piek
+  0,356 op een sinus van 0,5 (RMS = 0,354), peak-modus 0,493 bij 0,5 ms attack,
+  één gate-flank, release valt netjes terug naar nul. `pio run -e teensy41`
+  slaagt (RAM1 vrij 160 KB, RAM2 vrij 269 KB); nog niet op hardware gedraaid.
+- Onderweg gerepareerd: de sampler-rooktest stuurde `voct`/`gate`/`vel` aan,
+  maar die heten sinds de poly-ombouw `voct_1`/`gate_1`/`vel_1`. De test
+  rapporteerde stilte (`peak 0.000`) zonder te falen; nu weer 0,293.
+
 ### fw 0.5.15 — AU-modulebatch (stereo-VCA, FM/WT/draw-VCO, echo/phaser/comb) & live control-sync (2026-06-02)
 - **FW-LIVE-1 — live control-sync.** Knob-/control-edits in de editor gaan nu via
   een `controlPoke`-serieframe (`{type,mod,ctrl,v}`) direct naar de Teensy zonder
@@ -209,7 +262,10 @@
 
 | Release | Datum | Kern |
 |---|---|---|
+| editor 0.8.3 | 2026-09-07 | **Modules-tab: zoeken, sorteerbare kolommen en een Sim-kolom.** Met 52 interne types was een lijst op invoegvolgorde niet meer doorzoekbaar. Beide panes krijgen een zoekveld (spaties = AND), klikbare kolomkoppen met ▲▼, en een intern/extern-filter met teller; types matchen ook op `typeId`, want dat is wat de firmware, de wasm-bestandsnamen en de seed-functies gebruiken. Sorteren via `Intl.Collator` met `numeric`, zodat "Mixer 8" vóór "Mixer 16" komt. Alles zit in de view; de opgeslagen volgorde blijft ongemoeid. Daarnaast een **Sim-kolom**: speelt dit type in de simulator, en waarmee — `wasm` (dezelfde DSP als de Teensy) of `web-audio` (nagebouwd in Tone)? Die kennis zat verspreid door `AudioEngine.makeNode` (een wasm-set, een registry-lookup, een reeks `if (t.id === …)`); ze staat nu in `sim/simSupport.ts` en `makeNode` vraagt het bij zichzelf op — zegt `simSupportByKind` 'none', dan bouwt de engine niets, dus een type kan niet "speelt" heten en ondertussen stil zijn. Bewust géén veld op `ModuleType`: een opgeslagen vlaggetje gaat liegen zodra iemand een wasm bouwt of een runtimeklasse registreert. Diezelfde rem lost een stille bug op: **Grids** staat in categorie `sequencer` en die tak bouwde ongezien de 16-staps SEQ-16 met standaardwaarden — Grids heeft `bd`/`sd`/`hh`/`acc` in plaats van `cv`/`gate` en geen stapknoppen, dus die node stond nergens op aangesloten en tikte tóch elke 250 ms door; `isStepSequencer()` eist nu een `s1`-knop plus een `cv`-uitgang. Filter `sim: alles/speelt/stil`, het label rijdt mee in het zoekveld, en de type-editor toont de status met uitleg (en bij een externe module via welke interne proxy hij speelt — de RS-110 draait op `tp_mmb_vcf`). `simSupport.test.ts` legt niet vast wélke module speelt, maar dát het antwoord bekend is, en rapporteert de dekking: **33/52 interne modules spelen (15 wasm, 18 web-audio)**. |
+| editor 0.8.2 / fw 0.5.49 | 2026-09-07 | **Envelope follower, 8 cellen en enkelvoudig.** Zie [fw 0.5.49](#fw-0549--envelope-follower-8-cellen-en-enkelvoudig-fw-cv-6-2026-09-07) voor de kern. Editorkant: panelen `mmbEnvFollower()` (ENV-FOLLOW-8, 16 HP, `role:'multi'` met CellGroup ×8) en `mmbEnvFollowerMono()` (ENV-FOLLOW, 6 HP), beide in `seedInternals`; `WasmModule.typeIds` uitgebreid met de twee wasm-modules, zodat de simulator dezelfde DSP draait als de Teensy. Typisch gebruik: sampler → `in`, `env` → cutoff-CV van een VCF. |
 | editor 0.8.1 / fw | 2026-09-06 | **Filter in de cel, follower per stem, en de kernel-laag als de plek voor recursie.** (1) Twee nieuwe kernels in `mmb-dsp`: `svf.h` (TPT state-variable, LP/HP/BP) en `korg35.h` (de MS-20 uit `Ms20Module.h` losgetrokken: ZDF Sallen-Key, tanh-lus, 2× oversampling). `Ms20Module` en `VcfModule` zijn nu dunne schillen om die kernels — de VCF liep tot nu op Teensy's int16-`AudioFilterStateVariable` en heeft nu een float-filter met live `type`. (2) **Sampler**: per stem-kanaal een filterslot (`filter`: uit / SVF / MS-20 — letterlijk dezelfde klassen als de losse modules), gedeelde `cutoff`/`q`/`fmode`/`drive`/`cv_amt`/`env_rel`, cel-ingang `cutoff_k` en cel-uitgang `env_k` (`EnvFollower`, vóór het filter). De stem verlaat de module niet, dus stereo en quad blijven intact; auto-wah is de multikabel `env_k → cutoff_k`. Seed **Poly ▾ → Sampler ×8 auto-wah**. (3) Engine: `expandPolyForSim` vouwt nu ook cel-kabels uit (cel → cel = stem k → stem k, global → cel fan-out, cel → global genummerd/som), zodat één kabel op de master-cel in de sim alle stemmen bedient — zoals `polyExpand` dat voor de firmware doet. (4) **Firmware bouwt weer, en is gebouwd**: PlatformIO staat op deze Mac (`~/.platformio/penv/bin/pio`), `pio run -e teensy41` slaagt met alle sampler-, filter- en bankwijzigingen. Onderweg gevonden: `extern "C" __brkval` in een anonieme namespace (uit de PSRAM-commit) linkte niet — gehesen. Getest door de worklet: SVF 300 Hz brengt het spectrale zwaartepunt van 951 naar 376 Hz, MS-20 naar 295, `cutoff_1` = 1 opent naar 918 Hz, follower 0,07 → 0,37 → 0,18 over de aanslag. Nog niet op hardware gedraaid. |
+| editor 0.8.0 → 0.8.1 | 2026-09-06 | **Zes fixes tussendoor, tijdens het samplen van bellen en een handpan.** (1) `c846175` **engine**: na de ombouw naar A/B hingen DX7-noten (note-off liep langs een mono-bewaking die alleen de laatste toets losliet) en zweeg de sampler (doelwit-lijsten bevatten stem-id's `mod#1`, de dispatch zocht ze op als module-id). (2) `2f26481` **import: Velocity (dB)** naast *Lagen/noot* — de import schreef `velTrack` nooit, dus een bank met één laag per noot reageerde niet op aanslag; nu 24 dB bij één laag, 6 dB bij meer. (3) `2ff34e6` **klok/bel**: toonhoogte als sterkste spectrale piek (`detectPeakPitch`, FFT 32k, parabolisch) in plaats van YIN's periode, die bij bellen een subharmonische vindt — de eerste bel stond een octaaf te laag, de vijfde 70 ct ernaast. (4) `b66e264` **T60 robuust**: bovenomhullende (lopend maximum 150 ms) tegen zwevingen, drempels boven de ruisvloer voor afgekapte opnames, en een ondergrens van 0,8 × segmentlengte — een geloopte bel met een foute T60 van 0,2 s was een tik. (5) `5a6bc2e` **handpan**: `pitchesRejectingDrone()` — de lichaamsresonantie die onder élke slag klinkt (≥ 60 % van de aanslagen) valt af, de noot is de laagste piek met een octaafpartner binnen 12 dB, en een zwakke zachte slag neemt de noot van zijn harde buur. Sela D Kurd leest nu D3 / Bb3 A3 C4 E4 G4 A4 F4 (+ C4 op de rand, D4 50 ct laag) en meet ~432 Hz. (6) `4461525` **BankHeader 44 bytes** → `name[28]`; firmware compileert weer (zie `doc/bug-bankheader-2026-09-06.md`); bestaande banken onbeschadigd, namen nu 27 tekens + nul. |
 | editor 0.8.0 | 2026-09-06 | **Construct C weg: sampler → multi-module (B), DX7-simulatie → ×N (A).** Uitwerking van [uml/11-simulation-wasm.md](uml/11-simulation-wasm.md). (1) **Sampler** is een multi-module: `role: 'multi'`, CellGroup `voice` ×8 met `voct_k`/`gate_k`/`vel_k`, controls gedeeld, gemengde uitgangen. Firmware `SamplerModule.h` en `sampler_wasm.cc` hebben dezelfde portmap; de allocator is eruit — die zit in MIDI-in. Seed **Poly ▾ → Sampler ×8 (cellen)**: één SAMPLER, PolyGroup over zijn cellen. (2) **DX7** is een gewone `WasmModule`: `tools/mmb-wasm/dx7_wasm.cc` (mmb-ABI, één stem, blok 64), gebouwd door `build.sh dx7`; ROMs, USER-bank en edit-patch gaan als blobs (slots 0..7, 8, 9) met control `edit`. `dx7Host.ts` vervangt `Dx7.ts`; de browser-eigen worklet met 16 stemmen (`dx7-worklet.js`, `dx7.wasm`, `bundle-worklet.mjs`) is verwijderd — de JS-port blijft als referentie voor `test-core.mjs` en `compare.mjs`. (3) **Engine**: stem-id's `moduleId` (A) of `moduleId#k` (B); de wasm-stemtoewijzer bedient cel-poorten met suffix; `Dx7Node`, `polyNotes`, `mmb_note_on` en `WasmModule.polyTypeIds` weg. Nieuw generiek in `WasmModule`: `registerAssets()` (lader per type), `broadcastControl()` (control naar alle instanties, ook buiten de catalogus), `count()`. Getest door de worklet: akkoord op cel 1–3 = drie stemmen, gate_1 laag laat 2 en 3 staan, velocity per cel 0,13/0,71; DX7 E.PIANO 1 op 0 cent over drie octaven, edit-patch aan/uit hoorbaar. Firmware niet gebouwd (geen toolchain). |
 | docs | 2026-09-06 | **Pas op de plaats — [uml/11-simulation-wasm.md](uml/11-simulation-wasm.md).** Het modulemodel (compositie leeft in de catalogus, firmware en wasm spiegelen op naam), de drie manieren van polyfonie — A: enkelvoudige module ×N via PolyGroup/polyExpand; B: multi-module met cellen (QUAD/OCTA); C: het note-instrument dat de simulator vandaag voor DX7 en sampler kreeg — en het oordeel: C is een sluiproute, de sampler hoort een multi-module met instelbaar N te zijn en de DX7-simulatie hoort ×N te worden zoals de firmware al is. Plus klassediagrammen van de wasm-laag en de tabel `Module` ↔ `mmb_abi`. |
 | editor 0.7.10 | 2026-09-06 | **Sampler speelt akkoorden.** De kern had al acht stemmen met een allocator; de *aansluiting* was monofoon, want een gate-flank draagt maar één toonhoogte en note-off liet alle stemmen los (`noteOff(-1)`). De sampler-wasm exporteert nu `mmb_note_on`/`mmb_note_off`/`mmb_all_notes_off`/`mmb_poly_voices`, de generieke worklet geeft `note`-berichten door, en de engine stuurt zo'n module élke noot los — hetzelfde patroon als de DX7. Zodra er één noot via die weg binnenkomt laat de kern de gate-flank met rust, zodat een gate-kabel en een klavier elkaar niet afkappen; een sequencer loopt via dezelfde weg (`wasmNoteOn` routeert poly-modules door). `WasmModule.polyTypeIds` zegt welke modules dit kunnen — Elements en Rings zijn per instantie één stem, daar blijft een PolyGroup het antwoord. Getest door de worklet: akkoord C3-E3-G3 geeft drie klinkende grondtonen, note-off van één noot laat de andere twee staan (de losgelaten zakt 42 dB in de release), en tien noten op acht stemmen stelen netjes. |
