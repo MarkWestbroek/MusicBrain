@@ -270,6 +270,14 @@ input[type="range"]::-moz-range-thumb {
   padding: 3px 4px; cursor: pointer;
 }
 .padrow > .sel:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.surfaces { border-top: 1px solid var(--border); padding-top: 13px; margin-top: 2px; }
+.surfhead { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 11px; }
+.surfgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px 18px; }
+/* De rijen staan hier in een raster met eigen tussenruimte; de marge die ze
+ * in het pad-paneel van elkaar scheidt zou de eerste regel scheeftrekken. */
+.surfgrid .padrow + .padrow { margin-top: 0; }
+.surfempty { color: var(--muted); font-family: var(--font-mono); font-size: 10.5px; }
+@media (max-width: 860px) { .surfgrid { grid-template-columns: 1fr 1fr; } }
 .padhint {
   margin: 0; color: var(--muted); line-height: 1.65;
   font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.02em;
@@ -604,6 +612,18 @@ input[type="range"]::-moz-range-thumb {
           <select class="sel" id="padTpen" aria-label="Doel van de pendruk"></select>
         </div>
       </div>
+    </div>
+
+    <div class="surfaces" id="surfaces">
+      <div class="surfhead">
+        <span class="eyebrow">Bedieningsvlakken</span>
+        <span class="machine" id="surfState">doorgeefluik zoeken&hellip;</span>
+      </div>
+      <div class="surfgrid" id="surfGrid"></div>
+      <p class="surfempty" id="surfEmpty">
+        Open <code>/pad-phone.html</code> op een telefoon in hetzelfde netwerk.
+        Elk toestel krijgt een eigen CC-bereik, dus je kunt er meerdere koppelen.
+      </p>
     </div>
 
     <p class="padhint">
@@ -1725,6 +1745,118 @@ Engine.prototype.render = function (outL, outR, n) {
   }
   padResize();
   padTick();
+
+  // -------------------------------------------------------------------------
+  // Bedieningsvlakken op afstand. De snaarbank is hier de "host": telefoons
+  // melden zich bij het doorgeefluik van de dev-server en sturen CC-vormige
+  // waarden. De routering staat hier, op het grote scherm; het toestel zelf
+  // blijft dom en stuurt alleen genummerde assen. Zie editor/modlink/relay.ts.
+  // -------------------------------------------------------------------------
+  var SURF_STORE = "mb-surface-map";
+  var surfMap = {};        // cc → parameternaam
+  var surfRows = {};       // cc → { sel, out }
+  var surfLink = null;
+
+  try { surfMap = JSON.parse(localStorage.getItem(SURF_STORE) || "{}") || {}; }
+  catch (err) { surfMap = {}; }
+
+  var surfState = document.getElementById("surfState");
+  var surfGrid = document.getElementById("surfGrid");
+  var surfEmpty = document.getElementById("surfEmpty");
+
+  function surfLabelFor(cc) {
+    var key = surfMap[cc];
+    if (!key) return null;
+    for (var i = 0; i < PAD_TARGETS.length; i++) if (PAD_TARGETS[i][0] === key) return PAD_TARGETS[i][1];
+    return null;
+  }
+
+  // De telefoon toont de bestemmingsnamen op zijn eigen achtergrond, dus na
+  // elke wijziging sturen we de hele lijst terug.
+  function surfPublishLabels() {
+    if (!surfLink) return;
+    var items = [];
+    for (var cc in surfRows) {
+      if (!Object.prototype.hasOwnProperty.call(surfRows, cc)) continue;
+      var lb = surfLabelFor(cc);
+      if (lb) items.push({ cc: +cc, label: lb });
+    }
+    surfLink.sendLabels(items);
+  }
+
+  function surfBuild(peers) {
+    var surfaces = [];
+    for (var i = 0; i < peers.length; i++) if (peers[i].role === "surface") surfaces.push(peers[i]);
+    surfaces.sort(function (a, b) { return a.slot - b.slot; });
+
+    surfGrid.innerHTML = "";
+    surfRows = {};
+    surfEmpty.hidden = surfaces.length > 0;
+
+    for (var s = 0; s < surfaces.length; s++) {
+      var p = surfaces[s];
+      for (var n = 0; n < p.ccCount; n++) {
+        var cc = p.ccBase + n;
+        var point = Math.floor(n / 2) + 1;
+        var axis = (n % 2) === 0 ? "X" : "Y";
+
+        var row = document.createElement("div");
+        row.className = "padrow";
+
+        var lab = document.createElement("span");
+        lab.className = "padlabel";
+        lab.textContent = "Vlak " + p.slot + " · punt " + point + " " + axis;
+
+        var out = document.createElement("span");
+        out.className = "val";
+        out.textContent = "—";
+
+        var sel = document.createElement("select");
+        sel.className = "sel";
+        sel.setAttribute("aria-label", "Bestemming van CC " + cc);
+        for (var t = 0; t < PAD_TARGETS.length; t++) {
+          var o = document.createElement("option");
+          o.value = PAD_TARGETS[t][0];
+          o.textContent = PAD_TARGETS[t][1];
+          if (PAD_TARGETS[t][0] === (surfMap[cc] || "")) o.selected = true;
+          sel.appendChild(o);
+        }
+        sel.dataset.cc = String(cc);
+        sel.addEventListener("change", function () {
+          var c = this.dataset.cc;
+          if (this.value) surfMap[c] = this.value; else delete surfMap[c];
+          try { localStorage.setItem(SURF_STORE, JSON.stringify(surfMap)); } catch (err) { /* prive-venster */ }
+          surfPublishLabels();
+        });
+
+        row.appendChild(lab); row.appendChild(out); row.appendChild(sel);
+        surfGrid.appendChild(row);
+        surfRows[cc] = { sel: sel, out: out };
+      }
+    }
+    surfPublishLabels();
+  }
+
+  import("/modlink.js").then(function (mod) {
+    surfLink = mod.connect({
+      role: "host",
+      name: "Snaarbank",
+      onPeers: surfBuild,
+      onState: function (st) {
+        surfState.textContent =
+          st === "verbonden" ? "verbonden met het doorgeefluik"
+          : (st === "weg" ? "doorgeefluik weg — opnieuw proberen" : "doorgeefluik zoeken…");
+      },
+      onValue: function (m) {
+        var row = surfRows[m.cc];
+        if (row) row.out.textContent = m.v.toFixed(2);
+        var key = surfMap[m.cc];
+        if (key) setParam(key, m.v);
+      }
+    });
+  }).catch(function () {
+    surfState.textContent = "doorgeefluik niet beschikbaar";
+  });
 
   var modeBtns = document.querySelectorAll(".modes .modebtn");
   function setMode(m, fromMidi) {

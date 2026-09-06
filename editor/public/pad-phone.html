@@ -1,0 +1,296 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>MusicBrain Pad</title>
+<style>
+:root {
+  --background: #0e1116; --surface: #151b23; --surface-2: #10151c;
+  --border: #232b36; --foreground: #f2f4f8; --muted: #8c96a5;
+  --accent: #f5a623; --accent-2: #3ec9d8; --status-ok: #34d399;
+  --font-mono: "JetBrains Mono", "Cascadia Code", Consolas, "SF Mono", monospace;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body {
+  margin: 0; height: 100%; overflow: hidden;
+  background: var(--background); color: var(--foreground);
+  font-family: var(--font-mono);
+  overscroll-behavior: none;
+  -webkit-user-select: none; user-select: none;
+  touch-action: none;
+}
+body {
+  display: flex; flex-direction: column;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+.bar {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; border-bottom: 1px solid var(--border); background: var(--surface);
+  font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+}
+.bar .name { color: var(--accent); font-weight: 600; }
+.bar .spacer { flex: 1; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); flex: 0 0 auto; }
+.dot.on { background: var(--status-ok); }
+.dot.off { background: var(--accent); }
+.bar .cc { color: var(--muted); }
+
+#pad { flex: 1 1 auto; display: block; width: 100%; touch-action: none; }
+
+.legend {
+  flex: 0 0 auto; display: grid; gap: 1px;
+  background: var(--border); border-top: 1px solid var(--border);
+}
+.lrow {
+  display: grid; grid-template-columns: 18px 62px 1fr auto;
+  align-items: center; gap: 9px;
+  padding: 7px 12px; background: var(--surface); font-size: 11px;
+}
+.lrow .n {
+  width: 16px; height: 16px; border-radius: 3px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 600; color: #0e1116;
+}
+.lrow .ccs { color: var(--muted); font-size: 9.5px; letter-spacing: 0.06em; }
+.lrow .dest { color: var(--foreground); font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lrow .vals { color: var(--accent-2); font-variant-numeric: tabular-nums; font-size: 11px; }
+.lrow.idle .dest, .lrow.idle .vals { opacity: 0.42; }
+</style>
+
+<div class="bar">
+  <span class="dot" id="dot"></span>
+  <span class="name" id="slotName">verbinden&hellip;</span>
+  <span class="spacer"></span>
+  <span class="cc" id="ccRange">&mdash;</span>
+</div>
+
+<canvas id="pad"></canvas>
+
+<div class="legend" id="legend"></div>
+
+<script type="module">
+import { connect } from "/modlink.js";
+
+// Drie aanraakpunten, elk een X- en een Y-as. Vlak n krijgt van het
+// doorgeefluik een eigen CC-bereik, dus twee telefoons botsen niet.
+var SLOTS = 3;
+var COLORS = ["#f5a623", "#3ec9d8", "#34d399"];
+var q = new URLSearchParams(location.search);
+
+var canvas = document.getElementById("pad");
+var g = canvas.getContext("2d");
+var legend = document.getElementById("legend");
+var dot = document.getElementById("dot");
+
+// Elke as onthoudt zijn stand, ook na loslaten: zo laat de achtergrond zien
+// waar de modulatoren nu staan in plaats van alleen tijdens het aanraken.
+var slots = [];
+for (var i = 0; i < SLOTS; i++) slots.push({ x: 0.5, y: 0.5, down: false, seen: false });
+var labels = {};          // cc → naam van de bestemming, aangeleverd door de host
+var ccBase = 0, ccCount = 0;
+var pointerSlot = {};     // pointerId → index
+var dirty = {};           // cc → waarde die nog verstuurd moet worden
+
+// Optionele eigen achtergrond: pad-phone.html?bg=/iets.png
+var bgImg = null;
+if (q.get("bg")) {
+  bgImg = new Image();
+  bgImg.onerror = function () { bgImg = null; };
+  bgImg.src = q.get("bg");
+}
+
+var link = connect({
+  role: "surface",
+  name: q.get("name") || "Telefoon",
+  onWelcome: function (m) {
+    ccBase = m.ccBase; ccCount = m.ccCount;
+    document.getElementById("slotName").textContent = "Vlak " + m.slot;
+    document.getElementById("ccRange").textContent = "CC " + m.ccBase + "–" + (m.ccBase + m.ccCount - 1);
+    buildLegend();
+  },
+  onLabels: function (items) {
+    labels = {};
+    for (var i = 0; i < items.length; i++) labels[items[i].cc] = items[i].label;
+    buildLegend();
+  },
+  onState: function (s) {
+    dot.className = "dot " + (s === "verbonden" ? "on" : "off");
+    if (s !== "verbonden") document.getElementById("slotName").textContent = s === "weg" ? "verbinding weg" : "verbinden…";
+  }
+});
+
+function ccOf(slot, axis) { return ccBase + slot * 2 + axis; }   // axis 0 = X, 1 = Y
+
+function buildLegend() {
+  legend.innerHTML = "";
+  for (var i = 0; i < SLOTS; i++) {
+    var cx = ccOf(i, 0), cy = ccOf(i, 1);
+    var row = document.createElement("div");
+    row.className = "lrow idle";
+    row.id = "lrow" + i;
+    row.innerHTML =
+      '<span class="n" style="background:' + COLORS[i] + '">' + (i + 1) + '</span>' +
+      '<span class="ccs">CC ' + cx + "/" + cy + '</span>' +
+      '<span class="dest" id="ldest' + i + '"></span>' +
+      '<span class="vals" id="lval' + i + '"></span>';
+    legend.appendChild(row);
+  }
+  paintLegend();
+}
+
+function destText(i) {
+  var a = labels[ccOf(i, 0)], b = labels[ccOf(i, 1)];
+  if (!a && !b) return ccBase ? "niet gekoppeld" : "—";
+  return (a || "—") + "  /  " + (b || "—");
+}
+
+function paintLegend() {
+  for (var i = 0; i < SLOTS; i++) {
+    var row = document.getElementById("lrow" + i);
+    if (!row) continue;
+    row.className = "lrow" + (slots[i].seen ? "" : " idle");
+    document.getElementById("ldest" + i).textContent = destText(i);
+    document.getElementById("lval" + i).textContent =
+      slots[i].seen ? slots[i].x.toFixed(2) + " / " + slots[i].y.toFixed(2) : "";
+  }
+}
+
+function resize() {
+  var r = canvas.getBoundingClientRect();
+  var dpr = Math.min(2, window.devicePixelRatio || 1);
+  canvas.width = Math.max(1, Math.round(r.width * dpr));
+  canvas.height = Math.max(1, Math.round(r.height * dpr));
+}
+if (window.ResizeObserver) new ResizeObserver(resize).observe(canvas);
+else window.addEventListener("resize", resize);
+
+function draw() {
+  var w = canvas.width, h = canvas.height, s = w / 400;   // schaalmaat
+  g.clearRect(0, 0, w, h);
+
+  if (bgImg && bgImg.complete && bgImg.naturalWidth) {
+    g.globalAlpha = 0.35;
+    g.drawImage(bgImg, 0, 0, w, h);
+    g.globalAlpha = 1;
+  }
+
+  g.strokeStyle = "rgba(140,150,165,0.12)";
+  g.lineWidth = 1;
+  for (var i = 1; i < 8; i++) {
+    var gx = Math.round(w * i / 8) + 0.5, gy = Math.round(h * i / 8) + 0.5;
+    g.beginPath(); g.moveTo(gx, 0); g.lineTo(gx, h); g.stroke();
+    g.beginPath(); g.moveTo(0, gy); g.lineTo(w, gy); g.stroke();
+  }
+
+  // Asbenamingen langs de randen wijzen welke kant X en Y op lopen. Ze horen
+  // bij aanraakpunt 1 en krijgen daarom diens kleur; de legenda onderaan doet
+  // de andere punten, anders zou deze tekst voor alle drie lijken te gelden.
+  g.font = (9 * s) + "px " + getComputedStyle(document.body).fontFamily;
+  g.fillStyle = COLORS[0];
+  g.globalAlpha = 0.75;
+  g.textAlign = "left";  g.textBaseline = "top";
+  g.fillText("1 · X → " + (labels[ccOf(0, 0)] || "vrij"), 10 * s, 9 * s);
+  g.save();
+  g.translate(10 * s, h - 9 * s); g.rotate(-Math.PI / 2);
+  g.fillText("1 · Y → " + (labels[ccOf(0, 1)] || "vrij"), 0, 0);
+  g.restore();
+  g.globalAlpha = 1;
+
+  for (var k = 0; k < SLOTS; k++) {
+    var sl = slots[k];
+    if (!sl.seen) continue;
+    var px = sl.x * w, py = (1 - sl.y) * h;
+    var col = COLORS[k];
+
+    g.strokeStyle = col;
+    g.globalAlpha = sl.down ? 0.85 : 0.3;
+    g.lineWidth = Math.max(1, s);
+    g.setLineDash([4 * s, 5 * s]);
+    g.beginPath(); g.moveTo(px, 0); g.lineTo(px, h); g.stroke();
+    g.beginPath(); g.moveTo(0, py); g.lineTo(w, py); g.stroke();
+    g.setLineDash([]);
+
+    g.globalAlpha = sl.down ? 0.22 : 0.1;
+    g.fillStyle = col;
+    g.beginPath(); g.arc(px, py, (sl.down ? 26 : 14) * s, 0, Math.PI * 2); g.fill();
+    g.globalAlpha = 1;
+    g.beginPath(); g.arc(px, py, 5 * s, 0, Math.PI * 2); g.fill();
+
+    g.fillStyle = col;
+    g.font = (10 * s) + "px " + getComputedStyle(document.body).fontFamily;
+    g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillText(String(k + 1), px, py - 15 * s);
+    g.textAlign = "left"; g.textBaseline = "top";
+    g.fillText(sl.x.toFixed(2) + " / " + sl.y.toFixed(2), px + 10 * s, py + 8 * s);
+  }
+  g.globalAlpha = 1;
+}
+
+// Waarden ophopen en één keer per beeld versturen: een vinger levert veel
+// meer punten dan zestig per seconde, en die hoeven niet allemaal over de lijn.
+function flush() {
+  for (var cc in dirty) if (Object.prototype.hasOwnProperty.call(dirty, cc)) link.sendValue(+cc, dirty[cc]);
+  dirty = {};
+  paintLegend();
+  draw();
+  requestAnimationFrame(flush);
+}
+
+function place(idx, e) {
+  var r = canvas.getBoundingClientRect();
+  var x = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+  var y = Math.max(0, Math.min(1, 1 - (e.clientY - r.top) / r.height));
+  var sl = slots[idx];
+  sl.x = x; sl.y = y; sl.seen = true;
+  dirty[ccOf(idx, 0)] = x;
+  dirty[ccOf(idx, 1)] = y;
+}
+
+function freeSlot() {
+  for (var i = 0; i < SLOTS; i++) if (!slots[i].down) return i;
+  return -1;
+}
+
+canvas.addEventListener("pointerdown", function (e) {
+  var idx = freeSlot();
+  if (idx < 0) return;
+  pointerSlot[e.pointerId] = idx;
+  slots[idx].down = true;
+  try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* niet nodig */ }
+  place(idx, e);
+  e.preventDefault();
+});
+canvas.addEventListener("pointermove", function (e) {
+  var idx = pointerSlot[e.pointerId];
+  if (idx === undefined) return;
+  place(idx, e);
+  e.preventDefault();
+});
+function lift(e) {
+  var idx = pointerSlot[e.pointerId];
+  if (idx === undefined) return;
+  slots[idx].down = false;          // waarde blijft staan: modulatoren houden vast
+  delete pointerSlot[e.pointerId];
+}
+canvas.addEventListener("pointerup", lift);
+canvas.addEventListener("pointercancel", lift);
+
+// iOS zoomt anders op een dubbeltik midden in een beweging.
+document.addEventListener("gesturestart", function (e) { e.preventDefault(); });
+document.addEventListener("dblclick", function (e) { e.preventDefault(); });
+
+// Het scherm mag niet uitgaan terwijl je speelt.
+if (navigator.wakeLock) {
+  var relock = function () {
+    if (document.visibilityState === "visible") navigator.wakeLock.request("screen").catch(function () { /* mag falen */ });
+  };
+  relock();
+  document.addEventListener("visibilitychange", relock);
+}
+
+buildLegend();
+resize();
+flush();
+</script>
