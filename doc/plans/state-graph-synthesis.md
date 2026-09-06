@@ -521,6 +521,14 @@ is.
   gewone SPI-slave met onafhankelijk I2S-audio.
 - [patch.synth.v1](../protocols/schemas/patch.synth.v1.md) blijft het compacte
   bestaande voicecontract; de state graph krijgt een afzonderlijke definitie.
+- [Synthesetechnieken buiten de vier bekende](synthesetechnieken-verkenning.md)
+  §F plaatst dit voorstel naast de overige technieken en toetst het aan de
+  routingcriteria (§0 daar). Kortste samenvatting: criterium 2 geldt hier
+  werkelijk, maar blok-RAM is de bottleneck, dus Teensy-prototype eerst.
+- `firmware/app-modular-brain/src/ResonatorModule.h` is de dichtstbijzijnde
+  bestaande code: 12 gestemde resonatoren op één gedeelde excitatie. Het is een
+  sterren-topologie zonder onderlinge koppeling en zonder hysterese — precies
+  de twee dingen die dit voorstel toevoegt.
 
 ## Beslispunt
 
