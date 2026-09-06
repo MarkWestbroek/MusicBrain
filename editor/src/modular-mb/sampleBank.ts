@@ -2,8 +2,9 @@
 // firmware/lib/mmb-dsp/mmb_dsp/sample_bank.h): één bestand met alle samples
 // én de keymap, zodat de Teensy het zonder parser in PSRAM kan zetten.
 //
-// `.mmbk` = "MusicBrain bank" (familie-extensie); de magic-bytes zeggen welke
-// soort bank erin zit — `MMBS` voor een samplebank.
+// `.mmbk` = Modular Music Brain banK (familie-extensie, zelfde `mmb`-prefix
+// als `mmb_link` / `mmb_dsp` / `tp_mmb_*`); de magic-bytes zeggen welke soort
+// bank erin zit — `MMBS` voor een samplebank.
 //
 // Layout (little-endian):
 //   BankHeader  44 bytes   "MMBS", versie, aantal slots/zones, naam[32]

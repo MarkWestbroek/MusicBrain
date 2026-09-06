@@ -1,10 +1,11 @@
 #pragma once
 /**
  * @file sample_bank.h
- * @brief `.mmbk` — MusicBrain-bank met samples + keymap in één bestand, zodat
- *        de Teensy hem zonder parser in PSRAM kan zetten.
+ * @brief `.mmbk` — MMB-bank met samples + keymap in één bestand, zodat de
+ *        Teensy hem zonder parser in PSRAM kan zetten.
  * @details
- * `.mmbk` is de **familie-extensie** ("MusicBrain bank"); de vier magic-bytes
+ * `.mmbk` is de **familie-extensie** (Modular Music Brain banK, dezelfde
+ * `mmb`-prefix als `mmb_link` / `mmb_dsp` / `tp_mmb_*`); de vier magic-bytes
  * zeggen welke soort bank erin zit. Nu: `MMBS` = samplebank. Toekomstige
  * soorten (wavetables, DX7-banken) kunnen dezelfde extensie delen met een
  * eigen magic, zodat er niet voor elk type een nieuwe extensie bijkomt.
