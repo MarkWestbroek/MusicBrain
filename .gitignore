@@ -71,4 +71,13 @@ hardware/kicad-generators/__pycache__/
 # heeft zonder KiCad. BOM/CPL-CSV's blijven eveneens getrackt (klein, diff-baar,
 # ordergeschiedenis).
 **/fab/gerbers/
-editor/public/banks/
+# Samplebanken: de kleine banken staan er wél in, zodat een kloon meteen iets
+# te spelen heeft (zie editor/public/banks/README.md). Wat groot is of niet
+# herverdeeld mag worden blijft lokaal.
+editor/public/banks/*
+!editor/public/banks/README.md
+!editor/public/banks/gu-*.mmbs
+!editor/public/banks/elements.mmbs
+!editor/public/banks/church-organ.mmbs
+!editor/public/banks/handdrum*.mmbs
+!editor/public/banks/small bells*.mmbs
