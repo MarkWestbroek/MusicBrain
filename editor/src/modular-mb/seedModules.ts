@@ -1325,34 +1325,51 @@ function mmbEcho() {
 //      kern als wasm in de simulator). Samples laden via de 🎧 Sample-knop;
 //      `slot` kiest er een uit de gedeelde 16-slots bank.
 function mmbSampler() {
-  const w = W(8);
+  const w = W(16);
+  const colX = (i: number) => w * (0.0625 + i * 0.125);         // acht cel-kolommen
+  const cells = [1, 2, 3, 4, 5, 6, 7, 8];
   return assemble({
     typeId: 'tp_mmb_sampler',
     categoryId: 'vco',
     variant: 'Multisampler',
     brand: 'MMB', model: 'SAMPLER',
-    hp: 8, texture: 'pcb-black', baseColor: '#14261f', internal: true,
+    hp: 16, texture: 'pcb-black', baseColor: '#14261f', internal: true,
+    // Multi-module (construct B): acht stem-cellen die één bank delen. Wie
+    // welke cel bespeelt beslist de stemtoewijzer in MIDI-in; hier geen
+    // allocator. Controls zijn gedeeld (controlIds: []), zoals de QUAD-VCO.
+    role: 'multi',
+    cellGroups: [{
+      id: 'voice',
+      label: 'Stem',
+      count: 8,
+      portIds: ['voct', 'gate', 'vel'],
+      controlIds: [],
+    }],
     texts: [
       { x: w/2, y: 8,   text: 'SAMPLER', fontSize: 2.0, color: '#f9fafb', align: 'middle' },
-      { x: w/2, y: 14,  text: 'keymap · PSRAM · SD', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 14,  text: 'keymap · 8 stemmen · PSRAM · SD', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
       { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+      { x: 3, y: 95,  text: 'V/Oct', fontSize: 1.0, color: '#9ca3af', align: 'start' },
+      { x: 3, y: 107, text: 'Gate',  fontSize: 1.0, color: '#9ca3af', align: 'start' },
+      { x: 3, y: 119, text: 'Vel',   fontSize: 1.0, color: '#9ca3af', align: 'start' },
     ],
     items: [
-      knob('bank',   'Bank',   w*0.30, 30, { size: 'medium', min: 0, max: 15, def: 0, step: 1, color: '#f5a623', ticks: { every: 1, highlight: [0, 15] } }),
-      knob('level',  'Level',  w*0.70, 30, { size: 'medium', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
-      knob('coarse', 'Coarse', w*0.20, 62, { size: 'small', min: -24, max: 24, def: 0, unit: 'semi', color: '#f9fafb' }),
-      knob('fine',   'Fine',   w*0.50, 62, { size: 'small', min: -100, max: 100, def: 0, unit: 'ct', color: '#f9fafb' }),
-      knob('start',  'Start',  w*0.80, 62, { size: 'small', min: 0, max: 1, def: 0, color: '#9ca3af' }),
-      knob('attack', 'Att',    w*0.20, 88, { size: 'small', min: 0.2, max: 500, def: 1.5, unit: 'ms', color: '#9ca3af' }),
-      inPort ('voct', 'V/Oct', 'cv',    w*0.18, 106),
-      inPort ('gate', 'Gate',  'gate',  w*0.42, 106),
-      inPort ('vel',  'Vel',   'cv',    w*0.66, 106),
-      outPort('out_l', 'L',  'audio', w*0.14, 122),
-      outPort('out_r', 'R',  'audio', w*0.38, 122),
-      outPort('out_3', '3',  'audio', w*0.62, 122),
-      outPort('out_4', '4',  'audio', w*0.86, 122),
+      knob('bank',   'Bank',   w*0.14, 30, { size: 'medium', min: 0, max: 15, def: 0, step: 1, color: '#f5a623', ticks: { every: 1, highlight: [0, 15] } }),
+      knob('level',  'Level',  w*0.32, 30, { size: 'medium', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      knob('coarse', 'Coarse', w*0.50, 30, { size: 'small', min: -24, max: 24, def: 0, unit: 'semi', color: '#f9fafb' }),
+      knob('fine',   'Fine',   w*0.62, 30, { size: 'small', min: -100, max: 100, def: 0, unit: 'ct', color: '#f9fafb' }),
+      knob('start',  'Start',  w*0.74, 30, { size: 'small', min: 0, max: 1, def: 0, color: '#9ca3af' }),
+      knob('attack', 'Att',    w*0.86, 30, { size: 'small', min: 0.2, max: 500, def: 1.5, unit: 'ms', color: '#9ca3af' }),
+      outPort('out_l', 'L',  'audio', w*0.62, 62),
+      outPort('out_r', 'R',  'audio', w*0.74, 62),
+      outPort('out_3', '3',  'audio', w*0.86, 62),
+      outPort('out_4', '4',  'audio', w*0.98 - 4, 62),
+      // Per cel: V/Oct, Gate, Vel — ids `<base>_<k>`, gebonden aan 'voice'.
+      ...cells.map((k) => inPort(`voct_${k}`, `${k}`, 'cv',   colX(k - 1), 92,  { cellGroupId: 'voice' })),
+      ...cells.map((k) => inPort(`gate_${k}`, '',     'gate', colX(k - 1), 104, { cellGroupId: 'voice' })),
+      ...cells.map((k) => inPort(`vel_${k}`,  '',     'cv',   colX(k - 1), 116, { cellGroupId: 'voice' })),
     ],
-    notes: 'Multisample-speler: een keymap met key- én velocity-zones kiest per noot en aanslag het juiste sample; V/Oct transponeert vanaf de root-noot van die zone. 1–4 kanalen (mono komt op L+R, stereo op L/R, quad op alle vier). Acht stemmen per instantie, dus akkoorden en overlappende uitstervingen. Loop-modes: geen, one-shot, continu, of tot note-off (dan speelt de staart erna af). Banken maak je met de 🎹 Multisample-import; die schrijft een .mmbs die je naar /mmb/banks/NN.mmbs op de SD kopieert — Bank kiest NN. In de simulator draait dezelfde kern (mmb_dsp::SamplePlayer) als wasm. Firmware tp_mmb_sampler.',
+    notes: 'Multisample-speler als multi-module: acht stem-cellen (voct_k/gate_k/vel_k) die één keymap-bank delen. Een keymap met key- én velocity-zones kiest per noot en aanslag het juiste sample; V/Oct transponeert vanaf de root-noot van die zone. 1–4 kanalen (mono komt op L+R, stereo op L/R, quad op alle vier), gemengd over alle cellen. Loop-modes: geen, one-shot, continu, of tot note-off. Polyfoon spelen = een PolyGroup over de cellen (Poly ▾ → Sampler ×8): MIDI-in verdeelt de noten, de sampler doet niets slims. Banken maak je met de 🎹 Multisample-import; die schrijft een .mmbs die je naar /mmb/banks/NN.mmbs op de SD kopieert — Bank kiest NN. In de simulator draait dezelfde kern (mmb_dsp::SamplePlayer) als wasm. Firmware tp_mmb_sampler.',
   });
 }
 
@@ -3626,6 +3643,81 @@ export function seedDx7PolyPatch(project: ModularProject, voiceCount = 8): Modul
     ...p,
     racks:        [...p.racks, rack],
     modules:      [...p.modules, mi, ...dx7s, mixer, out],
+    patches:      [...p.patches, patch],
+    activeRackId:  rack.id,
+    activePatchId: patch.id,
+  };
+}
+
+/**
+ * Sampler ×8: één SAMPLER-module, PolyGroup over zijn acht stem-cellen.
+ * MidiIn → cel 1 (master); polyExpand waaiert uit naar voct_1..8 enz.
+ * Construct B uit doc/uml/11-simulation-wasm.md — de sampler deelt één bank
+ * en MIDI-in verdeelt de noten.
+ */
+export function seedSamplerPolyPatch(project: ModularProject, voiceCount = 8): ModularProject {
+  const N = Math.max(2, Math.min(8, Math.round(voiceCount)));
+  const needed = ['tp_mmb_midiin', 'tp_mmb_sampler', 'tp_mmb_out'];
+  const missing = needed.some((tid) => !project.moduleTypes.some((t) => t.id === tid));
+  const p = missing ? seedInternals(project) : project;
+
+  const fresh = (tid: string): ModuleInstance => {
+    const proto = p.modules.find((m) => m.typeId === tid)!;
+    return { ...proto, id: uid('mod'), internal: false, visual: proto.visual };
+  };
+  const mi  = fresh('tp_mmb_midiin');
+  const smp = fresh('tp_mmb_sampler');
+  const out = fresh('tp_mmb_out');
+
+  const smpOffset = mi.visual.hpWidth;
+  const outOffset = smpOffset + smp.visual.hpWidth;
+  const rack: Rack = {
+    id: uid('rack'), name: `Sampler ×${N}`,
+    description: `MidiIn → SAMPLER (${N} stem-cellen als PolyGroup) → OUT. Eén bank, MIDI-in verdeelt de noten.`,
+    rows: 1, hpPerRow: Math.max(64, outOffset + out.visual.hpWidth + 4),
+    slots: [
+      { id: uid('slot'), moduleId: mi.id,  row: 0, hpOffset: 0 },
+      { id: uid('slot'), moduleId: smp.id, row: 0, hpOffset: smpOffset },
+      { id: uid('slot'), moduleId: out.id, row: 0, hpOffset: outOffset },
+    ],
+    kind: 'physical',
+    polyGroups: [{
+      id: uid('poly'), label: 'SAMPLER', voiceCount: N,
+      members: Array.from({ length: N }, (_, i) => ({
+        kind: 'cell' as const, moduleId: smp.id, cellGroupId: 'voice', cellIndex: i,
+      })),
+    }],
+  };
+
+  const c = (fm: ModuleInstance, fp: string, tm: ModuleInstance, tp: string): PatchConnection => ({
+    id: uid('conn'),
+    from: { moduleId: fm.id, portId: fp },
+    to:   { moduleId: tm.id, portId: tp },
+  });
+  const patch: Patch = {
+    id: uid('patch'), name: `Sampler ×${N}`,
+    description: `${N}-stemmige multisampler. Laad een bank via 🎹 Multisample (Testbank, ⤒ .mmbs of een .sf2) en speel.`,
+    voiceCount: N,
+    rackIds: [rack.id],
+    connections: [
+      c(mi, 'pitch', smp, 'voct_1'),
+      c(mi, 'gate',  smp, 'gate_1'),
+      c(mi, 'vel',   smp, 'vel_1'),
+      c(smp, 'out_l', out, 'l'),
+      c(smp, 'out_r', out, 'r'),
+    ],
+    controlState: {
+      [mi.id]:  { channel: 0, voiceCount: N, steal: 0 },
+      [smp.id]: { bank: 0, level: 0.8 },
+      [out.id]: { level: 0.85 },
+    },
+    envelopes: [], lfos: [],
+  };
+
+  return {
+    ...p,
+    racks:        [...p.racks, rack],
+    modules:      [...p.modules, mi, smp, out],
     patches:      [...p.patches, patch],
     activeRackId:  rack.id,
     activePatchId: patch.id,

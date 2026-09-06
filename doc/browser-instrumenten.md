@@ -81,6 +81,9 @@ Van "één sample per patch" naar een echte keymap. Kern:
 bankformaat `sample_bank.h`, Teensy-schil `SamplerModule.h`, editor-import
 `editor/src/modular-mb/SampleImportModal.tsx`.
 
+- **Multi-module** (construct B): één instantie met acht stem-cellen
+  `voct_k`/`gate_k`/`vel_k` die één bank delen; MIDI-in verdeelt de noten,
+  de sampler heeft geen eigen allocator. Poly ▾ → Sampler ×8.
 - **Zones** over toets- én velocity-bereik, elk met root, `tuneCents`, gain,
   pan, decay/release en vier loop-modes (`none`, `one_shot`, `continuous`,
   `sustain`).
@@ -128,14 +131,19 @@ kunnen dus niet uiteenlopen. Daarmee zijn `.mmbw` (wavetables) en `.mmbd`
 
 ## 5. De DX7
 
-Twee kernen, één bron: `firmware/lib/msfa` (Google's
-music-synthesizer-for-android, Apache-2.0) wordt met wasi-sdk naar
-`editor/public/dx7/dx7.wasm` gebouwd, en er is een regel-voor-regel JS-port
-(`dx7-core.js`) als fallback. Die port is **sample-exact** getest tegen de
-native build: maximaal verschil 1,5e-8, SNR 148 dB.
+Eén kern, één bron: `firmware/lib/msfa` (Google's
+music-synthesizer-for-android, Apache-2.0) wordt met wasi-sdk gebouwd tot een
+gewone mmb-wasm-module (`tools/mmb-wasm/dx7_wasm.cc` →
+`editor/public/wasm/tp_mmb_dx7.wasm`): **één stem per instantie, precies als
+`Dx7Module.h`**, polyfonie via een PolyGroup ×8. Daarnaast bestaat een
+regel-voor-regel JS-port (`dx7-core.js`), **sample-exact** getest tegen de
+native build (maximaal verschil 1,5e-8, SNR 148 dB); die dient nu alleen nog
+als referentie en als kern van `compare.mjs`.
 
-De worklet doet 16-stemmige polyfonie met een eigen allocator; de 8 factory-ROMs
-zitten in `roms.bin`, bank 8 (USR) is een geüploade `.syx`.
+De 8 factory-ROMs (`roms.bin`) en een geüploade `.syx` (bank 8, USR) gaan als
+blobs de wasm in — dezelfde weg als samples bij de sampler; `dx7Host.ts` regelt
+dat. Een browser-eigen 16-stemmige kern met eigen allocator heeft één middag
+bestaan en is weer weg: zie [uml/11-simulation-wasm.md](uml/11-simulation-wasm.md).
 
 ### Patch-editor
 
@@ -145,9 +153,8 @@ knop **🎛 DX7** in de MMB-werkbalk.
 De DX7 is berucht om 155 parameters achter één dataslider en een display van
 twee regels. Hier staat alles tegelijk in beeld, en omdat de synth in de
 browser draait hoor je elke wijziging meteen: de editor zet een **edit-patch**
-die de bank overstemt (`Dx7.setEditPatch`), zodat álle DX7-modules in de patch
-spelen wat je maakt. `dx7_edit_ptr()`/`dx7_edit_enable()` in de wasm en
-`setEditPatch()` in de JS-kern doen hetzelfde aan hun kant.
+die de bank overstemt (`dx7Host.setEditPatch` → blob-slot 9 + control `edit`),
+zodat álle DX7-instanties in de patch spelen wat je maakt.
 
 Het formaat zelf staat los van UI en audio in
 [`dx7Patch.ts`](../editor/src/modular-mb/dx7Patch.ts): packed 128 ↔ unpacked 156

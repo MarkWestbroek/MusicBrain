@@ -2,24 +2,41 @@
 // mmb_dsp::SamplePlayer, dezelfde header als de firmware). Native 44,1 kHz,
 // blok 32, 4 uitgangen (mono → L+R, stereo → 1/2, quad → 1–4).
 //
-// Samples komen via de blob-exports in wasm-geheugen (32 slots, gedeeld door
-// alle instanties — zoals de PSRAM-bank op de Teensy); de keymap via
-// mmb_zone_set/mmb_zone_count. Intern 8 stemmen met een eigen allocator,
-// zodat één module akkoorden en overlappende uitstervingen aankan.
+// Multi-module (construct B, zie doc/uml/11-simulation-wasm.md): één
+// instantie met acht stem-cellen die de bank delen. Elke cel heeft zijn eigen
+// `voct_k`, `gate_k` en `vel_k`; wie welke cel bespeelt beslist de
+// stemtoewijzer in MIDI-in of de poly-sequencer — hier zit géén allocator.
+// Dat is dezelfde arbeidsverdeling als bij de QUAD-VCO, en het houdt de
+// bank één keer in het geheugen in plaats van acht keer.
+//
+// Samples komen via de blob-exports in wasm-geheugen; de keymap via
+// mmb_zone_set/mmb_zone_count.
 #include "mmb_abi.h"
 #include <cstdlib>
 #include <cstring>
+#include <cmath>
 #include "mmb_dsp/sample_player.h"
 
 const char* const MMB_TYPE_ID     = "tp_mmb_sampler";
 const float       MMB_NATIVE_RATE = 44100.0f;
 const int         MMB_BLOCK       = 32;
 
-enum { IN_VOCT, IN_GATE, IN_VEL };
+constexpr int kVoices = 8;
+
+// Poorten per cel, in cel-volgorde: voct_1..8, gate_1..8, vel_1..8.
 MmbPort MMB_INPUTS[] = {
-    { "voct", MMB_CV, 0, {} }, { "gate", MMB_GATE, 0, {} }, { "vel", MMB_CV, 0, {} },
+    { "voct_1", MMB_CV, 0, {} }, { "voct_2", MMB_CV, 0, {} }, { "voct_3", MMB_CV, 0, {} }, { "voct_4", MMB_CV, 0, {} },
+    { "voct_5", MMB_CV, 0, {} }, { "voct_6", MMB_CV, 0, {} }, { "voct_7", MMB_CV, 0, {} }, { "voct_8", MMB_CV, 0, {} },
+    { "gate_1", MMB_GATE, 0, {} }, { "gate_2", MMB_GATE, 0, {} }, { "gate_3", MMB_GATE, 0, {} }, { "gate_4", MMB_GATE, 0, {} },
+    { "gate_5", MMB_GATE, 0, {} }, { "gate_6", MMB_GATE, 0, {} }, { "gate_7", MMB_GATE, 0, {} }, { "gate_8", MMB_GATE, 0, {} },
+    { "vel_1", MMB_CV, 0, {} }, { "vel_2", MMB_CV, 0, {} }, { "vel_3", MMB_CV, 0, {} }, { "vel_4", MMB_CV, 0, {} },
+    { "vel_5", MMB_CV, 0, {} }, { "vel_6", MMB_CV, 0, {} }, { "vel_7", MMB_CV, 0, {} }, { "vel_8", MMB_CV, 0, {} },
 };
-const int MMB_NUM_INPUTS = 3;
+const int MMB_NUM_INPUTS = 3 * kVoices;
+inline int IN_VOCT(int k) { return k; }
+inline int IN_GATE(int k) { return kVoices + k; }
+inline int IN_VEL(int k)  { return 2 * kVoices + k; }
+
 MmbPort MMB_OUTPUTS[] = {
     { "out_l", MMB_AUDIO, 0, {} }, { "out_r", MMB_AUDIO, 0, {} },
     { "out_3", MMB_AUDIO, 0, {} }, { "out_4", MMB_AUDIO, 0, {} },
@@ -40,7 +57,6 @@ namespace {
 // limiet staan wat het PSRAM aankan — zie SamplerModule.h.
 constexpr int kSlots  = 256;
 constexpr int kZones  = 512;
-constexpr int kVoices = 8;
 
 int16_t*             g_blob[kSlots];
 int                  g_cap[kSlots];
@@ -49,15 +65,9 @@ mmb_dsp::Zone        g_zones[kZones];
 int                  g_numZones = 0;
 
 mmb_dsp::SamplePlayer g_voice[kVoices];
-uint32_t              g_age[kVoices];
-uint32_t              g_ageCounter = 0;
+bool                  g_gate[kVoices];
 
 float g_coarse = 0.f, g_fine = 0.f, g_start = 0.f, g_attack = 1.5f, g_level = 0.8f;
-bool  g_gate = false;
-// Zodra de host één noot via mmb_note_on stuurt, is dit een note-instrument
-// en negeren we de gate-flank. Terug kan niet binnen een sessie — dat hoeft
-// ook niet: de host kiest één van beide en houdt zich eraan.
-bool  g_noteApi = false;
 
 void rebind() {
     for (int i = 0; i < kVoices; ++i) {
@@ -115,42 +125,6 @@ MMB_EXPORT(mmb_zone_count) void mmb_zone_count(int n) {
     g_numZones = n < 0 ? 0 : (n > kZones ? kZones : n);
     rebind();
 }
-namespace {
-/** Stem kiezen: zelfde noot → hertrigger, anders vrij, anders de oudste. */
-int allocate(int midi) {
-    for (int i = 0; i < kVoices; ++i) if (g_voice[i].active() && g_voice[i].note() == midi) return i;
-    for (int i = 0; i < kVoices; ++i) if (!g_voice[i].active()) return i;
-    int best = 0;
-    for (int i = 1; i < kVoices; ++i) if (g_age[i] < g_age[best]) best = i;
-    return best;
-}
-}
-
-// ── note-API ──────────────────────────────────────────────────────────
-// Aanwezigheid van deze exports is voor de host het teken dat deze module
-// polyfoon aan te sturen is (zie WasmModule.isPoly in de editor).
-
-/** Aantal stemmen dat deze module intern heeft. */
-MMB_EXPORT(mmb_poly_voices) int mmb_poly_voices() { return kVoices; }
-
-MMB_EXPORT(mmb_note_on) void mmb_note_on(int midi, int velocity) {
-    g_noteApi = true;
-    if (midi < 0 || midi > 127) return;
-    const int v = allocate(midi);
-    g_age[v] = ++g_ageCounter;
-    g_voice[v].set_voct((static_cast<float>(midi) - 60.0f) / 12.0f);
-    g_voice[v].noteOn(midi, velocity < 1 ? 1 : (velocity > 127 ? 127 : velocity));
-}
-
-MMB_EXPORT(mmb_note_off) void mmb_note_off(int midi) {
-    g_noteApi = true;
-    for (int i = 0; i < kVoices; ++i) g_voice[i].noteOff(midi);
-}
-
-MMB_EXPORT(mmb_all_notes_off) void mmb_all_notes_off() {
-    for (int i = 0; i < kVoices; ++i) g_voice[i].allOff();
-}
-
 /** Diagnose voor de editor: hoeveel stemmen klinken er? */
 MMB_EXPORT(mmb_active_voices) int mmb_active_voices() {
     int n = 0;
@@ -159,7 +133,7 @@ MMB_EXPORT(mmb_active_voices) int mmb_active_voices() {
 }
 
 void mmb_setup() {
-    for (int i = 0; i < kVoices; ++i) g_voice[i].Init(MMB_NATIVE_RATE);
+    for (int i = 0; i < kVoices; ++i) { g_voice[i].Init(MMB_NATIVE_RATE); g_gate[i] = false; }
     rebind();
 }
 
@@ -180,27 +154,23 @@ void mmb_on_control(int idx, float v) {
 }
 
 void mmb_process(int frames) {
-    // Twee manieren om een noot te starten. De CV-weg (gate-flank + V/Oct) is
-    // wat een sequencer of een gate-kabel doet en is per definitie monofoon:
-    // één gate, één toonhoogte. De note-weg (mmb_note_on hieronder) geeft elke
-    // noot apart door, zodat de acht stemmen hierbinnen ook echt akkoorden
-    // spelen. Zodra er noten via de note-weg binnenkomen laten we de
-    // gate-flank met rust — anders zou een losgelaten toets alles afkappen.
-    const float voct = mmb_in0(IN_VOCT);
-    const float velIn = mmb_connected(IN_VEL) ? mmb_in0(IN_VEL) : 0.8f;
-    const bool high = mmb_gate_in(IN_GATE);
-    if (!g_noteApi) {
-        if (high && !g_gate) {
+    // Per cel: gate-flank omhoog → noot op de V/Oct en velocity van díé cel;
+    // omlaag → loslaten. V/Oct blijft daarna meebewegen (bend, glide).
+    for (int k = 0; k < kVoices; ++k) {
+        const float voct = mmb_in0(IN_VOCT(k));
+        const bool high = mmb_gate_in(IN_GATE(k));
+        if (high && !g_gate[k]) {
+            const float velIn = mmb_connected(IN_VEL(k)) ? mmb_in0(IN_VEL(k)) : 0.8f;
             const int midi = static_cast<int>(std::lround(60.0f + 12.0f * voct));
-            const int v = allocate(midi);
-            g_age[v] = ++g_ageCounter;
-            g_voice[v].set_voct(voct);
-            g_voice[v].noteOn(midi, static_cast<int>(velIn * 127.0f));
-        } else if (!high && g_gate) {
-            for (int i = 0; i < kVoices; ++i) g_voice[i].noteOff(-1);
+            g_voice[k].set_voct(voct);
+            g_voice[k].noteOn(midi, static_cast<int>(velIn * 127.0f));
+        } else if (!high && g_gate[k]) {
+            g_voice[k].noteOff(-1);
+        } else if (g_voice[k].active()) {
+            g_voice[k].set_voct(voct);
         }
+        g_gate[k] = high;
     }
-    g_gate = high;
 
     for (int o = 0; o < MMB_NUM_OUTPUTS; ++o)
         std::memset(MMB_OUTPUTS[o].buf, 0, sizeof(float) * static_cast<size_t>(frames));
@@ -209,10 +179,10 @@ void mmb_process(int frames) {
     for (int k = 0; k < frames; ++k) {
         for (int c = 0; c < mmb_dsp::kMaxChannels; ++c) mix[c] = 0.f;
         for (int i = 0; i < kVoices; ++i) g_voice[i].Process(mix, MMB_NUM_OUTPUTS);
-        for (int c = 0; c < MMB_NUM_OUTPUTS; ++c) {
-            float y = mix[c];
-            if (y > 1.f) y = 1.f; else if (y < -1.f) y = -1.f;
-            MMB_OUTPUTS[c].buf[k] = y;
+        for (int o = 0; o < MMB_NUM_OUTPUTS; ++o) {
+            float y = mix[o];
+            if (!(y == y)) y = 0.f;
+            MMB_OUTPUTS[o].buf[k] = y > 1.f ? 1.f : (y < -1.f ? -1.f : y);
         }
     }
 }

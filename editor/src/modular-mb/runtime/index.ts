@@ -6,6 +6,6 @@ export { Registry, registry, type ModuleFactory } from './Registry';
 
 // Concrete runtime classes — importing this barrel triggers their
 // self-registration with the global `registry`.
-export { Filter, Vcf, Ladder, Ms20, Vco, FmVco, Vca, Dx7, WasmModule } from './audio';
+export { Filter, Vcf, Ladder, Ms20, Vco, FmVco, Vca, WasmModule, dx7Host } from './audio';
 export type { WasmZone, WasmBlob } from './audio';
 export { Ahdsr, Lfo } from './cv';

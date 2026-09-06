@@ -1,18 +1,25 @@
-# DX7 in de browser — msfa-kern voor de editor-simulator
+# DX7 — referentieharnas, JS-port en vergelijkingstool
 
-De editor-simulator speelt `tp_mmb_dx7` met **dezelfde DSP als de Teensy**:
-de gevendorde msfa-kern (`firmware/lib/msfa`, Apache-2.0, de Dexed/MicroDexed-
-engine). Er zijn twee backends met één interface, gekozen in
-`editor/public/dx7/dx7-worklet.js`:
+De DX7 draait in de editor-simulator als **gewone wasm-module**:
+`tools/mmb-wasm/dx7_wasm.cc`, gebouwd door `tools/mmb-wasm/build.sh dx7` naar
+`editor/public/wasm/tp_mmb_dx7.wasm`. Eén stem per instantie, precies als
+`Dx7Module.h` op de Teensy; polyfonie is een PolyGroup ×8 (construct A in
+`doc/uml/11-simulation-wasm.md`). Banken en de edit-patch van de patcheditor
+gaan als blobs naar binnen: slots 0..7 = ROM 1A..4B, 8 = USER, 9 = edit-patch,
+met de control `edit` als aan/uit — zie `editor/src/modular-mb/runtime/audio/dx7Host.ts`.
 
-| Backend | Bestand | Hoe |
-|---|---|---|
-| **JS-port** (fallback) | `editor/public/dx7/dx7-core.js` | Regel-voor-regel port van msfa naar JavaScript (int32-DSP, één BigInt-shift per blok). Geen toolchain nodig. |
-| **wasm** (default) | `editor/public/dx7/dx7.wasm` | `dx7_wasm.cc` + msfa gecompileerd met wasi-sdk (`build.sh`). Wordt gebruikt zodra het bestand bestaat. |
+Deze map bevat wat daar *naast* staat:
 
-Beide renderen op 44,1 kHz (zoals `Dx7Module.h`) in een AudioWorklet die
-lineair naar de contextfrequentie resamplet, met 16-stemmige polyfonie en
-dezelfde allocator (`dx7_wasm.cc` ≙ `Dx7Core` in `dx7-core.js`).
+| Bestand | Wat |
+|---|---|
+| `dx7_wasm.cc` + `ref.cc` + `ref-build.sh` | native referentieharnas rond msfa, voor de sample-exact-test |
+| `../../editor/public/dx7/dx7-core.js` | regel-voor-regel JS-port van msfa (int32-DSP) — vroeger de browser-fallback, nu alleen nog referentie en de kern van `compare.mjs` |
+| `test-core.mjs` | vergelijkt de JS-port sample-voor-sample met het native harnas |
+| `compare.mjs` | zet een opname van een echte DX7 naast onze render (zie onder) |
+
+De vroegere browser-eigen worklet (`dx7-worklet.js`, 16 stemmen met eigen
+allocator) is op 6 september vervallen: zij was een derde poly-construct naast
+"×N instanties" en "multi-module met cellen", en dat wilden we niet.
 
 ## Correctheid: JS-port vs native
 
@@ -48,17 +55,15 @@ PolyGroup krijgen in de simulator geen DX7-node (anders unisono).
 
 ## Edit-buffer en patch-editor
 
-Naast bank + program kent de kern een **edit-buffer**: 156 bytes uitgepakte
-patch die de bank overstemt zolang hij aanstaat. Zo verandert de editor een
-patch live zonder de bank aan te raken, en horen alle DX7-modules in de patch
-hetzelfde.
+Naast bank + program kent de wasm-module een **edit-patch**: 156 bytes
+uitgepakte patch in blob-slot 9, aangezet met de control `edit` (0/1). Zolang
+die aanstaat overstemt hij bank+program op álle DX7-instanties — zo verandert
+de editor een patch live zonder de bank aan te raken.
 
 | kant | interface |
 |---|---|
-| wasm | `dx7_edit_ptr()` → 156-byte buffer, `dx7_edit_enable(int)` |
-| JS-port | `Dx7Core.setEditPatch(bytes \| null)` |
-| worklet | bericht `{t:'edit', data}` (`data === null` → terug naar de bank) |
-| editor | `Dx7.setEditPatch()` / `Dx7.getEditPatch()` / `Dx7.getPackedVoice()` |
+| wasm | blob-slot 9 (`mmb_blob_ptr`/`mmb_blob_commit`), control `edit` |
+| editor | `dx7Host.setEditPatch()` / `getEditPatch()` / `getPackedVoice()` |
 
 Het formaat zelf staat in `editor/src/modular-mb/dx7Patch.ts` (packed 128 ↔
 unpacked 156, algoritmetabel, routering, ratio's) en de UI in

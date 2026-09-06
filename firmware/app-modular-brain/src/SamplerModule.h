@@ -19,9 +19,12 @@
  * Port map:
  * | Dir | portId  | Kind  | Betekenis                                   |
  * |-----|---------|-------|---------------------------------------------|
- * | in  | `voct`  | Cv    | Toonhoogte (1 V/oct, MIDI 60 = 0 V)         |
- * | in  | `gate`  | Gate  | Note-on/off                                 |
- * | in  | `vel`   | Cv    | Velocity 0..1 → kiest de laag               |
+ * | in  | `voct_k` | Cv   | Toonhoogte cel k (1 V/oct, MIDI 60 = 0 V)  |
+ * | in  | `gate_k` | Gate | Note-on/off cel k                           |
+ * | in  | `vel_k`  | Cv   | Velocity cel k, 0..1 → kiest de laag        |
+ * (k = 1..8; kale `voct`/`gate`/`vel` = cel 1. Multi-module: de
+ *  stemtoewijzer zit in MIDI-in, niet hier — construct B in
+ *  doc/uml/11-simulation-wasm.md.)
  * | out | `out_l` `out_r` `out_3` `out_4` | Audio | mono → L+R, stereo → 1/2, quad → 1–4 |
  * Controls: `bank` (0–15), `coarse` (semi), `fine` (ct), `start` (0..1),
  * `attack` (ms), `level` (0..1).
@@ -201,25 +204,32 @@ public:
         SampleBank::instance().load(bank_);
         rebind();
     }
-    void setVoct(float v)   { voct_ = v; for (auto& v2 : voice_) v2.set_voct(voct_); }
-    void setVelocity(float v) { vel_ = v < 0.f ? 0.f : (v > 1.f ? 1.f : v); }
+    // Per cel (0-based). Multi-module: wie welke cel bespeelt beslist de
+    // stemtoewijzer in MIDI-in of de poly-sequencer; hier zit geen allocator.
+    void setVoct(int k, float v) {
+        if (k < 0 || k >= kVoices) return;
+        voct_[k] = v;
+        voice_[k].set_voct(v);           // ook tijdens de noot (bend, glide)
+    }
+    void setVelocity(int k, float v) {
+        if (k < 0 || k >= kVoices) return;
+        vel_[k] = v < 0.f ? 0.f : (v > 1.f ? 1.f : v);
+    }
+    void gate(int k, bool high) {
+        if (k < 0 || k >= kVoices) return;
+        if (high && !gate_[k]) {
+            const int midi = static_cast<int>(lroundf(60.0f + 12.0f * voct_[k]));
+            voice_[k].set_voct(voct_[k]);
+            voice_[k].noteOn(midi, static_cast<int>(vel_[k] * 127.0f));
+        } else if (!high && gate_[k]) {
+            voice_[k].noteOff(-1);
+        }
+        gate_[k] = high;
+    }
     void setTranspose(float semis) { for (auto& v : voice_) v.set_transpose(semis); }
     void setStart(float s)  { for (auto& v : voice_) v.set_startOffset(s); }
     void setAttack(float ms){ for (auto& v : voice_) v.setAttackMs(ms); }
     void setLevel(float l)  { for (auto& v : voice_) v.set_level(l); }
-
-    void gate(bool high) {
-        if (high && !gate_) {
-            const int midi = static_cast<int>(lroundf(60.0f + 12.0f * voct_));
-            const int v = allocate(midi);
-            age_[v] = ++ageCounter_;
-            voice_[v].set_voct(voct_);
-            voice_[v].noteOn(midi, static_cast<int>(vel_ * 127.0f));
-        } else if (!high && gate_) {
-            for (auto& v : voice_) v.noteOff(-1);
-        }
-        gate_ = high;
-    }
 
     void update() override {
         if (boundVersion_ != SampleBank::instance().version()) rebind();
@@ -243,13 +253,6 @@ public:
     }
 
 private:
-    int allocate(int midi) {
-        for (int i = 0; i < kVoices; ++i) if (voice_[i].active() && voice_[i].note() == midi) return i;
-        for (int i = 0; i < kVoices; ++i) if (!voice_[i].active()) return i;
-        int best = 0;
-        for (int i = 1; i < kVoices; ++i) if (age_[i] < age_[best]) best = i;
-        return best;
-    }
     void rebind() {
         SampleBank& b = SampleBank::instance();
         boundVersion_ = b.version();
@@ -257,11 +260,11 @@ private:
     }
 
     mmb_dsp::SamplePlayer voice_[kVoices];
-    uint32_t age_[kVoices] = {};
-    uint32_t ageCounter_ = 0, boundVersion_ = 0xffffffffu;
+    uint32_t boundVersion_ = 0xffffffffu;
     int   bank_ = -1;
-    float voct_ = 0.0f, vel_ = 0.8f;
-    bool  gate_ = false;
+    float voct_[kVoices] = {};
+    float vel_[kVoices]  = { 0.8f, 0.8f, 0.8f, 0.8f, 0.8f, 0.8f, 0.8f, 0.8f };
+    bool  gate_[kVoices] = {};
 };
 
 class SamplerModule final : public AudioModule {
@@ -283,16 +286,31 @@ public:
         return (portId == "out" || portId == "out_l" || portId == "out_r" ||
                 portId == "out_3" || portId == "out_4") ? PortKind::Audio : PortKind::None;
     }
+    /** Cel-poort `<base>_<k>` (k 1-based) → 0-based celindex, of −1. Een
+     *  kale `voct`/`gate`/`vel` telt als cel 1, zodat een mono-patch zonder
+     *  PolyGroup gewoon werkt. */
+    static int cellOf(std::string_view portId, std::string_view base) {
+        if (portId == base) return 0;
+        if (portId.size() <= base.size() + 1 || portId.substr(0, base.size()) != base ||
+            portId[base.size()] != '_') return -1;
+        int k = 0;
+        for (char c : portId.substr(base.size() + 1)) {
+            if (c < '0' || c > '9') return -1;
+            k = k * 10 + (c - '0');
+        }
+        return (k >= 1 && k <= SamplerStream::kVoices) ? k - 1 : -1;
+    }
     PortKind inputPortKind(std::string_view portId) const override {
-        if (portId == "voct") return PortKind::Cv;
-        if (portId == "gate" || portId == "trig") return PortKind::Gate;
-        if (cvPortIs(portId, "vel") || portId == "velocity") return PortKind::Cv;
+        if (cellOf(portId, "voct") >= 0) return PortKind::Cv;
+        if (cellOf(portId, "gate") >= 0 || cellOf(portId, "trig") >= 0) return PortKind::Gate;
+        if (cellOf(portId, "vel") >= 0) return PortKind::Cv;
         return PortKind::None;
     }
     void writeCvPort(std::string_view portId, float value) override {
-        if (portId == "voct") stream_.setVoct(value);
-        else if (portId == "gate" || portId == "trig") stream_.gate(value >= 0.5f);
-        else if (cvPortIs(portId, "vel") || portId == "velocity") stream_.setVelocity(value);
+        int k;
+        if ((k = cellOf(portId, "voct")) >= 0) stream_.setVoct(k, value);
+        else if ((k = cellOf(portId, "gate")) >= 0 || (k = cellOf(portId, "trig")) >= 0) stream_.gate(k, value >= 0.5f);
+        else if ((k = cellOf(portId, "vel")) >= 0) stream_.setVelocity(k, value);
     }
 
     void setControl(std::string_view controlId,

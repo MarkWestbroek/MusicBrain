@@ -3,14 +3,15 @@
 // De DX7 is berucht om zijn 155 parameters achter één dataslider en een
 // display van twee regels. Hier staat alles tegelijk in beeld, en omdat de
 // synth als wasm in de browser draait hoor je elke wijziging direct: de
-// editor zet een *edit-patch* die de bank overstemt (Dx7.setEditPatch), dus
+// editor zet een *edit-patch* die de bank overstemt (dx7Host.setEditPatch), dus
 // alle DX7-modules in de simulatie spelen wat je hier maakt.
 //
 // Beginnen doe je vanuit een factory-voice; het resultaat kun je als
 // 32-voice .syx wegschrijven — dat bestand laadt zowel in onze USER-bank als
 // in een échte DX7.
 import { useEffect, useRef, useState } from 'react';
-import { Dx7 } from './runtime';
+import { dx7Host } from './runtime';
+import { getEngine } from './sim/engineSingleton';
 import {
   DX7, opOffset, unpackPatch, packPatch, patchName, setPatchName,
   algorithmRouting, modulationTargets, modulatorsOf, opRatio, LFO_WAVES,
@@ -69,14 +70,14 @@ export function Dx7EditorModal({ open, onClose }: { open: boolean; onClose: () =
       if (knob && cur.patch) {
         const off = paramOffset(knob.param, cur.op);
         cur.patch[off] = Math.max(0, Math.min(knob.param.max, val));
-        Dx7.setEditPatch(cur.patch);
+        dx7Host.setEditPatch(cur.patch);
         bump((n) => n + 1);
         return true;
       }
       const btn = buttonForCc(cc);
       if (btn && val > 0) {
         if (btn.kind === 'selectOp') setRotoOp(btn.op);
-        else if (btn.kind === 'bankVoice') { Dx7.setEditPatch(null); setBusy('terug naar de bank-voice'); }
+        else if (btn.kind === 'bankVoice') { dx7Host.setEditPatch(null); setBusy('terug naar de bank-voice'); }
         else if (btn.kind === 'nextVoice') { const n = (program + 1) & 31; setProgram(n); void loadFromRom(bank, n); }
         return true;
       }
@@ -94,7 +95,7 @@ export function Dx7EditorModal({ open, onClose }: { open: boolean; onClose: () =
   // Eerste opening: begin bij de patch die al klinkt, of bij ROM1A #1.
   useEffect(() => {
     if (!open || patch) return;
-    const existing = Dx7.getEditPatch();
+    const existing = dx7Host.getEditPatch();
     if (existing) { setPatch(Uint8Array.from(existing)); return; }
     void loadFromRom(0, 0);
   }, [open, patch]);
@@ -103,10 +104,10 @@ export function Dx7EditorModal({ open, onClose }: { open: boolean; onClose: () =
 
   async function loadFromRom(b: number, p: number): Promise<void> {
     try {
-      const packed = await Dx7.getPackedVoice(b, p);
+      const packed = await dx7Host.getPackedVoice(b, p);
       const un = unpackPatch(packed, 0);
       setPatch(un);
-      Dx7.setEditPatch(un);
+      dx7Host.setEditPatch(un);
       setBusy(`geladen: ${DX7_BANK_SHORT[b]} #${p + 1} "${patchName(un).trim()}"`);
     } catch (err) {
       setBusy(`mislukt: ${err instanceof Error ? err.message : String(err)}`);
@@ -118,7 +119,7 @@ export function Dx7EditorModal({ open, onClose }: { open: boolean; onClose: () =
     if (!patch) return;
     const v = Math.max(lo, Math.min(hi, Math.round(value)));
     patch[offset] = v;
-    Dx7.setEditPatch(patch);
+    dx7Host.setEditPatch(patch);
     bump((n) => n + 1);
     // Staat deze parameter op een Roto-knop van de huidige operator, laat de
     // ring dan meedraaien.
@@ -160,8 +161,10 @@ export function Dx7EditorModal({ open, onClose }: { open: boolean; onClose: () =
   }
 
   function play(midi: number, on: boolean): void {
-    if (Dx7.instanceCount() === 0) { setBusy('geen DX7 in de patch — zet er een in het rack en start de simulatie'); return; }
-    Dx7.preview(midi, 0.85, on);
+    if (dx7Host.instanceCount() === 0) { setBusy('geen DX7 in de patch — Poly ▾ → DX7 poly ×8, dan ▶ Start in Simulatie'); return; }
+    // Construct A: de noot gaat de gewone weg — MIDI-in-dispatcher en
+    // stemtoewijzer van de engine — net als een toets op het klavier.
+    if (on) getEngine().noteOn(midi, 0.85); else getEngine().noteOff(midi);
   }
 
   const routing = patch ? algorithmRouting(patch[DX7.algorithm] ?? 0) : [];
@@ -204,9 +207,9 @@ export function Dx7EditorModal({ open, onClose }: { open: boolean; onClose: () =
             </select>
           </label>
           <label>Naam <input value={patch ? patchName(patch).trimEnd() : ''} maxLength={10} style={{ width: 96 }}
-            onChange={(e) => { if (!patch) return; setPatchName(patch, e.target.value); Dx7.setEditPatch(patch); bump((n) => n + 1); }} /></label>
+            onChange={(e) => { if (!patch) return; setPatchName(patch, e.target.value); dx7Host.setEditPatch(patch); bump((n) => n + 1); }} /></label>
           <button onClick={exportSyx} disabled={!patch}>⤓ .syx</button>
-          <button onClick={() => { Dx7.setEditPatch(null); setBusy('terug naar de bank-voice (Bank/Program van de module)'); }}>
+          <button onClick={() => { dx7Host.setEditPatch(null); setBusy('terug naar de bank-voice (Bank/Program van de module)'); }}>
             edit uit
           </button>
         </div>

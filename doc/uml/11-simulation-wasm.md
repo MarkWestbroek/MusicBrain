@@ -103,21 +103,20 @@ classDiagram
         PolyGroup: N instanties
         polyExpand vouwt kabels uit
         controls: master → followers
-        VCO, VCF, Elements, Rings, DX7 (fw)
+        VCO, VCF, Elements, Rings, DX7
     }
     class Multi["B. Multi-module (cellen)"] {
         één instantie, N cellen
         CellGroup: poorten `<id>_<k>`
         controls gedeeld óf per cel
         N vast per type (= hardware)
-        QUAD-VCO, OCTA-VCA, OCTA-VCF
+        QUAD-VCO, OCTA-VCA, SAMPLER
     }
-    class NoteInstr["C. Note-instrument (sim, vandaag)"] {
+    class NoteInstr["C. Note-instrument (weer weg)"] {
         één instantie, N stemmen intern
-        eigen allocator
-        krijgt note-events, geen gate/V/Oct
-        N vast in de kern
-        DX7 (sim), Sampler (sim)
+        eigen allocator naast MIDI-in
+        note-events buiten het poortmodel
+        bestond 6 sept, vervangen door A en B
     }
 
     class PolyGroup {
@@ -133,7 +132,6 @@ classDiagram
 
     MidiIn --> Enkelvoudig : multikabel → N instanties
     MidiIn --> Multi : multikabel → N cellen
-    MidiIn ..> NoteInstr : engine geeft élke noot door (buiten het poortmodel om)
     PolyGroup --> Enkelvoudig
     PolyGroup --> Multi : leden = cellen
 ```
@@ -155,35 +153,32 @@ voor vier oscillators) of **per cel** (quad-mixer: pan per kanaal). Een
 de cellen landt. `count` staat vast in het type — dat is de hardware-realiteit
 die je noemt: een analoge OCTA-VCA heeft acht jacks en niet negen.
 
-### C — note-instrument (wat ik vandaag deed, en waarom het wringt)
+### C — note-instrument (bestond één middag; weer weg)
 
-DX7-in-de-browser en de sampler krijgen van de engine **elke noot los**
-(`noteOn(midi, vel)`), houden intern N stemmen bij en hebben een **eigen
-allocator**. Dat is een tweede allocator naast die in MIDI-in, en de noot
-loopt buiten het poortmodel om. Het werkt, en het was de kortste weg — maar het
-is geen derde legitiem construct; het is een sluiproute in de simulator.
+DX7-in-de-browser en de sampler kregen op 6 september kortstondig een eigen
+weg: de engine gaf ze **elke noot los** (`noteOn(midi, vel)`), ze hielden
+intern N stemmen bij en hadden een **eigen allocator** — een tweede naast die
+in MIDI-in, buiten het poortmodel om. Het werkte, maar het was een sluiproute,
+en hij is dezelfde dag nog vervangen:
 
-Het is ontstaan uit een echte spanning die jij ook benoemt: één instantie per
-stem is voor een sampler waanzin (N × de hele bank), en de firmware-`Dx7Module`
-ís één stem per instantie zoals VcoModule (poly via A). Maar het antwoord op die
-spanning is **B**, niet C:
+- **Sampler → B.** Eén instantie, één bank, acht stem-cellen met `voct_k`,
+  `gate_k`, `vel_k` (CellGroup `voice`, controls gedeeld), gemengde uitgang.
+  De allocator zit weer in MIDI-in. Firmware (`SamplerModule.h`) en wasm-wrapper
+  hebben dezelfde portmap; de kern (`sample_player.h`) veranderde niet.
+- **DX7-simulatie → A.** Eén stem per instantie, precies als `Dx7Module.h`;
+  de seed "DX7 poly ×8" is een PolyGroup van acht instanties. De DX7 is nu een
+  gewone `WasmModule` (`tools/mmb-wasm/dx7_wasm.cc`); banken en de edit-patch
+  gaan als blobs naar binnen, over dezelfde weg als samples bij de sampler.
+- De note-API (`mmb_note_on`, `WasmModule.polyTypeIds`, `Dx7Node`) is
+  verwijderd. De engine kent alleen nog A en B.
 
-> **De sampler hoort een multi-module te zijn**: één instantie, één bank,
-> N stem-cellen met `voct_k`, `gate_k`, `vel_k`, één gemengde uitgang (plus
-> desgewenst `out_k`). De allocator blijft waar hij hoort: in MIDI-in of de
-> poly-sequencer. De sampler wordt weer een domme stem × N, die toevallig zijn
-> geheugen deelt.
+De spanning die C opriep — één instantie per stem is voor een sampler waanzin —
+was echt; het antwoord was B, niet een derde construct.
 
-Wat B nog mist voor dit geval: een **instelbaar N**. Bij hardware staat het
-aantal vast in het type; bij een digitale module is "8 stemmen" een control.
-Dat is een kleine uitbreiding van `CellGroup`: `count` mag ook een verwijzing
-naar een control zijn (`countControl: 'voices'`, met `max`). De patcher toont
-dan `voct_1..voct_N` voor de ingestelde N, en `polyExpand` heeft er niets aan
-te veranderen — hij werkt al op genummerde cel-poorten.
-
-Overigens speelt in de **firmware** hetzelfde: `SamplerModule.h` heeft nu ook
-één `voct`/`gate`/`vel` met acht stemmen erachter, dus daar is een akkoord
-evenmin mogelijk. Dezelfde ombouw naar cellen lost beide op.
+Wat B daarvoor nog mist is een **instelbaar N**. De cellen staan vast op acht;
+een PolyGroup ×4 gebruikt er vier. Dat is voor nu genoeg. Wordt het ooit een
+knop (`countControl` op een `CellGroup`), dan hoeft `polyExpand` daar niets
+voor te veranderen — hij werkt al op genummerde cel-poorten.
 
 ### De multikabel en de richtingen
 
@@ -197,7 +192,7 @@ evenmin mogelijk. Dezelfde ombouw naar cellen lost beide op.
   de expansie staat dat ook niet toe.
 
 Conclusie: **we zitten op jouw lijn.** A en B zijn precies wat je beschrijft;
-C is een afwijking van vandaag die naar B moet.
+C was een afwijking van één middag en is naar A en B teruggebracht.
 
 ---
 
@@ -221,7 +216,7 @@ classDiagram
     }
     class EngineNode {
         <<union>>
-        kind: vco|vcf|vca|envelope|lfo|mixer|…|wasm|dx7
+        kind: vco|vcf|vca|envelope|lfo|mixer|…|wasm
         runtime: Module
     }
     class Registry {
@@ -238,20 +233,20 @@ classDiagram
     class Vco { Tone.Oscillator }
     class Vcf { Tone.Filter }
     class WasmModule {
-        +typeIds  Set
-        +polyTypeIds  Set  ← construct C
+        +typeIds  Set  (incl. tp_mmb_dx7)
         +inGain(port) / outGain(port)  Tone.Gain
         +setInput(port, v)  klavierwaarde
         +markCabled(port)
         +setControl(id, v)
-        +setBlob() / setZones()  (sampler)
-        +noteOn/noteOff  ← construct C
+        +setBlob() / setZones()  blobs per type
+        +registerAssets(typeId, loader)
+        +broadcastControl(typeId, id, v)
         -node  AudioWorkletNode "mmb-wasm"
     }
-    class Dx7 {
-        +setUserBank() / setEditPatch()
-        +noteOn/noteOff  ← construct C
-        -node  AudioWorkletNode "mmb-dx7"
+    class dx7Host {
+        <<module>>
+        ROMs → blobs 0..7, USER → 8
+        setEditPatch → blob 9 + control `edit`
     }
 
     AudioEngine "1" o-- "*" EngineNode
@@ -261,8 +256,14 @@ classDiagram
     TsAudioModule <|-- Vco
     TsAudioModule <|-- Vcf
     TsAudioModule <|-- WasmModule
-    TsAudioModule <|-- Dx7
+    dx7Host ..> WasmModule : blobs + controls
 ```
+
+De stemtoewijzer in `AudioEngine` kent stem-id's van twee vormen: `moduleId`
+(construct A, een hele module) en `moduleId#k` (construct B, cel k van een
+multi-module). Een kabel MIDI-in → `voct_3` wijst dus naar stem `mod#3`, en de
+allocator zet `voct_3`/`gate_3`/`vel_3`. Zo werkt de Elements ×4 (A) en de
+Sampler ×8 (B) met dezelfde code.
 
 De engine bekabelt Tone-nodes rechtstreeks. Rond een wasm-module staat per
 poort een `Tone.Gain`, zodat de engine hem als elke andere node kan bekabelen —
@@ -333,18 +334,14 @@ wrapper vervangt.
 
 ---
 
-## 4. Wat er nu te doen staat
+## 4. Stand van zaken
 
-1. **Sampler → multi-module (B).** `CellGroup` met instelbaar N
-   (`countControl`), cel-poorten `voct_k/gate_k/vel_k`, allocator eruit,
-   bank gedeeld in de instantie. In firmware én wasm-wrapper — het is
-   dezelfde `sample_player.h`, alleen de schil verandert.
-2. **DX7-simulatie → A**, zoals de firmware al is: één stem per instantie,
-   PolyGroup ×8. De wasm-allocator van vandaag wordt dan overbodig; de
-   `edit-buffer` (patcheditor) blijft, die is per type.
-3. **Note-API weg** zodra 1 en 2 er zijn. `WasmModule.polyTypeIds` en
-   `Dx7Node` verdwijnen; de engine kent dan alleen nog A en B.
-4. **Diagrammen bijhouden** in dit document als 1–3 landen.
-
-Tot die tijd werkt C — je kunt akkoorden spelen op de sampler en de DX7 —
-maar het staat hier expliciet als tijdelijk.
+1. ✅ **Sampler → B** (6 sept, zelfde dag). Vast acht cellen; `countControl`
+   voor een instelbaar N is een latere, kleine uitbreiding.
+2. ✅ **DX7-simulatie → A** zoals de firmware. De 16-stemmige browserkern met
+   eigen allocator is weg; `tools/dx7-wasm` houdt alleen de JS-port, het
+   referentieharnas en `compare.mjs`.
+3. ✅ **Note-API weg.** `mmb_note_on`, `WasmModule.polyTypeIds`, `Dx7Node`.
+4. Open: **firmware bouwen** voor de nieuwe `SamplerModule.h` (cel-poorten) —
+   geen toolchain op deze Mac, zie eerdere notities.
+5. Dit document bijhouden als er een vierde vorm dreigt te ontstaan.

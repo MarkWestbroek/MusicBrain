@@ -103,5 +103,10 @@ sel warps && build warps tp_mmb_warps "$LIB/mi-warps" -- \
 sel tapeecho && build tapeecho tp_mmb_tape_echo "$LIB/mmb-dsp" --
 
 sel sampler && build sampler tp_mmb_sampler "$LIB/mmb-dsp" --
+MSFA="$LIB/msfa"
+sel dx7 && build dx7 tp_mmb_dx7 "$MSFA" -- \
+  "$MSFA"/msfa/dx7note.cc "$MSFA"/msfa/env.cc "$MSFA"/msfa/exp2.cc \
+  "$MSFA"/msfa/fm_core.cc "$MSFA"/msfa/fm_op_kernel.cc "$MSFA"/msfa/freqlut.cc \
+  "$MSFA"/msfa/lfo.cc "$MSFA"/msfa/patch.cc "$MSFA"/msfa/pitchenv.cc "$MSFA"/msfa/sin.cc
 
 [ -z "$FAILED" ] && echo "klaar." || { echo "mislukt:$FAILED"; exit 1; }

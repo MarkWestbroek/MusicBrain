@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import { setProject, updateProject, useModularProject, getProject, undo, redo } from './store';
 import { emptyModularProject } from './types';
 import { exportPanel, importPanel, parsePanelFile } from './panelIO';
-import { seedExampleModules, seedInternals, seedTestPatch, seedFmTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, seedDx7PolyPatch, seedWarpsVocoderPatch, seed808JamPatch, seedKrellPatch, type PolySeedOptions } from './seedModules';
+import { seedExampleModules, seedInternals, seedTestPatch, seedFmTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, seedDx7PolyPatch, seedSamplerPolyPatch, seedWarpsVocoderPatch, seed808JamPatch, seedKrellPatch, type PolySeedOptions } from './seedModules';
 import { PatchesPanel } from './PatchesPanel';
 import { ModulesPanel } from './ModulesPanel';
 import { CategoriesPanel } from './CategoriesPanel';
@@ -340,6 +340,14 @@ export function ModularMbApp(): JSX.Element {
                     borderTop: '1px solid #e5e7eb',
                   }}
                 >🎹 DX7 poly ×8</button>
+                <button
+                  onClick={() => { setProject(seedSamplerPolyPatch(getProject(), 8)); setShowPoly(false); }}
+                  title="Multisampler als multi-module: één SAMPLER met acht stem-cellen als PolyGroup. MidiIn verdeelt de noten; de bank zit één keer in het geheugen. Laad een bank via 🎹 Multisample."
+                  style={{
+                    textAlign: 'left', border: 'none', background: 'transparent',
+                    padding: '7px 12px', cursor: 'pointer', fontSize: 13,
+                  }}
+                >🎧 Sampler ×8 (cellen)</button>
               </div>
             )}
           </span>
@@ -369,8 +377,6 @@ export function ModularMbApp(): JSX.Element {
                     c: { sound: 0, level: 0.8 } },
                   { label: '🎹 DX7 (6-op FM)', t: 'tp_mmb_dx7', n: 'DX7', l: 'out', r: 'out',
                     c: { program: 0, level: 0.8 } },
-                  { label: '🎧 Sampler (multisample)', t: 'tp_mmb_sampler', n: 'SAMPLER', l: 'out_l', r: 'out_r',
-                    c: { bank: 0, level: 0.8, coarse: 0, fine: 0, start: 0, attack: 1.5 } },
                 ] as { label: string; t: string; n: string; l: string; r: string; c: Record<string, number> }[]).map((s) => (
                   <button
                     key={s.label}

@@ -28,7 +28,7 @@ import type {
   ModularProject, Patch, ModuleInstance, ModuleType,
   PatchConnection, ControlValue, SignalType,
 } from '../types';
-import { registry, Vcf, Ladder, Ms20, Vco, FmVco, Vca, Ahdsr, Lfo, Dx7, WasmModule } from '../runtime';
+import { registry, Vcf, Ladder, Ms20, Vco, FmVco, Vca, Ahdsr, Lfo, WasmModule } from '../runtime';
 
 export interface EngineStatus {
   running: boolean;
@@ -208,10 +208,6 @@ interface SeqNode extends BaseNode {
 }
 /** DX7 (msfa-wasm in een AudioWorklet). Krijgt note-events rechtstreeks
  *  van de engine — alle noten, niet alleen de laatste — en is intern poly. */
-interface Dx7Node extends BaseNode {
-  kind: 'dx7';
-  runtime: Dx7;
-}
 /** Teensy-module als wasm in een AudioWorklet (Elements, Rings, Marbles…).
  *  Elke poort is een Tone.Gain; cv/gate zijn audio-rate signalen. */
 interface WasmNode extends BaseNode {
@@ -220,18 +216,24 @@ interface WasmNode extends BaseNode {
   /** voct/gate worden door een kabel, MIDI-In of sequencer gestuurd → klavier-fallback uit. */
   voctDriven: boolean;
   gateDriven: boolean;
-  /** Module met eigen stemmen (sampler): krijgt élke noot los, niet één gate. */
-  polyNotes: boolean;
 }
-type EngineNode = VcoNode | VcfNode | VcaNode | EnvNode | LfoNode | OutNode | MidiInNode | SeqNode | NoiseNode | EchoNode | PhaserNode | MixerNode | CvMathNode | Dx7Node | WasmNode;
+type EngineNode = VcoNode | VcfNode | VcaNode | EnvNode | LfoNode | OutNode | MidiInNode | SeqNode | NoiseNode | EchoNode | PhaserNode | MixerNode | CvMathNode | WasmNode;
 
 /** Gate-poortnaam van een wasm-module ('gate' of 'trig'). */
-function wasmGatePort(rt: WasmModule): string | null {
-  return rt.hasInput('gate') ? 'gate' : rt.hasInput('trig') ? 'trig' : null;
+/** Stem-id `mod#3` → module-id `mod`; `mod` → `mod`. */
+function voiceModuleId(voiceId: string): string { return voiceId.split('#')[0]!; }
+/** Stem-id `mod#3` → poort-suffix `_3`; zonder cel → ''. */
+function voiceSuffix(voiceId: string): string { const k = voiceId.split('#')[1]; return k ? `_${k}` : ''; }
+/** Alle gate-achtige ingangen van een node (ook cel-gates), om te sluiten bij stop. */
+function allGatePorts(rt: WasmModule): string[] {
+  return rt.inputIds.filter((p) => /^(gate|trig|strike|blow|bow)(_\d+)?$/.test(p));
 }
-/** Velocity-achtige ingang van een wasm-module. */
-function wasmVelPort(rt: WasmModule): string | null {
-  for (const p of ['vel', 'velocity', 'strength', 'accent_cv', 'accent']) if (rt.hasInput(p)) return p;
+function wasmGatePort(rt: WasmModule, sfx = ''): string | null {
+  return rt.hasInput(`gate${sfx}`) ? `gate${sfx}` : rt.hasInput(`trig${sfx}`) ? `trig${sfx}` : null;
+}
+/** Velocity-achtige ingang van een wasm-module (met cel-suffix voor multi-modules). */
+function wasmVelPort(rt: WasmModule, sfx = ''): string | null {
+  for (const p of ['vel', 'velocity', 'strength', 'accent_cv', 'accent']) if (rt.hasInput(p + sfx)) return p + sfx;
   return null;
 }
 
@@ -249,6 +251,8 @@ export class AudioEngine {
   /** Wasm-PolyGroups in de simulator: master → leden (incl. master), en lid → master. */
   private wasmGroups = new Map<string, string[]>();
   private wasmFollowerOf = new Map<string, string>();
+  /** Multi-module → master-stem-id (`moduleId#1`) van zijn cel-PolyGroup. */
+  private cellMasterOf = new Map<string, string>();
   /** Stem-allocator per wasm-node: vastgehouden noot en leeftijd (steal = oudste). */
   private wasmVoice = new Map<string, { note: number | null; age: number }>();
   private wasmAge = 0;
@@ -267,23 +271,19 @@ export class AudioEngine {
     const racks = project.racks.filter((r) => patch.rackIds.includes(r.id));
     const inRack = new Set<string>();
     for (const r of racks) for (const s of r.slots) inRack.add(s.moduleId);
-    // Niet-master-leden van PolyGroups: op de Teensy elk één stem, hier
-    // zou dat unisono worden. De DX7-node is zelf al poly, dus alleen de
-    // master (members[0]) krijgt een node.
-    const polyVoiceIds = new Set<string>();
-    this.wasmGroups.clear(); this.wasmFollowerOf.clear(); this.wasmVoice.clear();
+    // Wasm-PolyGroups: de stemtoewijzer hier speelt de rol van MidiIn +
+    // polyExpand op de Teensy. Een stem is óf een hele module (construct A,
+    // `moduleId`) óf een cel van een multi-module (construct B,
+    // `moduleId#k`, k 1-based) — zie doc/uml/11-simulation-wasm.md.
+    this.wasmGroups.clear(); this.wasmFollowerOf.clear(); this.wasmVoice.clear(); this.cellMasterOf.clear();
     for (const r of racks) for (const g of r.polyGroups ?? []) {
-      const ids = g.members.filter((mem) => mem.kind === 'module').map((mem) => mem.moduleId);
+      const ids = g.members.map((mem) => mem.kind === 'module' ? mem.moduleId : `${mem.moduleId}#${mem.cellIndex + 1}`);
       if (ids.length < 2) continue;
-      const masterType = project.modules.find((m) => m.id === ids[0])?.typeId ?? '';
-      if (WasmModule.supports(masterType)) {
-        // Wasm-groep: élk lid krijgt een node; de allocator verdeelt de noten
-        // (zoals polyExpand + MidiIn op de Teensy).
-        this.wasmGroups.set(ids[0]!, ids);
-        for (const id of ids.slice(1)) this.wasmFollowerOf.set(id, ids[0]!);
-      } else {
-        for (const id of ids.slice(1)) polyVoiceIds.add(id);
-      }
+      const masterType = project.modules.find((m) => m.id === voiceModuleId(ids[0]!))?.typeId ?? '';
+      if (!WasmModule.supports(masterType)) continue;
+      this.wasmGroups.set(ids[0]!, ids);
+      for (const id of ids.slice(1)) this.wasmFollowerOf.set(id, ids[0]!);
+      if (ids[0]!.includes('#')) this.cellMasterOf.set(voiceModuleId(ids[0]!), ids[0]!);
     }
     for (const m of project.modules) {
       if (!inRack.has(m.id)) continue;
@@ -299,7 +299,6 @@ export class AudioEngine {
       if (!inRack.has(m.id)) continue;
       const tRaw = project.moduleTypes.find((x) => x.id === m.typeId);
       if (!tRaw) continue;
-      if (tRaw.id === Dx7.typeId && polyVoiceIds.has(m.id)) continue;   // DX7 is intern poly
       // ADR 0009 — external simulation proxy. If the type declares a
       // `simulatedBy`, resolve to the proxy type and remap controls; the
       // engine then treats this external module as if it were the proxy.
@@ -385,9 +384,7 @@ export class AudioEngine {
     for (const node of this.nodes.values()) {
       if (node.kind === 'sequencer') this.stopSequencer(node);
       if (node.kind === 'envelope') node.env.triggerRelease();
-      if (node.kind === 'dx7') node.runtime.allOff();
-      if (node.kind === 'wasm' && node.polyNotes) node.runtime.allNotesOff();
-      if (node.kind === 'wasm') { const p = wasmGatePort(node.runtime); if (p) node.runtime.setInput(p, 0); }
+      if (node.kind === 'wasm') for (const p of allGatePorts(node.runtime)) node.runtime.setInput(p, 0);
       if (node.kind === 'noise') { try { node.noise.stop(); } catch { /* ignore */ } }
     }
     for (const o of this.startedOscs) {
@@ -408,14 +405,6 @@ export class AudioEngine {
     const freq = midiToHz(midi);
     this.status.lastNote = { midi, vel: Math.round(clamp(velocity, 0, 1) * 127), ts: Date.now(), on: true };
 
-    // DX7-nodes krijgen élke noot (intern poly); zie Dx7.ts. Wasm-modules met
-    // een eigen stemmenset (de sampler) net zo: één gate-flank kan maar één
-    // toonhoogte dragen, dus zonder dit blijft zo'n module monofoon hoe veel
-    // stemmen hij intern ook heeft.
-    for (const node of this.nodes.values()) {
-      if (node.kind === 'dx7') node.runtime.noteOn(midi, velocity);
-      else if (node.kind === 'wasm' && node.polyNotes) node.runtime.noteOn(midi, velocity);
-    }
     const wasmDone = new Set<string>();   // één allocatie per wasm-groep per noot
 
     // Verzamel alle MIDI-In modules; als die er zijn, fungeren zij als
@@ -433,14 +422,14 @@ export class AudioEngine {
           if (n?.kind === 'vco') {
             const off = readKnob(n.controls, 'coarse', 0) + readKnob(n.controls, 'fine', 0) / 100;
             n.osc.frequency.rampTo(midiToHz(midi + off), 0.005);
-          } else if (n?.kind === 'wasm' && !n.polyNotes) {
-            this.wasmNoteOn(n.moduleId, midi, velocity, wasmDone);
+          } else if (n?.kind === 'wasm') {
+            this.wasmNoteOn(tgt, midi, velocity, wasmDone);
           }
         }
         for (const tgt of mi.gateTargets) {
           const n = this.nodes.get(tgt);
           if (n?.kind === 'envelope') n.env.triggerAttack();
-          else if (n?.kind === 'wasm' && !n.polyNotes) this.wasmNoteOn(n.moduleId, midi, velocity, wasmDone);
+          else if (n?.kind === 'wasm') this.wasmNoteOn(tgt, midi, velocity, wasmDone);
         }
         // Velocity → CvMath-factor (mult-mode): bepaalt de VCA-amplitude per noot.
         for (const tgt of mi.velTargets) {
@@ -494,7 +483,7 @@ export class AudioEngine {
       if (node.kind === 'envelope' && !node.gateDriven) {
         node.env.triggerAttack();
       }
-      if (node.kind === 'wasm' && !node.polyNotes && !node.gateDriven && !this.wasmFollowerOf.has(node.moduleId)) {
+      if (node.kind === 'wasm' && !node.gateDriven && !this.wasmFollowerOf.has(node.moduleId)) {
         this.wasmNoteOn(node.moduleId, midi, velocity, wasmDone);
       }
     }
@@ -504,10 +493,6 @@ export class AudioEngine {
 
   noteOff(midi: number): void {
     if (this.status.lastNote?.midi === midi) this.status.lastNote = { ...this.status.lastNote, on: false };
-    for (const node of this.nodes.values()) {
-      if (node.kind === 'dx7') node.runtime.noteOff(midi);
-      else if (node.kind === 'wasm' && node.polyNotes) node.runtime.noteOff(midi);
-    }
     if (this.currentKeyboardNote !== midi) return;
     // MIDI-In dispatch.
     for (const node of this.nodes.values()) {
@@ -516,7 +501,7 @@ export class AudioEngine {
         for (const tgt of node.gateTargets) {
           const n = this.nodes.get(tgt);
           if (n?.kind === 'envelope') n.env.triggerRelease();
-          else if (n?.kind === 'wasm' && !n.polyNotes) this.wasmNoteOff(n.moduleId, midi);
+          else if (n?.kind === 'wasm') this.wasmNoteOff(tgt, midi);
         }
         // Forward release to connected sequencers.
         for (const tgt of node.seqRunTargets) {
@@ -542,7 +527,7 @@ export class AudioEngine {
     // Fallback.
     for (const node of this.nodes.values()) {
       if (node.kind === 'envelope' && !node.gateDriven) node.env.triggerRelease();
-      if (node.kind === 'wasm' && !node.polyNotes && !node.gateDriven && !this.wasmFollowerOf.has(node.moduleId)) this.wasmNoteOff(node.moduleId, midi);
+      if (node.kind === 'wasm' && !node.gateDriven && !this.wasmFollowerOf.has(node.moduleId)) this.wasmNoteOff(node.moduleId, midi);
     }
     this.currentKeyboardNote = null;
     this.emit();
@@ -582,10 +567,6 @@ export class AudioEngine {
         if (controlId === 'detune') { node.runtime.setControl('detune', num); return true; }
         // FM-VCO: FM-diepte (octaven) en level lopen live via de runtime.
         if (controlId === 'fm_amt' || controlId === 'level') { node.runtime.setControl(controlId, num); return true; }
-        return true;
-      }
-      case 'dx7': {
-        node.runtime.setControl(controlId, value);
         return true;
       }
       case 'wasm': {
@@ -759,7 +740,6 @@ export class AudioEngine {
     for (const node of this.nodes.values()) {
       switch (node.kind) {
         case 'vco': node.runtime.dispose(); break;
-        case 'dx7': node.runtime.dispose(); break;
         case 'wasm': node.runtime.dispose(); break;
         case 'vcf': node.runtime.dispose(); node.cvScale?.dispose(); node.qCvScale?.dispose(); break;
         case 'vca': node.runtime.dispose(); node.cvSum?.dispose(); break;
@@ -861,18 +841,10 @@ export class AudioEngine {
       }
       return { ...base, kind: 'mixer', channels, inputs, panners, out };
     }
-    // DX7: eigen node-soort (worklet), los van de Tone-VCO's.
-    if (t.id === Dx7.typeId) {
-      const rt = registry.create(t, m, controls) as Dx7;
-      return { ...base, kind: 'dx7', runtime: rt };
-    }
     // Teensy-modules als wasm (Elements, Rings, Marbles, Stages, Peaks, …).
     if (WasmModule.supports(t.id)) {
       const rt = registry.create(t, m, controls) as WasmModule;
-      return {
-        ...base, kind: 'wasm', runtime: rt, voctDriven: false, gateDriven: false,
-        polyNotes: WasmModule.isPoly(t.id),
-      };
+      return { ...base, kind: 'wasm', runtime: rt, voctDriven: false, gateDriven: false };
     }
     switch (kind) {
       case 'vco': {
@@ -1017,6 +989,8 @@ export class AudioEngine {
   /** Stem kiezen in de groep van `id` (master of losse module) en de noot aanzetten:
    *  zelfde noot → hertrigger, anders vrije stem, anders de oudste stelen. */
   private wasmNoteOn(id: string, midi: number, velocity: number, done?: Set<string>): void {
+    // Een kale module-id van een multi-module → zijn master-cel.
+    if (!id.includes('#')) id = this.cellMasterOf.get(id) ?? id;
     const master = this.wasmFollowerOf.get(id) ?? id;
     if (done) { if (done.has(master)) return; done.add(master); }
     const members = this.wasmGroups.get(master) ?? [master];
@@ -1027,32 +1001,27 @@ export class AudioEngine {
       let best = Infinity;
       for (const m of members) { const a = this.wasmVoice.get(m)?.age ?? 0; if (a < best) { best = a; pick = m; } }
     }
-    const node = pick ? this.nodes.get(pick) : undefined;
+    const node = pick ? this.nodes.get(voiceModuleId(pick)) : undefined;
     if (!pick || !node || node.kind !== 'wasm') return;
-    // Module met eigen stemmen (sampler): geef de noot door in plaats van
-    // gate/voct te zetten. Zo speelt ook een sequencer er akkoorden op.
-    if (node.polyNotes) { node.runtime.noteOn(midi, velocity); return; }
     this.wasmVoice.set(pick, { note: midi, age: ++this.wasmAge });
     const rt = node.runtime;
-    if (rt.hasInput('voct') && !rt.cabled.has('voct')) rt.setInput('voct', (midi - 60) / 12);
-    const vp = wasmVelPort(rt);
+    const sfx = voiceSuffix(pick);
+    const voct = `voct${sfx}`;
+    if (rt.hasInput(voct) && !rt.cabled.has(voct)) rt.setInput(voct, (midi - 60) / 12);
+    const vp = wasmVelPort(rt, sfx);
     if (vp && !rt.cabled.has(vp)) rt.setInput(vp, clamp(velocity, 0, 1));
-    const gp = wasmGatePort(rt);
+    const gp = wasmGatePort(rt, sfx);
     if (gp) rt.setInput(gp, 1);
   }
   /** Noot loslaten in de groep van `id` (midi null = alle stemmen). */
   private wasmNoteOff(id: string, midi: number | null): void {
-    const self = this.nodes.get(id);
-    if (self?.kind === 'wasm' && self.polyNotes) {
-      if (midi === null) self.runtime.allNotesOff(); else self.runtime.noteOff(midi);
-      return;
-    }
+    if (!id.includes('#')) id = this.cellMasterOf.get(id) ?? id;
     const master = this.wasmFollowerOf.get(id) ?? id;
     for (const m of this.wasmGroups.get(master) ?? [master]) {
       const st = this.wasmVoice.get(m);
       if (midi !== null && st?.note !== midi) continue;
-      const node = this.nodes.get(m);
-      if (node?.kind === 'wasm') { const gp = wasmGatePort(node.runtime); if (gp) node.runtime.setInput(gp, 0); }
+      const node = this.nodes.get(voiceModuleId(m));
+      if (node?.kind === 'wasm') { const gp = wasmGatePort(node.runtime, voiceSuffix(m)); if (gp) node.runtime.setInput(gp, 0); }
       if (st) st.note = null;
     }
   }
@@ -1091,16 +1060,20 @@ export class AudioEngine {
     // ── cv/gate → wasm-module: alles is signaal in de worklet ──
     if (dst.kind === 'wasm' && (srcSig === 'cv' || srcSig === 'gate' || srcSig === 'trigger')) {
       const toPort = conn.to.portId;
+      // Doelwit is een stem: de module zelf, of een cel (`voct_3` → `mod#3`).
+      const cell = /^(voct|gate|trig|vel)_(\d+)$/.exec(toPort);
+      const voiceId = cell ? `${dst.moduleId}#${cell[2]}` : dst.moduleId;
+      const basePort = cell ? cell[1] : toPort;
       if (src.kind === 'midiin') {
-        if (srcSig === 'cv' && toPort === 'voct') { src.pitchTargets.push(dst.moduleId); dst.voctDriven = true; }
-        else if (srcSig === 'cv') { src.velTargets.push(dst.moduleId); }
-        else { src.gateTargets.push(dst.moduleId); dst.gateDriven = true; }
+        if (srcSig === 'cv' && basePort === 'voct') { src.pitchTargets.push(voiceId); dst.voctDriven = true; }
+        else if (srcSig === 'cv') { src.velTargets.push(voiceId); }
+        else { src.gateTargets.push(voiceId); dst.gateDriven = true; }
         return;
       }
       if (src.kind === 'sequencer') {
-        if (srcSig === 'cv') { src.cvTargets.push(dst.moduleId); dst.voctDriven = true; src.active = true; }
-        else if (conn.from.portId === 'trig') { src.trigTargets.push(dst.moduleId); dst.gateDriven = true; src.active = true; }
-        else { src.gateTargets.push(dst.moduleId); dst.gateDriven = true; src.active = true; }
+        if (srcSig === 'cv') { src.cvTargets.push(voiceId); dst.voctDriven = true; src.active = true; }
+        else if (conn.from.portId === 'trig') { src.trigTargets.push(voiceId); dst.gateDriven = true; src.active = true; }
+        else { src.gateTargets.push(voiceId); dst.gateDriven = true; src.active = true; }
         return;
       }
       const out = cvOutputOf(src, conn.from.portId) ?? audioOutputOf(src, conn.from.portId);
@@ -1410,7 +1383,6 @@ export class AudioEngine {
 function audioOutputOf(n: EngineNode, portId?: string): Tone.ToneAudioNode | null {
   switch (n.kind) {
     case 'vco': return n.osc;
-    case 'dx7': return n.runtime.out;
     case 'wasm': return n.runtime.outGain(portId ?? n.runtime.outputIds[0] ?? '') ?? n.runtime.outGain(portId === 'out' ? 'out_l' : 'out') ?? null;
     case 'vcf': return n.filter;
     case 'vca': return n.gain;

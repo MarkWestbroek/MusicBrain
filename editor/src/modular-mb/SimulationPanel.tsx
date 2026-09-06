@@ -10,7 +10,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useModularProject } from './store';
 import { AudioEngine, type EngineStatus } from './sim/AudioEngine';
 import { getEngine } from './sim/engineSingleton';
-import { Dx7, WasmModule } from './runtime';
+import { dx7Host, WasmModule } from './runtime';
 import {
   ScreenKeyboardSource, TestSequenceSource, WebMidiSource,
   type MidiSource, type MidiEvent,
@@ -109,7 +109,7 @@ export function SimulationPanel(): JSX.Element {
   const [engineInfo, setEngineInfo] = useState('');
   useEffect(() => {
     const tick = (): void => {
-      const next = `${Dx7.info() ?? ''}|${WasmModule.info() ?? ''}`;
+      const next = `${dx7Host.info() ?? ''}|${WasmModule.info() ?? ''}`;
       setEngineInfo((prev) => (prev === next ? prev : next));
     };
     tick();
@@ -161,9 +161,9 @@ export function SimulationPanel(): JSX.Element {
               : '— (geen noot)'}
           </span>
           <NoteReadout note={status.lastNote} />
-          {Dx7.info() && (
-            <span style={{ color: Dx7.lastError ? '#b91c1c' : '#475569' }} title="DX7-worklet (msfa-kern) in de browser">
-              {Dx7.info()}
+          {dx7Host.info() && (
+            <span style={{ color: dx7Host.lastError ? '#b91c1c' : '#475569' }} title="DX7 (msfa-kern) als wasm — één stem per instantie, poly via PolyGroup">
+              {dx7Host.info()}
             </span>
           )}
           {WasmModule.info() && (

@@ -12,10 +12,11 @@ import * as Tone from 'tone';
  *     await this._workletPromise;
  *
  * Wie het eerst komt wint dus; voor elke volgende, andere URL wordt
- * `addModule` nooit aangeroepen terwijl de `await` wél slaagt. Wij hebben er
- * twee (`wasm/mmb-worklet.js` en `dx7/dx7-worklet.js`), dus de tweede
- * `createAudioWorkletNode` faalt met een onbekende processor — afhankelijk van
- * welke patch je die sessie het eerst hebt gespeeld.
+ * `addModule` nooit aangeroepen terwijl de `await` wél slaagt. Toen we er
+ * twee hadden (`wasm/mmb-worklet.js` en een aparte DX7-worklet) faalde de
+ * tweede `createAudioWorkletNode` op een onbekende processor — afhankelijk van
+ * welke patch je die sessie het eerst had gespeeld. Sinds de DX7 een gewone
+ * wasm-module is, is er nog één URL, maar de val blijft dichtgetimmerd.
  *
  * Daarom gaan we hier rechtstreeks naar `rawContext.audioWorklet`, met een
  * eigen cache per (context, url). Valt terug op Tone's methode als de context

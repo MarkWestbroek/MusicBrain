@@ -100,3 +100,16 @@ wat een lib mist vindt de build in de andere (zoals de firmware-LDF).
   LFO/ADSR/sequencer/MIDI-In→wasm werken wel. Marbles → Plaits/Morph-WT/
   Rings/Elements is dus de route voor generatieve patches.
 - CPU per instantie (node, -O3 -msimd128): Elements ~33 %, Rings ~23 %, de rest ≤ 2 %.
+
+## Polyfonie: twee constructen, geen derde
+
+Een wasm-module is óf **één stem per instantie** (Elements, Rings, DX7 —
+polyfonie is een PolyGroup ×N, de engine maakt N instanties) óf een
+**multi-module met cellen** (de sampler: `voct_1..8`, `gate_1..8`,
+`vel_1..8`, één bank gedeeld). In beide gevallen zit de stemtoewijzer in de
+engine (als spiegel van MIDI-in + polyExpand op de Teensy), nooit in de
+wrapper. Een wrapper doet per gate-ingang flankdetectie en verder niets slims.
+Zie `doc/uml/11-simulation-wasm.md`.
+
+De DX7 (`dx7_wasm.cc`) krijgt zijn banken als blobs: slots 0..7 = factory-ROMs,
+8 = USER, 9 = edit-patch van de patcheditor, met control `edit` als aan/uit.

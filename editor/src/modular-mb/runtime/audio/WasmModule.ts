@@ -40,18 +40,38 @@ export class WasmModule extends AudioModule {
     'tp_mmb_elements', 'tp_mmb_rings', 'tp_mmb_marbles', 'tp_mmb_stages',
     'tp_mmb_peaks', 'tp_mmb_morph_wt', 'tp_mmb_clouds',
     'tp_mmb_plaits', 'tp_mmb_tides', 'tp_mmb_warps', 'tp_mmb_tape_echo', 'tp_mmb_sampler',
+    'tp_mmb_dx7',
   ]);
   static supports(typeId: string): boolean { return WasmModule.typeIds.has(typeId); }
 
   /**
-   * Modules die hun eigen stemmen hebben en dus élke noot los willen krijgen,
-   * in plaats van één gate-flank met één V/Oct. De wasm-kant herken je aan de
-   * export `mmb_note_on`; de engine moet het al bij het bouwen weten, vandaar
-   * deze lijst. Voor de rest blijft de CV-weg gelden — Elements en Rings zijn
-   * per instantie één stem, daar is een PolyGroup het antwoord.
+   * Per type een lader voor bijbehorend materiaal (de DX7 haalt zijn ROMs op
+   * en zet ze als blobs klaar). Wordt één keer aangeroepen, bij de eerste
+   * instantie van dat type — zo blijft dit bestand vrij van module-kennis.
    */
-  static readonly polyTypeIds: ReadonlySet<string> = new Set(['tp_mmb_sampler']);
-  static isPoly(typeId: string): boolean { return WasmModule.polyTypeIds.has(typeId); }
+  private static readonly assetLoaders = new Map<string, () => void>();
+  private static readonly assetsStarted = new Set<string>();
+  static registerAssets(typeId: string, loader: () => void): void { WasmModule.assetLoaders.set(typeId, loader); }
+
+  /** Aantal levende instanties van een type (0 = zet er een in het rack). */
+  static count(typeId: string): number {
+    let n = 0;
+    for (const inst of WasmModule.instances) if (inst.typeId === typeId) ++n;
+    return n;
+  }
+
+  /**
+   * Een control naar álle instanties van een type, ook controls die niet in
+   * de catalogus staan (bv. `edit` van de DX7: aan/uit van de edit-patch).
+   * Onthouden voor instanties die later komen.
+   */
+  private static readonly typeControls = new Map<string, Map<string, number>>();
+  static broadcastControl(typeId: string, id: string, v: number): void {
+    let m = WasmModule.typeControls.get(typeId);
+    if (!m) { m = new Map(); WasmModule.typeControls.set(typeId, m); }
+    m.set(id, v);
+    for (const inst of WasmModule.instances) if (inst.typeId === typeId) inst.post({ t: 'ctl', id, v });
+  }
 
   private static worklet: Promise<void> | null = null;
   private static readonly wasm = new Map<string, Promise<Uint8Array>>();
@@ -149,6 +169,10 @@ export class WasmModule extends AudioModule {
     for (const id of this.inputIds) this.inGains.set(id, new Tone.Gain(1));
     for (const id of this.outputIds) this.outGains.set(id, new Tone.Gain(1));
     WasmModule.instances.add(this);
+    if (!WasmModule.assetsStarted.has(type.id)) {
+      WasmModule.assetsStarted.add(type.id);
+      WasmModule.assetLoaders.get(type.id)?.();
+    }
 
     Promise.all([WasmModule.ensureWorklet(), WasmModule.loadWasm(type.id)]).then(([, wasm]) => {
       if (this.disposed) return;
@@ -179,6 +203,8 @@ export class WasmModule extends AudioModule {
       for (const id of this.cabled) this.post({ t: 'cabled', id, on: true });
       const blobs = WasmModule.blobs.get(type.id);
       if (blobs) for (const [slot, b] of blobs) this.postBlob(slot, b.data, b.rate, b.channels);
+      const tc = WasmModule.typeControls.get(type.id);
+      if (tc) for (const [id, v] of tc) this.post({ t: 'ctl', id, v });
       const zones = WasmModule.zoneMaps.get(type.id);
       if (zones) this.postZones(zones);
       for (const m of this.pending) this.post(m);
@@ -220,14 +246,6 @@ export class WasmModule extends AudioModule {
     if (!this.inGains.has(id)) return;
     this.post({ t: 'in', id, v });
   }
-
-  /** Noot aanzetten op een polyfone module (zie `isPoly`). */
-  noteOn(midi: number, velocity01: number): void {
-    const v = Math.max(1, Math.min(127, Math.round((velocity01 > 1 ? velocity01 / 127 : velocity01) * 127) || 1));
-    this.post({ t: 'note', on: true, n: midi, v });
-  }
-  noteOff(midi: number): void { this.post({ t: 'note', on: false, n: midi }); }
-  allNotesOff(): void { this.post({ t: 'note', on: false, n: null }); }
 
   protected override onControlChanged(id: string, value: ControlValue): void {
     const n = typeof value === 'boolean' ? (value ? 1 : 0) : Number(value);
