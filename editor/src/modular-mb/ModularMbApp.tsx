@@ -21,6 +21,7 @@ import { TeensyLinkModal } from './TeensyLinkModal';
 import { WaveDrawModal } from './WaveDrawModal';
 import { SampleModal } from './SampleModal';
 import { SampleImportModal } from './SampleImportModal';
+import { Dx7EditorModal } from './Dx7EditorModal';
 // Reuse the ES project-bar CSS classes (.es-projectbar*) — same visual language.
 import '../effect-switcher/styles.css';
 
@@ -47,6 +48,7 @@ export function ModularMbApp(): JSX.Element {
   const [showWave,    setShowWave]    = useState(false);
   const [showSample,  setShowSample]  = useState(false);
   const [showImport,  setShowImport]  = useState(false);
+  const [showDx7,     setShowDx7]     = useState(false);
   const [showPoly,    setShowPoly]    = useState(false);
   const [showStress,  setShowStress]  = useState(false);
   const [showSolo,    setShowSolo]    = useState(false);
@@ -280,6 +282,10 @@ export function ModularMbApp(): JSX.Element {
             title="Eén lange opname (C1 zacht/midden/hard, C2 idem, …) ontleden tot een keymap: toonhoogte, velocity-lagen, uitsterving en loop-punten"
           >🎹 Multisample</button>
           <button
+            onClick={() => setShowDx7(true)}
+            title="DX7-patch bewerken: algoritme, operators, envelopes — je hoort elke wijziging meteen in alle DX7-modules"
+          >🎛 DX7</button>
+          <button
             onClick={() => setProject(seedExampleModules(getProject()))}
             title="Voeg 6 voorbeeld-modules toe aan dit project en plaats ze in het actieve rack"
           >Voorbeelden</button>
@@ -512,6 +518,7 @@ export function ModularMbApp(): JSX.Element {
       <WaveDrawModal open={showWave} onClose={() => setShowWave(false)} />
       <SampleModal open={showSample} onClose={() => setShowSample(false)} />
       <SampleImportModal open={showImport} onClose={() => setShowImport(false)} />
+      <Dx7EditorModal open={showDx7} onClose={() => setShowDx7(false)} />
     </section>
   );
 }

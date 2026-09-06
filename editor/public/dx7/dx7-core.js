@@ -544,6 +544,9 @@ export class Dx7Core {
     this.banks = new Uint8Array(K_BANKS * K_BANK_BYTES);
     this.bankLoaded = new Array(K_BANKS).fill(false);
     this.bank = 0; this.program = 0; this.coarse = 0; this.fine = 0; this.level = 0.8;
+    // Edit-buffer: als hij gezet is, overstemt hij bank+program. Zo kan de
+    // editor een patch live veranderen zonder de bank aan te raken.
+    this.editPatch = null;
     this.ageCounter = 0;
     this.out = new Float32Array(K_MAX_FRAMES);
     this.scratch = new Int32Array(N);
@@ -558,11 +561,22 @@ export class Dx7Core {
   }
   packedVoiceOffset() { return this.bankLoaded[this.bank] ? this.bank * K_BANK_BYTES + (this.program & 31) * 128 : -1; }
   applyPatch(v) {
+    if (this.editPatch) { v.patch.set(this.editPatch.subarray(0, 156)); v.lfo.reset(v.patch, 137); return; }
     const off = this.packedVoiceOffset();
     if (off < 0) unpackPatch(EPIANO, 0, v.patch); else unpackPatch(this.banks, off, v.patch);
     v.lfo.reset(v.patch, 137);
   }
+  /** Uitgepakte patch (156 bytes) of null om terug te vallen op de bank. */
+  setEditPatch(bytes) {
+    this.editPatch = bytes && bytes.length >= 156 ? Uint8Array.from(bytes.subarray(0, 156)) : null;
+    for (const v of this.voices) this.applyPatch(v);
+  }
   voiceName() {
+    if (this.editPatch) {
+      let s = '';
+      for (let i = 0; i < 10; i++) s += String.fromCharCode(this.editPatch[145 + i] || 32);
+      return s;
+    }
     const off = this.packedVoiceOffset();
     const src = off < 0 ? EPIANO : this.banks;
     const base = off < 0 ? 0 : off;

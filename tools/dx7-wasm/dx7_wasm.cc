@@ -78,6 +78,10 @@ float    g_fine    = 0.0f;  // cents
 float    g_level   = 0.8f;
 uint32_t g_age     = 0;
 bool     g_tablesDone = false;
+// Edit-buffer: als `g_editOn` aan staat, overstemt deze uitgepakte patch de
+// bank — zo kan de editor live een patch veranderen zonder de bank te raken.
+char     g_edit[156];
+bool     g_editOn = false;
 
 float    g_out[kMaxFrames];
 int32_t  g_scratch[kBlock];
@@ -88,7 +92,8 @@ const char* packedVoice() {
 }
 
 void applyPatch(Voice& v) {
-    UnpackPatch(packedVoice(), v.patch);
+    if (g_editOn) std::memcpy(v.patch, g_edit, sizeof(v.patch));
+    else          UnpackPatch(packedVoice(), v.patch);
     v.lfo.reset(v.patch + 137);
 }
 
@@ -140,8 +145,17 @@ DX7_EXPORT(dx7_set_level)   void dx7_set_level(float l) { g_level = l < 0 ? 0 : 
 
 /** Naam (10 tekens) van de huidige voice naar out (11 bytes). */
 DX7_EXPORT(dx7_voice_name) void dx7_voice_name(char* out) {
-    std::memcpy(out, packedVoice() + 118, 10);
+    if (g_editOn) std::memcpy(out, g_edit + 145, 10);
+    else          std::memcpy(out, packedVoice() + 118, 10);
     out[10] = '\0';
+}
+
+/** Adres van de 156-byte edit-buffer; de host schrijft er een uitgepakte
+ *  patch in en zet hem daarna aan met dx7_edit_enable(1). */
+DX7_EXPORT(dx7_edit_ptr) char* dx7_edit_ptr() { return g_edit; }
+DX7_EXPORT(dx7_edit_enable) void dx7_edit_enable(int on) {
+    g_editOn = on != 0;
+    for (int i = 0; i < kVoices; ++i) applyPatch(g_voices[i]);
 }
 
 DX7_EXPORT(dx7_note_on) void dx7_note_on(int midinote, int velocity) {

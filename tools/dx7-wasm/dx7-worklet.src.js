@@ -45,6 +45,12 @@ class WasmBackend {
     let s = ''; for (let i = 0; i < 10; i++) s += String.fromCharCode(b[i]);
     return s;
   }
+  setEditPatch(bytes) {
+    if (!this.ex.dx7_edit_ptr) return;
+    if (!bytes) { this.ex.dx7_edit_enable(0); return; }
+    new Uint8Array(this.ex.memory.buffer).set(bytes.subarray(0, 156), this.ex.dx7_edit_ptr());
+    this.ex.dx7_edit_enable(1);
+  }
   render(frames) {
     const n = this.ex.dx7_render(frames);
     return new Float32Array(this.ex.memory.buffer, this.ex.dx7_out_ptr(), n);
@@ -64,6 +70,7 @@ class JsBackend {
   allOff() { this.core.allOff(); }
   activeVoices() { return this.core.activeVoices(); }
   voiceName() { return this.core.voiceName(); }
+  setEditPatch(bytes) { this.core.setEditPatch(bytes); }
   render(frames) { const n = this.core.render(frames); return this.core.out.subarray(0, n); }
 }
 
@@ -101,6 +108,7 @@ class Dx7Processor extends AudioWorkletProcessor {
         case 'fine':     this.be.setFine(m.v); break;
         case 'level':    this.be.setLevel(m.v); break;
         case 'userbank': if (m.data && m.data.length === 4096) { this.be.writeBank(8, m.data); this.postName(); } break;
+        case 'edit':     this.be.setEditPatch(m.data || null); this.postName(); break;
         case 'dispose':  this.alive = false; break;
       }
     };

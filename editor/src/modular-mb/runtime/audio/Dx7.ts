@@ -28,6 +28,7 @@ export class Dx7 extends AudioModule {
 
   private static assets: Promise<{ wasm: Uint8Array | null; roms: Uint8Array }> | null = null;
   private static userBank: Uint8Array | null = null;
+  private static editPatch: Uint8Array | null = null;
   private static readonly instances = new Set<Dx7>();
   /** Laatste laad-/worklet-fout, voor de UI (SimulationPanel). */
   static lastError: string | null = null;
@@ -73,6 +74,33 @@ export class Dx7 extends AudioModule {
     if (data) for (const d of Dx7.instances) d.post({ t: 'userbank', data });
   }
 
+  /**
+   * Live edit-patch (156 bytes uitgepakt) voor álle DX7-instanties; `null`
+   * valt terug op bank + program. Zo hoor je een bewerking meteen zonder de
+   * bank aan te raken — de basis van de patch-editor.
+   */
+  static setEditPatch(patch: Uint8Array | null): void {
+    Dx7.editPatch = patch ? Uint8Array.from(patch.subarray(0, 156)) : null;
+    for (const d of Dx7.instances) d.post({ t: 'edit', data: Dx7.editPatch });
+  }
+  static getEditPatch(): Uint8Array | null { return Dx7.editPatch; }
+
+  /** Packed voice (128 bytes) uit een factory-ROM — startpunt voor de editor. */
+  static async getPackedVoice(bank: number, program: number): Promise<Uint8Array> {
+    const { roms } = await Dx7.ensureLoaded();
+    const b = Math.max(0, Math.min(7, bank)), p = program & 31;
+    return roms.subarray(b * 4096 + p * 128, b * 4096 + (p + 1) * 128);
+  }
+
+  /** Noot voorspelen op alle instanties (audition in de editor). */
+  static preview(midi: number, velocity01: number, on: boolean): void {
+    for (const d of Dx7.instances) {
+      if (on) d.noteOn(midi, velocity01); else d.noteOff(midi);
+    }
+  }
+  /** Aantal levende DX7-modules — 0 betekent: start de simulatie eerst. */
+  static instanceCount(): number { return Dx7.instances.size; }
+
   /** Naam van de actieve voice (10 tekens), bijgewerkt door de worklet. */
   voiceName = '';
   /** 'js' of 'wasm' — welke kern de worklet draait. */
@@ -115,6 +143,7 @@ export class Dx7 extends AudioModule {
       this.post({ t: 'coarse', v: num(this.controlValues['coarse'], 0) });
       this.post({ t: 'fine',   v: num(this.controlValues['fine'], 0) });
       this.post({ t: 'level',  v: num(this.controlValues['level'], 0.8) });
+      if (Dx7.editPatch) this.post({ t: 'edit', data: Dx7.editPatch });
       for (const m of this.pending) this.post(m);
       this.pending = [];
     }).catch((err: unknown) => {

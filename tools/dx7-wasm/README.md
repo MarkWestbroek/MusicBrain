@@ -45,3 +45,59 @@ Op de Teensy is één `Dx7Module` één stem (poly via `polyExpand`). De
 simulator is monofoon; daarom is de browser-DX7 intern 16-stemmig en
 krijgt hij van de engine élke note-on/off. Niet-master-leden van een
 PolyGroup krijgen in de simulator geen DX7-node (anders unisono).
+
+## Edit-buffer en patch-editor
+
+Naast bank + program kent de kern een **edit-buffer**: 156 bytes uitgepakte
+patch die de bank overstemt zolang hij aanstaat. Zo verandert de editor een
+patch live zonder de bank aan te raken, en horen alle DX7-modules in de patch
+hetzelfde.
+
+| kant | interface |
+|---|---|
+| wasm | `dx7_edit_ptr()` → 156-byte buffer, `dx7_edit_enable(int)` |
+| JS-port | `Dx7Core.setEditPatch(bytes \| null)` |
+| worklet | bericht `{t:'edit', data}` (`data === null` → terug naar de bank) |
+| editor | `Dx7.setEditPatch()` / `Dx7.getEditPatch()` / `Dx7.getPackedVoice()` |
+
+Het formaat zelf staat in `editor/src/modular-mb/dx7Patch.ts` (packed 128 ↔
+unpacked 156, algoritmetabel, routering, ratio's) en de UI in
+`Dx7EditorModal.tsx`. **Let op:** in een DX7-bulkdump staan de operators
+achterstevoren — patch-index 0 is OP6. msfa houdt die volgorde aan, de UI
+draait 'm om (`opIndex = 6 - uiOp`).
+
+## Naast een echte DX7: `compare.mjs`
+
+```sh
+node tools/dx7-wasm/compare.mjs opname.wav [bank] [program] [midinote] [velocity]
+node tools/dx7-wasm/compare.mjs --selftest
+```
+
+Rendert dezelfde voice/noot met onze kern, lijnt uit op de aanslag, trekt het
+niveau gelijk en meet dan drie dingen los van elkaar: envelope-tijden in dB,
+partiaal-amplitudes (Goertzel), en de ruisvloer *tussen* de partialen als
+functie van het signaalniveau.
+
+Die laatste is de "grunge"-detector. Lineaire PCM geeft ruis die niet
+meeschaalt met het signaal (helling ≈ 0 dB/dB); de companding DAC van de
+originele DX7 geeft ruis die wél meeschaalt (helling → 1). `compand(x,
+mantissaBits)` in hetzelfde bestand doet die kwantisatie na, zodat het
+karakter ook terug te genereren is.
+
+`--selftest` draait de meting op materiaal met een bekend aangebrachte fout:
+gemeten ×0,870 waar ×0,898 voorspeld was, en 0,23 tegen 0,63 dB/dB.
+
+### Opnameprotocol
+
+1. Zet de DX7 op een **enkele voice** en noteer bank + program; speel via MIDI,
+   niet met de hand, zodat noot en velocity exact bekend zijn.
+2. Neem **line-out** op, niet de koptelefoonuitgang, zonder effecten en zonder
+   compressie — de meting gaat juist over de uitgangstrap.
+3. Eén noot per bestand, minimaal 3 s, met de note-off erin (envelope-tijden
+   zijn alleen op de release goed te meten). Laat de staart uitklinken.
+4. Neem hetzelfde op bij **twee sterk verschillende velocities** (bv. 30 en
+   120): de ruis-tegen-niveau-helling heeft twee niveaus nodig.
+5. Voice-keus: iets met een duidelijke decay (E.PIANO 1) voor de tijden, iets
+   met een stabiele toon (BRASS 1) voor het spectrum.
+6. 44,1 of 48 kHz, 24-bit. Niet normaliseren tussen de takes door — het
+   *relatieve* niveau tussen zacht en hard is meetdata.
