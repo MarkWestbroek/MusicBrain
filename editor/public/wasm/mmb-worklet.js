@@ -78,7 +78,18 @@ class MmbProcessor extends AudioWorkletProcessor {
           if (!p) break;
           // memory.buffer kan na groei een nieuw object zijn: altijd opnieuw pakken.
           new Uint8Array(ex.memory.buffer).set(new Uint8Array(m.data.buffer, m.data.byteOffset, bytes), p);
-          ex.mmb_blob_commit(m.slot | 0, m.data.length, +m.rate || 44100);
+          ex.mmb_blob_commit(m.slot | 0, Math.floor(m.data.length / (m.channels || 1)), +m.rate || 44100, m.channels || 1);
+          break;
+        }
+        case 'zones': {
+          // Keymap: [{slot, lowKey, highKey, lowVel, highVel, root, tuneCents,
+          //           gain, pan, loopMode, loopStart, loopEnd, decay, release}]
+          if (!ex.mmb_zone_set || !Array.isArray(m.zones)) break;
+          m.zones.forEach((z, i) => ex.mmb_zone_set(
+            i, z.slot | 0, z.lowKey | 0, z.highKey | 0, z.lowVel | 0, z.highVel | 0,
+            +z.root, +z.tuneCents || 0, +z.gain, +z.pan || 0,
+            z.loopMode | 0, z.loopStart | 0, z.loopEnd | 0, +z.decay || 0, +z.release || 0.08));
+          ex.mmb_zone_count(m.zones.length);
           break;
         }
         case 'dispose': this.alive = false; break;

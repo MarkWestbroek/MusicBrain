@@ -1,52 +1,41 @@
 /// <reference types="vite/client" />
-// SampleModal — laad een audiobestand in een slot van de samplebank (16
-// slots, gedeeld door alle tp_mmb_sampler-instanties): decodeert in de
-// browser naar mono int16 op 44,1 kHz, zet 'm in de wasm-sampler van de
-// simulator en stuurt 'm — als de Teensy verbonden is — in chunks over de
-// serial-link naar PSRAM + SD (frame 'sample', zie TeensyLink.h).
-import { useEffect, useRef, useState } from 'react';
+// SampleModal — snel één sample in de sampler laden (slot 0, één zone over
+// het hele klavier). Voor een echte keymap met key- en velocity-zones: de
+// 🎹 Multisample-import.
+//
+// De voorbeelden zijn door MusicBrain zelf gerenderd
+// (tools/mmb-wasm/render-samples.mjs) en staan in public/samples/.
+import { useEffect, useState } from 'react';
 import { WasmModule } from './runtime';
-import { sendSample, isConnected } from './teensyLink';
 
 const TYPE_ID = 'tp_mmb_sampler';
-const SLOTS = 16;
-const MAX_SECONDS = 20;
+const MAX_SECONDS = 30;
 const RATE = 44100;
 
 interface ExampleSample { file: string; name: string; root: number; seconds: number; source: string }
 
-/** Decodeer een bestand naar mono int16 op 44,1 kHz (OfflineAudioContext resamplet). */
-async function decodeToInt16(file: File): Promise<{ data: Int16Array; seconds: number }> {
-  const buf = await file.arrayBuffer();
+/** Decodeer naar interleaved int16 (max 4 kanalen) op de contextrate. */
+async function decode(file: File): Promise<{ data: Int16Array; channels: number; seconds: number }> {
   const ctx = new OfflineAudioContext(1, 1, RATE);
-  const audio = await ctx.decodeAudioData(buf);
-  const n = Math.min(audio.length, MAX_SECONDS * RATE);
-  const mono = new Float32Array(n);
-  for (let c = 0; c < audio.numberOfChannels; c++) {
-    const ch = audio.getChannelData(c);
-    for (let i = 0; i < n; i++) mono[i] = (mono[i] ?? 0) + (ch[i] ?? 0) / audio.numberOfChannels;
+  const b = await ctx.decodeAudioData(await file.arrayBuffer());
+  const ch = Math.min(b.numberOfChannels, 4);
+  const n = Math.min(b.length, MAX_SECONDS * RATE);
+  const out = new Int16Array(n * ch);
+  for (let c = 0; c < ch; c++) {
+    const src = b.getChannelData(c);
+    for (let i = 0; i < n; i++) {
+      out[i * ch + c] = Math.max(-32768, Math.min(32767, Math.round((src[i] ?? 0) * 32767)));
+    }
   }
-  const out = new Int16Array(n);
-  for (let i = 0; i < n; i++) out[i] = Math.max(-32768, Math.min(32767, Math.round((mono[i] ?? 0) * 32767)));
-  return { data: out, seconds: n / RATE };
+  return { data: out, channels: ch, seconds: n / RATE };
 }
 
 export function SampleModal({ open, onClose }: { open: boolean; onClose: () => void }): JSX.Element | null {
-  const [slot, setSlot] = useState(0);
-  const [busy, setBusy] = useState<string>('');
-  const [, bump] = useState(0);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [root, setRoot] = useState(60);
+  const [busy, setBusy] = useState('');
   const [examples, setExamples] = useState<ExampleSample[]>([]);
   const [example, setExample] = useState('');
   const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
-
-  // Voorbeelden: door MusicBrain zelf gerenderd (tools/mmb-wasm/render-samples.mjs).
-  useEffect(() => {
-    if (!open || examples.length) return;
-    fetch(`${base}samples/index.json`).then((r) => (r.ok ? r.json() : []))
-      .then((list: ExampleSample[]) => { setExamples(list); if (list[0]) setExample(list[0].file); })
-      .catch(() => { /* geen voorbeelden */ });
-  }, [open, examples.length, base]);
 
   useEffect(() => {
     if (!open) return;
@@ -55,8 +44,34 @@ export function SampleModal({ open, onClose }: { open: boolean; onClose: () => v
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
 
+  useEffect(() => {
+    if (!open || examples.length) return;
+    fetch(`${base}samples/index.json`).then((r) => (r.ok ? r.json() : []))
+      .then((list: ExampleSample[]) => {
+        setExamples(list);
+        if (list[0]) { setExample(list[0].file); setRoot(list[0].root); }
+      })
+      .catch(() => { /* geen voorbeelden aanwezig */ });
+  }, [open, examples.length, base]);
+
   if (!open) return null;
-  const list = WasmModule.blobList(TYPE_ID);
+
+  async function load(file: File, rootNote: number): Promise<void> {
+    try {
+      setBusy(`decoderen: ${file.name}…`);
+      const { data, channels, seconds } = await decode(file);
+      WasmModule.setBlob(TYPE_ID, 0, data, RATE, file.name, channels);
+      WasmModule.setZones(TYPE_ID, [{
+        slot: 0, lowKey: 0, highKey: 127, lowVel: 1, highVel: 127,
+        root: rootNote, tuneCents: 0, gain: 1, pan: 0,
+        loopMode: 0, loopStart: 0, loopEnd: 0, decay: 0, release: 0.12,
+      }]);
+      setBusy(`slot 0: ${file.name} · ${seconds.toFixed(2)} s · ` +
+        `${channels === 1 ? 'mono' : channels === 2 ? 'stereo' : `${channels} kanalen`} · root ${rootNote}`);
+    } catch (err) {
+      setBusy(`mislukt: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
 
   async function loadExample(): Promise<void> {
     const ex = examples.find((e) => e.file === example);
@@ -65,25 +80,8 @@ export function SampleModal({ open, onClose }: { open: boolean; onClose: () => v
       setBusy(`ophalen: ${ex.name}…`);
       const r = await fetch(`${base}samples/${ex.file}`);
       if (!r.ok) throw new Error(`${ex.file} niet gevonden`);
-      await load(new File([await r.blob()], ex.name, { type: 'audio/wav' }));
-    } catch (err) {
-      setBusy(`mislukt: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  }
-
-  async function load(file: File): Promise<void> {
-    try {
-      setBusy(`decoderen: ${file.name}…`);
-      const { data, seconds } = await decodeToInt16(file);
-      WasmModule.setBlob(TYPE_ID, slot, data, RATE, file.name);
-      bump((n) => n + 1);
-      if (isConnected()) {
-        setBusy(`→ Teensy slot ${slot} (${(data.length * 2 / 1024).toFixed(0)} KB)…`);
-        await sendSample(slot, RATE, data, (done, total) => setBusy(`→ Teensy slot ${slot}: ${Math.round(100 * done / total)} %`));
-        setBusy(`slot ${slot}: ${file.name} (${seconds.toFixed(2)} s) — in browser én op de Teensy (PSRAM + SD)`);
-      } else {
-        setBusy(`slot ${slot}: ${file.name} (${seconds.toFixed(2)} s) — in de browser; Teensy niet verbonden`);
-      }
+      setRoot(ex.root);
+      await load(new File([await r.blob()], ex.name, { type: 'audio/wav' }), ex.root);
     } catch (err) {
       setBusy(`mislukt: ${err instanceof Error ? err.message : String(err)}`);
     }
@@ -94,7 +92,7 @@ export function SampleModal({ open, onClose }: { open: boolean; onClose: () => v
     display: 'flex', alignItems: 'center', justifyContent: 'center',
   };
   const panel: React.CSSProperties = {
-    background: '#fff', borderRadius: 8, padding: 18, width: 520, maxWidth: '92vw',
+    background: '#fff', borderRadius: 8, padding: 18, width: 560, maxWidth: '92vw',
     boxShadow: '0 12px 40px rgba(0,0,0,0.3)', fontSize: 13,
   };
 
@@ -103,52 +101,39 @@ export function SampleModal({ open, onClose }: { open: boolean; onClose: () => v
       <div style={panel} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
           <h3 style={{ margin: 0 }}>🎧 Sample laden</h3>
-          <span style={{ color: '#64748b' }}>samplebank · 16 slots · mono 44,1 kHz · max {MAX_SECONDS} s</span>
+          <span style={{ color: '#64748b' }}>één sample, hele klavier</span>
           <button onClick={onClose} style={{ marginLeft: 'auto' }}>✕</button>
         </div>
         <p style={{ color: '#475569', margin: '8px 0 12px' }}>
-          Kies een slot, laad een wav/mp3/flac/aiff. Het sample gaat direct naar alle
-          <code> SAMPLER</code>-modules in de simulator (knop <em>Slot</em> kiest het slot) en,
-          als de Teensy verbonden is, in chunks naar PSRAM + SD (<code>/mmb/samples/NN.raw</code>).
+          Laadt één sample in slot 0 van de <code>SAMPLER</code>-modules in de simulator, met
+          één zone over het hele klavier. <strong>Root</strong> is de noot waarop het sample
+          van huis uit staat; daarvandaan transponeert V/Oct. Voor een keymap met meerdere
+          noten en velocity-lagen: de knop <strong>🎹 Multisample</strong>.
         </p>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 10 }}>
-          <label>Slot
-            <select value={slot} onChange={(e) => setSlot(Number(e.target.value))} style={{ marginLeft: 6 }}>
-              {Array.from({ length: SLOTS }, (_, i) => {
-                const b = list.find((x) => x.slot === i);
-                return <option key={i} value={i}>{i}{b ? ` — ${b.name} (${b.seconds.toFixed(2)} s)` : ' — leeg'}</option>;
-              })}
-            </select>
-          </label>
-          <input ref={fileRef} type="file" accept="audio/*,.wav,.aif,.aiff,.mp3,.flac,.ogg"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) void load(f); e.currentTarget.value = ''; }} />
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 10, flexWrap: 'wrap' }}>
+          <label>Root <input type="number" min={0} max={127} value={root} style={{ width: 56 }}
+            onChange={(e) => setRoot(Math.max(0, Math.min(127, Number(e.target.value))))} /></label>
+          <input type="file" accept="audio/*,.wav,.aif,.aiff,.mp3,.flac,.ogg"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) void load(f, root); e.currentTarget.value = ''; }} />
         </div>
         {examples.length > 0 && (
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10, flexWrap: 'wrap' }}>
             <label>Voorbeeld
               <select value={example} onChange={(e) => setExample(e.target.value)} style={{ marginLeft: 6 }}>
-                {examples.map((e) => <option key={e.file} value={e.file}>{e.name} · {e.seconds.toFixed(1)} s · root {e.root}</option>)}
+                {examples.map((e) => (
+                  <option key={e.file} value={e.file}>{e.name} · {e.seconds.toFixed(1)} s · root {e.root}</option>
+                ))}
               </select>
             </label>
-            <button onClick={() => void loadExample()}>Laden in slot {slot}</button>
-            <span style={{ color: '#94a3b8', fontSize: 12 }}>gerenderd door de wasm-modules zelf; zet Root op de module gelijk aan de root hier</span>
+            <button onClick={() => void loadExample()}>Laden</button>
+            <span style={{ color: '#94a3b8', fontSize: 12 }}>gerenderd door de wasm-modules zelf</span>
           </div>
         )}
         <div style={{ minHeight: 18, color: busy.startsWith('mislukt') ? '#b91c1c' : '#334155' }}>{busy}</div>
-        {list.length > 0 && (
-          <table style={{ width: '100%', marginTop: 10, borderCollapse: 'collapse' }}>
-            <thead><tr style={{ textAlign: 'left', color: '#64748b' }}><th>Slot</th><th>Bestand</th><th>Lengte</th></tr></thead>
-            <tbody>
-              {list.map((b) => (
-                <tr key={b.slot} style={{ borderTop: '1px solid #e2e8f0' }}>
-                  <td>{b.slot}</td><td>{b.name}</td><td>{b.seconds.toFixed(2)} s</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
         <p style={{ color: '#94a3b8', marginTop: 12, marginBottom: 0, fontSize: 12 }}>
-          Samples blijven in de browser tot een herlaad; op de Teensy blijven ze op SD staan.
+          Samples blijven in de browser tot een herlaad. Voor de Teensy schrijf je een
+          <code> .mmbk</code>-bank met de Multisample-import en kopieer je die naar
+          <code> /mmb/banks</code> op de SD-kaart.
         </p>
       </div>
     </div>

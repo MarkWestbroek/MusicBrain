@@ -38,6 +38,8 @@
 | ED-SM-3 | — | ✅ | **Polyfonie in de simulator (wasm-PolyGroups, 2026-09-06).** Engine bouwt alle leden, vouwt kabels uit als `polyExpand` en verdeelt noten met een allocator (hertrigger / vrije stem / oudste stelen). Tone-VCO-groepen blijven mono. Oorspronkelijk: De engine-note-dispatch is mono; wasm-nodes zijn intern poly (DX7, 16 stemmen) of spelen alleen de PolyGroup-master. Nodig: stem-allocatie per PolyGroup in `AudioEngine` (N wasm-nodes, round-robin/steal zoals de firmware). |
 | ED-SM-4 | 2 | ⏳ | **wasm-gates → Tone-ADSR en wasm-CV → Tone-VCO.** Envelopes en VCO-pitch worden per JS-aanroep aangestuurd, niet per signaal; Marbles.t1 → ADSR.gate en Marbles.x1 → VCO.voct werken daarom nog niet. Opties: flankdetector in de worklet die `postMessage` doet, of ADSR/VCO ook als wasm-module. |
 | ED-SM-5 | 3 | 🔬 | **Elements-CPU in wasm.** ~33 % van één core per stem (-O3 -msimd128; Rings 23 %). Onderzoek: resonator-lus vectoriseren, of meerdere stemmen in één worklet. |
+| ED-SM-7 | 2 | ⏳ | **Sample-analyse tegen echt materiaal.** De importer is getest op kunstmatige takes (9/9 noten, lagen en transponering). Nog open: vleugel, tubular bells, klankschalen — bij inharmonisch materiaal zal YIN octaaffouten maken (de gehoorde grondtoon zit fysiek niet in het spectrum); de oplopend-gespeeld-correctie en handmatige correctie in de tabel vangen dat op. Overweeg een spectrale tweede meting als hint. |
+| ED-SM-8 | 3 | 🔬 | **De-enveloperen bij loops.** Voor gelooped materiaal wordt de gemeten decay nu als envelope opgelegd, maar de loop zelf draagt nog zijn eigen (dalende) verloop. Vlak dat weg in het loop-gebied bij de import, dan klopt het verloop exact. |
 | ED-SM-6 | 2 | ⏳ | **USER-bank/.syx en wavetables ook naar de browser.** `Dx7.setUserBank()` bestaat; de Teensy-modal stuurt de .syx nog alleen naar de Teensy. Idem `wavetable`-push → Morph-WT-wasm (USER-bank) en Draw-VCO. |
 
 ### 1.4 MIDI-in & note-gedrag
@@ -121,7 +123,15 @@ Brondump gebruiker (idee), nagenoeg ongewijzigd overgenomen:
 
 ### 2.3 Audio-modules / geluidsbronnen
 
-- **Sampler (`tp_mmb_sampler`) — gebouwd 2026-09-06, op hardware verifiëren** (⏳ prio 1). Kern `mmb_dsp/sample_player.h`; `SamplerModule.h` met `SampleBank` (16 slots in PSRAM via `extmem_malloc`, SD `/mmb/samples/NN.raw`), serial-frame `sample` (chunks van 512), editor 🎧 Sample-modal, wasm in de simulator. Niet met PlatformIO gebouwd. Oorspronkelijke ontwerpnotitie: Eerst de
+- **Multisampler (`tp_mmb_sampler`) — gebouwd 2026-09-06, op hardware verifiëren** (⏳ prio 1).
+  Kern `mmb_dsp/sample_player.h`: keymap met key- én velocity-zones, 1–4 kanalen
+  (interleaved, loop-punten op frame-niveau), vier loop-modes incl. `loop_sustain`,
+  per zone root/tune/gain/pan/decay/release. `SamplerModule.h` laadt een `.mmbk`-bank
+  (`mmb_dsp/sample_bank.h`) van SD naar PSRAM (`extmem_malloc`, heap-fallback) en
+  speelt 8 stemmen. Editor: 🎹 Multisample-import (segmentatie, YIN, decay-fit,
+  loop-zoeker, velocity-lagen) schrijft de `.mmbk`. **Nog te doen op hardware:**
+  PlatformIO-build, `SD.begin(BUILTIN_SDCARD)` en `extmem_malloc` verifiëren, en de
+  bank-index-conventie `/mmb/banks/NN.mmbk` uitproberen. Oorspronkelijke notitie: Eerst de
   opslagvraag: RAM op de Teensy (≤ ~100 KB vrij ≈ 1 s mono int16), de PSRAM-pads
   van de 4.1 (8–16 MB, chip solderen) of SD. Voorstel daarna: mono int16-sample per
   instantie, V/Oct + gate, start/end/loop/reverse, upload via een serial-frame zoals

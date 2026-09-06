@@ -1,28 +1,30 @@
 #pragma once
 /**
  * @file SamplerModule.h
- * @brief Sample-speler (typeId `tp_mmb_sampler`) op de header-only kern
- *        `mmb_dsp::SamplePlayer`, met een gedeelde 16-slots samplebank in
- *        PSRAM (Teensy 4.1 met gesoldeerde PSRAM) en SD als opslag.
+ * @brief Multisample-speler (typeId `tp_mmb_sampler`) op de header-only kern
+ *        `mmb_dsp::SamplePlayer`, met een `.mmbk`-bank in PSRAM.
  * @details
- * **Bank.** `SampleBank` is één statische bank voor alle instanties (zoals
- * de DX7-bank): 16 slots, elk een mono int16-sample + samplerate. Een
- * sample komt binnen via het serial-frame `sample` (chunked, zie
- * TeensyLink.h) en wordt in PSRAM gezet (`extmem_malloc`; zonder PSRAM de
- * gewone heap) én als `/mmb/samples/NN.raw` op de SD-kaart bewaard
- * (header "MMBS" + rate + lengte). Bij het kiezen van een slot dat nog
- * niet in geheugen staat, wordt hij van SD geladen. Zonder SD werkt alles
- * tot de volgende reboot.
+ * **Bank.** `SampleBank` laadt één `.mmbk`-bestand (zie `mmb_dsp/sample_bank.h`)
+ * van de SD-kaart naar PSRAM: samples én keymap in één blok, zonder parser.
+ * De editor schrijft dat bestand (🎹 Multisample-import); kopieer het naar
+ * `/mmb/banks/NN.mmbk` op de SD. De `bank`-control kiest NN (0–15).
+ * Zonder PSRAM valt de allocatie terug op de gewone heap; past de bank niet,
+ * dan blijft de module stil in plaats van te crashen.
+ *
+ * **Stemmen.** Acht stemmen per instantie met een eigen allocator (zelfde noot
+ * → hertrigger, anders vrij, anders de oudste stelen), zodat één module
+ * akkoorden en overlappende uitstervingen aankan — een piano heeft immers
+ * geen steady state en klinkt na loslaten door.
  *
  * Port map:
- * | Dir | portId | Kind  | Betekenis                                  |
- * |-----|--------|-------|--------------------------------------------|
- * | in  | `voct` | Cv    | Toonhoogte (1 V/oct, MIDI 60 = 0 V)        |
- * | in  | `gate` | Gate  | Stijgend = (her)start, dalend = release in gate-modus |
- * | out | `out`  | Audio | Mono uitgang                               |
- * Controls: `slot` (0..15), `root` (MIDI-noot van het sample), `coarse`
- * (semi), `fine` (ct), `start`/`end` (0..1), `loop` (0/1), `mode`
- * (0 = one-shot, 1 = gate), `attack`/`release` (ms), `level` (0..1).
+ * | Dir | portId  | Kind  | Betekenis                                   |
+ * |-----|---------|-------|---------------------------------------------|
+ * | in  | `voct`  | Cv    | Toonhoogte (1 V/oct, MIDI 60 = 0 V)         |
+ * | in  | `gate`  | Gate  | Note-on/off                                 |
+ * | in  | `vel`   | Cv    | Velocity 0..1 → kiest de laag               |
+ * | out | `out_l` `out_r` `out_3` `out_4` | Audio | mono → L+R, stereo → 1/2, quad → 1–4 |
+ * Controls: `bank` (0–15), `coarse` (semi), `fine` (ct), `start` (0..1),
+ * `attack` (ms), `level` (0..1).
  */
 
 #include "AudioModule.h"
@@ -32,10 +34,10 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
-#include <memory>
 #include <string_view>
 
 #include "mmb_dsp/sample_player.h"
+#include "mmb_dsp/sample_bank.h"
 
 #if defined(ARDUINO_TEENSY41)
 extern "C" uint8_t external_psram_size;   // MB PSRAM (0 = niet gesoldeerd)
@@ -45,206 +47,267 @@ extern "C" void  extmem_free(void*);
 
 namespace mmb_link {
 
-/** @brief Gedeelde samplebank (16 slots) in PSRAM, met SD-persistentie. */
+/** @brief Gedeelde `.mmbk`-bank: samples + keymap in PSRAM, geladen van SD. */
 class SampleBank {
 public:
-    static constexpr int      kSlots     = 16;
-    static constexpr uint32_t kMaxSamples = 44100u * 20u;   ///< 20 s per slot
-    static constexpr const char* kDir    = "/mmb/samples";
-
-    struct Slot {
-        int16_t* data = nullptr;
-        uint32_t len = 0;
-        uint32_t cap = 0;
-        float    rate = 44100.0f;
-        uint32_t received = 0;    ///< samples binnen tijdens een upload
-        bool     uploading = false;
-        bool     sdChecked = false;
-    };
+    static constexpr int kMaxSlots = 64;
+    static constexpr int kMaxZones = 256;
+    static constexpr const char* kDir = "/mmb/banks";
 
     static SampleBank& instance() { static SampleBank b; return b; }
 
-    /** Probeer de SD-kaart (Teensy 4.1 ingebouwde slot). Eén keer aanroepen. */
+    /** SD-kaart openen (ingebouwd slot). Eén keer vanuit setup(). */
     void beginStorage() {
         sdOk_ = SD.begin(BUILTIN_SDCARD);
         if (sdOk_ && !SD.exists(kDir)) { SD.mkdir("/mmb"); SD.mkdir(kDir); }
     }
     bool sdOk() const { return sdOk_; }
     uint32_t version() const { return version_; }
+    int loadedBank() const { return loaded_; }
 
-    /** Upload starten: geheugen reserveren voor `total` samples. */
-    bool beginUpload(int slot, uint32_t total, float rate) {
-        if (slot < 0 || slot >= kSlots || total == 0 || total > kMaxSamples) return false;
-        Slot& s = slots_[slot];
-        if (!ensureCapacity(s, total)) return false;
-        s.len = 0; s.received = 0; s.rate = rate > 0 ? rate : 44100.0f; s.uploading = true;
-        return true;
-    }
-    bool chunk(int slot, uint32_t seq, const int16_t* data, uint32_t n) {
-        if (slot < 0 || slot >= kSlots) return false;
-        Slot& s = slots_[slot];
-        if (!s.uploading) return false;
-        (void)seq;
-        if (s.received + n > s.cap) n = s.cap - s.received;
-        std::memcpy(s.data + s.received, data, n * sizeof(int16_t));
-        s.received += n;
-        return true;
-    }
-    void endUpload(int slot) {
-        if (slot < 0 || slot >= kSlots) return;
-        Slot& s = slots_[slot];
-        s.len = s.received; s.uploading = false; s.sdChecked = true;
+    const mmb_dsp::SampleSlot* slots() const { return slots_; }
+    int numSlots() const { return numSlots_; }
+    const mmb_dsp::Zone* zones() const { return zones_; }
+    int numZones() const { return numZones_; }
+
+    /** Laad `/mmb/banks/NN.mmbk`; idempotent per index. */
+    bool load(int index) {
+        if (index == loaded_) return numSlots_ > 0;
+        numSlots_ = numZones_ = 0;
+        loaded_ = index;
+        ++version_;                       // stemmen herbinden, ook bij falen
+        if (!sdOk_) return false;
+
+        char path[40];
+        snprintf(path, sizeof(path), "%s/%02d.mmbk", kDir, index);
+        File f = SD.open(path, FILE_READ);
+        if (!f) { Serial.printf("[sampler] %s niet gevonden\n", path); return false; }
+
+        mmb_dsp::BankHeader h{};
+        if (f.read(reinterpret_cast<uint8_t*>(&h), sizeof(h)) != sizeof(h)
+            || std::memcmp(h.magic, "MMBK", 4) != 0 || h.version != mmb_dsp::kBankVersion
+            || h.numSlots == 0 || h.numSlots > kMaxSlots || h.numZones > kMaxZones) {
+            Serial.printf("[sampler] %s: ongeldige bank\n", path);
+            f.close();
+            return false;
+        }
+
+        // Slot- en zonetabellen.
+        mmb_dsp::SlotHeader sh[kMaxSlots];
+        if (f.read(reinterpret_cast<uint8_t*>(sh), sizeof(mmb_dsp::SlotHeader) * h.numSlots)
+            != static_cast<int>(sizeof(mmb_dsp::SlotHeader) * h.numSlots)) { f.close(); return false; }
+        mmb_dsp::ZoneRecord zr[kMaxZones];
+        if (h.numZones && f.read(reinterpret_cast<uint8_t*>(zr), sizeof(mmb_dsp::ZoneRecord) * h.numZones)
+            != static_cast<int>(sizeof(mmb_dsp::ZoneRecord) * h.numZones)) { f.close(); return false; }
+
+        // Sampledata: één blok in PSRAM.
+        uint32_t totalFrames = 0, totalSamples = 0;
+        for (uint32_t i = 0; i < h.numSlots; ++i) {
+            totalFrames += sh[i].frames;
+            totalSamples += sh[i].frames * sh[i].channels;
+        }
+        if (!ensureCapacity(totalSamples)) {
+            Serial.printf("[sampler] %s: geen geheugen voor %lu KB\n", path,
+                          static_cast<unsigned long>(totalSamples * 2 / 1024));
+            f.close();
+            return false;
+        }
+        const size_t want = static_cast<size_t>(totalSamples) * sizeof(int16_t);
+        const size_t got = f.read(reinterpret_cast<uint8_t*>(data_), want);
+        f.close();
+        if (got != want) { Serial.printf("[sampler] %s: data te kort\n", path); return false; }
+
+        // Tabellen omzetten naar pointers in het datablok.
+        uint32_t sampleOffset = 0;
+        for (uint32_t i = 0; i < h.numSlots; ++i) {
+            slots_[i].data     = data_ + sampleOffset;
+            slots_[i].frames   = static_cast<int>(sh[i].frames);
+            slots_[i].channels = static_cast<int>(sh[i].channels);
+            slots_[i].rate     = sh[i].rate;
+            sampleOffset += sh[i].frames * sh[i].channels;
+        }
+        for (uint32_t i = 0; i < h.numZones; ++i) {
+            mmb_dsp::Zone& z = zones_[i];
+            z.slot = static_cast<uint8_t>(zr[i].slot);
+            z.lowKey = zr[i].lowKey; z.highKey = zr[i].highKey;
+            z.lowVel = zr[i].lowVel; z.highVel = zr[i].highVel;
+            z.root = zr[i].root; z.tuneCents = zr[i].tuneCents;
+            z.gain = zr[i].gain; z.pan = zr[i].pan;
+            z.loopMode = zr[i].loopMode;
+            z.loopStart = static_cast<int>(zr[i].loopStart);
+            z.loopEnd = static_cast<int>(zr[i].loopEnd);
+            z.decay = zr[i].decay; z.release = zr[i].release;
+        }
+        numSlots_ = static_cast<int>(h.numSlots);
+        numZones_ = static_cast<int>(h.numZones);
         ++version_;
-        saveToSd(slot);
-    }
-
-    /** Sample van slot `slot` (laadt van SD als hij nog niet in geheugen staat). */
-    const Slot* get(int slot) {
-        if (slot < 0 || slot >= kSlots) return nullptr;
-        Slot& s = slots_[slot];
-        if (s.len == 0 && !s.sdChecked) { s.sdChecked = true; loadFromSd(slot); }
-        return s.len ? &s : nullptr;
+        Serial.printf("[sampler] bank %02d \"%s\": %d samples, %d zones, %lu KB, %.1f s\n",
+                      index, h.name, numSlots_, numZones_,
+                      static_cast<unsigned long>(totalSamples * 2 / 1024),
+                      totalFrames / 44100.0f);
+        return true;
     }
 
 private:
-    bool ensureCapacity(Slot& s, uint32_t samples) {
-        if (s.cap >= samples) return true;
-        int16_t* p = nullptr;
+    bool ensureCapacity(uint32_t samples) {
+        if (cap_ >= samples && data_) return true;
+        free();
 #if defined(ARDUINO_TEENSY41)
         if (external_psram_size > 0) {
-            if (s.data) extmem_free(s.data);
-            p = static_cast<int16_t*>(extmem_malloc(samples * sizeof(int16_t)));
-        } else
-#endif
-        {
-            if (s.data) std::free(s.data);
-            p = static_cast<int16_t*>(std::malloc(samples * sizeof(int16_t)));
+            data_ = static_cast<int16_t*>(extmem_malloc(samples * sizeof(int16_t)));
+            inPsram_ = data_ != nullptr;
         }
-        if (!p) { s.data = nullptr; s.cap = 0; s.len = 0; return false; }
-        s.data = p; s.cap = samples; s.len = 0;
-        return true;
+#endif
+        if (!data_) {
+            data_ = static_cast<int16_t*>(std::malloc(samples * sizeof(int16_t)));
+            inPsram_ = false;
+        }
+        cap_ = data_ ? samples : 0;
+        return data_ != nullptr;
     }
-    static void pathFor(int slot, char* out, size_t n) { snprintf(out, n, "%s/%02d.raw", kDir, slot); }
-
-    void saveToSd(int slot) {
-        if (!sdOk_) return;
-        Slot& s = slots_[slot];
-        char path[40]; pathFor(slot, path, sizeof(path));
-        SD.remove(path);
-        File f = SD.open(path, FILE_WRITE);
-        if (!f) return;
-        const uint32_t rate = static_cast<uint32_t>(s.rate);
-        f.write("MMBS", 4);
-        f.write(reinterpret_cast<const uint8_t*>(&rate), 4);
-        f.write(reinterpret_cast<const uint8_t*>(&s.len), 4);
-        f.write(reinterpret_cast<const uint8_t*>(s.data), s.len * sizeof(int16_t));
-        f.close();
-    }
-    void loadFromSd(int slot) {
-        if (!sdOk_) return;
-        char path[40]; pathFor(slot, path, sizeof(path));
-        File f = SD.open(path, FILE_READ);
-        if (!f) return;
-        char magic[4]; uint32_t rate = 0, len = 0;
-        if (f.read(magic, 4) != 4 || std::memcmp(magic, "MMBS", 4) != 0) { f.close(); return; }
-        f.read(reinterpret_cast<uint8_t*>(&rate), 4);
-        f.read(reinterpret_cast<uint8_t*>(&len), 4);
-        Slot& s = slots_[slot];
-        if (len == 0 || len > kMaxSamples || !ensureCapacity(s, len)) { f.close(); return; }
-        const size_t got = f.read(reinterpret_cast<uint8_t*>(s.data), len * sizeof(int16_t));
-        f.close();
-        s.len = static_cast<uint32_t>(got / sizeof(int16_t));
-        s.rate = rate > 0 ? static_cast<float>(rate) : 44100.0f;
-        ++version_;
+    void free() {
+        if (!data_) return;
+#if defined(ARDUINO_TEENSY41)
+        if (inPsram_) { extmem_free(data_); data_ = nullptr; }
+#endif
+        if (data_) std::free(data_);
+        data_ = nullptr; cap_ = 0;
     }
 
-    Slot     slots_[kSlots];
-    bool     sdOk_ = false;
-    uint32_t version_ = 0;
+    mmb_dsp::SampleSlot slots_[kMaxSlots];
+    mmb_dsp::Zone       zones_[kMaxZones];
+    int      numSlots_ = 0, numZones_ = 0, loaded_ = -1;
+    int16_t* data_ = nullptr;
+    uint32_t cap_ = 0, version_ = 0;
+    bool     sdOk_ = false, inPsram_ = false;
 };
 
-/** @brief Eén sample-speler als AudioStream. */
+/** @brief Acht stemmen als één AudioStream met vier uitgangen. */
 class SamplerStream : public AudioStream {
 public:
+    static constexpr int kVoices = 8;
+
     SamplerStream() : AudioStream(0, nullptr) {
-        player_.Init(AUDIO_SAMPLE_RATE_EXACT);
-        bind();
+        for (int i = 0; i < kVoices; ++i) voice_[i].Init(AUDIO_SAMPLE_RATE_EXACT);
+        rebind();
     }
-    mmb_dsp::SamplePlayer& player() { return player_; }
-    void setSlot(int s) { slot_ = s < 0 ? 0 : (s >= SampleBank::kSlots ? SampleBank::kSlots - 1 : s); bind(); }
+
+    void setBank(int b) {
+        if (b < 0) b = 0;
+        if (b > 15) b = 15;
+        if (b == bank_) return;
+        bank_ = b;
+        SampleBank::instance().load(bank_);
+        rebind();
+    }
+    void setVoct(float v)   { voct_ = v; for (auto& v2 : voice_) v2.set_voct(voct_); }
+    void setVelocity(float v) { vel_ = v < 0.f ? 0.f : (v > 1.f ? 1.f : v); }
+    void setTranspose(float semis) { for (auto& v : voice_) v.set_transpose(semis); }
+    void setStart(float s)  { for (auto& v : voice_) v.set_startOffset(s); }
+    void setAttack(float ms){ for (auto& v : voice_) v.setAttackMs(ms); }
+    void setLevel(float l)  { for (auto& v : voice_) v.set_level(l); }
+
+    void gate(bool high) {
+        if (high && !gate_) {
+            const int midi = static_cast<int>(lroundf(60.0f + 12.0f * voct_));
+            const int v = allocate(midi);
+            age_[v] = ++ageCounter_;
+            voice_[v].set_voct(voct_);
+            voice_[v].noteOn(midi, static_cast<int>(vel_ * 127.0f));
+        } else if (!high && gate_) {
+            for (auto& v : voice_) v.noteOff(-1);
+        }
+        gate_ = high;
+    }
 
     void update() override {
-        if (boundVersion_ != SampleBank::instance().version()) bind();
-        audio_block_t* out = allocate();
-        if (!out) return;
-        for (int i = 0; i < AUDIO_BLOCK_SAMPLES; ++i) {
-            float y = player_.Process();
-            if (!(y == y)) y = 0.0f;
-            if (y > 1.0f) y = 1.0f; else if (y < -1.0f) y = -1.0f;
-            out->data[i] = static_cast<int16_t>(y * 32767.0f);
+        if (boundVersion_ != SampleBank::instance().version()) rebind();
+        audio_block_t* out[4];
+        for (int c = 0; c < 4; ++c) {
+            out[c] = allocate();
+            if (!out[c]) { for (int k = 0; k < c; ++k) release(out[k]); return; }
         }
-        transmit(out, 0);
-        release(out);
+        float mix[mmb_dsp::kMaxChannels];
+        for (int i = 0; i < AUDIO_BLOCK_SAMPLES; ++i) {
+            for (int c = 0; c < mmb_dsp::kMaxChannels; ++c) mix[c] = 0.0f;
+            for (auto& v : voice_) v.Process(mix, 4);
+            for (int c = 0; c < 4; ++c) {
+                float y = mix[c];
+                if (!(y == y)) y = 0.0f;
+                if (y > 1.0f) y = 1.0f; else if (y < -1.0f) y = -1.0f;
+                out[c]->data[i] = static_cast<int16_t>(y * 32767.0f);
+            }
+        }
+        for (int c = 0; c < 4; ++c) { transmit(out[c], c); release(out[c]); }
     }
 
 private:
-    void bind() {
-        SampleBank& bank = SampleBank::instance();
-        boundVersion_ = bank.version();
-        const SampleBank::Slot* s = bank.get(slot_);
-        if (s) player_.setSample(s->data, static_cast<int>(s->len), s->rate);
-        else   player_.setSample(nullptr, 0, AUDIO_SAMPLE_RATE_EXACT);
+    int allocate(int midi) {
+        for (int i = 0; i < kVoices; ++i) if (voice_[i].active() && voice_[i].note() == midi) return i;
+        for (int i = 0; i < kVoices; ++i) if (!voice_[i].active()) return i;
+        int best = 0;
+        for (int i = 1; i < kVoices; ++i) if (age_[i] < age_[best]) best = i;
+        return best;
     }
-    mmb_dsp::SamplePlayer player_;
-    int      slot_ = 0;
-    uint32_t boundVersion_ = 0xffffffffu;
+    void rebind() {
+        SampleBank& b = SampleBank::instance();
+        boundVersion_ = b.version();
+        for (auto& v : voice_) v.bind(b.slots(), b.numSlots(), b.zones(), b.numZones());
+    }
+
+    mmb_dsp::SamplePlayer voice_[kVoices];
+    uint32_t age_[kVoices] = {};
+    uint32_t ageCounter_ = 0, boundVersion_ = 0xffffffffu;
+    int   bank_ = -1;
+    float voct_ = 0.0f, vel_ = 0.8f;
+    bool  gate_ = false;
 };
 
 class SamplerModule final : public AudioModule {
 public:
     static constexpr const char* kTypeId = "tp_mmb_sampler";
 
-    explicit SamplerModule(std::string_view id)
-        : AudioModule(kTypeId, id) {}
+    explicit SamplerModule(std::string_view id) : AudioModule(kTypeId, id) {}
 
     AudioPort outputPort(std::string_view portId) const override {
-        if (portId == "out") return { const_cast<SamplerStream*>(&stream_), 0, true };
+        auto* s = const_cast<SamplerStream*>(&stream_);
+        if (portId == "out" || portId == "out_l") return { s, 0, true };
+        if (portId == "out_r") return { s, 1, true };
+        if (portId == "out_3") return { s, 2, true };
+        if (portId == "out_4") return { s, 3, true };
         return {};
     }
-    AudioPort inputPort(std::string_view /*portId*/) const override { return {}; }
+    AudioPort inputPort(std::string_view) const override { return {}; }
     PortKind outputPortKind(std::string_view portId) const override {
-        return portId == "out" ? PortKind::Audio : PortKind::None;
+        return (portId == "out" || portId == "out_l" || portId == "out_r" ||
+                portId == "out_3" || portId == "out_4") ? PortKind::Audio : PortKind::None;
     }
     PortKind inputPortKind(std::string_view portId) const override {
         if (portId == "voct") return PortKind::Cv;
         if (portId == "gate" || portId == "trig") return PortKind::Gate;
+        if (cvPortIs(portId, "vel") || portId == "velocity") return PortKind::Cv;
         return PortKind::None;
     }
     void writeCvPort(std::string_view portId, float value) override {
-        if (portId == "voct") stream_.player().set_voct(value);
-        else if (portId == "gate" || portId == "trig") stream_.player().gate(value >= 0.5f);
+        if (portId == "voct") stream_.setVoct(value);
+        else if (portId == "gate" || portId == "trig") stream_.gate(value >= 0.5f);
+        else if (cvPortIs(portId, "vel") || portId == "velocity") stream_.setVelocity(value);
     }
 
     void setControl(std::string_view controlId,
                     mb::runtime::ControlValue value) override {
-        auto asFloat = [&](float fallback) -> float {
+        auto asFloat = [&](float fb) -> float {
             if (auto* f = std::get_if<float>       (&value)) return *f;
             if (auto* i = std::get_if<std::int32_t>(&value)) return static_cast<float>(*i);
             if (auto* b = std::get_if<bool>        (&value)) return *b ? 1.0f : 0.0f;
-            return fallback;
+            return fb;
         };
-        auto& p = stream_.player();
-        if      (controlId == "slot")    stream_.setSlot(static_cast<int>(asFloat(0.0f)));
-        else if (controlId == "root")    p.set_root(asFloat(60.0f));
-        else if (controlId == "coarse")  p.set_coarse(asFloat(0.0f));
-        else if (controlId == "fine")    p.set_fine(asFloat(0.0f));
-        else if (controlId == "start")   p.set_start(asFloat(0.0f));
-        else if (controlId == "end")     p.set_end(asFloat(1.0f));
-        else if (controlId == "loop")    p.set_loop(asFloat(0.0f) >= 0.5f);
-        else if (controlId == "mode")    p.set_gate_mode(asFloat(0.0f) >= 0.5f);
-        else if (controlId == "attack")  p.set_attack_ms(asFloat(2.0f));
-        else if (controlId == "release") p.set_release_ms(asFloat(30.0f));
-        else if (controlId == "level")   p.set_level(asFloat(0.8f));
+        if      (controlId == "bank")   stream_.setBank(static_cast<int>(asFloat(0.0f)));
+        else if (controlId == "coarse") { coarse_ = asFloat(0.0f); stream_.setTranspose(coarse_ + fine_ * 0.01f); }
+        else if (controlId == "fine")   { fine_   = asFloat(0.0f); stream_.setTranspose(coarse_ + fine_ * 0.01f); }
+        else if (controlId == "start")  stream_.setStart(asFloat(0.0f));
+        else if (controlId == "attack") stream_.setAttack(asFloat(1.5f));
+        else if (controlId == "level")  stream_.setLevel(asFloat(0.8f));
     }
 
     static void registerFactory() {
@@ -258,6 +321,7 @@ public:
 
 private:
     mutable SamplerStream stream_;
+    float coarse_ = 0.0f, fine_ = 0.0f;
 };
 
 }  // namespace mmb_link

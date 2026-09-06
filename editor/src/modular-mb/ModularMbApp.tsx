@@ -20,6 +20,7 @@ import { PresetsModal } from './PresetsModal';
 import { TeensyLinkModal } from './TeensyLinkModal';
 import { WaveDrawModal } from './WaveDrawModal';
 import { SampleModal } from './SampleModal';
+import { SampleImportModal } from './SampleImportModal';
 // Reuse the ES project-bar CSS classes (.es-projectbar*) — same visual language.
 import '../effect-switcher/styles.css';
 
@@ -45,6 +46,7 @@ export function ModularMbApp(): JSX.Element {
   const [showTeensy,  setShowTeensy]  = useState(false);
   const [showWave,    setShowWave]    = useState(false);
   const [showSample,  setShowSample]  = useState(false);
+  const [showImport,  setShowImport]  = useState(false);
   const [showPoly,    setShowPoly]    = useState(false);
   const [showStress,  setShowStress]  = useState(false);
   const [showSolo,    setShowSolo]    = useState(false);
@@ -273,6 +275,10 @@ export function ModularMbApp(): JSX.Element {
             onClick={() => setShowSample(true)}
             title="Laad een audiobestand in een slot van de samplebank (SAMPLER-modules in de simulator én, indien verbonden, PSRAM + SD op de Teensy)"
           >🎧 Sample</button>
+          <button
+            onClick={() => setShowImport(true)}
+            title="Eén lange opname (C1 zacht/midden/hard, C2 idem, …) ontleden tot een keymap: toonhoogte, velocity-lagen, uitsterving en loop-punten"
+          >🎹 Multisample</button>
           <button
             onClick={() => setProject(seedExampleModules(getProject()))}
             title="Voeg 6 voorbeeld-modules toe aan dit project en plaats ze in het actieve rack"
@@ -505,6 +511,7 @@ export function ModularMbApp(): JSX.Element {
       {showTeensy  && <TeensyLinkModal onClose={() => setShowTeensy(false)} />}
       <WaveDrawModal open={showWave} onClose={() => setShowWave(false)} />
       <SampleModal open={showSample} onClose={() => setShowSample(false)} />
+      <SampleImportModal open={showImport} onClose={() => setShowImport(false)} />
     </section>
   );
 }

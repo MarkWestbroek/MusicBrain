@@ -17,7 +17,7 @@ WebAssembly gecompileerd en draaien in een AudioWorklet.
 | Plaits | `tp_mmb_plaits` | mi-plaits | 48 kHz / 24 |
 | Tides | `tp_mmb_tides` | mi-tides (tides2) | 1 kHz / 1 (CV-tick) |
 | Warps | `tp_mmb_warps` | mi-warps | 44,1 kHz / 32 |
-| Sampler | `tp_mmb_sampler` | eigen (`mmb_dsp/sample_player.h`; samples via de blob-exports `mmb_blob_ptr/commit`, 16 slots) | 44,1 kHz / 32 |
+| Sampler | `tp_mmb_sampler` | eigen (`mmb_dsp/sample_player.h`; keymap + 1–4 kanalen, samples via `mmb_blob_ptr/commit`, zones via `mmb_zone_set/count`) | 44,1 kHz / 32 |
 | Tape echo | `tp_mmb_tape_echo` | eigen (`firmware/lib/mmb-dsp/mmb_dsp/tape_echo.h`, header-only — dezelfde kern als de Teensy-wrapper) | 44,1 kHz / 32 |
 
 Daarmee spelen o.a. de **Krell**- en **808-jam**-seeds in de browser.
@@ -54,7 +54,13 @@ Web Audio dempt anders elke lus (Stages.eoc → eigen gate, Marbles ↔ Stages).
 tools/mmb-wasm/build.sh            # alles → editor/public/wasm/*.wasm
 tools/mmb-wasm/build.sh rings      # één module
 node tools/mmb-wasm/test.mjs       # rooktest: poorten, pieken, flanken, CPU
+node tools/mmb-wasm/test-analysis.mjs   # sample-analyse op een kunstmatige take
+node tools/mmb-wasm/test-sampler.mjs    # take → keymap → sampler, end-to-end
+node tools/mmb-wasm/render-samples.mjs  # voorbeeldsamples renderen
 ```
+
+`test-analysis.mjs` en `test-sampler.mjs` bundelen `sampleAnalysis.ts` met
+esbuild, zodat de analyse zonder browser te testen is.
 
 wasi-sdk: https://github.com/WebAssembly/wasi-sdk/releases, uitgepakt in
 `~/.wasi-sdk/` (of `$WASI_SDK`). De MI-libs dragen elk een stmlib-subset;

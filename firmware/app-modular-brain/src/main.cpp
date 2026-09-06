@@ -507,32 +507,6 @@ void onDx7Bank(JsonArrayConst data) {
     mmb_link::TeensyLink::logf("dx7bank geladen; voice 0 = \"%s\"", name);
 }
 
-// Sample-upload (tp_mmb_sampler): chunks naar de gedeelde SampleBank in PSRAM;
-// na de laatste chunk gaat het sample naar SD (/mmb/samples/NN.raw).
-bool onSample(int slot, int rate, int seq, uint32_t total, JsonArrayConst data) {
-    auto& bank = mmb_link::SampleBank::instance();
-    if (seq == 0 && !bank.beginUpload(slot, total, static_cast<float>(rate))) {
-        mmb_link::TeensyLink::logf("sample: slot %d: geen geheugen voor %lu samples",
-                                   slot, static_cast<unsigned long>(total));
-        return false;
-    }
-    static int16_t chunk[1024];
-    uint32_t n = 0;
-    for (JsonVariantConst v : data) {
-        if (n >= sizeof(chunk) / sizeof(chunk[0])) break;
-        chunk[n++] = static_cast<int16_t>(v.as<int>());
-    }
-    if (!bank.chunk(slot, static_cast<uint32_t>(seq), chunk, n)) return false;
-    const uint32_t chunks = (total + 511u) / 512u;
-    if (static_cast<uint32_t>(seq) + 1u >= chunks) {
-        bank.endUpload(slot);
-        mmb_link::TeensyLink::logf("sample: slot %d geladen (%lu samples @ %d Hz)%s",
-                                   slot, static_cast<unsigned long>(total), rate,
-                                   bank.sdOk() ? ", op SD bewaard" : " (geen SD)");
-    }
-    return true;
-}
-
 void onWaveform(const char* moduleId, JsonArrayConst data) {
     static int16_t buf[256];
     std::size_t n = 0;
@@ -606,8 +580,7 @@ void setup() {
     link.onControlPoke(onControlPoke);   // FW-LIVE-1: live control-sync
     link.onWaveform(onWaveform);         // FW-AU-6: draw-waveshape push
     link.onDx7Bank(onDx7Bank);           // FW-AU-13: DX7-bank push
-    link.onSample(onSample);             // tp_mmb_sampler: sample-upload naar PSRAM + SD
-    mmb_link::SampleBank::instance().beginStorage();   // SD-kaart (ingebouwde slot) voor de samplebank
+    mmb_link::SampleBank::instance().beginStorage();   // SD-kaart voor de .mmbk-samplebanken
     link.onGetStatus(onGetStatus);       // telemetrie voor de editor
 }
 

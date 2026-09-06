@@ -1,5 +1,20 @@
 /// <reference types="vite/client" />
 import * as Tone from 'tone';
+
+/** Eén sample in de gedeelde bank (interleaved, `channels` per frame). */
+export interface WasmBlob { data: Int16Array; rate: number; name: string; channels: number }
+
+/** Eén zone in de keymap — spiegelt `mmb_dsp::Zone`. */
+export interface WasmZone {
+  slot: number;
+  lowKey: number; highKey: number;
+  lowVel: number; highVel: number;
+  root: number; tuneCents: number;
+  gain: number; pan: number;
+  /** 0 = geen, 1 = one-shot, 2 = continu, 3 = tot note-off. */
+  loopMode: number; loopStart: number; loopEnd: number;
+  decay: number; release: number;
+}
 import type { ModuleInstance, ModuleType, ControlValue } from '../../types';
 import { AudioModule } from '../AudioModule';
 import { registry } from '../Registry';
@@ -32,20 +47,34 @@ export class WasmModule extends AudioModule {
 
   /** Blobs (samples) per typeId en slot — gedeeld door alle instanties van
    *  dat type, zoals de PSRAM-bank op de Teensy. */
-  private static readonly blobs = new Map<string, Map<number, { data: Int16Array; rate: number; name: string }>>();
+  private static readonly blobs = new Map<string, Map<number, WasmBlob>>();
+  /** Keymap per typeId — gedeeld door alle instanties, zoals de bank. */
+  private static readonly zoneMaps = new Map<string, WasmZone[]>();
 
-  /** Sample naar slot `slot` van alle (huidige en toekomstige) instanties van `typeId`. */
-  static setBlob(typeId: string, slot: number, data: Int16Array, rate: number, name = ''): void {
+  /** Sample naar slot `slot` van alle (huidige en toekomstige) instanties. */
+  static setBlob(
+    typeId: string, slot: number, data: Int16Array, rate: number,
+    name = '', channels = 1,
+  ): void {
     let m = WasmModule.blobs.get(typeId);
     if (!m) { m = new Map(); WasmModule.blobs.set(typeId, m); }
-    m.set(slot, { data, rate, name });
-    for (const inst of WasmModule.instances) if (inst.typeId === typeId) inst.postBlob(slot, data, rate);
+    m.set(slot, { data, rate, name, channels });
+    for (const inst of WasmModule.instances) if (inst.typeId === typeId) inst.postBlob(slot, data, rate, channels);
   }
-  static blobList(typeId: string): { slot: number; name: string; seconds: number }[] {
+  /** Keymap zetten (vervangt de vorige). */
+  static setZones(typeId: string, zones: WasmZone[]): void {
+    WasmModule.zoneMaps.set(typeId, zones);
+    for (const inst of WasmModule.instances) if (inst.typeId === typeId) inst.postZones(zones);
+  }
+  static getZones(typeId: string): WasmZone[] { return WasmModule.zoneMaps.get(typeId) ?? []; }
+  static getBlobs(typeId: string): Map<number, WasmBlob> { return WasmModule.blobs.get(typeId) ?? new Map(); }
+  static blobList(typeId: string): { slot: number; name: string; seconds: number; channels: number }[] {
     const m = WasmModule.blobs.get(typeId);
     if (!m) return [];
-    return [...m.entries()].map(([slot, b]) => ({ slot, name: b.name, seconds: b.data.length / b.rate }))
-      .sort((a, b) => a.slot - b.slot);
+    return [...m.entries()].map(([slot, b]) => ({
+      slot, name: b.name, channels: b.channels,
+      seconds: b.data.length / b.channels / b.rate,
+    })).sort((a, b) => a.slot - b.slot);
   }
 
   static info(): string | null {
@@ -136,7 +165,9 @@ export class WasmModule extends AudioModule {
       }
       for (const id of this.cabled) this.post({ t: 'cabled', id, on: true });
       const blobs = WasmModule.blobs.get(type.id);
-      if (blobs) for (const [slot, b] of blobs) this.postBlob(slot, b.data, b.rate);
+      if (blobs) for (const [slot, b] of blobs) this.postBlob(slot, b.data, b.rate, b.channels);
+      const zones = WasmModule.zoneMaps.get(type.id);
+      if (zones) this.postZones(zones);
       for (const m of this.pending) this.post(m);
       this.pending = [];
     }).catch((err: unknown) => {
@@ -152,9 +183,12 @@ export class WasmModule extends AudioModule {
     if (this.node) this.node.port.postMessage(m);
     else this.pending.push(m);
   }
-  private postBlob(slot: number, data: Int16Array, rate: number): void {
+  private postBlob(slot: number, data: Int16Array, rate: number, channels: number): void {
     // Kopie per worklet (structured clone); het origineel blijft in de bank.
-    if (this.node) this.node.port.postMessage({ t: 'blob', slot, rate, data: data.slice() });
+    if (this.node) this.node.port.postMessage({ t: 'blob', slot, rate, channels, data: data.slice() });
+  }
+  private postZones(zones: WasmZone[]): void {
+    if (this.node) this.node.port.postMessage({ t: 'zones', zones });
   }
 
   /** Tone-ingang voor poort `id` (audio/cv/gate — allemaal signaal). */
