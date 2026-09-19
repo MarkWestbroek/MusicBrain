@@ -111,6 +111,14 @@ git clone --filter=blob:none --no-checkout https://github.com/MarkWestbroek/Musi
 cd src && git sparse-checkout set editor && git checkout main     # ±150 MB i.p.v. het hele repo
 ```
 
+**Kip-en-ei:** de Action start het script *uit deze checkout*, en het script
+doet zelf de `git pull`. De checkout moet het script dus al bevatten. Bij de
+eerste inrichting stond hij op een commit van vóór `deploy-vps.sh`, en de eerste
+twee runs faalden met "No such file or directory". Eenmalig met de hand
+`git pull` in `src/` loste dat op. Gevolg voor later: een wijziging aan
+`deploy-vps.sh` zelf werkt pas vanaf de run **na** de push die hem bevat,
+omdat de lopende run nog de oude versie draait.
+
 - **Deploy-sleutel**: in `~omnium/.ssh/authorized_keys` staat
   `command="/srv/musicbrain-editor/src/editor/deploy-vps.sh",restrict ssh-ed25519 … github-actions@MusicBrain deploy-editor`.
   De privésleutel staat alleen in de GitHub-secret `VPS_SSH_KEY`. Vervangen:
