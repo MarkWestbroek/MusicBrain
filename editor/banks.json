@@ -1,5 +1,24 @@
 {
   "$comment": "Grote bestanden onder public/ die niet in git passen (samplebanken, DX7-ROM's, ...). Ze hangen als bijlage aan de GitHub-release `banks`; `npm run banks` haalt ze op, `npm run banks:publish -- <bestand> [--to <map>]` voegt er een toe. Zie doc/editor-deploy.md.",
   "release": "banks",
-  "files": []
+  "files": [
+    {
+      "path": "banks/ydp-grand-2laags.mmbs",
+      "asset": "banks--ydp-grand-2laags.mmbs",
+      "sha256": "a377053cdc23336b9d2978deed259460000fbc404608d33bbd8a2f5d66915ac3",
+      "size": 62475754
+    },
+    {
+      "path": "banks/ydp-grand.mmbs",
+      "asset": "banks--ydp-grand.mmbs",
+      "sha256": "da83a10cba1da9721664fa33ab97f8f936169c127c13e66febb3ad996256ad32",
+      "size": 118386976
+    },
+    {
+      "path": "dx7/roms.bin",
+      "asset": "dx7--roms.bin",
+      "sha256": "22ac7b6f4ad0a1d25e0f2c0c1ddd9baaaf4d5dd85d0ccfd92089d425c2e43551",
+      "size": 32768
+    }
+  ]
 }
