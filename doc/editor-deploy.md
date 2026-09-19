@@ -47,27 +47,43 @@ ssh vps1 /srv/musicbrain-editor/src/editor/deploy-vps.sh 1a2b3c4  # terug naar e
 De laatste 3 releases blijven bewaard. Terugdraaien naar een van die drie is
 direct, want er wordt dan niets opnieuw gebouwd.
 
-## Samplebanken buiten git
+## Grote bestanden buiten git (banken, ROM's, …)
 
-Kleine banken staan gewoon in git (`editor/public/banks/`, zie de README daar).
-Banken die te groot zijn voor git (GitHub weigert bestanden boven 100 MB) hangen
-als bijlage aan de GitHub-release **`banks`**. Welke dat zijn, staat in
-**`editor/banks.json`** (naam, bijlagenaam, sha256, grootte), en dat bestand
-staat wél in git. Zo bepaalt een commit ook welke banken online staan.
+Kleine samplebanken staan gewoon in git (`editor/public/banks/`, zie de README
+daar). Bestanden onder `editor/public/` die niet in git kunnen of mogen, hangen
+als bijlage aan de GitHub-release **`banks`**:
+
+- samplebanken die te groot zijn (GitHub weigert bestanden boven 100 MB), zoals
+  de YDP-vleugel;
+- `dx7/roms.bin`, de ROM-banken die de DX7-module ophaalt. Die valt onder de
+  regel `*.bin` in `.gitignore`, en stond daarom nooit online (404 bij
+  Quickhost);
+- en later elk ander soort bestand: het gaat om een pad onder `public/`, niet
+  om het type.
+
+Welke bestanden dat zijn, staat in **`editor/banks.json`** (pad onder `public/`,
+bijlagenaam, sha256, grootte). Dat bestand staat wél in git, dus een commit
+bepaalt ook welke bestanden online staan.
 
 ```bash
 cd editor
-npm run banks                                    # ontbrekende banken ophalen (desktop, laptop, VPS)
-npm run banks:publish -- "pad/naar/bank.mmbs"    # bank uploaden + in banks.json zetten (vereist gh)
-git add banks.json && git commit -m "banken: …" && git push   # → live
+npm run banks                                               # ontbrekende bestanden ophalen (desktop, laptop, VPS)
+npm run banks:publish -- "public/banks/ydp-grand-2laags.mmbs"   # staat al onder public/: pad volgt vanzelf
+npm run banks:publish -- ~/elders/roms.bin --to dx7         # staat ergens anders: --to zegt waar hij hoort
+git add banks.json && git commit -m "banken: …" && git push # → live via de Action
 ```
 
-`npm run banks` haalt alleen wat ontbreekt of gewijzigd is, en controleert elke
-download op zijn sha256. Na een verse clone is het dus: `npm install`,
-`npm run banks`, `npm run dev`.
+- `publish` vereist `gh` (ingelogd). De eerste keer maakt het de release aan.
+  Opnieuw publiceren met dezelfde naam vervangt de bijlage en werkt de sha256
+  bij.
+- De release is plat. Het pad zit in de bijlagenaam: `dx7/roms.bin` wordt
+  `dx7--roms.bin`.
+- `npm run banks` haalt alleen wat ontbreekt of gewijzigd is, en controleert
+  elke download op zijn sha256. Na een verse clone is het dus: `npm install`,
+  `npm run banks`, `npm run dev`.
 
 Let op: alles in de release is openbaar (het repo is openbaar), net als alles
-op de editor-site. Zet er alleen banken in die herverdeeld mogen worden.
+op de editor-site. Zet er alleen bestanden in die herverdeeld mogen worden.
 
 ## Inrichting op de VPS (eenmalig; staat er sinds 19 september 2026)
 
