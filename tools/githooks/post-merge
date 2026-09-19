@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# post-merge / post-rewrite — banken ophalen zodra editor/banks.json veranderd is.
+#
+# De grote bestanden onder editor/public/ staan niet in git maar in de release
+# `banks`; editor/banks.json zegt welke. Na een pull die dat manifest raakt
+# moet `npm run banks` draaien, anders geeft de editor een 404 op een bank.
+# Deze hook doet dat vanzelf. Zie doc/editor-deploy.md.
+#
+# Aanzetten (één keer per machine, ook op een verse kloon):
+#   git config core.hooksPath tools/githooks
+#
+# Faalt het ophalen (geen net, release onbereikbaar), dan waarschuwt de hook en
+# laat hij de pull staan: `npm run banks` met de hand doet het later alsnog.
+set -u
+
+root="$(git rev-parse --show-toplevel)" || exit 0
+cd "$root" || exit 0
+
+# Wat is er binnengekomen? HEAD@{1} is de stand van vóór deze merge/rebase.
+changed="$(git diff --name-only 'HEAD@{1}' HEAD 2>/dev/null)" || exit 0
+case "$changed" in
+  *editor/banks.json*) ;;
+  *) exit 0 ;;
+esac
+
+echo "githooks: editor/banks.json is gewijzigd — npm run banks"
+( cd editor && npm run --silent banks ) || {
+  echo "githooks: ophalen faalde — draai later 'cd editor && npm run banks'" >&2
+  exit 0
+}

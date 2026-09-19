@@ -81,6 +81,23 @@ git add banks.json && git commit -m "banken: …" && git push # → live via de 
 - `npm run banks` haalt alleen wat ontbreekt of gewijzigd is, en controleert
   elke download op zijn sha256. Na een verse clone is het dus: `npm install`,
   `npm run banks`, `npm run dev`.
+- Ophalen gaat over gewone HTTPS; `gh` is daar niet voor nodig.
+- Het ophalen ruimt niets op. Haal je een regel uit `banks.json`, dan blijft het
+  bestand staan op elke machine die het al had — ook in de checkout op de VPS,
+  waar het dus in de build blijft komen. Zo'n bestand moet je met de hand weg.
+
+Zodat je `npm run banks` na een pull niet vergeet, staat er een hook in het
+repo. Per machine één keer aanzetten (hooks zelf gaan niet mee in git, de
+instelling ook niet):
+
+```bash
+git config core.hooksPath tools/githooks
+```
+
+`tools/githooks/post-merge` (ook als `post-rewrite`, voor `git pull --rebase`)
+draait `npm run banks` zodra een pull `editor/banks.json` heeft gewijzigd, en
+laat de pull staan als het ophalen faalt. Op de VPS is dit niet nodig:
+`deploy-vps.sh` roept `npm run banks` zelf aan.
 
 Let op: alles in de release is openbaar (het repo is openbaar), net als alles
 op de editor-site. Zet er alleen bestanden in die herverdeeld mogen worden.
