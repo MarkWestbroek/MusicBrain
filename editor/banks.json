@@ -15,6 +15,12 @@
       "size": 118386976
     },
     {
+      "path": "dx7/Finetales 1 (EPs and bells).syx",
+      "asset": "dx7--Finetales-1-EPs-and-bells-.syx",
+      "sha256": "3641331576b315c3c5aac36e70fe495ec654e4556e6630fe58e5ae15554bbb56",
+      "size": 4104
+    },
+    {
       "path": "dx7/roms.bin",
       "asset": "dx7--roms.bin",
       "sha256": "22ac7b6f4ad0a1d25e0f2c0c1ddd9baaaf4d5dd85d0ccfd92089d425c2e43551",

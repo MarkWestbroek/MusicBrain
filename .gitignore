@@ -81,3 +81,5 @@ editor/public/banks/*
 !editor/public/banks/church-organ.mmbs
 !editor/public/banks/handdrum*.mmbs
 !editor/public/banks/small bells*.mmbs
+# DX7-banken onder public/dx7/ komen uit de release (banks.json), niet uit git.
+editor/public/dx7/*.syx
