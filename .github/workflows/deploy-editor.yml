@@ -1,0 +1,59 @@
+# Deploy van de editor naar editor.musicbrain.nl (VPS). Zie doc/editor-deploy.md.
+#
+# Deze workflow bouwt níets zelf: hij logt in op de VPS met een SSH-sleutel die
+# daar alleen editor/deploy-vps.sh mag starten (forced command in
+# authorized_keys), en geeft de commit mee. De VPS haalt de code, de banken
+# (banks.json → GitHub-release) en bouwt; lukt dat niet, dan blijft de live
+# versie staan en wordt deze run rood.
+#
+# Secrets (Settings → Secrets and variables → Actions):
+#   VPS_SSH_KEY      privésleutel van het deploy-sleutelpaar
+#   VPS_KNOWN_HOSTS  host-sleutel van de VPS (ssh-keyscan), vastgepind
+
+name: Deploy editor
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "editor/**"
+      - ".github/workflows/deploy-editor.yml"
+  workflow_dispatch: # handmatig: Actions → Deploy editor → Run workflow
+
+# Nooit twee deploys tegelijk; een nieuwe push wacht op de lopende.
+concurrency:
+  group: deploy-editor
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: editor
+      url: https://editor.musicbrain.nl
+    steps:
+      - name: SSH klaarzetten
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Deploy op de VPS
+        # Het forced command negeert alles behalve de commit (SSH_ORIGINAL_COMMAND).
+        run: |
+          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o BatchMode=yes \
+              -o StrictHostKeyChecking=yes omnium@62.129.142.42 "$GITHUB_SHA"
+
+      - name: Controleren
+        # Rechtstreeks naar de VPS (--resolve), en de juiste commit (version.txt).
+        run: |
+          want="${GITHUB_SHA:0:12}"
+          got=$(curl -fsS --resolve editor.musicbrain.nl:443:62.129.142.42 \
+                https://editor.musicbrain.nl/version.txt)
+          echo "live: $got — verwacht: $want"
+          test "$got" = "$want"

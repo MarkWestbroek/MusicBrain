@@ -28,8 +28,11 @@ binnen de firmware-limiet van 64 sloten en 256 zones, samen 8,6 MB.
 
 ## Niet in git
 
-Grote of niet-herverdeelbare banken blijven lokaal; `.gitignore` laat alleen de
-bovenstaande door. Zo staat de YDP-vleugel (FreePats, CC0) er niet in: 118 MB
+Grote of niet-herverdeelbare banken blijven buiten git; `.gitignore` laat alleen de
+bovenstaande door. Grote banken die wél herverdeeld mogen worden, hangen als
+bijlage aan de GitHub-release `banks` en staan in `editor/banks.json`:
+`npm run banks` haalt ze hierheen, `npm run banks:publish -- <bestand>` voegt er
+een toe (zie `doc/editor-deploy.md`). Zo staat de YDP-vleugel (FreePats, CC0) er niet in: 118 MB
 is meer dan GitHub per bestand toestaat. Terughalen:
 
 ```sh

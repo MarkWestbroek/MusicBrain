@@ -7,6 +7,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "banks": "node scripts/banks.mjs fetch",
+    "banks:publish": "node scripts/banks.mjs publish",
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
     "docs": "typedoc",

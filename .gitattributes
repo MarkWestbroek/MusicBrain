@@ -6,3 +6,6 @@
 
 # Gebundelde gerber-zips zijn binair: geen diff/merge, geen eol-normalisatie.
 **/fab/*-gerbers.zip binary
+
+# Scripts die op de VPS draaien: altijd LF, ook bij een checkout op Windows.
+*.sh text eol=lf

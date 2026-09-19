@@ -1,0 +1,5 @@
+{
+  "$comment": "Samplebanken die te groot zijn voor git (> 100 MB) of daar bewust niet in staan. De bestanden hangen als bijlage aan de GitHub-release `banks`; `npm run banks` haalt ze naar public/banks/, `npm run banks:publish <bestand>` voegt er een toe. Zie doc/editor-deploy.md.",
+  "release": "banks",
+  "banks": []
+}
