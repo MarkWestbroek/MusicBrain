@@ -106,6 +106,60 @@ export function expandPolyConnections(
  *  STEAL-knop van MIDI-In en firmware `StealStrategy` {Oldest, Lowest, Highest}. */
 export type StealStrategy = 'oldest' | 'lowest' | 'highest';
 
+/** Welke ingedrukte toets de monofone stem volgt. PRIO-knop van MIDI-In. */
+export type NotePriority = 'last' | 'low' | 'high';
+
+/** PRIO-knop (0/1/2) → prioriteit. */
+export function notePriorityOf(v: number): NotePriority {
+  return v === 1 ? 'low' : v === 2 ? 'high' : 'last';
+}
+
+/**
+ * De toetsen die nu ingedrukt zijn, in de volgorde waarin ze kwamen.
+ *
+ * Dit is het stukje dat een monofone synth zijn karakter geeft. Speel je een
+ * lage noot terwijl je een hoge vasthoudt, dan gebeurt er in `high`-prioriteit
+ * niets — en laat je de hoge los, dan zakt de stem terug naar de lage die nog
+ * ligt. Beide referentie-implementaties die ik ernaast legde doen het zo:
+ * Mutable's Yarns (`stmlib/algorithms/note_stack.h`, `note_by_priority`) en
+ * Surge (`SurgeSynthesizer::releaseNotePostHoldCheck`, dat bij loslaten de
+ * ingedrukte toetsen afzoekt op highest/lowest/latest).
+ */
+export class NoteStack {
+  private held: number[] = [];        // aankomstvolgorde, oudste eerst
+  private vel = new Map<number, number>();
+
+  get size(): number { return this.held.length; }
+  has(note: number): boolean { return this.held.includes(note); }
+  clear(): void { this.held = []; this.vel.clear(); }
+
+  press(note: number, velocity = 0.9): void {
+    const i = this.held.indexOf(note);
+    if (i >= 0) this.held.splice(i, 1);   // opnieuw aangeslagen = opnieuw de nieuwste
+    this.held.push(note);
+    this.vel.set(note, velocity);
+  }
+  release(note: number): void {
+    const i = this.held.indexOf(note);
+    if (i >= 0) this.held.splice(i, 1);
+    this.vel.delete(note);
+  }
+  /** Aanslag waarmee deze toets is ingedrukt — de stem neemt die mee als hij
+   *  bij het loslaten van een andere toets naar deze terugzakt. */
+  velocityOf(note: number): number { return this.vel.get(note) ?? 0.9; }
+
+  /** Welke toets de stem hoort te volgen; null als er niets ligt. */
+  winner(priority: NotePriority): number | null {
+    if (this.held.length === 0) return null;
+    if (priority === 'last') return this.held[this.held.length - 1]!;
+    let best = this.held[0]!;
+    for (const n of this.held) {
+      if (priority === 'low' ? n < best : n > best) best = n;
+    }
+    return best;
+  }
+}
+
 /** STEAL-knop (0/1/2) → strategie. */
 export function stealStrategyOf(v: number): StealStrategy {
   return v === 1 ? 'lowest' : v === 2 ? 'highest' : 'oldest';
@@ -126,7 +180,15 @@ export function pickVoiceIndex(
   const n = voices.length;
   if (n === 0) return -1;
   for (let v = 0; v < n; v++) if (voices[v]!.note === midi) return v;
-  for (let v = 0; v < n; v++) if (voices[v]!.note === null) return v;
+  // Vrije stem: die het lángst stil is, niet de laagste index. Anders krijgt
+  // stem 1 elke noot en kappen we telkens dezelfde release-staart af, terwijl
+  // de andere stemmen niets doen. Zo doet Yarns' voice_allocator het ook.
+  let free = -1, freeAge = Infinity;
+  for (let v = 0; v < n; v++) {
+    const s = voices[v]!;
+    if (s.note === null && s.age < freeAge) { freeAge = s.age; free = v; }
+  }
+  if (free >= 0) return free;
   let pick = 0, best = Infinity;
   for (let v = 0; v < n; v++) {
     // Bij 'lowest'/'highest' beslist de toonhoogte, en de leeftijd breekt de

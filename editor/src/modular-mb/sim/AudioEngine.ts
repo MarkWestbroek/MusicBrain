@@ -30,8 +30,9 @@ import type {
 } from '../types';
 import { registry, Vcf, Ladder, Ms20, Vco, FmVco, Vca, Ahdsr, Lfo, WasmModule } from '../runtime';
 import { simSupportByKind } from './simSupport';
-import { expandPolyConnections, pickVoiceIndex, stealStrategyOf, VoiceAllocator,
-  type StealStrategy } from './polySim';
+import { expandPolyConnections, NoteStack, notePriorityOf, pickVoiceIndex,
+  stealStrategyOf, VoiceAllocator,
+  type NotePriority, type StealStrategy } from './polySim';
 
 export interface EngineStatus {
   running: boolean;
@@ -289,6 +290,10 @@ export class AudioEngine {
   /** STEAL- en GLIDE-stand van MIDI-In; geldt voor alle toewijzers in de patch. */
   private steal: StealStrategy = 'oldest';
   private glideMs = 0;
+  /** Ingedrukte toetsen — alleen de monofone kant gebruikt ze (PRIO en LEG). */
+  private noteStack = new NoteStack();
+  private priority: NotePriority = 'last';
+  private legato = false;
   /** Multi-module → master-stem-id (`moduleId#1`) van zijn cel-PolyGroup. */
   private cellMasterOf = new Map<string, string>();
   /** Stem-allocator per wasm-node: vastgehouden noot en leeftijd (steal = oudste). */
@@ -326,6 +331,9 @@ export class AudioEngine {
     const voiceLimit = Math.max(0, Math.round(readKnob(miCtl, 'voiceCount', patch.voiceCount ?? 0)));
     this.steal = stealStrategyOf(readKnob(miCtl, 'steal', 0));
     this.glideMs = Math.max(0, readKnob(miCtl, 'glide', 0));
+    this.priority = notePriorityOf(readKnob(miCtl, 'priority', 0));
+    this.legato = readKnob(miCtl, 'legato', 0) >= 0.5;
+    this.noteStack.clear();
     this.toneAlloc.setSteal(this.steal);
 
     for (const r of racks) for (const g of r.polyGroups ?? []) {
@@ -491,7 +499,54 @@ export class AudioEngine {
     return Math.max(0.005, (this.glideMs / 1000) * Math.abs(toMidi - fromMidi) / 12);
   }
 
+  /**
+   * Toets ingedrukt. Monofoon gaat dat via de toetsenstapel: welke toets de
+   * stem volgt hangt van PRIO af, en of de envelope opnieuw aanslaat van LEG.
+   * De regels komen uit Yarns (`Part::InternalNoteOn`) en Surge, die het
+   * allebei zo doen: wint de nieuwe toets de prioriteit niet, dan gebeurt er
+   * niets — geen toonhoogte, geen trigger.
+   */
   noteOn(midi: number, velocity = 0.9): void {
+    this.noteStack.press(midi, velocity);
+    if (this.monoVoicing()) {
+      if (this.noteStack.winner(this.priority) !== midi) { this.emit(); return; }
+      // Lag er al een toets, dan is dit legato: bij LEG aan slaat de envelope
+      // niet opnieuw aan, de stem glijdt alleen naar de nieuwe toon.
+      const legatoNow = this.legato && this.noteStack.size > 1;
+      this.driveNoteOn(midi, velocity, !legatoNow);
+      return;
+    }
+    this.driveNoteOn(midi, velocity, true);
+  }
+
+  /**
+   * Toets losgelaten. Ligt er monofoon nog een andere toets, dan zakt de stem
+   * daarnaar terug — glijdend, en alleen opnieuw aanslaand als legato uit
+   * staat (Yarns `InternalNoteOff`, Surge `releaseNotePostHoldCheck`).
+   */
+  noteOff(midi: number): void {
+    if (this.monoVoicing()) {
+      const before = this.noteStack.winner(this.priority);
+      this.noteStack.release(midi);
+      const after = this.noteStack.winner(this.priority);
+      if (after === null) { this.driveNoteOff(before ?? midi); return; }
+      if (after !== before) {
+        this.driveNoteOn(after, this.noteStack.velocityOf(after), !this.legato);
+      } else {
+        this.emit();                    // losgelaten toets was niet de winnaar
+      }
+      return;
+    }
+    this.noteStack.release(midi);
+    this.driveNoteOff(midi);
+  }
+
+  /** Geen enkele PolyGroup in de patch: één stem, dus PRIO en LEG doen mee. */
+  private monoVoicing(): boolean {
+    return this.toneAlloc.size === 0 && this.wasmGroups.size === 0;
+  }
+
+  private driveNoteOn(midi: number, velocity: number, retrigger: boolean): void {
     this.currentKeyboardNote = midi;
     const freq = midiToHz(midi);
     this.status.lastNote = { midi, vel: Math.round(clamp(velocity, 0, 1) * 127), ts: Date.now(), on: true };
@@ -520,14 +575,16 @@ export class AudioEngine {
             n.osc.frequency.rampTo(midiToHz(midi + off), this.glideTime(n.baseMidi, midi));
             n.baseMidi = midi;
           } else if (n?.kind === 'wasm') {
-            this.wasmNoteOn(tgt, midi, velocity, wasmDone);
+            this.wasmNoteOn(tgt, midi, velocity, wasmDone, retrigger);
           }
         }
         for (const raw of mi.gateTargets) {
           const tgt = this.voiceTarget(raw, tv);
           const n = this.nodes.get(voiceModuleId(tgt));
-          if (n?.kind === 'envelope') n.env.triggerAttack();
-          else if (n?.kind === 'wasm') this.wasmNoteOn(tgt, midi, velocity, wasmDone);
+          // Legato: de stem schuift naar de nieuwe toon zonder dat de envelope
+          // opnieuw aanslaat — de gate blijft dus gewoon open staan.
+          if (n?.kind === 'envelope') { if (retrigger) n.env.triggerAttack(); }
+          else if (n?.kind === 'wasm') this.wasmNoteOn(tgt, midi, velocity, wasmDone, retrigger);
         }
         // Velocity → CvMath-factor (mult-mode): bepaalt de VCA-amplitude per noot.
         for (const raw of mi.velTargets) {
@@ -583,18 +640,18 @@ export class AudioEngine {
         node.osc.frequency.rampTo(midiToHz(midi + offset), this.glideTime(node.baseMidi, midi));
         node.baseMidi = midi;
       }
-      if (node.kind === 'envelope' && !node.gateDriven) {
+      if (node.kind === 'envelope' && !node.gateDriven && retrigger) {
         node.env.triggerAttack();
       }
       if (node.kind === 'wasm' && !node.gateDriven && !this.wasmFollowerOf.has(node.moduleId)) {
-        this.wasmNoteOn(node.moduleId, midi, velocity, wasmDone);
+        this.wasmNoteOn(node.moduleId, midi, velocity, wasmDone, retrigger);
       }
     }
     this.status.voiceFreqHz = freq;
     this.emit();
   }
 
-  noteOff(midi: number): void {
+  private driveNoteOff(midi: number): void {
     if (this.status.lastNote?.midi === midi) this.status.lastNote = { ...this.status.lastNote, on: false };
 
     // Wasm-stemmen eerst, en zonder de mono-bewaking hieronder: die kijkt
@@ -1168,7 +1225,8 @@ export class AudioEngine {
 
   /** Stem kiezen in de groep van `id` (master of losse module) en de noot aanzetten:
    *  zelfde noot → hertrigger, anders vrije stem, anders de oudste stelen. */
-  private wasmNoteOn(id: string, midi: number, velocity: number, done?: Set<string>): void {
+  private wasmNoteOn(id: string, midi: number, velocity: number, done?: Set<string>,
+                     retrigger = true): void {
     // Een kale module-id van een multi-module → zijn master-cel.
     if (!id.includes('#')) id = this.cellMasterOf.get(id) ?? id;
     const master = this.wasmFollowerOf.get(id) ?? id;
@@ -1176,7 +1234,13 @@ export class AudioEngine {
     const members = this.wasmGroups.get(master) ?? [master];
     // Zelfde beleid als de Tone-stemmen, inclusief de STEAL-knop.
     const states = members.map((m) => this.wasmVoice.get(m) ?? { note: null, age: 0 });
-    const idx = pickVoiceIndex(states, midi, this.steal);
+    let idx = pickVoiceIndex(states, midi, this.steal);
+    if (!retrigger) {
+      // Legato: niet toewijzen maar de stem die al klinkt naar de nieuwe toon
+      // schuiven, zonder de gate aan te raken.
+      const sounding = states.findIndex((st) => st.note !== null);
+      if (sounding >= 0) idx = sounding;
+    }
     const pick: string | null = idx >= 0 ? members[idx] ?? null : null;
     const node = pick ? this.nodes.get(voiceModuleId(pick)) : undefined;
     if (!pick || !node || node.kind !== 'wasm') return;
@@ -1186,7 +1250,7 @@ export class AudioEngine {
     // nieuwe aanslag, alleen een pitch die verspringt. Daarom eerst laag, en
     // de noot een blok later. `age` is het bonnetje: is de stem intussen aan
     // een andere noot uitgegeven, dan gaat deze aanslag niet meer door.
-    const busy = (this.wasmVoice.get(voice)?.note ?? null) !== null;
+    const busy = retrigger && (this.wasmVoice.get(voice)?.note ?? null) !== null;
     const stamp = ++this.wasmAge;
     this.wasmVoice.set(voice, { note: midi, age: stamp });
     const rt = node.runtime;
@@ -1199,7 +1263,7 @@ export class AudioEngine {
       if (rt.hasInput(voct) && !rt.cabled.has(voct)) rt.setInput(voct, (midi - 60) / 12);
       const vp = wasmVelPort(rt, sfx);
       if (vp && !rt.cabled.has(vp)) rt.setInput(vp, clamp(velocity, 0, 1));
-      if (gp) rt.setInput(gp, 1);
+      if (gp && retrigger) rt.setInput(gp, 1);
     };
     if (busy && gp) {
       rt.setInput(gp, 0);

@@ -7,7 +7,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  expandPolyConnections, pickVoiceIndex, stealStrategyOf, VoiceAllocator,
+  expandPolyConnections, NoteStack, notePriorityOf, pickVoiceIndex,
+  stealStrategyOf, VoiceAllocator,
   type PolyExpandOptions,
 } from './polySim';
 import type { PatchConnection } from '../types';
@@ -156,5 +157,67 @@ describe('steal-strategie', () => {
     a.setSteal('highest');
     [60, 72, 64].forEach((n) => a.pick(n));
     expect(a.pick(62)).toBe(1);                             // 72 was de hoogste
+  });
+});
+
+describe('NoteStack — welke toets volgt de monofone stem', () => {
+  it('vertaalt de PRIO-knop', () => {
+    expect(notePriorityOf(0)).toBe('last');
+    expect(notePriorityOf(1)).toBe('low');
+    expect(notePriorityOf(2)).toBe('high');
+  });
+
+  it('kiest de laatste, de laagste of de hoogste', () => {
+    const s = new NoteStack();
+    [64, 60, 67].forEach((n) => s.press(n));
+    expect(s.winner('last')).toBe(67);
+    expect(s.winner('low')).toBe(60);
+    expect(s.winner('high')).toBe(67);
+    expect(s.size).toBe(3);
+  });
+
+  it('zakt terug naar wat er nog ligt als de winnaar losgelaten wordt', () => {
+    const s = new NoteStack();
+    s.press(60); s.press(72);
+    expect(s.winner('high')).toBe(72);
+    s.release(72);
+    expect(s.winner('high')).toBe(60);       // de lage lag er nog
+    s.release(60);
+    expect(s.winner('high')).toBeNull();     // niets meer ingedrukt
+  });
+
+  it('laat een toets die de prioriteit niet wint de winnaar met rust', () => {
+    const s = new NoteStack();
+    s.press(72);
+    s.press(60);                              // lager, in high-prioriteit
+    expect(s.winner('high')).toBe(72);
+    s.release(60);
+    expect(s.winner('high')).toBe(72);
+  });
+
+  it('onthoudt de aanslag per toets, ook na terugzakken', () => {
+    const s = new NoteStack();
+    s.press(60, 0.4); s.press(72, 0.9);
+    s.release(72);
+    expect(s.winner('last')).toBe(60);
+    expect(s.velocityOf(60)).toBeCloseTo(0.4);
+  });
+
+  it('telt een opnieuw aangeslagen toets als de nieuwste', () => {
+    const s = new NoteStack();
+    s.press(60); s.press(64); s.press(60);
+    expect(s.winner('last')).toBe(60);
+    expect(s.size).toBe(3 - 1);               // 60 zit er maar één keer in
+  });
+});
+
+describe('vrije stem kiezen', () => {
+  it('pakt de stem die het langst stil is, niet de laagste index', () => {
+    // Stem 0 is net losgelaten, stem 2 al veel langer: die moet hij pakken,
+    // zodat de release-staart van stem 0 kan uitklinken.
+    const voices = [
+      { note: null, age: 9 }, { note: 64, age: 8 }, { note: null, age: 2 }, { note: 67, age: 7 },
+    ];
+    expect(pickVoiceIndex(voices, 60, 'oldest')).toBe(2);
   });
 });

@@ -177,11 +177,39 @@ Gedaan:
   dat de MIDI-dispatcher `baseMidi` van een VCO nooit bijwerkte, waardoor de
   Coarse-knop tijdens het spelen naar een oude noot sprong.
 
-Blijft over: **PRIO** (mono note-priority last/low/high — vraagt een lijstje
-ingedrukte toetsen in de toewijzer), **LEG** (legato: geen envelope-hertrigger
-zolang er nog een toets ligt) en **UNI/SPRD** (unison met detune-spreiding).
-Glide werkt alleen voor Tone-VCO's; een wasm-stem krijgt zijn `voct` als
-stapwaarde, dus daar hoort het in de wrapper thuis.
+**PRIO en LEG erbij (2026-09-20).** Eerst de regels opgezocht in twee
+implementaties die precies dit werk doen, in plaats van ze te bedenken:
+
+- **Mutable Yarns** (`yarns/part.cc` met `stmlib/algorithms/note_stack.h`) —
+  een MIDI-naar-CV-brain, dus hetzelfde probleem als onze MIDI-In. Het houdt
+  een stapel ingedrukte toetsen bij en kijkt bij elke gebeurtenis wie er
+  volgens de prioriteit wint: `before = winner(); stack.press(note);
+  after = winner(); if (before != after) → stem opnieuw sturen`. Wint de
+  nieuwe toets niet, dan gebeurt er letterlijk niets. Bij loslaten hetzelfde,
+  met `trigger = (legato_mode == 0)`: de stem zakt glijdend terug naar de
+  toets die nog ligt en slaat alleen opnieuw aan als legato uit staat. En bij
+  aanslaan `legato = stack.size() > 1`, dus de eerste toets triggert altijd.
+- **Surge** (`SurgeSynthesizer::releaseNotePostHoldCheck`) doet het bij
+  loslaten net zo: alle ingedrukte toetsen aflopen en de hoogste, laagste of
+  laatste kiezen. Twee verfijningen die wij (nog) niet hebben: het maakt
+  "envelope opnieuw vanaf nul of doorlopen" een aparte instelling
+  (`monoVoiceEnvelopeMode`), en het kent een prioriteitsstand die bij
+  aanslaan de laatste volgt maar bij loslaten naar de hoogste terugkeert.
+
+Zo zit het er nu in: `NoteStack` in `polySim.ts` (los van Tone, dus testbaar),
+en `AudioEngine.noteOn/noteOff` zijn een dunne laag die die stapel raadpleegt
+zodra de patch géén PolyGroup heeft — want PRIO en LEG zijn monofone
+begrippen. De `retrigger`-vlag loopt door tot in de wasm-stemmen: bij legato
+schuift de stem naar de nieuwe toon zonder de gate aan te raken.
+
+Meegenomen uit Yarns' `voice_allocator.h`: een vrije stem kiezen we nu als de
+stem die het **langst stil** is, niet de laagste index. Anders krijgt stem 1
+elke noot en kap je telkens dezelfde release-staart af.
+
+Blijft over: **UNI/SPRD** (unison met detune-spreiding) — dat vraagt een
+detune per stem in de dispatcher. Glide werkt alleen voor Tone-VCO's; een
+wasm-stem krijgt zijn `voct` als stapwaarde, dus daar hoort het in de wrapper
+thuis.
 
 ### Onderweg gevonden: de worklet liep vooruit op zijn invoer
 
@@ -328,4 +356,4 @@ Op Windows draait `build.sh` onder Git Bash.
 - [x] Stap 2 — MIDI CC + bend in de sim, plus cv → VCO.tune (2026-09-20)
 - [~] Stap 3 — stk_sound klaar (2026-09-20); string, comb, resonator, comp, cr78 open
 - [ ] Stap 4 — vco, ladder, ahdsr, echo
-- [~] Stap 5 — stemgedrag MIDI-In: steal, voiceCount en glide (2026-09-20); prio, legato en unison blijven open
+- [~] Stap 5 — stemgedrag MIDI-In: steal, voiceCount, glide, prio en legato (2026-09-20); unison blijft open
