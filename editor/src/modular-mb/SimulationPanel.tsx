@@ -15,8 +15,8 @@ import {
 } from './sim/wavRecorder';
 import { dx7Host, WasmModule } from './runtime';
 import {
-  ScreenKeyboardSource, TestSequenceSource, WebMidiSource,
-  type MidiSource, type MidiEvent,
+  ScreenKeyboardSource, TestSequenceSource, WebMidiSource, SEQUENCE_PATTERNS,
+  type MidiSource, type MidiEvent, type SequencePattern,
 } from './sim/MidiSource';
 import type { ModularProject, Patch, ControlValue } from './types';
 
@@ -107,11 +107,35 @@ export function SimulationPanel(): JSX.Element {
 
   useEffect(() => {
     const unsub = source.subscribe((e: MidiEvent) => {
-      if (e.kind === 'noteOn')  engine.noteOn(e.note, e.velocity);
-      if (e.kind === 'noteOff') engine.noteOff(e.note);
+      if (e.kind === 'noteOn')    engine.noteOn(e.note, e.velocity);
+      if (e.kind === 'noteOff')   engine.noteOff(e.note);
+      // Mod-wiel, bend en de twee vrije CC's: de bron zond ze al, alleen
+      // luisterde hier niemand — de MOD-uitgangen van MIDI-In bleven dus op
+      // nul staan terwijl de kabels in de patch lagen.
+      if (e.kind === 'cc')        engine.controlChange(e.controller, e.value);
+      if (e.kind === 'pitchBend') engine.pitchBend(e.value);
     });
     return () => { unsub(); };
   }, [engine, source]);
+
+  // De actieve bron volgt de engine: draait hij, dan luistert de bron mee.
+  // Dit hoort hier en niet in startAll(), want de bron kan ná ▶ Start
+  // wisselen (andere radioknop, of terugkomen op dit tabblad). Zonder deze
+  // koppeling bleef zo'n bron ongestart: het on-screen klavier reageerde dan
+  // wel op de muis (die roept pressNote rechtstreeks aan) maar niet op de
+  // computertoetsen, want die luisteraar hangt in start().
+  useEffect(() => {
+    if (!status.running) return undefined;
+    let cancelled = false;
+    void (async () => {
+      try {
+        await source.start();
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
+      }
+    })();
+    return () => { cancelled = true; source.stop(); };
+  }, [source, status.running]);
 
   useEffect(() => engine.subscribe(setStatus), [engine]);
 
@@ -146,7 +170,7 @@ export function SimulationPanel(): JSX.Element {
     try {
       setError(null);
       await engine.start();
-      await source.start();
+      // De bron wordt gestart door het effect dat `status.running` volgt.
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
@@ -373,21 +397,38 @@ function ScreenKeyboardUi({ source }: { source: ScreenKeyboardSource }): JSX.Ele
 
 function SequenceUi({ source }: { source: TestSequenceSource }): JSX.Element {
   const [bpm, setBpm] = useState(source.getBpm());
+  const [pattern, setPattern] = useState<SequencePattern>(source.getPattern());
+  const info = SEQUENCE_PATTERNS.find((p) => p.id === pattern) ?? SEQUENCE_PATTERNS[0]!;
   return (
-    <div style={row}>
-      <label style={{ fontSize: 12 }}>
-        Tempo:
-        <input type="number" min={30} max={300} value={bpm}
-          onChange={(e) => {
-            const v = Math.max(30, Math.min(300, Number(e.target.value) || 120));
-            setBpm(v); source.setBpm(v);
-          }}
-          style={{ width: 60, marginLeft: 6 }} />
-        <span style={{ marginLeft: 4 }}>BPM</span>
-      </label>
-      <span style={{ fontSize: 11, color: '#6b7280' }}>
-        Speelt een C–E–G–C–G–E lus zodra je op Start klikt.
-      </span>
+    <div style={{ marginTop: 6 }}>
+      <div style={row}>
+        <label style={{ fontSize: 12 }}>
+          Patroon:
+          <select value={pattern}
+            onChange={(e) => {
+              const p = e.target.value as SequencePattern;
+              setPattern(p); source.setPattern(p);
+            }}
+            style={{ marginLeft: 6 }}>
+            {SEQUENCE_PATTERNS.map((p) => (
+              <option key={p.id} value={p.id}>{p.label}</option>
+            ))}
+          </select>
+        </label>
+        <label style={{ fontSize: 12 }}>
+          Tempo:
+          <input type="number" min={30} max={300} value={bpm}
+            onChange={(e) => {
+              const v = Math.max(30, Math.min(300, Number(e.target.value) || 120));
+              setBpm(v); source.setBpm(v);
+            }}
+            style={{ width: 60, marginLeft: 6 }} />
+          <span style={{ marginLeft: 4 }}>BPM</span>
+        </label>
+      </div>
+      <p style={{ fontSize: 11, color: '#6b7280', margin: '4px 0 0' }}>
+        {info.hint} Loopt zodra je op Start klikt.
+      </p>
     </div>
   );
 }

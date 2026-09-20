@@ -5,8 +5,9 @@
 //
 //   1. ScreenKeyboardSource — on-screen toetsenbord (zie SimPanel),
 //      óók bestuurbaar via computer-toetsen (A S D F …).
-//   2. TestSequenceSource   — speelt een C-majeur arpeggio in lus af
-//      zodat je snel kunt horen of er geluid uit komt.
+//   2. TestSequenceSource   — speelt een patroon in lus af zodat je snel
+//      kunt horen of er geluid uit komt: een arpeggio (één noot tegelijk)
+//      of een akkoord, om een PolyGroup met meer stemmen tegelijk te voeden.
 //   3. WebMidiSource        — echte USB/Bluetooth MIDI via de browser
 //      (Web MIDI API; werkt in Chrome/Edge/Opera/recente Firefox/Safari).
 
@@ -87,8 +88,16 @@ export class ScreenKeyboardSource extends BaseSource {
     this.emit({ kind: 'noteOff', note: midi });
   }
 
+  /** Tikt de gebruiker in een tekstveld, dan is 'a' een letter — geen noot. */
+  private static isTyping(e: KeyboardEvent): boolean {
+    const t = e.target as HTMLElement | null;
+    const tag = t?.tagName?.toLowerCase();
+    return tag === 'input' || tag === 'textarea' || tag === 'select' || !!t?.isContentEditable;
+  }
+
   private kd = (e: KeyboardEvent): void => {
     if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (ScreenKeyboardSource.isTyping(e)) return;
     const k = e.key.toLowerCase();
     if (k === 'z') { this.octave = Math.max(0, this.octave - 1); return; }
     if (k === 'x') { this.octave = Math.min(8, this.octave + 1); return; }
@@ -107,38 +116,157 @@ export class ScreenKeyboardSource extends BaseSource {
 
 // ── 2. Test sequence ──────────────────────────────────────────────────
 
+/** Welk patroon de test-sequence speelt. */
+export type SequencePattern = 'arp' | 'build' | 'chords';
+
+/** De opbouw van het achtstemmige stapel-akkoord: C E G B D F♯ A C. */
+const STACK = [60, 64, 67, 71, 74, 78, 81, 84];
+
+/**
+ * De patronen, als lijst van stappen. Eén stap = de noten die tijdens die
+ * stap moeten klínken (dus niet "aanslaan"): wat in de volgende stap nog
+ * staat blijft liggen, de rest gaat uit. Zo beschrijft dezelfde vorm een
+ * arpeggio (één noot per stap) én een akkoord dat zich opbouwt.
+ */
+export const SEQUENCE_PATTERNS: readonly {
+  id: SequencePattern; label: string; hint: string; steps: readonly (readonly number[])[];
+  /** Staplengte als veelvoud van een achtste. */
+  stepFactor?: number;
+  /** `piano` = aanslag per noot verschilt, zoals een pianist een akkoord zet. */
+  touch?: 'flat' | 'piano';
+}[] = [
+  {
+    id: 'arp',
+    label: 'Arpeggio (C majeur)',
+    hint: 'C–E–G–C–G–E, één noot tegelijk — de monofone testtoon.',
+    steps: [[60], [64], [67], [72], [67], [64]],
+  },
+  {
+    id: 'build',
+    label: 'Opbouwend akkoord (×8)',
+    hint: 'Stapelt C E G B D F♯ A C op tot acht klinkende noten, houdt het '
+        + 'akkoord vast en laat dan los. Meer stemmen dan een kleine PolyGroup '
+        + 'heeft, dus je hoort ook of voice-stealing klopt.',
+    steps: [...STACK.map((_, i) => STACK.slice(0, i + 1)), STACK, STACK, STACK, []],
+  },
+  {
+    id: 'chords',
+    label: 'Akkoorden (Cmaj7 · Am7 · Fmaj7 · G7)',
+    hint: 'Vier noten tegelijk, één akkoord per hele noot. Gemeenschappelijke '
+        + 'tonen blijven staan tussen de akkoorden, dus alleen de wisselende '
+        + 'stemmen hertriggeren — en de aanslag verschilt per noot.',
+    steps: [[60, 64, 67, 71], [57, 60, 64, 67], [53, 57, 60, 65], [55, 59, 62, 65]],
+    stepFactor: 8,
+    touch: 'piano',
+  },
+];
+
 export class TestSequenceSource extends BaseSource {
   readonly id = 'sequence';
-  readonly label = 'Test-sequence (C-majeur arpeggio)';
+  readonly label = 'Test-sequence (arpeggio / akkoorden)';
   private timer: number | null = null;
+  private offTimer: number | null = null;
   private idx = 0;
-  private notes = [60, 64, 67, 72, 67, 64];
   private bpm = 120;
-  private lastNote: number | null = null;
+  private pattern: SequencePattern = 'arp';
+  /** Noten die nu klinken — meer dan één zodra je een akkoord speelt. */
+  private held = new Set<number>();
+  /** Deel van de stap waarin een wegvallende noot nog hoog staat. */
+  private static readonly GATE_RATIO = 0.7;
 
   start(): void {
     if (this.timer !== null) return;
+    const def = this.def();
+    const intervalMs = 60_000 / this.bpm / 2 * (def.stepFactor ?? 1);   // 8th-notes × factor
+    // Stilte vóór de volgende stap. Bij korte stappen is dat een deel van de
+    // stap, bij lange akkoorden houden we het op een ruime honderdste seconde
+    // — anders staat er een halve seconde niets tussen twee akkoorden.
+    const gapMs = Math.min(intervalMs * (1 - TestSequenceSource.GATE_RATIO), 120);
     const step = (): void => {
-      if (this.lastNote !== null) this.emit({ kind: 'noteOff', note: this.lastNote });
-      const n = this.notes[this.idx % this.notes.length]!;
-      this.emit({ kind: 'noteOn', note: n, velocity: 0.9 });
-      this.lastNote = n;
+      const steps = this.steps();
+      const first = this.idx % steps.length === 0;   // eerste akkoord van de lus
+      const cur  = steps[this.idx % steps.length]!;
+      const next = steps[(this.idx + 1) % steps.length]!;
       this.idx++;
+      // Alles wat niet in deze stap staat hoort niet meer te klinken; wat er
+      // al ligt blijft liggen (geen hertrigger van een gehouden akkoordnoot).
+      for (const n of [...this.held]) if (!cur.includes(n)) this.release(n);
+      for (const n of cur) {
+        this.press(n, def.touch === 'piano' ? this.velocityFor(cur, n, first) : 0.9);
+      }
+      // Noten die in de vólgende stap wegvallen gaan nú al uit, op GATE_RATIO
+      // van de stap. Zonder die pauze vallen deze noteOff en de noteOn van de
+      // volgende stap in hetzelfde audioblok: de stemtoewijzer geeft de net
+      // vrijgekomen stem meteen weer uit, die ziet dus nooit een dalende flank
+      // op zijn gate en een wasm-stem hertriggert dan niet. De SEQ-module doet
+      // hetzelfde met zijn gateRatio.
+      const stopping = cur.filter((n) => !next.includes(n));
+      if (stopping.length > 0) {
+        this.offTimer = window.setTimeout(() => {
+          this.offTimer = null;
+          for (const n of stopping) this.release(n);
+        }, intervalMs - gapMs);
+      }
     };
-    const intervalMs = 60_000 / this.bpm / 2;   // 8th-notes
     this.timer = window.setInterval(step, intervalMs);
     step();
   }
   stop(): void {
-    if (this.timer !== null) { window.clearInterval(this.timer); this.timer = null; }
-    if (this.lastNote !== null) {
-      this.emit({ kind: 'noteOff', note: this.lastNote });
-      this.lastNote = null;
-    }
+    this.clearTimers();
+    this.releaseAll();
     this.idx = 0;
   }
-  setBpm(b: number): void { this.bpm = Math.max(30, Math.min(300, b)); }
+  setBpm(b: number): void {
+    this.bpm = Math.max(30, Math.min(300, b));
+    // Loopt hij al, dan moet het nieuwe tempo meteen gelden: interval opnieuw
+    // opzetten zonder de lus te herstarten (idx blijft staan).
+    if (this.timer !== null) { this.clearTimers(); this.start(); }
+  }
   getBpm(): number { return this.bpm; }
+  /** Patroonwissel begint bij stap 1 — met een schone lei, geen hangers. */
+  setPattern(p: SequencePattern): void {
+    if (p === this.pattern) return;
+    this.pattern = p;
+    this.idx = 0;
+    if (this.offTimer !== null) { window.clearTimeout(this.offTimer); this.offTimer = null; }
+    this.releaseAll();
+  }
+  getPattern(): SequencePattern { return this.pattern; }
+
+  private def(): typeof SEQUENCE_PATTERNS[number] {
+    return SEQUENCE_PATTERNS.find((p) => p.id === this.pattern) ?? SEQUENCE_PATTERNS[0]!;
+  }
+  private steps(): readonly (readonly number[])[] { return this.def().steps; }
+  /**
+   * Aanslag zoals een pianist een akkoord zet: bas en bovenstem dragen, de
+   * vulling eronder blijft zachter, het eerste akkoord van de lus krijgt een
+   * accent, en elke noot wat spreiding. Met overal dezelfde velocity klinkt
+   * een akkoordenreeks als een orgel dat aan- en uitgaat.
+   */
+  private velocityFor(chord: readonly number[], note: number, first: boolean): number {
+    let lo = Infinity, hi = -Infinity;
+    for (const n of chord) { if (n < lo) lo = n; if (n > hi) hi = n; }
+    const outer = note === lo || note === hi;
+    const base = (outer ? 0.80 : 0.62) + (first ? 0.08 : 0);
+    const spread = (Math.random() - 0.5) * 0.08;
+    return Math.max(0.15, Math.min(1, base + spread));
+  }
+  private clearTimers(): void {
+    if (this.timer !== null) { window.clearInterval(this.timer); this.timer = null; }
+    if (this.offTimer !== null) { window.clearTimeout(this.offTimer); this.offTimer = null; }
+  }
+  private press(midi: number, velocity: number): void {
+    if (this.held.has(midi)) return;
+    this.held.add(midi);
+    this.emit({ kind: 'noteOn', note: midi, velocity });
+  }
+  private release(midi: number): void {
+    if (!this.held.delete(midi)) return;
+    this.emit({ kind: 'noteOff', note: midi });
+  }
+  private releaseAll(): void {
+    for (const n of [...this.held]) this.release(n);
+  }
 }
 
 // ── 3. Web MIDI ───────────────────────────────────────────────────────
