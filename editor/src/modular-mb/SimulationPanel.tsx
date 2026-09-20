@@ -14,6 +14,7 @@ import {
   MasterRecorder, encodeWav, dbfs, wavFileName, downloadWav,
 } from './sim/wavRecorder';
 import { dx7Host, WasmModule } from './runtime';
+import { simSupportOf, type SimSupport } from './sim/simSupport';
 import {
   ScreenKeyboardSource, TestSequenceSource, WebMidiSource, SEQUENCE_PATTERNS,
   type MidiSource, type MidiEvent, type SequencePattern,
@@ -472,41 +473,65 @@ function LevelMeter({ level }: { level: number }): JSX.Element {
   );
 }
 
+/**
+ * Wat van deze patch speelt er, en waarmee? Vroeger stond hier een telling per
+ * categorie met de mededeling dat de engine "de eerste module per categorie"
+ * pakt — dat was de MVP en klopt al lang niet meer: de engine volgt de kabels
+ * en vouwt poly-groepen uit. De vraag die je wél hebt als je iets niet hoort,
+ * is of een module überhaupt gesimuleerd wordt. Dat staat hier nu.
+ */
 function ModuleMatchSummary({ project, patch }: {
   project: ModularProject; patch: Patch;
 }): JSX.Element {
   const racks = project.racks.filter((r) => patch.rackIds.includes(r.id));
-  const counts: Record<string, number> = {};
+  const seen = new Set<string>();
+  const byKind: Record<SimSupport, string[]> = { wasm: [], tone: [], none: [] };
   for (const r of racks) for (const slot of r.slots) {
+    if (seen.has(slot.moduleId)) continue;
+    seen.add(slot.moduleId);
     const m = project.modules.find((mm) => mm.id === slot.moduleId);
-    if (!m) continue;
-    const t = project.moduleTypes.find((tt) => tt.id === m.typeId);
-    const c = project.categories.find((cc) => cc.id === t?.categoryId);
-    const k = String(c?.kind ?? 'unknown');
-    counts[k] = (counts[k] ?? 0) + 1;
+    const t = m && project.moduleTypes.find((tt) => tt.id === m.typeId);
+    if (!t) continue;
+    byKind[simSupportOf(t, project.moduleTypes, project.categories)]
+      .push(t.variant || t.id);
   }
+  const tally = (ids: string[]): string => {
+    const n = new Map<string, number>();
+    for (const id of ids) n.set(id, (n.get(id) ?? 0) + 1);
+    return [...n].map(([id, c]) => (c > 1 ? `${id} ×${c}` : id)).join(', ');
+  };
+  const rows: { kind: SimSupport; label: string; uitleg: string; kleur: string }[] = [
+    { kind: 'wasm', label: 'Zelfde DSP als de Teensy', kleur: '#065f46',
+      uitleg: 'de C++-kern van de firmware, als wasm' },
+    { kind: 'tone', label: 'Web-Audio-benadering', kleur: '#92400e',
+      uitleg: 'klinkt als het idee, niet sample-voor-sample als de Teensy' },
+    { kind: 'none', label: 'Stil', kleur: '#b91c1c',
+      uitleg: 'de engine bouwt hier niets voor' },
+  ];
   return (
     <fieldset style={fs}>
-      <legend style={lg}>Engine-mapping</legend>
-      <p style={{ fontSize: 12, margin: '0 0 6px', color: '#475569' }}>
-        De MVP-engine pakt de eerste module per categorie. Latere iteraties
-        volgen <code>patch.connections</code> echt en bouwen een volledige
-        signal-graph.
-      </p>
+      <legend style={lg}>Wat speelt er</legend>
       <table style={{ fontSize: 12, borderCollapse: 'collapse' }}>
         <tbody>
-          {(['vco','vcf','vca','envelope','lfo'] as const).map((k) => (
-            <tr key={k}>
-              <td style={{ padding: '2px 12px 2px 0', color: '#374151' }}>{k.toUpperCase()}</td>
-              <td style={{ padding: '2px 0', color: counts[k] ? '#065f46' : '#9ca3af' }}>
-                {counts[k]
-                  ? `${counts[k]} module${counts[k] > 1 ? 's' : ''} aanwezig`
-                  : 'niet gevonden — default-waarden'}
+          {rows.map((r) => (
+            <tr key={r.kind}>
+              <td style={{ padding: '2px 12px 2px 0', color: r.kleur, whiteSpace: 'nowrap',
+                           verticalAlign: 'top', fontWeight: 600 }}>
+                {byKind[r.kind].length}× {r.label}
+              </td>
+              <td style={{ padding: '2px 0', color: '#475569' }}>
+                {byKind[r.kind].length > 0 ? tally(byKind[r.kind]) : <em>{r.uitleg}</em>}
               </td>
             </tr>
           ))}
         </tbody>
       </table>
+      {byKind.none.length > 0 && (
+        <p style={{ fontSize: 11, color: '#6b7280', margin: '6px 0 0' }}>
+          Stille modules staan wel in het rack en gaan gewoon mee naar de Teensy;
+          alleen de simulator kan ze nog niet spelen.
+        </p>
+      )}
     </fieldset>
   );
 }
