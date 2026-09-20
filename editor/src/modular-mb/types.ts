@@ -913,18 +913,35 @@ export function migrateProject(input: unknown): ModularProject | null {
 
 /** Repair a v2 project loaded from older snapshots:
  *  - fills `Patch.rackIds` from legacy `rackId`
- *  - ensures the internal rack is always patch-bereikbaar  */
+ *  - geeft een patch zonder rack er één
+ *  - haalt het prototype-rack weg waar het niet gebruikt wordt  */
 function normaliseV2(p: ModularProject): ModularProject {
   const internalRack = p.racks.find((r) => r.kind === 'internal');
+  // Het interne rack is de catalogus: één prototype per moduletype. Stond het
+  // in een patch, dan tekende de patcher ze allemaal.
+  const internalModules = new Set(internalRack?.slots.map((s) => s.moduleId) ?? []);
   const patches = p.patches.map((pa) => {
     const legacy = (pa as unknown as { rackId?: string }).rackId;
     let ids = Array.isArray(pa.rackIds) && pa.rackIds.length > 0
       ? [...pa.rackIds]
       : legacy ? [legacy] : [];
-    if (ids.length === 0 && p.racks[0]) ids = [p.racks[0].id];
-    if (internalRack && !ids.includes(internalRack.id)) ids.push(internalRack.id);
     // Drop verwijzingen naar verdwenen racks.
     ids = ids.filter((id) => p.racks.some((r) => r.id === id));
+    // Vroeger werd het interne rack hier áltijd bijgezet ("altijd
+    // bereikbaar"), dus kreeg een patch met alleen zijn eigen rack na elke
+    // herstart de hele modulecatalogus in de patcher. Nu halen we het er juist
+    // uit — maar alleen als de patch een ander rack heeft én er geen kabel op
+    // een prototype-module zit, want dan zouden we een bestaande patch slopen.
+    if (internalRack && ids.length > 1 && ids.includes(internalRack.id)) {
+      const used = pa.connections.some((c) => internalModules.has(c.from.moduleId)
+                                           || internalModules.has(c.to.moduleId));
+      if (!used) ids = ids.filter((id) => id !== internalRack.id);
+    }
+    // Helemaal zonder rack kun je niets patchen: pak dan een fysiek rack.
+    if (ids.length === 0) {
+      const fallback = p.racks.find((r) => r.kind !== 'internal') ?? p.racks[0];
+      if (fallback) ids = [fallback.id];
+    }
     return { ...pa, rackIds: ids };
   });
   return { ...p, patches };

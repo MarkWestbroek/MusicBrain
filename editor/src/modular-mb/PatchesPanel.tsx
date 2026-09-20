@@ -16,10 +16,10 @@ export function PatchesPanel(): JSX.Element {
       alert('Maak eerst een rack aan (Rack-tab).');
       return;
     }
-    const internal = project.racks.find((r) => r.kind === 'internal');
-    const rackIds = internal && internal.id !== physical.id
-      ? [physical.id, internal.id]
-      : [physical.id];
+    // Alleen het gekozen rack. Het interne rack is de modulecatalogus; zet je
+    // die erbij, dan staat de hele voorraad in de patcher. Wie hem tóch wil,
+    // vinkt hem hieronder aan.
+    const rackIds = [physical.id];
     const patch: Patch = {
       id: uid('patch'),
       name: `Patch ${project.patches.length + 1}`,
