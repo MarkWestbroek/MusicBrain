@@ -203,6 +203,18 @@ export function pickVoiceIndex(
 }
 
 /**
+ * Detune van stem `v` in unison, in volt (1 V/oct). Letterlijk de formule uit
+ * `MidiInModule::spreadOffsetV()`: de stemmen waaieren symmetrisch uit over
+ * ±0,5 × de spreiding, dus bij vier stemmen en 40 cent staat stem 1 op −20 ct
+ * en stem 4 op +20 ct. Eén stem of geen spreiding = geen detune.
+ */
+export function unisonSpreadVolts(voice: number, voiceCount: number, spreadCents: number): number {
+  if (spreadCents <= 0 || voiceCount <= 1 || voice >= voiceCount || voice < 0) return 0;
+  const pos = voice / (voiceCount - 1) - 0.5;
+  return pos * (spreadCents / 100) / 12;
+}
+
+/**
  * Stemtoewijzing op index: dezelfde noot pakt zijn eigen stem terug
  * (hertrigger), anders de eerste vrije, anders stelen volgens de STEAL-knop.
  */

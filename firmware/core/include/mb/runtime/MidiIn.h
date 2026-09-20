@@ -30,7 +30,7 @@
  * | `voiceCount` | int     | 1 .. `kMaxAllocVoices`; resets voice state    |
  * | `channel`    | int     | 0 = omni; 1..16 = listen to specific channel  |
  * | `steal`      | int     | poly voice-stealing: 0=oldest,1=lowest,2=highest |
- * | `priority`   | int     | mono note-priority (accepted; FW-1, not yet acted on) |
+ * | `priority`   | int     | mono note-priority: 0=last, 1=low, 2=high             |
  * | `legato`     | int     | mono legato on/off (accepted; FW-1, not yet acted on) |
  * | `glide`      | float   | portamento time in ms per octave (0 = off)         |
  * | `unison`     | int     | one key → all voices (0/1)                         |
@@ -206,9 +206,23 @@ private:
     std::array<std::uint8_t, kMonoStackMax> monoStack_{};
     std::uint8_t               monoStackLen_ = 0;
 
+    // Note-priority (FW-1). Welke ingedrukte toets de monofone stem volgt:
+    // 0 = last (de laatst aangeslagen), 1 = low (de laagste), 2 = high (de
+    // hoogste). Geldt voor mono én unison; polyfoon krijgt elke toets toch
+    // zijn eigen stem. Zelfde regels als Mutable's Yarns
+    // (stmlib note_stack `note_by_priority`) en Surge
+    // (`releaseNotePostHoldCheck`): wint een nieuwe toets de prioriteit niet,
+    // dan verandert er niets, en bij loslaten zakt de stem terug naar de
+    // toets die nog ligt.
+    enum class NotePriority : std::uint8_t { Last = 0, Low = 1, High = 2 };
+    NotePriority               priority_ = NotePriority::Last;
+
+    bool monoActive() const { return alloc_.voiceCount() == 1; }
     bool monoLegatoActive() const { return legato_ && alloc_.voiceCount() == 1; }
     void monoPush(std::uint8_t note);
     void monoRemove(std::uint8_t note);
+    /** De toets die volgens `priority_` aan de beurt is; 0xFF als er niets ligt. */
+    std::uint8_t monoWinner() const;
 
     // Portamento / glide (constant-rate). `glideMsPerOct_` is the time in ms
     // to traverse one octave (1 V); 0 = off (instant jump). `pitchV_` holds

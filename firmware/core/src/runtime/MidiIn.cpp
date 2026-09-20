@@ -68,6 +68,9 @@ void MidiInModule::setControl(std::string_view controlId, ControlValue value) {
             // same destructive policy we use when `voiceCount` changes.
             allNotesOff();
         }
+    } else if (controlId == "priority") {
+        const auto p = std::clamp<std::int32_t>(asInt(0), 0, 2);
+        priority_ = static_cast<NotePriority>(p);
     } else if (controlId == "glide" || controlId == "portamento") {
         // Portamento time in ms per octave; clamp negatives to 0 (= off).
         glideMsPerOct_ = std::max(0.0f, asFloat(0.0f));
@@ -83,9 +86,6 @@ void MidiInModule::setControl(std::string_view controlId, ControlValue value) {
         // Total unison detune spread in cents; a couple of semitones is plenty.
         spreadCents_ = std::clamp(asFloat(0.0f), 0.0f, 200.0f);
     }
-    // `priority` (mono note-priority last/low/high) is accepted by the editor
-    // but not yet acted on here: the allocator currently always uses last-note
-    // priority (see backlog FW-1).
     // Unknown ids are silently ignored (forward-compat with older patches).
 }
 
@@ -99,6 +99,27 @@ void MidiInModule::monoPush(std::uint8_t note) {
         // 32 slots, but keeps us bounded and click-free).
         for (std::uint8_t i = 1; i < kMonoStackMax; ++i) monoStack_[i - 1] = monoStack_[i];
         monoStack_[kMonoStackMax - 1] = note;
+    }
+}
+
+std::uint8_t MidiInModule::monoWinner() const {
+    if (monoStackLen_ == 0) return 0xFF;
+    switch (priority_) {
+        case NotePriority::Low: {
+            std::uint8_t best = monoStack_[0];
+            for (std::uint8_t i = 1; i < monoStackLen_; ++i)
+                if (monoStack_[i] < best) best = monoStack_[i];
+            return best;
+        }
+        case NotePriority::High: {
+            std::uint8_t best = monoStack_[0];
+            for (std::uint8_t i = 1; i < monoStackLen_; ++i)
+                if (monoStack_[i] > best) best = monoStack_[i];
+            return best;
+        }
+        case NotePriority::Last:
+        default:
+            return monoStack_[monoStackLen_ - 1];
     }
 }
 
@@ -125,25 +146,35 @@ void MidiInModule::onNoteOn(std::uint8_t channel, std::uint8_t note, std::uint8_
     // MIDI convention: NoteOn with velocity 0 == NoteOff.
     if (velocity == 0) { onNoteOff(channel, note); return; }
 
-    if (monoLegatoActive()) {
-        // Mono legato: voice 0 changes pitch but the gate stays high while a
-        // previous note is still sounding, so the envelopes are NOT
-        // retriggered (legato glide). The very first note raises the gate.
+    if (monoActive()) {
+        // Mono: de toetsenstapel bepaalt wie er klinkt. Net als Yarns kijken
+        // we wie er vóór en ná deze aanslag wint; verandert dat niet, dan
+        // gebeurt er niets — een lage toets bijdrukken in `high`-prioriteit
+        // laat de klinkende noot dus met rust.
+        const std::uint8_t before = monoWinner();
         monoPush(note);
-        currentNote_[0] = note;
+        const std::uint8_t after = monoWinner();
+        if (after == 0xFF) return;
+        if (after == before && gate_[0]) return;
+        // Legato houdt de gate hoog zolang er al een toets lag: de stem
+        // glijdt naar de nieuwe toon zonder dat de envelopes opnieuw
+        // aanslaan. Dat is het hele punt van legato.
+        currentNote_[0] = after;
         velocity_   [0] = velocity;
         gate_       [0] = true;
         return;
     }
 
     if (unison_) {
-        // Unison: one key drives every voice (last-note priority via the mono
-        // note-stack). Each voice tracks the same note; `spreadOffsetV()` fans
+        // Unison: one key drives every voice; PRIO bepaalt wélke ingedrukte
+        // toets dat is. Each voice tracks the same note; `spreadOffsetV()` fans
         // them out in pitch. Gate stays high while any key is held.
         monoPush(note);
+        const std::uint8_t w = monoWinner();
+        if (w == 0xFF) return;
         const std::uint8_t n = alloc_.voiceCount();
         for (std::uint8_t v = 0; v < n; ++v) {
-            currentNote_[v] = note;
+            currentNote_[v] = w;
             velocity_   [v] = velocity;
             gate_       [v] = true;
         }
@@ -169,16 +200,17 @@ void MidiInModule::onNoteOn(std::uint8_t channel, std::uint8_t note, std::uint8_
 void MidiInModule::onNoteOff(std::uint8_t channel, std::uint8_t note) {
     if (filteredOut(channel)) return;
 
-    if (monoLegatoActive()) {
-        // Mono legato: drop the released note. If keys remain held, fall back
-        // to the most-recent one (pitch changes, gate stays high); otherwise
-        // lower the gate so the envelopes release.
+    if (monoActive()) {
+        // Mono: de toets eruit, en dan kijken wie er nog ligt. Is dat een
+        // andere dan degene die klonk, dan zakt de stem daarnaartoe; ligt er
+        // niets meer, dan valt de gate. Zo doen Yarns en Surge het ook —
+        // vóór deze wijziging stopte de stem zodra je de bovenste toets
+        // losliet, ook al hield je een lagere vast.
+        const std::uint8_t before = monoWinner();
         monoRemove(note);
-        if (monoStackLen_ > 0) {
-            currentNote_[0] = monoStack_[monoStackLen_ - 1];
-        } else {
-            gate_[0] = false;
-        }
+        const std::uint8_t after = monoWinner();
+        if (after == 0xFF) { gate_[0] = false; return; }
+        if (after != before) currentNote_[0] = after;
         return;
     }
 
@@ -188,9 +220,9 @@ void MidiInModule::onNoteOff(std::uint8_t channel, std::uint8_t note) {
         // key is released.
         monoRemove(note);
         const std::uint8_t n = alloc_.voiceCount();
-        if (monoStackLen_ > 0) {
-            const std::uint8_t top = monoStack_[monoStackLen_ - 1];
-            for (std::uint8_t v = 0; v < n; ++v) currentNote_[v] = top;
+        const std::uint8_t w = monoWinner();
+        if (w != 0xFF) {
+            for (std::uint8_t v = 0; v < n; ++v) currentNote_[v] = w;
         } else {
             for (std::uint8_t v = 0; v < n; ++v) gate_[v] = false;
         }

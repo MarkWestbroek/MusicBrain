@@ -52,10 +52,69 @@ MB_TEST(midiin_mono_noteon_raises_gate_and_sets_pitch) {
     midi.onNoteOn(1, 72, 64);    // one octave up → +1.0 V
     MB_REQUIRE(std::fabs(midi.voicePitchV(0) - 1.0f) < kEps);
 
+    // 60 ligt er nog: de stem zakt terug in plaats van te stoppen. Vóór FW-1
+    // viel hier de gate, ook al hield je een toets vast — dat was het oude,
+    // niet-muzikale gedrag dat deze test vastlegde.
     midi.onNoteOff(1, 72);
+    MB_REQUIRE(midi.voiceGate(0));
+    MB_REQUIRE(std::fabs(midi.voicePitchV(0) - 0.0f) < kEps);
+
+    midi.onNoteOff(1, 60);
     MB_REQUIRE(!midi.voiceGate(0));
     // After NoteOff the pitch sticks (release-phase friendly).
+    MB_REQUIRE(std::fabs(midi.voicePitchV(0) - 0.0f) < kEps);
+}
+
+MB_TEST(midiin_mono_priority_high_ignores_lower_keys) {
+    MidiInModule midi("m");
+    midi.setControl("priority", ControlValue{std::int32_t{2}});   // high
+    midi.onNoteOn(1, 72, 100);
     MB_REQUIRE(std::fabs(midi.voicePitchV(0) - 1.0f) < kEps);
+
+    midi.onNoteOn(1, 60, 100);   // lager: wint de prioriteit niet
+    MB_REQUIRE(std::fabs(midi.voicePitchV(0) - 1.0f) < kEps);
+    MB_REQUIRE(midi.voiceGate(0));
+
+    midi.onNoteOff(1, 60);       // die lag er wel, maar klonk niet
+    MB_REQUIRE(std::fabs(midi.voicePitchV(0) - 1.0f) < kEps);
+    MB_REQUIRE(midi.voiceGate(0));
+
+    midi.onNoteOff(1, 72);       // nu is er niets meer ingedrukt
+    MB_REQUIRE(!midi.voiceGate(0));
+}
+
+MB_TEST(midiin_mono_priority_low_follows_the_lowest_key) {
+    MidiInModule midi("m");
+    midi.setControl("priority", ControlValue{std::int32_t{1}});   // low
+    midi.onNoteOn(1, 60, 100);
+    midi.onNoteOn(1, 72, 100);   // hoger: wint niet
+    MB_REQUIRE(std::fabs(midi.voicePitchV(0) - 0.0f) < kEps);
+
+    midi.onNoteOn(1, 48, 100);   // lager: wint wél
+    MB_REQUIRE(std::fabs(midi.voicePitchV(0) + 1.0f) < kEps);
+
+    midi.onNoteOff(1, 48);       // terug naar de laagste die nog ligt
+    MB_REQUIRE(std::fabs(midi.voicePitchV(0) - 0.0f) < kEps);
+    MB_REQUIRE(midi.voiceGate(0));
+}
+
+MB_TEST(midiin_unison_follows_the_priority_too) {
+    MidiInModule midi("m");
+    midi.setControl("voiceCount", ControlValue{std::int32_t{4}});
+    midi.setControl("unison", ControlValue{std::int32_t{1}});
+    midi.setControl("priority", ControlValue{std::int32_t{2}});   // high
+    midi.onNoteOn(1, 60, 100);
+    midi.onNoteOn(1, 72, 100);
+    // Alle stemmen op de hoogste toets (spread staat op 0, dus exact gelijk).
+    for (std::uint8_t v = 0; v < 4; ++v) {
+        MB_REQUIRE(midi.voiceGate(v));
+        MB_REQUIRE(std::fabs(midi.voicePitchV(v) - 1.0f) < kEps);
+    }
+    midi.onNoteOff(1, 72);
+    for (std::uint8_t v = 0; v < 4; ++v) {
+        MB_REQUIRE(midi.voiceGate(v));
+        MB_REQUIRE(std::fabs(midi.voicePitchV(v) - 0.0f) < kEps);
+    }
 }
 
 MB_TEST(midiin_velocity_zero_noteon_is_noteoff) {

@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   expandPolyConnections, NoteStack, notePriorityOf, pickVoiceIndex,
-  stealStrategyOf, VoiceAllocator,
+  stealStrategyOf, unisonSpreadVolts, VoiceAllocator,
   type PolyExpandOptions,
 } from './polySim';
 import type { PatchConnection } from '../types';
@@ -219,5 +219,32 @@ describe('vrije stem kiezen', () => {
       { note: null, age: 9 }, { note: 64, age: 8 }, { note: null, age: 2 }, { note: 67, age: 7 },
     ];
     expect(pickVoiceIndex(voices, 60, 'oldest')).toBe(2);
+  });
+});
+
+describe('unison-spreiding', () => {
+  // Zelfde formule als MidiInModule::spreadOffsetV() in de firmware:
+  // pos = v/(n-1) − 0,5, en dat maal de spreiding in centen → V/Oct.
+  const ct = (v: number, n: number, spread: number) => unisonSpreadVolts(v, n, spread) * 1200;
+
+  it('waaiert symmetrisch uit om het midden', () => {
+    expect(ct(0, 4, 40)).toBeCloseTo(-20, 6);
+    expect(ct(3, 4, 40)).toBeCloseTo(+20, 6);
+    expect(ct(1, 4, 40)).toBeCloseTo(-20 / 3, 6);
+    expect(ct(2, 4, 40)).toBeCloseTo(+20 / 3, 6);
+    // De uitersten liggen precies de volle spreiding uit elkaar.
+    expect(ct(3, 4, 40) - ct(0, 4, 40)).toBeCloseTo(40, 6);
+  });
+
+  it('zwijgt waar er niets te verdelen valt', () => {
+    expect(unisonSpreadVolts(0, 1, 40)).toBe(0);     // één stem
+    expect(unisonSpreadVolts(0, 4, 0)).toBe(0);      // geen spreiding
+    expect(unisonSpreadVolts(9, 4, 40)).toBe(0);     // stem buiten de groep
+  });
+
+  it('rekent in volt, 1 V per octaaf', () => {
+    // Volle spreiding van 1200 cent = een octaaf: uitersten op ±0,5 V.
+    expect(unisonSpreadVolts(0, 2, 1200)).toBeCloseTo(-0.5, 6);
+    expect(unisonSpreadVolts(1, 2, 1200)).toBeCloseTo(+0.5, 6);
   });
 });

@@ -206,10 +206,36 @@ Meegenomen uit Yarns' `voice_allocator.h`: een vrije stem kiezen we nu als de
 stem die het **langst stil** is, niet de laagste index. Anders krijgt stem 1
 elke noot en kap je telkens dezelfde release-staart af.
 
-Blijft over: **UNI/SPRD** (unison met detune-spreiding) — dat vraagt een
-detune per stem in de dispatcher. Glide werkt alleen voor Tone-VCO's; een
-wasm-stem krijgt zijn `voct` als stapwaarde, dus daar hoort het in de wrapper
-thuis.
+**UNI/SPRD erbij, en de firmware rechtgetrokken (2026-09-20).** De
+firmware-helft bestond al sinds fw 0.5.12 (backlog ED-RV-9): `MidiInModule`
+heeft `unison_` en `spreadCents_`, en `spreadOffsetV()` waaiert de stemmen
+symmetrisch uit over ±0,5 × de spreiding. Die formule staat nu ook in
+`polySim.ts` als `unisonSpreadVolts()`, met de dispatcher die in unison álle
+stemmen aanstuurt in plaats van er één te kiezen — voor Tone-VCO's via de
+frequentie, voor wasm-stemmen via een detune op `voct`.
+
+Daarbij bleek de simulator op één punt vóór te lopen op de hardware: PRIO deed
+in de firmware niets. De code was daar eerlijk over ("accepted by the editor
+but not yet acted on here, see backlog FW-1"). Nu wel: `monoWinner()` in
+`MidiIn.cpp` kiest last/low/high, en mono én unison gebruiken hem.
+
+Dat trok meteen een ouder probleem recht. De monofone tak liep via de
+VoiceAllocator, en die kent alleen klinkende noten — geen ingedrukte toetsen.
+Liet je de bovenste toets los terwijl je een lagere vasthield, dan **viel de
+gate** in plaats van terug te zakken. Nu zakt de stem terug naar wat er nog
+ligt, zoals Yarns en Surge het doen. Eén bestaande core-test legde het oude
+gedrag vast; die is bijgewerkt, met drie nieuwe erbij (110 core-tests groen,
+Teensy-build groen).
+
+Nog open, en hoorbaar werk: een **hertrigger-flank**. Zowel de steal-tak als
+een nieuwe mono-noot zet de gate laag en meteen weer hoog binnen één aanroep;
+de CvGraph bemonstert op 1 kHz en ziet die flank dus nooit. Dat is dezelfde
+klasse fout als de gate-collaps die de simulator had. Voor de sim is hij
+opgelost (gate laag, aanslag een blok later); de firmware heeft er een
+retrigger-puls per stem voor nodig. Dat wil je met je oren erbij doen.
+
+Glide werkt alleen voor Tone-VCO's; een wasm-stem krijgt zijn `voct` als
+stapwaarde, dus daar hoort het in de wrapper thuis.
 
 ### Onderweg gevonden: de worklet liep vooruit op zijn invoer
 
@@ -356,4 +382,4 @@ Op Windows draait `build.sh` onder Git Bash.
 - [x] Stap 2 — MIDI CC + bend in de sim, plus cv → VCO.tune (2026-09-20)
 - [~] Stap 3 — stk_sound klaar (2026-09-20); string, comb, resonator, comp, cr78 open
 - [ ] Stap 4 — vco, ladder, ahdsr, echo
-- [~] Stap 5 — stemgedrag MIDI-In: steal, voiceCount, glide, prio en legato (2026-09-20); unison blijft open
+- [x] Stap 5 — stemgedrag MIDI-In: steal, voiceCount, glide, prio, legato en unison (2026-09-20). Open: hertrigger-flank in de firmware (FW), glide voor wasm-stemmen
