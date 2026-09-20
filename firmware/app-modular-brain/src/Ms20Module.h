@@ -87,7 +87,12 @@ public:
         if (!block) return;
         k35_.Prepare();
         for (int i = 0; i < AUDIO_BLOCK_SAMPLES; ++i) {
-            const float y = k35_.Tick(block->data[i] * (1.0f / 32768.0f));
+            float y = k35_.Tick(block->data[i] * (1.0f / 32768.0f));
+            // Klemmen vóór de int16-cast. Met de resonantie op zelf-oscillatie
+            // én drive open komt de lus boven ±1 uit; zonder deze grens wrapt
+            // de cast en hoor je harde foldover in plaats van clipping. De
+            // andere modules (Elements, VCF) doen dit al.
+            if (y > 1.0f) y = 1.0f; else if (y < -1.0f) y = -1.0f;
             block->data[i] = static_cast<int16_t>(y * 32767.0f);
         }
         transmit(block, 0);
