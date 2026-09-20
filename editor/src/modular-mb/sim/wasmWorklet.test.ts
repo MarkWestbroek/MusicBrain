@@ -89,7 +89,7 @@ describe('mmb-worklet resampling', () => {
   afterAll(() => { vi.unstubAllGlobals(); });
 
   /** Rendert één seconde sinus door `typeId` en geeft de SNR terug. */
-  async function run(typeId: string, ctls: Record<string, number>): Promise<number> {
+  async function run(typeId: string, ctls: Record<string, number>, hz = HZ): Promise<number> {
     const bytes = wasmBytes(typeId);
     const { inputs, outputs } = await portsOf(bytes);
     const p = new Processor!({ processorOptions: { wasm: bytes, inputs, outputs } });
@@ -102,11 +102,11 @@ describe('mmb-worklet resampling', () => {
     const rec = new Float32Array(blocks * QUANTUM);
     let ph = 0, w = 0;
     for (let b = 0; b < blocks; b++) {
-      for (let k = 0; k < QUANTUM; k++) { inBuf[0]![0]![k] = 0.5 * Math.sin(ph); ph += 2 * Math.PI * HZ / CTX; }
+      for (let k = 0; k < QUANTUM; k++) { inBuf[0]![0]![k] = 0.5 * Math.sin(ph); ph += 2 * Math.PI * hz / CTX; }
       p.process(inBuf, outBuf, {});
       rec.set(outBuf[0]![0]!, w); w += QUANTUM;
     }
-    return toneSnr(rec, HZ, CTX, Math.round(CTX * 0.2));
+    return toneSnr(rec, hz, CTX, Math.round(CTX * 0.2));
   }
 
   it('laat een zuivere toon zuiver door het VCF', async () => {
@@ -118,5 +118,14 @@ describe('mmb-worklet resampling', () => {
   it('doet dat ook voor een module die er al langer in zit', async () => {
     const snr = await run('tp_mmb_tape_echo', { time: 0.35, feedback: 0, mix: 0 });
     expect(snr).toBeGreaterThan(40);
+  });
+
+  it('houdt ook hoge tonen schoon (daar faalt lineair interpoleren)', async () => {
+    // De fout van een interpolator groeit met de frequentie. Op 5 kHz haalde
+    // lineair ~34 dB en de cubic in de host ~49 dB; op 2 kHz is het verschil
+    // ~50 tegen ~79. Deze grens valt dus precies tussen de twee methodes in.
+    const dry = { time: 0.35, feedback: 0, mix: 0 };
+    expect(await run('tp_mmb_tape_echo', dry, 2000)).toBeGreaterThan(65);
+    expect(await run('tp_mmb_tape_echo', dry, 5000)).toBeGreaterThan(42);
   });
 });

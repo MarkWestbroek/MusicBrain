@@ -256,6 +256,34 @@ af te zetten voordat we zelf iets bouwen.
   vorm. Het paper geeft géén getalswaarde voor `Vt` — dat is een keuze van de
   implementatie, en dus een plek waar twee ports uiteen kunnen lopen.
 
+### Resampling doorgemeten (2026-09-20) — cubic, geen polyfase-FIR
+
+Onderzoeksvraag 3 bleef onbeantwoord in de zoekronde, dus zelf gemeten. De
+vraag was of onze lineaire interpolatie de pariteit in de weg zit, nu blijkt
+dat we de kernels niet op de contextrate kúnnen draaien.
+
+Fout van een interpolator groeit met de frequentie. Op 44,1 → 48 kHz:
+
+| | 220 Hz | 2 kHz | 5 kHz | 15 kHz | demping 8 kHz | demping 15 kHz |
+|---|---|---|---|---|---|---|
+| lineair | 89 dB | 50 dB | 34 dB | 11 dB | −0,95 dB | −3,44 dB |
+| cubic (4 taps) | 138 dB | 79 dB | 49 dB | — | −0,16 dB | −1,65 dB |
+| Kaiser-sinc (65 taps) | — | 82 dB | 74 dB | 61 dB | 0,00 dB | 0,00 dB |
+
+Op een bandbeperkte zaagtand van 220 Hz — realistischer materiaal — haalt
+lineair 34 dB en de sinc 49 dB totaal. Maar uitgesplitst per band zit het
+meeste vuil bóven 12 kHz; in het gebied waar het oor scherp is (2–12 kHz) zat
+lineair op −47…−53 dB, cubic op −58…−69 dB en de sinc op −112…−121 dB. De
+gemeten hoorbaarheidsdrempels uit het onderzoek (boven de grondtoon is 19–41 dB
+onderdrukking genoeg) liggen dus ruim bóven wat de cubic overlaat.
+
+**Besluit: cubic in de host, geen polyfase-FIR porten.** Vier taps, geen
+tabellen, geen extra latency, en het pakt zowel de aliasing als de demping in
+het hoorbare gebied. Walch's Kaiser-polyfase resampler blijft in reserve voor
+als er ooit een module op 32 kHz bij komt waar de verhouding lelijker uitvalt.
+Vastgelegd in `wasmWorklet.test.ts`, dat nu ook op 2 en 5 kHz meet — met de
+oude lineaire host faalt die test.
+
 ## Wat geen wasm-port oplost
 
 - **CV-domein.** De firmware heeft een aparte `CvGraph` op een 1 kHz

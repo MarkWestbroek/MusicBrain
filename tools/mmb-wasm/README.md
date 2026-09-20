@@ -57,6 +57,23 @@ Conventies (gelijk aan de firmware-CvGraph): voct in volt rond C4 (MIDI 60
 = 0 V), Marbles' X in ±5 V, parameter-CV's 0..1, gate ≥ 0,5 = hoog, audio ±1.
 Parameter-CV's overschrijven de knop alleen zolang de poort verbonden is.
 
+**Interpolatie: cubic voor audio, zero-order-hold voor cv en gate.** Lineair
+interpoleren is goedkoop maar het is tegelijk een lowpass én een aliasbron.
+Gemeten op 44,1 → 48 kHz, met een zaagtand van 220 Hz en zuivere tonen:
+
+| | 220 Hz | 2 kHz | 5 kHz | demping op 8 kHz | demping op 15 kHz |
+|---|---|---|---|---|---|
+| lineair | 89 dB | 50 dB | 34 dB | −0,95 dB | −3,44 dB |
+| cubic (4 taps) | 138 dB | 79 dB | 49 dB | −0,16 dB | −1,65 dB |
+| Kaiser-sinc (65 taps) | — | 82 dB | 74 dB | 0,00 dB | 0,00 dB |
+
+De sinc wint in het middengebied nog eens 60 dB, maar dat vuil zit onder de
+−110 dB en daarmee ruim onder de gemeten hoorbaarheidsdrempels; de vier taps
+van de cubic pakken het deel dat je werkelijk hoort. Een echte polyfase-FIR
+(bijvoorbeeld die van Alexander Walch in `newdigate/teensy-audio-x86-stubs`)
+is dus voorlopig niet nodig. Gates blijven zero-order-hold: een
+geïnterpoleerde flank is geen flank meer.
+
 De host loopt met opzet één render-quantum (of twee, bij een groot blok)
 achter op de invoer. Zonder die voorsprong klemt de invoer-resampling op de
 laatst binnengekomen sample en bevriest de staart van elk blok: hoorbaar als
