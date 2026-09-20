@@ -37,6 +37,7 @@ describe('simSupport', () => {
     // ::Korg35) in plaats van een Tone-biquad.
     expect(supportOf('tp_mmb_vcf')).toBe('wasm');
     expect(supportOf('tp_mmb_ms20')).toBe('wasm');
+    expect(supportOf('tp_mmb_stk_sound')).toBe('wasm');   // gevendorde STK
   });
 
   it('herkent de Tone-runtimes en de hardgecodeerde interne modules', () => {

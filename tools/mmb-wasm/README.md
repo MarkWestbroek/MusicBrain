@@ -20,6 +20,7 @@ WebAssembly gecompileerd en draaien in een AudioWorklet.
 | Sampler | `tp_mmb_sampler` | eigen (`mmb_dsp/sample_player.h`; keymap + 1–4 kanalen, samples via `mmb_blob_ptr/commit`, zones via `mmb_zone_set/count`) | 44,1 kHz / 32 |
 | VCF | `tp_mmb_vcf` | eigen (`mmb_dsp/svf.h`, header-only — dezelfde kern als de Teensy-wrapper) | 44,1 kHz / 32 |
 | MS-20 | `tp_mmb_ms20` | eigen (`mmb_dsp/korg35.h`, header-only — idem, mét tanh-clipper en 2x oversampling) | 44,1 kHz / 32 |
+| STK-sound | `tp_mmb_stk_sound` | gevendorde STK (`firmware/lib/stk`, MIT) — negen physical-modelling stemmen, dezelfde bron als de firmware | 44,1 kHz / 32 |
 | Tape echo | `tp_mmb_tape_echo` | eigen (`firmware/lib/mmb-dsp/mmb_dsp/tape_echo.h`, header-only — dezelfde kern als de Teensy-wrapper) | 44,1 kHz / 32 |
 | Env-follower | `tp_mmb_env_follower` · `…_mono` | eigen (`firmware/lib/mmb-dsp/mmb_dsp/env_follower.h`, header-only — dezelfde kern als de Teensy-wrapper); audio in → cv + gate uit. Eén bron, twee binaries: `envfollower_wasm.cc` wordt ook met `-DMMB_EF_CELLS=1` gebouwd voor de enkelvoudige variant | 44,1 kHz / 32 |
 
@@ -110,7 +111,12 @@ wat een lib mist vindt de build in de andere (zoals de firmware-LDF).
 3. `WasmModule.typeIds` (editor): typeId toevoegen. Klaar — de engine, de
    worklet en de patcher weten verder niets module-specifieks.
 
-Drie valkuilen bij stap 3. Wissel je typeIds terwijl de dev-server draait,
+Vier valkuilen bij stap 3. **Houd globals plat.** Deze binaries linken met
+`-nostartfiles` en `--no-entry`, dus er draait geen startup-code en de
+machinerie achter globals met een constructor of destructor is onbetrouwbaar:
+een globale `std::unique_ptr` in de STK-wrapper stond na `mmb_init()` weer op
+null en de module zweeg, terwijl dezelfde constructie in een lokale variabele
+wél werkte. Gebruik een platte struct of een rauwe pointer. Wissel je typeIds terwijl de dev-server draait,
 dan botst de hot-reload op de registry (die weigert een tweede factory op
 hetzelfde typeId) en krijg je daarna vage worklet-fouten uit een half
 geladen engine: even hard herladen (Ctrl+Shift+R). Draaide de module eerst op een Tone-klasse, haal dan
@@ -133,6 +139,16 @@ valt de runtime niet terug op Tone, de module wordt dan stil.
   LFO/ADSR/sequencer/MIDI-In→wasm werken wel. Marbles → Plaits/Morph-WT/
   Rings/Elements is dus de route voor generatieve patches.
 - CPU per instantie (node, -O3 -msimd128): Elements ~33 %, Rings ~23 %, de rest ≤ 2 %.
+- STK-sound: acht van de negen modellen klinken op hun defaults. **Brass** heeft
+  zijn lipspanning (de Timbre-knop) omhoog nodig voordat hij gaat buzzen, net
+  als een echte koperspeler. **BandedWG** blijft stil: bij dat model is CC#2
+  bowPressure in plaats van timbre, en de knop-naar-CC-mapping komt uit
+  `StkSoundModule` — op de Teensy is dat dus net zo. Een eigen preset- of
+  strike-position-knop zou dat model openen.
+- Let op de volgorde in een wrapper: bij sommige STK-modellen herberekent
+  `setFrequency()` juist de parameter die een controlChange zet (Brass stemt
+  zijn lipspanning op de toon af). Zet de controls dus ná de toonhoogte, anders
+  wint de pitch elk blok en doet de knop niets.
 
 ## Polyfonie: twee constructen, geen derde
 

@@ -108,6 +108,9 @@ sel warps && build warps tp_mmb_warps "$LIB/mi-warps" -- \
 sel vcf && build vcf tp_mmb_vcf "$LIB/mmb-dsp" --
 sel ms20 && build ms20 tp_mmb_ms20 "$LIB/mmb-dsp" --
 
+STK="$LIB/stk"
+sel stksound && build stksound tp_mmb_stk_sound "$STK/include" "$STK/include/stk" -- "$STK"/src/*.cpp
+
 sel tapeecho && build tapeecho tp_mmb_tape_echo "$LIB/mmb-dsp" --
 
 sel envfollower && build envfollower tp_mmb_env_follower "$LIB/mmb-dsp" --
