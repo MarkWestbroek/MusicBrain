@@ -33,6 +33,10 @@ describe('simSupport', () => {
     expect(supportOf('tp_mmb_sampler')).toBe('wasm');
     expect(supportOf('tp_mmb_env_follower')).toBe('wasm');
     expect(supportOf('tp_mmb_env_follower_mono')).toBe('wasm');
+    // Sinds 2026-09-20: dezelfde kernels als de firmware (mmb_dsp::Svf /
+    // ::Korg35) in plaats van een Tone-biquad.
+    expect(supportOf('tp_mmb_vcf')).toBe('wasm');
+    expect(supportOf('tp_mmb_ms20')).toBe('wasm');
   });
 
   it('herkent de Tone-runtimes en de hardgecodeerde interne modules', () => {

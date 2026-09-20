@@ -18,8 +18,18 @@ WebAssembly gecompileerd en draaien in een AudioWorklet.
 | Tides | `tp_mmb_tides` | mi-tides (tides2) | 1 kHz / 1 (CV-tick) |
 | Warps | `tp_mmb_warps` | mi-warps | 44,1 kHz / 32 |
 | Sampler | `tp_mmb_sampler` | eigen (`mmb_dsp/sample_player.h`; keymap + 1–4 kanalen, samples via `mmb_blob_ptr/commit`, zones via `mmb_zone_set/count`) | 44,1 kHz / 32 |
+| VCF | `tp_mmb_vcf` | eigen (`mmb_dsp/svf.h`, header-only — dezelfde kern als de Teensy-wrapper) | 44,1 kHz / 32 |
+| MS-20 | `tp_mmb_ms20` | eigen (`mmb_dsp/korg35.h`, header-only — idem, mét tanh-clipper en 2x oversampling) | 44,1 kHz / 32 |
 | Tape echo | `tp_mmb_tape_echo` | eigen (`firmware/lib/mmb-dsp/mmb_dsp/tape_echo.h`, header-only — dezelfde kern als de Teensy-wrapper) | 44,1 kHz / 32 |
 | Env-follower | `tp_mmb_env_follower` · `…_mono` | eigen (`firmware/lib/mmb-dsp/mmb_dsp/env_follower.h`, header-only — dezelfde kern als de Teensy-wrapper); audio in → cv + gate uit. Eén bron, twee binaries: `envfollower_wasm.cc` wordt ook met `-DMMB_EF_CELLS=1` gebouwd voor de enkelvoudige variant | 44,1 kHz / 32 |
+
+**Kies het blok klein.** De worklet buffert één blok invoer vooruit voordat
+hij begint (anders rendert hij samples waarvan de invoer nog niet binnen is),
+dus een groot blok kost alleen maar latency. 32 is de gangbare keuze voor
+44,1 kHz. Smooth't de kern zijn parameters per `Prepare()`-aanroep, houd die
+dan wél op de Teensy-cadans van 128 samples — de twee filters doen dat met
+een tellertje (`kPrepareEvery`), anders regelt een sweep vier keer zo snel in
+als op de hardware.
 
 Daarmee spelen o.a. de **Krell**- en **808-jam**-seeds in de browser.
 (De DX7 heeft zijn eigen worklet, zie `tools/dx7-wasm`.)
@@ -45,6 +55,14 @@ editor/src/modular-mb/sim/AudioEngine.ts  node-soort 'wasm': audio én cv/gate
 Conventies (gelijk aan de firmware-CvGraph): voct in volt rond C4 (MIDI 60
 = 0 V), Marbles' X in ±5 V, parameter-CV's 0..1, gate ≥ 0,5 = hoog, audio ±1.
 Parameter-CV's overschrijven de knop alleen zolang de poort verbonden is.
+
+De host loopt met opzet één render-quantum (of twee, bij een groot blok)
+achter op de invoer. Zonder die voorsprong klemt de invoer-resampling op de
+laatst binnengekomen sample en bevriest de staart van elk blok: hoorbaar als
+korrel en overstuur, en meetbaar als een 220 Hz-sinus met meer vuil dan
+signaal. Die meting staat als test in
+`editor/src/modular-mb/sim/wasmWorklet.test.ts` (SNR > 40 dB; vóór de fix
+16 dB, erna 84).
 
 Wasm→wasm-kabels lopen via een DelayNode van één render-quantum (~2,7 ms):
 Web Audio dempt anders elke lus (Stages.eoc → eigen gate, Marbles ↔ Stages).
@@ -76,7 +94,10 @@ inharmonisch materiaal de noten van tevoren opgeeft in plaats van ze te
 laten detecteren.
 
 wasi-sdk: https://github.com/WebAssembly/wasi-sdk/releases, uitgepakt in
-`~/.wasi-sdk/` (of `$WASI_SDK`). De MI-libs dragen elk een stmlib-subset;
+`~/.wasi-sdk/` (of `$WASI_SDK`) — macos, linux of windows, `build.sh` pakt de
+nieuwste die er staat. Op Windows draait `build.sh` onder Git Bash en heet de
+compiler `clang++.exe`; de losse `wasi-sysroot`-download volstaat daar niet
+(geen libc++-headers), je hebt de volledige SDK nodig. De MI-libs dragen elk een stmlib-subset;
 wat een lib mist vindt de build in de andere (zoals de firmware-LDF).
 `shim/avr/pgmspace.h` maakt `FLASHMEM`/`PROGMEM` leeg.
 
@@ -89,12 +110,23 @@ wat een lib mist vindt de build in de andere (zoals de firmware-LDF).
 3. `WasmModule.typeIds` (editor): typeId toevoegen. Klaar — de engine, de
    worklet en de patcher weten verder niets module-specifieks.
 
+Drie valkuilen bij stap 3. Wissel je typeIds terwijl de dev-server draait,
+dan botst de hot-reload op de registry (die weigert een tweede factory op
+hetzelfde typeId) en krijg je daarna vage worklet-fouten uit een half
+geladen engine: even hard herladen (Ctrl+Shift+R). Draaide de module eerst op een Tone-klasse, haal dan
+haar `registry.register(...)` weg: de registry weigert een tweede factory op
+hetzelfde typeId en gooit al bij het laden van de editor (zo ging het bij de VCF
+en de MS-20). En registreer het typeId pas als de `.wasm` er is — zonder binair
+valt de runtime niet terug op Tone, de module wordt dan stil.
+
 ## Afwijkingen van de Teensy
 
-- PolyGroups van wasm-modules spelen polyfoon: de engine bouwt alle leden, vouwt de
-  kabels uit zoals `polyExpand` (fan-out, `in1→in1..inN`, stem v → stem v) en verdeelt
-  noten met een allocator (zelfde noot → hertrigger, vrije stem, anders oudste stelen).
-  Tone-VCO-PolyGroups blijven mono (de Tone-engine kent geen stemmen).
+- PolyGroups spelen polyfoon: de engine bouwt alle leden, vouwt de kabels uit zoals
+  `polyExpand` (fan-out, `in1→in1..inN`, stem v → stem v) en verdeelt noten met een
+  allocator (zelfde noot → hertrigger, vrije stem, anders oudste stelen). Sinds
+  2026-09-20 geldt dat ook voor PolyGroups van Tone-modules: die delen één
+  toewijzer op stem-*index*, zodat stem v van de VCO-groep bij stem v van de
+  filter- en envelopegroep hoort. Zie `editor/src/modular-mb/sim/polySim.ts`.
 - Gates van wasm-modules kunnen Tone-envelopes (ADSR-module) niet triggeren
   en wasm-CV kan de Tone-VCO's niet stemmen (die worden per JS-aanroep
   aangestuurd, niet per signaal); wasm→wasm, wasm→VCA/VCF-cv en

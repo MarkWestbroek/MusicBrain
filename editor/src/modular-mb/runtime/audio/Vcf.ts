@@ -94,7 +94,8 @@ export class Vcf extends Filter {
   }
 }
 
-// Self-registration: the registry maps typeId → factory.
-registry.register(Vcf.typeId, (type, instance, initialControlValues) =>
-  new Vcf(type, instance, initialControlValues),
-);
+// Géén self-registration meer: `tp_mmb_vcf` draait sinds 2026-09-20 als wasm
+// (`tools/mmb-wasm/vcf_wasm.cc`, kernel `mmb_dsp::Svf` — dezelfde code als de
+// firmware). Deze klasse blijft de basis voor de Ladder, die nog Tone is.
+// De registry weigert een tweede factory op hetzelfde typeId, dus dit moet
+// weg zolang het typeId in `WasmModule.typeIds` staat.

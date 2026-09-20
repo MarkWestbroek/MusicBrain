@@ -12,9 +12,12 @@ OUTDIR="$ROOT/editor/public/wasm"
 HERE="$ROOT/tools/mmb-wasm"
 
 if [ -z "${WASI_SDK:-}" ]; then
-  WASI_SDK="$(ls -d "$HOME"/.wasi-sdk/wasi-sdk-*-macos 2>/dev/null | sort | tail -1 || true)"
+  # Nieuwste uitgepakte SDK in ~/.wasi-sdk — macos, linux of windows.
+  WASI_SDK="$(ls -d "$HOME"/.wasi-sdk/wasi-sdk-*/ 2>/dev/null | sed 's:/$::' | sort -V | tail -1 || true)"
 fi
-[ -x "$WASI_SDK/bin/clang++" ] || { echo "wasi-sdk niet gevonden (zet WASI_SDK)" >&2; exit 1; }
+CXX="$WASI_SDK/bin/clang++"
+[ -x "$CXX" ] || CXX="$WASI_SDK/bin/clang++.exe"   # Git Bash op Windows
+[ -x "$CXX" ] || { echo "wasi-sdk niet gevonden (zet WASI_SDK)" >&2; exit 1; }
 SYSROOT="$WASI_SDK/share/wasi-sysroot"
 TARGET=wasm32-wasip1
 [ -d "$SYSROOT/include/$TARGET" ] || TARGET=wasm32-wasi
@@ -37,7 +40,7 @@ build() {  # naam typeId include-dirs... -- bronnen...
   while [ "$1" != "--" ]; do incs+=("-I$1"); shift; done
   shift
   echo "→ $typeId"
-  if ! "$WASI_SDK/bin/clang++" \
+  if ! "$CXX" \
     --target="$TARGET" --sysroot="$SYSROOT" \
     -std=c++17 -O3 -msimd128 -fno-exceptions -fno-rtti -DTEST \
     -Wno-unused-value -Wno-deprecated-register -include cstdio \
@@ -101,6 +104,9 @@ sel warps && build warps tp_mmb_warps "$LIB/mi-warps" -- \
   "$LIB"/mi-warps/warps/dsp/filter_bank.cc "$LIB"/mi-warps/warps/dsp/modulator.cc \
   "$LIB"/mi-warps/warps/dsp/oscillator.cc "$LIB"/mi-warps/warps/dsp/vocoder.cc \
   "$LIB"/mi-warps/warps/resources.cc $STMLIB_CC
+
+sel vcf && build vcf tp_mmb_vcf "$LIB/mmb-dsp" --
+sel ms20 && build ms20 tp_mmb_ms20 "$LIB/mmb-dsp" --
 
 sel tapeecho && build tapeecho tp_mmb_tape_echo "$LIB/mmb-dsp" --
 

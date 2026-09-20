@@ -42,7 +42,8 @@ export class Ms20 extends Vcf {
   }
 }
 
-// Self-registration: the registry maps typeId → factory.
-registry.register(Ms20.typeId, (type, instance, initialControlValues) =>
-  new Ms20(type, instance, initialControlValues),
-);
+// Géén self-registration meer: `tp_mmb_ms20` draait sinds 2026-09-20 als wasm
+// (`tools/mmb-wasm/ms20_wasm.cc`, kernel `mmb_dsp::Korg35` — dezelfde code als
+// de firmware, mét tanh-clipper en 2x oversampling, wat deze Tone-benadering
+// juist niet had). De klasse blijft staan voor `Ms20.typeId` en als
+// leesbaar verschil-document; de registry duldt geen tweede factory.

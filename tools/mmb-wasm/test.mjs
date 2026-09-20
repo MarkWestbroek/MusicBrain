@@ -105,6 +105,19 @@ for (const f of files) {
       m.ex.mmb_input_connected(0, 1);
     };
   }
+  else if (id === 'tp_mmb_vcf' || id === 'tp_mmb_ms20') {
+    // Zaagtand van 220 Hz door een lowpass op 400 Hz, met een trage
+    // cutoff-sweep op de CV: de piek moet meebewegen en netjes ≤ 1 blijven.
+    m.setCtl('cutoff', 400); m.setCtl('cv_amt', 2);
+    m.setCtl('q', id === 'tp_mmb_vcf' ? 2.5 : 0.6);
+    let ph = 0;
+    script = (s) => {
+      const b = m.inBuf(0);
+      for (let k = 0; k < m.block; k++) { b[k] = 0.3 * (2 * (ph % 1) - 1); ph += 220 / m.rate; }
+      m.ex.mmb_input_connected(0, 1);
+      m.setIn('cv', 0.5 + 0.5 * Math.sin(2 * Math.PI * 0.5 * s));
+    };
+  }
   else if (id === 'tp_mmb_peaks') { script = (s) => m.setIn('gate', (s % 0.5) < 0.01 ? 1 : 0); }
   else { m.setIn('voct', 0); script = (s) => m.setIn('gate', s < 0.6 ? 1 : 0); }
   const t0 = process.hrtime.bigint();
