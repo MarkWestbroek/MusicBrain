@@ -95,19 +95,73 @@ Daarbij bleek `cv → VCO.tune` helemaal niet bedraad te zijn: ook een
 LFO-vibrato kwam nooit bij de VCO aan. Nu wel — volt × 1200 op `osc.detune`,
 zodat het optelt bij de noot van de dispatcher.
 
-### 3. Bestaande C++ die alleen nog niet gebouwd is
+### 3. Bestaande C++ die alleen nog niet gebouwd is — *stk_sound klaar* (2026-09-20)
 
-`string` en `stk_sound` (STK staat in `firmware/lib/stk`), `comb`,
-`resonator`, `comp`, `cr78` — DSP zit in de module-header zelf. Per module:
-kernel eruit naar `mmb-dsp` waar hij nog in de header zit, dan het recept.
+`stk_sound` was de schone: de DSP zit volledig in de gevendorde STK, dus de
+wasm-wrapper compileert dezelfde bron als de firmware — geen
+firmware-wijziging, geen licentievraag. Acht van de negen modellen klinken op
+hun defaults; zie de README voor Brass (lipspanning omhoog) en BandedWG (CC#2
+is daar bowPressure, ook op de Teensy). Doorgemeten in
+`editor/src/modular-mb/sim/wasmStkSound.test.ts`: poorten en controls tegen de
+catalogus, elk model apart, V/Oct-tracking en de gate-staart.
+
+Onderweg gevonden en in de wrapper rechtgezet: bij Brass zet `setFrequency()`
+de lipspanning terug, dus de controls moeten ná de toonhoogte. Stond de
+volgorde andersom, dan deed de Timbre-knop niets. **De firmware heeft dezelfde
+volgorde-afhankelijkheid** (`writeCvPort("voct")` → `setPitch` zonder daarna
+`applyControlChanges()`), dus daar doet Timbre op Brass ook niets zolang er een
+V/Oct-kabel in zit. Eén regel om te repareren, maar dat hoort bij een sessie
+met oren erbij.
+
+Blijft over: `string`, `comb`, `resonator`, `comp`, `cr78` — DSP zit in de
+module-header zelf en moet eerst naar `mmb-dsp`.
 
 ### 4. Kernels uit de Teensy-klassen tillen
 
-`vco` (`AudioSynthWaveform`), `ladder` (`AudioFilterLadder`, Huovilainen van
-Richard van Hoesel), `ahdsr` (envelope), `echo` (`AudioEffectDelay`),
-`string` (`AudioSynthKarplusStrong`). Kopiëren naar `mmb-dsp`, de
-`AudioStream`-schil in de firmware laten, firmware laten draaien op de
-kernel, daarna het recept. Elke module is los af te ronden.
+`vco` (`AudioSynthWaveform`), `ladder` (`AudioFilterLadder`), `ahdsr`
+(envelope), `echo` (`AudioEffectDelay`), `string`
+(`AudioSynthKarplusStrong`). Kopiëren naar `mmb-dsp`, de `AudioStream`-schil
+in de firmware laten, firmware laten draaien op de kernel, daarna het recept.
+
+Een onderzoeksronde op 2026-09-20 (zie *Onderzoek* hieronder) veranderde het
+beeld op drie punten:
+
+- **Mag: ja, maar per bestand.** De Teensy Audio Library heeft géén
+  repo-brede LICENSE; elk bestand draagt zijn eigen kop. PJRC-bestanden
+  (`synth_waveform`, `effect_envelope`, `effect_delay`) zijn MIT **plus** een
+  verplichte "development funding notice" — drie notices dus, niet twee.
+  `filter_ladder.*` is niet van PJRC maar van Richard van Hoesel (2021), eigen
+  MIT-achtige grant, met het informele verzoek de beschrijvende kop te
+  bewaren. DaisySP's `ladder.h` laat zien hoe zo'n attributieblok eruitziet.
+  (Lezing van bronkoppen, geen juridisch advies — schrijf het blok bewust op
+  en pin de upstream-commit waarvan je port.)
+- **De int16→float-aanname klopt niet voor de ladder.** Zijn hele kern is al
+  float; int16 zit alleen op de acht `audio_block_t`-randen. Het risico zit
+  dus in de schaling op die rand, niet in de rekenkunde. Maar het is ook niet
+  het kale Huovilainen-paper: het is van Hoesel v1.5 met 4× oversampling,
+  `MAX_RESONANCE` 1,8, een eigen Q-polynoom, `fast_tanh`/`fast_exp2f`, en —
+  het echte werk — een **36-taps polyfase-FIR uit CMSIS** als standaardpad.
+  Daar bestaat in wasm niets voor; dat moet je zelf schrijven, anders val je
+  stil terug op het lineaire pad dat hoorbaar anders is. Ook: de cutoff-grens
+  is `0,425·Fs`, geen vaste 18,7 kHz.
+- **De VCO is geen wavetable maar een BLEP-toestandsmachine**: een 32-slots
+  ringbuffer met actieve stappen, een 16-entry int32-uitgangsbuffer, een
+  258-entry staptabel. polyBLEP eronder schuiven verandert de transiënt
+  meetbaar — dit is overschrijven, niet herschrijven.
+
+**En de keuze die daaruit volgt.** `phase_increment = freq · 2³² /
+AUDIO_SAMPLE_RATE_EXACT` is een compile-time macro zonder runtime-setter, en
+de macro is `#ifndef`-guarded: een wasm-build die hem vergeet draait stilletjes
+44,1-coëfficiënten op 48 kHz. Bit-exact nullen tegen de firmware kán niet
+zolang de rates verschillen. Onze architectuur koos al de goede kant — modules
+draaien op hun eigen native rate en de worklet resamplet op de rand — maar
+daarmee is de kwaliteit van die resampling (stap 3 van het onderzoek) geen
+zijpad meer: hij zit in het kritieke pad van pariteit.
+
+Verificatie hoort dan perceptueel te zijn, niet een platte THD/SNR: de
+alias-hoorbaarheidsdrempels zijn sterk asymmetrisch rond de grondtoon (onder
+f0 volstaat 0–12 dB onderdrukking, erboven is 19–41 dB nodig), en de
+aanbevolen maat is de A-gewogen noise-to-mask ratio.
 
 ### 5. Stemgedrag van MIDI-In — **deels** (2026-09-20)
 
@@ -156,6 +210,52 @@ Elements is hier juist goed: die klemt al, en de "overdrive" die je bij hoge
 houdt zijn energie vast en stapelt tot hij tegen die limiter aanloopt. Zelfde
 gedrag op de Teensy; geen porteerfout.
 
+## Onderzoek (2026-09-20)
+
+Een deep-research-ronde over drie vragen: kernels uit de Teensy-lib tillen,
+MIDI-stemgedrag exact definiëren, en resampling in een AudioWorklet. Negen
+bevindingen overleefden de verificatie, **allemaal over de eerste vraag** —
+hierboven verwerkt. Vragen 2 en 3 leverden nul overlevende claims op. Dat is
+een gat in het onderzoek, geen bewijs dat er niets is; beide verdienen een
+eigen ronde.
+
+### Nagelopen wat de verificatie onderuithaalde (2026-09-20)
+
+Twee blokken waren 0-3 weggestemd. **Beide bleken te kloppen**; de verifiers
+konden de bronnen simpelweg niet lezen. Dat is een nuttige les over het
+onderzoek zelf: een PDF vol formules komt er als tekenbrij uit, en dan stemt
+een verifier "niet te bevestigen" als "onwaar".
+
+**`newdigate/teensy-audio-x86-stubs` bestaat.** MIT, Teensy Audio Library naar
+Linux/x86 met audio-I/O via libsoundio, "highly experimental work-in-progress",
+86 commits. In `src/` staan `filter_ladder.*`, `effect_envelope.*`,
+`effect_delay.*` en `effect_delay_ext.*` — géén `synth_waveform`. Daarmee is
+het een bruikbare referentie voor stap 4: iemand heeft die bestanden al van
+`AudioStream` en de Teensy-hardware losgeweekt.
+
+En er staat een **`Resampler.*` van Alexander Walch** in (MIT, afgeleid van de
+Teensy Audio Library): windowed sinc met Kaiser-venster, polyfase, instelbare
+halve filterlengte van 20 tot 80 taps naar gelang de gewenste onderdrukking, en
+PID-geregelde driftcorrectie voor rate-matching in real time. Dat is precies
+het gereedschap waar onderzoeksvraag 3 naar zocht — bestaande C++ uit ons eigen
+ecosysteem, te compileren naar wasm. Waard om tegen onze lineaire interpolatie
+af te zetten voordat we zelf iets bouwen.
+
+**Het DAFx-2004-paper bevestigt alle drie de claims.** Zelf nagelezen
+(`dafx.de/paper-archive/2004/P_061.PDF`):
+
+- *Oversampling verplicht:* "Since there is a non-linearity, oversampling must
+  be used and this brings the Euler solution closer to the ideal solution", en
+  "Some oversampling is required to avoid aliasing." Het paper rekent met 2×
+  (88,2 kHz); de Teensy-ladder doet 4×.
+- *Tuning-coëfficiënt:* vergelijking (21) is `g = 1 − e^(−2π·Fc/Fs)`, met in
+  (20) `Fs` in de noemer. De coëfficiënt is dus sample-rate-gebonden — precies
+  waarom een 44,1-kernel op 48 kHz niet klopt zonder herberekening.
+- *Niet-lineariteit:* vergelijking (1) is `tanh((Vt1−Vt2)/(2·Vt))` met `Vt` de
+  thermische spanning van de transistor; (6), (7) en (10) gebruiken dezelfde
+  vorm. Het paper geeft géén getalswaarde voor `Vt` — dat is een keuze van de
+  implementatie, en dus een plek waar twee ports uiteen kunnen lopen.
+
 ## Wat geen wasm-port oplost
 
 - **CV-domein.** De firmware heeft een aparte `CvGraph` op een 1 kHz
@@ -198,6 +298,6 @@ Op Windows draait `build.sh` onder Git Bash.
       (`polySim.ts`, 2026-09-20)
 - [x] Stap 1 — vcf + ms20 naar wasm (2026-09-20)
 - [x] Stap 2 — MIDI CC + bend in de sim, plus cv → VCO.tune (2026-09-20)
-- [ ] Stap 3 — string, stk_sound, comb, resonator, comp, cr78
+- [~] Stap 3 — stk_sound klaar (2026-09-20); string, comb, resonator, comp, cr78 open
 - [ ] Stap 4 — vco, ladder, ahdsr, echo
 - [~] Stap 5 — stemgedrag MIDI-In: steal, voiceCount en glide (2026-09-20); prio, legato en unison blijven open
