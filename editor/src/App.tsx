@@ -6,7 +6,8 @@ import { ScopePanel } from './scope/ScopePanel';
 type Project = 'switcher' | 'amp' | 'mmb' | 'scope';
 
 export function App(): JSX.Element {
-  const [project, setProject] = useState<Project>('switcher');
+  // Modular MB is waar het werk zit, dus daar begin je.
+  const [project, setProject] = useState<Project>('mmb');
 
   return (
     <main style={{ fontFamily: 'var(--mb-font-sans)', padding: 16 }}>
