@@ -119,11 +119,12 @@ twee runs faalden met "No such file or directory". Eenmalig met de hand
 `deploy-vps.sh` zelf werkt pas vanaf de run **na** de push die hem bevat,
 omdat de lopende run nog de oude versie draait.
 
-- **Deploy-sleutel**: in `~omnium/.ssh/authorized_keys` staat
+- **Deploy-sleutel**: in `~/.ssh/authorized_keys` van de deploy-gebruiker op de VPS staat
   `command="/srv/musicbrain-editor/src/editor/deploy-vps.sh",restrict ssh-ed25519 … github-actions@MusicBrain deploy-editor`.
   De privésleutel staat alleen in de GitHub-secret `VPS_SSH_KEY`. Vervangen:
   nieuw sleutelpaar maken, de regel in `authorized_keys` vervangen en de secret
-  overschrijven.
+  overschrijven. Gebruiker en host staan in de secrets `VPS_USER` en `VPS_HOST`
+  (bewust niet in dit openbare repo).
 - **`VPS_KNOWN_HOSTS`**: de host-sleutel van de VPS (ed25519), vastgepind. Met
   de Windows-`ssh-keyscan` lukt het ophalen niet (die kent de sleuteluitwisseling
   van de VPS niet); gebruik die van Git Bash, of neem de regel uit je eigen

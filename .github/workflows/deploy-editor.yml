@@ -9,6 +9,8 @@
 # Secrets (Settings → Secrets and variables → Actions):
 #   VPS_SSH_KEY      privésleutel van het deploy-sleutelpaar
 #   VPS_KNOWN_HOSTS  host-sleutel van de VPS (ssh-keyscan), vastgepind
+#   VPS_USER         SSH-gebruiker op de VPS (bewust niet in dit openbare repo)
+#   VPS_HOST         IP-adres van de VPS (moet overeenkomen met VPS_KNOWN_HOSTS)
 
 name: Deploy editor
 
@@ -45,15 +47,20 @@ jobs:
 
       - name: Deploy op de VPS
         # Het forced command negeert alles behalve de commit (SSH_ORIGINAL_COMMAND).
+        env:
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
         run: |
           ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o BatchMode=yes \
-              -o StrictHostKeyChecking=yes omnium@62.129.142.42 "$GITHUB_SHA"
+              -o StrictHostKeyChecking=yes "$VPS_USER@$VPS_HOST" "$GITHUB_SHA"
 
       - name: Controleren
         # Rechtstreeks naar de VPS (--resolve), en de juiste commit (version.txt).
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
         run: |
           want="${GITHUB_SHA:0:12}"
-          got=$(curl -fsS --resolve editor.musicbrain.nl:443:62.129.142.42 \
+          got=$(curl -fsS --resolve "editor.musicbrain.nl:443:$VPS_HOST" \
                 https://editor.musicbrain.nl/version.txt)
           echo "live: $got — verwacht: $want"
           test "$got" = "$want"
