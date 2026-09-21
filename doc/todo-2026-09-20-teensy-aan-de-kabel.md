@@ -5,22 +5,24 @@
 > alleen met je oren erbij te beoordelen zijn. Dit bestand mag weg als het
 > gedaan is. Achtergrond: [sim-firmware-parity-plan.md](sim-firmware-parity-plan.md).
 
-## 1. Flashen
+## 1. Flashen — ✅ gedaan op 21 september 2026
 
-Twee commits raken de firmware sinds de vorige flash:
+Er draaide 0.5.48; geflasht is **0.5.50**, geverifieerd met een `hello` over
+COM3 (`{"version":"0.5.50","step":3}`). Vier commits gingen mee:
 
 | commit | wat |
 |---|---|
 | `aba501d` | MS-20 klemt zijn uitgang vóór de int16-cast |
 | `e940b95` | note-priority (PRIO) werkt, en mono zakt terug naar een nog ingedrukte toets |
+| `05458f7` | `env_sens` op de samplercel + de follower die niet terugzakte |
+| `f053fec` | `Curve::Log` in `MidiMap::scale` |
 
-```bash
-cd firmware/app-modular-brain && pio run -t upload
-```
+Let op bij een volgende keer: `pio run -t upload` gebruikt hier de
+teensy-gui-loader en meldt SUCCESS zodra hij die opent — niet zodra het beeld
+erin staat. Vraag dus altijd `hello` na. Een open COM-poort (editor verbonden)
+blokkeert het flashen.
 
-Beide compileren (`pio run -e teensy41`, SUCCESS) en de core-tests zijn groen
-(110/110, `ctest --test-dir build -C Debug`). Maar geen enkele noot ervan is
-ooit gehoord.
+Nog geen noot ervan is gehoord — dat is hieronder.
 
 ## 2. Beoordelen met je oren
 
@@ -38,6 +40,11 @@ het is wél ander gedrag dan je gewend was.
 
 **PRIO op low en high.** Zet hem op high en druk een lagere toets bij: er hoort
 niets te gebeuren. Laat de hoge los en de stem zakt naar de lage.
+
+**Auto-wah op de sampler.** Zet een bank op de SD, laad de patch met
+`env_k → cutoff_k` (Poly ▾ → Sampler ×8 auto-wah) en speel hard en zacht. Met
+`Sens` op +12 dB hoort het filter mee te ademen; in de browser doet dezelfde
+patch het nu, dus dit is meteen een pariteitscheck van de hele keten.
 
 **Unison met spread.** Zet UNI aan en draai SPRD open. Vergelijk met dezelfde
 patch in de browser-simulator — die gebruikt nu letterlijk dezelfde formule
