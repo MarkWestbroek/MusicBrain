@@ -17,6 +17,18 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### fw 0.5.52 — PSRAM, SD-kaart en banknamen in de status (2026-09-22)
+- **De Teensy meldt wat hij heeft.** De status krijgt `psramMB` en een
+  momentopname van de SD-kaart van bij het opstarten: `sdOk`, `sdFs` (64 =
+  exFAT), `sdMB`, `sdBanks` (bitmasker) en `sdBankNames` (de naam uit de kop
+  van elke `/mmb/banks/NN.mmbs`). De editor toont het in de statusbalk, en het
+  sampler-paneel krijgt een displaystrookje met de naam van de gekozen bank.
+- **exFAT werkt.** Getest met een Samsung Pro 64 GB zoals hij uit de verpakking
+  komt: gelezen, `/mmb/banks` aangemaakt, 13 banken met naam gevonden.
+- Eerste flash op de Teensy mét PSRAM (8 MB); de vorige had er geen.
+- Opgeruimd: een echte NUL-byte in een char-literal in `Dx7Module.h` (git zag
+  het bestand als binair, de compiler waarschuwde bij elke build).
+
 ### fw 0.5.51 — DX7 met glide (2026-09-21)
 - **De klinkende DX7-noot volgt nu de V/Oct.** msfa kent de toonhoogte alleen
   bij de aanslag; `Dx7Module` zette de hele noot vast en gaf alleen de
