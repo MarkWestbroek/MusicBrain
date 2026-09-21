@@ -15,10 +15,11 @@
 import {
   type ModularProject, type ModuleType, type ModuleInstance, type RackSlot,
   type Rack, type Patch, type PatchConnection, type ControlValue,
-  type ModuleRole, type CellGroup, type PolyGroup,
+  type ModuleRole, type CellGroup, type PolyGroup, type Taper,
   MM_PER_HP, PANEL_HEIGHT_MM,
 } from './types';
 import { uid } from './store';
+import { derivedTaper } from './taper';
 import { DX7_VOICE_NAMES } from './dx7BankNames';
 
 // ── helpers ────────────────────────────────────────────────────────────
@@ -27,11 +28,16 @@ const W = (hp: number) => hp * MM_PER_HP;
 
 function knob(id: string, label: string, x: number, y: number,
               opts: Partial<{ min: number; max: number; def: number; size: 'small'|'medium'|'large'; color: string; style: string; unit: string;
-                              step: number; ticks: { every?: number; highlight?: number[] } }> = {}) {
+                              step: number; taper: Taper; ticks: { every?: number; highlight?: number[] } }> = {}) {
+  // Stempelen wat `derivedTaper` er toch al van zou maken, zodat een
+  // geëxporteerd paneel zijn curve zichtbaar meedraagt.
+  const taper = opts.taper
+    ?? derivedTaper({ id, unit: opts.unit, min: opts.min ?? 0, max: opts.max ?? 10 });
   return {
     control: {
       kind: 'knob' as const, id, label,
       min: opts.min ?? 0, max: opts.max ?? 10, defaultValue: opts.def ?? 5,
+      ...(taper ? { taper } : {}),
       size: (opts.size ?? 'medium') as 'small'|'medium'|'large',
       color: opts.color, style: (opts.style as never) ?? 'generic',
       unit: opts.unit,

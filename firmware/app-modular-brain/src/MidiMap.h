@@ -9,12 +9,13 @@
  *   "midiMap": {
  *     "bindings": [
  *       { "ch": 1, "cc": 74, "mod": "vcf1", "ctrl": "cutoff",
- *         "min": 0.0, "max": 1.0, "curve": "lin" }
+ *         "min": 20.0, "max": 18000.0, "curve": "log" }
  *     ]
  *   }
  *
  * `load()` parseert die lijst; `match()` zoekt een binding bij een inkomende
- * (kanaal, CC) en `scale()` beeldt de 7-bit waarde af op het controlbereik.
+ * (kanaal, CC) en `scale()` beeldt de 7-bit waarde af op het controlbereik —
+ * lineair, als audio-taper of logaritmisch, net als de knop in de editor.
  * De aanroeper (main.cpp) stuurt de geschaalde waarde door het
  * `pokeControl`-pad (FW-LIVE-1), zodat toepassen én persisteren zich exact
  * als een editor-poke gedragen. Gebonden CC's worden daar *geconsumeerd*:
@@ -50,6 +51,17 @@ class MidiMap {
 public:
     static constexpr std::size_t kMaxBindings = 64;
 
+    /**
+     * @brief Responscurve van CC naar controlwaarde.
+     *
+     * Dezelfde drie als de knoppen in de editor (`editor/src/modular-mb/
+     * taper.ts`) en als de bridge (`surfaceBridge.ts`). 128 stappen is grof:
+     * lineair is één CC-stap op een cutoff van 300 Hz zes halve tonen, met
+     * `Log` is het er overal één. Lopen die drie uit de pas, dan voelt
+     * dezelfde Roto-knop op de Teensy anders dan in de simulator.
+     */
+    enum class Curve : uint8_t { Lin = 0, Exp = 1, Log = 2 };
+
     struct Binding {
         uint8_t     ch  = 0;    ///< MIDI-kanaal 1–16; 0 = omni.
         uint8_t     cc  = 0;    ///< CC-nummer 0–127.
@@ -57,7 +69,7 @@ public:
         std::string controlId;  ///< Control op die module.
         float       min = 0.0f; ///< Controlwaarde bij CC 0.
         float       max = 1.0f; ///< Controlwaarde bij CC 127.
-        bool        exp = false;///< Curve: false = lineair, true = exponentieel.
+        Curve       curve = Curve::Lin;  ///< Responscurve, zie `scale()`.
         /** Kwantisatiestap van de doel-control (KnobControl.step); 0 = continu. */
         float       step = 0.0f;
         /** Afgeleid: step en min zijn heel → poke als int32 (DX7 bank/program). */
@@ -96,7 +108,10 @@ public:
             e.controlId = ctrl;
             e.min       = b["min"] | 0.0f;
             e.max       = b["max"] | 1.0f;
-            e.exp       = std::strcmp(b["curve"] | "lin", "exp") == 0;
+            const char* curve = b["curve"] | "lin";
+            e.curve     = std::strcmp(curve, "exp") == 0 ? Curve::Exp
+                        : std::strcmp(curve, "log") == 0 ? Curve::Log
+                        : Curve::Lin;
             e.step      = b["step"] | 0.0f;
             e.integer   = e.step > 0.0f
                        && e.step == std::floor(e.step)
@@ -124,12 +139,24 @@ public:
         return n;
     }
 
-    /** @brief Beeld een 7-bit CC-waarde af op het controlbereik van @p b,
-     *  met step-kwantisatie (geclamped) wanneer de control die heeft. */
+    /**
+     * @brief Beeld een 7-bit CC-waarde af op het controlbereik van @p b,
+     *  met step-kwantisatie (geclamped) wanneer de control die heeft.
+     *
+     * `Lin` verdeelt gelijk, `Exp` is de kwadratische audio-taper van een
+     * volumepot, en `Log` houdt de verhouding gelijk (frequenties, tijden).
+     * `Log` heeft een bereik boven nul nodig en valt anders terug op `Lin`.
+     */
     static float scale(const Binding& b, uint8_t value) {
-        float t = static_cast<float>(value) / 127.0f;
-        if (b.exp) t *= t;
-        float v = b.min + (b.max - b.min) * t;
+        const float t = static_cast<float>(value) / 127.0f;
+        float v;
+        if (b.curve == Curve::Log && b.min > 0.0f && b.max > b.min) {
+            v = b.min * std::pow(b.max / b.min, t);
+        } else if (b.curve == Curve::Exp) {
+            v = b.min + (b.max - b.min) * t * t;
+        } else {
+            v = b.min + (b.max - b.min) * t;
+        }
         if (b.step > 0.0f) {
             v = b.min + std::round((v - b.min) / b.step) * b.step;
             v = std::clamp(v, std::min(b.min, b.max), std::max(b.min, b.max));

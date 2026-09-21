@@ -20,7 +20,7 @@ import {
 import { exportRotoSetup, importRotoSetup } from './rotoSetup';
 import { resolveControls } from './types';
 import type {
-  Control, MidiBinding, MidiBindingGroup, ModularProject, ModuleInstance, Patch,
+  Control, MidiBinding, MidiBindingGroup, ModularProject, ModuleInstance, Patch, Taper,
 } from './types';
 
 const CELL: React.CSSProperties = {
@@ -128,6 +128,9 @@ export function ControlSurfacePanel(): JSX.Element {
     if (def && (def.kind === 'knob' || def.kind === 'slider')) {
       setBinding(i, {
         ctrl: ctrlId, min: def.min, max: def.max,
+        // Curve van de control overnemen: een cutoff op een Roto-encoder moet
+        // net zo lopen als dezelfde knop in de patcher.
+        curve: def.kind === 'knob' ? def.taper : undefined,
         step: def.kind === 'knob' ? def.step : undefined,
       });
     } else {
@@ -371,8 +374,12 @@ export function ControlSurfacePanel(): JSX.Element {
                 </td>
                 <td style={CELL}>
                   <select value={b.curve ?? 'lin'}
-                    onChange={(e) => setBinding(i, { curve: e.target.value === 'exp' ? 'exp' : undefined })}>
+                    title="lin = gelijk verdeeld · log = gelijke verhoudingen (frequenties, tijden) · exp = audio taper (volume)"
+                    onChange={(e) => setBinding(i, {
+                      curve: e.target.value === 'lin' ? undefined : e.target.value as Taper,
+                    })}>
                     <option value="lin">lin</option>
+                    <option value="log">log</option>
                     <option value="exp">exp</option>
                   </select>
                 </td>

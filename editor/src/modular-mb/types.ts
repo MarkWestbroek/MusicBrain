@@ -647,8 +647,9 @@ export interface MidiBinding {
   /** Controlbereik waarop CC 0–127 wordt afgebeeld. */
   min: number;
   max: number;
-  /** Responscurve; weggelaten = 'lin'. */
-  curve?: 'lin' | 'exp';
+  /** Responscurve; weggelaten = 'lin'. Zelfde drie curves als de knoppen
+   *  (`taper.ts`) en als `MidiMap::scale` op de Teensy. */
+  curve?: Taper;
   /** Kwantisatiestap van de doel-control (KnobControl.step), zodat een
    *  integer-control (DX7 bank/program) hele waardes gepoket krijgt.
    *  Weggelaten = continu. */

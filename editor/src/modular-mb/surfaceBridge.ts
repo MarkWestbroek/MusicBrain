@@ -25,6 +25,7 @@ import { getProject, updateProject, subscribe as subscribeStore } from './store'
 import { sendControlPoke } from './teensyLink';
 import { polyControlTargets } from './polyExpand';
 import { resolveControls } from './types';
+import { fromTaper, toTaper } from './taper';
 import type { MidiBinding, ModularProject, Patch } from './types';
 
 // ── State ────────────────────────────────────────────────────────────────
@@ -80,11 +81,12 @@ function isOwnDevicePort(p: MIDIInput | MIDIOutput): boolean {
 }
 
 // ── Waarde ↔ CC-schaal (spiegel van firmware MidiMap::scale) ────────────
+// 128 stappen is grof: lineair is één CC-stap op een cutoff van 300 Hz zes
+// halve tonen. Met de log-curve is het er overal één, net als bij de knop —
+// vandaar dezelfde helper hier, in `ModulePanel` en in de firmware.
 
 function ccToValue(b: MidiBinding, v7: number): number {
-  let t = v7 / 127;
-  if (b.curve === 'exp') t = t * t;
-  let v = b.min + (b.max - b.min) * t;
+  let v = fromTaper(v7 / 127, { min: b.min, max: b.max, taper: b.curve });
   // Integer-controls (DX7 bank/program: step 1) krijgen hele waardes —
   // dezelfde kwantisatie als de knopdrag in de patcher.
   if (b.step && b.step > 0) {
@@ -95,11 +97,7 @@ function ccToValue(b: MidiBinding, v7: number): number {
 }
 
 function valueToCc(b: MidiBinding, v: number): number {
-  const span = b.max - b.min;
-  let t = span !== 0 ? (v - b.min) / span : 0;
-  t = Math.max(0, Math.min(1, t));
-  if (b.curve === 'exp') t = Math.sqrt(t);
-  return Math.round(t * 127);
+  return Math.round(toTaper(v, { min: b.min, max: b.max, taper: b.curve }) * 127);
 }
 
 // ── Actieve patch + gebonden waarde ──────────────────────────────────────

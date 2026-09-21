@@ -10,8 +10,12 @@
 // All coordinates are in millimetres; we convert to SVG user units 1:1 and
 // rely on CSS `width`/`height` for actual display scaling.
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTeensyLink } from './teensyLink';
+import {
+  dragTravelPx, fromTaper, toTaper, wheelStep,
+  FINE_FACTOR, WHEEL_NOTCH_PX,
+} from './taper';
 import {
   type ModuleInstance,
   type ModuleType,
@@ -461,40 +465,44 @@ function KnobGlyph({
   const cap = c.color ?? capColourFor(c.style ?? 'generic');
   const ring = ringColourFor(c.style ?? 'generic');
 
-  // Normalise value to 0..1 along the knob's domain
-  const t = (value - c.min) / (c.max - c.min || 1);
-  const tClamped = Math.max(0, Math.min(1, t));
+  // Waarde → knoppositie 0..1 langs de taper van deze control.
+  const tClamped = toTaper(value, c);
   // Pointer sweep -135°..+135°
   const angle = (-135 + tClamped * 270) * Math.PI / 180;
   const px = x + Math.sin(angle) * (r - 0.6);
   const py = y - Math.cos(angle) * (r - 0.6);
 
-  const dragState = useRef<{ startY: number; startVal: number } | null>(null);
+  const dragState = useRef<{ startY: number; startT: number; fine: boolean } | null>(null);
   const [active, setActive] = useState(false);
+
+  /** Detents van de control: rotary-stepper-ticks en de step-kwantisatie. */
+  const detent = c.ticks?.every ?? c.step ?? 0;
+  function quantise(v: number): number {
+    let next = clamp(v, Math.min(c.min, c.max), Math.max(c.min, c.max));
+    if (c.ticks?.every) next = Math.round(next / c.ticks.every) * c.ticks.every;
+    if (c.step)         next = Math.round(next / c.step) * c.step;
+    return clamp(next, Math.min(c.min, c.max), Math.max(c.min, c.max));
+  }
 
   function onPointerDown(e: React.PointerEvent<SVGGElement>): void {
     if (!onChange) return;
     (e.target as Element).setPointerCapture(e.pointerId);
-    dragState.current = { startY: e.clientY, startVal: value };
+    dragState.current = { startY: e.clientY, startT: toTaper(value, c), fine: e.shiftKey };
     setActive(true);
   }
   function onPointerMove(e: React.PointerEvent<SVGGElement>): void {
-    if (!dragState.current || !onChange) return;
-    const dy = dragState.current.startY - e.clientY;
-    const fraction = dy / 120;     // 120 px ≈ full range
-    const range = c.max - c.min;
-    let next = clamp(dragState.current.startVal + fraction * range, c.min, c.max);
-    // Click-detents: snap to multiples of ticks.every when defined.
-    if (c.ticks?.every) {
-      next = Math.round(next / c.ticks.every) * c.ticks.every;
-      next = clamp(next, c.min, c.max);
+    const d = dragState.current;
+    if (!d || !onChange) return;
+    // Shift midden in de sleep: anker verzetten in plaats van de waarde laten
+    // springen — je gaat gewoon vanaf hier vier keer zo langzaam verder.
+    if (e.shiftKey !== d.fine) {
+      d.fine = e.shiftKey;
+      d.startY = e.clientY;
+      d.startT = toTaper(value, c);
     }
-    // Quantisation step (e.g. integer CC-number pickers).
-    if (c.step) {
-      next = Math.round(next / c.step) * c.step;
-      next = clamp(next, c.min, c.max);
-    }
-    onChange(next);
+    const dy = d.startY - e.clientY;
+    const travel = dragTravelPx(c) * (d.fine ? FINE_FACTOR : 1);
+    onChange(quantise(fromTaper(d.startT + dy / travel, c)));
   }
   function onPointerUp(e: React.PointerEvent<SVGGElement>): void {
     (e.target as Element).releasePointerCapture?.(e.pointerId);
@@ -502,8 +510,46 @@ function KnobGlyph({
     setActive(false);
   }
 
+  // ── Muiswiel: fijnstellen zonder sleepweg ────────────────────────────
+  // React hangt `wheel` als passive listener op, en dan doet preventDefault()
+  // niets: je draait de knop én scrollt het paneel eronder weg. Dus zelf
+  // aanhaken. De laatste waarde loopt via een ref, zodat de listener één keer
+  // opgehangen wordt en niet bij elke draai opnieuw.
+  const gRef = useRef<SVGGElement | null>(null);
+  const live = useRef({ value, onChange, quantise, c });
+  live.current = { value, onChange, quantise, c };
+  const wheelAcc = useRef(0);
+  useEffect(() => {
+    const el = gRef.current;
+    if (!el) return undefined;
+    const onWheel = (e: WheelEvent): void => {
+      const { value: v, onChange: set, quantise: q, c: ctl } = live.current;
+      if (!set) return;
+      e.preventDefault();
+      // Niet doorlaten naar de patcher-canvas eronder: daar is het wiel zoom.
+      e.stopPropagation();
+      // Trackpads sturen een stroom kleine delta's (en soms regels in plaats
+      // van pixels): optellen tot er een klik in zit.
+      wheelAcc.current += e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+      const step = wheelStep(ctl, e.shiftKey);
+      let next = v;
+      let moved = false;
+      while (Math.abs(wheelAcc.current) >= WHEEL_NOTCH_PX) {
+        const dir = wheelAcc.current > 0 ? -1 : 1;      // wiel naar je toe = omlaag
+        wheelAcc.current += dir * WHEEL_NOTCH_PX;
+        // Een control met detenten (bank, program) stapt er precies één.
+        next = detent ? q(next + dir * detent)
+                      : q(fromTaper(toTaper(next, ctl) + dir * step, ctl));
+        moved = true;
+      }
+      if (moved) set(next);
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [detent]);
+
   return (
-    <g style={{ cursor: onChange ? 'ns-resize' : 'default' }}
+    <g ref={gRef} style={{ cursor: onChange ? 'ns-resize' : 'default' }}
        onPointerDown={onPointerDown} onPointerMove={onPointerMove}
        onPointerUp={onPointerUp} onPointerCancel={onPointerUp}>
       {/* tick marks (rotary-stepper) */}
@@ -538,8 +584,7 @@ function KnobTicks({
   // Outer ring radii.
   const r0 = r + 0.9;
   for (let v = c.min; v <= c.max + 1e-6; v += every) {
-    const t = (v - c.min) / range;
-    const a = (-135 + t * 270) * Math.PI / 180;
+    const a = (-135 + toTaper(v, c) * 270) * Math.PI / 180;
     const sx = x + Math.sin(a) * r0;
     const sy = y - Math.cos(a) * r0;
     const isBold = highlight.has(Math.round(v));
