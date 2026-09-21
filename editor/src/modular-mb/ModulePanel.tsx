@@ -12,6 +12,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useTeensyLink } from './teensyLink';
+import { bankTitle } from './teensyStorage';
 import {
   dragTravelPx, fromTaper, toTaper, wheelStep,
   FINE_FACTOR, WHEEL_NOTCH_PX,
@@ -193,7 +194,29 @@ export function ModulePanel({
       {/* Live master-VU op het OUT-paneel (ED-P-2): leest de outPeak-
           telemetrie; leeg/dim wanneer er geen Teensy verbonden is. */}
       {mod.typeId === 'tp_mmb_out' && <OutVuMeter cx={widthMm / 2} yTop={46} />}
+      {mod.typeId === 'tp_mmb_sampler' && (
+        <SamplerBankStrip cx={widthMm / 2} y={15.6} w={widthMm * 0.62}
+          bank={Number(controlState?.bank ?? 0)} />
+      )}
     </svg>
+  );
+}
+
+/** Displaystrookje op het sampler-paneel: de naam van de gekozen bank, zoals
+ *  de Teensy hem van de SD-kaart las (zie teensyStorage.bankTitle). */
+function SamplerBankStrip({ cx, y, w, bank }: { cx: number; y: number; w: number; bank: number }): JSX.Element {
+  const link = useTeensyLink();
+  const st = link.status.kind === 'connected' ? link.lastStatus : undefined;
+  const { text, tone } = bankTitle(bank, st);
+  const col = tone === 'ok' ? '#67e8f9' : tone === 'warn' ? '#fbbf24' : '#64748b';
+  return (
+    <g>
+      <title>Bank op de SD-kaart van de Teensy (/mmb/banks/NN.mmbs); de naam komt uit de bank zelf.</title>
+      <rect x={cx - w / 2} y={y} width={w} height={3.6} rx={0.6}
+        fill="#0b1220" stroke="#1e293b" strokeWidth={0.15} />
+      <text x={cx} y={y + 2.55} fontSize={1.9} fill={col} textAnchor="middle"
+        fontFamily="ui-monospace, monospace">{text}</text>
+    </g>
   );
 }
 

@@ -274,6 +274,28 @@ void onGetStatus(JsonObject s) {
     // Generieke output-meter: hoogste |sample| op de master-uitgang (L/R)
     // sinds de vorige poll — hét "hoor ik iets?"-signaal voor tests/strip.
     s["outPeak"]  = mmb_link::OutModule::takeMasterPeak();
+    // Geheugen en opslag voor de sampler: zit er PSRAM op, en wat zag de
+    // firmware bij het opstarten op de SD-kaart? Zo hoef je de kaart er niet
+    // uit te halen om te weten of hij gelezen wordt.
+#if defined(ARDUINO_TEENSY41)
+    s["psramMB"]  = external_psram_size;
+#endif
+    {
+        const auto& bank = mmb_link::SampleBank::instance();
+        s["sdOk"]    = bank.sdOk();
+        s["sdFs"]    = bank.fsType();
+        s["sdMB"]    = bank.sizeMB();
+        s["sdBanks"] = bank.bankMask();
+        // De namen uit de kop van elke bank, op banknummer ("" = staat er
+        // niet), tot en met de hoogste bank die er is. Voor het display op
+        // het sampler-paneel.
+        int last = -1;
+        for (int k = 0; k < 16; ++k) if (bank.bankMask() & (1u << k)) last = k;
+        if (last >= 0) {
+            JsonArray names = s["sdBankNames"].to<JsonArray>();
+            for (int k = 0; k <= last; ++k) names.add(bank.bankName(k));
+        }
+    }
 #if HAVE_STK
     s["stkOom"]   = stk::Stk::memoryFailure();
 #endif

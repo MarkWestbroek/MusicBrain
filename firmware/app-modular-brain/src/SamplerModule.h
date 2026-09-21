@@ -73,8 +73,18 @@ public:
     void beginStorage() {
         sdOk_ = SD.begin(BUILTIN_SDCARD);
         if (sdOk_ && !SD.exists(kDir)) { SD.mkdir("/mmb"); SD.mkdir(kDir); }
+        snapshot();
     }
     bool sdOk() const { return sdOk_; }
+    /** Bestandssysteem van de kaart: 12/16/32 = FAT, 64 = exFAT, 0 = geen. */
+    uint8_t  fsType()   const { return fsType_; }
+    /** Grootte van de kaart in MB (0 = geen kaart). */
+    uint32_t sizeMB()   const { return sizeMB_; }
+    /** Welke banken er op de kaart staan: bit k = `/mmb/banks/kk.mmbs`. */
+    uint16_t bankMask() const { return bankMask_; }
+    /** Naam uit de kop van bank k ("" als die bank er niet staat, "?" als het
+     *  bestand er wel staat maar geen geldige bank is). */
+    const char* bankName(int k) const { return (k >= 0 && k < 16) ? names_[k] : ""; }
     uint32_t version() const { return version_; }
     int loadedBank() const { return loaded_; }
 
@@ -205,6 +215,41 @@ private:
     int16_t* data_ = nullptr;
     uint32_t cap_ = 0, version_ = 0;
     bool     sdOk_ = false, inPsram_ = false;
+    uint8_t  fsType_ = 0;
+    uint32_t sizeMB_ = 0;
+    uint16_t bankMask_ = 0;
+    char     names_[16][29] = {};
+
+    /**
+     * Momentopname voor de status: bestandssysteem, grootte en welke banken
+     * er staan. Eén keer bij het opstarten — de firmware leest de kaart ook
+     * alleen dan, dus dit is precies wat hij kan gebruiken. Geen usedSize():
+     * die telt op een grote kaart alle vrije clusters na en kan seconden duren.
+     */
+    void snapshot() {
+        fsType_ = 0; sizeMB_ = 0; bankMask_ = 0;
+        for (auto& n : names_) n[0] = '\0';
+        if (!sdOk_) return;
+        fsType_ = SD.sdfs.fatType();
+        sizeMB_ = static_cast<uint32_t>(SD.totalSize() / (1024ull * 1024ull));
+        char path[40];
+        for (int i = 0; i < 16; ++i) {
+            snprintf(path, sizeof(path), "%s/%02d.mmbs", kDir, i);
+            File f = SD.open(path, FILE_READ);
+            if (!f) continue;
+            bankMask_ |= static_cast<uint16_t>(1u << i);
+            // Alleen de kop (44 bytes): de naam die de importer erin zette,
+            // zodat het display laat zien wat er écht op de kaart staat.
+            mmb_dsp::BankHeader h{};
+            const bool ok = f.read(reinterpret_cast<uint8_t*>(&h), sizeof(h)) == sizeof(h)
+                         && std::memcmp(h.magic, "MMBS", 4) == 0;
+            f.close();
+            if (!ok) { std::strcpy(names_[i], "?"); continue; }
+            std::memcpy(names_[i], h.name, sizeof(h.name));      // 28 tekens, niet per se afgesloten
+            names_[i][sizeof(h.name)] = '\0';
+            for (char* c = names_[i]; *c; ++c) if (static_cast<unsigned char>(*c) < 0x20) *c = '?';
+        }
+    }
 };
 
 /** @brief Acht stemmen als één AudioStream met vier uitgangen. */

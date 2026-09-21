@@ -3,6 +3,7 @@
 // elke 2 s zolang de poort open is). Herbruikbaar: Teensy-modal + patcher.
 
 import { useTeensyLink } from './teensyLink';
+import { psramSummary, sdSummary } from './teensyStorage';
 
 /** Horizontale VU-bar met vaste groen/amber/rood-zones; de vulling volgt de
  *  master-outPeak. Segmenten zodat het als een klassieke bargraph oogt. */
@@ -67,6 +68,16 @@ export function TeensyStatusBar(props: { compact?: boolean }): JSX.Element | nul
       {st.heapFree !== undefined && (
         <span title="Vrije heap (RAM2) — hieruit komen module-instanties, STK-delay-lines en MI-buffers. Onder ~50 KB wordt een volgende zware push riskant.">
           heap <b style={{ color: st.heapFree < 50 * 1024 ? '#f87171' : '#34d399' }}>{Math.round(st.heapFree / 1024)}K</b>
+        </span>
+      )}
+      {psramSummary(st) !== undefined && (
+        <span title="PSRAM op de Teensy — daar gaan de samplebanken heen. Zonder PSRAM valt de sampler terug op de gewone heap: zo'n 3 seconden mono.">
+          PSRAM <b style={{ color: (st.psramMB ?? 0) > 0 ? '#34d399' : '#fbbf24' }}>{psramSummary(st)}</b>
+        </span>
+      )}
+      {sdSummary(st) !== undefined && (
+        <span title="Wat de firmware bij het opstarten op de SD-kaart zag. Hij leest de kaart alleen dan: na het verwisselen de Teensy herstarten. Banken = /mmb/banks/NN.mmbs, de Bank-knop van de sampler kiest NN.">
+          SD <b style={{ color: st.sdOk ? '#34d399' : '#64748b' }}>{sdSummary(st)}</b>
         </span>
       )}
       {st.outPeak !== undefined && (

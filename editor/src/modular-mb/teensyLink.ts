@@ -61,6 +61,12 @@ export interface DeviceStatus {
   uptimeMs?: number;
   heapFree?: number;  // vrije heap (RAM2) in bytes — module/DSP-budget
   outPeak?: number;   // hoogste |sample| op de master-uitgang sinds vorige poll (0..1)
+  psramMB?: number;   // PSRAM op de Teensy in MB (0 = geen) — daar gaan samplebanken heen
+  sdOk?: boolean;     // SD-kaart gelezen bij het opstarten (zie teensyStorage.ts)
+  sdFs?: number;      // 12/16/32 = FAT, 64 = exFAT
+  sdMB?: number;      // grootte van de kaart in MB
+  sdBanks?: number;   // bit k = /mmb/banks/kk.mmbs staat erop
+  sdBankNames?: string[];  // naam uit de kop van elke bank, op banknummer
   stkOom?: boolean;   // STK-allocatie ooit gefaald → STK-sectie zwijgt
   elementsReady?: boolean;  // Elements-diagnose: DSP-buffers gebonden?
   elementsCpu?: number;     // Elements-diagnose: ISR-aandeel (%)
@@ -195,6 +201,12 @@ function handleLine(line: string): void {
           uptimeMs: num(msg.uptimeMs),
           heapFree: num(msg.heapFree),
           outPeak:  num(msg.outPeak),
+          psramMB:  num(msg.psramMB),
+          sdOk:     typeof msg.sdOk === 'boolean' ? msg.sdOk : undefined,
+          sdFs:     num(msg.sdFs),
+          sdMB:     num(msg.sdMB),
+          sdBanks:  num(msg.sdBanks),
+          sdBankNames: Array.isArray(msg.sdBankNames) ? msg.sdBankNames.map(String) : undefined,
           stkOom:   typeof msg.stkOom === 'boolean' ? msg.stkOom : undefined,
           elementsReady: typeof msg.elementsReady === 'boolean' ? msg.elementsReady : undefined,
           elementsCpu:   num(msg.elementsCpu),
