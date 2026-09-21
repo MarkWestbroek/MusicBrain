@@ -20,6 +20,9 @@ describe('Teensy-opslag in de statusbalk', () => {
     expect(sdSummary({ sdOk: true, sdFs: 64, sdMB: 61035, sdBanks: 0 })).toBe('exFAT 60 GB · geen banken');
     expect(sdSummary({ sdOk: true, sdFs: 32, sdMB: 30436, sdBanks: 0b1001 })).toBe('FAT32 30 GB · banken 00 03');
     expect(sdSummary({ sdOk: false })).toBe('geen kaart');
+    // Na een koude start die de kaart pas later vond, of juist niet:
+    expect(sdSummary({ sdOk: true, sdFs: 64, sdMB: 61035, sdBanks: 1, sdTries: 3 })).toBe('exFAT 60 GB · banken 00 · poging 3');
+    expect(sdSummary({ sdOk: false, sdErr: 0x17, sdTries: 6 })).toBe('geen kaart (fout 0x17, 6× geprobeerd)');
   });
 
   it('meldt PSRAM, en zwijgt bij firmware die het niet kent', () => {

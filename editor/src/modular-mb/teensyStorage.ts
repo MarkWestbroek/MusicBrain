@@ -16,6 +16,10 @@ export interface StorageStatus {
   /** Naam uit de kop van elke bank, op banknummer; "" = staat er niet,
    *  "?" = bestand staat er maar is geen geldige bank. */
   sdBankNames?: string[];
+  /** Bij de hoeveelste poging de kaart openging (of hoeveel er mislukten). */
+  sdTries?: number;
+  /** SdFat-foutcode van de laatste mislukte poging. */
+  sdErr?: number;
 }
 
 export function fsName(type: number | undefined): string {
@@ -44,13 +48,19 @@ export function psramSummary(st: StorageStatus): string | undefined {
 /** "exFAT 60 GB · banken 00 03", "geen kaart" — of undefined bij oude firmware. */
 export function sdSummary(st: StorageStatus): string | undefined {
   if (st.sdOk === undefined) return undefined;
-  if (!st.sdOk) return 'geen kaart';
+  if (!st.sdOk) {
+    // De foutcode maakt het verschil tussen "er zit niets in" en "hij
+    // antwoordde niet op tijd" — zie SampleBank::beginStorage().
+    return st.sdErr ? `geen kaart (fout 0x${st.sdErr.toString(16).padStart(2, '0')}, ${st.sdTries ?? 1}× geprobeerd)` : 'geen kaart';
+  }
   const gb = Math.round((st.sdMB ?? 0) / 1024);
   const banks = bankList(st.sdBanks);
   const list = banks.length
     ? `banken ${banks.map((k) => String(k).padStart(2, '0')).join(' ')}`
     : 'geen banken';
-  return `${fsName(st.sdFs)} ${gb} GB · ${list}`;
+  // Pas bij een latere poging open? Dan staat dat erbij — de kaart had tijd nodig.
+  const tries = (st.sdTries ?? 1) > 1 ? ` · poging ${st.sdTries}` : '';
+  return `${fsName(st.sdFs)} ${gb} GB · ${list}${tries}`;
 }
 
 /**

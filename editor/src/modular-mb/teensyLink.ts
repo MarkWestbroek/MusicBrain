@@ -67,6 +67,9 @@ export interface DeviceStatus {
   sdMB?: number;      // grootte van de kaart in MB
   sdBanks?: number;   // bit k = /mmb/banks/kk.mmbs staat erop
   sdBankNames?: string[];  // naam uit de kop van elke bank, op banknummer
+  sdTries?: number;   // bij de hoeveelste poging de kaart openging
+  sdMs?: number;      // hoe lang openen bij het opstarten duurde
+  sdErr?: number;     // SdFat-foutcode van de laatste mislukte poging
   stkOom?: boolean;   // STK-allocatie ooit gefaald → STK-sectie zwijgt
   elementsReady?: boolean;  // Elements-diagnose: DSP-buffers gebonden?
   elementsCpu?: number;     // Elements-diagnose: ISR-aandeel (%)
@@ -207,6 +210,9 @@ function handleLine(line: string): void {
           sdMB:     num(msg.sdMB),
           sdBanks:  num(msg.sdBanks),
           sdBankNames: Array.isArray(msg.sdBankNames) ? msg.sdBankNames.map(String) : undefined,
+          sdTries:  num(msg.sdTries),
+          sdMs:     num(msg.sdMs),
+          sdErr:    num(msg.sdErr),
           stkOom:   typeof msg.stkOom === 'boolean' ? msg.stkOom : undefined,
           elementsReady: typeof msg.elementsReady === 'boolean' ? msg.elementsReady : undefined,
           elementsCpu:   num(msg.elementsCpu),

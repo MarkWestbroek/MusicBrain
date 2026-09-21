@@ -238,6 +238,9 @@ void activatePatchAndBuild(const char* patchId) {
         }
         JsonObjectConst patch = runtime.activePatchJson();
         if (!patch.isNull()) {
+            // Kaart er bij het opstarten niet (of te traag)? Een patch-push is
+            // het moment om het opnieuw te proberen — zie retryIfMissing().
+            mmb_link::SampleBank::instance().retryIfMissing(true);
             applyPatchVoiceCount(patch);
             audioGraph.build(patch, runtime.instances());
             cvGraph.build(patch, runtime.instances());
@@ -286,6 +289,9 @@ void onGetStatus(JsonObject s) {
         s["sdFs"]    = bank.fsType();
         s["sdMB"]    = bank.sizeMB();
         s["sdBanks"] = bank.bankMask();
+        s["sdTries"] = bank.sdTries();
+        s["sdMs"]    = bank.sdMs();
+        if (!bank.sdOk()) s["sdErr"] = bank.sdErr();
         // De namen uit de kop van elke bank, op banknummer ("" = staat er
         // niet), tot en met de hoogste bank die er is. Voor het display op
         // het sampler-paneel.

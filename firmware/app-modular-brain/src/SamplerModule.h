@@ -69,13 +69,64 @@ public:
 
     static SampleBank& instance() { static SampleBank b; return b; }
 
-    /** SD-kaart openen (ingebouwd slot). Eén keer vanuit setup(). */
+    static constexpr int      kSdTries       = 6;     ///< pogingen bij het opstarten
+    static constexpr uint32_t kSdRetryMs     = 200;   ///< pauze daartussen
+    static constexpr uint32_t kSdLateRetryMs = 2000;  ///< later hooguit zo vaak opnieuw
+
+    /**
+     * SD-kaart openen (ingebouwd slot), vanuit setup(). Met een paar nieuwe
+     * pogingen: bij koud aanzetten krijgen kaart en Teensy tegelijk stroom,
+     * en een snelle UHS-kaart (Samsung Pro 64 GB) antwoordt dan soms nog
+     * niet. Met één poging, zoals het was, betekende dat "geen kaart" tot de
+     * volgende herstart — terwijl hij na een warme herstart (flashen) wél
+     * gelezen werd. Poging, tijd en foutcode gaan mee in de status.
+     */
     void beginStorage() {
-        sdOk_ = SD.begin(BUILTIN_SDCARD);
-        if (sdOk_ && !SD.exists(kDir)) { SD.mkdir("/mmb"); SD.mkdir(kDir); }
+        const uint32_t t0 = millis();
+        for (sdTries_ = 1; ; ++sdTries_) {
+            if (openCard() || sdTries_ >= kSdTries) break;
+            delay(kSdRetryMs);
+        }
+        sdMs_ = millis() - t0;
+        lastTryMs_ = millis();
         snapshot();
     }
+
+    /**
+     * Nog eens proberen als er bij het opstarten geen kaart was. Vanuit de
+     * main thread: bij een bankwissel (load) en bij elke patch-push, zodat een
+     * kaart die je later terugsteekt gevonden wordt zonder de stekker eruit.
+     * Niet in een vaste lus — zonder kaart kost een poging even tijd, en de
+     * CV-tick mag niet haperen. Lukt het, dan wordt de gevraagde bank alsnog
+     * geladen.
+     */
+    bool retryIfMissing(bool force = false) {
+        if (sdOk_) return true;
+        if (!mountIfMissing(force)) return false;
+        const int want = loaded_;
+        loaded_ = -1;
+        if (want >= 0) load(want);
+        return true;
+    }
+
+    /** Alleen de kaart alsnog openen (zonder de bank te laden) — voor load(). */
+    bool mountIfMissing(bool force = false) {
+        if (sdOk_) return true;
+        if (!force && millis() - lastTryMs_ < kSdLateRetryMs) return false;
+        lastTryMs_ = millis();
+        ++sdTries_;
+        if (!openCard()) return false;
+        snapshot();
+        return true;
+    }
+
     bool sdOk() const { return sdOk_; }
+    /** Hoeveelste poging slaagde (of hoeveel er mislukten). */
+    int      sdTries()  const { return sdTries_; }
+    /** Hoe lang het openen bij het opstarten duurde, in ms. */
+    uint32_t sdMs()     const { return sdMs_; }
+    /** SdFat-foutcode van de laatste mislukte poging (0 = geen fout). */
+    uint8_t  sdErr()    const { return sdErr_; }
     /** Bestandssysteem van de kaart: 12/16/32 = FAT, 64 = exFAT, 0 = geen. */
     uint8_t  fsType()   const { return fsType_; }
     /** Grootte van de kaart in MB (0 = geen kaart). */
@@ -95,11 +146,12 @@ public:
 
     /** Laad `/mmb/banks/NN.mmbs`; idempotent per index. */
     bool load(int index) {
-        if (index == loaded_) return numSlots_ > 0;
+        // Zonder kaart niet vastbijten op "al geprobeerd": misschien zit hij er nu wél.
+        if (index == loaded_ && (sdOk_ || numSlots_ > 0)) return numSlots_ > 0;
         numSlots_ = numZones_ = 0;
         loaded_ = index;
         ++version_;                       // stemmen herbinden, ook bij falen
-        if (!sdOk_) return false;
+        if (!sdOk_ && !mountIfMissing()) return false;
 
         char path[40];
         snprintf(path, sizeof(path), "%s/%02d.mmbs", kDir, index);
@@ -219,6 +271,17 @@ private:
     uint32_t sizeMB_ = 0;
     uint16_t bankMask_ = 0;
     char     names_[16][29] = {};
+    int      sdTries_ = 0;
+    uint32_t sdMs_ = 0, lastTryMs_ = 0;
+    uint8_t  sdErr_ = 0;
+
+    /** Eén poging om de kaart te openen; foutcode bewaren voor de status. */
+    bool openCard() {
+        sdOk_ = SD.begin(BUILTIN_SDCARD);
+        sdErr_ = sdOk_ ? 0 : SD.sdfs.sdErrorCode();
+        if (sdOk_ && !SD.exists(kDir)) { SD.mkdir("/mmb"); SD.mkdir(kDir); }
+        return sdOk_;
+    }
 
     /**
      * Momentopname voor de status: bestandssysteem, grootte en welke banken
