@@ -17,6 +17,29 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### fw 0.5.50 — Auto-wah die je hoort, en knoppen met een taper (2026-09-21)
+- **`env_sens` op de samplercel.** De envelope-follower per stem meet gewoon
+  het niveau van die stem, en een sample dat netjes onder vol staat blijft
+  rond 0,15 hangen. Met `cv_amt` op vier octaven is dat nog geen halve, dus de
+  multikabel `env_k → cutoff_k` deed wel iets maar hoorde je niet. Nieuwe
+  gedeelde control `env_sens` (dB, −12…+36, standaard +12); dezelfde lift die
+  de losse ENV FOLLOWER al had. Gemeten met de auto-wah-seed (MS-20, 300 Hz,
+  Q 0,55): env-piek 0,16 → 0,63, spectraal zwaartepunt +7,4 halve tonen.
+- **Follower zakte niet terug.** Een uitgestorven stem slaat `Process()` over,
+  dus de follower zag de stilte ná de noot nooit: `env_k` bleef staan op de
+  laatste waarde en hield het filter voorgoed een stukje open. Hij krijgt nu
+  stilte te eten zolang hij boven nul staat.
+- **`MidiMap::scale` kent drie curves.** `bool exp` is `enum class Curve
+  {Lin, Exp, Log}` geworden, met dezelfde formules als de knoppen in de editor
+  (`taper.ts`) en de bridge. 128 CC-stappen lineair is op een cutoff van
+  300 Hz 6,5 halve toon per stap; met `Log` is het er overal 0,93. Bestaande
+  configs met `"lin"`/`"exp"` doen exact wat ze deden.
+- **Meegevlogen sinds de laatste flash (0.5.48):** de MS-20 klemt zijn uitgang
+  vóór de int16-cast (was foldover bij zelf-oscillatie) en note-priority werkt
+  — mono zakt bij loslaten terug naar een nog ingedrukte toets, zoals Yarns en
+  Surge het doen. Beide veranderen hoe bestaande patches klinken; het
+  luisterwerk staat in `doc/todo-2026-09-20-teensy-aan-de-kabel.md`.
+
 ### fw 0.5.49 — Envelope follower, 8 cellen en enkelvoudig (FW-CV-6) (2026-09-07)
 - **FW-CV-6 — Envelope follower (`tp_mmb_env_follower`, `tp_mmb_env_follower_mono`).**
   Audio erin, stuurspanning eruit, plus een gate boven een drempel. Twee
