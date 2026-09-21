@@ -79,6 +79,7 @@ Lfo         g_lfo;
 Controllers g_ctrl;
 char        g_patch[kPatchBytes];
 bool        g_gate = false;
+int         g_noteRef = 60;      // midinote waarmee de klinkende noot is aangeslagen
 bool        g_tablesDone = false;
 int32_t     g_scratch[kBlock];
 
@@ -97,16 +98,29 @@ void applyPatch() {
     g_lfo.reset(g_patch + 137);
 }
 
-/** Toonhoogte: gehele midinote + fractie via de pitch-controller, zoals
- *  Dx7Module::applyPitch (msfa's bend is 3 halve tonen fullscale). */
-int setPitch(float semis) {
-    const float base = std::floor(semis);
-    float frac = semis - base;
-    int m = static_cast<int>(base);
-    if (m < 0)   { m = 0;   frac = 0.f; }
-    if (m > 127) { m = 127; frac = 0.f; }
-    g_ctrl.values_[kControllerPitch] = 0x2000 + static_cast<int>(frac * (0x2000 / 3.0f));
-    return m;
+/** Midinote om een nieuwe noot mee aan te slaan (geheel deel van `semis`). */
+int noteFor(float semis) {
+    const int m = static_cast<int>(std::floor(semis));
+    return m < 0 ? 0 : (m > 127 ? 127 : m);
+}
+
+/**
+ * Toonhoogte van de klinkende noot, zoals Dx7Module::applyPitch: msfa kent de
+ * toonhoogte alleen bij de aanslag, dus de rest gaat via de pitch-bend. Die
+ * draagt het héle verschil tussen de noot waarmee is aangeslagen en waar
+ * V/Oct nu staat — niet alleen de fractie. Met alleen de fractie bleef een
+ * noot met glide hangen op de toonhoogte waar de glide begon (dat is die van
+ * de vórige noot), en zaagde hij telkens een halve toon op en neer.
+ *
+ * Kan dat, zo'n grote bend? msfa telt hem op in het log-frequentiedomein
+ * (`basepitch_ + pitchmod`, 2^24 per octaaf) en `values_` is een int; de
+ * "3 halve tonen fullscale" is alleen het 14-bits bereik van een MIDI-bend.
+ * ±127 halve tonen is (127·0x2000/3) << 9 ≈ 1,8·10^8 — ruim binnen int32.
+ */
+void applyBend(float semis) {
+    float d = semis - static_cast<float>(g_noteRef);
+    d = d > 127.f ? 127.f : (d < -127.f ? -127.f : d);
+    g_ctrl.values_[kControllerPitch] = 0x2000 + static_cast<int>(d * (0x2000 / 3.0f));
 }
 
 }  // namespace
@@ -154,19 +168,22 @@ void mmb_on_control(int idx, float v) {
 
 void mmb_process(int frames) {
     const float voct = mmb_in0(IN_VOCT);
+    const float semis = 60.0f + 12.0f * voct + g_coarse + g_fine * 0.01f;
     const bool high = mmb_gate_in(IN_GATE);
     if (high && !g_gate) {
         const float velIn = mmb_connected(IN_VEL) ? mmb_in0(IN_VEL) : 0.8f;
         int vel = static_cast<int>(velIn * 127.0f);
         if (vel < 1) vel = 1; if (vel > 127) vel = 127;
         applyPatch();
-        const int m = setPitch(60.0f + 12.0f * voct + g_coarse + g_fine * 0.01f);
-        g_note.init(g_patch, m, vel);
+        g_noteRef = noteFor(semis);
+        g_note.init(g_patch, g_noteRef, vel);
         g_lfo.keydown();
     } else if (!high && g_gate) {
         g_note.keyup();
     }
     g_gate = high;
+    // Elk blok: V/Oct mag tijdens de noot bewegen (glide, bend, vibrato).
+    applyBend(semis);
 
     // msfa rekent per blok van 64; de host levert precies MMB_BLOCK frames.
     float* dst = MMB_OUTPUTS[0].buf;
