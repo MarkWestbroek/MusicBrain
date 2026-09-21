@@ -24,7 +24,7 @@ interface SerialPort {
   getInfo(): SerialPortInfo;
 }
 interface SerialPortFilter { usbVendorId?: number; usbProductId?: number }
-interface Serial {
+interface Serial extends EventTarget {
   requestPort(opts?: { filters?: SerialPortFilter[] }): Promise<SerialPort>;
   getPorts(): Promise<SerialPort[]>;
 }
@@ -156,7 +156,32 @@ async function readLoop(): Promise<void> {
   } finally {
     try { reader.releaseLock(); } catch { /* ignore */ }
     reader = null;
+    // Niet door disconnect() gestopt → de Teensy is weggevallen.
+    if (!readLoopAbort) void lostConnection('leesverbinding verbroken');
   }
+}
+
+/**
+ * De Teensy viel weg (herstart na flashen, stekker eruit). Opruimen zoals
+ * disconnect() dat doet. Zonder dit bleef de schrijver zijn slot houden en
+ * bleef de poort "open": de volgende Verbinden kreeg hetzelfde poort-object
+ * terug en struikelde over "Cannot create writer when WritableStream is
+ * locked" — alleen een herlaad van de pagina hielp dan nog.
+ */
+async function lostConnection(reason: string): Promise<void> {
+  if (!port) return;
+  readLoopAbort = true;
+  await safeClose();
+  setState({ status: { kind: 'disconnected' } });
+  pushLog({ ts: Date.now(), dir: 'sys', text: `Teensy weggevallen (${reason}) — opnieuw verbinden kan meteen` });
+}
+
+// De browser meldt het zelf als het apparaat verdwijnt; bij flashen gebeurt
+// dat al vóór de leesroutine een fout krijgt.
+if (typeof navigator !== 'undefined' && navigator.serial) {
+  navigator.serial.addEventListener('disconnect', (e) => {
+    if (port && e.target === (port as unknown as EventTarget)) void lostConnection('apparaat losgekoppeld of herstart');
+  });
 }
 
 function handleLine(line: string): void {
@@ -262,6 +287,11 @@ export async function connect(): Promise<void> {
     // hot-reload). Only call open() when readable is null.
     if (!port.readable) {
       await port.open({ baudRate: 115200 });
+    }
+    // Nog vergrendeld door een verbinding die deze pagina niet meer kent
+    // (bijv. na een hot-reload van de editor): dan helpt alleen een herlaad.
+    if (port.writable?.locked) {
+      throw new Error('De seriële poort is nog vergrendeld door een eerdere verbinding. Herlaad de editor (F5) en verbind opnieuw.');
     }
     writer = port.writable!.getWriter();
     readLoopAbort = false;
