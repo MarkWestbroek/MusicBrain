@@ -139,7 +139,12 @@ export class WasmModule extends AudioModule {
     let p = WasmModule.wasm.get(typeId);
     if (!p) {
       const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
-      p = fetch(`${base}wasm/${typeId}.wasm`).then(async (r) => {
+      // `no-cache`: altijd bij de server navragen of het bestand nog klopt
+      // (een 304 kost niets). Zonder dit mag de browser een .wasm zonder
+      // cache-regels zelf "vers" verklaren — bij een bestand dat dagen niet
+      // veranderd was ruim genoeg om een herlaad te overleven. Zo speelde de
+      // sim na de DX7-glidefix nog de oude DX7, terwijl de rest wél nieuw was.
+      p = fetch(`${base}wasm/${typeId}.wasm`, { cache: 'no-cache' }).then(async (r) => {
         if (!r.ok) throw new Error(`${typeId}.wasm niet gevonden`);
         return new Uint8Array(await r.arrayBuffer());
       });
