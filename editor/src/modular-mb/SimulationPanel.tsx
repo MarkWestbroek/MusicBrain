@@ -55,6 +55,12 @@ export function SimulationPanel(): JSX.Element {
   const [recording, setRecording] = useState(false);
   const [recSecs, setRecSecs] = useState(0);
   const [recDone, setRecDone] = useState<string | null>(null);
+  // Tijdens het openen van de Teensy-ingang (toestemmingsdialoog) de knop dicht.
+  const [compareBusy, setCompareBusy] = useState(false);
+  async function toggleCompare(): Promise<void> {
+    setCompareBusy(true);
+    try { await engine.setCompare(!status.compare?.on); } finally { setCompareBusy(false); }
+  }
 
   // (Re)bouw de signal-graph zodra topologie van de patch verandert.
   // Live-knop-wijzigingen worden via engine.updateControl direct verwerkt
@@ -278,6 +284,31 @@ export function SimulationPanel(): JSX.Element {
           </label>
           <LevelMeter level={status.level} />
         </div>
+        <div style={row}>
+          <button onClick={() => void toggleCompare()} disabled={compareBusy}
+            title="Teensy in je linkeroor, simulator in je rechter — om te horen of ze gelijk klinken"
+            style={status.compare?.on ? { fontWeight: 600, color: '#0369a1' } : undefined}>
+            {status.compare?.on ? '⇄ Vergelijken uit' : '⇄ Vergelijk met Teensy'}
+          </button>
+          {status.compare?.on && (
+            <span style={{ fontSize: 12, color: '#475569' }}>
+              links: Teensy · rechts: simulator
+            </span>
+          )}
+        </div>
+        {status.compare?.on && (
+          <p style={{ color: '#475569', fontSize: 12, margin: '6px 0 0' }}>
+            Zet in Windows <em>Listen to this device</em> voor de Teensy uit, anders
+            hoor je hem ook nog in het midden (zie doc/teensy-aan-de-pc.md). Een paar
+            tientallen ms verschil tussen beide is normaal: klank vergelijken gaat
+            prima, fase niet.
+          </p>
+        )}
+        {status.compare?.error && (
+          <p style={{ color: '#b91c1c', fontSize: 12, margin: '6px 0 0' }}>
+            ⚠ {status.compare.error}
+          </p>
+        )}
         {recording && (
           <p style={{ color: '#b91c1c', fontSize: 12, margin: '6px 0 0' }}>
             ⏺ Opname loopt — speel je noten en klik dan op <em>Stop</em>.

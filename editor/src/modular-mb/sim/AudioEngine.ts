@@ -33,6 +33,7 @@ import { simSupportByKind } from './simSupport';
 import { expandPolyConnections, NoteStack, notePriorityOf, pickVoiceIndex,
   stealStrategyOf, unisonSpreadVolts, VoiceAllocator,
   type NotePriority, type StealStrategy } from './polySim';
+import { pickTeensyInput } from './teensyInput';
 
 export interface EngineStatus {
   running: boolean;
@@ -44,6 +45,8 @@ export interface EngineStatus {
   lastNote?: { midi: number; vel: number; ts: number; on: boolean };
   /** Per-module transient values written by the engine (e.g. SEQ __currentStep). */
   liveControls: Record<string, Record<string, ControlValue>>;
+  /** Vergelijken met de Teensy: aan/uit, welk apparaat, of waarom het niet lukte. */
+  compare?: { on: boolean; device?: string; error?: string };
 }
 
 type Wave = 'sine' | 'triangle' | 'sawtooth' | 'square';
@@ -274,6 +277,18 @@ export class AudioEngine {
   private currentKeyboardNote: number | null = null;
   private listeners = new Set<(s: EngineStatus) => void>();
   private status: EngineStatus = { running: false, voiceFreqHz: 0, level: 0, liveControls: {} };
+
+  // ── Vergelijken met de Teensy: Teensy links, simulator rechts ────────
+  // Staat los van de patch: build() gooit master weg en bouwt hem opnieuw,
+  // maar deze nodes blijven, zodat je tijdens het vergelijken gewoon kunt
+  // doorpatchen. `simOut` is de vaste uitgang waar elke nieuwe master op
+  // aansluit; daarachter beslist `applySimRoute` of hij rechtstreeks naar de
+  // speakers gaat of via de panner naar rechts.
+  private simOut: Tone.Gain | null = null;
+  private simSide: Tone.Panner | null = null;
+  private teensyStream: MediaStream | null = null;
+  private teensySrc: MediaStreamAudioSourceNode | null = null;
+  private teensySide: Tone.Panner | null = null;
   private rafId: number | null = null;
   private startedOscs = new Set<Tone.Oscillator | Tone.LFO>();
   /** Wasm-PolyGroups in de simulator: master → leden (incl. master), en lid → master. */
@@ -316,7 +331,7 @@ export class AudioEngine {
     this.master = new Tone.Gain(0.7);
     this.meter  = new Tone.Meter({ smoothing: 0.85 });
     this.master.connect(this.meter);
-    this.master.toDestination();
+    this.master.connect(this.ensureSimOut());
     this.recordBusWired = false;
     if (this.recordBus) { this.master.connect(this.recordBus); this.recordBusWired = true; }
 
@@ -1690,6 +1705,109 @@ export class AudioEngine {
     // Clear live step indicator.
     const live = this.status.liveControls[seq.moduleId];
     if (live) { delete live.__currentStep; live.__runActive = 0; }
+  }
+
+  // ── Vergelijken met de Teensy ──────────────────────────────────────
+
+  private ensureSimOut(): Tone.Gain {
+    if (!this.simOut) {
+      this.simOut = new Tone.Gain(1);
+      this.applySimRoute();
+    }
+    return this.simOut;
+  }
+
+  /** Simulator naar de speakers — of, tijdens het vergelijken, naar rechts. */
+  private applySimRoute(): void {
+    const out = this.simOut;
+    if (!out) return;
+    out.disconnect();
+    if (this.teensySide) {
+      // Tone.Panner telt een stereo-ingang eerst op tot mono (½·(L+R)) en zet
+      // die dan helemaal naar één kant: een mono-patch houdt zijn niveau.
+      if (!this.simSide) this.simSide = new Tone.Panner(1).toDestination();
+      out.connect(this.simSide);
+    } else {
+      out.toDestination();
+    }
+  }
+
+  /**
+   * Teensy links, simulator rechts — om met je oren te horen of ze gelijk
+   * klinken. De browser opent de Teensy als audio-ingang (voor Windows is hij
+   * een microfoon, zie doc/teensy-aan-de-pc.md).
+   *
+   * Echo-onderdrukking, ruisfilter en automatische versterking gaan expliciet
+   * uit: anders gaat de browser het Teensy-signaal "verbeteren" en vergelijk
+   * je appels met peren.
+   */
+  async setCompare(on: boolean): Promise<void> {
+    this.stopCompare();
+    if (!on) { this.status.compare = { on: false }; this.applySimRoute(); this.emit(); return; }
+
+    const media = typeof navigator !== 'undefined' ? navigator.mediaDevices : undefined;
+    if (!media?.getUserMedia) {
+      this.status.compare = { on: false, error: 'Deze browser kan geen audio-ingang openen.' };
+      this.emit();
+      return;
+    }
+    const raw: MediaTrackConstraints = {
+      echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 2,
+    };
+    try {
+      await Tone.start();
+      // Eerst toestemming (dan pas krijgen de apparaten een naam), dan de
+      // Teensy er op naam uit halen — zie teensyInput.ts.
+      let stream = await media.getUserMedia({ audio: raw });
+      const teensy = pickTeensyInput(await media.enumerateDevices());
+      if (!teensy) {
+        stream.getTracks().forEach((t) => t.stop());
+        this.status.compare = {
+          on: false,
+          error: 'Geen Teensy-ingang gevonden. Hangt hij aan de USB, en draait de firmware met USB-audio?',
+        };
+        this.emit();
+        return;
+      }
+      if (stream.getAudioTracks()[0]?.getSettings().deviceId !== teensy.deviceId) {
+        stream.getTracks().forEach((t) => t.stop());
+        stream = await media.getUserMedia({ audio: { ...raw, deviceId: { exact: teensy.deviceId } } });
+      }
+      const ctx = Tone.getContext().rawContext as AudioContext;
+      this.teensyStream = stream;
+      this.teensySrc = ctx.createMediaStreamSource(stream);
+      this.teensySide = new Tone.Panner(-1).toDestination();
+      Tone.connect(this.teensySrc, this.teensySide);
+      // Kabel eruit of Teensy herstart (flashen!): netjes terug naar normaal.
+      stream.getAudioTracks()[0]?.addEventListener('ended', () => {
+        this.stopCompare();
+        this.applySimRoute();
+        this.status.compare = { on: false, error: 'De Teensy-ingang is weggevallen.' };
+        this.emit();
+      });
+      this.applySimRoute();
+      this.status.compare = { on: true, device: teensy.label };
+    } catch (err) {
+      this.stopCompare();
+      this.applySimRoute();
+      const name = err instanceof DOMException ? err.name : '';
+      this.status.compare = {
+        on: false,
+        error: name === 'NotAllowedError'
+          ? 'De browser kreeg geen toestemming voor de audio-ingang.'
+          : `Teensy-ingang openen mislukt: ${err instanceof Error ? err.message : String(err)}`,
+      };
+    }
+    this.emit();
+  }
+
+  private stopCompare(): void {
+    this.teensyStream?.getTracks().forEach((t) => t.stop());
+    this.teensyStream = null;
+    try { this.teensySrc?.disconnect(); } catch { /* al los */ }
+    this.teensySrc = null;
+    this.teensySide?.dispose(); this.teensySide = null;
+    this.simSide?.dispose();    this.simSide = null;
   }
 
   private emit(): void {

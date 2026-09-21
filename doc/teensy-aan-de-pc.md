@@ -32,6 +32,15 @@ helemaal niets, nergens.
 Controle: tabblad **Playback**. Staat de Teensy daar met het groene vinkje,
 kies je speakers/koptelefoon → **Set Default**.
 
+### Teensy en simulator naast elkaar horen
+
+In de editor, tab **Simulatie** → **⇄ Vergelijk met Teensy**: de Teensy komt in
+je linkeroor, de simulator in je rechter. De browser opent de Teensy daarvoor
+zelf als ingang (hij vraagt één keer toestemming voor "microfoon" — dat is de
+Teensy), dus zet dan *Listen to this device* in Windows **uit**, anders hoor je
+hem er nog eens in het midden bij. Een paar tientallen ms verschil tussen
+beide kanten is normaal: klank vergelijken gaat prima, fase niet.
+
 ### Om te spelen in plaats van te testen
 
 *Listen to this device* voegt tientallen milliseconden vertraging toe. Om
