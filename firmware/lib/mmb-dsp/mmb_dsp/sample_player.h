@@ -154,6 +154,11 @@ public:
     /** Cutoff-CV van déze stem (cel-ingang), ±1 → ±cvAmt octaven. */
     void set_cutoff_cv(float v)         { cutoffCv_ = v; applyCutoffCv(); }
     void set_env_times(float attackMs, float releaseMs) { follower_.set_attack_ms(attackMs); follower_.set_release_ms(releaseMs); }
+    /** Gevoeligheid van de follower in dB. Zonder lift meet hij gewoon het
+     *  niveau van de stem: een sample dat netjes onder vol staat geeft een
+     *  env van 0,1 à 0,2, en dan opent `cv_amt` op 4 octaven nog geen hele.
+     *  Met +12 dB haalt dezelfde aanslag 0,5 en hoor je de wah. */
+    void set_env_sens_db(float db)      { follower_.set_sens_db(db); }
     /** Envelope van deze stem (0..1-ish, vóór het filter) — cel-uitgang env_k. */
     float env() const { return follower_.env(); }
     /** Eén keer per blok: filtercoëfficiënten bijwerken. */
@@ -222,7 +227,13 @@ public:
      * wist de buffer). `outChannels` is het aantal uitgangen van de module.
      */
     inline void Process(float* out, int outChannels) {
-        if (!active_ || !slot_ || !zone_) return;
+        if (!active_ || !slot_ || !zone_) {
+            // Stille stem: de follower moet nog terugzakken. Zonder dit blijft
+            // env_k staan op de waarde van vlak voor het uitsterven, en houdt
+            // een auto-wah het filter voorgoed een stukje open.
+            if (follower_.env() > 0.0f) { const float silence = 0.0f; follower_.ProcessBlock(&silence, 1); }
+            return;
+        }
 
         // ── envelope ──
         if (envState_ == ENV_ATTACK) {

@@ -1370,6 +1370,9 @@ function mmbSampler() {
       sw  ('fmode',  'Mode',   w*0.50, 50, ['LP', 'HP', 'BP'], 0),
       knob('drive',  'Drive',  w*0.62, 50, { size: 'small', min: 0.1, max: 10, def: 1, color: '#38bdf8' }),
       knob('cv_amt', 'CV amt', w*0.74, 50, { size: 'small', min: 0, max: 8, def: 4, unit: 'oct', color: '#38bdf8' }),
+      // Lift op de follower: een keurig uitgestuurd sample geeft een env van
+      // 0,1 à 0,2, en dan blijft de auto-wah op 4 octaven een kiertje.
+      knob('env_sens', 'Sens', w*0.74, 60, { size: 'small', min: -12, max: 36, def: 12, unit: 'dB', color: '#38bdf8' }),
       outPort('out_l', 'L',  'audio', w*0.86, 50),
       outPort('out_r', 'R',  'audio', w*0.93, 50),
       outPort('out_3', '3',  'audio', w*0.86, 62),
@@ -1381,7 +1384,7 @@ function mmbSampler() {
       ...cells.map((k) => inPort(`gate_${k}`,   '',     'gate', colX(k - 1), 108, { cellGroupId: 'voice' })),
       ...cells.map((k) => inPort(`vel_${k}`,    '',     'cv',   colX(k - 1), 120, { cellGroupId: 'voice' })),
     ],
-    notes: 'Multisample-speler als multi-module: acht stem-cellen (voct_k/gate_k/vel_k) die één keymap-bank delen, elk met een filter in de stem (Filter: uit/SVF/MS-20 — dezelfde kernels als de losse VCF en MS-20) dat via cutoff_k gestuurd wordt, en een envelope-follower per stem op env_k. Auto-wah = env_k → cutoff_k. Een keymap met key- én velocity-zones kiest per noot en aanslag het juiste sample; V/Oct transponeert vanaf de root-noot van die zone. 1–4 kanalen (mono komt op L+R, stereo op L/R, quad op alle vier), gemengd over alle cellen. Loop-modes: geen, one-shot, continu, of tot note-off. Polyfoon spelen = een PolyGroup over de cellen (Poly ▾ → Sampler ×8): MIDI-in verdeelt de noten, de sampler doet niets slims. Banken maak je met de 🎹 Multisample-import; die schrijft een .mmbs die je naar /mmb/banks/NN.mmbs op de SD kopieert — Bank kiest NN. In de simulator draait dezelfde kern (mmb_dsp::SamplePlayer) als wasm. Firmware tp_mmb_sampler.',
+    notes: 'Multisample-speler als multi-module: acht stem-cellen (voct_k/gate_k/vel_k) die één keymap-bank delen, elk met een filter in de stem (Filter: uit/SVF/MS-20 — dezelfde kernels als de losse VCF en MS-20) dat via cutoff_k gestuurd wordt, en een envelope-follower per stem op env_k (Sens tilt die met decibels op; zonder lift haalt een sample amper 0,2 en blijft de wah een kiertje). Auto-wah = env_k → cutoff_k. Een keymap met key- én velocity-zones kiest per noot en aanslag het juiste sample; V/Oct transponeert vanaf de root-noot van die zone. 1–4 kanalen (mono komt op L+R, stereo op L/R, quad op alle vier), gemengd over alle cellen. Loop-modes: geen, one-shot, continu, of tot note-off. Polyfoon spelen = een PolyGroup over de cellen (Poly ▾ → Sampler ×8): MIDI-in verdeelt de noten, de sampler doet niets slims. Banken maak je met de 🎹 Multisample-import; die schrijft een .mmbs die je naar /mmb/banks/NN.mmbs op de SD kopieert — Bank kiest NN. In de simulator draait dezelfde kern (mmb_dsp::SamplePlayer) als wasm. Firmware tp_mmb_sampler.',
   });
 }
 
@@ -3802,7 +3805,7 @@ export function seedSamplerPolyPatch(project: ModularProject, voiceCount = 8, au
     controlState: {
       [mi.id]:  { channel: 0, voiceCount: N, steal: 0 },
       [smp.id]: autoWah
-        ? { bank: 0, level: 0.8, filter: 2, cutoff: 300, q: 0.55, fmode: 0, drive: 1.5, cv_amt: 4, env_rel: 150 }
+        ? { bank: 0, level: 0.8, filter: 2, cutoff: 300, q: 0.55, fmode: 0, drive: 1.5, cv_amt: 4, env_rel: 150, env_sens: 12 }
         : { bank: 0, level: 0.8 },
       [out.id]: { level: 0.85 },
     },

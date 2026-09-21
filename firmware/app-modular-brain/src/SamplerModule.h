@@ -29,7 +29,9 @@
  *  doc/uml/11-simulation-wasm.md.)
  * Filter in de cel: `filter` (0 geen / 1 SVF / 2 MS-20), `cutoff` (Hz), `q`
  * (0..1), `fmode` (0 LP / 1 HP / 2 BP), `drive`, `cv_amt` (octaven),
- * `env_rel` (ms). Dezelfde kernels als VcfModule en Ms20Module; de stem
+ * `env_rel` (ms) en `env_sens` (dB, lift op de follower — zonder lift haalt
+ * een keurig uitgestuurd sample amper 0,2 en blijft de wah een kiertje).
+ * Dezelfde kernels als VcfModule en Ms20Module; de stem
  * verlaat de module niet, dus stereo en quad blijven intact. Auto-wah is de
  * multikabel env_k → cutoff_k in de patcher.
  * | out | `out_l` `out_r` `out_3` `out_4` | Audio | mono → L+R, stereo → 1/2, quad → 1–4 |
@@ -254,6 +256,7 @@ public:
     void setFilterDrive(float d)  { for (auto& v : voice_) v.set_filter_drive(d); }
     void setCvAmount(float oct)   { for (auto& v : voice_) v.set_cutoff_cv_amount(oct); }
     void setEnvRelease(float ms)  { for (auto& v : voice_) v.set_env_times(2.0f, ms); }
+    void setEnvSens(float db)     { for (auto& v : voice_) v.set_env_sens_db(db); }
     void setTranspose(float semis) { for (auto& v : voice_) v.set_transpose(semis); }
     void setStart(float s)  { for (auto& v : voice_) v.set_startOffset(s); }
     void setAttack(float ms){ for (auto& v : voice_) v.setAttackMs(ms); }
@@ -371,6 +374,7 @@ public:
         else if (controlId == "drive")  stream_.setFilterDrive(asFloat(1.0f));
         else if (controlId == "cv_amt") stream_.setCvAmount(asFloat(4.0f));
         else if (controlId == "env_rel") stream_.setEnvRelease(asFloat(120.0f));
+        else if (controlId == "env_sens") stream_.setEnvSens(asFloat(12.0f));
     }
 
     static void registerFactory() {

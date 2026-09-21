@@ -117,10 +117,23 @@ export function PatcherMatrixPanel({ patchId }: { patchId: string }): JSX.Elemen
     }));
   }
 
+  // Poortnaam voor de matrix. Cel-poorten van een multi-module dragen op het
+  // paneel vaak geen eigen naam — daar staat één regel tekst links van de acht
+  // kolommen (de SAMPLER: Env / Cut / V-Oct / Gate / Vel). In de matrix valt
+  // die context weg en heet elke kolom dan `MMB SAMPLER.` of `MMB SAMPLER.1`,
+  // waardoor je de auto-wah-kabel wel ziet maar niet herkent. Zonder bruikbare
+  // naam nemen we daarom de basis van de poort-id (`cutoff_1` → `cutoff`), met
+  // het celnummer erachter zolang het niet om de poly-master gaat.
+  const portName = (r: PortRef): string => {
+    const nm = r.port.name?.trim() ?? '';
+    const cell = /^(.+)_(\d+)$/.exec(r.portId);
+    if (!cell || (nm && !/^\d+$/.test(nm))) return nm || r.portId;
+    return r.poly ? cell[1]! : `${cell[1]} ${cell[2]}`;
+  };
   const portLabel = (r: PortRef): string =>
-    `${r.moduleName}.${r.port.name}${r.poly ? ` ×${r.poly.voiceCount}` : ''}`;
+    `${r.moduleName}.${portName(r)}${r.poly ? ` ×${r.poly.voiceCount}` : ''}`;
   const portTitle = (r: PortRef): string =>
-    `${r.moduleName} · ${r.port.name} (${r.port.signalType})`
+    `${r.moduleName} · ${portName(r)} · ${r.portId} (${r.port.signalType})`
     + (r.poly ? ` · poly-master ×${r.poly.voiceCount} (${r.poly.label})` : '');
 
   return (

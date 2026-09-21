@@ -52,13 +52,14 @@ const int MMB_NUM_OUTPUTS = 4 + kVoices;
 constexpr int kAudioOuts = 4;
 inline int OUT_ENV(int k) { return kAudioOuts + k; }
 
-enum { C_COARSE, C_FINE, C_START, C_ATTACK, C_LEVEL, C_FILTER, C_CUTOFF, C_Q, C_FMODE, C_DRIVE, C_CV_AMT, C_ENV_REL };
+enum { C_COARSE, C_FINE, C_START, C_ATTACK, C_LEVEL, C_FILTER, C_CUTOFF, C_Q, C_FMODE, C_DRIVE,
+       C_CV_AMT, C_ENV_REL, C_ENV_SENS };
 MmbControl MMB_CONTROLS[] = {
     { "coarse", 0.f }, { "fine", 0.f }, { "start", 0.f }, { "attack", 1.5f }, { "level", 0.8f },
     { "filter", 0.f }, { "cutoff", 2000.f }, { "q", 0.3f }, { "fmode", 0.f }, { "drive", 1.f },
-    { "cv_amt", 4.f }, { "env_rel", 120.f },
+    { "cv_amt", 4.f }, { "env_rel", 120.f }, { "env_sens", 12.f },
 };
-const int MMB_NUM_CONTROLS = 12;
+const int MMB_NUM_CONTROLS = 13;
 
 namespace {
 // Ruimer dan de firmware: in de browser is het geheugen dynamisch en een
@@ -80,6 +81,7 @@ bool                  g_gate[kVoices];
 
 float g_coarse = 0.f, g_fine = 0.f, g_start = 0.f, g_attack = 1.5f, g_level = 0.8f;
 int   g_filter = 0; float g_cutoff = 2000.f, g_q = 0.3f; int g_fmode = 0; float g_drive = 1.f, g_cvAmt = 4.f, g_envRel = 120.f;
+float g_envSens = 12.f;
 
 void applyControls(mmb_dsp::SamplePlayer& v) {
     v.set_transpose(g_coarse + g_fine * 0.01f);
@@ -93,6 +95,7 @@ void applyControls(mmb_dsp::SamplePlayer& v) {
     v.set_filter_drive(g_drive);
     v.set_cutoff_cv_amount(g_cvAmt);
     v.set_env_times(2.f, g_envRel);
+    v.set_env_sens_db(g_envSens);
 }
 void rebind() {
     for (int i = 0; i < kVoices; ++i) {
@@ -175,6 +178,7 @@ void mmb_on_control(int idx, float v) {
         case C_DRIVE:  g_drive = v; break;
         case C_CV_AMT: g_cvAmt = v; break;
         case C_ENV_REL: g_envRel = v; break;
+        case C_ENV_SENS: g_envSens = v; break;
     }
     for (int i = 0; i < kVoices; ++i) applyControls(g_voice[i]);
 }
