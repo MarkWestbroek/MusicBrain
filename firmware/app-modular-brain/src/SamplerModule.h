@@ -370,27 +370,46 @@ public:
     void setAttack(float ms){ for (auto& v : voice_) v.setAttackMs(ms); }
     void setLevel(float l)  { for (auto& v : voice_) v.set_level(l); }
 
+    /** Zo vaak (in samples) worden de filtercoëfficiënten en de interne
+     *  env -> cutoff bijgewerkt — gelijk aan het blok van de sampler-wasm in de
+     *  simulator (MMB_BLOCK = 32). Per 128 samples, zoals het was, tikte een
+     *  resonante MS-20 hoorbaar mee met de auto-wah (zie routeInternally). */
+    static constexpr int kSubBlock = 32;
+
     void update() override {
         if (boundVersion_ != SampleBank::instance().version()) rebind();
-        for (auto& v : voice_) v.PrepareBlock();
         audio_block_t* out[4];
         for (int c = 0; c < 4; ++c) {
             out[c] = allocate();
             if (!out[c]) { for (int k = 0; k < c; ++k) release(out[k]); return; }
         }
         float mix[mmb_dsp::kMaxChannels];
-        for (int i = 0; i < AUDIO_BLOCK_SAMPLES; ++i) {
-            for (int c = 0; c < mmb_dsp::kMaxChannels; ++c) mix[c] = 0.0f;
-            for (auto& v : voice_) v.Process(mix, 4);
-            for (int c = 0; c < 4; ++c) {
-                float y = mix[c];
-                if (!(y == y)) y = 0.0f;
-                if (y > 1.0f) y = 1.0f; else if (y < -1.0f) y = -1.0f;
-                out[c]->data[i] = static_cast<int16_t>(y * 32767.0f);
+        for (int s0 = 0; s0 < AUDIO_BLOCK_SAMPLES; s0 += kSubBlock) {
+            for (int k = 0; k < kVoices; ++k) {
+                const int src = cutoffFrom_[k];
+                if (src >= 0) voice_[k].set_cutoff_cv(voice_[src].env());
+                voice_[k].PrepareBlock();
+            }
+            for (int i = s0; i < s0 + kSubBlock; ++i) {
+                for (int c = 0; c < mmb_dsp::kMaxChannels; ++c) mix[c] = 0.0f;
+                for (auto& v : voice_) v.Process(mix, 4);
+                for (int c = 0; c < 4; ++c) {
+                    float y = mix[c];
+                    if (!(y == y)) y = 0.0f;
+                    if (y > 1.0f) y = 1.0f; else if (y < -1.0f) y = -1.0f;
+                    out[c]->data[i] = static_cast<int16_t>(y * 32767.0f);
+                }
             }
         }
         for (int c = 0; c < 4; ++c) { transmit(out[c], c); release(out[c]); }
     }
+
+    /** Cutoff van stem @p to volgt voortaan de follower van stem @p from,
+     *  op audiotempo (−1 = weer via de CV-ingang). */
+    void setCutoffFrom(int to, int from) {
+        if (to >= 0 && to < kVoices) cutoffFrom_[to] = (from >= 0 && from < kVoices) ? from : -1;
+    }
+    void clearCutoffFrom() { for (auto& f : cutoffFrom_) f = -1; }
 
 private:
     void rebind() {
@@ -405,6 +424,7 @@ private:
     float voct_[kVoices] = {};
     float vel_[kVoices]  = { 0.8f, 0.8f, 0.8f, 0.8f, 0.8f, 0.8f, 0.8f, 0.8f };
     bool  gate_[kVoices] = {};
+    int   cutoffFrom_[kVoices] = { -1, -1, -1, -1, -1, -1, -1, -1 };
 };
 
 class SamplerModule final : public AudioModule {
@@ -455,6 +475,20 @@ public:
         else if ((k = cellOf(portId, "vel")) >= 0) stream_.setVelocity(k, value);
         else if ((k = cellOf(portId, "cutoff")) >= 0) stream_.setCutoffCv(k, value);
     }
+    /**
+     * Auto-wah binnen de module: een kabel env_j → cutoff_k op deze sampler
+     * handelt hij zelf af, elke 32 samples in de audioroutine — zoals de
+     * simulator — in plaats van via de CvGraph (1 kHz, pas per 128 samples
+     * toegepast). Andere kabels naar cutoff_k blijven gewoon via writeCvPort.
+     */
+    bool routeInternally(std::string_view fromPortId, std::string_view toPortId) override {
+        const int from = cellOf(fromPortId, "env"), to = cellOf(toPortId, "cutoff");
+        if (from < 0 || to < 0) return false;
+        stream_.setCutoffFrom(to, from);
+        return true;
+    }
+    void clearInternalRoutes() override { stream_.clearCutoffFrom(); }
+
     /** `env_k`: envelope-follower van stem k (CV-uitgang); env_k → cutoff_k is de auto-wah. */
     float readCvPort(std::string_view portId) const override {
         const int k = cellOf(portId, "env");

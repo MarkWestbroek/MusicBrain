@@ -30,6 +30,9 @@ void CvGraph::build(
                              std::unique_ptr<mb::runtime::Module>>& instances)
 {
     tearDown();
+    // Interne routes van de vorige patch vergeten; die van deze patch komen
+    // hieronder opnieuw binnen via routeInternally().
+    for (const auto& kv : instances) if (kv.second) kv.second->clearInternalRoutes();
 
     JsonArrayConst conns = patch["connections"].as<JsonArrayConst>();
     if (conns.isNull()) {
@@ -68,6 +71,13 @@ void CvGraph::build(
                              fromModId, fromPortId, kindName(srcKind),
                              toModId,   toPortId,   kindName(dstKind));
             ++skipped_;
+            continue;
+        }
+
+        // Kabel van een module naar zichzelf: mag hij hem zelf afhandelen, op
+        // audiotempo? (Auto-wah op de sampler: env_k -> cutoff_k.)
+        if (src == dst && src->routeInternally(fromPortId, toPortId)) {
+            TeensyLink::logf("  cv-route intern: %s.%s -> %s", fromModId, fromPortId, toPortId);
             continue;
         }
 

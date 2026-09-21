@@ -145,6 +145,24 @@ public:
      *  The patch and the bus never see those implementation details. */
     virtual void writeCvPort(std::string_view /*portId*/, float /*value*/) {}
 
+    /** @brief Wil de module een CV-kabel van zichzelf naar zichzelf zelf
+     *  afhandelen, op audiotempo, in plaats van via de CvGraph (1 kHz, en pas
+     *  bij het volgende audioblok van 128 samples toegepast)?
+     *
+     *  Voor snelle zelfmodulatie maakt dat verschil: de envelope-follower van
+     *  een samplerstem die zijn eigen resonante filter stuurt (auto-wah) tikte
+     *  hoorbaar met trapjes van 2,9 ms, terwijl de simulator dezelfde kabel
+     *  elke 32 samples bijwerkt. Geeft de module true, dan onthoudt hij de
+     *  route en laat de CvGraph hem liggen. Standaard: false.
+     *  @param fromPortId Uitgang van deze module.
+     *  @param toPortId   Ingang van deze module. */
+    virtual bool routeInternally(std::string_view /*fromPortId*/, std::string_view /*toPortId*/) {
+        return false;
+    }
+
+    /** @brief Vóór elke (her)bouw van de CvGraph: vergeet interne routes. */
+    virtual void clearInternalRoutes() {}
+
     /** @brief Deliver a bulk single-cycle waveform table to the module.
      *
      *  Used by the draw-waveshape VCO (FW-AU-6): the editor pushes a 256-sample
