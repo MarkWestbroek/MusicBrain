@@ -17,6 +17,16 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### fw 0.5.53 — SD-kaart ook na koud opstarten (2026-09-22)
+- **Opnieuw proberen.** Na een warme herstart (flashen) las de Teensy de kaart,
+  na koud insteken niet: de firmware deed één `SD.begin` en bleef daarna "geen
+  kaart" melden tot de volgende herstart. Nu tot 6 pogingen bij het opstarten
+  (200 ms ertussen), en een tweede kans bij elke patch-push en bankwissel, zodat
+  een later teruggestoken kaart zonder stekker eruit gevonden wordt.
+- **In de status:** `sdTries`, `sdMs` en bij een mislukking `sdErr` (SdFat-
+  foutcode). De editor toont "· poging 3" of "geen kaart (fout 0x17, 6×
+  geprobeerd)".
+
 ### fw 0.5.52 — PSRAM, SD-kaart en banknamen in de status (2026-09-22)
 - **De Teensy meldt wat hij heeft.** De status krijgt `psramMB` en een
   momentopname van de SD-kaart van bij het opstarten: `sdOk`, `sdFs` (64 =
