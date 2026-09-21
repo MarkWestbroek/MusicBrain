@@ -72,9 +72,17 @@ Samples gaan **niet** over de kabel — alleen DX7-banken doen dat. Een
 samplebank moet op een SD-kaart.
 
 - De firmware gebruikt het **ingebouwde microSD-slot van de Teensy 4.1**
-  (`SD.begin(BUILTIN_SDCARD)`), aan de onderkant van de Teensy. Een
-  SD-socket op een proto board doet niet mee.
-- **FAT32.** Kaart erin, Teensy aan: de firmware maakt `/mmb/banks` zelf aan.
+  (`SD.begin(BUILTIN_SDCARD)`): het metalen sleufje aan de korte kant,
+  tegenover de USB-aansluiting. Kaart erin met de gouden contacten naar de
+  print. Een SD-socket op een proto board doet niet mee.
+- **FAT32 of exFAT, allebei goed.** De SD-bibliotheek van Teensyduino (1.60,
+  `SdFs`) leest op de Teensy 4.1 FAT16, FAT32 en exFAT. Een kaart van 64 GB
+  of groter komt als exFAT uit de fabriek en hoeft dus niet opnieuw
+  geformatteerd.
+- **De kaart wordt alleen bij het opstarten gelezen.** Kaart erin, dan de
+  Teensy herstarten (USB eruit en erin). De firmware maakt `/mmb/banks` zelf
+  aan — staat die map daarna op de kaart, dan heeft de Teensy hem gelezen én
+  beschreven. Dat is meteen de controle: de firmware meldt het verder nergens.
 - Banken als `/mmb/banks/00.mmbs` t/m `15.mmbs`; de **Bank**-knop kiest het
   nummer. Een `.mmbs` maak je in de editor met 🎹 **Multisample-import**.
 - **Geheugen:** zonder PSRAM (de twee vierkante footprints op de onderkant)
