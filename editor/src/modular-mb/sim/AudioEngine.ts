@@ -290,6 +290,11 @@ export class AudioEngine {
   /** STEAL- en GLIDE-stand van MIDI-In; geldt voor alle toewijzers in de patch. */
   private steal: StealStrategy = 'oldest';
   private glideMs = 0;
+  /** Wasm-stemmen die al een noot gespeeld hebben. De firmware zet de eerste
+   *  noot van een stem meteen goed en glijdt pas vanaf de tweede
+   *  (`glidePrimed_` in MidiIn.cpp); zonder dit zou elke stem bij de eerste
+   *  aanslag vanaf C4 komen aanschuiven. */
+  private glidePrimed = new Set<string>();
   /** Ingedrukte toetsen — alleen de monofone kant gebruikt ze (PRIO en LEG). */
   private noteStack = new NoteStack();
   private priority: NotePriority = 'last';
@@ -324,6 +329,7 @@ export class AudioEngine {
     // `moduleId`) óf een cel van een multi-module (construct B,
     // `moduleId#k`, k 1-based) — zie doc/uml/11-simulation-wasm.md.
     this.wasmGroups.clear(); this.wasmFollowerOf.clear(); this.wasmVoice.clear(); this.cellMasterOf.clear();
+    this.glidePrimed.clear();          // nieuwe worklets beginnen weer op 0 V
     this.simGroups.clear(); this.toneGroups.clear(); this.toneFollowerOf.clear();
     let toneVoiceCount = 0;
     // MIDI-In bepaalt hoevéél stemmen er spelen: op de Teensy bouwt polyExpand
@@ -994,11 +1000,22 @@ export class AudioEngine {
         return true;
       }
       case 'midiin': {
-        // Deze drie bepalen wat de MOD-uitgangen doen; de rest van de
-        // MIDI-In-knoppen leeft in de patch, niet in de engine.
+        // Deze drie bepalen wat de MOD-uitgangen doen.
         if (controlId === 'bendRange') node.bendRange = num;
         if (controlId === 'cc1Num')    node.cc1Num = num;
         if (controlId === 'cc2Num')    node.cc2Num = num;
+        // Het stemgedrag leest build() eenmalig; zonder dit deed een draai
+        // aan Glide, Steal of Prio niets tot de volgende rebuild. (Het aantal
+        // stemmen verandert de groepen zelf — dat blijft een rebuild.)
+        if (controlId === 'voiceCount') return false;
+        const c = node.controls;
+        this.glideMs     = Math.max(0, readKnob(c, 'glide', 0));
+        this.steal       = stealStrategyOf(readKnob(c, 'steal', 0));
+        this.priority    = notePriorityOf(readKnob(c, 'priority', 0));
+        this.legato      = readKnob(c, 'legato', 0) >= 0.5;
+        this.unison      = readKnob(c, 'unison', 0) >= 0.5;
+        this.spreadCents = Math.max(0, Math.min(200, readKnob(c, 'spread', 0)));
+        this.toneAlloc.setSteal(this.steal);
         return true;
       }
     }
@@ -1293,7 +1310,13 @@ export class AudioEngine {
       if (!st || st.age !== stamp || st.note !== midi) return;
       const voct = `voct${sfx}`;
       if (rt.hasInput(voct) && !rt.cabled.has(voct)) {
-        rt.setInput(voct, (midi + detuneSemis - 60) / 12);
+        // Glide zoals MidiInModule::tick(): een vaste snelheid in volt per
+        // seconde (glide = ms per octaaf), gelopen door de worklet zelf, en
+        // de allereerste noot van een stem staat meteen goed.
+        const primed = this.glidePrimed.has(voice);
+        this.glidePrimed.add(voice);
+        const slew = primed && this.glideMs > 0 ? 1000 / this.glideMs : 0;
+        rt.setInput(voct, (midi + detuneSemis - 60) / 12, slew);
       }
       const vp = wasmVelPort(rt, sfx);
       if (vp && !rt.cabled.has(vp)) rt.setInput(vp, clamp(velocity, 0, 1));

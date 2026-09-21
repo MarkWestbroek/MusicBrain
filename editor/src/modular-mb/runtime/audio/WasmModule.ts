@@ -245,10 +245,14 @@ export class WasmModule extends AudioModule {
     this.cabled.add(id);
     this.post({ t: 'cabled', id, on: true });
   }
-  /** Handmatige ingangswaarde (klavier/MIDI-In/sequencer → voct/gate). */
-  setInput(id: string, v: number): void {
+  /**
+   * Handmatige ingangswaarde (klavier/MIDI-In/sequencer → voct/gate).
+   * `slew` > 0 laat de worklet er met die snelheid (eenheden per seconde)
+   * naartoe lopen in plaats van te springen — de glide van MIDI-In.
+   */
+  setInput(id: string, v: number, slew = 0): void {
     if (!this.inGains.has(id)) return;
-    this.post({ t: 'in', id, v });
+    this.post(slew > 0 ? { t: 'in', id, v, slew } : { t: 'in', id, v });
   }
 
   protected override onControlChanged(id: string, value: ControlValue): void {

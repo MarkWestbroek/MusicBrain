@@ -6,8 +6,12 @@
 //   inputs/outputs = poort-ids in de volgorde van de worklet-kanalen (de
 //   editor-moduledefinitie); ids die de wasm niet kent worden genegeerd.
 // Berichten: {t:'ctl', id, v}  control op naam
-//            {t:'in', id, v}   handmatige ingangswaarde (klavier: voct/gate),
-//                              telt op bij het kabelsignaal, zet connected
+//            {t:'in', id, v, slew?}  handmatige ingangswaarde (klavier:
+//                              voct/gate), telt op bij het kabelsignaal, zet
+//                              connected. `slew` (eenheden per seconde) laat
+//                              de waarde er met vaste snelheid naartoe lopen
+//                              in plaats van te springen: de glide van
+//                              MIDI-In, zoals MidiInModule::tick() hem doet.
 //            {t:'cabled', id, on}  kabelstatus per ingang
 //            {t:'dispose'}
 // Resampling: ingangen contextrate → native (lineair), uitgangen native →
@@ -69,7 +73,7 @@ class MmbProcessor extends AudioWorkletProcessor {
 
     this.ins = (inputs || []).map((id) => {
       const w = resolve(wIn, id);
-      return { id, w, ring: new Float32Array(RING), written: 0, manual: 0, cabled: false, connected: false };
+      return { id, w, ring: new Float32Array(RING), written: 0, manual: 0, target: 0, slew: 0, cabled: false, connected: false };
     });
     this.outs = (outputs || []).map((id) => {
       const w = resolve(wOut, id);
@@ -92,7 +96,16 @@ class MmbProcessor extends AudioWorkletProcessor {
       const m = e.data;
       switch (m.t) {
         case 'ctl': { const i = this.ctlIdx.get(m.id); if (i !== undefined) ex.mmb_set_control(i, +m.v); break; }
-        case 'in': { const p = this.byId.get(m.id); if (p) { p.manual = +m.v; p.connected = true; } break; }
+        case 'in': {
+          const p = this.byId.get(m.id);
+          if (!p) break;
+          p.target = +m.v;
+          // Per native sample; zonder slew (of 0) springt de waarde meteen.
+          p.slew = m.slew > 0 ? +m.slew / this.rate : 0;
+          if (!(p.slew > 0)) p.manual = p.target;
+          p.connected = true;
+          break;
+        }
         case 'cabled': { const p = this.byId.get(m.id); if (p) { p.cabled = !!m.on; p.connected = p.cabled || p.connected; } break; }
         case 'blob': {
           // Sample/blob naar een slot (sampler): {slot, rate, data: Int16Array}.
@@ -148,6 +161,10 @@ class MmbProcessor extends AudioWorkletProcessor {
             const a = p.ring[i0 & MASK], b = p.ring[(i0 + 1 <= last ? i0 + 1 : i0) & MASK];
             v = a + (b - a) * f;
           }
+        }
+        if (p.manual !== p.target) {                 // glide: vaste snelheid
+          const d = p.target - p.manual;
+          p.manual = (d > p.slew || d < -p.slew) ? p.manual + (d > 0 ? p.slew : -p.slew) : p.target;
         }
         buf[k] = v + p.manual;
       }
