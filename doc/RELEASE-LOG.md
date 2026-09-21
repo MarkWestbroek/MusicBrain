@@ -17,6 +17,17 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### fw 0.5.51 — DX7 met glide (2026-09-21)
+- **De klinkende DX7-noot volgt nu de V/Oct.** msfa kent de toonhoogte alleen
+  bij de aanslag; `Dx7Module` zette de hele noot vast en gaf alleen de
+  fractie (0…1 halve toon) door via de pitch-bend. Met glide staat V/Oct bij
+  de aanslag nog op de vórige noot, dus de noot bleef daar hangen en zaagde er
+  een halve toon omheen: verkeerde noten, octaafsprongen, vervorming. Nu draagt
+  de bend het héle verschil tussen aangeslagen noot en huidige V/Oct (msfa telt
+  hem op in het log-frequentiedomein, `values_` is een int — ±127 halve tonen
+  past ruim). Gevonden door Teensy en simulator naast elkaar te beluisteren;
+  de sim had dezelfde fout.
+
 ### fw 0.5.50 — Auto-wah die je hoort, en knoppen met een taper (2026-09-21)
 - **`env_sens` op de samplercel.** De envelope-follower per stem meet gewoon
   het niveau van die stem, en een sample dat netjes onder vol staat blijft
