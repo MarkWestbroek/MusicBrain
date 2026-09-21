@@ -17,6 +17,18 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### fw 0.5.54 — Auto-wah zonder tikken: env → cutoff binnen de sampler (2026-09-22)
+- **Kabels van een module naar zichzelf** mogen voortaan door de module zelf
+  worden afgehandeld, op audiotempo (`Module::routeInternally`). De CvGraph
+  laat zo'n kabel dan liggen; voor alle andere modules verandert er niets.
+- **De sampler doet dat voor `env_j → cutoff_k`**, en rekent zijn 128 samples
+  in vier stukken van 32: per stuk de cutoff uit de follower en de
+  filtercoëfficiënten opnieuw — zoals de sampler-wasm in de simulator. Via de
+  CvGraph kwam die cutoff met trapjes van 2,9 ms binnen; een resonante MS-20
+  maakte van elke trede een tik (~85 per seconde in de opname, de sim nul).
+- Nog open, zelfde soort: een losse MS-20/VCF die door een andere module via
+  de CvGraph gemoduleerd wordt, krijgt zijn CV nog per 128 samples.
+
 ### fw 0.5.53 — SD-kaart ook na koud opstarten (2026-09-22)
 - **Opnieuw proberen.** Na een warme herstart (flashen) las de Teensy de kaart,
   na koud insteken niet: de firmware deed één `SD.begin` en bleef daarna "geen
