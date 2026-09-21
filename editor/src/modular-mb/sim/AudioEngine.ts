@@ -271,6 +271,11 @@ export class AudioEngine {
    *  `dispose()` opgeruimd; het is één Gain voor de duur van de pagina. */
   private recordBus: Tone.Gain | null = null;
   private recordBusWired = false;
+  /** Alles wat naar de speakers gaat, gaat hierdoor — en de recorder tapt
+   *  hier af. Zo neemt hij op wat je hoort: normaal de simulator, tijdens het
+   *  vergelijken Teensy links en simulator rechts in één WAV. Net als
+   *  `recordBus` blijft hij de hele pagina leven. */
+  private speakers: Tone.Gain | null = null;
   private nodes = new Map<string, EngineNode>();
   private connections: PatchConnection[] = [];
   private portIndex = new Map<string, { signalType: SignalType; direction: 'in' | 'out' }>();
@@ -332,8 +337,6 @@ export class AudioEngine {
     this.meter  = new Tone.Meter({ smoothing: 0.85 });
     this.master.connect(this.meter);
     this.master.connect(this.ensureSimOut());
-    this.recordBusWired = false;
-    if (this.recordBus) { this.master.connect(this.recordBus); this.recordBusWired = true; }
 
     // 1. Index ports.
     const racks = project.racks.filter((r) => patch.rackIds.includes(r.id));
@@ -471,13 +474,14 @@ export class AudioEngine {
     }
   }
 
-  /** Node waarop een opname mag meeluisteren: de master-som ná het volume dat
-   *  je ook hoort. Maakt de bus bij de eerste aanroep en hangt de huidige
-   *  master eraan; latere rebuilds doen dat zelf in `build()`. */
+  /** Node waarop een opname mag meeluisteren: precies wat naar de speakers
+   *  gaat, ná het volume. Normaal de simulator; tijdens het vergelijken
+   *  Teensy links en simulator rechts — dan kun je beide kanten achteraf
+   *  naast elkaar leggen. */
   recorderTap(): Tone.Gain {
     if (!this.recordBus) this.recordBus = new Tone.Gain(1);
-    if (this.master && !this.recordBusWired) {
-      this.master.connect(this.recordBus);
+    if (!this.recordBusWired) {
+      this.ensureSpeakers().connect(this.recordBus);
       this.recordBusWired = true;
     }
     return this.recordBus;
@@ -1078,8 +1082,7 @@ export class AudioEngine {
     this.connections = [];
     this.master?.dispose(); this.meter?.dispose();
     this.master = null; this.meter = null;
-    // recordBus bewust niet disposen — zie het veld.
-    this.recordBusWired = false;
+    // recordBus en speakers bewust niet disposen — zie de velden.
   }
 
   // ── helpers ────────────────────────────────────────────────────────
@@ -1712,6 +1715,11 @@ export class AudioEngine {
 
   // ── Vergelijken met de Teensy ──────────────────────────────────────
 
+  private ensureSpeakers(): Tone.Gain {
+    if (!this.speakers) this.speakers = new Tone.Gain(1).toDestination();
+    return this.speakers;
+  }
+
   private ensureSimOut(): Tone.Gain {
     if (!this.simOut) {
       this.simOut = new Tone.Gain(1);
@@ -1728,10 +1736,10 @@ export class AudioEngine {
     if (this.teensySide) {
       // Tone.Panner telt een stereo-ingang eerst op tot mono (½·(L+R)) en zet
       // die dan helemaal naar één kant: een mono-patch houdt zijn niveau.
-      if (!this.simSide) this.simSide = new Tone.Panner(1).toDestination();
+      if (!this.simSide) this.simSide = new Tone.Panner(1).connect(this.ensureSpeakers());
       out.connect(this.simSide);
     } else {
-      out.toDestination();
+      out.connect(this.ensureSpeakers());
     }
   }
 
@@ -1779,7 +1787,7 @@ export class AudioEngine {
       const ctx = Tone.getContext().rawContext as AudioContext;
       this.teensyStream = stream;
       this.teensySrc = ctx.createMediaStreamSource(stream);
-      this.teensySide = new Tone.Panner(-1).toDestination();
+      this.teensySide = new Tone.Panner(-1).connect(this.ensureSpeakers());
       Tone.connect(this.teensySrc, this.teensySide);
       // Kabel eruit of Teensy herstart (flashen!): netjes terug naar normaal.
       stream.getAudioTracks()[0]?.addEventListener('ended', () => {

@@ -306,7 +306,8 @@ export function SimulationPanel(): JSX.Element {
             Zet in Windows <em>Listen to this device</em> voor de Teensy uit, anders
             hoor je hem ook nog in het midden (zie doc/teensy-aan-de-pc.md). Een paar
             tientallen ms verschil tussen beide is normaal: klank vergelijken gaat
-            prima, fase niet.
+            prima, fase niet. <strong>⏺ Opname</strong> legt nu beide kanten vast:
+            Teensy links, simulator rechts.
           </p>
         )}
         {status.compare?.error && (
