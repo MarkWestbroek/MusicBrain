@@ -30,7 +30,7 @@ import type {
 } from '../types';
 import { registry, Vcf, Ladder, Ms20, Vco, FmVco, Vca, Ahdsr, Lfo, WasmModule } from '../runtime';
 import { simSupportByKind } from './simSupport';
-import { expandPolyConnections, NoteStack, notePriorityOf, pickVoiceIndex,
+import { patchVoiceLimit, expandPolyConnections, NoteStack, notePriorityOf, pickVoiceIndex,
   stealStrategyOf, unisonSpreadVolts, VoiceAllocator,
   type NotePriority, type StealStrategy } from './polySim';
 import { pickTeensyInput } from './teensyInput';
@@ -352,7 +352,10 @@ export class AudioEngine {
     // Zo klinkt een rack van acht met de knop op vier hier ook vierstemmig.
     const miMod = project.modules.find((m) => m.typeId === 'tp_mmb_midiin' && inRack.has(m.id));
     const miCtl = (miMod ? patch.controlState[miMod.id] : undefined) ?? {};
-    const voiceLimit = Math.max(0, Math.round(readKnob(miCtl, 'voiceCount', patch.voiceCount ?? 0)));
+    // Welk getal wint: zie patchVoiceLimit (zelfde voorrang als de firmware).
+    // Andersom, zoals het hier stond, won de `voiceCount: 8` die de seed in
+    // de patch zet: Voices op 1 zetten deed dan niets en de DX7 bleef poly.
+    const voiceLimit = patchVoiceLimit(patch.voiceCount, readKnob(miCtl, 'voiceCount', 0));
     this.steal = stealStrategyOf(readKnob(miCtl, 'steal', 0));
     this.glideMs = Math.max(0, readKnob(miCtl, 'glide', 0));
     this.priority = notePriorityOf(readKnob(miCtl, 'priority', 0));

@@ -7,7 +7,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  expandPolyConnections, NoteStack, notePriorityOf, pickVoiceIndex,
+  expandPolyConnections, NoteStack, notePriorityOf, patchVoiceLimit, pickVoiceIndex,
   stealStrategyOf, unisonSpreadVolts, VoiceAllocator,
   type PolyExpandOptions,
 } from './polySim';
@@ -246,5 +246,20 @@ describe('unison-spreiding', () => {
     // Volle spreiding van 1200 cent = een octaaf: uitersten op ±0,5 V.
     expect(unisonSpreadVolts(0, 2, 1200)).toBeCloseTo(-0.5, 6);
     expect(unisonSpreadVolts(1, 2, 1200)).toBeCloseTo(+0.5, 6);
+  });
+});
+
+describe('patchVoiceLimit (voorrang zoals applyPatchVoiceCount in de firmware)', () => {
+  it('laat het getal uit de patch winnen van de MIDI-In-control', () => {
+    // De seed zet voiceCount: 8 op MIDI-In; Voices op 1 in tab Patches moet winnen.
+    expect(patchVoiceLimit(1, 8)).toBe(1);
+    expect(patchVoiceLimit(4, 8)).toBe(4);
+  });
+  it('valt terug op de control als de patch geen geldig getal heeft', () => {
+    expect(patchVoiceLimit(undefined, 8)).toBe(8);
+    expect(patchVoiceLimit(0, 6)).toBe(6);
+  });
+  it('geeft 0 (geen beperking) als geen van beide iets zegt', () => {
+    expect(patchVoiceLimit(undefined, undefined)).toBe(0);
   });
 });

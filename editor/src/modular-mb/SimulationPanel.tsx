@@ -70,11 +70,16 @@ export function SimulationPanel(): JSX.Element {
   useEffect(() => {
     if (!patch) return;
     // Topologie-signature: alleen connections + modules + rack-leden.
+    // Het aantal stemmen en de poly-groepen horen erbij: die bepalen welke
+    // stemmen de engine bouwt. Zonder deze twee deed Voices veranderen (tab
+    // Patches) of een groep aanpassen niets tot er toevallig iets anders
+    // wijzigde.
     const sig = JSON.stringify({
       conns: patch.connections,
       rackIds: patch.rackIds,
+      voices: patch.voiceCount,
       mods: project.modules.map((m) => ({ id: m.id, typeId: m.typeId })),
-      racks: project.racks.map((r) => ({ id: r.id, slots: r.slots })),
+      racks: project.racks.map((r) => ({ id: r.id, slots: r.slots, groups: r.polyGroups })),
     });
     if (sig !== prevSigRef.current) {
       prevSigRef.current = sig;

@@ -102,6 +102,18 @@ export function expandPolyConnections(
   return out;
 }
 
+/**
+ * Hoeveel stemmen MIDI-In speelt. Zelfde voorrang als `applyPatchVoiceCount()`
+ * in de firmware: eerst `patch.voiceCount` (tab Patches, en wat het
+ * MIDI-In-display toont); pas als die ontbreekt of ongeldig is de control
+ * `voiceCount` op MIDI-In zelf. 0 = geen beperking (de hele groep speelt).
+ */
+export function patchVoiceLimit(patchVoiceCount: number | undefined, midiInControl: number | undefined): number {
+  const pv = Math.round(patchVoiceCount ?? 0);
+  if (pv >= 1) return pv;
+  return Math.max(0, Math.round(midiInControl ?? 0));
+}
+
 /** Welke klinkende stem wordt afgepakt als alles bezet is. Spiegelt de
  *  STEAL-knop van MIDI-In en firmware `StealStrategy` {Oldest, Lowest, Highest}. */
 export type StealStrategy = 'oldest' | 'lowest' | 'highest';
