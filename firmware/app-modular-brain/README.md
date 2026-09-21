@@ -2,6 +2,9 @@
 
 See [doc/Requirements.md §3](../../doc/Requirements.md), [doc/Plan.md §4](../../doc/Plan.md), and ADRs [0004](../../doc/adr/0004-dac-resolution.md), [0006](../../doc/adr/0006-multi-case-transport.md), [0008](../../doc/adr/0008-latency-and-interpolation.md).
 
+> **Teensy aan de pc — hoe hoor ik hem, hoe weet ik dat het flashen gelukt is,
+> hoe zet ik samples op de SD?** Zie [doc/teensy-aan-de-pc.md](../../doc/teensy-aan-de-pc.md).
+
 ## Plan
 - Target: Teensy 4.1.
 - Inputs: MIDI (DIN + USB-MIDI), keybed, pots/encoders/buttons, optional CV-in via SPI breakouts.
