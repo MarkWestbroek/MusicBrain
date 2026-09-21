@@ -632,11 +632,14 @@ function mmbAhdsr() {
       slider('hold',    'H', colX[1], sliderY, { min: 0,    max: 5000, def: 0,    lengthMm: sliderLen, unit: 'ms' }),
       slider('decay',   'D', colX[2], sliderY, { min: 0,    max: 5000, def: 200,  lengthMm: sliderLen, unit: 'ms' }),
       slider('sustain', 'S', colX[3], sliderY, { min: 0,    max: 1,    def: 0.7,  lengthMm: sliderLen }),
-      slider('release', 'R', colX[4], sliderY, { min: 0,    max: 8000, def: 400,  lengthMm: sliderLen, unit: 'ms' }),
+      // Standaarden = die van mb::runtime::Ahdsr: de Teensy krijgt een
+      // onaangeraakte control niet mee en valt terug op zijn eigen beginstand.
+      // Stond hier 400 ms en Exp, dan toonde het paneel iets anders dan je hoorde.
+      slider('release', 'R', colX[4], sliderY, { min: 0,    max: 8000, def: 300,  lengthMm: sliderLen, unit: 'ms' }),
 
       toggle('loop',    'Loop',  w*0.20, 96),
       toggle('retrig',  'Reset', w*0.45, 96),
-      sw    ('curve',   'Curve', w*0.74, 96, ['Lin','Exp','Log'], 1),
+      sw    ('curve',   'Curve', w*0.74, 96, ['Lin','Exp','Log'], 0),
 
       inPort ('gate',    'Gate', 'gate',   w*0.20, 112),
       inPort ('trig',    'Trig', 'trigger',w*0.50, 112),

@@ -100,8 +100,8 @@ interface VcaNode extends BaseNode {
 interface EnvNode extends BaseNode {
   kind: 'envelope';
   runtime: Ahdsr;
-  /** Alias of `runtime.env`. */
-  env: Tone.Envelope;
+  /** Alias of `runtime.env` — rekent als de firmware, zie runtime/cv/ahdsrModel.ts. */
+  env: Ahdsr['env'];
   /** True when a cable drives the 'gate' input (otherwise: keyboard gates it). */
   gateDriven: boolean;
 }

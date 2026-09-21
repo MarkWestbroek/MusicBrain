@@ -2,36 +2,97 @@ import * as Tone from 'tone';
 import type { ModuleInstance, ModuleType, ControlValue } from '../../types';
 import { CvModule } from '../CvModule';
 import { registry } from '../Registry';
+import { AhdsrModel, type AhdsrCurve, type AhdsrParams } from './ahdsrModel';
 
-function clamp(v: number, lo: number, hi: number): number {
-  return Math.max(lo, Math.min(hi, v));
+function num(v: ControlValue | undefined, fallback: number): number {
+  return typeof v === 'number' ? v : typeof v === 'boolean' ? (v ? 1 : 0) : fallback;
 }
-
-function asNumber(v: ControlValue | undefined, fallback: number): number {
-  return typeof v === 'number' ? v : fallback;
-}
-
-function msToSec(v: ControlValue | undefined, fallbackMs: number): number {
-  const ms = typeof v === 'number' ? v : fallbackMs;
-  return Math.max(0.001, ms / 1000);
+function flag(v: ControlValue | undefined): boolean {
+  return v === true || (typeof v === 'number' && v >= 0.5);
 }
 
 /**
- * Ahdsr — internal MMB attack/hold/decay/sustain/release envelope.
+ * De envelope als Tone-node, met het rekenwerk van de firmware (zie
+ * `ahdsrModel.ts` voor waarom niet Tone.Envelope). Zelfde oppervlak als
+ * Tone.Envelope voor zover de engine het gebruikt: triggerAttack,
+ * triggerRelease, triggerAttackRelease en aansluiten als CV-bron.
  *
- * Wraps `Tone.Envelope` by composition. `Tone.Envelope` has no native
- * hold stage; we fold hold into attack (so `effectiveAttack = A + H`).
+ * Bij elke flank vraagt hij het model waar de envelope heen gaat en tekent
+ * dat als automation op één Signal: vasthouden waar hij nu is, dan de punten
+ * van het plan als lineaire stukjes (Exp/Log komen daar met 32 punten per stuk
+ * uit). Na het laatste punt blijft de waarde staan — sustain of nul.
+ */
+export class FirmwareEnvelope extends Tone.ToneAudioNode {
+  readonly name = 'FirmwareEnvelope';
+  readonly input = undefined;
+  readonly output: Tone.Signal<'number'>;
+  readonly model: AhdsrModel;
+
+  constructor(params: AhdsrParams) {
+    super();
+    this.output = new Tone.Signal({ context: this.context, value: 0, units: 'number' });
+    this.model = new AhdsrModel(params);
+  }
+
+  triggerAttack(time?: Tone.Unit.Time): this {
+    const t = this.toSeconds(time);
+    if (this.model.gate(true, t * 1000)) this.draw(t);
+    return this;
+  }
+
+  triggerRelease(time?: Tone.Unit.Time): this {
+    const t = this.toSeconds(time);
+    if (this.model.gate(false, t * 1000)) this.draw(t);
+    return this;
+  }
+
+  triggerAttackRelease(duration: Tone.Unit.Time, time?: Tone.Unit.Time): this {
+    const t = this.toSeconds(time);
+    this.triggerAttack(t);
+    this.triggerRelease(t + this.toSeconds(duration));
+    return this;
+  }
+
+  /** Sustain live bijstellen: in de firmware volgt de sustainfase meteen. */
+  retune(t: number): void {
+    const { phase } = this.model.stateAt(t * 1000);
+    if (phase === 'sustain') {
+      this.output.cancelAndHoldAtTime(t);
+      this.output.linearRampToValueAtTime(this.model.params.sustain, t + 0.005);
+    }
+  }
+
+  private draw(t: number): void {
+    const sig = this.output;
+    sig.cancelAndHoldAtTime(t);
+    for (const [ms, v] of this.model.points()) {
+      const at = ms / 1000;
+      if (at <= t) sig.setValueAtTime(v, t);
+      else sig.linearRampToValueAtTime(v, at);
+    }
+  }
+
+  override dispose(): this {
+    super.dispose();
+    this.output.dispose();
+    return this;
+  }
+}
+
+/**
+ * Ahdsr — interne MMB-envelope (attack/hold/decay/sustain/release) in de
+ * simulator, met dezelfde tijden en curves als `mb::runtime::Ahdsr` op de
+ * Teensy. Controls: attack, hold, decay, release (ms), sustain (0–1), curve
+ * (0 Lin / 1 Exp / 2 Log), loop, retrig (Reset).
  *
- * Controls: attack, hold, decay (all ms), sustain (0–1), release (ms).
- * Ports: gate (gate-in), trig (trig-in), cv_out (cv-out), eoc (trig-out).
- *
- * Simulator note: `tick()` is a no-op because Tone schedules the envelope
- * ramps internally. Firmware implementation will compute ramps in tick().
+ * Standaarden bij een control die niet in de patch staat: die van de
+ * firmware (release 300 ms, curve Lin) — de Teensy krijgt ontbrekende
+ * waardes niet mee en valt terug op zijn eigen beginstand.
  */
 export class Ahdsr extends CvModule {
   static readonly typeId = 'tp_mmb_ahdsr';
 
-  readonly env: Tone.Envelope;
+  readonly env: FirmwareEnvelope;
 
   constructor(
     type: ModuleType,
@@ -39,24 +100,32 @@ export class Ahdsr extends CvModule {
     initialControlValues: Record<string, ControlValue> = {},
   ) {
     super(type, instance, initialControlValues);
-    const A = msToSec(this.getControl('attack'),  10);
-    const H = msToSec(this.getControl('hold'),    0);
-    const D = msToSec(this.getControl('decay'),   200);
-    const S = clamp(asNumber(this.getControl('sustain'), 0.7), 0, 1);
-    const R = msToSec(this.getControl('release'), 400);
-    this.env = new Tone.Envelope({ attack: A + H, decay: D, sustain: S, release: R });
+    this.env = new FirmwareEnvelope(this.params());
   }
 
-  protected override onControlChanged(id: string, value: ControlValue): void {
-    const e = this.env;
-    if (id === 'attack')  { e.attack  = msToSec(value, 10);  return; }
-    if (id === 'hold')    { /* folded into attack on rebuild; live tweak skipped */ return; }
-    if (id === 'decay')   { e.decay   = msToSec(value, 200); return; }
-    if (id === 'sustain') { e.sustain = clamp(asNumber(value, 0.7), 0, 1); return; }
-    if (id === 'release') { e.release = msToSec(value, 400); return; }
+  private params(): AhdsrParams {
+    const g = (id: string): ControlValue | undefined => this.getControl(id);
+    const curve = Math.max(0, Math.min(2, Math.round(num(g('curve'), 0)))) as AhdsrCurve;
+    return {
+      attack:  Math.max(0, num(g('attack'),  10)),
+      hold:    Math.max(0, num(g('hold'),    0)),
+      decay:   Math.max(0, num(g('decay'),   200)),
+      sustain: Math.max(0, Math.min(1, num(g('sustain'), 0.7))),
+      release: Math.max(0, num(g('release'), 300)),
+      curve,
+      loop:   flag(g('loop')),
+      retrig: flag(g('retrig') ?? g('reset')),
+    };
   }
 
-  tick(): void { /* Tone schedules envelope ramps automatically. */ }
+  protected override onControlChanged(id: string, _value: ControlValue): void {
+    // Zoals de firmware: nieuwe tijden gelden vanaf de volgende flank, een
+    // nieuwe sustain meteen.
+    this.env.model.params = this.params();
+    if (id === 'sustain') this.env.retune(Tone.now());
+  }
+
+  tick(): void { /* de automation loopt in de audiothread */ }
 
   dispose(): void {
     this.env.dispose();
