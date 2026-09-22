@@ -27,6 +27,7 @@
  * | `release` | 1 … 7 (7 snelst)  | 4       | 1100 → 50 ms                            |
  * | `ratio`   | 0 … 4             | 0       | 4:1, 8:1, 12:1, 20:1, alle knoppen       |
  * | `mix`     | 0 … 1             | 1       | droog/nat (parallelle compressie)       |
+ * | `color`   | 0 … 2             | 1       | vervorming: 0 schoon, 1 normaal, 2 dik  |
  * | `bypass`  | 0 / 1             | 0       | 1 = signaal ongemoeid door (A/B-test)   |
  */
 
@@ -133,6 +134,7 @@ public:
         else if (controlId == "release") c.set_release(asFloat(4.0f));
         else if (controlId == "ratio")   c.set_ratio(static_cast<int>(asFloat(0.0f) + 0.5f));
         else if (controlId == "mix")     c.set_mix(asFloat(1.0f));
+        else if (controlId == "color")   c.set_color(asFloat(1.0f));
         else if (controlId == "bypass")  c.set_bypass(asFloat(0.0f) >= 0.5f);
     }
 

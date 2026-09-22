@@ -1457,16 +1457,18 @@ function mmbFetComp() {
       knob('attack',  'Attack',  w*0.27, 56, { size: 'small', min: 1, max: 7, def: 4, step: 1, color: '#f9fafb', ticks: { every: 1, highlight: [1, 7] } }),
       knob('release', 'Release', w*0.73, 56, { size: 'small', min: 1, max: 7, def: 4, step: 1, color: '#f9fafb', ticks: { every: 1, highlight: [1, 7] } }),
       sw  ('ratio',   'Ratio',   w*0.22, 80, ['4:1', '8:1', '12:1', '20:1', 'All'], 0),
-      knob('mix',     'Mix',     w*0.72, 74, { size: 'small', min: 0, max: 1, def: 1, color: '#9ca3af' }),
+      knob('mix',     'Mix',     w*0.72, 68, { size: 'small', min: 0, max: 1, def: 1, color: '#9ca3af' }),
+      // Niet op het origineel: hoeveel FET-vervorming. 1 = zoals gemeten.
+      knob('color',   'Color',   w*0.72, 82, { size: 'small', min: 0, max: 2, def: 1, color: '#f5a623' }),
       // Met/zonder naast elkaar horen: Bypass laat het signaal ongemoeid door.
       sw  ('bypass',  'Bypass',  w*0.50, 92, ['Uit', 'Aan'], 0),
-      outPort('gr',    'GR', 'cv',    w*0.72, 92),
-      inPort ('in_l',  'L',  'audio', w*0.20, 106),
-      inPort ('in_r',  'R',  'audio', w*0.40, 106),
-      outPort('out_l', 'L',  'audio', w*0.60, 106),
-      outPort('out_r', 'R',  'audio', w*0.80, 106),
+      outPort('gr',    'GR', 'cv',    w*0.50, 106),
+      inPort ('in_l',  'L',  'audio', w*0.15, 106),
+      inPort ('in_r',  'R',  'audio', w*0.32, 106),
+      outPort('out_l', 'L',  'audio', w*0.68, 106),
+      outPort('out_r', 'R',  'audio', w*0.85, 106),
     ],
-    notes: 'FET-compressor die knipoogt naar de UREI/UA 1176. Geen threshold-knop: de drempel ligt vast en Input stuurt hem aan (meer Input = meer compressie), Output haalt het niveau terug. Attack en Release 1–7, 7 = snelst (800 → 20 µs en 1100 → 50 ms); op de snelste standen vervormt de bas, net als bij het echte apparaat. Ratio 4/8/12/20, en All = alle knoppen tegelijk ingedrukt: drempel lager, harder dan 20:1, de transiënt knalt erdoor en veel meer vervorming. De FET-vervorming groeit met het ingrijpen. Mix = parallelle compressie, Bypass laat het signaal ongemoeid door (met/zonder vergelijken; zet dan Output zo dat beide kanten even luid zijn). GR = gain reduction als CV (1 = 20 dB). Stereo gekoppeld; alleen L aangesloten = mono op beide uitgangen. Firmware tp_mmb_fet_comp (mmb_dsp::FetComp); dezelfde kern als wasm in de simulator.',
+    notes: 'FET-compressor die knipoogt naar de UREI/UA 1176. Geen threshold-knop: de drempel ligt vast en Input stuurt hem aan (meer Input = meer compressie), Output haalt het niveau terug. Attack en Release 1–7, 7 = snelst (800 → 20 µs en 1100 → 50 ms); op de snelste standen vervormt de bas, net als bij het echte apparaat. Ratio 4/8/12/20, en All = alle knoppen tegelijk ingedrukt: drempel lager, harder dan 20:1, de transiënt knalt erdoor en veel meer vervorming. De FET-vervorming groeit met het ingrijpen. Color regelt hoeveel FET-vervorming erbij komt (0 schoon, 1 zoals gemeten aan het apparaat, 2 dik; dubbel bemonsterd zodat het warm blijft). Mix = parallelle compressie, Bypass laat het signaal ongemoeid door (met/zonder vergelijken; zet dan Output zo dat beide kanten even luid zijn). GR = gain reduction als CV (1 = 20 dB). Stereo gekoppeld; alleen L aangesloten = mono op beide uitgangen. Firmware tp_mmb_fet_comp (mmb_dsp::FetComp); dezelfde kern als wasm in de simulator.',
   });
 }
 

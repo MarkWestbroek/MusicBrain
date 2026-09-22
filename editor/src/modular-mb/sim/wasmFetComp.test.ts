@@ -170,6 +170,18 @@ describe('FET-compressor (1176-stijl)', () => {
     for (let i = 2000; i < 2100; i++) expect(o.l[i]!).toBeCloseTo(x((i - best) / CTX), 5);
   }, 30_000);
 
+  it('regelt de vervorming met Color: 0 schoon, 2 dik', async () => {
+    // Gemeten bij ~18 dB gain reduction (441 Hz): 0,2 % — 9 % — 27 %.
+    const from = Math.round(0.5 * CTX);
+    const zwaar = { input: 26, output: -16, ratio: 3 };
+    const thd = async (color: number): Promise<number> =>
+      thdDb((await run({ ...zwaar, color }, 0.8, sine(-12, 441))).l, 441, from);
+    const schoon = await thd(0), normaal = await thd(1), dik = await thd(2);
+    expect(schoon).toBeLessThan(-50);          // < 0,3 %
+    expect(normaal).toBeGreaterThan(schoon + 20);
+    expect(dik).toBeGreaterThan(normaal + 6);
+  }, 60_000);
+
   it('laat met Bypass het droge signaal door, maar blijft meten', async () => {
     const o = await run({ input: 30, bypass: 1 }, 0.3, sine(-6));
     const x = sine(-6);

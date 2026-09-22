@@ -17,6 +17,19 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### fw 0.5.60 — FET COMP: Color-knop en dubbel bemonsterde vervorming (2026-09-22)
+- Terugkoppeling na het luisteren: "de compressie is aangenaam, maar ik hoor
+  weinig karakter". Gemeten klopt dat half: bij 441 Hz zit er 0,7 % vervorming
+  bij lichte compressie, 5 % bij stevige, 9 % bij 20:1 en 15 % met alle
+  knoppen. Op materiaal dat zelf al rijk is (Rhodes) valt dat weg, zeker als
+  de gecomprimeerde kant ook nog luider staat.
+- **`color`** (0–2, standaard 1; niet op het origineel) schaalt de
+  FET-vervorming: 0 = 0,2 % (schoon), 1 = zoals gemeten, 2 = 27 %.
+- De kromme rekent nu **dubbel bemonsterd**, anders vouwen de boventonen bij
+  veel Color terug: op Color 2 blijft het terugvouwen op −56 dB. Kosten op de
+  Teensy: 19 % CPU bij Color 0, 26 % bij Color 2.
+- Paneel: Mix en Color onder elkaar rechts, GR-uitgang bij de jacks.
+
 ### fw 0.5.59 — FET COMP: Bypass om met/zonder te vergelijken (2026-09-22)
 - **Bypass** (schakelaar, standaard uit): het signaal gaat ongemoeid door,
   terwijl de detector doorloopt zodat terugschakelen niet knalt. Mix op 0 gaf

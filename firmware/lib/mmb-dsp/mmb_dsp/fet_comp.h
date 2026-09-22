@@ -18,7 +18,11 @@
  *    tragere aanval zodat de transiënt erdoor knalt, en veel meer vervorming.
  *  - **FET-vervorming:** een asymmetrische tanh-kromme op het geregelde
  *    signaal (even én oneven harmonischen) waarvan de sterkte meeloopt met de
- *    gain reduction, met een DC-filter erachter. Daarna Output en een zachte
+ *    gain reduction, met een DC-filter erachter. **Color** (niet op het
+ *    origineel) schaalt die vervorming: 0 = schoon, 1 = zoals gemeten aan het
+ *    apparaat (enkele procenten bij stevige compressie), 2 = dik aangezet.
+ *    De kromme rekent dubbel bemonsterd, anders vouwen de boventonen terug en
+ *    klinkt het hard in plaats van warm. Daarna Output en een zachte
  *    uitgangsbegrenzing (de transformator), zodat de uitgang binnen ±1 blijft.
  *  - **Mix** voor parallelle compressie, en **Bypass** om met en zonder
  *    naast elkaar te horen. In bypass loopt de detector door, zodat
@@ -45,6 +49,7 @@ public:
         sr_ = sr;
         grDb_ = 0.0f;
         dc_[0] = dc_[1] = dc_[2] = dc_[3] = 0.0f;
+        prev_[0] = prev_[1] = prev_[2] = prev_[3] = 0.0f;
         dcCoef_ = 1.0f - std::exp(-2.0f * 3.14159265f * 8.0f / sr);   // ~8 Hz
         updateTimes();
     }
@@ -61,6 +66,8 @@ public:
         updateTimes();
     }
     void set_mix(float m) { mix_ = clampf(m, 0.0f, 1.0f); }
+    /** 0 = schoon, 1 = normaal, 2 = dik. */
+    void set_color(float c) { color_ = clampf(c, 0.0f, 2.0f); }
     /** true = signaal ongemoeid door (de detector blijft wel meelopen). */
     void set_bypass(bool on) { bypass_ = on; }
     bool bypassed() const { return bypass_; }
@@ -100,16 +107,18 @@ public:
         const float g = dbToLin(-grDb_);
         // Vervorming groeit met het ingrijpen; alle knoppen: veel meer.
         const float grN = clampf(grDb_ * (1.0f / 20.0f), 0.0f, 1.5f);
-        const float k = kBaseDrive + grN * (ratioSel_ == kRatioAll ? kAllDrive : kGrDrive);
+        const float k = color_ * (kBaseDrive + grN * (ratioSel_ == kRatioAll ? kAllDrive : kGrDrive));
         const float b = kBias;
-        const float tb = std::tanh(k * b);
-        const float norm = 1.0f / (k * (1.0f - tb * tb));
 
         if (bypass_) return;
 
         for (int c = 0; c < n; ++c) {
             const float v = u[c] * g;
-            float y = (std::tanh(k * (v + b)) - tb) * norm;     // helling 1 in de oorsprong
+            // Dubbel bemonsterd: ook het punt halverwege het vorige sample door
+            // de kromme, en het gemiddelde eruit. Scheelt terugvouwende
+            // boventonen bij veel Color.
+            float y = 0.5f * (shape(0.5f * (prev_[c] + v), k, b) + shape(v, k, b));
+            prev_[c] = v;
             // DC-filter: de asymmetrie laat een kleine DC achter.
             dc_[c] += dcCoef_ * (y - dc_[c]);
             y -= dc_[c];
@@ -149,6 +158,13 @@ private:
     }
     float coef(float ms) const { return 1.0f - std::exp(-1.0f / (0.001f * ms * sr_)); }
 
+    /** Asymmetrische tanh met helling 1 in de oorsprong; k = 0 is schoon. */
+    static inline float shape(float v, float k, float b) {
+        if (k < 1e-4f) return v;
+        const float tb = std::tanh(k * b);
+        return (std::tanh(k * (v + b)) - tb) / (k * (1.0f - tb * tb));
+    }
+
     static inline float softOut(float v) {
         // Lineair tot 0,8, dan een tanh-bocht naar ±1 (zoals mmb_dsp::OutputLimiter::soft).
         const float a = std::fabs(v);
@@ -160,13 +176,13 @@ private:
     static float clampf(float v, float lo, float hi) { return v < lo ? lo : (v > hi ? hi : v); }
 
     float sr_ = 44100.0f;
-    float inGain_ = 1.0f, outGain_ = 1.0f, mix_ = 1.0f;
+    float inGain_ = 1.0f, outGain_ = 1.0f, mix_ = 1.0f, color_ = 1.0f;
     float attackKnob_ = 4.0f, releaseKnob_ = 4.0f;
     int   ratioSel_ = 0;
     float att_ = 0.5f, rel_ = 0.001f;
     float grDb_ = 0.0f;
     bool  bypass_ = false;
-    float dc_[4] = {}, dcCoef_ = 0.001f;
+    float dc_[4] = {}, prev_[4] = {}, dcCoef_ = 0.001f;
 };
 
 }  // namespace mmb_dsp
