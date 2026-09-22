@@ -85,7 +85,7 @@ gedragen:
 
 | # | Module | Waarom in deze volgorde |
 |---|---|---|
-| 1 | **FET** (1176-stijl), `tp_mmb_fet_comp` | Het bekendst en het meest herkenbaar; feedback-topologie en vervorming die met het ingrijpen groeit leggen meteen de gedeelde bouwstenen neer |
+| 1 | **FET** (1176-stijl), `tp_mmb_fet_comp` | Het bekendst en het meest herkenbaar; de snelle detector, de knie per ratio en vervorming die met het ingrijpen groeit leggen meteen de gedeelde bouwstenen neer |
 | 2 | **Opto** (LA-2A-stijl) | Het tweede grote karakter: traag, met het geheugen in de cel |
 | 3 | **VCA-bus** (SSL-stijl) | Eenvoudig na 1 en 2; de mixbus-lijm met Auto-release |
 | 4 | **Vari-mu** (Fairchild-stijl) | Ratio die met het ingrijpen oploopt, buisvervorming |
