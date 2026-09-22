@@ -17,6 +17,26 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### fw 0.5.57 — Limiter op de sampler: geen digitale overdrive meer bij resonantie (2026-09-22)
+- **Waarom:** een zingende MS-20 blijft per stem rond de ±1, en een paar
+  stemmen samen komen daar ruim boven. De sampler knipte die som hard af op
+  ±1, vóór de omzetting naar 16 bits, dus ook vóór Out-level. Level omlaag
+  hielp niet: dat is het ingangsniveau van het filter, en de resonantie zingt
+  even hard door. In de opname van 09:06 zaten duizenden samples plat op het
+  plafond (Teensy op 0,85 = ±1 × Out-level 0,85, en de sim op 1,0).
+- **`limit`** (nieuwe schakelaar, standaard **Aan**): een gekoppelde
+  piek-limiter op de som (attack 0,5 ms, release 150 ms, drempel 0,8), met
+  daarachter een zachte begrenzing (lineair tot 0,8, daarboven een tanh-bocht
+  naar 1). **Uit** = het oude harde knippen. De kern is `mmb_dsp/limiter.h`,
+  dezelfde in de firmware en de sampler-wasm van de sim.
+- Gemeten op de Teensy (q 0,9, dezelfde noten): platte toppen van 11.538
+  naar 0, piek 0,834 in plaats van 0,850 plat. Simtest:
+  `wasmSamplerLimit.test.ts`.
+- Bestaande projecten krijgen de schakelaar via **Seed internals**.
+- Nog te bekijken: de breuken die overblijven zitten op noot-aanslagen en
+  stem-steals. Die waren er zonder limiter ook, maar vielen toen weg in de
+  platgeknipte stukken.
+
 ### fw 0.5.56 — Geen tikken meer bij zware patches: de pc bepaalt het audiotempo (2026-09-22)
 - **Oorzaak van de MS-20-tikken in de sampler** (~5 per seconde op de Teensy,
   nul in de sim): niet het filter. De USB-uitgang van de Teensy-core houdt

@@ -15,6 +15,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <cmath>
+#include "mmb_dsp/limiter.h"
 #include "mmb_dsp/sample_player.h"
 
 const char* const MMB_TYPE_ID     = "tp_mmb_sampler";
@@ -53,13 +54,13 @@ constexpr int kAudioOuts = 4;
 inline int OUT_ENV(int k) { return kAudioOuts + k; }
 
 enum { C_COARSE, C_FINE, C_START, C_ATTACK, C_LEVEL, C_FILTER, C_CUTOFF, C_Q, C_FMODE, C_DRIVE,
-       C_CV_AMT, C_ENV_REL, C_ENV_SENS };
+       C_CV_AMT, C_ENV_REL, C_ENV_SENS, C_LIMIT };
 MmbControl MMB_CONTROLS[] = {
     { "coarse", 0.f }, { "fine", 0.f }, { "start", 0.f }, { "attack", 1.5f }, { "level", 0.8f },
     { "filter", 0.f }, { "cutoff", 2000.f }, { "q", 0.3f }, { "fmode", 0.f }, { "drive", 1.f },
-    { "cv_amt", 4.f }, { "env_rel", 120.f }, { "env_sens", 12.f },
+    { "cv_amt", 4.f }, { "env_rel", 120.f }, { "env_sens", 12.f }, { "limit", 1.f },
 };
-const int MMB_NUM_CONTROLS = 13;
+const int MMB_NUM_CONTROLS = 14;
 
 namespace {
 // Ruimer dan de firmware: in de browser is het geheugen dynamisch en een
@@ -77,6 +78,7 @@ mmb_dsp::Zone        g_zones[kZones];
 int                  g_numZones = 0;
 
 mmb_dsp::SamplePlayer g_voice[kVoices];
+mmb_dsp::OutputLimiter g_limiter;   // op de som, zoals de SamplerStream
 bool                  g_gate[kVoices];
 
 float g_coarse = 0.f, g_fine = 0.f, g_start = 0.f, g_attack = 1.5f, g_level = 0.8f;
@@ -161,6 +163,7 @@ MMB_EXPORT(mmb_active_voices) int mmb_active_voices() {
 
 void mmb_setup() {
     for (int i = 0; i < kVoices; ++i) { g_voice[i].Init(MMB_NATIVE_RATE); g_gate[i] = false; }
+    g_limiter.Init(MMB_NATIVE_RATE);
     rebind();
 }
 
@@ -179,6 +182,7 @@ void mmb_on_control(int idx, float v) {
         case C_CV_AMT: g_cvAmt = v; break;
         case C_ENV_REL: g_envRel = v; break;
         case C_ENV_SENS: g_envSens = v; break;
+        case C_LIMIT: g_limiter.set_enabled(v >= 0.5f); return;
     }
     for (int i = 0; i < kVoices; ++i) applyControls(g_voice[i]);
 }
@@ -212,11 +216,8 @@ void mmb_process(int frames) {
     for (int k = 0; k < frames; ++k) {
         for (int c = 0; c < mmb_dsp::kMaxChannels; ++c) mix[c] = 0.f;
         for (int i = 0; i < kVoices; ++i) g_voice[i].Process(mix, kAudioOuts);
-        for (int o = 0; o < kAudioOuts; ++o) {
-            float y = mix[o];
-            if (!(y == y)) y = 0.f;
-            MMB_OUTPUTS[o].buf[k] = y > 1.f ? 1.f : (y < -1.f ? -1.f : y);
-        }
+        g_limiter.Process(mix, kAudioOuts);
+        for (int o = 0; o < kAudioOuts; ++o) MMB_OUTPUTS[o].buf[k] = mix[o];
         for (int i = 0; i < kVoices; ++i) MMB_OUTPUTS[OUT_ENV(i)].buf[k] = g_voice[i].env();
     }
 }

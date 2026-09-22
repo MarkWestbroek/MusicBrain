@@ -37,7 +37,8 @@
  * | out | `out_l` `out_r` `out_3` `out_4` | Audio | mono → L+R, stereo → 1/2, quad → 1–4 |
  * Controls: `bank` (0–15), `coarse` (semi), `fine` (ct), `start` (0..1),
  * `attack` (ms; telt op bij de opkomst die de zone zelf meebrengt),
- * `level` (0..1).
+ * `level` (0..1), `limit` (1 = limiter + zachte begrenzing op de som, 0 =
+ * hard afknippen op ±1; zie mmb_dsp/limiter.h).
  */
 
 #include "AudioModule.h"
@@ -49,6 +50,7 @@
 #include <cstring>
 #include <string_view>
 
+#include "mmb_dsp/limiter.h"
 #include "mmb_dsp/sample_player.h"
 #include "mmb_dsp/sample_bank.h"
 
@@ -322,6 +324,7 @@ public:
 
     SamplerStream() : AudioStream(0, nullptr) {
         for (int i = 0; i < kVoices; ++i) voice_[i].Init(AUDIO_SAMPLE_RATE_EXACT);
+        limiter_.Init(AUDIO_SAMPLE_RATE_EXACT);
         rebind();
     }
 
@@ -369,6 +372,7 @@ public:
     void setStart(float s)  { for (auto& v : voice_) v.set_startOffset(s); }
     void setAttack(float ms){ for (auto& v : voice_) v.setAttackMs(ms); }
     void setLevel(float l)  { for (auto& v : voice_) v.set_level(l); }
+    void setLimit(bool on)  { limiter_.set_enabled(on); }
 
     /** Zo vaak (in samples) worden de filtercoëfficiënten en de interne
      *  env -> cutoff bijgewerkt — gelijk aan het blok van de sampler-wasm in de
@@ -393,12 +397,8 @@ public:
             for (int i = s0; i < s0 + kSubBlock; ++i) {
                 for (int c = 0; c < mmb_dsp::kMaxChannels; ++c) mix[c] = 0.0f;
                 for (auto& v : voice_) v.Process(mix, 4);
-                for (int c = 0; c < 4; ++c) {
-                    float y = mix[c];
-                    if (!(y == y)) y = 0.0f;
-                    if (y > 1.0f) y = 1.0f; else if (y < -1.0f) y = -1.0f;
-                    out[c]->data[i] = static_cast<int16_t>(y * 32767.0f);
-                }
+                limiter_.Process(mix, 4);          // som binnen ±1, vóór de 16 bits
+                for (int c = 0; c < 4; ++c) out[c]->data[i] = static_cast<int16_t>(mix[c] * 32767.0f);
             }
         }
         for (int c = 0; c < 4; ++c) { transmit(out[c], c); release(out[c]); }
@@ -419,6 +419,7 @@ private:
     }
 
     mmb_dsp::SamplePlayer voice_[kVoices];
+    mmb_dsp::OutputLimiter limiter_;
     uint32_t boundVersion_ = 0xffffffffu;
     int   bank_ = -1;
     float voct_[kVoices] = {};
@@ -509,6 +510,7 @@ public:
         else if (controlId == "start")  stream_.setStart(asFloat(0.0f));
         else if (controlId == "attack") stream_.setAttack(asFloat(1.5f));
         else if (controlId == "level")  stream_.setLevel(asFloat(0.8f));
+        else if (controlId == "limit")  stream_.setLimit(asFloat(1.0f) >= 0.5f);
         else if (controlId == "filter") stream_.setFilterType(static_cast<int>(asFloat(0.0f)));
         else if (controlId == "cutoff") stream_.setFilterCutoff(asFloat(2000.0f));
         else if (controlId == "q")      stream_.setFilterQ(asFloat(0.3f));
