@@ -17,7 +17,42 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
-### fw 0.5.61 — Opto-compressor in LA-2A-stijl (2026-09-22)
+### fw 0.5.62 — VCA-bus, Vari-mu en Program EQ; hoog-verlies in FET/Opto hersteld (2026-09-23)
+- **Fout hersteld (FET, Opto):** het "dubbel bemonsteren" van de vervorming
+  middelde ook het schone signaal, en dat is een laagdoorlaat: −0,4 dB op
+  5 kHz en ~−4 dB op 16 kHz, óók met Color 0. Nu wordt alleen het
+  vervormingsdeel (kromme − rechte lijn) gemiddeld; het schone signaal gaat
+  onaangeroerd door. Regressietests op 1/8/16 kHz in alle compressortests.
+- **VCA-BUS** (`tp_mmb_bus_comp`, 10 HP, SSL-G-stijl): feed-forward en schoon;
+  vaste standen Attack 0,1–30 ms, Release 0,1–1,2 s en **Auto** (een snelle
+  envelope voor losse pieken en een trage die alleen bij aanhoudend luid
+  materiaal groeit), Ratio 2/4/10, Threshold, Makeup, **SC HPF** (laag uit de
+  detector, niet op het origineel), Mix, Bypass, GR.
+- **VARI-MU** (`tp_mmb_varimu_comp`, 10 HP, Fairchild-stijl): geen vaste ratio
+  (GR = over²/(over + 8 dB): een paar dB boven de drempel rond 2:1, 20 dB
+  erboven ~12:1), Time 1–6 (5 en 6 programma-afhankelijk, loslaten in 10 of
+  25 s), **Mode LR of M/S** (lateral/vertical zoals de 670), buisvervorming
+  die meegroeit (Color), Input, Threshold, Output, Mix, Bypass, GR.
+- **PROGRAM EQ** (`tp_mmb_program_eq`, 12 HP, Pultec-EQP-1A-stijl): laag
+  20/30/60/100 Hz met aparte Boost (tot +13,5 dB) en Atten (tot −10 dB, begint
+  ~3× hoger en zachter) — beide open = de **Pultec-truc** (op 60 Hz: +4,6 dB op
+  30 Hz, −6,8 dB rond 120 Hz); hoge Boost-bell 3–16 kHz met Bandwidth, hoge
+  Atten-shelf 5/10/20 kHz, buistrap (Color), Output, Bypass. Knoppen 0–10;
+  versterkingen glijden in ~5 ms zodat draaien niet ritst.
+- Kernen `mmb_dsp/bus_comp.h`, `varimu_comp.h`, `program_eq.h`; firmware- en
+  wasm-wrappers uit één sjabloon. Tests: `wasmBusComp`, `wasmVariMuComp`,
+  `wasmProgramEq` (18) plus de regressietests; 280 groen.
+- Gemeten op de Teensy (A/B met bypass, zelfde noten, uitgelijnd met
+  `tools/teensy-live/compare_ab.py`): VCA-bus helling uit/in 0,97 (drempel
+  −20) tot 0,74 (−30); mastering-keten EQ → Vari-mu 0,85. CPU: sampler + EQ +
+  Vari-mu 33 %.
+- Seeds: **Sampler ×8 + EQ + Vari-mu** (Poly ▾, een mastering-keten), en in
+  Solo ▾ **Plaits + VCA-bus**, **Elements + Vari-mu**, **STK + Program EQ**.
+  De sampler-seed neemt nu een willekeurige effectketen.
+- Valkuil bij het meten: een config-push met dezelfde module-id hergebruikt de
+  instantie, dus een eerder gepoke `bypass=1` blijft staan.
+
+— Opto-compressor in LA-2A-stijl (2026-09-22)
 - Nieuwe module **OPTO COMP** (`tp_mmb_opto_comp`, 8 HP), stap 2 van FW-FX-3.
   Kern `mmb_dsp/opto_comp.h`, dezelfde in de firmware en als wasm in de sim.
 - **De lichtcel is het karakter:** de gain reduction komt uit twee envelopes

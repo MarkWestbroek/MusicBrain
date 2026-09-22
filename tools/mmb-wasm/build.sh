@@ -114,6 +114,9 @@ sel stksound && build stksound tp_mmb_stk_sound "$STK/include" "$STK/include/stk
 sel tapeecho && build tapeecho tp_mmb_tape_echo "$LIB/mmb-dsp" --
 sel fetcomp && build fetcomp tp_mmb_fet_comp "$LIB/mmb-dsp" --
 sel optocomp && build optocomp tp_mmb_opto_comp "$LIB/mmb-dsp" --
+sel buscomp && build buscomp tp_mmb_bus_comp "$LIB/mmb-dsp" --
+sel varimucomp && build varimucomp tp_mmb_varimu_comp "$LIB/mmb-dsp" --
+sel programeq && build programeq tp_mmb_program_eq "$LIB/mmb-dsp" --
 
 sel envfollower && build envfollower tp_mmb_env_follower "$LIB/mmb-dsp" --
 sel envfollower && EXTRA="-DMMB_EF_CELLS=1" build envfollower tp_mmb_env_follower_mono "$LIB/mmb-dsp" --

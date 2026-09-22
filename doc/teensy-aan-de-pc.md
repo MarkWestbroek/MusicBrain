@@ -118,3 +118,10 @@ moet dicht zijn. MIDI gaat via winmm, dus alleen Windows.
 vulling vlak vóór een nieuw blok (hoort 52–96 te zijn), `paced`/`free` =
 cycli gestart door de USB-wachtrij resp. vrij op 2902 µs (geen opname open).
 `over` en `under` horen 0 te zijn.
+
+**Met en zonder vergelijken:** neem twee keer dezelfde noten op (één met
+`--poke bypass=1`) en vergelijk ze met `tools/teensy-live/compare_ab.py
+bypass.wav effect.wav`: die lijnt ze uit en geeft de helling uit/in (1 = geen
+compressie) en hoeveel luide en zachte stukken veranderen. Let op: een
+config-push met dezelfde module-id hergebruikt de instantie, dus poke
+`bypass=0` expliciet als een eerdere run hem aanzette.

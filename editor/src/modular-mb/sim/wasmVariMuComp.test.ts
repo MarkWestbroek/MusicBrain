@@ -1,8 +1,7 @@
-// FET-compressor (1176-stijl, tp_mmb_fet_comp) door de worklet-host heen: de
-// kern mmb_dsp::FetComp is dezelfde als op de Teensy. De tests leggen het
-// karakter vast dat doc/plans/vintage-compressors.md belooft: de ratio's, alle
-// knoppen harder dan 20:1, de aanvalstijd, vervorming die meegroeit met het
-// ingrijpen, Mix en een uitgang die binnen ±1 blijft.
+// Variable-mu buizencompressor (Fairchild-stijl, tp_mmb_varimu_comp) door de
+// worklet-host heen; de kern mmb_dsp::VariMuComp is dezelfde als op de Teensy.
+// Vastgelegd: de ratio die oploopt met het ingrijpen, M/S (lateral/vertical),
+// de programma-afhankelijke tijdstanden, Color en Bypass.
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -11,6 +10,8 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 const QUANTUM = 128;
 const CTX = 44100;          // gelijk aan de native rate: geen resampling in de meting
+
+const TYPE = 'tp_mmb_varimu_comp';
 
 class FakePort {
   private fn: ((e: { data: unknown }) => void) | null = null;
@@ -31,7 +32,7 @@ async function loadHost(): Promise<void> {
   vi.stubGlobal('AudioWorkletProcessor', class { port = new FakePort(); });
   vi.stubGlobal('registerProcessor', (_n: string, cls: ProcCtor) => { Processor = cls; });
   const url = new URL('../../../public/wasm/mmb-worklet.js', import.meta.url).href;
-  await import(/* @vite-ignore */ `${url}?fet`);
+  await import(/* @vite-ignore */ `${url}?varimu`);
 }
 
 const wasmBytes = (typeId: string): Uint8Array => new Uint8Array(readFileSync(
@@ -69,7 +70,7 @@ interface Out { l: Float32Array; gr: Float32Array }
  * terug. `ctl` zet de knoppen.
  */
 async function run(ctl: Record<string, number>, secs: number, sig: (t: number) => number): Promise<Out> {
-  const bytes = wasmBytes('tp_mmb_fet_comp');
+  const bytes = wasmBytes(TYPE);
   const { inputs, outputs } = await portsOf(bytes);
   const p = new Processor!({ processorOptions: { wasm: bytes, inputs, outputs } });
   for (const [id, v] of Object.entries(ctl)) p.port.send({ t: 'ctl', id, v });
@@ -78,7 +79,7 @@ async function run(ctl: Record<string, number>, secs: number, sig: (t: number) =
   const outBuf = outputs.map(() => [new Float32Array(QUANTUM)]);
   const inL = inBuf[inputs.indexOf('in_l')]![0]!;
   const oL  = outBuf[outputs.indexOf('out_l')]![0]!;
-  const oGr = outBuf[outputs.indexOf('gr')]![0]!;
+  const oGr = outBuf[outputs.indexOf('gr')]?.[0] ?? new Float32Array(QUANTUM);  // EQ heeft geen GR
   const blocks = Math.ceil(secs * CTX / QUANTUM);
   const l = new Float32Array(blocks * QUANTUM), gr = new Float32Array(blocks * QUANTUM);
   for (let b = 0; b < blocks; b++) {
@@ -113,7 +114,43 @@ function thdDb(x: Float32Array, f: number, from: number): number {
   return 10 * Math.log10(harm / mag(1));
 }
 
-describe('FET-compressor (1176-stijl)', () => {
+
+/** Als run(), maar met een eigen signaal op in_r; geeft L en R terug. */
+async function runStereo(ctl: Record<string, number>, secs: number,
+  sigL: (t: number) => number, sigR: (t: number) => number): Promise<{ l: Float32Array; r: Float32Array }> {
+  const bytes = wasmBytes(TYPE);
+  const { inputs, outputs } = await portsOf(bytes);
+  const p = new Processor!({ processorOptions: { wasm: bytes, inputs, outputs } });
+  for (const [id, v] of Object.entries(ctl)) p.port.send({ t: 'ctl', id, v });
+  p.port.send({ t: 'cabled', id: 'in_l', on: true });
+  p.port.send({ t: 'cabled', id: 'in_r', on: true });
+  const inBuf  = inputs.map(() => [new Float32Array(QUANTUM)]);
+  const outBuf = outputs.map(() => [new Float32Array(QUANTUM)]);
+  const iL = inBuf[inputs.indexOf('in_l')]![0]!, iR = inBuf[inputs.indexOf('in_r')]![0]!;
+  const oL = outBuf[outputs.indexOf('out_l')]![0]!, oR = outBuf[outputs.indexOf('out_r')]![0]!;
+  const blocks = Math.ceil(secs * CTX / QUANTUM);
+  const l = new Float32Array(blocks * QUANTUM), r = new Float32Array(blocks * QUANTUM);
+  for (let b = 0; b < blocks; b++) {
+    for (let i = 0; i < QUANTUM; i++) { const t = (b * QUANTUM + i) / CTX; iL[i] = sigL(t); iR[i] = sigR(t); }
+    p.process(inBuf, outBuf, {});
+    l.set(oL, b * QUANTUM); r.set(oR, b * QUANTUM);
+  }
+  return { l, r };
+}
+/** Amplitude van één frequentie (Goertzel-achtig) vanaf `from`. */
+function magAt(x: Float32Array, f: number, from: number): number {
+  let re = 0, im = 0;
+  for (let i = from; i < x.length; i++) { const w = 2 * Math.PI * f * i / CTX; re += x[i]! * Math.cos(w); im += x[i]! * Math.sin(w); }
+  return 2 * Math.hypot(re, im) / (x.length - from);
+}
+/** Droog doorlaten, met de vertraging van de host eruit gezocht. */
+function expectDry(o: Float32Array, x: (t: number) => number): void {
+  const err = (d: number) => { let e = 0; for (let i = 2000; i < 2200; i++) e += Math.abs(o[i]! - x((i - d) / CTX)); return e; };
+  let best = 0; for (let d = 1; d < 1024; d++) if (err(d) < err(best)) best = d;
+  for (let i = 2000; i < 2100; i++) expect(o[i]!).toBeCloseTo(x((i - best) / CTX), 5);
+}
+
+describe('Vari-mu compressor (Fairchild-stijl)', () => {
   beforeAll(async () => { await loadHost(); });
   afterAll(() => { vi.unstubAllGlobals(); });
 
@@ -121,88 +158,60 @@ describe('FET-compressor (1176-stijl)', () => {
     // Regressie: het dubbel bemonsteren middelde ook het schone signaal, en
     // dat is een laagdoorlaat (−4 dB op 16 kHz, fw ≤ 0.5.61).
     for (const f of [1000, 8000, 16000]) {
-      const o = await run({ input: 0, color: 0 }, 0.4, sine(-40, f));
+      const o = await run({ threshold: 0, color: 0 }, 0.4, sine(-40, f));
       expect(rmsDb(o.l, Math.round(0.2 * CTX))).toBeCloseTo(-40 - 3.01, 1);
     }
   }, 30_000);
 
-  it('laat zachte signalen onder de drempel met rust', async () => {
-    const o = await level({ ratio: 0 }, -40);
-    expect(o).toBeCloseTo(-40 - 3.01, 0);          // RMS van een sinus = piek − 3 dB
+  it('laat signalen onder de drempel met rust', async () => {
+    expect(await level({ threshold: -18, color: 0 }, -40)).toBeCloseTo(-40 - 3.01, 0);
   }, 30_000);
 
-  it('comprimeert boven de drempel met de gekozen ratio', async () => {
-    // Van −12 naar −6 dBFS (ruim boven de drempel van −18): 6 dB erbij in,
-    // 6/R dB erbij uit.
-    for (const [sel, r] of [[0, 4], [1, 8], [3, 20]] as const) {
-      const a = await level({ ratio: sel }, -12);
-      const b = await level({ ratio: sel }, -6);
-      expect(b - a).toBeGreaterThan(6 / r - 0.6);
-      expect(b - a).toBeLessThan(6 / r + 0.6);
-    }
+  it('laat de ratio oplopen met het ingrijpen: zacht in, stevig aan de top', async () => {
+    const ctl = { threshold: -30, time: 1, color: 0 };
+    // 4 dB erbij, net boven de drempel en ver erboven.
+    const dichtbij = await level(ctl, -24) - await level(ctl, -28);
+    const ver      = await level(ctl, -8)  - await level(ctl, -12);
+    expect(dichtbij).toBeGreaterThan(1.5);      // rond 2:1
+    expect(ver).toBeLessThan(1.0);              // ~8:1 of meer
+    expect(dichtbij).toBeGreaterThan(2 * ver);
   }, 60_000);
 
-  it('grijpt met alle knoppen harder in dan 20:1: harder erin wordt zachter eruit', async () => {
-    const a = await level({ ratio: 4 }, -6);
-    const b = await level({ ratio: 4 }, 0);
-    expect(b).toBeLessThan(a);
-  }, 30_000);
+  it('regelt in M/S midden en zijkant apart', async () => {
+    // Luid midden (441 Hz op L en R), zachte zijkant (1 kHz tegengesteld).
+    const m = sine(-6, 441), s = sine(-30, 1000);
+    const L = (t: number) => m(t) + s(t), R = (t: number) => m(t) - s(t);
+    const from = Math.round(0.6 * CTX);
+    const side = async (mode: number): Promise<number> => {
+      const o = await runStereo({ threshold: -30, time: 1, mode, color: 0 }, 1.0, L, R);
+      const d = new Float32Array(o.l.length);
+      for (let i = 0; i < d.length; i++) d[i] = 0.5 * (o.l[i]! - o.r[i]!);
+      return magAt(d, 1000, from);
+    };
+    // LR: de zijkant gaat mee omlaag met het luide midden; M/S: blijft staan.
+    expect(await side(1)).toBeGreaterThan(3 * await side(0));
+  }, 60_000);
 
-  it('slaat op Attack 7 veel sneller aan dan op Attack 1', async () => {
-    // Stap van stilte naar −6 dBFS; GR na 0,3 ms.
-    const step = (t: number) => (t < 0.1 ? 0 : sine(-6)(t));
-    // De host loopt een paar samples achter: meet vanaf het eerste ingrijpen.
-    const snel = await run({ attack: 7 }, 0.15, step);
-    const traag = await run({ attack: 1 }, 0.15, step);
-    const onset = snel.gr.findIndex((v) => v > 0.005);
-    expect(onset).toBeGreaterThan(0);
-    const at = onset + Math.round(0.0003 * CTX);
-    const eind = snel.gr[snel.gr.length - 1]!;
-    expect(snel.gr[at]!).toBeGreaterThan(0.6 * eind);
-    expect(traag.gr[at]!).toBeLessThan(0.5 * snel.gr[at]!);
-  }, 30_000);
+  it('laat in stand 5 langer los na aanhoudend materiaal dan na een korte piek', async () => {
+    const na = async (secs: number): Promise<number> => {
+      const o = await run({ threshold: -30, time: 5, color: 0 }, secs + 2.5, (t) => (t < secs ? sine(-6)(t) : 0));
+      const top = o.gr[Math.round((secs - 0.01) * CTX)]!;
+      return o.gr[Math.round((secs + 2.0) * CTX)]! / top;
+    };
+    expect(await na(3.0)).toBeGreaterThan(1.5 * await na(0.1));
+  }, 60_000);
 
-  it('vervormt meer naarmate hij harder ingrijpt', async () => {
+  it('regelt de buisvervorming met Color', async () => {
     const from = Math.round(0.5 * CTX);
-    const licht = await run({ input: 0,  output: 0 }, 0.8, sine(-30, 441));
-    const zwaar = await run({ input: 30, output: -10 }, 0.8, sine(-30, 441));
-    expect(zwaar.gr[zwaar.gr.length - 1]!).toBeGreaterThan(0.5);   // > 10 dB GR
-    expect(thdDb(zwaar.l, 441, from)).toBeGreaterThan(thdDb(licht.l, 441, from) + 10);
-  }, 30_000);
-
-  it('laat met Mix 0 het droge signaal door', async () => {
-    const o = await run({ input: 30, mix: 0 }, 0.3, sine(-6));
-    const x = sine(-6);
-    // De host loopt een paar samples achter: zoek die vertraging, dan exact gelijk.
-    const err = (d: number) => { let e = 0; for (let i = 2000; i < 2200; i++) e += Math.abs(o.l[i]! - x((i - d) / CTX)); return e; };
-    let best = 0; for (let d = 1; d < 1024; d++) if (err(d) < err(best)) best = d;
-    for (let i = 2000; i < 2100; i++) expect(o.l[i]!).toBeCloseTo(x((i - best) / CTX), 5);
-  }, 30_000);
-
-  it('regelt de vervorming met Color: 0 schoon, 2 dik', async () => {
-    // Gemeten bij ~18 dB gain reduction (441 Hz): 0,2 % — 9 % — 27 %.
-    const from = Math.round(0.5 * CTX);
-    const zwaar = { input: 26, output: -16, ratio: 3 };
     const thd = async (color: number): Promise<number> =>
-      thdDb((await run({ ...zwaar, color }, 0.8, sine(-12, 441))).l, 441, from);
-    const schoon = await thd(0), normaal = await thd(1), dik = await thd(2);
-    expect(schoon).toBeLessThan(-50);          // < 0,3 %
-    expect(normaal).toBeGreaterThan(schoon + 20);
-    expect(dik).toBeGreaterThan(normaal + 6);
+      thdDb((await run({ input: 20, threshold: -18, output: -10, color }, 0.8, sine(-12, 441))).l, 441, from);
+    expect(await thd(0)).toBeLessThan(-50);
+    expect(await thd(2)).toBeGreaterThan(await thd(0) + 20);
   }, 60_000);
 
-  it('laat met Bypass het droge signaal door, maar blijft meten', async () => {
-    const o = await run({ input: 30, bypass: 1 }, 0.3, sine(-6));
-    const x = sine(-6);
-    const err = (d: number) => { let e = 0; for (let i = 2000; i < 2200; i++) e += Math.abs(o.l[i]! - x((i - d) / CTX)); return e; };
-    let best = 0; for (let d = 1; d < 1024; d++) if (err(d) < err(best)) best = d;
-    for (let i = 2000; i < 2100; i++) expect(o.l[i]!).toBeCloseTo(x((i - best) / CTX), 5);
-    // De detector loopt door, zodat terugschakelen niet knalt.
-    expect(o.gr[o.gr.length - 1]!).toBeGreaterThan(0.2);
-  }, 30_000);
-
-  it('blijft binnen ±1, ook met alles open', async () => {
-    const o = await run({ input: 36, output: 12, ratio: 4 }, 0.5, sine(0, 110));
+  it('laat met Bypass droog door en blijft binnen ±1', async () => {
+    expectDry((await run({ input: 20, bypass: 1 }, 0.3, sine(-6))).l, sine(-6));
+    const o = await run({ input: 24, output: 12, threshold: 0 }, 0.5, sine(0, 110));
     let pk = 0; for (const v of o.l) pk = Math.max(pk, Math.abs(v));
     expect(pk).toBeLessThanOrEqual(1);
   }, 30_000);

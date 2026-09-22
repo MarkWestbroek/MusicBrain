@@ -115,9 +115,12 @@ public:
         for (int c = 0; c < n; ++c) {
             const float v = u[c] * g;
             // Dubbel bemonsterd: ook het punt halverwege het vorige sample door
-            // de kromme, en het gemiddelde eruit. Scheelt terugvouwende
-            // boventonen bij veel Color.
-            float y = 0.5f * (shape(0.5f * (prev_[c] + v), k, b) + shape(v, k, b));
+            // de kromme, en van de vervorming (kromme − rechte lijn) het
+            // gemiddelde. Scheelt terugvouwende boventonen bij veel Color. Alleen
+            // de vervorming middelen: het schone signaal middelen is een
+            // laagdoorlaat (was −4 dB op 16 kHz, fw ≤ 0.5.61).
+            const float m = 0.5f * (prev_[c] + v);
+            float y = v + 0.5f * ((shape(m, k, b) - m) + (shape(v, k, b) - v));
             prev_[c] = v;
             // DC-filter: de asymmetrie laat een kleine DC achter.
             dc_[c] += dcCoef_ * (y - dc_[c]);

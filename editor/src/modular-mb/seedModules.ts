@@ -1504,6 +1504,109 @@ function mmbOptoComp() {
   });
 }
 
+// 10e. MMB VCA-BUS — 10 HP. VCA-buscompressor in SSL-G-stijl (FW-FX-3 stap 3).
+function mmbBusComp() {
+  const w = W(10);
+  return assemble({
+    typeId: 'tp_mmb_bus_comp',
+    categoryId: 'effect',
+    variant: 'VCA bus compressor',
+    brand: 'MMB', model: 'VCA-BUS',
+    hp: 10, texture: 'pcb-black', baseColor: '#1a1d22', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'VCA-BUS', fontSize: 2.0, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: 'bus compressor', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('threshold', 'Threshold', w*0.27, 30, { size: 'medium', min: -60, max: 0, def: -18, unit: 'dB', color: '#f5a623' }),
+      knob('makeup',    'Makeup',    w*0.73, 30, { size: 'medium', min: 0, max: 20, def: 0, unit: 'dB', color: '#f5a623' }),
+      sw  ('ratio',   'Ratio',   w*0.10, 54, ['2:1', '4:1', '10:1'], 1),
+      sw  ('attack',  'Attack',  w*0.40, 60, ['0.1', '0.3', '1', '3', '10', '30'], 5),
+      sw  ('release', 'Release', w*0.70, 59, ['0.1', '0.3', '0.6', '1.2', 'Auto'], 4),
+      sw  ('sc_hpf',  'SC HPF',  w*0.10, 82, ['Uit', '60', '100', '150'], 0),
+      knob('mix',     'Mix',     w*0.48, 84, { size: 'small', min: 0, max: 1, def: 1, color: '#9ca3af' }),
+      sw  ('bypass',  'Bypass',  w*0.78, 84, ['Uit', 'Aan'], 0),
+      inPort ('in_l',  'L',  'audio', w*0.12, 106),
+      inPort ('in_r',  'R',  'audio', w*0.28, 106),
+      outPort('gr',    'GR', 'cv',    w*0.50, 106),
+      outPort('out_l', 'L',  'audio', w*0.72, 106),
+      outPort('out_r', 'R',  'audio', w*0.88, 106),
+    ],
+    notes: 'VCA-buscompressor die knipoogt naar de SSL G-bus: strak en schoon, de lijm op een mix. Vaste standen zoals het apparaat: Attack 0,1 tot 30 ms, Release 0,1 tot 1,2 s en Auto, Ratio 2/4/10. De klassieke busstand: attack 30, release Auto, ratio 2 of 4 — de aanslag komt erdoor en de mix pompt mee met de maat. Auto = een snelle envelope (100 ms) voor losse pieken en een trage (1,2 s) die alleen bij aanhoudend luid materiaal groeit; de grootste wint. SC HPF (niet op het origineel) haalt laag uit de detector zodat de bas hem minder laat pompen. Makeup, Mix (parallel), Bypass, GR als CV. Stereo gekoppeld. Firmware tp_mmb_bus_comp (mmb_dsp::BusComp); dezelfde kern als wasm in de simulator.',
+  });
+}
+
+// 10f. MMB VARI-MU — 10 HP. Variable-mu buizencompressor in Fairchild-stijl (FW-FX-3 stap 4).
+function mmbVariMuComp() {
+  const w = W(10);
+  return assemble({
+    typeId: 'tp_mmb_varimu_comp',
+    categoryId: 'effect',
+    variant: 'Vari-mu compressor',
+    brand: 'MMB', model: 'VARI-MU',
+    hp: 10, texture: 'pcb-black', baseColor: '#201a14', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'VARI-MU', fontSize: 2.0, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: 'tube limiter', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('input',     'Input',     w*0.20, 30, { size: 'medium', min: -12, max: 24, def: 0, unit: 'dB', color: '#f5a623' }),
+      knob('threshold', 'Threshold', w*0.50, 30, { size: 'medium', min: -40, max: 0, def: -18, unit: 'dB', color: '#f5a623' }),
+      knob('output',    'Output',    w*0.80, 30, { size: 'medium', min: -24, max: 12, def: 0, unit: 'dB', color: '#f5a623' }),
+      sw  ('time',  'Time',  w*0.12, 62, ['1', '2', '3', '4', '5', '6'], 1),
+      sw  ('mode',  'Mode',  w*0.42, 56, ['LR', 'M/S'], 0),
+      knob('color', 'Color', w*0.76, 54, { size: 'small', min: 0, max: 2, def: 1, color: '#f5a623' }),
+      knob('mix',   'Mix',   w*0.76, 74, { size: 'small', min: 0, max: 1, def: 1, color: '#9ca3af' }),
+      sw  ('bypass', 'Bypass', w*0.42, 78, ['Uit', 'Aan'], 0),
+      inPort ('in_l',  'L',  'audio', w*0.12, 106),
+      inPort ('in_r',  'R',  'audio', w*0.28, 106),
+      outPort('gr',    'GR', 'cv',    w*0.50, 106),
+      outPort('out_l', 'L',  'audio', w*0.72, 106),
+      outPort('out_r', 'R',  'audio', w*0.88, 106),
+    ],
+    notes: 'Variable-mu buizencompressor die knipoogt naar de Fairchild 660/670: dik, warm, lijm. Er is geen vaste ratio: een paar dB boven de drempel rond 2:1, 20 dB erboven ~12:1 — zacht in, stevig aan de top. Time 1–6 zoals het apparaat (attack 0,2–0,8 ms, release 0,3 / 0,8 / 2 / 5 s); 5 en 6 passen zich aan het programma aan (een trage envelope die alleen bij aanhoudend materiaal groeit, loslaten in 10 of 25 s). Mode LR regelt links en rechts samen, M/S (lateral/vertical, zoals de 670) midden en zijkant apart: het midden stevig zonder de ruimte in te klemmen. Color = buisvervorming die meegroeit met het ingrijpen (dubbel bemonsterd). Input, Threshold, Output, Mix, Bypass, GR als CV. Firmware tp_mmb_varimu_comp (mmb_dsp::VariMuComp); dezelfde kern als wasm in de simulator.',
+  });
+}
+
+// 10g. MMB PROGRAM EQ — 12 HP. Passieve program-EQ in Pultec-EQP-1A-stijl (FW-FX-3 stap 5).
+function mmbProgramEq() {
+  const w = W(12);
+  const k10 = (id: string, label: string, x: number, y: number, size: 'small' | 'medium' = 'medium') =>
+    knob(id, label, x, y, { size, min: 0, max: 10, def: 0, color: '#f5a623', ticks: { every: 1, highlight: [0, 10] } });
+  return assemble({
+    typeId: 'tp_mmb_program_eq',
+    categoryId: 'effect',
+    variant: 'Program EQ',
+    brand: 'MMB', model: 'PROGRAM EQ',
+    hp: 12, texture: 'pcb-black', baseColor: '#1c2230', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'PROGRAM EQ', fontSize: 2.0, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: 'passive program equalizer', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      sw  ('low_freq',  'Low Hz', w*0.07, 30, ['20', '30', '60', '100'], 2),
+      k10 ('low_boost', 'Boost',  w*0.34, 30),
+      k10 ('low_atten', 'Atten',  w*0.58, 30),
+      knob('output', 'Output', w*0.84, 30, { size: 'small', min: -12, max: 12, def: 0, unit: 'dB', color: '#9ca3af' }),
+      sw  ('high_freq',  'High kHz', w*0.07, 60, ['3', '4', '5', '8', '10', '12', '16'], 4),
+      k10 ('high_boost', 'Boost',     w*0.34, 58),
+      knob('bandwidth', 'Bandwidth', w*0.58, 58, { size: 'small', min: 0, max: 10, def: 5, color: '#f9fafb', ticks: { every: 1, highlight: [0, 10] } }),
+      knob('color',     'Color',     w*0.84, 58, { size: 'small', min: 0, max: 2, def: 1, color: '#f5a623' }),
+      sw  ('atten_freq', 'Atten kHz', w*0.07, 86, ['5', '10', '20'], 1),
+      k10 ('high_atten', 'Atten',     w*0.34, 86),
+      sw  ('bypass', 'Bypass', w*0.66, 86, ['Uit', 'Aan'], 0),
+      inPort ('in_l',  'L', 'audio', w*0.15, 106),
+      inPort ('in_r',  'R', 'audio', w*0.32, 106),
+      outPort('out_l', 'L', 'audio', w*0.68, 106),
+      outPort('out_r', 'R', 'audio', w*0.85, 106),
+    ],
+    notes: 'Passieve program-EQ die knipoogt naar de Pultec EQP-1A. Laag (20/30/60/100 Hz): Boost tot +13,5 dB (een shelf met een lichte bult rond de frequentie) en een aparte Atten tot −10 dB die hoger begint (~3×) en zachter is. Draai je beide open, dan krijg je de beroemde Pultec-truc: een stevige boost onderin en een dip net erboven — vol maar niet modderig (op 60 Hz, beide op 10: +4,6 dB op 30 Hz, −6,8 dB rond 120 Hz). Hoog: een Boost-bell op 3–16 kHz (tot +16 dB) met Bandwidth van scherp naar breed, en een aparte Atten (shelf op 5/10/20 kHz, tot −16 dB). Buistrap met Color (0 = schoon), Output om het niveau gelijk te trekken bij een A/B met Bypass. Knoppen 0–10 zoals het apparaat; draaien glijdt in ~5 ms zodat het niet ritst. Stereo. Firmware tp_mmb_program_eq (mmb_dsp::ProgramEq); dezelfde kern als wasm in de simulator.',
+  });
+}
+
 // 11. MMB PHASER — 6 HP. Klassiek phaser-effect (Tone.Phaser).
 function mmbPhaser() {
   const w = W(6);
@@ -2662,7 +2765,7 @@ function mmbEnvFollowerMono() {
 // ── public entry ───────────────────────────────────────────────────────
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbEcho(), mmbTapeEcho(), mmbFetComp(), mmbOptoComp(), mmbSampler(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbEnvFollower(), mmbEnvFollowerMono()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbEcho(), mmbTapeEcho(), mmbFetComp(), mmbOptoComp(), mmbBusComp(), mmbVariMuComp(), mmbProgramEq(), mmbSampler(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbEnvFollower(), mmbEnvFollowerMono()];
   const newTypes = all.map((x) => x.type);
 
   // Upgrade-pad: bestaande interne types worden in-place VERVANGEN (zelfde
@@ -3511,6 +3614,50 @@ export function seedSoloVoicePatch(
   };
 }
 
+/** Een effectmodule in een seed-keten: stereo in_l/in_r → out_l/out_r. */
+export interface SeedFx {
+  readonly typeId: string;
+  readonly label: string;
+  /** Kort, voor in de patchnaam. */
+  readonly short?: string;
+  /** Eén zin voor de patchbeschrijving. */
+  readonly hint?: string;
+  readonly controls?: Readonly<Record<string, ControlValue>>;
+}
+
+/** Bron → effecten → OUT, stereo, in volgorde. */
+function stereoChain(
+  c: (fm: ModuleInstance, fp: string, tm: ModuleInstance, tp: string) => PatchConnection,
+  src: ModuleInstance, fx: readonly ModuleInstance[], out: ModuleInstance,
+  srcL = 'out_l', srcR = 'out_r',
+): PatchConnection[] {
+  const conns: PatchConnection[] = [];
+  let l = { m: src, p: srcL }, r = { m: src, p: srcR };
+  for (const m of fx) {
+    conns.push(c(l.m, l.p, m, 'in_l'), c(r.m, r.p, m, 'in_r'));
+    l = { m, p: 'out_l' }; r = { m, p: 'out_r' };
+  }
+  conns.push(c(l.m, l.p, out, 'l'), c(r.m, r.p, out, 'r'));
+  return conns;
+}
+
+/** FET COMP achter de sampler (Poly-menu). */
+const SAMPLER_FET_FX: SeedFx = {
+  typeId: 'tp_mmb_fet_comp', label: 'FET COMP', short: 'FET',
+  hint: 'Daarachter FET COMP (1176-stijl): Input +12 drukt hem stevig samen, Output −4 haalt het niveau terug. Probeer Ratio All.',
+  controls: { input: 12, output: -4, attack: 5, release: 4, ratio: 0, mix: 1 },
+};
+
+/** Mastering-keten achter de sampler: program-EQ (Pultec-truc) en vari-mu. */
+export const SAMPLER_MASTER_FX: readonly SeedFx[] = [
+  { typeId: 'tp_mmb_program_eq', label: 'PROGRAM EQ', short: 'EQ',
+    hint: 'Eerst PROGRAM EQ (Pultec-stijl) met de Pultec-truc op 60 Hz (boost 6, atten 4) en wat lucht op 10 kHz;',
+    controls: { low_freq: 2, low_boost: 6, low_atten: 4, high_freq: 4, high_boost: 3, bandwidth: 7, atten_freq: 2, high_atten: 0, output: -2, color: 1 } },
+  { typeId: 'tp_mmb_varimu_comp', label: 'VARI-MU', short: 'Vari-mu',
+    hint: 'dan VARI-MU (Fairchild-stijl) als lijm: tijdstand 5 (programma-afhankelijk), rustig ingrijpen.',
+    controls: { input: 6, threshold: -20, output: -2, time: 5, mode: 0, color: 1, mix: 1 } },
+];
+
 /** FET COMP achter een solo-instrument, met een stand die je meteen hoort. */
 export const FET_SOLO_FX = {
   typeId: 'tp_mmb_fet_comp', label: 'FET COMP',
@@ -3521,6 +3668,24 @@ export const FET_SOLO_FX = {
 export const OPTO_SOLO_FX = {
   typeId: 'tp_mmb_opto_comp', label: 'OPTO COMP',
   controls: { peak: 55, gain: 4, mode: 0, color: 1, mix: 1 },
+} as const;
+
+/** VCA-BUS achter een solo-instrument: de klassieke busstand (30 ms, Auto, 4:1). */
+export const BUS_SOLO_FX = {
+  typeId: 'tp_mmb_bus_comp', label: 'VCA-BUS',
+  controls: { threshold: -22, ratio: 1, attack: 5, release: 4, makeup: 4, sc_hpf: 0, mix: 1 },
+} as const;
+
+/** VARI-MU achter een solo-instrument: dik en warm. */
+export const VARIMU_SOLO_FX = {
+  typeId: 'tp_mmb_varimu_comp', label: 'VARI-MU',
+  controls: { input: 10, threshold: -18, output: -4, time: 2, mode: 0, color: 1.3, mix: 1 },
+} as const;
+
+/** PROGRAM EQ achter een solo-instrument: de Pultec-truc onderin. */
+export const EQ_SOLO_FX = {
+  typeId: 'tp_mmb_program_eq', label: 'PROGRAM EQ',
+  controls: { low_freq: 2, low_boost: 8, low_atten: 6, high_freq: 3, high_boost: 4, bandwidth: 6, atten_freq: 2, high_atten: 0, output: -3, color: 1 },
 } as const;
 
 /**
@@ -3848,9 +4013,14 @@ export function seedDx7PolyPatch(project: ModularProject, voiceCount = 8): Modul
  * Construct B uit doc/uml/11-simulation-wasm.md — de sampler deelt één bank
  * en MIDI-in verdeelt de noten.
  */
-export function seedSamplerPolyPatch(project: ModularProject, voiceCount = 8, autoWah = false, fetComp = false): ModularProject {
+export function seedSamplerPolyPatch(
+  project: ModularProject, voiceCount = 8, autoWah = false,
+  /** Effecten tussen de sampler en OUT, stereo in volgorde; `true` = FET COMP. */
+  fx: boolean | readonly SeedFx[] = false,
+): ModularProject {
   const N = Math.max(2, Math.min(8, Math.round(voiceCount)));
-  const needed = ['tp_mmb_midiin', 'tp_mmb_sampler', 'tp_mmb_out', ...(fetComp ? ['tp_mmb_fet_comp'] : [])];
+  const chain: readonly SeedFx[] = fx === true ? [SAMPLER_FET_FX] : fx === false ? [] : fx;
+  const needed = ['tp_mmb_midiin', 'tp_mmb_sampler', 'tp_mmb_out', ...chain.map((f) => f.typeId)];
   const missing = needed.some((tid) => !project.moduleTypes.some((t) => t.id === tid));
   const p = missing ? seedInternals(project) : project;
 
@@ -3861,23 +4031,22 @@ export function seedSamplerPolyPatch(project: ModularProject, voiceCount = 8, au
   const mi  = fresh('tp_mmb_midiin');
   const smp = fresh('tp_mmb_sampler');
   const out = fresh('tp_mmb_out');
-  // Optioneel: FET COMP (1176-stijl) tussen de sampler en OUT, stereo.
-  const fet = fetComp ? fresh('tp_mmb_fet_comp') : null;
-  const name = `Sampler ×${N}${autoWah ? ' auto-wah' : ''}${fet ? ' + FET' : ''}`;
+  // Optioneel: effecten tussen de sampler en OUT, stereo, in volgorde.
+  const fxm = chain.map((f) => fresh(f.typeId));
+  const name = `Sampler ×${N}${autoWah ? ' auto-wah' : ''}${chain.map((f) => ` + ${f.short}`).join('')}`;
 
-  const smpOffset = mi.visual.hpWidth;
-  const fetOffset = smpOffset + smp.visual.hpWidth;
-  const outOffset = fetOffset + (fet ? fet.visual.hpWidth : 0);
+  let offset = 0;
+  const slot = (m: ModuleInstance): RackSlot => {
+    const s: RackSlot = { id: uid('slot'), moduleId: m.id, row: 0, hpOffset: offset };
+    offset += m.visual.hpWidth;
+    return s;
+  };
+  const slots = [slot(mi), slot(smp), ...fxm.map(slot), slot(out)];
   const rack: Rack = {
     id: uid('rack'), name,
-    description: `MidiIn → SAMPLER (${N} stem-cellen als PolyGroup)${fet ? ' → FET COMP' : ''} → OUT. Eén bank, MIDI-in verdeelt de noten.`,
-    rows: 1, hpPerRow: Math.max(64, outOffset + out.visual.hpWidth + 4),
-    slots: [
-      { id: uid('slot'), moduleId: mi.id,  row: 0, hpOffset: 0 },
-      { id: uid('slot'), moduleId: smp.id, row: 0, hpOffset: smpOffset },
-      ...(fet ? [{ id: uid('slot'), moduleId: fet.id, row: 0, hpOffset: fetOffset }] : []),
-      { id: uid('slot'), moduleId: out.id, row: 0, hpOffset: outOffset },
-    ],
+    description: `MidiIn → SAMPLER (${N} stem-cellen als PolyGroup)${chain.map((f) => ` → ${f.label}`).join('')} → OUT. Eén bank, MIDI-in verdeelt de noten.`,
+    rows: 1, hpPerRow: Math.max(64, offset + 4),
+    slots,
     kind: 'physical',
     polyGroups: [{
       id: uid('poly'), label: 'SAMPLER', voiceCount: N,
@@ -3897,17 +4066,14 @@ export function seedSamplerPolyPatch(project: ModularProject, voiceCount = 8, au
     description: (autoWah
       ? `${N}-stemmige multisampler met per stem een MS-20 in de cel, gestuurd door de envelope-follower van diezelfde stem (env_k → cutoff_k). Laad een bank via 🎹 Multisample en speel hard en zacht.`
       : `${N}-stemmige multisampler. Laad een bank via 🎹 Multisample (Testbank, ⤒ .mmbs of een .sf2) en speel.`)
-      + (fet ? ' Daarachter FET COMP (1176-stijl): Input +12 drukt hem stevig samen, Output −4 haalt het niveau terug. Probeer Ratio All.' : ''),
+      + chain.map((f) => ` ${f.hint}`).join(''),
     voiceCount: N,
     rackIds: [rack.id],
     connections: [
       c(mi, 'pitch', smp, 'voct_1'),
       c(mi, 'gate',  smp, 'gate_1'),
       c(mi, 'vel',   smp, 'vel_1'),
-      ...(fet
-        ? [c(smp, 'out_l', fet, 'in_l'), c(smp, 'out_r', fet, 'in_r'),
-           c(fet, 'out_l', out, 'l'),    c(fet, 'out_r', out, 'r')]
-        : [c(smp, 'out_l', out, 'l'),    c(smp, 'out_r', out, 'r')]),
+      ...stereoChain(c, smp, fxm, out),
       // Auto-wah: de follower van stem k stuurt het filter van stem k. Eén
       // kabel op de master-cel; polyExpand (en de sim) vouwt hem uit naar 1..N.
       ...(autoWah ? [c(smp, 'env_1', smp, 'cutoff_1')] : []),
@@ -3918,7 +4084,7 @@ export function seedSamplerPolyPatch(project: ModularProject, voiceCount = 8, au
         ? { bank: 0, level: 0.8, filter: 2, cutoff: 300, q: 0.55, fmode: 0, drive: 1.5, cv_amt: 4, env_rel: 150, env_sens: 12 }
         : { bank: 0, level: 0.8 },
       [out.id]: { level: 0.85 },
-      ...(fet ? { [fet.id]: { input: 12, output: -4, attack: 5, release: 4, ratio: 0, mix: 1 } } : {}),
+      ...Object.fromEntries(fxm.map((m, i) => [m.id, { ...chain[i]!.controls }])),
     },
     envelopes: [], lfos: [],
   };
@@ -3926,7 +4092,7 @@ export function seedSamplerPolyPatch(project: ModularProject, voiceCount = 8, au
   return {
     ...p,
     racks:        [...p.racks, rack],
-    modules:      [...p.modules, mi, smp, ...(fet ? [fet] : []), out],
+    modules:      [...p.modules, mi, smp, ...fxm, out],
     patches:      [...p.patches, patch],
     activeRackId:  rack.id,
     activePatchId: patch.id,

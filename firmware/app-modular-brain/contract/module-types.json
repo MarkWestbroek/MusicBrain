@@ -1,6 +1,6 @@
 {
   "$comment": "GEGENEREERD door tools/contract_dump.py — niet met de hand bewerken. Poort-ids zijn letterlijk wat de firmware accepteert (aliassen als out/out_l en naam/naam_cv staan er dus allebei in).",
-  "firmwareVersion": "0.5.61",
+  "firmwareVersion": "0.5.62",
   "modules": {
     "tp_mmb_ahdsr": {
       "typeId": "tp_mmb_ahdsr",
@@ -20,6 +20,29 @@
         "reset",
         "retrig",
         "sustain"
+      ]
+    },
+    "tp_mmb_bus_comp": {
+      "typeId": "tp_mmb_bus_comp",
+      "source": "firmware/app-modular-brain/src/BusCompModule.h",
+      "ports": [
+        "gr",
+        "in",
+        "in_l",
+        "in_r",
+        "out",
+        "out_l",
+        "out_r"
+      ],
+      "controls": [
+        "attack",
+        "bypass",
+        "makeup",
+        "mix",
+        "ratio",
+        "release",
+        "sc_hpf",
+        "threshold"
       ]
     },
     "tp_mmb_chord": {
@@ -874,6 +897,31 @@
         "timbre"
       ]
     },
+    "tp_mmb_program_eq": {
+      "typeId": "tp_mmb_program_eq",
+      "source": "firmware/app-modular-brain/src/ProgramEqModule.h",
+      "ports": [
+        "in",
+        "in_l",
+        "in_r",
+        "out",
+        "out_l",
+        "out_r"
+      ],
+      "controls": [
+        "atten_freq",
+        "bandwidth",
+        "bypass",
+        "color",
+        "high_atten",
+        "high_boost",
+        "high_freq",
+        "low_atten",
+        "low_boost",
+        "low_freq",
+        "output"
+      ]
+    },
     "tp_mmb_quant": {
       "typeId": "tp_mmb_quant",
       "source": "firmware/app-modular-brain/src/QuantModule.h",
@@ -1187,6 +1235,29 @@
         "shift",
         "slope",
         "smooth"
+      ]
+    },
+    "tp_mmb_varimu_comp": {
+      "typeId": "tp_mmb_varimu_comp",
+      "source": "firmware/app-modular-brain/src/VariMuCompModule.h",
+      "ports": [
+        "gr",
+        "in",
+        "in_l",
+        "in_r",
+        "out",
+        "out_l",
+        "out_r"
+      ],
+      "controls": [
+        "bypass",
+        "color",
+        "input",
+        "mix",
+        "mode",
+        "output",
+        "threshold",
+        "time"
       ]
     },
     "tp_mmb_vca": {

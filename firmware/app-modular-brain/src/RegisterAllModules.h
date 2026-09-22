@@ -69,6 +69,9 @@
 #include "TapeEchoModule.h"
 #include "FetCompModule.h"
 #include "OptoCompModule.h"
+#include "BusCompModule.h"
+#include "VariMuCompModule.h"
+#include "ProgramEqModule.h"
 #include "SamplerModule.h"
 #include "CombModule.h"
 #include "PhaserModule.h"
@@ -129,6 +132,9 @@ inline void registerAllRuntimeModules() {
     TapeEchoModule::registerFactory();  // bandecho (mmb-dsp), ook als wasm in de simulator
     FetCompModule::registerFactory();   // FET-compressor, 1176-stijl (mmb-dsp), ook als wasm
     OptoCompModule::registerFactory();  // opto-compressor, LA-2A-stijl (mmb-dsp), ook als wasm
+    BusCompModule::registerFactory();   // VCA-buscompressor, SSL-stijl (mmb-dsp), ook als wasm
+    VariMuCompModule::registerFactory(); // variable-mu, Fairchild-stijl (mmb-dsp), ook als wasm
+    ProgramEqModule::registerFactory(); // program-EQ, Pultec-stijl (mmb-dsp), ook als wasm
     SamplerModule::registerFactory();   // sample-speler (mmb-dsp), PSRAM + SD; ook als wasm
     CombModule::registerFactory();      // FW-AU-3: tuned comb resonator
     PhaserModule::registerFactory();    // FW-AU-2: all-pass phaser

@@ -105,7 +105,8 @@ public:
         const float k = color_ * kDrive;
         for (int c = 0; c < n; ++c) {
             const float v = x[c] * g * op;
-            float y = 0.5f * (shape(0.5f * (prev_[c] + v), k) + shape(v, k));
+            const float m = 0.5f * (prev_[c] + v);
+            float y = v + 0.5f * ((shape(m, k) - m) + (shape(v, k) - v));
             prev_[c] = v;
             dc_[c] += dcCoef_ * (y - dc_[c]);
             y = (y - dc_[c]) / op;

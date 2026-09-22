@@ -8,7 +8,16 @@ import { useEffect, useRef, useState } from 'react';
 import { setProject, updateProject, useModularProject, getProject, undo, redo } from './store';
 import { emptyModularProject } from './types';
 import { exportPanel, importPanel, parsePanelFile } from './panelIO';
-import { FET_SOLO_FX, OPTO_SOLO_FX, seedExampleModules, seedInternals, seedTestPatch, seedFmTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, seedDx7PolyPatch, seedSamplerPolyPatch, seedWarpsVocoderPatch, seed808JamPatch, seedKrellPatch, type PolySeedOptions } from './seedModules';
+import { BUS_SOLO_FX, EQ_SOLO_FX, FET_SOLO_FX, OPTO_SOLO_FX, SAMPLER_MASTER_FX, VARIMU_SOLO_FX, seedExampleModules, seedInternals, seedTestPatch, seedFmTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, seedDx7PolyPatch, seedSamplerPolyPatch, seedWarpsVocoderPatch, seed808JamPatch, seedKrellPatch, type PolySeedOptions } from './seedModules';
+
+/** Effecten achter de solo-seeds (Solo ▾): de stand en de tooltip. */
+const SOLO_FX = {
+  fet:    { fx: FET_SOLO_FX,    title: 'Monofoon met FET COMP (1176-stijl) tussen instrument en OUT: Input +14, Output −6, Ratio 4:1. Probeer Ratio All.' },
+  opto:   { fx: OPTO_SOLO_FX,   title: 'Monofoon met OPTO COMP (LA-2A-stijl): Peak Reduction 55, Gain +4. Traag en vloeiend; hoor hoe de gain reduction na een noot in twee fasen wegloopt.' },
+  bus:    { fx: BUS_SOLO_FX,    title: 'Monofoon met VCA-BUS (SSL-stijl): attack 30 ms, release Auto, 4:1 — de aanslag komt erdoor en het pompt mee.' },
+  varimu: { fx: VARIMU_SOLO_FX, title: 'Monofoon met VARI-MU (Fairchild-stijl): Input +10, tijdstand 2, Color 1,3 — dik en warm, de ratio loopt op met het ingrijpen.' },
+  eq:     { fx: EQ_SOLO_FX,     title: 'Monofoon met PROGRAM EQ (Pultec-stijl): de Pultec-truc op 60 Hz (boost 8, atten 6) en wat glans op 8 kHz.' },
+} as const;
 import { PatchesPanel } from './PatchesPanel';
 import { ModulesPanel } from './ModulesPanel';
 import { CategoriesPanel } from './CategoriesPanel';
@@ -364,6 +373,14 @@ export function ModularMbApp(): JSX.Element {
                     padding: '7px 12px', cursor: 'pointer', fontSize: 13,
                   }}
                 >🎧 Sampler ×8 auto-wah + FET</button>
+                <button
+                  onClick={() => { setProject(seedSamplerPolyPatch(getProject(), 8, false, SAMPLER_MASTER_FX)); setShowPoly(false); }}
+                  title="Sampler ×8 met een mastering-keten: PROGRAM EQ (Pultec-stijl, de Pultec-truc op 60 Hz en wat lucht op 10 kHz) en daarna VARI-MU (Fairchild-stijl) als lijm."
+                  style={{
+                    textAlign: 'left', border: 'none', background: 'transparent',
+                    padding: '7px 12px', cursor: 'pointer', fontSize: 13,
+                  }}
+                >🎧 Sampler ×8 + EQ + Vari-mu</button>
               </div>
             )}
           </span>
@@ -398,17 +415,22 @@ export function ModularMbApp(): JSX.Element {
                   { label: '🎚️ Rings + Opto comp', t: 'tp_mmb_rings', n: 'Rings', l: 'out_l', r: 'out_r',
                     c: { structure: 0.4, brightness: 0.6, damping: 0.6, position: 0.3, model: 0, polyphony: 1, level: 0.8 },
                     fx: 'opto' },
+                  { label: '🎚️ Plaits + VCA-bus', t: 'tp_mmb_plaits', n: 'Plaits', l: 'out', r: 'aux',
+                    c: { engine: 0, harmonics: 0.5, timbre: 0.5, morph: 0.5, decay: 0.6, lpg: 0.5, level: 0.8 }, fx: 'bus' },
+                  { label: '🎚️ Elements + Vari-mu', t: 'tp_mmb_elements', n: 'Elements', l: 'out_l', r: 'out_r',
+                    c: { strike: 0.8, space: 0.5, level: 0.8 }, fx: 'varimu' },
+                  { label: '🎚️ STK + Program EQ', t: 'tp_mmb_stk_sound', n: 'STK', l: 'out', r: 'out',
+                    c: { sound: 0, level: 0.8 }, fx: 'eq' },
                 ] as { label: string; t: string; n: string; l: string; r: string;
-                       c: Record<string, number>; fx?: 'fet' | 'opto' }[]).map((s) => (
+                       c: Record<string, number>; fx?: keyof typeof SOLO_FX }[]).map((s) => (
                   <button
                     key={s.label}
                     onClick={() => {
                       setProject(seedSoloVoicePatch(getProject(), s.t, s.n, s.l, s.r, s.c,
-                        s.fx === 'fet' ? FET_SOLO_FX : s.fx === 'opto' ? OPTO_SOLO_FX : undefined));
+                        s.fx ? SOLO_FX[s.fx].fx : undefined));
                       setShowSolo(false);
                     }}
-                    title={s.fx === 'fet' ? 'Monofoon met FET COMP (1176-stijl) tussen instrument en OUT: Input +14, Output −6, Ratio 4:1. Probeer Ratio All.'
-                      : s.fx === 'opto' ? 'Monofoon met OPTO COMP (LA-2A-stijl): Peak Reduction 55, Gain +4. Traag en vloeiend; hoor hoe de gain reduction na een noot in twee fasen wegloopt.' : undefined}
+                    title={s.fx ? SOLO_FX[s.fx].title : undefined}
                     style={{
                       textAlign: 'left', border: 'none', background: 'transparent',
                       padding: '7px 12px', cursor: 'pointer', fontSize: 13,
