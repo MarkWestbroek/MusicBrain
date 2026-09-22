@@ -26,6 +26,7 @@ import {
   seedPolyVoicePatch,
   seedSamplerPolyPatch,
   seedSoloVoicePatch,
+  FET_SOLO_FX,
   seedTestPatch,
 } from './seedModules';
 
@@ -72,6 +73,7 @@ function allSeededProject(): ModularProject {
   p = seedSoloVoicePatch(p, 'tp_mmb_plaits', 'Plaits', 'out', 'aux', {});
   p = seedCloudsAmbientPatch(p);
   p = seedSamplerPolyPatch(p, 8, true, true);
+  p = seedSoloVoicePatch(p, 'tp_mmb_dx7', 'DX7', 'out', 'out', {}, FET_SOLO_FX);
   return p;
 }
 

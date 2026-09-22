@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import { setProject, updateProject, useModularProject, getProject, undo, redo } from './store';
 import { emptyModularProject } from './types';
 import { exportPanel, importPanel, parsePanelFile } from './panelIO';
-import { seedExampleModules, seedInternals, seedTestPatch, seedFmTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, seedDx7PolyPatch, seedSamplerPolyPatch, seedWarpsVocoderPatch, seed808JamPatch, seedKrellPatch, type PolySeedOptions } from './seedModules';
+import { FET_SOLO_FX, seedExampleModules, seedInternals, seedTestPatch, seedFmTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, seedDx7PolyPatch, seedSamplerPolyPatch, seedWarpsVocoderPatch, seed808JamPatch, seedKrellPatch, type PolySeedOptions } from './seedModules';
 import { PatchesPanel } from './PatchesPanel';
 import { ModulesPanel } from './ModulesPanel';
 import { CategoriesPanel } from './CategoriesPanel';
@@ -393,10 +393,18 @@ export function ModularMbApp(): JSX.Element {
                     c: { sound: 0, level: 0.8 } },
                   { label: '🎹 DX7 (6-op FM)', t: 'tp_mmb_dx7', n: 'DX7', l: 'out', r: 'out',
                     c: { program: 0, level: 0.8 } },
-                ] as { label: string; t: string; n: string; l: string; r: string; c: Record<string, number> }[]).map((s) => (
+                  { label: '🎚️ DX7 + FET comp', t: 'tp_mmb_dx7', n: 'DX7', l: 'out', r: 'out',
+                    c: { program: 0, level: 0.8 }, fx: true },
+                ] as { label: string; t: string; n: string; l: string; r: string;
+                       c: Record<string, number>; fx?: boolean }[]).map((s) => (
                   <button
                     key={s.label}
-                    onClick={() => { setProject(seedSoloVoicePatch(getProject(), s.t, s.n, s.l, s.r, s.c)); setShowSolo(false); }}
+                    onClick={() => {
+                      setProject(seedSoloVoicePatch(getProject(), s.t, s.n, s.l, s.r, s.c,
+                        s.fx ? FET_SOLO_FX : undefined));
+                      setShowSolo(false);
+                    }}
+                    title={s.fx ? 'Monofoon met FET COMP (1176-stijl) tussen instrument en OUT: Input +14, Output −6, Ratio 4:1. Probeer Ratio All.' : undefined}
                     style={{
                       textAlign: 'left', border: 'none', background: 'transparent',
                       padding: '7px 12px', cursor: 'pointer', fontSize: 13,

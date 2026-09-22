@@ -1456,9 +1456,9 @@ function mmbFetComp() {
       knob('output',  'Output',  w*0.73, 30, { size: 'medium', min: -24, max: 12, def: 0, unit: 'dB', color: '#f5a623' }),
       knob('attack',  'Attack',  w*0.27, 56, { size: 'small', min: 1, max: 7, def: 4, step: 1, color: '#f9fafb', ticks: { every: 1, highlight: [1, 7] } }),
       knob('release', 'Release', w*0.73, 56, { size: 'small', min: 1, max: 7, def: 4, step: 1, color: '#f9fafb', ticks: { every: 1, highlight: [1, 7] } }),
-      sw  ('ratio',   'Ratio',   w*0.50, 76, ['4', '8', '12', '20', 'All'], 0),
-      knob('mix',     'Mix',     w*0.80, 90, { size: 'small', min: 0, max: 1, def: 1, color: '#9ca3af' }),
-      outPort('gr',    'GR', 'cv',    w*0.20, 90),
+      sw  ('ratio',   'Ratio',   w*0.22, 80, ['4:1', '8:1', '12:1', '20:1', 'All'], 0),
+      knob('mix',     'Mix',     w*0.72, 74, { size: 'small', min: 0, max: 1, def: 1, color: '#9ca3af' }),
+      outPort('gr',    'GR', 'cv',    w*0.72, 92),
       inPort ('in_l',  'L',  'audio', w*0.20, 106),
       inPort ('in_r',  'R',  'audio', w*0.40, 106),
       outPort('out_l', 'L',  'audio', w*0.60, 106),
@@ -3405,8 +3405,9 @@ export function seedSoloVoicePatch(
   project: ModularProject,
   typeId: string, label: string, outL: string, outR: string,
   controls: Record<string, ControlValue> = {},
+  fx?: { typeId: string; label: string; controls?: Record<string, ControlValue> },
 ): ModularProject {
-  const needed = [typeId, 'tp_mmb_midiin', 'tp_mmb_out'];
+  const needed = [typeId, 'tp_mmb_midiin', 'tp_mmb_out', ...(fx ? [fx.typeId] : [])];
   const missing = needed.some((tid) => !project.moduleTypes.some((t) => t.id === tid));
   const p = missing ? seedInternals(project) : project;
 
@@ -3416,7 +3417,10 @@ export function seedSoloVoicePatch(
   };
   const mi   = fresh('tp_mmb_midiin');
   const inst = fresh(typeId);
+  // Optioneel effect tussen instrument en OUT (stereo in/uit).
+  const fxm  = fx ? fresh(fx.typeId) : null;
   const out  = fresh('tp_mmb_out');
+  const name = fx ? `${label} + ${fx.label}` : `${label} solo`;
 
   let offset = 0;
   const place = (m: ModuleInstance): RackSlot => {
@@ -3425,10 +3429,11 @@ export function seedSoloVoicePatch(
     return s;
   };
   const rack: Rack = {
-    id: uid('rack'), name: `${label} solo`,
-    description: `MidiIn → ${label} → OUT.`,
-    rows: 1, hpPerRow: Math.max(64, mi.visual.hpWidth + inst.visual.hpWidth + out.visual.hpWidth + 4),
-    slots: [place(mi), place(inst), place(out)],
+    id: uid('rack'), name,
+    description: `MidiIn → ${label}${fxm ? ` → ${fx!.label}` : ''} → OUT.`,
+    rows: 1, hpPerRow: Math.max(64, mi.visual.hpWidth + inst.visual.hpWidth
+      + (fxm ? fxm.visual.hpWidth : 0) + out.visual.hpWidth + 4),
+    slots: [place(mi), place(inst), ...(fxm ? [place(fxm)] : []), place(out)],
     kind: 'physical',
   };
 
@@ -3438,20 +3443,24 @@ export function seedSoloVoicePatch(
     to:   { moduleId: tm.id, portId: tp },
   });
   const patch: Patch = {
-    id: uid('patch'), name: `${label} solo`,
-    description: `Monofoon: speel en draai — alle knoppen gaan live naar de Teensy.`,
+    id: uid('patch'), name,
+    description: `Monofoon: speel en draai — alle knoppen gaan live naar de Teensy.`
+      + (fxm ? ` ${fx!.label} zit tussen ${label} en OUT.` : ''),
     voiceCount: 1,
     rackIds: [rack.id],
     connections: [
       c(mi, 'pitch', inst, 'voct'),
       c(mi, 'gate',  inst, 'gate'),
-      c(inst, outL, out, 'l'),
-      c(inst, outR, out, 'r'),
+      ...(fxm
+        ? [c(inst, outL, fxm, 'in_l'), c(inst, outR, fxm, 'in_r'),
+           c(fxm, 'out_l', out, 'l'),  c(fxm, 'out_r', out, 'r')]
+        : [c(inst, outL, out, 'l'),    c(inst, outR, out, 'r')]),
     ],
     controlState: {
       [inst.id]: controls,
       [out.id]:  { level: 0.8 },
       [mi.id]:   { channel: 0, voiceCount: 1 },
+      ...(fxm ? { [fxm.id]: fx!.controls ?? {} } : {}),
     },
     envelopes: [], lfos: [],
   };
@@ -3459,12 +3468,18 @@ export function seedSoloVoicePatch(
   return {
     ...p,
     racks:        [...p.racks, rack],
-    modules:      [...p.modules, mi, inst, out],
+    modules:      [...p.modules, mi, inst, ...(fxm ? [fxm] : []), out],
     patches:      [...p.patches, patch],
     activeRackId:  rack.id,
     activePatchId: patch.id,
   };
 }
+
+/** FET COMP achter een solo-instrument, met een stand die je meteen hoort. */
+export const FET_SOLO_FX = {
+  typeId: 'tp_mmb_fet_comp', label: 'FET COMP',
+  controls: { input: 14, output: -6, attack: 5, release: 4, ratio: 0, mix: 1 },
+} as const;
 
 /**
  * Krell-patch: het archetype van de zelfspelende synth. Stages genereert in

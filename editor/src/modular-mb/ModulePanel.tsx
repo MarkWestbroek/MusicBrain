@@ -759,20 +759,25 @@ function SwitchGlyph({
   textCol: string;
 }): JSX.Element {
   const n = c.positions.length;
-  const step = 4 / Math.max(1, n - 1);
   const idx = Math.max(0, Math.min(n - 1, value));
+  // Bij meer dan drie standen groeit het schuifje mee, anders plakken de
+  // labels op elkaar (5 standen in 6 mm was onleesbaar).
+  const h = n <= 3 ? 6 : 2.2 * n;   // ≈2,2 mm per stand, genoeg voor een label
+  const step = (h - 2) / Math.max(1, n - 1);
+  const top = y - h / 2;
   return (
     <g style={{ cursor: onChange ? 'pointer' : 'default' }}
        onClick={() => onChange?.((idx + 1) % n)}>
-      <rect x={x - 1.6} y={y - 3} width={3.2} height={6} fill="#2a2a2a" rx={0.5}
+      <rect x={x - 1.6} y={top} width={3.2} height={h} fill="#2a2a2a" rx={0.5}
         stroke="#000" strokeWidth={0.15} />
-      <rect x={x - 1.2} y={y - 3 + idx * step + 0.3} width={2.4} height={1.4}
+      <rect x={x - 1.2} y={top + idx * step + 0.3} width={2.4} height={1.4}
         fill="#e5e7eb" rx={0.2} />
       {c.positions.map((p, i) => (
-        <text key={i} x={x + 2.4} y={y - 2.4 + i * step + 1} fontSize={1.6}
-          fill={textCol}>{p}</text>
+        <text key={i} x={x + 2.4} y={top + i * step + 1.6} fontSize={1.6}
+          fill={textCol} opacity={i === idx ? 1 : 0.55}
+          fontWeight={i === idx ? 700 : 400}>{p}</text>
       ))}
-      <text x={x} y={y + 5.4} fontSize={1.5} fill={textCol} textAnchor="middle">{c.label}</text>
+      <text x={x} y={top + h + 2.4} fontSize={1.5} fill={textCol} textAnchor="middle">{c.label}</text>
     </g>
   );
 }
