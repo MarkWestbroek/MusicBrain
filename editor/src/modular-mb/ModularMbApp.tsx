@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import { setProject, updateProject, useModularProject, getProject, undo, redo } from './store';
 import { emptyModularProject } from './types';
 import { exportPanel, importPanel, parsePanelFile } from './panelIO';
-import { FET_SOLO_FX, seedExampleModules, seedInternals, seedTestPatch, seedFmTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, seedDx7PolyPatch, seedSamplerPolyPatch, seedWarpsVocoderPatch, seed808JamPatch, seedKrellPatch, type PolySeedOptions } from './seedModules';
+import { FET_SOLO_FX, OPTO_SOLO_FX, seedExampleModules, seedInternals, seedTestPatch, seedFmTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, seedDx7PolyPatch, seedSamplerPolyPatch, seedWarpsVocoderPatch, seed808JamPatch, seedKrellPatch, type PolySeedOptions } from './seedModules';
 import { PatchesPanel } from './PatchesPanel';
 import { ModulesPanel } from './ModulesPanel';
 import { CategoriesPanel } from './CategoriesPanel';
@@ -394,17 +394,21 @@ export function ModularMbApp(): JSX.Element {
                   { label: '🎹 DX7 (6-op FM)', t: 'tp_mmb_dx7', n: 'DX7', l: 'out', r: 'out',
                     c: { program: 0, level: 0.8 } },
                   { label: '🎚️ DX7 + FET comp', t: 'tp_mmb_dx7', n: 'DX7', l: 'out', r: 'out',
-                    c: { program: 0, level: 0.8 }, fx: true },
+                    c: { program: 0, level: 0.8 }, fx: 'fet' },
+                  { label: '🎚️ Rings + Opto comp', t: 'tp_mmb_rings', n: 'Rings', l: 'out_l', r: 'out_r',
+                    c: { structure: 0.4, brightness: 0.6, damping: 0.6, position: 0.3, model: 0, polyphony: 1, level: 0.8 },
+                    fx: 'opto' },
                 ] as { label: string; t: string; n: string; l: string; r: string;
-                       c: Record<string, number>; fx?: boolean }[]).map((s) => (
+                       c: Record<string, number>; fx?: 'fet' | 'opto' }[]).map((s) => (
                   <button
                     key={s.label}
                     onClick={() => {
                       setProject(seedSoloVoicePatch(getProject(), s.t, s.n, s.l, s.r, s.c,
-                        s.fx ? FET_SOLO_FX : undefined));
+                        s.fx === 'fet' ? FET_SOLO_FX : s.fx === 'opto' ? OPTO_SOLO_FX : undefined));
                       setShowSolo(false);
                     }}
-                    title={s.fx ? 'Monofoon met FET COMP (1176-stijl) tussen instrument en OUT: Input +14, Output −6, Ratio 4:1. Probeer Ratio All.' : undefined}
+                    title={s.fx === 'fet' ? 'Monofoon met FET COMP (1176-stijl) tussen instrument en OUT: Input +14, Output −6, Ratio 4:1. Probeer Ratio All.'
+                      : s.fx === 'opto' ? 'Monofoon met OPTO COMP (LA-2A-stijl): Peak Reduction 55, Gain +4. Traag en vloeiend; hoor hoe de gain reduction na een noot in twee fasen wegloopt.' : undefined}
                     style={{
                       textAlign: 'left', border: 'none', background: 'transparent',
                       padding: '7px 12px', cursor: 'pointer', fontSize: 13,

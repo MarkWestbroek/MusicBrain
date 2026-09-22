@@ -1,7 +1,8 @@
 # Vintage compressors (en een Pultec) voor MusicBrain
 
 > Backlog: **FW-FX-3** (`doc/BACKLOG.md` §2.4). Opgesteld 2026-09-22.
-> Status: stap 1 klaar (FET, fw 0.5.58, `tp_mmb_fet_comp`); de rest is plan.
+> Status: stap 1 klaar (FET, fw 0.5.58–0.5.60, `tp_mmb_fet_comp`) en stap 2
+> (Opto, fw 0.5.61, `tp_mmb_opto_comp`); de rest is plan.
 
 ## Waarom
 
@@ -85,8 +86,8 @@ gedragen:
 
 | # | Module | Waarom in deze volgorde |
 |---|---|---|
-| 1 | **FET** (1176-stijl), `tp_mmb_fet_comp` | Het bekendst en het meest herkenbaar; de snelle detector, de knie per ratio en vervorming die met het ingrijpen groeit leggen meteen de gedeelde bouwstenen neer |
-| 2 | **Opto** (LA-2A-stijl) | Het tweede grote karakter: traag, met het geheugen in de cel |
+| 1 | **FET** (1176-stijl) ✅ `tp_mmb_fet_comp` | Het bekendst en het meest herkenbaar; de snelle detector, de knie per ratio en vervorming die met het ingrijpen groeit leggen meteen de gedeelde bouwstenen neer |
+| 2 | **Opto** (LA-2A-stijl) ✅ `tp_mmb_opto_comp` | Het tweede grote karakter: traag, met het geheugen in de cel |
 | 3 | **VCA-bus** (SSL-stijl) | Eenvoudig na 1 en 2; de mixbus-lijm met Auto-release |
 | 4 | **Vari-mu** (Fairchild-stijl) | Ratio die met het ingrijpen oploopt, buisvervorming |
 | 5 | **Pultec-EQ** | Losse EQ-module: een paar filters naar de passieve curves plus buisverzadiging |

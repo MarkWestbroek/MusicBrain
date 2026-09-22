@@ -1,6 +1,6 @@
 {
   "$comment": "GEGENEREERD door tools/contract_dump.py — niet met de hand bewerken. Poort-ids zijn letterlijk wat de firmware accepteert (aliassen als out/out_l en naam/naam_cv staan er dus allebei in).",
-  "firmwareVersion": "0.5.60",
+  "firmwareVersion": "0.5.61",
   "modules": {
     "tp_mmb_ahdsr": {
       "typeId": "tp_mmb_ahdsr",
@@ -770,6 +770,27 @@
         "wave"
       ],
       "controlsIgnored": []
+    },
+    "tp_mmb_opto_comp": {
+      "typeId": "tp_mmb_opto_comp",
+      "source": "firmware/app-modular-brain/src/OptoCompModule.h",
+      "ports": [
+        "gr",
+        "in",
+        "in_l",
+        "in_r",
+        "out",
+        "out_l",
+        "out_r"
+      ],
+      "controls": [
+        "bypass",
+        "color",
+        "gain",
+        "mix",
+        "mode",
+        "peak"
+      ]
     },
     "tp_mmb_out": {
       "typeId": "tp_mmb_out",

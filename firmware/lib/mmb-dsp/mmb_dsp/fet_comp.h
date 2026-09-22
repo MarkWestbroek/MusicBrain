@@ -172,7 +172,8 @@ private:
         const float y = 0.8f + 0.2f * std::tanh((a - 0.8f) * 5.0f);
         return v < 0.0f ? -y : y;
     }
-    static float dbToLin(float db) { return std::pow(10.0f, db * 0.05f); }
+    /** 10^(db/20), maar met exp: scheelt op de Teensy een hoop per sample. */
+    static float dbToLin(float db) { return std::exp(db * 0.11512925f); }
     static float clampf(float v, float lo, float hi) { return v < lo ? lo : (v > hi ? hi : v); }
 
     float sr_ = 44100.0f;

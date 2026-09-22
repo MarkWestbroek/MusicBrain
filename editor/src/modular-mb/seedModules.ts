@@ -1472,6 +1472,38 @@ function mmbFetComp() {
   });
 }
 
+// 10d. MMB OPTO COMP — 8 HP. Opto-compressor in LA-2A-stijl (FW-FX-3 stap 2),
+// zie doc/plans/vintage-compressors.md. Twee knoppen, net als het apparaat.
+function mmbOptoComp() {
+  const w = W(8);
+  return assemble({
+    typeId: 'tp_mmb_opto_comp',
+    categoryId: 'effect',
+    variant: 'Opto compressor',
+    brand: 'MMB', model: 'OPTO',
+    hp: 8, texture: 'pcb-black', baseColor: '#1b1714', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'OPTO COMP', fontSize: 2.0, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: 'leveling amplifier', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('peak', 'Peak red.', w*0.27, 32, { size: 'medium', min: 0, max: 100, def: 40, color: '#f5a623' }),
+      knob('gain', 'Gain',      w*0.73, 32, { size: 'medium', min: -20, max: 20, def: 0, unit: 'dB', color: '#f5a623' }),
+      sw  ('mode', 'Mode',      w*0.22, 62, ['Comp', 'Limit'], 0),
+      knob('color', 'Color',    w*0.72, 60, { size: 'small', min: 0, max: 2, def: 1, color: '#f5a623' }),
+      knob('mix',   'Mix',      w*0.72, 78, { size: 'small', min: 0, max: 1, def: 1, color: '#9ca3af' }),
+      sw  ('bypass', 'Bypass',  w*0.22, 86, ['Uit', 'Aan'], 0),
+      outPort('gr',    'GR', 'cv',    w*0.50, 106),
+      inPort ('in_l',  'L',  'audio', w*0.15, 106),
+      inPort ('in_r',  'R',  'audio', w*0.32, 106),
+      outPort('out_l', 'L',  'audio', w*0.68, 106),
+      outPort('out_r', 'R',  'audio', w*0.85, 106),
+    ],
+    notes: 'Opto-compressor die knipoogt naar de Teletronix LA-2A. Twee knoppen, zoals het apparaat: Peak Reduction zakt de drempel (0 tot −45 dBFS) en Gain is de uitgangsversterking; attack en release liggen vast. Het karakter zit in de lichtcel: de eerste helft van het ingrijpen is in ~60 ms weg, de rest sijpelt er in seconden uit, en hoe langer en harder hij heeft gewerkt hoe trager dat gaat (~0,8 tot 12 s). Daardoor ademt hij mee in plaats van te pompen. Mode: Comp (~3:1 met brede knie) of Limit. Color regelt de buisverzadiging (0 schoon, 1 zoals het apparaat, 2 dik; dubbel bemonsterd), Mix is parallelle compressie, Bypass laat het signaal ongemoeid door. GR = gain reduction als CV (1 = 20 dB). Stereo gekoppeld; alleen L aangesloten = mono op beide uitgangen. Firmware tp_mmb_opto_comp (mmb_dsp::OptoComp); dezelfde kern als wasm in de simulator.',
+  });
+}
+
 // 11. MMB PHASER — 6 HP. Klassiek phaser-effect (Tone.Phaser).
 function mmbPhaser() {
   const w = W(6);
@@ -2630,7 +2662,7 @@ function mmbEnvFollowerMono() {
 // ── public entry ───────────────────────────────────────────────────────
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbEcho(), mmbTapeEcho(), mmbFetComp(), mmbSampler(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbEnvFollower(), mmbEnvFollowerMono()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbEcho(), mmbTapeEcho(), mmbFetComp(), mmbOptoComp(), mmbSampler(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbEnvFollower(), mmbEnvFollowerMono()];
   const newTypes = all.map((x) => x.type);
 
   // Upgrade-pad: bestaande interne types worden in-place VERVANGEN (zelfde
@@ -3483,6 +3515,12 @@ export function seedSoloVoicePatch(
 export const FET_SOLO_FX = {
   typeId: 'tp_mmb_fet_comp', label: 'FET COMP',
   controls: { input: 14, output: -6, attack: 5, release: 4, ratio: 0, mix: 1 },
+} as const;
+
+/** OPTO COMP achter een solo-instrument: traag en vloeiend. */
+export const OPTO_SOLO_FX = {
+  typeId: 'tp_mmb_opto_comp', label: 'OPTO COMP',
+  controls: { peak: 55, gain: 4, mode: 0, color: 1, mix: 1 },
 } as const;
 
 /**

@@ -17,7 +17,27 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
-### fw 0.5.60 — FET COMP: Color-knop en dubbel bemonsterde vervorming (2026-09-22)
+### fw 0.5.61 — Opto-compressor in LA-2A-stijl (2026-09-22)
+- Nieuwe module **OPTO COMP** (`tp_mmb_opto_comp`, 8 HP), stap 2 van FW-FX-3.
+  Kern `mmb_dsp/opto_comp.h`, dezelfde in de firmware en als wasm in de sim.
+- **De lichtcel is het karakter:** de gain reduction komt uit twee envelopes
+  die elk de helft leveren. Na een piek is de snelle helft in ~60 ms weg, de
+  trage sijpelt er in seconden uit. En hoe langer en harder de cel werkte, hoe
+  trager dat gaat (~0,8 → 12 s, via een lopend gemiddelde over 3 s). Daarom
+  ademt hij mee in plaats van te pompen.
+- **Twee knoppen, zoals het apparaat:** Peak Reduction (drempel 0 → −45 dBFS)
+  en Gain. Attack (10 ms) en release liggen vast. Mode: Comp (~3:1, brede
+  knie) of Limit. Verder Color (buisverzadiging, dubbel bemonsterd), Mix,
+  Bypass en GR als CV-uitgang; stereo gekoppeld.
+- Gemeten op de Teensy (sampler → OPTO → Out, dezelfde noten): spreiding van
+  het niveau 20,7 dB in bypass, 15,4 dB bij Peak 55 en 8,3 dB bij Peak 80.
+  CPU 26% (was 29% vóór het wegnemen van een `exp` per sample; ook FET rekent
+  dB→lineair nu met `exp` in plaats van `pow`).
+- Tests `wasmOptoComp.test.ts`: ratio in Comp en Limit, Peak Reduction, het
+  loslaten in twee fasen, het geheugen van de cel, Color, Bypass en ±1.
+- Seed: **Rings + Opto comp** in het Solo-menu (mono).
+
+— FET COMP: Color-knop en dubbel bemonsterde vervorming (2026-09-22)
 - Terugkoppeling na het luisteren: "de compressie is aangenaam, maar ik hoor
   weinig karakter". Gemeten klopt dat half: bij 441 Hz zit er 0,7 % vervorming
   bij lichte compressie, 5 % bij stevige, 9 % bij 20:1 en 15 % met alle
