@@ -16,6 +16,7 @@ import { buildConfigPayload } from './teensyLink';
 const seeds = {
   'sampler':     () => seedSamplerPolyPatch(seedInternals(emptyModularProject()), 8, false),
   'sampler-wah': () => seedSamplerPolyPatch(seedInternals(emptyModularProject()), 8, true),
+  'sampler-wah-fet': () => seedSamplerPolyPatch(seedInternals(emptyModularProject()), 8, true, true),
 };
 
 it.skipIf(!process.env.MMB_DUMP_CONFIG)('config-payload naar bestand', () => {

@@ -356,6 +356,14 @@ export function ModularMbApp(): JSX.Element {
                     padding: '7px 12px', cursor: 'pointer', fontSize: 13,
                   }}
                 >🎧 Sampler ×8 auto-wah</button>
+                <button
+                  onClick={() => { setProject(seedSamplerPolyPatch(getProject(), 8, true, true)); setShowPoly(false); }}
+                  title="Sampler ×8 auto-wah, en daarachter FET COMP (1176-stijl, stereo): Input +12 drukt hem stevig samen, Output −4 haalt het niveau terug. Probeer Ratio All."
+                  style={{
+                    textAlign: 'left', border: 'none', background: 'transparent',
+                    padding: '7px 12px', cursor: 'pointer', fontSize: 13,
+                  }}
+                >🎧 Sampler ×8 auto-wah + FET</button>
               </div>
             )}
           </span>

@@ -24,6 +24,7 @@ import {
   seedCvBridgePatch,
   seedInternals,
   seedPolyVoicePatch,
+  seedSamplerPolyPatch,
   seedSoloVoicePatch,
   seedTestPatch,
 } from './seedModules';
@@ -70,6 +71,7 @@ function allSeededProject(): ModularProject {
   p = seedPolyVoicePatch(p, 2, { voiceSource: 'stk', filterType: 'ms20', perVoiceFx: 'comb' });
   p = seedSoloVoicePatch(p, 'tp_mmb_plaits', 'Plaits', 'out', 'aux', {});
   p = seedCloudsAmbientPatch(p);
+  p = seedSamplerPolyPatch(p, 8, true, true);
   return p;
 }
 

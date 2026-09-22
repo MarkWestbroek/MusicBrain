@@ -3791,9 +3791,9 @@ export function seedDx7PolyPatch(project: ModularProject, voiceCount = 8): Modul
  * Construct B uit doc/uml/11-simulation-wasm.md — de sampler deelt één bank
  * en MIDI-in verdeelt de noten.
  */
-export function seedSamplerPolyPatch(project: ModularProject, voiceCount = 8, autoWah = false): ModularProject {
+export function seedSamplerPolyPatch(project: ModularProject, voiceCount = 8, autoWah = false, fetComp = false): ModularProject {
   const N = Math.max(2, Math.min(8, Math.round(voiceCount)));
-  const needed = ['tp_mmb_midiin', 'tp_mmb_sampler', 'tp_mmb_out'];
+  const needed = ['tp_mmb_midiin', 'tp_mmb_sampler', 'tp_mmb_out', ...(fetComp ? ['tp_mmb_fet_comp'] : [])];
   const missing = needed.some((tid) => !project.moduleTypes.some((t) => t.id === tid));
   const p = missing ? seedInternals(project) : project;
 
@@ -3804,16 +3804,21 @@ export function seedSamplerPolyPatch(project: ModularProject, voiceCount = 8, au
   const mi  = fresh('tp_mmb_midiin');
   const smp = fresh('tp_mmb_sampler');
   const out = fresh('tp_mmb_out');
+  // Optioneel: FET COMP (1176-stijl) tussen de sampler en OUT, stereo.
+  const fet = fetComp ? fresh('tp_mmb_fet_comp') : null;
+  const name = `Sampler ×${N}${autoWah ? ' auto-wah' : ''}${fet ? ' + FET' : ''}`;
 
   const smpOffset = mi.visual.hpWidth;
-  const outOffset = smpOffset + smp.visual.hpWidth;
+  const fetOffset = smpOffset + smp.visual.hpWidth;
+  const outOffset = fetOffset + (fet ? fet.visual.hpWidth : 0);
   const rack: Rack = {
-    id: uid('rack'), name: autoWah ? `Sampler ×${N} auto-wah` : `Sampler ×${N}`,
-    description: `MidiIn → SAMPLER (${N} stem-cellen als PolyGroup) → OUT. Eén bank, MIDI-in verdeelt de noten.`,
+    id: uid('rack'), name,
+    description: `MidiIn → SAMPLER (${N} stem-cellen als PolyGroup)${fet ? ' → FET COMP' : ''} → OUT. Eén bank, MIDI-in verdeelt de noten.`,
     rows: 1, hpPerRow: Math.max(64, outOffset + out.visual.hpWidth + 4),
     slots: [
       { id: uid('slot'), moduleId: mi.id,  row: 0, hpOffset: 0 },
       { id: uid('slot'), moduleId: smp.id, row: 0, hpOffset: smpOffset },
+      ...(fet ? [{ id: uid('slot'), moduleId: fet.id, row: 0, hpOffset: fetOffset }] : []),
       { id: uid('slot'), moduleId: out.id, row: 0, hpOffset: outOffset },
     ],
     kind: 'physical',
@@ -3831,18 +3836,21 @@ export function seedSamplerPolyPatch(project: ModularProject, voiceCount = 8, au
     to:   { moduleId: tm.id, portId: tp },
   });
   const patch: Patch = {
-    id: uid('patch'), name: autoWah ? `Sampler ×${N} auto-wah` : `Sampler ×${N}`,
-    description: autoWah
+    id: uid('patch'), name,
+    description: (autoWah
       ? `${N}-stemmige multisampler met per stem een MS-20 in de cel, gestuurd door de envelope-follower van diezelfde stem (env_k → cutoff_k). Laad een bank via 🎹 Multisample en speel hard en zacht.`
-      : `${N}-stemmige multisampler. Laad een bank via 🎹 Multisample (Testbank, ⤒ .mmbs of een .sf2) en speel.`,
+      : `${N}-stemmige multisampler. Laad een bank via 🎹 Multisample (Testbank, ⤒ .mmbs of een .sf2) en speel.`)
+      + (fet ? ' Daarachter FET COMP (1176-stijl): Input +12 drukt hem stevig samen, Output −4 haalt het niveau terug. Probeer Ratio All.' : ''),
     voiceCount: N,
     rackIds: [rack.id],
     connections: [
       c(mi, 'pitch', smp, 'voct_1'),
       c(mi, 'gate',  smp, 'gate_1'),
       c(mi, 'vel',   smp, 'vel_1'),
-      c(smp, 'out_l', out, 'l'),
-      c(smp, 'out_r', out, 'r'),
+      ...(fet
+        ? [c(smp, 'out_l', fet, 'in_l'), c(smp, 'out_r', fet, 'in_r'),
+           c(fet, 'out_l', out, 'l'),    c(fet, 'out_r', out, 'r')]
+        : [c(smp, 'out_l', out, 'l'),    c(smp, 'out_r', out, 'r')]),
       // Auto-wah: de follower van stem k stuurt het filter van stem k. Eén
       // kabel op de master-cel; polyExpand (en de sim) vouwt hem uit naar 1..N.
       ...(autoWah ? [c(smp, 'env_1', smp, 'cutoff_1')] : []),
@@ -3853,6 +3861,7 @@ export function seedSamplerPolyPatch(project: ModularProject, voiceCount = 8, au
         ? { bank: 0, level: 0.8, filter: 2, cutoff: 300, q: 0.55, fmode: 0, drive: 1.5, cv_amt: 4, env_rel: 150, env_sens: 12 }
         : { bank: 0, level: 0.8 },
       [out.id]: { level: 0.85 },
+      ...(fet ? { [fet.id]: { input: 12, output: -4, attack: 5, release: 4, ratio: 0, mix: 1 } } : {}),
     },
     envelopes: [], lfos: [],
   };
@@ -3860,7 +3869,7 @@ export function seedSamplerPolyPatch(project: ModularProject, voiceCount = 8, au
   return {
     ...p,
     racks:        [...p.racks, rack],
-    modules:      [...p.modules, mi, smp, out],
+    modules:      [...p.modules, mi, smp, ...(fet ? [fet] : []), out],
     patches:      [...p.patches, patch],
     activeRackId:  rack.id,
     activePatchId: patch.id,
