@@ -124,4 +124,6 @@ cycli gestart door de USB-wachtrij resp. vrij op 2902 µs (geen opname open).
 bypass.wav effect.wav`: die lijnt ze uit en geeft de helling uit/in (1 = geen
 compressie) en hoeveel luide en zachte stukken veranderen. Let op: een
 config-push met dezelfde module-id hergebruikt de instantie, dus poke
-`bypass=0` expliciet als een eerdere run hem aanzette.
+`bypass=0` expliciet als een eerdere run hem aanzette. En de eerste run na
+het flashen laadt de sampler zijn bank nog van de SD: doe eerst een korte
+opwarmrun voordat je een referentie opneemt.

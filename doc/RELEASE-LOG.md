@@ -17,7 +17,28 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
-### fw 0.5.62 — VCA-bus, Vari-mu en Program EQ; hoog-verlies in FET/Opto hersteld (2026-09-23)
+### fw 0.5.63 — Diodebrug-compressor in Neve-33609-stijl (2026-09-23)
+- **DIODE COMP** (`tp_mmb_diode_comp`, 10 HP), FW-FX-3 stap 6; kern
+  `mmb_dsp/diode_comp.h`, dezelfde in de firmware en als wasm in de sim.
+- Diodes zijn symmetrisch: vooral **oneven** harmonischen (3e, 5e), anders
+  dan de buis (even) en de FET (gemengd). De vervorming groeit lineair mee met
+  de gain reduction; **Color** schaalt haar (dubbel bemonsterd, alleen het
+  vervormingsdeel). Eerst kwadratisch meegroeiend, maar dan scheelde Color 0
+  tegen 2 op de Teensy maar 1 dB in het hoog; nu 11 dB.
+- Ratio 1,5 / 2 / 3 / 4 / 6 met een zachte knie, Attack Fast (2 ms) / Slow
+  (10 ms), Release 0,1 / 0,4 / 0,8 / 1,5 s en **A1/A2** (programma-afhankelijk:
+  40 of 150 ms naast een trage envelope die in 5 s loslaat), Threshold,
+  Makeup, Mix, Bypass, GR.
+- Gemeten op de Teensy (A/B met bypass, uitgelijnd): helling uit/in 0,77 bij
+  drempel −28 en 4:1; CPU +3,6 %. Tests `wasmDiodeComp.test.ts` (5): ratio's,
+  oneven overheerst (3e ruim boven de 2e) en groeit met het ingrijpen, A1,
+  Bypass, hoog vlak, ±1.
+- Seed: **DX7 + Diode comp** in het Solo-menu.
+- Meet-valkuil: de eerste run na het flashen laadt de sampler zijn bank nog
+  van de SD; de eerste seconden zijn dan veel te zacht. Neem een referentie
+  pas op na een opwarmrun.
+
+— VCA-bus, Vari-mu en Program EQ; hoog-verlies in FET/Opto hersteld (2026-09-23)
 - **Fout hersteld (FET, Opto):** het "dubbel bemonsteren" van de vervorming
   middelde ook het schone signaal, en dat is een laagdoorlaat: −0,4 dB op
   5 kHz en ~−4 dB op 16 kHz, óók met Color 0. Nu wordt alleen het

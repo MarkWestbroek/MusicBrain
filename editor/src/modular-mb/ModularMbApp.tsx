@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import { setProject, updateProject, useModularProject, getProject, undo, redo } from './store';
 import { emptyModularProject } from './types';
 import { exportPanel, importPanel, parsePanelFile } from './panelIO';
-import { BUS_SOLO_FX, EQ_SOLO_FX, FET_SOLO_FX, OPTO_SOLO_FX, SAMPLER_MASTER_FX, VARIMU_SOLO_FX, seedExampleModules, seedInternals, seedTestPatch, seedFmTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, seedDx7PolyPatch, seedSamplerPolyPatch, seedWarpsVocoderPatch, seed808JamPatch, seedKrellPatch, type PolySeedOptions } from './seedModules';
+import { BUS_SOLO_FX, DIODE_SOLO_FX, EQ_SOLO_FX, FET_SOLO_FX, OPTO_SOLO_FX, SAMPLER_MASTER_FX, VARIMU_SOLO_FX, seedExampleModules, seedInternals, seedTestPatch, seedFmTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, seedDx7PolyPatch, seedSamplerPolyPatch, seedWarpsVocoderPatch, seed808JamPatch, seedKrellPatch, type PolySeedOptions } from './seedModules';
 
 /** Effecten achter de solo-seeds (Solo ▾): de stand en de tooltip. */
 const SOLO_FX = {
@@ -16,6 +16,7 @@ const SOLO_FX = {
   opto:   { fx: OPTO_SOLO_FX,   title: 'Monofoon met OPTO COMP (LA-2A-stijl): Peak Reduction 55, Gain +4. Traag en vloeiend; hoor hoe de gain reduction na een noot in twee fasen wegloopt.' },
   bus:    { fx: BUS_SOLO_FX,    title: 'Monofoon met VCA-BUS (SSL-stijl): attack 30 ms, release Auto, 4:1 — de aanslag komt erdoor en het pompt mee.' },
   varimu: { fx: VARIMU_SOLO_FX, title: 'Monofoon met VARI-MU (Fairchild-stijl): Input +10, tijdstand 2, Color 1,3 — dik en warm, de ratio loopt op met het ingrijpen.' },
+  diode:  { fx: DIODE_SOLO_FX,  title: 'Monofoon met DIODE COMP (Neve-33609-stijl): drempel −28, 4:1, release A1, Color 1,2 — flink ingrijpen, dan hoor je de oneven harmonischen van de diodes.' },
   eq:     { fx: EQ_SOLO_FX,     title: 'Monofoon met PROGRAM EQ (Pultec-stijl): de Pultec-truc op 60 Hz (boost 8, atten 6) en wat glans op 8 kHz.' },
 } as const;
 import { PatchesPanel } from './PatchesPanel';
@@ -421,6 +422,8 @@ export function ModularMbApp(): JSX.Element {
                     c: { strike: 0.8, space: 0.5, level: 0.8 }, fx: 'varimu' },
                   { label: '🎚️ STK + Program EQ', t: 'tp_mmb_stk_sound', n: 'STK', l: 'out', r: 'out',
                     c: { sound: 0, level: 0.8 }, fx: 'eq' },
+                  { label: '🎚️ DX7 + Diode comp', t: 'tp_mmb_dx7', n: 'DX7', l: 'out', r: 'out',
+                    c: { program: 0, level: 0.8 }, fx: 'diode' },
                 ] as { label: string; t: string; n: string; l: string; r: string;
                        c: Record<string, number>; fx?: keyof typeof SOLO_FX }[]).map((s) => (
                   <button

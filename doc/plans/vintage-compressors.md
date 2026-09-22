@@ -1,9 +1,9 @@
 # Vintage compressors (en een Pultec) voor MusicBrain
 
 > Backlog: **FW-FX-3** (`doc/BACKLOG.md` §2.4). Opgesteld 2026-09-22.
-> Status: alle vijf stappen gebouwd — FET (fw 0.5.58–0.5.60), Opto (0.5.61),
-> VCA-bus, Vari-mu en Program EQ (0.5.62). Nog open: Diodebrug (Neve) en
-> inregelen op het oor.
+> Status: alles gebouwd — FET (fw 0.5.58–0.5.60), Opto (0.5.61), VCA-bus,
+> Vari-mu en Program EQ (0.5.62), Diodebrug (0.5.63). Nog open: inregelen op
+> het oor.
 
 ## Waarom
 
@@ -92,6 +92,7 @@ gedragen:
 | 3 | **VCA-bus** (SSL-stijl) ✅ `tp_mmb_bus_comp` | Eenvoudig na 1 en 2; de mixbus-lijm met Auto-release |
 | 4 | **Vari-mu** (Fairchild-stijl) ✅ `tp_mmb_varimu_comp` | Ratio die met het ingrijpen oploopt, buisvervorming |
 | 5 | **Pultec-EQ** ✅ `tp_mmb_program_eq` | Losse EQ-module: een paar filters naar de passieve curves plus buisverzadiging |
+| 6 | **Diodebrug** (Neve-33609-stijl) ✅ `tp_mmb_diode_comp` | Oneven harmonischen die met het ingrijpen meegroeien; A1/A2 programma-afhankelijk |
 
 Namen in de editor zonder merknamen (FET, Opto, VCA-bus, Vari-mu, Program EQ).
 In de notes staat naar welk apparaat hij knipoogt.

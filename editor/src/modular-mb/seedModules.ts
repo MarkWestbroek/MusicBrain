@@ -1607,6 +1607,39 @@ function mmbProgramEq() {
   });
 }
 
+// 10h. MMB DIODE COMP — 10 HP. Diodebrug-compressor in Neve-33609-stijl (FW-FX-3 stap 6).
+function mmbDiodeComp() {
+  const w = W(10);
+  return assemble({
+    typeId: 'tp_mmb_diode_comp',
+    categoryId: 'effect',
+    variant: 'Diode bridge compressor',
+    brand: 'MMB', model: 'DIODE',
+    hp: 10, texture: 'pcb-black', baseColor: '#232a24', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'DIODE COMP', fontSize: 2.0, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: 'diode bridge compressor', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('threshold', 'Threshold', w*0.27, 30, { size: 'medium', min: -50, max: 0, def: -20, unit: 'dB', color: '#f5a623' }),
+      knob('makeup',    'Makeup',    w*0.73, 30, { size: 'medium', min: 0, max: 20, def: 0, unit: 'dB', color: '#f5a623' }),
+      sw  ('ratio',   'Ratio',   w*0.10, 58, ['1.5', '2', '3', '4', '6'], 1),
+      sw  ('attack',  'Attack',  w*0.40, 54, ['Fast', 'Slow'], 1),
+      sw  ('release', 'Release', w*0.66, 60, ['0.1', '0.4', '0.8', '1.5', 'A1', 'A2'], 4),
+      knob('color', 'Color', w*0.40, 76, { size: 'small', min: 0, max: 2, def: 1, color: '#f5a623' }),
+      knob('mix',   'Mix',   w*0.14, 84, { size: 'small', min: 0, max: 1, def: 1, color: '#9ca3af' }),
+      sw  ('bypass', 'Bypass', w*0.70, 86, ['Uit', 'Aan'], 0),
+      inPort ('in_l',  'L',  'audio', w*0.12, 106),
+      inPort ('in_r',  'R',  'audio', w*0.28, 106),
+      outPort('gr',    'GR', 'cv',    w*0.50, 106),
+      outPort('out_l', 'L',  'audio', w*0.72, 106),
+      outPort('out_r', 'R',  'audio', w*0.88, 106),
+    ],
+    notes: 'Diodebrug-compressor die knipoogt naar de Neve 33609 / 2254: dik en gekleurd. Diodes zijn symmetrisch, dus vooral oneven harmonischen (3e, 5e) — anders dan de buis (even) en de FET (gemengd) — en die groeien hard mee met het ingrijpen: rustig is bijna schoon, flink ingrijpen wordt dik en Brits. Ratio 1,5 / 2 / 3 / 4 / 6 met een zachte knie, Attack Fast (2 ms) of Slow (10 ms), Release 0,1 / 0,4 / 0,8 / 1,5 s en A1/A2 (programma-afhankelijk: een snelle envelope van 40 of 150 ms naast een trage die alleen bij aanhoudend materiaal groeit en in 5 s loslaat). Color schaalt de diodevervorming (dubbel bemonsterd, alleen het vervormingsdeel), Threshold, Makeup, Mix, Bypass, GR als CV. Stereo gekoppeld. Firmware tp_mmb_diode_comp (mmb_dsp::DiodeComp); dezelfde kern als wasm in de simulator.',
+  });
+}
+
 // 11. MMB PHASER — 6 HP. Klassiek phaser-effect (Tone.Phaser).
 function mmbPhaser() {
   const w = W(6);
@@ -2765,7 +2798,7 @@ function mmbEnvFollowerMono() {
 // ── public entry ───────────────────────────────────────────────────────
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbEcho(), mmbTapeEcho(), mmbFetComp(), mmbOptoComp(), mmbBusComp(), mmbVariMuComp(), mmbProgramEq(), mmbSampler(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbEnvFollower(), mmbEnvFollowerMono()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbEcho(), mmbTapeEcho(), mmbFetComp(), mmbOptoComp(), mmbBusComp(), mmbVariMuComp(), mmbProgramEq(), mmbDiodeComp(), mmbSampler(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbEnvFollower(), mmbEnvFollowerMono()];
   const newTypes = all.map((x) => x.type);
 
   // Upgrade-pad: bestaande interne types worden in-place VERVANGEN (zelfde
@@ -3680,6 +3713,12 @@ export const BUS_SOLO_FX = {
 export const VARIMU_SOLO_FX = {
   typeId: 'tp_mmb_varimu_comp', label: 'VARI-MU',
   controls: { input: 10, threshold: -18, output: -4, time: 2, mode: 0, color: 1.3, mix: 1 },
+} as const;
+
+/** DIODE COMP achter een solo-instrument: flink ingrijpen, dan hoor je de diodes. */
+export const DIODE_SOLO_FX = {
+  typeId: 'tp_mmb_diode_comp', label: 'DIODE COMP',
+  controls: { threshold: -28, ratio: 3, attack: 1, release: 4, makeup: 6, color: 1.2, mix: 1 },
 } as const;
 
 /** PROGRAM EQ achter een solo-instrument: de Pultec-truc onderin. */
