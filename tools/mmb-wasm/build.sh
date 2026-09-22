@@ -112,6 +112,7 @@ STK="$LIB/stk"
 sel stksound && build stksound tp_mmb_stk_sound "$STK/include" "$STK/include/stk" -- "$STK"/src/*.cpp
 
 sel tapeecho && build tapeecho tp_mmb_tape_echo "$LIB/mmb-dsp" --
+sel fetcomp && build fetcomp tp_mmb_fet_comp "$LIB/mmb-dsp" --
 
 sel envfollower && build envfollower tp_mmb_env_follower "$LIB/mmb-dsp" --
 sel envfollower && EXTRA="-DMMB_EF_CELLS=1" build envfollower tp_mmb_env_follower_mono "$LIB/mmb-dsp" --

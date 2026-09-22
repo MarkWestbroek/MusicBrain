@@ -17,6 +17,23 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### fw 0.5.58 — FET-compressor in 1176-stijl (2026-09-22)
+- Nieuwe module **FET COMP** (`tp_mmb_fet_comp`, 8 HP), stap 1 van de vintage
+  compressors (FW-FX-3, `doc/plans/vintage-compressors.md`). De kern is
+  `mmb_dsp/fet_comp.h`, dezelfde in de firmware en als wasm in de sim.
+- Zoals het apparaat: vaste drempel en sturen met **Input**, **Output**,
+  **Attack/Release 1–7** (7 = snelst: 800 → 20 µs en 1100 → 50 ms), **Ratio**
+  4/8/12/20 en **All** (alle knoppen: drempel lager, harder dan 20:1, de
+  transiënt knalt erdoor, veel meer vervorming). FET-vervorming (asymmetrische
+  tanh, even en oneven harmonischen) die meegroeit met de gain reduction,
+  zachte uitgangsbegrenzing, **Mix** voor parallelle compressie, **GR** als
+  CV-uitgang. Stereo gekoppeld; alleen L = mono op beide uitgangen.
+- Feed-forward in plaats van feedback: een digitale feedbacklus met 20 µs
+  aanval en ratio 20 oscilleert.
+- Gemeten op de Teensy (sampler → FET → Out, Input +12, Ratio 4): spreiding
+  van het niveau per 100 ms van 20 naar 4,9 dB; CPU +7,5%. Tests:
+  `wasmFetComp.test.ts` (ratio's, All, aanval, vervorming, Mix, ±1).
+
 ### fw 0.5.57 — Limiter op de sampler: geen digitale overdrive meer bij resonantie (2026-09-22)
 - **Waarom:** een zingende MS-20 blijft per stem rond de ±1, en een paar
   stemmen samen komen daar ruim boven. De sampler knipte die som hard af op

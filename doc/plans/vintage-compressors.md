@@ -1,7 +1,7 @@
 # Vintage compressors (en een Pultec) voor MusicBrain
 
 > Backlog: **FW-FX-3** (`doc/BACKLOG.md` §2.4). Opgesteld 2026-09-22.
-> Status: plan. Eerste stap in uitvoering: de FET-compressor (1176-stijl).
+> Status: stap 1 klaar (FET, fw 0.5.58, `tp_mmb_fet_comp`); de rest is plan.
 
 ## Waarom
 
@@ -100,9 +100,10 @@ In de notes staat naar welk apparaat hij knipoogt.
   `output` (dB), `attack` en `release` (1..7 zoals op het apparaat, 7 =
   snelst: aanval 800 → 20 µs, loslaten 1100 → 50 ms, logaritmisch
   verdeeld), `ratio` (4 / 8 / 12 / 20 / Alle), `mix` (0..1).
-- **Topologie:** feedback. De detector meet de uitgang van het vorige sample,
-  en de gain reduction wordt in dB berekend met een zachte knie van een paar
-  dB.
+- **Topologie:** feed-forward, met een zachte knie per ratio. Een digitale
+  feedbacklus met 20 µs aanval en ratio 20 oscilleert (stabiel alleen als de
+  stap per sample < 2/R); het karakter zit in de snelle detector, de knie en
+  de vervorming.
 - **Alle knoppen:** ratio ~20, drempel lager, trager aanslaan (de transiënt
   schiet erdoor) en veel meer vervorming. Zo beschrijven gebruikers het
   karakter; de precieze vorm stellen we op het oor in.

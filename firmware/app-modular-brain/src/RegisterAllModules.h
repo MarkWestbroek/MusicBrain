@@ -67,6 +67,7 @@
 #include "CompDriveModule.h"
 #include "EchoModule.h"
 #include "TapeEchoModule.h"
+#include "FetCompModule.h"
 #include "SamplerModule.h"
 #include "CombModule.h"
 #include "PhaserModule.h"
@@ -125,6 +126,7 @@ inline void registerAllRuntimeModules() {
     CompDriveModule::registerFactory(); // FW-FX-2: compressor + overdrive
     EchoModule::registerFactory();      // FW-AU-2: feedback delay
     TapeEchoModule::registerFactory();  // bandecho (mmb-dsp), ook als wasm in de simulator
+    FetCompModule::registerFactory();   // FET-compressor, 1176-stijl (mmb-dsp), ook als wasm
     SamplerModule::registerFactory();   // sample-speler (mmb-dsp), PSRAM + SD; ook als wasm
     CombModule::registerFactory();      // FW-AU-3: tuned comb resonator
     PhaserModule::registerFactory();    // FW-AU-2: all-pass phaser

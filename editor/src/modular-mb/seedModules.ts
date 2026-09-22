@@ -1436,6 +1436,38 @@ function mmbTapeEcho() {
   });
 }
 
+// 10c. MMB FET COMP — 8 HP. FET-compressor in 1176-stijl (FW-FX-3 stap 1),
+// zie doc/plans/vintage-compressors.md. Vaste drempel: Input stuurt hem aan.
+function mmbFetComp() {
+  const w = W(8);
+  return assemble({
+    typeId: 'tp_mmb_fet_comp',
+    categoryId: 'effect',
+    variant: 'FET compressor',
+    brand: 'MMB', model: 'FET',
+    hp: 8, texture: 'pcb-black', baseColor: '#16181c', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'FET COMP', fontSize: 2.0, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: 'limiting amplifier', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('input',   'Input',   w*0.27, 30, { size: 'medium', min: -12, max: 36, def: 0, unit: 'dB', color: '#f5a623' }),
+      knob('output',  'Output',  w*0.73, 30, { size: 'medium', min: -24, max: 12, def: 0, unit: 'dB', color: '#f5a623' }),
+      knob('attack',  'Attack',  w*0.27, 56, { size: 'small', min: 1, max: 7, def: 4, step: 1, color: '#f9fafb', ticks: { every: 1, highlight: [1, 7] } }),
+      knob('release', 'Release', w*0.73, 56, { size: 'small', min: 1, max: 7, def: 4, step: 1, color: '#f9fafb', ticks: { every: 1, highlight: [1, 7] } }),
+      sw  ('ratio',   'Ratio',   w*0.50, 76, ['4', '8', '12', '20', 'All'], 0),
+      knob('mix',     'Mix',     w*0.80, 90, { size: 'small', min: 0, max: 1, def: 1, color: '#9ca3af' }),
+      outPort('gr',    'GR', 'cv',    w*0.20, 90),
+      inPort ('in_l',  'L',  'audio', w*0.20, 106),
+      inPort ('in_r',  'R',  'audio', w*0.40, 106),
+      outPort('out_l', 'L',  'audio', w*0.60, 106),
+      outPort('out_r', 'R',  'audio', w*0.80, 106),
+    ],
+    notes: 'FET-compressor die knipoogt naar de UREI/UA 1176. Geen threshold-knop: de drempel ligt vast en Input stuurt hem aan (meer Input = meer compressie), Output haalt het niveau terug. Attack en Release 1–7, 7 = snelst (800 → 20 µs en 1100 → 50 ms); op de snelste standen vervormt de bas, net als bij het echte apparaat. Ratio 4/8/12/20, en All = alle knoppen tegelijk ingedrukt: drempel lager, harder dan 20:1, de transiënt knalt erdoor en veel meer vervorming. De FET-vervorming groeit met het ingrijpen. Mix = parallelle compressie. GR = gain reduction als CV (1 = 20 dB). Stereo gekoppeld; alleen L aangesloten = mono op beide uitgangen. Firmware tp_mmb_fet_comp (mmb_dsp::FetComp); dezelfde kern als wasm in de simulator.',
+  });
+}
+
 // 11. MMB PHASER — 6 HP. Klassiek phaser-effect (Tone.Phaser).
 function mmbPhaser() {
   const w = W(6);
@@ -2594,7 +2626,7 @@ function mmbEnvFollowerMono() {
 // ── public entry ───────────────────────────────────────────────────────
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbEcho(), mmbTapeEcho(), mmbSampler(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbEnvFollower(), mmbEnvFollowerMono()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbEcho(), mmbTapeEcho(), mmbFetComp(), mmbSampler(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbEnvFollower(), mmbEnvFollowerMono()];
   const newTypes = all.map((x) => x.type);
 
   // Upgrade-pad: bestaande interne types worden in-place VERVANGEN (zelfde

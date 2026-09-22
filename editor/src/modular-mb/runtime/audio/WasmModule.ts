@@ -44,7 +44,7 @@ export class WasmModule extends AudioModule {
     'tp_mmb_peaks', 'tp_mmb_morph_wt', 'tp_mmb_clouds',
     'tp_mmb_plaits', 'tp_mmb_tides', 'tp_mmb_warps', 'tp_mmb_tape_echo', 'tp_mmb_sampler',
     'tp_mmb_dx7', 'tp_mmb_env_follower', 'tp_mmb_env_follower_mono',
-    'tp_mmb_vcf', 'tp_mmb_ms20', 'tp_mmb_stk_sound',
+    'tp_mmb_vcf', 'tp_mmb_ms20', 'tp_mmb_stk_sound', 'tp_mmb_fet_comp',
   ]);
   static supports(typeId: string): boolean { return WasmModule.typeIds.has(typeId); }
 

@@ -1,6 +1,6 @@
 {
   "$comment": "GEGENEREERD door tools/contract_dump.py — niet met de hand bewerken. Poort-ids zijn letterlijk wat de firmware accepteert (aliassen als out/out_l en naam/naam_cv staan er dus allebei in).",
-  "firmwareVersion": "0.5.57",
+  "firmwareVersion": "0.5.58",
   "modules": {
     "tp_mmb_ahdsr": {
       "typeId": "tp_mmb_ahdsr",
@@ -338,6 +338,27 @@
         "thresh"
       ],
       "controlsIgnored": []
+    },
+    "tp_mmb_fet_comp": {
+      "typeId": "tp_mmb_fet_comp",
+      "source": "firmware/app-modular-brain/src/FetCompModule.h",
+      "ports": [
+        "gr",
+        "in",
+        "in_l",
+        "in_r",
+        "out",
+        "out_l",
+        "out_r"
+      ],
+      "controls": [
+        "attack",
+        "input",
+        "mix",
+        "output",
+        "ratio",
+        "release"
+      ]
     },
     "tp_mmb_fm_vco": {
       "typeId": "tp_mmb_fm_vco",
