@@ -32,6 +32,8 @@
 #include "Dx7Module.h"
 #include "WarpsModule.h"
 #include "SamplerModule.h"
+#include "UsbQueueProbe.h"
+#include "mmb_dsp/sampler_selftest.h"
 
 // Vrij heap-geheugen (Teensy-linker-symbolen). Buiten de anonieme namespace,
 // anders krijgt extern "C" interne linkage en linkt het niet.
@@ -74,7 +76,11 @@ AudioSynthWaveformDc   eg [kVoices];
 // Stereo sum. AudioMixer4 has exactly 4 inputs, conveniently == kVoices.
 AudioMixer4            mixL;
 AudioMixer4            mixR;
+// Om usbOut heen in de update-lijst: meten de USB-wachtrij en laten de pc het
+// tempo van de audiocyclus bepalen (zie UsbQueueProbe.h, de MS-20-tikken).
+UsbQueueProbe          usbProbe{UsbQueueProbe::Role::Before};
 AudioOutputUSB         usbOut;
+UsbQueueProbe          usbProbeAfter{UsbQueueProbe::Role::After};
 
 // AudioConnection has no default ctor, so we construct wires in setup()
 // via placement-new into raw storage. Lifetime = program lifetime.
@@ -259,6 +265,32 @@ void onSelectPatch(const char* patchId) {
     activatePatchAndBuild(patchId);
 }
 
+// Diagnose ({"type":"selfTest","bank":0}): de samplerstem met MS-20 en
+// auto-wah, buiten de audioroutine om gerekend, zonder uitgang — telt breuken
+// in de golfvorm. Precies dezelfde functie (mmb_dsp/sampler_selftest.h) draait
+// ook op de pc; verschillen de tellingen, dan rekent de ARM anders. Zijn ze
+// gelijk, dan ontstaan tikken die je hoort pas in de audiostroom. Blokkeert
+// de hoofdlus ~1 s per resonantie (CV-tick staat dan stil) — alleen voor tests.
+void onSelfTest(JsonObjectConst req, JsonObject out) {
+    auto& bank = mmb_link::SampleBank::instance();
+    const int want = req["bank"] | 0;
+    if (!bank.load(want) && bank.numSlots() == 0) { out["error"] = "bank niet geladen"; return; }
+    static mmb_dsp::SamplePlayer v[3];
+    JsonArray res = out["runs"].to<JsonArray>();
+    const float qs[] = { 0.55f, 0.8f, 0.9f };
+    for (float q : qs) {
+        for (auto& p : v) { p.Init(AUDIO_SAMPLE_RATE_EXACT); p.bind(bank.slots(), bank.numSlots(), bank.zones(), bank.numZones()); }
+        mmb_dsp::BreakCounter bc;
+        const uint32_t t0 = millis();
+        const long n = mmb_dsp::samplerSelfTest(v, AUDIO_SAMPLE_RATE_EXACT, q, 1.5f, bc);
+        JsonObject r = res.add<JsonObject>();
+        r["q"] = q; r["samples"] = n; r["breaks"] = bc.count;
+        r["worst"] = bc.worst; r["first"] = bc.firstAt; r["ms"] = millis() - t0;
+    }
+    out["bank"] = want;
+    out["sr"] = AUDIO_SAMPLE_RATE_EXACT;
+}
+
 // Telemetrie voor de editor ({"type":"getStatus"} → {"type":"status",...}).
 // cpu/cpuMax = audio-ISR-belasting in %, mem/memMax = audio-blocks in gebruik
 // t.o.v. de pool, loopHz = main-loop-iteraties per seconde (CV-tick-headroom).
@@ -268,6 +300,14 @@ void onGetStatus(JsonObject s) {
     s["mem"]      = AudioMemoryUsage();
     s["memMax"]   = AudioMemoryUsageMax();
     s["memPool"]  = kAudioPoolBlocks;
+    {
+        const UsbQueueProbe::Stats q = UsbQueueProbe::take();
+        JsonObject u = s["usbQ"].to<JsonObject>();
+        u["cycles"] = q.cycles; u["over"] = q.overruns; u["under"] = q.underruns;
+        u["paced"] = q.paced; u["free"] = q.freeRun;
+        u["fillMin"] = q.fillMin; u["fillMax"] = q.fillMax;
+        u["perMinUs"] = q.periodMinUs; u["perMaxUs"] = q.periodMaxUs;
+    }
     s["modules"]  = static_cast<int>(runtime.instanceCount());
     s["retired"]  = static_cast<int>(runtime.retiredCount());
     s["patch"]    = runtime.activePatchId();
@@ -578,6 +618,9 @@ void setup() {
     // ample RAM, so budget generously and report the high-water mark. The
     // echo/comb delay lines (FW-AU-2/3) each grab ~1 block per 2.9 ms of
     // delay, so the pool is sized to host a couple of long delays at once.
+    // De USB-wachtrij bepaalt het tempo, niet een vrije timer van de core.
+    // Moet vóór AudioMemory(), anders start de core die timer al.
+    UsbQueueProbe::startPacer();
     AudioMemory(kAudioPoolBlocks);
 
     // Static 4-voice graph (B-step 2)
@@ -613,6 +656,7 @@ void setup() {
     link.onDx7Bank(onDx7Bank);           // FW-AU-13: DX7-bank push
     mmb_link::SampleBank::instance().beginStorage();   // SD-kaart voor de .mmbk-samplebanken
     link.onGetStatus(onGetStatus);       // telemetrie voor de editor
+    link.onSelfTest(onSelfTest);         // diagnose: MS-20 in de sampler, zonder uitgang
 }
 
 void loop() {

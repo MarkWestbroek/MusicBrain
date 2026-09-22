@@ -90,3 +90,31 @@ samplebank moet op een SD-kaart.
   mono 44,1 kHz. Met PSRAM 8 of 16 MB.
 - Werkt het niet, dan zegt de seriële log precies wat: `niet gevonden`,
   `ongeldige bank`, `data te kort` of `geen geheugen voor N KB`.
+
+## 4. Zelf testen zonder handen (noten sturen en opnemen)
+
+`tools/teensy-live/teensy_live.py` speelt de noten uit een Teensy-log van de
+editor na (met hun timing), neemt tegelijk de USB-audio van de Teensy op en
+meet: piek, breuken in de golfvorm (tikken), gaten van nullen, en de
+USB-wachtrij (`usbQ` in het status-bericht, zie hieronder).
+
+```bash
+# eenmalig
+.venv/Scripts/pip install sounddevice numpy
+# config-payload van een seed-patch, precies zoals de editor hem stuurt
+cd editor && MMB_DUMP_CONFIG=../cfg.json MMB_SEED=sampler-wah \
+  npx vitest run src/modular-mb/dumpConfig.test.ts && cd ..
+# pushen, filter op MS-20, noten uit het nieuwste log in Downloads, 14 s
+.venv/Scripts/python tools/teensy-live/teensy_live.py --cfg cfg.json \
+    --poke filter=2 --poke q=0.55 --secs 14 --wav uit.wav
+```
+
+Zonder `--cfg` speelt hij op wat er al op de Teensy staat. De editor-link
+moet dicht zijn. MIDI gaat via winmm, dus alleen Windows.
+
+**`usbQ` in de status** (sinds fw 0.5.56, per statusvenster):
+`over` = blokken die de core weggooide (een sprong in de golfvorm), `under`
+= cycli met een lege wachtrij (de pc kreeg nullen), `fillMin/fillMax` =
+vulling vlak vóór een nieuw blok (hoort 52–96 te zijn), `paced`/`free` =
+cycli gestart door de USB-wachtrij resp. vrij op 2902 µs (geen opname open).
+`over` en `under` horen 0 te zijn.

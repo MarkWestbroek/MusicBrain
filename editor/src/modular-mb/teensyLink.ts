@@ -325,7 +325,8 @@ async function safeClose(): Promise<void> {
   setState({ lastStatus: undefined });
 }
 
-export async function sendConfig(project: ModularProject): Promise<void> {
+/** De config-payload precies zoals sendConfig hem stuurt (los, voor tools en tests). */
+export function buildConfigPayload(project: ModularProject): { json: string; modules: number; patches: number } {
   // Expand poly-groups (×N voices) into the flat per-voice connection list the
   // firmware runs — the brain only ever sees a flat module + connection graph
   // (ADR 0010 §3). Done here, just before serialising, so the editor model
@@ -389,10 +390,15 @@ export async function sendConfig(project: ModularProject): Promise<void> {
     })),
   };
   const json = JSON.stringify({ type: 'config', project: runtime });
+  return { json, modules: runtime.modules.length, patches: runtime.patches.length };
+}
+
+export async function sendConfig(project: ModularProject): Promise<void> {
+  const { json, modules, patches } = buildConfigPayload(project);
   // Payload-grootte in het log: de firmware-lijnbuffer is 96 KB — bij
   // overschrijding stuurt de firmware een expliciete "line too long"-ack.
   pushLog({ ts: Date.now(), dir: 'sys', text:
-    `config payload: ${(json.length / 1024).toFixed(1)} KB — ${runtime.modules.length} modules, ${runtime.patches.length} patch(es)` });
+    `config payload: ${(json.length / 1024).toFixed(1)} KB — ${modules} modules, ${patches} patch(es)` });
   await writeLine(json);
 }
 

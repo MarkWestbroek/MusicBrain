@@ -111,6 +111,11 @@ public:
      *  link serialises it as `{"type":"status",...}` back to the editor. */
     using StatusHandler = void (*)(JsonObject status);
 
+    /** Callback voor een "selfTest"-verzoek: een diagnose die buiten de
+     *  audioroutine om rekent (zie mmb_dsp/sampler_selftest.h). Het antwoord
+     *  gaat terug als `{"type":"selfTest",...}`. */
+    using SelfTestHandler = void (*)(JsonObjectConst request, JsonObject result);
+
     /** @brief Initialise the link and send the opening hello frame.
      *  Must be called once from Arduino `setup()` after `Serial.begin()`. */
     void begin(ConfigHandler onConfig, SelectPatchHandler onSelectPatch,
@@ -135,6 +140,8 @@ public:
     void onDx7Bank(Dx7BankHandler h)   { onDx7Bank_ = h; }
     /** @brief Register the telemetry handler for "getStatus" requests. */
     void onGetStatus(StatusHandler h) { onStatus_ = h; }
+    /** @brief Register the diagnostic handler for "selfTest" requests. */
+    void onSelfTest(SelfTestHandler h) { onSelfTest_ = h; }
 
     /** @brief Drain the serial input buffer and dispatch complete lines.
      *  Call on every iteration of Arduino `loop()`. Non-blocking. */
@@ -205,6 +212,7 @@ private:
     WaveformHandler    onWaveform_    = nullptr;
     Dx7BankHandler     onDx7Bank_     = nullptr;
     StatusHandler      onStatus_      = nullptr;
+    SelfTestHandler    onSelfTest_    = nullptr;
 
     void sendHello() {
         JsonDocument doc;
@@ -324,6 +332,15 @@ private:
             const char* ctrl = doc["ctrl"] | "";
             if (*mod && *ctrl && onControlPoke_)
                 onControlPoke_(mod, ctrl, doc["v"]);
+            return;
+        }
+        if (strcmp(type, "selfTest") == 0) {
+            JsonDocument out;
+            out["type"] = "selfTest";
+            if (onSelfTest_) onSelfTest_(doc.as<JsonObjectConst>(), out.as<JsonObject>());
+            else out["error"] = "geen selfTest-handler";
+            serializeJson(out, Serial);
+            Serial.println();
             return;
         }
         if (strcmp(type, "getStatus") == 0) {

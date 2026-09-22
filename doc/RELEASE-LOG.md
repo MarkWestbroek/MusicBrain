@@ -17,6 +17,40 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### fw 0.5.56 — Geen tikken meer bij zware patches: de pc bepaalt het audiotempo (2026-09-22)
+- **Oorzaak van de MS-20-tikken in de sampler** (~5 per seconde op de Teensy,
+  nul in de sim): niet het filter. De USB-uitgang van de Teensy-core houdt
+  maar twee blokken van 128 samples vast; de pc haalt er per milliseconde 44
+  of 45 af, op zijn eigen klok. De core startte de audiocyclus op een eigen
+  timer. Waar de wachtrij tussen die twee klokken komt te liggen, is toeval
+  bij het opstarten. Gemeten lag hij tegen de bovenrand (84–128 van de 128
+  plekken), en bij de kleinste vertraging aan de USB-kant gooide de core een
+  heel blok weg: een sprong in de golfvorm. Met de MS-20 (~50% CPU) 67
+  weggegooide blokken in 12 s, zonder filter of met de SVF 3.
+- **Oplossing** (`UsbQueueProbe`): de firmware neemt de update-
+  verantwoordelijkheid over vóór `AudioMemory()`, zodat de core zijn timer
+  niet start. Een timer kijkt elke ~181 µs naar de wachtrij en start een
+  cyclus zodra er ≤ 96 samples in staan. De wachtrij blijft zo tussen 52 en
+  96, loopt niet over en niet leeg, en de samplerate volgt de pc. Staat er
+  geen opname open, dan loopt de cyclus vrij op 2902 µs.
+- Gemeten met dezelfde noten: MS-20 van ~90 breuken (tot 870σ) naar 0.
+  `over`/`under` 0 over 30 s, ook op q 0,9.
+- Status: `usbQ` (over, under, fillMin/Max, paced/free, periode).
+- Test-harnas `tools/teensy-live/teensy_live.py` (noten uit een Teensy-log
+  naspelen en de USB-audio opnemen), zie `doc/teensy-aan-de-pc.md` §4.
+- Nog een opmerking: op q 0,9 zingt de MS-20 zelf en loopt per stem tegen de
+  harde ±1-grens in de kernel. Dat is geluid, geen fout, en klinkt in de sim
+  hetzelfde. Een zachte begrenzing (tanh) zou kunnen, maar dat is een
+  klankkeuze.
+
+### fw 0.5.55 — Zelftest van de sampler op het apparaat (diagnose, 2026-09-22)
+- `{"type":"selfTest","bank":N}` speelt een vast MS-20/auto-wah-scenario op
+  drie stemmen buiten de audioroutine om en telt breuken
+  (`mmb_dsp/sampler_selftest.h`, dezelfde functie draait op de pc). De uitkomst
+  is op de Teensy en de pc identiek (q 0,55/0,8/0,9: 3/70/53 breuken, zelfde
+  ergste en eerste sample). Het rekenwerk van de ARM verschilt dus niet van de
+  pc, en daarmee is de oorzaak buiten de DSP gezocht (zie 0.5.56).
+
 ### fw 0.5.54 — Auto-wah zonder tikken: env → cutoff binnen de sampler (2026-09-22)
 - **Kabels van een module naar zichzelf** mogen voortaan door de module zelf
   worden afgehandeld, op audiotempo (`Module::routeInternally`). De CvGraph
