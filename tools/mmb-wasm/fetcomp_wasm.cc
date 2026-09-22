@@ -18,12 +18,12 @@ MmbPort MMB_OUTPUTS[] = {
 };
 const int MMB_NUM_OUTPUTS = 3;
 
-enum { C_INPUT, C_OUTPUT, C_ATTACK, C_RELEASE, C_RATIO, C_MIX };
+enum { C_INPUT, C_OUTPUT, C_ATTACK, C_RELEASE, C_RATIO, C_MIX, C_BYPASS };
 MmbControl MMB_CONTROLS[] = {
     { "input", 0.f }, { "output", 0.f }, { "attack", 4.f }, { "release", 4.f },
-    { "ratio", 0.f }, { "mix", 1.f },
+    { "ratio", 0.f }, { "mix", 1.f }, { "bypass", 0.f },
 };
-const int MMB_NUM_CONTROLS = 6;
+const int MMB_NUM_CONTROLS = 7;
 
 namespace { mmb_dsp::FetComp g_comp; }
 
@@ -37,6 +37,7 @@ void mmb_on_control(int idx, float v) {
         case C_RELEASE: g_comp.set_release(v); break;
         case C_RATIO:   g_comp.set_ratio(static_cast<int>(v + 0.5f)); break;
         case C_MIX:     g_comp.set_mix(v); break;
+        case C_BYPASS:  g_comp.set_bypass(v >= 0.5f); break;
     }
 }
 

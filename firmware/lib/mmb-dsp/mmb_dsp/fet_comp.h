@@ -20,7 +20,9 @@
  *    signaal (even én oneven harmonischen) waarvan de sterkte meeloopt met de
  *    gain reduction, met een DC-filter erachter. Daarna Output en een zachte
  *    uitgangsbegrenzing (de transformator), zodat de uitgang binnen ±1 blijft.
- *  - **Mix** voor parallelle compressie.
+ *  - **Mix** voor parallelle compressie, en **Bypass** om met en zonder
+ *    naast elkaar te horen. In bypass loopt de detector door, zodat
+ *    terugschakelen niet knalt.
  *
  * Feed-forward, geen feedback: de 1176 is een feedback-compressor, maar een
  * digitale feedbacklus met 20 µs aanval en ratio 20 oscilleert (stabiel alleen
@@ -59,6 +61,9 @@ public:
         updateTimes();
     }
     void set_mix(float m) { mix_ = clampf(m, 0.0f, 1.0f); }
+    /** true = signaal ongemoeid door (de detector blijft wel meelopen). */
+    void set_bypass(bool on) { bypass_ = on; }
+    bool bypassed() const { return bypass_; }
 
     /** Huidige gain reduction in dB (≥ 0). */
     float gr_db() const { return grDb_; }
@@ -99,6 +104,8 @@ public:
         const float b = kBias;
         const float tb = std::tanh(k * b);
         const float norm = 1.0f / (k * (1.0f - tb * tb));
+
+        if (bypass_) return;
 
         for (int c = 0; c < n; ++c) {
             const float v = u[c] * g;
@@ -158,6 +165,7 @@ private:
     int   ratioSel_ = 0;
     float att_ = 0.5f, rel_ = 0.001f;
     float grDb_ = 0.0f;
+    bool  bypass_ = false;
     float dc_[4] = {}, dcCoef_ = 0.001f;
 };
 

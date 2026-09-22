@@ -170,6 +170,16 @@ describe('FET-compressor (1176-stijl)', () => {
     for (let i = 2000; i < 2100; i++) expect(o.l[i]!).toBeCloseTo(x((i - best) / CTX), 5);
   }, 30_000);
 
+  it('laat met Bypass het droge signaal door, maar blijft meten', async () => {
+    const o = await run({ input: 30, bypass: 1 }, 0.3, sine(-6));
+    const x = sine(-6);
+    const err = (d: number) => { let e = 0; for (let i = 2000; i < 2200; i++) e += Math.abs(o.l[i]! - x((i - d) / CTX)); return e; };
+    let best = 0; for (let d = 1; d < 1024; d++) if (err(d) < err(best)) best = d;
+    for (let i = 2000; i < 2100; i++) expect(o.l[i]!).toBeCloseTo(x((i - best) / CTX), 5);
+    // De detector loopt door, zodat terugschakelen niet knalt.
+    expect(o.gr[o.gr.length - 1]!).toBeGreaterThan(0.2);
+  }, 30_000);
+
   it('blijft binnen ±1, ook met alles open', async () => {
     const o = await run({ input: 36, output: 12, ratio: 4 }, 0.5, sine(0, 110));
     let pk = 0; for (const v of o.l) pk = Math.max(pk, Math.abs(v));

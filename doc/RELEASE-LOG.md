@@ -17,6 +17,18 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### fw 0.5.59 — FET COMP: Bypass om met/zonder te vergelijken (2026-09-22)
+- **Bypass** (schakelaar, standaard uit): het signaal gaat ongemoeid door,
+  terwijl de detector doorloopt zodat terugschakelen niet knalt. Mix op 0 gaf
+  ook het droge signaal, maar dan schakel je tegelijk het uitgangsniveau weg.
+- Gemeten op de Teensy (seed-patch, Input +12, Ratio 4): bypass aan = spreiding
+  20,5 dB, uit = 9,7 dB, en de gecomprimeerde kant is 4,2 dB luider. Voor een
+  eerlijke A/B dus Output ~4 dB lager zetten.
+- Editor: de schakelaar met meer dan drie standen groeit mee in hoogte en zet
+  de actieve stand vet (vijf standen in 6 mm was onleesbaar); Ratio leest nu
+  4:1 … All. Nieuwe seeds: **Sampler ×8 auto-wah + FET** (Poly ▾) en
+  **DX7 + FET comp** (Solo ▾, mono).
+
 ### fw 0.5.58 — FET-compressor in 1176-stijl (2026-09-22)
 - Nieuwe module **FET COMP** (`tp_mmb_fet_comp`, 8 HP), stap 1 van de vintage
   compressors (FW-FX-3, `doc/plans/vintage-compressors.md`). De kern is
