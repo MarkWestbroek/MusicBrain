@@ -1673,6 +1673,53 @@ function mmbConsoleEq() {
   });
 }
 
+// 10j. MMB PARA EQ — 14 HP. Vierbands parametrische EQ in SSL/API-stijl (vintage-eq stap 2).
+function mmbParaEq() {
+  const w = W(14);
+  const gain = (id: string, x: number, y: number) =>
+    knob(id, 'Gain', x, y, { size: 'small', min: -15, max: 15, def: 0, unit: 'dB', color: '#f5a623' });
+  return assemble({
+    typeId: 'tp_mmb_para_eq',
+    categoryId: 'effect',
+    variant: 'Parametric EQ',
+    brand: 'MMB', model: 'PARA EQ',
+    hp: 14, texture: 'pcb-black', baseColor: '#1e232b', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'PARA EQ', fontSize: 2.0, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: '4-band parametric equalizer', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
+      { x: w*0.13, y: 22, text: 'LF',  fontSize: 1.4, color: '#f97316', align: 'middle' },
+      { x: w*0.38, y: 22, text: 'LMF', fontSize: 1.4, color: '#f5a623', align: 'middle' },
+      { x: w*0.63, y: 22, text: 'HMF', fontSize: 1.4, color: '#f5a623', align: 'middle' },
+      { x: w*0.88, y: 22, text: 'HF',  fontSize: 1.4, color: '#38bdf8', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('lf_freq',  'Freq', w*0.13, 32, { size: 'small', min: 30, max: 450, def: 100, unit: 'Hz', taper: 'log', color: '#f97316' }),
+      gain('lf_gain', w*0.13, 50),
+      sw  ('lf_shelf', 'Shape', w*0.10, 68, ['Bell', 'Shelf'], 1),
+      knob('lmf_freq', 'Freq', w*0.38, 32, { size: 'small', min: 200, max: 2000, def: 600, unit: 'Hz', taper: 'log', color: '#f5a623' }),
+      gain('lmf_gain', w*0.38, 50),
+      knob('lmf_q',    'Q',    w*0.38, 68, { size: 'small', min: 0.4, max: 4, def: 1, taper: 'log', color: '#9ca3af' }),
+      knob('hmf_freq', 'Freq', w*0.63, 32, { size: 'small', min: 600, max: 7000, def: 2500, unit: 'Hz', taper: 'log', color: '#f5a623' }),
+      gain('hmf_gain', w*0.63, 50),
+      knob('hmf_q',    'Q',    w*0.63, 68, { size: 'small', min: 0.4, max: 4, def: 1, taper: 'log', color: '#9ca3af' }),
+      knob('hf_freq',  'Freq', w*0.88, 32, { size: 'small', min: 1500, max: 16000, def: 8000, unit: 'Hz', taper: 'log', color: '#38bdf8' }),
+      gain('hf_gain', w*0.88, 50),
+      sw  ('hf_shelf', 'Shape', w*0.85, 68, ['Bell', 'Shelf'], 1),
+      knob('hpf',    'HPF',    w*0.13, 88, { size: 'small', min: 16, max: 400, def: 16, unit: 'Hz', taper: 'log', color: '#9ca3af' }),
+      knob('lpf',    'LPF',    w*0.88, 88, { size: 'small', min: 3000, max: 20000, def: 20000, unit: 'Hz', taper: 'log', color: '#9ca3af' }),
+      sw  ('prop_q', 'Prop.Q', w*0.35, 90, ['Uit', 'Aan'], 0),
+      knob('output', 'Output', w*0.63, 88, { size: 'small', min: -12, max: 12, def: 0, unit: 'dB', color: '#9ca3af' }),
+      sw  ('bypass', 'Bypass', w*0.50, 108, ['Uit', 'Aan'], 0),
+      inPort ('in_l',  'L', 'audio', w*0.10, 108),
+      inPort ('in_r',  'R', 'audio', w*0.24, 108),
+      outPort('out_l', 'L', 'audio', w*0.76, 108),
+      outPort('out_r', 'R', 'audio', w*0.90, 108),
+    ],
+    notes: 'Vierbands parametrische EQ die knipoogt naar de Britse mixer-EQ (SSL E/G): strak, schoon, het werkpaard. LF (30–450 Hz) en HF (1,5–16 kHz) schakelbaar bell of shelf; LMF (200 Hz–2 kHz) en HMF (600 Hz–7 kHz) met eigen Q (0,4–4); alle ±15 dB. HPF 12 dB/oct (helemaal links = uit) en LPF (helemaal rechts = uit). Prop.Q is de Amerikaanse stand (API 550): de Q loopt mee met de gain — een kleine ingreep is breed, een grote gericht. Geen verzadiging; Output om het niveau gelijk te trekken bij een A/B met Bypass. Alle knoppen glijden in ~5 ms. Stereo. Firmware tp_mmb_para_eq (mmb_dsp::ParamEq); dezelfde kern als wasm in de simulator.',
+  });
+}
+
 // 11. MMB PHASER — 6 HP. Klassiek phaser-effect (Tone.Phaser).
 function mmbPhaser() {
   const w = W(6);
@@ -2831,7 +2878,7 @@ function mmbEnvFollowerMono() {
 // ── public entry ───────────────────────────────────────────────────────
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbEcho(), mmbTapeEcho(), mmbFetComp(), mmbOptoComp(), mmbBusComp(), mmbVariMuComp(), mmbProgramEq(), mmbDiodeComp(), mmbConsoleEq(), mmbSampler(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbEnvFollower(), mmbEnvFollowerMono()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbEcho(), mmbTapeEcho(), mmbFetComp(), mmbOptoComp(), mmbBusComp(), mmbVariMuComp(), mmbProgramEq(), mmbDiodeComp(), mmbConsoleEq(), mmbParaEq(), mmbSampler(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbEnvFollower(), mmbEnvFollowerMono()];
   const newTypes = all.map((x) => x.type);
 
   // Upgrade-pad: bestaande interne types worden in-place VERVANGEN (zelfde
@@ -3758,6 +3805,12 @@ export const DIODE_SOLO_FX = {
 export const CONSOLE_EQ_SOLO_FX = {
   typeId: 'tp_mmb_console_eq', label: 'CONSOLE EQ',
   controls: { hpf: 2, low_freq: 1, low_gain: 4, mid_freq: 3, mid_gain: 3, high_gain: 2, output: -2, color: 1 },
+} as const;
+
+/** PARA EQ achter een solo-instrument: een smile-curve met wat presence. */
+export const PARA_EQ_SOLO_FX = {
+  typeId: 'tp_mmb_para_eq', label: 'PARA EQ',
+  controls: { hpf: 40, lf_freq: 90, lf_gain: 3, lf_shelf: 1, lmf_freq: 400, lmf_gain: -2, lmf_q: 1, hmf_freq: 3000, hmf_gain: 3, hmf_q: 1.2, hf_freq: 10000, hf_gain: 2, hf_shelf: 1, prop_q: 1, output: -1 },
 } as const;
 
 /** PROGRAM EQ achter een solo-instrument: de Pultec-truc onderin. */

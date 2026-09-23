@@ -2,7 +2,8 @@
 
 > Aanvulling op [vintage-compressors.md](vintage-compressors.md) (FW-FX-3).
 > Opgesteld 2026-09-24. Status: stap 1 (Console EQ, fw 0.5.64,
-> `tp_mmb_console_eq`) klaar; stap 2 en 3 zijn plan.
+> `tp_mmb_console_eq`) en stap 2 (Para EQ, fw 0.5.65, `tp_mmb_para_eq`)
+> klaar; stap 3 (Air/Tilt) is plan.
 
 ## Aanleiding
 
@@ -44,7 +45,7 @@ Namen: op het paneel een eigen naam (CONSOLE EQ, PARA EQ), in de notes en hier
 | # | Module | Waarom |
 |---|---|---|
 | 1 | **CONSOLE EQ** (Britse stijl) ✅ `tp_mmb_console_eq` | Het meest verschillend van de Pultec: vaste banden, inductorbult, HP-filter, kleur |
-| 2 | **PARA EQ** (SSL/API-stijl), `tp_mmb_para_eq` | 4 banden parametrisch, proportionele Q schakelbaar, bell/shelf op de buitenste; het werkpaard |
+| 2 | **PARA EQ** (SSL/API-stijl) ✅ `tp_mmb_para_eq` | 4 banden parametrisch, proportionele Q schakelbaar, bell/shelf op de buitenste; het werkpaard |
 | 3 | **AIR / TILT** (4 HP) | Klein, meteen nuttig op een mix |
 
 ## Console EQ (stap 1): ontwerp

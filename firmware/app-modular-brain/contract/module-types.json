@@ -1,6 +1,6 @@
 {
   "$comment": "GEGENEREERD door tools/contract_dump.py — niet met de hand bewerken. Poort-ids zijn letterlijk wat de firmware accepteert (aliassen als out/out_l en naam/naam_cv staan er dus allebei in).",
-  "firmwareVersion": "0.5.64",
+  "firmwareVersion": "0.5.65",
   "modules": {
     "tp_mmb_ahdsr": {
       "typeId": "tp_mmb_ahdsr",
@@ -872,6 +872,37 @@
         "level"
       ],
       "controlsIgnored": []
+    },
+    "tp_mmb_para_eq": {
+      "typeId": "tp_mmb_para_eq",
+      "source": "firmware/app-modular-brain/src/ParamEqModule.h",
+      "ports": [
+        "in",
+        "in_l",
+        "in_r",
+        "out",
+        "out_l",
+        "out_r"
+      ],
+      "controls": [
+        "bypass",
+        "hf_freq",
+        "hf_gain",
+        "hf_shelf",
+        "hmf_freq",
+        "hmf_gain",
+        "hmf_q",
+        "hpf",
+        "lf_freq",
+        "lf_gain",
+        "lf_shelf",
+        "lmf_freq",
+        "lmf_gain",
+        "lmf_q",
+        "lpf",
+        "output",
+        "prop_q"
+      ]
     },
     "tp_mmb_peaks": {
       "typeId": "tp_mmb_peaks",

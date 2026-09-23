@@ -17,7 +17,22 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
-### fw 0.5.64 — Console EQ in Britse klasse-A-stijl (2026-09-24)
+### fw 0.5.65 — Para EQ: vierbands parametrisch in SSL/API-stijl (2026-09-24)
+- **PARA EQ** (`tp_mmb_para_eq`, 14 HP), stap 2 van het EQ-plan; kern
+  `mmb_dsp/param_eq.h` op de gedeelde biquads. LF (30–450 Hz) en HF (1,5–16
+  kHz) schakelbaar bell/shelf, LMF (200 Hz–2 kHz) en HMF (600 Hz–7 kHz) met
+  Q 0,4–4, alle ±15 dB; HPF (12 dB/oct, links = uit) en LPF (rechts = uit);
+  **Prop.Q** = de Amerikaanse stand: Q loopt mee met de gain (0,4× bij 0 dB
+  → 1× bij ±15). Schoon, geen verzadiging; Output, Bypass. Alle knoppen
+  glijden in ~5 ms en de filters worden alleen herberekend als er iets
+  beweegt.
+- Gemeten op de Teensy met een zaagtand: LF shelf +10 op 100 Hz → +8,4 dB op
+  65 Hz; HMF +12 op 2,5 kHz → +11,9 dB; Prop.Q bij +3 dB: breed (+2,4 … +2,9
+  over 1,5–3 kHz); LPF 5 kHz → −3 / −14,5 / −30 dB op 5 / 10 / 16 kHz. CPU
+  ~4 % mono. Tests `wasmParaEq.test.ts` (6); 312 groen.
+- Seed: **Plaits + Para EQ** (Solo-menu): smile-curve met Prop.Q aan.
+
+— Console EQ in Britse klasse-A-stijl (2026-09-24)
 - **CONSOLE EQ** (`tp_mmb_console_eq`, 10 HP), stap 1 van het EQ-plan
   (`doc/plans/vintage-eq.md`); kern `mmb_dsp/console_eq.h`, dezelfde in de
   firmware en als wasm in de sim. Nieuw ook `mmb_dsp/biquad.h`: de RBJ-

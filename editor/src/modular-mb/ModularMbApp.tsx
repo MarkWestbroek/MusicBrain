@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import { setProject, updateProject, useModularProject, getProject, undo, redo } from './store';
 import { emptyModularProject } from './types';
 import { exportPanel, importPanel, parsePanelFile } from './panelIO';
-import { BUS_SOLO_FX, CONSOLE_EQ_SOLO_FX, DIODE_SOLO_FX, EQ_SOLO_FX, FET_SOLO_FX, OPTO_SOLO_FX, SAMPLER_MASTER_FX, VARIMU_SOLO_FX, seedExampleModules, seedInternals, seedTestPatch, seedFmTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, seedDx7PolyPatch, seedSamplerPolyPatch, seedWarpsVocoderPatch, seed808JamPatch, seedKrellPatch, type PolySeedOptions } from './seedModules';
+import { BUS_SOLO_FX, CONSOLE_EQ_SOLO_FX, PARA_EQ_SOLO_FX, DIODE_SOLO_FX, EQ_SOLO_FX, FET_SOLO_FX, OPTO_SOLO_FX, SAMPLER_MASTER_FX, VARIMU_SOLO_FX, seedExampleModules, seedInternals, seedTestPatch, seedFmTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, seedDx7PolyPatch, seedSamplerPolyPatch, seedWarpsVocoderPatch, seed808JamPatch, seedKrellPatch, type PolySeedOptions } from './seedModules';
 
 /** Effecten achter de solo-seeds (Solo ▾): de stand en de tooltip. */
 const SOLO_FX = {
@@ -18,6 +18,7 @@ const SOLO_FX = {
   varimu: { fx: VARIMU_SOLO_FX, title: 'Monofoon met VARI-MU (Fairchild-stijl): Input +10, tijdstand 2, Color 1,3 — dik en warm, de ratio loopt op met het ingrijpen.' },
   diode:  { fx: DIODE_SOLO_FX,  title: 'Monofoon met DIODE COMP (Neve-33609-stijl): drempel −28, 4:1, release A1, Color 1,2 — flink ingrijpen, dan hoor je de oneven harmonischen van de diodes.' },
   console: { fx: CONSOLE_EQ_SOLO_FX, title: 'Monofoon met CONSOLE EQ (1073-stijl): HPF 80 Hz, Low +4 op 60 Hz, Mid +3 op 3,2 kHz, High +2. Hoor de bult van de inductor in het laag.' },
+  para:   { fx: PARA_EQ_SOLO_FX, title: 'Monofoon met PARA EQ (SSL/API-stijl): HPF 40, smile-curve (LF +3, LMF −2, HMF +3, HF +2) met Prop.Q aan.' },
   eq:     { fx: EQ_SOLO_FX,     title: 'Monofoon met PROGRAM EQ (Pultec-stijl): de Pultec-truc op 60 Hz (boost 8, atten 6) en wat glans op 8 kHz.' },
 } as const;
 import { PatchesPanel } from './PatchesPanel';
@@ -428,6 +429,8 @@ export function ModularMbApp(): JSX.Element {
                   { label: '🎚️ Rings + Console EQ', t: 'tp_mmb_rings', n: 'Rings', l: 'out_l', r: 'out_r',
                     c: { structure: 0.4, brightness: 0.6, damping: 0.6, position: 0.3, model: 0, polyphony: 1, level: 0.8 },
                     fx: 'console' },
+                  { label: '🎚️ Plaits + Para EQ', t: 'tp_mmb_plaits', n: 'Plaits', l: 'out', r: 'aux',
+                    c: { engine: 0, harmonics: 0.5, timbre: 0.5, morph: 0.5, decay: 0.6, lpg: 0.5, level: 0.8 }, fx: 'para' },
                 ] as { label: string; t: string; n: string; l: string; r: string;
                        c: Record<string, number>; fx?: keyof typeof SOLO_FX }[]).map((s) => (
                   <button
