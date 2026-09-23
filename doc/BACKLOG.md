@@ -227,6 +227,7 @@ Brondump gebruiker (idee), nagenoeg ongewijzigd overgenomen:
 | HM-1 | 1 | ✅ | **Standalone MIDI IN/OUT** — discreet schema (6N138 + 2N3904), BOM bekend. Zie release-log. |
 | HM-2 | 2 | ⏳ | **Analoge VCF** (CEM3320 of AS3320) + **VCA-breakout**; firmware-support als externe module-types. |
 | HM-3 | 3 | ⏳ | **Analoge octa-osc** breakout (hardware-tegenhanger van FW-PM-1). |
+| HM-4 | 3 | 💡 | **Analoge FX-kaarten** (verkenning 2026-09-24: [`doc/plans/analoge-fx-verkenning.md`](plans/analoge-fx-verkenning.md)): Console EQ met VCA-gestuurde gains en geschakelde frequenties; hybride compressor-kaart (VCA/FET/opto/diodebrug als gain-element) met een lokale sub-brain met FPU (RP2350 of STM32G4) die de `mmb_dsp`-detector draait; Pultec met gyrators. Eerst breadboard-avond voor de sub-brain. |
 | HM-4 | 2 | ⏳ | **CV-breakout-boards** (DAC8568-based) — meerdere CV/gate-uitgangen per board, via de brain-bus. Sluit aan op de dCV-module met losse CV-in/uit maar 1 set globale controllers (zie 2.2). |
 
 ---
