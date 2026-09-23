@@ -73,6 +73,7 @@
 #include "VariMuCompModule.h"
 #include "ProgramEqModule.h"
 #include "DiodeCompModule.h"
+#include "ConsoleEqModule.h"
 #include "SamplerModule.h"
 #include "CombModule.h"
 #include "PhaserModule.h"
@@ -137,6 +138,7 @@ inline void registerAllRuntimeModules() {
     VariMuCompModule::registerFactory(); // variable-mu, Fairchild-stijl (mmb-dsp), ook als wasm
     ProgramEqModule::registerFactory(); // program-EQ, Pultec-stijl (mmb-dsp), ook als wasm
     DiodeCompModule::registerFactory(); // diodebrug, Neve-33609-stijl (mmb-dsp), ook als wasm
+    ConsoleEqModule::registerFactory(); // console-EQ, 1073-stijl (mmb-dsp), ook als wasm
     SamplerModule::registerFactory();   // sample-speler (mmb-dsp), PSRAM + SD; ook als wasm
     CombModule::registerFactory();      // FW-AU-3: tuned comb resonator
     PhaserModule::registerFactory();    // FW-AU-2: all-pass phaser

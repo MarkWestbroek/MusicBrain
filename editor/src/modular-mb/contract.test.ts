@@ -32,6 +32,7 @@ import {
   VARIMU_SOLO_FX,
   EQ_SOLO_FX,
   DIODE_SOLO_FX,
+  CONSOLE_EQ_SOLO_FX,
   SAMPLER_MASTER_FX,
   seedTestPatch,
 } from './seedModules';
@@ -85,6 +86,7 @@ function allSeededProject(): ModularProject {
   p = seedSoloVoicePatch(p, 'tp_mmb_elements', 'Elements', 'out_l', 'out_r', {}, VARIMU_SOLO_FX);
   p = seedSoloVoicePatch(p, 'tp_mmb_stk_sound', 'STK', 'out', 'out', {}, EQ_SOLO_FX);
   p = seedSoloVoicePatch(p, 'tp_mmb_dx7', 'DX7', 'out', 'out', {}, DIODE_SOLO_FX);
+  p = seedSoloVoicePatch(p, 'tp_mmb_rings', 'Rings', 'out_l', 'out_r', {}, CONSOLE_EQ_SOLO_FX);
   p = seedSamplerPolyPatch(p, 8, false, SAMPLER_MASTER_FX);
   return p;
 }

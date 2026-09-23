@@ -1,6 +1,6 @@
 {
   "$comment": "GEGENEREERD door tools/contract_dump.py — niet met de hand bewerken. Poort-ids zijn letterlijk wat de firmware accepteert (aliassen als out/out_l en naam/naam_cv staan er dus allebei in).",
-  "firmwareVersion": "0.5.63",
+  "firmwareVersion": "0.5.64",
   "modules": {
     "tp_mmb_ahdsr": {
       "typeId": "tp_mmb_ahdsr",
@@ -139,6 +139,29 @@
         "ratio",
         "release",
         "threshold"
+      ]
+    },
+    "tp_mmb_console_eq": {
+      "typeId": "tp_mmb_console_eq",
+      "source": "firmware/app-modular-brain/src/ConsoleEqModule.h",
+      "ports": [
+        "in",
+        "in_l",
+        "in_r",
+        "out",
+        "out_l",
+        "out_r"
+      ],
+      "controls": [
+        "bypass",
+        "color",
+        "high_gain",
+        "hpf",
+        "low_freq",
+        "low_gain",
+        "mid_freq",
+        "mid_gain",
+        "output"
       ]
     },
     "tp_mmb_cr78": {

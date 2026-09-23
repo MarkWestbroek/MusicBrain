@@ -1640,6 +1640,39 @@ function mmbDiodeComp() {
   });
 }
 
+// 10i. MMB CONSOLE EQ — 10 HP. Britse klasse-A console-EQ in 1073-stijl (vintage-eq stap 1).
+function mmbConsoleEq() {
+  const w = W(10);
+  return assemble({
+    typeId: 'tp_mmb_console_eq',
+    categoryId: 'effect',
+    variant: 'Console EQ',
+    brand: 'MMB', model: 'CONSOLE EQ',
+    hp: 10, texture: 'pcb-black', baseColor: '#2a2320', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'CONSOLE EQ', fontSize: 2.0, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: 'class-A channel equalizer', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      sw  ('hpf',      'HPF',   w*0.10, 32, ['Uit', '50', '80', '160', '300'], 0),
+      knob('high_gain', 'High 12k', w*0.45, 30, { size: 'medium', min: -16, max: 16, def: 0, unit: 'dB', color: '#38bdf8' }),
+      knob('output',    'Output',   w*0.80, 30, { size: 'small', min: -12, max: 12, def: 0, unit: 'dB', color: '#9ca3af' }),
+      sw  ('mid_freq', 'Mid Hz', w*0.10, 62, ['360', '700', '1.6k', '3.2k', '4.8k', '7.2k'], 2),
+      knob('mid_gain',  'Mid',    w*0.45, 58, { size: 'medium', min: -18, max: 18, def: 0, unit: 'dB', color: '#f5a623' }),
+      knob('color',     'Color',  w*0.80, 58, { size: 'small', min: 0, max: 2, def: 1, color: '#f5a623' }),
+      sw  ('low_freq', 'Low Hz', w*0.10, 88, ['35', '60', '110', '220'], 1),
+      knob('low_gain',  'Low',    w*0.45, 86, { size: 'medium', min: -16, max: 16, def: 0, unit: 'dB', color: '#f97316' }),
+      sw  ('bypass', 'Bypass', w*0.78, 88, ['Uit', 'Aan'], 0),
+      inPort ('in_l',  'L', 'audio', w*0.15, 106),
+      inPort ('in_r',  'R', 'audio', w*0.32, 106),
+      outPort('out_l', 'L', 'audio', w*0.68, 106),
+      outPort('out_r', 'R', 'audio', w*0.85, 106),
+    ],
+    notes: 'Console-EQ die knipoogt naar de Britse klasse-A kanaal-EQ (Neve 1073). Vaste keuzefrequenties, zoals het apparaat: HPF uit/50/80/160/300 Hz met 18 dB/oct; Low shelf op 35/60/110/220 Hz (±16 dB) met een lichte bult bij de knik — de inductor — waardoor +6 dB laag stevig klinkt en niet wollig; Mid bell op 360 Hz–7,2 kHz (±18 dB) met een matige Q die licht meeloopt met de gain (kleine ingrepen breed, grote gerichter); High shelf op 12 kHz (±16 dB). Color = klasse-A/transformatorkleur (asymmetrische verzadiging rond −12 dBFS, dubbel bemonsterd; 0 schoon, 2 dik). Output om het niveau gelijk te trekken bij een A/B met Bypass. Draaien glijdt in ~5 ms. Stereo. Firmware tp_mmb_console_eq (mmb_dsp::ConsoleEq); dezelfde kern als wasm in de simulator.',
+  });
+}
+
 // 11. MMB PHASER — 6 HP. Klassiek phaser-effect (Tone.Phaser).
 function mmbPhaser() {
   const w = W(6);
@@ -2798,7 +2831,7 @@ function mmbEnvFollowerMono() {
 // ── public entry ───────────────────────────────────────────────────────
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbEcho(), mmbTapeEcho(), mmbFetComp(), mmbOptoComp(), mmbBusComp(), mmbVariMuComp(), mmbProgramEq(), mmbDiodeComp(), mmbSampler(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbEnvFollower(), mmbEnvFollowerMono()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbEcho(), mmbTapeEcho(), mmbFetComp(), mmbOptoComp(), mmbBusComp(), mmbVariMuComp(), mmbProgramEq(), mmbDiodeComp(), mmbConsoleEq(), mmbSampler(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbEnvFollower(), mmbEnvFollowerMono()];
   const newTypes = all.map((x) => x.type);
 
   // Upgrade-pad: bestaande interne types worden in-place VERVANGEN (zelfde
@@ -3719,6 +3752,12 @@ export const VARIMU_SOLO_FX = {
 export const DIODE_SOLO_FX = {
   typeId: 'tp_mmb_diode_comp', label: 'DIODE COMP',
   controls: { threshold: -28, ratio: 3, attack: 1, release: 4, makeup: 6, color: 1.2, mix: 1 },
+} as const;
+
+/** CONSOLE EQ achter een solo-instrument: HPF 80, wat laag en presence. */
+export const CONSOLE_EQ_SOLO_FX = {
+  typeId: 'tp_mmb_console_eq', label: 'CONSOLE EQ',
+  controls: { hpf: 2, low_freq: 1, low_gain: 4, mid_freq: 3, mid_gain: 3, high_gain: 2, output: -2, color: 1 },
 } as const;
 
 /** PROGRAM EQ achter een solo-instrument: de Pultec-truc onderin. */

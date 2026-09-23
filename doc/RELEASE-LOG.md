@@ -17,7 +17,27 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
-### fw 0.5.63 — Diodebrug-compressor in Neve-33609-stijl (2026-09-23)
+### fw 0.5.64 — Console EQ in Britse klasse-A-stijl (2026-09-24)
+- **CONSOLE EQ** (`tp_mmb_console_eq`, 10 HP), stap 1 van het EQ-plan
+  (`doc/plans/vintage-eq.md`); kern `mmb_dsp/console_eq.h`, dezelfde in de
+  firmware en als wasm in de sim. Nieuw ook `mmb_dsp/biquad.h`: de RBJ-
+  filters als gedeelde bouwstenen voor alle EQ's.
+- Zoals het apparaat (1073): **HPF** uit/50/80/160/300 Hz met 18 dB/oct,
+  **Low** shelf 35/60/110/220 Hz ±16 dB met een lichte bult bij de knik (de
+  inductor), **Mid** bell 360 Hz–7,2 kHz ±18 dB met een Q die licht meeloopt
+  met de gain, **High** shelf 12 kHz ±16 dB. **Color** = klasse-A/
+  transformatorkleur, **Output**, **Bypass**. Versterkingen glijden in ~5 ms.
+- Gemeten op de Teensy met een zaagtand-VCO door de EQ (harmonischen
+  vergeleken met vlak): Mid +12 op 3,2 kHz → +11,9 dB; High +10 → +9,9 dB op
+  16 kHz; HPF 300 → −5 / −13 / −22 / −42 dB op 327 / 196 / 131 / 65 Hz. CPU
+  +10 % op een stereo-keten. Tests `wasmConsoleEq.test.ts` (6); 303 groen.
+- Seed: **Rings + Console EQ** in het Solo-menu.
+- Meetnotitie: `usbQ` telt één over- en één underrun bij het openen van de
+  opname-stream (de pc begint pas te trekken); tijdens de opname 0/0. Met
+  "Listen to this device" aan blijft de stream open en zie je ook die ene
+  niet.
+
+— Diodebrug-compressor in Neve-33609-stijl (2026-09-23)
 - **DIODE COMP** (`tp_mmb_diode_comp`, 10 HP), FW-FX-3 stap 6; kern
   `mmb_dsp/diode_comp.h`, dezelfde in de firmware en als wasm in de sim.
 - Diodes zijn symmetrisch: vooral **oneven** harmonischen (3e, 5e), anders
