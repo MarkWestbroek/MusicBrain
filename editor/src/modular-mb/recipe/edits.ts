@@ -586,6 +586,8 @@ export function findModuleByWord(p: ModularProject, patchId: string, word: strin
   const candidates = p.modules.filter((m) => ids.has(m.id));
   const isMaster = (m: ModuleInstance) => { const g = groupOf(p, m.id); return !g || g.index === 0; };
   const norm = word.trim().toLowerCase();
+  const byId = candidates.find((m) => m.id === word.trim());   // LLM mag een module-id noemen
+  if (byId) return byId;
   const typeId = resolveTypeId(word, p.moduleTypes);
   if (typeId) {
     const hit = candidates.filter((m) => m.typeId === typeId).sort((a, b) => Number(isMaster(b)) - Number(isMaster(a)))[0];

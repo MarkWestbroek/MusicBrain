@@ -210,12 +210,15 @@ export function describeRecipe(r: PatchRecipe, types: ModuleType[]): string {
 }
 
 export function describeCommand(c: Command, types: ModuleType[]): string {
+  // Type-id's en aliassen netjes als korte naam tonen; onbekende woorden
+  // blijven staan zoals getypt (dan ziet de gebruiker wat er mis is).
+  const nice = (s: string) => { const id = resolveTypeId(s, types); return id ? shortName(id, types) : s; };
   switch (c.kind) {
     case 'build':   return `Nieuwe patch: ${describeRecipe(c.recipe, types)}`;
     case 'voices':  return c.voices === 1 ? 'Deze patch terug naar mono' : `Deze patch ${c.voices}-stemmig maken`;
-    case 'replace': return `Vervang "${c.from}" door "${c.to}"`;
-    case 'addBus':  return `Zet "${c.module}" op de bus vóór OUT`;
-    case 'addModulation': return `Hang een ${c.source} aan ${c.target}${c.port ? `.${c.port}` : ''}`;
+    case 'replace': return `Vervang "${nice(c.from)}" door ${nice(c.to)}`;
+    case 'addBus':  return `Zet ${nice(c.module)} op de bus vóór OUT`;
+    case 'addModulation': return `Hang een ${nice(c.source)} aan ${nice(c.target)}${c.port ? `.${c.port}` : ''}`;
   }
 }
 

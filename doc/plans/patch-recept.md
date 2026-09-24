@@ -94,8 +94,8 @@ OUT, globale modulatie en bus-FX; stem v in rij v recht onder de master.
 |------|-----|--------|
 | 1 (ED-RC-1) | Recept-type, catalogus met aliassen, compiler → ops, `applyOps`, pariteitstest tegen `seedPolyVoicePatch` | gebouwd 2026-09-24 |
 | 2 (ED-RC-2) | Commandoregel (Ctrl+K) met deterministische parser en recept-preview; rechtsklik-werkwoorden: vervang module, maak ×N poly / mono, voeg bus-FX toe, voeg modulatie toe | gebouwd 2026-09-24 |
-| 3 (ED-RC-3) | LLM-adapter (OpenAI-compatibele chat-completions met JSON-uitvoer), key-instelling in de editor, tool-calls voor bewerkingen op een bestaande patch | open |
-| 4 (ED-RC-4) | Rondleiding (coach-marks op `data-tour`-ankers) en demonstratiemodus die ops afspeelt met uitleg | open |
+| 3 (ED-RC-3) | LLM-adapter (OpenAI-compatibele chat-completions met JSON-uitvoer), key-instelling in de editor; het model kiest een `Command`, de code voert uit | gebouwd 2026-09-24 (nog niet tegen een echte API getest) |
+| 4 (ED-RC-4) | Rondleiding (coach-marks op `data-tour`-ankers) en demonstratiemodus die ops afspeelt met uitleg; uitlegvragen → demonstratie | gebouwd 2026-09-24 |
 
 ### Fase 2: deterministische parser
 
@@ -149,7 +149,10 @@ laag:
 - `editor/src/modular-mb/recipe/edits.ts` — de werkwoorden op een bestaande patch: `replaceModule`, `setVoices`, `addBusFx`, `addModulation`, plus `findVoiceChain`, `findModuleByWord`, `findPortByWord`.
 - `editor/src/modular-mb/recipe/CommandPalette.tsx` — Ctrl+K-modal met preview; `runCommand` voert een `Command` uit (ook het aanknopingspunt voor de LLM-adapter).
 - `editor/src/modular-mb/recipe/RecipeContextMenu.tsx` — rechtsklikmenu in de patcher (module: vervang / LFO op / envelope op / bus-effect; leeg vlak: stemmen / bus-effect).
-- `editor/src/modular-mb/ModularMbApp.tsx` — knop "⌘ Recept", Ctrl+K, `data-tour="command-button"`.
+- `editor/src/modular-mb/recipe/llm.ts` — LLM-adapter: instellingen (localStorage `mmb.llm.v1`, presets DeepSeek/OpenAI/Ollama), systeemprompt uit de catalogus, patch-samenvatting, strenge validatie van het JSON-antwoord naar `Command`.
+- `editor/src/modular-mb/recipe/demo.tsx` — `startDemo` (ops afspelen, één undo-punt), `DemoCaption`, uitlegvragen (`EXPLAIN_TOPICS`).
+- `editor/src/modular-mb/recipe/Tour.tsx` — rondleiding in acht stappen op `data-tour`-ankers; start één keer vanzelf bij een leeg project, daarna via "?".
+- `editor/src/modular-mb/ModularMbApp.tsx` — knoppen "⌘ Recept" en "?", Ctrl+K, `data-tour` op tabs/Teensy, demonstratiespeler.
 - `editor/src/modular-mb/PatcherGraphPanel.tsx` — `onNodeContextMenu` / `onPaneContextMenu` + resultaatbanner.
 
 Bewust niet aangeraakt: `seedModules.ts`. De bestaande seeds blijven staan
@@ -175,7 +178,37 @@ oplevert. Omzetten van de seeds naar recepten kan later.
 - **Modulatie.** Een LFO is globaal (fan-out via de flatten); een envelope
   op een poly-master wordt per stem met een eigen groep en MIDI-gate.
 
+### Hoe fase 3 en 4 werken
+
+- **AI-knop.** "✨ AI" in de commandoregel stuurt de vraag, de catalogus en
+  een samenvatting van de actieve patch (masters, cv-ingangen, kabels) naar
+  het ingestelde endpoint met `response_format: json_object`. Het antwoord
+  wordt gevalideerd tot een `Command`: verzonnen type-id's, onbekende
+  commando's of een bron die geen modulatiebron is geven een nette fout.
+  Het voorstel verschijnt eerst als preview; pas "Toepassen" of
+  "Demonstreer" doet iets. Key en endpoint staan onder ⚙ en blijven in
+  localStorage.
+- **Demonstreer.** Voor elke nieuwe patch (deterministisch, AI of
+  uitlegvraag) speelt `startDemo` de ops af: ops met `note` pauzeren
+  ±1,8 s met de tekst in een ballon, ops zonder gaan snel door. De editor
+  springt naar de Patcher, die zichtbaar meebouwt. De eerste op maakt één
+  undo-punt, dus Ctrl+Z draait de hele demonstratie terug.
+- **Uitlegvragen.** "hoe maak ik vibrato?", "laat polyfonie zien" enz.
+  matchen op een klein lijstje onderwerpen met intro en recept
+  (`EXPLAIN_TOPICS`); die krijgen standaard de Demonstreer-route.
+- **Rondleiding.** Acht stappen met spotlight op `data-tour`-ankers (tabs,
+  ⌘ Recept, Teensy). De stap bij de commandoregel gaat vanzelf door zodra
+  er een patch bij is gekomen. Pijltjestoetsen en Enter bladeren, Esc sluit.
+
 ## Open punten
+
+- Fase 3 is nog niet tegen een echte DeepSeek/OpenAI-endpoint gedraaid;
+  alleen met een gemockte fetch. CORS vanuit de browser is de eerste
+  verwachte hobbel; dan een kleine proxy-worker.
+- De demonstratie licht de nieuwe module of kabel nog niet op in de
+  patcher (alleen de ballon en het meebouwende beeld).
+- De rondleiding wacht alleen bij de commandoregel-stap op de store; de
+  andere stappen zijn "Volgende"-gestuurd.
 
 - Stereo bronnen (Rings, Elements) in een poly-keten: mixerkanalen zijn
   stem-genummerd, dus alleen L wordt gebruikt en de compiler waarschuwt.

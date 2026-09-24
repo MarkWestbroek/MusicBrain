@@ -7,6 +7,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { setProject, updateProject, useModularProject, getProject, undo, redo } from './store';
 import { CommandPalette } from './recipe/CommandPalette';
+import { Tour, tourSeen } from './recipe/Tour';
+import { startDemo, DemoCaption, type DemoState, type DemoHandle } from './recipe/demo';
+import type { PatchOp } from './recipe/types';
 import { emptyModularProject } from './types';
 import { exportPanel, importPanel, parsePanelFile } from './panelIO';
 import { BUS_SOLO_FX, CONSOLE_EQ_SOLO_FX, PARA_EQ_SOLO_FX, DIODE_SOLO_FX, EQ_SOLO_FX, FET_SOLO_FX, OPTO_SOLO_FX, SAMPLER_MASTER_FX, VARIMU_SOLO_FX, seedExampleModules, seedInternals, seedTestPatch, seedFmTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, seedDx7PolyPatch, seedSamplerPolyPatch, seedWarpsVocoderPatch, seed808JamPatch, seedKrellPatch, type PolySeedOptions } from './seedModules';
@@ -66,6 +69,9 @@ export function ModularMbApp(): JSX.Element {
   const [showStress,  setShowStress]  = useState(false);
   const [showSolo,    setShowSolo]    = useState(false);
   const [showCmd,     setShowCmd]     = useState(false);   // Ctrl+K commandoregel (ED-RC-2)
+  const [showTour,    setShowTour]    = useState(false);   // rondleiding (ED-RC-4)
+  const [demo,        setDemo]        = useState<DemoState | null>(null);
+  const demoRef = useRef<DemoHandle | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
   const panelInRef = useRef<HTMLInputElement>(null);
   const [showPanels, setShowPanels] = useState(false);
@@ -86,6 +92,18 @@ export function ModularMbApp(): JSX.Element {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+
+  // ─── Rondleiding: één keer automatisch bij een leeg project ───────────
+  useEffect(() => {
+    if (!tourSeen() && project.patches.length === 0) setShowTour(true);
+  }, []);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ─── Demonstratie: ops van een recept stap voor stap afspelen ─────────
+  function runDemo(ops: PatchOp[]): void {
+    demoRef.current?.stop();
+    setTab('patcher');
+    demoRef.current = startDemo(ops, setDemo);
+  }
 
   // ─── Filename: yyyy-mm-dd-hhmmss-Naam-vVersie-(Opmerking).json ───────
   function defaultFilename(): string {
@@ -282,6 +300,7 @@ export function ModularMbApp(): JSX.Element {
             data-tour="command-button"
             style={{ fontWeight: 600 }}
           >⌘ Recept</button>
+          <button onClick={() => setShowTour(true)} title="Rondleiding door de editor, stap voor stap" data-tour="tour-button">?</button>
           <button
             onClick={() => setShowPresets(true)}
             title="Presets opslaan/laden (project of per module)"
@@ -289,6 +308,7 @@ export function ModularMbApp(): JSX.Element {
           <button
             onClick={() => setShowTeensy(true)}
             title="Verbinden met Teensy via USB Serial en config pushen"
+            data-tour="teensy-button"
           >Teensy</button>
           <button
             onClick={() => setShowWave(true)}
@@ -549,7 +569,10 @@ export function ModularMbApp(): JSX.Element {
         </div>
       </div>
 
-      <CommandPalette open={showCmd} onClose={() => setShowCmd(false)} onBuilt={() => setTab('patcher')} />
+      <CommandPalette open={showCmd} onClose={() => setShowCmd(false)} onBuilt={() => setTab('patcher')}
+        onDemo={(ops) => { setShowCmd(false); runDemo(ops); }} />
+      <Tour open={showTour} onClose={() => setShowTour(false)} onTab={(t) => setTab(t as Tab)} onOpenCommand={() => setShowCmd(true)} />
+      <DemoCaption state={demo} onSkip={() => demoRef.current?.finish()} onClose={() => { demoRef.current?.stop(); setDemo(null); }} />
 
       {/* ── Sub-tabs ── */}
       <nav style={{ display: 'flex', gap: 4, borderBottom: '1px solid #cbd2d9', marginBottom: 12 }}>
@@ -557,6 +580,7 @@ export function ModularMbApp(): JSX.Element {
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
+            data-tour={`tab-${t.id}`}
             aria-selected={tab === t.id}
             style={{
               padding: '6px 14px',
