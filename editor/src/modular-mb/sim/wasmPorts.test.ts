@@ -708,3 +708,70 @@ describe('tp_mmb_octa_vcf (AudioFilterStateVariable overgeschreven)', () => {
     expect(peak(outs[0]!)).toBe(0);
   });
 });
+
+/** Frequentie via opgaande nuldoorgangen over een seconde signaal. */
+const hzOf = (a: Float32Array, rate: number): number => {
+  let first = -1, last = -1, n = 0;
+  for (let i = 1; i < a.length; i++) if (a[i - 1]! < 0 && a[i]! >= 0) { if (first < 0) first = i; last = i; n++; }
+  return n > 1 ? (n - 1) * rate / (last - first) : 0;
+};
+
+describe('tp_mmb_octa_vco (AudioSynthWaveform overgeschreven)', () => {
+  it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_octa_vco'); });
+
+  it('staat op C4 bij 0 V, en V/Oct per cel', async () => {
+    const m = await load('tp_mmb_octa_vco');
+    m.setCtl('wave', 0);
+    m.setIn('voct_2', 1); m.setIn('voct_3', -1);
+    const outs = m.render(1.0);
+    expect(hzOf(outs[0]!, m.rate)).toBeCloseTo(261.63, 0);
+    expect(hzOf(outs[1]!, m.rate)).toBeCloseTo(523.25, 0);
+    expect(hzOf(outs[2]!, m.rate)).toBeCloseTo(130.81, 0);
+  });
+
+  it('sinuspiek volgt level (magnitude = level · 65536)', async () => {
+    const m = await load('tp_mmb_octa_vco');
+    m.setCtl('wave', 0); m.setCtl('level', 0.5);
+    expect(peak(m.render(0.2)[0]!)).toBeCloseTo(0.5, 2);
+  });
+
+  it('detune spreidt de cellen symmetrisch: cel 1 laagst, cel 8 hoogst', async () => {
+    const m = await load('tp_mmb_octa_vco');
+    m.setCtl('wave', 0); m.setCtl('detune', 50);
+    const outs = m.render(1.0);
+    const f1 = hzOf(outs[0]!, m.rate), f8 = hzOf(outs[7]!, m.rate);
+    expect(1200 * Math.log2(f8 / f1)).toBeCloseTo(50, 0);
+  });
+
+  it('alle vier de golfvormen klinken', async () => {
+    for (const w of [0, 1, 2, 3]) {
+      const m = await load('tp_mmb_octa_vco');
+      m.setCtl('wave', w);
+      expect(peak(m.render(0.1)[0]!), `wave ${w}`).toBeGreaterThan(0.3);
+    }
+  });
+});
+
+describe('tp_mmb_wt_vco (AudioSynthWaveform arbitrary + fillBank)', () => {
+  it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_wt_vco'); });
+
+  it('staat op C4 bij 0 V en volgt V/Oct', async () => {
+    const m = await load('tp_mmb_wt_vco');
+    m.setCtl('bank', 2);                                  // driehoek: schone nuldoorgangen
+    expect(hzOf(m.render(1.0)[0]!, m.rate)).toBeCloseTo(261.63, 0);
+    m.setIn('voct', 1);
+    expect(hzOf(m.render(1.0)[0]!, m.rate)).toBeCloseTo(523.25, 0);
+  });
+
+  it('elke bank geeft een andere golfvorm op dezelfde piek', async () => {
+    const vormen: Float32Array[] = [];
+    for (let b = 0; b < 6; b++) {
+      const m = await load('tp_mmb_wt_vco');
+      m.setCtl('bank', b);
+      const out = m.render(0.1)[0]!;
+      expect(peak(out), `bank ${b}`).toBeGreaterThan(0.75);
+      vormen.push(out);
+    }
+    for (let b = 1; b < 6; b++) expect(rms(vormen[b]!), `bank ${b}`).not.toBeCloseTo(rms(vormen[0]!), 3);
+  });
+});

@@ -156,3 +156,12 @@ klinkt als harde klikken of een raspende foldover. Oplossing: de ladder naar
 MS-20. Dat verandert de klank alleen in het gebied waar hij nu omvouwt, dus
 eerst luisteren: zet een ladder op drive 3–4 achter een luide VCO.
 
+**Quad-VCO en quad-mixer bestaan ook alleen in de catalogus**
+(`tp_mmb_quad_vco_shared`, `tp_mmb_quad_mixer_shared`) — zelfde verhaal als
+S&H: op de Teensy doen ze niets, en de simulator laat ze daarom ook zwijgen.
+
+**Octa-VCO: het paneel zegt level 0,5, de firmware begint op 0,8.** Een knop
+die je niet aanraakt gaat niet mee naar de Teensy, dus daar klinkt 0,8 terwijl
+het paneel 0,5 toont. Eén van de twee gelijktrekken (`mmbOctaVco()` in
+`seedModules.ts` of de constructor van `OctaVcoModule`).
+
