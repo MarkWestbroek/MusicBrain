@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { emptyModularProject, type ModularProject } from '../types';
-import { seedInternals, seedTestPatch } from '../seedModules';
+import { seedInternals, seedTestPatch, seedSamplerPolyPatch, SAMPLER_MASTER_FX } from '../seedModules';
 import { expandPatchConnections } from '../polyExpand';
 import { buildConfigPayload } from '../teensyLink';
 import { buildRecipe, validateOps } from './compile';
@@ -133,6 +133,38 @@ describe('mergeRacks', () => {
       expect(order.indexOf('tp_mmb_phaser')).toBe(order.indexOf('tp_mmb_vcf') + 1);
     }
     sane(r.project);
+  });
+
+  it('sampler ×8 (poly-groep op cellen): auto-wah en auto-wah + FET voegen samen', () => {
+    let p = seedSamplerPolyPatch(base(), 8, true);
+    const patchA = p.activePatchId!;
+    p = seedSamplerPolyPatch(p, 8, true, true);
+    const patchB = p.activePatchId!;
+    p = seedSamplerPolyPatch(p, 8, false, SAMPLER_MASTER_FX);
+    const patchC = p.activePatchId!;
+    const before = { a: topo(p, patchA), b: topo(p, patchB), c: topo(p, patchC) };
+    const [a, b, c] = physical(p);
+    const d = rackDiff(p, a!.id, b!.id);
+    expect('incompatible' in d ? d.incompatible : d.diff).toBe(1);          // alleen de FET
+    const r = mergeRacks(p, a!.id, b!.id);
+    const rack = physical(r.project).find((x) => x.id === a!.id)!;
+    // Eén sampler over, met één celgroep ×8; beide patches ongewijzigd van topologie.
+    expect(rack.slots.filter((s) => typeOf(r.project, s.moduleId) === 'tp_mmb_sampler').length).toBe(1);
+    expect(rack.polyGroups!.filter((g) => g.members[0]?.kind === 'cell').length).toBe(1);
+    expect(topo(r.project, patchA)).toEqual(before.a);
+    expect(topo(r.project, patchB)).toEqual(before.b);
+    sane(r.project);
+    // De master-FX-variant (EQ + Vari-mu i.p.v. FET) verschilt 2 modules:
+    // bij drempel 1 apart, bij de standaarddrempel 2 gaat ook die mee — en speelt nog.
+    const d2 = rackDiff(r.project, a!.id, c!.id);
+    expect('incompatible' in d2 ? d2.incompatible : d2.diff).toBe(2);
+    const strict = analyzeProject(r.project, { maxDiff: 1 });
+    expect(strict.actions.filter((x) => x.kind === 'mergeRacks').length).toBe(0);
+    expect(strict.skipped.some((s) => /drempel/.test(s.reason))).toBe(true);
+    const all = optimizeProject(r.project, { maxDiff: 2 });
+    expect(physical(all.project).length).toBe(1);
+    expect(topo(all.project, patchC)).toEqual(before.c);
+    sane(all.project);
   });
 
   it('incompatibel → RecipeError', () => {

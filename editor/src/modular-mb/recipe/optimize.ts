@@ -98,9 +98,6 @@ export function rackDiff(p: ModularProject, intoId: string, fromId: string): Rac
   const A = rackById(p, intoId), B = rackById(p, fromId);
   if (A.kind === 'internal' || B.kind === 'internal') return { incompatible: 'intern rack' };
   if (rackVoices(A) !== rackVoices(B)) return { incompatible: `stemmental ${rackVoices(A)} ≠ ${rackVoices(B)}` };
-  if ([...(A.polyGroups ?? []), ...(B.polyGroups ?? [])].some((g) => g.members.some((m) => m.kind === 'cell'))) {
-    return { incompatible: 'poly-groepen op cellen' };
-  }
   const mods = modById(p);
   const typeOf = (id: string) => mods.get(id)?.typeId ?? '?';
   const rowsA = rowsOf(A), rowsB = rowsOf(B);
@@ -117,13 +114,16 @@ export function rackDiff(p: ModularProject, intoId: string, fromId: string): Rac
 
   // Poly-groepen: elke B-groep moet óf precies op een A-groep vallen, óf
   // volledig uit verhuizende modules bestaan (wordt een nieuwe A-groep).
+  // Leden zijn hele modules óf cellen van een multi-module (sampler: cel
+  // 'voice' 0..7). Een cel-lid volgt de module-mapping; celgroep en -index
+  // blijven gelijk.
   const groupMap = new Map<string, string | null>();
-  const key = (members: PolyGroup['members']) => members.map((m) => (m.kind === 'module' ? m.moduleId : '')).join('|');
-  const aGroups = new Map((A.polyGroups ?? []).map((g) => [key(g.members), g]));
+  const memberKey = (m: PolyGroup['members'][number], id = m.moduleId) =>
+    m.kind === 'module' ? id : `${id}:${m.cellGroupId}:${m.cellIndex}`;
+  const aGroups = new Map((A.polyGroups ?? []).map((g) => [g.members.map((m) => memberKey(m)).join('|'), g]));
   for (const g of B.polyGroups ?? []) {
-    const ids = g.members.map((m) => (m.kind === 'module' ? m.moduleId : ''));
-    if (ids.every((id) => moved.includes(id))) { groupMap.set(g.id, null); continue; }
-    const mapped = ids.map((id) => mapping.get(id) ?? '');
+    if (g.members.every((m) => moved.includes(m.moduleId))) { groupMap.set(g.id, null); continue; }
+    const mapped = g.members.map((m) => memberKey(m, mapping.get(m.moduleId) ?? ''));
     const hit = aGroups.get(mapped.join('|'));
     if (!hit || hit.voiceCount !== g.voiceCount) return { incompatible: `poly-groep ${g.label} valt niet op een groep van het andere rack` };
     groupMap.set(g.id, hit.id);
