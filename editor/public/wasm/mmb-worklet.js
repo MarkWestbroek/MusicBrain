@@ -13,6 +13,9 @@
 //                              in plaats van te springen: de glide van
 //                              MIDI-In, zoals MidiInModule::tick() hem doet.
 //            {t:'cabled', id, on}  kabelstatus per ingang
+//            {t:'midi', s, d1, d2}  MIDI-bericht naar mmb_midi() (MIDI-In)
+// Terug:     {t:'tele', v}  bij verandering van mmb_telemetry() (de stap van
+//                              de sequencer, voor de lampjes op het paneel)
 //            {t:'dispose'}
 // Resampling: ingangen contextrate → native (lineair), uitgangen native →
 // context (audio lineair, cv/gate zero-order-hold zodat gates gates blijven).
@@ -104,6 +107,11 @@ class MmbProcessor extends AudioWorkletProcessor {
           p.slew = m.slew > 0 ? +m.slew / this.rate : 0;
           if (!(p.slew > 0)) p.manual = p.target;
           p.connected = true;
+          break;
+        }
+        case 'midi': {
+          // MIDI-bericht (MIDI-In): zoals de MIDI-ISR van de Teensy onNoteOn e.d. aanroept.
+          if (ex.mmb_midi) ex.mmb_midi(m.s | 0, m.d1 | 0, m.d2 | 0);
           break;
         }
         case 'cabled': { const p = this.byId.get(m.id); if (p) { p.cabled = !!m.on; p.connected = p.cabled || p.connected; } break; }
@@ -215,6 +223,10 @@ class MmbProcessor extends AudioWorkletProcessor {
       for (let c = 1; c < out.length; c++) out[c].set(ch);
     }
     this.outPos += n * this.ratio;
+    if (this.ex.mmb_telemetry) {
+      const v = this.ex.mmb_telemetry();
+      if (v !== this.lastTele) { this.lastTele = v; this.port.postMessage({ t: 'tele', v }); }
+    }
     return this.alive;
   }
 }

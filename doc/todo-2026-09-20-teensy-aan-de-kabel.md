@@ -165,3 +165,23 @@ die je niet aanraakt gaat niet mee naar de Teensy, dus daar klinkt 0,8 terwijl
 het paneel 0,5 toont. Eén van de twee gelijktrekken (`mmbOctaVco()` in
 `seedModules.ts` of de constructor van `OctaVcoModule`).
 
+## 6. Gevonden bij stap 6 (de modules achter de noot-dispatcher, 24 september)
+
+Ook deze doet de simulator straks letterlijk na.
+
+**AHDSR-loop loopt één keer en blijft dan op sustain hangen.** Het paneel
+zegt "Loop=on maakt er een quasi-LFO van". Maar `Ahdsr::advancePhase` gaat
+van Release naar Attack, en daarna van Decay naar Sustain — en Sustain wacht
+op een dalende gate die niet meer komt. Voor een echte lus moet Sustain bij
+`loop_` doorschuiven naar Release (of een lus-modus zonder sustain).
+
+**De VCO verrekent Coarse en Fine pas bij de volgende noot.**
+`VcoModule::setControl` slaat ze op maar roept `recomputeHz()` niet aan
+(de FM-VCO wél). Draai je aan Coarse terwijl een noot klinkt, dan gebeurt er
+niets tot de volgende V/Oct-verandering. Eén regel.
+
+**De VCA negeert zijn Gain-knop en is dicht zonder CV-kabel.** `gain` en
+`resp` staan op het paneel, maar `VcaModule::setControl` doet niets. Een VCA
+zonder envelope erin is op de Teensy stil. In de oude simulator telde de CV
+op bij de knop — die klonk dus wél.
+

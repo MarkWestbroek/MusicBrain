@@ -126,6 +126,14 @@ sel octavco && build octavco tp_mmb_octa_vco --
 sel wtvco   && build wtvco   tp_mmb_wt_vco   --
 sel drawvco && build drawvco tp_mmb_draw_vco --
 sel noise   && build noise   tp_mmb_noise   "$LIB/mmb-dsp" --
+sel vco     && build vco     tp_mmb_vco     --
+sel fmvco   && build fmvco   tp_mmb_fm_vco  --
+sel vca     && build vca     tp_mmb_vca     --
+CORE="$ROOT/firmware/core/src"
+sel ahdsr   && build ahdsr   tp_mmb_ahdsr   "${CVINC[@]}" -- "$CORE/runtime/Ahdsr.cpp"
+sel cvmath  && build cvmath  tp_mmb_cvmath  "${CVINC[@]}" --
+sel seq8    && build seq8    tp_mmb_seq8    "${CVINC[@]}" -- "$CORE/runtime/Seq16.cpp"
+sel midiin  && build midiin  tp_mmb_midiin  "${CVINC[@]}" -- "$CORE/runtime/MidiIn.cpp" "$CORE/VoiceAllocator.cpp"
 sel vcf && build vcf tp_mmb_vcf "$LIB/mmb-dsp" --
 sel ms20 && build ms20 tp_mmb_ms20 "$LIB/mmb-dsp" --
 

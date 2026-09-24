@@ -66,6 +66,11 @@ struct TeensyWaveform {
     int16_t next() {
         const uint32_t ph = phase_accumulator + phase_offset;
         phase_accumulator += phase_increment;
+        return shape(ph);
+    }
+
+    /** De golfvorm op fase `ph` (gedeeld met de gemoduleerde variant). */
+    int16_t shape(uint32_t ph) const {
         if (magnitude == 0) return 0;
         switch (tone_type) {
             case TW_SINE: case TW_ARBITRARY: {
@@ -102,3 +107,49 @@ struct TeensyWaveform {
         return 0;
     }
 };
+
+/** `AudioSynthWaveformModulated` met frequentiemodulatie (de FM-VCO). Zelfde
+ *  golfvormen; de fase loopt per sample `2^(mod × octaven)` sneller, met de
+ *  exp2-benadering van Laurent de Soras zoals de bibliotheek (zonder
+ *  IMPROVE_EXPONENTIAL_ACCURACY). Let op de volgorde: mét modulatie-ingang
+ *  wordt de fase eerst opgehoogd en dan gelezen, zonder andersom. */
+struct TeensyWaveformModulated : TeensyWaveform {
+    uint32_t modulation_factor = 32768;
+
+    void frequencyModulation(float octaves) {
+        if (octaves > 12.0f) octaves = 12.0f; else if (octaves < 0.1f) octaves = 0.1f;
+        modulation_factor = static_cast<uint32_t>(octaves * 4096.0f);
+    }
+
+    /** Eén sample; `hasMod` = er komt een blok op de fm-ingang binnen. */
+    int16_t nextFm(bool hasMod, int16_t mod) {
+        uint32_t ph = phase_accumulator;
+        const uint32_t inc = phase_increment;
+        uint32_t out;
+        if (hasMod) {
+            int32_t n = static_cast<int32_t>(static_cast<uint32_t>(static_cast<int32_t>(mod)) * modulation_factor);
+            const int32_t ipart = n >> 27;
+            n &= 0x7FFFFFF;
+            n = static_cast<int32_t>(static_cast<uint32_t>(n + 134217728) << 3);
+            n = smmulr(n, n);
+            n = static_cast<int32_t>(static_cast<uint32_t>(smmulr(n, 715827883)) << 3);
+            n = static_cast<int32_t>(static_cast<uint32_t>(n) + 715827882u);
+            const uint32_t scale = static_cast<uint32_t>(n) >> (14 - ipart);
+            const uint64_t phstep = static_cast<uint64_t>(inc) * scale;
+            const uint32_t msw = static_cast<uint32_t>(phstep >> 32);
+            ph += (msw < 0x7FFE) ? static_cast<uint32_t>(phstep >> 16) : 0x7FFE0000u;
+            out = ph;
+        } else {
+            out = ph;
+            ph += inc;
+        }
+        phase_accumulator = ph;
+        return shape(out);
+    }
+
+private:
+    static int32_t smmulr(int32_t a, int32_t b) {
+        return static_cast<int32_t>((static_cast<int64_t>(a) * b + 0x80000000LL) >> 32);
+    }
+};
+

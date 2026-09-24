@@ -100,7 +100,9 @@ async function expectMatchesCatalog(typeId: string): Promise<Mod> {
   const t = project.moduleTypes.find((x) => x.id === typeId);
   expect(t, `${typeId} staat niet in de catalogus`).toBeTruthy();
   expect([...m.inputs, ...m.outputs].sort()).toEqual(t!.ports.map((p) => p.id).sort());
-  expect([...m.controls].sort()).toEqual(t!.controls.map((c) => c.id).sort());
+  // LED's en displays zijn uitlezingen op het paneel, geen controls voor de firmware.
+  const echte = t!.controls.filter((c) => !['led', 'display'].includes(String((c as { kind?: string }).kind)));
+  expect([...m.controls].sort()).toEqual(echte.map((c) => c.id).sort());
   return m;
 }
 
@@ -832,5 +834,175 @@ describe('tp_mmb_noise (mmb_dsp::Noise, gedeeld met de firmware)', () => {
     a.setCtl('level', 0.5); b.setCtl('level', 1);
     const ya = a.render(0.1)[0]!, yb = b.render(0.1)[0]!;
     for (let i = 0; i < ya.length; i += 101) expect(ya[i]!).toBeCloseTo(yb[i]! * 0.5, 6);
+  });
+});
+
+// ── Stap 6, fase A: de modules achter de noot-dispatcher ─────────────────────
+
+describe('tp_mmb_vco (VcoModule, AudioSynthWaveform)', () => {
+  it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_vco'); });
+
+  it('zaagtand op C4, amplitude 0,9 — zoals de constructor', async () => {
+    const m = await load('tp_mmb_vco');
+    const out = m.render(1.0)[0]!;
+    expect(hzOf(out, m.rate)).toBeCloseTo(261.63, 0);
+    expect(peak(out)).toBeCloseTo(0.9, 2);
+  });
+
+  it('coarse telt pas mee bij de volgende voct-schrijf (firmware-eigenaardigheid)', async () => {
+    const m = await load('tp_mmb_vco');
+    m.setCtl('wave', 0);
+    m.setIn('voct', 0);
+    m.render(0.05);
+    m.setCtl('coarse', 12);
+    expect(hzOf(m.render(1.0)[0]!, m.rate)).toBeCloseTo(261.63, 0);   // nog niets
+    m.setIn('voct', 0.0001);                                            // nieuwe schrijf
+    expect(hzOf(m.render(1.0)[0]!, m.rate)).toBeCloseTo(523.3, 0);
+  });
+});
+
+describe('tp_mmb_fm_vco (AudioSynthWaveformModulated)', () => {
+  it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_fm_vco'); });
+
+  it('fm × fm_amt is octaven: +0,25 bij 4 oct is één octaaf hoger', async () => {
+    const m = await load('tp_mmb_fm_vco');
+    expect(hzOf(m.render(1.0)[0]!, m.rate)).toBeCloseTo(261.63, 0);
+    m.setCtl('fm_amt', 4);
+    m.setIn('fm', 0.25);
+    expect(hzOf(m.render(1.0)[0]!, m.rate)).toBeCloseTo(523.25, -1);
+  });
+});
+
+describe('tp_mmb_vca (AudioEffectMultiply + DC-proxy)', () => {
+  it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_vca'); });
+
+  const feed = (t: number, mm: Mod): void => {
+    const b = mm.inBuf('in');
+    for (let k = 0; k < mm.block; k++) b[k] = 0.8 * Math.sin(2 * Math.PI * 220 * (t + k / mm.rate));
+  };
+
+  it('is dicht zonder CV-kabel, wat gain ook zegt', async () => {
+    const m = await load('tp_mmb_vca');
+    m.setCtl('gain', 1);
+    expect(peak(m.render(0.2, feed)[0]!)).toBe(0);
+  });
+
+  it('cv is de versterking, met 2 ms slew', async () => {
+    const m = await load('tp_mmb_vca');
+    m.setIn('cv', 0.5);
+    const out = m.render(0.2, feed)[0]!;
+    expect(peak(out, 441)).toBeCloseTo(0.4, 2);
+    expect(peak(out, 0, 20)).toBeLessThan(0.4 * 0.5);                   // nog aan het opengaan
+  });
+});
+
+describe('tp_mmb_ahdsr (mb::runtime::Ahdsr zelf)', () => {
+  it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_ahdsr'); });
+
+  it('een vastgehouden gate slaat één keer aan en blijft op sustain', async () => {
+    const m = await load('tp_mmb_ahdsr');
+    m.setCtl('attack', 10); m.setCtl('decay', 50); m.setCtl('sustain', 0.5); m.setCtl('release', 100);
+    m.setIn('gate', 1);
+    const [env] = m.render(0.5);
+    expect(peak(env!, 0, 20)).toBeGreaterThan(0.95);                   // attack gehaald
+    // Zou elke tick de gate opnieuw geschreven worden, dan sloeg hij telkens
+    // opnieuw aan en haalde hij sustain nooit.
+    expect(env![400]!).toBeCloseTo(0.5, 2);
+  });
+
+  it('loslaten zet de release in', async () => {
+    const m = await load('tp_mmb_ahdsr');
+    m.setCtl('release', 100);
+    const [env] = m.render(1.0, (t, mm) => mm.setIn('gate', t < 0.5 ? 1 : 0));
+    expect(env![499]!).toBeGreaterThan(0.6);
+    expect(env![700]!).toBe(0);
+  });
+
+  it('loop komt als bool binnen — en loopt één keer, dan hangt hij op sustain (zoals de firmware)', async () => {
+    // Ahdsr::advancePhase: Release → Attack bij loop, maar Decay → Sustain
+    // wacht op een dalende gate die niet meer komt. Het paneel belooft een
+    // quasi-LFO; de hardware doet dit (zie de Teensy-todo).
+    const m = await load('tp_mmb_ahdsr');
+    m.setCtl('attack', 20); m.setCtl('decay', 20); m.setCtl('sustain', 0.5); m.setCtl('release', 20); m.setCtl('loop', 1);
+    const [env] = m.render(1.0, (t, mm) => mm.setIn('gate', t < 0.01 ? 1 : 0));
+    expect(peak(env!, 20, 100)).toBeGreaterThan(0.95);                // de lus sloeg opnieuw aan
+    expect(env![900]!).toBeCloseTo(0.5, 3);                              // en blijft op sustain
+    // Zonder loop (bool genegeerd) was hij na de release op 0 gebleven.
+  });
+});
+
+describe('tp_mmb_cvmath (mb::runtime::CvMath zelf)', () => {
+  it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_cvmath'); });
+
+  it('som: a·ga + b·gb + c·gc + offset; product: (a·ga)·(b·gb)', async () => {
+    const m = await load('tp_mmb_cvmath');
+    m.setCtl('gain_a', 0.5); m.setCtl('offset', 0.1);
+    m.setIn('a', 0.8); m.setIn('b', 0.2); m.setIn('c', -0.1);
+    expect(m.render(0.01)[0]![5]).toBeCloseTo(0.4 + 0.2 - 0.1 + 0.1, 5);
+    m.setCtl('mode', 1);
+    expect(m.render(0.01)[0]![5]).toBeCloseTo(0.4 * 0.2, 2);
+  });
+});
+
+describe('tp_mmb_seq8 (mb::runtime::Seq16 zelf)', () => {
+  it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_seq8'); });
+
+  it('loopt op rate, zet de stap-cv en meldt de stap via telemetrie', async () => {
+    const m = await load('tp_mmb_seq8');
+    m.setCtl('rate', 4); m.setCtl('length', 4); m.setCtl('s2', 12);
+    const [cv, gate] = m.render(2.0);
+    let flanken = 0;
+    for (let i = 1; i < gate!.length; i++) if (gate![i - 1]! < 0.5 && gate![i]! >= 0.5) flanken++;
+    expect(flanken).toBeGreaterThanOrEqual(7);
+    expect(flanken).toBeLessThanOrEqual(8);
+    expect(Math.max(...cv!)).toBeCloseTo(1, 5);                            // s2 = +12 = +1 V
+    expect(m.ex.mmb_telemetry()).toBeGreaterThanOrEqual(0);
+    expect(m.ex.mmb_telemetry()).toBeLessThan(4);
+  });
+});
+
+describe('tp_mmb_midiin (MidiInModule zelf)', () => {
+  const idx = (m: Mod, id: string): number => m.outputs.indexOf(id);
+
+  it('heeft de catalogus-poorten plus pitchK/gateK/velK per stem', async () => {
+    const m = await load('tp_mmb_midiin');
+    for (const id of ['pitch', 'gate', 'vel', 'cv_mod', 'cv_bend', 'cv_cc1', 'cv_cc2', 'pitch16', 'gate16', 'vel16'])
+      expect(m.outputs).toContain(id);
+    const t = project.moduleTypes.find((x) => x.id === 'tp_mmb_midiin')!;
+    const echte = t.controls.filter((c) => !['led', 'display'].includes(String((c as { kind?: string }).kind)));
+    for (const c of echte) expect(m.controls, c.id).toContain(c.id);
+    expect(m.controls).toContain('voiceCount');
+  });
+
+  it('mono: noot 72 geeft pitch +1 V en gate; loslaten sluit', async () => {
+    const m = await load('tp_mmb_midiin');
+    m.ex.mmb_midi(0x90, 72, 100);
+    let o = m.render(0.01);
+    expect(o[idx(m, 'pitch')]![5]).toBeCloseTo(1, 5);
+    expect(o[idx(m, 'gate')]![5]).toBe(1);
+    expect(o[idx(m, 'vel')]![5]).toBeCloseTo(100 / 127, 5);
+    m.ex.mmb_midi(0x80, 72, 0);
+    o = m.render(0.01);
+    expect(o[idx(m, 'gate')]![5]).toBe(0);
+  });
+
+  it('poly: drie noten landen op drie stemmen', async () => {
+    const m = await load('tp_mmb_midiin');
+    m.setCtl('voiceCount', 4);
+    for (const n of [60, 64, 67]) m.ex.mmb_midi(0x90, n, 90);
+    const o = m.render(0.01);
+    const toonhoogtes = [1, 2, 3].map((k) => Math.round(o[idx(m, `pitch${k}`)]![5]! * 12)).sort((a, b) => a - b);
+    expect(toonhoogtes).toEqual([0, 4, 7]);
+    for (const k of [1, 2, 3]) expect(o[idx(m, `gate${k}`)]![5]).toBe(1);
+    expect(o[idx(m, 'gate4')]![5]).toBe(0);
+  });
+
+  it('pitch-bend en mod-wiel komen op cv_bend en cv_mod', async () => {
+    const m = await load('tp_mmb_midiin');
+    m.ex.mmb_midi(0xE0, 0, 127);                                       // bijna maximaal omhoog
+    m.ex.mmb_midi(0xB0, 1, 127);
+    const o = m.render(0.01);
+    expect(o[idx(m, 'cv_bend')]![5]).toBeCloseTo(2 / 12, 2);          // bendRange 2
+    expect(o[idx(m, 'cv_mod')]![5]).toBeCloseTo(1, 5);
   });
 });
