@@ -661,3 +661,50 @@ describe('tp_mmb_ladder (AudioFilterLadder overgeschreven)', () => {
     expect(f1 / f0).toBeLessThan(2.15);
   });
 });
+
+describe('tp_mmb_octa_vcf (AudioFilterStateVariable overgeschreven)', () => {
+  it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_octa_vcf'); });
+
+  /** Versterking van cel `cell` voor een sinus van `hz` (0,5 amplitude). */
+  const gain = async (hz: number, set?: (m: Mod) => void, cell = 1): Promise<number> => {
+    const m = await load('tp_mmb_octa_vcf');
+    set?.(m);
+    const out = m.render(0.5, (t, mm) => {
+      const b = mm.inBuf(`in_${cell}`);
+      for (let k = 0; k < mm.block; k++) b[k] = 0.5 * Math.sin(2 * Math.PI * hz * (t + k / mm.rate));
+    })[cell - 1]!;
+    return rms(out, 11025) / (0.5 / Math.SQRT2);
+  };
+
+  it('LP (type 0) laat laag door en dempt hoog met 12 dB/oct', async () => {
+    expect(await gain(100)).toBeGreaterThan(0.9);
+    const g4 = await gain(6400), g8 = await gain(12800);
+    expect(g4).toBeLessThan(0.05);
+    expect(g4 / g8).toBeGreaterThan(3);                  // ~4× per octaaf
+  });
+
+  it('HP (type 2) doet het omgekeerde', async () => {
+    const hp = (m: Mod): void => m.setCtl('type', 2);
+    expect(await gain(100, hp)).toBeLessThan(0.05);
+    expect(await gain(8000, hp)).toBeGreaterThan(0.9);
+  });
+
+  it('cv_N × cv_amt is octaven, bovenop de gedeelde cv', async () => {
+    // Twee octaven boven de cutoff: 12 dB/oct → een octaaf opschuiven ≈ 4×.
+    const zonder = await gain(3200);
+    const cel = await gain(3200, (m) => m.setIn('cv_1', 0.5));          // +1 oct
+    const beide = await gain(3200, (m) => { m.setIn('cv_1', 0.25); m.setIn('cv', 0.25); });
+    expect(cel / zonder).toBeGreaterThan(3);
+    expect(beide / cel).toBeCloseTo(1, 1);
+  });
+
+  it('een cel zonder audiokabel zwijgt, de andere cellen spelen', async () => {
+    const m = await load('tp_mmb_octa_vcf');
+    const outs = m.render(0.2, (t, mm) => {
+      const b = mm.inBuf('in_3');
+      for (let k = 0; k < mm.block; k++) b[k] = 0.5 * Math.sin(2 * Math.PI * 200 * (t + k / mm.rate));
+    });
+    expect(peak(outs[2]!)).toBeGreaterThan(0.3);
+    expect(peak(outs[0]!)).toBe(0);
+  });
+});

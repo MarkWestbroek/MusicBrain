@@ -22,6 +22,7 @@
 #include <cstdint>
 
 #include "mmb_abi.h"
+#include "teensy_dc.h"
 
 const char* const MMB_TYPE_ID     = "tp_mmb_ladder";
 const float       MMB_NATIVE_RATE = 44100.0f;
@@ -118,35 +119,7 @@ float fast_tanh(float x) {
     return x * (27.0f + x2) / (27.0f + 9.0f * x2);
 }
 
-// ---- AudioSynthWaveformDc (lineaire slew in int32) ---------------------------
-struct Dc {
-    int32_t magnitude = 0, target = 0, increment = 0;
-    bool ramping = false;
-    void amplitude(float n, float ms) {
-        if (n > 1.0f) n = 1.0f; else if (n < -1.0f) n = -1.0f;
-        const int32_t c = static_cast<int32_t>(ms * (44100.0f / 1000.0f));
-        const int32_t t = static_cast<int32_t>(n * 2147418112.0f);
-        if (c == 0) { magnitude = target = t; ramping = false; return; }
-        target = t;
-        if (target == magnitude) { ramping = false; return; }
-        increment = static_cast<int32_t>((static_cast<int64_t>(target) - magnitude) / c);
-        if (increment == 0) increment = (target > magnitude) ? 1 : -1;
-        ramping = true;
-    }
-    /** Eén sample, als int16 zoals het blok dat de ladder ontvangt. */
-    int16_t next() {
-        if (ramping) {
-            const int64_t m = static_cast<int64_t>(magnitude) + increment;
-            if ((increment > 0 && m >= target) || (increment < 0 && m <= target)) {
-                magnitude = target; ramping = false;
-            } else {
-                magnitude = static_cast<int32_t>(m);
-            }
-        }
-        return static_cast<int16_t>(magnitude >> 16);
-    }
-};
-Dc g_fcDc, g_qDc;
+TeensyDc g_fcDc, g_qDc;
 
 // ---- LadderModule ------------------------------------------------------------
 constexpr float kCvSlewMs = 2.0f;

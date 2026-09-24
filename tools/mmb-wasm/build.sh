@@ -121,6 +121,7 @@ sel string && build string tp_mmb_string --
 sel echo   && build echo   tp_mmb_echo   --
 sel phaser && build phaser tp_mmb_phaser "$LIB/mmb-dsp" --
 sel ladder && build ladder tp_mmb_ladder --
+sel octavcf && build octavcf tp_mmb_octa_vcf --
 sel vcf && build vcf tp_mmb_vcf "$LIB/mmb-dsp" --
 sel ms20 && build ms20 tp_mmb_ms20 "$LIB/mmb-dsp" --
 

@@ -26,9 +26,9 @@ Gemeten met `simSupportOf` over de 52 interne moduletypes (2026-09-20):
 
 | bak | n | modules |
 |---|---|---|
-| **wasm** | 41 | de 15 hierboven, plus vcf, ms20, stk_sound, de vintage-FX, elements_reverb, octa_vca, stereo_vca, resonator, cr78, comp, comb, string, echo, phaser, ladder, quant, chord, grids, lfo |
+| **wasm** | 42 | de 15 hierboven, plus vcf, ms20, stk_sound, de vintage-FX, elements_reverb, octa_vca, stereo_vca, resonator, cr78, comp, comb, string, echo, phaser, ladder, octa_vcf, quant, chord, grids, lfo |
 | **tone** | 12 | vco, vca, ahdsr, noise (bestaat niet in de firmware), fm_vco, cvmath, mixer(+8/16), seq8, midiin, out |
-| **none** | 7 | draw_vco, wt_vco, octa_vco, octa_vcf, quad_vco_shared, quad_mixer_shared, sh (bewust: bestaat niet in de firmware) |
+| **none** | 6 | draw_vco, wt_vco, octa_vco, quad_vco_shared, quad_mixer_shared, sh (bewust: bestaat niet in de firmware) |
 
 Van de "tone"-bak is een deel infrastructuur waar sample-exactheid niet toe
 doet (midiin, out, mixer, cvmath, seq8). Het gaat om de klankbepalende
@@ -432,9 +432,11 @@ Op Windows draait `build.sh` onder Git Bash.
       in int16 overgeschreven, per Teensy-blok van 128), echo (graaf als de comb;
       de Tone-versie liet 2 s toe en negeerde zijn CV-ingangen), ladder
       (`AudioFilterLadder` + CMSIS-polyfase-FIR + DC-proxies overgeschreven,
-      incl. het omvouwen van de int16-cast) (2026-09-24)
+      incl. het omvouwen van de int16-cast), octa_vcf (`AudioFilterStateVariable`
+      in vaste komma overgeschreven — géén migratie naar `mmb_dsp::Svf`, dus de
+      hardwareklank blijft) (2026-09-24)
 - [~] Stap 4 — resonator, cr78, comp, phaser als `mmb-dsp`-kernel, bit-identiek bewezen
-      met `tools/mmb-wasm/bitcheck/` (2026-09-24). Open: vco (BLEP), octa_vcf (die verandert de hardwareklank — oren erbij)
+      met `tools/mmb-wasm/bitcheck/` (2026-09-24). Open: vco (BLEP)
 - [x] CV-modules draaien de firmwareklasse zelf via `cvhost.h`: quant, chord,
       grids, lfo (2026-09-24)
 - [ ] Stap 6 — noot-dispatcher → signalen (voorstel hierboven; ahdsr, cvmath,
