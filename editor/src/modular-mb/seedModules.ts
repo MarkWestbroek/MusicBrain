@@ -3317,6 +3317,11 @@ export interface PolySeedOptions {
   filterType?: 'vcf' | 'ladder' | 'ms20';
   /** Extra audio-schakel per stem tussen VCF en VCA (comb-resonator of phaser). */
   perVoiceFx?: 'comb' | 'phaser';
+  /** Aftertouch → filter-cutoff: MidiIn.press (per stem uitgewaaierd) op de
+   *  c-ingang van de sum-CvMath vóór het filter (gain 1,5 = tot anderhalf
+   *  octaaf open bij volle druk). Voegt die CvMath toe als hij er nog niet
+   *  is (perVoiceLfo). Opt-in: de recipe-compiler spiegelt de standaardseed. */
+  aftertouch?: boolean;
   /** LFO per stem die via een sum-CvMath samen met envFlt op de filter-cutoff
    *  moduleert. Verdubbelt zo'n beetje het aantal CV-routes (1 kHz tick-load). */
   perVoiceLfo?: boolean;
@@ -3375,8 +3380,12 @@ export function seedPolyVoicePatch(
   type VoiceChain = {
     vco: ModuleInstance; vcf: ModuleInstance; vca: ModuleInstance;
     envAmp: ModuleInstance; envFlt: ModuleInstance; cvmath: ModuleInstance;
-    fx?: ModuleInstance; lfoV?: ModuleInstance; lfoSum?: ModuleInstance;
+    fx?: ModuleInstance; lfoV?: ModuleInstance;
+    /** Sum-CvMath vóór de filter-cv (bij perVoiceLfo of aftertouch): a =
+     *  filter-env, b = stem-LFO, c = aftertouch (MidiIn.press). */
+    lfoSum?: ModuleInstance;
   };
+  const withSum = Boolean(opts.perVoiceLfo || opts.aftertouch);
   const voices: VoiceChain[] = Array.from({ length: N }, () => ({
     vco:    fresh(srcTypeId),
     vcf:    fresh(vcfTypeId),
@@ -3385,8 +3394,8 @@ export function seedPolyVoicePatch(
     envFlt: fresh('tp_mmb_ahdsr'),
     cvmath: fresh('tp_mmb_cvmath'),
     ...(fxTypeId          ? { fx:     fresh(fxTypeId) }       : {}),
-    ...(opts.perVoiceLfo  ? { lfoV:   fresh('tp_mmb_lfo'),
-                              lfoSum: fresh('tp_mmb_cvmath') } : {}),
+    ...(opts.perVoiceLfo  ? { lfoV:   fresh('tp_mmb_lfo') }   : {}),
+    ...(withSum           ? { lfoSum: fresh('tp_mmb_cvmath') } : {}),
   }));
   const master = voices[0]!;
 
@@ -3396,7 +3405,8 @@ export function seedPolyVoicePatch(
   // compact en ontstaat er geen gat tussen de laatste VCA en de mixer.
   const chainOrder: (keyof VoiceChain)[] = [
     'vco', 'envFlt',
-    ...(opts.perVoiceLfo ? (['lfoV', 'lfoSum'] as const) : []),
+    ...(opts.perVoiceLfo ? (['lfoV'] as const) : []),
+    ...(withSum ? (['lfoSum'] as const) : []),
     'vcf',
     ...(fxTypeId ? (['fx'] as const) : []),
     'envAmp', 'cvmath', 'vca',
@@ -3448,7 +3458,8 @@ export function seedPolyVoicePatch(
     grp(opts.voiceSource === 'string' ? 'String'
       : opts.voiceSource === 'stk'    ? 'STK' : 'VCO', 'vco'),
     grp('envFlt', 'envFlt'),
-    ...(opts.perVoiceLfo ? [grp('LFO', 'lfoV'), grp('LfoSum', 'lfoSum')] : []),
+    ...(opts.perVoiceLfo ? [grp('LFO', 'lfoV')] : []),
+    ...(withSum ? [grp('LfoSum', 'lfoSum')] : []),
     grp(opts.filterType === 'ladder' ? 'Ladder' : opts.filterType === 'ms20' ? 'MS-20' : 'VCF', 'vcf'),
     ...(fxTypeId ? [grp(opts.perVoiceFx === 'comb' ? 'Comb' : 'Phaser', 'fx')] : []),
     grp('envAmp', 'envAmp'),
@@ -3458,7 +3469,7 @@ export function seedPolyVoicePatch(
 
   const rack: Rack = {
     id: uid('rack'), name: `${N}-stemmig test rack`,
-    description: `MidiIn → [VCO → envFlt → VCF → envAmp → CvMath(vel×env) → VCA] ×${N} (PolyGroups) → ${N > 8 ? 'MIXER-16' : N > 4 ? 'MIXER-8' : 'MIXER'} → OUT. Rij 0 = master + mixer/out, followers in rij 1..${N - 1}.`,
+    description: `MidiIn → [VCO → envFlt${opts.aftertouch ? ' + aftertouch' : ''} → VCF → envAmp → CvMath(vel×env) → VCA] ×${N} (PolyGroups) → ${N > 8 ? 'MIXER-16' : N > 4 ? 'MIXER-8' : 'MIXER'} → OUT. Rij 0 = master + mixer/out, followers in rij 1..${N - 1}.`,
     rows: Math.max(1, N), hpPerRow: Math.max(64, rowHp + 4),
     slots,
     kind: 'physical',
@@ -3510,11 +3521,14 @@ export function seedPolyVoicePatch(
       c({ m: vibDepth, port: 'out'    }, { m: master.vco, port: 'modulation' }),
       c({ m: mi,       port: 'vel'    }, { m: master.vco, port: 'strength' }),
     ] : []),
-    // CV: filter-env → cutoff. Met perVoiceLfo loopt hij via een sum-CvMath
-    // zodat envelope én stem-LFO samen de cutoff moduleren (group→group).
-    ...(master.lfoSum && master.lfoV ? [
+    // CV: filter-env (+ stem-LFO) + aftertouch → cutoff, via de sum-CvMath
+    // (group→group). Druk op de toets opent het filter van díé stem: press
+    // is een voice-event-poort, dus per stem uitgewaaierd (poly-aftertouch),
+    // of allemaal tegelijk bij gewone channel-aftertouch (Keystep).
+    ...(master.lfoSum ? [
       c({ m: master.envFlt, port: 'cv_out' }, { m: master.lfoSum, port: 'a' }),
-      c({ m: master.lfoV,   port: 'out'    }, { m: master.lfoSum, port: 'b' }),
+      ...(master.lfoV ? [c({ m: master.lfoV, port: 'out' }, { m: master.lfoSum, port: 'b' })] : []),
+      ...(opts.aftertouch ? [c({ m: mi, port: 'press' }, { m: master.lfoSum, port: 'c' })] : []),
       c({ m: master.lfoSum, port: 'out'    }, { m: master.vcf,    port: 'cv' }),
     ] : [
       c({ m: master.envFlt, port: 'cv_out' }, { m: master.vcf,    port: 'cv' }),
@@ -3596,11 +3610,10 @@ export function seedPolyVoicePatch(
         ? { coarse: 0, feedback: 0.85, mix: 0.4 }
         : { rate: 0.4, depth: 0.7, mix: 0.5 };
     }
-    if (v.lfoV && v.lfoSum) {
-      // Stem-LFO: traag filter-wobble; sum weegt envelope zwaarder dan LFO.
-      controlState[v.lfoV.id]   = { rate: 0.7, wave: 1, depth: 1, bipolar: true, run: 0 };
-      controlState[v.lfoSum.id] = { mode: 0, gain_a: 1, gain_b: 0.25, gain_c: 0, offset: 0 };
-    }
+    // Filter-cv-sum: envelope vol, stem-LFO (traag wobble) op een kwart,
+    // aftertouch tot anderhalf octaaf open bij volle druk.
+    if (v.lfoSum) controlState[v.lfoSum.id] = { mode: 0, gain_a: 1, gain_b: 0.25, gain_c: opts.aftertouch ? 1.5 : 0, offset: 0 };
+    if (v.lfoV)   controlState[v.lfoV.id]   = { rate: 0.7, wave: 1, depth: 1, bipolar: true, run: 0 };
   });
 
   const allModules: ModuleInstance[] = [mi];
@@ -4161,7 +4174,7 @@ export function seedSamplerPolyPatch(
 ): ModularProject {
   const N = Math.max(2, Math.min(8, Math.round(voiceCount)));
   const chain: readonly SeedFx[] = fx === true ? [SAMPLER_FET_FX] : fx === false ? [] : fx;
-  const needed = ['tp_mmb_midiin', 'tp_mmb_sampler', 'tp_mmb_out', ...chain.map((f) => f.typeId)];
+  const needed = ['tp_mmb_midiin', 'tp_mmb_sampler', 'tp_mmb_out', 'tp_mmb_lfo', 'tp_mmb_cvmath', ...chain.map((f) => f.typeId)];
   const missing = needed.some((tid) => !project.moduleTypes.some((t) => t.id === tid));
   const p = missing ? seedInternals(project) : project;
 
@@ -4172,6 +4185,12 @@ export function seedSamplerPolyPatch(
   const mi  = fresh('tp_mmb_midiin');
   const smp = fresh('tp_mmb_sampler');
   const out = fresh('tp_mmb_out');
+  // Aftertouch-vibrato: LFO × druk (mult) → ±0,04 V + pitch-wheel (sum) →
+  // de gedeelde Bend-ingang, dus op alle stemmen — precies wat gewone
+  // channel-aftertouch (Keystep) betekent.
+  const lfo      = fresh('tp_mmb_lfo');
+  const vibDepth = fresh('tp_mmb_cvmath');
+  const bendSum  = fresh('tp_mmb_cvmath');
   // Optioneel: effecten tussen de sampler en OUT, stereo, in volgorde.
   const fxm = chain.map((f) => fresh(f.typeId));
   const name = `Sampler ×${N}${autoWah ? ' auto-wah' : ''}${chain.map((f) => ` + ${f.short}`).join('')}`;
@@ -4182,10 +4201,10 @@ export function seedSamplerPolyPatch(
     offset += m.visual.hpWidth;
     return s;
   };
-  const slots = [slot(mi), slot(smp), ...fxm.map(slot), slot(out)];
+  const slots = [slot(mi), slot(smp), slot(lfo), slot(vibDepth), slot(bendSum), ...fxm.map(slot), slot(out)];
   const rack: Rack = {
     id: uid('rack'), name,
-    description: `MidiIn → SAMPLER (${N} stem-cellen als PolyGroup)${chain.map((f) => ` → ${f.label}`).join('')} → OUT. Eén bank, MIDI-in verdeelt de noten.`,
+    description: `MidiIn → SAMPLER (${N} stem-cellen als PolyGroup)${chain.map((f) => ` → ${f.label}`).join('')} → OUT. Eén bank, MIDI-in verdeelt de noten; LFO × aftertouch + pitch-wheel → Bend.`,
     rows: 1, hpPerRow: Math.max(64, offset + 4),
     slots,
     kind: 'physical',
@@ -4207,6 +4226,7 @@ export function seedSamplerPolyPatch(
     description: (autoWah
       ? `${N}-stemmige multisampler met per stem een MS-20 in de cel, gestuurd door de envelope-follower van diezelfde stem (env_k → cutoff_k). Laad een bank via 🎹 Multisample en speel hard en zacht.`
       : `${N}-stemmige multisampler. Laad een bank via 🎹 Multisample (Testbank, ⤒ .mmbs of een .sf2) en speel.`)
+      + ' Druk na de aanslag (aftertouch) = vibrato; de pitch-wheel buigt alle stemmen.'
       + chain.map((f) => ` ${f.hint}`).join(''),
     voiceCount: N,
     rackIds: [rack.id],
@@ -4214,7 +4234,12 @@ export function seedSamplerPolyPatch(
       c(mi, 'pitch', smp, 'voct_1'),
       c(mi, 'gate',  smp, 'gate_1'),
       c(mi, 'vel',   smp, 'vel_1'),
-      c(mi, 'cv_bend', smp, 'bend'),     // pitch-wheel op alle stemmen
+      // Aftertouch-vibrato + pitch-wheel op de gedeelde Bend (alle stemmen).
+      c(lfo, 'out',      vibDepth, 'a'),
+      c(mi,  'press',    vibDepth, 'b'),
+      c(vibDepth, 'out', bendSum,  'a'),
+      c(mi,  'cv_bend',  bendSum,  'b'),
+      c(bendSum, 'out',  smp,      'bend'),
       ...stereoChain(c, smp, fxm, out),
       // Auto-wah: de follower van stem k stuurt het filter van stem k. Eén
       // kabel op de master-cel; polyExpand (en de sim) vouwt hem uit naar 1..N.
@@ -4222,6 +4247,9 @@ export function seedSamplerPolyPatch(
     ],
     controlState: {
       [mi.id]:  { channel: 0, voiceCount: N, steal: 0 },
+      [lfo.id]:      { rate: 5.5, wave: 0, depth: 1, bipolar: true, run: 0 },
+      [vibDepth.id]: { mode: 1, gain_a: 1, gain_b: 1, gain_c: 1, offset: 0 },
+      [bendSum.id]:  { mode: 0, gain_a: 0.04, gain_b: 1, gain_c: 0, offset: 0 },
       [smp.id]: autoWah
         ? { bank: 0, level: 0.8, filter: 2, cutoff: 300, q: 0.55, fmode: 0, drive: 1.5, cv_amt: 4, env_rel: 150, env_sens: 12 }
         : { bank: 0, level: 0.8 },
@@ -4234,7 +4262,7 @@ export function seedSamplerPolyPatch(
   return {
     ...p,
     racks:        [...p.racks, rack],
-    modules:      [...p.modules, mi, smp, ...fxm, out],
+    modules:      [...p.modules, mi, smp, lfo, vibDepth, bendSum, ...fxm, out],
     patches:      [...p.patches, patch],
     activeRackId:  rack.id,
     activePatchId: patch.id,

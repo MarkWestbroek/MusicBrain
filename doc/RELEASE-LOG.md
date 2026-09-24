@@ -37,6 +37,15 @@
   dus de sim werkte al terwijl de Teensy niets deed. Nu een core-test op
   `outputPortKind("press"/"rel"/…)` — bij elke nieuwe MidiIn-poort beide
   plekken. Core-tests draaien met CMake (MSVC, `-C Debug`) in de scratchpad.
+- **Seeds (editor, zelfde dag):** Poly ▾ Sampler-seeds krijgen LFO × druk
+  (mult) + pitch-wheel (sum) → de gedeelde `bend`: aftertouch = vibrato op
+  alle stemmen. Nieuw menu-item **"4-stemmig + aftertouch → filter"**
+  (`seedPolyVoicePatch(…, { aftertouch: true })`): `press` op de c-ingang
+  van de sum-CvMath vóór het filter, gain 1,5. Opt-in, omdat de
+  recipe-compiler de standaard poly-seed spiegelt. Beide gemeten op de
+  Teensy (scratch `live/seed_press_test.py`): sampler-piek 440 Hz gaat bij
+  druk van 100 % naar 31 % energie binnen ±2 Hz (zijbanden = vibrato); het
+  spectrale zwaartepunt van de VCO-stem stijgt van 973 naar 1180 Hz.
 - Open observatie: de eerste meetreeks ná een flash komt −15 dB binnen
   (1716 vs 9573 LSB), daarna normaal — USB-audio of sampler, nog uitzoeken.
 

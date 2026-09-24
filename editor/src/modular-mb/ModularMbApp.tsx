@@ -373,6 +373,15 @@ export function ModularMbApp(): JSX.Element {
                   >{n}-stemmig{n === 1 ? ' (mono)' : ''}</button>
                 ))}
                 <button
+                  onClick={() => { setProject(seedPolyVoicePatch(getProject(), 4, { aftertouch: true })); setShowPoly(false); }}
+                  title="4-stemmig met aftertouch → filter: MidiIn.press (per stem) op de c-ingang van de sum-CvMath vóór het filter; druk na de aanslag opent de cutoff tot anderhalf octaaf. Channel-aftertouch (Keystep) opent alle stemmen, poly-aftertouch alleen die toets."
+                  style={{
+                    textAlign: 'left', border: 'none', background: 'transparent',
+                    padding: '7px 12px', cursor: 'pointer', fontSize: 13,
+                    borderTop: '1px solid #e5e7eb',
+                  }}
+                >4-stemmig + aftertouch → filter</button>
+                <button
                   onClick={() => { setProject(seedDx7PolyPatch(getProject(), 8)); setShowPoly(false); }}
                   title="8-stemmige DX7 (msfa/Dexed-kern): MidiIn -> 8x DX7 -> Mixer8 -> OUT, stereo uitgewaaierd. Bank-knop kiest een factory-ROM (1A..4B); USER = .syx via de Teensy-modal."
                   style={{

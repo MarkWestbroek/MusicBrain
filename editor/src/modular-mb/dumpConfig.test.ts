@@ -10,11 +10,12 @@ import { writeFileSync } from 'node:fs';
 import { it } from 'vitest';
 
 import { emptyModularProject } from './types';
-import { SAMPLER_MASTER_FX, seedInternals, seedSamplerPolyPatch } from './seedModules';
+import { SAMPLER_MASTER_FX, seedInternals, seedPolyVoicePatch, seedSamplerPolyPatch } from './seedModules';
 import { buildConfigPayload } from './teensyLink';
 
 const seeds = {
   'sampler':     () => seedSamplerPolyPatch(seedInternals(emptyModularProject()), 8, false),
+  'poly-aftertouch': () => seedPolyVoicePatch(seedInternals(emptyModularProject()), 4, { aftertouch: true }),
   'sampler-wah': () => seedSamplerPolyPatch(seedInternals(emptyModularProject()), 8, true),
   'sampler-wah-fet': () => seedSamplerPolyPatch(seedInternals(emptyModularProject()), 8, true, true),
   'sampler-master': () => seedSamplerPolyPatch(seedInternals(emptyModularProject()), 8, false, SAMPLER_MASTER_FX),
