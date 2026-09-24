@@ -283,3 +283,33 @@ describe('tp_mmb_cr78', () => {
     expect(await meet(1)).toBeGreaterThan(await meet(0) * 1.3);
   });
 });
+
+describe('tp_mmb_comp', () => {
+  it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_comp'); });
+
+  /** RMS van de uitgang bij een sinus met amplitude `amp`, na insteltijd. */
+  const uit = async (amp: number, ctl: Record<string, number>): Promise<number> => {
+    const m = await load('tp_mmb_comp');
+    for (const [k, v] of Object.entries(ctl)) m.setCtl(k, v);
+    let ph = 0;
+    const [o] = m.render(0.5, (_t, mm) => {
+      const b = mm.inBuf('in');
+      for (let k = 0; k < mm.block; k++) { b[k] = amp * Math.sin(ph); ph += 2 * Math.PI * 220 / mm.rate; }
+    });
+    return rms(o!, Math.round(44100 * 0.3));
+  };
+
+  it('drukt harde signalen meer in dan zachte', async () => {
+    const ctl = { threshold: -30, ratio: 8, drive: 0, makeup: 0 };
+    const zacht = await uit(0.01, ctl), hard = await uit(0.8, ctl);
+    // Ingang 38 dB uit elkaar; na een 8:1-compressor boven −30 dB veel minder.
+    const inVerschil = 20 * Math.log10(0.8 / 0.01);
+    const uitVerschil = 20 * Math.log10(hard / zacht);
+    expect(uitVerschil).toBeLessThan(inVerschil - 20);
+  });
+
+  it('laat alles door bij ratio 1 zonder drive', async () => {
+    const r = await uit(0.5, { threshold: -30, ratio: 1, drive: 0, makeup: 0 });
+    expect(r).toBeCloseTo(0.5 * Math.SQRT1_2, 3);
+  });
+});
