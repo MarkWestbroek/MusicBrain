@@ -206,17 +206,25 @@ Elk recept maakt een nieuw rack; na een middag testen staan er tien racks
 die op elkaar lijken. `recipe/optimize.ts` rekent een plan uit en voert het
 uit, puur programmatisch (besluit 2026-09-24: geen AI in de beslissing).
 
-- **Pushregel eerst.** Naar de Teensy gaan alleen modules die een kabel van
-  de actieve patch raken (teensyLink.ts). Rack-genoten zonder kabel werden
-  als wees geïnstantieerd en tikten elke blok mee; nu niet meer. Daardoor
-  kost een gedeeld rack op de Teensy niets.
+- **Pushregel eerst.** Naar de Teensy gaan de modules die een kabel raken
+  van de actieve patch óf van een patch die een rack met haar deelt
+  (teensyLink.ts). Rack-genoten die géén patch bekabelt werden als wees
+  geïnstantieerd en tikten elke blok mee; die blijven nu thuis. Zuster-
+  modules gaan juist wél mee, om de firmware-reconcile te benutten:
+  `ProjectRuntime::applyConfig` hergebruikt instanties op id+typeId, maakt
+  alleen nieuwe aan en zet verdwenen instanties in een "retired"-pool die
+  nooit vrijkomt (AudioStream-lifetime). Met de unie wisselt patch A ↔ B
+  op een gedeeld rack zonder één module aan te maken of te retireren:
+  alleen de audio- en cv-graphs worden herbouwd. Een ongebruikte zuster-
+  module is op de Teensy disconnected en kost alleen een lege update.
 - **Opruimen.** Racks met modules maar zonder patch, modules zonder slot,
   patches zonder kabel. Lege racks (het standaard "Mijn rack") blijven.
 - **Samenvoegen.** Per rij worden de module-reeksen uitgelijnd (LCS op
   type-id). Gelijke modules worden op elkaar afgebeeld: patch B krijgt de
   id's van rack A, kabels én knopstanden verhuizen mee. Afwijkende modules
-  van B verhuizen naar rack A, achteraan in hun rij. Patch A laat ze
-  onaangeroerd. Poly-groepen van B moeten precies op een groep van A vallen
+  van B verhuizen naar rack A, direct naast de tegenhanger van hun
+  linkerbuur in B (dus Ladder naast VCF, soortgenoten bij elkaar); wat
+  rechts staat schuift op, gaten blijven. Patch A laat ze onaangeroerd. Poly-groepen van B moeten precies op een groep van A vallen
   of geheel uit verhuizende modules bestaan; ander stemmental = nooit.
 - **Drempel.** `maxDiff` (default 2) = max. afwijkende modules aan één
   kant. Daarboven blijven racks apart, anders wordt alles één dik rack.

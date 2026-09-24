@@ -141,17 +141,45 @@ export function mergeRacks(p: ModularProject, intoId: string, fromId: string): A
   const warnings: string[] = [];
   const map = (id: string) => d.mapping.get(id) ?? id;
 
-  // 1. Verhuizende modules: nieuwe slots achteraan in hun rij van A.
-  const rowEnd = new Map<number, number>();
-  for (const s of A.slots) rowEnd.set(s.row, Math.max(rowEnd.get(s.row) ?? 0, s.hpOffset + (mods.get(s.moduleId)?.visual.hpWidth ?? 0)));
+  // 1. Verhuizende modules: naast hun buurman. Een afwijkende module van B
+  //    (Ladder waar A een VCF heeft) komt direct rechts van de A-tegenhanger
+  //    van zijn linkerbuur in B, zodat soortgenoten bij elkaar staan; alles
+  //    rechts ervan in die rij van A schuift op (gaten blijven bestaan).
+  //    Geen gemapte buur links? Dan links van de tegenhanger van de rechter-
+  //    buur; anders achteraan in de rij.
+  const width = (id: string) => mods.get(id)?.visual.hpWidth ?? 0;
+  const aRows = new Map<number, RackSlot[]>();
+  for (const s of A.slots) { if (!aRows.has(s.row)) aRows.set(s.row, []); aRows.get(s.row)!.push({ ...s }); }
+  for (const list of aRows.values()) list.sort((x, y) => x.hpOffset - y.hpOffset);
   const newSlots: RackSlot[] = [];
-  for (const s of B.slots) {
-    if (!d.moved.includes(s.moduleId)) continue;
-    const w = mods.get(s.moduleId)?.visual.hpWidth ?? 0;
-    const off = rowEnd.get(s.row) ?? 0;
-    newSlots.push({ id: uid('slot'), moduleId: s.moduleId, row: s.row, hpOffset: off });
-    rowEnd.set(s.row, off + w);
+  for (const [row, slotsB] of rowsOf(B)) {
+    if (!aRows.has(row)) aRows.set(row, []);
+    const rowA = aRows.get(row)!;
+    slotsB.forEach((s, j) => {
+      if (!d.moved.includes(s.moduleId)) return;
+      const w = width(s.moduleId);
+      let anchor: { id: string; side: 'after' | 'before' } | null = null;
+      for (let k = j - 1; k >= 0 && !anchor; --k) { const a = d.mapping.get(slotsB[k]!.moduleId); if (a) anchor = { id: a, side: 'after' }; }
+      for (let k = j + 1; k < slotsB.length && !anchor; ++k) { const a = d.mapping.get(slotsB[k]!.moduleId); if (a) anchor = { id: a, side: 'before' }; }
+      let at: number, idx: number;
+      const ai = anchor ? rowA.findIndex((x) => x.moduleId === anchor!.id) : -1;
+      if (anchor && ai >= 0) {
+        at = anchor.side === 'after' ? rowA[ai]!.hpOffset + width(rowA[ai]!.moduleId) : rowA[ai]!.hpOffset;
+        idx = anchor.side === 'after' ? ai + 1 : ai;
+      } else {
+        const last = rowA[rowA.length - 1];
+        at = last ? last.hpOffset + width(last.moduleId) : 0;
+        idx = rowA.length;
+      }
+      for (const x of rowA) if (x.hpOffset >= at) x.hpOffset += w;
+      const slot: RackSlot = { id: uid('slot'), moduleId: s.moduleId, row, hpOffset: at };
+      rowA.splice(idx, 0, slot);
+      newSlots.push(slot);
+    });
   }
+  const shiftedA: RackSlot[] = [...aRows.values()].flat().filter((s) => !newSlots.includes(s));
+  const rowEnd = new Map<number, number>();
+  for (const [row, list] of aRows) rowEnd.set(row, Math.max(0, ...list.map((s) => s.hpOffset + width(s.moduleId))));
   // 2. Nieuwe poly-groepen (die volledig uit verhuizende modules bestaan).
   const newGroups: PolyGroup[] = [];
   const groupIdMap = new Map<string, string>();
@@ -163,7 +191,7 @@ export function mergeRacks(p: ModularProject, intoId: string, fromId: string): A
   }
   const rows = Math.max(A.rows, ...newSlots.map((s) => s.row + 1));
   const hpPerRow = Math.max(A.hpPerRow, ...[...rowEnd.values()].map((e) => e + 2));
-  const mergedA: Rack = { ...A, rows, hpPerRow, slots: [...A.slots, ...newSlots], polyGroups: [...(A.polyGroups ?? []), ...newGroups] };
+  const mergedA: Rack = { ...A, rows, hpPerRow, slots: [...shiftedA, ...newSlots], polyGroups: [...(A.polyGroups ?? []), ...newGroups] };
 
   // 3. Patches van B: rack-verwijzing, kabels, knopstanden, overrides.
   const patches = p.patches.map((x) => {

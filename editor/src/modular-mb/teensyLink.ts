@@ -373,14 +373,20 @@ export function buildConfigPayload(project: ModularProject): { json: string; mod
   const pushPatches = activeId
     ? flat.patches.filter((p) => p.id === activeId)
     : flat.patches;
-  // Modules die de gepushte patches echt raken: alleen wat aan een kabel
-  // hangt. Rack-genoten zonder kabel gaan bewust NIET mee (ED-RC-7): die
-  // werden op de Teensy als wees geïnstantieerd en tikten elke blok mee.
-  // Een module zonder kabel doet in de audio/cv-graaf toch niets, ook niet
-  // met controlState. Zo kunnen patches ook veilig een rack delen waarin
-  // de een module x en de ander module y gebruikt.
+  // Modules die meegaan (ED-RC-7): alles wat aan een kabel hangt van de
+  // gepushte patch(es) ÉN van elke andere patch die een rack met hen deelt.
+  //   • Rack-genoten die géén enkele patch bekabelt gaan niet mee: die
+  //     werden op de Teensy als wees geïnstantieerd en tikten elke blok mee.
+  //   • Rack-genoten die een zuster-patch wél gebruikt gaan juist wél mee.
+  //     De firmware reconcilieert op id+typeId (ProjectRuntime::applyConfig):
+  //     bestaande instanties worden hergebruikt, verdwenen instanties gaan
+  //     naar een "retired"-pool die nooit vrijkomt. Door de unie te sturen
+  //     wisselt patch A ↔ B op een gedeeld rack zonder ook maar één module
+  //     aan te maken of te retireren: alleen de graphs worden herbouwd.
+  const pushRacks = new Set(pushPatches.flatMap((p) => p.rackIds));
+  const siblings = flat.patches.filter((p) => p.rackIds.some((r) => pushRacks.has(r)));
   const usedIds = new Set<string>();
-  for (const p of pushPatches) {
+  for (const p of siblings) {
     for (const cc of p.connections) { usedIds.add(cc.from.moduleId); usedIds.add(cc.to.moduleId); }
   }
   // Control-surface-bindings (ED-CS-1/FW-CS-1): per poly-groep uitgevouwen

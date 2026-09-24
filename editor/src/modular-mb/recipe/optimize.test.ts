@@ -95,11 +95,21 @@ describe('mergeRacks', () => {
     expect(rack.slots.filter((s) => typeOf(r.project, s.moduleId) === 'tp_mmb_vcf').length).toBe(1);
     expect(topo(r.project, patchA)).toEqual(before.a);
     expect(topo(r.project, patchB)).toEqual(before.b);
-    // De ladder staat achteraan in rij 0 en overlapt niets.
+    // De ladder staat direct naast de VCF (soortgenoten bij elkaar) en niets overlapt.
     const slots = rack.slots.filter((s) => s.row === 0).sort((x, y) => x.hpOffset - y.hpOffset);
+    const order = slots.map((s) => typeOf(r.project, s.moduleId));
+    // Links-verankerd: de ladder komt na de tegenhanger van zijn linkerbuur
+    // (envFlt), dus direct vóór de VCF. Soortgenoten naast elkaar.
+    expect(Math.abs(order.indexOf('tp_mmb_ladder') - order.indexOf('tp_mmb_vcf'))).toBe(1);
     for (let i = 1; i < slots.length; ++i) {
       const prev = slots[i - 1]!;
       expect(slots[i]!.hpOffset).toBeGreaterThanOrEqual(prev.hpOffset + r.project.modules.find((m) => m.id === prev.moduleId)!.visual.hpWidth);
+    }
+    // Vanaf de VCF is alles precies de ladder-breedte opgeschoven; links ervan niets.
+    const vcfBefore = a!.slots.find((s) => typeOf(p, s.moduleId) === 'tp_mmb_vcf')!;
+    for (const s of a!.slots) {
+      const after = rack.slots.find((x) => x.id === s.id)!;
+      expect(after.hpOffset - s.hpOffset).toBe(s.row === 0 && s.hpOffset >= vcfBefore.hpOffset ? 8 : 0);   // ladder = 8 HP
     }
     expect(r.summary).toMatch(/verhuisd: Ladder/);
     sane(r.project);
@@ -117,6 +127,11 @@ describe('mergeRacks', () => {
     expect(rack.polyGroups!.filter((g) => g.label === 'Phaser').length).toBe(1);
     expect(rack.polyGroups!.filter((g) => g.label === 'VCF').length).toBe(1);
     expect(topo(r.project, patchB)).toEqual(before);
+    // Elke phaser staat in zijn eigen rij direct rechts van de VCF (zoals in de keten van B).
+    for (const row of [0, 1]) {
+      const order = rack.slots.filter((s) => s.row === row).sort((x, y) => x.hpOffset - y.hpOffset).map((s) => typeOf(r.project, s.moduleId));
+      expect(order.indexOf('tp_mmb_phaser')).toBe(order.indexOf('tp_mmb_vcf') + 1);
+    }
     sane(r.project);
   });
 
@@ -180,18 +195,24 @@ describe('analyzeProject / applyActions', () => {
 });
 
 describe('push naar de Teensy (ED-RC-7)', () => {
-  it('alleen bekabelde modules gaan mee, ook in een gedeeld rack', () => {
+  it('gedeeld rack: modules van de zuster-patch gaan mee (hergebruik op de Teensy), onbekabelde niet', () => {
     let p = buildRecipe(base(), { source: 'vco', filter: 'vcf' });
     p = buildRecipe(p, { source: 'vco', filter: 'ladder' });
     const [a, b] = physical(p);
     p = mergeRacks(p, a!.id, b!.id).project;
-    // Actieve patch = B (ladder). De VCF staat in hetzelfde rack maar zonder kabel.
-    const payload = JSON.parse(buildConfigPayload(p).json) as { project: { modules: { typeId: string }[] } };
+    // Actieve patch = B (ladder). De VCF hangt alleen aan kabels van patch A,
+    // maar deelt het rack: hij gaat mee zodat A ↔ B wisselen niets aanmaakt.
+    const payload = JSON.parse(buildConfigPayload(p).json) as { project: { modules: { typeId: string }[]; patches: unknown[] } };
     const types = payload.project.modules.map((m) => m.typeId);
     expect(types).toContain('tp_mmb_ladder');
-    expect(types).not.toContain('tp_mmb_vcf');
-    // String-seed via recept plaatst geen ongebruikte vibrato-modules; een
-    // handmatig losse module in het rack gaat óók niet mee.
+    expect(types).toContain('tp_mmb_vcf');
+    expect(payload.project.patches.length).toBe(1);   // maar alleen de actieve patch zelf
+    // Wisselen naar A geeft exact dezelfde module-set (id's), dus reconcile = 100% hergebruik.
+    const pA = { ...p, activePatchId: p.patches[0]!.id };
+    const idsA = (JSON.parse(buildConfigPayload(pA).json) as { project: { modules: { id: string }[] } }).project.modules.map((m) => m.id).sort();
+    const idsB = (JSON.parse(buildConfigPayload(p).json) as { project: { modules: { id: string }[] } }).project.modules.map((m) => m.id).sort();
+    expect(idsA).toEqual(idsB);
+    // Een losse module in het rack die géén patch bekabelt gaat niet mee.
     const q = buildRecipe(base(), { source: 'vco' });
     const rack = physical(q)[0]!;
     const loose = { ...q.modules.find((m) => m.typeId === 'tp_mmb_echo')!, id: 'mod_loose', internal: false };
