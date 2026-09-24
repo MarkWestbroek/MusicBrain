@@ -119,6 +119,7 @@ sel grids && build grids tp_mmb_grids "${CVINC[@]}" --
 sel lfo   && build lfo   tp_mmb_lfo   "${CVINC[@]}" -- "$ROOT/firmware/core/src/runtime/Lfo.cpp"
 sel string && build string tp_mmb_string --
 sel echo   && build echo   tp_mmb_echo   --
+sel phaser && build phaser tp_mmb_phaser "$LIB/mmb-dsp" --
 sel vcf && build vcf tp_mmb_vcf "$LIB/mmb-dsp" --
 sel ms20 && build ms20 tp_mmb_ms20 "$LIB/mmb-dsp" --
 

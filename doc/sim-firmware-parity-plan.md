@@ -26,8 +26,8 @@ Gemeten met `simSupportOf` over de 52 interne moduletypes (2026-09-20):
 
 | bak | n | modules |
 |---|---|---|
-| **wasm** | 39 | de 15 hierboven, plus vcf, ms20, stk_sound, de vintage-FX, elements_reverb, octa_vca, stereo_vca, resonator, cr78, comp, comb, string, echo, quant, chord, grids, lfo |
-| **tone** | 14 | vco, ladder, vca, ahdsr, phaser, noise (bestaat niet in de firmware), fm_vco, cvmath, mixer(+8/16), seq8, midiin, out |
+| **wasm** | 40 | de 15 hierboven, plus vcf, ms20, stk_sound, de vintage-FX, elements_reverb, octa_vca, stereo_vca, resonator, cr78, comp, comb, string, echo, phaser, quant, chord, grids, lfo |
+| **tone** | 13 | vco, ladder, vca, ahdsr, noise (bestaat niet in de firmware), fm_vco, cvmath, mixer(+8/16), seq8, midiin, out |
 | **none** | 7 | draw_vco, wt_vco, octa_vco, octa_vcf, quad_vco_shared, quad_mixer_shared, sh (bewust: bestaat niet in de firmware) |
 
 Van de "tone"-bak is een deel infrastructuur waar sample-exactheid niet toe
@@ -431,7 +431,7 @@ Op Windows draait `build.sh` onder Git Bash.
       comb (graaf nagebootst, incl. de blok-vertraging), string (`AudioSynthKarplusStrong`
       in int16 overgeschreven, per Teensy-blok van 128), echo (graaf als de comb;
       de Tone-versie liet 2 s toe en negeerde zijn CV-ingangen) (2026-09-24)
-- [~] Stap 4 — resonator, cr78, comp als `mmb-dsp`-kernel, bit-identiek bewezen
+- [~] Stap 4 — resonator, cr78, comp, phaser als `mmb-dsp`-kernel, bit-identiek bewezen
       met `tools/mmb-wasm/bitcheck/` (2026-09-24). Open: vco (BLEP), ladder,
       octa_vcf (die verandert de hardwareklank — oren erbij)
 - [x] CV-modules draaien de firmwareklasse zelf via `cvhost.h`: quant, chord,

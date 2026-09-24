@@ -573,3 +573,47 @@ describe('tp_mmb_echo (Teensy-graaf nagebootst)', () => {
     expect(firstAbove(out, 1)).toBe(22050);
   });
 });
+
+describe('tp_mmb_phaser (mmb_dsp::Phaser, gedeeld met de firmware)', () => {
+  it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_phaser'); });
+
+  /** Sinus van `hz` door de phaser; rms per venster van 50 ms. */
+  const sweep = async (hz: number, set: (m: Mod) => void): Promise<number[]> => {
+    const m = await load('tp_mmb_phaser');
+    set(m);
+    const out = m.render(2.0, (t, mm) => {
+      const b = mm.inBuf('in');
+      for (let k = 0; k < mm.block; k++) b[k] = 0.5 * Math.sin(2 * Math.PI * hz * (t + k / mm.rate));
+    })[0]!;
+    const win = 2205, r: number[] = [];
+    for (let i = 0; i + win <= out.length; i += win) r.push(rms(out, i, i + win));
+    return r;
+  };
+
+  it('mix 0 en feedback 0 laten het droge signaal door', async () => {
+    const r = await sweep(1000, (m) => { m.setCtl('mix', 0); m.setCtl('feedback', 0); });
+    for (const v of r.slice(2)) expect(v).toBeCloseTo(0.5 / Math.SQRT2, 3);
+  });
+
+  it('het droge pad zit ná de feedback — mix 0 is dus niet helemaal droog (zoals de firmware)', async () => {
+    // PhaserModule telt fbState·feedback op bij x en mengt daarna x met y.
+    const r = await sweep(1000, (m) => { m.setCtl('mix', 0); m.setCtl('feedback', 0.9); });
+    const dev = Math.max(...r.slice(2).map((v) => Math.abs(v - 0.5 / Math.SQRT2)));
+    expect(dev).toBeGreaterThan(0.01);
+  });
+
+  it('de notch zwaait: het niveau van een vaste toon ademt mee met de LFO', async () => {
+    const r = await sweep(1000, (m) => { m.setCtl('rate', 1); m.setCtl('depth', 1); m.setCtl('mix', 0.5); });
+    const lo = Math.min(...r.slice(2)), hi = Math.max(...r.slice(2));
+    expect(hi / lo).toBeGreaterThan(2);
+  });
+
+  it('rate_cv stelt de LFO in (Hz), net als de knop', async () => {
+    // Met rate 0 staat de LFO stil; rate_cv 1 laat hem weer lopen.
+    const stil = await sweep(1000, (m) => { m.setCtl('rate', 0); m.setCtl('depth', 1); });
+    const loopt = await sweep(1000, (m) => { m.setCtl('rate', 0); m.setCtl('depth', 1); m.setIn('rate_cv', 1); });
+    const spread = (r: number[]): number => Math.max(...r.slice(2)) / Math.min(...r.slice(2));
+    expect(spread(stil)).toBeLessThan(1.05);
+    expect(spread(loopt)).toBeGreaterThan(2);
+  });
+});

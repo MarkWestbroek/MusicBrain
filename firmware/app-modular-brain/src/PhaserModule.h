@@ -6,7 +6,7 @@
  *
  * @details
  * The stock Teensy Audio library has no phaser, so this builds one from
- * scratch: @ref AudioEffectPhaser runs `kStages` first-order all-pass filters
+ * scratch: @ref AudioEffectPhaser (kernel: `mmb_dsp::Phaser`) runs `kStages` first-order all-pass filters
  * in series, sweeping their coefficient with an internal LFO.  The all-pass
  * cascade creates moving notches in the spectrum (the classic phaser swoosh);
  * `feedback` resonates the notches and `mix` blends against the dry signal.
@@ -30,6 +30,7 @@
 
 #include "AudioModule.h"
 #include "mb/runtime/Registry.h"
+#include "mmb_dsp/phaser.h"
 #include <Audio.h>
 #include <cmath>
 #include <string_view>
@@ -39,63 +40,33 @@ namespace mmb_link {
 /** @brief Modulated all-pass cascade phaser. */
 class AudioEffectPhaser : public AudioStream {
 public:
-    static constexpr int kStages = 6;
+    static constexpr int kStages = mmb_dsp::Phaser::kStages;
 
-    AudioEffectPhaser() : AudioStream(1, inputQueueArray_) {}
+    AudioEffectPhaser() : AudioStream(1, inputQueueArray_) {
+        k_.Init(AUDIO_SAMPLE_RATE_EXACT);
+    }
 
-    void rate(float hz)     { lfoInc_ = (hz < 0.0f ? 0.0f : hz) / AUDIO_SAMPLE_RATE_EXACT; }
-    void depth(float d)     { depth_ = clampf(d, 0.0f, 1.0f); }
-    void feedback(float f)  { feedback_ = clampf(f, 0.0f, 0.95f); }
-    void mix(float m)       { mix_ = clampf(m, 0.0f, 1.0f); }
+    void rate(float hz)     { k_.rate(hz); }
+    void depth(float d)     { k_.depth(d); }
+    void feedback(float f)  { k_.feedback(f); }
+    void mix(float m)       { k_.mix(m); }
 
     void update() override {
         audio_block_t* block = receiveWritable(0);
         if (!block) return;
-
+        // De DSP zit in mmb_dsp::Phaser (gedeeld met de browser-simulator);
+        // hier alleen int16 ↔ float.
         for (int i = 0; i < AUDIO_BLOCK_SAMPLES; ++i) {
-            // Triangle LFO 0..1 → all-pass coefficient g in [gMin, gMax].
-            lfoPhase_ += lfoInc_;
-            if (lfoPhase_ >= 1.0f) lfoPhase_ -= 1.0f;
-            const float tri = (lfoPhase_ < 0.5f)
-                ? (lfoPhase_ * 2.0f)
-                : (2.0f - lfoPhase_ * 2.0f);
-            const float sweep = tri * depth_;
-            const float g = 0.1f + 0.85f * sweep;   // coefficient sweep
-
-            float x = block->data[i] * (1.0f / 32768.0f);
-            x += fbState_ * feedback_;              // feedback round the cascade
-
-            float y = x;
-            for (int s = 0; s < kStages; ++s) {
-                const float in = y;
-                y = -g * in + ap_[s];
-                ap_[s] = in + g * y;
-            }
-            fbState_ = y;
-
-            float out = x * (1.0f - mix_) + y * mix_;
-            if (out >  1.0f) out =  1.0f;
-            if (out < -1.0f) out = -1.0f;
+            const float out = k_.Tick(block->data[i] * (1.0f / 32768.0f));
             block->data[i] = static_cast<int16_t>(out * 32767.0f);
         }
-
         transmit(block, 0);
         release(block);
     }
 
 private:
-    static float clampf(float v, float lo, float hi) {
-        return v < lo ? lo : (v > hi ? hi : v);
-    }
     audio_block_t* inputQueueArray_[1] = { nullptr };
-
-    float ap_[kStages] = { 0.0f };
-    float fbState_  = 0.0f;
-    float lfoPhase_ = 0.0f;
-    float lfoInc_   = 0.5f / AUDIO_SAMPLE_RATE_EXACT;
-    float depth_    = 0.7f;
-    float feedback_ = 0.3f;
-    float mix_      = 0.5f;
+    mmb_dsp::Phaser k_;
 };
 
 /** @brief Module wrapper around @ref AudioEffectPhaser. */
