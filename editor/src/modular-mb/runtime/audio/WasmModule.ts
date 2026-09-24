@@ -46,6 +46,8 @@ export class WasmModule extends AudioModule {
     'tp_mmb_dx7', 'tp_mmb_env_follower', 'tp_mmb_env_follower_mono',
     'tp_mmb_vcf', 'tp_mmb_ms20', 'tp_mmb_stk_sound', 'tp_mmb_elements_reverb', 'tp_mmb_octa_vca', 'tp_mmb_stereo_vca', 'tp_mmb_resonator', 'tp_mmb_cr78', 'tp_mmb_comp', 'tp_mmb_comb', 'tp_mmb_quant', 'tp_mmb_chord', 'tp_mmb_grids', 'tp_mmb_lfo', 'tp_mmb_string', 'tp_mmb_echo', 'tp_mmb_phaser', 'tp_mmb_ladder', 'tp_mmb_octa_vcf', 'tp_mmb_octa_vco', 'tp_mmb_wt_vco', 'tp_mmb_draw_vco', 'tp_mmb_noise', 'tp_mmb_fet_comp', 'tp_mmb_opto_comp',
     'tp_mmb_bus_comp', 'tp_mmb_varimu_comp', 'tp_mmb_program_eq', 'tp_mmb_diode_comp', 'tp_mmb_console_eq', 'tp_mmb_para_eq',
+    // Stap 6: de modules die vroeger aan de noot-dispatcher hingen.
+    'tp_mmb_vco', 'tp_mmb_fm_vco', 'tp_mmb_vca', 'tp_mmb_ahdsr', 'tp_mmb_cvmath', 'tp_mmb_seq8', 'tp_mmb_midiin',
   ]);
   static supports(typeId: string): boolean { return WasmModule.typeIds.has(typeId); }
 
@@ -178,15 +180,25 @@ export class WasmModule extends AudioModule {
   /** Hulpnodes van de engine (lus-delays) — mee disposen. */
   readonly extra: Tone.ToneAudioNode[] = [];
   nativeRate = 0;
+  /** Meldingen uit de wasm (`mmb_telemetry()`, bv. de stap van de sequencer). */
+  onTelemetry: ((v: number) => void) | null = null;
 
+  /**
+   * @param opts.voices Stem-uitgangen erbij: voor elke uit-poort met
+   *   `eventKind: 'voice'` (MIDI-In `pitch`/`gate`/`vel`) ook `pitch1..pitchN`.
+   *   Die gebruikt de poly-uitvouwing, net als polyExpand voor de firmware.
+   */
   constructor(
     type: ModuleType,
     instance: ModuleInstance,
     initialControlValues: Record<string, ControlValue> = {},
+    opts: { voices?: number } = {},
   ) {
     super(type, instance, initialControlValues);
     this.inputIds = type.ports.filter((p) => p.direction === 'in').map((p) => p.id);
     this.outputIds = type.ports.filter((p) => p.direction === 'out').map((p) => p.id);
+    const voicePorts = type.ports.filter((p) => p.direction === 'out' && p.eventKind === 'voice').map((p) => p.id);
+    for (let k = 1; k <= (opts.voices ?? 0); k++) for (const id of voicePorts) this.outputIds.push(`${id}${k}`);
     for (const id of this.inputIds) this.inGains.set(id, new Tone.Gain(1));
     for (const id of this.outputIds) this.outGains.set(id, new Tone.Gain(1));
     WasmModule.instances.add(this);
@@ -205,6 +217,7 @@ export class WasmModule extends AudioModule {
       });
       node.port.onmessage = (e: MessageEvent) => {
         const m = e.data;
+        if (m?.t === 'tele') { this.onTelemetry?.(Number(m.v)); return; }
         if (m?.t === 'ready') {
           this.nativeRate = Number(m.rate);
           if (m.unknownInputs?.length || m.unknownOutputs?.length) {
@@ -258,6 +271,11 @@ export class WasmModule extends AudioModule {
   outGain(id: string): Tone.Gain | null { return this.outGains.get(id) ?? null; }
   hasInput(id: string): boolean { return this.inGains.has(id); }
   hasOutput(id: string): boolean { return this.outGains.has(id); }
+
+  /** MIDI-bericht naar de module (MIDI-In): status, data1, data2. */
+  midi(status: number, d1: number, d2: number): void {
+    this.post({ t: 'midi', s: status, d1, d2 });
+  }
 
   /** Engine: er zit een kabel op ingang `id`. */
   markCabled(id: string): void {

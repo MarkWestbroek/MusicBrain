@@ -5,10 +5,9 @@
 //      naar alle stemmen, met dezelfde regels als `polyExpand.ts` voor de
 //      firmware. Zonder dit hangt alleen de master aan de mixer en hoor je
 //      stem 1, hoe dik het akkoord ook is.
-//   2. `VoiceAllocator` — welke stem krijgt deze noot? Wasm-modules hebben er
-//      één per groep; Tone-stemmen (VCO → VCF → VCA, elk hun eigen PolyGroup)
-//      delen er één op stem-*index*, zodat stem v van elke groep bij elkaar
-//      hoort.
+//   2. `VoiceAllocator` / `pickVoiceIndex` — welke stem krijgt deze noot, als
+//      er géén MIDI-In in de patch zit en het klavier de stemmen rechtstreeks
+//      aanslaat. Mét MIDI-In doet de firmwareklasse dat zelf (wasm).
 
 import type { PatchConnection } from '../types';
 
@@ -17,17 +16,18 @@ export interface PolyExpandOptions {
   groups: ReadonlyMap<string, readonly string[]>;
   /** Multi-module-id → zijn master-cel (`mod#1`), voor construct B. */
   cellMasterOf: ReadonlyMap<string, string>;
-  /** MIDI-In of sequencer? Die kabel blijft op de master staan. */
-  isEventSource: (moduleId: string) => boolean;
+  /** Is dit een stem-uitgang (MIDI-In `pitch`/`gate`/`vel`)? Die waaiert per
+   *  stem uit naar het genummerde poort: stem k krijgt `pitchK` (1-based). */
+  isVoicePort: (moduleId: string, portId: string) => boolean;
 }
 
 /**
  * PolyGroups uitvouwen zoals `polyExpand` dat voor de firmware doet:
  *   global → groep : fan-out naar elke stem
+ *   stem   → groep : MIDI-In `pitch` → `pitch1..pitchN`, één per stem (de
+ *                    stemtoewijzing zit in MIDI-In zelf, zoals op de Teensy)
  *   groep  → groep : stem v → stem v
  *   groep  → global: genummerde sink (`in1` → `in1..inN`) of anders een som
- *   event  → groep : blijft staan — MIDI-In en sequencer gaan via de
- *                    stemtoewijzer, die kiest welke stem de noot krijgt.
  * Werkt voor hele modules (construct A, `mod`) én voor cellen van een
  * multi-module (construct B, `mod#k` met poorten `voct_k`).
  */
@@ -57,7 +57,7 @@ export function expandPolyConnections(
   for (const c of conns) {
     const srcCells = cellGroupOf(c.from.moduleId, c.from.portId);
     const dstCells = cellGroupOf(c.to.moduleId, c.to.portId);
-    const srcEvent = o.isEventSource(c.from.moduleId);
+    const srcVoice = o.isVoicePort(c.from.moduleId, c.from.portId);
     if (srcCells || dstCells) {
       const N = (srcCells ?? dstCells)!.length;
       const sp = cellPort(c.from.portId), dp = cellPort(c.to.portId);
@@ -65,8 +65,9 @@ export function expandPolyConnections(
         for (let v = 0; v < N; v++) out.push({ ...c, id: `${c.id}#v${v}`,
           from: { moduleId: c.from.moduleId, portId: `${sp!.base}_${v + 1}` },
           to:   { moduleId: c.to.moduleId,   portId: `${dp!.base}_${v + 1}` } });
-      } else if (!srcCells && dstCells && !srcEvent) {
+      } else if (!srcCells && dstCells) {
         for (let v = 0; v < N; v++) out.push({ ...c, id: `${c.id}#v${v}`,
+          from: srcVoice ? { moduleId: c.from.moduleId, portId: `${c.from.portId}${v + 1}` } : c.from,
           to: { moduleId: c.to.moduleId, portId: `${dp!.base}_${v + 1}` } });
       } else if (srcCells && !dstCells) {
         const n = numbered(c.to.portId);
@@ -74,14 +75,18 @@ export function expandPolyConnections(
           from: { moduleId: c.from.moduleId, portId: `${sp!.base}_${v + 1}` },
           to: { moduleId: c.to.moduleId, portId: n ? `${n.base}${n.num + v}` : c.to.portId } });
       } else {
-        out.push(c);                                          // MIDI-in/sequencer → master: de toewijzer doet de rest
+        out.push(c);
       }
       continue;
     }
     const sg = o.groups.get(c.from.moduleId);
     const dg = o.groups.get(c.to.moduleId);
-    if (!sg && dg && !srcEvent) {
-      dg.forEach((id, v) => out.push({ ...c, id: `${c.id}#v${v}`, to: { moduleId: id, portId: c.to.portId } }));
+    if (!sg && dg) {
+      dg.forEach((id, v) => out.push({
+        ...c, id: `${c.id}#v${v}`,
+        from: srcVoice ? { moduleId: c.from.moduleId, portId: `${c.from.portId}${v + 1}` } : c.from,
+        to: { moduleId: id, portId: c.to.portId },
+      }));
     } else if (sg && !dg) {
       const n = numbered(c.to.portId);
       sg.forEach((id, v) => out.push({

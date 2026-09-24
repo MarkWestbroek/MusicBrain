@@ -9,7 +9,7 @@ import { Module } from './Module';
  * pure Tone.js wrappers but is the integration point if/when block-based DSP
  * runs in the browser.
  *
- * Subclasses include Vco, Vcf, Svf, Vca.
+ * Subclass: WasmModule (de Teensy-DSP als WebAssembly in een AudioWorklet).
  */
 export abstract class AudioModule extends Module {
   /** Called once per audio block. */

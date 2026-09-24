@@ -72,6 +72,7 @@ class MmbProcessor extends AudioWorkletProcessor {
     const resolve = (map, id) => map.get(id) || map.get(id + '_cv') || map.get(id.replace(/_cv$/, ''))
       || (id === 'in_l' ? map.get('in') : id === 'in' ? map.get('in_l') : null)
       || (id === 'out_l' ? map.get('out') : id === 'out' ? map.get('out_l') : null)
+      || (id === 'aux' ? map.get('out_r') : null)          // Plaits: aux = out_r, zoals PlaitsModule.h
       || (id === 'trig' ? map.get('gate') : id === 'gate' ? map.get('trig') : null) || null;
 
     this.ins = (inputs || []).map((id) => {

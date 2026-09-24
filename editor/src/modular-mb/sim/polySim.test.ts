@@ -20,7 +20,7 @@ function opts(over: Partial<PolyExpandOptions> = {}): PolyExpandOptions {
   return {
     groups: new Map([['vco1', VOICES], ['vca1', VCAS]]),
     cellMasterOf: new Map(),
-    isEventSource: (id) => id === 'midiin' || id === 'seq',
+    isVoicePort: (id, port) => id === 'midiin' && ['pitch', 'gate', 'vel'].includes(port),
     ...over,
   };
 }
@@ -56,9 +56,17 @@ describe('expandPolyConnections', () => {
       .toEqual(['vca1.out->out.l', 'vca2.out->out.l', 'vca3.out->out.l', 'vca4.out->out.l']);
   });
 
-  it('laat MIDI-In en sequencer op de master staan (die gaan via de toewijzer)', () => {
-    const conns = [c('midiin', 'pitch', 'vco1', 'voct'), c('seq', 'cv', 'vco1', 'voct')];
-    expect(pairs(expandPolyConnections(conns, opts()))).toEqual(pairs(conns));
+  it('MIDI-In: stem k krijgt pitchK — zoals polyExpand het voor de firmware doet', () => {
+    expect(pairs(expandPolyConnections([c('midiin', 'pitch', 'vco1', 'voct')], opts())))
+      .toEqual(['midiin.pitch1->vco1.voct', 'midiin.pitch2->vco2.voct', 'midiin.pitch3->vco3.voct', 'midiin.pitch4->vco4.voct']);
+    // De MOD-uitgangen zijn globaal en waaieren gewoon uit.
+    expect(pairs(expandPolyConnections([c('midiin', 'cv_mod', 'vco1', 'tune')], opts())))
+      .toEqual(['midiin.cv_mod->vco1.tune', 'midiin.cv_mod->vco2.tune', 'midiin.cv_mod->vco3.tune', 'midiin.cv_mod->vco4.tune']);
+  });
+
+  it('een sequencer is een gewoon signaal: hij speelt op elke stem, zoals op de Teensy', () => {
+    expect(pairs(expandPolyConnections([c('seq', 'cv', 'vco1', 'voct')], opts())))
+      .toEqual(['seq.cv->vco1.voct', 'seq.cv->vco2.voct', 'seq.cv->vco3.voct', 'seq.cv->vco4.voct']);
   });
 
   it('vouwt cel-groepen uit op het poortnummer', () => {
@@ -67,11 +75,11 @@ describe('expandPolyConnections', () => {
       groups: new Map([['smp#1', cells]]),
       cellMasterOf: new Map([['smp', 'smp#1']]),
     });
-    // cel → cel: stem k → stem k. Event → cel blijft staan.
+    // cel → cel: stem k → stem k. MIDI-In → cel: pitchK → voct_K.
     expect(pairs(expandPolyConnections([c('smp', 'env_1', 'smp', 'cutoff_1')], o)))
       .toEqual(['smp.env_1->smp.cutoff_1', 'smp.env_2->smp.cutoff_2', 'smp.env_3->smp.cutoff_3']);
     expect(pairs(expandPolyConnections([c('midiin', 'pitch', 'smp', 'voct_1')], o)))
-      .toEqual(['midiin.pitch->smp.voct_1']);
+      .toEqual(['midiin.pitch1->smp.voct_1', 'midiin.pitch2->smp.voct_2', 'midiin.pitch3->smp.voct_3']);
   });
 });
 

@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 
 import { emptyModularProject } from '../types';
 import { seedInternals } from '../seedModules';
-import { simSupportOf, isStepSequencer, type SimSupport } from './simSupport';
+import { simSupportOf, type SimSupport } from './simSupport';
 
 const project = seedInternals(emptyModularProject());
 const internals = project.moduleTypes.filter((t) => t.internal);
@@ -41,11 +41,16 @@ describe('simSupport', () => {
     expect(supportOf('tp_mmb_ladder')).toBe('wasm');       // AudioFilterLadder overgeschreven
   });
 
-  it('herkent de Tone-runtimes en de hardgecodeerde interne modules', () => {
-    expect(supportOf('tp_mmb_vco')).toBe('tone');   // registry
-    expect(supportOf('tp_mmb_vca')).toBe('tone');
-    expect(supportOf('tp_mmb_mixer8')).toBe('tone'); // op typeId in makeNode
+  it('bouwt alleen OUT en de mixers uit Web Audio-nodes', () => {
+    expect(supportOf('tp_mmb_mixer8')).toBe('tone');
     expect(supportOf('tp_mmb_out')).toBe('tone');
+  });
+
+  it('speelt sinds stap 6 ook de modules achter de oude noot-dispatcher als wasm', () => {
+    for (const id of ['tp_mmb_vco', 'tp_mmb_fm_vco', 'tp_mmb_vca', 'tp_mmb_ahdsr',
+      'tp_mmb_cvmath', 'tp_mmb_seq8', 'tp_mmb_midiin', 'tp_mmb_lfo', 'tp_mmb_noise']) {
+      expect(supportOf(id), id).toBe('wasm');
+    }
   });
 
   it('noemt niet-gesimuleerde modules stil', () => {
@@ -54,20 +59,6 @@ describe('simSupport', () => {
     // S&H staat in de catalogus maar bestaat niet in de firmware; de sim
     // speelt hem bewust ook niet (zie de Teensy-todo).
     expect(supportOf('tp_mmb_sh')).toBe('none');
-  });
-
-  it('laat Grids niet voor de SEQ-16 doorgaan', () => {
-    // Beide staan in categorie 'sequencer'; alleen de SEQ-16 heeft de
-    // stap-knoppen en de cv-uitgang waar de engine op rekent.
-    const seq = project.moduleTypes.find((t) => t.id === 'tp_mmb_seq8')!;
-    const grids = project.moduleTypes.find((t) => t.id === 'tp_mmb_grids')!;
-    expect(seq.categoryId).toBe(grids.categoryId);
-    expect(isStepSequencer(seq)).toBe(true);
-    expect(isStepSequencer(grids)).toBe(false);
-    expect(supportOf('tp_mmb_seq8')).toBe('tone');
-    // Grids speelt sinds 2026-09-24 als wasm (de firmwareklasse zelf, via
-    // cvhost.h) — maar níét via de SEQ-16-route van de engine.
-    expect(supportOf('tp_mmb_grids')).toBe('wasm');
   });
 
   it('speelt een externe module via zijn simulatedBy-proxy', () => {
