@@ -26,8 +26,8 @@ Gemeten met `simSupportOf` over de 52 interne moduletypes (2026-09-20):
 
 | bak | n | modules |
 |---|---|---|
-| **wasm** | 46 | de 15 hierboven, plus vcf, ms20, stk_sound, de vintage-FX, elements_reverb, octa_vca, stereo_vca, resonator, cr78, comp, comb, string, echo, phaser, ladder, octa_vcf, octa_vco, wt_vco, draw_vco, noise, quant, chord, grids, lfo |
-| **tone** | 11 | vco, vca, ahdsr, fm_vco, cvmath, mixer(+8/16), seq8, midiin, out |
+| **wasm** | 53 | alle interne modules: de 15 hierboven, vcf, ms20, stk_sound, de vintage-FX, elements_reverb, octa_vca, stereo_vca, resonator, cr78, comp, comb, string, echo, phaser, ladder, octa_vcf, octa_vco, wt_vco, draw_vco, noise, quant, chord, grids, lfo, en sinds stap 6 vco, fm_vco, vca, ahdsr, cvmath, seq8, midiin |
+| **Web Audio** | 4 | mixer(+8/16) en out: optellen, pannen en naar de speakers |
 | **none** | 3 | quad_vco_shared, quad_mixer_shared en sh bestaan niet in de firmware |
 
 Van de "tone"-bak is een deel infrastructuur waar sample-exactheid niet toe
@@ -346,36 +346,48 @@ als er ooit een module op 32 kHz bij komt waar de verhouding lelijker uitvalt.
 Vastgelegd in `wasmWorklet.test.ts`, dat nu ook op 2 en 5 kHz meet — met de
 oude lineaire host faalt die test.
 
-### 6. De noot-dispatcher — *voorstel, jouw beslissing* (2026-09-24)
+### 6. De noot-dispatcher → signalen — **klaar** (2026-09-24)
 
-AHDSR, CvMath en de sequencer zijn pure core-C++ en kunnen via
-`tools/mmb-wasm/cvhost.h` letterlijk de firmwareklasse draaien, net als de
-LFO nu. Toch heb ik ze laten staan. Ze zitten namelijk niet aan kabels vast
-maar aan de **noot-dispatcher** in `AudioEngine.ts`. Die roept
-`env.triggerAttack()` aan vanuit toetsenbord, MIDI-In en sequencer. Hij zet
-de MIDI-velocity als getal op de `mult`-factor van de CvMath (velocity is daar
-geen signaal). En de Tone-stemtoewijzer (`toneAlloc`) kiest per noot één stem
-voor Tone-VCO's én Tone-envelopes tegelijk. Verhuis je alleen de AHDSR, dan
-wijst een tweede toewijzer (die van wasm) de envelope toe. Een poly-patch
-opent dan de envelope van stem 3 terwijl de VCO van stem 2 de noot speelt.
+Vroeger zat er tussen klavier en modules een noot-dispatcher in
+`AudioEngine.ts`: hij riep `env.triggerAttack()` aan, zette MIDI-velocity als
+getal op een CvMath, en een eigen stemtoewijzer (`toneAlloc`) koos per noot
+een stem voor de Tone-VCO's en -envelopes. Op de Teensy bestaat zo'n
+dispatcher niet. Nu ook niet meer in de simulator:
 
-Op de Teensy bestaat die dispatcher niet: MIDI-In (`core/src/runtime/MidiIn.cpp`,
-ook pure C++) zet gate, V/Oct en velocity als CV-signalen per stem, en de
-CvGraph draagt ze naar wie er aan de kabel hangt. De stap die dit echt
-oplost:
+1. **MIDI-In draait als wasm** (de firmwareklasse `MidiInModule`, met de
+   `VoiceAllocator`). Klavier, MIDI-apparaat en testsequenties gaan er als
+   MIDI-berichten in (`mmb_midi()`, worklet-bericht `midi`). Hij levert per
+   stem `pitchK`/`gateK`/`velK`; stemtoewijzing, PRIO, legato, glide en
+   unison doet dus de firmware.
+2. **Uitvouwen zoals de firmware** (`sim/simGraph.ts`, `planSimGraph`):
+   MIDI-In `pitch` → stem k krijgt `pitchK`, precies wat `polyExpand.ts`
+   voor de Teensy doet. Een sequencer is een gewoon signaal en speelt dus op
+   elke stem (zo doet de Teensy het ook).
+3. **VCO, FM-VCO, VCA, AHDSR, CvMath en de sequencer** draaien als wasm
+   (fase A). De engine kent alleen nog wasm-nodes, OUT en de mixers.
+4. **Het klavier-gemak blijft** (jouw keuze): een module met een `voct`- of
+   `gate`-ingang zónder kabel speelt het klavier zelf mee. Op de Teensy doet
+   zo'n module niets.
+5. **Twee kabels op één cv/gate-ingang**: de laatste verandering wint, zoals
+   in de CvGraph (niet de som die Web Audio maakt). Zie
+   `WasmModule.addFeeder` en de `groups` in de worklet.
 
-1. **MIDI-In als wasm** via `cvhost`, gevoed met noot-events in plaats van
-   signalen. Hij levert dan zelf gate/voct/vel per stem, met de stemtoewijzing
-   en prioriteit van de firmware in plaats van de TS-kopie in `polySim.ts`.
-2. **AHDSR, CvMath en seq8** daarna via `cvhost`: nog maar een paar regels
-   elk, want ze krijgen hun gates dan als signaal.
-3. De **VCO** (BLEP-kernel, stap 4) sluit het af: dan is er geen Tone-stem meer
-   en kan `toneAlloc` weg.
+In Chromium nagelopen met Playwright (een script in de scratchpad, niet in de
+repo): vierstemmig speelt C/E/G op drie stemmen en is stil na loslaten; de
+testpatch met de sequencer op Off speelt het klavier schoon; de stap-LED's
+lopen via `mmb_telemetry()`.
 
-Het is de grootste ingreep in de simulator tot nu toe. Het toetsenbord-zonder-
-kabel gedrag (een envelope zonder gate-kabel slaat aan op elke toets) is
-sim-only: op de Teensy doet zo'n envelope niets. Blijft dat, als gemak, of
-volgt de sim ook daarin de hardware? Dat is de vraag vóór stap 6 begint.
+Wat je hoort dat anders is dan vroeger — allemaal omdat de hardware het zo
+doet (zie de Teensy-todo):
+
+- Een **VCA zonder CV-kabel is dicht**; de Gain-knop doet niets.
+- **Coarse/Fine op de VCO** tellen pas mee bij de volgende noot.
+- **Mono overlappend spelen slaat de envelope niet opnieuw aan** (FW-10: de
+  gate gaat binnen één tick uit en aan).
+- Een **vrijlopende sequencer** (Run = Free) speelt door, ook als je het
+  klavier loslaat — en in een poly-patch op elke stem.
+- Een **ongebruikte stem staat op −5 V** (de firmware begint `currentNote_`
+  op noot 0); hij bromt onhoorbaar achter een dichte VCA.
 
 Onderweg gevonden: de CvGraph schrijft een ingang **alleen als de waarde
 verandert**, en de AHDSR leunt daarop: elke `writeCvPort("gate", 1)` is voor
@@ -387,14 +399,13 @@ leest `bipolar` níét als float: zonder dat typewerk deed de knop niets.
 
 ## Wat geen wasm-port oplost
 
-- **CV-domein.** De firmware heeft een aparte `CvGraph` op een 1 kHz
-  control-tick; de simulator behandelt CV als audio-rate signaal. Andere
-  modulatieresolutie, ander gedrag bij snelle envelopes.
-- **Wasm-CV → Tone-modules.** Gates uit een wasm-module triggeren geen
-  Tone-envelope en wasm-CV stemt geen Tone-VCO: die worden per JS-aanroep
-  aangestuurd, niet per signaal. Lost zichzelf op naarmate stap 3 en 4
-  vorderen.
-- **Sequencer → poly** blijft in de sim monofoon (stem 1).
+- **CV-domein.** De CV-modules (MIDI-In, AHDSR, LFO, sequencer, …) tikken
+  net als op de Teensy op 1 kHz, en schrijven hun ingangen alleen bij een
+  nieuwe waarde. Maar de kabels ertussen zijn audio-rate signalen met een
+  render-quantum vertraging per wasm-hop (~2,7 ms), waar de CvGraph alles in
+  dezelfde tick doorgeeft.
+- **Audio-ingangen met meer kabels** tellen op; de Teensy-`AudioConnection`
+  is first-source-wins.
 - **int16 vs float, 44,1 kHz vs contextrate.** De worklet resamplet, maar
   headroom en clipping verschillen.
 
@@ -427,7 +438,7 @@ Op Windows draait `build.sh` onder Git Bash.
       (`polySim.ts`, 2026-09-20)
 - [x] Stap 1 — vcf + ms20 naar wasm (2026-09-20)
 - [x] Stap 2 — MIDI CC + bend in de sim, plus cv → VCO.tune (2026-09-20)
-- [~] Stap 3 — stk_sound (2026-09-20); elements_reverb, octa_vca, stereo_vca,
+- [x] Stap 3 — stk_sound (2026-09-20); elements_reverb, octa_vca, stereo_vca,
       comb (graaf nagebootst, incl. de blok-vertraging), string (`AudioSynthKarplusStrong`
       in int16 overgeschreven, per Teensy-blok van 128), echo (graaf als de comb;
       de Tone-versie liet 2 s toe en negeerde zijn CV-ingangen), ladder
@@ -439,10 +450,11 @@ Op Windows draait `build.sh` onder Git Bash.
       nodig) (2026-09-24). draw_vco ook: zijn
       getekende golf gaat vanuit de tekenmodal via een per-instantie-blob
       (`WasmModule.setInstanceBlob`) naar de wasm, ook zonder Teensy.
-- [~] Stap 4 — resonator, cr78, comp, phaser als `mmb-dsp`-kernel, bit-identiek bewezen
-      met `tools/mmb-wasm/bitcheck/` (2026-09-24). Open: vco (BLEP)
+- [x] Stap 4 — resonator, cr78, comp, phaser, noise als `mmb-dsp`-kernel, bit-identiek
+      bewezen met `tools/mmb-wasm/bitcheck/` (2026-09-24). De VCO bleek geen BLEP te
+      gebruiken: `AudioSynthWaveform` is overgeschreven in `teensy_waveform.h`.
 - [x] CV-modules draaien de firmwareklasse zelf via `cvhost.h`: quant, chord,
       grids, lfo (2026-09-24)
-- [ ] Stap 6 — noot-dispatcher → signalen (voorstel hierboven; ahdsr, cvmath,
-      seq8, midiin wachten hierop)
-- [x] Stap 5 — stemgedrag MIDI-In: steal, voiceCount, glide, prio, legato en unison (2026-09-20). Open: hertrigger-flank in de firmware (FW), glide voor wasm-stemmen
+- [x] Stap 6 — noot-dispatcher → signalen: MIDI-In, VCO, FM-VCO, VCA, AHDSR,
+      CvMath en seq8 als wasm; engine zonder Tone-nabouwsels (2026-09-24)
+- [x] Stap 5 — stemgedrag MIDI-In: steal, voiceCount, glide, prio, legato en unison (2026-09-20); sinds stap 6 doet de firmwareklasse het zelf. Open: hertrigger-flank in de firmware (FW-10)
