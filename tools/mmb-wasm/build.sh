@@ -112,6 +112,10 @@ sel resonator && build resonator tp_mmb_resonator "$LIB/mmb-dsp" --
 sel cr78 && build cr78 tp_mmb_cr78 "$LIB/mmb-dsp" --
 sel comp && build comp tp_mmb_comp "$LIB/mmb-dsp" --
 sel comb && build comb tp_mmb_comb --
+CVINC=("$ROOT/firmware/core/include" "$ROOT/firmware/app-modular-brain/src")
+sel quant && build quant tp_mmb_quant "${CVINC[@]}" --
+sel chord && build chord tp_mmb_chord "${CVINC[@]}" --
+sel grids && build grids tp_mmb_grids "${CVINC[@]}" --
 sel vcf && build vcf tp_mmb_vcf "$LIB/mmb-dsp" --
 sel ms20 && build ms20 tp_mmb_ms20 "$LIB/mmb-dsp" --
 

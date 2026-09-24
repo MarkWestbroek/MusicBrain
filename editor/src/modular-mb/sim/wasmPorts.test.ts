@@ -356,3 +356,81 @@ describe('tp_mmb_comb', () => {
     expect(o![o!.length - 1]!).toBeCloseTo(0.5, 5);
   });
 });
+
+describe('tp_mmb_quant (firmwareklasse zelf)', () => {
+  it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_quant'); });
+
+  it('klikt een ruwe CV vast op de dichtstbijzijnde noot van de schaal', async () => {
+    const m = await load('tp_mmb_quant');
+    m.setCtl('scale', 1); m.setCtl('root', 0); m.setCtl('glide', 0);   // majeur
+    m.setIn('in', 1.56 / 12);                    // 1,56 halve toon → D (2)
+    let [o] = m.render(0.05);
+    expect(o![o!.length - 1]!).toBeCloseTo(2 / 12, 4);
+    m.setIn('in', 4.8 / 12);                     // 4,8 → F (5), niet E
+    [o] = m.render(0.05);
+    expect(o![o!.length - 1]!).toBeCloseTo(5 / 12, 4);
+  });
+
+  it('vuurt een trig bij elke nootwissel', async () => {
+    const m = await load('tp_mmb_quant');
+    m.setCtl('scale', 0);                        // chromatisch
+    const [, trig] = m.render(1.0, (t, mm) => mm.setIn('in', Math.floor(t * 5) / 12));
+    let flanken = 0;
+    for (let i = 1; i < trig!.length; i++) if (trig![i - 1]! < 0.5 && trig![i]! >= 0.5) flanken++;
+    expect(flanken).toBeGreaterThanOrEqual(4);  // vijf noten → vier wissels (+ de eerste)
+  });
+});
+
+describe('tp_mmb_chord (firmwareklasse zelf)', () => {
+  it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_chord'); });
+
+  it('bouwt een majeur- en een mineurdrieklank op de grondtoon', async () => {
+    const stemmen = async (chord: number): Promise<number[]> => {
+      const m = await load('tp_mmb_chord');
+      m.setCtl('chord', chord); m.setCtl('inv', 0); m.setCtl('spread', 0);
+      m.setIn('voct', 0);
+      const outs = m.render(0.01);
+      return outs.map((o) => Math.round(o[o.length - 1]! * 12 * 100) / 100);
+    };
+    const maj = await stemmen(0), min = await stemmen(1);
+    expect(maj.slice(0, 3)).toEqual([0, 4, 7]);
+    expect(min.slice(0, 3)).toEqual([0, 3, 7]);
+  });
+});
+
+describe('tp_mmb_grids (firmwareklasse zelf)', () => {
+  it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_grids'); });
+
+  it('speelt een patroon op een externe klok', async () => {
+    const m = await load('tp_mmb_grids');
+    m.setCtl('extclock', 1);
+    // 16e noten op 120 BPM = 8 per seconde; 10 ms hoog.
+    const outs = m.render(4.0, (t, mm) => mm.setIn('clock', (t * 8) % 1 < 0.08 ? 1 : 0));
+    const flanken = (a: Float32Array): number => {
+      let n = 0;
+      for (let i = 1; i < a.length; i++) if (a[i - 1]! < 0.5 && a[i]! >= 0.5) n++;
+      return n;
+    };
+    const [bd, sd, hh] = outs.map(flanken);
+    expect(bd).toBeGreaterThan(0);
+    expect(sd).toBeGreaterThan(0);
+    expect(hh).toBeGreaterThan(0);
+    // Niet elke tel slaat alles: het is een patroon, geen klok-doorgifte.
+    expect(bd).toBeLessThan(32);
+  });
+
+  it('loopt op zijn eigen tempo zonder externe klok, en sneller bij een hoger tempo', async () => {
+    const tel = async (bpm: number): Promise<number> => {
+      const m = await load('tp_mmb_grids');
+      m.setCtl('extclock', 0); m.setCtl('tempo', bpm); m.setCtl('hh', 1);
+      const outs = m.render(4.0);
+      let n = 0;
+      const hh = outs[2]!;
+      for (let i = 1; i < hh.length; i++) if (hh[i - 1]! < 0.5 && hh[i]! >= 0.5) n++;
+      return n;
+    };
+    const langzaam = await tel(60), snel = await tel(180);
+    expect(langzaam).toBeGreaterThan(0);
+    expect(snel).toBeGreaterThan(langzaam * 2);
+  });
+});

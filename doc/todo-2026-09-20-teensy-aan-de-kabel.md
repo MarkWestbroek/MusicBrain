@@ -113,3 +113,10 @@ bereik van de knop (−48..0 dB).
 **De resonator heeft twee uitgangen die hetzelfde signaal geven.** `out` en
 `mix` wijzen allebei naar kanaal 0, terwijl de kop `out` "nat" noemt. Geen
 klankprobleem, wel een belofte die de module niet waarmaakt.
+
+**S&H bestaat niet in de firmware.** `tp_mmb_sh` staat in de catalogus met een
+paneel, knoppen en een beschrijving ("Sample-and-hold met slew-limiter"), maar
+er is geen `ShModule` en geen typeId in de firmware. Op de Teensy doet hij dus
+niets. De simulator speelt hem bewust óók niet: als de browser hem wel zou
+laten klinken, zou een patch daar anders klinken dan op je hardware. Bouwen
+of uit de catalogus halen — dat is jouw keuze.
