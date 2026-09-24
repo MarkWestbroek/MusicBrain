@@ -33,6 +33,34 @@ export function PatchesPanel(): JSX.Element {
   const [dir, setDir] = useState<1 | -1>(1);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState('');
+  // Slepen tussen mappen (alleen bij groeperen op map): de rij pak je aan de
+  // greep, je laat hem los op een groepskop, een rij in die groep, of op
+  // "nieuwe map". Het losse map-veld verdwijnt dan: dat was dubbel.
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dropKey, setDropKey] = useState<string | null>(null);
+  const byFolder = groupBy === 'folder';
+
+  function moveToFolder(id: string, key: string | null): void {
+    const folder = key === null || key === '(geen map)' ? undefined : key;
+    patch(id, (p) => ({ ...p, folder }));
+  }
+  function dropOn(key: string | null): void {
+    if (!dragId) return;
+    if (key === '__new__') {
+      const name = window.prompt('Naam van de nieuwe map:', '');
+      if (name && name.trim()) moveToFolder(dragId, name.trim());
+    } else {
+      moveToFolder(dragId, key);
+    }
+    setDragId(null); setDropKey(null);
+  }
+  function renameFolder(key: string): void {
+    if (key === '(geen map)') return;
+    const name = window.prompt('Map hernoemen:', key);
+    if (name === null) return;
+    const folder = name.trim() || undefined;
+    updateProject((p) => ({ ...p, patches: p.patches.map((x) => (x.folder?.trim() === key ? { ...x, folder } : x)) }), { forceCommit: true });
+  }
 
   function addPatch(): void {
     const physical = project.racks.find((r) => r.id === project.activeRackId)
@@ -175,7 +203,7 @@ export function PatchesPanel(): JSX.Element {
           <tr style={{ textAlign: 'left', color: '#6b7280', borderBottom: '1px solid #e5e7eb' }}>
             <th style={{ padding: '4px 8px' }} title="Actieve patch">●</th>
             {th('name', 'Naam')}
-            <th style={{ padding: '4px 8px' }}>Map</th>
+            {!byFolder && <th style={{ padding: '4px 8px' }}>Map</th>}
             {th('family', 'Familie', 'Klankbron: VCO, Wavetable, FM, Physical modelling, Sampling, Drums …')}
             {th('voices', 'Stemmen')}
             {th('rack', 'Rack')}
@@ -187,14 +215,29 @@ export function PatchesPanel(): JSX.Element {
         </thead>
         <tbody>
           {groups.map((g) => (
-            <GroupRows key={g.key || '_'} label={g.key} count={g.patches.length} collapsed={collapsed.has(g.key)} onToggle={() => toggleGroup(g.key)} show={groupBy !== 'none'}>
+            <GroupRows key={g.key || '_'} label={g.key} count={g.patches.length} collapsed={collapsed.has(g.key)} onToggle={() => toggleGroup(g.key)} show={groupBy !== 'none'}
+                       highlight={byFolder && dragId !== null && dropKey === g.key}
+                       onDragOver={byFolder && dragId ? () => setDropKey(g.key) : undefined}
+                       onDrop={byFolder ? () => dropOn(g.key) : undefined}
+                       onRename={byFolder && g.key !== '(geen map)' ? () => renameFolder(g.key) : undefined}>
               {g.patches.map((x) => {
                 const cls = classes.get(x.id)!;
                 const usedRacks = project.racks.filter((r) => x.rackIds.includes(r.id));
                 const otherRacks = project.racks.filter((r) => !x.rackIds.includes(r.id));
                 return (
-                  <tr key={x.id} style={{ borderBottom: '1px solid #f3f4f6', background: project.activePatchId === x.id ? 'var(--mb-accent-tint)' : undefined }}>
-                    <td style={{ padding: '4px 8px' }}>
+                  <tr key={x.id}
+                      onDragOver={byFolder && dragId ? (e) => { e.preventDefault(); setDropKey(g.key); } : undefined}
+                      onDrop={byFolder ? (e) => { e.preventDefault(); dropOn(g.key); } : undefined}
+                      style={{ borderBottom: '1px solid #f3f4f6', opacity: dragId === x.id ? 0.4 : 1,
+                               background: project.activePatchId === x.id ? 'var(--mb-accent-tint)' : undefined }}>
+                    <td style={{ padding: '4px 8px', whiteSpace: 'nowrap' }}>
+                      {byFolder && (
+                        <span draggable
+                              onDragStart={(e) => { setDragId(x.id); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', x.id); }}
+                              onDragEnd={() => { setDragId(null); setDropKey(null); }}
+                              title="Sleep naar een andere map"
+                              style={{ cursor: 'grab', color: '#94a3b8', marginRight: 6, userSelect: 'none' }}>⋮⋮</span>
+                      )}
                       <input type="radio" name="activePatch" checked={project.activePatchId === x.id} onChange={() => setActive(x.id)} />
                     </td>
                     <td style={{ padding: '4px 8px', minWidth: 180 }}>
@@ -202,12 +245,14 @@ export function PatchesPanel(): JSX.Element {
                         onChange={(e) => patch(x.id, (p) => ({ ...p, name: e.target.value }))}
                         style={{ width: '100%', fontSize: 13 }} />
                     </td>
-                    <td style={{ padding: '4px 8px' }}>
-                      <input type="text" list="mmb-folders" value={x.folder ?? ''} placeholder="—"
-                        onChange={(e) => patch(x.id, (p) => ({ ...p, folder: e.target.value || undefined }))}
-                        title="Map (vrije tekst; bestaande mappen verschijnen als suggestie)"
-                        style={{ width: 130, fontSize: 12 }} />
-                    </td>
+                    {!byFolder && (
+                      <td style={{ padding: '4px 8px' }}>
+                        <input type="text" list="mmb-folders" value={x.folder ?? ''} placeholder="—"
+                          onChange={(e) => patch(x.id, (p) => ({ ...p, folder: e.target.value || undefined }))}
+                          title="Map (vrije tekst; bestaande mappen verschijnen als suggestie)"
+                          style={{ width: 130, fontSize: 12 }} />
+                      </td>
+                    )}
                     <td style={{ padding: '4px 8px', color: '#475569', whiteSpace: 'nowrap' }}>{cls.family}</td>
                     <td style={{ padding: '4px 8px', color: '#475569' }}>
                       <input type="number" min={1} max={64} value={x.voiceCount}
@@ -255,20 +300,39 @@ export function PatchesPanel(): JSX.Element {
           ))}
         </tbody>
       </table>
+
+      {byFolder && project.patches.length > 0 && (
+        <div onDragOver={dragId ? (e) => { e.preventDefault(); setDropKey('__new__'); } : undefined}
+             onDrop={(e) => { e.preventDefault(); dropOn('__new__'); }}
+             style={{ marginTop: 8, padding: '8px 12px', border: `2px dashed ${dropKey === '__new__' ? 'var(--mb-accent)' : '#cbd2d9'}`,
+                      borderRadius: 6, color: '#64748b', fontSize: 12,
+                      background: dropKey === '__new__' ? 'var(--mb-accent-tint)' : 'transparent' }}>
+          {dragId ? '📁 Laat hier los voor een nieuwe map…' : 'Sleep een patch aan ⋮⋮ naar een map, of hierheen voor een nieuwe map. Dubbelklik op een mapkop om te hernoemen.'}
+        </div>
+      )}
     </div>
   );
 }
 
-/** Groepskop (inklapbaar) + de rijen eronder. */
-function GroupRows(props: { label: string; count: number; collapsed: boolean; onToggle: () => void; show: boolean; children: React.ReactNode }): JSX.Element {
-  const { label, count, collapsed, onToggle, show, children } = props;
+/** Groepskop (inklapbaar, dropzone bij slepen, dubbelklik = hernoemen) + de rijen eronder. */
+function GroupRows(props: {
+  label: string; count: number; collapsed: boolean; onToggle: () => void; show: boolean; children: React.ReactNode;
+  highlight?: boolean; onDragOver?: () => void; onDrop?: () => void; onRename?: () => void;
+}): JSX.Element {
+  const { label, count, collapsed, onToggle, show, children, highlight, onDragOver, onDrop, onRename } = props;
   return (
     <>
       {show && (
-        <tr style={{ background: '#f8fafc', cursor: 'pointer' }} onClick={onToggle}>
+        <tr style={{ background: highlight ? 'var(--mb-accent-tint)' : '#f8fafc', cursor: 'pointer',
+                     outline: highlight ? '2px dashed var(--mb-accent)' : undefined }}
+            onClick={onToggle}
+            onDoubleClick={onRename ? (e) => { e.stopPropagation(); onRename(); } : undefined}
+            onDragOver={onDragOver ? (e) => { e.preventDefault(); onDragOver(); } : undefined}
+            onDrop={onDrop ? (e) => { e.preventDefault(); onDrop(); } : undefined}
+            title={onRename ? 'Klik: in-/uitklappen · dubbelklik: hernoemen · sleep patches hierheen' : undefined}>
           <td colSpan={10} style={{ padding: '5px 8px', fontWeight: 600, color: '#0f172a', borderTop: '1px solid #e5e7eb' }}>
             <span style={{ display: 'inline-block', width: 14, color: '#64748b' }}>{collapsed ? '▶' : '▼'}</span>
-            {label} <span style={{ color: '#64748b', fontWeight: 400 }}>({count})</span>
+            {onRename ? '📁 ' : ''}{label} <span style={{ color: '#64748b', fontWeight: 400 }}>({count})</span>
           </td>
         </tr>
       )}
