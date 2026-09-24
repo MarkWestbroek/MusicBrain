@@ -153,6 +153,59 @@ public:
     const mmb_dsp::Zone* zones() const { return zones_; }
     int numZones() const { return numZones_; }
 
+    // ── upload via de link ──────────────────────────────────────────────
+    /** Begin: `/mmb/banks/NN.part` openen (afgekapt, vooraf gereserveerd). */
+    bool uploadBegin(int bank, uint32_t size) {
+        if (bank < 0 || bank > 15) return false;
+        if (!sdOk_ && !mountIfMissing(true)) return false;
+        if (upFile_) upFile_.close();
+        char path[40];
+        snprintf(path, sizeof(path), "%s/%02d.part", kDir, bank);
+        SD.sdfs.remove(path);
+        upFile_ = SD.sdfs.open(path, O_WRITE | O_CREAT | O_TRUNC);
+        if (!upFile_) return false;
+        upFile_.preAllocate(size);           // aaneengesloten: sneller schrijven én streamen
+        upErr_ = false; upBank_ = bank; upBytes_ = 0;
+        return true;
+    }
+    void uploadBytes(const uint8_t* data, size_t n) {
+        if (!upFile_ || upErr_) return;
+        if (upFile_.write(data, n) != n) upErr_ = true; else upBytes_ += n;
+    }
+    /**
+     * Klaar: `.part` → `NN.mmbs` (de oude gaat weg), kaart opnieuw
+     * inventariseren, en als die bank geladen was: opnieuw laden. `ok` false
+     * (of een schrijffout) = opruimen en de oude bank laten staan.
+     */
+    bool uploadDone(int bank, bool ok) {
+        if (upFile_) upFile_.close();
+        char part[40], dst[40];
+        snprintf(part, sizeof(part), "%s/%02d.part", kDir, bank);
+        snprintf(dst, sizeof(dst), "%s/%02d.mmbs", kDir, bank);
+        if (!ok || upErr_ || bank != upBank_) { SD.sdfs.remove(part); return false; }
+        if (loaded_ == bank) {                 // de stemmen los van het oude bestand
+            numSlots_ = numZones_ = 0; ++version_; delay(6);
+            if (file_) file_.close();
+        }
+        SD.sdfs.remove(dst);
+        if (!SD.sdfs.rename(part, dst)) { SD.sdfs.remove(part); return false; }
+        snapshot();
+        if (loaded_ == bank) { loaded_ = -1; load(bank); }
+        Serial.printf("[sampler] bank %02d geschreven via de link: %lu KB\n", bank,
+                      static_cast<unsigned long>(upBytes_ / 1024));
+        return true;
+    }
+    /** `NN.mmbs` van de kaart halen; was hij geladen, dan zwijgt de sampler. */
+    bool deleteBank(int bank) {
+        if (bank < 0 || bank > 15 || !sdOk_) return false;
+        char dst[40];
+        snprintf(dst, sizeof(dst), "%s/%02d.mmbs", kDir, bank);
+        if (loaded_ == bank) { numSlots_ = numZones_ = 0; ++version_; delay(6); if (file_) file_.close(); loaded_ = -1; }
+        const bool ok = SD.sdfs.remove(dst);
+        snapshot();
+        return ok;
+    }
+
     // ── streamen ───────────────────────────────────────────────────────
     static constexpr int kRingFrames  = 16384;  ///< per stem (~370 ms bij 44,1 kHz; +2 oct = 93 ms)
     static constexpr int kChunkFrames = 4096;   ///< per SD-leesbeurt (16 KB stereo)
@@ -488,6 +541,10 @@ private:
     mmb_dsp::Zone       zones_[kMaxZones];
     uint32_t slotFrameOffset_[kMaxSlots] = {};
     File     file_;                              ///< open bank tijdens het streamen
+    FsFile   upFile_;                            ///< `.part` tijdens een upload
+    bool     upErr_ = false;
+    int      upBank_ = -1;
+    uint32_t upBytes_ = 0;
     uint32_t dataOffset_ = 0;                    ///< begin van het datablok in het bestand
     bool     streamingBank_ = false;
     uint32_t headMs_ = kHeadMsDefault, headActualMs_ = 0;

@@ -116,6 +116,16 @@ public:
      *  gaat terug als `{"type":"selfTest",...}`. */
     using SelfTestHandler = void (*)(JsonObjectConst request, JsonObject result);
     using HeadHandler     = void (*)(int ms, bool force);
+    /**
+     * Bank uploaden via de link ("bankPut"): begin(bank, size) opent het
+     * doelbestand (false = weigeren), bytes() krijgt de ruwe data in
+     * stukken, done(bank, ok) sluit af (hernoemen of opruimen; false = het
+     * schrijven zelf ging mis). Zie pollRaw() voor het protocol.
+     */
+    using BankBeginHandler = bool (*)(int bank, uint32_t size);
+    using BankBytesHandler = void (*)(const uint8_t* data, size_t n);
+    using BankDoneHandler  = bool (*)(int bank, bool ok);
+    using BankDeleteHandler = bool (*)(int bank);
 
     /** @brief Initialise the link and send the opening hello frame.
      *  Must be called once from Arduino `setup()` after `Serial.begin()`. */
@@ -145,10 +155,17 @@ public:
     void onSelfTest(SelfTestHandler h) { onSelfTest_ = h; }
     /** {"type":"samplerHead","ms":N}: koplengte van de samplerbank (streamen). */
     void onSamplerHead(HeadHandler h) { onSamplerHead_ = h; }
+    void onBankPut(BankBeginHandler b, BankBytesHandler d, BankDoneHandler e) {
+        onBankBegin_ = b; onBankBytes_ = d; onBankDone_ = e;
+    }
+    void onBankDelete(BankDeleteHandler h) { onBankDelete_ = h; }
+    /** Zolang een bank binnenkomt zijn de bytes op de poort geen JSON. */
+    bool receivingBank() const { return rawRemaining_ > 0; }
 
     /** @brief Drain the serial input buffer and dispatch complete lines.
      *  Call on every iteration of Arduino `loop()`. Non-blocking. */
     void poll() {
+        if (rawRemaining_ > 0) { pollRaw(); return; }
         while (Serial.available() > 0) {
             const int c = Serial.read();
             if (c < 0) break;
@@ -201,7 +218,59 @@ public:
     }
 
 private:
+    /**
+     * Raw-modus: na een geaccepteerde "bankPut" komen precies `size` bytes
+     * binair over de poort (geen base64, geen JSON-heap). Ze gaan in stukken
+     * van 512 B naar de handler; elke 256 KB een voortgangsbericht, en na
+     * de laatste byte de ack. Vijf seconden zonder bytes = afbreken.
+     *
+     *   editor → {"type":"bankPut","bank":N,"size":S}
+     *   teensy → {"type":"ack","ok":true,"applied":"bankPut","phase":"begin",...}
+     *   editor → S bytes
+     *   teensy → {"type":"bankProgress","bank":N,"bytes":n,"size":S}   (elke 256 KB)
+     *   teensy → {"type":"ack","ok":true,"applied":"bankPut","phase":"done","bank":N,"bytes":S}
+     */
+    void pollRaw() {
+        while (rawRemaining_ > 0 && Serial.available() > 0) {
+            size_t n = static_cast<size_t>(Serial.available());
+            if (n > sizeof(rawBuf_)) n = sizeof(rawBuf_);
+            if (n > rawRemaining_) n = rawRemaining_;
+            const size_t got = Serial.readBytes(reinterpret_cast<char*>(rawBuf_), n);
+            if (got == 0) break;
+            if (onBankBytes_) onBankBytes_(rawBuf_, got);
+            rawRemaining_ -= got;
+            rawLastMs_ = millis();
+            const uint32_t doneBytes = rawTotal_ - rawRemaining_;
+            if (doneBytes - rawMark_ >= 256u * 1024u) {
+                rawMark_ = doneBytes;
+                JsonDocument p;
+                p["type"] = "bankProgress"; p["bank"] = rawBank_;
+                p["bytes"] = doneBytes; p["size"] = rawTotal_;
+                serializeJson(p, Serial); Serial.println();
+            }
+        }
+        if (rawRemaining_ == 0) {
+            const bool ok = onBankDone_ ? onBankDone_(rawBank_, true) : false;
+            JsonDocument extra;
+            extra["phase"] = "done"; extra["bank"] = rawBank_; extra["bytes"] = rawTotal_;
+            if (ok) sendAckOk("bankPut", extra);
+            else    sendAckErr("bankPut: schrijven of hernoemen mislukt");
+            rawBank_ = -1;
+        } else if (millis() - rawLastMs_ > 5000) {
+            if (onBankDone_) onBankDone_(rawBank_, false);
+            rawRemaining_ = 0; rawBank_ = -1;
+            sendAckErr("bankPut: timeout, upload afgebroken");
+        }
+    }
+
     char   buf_[kLineMax];
+    uint8_t  rawBuf_[512];
+    uint32_t rawRemaining_ = 0, rawTotal_ = 0, rawMark_ = 0, rawLastMs_ = 0;
+    int      rawBank_ = -1;
+    BankBeginHandler  onBankBegin_  = nullptr;
+    BankBytesHandler  onBankBytes_  = nullptr;
+    BankDoneHandler   onBankDone_   = nullptr;
+    BankDeleteHandler onBankDelete_ = nullptr;
     size_t bufLen_ = 0;
     bool   overflow_    = false;  ///< Huidige regel paste niet in buf_.
     size_t overflowLen_ = 0;      ///< Aantal gedropte bytes van die regel.
@@ -345,6 +414,26 @@ private:
             else out["error"] = "geen selfTest-handler";
             serializeJson(out, Serial);
             Serial.println();
+            return;
+        }
+        if (strcmp(type, "bankPut") == 0) {
+            const int bank = doc["bank"] | -1;
+            const uint32_t size = doc["size"] | 0u;
+            if (bank < 0 || bank > 15 || size < 44) { sendAckErr("bankPut: bank 0-15 en size nodig"); return; }
+            if (!onBankBegin_ || !onBankBegin_(bank, size)) { sendAckErr("bankPut: kan bestand niet openen (SD?)"); return; }
+            rawBank_ = bank; rawTotal_ = size; rawRemaining_ = size; rawMark_ = 0; rawLastMs_ = millis();
+            JsonDocument extra;
+            extra["phase"] = "begin"; extra["bank"] = bank; extra["size"] = size;
+            sendAckOk("bankPut", extra);
+            return;
+        }
+        if (strcmp(type, "bankDelete") == 0) {
+            const int bank = doc["bank"] | -1;
+            if (bank < 0 || bank > 15) { sendAckErr("bankDelete: bank 0-15"); return; }
+            const bool ok = onBankDelete_ && onBankDelete_(bank);
+            JsonDocument extra;
+            extra["bank"] = bank;
+            if (ok) sendAckOk("bankDelete", extra); else sendAckErr("bankDelete: niet gevonden of SD-fout");
             return;
         }
         if (strcmp(type, "samplerHead") == 0) {

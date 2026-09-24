@@ -18,6 +18,7 @@ import {
 } from './sampleAnalysis';
 import { WasmModule, type WasmZone } from './runtime';
 import { buildBank, parseBank, bankSummary, type BankSlot } from './sampleBank';
+import { sendBank, useTeensyLink } from './teensyLink';
 import { readSf2, sf2ToBank, type Sf2 } from './sf2';
 
 const TYPE_ID = 'tp_mmb_sampler';
@@ -56,6 +57,9 @@ export function SampleImportModal({ open, onClose }: { open: boolean; onClose: (
   const [toConcert, setToConcert] = useState(false); // naar A440 trekken
   const [busy, setBusy] = useState('');
   const [bankName, setBankName] = useState('bank');
+  const [targetBank, setTargetBank] = useState(0);
+  const link = useTeensyLink();
+  const linked = link.status.kind === 'connected';
   const [sf2, setSf2] = useState<Sf2 | null>(null);
   // Laatst geladen bank (uit .mmbs of een SoundFont) — zodat ⤓ opslaan ook
   // werkt zonder dat er een opname geanalyseerd is.
@@ -314,6 +318,38 @@ export function SampleImportModal({ open, onClose }: { open: boolean; onClose: (
     setBusy(`${bankName}.mmbs geschreven — ${bankSummary(slots, zones)} · kopieer naar /mmb/banks op de SD`);
   }
 
+  /** Dezelfde bank, maar rechtstreeks naar de SD-kaart van de Teensy (via de link). */
+  async function uploadBank(): Promise<void> {
+    const { slots, zones } = rows.length ? build() : (loaded ?? { slots: [], zones: [] });
+    if (!slots.length) { setBusy('niets te sturen'); return; }
+    const buf = new Uint8Array(buildBank(bankName, slots, zones));
+    const kb = (buf.length / 1024).toFixed(0);
+    setBusy(`naar de Teensy, bank ${targetBank}: 0 van ${kb} KB…`);
+    try {
+      await sendBank(targetBank, buf, (bytes, size) =>
+        setBusy(`naar de Teensy, bank ${targetBank}: ${(bytes / 1024).toFixed(0)} van ${(size / 1024).toFixed(0)} KB…`));
+      setBusy(`bank ${targetBank} op de kaart: "${bankName}" — ${bankSummary(slots, zones)}`);
+    } catch (e) {
+      setBusy(`mislukt: ${(e as Error).message}`);
+    }
+  }
+
+  /** Knop + bankkeuze voor de upload; alleen actief met een verbonden Teensy. */
+  const uploadControls = (
+    <>
+      <label title={linked ? 'Rechtstreeks naar /mmb/banks/NN.mmbs op de SD-kaart van de Teensy' : 'Verbind eerst met de Teensy (Teensy-link)'}>
+        bank{' '}
+        <select value={targetBank} onChange={(e) => setTargetBank(Number(e.target.value))} disabled={!linked}>
+          {Array.from({ length: 16 }, (_, i) => {
+            const name = link.lastStatus?.sdBankNames?.[i];
+            return <option key={i} value={i}>{String(i).padStart(2, '0')}{name ? ` · ${name}` : ''}</option>;
+          })}
+        </select>
+      </label>
+      <button onClick={() => { void uploadBank(); }} disabled={!linked}>⤒ naar Teensy</button>
+    </>
+  );
+
   // ── golfvorm ────────────────────────────────────────────────────────
   function drawWave(): void {
     const cv = canvasRef.current;
@@ -474,6 +510,7 @@ export function SampleImportModal({ open, onClose }: { open: boolean; onClose: (
             <label>Naam <input value={bankName} maxLength={27} style={{ width: 160 }}
               onChange={(e) => setBankName(e.target.value)} /></label>
             <button onClick={downloadBank}>⤓ .mmbs opslaan</button>
+            {uploadControls}
             <span style={{ color: '#94a3b8', fontSize: 12 }}>
               {loaded.slots.length} samples · {loaded.zones.length} zones staan klaar
             </span>
@@ -529,8 +566,9 @@ export function SampleImportModal({ open, onClose }: { open: boolean; onClose: (
               <button onClick={toSimulator} className="primary">→ Simulator</button>
               <label>Banknaam <input value={bankName} onChange={(e) => setBankName(e.target.value)} style={{ width: 140 }} /></label>
               <button onClick={downloadBank}>⤓ .mmbs opslaan</button>
+              {uploadControls}
               <span style={{ color: '#94a3b8', fontSize: 12 }}>
-                Kopieer het bestand naar <code>/mmb/banks</code> op de SD-kaart van de Teensy.
+                ⤓ = bestand voor de SD-kaart (<code>/mmb/banks</code>); ⤒ = meteen naar de Teensy via de link.
               </span>
             </div>
           </>

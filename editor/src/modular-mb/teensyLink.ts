@@ -184,6 +184,21 @@ if (typeof navigator !== 'undefined' && navigator.serial) {
   });
 }
 
+// Wachten op een specifieke ack (bankPut/bankDelete): de wachters kijken
+// mee met elke binnenkomende regel; de eerste die past lost de belofte in.
+interface AckWaiter { match: (msg: Record<string, unknown>) => boolean; resolve: (m: Record<string, unknown>) => void;
+  reject: (e: Error) => void; timer: ReturnType<typeof setTimeout> }
+const ackWaiters: AckWaiter[] = [];
+function waitForAck(match: (msg: Record<string, unknown>) => boolean, timeoutMs: number, what: string): Promise<Record<string, unknown>> {
+  return new Promise((resolve, reject) => {
+    const w: AckWaiter = { match, resolve, reject,
+      timer: setTimeout(() => { const i = ackWaiters.indexOf(w); if (i >= 0) ackWaiters.splice(i, 1);
+        reject(new Error(`${what}: geen antwoord van de Teensy`)); }, timeoutMs) };
+    ackWaiters.push(w);
+  });
+}
+let bankProgress: ((bytes: number, size: number) => void) | null = null;
+
 function handleLine(line: string): void {
   // Status-telemetrie komt elke paar seconden binnen tijdens polling — niet
   // in het verkeerslog spuiten, alleen in lastStatus verwerken.
@@ -192,6 +207,14 @@ function handleLine(line: string): void {
   if (!line.startsWith('{')) return;  // raw printf logs are kept in the log only
   try {
     const msg = JSON.parse(line) as { type?: string; [k: string]: unknown };
+    if (msg.type === 'ack') {
+      for (let i = 0; i < ackWaiters.length; i++) {
+        const w = ackWaiters[i]!;
+        if (w.match(msg)) { ackWaiters.splice(i, 1); clearTimeout(w.timer); w.resolve(msg); break; }
+      }
+    } else if (msg.type === 'bankProgress' && bankProgress) {
+      bankProgress(Number(msg.bytes), Number(msg.size));
+    }
     switch (msg.type) {
       case 'hello':
         setState({ status: {
@@ -491,6 +514,50 @@ export async function sendDx7Bank(bytes: Uint8Array): Promise<void> {
 
 /** Telemetrie-verzoek: firmware antwoordt met {"type":"status",...} dat in
  *  `lastStatus` belandt (niet in het verkeerslog). Stil no-op indien offline. */
+/**
+ * Een `.mmbs` naar de SD-kaart van de Teensy, zonder de kaart eruit te halen:
+ * `bankPut` opent `/mmb/banks/NN.part`, daarna gaan de bytes ruw over de
+ * poort (Web Serial doet de flow control), de Teensy hernoemt en laadt de
+ * bank opnieuw als die in gebruik was. Zie TeensyLink.h (pollRaw) voor het
+ * protocol. `onProgress` krijgt elke 256 KB een tussenstand.
+ */
+export async function sendBank(bank: number, bytes: Uint8Array,
+                               onProgress?: (bytes: number, size: number) => void): Promise<void> {
+  if (!writer) throw new Error('niet verbonden');
+  if (bank < 0 || bank > 15) throw new Error('bank 0-15');
+  const applied = (m: Record<string, unknown>, phase: string): boolean =>
+    m.applied === 'bankPut' && m.phase === phase && Boolean(m.ok);
+  const failed = (m: Record<string, unknown>): boolean =>
+    m.ok === false && typeof m.err === 'string' && m.err.startsWith('bankPut');
+  const begin = waitForAck((m) => applied(m, 'begin') || failed(m), 5000, 'bankPut');
+  await writeLine(JSON.stringify({ type: 'bankPut', bank, size: bytes.length }));
+  const b = await begin;
+  if (b.ok === false) throw new Error(String(b.err));
+  bankProgress = onProgress ?? null;
+  // Ruim de tijd: 100 KB/s als ondergrens, plus 30 s voor hernoemen en herladen.
+  const done = waitForAck((m) => applied(m, 'done') || failed(m), 30_000 + bytes.length / 100, 'bankPut');
+  try {
+    const CHUNK = 16 * 1024;
+    for (let off = 0; off < bytes.length; off += CHUNK) {
+      await writer.write(bytes.subarray(off, Math.min(off + CHUNK, bytes.length)));
+    }
+    pushLog({ ts: Date.now(), dir: 'tx', text: `bankPut: ${(bytes.length / 1024).toFixed(0)} KB verzonden naar bank ${bank}` });
+    const d = await done;
+    if (d.ok === false) throw new Error(String(d.err));
+  } finally {
+    bankProgress = null;
+  }
+  await sendGetStatus();           // banknamen op de kaart verversen
+}
+
+export async function sendBankDelete(bank: number): Promise<void> {
+  const ack = waitForAck((m) => m.applied === 'bankDelete' || (m.ok === false && String(m.err).startsWith('bankDelete')), 10_000, 'bankDelete');
+  await writeLine(JSON.stringify({ type: 'bankDelete', bank }));
+  const m = await ack;
+  if (m.ok === false) throw new Error(String(m.err));
+  await sendGetStatus();
+}
+
 export async function sendGetStatus(): Promise<void> {
   if (!writer) return;
   await writeLine(JSON.stringify({ type: 'getStatus' }), true);

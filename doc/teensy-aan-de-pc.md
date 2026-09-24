@@ -90,6 +90,12 @@ samplebank moet op een SD-kaart.
   mono 44,1 kHz. Met PSRAM 8 of 16 MB.
 - Werkt het niet, dan zegt de seriële log precies wat: `niet gevonden`,
   `ongeldige bank`, `data te kort` of `geen geheugen voor N KB`.
+- **Bank sturen zonder de kaart eruit te halen (sinds fw 0.5.67):** in
+  🎹 Multisample staat naast "⤓ .mmbs opslaan" de knop **⤒ naar Teensy** met
+  een bankkeuze; de Teensy-link moet verbonden zijn. Vanaf de commandoregel:
+  `.venv/Scripts/python tools/teensy-live/bank_put.py <bestand.mmbs> <bank>`
+  (`--list` toont wat er op de kaart staat, `--delete <bank>` haalt er een
+  weg). Snelheid ~2–12 MB/s; een bank van 60 MB is er in een paar seconden.
 - **Grote banken (sinds fw 0.5.66):** past een bank niet in PSRAM, dan
   **streamt** hij: elk sample houdt een kop (standaard 0,5 s) in PSRAM en de
   rest komt tijdens het spelen van de kaart. De log zegt `streamt` en met

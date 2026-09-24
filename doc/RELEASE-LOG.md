@@ -17,7 +17,26 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
-### fw 0.5.66 — Sampler streamt van de SD-kaart: banken groter dan het geheugen (2026-09-24)
+### fw 0.5.67 — Banken uploaden via de link, zonder de kaart eruit te halen (2026-09-24)
+- **`bankPut`**: `{"type":"bankPut","bank":N,"size":S}` → de Teensy opent
+  `/mmb/banks/NN.part` (vooraf gereserveerd), bevestigt, en leest daarna
+  precies S bytes **binair** van de poort naar de kaart (geen base64, geen
+  JSON-heap; Web Serial/USB doet de flow control). Elke 256 KB een
+  `bankProgress`, na de laatste byte `.part` → `NN.mmbs` (de oude gaat weg),
+  de kaart wordt opnieuw geïnventariseerd en een geladen bank herlaadt. Vijf
+  seconden zonder bytes = afbreken en opruimen. **`bankDelete`** haalt een
+  bank weg.
+- **Editor:** in 🎹 Multisample naast "⤓ .mmbs opslaan" nu **⤒ naar Teensy**
+  met een bankkeuze (toont de namen die op de kaart staan); voortgang in de
+  statusregel. Alleen actief met een verbonden Teensy-link.
+- **CLI:** `tools/teensy-live/bank_put.py <bestand.mmbs> <bank>`, `--list`,
+  `--delete <bank>`.
+- Gemeten: 1,8 MB in 0,9 s; de vleugel `ydp-grand-2laags.mmbs` (61 MB) in
+  4,8 s (12,7 MB/s). Die past niet in PSRAM en **streamt** meteen (fw 0.5.66):
+  60 samples, 708 s audio, koppen 500 ms = 2,6 MB resident, 0 underruns bij
+  het spelen met 8 stemmen.
+
+— Sampler streamt van de SD-kaart: banken groter dan het geheugen (2026-09-24)
 - **Wat:** een `.mmbs`-bank hoeft niet meer in PSRAM te passen. Elk sample
   krijgt een **kop** in PSRAM (standaard 0,5 s, minder als de bank groot is);
   de rest leest de hoofdlus per stem vooruit van de kaart in een ringbuffer
