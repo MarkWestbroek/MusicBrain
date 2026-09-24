@@ -9,7 +9,7 @@
 // Module positions in the graph mirror their rack slot (row × HP), so the
 // graph view is a free zoom/pan of the same physical layout.
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Background, Controls, Handle, Position,
   ReactFlow, ReactFlowProvider, ConnectionMode,
@@ -21,6 +21,7 @@ import {
 import '@xyflow/react/dist/style.css';
 
 import { updateProject, useModularProject, uid } from './store';
+import { RecipeContextMenu, type MenuAnchor } from './recipe/RecipeContextMenu';
 import { ModulePanel } from './ModulePanel';
 import { sendControlPoke } from './teensyLink';
 import { polyControlTargets } from './polyExpand';
@@ -529,6 +530,15 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
   // gedimd én onaanraakbaar (zie .mmb-connecting CSS) zodat ze nooit in de
   // weg liggen — hoe strak ze ook over een poortenrij gespannen staan.
   const [connecting, setConnecting] = useState(false);
+  // Rechtsklikmenu (ED-RC-2): vervang module, LFO/envelope op een cv-ingang,
+  // bus-effect, stemmen. Resultaat/fout kort als banner onder in de graph.
+  const [menu, setMenu] = useState<MenuAnchor | null>(null);
+  const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(null), 8000);
+    return () => clearTimeout(t);
+  }, [notice]);
 
   // Kabels van/naar een verborgen follower (ingeklapte poly-groep) worden
   // niet getekend; tel ze per groep zodat de groep-knop kan tonen dat er
@@ -863,6 +873,8 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
           onEdgeClick={onEdgeClick}
           onNodeClick={onNodeClick}
           onPaneClick={onPaneClick}
+          onNodeContextMenu={(e, node) => { e.preventDefault(); setMenu({ x: e.clientX, y: e.clientY, moduleId: node.id }); }}
+          onPaneContextMenu={(e) => { e.preventDefault(); setMenu({ x: e.clientX, y: e.clientY, moduleId: null }); }}
           connectionMode={ConnectionMode.Loose}
           deleteKeyCode={['Delete', 'Backspace']}
           edgesFocusable={true}
@@ -873,6 +885,17 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
           <Background gap={20} color="#1e293b" />
           <Controls showInteractive={false} />
         </ReactFlow>
+        {menu && (
+          <RecipeContextMenu anchor={menu} patchId={patchId} onClose={() => setMenu(null)} onResult={setNotice} />
+        )}
+        {notice && (
+          <div style={{
+            position: 'absolute', left: 8, bottom: 8, zIndex: 20, maxWidth: '80%',
+            padding: '6px 10px', borderRadius: 6, fontSize: 12,
+            background: notice.ok ? '#ecfdf5' : '#fef2f2', color: notice.ok ? '#065f46' : '#991b1b',
+            border: `1px solid ${notice.ok ? '#a7f3d0' : '#fecaca'}`,
+          }}>{notice.ok ? '✓ ' : '✕ '}{notice.text}</div>
+        )}
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>

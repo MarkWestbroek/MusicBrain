@@ -93,7 +93,7 @@ OUT, globale modulatie en bus-FX; stem v in rij v recht onder de master.
 | Fase | Wat | Status |
 |------|-----|--------|
 | 1 (ED-RC-1) | Recept-type, catalogus met aliassen, compiler → ops, `applyOps`, pariteitstest tegen `seedPolyVoicePatch` | gebouwd 2026-09-24 |
-| 2 (ED-RC-2) | Commandoregel (Ctrl+K) met deterministische parser en recept-preview; rechtsklik-werkwoorden: vervang module, maak ×N poly / mono, voeg bus-FX toe, voeg modulatie toe | open |
+| 2 (ED-RC-2) | Commandoregel (Ctrl+K) met deterministische parser en recept-preview; rechtsklik-werkwoorden: vervang module, maak ×N poly / mono, voeg bus-FX toe, voeg modulatie toe | gebouwd 2026-09-24 |
 | 3 (ED-RC-3) | LLM-adapter (OpenAI-compatibele chat-completions met JSON-uitvoer), key-instelling in de editor, tool-calls voor bewerkingen op een bestaande patch | open |
 | 4 (ED-RC-4) | Rondleiding (coach-marks op `data-tour`-ankers) en demonstratiemodus die ops afspeelt met uitleg | open |
 
@@ -145,11 +145,35 @@ laag:
 - `editor/src/modular-mb/recipe/catalog.ts` — catalogus: korte naam, aliassen, soort, speelbare startwaarden, poortrollen.
 - `editor/src/modular-mb/recipe/compile.ts` — `compileRecipe`, `applyOps`, `buildRecipe`.
 - `editor/src/modular-mb/recipe/compile.test.ts` — pariteit met `seedPolyVoicePatch`, geldigheid, aliassen.
+- `editor/src/modular-mb/recipe/parse.ts` — deterministische parser: tekst → `Command` (build / voices / replace / addBus / addModulation) + `unknown`.
+- `editor/src/modular-mb/recipe/edits.ts` — de werkwoorden op een bestaande patch: `replaceModule`, `setVoices`, `addBusFx`, `addModulation`, plus `findVoiceChain`, `findModuleByWord`, `findPortByWord`.
+- `editor/src/modular-mb/recipe/CommandPalette.tsx` — Ctrl+K-modal met preview; `runCommand` voert een `Command` uit (ook het aanknopingspunt voor de LLM-adapter).
+- `editor/src/modular-mb/recipe/RecipeContextMenu.tsx` — rechtsklikmenu in de patcher (module: vervang / LFO op / envelope op / bus-effect; leeg vlak: stemmen / bus-effect).
+- `editor/src/modular-mb/ModularMbApp.tsx` — knop "⌘ Recept", Ctrl+K, `data-tour="command-button"`.
+- `editor/src/modular-mb/PatcherGraphPanel.tsx` — `onNodeContextMenu` / `onPaneContextMenu` + resultaatbanner.
 
-Bewust niet aangeraakt in fase 1: `seedModules.ts` en de UI. De bestaande
-seeds blijven staan als referentie; de pariteitstest bewaakt dat de compiler
-dezelfde topologie oplevert. Omzetten van de seeds naar recepten kan later,
-als de UI de recepten gebruikt.
+Bewust niet aangeraakt: `seedModules.ts`. De bestaande seeds blijven staan
+als referentie; de pariteitstest bewaakt dat de compiler dezelfde topologie
+oplevert. Omzetten van de seeds naar recepten kan later.
+
+### Hoe fase 2 werkt
+
+- **Commandoregel.** Ctrl+K of "⌘ Recept". Elke toetsaanslag toont de
+  preview ("Nieuwe patch: 8× poly · WT-VCO → VCF → VCA · bus: Diode") en de
+  restlijst "niet begrepen". Een nieuwe patch wordt droog gecompileerd
+  zodat fouten en waarschuwingen al vóór Bouw zichtbaar zijn. Bewerkingen
+  gelden voor de actieve patch; een kaal stemmental ("8 stemmig") is dan
+  een bewerking, met "nieuw" erbij een nieuwe patch.
+- **Vervangen behoudt id's.** `replaceModule` zet het type om op dezelfde
+  module-id, mapt poorten op rol (audio in/uit, voct, gate, vel, tune, cv,
+  modulation, strength) en daarna op gelijke id; onmapbare kabels vervallen
+  met een waarschuwing. Een lid van een poly-groep vervangt de hele groep.
+- **×N poly.** Bij een mono patch is de stemketen alles wat vooruit
+  bereikbaar is vanaf de voice-poorten van de event-source, tot aan een
+  sommerende sink (mixer) of OUT. Followers komen in rij master+v; een
+  te kleine mixer wordt op dezelfde id vervangen door Mixer-8/16.
+- **Modulatie.** Een LFO is globaal (fan-out via de flatten); een envelope
+  op een poly-master wordt per stem met een eigen groep en MIDI-gate.
 
 ## Open punten
 

@@ -6,6 +6,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { setProject, updateProject, useModularProject, getProject, undo, redo } from './store';
+import { CommandPalette } from './recipe/CommandPalette';
 import { emptyModularProject } from './types';
 import { exportPanel, importPanel, parsePanelFile } from './panelIO';
 import { BUS_SOLO_FX, CONSOLE_EQ_SOLO_FX, PARA_EQ_SOLO_FX, DIODE_SOLO_FX, EQ_SOLO_FX, FET_SOLO_FX, OPTO_SOLO_FX, SAMPLER_MASTER_FX, VARIMU_SOLO_FX, seedExampleModules, seedInternals, seedTestPatch, seedFmTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, seedDx7PolyPatch, seedSamplerPolyPatch, seedWarpsVocoderPatch, seed808JamPatch, seedKrellPatch, type PolySeedOptions } from './seedModules';
@@ -64,6 +65,7 @@ export function ModularMbApp(): JSX.Element {
   const [showPoly,    setShowPoly]    = useState(false);
   const [showStress,  setShowStress]  = useState(false);
   const [showSolo,    setShowSolo]    = useState(false);
+  const [showCmd,     setShowCmd]     = useState(false);   // Ctrl+K commandoregel (ED-RC-2)
   const importRef = useRef<HTMLInputElement>(null);
   const panelInRef = useRef<HTMLInputElement>(null);
   const [showPanels, setShowPanels] = useState(false);
@@ -77,6 +79,7 @@ export function ModularMbApp(): JSX.Element {
       const tag = t?.tagName?.toLowerCase();
       if (tag === 'input' || tag === 'textarea' || (t && t.isContentEditable)) return;
       const k = e.key.toLowerCase();
+      if (k === 'k') { e.preventDefault(); setShowCmd(true); return; }
       if (k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
       else if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); redo(); }
     }
@@ -273,6 +276,12 @@ export function ModularMbApp(): JSX.Element {
           </span>
           <input ref={panelInRef} type="file" accept=".json,application/json"
             style={{ display: 'none' }} onChange={onImportPanelFile} />
+          <button
+            onClick={() => setShowCmd(true)}
+            title="Commandoregel (Ctrl+K): typ wat je wilt bouwen of veranderen — 'maak een 8x poly patch met een wavetable osc en een diode compressor op het eind', 'maak deze patch 4 stemmig', 'vervang de osc door een ladder'"
+            data-tour="command-button"
+            style={{ fontWeight: 600 }}
+          >⌘ Recept</button>
           <button
             onClick={() => setShowPresets(true)}
             title="Presets opslaan/laden (project of per module)"
@@ -539,6 +548,8 @@ export function ModularMbApp(): JSX.Element {
           >Nieuw</button>
         </div>
       </div>
+
+      <CommandPalette open={showCmd} onClose={() => setShowCmd(false)} onBuilt={() => setTab('patcher')} />
 
       {/* ── Sub-tabs ── */}
       <nav style={{ display: 'flex', gap: 4, borderBottom: '1px solid #cbd2d9', marginBottom: 12 }}>
