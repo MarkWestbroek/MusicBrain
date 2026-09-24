@@ -313,3 +313,46 @@ describe('tp_mmb_comp', () => {
     expect(r).toBeCloseTo(0.5 * Math.SQRT1_2, 3);
   });
 });
+
+describe('tp_mmb_comb', () => {
+  it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_comb'); });
+
+  /** Lusperiode na één klap, via autocorrelatie van de natte staart. */
+  const lusperiode = async (coarse: number): Promise<number> => {
+    const m = await load('tp_mmb_comb');
+    m.setCtl('mix', 1); m.setCtl('feedback', 0.95); m.setCtl('coarse', coarse);
+    const [o] = m.render(0.5, (t, mm) => {
+      const b = mm.inBuf('in');
+      for (let k = 0; k < mm.block; k++) b[k] = t === 0 && k === 0 ? 1 : 0;
+    });
+    const a = o!.slice(2000, 12000);
+    let best = 0, bestLag = 0;
+    for (let lag = 50; lag < 1500; lag++) {
+      let c = 0;
+      for (let i = 0; i + lag < a.length; i++) c += a[i]! * a[i + lag]!;
+      if (c > best) { best = c; bestLag = lag; }
+    }
+    return bestLag;
+  };
+
+  it('resoneert zoals de hardware: lus = vertraging + één Teensy-blok', async () => {
+    // Deze test legt hardwaregedrag vast dat ik voor een firmware-fout houd:
+    // de feedback loopt door de Teensy-audiograaf en komt daardoor 128
+    // samples te laat. Bij C4 is de vertraging 169 samples, de lus dus 297 —
+    // 148 Hz in plaats van 262. Wordt de firmware ooit rechtgezet (een kernel
+    // met een lus van één sample), dan hoort deze test mee te veranderen.
+    expect(await lusperiode(0)).toBe(169 + 128);
+    // Een octaaf hoger halveert alleen de vertraging, niet het blok erbij:
+    // C5 = 1,911 ms → 84 samples, lus 84 + 128 = 212. De comb volgt V/Oct
+    // dus niet: de toon gaat 297/212 = 1,4× omhoog in plaats van 2×.
+    expect(await lusperiode(12)).toBe(84 + 128);
+  });
+
+  it('laat droog door bij mix 0', async () => {
+    const m = await load('tp_mmb_comb');
+    m.setCtl('mix', 0);
+    m.setIn('in', 0.5);
+    const [o] = m.render(0.05);
+    expect(o![o!.length - 1]!).toBeCloseTo(0.5, 5);
+  });
+});

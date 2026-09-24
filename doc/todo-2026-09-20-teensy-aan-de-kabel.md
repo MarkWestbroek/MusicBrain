@@ -81,3 +81,35 @@ De SPRD-knop in de catalogus gaat tot 100 cent, de firmware klemt op 200
 (`MidiIn.cpp`). Draai je de knop helemaal open, dan krijg je de helft van wat
 de firmware aankan. De simulator volgt de firmware. Optrekken of de firmware
 terugbrengen — maakt niet uit, als het maar één getal wordt.
+
+## 5. Gevonden bij het porten naar de simulator (24 september)
+
+Deze drie heb ik in de simulator letterlijk nagebootst, want pariteit betekent
+dat de browser doet wat de hardware doet — ook als dat een fout is. Maar het
+zijn waarschijnlijk fouten, en ze verdienen je oren.
+
+**De comb staat vals, en volgt V/Oct niet** (`CombModule.h`). De feedback loopt
+door de Teensy-audiograaf: `fbAmp_ → inMix_`. De Teensy werkt de objecten af
+in constructievolgorde en `inMix_` komt vóór `fbAmp_`, dus de mixer krijgt de
+feedback van het *vorige* blok. De luslengte is daardoor de vertraging plús
+128 samples:
+
+| gestemd | vertraging | lus | klinkt op | fout |
+|---|---|---|---|---|
+| C4 (262 Hz) | 169 | 297 | 148 Hz | ~10 halve tonen te laag |
+| C5 (523 Hz) | 84 | 212 | 208 Hz | ~16 halve tonen te laag |
+
+Een octaaf hoger spelen maakt de toon dus maar 1,4× hoger in plaats van 2×. De
+simulator-test `tp_mmb_comb › resoneert zoals de hardware` legt dit vast.
+Oplossing: een eigen `mmb_dsp::Comb`-kernel met de feedback binnen de lus van
+één sample, zoals de resonator al werkt. Dat verandert de klank — dus eerst
+horen of de huidige comb inderdaad zo vals klinkt als deze rekensom zegt.
+
+**`thr_cv` op de compressor** (`CompDriveModule.h`) zet de drempel op de
+CV-*waarde* in dB. Een CV van 0..1 geeft dus een drempel van 0..1 dB, oftewel
+vrijwel geen compressie. Vermoedelijk hoort de CV geschaald te worden naar het
+bereik van de knop (−48..0 dB).
+
+**De resonator heeft twee uitgangen die hetzelfde signaal geven.** `out` en
+`mix` wijzen allebei naar kanaal 0, terwijl de kop `out` "nat" noemt. Geen
+klankprobleem, wel een belofte die de module niet waarmaakt.
