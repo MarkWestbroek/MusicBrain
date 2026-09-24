@@ -90,6 +90,16 @@ samplebank moet op een SD-kaart.
   mono 44,1 kHz. Met PSRAM 8 of 16 MB.
 - Werkt het niet, dan zegt de seriële log precies wat: `niet gevonden`,
   `ongeldige bank`, `data te kort` of `geen geheugen voor N KB`.
+- **Grote banken (sinds fw 0.5.66):** past een bank niet in PSRAM, dan
+  **streamt** hij: elk sample houdt een kop (standaard 0,5 s) in PSRAM en de
+  rest komt tijdens het spelen van de kaart. De log zegt `streamt` en met
+  welke kop. Wil je testen of dat schoon gaat: `{"type":"samplerHead","ms":20,
+  "force":true}` dwingt streamen af (ook voor een kleine bank), de status
+  toont `smp.under` (frames te laat; hoort 0 te zijn) en `smp.maxUs`
+  (traagste leesbeurt). `{"type":"samplerHead","ms":500}` zet het terug. De
+  zelftest `{"type":"selfTest","bank":0,"stream":true,"headMs":20}` speelt
+  resident en gestreamd en vergelijkt sample-exact (`diffs` hoort 0 te zijn).
+  Gemeten: 8 stemmen op +2 octaaf (4× leestempo) zonder underruns.
 
 ## 4. Zelf testen zonder handen (noten sturen en opnemen)
 

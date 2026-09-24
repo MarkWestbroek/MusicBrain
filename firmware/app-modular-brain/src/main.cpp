@@ -271,11 +271,70 @@ void onSelectPatch(const char* patchId) {
 // ook op de pc; verschillen de tellingen, dan rekent de ARM anders. Zijn ze
 // gelijk, dan ontstaan tikken die je hoort pas in de audiostroom. Blokkeert
 // de hoofdlus ~1 s per resonantie (CV-tick staat dan stil) — alleen voor tests.
+static void selfTestTick(void* arg) { static_cast<mmb_link::SampleBank*>(arg)->service(); }
+
 void onSelfTest(JsonObjectConst req, JsonObject out) {
     auto& bank = mmb_link::SampleBank::instance();
     const int want = req["bank"] | 0;
     if (!bank.load(want) && bank.numSlots() == 0) { out["error"] = "bank niet geladen"; return; }
     static mmb_dsp::SamplePlayer v[3];
+
+    // {"type":"selfTest","stream":true,"headMs":20}: resident tegen gestreamd,
+    // sample-exact. Eerst met een kop die alles resident maakt (of de bank
+    // past sowieso), dan met een korte kop zodat de bank van de kaart moet
+    // komen; de "hoofdlus" is hier de tick tussen de sub-blokken.
+    if (req["stream"] | false) {
+        const int headMs = req["headMs"] | 20;
+        const long total = static_cast<long>(4.0f * AUDIO_SAMPLE_RATE_EXACT);
+        int16_t* ref = nullptr;
+#if defined(ARDUINO_TEENSY41)
+        if (external_psram_size > 0) ref = static_cast<int16_t*>(extmem_malloc(total * sizeof(int16_t)));
+#endif
+        if (!ref) { out["error"] = "geen PSRAM voor de referentie"; return; }
+        const uint32_t was = bank.headMs();
+        bank.setHeadMs(60000, false);
+        out["residentA"] = !bank.streamingBank();
+        // Verse spelers: Init() laat gesmoothe filtertoestand staan, en dan
+        // verschilt run B al vanaf het eerste sample van run A.
+        for (auto& p : v) { p = mmb_dsp::SamplePlayer{}; p.Init(AUDIO_SAMPLE_RATE_EXACT); p.bind(bank.slots(), bank.numSlots(), bank.zones(), bank.numZones()); }
+        bank.attachVoices(v, 3);
+        mmb_dsp::BreakCounter bcA;
+        mmb_dsp::samplerSelfTest(v, AUDIO_SAMPLE_RATE_EXACT, 0.55f, 1.5f, bcA, selfTestTick, &bank, ref, total);
+        bank.setHeadMs(headMs, true);
+        out["streamingB"] = bank.streamingBank();
+        out["headMsB"] = bank.headMsActual();
+        for (auto& p : v) { p = mmb_dsp::SamplePlayer{}; p.Init(AUDIO_SAMPLE_RATE_EXACT); p.bind(bank.slots(), bank.numSlots(), bank.zones(), bank.numZones()); }
+        bank.attachVoices(v, 3);
+        long diffs = 0, first = -1; int maxd = 0;
+        mmb_dsp::BreakCounter bcB;
+        const uint32_t t0 = millis();
+        // Opname B in een tweede PSRAM-blok, dan per sample vergelijken.
+        int16_t* capB = nullptr;
+#if defined(ARDUINO_TEENSY41)
+        capB = static_cast<int16_t*>(extmem_malloc(total * sizeof(int16_t)));
+#endif
+        const long n = mmb_dsp::samplerSelfTest(v, AUDIO_SAMPLE_RATE_EXACT, 0.55f, 1.5f, bcB, selfTestTick, &bank, capB, total);
+        if (capB) {
+            for (long i = 0; i < n && i < total; ++i) {
+                const int d = std::abs(static_cast<int>(ref[i]) - static_cast<int>(capB[i]));
+                if (d) { ++diffs; if (first < 0) first = i; if (d > maxd) maxd = d; }
+            }
+            extmem_free(capB);
+        } else {
+            out["error"] = "geen PSRAM voor opname B";
+        }
+        extmem_free(ref);
+        out["samples"] = n; out["diffs"] = diffs; out["firstDiff"] = first; out["maxDiff"] = maxd;
+        out["underruns"] = bank.streamUnderruns();
+        out["chunks"] = bank.streamChunks(); out["streamKB"] = bank.streamKB();
+        out["maxUs"] = bank.streamMaxUs();
+        out["breaksA"] = bcA.count; out["breaksB"] = bcB.count;
+        out["ms"] = millis() - t0;
+        bank.setHeadMs(was, false);
+        out["bank"] = want;
+        return;
+    }
+
     JsonArray res = out["runs"].to<JsonArray>();
     const float qs[] = { 0.55f, 0.8f, 0.9f };
     for (float q : qs) {
@@ -307,6 +366,20 @@ void onGetStatus(JsonObject s) {
         u["paced"] = q.paced; u["free"] = q.freeRun;
         u["fillMin"] = q.fillMin; u["fillMax"] = q.fillMax;
         u["perMinUs"] = q.periodMinUs; u["perMaxUs"] = q.periodMaxUs;
+    }
+    {
+        // Sampler-streamen: streamt de bank, koplengte, leesbeurten sinds de
+        // vorige poll, underruns (frames te laat) en de traagste leesbeurt.
+        auto& bank = mmb_link::SampleBank::instance();
+        JsonObject m = s["smp"].to<JsonObject>();
+        m["stream"] = bank.streamingBank();
+        m["headMs"] = bank.headMsActual();
+        m["chunks"] = bank.streamChunks();
+        m["kb"]     = bank.streamKB();
+        m["under"]  = bank.streamUnderruns();
+        m["maxUs"]  = bank.streamMaxUs();
+        m["leadMin"] = bank.streamLeadMin();
+        m["svc"]    = bank.streamServiceCalls();
     }
     s["modules"]  = static_cast<int>(runtime.instanceCount());
     s["retired"]  = static_cast<int>(runtime.retiredCount());
@@ -656,12 +729,17 @@ void setup() {
     link.onDx7Bank(onDx7Bank);           // FW-AU-13: DX7-bank push
     mmb_link::SampleBank::instance().beginStorage();   // SD-kaart voor de .mmbk-samplebanken
     link.onGetStatus(onGetStatus);       // telemetrie voor de editor
-    link.onSelfTest(onSelfTest);         // diagnose: MS-20 in de sampler, zonder uitgang
+    link.onSelfTest(onSelfTest);
+    link.onSamplerHead([](int ms, bool force) {
+        mmb_link::SampleBank::instance().setHeadMs(static_cast<uint32_t>(ms), force);
+    });         // diagnose: MS-20 in de sampler, zonder uitgang
 }
 
 void loop() {
     while (usbMIDI.read()) { /* drain */ }
     link.poll();
+    // Sampler-streamen: ringen vooruit vullen van de SD (alleen als de bank streamt).
+    mmb_link::SampleBank::instance().service();
 
     // CV tick — advance envelopes approximately every 1 ms
     const uint32_t now = millis();

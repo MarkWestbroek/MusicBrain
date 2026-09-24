@@ -148,6 +148,12 @@ def main():
         s = json.loads(st[-1])
         print(f"cpu {s['cpu']:.1f}% (max {s['cpuMax']:.1f}%)  mem {s['mem']}/{s['memMax']}  outPeak {s.get('outPeak')}")
         print('usbQ', s.get('usbQ'))
+        if s.get('smp'): print('smp ', s.get('smp'))
+    smp_log = [l.strip() for l in rx if '[sampler]' in l]
+    for l in smp_log[:12]:
+        print('   ', l[:150])
+    if len(smp_log) > 12:
+        print(f'    ... nog {len(smp_log) - 12} [sampler]-regels')
     if a.wav:
         w = wave.open(a.wav, 'wb')
         w.setnchannels(2); w.setsampwidth(2); w.setframerate(44100)

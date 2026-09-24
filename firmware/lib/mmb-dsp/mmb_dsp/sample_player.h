@@ -29,6 +29,17 @@
  * draagt zijn eigen inzet en houdt `attack` op 0, een pad of koor zet die in
  * de envelope en geeft de zone een opkomsttijd. De `attack`-control van de
  * module telt daar bovenop, zodat de knop altijd iets doet.
+ *
+ * **Streamen.** Een slot hoeft niet helemaal in het geheugen te staan: `data`
+ * mag alleen de eerste `resident` frames bevatten (de kop). Een stem die
+ * verder komt leest de rest uit een ringbuffer per stem (`attachStream`) die
+ * een vuller buiten de audiolus vooruit vult — op de Teensy vanaf de SD-kaart
+ * in de hoofdlus. De stem volgt dan één monotone index in *afspeelvolgorde*;
+ * loop-wraps zitten in de vuller (`streamNext`), zodat de audiolus nooit een
+ * bestand ziet. Staat alles in het geheugen (`resident` = alles, zoals in de
+ * simulator), dan verandert er niets: dat pad is byte-gelijk aan vroeger.
+ * Uitzondering: een gestreamde LOOP_SUSTAIN-zone speelt na note-off nog de al
+ * gevulde loopframes (hooguit één ring) voordat de staart begint.
  */
 
 #include <cmath>
@@ -55,6 +66,9 @@ struct SampleSlot {
     int            frames   = 0;
     int            channels = 1;
     float          rate     = 44100.0f;
+    /** Frames die in `data` staan (de kop); −1 = alles. De rest streamt. */
+    int            resident = -1;
+    int  residentFrames() const { return resident < 0 ? frames : resident; }
     bool valid() const { return data != nullptr && frames > 1 && channels >= 1; }
 };
 
@@ -128,6 +142,86 @@ public:
 
     /** Opkomsttijd van de module-control; de zone telt de zijne erbij op. */
     void setAttackMs(float ms) { ctlAttackS_ = (ms < 0.2f ? 0.2f : ms) * 0.001f; }
+
+    // ── streamen ───────────────────────────────────────────────────────
+    /** Toestand van de stream van deze stem; de vuller leest en schrijft hem. */
+    struct Stream {
+        int16_t*          ring       = nullptr;  ///< ringFrames × kanalen int16, interleaved zoals het sample (aanroeper)
+        int               ringFrames = 0;
+        volatile bool     active     = false;    ///< deze noot streamt
+        volatile uint32_t gen        = 0;        ///< note-on-teller: de vuller checkt of de noot nog dezelfde is
+        volatile int32_t  fillIdx    = 0;        ///< eerste nog niet gevulde afspeelindex
+        volatile int32_t  fillPos    = 0;        ///< bijbehorend frame in het sample
+        volatile int32_t  endIdx     = -1;       ///< afspeelindex waar het sample ophoudt (−1 = nog niet bereikt)
+        volatile bool     tail       = false;    ///< LOOP_SUSTAIN na note-off: niet meer loopen
+        int32_t           headUse    = 0;        ///< tot hier komt een index uit de kop (min(kop, loopEnd))
+        uint32_t          underruns  = 0;        ///< frames die niet op tijd gevuld waren
+        bool              reported   = false;    ///< diagnose: eerste underrun van deze noot al gemeld
+        // Kopie van wat de vuller nodig heeft (stabiel zolang de bank staat).
+        const SampleSlot* slot = nullptr;
+        int  loopStart = 0, loopEnd = 0;
+        bool loops = false;
+    };
+    /** Ringbuffer voor deze stem: ringFrames frames, stride = kanalen van het sample (≤ 2: quad streamt niet). */
+    void attachStream(int16_t* ring, int ringFrames) { stream_.ring = ring; stream_.ringFrames = ringFrames; }
+    const Stream& stream() const { return stream_; }
+    /** Afspeelindex van de streamende noot (diagnose). */
+    int32_t streamIdx() const { return idx_; }
+    uint32_t streamUnderruns() const { return stream_.underruns; }
+
+    /**
+     * Vraagt de vuller: is er ruimte voor `chunk` frames? Zo ja, dan geeft
+     * `pos` het samplefame waar gelezen moet worden en `count` hoeveel (hooguit
+     * `chunk`, ingekort op een loop-einde of het sample-einde). Daarna leest de
+     * vuller die frames en roept `streamCommit`. Nooit vanuit de audiolus.
+     */
+    bool streamNext(int chunk, uint32_t& gen, int32_t& pos, int32_t& count) const {
+        const Stream& st = stream_;
+        if (!st.active || st.endIdx >= 0 || !st.slot) return false;
+        if (st.fillIdx - idx_ > st.ringFrames - chunk) return false;   // ring vol genoeg
+        gen = st.gen;
+        pos = st.fillPos;
+        int32_t limit = st.slot->frames;
+        const bool inLoop = st.loops && !st.tail && st.loopEnd > st.loopStart && pos < st.loopEnd;
+        if (inLoop) limit = st.loopEnd;
+        count = limit - pos;
+        if (count > chunk) count = chunk;
+        // Korte loop (past in één leesbeurt): dan mag de vuller een hele
+        // chunk uitrollen — anders kost elke loop-omloop een leesbeurt, en
+        // een loop van één periode (E-piano uit een SoundFont) is dan trager
+        // dan afspelen. Welk frame de k-de is, zegt streamFramePos().
+        if (inLoop && pos >= st.loopStart && st.loopEnd - st.loopStart <= chunk) count = chunk;
+        if (count <= 0) { count = 0; }
+        return true;
+    }
+    /** Het samplefame van het k-de frame van een vulling die op `pos` begint (met loop-wraps). */
+    static int32_t streamFramePos(const Stream& st, int32_t pos, int32_t k) {
+        const int32_t p = pos + k;
+        if (st.loops && !st.tail && st.loopEnd > st.loopStart && pos < st.loopEnd && p >= st.loopEnd)
+            return st.loopStart + (p - st.loopEnd) % (st.loopEnd - st.loopStart);
+        return p;
+    }
+    /** Waar in de ring `count` frames vanaf afspeelindex `fillIdx` horen (mag wrappen: twee stukken). */
+    int32_t streamRingIndex() const { return stream_.fillIdx % stream_.ringFrames; }
+    /**
+     * De vuller heeft `count` frames vanaf `pos` in de ring gezet (op
+     * streamRingIndex(), met wrap). Alleen geldig als `gen` nog klopt (anders
+     * was er intussen een nieuwe noot en is de vulling weggegooid).
+     */
+    void streamCommit(uint32_t gen, int32_t pos, int32_t count) {
+        Stream& st = stream_;
+        if (!st.active || gen != st.gen) return;
+        int32_t next = pos + count;
+        bool ended = false;
+        if (st.loops && !st.tail && st.loopEnd > st.loopStart && next >= st.loopEnd && pos < st.loopEnd) {
+            next = st.loopStart + (next - st.loopEnd) % (st.loopEnd - st.loopStart);   // ook meerdere omlopen
+        } else if (next >= st.slot->frames) {
+            ended = true;
+        }
+        st.fillPos = next;
+        st.fillIdx = st.fillIdx + count;
+        if (ended) st.endIdx = st.fillIdx;
+    }
     void set_level(float l)    { level_ = l < 0.0f ? 0.0f : (l > 1.0f ? 1.0f : l); }
     /** Extra transponering bovenop de zone (module-controls coarse/fine). */
     void set_transpose(float semitones) { transpose_ = semitones; }
@@ -209,6 +303,11 @@ public:
         gate_ = true;
         active_ = true;
         updateIncrement();
+        beginStream();
+        // Zonder stream (alles resident, of geen ring): niet voorbij wat er
+        // in het geheugen staat lezen.
+        framesAvail_ = streaming_ ? slot_->frames : slot_->residentFrames();
+        if (posInt_ > framesAvail_ - 1) posInt_ = framesAvail_ - 1;
     }
 
     void noteOff(int midi) {
@@ -216,6 +315,7 @@ public:
         gate_ = false;
         if (zone_ && zone_->loopMode == LOOP_ONE_SHOT) return;   // speelt uit
         envState_ = ENV_RELEASE;
+        if (streaming_ && zone_->loopMode == LOOP_SUSTAIN) stream_.tail = true;
     }
     void allOff() { gate_ = false; if (active_) envState_ = ENV_RELEASE; }
 
@@ -247,19 +347,31 @@ public:
 
         // ── lezen met lineaire interpolatie, per kanaal, zelfde frame ──
         const int ch = slot_->channels;
-        const int i0 = posInt_;
+        const int i0 = streaming_ ? idx_ : posInt_;
         int i1 = i0 + 1;
         const bool looping = (zone_->loopMode == LOOP_CONTINUOUS)
                           || (zone_->loopMode == LOOP_SUSTAIN && gate_);
-        if (looping && i1 >= zone_->loopEnd && zone_->loopEnd > zone_->loopStart) {
+        if (streaming_) {
+            // Loop-wraps zitten al in de vulling; alleen het einde clampt.
+            if (stream_.endIdx >= 0 && i1 >= stream_.endIdx) i1 = i0;
+        } else if (looping && i1 >= zone_->loopEnd && zone_->loopEnd > zone_->loopStart) {
             i1 = zone_->loopStart;                  // naadloos over de loop heen
-        } else if (i1 >= slot_->frames) {
+        } else if (i1 >= framesAvail_) {
             i1 = i0;
         }
         const float f = posFrac_;
         const float amp = env_ * decayGain_ * zone_->gain * velGain_ * level_ * (1.0f / 32768.0f);
-        const int16_t* base0 = slot_->data + static_cast<long>(i0) * ch;
-        const int16_t* base1 = slot_->data + static_cast<long>(i1) * ch;
+        const int16_t* base0;
+        const int16_t* base1;
+        if (!streaming_) {
+            base0 = slot_->data + static_cast<long>(i0) * ch;
+            base1 = slot_->data + static_cast<long>(i1) * ch;
+        } else {
+            // Gestreamd: i0/i1 zijn afspeelindexen; kop of ring, anders underrun.
+            base0 = fetch(i0);
+            base1 = fetch(i1);
+            if (!base0 || !base1) { ++stream_.underruns; base0 = base1 = zeroFrame_; }
+        }
 
         float v[kMaxChannels];
         float mono = 0.0f;
@@ -288,13 +400,22 @@ public:
         // ── voortbewegen ──
         posFrac_ += inc_;
         const int step = static_cast<int>(posFrac_);
+        if (streaming_) {
+            if (step) { idx_ += step; posFrac_ -= static_cast<float>(step); }
+            if (stream_.endIdx >= 0 && idx_ >= stream_.endIdx - 1) {
+                idx_ = stream_.endIdx - 1;
+                posFrac_ = 0.0f;
+                if (envState_ != ENV_RELEASE) { envState_ = ENV_RELEASE; }
+            }
+            return;
+        }
         if (step) { posInt_ += step; posFrac_ -= static_cast<float>(step); }
 
         if (looping && zone_->loopEnd > zone_->loopStart && posInt_ >= zone_->loopEnd) {
             posInt_ = zone_->loopStart + (posInt_ - zone_->loopEnd);
             if (posInt_ >= zone_->loopEnd) posInt_ = zone_->loopStart;
-        } else if (posInt_ >= slot_->frames - 1) {
-            posInt_ = slot_->frames - 1;
+        } else if (posInt_ >= framesAvail_ - 1) {
+            posInt_ = framesAvail_ - 1;
             posFrac_ = 0.0f;
             if (envState_ != ENV_RELEASE) { envState_ = ENV_RELEASE; }
         }
@@ -307,6 +428,58 @@ private:
         active_ = false; gate_ = false; zone_ = nullptr; slot_ = nullptr;
         note_ = -1; posInt_ = 0; posFrac_ = 0.0f; env_ = 0.0f; envState_ = ENV_IDLE;
         decayGain_ = 1.0f; decayMul_ = 1.0f;
+        streaming_ = false; idx_ = 0;
+        stream_.active = false; stream_.slot = nullptr; stream_.endIdx = -1;
+    }
+
+    /** Bij note-on: streamt deze noot, en zo ja, waar begint de vulling? */
+    void beginStream() {
+        streaming_ = false;
+        stream_.active = false;
+        const int head = slot_->residentFrames();
+        if (!stream_.ring || stream_.ringFrames <= 0 || head >= slot_->frames) return;
+        const bool loopsInHead = zone_->loopMode == LOOP_CONTINUOUS
+                              && zone_->loopEnd > zone_->loopStart && zone_->loopEnd <= head;
+        if (loopsInHead) return;                       // komt nooit voorbij de kop
+        if (slot_->channels > 2) return;               // quad: ring is stereo; blijft bij de kop
+        streaming_ = true;
+        idx_ = posInt_;                                // startpunt (frame == index vóór de eerste wrap)
+        stream_.slot = slot_;
+        stream_.loops = (zone_->loopMode == LOOP_CONTINUOUS || zone_->loopMode == LOOP_SUSTAIN)
+                      && zone_->loopEnd > zone_->loopStart;
+        stream_.loopStart = zone_->loopStart;
+        stream_.loopEnd = zone_->loopEnd;
+        stream_.tail = false;
+        stream_.endIdx = -1;
+        stream_.underruns = 0;
+        stream_.reported = false;
+        // Uit de kop alleen zolang index == frame, dus vóór de eerste loop-wrap.
+        int32_t headUse = head;
+        if (stream_.loops && stream_.loopEnd < headUse) headUse = stream_.loopEnd;
+        stream_.headUse = headUse;
+        // De ring begint waar de kop ophoudt (of op het startpunt als dat verder ligt).
+        const int32_t startFill = idx_ > headUse ? idx_ : headUse;
+        stream_.fillIdx = startFill;
+        // Vulpositie = het frame dat bij die afspeelindex hoort: voorbij
+        // loopEnd is dat via de loop-afbeelding (index == loopEnd → loopStart).
+        int32_t fillPos = startFill;
+        if (stream_.loops && fillPos >= stream_.loopEnd) {
+            const int32_t len = stream_.loopEnd - stream_.loopStart;
+            fillPos = stream_.loopStart + (fillPos - stream_.loopEnd) % len;
+        }
+        stream_.fillPos = fillPos;
+        stream_.gen = stream_.gen + 1;
+        stream_.active = true;
+    }
+
+    /** Frame `i` (afspeelindex) uit de kop of de ring; nullptr = nog niet gevuld. */
+    inline const int16_t* fetch(int32_t i) const {
+        const int ch = slot_->channels;
+        const Stream& st = stream_;
+        if (i < st.headUse) return slot_->data + static_cast<long>(i) * ch;
+        const int32_t fill = st.fillIdx;
+        if (i >= fill || i < fill - st.ringFrames) return nullptr;
+        return st.ring + static_cast<long>(i % st.ringFrames) * ch;
     }
     void updateIncrement() {
         if (!slot_ || !zone_) { inc_ = 1.0f; return; }
@@ -322,6 +495,11 @@ private:
     const Zone*       zone_ = nullptr;
 
     int   posInt_ = 0;
+    int   framesAvail_ = 0;           ///< resident pad: frames die gelezen mogen worden
+    int32_t idx_ = 0;                 ///< afspeelindex (gestreamd)
+    bool  streaming_ = false;
+    Stream stream_;
+    static constexpr int16_t zeroFrame_[kMaxChannels] = { 0, 0, 0, 0 };
     float posFrac_ = 0.0f, inc_ = 1.0f;
     float voct_ = 0.0f, transpose_ = 0.0f, startOffset_ = 0.0f, level_ = 0.8f;
     float velGain_ = 1.0f;

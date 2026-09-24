@@ -17,7 +17,36 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
-### fw 0.5.65 — Para EQ: vierbands parametrisch in SSL/API-stijl (2026-09-24)
+### fw 0.5.66 — Sampler streamt van de SD-kaart: banken groter dan het geheugen (2026-09-24)
+- **Wat:** een `.mmbs`-bank hoeft niet meer in PSRAM te passen. Elk sample
+  krijgt een **kop** in PSRAM (standaard 0,5 s, minder als de bank groot is);
+  de rest leest de hoofdlus per stem vooruit van de kaart in een ringbuffer
+  (16.384 frames ≈ 370 ms). De audio-ISR leest kop of ring, nooit de kaart.
+  Past de hele bank, dan blijft alles resident en verandert er niets. Zo
+  wordt de bankgrootte de kaart (64 GB) in plaats van 8 MB.
+- **Hoe:** de stem volgt één monotone index in *afspeelvolgorde*; loop-wraps
+  en het sample-einde zitten in de vuller (`streamNext`/`streamCommit` in
+  `mmb_dsp/sample_player.h`), dus de ISR ziet nooit een bestand. Korte loops
+  (één periode, zoals een E-piano uit een SoundFont) worden één keer gelezen
+  en in de ring uitgerold — anders kostte elke omloop een leesbeurt en was
+  de vuller trager dan afspelen. Leesbeurten sector-uitgelijnd (DMA), 4096
+  frames per beurt, de stem met de kleinste voorsprong eerst.
+- **Bewezen:** natief (clang) en op de Teensy zelf: de zelftest speelt het
+  scenario resident en gestreamd met een kop van 20 ms en vergelijkt sample
+  voor sample — **0 verschillen** over 176.400 samples, 0 underruns
+  (`{"type":"selfTest","bank":0,"stream":true,"headMs":20}`). Live met de
+  Rhodes-bank (8 stemmen, kop geforceerd op 20/50/100 ms): 0 underruns op
+  1×, 2× (+1 oct) én 4× (+2 oct) leestempo; traagste leesbeurt 1,5 ms.
+- **Grens:** een gestreamde LOOP_SUSTAIN-zone speelt na note-off nog de al
+  gevulde loopframes (hooguit één ring) voordat de staart begint. Quad-
+  samples streamen niet (ring is stereo) en blijven heel resident.
+- **Link:** `{"type":"samplerHead","ms":N,"force":bool}` zet de koplengte
+  (force = ook streamen als de bank past; voor test en afstelling). Status:
+  `smp` = {stream, headMs, chunks, kb, under, maxUs, leadMin, svc}.
+- Geen editor-wijziging nodig; de sim blijft alles-resident (byte-gelijk).
+  `tools/teensy-live` toont `smp` en de `[sampler]`-regels uit het log.
+
+— Para EQ: vierbands parametrisch in SSL/API-stijl (2026-09-24)
 - **PARA EQ** (`tp_mmb_para_eq`, 14 HP), stap 2 van het EQ-plan; kern
   `mmb_dsp/param_eq.h` op de gedeelde biquads. LF (30–450 Hz) en HF (1,5–16
   kHz) schakelbaar bell/shelf, LMF (200 Hz–2 kHz) en HMF (600 Hz–7 kHz) met

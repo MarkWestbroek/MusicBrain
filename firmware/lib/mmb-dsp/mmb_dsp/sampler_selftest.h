@@ -47,7 +47,15 @@ struct BreakCounter {
  * Speel het scenario op drie stemmen die al Init() en bind() hebben gehad.
  * @return aantal gerenderde samples.
  */
-inline long samplerSelfTest(SamplePlayer* v, float sr, float q, float drive, BreakCounter& bc) {
+/**
+ * @param tick    optioneel: elke 32 samples aangeroepen (de "hoofdlus" van
+ *                een streamende bank: vult de ringen); nullptr = niets.
+ * @param capture optioneel: de uitgang als int16 (geklemd), voor een
+ *                sample-exacte vergelijking tussen twee runs; nullptr = niet.
+ */
+inline long samplerSelfTest(SamplePlayer* v, float sr, float q, float drive, BreakCounter& bc,
+                            void (*tick)(void*) = nullptr, void* tickArg = nullptr,
+                            int16_t* capture = nullptr, long captureMax = 0) {
     constexpr int kVoices = 3, kSub = 32;
     const int notes[kVoices] = { 60, 64, 67 };
     for (int k = 0; k < kVoices; ++k) {
@@ -69,9 +77,12 @@ inline long samplerSelfTest(SamplePlayer* v, float sr, float q, float drive, Bre
         } else for (int k = 0; k < kVoices; ++k) v[k].noteOff(-1);
         const long total = static_cast<long>(secs * sr);
         for (long i = 0; i < total; ++i, ++n) {
-            if (n % kSub == 0) for (int k = 0; k < kVoices; ++k) {
-                v[k].set_cutoff_cv(v[k].env());
-                v[k].PrepareBlock();
+            if (n % kSub == 0) {
+                if (tick) tick(tickArg);
+                for (int k = 0; k < kVoices; ++k) {
+                    v[k].set_cutoff_cv(v[k].env());
+                    v[k].PrepareBlock();
+                }
             }
             float mix[kMaxChannels] = {};
             for (int k = 0; k < kVoices; ++k) v[k].Process(mix, 4);
@@ -79,6 +90,7 @@ inline long samplerSelfTest(SamplePlayer* v, float sr, float q, float drive, Bre
             if (!(y == y)) y = 0.0f;
             y = y > 1.0f ? 1.0f : (y < -1.0f ? -1.0f : y);   // zoals de uitgang van de stream
             bc.push(y);
+            if (capture && n < captureMax) capture[n] = static_cast<int16_t>(y * 32767.0f);
         }
     };
     segment(1.2f, 127, true); segment(0.8f, 0, false);

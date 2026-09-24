@@ -115,6 +115,7 @@ public:
      *  audioroutine om rekent (zie mmb_dsp/sampler_selftest.h). Het antwoord
      *  gaat terug als `{"type":"selfTest",...}`. */
     using SelfTestHandler = void (*)(JsonObjectConst request, JsonObject result);
+    using HeadHandler     = void (*)(int ms, bool force);
 
     /** @brief Initialise the link and send the opening hello frame.
      *  Must be called once from Arduino `setup()` after `Serial.begin()`. */
@@ -142,6 +143,8 @@ public:
     void onGetStatus(StatusHandler h) { onStatus_ = h; }
     /** @brief Register the diagnostic handler for "selfTest" requests. */
     void onSelfTest(SelfTestHandler h) { onSelfTest_ = h; }
+    /** {"type":"samplerHead","ms":N}: koplengte van de samplerbank (streamen). */
+    void onSamplerHead(HeadHandler h) { onSamplerHead_ = h; }
 
     /** @brief Drain the serial input buffer and dispatch complete lines.
      *  Call on every iteration of Arduino `loop()`. Non-blocking. */
@@ -213,6 +216,7 @@ private:
     Dx7BankHandler     onDx7Bank_     = nullptr;
     StatusHandler      onStatus_      = nullptr;
     SelfTestHandler    onSelfTest_    = nullptr;
+    HeadHandler        onSamplerHead_ = nullptr;
 
     void sendHello() {
         JsonDocument doc;
@@ -341,6 +345,15 @@ private:
             else out["error"] = "geen selfTest-handler";
             serializeJson(out, Serial);
             Serial.println();
+            return;
+        }
+        if (strcmp(type, "samplerHead") == 0) {
+            const int ms = doc["ms"] | 500;
+            const bool force = doc["force"] | false;
+            if (onSamplerHead_) onSamplerHead_(ms, force);
+            JsonDocument extra;
+            extra["ms"] = ms; extra["force"] = force;
+            sendAckOk("samplerHead", extra);
             return;
         }
         if (strcmp(type, "getStatus") == 0) {

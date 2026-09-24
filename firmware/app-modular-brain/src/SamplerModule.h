@@ -8,6 +8,13 @@
  * van de SD-kaart naar PSRAM: samples én keymap in één blok, zonder parser.
  * De editor schrijft dat bestand (🎹 Multisample-import); kopieer het naar
  * `/mmb/banks/NN.mmbs` op de SD. De `bank`-control kiest NN (0–15).
+ *
+ * **Streamen (sinds fw 0.5.66).** De bank hoeft niet in het geheugen te
+ * passen: elk sample krijgt een *kop* in PSRAM (standaard 0,5 s, minder als
+ * de bank groot is), de rest leest de hoofdlus (`SampleBank::service()`) per
+ * stem vooruit van de kaart in een ringbuffer. Past de hele bank, dan blijft
+ * alles resident (kop = alles) en is er niets veranderd. Zie sample_player.h
+ * ("Streamen") voor het kernel-deel; hier zit de kaart-kant.
  * Zonder PSRAM valt de allocatie terug op de gewone heap; past de bank niet,
  * dan blijft de module stil in plaats van te crashen.
  *
@@ -146,6 +153,145 @@ public:
     const mmb_dsp::Zone* zones() const { return zones_; }
     int numZones() const { return numZones_; }
 
+    // ── streamen ───────────────────────────────────────────────────────
+    static constexpr int kRingFrames  = 16384;  ///< per stem (~370 ms bij 44,1 kHz; +2 oct = 93 ms)
+    static constexpr int kChunkFrames = 4096;   ///< per SD-leesbeurt (16 KB stereo)
+    static constexpr int kMaxStreams  = 16;     ///< stemmen die kunnen streamen (2 samplers)
+    static constexpr uint32_t kHeadMsDefault = 500;
+
+    /** Gewenste koplengte in ms (bij het laden; hoger = minder streamen). */
+    uint32_t headMs() const { return headMs_; }
+    /**
+     * Zet de koplengte en laad de bank opnieuw. Standaard streamt een bank
+     * alleen als hij niet past; met `force` streamt hij ook als hij wél past
+     * (test en afstelling via de link: {"type":"samplerHead","ms":20,"force":true}).
+     */
+    void setHeadMs(uint32_t ms, bool force = false) {
+        headMs_ = ms < 10 ? 10 : (ms > 60000 ? 60000 : ms);
+        forceHeads_ = force;
+        const int want = loaded_;
+        loaded_ = -1;
+        if (want >= 0) load(want);
+    }
+    /** Werkelijke koplengte na het laden (ms bij 44,1 kHz); 0 = alles resident. */
+    uint32_t headMsActual() const { return headActualMs_; }
+    bool     streamingBank() const { return streamingBank_; }
+    uint32_t streamChunks() const { return chunks_; }
+    uint32_t streamKB() const { return static_cast<uint32_t>(bytes_ >> 10); }
+    /** Underrun-frames sinds de vorige status (de vuller telt ze per stem op). */
+    uint32_t streamUnderruns() { const uint32_t u = underAcc_; underAcc_ = 0; return u; }
+    /** Grootste SD-leesbeurt (µs) sinds de vorige status. */
+    uint32_t streamMaxUs() { const uint32_t m = maxUs_; maxUs_ = 0; return m; }
+
+    /** Stemmen aanmelden die mogen streamen; ze krijgen elk een ring. */
+    void attachVoices(mmb_dsp::SamplePlayer* v, int n) {
+        for (int i = 0; i < n; ++i) {
+            int k = 0;
+            while (k < numVoices_ && voices_[k] != &v[i]) ++k;   // al aangemeld: ring opnieuw koppelen
+            if (k == numVoices_) {
+                if (numVoices_ >= kMaxStreams) break;
+                voices_[numVoices_++] = &v[i];
+            }
+            int16_t* ring = ringFor(k);
+            if (ring) v[i].attachStream(ring, kRingFrames);
+        }
+    }
+
+    /**
+     * De vuller — vanuit loop(), zo vaak mogelijk. Per aanroep hooguit één
+     * leesbeurt per stem (≈ 1 ms elk), zodat de CV-tick blijft lopen. Leest
+     * in RAM (DMA-veilig) en zet het daarna in de ring (PSRAM).
+     */
+    /** Diagnose: kleinste voorsprong (frames) van een streamende stem sinds de vorige status. */
+    int32_t  streamLeadMin() { const int32_t m = leadMin_; leadMin_ = 1 << 30; return m; }
+    uint32_t streamServiceCalls() { const uint32_t c = svcCalls_; svcCalls_ = 0; return c; }
+
+    void service() {
+        if (!streamingBank_ || !file_) return;
+        ++svcCalls_;
+        // Volgorde: de stem met de kleinste voorsprong eerst. Een nieuwe noot
+        // heeft alleen zijn kop; als hij op zeven andere leesbeurten (elk
+        // ~1-2 ms) moet wachten, is een korte kop op voordat de ring vult.
+        int order[kMaxStreams];
+        int32_t lead[kMaxStreams];
+        for (int i = 0; i < numVoices_; ++i) {
+            const mmb_dsp::SamplePlayer::Stream& sv = voices_[i]->stream();
+            lead[i] = sv.active ? sv.fillIdx - voices_[i]->streamIdx() : (1 << 30);
+            order[i] = i;
+        }
+        for (int a = 1; a < numVoices_; ++a) {          // insertion sort, n <= 16
+            const int o = order[a]; int b = a;
+            while (b > 0 && lead[order[b - 1]] > lead[o]) { order[b] = order[b - 1]; --b; }
+            order[b] = o;
+        }
+        for (int oi = 0; oi < numVoices_; ++oi) {
+            const int i = order[oi];
+            mmb_dsp::SamplePlayer& v = *voices_[i];
+            const mmb_dsp::SamplePlayer::Stream& sv = v.stream();
+            if (sv.active) {
+                const int32_t lead = sv.fillIdx - v.streamIdx();
+                if (lead < leadMin_) leadMin_ = lead;
+                // Underruns cumulatief: per stem het verschil met de vorige stand
+                // (de teller van de stem begint bij elke noot opnieuw op 0).
+                const uint32_t u = v.streamUnderruns();
+                if (u >= lastUnder_[i]) underAcc_ += u - lastUnder_[i]; else underAcc_ += u;
+                lastUnder_[i] = u;
+                if (v.streamUnderruns() && !sv.reported) {
+                    const_cast<mmb_dsp::SamplePlayer::Stream&>(sv).reported = true;
+                    Serial.printf("[sampler] underrun stem %d: idx %ld fill %ld end %ld pos %ld gen %lu lead %ld\n",
+                                  i, static_cast<long>(v.streamIdx()), static_cast<long>(sv.fillIdx),
+                                  static_cast<long>(sv.endIdx), static_cast<long>(sv.fillPos),
+                                  static_cast<unsigned long>(sv.gen), static_cast<long>(lead));
+                }
+            }
+            uint32_t gen; int32_t pos, count;
+            if (!v.streamNext(kChunkFrames, gen, pos, count)) continue;
+            if (count <= 0) { v.streamCommit(gen, pos, 0); continue; }
+            const mmb_dsp::SamplePlayer::Stream& st = v.stream();
+            const int slot = static_cast<int>(st.slot - slots_);
+            if (slot < 0 || slot >= numSlots_) continue;
+            const int ch = slots_[slot].channels;
+            const uint32_t t0 = micros();
+            // Korte loop: de vulling wrapt binnen de chunk; lees dan de hele
+            // loop één keer en rol hem uit. Anders is de vulling aaneengesloten.
+            const bool wraps = st.loops && !st.tail && st.loopEnd > st.loopStart
+                            && pos < st.loopEnd && pos + count > st.loopEnd;
+            const int32_t readPos = wraps ? st.loopStart : pos;
+            const int32_t readN   = wraps ? st.loopEnd - st.loopStart : count;
+            if (readN <= 0 || readN > kChunkFrames) continue;
+            // Sector-uitgelijnd lezen (512 B): SdFat leest dan rechtstreeks via
+            // DMA i.p.v. sector voor sector door zijn cache; de kop van het
+            // blok (`skip` bytes) gooien we weg. Bufferruimte: +1 sector.
+            const uint64_t byteOff = dataOffset_
+                + (static_cast<uint64_t>(slotFrameOffset_[slot]) + static_cast<uint64_t>(readPos)) * ch * 2u;
+            const uint32_t skip = static_cast<uint32_t>(byteOff & 511u);
+            if (!file_.seek(byteOff - skip)) continue;
+            const size_t want = static_cast<size_t>(readN) * ch * 2u;
+            const int got = file_.read(chunkBuf_, want + skip);
+            if (got < static_cast<int>(want + skip)) continue;
+            // In de ring (stride = kanalen), in runs: tot het loop-einde en tot
+            // de ringrand, met memcpy — geen per-frame werk (dat was de bottleneck).
+            const int32_t ri = v.streamRingIndex();
+            const int16_t* buf = reinterpret_cast<const int16_t*>(chunkBuf_ + skip);
+            int32_t k = 0;
+            while (k < count) {
+                const int32_t fp = mmb_dsp::SamplePlayer::streamFramePos(st, pos, k);
+                int32_t run = count - k;
+                if (wraps && st.loopEnd - fp < run) run = st.loopEnd - fp;
+                const int32_t rpos = (ri + k) % kRingFrames;
+                if (kRingFrames - rpos < run) run = kRingFrames - rpos;
+                std::memcpy(st.ring + static_cast<long>(rpos) * ch, buf + static_cast<long>(fp - readPos) * ch,
+                            static_cast<size_t>(run) * ch * sizeof(int16_t));
+                k += run;
+            }
+            v.streamCommit(gen, pos, count);
+            const uint32_t dt = micros() - t0;
+            if (dt > maxUs_) maxUs_ = dt;
+            ++chunks_;
+            bytes_ += want;
+        }
+    }
+
     /** Laad `/mmb/banks/NN.mmbs`; idempotent per index. */
     bool load(int index) {
         // Zonder kaart niet vastbijten op "al geprobeerd": misschien zit hij er nu wél.
@@ -183,32 +329,76 @@ public:
         if (h.numZones && f.read(zbuf, zrSize * h.numZones)
             != static_cast<int>(zrSize * h.numZones)) { f.close(); return false; }
 
-        // Sampledata: één blok in PSRAM.
+        // Koppen: hoeveel frames van elk sample resident? Past alles, dan
+        // alles (geen streamen); anders zoveel als de kop-instelling en het
+        // geheugen toelaten, voor elk sample naar rato. Quad-samples kunnen
+        // niet streamen (ring is stereo) en blijven altijd heel resident.
         uint32_t totalFrames = 0, totalSamples = 0;
         for (uint32_t i = 0; i < h.numSlots; ++i) {
             totalFrames += sh[i].frames;
             totalSamples += sh[i].frames * sh[i].channels;
         }
-        if (!ensureCapacity(totalSamples)) {
+        const uint32_t budget = sampleBudget();
+        uint32_t head[kMaxSlots];
+        streamingBank_ = false;
+        if (totalSamples <= budget && !forceHeads_) {
+            for (uint32_t i = 0; i < h.numSlots; ++i) head[i] = sh[i].frames;
+        } else {
+            streamingBank_ = true;
+            // Koplengte in frames (bij de rate van het sample); zoek de
+            // grootste die past, van de instelling omlaag tot 10 ms.
+            uint32_t ms = headMs_;
+            for (;;) {
+                uint32_t need = 0;
+                for (uint32_t i = 0; i < h.numSlots; ++i) {
+                    const uint32_t hf = static_cast<uint32_t>(sh[i].rate * ms / 1000.0f);
+                    head[i] = (sh[i].channels > 2 || hf >= sh[i].frames) ? sh[i].frames : hf;
+                    need += head[i] * sh[i].channels;
+                }
+                if (need <= budget) break;
+                if (ms <= 10) {
+                    Serial.printf("[sampler] %s: past niet, ook niet met koppen van 10 ms (%lu KB nodig)\n",
+                                  path, static_cast<unsigned long>(need * 2 / 1024));
+                    f.close();
+                    return false;
+                }
+                ms = ms > 40 ? ms * 3 / 4 : 10;
+            }
+            headActualMs_ = ms;
+        }
+        uint32_t headSamples = 0;
+        for (uint32_t i = 0; i < h.numSlots; ++i) headSamples += head[i] * sh[i].channels;
+        if (streamingBank_ && headSamples >= totalSamples) streamingBank_ = false;   // kop dekt alles
+        if (!ensureCapacity(headSamples)) {
             Serial.printf("[sampler] %s: geen geheugen voor %lu KB\n", path,
-                          static_cast<unsigned long>(totalSamples * 2 / 1024));
+                          static_cast<unsigned long>(headSamples * 2 / 1024));
             f.close();
             return false;
         }
-        const size_t want = static_cast<size_t>(totalSamples) * sizeof(int16_t);
-        const size_t got = f.read(reinterpret_cast<uint8_t*>(data_), want);
-        f.close();
-        if (got != want) { Serial.printf("[sampler] %s: data te kort\n", path); return false; }
-
-        // Tabellen omzetten naar pointers in het datablok.
+        // Koppen lezen: per slot vanaf zijn frameOffset in het datablok.
+        dataOffset_ = static_cast<uint32_t>(sizeof(h) + sizeof(mmb_dsp::SlotHeader) * h.numSlots
+                                            + zrSize * h.numZones);
         uint32_t sampleOffset = 0;
         for (uint32_t i = 0; i < h.numSlots; ++i) {
+            const size_t want = static_cast<size_t>(head[i]) * sh[i].channels * sizeof(int16_t);
+            const uint64_t off = dataOffset_ + static_cast<uint64_t>(sh[i].frameOffset) * sh[i].channels * 2u;
+            if (!f.seek(off) || f.read(reinterpret_cast<uint8_t*>(data_ + sampleOffset), want) != static_cast<int>(want)) {
+                Serial.printf("[sampler] %s: data te kort (slot %lu)\n", path, static_cast<unsigned long>(i));
+                f.close();
+                return false;
+            }
             slots_[i].data     = data_ + sampleOffset;
             slots_[i].frames   = static_cast<int>(sh[i].frames);
             slots_[i].channels = static_cast<int>(sh[i].channels);
             slots_[i].rate     = sh[i].rate;
-            sampleOffset += sh[i].frames * sh[i].channels;
+            slots_[i].resident = head[i] >= sh[i].frames ? -1 : static_cast<int>(head[i]);
+            slotFrameOffset_[i] = sh[i].frameOffset;
+            sampleOffset += head[i] * sh[i].channels;
         }
+        // Het bestand blijft open voor de vuller (de vorige gaat dicht).
+        if (file_) file_.close();
+        if (streamingBank_) file_ = f; else { f.close(); headActualMs_ = 0; }
+        chunks_ = 0; bytes_ = 0;
         for (uint32_t i = 0; i < h.numZones; ++i) {
             const uint8_t* rec = zbuf + static_cast<size_t>(i) * zrSize;
             const mmb_dsp::ZoneRecordV1& zr =
@@ -230,16 +420,47 @@ public:
         numSlots_ = static_cast<int>(h.numSlots);
         numZones_ = static_cast<int>(h.numZones);
         ++version_;
-        Serial.printf("[sampler] bank %02d \"%s\": %d samples, %d zones, %lu KB, %.1f s\n",
+        Serial.printf("[sampler] bank %02d \"%s\": %d samples, %d zones, %lu KB, %.1f s; %s\n",
                       index, h.name, numSlots_, numZones_,
                       static_cast<unsigned long>(totalSamples * 2 / 1024),
-                      totalFrames / 44100.0f);
+                      totalFrames / 44100.0f,
+                      streamingBank_ ? "streamt" : "resident");
+        if (streamingBank_)
+            Serial.printf("[sampler]   koppen %lu ms = %lu KB resident, rest van de kaart\n",
+                          static_cast<unsigned long>(headActualMs_),
+                          static_cast<unsigned long>(headSamples * 2 / 1024));
         return true;
     }
 
 private:
+    /** Hoeveel int16's er voor koppen zijn: PSRAM min ringen en marge, anders heap-marge. */
+    uint32_t sampleBudget() const {
+#if defined(ARDUINO_TEENSY41)
+        if (external_psram_size > 0) {
+            const uint32_t total = static_cast<uint32_t>(external_psram_size) * 1024u * 1024u;
+            const uint32_t rings = static_cast<uint32_t>(kMaxStreams) * kRingFrames * 2u * 2u;   // stereo-ringen
+            const uint32_t reserve = 256u * 1024u;
+            return (total - rings - reserve) / 2u;
+        }
+#endif
+        return 160u * 1024u / 2u;            // zonder PSRAM: kleine koppen op de heap
+    }
+    int16_t* ringFor(int i) {
+        if (i < 0 || i >= kMaxStreams) return nullptr;
+        if (!rings_[i]) {
+            const size_t bytes = static_cast<size_t>(kRingFrames) * 2u * sizeof(int16_t);   // stereo
+#if defined(ARDUINO_TEENSY41)
+            if (external_psram_size > 0) rings_[i] = static_cast<int16_t*>(extmem_malloc(bytes));
+#endif
+            if (!rings_[i]) rings_[i] = static_cast<int16_t*>(std::malloc(bytes));
+        }
+        return rings_[i];
+    }
     bool ensureCapacity(uint32_t samples) {
         if (cap_ >= samples && data_) return true;
+        // De stemmen wijzen nog in het oude blok: versie is al opgehoogd, dus
+        // de audio-ISR bindt bij zijn volgende cyclus opnieuw (en zwijgt).
+        delay(6);
         free();
 #if defined(ARDUINO_TEENSY41)
         if (external_psram_size > 0) {
@@ -265,6 +486,21 @@ private:
 
     mmb_dsp::SampleSlot slots_[kMaxSlots];
     mmb_dsp::Zone       zones_[kMaxZones];
+    uint32_t slotFrameOffset_[kMaxSlots] = {};
+    File     file_;                              ///< open bank tijdens het streamen
+    uint32_t dataOffset_ = 0;                    ///< begin van het datablok in het bestand
+    bool     streamingBank_ = false;
+    uint32_t headMs_ = kHeadMsDefault, headActualMs_ = 0;
+    bool     forceHeads_ = false;
+    uint32_t chunks_ = 0, maxUs_ = 0, svcCalls_ = 0;
+    int32_t  leadMin_ = 1 << 30;
+    uint64_t bytes_ = 0;
+    int16_t* rings_[kMaxStreams] = {};
+    mmb_dsp::SamplePlayer* voices_[kMaxStreams] = {};
+    int      numVoices_ = 0;
+    alignas(32) uint8_t chunkBuf_[kChunkFrames * 2 * 2 + 512];   ///< één leesbeurt, stereo + uitlijnsector (RAM, DMA-veilig)
+    uint32_t lastUnder_[kMaxStreams] = {};
+    uint32_t underAcc_ = 0;
     int      numSlots_ = 0, numZones_ = 0, loaded_ = -1;
     int16_t* data_ = nullptr;
     uint32_t cap_ = 0, version_ = 0;
@@ -324,6 +560,7 @@ public:
 
     SamplerStream() : AudioStream(0, nullptr) {
         for (int i = 0; i < kVoices; ++i) voice_[i].Init(AUDIO_SAMPLE_RATE_EXACT);
+        SampleBank::instance().attachVoices(voice_, kVoices);   // ringen voor het streamen
         limiter_.Init(AUDIO_SAMPLE_RATE_EXACT);
         rebind();
     }
