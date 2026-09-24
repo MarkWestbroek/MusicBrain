@@ -62,6 +62,7 @@ en kent alleen noteOn/Off, cc en pitchBend.
 |---|---|---|
 | `pressK` (per stem) + `press` (master-cel) | Z, 0..1 | ja: poly-aftertouch `0xA0` per noot, channel pressure `0xD0` op alle stemmen |
 | `slideK` + `slide` | Y (CC 74), 0..1 | ja: CC 74 op alle stemmen |
+| `relK` + `rel` | release-velocity (note-off `0x80` d2), 0..1, gelatcht tot de volgende aanslag | ja: elk keyboard dat hem stuurt |
 
 `press`/`slide` op de master-cel gedragen zich als `vel`: eerste gegate stem,
 en polyExpand waaiert `press → press1..N` uit. Daarmee is per-noot druk →
@@ -100,12 +101,21 @@ Voor de sampler is per-noot **bend** dus niets extra's: die komt via
 
 ## 5. Open vragen
 
-- **Rechtstreeks aan de brain** zonder pc: USB-host op de Teensy 4.1
-  (USBHost_t36, pinnen 30/31 — hardware-spoor) of DIN-MIDI op een UART; nu
-  loopt alles via USB-device/de editor-brug.
-- Hoeveel stemmen: Osmose gebruikt tot 15 member-kanalen; wij hebben 8
-  cellen. De allocator steelt dan; is *oldest* daar de juiste keuze
-  (waarschijnlijk wel)?
-- Release-velocity (Osmose stuurt hem): een `relK`-poort, of laten liggen.
+- **Rechtstreeks aan de brain** zonder pc (Mark, 2026-09-24: versie 1 op
+  het protobord). Het busboard rev 3.1 heeft het al getekend: J23 =
+  USB-host-doorvoer vanaf de vijf host-pads onder de Teensy (GND, +5V, D−,
+  D+, GND) naar een paneel-USB-A; MIDI-DIN 2× in via H11L1-opto's op
+  Serial7 (OUT2 = TX7/pin 29). Op het protobord dezelfde pinnen nemen, dan
+  hoeft de firmware straks niet te wisselen. Firmware: USBHost_t36
+  (`USBHost` + `MIDIDevice`) en een `MIDI`-instantie op Serial7, beide naar
+  dezelfde `handleNoteOn/…`-handlers als usbMIDI (ADR 0010 §4: één
+  MidiSource-aggregator onder MidiIn). De Osmose heeft een eigen voeding,
+  dus de host-5V hoeft alleen de enumeratie te dragen — wel even nameten.
+- Hoeveel stemmen: MidiIn kan 16 (`kMaxAllocVoices`, `pitch1..16`), het
+  aantal is per patch (`voiceCount`); alleen de *sampler* heeft 8 cellen per
+  module. Met `voiceCount` ≥ het aantal member-kanalen hoeft de allocator in
+  MPE-modus nooit te stelen; de grens is CPU/SD-bandbreedte van de patch.
+- Release-velocity: doen (`relK`/`rel`, §3.2) — alles wat expressie geeft is
+  welkom.
 - Zone-configuratie (lower/upper, MCM) automatisch volgen of alleen de
   eenvoudige "master = `channel`, rest = members".
