@@ -4,6 +4,7 @@
 > nooit geflasht zijn, en twee dingen die ik bewust heb laten liggen omdat ze
 > alleen met je oren erbij te beoordelen zijn. Dit bestand mag weg als het
 > gedaan is. Achtergrond: [sim-firmware-parity-plan.md](sim-firmware-parity-plan.md).
+> **Afvinklijst om met je oren te testen:** [luistertest-2026-09-24.md](luistertest-2026-09-24.md).
 
 ## 1. Flashen — ✅ gedaan op 21 september 2026
 
