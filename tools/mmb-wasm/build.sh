@@ -109,6 +109,7 @@ sel elementsreverb && build elementsreverb tp_mmb_elements_reverb "$ELEM" -- $ST
 sel octavca && build octavca tp_mmb_octa_vca --
 sel stereovca && build stereovca tp_mmb_stereo_vca --
 sel resonator && build resonator tp_mmb_resonator "$LIB/mmb-dsp" --
+sel cr78 && build cr78 tp_mmb_cr78 "$LIB/mmb-dsp" --
 sel vcf && build vcf tp_mmb_vcf "$LIB/mmb-dsp" --
 sel ms20 && build ms20 tp_mmb_ms20 "$LIB/mmb-dsp" --
 

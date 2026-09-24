@@ -248,3 +248,38 @@ describe('tp_mmb_resonator', () => {
     expect(Math.abs(laag - 44100 / 65.41)).toBeLessThan(20);
   });
 });
+
+describe('tp_mmb_cr78', () => {
+  it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_cr78'); });
+
+  it('slaat elke drum aan op een stijgende gate en klinkt dan uit', async () => {
+    const stil: string[] = [];
+    const namen = ['Kick','Snare','Rim','Claves','Cowbell','HiHat','Cymbal','Maracas','Guiro','Bongo','Conga','Tamb'];
+    for (let d = 0; d < 12; d++) {
+      const m = await load('tp_mmb_cr78');
+      m.setCtl('drum', d);
+      const [o] = m.render(1.5, (t, mm) => mm.setIn('gate', t < 0.01 ? 1 : 0));
+      const kop = peak(o!, 0, Math.round(44100 * 0.2));
+      const staart = peak(o!, Math.round(44100 * 1.3));
+      if (kop < 0.02) stil.push(`${namen[d]} (piek ${kop.toFixed(4)})`);
+      expect(staart, namen[d]).toBeLessThan(kop * 0.1);   // hij sterft uit
+    }
+    expect(stil).toEqual([]);
+  });
+
+  it('zwijgt zonder aanslag', async () => {
+    const m = await load('tp_mmb_cr78');
+    const [o] = m.render(0.3);
+    expect(peak(o!)).toBe(0);
+  });
+
+  it('slaat harder aan met accent', async () => {
+    const meet = async (acc: number): Promise<number> => {
+      const m = await load('tp_mmb_cr78');
+      m.setIn('accent_cv', acc);
+      const [o] = m.render(0.2, (t, mm) => mm.setIn('gate', t < 0.01 ? 1 : 0));
+      return peak(o!);
+    };
+    expect(await meet(1)).toBeGreaterThan(await meet(0) * 1.3);
+  });
+});
