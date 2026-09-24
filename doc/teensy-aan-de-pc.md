@@ -105,7 +105,10 @@ samplebank moet op een SD-kaart.
   (traagste leesbeurt). `{"type":"samplerHead","ms":500}` zet het terug. De
   zelftest `{"type":"selfTest","bank":0,"stream":true,"headMs":20}` speelt
   resident en gestreamd en vergelijkt sample-exact (`diffs` hoort 0 te zijn).
-  Gemeten: 8 stemmen op +2 octaaf (4× leestempo) zonder underruns.
+  Gemeten: 8 stemmen op +2 octaaf (4× leestempo) zonder underruns, en een
+  synthetische bank van 949 MB (`tools/teensy-live/bank_synth.py gen/put/
+  test`) bit-gelijk via de CRC-zelftest. Grens: 4 GB per bank, 256 samples,
+  512 zones.
 
 ## 4. Zelf testen zonder handen (noten sturen en opnemen)
 

@@ -37,6 +37,21 @@
   115 MB, 22 minuten audio) laadt nu — in 7,6 s over de link (15 MB/s), en
   streamt met 5,2 MB koppen en 0 underruns.
 - Banken die met 0.5.67 via de editor zijn gestuurd, opnieuw sturen.
+- **Groot getest, synthetisch:** `tools/teensy-live/bank_synth.py` maakt een
+  bank waarvan elk sample een deterministische ruisreeks is (eigen seed),
+  stuurt hem en meet. Bank van **949 MB** (120 samples × 47 s stereo): upload
+  in 58 s (16,7 MB/s), koppen automatisch naar 281 ms (budget), 8 stemmen
+  30 s spelen = 109 MB van de kaart, **0 underruns**, traagste leesbeurt
+  3,7 ms. Bewijs zonder pc-audio: de zelftest speelt een noot op het apparaat
+  (`{"type":"selfTest","bank":N,"play":{"note":72,"samples":220500}}`) en
+  geeft een CRC32 van de int16-uitgang; die is voor drie noten (5 s, 4,7 s
+  gestreamd) **identiek** aan de CRC die de pc uit dezelfde ruisreeks
+  berekent. (Via de USB-opname zie je een residu van −31 dB dat lineair
+  groeit binnen een noot: dat is de float32-afronding van MIDI-noot → V/oct
+  → halve tonen, 0,5 ppm toonhoogte, onhoorbaar; op noten met exacte V/oct
+  (60, 72, 48) is de uitgang bit-gelijk.)
+- **Grens:** 4 GB per bank (32-bit grootte en offsets), 256 samples, 512
+  zones, kaart exFAT.
 
 ### fw 0.5.67 — Banken uploaden via de link, zonder de kaart eruit te halen (2026-09-24)
 - **`bankPut`**: `{"type":"bankPut","bank":N,"size":S}` → de Teensy opent

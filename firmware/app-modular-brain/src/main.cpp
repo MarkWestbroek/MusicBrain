@@ -335,6 +335,47 @@ void onSelfTest(JsonObjectConst req, JsonObject out) {
         return;
     }
 
+    // {"type":"selfTest","bank":N,"play":{"note":n,"samples":S}}: één noot op
+    // één stem (level 1, geen filter) buiten de audioroutine om, met de vuller
+    // erbij, en een CRC32 over de int16-uitgang (L en R apart) ná de attack —
+    // zonder pc-audio ertussen. Een synthetische bank (tools/teensy-live/
+    // bank_synth.py) kan dezelfde CRC op de pc uitrekenen.
+    if (req["play"].is<JsonObjectConst>()) {
+        JsonObjectConst pl = req["play"];
+        const int note = pl["note"] | 60;
+        const long samples = pl["samples"] | 88200L;
+        const long skip = pl["skip"] | 8820L;                   // 200 ms attack overslaan
+        mmb_dsp::SamplePlayer& p = v[0];
+        p = mmb_dsp::SamplePlayer{}; p.Init(AUDIO_SAMPLE_RATE_EXACT);
+        p.bind(bank.slots(), bank.numSlots(), bank.zones(), bank.numZones());
+        bank.attachVoices(v, 1);
+        p.set_level(1.0f); p.set_filter_type(0);
+        p.set_voct((note - 60) / 12.0f);
+        p.noteOn(note, 100);
+        uint32_t crcL = 0xFFFFFFFFu, crcR = 0xFFFFFFFFu;
+        long counted = 0; int maxAbs = 0;
+        const uint32_t t0 = millis();
+        for (long i = 0; i < samples; ++i) {
+            if (i % 32 == 0) { bank.service(); p.PrepareBlock(); }
+            float o[2] = { 0.0f, 0.0f };
+            p.Process(o, 2);
+            if (i < skip) continue;
+            const int16_t l = static_cast<int16_t>(o[0] * 32767.0f), r = static_cast<int16_t>(o[1] * 32767.0f);
+            const uint8_t bl[2] = { static_cast<uint8_t>(l & 0xFF), static_cast<uint8_t>((l >> 8) & 0xFF) };
+            const uint8_t br[2] = { static_cast<uint8_t>(r & 0xFF), static_cast<uint8_t>((r >> 8) & 0xFF) };
+            crcL = mmb_link::SampleBank::crc32Update(crcL, bl, 2);
+            crcR = mmb_link::SampleBank::crc32Update(crcR, br, 2);
+            const int a = l < 0 ? -l : l; if (a > maxAbs) maxAbs = a;
+            ++counted;
+        }
+        out["note"] = note; out["samples"] = samples; out["skip"] = skip; out["counted"] = counted;
+        out["crcL"] = crcL ^ 0xFFFFFFFFu; out["crcR"] = crcR ^ 0xFFFFFFFFu;
+        out["maxAbs"] = maxAbs; out["active"] = p.active();
+        out["underruns"] = bank.streamUnderruns(); out["chunks"] = bank.streamChunks();
+        out["maxUs"] = bank.streamMaxUs(); out["ms"] = millis() - t0; out["bank"] = want;
+        return;
+    }
+
     JsonArray res = out["runs"].to<JsonArray>();
     const float qs[] = { 0.55f, 0.8f, 0.9f };
     for (float q : qs) {
