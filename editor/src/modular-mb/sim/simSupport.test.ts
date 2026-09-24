@@ -49,7 +49,9 @@ describe('simSupport', () => {
 
   it('noemt niet-gesimuleerde modules stil', () => {
     expect(supportOf('tp_mmb_octa_vco')).toBe('none');
-    expect(supportOf('tp_mmb_quant')).toBe('none');
+    // S&H staat in de catalogus maar bestaat niet in de firmware; de sim
+    // speelt hem bewust ook niet (zie de Teensy-todo).
+    expect(supportOf('tp_mmb_sh')).toBe('none');
   });
 
   it('laat Grids niet voor de SEQ-16 doorgaan', () => {
@@ -61,7 +63,9 @@ describe('simSupport', () => {
     expect(isStepSequencer(seq)).toBe(true);
     expect(isStepSequencer(grids)).toBe(false);
     expect(supportOf('tp_mmb_seq8')).toBe('tone');
-    expect(supportOf('tp_mmb_grids')).toBe('none');
+    // Grids speelt sinds 2026-09-24 als wasm (de firmwareklasse zelf, via
+    // cvhost.h) — maar níét via de SEQ-16-route van de engine.
+    expect(supportOf('tp_mmb_grids')).toBe('wasm');
   });
 
   it('speelt een externe module via zijn simulatedBy-proxy', () => {
