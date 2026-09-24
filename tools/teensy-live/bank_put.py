@@ -12,6 +12,7 @@ De editor-link moet dicht zijn (de COM-poort is exclusief).
 import json
 import sys
 import time
+import zlib
 
 import serial
 
@@ -77,7 +78,8 @@ def main():
     if data[:4] != b'MMBS':
         raise SystemExit('geen .mmbs (magic MMBS ontbreekt)')
     print(f'{path}: {len(data) // 1024} KB naar bank {bank:02d}')
-    s.write(json.dumps({'type': 'bankPut', 'bank': bank, 'size': len(data)}).encode() + b'\n')
+    crc = zlib.crc32(data) & 0xFFFFFFFF
+    s.write(json.dumps({'type': 'bankPut', 'bank': bank, 'size': len(data), 'crc': crc}).encode() + b'\n')
     ack, rest = wait_for(s, lambda o: o.get('type') == 'ack' and (o.get('phase') == 'begin' or not o.get('ok')), 10)
     if not ack.get('ok'):
         raise SystemExit(f"geweigerd: {ack.get('err')}")

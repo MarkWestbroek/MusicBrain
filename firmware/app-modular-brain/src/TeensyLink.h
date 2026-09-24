@@ -122,7 +122,7 @@ public:
      * stukken, done(bank, ok) sluit af (hernoemen of opruimen; false = het
      * schrijven zelf ging mis). Zie pollRaw() voor het protocol.
      */
-    using BankBeginHandler = bool (*)(int bank, uint32_t size);
+    using BankBeginHandler = bool (*)(int bank, uint32_t size, uint32_t crc32);
     using BankBytesHandler = void (*)(const uint8_t* data, size_t n);
     using BankDoneHandler  = bool (*)(int bank, bool ok);
     using BankDeleteHandler = bool (*)(int bank);
@@ -419,8 +419,9 @@ private:
         if (strcmp(type, "bankPut") == 0) {
             const int bank = doc["bank"] | -1;
             const uint32_t size = doc["size"] | 0u;
+            const uint32_t crc  = doc["crc"]  | 0u;      // CRC32 (IEEE) over alle bytes; 0 = niet controleren
             if (bank < 0 || bank > 15 || size < 44) { sendAckErr("bankPut: bank 0-15 en size nodig"); return; }
-            if (!onBankBegin_ || !onBankBegin_(bank, size)) { sendAckErr("bankPut: kan bestand niet openen (SD?)"); return; }
+            if (!onBankBegin_ || !onBankBegin_(bank, size, crc)) { sendAckErr("bankPut: kan bestand niet openen (SD?)"); return; }
             rawBank_ = bank; rawTotal_ = size; rawRemaining_ = size; rawMark_ = 0; rawLastMs_ = millis();
             JsonDocument extra;
             extra["phase"] = "begin"; extra["bank"] = bank; extra["size"] = size;

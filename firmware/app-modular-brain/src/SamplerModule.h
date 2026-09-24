@@ -72,8 +72,10 @@ namespace mmb_link {
 /** @brief Gedeelde `.mmbs`-bank: samples + keymap in PSRAM, geladen van SD. */
 class SampleBank {
 public:
-    static constexpr int kMaxSlots = 64;
-    static constexpr int kMaxZones = 256;
+    // Zelfde grenzen als de sampler-wasm: een vleugel uit een SoundFont heeft
+    // zo 121 samples in 150 zones. De tabellen staan statisch (28 KB).
+    static constexpr int kMaxSlots = 256;
+    static constexpr int kMaxZones = 512;
     static constexpr const char* kDir = "/mmb/banks";
 
     static SampleBank& instance() { static SampleBank b; return b; }
@@ -155,8 +157,9 @@ public:
 
     // ── upload via de link ──────────────────────────────────────────────
     /** Begin: `/mmb/banks/NN.part` openen (afgekapt, vooraf gereserveerd). */
-    bool uploadBegin(int bank, uint32_t size) {
+    bool uploadBegin(int bank, uint32_t size, uint32_t crc32 = 0) {
         if (bank < 0 || bank > 15) return false;
+        upCrcWant_ = crc32; upCrc_ = 0xFFFFFFFFu;
         if (!sdOk_ && !mountIfMissing(true)) return false;
         if (upFile_) upFile_.close();
         char path[40];
@@ -171,6 +174,19 @@ public:
     void uploadBytes(const uint8_t* data, size_t n) {
         if (!upFile_ || upErr_) return;
         if (upFile_.write(data, n) != n) upErr_ = true; else upBytes_ += n;
+        if (upCrcWant_) upCrc_ = crc32Update(upCrc_, data, n);
+    }
+    /** CRC32 (IEEE 802.3, zoals zlib.crc32): tabelloos per nibble, ~30 MB/s op de Teensy. */
+    static uint32_t crc32Update(uint32_t crc, const uint8_t* p, size_t n) {
+        static const uint32_t t[16] = {
+            0x00000000u, 0x1DB71064u, 0x3B6E20C8u, 0x26D930ACu, 0x76DC4190u, 0x6B6B51F4u, 0x4DB26158u, 0x5005713Cu,
+            0xEDB88320u, 0xF00F9344u, 0xD6D6A3E8u, 0xCB61B38Cu, 0x9B64C2B0u, 0x86D3D2D4u, 0xA00AE278u, 0xBDBDF21Cu };
+        for (size_t i = 0; i < n; ++i) {
+            crc ^= p[i];
+            crc = t[crc & 15] ^ (crc >> 4);
+            crc = t[crc & 15] ^ (crc >> 4);
+        }
+        return crc;
     }
     /**
      * Klaar: `.part` → `NN.mmbs` (de oude gaat weg), kaart opnieuw
@@ -183,7 +199,16 @@ public:
         snprintf(part, sizeof(part), "%s/%02d.part", kDir, bank);
         snprintf(dst, sizeof(dst), "%s/%02d.mmbs", kDir, bank);
         if (!ok || upErr_ || bank != upBank_) { SD.sdfs.remove(part); return false; }
-        // Eerst nakijken of het een gave bank is: magic, tabellen en de
+        // CRC32 over alles wat binnenkwam: één regel ertussen (status-poll) of
+        // één gemiste byte en hij klopt niet. De grootte alleen zegt niets:
+        // de Teensy leest precies `size` bytes, dus die klopt altijd.
+        if (upCrcWant_ && (upCrc_ ^ 0xFFFFFFFFu) != upCrcWant_) {
+            SD.sdfs.remove(part);
+            Serial.printf("[sampler] bank %02d: CRC klopt niet (kreeg %08lx, verwacht %08lx), verworpen\n", bank,
+                          static_cast<unsigned long>(upCrc_ ^ 0xFFFFFFFFu), static_cast<unsigned long>(upCrcWant_));
+            return false;
+        }
+        // Dan nakijken of het een gave bank is: magic, tabellen en de
         // datalengte moeten precies op het ontvangen aantal bytes uitkomen.
         // Zit er ook maar één regel tussendoor (een status-poll op dezelfde
         // poort), dan klopt dat niet en blijft de oude bank staan.
@@ -412,7 +437,7 @@ public:
         // stap doorheen — één buffer, beide versies.
         const size_t zrSize = h.version >= 2 ? sizeof(mmb_dsp::ZoneRecord)
                                              : sizeof(mmb_dsp::ZoneRecordV1);
-        alignas(4) uint8_t zbuf[kMaxZones * sizeof(mmb_dsp::ZoneRecord)];
+        static alignas(4) uint8_t zbuf[kMaxZones * sizeof(mmb_dsp::ZoneRecord)];   // 22 KB: niet op de stack
         if (h.numZones && f.read(zbuf, zrSize * h.numZones)
             != static_cast<int>(zrSize * h.numZones)) { f.close(); return false; }
 
@@ -578,7 +603,7 @@ private:
     FsFile   upFile_;                            ///< `.part` tijdens een upload
     bool     upErr_ = false;
     int      upBank_ = -1;
-    uint32_t upBytes_ = 0;
+    uint32_t upBytes_ = 0, upCrc_ = 0xFFFFFFFFu, upCrcWant_ = 0;
     uint32_t dataOffset_ = 0;                    ///< begin van het datablok in het bestand
     bool     streamingBank_ = false;
     uint32_t headMs_ = kHeadMsDefault, headActualMs_ = 0;

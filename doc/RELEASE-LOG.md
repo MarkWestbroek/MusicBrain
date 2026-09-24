@@ -25,10 +25,17 @@
 - **Editor:** tijdens `sendBank` staat de link op slot: de poll is uit en
   `writeLine` weigert (MIDI/pokes worden dan niet gestuurd); daarna gaat de
   poll weer aan.
-- **Firmware:** na de laatste byte wordt het `.part`-bestand nagekeken
-  (magic, versie, tabellen, en de datalengte moet exact het ontvangen aantal
-  bytes zijn) vóór het hernoemen; klopt het niet, dan wordt het verworpen en
-  blijft de oude bank staan (`ack ok:false`, log "upload ongeldig").
+- **Firmware: CRC32.** De grootte alleen zegt niets (de Teensy leest precies
+  `size` bytes, dus die klopt altijd — een verstoorde upload werd in de
+  eerste versie van deze fix nog geaccepteerd). Nu stuurt de editor (en
+  `bank_put.py`) een CRC32 mee in `bankPut`; de Teensy telt hem mee tijdens
+  het ontvangen en verwerpt bij verschil (log "CRC klopt niet"). Daarna ook
+  nog de vormcontrole (magic, tabellen, datalengte). Bewezen: een upload met
+  één regel ertussen → verworpen, de gave → speelt.
+- **Grenzen omhoog:** 256 samples / 512 zones per bank (was 64/256, de sim
+  had al 256/512): de vleugel `ydp-grand.mmbs` (121 samples, 150 zones,
+  115 MB, 22 minuten audio) laadt nu — in 7,6 s over de link (15 MB/s), en
+  streamt met 5,2 MB koppen en 0 underruns.
 - Banken die met 0.5.67 via de editor zijn gestuurd, opnieuw sturen.
 
 ### fw 0.5.67 — Banken uploaden via de link, zonder de kaart eruit te halen (2026-09-24)

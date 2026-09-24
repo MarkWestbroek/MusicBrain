@@ -731,7 +731,7 @@ void setup() {
     link.onGetStatus(onGetStatus);       // telemetrie voor de editor
     link.onSelfTest(onSelfTest);
     link.onBankPut(
-        [](int bank, uint32_t size) { return mmb_link::SampleBank::instance().uploadBegin(bank, size); },
+        [](int bank, uint32_t size, uint32_t crc) { return mmb_link::SampleBank::instance().uploadBegin(bank, size, crc); },
         [](const uint8_t* d, size_t n) { mmb_link::SampleBank::instance().uploadBytes(d, n); },
         [](int bank, bool ok) { return mmb_link::SampleBank::instance().uploadDone(bank, ok); });
     link.onBankDelete([](int bank) { return mmb_link::SampleBank::instance().deleteBank(bank); });
