@@ -78,6 +78,7 @@
 #include "SamplerModule.h"
 #include "CombModule.h"
 #include "PhaserModule.h"
+#include "NoiseModule.h"
 #include "VcaModule.h"
 #include "StereoVcaModule.h"
 #include "VcfModule.h"
@@ -144,6 +145,7 @@ inline void registerAllRuntimeModules() {
     SamplerModule::registerFactory();   // sample-speler (mmb-dsp), PSRAM + SD; ook als wasm
     CombModule::registerFactory();      // FW-AU-3: tuned comb resonator
     PhaserModule::registerFactory();    // FW-AU-2: all-pass phaser
+    NoiseModule::registerFactory();     // wit/roze/bruin (mmb-dsp), ook als wasm in de simulator
     VcaModule::registerFactory();
     StereoVcaModule::registerFactory(); // FW-AU-1: stereo VCA / panner
     VcfModule::registerFactory();

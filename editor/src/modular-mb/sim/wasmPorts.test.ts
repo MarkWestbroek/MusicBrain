@@ -804,3 +804,33 @@ describe('tp_mmb_draw_vco (getekende golf via blob-slot 0)', () => {
     expect(hzOf(out, m.rate)).toBeCloseTo(261.63, 0);
   });
 });
+
+describe('tp_mmb_noise (mmb_dsp::Noise, gedeeld met de firmware)', () => {
+  it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_noise'); });
+
+  /** Verhouding hoog/laag: energie van het verschilsignaal t.o.v. het signaal. */
+  const tilt = async (color: number): Promise<{ r: number; diff: number }> => {
+    const m = await load('tp_mmb_noise');
+    m.setCtl('color', color); m.setCtl('level', 1);
+    const out = m.render(1.0)[0]!;
+    const d = new Float32Array(out.length - 1);
+    for (let i = 1; i < out.length; i++) d[i - 1] = out[i]! - out[i - 1]!;
+    return { r: rms(out), diff: rms(d) / rms(out) };
+  };
+
+  it('wit, roze en bruin worden steeds donkerder', async () => {
+    const w = await tilt(0), p = await tilt(1), b = await tilt(2);
+    // Wit: verschil-rms ≈ √2 × rms. Hoe donkerder, hoe kleiner.
+    expect(w.diff).toBeCloseTo(Math.SQRT2, 1);
+    expect(p.diff).toBeLessThan(w.diff * 0.8);
+    expect(b.diff).toBeLessThan(p.diff * 0.5);
+    for (const x of [w, p, b]) expect(x.r).toBeGreaterThan(0.1);
+  });
+
+  it('level schaalt, en de reeks is deterministisch (zelfde seed als de firmware)', async () => {
+    const a = await load('tp_mmb_noise'), b = await load('tp_mmb_noise');
+    a.setCtl('level', 0.5); b.setCtl('level', 1);
+    const ya = a.render(0.1)[0]!, yb = b.render(0.1)[0]!;
+    for (let i = 0; i < ya.length; i += 101) expect(ya[i]!).toBeCloseTo(yb[i]! * 0.5, 6);
+  });
+});

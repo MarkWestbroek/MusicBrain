@@ -737,6 +737,17 @@
         "type"
       ]
     },
+    "tp_mmb_noise": {
+      "typeId": "tp_mmb_noise",
+      "source": "firmware/app-modular-brain/src/NoiseModule.h",
+      "ports": [
+        "out"
+      ],
+      "controls": [
+        "color",
+        "level"
+      ]
+    },
     "tp_mmb_octa_vca": {
       "typeId": "tp_mmb_octa_vca",
       "source": "firmware/app-modular-brain/src/OctaVcaModule.h",

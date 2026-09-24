@@ -26,8 +26,8 @@ Gemeten met `simSupportOf` over de 52 interne moduletypes (2026-09-20):
 
 | bak | n | modules |
 |---|---|---|
-| **wasm** | 45 | de 15 hierboven, plus vcf, ms20, stk_sound, de vintage-FX, elements_reverb, octa_vca, stereo_vca, resonator, cr78, comp, comb, string, echo, phaser, ladder, octa_vcf, octa_vco, wt_vco, draw_vco, quant, chord, grids, lfo |
-| **tone** | 12 | vco, vca, ahdsr, noise (bestaat niet in de firmware), fm_vco, cvmath, mixer(+8/16), seq8, midiin, out |
+| **wasm** | 46 | de 15 hierboven, plus vcf, ms20, stk_sound, de vintage-FX, elements_reverb, octa_vca, stereo_vca, resonator, cr78, comp, comb, string, echo, phaser, ladder, octa_vcf, octa_vco, wt_vco, draw_vco, noise, quant, chord, grids, lfo |
+| **tone** | 11 | vco, vca, ahdsr, fm_vco, cvmath, mixer(+8/16), seq8, midiin, out |
 | **none** | 3 | quad_vco_shared, quad_mixer_shared en sh bestaan niet in de firmware |
 
 Van de "tone"-bak is een deel infrastructuur waar sample-exactheid niet toe
