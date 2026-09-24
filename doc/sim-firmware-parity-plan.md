@@ -26,8 +26,8 @@ Gemeten met `simSupportOf` over de 52 interne moduletypes (2026-09-20):
 
 | bak | n | modules |
 |---|---|---|
-| **wasm** | 38 | de 15 hierboven, plus vcf, ms20, stk_sound, de vintage-FX, elements_reverb, octa_vca, stereo_vca, resonator, cr78, comp, comb, string, quant, chord, grids, lfo |
-| **tone** | 15 | vco, ladder, vca, ahdsr, echo, phaser, noise, fm_vco, cvmath, mixer(+8/16), seq8, midiin, out |
+| **wasm** | 39 | de 15 hierboven, plus vcf, ms20, stk_sound, de vintage-FX, elements_reverb, octa_vca, stereo_vca, resonator, cr78, comp, comb, string, echo, quant, chord, grids, lfo |
+| **tone** | 14 | vco, ladder, vca, ahdsr, phaser, noise (bestaat niet in de firmware), fm_vco, cvmath, mixer(+8/16), seq8, midiin, out |
 | **none** | 7 | draw_vco, wt_vco, octa_vco, octa_vcf, quad_vco_shared, quad_mixer_shared, sh (bewust: bestaat niet in de firmware) |
 
 Van de "tone"-bak is een deel infrastructuur waar sample-exactheid niet toe
@@ -429,10 +429,11 @@ Op Windows draait `build.sh` onder Git Bash.
 - [x] Stap 2 — MIDI CC + bend in de sim, plus cv → VCO.tune (2026-09-20)
 - [~] Stap 3 — stk_sound (2026-09-20); elements_reverb, octa_vca, stereo_vca,
       comb (graaf nagebootst, incl. de blok-vertraging), string (`AudioSynthKarplusStrong`
-      in int16 overgeschreven, per Teensy-blok van 128) (2026-09-24)
+      in int16 overgeschreven, per Teensy-blok van 128), echo (graaf als de comb;
+      de Tone-versie liet 2 s toe en negeerde zijn CV-ingangen) (2026-09-24)
 - [~] Stap 4 — resonator, cr78, comp als `mmb-dsp`-kernel, bit-identiek bewezen
       met `tools/mmb-wasm/bitcheck/` (2026-09-24). Open: vco (BLEP), ladder,
-      echo, octa_vcf (die verandert de hardwareklank — oren erbij)
+      octa_vcf (die verandert de hardwareklank — oren erbij)
 - [x] CV-modules draaien de firmwareklasse zelf via `cvhost.h`: quant, chord,
       grids, lfo (2026-09-24)
 - [ ] Stap 6 — noot-dispatcher → signalen (voorstel hierboven; ahdsr, cvmath,

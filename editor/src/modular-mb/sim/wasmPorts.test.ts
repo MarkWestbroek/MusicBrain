@@ -540,3 +540,36 @@ describe('tp_mmb_string (AudioSynthKarplusStrong overgeschreven)', () => {
     expect(peak(await pluck(0, 0))).toBe(0);
   });
 });
+
+describe('tp_mmb_echo (Teensy-graaf nagebootst)', () => {
+  it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_echo'); });
+
+  /** Eén klik op t = 0, dan stilte; geeft de uitgang terug. */
+  const impulse = async (time: number, fbk: number): Promise<Float32Array> => {
+    const m = await load('tp_mmb_echo');
+    m.setCtl('time', time); m.setCtl('feedback', fbk); m.setCtl('mix', 1);
+    return m.render(1.5, (t, mm) => mm.setIn('in', t === 0 ? 1 : 0))[0]!;
+  };
+  const firstAbove = (a: Float32Array, from: number, thr = 0.01): number => {
+    for (let i = from; i < a.length; i++) if (Math.abs(a[i]!) > thr) return i;
+    return -1;
+  };
+
+  it('eerste echo op time, de tweede op 2·time + 128 (feedback één Teensy-blok later)', async () => {
+    // De klik vult het eerste blok van 32; de flank ligt op sample 0.
+    const out = await impulse(0.1, 0.5);
+    expect(firstAbove(out, 1)).toBe(4410);
+    expect(firstAbove(out, 4410 + 32)).toBe(2 * 4410 + 128);
+  });
+
+  it('elke herhaling is feedback × de vorige', async () => {
+    const out = await impulse(0.1, 0.5);
+    const a = peak(out, 4410, 4410 + 32), b = peak(out, 8948, 8948 + 32);
+    expect(b / a).toBeCloseTo(0.5, 3);
+  });
+
+  it('time klemt op 500 ms, zoals EchoModule::kMaxDelayMs', async () => {
+    const out = await impulse(2.0, 0);
+    expect(firstAbove(out, 1)).toBe(22050);
+  });
+});

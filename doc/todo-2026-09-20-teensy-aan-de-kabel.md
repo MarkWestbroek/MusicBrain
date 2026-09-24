@@ -132,3 +132,8 @@ hetzelfde.
 **De AHDSR heeft een `eoc`-uitgang op het paneel die de firmware niet kent**
 (`Ahdsr.h` leest alleen `cv_out`). Een kabel uit EOC geeft op de Teensy nul.
 
+**Noise bestaat niet in de firmware.** Net als S&H: `tp_mmb_noise` staat in de
+catalogus, maar er is geen module achter. In de simulator ruist hij wél (een
+Tone-ruisgenerator uit de begintijd). Die laat ik staan tot je kiest: bouwen
+(een `AudioSynthNoiseWhite`/`Pink` achter een `AudioModule` is een klein
+klusje) of de simulator hem ook laten zwijgen.

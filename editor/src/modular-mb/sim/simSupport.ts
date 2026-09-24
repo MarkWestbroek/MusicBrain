@@ -29,7 +29,7 @@ export type SimSupport = 'wasm' | 'tone' | 'none';
  * bovenin makeNode en de twee gevallen in de utility-tak.
  */
 const TONE_BY_TYPE_ID: ReadonlySet<string> = new Set([
-  'tp_mmb_noise', 'tp_mmb_echo', 'tp_mmb_phaser', 'tp_mmb_cvmath',
+  'tp_mmb_noise', 'tp_mmb_phaser', 'tp_mmb_cvmath',
   'tp_mmb_mixer', 'tp_mmb_mixer8', 'tp_mmb_mixer16',
   'tp_mmb_out', 'tp_mmb_midiin',
 ]);
