@@ -251,12 +251,19 @@ audio-thread. Bij een herbouw terwijl de sim draait leven de oude
 processors nog tot de GC ze opruimt, dus dat verdubbelt; Chrome weigert dan
 nieuwe reserveringen. Herladen helpt omdat alles vrijkomt.
 
-Aanbevolen (wasm-spoor, niet hier gedaan): in tools/mmb-wasm/build.sh een
-klein initieel geheugen en een bovengrens per module
-(`-Wl,--initial-memory=…` klein, `-Wl,--max-memory=…` bijv. 16 MB; STK/
-Clouds/Plaits apart hoger), en/of in AudioEngine worklet-nodes over een
-herbouw heen hergebruiken op module-id + type, zoals de firmware doet.
-De recept-laag klemt sinds vandaag wel alle knopstanden van buiten
+**Gedaan 2026-09-25 (wasm-spoor):** `tools/mmb-wasm/build.sh` zet geen
+vaste beginmaat meer (de linker neemt data + stack: 5–12 pagina's = 320 KB
+tot 768 KB per module in plaats van 128 = 8 MB) en een bovengrens
+`--max-memory` van 32 MB per module; de sampler (banken in het
+wasm-geheugen) krijgt 2 GB. Alle 53 modules herbouwd; een 4-stemmige
+recept-patch reserveert nu ~20 MB in plaats van 232 MB. Bijvangst: het
+geheugen gróeit nu tijdens het spelen (STK alloceert per model bij
+note-on), dus wie een `Float32Array`-view over `memory.buffer` bewaart
+krijgt "detached ArrayBuffer" — de worklet pakte hem al per blok opnieuw,
+`wasmStkSound.test.ts` nu ook. Worklet-nodes hergebruiken over een herbouw
+heen (AudioEngine, op module-id + type) staat nog open; `dispose` zet de
+oude processors wel meteen stil (`alive = false`).
+De recept-laag klemt sinds gisteren wel alle knopstanden van buiten
 (`sanitizeControls`), maar dat was niet de oorzaak.
 
 ## Open punten

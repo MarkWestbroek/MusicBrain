@@ -17,6 +17,21 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### wasm — 8 MB per instantie was de "worklet-processor gecrasht" (2026-09-25)
+- **Oorzaak** (bevinding in `doc/plans/patch-recept.md`): `build.sh` gaf elke
+  module `--initial-memory=8 MB` zonder bovengrens, en sinds stap 6 is élke
+  module in een patch een eigen wasm-instantie: 4 stemmen = 29 instanties =
+  232 MB in de audio-thread, ×2 tijdens een herbouw → Chrome:
+  `Cannot allocate Wasm memory for new instance`.
+- **Fix:** geen vaste beginmaat (linker: data + stack, 320–768 KB per
+  module) en `--max-memory` 32 MB per module; de sampler 2 GB (banken in
+  het wasm-geheugen). Alle 53 modules herbouwd; dezelfde patch reserveert
+  nu ~20 MB. Statische data is klein (grootste: Elements 373 KB).
+- **Gevolg:** het geheugen groeit nu tijdens het spelen (malloc →
+  `memory.grow`), dus views over `memory.buffer` moeten per blok opnieuw
+  gepakt worden. De worklet deed dat al; `wasmStkSound.test.ts` (STK
+  alloceert per model bij note-on) nu ook. 492 tests groen.
+
 ### fw 0.5.70 — Aftertouch en release-velocity uit MIDI-in (MPE stap 1) (2026-09-24)
 - **MidiIn `press`/`pressK`** (0..1): channel pressure (`0xD0`, Keystep Pro)
   zet alle stemmen, poly pressure (`0xA0`, Osmose klassiek) alleen de stem

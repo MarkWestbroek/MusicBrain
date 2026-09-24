@@ -62,13 +62,15 @@ async function load(): Promise<Mod> {
     },
     render(seconds, gate) {
       const gateIdx = inputs.indexOf('gate');
-      const gateBuf = new Float32Array(ex.memory.buffer, inPtr[gateIdx]!, 64);
       ex.mmb_input_connected(gateIdx, 1);
-      const out = new Float32Array(ex.memory.buffer, outPtr, 64);
       let peak = 0, crossings = 0, prev = 0;
       for (let t = 0; t < this.rate * seconds; t += this.block) {
-        gateBuf.fill(gate(t / this.rate) ? 1 : 0);
+        // STK alloceert per model bij note-on; sinds de kleine beginmaat
+        // (build.sh) groeit het geheugen dan en is een oude view "detached".
+        // Net als de worklet: views per blok opnieuw pakken.
+        new Float32Array(ex.memory.buffer, inPtr[gateIdx]!, 64).fill(gate(t / this.rate) ? 1 : 0);
         ex.mmb_render(this.block);
+        const out = new Float32Array(ex.memory.buffer, outPtr, 64);
         for (let k = 0; k < this.block; k++) {
           const v = out[k]!;
           if (Math.abs(v) > peak) peak = Math.abs(v);

@@ -31,6 +31,15 @@ STMLIB_CC="$ELEM/stmlib/dsp/units.cc $ELEM/stmlib/utils/random.cc"
 # de eigen map, dan de meest complete stmlib-kopieën als fallback.
 FALLBACK_INC="-I$LIB/mi-plaits -I$ELEM -I$LIB/mi-rings -I$LIB/mi-clouds -I$LIB/mi-marbles"
 
+# Geheugen per module. Elke module in een patch is een eigen wasm-instantie
+# (sinds stap 6 ook VCO/VCA/envelopes/MIDI-in), dus 8 MB vast per instantie
+# liep bij een 4-stemmige patch (29 instanties) tegen Chrome's grens aan:
+# "Cannot allocate Wasm memory for new instance". Daarom: geen vaste
+# beginmaat (de linker neemt data + stack, ~0,5–1 MB) en een bovengrens,
+# zodat V8 per instantie alleen dat reserveert. malloc groeit tot de grens.
+# MAXMEM="…" ervoor zet een andere grens (de sampler houdt banken in het
+# wasm-geheugen en krijgt 2 GB).
+MAXMEM_DEFAULT=33554432   # 32 MB
 build() {  # naam typeId include-dirs... -- bronnen...
            # EXTRA="-DFOO=1" ervoor zet extra compilervlaggen (één bron,
            # meer binaries — zie de envfollower hieronder).
@@ -45,7 +54,7 @@ build() {  # naam typeId include-dirs... -- bronnen...
     -std=c++17 -O3 -msimd128 -fno-exceptions -fno-rtti -DTEST \
     -Wno-unused-value -Wno-deprecated-register -include cstdio \
     -I"$HERE" -I"$HERE/shim" ${incs[@]+"${incs[@]}"} $FALLBACK_INC ${EXTRA:-} \
-    -nostartfiles -Wl,--no-entry -Wl,--export-memory -Wl,--initial-memory=8388608 -Wl,-z,stack-size=262144 \
+    -nostartfiles -Wl,--no-entry -Wl,--export-memory -Wl,--max-memory="${MAXMEM:-$MAXMEM_DEFAULT}" -Wl,-z,stack-size=262144 \
     -o "$OUTDIR/$typeId.wasm" \
     "$HERE/${name}_wasm.cc" "$@" 2> "$OUTDIR/$typeId.log"; then
     echo "   MISLUKT — zie $OUTDIR/$typeId.log"; grep -m3 "error:" "$OUTDIR/$typeId.log" | sed 's/^/   /'; FAILED="$FAILED $typeId"
@@ -153,7 +162,8 @@ sel paraeq && build paraeq tp_mmb_para_eq "$LIB/mmb-dsp" --
 sel envfollower && build envfollower tp_mmb_env_follower "$LIB/mmb-dsp" --
 sel envfollower && EXTRA="-DMMB_EF_CELLS=1" build envfollower tp_mmb_env_follower_mono "$LIB/mmb-dsp" --
 
-sel sampler && build sampler tp_mmb_sampler "$LIB/mmb-dsp" --
+# Banken (blobs) leven in het wasm-geheugen: ruime bovengrens.
+sel sampler && MAXMEM=2147483648 build sampler tp_mmb_sampler "$LIB/mmb-dsp" --
 MSFA="$LIB/msfa"
 sel dx7 && build dx7 tp_mmb_dx7 "$MSFA" -- \
   "$MSFA"/msfa/dx7note.cc "$MSFA"/msfa/env.cc "$MSFA"/msfa/exp2.cc \
