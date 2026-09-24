@@ -105,6 +105,9 @@ sel warps && build warps tp_mmb_warps "$LIB/mi-warps" -- \
   "$LIB"/mi-warps/warps/dsp/oscillator.cc "$LIB"/mi-warps/warps/dsp/vocoder.cc \
   "$LIB"/mi-warps/warps/resources.cc $STMLIB_CC
 
+sel elementsreverb && build elementsreverb tp_mmb_elements_reverb "$ELEM" -- $STMLIB_CC
+sel octavca && build octavca tp_mmb_octa_vca --
+sel stereovca && build stereovca tp_mmb_stereo_vca --
 sel vcf && build vcf tp_mmb_vcf "$LIB/mmb-dsp" --
 sel ms20 && build ms20 tp_mmb_ms20 "$LIB/mmb-dsp" --
 
