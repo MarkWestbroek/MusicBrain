@@ -22,4 +22,4 @@ MmbControl MMB_CONTROLS[] = {
 };
 const int MMB_NUM_CONTROLS = 8;
 
-mb::runtime::CvModule* cvhost_make() { return new mmb_link::GridsModule("grids"); }
+mb::runtime::Module* cvhost_make() { return new mmb_link::GridsModule("grids"); }

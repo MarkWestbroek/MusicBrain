@@ -14,4 +14,4 @@ const int MMB_NUM_OUTPUTS = 2;
 MmbControl MMB_CONTROLS[] = { { "scale", 1.0f }, { "root", 0.0f }, { "glide", 0.0f } };
 const int MMB_NUM_CONTROLS = 3;
 
-mb::runtime::CvModule* cvhost_make() { return new mmb_link::QuantModule("quant"); }
+mb::runtime::Module* cvhost_make() { return new mmb_link::QuantModule("quant"); }

@@ -120,3 +120,15 @@ er is geen `ShModule` en geen typeId in de firmware. Op de Teensy doet hij dus
 niets. De simulator speelt hem bewust óók niet: als de browser hem wel zou
 laten klinken, zou een patch daar anders klinken dan op je hardware. Bouwen
 of uit de catalogus halen — dat is jouw keuze.
+
+**De LFO-standen Gated en OneShot doen niets.** De Run-schakelaar op het
+paneel heeft ze, en `Lfo.cpp` implementeert ze met een `gate`-ingang. Maar de
+catalogus geeft de LFO geen `gate`-poort, dus je kunt er geen kabel in steken.
+Gated staat dan stil (`running_ = lastGate_ = false`) en OneShot start nooit.
+Poort toevoegen aan `mmbLfo()` in `seedModules.ts` of de twee standen van de
+schakelaar halen. De simulator volgt nu de firmwareklasse, dus daar doet het
+hetzelfde.
+
+**De AHDSR heeft een `eoc`-uitgang op het paneel die de firmware niet kent**
+(`Ahdsr.h` leest alleen `cv_out`). Een kabel uit EOC geeft op de Teensy nul.
+

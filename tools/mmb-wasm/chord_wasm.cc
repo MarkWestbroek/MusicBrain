@@ -16,4 +16,4 @@ const int MMB_NUM_OUTPUTS = 4;
 MmbControl MMB_CONTROLS[] = { { "chord", 0.0f }, { "inv", 0.0f }, { "spread", 0.0f } };
 const int MMB_NUM_CONTROLS = 3;
 
-mb::runtime::CvModule* cvhost_make() { return new mmb_link::ChordModule("chord"); }
+mb::runtime::Module* cvhost_make() { return new mmb_link::ChordModule("chord"); }

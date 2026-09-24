@@ -28,7 +28,7 @@ import type {
   ModularProject, Patch, ModuleInstance, ModuleType,
   PatchConnection, ControlValue, SignalType,
 } from '../types';
-import { registry, Vcf, Ladder, Ms20, Vco, FmVco, Vca, Ahdsr, Lfo, WasmModule } from '../runtime';
+import { registry, Vcf, Ladder, Ms20, Vco, FmVco, Vca, Ahdsr, WasmModule } from '../runtime';
 import { simSupportByKind } from './simSupport';
 import { patchVoiceLimit, expandPolyConnections, NoteStack, notePriorityOf, pickVoiceIndex,
   stealStrategyOf, unisonSpreadVolts, VoiceAllocator,
@@ -104,12 +104,6 @@ interface EnvNode extends BaseNode {
   env: Ahdsr['env'];
   /** True when a cable drives the 'gate' input (otherwise: keyboard gates it). */
   gateDriven: boolean;
-}
-interface LfoNode extends BaseNode {
-  kind: 'lfo';
-  runtime: Lfo;
-  /** Alias of `runtime.lfo`. */
-  lfo: Tone.LFO;
 }
 interface OutNode extends BaseNode {
   kind: 'out';
@@ -238,7 +232,7 @@ interface WasmNode extends BaseNode {
   voctDriven: boolean;
   gateDriven: boolean;
 }
-type EngineNode = VcoNode | VcfNode | VcaNode | EnvNode | LfoNode | OutNode | MidiInNode | SeqNode | NoiseNode | EchoNode | PhaserNode | MixerNode | CvMathNode | WasmNode;
+type EngineNode = VcoNode | VcfNode | VcaNode | EnvNode | OutNode | MidiInNode | SeqNode | NoiseNode | EchoNode | PhaserNode | MixerNode | CvMathNode | WasmNode;
 
 /** Stilte tussen loslaten en opnieuw aanslaan van dezelfde wasm-stem (ms).
  *  Eén renderblok is ~2,7 ms; hierna heeft de module de dalende flank gezien. */
@@ -492,10 +486,6 @@ export class AudioEngine {
     for (const node of this.nodes.values()) {
       if (node.kind === 'vco') {
         if (node.osc.state !== 'started') { node.osc.start(); this.startedOscs.add(node.osc); }
-      }
-      if (node.kind === 'lfo') {
-        // Tone.LFO.start() is idempotent w.r.t. state via internal logic.
-        try { node.lfo.start(); this.startedOscs.add(node.lfo); } catch { /* already started */ }
       }
       if (node.kind === 'noise') {
         if (node.noise.state !== 'started') { try { node.noise.start(); } catch { /* ignore */ } }
@@ -935,12 +925,6 @@ export class AudioEngine {
         }
         return true;
       }
-      case 'lfo': {
-        if (controlId === 'wave' || controlId === 'shape') return false;
-        if (controlId === 'rate' || controlId === 'freq')   { node.runtime.setControl('rate', num);  return true; }
-        if (controlId === 'depth' || controlId === 'amount'){ node.runtime.setControl('depth', num); return true; }
-        return true;
-      }
       case 'out': {
         if (controlId === 'level') { node.inGain.gain.rampTo(clamp(num, 0, 1), RAMP); return true; }
         return true;
@@ -1059,7 +1043,6 @@ export class AudioEngine {
         case 'vcf': node.runtime.dispose(); node.cvScale?.dispose(); node.qCvScale?.dispose(); break;
         case 'vca': node.runtime.dispose(); node.cvSum?.dispose(); break;
         case 'envelope': node.runtime.dispose(); break;
-        case 'lfo': node.runtime.dispose(); break;
         case 'out': node.inGain.dispose(); break;
         case 'noise': node.noise.dispose(); node.level.dispose(); break;
         case 'echo': node.delay.dispose(); node.wetGain.dispose(); node.dryGain.dispose(); node.input.dispose(); node.output.dispose(); break;
@@ -1201,11 +1184,6 @@ export class AudioEngine {
         if (!registry.has(t.id)) return null;
         const rt = registry.create(t, m, controls) as Ahdsr;
         return { ...base, kind: 'envelope', runtime: rt, env: rt.env, gateDriven: false };
-      }
-      case 'lfo': {
-        if (!registry.has(t.id)) return null;
-        const rt = registry.create(t, m, controls) as Lfo;
-        return { ...base, kind: 'lfo', runtime: rt, lfo: rt.lfo };
       }
       case 'utility':
         // Convention: alleen 'MMB OUT' wordt als audio-output-node behandeld.
@@ -1881,7 +1859,6 @@ function cvOutputOf(n: EngineNode, portId?: string): Tone.ToneAudioNode | null {
            : portId === 'cv_cc1'  ? n.cc1Sig
            : portId === 'cv_cc2'  ? n.cc2Sig : null;
     case 'envelope': return n.env;
-    case 'lfo':      return n.lfo;
     case 'cvmath':   return n.out;
     case 'wasm':     return n.runtime.outGain(portId ?? '') ?? null;
     default: return null;

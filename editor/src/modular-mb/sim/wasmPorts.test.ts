@@ -434,3 +434,55 @@ describe('tp_mmb_grids (firmwareklasse zelf)', () => {
     expect(snel).toBeGreaterThan(langzaam * 2);
   });
 });
+
+describe('tp_mmb_lfo (firmwareklasse zelf)', () => {
+  it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_lfo'); });
+
+  /** Aantal opgaande nuldoorgangen — voor een sinus: aantal periodes. */
+  const cycles = (a: Float32Array): number => {
+    let n = 0;
+    for (let i = 1; i < a.length; i++) if (a[i - 1]! < 0 && a[i]! >= 0) n++;
+    return n;
+  };
+
+  it('geeft een sinus van 1 Hz op ±depth, en out_inv is het spiegelbeeld', async () => {
+    const m = await load('tp_mmb_lfo');
+    m.setCtl('rate', 1); m.setCtl('depth', 0.5);
+    const [out, inv] = m.render(4.0);
+    expect(cycles(out!)).toBeGreaterThanOrEqual(3);
+    expect(cycles(out!)).toBeLessThanOrEqual(4);
+    expect(peak(out!)).toBeCloseTo(0.5, 2);
+    for (let i = 0; i < out!.length; i += 97) expect(inv![i]).toBeCloseTo(-out![i]!, 6);
+  });
+
+  it('bipolar uit geeft 0..depth — de toggle komt als bool binnen, zoals op de Teensy', async () => {
+    // Lfo::setControl leest `bipolar` als bool of int, niet als float. Kreeg
+    // hij een float, dan bleef hij bipolair en zakte dit onder nul.
+    const m = await load('tp_mmb_lfo');
+    m.setCtl('bipolar', 0);
+    const [out] = m.render(2.0);
+    let lo = Infinity, hi = -Infinity;
+    for (const v of out!) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+    expect(lo).toBeGreaterThanOrEqual(0);
+    expect(lo).toBeLessThan(0.01);
+    expect(hi).toBeGreaterThan(0.99);
+  });
+
+  it('rate_cv is exponentieel: +0,25 is één octaaf sneller', async () => {
+    const m = await load('tp_mmb_lfo');
+    m.setCtl('rate', 2);
+    m.setIn('rate_cv', 0.25);
+    const [out] = m.render(4.0);
+    expect(cycles(out!)).toBeGreaterThanOrEqual(15);
+    expect(cycles(out!)).toBeLessThanOrEqual(16);
+  });
+
+  it('een reset-flank zet de fase terug op nul', async () => {
+    const m = await load('tp_mmb_lfo');
+    m.setCtl('rate', 1); m.setCtl('wave', 2);           // zaagtand: fase is direct af te lezen
+    m.setIn('reset', 0);
+    const [out] = m.render(0.6, (t, mm) => mm.setIn('reset', t >= 0.5 ? 1 : 0));
+    expect(out![499]!).toBeGreaterThan(-0.05);          // halverwege: rond 0
+    expect(out![505]!).toBeLessThan(-0.95);             // na de reset: weer onderaan
+  });
+});
