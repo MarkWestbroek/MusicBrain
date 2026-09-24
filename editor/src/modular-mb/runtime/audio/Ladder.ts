@@ -1,5 +1,5 @@
 import { Vcf } from './Vcf';
-import { registry, type ControlValue } from '../index';
+import { type ControlValue } from '../index';
 
 function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v));
@@ -41,7 +41,8 @@ export class Ladder extends Vcf {
   }
 }
 
-// Self-registration: the registry maps typeId → factory.
-registry.register(Ladder.typeId, (type, instance, initialControlValues) =>
-  new Ladder(type, instance, initialControlValues),
-);
+// Géén self-registration meer: `tp_mmb_ladder` draait sinds 2026-09-24 als
+// wasm (`tools/mmb-wasm/ladder_wasm.cc`, `AudioFilterLadder` uit de Teensy
+// Audio Library overgeschreven). De registry weigert een tweede factory op
+// hetzelfde typeId, dus dit moet weg zolang het typeId in
+// `WasmModule.typeIds` staat.

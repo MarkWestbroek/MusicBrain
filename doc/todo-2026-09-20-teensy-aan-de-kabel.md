@@ -137,3 +137,22 @@ catalogus, maar er is geen module achter. In de simulator ruist hij wél (een
 Tone-ruisgenerator uit de begintijd). Die laat ik staan tot je kiest: bouwen
 (een `AudioSynthNoiseWhite`/`Pink` achter een `AudioModule` is een klein
 klusje) of de simulator hem ook laten zwijgen.
+
+**De ladder vouwt om bij veel drive — dezelfde fout als de MS-20 had.**
+`AudioFilterLadder::update()` (Teensy Audio Library) schrijft
+`blocka->data[i] = blockOut[i] * 32768.0f` zonder klem. Komt de uitgang boven
+±1, dan wordt dat op ARM een int32 en daarna afgekapt tot 16 bits: het
+signaal springt van +1 naar −1. Gemeten in de simulator, die deze cast
+nabootst, met een zaagtand op volle schaal en cutoff 2 kHz:
+
+| drive | piek | sprongen/s |
+|---|---|---|
+| 1 – 2 | 0,78 – 0,93 | 0 |
+| 3 | ≥ 1 | ~440 (vier per periode bij 110 Hz) |
+
+Met een ingang op halve schaal blijft hij zelfs bij drive 4 onder de 1. Het
+klinkt als harde klikken of een raspende foldover. Oplossing: de ladder naar
+`mmb-dsp` halen (hij is MIT, net als de rest) en daar klemmen, zoals bij de
+MS-20. Dat verandert de klank alleen in het gebied waar hij nu omvouwt, dus
+eerst luisteren: zet een ladder op drive 3–4 achter een luide VCO.
+

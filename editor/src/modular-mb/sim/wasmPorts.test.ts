@@ -617,3 +617,47 @@ describe('tp_mmb_phaser (mmb_dsp::Phaser, gedeeld met de firmware)', () => {
     expect(spread(loopt)).toBeGreaterThan(2);
   });
 });
+
+describe('tp_mmb_ladder (AudioFilterLadder overgeschreven)', () => {
+  it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_ladder'); });
+
+  const sine = (hz: number, amp = 0.5) => (t: number, m: Mod): void => {
+    const b = m.inBuf('in');
+    for (let k = 0; k < m.block; k++) b[k] = amp * Math.sin(2 * Math.PI * hz * (t + k / m.rate));
+  };
+  const gainAt = async (hz: number): Promise<number> => {
+    const m = await load('tp_mmb_ladder');
+    m.setCtl('cutoff', 1000); m.setCtl('q', 0);
+    const out = m.render(0.5, sine(hz))[0]!;
+    return rms(out, 11025) / (0.5 / Math.SQRT2);
+  };
+  /** Zelfoscillatie: toonhoogte via nuldoorgangen, na een tikje. */
+  const selfOsc = async (cutoff: number, set?: (m: Mod) => void): Promise<number> => {
+    const m = await load('tp_mmb_ladder');
+    m.setCtl('cutoff', cutoff); m.setCtl('q', 1.8);
+    set?.(m);
+    const out = m.render(1.0, (t, mm) => mm.setIn('in', t === 0 ? 0.5 : 0))[0]!;
+    let n = 0;
+    for (let i = 22050; i < 44100; i++) if (out[i - 1]! < 0 && out[i]! >= 0) n++;
+    return n * 2;                                        // halve seconde → Hz
+  };
+
+  it('is een laagdoorlaat van 24 dB/oct', async () => {
+    const laag = await gainAt(100), hoog = await gainAt(8000);
+    // passbandGain 0,5 is de standaard: de doorlaat staat op −6 dB.
+    expect(laag).toBeGreaterThan(0.4);
+    expect(hoog).toBeLessThan(0.01);
+  });
+
+  it('oscilleert zelf bij Q 1,8, rond de cutoff', async () => {
+    const f = await selfOsc(1000);
+    expect(f).toBeGreaterThan(700);
+    expect(f).toBeLessThan(1300);
+  });
+
+  it('cv × cv_amt is octaven: cv 0,5 bij 2 oct is één octaaf hoger', async () => {
+    const f0 = await selfOsc(500), f1 = await selfOsc(500, (m) => m.setIn('cv', 0.5));
+    expect(f1 / f0).toBeGreaterThan(1.85);
+    expect(f1 / f0).toBeLessThan(2.15);
+  });
+});

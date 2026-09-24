@@ -38,11 +38,12 @@ describe('simSupport', () => {
     expect(supportOf('tp_mmb_vcf')).toBe('wasm');
     expect(supportOf('tp_mmb_ms20')).toBe('wasm');
     expect(supportOf('tp_mmb_stk_sound')).toBe('wasm');   // gevendorde STK
+    expect(supportOf('tp_mmb_ladder')).toBe('wasm');       // AudioFilterLadder overgeschreven
   });
 
   it('herkent de Tone-runtimes en de hardgecodeerde interne modules', () => {
     expect(supportOf('tp_mmb_vco')).toBe('tone');   // registry
-    expect(supportOf('tp_mmb_ladder')).toBe('tone');
+    expect(supportOf('tp_mmb_vca')).toBe('tone');
     expect(supportOf('tp_mmb_mixer8')).toBe('tone'); // op typeId in makeNode
     expect(supportOf('tp_mmb_out')).toBe('tone');
   });
