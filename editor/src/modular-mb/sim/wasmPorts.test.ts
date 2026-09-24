@@ -196,3 +196,55 @@ describe('tp_mmb_stereo_vca', () => {
     expect(l![l!.length - 1]!).toBeCloseTo(0.25 * Math.SQRT1_2, 4);
   });
 });
+
+describe('tp_mmb_resonator', () => {
+  it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_resonator'); });
+
+  /** Eén klap in, alleen nat eruit; geeft de uitgang terug. */
+  const klap = async (root: number): Promise<Float32Array> => {
+    const m = await load('tp_mmb_resonator');
+    m.setCtl('mix', 1); m.setCtl('decay', 0.95); m.setCtl('structure', 0);
+    m.setCtl('scale', 3);                     // kwint/octaaf: weinig slijtage
+    m.setCtl('root', root);
+    const [o] = m.render(0.8, (t, mm) => {
+      const b = mm.inBuf('in');
+      for (let k = 0; k < mm.block; k++) b[k] = t === 0 && k === 0 ? 1 : 0;
+    });
+    return o!;
+  };
+
+  it('blijft natrillen na één klap', async () => {
+    const o = await klap(0);
+    expect(rms(o, Math.round(44100 * 0.4), Math.round(44100 * 0.6))).toBeGreaterThan(0.001);
+  });
+
+  it('stemt een octaaf hoger als de grondtoon 12 halve tonen stijgt', async () => {
+    // Op de harmonische schaal (4) zijn de twaalf snaren boventonen van de
+    // grondtoon, dus de som herhaalt zich met díe periode. Autocorrelatie
+    // vindt hem; een octaaf hoger moet de periode halveren.
+    const periode = async (root: number): Promise<number> => {
+      const m = await load('tp_mmb_resonator');
+      m.setCtl('mix', 1); m.setCtl('decay', 0.95); m.setCtl('structure', 0);
+      m.setCtl('scale', 4); m.setCtl('root', root);
+      const [o] = m.render(0.8, (t, mm) => {
+        const b = mm.inBuf('in');
+        for (let k = 0; k < mm.block; k++) b[k] = t === 0 && k === 0 ? 1 : 0;
+      });
+      const a = o!.slice(15000, 30000);
+      let mean = 0; for (const v of a) mean += v; mean /= a.length;
+      for (let i = 0; i < a.length; i++) a[i] = a[i]! - mean;
+      let best = 0, bestLag = 0;
+      for (let lag = 150; lag < 1500; lag++) {
+        let c = 0;
+        for (let i = 0; i + lag < a.length; i++) c += a[i]! * a[i + lag]!;
+        if (c > best) { best = c; bestLag = lag; }
+      }
+      return bestLag;
+    };
+    // C2 = 65,4 Hz → ~674 samples; C3 → ~337.
+    const laag = await periode(0), hoog = await periode(12);
+    expect(laag / hoog).toBeGreaterThan(1.8);
+    expect(laag / hoog).toBeLessThan(2.2);
+    expect(Math.abs(laag - 44100 / 65.41)).toBeLessThan(20);
+  });
+});
