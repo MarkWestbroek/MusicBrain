@@ -486,3 +486,57 @@ describe('tp_mmb_lfo (firmwareklasse zelf)', () => {
     expect(out![505]!).toBeLessThan(-0.95);             // na de reset: weer onderaan
   });
 });
+
+describe('tp_mmb_string (AudioSynthKarplusStrong overgeschreven)', () => {
+  it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_string'); });
+
+  /** Lag met de hoogste autocorrelatie tussen `lo` en `hi`. */
+  const period = (a: Float32Array, from: number, lo: number, hi: number): number => {
+    let best = lo, bestR = -Infinity;
+    for (let lag = lo; lag <= hi; lag++) {
+      let r = 0;
+      for (let i = from; i < from + 4096; i++) r += a[i]! * a[i + lag]!;
+      if (r > bestR) { bestR = r; best = lag; }
+    }
+    return best;
+  };
+
+  const pluck = async (voct: number, level = 0.8): Promise<Float32Array> => {
+    const m = await load('tp_mmb_string');
+    m.setCtl('level', level);
+    m.setIn('voct', voct);
+    m.setIn('gate', 0);
+    return m.render(1.0, (t, mm) => mm.setIn('gate', t >= 0.1 ? 1 : 0))[0]!;
+  };
+
+  it('zwijgt tot de gate opgaat, en slaat dan aan op een Teensy-blokgrens', async () => {
+    const out = await pluck(0);
+    expect(peak(out, 0, 4410)).toBe(0);
+    let first = -1;
+    for (let i = 0; i < out.length; i++) if (out[i] !== 0) { first = i; break; }
+    expect(first).toBeGreaterThanOrEqual(4410);
+    expect(first % 128).toBe(0);
+    expect(peak(out)).toBeGreaterThan(0.3);
+  });
+
+  it('klinkt op 44100 / (len + ½): C4 = 169 samples, een octaaf hoger 84', async () => {
+    const c4 = await pluck(0), c5 = await pluck(1);
+    // Een halve sample valt tussen twee lags in: len of len + 1.
+    expect([169, 170]).toContain(period(c4, 6000, 100, 250));
+    expect([84, 85]).toContain(period(c5, 6000, 60, 120));
+  });
+
+  it('sterft uit', async () => {
+    const out = await pluck(0);
+    expect(rms(out, 36000, 44100)).toBeLessThan(rms(out, 5000, 13000) * 0.5);
+  });
+
+  it('gaat niet lager dan 536 samples (~82 Hz), zoals de Teensy-buffer', async () => {
+    const out = await pluck(-2);                        // C2 zou 674 samples zijn
+    expect([536, 537]).toContain(period(out, 6000, 400, 800));
+  });
+
+  it('level 0 is stil', async () => {
+    expect(peak(await pluck(0, 0))).toBe(0);
+  });
+});
