@@ -604,7 +604,12 @@ export class AudioEngine {
     // dezelfde node. Sluit alleen out_l aan zodat de OUT niet dubbel telt.
     if (src.kind === 'mixer' && conn.from.portId === 'out_r') return;
     const out = outputOf(src, conn.from.portId);
-    const inp = inputOf(dst, conn.to.portId);
+    // Een tweede kabel op een cv/gate-ingang: eigen worklet-ingang, zodat de
+    // laatste verandering wint zoals in de CvGraph (zie WasmModule.addFeeder).
+    const dstSig = this.portIndex.get(`${conn.to.moduleId}:${conn.to.portId}`)?.signalType;
+    const inp = dst.kind === 'wasm' && dstSig !== 'audio' && dst.runtime.cabled.has(conn.to.portId)
+      ? dst.runtime.addFeeder(conn.to.portId)
+      : inputOf(dst, conn.to.portId);
     if (!out || !inp) return;
     if (src.kind === 'wasm' && dst.kind === 'wasm') {
       // Web Audio dempt een lus zonder DelayNode (Stages.eoc → Marbles.clock

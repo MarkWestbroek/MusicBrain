@@ -129,3 +129,33 @@ describe('mmb-worklet resampling', () => {
     expect(await run('tp_mmb_tape_echo', dry, 5000)).toBeGreaterThan(42);
   });
 });
+
+describe('mmb-worklet: twee kabels op één cv-ingang', () => {
+  const CTX = 48000;
+  beforeAll(async () => { await loadHost(CTX); });
+  afterAll(() => { vi.unstubAllGlobals(); });
+
+  it('de laatste verandering wint, zoals de CvGraph — niet de som', async () => {
+    // CvMath (som, gain 1): out = a. Twee kabels op `a`: de engine geeft de
+    // tweede een eigen worklet-ingang `a@2` (WasmModule.addFeeder).
+    const bytes = wasmBytes('tp_mmb_cvmath');
+    const inputs = ['a', 'a@2', 'b', 'c'];
+    const p = new Processor!({ processorOptions: { wasm: bytes, inputs, outputs: ['out'] } });
+    p.port.send({ t: 'cabled', id: 'a', on: true });
+    p.port.send({ t: 'cabled', id: 'a@2', on: true });
+    const inBuf = inputs.map(() => [new Float32Array(QUANTUM)]);
+    const outBuf = [[new Float32Array(QUANTUM)]];
+    const at: Record<string, number> = {};
+    const blocks = Math.round(CTX / QUANTUM);
+    for (let b = 0; b < blocks; b++) {
+      const t = b * QUANTUM / CTX;
+      inBuf[0]![0]!.fill(t < 0.3 ? 0.3 : 0.1);         // kabel 1 verandert op 0,3 s
+      inBuf[1]![0]!.fill(t < 0.6 ? 0.7 : 0.9);         // kabel 2 verandert op 0,6 s
+      p.process(inBuf, outBuf, {});
+      for (const probe of [0.2, 0.5, 0.8]) if (Math.abs(t - probe) < QUANTUM / CTX / 2) at[probe] = outBuf[0]![0]![64]!;
+    }
+    expect(at[0.2]).toBeCloseTo(0.7, 5);   // bij de start veranderen ze allebei; de laatste in de rij wint
+    expect(at[0.5]).toBeCloseTo(0.1, 5);   // kabel 1 veranderde net
+    expect(at[0.8]).toBeCloseTo(0.9, 5);   // en nu kabel 2
+  });
+});

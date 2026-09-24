@@ -272,6 +272,25 @@ export class WasmModule extends AudioModule {
   hasInput(id: string): boolean { return this.inGains.has(id); }
   hasOutput(id: string): boolean { return this.outGains.has(id); }
 
+  /**
+   * Een extra kabel op cv/gate-ingang `id`: hij krijgt een eigen worklet-
+   * ingang (`id@2`, `id@3`, …) zodat de worklet kan doen wat de CvGraph van
+   * de Teensy doet — de laatste verandering wint, in plaats van de som die
+   * Web Audio van twee kabels op één ingang maakt. Kan alleen zolang de
+   * worklet-node nog niet bestaat (tijdens `build()`); daarna telt hij op.
+   */
+  addFeeder(id: string): Tone.Gain | null {
+    if (!this.inGains.has(id)) return null;
+    if (this.node) return this.inGains.get(id)!;
+    let k = 2;
+    while (this.inGains.has(`${id}@${k}`)) k++;
+    const fid = `${id}@${k}`;
+    const g = new Tone.Gain(1);
+    this.inGains.set(fid, g);
+    this.inputIds.push(fid);
+    return g;
+  }
+
   /** MIDI-bericht naar de module (MIDI-In): status, data1, data2. */
   midi(status: number, d1: number, d2: number): void {
     this.post({ t: 'midi', s: status, d1, d2 });

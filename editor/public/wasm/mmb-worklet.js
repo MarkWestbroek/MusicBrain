@@ -76,7 +76,8 @@ class MmbProcessor extends AudioWorkletProcessor {
       || (id === 'trig' ? map.get('gate') : id === 'gate' ? map.get('trig') : null) || null;
 
     this.ins = (inputs || []).map((id) => {
-      const w = resolve(wIn, id);
+      // `voct@2`: een tweede kabel op dezelfde ingang (zie groups hieronder).
+      const w = resolve(wIn, id.replace(/@\d+$/, ''));
       return { id, w, ring: new Float32Array(RING), written: 0, manual: 0, target: 0, slew: 0, cabled: false, connected: false };
     });
     this.outs = (outputs || []).map((id) => {
@@ -84,6 +85,19 @@ class MmbProcessor extends AudioWorkletProcessor {
       return { id, w, ring: new Float32Array(RING), hold: !w || w.kind !== 0 };
     });
     this.byId = new Map(this.ins.map((p) => [p.id, p]));
+    // Ingangen per wasm-poort. Meer kabels op één cv/gate-ingang doen wat de
+    // CvGraph van de Teensy doet: elke route schrijft alleen bij een nieuwe
+    // waarde, dus de laatste verandering wint (niet de som, zoals Web Audio
+    // zou doen). Audio telt wél op.
+    const byW = new Map();
+    for (const p of this.ins) {
+      if (!p.w) continue;
+      if (!byW.has(p.w.idx)) byW.set(p.w.idx, []);
+      byW.get(p.w.idx).push(p);
+    }
+    this.groups = [...byW.values()].map((feeders) => ({
+      w: feeders[0].w, feeders, last: feeders.map(() => NaN), cur: 0,
+    }));
     this.nativeWritten = 0;   // native uitgangssamples gerenderd
     this.outPos = 0;          // fractionele leespositie in native tijd
     // Eén (of twee) render-quanta voorsprong op de invoer. Zonder die buffer
@@ -150,34 +164,40 @@ class MmbProcessor extends AudioWorkletProcessor {
     });
   }
 
+  /** Invoer van ingang `p` op contexttijd `t` (cubisch voor audio, lineair voor cv/gate). */
+  sampleAt(p, t) {
+    const last = p.written - 1;
+    if (last < 0) return 0;
+    if (t > last) t = last;
+    const i0 = Math.floor(t), f = t - i0;
+    if (p.w.kind === 0 && i0 >= 1 && i0 + 2 <= last) return cubic(p.ring, i0, f);
+    const a = p.ring[i0 & MASK], b = p.ring[(i0 + 1 <= last ? i0 + 1 : i0) & MASK];
+    return a + (b - a) * f;
+  }
+
   renderBlock() {
     const ex = this.ex, block = this.block, base = this.nativeWritten, inv = 1 / this.ratio;
     const mem = ex.memory.buffer;
-    for (const p of this.ins) {
-      if (!p.w) continue;
-      const buf = new Float32Array(mem, p.w.ptr, block);
-      const last = p.written - 1;
+    for (const g of this.groups) {
+      const buf = new Float32Array(mem, g.w.ptr, block);
+      const fs = g.feeders, lastCv = g.w.kind !== 0 && fs.length > 1;
       for (let k = 0; k < block; k++) {
         // native sample (base+k) ↔ context tijd (base+k)/ratio
-        let t = (base + k) * inv;
-        if (t > last) t = last;
-        let v = 0;
-        if (last >= 0) {
-          const i0 = Math.floor(t), f = t - i0;
-          if (p.w.kind === 0 && i0 >= 1 && i0 + 2 <= last) {
-            v = cubic(p.ring, i0, f);
-          } else {
-            const a = p.ring[i0 & MASK], b = p.ring[(i0 + 1 <= last ? i0 + 1 : i0) & MASK];
-            v = a + (b - a) * f;
+        const t0 = (base + k) * inv;
+        let sum = 0, manual = 0;
+        for (let f = 0; f < fs.length; f++) {
+          const p = fs[f];
+          const v = this.sampleAt(p, t0);
+          if (p.manual !== p.target) {               // glide: vaste snelheid
+            const d = p.target - p.manual;
+            p.manual = (d > p.slew || d < -p.slew) ? p.manual + (d > 0 ? p.slew : -p.slew) : p.target;
           }
+          manual += p.manual;
+          if (lastCv) { if (v !== g.last[f]) { g.last[f] = v; g.cur = v; } } else sum += v;
         }
-        if (p.manual !== p.target) {                 // glide: vaste snelheid
-          const d = p.target - p.manual;
-          p.manual = (d > p.slew || d < -p.slew) ? p.manual + (d > 0 ? p.slew : -p.slew) : p.target;
-        }
-        buf[k] = v + p.manual;
+        buf[k] = (lastCv ? g.cur : sum) + manual;
       }
-      ex.mmb_input_connected(p.w.idx, p.connected ? 1 : 0);
+      ex.mmb_input_connected(g.w.idx, fs.some((p) => p.connected) ? 1 : 0);
     }
     ex.mmb_render(block);
     // Render kan het wasm-geheugen laten groeien (STK alloceert bij een
