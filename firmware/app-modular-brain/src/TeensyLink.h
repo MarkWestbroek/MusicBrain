@@ -92,6 +92,10 @@ public:
      *  Control-change incl. mod-wheel (CC1). */
     using MidiCcHandler = void (*)(uint8_t channel, uint8_t controller, uint8_t value);
 
+    /** Callback for a "press" message (editor MIDI bridge): aftertouch.
+     *  @p note = -1 for channel pressure (0xD0), else poly pressure (0xA0). */
+    using MidiPressureHandler = void (*)(uint8_t channel, int note, uint8_t value);
+
     /** Callback invoked when a "controlPoke" message arrives (FW-LIVE-1).
      *  Live control-sync: apply one control value to one module instantly. */
     using ControlPokeHandler = void (*)(const char* moduleId, const char* controlId,
@@ -155,6 +159,8 @@ public:
     void onSelfTest(SelfTestHandler h) { onSelfTest_ = h; }
     /** {"type":"samplerHead","ms":N}: koplengte van de samplerbank (streamen). */
     void onSamplerHead(HeadHandler h) { onSamplerHead_ = h; }
+    /** {"type":"press","note":N|-1,"val":V,"ch":C}: aftertouch via de brug. */
+    void onMidiPressure(MidiPressureHandler h) { onMidiPressure_ = h; }
     void onBankPut(BankBeginHandler b, BankBytesHandler d, BankDoneHandler e) {
         onBankBegin_ = b; onBankBytes_ = d; onBankDone_ = e;
     }
@@ -278,6 +284,7 @@ private:
     SelectPatchHandler onSelectPatch_ = nullptr;
     SetStaticHandler   onSetStatic_   = nullptr;
     MidiNoteHandler    onMidiNote_    = nullptr;
+    MidiPressureHandler onMidiPressure_ = nullptr;
     MidiBendHandler    onMidiBend_    = nullptr;
     MidiCcHandler      onMidiCc_      = nullptr;
     ControlPokeHandler onControlPoke_ = nullptr;
@@ -384,6 +391,14 @@ private:
             const int     val = doc["val"] | 8192;
             const int pitch   = std::clamp(val, 0, 16383) - 8192;
             if (onMidiBend_) onMidiBend_(ch, pitch);
+            return;
+        }
+        if (strcmp(type, "press") == 0) {
+            // Editor MIDI bridge: {"type":"press","note":int|-1,"val":int,"ch":int}.
+            const uint8_t ch   = static_cast<uint8_t>(doc["ch"]  | 0);
+            const int     note = doc["note"] | -1;
+            const uint8_t val  = static_cast<uint8_t>(doc["val"] | 0);
+            if (onMidiPressure_) onMidiPressure_(ch, note, val);
             return;
         }
         if (strcmp(type, "cc") == 0) {

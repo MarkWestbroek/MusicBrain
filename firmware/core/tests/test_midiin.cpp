@@ -418,6 +418,46 @@ MB_TEST(midiin_unison_drives_all_voices) {
     for (std::uint8_t v = 0; v < 4; ++v) MB_REQUIRE(!midi.voiceGate(v));
 }
 
+MB_TEST(midiin_pressure_channel_poly_and_release_velocity) {
+    MidiInModule midi("m");
+    midi.setControl("voiceCount", ControlValue{std::int32_t{4}});
+    // The CvGraph only routes ports the module declares (the wasm host reads
+    // readCvPort directly, so a missing declaration only shows on the Teensy).
+    for (const char* p : {"press", "rel", "press1", "rel1", "press16", "rel16"})
+        MB_REQUIRE(midi.outputPortKind(p) == MidiInModule::PortKind::Cv);
+    midi.onNoteOn(1, 60, 100);
+    midi.onNoteOn(1, 64, 100);
+    MB_REQUIRE(std::fabs(midi.readCvPort("press1")) < kEps);
+
+    // Channel pressure: every voice, and the master port follows the first gated voice.
+    midi.onChannelPressure(1, 127);
+    MB_REQUIRE(std::fabs(midi.readCvPort("press1") - 1.0f) < kEps);
+    MB_REQUIRE(std::fabs(midi.readCvPort("press2") - 1.0f) < kEps);
+    MB_REQUIRE(std::fabs(midi.readCvPort("press")  - 1.0f) < kEps);
+
+    // Poly pressure: only the voice holding that note.
+    midi.onPolyPressure(1, 64, 0);
+    MB_REQUIRE(std::fabs(midi.readCvPort("press1") - 1.0f) < kEps);
+    MB_REQUIRE(std::fabs(midi.readCvPort("press2")) < kEps);
+
+    // A new note starts at the current channel pressure, not at the old poly value.
+    midi.onChannelPressure(1, 64);
+    midi.onNoteOn(1, 67, 100);
+    MB_REQUIRE(std::fabs(midi.readCvPort("press3") - 64.0f / 127.0f) < kEps);
+
+    // Release velocity lands on the released voice and stays latched.
+    midi.onNoteOff(1, 60, 100);
+    MB_REQUIRE(std::fabs(midi.readCvPort("rel1") - 100.0f / 127.0f) < kEps);
+    midi.onNoteOff(1, 64);                       // not reported → 64
+    MB_REQUIRE(std::fabs(midi.readCvPort("rel2") - 64.0f / 127.0f) < kEps);
+    MB_REQUIRE(std::fabs(midi.readCvPort("rel1") - 100.0f / 127.0f) < kEps);
+
+    // Filtered channel: nothing moves.
+    midi.setControl("channel", ControlValue{std::int32_t{2}});
+    midi.onChannelPressure(1, 0);
+    MB_REQUIRE(std::fabs(midi.readCvPort("press1") - 64.0f / 127.0f) < kEps);
+}
+
 MB_TEST(midiin_unison_spread_detunes_symmetrically) {
     MidiInModule midi("m");
     midi.setControl("voiceCount", ControlValue{std::int32_t{4}});

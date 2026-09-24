@@ -75,8 +75,18 @@ MmbPort MMB_OUTPUTS[] = {
     { "pitch16", MMB_CV, 0, {} },
     { "gate16", MMB_GATE, 0, {} },
     { "vel16", MMB_CV, 0, {} },
+    // Expressie (MPE stap 1): druk en release-velocity, master + per stem.
+    { "press", MMB_CV, 0, {} }, { "rel", MMB_CV, 0, {} },
+    { "press1", MMB_CV, 0, {} }, { "press2", MMB_CV, 0, {} }, { "press3", MMB_CV, 0, {} }, { "press4", MMB_CV, 0, {} },
+    { "press5", MMB_CV, 0, {} }, { "press6", MMB_CV, 0, {} }, { "press7", MMB_CV, 0, {} }, { "press8", MMB_CV, 0, {} },
+    { "press9", MMB_CV, 0, {} }, { "press10", MMB_CV, 0, {} }, { "press11", MMB_CV, 0, {} }, { "press12", MMB_CV, 0, {} },
+    { "press13", MMB_CV, 0, {} }, { "press14", MMB_CV, 0, {} }, { "press15", MMB_CV, 0, {} }, { "press16", MMB_CV, 0, {} },
+    { "rel1", MMB_CV, 0, {} }, { "rel2", MMB_CV, 0, {} }, { "rel3", MMB_CV, 0, {} }, { "rel4", MMB_CV, 0, {} },
+    { "rel5", MMB_CV, 0, {} }, { "rel6", MMB_CV, 0, {} }, { "rel7", MMB_CV, 0, {} }, { "rel8", MMB_CV, 0, {} },
+    { "rel9", MMB_CV, 0, {} }, { "rel10", MMB_CV, 0, {} }, { "rel11", MMB_CV, 0, {} }, { "rel12", MMB_CV, 0, {} },
+    { "rel13", MMB_CV, 0, {} }, { "rel14", MMB_CV, 0, {} }, { "rel15", MMB_CV, 0, {} }, { "rel16", MMB_CV, 0, {} },
 };
-const int MMB_NUM_OUTPUTS = 55;
+const int MMB_NUM_OUTPUTS = 55 + 2 + 32;
 MmbControl MMB_CONTROLS[] = {
     { "channel", 0.0f }, { "priority", 0.0f }, { "steal", 0.0f }, { "legato", 0.0f },
     { "bendRange", 2.0f }, { "glide", 0.0f }, { "unison", 0.0f }, { "spread", 0.0f },
@@ -94,7 +104,9 @@ MMB_EXPORT(mmb_midi) void mmb_midi(int status, int d1, int d2) {
     const auto a = static_cast<std::uint8_t>(d1 & 0x7F), b = static_cast<std::uint8_t>(d2 & 0x7F);
     switch (status & 0xF0) {
         case 0x90: mi->onNoteOn(ch, a, b); break;
-        case 0x80: mi->onNoteOff(ch, a); break;
+        case 0x80: mi->onNoteOff(ch, a, b); break;          // b = release velocity
+        case 0xD0: mi->onChannelPressure(ch, a); break;     // aftertouch (kanaal)
+        case 0xA0: mi->onPolyPressure(ch, a, b); break;     // aftertouch (per toets)
         case 0xB0: mi->onControlChange(ch, a, b); break;
         case 0xE0: mi->onPitchBend(ch, a | (b << 7)); break;
         default: break;

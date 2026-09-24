@@ -13,6 +13,7 @@ import {
   sendMidi,
   sendMidiBend,
   sendMidiCC,
+  sendMidiPressure,
   clearLog,
   sendDx7Bank,
 } from './teensyLink';
@@ -131,9 +132,11 @@ export function TeensyLinkModal({ onClose }: Props): JSX.Element {
       await src.start();
       src.subscribe((e) => {
         if (e.kind === 'noteOn')       void sendMidi(true,  e.note, Math.round(e.velocity * 127));
-        else if (e.kind === 'noteOff') void sendMidi(false, e.note);
+        else if (e.kind === 'noteOff') void sendMidi(false, e.note, Math.round((e.release ?? 0) * 127));
         else if (e.kind === 'pitchBend') void sendMidiBend(e.value);
         else if (e.kind === 'cc')      void sendMidiCC(e.controller, e.value);
+        else if (e.kind === 'pressure')     void sendMidiPressure(e.value);
+        else if (e.kind === 'polyPressure') void sendMidiPressure(e.value, e.note);
       });
       midiSrcRef.current = src;
       setBridging(true);

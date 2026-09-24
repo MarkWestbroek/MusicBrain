@@ -572,7 +572,25 @@ void forwardMidiToRuntime(bool noteOn, uint8_t channel, uint8_t note, uint8_t ve
         if (mod->typeId() != mb::runtime::MidiInModule::kTypeId) continue;
         auto* m = static_cast<mb::runtime::MidiInModule*>(mod.get());
         if (noteOn) m->onNoteOn(channel, note, velocity);
-        else        m->onNoteOff(channel, note);
+        else        m->onNoteOff(channel, note, velocity);   // = release velocity
+    }
+}
+
+// Aftertouch (MPE stap 1, doc/plans/mpe.md): channel pressure (0xD0) zet
+// `press` op alle stemmen, poly pressure (0xA0) alleen op de stem met die
+// noot. Geen retrigger, dus geen voice-sync nodig — zelfde patroon als CC.
+void handleAfterTouchChannel(uint8_t channel, uint8_t pressure) {
+    midiIn.onChannelPressure(channel, pressure);
+    for (auto& [id, mod] : runtime.instances()) {
+        if (mod->typeId() != mb::runtime::MidiInModule::kTypeId) continue;
+        static_cast<mb::runtime::MidiInModule*>(mod.get())->onChannelPressure(channel, pressure);
+    }
+}
+void handleAfterTouchPoly(uint8_t channel, uint8_t note, uint8_t pressure) {
+    midiIn.onPolyPressure(channel, note, pressure);
+    for (auto& [id, mod] : runtime.instances()) {
+        if (mod->typeId() != mb::runtime::MidiInModule::kTypeId) continue;
+        static_cast<mb::runtime::MidiInModule*>(mod.get())->onPolyPressure(channel, note, pressure);
     }
 }
 
@@ -595,7 +613,7 @@ void handleNoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
 
 void handleNoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
     Serial.printf("[midi] noteOff ch=%u note=%u vel=%u\n", channel, note, velocity);
-    midiIn.onNoteOff(channel, note);
+    midiIn.onNoteOff(channel, note, velocity);
     forwardMidiToRuntime(false, channel, note, velocity);
     syncVoicesFromModel();
     logVoiceTable("off");
@@ -663,6 +681,12 @@ void onMidiBend(uint8_t channel, int pitch) {
 // serial link, dispatched through the same path as hardware USB-MIDI.
 void onMidiCc(uint8_t channel, uint8_t controller, uint8_t value) {
     handleControlChange(channel, controller, value);
+}
+
+// Editor MIDI bridge: aftertouch ({"type":"press"}); note < 0 = channel pressure.
+void onMidiPressure(uint8_t channel, int note, uint8_t value) {
+    if (note < 0) handleAfterTouchChannel(channel, value);
+    else          handleAfterTouchPoly(channel, static_cast<uint8_t>(note), value);
 }
 
 // Live control-sync (FW-LIVE-1): apply one control value to one module
@@ -762,9 +786,12 @@ void setup() {
     usbMIDI.setHandleNoteOff(handleNoteOff);
     usbMIDI.setHandleControlChange(handleControlChange);
     usbMIDI.setHandlePitchChange  (handlePitchChange);
+    usbMIDI.setHandleAfterTouchChannel(handleAfterTouchChannel);
+    usbMIDI.setHandleAfterTouchPoly   (handleAfterTouchPoly);
 
     mmb_link::registerAllRuntimeModules();
     link.begin(onConfigReceived, onSelectPatch, onSetStatic, onMidiNote, onMidiBend, onMidiCc);
+    link.onMidiPressure(onMidiPressure); // aftertouch via de brug
     link.onControlPoke(onControlPoke);   // FW-LIVE-1: live control-sync
     link.onWaveform(onWaveform);         // FW-AU-6: draw-waveshape push
     link.onDx7Bank(onDx7Bank);           // FW-AU-13: DX7-bank push

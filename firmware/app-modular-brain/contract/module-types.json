@@ -1,6 +1,6 @@
 {
   "$comment": "GEGENEREERD door tools/contract_dump.py — niet met de hand bewerken. Poort-ids zijn letterlijk wat de firmware accepteert (aliassen als out/out_l en naam/naam_cv staan er dus allebei in).",
-  "firmwareVersion": "0.5.69",
+  "firmwareVersion": "0.5.70",
   "modules": {
     "tp_mmb_ahdsr": {
       "typeId": "tp_mmb_ahdsr",
@@ -561,6 +561,8 @@
         "cv_mod",
         "gate",
         "pitch",
+        "press",
+        "rel",
         "vel"
       ],
       "controls": [

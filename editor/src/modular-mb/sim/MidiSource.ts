@@ -13,9 +13,11 @@
 
 export type MidiEvent =
   | { kind: 'noteOn';    note: number; velocity: number; }
-  | { kind: 'noteOff';   note: number; }
+  | { kind: 'noteOff';   note: number; release?: number; }   // release-velocity 0..1 (0x80 d2), weg = niet gemeld
   | { kind: 'cc';        controller: number; value: number; }
-  | { kind: 'pitchBend'; value: number; };  // 14-bit 0-16383 (8192 = centre)
+  | { kind: 'pitchBend'; value: number; }   // 14-bit 0-16383 (8192 = centre)
+  | { kind: 'pressure';  value: number; }   // channel aftertouch (0xD0), 0..127
+  | { kind: 'polyPressure'; note: number; value: number; };  // per toets (0xA0), 0..127
 
 export type MidiListener = (e: MidiEvent) => void;
 
@@ -344,7 +346,13 @@ export class WebMidiSource extends BaseSource {
       this.emit({ kind: 'noteOn',  note: d1, velocity: d2 / 127 });
     } else if (status === 0x80 || (status === 0x90 && d2 === 0)) {
       if (!this.held.delete(d1)) return;       // not sounding — ignore stray off
-      this.emit({ kind: 'noteOff', note: d1 });
+      // Echte note-off (0x80) draagt de release-velocity; 0 = niet gemeld.
+      this.emit(status === 0x80 && d2 > 0 ? { kind: 'noteOff', note: d1, release: d2 / 127 }
+                                           : { kind: 'noteOff', note: d1 });
+    } else if (status === 0xd0) {
+      this.emit({ kind: 'pressure', value: d1 });
+    } else if (status === 0xa0) {
+      this.emit({ kind: 'polyPressure', note: d1, value: d2 });
     } else if (status === 0xb0) {
       this.emit({ kind: 'cc', controller: d1, value: d2 });
     } else if (status === 0xe0) {

@@ -966,7 +966,7 @@ describe('tp_mmb_midiin (MidiInModule zelf)', () => {
 
   it('heeft de catalogus-poorten plus pitchK/gateK/velK per stem', async () => {
     const m = await load('tp_mmb_midiin');
-    for (const id of ['pitch', 'gate', 'vel', 'cv_mod', 'cv_bend', 'cv_cc1', 'cv_cc2', 'pitch16', 'gate16', 'vel16'])
+    for (const id of ['pitch', 'gate', 'vel', 'press', 'rel', 'cv_mod', 'cv_bend', 'cv_cc1', 'cv_cc2', 'pitch16', 'gate16', 'vel16', 'press16', 'rel16'])
       expect(m.outputs).toContain(id);
     const t = project.moduleTypes.find((x) => x.id === 'tp_mmb_midiin')!;
     const echte = t.controls.filter((c) => !['led', 'display'].includes(String((c as { kind?: string }).kind)));
@@ -1004,6 +1004,27 @@ describe('tp_mmb_midiin (MidiInModule zelf)', () => {
     const o = m.render(0.01);
     expect(o[idx(m, 'cv_bend')]![5]).toBeCloseTo(2 / 12, 2);          // bendRange 2
     expect(o[idx(m, 'cv_mod')]![5]).toBeCloseTo(1, 5);
+  });
+
+  it('aftertouch op press/pressK, release-velocity op rel/relK', async () => {
+    const m = await load('tp_mmb_midiin');
+    m.setCtl('voiceCount', 2);
+    m.ex.mmb_midi(0x90, 60, 100);
+    m.ex.mmb_midi(0x90, 64, 100);
+    m.ex.mmb_midi(0xD0, 127, 0);                                       // channel pressure: alle stemmen
+    let o = m.render(0.01);
+    expect(o[idx(m, 'press1')]![5]).toBeCloseTo(1, 5);
+    expect(o[idx(m, 'press2')]![5]).toBeCloseTo(1, 5);
+    expect(o[idx(m, 'press')]![5]).toBeCloseTo(1, 5);
+    m.ex.mmb_midi(0xA0, 64, 0);                                        // poly: alleen stem 2
+    o = m.render(0.01);
+    expect(o[idx(m, 'press1')]![5]).toBeCloseTo(1, 5);
+    expect(o[idx(m, 'press2')]![5]).toBeCloseTo(0, 5);
+    m.ex.mmb_midi(0x80, 60, 100);                                      // note-off met release-velocity
+    m.ex.mmb_midi(0x80, 64, 0);                                        // niet gemeld → 64
+    o = m.render(0.01);
+    expect(o[idx(m, 'rel1')]![5]).toBeCloseTo(100 / 127, 5);
+    expect(o[idx(m, 'rel2')]![5]).toBeCloseTo(64 / 127, 5);
   });
 
   it('bendPitch vouwt de bend in pitch en pitchK; uit = alleen op cv_bend', async () => {

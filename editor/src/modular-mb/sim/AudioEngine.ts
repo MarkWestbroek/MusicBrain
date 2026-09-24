@@ -310,8 +310,9 @@ export class AudioEngine {
    * ligt — glijdend, en alleen opnieuw aanslaand als legato uit staat
    * (Yarns `InternalNoteOff`, Surge `releaseNotePostHoldCheck`).
    */
-  noteOff(midi: number): void {
-    this.sendMidi(0x80, midi, 0);
+  noteOff(midi: number, release?: number): void {
+    // d2 = release-velocity (0 = niet gemeld → de module leest 64).
+    this.sendMidi(0x80, midi, release === undefined ? 0 : Math.max(0, Math.min(127, Math.round(release * 127))));
     if (this.wasmGroups.size === 0) {
       const before = this.noteStack.winner(this.priority);
       this.noteStack.release(midi);
@@ -337,6 +338,13 @@ export class AudioEngine {
   }
 
   /** Pitch-bend, 14-bit met 8192 als midden. */
+  /** Aftertouch: channel pressure (alle stemmen) of per toets. 0..127. */
+  pressure(value: number, note?: number): void {
+    const v = Math.max(0, Math.min(127, Math.round(value)));
+    if (note === undefined) this.sendMidi(0xD0, v, 0);
+    else                    this.sendMidi(0xA0, note, v);
+  }
+
   pitchBend(value14: number): void {
     const v = Math.max(0, Math.min(16383, Math.round(value14)));
     this.sendMidi(0xE0, v & 0x7F, v >> 7);

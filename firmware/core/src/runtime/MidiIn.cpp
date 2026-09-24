@@ -163,6 +163,7 @@ void MidiInModule::onNoteOn(std::uint8_t channel, std::uint8_t note, std::uint8_
         // aanslaan. Dat is het hele punt van legato.
         currentNote_[0] = after;
         velocity_   [0] = velocity;
+        press_      [0] = chanPress_;
         gate_       [0] = true;
         return;
     }
@@ -178,6 +179,7 @@ void MidiInModule::onNoteOn(std::uint8_t channel, std::uint8_t note, std::uint8_
         for (std::uint8_t v = 0; v < n; ++v) {
             currentNote_[v] = w;
             velocity_   [v] = velocity;
+            press_      [v] = chanPress_;
             gate_       [v] = true;
         }
         return;
@@ -196,11 +198,14 @@ void MidiInModule::onNoteOn(std::uint8_t channel, std::uint8_t note, std::uint8_
 
     currentNote_[r.voiceIdx] = note;
     velocity_   [r.voiceIdx] = velocity;
+    press_      [r.voiceIdx] = chanPress_;
     gate_       [r.voiceIdx] = true;
 }
 
-void MidiInModule::onNoteOff(std::uint8_t channel, std::uint8_t note) {
+void MidiInModule::onNoteOff(std::uint8_t channel, std::uint8_t note, std::uint8_t relVelocity) {
     if (filteredOut(channel)) return;
+    // 0 = the keyboard did not report a release velocity → neutral 64.
+    const std::uint8_t rel = relVelocity ? static_cast<std::uint8_t>(relVelocity & 0x7F) : 64;
 
     if (monoActive()) {
         // Mono: de toets eruit, en dan kijken wie er nog ligt. Is dat een
@@ -211,6 +216,7 @@ void MidiInModule::onNoteOff(std::uint8_t channel, std::uint8_t note) {
         const std::uint8_t before = monoWinner();
         monoRemove(note);
         const std::uint8_t after = monoWinner();
+        rel_[0] = rel;
         if (after == 0xFF) { gate_[0] = false; return; }
         if (after != before) currentNote_[0] = after;
         return;
@@ -223,6 +229,7 @@ void MidiInModule::onNoteOff(std::uint8_t channel, std::uint8_t note) {
         monoRemove(note);
         const std::uint8_t n = alloc_.voiceCount();
         const std::uint8_t w = monoWinner();
+        for (std::uint8_t v = 0; v < n; ++v) rel_[v] = rel;
         if (w != 0xFF) {
             for (std::uint8_t v = 0; v < n; ++v) currentNote_[v] = w;
         } else {
@@ -235,9 +242,23 @@ void MidiInModule::onNoteOff(std::uint8_t channel, std::uint8_t note) {
     if (idx == 0xFF || idx >= kMaxAllocVoices) return;   // no voice held it.
 
     gate_[idx] = false;
+    rel_ [idx] = rel;
     // Note: we deliberately keep `currentNote_` and `velocity_` so a
     // release-phase envelope can still report sensible values. The next
     // NoteOn on this voice will overwrite them.
+}
+
+void MidiInModule::onChannelPressure(std::uint8_t channel, std::uint8_t value) {
+    if (filteredOut(channel)) return;
+    chanPress_ = static_cast<std::uint8_t>(value & 0x7F);
+    press_.fill(chanPress_);            // one value for the whole channel
+}
+
+void MidiInModule::onPolyPressure(std::uint8_t channel, std::uint8_t note, std::uint8_t value) {
+    if (filteredOut(channel)) return;
+    const auto v7 = static_cast<std::uint8_t>(value & 0x7F);
+    for (std::uint8_t v = 0; v < kMaxAllocVoices; ++v)
+        if (gate_[v] && currentNote_[v] == note) press_[v] = v7;
 }
 
 void MidiInModule::allNotesOff() {
@@ -342,6 +363,19 @@ float MidiInModule::readCvPort(std::string_view portId) const {
             if (gate_[v]) return static_cast<float>(velocity_[v]) * (1.0f / 127.0f);
         return static_cast<float>(velocity_[0]) * (1.0f / 127.0f);
     }
+    // Pressure and release velocity of the first gated voice; latched on
+    // voice 0 when nothing is gated, like `vel` (a release-phase envelope
+    // reading `rel` must see the value of the note that just ended).
+    if (portId == "press") {
+        for (std::uint8_t v = 0; v < n; ++v)
+            if (gate_[v]) return voicePressure(v);
+        return voicePressure(0);
+    }
+    if (portId == "rel") {
+        for (std::uint8_t v = 0; v < n; ++v)
+            if (gate_[v]) return voiceRelease(v);
+        return voiceRelease(0);
+    }
     // Modulation outputs (ED-MI-4). Continuous controllers that are global to
     // the module (not per-voice): mod-wheel, pitch-bend and two configurable
     // CC slots. cv_bend is in V/Oct so it can sum straight onto a VCO's voct.
@@ -361,6 +395,12 @@ float MidiInModule::readCvPort(std::string_view portId) const {
     }
     if (int vi = parseVoicePort(portId, "vel"); vi >= 0) {
         return (vi < n) ? voiceVelocity(static_cast<std::uint8_t>(vi)) : 0.0f;
+    }
+    if (int vi = parseVoicePort(portId, "press"); vi >= 0) {
+        return (vi < n) ? voicePressure(static_cast<std::uint8_t>(vi)) : 0.0f;
+    }
+    if (int vi = parseVoicePort(portId, "rel"); vi >= 0) {
+        return (vi < n) ? voiceRelease(static_cast<std::uint8_t>(vi)) : 0.0f;
     }
     return 0.0f;
 }

@@ -89,9 +89,12 @@ public:
         if (portId == "vel")   return PortKind::Cv;
         if (portId == "cv_mod"  || portId == "cv_bend" ||
             portId == "cv_cc1"  || portId == "cv_cc2") return PortKind::Cv;
+        if (portId == "press" || portId == "rel") return PortKind::Cv;
         if (parseVoicePort(portId, "pitch") >= 0) return PortKind::Cv;
         if (parseVoicePort(portId, "vel")   >= 0) return PortKind::Cv;
         if (parseVoicePort(portId, "gate")  >= 0) return PortKind::Gate;
+        if (parseVoicePort(portId, "press") >= 0) return PortKind::Cv;
+        if (parseVoicePort(portId, "rel")   >= 0) return PortKind::Cv;
         return PortKind::None;
     }
 
@@ -120,8 +123,18 @@ public:
 
     /** @brief Accept a MIDI NoteOff event.
      *  Releases the voice currently holding @p note, if any.  No-op when
-     *  the channel is filtered or no voice holds the note. */
-    void onNoteOff(std::uint8_t channel, std::uint8_t note);
+     *  the channel is filtered or no voice holds the note.
+     *  @param relVelocity release velocity (0x80 data 2); 0 = not reported
+     *  (NoteOn-with-velocity-0 keyboards) and reads as 64 on `rel`. */
+    void onNoteOff(std::uint8_t channel, std::uint8_t note, std::uint8_t relVelocity = 0);
+
+    /** @brief Channel pressure (aftertouch, 0xD0): one value for the whole
+     *  channel → every voice's `press`. Keystep-style keyboards send this. */
+    void onChannelPressure(std::uint8_t channel, std::uint8_t value);
+
+    /** @brief Polyphonic key pressure (0xA0): only the voice(s) holding
+     *  @p note. Osmose in classic mode, and poly-aftertouch keyboards. */
+    void onPolyPressure(std::uint8_t channel, std::uint8_t note, std::uint8_t value);
 
     /** @brief Accept a MIDI Control Change event.
      *  Updates the mod-wheel (CC 1) and the two configurable CC slots
@@ -163,6 +176,16 @@ public:
 
     /** @brief Mod-wheel (CC 1) value, normalised 0.0…1.0. */
     float modWheel() const { return static_cast<float>(modWheel_) * (1.0f / 127.0f); }
+
+    /** @brief Pressure (aftertouch) of one voice, 0.0…1.0 (`pressK`). */
+    float voicePressure(std::uint8_t voiceIdx) const {
+        return voiceIdx < kMaxAllocVoices ? static_cast<float>(press_[voiceIdx]) * (1.0f / 127.0f) : 0.0f;
+    }
+    /** @brief Release velocity of one voice's last note-off, 0.0…1.0 (`relK`);
+     *  latched until that voice's next note-off. */
+    float voiceRelease(std::uint8_t voiceIdx) const {
+        return voiceIdx < kMaxAllocVoices ? static_cast<float>(rel_[voiceIdx]) * (1.0f / 127.0f) : 0.0f;
+    }
 
     /** @brief Pitch-bend offset in V/Oct (±`bendRange` semitones). */
     float pitchBendV() const {
@@ -267,6 +290,14 @@ private:
     std::array<std::uint8_t, kMaxAllocVoices> velocity_{};   // 0..127
     std::array<std::uint8_t, kMaxAllocVoices> currentNote_{}; // last note assigned
     std::array<bool,         kMaxAllocVoices> gate_{};
+    // Expression per voice (MPE step 1, doc/plans/mpe.md): pressure follows
+    // channel pressure (all voices) or poly pressure (the voice holding the
+    // note); a new note starts at the current channel pressure. Release
+    // velocity is written at note-off and latched. Later MPE mode swaps
+    // `chanPress_` for a per-channel array, nothing else changes.
+    std::array<std::uint8_t, kMaxAllocVoices> press_{};      // 0..127
+    std::array<std::uint8_t, kMaxAllocVoices> rel_{};        // 0..127
+    std::uint8_t               chanPress_ = 0;
 };
 
 }  // namespace mb::runtime

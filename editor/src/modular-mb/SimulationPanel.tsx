@@ -120,12 +120,14 @@ export function SimulationPanel(): JSX.Element {
   useEffect(() => {
     const unsub = source.subscribe((e: MidiEvent) => {
       if (e.kind === 'noteOn')    engine.noteOn(e.note, e.velocity);
-      if (e.kind === 'noteOff')   engine.noteOff(e.note);
+      if (e.kind === 'noteOff')   engine.noteOff(e.note, e.release);
       // Mod-wiel, bend en de twee vrije CC's: de bron zond ze al, alleen
       // luisterde hier niemand — de MOD-uitgangen van MIDI-In bleven dus op
       // nul staan terwijl de kabels in de patch lagen.
       if (e.kind === 'cc')        engine.controlChange(e.controller, e.value);
       if (e.kind === 'pitchBend') engine.pitchBend(e.value);
+      if (e.kind === 'pressure')     engine.pressure(e.value);
+      if (e.kind === 'polyPressure') engine.pressure(e.value, e.note);
     });
     return () => { unsub(); };
   }, [engine, source]);

@@ -88,9 +88,11 @@ Voor de sampler is per-noot **bend** dus niets extra's: die komt via
 
 ## 4. Volgorde
 
-1. **Druk, zonder MPE** (klein, meteen nuttig, ook voor de Osmose in klassieke
-   modus en elk keyboard met aftertouch): `pressK`/`press` + `0xD0`/`0xA0`
-   door alle vier de paden. ~1 dag.
+1. **Druk, zonder MPE** — ✅ fw 0.5.70 (2026-09-24): `press`/`pressK`,
+   `rel`/`relK`, `0xD0`/`0xA0` door alle vier de paden, gemeten op de Teensy
+   (`press → sampler.bend`: 440 → 883 Hz). Les: nieuwe MidiIn-poorten ook in
+   `outputPortKind()` aanmelden, anders routeert de CvGraph ze niet (de sim
+   merkt dat niet).
 2. **MPE-modus**: kanaal-per-stem, per-kanaal bend/slide, `slideK`,
    `bendRange` tot 96, MCM/RPN lezen (optioneel). ~1 dag firmware + ½ dag
    editor/sim/tests.

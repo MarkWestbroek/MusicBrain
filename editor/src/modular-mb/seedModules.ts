@@ -1003,8 +1003,8 @@ function mmbMidiIn() {
       { x: w/2, y: 8,   text: 'MIDI-IN', fontSize: 2.2, color: '#f9fafb', align: 'middle' },
       { x: w/2, y: 14,  text: 'voicing · steal · modulatie', fontSize: 1.2, color: '#9ca3af', align: 'middle' },
       { x: w*0.60, y: 26, text: 'Voices', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
-      { x: w*0.24, y: 100, text: 'NOTE', fontSize: 1.2, color: '#9ca3af', align: 'middle' },
-      { x: w*0.74, y: 100, text: 'MOD',  fontSize: 1.2, color: '#9ca3af', align: 'middle' },
+      { x: w*0.27, y: 100, text: 'NOTE', fontSize: 1.2, color: '#9ca3af', align: 'middle' },
+      { x: w*0.77, y: 100, text: 'MOD',  fontSize: 1.2, color: '#9ca3af', align: 'middle' },
       { x: w/2, y: 126, text: 'MMB',     fontSize: 1.6, color: '#f9fafb', align: 'middle' },
     ],
     items: [
@@ -1047,16 +1047,20 @@ function mmbMidiIn() {
       knob   ('cc2Num',  'CC2#', w*0.58, 80, { size: 'small', min: 0, max: 127, def: 71, step: 1, color: '#f9fafb' }),
       display('cc2Disp', w*0.76, 80, { digits: 3, style: 'led', bindTo: 'cc2Num', format: 'int' }),
       // Note-outputs (per stem) — links.
-      outPort('pitch', 'V/Oct', 'cv',   w*0.10, 112, { eventKind: 'voice' }),
-      outPort('gate',  'Gate',  'gate', w*0.24, 112, { eventKind: 'voice' }),
-      outPort('vel',   'Vel',   'cv',   w*0.38, 112, { eventKind: 'voice' }),
+      outPort('pitch', 'V/Oct', 'cv',   w*0.07, 112, { eventKind: 'voice' }),
+      outPort('gate',  'Gate',  'gate', w*0.17, 112, { eventKind: 'voice' }),
+      outPort('vel',   'Vel',   'cv',   w*0.27, 112, { eventKind: 'voice' }),
+      // Expressie per stem (MPE stap 1): druk (aftertouch, kanaal of per
+      // toets) en release-velocity — waaieren net als pitch uit naar pressK/relK.
+      outPort('press', 'Press', 'cv',   w*0.37, 112, { eventKind: 'voice' }),
+      outPort('rel',   'Rel',   'cv',   w*0.47, 112, { eventKind: 'voice' }),
       // Modulatie-outputs (globaal) — rechts.
-      outPort('cv_mod',  'Mod',  'cv', w*0.58, 112),
-      outPort('cv_bend', 'Bend', 'cv', w*0.70, 112),
-      outPort('cv_cc1',  'CC1',  'cv', w*0.82, 112),
+      outPort('cv_mod',  'Mod',  'cv', w*0.61, 112),
+      outPort('cv_bend', 'Bend', 'cv', w*0.72, 112),
+      outPort('cv_cc1',  'CC1',  'cv', w*0.83, 112),
       outPort('cv_cc2',  'CC2',  'cv', w*0.94, 112),
     ],
-    notes: 'Zet inkomende MIDI om in CV. NOTE-uitgangen (per stem): pitch (V/Oct), gate, velocity. MOD-uitgangen (globaal): Mod (mod-wheel CC1), Bend (pitch-bend, V/Oct, bereik = Bend-knop in halve tonen; B→P aan = de bend zit ook al in pitch/pitchK, handig zonder aparte bend-kabel), CC1/CC2 (vrij kiesbare CC-nummers via CC1#/CC2#; het gekozen nummer staat op het LED-display naast elke knop). De MIDI-bron kies je in het Simulatie-paneel. Mono/poly volgt automatisch uit het aantal stemmen (voiceCount). PRIO = mono note-priority (last/low/high). STEAL = poly voice-stealing → firmware StealStrategy. LEG = legato (firmware-gedrag = FW-1, nog te bouwen). GLIDE = portamento (ms per octaaf, 0 = uit). UNI = unison (één toets → alle stemmen, last-note); SPRD = unison-detune in centen. Géén MIDI-jack op de front; alles loopt via de brain.',
+    notes: 'Zet inkomende MIDI om in CV. NOTE-uitgangen (per stem): pitch (V/Oct), gate, velocity, Press (aftertouch: channel pressure zet alle stemmen, poly pressure alleen de stem met die toets; 0..1) en Rel (release-velocity van de laatste note-off op die stem, 0..1, blijft staan — een keyboard dat hem niet meldt geeft 0,5). MOD-uitgangen (globaal): Mod (mod-wheel CC1), Bend (pitch-bend, V/Oct, bereik = Bend-knop in halve tonen; B→P aan = de bend zit ook al in pitch/pitchK, handig zonder aparte bend-kabel), CC1/CC2 (vrij kiesbare CC-nummers via CC1#/CC2#; het gekozen nummer staat op het LED-display naast elke knop). De MIDI-bron kies je in het Simulatie-paneel. Mono/poly volgt automatisch uit het aantal stemmen (voiceCount). PRIO = mono note-priority (last/low/high). STEAL = poly voice-stealing → firmware StealStrategy. LEG = legato (firmware-gedrag = FW-1, nog te bouwen). GLIDE = portamento (ms per octaaf, 0 = uit). UNI = unison (één toets → alle stemmen, last-note); SPRD = unison-detune in centen. Géén MIDI-jack op de front; alles loopt via de brain.',
   });
 }
 

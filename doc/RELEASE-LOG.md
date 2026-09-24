@@ -17,6 +17,29 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### fw 0.5.70 — Aftertouch en release-velocity uit MIDI-in (MPE stap 1) (2026-09-24)
+- **MidiIn `press`/`pressK`** (0..1): channel pressure (`0xD0`, Keystep Pro)
+  zet alle stemmen, poly pressure (`0xA0`, Osmose klassiek) alleen de stem
+  met die toets; een nieuwe noot begint op de actuele channel pressure.
+  **`rel`/`relK`**: release-velocity van de laatste note-off op die stem
+  (`0x80` d2), gelatcht; niet gemeld (velocity-0-note-off) leest als 64.
+  Master-poorten volgen de eerste gegate stem, zoals `vel`; polyExpand
+  waaiert ze uit (`eventKind: 'voice'`).
+- **Alle vier de paden**: `usbMIDI.setHandleAfterTouchChannel/Poly` in
+  `main.cpp`; link-brug `{"type":"press","note":N|-1,"val":V}`; wasm
+  `mmb_midi` routeert `0xD0`/`0xA0` en geeft de note-off-velocity door;
+  editor `MidiSource` kent `pressure`/`polyPressure` en `release` op
+  `noteOff`, `AudioEngine.pressure()`, Teensy-link-modal bridge.
+- **Gemeten** op de Teensy (piano-bank 01, `press → sampler.bend`, A4):
+  440 → 883 Hz via `0xD0`, `0xA0` en de link (scratch `live/press_test.py`).
+- **Valkuil (gevonden op het apparaat):** de CvGraph routeert alleen poorten
+  die `outputPortKind()` aanmeldt; de wasm-host leest `readCvPort` direct,
+  dus de sim werkte al terwijl de Teensy niets deed. Nu een core-test op
+  `outputPortKind("press"/"rel"/…)` — bij elke nieuwe MidiIn-poort beide
+  plekken. Core-tests draaien met CMake (MSVC, `-C Debug`) in de scratchpad.
+- Open observatie: de eerste meetreeks ná een flash komt −15 dB binnen
+  (1716 vs 9573 LSB), daarna normaal — USB-audio of sampler, nog uitzoeken.
+
 ### fw 0.5.69 — Pitch bend: twee paden, gemeten op de Teensy (2026-09-24)
 - **MidiIn `bendPitch`** (schakelaar B→P, standaard uit): de bend-wheel wordt
   per stem in `pitch`/`pitchK` gevouwen (`voicePitchV`), zodat een patch

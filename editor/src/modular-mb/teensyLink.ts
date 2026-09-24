@@ -443,10 +443,10 @@ export async function sendSetStatic(enabled: boolean): Promise<void> {
  *  The firmware dispatches it through the same path as hardware USB-MIDI.
  *  @param on        true = note-on, false = note-off
  *  @param note      MIDI note number 0..127
- *  @param velocity  0..127 (ignored on note-off)
+ *  @param velocity  0..127; on note-off the release-velocity (0 = not reported)
  *  @param channel   0-based MIDI channel (default 0) */
 export async function sendMidi(
-  on: boolean, note: number, velocity = 100, channel = 0,
+  on: boolean, note: number, velocity = on ? 100 : 0, channel = 0,
 ): Promise<void> {
   if (!writer) return;  // silently no-op when disconnected
   await writeLine(JSON.stringify({
@@ -464,6 +464,17 @@ export async function sendMidiBend(
   if (!writer) return;
   await writeLine(JSON.stringify({
     type: 'bend', val: value14 | 0, ch: channel | 0,
+  }), true);
+}
+
+/** Editor MIDI bridge: aftertouch. `note` weg = channel pressure (0xD0, alle
+ *  stemmen), anders poly pressure (0xA0) voor die toets. `value` 0..127. */
+export async function sendMidiPressure(
+  value: number, note?: number, channel = 0,
+): Promise<void> {
+  if (!writer) return;
+  await writeLine(JSON.stringify({
+    type: 'press', note: note === undefined ? -1 : note | 0, val: value | 0, ch: channel | 0,
   }), true);
 }
 
