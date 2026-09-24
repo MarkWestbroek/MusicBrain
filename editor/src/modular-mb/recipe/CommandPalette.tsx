@@ -18,7 +18,7 @@ import { compileRecipe } from './compile';
 import { runCommand, runCommands } from './commands';
 import type { EditResult } from './edits';
 import type { PatchOp } from './types';
-import { askAi, loadLlmSettings, saveLlmSettings, LLM_PRESETS, type LlmSettings } from './llm';
+import { askAi, loadLlmSettings, saveLlmSettings, LLM_PRESETS, type LlmSettings, type LlmThread } from './llm';
 import { findExplainTopic, type ExplainTopic } from './demo';
 
 export { runCommand };
@@ -56,6 +56,9 @@ export function CommandPalette(props: {
   const [text, setText] = useState('');
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
   const [proposal, setProposal] = useState<Proposal | null>(null);
+  // Gesprek met het model (tools-modus): na een voorstel kun je doorpraten
+  // ("maak het toch 8-stemmig"); de voorstellen stapelen tot je Toepassen kiest.
+  const [thread, setThread] = useState<LlmThread | null>(null);
   const [aiBusy, setAiBusy] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [llm, setLlm] = useState<LlmSettings>(() => loadLlmSettings());
@@ -63,7 +66,7 @@ export function CommandPalette(props: {
 
   useEffect(() => {
     if (!open) return;
-    setStatus(null); setProposal(null);
+    setStatus(null); setProposal(null); setThread(null);
     setTimeout(() => inputRef.current?.focus(), 0);
     const onKey = (e: KeyboardEvent): void => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
@@ -97,7 +100,7 @@ export function CommandPalette(props: {
       const r = result as EditResult | null;
       if (r) {
         setStatus({ ok: true, text: r.summary + (r.warnings.length ? ` — ${r.warnings.join(' ')}` : '') });
-        setText(''); setProposal(null);
+        setText(''); setProposal(null); setThread(null);
         if (commands.some((c) => c.kind === 'build')) onBuilt?.();
       }
     } catch (e) {
@@ -108,15 +111,16 @@ export function CommandPalette(props: {
   function demo(): void {
     if (!dry || !dry.ok || !onDemo) return;
     onDemo(dry.ops, dry.summary);
-    setText(''); setProposal(null);
+    setText(''); setProposal(null); setThread(null);
   }
 
   async function ask(): Promise<void> {
     if (!text.trim() || aiBusy) return;
     setAiBusy(true); setStatus(null);
     try {
-      const a = await askAi(text, project, llm);
+      const a = await askAi(text, project, llm, fetch, thread ?? undefined);
       setProposal({ commands: a.commands, summary: a.summary, explanation: a.explanation, source: 'ai' });
+      if (a.thread) { setThread(a.thread); setText(''); }
       if (!a.commands.length) setStatus({ ok: false, text: a.explanation || 'Geen voorstel.' });
     } catch (e) {
       setStatus({ ok: false, text: e instanceof Error ? e.message : String(e) });
@@ -158,9 +162,14 @@ export function CommandPalette(props: {
           <input
             ref={inputRef}
             value={text}
-            onChange={(e) => { setText(e.target.value); setStatus(null); setProposal(null); }}
-            onKeyDown={(e) => { if (e.key === 'Enter' && canApply) { e.preventDefault(); apply(); } }}
-            placeholder="Wat wil je bouwen, veranderen of leren? (Esc sluit)"
+            onChange={(e) => { setText(e.target.value); setStatus(null); if (!thread) setProposal(null); }}
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter') return;
+              e.preventDefault();
+              if (thread && text.trim()) void ask();          // doorpraten
+              else if (canApply) apply();
+            }}
+            placeholder={thread ? 'Reageer op het voorstel… (Enter stuurt, Toepassen voert uit)' : 'Wat wil je bouwen, veranderen of leren? (Esc sluit)'}
             style={{ flex: 1, fontSize: 15, padding: '8px 10px', border: '1px solid #cbd2d9', borderRadius: 6, outline: 'none' }}
             data-tour="command-input"
           />
@@ -171,7 +180,7 @@ export function CommandPalette(props: {
                   title="Bouw de patch stap voor stap op, met uitleg per stap">▶ Demonstreer</button>
           <button onClick={ask} disabled={!text.trim() || aiBusy || !aiReady} style={{ ...secondary, color: aiReady ? '#0f172a' : '#9ca3af' }}
                   title={aiReady ? 'Laat een taalmodel de vraag vertalen (je ziet eerst een voorstel)' : 'Stel eerst een API-key in (⚙)'}>
-            {aiBusy ? '⏳ AI…' : '✨ AI'}
+            {aiBusy ? '⏳ AI…' : thread ? '✨ Verder' : '✨ AI'}
           </button>
           <button onClick={() => setShowSettings((v) => !v)} style={secondary} title="AI-instellingen: endpoint, model, key, modus">⚙</button>
         </div>
@@ -222,6 +231,15 @@ export function CommandPalette(props: {
                 <div key={i} style={{ fontWeight: 600 }}>{proposal.commands.length > 1 ? `${i + 1}. ` : ''}{describeCommand(c, project.moduleTypes)}</div>
               ))}
               {proposal.explanation && <div style={{ color: '#334155', marginTop: 2 }}>{proposal.explanation}</div>}
+              {thread && (
+                <div style={{ fontSize: 11, color: '#64748b', marginTop: 6 }}>
+                  Niet wat je bedoelde? Typ een reactie en druk Enter of ✨ Verder; het model past het voorstel aan.{' '}
+                  <button onClick={() => { setThread(null); setProposal(null); setText(''); inputRef.current?.focus(); }}
+                          style={{ border: 'none', background: 'transparent', color: '#1d4ed8', cursor: 'pointer', padding: 0, fontSize: 11, textDecoration: 'underline' }}>
+                    Nieuw gesprek
+                  </button>
+                </div>
+              )}
             </div>
           )}
           {!proposal && topic && (

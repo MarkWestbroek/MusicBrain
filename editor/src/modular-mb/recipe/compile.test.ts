@@ -160,6 +160,28 @@ describe('nieuwe recepten', () => {
   });
 });
 
+describe('knopstanden van buiten', () => {
+  it('worden tegen het type gehouden: klemmen, standen, onbekende id\'s weg', () => {
+    const r = compileRecipe(base(), {
+      source: 'vco',
+      bus: [{ type: 'bus comp', controls: { ratio: 4, attack: 30, threshold: -200, mix: 5, bypass: 'on', flanger: 1, release: 'auto' } as never }],
+    });
+    const comp = r.ops.find((o) => o.op === 'setControls' && 'values' in o && 'makeup' in o.values) as { values: Record<string, unknown> };
+    expect(comp.values.ratio).toBe(2);        // 3 standen → hoogste index
+    expect(comp.values.attack).toBeLessThan(30);
+    expect(comp.values.threshold).toBe(-60);
+    expect(comp.values.mix).toBe(1);
+    expect(comp.values.bypass).toBe(1);        // tweestandenschakelaar: "on" → Aan
+    expect(comp.values).not.toHaveProperty('flanger');
+    // 'auto' is een standnaam van de release-schakelaar → die index.
+    const rel = base().moduleTypes.find((t) => t.id === 'tp_mmb_bus_comp')!.controls.find((c) => c.id === 'release')!;
+    expect(rel.kind).toBe('switch');
+    expect(comp.values.release).toBe((rel as { positions: string[] }).positions.findIndex((p) => p.toLowerCase() === 'auto'));
+    expect(r.warnings.some((w) => /flanger/.test(w))).toBe(true);
+    expect(r.warnings.some((w) => /threshold/.test(w))).toBe(true);
+  });
+});
+
 describe('fouten en aliassen', () => {
   it('onbekende module geeft RecipeError met suggesties', () => {
     expect(() => compileRecipe(base(), { source: 'wavetablez' })).toThrowError(RecipeError);

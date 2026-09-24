@@ -51,6 +51,44 @@ function mixerTypeFor(channels: number): string {
   return channels > 8 ? 'tp_mmb_mixer16' : channels > 4 ? 'tp_mmb_mixer8' : 'tp_mmb_mixer';
 }
 
+/**
+ * Knopstanden van buiten (recept met `controls`, dus ook een taalmodel)
+ * tegen het type houden: onbekende id's vervallen, getallen worden op het
+ * bereik geklemd, switch-standen op 0..n-1, toggles worden booleans.
+ * Niets van wat hier binnenkomt mag ongefilterd naar de wasm of de Teensy.
+ */
+export function sanitizeControls(type: ModuleType, raw: Record<string, unknown>, warnings: string[]): Record<string, ControlValue> {
+  const out: Record<string, ControlValue> = {};
+  for (const [id, v] of Object.entries(raw)) {
+    const c = type.controls.find((x) => x.id === id);
+    if (!c || c.kind === 'display' || c.kind === 'led') { warnings.push(`${type.variant}: onbekende knop "${id}" genegeerd.`); continue; }
+    if (c.kind === 'toggle' || c.kind === 'button') { out[id] = v === true || v === 1 || v === 'true' || v === 'on' || v === 'aan'; continue; }
+    let n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : NaN;
+    if (c.kind === 'switch' && !Number.isFinite(n)) {
+      // Standnaam ("Aan", "LP") of aan/uit-woord voor een tweestandenschakelaar.
+      const s = String(v).trim().toLowerCase();
+      const byLabel = c.positions.findIndex((p) => p.toLowerCase() === s);
+      if (byLabel >= 0) n = byLabel;
+      else if (c.positions.length === 2 && ['on', 'aan', 'true', 'yes'].includes(s)) n = 1;
+      else if (c.positions.length === 2 && ['off', 'uit', 'false', 'no'].includes(s)) n = 0;
+      else if (v === true || v === false) n = v ? 1 : 0;
+    }
+    if (!Number.isFinite(n)) { warnings.push(`${type.variant}: "${id}" = ${JSON.stringify(v)} is geen getal; genegeerd.`); continue; }
+    if (c.kind === 'switch') {
+      const idx = Math.max(0, Math.min(c.positions.length - 1, Math.round(n)));
+      if (idx !== n) warnings.push(`${type.variant}: "${id}" ${n} → stand ${idx} (${c.positions[idx]}).`);
+      out[id] = idx;
+    } else if ('min' in c && 'max' in c && typeof c.min === 'number' && typeof c.max === 'number') {
+      const clamped = Math.max(c.min, Math.min(c.max, n));
+      if (clamped !== n) warnings.push(`${type.variant}: "${id}" ${n} buiten ${c.min}..${c.max} → ${clamped}.`);
+      out[id] = clamped;
+    } else {
+      out[id] = n;
+    }
+  }
+  return out;
+}
+
 function isStereoIn(r: PortRoles): boolean  { return !!(r.audioIn.left && r.audioIn.right); }
 function isStereoOut(r: PortRoles): boolean { return !!(r.audioOut.left && r.audioOut.right); }
 
@@ -79,7 +117,7 @@ export function compileRecipe(project: ModularProject, recipe: PatchRecipe): Com
         sug);
     }
     const type = types.find((t) => t.id === typeId)!;
-    const overrides = typeof ref === 'string' ? {} : (ref.controls ?? {});
+    const overrides = typeof ref === 'string' ? {} : sanitizeControls(type, ref.controls ?? {}, warnings);
     return {
       typeId, type, roles: portRoles(type), hp: protoOf(typeId).visual.hpWidth,
       controls: { ...playableControls(type), ...overrides },

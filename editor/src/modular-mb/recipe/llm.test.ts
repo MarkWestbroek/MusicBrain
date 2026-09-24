@@ -137,6 +137,33 @@ describe('LLM-adapter: tools-modus (function calling, fetch gemockt)', () => {
     expect(JSON.parse(msgs.find((m) => m.tool_call_id === 'c2')!.content).error).toMatch(/Onbekende tool/);
   });
 
+  it('doorpraten: het gesprek gaat verder en de voorstellen stapelen', async () => {
+    const p = base();
+    const call = (id: string, name: string, args: unknown) => ({ id, type: 'function', function: { name, arguments: JSON.stringify(args) } });
+    const api = fakeApi([
+      { role: 'assistant', content: null, tool_calls: [call('c1', 'build_patch', { recipe: { voices: 4, source: 'vco' } })] },
+      { role: 'assistant', content: 'Vierstemmige VCO-patch.' },
+    ]);
+    const a = await askLlmWithTools('maak een 4 stemmige patch', p, S('tools'), api.fetchFn);
+    expect(a.commands.map((c) => c.kind)).toEqual(['build']);
+    expect(a.thread.messages.length).toBe(5);   // system, user, assistant(tool), tool, assistant
+
+    const api2 = fakeApi([
+      { role: 'assistant', content: null, tool_calls: [call('c2', 'get_patch_summary', {}), call('c3', 'set_voices', { voices: 8 })] },
+      { role: 'assistant', content: 'Nu acht stemmen.' },
+    ]);
+    const b = await askLlmWithTools('maak het toch 8 stemmig', p, S('tools'), api2.fetchFn, 10, a.thread);
+    expect(b.commands.map((c) => c.kind)).toEqual(['build', 'voices']);
+    expect(b.summary).toMatch(/Nieuwe patch.*8-stemmig/);
+    // Het vervolg stuurde de hele geschiedenis mee, plus de nieuwe vraag.
+    const sent = api2.sent[0]!.body.messages as { role: string; content: string | null }[];
+    expect(sent.length).toBe(6);
+    expect(sent[5]).toMatchObject({ role: 'user', content: 'maak het toch 8 stemmig' });
+    // En get_patch_summary zag de (nog niet toegepaste) vierstemmige patch uit ronde 1.
+    const last = api2.sent[1]!.body.messages as { role: string; content: string; tool_call_id?: string }[];
+    expect(last.find((m) => m.tool_call_id === 'c2')!.content).toContain('"voices":4');
+  });
+
   it('askAi kiest de modus', async () => {
     const p = base();
     const api = fakeApi([{ role: 'assistant', content: '{"command":"none","explanation":"x"}' }]);

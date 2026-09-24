@@ -98,14 +98,21 @@ const TOOLS_PROMPT = [
   'Sluit af met één of twee zinnen in het Nederlands over wat je hebt voorgesteld, zonder JSON.',
 ].join('\n');
 
+/** Gespreksstand om op door te praten ("maak het toch 8-stemmig"): de
+ *  berichten tot nu toe en de voorstellen die al op tafel liggen. */
+export interface LlmThread { messages: ChatMessage[]; commands: Command[] }
+
 export async function askLlmWithTools(text: string, project: ModularProject, settings = loadLlmSettings(),
-                                      fetchFn: typeof fetch = fetch, maxRounds = 10): Promise<LlmAnswer> {
-  const messages: ChatMessage[] = [
-    { role: 'system', content: TOOLS_PROMPT },
-    { role: 'user', content: text },
-  ];
-  let sim = project;                 // lokale kopie met de voorstellen toegepast
-  const commands: Command[] = [];
+                                      fetchFn: typeof fetch = fetch, maxRounds = 10,
+                                      prior?: LlmThread): Promise<LlmAnswer & { thread: LlmThread }> {
+  const messages: ChatMessage[] = prior
+    ? [...prior.messages, { role: 'user', content: text }]
+    : [{ role: 'system', content: TOOLS_PROMPT }, { role: 'user', content: text }];
+  // Lokale kopie met de voorstellen toegepast; bij doorpraten eerst de
+  // eerdere voorstellen opnieuw, zodat leestools het voorlopige beeld zien.
+  let sim = project;
+  const commands: Command[] = [...(prior?.commands ?? [])];
+  for (const c of commands) sim = runCommand(sim, c).project;
   let explanation = '';
   for (let round = 0; round < maxRounds; ++round) {
     const msg = await post(settings, { messages, tools: openAiTools(), tool_choice: 'auto' }, fetchFn);
@@ -144,6 +151,7 @@ export async function askLlmWithTools(text: string, project: ModularProject, set
   return {
     command: commands[0] ?? null, commands, explanation, raw: explanation,
     summary: commands.length ? commands.map((c) => describeCommand(c, types)).join(' · ') : (explanation || 'Geen voorstel.'),
+    thread: { messages, commands },
   };
 }
 
@@ -254,7 +262,9 @@ export async function askLlm(text: string, project: ModularProject, settings = l
   };
 }
 
-/** Kies de modus uit de instellingen. */
-export function askAi(text: string, project: ModularProject, settings = loadLlmSettings(), fetchFn: typeof fetch = fetch): Promise<LlmAnswer> {
-  return settings.mode === 'json' ? askLlm(text, project, settings, fetchFn) : askLlmWithTools(text, project, settings, fetchFn);
+/** Kies de modus uit de instellingen. `prior` = doorpraten (alleen tools-modus). */
+export function askAi(text: string, project: ModularProject, settings = loadLlmSettings(), fetchFn: typeof fetch = fetch,
+                      prior?: LlmThread): Promise<LlmAnswer & { thread?: LlmThread }> {
+  return settings.mode === 'json' ? askLlm(text, project, settings, fetchFn)
+    : askLlmWithTools(text, project, settings, fetchFn, 10, prior);
 }

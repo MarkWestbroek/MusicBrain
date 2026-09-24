@@ -237,6 +237,28 @@ uit, puur programmatisch (besluit 2026-09-24: geen AI in de beslissing).
 Open: een recept meteen in een bestaand rack bouwen (nu: bouwen en daarna
 optimaliseren).
 
+## Bevinding 2026-09-25: "worklet-processor gecrasht" = wasm-geheugen op
+
+Na een AI- of receptbouw (en net zo goed na een gewone seed) meldde de sim
+`tp_mmb_bus_comp: worklet-processor gecrasht`; de console zegt
+`WebAssembly.Instance(): Out of memory: Cannot allocate Wasm memory for new
+instance` in de constructor van MmbProcessor. Niet het recept: elke
+`public/wasm/*.wasm` declareert 8 MB initieel geheugen zónder maximum
+(gemeten over alle 53 modules), en sinds "stap 6, fase A" (VCO, VCA,
+envelopes, MIDI-in als wasm) is élke module in een patch een eigen
+wasm-instantie: een 4-stemmige recept-patch = 29 instanties = 232 MB in de
+audio-thread. Bij een herbouw terwijl de sim draait leven de oude
+processors nog tot de GC ze opruimt, dus dat verdubbelt; Chrome weigert dan
+nieuwe reserveringen. Herladen helpt omdat alles vrijkomt.
+
+Aanbevolen (wasm-spoor, niet hier gedaan): in tools/mmb-wasm/build.sh een
+klein initieel geheugen en een bovengrens per module
+(`-Wl,--initial-memory=…` klein, `-Wl,--max-memory=…` bijv. 16 MB; STK/
+Clouds/Plaits apart hoger), en/of in AudioEngine worklet-nodes over een
+herbouw heen hergebruiken op module-id + type, zoals de firmware doet.
+De recept-laag klemt sinds vandaag wel alle knopstanden van buiten
+(`sanitizeControls`), maar dat was niet de oorzaak.
+
 ## Open punten
 
 - Fase 3 is nog niet tegen een echte DeepSeek/OpenAI-endpoint gedraaid;
