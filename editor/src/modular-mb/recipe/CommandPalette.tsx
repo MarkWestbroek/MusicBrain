@@ -1,25 +1,27 @@
-// Commandoregel (Ctrl+K) — ED-RC-2/3/4.
+// Commandoregel (Ctrl+K) — ED-RC-2/3/4/5.
 //
 // Typ wat je wilt; de deterministische parser toont meteen wat hij ervan
 // begrijpt (preview) en wat niet ("niet begrepen"). Enter bouwt of past toe.
 //   • Nieuwe patches lopen via het recept (compileRecipe → ops), bewerkingen
-//     via de werkwoorden in edits.ts. Nooit rechtstreeks aan het project.
+//     via de werkwoorden in edits.ts (runCommand in commands.ts).
 //   • "Demonstreer" speelt de ops stap voor stap af met uitleg (demo.tsx).
-//   • "✨ AI" stuurt de vraag naar een OpenAI-compatibele API (llm.ts) en
-//     toont het voorstel als preview; pas na "Toepassen" gebeurt er iets.
+//   • "✨ AI" stuurt de vraag naar een OpenAI-compatibele API (llm.ts). In
+//     tools-modus haalt het model zelf op wat het nodig heeft en plant het
+//     wijzigingen; die verschijnen hier als voorstellenlijst. Pas na
+//     "Toepassen" gebeurt er iets.
 //   • Uitlegvragen ("hoe maak ik vibrato?") koppelen aan een demonstratie.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getProject, updateProject, useModularProject } from '../store';
-import { parseCommand, type Command } from './parse';
-import { compileRecipe, buildRecipe } from './compile';
-import {
-  replaceModule, setVoices, addBusFx, addModulation, findModuleByWord, findPortByWord, type EditResult,
-} from './edits';
-import { RecipeError, type PatchOp } from './types';
-import { resolvePorts, type ModularProject } from '../types';
-import { askLlm, loadLlmSettings, saveLlmSettings, LLM_PRESETS, type LlmSettings } from './llm';
+import { parseCommand, describeCommand, type Command } from './parse';
+import { compileRecipe } from './compile';
+import { runCommand, runCommands } from './commands';
+import type { EditResult } from './edits';
+import type { PatchOp } from './types';
+import { askAi, loadLlmSettings, saveLlmSettings, LLM_PRESETS, type LlmSettings } from './llm';
 import { findExplainTopic, type ExplainTopic } from './demo';
+
+export { runCommand };
 
 const EXAMPLES = [
   'maak een 8x poly patch met een wavetable osc, een simpele vcf en een diode compressor op het eind',
@@ -32,41 +34,6 @@ const EXAMPLES = [
   'hoe maak ik vibrato?',
 ];
 
-/** Voer een geparseerd commando uit op het project. Gooit RecipeError. */
-export function runCommand(p: ModularProject, cmd: Command): { project: ModularProject; summary: string; warnings: string[] } {
-  const patchId = p.activePatchId;
-  const needPatch = (): string => {
-    if (!patchId || !p.patches.some((x) => x.id === patchId)) throw new RecipeError('Geen actieve patch om te bewerken.');
-    return patchId;
-  };
-  switch (cmd.kind) {
-    case 'build': {
-      const r = compileRecipe(p, cmd.recipe);
-      return { project: buildRecipe(p, cmd.recipe), summary: `Gebouwd: ${r.summary}`, warnings: r.warnings };
-    }
-    case 'voices': return setVoices(p, needPatch(), cmd.voices);
-    case 'replace': {
-      const pid = needPatch();
-      const m = findModuleByWord(p, pid, cmd.from);
-      if (!m) throw new RecipeError(`Geen module "${cmd.from}" in deze patch.`);
-      return replaceModule(p, pid, m.id, cmd.to);
-    }
-    case 'addBus': return addBusFx(p, needPatch(), cmd.module);
-    case 'addModulation': {
-      const pid = needPatch();
-      const m = findModuleByWord(p, pid, cmd.target);
-      if (!m) throw new RecipeError(`Geen module "${cmd.target}" in deze patch.`);
-      let port = cmd.port ? findPortByWord(p, m, cmd.port) : null;
-      if (!port && !cmd.port) {
-        const cvIns = resolvePorts(m, p.moduleTypes).filter((q) => q.direction === 'in' && q.signalType === 'cv');
-        port = (cvIns.find((q) => q.id === 'cv') ?? cvIns[0])?.id ?? null;
-      }
-      if (!port) throw new RecipeError(`${m.name} heeft geen cv-ingang "${cmd.port ?? ''}".`);
-      return addModulation(p, pid, cmd.source, { moduleId: m.id, portId: port });
-    }
-  }
-}
-
 /** Voor tests en scripts: één regel uitvoeren op het huidige project. */
 export function runCommandLine(text: string): { summary: string; warnings: string[] } {
   const p = getProject();
@@ -77,7 +44,7 @@ export function runCommandLine(text: string): { summary: string; warnings: strin
   return out;
 }
 
-interface Proposal { command: Command | null; summary: string; explanation: string; source: 'ai' | 'explain'; topic?: ExplainTopic }
+interface Proposal { commands: Command[]; summary: string; explanation: string; source: 'ai' | 'explain'; topic?: ExplainTopic }
 
 export function CommandPalette(props: {
   open: boolean; onClose: () => void; onBuilt?: () => void;
@@ -107,30 +74,31 @@ export function CommandPalette(props: {
   const topic = useMemo(() => (text.trim() ? findExplainTopic(text) : null), [text]);
   const parsed = useMemo(() => (text.trim() && !topic ? parseCommand(text, project.moduleTypes, hasPatch) : null),
     [text, topic, project.moduleTypes, hasPatch]);
-  // Het commando dat "Bouw/Toepassen/Demonstreer" zou uitvoeren: het AI-/
+  // De commando's die "Bouw/Toepassen/Demonstreer" zou uitvoeren: het AI-/
   // uitleg-voorstel als dat er is, anders de deterministische lezing.
-  const command: Command | null = proposal ? proposal.command
-    : topic ? { kind: 'build', recipe: topic.recipe, mentioned: [], explicitNew: true }
-    : parsed?.command ?? null;
-  // Droogloop van een nieuwe patch: laat fouten en waarschuwingen vast zien.
+  const commands: Command[] = proposal ? proposal.commands
+    : topic ? [{ kind: 'build', recipe: topic.recipe, mentioned: [], explicitNew: true }]
+    : parsed ? [parsed.command] : [];
+  const single = commands.length === 1 ? commands[0]! : null;
+  // Droogloop van een (enkele) nieuwe patch: fouten en waarschuwingen vooraf.
   const dry = useMemo(() => {
-    if (!command || command.kind !== 'build') return null;
-    try { const r = compileRecipe(project, command.recipe); return { ok: true as const, warnings: r.warnings, ops: r.ops, summary: r.summary }; }
+    if (!single || single.kind !== 'build') return null;
+    try { const r = compileRecipe(project, single.recipe); return { ok: true as const, warnings: r.warnings, ops: r.ops, summary: r.summary }; }
     catch (e) { return { ok: false as const, error: e instanceof Error ? e.message : String(e) }; }
-  }, [command, project]);
+  }, [single, project]);
 
   if (!open) return null;
 
   function apply(): void {
-    if (!command) return;
+    if (!commands.length) return;
     try {
       let result: EditResult | null = null;
-      updateProject((p) => { result = runCommand(p, command!); return result.project; }, { forceCommit: true });
+      updateProject((p) => { result = runCommands(p, commands); return result.project; }, { forceCommit: true });
       const r = result as EditResult | null;
       if (r) {
         setStatus({ ok: true, text: r.summary + (r.warnings.length ? ` — ${r.warnings.join(' ')}` : '') });
         setText(''); setProposal(null);
-        if (command.kind === 'build') onBuilt?.();
+        if (commands.some((c) => c.kind === 'build')) onBuilt?.();
       }
     } catch (e) {
       setStatus({ ok: false, text: e instanceof Error ? e.message : String(e) });
@@ -147,9 +115,9 @@ export function CommandPalette(props: {
     if (!text.trim() || aiBusy) return;
     setAiBusy(true); setStatus(null);
     try {
-      const a = await askLlm(text, project, llm);
-      setProposal({ command: a.command, summary: a.summary, explanation: a.explanation, source: 'ai' });
-      if (!a.command) setStatus({ ok: false, text: a.explanation });
+      const a = await askAi(text, project, llm);
+      setProposal({ commands: a.commands, summary: a.summary, explanation: a.explanation, source: 'ai' });
+      if (!a.commands.length) setStatus({ ok: false, text: a.explanation || 'Geen voorstel.' });
     } catch (e) {
       setStatus({ ok: false, text: e instanceof Error ? e.message : String(e) });
     } finally {
@@ -170,8 +138,9 @@ export function CommandPalette(props: {
     background: '#fff', borderRadius: 8, padding: 14, width: 740, maxWidth: '94vw',
     boxShadow: '0 12px 40px rgba(0,0,0,0.3)', fontSize: 13,
   };
-  const canApply = !!command && (command.kind !== 'build' || (dry?.ok ?? false)) && (command.kind === 'build' || hasPatch);
-  const canDemo = !!onDemo && !!command && command.kind === 'build' && (dry?.ok ?? false);
+  const needsPatch = commands.some((c) => c.kind !== 'build');
+  const canApply = commands.length > 0 && (!single || single.kind !== 'build' || (dry?.ok ?? false)) && (!needsPatch || hasPatch);
+  const canDemo = !!onDemo && !!single && single.kind === 'build' && (dry?.ok ?? false);
   const aiReady = !!llm.apiKey || /localhost|127\.0\.0\.1/.test(llm.endpoint);
   const primary: React.CSSProperties = {
     padding: '8px 14px', fontWeight: 600, border: 'none', borderRadius: 6, cursor: 'pointer',
@@ -196,7 +165,7 @@ export function CommandPalette(props: {
             data-tour="command-input"
           />
           <button onClick={apply} disabled={!canApply} style={canApply ? primary : disabled}>
-            {command?.kind === 'build' ? 'Bouw' : 'Toepassen'}
+            {single?.kind === 'build' ? 'Bouw' : 'Toepassen'}
           </button>
           <button onClick={demo} disabled={!canDemo} style={canDemo ? secondary : { ...secondary, color: '#9ca3af', cursor: 'default' }}
                   title="Bouw de patch stap voor stap op, met uitleg per stap">▶ Demonstreer</button>
@@ -204,7 +173,7 @@ export function CommandPalette(props: {
                   title={aiReady ? 'Laat een taalmodel de vraag vertalen (je ziet eerst een voorstel)' : 'Stel eerst een API-key in (⚙)'}>
             {aiBusy ? '⏳ AI…' : '✨ AI'}
           </button>
-          <button onClick={() => setShowSettings((v) => !v)} style={secondary} title="AI-instellingen: endpoint, model, key">⚙</button>
+          <button onClick={() => setShowSettings((v) => !v)} style={secondary} title="AI-instellingen: endpoint, model, key, modus">⚙</button>
         </div>
 
         {showSettings && (
@@ -224,6 +193,16 @@ export function CommandPalette(props: {
             <span>API-key</span>
             <input type="password" value={llm.apiKey} onChange={(e) => updateLlm({ apiKey: e.target.value })} style={{ padding: 5 }}
                    placeholder="sk-… (blijft in deze browser, localStorage)" />
+            <span>Modus</span>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              {(['tools', 'json'] as const).map((m) => (
+                <button key={m} onClick={() => updateLlm({ mode: m })}
+                        style={{ ...secondary, padding: '4px 10px', fontWeight: llm.mode === m ? 700 : 400 }}>{m}</button>
+              ))}
+              <span style={{ fontSize: 11, color: '#64748b' }}>
+                tools = het model haalt zelf catalogus en patch op (function calling); json = alles in één prompt, één antwoord.
+              </span>
+            </div>
             <span />
             <div style={{ fontSize: 11, color: '#64748b' }}>
               Naar buiten gaan alleen je vraag, de modulecatalogus en een korte samenvatting van de actieve patch.
@@ -235,8 +214,13 @@ export function CommandPalette(props: {
         <div style={{ marginTop: 10, minHeight: 44 }}>
           {proposal && (
             <div style={{ padding: '8px 10px', borderRadius: 6, background: '#eff6ff', border: '1px solid #bfdbfe' }}>
-              <div style={{ fontSize: 11, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: 0.5 }}>Voorstel van de AI</div>
-              <div style={{ fontWeight: 600 }}>{proposal.summary}</div>
+              <div style={{ fontSize: 11, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                Voorstel van de AI{proposal.commands.length > 1 ? ` (${proposal.commands.length} stappen)` : ''}
+              </div>
+              {proposal.commands.length === 0 && <div style={{ fontWeight: 600 }}>Geen voorstel.</div>}
+              {proposal.commands.map((c, i) => (
+                <div key={i} style={{ fontWeight: 600 }}>{proposal.commands.length > 1 ? `${i + 1}. ` : ''}{describeCommand(c, project.moduleTypes)}</div>
+              ))}
               {proposal.explanation && <div style={{ color: '#334155', marginTop: 2 }}>{proposal.explanation}</div>}
             </div>
           )}
@@ -256,10 +240,10 @@ export function CommandPalette(props: {
                   Niet begrepen: {parsed.unknown.join(', ')}{aiReady ? ' — probeer ✨ AI.' : ''}
                 </div>
               )}
-              {!hasPatch && parsed.command.kind !== 'build' && (
-                <div style={{ color: '#b91c1c', marginTop: 4 }}>Er is geen actieve patch om te bewerken.</div>
-              )}
             </>
+          )}
+          {needsPatch && !hasPatch && (
+            <div style={{ color: '#b91c1c', marginTop: 4 }}>Er is geen actieve patch om te bewerken.</div>
           )}
           {dry && !dry.ok && <div style={{ color: '#b91c1c', marginTop: 4 }}>{dry.error}</div>}
           {dry && dry.ok && dry.warnings.length > 0 && (

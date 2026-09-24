@@ -8,6 +8,15 @@
         "KICAD_PYTHON": "C:\\Program Files\\KiCad\\10.0\\bin\\python.exe",
         "NODE_ENV": "production"
       }
+    },
+    "mmb": {
+      "command": "node",
+      "args": [
+        "tools/mmb-mcp/node_modules/tsx/dist/cli.mjs",
+        "tools/mmb-mcp/src/server.ts",
+        "--project",
+        "tools/mmb-mcp/project.json"
+      ]
     }
   }
 }

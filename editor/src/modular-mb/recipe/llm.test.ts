@@ -2,13 +2,29 @@ import { describe, it, expect } from 'vitest';
 import { emptyModularProject } from '../types';
 import { seedInternals } from '../seedModules';
 import { buildRecipe } from './compile';
-import { askLlm, buildSystemPrompt, commandFromLlmJson, extractJson, summarizePatch } from './llm';
+import {
+  askLlm, askLlmWithTools, askAi, buildSystemPrompt, commandFromLlmJson, extractJson, summarizePatch, type LlmSettings,
+} from './llm';
 import { RecipeError } from './types';
 
 const base = () => seedInternals(emptyModularProject());
 const types = base().moduleTypes;
+const S = (mode: LlmSettings['mode'] = 'json'): LlmSettings => ({ endpoint: 'https://x/chat', model: 'm', apiKey: 'k', mode });
 
-describe('LLM-adapter: prompt', () => {
+/** Nep-API: geeft per beurt het volgende antwoord uit `turns` en bewaart wat er heen ging. */
+function fakeApi(turns: unknown[]): { fetchFn: typeof fetch; sent: { url: string; body: Record<string, unknown> }[] } {
+  const sent: { url: string; body: Record<string, unknown> }[] = [];
+  let i = 0;
+  const fetchFn = (async (url: string | URL | Request, init?: RequestInit) => {
+    sent.push({ url: String(url), body: JSON.parse(String(init?.body)) });
+    const message = turns[Math.min(i, turns.length - 1)];
+    i += 1;
+    return new Response(JSON.stringify({ choices: [{ message }] }), { status: 200 });
+  }) as typeof fetch;
+  return { fetchFn, sent };
+}
+
+describe('LLM-adapter: prompt (json-modus)', () => {
   it('bevat de catalogus met type-id, korte naam en soort', () => {
     const s = buildSystemPrompt(types);
     expect(s).toContain('tp_mmb_wt_vco | WT-VCO | source');
@@ -21,13 +37,13 @@ describe('LLM-adapter: prompt', () => {
     const s = summarizePatch(p);
     expect(s).toContain('4 stemmen');
     expect(s).toContain('Ladder (tp_mmb_ladder) [poly ×4] — cv, q_cv, drive_cv');
-    expect((s.match(/tp_mmb_ladder/g) ?? []).length).toBe(1);   // followers niet
+    expect((s.match(/tp_mmb_ladder\)/g) ?? []).length).toBe(1);   // followers niet
     expect(s).toContain('Kabels:');
     expect(summarizePatch(base())).toMatch(/geen actieve patch/);
   });
 });
 
-describe('LLM-adapter: validatie van het antwoord', () => {
+describe('LLM-adapter: validatie van het JSON-antwoord', () => {
   it('build met aliassen en type-id\'s', () => {
     const r = commandFromLlmJson({
       command: 'build', explanation: 'ok',
@@ -59,19 +75,15 @@ describe('LLM-adapter: validatie van het antwoord', () => {
   });
 });
 
-describe('LLM-adapter: aanroep (fetch gemockt)', () => {
+describe('LLM-adapter: json-modus (fetch gemockt)', () => {
   it('stuurt systeem + gebruiker en verwerkt het antwoord', async () => {
     const p = buildRecipe(base(), { voices: 2, source: 'vco' });
-    let sent: { url: string; body: Record<string, unknown> } | null = null;
-    const fetchFn = (async (url: string | URL | Request, init?: RequestInit) => {
-      sent = { url: String(url), body: JSON.parse(String(init?.body)) };
-      return new Response(JSON.stringify({ choices: [{ message: { content: '{"command":"addBus","module":"tp_mmb_tape_echo","explanation":"Tape op de bus."}' } }] }), { status: 200 });
-    }) as typeof fetch;
-    const a = await askLlm('zet er een bandecho achter', p, { endpoint: 'https://x/chat', model: 'm', apiKey: 'k' }, fetchFn);
+    const api = fakeApi([{ role: 'assistant', content: '{"command":"addBus","module":"tp_mmb_tape_echo","explanation":"Tape op de bus."}' }]);
+    const a = await askLlm('zet er een bandecho achter', p, S('json'), api.fetchFn);
     expect(a.command).toEqual({ kind: 'addBus', module: 'tp_mmb_tape_echo' });
+    expect(a.commands.length).toBe(1);
     expect(a.summary).toMatch(/Tape/);
-    expect(sent!.url).toBe('https://x/chat');
-    const msgs = sent!.body.messages as { role: string; content: string }[];
+    const msgs = api.sent[0]!.body.messages as { role: string; content: string }[];
     expect(msgs[0]!.role).toBe('system');
     expect(msgs[1]!.content).toContain('Verzoek: zet er een bandecho achter');
     expect(msgs[1]!.content).not.toContain('"controlState"');   // nooit het project
@@ -79,8 +91,59 @@ describe('LLM-adapter: aanroep (fetch gemockt)', () => {
 
   it('zonder key → RecipeError, http-fout → RecipeError', async () => {
     const p = base();
-    await expect(askLlm('x', p, { endpoint: 'https://x', model: 'm', apiKey: '' })).rejects.toThrowError(/API-key/);
+    await expect(askLlm('x', p, { ...S(), apiKey: '' })).rejects.toThrowError(/API-key/);
     const bad = (async () => new Response('nope', { status: 401 })) as unknown as typeof fetch;
-    await expect(askLlm('x', p, { endpoint: 'https://x', model: 'm', apiKey: 'k' }, bad)).rejects.toThrowError(/401/);
+    await expect(askLlm('x', p, S(), bad)).rejects.toThrowError(/401/);
+  });
+});
+
+describe('LLM-adapter: tools-modus (function calling, fetch gemockt)', () => {
+  it('leest via tools, plant wijzigingen als voorstel, en ziet zijn eigen voorstel in een volgende leestool', async () => {
+    const p = buildRecipe(base(), { voices: 2, source: 'vco' });
+    const call = (id: string, name: string, args: unknown) => ({ id, type: 'function', function: { name, arguments: JSON.stringify(args) } });
+    const api = fakeApi([
+      { role: 'assistant', content: null, tool_calls: [call('c1', 'get_patch_summary', {}), call('c2', 'get_module_type', { typeId: 'diode' })] },
+      { role: 'assistant', content: null, tool_calls: [call('c3', 'add_bus_fx', { module: 'diode compressor' }), call('c4', 'set_voices', { voices: 4 })] },
+      { role: 'assistant', content: null, tool_calls: [call('c5', 'get_patch_summary', {})] },
+      { role: 'assistant', content: 'Diode-compressor op de bus en vier stemmen.' },
+    ]);
+    const a = await askLlmWithTools('zet een diode comp op de bus en maak het 4 stemmig', p, S('tools'), api.fetchFn);
+    expect(a.commands).toEqual([{ kind: 'addBus', module: 'diode compressor' }, { kind: 'voices', voices: 4 }]);
+    expect(a.explanation).toMatch(/vier stemmen/);
+    expect(a.summary).toMatch(/Diode.*4-stemmig/);
+    // Vier beurten, elke beurt met tools meegestuurd.
+    expect(api.sent.length).toBe(4);
+    expect((api.sent[0]!.body.tools as unknown[]).length).toBeGreaterThan(5);
+    // Toolresultaten zijn als role:tool teruggestuurd; het derde get_patch_summary zag het voorstel (4 stemmen, diode).
+    const last = api.sent[3]!.body.messages as { role: string; content: string; tool_call_id?: string }[];
+    const c5 = last.find((m) => m.role === 'tool' && m.tool_call_id === 'c5')!;
+    expect(c5.content).toContain('"voices":4');
+    expect(c5.content).toContain('tp_mmb_diode_comp');
+    const c3 = last.find((m) => m.role === 'tool' && m.tool_call_id === 'c3')!;
+    expect(JSON.parse(c3.content)).toMatchObject({ planned: true });
+  });
+
+  it('fouten in een tool gaan als resultaat terug naar het model, niet als exception', async () => {
+    const p = base();   // geen actieve patch
+    const call = (id: string, name: string, args: unknown) => ({ id, type: 'function', function: { name, arguments: JSON.stringify(args) } });
+    const api = fakeApi([
+      { role: 'assistant', content: null, tool_calls: [call('c1', 'set_voices', { voices: 4 }), call('c2', 'no_such_tool', {})] },
+      { role: 'assistant', content: 'Er is geen patch.' },
+    ]);
+    const a = await askLlmWithTools('4 stemmen', p, S('tools'), api.fetchFn);
+    expect(a.commands).toEqual([]);
+    const msgs = api.sent[1]!.body.messages as { role: string; content: string; tool_call_id?: string }[];
+    expect(JSON.parse(msgs.find((m) => m.tool_call_id === 'c1')!.content).error).toMatch(/Geen actieve patch/);
+    expect(JSON.parse(msgs.find((m) => m.tool_call_id === 'c2')!.content).error).toMatch(/Onbekende tool/);
+  });
+
+  it('askAi kiest de modus', async () => {
+    const p = base();
+    const api = fakeApi([{ role: 'assistant', content: '{"command":"none","explanation":"x"}' }]);
+    await askAi('x', p, S('json'), api.fetchFn);
+    expect(api.sent[0]!.body.response_format).toEqual({ type: 'json_object' });
+    const api2 = fakeApi([{ role: 'assistant', content: 'klaar' }]);
+    await askAi('x', p, S('tools'), api2.fetchFn);
+    expect(api2.sent[0]!.body.tools).toBeDefined();
   });
 });
