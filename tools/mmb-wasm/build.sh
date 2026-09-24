@@ -124,6 +124,7 @@ sel ladder && build ladder tp_mmb_ladder --
 sel octavcf && build octavcf tp_mmb_octa_vcf --
 sel octavco && build octavco tp_mmb_octa_vco --
 sel wtvco   && build wtvco   tp_mmb_wt_vco   --
+sel drawvco && build drawvco tp_mmb_draw_vco --
 sel vcf && build vcf tp_mmb_vcf "$LIB/mmb-dsp" --
 sel ms20 && build ms20 tp_mmb_ms20 "$LIB/mmb-dsp" --
 

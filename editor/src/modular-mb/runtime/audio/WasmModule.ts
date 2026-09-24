@@ -44,7 +44,7 @@ export class WasmModule extends AudioModule {
     'tp_mmb_peaks', 'tp_mmb_morph_wt', 'tp_mmb_clouds',
     'tp_mmb_plaits', 'tp_mmb_tides', 'tp_mmb_warps', 'tp_mmb_tape_echo', 'tp_mmb_sampler',
     'tp_mmb_dx7', 'tp_mmb_env_follower', 'tp_mmb_env_follower_mono',
-    'tp_mmb_vcf', 'tp_mmb_ms20', 'tp_mmb_stk_sound', 'tp_mmb_elements_reverb', 'tp_mmb_octa_vca', 'tp_mmb_stereo_vca', 'tp_mmb_resonator', 'tp_mmb_cr78', 'tp_mmb_comp', 'tp_mmb_comb', 'tp_mmb_quant', 'tp_mmb_chord', 'tp_mmb_grids', 'tp_mmb_lfo', 'tp_mmb_string', 'tp_mmb_echo', 'tp_mmb_phaser', 'tp_mmb_ladder', 'tp_mmb_octa_vcf', 'tp_mmb_octa_vco', 'tp_mmb_wt_vco', 'tp_mmb_fet_comp', 'tp_mmb_opto_comp',
+    'tp_mmb_vcf', 'tp_mmb_ms20', 'tp_mmb_stk_sound', 'tp_mmb_elements_reverb', 'tp_mmb_octa_vca', 'tp_mmb_stereo_vca', 'tp_mmb_resonator', 'tp_mmb_cr78', 'tp_mmb_comp', 'tp_mmb_comb', 'tp_mmb_quant', 'tp_mmb_chord', 'tp_mmb_grids', 'tp_mmb_lfo', 'tp_mmb_string', 'tp_mmb_echo', 'tp_mmb_phaser', 'tp_mmb_ladder', 'tp_mmb_octa_vcf', 'tp_mmb_octa_vco', 'tp_mmb_wt_vco', 'tp_mmb_draw_vco', 'tp_mmb_fet_comp', 'tp_mmb_opto_comp',
     'tp_mmb_bus_comp', 'tp_mmb_varimu_comp', 'tp_mmb_program_eq', 'tp_mmb_diode_comp', 'tp_mmb_console_eq', 'tp_mmb_para_eq',
   ]);
   static supports(typeId: string): boolean { return WasmModule.typeIds.has(typeId); }
@@ -86,6 +86,10 @@ export class WasmModule extends AudioModule {
   /** Blobs (samples) per typeId en slot — gedeeld door alle instanties van
    *  dat type, zoals de PSRAM-bank op de Teensy. */
   private static readonly blobs = new Map<string, Map<number, WasmBlob>>();
+  /** Blobs per module-instantie: de getekende golf van een Draw-VCO. Blijft
+   *  staan als de engine herbouwt, zoals de tabel op de Teensy tot een
+   *  herstart; hij staat niet in de patch. */
+  private static readonly instanceBlobs = new Map<string, Map<number, WasmBlob>>();
   /** Keymap per typeId — gedeeld door alle instanties, zoals de bank. */
   private static readonly zoneMaps = new Map<string, WasmZone[]>();
 
@@ -98,6 +102,13 @@ export class WasmModule extends AudioModule {
     if (!m) { m = new Map(); WasmModule.blobs.set(typeId, m); }
     m.set(slot, { data, rate, name, channels });
     for (const inst of WasmModule.instances) if (inst.typeId === typeId) inst.postBlob(slot, data, rate, channels);
+  }
+  /** Blob naar slot `slot` van één module (op id), nu en na een herbouw. */
+  static setInstanceBlob(moduleId: string, slot: number, data: Int16Array, rate = 44100): void {
+    let m = WasmModule.instanceBlobs.get(moduleId);
+    if (!m) { m = new Map(); WasmModule.instanceBlobs.set(moduleId, m); }
+    m.set(slot, { data, rate, name: '', channels: 1 });
+    for (const inst of WasmModule.instances) if (inst.id === moduleId) inst.postBlob(slot, data, rate, 1);
   }
   /** Keymap zetten (vervangt de vorige). */
   static setZones(typeId: string, zones: WasmZone[]): void {
@@ -213,6 +224,8 @@ export class WasmModule extends AudioModule {
       for (const id of this.cabled) this.post({ t: 'cabled', id, on: true });
       const blobs = WasmModule.blobs.get(type.id);
       if (blobs) for (const [slot, b] of blobs) this.postBlob(slot, b.data, b.rate, b.channels);
+      const own = WasmModule.instanceBlobs.get(this.id);
+      if (own) for (const [slot, b] of own) this.postBlob(slot, b.data, b.rate, b.channels);
       const tc = WasmModule.typeControls.get(type.id);
       if (tc) for (const [id, v] of tc) this.post({ t: 'ctl', id, v });
       const zones = WasmModule.zoneMaps.get(type.id);

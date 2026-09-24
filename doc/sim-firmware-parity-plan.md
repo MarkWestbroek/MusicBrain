@@ -26,9 +26,9 @@ Gemeten met `simSupportOf` over de 52 interne moduletypes (2026-09-20):
 
 | bak | n | modules |
 |---|---|---|
-| **wasm** | 44 | de 15 hierboven, plus vcf, ms20, stk_sound, de vintage-FX, elements_reverb, octa_vca, stereo_vca, resonator, cr78, comp, comb, string, echo, phaser, ladder, octa_vcf, octa_vco, wt_vco, quant, chord, grids, lfo |
+| **wasm** | 45 | de 15 hierboven, plus vcf, ms20, stk_sound, de vintage-FX, elements_reverb, octa_vca, stereo_vca, resonator, cr78, comp, comb, string, echo, phaser, ladder, octa_vcf, octa_vco, wt_vco, draw_vco, quant, chord, grids, lfo |
 | **tone** | 12 | vco, vca, ahdsr, noise (bestaat niet in de firmware), fm_vco, cvmath, mixer(+8/16), seq8, midiin, out |
-| **none** | 4 | draw_vco (wacht op zijn getekende tabel, zie hieronder); quad_vco_shared, quad_mixer_shared en sh bestaan niet in de firmware |
+| **none** | 3 | quad_vco_shared, quad_mixer_shared en sh bestaan niet in de firmware |
 
 Van de "tone"-bak is een deel infrastructuur waar sample-exactheid niet toe
 doet (midiin, out, mixer, cvmath, seq8). Het gaat om de klankbepalende
@@ -436,11 +436,9 @@ Op Windows draait `build.sh` onder Git Bash.
       in vaste komma overgeschreven — géén migratie naar `mmb_dsp::Svf`, dus de
       hardwareklank blijft), octa_vco en wt_vco (`AudioSynthWaveform` in
       `teensy_waveform.h`: sine/tri/saw/square/arbitrary in integer, geen BLEP
-      nodig) (2026-09-24). **draw_vco** kan op dezelfde oscillator, maar krijgt
-      zijn getekende tabel op de Teensy via een apart `wavetable`-frame; in de
-      sim moet die via het blob-kanaal van de worklet (zoals de sampler) naar
-      de wasm. Zonder dat speelt hij een driehoek terwijl jij iets anders
-      tekende — daarom nog niet aangezet.
+      nodig) (2026-09-24). draw_vco ook: zijn
+      getekende golf gaat vanuit de tekenmodal via een per-instantie-blob
+      (`WasmModule.setInstanceBlob`) naar de wasm, ook zonder Teensy.
 - [~] Stap 4 — resonator, cr78, comp, phaser als `mmb-dsp`-kernel, bit-identiek bewezen
       met `tools/mmb-wasm/bitcheck/` (2026-09-24). Open: vco (BLEP)
 - [x] CV-modules draaien de firmwareklasse zelf via `cvhost.h`: quant, chord,

@@ -10,6 +10,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useModularProject } from './store';
 import { sendWaveform, isConnected } from './teensyLink';
+import { WasmModule } from './runtime';
 
 const N = 256;                     // samples per cycle (firmware-resolutie)
 const TARGET_TYPES = ['tp_mmb_draw_vco', 'tp_mmb_morph_wt'];
@@ -50,9 +51,13 @@ export function WaveDrawModal({ open, onClose }: { open: boolean; onClose: () =>
     if (pushTimer.current !== null) window.clearTimeout(pushTimer.current);
     pushTimer.current = window.setTimeout(() => {
       pushTimer.current = null;
-      if (!target || !isConnected()) return;
+      if (!target) return;
       const data = Array.from(waveRef.current, (v) => Math.round(
         Math.max(-1, Math.min(1, v)) * 32767));
+      // De simulator krijgt de tekening ook, met of zonder Teensy (alleen de
+      // Draw-VCO; de Morph-WT in de sim kent nog geen USER-bank).
+      if (target.typeId === 'tp_mmb_draw_vco') WasmModule.setInstanceBlob(target.id, 0, Int16Array.from(data));
+      if (!isConnected()) return;
       void sendWaveform(target.id, data);
       setPushed(`→ ${target.name} (${new Date().toLocaleTimeString()})`);
     }, 150);

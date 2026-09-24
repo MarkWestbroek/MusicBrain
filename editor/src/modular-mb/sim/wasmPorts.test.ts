@@ -775,3 +775,32 @@ describe('tp_mmb_wt_vco (AudioSynthWaveform arbitrary + fillBank)', () => {
     for (let b = 1; b < 6; b++) expect(rms(vormen[b]!), `bank ${b}`).not.toBeCloseTo(rms(vormen[0]!), 3);
   });
 });
+
+describe('tp_mmb_draw_vco (getekende golf via blob-slot 0)', () => {
+  it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_draw_vco'); });
+
+  /** Zoals mmb-worklet.js 'blob' afhandelt. */
+  const blob = (m: Mod, data: Int16Array): void => {
+    const p = m.ex.mmb_blob_ptr(0, data.byteLength);
+    expect(p).not.toBe(0);
+    new Uint8Array(m.ex.memory.buffer).set(new Uint8Array(data.buffer), p);
+    m.ex.mmb_blob_commit(0, data.length, 44100, 1);
+  };
+
+  it('speelt een driehoek op C4 zolang er niets getekend is', async () => {
+    const m = await load('tp_mmb_draw_vco');
+    const out = m.render(1.0)[0]!;
+    expect(hzOf(out, m.rate)).toBeCloseTo(261.63, 0);
+    // Driehoek: rms = piek / √3.
+    expect(rms(out) / peak(out)).toBeCloseTo(1 / Math.sqrt(3), 1);
+  });
+
+  it('neemt een tekening over, geresampled naar 256 punten', async () => {
+    const m = await load('tp_mmb_draw_vco');
+    // Blokgolf van 64 punten: rms = piek.
+    blob(m, Int16Array.from({ length: 64 }, (_, i) => (i < 32 ? 32767 : -32767)));
+    const out = m.render(0.5)[0]!;
+    expect(rms(out, 2205) / peak(out)).toBeGreaterThan(0.95);
+    expect(hzOf(out, m.rate)).toBeCloseTo(261.63, 0);
+  });
+});
