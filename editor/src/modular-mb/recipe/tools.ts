@@ -12,6 +12,7 @@ import { CATALOG, catalogTable, resolveTypeId, shortName, suggestTypeIds } from 
 import { compileRecipe } from './compile';
 import { runCommand } from './commands';
 import { describeCommand, type Command } from './parse';
+import { analyzeProject, optimizeProject } from './optimize';
 import { RecipeError, type PatchRecipe } from './types';
 
 export interface JsonSchema { type: string; [k: string]: unknown }
@@ -80,6 +81,12 @@ export const TOOLS: ToolDef[] = [
       source: { type: 'string', enum: ['tp_mmb_lfo', 'tp_mmb_ahdsr'], description: 'lfo (globaal) of ahdsr (per stem, met MIDI-gate).' },
       target: { type: 'string' }, port: { type: 'string' },
     }, required: ['source', 'target'] } },
+  { name: 'analyze_racks', mutating: false,
+    description: 'Rapport van wat "optimaliseer racks" zou doen: racks zonder patch, losse modules, lege patches, en welke (bijna) identieke racks samengevoegd kunnen worden. Bouwt niets.',
+    inputSchema: { type: 'object', properties: { maxDiff: { type: 'integer', minimum: 0, maximum: 16, description: 'Max. afwijkende modules aan één kant om nog samen te voegen (default 2).' } } } },
+  { name: 'optimize_racks', mutating: true,
+    description: 'Voer het volledige optimalisatieplan uit (zie analyze_racks): opruimen en (bijna) identieke racks samenvoegen. Patches delen daarna een rack en laten elk hun eigen modules ongemoeid.',
+    inputSchema: { type: 'object', properties: { maxDiff: { type: 'integer', minimum: 0, maximum: 16 } } } },
 ];
 
 export function toolDef(name: string): ToolDef | undefined { return TOOLS.find((t) => t.name === name); }
@@ -213,6 +220,14 @@ export function runTool(project: ModularProject, name: string, args: Record<stri
       } catch (e) {
         return { content: { ok: false, error: e instanceof Error ? e.message : String(e) } };
       }
+    }
+    case 'analyze_racks': {
+      const plan = analyzeProject(project, { maxDiff: typeof args.maxDiff === 'number' ? args.maxDiff : undefined });
+      return { content: { summary: plan.summary, actions: plan.actions.map((a) => ({ kind: a.kind, label: a.label, detail: a.detail })), skipped: plan.skipped } };
+    }
+    case 'optimize_racks': {
+      const r = optimizeProject(project, { maxDiff: typeof args.maxDiff === 'number' ? args.maxDiff : undefined });
+      return { content: { ok: true, summary: r.summary, warnings: r.warnings, actions: r.plan.actions.map((a) => a.label) }, project: r.project };
     }
     case 'set_active_patch': {
       const id = typeof args.patchId === 'string' ? args.patchId : '';

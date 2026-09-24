@@ -200,6 +200,35 @@ oplevert. Omzetten van de seeds naar recepten kan later.
   ⌘ Recept, Teensy). De stap bij de commandoregel gaat vanzelf door zodra
   er een patch bij is gekomen. Pijltjestoetsen en Enter bladeren, Esc sluit.
 
+## Racks en patches optimaliseren (ED-RC-7, gebouwd 2026-09-24)
+
+Elk recept maakt een nieuw rack; na een middag testen staan er tien racks
+die op elkaar lijken. `recipe/optimize.ts` rekent een plan uit en voert het
+uit, puur programmatisch (besluit 2026-09-24: geen AI in de beslissing).
+
+- **Pushregel eerst.** Naar de Teensy gaan alleen modules die een kabel van
+  de actieve patch raken (teensyLink.ts). Rack-genoten zonder kabel werden
+  als wees geïnstantieerd en tikten elke blok mee; nu niet meer. Daardoor
+  kost een gedeeld rack op de Teensy niets.
+- **Opruimen.** Racks met modules maar zonder patch, modules zonder slot,
+  patches zonder kabel. Lege racks (het standaard "Mijn rack") blijven.
+- **Samenvoegen.** Per rij worden de module-reeksen uitgelijnd (LCS op
+  type-id). Gelijke modules worden op elkaar afgebeeld: patch B krijgt de
+  id's van rack A, kabels én knopstanden verhuizen mee. Afwijkende modules
+  van B verhuizen naar rack A, achteraan in hun rij. Patch A laat ze
+  onaangeroerd. Poly-groepen van B moeten precies op een groep van A vallen
+  of geheel uit verhuizende modules bestaan; ander stemmental = nooit.
+- **Drempel.** `maxDiff` (default 2) = max. afwijkende modules aan één
+  kant. Daarboven blijven racks apart, anders wordt alles één dik rack.
+  Let op: bij een 4-stemmige patch telt een ander filter als 4 afwijkende
+  modules (één per stem).
+- **Rapport eerst.** Knop "🧹 Optimaliseer racks…" in de Patches-tab toont
+  het plan met vinkjes en de overgeslagen paren met reden; Toepassen is één
+  undo-stap. Als tools: `analyze_racks` en `optimize_racks` (ook via MCP).
+
+Open: een recept meteen in een bestaand rack bouwen (nu: bouwen en daarna
+optimaliseren).
+
 ## Open punten
 
 - Fase 3 is nog niet tegen een echte DeepSeek/OpenAI-endpoint gedraaid;

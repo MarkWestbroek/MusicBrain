@@ -373,14 +373,15 @@ export function buildConfigPayload(project: ModularProject): { json: string; mod
   const pushPatches = activeId
     ? flat.patches.filter((p) => p.id === activeId)
     : flat.patches;
-  // Modules die de gepushte patches echt raken: alles aan een kabel plus
-  // alles in de racks van die patches (voor controlState zonder kabel).
+  // Modules die de gepushte patches echt raken: alleen wat aan een kabel
+  // hangt. Rack-genoten zonder kabel gaan bewust NIET mee (ED-RC-7): die
+  // werden op de Teensy als wees geïnstantieerd en tikten elke blok mee.
+  // Een module zonder kabel doet in de audio/cv-graaf toch niets, ook niet
+  // met controlState. Zo kunnen patches ook veilig een rack delen waarin
+  // de een module x en de ander module y gebruikt.
   const usedIds = new Set<string>();
   for (const p of pushPatches) {
     for (const cc of p.connections) { usedIds.add(cc.from.moduleId); usedIds.add(cc.to.moduleId); }
-    for (const rid of p.rackIds) {
-      flat.racks.find((r) => r.id === rid)?.slots.forEach((s) => usedIds.add(s.moduleId));
-    }
   }
   // Control-surface-bindings (ED-CS-1/FW-CS-1): per poly-groep uitgevouwen
   // naar álle stemmen — de firmware kent geen poly-groepen, dus een binding

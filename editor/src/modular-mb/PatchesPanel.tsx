@@ -2,11 +2,14 @@
 // and carries per-(module, control) state. Editing the cables happens
 // in the Patcher tab.
 
+import { useState } from 'react';
 import { updateProject, useModularProject, uid } from './store';
+import { OptimizeModal } from './recipe/OptimizeModal';
 import type { Patch } from './types';
 
 export function PatchesPanel(): JSX.Element {
   const project = useModularProject();
+  const [showOptimize, setShowOptimize] = useState(false);   // ED-RC-7
 
   function addPatch(): void {
     const physical = project.racks.find((r) => r.id === project.activeRackId)
@@ -81,6 +84,10 @@ export function PatchesPanel(): JSX.Element {
   return (
     <div>
       <div style={{ marginBottom: 12 }}>
+        <button onClick={() => setShowOptimize(true)} style={{ fontSize: 13, marginRight: 8 }}
+          title="Ruim op en voeg (bijna) identieke racks samen — je ziet eerst een rapport"
+          data-tour="optimize-button">🧹 Optimaliseer racks…</button>
+        <OptimizeModal open={showOptimize} onClose={() => setShowOptimize(false)} />
         <button onClick={addPatch} className="primary" style={{ fontSize: 13 }}>
           + Patch
         </button>
