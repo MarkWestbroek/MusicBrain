@@ -611,6 +611,9 @@ export interface Patch {
   id: string;
   name: string;
   description?: string;
+  /** Map in de Patches-tab (vrije tekst, bijv. "Physical modelling"). Alleen
+   *  organisatie in de editor; gaat niet naar de firmware. */
+  folder?: string;
   /** Optional MIDI Program Change number (0–127) used to select this patch
    *  from a controller / DAW. Undefined = not mapped to a program. Numbers
    *  are expected to be unique within a project but this is not enforced. */

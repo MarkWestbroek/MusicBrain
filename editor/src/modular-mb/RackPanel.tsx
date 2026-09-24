@@ -129,7 +129,28 @@ export function RackPanel(): JSX.Element {
           <select value={rack.id}
                   onChange={(e) => updateProject((p) => ({ ...p, activeRackId: e.target.value }))}
                   style={{ marginLeft: 4, fontSize: 12 }}>
-            {racks.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+            {/* Gegroepeerd en met tellingen, zodat een lange lijst leesbaar
+                blijft: eerst racks die een patch gebruikt (op naam), dan de
+                rest; per rack het aantal patches en modules (ED-RC-8). */}
+            {(() => {
+              const used = (r: Rack) => project.patches.filter((x) => x.rackIds.includes(r.id)).length;
+              const label = (r: Rack) => `${r.name}${r.kind === 'internal' ? ' 🧠' : ''} · ${used(r)} patch${used(r) === 1 ? '' : 'es'} · ${r.slots.length} mod`;
+              const byName = (a: Rack, b: Rack) => a.name.localeCompare(b.name, 'nl');
+              const inUse = racks.filter((r) => used(r) > 0).sort(byName);
+              const idle  = racks.filter((r) => used(r) === 0).sort(byName);
+              return (
+                <>
+                  <optgroup label={`In gebruik (${inUse.length})`}>
+                    {inUse.map((r) => <option key={r.id} value={r.id}>{label(r)}</option>)}
+                  </optgroup>
+                  {idle.length > 0 && (
+                    <optgroup label={`Zonder patch (${idle.length})`}>
+                      {idle.map((r) => <option key={r.id} value={r.id}>{label(r)}</option>)}
+                    </optgroup>
+                  )}
+                </>
+              );
+            })()}
           </select>
         </label>
         <button onClick={addRack} style={{ fontSize: 12 }}>+ Rack</button>

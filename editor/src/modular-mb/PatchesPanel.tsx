@@ -1,15 +1,38 @@
 // Patches tab — list/CRUD of Patches. Each patch is bound to one Rack
 // and carries per-(module, control) state. Editing the cables happens
 // in the Patcher tab.
+//
+// ED-RC-8: de lijst is een compacte tabel met mappen (vrije tekst per patch,
+// automatisch te vullen op familie: VCO, Wavetable, Physical modelling, …),
+// groeperen (map / familie / stemmen / rack) en sorteren (naam, stemmen,
+// kabels, rack, familie, prog#). De rack-kolom toont alleen de racks die de
+// patch gebruikt, met een klein menu om er een bij te doen.
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { updateProject, useModularProject, uid } from './store';
-import { OptimizeModal } from './recipe/OptimizeModal';
 import type { Patch } from './types';
+import { OptimizeModal } from './recipe/OptimizeModal';
+import {
+  autoFolders, classifyPatch, comparePatches, groupKey, type GroupBy, type SortBy,
+} from './recipe/classify';
+
+const GROUPS: { id: GroupBy; label: string }[] = [
+  { id: 'folder', label: 'Map' }, { id: 'family', label: 'Familie' }, { id: 'voices', label: 'Stemmen' },
+  { id: 'rack', label: 'Rack' }, { id: 'none', label: 'Geen' },
+];
+const SORTS: { id: SortBy; label: string }[] = [
+  { id: 'name', label: 'Naam' }, { id: 'voices', label: 'Stemmen' }, { id: 'cables', label: 'Kabels' },
+  { id: 'rack', label: 'Rack' }, { id: 'family', label: 'Familie' }, { id: 'program', label: 'Prog#' },
+];
 
 export function PatchesPanel(): JSX.Element {
   const project = useModularProject();
   const [showOptimize, setShowOptimize] = useState(false);   // ED-RC-7
+  const [groupBy, setGroupBy] = useState<GroupBy>('folder');
+  const [sortBy, setSortBy] = useState<SortBy>('name');
+  const [dir, setDir] = useState<1 | -1>(1);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [filter, setFilter] = useState('');
 
   function addPatch(): void {
     const physical = project.racks.find((r) => r.id === project.activeRackId)
@@ -81,108 +104,175 @@ export function PatchesPanel(): JSX.Element {
     updateProject((p) => ({ ...p, activePatchId: id }));
   }
 
+  // ── indeling ──────────────────────────────────────────────────────────
+  const folders = useMemo(() => [...new Set(project.patches.map((x) => x.folder?.trim()).filter((f): f is string => !!f))].sort(), [project.patches]);
+  const classes = useMemo(() => new Map(project.patches.map((x) => [x.id, classifyPatch(project, x)])), [project]);
+  const groups = useMemo(() => {
+    const q = filter.trim().toLowerCase();
+    const visible = project.patches.filter((x) => !q || x.name.toLowerCase().includes(q)
+      || (x.folder ?? '').toLowerCase().includes(q) || classes.get(x.id)!.family.toLowerCase().includes(q));
+    const sorted = [...visible].sort(comparePatches(project, sortBy, dir));
+    const map = new Map<string, Patch[]>();
+    for (const x of sorted) { const k = groupKey(project, x, groupBy); if (!map.has(k)) map.set(k, []); map.get(k)!.push(x); }
+    const keys = [...map.keys()].sort((a, b) => {
+      if (groupBy === 'voices') return (map.get(a)![0]!.voiceCount) - (map.get(b)![0]!.voiceCount);
+      if (a.startsWith('(')) return 1; if (b.startsWith('(')) return -1;
+      return a.localeCompare(b, 'nl');
+    });
+    return keys.map((k) => ({ key: k, patches: map.get(k)! }));
+  }, [project, classes, groupBy, sortBy, dir, filter]);
+
+  const toggleGroup = (k: string) => setCollapsed((prev) => { const n = new Set(prev); if (n.has(k)) n.delete(k); else n.add(k); return n; });
+  const th = (id: SortBy, label: string, title?: string) => (
+    <th style={{ padding: '4px 8px', cursor: 'pointer', whiteSpace: 'nowrap' }} title={title ?? `Sorteer op ${label.toLowerCase()}`}
+        onClick={() => { if (sortBy === id) setDir((d) => (d === 1 ? -1 : 1)); else { setSortBy(id); setDir(1); } }}>
+      {label}{sortBy === id ? (dir === 1 ? ' ▲' : ' ▼') : ''}
+    </th>
+  );
+  const chip: React.CSSProperties = {
+    fontSize: 11, display: 'inline-flex', gap: 3, alignItems: 'center', padding: '1px 6px', borderRadius: 10, color: 'white',
+  };
+
   return (
     <div>
-      <div style={{ marginBottom: 12 }}>
-        <button onClick={() => setShowOptimize(true)} style={{ fontSize: 13, marginRight: 8 }}
+      <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <button onClick={addPatch} className="primary" style={{ fontSize: 13 }}>+ Patch</button>
+        <button onClick={() => setShowOptimize(true)} style={{ fontSize: 13 }}
           title="Ruim op en voeg (bijna) identieke racks samen — je ziet eerst een rapport"
           data-tour="optimize-button">🧹 Optimaliseer racks…</button>
-        <OptimizeModal open={showOptimize} onClose={() => setShowOptimize(false)} />
-        <button onClick={addPatch} className="primary" style={{ fontSize: 13 }}>
-          + Patch
+        <button onClick={() => updateProject((p) => autoFolders(p), { forceCommit: true })} style={{ fontSize: 13 }}
+          title="Zet patches zonder map in de map van hun familie: VCO, Wavetable, FM, Physical modelling, Sampling, Drums, …">
+          📁 Mappen automatisch
         </button>
+        <OptimizeModal open={showOptimize} onClose={() => setShowOptimize(false)} />
+        <span style={{ flex: 1 }} />
+        <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="zoek naam / map / familie"
+               style={{ fontSize: 12, padding: '3px 6px', width: 180 }} />
+        <label style={{ fontSize: 12, color: '#475569' }}>Groepeer:{' '}
+          <select value={groupBy} onChange={(e) => setGroupBy(e.target.value as GroupBy)} style={{ fontSize: 12 }}>
+            {GROUPS.map((g) => <option key={g.id} value={g.id}>{g.label}</option>)}
+          </select>
+        </label>
+        <label style={{ fontSize: 12, color: '#475569' }}>Sorteer:{' '}
+          <select value={sortBy} onChange={(e) => setSortBy(e.target.value as SortBy)} style={{ fontSize: 12 }}>
+            {SORTS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+          </select>
+          <button onClick={() => setDir((d) => (d === 1 ? -1 : 1))} style={{ fontSize: 11, marginLeft: 4 }} title="Oplopend / aflopend">{dir === 1 ? '▲' : '▼'}</button>
+        </label>
+        <span style={{ fontSize: 12, color: '#64748b' }}>{project.patches.length} patches · {project.racks.filter((r) => r.kind !== 'internal').length} racks</span>
       </div>
 
       {project.patches.length === 0 && (
         <p style={{ color: '#6b7280', fontSize: 13 }}>
-          Nog geen patches. Maak er een aan en bewerk de verbindingen in de
-          Patcher-tab.
+          Nog geen patches. Maak er een aan, of typ er een in ⌘ Recept (Ctrl+K).
         </p>
       )}
+
+      <datalist id="mmb-folders">{folders.map((f) => <option key={f} value={f} />)}</datalist>
 
       <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
         <thead>
           <tr style={{ textAlign: 'left', color: '#6b7280', borderBottom: '1px solid #e5e7eb' }}>
-            <th style={{ padding: '4px 8px' }}>Actief</th>
-            <th style={{ padding: '4px 8px' }}>Naam</th>
-            <th style={{ padding: '4px 8px' }} title="MIDI Program Change-nummer (0–127) om deze patch te selecteren">Prog#</th>
-            <th style={{ padding: '4px 8px' }}>Racks</th>
-            <th style={{ padding: '4px 8px' }}>Verbindingen</th>
-            <th style={{ padding: '4px 8px' }}>Env / LFO</th>
-            <th style={{ padding: '4px 8px' }}>Stemmen</th>
+            <th style={{ padding: '4px 8px' }} title="Actieve patch">●</th>
+            {th('name', 'Naam')}
+            <th style={{ padding: '4px 8px' }}>Map</th>
+            {th('family', 'Familie', 'Klankbron: VCO, Wavetable, FM, Physical modelling, Sampling, Drums …')}
+            {th('voices', 'Stemmen')}
+            {th('rack', 'Rack')}
+            {th('cables', 'Kabels')}
+            <th style={{ padding: '4px 8px' }} title="Bus-effecten aan een kabel">FX</th>
+            {th('program', 'Prog#', 'MIDI Program Change-nummer (0–127)')}
             <th />
           </tr>
         </thead>
         <tbody>
-          {project.patches.map((x) => (
-            <tr key={x.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
-              <td style={{ padding: '4px 8px' }}>
-                <input type="radio" name="activePatch"
-                  checked={project.activePatchId === x.id}
-                  onChange={() => setActive(x.id)} />
-              </td>
-              <td style={{ padding: '4px 8px' }}>
-                <input type="text" value={x.name}
-                  onChange={(e) => patch(x.id, (p) => ({ ...p, name: e.target.value }))}
-                  style={{ width: '100%', fontSize: 13 }} />
-              </td>
-              <td style={{ padding: '4px 8px' }}>
-                <input type="number" min={0} max={127}
-                  value={x.programNumber ?? ''}
-                  placeholder="—"
-                  title="MIDI Program Change 0–127 (leeg = niet gekoppeld)"
-                  onChange={(e) => {
-                    const raw = e.target.value.trim();
-                    patch(x.id, (p) => ({
-                      ...p,
-                      programNumber: raw === '' ? undefined
-                        : Math.max(0, Math.min(127, Number(raw) || 0)),
-                    }));
-                  }}
-                  style={{ width: 56, fontSize: 13 }} />
-              </td>
-              <td style={{ padding: '4px 8px' }}>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {project.racks.map((r) => {
-                    const on = x.rackIds.includes(r.id);
-                    return (
-                      <label key={r.id}
-                        style={{ fontSize: 11, display: 'inline-flex', gap: 3, alignItems: 'center',
-                                 padding: '1px 6px', borderRadius: 10,
-                                 background: on ? (r.kind === 'internal' ? '#1d4ed8' : '#475569') : '#e5e7eb',
-                                 color: on ? 'white' : '#374151', cursor: 'pointer' }}>
-                        <input type="checkbox" checked={on}
-                          onChange={(e) => patch(x.id, (p) => ({
-                            ...p,
-                            rackIds: e.target.checked
-                              ? Array.from(new Set([...p.rackIds, r.id]))
-                              : p.rackIds.filter((id) => id !== r.id),
-                          }))}
-                          style={{ margin: 0 }} />
-                        {r.name}{r.kind === 'internal' ? ' 🧠' : ''}
-                      </label>
-                    );
-                  })}
-                </div>
-              </td>
-              <td style={{ padding: '4px 8px', color: '#475569' }}>{x.connections.length}</td>
-              <td style={{ padding: '4px 8px', color: '#475569' }}>
-                {x.envelopes.length} / {x.lfos.length}
-              </td>
-              <td style={{ padding: '4px 8px', color: '#475569' }}>
-                <input type="number" min={1} max={64} value={x.voiceCount}
-                  onChange={(e) => patch(x.id, (p) => ({ ...p, voiceCount: Math.max(1, Math.min(64, Number(e.target.value) || 1)) }))}
-                  style={{ width: 50, fontSize: 13 }} />
-              </td>
-              <td style={{ padding: '4px 8px', textAlign: 'right' }}>
-                <button onClick={() => duplicatePatch(x.id)} style={{ fontSize: 11, marginRight: 4 }}
-                  title="Kopieer deze patch naar een nieuwe naam">⧉</button>
-                <button onClick={() => removePatch(x.id)} style={{ fontSize: 11 }}>×</button>
-              </td>
-            </tr>
+          {groups.map((g) => (
+            <GroupRows key={g.key || '_'} label={g.key} count={g.patches.length} collapsed={collapsed.has(g.key)} onToggle={() => toggleGroup(g.key)} show={groupBy !== 'none'}>
+              {g.patches.map((x) => {
+                const cls = classes.get(x.id)!;
+                const usedRacks = project.racks.filter((r) => x.rackIds.includes(r.id));
+                const otherRacks = project.racks.filter((r) => !x.rackIds.includes(r.id));
+                return (
+                  <tr key={x.id} style={{ borderBottom: '1px solid #f3f4f6', background: project.activePatchId === x.id ? 'var(--mb-accent-tint)' : undefined }}>
+                    <td style={{ padding: '4px 8px' }}>
+                      <input type="radio" name="activePatch" checked={project.activePatchId === x.id} onChange={() => setActive(x.id)} />
+                    </td>
+                    <td style={{ padding: '4px 8px', minWidth: 180 }}>
+                      <input type="text" value={x.name}
+                        onChange={(e) => patch(x.id, (p) => ({ ...p, name: e.target.value }))}
+                        style={{ width: '100%', fontSize: 13 }} />
+                    </td>
+                    <td style={{ padding: '4px 8px' }}>
+                      <input type="text" list="mmb-folders" value={x.folder ?? ''} placeholder="—"
+                        onChange={(e) => patch(x.id, (p) => ({ ...p, folder: e.target.value || undefined }))}
+                        title="Map (vrije tekst; bestaande mappen verschijnen als suggestie)"
+                        style={{ width: 130, fontSize: 12 }} />
+                    </td>
+                    <td style={{ padding: '4px 8px', color: '#475569', whiteSpace: 'nowrap' }}>{cls.family}</td>
+                    <td style={{ padding: '4px 8px', color: '#475569' }}>
+                      <input type="number" min={1} max={64} value={x.voiceCount}
+                        onChange={(e) => patch(x.id, (p) => ({ ...p, voiceCount: Math.max(1, Math.min(64, Number(e.target.value) || 1)) }))}
+                        style={{ width: 48, fontSize: 13 }} />
+                    </td>
+                    <td style={{ padding: '4px 8px' }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
+                        {usedRacks.map((r) => (
+                          <span key={r.id} style={{ ...chip, background: r.kind === 'internal' ? '#1d4ed8' : '#475569' }} title={`${r.slots.length} modules`}>
+                            {r.name}{r.kind === 'internal' ? ' 🧠' : ''}
+                            <button onClick={() => patch(x.id, (p) => ({ ...p, rackIds: p.rackIds.filter((id) => id !== r.id) }))}
+                                    title="Rack loskoppelen van deze patch"
+                                    style={{ border: 'none', background: 'transparent', color: 'white', cursor: 'pointer', padding: 0, fontSize: 11, lineHeight: 1 }}>×</button>
+                          </span>
+                        ))}
+                        {otherRacks.length > 0 && (
+                          <select value="" onChange={(e) => { const id = e.target.value; if (id) patch(x.id, (p) => ({ ...p, rackIds: [...p.rackIds, id] })); }}
+                                  title="Rack toevoegen aan deze patch" style={{ fontSize: 11, width: 22 }}>
+                            <option value="">+</option>
+                            {otherRacks.map((r) => <option key={r.id} value={r.id}>{r.name}{r.kind === 'internal' ? ' 🧠' : ''}</option>)}
+                          </select>
+                        )}
+                      </div>
+                    </td>
+                    <td style={{ padding: '4px 8px', color: '#475569' }}>{x.connections.length}</td>
+                    <td style={{ padding: '4px 8px', color: '#475569', fontSize: 12 }}>{cls.fx.join(', ')}</td>
+                    <td style={{ padding: '4px 8px' }}>
+                      <input type="number" min={0} max={127} value={x.programNumber ?? ''} placeholder="—"
+                        title="MIDI Program Change 0–127 (leeg = niet gekoppeld)"
+                        onChange={(e) => {
+                          const raw = e.target.value.trim();
+                          patch(x.id, (p) => ({ ...p, programNumber: raw === '' ? undefined : Math.max(0, Math.min(127, Number(raw) || 0)) }));
+                        }}
+                        style={{ width: 52, fontSize: 13 }} />
+                    </td>
+                    <td style={{ padding: '4px 8px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <button onClick={() => duplicatePatch(x.id)} style={{ fontSize: 11, marginRight: 4 }} title="Kopieer deze patch naar een nieuwe naam">⧉</button>
+                      <button onClick={() => removePatch(x.id)} style={{ fontSize: 11 }}>×</button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </GroupRows>
           ))}
         </tbody>
       </table>
     </div>
+  );
+}
+
+/** Groepskop (inklapbaar) + de rijen eronder. */
+function GroupRows(props: { label: string; count: number; collapsed: boolean; onToggle: () => void; show: boolean; children: React.ReactNode }): JSX.Element {
+  const { label, count, collapsed, onToggle, show, children } = props;
+  return (
+    <>
+      {show && (
+        <tr style={{ background: '#f8fafc', cursor: 'pointer' }} onClick={onToggle}>
+          <td colSpan={10} style={{ padding: '5px 8px', fontWeight: 600, color: '#0f172a', borderTop: '1px solid #e5e7eb' }}>
+            <span style={{ display: 'inline-block', width: 14, color: '#64748b' }}>{collapsed ? '▶' : '▼'}</span>
+            {label} <span style={{ color: '#64748b', fontWeight: 400 }}>({count})</span>
+          </td>
+        </tr>
+      )}
+      {!collapsed && children}
+    </>
   );
 }

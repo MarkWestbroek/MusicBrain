@@ -26,6 +26,7 @@ import {
 import {
   type PatchRecipe, type RecipeModule, type PatchOp, type CompileResult, RecipeError,
 } from './types';
+import { familyOf } from './classify';
 
 // ── helpers ─────────────────────────────────────────────────────────────
 
@@ -322,6 +323,7 @@ export function compileRecipe(project: ModularProject, recipe: PatchRecipe): Com
         : 'Monofone voice-keten (geen PolyGroups): MidiIn → bron → … → mixer → OUT.')
         + ` Recept: ${summary}.`,
       voiceCount: N, rackIds: [rackId],
+      folder: familyOf(src.typeId),   // map in de Patches-tab: VCO, Wavetable, Physical modelling, …
     },
     note: 'Een nieuwe patch: de kabels en knopstanden komen hierin.',
   });
