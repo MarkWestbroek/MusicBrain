@@ -17,6 +17,25 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### fw 0.5.69 — Pitch bend: twee paden, gemeten op de Teensy (2026-09-24)
+- **MidiIn `bendPitch`** (schakelaar B→P, standaard uit): de bend-wheel wordt
+  per stem in `pitch`/`pitchK` gevouwen (`voicePitchV`), zodat een patch
+  zonder aparte bend-kabel — en een PolyGroup — gewoon buigt. `cv_bend` blijft
+  ernaast bestaan. Per stem gehouden met het oog op MPE (bend per kanaal =
+  per stem), zie `doc/plans/mpe.md`.
+- **Sampler `bend`-ingang** (gedeelde CV, V/Oct) bovenop de V/Oct van élke
+  cel: `MidiIn.Bend → Bend` of een LFO voor vibrato. De nootkeuze bij gate-op
+  blijft op de kale `voct_k` (bend is modulatie, kiest geen andere zone).
+  Firmware `SamplerStream::setBend` (past ook lopende noten aan), wasm
+  `sampler_wasm.cc` (`IN_BEND`), paneel + seed (Poly ▾ Sampler bekabelt
+  `cv_bend → bend`).
+- **Gemeten** op de Teensy met piano-bank 01, A4, `bendRange` 12, bend
+  maximaal: 440 → 883 Hz via beide paden (scratch `live/bend_test.py`:
+  FFT-grondtoon vóór/na). Editor: `wasmSamplerBend.test.ts` (1 V = octaaf,
+  losse jack doet niets) en een `bendPitch`-test in `wasmPorts.test.ts`.
+- Bijvangst: `midiin_wasm.cc` had een eigen control-tabel die `bendPitch`
+  moest leren — die tabel is niet uit `MidiIn.cpp` afgeleid.
+
 ### fw 0.5.68 — Upload via de editor gaf ruis: status-poll zat in de bytestroom (2026-09-24)
 - **Oorzaak:** de editor pollt elke 2 s `getStatus`; tijdens een bank-upload
   is de poort een rauwe bytestroom, dus die JSON-regel belandde ín het

@@ -38,6 +38,7 @@
  * | `cc1Num`     | int     | CC number routed to `cv_cc1` (0..127; default 74)  |
  * | `cc2Num`     | int     | CC number routed to `cv_cc2` (0..127; default 71)  |
  * | `bendRange`  | int     | pitch-bend range in semitones (1..24; default 2)   |
+ * | `bendPitch`  | int     | fold pitch-bend into `pitch`/`pitchK` (0/1; default 0) |
  *
  * **V/Oct convention:**
  * MIDI note 60 (middle C) = 0.0 V; each octave (12 semitones) = ±1.0 V.
@@ -254,6 +255,11 @@ private:
     std::uint8_t               cc2Val_    = 0;
     int                        bend14_    = 8192;    // 14-bit centre
     std::uint8_t               bendRange_ = 2;       // semitones
+    // `bendPitch`: add the bend to every voice's pitch output, so a patch
+    // without a cv_bend cable (or a poly sampler) still bends. Kept per
+    // voice in voicePitchV() so a later MPE mode (bend per channel = per
+    // voice) only has to swap the global bend14_ for a per-voice one.
+    bool                       bendPitch_ = false;
 
     // Per-voice state, indexed 0..kMaxAllocVoices-1. We keep velocity
     // separate from the allocator's `VoiceState` so the allocator stays

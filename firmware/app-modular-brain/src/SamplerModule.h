@@ -694,7 +694,18 @@ public:
     void setVoct(int k, float v) {
         if (k < 0 || k >= kVoices) return;
         voct_[k] = v;
-        voice_[k].set_voct(v);           // ook tijdens de noot (bend, glide)
+        voice_[k].set_voct(v + bend_);   // ook tijdens de noot (bend, glide)
+    }
+    /**
+     * Gedeelde `bend`-ingang (V/Oct) bovenop de V/Oct van élke cel: één kabel
+     * cv_bend → bend buigt alle stemmen mee, ook in een PolyGroup. De
+     * nootkeuze bij gate-op blijft op de kale voct_k (bend is modulatie).
+     */
+    void setBend(float v) {
+        if (v == bend_) return;
+        bend_ = v;
+        for (int k = 0; k < kVoices; ++k)
+            if (voice_[k].active()) voice_[k].set_voct(voct_[k] + bend_);
     }
     void setVelocity(int k, float v) {
         if (k < 0 || k >= kVoices) return;
@@ -704,7 +715,7 @@ public:
         if (k < 0 || k >= kVoices) return;
         if (high && !gate_[k]) {
             const int midi = static_cast<int>(lroundf(60.0f + 12.0f * voct_[k]));
-            voice_[k].set_voct(voct_[k]);
+            voice_[k].set_voct(voct_[k] + bend_);
             voice_[k].noteOn(midi, static_cast<int>(vel_[k] * 127.0f));
         } else if (!high && gate_[k]) {
             voice_[k].noteOff(-1);
@@ -776,6 +787,7 @@ private:
     uint32_t boundVersion_ = 0xffffffffu;
     int   bank_ = -1;
     float voct_[kVoices] = {};
+    float bend_ = 0.f;
     float vel_[kVoices]  = { 0.8f, 0.8f, 0.8f, 0.8f, 0.8f, 0.8f, 0.8f, 0.8f };
     bool  gate_[kVoices] = {};
     int   cutoffFrom_[kVoices] = { -1, -1, -1, -1, -1, -1, -1, -1 };
@@ -820,11 +832,13 @@ public:
         if (cellOf(portId, "gate") >= 0 || cellOf(portId, "trig") >= 0) return PortKind::Gate;
         if (cellOf(portId, "vel") >= 0) return PortKind::Cv;
         if (cellOf(portId, "cutoff") >= 0) return PortKind::Cv;
+        if (portId == "bend") return PortKind::Cv;          // gedeeld, niet per cel
         return PortKind::None;
     }
     void writeCvPort(std::string_view portId, float value) override {
         int k;
-        if ((k = cellOf(portId, "voct")) >= 0) stream_.setVoct(k, value);
+        if (portId == "bend") stream_.setBend(value);
+        else if ((k = cellOf(portId, "voct")) >= 0) stream_.setVoct(k, value);
         else if ((k = cellOf(portId, "gate")) >= 0 || (k = cellOf(portId, "trig")) >= 0) stream_.gate(k, value >= 0.5f);
         else if ((k = cellOf(portId, "vel")) >= 0) stream_.setVelocity(k, value);
         else if ((k = cellOf(portId, "cutoff")) >= 0) stream_.setCutoffCv(k, value);

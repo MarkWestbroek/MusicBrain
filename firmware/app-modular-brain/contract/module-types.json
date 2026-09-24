@@ -1,6 +1,6 @@
 {
   "$comment": "GEGENEREERD door tools/contract_dump.py — niet met de hand bewerken. Poort-ids zijn letterlijk wat de firmware accepteert (aliassen als out/out_l en naam/naam_cv staan er dus allebei in).",
-  "firmwareVersion": "0.5.68",
+  "firmwareVersion": "0.5.69",
   "modules": {
     "tp_mmb_ahdsr": {
       "typeId": "tp_mmb_ahdsr",
@@ -564,6 +564,7 @@
         "vel"
       ],
       "controls": [
+        "bendPitch",
         "bendRange",
         "cc1Num",
         "cc2Num",
@@ -1080,6 +1081,7 @@
       "typeId": "tp_mmb_sampler",
       "source": "firmware/app-modular-brain/src/SamplerModule.h",
       "ports": [
+        "bend",
         "cutoff_1",
         "cutoff_2",
         "cutoff_3",

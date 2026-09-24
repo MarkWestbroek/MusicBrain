@@ -1036,6 +1036,9 @@ function mmbMidiIn() {
       knob('glide', 'Glide', w*0.14, 66, { size: 'small', min: 0, max: 2000, def: 0, step: 10, unit: 'ms/oct', color: '#f9fafb' }),
       sw  ('unison', 'Uni', w*0.40, 66, ['off','on'], 0),
       knob('spread', 'Sprd', w*0.66, 66, { size: 'small', min: 0, max: 100, def: 0, step: 1, unit: 'ct', color: '#f9fafb' }),
+      // Bend→Pitch: de bend-wheel meteen in pitch/pitchK vouwen (per stem),
+      // zodat ook een patch zonder cv_bend-kabel buigt. Uit = alleen op Bend.
+      sw  ('bendPitch', 'B→P', w*0.88, 66, ['off','on'], 0),
       // CC-pickers: welk CC-nummer naar cv_cc1/cv_cc2 gaat (integer). Defaults
       // 74 (filter-cutoff) en 71 (resonantie). Elke knop heeft een LED-display
       // dat het gekozen CC-nummer toont.
@@ -1053,7 +1056,7 @@ function mmbMidiIn() {
       outPort('cv_cc1',  'CC1',  'cv', w*0.82, 112),
       outPort('cv_cc2',  'CC2',  'cv', w*0.94, 112),
     ],
-    notes: 'Zet inkomende MIDI om in CV. NOTE-uitgangen (per stem): pitch (V/Oct), gate, velocity. MOD-uitgangen (globaal): Mod (mod-wheel CC1), Bend (pitch-bend, V/Oct, bereik = Bend-knop in halve tonen), CC1/CC2 (vrij kiesbare CC-nummers via CC1#/CC2#; het gekozen nummer staat op het LED-display naast elke knop). De MIDI-bron kies je in het Simulatie-paneel. Mono/poly volgt automatisch uit het aantal stemmen (voiceCount). PRIO = mono note-priority (last/low/high). STEAL = poly voice-stealing → firmware StealStrategy. LEG = legato (firmware-gedrag = FW-1, nog te bouwen). GLIDE = portamento (ms per octaaf, 0 = uit). UNI = unison (één toets → alle stemmen, last-note); SPRD = unison-detune in centen. Géén MIDI-jack op de front; alles loopt via de brain.',
+    notes: 'Zet inkomende MIDI om in CV. NOTE-uitgangen (per stem): pitch (V/Oct), gate, velocity. MOD-uitgangen (globaal): Mod (mod-wheel CC1), Bend (pitch-bend, V/Oct, bereik = Bend-knop in halve tonen; B→P aan = de bend zit ook al in pitch/pitchK, handig zonder aparte bend-kabel), CC1/CC2 (vrij kiesbare CC-nummers via CC1#/CC2#; het gekozen nummer staat op het LED-display naast elke knop). De MIDI-bron kies je in het Simulatie-paneel. Mono/poly volgt automatisch uit het aantal stemmen (voiceCount). PRIO = mono note-priority (last/low/high). STEAL = poly voice-stealing → firmware StealStrategy. LEG = legato (firmware-gedrag = FW-1, nog te bouwen). GLIDE = portamento (ms per octaaf, 0 = uit). UNI = unison (één toets → alle stemmen, last-note); SPRD = unison-detune in centen. Géén MIDI-jack op de front; alles loopt via de brain.',
   });
 }
 
@@ -1386,6 +1389,9 @@ function mmbSampler() {
       // boven ±1, en tussen modules is dat hard afknippen (digitale
       // overdrive). Aan = limiter + zachte begrenzing; Uit = het gruis.
       sw  ('limit', 'Limit', w*0.08, 62, ['Uit', 'Aan'], 1),
+      // Gedeelde bend-ingang (V/Oct) bovenop de V/Oct van elke cel: één kabel
+      // MidiIn.Bend → Bend buigt alle stemmen, ook in een PolyGroup.
+      inPort('bend', 'Bend', 'cv', w*0.30, 62),
       outPort('out_l', 'L',  'audio', w*0.86, 50),
       outPort('out_r', 'R',  'audio', w*0.93, 50),
       outPort('out_3', '3',  'audio', w*0.86, 62),
@@ -1397,7 +1403,7 @@ function mmbSampler() {
       ...cells.map((k) => inPort(`gate_${k}`,   '',     'gate', colX(k - 1), 108, { cellGroupId: 'voice' })),
       ...cells.map((k) => inPort(`vel_${k}`,    '',     'cv',   colX(k - 1), 120, { cellGroupId: 'voice' })),
     ],
-    notes: 'Multisample-speler als multi-module: acht stem-cellen (voct_k/gate_k/vel_k) die één keymap-bank delen, elk met een filter in de stem (Filter: uit/SVF/MS-20 — dezelfde kernels als de losse VCF en MS-20) dat via cutoff_k gestuurd wordt, en een envelope-follower per stem op env_k (Sens tilt die met decibels op; zonder lift haalt een sample amper 0,2 en blijft de wah een kiertje). Auto-wah = env_k → cutoff_k. Een keymap met key- én velocity-zones kiest per noot en aanslag het juiste sample; V/Oct transponeert vanaf de root-noot van die zone. 1–4 kanalen (mono komt op L+R, stereo op L/R, quad op alle vier), gemengd over alle cellen. Limit (standaard aan): limiter + zachte begrenzing op die som, zodat een zingende MS-20 op een paar stemmen niet digitaal clipt; Uit = hard afknippen op ±1 (het gruis). Loop-modes: geen, one-shot, continu, of tot note-off. Polyfoon spelen = een PolyGroup over de cellen (Poly ▾ → Sampler ×8): MIDI-in verdeelt de noten, de sampler doet niets slims. Banken maak je met de 🎹 Multisample-import; die schrijft een .mmbs die je naar /mmb/banks/NN.mmbs op de SD kopieert — Bank kiest NN. In de simulator draait dezelfde kern (mmb_dsp::SamplePlayer) als wasm. Firmware tp_mmb_sampler.',
+    notes: 'Multisample-speler als multi-module: acht stem-cellen (voct_k/gate_k/vel_k) die één keymap-bank delen, elk met een filter in de stem (Filter: uit/SVF/MS-20 — dezelfde kernels als de losse VCF en MS-20) dat via cutoff_k gestuurd wordt, en een envelope-follower per stem op env_k (Sens tilt die met decibels op; zonder lift haalt een sample amper 0,2 en blijft de wah een kiertje). Auto-wah = env_k → cutoff_k. Een keymap met key- én velocity-zones kiest per noot en aanslag het juiste sample; V/Oct transponeert vanaf de root-noot van die zone; Bend (gedeelde CV-ingang, V/Oct) komt daar bij alle cellen bovenop — MidiIn.Bend → Bend en de pitch-wheel buigt alle stemmen mee (of een LFO voor vibrato). 1–4 kanalen (mono komt op L+R, stereo op L/R, quad op alle vier), gemengd over alle cellen. Limit (standaard aan): limiter + zachte begrenzing op die som, zodat een zingende MS-20 op een paar stemmen niet digitaal clipt; Uit = hard afknippen op ±1 (het gruis). Loop-modes: geen, one-shot, continu, of tot note-off. Polyfoon spelen = een PolyGroup over de cellen (Poly ▾ → Sampler ×8): MIDI-in verdeelt de noten, de sampler doet niets slims. Banken maak je met de 🎹 Multisample-import; die schrijft een .mmbs die je naar /mmb/banks/NN.mmbs op de SD kopieert — Bank kiest NN. In de simulator draait dezelfde kern (mmb_dsp::SamplePlayer) als wasm. Firmware tp_mmb_sampler.',
   });
 }
 
@@ -4204,6 +4210,7 @@ export function seedSamplerPolyPatch(
       c(mi, 'pitch', smp, 'voct_1'),
       c(mi, 'gate',  smp, 'gate_1'),
       c(mi, 'vel',   smp, 'vel_1'),
+      c(mi, 'cv_bend', smp, 'bend'),     // pitch-wheel op alle stemmen
       ...stereoChain(c, smp, fxm, out),
       // Auto-wah: de follower van stem k stuurt het filter van stem k. Eén
       // kabel op de master-cel; polyExpand (en de sim) vouwt hem uit naar 1..N.

@@ -1005,4 +1005,22 @@ describe('tp_mmb_midiin (MidiInModule zelf)', () => {
     expect(o[idx(m, 'cv_bend')]![5]).toBeCloseTo(2 / 12, 2);          // bendRange 2
     expect(o[idx(m, 'cv_mod')]![5]).toBeCloseTo(1, 5);
   });
+
+  it('bendPitch vouwt de bend in pitch en pitchK; uit = alleen op cv_bend', async () => {
+    const m = await load('tp_mmb_midiin');
+    m.setCtl('voiceCount', 2);
+    m.ex.mmb_midi(0x90, 60, 100);
+    m.ex.mmb_midi(0x90, 72, 100);
+    m.ex.mmb_midi(0xE0, 0, 127);
+    let o = m.render(0.01);
+    expect(o[idx(m, 'pitch')]![5]).toBeCloseTo(0, 5);
+    expect(o[idx(m, 'pitch2')]![5]).toBeCloseTo(1, 5);
+    m.setCtl('bendPitch', 1);
+    m.setCtl('bendRange', 12);
+    o = m.render(0.01);
+    // 0xE0 0 127 = 16256/8192 → 0,984 V bij 12 st: net geen hele octaaf.
+    expect(o[idx(m, 'pitch')]![5]).toBeCloseTo(0.984, 2);               // 60 + bend
+    expect(o[idx(m, 'pitch2')]![5]).toBeCloseTo(1.984, 2);
+    expect(o[idx(m, 'cv_bend')]![5]).toBeCloseTo(0.984, 2);             // cv_bend blijft ook
+  });
 });

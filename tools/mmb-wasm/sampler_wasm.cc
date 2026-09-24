@@ -35,8 +35,12 @@ MmbPort MMB_INPUTS[] = {
     // Cutoff-CV per cel: het filter zit in de stem, de modulatie komt van buiten.
     { "cutoff_1", MMB_CV, 0, {} }, { "cutoff_2", MMB_CV, 0, {} }, { "cutoff_3", MMB_CV, 0, {} }, { "cutoff_4", MMB_CV, 0, {} },
     { "cutoff_5", MMB_CV, 0, {} }, { "cutoff_6", MMB_CV, 0, {} }, { "cutoff_7", MMB_CV, 0, {} }, { "cutoff_8", MMB_CV, 0, {} },
+    // Gedeelde bend (V/Oct) bovenop de V/Oct van elke cel: één kabel
+    // cv_bend → bend buigt alle stemmen, ook in een PolyGroup.
+    { "bend", MMB_CV, 0, {} },
 };
-const int MMB_NUM_INPUTS = 4 * kVoices;
+const int MMB_NUM_INPUTS = 4 * kVoices + 1;
+const int IN_BEND = 4 * kVoices;
 inline int IN_VOCT(int k)   { return k; }
 inline int IN_GATE(int k)   { return kVoices + k; }
 inline int IN_VEL(int k)    { return 2 * kVoices + k; }
@@ -190,12 +194,14 @@ void mmb_on_control(int idx, float v) {
 void mmb_process(int frames) {
     // Per cel: gate-flank omhoog → noot op de V/Oct en velocity van díé cel;
     // omlaag → loslaten. V/Oct blijft daarna meebewegen (bend, glide).
+    const float bend = mmb_connected(IN_BEND) ? mmb_in0(IN_BEND) : 0.f;
     for (int k = 0; k < kVoices; ++k) {
-        const float voct = mmb_in0(IN_VOCT(k));
+        const float voct = mmb_in0(IN_VOCT(k)) + bend;
         const bool high = mmb_gate_in(IN_GATE(k));
         if (high && !g_gate[k]) {
             const float velIn = mmb_connected(IN_VEL(k)) ? mmb_in0(IN_VEL(k)) : 0.8f;
-            const int midi = static_cast<int>(std::lround(60.0f + 12.0f * voct));
+            // nootkeuze op de kale V/Oct: bend is modulatie, geen andere zone
+            const int midi = static_cast<int>(std::lround(60.0f + 12.0f * (voct - bend)));
             g_voice[k].set_voct(voct);
             g_voice[k].noteOn(midi, static_cast<int>(velIn * 127.0f));
         } else if (!high && g_gate[k]) {

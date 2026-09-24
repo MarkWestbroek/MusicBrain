@@ -59,6 +59,8 @@ void MidiInModule::setControl(std::string_view controlId, ControlValue value) {
         cc2Num_ = static_cast<std::uint8_t>(std::clamp<std::int32_t>(asInt(71), 0, 127));
     } else if (controlId == "bendRange") {
         bendRange_ = static_cast<std::uint8_t>(std::clamp<std::int32_t>(asInt(2), 1, 24));
+    } else if (controlId == "bendPitch") {
+        bendPitch_ = asInt(0) != 0;
     } else if (controlId == "legato") {
         const bool on = asInt(0) != 0;
         if (on != legato_) {
@@ -296,7 +298,9 @@ float MidiInModule::voicePitchV(std::uint8_t voiceIdx) const {
     const float base = (glideMsPerOct_ > 0.0f && glidePrimed_[voiceIdx])
         ? pitchV_[voiceIdx]
         : noteToVolts(currentNote_[voiceIdx]);
-    return base + spreadOffsetV(voiceIdx);
+    // `bendPitch` folds the wheel in here (per voice), otherwise the bend is
+    // only on cv_bend and the patch sums it itself.
+    return base + spreadOffsetV(voiceIdx) + (bendPitch_ ? pitchBendV() : 0.0f);
 }
 
 bool MidiInModule::voiceGate(std::uint8_t voiceIdx) const {

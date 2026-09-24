@@ -80,9 +80,9 @@ const int MMB_NUM_OUTPUTS = 55;
 MmbControl MMB_CONTROLS[] = {
     { "channel", 0.0f }, { "priority", 0.0f }, { "steal", 0.0f }, { "legato", 0.0f },
     { "bendRange", 2.0f }, { "glide", 0.0f }, { "unison", 0.0f }, { "spread", 0.0f },
-    { "cc1Num", 74.0f }, { "cc2Num", 71.0f }, { "voiceCount", 1.0f },
+    { "cc1Num", 74.0f }, { "cc2Num", 71.0f }, { "voiceCount", 1.0f }, { "bendPitch", 0.0f },
 };
-const int MMB_NUM_CONTROLS = 11;
+const int MMB_NUM_CONTROLS = 12;
 
 mb::runtime::Module* cvhost_make() { return new mb::runtime::MidiInModule("midiin"); }
 
