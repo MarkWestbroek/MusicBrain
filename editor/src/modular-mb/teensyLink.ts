@@ -288,8 +288,14 @@ function handleLine(line: string): void {
   }
 }
 
+// Tijdens een bank-upload zijn de bytes op de poort geen JSON: dan mag er
+// géén regel tussendoor (de status-poll van elke 2 s zette "getStatus"
+// midden in het bankbestand → alle sample-offsets verschoven → ruis).
+let uploading = false;
+
 async function writeLine(s: string, quiet = false): Promise<void> {
   if (!writer) throw new Error('not connected');
+  if (uploading) throw new Error('Teensy-link is bezig met een bank-upload');
   if (!quiet) pushLog({ ts: Date.now(), dir: 'tx', text: s.length > 200 ? s.slice(0, 200) + '…' : s });
   await writer.write(enc.encode(s + '\n'));
 }
@@ -529,10 +535,17 @@ export async function sendBank(bank: number, bytes: Uint8Array,
     m.applied === 'bankPut' && m.phase === phase && Boolean(m.ok);
   const failed = (m: Record<string, unknown>): boolean =>
     m.ok === false && typeof m.err === 'string' && m.err.startsWith('bankPut');
-  const begin = waitForAck((m) => applied(m, 'begin') || failed(m), 5000, 'bankPut');
+  if (uploading) throw new Error('er loopt al een bank-upload');
+  // Poll uit en de link op slot vóór de bankPut-regel: vanaf de begin-ack is
+  // de poort een bytestroom, en een status-poll die net dán zou vertrekken
+  // komt in het bestand terecht.
+  if (statusPollTimer) { clearInterval(statusPollTimer); statusPollTimer = null; }
   await writeLine(JSON.stringify({ type: 'bankPut', bank, size: bytes.length }));
-  const b = await begin;
-  if (b.ok === false) throw new Error(String(b.err));
+  uploading = true;
+  const begin = waitForAck((m) => applied(m, 'begin') || failed(m), 5000, 'bankPut');
+  let b: Record<string, unknown>;
+  try { b = await begin; } catch (e) { uploading = false; throw e; }
+  if (b.ok === false) { uploading = false; throw new Error(String(b.err)); }
   bankProgress = onProgress ?? null;
   // Ruim de tijd: 100 KB/s als ondergrens, plus 30 s voor hernoemen en herladen.
   const done = waitForAck((m) => applied(m, 'done') || failed(m), 30_000 + bytes.length / 100, 'bankPut');
@@ -546,6 +559,8 @@ export async function sendBank(bank: number, bytes: Uint8Array,
     if (d.ok === false) throw new Error(String(d.err));
   } finally {
     bankProgress = null;
+    uploading = false;
+    if (writer && !statusPollTimer) statusPollTimer = setInterval(() => { void sendGetStatus(); }, 2000);
   }
   await sendGetStatus();           // banknamen op de kaart verversen
 }
@@ -559,6 +574,7 @@ export async function sendBankDelete(bank: number): Promise<void> {
 }
 
 export async function sendGetStatus(): Promise<void> {
+  if (uploading) return;
   if (!writer) return;
   await writeLine(JSON.stringify({ type: 'getStatus' }), true);
 }

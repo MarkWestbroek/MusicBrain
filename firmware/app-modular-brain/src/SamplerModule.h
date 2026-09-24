@@ -183,6 +183,16 @@ public:
         snprintf(part, sizeof(part), "%s/%02d.part", kDir, bank);
         snprintf(dst, sizeof(dst), "%s/%02d.mmbs", kDir, bank);
         if (!ok || upErr_ || bank != upBank_) { SD.sdfs.remove(part); return false; }
+        // Eerst nakijken of het een gave bank is: magic, tabellen en de
+        // datalengte moeten precies op het ontvangen aantal bytes uitkomen.
+        // Zit er ook maar één regel tussendoor (een status-poll op dezelfde
+        // poort), dan klopt dat niet en blijft de oude bank staan.
+        if (!validBankFile(part, upBytes_)) {
+            SD.sdfs.remove(part);
+            Serial.printf("[sampler] bank %02d: upload ongeldig (%lu bytes), verworpen\n", bank,
+                          static_cast<unsigned long>(upBytes_));
+            return false;
+        }
         if (loaded_ == bank) {                 // de stemmen los van het oude bestand
             numSlots_ = numZones_ = 0; ++version_; delay(6);
             if (file_) file_.close();
@@ -194,6 +204,30 @@ public:
         Serial.printf("[sampler] bank %02d geschreven via de link: %lu KB\n", bank,
                       static_cast<unsigned long>(upBytes_ / 1024));
         return true;
+    }
+    /** Kop en tabellen lezen en de verwachte bestandsgrootte tegen `size` leggen. */
+    bool validBankFile(const char* path, uint32_t size) {
+        FsFile f = SD.sdfs.open(path, O_READ);
+        if (!f) return false;
+        mmb_dsp::BankHeader h{};
+        bool ok = f.read(&h, sizeof(h)) == static_cast<int>(sizeof(h))
+               && std::memcmp(h.magic, "MMBS", 4) == 0
+               && h.version >= mmb_dsp::kBankVersionMin && h.version <= mmb_dsp::kBankVersion
+               && h.numSlots > 0 && h.numSlots <= kMaxSlots && h.numZones <= kMaxZones;
+        if (ok) {
+            uint64_t samples = 0;
+            for (uint32_t i = 0; i < h.numSlots && ok; ++i) {
+                mmb_dsp::SlotHeader sh{};
+                ok = f.read(&sh, sizeof(sh)) == static_cast<int>(sizeof(sh)) && sh.channels >= 1 && sh.channels <= 4;
+                samples += static_cast<uint64_t>(sh.frames) * sh.channels;
+            }
+            const size_t zr = h.version >= 2 ? sizeof(mmb_dsp::ZoneRecord) : sizeof(mmb_dsp::ZoneRecordV1);
+            const uint64_t expect = sizeof(h) + sizeof(mmb_dsp::SlotHeader) * h.numSlots
+                                  + zr * h.numZones + samples * 2u;
+            ok = ok && expect == size;
+        }
+        f.close();
+        return ok;
     }
     /** `NN.mmbs` van de kaart halen; was hij geladen, dan zwijgt de sampler. */
     bool deleteBank(int bank) {

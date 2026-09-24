@@ -17,6 +17,20 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### fw 0.5.68 — Upload via de editor gaf ruis: status-poll zat in de bytestroom (2026-09-24)
+- **Oorzaak:** de editor pollt elke 2 s `getStatus`; tijdens een bank-upload
+  is de poort een rauwe bytestroom, dus die JSON-regel belandde ín het
+  bankbestand en verschoof alle sample-offsets (ruis, af en toe een stukje
+  piano). Het CLI-script deed niets tussendoor en werkte wel.
+- **Editor:** tijdens `sendBank` staat de link op slot: de poll is uit en
+  `writeLine` weigert (MIDI/pokes worden dan niet gestuurd); daarna gaat de
+  poll weer aan.
+- **Firmware:** na de laatste byte wordt het `.part`-bestand nagekeken
+  (magic, versie, tabellen, en de datalengte moet exact het ontvangen aantal
+  bytes zijn) vóór het hernoemen; klopt het niet, dan wordt het verworpen en
+  blijft de oude bank staan (`ack ok:false`, log "upload ongeldig").
+- Banken die met 0.5.67 via de editor zijn gestuurd, opnieuw sturen.
+
 ### fw 0.5.67 — Banken uploaden via de link, zonder de kaart eruit te halen (2026-09-24)
 - **`bankPut`**: `{"type":"bankPut","bank":N,"size":S}` → de Teensy opent
   `/mmb/banks/NN.part` (vooraf gereserveerd), bevestigt, en leest daarna
