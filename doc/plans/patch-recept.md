@@ -237,6 +237,20 @@ uit, puur programmatisch (besluit 2026-09-24: geen AI in de beslissing).
 Open: een recept meteen in een bestaand rack bouwen (nu: bouwen en daarna
 optimaliseren).
 
+## Patches ordenen (ED-RC-8, gebouwd 2026-09-25)
+
+- `Patch.folder` (vrije tekst, alleen editor; gaat niet naar de firmware).
+- `recipe/classify.ts`: familie uit de bekabelde bronmodule (VCO, Wavetable,
+  FM, Physical modelling, Sampling, Drums, Generatief, Effect, Leeg),
+  stemmen (mono/duo/poly N), rack, kabels, bus-fx. Recepten zetten de map
+  op de familie van de bron; "📁 Mappen automatisch" vult lege mappen.
+- Patches-tab: groeperen op map / familie / stemmen / rack (koppen
+  inklapbaar), sorteren via kolomkop of keuzelijst (naam, stemmen, kabels,
+  rack, familie, prog#), zoekveld, en de rack-kolom toont alleen de
+  gebruikte racks met + en ×.
+- Rack-tab: de rack-keuzelijst staat in twee groepen (in gebruik / zonder
+  patch), op naam, met per rack het aantal patches en modules.
+
 ## Bevinding 2026-09-25: "worklet-processor gecrasht" = wasm-geheugen op
 
 Na een AI- of receptbouw (en net zo goed na een gewone seed) meldde de sim
