@@ -272,6 +272,17 @@ Kopieer het dichtstbijzijnde `gen_*.py` (slotkaart: `gen_gatein.py`; front:
 bord in `make_fab.sh`-lijst, README met status/contract/firmware-mapping,
 regel in `MODULES.md`.
 
+## Concepten (schema zonder PCB)
+
+Een idee dat een schema verdient maar nog geen print: generator `gen_<naam>.py`
+schrijft alleen `.kicad_sch` + `.kicad_pro` naar
+`hardware/schematics/concept/musicbrain-<naam>/`, draait zelf `sch erc` en de
+PDF-export, en de map krijgt een README met idee + open punten. Rev eindigt op
+`c` (0.1c). Visuele check: `sch export svg` + headless-Chrome-screenshot (zoals
+bij de overzichten). Niet in `make_fab.sh`, niet in de bestelbare tabel; wel in
+de sectie "Concepten" van `MODULES.md`. Promotie naar een echt bord =
+verhuizen naar `hardware/schematics/musicbrain-<naam>/` + de volle lus.
+
 ## Documentatie-graphics (aansluitoverzichten)
 
 Geannoteerde 3D-overzichten ("gswitch-brain-stijl") zijn volledig scriptbaar

@@ -46,6 +46,16 @@ H=45, 4 HP-steek, slots gecentreerd. Gen-1-zips in oude JLC-mandjes NIET meer
 bestellen; alle fab-pakketten zijn ververst. Gen-1-stand per bord bevroren in
 `<bord>/rel-v0.2/` (tag `hw/v0.2`).
 
+## Concepten (schema zonder PCB) — `concept/`
+
+Ideeën met een ERC-schoon schema maar zonder print; zie [`concept/README.md`](concept/README.md).
+Niet bestelbaar, niet in `make_fab.sh`.
+
+| Concept | Rev | Idee | Plan |
+|---|---|---|---|
+| concept/musicbrain-consoleeq | 0.1c | analoge 1073-stijl kanaal-EQ met dCV: gains via THAT2181 in boost/cut-cellen, frequenties via ADG408/409, "dom" (DAC128S085 op CS + 2× 74HC595 op CS2=IRQ) | `doc/plans/analoge-fx-verkenning.md` §1 |
+| concept/musicbrain-compkaart | 0.1c | hybride compressor: gain-element op dochterprint (VCA/FET/opto), detector = mmb_dsp-kernel op een sub-brain-module (RP2350/STM32G4 open), Brain praat parameters over CS2 | `doc/plans/analoge-fx-verkenning.md` §4 |
+
 ## Guitar Effect Switcher (apart project — spec: doc/guitar-switcher-spec.md)
 
 | Module | Versie | Status | Opmerkingen | Aantal besteld | Prijs | Besteldatum |

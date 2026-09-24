@@ -4,6 +4,8 @@
 > compressors en EQ's (`vintage-compressors.md`, `vintage-eq.md`). Status:
 > verkenning; geen besluiten. Bouwt op `doc/spi-bus-spec.md` en
 > `doc/poly-analog-spec.md` (B1/B2/B9: dom waar het kan, RP2040 waar het moet).
+> Conceptschema's (ERC 0, geen PCB): `hardware/schematics/concept/musicbrain-consoleeq/`
+> en `…/musicbrain-compkaart/` (2026-09-24).
 
 ## Uitgangspunt
 
