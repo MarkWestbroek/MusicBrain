@@ -5,7 +5,7 @@
 //
 // Aftertouch doet twee dingen, zoals op de CS-80:
 //   1. het filter opent (per stem; channel pressure van een Keystep opent
-//      alle stemmen tegelijk): tot ruim twee octaven bij volle druk;
+//      alle stemmen tegelijk): tot vier octaven bij volle druk;
 //   2. vibrato komt erbij: druk telt op bij het modwheel als vibratodiepte.
 
 import type { ControlValue, ModularProject } from './types';
@@ -36,18 +36,21 @@ export function seedCs80BrassPatch(project: ModularProject, voiceCount = 6): Mod
     };
   };
   group('VCO').forEach((id, i) => set(id, { wave: 2, fine: detune[i % detune.length]!, level: 0.9 }));
-  for (const id of group('Ladder')) set(id, { cutoff: 280, q: 0.35, drive: 1.6, cv_amt: 4, q_cv_amt: 0 });
+  for (const id of group('Ladder')) set(id, { cutoff: 200, q: 0.6, drive: 1.6, cv_amt: 5, q_cv_amt: 0 });
   for (const id of group('envFlt')) set(id, { attack: 140, hold: 0, decay: 900, sustain: 0.45, release: 700, curve: 1, retrig: true });
   for (const id of group('envAmp')) set(id, { attack: 35, hold: 0, decay: 400, sustain: 1, release: 750, curve: 1 });
-  // Filter-cv = envelope×0,8 + aftertouch×0,6; ×4 oct (cv_amt) = 3,2 resp. 2,4 octaaf.
-  for (const id of group('LfoSum')) set(id, { mode: 0, gain_a: 0.8, gain_b: 0, gain_c: 0.6, offset: 0 });
-  // Vibrato iets sneller dan standaard, en tot ±0,6 halve toon bij volle druk.
+  // Filter-cv = envelope×0,4 + aftertouch×0,8, ×5 oct (cv_amt). De cv-ingang
+  // van het ladderfilter kapt af op 1 (Teensy-DC): de envelope houdt
+  // daarom maar een klein deel, zodat de druk de ruimte krijgt. In rust
+  // (sustain) staat het filter ~1 oct open, volle druk erbij ~4 oct.
+  for (const id of group('LfoSum')) set(id, { mode: 0, gain_a: 0.4, gain_b: 0, gain_c: 0.8, offset: 0 });
+  // Vibrato iets sneller dan standaard, subtiel: ~0,2 halve toon bij volle druk.
   set(lfo.id, { rate: 6, wave: 0, depth: 1, bipolar: true, run: 0 });
-  set(bendSum, { gain_a: 0.05 });
+  set(bendSum, { gain_a: 0.025 });
 
   // Aftertouch erbij op de vibratodiepte: feedCvInput zet een optel-CvMath
   // (modwheel + druk) vóór de mult.
-  p = feedCvInput(p, pid, { moduleId: mi.id, portId: 'press' }, { moduleId: vibDepth, portId: 'b' }, 1).project;
+  p = feedCvInput(p, pid, { moduleId: mi.id, portId: 'press' }, { moduleId: vibDepth, portId: 'b' }, 0.7).project;
 
   // Bus: BBD-chorus voor breedte, dan een lange plaat.
   p = addBusFx(p, pid, 'tp_mmb_bbd_chorus').project;
@@ -64,7 +67,7 @@ export function seedCs80BrassPatch(project: ModularProject, voiceCount = 6): Mod
     ...p,
     patches: p.patches.map((x) => x.id !== pid ? x : {
       ...x,
-      description: `CS-80-koper à la Vangelis: ${N} stemmen zaagtand → ladder, trage filter-attack. Aftertouch opent het filter (ruim twee octaven) en voegt vibrato toe (opgeteld bij het modwheel). BBD-chorus en plaatgalm op de bus. Speel langzaam en druk ná de aanslag door.`,
+      description: `CS-80-koper à la Vangelis: ${N} stemmen zaagtand → ladder, trage filter-attack. Aftertouch opent het filter (tot vier octaven) en voegt vibrato toe (opgeteld bij het modwheel). BBD-chorus en plaatgalm op de bus. Speel langzaam en druk ná de aanslag door.`,
     }),
   };
 }

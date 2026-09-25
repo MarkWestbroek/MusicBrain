@@ -405,7 +405,7 @@ export function ModularMbApp(): JSX.Element {
                 >4-stemmig + aftertouch → filter</button>
                 <button
                   onClick={() => { setProject(seedCs80BrassPatch(getProject(), 6)); setShowPoly(false); }}
-                  title="CS-80-koper à la Vangelis, 6 stemmen: zaagtand → ladder met trage filter-attack. Aftertouch opent het filter (ruim twee octaven) en voegt vibrato toe (opgeteld bij het modwheel). BBD-chorus en plaatgalm op de bus. Speel langzaam en druk ná de aanslag door."
+                  title="CS-80-koper à la Vangelis, 6 stemmen: zaagtand → ladder met trage filter-attack. Aftertouch opent het filter (tot vier octaven) en voegt vibrato toe (opgeteld bij het modwheel). BBD-chorus en plaatgalm op de bus. Speel langzaam en druk ná de aanslag door."
                   style={{
                     textAlign: 'left', border: 'none', background: 'transparent',
                     padding: '7px 12px', cursor: 'pointer', fontSize: 13,
