@@ -8,8 +8,8 @@
 // kabels, rack, familie, prog#). De rack-kolom toont alleen de racks die de
 // patch gebruikt, met een klein menu om er een bij te doen.
 
-import { useMemo, useState } from 'react';
-import { updateProject, useModularProject, uid } from './store';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { canRedo, canUndo, redo, undo, updateProject, useModularProject, uid } from './store';
 import type { Patch } from './types';
 import { OptimizeModal } from './recipe/OptimizeModal';
 import {
@@ -133,13 +133,32 @@ export function PatchesPanel(): JSX.Element {
   }
 
   // ── indeling ──────────────────────────────────────────────────────────
+  // De sorteervolgorde gebruikt de namen zoals ze waren toen je begon te
+  // typen: een rij verspringt dus niet halverwege een naamwijziging (en je
+  // typt niet per ongeluk verder in de patch die eronder schoof). Bij het
+  // verlaten van het naamveld (blur/Enter) sorteert de lijst opnieuw.
+  const frozenNames = useRef(new Map<string, string>());
+  const [sortTick, setSortTick] = useState(0);
+  useEffect(() => {
+    const m = frozenNames.current;
+    const ids = new Set(project.patches.map((x) => x.id));
+    for (const id of [...m.keys()]) if (!ids.has(id)) m.delete(id);
+    for (const x of project.patches) if (!m.has(x.id)) m.set(x.id, x.name);
+  }, [project.patches]);
+  const resort = (): void => { frozenNames.current = new Map(project.patches.map((x) => [x.id, x.name])); setSortTick((t) => t + 1); };
+
   const folders = useMemo(() => [...new Set(project.patches.map((x) => x.folder?.trim()).filter((f): f is string => !!f))].sort(), [project.patches]);
   const classes = useMemo(() => new Map(project.patches.map((x) => [x.id, classifyPatch(project, x)])), [project]);
   const groups = useMemo(() => {
+    void sortTick;
     const q = filter.trim().toLowerCase();
     const visible = project.patches.filter((x) => !q || x.name.toLowerCase().includes(q)
       || (x.folder ?? '').toLowerCase().includes(q) || classes.get(x.id)!.family.toLowerCase().includes(q));
-    const sorted = [...visible].sort(comparePatches(project, sortBy, dir));
+    const byId = new Map(visible.map((x) => [x.id, x]));
+    const sorted = visible
+      .map((x) => ({ ...x, name: frozenNames.current.get(x.id) ?? x.name }))
+      .sort(comparePatches(project, sortBy, dir))
+      .map((x) => byId.get(x.id)!);
     const map = new Map<string, Patch[]>();
     for (const x of sorted) { const k = groupKey(project, x, groupBy); if (!map.has(k)) map.set(k, []); map.get(k)!.push(x); }
     const keys = [...map.keys()].sort((a, b) => {
@@ -148,7 +167,7 @@ export function PatchesPanel(): JSX.Element {
       return a.localeCompare(b, 'nl');
     });
     return keys.map((k) => ({ key: k, patches: map.get(k)! }));
-  }, [project, classes, groupBy, sortBy, dir, filter]);
+  }, [project, classes, groupBy, sortBy, dir, filter, sortTick]);
 
   const toggleGroup = (k: string) => setCollapsed((prev) => { const n = new Set(prev); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const th = (id: SortBy, label: string, title?: string) => (
@@ -173,6 +192,8 @@ export function PatchesPanel(): JSX.Element {
           📁 Mappen automatisch
         </button>
         <OptimizeModal open={showOptimize} onClose={() => setShowOptimize(false)} />
+        <button onClick={() => undo()} disabled={!canUndo()} style={{ fontSize: 13 }} title="Ongedaan maken (Ctrl+Z buiten een tekstveld)">↶</button>
+        <button onClick={() => redo()} disabled={!canRedo()} style={{ fontSize: 13 }} title="Opnieuw (Ctrl+Y)">↷</button>
         <span style={{ flex: 1 }} />
         <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="zoek naam / map / familie"
                style={{ fontSize: 12, padding: '3px 6px', width: 180 }} />
@@ -243,6 +264,9 @@ export function PatchesPanel(): JSX.Element {
                     <td style={{ padding: '4px 8px', minWidth: 180 }}>
                       <input type="text" value={x.name}
                         onChange={(e) => patch(x.id, (p) => ({ ...p, name: e.target.value }))}
+                        onBlur={resort}
+                        onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                        title="Naam — de lijst sorteert pas opnieuw als je het veld verlaat"
                         style={{ width: '100%', fontSize: 13 }} />
                     </td>
                     {!byFolder && (
