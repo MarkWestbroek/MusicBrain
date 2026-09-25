@@ -287,17 +287,17 @@ optimaliseren).
   in de sim de geladen .mmbs). Open: een verwijzing naar het bankbestand
   in het project bewaren zodat de sim hem bij het laden van de patch ophaalt.
 
-### Morph tussen A en B (idee, niet gebouwd)
+### Morph tussen A en B
 
-Binnen één rack. Knopstanden: lineair interpoleren, schakelaars en
-toggles snappen bij 0,5, via `controlPoke` live. Kabels: een kabel die
-alleen in A of alleen in B ligt wordt in de morph-patch een kabel met
-`attenuation` = 1−t resp. t. `PatchConnection.attenuation` bestaat al in
-het datamodel en gaat mee in de push, maar **AudioGraph/CvGraph in de
-firmware en de sim-engine doen er nog niets mee** (geen treffer op
-"attenuation" in AudioGraph.cpp, CvGraph.cpp, AudioEngine.ts). Eerst dus
-attenuation implementeren (een gain per kabel), dan is morph een pure
-functie `morph(A, B, t) → patch` plus één knop.
+Uitgewerkt in **doc/plans/morph-a-b.md**: gewichten op ingangen (niet op
+kabels), de divergentieregel (crossfade op het punt dat het dichtst bij
+OUT ligt, stroomopwaarts alles vol), snapping voor gates/schakelaars,
+taper-interpolatie voor knoppen, de MORPH-module met t0/depth/cv en
+modulatie van buiten de patch (circulariteitscheck), de morph als derde
+patch-soort met bevroren A/B-inhoud, het MORPH-paneel met balk A····B, en
+het firmware-concept (MorphModule op cv-rate, descriptor in de config,
+zelfde kern in de sim). Niets gebouwd; fasering ED-MORPH/FW-MORPH/SIM-MORPH
+staat in dat document.
 
 ## Bevinding 2026-09-25: "worklet-processor gecrasht" = wasm-geheugen op
 
