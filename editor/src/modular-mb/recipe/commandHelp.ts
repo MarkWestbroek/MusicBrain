@@ -47,6 +47,16 @@ export const COMMAND_HELP: HelpSection[] = [
     ],
   },
   {
+    title: 'Knoppen',
+    intro: 'Een knop op een stand zetten, op naam of label. In een poly-patch krijgen alle stemmen dezelfde stand.',
+    examples: [
+      { text: 'zet de cutoff van het filter op 1200' },
+      { text: 'zet de mode van de vibe op vibrato', note: 'schakelaars mogen op naam' },
+      { text: 'pan de stemmen van links naar rechts', note: 'verdeelt de mixerkanalen over het stereobeeld' },
+      { text: 'spreid de stemmen over 50% van het stereobeeld' },
+    ],
+  },
+  {
     title: 'Weghalen en verplaatsen',
     intro: 'Weghalen verbindt de audio door en neemt modulatie mee die alleen die module stuurde. Verplaatsen verandert alleen de volgorde in het rack, niet het geluid.',
     examples: [

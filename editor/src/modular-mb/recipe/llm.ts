@@ -151,6 +151,9 @@ export const TOOLS_PROMPT = [
   'vastgelegd; de gebruiker keurt ze daarna goed. Doe precies wat gevraagd wordt, niet meer.',
   'Bewerk de bestaande patch met de kleinste passende tool; bouw alleen een nieuwe patch (build_patch) als daarom gevraagd wordt.',
   'Modules weghalen: remove_module. De volgorde in het rack veranderen: move_module (verandert niets aan het geluid).',
+  'Knoppen draaien: eerst get_controls (huidige stand en bereik), dan set_controls.',
+  'Poly-patches: in get_patch_summary zie je alleen de kabels van stem 1 (de master). De firmware legt ze per stem:',
+  'een kabel van de master naar mixer in1 betekent stem 1 → in1, stem 2 → in2, … stem N → inN. Alle N mixerkanalen zijn dus in gebruik.',
   'Kies bij "compressor" zonder karakter tp_mmb_bus_comp; bij "filter" zonder meer tp_mmb_vcf; "moog"/"ladder" = tp_mmb_ladder; "korg"/"ms20" = tp_mmb_ms20.',
   'Sluit af met één of twee zinnen in het Nederlands over wat je hebt voorgesteld, zonder JSON.',
 ].join('\n');

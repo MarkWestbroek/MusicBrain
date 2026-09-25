@@ -15,7 +15,7 @@ describe('handleiding: elk voorbeeld wordt begrepen', () => {
         const r = parseCommand(ex.text, types, true);
         expect(r.unknown).toEqual([]);
         const want = sec.title.startsWith('Een nieuwe') ? 'build' : sec.title === 'Stemmen' ? 'voices'
-          : sec.title === 'Vervangen' ? 'replace' : sec.title === 'Toevoegen' ? /addBus|addModulation/ : /remove|move/;
+          : sec.title === 'Vervangen' ? 'replace' : sec.title === 'Toevoegen' ? /addBus|addModulation/ : sec.title === 'Knoppen' ? /set|spread/ : /remove|move/;
         if (typeof want === 'string') expect(r.command.kind).toBe(want);
         else expect(r.command.kind).toMatch(want);
       });

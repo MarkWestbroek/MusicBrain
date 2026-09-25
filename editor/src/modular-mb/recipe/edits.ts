@@ -12,7 +12,7 @@
 import {
   type ModularProject, type ModuleInstance, type ModuleType, type Patch,
   type PatchConnection, type PolyGroup, type Rack, type RackSlot, type ControlValue,
-  resolvePorts,
+  resolvePorts, resolveControls,
 } from '../types';
 import { uid } from '../store';
 import { seedInternals } from '../seedModules';
@@ -21,6 +21,7 @@ import {
   type PortRoles,
 } from './catalog';
 import { RecipeError } from './types';
+import { sanitizeControls } from './compile';
 
 export interface EditResult {
   project: ModularProject;
@@ -396,6 +397,70 @@ function stereoToMono(p0: ModularProject, old: ModuleInstance, oldT: ModuleType,
   }
   for (const d of dropped) warnings.push(`Kabel op ${d} had geen tegenhanger op ${shortName(newT.id, p.moduleTypes)} en is verwijderd.`);
   return { project: p, warnings, summary: `${shortName(oldT.id, p.moduleTypes)} (stereo) → ${shortName(newT.id, p.moduleTypes)} als L/R-paar.` };
+}
+
+// ── knoppen zetten ──────────────────────────────────────────────────────
+
+/** Zoek een control op een module bij id, label of een deel ervan ("cutoff", "Pan 3"). */
+export function findControlByWord(p: ModularProject, m: ModuleInstance, word: string): string | null {
+  const ctls = resolveControls(m, p.moduleTypes).filter((c) => c.kind !== 'display' && c.kind !== 'led');
+  const w = word.trim().toLowerCase().replace(/\s+/g, '');
+  return (ctls.find((c) => c.id.toLowerCase() === w)
+    ?? ctls.find((c) => c.label.toLowerCase().replace(/\s+/g, '') === w)
+    ?? ctls.find((c) => c.id.toLowerCase().startsWith(w) || c.label.toLowerCase().startsWith(w)))?.id ?? null;
+}
+
+/**
+ * Zet knoppen van een module in de actieve patch. Waarden worden tegen het
+ * type gehouden (bereik, schakelaarstanden, ook op naam). Een lid van een
+ * poly-groep: alle stemmen krijgen dezelfde stand, zoals een knop op de
+ * master in de patcher.
+ */
+export function setControls(project: ModularProject, patchId: string, moduleId: string, raw: Record<string, unknown>): EditResult {
+  const m = moduleOf(project, moduleId);
+  const t = typeOf(project, m.typeId);
+  const warnings: string[] = [];
+  // Namen/labels naar control-id's.
+  const byId: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    const id = findControlByWord(project, m, k);
+    if (!id) { warnings.push(`${shortName(m.typeId, project.moduleTypes)}: geen knop "${k}".`); continue; }
+    byId[id] = v;
+  }
+  const values = sanitizeControls(t, byId, warnings);
+  if (!Object.keys(values).length) throw new RecipeError(warnings.join(' ') || 'Geen knoppen om te zetten.');
+  const g = groupOf(project, moduleId);
+  const targets = g ? g.group.members.flatMap((mm) => (mm.kind === 'module' ? [mm.moduleId] : [])) : [moduleId];
+  const p = withPatch(project, patchId, (x) => {
+    const cs = { ...x.controlState };
+    for (const id of targets) cs[id] = { ...(cs[id] ?? {}), ...values };
+    return { ...x, controlState: cs };
+  });
+  const list = Object.entries(values).map(([k, v]) => `${k}=${typeof v === 'number' ? Math.round(v * 1000) / 1000 : v}`).join(', ');
+  return { project: p, warnings, summary: `${shortName(m.typeId, project.moduleTypes)}${targets.length > 1 ? ` (×${targets.length})` : ''}: ${list}.` };
+}
+
+/**
+ * Stemmen over het stereobeeld verdelen: de mixer achter de stemmen krijgt
+ * pan1..panN van helemaal links (−1) tot helemaal rechts (+1), met N het
+ * aantal stemmen (of, mono, het aantal bekabelde mixerkanalen). `width`
+ * 0..1 knijpt het beeld in (0,5 = van −0,5 tot +0,5).
+ */
+export function spreadVoices(project: ModularProject, patchId: string, width = 1): EditResult {
+  const patch = patchOf(project, patchId);
+  const ids = patchModuleIds(project, patch);
+  const mixer = project.modules.find((m) => ids.has(m.id) && /^tp_mmb_mixer/.test(m.typeId));
+  if (!mixer) throw new RecipeError('Geen mixer in deze patch om te pannen.');
+  const t = typeOf(project, mixer.typeId);
+  const channels = t.controls.filter((c) => /^pan\d+$/.test(c.id)).length;
+  const cabled = patch.connections.filter((c) => c.to.moduleId === mixer.id && /^in\d+$/.test(c.to.portId)).map((c) => Number(c.to.portId.slice(2)));
+  const n = Math.min(channels, patch.voiceCount > 1 ? patch.voiceCount : Math.max(1, ...cabled));
+  if (n < 2) throw new RecipeError('Er is maar één stem/kanaal; pannen over het stereobeeld heeft dan geen zin.');
+  const w = Math.max(0, Math.min(1, width));
+  const values: Record<string, number> = {};
+  for (let k = 1; k <= n; k++) values[`pan${k}`] = Math.round((-w + (2 * w * (k - 1)) / (n - 1)) * 1000) / 1000;
+  const r = setControls(project, patchId, mixer.id, values);
+  return { ...r, summary: `${n} stemmen verdeeld van links naar rechts (${Object.values(values).join(', ')}).` };
 }
 
 // ── verplaatsen in het rack ─────────────────────────────────────────────

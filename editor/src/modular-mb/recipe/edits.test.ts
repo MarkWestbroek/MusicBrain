@@ -4,7 +4,7 @@ import { seedInternals, seedTestPatch } from '../seedModules';
 import { expandPatchConnections } from '../polyExpand';
 import { buildRecipe, validateOps } from './compile';
 import {
-  replaceModule, setVoices, addBusFx, addModulation, moveModule, removeModule, findVoiceChain, findModuleByWord, findPortByWord,
+  replaceModule, setVoices, addBusFx, addModulation, moveModule, removeModule, setControls, spreadVoices, findVoiceChain, findModuleByWord, findPortByWord,
 } from './edits';
 import { RecipeError } from './types';
 import { parseCommand } from './parse';
@@ -164,6 +164,44 @@ describe('moveModule en removeModule', () => {
     expect(parseCommand('verplaats de out naar achter de vibe', types).command).toEqual({ kind: 'move', module: 'out', relation: 'after', target: 'vibe' });
     expect(parseCommand('haal de vca weg', types).command).toEqual({ kind: 'remove', module: 'vca' });
     expect(parseCommand('remove the envelope', types).command).toEqual({ kind: 'remove', module: 'envelope' });
+  });
+});
+
+describe('knoppen: setControls en spreadVoices', () => {
+  it('knop op naam, poly-groep krijgt overal dezelfde stand, bereik begrensd, schakelaar op naam', () => {
+    const p0 = buildRecipe(base(), { voices: 4, source: 'vco', bus: ['vibe'] });
+    const pid = active(p0).id;
+    const vcf = findModuleByWord(p0, pid, 'filter')!;
+    const r = setControls(p0, pid, vcf.id, { Cutoff: 1200, q: 999 });
+    const g = rackOf(r.project).polyGroups!.find((x) => x.members.some((m) => m.moduleId === vcf.id))!;
+    for (const m of g.members) expect(active(r.project).controlState[m.moduleId]!.cutoff).toBe(1200);
+    expect(Number(active(r.project).controlState[vcf.id]!.q)).toBeLessThan(999);
+    expect(r.warnings.some((w) => /q/.test(w))).toBe(true);
+    const vibe = findModuleByWord(p0, pid, 'vibe')!;
+    const s = setControls(p0, pid, vibe.id, { mode: 'vibrato' });
+    expect(active(s.project).controlState[vibe.id]!.mode).toBe(1);
+    expect(() => setControls(p0, pid, vibe.id, { bestaatniet: 1 })).toThrowError(RecipeError);
+  });
+
+  it('8 stemmen van links naar rechts; smaller met width', () => {
+    const p0 = buildRecipe(base(), { voices: 8, source: 'dx7', filter: null });
+    const pid = active(p0).id;
+    const r = spreadVoices(p0, pid);
+    const mixer = r.project.modules.find((m) => m.typeId === 'tp_mmb_mixer8' && rackOf(r.project).slots.some((s) => s.moduleId === m.id))!;
+    const cs = active(r.project).controlState[mixer.id]!;
+    expect([cs.pan1, cs.pan2, cs.pan8]).toEqual([-1, -0.714, 1]);
+    const half = spreadVoices(p0, pid, 0.5);
+    expect(active(half.project).controlState[mixer.id]!.pan1).toBe(-0.5);
+    const mono = buildRecipe(base(), { source: 'vco' });
+    expect(() => spreadVoices(mono, active(mono).id)).toThrowError(/één/);
+  });
+
+  it('parser', () => {
+    const types = base().moduleTypes;
+    expect(parseCommand('zet de cutoff van het filter op 1200', types).command).toEqual({ kind: 'set', module: 'filter', values: { cutoff: 1200 } });
+    expect(parseCommand('wil je 8 uitgangen van de mixer pannen van L naar R?', types).command.kind).not.toBe('spread');   // dat is voor de AI
+    expect(parseCommand('pan de stemmen van links naar rechts', types).command).toEqual({ kind: 'spread', width: 1 });
+    expect(parseCommand('spreid de stemmen over 50% van het stereobeeld', types).command).toEqual({ kind: 'spread', width: 0.5 });
   });
 });
 

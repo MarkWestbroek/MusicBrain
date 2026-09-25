@@ -25,7 +25,9 @@ export type Command =
   | { kind: 'addBus'; module: string }
   | { kind: 'addModulation'; source: string; target: string; port: string | null }
   | { kind: 'move'; module: string; relation: 'before' | 'after' | 'swap'; target: string }
-  | { kind: 'remove'; module: string };
+  | { kind: 'remove'; module: string }
+  | { kind: 'set'; module: string; values: Record<string, unknown> }
+  | { kind: 'spread'; width: number };
 
 export interface ParseResult {
   command: Command;
@@ -75,6 +77,17 @@ function parseEdit(t: string): Command | null {
   // "zet de vibe voor de out" / "verplaats de out naar achter de vibe" / "move vibe before out"
   m = /^(?:zet|verplaats|schuif|move|put)\s+(?:de\s+|het\s+|the\s+)?(.+?)\s+(?:naar\s+)?(voor|vóór|before|in front of|na|achter|after|behind)\s+(?:de\s+|het\s+|the\s+)?(.+?)(?:\s+in het rack)?$/.exec(t);
   if (m) return { kind: 'move', module: m[1]!.trim(), relation: /^(voor|vóór|before|in front of)$/.test(m[2]!) ? 'before' : 'after', target: m[3]!.trim() };
+  // "pan de stemmen van links naar rechts" / "spreid de 8 uitgangen over het stereobeeld" / "spread the voices"
+  if (/^(?:pan|spreid|verdeel|spread)\b/.test(t) && /\b(?:stem|stemmen|voices?|kanalen|uitgangen|channels?|outputs?)\b|links|rechts|left|right|stereo/.test(t)) {
+    const pct = /(\d{1,3})\s*(?:%|procent)/.exec(t);
+    return { kind: 'spread', width: pct ? Math.max(0, Math.min(1, Number(pct[1]) / 100)) : /half|smal|narrow/.test(t) ? 0.5 : 1 };
+  }
+  // "zet de cutoff van het filter op 1200" / "set the filter cutoff to 1200"
+  m = /^(?:zet|draai|set|turn)\s+(?:de\s+|het\s+|the\s+)?(.+?)\s+(?:van|of|on)\s+(?:de\s+|het\s+|the\s+)?(.+?)\s+(?:op|naar|to)\s+(-?[\d.,]+|[a-z]+)$/.exec(t);
+  if (m) {
+    const raw = m[3]!.replace(',', '.');
+    return { kind: 'set', module: m[2]!.trim(), values: { [m[1]!.trim()]: /^-?[\d.]+$/.test(raw) ? Number(raw) : raw } };
+  }
   // "haal de vca weg" / "verwijder de envelope" / "remove the vca"
   m = /^(?:haal|verwijder|remove|delete|schrap)\s+(?:de\s+|het\s+|the\s+|een\s+|a\s+)?(.+?)(?:\s+(?:weg|eruit|uit de patch))?$/.exec(t);
   if (m && !/^(?:alle|all)\b/.test(m[1]!)) return { kind: 'remove', module: m[1]!.trim() };
@@ -232,6 +245,8 @@ export function describeCommand(c: Command, types: ModuleType[]): string {
     case 'addModulation': return `Hang een ${nice(c.source)} aan ${nice(c.target)}${c.port ? `.${c.port}` : ''}`;
     case 'move': return c.relation === 'swap' ? `Wissel ${nice(c.module)} en ${nice(c.target)} om in het rack` : `Zet ${nice(c.module)} ${c.relation === 'before' ? 'vóór' : 'na'} ${nice(c.target)} in het rack`;
     case 'remove': return `Haal ${nice(c.module)} weg (audio wordt doorverbonden)`;
+    case 'spread': return `Verdeel de stemmen over het stereobeeld${c.width < 1 ? ` (breedte ${Math.round(c.width * 100)}%)` : ''}`;
+    case 'set': return `Zet op ${nice(c.module)}: ${Object.entries(c.values).map(([k, v]) => `${k}=${typeof v === 'number' ? Math.round(v * 1000) / 1000 : String(v)}`).join(', ')}`;
   }
 }
 

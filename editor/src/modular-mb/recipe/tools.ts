@@ -7,7 +7,8 @@
 // Alles hier is puur: `runTool(project, name, args)` geeft inhoud terug en,
 // bij een wijzigende tool, het nieuwe project. Geen DOM, store of React.
 
-import { type ModularProject, type ModuleType, resolvePorts, defaultValueOf } from '../types';
+import { type ModularProject, type ModuleType, resolvePorts, resolveControls, defaultValueOf } from '../types';
+import { findModuleByWord } from './edits';
 import { CATALOG, catalogTable, resolveTypeId, shortName, suggestTypeIds } from './catalog';
 import { compileRecipe } from './compile';
 import { runCommand } from './commands';
@@ -89,6 +90,15 @@ export const TOOLS: ToolDef[] = [
   { name: 'remove_module', mutating: true,
     description: 'Haal een module uit de actieve patch. Zit hij in het audiopad, dan wordt de audio doorverbonden (VCA eruit = bron rechtstreeks naar de mixer). Envelopes/CV-math die alleen deze module stuurden gaan mee. Gebruik dit in plaats van de patch opnieuw te bouwen.',
     inputSchema: { type: 'object', properties: { module: { type: 'string' } }, required: ['module'] } },
+  { name: 'get_controls', mutating: false,
+    description: 'Huidige knopstanden van een module in de actieve patch, met per knop het bereik (min/max), de schakelaarstanden en de standaardwaarde. "module" is een module-id of woord (mixer, filter, osc).',
+    inputSchema: { type: 'object', properties: { module: { type: 'string' } }, required: ['module'] } },
+  { name: 'set_controls', mutating: true,
+    description: 'Zet knoppen van een module in de actieve patch. "values" is een object knop-id → waarde (getal, of schakelaarstand op naam). Waarden buiten het bereik worden begrensd. Bij een poly-groep krijgen alle stemmen dezelfde stand. Voorbeeld stereo-spreiding over een 8-kanaals mixer: {"pan1":-1,"pan2":-0.714,…,"pan8":1}.',
+    inputSchema: { type: 'object', properties: { module: { type: 'string' }, values: { type: 'object' } }, required: ['module', 'values'] } },
+  { name: 'spread_voices', mutating: true,
+    description: 'Verdeel de stemmen van de actieve patch over het stereobeeld: de mixerkanalen 1..N krijgen een pan van helemaal links tot helemaal rechts. "width" 0..1 (standaard 1) maakt het beeld smaller.',
+    inputSchema: { type: 'object', properties: { width: { type: 'number', minimum: 0, maximum: 1 } } } },
   { name: 'analyze_racks', mutating: false,
     description: 'Rapport van wat "optimaliseer racks" zou doen: racks zonder patch, losse modules, lege patches, en welke (bijna) identieke racks samengevoegd kunnen worden. Bouwt niets.',
     inputSchema: { type: 'object', properties: { maxDiff: { type: 'integer', minimum: 0, maximum: 16, description: 'Max. afwijkende modules aan één kant om nog samen te voegen (default 2).' } } } },
@@ -202,6 +212,12 @@ export function commandForTool(name: string, args: Record<string, unknown>): Com
       return { kind: 'move', module: str('module'), relation: rel as 'before' | 'after' | 'swap', target: str('target') };
     }
     case 'remove_module':   return { kind: 'remove', module: str('module') };
+    case 'spread_voices':   return { kind: 'spread', width: typeof args.width === 'number' ? Math.max(0, Math.min(1, args.width)) : 1 };
+    case 'set_controls': {
+      const v = args.values;
+      if (!v || typeof v !== 'object' || Array.isArray(v)) throw new RecipeError('set_controls: "values" moet een object zijn.');
+      return { kind: 'set', module: str('module'), values: v as Record<string, unknown> };
+    }
     case 'add_modulation':  return { kind: 'addModulation', source: str('source'), target: str('target'),
                                      port: typeof args.port === 'string' && args.port.trim() ? args.port.trim() : null };
     default: return null;
@@ -234,6 +250,19 @@ export function runTool(project: ModularProject, name: string, args: Record<stri
       } catch (e) {
         return { content: { ok: false, error: e instanceof Error ? e.message : String(e) } };
       }
+    }
+    case 'get_controls': {
+      const pid = project.activePatchId;
+      const patch = project.patches.find((x) => x.id === pid);
+      if (!patch) throw new RecipeError('Geen actieve patch.');
+      const m = findModuleByWord(project, pid!, String(args.module ?? ''));
+      if (!m) throw new RecipeError(`Geen module "${String(args.module)}" in deze patch.`);
+      const cur = patch.controlState[m.id] ?? {};
+      return { content: { module: m.id, type: m.typeId, controls: resolveControls(m, types).filter((c) => c.kind !== 'display' && c.kind !== 'led').map((c) => ({
+        id: c.id, label: c.label, value: cur[c.id] ?? defaultValueOf(c),
+        ...('min' in c ? { min: c.min, max: c.max } : {}),
+        ...(c.kind === 'switch' ? { positions: c.positions } : {}),
+      })) } };
     }
     case 'analyze_racks': {
       const plan = analyzeProject(project, { maxDiff: typeof args.maxDiff === 'number' ? args.maxDiff : undefined });
