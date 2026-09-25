@@ -41,10 +41,16 @@ Teensy Loader van PJRC: .hex openen, knopje op de Teensy, klaar
 - **Zelfde compiler als lokaal.** De workflow pint het Teensy-platform op
   5.1.0 (gcc 11), net als de ontwikkelmachine. Zonder pin pakte PlatformIO
   6.0.0 (gcc 15), dat `static alignas(4)` in SamplerModule.h afkeurt. De pin
-  staat in de workflow (`TEENSY_PLATFORM`); beter is hem ook in
-  `platformio.ini` te zetten (`platform = teensy@5.1.0`), zodat lokaal en CI
-  nooit uit elkaar lopen. Eerste release fw-0.5.78 (25-09): de .hex is
-  byte-voor-byte even groot als de lokale build (4.306.112 bytes).
+  staat in de workflow (`TEENSY_PLATFORM`) én sinds commit ce2c2b8 in
+  `platformio.ini` (`platform = teensy@5.1.0`, met het commentaar dat een
+  upgrade alleen op een aparte branch mag, samen met `TEENSY_PLATFORM`). De
+  sed in de workflow laat een bestaande pin met rust.
+- **Bytegelijkheid is geen controle.** De .hex van GitHub en een lokale build
+  kunnen een paar bytes verschillen: de firmware bevat bestandspaden (o.a.
+  via `__FILE__` in asserts), en die zijn op GitHub `/home/runner/…` en lokaal
+  `D:\Git\…`. Eerste release fw-0.5.78 (25-09): 4.306.112 bytes; een lokale
+  build van dezelfde bron gaf 4.306.086. De echte controle is dat de Teensy na
+  het flashen de verwachte versie meldt (Teensy-venster → Firmware).
 - **Geen VPS nodig.** Het bestand staat op GitHub; de editor linkt er direct
   naartoe. De GitHub-API mag vanuit elke website gelezen worden (CORS `*`),
   maximaal 60 keer per uur per IP; de editor bewaart het antwoord een uur.
