@@ -27,7 +27,15 @@ modules staan en verandert alleen wat erlangs stroomt.
   per kabel zijn en dus onbetaalbaar. In het digitale domein van de brain is
   het één vermenigvuldiging per gewogen voeder; de Teensy-AudioMixer heeft
   er zelfs al een plek voor (gain per mixer-ingang), de CvGraph een multiply.
-  Analoge racks (aCV/dCV, externe modules) doen niet mee aan morph.
+- **Wat wel en niet meedoet op echte hardware.** CV blijft digitaal tot aan
+  de DAC: een gewicht in de CvGraph werkt dus gewoon door via de bus op een
+  hardware-module (break-out dCV → aCV). Ook een morph waarbij A en B een
+  andere CV naar dezelfde hardware-ingang sturen is haalbaar, en gemorphte
+  knopstanden van dCV-gestuurde parameters net zo. Wat buiten bereik blijft
+  is **audio tussen echte modules**: daar zit geen mengpunt in de brain, en
+  een gewicht zou een VCA of potmeter per kabel betekenen. Audio-morph is
+  dus alleen voor interne modules (en audio dat via een ADC de brain in
+  komt); CV-morph werkt overal.
 
 ## Knopstanden
 
