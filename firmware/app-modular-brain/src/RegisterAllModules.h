@@ -83,6 +83,7 @@
 #include "ReverbModule.h"
 #include "TremoloModule.h"
 #include "StereoPhaserModule.h"
+#include "VibeModule.h"
 #include "ParamEqModule.h"
 #include "SamplerModule.h"
 #include "CombModule.h"
@@ -159,6 +160,7 @@ inline void registerAllRuntimeModules() {
     ReverbModule::registerFactory();         // plaat-/veergalm (mmb-dsp), ook als wasm
     TremoloModule::registerFactory();        // tremolo-pedaal amp/opto/harmonic/pan (mmb-dsp), ook als wasm
     StereoPhaserModule::registerFactory();   // stereo phaser (mmb-dsp), ook als wasm
+    VibeModule::registerFactory();           // univibe-stijl vibe + lichte vibrato (mmb-dsp), ook als wasm
     ParamEqModule::registerFactory();   // parametrische EQ, SSL/API-stijl (mmb-dsp), ook als wasm
     SamplerModule::registerFactory();   // sample-speler (mmb-dsp), PSRAM + SD; ook als wasm
     CombModule::registerFactory();      // FW-AU-3: tuned comb resonator

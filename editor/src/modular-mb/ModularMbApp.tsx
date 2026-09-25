@@ -12,7 +12,7 @@ import { startDemo, DemoCaption, type DemoState, type DemoHandle } from './recip
 import type { PatchOp } from './recipe/types';
 import { emptyModularProject } from './types';
 import { exportPanel, importPanel, parsePanelFile } from './panelIO';
-import { BUS_SOLO_FX, CONSOLE_EQ_SOLO_FX, PARA_EQ_SOLO_FX, DIODE_SOLO_FX, EQ_SOLO_FX, FET_SOLO_FX, OPTO_SOLO_FX, SAMPLER_MASTER_FX, VARIMU_SOLO_FX, STEREO_TAPE_SOLO_FX, DIGITAL_ECHO_SOLO_FX, BBD_SOLO_FX, RINGMOD_SOLO_FX, OCTAVER_SOLO_FX, HARMONIZER_SOLO_FX, REVERB_SOLO_FX, SPRING_SOLO_FX, TREMOLO_SOLO_FX, STEREO_PHASER_SOLO_FX, seedExampleModules, seedInternals, seedTestPatch, seedFmTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, seedDx7PolyPatch, seedSamplerPolyPatch, seedWarpsVocoderPatch, seed808JamPatch, seedKrellPatch, type PolySeedOptions } from './seedModules';
+import { BUS_SOLO_FX, CONSOLE_EQ_SOLO_FX, PARA_EQ_SOLO_FX, DIODE_SOLO_FX, EQ_SOLO_FX, FET_SOLO_FX, OPTO_SOLO_FX, SAMPLER_MASTER_FX, VARIMU_SOLO_FX, STEREO_TAPE_SOLO_FX, DIGITAL_ECHO_SOLO_FX, BBD_SOLO_FX, RINGMOD_SOLO_FX, OCTAVER_SOLO_FX, HARMONIZER_SOLO_FX, REVERB_SOLO_FX, SPRING_SOLO_FX, TREMOLO_SOLO_FX, STEREO_PHASER_SOLO_FX, VIBE_SOLO_FX, seedExampleModules, seedInternals, seedTestPatch, seedFmTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, seedDx7PolyPatch, seedSamplerPolyPatch, seedWarpsVocoderPatch, seed808JamPatch, seedKrellPatch, type PolySeedOptions } from './seedModules';
 
 /** Effecten achter de solo-seeds (Solo ▾): de stand en de tooltip. */
 const SOLO_FX = {
@@ -33,6 +33,7 @@ const SOLO_FX = {
   plate:  { fx: REVERB_SOLO_FX, title: 'Monofoon met REVERB in Plate-stand (Dattorro-tank, size 0,7, predelay 15 ms): de gladde studioplaat.' },
   spring: { fx: SPRING_SOLO_FX, title: 'Monofoon met REVERB in Spring-stand: twee veren met dispersie — de boing van een gitaarversterker.' },
   trem:   { fx: TREMOLO_SOLO_FX, title: 'Monofoon met TREMOLO in Harm-stand (brownface): laag en hoog in tegenfase op 5,2 Hz — half tremolo, half phaser.' },
+  vibe:   { fx: VIBE_SOLO_FX, title: 'Monofoon met VIBE (univibe-stijl): Chorus-stand, 1,6 Hz, lampkarakter 0,75 — het ademende, scheve kloppen tussen chorus en phaser in.' },
   sphase: { fx: STEREO_PHASER_SOLO_FX, title: 'Monofoon met STEREO PHASER: 2 × 6 stages, rechts een kwartslag verschoven, feedback 0,45.' },
 } as const;
 import { PatchesPanel } from './PatchesPanel';
@@ -497,6 +498,8 @@ export function ModularMbApp(): JSX.Element {
                     c: { sound: 0, level: 0.8 }, fx: 'spring' },
                   { label: '〰️ DX7 + Tremolo', t: 'tp_mmb_dx7', n: 'DX7', l: 'out', r: 'out',
                     c: { program: 0, level: 0.8 }, fx: 'trem' },
+                  { label: '💡 DX7 + Vibe', t: 'tp_mmb_dx7', n: 'DX7', l: 'out', r: 'out',
+                    c: { program: 0, level: 0.8 }, fx: 'vibe' },
                   { label: '🌀 Plaits + Stereo phaser', t: 'tp_mmb_plaits', n: 'Plaits', l: 'out', r: 'aux',
                     c: { engine: 0, harmonics: 0.5, timbre: 0.5, morph: 0.5, decay: 0.6, lpg: 0.5, level: 0.8 }, fx: 'sphase' },
                 ] as { label: string; t: string; n: string; l: string; r: string;

@@ -1,6 +1,6 @@
 {
   "$comment": "GEGENEREERD door tools/contract_dump.py — niet met de hand bewerken. Poort-ids zijn letterlijk wat de firmware accepteert (aliassen als out/out_l en naam/naam_cv staan er dus allebei in).",
-  "firmwareVersion": "0.5.72",
+  "firmwareVersion": "0.5.73",
   "modules": {
     "tp_mmb_ahdsr": {
       "typeId": "tp_mmb_ahdsr",
@@ -544,6 +544,7 @@
       "source": "firmware/app-modular-brain/src/HarmonizerModule.h",
       "ports": [
         "in",
+        "in_l",
         "mix",
         "mix_cv",
         "out",
@@ -1628,6 +1629,29 @@
       ],
       "controlsIgnored": [
         "fm_amt"
+      ]
+    },
+    "tp_mmb_vibe": {
+      "typeId": "tp_mmb_vibe",
+      "source": "firmware/app-modular-brain/src/VibeModule.h",
+      "ports": [
+        "in",
+        "in_l",
+        "in_r",
+        "intensity",
+        "intensity_cv",
+        "out",
+        "out_l",
+        "out_r",
+        "speed",
+        "speed_cv"
+      ],
+      "controls": [
+        "intensity",
+        "lamp",
+        "mode",
+        "speed",
+        "volume"
       ]
     },
     "tp_mmb_warps": {

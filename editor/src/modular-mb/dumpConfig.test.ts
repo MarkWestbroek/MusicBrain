@@ -10,7 +10,7 @@ import { writeFileSync } from 'node:fs';
 import { it } from 'vitest';
 
 import { emptyModularProject } from './types';
-import { HARMONIZER_SOLO_FX, OCTAVER_SOLO_FX, REVERB_SOLO_FX, RINGMOD_SOLO_FX, SAMPLER_MASTER_FX, STEREO_TAPE_SOLO_FX, TREMOLO_SOLO_FX, seedInternals, seedPolyVoicePatch, seedSamplerPolyPatch, seedSoloVoicePatch } from './seedModules';
+import { HARMONIZER_SOLO_FX, OCTAVER_SOLO_FX, REVERB_SOLO_FX, RINGMOD_SOLO_FX, SAMPLER_MASTER_FX, STEREO_TAPE_SOLO_FX, TREMOLO_SOLO_FX, VIBE_SOLO_FX, seedInternals, seedPolyVoicePatch, seedSamplerPolyPatch, seedSoloVoicePatch } from './seedModules';
 import { buildConfigPayload } from './teensyLink';
 
 const stk = { sound: 0, level: 0.8 };
@@ -22,6 +22,7 @@ const seeds = {
   'solo-oct':    () => seedSoloVoicePatch(seedInternals(emptyModularProject()), 'tp_mmb_vco', 'VCO', 'out', 'out', { level: 0.5 }, OCTAVER_SOLO_FX),
   'solo-harm':   () => seedSoloVoicePatch(seedInternals(emptyModularProject()), 'tp_mmb_vco', 'VCO', 'out', 'out', { level: 0.5 }, HARMONIZER_SOLO_FX),
   'solo-plate':  () => seedSoloVoicePatch(seedInternals(emptyModularProject()), 'tp_mmb_vco', 'VCO', 'out', 'out', { level: 0.5 }, REVERB_SOLO_FX),
+  'solo-vibe':   () => seedSoloVoicePatch(seedInternals(emptyModularProject()), 'tp_mmb_vco', 'VCO', 'out', 'out', { level: 0.5 }, VIBE_SOLO_FX),
   'solo-trem':   () => seedSoloVoicePatch(seedInternals(emptyModularProject()), 'tp_mmb_vco', 'VCO', 'out', 'out', { level: 0.5 }, TREMOLO_SOLO_FX),
   'poly-aftertouch': () => seedPolyVoicePatch(seedInternals(emptyModularProject()), 4, { aftertouch: true }),
   'sampler-wah': () => seedSamplerPolyPatch(seedInternals(emptyModularProject()), 8, true),

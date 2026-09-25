@@ -1762,6 +1762,34 @@ function mmbTremolo() {
   });
 }
 
+// ── Vibe (univibe-familie) ─────────────────────────────────────────────
+function mmbVibe() {
+  const w = W(8);
+  return assemble({
+    typeId: 'tp_mmb_vibe', categoryId: 'effect', variant: 'Vibe (univibe-style)',
+    brand: 'MMB', model: 'VIBE', hp: 8, texture: 'pcb-black', baseColor: '#241a12', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'VIBE', fontSize: 2.2, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: 'lamp · 4 × LDR', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('speed',     'Speed',     w*0.28, 32, { size: 'medium', min: 0.1, max: 12, def: 2, unit: 'Hz', color: '#fb923c' }),
+      knob('intensity', 'Intensity', w*0.72, 32, { size: 'medium', min: 0, max: 1, def: 0.6, color: '#fb923c' }),
+      sw  ('mode',      'Mode',      w*0.24, 60, ['Chorus', 'Vibrato', 'Light'], 0),
+      knob('lamp',      'Lamp',      w*0.72, 62, { size: 'small', min: 0, max: 1, def: 0.7, color: '#9ca3af' }),
+      knob('volume',    'Volume',    w/2,    88, { size: 'small', min: 0, max: 2, def: 1, color: '#f9fafb' }),
+      inPort ('speed_cv',     'S+', 'cv', w*0.25, 104),
+      inPort ('intensity_cv', 'I+', 'cv', w*0.75, 104),
+      inPort ('in_l',  'L', 'audio', w*0.12, 118),
+      inPort ('in_r',  'R', 'audio', w*0.32, 118),
+      outPort('out_l', 'L', 'audio', w*0.68, 118),
+      outPort('out_r', 'R', 'audio', w*0.88, 118),
+    ],
+    notes: 'De univibe-familie (en moderne klonen als de Mojo Vibe): geen gewone phaser maar vier fasedraai-trappen met elk een andere condensator, zodat de notches wijd verspreid liggen, en vier lichtgevoelige weerstanden (LDR) rond één lampje dat door een LFO wordt aangestuurd. Het lampje reageert niet-lineair en de LDR’s worden snel laag-ohmig bij licht maar herstellen traag in het donker: de sweep is scheef en kloppend, hij ademt. Mode Chorus = droog + nat (het klassieke geluid, tussen chorus en phaser in); Vibrato = alleen nat (de fasedraaiing trekt aan de toonhoogte); Light = een zuivere vibrato met een vertragingslijn, zonder lampkarakter. Lamp regelt hoeveel van dat oude-lamp-karakter erin zit (0 = nette sinus, 1 = een oud exemplaar). Speed en Intensity met CV — een expressiepedaal of envelope op Speed doet wat de voetpedaal-versie deed. Mono in geeft stereo uit. Firmware tp_mmb_vibe, mmb_dsp::Vibe — in de simulator draait dezelfde code als wasm.',
+  });
+}
+
 // ── Stereo phaser ──────────────────────────────────────────────────────
 function mmbStereoPhaser() {
   const w = W(8);
@@ -3163,7 +3191,7 @@ function mmbEnvFollowerMono() {
 // ── public entry ───────────────────────────────────────────────────────
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbEcho(), mmbTapeEcho(), mmbStereoTapeEcho(), mmbDigitalEcho(), mmbBbdChorus(), mmbRingMod(), mmbOctaver(), mmbHarmonizer(), mmbReverb(), mmbTremolo(), mmbStereoPhaser(), mmbFetComp(),mmbOptoComp(), mmbBusComp(),mmbVariMuComp(), mmbProgramEq(), mmbDiodeComp(), mmbConsoleEq(), mmbParaEq(), mmbSampler(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbEnvFollower(), mmbEnvFollowerMono()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbEcho(), mmbTapeEcho(), mmbStereoTapeEcho(), mmbDigitalEcho(), mmbBbdChorus(), mmbRingMod(), mmbOctaver(), mmbHarmonizer(), mmbReverb(), mmbTremolo(), mmbStereoPhaser(), mmbVibe(), mmbFetComp(),mmbOptoComp(), mmbBusComp(),mmbVariMuComp(), mmbProgramEq(), mmbDiodeComp(), mmbConsoleEq(), mmbParaEq(), mmbSampler(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbEnvFollower(), mmbEnvFollowerMono()];
   const newTypes = all.map((x) => x.type);
 
   // Upgrade-pad: bestaande interne types worden in-place VERVANGEN (zelfde
@@ -4108,6 +4136,10 @@ export const TREMOLO_SOLO_FX = {
 export const STEREO_PHASER_SOLO_FX = {
   typeId: 'tp_mmb_stereo_phaser', label: 'STEREO PHASER',
   controls: { rate: 0.35, depth: 0.8, feedback: 0.45, mix: 0.5, spread: 0.5 },
+} as const;
+export const VIBE_SOLO_FX = {
+  typeId: 'tp_mmb_vibe', label: 'VIBE',
+  controls: { speed: 1.6, intensity: 0.7, mode: 0, lamp: 0.75, volume: 1.1 },
 } as const;
 export const RINGMOD_SOLO_FX = {
   typeId: 'tp_mmb_ringmod', label: 'RING MOD', mono: true,

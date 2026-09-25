@@ -17,6 +17,18 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### fw 0.5.73 — Vibe: univibe-familie + lichte vibrato (2026-09-25)
+- **`tp_mmb_vibe`** (`mmb_dsp/vibe.h`): vier fasedraai-trappen met de
+  univibe-condensatoren (15 nF, 220 nF, 470 pF, 4,7 nF), zodat de notches
+  wijd verspreid liggen; één lamp met LDR-traagheid (licht aan ~6 ms, uit
+  ~60 ms, helderheid ≈ stroom²) → de scheve, kloppende sweep. `lamp` regelt
+  hoeveel van dat karakter (0 = nette sinus). Modes Chorus (droog + nat),
+  Vibrato (alleen nat) en Light (zuivere vertragingslijn-vibrato 0,5–6 ms).
+  Speed/Intensity met CV. Mono in → stereo uit.
+- Solo ▾: DX7 + Vibe. `wasmNewFx.test.ts` 17 tests; contract 71 modules.
+- **Gemeten op de Teensy** (VCO A4 + Vibe, chorus-stand, 1,6 Hz): de
+  880-Hz-lijn golft een factor 11 op 1,7 Hz.
+
 ### fw 0.5.72 — Effectenbatch 2: harmonizer, plaat/veergalm, tremolo, stereo phaser (2026-09-25)
 - **Harmonizer** (`tp_mmb_harmonizer`, `mmb_dsp/pitch_shift.h`): twee stemmen
   met elk een twee-koppen-shifter (semi ±24, cents, V/Oct-ingang 1 V = 12 st),

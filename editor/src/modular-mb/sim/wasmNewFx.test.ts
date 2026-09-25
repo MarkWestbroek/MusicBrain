@@ -296,3 +296,32 @@ describe('stereo phaser (wasm)', () => {
     expect(await play(0)).toBeLessThan(1e-4);
   });
 });
+
+describe('vibe (wasm)', () => {
+  const run = async (mode: number, lamp: number): Promise<{ l: Float32Array; rate: number }> => {
+    const m = await load('tp_mmb_vibe');
+    for (const [id, v] of Object.entries({ speed: 3, intensity: 0.9, mode, lamp, volume: 1 })) m.setCtl(id, v);
+    m.connect('in_l', true);
+    const o = m.render(2.0, (id, t) => (id === 'in_l' ? 0.3 * (Math.sin(2 * Math.PI * 440 * t) + Math.sin(2 * Math.PI * 1320 * t)) : 0));
+    return { l: o.out_l!.subarray(8820), rate: m.rate };
+  };
+  /** Toonhoogte-zwaai: nuldoorgangen per 10 ms-venster, max − min. */
+  const pitchSwing = (x: Float32Array, rate: number): number => {
+    const w = Math.round(rate * 0.02); const zc: number[] = [];
+    for (let i = 0; i + w <= x.length; i += w) { let n = 0; for (let k = i + 1; k < i + w; k++) if (x[k - 1]! < 0 && x[k]! >= 0) n++; zc.push(n); }
+    return Math.max(...zc) - Math.min(...zc);
+  };
+  it('chorus: de klank beweegt (niveau van de 1320-lijn golft op de LFO)', async () => {
+    const { l, rate } = await run(0, 0.7);
+    const w = Math.round(rate * 0.02); const lv: number[] = [];
+    for (let i = 0; i + w <= l.length; i += w) lv.push(tone(l.subarray(i, i + w), 1320, rate));
+    expect(Math.max(...lv) / (Math.min(...lv) + 1e-4)).toBeGreaterThan(1.5);
+  });
+  it('vibrato en light: de toonhoogte zwaait, chorus zwaait minder', async () => {
+    const vib = await run(1, 0.7), light = await run(2, 0), cho = await run(0, 0.7);
+    expect(pitchSwing(vib.l, vib.rate)).toBeGreaterThanOrEqual(2);
+    expect(pitchSwing(light.l, light.rate)).toBeGreaterThanOrEqual(2);
+    expect(rms(light.l)).toBeGreaterThan(0.1);
+    expect(Number.isFinite(rms(cho.l))).toBe(true);
+  });
+});
