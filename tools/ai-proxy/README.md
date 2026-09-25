@@ -79,8 +79,15 @@ bewust niet).
    curl -s 127.0.0.1:8787/ai/health          # {"ok":true}
    ```
 
-   Draai `add-code` daarna als `www-data` met dezelfde omgeving:
-   `sudo -u www-data env $(sudo cat /etc/musicbrain-ai.env | xargs) node /srv/musicbrain-ai/server.mjs add-code "Naam" 200`.
+   Codes beheren (heeft de key niet nodig; `invites.json` staat naast het script):
+
+   ```bash
+   sudo -u www-data node /srv/musicbrain-ai/server.mjs add-code "Anna" 200
+   sudo -u www-data node /srv/musicbrain-ai/server.mjs list
+   sudo -u www-data node /srv/musicbrain-ai/server.mjs revoke Anna
+   ```
+
+   Intrekken werkt direct: de proxy leest `invites.json` bij elk verzoek.
 
 4. **Caddy** — in het blok `editor.musicbrain.nl` (repo-kopie in het
    Bitemporal-repo, `deploy/vps/Caddyfile`), vóór de `file_server`:
