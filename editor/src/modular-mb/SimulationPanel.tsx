@@ -7,7 +7,8 @@
 // ondersteunen — zie roadmap in Requirements.md §v0.3-simulatie.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useModularProject } from './store';
+import { useModularProject, updateProject, getProject } from './store';
+import { findPatchByBankProgram } from './recipe/classify';
 import { AudioEngine, type EngineStatus } from './sim/AudioEngine';
 import { getEngine } from './sim/engineSingleton';
 import {
@@ -128,9 +129,21 @@ export function SimulationPanel(): JSX.Element {
       if (e.kind === 'pitchBend') engine.pitchBend(e.value);
       if (e.kind === 'pressure')     engine.pressure(e.value);
       if (e.kind === 'polyPressure') engine.pressure(e.value, e.note);
+      // Bank select (CC 0) + program change kiezen een patch: map = bank,
+      // patch = program (ED-RC-8). Alleen CC 0 zonder voorafgaand program
+      // onthouden we; een program zonder bank zoekt in alle mappen.
+      if (e.kind === 'cc' && e.controller === 0) bankRef.current = e.value;
+      if (e.kind === 'program') {
+        const hit = findPatchByBankProgram(getProject(), bankRef.current, e.program);
+        if (hit && hit.id !== getProject().activePatchId) {
+          updateProject((p) => ({ ...p, activePatchId: hit.id, activeRackId: hit.rackIds[0] ?? p.activeRackId }), { forceCommit: true });
+        }
+        bankRef.current = null;
+      }
     });
     return () => { unsub(); };
   }, [engine, source]);
+  const bankRef = useRef<number | null>(null);
 
   // De actieve bron volgt de engine: draait hij, dan luistert de bron mee.
   // Dit hoort hier en niet in startAll(), want de bron kan ná ▶ Start

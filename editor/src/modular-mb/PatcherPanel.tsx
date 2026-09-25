@@ -62,8 +62,34 @@ export function PatcherPanel(): JSX.Element {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-        <span style={{ fontSize: 13, color: '#475569' }}>
-          Patch: <strong>{patch.name}</strong> &nbsp;·&nbsp; {patch.connections.length} verbindingen
+        <span style={{ fontSize: 13, color: '#475569', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          Patch:
+          {/* Wisselen zonder naar de Patches-tab te hoeven (ED-RC-8); gegroepeerd op map. */}
+          <select value={patch.id}
+                  onChange={(e) => updateProject((p) => {
+                    const x = p.patches.find((q) => q.id === e.target.value);
+                    return x ? { ...p, activePatchId: x.id, activeRackId: x.rackIds[0] ?? p.activeRackId } : p;
+                  })}
+                  style={{ fontSize: 13, fontWeight: 600, maxWidth: 360 }}
+                  title="Actieve patch wisselen">
+            {(() => {
+              const folders = new Map<string, Patch[]>();
+              for (const x of project.patches) {
+                const k = x.folder?.trim() || '(geen map)';
+                if (!folders.has(k)) folders.set(k, []);
+                folders.get(k)!.push(x);
+              }
+              const keys = [...folders.keys()].sort((a, b) => (a === '(geen map)' ? 1 : b === '(geen map)' ? -1 : a.localeCompare(b, 'nl')));
+              return keys.map((k) => (
+                <optgroup key={k} label={k}>
+                  {folders.get(k)!.sort((a, b) => a.name.localeCompare(b.name, 'nl')).map((x) => (
+                    <option key={x.id} value={x.id}>{x.name}</option>
+                  ))}
+                </optgroup>
+              ));
+            })()}
+          </select>
+          &nbsp;·&nbsp; {patch.connections.length} verbindingen
         </span>
         <button onClick={saveAsNewPatch} style={{ fontSize: 12, padding: '3px 10px' }}
           title="Bewaar deze patch als een nieuwe patch (kopie met nieuwe naam)">

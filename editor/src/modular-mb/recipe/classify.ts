@@ -117,6 +117,43 @@ export function comparePatches(p: ModularProject, by: SortBy, dir: 1 | -1 = 1): 
   };
 }
 
+// ── bank / program ──────────────────────────────────────────────────────
+//
+// Mappen zijn banken, patches programma's: bank = volgnummer van de map
+// (alfabetisch, "(geen map)" achteraan), program = expliciet programNumber
+// van de patch, anders de positie op naam binnen de map. MIDI bank select
+// (CC 0) + program change kiezen zo een patch in de editor/sim.
+
+export interface BankProgram { bank: number; program: number; bankName: string }
+
+export function bankPrograms(p: ModularProject): Map<string, BankProgram> {
+  const byFolder = new Map<string, Patch[]>();
+  for (const x of p.patches) {
+    const k = x.folder?.trim() || '(geen map)';
+    if (!byFolder.has(k)) byFolder.set(k, []);
+    byFolder.get(k)!.push(x);
+  }
+  const banks = [...byFolder.keys()].sort((a, b) => (a === '(geen map)' ? 1 : b === '(geen map)' ? -1 : a.localeCompare(b, 'nl')));
+  const out = new Map<string, BankProgram>();
+  banks.forEach((bankName, bank) => {
+    const list = [...byFolder.get(bankName)!].sort((a, b) => a.name.localeCompare(b.name, 'nl'));
+    const taken = new Set(list.map((x) => x.programNumber).filter((n): n is number => n !== undefined));
+    let next = 0;
+    for (const x of list) {
+      let program = x.programNumber;
+      if (program === undefined) { while (taken.has(next)) ++next; program = next++; }
+      out.set(x.id, { bank, program, bankName });
+    }
+  });
+  return out;
+}
+
+export function findPatchByBankProgram(p: ModularProject, bank: number | null, program: number): Patch | null {
+  const map = bankPrograms(p);
+  const hit = p.patches.find((x) => { const bp = map.get(x.id)!; return bp.program === program && (bank === null || bp.bank === bank); });
+  return hit ?? null;
+}
+
 /** Vul lege mappen met de familie (bijv. "Physical modelling"). */
 export function autoFolders(p: ModularProject, overwrite = false): ModularProject {
   return {

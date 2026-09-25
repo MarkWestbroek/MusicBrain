@@ -17,7 +17,8 @@ export type MidiEvent =
   | { kind: 'cc';        controller: number; value: number; }
   | { kind: 'pitchBend'; value: number; }   // 14-bit 0-16383 (8192 = centre)
   | { kind: 'pressure';  value: number; }   // channel aftertouch (0xD0), 0..127
-  | { kind: 'polyPressure'; note: number; value: number; };  // per toets (0xA0), 0..127
+  | { kind: 'polyPressure'; note: number; value: number; }   // per toets (0xA0), 0..127
+  | { kind: 'program';   program: number; };  // program change (0xC0), 0..127 — kiest een patch (ED-RC-8)
 
 export type MidiListener = (e: MidiEvent) => void;
 
@@ -355,6 +356,8 @@ export class WebMidiSource extends BaseSource {
       this.emit({ kind: 'polyPressure', note: d1, value: d2 });
     } else if (status === 0xb0) {
       this.emit({ kind: 'cc', controller: d1, value: d2 });
+    } else if (status === 0xc0) {
+      this.emit({ kind: 'program', program: d1 });
     } else if (status === 0xe0) {
       // Pitch bend: two 7-bit bytes → 14-bit unsigned (LSB first).
       this.emit({ kind: 'pitchBend', value: (d2 << 7) | d1 });

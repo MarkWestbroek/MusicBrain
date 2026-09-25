@@ -4,10 +4,11 @@ import { seedInternals, seedTestPatch, seedSamplerPolyPatch, SAMPLER_MASTER_FX }
 import { expandPatchConnections } from '../polyExpand';
 import { buildConfigPayload } from '../teensyLink';
 import { buildRecipe, validateOps } from './compile';
-import { analyzeProject, applyActions, mergeRacks, optimizeProject, rackDiff } from './optimize';
+import { analyzeProject, applyActions, diffPatches, mergeRacks, optimizeProject, rackDiff, type OptimizeAction } from './optimize';
 import { RecipeError } from './types';
 
 const base = () => seedInternals(emptyModularProject());
+const active = (p: ModularProject) => p.patches.find((x) => x.id === p.activePatchId)!;
 /** Fysieke racks mét modules (het lege "Mijn rack" van een nieuw project telt niet mee). */
 const physical = (p: ModularProject) => p.racks.filter((r) => r.kind !== 'internal' && r.slots.length > 0);
 const typeOf = (p: ModularProject, id: string) => p.modules.find((m) => m.id === id)!.typeId;
@@ -199,11 +200,13 @@ describe('analyzeProject / applyActions', () => {
     expect(plan.skipped.some((s) => /stemmental/.test(s.reason))).toBe(true);
     expect(plan.summary).toMatch(/1 racks samenvoegen/);
 
+    // De kopie van A is ook als patch identiek (zelfde recept): die wordt ontdubbeld.
+    expect(plan.actions.some((x) => x.kind === 'removePatch' && /Duplicaat/.test(x.label))).toBe(true);
     const r = applyActions(p, plan.actions);
     expect(physical(r.project).length).toBe(3);                    // A(+kopie), ladder, string
     expect(r.project.modules.some((m) => m.id === 'mod_los')).toBe(false);
     expect(r.project.patches.some((x) => x.id === 'patch_leeg')).toBe(false);
-    expect(r.project.patches.length).toBe(4);
+    expect(r.project.patches.length).toBe(3);                      // A, ladder, string (kopie weg)
     expect(r.project.activePatchId).toBeDefined();
     sane(r.project);
     // Idempotent: nog een keer analyseren geeft niets.
@@ -223,6 +226,48 @@ describe('analyzeProject / applyActions', () => {
     const p = seedTestPatch(base());
     const plan = analyzeProject(p);
     expect(plan.actions).toEqual([]);
+  });
+});
+
+describe('patches vergelijken en ontdubbelen', () => {
+  it('diffPatches: identiek, alleen knoppen anders, kabels anders', () => {
+    let p = buildRecipe(base(), { voices: 2, source: 'vco', bus: ['diode'] });
+    const a = p.activePatchId!;
+    // Exacte kopie op hetzelfde rack (zoals "Bewaar als…").
+    const copy = { ...JSON.parse(JSON.stringify(active(p))), id: 'patch_copy', name: 'kopie' };
+    p = { ...p, patches: [...p.patches, copy] };
+    expect(diffPatches(p, a, 'patch_copy')).toMatchObject({ identical: true, sameTopology: true, controls: [], onlyA: [], onlyB: [] });
+    // Knop anders → bijna-duplicaat met het verschil benoemd.
+    const vcf = Object.keys(copy.controlState).find((id) => typeOf(p, id) === 'tp_mmb_vcf')!;
+    const p2 = { ...p, patches: p.patches.map((x) => (x.id === 'patch_copy' ? { ...x, controlState: { ...x.controlState, [vcf]: { ...x.controlState[vcf], cutoff: 1200 } } } : x)) };
+    const d2 = diffPatches(p2, a, 'patch_copy');
+    expect(d2).toMatchObject({ identical: false, sameTopology: true });
+    expect(d2.controls).toEqual([{ module: 'VCF', control: 'cutoff', a: 800, b: 1200 }]);
+    // Kabel weg → topologie anders.
+    const p3 = { ...p, patches: p.patches.map((x) => (x.id === 'patch_copy' ? { ...x, connections: x.connections.slice(1) } : x)) };
+    const d3 = diffPatches(p3, a, 'patch_copy');
+    expect(d3.sameTopology).toBe(false);
+    expect(d3.onlyA.length).toBe(1);
+    // Op verschillende racks: vergelijking op type-niveau vindt identieke seeds.
+    const q = buildRecipe(buildRecipe(base(), { source: 'string' }), { source: 'string' });
+    expect(diffPatches(q, q.patches[0]!.id, q.patches[1]!.id).identical).toBe(true);
+  });
+
+  it('analyzeProject: duplicaat weg, bijna-duplicaat standaard uit', () => {
+    let p = buildRecipe(base(), { voices: 2, source: 'vco' });
+    const orig = active(p);
+    const dup = { ...JSON.parse(JSON.stringify(orig)), id: 'patch_dup', name: 'dup' };
+    const near = { ...JSON.parse(JSON.stringify(orig)), id: 'patch_near', name: 'near' };
+    const vca = Object.keys(orig.controlState).find((id) => typeOf(p, id) === 'tp_mmb_vca')!;
+    near.controlState[vca] = { ...near.controlState[vca], gain: 0.5 };
+    p = { ...p, patches: [...p.patches, dup, near] };
+    const plan = analyzeProject(p);
+    const removes = plan.actions.filter((x) => x.kind === 'removePatch') as (OptimizeAction & { patchId: string })[];
+    expect(removes.map((x) => [x.patchId, !!x.defaultOff])).toEqual([['patch_dup', false], ['patch_near', true]]);
+    expect(removes[1]!.detail).toMatch(/VCA\.gain: 0 ↔ 0\.5/);
+    const r = applyActions(p, plan.actions.filter((x) => !x.defaultOff));
+    expect(r.project.patches.map((x) => x.id).sort()).toEqual([orig.id, 'patch_near'].sort());
+    sane(r.project);
   });
 });
 

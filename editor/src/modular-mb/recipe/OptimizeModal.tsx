@@ -16,14 +16,21 @@ export function OptimizeModal(props: { open: boolean; onClose: () => void }): JS
     try { return { ok: true as const, plan: analyzeProject(project, { maxDiff }) }; }
     catch (e) { return { ok: false as const, error: e instanceof Error ? e.message : String(e) }; }
   }, [project, maxDiff]);
+  // Acties die standaard uit staan (bijna-duplicaten) tellen als "uit" tenzij aangevinkt.
+  const [on, setOn] = useState<Set<number>>(new Set());
+  const isOn = (i: number, a: OptimizeAction): boolean => (a.defaultOff ? on.has(i) : !off.has(i));
 
   if (!open) return null;
 
-  const chosen: OptimizeAction[] = plan.ok ? plan.plan.actions.filter((_, i) => !off.has(i)) : [];
+  const chosen: OptimizeAction[] = plan.ok ? plan.plan.actions.filter((a, i) => isOn(i, a)) : [];
   // Samenvoegingen hangen van elkaar af (gesimuleerd in volgorde); een
   // uitgezette merge maakt latere merges naar hetzelfde rack onzeker, dus
   // die zetten we mee uit.
   function toggle(i: number): void {
+    if (plan.ok && plan.plan.actions[i]!.defaultOff) {
+      setOn((prev) => { const n = new Set(prev); if (n.has(i)) n.delete(i); else n.add(i); return n; });
+      return;
+    }
     setOff((prev) => {
       const next = new Set(prev);
       if (next.has(i)) next.delete(i); else next.add(i);
@@ -80,8 +87,8 @@ export function OptimizeModal(props: { open: boolean; onClose: () => void }): JS
         {plan.ok && plan.plan.actions.length === 0 && <div style={{ color: '#065f46' }}>✓ Niets te optimaliseren.</div>}
         {plan.ok && plan.plan.actions.map((a, i) => (
           <label key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '6px 8px', borderRadius: 6,
-                                   background: off.has(i) ? '#f8fafc' : '#fefce8', marginBottom: 4, cursor: 'pointer' }}>
-            <input type="checkbox" checked={!off.has(i)} onChange={() => toggle(i)} style={{ marginTop: 3 }} />
+                                   background: isOn(i, a) ? '#fefce8' : '#f8fafc', marginBottom: 4, cursor: 'pointer' }}>
+            <input type="checkbox" checked={isOn(i, a)} onChange={() => toggle(i)} style={{ marginTop: 3 }} />
             <span>
               <span style={{ fontWeight: 600 }}>{a.label}</span>
               <span style={{ display: 'block', color: '#475569', fontSize: 12 }}>{a.detail}</span>

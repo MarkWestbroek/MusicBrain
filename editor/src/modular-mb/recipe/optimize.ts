@@ -19,7 +19,7 @@
 // één kant. Daarboven blijven racks apart — anders wordt alles één dik rack.
 // Verschillend stemmental (poly-groepen) = nooit samenvoegen.
 
-import type { ModularProject, ModuleInstance, PolyGroup, Rack, RackSlot } from '../types';
+import type { ModularProject, ModuleInstance, Patch, PolyGroup, Rack, RackSlot } from '../types';
 import { uid } from '../store';
 import { shortName } from './catalog';
 import { RecipeError } from './types';
@@ -29,11 +29,106 @@ export interface OptimizeOptions {
   maxDiff?: number;
 }
 
-export type OptimizeAction =
+export type OptimizeAction = (
   | { kind: 'removeRack';    rackId: string;    label: string; detail: string }
   | { kind: 'removeModules'; moduleIds: string[]; label: string; detail: string }
   | { kind: 'removePatch';   patchId: string;   label: string; detail: string }
-  | { kind: 'mergeRacks';    into: string; from: string; diff: number; label: string; detail: string };
+  | { kind: 'mergeRacks';    into: string; from: string; diff: number; label: string; detail: string }
+) & {
+  /** Staat in het rapport standaard uit (bijna-duplicaat: alleen knopstanden verschillen). */
+  defaultOff?: boolean;
+};
+
+// ── patches vergelijken / ontdubbelen ───────────────────────────────────
+
+export interface PatchDiff {
+  /** Kabels (type.poort → type.poort) die alleen in A of alleen in B liggen. */
+  onlyA: string[];
+  onlyB: string[];
+  /** Knopstanden die verschillen (module = korte naam, control-id, waarden). */
+  controls: { module: string; control: string; a: unknown; b: unknown }[];
+  /** Stemmental verschilt? */
+  voices: [number, number] | null;
+  /** Racks verschillen? (namen) */
+  racks: [string, string] | null;
+  /** Zelfde kabels én knopstanden én stemmen. */
+  identical: boolean;
+  /** Zelfde kabels en stemmen, alleen knopstanden anders. */
+  sameTopology: boolean;
+}
+
+/** Kabel-vingerafdruk op type-niveau; op een gedeeld rack ook op module-id. */
+function cableKeys(p: ModularProject, patch: Patch, byId: boolean): string[] {
+  const mods = modById(p);
+  const t = (id: string) => (byId ? id : mods.get(id)?.typeId ?? '?');
+  return patch.connections.map((c) => `${t(c.from.moduleId)}.${c.from.portId}>${t(c.to.moduleId)}.${c.to.portId}`).sort();
+}
+
+export function diffPatches(p: ModularProject, aId: string, bId: string): PatchDiff {
+  const A = p.patches.find((x) => x.id === aId), B = p.patches.find((x) => x.id === bId);
+  if (!A || !B) throw new RecipeError('Patch bestaat niet.');
+  const mods = modById(p);
+  const sharedRack = A.rackIds.some((r) => B.rackIds.includes(r));
+  const ka = cableKeys(p, A, sharedRack), kb = cableKeys(p, B, sharedRack);
+  const setA = new Set(ka), setB = new Set(kb);
+  const onlyA = ka.filter((k) => !setB.has(k)), onlyB = kb.filter((k) => !setA.has(k));
+  // Knopstanden: op een gedeeld rack per module-id; anders per (type, volgnummer)
+  // in dezelfde rij-volgorde — goed genoeg voor "welke knop staat anders".
+  const controls: PatchDiff['controls'] = [];
+  const label = (id: string) => shortName(mods.get(id)?.typeId ?? '?', p.moduleTypes);
+  const pairs: [string, string][] = [];
+  if (sharedRack) {
+    for (const id of new Set([...Object.keys(A.controlState), ...Object.keys(B.controlState)])) pairs.push([id, id]);
+  } else {
+    const order = (x: Patch) => p.racks.filter((r) => x.rackIds.includes(r.id)).flatMap((r) =>
+      [...r.slots].sort((s, t2) => s.row - t2.row || s.hpOffset - t2.hpOffset).map((s) => s.moduleId));
+    const oa = order(A), ob = order(B);
+    const used = new Set<string>();
+    for (const ida of oa) {
+      const ta = mods.get(ida)?.typeId;
+      const idb = ob.find((x) => !used.has(x) && mods.get(x)?.typeId === ta);
+      if (idb) { used.add(idb); pairs.push([ida, idb]); }
+    }
+  }
+  const num = (v: unknown) => (typeof v === 'number' ? Math.round(v * 1000) / 1000 : v);
+  for (const [ida, idb] of pairs) {
+    const ca = A.controlState[ida] ?? {}, cb = B.controlState[idb] ?? {};
+    for (const k of new Set([...Object.keys(ca), ...Object.keys(cb)])) {
+      if (JSON.stringify(num(ca[k])) !== JSON.stringify(num(cb[k]))) controls.push({ module: label(ida), control: k, a: ca[k], b: cb[k] });
+    }
+  }
+  const rackName = (x: Patch) => p.racks.filter((r) => x.rackIds.includes(r.id) && r.kind !== 'internal').map((r) => r.name).join('+') || '—';
+  const sameTopology = onlyA.length === 0 && onlyB.length === 0 && A.voiceCount === B.voiceCount;
+  return {
+    onlyA, onlyB, controls,
+    voices: A.voiceCount === B.voiceCount ? null : [A.voiceCount, B.voiceCount],
+    racks: rackName(A) === rackName(B) ? null : [rackName(A), rackName(B)],
+    identical: sameTopology && controls.length === 0,
+    sameTopology,
+  };
+}
+
+export interface DuplicatePair { keep: string; drop: string; diff: PatchDiff }
+
+/** Paren van patches met dezelfde kabels: identiek (verwijderbaar) of alleen knopstanden anders. */
+export function findDuplicatePatches(p: ModularProject): DuplicatePair[] {
+  const out: DuplicatePair[] = [];
+  const patches = p.patches.filter((x) => x.connections.length > 0);
+  const dropped = new Set<string>();
+  for (let i = 0; i < patches.length; ++i) {
+    const a = patches[i]!;
+    if (dropped.has(a.id)) continue;
+    for (let j = i + 1; j < patches.length; ++j) {
+      const b = patches[j]!;
+      if (dropped.has(b.id)) continue;
+      const d = diffPatches(p, a.id, b.id);
+      if (!d.sameTopology) continue;
+      out.push({ keep: a.id, drop: b.id, diff: d });
+      if (d.identical) dropped.add(b.id);
+    }
+  }
+  return out;
+}
 
 export interface OptimizePlan {
   actions: OptimizeAction[];
@@ -255,7 +350,21 @@ export function analyzeProject(project: ModularProject, opts: OptimizeOptions = 
       actions.push({ kind: 'removePatch', patchId: x.id, label: `Lege patch "${x.name}" verwijderen`, detail: 'Geen kabels.' });
     }
   }
-  p = applyActions(p, actions).project;
+  // Ontdubbelen: identiek = weg (de eerste blijft); alleen knopstanden anders
+  // = voorgesteld maar standaard uit, met de verschillen erbij.
+  const nameOf = (id: string) => p.patches.find((x) => x.id === id)?.name ?? id;
+  for (const d of findDuplicatePatches(p)) {
+    if (d.diff.identical) {
+      actions.push({ kind: 'removePatch', patchId: d.drop, label: `Duplicaat "${nameOf(d.drop)}" verwijderen`,
+        detail: `Identiek aan "${nameOf(d.keep)}": zelfde kabels, knopstanden en stemmen.` });
+    } else {
+      const diffs = d.diff.controls.slice(0, 6).map((c) => `${c.module}.${c.control}: ${String(c.a)} ↔ ${String(c.b)}`).join(', ');
+      actions.push({ kind: 'removePatch', patchId: d.drop, defaultOff: true,
+        label: `Bijna-duplicaat "${nameOf(d.drop)}" verwijderen?`,
+        detail: `Zelfde kabels als "${nameOf(d.keep)}", ${d.diff.controls.length} knop${d.diff.controls.length === 1 ? '' : 'pen'} anders: ${diffs}${d.diff.controls.length > 6 ? ', …' : ''}` });
+    }
+  }
+  p = applyActions(p, actions.filter((a) => !a.defaultOff)).project;
 
   // 2. Samenvoegen (gesimuleerd op de opgeruimde kopie, zodat volgende
   //    vergelijkingen het samengevoegde rack zien).

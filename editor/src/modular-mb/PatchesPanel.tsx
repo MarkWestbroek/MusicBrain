@@ -12,8 +12,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { canRedo, canUndo, redo, undo, updateProject, useModularProject, uid } from './store';
 import type { Patch } from './types';
 import { OptimizeModal } from './recipe/OptimizeModal';
+import { ComparePatchesModal } from './recipe/ComparePatchesModal';
 import {
-  autoFolders, classifyPatch, comparePatches, groupKey, type GroupBy, type SortBy,
+  autoFolders, bankPrograms, classifyPatch, comparePatches, groupKey, type GroupBy, type SortBy,
 } from './recipe/classify';
 
 const GROUPS: { id: GroupBy; label: string }[] = [
@@ -28,6 +29,8 @@ const SORTS: { id: SortBy; label: string }[] = [
 export function PatchesPanel(): JSX.Element {
   const project = useModularProject();
   const [showOptimize, setShowOptimize] = useState(false);   // ED-RC-7
+  const [showCompare, setShowCompare] = useState(false);     // ED-RC-8: twee patches naast elkaar
+  const banks = useMemo(() => bankPrograms(project), [project]);
   const [groupBy, setGroupBy] = useState<GroupBy>('folder');
   const [sortBy, setSortBy] = useState<SortBy>('name');
   const [dir, setDir] = useState<1 | -1>(1);
@@ -192,6 +195,9 @@ export function PatchesPanel(): JSX.Element {
           📁 Mappen automatisch
         </button>
         <OptimizeModal open={showOptimize} onClose={() => setShowOptimize(false)} />
+        <button onClick={() => setShowCompare(true)} style={{ fontSize: 13 }}
+          title="Twee patches naast elkaar: welke kabels en knopstanden verschillen">⇄ Vergelijk…</button>
+        {showCompare && <ComparePatchesModal open onClose={() => setShowCompare(false)} />}
         <button onClick={() => undo()} disabled={!canUndo()} style={{ fontSize: 13 }} title="Ongedaan maken (Ctrl+Z buiten een tekstveld)">↶</button>
         <button onClick={() => redo()} disabled={!canRedo()} style={{ fontSize: 13 }} title="Opnieuw (Ctrl+Y)">↷</button>
         <span style={{ flex: 1 }} />
@@ -230,7 +236,8 @@ export function PatchesPanel(): JSX.Element {
             {th('rack', 'Rack')}
             {th('cables', 'Kabels')}
             <th style={{ padding: '4px 8px' }} title="Bus-effecten aan een kabel">FX</th>
-            {th('program', 'Prog#', 'MIDI Program Change-nummer (0–127)')}
+            {th('program', 'Prog#', 'MIDI Program Change-nummer (0–127); leeg = automatisch op volgorde binnen de map')}
+            <th style={{ padding: '4px 8px', whiteSpace: 'nowrap' }} title="Map = bank (CC 0), patch = program change. Zo kiest een MIDI-keyboard een patch in de sim.">Bank:Prog</th>
             <th />
           </tr>
         </thead>
@@ -313,6 +320,10 @@ export function PatchesPanel(): JSX.Element {
                         }}
                         style={{ width: 52, fontSize: 13 }} />
                     </td>
+                    <td style={{ padding: '4px 8px', color: '#475569', fontFamily: 'var(--mb-font-mono)', fontSize: 12, whiteSpace: 'nowrap' }}
+                        title={`bank ${banks.get(x.id)?.bank} = map "${banks.get(x.id)?.bankName}"`}>
+                      {banks.get(x.id)?.bank}:{String(banks.get(x.id)?.program ?? 0).padStart(2, '0')}
+                    </td>
                     <td style={{ padding: '4px 8px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                       <button onClick={() => duplicatePatch(x.id)} style={{ fontSize: 11, marginRight: 4 }} title="Kopieer deze patch naar een nieuwe naam">⧉</button>
                       <button onClick={() => removePatch(x.id)} style={{ fontSize: 11 }}>×</button>
@@ -354,7 +365,7 @@ function GroupRows(props: {
             onDragOver={onDragOver ? (e) => { e.preventDefault(); onDragOver(); } : undefined}
             onDrop={onDrop ? (e) => { e.preventDefault(); onDrop(); } : undefined}
             title={onRename ? 'Klik: in-/uitklappen · dubbelklik: hernoemen · sleep patches hierheen' : undefined}>
-          <td colSpan={10} style={{ padding: '5px 8px', fontWeight: 600, color: '#0f172a', borderTop: '1px solid #e5e7eb' }}>
+          <td colSpan={11} style={{ padding: '5px 8px', fontWeight: 600, color: '#0f172a', borderTop: '1px solid #e5e7eb' }}>
             <span style={{ display: 'inline-block', width: 14, color: '#64748b' }}>{collapsed ? '▶' : '▼'}</span>
             {onRename ? '📁 ' : ''}{label} <span style={{ color: '#64748b', fontWeight: 400 }}>({count})</span>
           </td>

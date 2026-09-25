@@ -2,7 +2,26 @@ import { describe, it, expect } from 'vitest';
 import { emptyModularProject } from '../types';
 import { seedInternals, seedTestPatch, seedSamplerPolyPatch } from '../seedModules';
 import { buildRecipe } from './compile';
-import { autoFolders, classifyPatch, comparePatches, familyOf, groupKey } from './classify';
+import { autoFolders, bankPrograms, classifyPatch, comparePatches, familyOf, findPatchByBankProgram, groupKey } from './classify';
+
+describe('bank / program', () => {
+  it('map = bank (alfabetisch, geen map achteraan), program = expliciet of volgorde op naam', () => {
+    let p = buildRecipe(base(), { source: 'vco', name: 'B vco' });          // map VCO
+    p = buildRecipe(p, { source: 'vco', name: 'A vco' });                    // map VCO
+    p = buildRecipe(p, { source: 'string', name: 'snaar' });                 // map Physical modelling
+    p = buildRecipe(p, { source: 'dx7', name: 'los' });
+    p = { ...p, patches: p.patches.map((x, i) => (i === 3 ? { ...x, folder: undefined } : i === 0 ? { ...x, programNumber: 5 } : x)) };
+    const bp = bankPrograms(p);
+    const [bVco, aVco, snaar, los] = p.patches;
+    expect(bp.get(snaar!.id)).toEqual({ bank: 0, program: 0, bankName: 'Physical modelling' });
+    expect(bp.get(aVco!.id)).toEqual({ bank: 1, program: 0, bankName: 'VCO' });
+    expect(bp.get(bVco!.id)).toEqual({ bank: 1, program: 5, bankName: 'VCO' });   // expliciet
+    expect(bp.get(los!.id)).toEqual({ bank: 2, program: 0, bankName: '(geen map)' });
+    expect(findPatchByBankProgram(p, 1, 5)!.id).toBe(bVco!.id);
+    expect(findPatchByBankProgram(p, null, 5)!.id).toBe(bVco!.id);            // zonder bank: eerste treffer
+    expect(findPatchByBankProgram(p, 1, 9)).toBeNull();
+  });
+});
 
 const base = () => seedInternals(emptyModularProject());
 const active = (p: ReturnType<typeof base>) => p.patches.find((x) => x.id === p.activePatchId)!;

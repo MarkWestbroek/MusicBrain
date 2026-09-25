@@ -250,6 +250,22 @@ optimaliseren).
   gebruikte racks met + en ×.
 - Rack-tab: de rack-keuzelijst staat in twee groepen (in gebruik / zonder
   patch), op naam, met per rack het aantal patches en modules.
+- Slepen tussen mappen (greep ⋮⋮, dropzones op kop en rijen, zone voor een
+  nieuwe map, dubbelklik hernoemt); het map-veld verdwijnt bij groeperen
+  op map. De sortering bevriest tijdens het typen van een naam.
+- **Ontdubbelen** (in "Optimaliseer racks…"): `diffPatches` vergelijkt twee
+  patches op kabels (op module-id bij een gedeeld rack, anders op type),
+  knopstanden en stemmen. Identiek = verwijderen (de eerste blijft);
+  alleen knopstanden anders = voorgesteld maar standaard uit, met de
+  verschillen erbij. "⇄ Vergelijk…" toont het verschil tussen twee
+  gekozen patches (B standaard = meest gelijkend).
+- Patch wisselen in de Patcher-kop (select, gegroepeerd op map).
+- **Bank/program**: map = bank (alfabetisch, "(geen map)" achteraan),
+  program = expliciet `programNumber` of de positie op naam in de map;
+  kolom "Bank:Prog". MIDI bank select (CC 0) + program change kiezen de
+  actieve patch in de editor/sim (`MidiSource` kent nu 'program'). Op de
+  Teensy kan dat nog niet: de push stuurt alleen de actieve patch (96 KB
+  lijnbuffer), dus patch wisselen op de hardware = opnieuw pushen.
 
 ## Bevinding 2026-09-25: "worklet-processor gecrasht" = wasm-geheugen op
 
