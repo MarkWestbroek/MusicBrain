@@ -55,6 +55,14 @@
   modules, die van de actieve patch eerst, en bij een PolyGroup alle
   stemmen. Morph-WT: USER-frames werken nu ook in de simulator
   (`morphwt_wasm.cc` blob-slot = frame, zoals `wslot` op de Teensy).
+- **Wavetable-import (editor):** knop "📂 .wav wavetable" in de tekenmodal:
+  een Serum-stijl bestand (frames van 2048 samples achter elkaar, of 256,
+  of één cyclus) wordt in acht gelijk verdeelde frames geknipt, elk naar
+  256 punten herbemonsterd en in USER-frame 0..7 van de Morph-WT gezet —
+  in de sim via blob-slots, op de Teensy via `wslot`-poke + `wavetable`
+  per frame. Bank op Usr, Morph draaien. Draw-VCO krijgt het eerste frame.
+  Daarmee is de wavetable-hoek eindelijk gevuld: WT-VCO (6 vaste banken),
+  Morph-WT (4 banken + USER, morph-CV) en eigen tabellen uit een bestand.
 
 ### wasm — 8 MB per instantie was de "worklet-processor gecrasht" (2026-09-25)
 - **Oorzaak** (bevinding in `doc/plans/patch-recept.md`): `build.sh` gaf elke

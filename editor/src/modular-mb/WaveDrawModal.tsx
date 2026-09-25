@@ -9,7 +9,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useModularProject } from './store';
-import { sendWaveform, isConnected } from './teensyLink';
+import { sendWaveform, sendControlPoke, isConnected } from './teensyLink';
 import { WasmModule } from './runtime';
 
 const N = 256;                     // samples per cycle (firmware-resolutie)
@@ -29,6 +29,35 @@ function makeShape(shape: Shape): Float32Array {
     }
   }
   return w;
+}
+
+/** Minimale WAV-lezer: PCM 8/16/24/32-bit of 32-bit float, n kanalen → mono. */
+function decodeWav(buf: ArrayBuffer): Float32Array | null {
+  const dv = new DataView(buf);
+  if (buf.byteLength < 44 || dv.getUint32(0, false) !== 0x52494646 || dv.getUint32(8, false) !== 0x57415645) return null;
+  let p = 12, fmt = 0, ch = 1, bits = 16, data: [number, number] | null = null;
+  while (p + 8 <= buf.byteLength) {
+    const id = dv.getUint32(p, false), len = dv.getUint32(p + 4, true);
+    if (id === 0x666d7420) { fmt = dv.getUint16(p + 8, true); ch = dv.getUint16(p + 10, true); bits = dv.getUint16(p + 22, true); }
+    if (id === 0x64617461) { data = [p + 8, Math.min(len, buf.byteLength - p - 8)]; break; }
+    p += 8 + len + (len & 1);
+  }
+  if (!data || (fmt !== 1 && fmt !== 3 && fmt !== 0xfffe)) return null;
+  const bytes = bits / 8, frames = Math.floor(data[1] / (bytes * ch));
+  const out = new Float32Array(frames);
+  for (let i = 0; i < frames; i++) {
+    let s = 0;
+    for (let c = 0; c < ch; c++) {
+      const o = data[0] + (i * ch + c) * bytes;
+      if (fmt === 3 || (fmt === 0xfffe && bits === 32)) s += dv.getFloat32(o, true);
+      else if (bits === 8)  s += (dv.getUint8(o) - 128) / 128;
+      else if (bits === 16) s += dv.getInt16(o, true) / 32768;
+      else if (bits === 24) s += ((dv.getUint8(o) | (dv.getUint8(o + 1) << 8) | (dv.getInt8(o + 2) << 16)) / 8388608);
+      else if (bits === 32) s += dv.getInt32(o, true) / 2147483648;
+    }
+    out[i] = s / ch;
+  }
+  return out;
 }
 
 export function WaveDrawModal({ open, onClose }: { open: boolean; onClose: () => void }): JSX.Element | null {
@@ -150,6 +179,49 @@ export function WaveDrawModal({ open, onClose }: { open: boolean; onClose: () =>
     schedulePush();
   }
 
+  // ── wavetable-bestand (.wav) ─────────────────────────────────────────
+  // Serum-stijl: één mono .wav met frames van 2048 samples achter elkaar
+  // (of 256, of één cyclus). We nemen acht frames gelijk verdeeld over het
+  // bestand, herbemonsteren elk naar 256 punten en zetten ze in USER-frame
+  // 0..7 van de Morph-WT (sim + Teensy, per frame via `wslot`). Een Draw-VCO
+  // krijgt alleen het eerste frame.
+  const fileRef = useRef<HTMLInputElement>(null);
+  async function importWav(file: File): Promise<void> {
+    if (!target) return;
+    const mono = decodeWav(await file.arrayBuffer());
+    if (!mono || mono.length < 16) { setPushed('geen leesbare .wav (PCM 16/24/32-bit of float)'); return; }
+    const frameLen = mono.length % 2048 === 0 ? 2048 : mono.length % 256 === 0 ? 256 : mono.length;
+    const nFrames = Math.max(1, Math.floor(mono.length / frameLen));
+    const frames: Int16Array[] = [];
+    const want = target.typeId === 'tp_mmb_morph_wt' ? 8 : 1;
+    for (let k = 0; k < want; k++) {
+      const fi = nFrames === 1 ? 0 : Math.round((k / (want - 1 || 1)) * (nFrames - 1));
+      const src = mono.subarray(fi * frameLen, (fi + 1) * frameLen);
+      const out = new Float32Array(N);
+      let mx = 1e-6;
+      for (let i = 0; i < N; i++) {
+        const p = (i / N) * frameLen, i0 = Math.floor(p), f = p - i0;
+        out[i] = src[i0 % frameLen]! * (1 - f) + src[(i0 + 1) % frameLen]! * f;
+        mx = Math.max(mx, Math.abs(out[i]!));
+      }
+      frames.push(Int16Array.from(out, (v) => Math.round((v / mx) * 32767)));
+    }
+    // Laatste frame op het canvas, zodat je ziet wat er in ging.
+    waveRef.current.set(Float32Array.from(frames[frames.length - 1]!, (v) => v / 32767));
+    forceRender((n) => n + 1); redraw();
+    for (const id of targetIds) frames.forEach((fr, k) => WasmModule.setInstanceBlob(id, k, fr));
+    if (isConnected()) {
+      for (const id of targetIds) {
+        for (let k = 0; k < frames.length; k++) {
+          if (frames.length > 1) await sendControlPoke(id, 'wslot', k);
+          await sendWaveform(id, Array.from(frames[k]!));
+        }
+        if (frames.length > 1) await sendControlPoke(id, 'wslot', wslot);   // knop terug
+      }
+    }
+    setPushed(`📂 ${file.name}: ${nFrames} frame${nFrames === 1 ? '' : 's'} van ${frameLen} → ${frames.length} USER-frame${frames.length === 1 ? '' : 's'} → ${target.name}${targetIds.length > 1 ? ` ×${targetIds.length}` : ''}`);
+  }
+
   const btn: React.CSSProperties = {
     border: '1px solid #cbd2d9', borderRadius: 4, background: '#f8fafc',
     padding: '4px 10px', cursor: 'pointer', fontSize: 12,
@@ -189,6 +261,11 @@ export function WaveDrawModal({ open, onClose }: { open: boolean; onClose: () =>
             <button key={s} style={btn}
               onClick={() => apply((w) => { w.set(makeShape(s)); })}>{s}</button>
           ))}
+          <input ref={fileRef} type="file" accept=".wav,audio/wav" style={{ display: 'none' }}
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) void importWav(f); e.target.value = ''; }} />
+          <button style={btn} disabled={!target}
+            title="Wavetable-bestand (.wav, Serum-stijl: frames van 2048 samples achter elkaar, of één cyclus). Morph-WT: acht frames gelijk verdeeld over het bestand naar USER-frame 0..7 — zet Bank op Usr en draai Morph. Draw-VCO: het eerste frame."
+            onClick={() => fileRef.current?.click()}>📂 .wav wavetable</button>
           <button style={btn} title="3-taps moving average (herhaalbaar)"
             onClick={() => apply((w) => {
               const c = Float32Array.from(w);
