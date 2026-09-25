@@ -398,6 +398,155 @@ function stereoToMono(p0: ModularProject, old: ModuleInstance, oldT: ModuleType,
   return { project: p, warnings, summary: `${shortName(oldT.id, p.moduleTypes)} (stereo) → ${shortName(newT.id, p.moduleTypes)} als L/R-paar.` };
 }
 
+// ── verplaatsen in het rack ─────────────────────────────────────────────
+
+export type MoveRelation = 'before' | 'after' | 'swap';
+
+/**
+ * Verplaats een module in het rack: vóór of na een andere module, of wissel
+ * ze om. Werkt op de volgorde in de rij; de rij wordt daarna aaneengesloten
+ * gepakt vanaf zijn eerste positie. Leden van een poly-groep verhuizen als
+ * kolom: de followers nemen de positie van hun master over.
+ */
+export function moveModule(project: ModularProject, patchId: string, moduleId: string, relation: MoveRelation, targetId: string): EditResult {
+  let p = project;
+  if (moduleId === targetId) throw new RecipeError('Module en doel zijn dezelfde.');
+  const master = (id: string) => { const g = groupOf(p, id); return g ? (g.group.members[0] as { moduleId: string }).moduleId : id; };
+  const a = master(moduleId), b = master(targetId);
+  const la = slotOf(p, a), lb = slotOf(p, b);
+  if (!la || !lb) throw new RecipeError('Module staat niet in een rack.');
+  if (la.rack.id !== lb.rack.id) throw new RecipeError('Verplaatsen kan alleen binnen één rack.');
+  const rack = la.rack;
+  const width = (id: string) => p.modules.find((m) => m.id === id)?.visual.hpWidth ?? 0;
+  const rowOf = (row: number) => rack.slots.filter((s) => s.row === row).sort((x, y) => x.hpOffset - y.hpOffset);
+
+  const newPos = new Map<string, { row: number; hpOffset: number }>();
+  const pack = (row: number, order: RackSlot[], start: number) => {
+    let off = start;
+    for (const s of order) { newPos.set(s.id, { row, hpOffset: off }); off += width(s.moduleId); }
+  };
+  if (relation === 'swap' && la.slot.row !== lb.slot.row) {
+    // Andere rijen: plaatsen uitwisselen, beide rijen opnieuw pakken.
+    for (const [row, out, inn] of [[la.slot.row, la.slot, lb.slot], [lb.slot.row, lb.slot, la.slot]] as const) {
+      const order = rowOf(row).map((s) => (s.id === out.id ? inn : s));
+      pack(row, order, Math.min(...rowOf(row).map((s) => s.hpOffset)));
+    }
+  } else {
+    const row = lb.slot.row;
+    const src = rowOf(la.slot.row).filter((s) => s.id !== la.slot.id);
+    let order = la.slot.row === row ? src : rowOf(row);
+    if (relation === 'swap') {
+      order = rowOf(row).map((s) => (s.id === la.slot.id ? lb.slot : s.id === lb.slot.id ? la.slot : s));
+    } else {
+      const i = order.findIndex((s) => s.id === lb.slot.id);
+      order = [...order.slice(0, relation === 'before' ? i : i + 1), la.slot, ...order.slice(relation === 'before' ? i : i + 1)];
+    }
+    const start = Math.min(...rowOf(row).map((s) => s.hpOffset), la.slot.row === row ? la.slot.hpOffset : Infinity);
+    pack(row, order, start);
+    if (la.slot.row !== row) pack(la.slot.row, src, Math.min(...rowOf(la.slot.row).map((s) => s.hpOffset)));
+  }
+  p = withRack(p, rack.id, (r) => {
+    let slots = r.slots.map((s) => (newPos.has(s.id) ? { ...s, ...newPos.get(s.id)! } : s));
+    // Followers recht onder hun master.
+    for (const g of r.polyGroups ?? []) {
+      const m0 = g.members[0]; if (!m0 || m0.kind !== 'module') continue;
+      const ms = slots.find((s) => s.moduleId === m0.moduleId); if (!ms) continue;
+      slots = slots.map((s) => (g.members.slice(1).some((m) => m.kind === 'module' && m.moduleId === s.moduleId) ? { ...s, hpOffset: ms.hpOffset } : s));
+    }
+    const end = Math.max(r.hpPerRow, ...slots.map((s) => s.hpOffset + width(s.moduleId) + 2));
+    return { ...r, slots, hpPerRow: end };
+  });
+  void patchId;
+  const n = (id: string) => shortName(moduleOf(p, id).typeId, p.moduleTypes);
+  const word = relation === 'swap' ? 'omgewisseld met' : relation === 'before' ? 'vóór' : 'na';
+  return { project: p, warnings: [], summary: `${n(a)} ${word} ${n(b)} in het rack.` };
+}
+
+// ── weghalen ────────────────────────────────────────────────────────────
+
+/**
+ * Haal een module uit de patch. Zit hij in het audiopad (mono of stereo in
+ * én uit), dan worden zijn audiovoeders doorverbonden met zijn afnemers
+ * (bypass): VCA eruit = bron gaat rechtstreeks naar wat na de VCA kwam.
+ * Cv-kabels van en naar de module vervallen. Een lid van een poly-groep
+ * neemt de hele groep mee. De module blijft in het rack staan als andere
+ * patches hem gebruiken; anders gaat hij ook uit het rack.
+ */
+export function removeModule(project: ModularProject, patchId: string, moduleId: string): EditResult {
+  let p = project;
+  const patch = patchOf(p, patchId);
+  const mod = moduleOf(p, moduleId);
+  const t = typeOf(p, mod.typeId);
+  const g = groupOf(p, moduleId);
+  const targets = g ? g.group.members.flatMap((m) => (m.kind === 'module' ? [m.moduleId] : [])) : [moduleId];
+  const r = portRoles(t);
+  const pairs: [string | undefined, string | undefined][] = [[r.audioIn.mono, r.audioOut.mono], [r.audioIn.left, r.audioOut.left], [r.audioIn.right, r.audioOut.right]];
+  const added: PatchConnection[] = [];
+  let bypassed = 0;
+  for (const id of targets) {
+    for (const [inP, outP] of pairs) {
+      if (!inP || !outP) continue;
+      const feeders = patch.connections.filter((c) => c.to.moduleId === id && c.to.portId === inP);
+      const sinks = patch.connections.filter((c) => c.from.moduleId === id && c.from.portId === outP);
+      for (const f of feeders) for (const s of sinks) {
+        if (targets.includes(s.to.moduleId) || targets.includes(f.from.moduleId)) continue;
+        added.push({ id: uid('conn'), from: f.from, to: s.to });
+        bypassed++;
+      }
+    }
+  }
+  // Modulatie die alleen deze module stuurde (envelope → CvMath → VCA) gaat
+  // mee: stroomopwaarts, zolang een module daarna nergens meer heen voedt.
+  const orphaned: string[] = [];
+  {
+    let conns = patch.connections.filter((c) => !targets.includes(c.from.moduleId) && !targets.includes(c.to.moduleId));
+    const gone = new Set(targets);
+    let queue = patch.connections.filter((c) => targets.includes(c.to.moduleId) && !targets.includes(c.from.moduleId)).map((c) => c.from.moduleId);
+    while (queue.length) {
+      const id = queue.shift()!;
+      if (gone.has(id)) continue;
+      const m = p.modules.find((x) => x.id === id);
+      const tt = m && p.moduleTypes.find((x) => x.id === m.typeId);
+      if (!tt || tt.role === 'event-source' || tt.id === 'tp_mmb_out') continue;
+      if (conns.some((c) => c.from.moduleId === id) || added.some((c) => c.from.moduleId === id)) continue;
+      const grp = groupOf(p, id);
+      const ids = grp ? grp.group.members.flatMap((mm) => (mm.kind === 'module' ? [mm.moduleId] : [])) : [id];
+      for (const x of ids) { gone.add(x); orphaned.push(x); }
+      queue = [...queue, ...conns.filter((c) => ids.includes(c.to.moduleId)).map((c) => c.from.moduleId)];
+      conns = conns.filter((c) => !ids.includes(c.from.moduleId) && !ids.includes(c.to.moduleId));
+    }
+    targets.push(...orphaned);
+  }
+  const touches = (c: PatchConnection) => targets.includes(c.from.moduleId) || targets.includes(c.to.moduleId);
+  const dup = (c: PatchConnection, list: PatchConnection[]) => list.some((x) => x.from.moduleId === c.from.moduleId && x.from.portId === c.from.portId && x.to.moduleId === c.to.moduleId && x.to.portId === c.to.portId);
+  p = withPatch(p, patchId, (x) => {
+    const kept = x.connections.filter((c) => !touches(c));
+    const cs = { ...x.controlState }; for (const id of targets) delete cs[id];
+    return { ...x, connections: [...kept, ...added.filter((c) => !dup(c, kept))], controlState: cs };
+  });
+  // Nog in gebruik door een andere patch? Dan blijft hij in het rack.
+  const usedElsewhere = p.patches.some((x) => x.id !== patchId && x.connections.some(touches));
+  if (!usedElsewhere) {
+    p = {
+      ...p,
+      modules: p.modules.filter((m) => !targets.includes(m.id)),
+      racks: p.racks.map((rk) => ({
+        ...rk,
+        slots: rk.slots.filter((s) => !targets.includes(s.moduleId)),
+        polyGroups: (rk.polyGroups ?? []).filter((pg) => !pg.members.some((m) => targets.includes(m.moduleId))),
+      })),
+    };
+  }
+  const name = shortName(mod.typeId, p.moduleTypes);
+  const alsoTypes = [...new Set(orphaned.map((id) => shortName(project.modules.find((m) => m.id === id)!.typeId, p.moduleTypes)))];
+  const own = targets.length - orphaned.length;
+  return {
+    project: p, warnings: usedElsewhere ? [`${name} blijft in het rack: een andere patch gebruikt hem.`] : [],
+    summary: `${name}${own > 1 ? ` (×${own})` : ''} weggehaald${bypassed ? `, audio doorverbonden` : ''}`
+      + (alsoTypes.length ? `; ook weg (stuurden alleen deze module): ${alsoTypes.join(', ')}` : '') + '.',
+  };
+}
+
 // ── setVoices ───────────────────────────────────────────────────────────
 
 /** Is dit een module die stemmen samenvoegt (mixer / poly-to-mono)? */

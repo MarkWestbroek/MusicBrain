@@ -81,6 +81,14 @@ export const TOOLS: ToolDef[] = [
       source: { type: 'string', enum: ['tp_mmb_lfo', 'tp_mmb_ahdsr'], description: 'lfo (globaal) of ahdsr (per stem, met MIDI-gate).' },
       target: { type: 'string' }, port: { type: 'string' },
     }, required: ['source', 'target'] } },
+  { name: 'move_module', mutating: true,
+    description: 'Verplaats een module in het rack (alleen de weergave; aan het geluid verandert niets): vóór of na een andere module, of wissel ze om. "module" en "target" zijn een module-id of woord (vibe, out, osc). Poly-groepen verhuizen als kolom.',
+    inputSchema: { type: 'object', properties: {
+      module: { type: 'string' }, relation: { type: 'string', enum: ['before', 'after', 'swap'] }, target: { type: 'string' },
+    }, required: ['module', 'relation', 'target'] } },
+  { name: 'remove_module', mutating: true,
+    description: 'Haal een module uit de actieve patch. Zit hij in het audiopad, dan wordt de audio doorverbonden (VCA eruit = bron rechtstreeks naar de mixer). Envelopes/CV-math die alleen deze module stuurden gaan mee. Gebruik dit in plaats van de patch opnieuw te bouwen.',
+    inputSchema: { type: 'object', properties: { module: { type: 'string' } }, required: ['module'] } },
   { name: 'analyze_racks', mutating: false,
     description: 'Rapport van wat "optimaliseer racks" zou doen: racks zonder patch, losse modules, lege patches, en welke (bijna) identieke racks samengevoegd kunnen worden. Bouwt niets.',
     inputSchema: { type: 'object', properties: { maxDiff: { type: 'integer', minimum: 0, maximum: 16, description: 'Max. afwijkende modules aan één kant om nog samen te voegen (default 2).' } } } },
@@ -188,6 +196,12 @@ export function commandForTool(name: string, args: Record<string, unknown>): Com
     }
     case 'replace_module':  return { kind: 'replace', from: str('from'), to: str('to') };
     case 'add_bus_fx':      return { kind: 'addBus', module: str('module') };
+    case 'move_module': {
+      const rel = str('relation');
+      if (!['before', 'after', 'swap'].includes(rel)) throw new RecipeError('move_module: relation moet before, after of swap zijn.');
+      return { kind: 'move', module: str('module'), relation: rel as 'before' | 'after' | 'swap', target: str('target') };
+    }
+    case 'remove_module':   return { kind: 'remove', module: str('module') };
     case 'add_modulation':  return { kind: 'addModulation', source: str('source'), target: str('target'),
                                      port: typeof args.port === 'string' && args.port.trim() ? args.port.trim() : null };
     default: return null;

@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { updateProject, useModularProject } from '../store';
 import { resolvePorts } from '../types';
 import { kindOf, shortName, type ModuleKindTag } from './catalog';
-import { replaceModule, setVoices, addBusFx, addModulation, type EditResult } from './edits';
+import { replaceModule, setVoices, addBusFx, addModulation, removeModule, type EditResult } from './edits';
 
 export interface MenuAnchor { x: number; y: number; moduleId: string | null }
 
@@ -70,6 +70,7 @@ export function RecipeContextMenu(props: {
       }
     }
     if (m.typeId === 'tp_mmb_out') out.push({ label: 'Bus-effect vóór OUT', sub: fxItems() });
+    else out.push({ label: `Verwijder ${shortName(m.typeId, types)} (audio doorverbinden)`, run: () => removeModule(p, patchId, m.id) });
     out.push(voiceItems);
     return out;
   }, [project, anchor.moduleId, patchId]);

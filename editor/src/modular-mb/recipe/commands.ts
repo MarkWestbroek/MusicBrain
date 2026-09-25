@@ -5,7 +5,7 @@
 import { resolvePorts, type ModularProject } from '../types';
 import { compileRecipe, buildRecipe } from './compile';
 import {
-  replaceModule, setVoices, addBusFx, addModulation, findModuleByWord, findPortByWord, type EditResult,
+  replaceModule, setVoices, addBusFx, addModulation, moveModule, removeModule, findModuleByWord, findPortByWord, type EditResult,
 } from './edits';
 import type { Command } from './parse';
 import { RecipeError } from './types';
@@ -30,6 +30,19 @@ export function runCommand(p: ModularProject, cmd: Command): EditResult {
       return replaceModule(p, pid, m.id, cmd.to);
     }
     case 'addBus': return addBusFx(p, needPatch(), cmd.module);
+    case 'move': {
+      const pid = needPatch();
+      const a = findModuleByWord(p, pid, cmd.module), b = findModuleByWord(p, pid, cmd.target);
+      if (!a) throw new RecipeError(`Geen module "${cmd.module}" in deze patch.`);
+      if (!b) throw new RecipeError(`Geen module "${cmd.target}" in deze patch.`);
+      return moveModule(p, pid, a.id, cmd.relation, b.id);
+    }
+    case 'remove': {
+      const pid = needPatch();
+      const m = findModuleByWord(p, pid, cmd.module);
+      if (!m) throw new RecipeError(`Geen module "${cmd.module}" in deze patch.`);
+      return removeModule(p, pid, m.id);
+    }
     case 'addModulation': {
       const pid = needPatch();
       const m = findModuleByWord(p, pid, cmd.target);

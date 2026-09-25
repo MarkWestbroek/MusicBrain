@@ -23,7 +23,9 @@ export type Command =
   | { kind: 'voices'; voices: number }
   | { kind: 'replace'; from: string; to: string }
   | { kind: 'addBus'; module: string }
-  | { kind: 'addModulation'; source: string; target: string; port: string | null };
+  | { kind: 'addModulation'; source: string; target: string; port: string | null }
+  | { kind: 'move'; module: string; relation: 'before' | 'after' | 'swap'; target: string }
+  | { kind: 'remove'; module: string };
 
 export interface ParseResult {
   command: Command;
@@ -67,6 +69,15 @@ function parseVoices(t: string): number | null {
 
 function parseEdit(t: string): Command | null {
   let m: RegExpExecArray | null;
+  // "wissel de vibe en de out om" / "swap vibe and out"
+  m = /^(?:wissel|verwissel|swap)\s+(?:de\s+|het\s+|the\s+)?(.+?)\s+(?:en|and|met|with)\s+(?:de\s+|het\s+|the\s+)?(.+?)(?:\s+om)?(?:\s+(?:in het rack|van plaats))?$/.exec(t);
+  if (m) return { kind: 'move', module: m[1]!.trim(), relation: 'swap', target: m[2]!.trim() };
+  // "zet de vibe voor de out" / "verplaats de out naar achter de vibe" / "move vibe before out"
+  m = /^(?:zet|verplaats|schuif|move|put)\s+(?:de\s+|het\s+|the\s+)?(.+?)\s+(?:naar\s+)?(voor|vóór|before|in front of|na|achter|after|behind)\s+(?:de\s+|het\s+|the\s+)?(.+?)(?:\s+in het rack)?$/.exec(t);
+  if (m) return { kind: 'move', module: m[1]!.trim(), relation: /^(voor|vóór|before|in front of)$/.test(m[2]!) ? 'before' : 'after', target: m[3]!.trim() };
+  // "haal de vca weg" / "verwijder de envelope" / "remove the vca"
+  m = /^(?:haal|verwijder|remove|delete|schrap)\s+(?:de\s+|het\s+|the\s+|een\s+|a\s+)?(.+?)(?:\s+(?:weg|eruit|uit de patch))?$/.exec(t);
+  if (m && !/^(?:alle|all)\b/.test(m[1]!)) return { kind: 'remove', module: m[1]!.trim() };
   m = /^(?:vervang|verwissel|wissel|replace|swap|change)\s+(?:de\s+|het\s+|the\s+|een\s+)?(.+?)\s+(?:door|met|by|with|for|in|to|voor)\s+(?:een\s+|a\s+|an\s+)?(.+?)$/.exec(t);
   if (m) return { kind: 'replace', from: m[1]!.trim(), to: m[2]!.trim() };
 
@@ -219,6 +230,8 @@ export function describeCommand(c: Command, types: ModuleType[]): string {
     case 'replace': return `Vervang "${nice(c.from)}" door ${nice(c.to)}`;
     case 'addBus':  return `Zet ${nice(c.module)} op de bus vóór OUT`;
     case 'addModulation': return `Hang een ${nice(c.source)} aan ${nice(c.target)}${c.port ? `.${c.port}` : ''}`;
+    case 'move': return c.relation === 'swap' ? `Wissel ${nice(c.module)} en ${nice(c.target)} om in het rack` : `Zet ${nice(c.module)} ${c.relation === 'before' ? 'vóór' : 'na'} ${nice(c.target)} in het rack`;
+    case 'remove': return `Haal ${nice(c.module)} weg (audio wordt doorverbonden)`;
   }
 }
 

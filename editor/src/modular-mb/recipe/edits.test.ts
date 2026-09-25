@@ -4,9 +4,10 @@ import { seedInternals, seedTestPatch } from '../seedModules';
 import { expandPatchConnections } from '../polyExpand';
 import { buildRecipe, validateOps } from './compile';
 import {
-  replaceModule, setVoices, addBusFx, addModulation, findVoiceChain, findModuleByWord, findPortByWord,
+  replaceModule, setVoices, addBusFx, addModulation, moveModule, removeModule, findVoiceChain, findModuleByWord, findPortByWord,
 } from './edits';
 import { RecipeError } from './types';
+import { parseCommand } from './parse';
 
 const base = () => seedInternals(emptyModularProject());
 const active = (p: ModularProject) => p.patches.find((x) => x.id === p.activePatchId)!;
@@ -114,6 +115,55 @@ describe('replaceModule', () => {
     const vco = findModuleByWord(p0, active(p0).id, 'vco')!;
     expect(() => replaceModule(p0, active(p0).id, vco.id, 'vco')).toThrowError(RecipeError);
     expect(() => replaceModule(p0, active(p0).id, vco.id, 'theremin')).toThrowError(/Onbekende module/);
+  });
+});
+
+describe('moveModule en removeModule', () => {
+  const rowOrder = (p: ModularProject) => rackOf(p).slots.filter((s) => s.row === 0).sort((a, b) => a.hpOffset - b.hpOffset).map((s) => typeOf(p, s.moduleId));
+  it('vibe en out omwisselen; poly-kolom verhuist mee; kabels blijven gelijk', () => {
+    const p0 = buildRecipe(base(), { voices: 4, source: 'vco', bus: ['vibe'] });
+    const pid = active(p0).id;
+    const before = rowOrder(p0);
+    expect(before.indexOf('tp_mmb_out')).toBeLessThan(before.indexOf('tp_mmb_vibe'));
+    const r = moveModule(p0, pid, findModuleByWord(p0, pid, 'vibe')!.id, 'swap', findModuleByWord(p0, pid, 'out')!.id);
+    const after = rowOrder(r.project);
+    expect(after.indexOf('tp_mmb_vibe')).toBeLessThan(after.indexOf('tp_mmb_out'));
+    expect(edges(r.project)).toEqual(edges(p0));
+    // Geen overlap in rij 0.
+    const s0 = rackOf(r.project).slots.filter((s) => s.row === 0).sort((a, b) => a.hpOffset - b.hpOffset);
+    for (let i = 1; i < s0.length; i++) expect(s0[i]!.hpOffset).toBeGreaterThanOrEqual(s0[i - 1]!.hpOffset + r.project.modules.find((m) => m.id === s0[i - 1]!.moduleId)!.visual.hpWidth);
+    // Filter vóór de osc zetten: de hele poly-kolom verhuist, followers recht onder hun master.
+    const q = moveModule(p0, pid, findModuleByWord(p0, pid, 'filter')!.id, 'before', findModuleByWord(p0, pid, 'osc')!.id);
+    const o = rowOrder(q.project);
+    expect(o.indexOf('tp_mmb_vcf')).toBeLessThan(o.indexOf('tp_mmb_vco'));
+    for (const g of rackOf(q.project).polyGroups!) {
+      const offs = g.members.map((m) => rackOf(q.project).slots.find((s) => s.moduleId === m.moduleId)!.hpOffset);
+      expect(new Set(offs).size).toBe(1);
+    }
+    sane(q.project);
+  });
+
+  it('VCA weghalen: audio doorverbonden, envelope en CvMath die hem stuurden gaan mee', () => {
+    const p0 = buildRecipe(base(), { voices: 2, source: 'dx7', filter: null, filterEnv: false });
+    const pid = active(p0).id;
+    const r = removeModule(p0, pid, findModuleByWord(p0, pid, 'vca')!.id);
+    const e = edges(r.project);
+    expect(e).toContain('tp_mmb_dx7.out>tp_mmb_mixer.in1');
+    expect(count(r.project, 'tp_mmb_vca')).toBe(0);
+    expect(count(r.project, 'tp_mmb_ahdsr')).toBe(0);
+    expect(count(r.project, 'tp_mmb_cvmath')).toBe(0);        // velocity-CvMath mee weg; DX7 heeft geen tune, dus geen vibrato-CvMath
+    expect(r.summary).toMatch(/ook weg.*AHDSR/);
+    expect(e.some((x) => x.includes('tp_mmb_midiin.gate'))).toBe(true);   // MIDI-in blijft (dx7.gate)
+    sane(r.project);
+  });
+
+  it('parser: wissel, zet voor/na, haal weg', () => {
+    const types = base().moduleTypes;
+    expect(parseCommand('wissel de vibe en de out om', types).command).toEqual({ kind: 'move', module: 'vibe', relation: 'swap', target: 'out' });
+    expect(parseCommand('zet de vibe voor de out', types).command).toEqual({ kind: 'move', module: 'vibe', relation: 'before', target: 'out' });
+    expect(parseCommand('verplaats de out naar achter de vibe', types).command).toEqual({ kind: 'move', module: 'out', relation: 'after', target: 'vibe' });
+    expect(parseCommand('haal de vca weg', types).command).toEqual({ kind: 'remove', module: 'vca' });
+    expect(parseCommand('remove the envelope', types).command).toEqual({ kind: 'remove', module: 'envelope' });
   });
 });
 

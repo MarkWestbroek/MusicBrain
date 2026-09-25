@@ -144,7 +144,8 @@ export function CommandPalette(props: {
       setProposal({ commands: a.commands, summary: a.summary, explanation: a.explanation, source: 'ai' });
       setLog((l) => [...l, { who: 'ai', text: [a.commands.length ? `Voorstel: ${a.summary}` : '', a.explanation].filter(Boolean).join(' — ') || 'Geen voorstel.' }]);
       if (a.thread) { setThread(a.thread); setText(''); }
-      if (!a.commands.length) setStatus({ ok: false, text: a.explanation || 'Geen voorstel.' });
+      // Geen voorstel mét uitleg is een antwoord, geen fout: dat staat al in het voorstelvak.
+      if (!a.commands.length && !a.explanation) setStatus({ ok: false, text: 'Geen voorstel.' });
     } catch (e) {
       setStatus({ ok: false, text: e instanceof Error ? e.message : String(e) });
     } finally {
