@@ -17,7 +17,8 @@
 //   UPSTREAM_KEY    (verplicht) de API-key, bijv. van DeepSeek
 //   UPSTREAM_URL    standaard https://api.deepseek.com/chat/completions
 //   UPSTREAM_MODEL  als gezet: elk verzoek krijgt dit model (de client kiest niet)
-//   AI_PROXY_PORT   standaard 8787 (alleen op 127.0.0.1; Caddy zit ervoor)
+//   AI_PROXY_PORT   standaard 8787
+//   AI_PROXY_HOST   standaard 127.0.0.1 (Caddy zit ervoor); in een container 0.0.0.0
 //   AI_PROXY_DIR    map met invites.json en usage.jsonl (standaard naast dit script)
 
 import http from 'node:http';
@@ -80,6 +81,7 @@ const UPSTREAM_URL = process.env.UPSTREAM_URL ?? 'https://api.deepseek.com/chat/
 const UPSTREAM_KEY = process.env.UPSTREAM_KEY ?? '';
 const UPSTREAM_MODEL = process.env.UPSTREAM_MODEL ?? '';
 const PORT = Number(process.env.AI_PROXY_PORT ?? 8787);
+const HOST = process.env.AI_PROXY_HOST ?? '127.0.0.1';
 if (!UPSTREAM_KEY) { console.error('ai-proxy: UPSTREAM_KEY ontbreekt'); process.exit(1); }
 
 const counts = usageToday();   // bij de start inlezen, daarna in het geheugen bijhouden
@@ -131,4 +133,4 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, '127.0.0.1', () => console.log(`ai-proxy luistert op 127.0.0.1:${PORT} → ${UPSTREAM_URL}`));
+server.listen(PORT, HOST, () => console.log(`ai-proxy luistert op ${HOST}:${PORT} → ${UPSTREAM_URL}`));
