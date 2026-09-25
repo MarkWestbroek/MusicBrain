@@ -12,7 +12,8 @@
 //   • Uitlegvragen ("hoe maak ik vibrato?") koppelen aan een demonstratie.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { getProject, updateProject, useModularProject } from '../store';
+import { getProject, updateProject, useModularProject, undo, canUndo } from '../store';
+import { COMMAND_HELP, HELP_TIPS } from './commandHelp';
 import { parseCommand, describeCommand, type Command } from './parse';
 import { compileRecipe } from './compile';
 import { runCommand, runCommands } from './commands';
@@ -61,6 +62,7 @@ export function CommandPalette(props: {
   const [thread, setThread] = useState<LlmThread | null>(null);
   const [aiBusy, setAiBusy] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   // Meerdere AI-instellingen (DeepSeek, Claude, MusicBrain-server, …); één is actief.
   const [config, setConfig] = useState<LlmConfig>(() => loadLlmConfig());
   const llm: LlmProfile = config.profiles.find((x) => x.id === config.activeId) ?? config.profiles[0]!;
@@ -234,8 +236,33 @@ export function CommandPalette(props: {
                   title={aiReady ? 'Laat een taalmodel de vraag vertalen (je ziet eerst een voorstel)' : 'Stel eerst een API-key in (⚙)'}>
             {aiBusy ? '⏳ AI…' : thread ? '✨ Verder' : '✨ AI'}
           </button>
+          <button onClick={() => setShowHelp((v) => !v)} style={{ ...secondary, fontWeight: showHelp ? 700 : 400 }} title="Handleiding van de commandotaal, met voorbeelden om aan te klikken">?</button>
           <button onClick={() => setShowSettings((v) => !v)} style={secondary} title="AI-instellingen: endpoint, model, key, modus">⚙</button>
         </div>
+
+        {showHelp && (
+          <div style={{ marginTop: 10, padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: 6, background: '#fffdf5', maxHeight: 360, overflowY: 'auto' }}>
+            <div style={{ fontWeight: 700, marginBottom: 4 }}>Commandotaal — klik een voorbeeld om het in te vullen</div>
+            {COMMAND_HELP.map((sec) => (
+              <div key={sec.title} style={{ margin: '8px 0' }}>
+                <div style={{ fontWeight: 600 }}>{sec.title}</div>
+                <div style={{ color: '#475569', fontSize: 12, marginBottom: 2 }}>{sec.intro}</div>
+                {sec.examples.map((ex) => (
+                  <button key={ex.text} onClick={() => { setText(ex.text); setProposal(null); inputRef.current?.focus(); }}
+                    style={{ display: 'block', width: '100%', textAlign: 'left', border: 'none', background: 'transparent', padding: '2px 6px', cursor: 'pointer', fontSize: 13, borderRadius: 4 }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#f1f5f9'; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>
+                    <span style={{ fontFamily: 'var(--mb-font-mono)', color: '#0f172a' }}>› {ex.text}</span>
+                    {ex.note && <span style={{ color: '#64748b', fontSize: 11 }}> — {ex.note}</span>}
+                  </button>
+                ))}
+              </div>
+            ))}
+            <ul style={{ margin: '6px 0 0', paddingLeft: 18, color: '#475569', fontSize: 12 }}>
+              {HELP_TIPS.map((t) => <li key={t}>{t}</li>)}
+            </ul>
+          </div>
+        )}
 
         {showSettings && (
           <div style={{ marginTop: 10, padding: 10, border: '1px solid #e5e7eb', borderRadius: 6, background: '#f8fafc',
@@ -336,6 +363,11 @@ export function CommandPalette(props: {
                           background: status.ok ? '#ecfdf5' : '#fef2f2',
                           color: status.ok ? '#065f46' : '#991b1b' }}>
               {status.ok ? '✓ ' : '✕ '}{status.text}
+              {status.ok && canUndo() && (
+                <button onClick={() => { undo(); setStatus({ ok: true, text: 'Ongedaan gemaakt.' }); }}
+                        style={{ marginLeft: 8, fontSize: 12, padding: '1px 8px' }}
+                        title="Draai de laatste wijziging terug (ook buiten dit venster: Ctrl+Z)">↶ Ongedaan maken</button>
+              )}
             </div>
           )}
         </div>

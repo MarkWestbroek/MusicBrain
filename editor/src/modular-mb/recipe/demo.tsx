@@ -113,6 +113,6 @@ export const EXPLAIN_TOPICS: ExplainTopic[] = [
 /** Herken een uitlegvraag ("hoe maak ik …", "wat is …", "laat zien …"). */
 export function findExplainTopic(text: string): ExplainTopic | null {
   const t = text.toLowerCase();
-  if (!/^(hoe|how|wat is|what is|laat (eens )?zien|show me|demonstreer|demo|leg uit|explain)\b/.test(t.trim())) return null;
+  if (!/^(hoe|how|wat is|wat zijn|what is|laat\b.*\bzien|show me|demonstreer|demo|leg\b.*\buit|explain)\b/.test(t.trim())) return null;
   return EXPLAIN_TOPICS.find((x) => x.match.test(t)) ?? null;
 }

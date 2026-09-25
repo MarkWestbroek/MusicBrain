@@ -59,17 +59,16 @@ export function PatcherPanel(): JSX.Element {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6, flexWrap: 'wrap', whiteSpace: 'nowrap' }}>
         {/* Synth-gevoel (ED-RC-8): bank en patch als stappers met pijltjes,
             geen dropdown. Wisselen gaat ook naar de Teensy: zit de patch in
             de laatst gestuurde config (A/B-set), dan is het een selectPatch. */}
         <PatchStepper project={project} patch={patch} />
         <CompareSlots project={project} patch={patch} />
-        <button onClick={saveAsNewPatch} style={{ fontSize: 12, padding: '3px 10px' }}
+        <button onClick={saveAsNewPatch} style={{ fontSize: 12, padding: '3px 10px', whiteSpace: 'nowrap' }}
           title="Bewaar deze patch als een nieuwe patch (kopie met nieuwe naam)">
           Bewaar als…
         </button>
-        <TeensyStatusBar compact />
         <div style={{
           marginLeft: 'auto', display: 'flex', gap: 0,
           border: '1px solid #cbd2d9', borderRadius: 6, overflow: 'hidden',
@@ -93,6 +92,8 @@ export function PatcherPanel(): JSX.Element {
           ))}
         </div>
       </div>
+      {/* Teensy-status op een eigen regel: in de kop vocht hij met de rest om ruimte. */}
+      <div style={{ marginBottom: 10 }}><TeensyStatusBar compact /></div>
       {/* Alleen zichtbaar als de actieve patch een morph is (ED-MORPH-2). */}
       <MorphPanel project={project} patch={patch} />
 
