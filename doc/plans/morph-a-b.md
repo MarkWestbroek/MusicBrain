@@ -44,7 +44,24 @@ Per control dat in A en B verschilt:
 - **Knoppen en sliders**: interpoleren in het domein van de taper
   (`taper.ts`): lineair voor `lin`, in het logdomein voor `log`/`exp`
   (cutoff 200 → 3200 Hz morpht dan per octaaf, niet per hertz).
-- **Schakelaars, toggles, knoppen met `step`**: snappen bij t = 0,5.
+- **Schuifschakelaars met een geordende reeks** (Program EQ Low Hz
+  20/30/60/100, FET ratio 4:1/8:1/12:1/20:1/All, attack-standen, release-
+  standen): dat zijn springende waarden, maar wél op een as. Interpoleer de
+  **stand-index** tussen A en B en rond af naar de dichtstbijzijnde stand.
+  Van 20 naar 100 loopt de morph dan langs 30 en 60; tussen twee standen
+  zitten is oneigenlijk en gebeurt niet. Als de standen numeriek zijn en
+  logaritmisch liggen (20/30/60/100 Hz) kan de interpolatie in het
+  logdomein van de waarde; het resultaat wordt toch weer een stand.
+- **Schakelaars zonder volgorde** (filtertype LP/HP/BP, golfvorm, modus,
+  toggles, bypass): tussenstanden zijn betekenisloos, dus snappen bij
+  t = 0,5. Welke schakelaar geordend is staat in de typedefinitie
+  (`ordinal: true` op het control); zonder die vlag geldt een heuristiek
+  (standen die als getal of verhouding te lezen zijn = geordend, anders
+  snappen). Beter dan de heuristiek: de vlag zetten bij de paar modules
+  die het aangaat.
+- **Knoppen met `step`** (CC-nummer, bank, programma): geheel getal,
+  interpoleren en afronden zoals een geordende schakelaar; een bank- of
+  programmakeuze morpht in de praktijk niet (snappen).
 - **Displays/LED's**: niet van toepassing.
 - Controls die gelijk zijn in A en B doen niet mee (geen werk op de Teensy).
 
