@@ -21,6 +21,7 @@
 #include <new>
 #include <string_view>
 #include "mmb_dsp/stereo_tape_echo.h"
+#include "FxMem.h"
 
 namespace mmb_link {
 
@@ -28,12 +29,31 @@ class StereoTapeEchoStream : public AudioStream {
 public:
     StereoTapeEchoStream() : AudioStream(2, inputQueue_) {
         const int len = mmb_dsp::StereoTapeEcho::bufferLength(AUDIO_SAMPLE_RATE_EXACT);
-        tapeL_.reset(new (std::nothrow) int16_t[len]);
-        tapeR_.reset(new (std::nothrow) int16_t[len]);
+        tapeL_ = fxAlloc<int16_t>(len);
+        tapeR_ = fxAlloc<int16_t>(len);
         if (tapeL_ && tapeR_) echo_.Init(AUDIO_SAMPLE_RATE_EXACT, tapeL_.get(), tapeR_.get(), len);
         else Serial.println("[stereo_tape_echo] band alloc FAILED — module blijft stil");
     }
     mmb_dsp::StereoTapeEcho& echo() { return echo_; }
+    // FW-13: band loslaten zolang de module geparkeerd is, en vers terug bij
+    // hergebruik. De wissel gebeurt met de audio-interrupt uit, zodat
+    // update() nooit een half vrijgegeven buffer ziet; vrijgeven daarna.
+    void park() {
+        AudioNoInterrupts();
+        echo_.Init(AUDIO_SAMPLE_RATE_EXACT, nullptr, nullptr, 0);
+        FxBuf<int16_t> oldL = std::move(tapeL_), oldR = std::move(tapeR_);
+        AudioInterrupts();
+    }
+    void unpark() {
+        if (tapeL_ && tapeR_) return;
+        const int len = mmb_dsp::StereoTapeEcho::bufferLength(AUDIO_SAMPLE_RATE_EXACT);
+        FxBuf<int16_t> l = fxAlloc<int16_t>(len), r = fxAlloc<int16_t>(len);
+        if (!l || !r) { Serial.println("[stereo_tape_echo] band alloc FAILED bij hergebruik"); return; }
+        AudioNoInterrupts();
+        tapeL_ = std::move(l); tapeR_ = std::move(r);
+        echo_.Init(AUDIO_SAMPLE_RATE_EXACT, tapeL_.get(), tapeR_.get(), len);
+        AudioInterrupts();
+    }
 
     void update() override {
         audio_block_t* inL = receiveReadOnly(0);
@@ -62,7 +82,7 @@ public:
 private:
     static float clamp1(float v) { return v != v ? 0.0f : (v > 1.0f ? 1.0f : (v < -1.0f ? -1.0f : v)); }
     audio_block_t* inputQueue_[2] = { nullptr, nullptr };
-    std::unique_ptr<int16_t[]> tapeL_, tapeR_;
+    FxBuf<int16_t> tapeL_, tapeR_;    ///< PSRAM als die er is (FxMem.h)
     mmb_dsp::StereoTapeEcho echo_;
 };
 
@@ -119,6 +139,9 @@ public:
         else if (controlId == "flutter")  e.set_flutter(asFloat(0.2f));
         else if (controlId == "drive")    e.set_drive(asFloat(0.3f));
     }
+
+    void onRetire() override { stream_.park(); }
+    void onReuse()  override { stream_.unpark(); }
 
     static void registerFactory() {
         auto& reg = mb::runtime::Registry::global();

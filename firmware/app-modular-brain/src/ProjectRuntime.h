@@ -59,6 +59,7 @@ public:
         int requested = 0; ///< Total module entries in the project JSON.
         int created   = 0; ///< Modules successfully instantiated via the Registry.
         int unknown   = 0; ///< Modules skipped (typeId not registered or missing id).
+        int reused    = 0; ///< Of `created`: taken from the retired pool (FW-13).
     };
 
     /**
@@ -102,6 +103,22 @@ public:
         auto& reg = mb::runtime::Registry::global();
         std::unordered_map<std::string, std::unique_ptr<mb::runtime::Module>> next;
         JsonArrayConst mods = project["modules"].as<JsonArrayConst>();
+        // FW-13: eerst parkeren wat niet terugkomt (zelfde id + type), pas dán
+        // aanmaken — anders is de pool bij het aanmaken nog leeg en houden de
+        // vertrekkende modules hun buffers nog vast terwijl de nieuwe hun
+        // geheugen aanvragen.
+        for (auto it = instances_.begin(); it != instances_.end();) {
+            bool stays = false;
+            for (JsonObjectConst m : mods) {
+                const char* id = m["id"] | "";
+                const char* typeId = m["typeId"] | "";
+                if (it->first == id && it->second && it->second->typeId() == std::string_view{typeId}) { stays = true; break; }
+            }
+            if (stays || !it->second) { ++it; continue; }
+            it->second->onRetire();          // buffers los zolang hij geparkeerd is
+            retired_.push_back(std::move(it->second));
+            it = instances_.erase(it);
+        }
         for (JsonObjectConst m : mods) {
             ++r.requested;
             const char* id     = m["id"]     | "";
@@ -118,6 +135,19 @@ public:
                 continue;
             }
             if (!reg.has(typeId)) { ++r.unknown; continue; }
+            // FW-13: a retired instance of the same type goes back into
+            // service under the new id instead of allocating another one —
+            // so the pool never holds more of a type than were ever live at
+            // once (two STK voices no longer need twice the heap). The
+            // editor sends every control (defaults included), so the old
+            // life's knob values are overwritten on patch activation.
+            if (auto reused = takeRetired(typeId)) {
+                reused->rebindId(id);
+                reused->onReuse();
+                next.emplace(std::string{id}, std::move(reused));
+                ++r.created; ++r.reused;
+                continue;
+            }
             auto inst = reg.create(typeId, id);
             if (!inst) { ++r.unknown; continue; }
             next.emplace(std::string{id}, std::move(inst));
@@ -125,13 +155,17 @@ public:
         }
         // Whatever is still in instances_ disappeared from the new config and
         // cannot be safely destroyed — retire it (kept alive, silent).
+        // Wat nu nog in instances_ zit, stond dubbel in de config (zelfde id
+        // twee keer) — ook parkeren.
         for (auto& kv : instances_) {
-            if (kv.second) retired_.push_back(std::move(kv.second));
+            if (!kv.second) continue;
+            kv.second->onRetire();
+            retired_.push_back(std::move(kv.second));
         }
         instances_ = std::move(next);
 
-        TeensyLink::logf("runtime: created=%d unknown=%d total=%d retired=%d active=%s",
-                         r.created, r.unknown, r.requested,
+        TeensyLink::logf("runtime: created=%d reused=%d unknown=%d total=%d retired=%d active=%s",
+                         r.created, r.reused, r.unknown, r.requested,
                          static_cast<int>(retired_.size()),
                          activePatchId_.empty() ? "(none)" : activePatchId_.c_str());
         return r;
@@ -353,6 +387,18 @@ private:
      *  audio update list while the engine runs. See applyConfig(). */
     std::vector<std::unique_ptr<mb::runtime::Module>> retired_;
     std::string  activePatchId_;
+
+    /** Take a retired instance of `typeId` out of the pool (nullptr if none). */
+    std::unique_ptr<mb::runtime::Module> takeRetired(std::string_view typeId) {
+        for (auto it = retired_.begin(); it != retired_.end(); ++it) {
+            if (*it && (*it)->typeId() == typeId) {
+                auto m = std::move(*it);
+                retired_.erase(it);
+                return m;
+            }
+        }
+        return nullptr;
+    }
 };
 
 }  // namespace mmb_link

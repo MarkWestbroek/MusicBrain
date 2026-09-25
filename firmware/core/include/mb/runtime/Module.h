@@ -178,6 +178,20 @@ public:
         return false;
     }
 
+    /** @brief Lifecycle for the runtime's retire/reuse pool (FW-13).
+     *  A module that vanishes from a new config cannot be destroyed while the
+     *  audio engine runs (its AudioStream stays in the Teensy update list),
+     *  so the runtime *retires* it: disconnected, kept alive. `onRetire()`
+     *  lets a module drop its big buffers meanwhile (tape, reverb pool);
+     *  `onReuse()` is called when a later config needs a module of the same
+     *  type and the runtime hands this instance out again under a new id —
+     *  re-acquire buffers and start from a clean state. Both default to no-op. */
+    virtual void onRetire() {}
+    virtual void onReuse()  {}
+
+    /** @brief New instance id when the runtime reuses a retired module. */
+    void rebindId(std::string_view id) { id_ = std::string{id}; }
+
 protected:
     std::string typeId_;
     std::string id_;

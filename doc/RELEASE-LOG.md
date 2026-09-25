@@ -17,6 +17,39 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### fw 0.5.74–0.5.77 — FW-13: geparkeerde modules hergebruiken, buffers los, echo's naar PSRAM (2026-09-25)
+- **Probleem:** een module die uit een nieuwe config verdwijnt kan niet weg
+  terwijl de audio-motor draait (de Teensy Audio Library heeft een vaste
+  lijst zonder afmelden), dus werd hij voorgoed geparkeerd. Na een paar
+  pushes met zware modules was de heap op (`heapFree 0`, `retired 20`) en
+  werd een nieuwe STK-stem stil.
+- **Hergebruik per type** (`ProjectRuntime::applyConfig`): eerst parkeren
+  wat niet terugkomt, dán aanmaken — en een nieuwe module van een type dat
+  al geparkeerd staat krijgt die instantie terug onder de nieuwe id
+  (`Module::rebindId`, `onReuse`). De kast bevat zo nooit meer van een type
+  dan er ooit tegelijk nodig was. Log: `runtime: created=… reused=…`.
+- **Buffers los tijdens het parkeren** (`Module::onRetire/onReuse`): tape
+  echo, stereo tape, digitale echo, galm en STK geven hun grote buffers /
+  hun instrument vrij en krijgen bij hergebruik een verse (wissel met de
+  audio-interrupt uit).
+- **Editor stuurt alle knoppen mee** (`buildConfigPayload`, ook de
+  standaardwaarden): een hergebruikte module (of een gedeelde module bij een
+  patch-wissel) hield anders de standen van zijn vorige leven. Kost < 1 KB
+  (16-stemmige seed 29,6 → 30,3 KB). Test `configPayload.test.ts`.
+- **STK:** hetzelfde instrument wordt niet meer bij elke push opnieuw
+  gebouwd (tweemaal het geheugen), en een mislukte bouw treft alleen dat
+  instrument — STK's globale OOM-vlag liet anders álle STK-stemmen zwijgen
+  tot een herstart.
+- **Echo-banden naar PSRAM** (`FxMem.h`): tape/stereo tape/digitale echo
+  worden op volgorde gelezen, dus de PSRAM-cache vangt ze op (stereo tape
+  6,6 % CPU). De galm blijft op de heap (veel verspreide taps). De sampler
+  laat 1,5 MB PSRAM vrij (`kFxReservePsram`).
+- **Gemeten op de Teensy**, tien pushes achter elkaar met telkens nieuwe
+  id's (STK, STK + stereo tape, VCO + galm, VCO + ringmod door elkaar):
+  elke push klinkt, kast ≤ 3, heap blijft 213–233 KB vrij, geen
+  allocatiefouten. Vóór: tweede STK-push stil.
+- Open (FW-13 stap 3): modules écht uit de audio-lijst halen en vrijgeven.
+
 ### fw 0.5.73 — Vibe: univibe-familie + lichte vibrato (2026-09-25)
 - **`tp_mmb_vibe`** (`mmb_dsp/vibe.h`): vier fasedraai-trappen met de
   univibe-condensatoren (15 nF, 220 nF, 470 pF, 4,7 nF), zodat de notches

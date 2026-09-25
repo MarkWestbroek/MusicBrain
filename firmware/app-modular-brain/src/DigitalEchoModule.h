@@ -21,6 +21,7 @@
 #include <new>
 #include <string_view>
 #include "mmb_dsp/digital_echo.h"
+#include "FxMem.h"
 
 namespace mmb_link {
 
@@ -28,12 +29,31 @@ class DigitalEchoStream : public AudioStream {
 public:
     DigitalEchoStream() : AudioStream(2, inputQueue_) {
         const int len = mmb_dsp::DigitalEcho::bufferLength(AUDIO_SAMPLE_RATE_EXACT);
-        memL_.reset(new (std::nothrow) int16_t[len]);
-        memR_.reset(new (std::nothrow) int16_t[len]);
+        memL_ = fxAlloc<int16_t>(len);
+        memR_ = fxAlloc<int16_t>(len);
         if (memL_ && memR_) echo_.Init(AUDIO_SAMPLE_RATE_EXACT, memL_.get(), memR_.get(), len);
         else Serial.println("[digital_echo] geheugen alloc FAILED — module blijft stil");
     }
     mmb_dsp::DigitalEcho& echo() { return echo_; }
+    // FW-13: band loslaten zolang de module geparkeerd is, en vers terug bij
+    // hergebruik. De wissel gebeurt met de audio-interrupt uit, zodat
+    // update() nooit een half vrijgegeven buffer ziet; vrijgeven daarna.
+    void park() {
+        AudioNoInterrupts();
+        echo_.Init(AUDIO_SAMPLE_RATE_EXACT, nullptr, nullptr, 0);
+        FxBuf<int16_t> oldL = std::move(memL_), oldR = std::move(memR_);
+        AudioInterrupts();
+    }
+    void unpark() {
+        if (memL_ && memR_) return;
+        const int len = mmb_dsp::DigitalEcho::bufferLength(AUDIO_SAMPLE_RATE_EXACT);
+        FxBuf<int16_t> l = fxAlloc<int16_t>(len), r = fxAlloc<int16_t>(len);
+        if (!l || !r) { Serial.println("[digital_echo] geheugen alloc FAILED bij hergebruik"); return; }
+        AudioNoInterrupts();
+        memL_ = std::move(l); memR_ = std::move(r);
+        echo_.Init(AUDIO_SAMPLE_RATE_EXACT, memL_.get(), memR_.get(), len);
+        AudioInterrupts();
+    }
 
     void update() override {
         audio_block_t* inL = receiveReadOnly(0);
@@ -62,7 +82,7 @@ public:
 private:
     static float clamp1(float v) { return v != v ? 0.0f : (v > 1.0f ? 1.0f : (v < -1.0f ? -1.0f : v)); }
     audio_block_t* inputQueue_[2] = { nullptr, nullptr };
-    std::unique_ptr<int16_t[]> memL_, memR_;
+    FxBuf<int16_t> memL_, memR_;      ///< PSRAM als die er is (FxMem.h)
     mmb_dsp::DigitalEcho echo_;
 };
 
@@ -119,6 +139,9 @@ public:
         else if (controlId == "bits")      e.set_bits(static_cast<int>(asFloat(12.0f) + 0.5f));
         else if (controlId == "band")      e.set_band(asFloat(8000.0f));
     }
+
+    void onRetire() override { stream_.park(); }
+    void onReuse()  override { stream_.unpark(); }
 
     static void registerFactory() {
         auto& reg = mb::runtime::Registry::global();

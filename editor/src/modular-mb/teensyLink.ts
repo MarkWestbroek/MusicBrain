@@ -8,7 +8,8 @@
 // Match `firmware/app-modular-brain/src/TeensyLink.h`.
 
 import { useSyncExternalStore } from 'react';
-import type { ModularProject } from './types';
+import type { ModularProject, ControlValue } from './types';
+import { defaultValueOf } from './types';
 import { flattenProjectForFirmware, polyControlTargets } from './polyExpand';
 
 // ── Web Serial type shims ──────────────────────────────────────────────
@@ -402,6 +403,31 @@ export function buildConfigPayload(project: ModularProject): { json: string; mod
   const midiBindings = (flat.midiMap?.bindings ?? []).flatMap((b) =>
     (surfacePatch ? polyControlTargets(surfacePatch, flat, b.mod) : [b.mod])
       .map((mod) => ({ ...b, mod })));
+  // FW-13: de firmware hergebruikt geparkeerde modules van hetzelfde type
+  // (en modules met dezelfde id bij een patch-wissel). Die houden de
+  // knopstanden van hun vorige leven, dus sturen we élke control mee, ook
+  // die op de standaardwaarde staan — anders blijft een knop die in de
+  // nieuwe patch nergens genoemd wordt op de oude stand hangen. Kost < 1 KB
+  // (gemeten: 16-stemmige seed 29,6 → 30,3 KB).
+  const usedTypes = new Map(flat.modules.filter((m) => usedIds.has(m.id)).map((m) => [m.id, m.typeId]));
+  const withDefaults = (cs: Record<string, Record<string, ControlValue>>): Record<string, Record<string, ControlValue>> => {
+    const out: Record<string, Record<string, ControlValue>> = {};
+    for (const [modId, typeId] of usedTypes) {
+      const t = flat.moduleTypes.find((x) => x.id === typeId);
+      const own = cs[modId] ?? {};
+      const full: Record<string, ControlValue> = {};
+      for (const c of t?.controls ?? []) {
+        if (c.kind === 'display' || c.kind === 'led' || c.kind === 'joystick' || c.id === 'voiceCount') continue;
+        const v = defaultValueOf(c);
+        if (typeof v === 'number' || typeof v === 'boolean') full[c.id] = v;
+      }
+      Object.assign(full, own);
+      if (Object.keys(full).length > 0) out[modId] = full;
+    }
+    // Modules die niet in de push zitten (of zonder type) houden hun eigen stand.
+    for (const [modId, v] of Object.entries(cs)) if (!(modId in out)) out[modId] = v;
+    return out;
+  };
   const runtime = {
     version:       flat.version,
     name:          flat.name,
@@ -431,7 +457,7 @@ export function buildConfigPayload(project: ModularProject): { json: string; mod
         ...(c.attenuation !== undefined ? { attenuation: c.attenuation } : {}),
         ...(c.invert      ? { invert: c.invert }       : {}),
       })),
-      controlState: p.controlState,
+      controlState: withDefaults(p.controlState),
     })),
   };
   const json = JSON.stringify({ type: 'config', project: runtime });

@@ -32,6 +32,25 @@ public:
         else Serial.println("[reverb] pool alloc FAILED — module blijft droog");
     }
     mmb_dsp::Reverb& rv() { return rv_; }
+    // FW-13: galmpool loslaten zolang de module geparkeerd is, en vers terug bij
+    // hergebruik. De wissel gebeurt met de audio-interrupt uit, zodat
+    // update() nooit een half vrijgegeven buffer ziet; vrijgeven daarna.
+    void park() {
+        AudioNoInterrupts();
+        rv_.Init(AUDIO_SAMPLE_RATE_EXACT, nullptr, 0);
+        std::unique_ptr<float[]> old = std::move(pool_);
+        AudioInterrupts();
+    }
+    void unpark() {
+        if (pool_) return;
+        const int len = mmb_dsp::Reverb::poolLength(AUDIO_SAMPLE_RATE_EXACT);
+        std::unique_ptr<float[]> fresh(new (std::nothrow) float[len]);
+        if (!fresh) { Serial.println("[reverb] pool alloc FAILED bij hergebruik"); return; }
+        AudioNoInterrupts();
+        pool_ = std::move(fresh);
+        rv_.Init(AUDIO_SAMPLE_RATE_EXACT, pool_.get(), len);
+        AudioInterrupts();
+    }
 
     void update() override {
         audio_block_t* inL = receiveReadOnly(0);
@@ -111,6 +130,9 @@ public:
         else if (controlId == "mod")      r.set_mod(asFloat(0.3f));
         else if (controlId == "mix")      r.set_mix(asFloat(0.3f));
     }
+
+    void onRetire() override { stream_.park(); }
+    void onReuse()  override { stream_.unpark(); }
 
     static void registerFactory() {
         auto& reg = mb::runtime::Registry::global();

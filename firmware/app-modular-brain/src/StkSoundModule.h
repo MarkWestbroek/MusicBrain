@@ -153,6 +153,13 @@ public:
     /// object al vrijgaf → heap-corruptie → de StkFrames::resize-crashes
     /// (DACCVIOL) bij sound-wissels tijdens het spelen.
     void selectSound(Sound s) {
+#if HAVE_STK
+        // Zelfde instrument en het staat er al: niets opnieuw bouwen. Elke
+        // config-push past de knoppen opnieuw toe; zonder deze check werd
+        // het instrument telkens opnieuw gealloceerd terwijl het oude nog
+        // leefde (tweemaal het geheugen, op een krappe heap = OOM).
+        if (s == currentSound_ && instr_) return;
+#endif
         currentSound_ = s;
 #if HAVE_STK
         // Constructor-argument is de láágste speelbare frequentie (bepaalt de
@@ -164,6 +171,7 @@ public:
         const float freq = midiNoteToHz(note_);
         const float amp  = strength_;
         std::unique_ptr<stk::Instrmnt> fresh;
+        stk::Stk::memoryFailure_ = false;
         switch (s) {
             case Sound::Plucked:
                 fresh = std::make_unique<stk::Plucked>(kLowestHz);
@@ -194,6 +202,16 @@ public:
                 break;
             default:
                 break;
+        }
+        // FW-13: een mislukte bouw treft alleen dít instrument. STK zet bij
+        // een mislukte frame-allocatie een globale vlag (Stk.cpp) waarop
+        // álle stemmen zwijgen tot een herstart; we zetten hem vóór de bouw
+        // terug, kijken erna, en installeren een half gebouwd instrument
+        // niet — dan blijven de andere stemmen gewoon klinken.
+        if (stk::Stk::memoryFailure_) {
+            fresh.reset();
+            Serial.println("[stk] instrument alloc FAILED — stem blijft stil");
+            stk::Stk::memoryFailure_ = false;
         }
         if (fresh) {
             fresh->setFrequency(freq);
@@ -243,6 +261,23 @@ public:
     void setLevel(float l)    { level_ = l; }
 
     Sound currentSound() const { return currentSound_; }
+
+    /** FW-13: instrument loslaten zolang de module geparkeerd is (het is
+     *  de grootste heap-gebruiker), en opnieuw opbouwen bij hergebruik. */
+    void park() {
+#if HAVE_STK
+        std::unique_ptr<stk::Instrmnt> old;
+        AudioNoInterrupts();
+        old = std::move(instr_);
+        gate_ = false;
+        AudioInterrupts();
+#endif
+    }
+    void unpark() {
+#if HAVE_STK
+        if (!instr_) selectSound(currentSound_);
+#endif
+    }
 
     void update() override {
         audio_block_t* out = allocate();
@@ -406,6 +441,9 @@ public:
     }
 
     /** @brief Register the StkSound factory.  Idempotent. */
+    void onRetire() override { voice_.park(); }
+    void onReuse()  override { voice_.unpark(); }
+
     static void registerFactory() {
         auto& reg = mb::runtime::Registry::global();
         if (reg.has(kTypeId)) return;

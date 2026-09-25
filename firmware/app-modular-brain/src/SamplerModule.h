@@ -545,13 +545,19 @@ public:
     }
 
 private:
+public:
+    /** PSRAM die de sampler vrij laat voor effectbuffers (FxMem.h). */
+    static constexpr uint32_t kFxReservePsram = 1536u * 1024u;
+private:
     /** Hoeveel int16's er voor koppen zijn: PSRAM min ringen en marge, anders heap-marge. */
     uint32_t sampleBudget() const {
 #if defined(ARDUINO_TEENSY41)
         if (external_psram_size > 0) {
             const uint32_t total = static_cast<uint32_t>(external_psram_size) * 1024u * 1024u;
             const uint32_t rings = static_cast<uint32_t>(kMaxStreams) * kRingFrames * 2u * 2u;   // stereo-ringen
-            const uint32_t reserve = 256u * 1024u;
+            // Marge + ruimte voor effectbanden (FxMem.h: tape/stereo tape/
+            // digitale echo gaan naar PSRAM; ~0,2 MB per stereo-echo).
+            const uint32_t reserve = 256u * 1024u + kFxReservePsram;
             return (total - rings - reserve) / 2u;
         }
 #endif

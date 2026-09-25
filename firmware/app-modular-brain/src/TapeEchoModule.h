@@ -32,6 +32,7 @@
 #include <string_view>
 
 #include "mmb_dsp/tape_echo.h"
+#include "FxMem.h"
 
 namespace mmb_link {
 
@@ -39,7 +40,7 @@ class TapeEchoStream : public AudioStream {
 public:
     TapeEchoStream() : AudioStream(1, inputQueue_) {
         const int len = mmb_dsp::TapeEcho::bufferLength(AUDIO_SAMPLE_RATE_EXACT);
-        tape_.reset(new (std::nothrow) int16_t[len]);
+        tape_ = fxAlloc<int16_t>(len);
         if (tape_) {
             echo_.Init(AUDIO_SAMPLE_RATE_EXACT, tape_.get(), len);
             Serial.printf("[tape_echo] band ok: %d KB\n", static_cast<int>(len * 2 / 1024));
@@ -49,6 +50,25 @@ public:
     }
 
     mmb_dsp::TapeEcho& echo() { return echo_; }
+    // FW-13: band loslaten zolang de module geparkeerd is, en vers terug bij
+    // hergebruik. De wissel gebeurt met de audio-interrupt uit, zodat
+    // update() nooit een half vrijgegeven buffer ziet; vrijgeven daarna.
+    void park() {
+        AudioNoInterrupts();
+        echo_.Init(AUDIO_SAMPLE_RATE_EXACT, nullptr, 0);
+        FxBuf<int16_t> old = std::move(tape_);
+        AudioInterrupts();
+    }
+    void unpark() {
+        if (tape_) return;
+        const int len = mmb_dsp::TapeEcho::bufferLength(AUDIO_SAMPLE_RATE_EXACT);
+        FxBuf<int16_t> fresh = fxAlloc<int16_t>(len);
+        if (!fresh) { Serial.println("[tape_echo] band alloc FAILED bij hergebruik"); return; }
+        AudioNoInterrupts();
+        tape_ = std::move(fresh);
+        echo_.Init(AUDIO_SAMPLE_RATE_EXACT, tape_.get(), len);
+        AudioInterrupts();
+    }
 
     void update() override {
         audio_block_t* in = receiveReadOnly(0);
@@ -72,7 +92,7 @@ public:
 
 private:
     audio_block_t* inputQueue_[1] = { nullptr };
-    std::unique_ptr<int16_t[]> tape_;
+    FxBuf<int16_t> tape_;             ///< PSRAM als die er is (FxMem.h)
     mmb_dsp::TapeEcho echo_;
 };
 
@@ -123,6 +143,9 @@ public:
         else if (controlId == "flutter")  e.set_flutter(asFloat(0.2f));
         else if (controlId == "drive")    e.set_drive(asFloat(0.3f));
     }
+
+    void onRetire() override { stream_.park(); }
+    void onReuse()  override { stream_.unpark(); }
 
     static void registerFactory() {
         auto& reg = mb::runtime::Registry::global();
