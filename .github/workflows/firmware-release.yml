@@ -28,6 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       TAG: ${{ github.event.inputs.tag || github.ref_name }}
+      TEENSY_PLATFORM: '5.1.0'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -55,13 +56,22 @@ jobs:
           path: |
             ~/.platformio
             ~/.cache/pip
-          key: pio-${{ hashFiles('firmware/app-modular-brain/platformio.ini') }}
+          key: pio-teensy${{ env.TEENSY_PLATFORM }}-${{ hashFiles('firmware/app-modular-brain/platformio.ini') }}
 
       - name: PlatformIO installeren
         run: pip install --upgrade platformio
 
+      # Zelfde Teensy-platform als op de ontwikkelmachine (5.1.0, gcc 11).
+      # Zonder dit pakt PlatformIO het nieuwste (6.0.0, gcc 15), dat anders
+      # compileert en bijv. `static alignas(4)` in SamplerModule.h afkeurt.
+      # Liever nog: dezelfde pin in platformio.ini (`platform = teensy@5.1.0`).
       - name: Bouwen
-        run: pio run -d firmware/app-modular-brain -e teensy41
+        run: |
+          ini=firmware/app-modular-brain/platformio.ini
+          # Alleen in deze checkout; staat er al een pin, dan blijft die staan.
+          sed -i -E "s/^platform[[:space:]]*=[[:space:]]*teensy[[:space:]]*$/platform = teensy@${TEENSY_PLATFORM}/" "$ini"
+          grep -n '^platform' "$ini"
+          pio run -d firmware/app-modular-brain -e teensy41
 
       - name: Bestand en release-notes klaarzetten
         run: |
