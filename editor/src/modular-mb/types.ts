@@ -700,6 +700,10 @@ export interface ModularProject {
 
   activeRackId?:  string;
   activePatchId?: string;
+  /** A/B-vergelijkset (ED-RC-8): patch-id's die je in de patcher snel
+   *  afwisselt. Gaan bij een push mee naar de Teensy, zodat wisselen daar
+   *  een selectPatch is (graph-herbouw) en geen nieuwe config. */
+  compareSet?: string[];
 }
 
 // ═══════════════════════════════════════════════════════════════════════

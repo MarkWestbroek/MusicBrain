@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { emptyModularProject } from '../types';
 import { seedInternals, seedTestPatch, seedSamplerPolyPatch } from '../seedModules';
 import { buildRecipe } from './compile';
-import { autoFolders, bankPrograms, classifyPatch, comparePatches, familyOf, findPatchByBankProgram, groupKey } from './classify';
+import { autoFolders, bankPrograms, classifyPatch, comparePatches, familyOf, findPatchByBankProgram, groupKey, stepPatch } from './classify';
 
 describe('bank / program', () => {
   it('map = bank (alfabetisch, geen map achteraan), program = expliciet of volgorde op naam', () => {
@@ -20,6 +20,14 @@ describe('bank / program', () => {
     expect(findPatchByBankProgram(p, 1, 5)!.id).toBe(bVco!.id);
     expect(findPatchByBankProgram(p, null, 5)!.id).toBe(bVco!.id);            // zonder bank: eerste treffer
     expect(findPatchByBankProgram(p, 1, 9)).toBeNull();
+    // Stappers: binnen de bank met omslag, en per bank naar het eerste programma.
+    expect(stepPatch(p, aVco!.id, 1, 'patch')).toBe(bVco!.id);
+    expect(stepPatch(p, bVco!.id, 1, 'patch')).toBe(aVco!.id);      // omslag
+    expect(stepPatch(p, aVco!.id, -1, 'patch')).toBe(bVco!.id);
+    expect(stepPatch(p, aVco!.id, 1, 'bank')).toBe(los!.id);        // bank 2
+    expect(stepPatch(p, aVco!.id, -1, 'bank')).toBe(snaar!.id);     // bank 0
+    expect(stepPatch(p, los!.id, 1, 'bank')).toBe(snaar!.id);       // omslag naar bank 0
+    expect(stepPatch(base(), undefined, 1, 'patch')).toBeNull();
   });
 });
 

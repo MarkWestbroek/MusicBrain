@@ -267,6 +267,38 @@ optimaliseren).
   Teensy kan dat nog niet: de push stuurt alleen de actieve patch (96 KB
   lijnbuffer), dus patch wisselen op de hardware = opnieuw pushen.
 
+### Patch kiezen in de patcher en A/B op de oren (ED-RC-8b, 2026-09-25)
+
+- **Stappers**: bank ◀ ▶ (map) en patch ◀ ▶ (program, met omslag binnen
+  de bank) in de Patcher-kop; geen dropdown. `stepPatch` in classify.ts.
+- **Vergelijkset A/B/C/D**: `project.compareSet`. Klik een leeg slot om de
+  huidige patch erin te zetten, een gevuld slot (of toets 1–4) om te
+  wisselen. Gaat bij een push mee (`buildConfigPayload` stuurt actieve +
+  set, actieve eerst; modules = unie). Wisselen stuurt `activateOnTeensy`:
+  zit de patch in de laatst gestuurde config → `selectPatch` (de firmware
+  herbouwt audio- en cv-graph, modules blijven staan); anders een nieuwe
+  config. Knop "⇪ Set naar Teensy" als de set nog niet gepusht is.
+- **Verschillende racks**: kan. De firmware kan kabels wél dynamisch
+  wisselen (elke `activatePatch` herbouwt de graphs); alleen modules
+  vernietigen kan niet. De unie van modules gaat mee en blijft leven, dus
+  wisselen is ook dan een selectPatch. Prijs: meer modules op de Teensy
+  (idle update) en meer wasm-instanties in de sim.
+- **Sampler-bank**: zit niet in de patch maar in de samplebank (SD/PSRAM,
+  in de sim de geladen .mmbs). Open: een verwijzing naar het bankbestand
+  in het project bewaren zodat de sim hem bij het laden van de patch ophaalt.
+
+### Morph tussen A en B (idee, niet gebouwd)
+
+Binnen één rack. Knopstanden: lineair interpoleren, schakelaars en
+toggles snappen bij 0,5, via `controlPoke` live. Kabels: een kabel die
+alleen in A of alleen in B ligt wordt in de morph-patch een kabel met
+`attenuation` = 1−t resp. t. `PatchConnection.attenuation` bestaat al in
+het datamodel en gaat mee in de push, maar **AudioGraph/CvGraph in de
+firmware en de sim-engine doen er nog niets mee** (geen treffer op
+"attenuation" in AudioGraph.cpp, CvGraph.cpp, AudioEngine.ts). Eerst dus
+attenuation implementeren (een gain per kabel), dan is morph een pure
+functie `morph(A, B, t) → patch` plus één knop.
+
 ## Bevinding 2026-09-25: "worklet-processor gecrasht" = wasm-geheugen op
 
 Na een AI- of receptbouw (en net zo goed na een gewone seed) meldde de sim

@@ -298,4 +298,21 @@ describe('push naar de Teensy (ED-RC-7)', () => {
     const t2 = (JSON.parse(buildConfigPayload(q2).json) as { project: { modules: { id: string }[] } }).project.modules.map((m) => m.id);
     expect(t2).not.toContain('mod_loose');
   });
+
+  it('A/B-vergelijkset gaat mee: beide patches, actieve eerst, modules van allebei', () => {
+    let p = buildRecipe(base(), { source: 'vco', filter: 'vcf' });
+    const a = p.activePatchId!;
+    p = buildRecipe(p, { source: 'string' });      // ander rack
+    const b = p.activePatchId!;
+    p = { ...p, compareSet: [a, b], activePatchId: a };
+    const payload = JSON.parse(buildConfigPayload(p).json) as { project: { activePatchId: string; patches: { id: string }[]; modules: { typeId: string }[] } };
+    expect(payload.project.patches.map((x) => x.id)).toEqual([a, b]);
+    expect(payload.project.activePatchId).toBe(a);
+    const types = payload.project.modules.map((m) => m.typeId);
+    expect(types).toContain('tp_mmb_vcf');
+    expect(types).toContain('tp_mmb_string');
+    // Zonder set: alleen de actieve patch.
+    const solo = JSON.parse(buildConfigPayload({ ...p, compareSet: [] }).json) as { project: { patches: { id: string }[] } };
+    expect(solo.project.patches.map((x) => x.id)).toEqual([a]);
+  });
 });

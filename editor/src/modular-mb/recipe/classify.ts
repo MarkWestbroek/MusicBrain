@@ -154,6 +154,34 @@ export function findPatchByBankProgram(p: ModularProject, bank: number | null, p
   return hit ?? null;
 }
 
+/** Alle patches op bank/program-volgorde (voor de stappers in de patcher). */
+export function patchOrder(p: ModularProject): (BankProgram & { id: string; name: string })[] {
+  const map = bankPrograms(p);
+  return p.patches
+    .map((x) => ({ id: x.id, name: x.name, ...map.get(x.id)! }))
+    .sort((a, b) => a.bank - b.bank || a.program - b.program || a.name.localeCompare(b.name, 'nl'));
+}
+
+/**
+ * Volgende/vorige patch als op een synth: `scope: 'patch'` stapt binnen de
+ * bank (met omslag), `scope: 'bank'` springt naar het eerste programma van
+ * de volgende/vorige bank. null = niets te kiezen.
+ */
+export function stepPatch(p: ModularProject, currentId: string | undefined, delta: 1 | -1, scope: 'patch' | 'bank'): string | null {
+  const order = patchOrder(p);
+  if (!order.length) return null;
+  const i = Math.max(0, order.findIndex((x) => x.id === currentId));
+  const cur = order[i]!;
+  if (scope === 'patch') {
+    const inBank = order.filter((x) => x.bank === cur.bank);
+    const j = inBank.findIndex((x) => x.id === cur.id);
+    return inBank[(j + delta + inBank.length) % inBank.length]!.id;
+  }
+  const banks = [...new Set(order.map((x) => x.bank))];
+  const b = banks[(banks.indexOf(cur.bank) + delta + banks.length) % banks.length]!;
+  return order.find((x) => x.bank === b)!.id;
+}
+
 /** Vul lege mappen met de familie (bijv. "Physical modelling"). */
 export function autoFolders(p: ModularProject, overwrite = false): ModularProject {
   return {

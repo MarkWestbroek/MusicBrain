@@ -370,9 +370,14 @@ export function buildConfigPayload(project: ModularProject): { json: string; mod
   // patch op 140 KB uitkomen én instantieert dode modules op de Teensy).
   // Patch wisselen = opnieuw pushen; de Push-knop activeert toch al mee.
   const activeId = flat.activePatchId;
-  const pushPatches = activeId
-    ? flat.patches.filter((p) => p.id === activeId)
-    : flat.patches;
+  // De A/B-vergelijkset (ED-RC-8) gaat mee: wisselen op de Teensy is dan
+  // een selectPatch (graph-herbouw, geen nieuwe modules) in plaats van een
+  // nieuwe config.
+  const setIds = new Set([activeId, ...(flat.compareSet ?? [])].filter((x): x is string => !!x));
+  const pushPatches = (activeId
+    ? flat.patches.filter((p) => setIds.has(p.id))
+    : flat.patches)
+    .sort((a, b) => Number(b.id === activeId) - Number(a.id === activeId));   // actieve patch eerst (surface-bindings)
   // Modules die meegaan (ED-RC-7): alles wat aan een kabel hangt van de
   // gepushte patch(es) ÉN van elke andere patch die een rack met hen deelt.
   //   • Rack-genoten die géén enkele patch bekabelt gaan niet mee: die
@@ -436,10 +441,28 @@ export async function sendConfig(project: ModularProject): Promise<void> {
   pushLog({ ts: Date.now(), dir: 'sys', text:
     `config payload: ${(json.length / 1024).toFixed(1)} KB — ${modules} modules, ${patches} patch(es)` });
   await writeLine(json);
+  pushedPatchIds = new Set((JSON.parse(json) as { project: { patches: { id: string }[] } }).project.patches.map((p) => p.id));
 }
 
 export async function sendSelectPatch(patchId: string): Promise<void> {
   await writeLine(JSON.stringify({ type: 'selectPatch', patchId }));
+}
+
+/** Patch-id's die in de laatst gestuurde config zaten (ED-RC-8). */
+let pushedPatchIds = new Set<string>();
+export function hasPushedPatch(patchId: string): boolean { return pushedPatchIds.has(patchId); }
+
+/**
+ * Maak de actieve patch van `project` actief op de Teensy: zit hij al in de
+ * laatst gestuurde config (A/B-set), dan volstaat een selectPatch en houdt
+ * de brain zijn modules; anders gaat de hele config opnieuw. Doet niets
+ * zonder verbinding.
+ */
+export async function activateOnTeensy(project: ModularProject): Promise<'select' | 'config' | 'offline'> {
+  if (!isConnected() || !project.activePatchId) return 'offline';
+  if (pushedPatchIds.has(project.activePatchId)) { await sendSelectPatch(project.activePatchId); return 'select'; }
+  await sendConfig(project);
+  return 'config';
 }
 
 export async function sendSetStatic(enabled: boolean): Promise<void> {
