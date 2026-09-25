@@ -66,11 +66,54 @@ describe('replaceModule', () => {
     sane(r.project);
   });
 
+  it('mono L/R-paar → één stereomodule, en terug', () => {
+    const p0 = buildRecipe(base(), { source: 'vco', bus: ['tape'] });   // tape als L/R-paar
+    const pid = active(p0).id;
+    const tapeL = p0.modules.find((m) => m.typeId === 'tp_mmb_tape_echo' && active(p0).connections.some((c) => c.from.moduleId === m.id && c.to.portId === 'l'))!;
+    const r = replaceModule(p0, pid, tapeL.id, 'stereo tape');
+    expect(r.summary).toMatch(/L\/R-paar → één/);
+    expect(count(r.project, 'tp_mmb_tape_echo')).toBe(0);
+    const newType = typeOf(r.project, tapeL.id);
+    expect(count(r.project, newType)).toBe(1);
+    const e = edges(r.project);
+    expect(e).toContain(`tp_mmb_mixer.out_l>${newType}.in_l`);
+    expect(e).toContain(`tp_mmb_mixer.out_r>${newType}.in_r`);
+    expect(e).toContain(`${newType}.out_l>tp_mmb_out.l`);
+    expect(e).toContain(`${newType}.out_r>tp_mmb_out.r`);
+    sane(r.project);
+    // En terug naar mono: weer een paar.
+    const back = replaceModule(r.project, pid, tapeL.id, 'tape');
+    expect(count(back.project, 'tp_mmb_tape_echo')).toBe(2);
+    expect(edges(back.project)).toEqual(edges(p0));
+    sane(back.project);
+  });
+
+  it('mono zonder paar → stereo: de bron voedt L en R', () => {
+    const p0 = seedTestPatch(base());   // VCA → OUT l én r, geen bus-effect
+    const pid = active(p0).id;
+    const withEcho = addBusFx(p0, pid, 'echo').project;          // mono echo-paar op de bus
+    void withEcho;
+    const vcf = findModuleByWord(p0, pid, 'vcf')!;
+    // VCF is mono in/uit maar geen stereo-tegenhanger → gewone vervanging (geen stereo-type als filter)
+    expect(() => replaceModule(p0, pid, vcf.id, 'dattorro')).not.toThrow();
+    const r = replaceModule(p0, pid, vcf.id, 'dattorro');
+    expect(edges(r.project)).toContain('tp_mmb_vco.out>tp_mmb_elements_reverb.in_l');
+    expect(edges(r.project)).toContain('tp_mmb_vco.out>tp_mmb_elements_reverb.in_r');
+    expect(edges(r.project)).toContain('tp_mmb_elements_reverb.out_l>tp_mmb_vca.in');
+    sane(r.project);
+  });
+
+  it('multi-module geeft een duidelijke melding', () => {
+    const p0 = buildRecipe(base(), { source: 'vco' });
+    const vco = findModuleByWord(p0, active(p0).id, 'vco')!;
+    expect(() => replaceModule(p0, active(p0).id, vco.id, 'sampler')).toThrowError(/multi-module/);
+  });
+
   it('zelfde type of onbekend type geeft RecipeError', () => {
     const p0 = buildRecipe(base(), { source: 'vco' });
     const vco = findModuleByWord(p0, active(p0).id, 'vco')!;
     expect(() => replaceModule(p0, active(p0).id, vco.id, 'vco')).toThrowError(RecipeError);
-    expect(() => replaceModule(p0, active(p0).id, vco.id, 'flanger')).toThrowError(/Onbekende module/);
+    expect(() => replaceModule(p0, active(p0).id, vco.id, 'theremin')).toThrowError(/Onbekende module/);
   });
 });
 
@@ -152,7 +195,7 @@ describe('addBusFx', () => {
 
   it('seedTestPatch (VCA → OUT zonder mixer) werkt ook', () => {
     const p0 = seedTestPatch(base());
-    const r = addBusFx(p0, active(p0).id, 'reverb');
+    const r = addBusFx(p0, active(p0).id, 'dattorro');
     expect(edges(r.project)).toContain('tp_mmb_vca.out>tp_mmb_elements_reverb.in_l');
     expect(edges(r.project)).toContain('tp_mmb_vca.out>tp_mmb_elements_reverb.in_r');
     sane(r.project);
@@ -200,7 +243,7 @@ describe('woorden → modules', () => {
     expect(findModuleByWord(p0, pid, 'filter')!.typeId).toBe('tp_mmb_ms20');
     expect(findModuleByWord(p0, pid, 'korg')!.typeId).toBe('tp_mmb_ms20');
     expect(findModuleByWord(p0, pid, 'out')!.typeId).toBe('tp_mmb_out');
-    expect(findModuleByWord(p0, pid, 'flanger')).toBeNull();
+    expect(findModuleByWord(p0, pid, 'theremin')).toBeNull();
     const vco = findModuleByWord(p0, pid, 'osc')!;
     expect(findPortByWord(p0, vco, 'pitch')).toBe('tune');
     expect(findPortByWord(p0, vco, 'cutoff')).toBeNull();

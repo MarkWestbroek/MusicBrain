@@ -15,7 +15,7 @@
 //   "zet een lfo op de cutoff van het filter" → addModulation { source: 'lfo', target: 'filter', port: 'cutoff' }
 
 import type { ModuleType } from '../types';
-import { CATALOG, resolveTypeId, shortName } from './catalog';
+import { CATALOG, kindOf, resolveTypeId, shortName } from './catalog';
 import type { PatchRecipe, RecipeModule } from './types';
 
 export type Command =
@@ -156,7 +156,7 @@ function parseBuild(text: string, types: ModuleType[]): { command: Command; unkn
       if (last && last.place === 'auto') last.place = tok.kind;
       continue;
     }
-    const kind = CATALOG[tok.typeId]?.kind ?? 'util';
+    const tt = types.find((x) => x.id === tok.typeId); const kind = tt ? kindOf(tt) : 'util';
     mentioned.push(tok.typeId);
     if ((kind === 'source' || kind === 'drum' || kind === 'noise') && !sourceSet) { recipe.source = tok.typeId; sourceSet = true; }
     else if (kind === 'source' || kind === 'drum' || kind === 'noise') unknown.push(`${tok.text} (tweede bron genegeerd)`);

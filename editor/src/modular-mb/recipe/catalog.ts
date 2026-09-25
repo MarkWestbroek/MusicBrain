@@ -106,6 +106,16 @@ export const CATALOG: Record<string, CatalogEntry> = {
   tp_mmb_program_eq:{ short: 'Program EQ', kind: 'fx',   aliases: ['program eq', 'pultec', 'programeq'] },
   tp_mmb_console_eq:{ short: 'Console EQ', kind: 'fx',   aliases: ['console eq', 'consoleeq', 'neve eq', 'channel eq'] },
   tp_mmb_para_eq:   { short: 'Para EQ',  kind: 'fx',     aliases: ['para eq', 'paraeq', 'parametric', 'parametrische eq', 'parametric eq', 'ssl eq', 'eq'] },
+  tp_mmb_stereo_tape_echo: { short: 'Stereo Tape', kind: 'fx', aliases: ['stereo tape', 'stereo tape echo', 'stereo bandecho', 'cross feedback echo', 'ping pong tape'] },
+  tp_mmb_digital_echo: { short: 'Digital Echo', kind: 'fx', aliases: ['digital echo', 'digitale echo', 'digital delay', 'vintage digital delay'] },
+  tp_mmb_bbd_chorus: { short: 'BBD Chorus', kind: 'fx', aliases: ['chorus', 'bbd', 'bbd chorus', 'flanger', 'juno chorus'] },
+  tp_mmb_ringmod:   { short: 'Ringmod',  kind: 'fx',     aliases: ['ringmod', 'ring mod', 'ringmodulator', 'ring modulator', 'diode ringmod'] },
+  tp_mmb_octaver:   { short: 'Octaver',  kind: 'fx',     aliases: ['octaver', 'octave', 'octaaf', 'suboctaaf', 'sub octave'] },
+  tp_mmb_harmonizer:{ short: 'Harmonizer', kind: 'fx',   aliases: ['harmonizer', 'pitch shifter', 'pitchshifter', 'pitch shift'] },
+  tp_mmb_reverb:    { short: 'Plate/Spring', kind: 'fx', aliases: ['plate', 'plaat', 'spring', 'veer', 'veergalm', 'plaatgalm', 'plate reverb', 'spring reverb'] },
+  tp_mmb_tremolo:   { short: 'Tremolo',  kind: 'fx',     aliases: ['tremolo', 'trem', 'tremolo pedal', 'harmonic tremolo'] },
+  tp_mmb_stereo_phaser: { short: 'Stereo Phaser', kind: 'fx', aliases: ['stereo phaser', 'phase 90'] },
+  tp_mmb_vibe:      { short: 'Vibe',     kind: 'fx',     aliases: ['vibe', 'univibe', 'uni vibe', 'uni-vibe'] },
 
   // ── mixers en uitgang ──────────────────────────────────────────────────
   tp_mmb_mixer:     { short: 'Mixer',    kind: 'mixer',  aliases: ['mixer', 'mixer4', 'mix'] },
@@ -241,12 +251,24 @@ export function portRoles(type: ModuleType): PortRoles {
   };
 }
 
+const KIND_BY_CATEGORY: Record<string, ModuleKindTag> = {
+  vco: 'source', vcf: 'filter', vca: 'vca', envelope: 'env', lfo: 'lfo', effect: 'fx',
+  mixer: 'mixer', sequencer: 'seq', drum: 'drum', noise: 'noise', utility: 'util',
+};
+
+/** Soort van een type: catalogus, anders uit de categorie. Zo verschijnt een
+ *  nieuwe firmware-module zonder catalogus-entry toch op de juiste plek
+ *  (bijv. een nieuw effect in "Vervang door" en "Bus-effect"). */
+export function kindOf(t: ModuleType): ModuleKindTag {
+  return CATALOG[t.id]?.kind ?? KIND_BY_CATEGORY[t.categoryId] ?? 'util';
+}
+
 /** Compacte catalogus-tabel (voor de LLM-prompt en de preview, ED-RC-3). */
 export function catalogTable(types: ModuleType[]): { typeId: string; short: string; kind: ModuleKindTag; aliases: string[] }[] {
   return types
     .filter((t) => t.internal)
     .map((t) => {
       const e = CATALOG[t.id];
-      return { typeId: t.id, short: e?.short ?? t.variant, kind: e?.kind ?? 'util', aliases: e?.aliases ?? [] };
+      return { typeId: t.id, short: e?.short ?? t.variant, kind: kindOf(t), aliases: e?.aliases ?? [] };
     });
 }

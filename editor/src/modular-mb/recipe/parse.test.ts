@@ -54,9 +54,9 @@ describe('parser: nieuwe patch', () => {
   });
 
   it('onbekende woorden blijven over', () => {
-    const r = build('een 4 stemmige wavetable met een flanger');
+    const r = build('een 4 stemmige wavetable met een theremin');
     expect(r.recipe.source).toBe('tp_mmb_wt_vco');
-    expect(r.unknown).toEqual(['flanger']);
+    expect(r.unknown).toEqual(['theremin']);
   });
 
   it('tweede bron wordt gemeld', () => {

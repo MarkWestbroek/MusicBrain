@@ -29,7 +29,7 @@ describe('leestools', () => {
     expect(t.typeId).toBe('tp_mmb_ladder');
     expect(t.ports.map((q) => q.id)).toContain('cv');
     expect(t.controls.find((c) => c.id === 'cutoff')?.min).toBeDefined();
-    expect(() => runTool(p, 'get_module_type', { typeId: 'flanger' })).toThrowError(RecipeError);
+    expect(() => runTool(p, 'get_module_type', { typeId: 'theremin' })).toThrowError(RecipeError);
   });
 
   it('list_patches en get_patch_summary', () => {

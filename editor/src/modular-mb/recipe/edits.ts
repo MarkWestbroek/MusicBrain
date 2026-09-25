@@ -173,7 +173,14 @@ export function replaceModule(project: ModularProject, patchId: string, moduleId
   if (old.typeId === newTypeId) throw new RecipeError(`${old.name} is al een ${shortName(newTypeId, p.moduleTypes)}.`);
   const oldT = typeOf(p, old.typeId);
   if (newT.role === 'multi' || oldT.role === 'multi') {
-    throw new RecipeError('Multi-modules (met cellen) kunnen nog niet vervangen worden.');
+    throw new RecipeError(`${shortName((newT.role === 'multi' ? newT : oldT).id, p.moduleTypes)} is een multi-module (cellen, bijv. 8 stemmen in één module); vervangen van of door zo'n module kan nog niet.`);
+  }
+  // Mono ↔ stereo buiten een poly-groep: L/R-paar samenvoegen of splitsen.
+  const kOld = stereoKind(oldT), kNew = stereoKind(newT);
+  if (!groupOf(p, moduleId) && kOld !== kNew && kOld !== 'none' && kNew !== 'none') {
+    return kOld === 'mono'
+      ? monoToStereo(p, patchId, old, oldT, newT)
+      : stereoToMono(p, old, oldT, newT);
   }
   const portMap = mapPorts(oldT, newT);
 
@@ -241,6 +248,154 @@ export function replaceModule(project: ModularProject, patchId: string, moduleId
     summary: `${shortName(oldT.id, p.moduleTypes)} → ${shortName(newTypeId, p.moduleTypes)}${n > 1 ? ` (×${n}, hele poly-groep)` : ''}`,
     warnings,
   };
+}
+
+// ── mono ↔ stereo ───────────────────────────────────────────────────────
+
+type StereoKind = 'mono' | 'stereo' | 'none';
+function stereoKind(t: ModuleType): StereoKind {
+  const r = portRoles(t);
+  if (r.audioIn.left && r.audioIn.right && r.audioOut.left && r.audioOut.right) return 'stereo';
+  if (r.audioIn.mono && r.audioOut.mono) return 'mono';
+  return 'none';
+}
+
+/** L/R-tegenhanger van een poort-id (out_l ↔ out_r, l ↔ r, in_l ↔ in_r). */
+function counterpart(port: string): string | null {
+  const m = /^(.*?)(_?)([lr])$/.exec(port);
+  if (!m) return null;
+  return `${m[1]}${m[2]}${m[3] === 'l' ? 'r' : 'l'}`;
+}
+const isRightPort = (port: string) => /(^|_)r$/.test(port);
+
+/**
+ * De R-helft van een mono L/R-paar: een module van hetzelfde type die uit de
+ * tegenhanger van dezelfde bronpoort gevoed wordt, of naar de tegenhanger van
+ * dezelfde doelpoort voedt. Geeft [links, rechts] of null.
+ */
+function findTwin(p: ModularProject, patch: Patch, mod: ModuleInstance): [ModuleInstance, ModuleInstance] | null {
+  const r = portRoles(typeOf(p, mod.typeId));
+  const sameType = (id: string) => p.modules.find((m) => m.id === id && m.id !== mod.id && m.typeId === mod.typeId);
+  for (const c of patch.connections) {
+    if (c.to.moduleId === mod.id && c.to.portId === r.audioIn.mono) {
+      const cp = counterpart(c.from.portId); if (!cp) continue;
+      const tw = patch.connections.find((x) => x.from.moduleId === c.from.moduleId && x.from.portId === cp && x.to.portId === r.audioIn.mono && sameType(x.to.moduleId));
+      if (tw) { const twin = sameType(tw.to.moduleId)!; return isRightPort(c.from.portId) ? [twin, mod] : [mod, twin]; }
+    }
+    if (c.from.moduleId === mod.id && c.from.portId === r.audioOut.mono) {
+      const cp = counterpart(c.to.portId); if (!cp) continue;
+      const tw = patch.connections.find((x) => x.to.moduleId === c.to.moduleId && x.to.portId === cp && x.from.portId === r.audioOut.mono && sameType(x.from.moduleId));
+      if (tw) { const twin = sameType(tw.from.moduleId)!; return isRightPort(c.to.portId) ? [twin, mod] : [mod, twin]; }
+    }
+  }
+  return null;
+}
+
+/** Mono → stereo: een L/R-paar wordt één stereomodule (op de id van L);
+ *  zonder paar gaat de mono-bron naar beide ingangen. In álle patches. */
+function monoToStereo(p0: ModularProject, patchId: string, old: ModuleInstance, oldT: ModuleType, newT: ModuleType): EditResult {
+  let p = p0;
+  const warnings: string[] = [];
+  const patch = patchOf(p, patchId);
+  const pair = findTwin(p, patch, old);
+  const [left, right] = pair ?? [old, null];
+  const ro = portRoles(oldT), rn = portRoles(newT);
+  const other = mapPorts(oldT, newT);
+  const proto = freshInstance(p, newT.id);
+  const dropped = new Set<string>();
+  p = {
+    ...p,
+    modules: p.modules.filter((m) => m.id !== right?.id).map((m) => (m.id === left.id ? { ...proto, id: m.id, notes: m.notes } : m)),
+    patches: p.patches.map((x) => {
+      const conns: PatchConnection[] = [];
+      for (const c of x.connections) {
+        let { from, to } = c;
+        const extra: PatchConnection[] = [];
+        if (c.to.moduleId === left.id || c.to.moduleId === right?.id) {
+          const isR = c.to.moduleId === right?.id;
+          if (c.to.portId === ro.audioIn.mono) {
+            to = { moduleId: left.id, portId: isR ? rn.audioIn.right! : rn.audioIn.left! };
+            // Geen paar: dezelfde bron ook op de rechteringang.
+            if (!right) extra.push({ ...c, id: uid('conn'), to: { moduleId: left.id, portId: rn.audioIn.right! } });
+          } else if (!isR && other.get(c.to.portId)) {
+            to = { moduleId: left.id, portId: other.get(c.to.portId)! };
+          } else { dropped.add(`${oldT.variant}.${c.to.portId}`); continue; }
+        }
+        if (c.from.moduleId === left.id || c.from.moduleId === right?.id) {
+          const isR = c.from.moduleId === right?.id;
+          if (c.from.portId === ro.audioOut.mono) {
+            const wantR = isR || (!right && isRightPort(c.to.portId));
+            from = { moduleId: left.id, portId: wantR ? rn.audioOut.right! : rn.audioOut.left! };
+          } else if (!isR && other.get(c.from.portId)) {
+            from = { moduleId: left.id, portId: other.get(c.from.portId)! };
+          } else { dropped.add(`${oldT.variant}.${c.from.portId}`); continue; }
+        }
+        conns.push({ ...c, from, to }, ...extra);
+      }
+      const cs = { ...x.controlState };
+      const had = left.id in cs || (right && right.id in cs);
+      if (right) delete cs[right.id];
+      if (had) cs[left.id] = playableControls(newT);
+      return { ...x, connections: conns, controlState: cs };
+    }),
+  };
+  p = { ...p, racks: p.racks.map((r) => ({ ...r, slots: r.slots.filter((s) => s.moduleId !== right?.id) })) };
+  const loc = slotOf(p, left.id);
+  if (loc) p = shiftRow(p, loc.rack.id, loc.slot, proto.visual.hpWidth - left.visual.hpWidth);
+  for (const d of dropped) warnings.push(`Kabel op ${d} had geen tegenhanger op ${shortName(newT.id, p.moduleTypes)} en is verwijderd.`);
+  return {
+    project: p, warnings,
+    summary: right
+      ? `${shortName(oldT.id, p.moduleTypes)} L/R-paar → één ${shortName(newT.id, p.moduleTypes)} (stereo).`
+      : `${shortName(oldT.id, p.moduleTypes)} → ${shortName(newT.id, p.moduleTypes)} (stereo; de mono-bron voedt L en R).`,
+  };
+}
+
+/** Stereo → mono: één stereomodule wordt een L/R-paar (L houdt de id). */
+function stereoToMono(p0: ModularProject, old: ModuleInstance, oldT: ModuleType, newT: ModuleType): EditResult {
+  let p = p0;
+  const warnings: string[] = [];
+  const ro = portRoles(oldT), rn = portRoles(newT);
+  const other = mapPorts(oldT, newT);
+  const protoL = freshInstance(p, newT.id);
+  const twin = freshInstance(p, newT.id);
+  const dropped = new Set<string>();
+  const ctlL = playableControls(newT);
+  const ctlR = CATALOG[newT.id]?.widen ? CATALOG[newT.id]!.widen!(ctlL) : { ...ctlL };
+  p = {
+    ...p,
+    modules: [...p.modules.map((m) => (m.id === old.id ? { ...protoL, id: m.id, notes: m.notes } : m)), twin],
+    patches: p.patches.map((x) => {
+      const conns: PatchConnection[] = [];
+      for (const c of x.connections) {
+        let { from, to } = c;
+        if (c.to.moduleId === old.id) {
+          if (c.to.portId === ro.audioIn.left) to = { moduleId: old.id, portId: rn.audioIn.mono! };
+          else if (c.to.portId === ro.audioIn.right) to = { moduleId: twin.id, portId: rn.audioIn.mono! };
+          else if (other.get(c.to.portId)) to = { moduleId: old.id, portId: other.get(c.to.portId)! };
+          else { dropped.add(`${oldT.variant}.${c.to.portId}`); continue; }
+        }
+        if (c.from.moduleId === old.id) {
+          if (c.from.portId === ro.audioOut.left) from = { moduleId: old.id, portId: rn.audioOut.mono! };
+          else if (c.from.portId === ro.audioOut.right) from = { moduleId: twin.id, portId: rn.audioOut.mono! };
+          else if (other.get(c.from.portId)) from = { moduleId: old.id, portId: other.get(c.from.portId)! };
+          else { dropped.add(`${oldT.variant}.${c.from.portId}`); continue; }
+        }
+        conns.push({ ...c, from, to });
+      }
+      const cs = { ...x.controlState };
+      if (old.id in cs) { cs[old.id] = { ...ctlL }; cs[twin.id] = { ...ctlR }; }
+      return { ...x, connections: conns, controlState: cs };
+    }),
+  };
+  const loc = slotOf(p, old.id);
+  if (loc) {
+    p = shiftRow(p, loc.rack.id, loc.slot, protoL.visual.hpWidth - old.visual.hpWidth + twin.visual.hpWidth);
+    const slot: RackSlot = { id: uid('slot'), moduleId: twin.id, row: loc.slot.row, hpOffset: loc.slot.hpOffset + protoL.visual.hpWidth };
+    p = withRack(p, loc.rack.id, (r) => ({ ...r, slots: [...r.slots, slot] }));
+  }
+  for (const d of dropped) warnings.push(`Kabel op ${d} had geen tegenhanger op ${shortName(newT.id, p.moduleTypes)} en is verwijderd.`);
+  return { project: p, warnings, summary: `${shortName(oldT.id, p.moduleTypes)} (stereo) → ${shortName(newT.id, p.moduleTypes)} als L/R-paar.` };
 }
 
 // ── setVoices ───────────────────────────────────────────────────────────

@@ -98,7 +98,7 @@ describe('nieuwe recepten', () => {
   });
 
   it('mono bus-keten met mono én stereo effecten', () => {
-    const p = buildRecipe(base(), { source: 'vco', bus: ['tape', 'reverb'] });
+    const p = buildRecipe(base(), { source: 'vco', bus: ['tape', 'dattorro'] });
     const sig = signature(p);
     expect(sig.types.filter((t) => t === 'tp_mmb_tape_echo').length).toBe(2);        // mono → L/R-paar
     expect(sig.types.filter((t) => t === 'tp_mmb_elements_reverb').length).toBe(1);  // stereo
@@ -164,7 +164,7 @@ describe('knopstanden van buiten', () => {
   it('worden tegen het type gehouden: klemmen, standen, onbekende id\'s weg', () => {
     const r = compileRecipe(base(), {
       source: 'vco',
-      bus: [{ type: 'bus comp', controls: { ratio: 4, attack: 30, threshold: -200, mix: 5, bypass: 'on', flanger: 1, release: 'auto' } as never }],
+      bus: [{ type: 'bus comp', controls: { ratio: 4, attack: 30, threshold: -200, mix: 5, bypass: 'on', theremin: 1, release: 'auto' } as never }],
     });
     const comp = r.ops.find((o) => o.op === 'setControls' && 'values' in o && 'makeup' in o.values) as { values: Record<string, unknown> };
     expect(comp.values.ratio).toBe(2);        // 3 standen → hoogste index
@@ -172,12 +172,12 @@ describe('knopstanden van buiten', () => {
     expect(comp.values.threshold).toBe(-60);
     expect(comp.values.mix).toBe(1);
     expect(comp.values.bypass).toBe(1);        // tweestandenschakelaar: "on" → Aan
-    expect(comp.values).not.toHaveProperty('flanger');
+    expect(comp.values).not.toHaveProperty('theremin');
     // 'auto' is een standnaam van de release-schakelaar → die index.
     const rel = base().moduleTypes.find((t) => t.id === 'tp_mmb_bus_comp')!.controls.find((c) => c.id === 'release')!;
     expect(rel.kind).toBe('switch');
     expect(comp.values.release).toBe((rel as { positions: string[] }).positions.findIndex((p) => p.toLowerCase() === 'auto'));
-    expect(r.warnings.some((w) => /flanger/.test(w))).toBe(true);
+    expect(r.warnings.some((w) => /theremin/.test(w))).toBe(true);
     expect(r.warnings.some((w) => /threshold/.test(w))).toBe(true);
   });
 });

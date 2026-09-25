@@ -100,7 +100,7 @@ export function CompareSlots(props: { project: ModularProject; patch: Patch }): 
 
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#475569' }}
-          title="Vergelijken op je oren: klik een leeg slot om de huidige patch erin te zetten, klik een gevuld slot om te wisselen (toetsen 1–4). × haalt hem eruit.">
+          title="Vergelijken op je oren: klik een leeg slot om de huidige patch erin te zetten, klik een gevuld slot om te wisselen (toetsen 1–4), rechtsklik om het slot te vervangen door de huidige patch. × haalt hem eruit.">
       <span style={{ marginRight: 2 }}>Vergelijk:</span>
       {SLOTS.map((label, i) => {
         const id = slots[i];
@@ -110,11 +110,21 @@ export function CompareSlots(props: { project: ModularProject; patch: Patch }): 
           <span key={label} style={{ display: 'inline-flex', alignItems: 'stretch' }}>
             <button
               onClick={() => { if (!id) { const next = [...slots]; next[i] = patch.id; setSet(next); } else if (!isActive) activate(id); }}
+              onContextMenu={(e) => {
+                // Rechtsklik: dit slot vervangen door de patch die nu open staat.
+                e.preventDefault();
+                if (id === patch.id) return;
+                const next = [...slots].map((s) => (s === patch.id ? null : s));   // niet twee keer in de set
+                next[i] = patch.id;
+                setSet(next);
+              }}
               style={{ ...btn, fontSize: 12, padding: '3px 8px', borderRadius: id ? '6px 0 0 6px' : 6,
                        background: isActive ? 'var(--mb-accent)' : id ? '#e2e8f0' : '#f8fafc',
                        color: isActive ? 'var(--mb-on-accent)' : '#0f172a', fontWeight: isActive ? 700 : 500,
                        maxWidth: 170, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-              title={name ? `${label}: ${name}` : `${label}: zet de huidige patch hier (${patch.name})`}>
+              title={name
+                ? `${label}: ${name} — klik of toets ${i + 1} = wisselen · rechtsklik = vervangen door de huidige patch (${patch.name})`
+                : `${label}: zet de huidige patch hier (${patch.name})`}>
               {label}{name ? ` · ${name}` : ' +'}
             </button>
             {id && (

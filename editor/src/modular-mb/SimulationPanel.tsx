@@ -39,7 +39,12 @@ export function SimulationPanel(): JSX.Element {
     webmidi:  new WebMidiSource(),
   }), []);
 
-  const [sourceId, setSourceId] = useState<SourceId>('sequence');
+  // Standaard een extern keyboard (Web MIDI); de keuze wordt onthouden.
+  const [sourceId, setSourceIdRaw] = useState<SourceId>(() => {
+    try { const s = localStorage.getItem('mmb.sim.source'); if (s === 'screen' || s === 'sequence' || s === 'webmidi') return s; } catch { /* geen opslag */ }
+    return 'webmidi';
+  });
+  const setSourceId = (s: SourceId): void => { setSourceIdRaw(s); try { localStorage.setItem('mmb.sim.source', s); } catch { /* geen opslag */ } };
   const source = sources[sourceId];
 
   const [status, setStatus] = useState<EngineStatus>(

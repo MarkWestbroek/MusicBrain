@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { updateProject, useModularProject } from '../store';
 import { resolvePorts } from '../types';
-import { CATALOG, shortName, type ModuleKindTag } from './catalog';
+import { kindOf, shortName, type ModuleKindTag } from './catalog';
 import { replaceModule, setVoices, addBusFx, addModulation, type EditResult } from './edits';
 
 export interface MenuAnchor { x: number; y: number; moduleId: string | null }
@@ -33,7 +33,7 @@ export function RecipeContextMenu(props: {
     const p = project;
     const types = p.moduleTypes;
     const internal = types.filter((t) => t.internal && t.role !== 'multi');
-    const byKind = (kinds: ModuleKindTag[]) => internal.filter((t) => kinds.includes(CATALOG[t.id]?.kind ?? 'util'));
+    const byKind = (kinds: ModuleKindTag[]) => internal.filter((t) => kinds.includes(kindOf(t)));
     const fxItems = (): Item[] => byKind(['fx']).map((t) => ({
       label: shortName(t.id, types), run: () => addBusFx(p, patchId, t.id),
     }));
@@ -47,7 +47,7 @@ export function RecipeContextMenu(props: {
     const m = p.modules.find((x) => x.id === anchor.moduleId);
     if (!m) return [];
     const t = types.find((x) => x.id === m.typeId);
-    const kind = CATALOG[m.typeId]?.kind;
+    const kind = t ? kindOf(t) : undefined;
     const out: Item[] = [];
     if (t?.role !== 'multi') {
       const candidates = (kind === 'source' ? byKind(['source', 'drum', 'noise'])

@@ -55,7 +55,7 @@ describe('LLM-adapter: validatie van het JSON-antwoord', () => {
 
   it('verzonnen type-id → RecipeError', () => {
     expect(() => commandFromLlmJson({ command: 'build', recipe: { source: 'tp_mmb_supersaw' } }, types)).toThrowError(RecipeError);
-    expect(() => commandFromLlmJson({ command: 'addBus', module: 'flanger' }, types)).toThrowError(/onbekende module/);
+    expect(() => commandFromLlmJson({ command: 'addBus', module: 'theremin' }, types)).toThrowError(/onbekende module/);
     expect(() => commandFromLlmJson({ command: 'addModulation', source: 'tp_mmb_vco', target: 'filter' }, types)).toThrowError(/geen modulatiebron/);
   });
 
