@@ -2,7 +2,27 @@
 
 Datum: 2026-09-25. Ticket-prefix: **ED-MORPH-x** (editor) en **FW-MORPH-x**
 (firmware). Vervolg op doc/plans/patch-recept.md (A/B-vergelijkset, ED-RC-8b).
-Status: ontwerp, niets gebouwd.
+
+Status 2026-09-25:
+- **ED-MORPH-1 gebouwd**: `recipe/morph.ts` — `morphDescriptor` (divergentie-
+  regel, snap op gate/trigger, controls met regel taper/ordinal/snap/step),
+  `morphPatch` (fusie met `attenuation` op gewogen kabels), `upsertMorph`.
+  `SwitchControl.ordinal` + heuristiek op standlabels. Tests op recept-
+  patches (bus-effect alleen in B, gate-divergentie, cutoff per octaaf,
+  standen 0→3 langs 1 en 2).
+- **SIM-MORPH-1 gebouwd**: AudioEngine zet een Gain op elke kabel met
+  `attenuation` en `setCableWeight` stelt hem live bij; SimulationPanel
+  laat `attenuation` buiten de topologie-signature en pokt gewichten en
+  gemorphte knoppen live (geen rebuild tijdens het schuiven).
+- **ED-MORPH-2, eerste versie gebouwd**: `Patch.morph = {a, b, t}`; knop
+  "⇄ Maak morph A→B" bij de vergelijkslots (zelfde rack); MORPH-paneel in de
+  patcher (balk A····B met wijzer, schuif, A/½/B, samenvatting). De morph
+  is een gewone patch in de store: push, presets en Patches-tab werken.
+  Nog niet: bevroren weergave in de graph (je kúnt nu in een morph-patch
+  kabels trekken; de volgende t-wijziging overschrijft dat), de MORPH-
+  module met cv-ingang, verticale balk als display-type.
+- **FW-MORPH-1/2**: open. De Teensy krijgt de fusie als gewone patch mét
+  `attenuation`, maar de firmware past die nog niet toe.
 
 ## Doel
 

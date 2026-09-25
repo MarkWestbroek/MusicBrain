@@ -166,6 +166,14 @@ export interface SwitchControl {
   positions: string[];
   defaultIndex: number;
   orientation?: 'v' | 'h' | 'rotary';
+  /**
+   * Geordende standen (20/30/60/100 Hz, ratio 4:1…All): een morph loopt
+   * dan langs de tussenliggende standen (index interpoleren en afronden).
+   * Zonder vlag beslist een heuristiek op de standlabels; niet-geordende
+   * schakelaars (LP/HP/BP, golfvorm) snappen bij t = 0,5. Zie
+   * doc/plans/morph-a-b.md.
+   */
+  ordinal?: boolean;
 }
 
 export interface ButtonControl {
@@ -614,6 +622,14 @@ export interface Patch {
   /** Map in de Patches-tab (vrije tekst, bijv. "Physical modelling"). Alleen
    *  organisatie in de editor; gaat niet naar de firmware. */
   folder?: string;
+  /**
+   * Deze patch is een morph tussen patch `a` en `b` (zelfde rack) op stand
+   * `t` (0 = A, 1 = B). `connections` en `controlState` zijn dan de
+   * uitgerekende fusie M(A, B, t) (recipe/morph.ts) en worden bij elke
+   * t-wijziging herschreven; bewerken doe je in A of B. Zie
+   * doc/plans/morph-a-b.md.
+   */
+  morph?: { a: string; b: string; t: number };
   /** Optional MIDI Program Change number (0–127) used to select this patch
    *  from a controller / DAW. Undefined = not mapped to a program. Numbers
    *  are expected to be unique within a project but this is not enforced. */

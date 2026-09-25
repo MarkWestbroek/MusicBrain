@@ -68,6 +68,7 @@ export function SimulationPanel(): JSX.Element {
   // zonder rebuild (geen klikken / opnieuw starten van oscillators).
   const prevSigRef = useRef<string>('');
   const prevCtrlRef = useRef<Record<string, Record<string, unknown>>>({});
+  const prevWeightRef = useRef(new Map<string, number>());   // kabel-id → laatst gezette gewicht (morph)
   useEffect(() => {
     if (!patch) return;
     // Topologie-signature: alleen connections + modules + rack-leden.
@@ -75,8 +76,10 @@ export function SimulationPanel(): JSX.Element {
     // stemmen de engine bouwt. Zonder deze twee deed Voices veranderen (tab
     // Patches) of een groep aanpassen niets tot er toevallig iets anders
     // wijzigde.
+    // Het gewicht van een kabel (`attenuation`, morph) hoort níet bij de
+    // topologie: dat gaat live via engine.setCableWeight, zie onder.
     const sig = JSON.stringify({
-      conns: patch.connections,
+      conns: patch.connections.map((c) => ({ id: c.id, from: c.from, to: c.to, invert: c.invert, weighted: c.attenuation !== undefined })),
       rackIds: patch.rackIds,
       voices: patch.voiceCount,
       mods: project.modules.map((m) => ({ id: m.id, typeId: m.typeId })),
@@ -91,7 +94,13 @@ export function SimulationPanel(): JSX.Element {
       if (wasRunning) { void engine.start(); }
       return;
     }
-    // Topologie ongewijzigd → diff controls en push live.
+    // Topologie ongewijzigd → kabelgewichten (morph) en controls live.
+    for (const c of patch.connections) {
+      if (c.attenuation === undefined) continue;
+      if (prevWeightRef.current.get(c.id) === c.attenuation) continue;
+      prevWeightRef.current.set(c.id, c.attenuation);
+      engine.setCableWeight(c.id, c.attenuation);
+    }
     const next = patch.controlState ?? {};
     const prev = prevCtrlRef.current;
     let needRebuild = false;

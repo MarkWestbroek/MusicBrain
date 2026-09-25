@@ -602,6 +602,20 @@ export class AudioEngine {
    * verbinding van een uitgang naar een ingang, zoals de AudioGraph en de
    * CvGraph van de Teensy ze samen leggen.
    */
+  /** Gain per gewogen kabel (conn.id → Gain), voor live morphen. Nodes van
+   *  een vorige build zijn gedisposed (ze zitten in runtime.extra) en worden
+   *  bij gebruik overgeslagen. */
+  private readonly cableGains = new Map<string, Tone.Gain>();
+
+  /** Zet het gewicht van een gewogen kabel live (0..1). `false` = die kabel
+   *  heeft geen Gain in de huidige build → rebuild nodig. */
+  setCableWeight(connId: string, weight: number): boolean {
+    const g = this.cableGains.get(connId);
+    if (!g || g.disposed) { if (g) this.cableGains.delete(connId); return false; }
+    g.gain.rampTo(clamp(weight, 0, 1), 0.02);
+    return true;
+  }
+
   private wire(conn: PatchConnection): void {
     const src = this.nodes.get(conn.from.moduleId);
     const dst = this.nodes.get(conn.to.moduleId);
@@ -619,15 +633,26 @@ export class AudioEngine {
       ? dst.runtime.addFeeder(conn.to.portId)
       : inputOf(dst, conn.to.portId);
     if (!out || !inp) return;
+    // Gewogen kabel (morph, ED-MORPH-1): een Gain ertussen die live bij te
+    // stellen is (setCableWeight) zonder rebuild. Zonder `attenuation`
+    // blijft de kabel een directe verbinding zoals altijd.
+    let tail: Tone.ToneAudioNode | AudioNode = out;
+    if (conn.attenuation !== undefined) {
+      const g = new Tone.Gain(clamp(conn.attenuation, 0, 1));
+      (out as Tone.ToneAudioNode).connect(g);
+      tail = g;
+      this.cableGains.set(conn.id, g);
+      if (dst.kind === 'wasm') dst.runtime.extra.push(g); else if (src.kind === 'wasm') src.runtime.extra.push(g);
+    }
     if (src.kind === 'wasm' && dst.kind === 'wasm') {
       // Web Audio dempt een lus zonder DelayNode (Stages.eoc → Marbles.clock
       // → … → Stages.gate, of eoc → eigen gate). Eén render-quantum
       // vertraging (~2,7 ms) houdt zulke zelfspelende patches in leven.
       const d = new Tone.Delay(128 / Tone.getContext().sampleRate);
-      out.connect(d); d.connect(inp);
+      (tail as Tone.ToneAudioNode).connect(d); d.connect(inp);
       dst.runtime.extra.push(d);
     } else {
-      out.connect(inp);
+      (tail as Tone.ToneAudioNode).connect(inp);
     }
     if (dst.kind === 'wasm') {
       const toPort = conn.to.portId;

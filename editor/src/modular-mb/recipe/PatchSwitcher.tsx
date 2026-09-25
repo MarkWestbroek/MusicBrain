@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 import { updateProject } from '../store';
 import type { ModularProject, Patch } from '../types';
 import { bankPrograms, stepPatch } from './classify';
+import { upsertMorph } from './morph';
 import { activateOnTeensy, hasPushedPatch, isConnected, sendConfig } from '../teensyLink';
 
 function activate(id: string): void {
@@ -128,6 +129,21 @@ export function CompareSlots(props: { project: ModularProject; patch: Patch }): 
         <span style={{ fontSize: 11, color: '#b45309' }} title="Patches op verschillende racks: de Teensy krijgt de modules van allebei; wisselen blijft een graph-herbouw.">
           verschillende racks
         </span>
+      )}
+      {slots[0] && slots[1] && sameRack && !patch.morph && (
+        <button onClick={() => {
+                  let id = '';
+                  updateProject((p) => {
+                    try {
+                      const q = upsertMorph(p, slots[0]!, slots[1]!, 0.5);
+                      id = q.patches.find((x) => x.morph?.a === slots[0] && x.morph?.b === slots[1])!.id;
+                      return q;
+                    } catch (e) { alert(e instanceof Error ? e.message : String(e)); return p; }
+                  }, { forceCommit: true });
+                  if (id) activate(id);
+                }}
+                style={{ ...btn, fontSize: 11, fontWeight: 600 }}
+                title="Maak een morph-patch tussen A en B (zelfde rack): één schuif van A naar B, live in de sim.">⇄ Maak morph A→B</button>
       )}
       {set.length > 0 && isConnected() && !allPushed && (
         <button onClick={() => { void sendConfig(project); }} style={{ ...btn, fontSize: 11 }}

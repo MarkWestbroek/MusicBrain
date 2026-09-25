@@ -12,6 +12,7 @@ import { PatcherMatrixPanel } from './PatcherMatrixPanel';
 import { TeensyStatusBar } from './TeensyStatusBar';
 import type { Patch } from './types';
 import { PatchStepper, CompareSlots } from './recipe/PatchSwitcher';
+import { MorphPanel } from './recipe/MorphPanel';
 
 type View = 'graph' | 'matrix';
 
@@ -96,6 +97,8 @@ export function PatcherPanel(): JSX.Element {
           ))}
         </div>
       </div>
+      {/* Alleen zichtbaar als de actieve patch een morph is (ED-MORPH-2). */}
+      <MorphPanel project={project} patch={patch} />
 
       {view === 'graph'  && <PatcherGraphPanel patchId={patch.id} />}
       {view === 'matrix' && <PatcherMatrixPanel patchId={patch.id} />}
