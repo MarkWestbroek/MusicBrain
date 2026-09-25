@@ -174,3 +174,24 @@ describe('LLM-adapter: tools-modus (function calling, fetch gemockt)', () => {
     expect(api2.sent[0]!.body.tools).toBeDefined();
   });
 });
+
+describe('AI-instellingen: profielen', () => {
+  it('oude enkele instelling wordt het eerste profiel; profielen toevoegen en kiezen', async () => {
+    const mem = new Map<string, string>();
+    (globalThis as unknown as { localStorage: Storage }).localStorage = {
+      getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => { mem.set(k, v); },
+      removeItem: (k: string) => { mem.delete(k); }, clear: () => mem.clear(), key: () => null, length: 0,
+    } as Storage;
+    const { loadLlmConfig, saveLlmConfig, loadLlmSettings, profileFromPreset, llmReady } = await import('./llm');
+    mem.set('mmb.llm.v1', JSON.stringify({ endpoint: 'https://api.deepseek.com/chat/completions', model: 'deepseek-chat', apiKey: 'sk-oud', mode: 'tools' }));
+    const c = loadLlmConfig();
+    expect(c.profiles).toHaveLength(1);
+    expect(c.profiles[0]).toMatchObject({ label: 'DeepSeek', apiKey: 'sk-oud', provider: 'openai' });
+    const claude = profileFromPreset('claude', 'sk-ant-x');
+    saveLlmConfig({ profiles: [...c.profiles, claude], activeId: claude.id });
+    expect(loadLlmSettings()).toMatchObject({ provider: 'anthropic', model: 'claude-opus-5', apiKey: 'sk-ant-x' });
+    const server = profileFromPreset('server');
+    expect(llmReady(server)).toBe(false);          // toegangscode nodig
+    expect(llmReady({ ...server, apiKey: 'code' })).toBe(true);
+  });
+});

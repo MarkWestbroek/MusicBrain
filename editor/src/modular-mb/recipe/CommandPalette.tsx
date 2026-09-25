@@ -18,7 +18,7 @@ import { compileRecipe } from './compile';
 import { runCommand, runCommands } from './commands';
 import type { EditResult } from './edits';
 import type { PatchOp } from './types';
-import { askAi, loadLlmSettings, saveLlmSettings, LLM_PRESETS, type LlmSettings, type LlmThread } from './llm';
+import { askAi, loadLlmConfig, saveLlmConfig, llmReady, profileFromPreset, LLM_PRESETS, type LlmConfig, type LlmProfile, type LlmThread } from './llm';
 import { findExplainTopic, type ExplainTopic } from './demo';
 
 export { runCommand };
@@ -61,12 +61,29 @@ export function CommandPalette(props: {
   const [thread, setThread] = useState<LlmThread | null>(null);
   const [aiBusy, setAiBusy] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [llm, setLlm] = useState<LlmSettings>(() => loadLlmSettings());
+  // Meerdere AI-instellingen (DeepSeek, Claude, MusicBrain-server, …); één is actief.
+  const [config, setConfig] = useState<LlmConfig>(() => loadLlmConfig());
+  const llm: LlmProfile = config.profiles.find((x) => x.id === config.activeId) ?? config.profiles[0]!;
+  // Gespreksverloop, zichtbaar in het venster (blijft staan als je het venster sluit).
+  const [log, setLog] = useState<{ who: 'jij' | 'ai' | 'editor'; text: string }[]>([]);
+  // Verschuifbaar, zonder donkere achtergrond: je ziet de patch eronder.
+  const [pos, setPos] = useState<{ x: number; y: number }>(() => ({ x: Math.max(16, (window.innerWidth - 760) / 2), y: 90 }));
+  const drag = useRef<{ dx: number; dy: number } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    const move = (e: MouseEvent): void => {
+      if (!drag.current) return;
+      setPos({ x: Math.max(0, Math.min(window.innerWidth - 120, e.clientX - drag.current.dx)), y: Math.max(0, Math.min(window.innerHeight - 40, e.clientY - drag.current.dy)) });
+    };
+    const up = (): void => { drag.current = null; };
+    window.addEventListener('mousemove', move); window.addEventListener('mouseup', up);
+    return () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
+  }, []);
+
+  useEffect(() => {
     if (!open) return;
-    setStatus(null); setProposal(null); setThread(null);
+    // Niets wissen bij openen: het gesprek en het voorstel blijven staan.
     setTimeout(() => inputRef.current?.focus(), 0);
     const onKey = (e: KeyboardEvent): void => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
@@ -100,7 +117,10 @@ export function CommandPalette(props: {
       const r = result as EditResult | null;
       if (r) {
         setStatus({ ok: true, text: r.summary + (r.warnings.length ? ` — ${r.warnings.join(' ')}` : '') });
-        setText(''); setProposal(null); setThread(null);
+        setLog((l) => [...l, { who: 'editor', text: `✓ toegepast: ${r.summary}` }]);
+        setText(''); setProposal(null);
+        // Het gesprek blijft: je kunt verder vragen op de nieuwe stand ("en nu een galm erbij").
+        if (thread) setThread({ ...thread, commands: [] });
         if (commands.some((c) => c.kind === 'build')) onBuilt?.();
       }
     } catch (e) {
@@ -118,8 +138,11 @@ export function CommandPalette(props: {
     if (!text.trim() || aiBusy) return;
     setAiBusy(true); setStatus(null);
     try {
+      const asked = text;
+      setLog((l) => [...l, { who: 'jij', text: asked }]);
       const a = await askAi(text, project, llm, fetch, thread ?? undefined);
       setProposal({ commands: a.commands, summary: a.summary, explanation: a.explanation, source: 'ai' });
+      setLog((l) => [...l, { who: 'ai', text: [a.commands.length ? `Voorstel: ${a.summary}` : '', a.explanation].filter(Boolean).join(' — ') || 'Geen voorstel.' }]);
       if (a.thread) { setThread(a.thread); setText(''); }
       if (!a.commands.length) setStatus({ ok: false, text: a.explanation || 'Geen voorstel.' });
     } catch (e) {
@@ -129,23 +152,30 @@ export function CommandPalette(props: {
     }
   }
 
-  function updateLlm(patch: Partial<LlmSettings>): void {
-    const next = { ...llm, ...patch };
-    setLlm(next); saveLlmSettings(next);
+  function saveConfig(next: LlmConfig): void { setConfig(next); saveLlmConfig(next); }
+  function updateLlm(patch: Partial<LlmProfile>): void {
+    saveConfig({ ...config, profiles: config.profiles.map((x) => (x.id === llm.id ? { ...x, ...patch } : x)) });
   }
+  function addProfile(key: string): void {
+    const p = profileFromPreset(key);
+    saveConfig({ profiles: [...config.profiles, p], activeId: p.id });
+  }
+  function removeProfile(): void {
+    if (config.profiles.length <= 1) return;
+    const rest = config.profiles.filter((x) => x.id !== llm.id);
+    saveConfig({ profiles: rest, activeId: rest[0]!.id });
+  }
+  function newConversation(): void { setThread(null); setProposal(null); setText(''); setLog([]); setStatus(null); inputRef.current?.focus(); }
 
-  const overlay: React.CSSProperties = {
-    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 60,
-    display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '12vh',
-  };
   const panel: React.CSSProperties = {
-    background: '#fff', borderRadius: 8, padding: 14, width: 740, maxWidth: '94vw',
-    boxShadow: '0 12px 40px rgba(0,0,0,0.3)', fontSize: 13,
+    position: 'fixed', left: pos.x, top: pos.y, zIndex: 60,
+    background: '#fff', borderRadius: 8, width: 760, maxWidth: '96vw', maxHeight: '80vh', overflowY: 'auto',
+    boxShadow: '0 12px 40px rgba(0,0,0,0.3)', border: '1px solid #cbd2d9', fontSize: 13,
   };
   const needsPatch = commands.some((c) => c.kind !== 'build');
   const canApply = commands.length > 0 && (!single || single.kind !== 'build' || (dry?.ok ?? false)) && (!needsPatch || hasPatch);
   const canDemo = !!onDemo && !!single && single.kind === 'build' && (dry?.ok ?? false);
-  const aiReady = !!llm.apiKey || /localhost|127\.0\.0\.1/.test(llm.endpoint);
+  const aiReady = llmReady(llm);
   const primary: React.CSSProperties = {
     padding: '8px 14px', fontWeight: 600, border: 'none', borderRadius: 6, cursor: 'pointer',
     background: 'var(--mb-accent)', color: 'var(--mb-on-accent)',
@@ -156,8 +186,29 @@ export function CommandPalette(props: {
   };
 
   return (
-    <div style={overlay} onClick={onClose}>
-      <div style={panel} onClick={(e) => e.stopPropagation()}>
+    <div style={panel}>
+      {/* Kop: vastpakken om te verschuiven. */}
+      <div onMouseDown={(e) => { drag.current = { dx: e.clientX - pos.x, dy: e.clientY - pos.y }; e.preventDefault(); }}
+           style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: '#f1f5f9', borderBottom: '1px solid #e5e7eb',
+                    borderRadius: '8px 8px 0 0', cursor: 'move', userSelect: 'none', position: 'sticky', top: 0, zIndex: 1 }}>
+        <strong>⌘ Recept</strong>
+        <span style={{ fontSize: 11, color: '#64748b' }}>sleep hier om te verplaatsen · Esc of — verbergt, het gesprek blijft</span>
+        <span style={{ flex: 1 }} />
+        {(thread || log.length > 0) && (
+          <button onMouseDown={(e) => e.stopPropagation()} onClick={newConversation} style={{ fontSize: 11, padding: '2px 8px' }}>Nieuw gesprek</button>
+        )}
+        <button onMouseDown={(e) => e.stopPropagation()} onClick={onClose} title="Verbergen (het gesprek blijft staan)" style={{ fontSize: 13, padding: '0 8px' }}>—</button>
+      </div>
+      <div style={{ padding: 14 }}>
+        {log.length > 0 && (
+          <div style={{ maxHeight: 180, overflowY: 'auto', marginBottom: 10, padding: '6px 8px', background: '#f8fafc', border: '1px solid #e5e7eb', borderRadius: 6 }}>
+            {log.map((m, i) => (
+              <div key={i} style={{ margin: '3px 0', color: m.who === 'jij' ? '#0f172a' : m.who === 'ai' ? '#1d4ed8' : '#065f46' }}>
+                <strong style={{ fontSize: 11, textTransform: 'uppercase', marginRight: 6 }}>{m.who}</strong>{m.text}
+              </div>
+            ))}
+          </div>
+        )}
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <input
             ref={inputRef}
@@ -188,20 +239,31 @@ export function CommandPalette(props: {
         {showSettings && (
           <div style={{ marginTop: 10, padding: 10, border: '1px solid #e5e7eb', borderRadius: 6, background: '#f8fafc',
                         display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '6px 10px', alignItems: 'center' }}>
-            <span>Preset</span>
-            <div style={{ display: 'flex', gap: 6 }}>
-              {Object.entries(LLM_PRESETS).map(([k, v]) => (
-                <button key={k} onClick={() => updateLlm({ endpoint: v.endpoint, model: v.model })}
-                        style={{ ...secondary, padding: '4px 10px', fontWeight: llm.endpoint === v.endpoint ? 700 : 400 }}>{k}</button>
+            <span>Instelling</span>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+              {config.profiles.map((p) => (
+                <button key={p.id} onClick={() => saveConfig({ ...config, activeId: p.id })}
+                        style={{ ...secondary, padding: '4px 10px', fontWeight: p.id === llm.id ? 700 : 400,
+                                 background: p.id === llm.id ? 'var(--mb-accent-tint)' : '#f8fafc' }}
+                        title={`${p.provider === 'anthropic' ? 'Claude (Anthropic)' : p.endpoint} · ${p.model}${p.apiKey ? '' : ' · nog geen key'}`}>
+                  {p.label}{p.apiKey ? '' : ' ⚠'}
+                </button>
               ))}
+              <select value="" onChange={(e) => { if (e.target.value) addProfile(e.target.value); }} style={{ fontSize: 12 }} title="Nog een instelling toevoegen">
+                <option value="">+ toevoegen…</option>
+                {Object.entries(LLM_PRESETS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+              </select>
+              {config.profiles.length > 1 && <button onClick={removeProfile} style={{ ...secondary, padding: '4px 8px' }} title="Deze instelling verwijderen">🗑</button>}
             </div>
+            <span>Naam</span>
+            <input value={llm.label} onChange={(e) => updateLlm({ label: e.target.value })} style={{ padding: 5 }} />
             <span>Endpoint</span>
             <input value={llm.endpoint} onChange={(e) => updateLlm({ endpoint: e.target.value })} style={{ padding: 5 }} />
             <span>Model</span>
             <input value={llm.model} onChange={(e) => updateLlm({ model: e.target.value })} style={{ padding: 5 }} />
-            <span>API-key</span>
+            <span>{llm.endpoint === LLM_PRESETS.server!.endpoint ? 'Toegangscode' : 'API-key'}</span>
             <input type="password" value={llm.apiKey} onChange={(e) => updateLlm({ apiKey: e.target.value })} style={{ padding: 5 }}
-                   placeholder="sk-… (blijft in deze browser, localStorage)" />
+                   placeholder={llm.endpoint === LLM_PRESETS.server!.endpoint ? 'de code die je van de beheerder kreeg' : llm.provider === 'anthropic' ? 'sk-ant-… (blijft in deze browser)' : 'sk-… (blijft in deze browser, localStorage)'} />
             <span>Modus</span>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               {(['tools', 'json'] as const).map((m) => (
@@ -215,7 +277,8 @@ export function CommandPalette(props: {
             <span />
             <div style={{ fontSize: 11, color: '#64748b' }}>
               Naar buiten gaan alleen je vraag, de modulecatalogus en een korte samenvatting van de actieve patch.
-              Werkt het niet vanuit de browser (CORS), dan is een kleine proxy nodig.
+              Claude gebruikt de officiële Anthropic-SDK (leeg endpoint = standaard). MusicBrain-server: de key staat op de
+              server, jij vult alleen de toegangscode in.
             </div>
           </div>
         )}

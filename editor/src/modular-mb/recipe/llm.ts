@@ -23,31 +23,86 @@ import { RecipeError, type PatchRecipe } from './types';
 
 export { summarizePatch };
 
+/** 'openai' = elke OpenAI-compatibele chat-completions-API (DeepSeek,
+ *  OpenAI, Ollama, de MusicBrain-server); 'anthropic' = Claude via de
+ *  officiële SDK (llmClaude.ts). */
+export type LlmProvider = 'openai' | 'anthropic';
+
 export interface LlmSettings {
+  provider?: LlmProvider;
   endpoint: string;
   model: string;
   apiKey: string;
   mode: 'tools' | 'json';
 }
 
-const STORAGE_KEY = 'mmb.llm.v1';
-export const LLM_PRESETS: Record<string, Pick<LlmSettings, 'endpoint' | 'model'>> = {
-  deepseek: { endpoint: 'https://api.deepseek.com/chat/completions', model: 'deepseek-chat' },
-  openai:   { endpoint: 'https://api.openai.com/v1/chat/completions', model: 'gpt-4o-mini' },
-  ollama:   { endpoint: 'http://localhost:11434/v1/chat/completions', model: 'llama3.1' },
-};
-const DEFAULTS: LlmSettings = { ...LLM_PRESETS.deepseek!, apiKey: '', mode: 'tools' };
+/** Een bewaarde AI-instelling ("DeepSeek", "Claude", "MusicBrain-server"). */
+export interface LlmProfile extends LlmSettings { id: string; label: string }
+export interface LlmConfig { profiles: LlmProfile[]; activeId: string }
 
-export function loadLlmSettings(): LlmSettings {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return { ...DEFAULTS, ...JSON.parse(raw) };
-  } catch { /* geen opslag */ }
-  return { ...DEFAULTS };
+const STORAGE_KEY = 'mmb.llm.v2';
+const OLD_KEY = 'mmb.llm.v1';
+
+/** De MusicBrain-server (tools/ai-proxy): de key staat op de server; jij
+ *  vult een toegangscode in die de beheerder je gaf. */
+export const SERVER_ENDPOINT = '/ai/v1/chat/completions';
+
+export const LLM_PRESETS: Record<string, Omit<LlmProfile, 'id' | 'apiKey'>> = {
+  deepseek: { label: 'DeepSeek', provider: 'openai', endpoint: 'https://api.deepseek.com/chat/completions', model: 'deepseek-chat', mode: 'tools' },
+  claude:   { label: 'Claude', provider: 'anthropic', endpoint: '', model: 'claude-opus-5', mode: 'tools' },
+  openai:   { label: 'OpenAI', provider: 'openai', endpoint: 'https://api.openai.com/v1/chat/completions', model: 'gpt-4o-mini', mode: 'tools' },
+  ollama:   { label: 'Ollama (lokaal)', provider: 'openai', endpoint: 'http://localhost:11434/v1/chat/completions', model: 'llama3.1', mode: 'tools' },
+  server:   { label: 'MusicBrain-server', provider: 'openai', endpoint: SERVER_ENDPOINT, model: 'deepseek-chat', mode: 'tools' },
+};
+const DEFAULTS: LlmSettings = { provider: 'openai', endpoint: LLM_PRESETS.deepseek!.endpoint, model: 'deepseek-chat', apiKey: '', mode: 'tools' };
+
+let idSeq = 0;
+export const newProfileId = (): string => `prof_${Date.now().toString(36)}_${(idSeq++).toString(36)}`;
+
+export function profileFromPreset(key: string, apiKey = ''): LlmProfile {
+  const p = LLM_PRESETS[key] ?? LLM_PRESETS.deepseek!;
+  return { ...p, id: newProfileId(), apiKey };
 }
 
+export function loadLlmConfig(): LlmConfig {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const c = JSON.parse(raw) as LlmConfig;
+      if (c.profiles?.length) return { profiles: c.profiles, activeId: c.profiles.some((x) => x.id === c.activeId) ? c.activeId : c.profiles[0]!.id };
+    }
+    // Oude enkelvoudige instelling (v1) meenemen als eerste profiel.
+    const old = localStorage.getItem(OLD_KEY);
+    if (old) {
+      const o = { ...DEFAULTS, ...(JSON.parse(old) as Partial<LlmSettings>) };
+      const label = o.endpoint.includes('deepseek') ? 'DeepSeek' : o.endpoint.includes('openai') ? 'OpenAI' : 'Eigen';
+      const prof: LlmProfile = { ...o, id: newProfileId(), label };
+      return { profiles: [prof], activeId: prof.id };
+    }
+  } catch { /* geen opslag */ }
+  const prof = profileFromPreset('deepseek');
+  return { profiles: [prof], activeId: prof.id };
+}
+
+export function saveLlmConfig(c: LlmConfig): void {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(c)); } catch { /* quota/private */ }
+}
+
+/** De actieve instelling (voor wie maar één nodig heeft). */
+export function loadLlmSettings(): LlmSettings {
+  const c = loadLlmConfig();
+  return c.profiles.find((x) => x.id === c.activeId) ?? c.profiles[0] ?? { ...DEFAULTS };
+}
+
+/** Werkt de actieve instelling bij (compatibel met de oude API). */
 export function saveLlmSettings(s: LlmSettings): void {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch { /* quota/private */ }
+  const c = loadLlmConfig();
+  saveLlmConfig({ ...c, profiles: c.profiles.map((x) => (x.id === c.activeId ? { ...x, ...s } : x)) });
+}
+
+/** Klaar om te vragen? (key, of een lokaal/server-endpoint zonder key) */
+export function llmReady(s: LlmSettings): boolean {
+  return !!s.apiKey || /localhost|127.0.0.1/.test(s.endpoint);
 }
 
 export interface LlmAnswer {
@@ -88,7 +143,7 @@ async function post(settings: LlmSettings, body: Record<string, unknown>, fetchF
 
 // ── tools-modus ─────────────────────────────────────────────────────────
 
-const TOOLS_PROMPT = [
+export const TOOLS_PROMPT = [
   'Je helpt een gebruiker van de MusicBrain-editor (modulaire synth) patches te bouwen en te veranderen.',
   'Gebruik de tools: list_module_types om namen op type-id\'s af te beelden, get_module_type voor poorten/knoppen,',
   'get_patch_summary voor de huidige patch, compile_recipe om een recept te controleren.',
@@ -100,13 +155,13 @@ const TOOLS_PROMPT = [
 
 /** Gespreksstand om op door te praten ("maak het toch 8-stemmig"): de
  *  berichten tot nu toe en de voorstellen die al op tafel liggen. */
-export interface LlmThread { messages: ChatMessage[]; commands: Command[] }
+export interface LlmThread { provider?: LlmProvider; messages: unknown[]; commands: Command[] }
 
 export async function askLlmWithTools(text: string, project: ModularProject, settings = loadLlmSettings(),
                                       fetchFn: typeof fetch = fetch, maxRounds = 10,
                                       prior?: LlmThread): Promise<LlmAnswer & { thread: LlmThread }> {
   const messages: ChatMessage[] = prior
-    ? [...prior.messages, { role: 'user', content: text }]
+    ? [...(prior.messages as ChatMessage[]), { role: 'user', content: text }]
     : [{ role: 'system', content: TOOLS_PROMPT }, { role: 'user', content: text }];
   // Lokale kopie met de voorstellen toegepast; bij doorpraten eerst de
   // eerdere voorstellen opnieuw, zodat leestools het voorlopige beeld zien.
@@ -151,7 +206,7 @@ export async function askLlmWithTools(text: string, project: ModularProject, set
   return {
     command: commands[0] ?? null, commands, explanation, raw: explanation,
     summary: commands.length ? commands.map((c) => describeCommand(c, types)).join(' · ') : (explanation || 'Geen voorstel.'),
-    thread: { messages, commands },
+    thread: { provider: 'openai', messages, commands },
   };
 }
 
@@ -263,8 +318,15 @@ export async function askLlm(text: string, project: ModularProject, settings = l
 }
 
 /** Kies de modus uit de instellingen. `prior` = doorpraten (alleen tools-modus). */
-export function askAi(text: string, project: ModularProject, settings = loadLlmSettings(), fetchFn: typeof fetch = fetch,
+export async function askAi(text: string, project: ModularProject, settings = loadLlmSettings(), fetchFn: typeof fetch = fetch,
                       prior?: LlmThread): Promise<LlmAnswer & { thread?: LlmThread }> {
+  const provider = settings.provider ?? 'openai';
+  // Een gesprek loopt door bij dezelfde aanbieder; wissel je, dan begint het opnieuw.
+  const same = prior && (prior.provider ?? 'openai') === provider ? prior : undefined;
+  if (provider === 'anthropic') {
+    const { askClaudeWithTools } = await import('./llmClaude');
+    return askClaudeWithTools(text, project, settings, same);
+  }
   return settings.mode === 'json' ? askLlm(text, project, settings, fetchFn)
-    : askLlmWithTools(text, project, settings, fetchFn, 10, prior);
+    : askLlmWithTools(text, project, settings, fetchFn, 10, same);
 }
