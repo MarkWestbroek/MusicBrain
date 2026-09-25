@@ -630,6 +630,13 @@ export interface Patch {
    * doc/plans/morph-a-b.md.
    */
   morph?: { a: string; b: string; t: number };
+  /**
+   * Bewaarde versie (ED-RC-9), alleen aanwezig zolang de patch gewijzigd is
+   * sinds de laatste Bewaar. Zie recipe/saved.ts.
+   */
+  saved?: Pick<Patch, 'connections' | 'controlState' | 'voiceCount' | 'rackIds' | 'envelopes' | 'lfos' | 'polyOverrides'>;
+  /** Tijdens vergelijken staat de bewaarde versie voor en zit de bewerking in `saved`. */
+  showingSaved?: boolean;
   /** Optional MIDI Program Change number (0–127) used to select this patch
    *  from a controller / DAW. Undefined = not mapped to a program. Numbers
    *  are expected to be unique within a project but this is not enforced. */

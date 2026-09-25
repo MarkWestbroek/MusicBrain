@@ -6,6 +6,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { setProject, updateProject, useModularProject, getProject, undo, redo } from './store';
+import { savePatch } from './recipe/saved';
 import { CommandPalette } from './recipe/CommandPalette';
 import { Tour, tourSeen } from './recipe/Tour';
 import { startDemo, DemoCaption, type DemoState, type DemoHandle } from './recipe/demo';
@@ -91,6 +92,13 @@ export function ModularMbApp(): JSX.Element {
   useEffect(() => {
     function onKey(e: KeyboardEvent): void {
       if (!(e.ctrlKey || e.metaKey)) return;
+      // Ctrl+S = Bewaar de actieve patch (ED-RC-9), ook vanuit een tekstveld.
+      if (e.key.toLowerCase() === 's' && !e.shiftKey) {
+        e.preventDefault();
+        const id = getProject().activePatchId;
+        if (id) updateProject((p) => savePatch(p, id), { forceCommit: true });
+        return;
+      }
       // Sla over als focus in een tekstveld zit — daar geldt native undo.
       const t = e.target as HTMLElement | null;
       const tag = t?.tagName?.toLowerCase();

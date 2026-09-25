@@ -268,7 +268,11 @@ export function PatchesPanel(): JSX.Element {
                       )}
                       <input type="radio" name="activePatch" checked={project.activePatchId === x.id} onChange={() => setActive(x.id)} />
                     </td>
-                    <td style={{ padding: '4px 8px', minWidth: 180 }}>
+                    <td style={{ padding: '4px 8px', minWidth: 180, position: 'relative' }}>
+                      {x.saved && !x.morph && (
+                        <span title="Gewijzigd sinds de laatste Bewaar (Patcher: Bewaar / ⇄ / ↺)"
+                              style={{ position: 'absolute', left: -2, top: 10, color: 'var(--mb-accent-strong)', fontSize: 12 }}>●</span>
+                      )}
                       <input type="text" value={x.name}
                         onChange={(e) => patch(x.id, (p) => ({ ...p, name: e.target.value }))}
                         onBlur={resort}

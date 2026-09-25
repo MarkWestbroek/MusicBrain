@@ -13,6 +13,7 @@ import { TeensyStatusBar } from './TeensyStatusBar';
 import type { Patch } from './types';
 import { PatchStepper, CompareSlots } from './recipe/PatchSwitcher';
 import { MorphPanel } from './recipe/MorphPanel';
+import { isDirty, saveAsPatch } from './recipe/saved';
 
 type View = 'graph' | 'matrix';
 
@@ -46,20 +47,15 @@ export function PatcherPanel(): JSX.Element {
   function saveAsNewPatch(): void {
     if (!patch) return;
     const suggested = `${patch.name} (kopie)`;
-    const name = window.prompt('Bewaar patch als — nieuwe naam:', suggested);
+    const name = window.prompt(
+      isDirty(patch)
+        ? 'Bewaar als — de bewerking wordt een nieuwe patch; het origineel gaat terug naar zijn bewaarde versie. Naam:'
+        : 'Bewaar patch als — nieuwe naam:', suggested);
     if (name === null) return;
-    const copy: Patch = {
-      ...(JSON.parse(JSON.stringify(patch)) as Patch),
-      id: uid('patch'),
-      name: name.trim() || suggested,
-      programNumber: undefined,
-    };
-    updateProject((p) => ({
-      ...p,
-      patches: [...p.patches, copy],
-      activePatchId: copy.id,
-    }));
+    const id = uid('patch');
+    updateProject((p) => saveAsPatch(p, patch.id, id, name.trim() || suggested), { forceCommit: true });
   }
+  void (null as unknown as Patch);
 
   return (
     <div>

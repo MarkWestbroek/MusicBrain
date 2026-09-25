@@ -9,6 +9,7 @@ import { updateProject } from '../store';
 import type { ModularProject, Patch } from '../types';
 import { bankPrograms, stepPatch } from './classify';
 import { upsertMorph } from './morph';
+import { isDirty, revertPatch, savePatch, toggleShowSaved } from './saved';
 import { activateOnTeensy, hasPushedPatch, isConnected, sendConfig } from '../teensyLink';
 
 function activate(id: string): void {
@@ -68,7 +69,34 @@ export function PatchStepper(props: { project: ModularProject; patch: Patch }): 
         <strong style={{ color: '#0f172a', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{patch.name}</strong>
       </span>
       <span>· {patch.connections.length} verbindingen</span>
+      <SaveControls patch={patch} />
       {teensy && <span style={{ fontSize: 11, color: '#065f46' }}>{teensy}</span>}
+    </span>
+  );
+}
+
+/** Gewijzigd-stip, Bewaar (Ctrl+S), terug, en vergelijken met de bewaarde versie (ED-RC-9). */
+function SaveControls(props: { patch: Patch }): JSX.Element | null {
+  const { patch } = props;
+  if (patch.morph) return null;
+  const dirty = isDirty(patch);
+  if (!dirty) return <span style={{ fontSize: 11, color: '#64748b' }} title="Deze patch staat zoals bewaard">✓ bewaard</span>;
+  const b: React.CSSProperties = { ...btn, fontSize: 12, padding: '3px 8px' };
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+      <span style={{ color: 'var(--mb-accent-strong)', fontSize: 16, lineHeight: 1 }}
+            title={patch.showingSaved ? 'Je hoort nu de BEWAARDE versie; de bewerking staat klaar' : 'Gewijzigd sinds de laatste Bewaar'}>●</span>
+      <span style={{ fontSize: 11, color: '#92400e' }}>{patch.showingSaved ? 'bewaarde versie' : 'gewijzigd'}</span>
+      <button style={{ ...b, fontWeight: 700 }} onClick={() => updateProject((p) => savePatch(p, patch.id), { forceCommit: true })}
+              title={patch.showingSaved ? 'Bewaarde versie houden en de bewerking weggooien' : 'Bewaar (Ctrl+S): dit wordt de versie waar je op terugvalt'}>
+        Bewaar
+      </button>
+      <button style={b} onClick={() => updateProject((p) => toggleShowSaved(p, patch.id), { forceCommit: true })}
+              title="Vergelijk: wissel tussen je bewerking en de bewaarde versie (niets gaat verloren)">
+        ⇄ {patch.showingSaved ? 'bewerking' : 'bewaard'}
+      </button>
+      <button style={b} onClick={() => { if (window.confirm('De bewerking weggooien en terug naar de bewaarde versie?')) updateProject((p) => revertPatch(p, patch.id), { forceCommit: true }); }}
+              title="Terug naar de bewaarde versie (de bewerking gaat weg; Ctrl+Z haalt hem terug)">↺</button>
     </span>
   );
 }

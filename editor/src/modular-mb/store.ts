@@ -11,6 +11,7 @@ import {
   emptyModularProject,
   migrateProject,
 } from './types';
+import { trackSaved } from './recipe/saved';
 
 const STORAGE_KEY = 'mmb.project.v1';
 // Debounce: knopdrags en surface-CC's muteren de store vele keren per
@@ -86,7 +87,8 @@ export function updateProject(
   opts: UpdateOptions = {},
 ): void {
   const prev = current;
-  const next = fn(prev);
+  // Bewaarde versie vastleggen bij de eerste wijziging (recipe/saved.ts).
+  const next = trackSaved(prev, fn(prev));
   if (next === prev) return;
 
   if (!opts.skipHistory) {
