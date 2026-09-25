@@ -68,6 +68,12 @@ function tone(x: Float32Array, hz: number, rate: number): number {
   for (let i = 0; i < x.length; i++) { const w = 2 * Math.PI * hz * i / rate; re += x[i]! * Math.cos(w); im += x[i]! * Math.sin(w); }
   return 2 * Math.hypot(re, im) / x.length;
 }
+/** Gemiddelde toonsterkte over stukjes van 25 ms (voor signalen zonder vaste fase). */
+function chunked(x: Float32Array, hz: number, rate: number): number {
+  const w = Math.round(rate * 0.025); let sum = 0, n = 0;
+  for (let i = 0; i + w <= x.length; i += w) { sum += tone(x.subarray(i, i + w), hz, rate); n++; }
+  return n ? sum / n : 0;
+}
 const rms = (x: Float32Array): number => Math.sqrt(x.reduce((s, v) => s + v * v, 0) / Math.max(1, x.length));
 const sine = (hz: number, t: number, a = 0.5): number => a * Math.sin(2 * Math.PI * hz * t);
 
@@ -300,7 +306,7 @@ describe('stereo phaser (wasm)', () => {
 describe('vibe (wasm)', () => {
   const run = async (mode: number, lamp: number): Promise<{ l: Float32Array; rate: number }> => {
     const m = await load('tp_mmb_vibe');
-    for (const [id, v] of Object.entries({ speed: 3, intensity: 0.9, mode, lamp, volume: 1 })) m.setCtl(id, v);
+    for (const [id, v] of Object.entries({ speed: 3, intensity: 0.9, mode, lamp_age: lamp, volume: 1 })) m.setCtl(id, v);
     m.connect('in_l', true);
     const o = m.render(2.0, (id, t) => (id === 'in_l' ? 0.3 * (Math.sin(2 * Math.PI * 440 * t) + Math.sin(2 * Math.PI * 1320 * t)) : 0));
     return { l: o.out_l!.subarray(8820), rate: m.rate };
@@ -323,5 +329,93 @@ describe('vibe (wasm)', () => {
     expect(pitchSwing(light.l, light.rate)).toBeGreaterThanOrEqual(2);
     expect(rms(light.l)).toBeGreaterThan(0.1);
     expect(Number.isFinite(rms(cho.l))).toBe(true);
+  });
+});
+
+describe('harmonizer, korrel-stand (wasm)', () => {
+  it('Grains: +12 op 220 Hz geeft 440, ook met jitter', async () => {
+    const m = await load('tp_mmb_harmonizer');
+    for (const [id, v] of Object.entries({ semi_a: 12, lvl_a: 1, lvl_b: 0, window: 50, feedback: 0, spread: 1, mix: 1, algo: 1, jitter: 0.3 }))
+      m.setCtl(id, v);
+    m.connect('in', true);
+    const o = m.render(1.0, (id, t) => (id === 'in' ? sine(220, t) : 0));
+    const l = o.out_l!.subarray(8820);
+    // Korrels beginnen elk met hun eigen fase: over een hele seconde middelt
+    // de 440 Hz deels weg. Daarom per 25 ms gemeten.
+    expect(chunked(l, 440, m.rate)).toBeGreaterThan(0.2);
+    expect(chunked(l, 440, m.rate)).toBeGreaterThan(4 * chunked(l, 220, m.rate));
+  });
+});
+
+describe('rotary (wasm)', () => {
+  /** Frequentie van de volumeschommeling van een 3 kHz-toon (de hoorn). */
+  const amRate = (x: Float32Array, rate: number): number => {
+    const w = Math.round(rate * 0.01); const env: number[] = [];
+    for (let i = 0; i + w <= x.length; i += w) env.push(rms(x.subarray(i, i + w)));
+    const mean = env.reduce((a, b) => a + b, 0) / env.length;
+    let best = 0, bf = 0;
+    for (let f = 0.3; f <= 10; f += 0.05) {
+      let re = 0, im = 0;
+      env.forEach((v, i) => { re += (v - mean) * Math.cos(2 * Math.PI * f * i * 0.01); im += (v - mean) * Math.sin(2 * Math.PI * f * i * 0.01); });
+      const a = Math.hypot(re, im); if (a > best) { best = a; bf = f; }
+    }
+    return bf;
+  };
+  it('slow ~0,8 Hz, fast ~6,7 Hz op de hoorn; instelbare snelheden; L ≠ R', async () => {
+    const m = await load('tp_mmb_rotary');
+    for (const [id, v] of Object.entries({ speed: 0, slow_rate: 0.8, fast_rate: 6.7, inertia: 1, drive: 0, balance: 1, spread: 1, noise: 0, level: 1 }))
+      m.setCtl(id, v);
+    m.connect('in_l', true);
+    const feed = (id: string, t: number): number => (id === 'in_l' ? sine(3000, t, 0.4) : 0);
+    let o = m.render(5.0, feed);
+    expect(amRate(o.out_l!.subarray(44100), m.rate)).toBeCloseTo(0.8, 0);
+    let d = 0; for (let i = 0; i < o.out_l!.length; i++) d += (o.out_l![i]! - o.out_r![i]!) ** 2;
+    expect(Math.sqrt(d / o.out_l!.length)).toBeGreaterThan(0.01);
+    m.setCtl('speed', 1);
+    m.render(4.0, feed);                                   // opwinden
+    o = m.render(3.0, feed);
+    expect(Math.abs(amRate(o.out_l!, m.rate) - 6.7)).toBeLessThan(0.5);
+    m.setCtl('fast_rate', 4.5);                            // ELKA: snel instelbaar
+    m.render(4.0, feed);
+    o = m.render(3.0, feed);
+    expect(Math.abs(amRate(o.out_l!, m.rate) - 4.5)).toBeLessThan(0.5);
+  });
+  it('traagheid: de hoorn is na 1,5 s al bijna op snelheid, dus sneller dan de trommel', async () => {
+    const m = await load('tp_mmb_rotary');
+    for (const [id, v] of Object.entries({ speed: 0, slow_rate: 0.8, fast_rate: 6.7, inertia: 1, drive: 0, balance: 0.5, spread: 1, noise: 0, level: 1 }))
+      m.setCtl(id, v);
+    m.connect('in_l', true);
+    m.render(1.0, () => 0);
+    m.setCtl('speed', 1);
+    // Hoorn: 3 kHz-toon; trommel: 150 Hz-toon, apart gemeten.
+    const hi = m.render(1.5, (id, t) => (id === 'in_l' ? sine(3000, t, 0.4) : 0));
+    const hornNow = amRate(hi.out_l!.subarray(Math.round(0.9 * m.rate)), m.rate);
+    expect(hornNow).toBeGreaterThan(4);
+  });
+  it('gate Fast schakelt op de flank', async () => {
+    const m = await load('tp_mmb_rotary');
+    for (const [id, v] of Object.entries({ speed: 0, balance: 1, noise: 0, drive: 0 })) m.setCtl(id, v);
+    m.connect('in_l', true); m.connect('fast', true);
+    const feed = (id: string, t: number): number => (id === 'in_l' ? sine(3000, t, 0.4) : id === 'fast' ? 1 : 0);
+    m.render(5.0, feed);
+    const o = m.render(3.0, feed);
+    expect(amRate(o.out_l!, m.rate)).toBeGreaterThan(5.5);
+  });
+});
+
+describe('shimmer (wasm)', () => {
+  it('de staart krijgt er een octaaf bij; zonder shimmer niet', async () => {
+    const tail = async (shimmer: number): Promise<{ oct: number; fund: number; peak: number }> => {
+      const m = await load('tp_mmb_shimmer');
+      for (const [id, v] of Object.entries({ size: 0.85, damp: 0.2, shimmer, interval: 0, tone: 0.8, predelay: 0, mod: 0.1, mix: 1 }))
+        m.setCtl(id, v);
+      m.connect('in_l', true);
+      const o = m.render(4.0, (id, t) => (id === 'in_l' && t < 0.5 ? sine(440, t, 0.3) : 0));
+      const seg = o.out_l!.subarray(Math.round(1.5 * m.rate), Math.round(3.5 * m.rate));
+      return { oct: chunked(seg, 880, m.rate), fund: chunked(seg, 440, m.rate), peak: o.out_l!.reduce((mx, v) => Math.max(mx, Math.abs(v)), 0) };
+    };
+    const off = await tail(0), on = await tail(0.8);
+    expect(on.oct / (on.fund + 1e-6)).toBeGreaterThan(3 * (off.oct / (off.fund + 1e-6)));
+    expect(on.peak).toBeLessThan(1);                        // loopt niet weg
   });
 });

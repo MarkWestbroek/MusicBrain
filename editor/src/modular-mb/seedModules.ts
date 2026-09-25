@@ -1691,8 +1691,10 @@ function mmbHarmonizer() {
       knob('lvl_b',    'Level',  w*0.86, 60, { size: 'small', min: 0, max: 1, def: 0, color: '#f9fafb' }),
       knob('window',   'Window', w*0.38, 62, { size: 'small', min: 8, max: 120, def: 40, unit: 'ms', color: '#9ca3af' }),
       knob('feedback', 'Fbk',    w*0.62, 62, { size: 'small', min: 0, max: 0.9, def: 0, color: '#9ca3af' }),
-      knob('spread',   'Spread', w*0.30, 86, { size: 'small', min: 0, max: 1, def: 0.5, color: '#9ca3af' }),
-      knob('mix',      'Mix',    w*0.70, 86, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('spread',   'Spread', w*0.14, 86, { size: 'small', min: 0, max: 1, def: 0.5, color: '#9ca3af' }),
+      sw  ('algo',     'Algo',   w*0.38, 86, ['Heads', 'Grains'], 0),
+      knob('jitter',   'Jitter', w*0.62, 86, { size: 'small', min: 0, max: 1, def: 0.2, color: '#9ca3af' }),
+      knob('mix',      'Mix',    w*0.86, 86, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
       inPort ('voct_a', 'A V/Oct', 'cv', w*0.14, 104),
       inPort ('voct_b', 'B V/Oct', 'cv', w*0.40, 104),
       inPort ('mix_cv', 'M+',      'cv', w*0.66, 104),
@@ -1700,7 +1702,7 @@ function mmbHarmonizer() {
       outPort('out_l', 'L',  'audio', w*0.66, 118),
       outPort('out_r', 'R',  'audio', w*0.86, 118),
     ],
-    notes: 'Pitch-shifter/harmonizer in de stijl van de rack-harmonizers: twee stemmen (A, B) die elk een vertragingslijn met twee kruisgefadete leeskoppen uitlezen — de koppen lopen met 2^(semi/12) door het geheugen. Semi in halve tonen (±24), Cent fijn, en A V/Oct / B V/Oct tellen erbij op (1 V = 12 st: een sequencer of de MIDI-pitch als interval). Window = korrel: klein (10–20 ms) volgt strak maar klinkt ietsje metaalachtig, groot (60–100) is zachter maar smeert aanslagen. Fbk stuurt het natte signaal terug de shifter in: +12 met feedback = shimmer, +7 = getrapte kwinten. Spread zet A links en B rechts. Mono in, stereo uit. Firmware tp_mmb_harmonizer, mmb_dsp::Harmonizer — in de simulator draait dezelfde code als wasm.',
+    notes: 'Pitch-shifter/harmonizer in de stijl van de rack-harmonizers: twee stemmen (A, B) die elk een vertragingslijn met twee kruisgefadete leeskoppen uitlezen — de koppen lopen met 2^(semi/12) door het geheugen. Semi in halve tonen (±24), Cent fijn, en A V/Oct / B V/Oct tellen erbij op (1 V = 12 st: een sequencer of de MIDI-pitch als interval). Window = korrel: klein (10–20 ms) volgt strak maar klinkt ietsje metaalachtig, groot (60–100) is zachter maar smeert aanslagen. Fbk stuurt het natte signaal terug de shifter in: +12 met feedback = shimmer, +7 = getrapte kwinten. Spread zet A links en B rechts. Algo kiest de methode: Heads = twee koppen met een pitch-synchroon venster (strak op één noot: lead, bas, zang; op akkoorden het vintage gewiebel), Grains = korrels van Window ms met een Hann-venster, vier tegelijk over elkaar (gladder op akkoorden en pads); Jitter maakt plek, lengte en moment van de korrels willekeurig, van glad naar een wolkje. Mono in, stereo uit. Firmware tp_mmb_harmonizer, mmb_dsp::Harmonizer — in de simulator draait dezelfde code als wasm.',
   });
 }
 
@@ -1777,7 +1779,7 @@ function mmbVibe() {
       knob('speed',     'Speed',     w*0.28, 32, { size: 'medium', min: 0.1, max: 12, def: 2, unit: 'Hz', color: '#fb923c' }),
       knob('intensity', 'Intensity', w*0.72, 32, { size: 'medium', min: 0, max: 1, def: 0.6, color: '#fb923c' }),
       sw  ('mode',      'Mode',      w*0.24, 60, ['Chorus', 'Vibrato', 'Light'], 0),
-      knob('lamp',      'Lamp',      w*0.72, 62, { size: 'small', min: 0, max: 1, def: 0.7, color: '#9ca3af' }),
+      knob('lamp_age',  'Lamp age',  w*0.72, 62, { size: 'small', min: 0, max: 1, def: 0.7, color: '#9ca3af' }),
       knob('volume',    'Volume',    w/2,    88, { size: 'small', min: 0, max: 2, def: 1, color: '#f9fafb' }),
       inPort ('speed_cv',     'S+', 'cv', w*0.25, 104),
       inPort ('intensity_cv', 'I+', 'cv', w*0.75, 104),
@@ -1786,7 +1788,71 @@ function mmbVibe() {
       outPort('out_l', 'L', 'audio', w*0.68, 118),
       outPort('out_r', 'R', 'audio', w*0.88, 118),
     ],
-    notes: 'De univibe-familie (en moderne klonen als de Mojo Vibe): geen gewone phaser maar vier fasedraai-trappen met elk een andere condensator, zodat de notches wijd verspreid liggen, en vier lichtgevoelige weerstanden (LDR) rond één lampje dat door een LFO wordt aangestuurd. Het lampje reageert niet-lineair en de LDR’s worden snel laag-ohmig bij licht maar herstellen traag in het donker: de sweep is scheef en kloppend, hij ademt. Mode Chorus = droog + nat (het klassieke geluid, tussen chorus en phaser in); Vibrato = alleen nat (de fasedraaiing trekt aan de toonhoogte); Light = een zuivere vibrato met een vertragingslijn, zonder lampkarakter. Lamp regelt hoeveel van dat oude-lamp-karakter erin zit (0 = nette sinus, 1 = een oud exemplaar). Speed en Intensity met CV — een expressiepedaal of envelope op Speed doet wat de voetpedaal-versie deed. Mono in geeft stereo uit. Firmware tp_mmb_vibe, mmb_dsp::Vibe — in de simulator draait dezelfde code als wasm.',
+    notes: 'De univibe-familie (en moderne klonen als de Mojo Vibe): geen gewone phaser maar vier fasedraai-trappen met elk een andere condensator, zodat de notches wijd verspreid liggen, en vier lichtgevoelige weerstanden (LDR) rond één lampje dat door een LFO wordt aangestuurd. Het lampje reageert niet-lineair en de LDR’s worden snel laag-ohmig bij licht maar herstellen traag in het donker: de sweep is scheef en kloppend, hij ademt. Mode Chorus = droog + nat (het klassieke geluid, tussen chorus en phaser in); Vibrato = alleen nat (de fasedraaiing trekt aan de toonhoogte); Light = een zuivere vibrato met een vertragingslijn, zonder lampkarakter. Lamp age regelt hoeveel van dat oude-lamp-karakter erin zit (0 = nette sinus, 1 = een oud exemplaar). Speed en Intensity met CV — een expressiepedaal of envelope op Speed doet wat de voetpedaal-versie deed. Mono in geeft stereo uit. Firmware tp_mmb_vibe, mmb_dsp::Vibe — in de simulator draait dezelfde code als wasm.',
+  });
+}
+
+// ── Rotary (draaiende luidspreker) ─────────────────────────────────────
+function mmbRotary() {
+  const w = W(12);
+  return assemble({
+    typeId: 'tp_mmb_rotary', categoryId: 'effect', variant: 'Rotary speaker',
+    brand: 'MMB', model: 'ROTARY', hp: 12, texture: 'pcb-black', baseColor: '#2a1d14', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'ROTARY', fontSize: 2.2, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: 'hoorn · trommel · traagheid', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      sw  ('speed',     'Speed',   w*0.16, 30, ['Slow', 'Fast', 'Brake'], 0),
+      knob('slow_rate', 'Slow',    w*0.44, 30, { size: 'medium', min: 0.1, max: 3, def: 0.8, unit: 'Hz', color: '#f59e0b' }),
+      knob('fast_rate', 'Fast',    w*0.76, 30, { size: 'medium', min: 2, max: 10, def: 6.7, unit: 'Hz', color: '#f59e0b' }),
+      knob('inertia',   'Inertia', w*0.16, 60, { size: 'small', min: 0.25, max: 2, def: 1, color: '#9ca3af' }),
+      knob('drive',     'Drive',   w*0.40, 60, { size: 'small', min: 0, max: 1, def: 0.2, color: '#ef4444' }),
+      knob('balance',   'Horn/Drum', w*0.64, 60, { size: 'small', min: 0, max: 1, def: 0.5, color: '#9ca3af' }),
+      knob('spread',    'Spread',  w*0.86, 60, { size: 'small', min: 0, max: 1, def: 0.8, color: '#9ca3af' }),
+      knob('noise',     'Noise',   w*0.30, 86, { size: 'small', min: 0, max: 1, def: 0.3, color: '#9ca3af' }),
+      knob('level',     'Level',   w*0.70, 86, { size: 'small', min: 0, max: 2, def: 1, color: '#f9fafb' }),
+      inPort ('fast',     'Fast', 'gate', w*0.25, 104),
+      inPort ('drive_cv', 'D+',   'cv',   w*0.55, 104),
+      inPort ('in_l',  'L', 'audio', w*0.12, 118),
+      inPort ('in_r',  'R', 'audio', w*0.30, 118),
+      outPort('out_l', 'L', 'audio', w*0.70, 118),
+      outPort('out_r', 'R', 'audio', w*0.88, 118),
+    ],
+    notes: 'Draaiende luidspreker in Leslie-stijl: een hoorn voor het hoog en een trommel voor het laag (scheiding bij 800 Hz), elk met een eigen motor en eigen traagheid. De hoorn versnelt in ongeveer een seconde, de zware trommel in een seconde of vier, en vertragen duurt langer dan versnellen — tijdens het omschakelen lopen ze uit elkaar, en dat opwinden hoor je. Slow en Fast zijn allebei instelbaar (zoals op een ELKA); de standaard 0,8 en 6,7 Hz zijn die van een klassiek exemplaar, en de trommel draait altijd iets langzamer dan de hoorn. Brake laat beide uitlopen tot stilstand. Inertia schaalt de traagheid (0,25 = vlug, 2 = extra zwaar). Wat je hoort: Doppler (de toonhoogte schommelt), richting (van voren luid en helder, van achteren zacht en dof), een reflectie van de kastwand, en de bijgeluiden — de hoorn suist hoorbaar als hij snel draait, de motor bromt, de trommel rommelt en het relais tikt bij het omschakelen (Noise). Drive is de buizenvoorversterker. Spread = hoek tussen de twee microfoons (0 = mono). De Fast-gate schakelt op de flank: omhoog = snel, omlaag = langzaam — hang er het mod-wiel of een voetschakelaar via MIDI aan; de schakelaar op het paneel werkt ernaast. Mono in (L+R), stereo uit. Firmware tp_mmb_rotary, mmb_dsp::Leslie — in de simulator draait dezelfde code als wasm.',
+  });
+}
+
+// ── Shimmer reverb ─────────────────────────────────────────────────────
+function mmbShimmer() {
+  const w = W(10);
+  return assemble({
+    typeId: 'tp_mmb_shimmer', categoryId: 'effect', variant: 'Shimmer reverb',
+    brand: 'MMB', model: 'SHIMMER', hp: 10, texture: 'pcb-black', baseColor: '#161a2a', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'SHIMMER', fontSize: 2.2, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: 'galm · octaaf in de lus', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('shimmer',  'Shimmer',  w*0.28, 32, { size: 'large', min: 0, max: 1, def: 0.5, color: '#a5b4fc' }),
+      sw  ('interval', 'Interval', w*0.78, 30, ['+12', '+7', '+19', '+24', '−12'], 0),
+      knob('size',     'Size',     w*0.20, 62, { size: 'small', min: 0, max: 1, def: 0.75, color: '#7dd3fc' }),
+      knob('damp',     'Damp',     w*0.44, 62, { size: 'small', min: 0, max: 1, def: 0.35, color: '#9ca3af' }),
+      knob('tone',     'Tone',     w*0.68, 62, { size: 'small', min: 0, max: 1, def: 0.6, color: '#9ca3af' }),
+      knob('predelay', 'Pre',      w*0.20, 86, { size: 'small', min: 0, max: 120, def: 20, unit: 'ms', color: '#9ca3af' }),
+      knob('mod',      'Mod',      w*0.44, 86, { size: 'small', min: 0, max: 1, def: 0.4, color: '#9ca3af' }),
+      knob('mix',      'Mix',      w*0.72, 86, { size: 'medium', min: 0, max: 1, def: 0.4, color: '#f9fafb' }),
+      inPort ('shimmer_cv', 'Sh+', 'cv', w*0.20, 104),
+      inPort ('size_cv',    'S+',  'cv', w*0.50, 104),
+      inPort ('mix_cv',     'M+',  'cv', w*0.80, 104),
+      inPort ('in_l',  'L', 'audio', w*0.12, 118),
+      inPort ('in_r',  'R', 'audio', w*0.32, 118),
+      outPort('out_l', 'L', 'audio', w*0.68, 118),
+      outPort('out_r', 'R', 'audio', w*0.88, 118),
+    ],
+    notes: 'Shimmer reverb: de plaatgalm (dezelfde Dattorro-tank als REVERB) met in de lus een korrel-pitch-shifter. De natte galm wordt een Interval omhoog geschoven (+12 = een octaaf, het bekende geluid; +7 een kwint, +19 octaaf plus kwint, −12 een octaaf omlaag) en gaat terug de galm in. Elke ronde komt er zo een laagje een interval hoger bij: een glinsterende wolk boven wat je speelt. Shimmer = hoeveel er terug gaat (0 = gewone plaat), Tone = hoe helder de lus is (lager = warmer, minder gefluit), Size/Damp/Pre/Mod zoals bij de plaat. Een zachte begrenzer in de lus voorkomt dat hij wegloopt. Zonder R-kabel krijgt rechts hetzelfde als links. Firmware tp_mmb_shimmer, mmb_dsp::Shimmer — in de simulator draait dezelfde code als wasm.',
   });
 }
 
@@ -3191,7 +3257,7 @@ function mmbEnvFollowerMono() {
 // ── public entry ───────────────────────────────────────────────────────
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbEcho(), mmbTapeEcho(), mmbStereoTapeEcho(), mmbDigitalEcho(), mmbBbdChorus(), mmbRingMod(), mmbOctaver(), mmbHarmonizer(), mmbReverb(), mmbTremolo(), mmbStereoPhaser(), mmbVibe(), mmbFetComp(),mmbOptoComp(), mmbBusComp(),mmbVariMuComp(), mmbProgramEq(), mmbDiodeComp(), mmbConsoleEq(), mmbParaEq(), mmbSampler(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbEnvFollower(), mmbEnvFollowerMono()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbEcho(), mmbTapeEcho(), mmbStereoTapeEcho(), mmbDigitalEcho(), mmbBbdChorus(), mmbRingMod(), mmbOctaver(), mmbHarmonizer(), mmbReverb(), mmbTremolo(), mmbStereoPhaser(), mmbVibe(), mmbRotary(), mmbShimmer(), mmbFetComp(),mmbOptoComp(), mmbBusComp(),mmbVariMuComp(), mmbProgramEq(), mmbDiodeComp(), mmbConsoleEq(), mmbParaEq(), mmbSampler(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbEnvFollower(), mmbEnvFollowerMono()];
   const newTypes = all.map((x) => x.type);
 
   // Upgrade-pad: bestaande interne types worden in-place VERVANGEN (zelfde
@@ -4139,7 +4205,15 @@ export const STEREO_PHASER_SOLO_FX = {
 } as const;
 export const VIBE_SOLO_FX = {
   typeId: 'tp_mmb_vibe', label: 'VIBE',
-  controls: { speed: 1.6, intensity: 0.7, mode: 0, lamp: 0.75, volume: 1.1 },
+  controls: { speed: 1.6, intensity: 0.7, mode: 0, lamp_age: 0.75, volume: 1.1 },
+} as const;
+export const ROTARY_SOLO_FX = {
+  typeId: 'tp_mmb_rotary', label: 'ROTARY',
+  controls: { speed: 0, slow_rate: 0.8, fast_rate: 6.7, inertia: 1, drive: 0.35, balance: 0.5, spread: 0.8, noise: 0.35, level: 1.1 },
+} as const;
+export const SHIMMER_SOLO_FX = {
+  typeId: 'tp_mmb_shimmer', label: 'SHIMMER',
+  controls: { size: 0.8, damp: 0.35, shimmer: 0.55, interval: 0, tone: 0.55, predelay: 25, mod: 0.4, mix: 0.45 },
 } as const;
 export const RINGMOD_SOLO_FX = {
   typeId: 'tp_mmb_ringmod', label: 'RING MOD', mono: true,

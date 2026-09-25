@@ -1,6 +1,6 @@
 {
   "$comment": "GEGENEREERD door tools/contract_dump.py — niet met de hand bewerken. Poort-ids zijn letterlijk wat de firmware accepteert (aliassen als out/out_l en naam/naam_cv staan er dus allebei in).",
-  "firmwareVersion": "0.5.73",
+  "firmwareVersion": "0.5.78",
   "modules": {
     "tp_mmb_ahdsr": {
       "typeId": "tp_mmb_ahdsr",
@@ -554,9 +554,11 @@
         "voct_b"
       ],
       "controls": [
+        "algo",
         "cent_a",
         "cent_b",
         "feedback",
+        "jitter",
         "lvl_a",
         "lvl_b",
         "mix",
@@ -1229,6 +1231,32 @@
         "structure"
       ]
     },
+    "tp_mmb_rotary": {
+      "typeId": "tp_mmb_rotary",
+      "source": "firmware/app-modular-brain/src/RotaryModule.h",
+      "ports": [
+        "drive",
+        "drive_cv",
+        "fast",
+        "in",
+        "in_l",
+        "in_r",
+        "out",
+        "out_l",
+        "out_r"
+      ],
+      "controls": [
+        "balance",
+        "drive",
+        "fast_rate",
+        "inertia",
+        "level",
+        "noise",
+        "slow_rate",
+        "speed",
+        "spread"
+      ]
+    },
     "tp_mmb_sampler": {
       "typeId": "tp_mmb_sampler",
       "source": "firmware/app-modular-brain/src/SamplerModule.h",
@@ -1336,6 +1364,34 @@
         "s9"
       ],
       "controlsIgnored": []
+    },
+    "tp_mmb_shimmer": {
+      "typeId": "tp_mmb_shimmer",
+      "source": "firmware/app-modular-brain/src/ShimmerModule.h",
+      "ports": [
+        "in",
+        "in_l",
+        "in_r",
+        "mix",
+        "mix_cv",
+        "out",
+        "out_l",
+        "out_r",
+        "shimmer",
+        "shimmer_cv",
+        "size",
+        "size_cv"
+      ],
+      "controls": [
+        "damp",
+        "interval",
+        "mix",
+        "mod",
+        "predelay",
+        "shimmer",
+        "size",
+        "tone"
+      ]
     },
     "tp_mmb_stages": {
       "typeId": "tp_mmb_stages",
@@ -1648,7 +1704,7 @@
       ],
       "controls": [
         "intensity",
-        "lamp",
+        "lamp_age",
         "mode",
         "speed",
         "volume"

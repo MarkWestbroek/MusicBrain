@@ -4,11 +4,11 @@
  * @brief Univibe-stijl vibe + lichte vibrato, stereo (`tp_mmb_vibe`).
  *
  * mmb_dsp::Vibe: vier fasedraai-trappen met de univibe-condensatoren, één
- * lamp met LDR-traagheid (`lamp`), modes Chorus / Vibrato / Light (zuivere
+ * lamp met LDR-traagheid (`lamp_age`), modes Chorus / Vibrato / Light (zuivere
  * vertragingslijn-vibrato). Zonder rechterkabel krijgt R hetzelfde als L.
  *
  * Poorten: in_l/in_r (in = L) → out_l/out_r (out = L); CV speed, intensity
- * (ook `*_cv`). Controls: speed (Hz), intensity, mode (0..2), lamp, volume.
+ * (ook `*_cv`). Controls: speed (Hz), intensity, mode (0..2), lamp_age, volume.
  */
 
 #include "AudioModule.h"
@@ -97,7 +97,7 @@ public:
         if      (controlId == "speed")     v.set_speed(asFloat(2.0f));
         else if (controlId == "intensity") v.set_intensity(asFloat(0.6f));
         else if (controlId == "mode")      v.set_mode(static_cast<int>(asFloat(0.0f) + 0.5f));
-        else if (controlId == "lamp")      v.set_lamp(asFloat(0.7f));
+        else if (controlId == "lamp_age")  v.set_lamp(asFloat(0.7f));
         else if (controlId == "volume")    v.set_volume(asFloat(1.0f));
     }
 

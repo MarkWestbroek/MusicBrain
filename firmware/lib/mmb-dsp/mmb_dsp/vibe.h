@@ -20,7 +20,7 @@
 //   2 Light   = een zuivere vibrato met een gemoduleerde vertragingslijn
 //               (sinus, 0,5–6 ms), zonder lampkarakter — de lichte versie
 //
-// `lamp` (0..1) regelt hoe sterk het lamp/LDR-karakter is: 0 = een nette
+// `lamp_age` (0..1) regelt hoe sterk het lamp/LDR-karakter is: 0 = een nette
 // sinus-sweep, 1 = de scheve, kloppende sweep van een oud exemplaar.
 //
 // Header-only, buffers inline (2 × 1024 floats voor de vibrato-lijn).

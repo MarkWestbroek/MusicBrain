@@ -9,7 +9,7 @@
  *
  * Poorten: in → out_l/out_r (out = L); CV voct_a, voct_b (1 V = 12 st),
  * mix (ook `mix_cv`). Controls: semi_a, cent_a, lvl_a, semi_b, cent_b,
- * lvl_b, window, feedback, spread, mix.
+ * lvl_b, window, feedback, spread, mix, algo (0 Heads / 1 Grains), jitter.
  */
 
 #include "AudioModule.h"
@@ -98,6 +98,8 @@ public:
         else if (controlId == "feedback") h.set_feedback(asFloat(0.0f));
         else if (controlId == "spread")   h.set_spread(asFloat(0.5f));
         else if (controlId == "mix")      h.set_mix(asFloat(0.5f));
+        else if (controlId == "algo")     h.set_algo(static_cast<int>(asFloat(0.0f) + 0.5f));
+        else if (controlId == "jitter")   h.set_jitter(asFloat(0.2f));
     }
 
     static void registerFactory() {

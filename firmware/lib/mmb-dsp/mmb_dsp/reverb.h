@@ -73,6 +73,10 @@ private:
     // Lijnen: 0 predelay; 1-4 input-diffusie; 5-12 tank; 13-14 veren.
     enum { L_PRE = 0, L_D1, L_D2, L_D3, L_D4, L_AP1, L_DEL1, L_AP2, L_DEL2, L_AP3, L_DEL3, L_AP4, L_DEL4, L_SPR1, L_SPR2, kNumLines };
     static constexpr int kSpringAp = 8;
+    // Uitgangsniveau van de plaat: zeven taps opgeteld; een aangehouden toon
+    // bouwt in de tank op, dus ruim onder 1 per tap (0,6 liet een sinus van
+    // 0,3 boven 1 uitkomen).
+    static constexpr float kPlateOut = 0.2f;
 
     static int lineLen(int i, float sr) {
         // Dattorro-lengtes bij 29761 Hz, geschaald; extra ruimte voor modulatie.
@@ -128,9 +132,9 @@ private:
         b = delay(L_DEL4, b);
         // Taps (Dattorro, geschaald in tap()): som van zeven per kant.
         const float s = sr_ / 29761.0f;
-        *wl = 0.6f * ( tap(L_DEL3, 266 * s)  + tap(L_DEL3, 2974 * s) - tap(L_AP4, 1913 * s)
+        *wl = kPlateOut * ( tap(L_DEL3, 266 * s)  + tap(L_DEL3, 2974 * s) - tap(L_AP4, 1913 * s)
                      + tap(L_DEL4, 1996 * s) - tap(L_DEL1, 1990 * s) - tap(L_AP2, 187 * s) - tap(L_DEL2, 1066 * s));
-        *wr = 0.6f * ( tap(L_DEL1, 353 * s)  + tap(L_DEL1, 3627 * s) - tap(L_AP2, 1228 * s)
+        *wr = kPlateOut * ( tap(L_DEL1, 353 * s)  + tap(L_DEL1, 3627 * s) - tap(L_AP2, 1228 * s)
                      + tap(L_DEL2, 2673 * s) - tap(L_DEL3, 2111 * s) - tap(L_AP4, 335 * s)  - tap(L_DEL4, 121 * s));
     }
 

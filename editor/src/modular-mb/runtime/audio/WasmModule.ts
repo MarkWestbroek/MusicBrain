@@ -47,7 +47,7 @@ export class WasmModule extends AudioModule {
     'tp_mmb_vcf', 'tp_mmb_ms20', 'tp_mmb_stk_sound', 'tp_mmb_elements_reverb', 'tp_mmb_octa_vca', 'tp_mmb_stereo_vca', 'tp_mmb_resonator', 'tp_mmb_cr78', 'tp_mmb_comp', 'tp_mmb_comb', 'tp_mmb_quant', 'tp_mmb_chord', 'tp_mmb_grids', 'tp_mmb_lfo', 'tp_mmb_string', 'tp_mmb_echo', 'tp_mmb_phaser', 'tp_mmb_ladder', 'tp_mmb_octa_vcf', 'tp_mmb_octa_vco', 'tp_mmb_wt_vco', 'tp_mmb_draw_vco', 'tp_mmb_noise', 'tp_mmb_fet_comp', 'tp_mmb_opto_comp',
     'tp_mmb_bus_comp', 'tp_mmb_varimu_comp', 'tp_mmb_program_eq', 'tp_mmb_diode_comp', 'tp_mmb_console_eq', 'tp_mmb_para_eq',
     'tp_mmb_stereo_tape_echo', 'tp_mmb_digital_echo', 'tp_mmb_bbd_chorus', 'tp_mmb_ringmod', 'tp_mmb_octaver',
-    'tp_mmb_harmonizer', 'tp_mmb_reverb', 'tp_mmb_tremolo', 'tp_mmb_stereo_phaser', 'tp_mmb_vibe',
+    'tp_mmb_harmonizer', 'tp_mmb_reverb', 'tp_mmb_tremolo', 'tp_mmb_stereo_phaser', 'tp_mmb_vibe', 'tp_mmb_rotary', 'tp_mmb_shimmer',
     // Stap 6: de modules die vroeger aan de noot-dispatcher hingen.
     'tp_mmb_vco', 'tp_mmb_fm_vco', 'tp_mmb_vca', 'tp_mmb_ahdsr', 'tp_mmb_cvmath', 'tp_mmb_seq8', 'tp_mmb_midiin',
   ]);

@@ -17,6 +17,33 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### fw 0.5.78 — Rotary (Leslie-stijl), shimmer, korrel-harmonizer, Lamp age (2026-09-25)
+- **Rotary** (`tp_mmb_rotary`, `mmb_dsp/leslie.h`): hoorn (hoog) en trommel
+  (laag, scheiding 800 Hz, LR4), elk met eigen motor en traagheid (hoorn
+  ~0,8 s op / 1,2 s af, trommel ~4 / 5,5 s; `inertia` schaalt), trommel
+  iets trager dan de hoorn. Doppler (±0,44 ms), richting (volume + klank),
+  kastreflectie, twee microfoons (`spread`). Bijgeluiden (`noise`): lucht
+  van de hoorn (∝ snelheid²), motorbrom en -gerommel, relais-tik bij
+  omschakelen. Buizenvoorversterker (`drive`). **Slow én Fast instelbaar**
+  (ELKA-stijl, standaard 0,8 / 6,7 Hz), Brake, gate `fast` op de flank.
+- **Shimmer** (`tp_mmb_shimmer`, `shimmer.h`): plaatgalm met een
+  korrel-shifter in de lus (+12/+7/+19/+24/−12), tone-filter, en een rem op
+  de lusversterking (envelope-volger) zodat de wolk niet wegloopt. Pool van
+  de heap met onRetire/onReuse (FW-13).
+- **Harmonizer: korrelstand** (`algo` Heads/Grains, `jitter`). `pitch_shift.h`
+  herschreven rond één gedeelde vertragingslijn (`ShiftLine`) met
+  `HeadShifter` en `GrainShifter` erop: geheugen blijft 32 KB.
+- **Vibe:** `lamp` heet nu `lamp_age` ("Lamp age").
+- **Bijvangst — plaatgalm te hard:** de zeven taps × 0,6 lieten een
+  aangehouden toon van 0,3 boven 1 uitkomen (ook in REVERB van fw 0.5.72).
+  Nu `kPlateOut` 0,2: 0,3 in → ~0,35 uit.
+- Contract 73 modules; Solo ▾: DX7 + Rotary, Rings + Shimmer;
+  `wasmNewFx.test.ts` 22 tests (o.a. slow/fast/ELKA-snelheid, traagheid,
+  gate, octaaf in de shimmer-staart, korrels +12).
+- **Gemeten op de Teensy** (VCO A4): rotary AM 0,79 Hz slow, 6,70 Hz fast,
+  4,51 Hz met Fast op 4,5; ~12 % CPU. Shimmer piek 0,39, ~17 % CPU.
+  Korrel-harmonizer: kwint en octaaf aanwezig.
+
 ### fw 0.5.74–0.5.77 — FW-13: geparkeerde modules hergebruiken, buffers los, echo's naar PSRAM (2026-09-25)
 - **Probleem:** een module die uit een nieuwe config verdwijnt kan niet weg
   terwijl de audio-motor draait (de Teensy Audio Library heeft een vaste

@@ -168,6 +168,8 @@ sel reverb && build reverb tp_mmb_reverb "$LIB/mmb-dsp" --
 sel tremolo && build tremolo tp_mmb_tremolo "$LIB/mmb-dsp" --
 sel stereophaser && build stereophaser tp_mmb_stereo_phaser "$LIB/mmb-dsp" --
 sel vibe && build vibe tp_mmb_vibe "$LIB/mmb-dsp" --
+sel rotary && build rotary tp_mmb_rotary "$LIB/mmb-dsp" --
+sel shimmer && build shimmer tp_mmb_shimmer "$LIB/mmb-dsp" --
 
 sel envfollower && build envfollower tp_mmb_env_follower "$LIB/mmb-dsp" --
 sel envfollower && EXTRA="-DMMB_EF_CELLS=1" build envfollower tp_mmb_env_follower_mono "$LIB/mmb-dsp" --

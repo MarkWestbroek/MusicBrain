@@ -20,7 +20,7 @@ const int MMB_NUM_OUTPUTS = 2;
 
 enum { C_SPEED, C_INTENSITY, C_MODE, C_LAMP, C_VOLUME };
 MmbControl MMB_CONTROLS[] = {
-    { "speed", 2.0f }, { "intensity", 0.6f }, { "mode", 0.0f }, { "lamp", 0.7f }, { "volume", 1.0f },
+    { "speed", 2.0f }, { "intensity", 0.6f }, { "mode", 0.0f }, { "lamp_age", 0.7f }, { "volume", 1.0f },
 };
 const int MMB_NUM_CONTROLS = 5;
 

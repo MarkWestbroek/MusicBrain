@@ -17,12 +17,13 @@ enum { OUT_L, OUT_R };
 MmbPort MMB_OUTPUTS[] = { { "out_l", MMB_AUDIO, 0, {} }, { "out_r", MMB_AUDIO, 0, {} } };
 const int MMB_NUM_OUTPUTS = 2;
 
-enum { C_SEMI_A, C_CENT_A, C_LVL_A, C_SEMI_B, C_CENT_B, C_LVL_B, C_WINDOW, C_FEEDBACK, C_SPREAD, C_MIX };
+enum { C_SEMI_A, C_CENT_A, C_LVL_A, C_SEMI_B, C_CENT_B, C_LVL_B, C_WINDOW, C_FEEDBACK, C_SPREAD, C_MIX, C_ALGO, C_JITTER };
 MmbControl MMB_CONTROLS[] = {
     { "semi_a", 0.0f }, { "cent_a", 0.0f }, { "lvl_a", 1.0f }, { "semi_b", 7.0f }, { "cent_b", 0.0f }, { "lvl_b", 0.0f },
     { "window", 40.0f }, { "feedback", 0.0f }, { "spread", 0.5f }, { "mix", 0.5f },
+    { "algo", 0.0f }, { "jitter", 0.2f },
 };
-const int MMB_NUM_CONTROLS = 10;
+const int MMB_NUM_CONTROLS = 12;
 
 namespace {
 mmb_dsp::Harmonizer g_h;
@@ -43,6 +44,8 @@ void mmb_on_control(int idx, float v) {
         case C_FEEDBACK: g_h.set_feedback(v); break;
         case C_SPREAD: g_h.set_spread(v); break;
         case C_MIX:    g_knobMix = v; g_h.set_mix(v); break;
+        case C_ALGO:   g_h.set_algo(static_cast<int>(v + 0.5f)); break;
+        case C_JITTER: g_h.set_jitter(v); break;
     }
 }
 
