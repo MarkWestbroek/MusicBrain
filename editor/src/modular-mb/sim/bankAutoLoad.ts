@@ -64,7 +64,10 @@ export type BankSource = 'teensy' | 'keuze' | 'standaard';
 export function resolveBank(index: BankIndex, nn: number, sdNames?: (string | undefined)[]): { file: string; source: BankSource } | null {
   const sd = sdNames?.[nn]?.trim();
   if (sd) {
-    const hit = index.files.find((f) => f.name.trim().toLowerCase() === sd.toLowerCase());
+    // Meerdere serverbanken met dezelfde naam (beide vleugels heten
+    // "Grand Piano")? Dan wint de bank die in de vaste nummering op NN staat.
+    const hits = index.files.filter((f) => f.name.trim().toLowerCase() === sd.toLowerCase());
+    const hit = hits.find((f) => f.file === index.defaults[String(nn)]) ?? hits[0];
     if (hit) return { file: hit.file, source: 'teensy' };
   }
   const pick = userPicks()[String(nn)];

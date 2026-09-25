@@ -143,21 +143,21 @@
     }
   ],
   "defaults": {
-    "0": "church-organ.mmbs",
-    "1": "gu-kalimba.mmbs",
-    "2": "gu-taiko.mmbs",
-    "3": "gu-tonewheel-organ.mmbs",
-    "4": "gu-marimba.mmbs",
-    "5": "gu-steeldrums.mmbs",
-    "6": "gu-vibraphone.mmbs",
-    "7": "gu-pizzicato.mmbs",
-    "8": "gu-shakuhachi.mmbs",
-    "9": "gu-koto.mmbs",
-    "10": "gu-harp.mmbs",
-    "11": "gu-ice-rain.mmbs",
-    "12": "gu-sitar.mmbs",
-    "13": "gu-rhodes.mmbs",
-    "14": "gu-bowed-glass.mmbs",
-    "15": "gu-fantasia.mmbs"
+    "0": "gu-rhodes.mmbs",
+    "1": "ydp-grand-2laags.mmbs",
+    "2": "gu-kalimba.mmbs",
+    "3": "gu-warmpad.mmbs",
+    "4": "church-organ.mmbs",
+    "5": "gu-choir.mmbs",
+    "6": "gu-marimba.mmbs",
+    "7": "gu-shakuhachi.mmbs",
+    "8": "gu-sitar.mmbs",
+    "9": "gu-tonewheel-organ.mmbs",
+    "10": "gu-tubular-bells.mmbs",
+    "11": "gu-vibraphone.mmbs",
+    "12": "small bells trimmed normalised v3 looped.mmbs",
+    "13": "gu-koto.mmbs",
+    "14": "elements.mmbs",
+    "15": "ydp-grand.mmbs"
   }
 }

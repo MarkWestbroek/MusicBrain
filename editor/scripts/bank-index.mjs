@@ -36,10 +36,32 @@ for (const f of (await readdir(dir)).filter((x) => x.endsWith(".mmbs")).sort()) 
   files.set(f, { file: f, name, size: (await stat(join(dir, f))).size });
 }
 const list = [...files.values()].sort((a, b) => a.file.localeCompare(b.file));
-const defaults = { ...(old.defaults ?? {}) };
-if (Object.keys(defaults).length === 0) {
-  // Eerste keer: kleine banken eerst op de nummers 0–15.
-  [...list].sort((a, b) => a.size - b.size).slice(0, 16).forEach((f, i) => { defaults[String(i)] = f.file; });
+// Vaste nummering = die op de SD-kaart van de Teensy (/mmb/banks/NN.mmbs),
+// uitgelezen 25-09-2026 met tools/teensy-live/bank_put.py --list. Zo tonen sim
+// en Teensy bij hetzelfde nummer dezelfde bank. Andere bestanden blijven in
+// `files` staan zonder nummer. Pas deze tabel aan als de kaart verandert.
+const SD_BANKS = {
+  0: 'gu-rhodes.mmbs',                                   // Tine Electric Piano
+  1: 'ydp-grand-2laags.mmbs',                            // Grand Piano (2 lagen), 61 MB
+  2: 'gu-kalimba.mmbs',
+  3: 'gu-warmpad.mmbs',
+  4: 'church-organ.mmbs',
+  5: 'gu-choir.mmbs',
+  6: 'gu-marimba.mmbs',
+  7: 'gu-shakuhachi.mmbs',
+  8: 'gu-sitar.mmbs',
+  9: 'gu-tonewheel-organ.mmbs',
+  10: 'gu-tubular-bells.mmbs',
+  11: 'gu-vibraphone.mmbs',
+  12: 'small bells trimmed normalised v3 looped.mmbs',
+  13: 'gu-koto.mmbs',
+  14: 'elements.mmbs',
+  15: 'ydp-grand.mmbs',                                  // Grand Piano, 115 MB
+};
+const defaults = {};
+for (const [nn, file] of Object.entries(SD_BANKS)) {
+  if (!files.has(file)) { console.error(`bank-index: ${file} (bank ${nn}) staat niet in public/banks`); process.exit(1); }
+  defaults[nn] = file;
 }
 await writeFile(out, JSON.stringify({ note: "gegenereerd door scripts/bank-index.mjs; defaults = bank-knop NN → bestand", files: list, defaults }, null, 2) + "\n");
 console.log(`bank-index: ${list.length} banken, ${Object.keys(defaults).length} standaardnummers → ${out}`);

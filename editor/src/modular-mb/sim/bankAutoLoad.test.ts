@@ -21,6 +21,18 @@ describe('samplebank kiezen voor de sim', () => {
     }
   });
 
+  it('vaste nummering = de SD-kaart van de Teensy (25-09-2026)', () => {
+    expect(index.defaults).toMatchObject({
+      '0': 'gu-rhodes.mmbs', '1': 'ydp-grand-2laags.mmbs', '4': 'church-organ.mmbs', '13': 'gu-koto.mmbs',
+      '14': 'elements.mmbs', '15': 'ydp-grand.mmbs',
+    });
+    // Gelijke naam in de kop (beide vleugels): het vaste nummer beslist.
+    const sd: string[] = [];
+    sd[1] = 'Grand Piano'; sd[15] = 'Grand Piano';
+    expect(resolveBank(index, 1, sd)!.file).toBe('ydp-grand-2laags.mmbs');
+    expect(resolveBank(index, 15, sd)!.file).toBe('ydp-grand.mmbs');
+  });
+
   it('volgorde: SD-naam, dan eigen keuze, dan standaard', () => {
     expect(resolveBank(index, 13)).toEqual({ file: index.defaults['13'], source: 'standaard' });
     setUserPick(13, 'gu-choir.mmbs');
