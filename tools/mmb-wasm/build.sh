@@ -163,6 +163,10 @@ sel digitalecho && build digitalecho tp_mmb_digital_echo "$LIB/mmb-dsp" --
 sel bbdchorus && build bbdchorus tp_mmb_bbd_chorus "$LIB/mmb-dsp" --
 sel ringmod && build ringmod tp_mmb_ringmod "$LIB/mmb-dsp" --
 sel octaver && build octaver tp_mmb_octaver "$LIB/mmb-dsp" --
+sel harmonizer && build harmonizer tp_mmb_harmonizer "$LIB/mmb-dsp" --
+sel reverb && build reverb tp_mmb_reverb "$LIB/mmb-dsp" --
+sel tremolo && build tremolo tp_mmb_tremolo "$LIB/mmb-dsp" --
+sel stereophaser && build stereophaser tp_mmb_stereo_phaser "$LIB/mmb-dsp" --
 
 sel envfollower && build envfollower tp_mmb_env_follower "$LIB/mmb-dsp" --
 sel envfollower && EXTRA="-DMMB_EF_CELLS=1" build envfollower tp_mmb_env_follower_mono "$LIB/mmb-dsp" --

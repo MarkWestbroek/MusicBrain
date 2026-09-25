@@ -1,6 +1,6 @@
 {
   "$comment": "GEGENEREERD door tools/contract_dump.py — niet met de hand bewerken. Poort-ids zijn letterlijk wat de firmware accepteert (aliassen als out/out_l en naam/naam_cv staan er dus allebei in).",
-  "firmwareVersion": "0.5.70",
+  "firmwareVersion": "0.5.72",
   "modules": {
     "tp_mmb_ahdsr": {
       "typeId": "tp_mmb_ahdsr",
@@ -537,6 +537,32 @@
         "tempo",
         "x",
         "y"
+      ]
+    },
+    "tp_mmb_harmonizer": {
+      "typeId": "tp_mmb_harmonizer",
+      "source": "firmware/app-modular-brain/src/HarmonizerModule.h",
+      "ports": [
+        "in",
+        "mix",
+        "mix_cv",
+        "out",
+        "out_l",
+        "out_r",
+        "voct_a",
+        "voct_b"
+      ],
+      "controls": [
+        "cent_a",
+        "cent_b",
+        "feedback",
+        "lvl_a",
+        "lvl_b",
+        "mix",
+        "semi_a",
+        "semi_b",
+        "spread",
+        "window"
       ]
     },
     "tp_mmb_ladder": {
@@ -1128,6 +1154,30 @@
         "structure"
       ]
     },
+    "tp_mmb_reverb": {
+      "typeId": "tp_mmb_reverb",
+      "source": "firmware/app-modular-brain/src/ReverbModule.h",
+      "ports": [
+        "in",
+        "in_l",
+        "in_r",
+        "mix",
+        "mix_cv",
+        "out",
+        "out_l",
+        "out_r",
+        "size",
+        "size_cv"
+      ],
+      "controls": [
+        "damp",
+        "mix",
+        "mod",
+        "mode",
+        "predelay",
+        "size"
+      ]
+    },
     "tp_mmb_ringmod": {
       "typeId": "tp_mmb_ringmod",
       "source": "firmware/app-modular-brain/src/RingModModule.h",
@@ -1322,6 +1372,29 @@
       ],
       "controlsIgnored": []
     },
+    "tp_mmb_stereo_phaser": {
+      "typeId": "tp_mmb_stereo_phaser",
+      "source": "firmware/app-modular-brain/src/StereoPhaserModule.h",
+      "ports": [
+        "depth",
+        "depth_cv",
+        "in",
+        "in_l",
+        "in_r",
+        "out",
+        "out_l",
+        "out_r",
+        "rate",
+        "rate_cv"
+      ],
+      "controls": [
+        "depth",
+        "feedback",
+        "mix",
+        "rate",
+        "spread"
+      ]
+    },
     "tp_mmb_stereo_tape_echo": {
       "typeId": "tp_mmb_stereo_tape_echo",
       "source": "firmware/app-modular-brain/src/StereoTapeEchoModule.h",
@@ -1457,6 +1530,30 @@
         "shift",
         "slope",
         "smooth"
+      ]
+    },
+    "tp_mmb_tremolo": {
+      "typeId": "tp_mmb_tremolo",
+      "source": "firmware/app-modular-brain/src/TremoloModule.h",
+      "ports": [
+        "depth",
+        "depth_cv",
+        "in",
+        "in_l",
+        "in_r",
+        "out",
+        "out_l",
+        "out_r",
+        "rate",
+        "rate_cv"
+      ],
+      "controls": [
+        "depth",
+        "level",
+        "mode",
+        "rate",
+        "shape",
+        "wave"
       ]
     },
     "tp_mmb_varimu_comp": {

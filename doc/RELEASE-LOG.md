@@ -17,6 +17,34 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### fw 0.5.72 — Effectenbatch 2: harmonizer, plaat/veergalm, tremolo, stereo phaser (2026-09-25)
+- **Harmonizer** (`tp_mmb_harmonizer`, `mmb_dsp/pitch_shift.h`): twee stemmen
+  met elk een twee-koppen-shifter (semi ±24, cents, V/Oct-ingang 1 V = 12 st),
+  stem A links / B rechts (`spread`), feedback (shimmer), `window` 8–120 ms.
+  Het venster wordt **pitch-synchroon** gelegd: een nuldoorgangs-tracker
+  meet de periode en het venster wordt een *even* aantal periodes, zodat de
+  twee koppen (een half venster uit elkaar) in fase kruisfaden — zonder dat
+  zat er een tremolo op de warble-frequentie (25 Hz bij +12 st en 40 ms;
+  op 220 Hz kwam er geen 440 uit, alleen zijbanden 415/465). Op akkoorden/
+  ruis valt hij terug op het kale venster.
+- **Reverb** (`tp_mmb_reverb`, `reverb.h`): Plate = Dattorro-tank (input-
+  diffusie, gemoduleerde all-passes, vier vertragingen in een acht, demping,
+  zeven taps per kant); Spring = twee veren met acht dispersieve all-passes
+  in een feedbacklus (de "boing"), ingangs-bandpass en modulatie. Pool van
+  ~44 k floats (175 KB) van de heap.
+- **Tremolo** (`tp_mmb_tremolo`, `tremolo.h`): Amp (bias, asymmetrisch),
+  Opto (fotocel: snel op, traag terug), Harm (brownface: laag/hoog bij 800 Hz
+  in tegenfase), Pan (auto-panner); sin/tri/sqr, `shape`, `level` tot ×2.
+- **Stereo phaser** (`tp_mmb_stereo_phaser`, `stereo_phaser.h`): twee
+  Phaser-cascades, `spread` = LFO-fasehoek; `Phaser` kreeg `set_phase()`.
+- Contract op 70 modules; Solo ▾: Plaits + Harmonizer, Rings + Plate,
+  STK + Spring, DX7 + Tremolo, Plaits + Stereo phaser. `seedSoloVoicePatch`
+  kent nu `monoIn` (mono in, stereo uit). `wasmNewFx.test.ts`: 15 tests.
+- **Gemeten op de Teensy** (VCO A4 + effect): harmonizer kwint 659 Hz links,
+  octaaf+5 ct 882 Hz rechts; plaat L≠R 0,40 rms; tremolo-envelope op 5 Hz.
+  Eerste harmonizer-meting was stil omdat de seed `in_l` bekabelde en de
+  module alleen `in` kende — nu beide.
+
 ### fw 0.5.71 — Effectenbatch: stereo tape, digitale echo, BBD-chorus, ringmod, octaver (2026-09-25)
 - **Stereo tape echo** (`tp_mmb_stereo_tape_echo`, `mmb_dsp/stereo_tape_echo.h`):
   twee TapeEcho-sporen, `ratio` = R-tijd/L-tijd, `cross` = natte waarde van

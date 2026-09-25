@@ -33,6 +33,9 @@ public:
     void depth(float d)     { depth_ = clampf(d, 0.0f, 1.0f); }
     void feedback(float f)  { feedback_ = clampf(f, 0.0f, 0.95f); }
     void mix(float m)       { mix_ = clampf(m, 0.0f, 1.0f); }
+    /** LFO-fase 0..1 (stereo-versie: het rechterkanaal een stuk verschoven). */
+    void set_phase(float p) { lfoPhase_ = p - static_cast<float>(static_cast<int>(p)); if (lfoPhase_ < 0.0f) lfoPhase_ += 1.0f; }
+    float phase() const     { return lfoPhase_; }
 
     inline float Tick(float x) {
         // Triangle LFO 0..1 → all-pass coefficient g in [gMin, gMax].

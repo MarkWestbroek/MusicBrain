@@ -214,3 +214,85 @@ describe('BBD-chorus (wasm)', () => {
     expect(tone(l, 440, m.rate)).toBeGreaterThan(0.15);
   });
 });
+
+describe('harmonizer (wasm)', () => {
+  it('+12 st verdubbelt de frequentie, +7 geeft de kwint; V/Oct telt erbij op', async () => {
+    const m = await load('tp_mmb_harmonizer');
+    for (const [id, v] of Object.entries({ semi_a: 12, cent_a: 0, lvl_a: 1, semi_b: 7, cent_b: 0, lvl_b: 1, window: 40, feedback: 0, spread: 1, mix: 1 }))
+      m.setCtl(id, v);
+    m.connect('in', true);
+    let o = m.render(1.0, (id, t) => (id === 'in' ? sine(220, t) : 0));
+    const l = o.out_l!.subarray(8820), r = o.out_r!.subarray(8820);
+    expect(tone(l, 440, m.rate)).toBeGreaterThan(0.25);            // stem A links: octaaf
+    expect(tone(l, 220, m.rate)).toBeLessThan(0.05);
+    expect(tone(r, 329.6, m.rate)).toBeGreaterThan(0.25);          // stem B rechts: kwint
+    m.connect('voct_a', true);
+    o = m.render(1.0, (id, t) => (id === 'in' ? sine(220, t) : id === 'voct_a' ? -1 : 0));
+    expect(tone(o.out_l!.subarray(8820), 220, m.rate)).toBeGreaterThan(0.25);   // +12 st − 1 V = unisono
+  });
+});
+
+describe('reverb (wasm)', () => {
+  const tail = async (mode: number, size: number): Promise<{ early: number; late: number; l: Float32Array; r: Float32Array }> => {
+    const m = await load('tp_mmb_reverb');
+    for (const [id, v] of Object.entries({ mode, size, damp: 0.3, predelay: 0, mod: 0.2, mix: 1 })) m.setCtl(id, v);
+    m.connect('in_l', true);
+    const o = m.render(2.0, (id, t) => (id === 'in_l' && t < 0.01 ? sine(1000, t, 0.8) : 0));
+    const seg = (x: Float32Array, a: number, b: number): Float32Array => x.subarray(Math.round(a * m.rate), Math.round(b * m.rate));
+    return { early: rms(seg(o.out_l!, 0.05, 0.3)), late: rms(seg(o.out_l!, 1.2, 1.6)), l: o.out_l!, r: o.out_r! };
+  };
+  it('plaat: een staart die uitsterft, stereo, langer bij grotere size', async () => {
+    const a = await tail(0, 0.5), b = await tail(0, 0.95);
+    expect(a.early).toBeGreaterThan(0.01);
+    expect(a.late).toBeLessThan(a.early);
+    expect(b.late).toBeGreaterThan(a.late * 3);
+    let d = 0; for (let i = 0; i < a.l.length; i++) d += (a.l[i]! - a.r[i]!) ** 2;
+    expect(Math.sqrt(d / a.l.length)).toBeGreaterThan(0.002);      // L ≠ R
+    expect(Math.max(...b.l.map(Math.abs))).toBeLessThan(1);         // niet weggelopen
+  });
+  it('veer: klinkt na en blijft stabiel', async () => {
+    const s = await tail(1, 0.8);
+    expect(s.early).toBeGreaterThan(0.01);
+    expect(s.late).toBeLessThan(s.early);
+    expect(Number.isFinite(rms(s.l))).toBe(true);
+  });
+});
+
+describe('tremolo (wasm)', () => {
+  const run = async (mode: number): Promise<{ l: Float32Array; r: Float32Array; m: Mod }> => {
+    const m = await load('tp_mmb_tremolo');
+    for (const [id, v] of Object.entries({ rate: 5, depth: 1, wave: 0, mode, shape: 0, level: 1 })) m.setCtl(id, v);
+    m.connect('in_l', true);
+    const o = m.render(1.0, (id, t) => (id === 'in_l' ? sine(440, t) : 0));
+    return { l: o.out_l!, r: o.out_r!, m };
+  };
+  /** Envelope-modulatie: rms per 10 ms, max/min. */
+  const swing = (x: Float32Array, rate: number): number => {
+    const w = Math.round(rate * 0.01); let mx = 0, mn = 1e9;
+    for (let i = w * 10; i + w <= x.length; i += w) { const v = rms(x.subarray(i, i + w)); mx = Math.max(mx, v); mn = Math.min(mn, v); }
+    return mx / (mn + 1e-6);
+  };
+  it('amp: het volume golft op de rate; pan: L en R in tegenfase', async () => {
+    const a = await run(0);
+    expect(swing(a.l, a.m.rate)).toBeGreaterThan(5);
+    const p = await run(3);
+    // Tegenfase: waar L zacht is, is R hard → de som is vlakker dan elk apart.
+    const sum = new Float32Array(p.l.length); for (let i = 0; i < sum.length; i++) sum[i] = p.l[i]! + p.r[i]!;
+    expect(swing(sum, p.m.rate)).toBeLessThan(swing(p.l, p.m.rate) / 2);
+  });
+});
+
+describe('stereo phaser (wasm)', () => {
+  it('spread 1: L en R verschillen; spread 0: gelijk', async () => {
+    const play = async (spread: number): Promise<number> => {
+      const m = await load('tp_mmb_stereo_phaser');
+      for (const [id, v] of Object.entries({ rate: 1, depth: 1, feedback: 0.3, mix: 0.5, spread })) m.setCtl(id, v);
+      m.connect('in_l', true);
+      const o = m.render(1.0, (id, t) => (id === 'in_l' ? 0.3 * (Math.sin(2 * Math.PI * 440 * t) + Math.sin(2 * Math.PI * 1320 * t) + Math.sin(2 * Math.PI * 3000 * t)) : 0));
+      let d = 0; for (let i = 4410; i < o.out_l!.length; i++) d += (o.out_l![i]! - o.out_r![i]!) ** 2;
+      return Math.sqrt(d / o.out_l!.length);
+    };
+    expect(await play(1)).toBeGreaterThan(0.02);
+    expect(await play(0)).toBeLessThan(1e-4);
+  });
+});

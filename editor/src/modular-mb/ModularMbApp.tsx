@@ -12,7 +12,7 @@ import { startDemo, DemoCaption, type DemoState, type DemoHandle } from './recip
 import type { PatchOp } from './recipe/types';
 import { emptyModularProject } from './types';
 import { exportPanel, importPanel, parsePanelFile } from './panelIO';
-import { BUS_SOLO_FX, CONSOLE_EQ_SOLO_FX, PARA_EQ_SOLO_FX, DIODE_SOLO_FX, EQ_SOLO_FX, FET_SOLO_FX, OPTO_SOLO_FX, SAMPLER_MASTER_FX, VARIMU_SOLO_FX, STEREO_TAPE_SOLO_FX, DIGITAL_ECHO_SOLO_FX, BBD_SOLO_FX, RINGMOD_SOLO_FX, OCTAVER_SOLO_FX, seedExampleModules, seedInternals, seedTestPatch, seedFmTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, seedDx7PolyPatch, seedSamplerPolyPatch, seedWarpsVocoderPatch, seed808JamPatch, seedKrellPatch, type PolySeedOptions } from './seedModules';
+import { BUS_SOLO_FX, CONSOLE_EQ_SOLO_FX, PARA_EQ_SOLO_FX, DIODE_SOLO_FX, EQ_SOLO_FX, FET_SOLO_FX, OPTO_SOLO_FX, SAMPLER_MASTER_FX, VARIMU_SOLO_FX, STEREO_TAPE_SOLO_FX, DIGITAL_ECHO_SOLO_FX, BBD_SOLO_FX, RINGMOD_SOLO_FX, OCTAVER_SOLO_FX, HARMONIZER_SOLO_FX, REVERB_SOLO_FX, SPRING_SOLO_FX, TREMOLO_SOLO_FX, STEREO_PHASER_SOLO_FX, seedExampleModules, seedInternals, seedTestPatch, seedFmTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, seedDx7PolyPatch, seedSamplerPolyPatch, seedWarpsVocoderPatch, seed808JamPatch, seedKrellPatch, type PolySeedOptions } from './seedModules';
 
 /** Effecten achter de solo-seeds (Solo ▾): de stand en de tooltip. */
 const SOLO_FX = {
@@ -29,6 +29,11 @@ const SOLO_FX = {
   bbd:    { fx: BBD_SOLO_FX,    title: 'Monofoon met BBD CHORUS (9 ms, 0,5 Hz, Spread 1): mono in, breed stereo uit — het Dimension-beeld.' },
   ring:   { fx: RINGMOD_SOLO_FX, title: 'Monofoon met RING MOD (diode, 330 Hz, mix 0,7): klokken en metaal; stem Freq op de toonsoort voor harmonische boventonen.' },
   oct:    { fx: OCTAVER_SOLO_FX, title: 'Monofoon met OCTAVER (−1 oct 0,8, −2 oct 0,3): de analoge sub onder de noot; speel één noot tegelijk.' },
+  harm:   { fx: HARMONIZER_SOLO_FX, title: 'Monofoon met HARMONIZER: stem A +7 (kwint, links), stem B +12 +5 ct (octaaf, rechts), wat feedback — koor van kwinten en octaven.' },
+  plate:  { fx: REVERB_SOLO_FX, title: 'Monofoon met REVERB in Plate-stand (Dattorro-tank, size 0,7, predelay 15 ms): de gladde studioplaat.' },
+  spring: { fx: SPRING_SOLO_FX, title: 'Monofoon met REVERB in Spring-stand: twee veren met dispersie — de boing van een gitaarversterker.' },
+  trem:   { fx: TREMOLO_SOLO_FX, title: 'Monofoon met TREMOLO in Harm-stand (brownface): laag en hoog in tegenfase op 5,2 Hz — half tremolo, half phaser.' },
+  sphase: { fx: STEREO_PHASER_SOLO_FX, title: 'Monofoon met STEREO PHASER: 2 × 6 stages, rechts een kwartslag verschoven, feedback 0,45.' },
 } as const;
 import { PatchesPanel } from './PatchesPanel';
 import { ModulesPanel } from './ModulesPanel';
@@ -484,6 +489,16 @@ export function ModularMbApp(): JSX.Element {
                     c: { structure: 0.4, brightness: 0.6, damping: 0.6, position: 0.3, model: 0, polyphony: 1, level: 0.8 }, fx: 'ring' },
                   { label: '🎸 STK + Octaver', t: 'tp_mmb_stk_sound', n: 'STK', l: 'out', r: 'out',
                     c: { sound: 0, level: 0.8 }, fx: 'oct' },
+                  { label: '🎶 Plaits + Harmonizer', t: 'tp_mmb_plaits', n: 'Plaits', l: 'out', r: 'aux',
+                    c: { engine: 0, harmonics: 0.5, timbre: 0.5, morph: 0.5, decay: 0.6, lpg: 0.5, level: 0.8 }, fx: 'harm' },
+                  { label: '🏛️ Rings + Plate reverb', t: 'tp_mmb_rings', n: 'Rings', l: 'out_l', r: 'out_r',
+                    c: { structure: 0.4, brightness: 0.6, damping: 0.6, position: 0.3, model: 0, polyphony: 1, level: 0.8 }, fx: 'plate' },
+                  { label: '🪃 STK + Spring reverb', t: 'tp_mmb_stk_sound', n: 'STK', l: 'out', r: 'out',
+                    c: { sound: 0, level: 0.8 }, fx: 'spring' },
+                  { label: '〰️ DX7 + Tremolo', t: 'tp_mmb_dx7', n: 'DX7', l: 'out', r: 'out',
+                    c: { program: 0, level: 0.8 }, fx: 'trem' },
+                  { label: '🌀 Plaits + Stereo phaser', t: 'tp_mmb_plaits', n: 'Plaits', l: 'out', r: 'aux',
+                    c: { engine: 0, harmonics: 0.5, timbre: 0.5, morph: 0.5, decay: 0.6, lpg: 0.5, level: 0.8 }, fx: 'sphase' },
                 ] as { label: string; t: string; n: string; l: string; r: string;
                        c: Record<string, number>; fx?: keyof typeof SOLO_FX }[]).map((s) => (
                   <button

@@ -1669,6 +1669,127 @@ function mmbOctaver() {
   });
 }
 
+// ── Harmonizer / pitch-shifter ─────────────────────────────────────────
+function mmbHarmonizer() {
+  const w = W(12);
+  return assemble({
+    typeId: 'tp_mmb_harmonizer', categoryId: 'effect', variant: 'Pitch shifter / harmonizer',
+    brand: 'MMB', model: 'HARMONY', hp: 12, texture: 'pcb-black', baseColor: '#1a1424', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'HARMONIZER', fontSize: 2.0, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: 'twee stemmen · shimmer', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
+      { x: w*0.25, y: 22, text: 'A', fontSize: 1.2, color: '#c084fc', align: 'middle' },
+      { x: w*0.75, y: 22, text: 'B', fontSize: 1.2, color: '#c084fc', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('semi_a',   'Semi',   w*0.14, 34, { size: 'medium', min: -24, max: 24, def: 0, step: 1, unit: 'st', color: '#c084fc', ticks: { every: 12, highlight: [-12, 0, 12] } }),
+      knob('cent_a',   'Cent',   w*0.36, 34, { size: 'small', min: -50, max: 50, def: 0, unit: 'ct', color: '#c084fc' }),
+      knob('semi_b',   'Semi',   w*0.64, 34, { size: 'medium', min: -24, max: 24, def: 7, step: 1, unit: 'st', color: '#c084fc', ticks: { every: 12, highlight: [-12, 0, 12] } }),
+      knob('cent_b',   'Cent',   w*0.86, 34, { size: 'small', min: -50, max: 50, def: 0, unit: 'ct', color: '#c084fc' }),
+      knob('lvl_a',    'Level',  w*0.14, 60, { size: 'small', min: 0, max: 1, def: 1, color: '#f9fafb' }),
+      knob('lvl_b',    'Level',  w*0.86, 60, { size: 'small', min: 0, max: 1, def: 0, color: '#f9fafb' }),
+      knob('window',   'Window', w*0.38, 62, { size: 'small', min: 8, max: 120, def: 40, unit: 'ms', color: '#9ca3af' }),
+      knob('feedback', 'Fbk',    w*0.62, 62, { size: 'small', min: 0, max: 0.9, def: 0, color: '#9ca3af' }),
+      knob('spread',   'Spread', w*0.30, 86, { size: 'small', min: 0, max: 1, def: 0.5, color: '#9ca3af' }),
+      knob('mix',      'Mix',    w*0.70, 86, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      inPort ('voct_a', 'A V/Oct', 'cv', w*0.14, 104),
+      inPort ('voct_b', 'B V/Oct', 'cv', w*0.40, 104),
+      inPort ('mix_cv', 'M+',      'cv', w*0.66, 104),
+      inPort ('in',    'In', 'audio', w*0.20, 118),
+      outPort('out_l', 'L',  'audio', w*0.66, 118),
+      outPort('out_r', 'R',  'audio', w*0.86, 118),
+    ],
+    notes: 'Pitch-shifter/harmonizer in de stijl van de rack-harmonizers: twee stemmen (A, B) die elk een vertragingslijn met twee kruisgefadete leeskoppen uitlezen — de koppen lopen met 2^(semi/12) door het geheugen. Semi in halve tonen (±24), Cent fijn, en A V/Oct / B V/Oct tellen erbij op (1 V = 12 st: een sequencer of de MIDI-pitch als interval). Window = korrel: klein (10–20 ms) volgt strak maar klinkt ietsje metaalachtig, groot (60–100) is zachter maar smeert aanslagen. Fbk stuurt het natte signaal terug de shifter in: +12 met feedback = shimmer, +7 = getrapte kwinten. Spread zet A links en B rechts. Mono in, stereo uit. Firmware tp_mmb_harmonizer, mmb_dsp::Harmonizer — in de simulator draait dezelfde code als wasm.',
+  });
+}
+
+// ── Plaat-/veergalm ────────────────────────────────────────────────────
+function mmbReverb() {
+  const w = W(10);
+  return assemble({
+    typeId: 'tp_mmb_reverb', categoryId: 'effect', variant: 'Plate / spring reverb',
+    brand: 'MMB', model: 'PLATE·SPRING', hp: 10, texture: 'pcb-black', baseColor: '#141c24', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'REVERB', fontSize: 2.0, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: 'plaat · veer', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('size',     'Size',   w*0.28, 32, { size: 'large', min: 0, max: 1, def: 0.6, color: '#7dd3fc' }),
+      sw  ('mode',     'Mode',   w*0.76, 30, ['Plate', 'Spring'], 0),
+      knob('damp',     'Damp',   w*0.22, 62, { size: 'small', min: 0, max: 1, def: 0.4, color: '#9ca3af' }),
+      knob('predelay', 'Pre',    w*0.50, 62, { size: 'small', min: 0, max: 120, def: 10, unit: 'ms', color: '#9ca3af' }),
+      knob('mod',      'Mod',    w*0.78, 62, { size: 'small', min: 0, max: 1, def: 0.3, color: '#9ca3af' }),
+      knob('mix',      'Mix',    w/2,    86, { size: 'medium', min: 0, max: 1, def: 0.3, color: '#f9fafb' }),
+      inPort ('size_cv', 'S+', 'cv', w*0.25, 104),
+      inPort ('mix_cv',  'M+', 'cv', w*0.75, 104),
+      inPort ('in_l',  'L', 'audio', w*0.12, 118),
+      inPort ('in_r',  'R', 'audio', w*0.32, 118),
+      outPort('out_l', 'L', 'audio', w*0.68, 118),
+      outPort('out_r', 'R', 'audio', w*0.88, 118),
+    ],
+    notes: 'Twee galmen in één. Plate = de Dattorro-tank (input-diffusie, twee gemoduleerde all-passes, vier vertragingen in een acht, demping in de lus, zeven taps per kant): de gladde studioplaat; Size = decay, Damp = hoe snel het hoog wegsterft, Mod = de lichte zweving die de tank van metaal naar lucht brengt. Spring = twee veren (L/R iets anders): een vertragingslijn in feedback met acht dispersieve all-passes in de lus — laag komt later dan hoog, dat is de "boing" — een ingangs-bandpass en gerommel via Mod; Size = hoe lang de veer natrilt. Pre = predelay. Zonder R-kabel krijgt rechts hetzelfde als links. Firmware tp_mmb_reverb, mmb_dsp::Reverb — in de simulator draait dezelfde code als wasm.',
+  });
+}
+
+// ── Tremolo-pedaal ─────────────────────────────────────────────────────
+function mmbTremolo() {
+  const w = W(8);
+  return assemble({
+    typeId: 'tp_mmb_tremolo', categoryId: 'effect', variant: 'Tremolo pedal',
+    brand: 'MMB', model: 'TREM', hp: 8, texture: 'pcb-black', baseColor: '#1f1a10', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'TREMOLO', fontSize: 2.0, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: 'amp · opto · harm · pan', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('rate',  'Rate',  w*0.28, 32, { size: 'medium', min: 0.05, max: 20, def: 4.5, unit: 'Hz', color: '#fbbf24' }),
+      knob('depth', 'Depth', w*0.72, 32, { size: 'medium', min: 0, max: 1, def: 0.6, color: '#fbbf24' }),
+      sw  ('mode',  'Mode',  w*0.22, 60, ['Amp', 'Opto', 'Harm', 'Pan'], 0),
+      sw  ('wave',  'Wave',  w*0.72, 60, ['Sin', 'Tri', 'Sqr'], 0),
+      knob('shape', 'Shape', w*0.28, 88, { size: 'small', min: 0, max: 1, def: 0, color: '#9ca3af' }),
+      knob('level', 'Level', w*0.72, 88, { size: 'small', min: 0, max: 2, def: 1, color: '#f9fafb' }),
+      inPort ('rate_cv',  'R+', 'cv', w*0.25, 104),
+      inPort ('depth_cv', 'D+', 'cv', w*0.75, 104),
+      inPort ('in_l',  'L', 'audio', w*0.12, 118),
+      inPort ('in_r',  'R', 'audio', w*0.32, 118),
+      outPort('out_l', 'L', 'audio', w*0.68, 118),
+      outPort('out_r', 'R', 'audio', w*0.88, 118),
+    ],
+    notes: 'Tremolo-pedaal in vier smaken. Amp = bias-tremolo van een buizenversterker (de dip is dieper dan de piek hoog is). Opto = fotocel-tremolo (blackface): de cel volgt de lamp snel omhoog en traag terug — het scheve, schokkerige golfje. Harm = brownface harmonic tremolo: laag en hoog (split bij 800 Hz) in tegenfase — half tremolo, half phaser. Pan = L en R in tegenfase: auto-panner. Wave sin/tri/sqr, Shape drukt de golf naar een blok toe, Level tot ×2 om het gemiddelde verlies te compenseren. Rate en Depth met CV (een LFO op Rate = ritmische versnelling). Mono in geeft stereo uit. Firmware tp_mmb_tremolo, mmb_dsp::Tremolo — in de simulator draait dezelfde code als wasm.',
+  });
+}
+
+// ── Stereo phaser ──────────────────────────────────────────────────────
+function mmbStereoPhaser() {
+  const w = W(8);
+  return assemble({
+    typeId: 'tp_mmb_stereo_phaser', categoryId: 'effect', variant: 'Stereo phaser',
+    brand: 'MMB', model: 'PHASE-ST', hp: 8, texture: 'pcb-black', baseColor: '#10201c', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'STEREO PHASER', fontSize: 1.8, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: '2 × 6 stages', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('rate',     'Rate',   w*0.28, 32, { size: 'medium', min: 0.02, max: 8, def: 0.4, unit: 'Hz', color: '#2dd4bf' }),
+      knob('depth',    'Depth',  w*0.72, 32, { size: 'medium', min: 0, max: 1, def: 0.7, color: '#2dd4bf' }),
+      knob('feedback', 'Fbk',    w*0.28, 62, { size: 'small', min: 0, max: 0.95, def: 0.3, color: '#9ca3af' }),
+      knob('spread',   'Spread', w*0.72, 62, { size: 'small', min: 0, max: 1, def: 0.5, color: '#9ca3af' }),
+      knob('mix',      'Mix',    w/2,    88, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      inPort ('rate_cv',  'R+', 'cv', w*0.25, 104),
+      inPort ('depth_cv', 'D+', 'cv', w*0.75, 104),
+      inPort ('in_l',  'L', 'audio', w*0.12, 118),
+      inPort ('in_r',  'R', 'audio', w*0.32, 118),
+      outPort('out_l', 'L', 'audio', w*0.68, 118),
+      outPort('out_r', 'R', 'audio', w*0.88, 118),
+    ],
+    notes: 'Stereo phaser: twee keer de zes-traps all-pass-cascade van de mono phaser, met de LFO van rechts een Spread-deel verschoven — 0 = mono, 0,5 = een kwartslag (draaiend, breed), 1 = tegenfase (de notches van links zitten waar rechts open is). Fbk laat de notches resoneren. Mono in geeft stereo uit; met een R-kabel blijft het echt stereo. Firmware tp_mmb_stereo_phaser, mmb_dsp::StereoPhaser — in de simulator draait dezelfde code als wasm.',
+  });
+}
+
 function mmbBusComp() {
   const w = W(10);
   return assemble({
@@ -3042,7 +3163,7 @@ function mmbEnvFollowerMono() {
 // ── public entry ───────────────────────────────────────────────────────
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbEcho(), mmbTapeEcho(), mmbStereoTapeEcho(), mmbDigitalEcho(), mmbBbdChorus(), mmbRingMod(), mmbOctaver(), mmbFetComp(), mmbOptoComp(), mmbBusComp(),mmbVariMuComp(), mmbProgramEq(), mmbDiodeComp(), mmbConsoleEq(), mmbParaEq(), mmbSampler(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbEnvFollower(), mmbEnvFollowerMono()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbEcho(), mmbTapeEcho(), mmbStereoTapeEcho(), mmbDigitalEcho(), mmbBbdChorus(), mmbRingMod(), mmbOctaver(), mmbHarmonizer(), mmbReverb(), mmbTremolo(), mmbStereoPhaser(), mmbFetComp(),mmbOptoComp(), mmbBusComp(),mmbVariMuComp(), mmbProgramEq(), mmbDiodeComp(), mmbConsoleEq(), mmbParaEq(), mmbSampler(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbEnvFollower(), mmbEnvFollowerMono()];
   const newTypes = all.map((x) => x.type);
 
   // Upgrade-pad: bestaande interne types worden in-place VERVANGEN (zelfde
@@ -3834,7 +3955,7 @@ export function seedSoloVoicePatch(
   project: ModularProject,
   typeId: string, label: string, outL: string, outR: string,
   controls: Record<string, ControlValue> = {},
-  fx?: { typeId: string; label: string; controls?: Record<string, ControlValue>; mono?: boolean },
+  fx?: { typeId: string; label: string; controls?: Record<string, ControlValue>; mono?: boolean; monoIn?: boolean },
 ): ModularProject {
   const needed = [typeId, 'tp_mmb_midiin', 'tp_mmb_out', ...(fx ? [fx.typeId] : [])];
   const missing = needed.some((tid) => !project.moduleTypes.some((t) => t.id === tid));
@@ -3883,6 +4004,9 @@ export function seedSoloVoicePatch(
       // Mono-effect (ringmod, octaver): L erin, de ene uitgang naar L én R.
       ...(fxm && fx!.mono
         ? [c(inst, outL, fxm, 'in'), c(fxm, 'out', out, 'l'), c(fxm, 'out', out, 'r')]
+        // Mono in, stereo uit (harmonizer): L erin, L/R eruit.
+        : fxm && fx!.monoIn
+        ? [c(inst, outL, fxm, 'in'), c(fxm, 'out_l', out, 'l'), c(fxm, 'out_r', out, 'r')]
         : fxm
         ? [c(inst, outL, fxm, 'in_l'), c(inst, outR, fxm, 'in_r'),
            c(fxm, 'out_l', out, 'l'),  c(fxm, 'out_r', out, 'r')]
@@ -3964,6 +4088,26 @@ export const DIGITAL_ECHO_SOLO_FX = {
 export const BBD_SOLO_FX = {
   typeId: 'tp_mmb_bbd_chorus', label: 'BBD CHORUS',
   controls: { rate: 0.5, depth: 0.6, delay: 9, feedback: 0, mix: 0.5, spread: 1, age: 0.35, tone: 0.55 },
+} as const;
+export const HARMONIZER_SOLO_FX = {
+  typeId: 'tp_mmb_harmonizer', label: 'HARMONIZER', monoIn: true,
+  controls: { semi_a: 7, cent_a: 0, lvl_a: 0.8, semi_b: 12, cent_b: 5, lvl_b: 0.5, window: 40, feedback: 0.25, spread: 0.7, mix: 0.45 },
+} as const;
+export const REVERB_SOLO_FX = {
+  typeId: 'tp_mmb_reverb', label: 'REVERB',
+  controls: { mode: 0, size: 0.7, damp: 0.4, predelay: 15, mod: 0.3, mix: 0.35 },
+} as const;
+export const SPRING_SOLO_FX = {
+  typeId: 'tp_mmb_reverb', label: 'SPRING',
+  controls: { mode: 1, size: 0.75, damp: 0.5, predelay: 0, mod: 0.4, mix: 0.4 },
+} as const;
+export const TREMOLO_SOLO_FX = {
+  typeId: 'tp_mmb_tremolo', label: 'TREMOLO',
+  controls: { rate: 5.2, depth: 0.7, wave: 0, mode: 2, shape: 0.2, level: 1.2 },
+} as const;
+export const STEREO_PHASER_SOLO_FX = {
+  typeId: 'tp_mmb_stereo_phaser', label: 'STEREO PHASER',
+  controls: { rate: 0.35, depth: 0.8, feedback: 0.45, mix: 0.5, spread: 0.5 },
 } as const;
 export const RINGMOD_SOLO_FX = {
   typeId: 'tp_mmb_ringmod', label: 'RING MOD', mono: true,
