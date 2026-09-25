@@ -161,3 +161,15 @@ grote banken konden er niet bij (niet in git, geen geautomatiseerde weg), en
 het was een tweede, aparte deploy-omgeving naast de VPS. Na de verhuizing:
 de Plesk-webhook op GitHub (`655461008`) en de Git-koppeling in Plesk
 verwijderen.
+
+## AI-proxy (sinds 25 september 2026)
+
+Naast de editor draait op de VPS een klein tussenprogramma voor de AI-knop:
+de container `musicbrain-ai`, bereikbaar via `editor.musicbrain.nl/ai/`. Het
+houdt de DeepSeek-key op de server en laat alleen verzoeken door met een
+toegangscode die je zelf uitgeeft (met daglimiet, intrekbaar). Zo kun je
+anderen de AI laten gebruiken zonder je key weg te geven. Het hoort niet bij
+de editor-deploy: een nieuwe release laat het met rust.
+
+Uitleg, plaats op de VPS, codes beheren en opnieuw opzetten:
+`tools/ai-proxy/README.md`.

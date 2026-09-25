@@ -1,108 +1,106 @@
 # ai-proxy — jouw AI-key op de server, toegang met een code
 
-De AI-knop in de editor kan met een eigen key werken (DeepSeek, Claude, …) die
-in de browser van de gebruiker staat. Voor mensen aan wie je toegang wilt
-geven zónder je key weg te geven is er dit kleine proces op de VPS:
+## Wat is dit, en waarom
+
+De AI-knop in de editor (⌘ Recept → ✨ AI) praat met een taalmodel, standaard
+DeepSeek. Daar is een API-key voor nodig, en die kost geld per gebruik.
+
+- **Voor jezelf** is dit proces niet nodig: je zet je eigen key in de editor
+  (⚙ in het AI-venster). Die staat alleen in jouw browser.
+- **Voor anderen** wil je je key niet weggeven: je kunt hem dan niet meer
+  terugnemen zonder hem bij DeepSeek te vervangen, en je ziet niet wie wat
+  verbruikt.
+
+Deze proxy lost dat op. Het is een klein tussenprogramma op de VPS:
 
 ```
-browser (profiel "MusicBrain-server", toegangscode)
-   → https://editor.musicbrain.nl/ai/v1/chat/completions
-   → Caddy → 127.0.0.1:8787 (dit proces: code + daglimiet controleren)
-   → DeepSeek (met jouw key, die alleen hier staat)
+editor van Anna (profiel "MusicBrain-server", toegangscode mb-Xa3k…)
+   │  vraag + toegangscode
+   ▼
+https://editor.musicbrain.nl/ai/v1/chat/completions
+   │  Caddy stuurt /ai/* door
+   ▼
+ai-proxy (container op de VPS, 127.0.0.1:8787)
+   │  1. is de code geldig en actief?
+   │  2. zit Anna nog onder haar daglimiet?
+   │  3. vraag doorsturen mét jouw key (die alleen hier staat)
+   ▼
+DeepSeek  ──antwoord──▶  terug naar Anna's editor
 ```
 
-Geen afhankelijkheden, Node 18+. Omdat het op hetzelfde domein als de editor
-draait, is er geen CORS nodig.
+Wat je ermee hebt:
 
-## Codes uitgeven
+- **Je key blijft geheim.** Hij staat alleen in `/etc/musicbrain-ai.env` op de
+  VPS en komt nooit in een browser.
+- **Per persoon een code**, met een daglimiet (aantal verzoeken per dag).
+  Eén AI-vraag is meestal 2 tot 5 verzoeken, omdat het model zelf de
+  modulecatalogus en de patch opvraagt.
+- **Intrekken met één opdracht**, per persoon, met directe werking.
+- **Gebruik zichtbaar**: elk verzoek komt in `usage.jsonl`, met naam, status
+  en token-telling.
+- Geen CORS-gedoe: de proxy draait op hetzelfde domein als de editor.
+
+Gebouwd 2026-09-25 (ED-RC-10). Code: `server.mjs`, zonder afhankelijkheden
+(Node 18+). Rooktest: `node smoke.mjs`.
+
+## Hoe het op de VPS staat
+
+| Onderdeel | Waar |
+|---|---|
+| Programma | `/srv/musicbrain-ai/server.mjs` (kopie van dit bestand) |
+| Codes en gebruik | `/srv/musicbrain-ai/invites.json`, `/srv/musicbrain-ai/usage.jsonl` |
+| Geheim (de DeepSeek-key) | `/etc/musicbrain-ai.env`, alleen leesbaar voor root |
+| Draait als | Docker-container `musicbrain-ai` (image `node:24-bookworm-slim`, hetzelfde als de editor-build), `--restart unless-stopped`, gepubliceerd op `127.0.0.1:8787` |
+| Webserver | Caddy, blok `editor.musicbrain.nl` in `/etc/caddy/Caddyfile`: `handle /ai/* { reverse_proxy 127.0.0.1:8787 }` (repo-kopie: Bitemporal-repo, `deploy/vps/Caddyfile`) |
+
+Er staat geen Node op de host; daarom een container. Hij hoort niet bij de
+editor-deploy: een nieuwe editor-release laat de proxy met rust.
+
+## Codes beheren
+
+Op de VPS (`ssh vps1`; vanaf Windows via PowerShell, de sleutel zit in de
+Windows ssh-agent):
 
 ```bash
-node server.mjs add-code "Anna" 200     # 200 verzoeken per dag; print de code
-node server.mjs list                    # codes, gebruik vandaag
-node server.mjs revoke Anna             # intrekken (naam of code)
+sudo docker exec musicbrain-ai node /data/server.mjs add-code "Anna" 200   # print de code
+sudo docker exec musicbrain-ai node /data/server.mjs list                  # codes + gebruik vandaag
+sudo docker exec musicbrain-ai node /data/server.mjs revoke Anna           # naam of code
 ```
 
-De gebruiker kiest in de editor bij ⌘ Recept → ⚙ → **+ toevoegen… →
-MusicBrain-server** en vult de code in bij **Toegangscode**. Eén AI-vraag is
-meestal 2 tot 5 verzoeken (het model haalt zelf catalogus en patch op).
+"Anna" is alleen een naam voor jezelf; de code die de opdracht print geef je
+aan Anna. Zij kiest in de editor ⌘ Recept → ⚙ → **+ toevoegen… →
+MusicBrain-server** en vult de code in bij **Toegangscode**. Intrekken werkt
+direct: de proxy leest `invites.json` bij elk verzoek.
 
-Codes staan in `invites.json`, gebruik in `usage.jsonl` (één regel per
-verzoek, met de token-telling van de upstream). Beide naast `server.mjs`, of
-in `AI_PROXY_DIR`. Zet ze niet in git.
-
-## Installeren op de VPS
-
-Eenmalig, met een shell op de VPS (de deploy-sleutel van de editor mag dit
-bewust niet).
-
-1. **Code neerzetten**, los van de editor-releases:
-
-   ```bash
-   sudo mkdir -p /srv/musicbrain-ai && sudo chown $USER /srv/musicbrain-ai
-   cp /srv/musicbrain-editor/src/tools/ai-proxy/server.mjs /srv/musicbrain-ai/
-   ```
-
-   (De sparse checkout van de editor bevat alleen `editor/`; kopieer het bestand
-   anders met `scp` vanaf je eigen machine.)
-
-2. **Geheim** in `/etc/musicbrain-ai.env` (`chmod 600`, eigenaar root):
-
-   ```
-   UPSTREAM_KEY=sk-...                 # jouw DeepSeek-key
-   UPSTREAM_URL=https://api.deepseek.com/chat/completions
-   UPSTREAM_MODEL=deepseek-chat
-   AI_PROXY_PORT=8787
-   AI_PROXY_DIR=/srv/musicbrain-ai
-   ```
-
-3. **systemd** — `/etc/systemd/system/musicbrain-ai.service`:
-
-   ```ini
-   [Unit]
-   Description=MusicBrain AI-proxy
-   After=network-online.target
-
-   [Service]
-   EnvironmentFile=/etc/musicbrain-ai.env
-   ExecStart=/usr/bin/node /srv/musicbrain-ai/server.mjs
-   Restart=on-failure
-   User=www-data
-   WorkingDirectory=/srv/musicbrain-ai
-
-   [Install]
-   WantedBy=multi-user.target
-   ```
-
-   ```bash
-   sudo chown -R www-data /srv/musicbrain-ai
-   sudo systemctl daemon-reload && sudo systemctl enable --now musicbrain-ai
-   curl -s 127.0.0.1:8787/ai/health          # {"ok":true}
-   ```
-
-   Codes beheren (heeft de key niet nodig; `invites.json` staat naast het script):
-
-   ```bash
-   sudo -u www-data node /srv/musicbrain-ai/server.mjs add-code "Anna" 200
-   sudo -u www-data node /srv/musicbrain-ai/server.mjs list
-   sudo -u www-data node /srv/musicbrain-ai/server.mjs revoke Anna
-   ```
-
-   Intrekken werkt direct: de proxy leest `invites.json` bij elk verzoek.
-
-4. **Caddy** — in het blok `editor.musicbrain.nl` (repo-kopie in het
-   Bitemporal-repo, `deploy/vps/Caddyfile`), vóór de `file_server`:
-
-   ```
-   handle /ai/* {
-       reverse_proxy 127.0.0.1:8787
-   }
-   ```
-
-   `sudo systemctl reload caddy`, dan in de editor het profiel
-   MusicBrain-server proberen.
-
-## Testen zonder VPS
+## Onderhoud
 
 ```bash
-node smoke.mjs     # nep-upstream + proxy: code, limiet, intrekken, logging
+sudo docker logs --tail 50 musicbrain-ai          # draait hij?
+curl -s 127.0.0.1:8787/ai/health                   # {"ok":true}
+sudo nano /etc/musicbrain-ai.env && sudo docker restart musicbrain-ai   # key vervangen
+```
+
+Nieuwe versie van `server.mjs`: kopiëren naar `/srv/musicbrain-ai/` en
+`sudo docker restart musicbrain-ai`.
+
+## Opnieuw opzetten (bijv. na een nieuwe VPS)
+
+```bash
+sudo mkdir -p /srv/musicbrain-ai
+sudo cp server.mjs /srv/musicbrain-ai/
+sudo install -m 600 -o root /dev/null /etc/musicbrain-ai.env
+sudo nano /etc/musicbrain-ai.env
+#   UPSTREAM_KEY=sk-...
+#   UPSTREAM_URL=https://api.deepseek.com/chat/completions
+#   UPSTREAM_MODEL=deepseek-chat
+sudo docker run -d --name musicbrain-ai --restart unless-stopped \
+  --env-file /etc/musicbrain-ai.env \
+  -e AI_PROXY_HOST=0.0.0.0 -e AI_PROXY_DIR=/data \
+  -v /srv/musicbrain-ai:/data -p 127.0.0.1:8787:8787 \
+  node:24-bookworm-slim node /data/server.mjs
+# Caddy: in het blok editor.musicbrain.nl, vóór file_server:
+#   handle /ai/* {
+#       reverse_proxy 127.0.0.1:8787
+#   }
+sudo caddy validate --config /etc/caddy/Caddyfile && sudo systemctl reload caddy
 ```
