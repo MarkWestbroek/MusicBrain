@@ -1,0 +1,94 @@
+# Firmware bouwen en publiceren (ED-FW-DIST-1).
+#
+# Bij elke tag fw-X.Y.Z bouwt dit de Teensy-firmware met PlatformIO en hangt
+# het resultaat als mmb-fw-X.Y.Z.hex aan een GitHub-release "Firmware X.Y.Z".
+# De editor (Teensy-venster) vraagt die releases op bij de GitHub-API en biedt
+# de nieuwste aan als download; flashen gaat met Teensy Loader van PJRC.
+# Zie doc/firmware-distributie.md.
+#
+# Handmatig (bijv. voor een tag van vóór deze workflow): Actions → Firmware
+# release → Run workflow, met de tag als invoer.
+
+name: Firmware release
+
+on:
+  push:
+    tags: ['fw-*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Bestaande tag, bijv. fw-0.5.78'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Versie uit de tag en uit FwVersion.h moeten gelijk zijn
+        id: ver
+        run: |
+          tagver="${TAG#fw-}"
+          srcver=$(sed -n 's/^#define FW_VERSION "\(.*\)"/\1/p' firmware/app-modular-brain/src/FwVersion.h)
+          echo "tag: $tagver, FwVersion.h: $srcver"
+          if [ "$tagver" != "$srcver" ]; then
+            echo "::error::tag $TAG past niet bij FW_VERSION $srcver"
+            exit 1
+          fi
+          echo "version=$tagver" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: PlatformIO-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            ~/.cache/pip
+          key: pio-${{ hashFiles('firmware/app-modular-brain/platformio.ini') }}
+
+      - name: PlatformIO installeren
+        run: pip install --upgrade platformio
+
+      - name: Bouwen
+        run: pio run -d firmware/app-modular-brain -e teensy41
+
+      - name: Bestand en release-notes klaarzetten
+        run: |
+          v="${{ steps.ver.outputs.version }}"
+          mkdir -p out
+          cp firmware/app-modular-brain/.pio/build/teensy41/firmware.hex "out/mmb-fw-$v.hex"
+          # Notes: het eerste blok "### fw …" uit de release-log waarin de
+          # versie voorkomt (ook "### fw 0.5.74–0.5.77"), tot de volgende kop.
+          awk -v v="$v" '/^### /{ if (on) exit; on = ($0 ~ /^### fw / && index($0, v) > 0) } on' doc/RELEASE-LOG.md > out/notes.md || true
+          {
+            echo "Firmware $v voor de MusicBrain (Teensy 4.1 met PSRAM)."
+            echo
+            echo "**Flashen:** installeer [Teensy Loader](https://www.pjrc.com/teensy/loader.html), open \`mmb-fw-$v.hex\`, druk op het knopje op de Teensy."
+            echo "Of: editor.musicbrain.nl → Teensy → Firmware."
+            echo
+            cat out/notes.md
+          } > out/body.md
+          ls -la out
+
+      - name: Release maken of bijwerken
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v="${{ steps.ver.outputs.version }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "out/mmb-fw-$v.hex" --clobber
+            gh release edit "$TAG" --notes-file out/body.md
+          else
+            gh release create "$TAG" "out/mmb-fw-$v.hex" --title "Firmware $v" --notes-file out/body.md
+          fi

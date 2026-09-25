@@ -18,6 +18,7 @@ import {
   sendDx7Bank,
 } from './teensyLink';
 import { TeensyStatusBar } from './TeensyStatusBar';
+import { FirmwarePanel } from './FirmwarePanel';
 import { WebMidiSource } from './sim/MidiSource';
 
 interface Props {
@@ -186,6 +187,8 @@ export function TeensyLinkModal({ onClose }: Props): JSX.Element {
           </div>
 
           <TeensyStatusBar />
+
+          <FirmwarePanel />
 
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             <button
