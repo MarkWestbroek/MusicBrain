@@ -1515,6 +1515,160 @@ function mmbOptoComp() {
 }
 
 // 10e. MMB VCA-BUS — 10 HP. VCA-buscompressor in SSL-G-stijl (FW-FX-3 stap 3).
+// ── Stereo bandecho met cross-feedback ─────────────────────────────────
+function mmbStereoTapeEcho() {
+  const w = W(12);
+  return assemble({
+    typeId: 'tp_mmb_stereo_tape_echo', categoryId: 'effect', variant: 'Stereo tape echo',
+    brand: 'MMB', model: 'TAPE-ST', hp: 12, texture: 'pcb-black', baseColor: '#1f1a14', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'STEREO TAPE', fontSize: 2.0, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: 'twee sporen · cross-feedback', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('time',     'Time',    w*0.18, 30, { size: 'medium', min: 0.02, max: 1.0, def: 0.35, unit: 's', color: '#f5a623' }),
+      knob('ratio',    'Ratio',   w*0.50, 30, { size: 'medium', min: 0.5, max: 2, def: 1, unit: '×R', color: '#f5a623', ticks: { every: 0.25, highlight: [0.5, 0.75, 1, 1.5, 2] } }),
+      knob('feedback', 'Fbk',     w*0.82, 30, { size: 'medium', min: 0, max: 1.1, def: 0.4, color: '#f5a623' }),
+      knob('cross',    'Cross',   w*0.18, 58, { size: 'medium', min: 0, max: 1.1, def: 0.3, color: '#38bdf8' }),
+      knob('mix',      'Mix',     w*0.50, 58, { size: 'small', min: 0, max: 1, def: 0.4, color: '#f9fafb' }),
+      knob('tone',     'Tone',    w*0.82, 58, { size: 'small', min: 0, max: 1, def: 0.6, color: '#f9fafb' }),
+      knob('wow',      'Wow',     w*0.18, 82, { size: 'small', min: 0, max: 1, def: 0.3, color: '#9ca3af' }),
+      knob('flutter',  'Flutter', w*0.50, 82, { size: 'small', min: 0, max: 1, def: 0.2, color: '#9ca3af' }),
+      knob('drive',    'Drive',   w*0.82, 82, { size: 'small', min: 0, max: 1, def: 0.3, color: '#9ca3af' }),
+      inPort ('time_cv',  'T+', 'cv', w*0.10, 102),
+      inPort ('fbk_cv',   'F+', 'cv', w*0.30, 102),
+      inPort ('cross_cv', 'X+', 'cv', w*0.50, 102),
+      inPort ('mix_cv',   'M+', 'cv', w*0.70, 102),
+      inPort ('in_l',  'L', 'audio', w*0.12, 118),
+      inPort ('in_r',  'R', 'audio', w*0.30, 118),
+      outPort('out_l', 'L', 'audio', w*0.70, 118),
+      outPort('out_r', 'R', 'audio', w*0.88, 118),
+    ],
+    notes: 'Stereo bandecho: twee bandsporen (dezelfde TapeEcho-kern als het mono-echo: verzadiging, toon-laagdoorlaat, wow en flutter) met Ratio = tijd van het rechterspoor als factor van links (0,75 of 1,5 = gepunteerde patronen) en Cross = hoeveel van het natte signaal van het ene spoor de schrijfkop van het andere in gaat. Cross 1 met Fbk 0 = ping-pong; Cross én Fbk samen = een wolk die van links naar rechts kruipt (de verzadiger houdt de lus in toom, ook boven 1). De wow/flutter van rechts loopt een kwartslag achter, dus de sporen zweven niet in de maat: breedte. Zonder R-kabel krijgt rechts hetzelfde als links (mono in, stereo uit). Firmware tp_mmb_stereo_tape_echo, mmb_dsp::StereoTapeEcho — in de simulator draait dezelfde code als wasm.',
+  });
+}
+
+// ── Vintage digitale echo ──────────────────────────────────────────────
+function mmbDigitalEcho() {
+  const w = W(12);
+  return assemble({
+    typeId: 'tp_mmb_digital_echo', categoryId: 'effect', variant: 'Vintage digital echo',
+    brand: 'MMB', model: 'DDL-12', hp: 12, texture: 'pcb-black', baseColor: '#14181f', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'DIGITAL ECHO', fontSize: 2.0, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: '12-bit · modulatie · stereo', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('time',      'Time',   w*0.18, 30, { size: 'medium', min: 0.005, max: 1.0, def: 0.3, unit: 's', color: '#a3e635' }),
+      knob('ratio',     'Ratio',  w*0.50, 30, { size: 'medium', min: 0.5, max: 2, def: 1, unit: '×R', color: '#a3e635', ticks: { every: 0.25, highlight: [0.5, 0.75, 1, 1.5, 2] } }),
+      knob('feedback',  'Fbk',    w*0.82, 30, { size: 'medium', min: 0, max: 1.1, def: 0.4, color: '#a3e635' }),
+      knob('cross',     'Cross',  w*0.18, 58, { size: 'small', min: 0, max: 1.1, def: 0, color: '#38bdf8' }),
+      knob('mod_rate',  'Rate',   w*0.50, 58, { size: 'small', min: 0.05, max: 10, def: 0.8, unit: 'Hz', color: '#38bdf8' }),
+      knob('mod_depth', 'Depth',  w*0.82, 58, { size: 'small', min: 0, max: 1, def: 0.2, color: '#38bdf8' }),
+      knob('bits',      'Bits',   w*0.18, 82, { size: 'small', min: 6, max: 16, def: 12, step: 1, color: '#9ca3af' }),
+      knob('band',      'Band',   w*0.50, 82, { size: 'small', min: 1000, max: 16000, def: 8000, unit: 'Hz', color: '#9ca3af' }),
+      knob('mix',       'Mix',    w*0.82, 82, { size: 'small', min: 0, max: 1, def: 0.4, color: '#f9fafb' }),
+      inPort ('time_cv', 'T+', 'cv', w*0.10, 102),
+      inPort ('fbk_cv',  'F+', 'cv', w*0.30, 102),
+      inPort ('mod_cv',  'D+', 'cv', w*0.50, 102),
+      inPort ('mix_cv',  'M+', 'cv', w*0.70, 102),
+      inPort ('in_l',  'L', 'audio', w*0.12, 118),
+      inPort ('in_r',  'R', 'audio', w*0.30, 118),
+      outPort('out_l', 'L', 'audio', w*0.70, 118),
+      outPort('out_r', 'R', 'audio', w*0.88, 118),
+    ],
+    notes: 'Vintage digitale echo, naar de rack-delays van begin jaren tachtig: companderende converters van Bits breed (12 = de klassieke kasten; 8 wordt krakerig), een bandbreedte Band met de aliasing van toen (de interne samplefrequentie is 2 × Band — het gruis op de herhalingen), en een sinus-modulatie op de leeskop (Rate/Depth) voor chorus op de echo. Twee sporen met Ratio (R-tijd als factor van L) en Cross-feedback zoals het stereo bandecho. Zonder R-kabel krijgt rechts hetzelfde als links. Firmware tp_mmb_digital_echo, mmb_dsp::DigitalEcho — in de simulator draait dezelfde code als wasm.',
+  });
+}
+
+// ── BBD-chorus ─────────────────────────────────────────────────────────
+function mmbBbdChorus() {
+  const w = W(10);
+  return assemble({
+    typeId: 'tp_mmb_bbd_chorus', categoryId: 'effect', variant: 'BBD chorus / flanger',
+    brand: 'MMB', model: 'BBD', hp: 10, texture: 'pcb-black', baseColor: '#1a1f1a', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'BBD CHORUS', fontSize: 2.0, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: 'emmertjes · stereo', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('rate',     'Rate',   w*0.25, 30, { size: 'medium', min: 0.02, max: 12, def: 0.6, unit: 'Hz', color: '#4ade80' }),
+      knob('depth',    'Depth',  w*0.75, 30, { size: 'medium', min: 0, max: 1, def: 0.5, color: '#4ade80' }),
+      knob('delay',    'Delay',  w*0.25, 58, { size: 'small', min: 0.5, max: 40, def: 8, unit: 'ms', color: '#f9fafb' }),
+      knob('feedback', 'Fbk',    w*0.75, 58, { size: 'small', min: -0.95, max: 0.95, def: 0, color: '#f9fafb' }),
+      knob('mix',      'Mix',    w*0.20, 82, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('spread',   'Spread', w*0.50, 82, { size: 'small', min: 0, max: 1, def: 1, color: '#9ca3af' }),
+      knob('age',      'Age',    w*0.80, 82, { size: 'small', min: 0, max: 1, def: 0.3, color: '#9ca3af' }),
+      knob('tone',     'Tone',   w*0.50, 58, { size: 'small', min: 0, max: 1, def: 0.6, color: '#9ca3af' }),
+      inPort ('rate_cv',  'R+', 'cv', w*0.15, 102),
+      inPort ('depth_cv', 'D+', 'cv', w*0.40, 102),
+      inPort ('mix_cv',   'M+', 'cv', w*0.65, 102),
+      inPort ('in_l',  'L', 'audio', w*0.12, 118),
+      inPort ('in_r',  'R', 'audio', w*0.32, 118),
+      outPort('out_l', 'L', 'audio', w*0.68, 118),
+      outPort('out_r', 'R', 'audio', w*0.88, 118),
+    ],
+    notes: 'BBD-chorus (emmertjesgeheugen, CE-1/Dimension-familie): een korte vertraging (Delay, 2–6 ms = flanger, 8–20 = chorus, 20+ = doubling) die door een driehoek-LFO (Rate/Depth) heen en weer wordt getrokken. Het karakter zit in de keten: laagdoorlaat aan in- en uitgang (Tone = bandbreedte van de emmertjes), een zachte compander en klokruis (Age). Twee sporen met Spread = LFO-fasehoek (0 = mono, 1 = tegenfase: het brede Dimension-beeld); Fbk negatief of positief voor de flanger-kant. Mono in geeft stereo uit; met een R-kabel blijft het echt stereo. Firmware tp_mmb_bbd_chorus, mmb_dsp::BbdChorus — in de simulator draait dezelfde code als wasm.',
+  });
+}
+
+// ── Ringmodulator ──────────────────────────────────────────────────────
+function mmbRingMod() {
+  const w = W(8);
+  return assemble({
+    typeId: 'tp_mmb_ringmod', categoryId: 'effect', variant: 'Ring modulator',
+    brand: 'MMB', model: 'RING', hp: 8, texture: 'pcb-black', baseColor: '#1f1420', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'RING MOD', fontSize: 2.0, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: 'clean · diode', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('freq', 'Freq', w/2,    32, { size: 'large', min: 1, max: 5000, def: 440, unit: 'Hz', color: '#e879f9' }),
+      sw  ('wave', 'Wave', w*0.22, 62, ['Sin', 'Tri', 'Sqr'], 0),
+      sw  ('mode', 'Mode', w*0.72, 62, ['Clean', 'Diode'], 0),
+      knob('bias', 'Bias', w*0.28, 86, { size: 'small', min: 0, max: 1, def: 0.3, color: '#9ca3af' }),
+      knob('mix',  'Mix',  w*0.72, 86, { size: 'small', min: 0, max: 1, def: 1, color: '#f9fafb' }),
+      inPort ('voct',    'V/Oct', 'cv',    w*0.20, 104),
+      inPort ('mix_cv',  'M+',    'cv',    w*0.50, 104),
+      inPort ('carrier', 'Car',   'audio', w*0.80, 104),
+      inPort ('in',  'In',  'audio', w*0.30, 118),
+      outPort('out', 'Out', 'audio', w*0.70, 118),
+    ],
+    notes: 'Ringmodulator: ingang × draaggolf. De draaggolf komt van de eigen oscillator (Freq × 2^V/Oct — stem hem met een MIDI-pitch voor harmonische klokken, of laat hem los voor metaal) of van de Car-ingang als daar een kabel in zit (dan is het een echte vierkwadrantvermenigvuldiger van twee signalen). Clean = het zuivere product: alleen som- en verschiltonen, de grondtonen verdwijnen. Diode = de vier-diodenring: Bias is de drempel van de dioden; de draaggolf en de ingang lekken door en er komen oneven harmonischen bij — het gemene van een echte ringmod. Firmware tp_mmb_ringmod, mmb_dsp::RingMod — in de simulator draait dezelfde code als wasm.',
+  });
+}
+
+// ── Octaver ────────────────────────────────────────────────────────────
+function mmbOctaver() {
+  const w = W(8);
+  return assemble({
+    typeId: 'tp_mmb_octaver', categoryId: 'effect', variant: 'Analog octaver',
+    brand: 'MMB', model: 'OCTAVE', hp: 8, texture: 'pcb-black', baseColor: '#14201a', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'OCTAVER', fontSize: 2.0, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: '−1 · −2 · up', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('oct1', '−1 oct', w*0.28, 32, { size: 'medium', min: 0, max: 1, def: 0.7, color: '#34d399' }),
+      knob('oct2', '−2 oct', w*0.72, 32, { size: 'medium', min: 0, max: 1, def: 0, color: '#34d399' }),
+      knob('up',   'Up',     w*0.28, 62, { size: 'small', min: 0, max: 1, def: 0, color: '#34d399' }),
+      knob('dry',  'Dry',    w*0.72, 62, { size: 'small', min: 0, max: 1, def: 1, color: '#f9fafb' }),
+      knob('tone', 'Tone',   w/2,    86, { size: 'small', min: 0, max: 1, def: 0.5, color: '#9ca3af' }),
+      inPort ('oct1_cv', '1+', 'cv', w*0.20, 104),
+      inPort ('oct2_cv', '2+', 'cv', w*0.50, 104),
+      inPort ('up_cv',   'U+', 'cv', w*0.80, 104),
+      inPort ('in',  'In',  'audio', w*0.30, 118),
+      outPort('out', 'Out', 'audio', w*0.70, 118),
+    ],
+    notes: 'Analoge octaver naar de klassieke octaafpedalen (OC-2-familie): geen pitch-shifter maar een flip-flop. De ingang gaat door een tracking-laagdoorlaat, een comparator maakt er een blokgolf van en twee delers geven f/2 (−1 oct) en f/4 (−2 oct); die blokgolven ademen mee met de envelope van de ingang en worden afgerond door Tone (laag = bijna sinus, hoog = hoekig). Up is de Octavia-truc: dubbelfasig gelijkrichten voor een octaaf omhoog (rauw, fuzzy). De drie niveaus zijn moduleerbaar via de CV-ingangen (een kabel vervangt de knop): envelope of LFO op −1 oct geeft een ademende sub. Werkt het best op één noot tegelijk (bas, lead); op akkoorden gaat het net zo mooi mis als het origineel. Firmware tp_mmb_octaver, mmb_dsp::Octaver — in de simulator draait dezelfde code als wasm.',
+  });
+}
+
 function mmbBusComp() {
   const w = W(10);
   return assemble({
@@ -2888,7 +3042,7 @@ function mmbEnvFollowerMono() {
 // ── public entry ───────────────────────────────────────────────────────
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbEcho(), mmbTapeEcho(), mmbFetComp(), mmbOptoComp(), mmbBusComp(), mmbVariMuComp(), mmbProgramEq(), mmbDiodeComp(), mmbConsoleEq(), mmbParaEq(), mmbSampler(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbEnvFollower(), mmbEnvFollowerMono()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbEcho(), mmbTapeEcho(), mmbStereoTapeEcho(), mmbDigitalEcho(), mmbBbdChorus(), mmbRingMod(), mmbOctaver(), mmbFetComp(), mmbOptoComp(), mmbBusComp(),mmbVariMuComp(), mmbProgramEq(), mmbDiodeComp(), mmbConsoleEq(), mmbParaEq(), mmbSampler(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbEnvFollower(), mmbEnvFollowerMono()];
   const newTypes = all.map((x) => x.type);
 
   // Upgrade-pad: bestaande interne types worden in-place VERVANGEN (zelfde
@@ -3680,7 +3834,7 @@ export function seedSoloVoicePatch(
   project: ModularProject,
   typeId: string, label: string, outL: string, outR: string,
   controls: Record<string, ControlValue> = {},
-  fx?: { typeId: string; label: string; controls?: Record<string, ControlValue> },
+  fx?: { typeId: string; label: string; controls?: Record<string, ControlValue>; mono?: boolean },
 ): ModularProject {
   const needed = [typeId, 'tp_mmb_midiin', 'tp_mmb_out', ...(fx ? [fx.typeId] : [])];
   const missing = needed.some((tid) => !project.moduleTypes.some((t) => t.id === tid));
@@ -3726,7 +3880,10 @@ export function seedSoloVoicePatch(
     connections: [
       c(mi, 'pitch', inst, 'voct'),
       c(mi, 'gate',  inst, 'gate'),
-      ...(fxm
+      // Mono-effect (ringmod, octaver): L erin, de ene uitgang naar L én R.
+      ...(fxm && fx!.mono
+        ? [c(inst, outL, fxm, 'in'), c(fxm, 'out', out, 'l'), c(fxm, 'out', out, 'r')]
+        : fxm
         ? [c(inst, outL, fxm, 'in_l'), c(inst, outR, fxm, 'in_r'),
            c(fxm, 'out_l', out, 'l'),  c(fxm, 'out_r', out, 'r')]
         : [c(inst, outL, out, 'l'),    c(inst, outR, out, 'r')]),
@@ -3795,6 +3952,28 @@ export const SAMPLER_MASTER_FX: readonly SeedFx[] = [
 ];
 
 /** FET COMP achter een solo-instrument, met een stand die je meteen hoort. */
+/** Effectenbatch 2026-09-25: echo's, chorus, ringmod en octaver in de Solo-keten. */
+export const STEREO_TAPE_SOLO_FX = {
+  typeId: 'tp_mmb_stereo_tape_echo', label: 'STEREO TAPE',
+  controls: { time: 0.32, ratio: 1.5, feedback: 0.35, cross: 0.6, mix: 0.4, tone: 0.55, wow: 0.35, flutter: 0.25, drive: 0.4 },
+} as const;
+export const DIGITAL_ECHO_SOLO_FX = {
+  typeId: 'tp_mmb_digital_echo', label: 'DIGITAL ECHO',
+  controls: { time: 0.375, ratio: 1, feedback: 0.45, cross: 0.3, mix: 0.4, mod_rate: 0.7, mod_depth: 0.35, bits: 12, band: 7000 },
+} as const;
+export const BBD_SOLO_FX = {
+  typeId: 'tp_mmb_bbd_chorus', label: 'BBD CHORUS',
+  controls: { rate: 0.5, depth: 0.6, delay: 9, feedback: 0, mix: 0.5, spread: 1, age: 0.35, tone: 0.55 },
+} as const;
+export const RINGMOD_SOLO_FX = {
+  typeId: 'tp_mmb_ringmod', label: 'RING MOD', mono: true,
+  controls: { freq: 330, wave: 0, mode: 1, bias: 0.35, mix: 0.7 },
+} as const;
+export const OCTAVER_SOLO_FX = {
+  typeId: 'tp_mmb_octaver', label: 'OCTAVER', mono: true,
+  controls: { dry: 0.8, oct1: 0.8, oct2: 0.3, up: 0, tone: 0.45 },
+} as const;
+
 export const FET_SOLO_FX = {
   typeId: 'tp_mmb_fet_comp', label: 'FET COMP',
   controls: { input: 14, output: -6, attack: 5, release: 4, ratio: 0, mix: 1 },

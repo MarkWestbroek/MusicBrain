@@ -158,6 +158,11 @@ sel programeq && build programeq tp_mmb_program_eq "$LIB/mmb-dsp" --
 sel diodecomp && build diodecomp tp_mmb_diode_comp "$LIB/mmb-dsp" --
 sel consoleeq && build consoleeq tp_mmb_console_eq "$LIB/mmb-dsp" --
 sel paraeq && build paraeq tp_mmb_para_eq "$LIB/mmb-dsp" --
+sel stereotapeecho && build stereotapeecho tp_mmb_stereo_tape_echo "$LIB/mmb-dsp" --
+sel digitalecho && build digitalecho tp_mmb_digital_echo "$LIB/mmb-dsp" --
+sel bbdchorus && build bbdchorus tp_mmb_bbd_chorus "$LIB/mmb-dsp" --
+sel ringmod && build ringmod tp_mmb_ringmod "$LIB/mmb-dsp" --
+sel octaver && build octaver tp_mmb_octaver "$LIB/mmb-dsp" --
 
 sel envfollower && build envfollower tp_mmb_env_follower "$LIB/mmb-dsp" --
 sel envfollower && EXTRA="-DMMB_EF_CELLS=1" build envfollower tp_mmb_env_follower_mono "$LIB/mmb-dsp" --

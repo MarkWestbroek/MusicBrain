@@ -109,6 +109,20 @@ void buildBanks() {
 
 void mmb_setup() { buildBanks(); recomputeHz(); }
 
+// USER-bank (4): blob-slot = frame 0..7, 256 samples int16 — dezelfde
+// tekening die de firmware via `wavetable` + `wslot` krijgt. Naar alle
+// mip-levels, zoals MorphWtModule::writeUserFrame.
+namespace { int16_t g_draw[4096]; }
+MMB_EXPORT(mmb_blob_ptr) int16_t* mmb_blob_ptr(int slot, int bytes) {
+    return (slot >= 0 && slot < kFrames && bytes <= static_cast<int>(sizeof(g_draw))) ? g_draw : nullptr;
+}
+MMB_EXPORT(mmb_blob_commit) void mmb_blob_commit(int slot, int frames, float, int) {
+    if (slot < 0 || slot >= kFrames || frames < 2 || frames > 4096) return;
+    for (int m = 0; m < kMips; ++m)
+        for (int i = 0; i < kSamples; ++i)
+            g_tables[m][4][slot][i] = g_draw[(static_cast<long>(i) * frames) / kSamples];
+}
+
 void mmb_on_control(int idx, float v) {
     switch (idx) {
         case C_BANK:   { int b = static_cast<int>(v); if (b < 0) b = 0; if (b >= kBanks) b = kBanks - 1; g_bank = b; break; }

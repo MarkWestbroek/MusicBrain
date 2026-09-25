@@ -12,7 +12,7 @@ import { startDemo, DemoCaption, type DemoState, type DemoHandle } from './recip
 import type { PatchOp } from './recipe/types';
 import { emptyModularProject } from './types';
 import { exportPanel, importPanel, parsePanelFile } from './panelIO';
-import { BUS_SOLO_FX, CONSOLE_EQ_SOLO_FX, PARA_EQ_SOLO_FX, DIODE_SOLO_FX, EQ_SOLO_FX, FET_SOLO_FX, OPTO_SOLO_FX, SAMPLER_MASTER_FX, VARIMU_SOLO_FX, seedExampleModules, seedInternals, seedTestPatch, seedFmTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, seedDx7PolyPatch, seedSamplerPolyPatch, seedWarpsVocoderPatch, seed808JamPatch, seedKrellPatch, type PolySeedOptions } from './seedModules';
+import { BUS_SOLO_FX, CONSOLE_EQ_SOLO_FX, PARA_EQ_SOLO_FX, DIODE_SOLO_FX, EQ_SOLO_FX, FET_SOLO_FX, OPTO_SOLO_FX, SAMPLER_MASTER_FX, VARIMU_SOLO_FX, STEREO_TAPE_SOLO_FX, DIGITAL_ECHO_SOLO_FX, BBD_SOLO_FX, RINGMOD_SOLO_FX, OCTAVER_SOLO_FX, seedExampleModules, seedInternals, seedTestPatch, seedFmTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, seedDx7PolyPatch, seedSamplerPolyPatch, seedWarpsVocoderPatch, seed808JamPatch, seedKrellPatch, type PolySeedOptions } from './seedModules';
 
 /** Effecten achter de solo-seeds (Solo ▾): de stand en de tooltip. */
 const SOLO_FX = {
@@ -24,6 +24,11 @@ const SOLO_FX = {
   console: { fx: CONSOLE_EQ_SOLO_FX, title: 'Monofoon met CONSOLE EQ (1073-stijl): HPF 80 Hz, Low +4 op 60 Hz, Mid +3 op 3,2 kHz, High +2. Hoor de bult van de inductor in het laag.' },
   para:   { fx: PARA_EQ_SOLO_FX, title: 'Monofoon met PARA EQ (SSL/API-stijl): HPF 40, smile-curve (LF +3, LMF −2, HMF +3, HF +2) met Prop.Q aan.' },
   eq:     { fx: EQ_SOLO_FX,     title: 'Monofoon met PROGRAM EQ (Pultec-stijl): de Pultec-truc op 60 Hz (boost 8, atten 6) en wat glans op 8 kHz.' },
+  tape:   { fx: STEREO_TAPE_SOLO_FX, title: 'Monofoon met STEREO TAPE: 320 ms links, ratio 1,5 rechts (gepunteerd), Cross 0,6 — de echo\'s kruipen van links naar rechts; wow/flutter zweven per spoor.' },
+  ddl:    { fx: DIGITAL_ECHO_SOLO_FX, title: 'Monofoon met DIGITAL ECHO (12-bit, band 7 kHz, modulatie 0,7 Hz): de rack-delay van begin jaren tachtig, gruis en chorus op de herhalingen.' },
+  bbd:    { fx: BBD_SOLO_FX,    title: 'Monofoon met BBD CHORUS (9 ms, 0,5 Hz, Spread 1): mono in, breed stereo uit — het Dimension-beeld.' },
+  ring:   { fx: RINGMOD_SOLO_FX, title: 'Monofoon met RING MOD (diode, 330 Hz, mix 0,7): klokken en metaal; stem Freq op de toonsoort voor harmonische boventonen.' },
+  oct:    { fx: OCTAVER_SOLO_FX, title: 'Monofoon met OCTAVER (−1 oct 0,8, −2 oct 0,3): de analoge sub onder de noot; speel één noot tegelijk.' },
 } as const;
 import { PatchesPanel } from './PatchesPanel';
 import { ModulesPanel } from './ModulesPanel';
@@ -469,6 +474,16 @@ export function ModularMbApp(): JSX.Element {
                     fx: 'console' },
                   { label: '🎚️ Plaits + Para EQ', t: 'tp_mmb_plaits', n: 'Plaits', l: 'out', r: 'aux',
                     c: { engine: 0, harmonics: 0.5, timbre: 0.5, morph: 0.5, decay: 0.6, lpg: 0.5, level: 0.8 }, fx: 'para' },
+                  { label: '🔁 Plaits + Stereo tape', t: 'tp_mmb_plaits', n: 'Plaits', l: 'out', r: 'aux',
+                    c: { engine: 0, harmonics: 0.5, timbre: 0.5, morph: 0.5, decay: 0.6, lpg: 0.5, level: 0.8 }, fx: 'tape' },
+                  { label: '🔁 DX7 + Digital echo', t: 'tp_mmb_dx7', n: 'DX7', l: 'out', r: 'out',
+                    c: { program: 0, level: 0.8 }, fx: 'ddl' },
+                  { label: '🌊 DX7 + BBD chorus', t: 'tp_mmb_dx7', n: 'DX7', l: 'out', r: 'out',
+                    c: { program: 0, level: 0.8 }, fx: 'bbd' },
+                  { label: '💍 Rings + Ring mod', t: 'tp_mmb_rings', n: 'Rings', l: 'out_l', r: 'out_r',
+                    c: { structure: 0.4, brightness: 0.6, damping: 0.6, position: 0.3, model: 0, polyphony: 1, level: 0.8 }, fx: 'ring' },
+                  { label: '🎸 STK + Octaver', t: 'tp_mmb_stk_sound', n: 'STK', l: 'out', r: 'out',
+                    c: { sound: 0, level: 0.8 }, fx: 'oct' },
                 ] as { label: string; t: string; n: string; l: string; r: string;
                        c: Record<string, number>; fx?: keyof typeof SOLO_FX }[]).map((s) => (
                   <button

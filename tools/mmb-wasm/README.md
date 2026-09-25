@@ -22,6 +22,11 @@ WebAssembly gecompileerd en draaien in een AudioWorklet.
 | MS-20 | `tp_mmb_ms20` | eigen (`mmb_dsp/korg35.h`, header-only — idem, mét tanh-clipper en 2x oversampling) | 44,1 kHz / 32 |
 | STK-sound | `tp_mmb_stk_sound` | gevendorde STK (`firmware/lib/stk`, MIT) — negen physical-modelling stemmen, dezelfde bron als de firmware | 44,1 kHz / 32 |
 | Tape echo | `tp_mmb_tape_echo` | eigen (`firmware/lib/mmb-dsp/mmb_dsp/tape_echo.h`, header-only — dezelfde kern als de Teensy-wrapper) | 44,1 kHz / 32 |
+| Stereo tape echo | `tp_mmb_stereo_tape_echo` | eigen (`mmb_dsp/stereo_tape_echo.h`: twee TapeEcho-sporen, ratio, cross-feedback) | 44,1 kHz / 32 |
+| Digital echo | `tp_mmb_digital_echo` | eigen (`mmb_dsp/digital_echo.h`: 12-bit compander, ZOH-bandbreedte, modulatie, stereo) | 44,1 kHz / 32 |
+| BBD chorus | `tp_mmb_bbd_chorus` | eigen (`mmb_dsp/bbd_chorus.h`: emmertjes-LP, compander, klokruis, spread) | 44,1 kHz / 32 |
+| Ring mod | `tp_mmb_ringmod` | eigen (`mmb_dsp/ring_mod.h`: clean/diode, eigen oscillator of carrier-ingang) | 44,1 kHz / 32 |
+| Octaver | `tp_mmb_octaver` | eigen (`mmb_dsp/octaver.h`: OC-2-flip-flop f/2, f/4, Octavia-up) | 44,1 kHz / 32 |
 | Env-follower | `tp_mmb_env_follower` · `…_mono` | eigen (`firmware/lib/mmb-dsp/mmb_dsp/env_follower.h`, header-only — dezelfde kern als de Teensy-wrapper); audio in → cv + gate uit. Eén bron, twee binaries: `envfollower_wasm.cc` wordt ook met `-DMMB_EF_CELLS=1` gebouwd voor de enkelvoudige variant | 44,1 kHz / 32 |
 
 **Kies het blok klein.** De worklet buffert één blok invoer vooruit voordat

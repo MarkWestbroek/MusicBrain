@@ -78,8 +78,14 @@ public:
     void set_drive(float d)    { drive_ = clamp01(d); }
 
     bool ready() const { return buf_ != nullptr; }
+    /** Laatste natte (leeskop-)waarde — voor cross-feedback in de stereoversie. */
+    float wet() const { return wet_; }
+    /** Startfase van wow/flutter, zodat twee sporen niet in de maat lopen. */
+    void set_mod_phase(float wow, float flutter) { wowPhase_ = wow; flutterPhase_ = flutter; }
 
-    inline float Process(float in) {
+    /** `cross` gaat mee de schrijfkop in (de natte waarde van het ándere
+     *  spoor × cross-feedback); 0 = het gewone mono-echo. */
+    inline float Process(float in, float cross = 0.0f) {
         if (!buf_) return in;
 
         // Bandsnelheid: traag naar de doeltijd, plus wow (langzaam) en
@@ -110,7 +116,7 @@ public:
 
         // Schrijfkop: ingang + feedback, door de verzadiger en de toon-LP.
         const float g = 1.0f + 3.0f * drive_;
-        float x = (in + feedback_ * wet_) * g;
+        float x = (in + feedback_ * wet_ + cross) * g;
         x = softClip(x) / g;
         lpState_ += (x - lpState_) * lpCoef_;
         float w = lpState_ * 32767.0f;

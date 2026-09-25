@@ -17,6 +17,45 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### fw 0.5.71 — Effectenbatch: stereo tape, digitale echo, BBD-chorus, ringmod, octaver (2026-09-25)
+- **Stereo tape echo** (`tp_mmb_stereo_tape_echo`, `mmb_dsp/stereo_tape_echo.h`):
+  twee TapeEcho-sporen, `ratio` = R-tijd/L-tijd, `cross` = natte waarde van
+  het ene spoor de schrijfkop van het andere in (cross 1 + fbk 0 =
+  ping-pong); wow/flutter van R een kwartslag verschoven. `TapeEcho::Process`
+  kreeg een `cross`-argument en `wet()`/`set_mod_phase()`; het mono-echo is
+  onveranderd.
+- **Vintage digitale echo** (`tp_mmb_digital_echo`, `digital_echo.h`): µ-law-
+  companderende converter van `bits` breed, `band` met zero-order-hold op
+  2 × band (de aliasing van toen), sinus-modulatie op de leeskop, twee sporen
+  met ratio en cross.
+- **BBD-chorus/flanger** (`tp_mmb_bbd_chorus`, `bbd_chorus.h`): driehoek-LFO op
+  0,5–40 ms, in-/uitgangs-LP (`tone`), compander + klokruis (`age`), `spread`
+  = LFO-fasehoek tussen L en R, feedback ±0,95. Mono in → stereo uit.
+- **Ringmodulator** (`tp_mmb_ringmod`, `ring_mod.h`): eigen oscillator (freq ×
+  2^voct, sin/tri/sqr) of `carrier`-ingang; Clean = product, Diode =
+  vier-diodenring (schakelend, dode zone `bias`, draaggolf-lek).
+- **Octaver** (`tp_mmb_octaver`, `octaver.h`): OC-2-flip-flop f/2 en f/4 ×
+  envelope, `tone`-afronding, Octavia-`up`; CV op de drie niveaus.
+- Alle vijf: firmware + wasm + paneel + contract (66 modules); Solo ▾ heeft
+  vijf nieuwe combinaties; `wasmNewFx.test.ts` (10 tests: som/verschiltoon,
+  f/2 en f/4, cross-echo op R, ratio 1,5, 8 vs 16 bit, stereo-spread).
+- **Gemeten op de Teensy** (STK/VCO + effect via de echte solo-seed-config):
+  stereo tape: echo L op 0,32 s, R op 0,48 s (ratio 1,5), cross-echo op R op
+  0,8 s; ringmod 330 Hz op A4: 770 en 110 Hz naast 440, lek op 330; octaver:
+  220 Hz (0,44) boven 440 (0,20) en 110 (0,18).
+- **Bijvangst, open (FW-13):** een tweede config-push met een STK-stem maakt
+  de Teensy stil: `heapFree 0`, `retired 20`. Verdwenen instanties gaan in
+  een "retired"-pool die nooit vrijkomt (AudioStream-lifetime); twee
+  STK-instanties passen niet. De editor houdt id's stabiel (optimizer), maar
+  elke nieuwe seed/recept-push lekt. Voor metingen: reboot (flash) tussen
+  pushes.
+- **Wave-tekenaar gefixt (editor):** de modal koos standaard het interne
+  prototype van Draw-VCO/Morph-WT (uit `seedInternals`, in geen enkele
+  patch) als doel — daarom hoorde je niets veranderen. Nu alleen geplaatste
+  modules, die van de actieve patch eerst, en bij een PolyGroup alle
+  stemmen. Morph-WT: USER-frames werken nu ook in de simulator
+  (`morphwt_wasm.cc` blob-slot = frame, zoals `wslot` op de Teensy).
+
 ### wasm — 8 MB per instantie was de "worklet-processor gecrasht" (2026-09-25)
 - **Oorzaak** (bevinding in `doc/plans/patch-recept.md`): `build.sh` gaf elke
   module `--initial-memory=8 MB` zonder bovengrens, en sinds stap 6 is élke

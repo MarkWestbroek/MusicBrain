@@ -74,6 +74,11 @@
 #include "ProgramEqModule.h"
 #include "DiodeCompModule.h"
 #include "ConsoleEqModule.h"
+#include "StereoTapeEchoModule.h"
+#include "DigitalEchoModule.h"
+#include "BbdChorusModule.h"
+#include "RingModModule.h"
+#include "OctaverModule.h"
 #include "ParamEqModule.h"
 #include "SamplerModule.h"
 #include "CombModule.h"
@@ -141,6 +146,11 @@ inline void registerAllRuntimeModules() {
     ProgramEqModule::registerFactory(); // program-EQ, Pultec-stijl (mmb-dsp), ook als wasm
     DiodeCompModule::registerFactory(); // diodebrug, Neve-33609-stijl (mmb-dsp), ook als wasm
     ConsoleEqModule::registerFactory(); // console-EQ, 1073-stijl (mmb-dsp), ook als wasm
+    StereoTapeEchoModule::registerFactory(); // stereo bandecho met cross-feedback (mmb-dsp), ook als wasm
+    DigitalEchoModule::registerFactory();    // vintage digitale echo, 12-bit + modulatie (mmb-dsp), ook als wasm
+    BbdChorusModule::registerFactory();      // BBD-chorus/flanger, mono → stereo (mmb-dsp), ook als wasm
+    RingModModule::registerFactory();        // ringmodulator, clean/diode (mmb-dsp), ook als wasm
+    OctaverModule::registerFactory();        // analoge octaver, OC-2-stijl (mmb-dsp), ook als wasm
     ParamEqModule::registerFactory();   // parametrische EQ, SSL/API-stijl (mmb-dsp), ook als wasm
     SamplerModule::registerFactory();   // sample-speler (mmb-dsp), PSRAM + SD; ook als wasm
     CombModule::registerFactory();      // FW-AU-3: tuned comb resonator

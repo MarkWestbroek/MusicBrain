@@ -22,6 +22,34 @@
         "sustain"
       ]
     },
+    "tp_mmb_bbd_chorus": {
+      "typeId": "tp_mmb_bbd_chorus",
+      "source": "firmware/app-modular-brain/src/BbdChorusModule.h",
+      "ports": [
+        "depth",
+        "depth_cv",
+        "in",
+        "in_l",
+        "in_r",
+        "mix",
+        "mix_cv",
+        "out",
+        "out_l",
+        "out_r",
+        "rate",
+        "rate_cv"
+      ],
+      "controls": [
+        "age",
+        "delay",
+        "depth",
+        "feedback",
+        "mix",
+        "rate",
+        "spread",
+        "tone"
+      ]
+    },
     "tp_mmb_bus_comp": {
       "typeId": "tp_mmb_bus_comp",
       "source": "firmware/app-modular-brain/src/BusCompModule.h",
@@ -219,6 +247,37 @@
         "gain_c",
         "mode",
         "offset"
+      ]
+    },
+    "tp_mmb_digital_echo": {
+      "typeId": "tp_mmb_digital_echo",
+      "source": "firmware/app-modular-brain/src/DigitalEchoModule.h",
+      "ports": [
+        "fbk",
+        "fbk_cv",
+        "in",
+        "in_l",
+        "in_r",
+        "mix",
+        "mix_cv",
+        "mod",
+        "mod_cv",
+        "out",
+        "out_l",
+        "out_r",
+        "time",
+        "time_cv"
+      ],
+      "controls": [
+        "band",
+        "bits",
+        "cross",
+        "feedback",
+        "mix",
+        "mod_depth",
+        "mod_rate",
+        "ratio",
+        "time"
       ]
     },
     "tp_mmb_diode_comp": {
@@ -854,6 +913,27 @@
       ],
       "controlsIgnored": []
     },
+    "tp_mmb_octaver": {
+      "typeId": "tp_mmb_octaver",
+      "source": "firmware/app-modular-brain/src/OctaverModule.h",
+      "ports": [
+        "in",
+        "oct1",
+        "oct1_cv",
+        "oct2",
+        "oct2_cv",
+        "out",
+        "up",
+        "up_cv"
+      ],
+      "controls": [
+        "dry",
+        "oct1",
+        "oct2",
+        "tone",
+        "up"
+      ]
+    },
     "tp_mmb_opto_comp": {
       "typeId": "tp_mmb_opto_comp",
       "source": "firmware/app-modular-brain/src/OptoCompModule.h",
@@ -1048,6 +1128,25 @@
         "structure"
       ]
     },
+    "tp_mmb_ringmod": {
+      "typeId": "tp_mmb_ringmod",
+      "source": "firmware/app-modular-brain/src/RingModModule.h",
+      "ports": [
+        "carrier",
+        "in",
+        "mix",
+        "mix_cv",
+        "out",
+        "voct"
+      ],
+      "controls": [
+        "bias",
+        "freq",
+        "mix",
+        "mode",
+        "wave"
+      ]
+    },
     "tp_mmb_rings": {
       "typeId": "tp_mmb_rings",
       "source": "firmware/app-modular-brain/src/RingsModule.h",
@@ -1222,6 +1321,37 @@
         "type6"
       ],
       "controlsIgnored": []
+    },
+    "tp_mmb_stereo_tape_echo": {
+      "typeId": "tp_mmb_stereo_tape_echo",
+      "source": "firmware/app-modular-brain/src/StereoTapeEchoModule.h",
+      "ports": [
+        "cross",
+        "cross_cv",
+        "fbk",
+        "fbk_cv",
+        "in",
+        "in_l",
+        "in_r",
+        "mix",
+        "mix_cv",
+        "out",
+        "out_l",
+        "out_r",
+        "time",
+        "time_cv"
+      ],
+      "controls": [
+        "cross",
+        "drive",
+        "feedback",
+        "flutter",
+        "mix",
+        "ratio",
+        "time",
+        "tone",
+        "wow"
+      ]
     },
     "tp_mmb_stereo_vca": {
       "typeId": "tp_mmb_stereo_vca",

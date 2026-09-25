@@ -41,10 +41,32 @@ export function WaveDrawModal({ open, onClose }: { open: boolean; onClose: () =>
   const [targetId, setTargetId] = useState('');
   const [pushed, setPushed] = useState<string>('');
 
-  const targets = useMemo(
-    () => project.modules.filter((m) => TARGET_TYPES.includes(m.typeId)),
-    [project.modules]);
+  // Doelen: alleen geplaatste modules (de interne prototypes uit seedInternals
+  // zitten in geen enkele patch — daar ging de tekening vroeger standaard
+  // heen, en dan hoorde je niets veranderen), de modules van de actieve
+  // patch eerst.
+  const activePatch = project.patches.find((p) => p.id === project.activePatchId);
+  const targets = useMemo(() => {
+    const inPatch = new Set<string>();
+    for (const c of activePatch?.connections ?? []) { inPatch.add(c.from.moduleId); inPatch.add(c.to.moduleId); }
+    return project.modules
+      .filter((m) => TARGET_TYPES.includes(m.typeId) && !m.internal)
+      .sort((a, b) => Number(inPatch.has(b.id)) - Number(inPatch.has(a.id)));
+  }, [project.modules, activePatch]);
   const target = targets.find((m) => m.id === targetId) ?? targets[0];
+  // Poly: de tekening naar alle stemmen van de groep, anders klinkt alleen
+  // de master anders.
+  const targetIds = useMemo(() => {
+    if (!target) return [] as string[];
+    for (const r of project.racks)
+      for (const g of r.polyGroups ?? [])
+        if (g.members.some((m) => m.kind === 'module' && m.moduleId === target.id))
+          return g.members.flatMap((m) => (m.kind === 'module' ? [m.moduleId] : []));
+    return [target.id];
+  }, [project.racks, target]);
+  // Morph-WT: het USER-frame dat de wslot-knop van de module aanwijst.
+  const wslot = Math.max(0, Math.min(7, Math.round(Number(
+    (target && activePatch?.controlState[target.id]?.wslot) ?? 0))));
 
   // ── live push (debounced) ────────────────────────────────────────────
   function schedulePush(): void {
@@ -54,12 +76,14 @@ export function WaveDrawModal({ open, onClose }: { open: boolean; onClose: () =>
       if (!target) return;
       const data = Array.from(waveRef.current, (v) => Math.round(
         Math.max(-1, Math.min(1, v)) * 32767));
-      // De simulator krijgt de tekening ook, met of zonder Teensy (alleen de
-      // Draw-VCO; de Morph-WT in de sim kent nog geen USER-bank).
-      if (target.typeId === 'tp_mmb_draw_vco') WasmModule.setInstanceBlob(target.id, 0, Int16Array.from(data));
+      // De simulator krijgt de tekening ook, met of zonder Teensy: Draw-VCO
+      // op slot 0, Morph-WT in USER-frame `wslot` (slot = frame).
+      const slot = target.typeId === 'tp_mmb_draw_vco' ? 0 : wslot;
+      for (const id of targetIds) WasmModule.setInstanceBlob(id, slot, Int16Array.from(data));
       if (!isConnected()) return;
-      void sendWaveform(target.id, data);
-      setPushed(`→ ${target.name} (${new Date().toLocaleTimeString()})`);
+      for (const id of targetIds) void sendWaveform(id, data);
+      setPushed(`→ ${target.name}${targetIds.length > 1 ? ` ×${targetIds.length}` : ''}`
+        + `${target.typeId === 'tp_mmb_morph_wt' ? ` USER-frame ${wslot}` : ''} (${new Date().toLocaleTimeString()})`);
     }, 150);
   }
 
