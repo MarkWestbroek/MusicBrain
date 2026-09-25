@@ -83,3 +83,4 @@ editor/public/banks/*
 !editor/public/banks/small bells*.mmbs
 # DX7-banken onder public/dx7/ komen uit de release (banks.json), niet uit git.
 editor/public/dx7/*.syx
+!editor/public/banks/index.json

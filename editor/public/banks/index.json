@@ -1,0 +1,163 @@
+{
+  "note": "gegenereerd door scripts/bank-index.mjs; defaults = bank-knop NN → bestand",
+  "files": [
+    {
+      "file": "church-organ.mmbs",
+      "name": "Church Organ",
+      "size": 2712
+    },
+    {
+      "file": "elements.mmbs",
+      "name": "elements-test",
+      "size": 1842724
+    },
+    {
+      "file": "gu-atmosphere.mmbs",
+      "name": "Atmosphere",
+      "size": 594626
+    },
+    {
+      "file": "gu-bowed-glass.mmbs",
+      "name": "Bowed Glass",
+      "size": 379312
+    },
+    {
+      "file": "gu-choir.mmbs",
+      "name": "Concert Choir",
+      "size": 1453648
+    },
+    {
+      "file": "gu-church-bells.mmbs",
+      "name": "Church Bells",
+      "size": 576194
+    },
+    {
+      "file": "gu-fantasia.mmbs",
+      "name": "Fantasia",
+      "size": 400630
+    },
+    {
+      "file": "gu-harp.mmbs",
+      "name": "Orchestral Harp",
+      "size": 307284
+    },
+    {
+      "file": "gu-ice-rain.mmbs",
+      "name": "Ice Rain",
+      "size": 323182
+    },
+    {
+      "file": "gu-kalimba.mmbs",
+      "name": "Kalimba",
+      "size": 24512
+    },
+    {
+      "file": "gu-koto.mmbs",
+      "name": "Koto",
+      "size": 211600
+    },
+    {
+      "file": "gu-marimba.mmbs",
+      "name": "Marimba",
+      "size": 55534
+    },
+    {
+      "file": "gu-nylon-guitar.mmbs",
+      "name": "Nylon Guitar",
+      "size": 420934
+    },
+    {
+      "file": "gu-pizzicato.mmbs",
+      "name": "Pizzicato Strings",
+      "size": 135142
+    },
+    {
+      "file": "gu-rhodes.mmbs",
+      "name": "Tine Electric Piano",
+      "size": 376570
+    },
+    {
+      "file": "gu-shakuhachi.mmbs",
+      "name": "Shakuhachi",
+      "size": 148912
+    },
+    {
+      "file": "gu-sitar.mmbs",
+      "name": "Sitar",
+      "size": 375860
+    },
+    {
+      "file": "gu-steeldrums.mmbs",
+      "name": "Steel Drums",
+      "size": 56186
+    },
+    {
+      "file": "gu-taiko.mmbs",
+      "name": "Taiko Drum",
+      "size": 25306
+    },
+    {
+      "file": "gu-tonewheel-organ.mmbs",
+      "name": "Tonewheel Organ",
+      "size": 38958
+    },
+    {
+      "file": "gu-tubular-bells.mmbs",
+      "name": "Tubular Bells",
+      "size": 575578
+    },
+    {
+      "file": "gu-vibraphone.mmbs",
+      "name": "Vibraphone",
+      "size": 104490
+    },
+    {
+      "file": "gu-warmpad.mmbs",
+      "name": "Warm Pad",
+      "size": 2451764
+    },
+    {
+      "file": "handdrum 2 velocities normalised v2.mmbs",
+      "name": "handdrum 2 velocities normal",
+      "size": 10296876
+    },
+    {
+      "file": "small bells trimmed normalised v3 looped.mmbs",
+      "name": "small bells trimmed normalis",
+      "size": 7033956
+    },
+    {
+      "file": "small bells trimmed normalised v3.mmbs",
+      "name": "small bells trimmed normalis",
+      "size": 7033956
+    },
+    {
+      "file": "ydp-grand-2laags.mmbs",
+      "name": "Grand Piano",
+      "size": 62475754
+    },
+    {
+      "file": "ydp-grand.mmbs",
+      "name": "Grand Piano",
+      "size": 118386976
+    }
+  ],
+  "defaults": {
+    "0": "church-organ.mmbs",
+    "1": "gu-kalimba.mmbs",
+    "2": "gu-taiko.mmbs",
+    "3": "gu-tonewheel-organ.mmbs",
+    "4": "gu-marimba.mmbs",
+    "5": "gu-steeldrums.mmbs",
+    "6": "gu-vibraphone.mmbs",
+    "7": "gu-pizzicato.mmbs",
+    "8": "gu-shakuhachi.mmbs",
+    "9": "gu-koto.mmbs",
+    "10": "gu-harp.mmbs",
+    "11": "gu-ice-rain.mmbs",
+    "12": "gu-sitar.mmbs",
+    "13": "gu-rhodes.mmbs",
+    "14": "gu-bowed-glass.mmbs",
+    "15": "gu-fantasia.mmbs"
+  }
+}

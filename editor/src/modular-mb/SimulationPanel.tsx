@@ -9,6 +9,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useModularProject, updateProject, getProject } from './store';
 import { findPatchByBankProgram } from './recipe/classify';
+import { SamplerBankBar } from './sim/SamplerBankBar';
 import { AudioEngine, type EngineStatus } from './sim/AudioEngine';
 import { getEngine } from './sim/engineSingleton';
 import {
@@ -361,6 +362,9 @@ export function SimulationPanel(): JSX.Element {
           </p>
         )}
       </fieldset>
+
+      {/* Samplebank vanzelf van de server (ED-SIM-BANK). */}
+      {patch && <SamplerBankBar project={project} patch={patch} />}
 
       <fieldset style={fs}>
         <legend style={lg}>MIDI-bron</legend>
