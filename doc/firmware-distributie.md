@@ -38,6 +38,13 @@ Teensy Loader van PJRC: .hex openen, knopje op de Teensy, klaar
 - **Tags van vóór de workflow** (bijv. `fw-0.5.78`): Actions → *Firmware
   release* → *Run workflow*, met de tag als invoer. Opnieuw draaien vervangt de
   bijlage.
+- **Zelfde compiler als lokaal.** De workflow pint het Teensy-platform op
+  5.1.0 (gcc 11), net als de ontwikkelmachine. Zonder pin pakte PlatformIO
+  6.0.0 (gcc 15), dat `static alignas(4)` in SamplerModule.h afkeurt. De pin
+  staat in de workflow (`TEENSY_PLATFORM`); beter is hem ook in
+  `platformio.ini` te zetten (`platform = teensy@5.1.0`), zodat lokaal en CI
+  nooit uit elkaar lopen. Eerste release fw-0.5.78 (25-09): de .hex is
+  byte-voor-byte even groot als de lokale build (4.306.112 bytes).
 - **Geen VPS nodig.** Het bestand staat op GitHub; de editor linkt er direct
   naartoe. De GitHub-API mag vanuit elke website gelezen worden (CORS `*`),
   maximaal 60 keer per uur per IP; de editor bewaart het antwoord een uur.
