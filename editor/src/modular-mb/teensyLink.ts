@@ -421,7 +421,11 @@ export function buildConfigPayload(project: ModularProject): { json: string; mod
       // om elke MidiInModule op N stemmen te zetten (poly fan-out pitchK/gateK).
       voiceCount: p.voiceCount,
       rackIds: p.rackIds,
-      connections: p.connections.map((c) => ({
+      // Gewogen kabels (morph): de firmware past `attenuation` nog niet toe
+      // (FW-MORPH-1). Tot dan de gesnapte versie: alleen kabels met gewicht
+      // ≥ 0,5. Exclusieve morph-kabels (lussen) zijn nooit tegelijk ≥ 0,5,
+      // dus zo komt er op de Teensy geen lus op volle sterkte.
+      connections: p.connections.filter((c) => c.attenuation === undefined || c.attenuation >= 0.5).map((c) => ({
         from: c.from,
         to:   c.to,
         ...(c.attenuation !== undefined ? { attenuation: c.attenuation } : {}),

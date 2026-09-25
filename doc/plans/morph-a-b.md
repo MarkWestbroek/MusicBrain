@@ -112,7 +112,23 @@ compressor verandert wát hij doet, niet hoeveel je ervan hoort. Dus:
    - toonhoogte-CV (`voct`, `tune`): standaard crossfade, dat geeft een
      glijdende detune. Per poort omschakelbaar naar snappen; dat is een
      smaakkeuze, geen principeprobleem.
-6. **Niet zinvol, dus uitgesloten of vol**: terugkoppellussen die maar in
+6. **Gedeelde modules in een andere volgorde** (bevinding 2026-09-25, opname
+   "hollow rhodes ⇄ Sampler ×8 + EQ + Vari-mu": vanaf de eerste seconde een
+   toon rond 9,5–9,9 kHz die aanzwelt tot clipping). A gebruikte tape → EQ,
+   B EQ → tape; regel 3 liet beide eenzijdige kabels vol draaien en de
+   fusie had een lus met versterking, op elke t. Aanvulling:
+   - een eenzijdige kabel draait alleen vol als zijn doelmodule in de
+     **andere** patch niet hoorbaar is (geen pad naar OUT in die patch);
+     anders krijgt hij het gewicht van zijn kant;
+   - lussen die alleen in de vereniging bestaan (Tarjan-SCC's, niet in A
+     alleen of B alleen) krijgen **exclusieve** gewichten: A 1−2t, B 2t−1,
+     afgekapt op 0. Een zulke lus heeft altijd een kabel van beide kanten,
+     dus de lusversterking is op elke t nul; rond t = 0,5 zit een overgang
+     waar geen van beide routes klinkt.
+   - Tot FW-MORPH-1 stuurt de push alleen gewogen kabels met gewicht ≥ 0,5
+     (de firmware negeert `attenuation`), zodat de Teensy nooit beide
+     richtingen van zo'n lus krijgt.
+7. **Niet zinvol, dus uitgesloten of vol**: terugkoppellussen die maar in
    één patch bestaan (vol laten meelopen en waarschuwen); modules die alleen
    in B bestaan (kan niet: zelfde rack); een module wiens uitgang nergens een
    gewogen ingang bereikt (gewoon vol, onhoorbaar in de andere stand).

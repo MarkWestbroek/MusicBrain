@@ -39,6 +39,13 @@ export interface MorphCable {
   side: 'a' | 'b';
   /** Gate/trigger: snappen in plaats van crossfaden. */
   snap: boolean;
+  /**
+   * Deze kabel zit in een lus die alleen in de vereniging bestaat (A en B
+   * gebruiken dezelfde modules in een andere volgorde). Dan nooit tegelijk:
+   * A-kant 1−2t, B-kant 2t−1 (afgekapt op 0), zodat de lusversterking op
+   * elke stand 0 is.
+   */
+  exclusive?: boolean;
 }
 
 export interface MorphDescriptor {
@@ -157,22 +164,55 @@ export function morphDescriptor(p: ModularProject, aId: string, bId: string): Mo
     }
   }
 
+  // Hoorbaar per patch: modules waarvan een pad (in díe patch) naar een
+  // sink loopt. Een kabel die maar in één patch ligt mag alleen vol
+  // draaien als zijn doelmodule in de andere patch niet hoorbaar is; anders
+  // verandert hij de klank van een module die de andere kant ook gebruikt
+  // (en bij een andere volgorde ontstaat een lus).
+  const audible = (P: Patch): Set<string> => {
+    const seen = new Set<string>(starts);
+    const q = [...starts];
+    while (q.length) {
+      const id = q.shift()!;
+      for (const c of P.connections) if (c.to.moduleId === id && !seen.has(c.from.moduleId)) { seen.add(c.from.moduleId); q.push(c.from.moduleId); }
+    }
+    return seen;
+  };
+  const audA = audible(A), audB = audible(B);
+
   const common: PatchConnection[] = [], weighted: MorphCable[] = [], full: PatchConnection[] = [];
+  const snapOf = (conn: PatchConnection) => {
+    const port = resolvePorts(mods.get(conn.to.moduleId)!, types).find((q) => q.id === conn.to.portId);
+    return port?.signalType === 'gate' || port?.signalType === 'trigger';
+  };
   for (const { conn, inA, inB } of byKey.values()) {
     if (inA && inB) { common.push(conn); continue; }
-    const sink = sinkOf(conn);
-    if (weightedSinks.has(sink)) {
-      const port = resolvePorts(mods.get(conn.to.moduleId)!, types).find((q) => q.id === conn.to.portId);
-      const snap = port?.signalType === 'gate' || port?.signalType === 'trigger';
-      weighted.push({ connection: conn, side: inA ? 'a' : 'b', snap });
+    const other = inA ? audB : audA;
+    if (weightedSinks.has(sinkOf(conn)) || other.has(conn.to.moduleId)) {
+      weighted.push({ connection: conn, side: inA ? 'a' : 'b', snap: snapOf(conn) });
     } else {
       full.push(conn);
     }
   }
-  // Lussen die maar in één patch bestaan: vol laten meelopen, wel melden.
-  for (const c of full) {
-    if (visited.has(c.to.moduleId) && !weightedSinks.has(sinkOf(c))) continue;
+
+  // Lussen die alleen in de vereniging bestaan (zelfde modules, andere
+  // volgorde): sterk samenhangende componenten van de verenigingsgraaf die
+  // in A alleen en in B alleen geen lus zijn. Hun eenzijdige kabels worden
+  // exclusief gewogen.
+  const edgesOf = (conns: PatchConnection[]) => conns.map((c) => [c.from.moduleId, c.to.moduleId] as const);
+  const unionEdges = edgesOf([...byKey.values()].map((e) => e.conn));
+  const sccA = cyclicNodes(edgesOf(A.connections)), sccB = cyclicNodes(edgesOf(B.connections));
+  const comp = sccIndex(unionEdges);
+  let loops = 0;
+  for (const w of weighted) {
+    const { from, to } = w.connection;
+    const ci = comp.get(from.moduleId);
+    if (ci === undefined || ci !== comp.get(to.moduleId)) continue;
+    if (sccA.has(from.moduleId) && sccA.has(to.moduleId) && w.side === 'a') continue;   // lus bestond al in A
+    if (sccB.has(from.moduleId) && sccB.has(to.moduleId) && w.side === 'b') continue;
+    w.exclusive = true; loops++;
   }
+  if (loops) warnings.push(`A en B gebruiken dezelfde modules in een andere volgorde: ${loops} kabel${loops === 1 ? '' : 's'} wisselen exclusief (geen lus, midden = overgang).`);
   if (!weighted.length && !full.length) warnings.push('A en B hebben dezelfde kabels; alleen knopstanden morphen.');
 
   // 3. Controls die verschillen.
@@ -197,7 +237,44 @@ export function morphDescriptor(p: ModularProject, aId: string, bId: string): Mo
 export function cableWeight(c: MorphCable, t: number): number {
   const u = Math.max(0, Math.min(1, t));
   if (c.snap) return (u < 0.5) === (c.side === 'a') ? 1 : 0;
+  if (c.exclusive) return c.side === 'a' ? Math.max(0, 1 - 2 * u) : Math.max(0, 2 * u - 1);
   return c.side === 'a' ? 1 - u : u;
+}
+
+// ── graafhulpjes ────────────────────────────────────────────────────────
+
+/** Tarjan: knoop → index van zijn sterk samenhangende component. */
+function sccIndex(edges: readonly (readonly [string, string])[]): Map<string, number> {
+  const adj = new Map<string, string[]>();
+  for (const [a, b] of edges) { if (!adj.has(a)) adj.set(a, []); adj.get(a)!.push(b); if (!adj.has(b)) adj.set(b, []); }
+  const index = new Map<string, number>(), low = new Map<string, number>(), comp = new Map<string, number>();
+  const stack: string[] = [], on = new Set<string>();
+  let i = 0, c = 0;
+  const visit = (v: string): void => {
+    index.set(v, i); low.set(v, i); i++; stack.push(v); on.add(v);
+    for (const w of adj.get(v)!) {
+      if (!index.has(w)) { visit(w); low.set(v, Math.min(low.get(v)!, low.get(w)!)); }
+      else if (on.has(w)) low.set(v, Math.min(low.get(v)!, index.get(w)!));
+    }
+    if (low.get(v) === index.get(v)) {
+      let w: string;
+      do { w = stack.pop()!; on.delete(w); comp.set(w, c); } while (w !== v);
+      c++;
+    }
+  };
+  for (const v of adj.keys()) if (!index.has(v)) visit(v);
+  return comp;
+}
+
+/** Knopen die op een lus liggen (component > 1 knoop, of een eigen lus). */
+function cyclicNodes(edges: readonly (readonly [string, string])[]): Set<string> {
+  const comp = sccIndex(edges);
+  const size = new Map<number, number>();
+  for (const c of comp.values()) size.set(c, (size.get(c) ?? 0) + 1);
+  const out = new Set<string>();
+  for (const [v, c] of comp) if ((size.get(c) ?? 0) > 1) out.add(v);
+  for (const [a, b] of edges) if (a === b) out.add(a);
+  return out;
 }
 
 /**

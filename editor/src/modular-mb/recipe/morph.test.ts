@@ -9,6 +9,7 @@ import {
   morphDescriptor, morphPatch, morphControlValue, cableWeight, upsertMorph, isOrdinalSwitch, ruleFor, describeMorph,
 } from './morph';
 import { RecipeError } from './types';
+import { buildConfigPayload } from '../teensyLink';
 
 const base = () => seedInternals(emptyModularProject());
 const active = (p: ModularProject) => p.patches.find((x) => x.id === p.activePatchId)!;
@@ -71,6 +72,50 @@ describe('divergentieregel', () => {
     expect(g!.snap).toBe(true);
     expect(cableWeight(g!, 0.4)).toBe(1);
     expect(cableWeight(g!, 0.6)).toBe(0);
+  });
+
+  it('zelfde modules in andere volgorde: geen volle kabels in gedeelde modules, geen lus op welke t dan ook', () => {
+    // A: mixer → tape(L/R) → EQ → out.  B: dezelfde modules, mixer → EQ → tape → out.
+    let p = buildRecipe(base(), { source: 'vco', bus: ['tape', 'program eq'] });
+    const A = active(p);
+    const id = (t: string, nth = 0) => p.modules.filter((m) => m.typeId === t && p.racks.some((r) => A.rackIds.includes(r.id) && r.slots.some((s) => s.moduleId === m.id)))[nth]!.id;
+    const mix = id('tp_mmb_mixer'), tL = id('tp_mmb_tape_echo', 0), tR = id('tp_mmb_tape_echo', 1), eq = id('tp_mmb_program_eq'), out = id('tp_mmb_out');
+    const bus = new Set([mix, tL, tR, eq, out]);
+    const c = (fm: string, fp: string, tm: string, tp: string): PatchConnection => ({ id: `b_${fm}_${fp}_${tm}_${tp}`, from: { moduleId: fm, portId: fp }, to: { moduleId: tm, portId: tp } });
+    const keep = A.connections.filter((x) => !(bus.has(x.from.moduleId) && bus.has(x.to.moduleId)));
+    const B = { ...JSON.parse(JSON.stringify(A)), id: 'patch_b', name: 'B', connections: [
+      ...keep,
+      c(mix, 'out_l', eq, 'in_l'), c(mix, 'out_r', eq, 'in_r'),
+      c(eq, 'out_l', tL, 'in'), c(eq, 'out_r', tR, 'in'),
+      c(tL, 'out', out, 'l'), c(tR, 'out', out, 'r'),
+    ] };
+    p = { ...p, patches: [...p.patches, B] };
+    const d = morphDescriptor(p, A.id, 'patch_b');
+    // Geen enkele eenzijdige kabel draait vol in tape of EQ.
+    expect(d.full.filter((x) => [tL, tR, eq].includes(x.to.moduleId))).toEqual([]);
+    // De lus tape → EQ (A) en EQ → tape (B) is exclusief gewogen.
+    const loopA = d.weighted.find((w) => w.connection.from.moduleId === tL && w.connection.to.moduleId === eq)!;
+    const loopB = d.weighted.find((w) => w.connection.from.moduleId === eq && w.connection.to.moduleId === tL)!;
+    expect(loopA.exclusive).toBe(true);
+    expect(loopB.exclusive).toBe(true);
+    for (let t = 0; t <= 1.0001; t += 0.05) expect(cableWeight(loopA, t) * cableWeight(loopB, t)).toBe(0);
+    expect(d.warnings.some((w) => /andere volgorde/.test(w))).toBe(true);
+    // Op t = 0 en t = 1 klinkt precies A resp. B: alle B-kabels 0, alle A-kabels 1 (en omgekeerd).
+    for (const w of d.weighted) {
+      expect(cableWeight(w, 0)).toBe(w.side === 'a' ? 1 : 0);
+      expect(cableWeight(w, 1)).toBe(w.side === 'b' ? 1 : 0);
+    }
+    // Push naar de Teensy (die nog geen gewichten kent): op geen enkele t
+    // zitten tape → EQ en EQ → tape allebei in de payload.
+    for (const t of [0, 0.25, 0.4, 0.5, 0.6, 0.75, 1]) {
+      const q = upsertMorph(p, A.id, 'patch_b', t);
+      const mp = q.patches.find((x) => x.morph)!;
+      const payload = JSON.parse(buildConfigPayload({ ...q, activePatchId: mp.id, compareSet: [] }).json) as { project: { patches: { connections: PatchConnection[] }[] } };
+      const cs = payload.project.patches[0]!.connections;
+      const ab = cs.some((x) => x.from.moduleId === tL && x.to.moduleId === eq);
+      const ba = cs.some((x) => x.from.moduleId === eq && x.to.moduleId === tL);
+      expect(ab && ba).toBe(false);
+    }
   });
 
   it('weigert ander rack of ander stemmental', () => {
