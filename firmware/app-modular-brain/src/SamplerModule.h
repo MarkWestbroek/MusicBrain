@@ -437,7 +437,7 @@ public:
         // stap doorheen — één buffer, beide versies.
         const size_t zrSize = h.version >= 2 ? sizeof(mmb_dsp::ZoneRecord)
                                              : sizeof(mmb_dsp::ZoneRecordV1);
-        static alignas(4) uint8_t zbuf[kMaxZones * sizeof(mmb_dsp::ZoneRecord)];   // 22 KB: niet op de stack
+        alignas(4) static uint8_t zbuf[kMaxZones * sizeof(mmb_dsp::ZoneRecord)];   // 22 KB: niet op de stack
         if (h.numZones && f.read(zbuf, zrSize * h.numZones)
             != static_cast<int>(zrSize * h.numZones)) { f.close(); return false; }
 
