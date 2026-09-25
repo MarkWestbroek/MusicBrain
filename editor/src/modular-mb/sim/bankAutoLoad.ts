@@ -23,11 +23,29 @@ export interface BankIndex { files: BankIndexEntry[]; defaults: Record<string, s
 const base = (): string => ((import.meta as unknown as { env?: { BASE_URL?: string } }).env?.BASE_URL ?? '/').replace(/\/?$/, '/');
 
 let indexP: Promise<BankIndex> | null = null;
+let indexCache: BankIndex | null = null;
 export function loadBankIndex(): Promise<BankIndex> {
   indexP ??= fetch(`${base()}banks/index.json`, { cache: 'no-cache' })
     .then((r) => (r.ok ? r.json() as Promise<BankIndex> : { files: [], defaults: {} }))
-    .catch(() => ({ files: [], defaults: {} }));
+    .catch(() => ({ files: [], defaults: {} }))
+    .then((ix) => { indexCache = ix; emit(); return ix; });
   return indexP;
+}
+
+// ── wie luistert (paneel-display) ────────────────────────────────────────
+const listeners = new Set<() => void>();
+let version = 0;
+function emit(): void { version++; for (const l of listeners) l(); }
+/** Voor useSyncExternalStore: verandert als de index of de geladen bank verandert. */
+export function subscribeBanks(fn: () => void): () => void { listeners.add(fn); return () => { listeners.delete(fn); }; }
+export function banksVersion(): number { return version; }
+
+/** Naam van de serverbank die de sim voor bank-knop NN gebruikt (of zou gebruiken). */
+export function simBankName(nn: number): string | null {
+  if (loaded && loaded.nn === nn) return loaded.name;
+  if (!indexCache) { void loadBankIndex(); return null; }
+  const r = resolveBank(indexCache, nn);
+  return r ? indexCache.files.find((f) => f.file === r.file)?.name ?? r.file : null;
 }
 
 export function userPicks(): Record<string, string> {
@@ -37,6 +55,7 @@ export function setUserPick(nn: number, file: string | null): void {
   const m = userPicks();
   if (file) m[String(nn)] = file; else delete m[String(nn)];
   try { localStorage.setItem(PICK_KEY, JSON.stringify(m)); } catch { /* geen opslag */ }
+  emit();
 }
 
 export type BankSource = 'teensy' | 'keuze' | 'standaard';
@@ -76,6 +95,7 @@ export async function ensureSamplerBank(nn: number, sdNames?: (string | undefine
     slots.forEach((s, i) => WasmModule.setBlob(TYPE_ID, i, s.data, s.rate, s.name ?? '', s.channels));
     WasmModule.setZones(TYPE_ID, zones);
     loaded = { nn, file: r.file, name: name || r.file, source: r.source, summary: `${slots.length} samples, ${zones.length} zones` };
+    emit();
     return loaded;
   })().finally(() => { inflight = null; });
   return inflight;

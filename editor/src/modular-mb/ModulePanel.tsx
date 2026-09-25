@@ -10,9 +10,10 @@
 // All coordinates are in millimetres; we convert to SVG user units 1:1 and
 // rely on CSS `width`/`height` for actual display scaling.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useTeensyLink } from './teensyLink';
 import { bankTitle } from './teensyStorage';
+import { subscribeBanks, banksVersion, simBankName } from './sim/bankAutoLoad';
 import {
   dragTravelPx, fromTaper, toTaper, wheelStep,
   FINE_FACTOR, WHEEL_NOTCH_PX,
@@ -207,11 +208,20 @@ export function ModulePanel({
 function SamplerBankStrip({ cx, y, w, bank }: { cx: number; y: number; w: number; bank: number }): JSX.Element {
   const link = useTeensyLink();
   const st = link.status.kind === 'connected' ? link.lastStatus : undefined;
-  const { text, tone } = bankTitle(bank, st);
-  const col = tone === 'ok' ? '#67e8f9' : tone === 'warn' ? '#fbbf24' : '#64748b';
+  useSyncExternalStore(subscribeBanks, banksVersion);
+  let { text, tone } = bankTitle(bank, st);
+  // Zonder Teensy: de serverbank die de simulator voor dit nummer laadt.
+  let fromSim = false;
+  if (tone === 'dim') {
+    const name = simBankName(Math.max(0, Math.round(bank)));
+    if (name) { text = `${String(Math.max(0, Math.round(bank))).padStart(2, '0')} · ${name}`; tone = 'ok'; fromSim = true; }
+  }
+  const col = fromSim ? '#a5b4fc' : tone === 'ok' ? '#67e8f9' : tone === 'warn' ? '#fbbf24' : '#64748b';
   return (
     <g>
-      <title>Bank op de SD-kaart van de Teensy (/mmb/banks/NN.mmbs); de naam komt uit de bank zelf.</title>
+      <title>{fromSim
+        ? 'Bank in de simulator, van de server (Simulatie-tab: kies een andere). Met een Teensy aan de kabel staat hier de bank van de SD-kaart.'
+        : 'Bank op de SD-kaart van de Teensy (/mmb/banks/NN.mmbs); de naam komt uit de bank zelf.'}</title>
       <rect x={cx - w / 2} y={y} width={w} height={3.6} rx={0.6}
         fill="#0b1220" stroke="#1e293b" strokeWidth={0.15} />
       <text x={cx} y={y + 2.55} fontSize={1.9} fill={col} textAnchor="middle"
