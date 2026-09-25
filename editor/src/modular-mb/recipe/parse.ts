@@ -27,7 +27,9 @@ export type Command =
   | { kind: 'move'; module: string; relation: 'before' | 'after' | 'swap'; target: string }
   | { kind: 'remove'; module: string }
   | { kind: 'set'; module: string; values: Record<string, unknown> }
-  | { kind: 'spread'; width: number };
+  | { kind: 'spread'; width: number }
+  | { kind: 'connect'; from: { module: string; port: string }; to: { module: string; port: string }; gain?: number }
+  | { kind: 'disconnect'; to: { module: string; port: string }; from?: { module: string; port: string } };
 
 export interface ParseResult {
   command: Command;
@@ -94,7 +96,7 @@ function parseEdit(t: string): Command | null {
   m = /^(?:vervang|verwissel|wissel|replace|swap|change)\s+(?:de\s+|het\s+|the\s+|een\s+)?(.+?)\s+(?:door|met|by|with|for|in|to|voor)\s+(?:een\s+|a\s+|an\s+)?(.+?)$/.exec(t);
   if (m) return { kind: 'replace', from: m[1]!.trim(), to: m[2]!.trim() };
 
-  m = /^(?:voeg|zet|plaats|hang|add|put|insert)\s+(?:een\s+|a\s+|an\s+)?(lfo|envelope|env|ahdsr|adsr|tides|stages)\s+(?:toe\s+)?(?:op|aan|naar|on|to|at)\s+(?:de\s+|het\s+|the\s+)?(.+?)$/.exec(t);
+  m = /^(?:voeg|zet|plaats|hang|add|put|insert|stuur|leg)\s+(?:een\s+|a\s+|an\s+|de\s+|het\s+|the\s+)?(lfo|envelope|env|ahdsr|adsr|tides|stages|aftertouch|after touch|druk|pressure|press|modwheel|mod wheel|modulatiewiel|pitch bend|pitchbend|bend|velocity|aanslag|release velocity|cc1|cc2)\s+(?:toe\s+)?(?:op|aan|naar|on|to|at)\s+(?:de\s+|het\s+|the\s+)?(.+?)$/.exec(t);
   if (m) {
     const rest = m[2]!.trim();
     // "cutoff van het filter" / "filter cutoff" / "tune van de vco" / "the vco tune"
@@ -245,6 +247,8 @@ export function describeCommand(c: Command, types: ModuleType[]): string {
     case 'addModulation': return `Hang een ${nice(c.source)} aan ${nice(c.target)}${c.port ? `.${c.port}` : ''}`;
     case 'move': return c.relation === 'swap' ? `Wissel ${nice(c.module)} en ${nice(c.target)} om in het rack` : `Zet ${nice(c.module)} ${c.relation === 'before' ? 'vóór' : 'na'} ${nice(c.target)} in het rack`;
     case 'remove': return `Haal ${nice(c.module)} weg (audio wordt doorverbonden)`;
+    case 'connect': return `Kabel ${nice(c.from.module)}.${c.from.port} → ${nice(c.to.module)}.${c.to.port}${c.gain !== undefined && c.gain !== 1 ? ` (gain ${c.gain})` : ''} (bezette cv-ingang: opgeteld via CvMath)`;
+    case 'disconnect': return `Kabel${c.from ? ` ${nice(c.from.module)}.${c.from.port}` : 's'} → ${nice(c.to.module)}.${c.to.port} weghalen`;
     case 'spread': return `Verdeel de stemmen over het stereobeeld${c.width < 1 ? ` (breedte ${Math.round(c.width * 100)}%)` : ''}`;
     case 'set': return `Zet op ${nice(c.module)}: ${Object.entries(c.values).map(([k, v]) => `${k}=${typeof v === 'number' ? Math.round(v * 1000) / 1000 : String(v)}`).join(', ')}`;
   }

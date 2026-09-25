@@ -77,11 +77,24 @@ export const TOOLS: ToolDef[] = [
     description: 'Zet een effect op de bus, tussen de mixer en OUT, in de actieve patch.',
     inputSchema: { type: 'object', properties: { module: MODULE_REF }, required: ['module'] } },
   { name: 'add_modulation', mutating: true,
-    description: 'Hang een LFO of envelope aan een cv-ingang van een module in de actieve patch. "target" is een module-id of woord (filter, osc); "port" een cv-ingang (cv, tune, q_cv, …) of woord (cutoff, pitch).',
+    description: 'Moduleer een cv-ingang van een module in de actieve patch. Bron: een nieuwe LFO of envelope, óf een MIDI-uitgang (aftertouch, modwheel, bend, velocity, cc1, cc2). Zit er al een kabel op de ingang, dan wordt de nieuwe bron opgeteld via een CvMath (twee kabels op één cv-ingang tellen niet vanzelf op). "target" is een module-id of woord (filter, osc); "port" een cv-ingang (cv, tune, q_cv, …) of woord (cutoff, pitch).',
     inputSchema: { type: 'object', properties: {
-      source: { type: 'string', enum: ['tp_mmb_lfo', 'tp_mmb_ahdsr'], description: 'lfo (globaal) of ahdsr (per stem, met MIDI-gate).' },
+      source: { type: 'string', description: 'tp_mmb_lfo (globaal), tp_mmb_ahdsr (per stem, met MIDI-gate), of aftertouch / modwheel / bend / velocity / cc1 / cc2.' },
       target: { type: 'string' }, port: { type: 'string' },
     }, required: ['source', 'target'] } },
+  { name: 'connect_ports', mutating: true,
+    description: 'Leg een kabel van een uitgang naar een ingang, voor alles wat de andere tools niet dekken. "from"/"to" = { module, port }: module is een id of woord, port een poort-id (zie get_module_type) of naam. Zit er al iets op een cv-ingang, dan komt er automatisch een optel-CvMath tussen; "gain" (standaard 1) is dan de sterkte van de nieuwe bron. Een poly-master krijgt dat per stem.',
+    inputSchema: { type: 'object', properties: {
+      from: { type: 'object', properties: { module: { type: 'string' }, port: { type: 'string' } }, required: ['module', 'port'] },
+      to: { type: 'object', properties: { module: { type: 'string' }, port: { type: 'string' } }, required: ['module', 'port'] },
+      gain: { type: 'number' },
+    }, required: ['from', 'to'] } },
+  { name: 'disconnect_ports', mutating: true,
+    description: 'Haal een kabel weg: de kabel van "from" naar "to", of alle kabels naar "to" als "from" ontbreekt. Zelfde { module, port } als connect_ports.',
+    inputSchema: { type: 'object', properties: {
+      from: { type: 'object', properties: { module: { type: 'string' }, port: { type: 'string' } } },
+      to: { type: 'object', properties: { module: { type: 'string' }, port: { type: 'string' } }, required: ['module', 'port'] },
+    }, required: ['to'] } },
   { name: 'move_module', mutating: true,
     description: 'Verplaats een module in het rack (alleen de weergave; aan het geluid verandert niets): vóór of na een andere module, of wissel ze om. "module" en "target" zijn een module-id of woord (vibe, out, osc). Poly-groepen verhuizen als kolom.',
     inputSchema: { type: 'object', properties: {
@@ -212,6 +225,15 @@ export function commandForTool(name: string, args: Record<string, unknown>): Com
       return { kind: 'move', module: str('module'), relation: rel as 'before' | 'after' | 'swap', target: str('target') };
     }
     case 'remove_module':   return { kind: 'remove', module: str('module') };
+    case 'connect_ports': case 'disconnect_ports': {
+      const end = (v: unknown, what: string) => {
+        const o = v as { module?: unknown; port?: unknown } | undefined;
+        if (!o || typeof o.module !== 'string' || typeof o.port !== 'string') throw new RecipeError(`${name}: "${what}" moet { module, port } zijn.`);
+        return { module: o.module, port: o.port };
+      };
+      if (name === 'connect_ports') return { kind: 'connect', from: end(args.from, 'from'), to: end(args.to, 'to'), ...(typeof args.gain === 'number' ? { gain: args.gain } : {}) };
+      return { kind: 'disconnect', to: end(args.to, 'to'), ...(args.from ? { from: end(args.from, 'from') } : {}) };
+    }
     case 'spread_voices':   return { kind: 'spread', width: typeof args.width === 'number' ? Math.max(0, Math.min(1, args.width)) : 1 };
     case 'set_controls': {
       const v = args.values;

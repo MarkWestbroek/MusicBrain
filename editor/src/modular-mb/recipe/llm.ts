@@ -16,6 +16,7 @@
 import type { ModularProject, ModuleType } from '../types';
 import { CATALOG, catalogTable, resolveTypeId, shortName } from './catalog';
 import { runCommand } from './commands';
+import { midiPortForWord } from './edits';
 import type { Command } from './parse';
 import { describeCommand } from './parse';
 import { commandForTool, openAiTools, runTool, toolDef, summarizePatch } from './tools';
@@ -152,6 +153,10 @@ export const TOOLS_PROMPT = [
   'Bewerk de bestaande patch met de kleinste passende tool; bouw alleen een nieuwe patch (build_patch) als daarom gevraagd wordt.',
   'Modules weghalen: remove_module. De volgorde in het rack veranderen: move_module (verandert niets aan het geluid).',
   'Knoppen draaien: eerst get_controls (huidige stand en bereik), dan set_controls.',
+  'Aftertouch, modwheel, bend of velocity ergens op zetten: add_modulation met die bron. Elke andere kabel: connect_ports; weghalen: disconnect_ports.',
+  'MIDI-In "press" = aftertouch: channel pressure zet alle stemmen, poly pressure alleen die toets.',
+  'Twee kabels op één cv-ingang tellen NIET vanzelf op (de laatste verandering wint); add_modulation en connect_ports zetten daarom zelf een optel-CvMath ertussen.',
+  'Stapel geen voorstellen om eerdere voorstellen terug te draaien: zeg liever dat de gebruiker op "Nieuw gesprek" kan drukken.',
   'Poly-patches: in get_patch_summary zie je alleen de kabels van stem 1 (de master). De firmware legt ze per stem:',
   'een kabel van de master naar mixer in1 betekent stem 1 → in1, stem 2 → in2, … stem N → inN. Alle N mixerkanalen zijn dus in gebruik.',
   'Kies bij "compressor" zonder karakter tp_mmb_bus_comp; bij "filter" zonder meer tp_mmb_vcf; "moog"/"ladder" = tp_mmb_ladder; "korg"/"ms20" = tp_mmb_ms20.',
@@ -229,7 +234,7 @@ export function buildSystemPrompt(types: ModuleType[]): string {
     '2. Stemmen wijzigen van de actieve patch: {"command":"voices","voices":4,"explanation":"…"}',
     '3. Module vervangen: {"command":"replace","from":"<module-id of woord zoals osc/filter>","to":"<type-id>","explanation":"…"}',
     '4. Effect op de bus: {"command":"addBus","module":"<type-id>","explanation":"…"}',
-    '5. Modulatie: {"command":"addModulation","source":"tp_mmb_lfo"|"tp_mmb_ahdsr","target":"<module-id of woord>","port":"<cv-ingang>","explanation":"…"}',
+    '5. Modulatie: {"command":"addModulation","source":"tp_mmb_lfo"|"tp_mmb_ahdsr"|"aftertouch"|"modwheel"|"bend"|"velocity","target":"<module-id of woord>","port":"<cv-ingang>","explanation":"…"}',
     '6. Onmogelijk of onduidelijk: {"command":"none","explanation":"…"}',
     '',
     'Catalogus (type-id | korte naam | soort | aliassen):',
@@ -289,6 +294,8 @@ export function commandFromLlmJson(json: unknown, types: ModuleType[]): { comman
       return { command: { kind: 'addBus', module: asTypeId(o.module, types, 'bus-effect') }, explanation };
     case 'addModulation': {
       if (typeof o.target !== 'string') throw new RecipeError('AI-antwoord: "target" ontbreekt.');
+      const target = o.target, port = typeof o.port === 'string' ? o.port : null;
+      if (typeof o.source === 'string' && midiPortForWord(o.source)) return { command: { kind: 'addModulation', source: o.source, target, port }, explanation };
       const source = asTypeId(o.source ?? 'tp_mmb_lfo', types, 'modulatiebron');
       if (!['env', 'lfo'].includes(CATALOG[source]?.kind ?? '')) throw new RecipeError(`${shortName(source, types)} is geen modulatiebron.`);
       return { command: { kind: 'addModulation', source, target: o.target, port: typeof o.port === 'string' ? o.port : null }, explanation };

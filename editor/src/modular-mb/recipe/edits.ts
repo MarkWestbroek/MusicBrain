@@ -12,7 +12,7 @@
 import {
   type ModularProject, type ModuleInstance, type ModuleType, type Patch,
   type PatchConnection, type PolyGroup, type Rack, type RackSlot, type ControlValue,
-  resolvePorts, resolveControls,
+  resolvePorts, resolveControls, canConnect,
 } from '../types';
 import { uid } from '../store';
 import { seedInternals } from '../seedModules';
@@ -872,9 +872,10 @@ export function addModulation(project: ModularProject, patchId: string, sourceRe
   const tgt = moduleOf(p, target.moduleId);
   const tport = resolvePorts(tgt, p.moduleTypes).find((q) => q.id === target.portId && q.direction === 'in');
   if (!tport || tport.signalType !== 'cv') throw new RecipeError(`${tgt.name} heeft geen cv-ingang "${target.portId}".`);
-  if (patch.connections.some((c) => c.to.moduleId === tgt.id && c.to.portId === target.portId)) {
-    warnings.push(`${target.portId} van ${tgt.name} had al een kabel; beide bronnen tellen nu op.`);
-  }
+  // Bezette ingang? Dan straks via een optel-CvMath (feedCvInput): in de
+  // firmware en de sim wint bij twee kabels op één cv-ingang de laatste
+  // verandering, ze tellen niet op.
+  const occupied = patch.connections.some((c) => c.to.moduleId === tgt.id && c.to.portId === target.portId);
   const loc = slotOf(p, tgt.id);
   if (!loc) throw new RecipeError(`${tgt.name} staat niet in een rack.`);
 
@@ -907,8 +908,8 @@ export function addModulation(project: ModularProject, patchId: string, sourceRe
     }));
   }
 
-  // Kabels: bron → doel; bij een gate-bron ook MIDI-gate → bron.
-  const extra: PatchConnection[] = [conn({ moduleId: master.id, portId: srcOut.id }, { moduleId: tgt.id, portId: target.portId })];
+  // Kabels: bron → doel (of later via de optel-CvMath); bij een gate-bron ook MIDI-gate → bron.
+  const extra: PatchConnection[] = occupied ? [] : [conn({ moduleId: master.id, portId: srcOut.id }, { moduleId: tgt.id, portId: target.portId })];
   if (gateIn) {
     const ids = patchModuleIds(p, patch);
     const mi = p.modules.find((m) => ids.has(m.id) && isEventSource(typeOf(p, m.typeId))
@@ -924,11 +925,149 @@ export function addModulation(project: ModularProject, patchId: string, sourceRe
     controlState: { ...x.controlState,
       ...Object.fromEntries([master, ...followers].map((m) => [m.id, { ...ctl }])) },
   }));
+  if (occupied) {
+    const r = feedCvInput(p, patchId, { moduleId: master.id, portId: srcOut.id }, target);
+    p = r.project; warnings.push(...r.warnings);
+  }
   return {
     project: p,
-    summary: `${shortName(srcTypeId, p.moduleTypes)} → ${tgt.name}.${target.portId}${perVoice ? ` (×${grp!.group.voiceCount}, per stem)` : ''}.`,
+    summary: `${shortName(srcTypeId, p.moduleTypes)} → ${tgt.name}.${target.portId}${perVoice ? ` (×${grp!.group.voiceCount}, per stem)` : ''}${occupied ? ' (opgeteld bij wat er al op zat)' : ''}.`,
     warnings,
   };
+}
+
+// ── kabels leggen en weghalen ───────────────────────────────────────────
+
+/** MIDI-In-uitgangen bij hun gewone naam (voor "zet de aftertouch op …"). */
+const MIDI_WORDS: Record<string, string> = {
+  aftertouch: 'press', 'after touch': 'press', at: 'press', press: 'press', pressure: 'press', druk: 'press',
+  'channel pressure': 'press', 'poly pressure': 'press', 'poly aftertouch': 'press',
+  modwheel: 'cv_mod', 'mod wheel': 'cv_mod', modulatiewiel: 'cv_mod', mod: 'cv_mod', 'cc1 modwheel': 'cv_mod',
+  bend: 'cv_bend', pitchbend: 'cv_bend', 'pitch bend': 'cv_bend',
+  velocity: 'vel', vel: 'vel', aanslag: 'vel', aanslagsterkte: 'vel',
+  'release velocity': 'rel', rel: 'rel', loslaatsnelheid: 'rel',
+  cc1: 'cv_cc1', cc2: 'cv_cc2',
+};
+export function midiPortForWord(word: string): string | null {
+  return MIDI_WORDS[word.trim().toLowerCase()] ?? null;
+}
+
+/** De MIDI-In (of andere event-source) van een patch. */
+function eventSourceOf(p: ModularProject, patch: Patch): ModuleInstance | null {
+  const ids = patchModuleIds(p, patch);
+  return p.modules.find((m) => ids.has(m.id) && isEventSource(typeOf(p, m.typeId))) ?? null;
+}
+
+/**
+ * Leg een kabel van een uitgang naar een ingang. Is het een cv-ingang waar
+ * al iets op zit, dan komt er een optel-CvMath tussen (bestaande bron → a,
+ * nieuwe → b met `gain`, uit → de ingang), want bij twee kabels op één
+ * cv-ingang wint in firmware en sim de laatste verandering. Zit er al een
+ * optel-CvMath met een vrije ingang, dan gaat de kabel daarheen. Een
+ * poly-master krijgt de CvMath per stem.
+ */
+export function feedCvInput(project: ModularProject, patchId: string, from: ModTarget, to: ModTarget, gain = 1): EditResult {
+  let p = project;
+  const warnings: string[] = [];
+  const patch = patchOf(p, patchId);
+  const src = moduleOf(p, from.moduleId), tgt = moduleOf(p, to.moduleId);
+  const sport = resolvePorts(src, p.moduleTypes).find((q) => q.id === from.portId && q.direction === 'out');
+  const tport = resolvePorts(tgt, p.moduleTypes).find((q) => q.id === to.portId && q.direction === 'in');
+  if (!sport) throw new RecipeError(`${src.name} heeft geen uitgang "${from.portId}".`);
+  if (!tport) throw new RecipeError(`${tgt.name} heeft geen ingang "${to.portId}".`);
+  if (!canConnect(sport.signalType, tport.signalType)) {
+    throw new RecipeError(`${src.name}.${from.portId} (${sport.signalType}) past niet op ${tgt.name}.${to.portId} (${tport.signalType}).`);
+  }
+  const existing = patch.connections.filter((c) => c.to.moduleId === tgt.id && c.to.portId === to.portId);
+  if (existing.some((c) => c.from.moduleId === src.id && c.from.portId === from.portId)) {
+    throw new RecipeError(`Die kabel ligt er al (${src.name}.${from.portId} → ${tgt.name}.${to.portId}).`);
+  }
+  const conn = (a: ModTarget, b: ModTarget): PatchConnection => ({ id: uid('conn'), from: a, to: b });
+  const label = (m: ModuleInstance, port: string) => `${shortName(m.typeId, p.moduleTypes)}.${port}`;
+
+  // Vrij of geen cv: gewoon een kabel.
+  if (!existing.length || tport.signalType !== 'cv') {
+    if (existing.length) warnings.push(`${label(tgt, to.portId)} had al een kabel; bij audio tellen ze op.`);
+    p = withPatch(p, patchId, (x) => ({ ...x, connections: [...x.connections, conn(from, to)] }));
+    return { project: p, warnings, summary: `Kabel ${label(src, from.portId)} → ${label(tgt, to.portId)}.` };
+  }
+
+  // Bestaande optel-CvMath met een vrije ingang hergebruiken.
+  if (existing.length === 1) {
+    const f = p.modules.find((m) => m.id === existing[0]!.from.moduleId);
+    if (f && f.typeId === 'tp_mmb_cvmath' && Number(patch.controlState[f.id]?.mode ?? 0) === 0) {
+      const used = new Set(patch.connections.filter((c) => c.to.moduleId === f.id).map((c) => c.to.portId));
+      const free = (['a', 'b', 'c'] as const).find((x) => !used.has(x));
+      if (free) {
+        p = withPatch(p, patchId, (x) => ({ ...x, connections: [...x.connections, conn(from, { moduleId: f.id, portId: free })] }));
+        p = setControls(p, patchId, f.id, { [`gain_${free}`]: gain }).project;
+        return { project: p, warnings, summary: `${label(src, from.portId)} opgeteld in de bestaande CvMath vóór ${label(tgt, to.portId)} (ingang ${free}).` };
+      }
+    }
+  }
+  if (existing.length > 2) throw new RecipeError(`${label(tgt, to.portId)} heeft al ${existing.length} kabels; ruim eerst op.`);
+
+  // Nieuwe optel-CvMath ertussen (per stem als het doel een poly-master is).
+  p = ensureType(p, 'tp_mmb_cvmath');
+  const loc = slotOf(p, tgt.id);
+  if (!loc) throw new RecipeError(`${tgt.name} staat niet in een rack.`);
+  const g = groupOf(p, tgt.id);
+  const voiceRows = g ? g.group.members.map((m) => slotOf(p, m.moduleId)?.slot.row ?? loc.slot.row) : [loc.slot.row];
+  const rack = p.racks.find((r) => r.id === loc.rack.id)!;
+  const hpOffset = Math.max(...voiceRows.map((row) => rowEnd(p, rack, row)));
+  const cms = voiceRows.map(() => freshInstance(p, 'tp_mmb_cvmath'));
+  const slots: RackSlot[] = cms.map((m, i) => ({ id: uid('slot'), moduleId: m.id, row: voiceRows[i]!, hpOffset }));
+  p = withRack({ ...p, modules: [...p.modules, ...cms] }, loc.rack.id, (r) => ({
+    ...r,
+    hpPerRow: Math.max(r.hpPerRow, hpOffset + cms[0]!.visual.hpWidth + 2),
+    slots: [...r.slots, ...slots],
+    polyGroups: g ? [...(r.polyGroups ?? []), {
+      id: uid('poly'), label: 'CvSum', voiceCount: g.group.voiceCount,
+      members: cms.map((m) => ({ kind: 'module' as const, moduleId: m.id })),
+    }] : r.polyGroups,
+  }));
+  const cm = cms[0]!;
+  const ctl = { mode: 0, gain_a: 1, gain_b: gain, gain_c: 1, offset: 0 };
+  const moved = new Set(existing.map((c) => c.id));
+  p = withPatch(p, patchId, (x) => ({
+    ...x,
+    connections: [
+      ...x.connections.filter((c) => !moved.has(c.id)),
+      ...existing.map((c, i) => ({ ...c, to: { moduleId: cm.id, portId: i === 0 ? 'a' : 'c' } })),
+      conn(from, { moduleId: cm.id, portId: 'b' }),
+      conn({ moduleId: cm.id, portId: 'out' }, to),
+    ],
+    controlState: { ...x.controlState, ...Object.fromEntries(cms.map((m) => [m.id, { ...ctl }])) },
+  }));
+  return {
+    project: p, warnings,
+    summary: `${label(src, from.portId)} opgeteld bij wat er al op ${label(tgt, to.portId)} zat, via een nieuwe CvMath${g ? ` (×${cms.length}, per stem)` : ''}${gain !== 1 ? `, gain ${gain}` : ''}.`,
+  };
+}
+
+/** Kabel(s) weghalen tussen twee poorten (of alle kabels naar een ingang als `from` ontbreekt). */
+export function disconnectPorts(project: ModularProject, patchId: string, to: ModTarget, from?: ModTarget): EditResult {
+  const patch = patchOf(project, patchId);
+  const hit = patch.connections.filter((c) => c.to.moduleId === to.moduleId && c.to.portId === to.portId
+    && (!from || (c.from.moduleId === from.moduleId && c.from.portId === from.portId)));
+  if (!hit.length) throw new RecipeError('Daar ligt geen kabel.');
+  const ids = new Set(hit.map((c) => c.id));
+  const p = withPatch(project, patchId, (x) => ({ ...x, connections: x.connections.filter((c) => !ids.has(c.id)) }));
+  const t = moduleOf(project, to.moduleId);
+  return { project: p, warnings: [], summary: `${hit.length} kabel${hit.length === 1 ? '' : 's'} naar ${shortName(t.typeId, project.moduleTypes)}.${to.portId} weggehaald.` };
+}
+
+/**
+ * Een MIDI-uitgang (aftertouch, modwheel, bend, velocity, …) op een cv-ingang
+ * zetten, opgeteld bij wat er al op zit.
+ */
+export function addMidiModulation(project: ModularProject, patchId: string, word: string, target: ModTarget, gain = 1): EditResult {
+  const port = midiPortForWord(word);
+  if (!port) throw new RecipeError(`"${word}" is geen MIDI-uitgang (aftertouch, modwheel, bend, velocity, cc1, cc2).`);
+  const patch = patchOf(project, patchId);
+  const mi = eventSourceOf(project, patch);
+  if (!mi) throw new RecipeError('Geen MIDI-In in deze patch.');
+  return feedCvInput(project, patchId, { moduleId: mi.id, portId: port }, target, gain);
 }
 
 // ── woorden → modules/poorten (voor commandoregel en LLM) ────────────────

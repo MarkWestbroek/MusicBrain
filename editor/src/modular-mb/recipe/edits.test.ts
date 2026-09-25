@@ -5,7 +5,9 @@ import { expandPatchConnections } from '../polyExpand';
 import { buildRecipe, validateOps } from './compile';
 import {
   replaceModule, setVoices, addBusFx, addModulation, moveModule, removeModule, setControls, spreadVoices, findVoiceChain, findModuleByWord, findPortByWord,
+  feedCvInput, disconnectPorts, addMidiModulation,
 } from './edits';
+import { runCommand } from './commands';
 import { RecipeError } from './types';
 import { parseCommand } from './parse';
 
@@ -17,6 +19,11 @@ const edges = (p: ModularProject) => active(p).connections
   .map((c) => `${typeOf(p, c.from.moduleId)}.${c.from.portId}>${typeOf(p, c.to.moduleId)}.${c.to.portId}`).sort();
 const count = (p: ModularProject, typeId: string) =>
   rackOf(p).slots.filter((s) => typeOf(p, s.moduleId) === typeId).length;
+/** Wat er vóór de bewerking op `moduleId`.cv zat, als "type.poort>type.poort". */
+const oldFeed = (p: ModularProject, moduleId: string) => {
+  const c = active(p).connections.find((x) => x.to.moduleId === moduleId && x.to.portId === 'cv')!;
+  return `${typeOf(p, c.from.moduleId)}.${c.from.portId}>${typeOf(p, moduleId)}.cv`;
+};
 /** Alle kabels moeten op bestaande poorten liggen en de flatten moet slagen. */
 const sane = (p: ModularProject) => {
   const patch = active(p);
@@ -291,15 +298,17 @@ describe('addBusFx', () => {
 });
 
 describe('addModulation', () => {
-  it('LFO op de filter-cutoff van een poly master: één globale LFO', () => {
+  it('LFO op de filter-cutoff van een poly master: één globale LFO, opgeteld bij de filter-envelope', () => {
     const p0 = buildRecipe(base(), { voices: 4, source: 'vco' });
     const f = findModuleByWord(p0, active(p0).id, 'filter')!;
     const port = findPortByWord(p0, f, 'cutoff')!;
     expect(port).toBe('cv');
     const r = addModulation(p0, active(p0).id, 'lfo', { moduleId: f.id, portId: port });
-    expect(r.warnings.some((w) => w.includes('al een kabel'))).toBe(true);   // envFlt zat er al op
     expect(count(r.project, 'tp_mmb_lfo')).toBe(2);   // vibrato-LFO + nieuwe
-    expect(edges(r.project)).toContain('tp_mmb_lfo.out>tp_mmb_vcf.cv');
+    expect(count(r.project, 'tp_mmb_cvmath') - count(p0, 'tp_mmb_cvmath')).toBe(4);   // envFlt zat er al op → optellen per stem
+    expect(edges(r.project)).toContain('tp_mmb_lfo.out>tp_mmb_cvmath.b');
+    expect(edges(r.project)).toContain(oldFeed(p0, f.id).replace(/>.*/, '>tp_mmb_cvmath.a'));
+    expect(edges(r.project)).toContain('tp_mmb_cvmath.out>tp_mmb_vcf.cv');
     sane(r.project);
   });
 
@@ -318,6 +327,76 @@ describe('addModulation', () => {
     const p0 = buildRecipe(base(), { source: 'vco' });
     const f = findModuleByWord(p0, active(p0).id, 'filter')!;
     expect(() => addModulation(p0, active(p0).id, 'lfo', { moduleId: f.id, portId: 'in' })).toThrowError(RecipeError);
+  });
+});
+
+describe('kabels: feedCvInput, disconnectPorts, MIDI-bronnen', () => {
+  it('aftertouch op een vrije cutoff: gewone kabel', () => {
+    const p0 = buildRecipe(base(), { voices: 4, source: 'vco', filter: 'vcf', filterEnv: false });
+    const f = findModuleByWord(p0, active(p0).id, 'vcf')!;
+    const r = addMidiModulation(p0, active(p0).id, 'aftertouch', { moduleId: f.id, portId: 'cv' });
+    expect(edges(r.project)).toContain('tp_mmb_midiin.press>tp_mmb_vcf.cv');
+    expect(count(r.project, 'tp_mmb_cvmath')).toBe(count(p0, 'tp_mmb_cvmath'));
+    sane(r.project);
+  });
+
+  it('aftertouch op een bezette cutoff: optel-CvMath per stem, envelope blijft', () => {
+    const p0 = buildRecipe(base(), { voices: 4, source: 'vco' });
+    const f = findModuleByWord(p0, active(p0).id, 'filter')!;
+    const r = addMidiModulation(p0, active(p0).id, 'druk', { moduleId: f.id, portId: 'cv' }, 0.5);
+    expect(count(r.project, 'tp_mmb_cvmath') - count(p0, 'tp_mmb_cvmath')).toBe(4);
+    expect(rackOf(r.project).polyGroups!.some((g) => g.label === 'CvSum' && g.members.length === 4)).toBe(true);
+    const e = edges(r.project);
+    expect(e).toContain('tp_mmb_midiin.press>tp_mmb_cvmath.b');
+    expect(e).toContain(oldFeed(p0, f.id).replace(/>.*/, '>tp_mmb_cvmath.a'));
+    expect(e).toContain('tp_mmb_cvmath.out>tp_mmb_vcf.cv');
+    expect(e).not.toContain(oldFeed(p0, f.id));
+    const cm = { id: active(r.project).connections.find((c) => c.to.moduleId === f.id && c.to.portId === 'cv')!.from.moduleId };
+    expect(active(r.project).controlState[cm.id]).toMatchObject({ mode: 0, gain_a: 1, gain_b: 0.5 });
+    sane(r.project);
+
+    // Derde bron: de bestaande CvMath krijgt ingang c, geen nieuwe modules.
+    const r2 = addMidiModulation(r.project, active(r.project).id, 'modwheel', { moduleId: f.id, portId: 'cv' }, 0.3);
+    expect(count(r2.project, 'tp_mmb_cvmath')).toBe(count(r.project, 'tp_mmb_cvmath'));
+    expect(edges(r2.project)).toContain('tp_mmb_midiin.cv_mod>tp_mmb_cvmath.c');
+    expect(active(r2.project).controlState[cm.id]!.gain_c).toBeCloseTo(0.3);
+    sane(r2.project);
+  });
+
+  it('dubbele kabel en verkeerd signaaltype → RecipeError', () => {
+    const p0 = buildRecipe(base(), { voices: 1, source: 'vco', filter: 'vcf', filterEnv: false });
+    const f = findModuleByWord(p0, active(p0).id, 'vcf')!;
+    const r = addMidiModulation(p0, active(p0).id, 'bend', { moduleId: f.id, portId: 'cv' });
+    expect(() => addMidiModulation(r.project, active(r.project).id, 'bend', { moduleId: f.id, portId: 'cv' })).toThrowError(RecipeError);
+    expect(() => addMidiModulation(p0, active(p0).id, 'bananen', { moduleId: f.id, portId: 'cv' })).toThrowError(RecipeError);
+  });
+
+  it('disconnectPorts haalt de kabel weg', () => {
+    const p0 = buildRecipe(base(), { voices: 1, source: 'vco', filter: 'vcf', filterEnv: false });
+    const f = findModuleByWord(p0, active(p0).id, 'vcf')!;
+    const r = addMidiModulation(p0, active(p0).id, 'velocity', { moduleId: f.id, portId: 'cv' });
+    const d = disconnectPorts(r.project, active(r.project).id, { moduleId: f.id, portId: 'cv' });
+    expect(edges(d.project)).not.toContain('tp_mmb_midiin.vel>tp_mmb_vcf.cv');
+    expect(() => disconnectPorts(d.project, active(d.project).id, { moduleId: f.id, portId: 'cv' })).toThrowError(RecipeError);
+    void feedCvInput;
+  });
+
+  it('commando: "zet de aftertouch op de cutoff van het filter"', () => {
+    const p0 = buildRecipe(base(), { voices: 4, source: 'vco' });
+    const cmd = parseCommand('zet de aftertouch op de cutoff van het filter', p0.moduleTypes).command;
+    expect(cmd).toMatchObject({ kind: 'addModulation', source: 'aftertouch' });
+    const r = runCommand(p0, cmd);
+    expect(edges(r.project)).toContain('tp_mmb_midiin.press>tp_mmb_cvmath.b');
+    sane(r.project);
+  });
+
+  it('commando connect/disconnect met poortnamen', () => {
+    const p0 = buildRecipe(base(), { voices: 1, source: 'vco', filter: 'vcf', filterEnv: false });
+    const r = runCommand(p0, { kind: 'connect', from: { module: 'midi', port: 'aftertouch' }, to: { module: 'filter', port: 'cutoff' } });
+    expect(edges(r.project)).toContain('tp_mmb_midiin.press>tp_mmb_vcf.cv');
+    const d = runCommand(r.project, { kind: 'disconnect', to: { module: 'filter', port: 'cv' } });
+    expect(edges(d.project)).not.toContain('tp_mmb_midiin.press>tp_mmb_vcf.cv');
+    expect(() => runCommand(p0, { kind: 'connect', from: { module: 'filter', port: 'bestaatniet' }, to: { module: 'vca', port: 'cv' } })).toThrowError(RecipeError);
   });
 });
 

@@ -5,7 +5,8 @@
 import { resolvePorts, type ModularProject } from '../types';
 import { compileRecipe, buildRecipe } from './compile';
 import {
-  replaceModule, setVoices, addBusFx, addModulation, moveModule, removeModule, setControls, spreadVoices, findModuleByWord, findPortByWord, type EditResult,
+  replaceModule, setVoices, addBusFx, addModulation, moveModule, removeModule, setControls, spreadVoices,
+  feedCvInput, disconnectPorts, addMidiModulation, midiPortForWord, findModuleByWord, findPortByWord, type EditResult,
 } from './edits';
 import type { Command } from './parse';
 import { RecipeError } from './types';
@@ -38,6 +39,22 @@ export function runCommand(p: ModularProject, cmd: Command): EditResult {
       return moveModule(p, pid, a.id, cmd.relation, b.id);
     }
     case 'spread': return spreadVoices(p, needPatch(), cmd.width);
+    case 'connect': case 'disconnect': {
+      const pid = needPatch();
+      const end = (e: { module: string; port: string }, dir: 'in' | 'out') => {
+        const m = findModuleByWord(p, pid, e.module);
+        if (!m) throw new RecipeError(`Geen module "${e.module}" in deze patch.`);
+        const ports = resolvePorts(m, p.moduleTypes).filter((q) => q.direction === dir);
+        const w = e.port.trim().toLowerCase();
+        const q = ports.find((x) => x.id.toLowerCase() === w) ?? ports.find((x) => x.name.toLowerCase() === w)
+          ?? (dir === 'out' ? ports.find((x) => x.id === midiPortForWord(w)) : undefined)
+          ?? (dir === 'in' ? ports.find((x) => x.id === findPortByWord(p, m, w)) : undefined);
+        if (!q) throw new RecipeError(`${m.name} heeft geen ${dir === 'in' ? 'ingang' : 'uitgang'} "${e.port}" (wel: ${ports.map((x) => x.id).join(', ')}).`);
+        return { moduleId: m.id, portId: q.id };
+      };
+      if (cmd.kind === 'connect') return feedCvInput(p, pid, end(cmd.from, 'out'), end(cmd.to, 'in'), cmd.gain ?? 1);
+      return disconnectPorts(p, pid, end(cmd.to, 'in'), cmd.from ? end(cmd.from, 'out') : undefined);
+    }
     case 'set': {
       const pid = needPatch();
       const m = findModuleByWord(p, pid, cmd.module);
@@ -60,6 +77,8 @@ export function runCommand(p: ModularProject, cmd: Command): EditResult {
         port = (cvIns.find((q) => q.id === 'cv') ?? cvIns[0])?.id ?? null;
       }
       if (!port) throw new RecipeError(`${m.name} heeft geen cv-ingang "${cmd.port ?? ''}".`);
+      // Aftertouch, modwheel, bend, velocity: rechtstreeks uit de MIDI-In.
+      if (midiPortForWord(cmd.source)) return addMidiModulation(p, pid, cmd.source, { moduleId: m.id, portId: port });
       return addModulation(p, pid, cmd.source, { moduleId: m.id, portId: port });
     }
   }

@@ -38,12 +38,13 @@ export const COMMAND_HELP: HelpSection[] = [
   },
   {
     title: 'Toevoegen',
-    intro: 'Een effect op de bus (tussen mixer en OUT), of modulatie op een cv-ingang.',
+    intro: 'Een effect op de bus (tussen mixer en OUT), of modulatie op een cv-ingang: LFO, envelope of een MIDI-bron.',
     examples: [
       { text: 'voeg een tape echo toe op de bus' },
       { text: 'zet een diode compressor op het eind' },
       { text: 'zet een lfo op de cutoff van het filter', note: 'een LFO is voor alle stemmen samen' },
       { text: 'voeg een envelope toe op de vco tune', note: 'een envelope krijgt er één per stem' },
+      { text: 'zet de aftertouch op de cutoff van het filter', note: 'ook modwheel, bend, velocity; zit er al iets op, dan telt een CvMath ze op' },
     ],
   },
   {
