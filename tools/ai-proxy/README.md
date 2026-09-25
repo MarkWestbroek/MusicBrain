@@ -77,11 +77,45 @@ direct: de proxy leest `invites.json` bij elk verzoek.
 ```bash
 sudo docker logs --tail 50 musicbrain-ai          # draait hij?
 curl -s 127.0.0.1:8787/ai/health                   # {"ok":true}
-sudo nano /etc/musicbrain-ai.env && sudo docker restart musicbrain-ai   # key vervangen
 ```
 
+**De key vervangen.** Twee valkuilen, allebei op 25 september tegengekomen:
+
+1. **Niet met nano vanuit de VS Code-terminal plakken.** Daar vielen
+   regeleinden weg: de drie regels raakten aan elkaar en er bleef een losse
+   `n` achter de key hangen (DeepSeek: `Authentication Fails … ****cean`).
+   Zet de key daarom zo, vanaf Windows in PowerShell; hij gaat via ssh
+   rechtstreeks het bestand in, niet via een opdrachtregel op de server:
+
+   ```powershell
+   $k = Read-Host "DeepSeek-key"; $k.Trim() | ssh vps1 'read -r k; printf "UPSTREAM_KEY=%s\nUPSTREAM_URL=https://api.deepseek.com/chat/completions\nUPSTREAM_MODEL=deepseek-chat\n" "$k" | sudo tee /etc/musicbrain-ai.env >/dev/null; sudo chmod 600 /etc/musicbrain-ai.env; echo opgeslagen'
+   ```
+
+2. **Daarna de container opnieuw aanmaken, niet alleen herstarten.** Docker
+   leest `--env-file` alleen bij het aanmaken; `docker restart` houdt de oude
+   key. Dus de `docker rm -f` plus `docker run` uit "Opnieuw opzetten"
+   hieronder.
+
+Controleren of DeepSeek de key accepteert, zonder hem te tonen:
+
+```bash
+key=$(sudo grep '^UPSTREAM_KEY=' /etc/musicbrain-ai.env | cut -c14-)
+curl -s -o /dev/null -w '%{http_code}\n' https://api.deepseek.com/models -H "Authorization: Bearer $key"   # 200 = goed
+```
+
+Een DeepSeek-key is `sk-` plus 32 tekens (0–9, a–f), samen 35.
+
 Nieuwe versie van `server.mjs`: kopiëren naar `/srv/musicbrain-ai/` en
-`sudo docker restart musicbrain-ai`.
+`sudo docker restart musicbrain-ai` (herstarten volstaat hier: het script
+wordt bij het starten opnieuw gelezen).
+
+Opdrachten met `{{…}}` (bijv. `docker inspect -f`) vanaf Windows niet direct
+in `ssh vps1 '…'` zetten: PowerShell verknipt de aanhalingstekens. Log in
+met `ssh vps1` en typ ze daar, of zet ze in een scriptje.
+
+**Opgezet op 25 september 2026:** container draait, Caddy-regel staat erin,
+eerste code (Mark, 500/dag) aangemaakt en end-to-end getest via
+`https://editor.musicbrain.nl/ai/` (antwoord van DeepSeek).
 
 ## Opnieuw opzetten (bijv. na een nieuwe VPS)
 
