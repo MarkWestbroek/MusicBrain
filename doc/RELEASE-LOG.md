@@ -29,8 +29,9 @@
   DC-blokker staat bij Init en bij een modelwissel meteen goed, dus geen tik
   bij het laden van een patch.
 - Alle 6581-parameters op het oor, niet gemeten. Core-tests 134, editor 640.
-- Geflasht maar **nog niet bevestigd** met hello: de editor had de COM-poort
-  open.
+- **Gemeten op de Teensy** (saw C3, cutoff 700, res 15): 6581 klankzwaartepunt
+  1,0 kHz en piek 0,39 (donkerder, resonantie begrensd) tegen 8580 2,1 kHz en
+  0,63; DC 0; cpu hele patch 12,5 %.
 
 ### fw 0.5.82 — SID: filter, 8580-model (2026-09-28)
 - `mmb_dsp::SidChip` krijgt het filter: een 2-polig state-variable filter
