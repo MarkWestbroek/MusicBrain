@@ -1,0 +1,103 @@
+// mediaLibrary — een sim-opname (wav + mid + patch.json) in de media library
+// van musicbrain.nl zetten.
+//
+// Contract (Imprint, docs/design/beeldbibliotheek.md §10/§12, stap 4):
+//   POST /api/media   multipart: file[] (meerdere), folder, tags[], group?, exif?
+//                     Authorization: Bearer <persoonlijk token, scope media:upload>
+//                     → { assets: [{ slug, kind, url, group? }] }
+//   GET  /api/media?folder=&tag=&group=
+// CORS via een allowlist zonder credentials: geen cookies, alleen het token.
+// Eén opname = één request met alle bestanden en dezelfde `group` (de take-id),
+// zodat de library ze als koppel kent.
+//
+// Zolang die API er nog niet staat, blijft de knop uit tot er een token is.
+
+export interface LibrarySettings {
+  /** Volledige URL van POST /api/media. */
+  endpoint: string;
+  token: string;
+  folder: string;
+  tags: string[];
+}
+
+export const DEFAULT_LIBRARY: LibrarySettings = {
+  endpoint: 'https://musicbrain.nl/api/media',
+  token: '',
+  folder: 'opnames/sim',
+  tags: ['sim-opname'],
+};
+
+const KEY = 'mmb.library.v1';
+
+export function loadLibrarySettings(): LibrarySettings {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return { ...DEFAULT_LIBRARY };
+    const o = JSON.parse(raw) as Partial<LibrarySettings>;
+    return {
+      endpoint: typeof o.endpoint === 'string' && o.endpoint ? o.endpoint : DEFAULT_LIBRARY.endpoint,
+      token: typeof o.token === 'string' ? o.token : '',
+      folder: typeof o.folder === 'string' ? o.folder : DEFAULT_LIBRARY.folder,
+      tags: Array.isArray(o.tags) ? o.tags.filter((t): t is string => typeof t === 'string') : DEFAULT_LIBRARY.tags,
+    };
+  } catch {
+    return { ...DEFAULT_LIBRARY };
+  }
+}
+
+export function saveLibrarySettings(s: LibrarySettings): void {
+  try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* geen opslag */ }
+}
+
+/** "a, b ,,c" → ["a","b","c"] */
+export function parseTags(text: string): string[] {
+  return [...new Set(text.split(',').map((t) => t.trim()).filter(Boolean))];
+}
+
+export interface TakeFile { name: string; blob: Blob }
+export interface Take {
+  /** Take-id: de gedeelde bestandsnaam zonder extensie. */
+  group: string;
+  files: TakeFile[];
+}
+
+export interface UploadedAsset { slug: string; kind: string; url: string; group?: string }
+
+export class LibraryError extends Error {}
+
+/** Bouwt het multipart-formulier volgens het contract (los te testen). */
+export function takeForm(take: Take, s: LibrarySettings): FormData {
+  const form = new FormData();
+  for (const f of take.files) form.append('file[]', f.blob, f.name);
+  if (s.folder.trim()) form.append('folder', s.folder.trim());
+  for (const t of s.tags) form.append('tags[]', t);
+  form.append('group', take.group);
+  form.append('exif', 'none');
+  return form;
+}
+
+export async function uploadTake(
+  take: Take, s: LibrarySettings, fetchImpl: typeof fetch = fetch,
+): Promise<UploadedAsset[]> {
+  if (!s.token.trim()) throw new LibraryError('Geen API-token ingesteld (maak er een aan in de admin van musicbrain.nl, scope media:upload).');
+  let res: Response;
+  try {
+    res = await fetchImpl(s.endpoint, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${s.token.trim()}` },
+      body: takeForm(take, s),
+    });
+  } catch (err) {
+    throw new LibraryError(`Library niet bereikbaar (${err instanceof Error ? err.message : String(err)}). Staat de API al live, en editor.musicbrain.nl in de CORS-allowlist?`);
+  }
+  if (res.status === 401 || res.status === 403) throw new LibraryError('Token geweigerd: verlopen, ingetrokken of zonder scope media:upload.');
+  if (res.status === 413) throw new LibraryError('Te groot voor de library (maximale bestandsgrootte). Neem een kortere take op.');
+  if (!res.ok) {
+    let detail = '';
+    try { detail = (await res.text()).slice(0, 200); } catch { /* geen body */ }
+    throw new LibraryError(`Upload mislukt: HTTP ${res.status}${detail ? ` — ${detail}` : ''}`);
+  }
+  const body = await res.json().catch(() => null) as { assets?: unknown } | null;
+  if (!body || !Array.isArray(body.assets)) throw new LibraryError('Onverwacht antwoord van de library (geen assets).');
+  return body.assets as UploadedAsset[];
+}

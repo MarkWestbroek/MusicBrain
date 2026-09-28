@@ -15,7 +15,10 @@ import { getEngine } from './sim/engineSingleton';
 import {
   MasterRecorder, encodeWav, dbfs, wavFileName, downloadWav,
 } from './sim/wavRecorder';
-import { MidiRecorder, encodeSmf, patchSnapshot, siblingName, downloadBlob } from './sim/midiRecorder';
+import { MidiRecorder, encodeSmf, patchSnapshot, siblingName } from './sim/midiRecorder';
+import {
+  loadLibrarySettings, saveLibrarySettings, uploadTake, parseTags, type LibrarySettings, type Take,
+} from './sim/mediaLibrary';
 import { dx7Host, WasmModule } from './runtime';
 import { simSupportOf, type SimSupport } from './sim/simSupport';
 import {
@@ -75,6 +78,26 @@ export function SimulationPanel(): JSX.Element {
   function toggleRecWithPatch(on: boolean): void {
     setRecWithPatch(on);
     try { localStorage.setItem('mmb.rec.patchJson', on ? '1' : '0'); } catch { /* geen opslag */ }
+  }
+  // Laatste opname, klaar om naar de media library te sturen (versie 2).
+  const [lastTake, setLastTake] = useState<Take | null>(null);
+  const [lib, setLib] = useState<LibrarySettings>(loadLibrarySettings);
+  const [libOpen, setLibOpen] = useState(false);
+  const [libBusy, setLibBusy] = useState(false);
+  const [libMsg, setLibMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  function updateLib(next: LibrarySettings): void { setLib(next); saveLibrarySettings(next); }
+  async function sendToLibrary(): Promise<void> {
+    if (!lastTake) return;
+    if (!lib.token.trim()) { setLibOpen(true); setLibMsg({ ok: false, text: 'Vul eerst een API-token in.' }); return; }
+    setLibBusy(true); setLibMsg(null);
+    try {
+      const assets = await uploadTake(lastTake, lib);
+      setLibMsg({ ok: true, text: `In de library: ${assets.length} bestand${assets.length === 1 ? '' : 'en'} in ${lib.folder || '(root)'}, koppel ${lastTake.group}` });
+    } catch (err) {
+      setLibMsg({ ok: false, text: err instanceof Error ? err.message : String(err) });
+    } finally {
+      setLibBusy(false);
+    }
   }
   function stopMidiTap(): void { midiUnsubRef.current?.(); midiUnsubRef.current = null; }
   // Tijdens het openen van de Teensy-ingang (toestemmingsdialoog) de knop dicht.
@@ -263,18 +286,29 @@ export function SimulationPanel(): JSX.Element {
       setRecording(false);
       if (r.frames === 0) { setRecDone('niets opgenomen — de tap kreeg geen blokken door'); return; }
       const name = wavFileName(patch?.name ?? 'patch');
-      downloadWav(encodeWav(r.channels, r.sampleRate, 'i24'), name);
+      const wav = encodeWav(r.channels, r.sampleRate, 'i24');
+      downloadWav(wav, name);
       // Zelfde naam, andere extensie: zo blijft het koppel bij elkaar. Geen
       // .mid als er niets gespeeld is (bv. een drone of generatieve patch).
+      const files: Take['files'] = [{ name, blob: new Blob([wav], { type: 'audio/wav' }) }];
       const extra: string[] = [];
       if (midi.length > 0) {
-        downloadBlob(encodeSmf(midi, { lengthMs: r.seconds * 1000, name: patch?.name }), siblingName(name, '.mid'), 'audio/midi');
+        files.push({ name: siblingName(name, '.mid'), blob: new Blob([encodeSmf(midi, { lengthMs: r.seconds * 1000, name: patch?.name })], { type: 'audio/midi' }) });
         extra.push(`${midi.length} MIDI-events`);
       }
       if (recWithPatch && patch) {
-        downloadBlob(JSON.stringify(patchSnapshot(project, patch), null, 1), siblingName(name, '.patch.json'), 'application/json');
+        files.push({ name: siblingName(name, '.patch.json'), blob: new Blob([JSON.stringify(patchSnapshot(project, patch), null, 1)], { type: 'application/json' }) });
         extra.push('patch');
       }
+      for (const f of files.slice(1)) {
+        const url = URL.createObjectURL(f.blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = f.name;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 10_000);
+      }
+      setLastTake({ group: siblingName(name, ''), files });
+      setLibMsg(null);
       const db = dbfs(r.peak);
       // De piek erbij, want een zachte render merk je anders pas als de
       // bank-import er int16 van maakt en je drie bits kwijt bent.
@@ -394,6 +428,39 @@ export function SimulationPanel(): JSX.Element {
           <p style={{ color: '#475569', fontSize: 12, margin: '6px 0 0' }}>
             ✔ {recDone}
           </p>
+        )}
+        {lastTake && !recording && (
+          <div style={{ ...row, marginTop: 6 }}>
+            <button onClick={() => void sendToLibrary()} disabled={libBusy}
+              title="Zet deze opname (alle bestanden, als één koppel) in de media library van musicbrain.nl">
+              {libBusy ? '… bezig' : '⤴ Naar library'}
+            </button>
+            <button onClick={() => setLibOpen((v) => !v)} title="Token, map en tags voor de media library">⚙ Library</button>
+            {libMsg && (
+              <span style={{ fontSize: 12, color: libMsg.ok ? '#15803d' : '#b91c1c' }}>
+                {libMsg.ok ? '✔' : '⚠'} {libMsg.text}
+              </span>
+            )}
+          </div>
+        )}
+        {libOpen && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 8px', fontSize: 12, marginTop: 6, maxWidth: 520 }}>
+            <label htmlFor="lib-token">API-token</label>
+            <input id="lib-token" type="password" value={lib.token} placeholder="uit de admin van musicbrain.nl (scope media:upload)"
+              onChange={(e) => updateLib({ ...lib, token: e.target.value })} />
+            <label htmlFor="lib-folder">Map</label>
+            <input id="lib-folder" value={lib.folder} onChange={(e) => updateLib({ ...lib, folder: e.target.value })} />
+            <label htmlFor="lib-tags">Tags</label>
+            <input id="lib-tags" defaultValue={lib.tags.join(', ')} placeholder="komma-gescheiden"
+              onBlur={(e) => updateLib({ ...lib, tags: parseTags(e.target.value) })} />
+            <label htmlFor="lib-endpoint">Endpoint</label>
+            <input id="lib-endpoint" value={lib.endpoint} onChange={(e) => updateLib({ ...lib, endpoint: e.target.value })} />
+            <span />
+            <span style={{ color: '#6b7280' }}>
+              Het token blijft alleen in deze browser. De library-API van musicbrain.nl is nog in aanbouw;
+              tot die live staat geeft de knop een melding.
+            </span>
+          </div>
         )}
         {error && (
           <p style={{ color: '#b91c1c', fontSize: 12, margin: '6px 0 0' }}>
