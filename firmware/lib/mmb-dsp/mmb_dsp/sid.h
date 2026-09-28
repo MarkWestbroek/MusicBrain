@@ -71,6 +71,7 @@ public:
         fs_ = sampleRate;
         clock_ = clock;
         cyclesPerSample_ = clock / sampleRate;
+        cyclesPerSampleF_ = static_cast<float>(cyclesPerSample_);
         dcR_ = std::exp(-2.0f * 3.14159265f * kDcBlockHz / sampleRate);
         setCombo(kComboDefault);
         Reset();
@@ -118,7 +119,7 @@ public:
     void Reset() {
         for (auto& r : regs_) r = 0;
         for (auto& v : voice_) v = Voice{};
-        cycleFrac_ = 0.0;
+        cycleFrac_ = 0.0f;
         dcX1_ = dcY1_ = 0.0f;
         ic1_ = ic2_ = 0.0f;
         updateFilter();
@@ -130,13 +131,14 @@ public:
     void write(int reg, uint8_t val) {
         if (reg < 0 || reg >= kNumRegs) return;
         regs_[reg] = val;
+        if (reg < 21 && reg % 7 <= 1) updateIncrement(reg / 7);
         if (reg < 21 && reg % 7 == 4) {                   // besturingsregister
             Voice& v = voice_[reg / 7];
             const bool gate = val & kGate;
             if (gate && !v.gate) { v.envState = kAttack; v.holdZero = false; }
             else if (!gate && v.gate) { v.envState = kRelease; }
             v.gate = gate;
-            if (val & kTest) { v.acc = 0.0; v.lfsr = kLfsrInit; }
+            if (val & kTest) { v.acc = 0u; v.lfsr = kLfsrInit; }
             ensureTable(val);
         } else if (reg >= 0x15 && reg <= 0x17) {
             updateFilter();
@@ -172,9 +174,17 @@ public:
     /** Eén sample, mono. Eén stem op vol volume ≈ ±1; drie stemmen ≈ ±3.
      *  @p ext = EXT IN (±1, telt als één stem); door het filter als FILT EX aan staat. */
     float Process(float ext = 0.0f) {
-        cycleFrac_ += cyclesPerSample_;
+        cycleFrac_ += cyclesPerSampleF_;
         const int cycles = static_cast<int>(cycleFrac_);
         cycleFrac_ -= cycles;
+
+        // Stil: alle drie de envelopes staan op nul en wachten op een gate.
+        // Dan alleen het goedkope bijhouden — fase, envelope-teller (voor de
+        // ADSR-bug), het uitklinken van het filter en de DC-blokker — zonder
+        // golfvormen, gebeurtenissen en BLEP. Een poly-SID met één noot
+        // rekent zo alleen op de chip die speelt.
+        if (ext == 0.0f && voice_[0].holdZero && voice_[1].holdZero && voice_[2].holdZero)
+            return processIdle(cycles);
 
         // Fase A: vrij-lopende MSB-flanken van elke stem (bron voor sync/ring
         // van de volgende stem). Tweede-orde-effecten (een bron die zelf net
@@ -213,7 +223,7 @@ public:
     }
 
     // ── test-/meethaakjes ────────────────────────────────────────────
-    uint32_t acc(int i) const   { return static_cast<uint32_t>(voice_[i].acc) >> 8; }  // 24 bits
+    uint32_t acc(int i) const   { return voice_[i].acc >> 8; }  // 24 bits
     uint32_t lfsr(int i) const  { return voice_[i].lfsr; }
     int      env(int i) const   { return voice_[i].env; }
     int      envState(int i) const { return voice_[i].envState; }
@@ -262,6 +272,27 @@ private:
         return y;
     }
 
+    /** Eén stil sample (zie Process): fase en envelope-teller lopen door, het
+     *  filter klinkt uit tot het stil is, de DC-blokker blijft meelopen. */
+    float processIdle(int cycles) {
+        for (int i = 0; i < 3; ++i) {
+            Voice& v = voice_[i];
+            if (!(regs_[i * 7 + 4] & kTest)) v.acc += v.inc;   // 32 bits: loopt vanzelf rond
+            clockEnvelope(v, i, cycles);
+            v.prevVal = 0.0f;
+            v.prevEnv = 0.0f;
+        }
+        const uint8_t modeVol = regs_[0x18];
+        float f = 0.0f;
+        if (std::fabs(ic1_) + std::fabs(ic2_) > 1e-6f) f = processFilter(0.0f, modeVol);
+        else ic1_ = ic2_ = 0.0f;
+        const float x = (f + (model_ == kModel6581 ? kMixDc6581 : 0.0f))
+                      * static_cast<float>(modeVol & 0x0f) * (1.0f / 15.0f);
+        const float y = x - dcX1_ + dcR_ * dcY1_;
+        dcX1_ = x; dcY1_ = y;
+        return y;
+    }
+
     /** Zachte begrenzer (rationele tanh-benadering), ±1 voorbij |x| = 3. */
     static float softClip(float x) {
         if (x > 3.0f) return 1.0f;
@@ -271,11 +302,12 @@ private:
     }
 
     static constexpr uint32_t kLfsrInit = 0x7ffff8;
-    static constexpr double   k2p32 = 4294967296.0;
-    static constexpr double   k2p31 = 2147483648.0;
+    static constexpr uint64_t k2p32 = 0x100000000ull;
+    static constexpr uint64_t k2p31 = 0x80000000ull;
 
     struct Voice {
-        double   acc = 0.0;        // accumulator × 2^8 (acc24 in de bovenste 24 van 32 bits)
+        uint32_t acc = 0u;         // accumulator × 2^8 (acc24 in de bovenste 24 van 32 bits)
+        uint32_t inc = 0u;         // stap per audio-sample in dezelfde eenheid (freq · 256 · cycli/sample)
         uint32_t lfsr = kLfsrInit;
         bool     gate = false;
         // envelope
@@ -290,23 +322,25 @@ private:
     };
 
     /** Vrij-lopende flanken van de MSB binnen dit sample (-1 = geen). */
-    struct Free { double rise = -1.0, fall = -1.0; bool msbStart = false; };
+    struct Free { float rise = -1.0f, fall = -1.0f; bool msbStart = false; };
 
     Free freeEdges(int i) const {
         const Voice& v = voice_[i];
         Free f;
         f.msbStart = v.acc >= k2p31;
-        const double inc = increment(i);
-        if (inc <= 0.0 || (regs_[i * 7 + 4] & kTest)) return f;
-        const double end = v.acc + inc;
-        if (v.acc < k2p31 && end >= k2p31) f.rise = (k2p31 - v.acc) / inc;
-        if (end >= k2p32) f.fall = (k2p32 - v.acc) / inc;
+        if (v.inc == 0u || (regs_[i * 7 + 4] & kTest)) return f;
+        const float inv = 1.0f / static_cast<float>(v.inc);
+        const uint64_t a = v.acc, e = a + v.inc;
+        if (a < k2p31 && e >= k2p31) f.rise = static_cast<float>(k2p31 - a) * inv;
+        if (e >= k2p32) f.fall = static_cast<float>(k2p32 - a) * inv;
         return f;
     }
 
-    double increment(int i) const {
+    /** Stap per audio-sample uit het frequentieregister, één keer per write
+     *  (de oscillator zelf rekent met integers, niet met doubles). */
+    void updateIncrement(int i) {
         const unsigned freq = regs_[i * 7] | (regs_[i * 7 + 1] << 8);
-        return static_cast<double>(freq) * 256.0 * cyclesPerSample_;
+        voice_[i].inc = static_cast<uint32_t>(static_cast<double>(freq) * 256.0 * cyclesPerSample_ + 0.5);
     }
     uint32_t pulseThreshold(int i) const {
         const unsigned pw = regs_[i * 7 + 2] | ((regs_[i * 7 + 3] & 0x0f) << 8);
@@ -422,34 +456,36 @@ private:
     }
 
     enum EvType { kEvWrap, kEvPulse, kEvNoise, kEvSrc, kEvSync };
-    struct Event { double t; int type; };
+    struct Event { float t; int type; };
 
-    /** Eén stem één sample verder; geeft het (één sample vertraagde) band-limited sample. */
+    /** Eén stem één sample verder; geeft het (één sample vertraagde) band-limited sample.
+     *  Fase als 32-bit integer (64 bits voor de vergelijkingen), tijdstippen in float. */
     float renderVoice(int i, const Free& src) {
         Voice& v = voice_[i];
         const uint8_t ctrl = regs_[i * 7 + 4];
         const uint32_t thr = pulseThreshold(i);
-        const double inc = (ctrl & kTest) ? 0.0 : increment(i);
+        const uint32_t inc = (ctrl & kTest) ? 0u : v.inc;
+        const float incF = static_cast<float>(inc), inv = inc ? 1.0f / incF : 0.0f;
+        const uint64_t a0 = v.acc;
         bool srcMsb = src.msbStart;
 
         // Gebeurtenissen verzamelen (hooguit een handvol per sample).
         Event ev[24]; int n = 0;
-        auto add = [&](double t, int type) { if (t >= 0.0 && t < 1.0 && n < 24) ev[n++] = { t, type }; };
-        double syncT = -1.0;
-        if ((ctrl & kSync) && src.rise >= 0.0) { syncT = src.rise; add(syncT, kEvSync); }
+        auto add = [&](float t, int type) { if (t >= 0.0f && t < 1.0f && n < 24) ev[n++] = { t, type }; };
+        float syncT = -1.0f;
+        if ((ctrl & kSync) && src.rise >= 0.0f) { syncT = src.rise; add(syncT, kEvSync); }
         if ((ctrl & kRing) && (ctrl & kTri)) { add(src.rise, kEvSrc); add(src.fall, kEvSrc); }
-        if (inc > 0.0) {
+        if (inc) {
             // Vóór een eventuele sync-reset: vanaf de huidige stand.
-            const double lim = syncT >= 0.0 ? syncT : 1.0;
-            const double a0 = v.acc, a1 = a0 + inc * lim;
-            if (a1 >= k2p32) add((k2p32 - a0) / inc, kEvWrap);
-            addCrossings(a0, a1, inc, 0.0, thr, add);
-            if (ctrl & kNoise) addNoiseClocks(a0, a1, inc, 0.0, add);
+            const uint64_t a1 = syncT >= 0.0f ? a0 + static_cast<uint64_t>(incF * syncT) : a0 + inc;
+            if (a1 >= k2p32) add(static_cast<float>(k2p32 - a0) * inv, kEvWrap);
+            addCrossings(a0, a1, inv, 0.0f, thr, add);
+            if (ctrl & kNoise) addNoiseClocks(a0, a1, inv, 0.0f, add);
             // Na de reset: vanaf 0.
-            if (syncT >= 0.0) {
-                const double b1 = inc * (1.0 - syncT);
-                addCrossings(0.0, b1, inc, syncT, thr, add);
-                if (ctrl & kNoise) addNoiseClocks(0.0, b1, inc, syncT, add);
+            if (syncT >= 0.0f) {
+                const uint64_t b1 = static_cast<uint64_t>(incF * (1.0f - syncT));
+                addCrossings(0, b1, inv, syncT, thr, add);
+                if (ctrl & kNoise) addNoiseClocks(0, b1, inv, syncT, add);
             }
         }
         // Sorteren op tijd (insertion sort, n is klein).
@@ -460,27 +496,27 @@ private:
         }
 
         // Doorlopen: vóór/na elke gebeurtenis de golfvorm, sprong = BLEP.
-        double base = v.acc, tBase = 0.0;
+        bool reset = false;                         // na een sync-reset telt de fase vanaf 0
         float corrPrev = 0.0f, corrCur = 0.0f;
         for (int k = 0; k < n; ++k) {
-            const double t = ev[k].t;
-            double at = base + inc * (t - tBase);
+            const float t = ev[k].t;
+            const uint64_t at = reset ? static_cast<uint64_t>(incF * (t - syncT))
+                                      : a0 + static_cast<uint64_t>(incF * t);
             uint32_t before, after;
-            uint32_t lfsrBefore = v.lfsr;
-            bool srcBefore = srcMsb;
+            const uint32_t lfsrBefore = v.lfsr;
+            const bool srcBefore = srcMsb;
             switch (ev[k].type) {
                 case kEvWrap:
                     before = 0xffffffffu; after = 0u;
-                    base = at - k2p32; tBase = t;
-                    if (base < 0.0) base = 0.0;
                     break;
                 case kEvPulse:
                     before = thr - 1u; after = thr;
                     break;
                 case kEvNoise: {
                     // De flank ligt op m·2^28 + 2^27; `at` zit daar op afronding na.
-                    const double x = std::floor((at - 134217728.0) / 268435456.0 + 0.5) * 268435456.0 + 134217728.0;
-                    after = clampAcc(x >= k2p32 ? x - k2p32 : x);
+                    constexpr uint64_t P = 1ull << 28, H = 1ull << 27;
+                    const uint64_t m = at >= H ? (at - H + P / 2) / P : 0;
+                    after = static_cast<uint32_t>(m * P + H);
                     before = after - 1u;
                     v.lfsr = clockLfsr(v.lfsr);
                     if ((ctrl & kNoise) && (ctrl & (kTri | kSaw | kPulse))) {
@@ -493,57 +529,46 @@ private:
                     break;
                 }
                 case kEvSrc:
-                    before = after = clampAcc(at);
+                    before = after = static_cast<uint32_t>(at);
                     srcMsb = !srcMsb;
                     break;
                 default:  // kEvSync
-                    before = clampAcc(at); after = 0u;
-                    base = 0.0; tBase = t;
+                    before = static_cast<uint32_t>(at); after = 0u;
+                    reset = true;
                     break;
             }
             const float h = waveform(ctrl, after, srcMsb, v.lfsr, thr) -
                             waveform(ctrl, before, srcBefore, lfsrBefore, thr);
             if (h != 0.0f) {
-                const float tf = static_cast<float>(t);
-                corrPrev += 0.5f * h * (1.0f - tf) * (1.0f - tf);
-                corrCur  -= 0.5f * h * tf * tf;
+                corrPrev += 0.5f * h * (1.0f - t) * (1.0f - t);
+                corrCur  -= 0.5f * h * t * t;
             }
         }
-        double end = base + inc * (1.0 - tBase);
-        if (end >= k2p32) end -= k2p32;
-        if (end < 0.0) end = 0.0;
-        v.acc = end;
+        // Zonder sync exact acc + inc (32 bits lopen vanzelf rond): geen drift.
+        v.acc = syncT >= 0.0f ? static_cast<uint32_t>(incF * (1.0f - syncT))
+                              : static_cast<uint32_t>(a0 + inc);
 
-        const float naive = waveform(ctrl, clampAcc(end), srcMsb, v.lfsr, thr);
+        const float naive = waveform(ctrl, v.acc, srcMsb, v.lfsr, thr);
         const float out = v.prevVal + corrPrev;
         v.prevVal = naive + corrCur;
         return out;
     }
 
-    static uint32_t clampAcc(double a) {
-        if (a <= 0.0) return 0u;
-        if (a >= k2p32 - 1.0) return 0xffffffffu;
-        return static_cast<uint32_t>(a);
-    }
-
     /** Doorgang van drempel X (en X + 2^32) in (a0, a1]; tijd = t0 + afstand/inc. */
     template <class Add>
-    static void addCrossings(double a0, double a1, double inc, double t0, uint32_t X, Add& add) {
+    static void addCrossings(uint64_t a0, uint64_t a1, float inv, float t0, uint32_t X, Add& add) {
         if (X == 0u) return;                  // pw 0: altijd hoog, geen flank
-        const double x = static_cast<double>(X);
-        if (a0 < x && x <= a1) add(t0 + (x - a0) / inc, kEvPulse);
-        if (a0 < x + k2p32 && x + k2p32 <= a1) add(t0 + (x + k2p32 - a0) / inc, kEvPulse);
+        const uint64_t x = X;
+        if (a0 < x && x <= a1) add(t0 + static_cast<float>(x - a0) * inv, kEvPulse);
+        if (a0 < x + k2p32 && x + k2p32 <= a1) add(t0 + static_cast<float>(x + k2p32 - a0) * inv, kEvPulse);
     }
     /** Stijgende flanken van bit 19 (acc24) = bit 27 (acc32): bij m·2^28 + 2^27. */
     template <class Add>
-    static void addNoiseClocks(double a0, double a1, double inc, double t0, Add& add) {
-        const double P = 268435456.0, H = 134217728.0;
-        double m = std::floor((a0 - H) / P) + 1.0;
-        for (int guard = 0; guard < 8; ++guard, m += 1.0) {
-            const double x = m * P + H;
-            if (x > a1) break;
-            if (x > a0) add(t0 + (x - a0) / inc, kEvNoise);
-        }
+    static void addNoiseClocks(uint64_t a0, uint64_t a1, float inv, float t0, Add& add) {
+        constexpr uint64_t P = 1ull << 28, H = 1ull << 27;
+        uint64_t x = (a0 >= H ? (a0 - H) / P + 1 : 0) * P + H;
+        for (int guard = 0; guard < 8 && x <= a1; ++guard, x += P)
+            if (x > a0) add(t0 + static_cast<float>(x - a0) * inv, kEvNoise);
     }
 
     /** Envelope @p cycles SID-cycli verder. */
@@ -593,7 +618,8 @@ private:
     float   fs_ = 44100.0f;
     double  clock_ = kClockPal;
     double  cyclesPerSample_ = kClockPal / 44100.0;
-    double  cycleFrac_ = 0.0;
+    float   cycleFrac_ = 0.0f;                        // fractionele SID-cycli (blijft < 23)
+    float   cyclesPerSampleF_ = static_cast<float>(kClockPal / 44100.0);
     static constexpr float kDcBlockHz = 10.0f;
     // Combined-waveform-model: straal, gewicht van een 0-drijver, en hoe ver
     // buurkoppeling (A), drempel (T), pulssterkte (P) en drempelbreedte (W)
