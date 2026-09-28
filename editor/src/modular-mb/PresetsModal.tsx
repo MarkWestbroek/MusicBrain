@@ -534,8 +534,11 @@ function ModulePresetsTab({ userPresets, onChange }: ModuleTabProps): JSX.Elemen
   const moduleOptions = useMemo(() => moduleTargets(project, activePatch?.rackIds ?? []),
     [project, activePatch]);
 
-  const [selectedModuleId, setSelectedModuleId] = useState<string>(moduleOptions[0]?.id ?? '');
+  const [selectedModuleId, setSelectedModuleIdRaw] = useState<string>(moduleOptions[0]?.id ?? '');
   const [name, setName] = useState('');
+  /** Laatst geladen preset, als bevestiging in het venster. */
+  const [loaded, setLoaded] = useState<{ presetId: string; text: string } | null>(null);
+  const setSelectedModuleId = (id: string): void => { setSelectedModuleIdRaw(id); setLoaded(null); };
 
   const selectedModule = project.modules.find((m) => m.id === selectedModuleId);
   const selectedType   = selectedModule
@@ -567,6 +570,8 @@ function ModulePresetsTab({ userPresets, onChange }: ModuleTabProps): JSX.Elemen
     const next = applyModulePreset(getProject(), preset, selectedModule.id);
     if (!next) { alert('Kon preset niet toepassen (verkeerd module-type of geen actieve patch).'); return; }
     setProject(next);
+    const target = moduleOptions.find((o) => o.id === selectedModule.id)?.label ?? selectedModule.name;
+    setLoaded({ presetId: preset.id, text: `✓ ${preset.name} geladen op ${target}` });
   }
 
   function onDelete(preset: ModulePresetData): void {
@@ -601,6 +606,12 @@ function ModulePresetsTab({ userPresets, onChange }: ModuleTabProps): JSX.Elemen
           Type: {selectedType ? `${selectedType.id} (${selectedType.variant})` : '—'} ·
           Controls: {Object.keys(currentValues).length}
         </div>
+        {loaded && (
+          <div role="status" style={{
+            marginTop: 8, padding: '6px 10px', borderRadius: 6, fontSize: 13,
+            background: '#064e3b', color: '#a7f3d0', border: '1px solid #047857',
+          }}>{loaded.text}</div>
+        )}
       </div>
 
       {/* Save current */}
@@ -630,7 +641,7 @@ function ModulePresetsTab({ userPresets, onChange }: ModuleTabProps): JSX.Elemen
                   <div style={{ fontWeight: 600 }}>{p.name}</div>
                   <div style={meta}>{p.description}</div>
                 </div>
-                <button style={btn} onClick={() => onLoad(p)}>↻ Laden</button>
+                <LoadButton loaded={loaded?.presetId === p.id} onClick={() => onLoad(p)} />
               </li>
             ))}
           </ul>
@@ -650,7 +661,7 @@ function ModulePresetsTab({ userPresets, onChange }: ModuleTabProps): JSX.Elemen
                   <div style={{ fontWeight: 600 }}>{p.name}</div>
                   <div style={meta}>{new Date(p.createdAt).toLocaleString()}</div>
                 </div>
-                <button style={btn} onClick={() => onLoad(p)}>↻ Laden</button>
+                <LoadButton loaded={loaded?.presetId === p.id} onClick={() => onLoad(p)} />
                 <button style={btn} onClick={() => onRename(p)}>✎</button>
                 <button style={{ ...btn, color: '#fca5a5' }} onClick={() => onDelete(p)}>×</button>
               </li>
@@ -665,6 +676,16 @@ function ModulePresetsTab({ userPresets, onChange }: ModuleTabProps): JSX.Elemen
 // ═══════════════════════════════════════════════════════════════════════
 //  Styles
 // ═══════════════════════════════════════════════════════════════════════
+
+/** Laden-knop die na het klikken laat zien dát hij geladen heeft. */
+function LoadButton({ loaded, onClick }: { loaded: boolean; onClick: () => void }): JSX.Element {
+  return (
+    <button
+      style={loaded ? { ...btn, background: '#065f46', borderColor: '#10b981', color: '#d1fae5' } : btn}
+      onClick={onClick}
+    >{loaded ? '✓ Geladen' : '↻ Laden'}</button>
+  );
+}
 
 // ─── Doel-module kiezen: zoeken in plaats van een lange lijst ───────────
 
