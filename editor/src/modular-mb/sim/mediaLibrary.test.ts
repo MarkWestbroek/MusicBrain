@@ -37,8 +37,12 @@ describe('mediaLibrary', () => {
     const ok = (async () => new Response('{}')) as unknown as typeof fetch;
     await expect(uploadTake(take, { ...settings, token: '' }, ok)).rejects.toThrow(/token/i);
     const st = (s: number) => (async () => new Response('nee', { status: s })) as unknown as typeof fetch;
-    await expect(uploadTake(take, settings, st(401))).rejects.toThrow(/geweigerd/);
-    await expect(uploadTake(take, settings, st(413))).rejects.toThrow(/Te groot/);
+    await expect(uploadTake(take, settings, st(401))).rejects.toThrow(/ongeldig/);
+    await expect(uploadTake(take, settings, st(403))).rejects.toThrow(/scope/);
+    await expect(uploadTake(take, settings, st(415))).rejects.toThrow(/Bestandstype/);
+    const withBody = (async () => new Response(JSON.stringify({ error: 'unsupported file type', file: 'x.mid' }), { status: 415 })) as unknown as typeof fetch;
+    await expect(uploadTake(take, settings, withBody)).rejects.toThrow('unsupported file type (x.mid) Er is niets opgeslagen.');
+    await expect(uploadTake(take, settings, st(413))).rejects.toThrow(/te groot/);
     const down = (async () => { throw new TypeError('Failed to fetch'); }) as unknown as typeof fetch;
     await expect(uploadTake(take, settings, down)).rejects.toBeInstanceOf(LibraryError);
   });

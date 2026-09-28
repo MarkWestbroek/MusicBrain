@@ -79,7 +79,7 @@ export function takeForm(take: Take, s: LibrarySettings): FormData {
 export async function uploadTake(
   take: Take, s: LibrarySettings, fetchImpl: typeof fetch = fetch,
 ): Promise<UploadedAsset[]> {
-  if (!s.token.trim()) throw new LibraryError('Geen API-token ingesteld (maak er een aan in de admin van musicbrain.nl, scope media:upload).');
+  if (!s.token.trim()) throw new LibraryError('Geen API-token ingesteld. Maak er een aan op musicbrain.nl/admin: account-icoon → API tokens, vinkje upload media.');
   let res: Response;
   try {
     res = await fetchImpl(s.endpoint, {
@@ -90,12 +90,24 @@ export async function uploadTake(
   } catch (err) {
     throw new LibraryError(`Library niet bereikbaar (${err instanceof Error ? err.message : String(err)}). Staat de API al live, en editor.musicbrain.nl in de CORS-allowlist?`);
   }
-  if (res.status === 401 || res.status === 403) throw new LibraryError('Token geweigerd: verlopen, ingetrokken of zonder scope media:upload.');
-  if (res.status === 413) throw new LibraryError('Te groot voor de library (maximale bestandsgrootte). Neem een kortere take op.');
   if (!res.ok) {
+    // Imprint geeft bij elke fout { error, file? }; alles-of-niets, dus bij
+    // een fout is er niets opgeslagen.
     let detail = '';
-    try { detail = (await res.text()).slice(0, 200); } catch { /* geen body */ }
-    throw new LibraryError(`Upload mislukt: HTTP ${res.status}${detail ? ` — ${detail}` : ''}`);
+    try {
+      const text = await res.text();
+      try {
+        const j = JSON.parse(text) as { error?: unknown; file?: unknown };
+        detail = [typeof j.error === 'string' ? j.error : '', typeof j.file === 'string' ? `(${j.file})` : ''].filter(Boolean).join(' ');
+      } catch { detail = text.slice(0, 200); }
+    } catch { /* geen body */ }
+    const why = res.status === 401 ? 'Token ongeldig, verlopen of ingetrokken.'
+      : res.status === 403 ? 'Token mist de scope "upload media", of je account mag niet uploaden.'
+      : res.status === 413 ? 'Een bestand is te groot (audio max 200 MB, data 20 MB). Neem een kortere take op.'
+      : res.status === 415 ? 'Bestandstype niet geaccepteerd door de library.'
+      : res.status === 400 ? 'De library weigerde de upload (leeg of kapot).'
+      : `Upload mislukt: HTTP ${res.status}.`;
+    throw new LibraryError(`${why}${detail ? ` ${detail}` : ''} Er is niets opgeslagen.`);
   }
   const body = await res.json().catch(() => null) as { assets?: unknown } | null;
   if (!body || !Array.isArray(body.assets)) throw new LibraryError('Onverwacht antwoord van de library (geen assets).');

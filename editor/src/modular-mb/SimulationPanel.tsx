@@ -452,7 +452,7 @@ export function SimulationPanel(): JSX.Element {
         {libOpen && (
           <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 8px', fontSize: 12, marginTop: 6, maxWidth: 520 }}>
             <label htmlFor="lib-token">API-token</label>
-            <input id="lib-token" type="password" value={lib.token} placeholder="uit de admin van musicbrain.nl (scope media:upload)"
+            <input id="lib-token" type="password" value={lib.token} placeholder="imp_… (admin → account → API tokens, vinkje upload media)"
               onChange={(e) => updateLib({ ...lib, token: e.target.value })} />
             <label htmlFor="lib-folder">Map</label>
             <input id="lib-folder" value={lib.folder} onChange={(e) => updateLib({ ...lib, folder: e.target.value })} />
@@ -463,8 +463,8 @@ export function SimulationPanel(): JSX.Element {
             <input id="lib-endpoint" value={lib.endpoint} onChange={(e) => updateLib({ ...lib, endpoint: e.target.value })} />
             <span />
             <span style={{ color: '#6b7280' }}>
-              Het token blijft alleen in deze browser. De library-API van musicbrain.nl is nog in aanbouw;
-              tot die live staat geeft de knop een melding.
+              Het token blijft alleen in deze browser. Maak het aan op musicbrain.nl/admin: account-icoon onderin → API tokens,
+              vinkje upload media. Het wordt één keer getoond. Voor een lokale MusicBrain: zet het endpoint op http://localhost:…/api/media.
             </span>
           </div>
         )}
