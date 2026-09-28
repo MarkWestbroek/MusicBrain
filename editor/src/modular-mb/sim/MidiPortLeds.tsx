@@ -56,30 +56,55 @@ function useMonitorTick(): number {
   return performance.now();
 }
 
-export function MidiPortLeds({ ports, placements, controlState, r }: {
+/** Zelfde maat als de Act-LED (medium). */
+const LED_R = 1.1;
+
+function Led({ x, y, on }: { x: number; y: number; on: boolean }): JSX.Element {
+  return (
+    <>
+      <circle cx={x} cy={y} r={LED_R + 0.9} fill="transparent" />
+      <circle cx={x} cy={y} r={LED_R + 0.4} fill="#0a0a0a" />
+      <circle cx={x} cy={y} r={LED_R} fill={on ? '#22c55e' : '#333'}
+        style={on ? { filter: `drop-shadow(0 0 ${LED_R * 1.4}px #22c55e)` } : undefined} />
+    </>
+  );
+}
+
+export function MidiPortLeds({ ports, placements, controlState, r, act }: {
   ports: Port[];
   placements: Record<string, { x: number; y: number } | undefined>;
   controlState?: Record<string, ControlValue>;
   r: number;
+  /** Plek van de Act-LED op het paneel: knippert bij elk bericht naar de patch. */
+  act?: { x: number; y: number };
 }): JSX.Element {
   const now = useMonitorTick();
+  const list = midiMonitor.list();
+  let lastPatch: (typeof list)[number] | undefined;
+  for (let i = list.length - 1; i >= 0; i--) if (list[i]!.dir === 'patch') { lastPatch = list[i]; break; }
+  const actOn = !!lastPatch && now - lastPatch.t < FLASH_MS;
   const cc1 = Number(controlState?.cc1Num ?? 74), cc2 = Number(controlState?.cc2Num ?? 71);
   return (
     <g>
+      {act && (
+        <g style={{ cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); openMidiMonitor(); }}>
+          <title>{`MIDI-activiteit naar de patch${lastPatch ? ` · laatste: ${((now - lastPatch.t) / 1000).toFixed(1)} s geleden` : ' · nog niets'}
+Klik: MIDI-monitor`}</title>
+          <Led x={act.x} y={act.y} on={actOn} />
+        </g>
+      )}
       {ports.filter((p) => p.direction === 'out').map((p) => {
         const pl = placements[p.id];
         if (!pl) return null;
         const info = portActivity(p.id, midiMonitor.activity, cc1, cc2, now);
         if (info === null && !['pitch', 'vel', 'rel'].includes(p.id)) return null;
         const on = !!info && (info.steady || now - info.t < FLASH_MS);
-        const x = pl.x - r - 0.9, y = pl.y - r - 1.0;
+        // Midden boven de jack, vrij van het uitgangspijltje rechtsboven.
+        const x = pl.x, y = pl.y - r - LED_R - 1.2;
         return (
           <g key={p.id} style={{ cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); openMidiMonitor(); }}>
             <title>{`${p.name}: ${info?.text ?? 'nog niets ontvangen'}\nKlik: MIDI-monitor`}</title>
-            <circle cx={x} cy={y} r={1.3} fill="transparent" />
-            <circle cx={x} cy={y} r={0.75} fill="#0a0a0a" />
-            <circle cx={x} cy={y} r={0.55} fill={on ? '#22c55e' : '#1f3b2a'}
-              style={on ? { filter: 'drop-shadow(0 0 0.8px #22c55e)' } : undefined} />
+            <Led x={x} y={y} on={on} />
           </g>
         );
       })}

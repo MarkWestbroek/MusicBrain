@@ -198,7 +198,8 @@ export function ModulePanel({
       {mod.typeId === 'tp_mmb_out' && <OutVuMeter cx={widthMm / 2} yTop={46} />}
       {/* MIDI-activiteit per uitgang (sim); mouseover = laatste waarde, klik = monitor. */}
       {mod.typeId === 'tp_mmb_midiin' && (
-        <MidiPortLeds ports={ports} placements={visual.portPlacements} controlState={controlState} r={JACK_R} />
+        <MidiPortLeds ports={ports} placements={visual.portPlacements} controlState={controlState} r={JACK_R}
+          act={visual.controlPlacements.act} />
       )}
       {mod.typeId === 'tp_mmb_sampler' && (
         <SamplerBankStrip cx={widthMm / 2} y={15.6} w={widthMm * 0.62}
