@@ -341,6 +341,14 @@ export function applyModulePreset(
   if (!target || target.typeId !== preset.typeId) return null;
   const activeId = project.activePatchId ?? project.patches[0]?.id;
   if (!activeId) return null;
+  // Zit de module in een PolyGroup van modules (SID 3-osc ×4, DX7 ×8, …),
+  // dan krijgen alle stemmen de preset — anders klinkt hij op één stem.
+  const group = project.racks
+    .flatMap((r) => r.polyGroups ?? [])
+    .find((g) => g.members.some((m) => m.kind === 'module' && m.moduleId === targetModuleId));
+  const ids = group
+    ? group.members.filter((m) => m.kind === 'module').map((m) => m.moduleId)
+    : [targetModuleId];
   return {
     ...project,
     patches: project.patches.map((p) =>
@@ -348,7 +356,7 @@ export function applyModulePreset(
         ...p,
         controlState: {
           ...p.controlState,
-          [targetModuleId]: { ...preset.controlValues },
+          ...Object.fromEntries(ids.map((id) => [id, { ...preset.controlValues }])),
         },
       },
     ),

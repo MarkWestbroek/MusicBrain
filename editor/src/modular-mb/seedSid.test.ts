@@ -128,3 +128,16 @@ describe('SID-presets', () => {
     }
   });
 });
+
+describe('module-preset op een PolyGroup van modules', () => {
+  it('Ringbel op één SID 3-osc van de ×4 komt op alle vier de stemmen', async () => {
+    const { applyModulePreset, factoryModulePresets } = await import('./presets');
+    const p = seedSid3Patch(seedInternals(emptyModularProject()), 4);
+    const rack = p.racks.find((r) => r.id === p.activeRackId)!;
+    const members = rack.polyGroups![0]!.members.map((m) => m.moduleId);
+    const bell = factoryModulePresets.find((x) => x.id === 'fm_sid3_ring_bell')!;
+    const up = applyModulePreset(p, bell, members[3]!)!;          // de laatste, niet de master
+    const cs = up.patches.find((x) => x.id === up.activePatchId)!.controlState;
+    for (const id of members) expect(cs[id]).toMatchObject({ ring_2: 1, tri_2: 1, coarse_2: 5 });
+  });
+});
