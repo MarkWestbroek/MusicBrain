@@ -2,7 +2,7 @@
 // kiezen en lus aan/uit; transport en voortgang zitten in de pianorol.
 
 import { useEffect, useState } from 'react';
-import { MidiFileSource, parseSmf } from './midiFilePlayer';
+import { MidiFileSource, parseSmf, encodeEdited } from './midiFilePlayer';
 import { MidiRoll } from './MidiRoll';
 
 const fmt = (ms: number): string => {
@@ -10,7 +10,46 @@ const fmt = (ms: number): string => {
   return `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`;
 };
 
-export function MidiFileUi({ source, running, onStartSim }: { source: MidiFileSource; running: boolean; onStartSim?: () => void }): JSX.Element {
+export function MidiFileUi({ source, running, onStartSim, onReplace }: {
+  source: MidiFileSource; running: boolean; onStartSim?: () => void;
+  /** Vervang het .mid-bestand van de take in de library; geeft de slug terug. */
+  onReplace?: (slug: string, name: string, bytes: Uint8Array<ArrayBuffer>) => Promise<string>;
+}): JSX.Element {
+  const [saveMsg, setSaveMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [saving, setSaving] = useState(false);
+  /** Tempo, tel 1 en lus in het bestand zetten. */
+  function edited(): { bytes: Uint8Array<ArrayBuffer>; name: string } | null {
+    const bytes = encodeEdited(source);
+    const name = source.fileNameOf() ?? 'take.mid';
+    return bytes ? { bytes, name } : null;
+  }
+  /** Het nieuwe bestand laden; de plek blijft staan. */
+  function reloadFrom(bytes: Uint8Array<ArrayBuffer>, name: string): void {
+    const pos = source.position();
+    source.load(parseSmf(bytes), name, source.origin());
+    source.seek(pos);
+  }
+  function download(): void {
+    const e = edited(); if (!e) return;
+    const url = URL.createObjectURL(new Blob([e.bytes], { type: 'audio/midi' }));
+    const a = document.createElement('a'); a.href = url; a.download = e.name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    reloadFrom(e.bytes, e.name);
+    setSaveMsg({ ok: true, text: `${e.name} gedownload met tempo, tel 1 en lus.` });
+  }
+  async function replace(): Promise<void> {
+    const e = edited(); const o = source.origin();
+    if (!e || !o || !onReplace) return;
+    setSaving(true); setSaveMsg(null);
+    try {
+      await onReplace(o.slug, e.name, e.bytes);
+      reloadFrom(e.bytes, e.name);
+      setSaveMsg({ ok: true, text: 'Vervangen in de library; de vorige versie blijft in de geschiedenis.' });
+    } catch (err) {
+      setSaveMsg({ ok: false, text: err instanceof Error ? err.message : String(err) });
+    } finally { setSaving(false); }
+  }
   const [, setTick] = useState(0);
   const [err, setErr] = useState<string | null>(null);
   useEffect(() => source.onState(() => setTick((x) => x + 1)), [source]);
@@ -46,6 +85,18 @@ export function MidiFileUi({ source, running, onStartSim }: { source: MidiFileSo
       </label>
       {st.name && <span><strong>{st.name}</strong> · {st.events} events · {fmt(st.durationMs)}</span>}
       {!st.name && <span style={{ color: '#6b7280' }}>Kies een .mid; hij speelt zodra de sim draait. Ook de .mid van een sim-opname werkt.</span>}
+      {st.name && (
+        <span style={{ display: 'inline-flex', gap: 4 }}>
+          <button onClick={download} title="Download de .mid met het tempo, tel 1 en het lusvenster van nu (markers loopStart/loopEnd)">⤓ .mid</button>
+          {source.origin() && onReplace && (
+            <button onClick={() => void replace()} disabled={saving}
+              title="Zet deze .mid met het tempo, tel 1 en de lus van nu terug in de library, in plaats van het origineel">
+              {saving ? '… bezig' : '⤴ In library vervangen'}
+            </button>
+          )}
+        </span>
+      )}
+      {saveMsg && <span style={{ color: saveMsg.ok ? '#15803d' : '#b91c1c' }}>{saveMsg.ok ? '✔' : '⚠'} {saveMsg.text}</span>}
       {err && <span style={{ color: '#b91c1c' }}>⚠ {err}</span>}
     </div>
     <MidiRoll source={source} canPlay={running} onRequestStart={onStartSim} />

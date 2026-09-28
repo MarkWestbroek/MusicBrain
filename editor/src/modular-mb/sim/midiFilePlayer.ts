@@ -7,6 +7,7 @@
 // overgeslagen. Alle sporen worden samengevoegd tot één lijst in ms.
 
 import type { MidiEvent, MidiListener, MidiSource } from './MidiSource';
+import { encodeSmf, MARKER_LOOP_START, MARKER_LOOP_END, MARKER_TEL1 } from './midiRecorder';
 
 export interface SmfEvent { t: number; bytes: number[] }
 export interface ParsedSmf {
@@ -15,6 +16,10 @@ export interface ParsedSmf {
   bpm: number;
   /** Maatsoort-teller (4 als er geen staat). */
   beatsPerBar: number;
+  /** Uit markers "loopStart"/"loopEnd" (ms), als beide er staan. */
+  loop?: { start: number; end: number };
+  /** Uit marker "MMB tel 1" (ms): waar tel 1 van het raster ligt. */
+  tel1Ms?: number;
 }
 
 export class SmfError extends Error {}
@@ -34,6 +39,7 @@ export function parseSmf(buf: Uint8Array): ParsedSmf {
   const tempos: { tick: number; us: number }[] = [];
   let name: string | undefined;
   let timeSigNum: number | undefined;
+  const markers: { tick: number; text: string }[] = [];
   let order = 0;
   let endTick = 0;
   for (let tr = 0; tr < ntrks && p + 8 <= buf.length; tr++) {
@@ -53,6 +59,7 @@ export function parseSmf(buf: Uint8Array): ParsedSmf {
         const type = buf[q++]!; const n = vl();
         if (type === 0x51 && n === 3) tempos.push({ tick, us: (buf[q]! << 16) | (buf[q + 1]! << 8) | buf[q + 2]! });
         if (type === 0x58 && n >= 1 && timeSigNum === undefined) timeSigNum = buf[q]!;
+        if (type === 0x06) markers.push({ tick, text: new TextDecoder().decode(buf.slice(q, q + n)).trim() });
         if (type === 0x03 && name === undefined && tr === 0) name = new TextDecoder().decode(buf.slice(q, q + n));
         if (type === 0x2F) { endTick = Math.max(endTick, tick); }
         q += n; continue;
@@ -92,9 +99,16 @@ export function parseSmf(buf: Uint8Array): ParsedSmf {
   raws.sort((a, b) => a.tick - b.tick || a.order - b.order);
   const events = raws.map((r) => ({ t: toMs(r.tick), bytes: r.bytes }));
   const firstTempo = [...tempos].sort((a, b) => a.tick - b.tick)[0]?.us ?? 500_000;
+  const markerMs = (text: string): number | undefined => {
+    const m = markers.find((x) => x.text.toLowerCase() === text.toLowerCase());
+    return m ? toMs(m.tick) : undefined;
+  };
+  const ls = markerMs('loopStart'), le = markerMs('loopEnd'), tel1 = markerMs('MMB tel 1');
   return {
     events, durationMs: toMs(endTick), name: name || undefined, tracks: ntrks,
     bpm: division & 0x8000 ? 120 : 60_000_000 / firstTempo, beatsPerBar: timeSigNum || 4,
+    ...(ls !== undefined && le !== undefined && le > ls ? { loop: { start: ls, end: le } } : {}),
+    ...(tel1 !== undefined ? { tel1Ms: tel1 } : {}),
   };
 }
 
@@ -178,6 +192,8 @@ export class MidiFileSource implements MidiSource {
   private stateListeners = new Set<() => void>();
   private file: ParsedSmf | null = null;
   private fileName: string | null = null;
+  /** Waar dit bestand vandaan komt, als het uit de library kwam (voor terugzetten). */
+  private fileOrigin: { slug: string } | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
   private t0 = 0;
   private idx = 0;
@@ -200,18 +216,23 @@ export class MidiFileSource implements MidiSource {
   onState(fn: () => void): () => void { this.stateListeners.add(fn); return () => { this.stateListeners.delete(fn); }; }
   private changed(): void { this.stateListeners.forEach((fn) => fn()); }
 
-  load(file: ParsedSmf, name: string): void {
+  load(file: ParsedSmf, name: string, origin: { slug: string } | null = null): void {
     const wasPlaying = this.timer !== null;
+    this.fileOrigin = origin;
     this.halt();
-    this.file = file; this.fileName = name; this.startAt = 0; this.loopRegion = null; this.gridOverride = null;
+    this.file = file; this.fileName = name; this.startAt = 0; this.gridOverride = null;
+    this.loopRegion = file.loop ? { ...file.loop } : null;
     if (wasPlaying) this.start(); else this.changed();
   }
 
   parsed(): ParsedSmf | null { return this.file; }
 
+  origin(): { slug: string } | null { return this.fileOrigin; }
+  fileNameOf(): string | null { return this.fileName; }
+
   /** Het raster: dat van het bestand, met je eigen tempo/tel 1 erover. */
   grid(): Grid {
-    const base: Grid = { bpm: this.file?.bpm ?? 120, offsetMs: 0, beatsPerBar: this.file?.beatsPerBar ?? 4 };
+    const base: Grid = { bpm: this.file?.bpm ?? 120, offsetMs: this.file?.tel1Ms ?? 0, beatsPerBar: this.file?.beatsPerBar ?? 4 };
     return { ...base, ...(this.gridOverride ?? {}) };
   }
 
@@ -358,4 +379,23 @@ export class MidiFileSource implements MidiSource {
       this.halt(); this.startAt = 0; this.changed();
     }
   }
+}
+
+/**
+ * Het geladen bestand opnieuw schrijven met het raster en het lusvenster van
+ * nu: tempo en maatsoort in de kop, tel 1 en de lus als markers. De tijden van
+ * de noten blijven exact (ms), alleen de ticks verschuiven mee met het tempo.
+ */
+export function encodeEdited(src: MidiFileSource): Uint8Array<ArrayBuffer> | null {
+  const f = src.parsed();
+  if (!f) return null;
+  const g = src.grid();
+  const r = src.state().region;
+  const markers: { t: number; text: string }[] = [];
+  if (g.offsetMs > 0) markers.push({ t: g.offsetMs, text: MARKER_TEL1 });
+  if (r) markers.push({ t: r.start, text: MARKER_LOOP_START }, { t: r.end, text: MARKER_LOOP_END });
+  return encodeSmf(
+    f.events.map((e) => ({ t: e.t, status: e.bytes[0]!, d1: e.bytes[1] ?? 0, d2: e.bytes[2] ?? 0 })),
+    { lengthMs: f.durationMs, name: f.name, bpm: g.bpm, beatsPerBar: g.beatsPerBar, markers },
+  );
 }

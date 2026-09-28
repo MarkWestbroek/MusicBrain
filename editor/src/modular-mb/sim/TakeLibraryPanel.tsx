@@ -7,7 +7,7 @@ import { listTakes, fetchAsset, type TakeEntry } from './takeLibrary';
 
 export function TakeLibraryPanel({ settings, onMidi, onPatch }: {
   settings: LibrarySettings;
-  onMidi: (bytes: Uint8Array, name: string) => void;
+  onMidi: (bytes: Uint8Array, name: string, slug: string) => void;
   onPatch: (bytes: Uint8Array, name: string) => void;
 }): JSX.Element {
   const [folder, setFolder] = useState(settings.folder);
@@ -30,7 +30,7 @@ export function TakeLibraryPanel({ settings, onMidi, onPatch }: {
     setBusy(`${t.group}:${what}`); setMsg(null);
     try {
       const bytes = await fetchAsset(asset);
-      if (what === 'mid') onMidi(bytes, `${t.group}.mid`); else onPatch(bytes, t.group);
+      if (what === 'mid') onMidi(bytes, `${t.group}.mid`, asset.slug); else onPatch(bytes, t.group);
       setMsg({ ok: true, text: what === 'mid' ? `${t.group}.mid staat in de MIDI-speler (bron: MIDI-bestand).` : `Patch van ${t.group} toegevoegd en actief.` });
     } catch (e) {
       setMsg({ ok: false, text: e instanceof Error ? e.message : String(e) });

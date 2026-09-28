@@ -17,7 +17,7 @@ import {
 } from './sim/wavRecorder';
 import { MidiRecorder, encodeSmf, patchSnapshot, siblingName, takeTempo, patchTempo } from './sim/midiRecorder';
 import {
-  loadLibrarySettings, saveLibrarySettings, uploadTake, parseTags, renameTake, splitTakeName, type LibrarySettings, type Take,
+  loadLibrarySettings, saveLibrarySettings, uploadTake, replaceAsset, parseTags, renameTake, splitTakeName, type LibrarySettings, type Take,
 } from './sim/mediaLibrary';
 import { dx7Host, WasmModule } from './runtime';
 import { simSupportOf, type SimSupport } from './sim/simSupport';
@@ -95,9 +95,9 @@ export function SimulationPanel(): JSX.Element {
   const [lib, setLib] = useState<LibrarySettings>(loadLibrarySettings);
   const [libOpen, setLibOpen] = useState(false);
   const [takesOpen, setTakesOpen] = useState(false);
-  function takeMidi(bytes: Uint8Array, name: string): void {
+  function takeMidi(bytes: Uint8Array, name: string, slug: string): void {
     const file = sources.file as MidiFileSource;
-    file.load(parseSmf(bytes), name);
+    file.load(parseSmf(bytes), name, { slug });
     if (sourceId !== 'file') switchSource('file');
   }
   function takePatch(bytes: Uint8Array, name: string): void {
@@ -534,7 +534,8 @@ export function SimulationPanel(): JSX.Element {
             </label>
           ))}
         </div>
-        <SourceControls source={source} sourceId={sourceId} running={status.running} onStartSim={() => void startAll()} />
+        <SourceControls source={source} sourceId={sourceId} running={status.running} onStartSim={() => void startAll()}
+          onReplace={async (slug, name, bytes) => (await replaceAsset(slug, { name, blob: new Blob([bytes], { type: 'audio/midi' }) }, lib)).slug} />
       </fieldset>
 
       <ModuleMatchSummary project={project} patch={patch} />
@@ -542,10 +543,11 @@ export function SimulationPanel(): JSX.Element {
   );
 }
 
-function SourceControls({ source, sourceId, running, onStartSim }: {
+function SourceControls({ source, sourceId, running, onStartSim, onReplace }: {
   source: MidiSource; sourceId: SourceId; running: boolean; onStartSim: () => void;
+  onReplace: (slug: string, name: string, bytes: Uint8Array<ArrayBuffer>) => Promise<string>;
 }): JSX.Element {
-  if (sourceId === 'file')     return <MidiFileUi source={source as MidiFileSource} running={running} onStartSim={onStartSim} />;
+  if (sourceId === 'file')     return <MidiFileUi source={source as MidiFileSource} running={running} onStartSim={onStartSim} onReplace={onReplace} />;
   if (sourceId === 'screen')   return <ScreenKeyboardUi source={source as ScreenKeyboardSource} />;
   if (sourceId === 'sequence') return <SequenceUi      source={source as TestSequenceSource} />;
   return <WebMidiUi source={source as WebMidiSource} />;

@@ -43,7 +43,20 @@ function varLen(n: number): number[] {
  * wordt overgeslagen. `lengthMs` zet het End-of-Track op de lengte van de
  * audio, zodat beide bestanden in een DAW even lang zijn.
  */
-export function encodeSmf(events: readonly MidiEvent[], opts: { lengthMs?: number; name?: string; bpm?: number } = {}): Uint8Array<ArrayBuffer> {
+/** Marker-namen die de speler terugleest (DAW's tonen ze als markers). */
+export const MARKER_LOOP_START = 'loopStart';
+export const MARKER_LOOP_END = 'loopEnd';
+export const MARKER_TEL1 = 'MMB tel 1';
+
+export interface SmfOptions {
+  lengthMs?: number; name?: string; bpm?: number;
+  /** Tellen per maat (maatsoort x/4), standaard 4. */
+  beatsPerBar?: number;
+  /** Markers (meta 0x06) op een tijd in ms: lus, tel 1. */
+  markers?: { t: number; text: string }[];
+}
+
+export function encodeSmf(events: readonly MidiEvent[], opts: SmfOptions = {}): Uint8Array<ArrayBuffer> {
   // Het tempo bepaalt alleen hoe ticks naar tijd gaan; de tijden blijven exact.
   const bpm = opts.bpm && opts.bpm >= 20 && opts.bpm <= 400 ? opts.bpm : SMF_BPM;
   const TICKS_PER_MS = (SMF_PPQ * bpm) / 60_000;
@@ -52,18 +65,26 @@ export function encodeSmf(events: readonly MidiEvent[], opts: { lengthMs?: numbe
   if (opts.name) meta(0x03, [...new TextEncoder().encode(opts.name)]);
   const us = Math.round(60_000_000 / bpm);
   meta(0x51, [(us >> 16) & 0xFF, (us >> 8) & 0xFF, us & 0xFF]);
-  meta(0x58, [4, 2, 24, 8]);
+  const bpb = Math.max(1, Math.min(32, Math.round(opts.beatsPerBar ?? 4)));
+  meta(0x58, [bpb, 2, 24, 8]);
 
-  const sorted = events
-    .filter((e) => e.status >= 0x80 && e.status < 0xF0)
-    .map((e, i) => ({ e, i }))
-    .sort((a, b) => a.e.t - b.e.t || a.i - b.i)
-    .map((x) => x.e);
+  // Kanaalberichten en markers samen op tijd; markers vóór events op hetzelfde moment.
+  type Item = { t: number; order: number; e?: MidiEvent; marker?: string };
+  const items: Item[] = [
+    ...(opts.markers ?? []).map((m, i) => ({ t: m.t, order: -1_000_000 + i, marker: m.text })),
+    ...events.filter((e) => e.status >= 0x80 && e.status < 0xF0).map((e, i) => ({ t: e.t, order: i, e })),
+  ].sort((a, b) => a.t - b.t || a.order - b.order);
   let last = 0;
-  for (const e of sorted) {
-    const tick = Math.max(last, Math.round(Math.max(0, e.t) * TICKS_PER_MS));
-    track.push(...varLen(tick - last), e.status & 0xFF, e.d1 & 0x7F);
-    if (dataLen(e.status) === 2) track.push(e.d2 & 0x7F);
+  for (const it of items) {
+    const tick = Math.max(last, Math.round(Math.max(0, it.t) * TICKS_PER_MS));
+    if (it.marker !== undefined) {
+      const txt = [...new TextEncoder().encode(it.marker)];
+      track.push(...varLen(tick - last), 0xFF, 0x06, ...varLen(txt.length), ...txt);
+    } else {
+      const e = it.e!;
+      track.push(...varLen(tick - last), e.status & 0xFF, e.d1 & 0x7F);
+      if (dataLen(e.status) === 2) track.push(e.d2 & 0x7F);
+    }
     last = tick;
   }
   const endTick = Math.max(last, Math.round((opts.lengthMs ?? 0) * TICKS_PER_MS));

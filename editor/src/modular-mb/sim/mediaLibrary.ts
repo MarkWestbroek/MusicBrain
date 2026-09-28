@@ -140,3 +140,36 @@ export function renameTake(take: Take, name: string): Take {
     files: take.files.map((f) => ({ ...f, name: f.name.startsWith(take.group) ? group + f.name.slice(take.group.length) : f.name })),
   };
 }
+
+/**
+ * Eén bestand van een bestaande take vervangen (PUT /api/media/<slug>,
+ * multipart `file`, scope media:upload). Zelfde soort verplicht (.mid door
+ * .mid); de library bewaart de vorige versie in de geschiedenis.
+ */
+export async function replaceAsset(
+  slug: string, file: { name: string; blob: Blob }, s: LibrarySettings, fetchImpl: typeof fetch = fetch,
+): Promise<UploadedAsset> {
+  if (!s.token.trim()) throw new LibraryError('Geen API-token ingesteld.');
+  const form = new FormData();
+  form.append('file', file.blob, file.name);
+  let res: Response;
+  try {
+    res = await fetchImpl(`${s.endpoint.replace(/\/$/, '')}/${encodeURIComponent(slug)}`, {
+      method: 'PUT', headers: { Authorization: `Bearer ${s.token.trim()}` }, body: form,
+    });
+  } catch (err) {
+    throw new LibraryError(`Library niet bereikbaar (${err instanceof Error ? err.message : String(err)}).`);
+  }
+  if (!res.ok) {
+    let detail = '';
+    try { const j = JSON.parse(await res.text()) as { error?: unknown }; if (typeof j.error === 'string') detail = ` ${j.error}`; } catch { /* geen json */ }
+    const why = res.status === 404 ? 'Dit bestand bestaat niet (meer) in de library.'
+      : res.status === 403 ? 'Geen recht om dit bestand te vervangen (vinkje "upload media").'
+      : res.status === 401 ? 'Token ongeldig, verlopen of ingetrokken.'
+      : res.status === 415 ? 'Ander bestandstype dan het origineel.'
+      : res.status === 405 ? 'De library kent vervangen nog niet (PUT /api/media/<slug>).'
+      : `Vervangen mislukt: HTTP ${res.status}.`;
+    throw new LibraryError(why + detail);
+  }
+  return await res.json() as UploadedAsset;
+}

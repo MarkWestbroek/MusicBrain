@@ -175,3 +175,29 @@ describe('snelheid en controller-laag', () => {
     expect(c[2]!.points[0]!.v).toBeCloseTo(0.5, 2);
   });
 });
+
+describe('tempo, tel 1 en lus in het bestand', () => {
+  it('encodeEdited schrijft ze; opnieuw laden zet raster en lusvenster terug, tijden exact', async () => {
+    const { encodeEdited } = await import('./midiFilePlayer');
+    const src = new MidiFileSource(() => 0, 1_000_000);
+    src.load(parseSmf(encodeSmf([
+      { t: 0, status: 0x90, d1: 60, d2: 100 }, { t: 1234, status: 0x80, d1: 60, d2: 0 },
+      { t: 2500, status: 0xD0, d1: 50, d2: 0 },
+    ], { lengthMs: 4000 })), 'take.mid');
+    src.setGrid({ bpm: 96.5, offsetMs: 310 });
+    src.setRegion({ start: 600, end: 3100 });
+    const bytes = encodeEdited(src)!;
+    const back = parseSmf(bytes);
+    expect(back.bpm).toBeCloseTo(96.5, 1);
+    expect(back.tel1Ms).toBeCloseTo(310, 0);
+    expect(back.loop!.start).toBeCloseTo(600, 0);
+    expect(back.loop!.end).toBeCloseTo(3100, 0);
+    expect(back.events.map((e) => Math.round(e.t))).toEqual([0, 1234, 2500]);
+    const again = new MidiFileSource(() => 0, 1_000_000);
+    again.load(back, 'take.mid', { slug: 's1' });
+    expect(again.grid().offsetMs).toBeCloseTo(310, 0);
+    expect(again.state().region!.start).toBeCloseTo(600, 0);
+    expect(again.gridIsCustom()).toBe(false);
+    expect(again.origin()).toEqual({ slug: 's1' });
+  });
+});

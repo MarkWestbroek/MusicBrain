@@ -62,3 +62,24 @@ describe('take hernoemen', () => {
     expect(slugName('Café Élan')).toBe('cafe-elan');
   });
 });
+
+describe('replaceAsset', () => {
+  it('PUT naar /api/media/<slug> met één file; heldere fouten', async () => {
+    const { replaceAsset } = await import('./mediaLibrary');
+    const calls: [string, RequestInit][] = [];
+    const ok = (async (url: string, init: RequestInit) => {
+      calls.push([url, init]);
+      return new Response(JSON.stringify({ slug: 'mid-1', kind: 'data', url: '/x', group: 'g' }), { status: 200 });
+    }) as unknown as typeof fetch;
+    const f = { name: 'x.mid', blob: new Blob([new Uint8Array(4)]) };
+    const r = await replaceAsset('mid 1', f, settings, ok);
+    expect(r.slug).toBe('mid-1');
+    expect(calls[0]![0]).toBe('https://musicbrain.nl/api/media/mid%201');
+    expect(calls[0]![1].method).toBe('PUT');
+    expect(((calls[0]![1].body as FormData).get('file') as File).name).toBe('x.mid');
+    const st = (s: number) => (async () => new Response('{"error":"nee"}', { status: s })) as unknown as typeof fetch;
+    await expect(replaceAsset('m', f, settings, st(404))).rejects.toThrow(/bestaat niet/);
+    await expect(replaceAsset('m', f, settings, st(415))).rejects.toThrow(/Ander bestandstype/);
+    await expect(replaceAsset('m', f, settings, st(405))).rejects.toThrow(/kent vervangen nog niet/);
+  });
+});
