@@ -31,8 +31,9 @@
   cutoff 700, res 8.
 - Tests: mapping, LP/HP, resonantie (5,7× op de cutoff), notch, EXT IN
   (core-tests 129); wasm: lowpass en EXT IN.
-- Nog niet op de Teensy gemeten (een andere sessie had lopend LFO-werk in
-  de werkboom; niet mee-geflasht).
+- **Gemeten op de Teensy** (saw C3, cutoff 60 ≈ 381 Hz): grondtoon 0,99×,
+  10e harmonische −21 dB (12 dB/oct over 1,8 oct); res 15 geeft 5,5× op de
+  cutoff (pc-kern 5,7×). Cpu hele patch 12,1 %.
 
 ### fw 0.5.81 — SID: combined waveforms als bitlijn-model + Combo-knop (2026-09-28)
 - Combined waveforms zijn geen zuivere AND meer maar een eigen
