@@ -4,7 +4,7 @@
 //   - sleep in de liniaal = lusvenster (klikt op tellen, Alt = vrij);
 //     dubbelklik op het oranje venster = weg;
 //   - transport: ⏪ maat terug · ▶/⏸ · ■ stop · ⏩ maat verder
-//     (Shift = naar begin/einde);
+//     (dubbelklik of Shift = naar begin/einde);
 //   - breedte volgt de ruimte; hoogte met de greep onderaan (of vast via prop).
 
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -201,14 +201,14 @@ export function MidiRoll({ source, canPlay = true, height }: {
       )}
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 11, color: '#64748b', marginTop: 4, flexWrap: 'wrap' }}>
         <span style={{ display: 'inline-flex', gap: 3 }}>
-          <button style={tbtn} onClick={(e) => step(-1, e.shiftKey)} title="Eén maat terug (Shift: naar het begin)">⏪</button>
+          <button style={tbtn} onClick={(e) => step(-1, e.shiftKey)} onDoubleClick={() => step(-1, true)} title="Eén maat terug (dubbelklik of Shift: naar het begin)">⏪</button>
           {st.playing
             ? <button style={tbtn} onClick={() => source.pause()} title="Pauze">⏸</button>
             : <button style={tbtn} onClick={() => source.start()} disabled={!canPlay}
                 title={canPlay ? 'Afspelen vanaf de afspeelkop' : 'Start eerst de sim'}>▶</button>}
           <button style={tbtn} onClick={() => source.rewind()} title="Stop en terug naar het begin (van het lusvenster)"
             disabled={!st.playing && st.posMs === (st.region?.start ?? 0)}>■</button>
-          <button style={tbtn} onClick={(e) => step(1, e.shiftKey)} title="Eén maat verder (Shift: naar het einde)">⏩</button>
+          <button style={tbtn} onClick={(e) => step(1, e.shiftKey)} onDoubleClick={() => step(1, true)} title="Eén maat verder (dubbelklik of Shift: naar het einde)">⏩</button>
         </span>
         <span style={{ fontVariantNumeric: 'tabular-nums' }}>{fmt(st.posMs)} / {fmt(st.durationMs)} · {Math.round(file.bpm)} BPM</span>
         {st.region
