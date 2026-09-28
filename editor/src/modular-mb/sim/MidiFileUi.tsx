@@ -10,7 +10,7 @@ const fmt = (ms: number): string => {
   return `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`;
 };
 
-export function MidiFileUi({ source, running }: { source: MidiFileSource; running: boolean }): JSX.Element {
+export function MidiFileUi({ source, running, onStartSim }: { source: MidiFileSource; running: boolean; onStartSim?: () => void }): JSX.Element {
   const [, setTick] = useState(0);
   const [err, setErr] = useState<string | null>(null);
   useEffect(() => source.onState(() => setTick((x) => x + 1)), [source]);
@@ -38,11 +38,10 @@ export function MidiFileUi({ source, running }: { source: MidiFileSource; runnin
         <input type="checkbox" checked={st.loop} onChange={(e) => source.setLoop(e.target.checked)} /> lus
       </label>
       {st.name && <span><strong>{st.name}</strong> · {st.events} events · {fmt(st.durationMs)}</span>}
-      {st.name && !running && <span style={{ color: '#6b7280' }}>Start de sim om af te spelen.</span>}
       {!st.name && <span style={{ color: '#6b7280' }}>Kies een .mid; hij speelt zodra de sim draait. Ook de .mid van een sim-opname werkt.</span>}
       {err && <span style={{ color: '#b91c1c' }}>⚠ {err}</span>}
     </div>
-    <MidiRoll source={source} canPlay={running} />
+    <MidiRoll source={source} canPlay={running} onRequestStart={onStartSim} />
     </div>
   );
 }

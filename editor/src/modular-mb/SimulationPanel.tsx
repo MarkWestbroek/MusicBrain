@@ -528,7 +528,7 @@ export function SimulationPanel(): JSX.Element {
             </label>
           ))}
         </div>
-        <SourceControls source={source} sourceId={sourceId} running={status.running} />
+        <SourceControls source={source} sourceId={sourceId} running={status.running} onStartSim={() => void startAll()} />
       </fieldset>
 
       <ModuleMatchSummary project={project} patch={patch} />
@@ -536,10 +536,10 @@ export function SimulationPanel(): JSX.Element {
   );
 }
 
-function SourceControls({ source, sourceId, running }: {
-  source: MidiSource; sourceId: SourceId; running: boolean;
+function SourceControls({ source, sourceId, running, onStartSim }: {
+  source: MidiSource; sourceId: SourceId; running: boolean; onStartSim: () => void;
 }): JSX.Element {
-  if (sourceId === 'file')     return <MidiFileUi source={source as MidiFileSource} running={running} />;
+  if (sourceId === 'file')     return <MidiFileUi source={source as MidiFileSource} running={running} onStartSim={onStartSim} />;
   if (sourceId === 'screen')   return <ScreenKeyboardUi source={source as ScreenKeyboardSource} />;
   if (sourceId === 'sequence') return <SequenceUi      source={source as TestSequenceSource} />;
   return <WebMidiUi source={source as WebMidiSource} />;

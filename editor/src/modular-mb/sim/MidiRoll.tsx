@@ -64,10 +64,12 @@ function loadHeight(): number {
   return 132;
 }
 
-export function MidiRoll({ source, canPlay = true, height }: {
+export function MidiRoll({ source, canPlay = true, onRequestStart, height }: {
   source: MidiFileSource;
-  /** Transport-knoppen voor afspelen alleen als de klankbron klaar is (sim draait). */
+  /** Kan er geluid uit (sim draait)? Zo niet, dan start ▶ eerst via onRequestStart. */
   canPlay?: boolean;
+  /** Start de klankbron (de sim); die start daarna zelf de speler. */
+  onRequestStart?: () => void;
   /** Vaste hoogte (bv. in een widget); zonder = verstelbaar met de greep. */
   height?: number;
 }): JSX.Element {
@@ -200,6 +202,10 @@ export function MidiRoll({ source, canPlay = true, height }: {
     if ((d?.kind === 'draw' || d?.kind === 'inside') && !d.moved) source.seek(msOf(localX(e)));
   }
 
+  function play(): void {
+    if (canPlay) source.start(); else onRequestStart?.();
+  }
+
   // Spatiebalk = afspelen/pauze, zoals in een DAW. Alleen als de rol te zien
   // is (de Simulatie-tab blijft gemount, ook als hij verborgen is) en niet
   // tijdens typen; op een gefocuste knop vangen we hem zodat die niet ook klikt.
@@ -210,13 +216,13 @@ export function MidiRoll({ source, canPlay = true, height }: {
       if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
       if (!wrapRef.current || wrapRef.current.offsetParent === null || !source.parsed()) return;
       const s = source.state();
-      if (!s.playing && !canPlay) return;
+      if (!s.playing && !canPlay && !onRequestStart) return;
       e.preventDefault();
-      if (s.playing) source.pause(); else source.start();
+      if (s.playing) source.pause(); else play();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [source, canPlay]);
+  });
 
   // Hoogte verslepen
   const hDrag = useRef<{ y0: number; h0: number } | null>(null);
@@ -263,8 +269,8 @@ export function MidiRoll({ source, canPlay = true, height }: {
           <button style={tbtn} onClick={(e) => step(-1, e.shiftKey)} onDoubleClick={() => step(-1, true)} title="Eén maat terug (dubbelklik of Shift: naar het begin)" aria-label="Maat terug"><Icon kind="back" /></button>
           {st.playing
             ? <button style={tbtn} onClick={() => source.pause()} title="Pauze" aria-label="Pauze"><Icon kind="pause" /></button>
-            : <button style={tbtn} onClick={() => source.start()} disabled={!canPlay}
-                title={canPlay ? 'Afspelen vanaf de afspeelkop' : 'Start eerst de sim'} aria-label="Afspelen"><Icon kind="play" /></button>}
+            : <button style={tbtn} onClick={play} disabled={!canPlay && !onRequestStart}
+                title={canPlay ? 'Afspelen vanaf de afspeelkop' : 'Sim starten en afspelen vanaf de afspeelkop'} aria-label="Afspelen"><Icon kind="play" /></button>}
           <button style={tbtn} onClick={() => source.rewind()} title="Stop en terug naar het begin (van het lusvenster)"
             disabled={!st.playing && st.posMs === (st.region?.start ?? 0)} aria-label="Stop"><Icon kind="stop" /></button>
           <button style={tbtn} onClick={(e) => step(1, e.shiftKey)} onDoubleClick={() => step(1, true)} title="Eén maat verder (dubbelklik of Shift: naar het einde)" aria-label="Maat verder"><Icon kind="fwd" /></button>
