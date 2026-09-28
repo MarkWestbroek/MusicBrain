@@ -23,19 +23,25 @@
  *  - ADSR per stem, cycle-exact als integer-toestandsmachine: de periodetabel,
  *    het pseudo-exponentiële verval (knikpunten 93/54/26/14/6) en de 15-bit
  *    rate-teller — waardoor de ADSR-bug vanzelf ontstaat;
- *  - het filter, 8580-model (plan stap 4): een 2-polig state-variable filter
- *    (ZDF/TPT, 12 dB/oct) met LP/BP/HP combineerbaar (LP+HP = notch), 11-bit
- *    cutoff vrijwel lineair van ~30 Hz tot ~12 kHz, resonantie in 16 stappen
- *    tot Q ≈ 4 (geen zelfoscillatie); routing per stem en EXT IN. Mapping op
- *    het oor, niet gemeten;
+ *  - het filter: een 2-polig state-variable filter (ZDF/TPT, 12 dB/oct) met
+ *    LP/BP/HP combineerbaar (LP+HP = notch), routing per stem en EXT IN, in
+ *    twee modellen (setFilterModel):
+ *      8580 — cutoff vrijwel lineair ~30 Hz … ~12 kHz, resonantie tot Q ≈ 4,
+ *             schoon;
+ *      6581 — cutoff op een S-curve (onderaan ~220 Hz, in het midden steil,
+ *             spreiding per exemplaar via setCurve), minder resonantie (tot
+ *             Q ≈ 2,1), zachte begrenzing op de ingang en de bandpass-
+ *             toestand (grommende resonantie), plus DC per stem (doffe tik bij
+ *             het aanslaan) en een DC-term in de volume-DAC (volume-klik,
+ *             waarmee C64-spellen samples speelden).
+ *    Alle mappings op het oor, niet gemeten;
  *  - 4-bit master volume en 3OFF;
  *  - een DC-blokker op de uitgang (eerste-orde hoogdoorlaat, 10 Hz): de rol
  *    van de koppelcondensator op de C64. Combined waveforms liggen vaak op de
  *    bodem van de DAC en geven anders een gelijkspanning die met de PW
  *    meezwaait.
- * Nog niet: het 6581-filter (S-curve, verzadiging), de DC-offset van de 6581
- * en gemeten combined waveforms (de modelparameters zijn op het oor gekozen,
- * niet gemeten).
+ * Nog niet: metingen aan echte chips (filtercurves, combined waveforms,
+ * DC-niveaus); alle modelparameters zijn op het oor gekozen.
  *
  * Band-limited: niet cycle-exact. Per audio-sample schuift de accumulator
  * ~22 SID-cycli door; elke sprong in de golfvorm (wrap, pulsflank, sync-reset,
@@ -77,6 +83,36 @@ public:
     /** Q bij een 4-bit resonantiewaarde (8580-model): 0,707 … ≈ 4. */
     static float resonanceQ8580(int res) {
         return 0.7071f * std::exp2(static_cast<float>(res & 15) * (kResOctaves / 15.0f));
+    }
+
+    /**
+     * Cutoff in Hz bij een 11-bit registerwaarde (6581-model): een S-curve
+     * tussen ~220 Hz en ~16 kHz. @p curve (0..1) schuift het steile midden:
+     * 0 = helder exemplaar, 1 = donker exemplaar, 0,5 = gemiddeld.
+     */
+    static float cutoffHz6581(int reg, float curve) {
+        const float x = static_cast<float>(reg < 0 ? 0 : (reg > 2047 ? 2047 : reg)) / 2047.0f;
+        const float m = 0.55f + (curve - 0.5f) * 0.3f;
+        auto sig = [&](float t) { return 1.0f / (1.0f + std::exp(-kCurveSteep * (t - m))); };
+        const float lo = sig(0.0f), hi = sig(1.0f);
+        return kFcLo6581 + (kFcHi6581 - kFcLo6581) * (sig(x) - lo) / (hi - lo);
+    }
+    /** Q bij een 4-bit resonantiewaarde (6581-model): 0,707 … ≈ 2,1. */
+    static float resonanceQ6581(int res) {
+        return 0.7071f * std::exp2(static_cast<float>(res & 15) * (kResOctaves6581 / 15.0f));
+    }
+
+    enum FilterModel { kModel6581 = 0, kModel8580 = 1 };
+    /** Filter- en uitgangsmodel van de chip (6581 of 8580). */
+    void setFilterModel(int m) { model_ = m == kModel8580 ? kModel8580 : kModel6581; updateFilter(); }
+    int  filterModel() const   { return model_; }
+    /** Spreiding van de 6581-cutoffcurve per exemplaar, 0..1 (0,5 = gemiddeld). */
+    void setCurve(float c)     { curve_ = c < 0.f ? 0.f : (c > 1.f ? 1.f : c); updateFilter(); }
+    /** Zet de DC-blokker op de huidige vaste gelijkspanning (6581: de
+     *  volume-DAC), zodat het laden van een patch geen tik geeft. */
+    void settleDc() {
+        dcX1_ = model_ == kModel6581 ? kMixDc6581 * static_cast<float>(regs_[0x18] & 0x0f) * (1.0f / 15.0f) : 0.0f;
+        dcY1_ = 0.0f;
     }
 
     void Reset() {
@@ -149,11 +185,15 @@ public:
         float direct = 0.0f, filtIn = 0.0f;
         const uint8_t modeVol = regs_[0x18];
         const uint8_t filt = regs_[0x17] & 0x0f;
+        const bool m6581 = model_ == kModel6581;
+        // 6581: de golfvorm-DAC staat niet rond nul; die offset schaalt mee
+        // met de envelope (doffe tik bij het aanslaan en loslaten).
+        const float voiceDc = m6581 ? kVoiceDc6581 : 0.0f;
         for (int i = 0; i < 3; ++i) {
             const float w = renderVoice(i, fr[(i + 2) % 3]);
             clockEnvelope(voice_[i], i, cycles);
             Voice& v = voice_[i];
-            const float out = w * v.prevEnv * (1.0f / 255.0f);
+            const float out = (w + voiceDc) * v.prevEnv * (1.0f / 255.0f);
             v.prevEnv = static_cast<float>(v.env);
             if (filt & (1u << i)) { filtIn += out; continue; }
             // 3OFF: stem 3 uit de mix, tenzij hij door het filter gaat.
@@ -161,7 +201,10 @@ public:
             direct += out;
         }
         if (filt & 0x08) filtIn += ext; else direct += ext;
-        const float x = (direct + processFilter(filtIn, modeVol))
+        // 6581: ook de volume-DAC voert een gelijkspanning mee, dus een
+        // volumewijziging geeft een stap (de volume-klik; zo speelden
+        // C64-spellen samples). De DC-blokker laat alleen de stap door.
+        const float x = (direct + processFilter(filtIn, modeVol) + (m6581 ? kMixDc6581 : 0.0f))
                       * static_cast<float>(modeVol & 0x0f) * (1.0f / 15.0f);
         // DC-blokker: y = x − x₋₁ + R·y₋₁.
         const float y = x - dcX1_ + dcR_ * dcY1_;
@@ -189,15 +232,18 @@ private:
     /** Doelcoëfficiënten uit $15/$16 (cutoff) en $17 (resonantie). */
     void updateFilter() {
         const int fc = (regs_[0x15] & 7) | (regs_[0x16] << 3);
-        float hz = cutoffHz8580(fc);
+        const int res = regs_[0x17] >> 4;
+        float hz = model_ == kModel6581 ? cutoffHz6581(fc, curve_) : cutoffHz8580(fc);
         if (hz > 0.45f * fs_) hz = 0.45f * fs_;
         gTarget_ = std::tan(3.14159265f * hz / fs_);
-        k_ = 1.0f / resonanceQ8580(regs_[0x17] >> 4);
+        k_ = 1.0f / (model_ == kModel6581 ? resonanceQ6581(res) : resonanceQ8580(res));
     }
 
     /** ZDF-SVF (Zavalishin/Simper), één sample; somt de gekozen modes. */
     float processFilter(float in, uint8_t modeVol) {
         g_ += (gTarget_ - g_) * kCutoffGlide;         // cutoffsprongen ~1 ms gladstrijken
+        const bool m6581 = model_ == kModel6581;
+        if (m6581) in = softClip(in * kDrive6581) * (1.0f / kDrive6581);
         const float a1 = 1.0f / (1.0f + g_ * (g_ + k_));
         const float a2 = g_ * a1, a3 = g_ * a2;
         const float v3 = in - ic2_;
@@ -205,12 +251,23 @@ private:
         const float v2 = ic2_ + a2 * ic1_ + a3 * v3;  // laag
         ic1_ = 2.0f * v1 - ic1_;
         ic2_ = 2.0f * v2 - ic2_;
+        // 6581: de bandpass-integrator loopt vol — de resonantie gromt en
+        // blijft begrensd in plaats van schoon te piepen.
+        if (m6581) ic1_ = softClip(ic1_ * kStateSat6581) * (1.0f / kStateSat6581);
         const float hp = in - k_ * v1 - v2;
         float y = 0.0f;
         if (modeVol & 0x10) y += v2;
         if (modeVol & 0x20) y += v1;
         if (modeVol & 0x40) y += hp;
         return y;
+    }
+
+    /** Zachte begrenzer (rationele tanh-benadering), ±1 voorbij |x| = 3. */
+    static float softClip(float x) {
+        if (x > 3.0f) return 1.0f;
+        if (x < -3.0f) return -1.0f;
+        const float x2 = x * x;
+        return x * (27.0f + x2) / (27.0f + 9.0f * x2);
     }
 
     static constexpr uint32_t kLfsrInit = 0x7ffff8;
@@ -552,6 +609,12 @@ private:
     // Filter (8580-model): cutoff-bereik, resonantie tot 0,707·2^kResOctaves.
     static constexpr float kFcLo = 30.0f, kFcHi = 12000.0f, kResOctaves = 2.5f;
     static constexpr float kCutoffGlide = 0.02f;
+    // 6581-model (op het oor): S-curve, minder resonantie, begrenzing, DC.
+    static constexpr float kFcLo6581 = 220.0f, kFcHi6581 = 16000.0f, kCurveSteep = 10.0f;
+    static constexpr float kResOctaves6581 = 1.6f, kDrive6581 = 0.7f, kStateSat6581 = 0.8f;
+    static constexpr float kVoiceDc6581 = 0.2f, kMixDc6581 = 0.3f;
+    int     model_ = kModel6581;
+    float   curve_ = 0.5f;
     float   g_ = 0.0f, gTarget_ = 0.0f, k_ = 1.4142f, ic1_ = 0.0f, ic2_ = 0.0f;
 };
 
@@ -570,6 +633,7 @@ public:
         writeVolume();
         writeCutoff();
         writeResFilt();
+        chip_.settleDc();
     }
     SidChip& chip() { return chip_; }
 
@@ -619,6 +683,10 @@ public:
         writeVolume();
     }
     enum : uint8_t { kLp = 0x10, kBp = 0x20, kHp = 0x40 };
+    /** Chipmodel voor filter en uitgang: 0 = 6581, 1 = 8580. */
+    void setModel(int m)         { chip_.setFilterModel(m); chip_.settleDc(); }
+    /** Spreiding van de 6581-cutoffcurve, 0..1. */
+    void setCurve(float c)       { chip_.setCurve(c); }
 
     /** Eén sample, mono, ±1 (hard begrensd). @p ext = EXT IN (±1). */
     float Process(float ext = 0.0f) {

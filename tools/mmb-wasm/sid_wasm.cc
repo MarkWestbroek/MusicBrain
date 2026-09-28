@@ -29,15 +29,16 @@ MmbPort MMB_OUTPUTS[] = { { "out", MMB_AUDIO, 0, {} } };
 const int MMB_NUM_OUTPUTS = 1;
 
 enum { C_TRI, C_SAW, C_PULSE, C_NOISE, C_PW, C_RING, C_SYNC, C_ATTACK, C_DECAY, C_SUSTAIN, C_RELEASE,
-       C_COARSE, C_FINE, C_VOLUME, C_LEVEL, C_COMBO, C_CUTOFF, C_RES, C_FILT, C_LP, C_BP, C_HP };
+       C_COARSE, C_FINE, C_VOLUME, C_LEVEL, C_COMBO, C_CUTOFF, C_RES, C_FILT, C_LP, C_BP, C_HP, C_MODEL, C_CURVE };
 MmbControl MMB_CONTROLS[] = {
     { "tri", 0.f }, { "saw", 0.f }, { "pulse", 1.f }, { "noise", 0.f }, { "pw", 0.5f },
     { "ring", 0.f }, { "sync", 0.f },
     { "attack", 0.f }, { "decay", 9.f }, { "sustain", 10.f }, { "release", 9.f },
     { "coarse", 0.f }, { "fine", 0.f }, { "volume", 15.f }, { "level", 0.8f }, { "combo", 7.f },
     { "cutoff", 1024.f }, { "res", 0.f }, { "filt", 0.f }, { "lp", 1.f }, { "bp", 0.f }, { "hp", 0.f },
+    { "model", 0.f }, { "curve", 0.5f },
 };
-const int MMB_NUM_CONTROLS = 22;
+const int MMB_NUM_CONTROLS = 24;
 
 namespace {
 mmb_dsp::SidSynth g_sid;
@@ -71,6 +72,8 @@ void mmb_on_control(int idx, float v) {
         case C_LP:      g_sid.setMode(mmb_dsp::SidSynth::kLp, v >= 0.5f); break;
         case C_BP:      g_sid.setMode(mmb_dsp::SidSynth::kBp, v >= 0.5f); break;
         case C_HP:      g_sid.setMode(mmb_dsp::SidSynth::kHp, v >= 0.5f); break;
+        case C_MODEL:   g_sid.setModel(nib(v)); break;
+        case C_CURVE:   g_sid.setCurve(v); break;
     }
 }
 

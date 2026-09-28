@@ -106,8 +106,9 @@ golfvormen met een zachte afronding) en dat eerlijk zo labelen.
 4. **Klaar (fw 0.5.82).** Filter 8580: ZDF-SVF 12 dB/oct, LP/BP/HP
    combineerbaar, cutoff lineair ~30 Hz … ~12 kHz, res tot Q ≈ 4, routing
    (Filt) en EXT IN. Mapping op het oor.
-5. Filter 6581: S-curve, verzadiging, "Curve"-knop; DC-offset per stem en
-   de volume-klik (digi's), met DC-blokker.
+5. **Klaar (fw 0.5.83).** 6581-model: S-curve met Curve-knop, zwakkere
+   resonantie, zachte begrenzing, DC per stem en de volume-klik; schakelaar
+   Chip 6581/8580. Op het oor.
 6. Combined waveforms. **Model klaar (fw 0.5.81):** bitlijn-model met
    zachte drempel en een Combo-knop (0 = AND, 4 = 8580, 7 = 6581, 10 =
    verder), noise-terugschrijving in de LFSR. Parameters op het oor; later

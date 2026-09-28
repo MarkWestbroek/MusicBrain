@@ -17,6 +17,21 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### fw 0.5.83 — SID: 6581-model voor filter en uitgang (2026-09-28)
+- Schakelaar **Chip 6581/8580** (standaard 6581) kiest het model van filter
+  en uitgang; knop **Curve** (0..1) voor de spreiding tussen 6581-exemplaren.
+- 6581-filter: cutoff op een S-curve (reg 0 ≈ 220 Hz, 200 ≈ 330 Hz, 1024
+  ≈ 6,2 kHz, 2047 ≈ 16 kHz bij curve 0,5), resonantie tot Q ≈ 2,1, zachte
+  begrenzing op de ingang en de bandpass-toestand (3e harmonische 2,7 % bij
+  een hard signaal; 8580: 0).
+- 6581-uitgang: DC per stem (doffe tik bij aanslaan en loslaten) en een
+  DC-term in de volume-DAC (volume-klik, de digi-truc: stap 0,30). De
+  DC-blokker staat bij Init en bij een modelwissel meteen goed, dus geen tik
+  bij het laden van een patch.
+- Alle 6581-parameters op het oor, niet gemeten. Core-tests 134, editor 640.
+- Geflasht maar **nog niet bevestigd** met hello: de editor had de COM-poort
+  open.
+
 ### fw 0.5.82 — SID: filter, 8580-model (2026-09-28)
 - `mmb_dsp::SidChip` krijgt het filter: een 2-polig state-variable filter
   (ZDF/TPT, 12 dB/oct) met LP/BP/HP combineerbaar zoals op de chip (LP+HP =

@@ -5,7 +5,7 @@
  *
  * DSP: mmb_dsp::SidSynth / SidChip (firmware/lib/mmb-dsp/mmb_dsp/sid.h),
  * dezelfde header als de wasm in de simulator. Eigen, clean-room emulatie
- * op registerniveau — zie doc/plans/sid.md. Filter: 8580-model.
+ * op registerniveau — zie doc/plans/sid.md. Filter: 6581- of 8580-model.
  *
  * Multi-module zoals de sampler: drie cellen `voct_k` / `gate_k` (k = 1..3),
  * de stemtoewijzing doet MIDI-in (PolyGroup over de cellen). Een kale
@@ -26,7 +26,8 @@
  * registerwaarden), coarse (st), fine (ct), volume (0..15), level (0..1),
  * combo (0..10: sterkte van de combined waveforms; 0 = AND, 4 ≈ 8580, 7 ≈ 6581),
  * cutoff (0..2047, het 11-bit register), res (0..15), filt (stemmen door het
- * filter), lp/bp/hp (modes, combineerbaar).
+ * filter), lp/bp/hp (modes, combineerbaar), model (0 = 6581, 1 = 8580: filter
+ * en uitgangsgedrag), curve (0..1: spreiding van de 6581-cutoffcurve).
  */
 
 #include "AudioModule.h"
@@ -135,6 +136,8 @@ public:
         else if (controlId == "lp")      s.setMode(mmb_dsp::SidSynth::kLp, asFloat(1.f) >= 0.5f);
         else if (controlId == "bp")      s.setMode(mmb_dsp::SidSynth::kBp, asFloat(0.f) >= 0.5f);
         else if (controlId == "hp")      s.setMode(mmb_dsp::SidSynth::kHp, asFloat(0.f) >= 0.5f);
+        else if (controlId == "model")   s.setModel(asInt(0));
+        else if (controlId == "curve")   s.setCurve(asFloat(0.5f));
     }
 
     static void registerFactory() {

@@ -55,7 +55,7 @@ MB_TEST(sid_pitch_saw_440) {
     const int zc = risingZeroCrossings(y, 4410);
     std::printf("        saw 440 Hz: %d nuldoorgangen/s\n", zc);
     MB_REQUIRE(std::abs(zc - 440) <= 1);
-    float peak = 0; for (float s : y) peak = std::max(peak, std::abs(s));
+    float peak = 0; for (size_t i = 4410; i < y.size(); ++i) peak = std::max(peak, std::abs(y[i]));
     MB_REQUIRE(peak > 0.8f && peak < 1.2f);
 }
 
@@ -252,7 +252,7 @@ namespace {
 int fcReg(double hz) { return int((hz - 30.0) * 2047.0 / (12000.0 - 30.0) + 0.5); }
 /** Stem 1 als saw op @p f0; filter met cutoff @p fc, mode @p mode ($18-bits), res @p res. */
 std::vector<float> filteredSaw(double f0, double fc, uint8_t mode, int res, bool route = true) {
-    SidChip c = fresh();
+    SidChip c = fresh(); c.setFilterModel(SidChip::kModel8580);
     setFreq(c, 0, f0); sustainFull(c, 0);
     const int r = fcReg(fc);
     c.write(0x15, r & 7); c.write(0x16, uint8_t(r >> 3));
@@ -305,7 +305,7 @@ MB_TEST(sid_filter_resonance_and_modes) {
 MB_TEST(sid_filter_ext_in) {
     // EXT IN (1 kHz sinus) door een LP op 200 Hz: sterk gedempt; zonder FILT EX droog.
     for (int routed = 0; routed < 2; ++routed) {
-        SidChip c = fresh();
+        SidChip c = fresh(); c.setFilterModel(SidChip::kModel8580);
         const int r = fcReg(200);
         c.write(0x15, r & 7); c.write(0x16, uint8_t(r >> 3));
         c.write(0x17, routed ? 0x08 : 0x00); c.write(0x18, 0x10 | 15);
@@ -315,4 +315,57 @@ MB_TEST(sid_filter_ext_in) {
         std::printf("        EXT IN 1 kHz %s: %.3f\n", routed ? "door LP 200 Hz" : "droog", a);
         MB_REQUIRE(routed ? a < 0.02 : a > 0.2);
     }
+}
+
+MB_TEST(sid_filter_6581_s_curve) {
+    // Onderaan blijft de 6581 rond ~220 Hz hangen, in het midden loopt hij
+    // steil op; Curve schuift dat midden (helder ↔ donker exemplaar).
+    float prev = 0.f;
+    for (int r = 0; r <= 2047; r += 64) { const float f = SidChip::cutoffHz6581(r, 0.5f); MB_REQUIRE(f >= prev); prev = f; }
+    const float f0 = SidChip::cutoffHz6581(0, 0.5f), f200 = SidChip::cutoffHz6581(200, 0.5f);
+    const float f1024 = SidChip::cutoffHz6581(1024, 0.5f), f2047 = SidChip::cutoffHz6581(2047, 0.5f);
+    std::printf("        6581: reg 0 → %.0f Hz, 200 → %.0f Hz, 1024 → %.0f Hz, 2047 → %.0f Hz\n", f0, f200, f1024, f2047);
+    MB_REQUIRE(std::abs(f0 - 220.f) < 1.f && f200 < 500.f && f1024 > 3000.f && f2047 > 15000.f);
+    MB_REQUIRE(SidChip::cutoffHz6581(1024, 0.f) > SidChip::cutoffHz6581(1024, 1.f));
+    MB_REQUIRE(SidChip::resonanceQ6581(15) < SidChip::resonanceQ8580(15));
+}
+
+MB_TEST(sid_filter_6581_distorts_more_than_8580) {
+    // Een hard EXT IN-signaal (sinus 200 Hz, 0,9) door een open lowpass: de
+    // 6581 maakt duidelijk meer 3e harmonische dan de schone 8580.
+    double h3[2];
+    for (int m = 0; m < 2; ++m) {
+        SidChip c = fresh(); c.setFilterModel(m == 0 ? SidChip::kModel6581 : SidChip::kModel8580);
+        c.write(0x15, 7); c.write(0x16, 0xff); c.write(0x17, 0x08); c.write(0x18, 0x10 | 15);
+        std::vector<float> y(22050);
+        for (int i = 0; i < 22050; ++i) y[i] = c.Process(0.9f * float(std::sin(2 * kPi * 200.0 * i / kFs)));
+        h3[m] = tone(y, 600, 4410) / tone(y, 200, 4410);
+    }
+    std::printf("        3e harmonische / grondtoon: 6581 %.4f, 8580 %.5f\n", h3[0], h3[1]);
+    MB_REQUIRE(h3[0] > 0.01);
+    MB_REQUIRE(h3[0] > 10 * h3[1]);
+}
+
+MB_TEST(sid_6581_volume_click) {
+    // De volume-DAC voert op de 6581 een gelijkspanning mee: volume 15 → 0
+    // geeft een stap (de digi-truc). Op de 8580 blijft het stil.
+    double peak[2];
+    for (int m = 0; m < 2; ++m) {
+        SidChip c = fresh(); c.setFilterModel(m == 0 ? SidChip::kModel6581 : SidChip::kModel8580);
+        render(c, 4410);                                   // DC-blokker ingeslingerd
+        c.write(0x18, 0);
+        float p = 0; for (float v : render(c, 441)) p = std::max(p, std::abs(v));
+        peak[m] = p;
+    }
+    std::printf("        volume-klik: 6581 %.3f, 8580 %.4f\n", peak[0], peak[1]);
+    MB_REQUIRE(peak[0] > 0.1 && peak[1] < 0.001);
+}
+
+MB_TEST(sid_synth_init_without_click) {
+    // SidSynth start in de 6581-stand zonder tik: de DC-blokker staat al op
+    // de gelijkspanning van de volume-DAC.
+    mmb_dsp::SidSynth s; s.Init(kFs);
+    float p = 0; for (int i = 0; i < 4410; ++i) p = std::max(p, std::abs(s.Process()));
+    std::printf("        stilte na Init: piek %.5f\n", p);
+    MB_REQUIRE(p < 0.001f);
 }
