@@ -17,6 +17,23 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### fw 0.5.86 — SID: 1–4 chips in één module, stereo (2026-09-28)
+- `tp_mmb_sid` wordt `mmb_dsp::SidMulti`: knop **SIDs** (1–4) en 12
+  stem-cellen; cel 1–3 = chip 1, 4–6 = chip 2, enzovoort, elk een eigen
+  filter (dual/triple-SID). Geen poly×poly nodig: één module, één PolyGroup.
+  Met SIDs = 1 klinkt alles als voorheen.
+- Uitgangen: **Mono** (som, met limiter), **L/R** (chips over het beeld met
+  **Spread**, balans-panning: één chip op L/R = mono) en **S1–S4** (elke chip
+  apart, om zelf te mengen). EXT IN gaat door het filter van chip 1.
+- Paneel 20 HP (cel-jacks in twee blokken van zes, uitgangskolom rechts).
+  Seeds Poly ▾ → SID ×6 / ×9 / ×12 (2/3/4 chips, stereo); de SID ×3-seed gaat
+  nu ook via L/R.
+- SID 3-osc accepteert alleen cel 1–3 (cellOf met maximum).
+- Tests: core `sid_multi_cells_chips_and_stereo` (136), wasm chips/stereo,
+  seed ×12; editor 648.
+- **Gemeten op de Teensy** (SID ×12, aangehouden): 1 noot 18,0 %, 6 noten
+  24,5 %, 12 noten 36,3 % — een spelende chip ~6 %.
+
 ### fw 0.5.85 — SID sneller: stille chips overslaan, oscillator zonder doubles (2026-09-28)
 - Een chip met alle envelopes op nul rekent alleen nog fase, envelope-teller,
   het uitklinken van het filter en de DC-blokker (pc: 34 → 8 ns/sample).

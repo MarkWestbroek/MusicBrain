@@ -53,6 +53,8 @@
 #include <cstdint>
 #include <memory>
 
+#include "mmb_dsp/limiter.h"
+
 namespace mmb_dsp {
 
 class SidChip {
@@ -830,6 +832,85 @@ private:
     float   level_ = 0.8f;
     float   cutoff_ = 1024.f, cutoffCv_ = 0.f;
     uint8_t res_ = 0, mode_ = kLp;
+};
+
+/**
+ * Meerdere SID's als één instrument (tp_mmb_sid): tot vier chips, elk met
+ * drie stem-cellen en een eigen filter — zoals een dual/triple-SID. Cel k
+ * (0-based) hoort bij chip k/3, stem k%3. Knoppen gelden voor alle chips.
+ * Chips boven het ingestelde aantal rekenen niet mee; stille chips zijn door
+ * SidChip's stille pad vrijwel gratis.
+ *
+ * Uitgangen: mono som, stereo (chips over het beeld verdeeld met Spread) en
+ * elke chip apart (om zelf te mengen en te pannen). Een limiter op de sommen
+ * houdt vier chips samen binnen ±1.
+ */
+class SidMulti {
+public:
+    static constexpr int kMaxChips = 4;
+    static constexpr int kCells = kMaxChips * SidSynth::kVoices;
+    enum Out { kOutMono = 0, kOutL, kOutR, kOutChip1, kNumOuts = kOutChip1 + kMaxChips };
+
+    void Init(float sampleRate) {
+        for (auto& c : chip_) c.Init(sampleRate);
+        limiter_.Init(sampleRate);
+        updatePan();
+    }
+    SidSynth& chip(int j) { return chip_[j]; }
+
+    /** Aantal actieve chips, 1..4 (3..12 stemmen). */
+    void setChips(int n) {
+        n = n < 1 ? 1 : (n > kMaxChips ? kMaxChips : n);
+        if (n == chips_) return;
+        for (int j = n; j < kMaxChips; ++j) for (int v = 0; v < SidSynth::kVoices; ++v) chip_[j].gate(v, false);
+        chips_ = n;
+        updatePan();
+    }
+    int chips() const { return chips_; }
+    /** Stereobreedte 0..1: 0 = alle chips in het midden, 1 = van links naar rechts. */
+    void setSpread(float s) { spread_ = s < 0.f ? 0.f : (s > 1.f ? 1.f : s); updatePan(); }
+
+    // Per cel (0-based, 0..11).
+    void setVoct(int k, float v) { if (okCell(k)) chip_[k / 3].setVoct(k % 3, v); }
+    void gate(int k, bool high)  { if (okCell(k)) chip_[k / 3].gate(k % 3, high); }
+
+    /** Iets op alle chips toepassen (de gedeelde knoppen). */
+    template <class F> void all(F f) { for (auto& c : chip_) f(c); }
+
+    /** Eén sample. @p ext = EXT IN (gaat door het filter van chip 1).
+     *  @p out krijgt kNumOuts waarden: mono, L, R, chip 1..4. */
+    void Process(float ext, float* out) {
+        float mono = 0.f, l = 0.f, r = 0.f;
+        for (int j = 0; j < kMaxChips; ++j) {
+            const float y = j < chips_ ? chip_[j].Process(j == 0 ? ext : 0.f) : 0.f;
+            out[kOutChip1 + j] = y;
+            mono += y; l += y * panL_[j]; r += y * panR_[j];
+        }
+        float sum[3] = { mono * gain_, l * gain_, r * gain_ };
+        limiter_.Process(sum, 3);
+        out[kOutMono] = sum[0]; out[kOutL] = sum[1]; out[kOutR] = sum[2];
+    }
+
+private:
+    static bool okCell(int k) { return k >= 0 && k < kCells; }
+    /** Balans-panning van chip j over het stereobeeld (midden: 1 op beide
+     *  kanten, dus één chip op L/R klinkt als de mono-uitgang; helemaal links:
+     *  1 en 0). De som krijgt 1/√n zodat meer chips niet evenredig harder
+     *  worden. */
+    void updatePan() {
+        for (int j = 0; j < kMaxChips; ++j) {
+            const float pos = chips_ > 1 ? spread_ * (-1.f + 2.f * static_cast<float>(j) / static_cast<float>(chips_ - 1)) : 0.f;
+            panL_[j] = pos > 0.f ? 1.f - pos : 1.f;
+            panR_[j] = pos < 0.f ? 1.f + pos : 1.f;
+        }
+        gain_ = 1.0f / std::sqrt(static_cast<float>(chips_));
+    }
+
+    SidSynth chip_[kMaxChips];
+    OutputLimiter limiter_;
+    int   chips_ = 1;
+    float spread_ = 0.7f, gain_ = 1.f;
+    float panL_[kMaxChips] = {}, panR_[kMaxChips] = {};
 };
 
 }  // namespace mmb_dsp

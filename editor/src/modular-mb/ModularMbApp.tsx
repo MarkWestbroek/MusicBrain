@@ -432,6 +432,30 @@ export function ModularMbApp(): JSX.Element {
                   }}
                 >🕹️ SID ×3 (C64)</button>
                 <button
+                  onClick={() => { setProject(seedSidPolyPatch(getProject(), 2)); setShowPoly(false); }}
+                  title="SID ×6: 2 SID's in één module (knop SIDs = 2), elke chip drie stemmen en een eigen filter; MIDI-in verdeelt de noten, Spread verdeelt de chips over L/R."
+                  style={{
+                    textAlign: 'left', border: 'none', background: 'transparent',
+                    padding: '7px 12px', cursor: 'pointer', fontSize: 13,
+                  }}
+                >🕹️ SID ×6 (2 chips, stereo)</button>
+                <button
+                  onClick={() => { setProject(seedSidPolyPatch(getProject(), 3)); setShowPoly(false); }}
+                  title="SID ×9: 3 SID's in één module (knop SIDs = 3), elke chip drie stemmen en een eigen filter; MIDI-in verdeelt de noten, Spread verdeelt de chips over L/R."
+                  style={{
+                    textAlign: 'left', border: 'none', background: 'transparent',
+                    padding: '7px 12px', cursor: 'pointer', fontSize: 13,
+                  }}
+                >🕹️ SID ×9 (3 chips, stereo)</button>
+                <button
+                  onClick={() => { setProject(seedSidPolyPatch(getProject(), 4)); setShowPoly(false); }}
+                  title="SID ×12: 4 SID's in één module (knop SIDs = 4), elke chip drie stemmen en een eigen filter; MIDI-in verdeelt de noten, Spread verdeelt de chips over L/R."
+                  style={{
+                    textAlign: 'left', border: 'none', background: 'transparent',
+                    padding: '7px 12px', cursor: 'pointer', fontSize: 13,
+                  }}
+                >🕹️ SID ×12 (4 chips, stereo)</button>
+                <button
                   onClick={() => { setProject(seedSid3Patch(getProject(), 1)); setShowPoly(false); }}
                   title="SID 3-osc lead: één SID met instellingen per stem, Stack — drie oscillatoren op één noot (pulse, saw 8 ct hoger, driehoek een octaaf lager) door een 6581-lowpass."
                   style={{

@@ -17,6 +17,7 @@ import { buildConfigPayload } from './teensyLink';
 const stk = { sound: 0, level: 0.8 };
 const seeds = {
   'sid':         () => seedSidPolyPatch(seedInternals(emptyModularProject())),
+  'sid12':       () => seedSidPolyPatch(seedInternals(emptyModularProject()), 4),
   'sid3':        () => seedSid3Patch(seedInternals(emptyModularProject()), 1),
   'sid3x4':      () => seedSid3Patch(seedInternals(emptyModularProject()), 4),
   'sampler':     () => seedSamplerPolyPatch(seedInternals(emptyModularProject()), 8, false),

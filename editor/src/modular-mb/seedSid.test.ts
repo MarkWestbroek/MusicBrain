@@ -24,7 +24,8 @@ describe('seedSidPolyPatch', () => {
 
 describe('seedInternals na een bredere SID', () => {
   it('schuift de buurman op in plaats van eroverheen te liggen', () => {
-    // Nabootsen: een project van vóór het filter (SID 12 HP, LFO er direct naast).
+    // Nabootsen: een project van vóór het filter (SID 12 HP, LFO er direct naast);
+    // de huidige SID is breder, dus de LFO moet opschuiven.
     const p0 = seedSidPolyPatch(seedInternals(emptyModularProject()));
     const rack = p0.racks.find((r) => r.id === p0.activeRackId)!;
     const sid = p0.modules.find((m) => m.typeId === 'tp_mmb_sid' && rack.slots.some((s) => s.moduleId === m.id))!;
@@ -43,8 +44,9 @@ describe('seedInternals na een bredere SID', () => {
     const row = r.slots.filter((s) => s.row === sidSlot.row).sort((a, b) => a.hpOffset - b.hpOffset);
     for (let i = 1; i < row.length; i++)
       expect(row[i]!.hpOffset).toBeGreaterThanOrEqual(row[i - 1]!.hpOffset + width(row[i - 1]!.moduleId));
-    expect(width(sid.id)).toBe(16);
-    expect(r.slots.find((s) => s.id === lfoSlot.id)!.hpOffset).toBe(sidSlot.hpOffset + 16);
+    const now = width(sid.id);
+    expect(now).toBeGreaterThan(12);
+    expect(r.slots.find((s) => s.id === lfoSlot.id)!.hpOffset).toBe(sidSlot.hpOffset + now);
   });
 });
 
@@ -67,5 +69,22 @@ describe('seedSid3Patch', () => {
     const sidsFed = new Set(flat.filter((c) => c.to.portId === 'voct_1' && typeOf(c.to.moduleId) === 'tp_mmb_sid3').map((c) => c.to.moduleId));
     expect(sidsFed.size).toBe(4);
     for (const k of [1, 2, 3, 4]) expect(flat.some((c) => c.to.portId === `in${k}`)).toBe(true);
+  });
+});
+
+describe('seedSidPolyPatch met meer chips', () => {
+  it('×12: vier chips, twaalf cellen uitgewaaierd, stereo naar OUT', () => {
+    const p = seedSidPolyPatch(seedInternals(emptyModularProject()), 4);
+    const patch = p.patches.find((x) => x.id === p.activePatchId)!;
+    validateOps(p, [], patch.id);
+    const flat = expandPatchConnections(patch, p).map((c) => `${c.from.portId}>${c.to.portId}`);
+    for (let k = 1; k <= 12; k++) {
+      expect(flat.some((x) => x.endsWith(`>voct_${k}`))).toBe(true);
+      expect(flat.some((x) => x.endsWith(`>gate_${k}`))).toBe(true);
+    }
+    expect(flat).toContain('out_l>l');
+    expect(flat).toContain('out_r>r');
+    const sid = p.modules.find((m) => m.typeId === 'tp_mmb_sid' && patch.controlState[m.id])!;
+    expect(patch.controlState[sid.id]).toMatchObject({ chips: 4 });
   });
 });

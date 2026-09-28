@@ -121,6 +121,12 @@ golfvormen met een zachte afronding) en dat eerlijk zo labelen.
    integer-fase met float-tijdstippen. Een actieve chip ~8 % op de Teensy
    (was ~12 %), een stille bijna niets; ×4 met vier noten 34 %.
 
+9. **Klaar (fw 0.5.86).** Meerdere chips in de SID-module (SIDs 1–4, 12
+   cellen, stereo met Spread, S1–S4 per chip). Gekozen boven poly×poly (een
+   PolyGroup over PolyGroups) en boven een PolyGroup over cellen van
+   meerdere modules: één module, één set knoppen. SID ×12 met 12 noten:
+   36 % cpu op de Teensy.
+
 Uitbreidingen die aan de module kunnen, los van de volgorde: hard restart
 (ADSR één frame op 0 vóór een noot, de tracker-truc tegen de ADSR-bug), een
 "PAL-frame"-stand (CV-wijzigingen 50× per seconde, de getrapte C64-beweging),

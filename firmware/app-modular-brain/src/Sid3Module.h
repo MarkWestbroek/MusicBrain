@@ -57,8 +57,8 @@ public:
         return portId == "out" ? PortKind::Audio : PortKind::None;
     }
     PortKind inputPortKind(std::string_view portId) const override {
-        if (SidModule::cellOf(portId, "voct") >= 0) return PortKind::Cv;
-        if (SidModule::cellOf(portId, "gate") >= 0) return PortKind::Gate;
+        if (SidModule::cellOf(portId, "voct", mmb_dsp::SidSynth::kVoices) >= 0) return PortKind::Cv;
+        if (SidModule::cellOf(portId, "gate", mmb_dsp::SidSynth::kVoices) >= 0) return PortKind::Gate;
         if (portId == "bend" || cvPortIs(portId, "pw") || cvPortIs(portId, "cutoff")) return PortKind::Cv;
         if (portId == "ext_in") return PortKind::Audio;
         return PortKind::None;
@@ -69,8 +69,8 @@ public:
         if      (portId == "bend")                  s.setBend(value);
         else if (cvPortIs(portId, "pw"))            s.setPwCv(value);
         else if (cvPortIs(portId, "cutoff"))        s.setCutoffCv(value);
-        else if ((k = SidModule::cellOf(portId, "voct")) >= 0) s.setVoct(k, value);
-        else if ((k = SidModule::cellOf(portId, "gate")) >= 0) s.gate(k, value >= 0.5f);
+        else if ((k = SidModule::cellOf(portId, "voct", mmb_dsp::SidSynth::kVoices)) >= 0) s.setVoct(k, value);
+        else if ((k = SidModule::cellOf(portId, "gate", mmb_dsp::SidSynth::kVoices)) >= 0) s.gate(k, value >= 0.5f);
     }
 
     void setControl(std::string_view controlId, mb::runtime::ControlValue value) override {

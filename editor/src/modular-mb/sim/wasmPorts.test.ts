@@ -1151,3 +1151,20 @@ describe('tp_mmb_sid3', () => {
     expect(tone(sp, 392.0, 4410)).toBeLessThan(0.005);
   });
 });
+
+describe('tp_mmb_sid chips en stereo', () => {
+  it('cel 4 klinkt pas met SIDs = 2; Spread zet chip 2 rechts; S2 is chip 2 apart', async () => {
+    const run = async (chips: number): Promise<Float32Array[]> => {
+      const m = await load('tp_mmb_sid');
+      for (const [id, v] of Object.entries({ pulse: 0, tri: 1, sustain: 15, model: 1, chips, spread: 1 })) m.setCtl(id, v);
+      return m.render(0.5, (_t, mm) => { mm.setIn('voct_4', 0); mm.setIn('gate_4', 1); });
+    };
+    const idx = (id: string) => ['out', 'out_l', 'out_r', 'sid_1', 'sid_2', 'sid_3', 'sid_4'].indexOf(id);
+    const one = await run(1), two = await run(2);
+    const from = 4410;
+    expect(rms(one[idx('out')]!, from)).toBeLessThan(0.001);
+    expect(rms(two[idx('sid_2')]!, from)).toBeGreaterThan(0.1);
+    expect(rms(two[idx('out_r')]!, from)).toBeGreaterThan(0.05);
+    expect(rms(two[idx('out_l')]!, from)).toBeLessThan(0.01 * rms(two[idx('out_r')]!, from));
+  });
+});

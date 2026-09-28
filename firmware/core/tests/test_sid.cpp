@@ -392,3 +392,33 @@ MB_TEST(sid_synth_stack_and_split) {
     std::printf("        split: G4 %.4f  C3 %.4f\n", sg4, sc3);
     MB_REQUIRE(sg4 < 0.005 && sc3 < 0.005);
 }
+
+MB_TEST(sid_multi_cells_chips_and_stereo) {
+    // Cel 4 (0-based 3) hoort bij chip 2; met Chips = 1 zwijgt die, met 2
+    // klinkt hij. Spread 1: chip 1 links, chip 2 rechts.
+    mmb_dsp::SidMulti m; m.Init(kFs);
+    m.all([](mmb_dsp::SidSynth& c) { c.setWave(SidChip::kTri); c.setAttack(0); c.setSustain(15); c.setModel(SidChip::kModel8580); });
+    m.setSpread(1.f);
+    float o[mmb_dsp::SidMulti::kNumOuts];
+    auto level = [&](int ch) {
+        double e = 0; for (int i = 0; i < 22050; ++i) { m.Process(0.f, o); if (i > 4410) e += double(o[ch]) * o[ch]; }
+        return std::sqrt(e / (22050 - 4411));
+    };
+    m.setVoct(3, 0.f); m.gate(3, true);                       // cel 4 → chip 2
+    const double off = level(mmb_dsp::SidMulti::kOutMono);
+    m.setChips(2); m.gate(3, false); m.gate(3, true);
+    const double c2 = level(mmb_dsp::SidMulti::kOutChip1 + 1);
+    const double l = level(mmb_dsp::SidMulti::kOutL), r = level(mmb_dsp::SidMulti::kOutR);
+    std::printf("        chips=1: %.4f; chips=2: chip 2 %.3f, L %.4f, R %.3f\n", off, c2, l, r);
+    MB_REQUIRE(off < 0.001);
+    MB_REQUIRE(c2 > 0.1);
+    MB_REQUIRE(r > 0.05 && l < 0.01 * r);                     // chip 2 helemaal rechts
+    // Eén chip: L en R gelijk aan de mono-uitgang.
+    mmb_dsp::SidMulti one; one.Init(kFs);
+    one.all([](mmb_dsp::SidSynth& c) { c.setWave(SidChip::kSaw); c.setSustain(15); });
+    one.setVoct(0, 0.f); one.gate(0, true);
+    for (int i = 0; i < 4410; ++i) {
+        one.Process(0.f, o);
+        MB_REQUIRE(std::abs(o[mmb_dsp::SidMulti::kOutL] - o[mmb_dsp::SidMulti::kOutMono]) < 1e-6f);
+    }
+}
