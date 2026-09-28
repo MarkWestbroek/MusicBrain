@@ -33,3 +33,18 @@ describe('barStep en barEvery', () => {
     expect(barEvery(5, 28)).toBe(8);
   });
 });
+
+describe('rulerHit', () => {
+  it('randen, binnen, buiten; smal venster = dichtstbijzijnde rand', async () => {
+    const { rulerHit } = await import('./MidiRoll');
+    const r = { x0: 100, x1: 200 };
+    expect(rulerHit(50, r)).toBe('outside');
+    expect(rulerHit(95, r)).toBe('left');
+    expect(rulerHit(106, r)).toBe('left');
+    expect(rulerHit(150, r)).toBe('inside');
+    expect(rulerHit(205, r)).toBe('right');
+    expect(rulerHit(250, r)).toBe('outside');
+    expect(rulerHit(104, { x0: 100, x1: 106 })).toBe('right');
+    expect(rulerHit(150, null)).toBe('outside');
+  });
+});

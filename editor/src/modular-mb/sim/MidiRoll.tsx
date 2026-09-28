@@ -1,8 +1,10 @@
 // Pianorol met transport voor de MIDI-bestandsspeler, zoals in een DAW:
 //   - noten als balkjes (dekking = velocity), maten en tellen als raster;
 //   - afspeelkop; klik of sleep in de noten = springen;
-//   - sleep in de liniaal = lusvenster (klikt op tellen, Alt = vrij);
-//     dubbelklik op het oranje venster = weg;
+//   - liniaal: sleep buiten het venster = nieuw lusvenster, sleep bij een
+//     rand = die rand verschuiven, binnen = alleen dubbelklik (weg);
+//     klikt op tellen, Alt = vrij;
+//   - spatiebalk = afspelen/pauze;
 //   - transport: ⏪ maat terug · ▶/⏸ · ■ stop · ⏩ maat verder
 //     (dubbelklik of Shift = naar begin/einde);
 //   - breedte volgt de ruimte; hoogte met de greep onderaan (of vast via prop).
@@ -24,6 +26,17 @@ export function barStep(pos: number, barMs: number, dir: 1 | -1, durationMs: num
     ? (Math.floor(pos / barMs + 1e-6) + 1) * barMs
     : Math.floor(Math.max(0, pos - 250) / barMs) * barMs;
   return Math.max(0, Math.min(durationMs, t));
+}
+
+/** Waar een klik in de liniaal valt t.o.v. het lusvenster (in pixels). */
+export type RulerHit = 'left' | 'right' | 'inside' | 'outside';
+export function rulerHit(x: number, region: { x0: number; x1: number } | null, grab = 7): RulerHit {
+  if (!region) return 'outside';
+  const { x0, x1 } = region;
+  // Bij een heel smal venster wint de dichtstbijzijnde rand.
+  const dl = Math.abs(x - x0), dr = Math.abs(x - x1);
+  if (dl <= grab || dr <= grab) return dl <= dr ? 'left' : 'right';
+  return x > x0 && x < x1 ? 'inside' : 'outside';
 }
 
 /** Om de hoeveel maten een lijn/label, zodat ze minstens `minPx` uit elkaar staan. */
@@ -148,29 +161,62 @@ export function MidiRoll({ source, canPlay = true, height }: {
   });
 
   // Slepen in de rol
-  const drag = useRef<{ kind: 'ruler' | 'notes'; x0: number; moved: boolean } | null>(null);
+  type Drag = { kind: 'draw' | 'left' | 'right' | 'inside' | 'notes'; x0: number; moved: boolean; fixed?: number };
+  const drag = useRef<Drag | null>(null);
+  const [cursor, setCursor] = useState('pointer');
+  const regionPx = (): { x0: number; x1: number } | null => st.region ? { x0: xOf(st.region.start), x1: xOf(st.region.end) } : null;
   const localX = (e: React.PointerEvent | React.MouseEvent): number => e.clientX - (canvasRef.current?.getBoundingClientRect().left ?? 0);
   const inRegion = (x: number): boolean => !!st.region && msOf(x) >= st.region.start && msOf(x) <= st.region.end;
   function down(e: React.PointerEvent<HTMLCanvasElement>): void {
     const y = e.clientY - e.currentTarget.getBoundingClientRect().top;
     const x = localX(e);
     e.currentTarget.setPointerCapture(e.pointerId);
-    drag.current = { kind: y < RULER ? 'ruler' : 'notes', x0: x, moved: false };
-    if (drag.current.kind === 'notes') source.seek(msOf(x));
+    if (y >= RULER) { drag.current = { kind: 'notes', x0: x, moved: false }; source.seek(msOf(x)); return; }
+    const hit = rulerHit(x, regionPx());
+    const r = st.region;
+    drag.current = hit === 'left' && r ? { kind: 'left', x0: x, moved: false, fixed: r.end }
+      : hit === 'right' && r ? { kind: 'right', x0: x, moved: false, fixed: r.start }
+      : { kind: hit === 'inside' ? 'inside' : 'draw', x0: x, moved: false };
   }
   function move(e: React.PointerEvent<HTMLCanvasElement>): void {
     const d = drag.current;
-    if (!d) return;
     const x = localX(e);
+    if (!d) {
+      // Zweven: ↔ boven een rand van het venster in de liniaal.
+      const y = e.clientY - e.currentTarget.getBoundingClientRect().top;
+      const hit = y < RULER ? rulerHit(x, regionPx()) : 'outside';
+      const c = hit === 'left' || hit === 'right' ? 'ew-resize' : 'pointer';
+      if (c !== cursor) setCursor(c);
+      return;
+    }
     if (Math.abs(x - d.x0) > 3) d.moved = true;
     if (d.kind === 'notes') source.seek(msOf(x));
-    else if (d.moved) source.setRegion({ start: snap(msOf(d.x0), e.altKey), end: snap(msOf(x), e.altKey) });
+    else if ((d.kind === 'left' || d.kind === 'right') && d.fixed !== undefined) source.setRegion({ start: snap(msOf(x), e.altKey), end: d.fixed });
+    else if (d.kind === 'draw' && d.moved) source.setRegion({ start: snap(msOf(d.x0), e.altKey), end: snap(msOf(x), e.altKey) });
   }
   function up(e: React.PointerEvent<HTMLCanvasElement>): void {
     const d = drag.current;
     drag.current = null;
-    if (d?.kind === 'ruler' && !d.moved) source.seek(msOf(localX(e)));
+    if ((d?.kind === 'draw' || d?.kind === 'inside') && !d.moved) source.seek(msOf(localX(e)));
   }
+
+  // Spatiebalk = afspelen/pauze, zoals in een DAW. Alleen als de rol te zien
+  // is (de Simulatie-tab blijft gemount, ook als hij verborgen is) en niet
+  // tijdens typen; op een gefocuste knop vangen we hem zodat die niet ook klikt.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.code !== 'Space' || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+      if (!wrapRef.current || wrapRef.current.offsetParent === null || !source.parsed()) return;
+      const s = source.state();
+      if (!s.playing && !canPlay) return;
+      e.preventDefault();
+      if (s.playing) source.pause(); else source.start();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [source, canPlay]);
 
   // Hoogte verslepen
   const hDrag = useRef<{ y0: number; h0: number } | null>(null);
@@ -201,7 +247,7 @@ export function MidiRoll({ source, canPlay = true, height }: {
   };
   return (
     <div ref={wrapRef} style={{ width: '100%', marginTop: 6 }}>
-      <canvas ref={canvasRef} style={{ width, height: H, display: 'block', borderRadius: '4px 4px 0 0', cursor: 'pointer', touchAction: 'none' }}
+      <canvas ref={canvasRef} style={{ width, height: H, display: 'block', borderRadius: '4px 4px 0 0', cursor, touchAction: 'none' }}
         onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={() => { drag.current = null; }}
         onDoubleClick={(e) => { if (inRegion(localX(e))) source.setRegion(null); }}
         aria-label="Pianorol: klik om te springen, sleep in de liniaal voor een lusvenster, dubbelklik op het venster om het weg te halen" />
@@ -226,7 +272,7 @@ export function MidiRoll({ source, canPlay = true, height }: {
         <span style={{ fontVariantNumeric: 'tabular-nums' }}>{fmt(st.posMs)} / {fmt(st.durationMs)} · {Math.round(file.bpm)} BPM</span>
         {st.region
           ? <span style={{ color: '#b45309' }} title="Dubbelklik op het oranje venster om het weg te halen">lus {fmt(st.region.start)}–{fmt(st.region.end)}</span>
-          : <span>Sleep in de liniaal voor een lusvenster (klikt op tellen, Alt = vrij).</span>}
+          : <span>Sleep in de liniaal voor een lusvenster (klikt op tellen, Alt = vrij). Spatie = afspelen/pauze.</span>}
       </div>
     </div>
   );
