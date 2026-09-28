@@ -24,7 +24,6 @@ export interface MidiEvent {
 
 export const SMF_PPQ = 480;
 export const SMF_BPM = 120;
-const TICKS_PER_MS = (SMF_PPQ * SMF_BPM) / 60_000;   // 0,96
 
 /** Aantal databytes na een statusbyte (kanaalberichten). */
 function dataLen(status: number): number {
@@ -44,11 +43,14 @@ function varLen(n: number): number[] {
  * wordt overgeslagen. `lengthMs` zet het End-of-Track op de lengte van de
  * audio, zodat beide bestanden in een DAW even lang zijn.
  */
-export function encodeSmf(events: readonly MidiEvent[], opts: { lengthMs?: number; name?: string } = {}): Uint8Array<ArrayBuffer> {
+export function encodeSmf(events: readonly MidiEvent[], opts: { lengthMs?: number; name?: string; bpm?: number } = {}): Uint8Array<ArrayBuffer> {
+  // Het tempo bepaalt alleen hoe ticks naar tijd gaan; de tijden blijven exact.
+  const bpm = opts.bpm && opts.bpm >= 20 && opts.bpm <= 400 ? opts.bpm : SMF_BPM;
+  const TICKS_PER_MS = (SMF_PPQ * bpm) / 60_000;
   const track: number[] = [];
   const meta = (type: number, data: number[]): void => { track.push(0, 0xFF, type, ...varLen(data.length), ...data); };
   if (opts.name) meta(0x03, [...new TextEncoder().encode(opts.name)]);
-  const us = Math.round(60_000_000 / SMF_BPM);
+  const us = Math.round(60_000_000 / bpm);
   meta(0x51, [(us >> 16) & 0xFF, (us >> 8) & 0xFF, us & 0xFF]);
   meta(0x58, [4, 2, 24, 8]);
 
@@ -74,6 +76,39 @@ export function encodeSmf(events: readonly MidiEvent[], opts: { lengthMs?: numbe
   str(14, 'MTrk'); dv.setUint32(18, track.length);
   out.set(track, 22);
   return out;
+}
+
+/**
+ * Tempo van een take, als dat te weten is:
+ *   1. MIDI-clock (F8, 24 per kwart) die tijdens de opname binnenkwam, bv.
+ *      van de sequencer/arpeggiator van een KeyStep;
+ *   2. de tempoknop van een klokmodule in de patch (Grids, Marbles);
+ *   anders null (dan schrijft de opname 120, en zet je het raster zelf).
+ */
+export function takeTempo(clockTimes: readonly number[], patchTempo: number | null): { bpm: number; from: 'clock' | 'patch' } | null {
+  if (clockTimes.length >= 25) {
+    const d: number[] = [];
+    for (let i = 1; i < clockTimes.length; i++) d.push(clockTimes[i]! - clockTimes[i - 1]!);
+    d.sort((a, b) => a - b);
+    const med = d[Math.floor(d.length / 2)]!;
+    if (med > 0) {
+      const bpm = 60_000 / (med * 24);
+      if (bpm >= 20 && bpm <= 400) return { bpm: Math.round(bpm * 10) / 10, from: 'clock' };
+    }
+  }
+  if (patchTempo && patchTempo >= 20 && patchTempo <= 400) return { bpm: patchTempo, from: 'patch' };
+  return null;
+}
+
+/** Tempoknop van een klokmodule (Grids, Marbles) in deze patch, anders null. */
+export function patchTempo(project: ModularProject, patch: Patch): number | null {
+  const ids = new Set(project.racks.filter((r) => patch.rackIds.includes(r.id)).flatMap((r) => r.slots.map((s) => s.moduleId)));
+  for (const m of project.modules) {
+    if (!ids.has(m.id) || (m.typeId !== 'tp_mmb_grids' && m.typeId !== 'tp_mmb_marbles')) continue;
+    const v = Number(patch.controlState[m.id]?.tempo ?? 120);
+    if (Number.isFinite(v)) return v;
+  }
+  return null;
 }
 
 /** Verzamelt MIDI tijdens een opname. */

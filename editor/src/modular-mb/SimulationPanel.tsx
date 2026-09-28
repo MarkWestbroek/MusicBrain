@@ -15,7 +15,7 @@ import { getEngine } from './sim/engineSingleton';
 import {
   MasterRecorder, encodeWav, dbfs, wavFileName, downloadWav,
 } from './sim/wavRecorder';
-import { MidiRecorder, encodeSmf, patchSnapshot, siblingName } from './sim/midiRecorder';
+import { MidiRecorder, encodeSmf, patchSnapshot, siblingName, takeTempo, patchTempo } from './sim/midiRecorder';
 import {
   loadLibrarySettings, saveLibrarySettings, uploadTake, parseTags, renameTake, splitTakeName, type LibrarySettings, type Take,
 } from './sim/mediaLibrary';
@@ -123,6 +123,7 @@ export function SimulationPanel(): JSX.Element {
       setLibBusy(false);
     }
   }
+  const recStartRef = useRef(0);
   function stopMidiTap(): void { midiUnsubRef.current?.(); midiUnsubRef.current = null; }
   // Tijdens het openen van de Teensy-ingang (toestemmingsdialoog) de knop dicht.
   const [compareBusy, setCompareBusy] = useState(false);
@@ -292,6 +293,9 @@ export function SimulationPanel(): JSX.Element {
       if (!status.running) await startAll();
       await recorder.start(engine.recorderTap());
       midiRec.start();
+      recStartRef.current = performance.now();
+      // MIDI-clock van het keyboard meelezen voor het tempo van de take.
+      void midiMonitor.startRaw();
       stopMidiTap();
       midiUnsubRef.current = engine.onMidi(midiRec.record);
       setRecording(true);
@@ -317,8 +321,10 @@ export function SimulationPanel(): JSX.Element {
       const files: Take['files'] = [{ name, blob: new Blob([wav], { type: 'audio/wav' }) }];
       const extra: string[] = [];
       if (midi.length > 0) {
-        files.push({ name: siblingName(name, '.mid'), blob: new Blob([encodeSmf(midi, { lengthMs: r.seconds * 1000, name: patch?.name })], { type: 'audio/midi' }) });
-        extra.push(`${midi.length} MIDI-events`);
+        const clock = midiMonitor.list().filter((e) => e.dir === 'in' && e.bytes[0] === 0xF8 && e.t >= recStartRef.current).map((e) => e.t);
+        const tempo = takeTempo(clock, patch ? patchTempo(project, patch) : null);
+        files.push({ name: siblingName(name, '.mid'), blob: new Blob([encodeSmf(midi, { lengthMs: r.seconds * 1000, name: patch?.name, bpm: tempo?.bpm })], { type: 'audio/midi' }) });
+        extra.push(`${midi.length} MIDI-events${tempo ? ` op ${tempo.bpm} BPM (${tempo.from === 'clock' ? 'MIDI-clock' : 'klok in de patch'})` : ''}`);
       }
       if (recWithPatch && patch) {
         files.push({ name: siblingName(name, '.patch.json'), blob: new Blob([JSON.stringify(patchSnapshot(project, patch), null, 1)], { type: 'application/json' }) });

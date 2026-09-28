@@ -73,3 +73,18 @@ describe('bestanden', () => {
     expect(s.modules.length).toBeLessThan(p.modules.length);
   });
 });
+
+describe('tempo van een take', () => {
+  it('MIDI-clock wint, dan de klok in de patch, anders null', async () => {
+    const { takeTempo } = await import('./midiRecorder');
+    const clock96 = Array.from({ length: 60 }, (_, i) => i * (60_000 / 96 / 24));
+    expect(takeTempo(clock96, 120)).toEqual({ bpm: 96, from: 'clock' });
+    expect(takeTempo(clock96.slice(0, 10), 110)).toEqual({ bpm: 110, from: 'patch' });
+    expect(takeTempo([], null)).toBeNull();
+  });
+  it('encodeSmf met ander tempo houdt de tijden exact', () => {
+    const b = encodeSmf([{ t: 0, status: 0x90, d1: 60, d2: 100 }, { t: 1000, status: 0x80, d1: 60, d2: 0 }], { lengthMs: 2000, bpm: 90 });
+    const ev = readSmf(b);
+    expect(ev[1]).toEqual([720, 0x80, 60, 0]);            // 1 s bij 90 BPM, 480 PPQ = 720 ticks
+  });
+});

@@ -13,7 +13,8 @@ describe('MidiFileUi met pianorol', () => {
     src.seek(1500);
     const html = renderToStaticMarkup(createElement(MidiFileUi, { source: src, running: false }));
     expect(html).toContain('<canvas');
-    expect(html).toContain('0:01.5 / 0:04.0 · 120 BPM');
+    expect(html).toContain('0:01.5 / 0:04.0');
+    expect(html).toContain('aria-label="Tempo in BPM"');
     expect(html).toContain('lus 0:01.0–0:03.0');
     expect(html).toContain('aria-label="Maat terug"');
     expect(html).not.toContain('venster weg');
@@ -46,5 +47,27 @@ describe('rulerHit', () => {
     expect(rulerHit(250, r)).toBe('outside');
     expect(rulerHit(104, { x0: 100, x1: 106 })).toBe('right');
     expect(rulerHit(150, null)).toBe('outside');
+  });
+});
+
+describe('tempo en raster', () => {
+  it('tapTempo en barStep met verschoven tel 1', async () => {
+    const { tapTempo, barStep } = await import('./MidiRoll');
+    expect(tapTempo([0])).toBeNull();
+    expect(tapTempo([0, 500, 1000, 1500])).toBe(120);
+    expect(tapTempo([0, 625, 1250])).toBe(96);
+    expect(barStep(0, 2000, 1, 10_000, 300)).toBe(300);        // eerst naar tel 1
+    expect(barStep(300, 2000, 1, 10_000, 300)).toBe(2300);
+    expect(barStep(2400, 2000, -1, 10_000, 300)).toBe(300);
+  });
+  it('speler: eigen raster, en terug naar het bestand', () => {
+    const src = new MidiFileSource(() => 0, 1_000_000);
+    src.load(parseSmf(encodeSmf([{ t: 0, status: 0x90, d1: 60, d2: 1 }], { lengthMs: 1000 })), 'x.mid');
+    expect(src.grid()).toEqual({ bpm: 120, offsetMs: 0, beatsPerBar: 4 });
+    src.setGrid({ bpm: 96 }); src.setGrid({ offsetMs: 250 });
+    expect(src.grid()).toEqual({ bpm: 96, offsetMs: 250, beatsPerBar: 4 });
+    expect(src.gridIsCustom()).toBe(true);
+    src.setGrid(null);
+    expect(src.grid().bpm).toBe(120);
   });
 });

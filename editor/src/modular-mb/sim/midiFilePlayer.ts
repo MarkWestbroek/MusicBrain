@@ -113,6 +113,9 @@ export function toMidiEvent(b: readonly number[]): MidiEvent | null {
 
 export interface LoopRegion { start: number; end: number }
 
+/** Maatraster van de pianorol: tempo, waar tel 1 valt, tellen per maat. */
+export interface Grid { bpm: number; offsetMs: number; beatsPerBar: number }
+
 export interface PlayerState {
   name: string | null; playing: boolean; loop: boolean;
   /** Positie in het bestand (ms), ook als hij stilstaat (startpunt). */
@@ -159,6 +162,8 @@ export class MidiFileSource implements MidiSource {
   /** Startpunt als hij stilstaat (ms in het bestand). */
   private startAt = 0;
   private loopRegion: LoopRegion | null = null;
+  /** Eigen raster (tempo/tel 1) bovenop wat het bestand zegt; alleen voor weergave. */
+  private gridOverride: Partial<Grid> | null = null;
   loop = true;
 
   constructor(
@@ -173,11 +178,26 @@ export class MidiFileSource implements MidiSource {
   load(file: ParsedSmf, name: string): void {
     const wasPlaying = this.timer !== null;
     this.halt();
-    this.file = file; this.fileName = name; this.startAt = 0; this.loopRegion = null;
+    this.file = file; this.fileName = name; this.startAt = 0; this.loopRegion = null; this.gridOverride = null;
     if (wasPlaying) this.start(); else this.changed();
   }
 
   parsed(): ParsedSmf | null { return this.file; }
+
+  /** Het raster: dat van het bestand, met je eigen tempo/tel 1 erover. */
+  grid(): Grid {
+    const base: Grid = { bpm: this.file?.bpm ?? 120, offsetMs: 0, beatsPerBar: this.file?.beatsPerBar ?? 4 };
+    return { ...base, ...(this.gridOverride ?? {}) };
+  }
+
+  /** Eigen tempo/tel 1 zetten; null = terug naar het bestand. */
+  setGrid(g: Partial<Grid> | null): void {
+    if (g && g.bpm !== undefined) g = { ...g, bpm: Math.max(20, Math.min(400, g.bpm)) };
+    this.gridOverride = g ? { ...(this.gridOverride ?? {}), ...g } : null;
+    this.changed();
+  }
+
+  gridIsCustom(): boolean { return this.gridOverride !== null; }
 
   setLoop(on: boolean): void { this.loop = on; this.changed(); }
 

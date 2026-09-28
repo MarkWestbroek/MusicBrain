@@ -20,12 +20,21 @@ const H_KEY = 'mmb.midiroll.h';
  * huidige maat, of naar de vorige als je er net (< 250 ms) in zit, zoals
  * in de meeste DAW's.
  */
-export function barStep(pos: number, barMs: number, dir: 1 | -1, durationMs: number): number {
+export function barStep(pos: number, barMs: number, dir: 1 | -1, durationMs: number, offsetMs = 0): number {
   if (barMs <= 0) return pos;
+  const rel = pos - offsetMs;
   const t = dir > 0
-    ? (Math.floor(pos / barMs + 1e-6) + 1) * barMs
-    : Math.floor(Math.max(0, pos - 250) / barMs) * barMs;
-  return Math.max(0, Math.min(durationMs, t));
+    ? (Math.floor(rel / barMs + 1e-6) + 1) * barMs
+    : Math.floor((rel - 250) / barMs) * barMs;
+  return Math.max(0, Math.min(durationMs, t + offsetMs));
+}
+
+/** Tempo uit getikte tijden (ms): gemiddelde van de laatste vier tussenpozen. */
+export function tapTempo(taps: readonly number[]): number | null {
+  const t = taps.slice(-5);
+  if (t.length < 2) return null;
+  const avg = (t[t.length - 1]! - t[0]!) / (t.length - 1);
+  return avg > 0 ? Math.round((60_000 / avg) * 10) / 10 : null;
 }
 
 /** Waar een klik in de liniaal valt t.o.v. het lusvenster (in pixels). */
@@ -100,12 +109,14 @@ export function MidiRoll({ source, canPlay = true, onRequestStart, height }: {
   }, [st.playing]);
 
   const dur = Math.max(1, st.durationMs);
-  const beatMs = file ? 60_000 / file.bpm : 500;
-  const bar = file?.beatsPerBar ?? 4;
+  const grid = source.grid();
+  const beatMs = 60_000 / grid.bpm;
+  const bar = grid.beatsPerBar;
   const barMs = beatMs * bar;
+  const off = grid.offsetMs;
   const xOf = (ms: number): number => (ms / dur) * width;
   const msOf = (x: number): number => Math.max(0, Math.min(dur, (x / width) * dur));
-  const snap = (ms: number, free: boolean): number => (free ? ms : Math.round(ms / beatMs) * beatMs);
+  const snap = (ms: number, free: boolean): number => (free ? ms : off + Math.round((ms - off) / beatMs) * beatMs);
 
   const lo = spans.length ? Math.min(...spans.map((s) => s.note)) - 2 : 48;
   const hi = spans.length ? Math.max(...spans.map((s) => s.note)) + 2 : 72;
@@ -132,20 +143,24 @@ export function MidiRoll({ source, canPlay = true, onRequestStart, height }: {
       // Raster: dunner naarmate de rol smaller is.
       const barPx = xOf(barMs), beatPx = barPx / bar;
       const lineEvery = barEvery(barPx, 6), labelEvery = barEvery(barPx, 28);
-      const bars = Math.ceil(dur / barMs);
+      // Tel 1 ligt op `off`; maten ervoor lopen terug (niet genummerd).
+      const firstBar = Math.floor(-off / barMs), lastBar = Math.ceil((dur - off) / barMs);
       g.font = '10px system-ui, sans-serif'; g.textBaseline = 'middle';
       if (beatPx >= 8) {
         g.strokeStyle = '#1e293b';
-        for (let b = 0; b * beatMs <= dur; b++) {
+        for (let b = firstBar * bar; b <= lastBar * bar; b++) {
           if (b % bar === 0) continue;
-          const x = Math.round(xOf(b * beatMs)) + 0.5;
+          const x = Math.round(xOf(off + b * beatMs)) + 0.5;
+          if (x < 0 || x > width) continue;
           g.beginPath(); g.moveTo(x, RULER); g.lineTo(x, H); g.stroke();
         }
       }
-      for (let m = 0; m <= bars; m += lineEvery) {
-        const x = Math.round(xOf(m * barMs)) + 0.5;
-        g.strokeStyle = '#334155'; g.beginPath(); g.moveTo(x, RULER); g.lineTo(x, H); g.stroke();
-        if (m % labelEvery === 0) { g.fillStyle = '#94a3b8'; g.fillText(String(m + 1), x + 3, RULER / 2); }
+      for (let m = firstBar; m <= lastBar; m++) {
+        if (((m % lineEvery) + lineEvery) % lineEvery !== 0) continue;
+        const x = Math.round(xOf(off + m * barMs)) + 0.5;
+        if (x < 0 || x > width) continue;
+        g.strokeStyle = m === 0 && off > 0 ? '#64748b' : '#334155'; g.beginPath(); g.moveTo(x, RULER); g.lineTo(x, H); g.stroke();
+        if (m >= 0 && m % labelEvery === 0) { g.fillStyle = '#94a3b8'; g.fillText(String(m + 1), x + 3, RULER / 2); }
       }
       const rh = (H - RULER - 4) / rows;
       for (const n of spans) {
@@ -202,6 +217,15 @@ export function MidiRoll({ source, canPlay = true, onRequestStart, height }: {
     if ((d?.kind === 'draw' || d?.kind === 'inside') && !d.moved) source.seek(msOf(localX(e)));
   }
 
+  const taps = useRef<number[]>([]);
+  function tap(): void {
+    const now = performance.now();
+    if (taps.current.length && now - taps.current[taps.current.length - 1]! > 2000) taps.current = [];
+    taps.current.push(now);
+    const bpm = tapTempo(taps.current);
+    if (bpm) source.setGrid({ bpm });
+  }
+
   function play(): void {
     if (canPlay) source.start(); else onRequestStart?.();
   }
@@ -249,7 +273,7 @@ export function MidiRoll({ source, canPlay = true, onRequestStart, height }: {
   const step = (dir: 1 | -1, edge: boolean): void => {
     const r = st.region;
     if (edge) source.seek(dir < 0 ? (r?.start ?? 0) : (r?.end ?? dur));
-    else source.seek(barStep(source.position(), barMs, dir, dur));
+    else source.seek(barStep(source.position(), barMs, dir, dur, off));
   };
   return (
     <div ref={wrapRef} style={{ width: '100%', marginTop: 6 }}>
@@ -275,7 +299,20 @@ export function MidiRoll({ source, canPlay = true, onRequestStart, height }: {
             disabled={!st.playing && st.posMs === (st.region?.start ?? 0)} aria-label="Stop"><Icon kind="stop" /></button>
           <button style={tbtn} onClick={(e) => step(1, e.shiftKey)} onDoubleClick={() => step(1, true)} title="Eén maat verder (dubbelklik of Shift: naar het einde)" aria-label="Maat verder"><Icon kind="fwd" /></button>
         </span>
-        <span style={{ fontVariantNumeric: 'tabular-nums' }}>{fmt(st.posMs)} / {fmt(st.durationMs)} · {Math.round(file.bpm)} BPM</span>
+        <span style={{ fontVariantNumeric: 'tabular-nums' }}>{fmt(st.posMs)} / {fmt(st.durationMs)}</span>
+        <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}
+          title="Raster van de pianorol (alleen weergave, lusvenster en maat-stappen). Een sim-opname staat op 120; zet hier je eigen tempo.">
+          <input type="number" min={20} max={400} step={0.1} value={Math.round(grid.bpm * 10) / 10}
+            onChange={(e) => { const v = Number(e.target.value); if (v >= 20 && v <= 400) source.setGrid({ bpm: v }); }}
+            style={{ width: 58, fontSize: 11 }} aria-label="Tempo in BPM" /> BPM
+          <button style={{ fontSize: 11 }} onClick={tap} title="Tik op de tel om het tempo te zetten">tap</button>
+          <button style={{ fontSize: 11 }} onClick={() => source.setGrid({ offsetMs: source.position() })}
+            title="Leg tel 1 van het raster op de afspeelkop">tel 1 hier</button>
+          {source.gridIsCustom() && (
+            <button style={{ fontSize: 11 }} onClick={() => source.setGrid(null)}
+              title={`Terug naar het raster van het bestand (${Math.round((file.bpm) * 10) / 10} BPM)`}>↺</button>
+          )}
+        </span>
         {st.region
           ? <span style={{ color: '#b45309' }} title="Dubbelklik op het oranje venster om het weg te halen">lus {fmt(st.region.start)}–{fmt(st.region.end)}</span>
           : <span>Sleep in de liniaal voor een lusvenster (klikt op tellen, Alt = vrij). Spatie = afspelen/pauze.</span>}
