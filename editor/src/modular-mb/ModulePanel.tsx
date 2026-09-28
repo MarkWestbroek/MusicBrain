@@ -11,6 +11,7 @@
 // rely on CSS `width`/`height` for actual display scaling.
 
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { MidiPortLeds } from './sim/MidiPortLeds';
 import { useTeensyLink } from './teensyLink';
 import { bankTitle } from './teensyStorage';
 import { subscribeBanks, banksVersion, simBankName } from './sim/bankAutoLoad';
@@ -195,6 +196,10 @@ export function ModulePanel({
       {/* Live master-VU op het OUT-paneel (ED-P-2): leest de outPeak-
           telemetrie; leeg/dim wanneer er geen Teensy verbonden is. */}
       {mod.typeId === 'tp_mmb_out' && <OutVuMeter cx={widthMm / 2} yTop={46} />}
+      {/* MIDI-activiteit per uitgang (sim); mouseover = laatste waarde, klik = monitor. */}
+      {mod.typeId === 'tp_mmb_midiin' && (
+        <MidiPortLeds ports={ports} placements={visual.portPlacements} controlState={controlState} r={JACK_R} />
+      )}
       {mod.typeId === 'tp_mmb_sampler' && (
         <SamplerBankStrip cx={widthMm / 2} y={15.6} w={widthMm * 0.62}
           bank={Number(controlState?.bank ?? 0)} />
@@ -637,7 +642,7 @@ function KnobTicks({
           x={x + Math.sin(a) * (r0 + len + 1.4)}
           y={y - Math.cos(a) * (r0 + len + 1.4) + 0.6}
           fontSize={1.3} fill="#fbbf24" textAnchor="middle" fontWeight={600}>
-          {Math.round(v)}
+          {c.ticks?.labels?.[Math.round(v)] ?? Math.round(v)}
         </text>
       );
     }

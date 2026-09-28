@@ -26,8 +26,11 @@ import {
   type MidiSource, type MidiEvent, type SequencePattern,
 } from './sim/MidiSource';
 import type { ModularProject, Patch, ControlValue } from './types';
+import { MidiFileSource } from './sim/midiFilePlayer';
+import { MidiFileUi } from './sim/MidiFileUi';
+import { midiMonitor } from './sim/midiMonitor';
 
-type SourceId = 'screen' | 'sequence' | 'webmidi';
+type SourceId = 'screen' | 'sequence' | 'webmidi' | 'file';
 
 export function SimulationPanel(): JSX.Element {
   const project = useModularProject();
@@ -42,11 +45,14 @@ export function SimulationPanel(): JSX.Element {
     screen:   new ScreenKeyboardSource(),
     sequence: new TestSequenceSource(),
     webmidi:  new WebMidiSource(),
+    file:     new MidiFileSource(),
   }), []);
+  // De MIDI-monitor en de LEDjes op MIDI-In lezen mee met wat de engine speelt.
+  useEffect(() => { midiMonitor.attachEngine(engine); }, [engine]);
 
   // Standaard een extern keyboard (Web MIDI); de keuze wordt onthouden.
   const [sourceId, setSourceIdRaw] = useState<SourceId>(() => {
-    try { const s = localStorage.getItem('mmb.sim.source'); if (s === 'screen' || s === 'sequence' || s === 'webmidi') return s; } catch { /* geen opslag */ }
+    try { const s = localStorage.getItem('mmb.sim.source'); if (s === 'screen' || s === 'sequence' || s === 'webmidi' || s === 'file') return s; } catch { /* geen opslag */ }
     return 'webmidi';
   });
   const setSourceId = (s: SourceId): void => { setSourceIdRaw(s); try { localStorage.setItem('mmb.sim.source', s); } catch { /* geen opslag */ } };
@@ -475,7 +481,7 @@ export function SimulationPanel(): JSX.Element {
       <fieldset style={fs}>
         <legend style={lg}>MIDI-bron</legend>
         <div style={row}>
-          {(['screen','sequence','webmidi'] as const).map((id) => (
+          {(['screen','sequence','webmidi','file'] as const).map((id) => (
             <label key={id} style={{ fontSize: 12 }}>
               <input type="radio" name="midisrc" checked={sourceId === id}
                 onChange={() => switchSource(id)} />
@@ -486,7 +492,7 @@ export function SimulationPanel(): JSX.Element {
             </label>
           ))}
         </div>
-        <SourceControls source={source} sourceId={sourceId} />
+        <SourceControls source={source} sourceId={sourceId} running={status.running} />
       </fieldset>
 
       <ModuleMatchSummary project={project} patch={patch} />
@@ -494,9 +500,10 @@ export function SimulationPanel(): JSX.Element {
   );
 }
 
-function SourceControls({ source, sourceId }: {
-  source: MidiSource; sourceId: SourceId;
+function SourceControls({ source, sourceId, running }: {
+  source: MidiSource; sourceId: SourceId; running: boolean;
 }): JSX.Element {
+  if (sourceId === 'file')     return <MidiFileUi source={source as MidiFileSource} running={running} />;
   if (sourceId === 'screen')   return <ScreenKeyboardUi source={source as ScreenKeyboardSource} />;
   if (sourceId === 'sequence') return <SequenceUi      source={source as TestSequenceSource} />;
   return <WebMidiUi source={source as WebMidiSource} />;
