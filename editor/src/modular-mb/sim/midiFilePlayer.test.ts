@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseSmf, MidiFileSource, toMidiEvent, SmfError } from './midiFilePlayer';
+import { parseSmf, MidiFileSource, toMidiEvent, SmfError, noteSpans } from './midiFilePlayer';
 import { encodeSmf } from './midiRecorder';
 import type { MidiEvent } from './MidiSource';
 
@@ -63,5 +63,72 @@ describe('MidiFileSource', () => {
   it('toMidiEvent', () => {
     expect(toMidiEvent([0xE0, 0, 64])).toEqual({ kind: 'pitchBend', value: 8192 });
     expect(toMidiEvent([0xF8])).toBeNull();
+  });
+});
+
+describe('seek, lusvenster en pianorol', () => {
+  // 120 BPM (encoder), noten op 0/500/1000/1500 ms, elk 400 ms lang; CC1 op 700 ms, bend op 900 ms.
+  const file = () => parseSmf(encodeSmf([
+    { t: 0, status: 0x90, d1: 60, d2: 100 }, { t: 400, status: 0x80, d1: 60, d2: 0 },
+    { t: 500, status: 0x90, d1: 62, d2: 90 }, { t: 900, status: 0x80, d1: 62, d2: 0 },
+    { t: 700, status: 0xB0, d1: 1, d2: 99 }, { t: 900, status: 0xE0, d1: 0, d2: 80 },
+    { t: 1000, status: 0x90, d1: 64, d2: 80 }, { t: 1400, status: 0x80, d1: 64, d2: 0 },
+    { t: 1500, status: 0x90, d1: 65, d2: 70 }, { t: 1900, status: 0x80, d1: 65, d2: 0 },
+  ], { lengthMs: 2000 }));
+
+  it('noteSpans en tempo', () => {
+    const f = file();
+    expect(Math.round(f.bpm)).toBe(120);
+    expect(f.beatsPerBar).toBe(4);
+    expect(noteSpans(f).map((n) => [n.note, Math.round(n.start), Math.round(n.end)])).toEqual([[60, 0, 400], [62, 500, 900], [64, 1000, 1400], [65, 1500, 1900]]);
+  });
+
+  it('seek tijdens spelen: noten los, controllers nagezonden, verder vanaf daar', () => {
+    let now = 0;
+    const src = new MidiFileSource(() => now, 1_000_000);
+    const got: string[] = [];
+    src.subscribe((e: MidiEvent) => got.push(e.kind === 'cc' ? `cc${e.controller}=${e.value}` : e.kind === 'pitchBend' ? `bend${e.value}` : `${e.kind}${'note' in e ? e.note : ''}`));
+    src.load(file(), 'x.mid');
+    src.start();                                  // noot 60 aan
+    now = 100; src.seek(1000);                    // 60 los, cc1 en bend nagezonden
+    expect(got).toEqual(['noteOn60', 'noteOff60', 'cc1=99', `bend${80 << 7}`]);
+    now = 101; src.pump();                        // t=1001: noot 64 aan
+    expect(got.at(-1)).toBe('noteOn64');
+    expect(Math.round(src.position())).toBe(1001);
+    src.stop();
+  });
+
+  it('seek in stilstand zet het startpunt', () => {
+    let now = 0;
+    const src = new MidiFileSource(() => now, 1_000_000);
+    src.load(file(), 'x.mid');
+    src.seek(1500);
+    expect(src.state().posMs).toBe(1500);
+    const got: string[] = [];
+    src.subscribe((e: MidiEvent) => got.push(`${e.kind}${'note' in e ? e.note : ''}`));
+    src.start();
+    expect(got).toContain('noteOn65');
+    expect(got).not.toContain('noteOn60');
+    src.stop();
+  });
+
+  it('lusvenster: speelt 500–1000 steeds opnieuw, noot op het eind hoort bij de volgende ronde', () => {
+    let now = 0;
+    const src = new MidiFileSource(() => now, 1_000_000);
+    const got: string[] = [];
+    src.subscribe((e: MidiEvent) => { if (e.kind === 'noteOn' || e.kind === 'noteOff') got.push(`${now}:${e.kind}${e.note}`); });
+    src.load(file(), 'x.mid');
+    src.setRegion({ start: 1000, end: 500 });      // omgedraaid mag
+    expect(src.state().region).toEqual({ start: 500, end: 1000 });
+    src.seek(500);
+    src.start();                                   // t=500: noot 62 aan
+    now = 400; src.pump();                         // t=900: 62 uit
+    now = 500; src.pump();                         // t=1000 = einde: 64 NIET, terug naar 500
+    now = 501; src.pump();                         // opnieuw 62 aan (t=500 ligt op het begin: al bij de sprong?)
+    expect(got.filter((x) => x.endsWith('noteOn64'))).toEqual([]);
+    expect(got.filter((x) => x.endsWith('noteOn62')).length).toBe(2);
+    src.setRegion(null);
+    expect(src.state().region).toBeNull();
+    src.stop();
   });
 });

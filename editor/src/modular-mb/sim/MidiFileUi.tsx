@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { MidiFileSource, parseSmf } from './midiFilePlayer';
+import { MidiRoll } from './MidiRoll';
 
 const fmt = (ms: number): string => {
   const s = Math.max(0, ms) / 1000;
@@ -32,9 +33,10 @@ export function MidiFileUi({ source, running }: { source: MidiFileSource; runnin
     }
   }
 
-  const pos = st.durationMs > 0 ? (st.posMs % Math.max(1, st.durationMs)) : 0;
+  const pos = st.posMs;
   return (
-    <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', fontSize: 12 }}>
+    <div style={{ marginTop: 6 }}>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', fontSize: 12 }}>
       <label style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
         <input type="file" accept=".mid,.midi,audio/midi" onChange={(e) => { void pick(e.target.files?.[0]); e.target.value = ''; }} />
       </label>
@@ -55,6 +57,8 @@ export function MidiFileUi({ source, running }: { source: MidiFileSource; runnin
       )}
       {!st.name && <span style={{ color: '#6b7280' }}>Kies een .mid; hij speelt zodra de sim draait. Ook de .mid van een sim-opname werkt.</span>}
       {err && <span style={{ color: '#b91c1c' }}>⚠ {err}</span>}
+    </div>
+    <MidiRoll source={source} />
     </div>
   );
 }

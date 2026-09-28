@@ -9,7 +9,13 @@
 import type { MidiEvent, MidiListener, MidiSource } from './MidiSource';
 
 export interface SmfEvent { t: number; bytes: number[] }
-export interface ParsedSmf { events: SmfEvent[]; durationMs: number; name?: string; tracks: number }
+export interface ParsedSmf {
+  events: SmfEvent[]; durationMs: number; name?: string; tracks: number;
+  /** Eerste tempo in het bestand (120 als er geen staat): voor de tellen in de pianorol. */
+  bpm: number;
+  /** Maatsoort-teller (4 als er geen staat). */
+  beatsPerBar: number;
+}
 
 export class SmfError extends Error {}
 
@@ -27,6 +33,7 @@ export function parseSmf(buf: Uint8Array): ParsedSmf {
   const raws: Raw[] = [];
   const tempos: { tick: number; us: number }[] = [];
   let name: string | undefined;
+  let timeSigNum: number | undefined;
   let order = 0;
   let endTick = 0;
   for (let tr = 0; tr < ntrks && p + 8 <= buf.length; tr++) {
@@ -45,6 +52,7 @@ export function parseSmf(buf: Uint8Array): ParsedSmf {
       if (s === 0xFF) {
         const type = buf[q++]!; const n = vl();
         if (type === 0x51 && n === 3) tempos.push({ tick, us: (buf[q]! << 16) | (buf[q + 1]! << 8) | buf[q + 2]! });
+        if (type === 0x58 && n >= 1 && timeSigNum === undefined) timeSigNum = buf[q]!;
         if (type === 0x03 && name === undefined && tr === 0) name = new TextDecoder().decode(buf.slice(q, q + n));
         if (type === 0x2F) { endTick = Math.max(endTick, tick); }
         q += n; continue;
@@ -83,7 +91,11 @@ export function parseSmf(buf: Uint8Array): ParsedSmf {
 
   raws.sort((a, b) => a.tick - b.tick || a.order - b.order);
   const events = raws.map((r) => ({ t: toMs(r.tick), bytes: r.bytes }));
-  return { events, durationMs: toMs(endTick), name: name || undefined, tracks: ntrks };
+  const firstTempo = [...tempos].sort((a, b) => a.tick - b.tick)[0]?.us ?? 500_000;
+  return {
+    events, durationMs: toMs(endTick), name: name || undefined, tracks: ntrks,
+    bpm: division & 0x8000 ? 120 : 60_000_000 / firstTempo, beatsPerBar: timeSigNum || 4,
+  };
 }
 
 /** Eén kanaalbericht → MidiEvent van de sim (zelfde regels als WebMidiSource). */
@@ -99,11 +111,39 @@ export function toMidiEvent(b: readonly number[]): MidiEvent | null {
   return null;
 }
 
-export interface PlayerState { name: string | null; playing: boolean; loop: boolean; posMs: number; durationMs: number; events: number }
+export interface LoopRegion { start: number; end: number }
+
+export interface PlayerState {
+  name: string | null; playing: boolean; loop: boolean;
+  /** Positie in het bestand (ms), ook als hij stilstaat (startpunt). */
+  posMs: number; durationMs: number; events: number;
+  region: LoopRegion | null;
+}
+
+/** Noten als balkjes voor de pianorol: van noot-aan tot noot-uit. */
+export interface NoteSpan { note: number; start: number; end: number; vel: number }
+
+export function noteSpans(f: ParsedSmf): NoteSpan[] {
+  const open = new Map<number, { start: number; vel: number }>();   // (kanaal<<7|noot)
+  const out: NoteSpan[] = [];
+  for (const e of f.events) {
+    const s = e.bytes[0]! & 0xF0, key = ((e.bytes[0]! & 0x0F) << 7) | e.bytes[1]!;
+    const on = s === 0x90 && (e.bytes[2] ?? 0) > 0;
+    if (on || s === 0x80 || s === 0x90) {
+      const o = open.get(key);
+      if (o) { out.push({ note: key & 0x7F, start: o.start, end: e.t, vel: o.vel }); open.delete(key); }
+      if (on) open.set(key, { start: e.t, vel: e.bytes[2]! });
+    }
+  }
+  for (const [key, o] of open) out.push({ note: key & 0x7F, start: o.start, end: f.durationMs, vel: o.vel });
+  return out.sort((a, b) => a.start - b.start);
+}
 
 /**
  * Speelt een geladen bestand af zodra de sim de bron start. `now` en de
- * timer zijn injecteerbaar voor tests.
+ * timer zijn injecteerbaar voor tests. Springen (seek) en een lusvenster
+ * zoals in een DAW; na een sprong krijgt de patch de laatste stand van de
+ * controllers, pitch bend en aftertouch mee ("chase").
  */
 export class MidiFileSource implements MidiSource {
   readonly id = 'file';
@@ -116,6 +156,9 @@ export class MidiFileSource implements MidiSource {
   private t0 = 0;
   private idx = 0;
   private held = new Set<number>();
+  /** Startpunt als hij stilstaat (ms in het bestand). */
+  private startAt = 0;
+  private loopRegion: LoopRegion | null = null;
   loop = true;
 
   constructor(
@@ -130,17 +173,39 @@ export class MidiFileSource implements MidiSource {
   load(file: ParsedSmf, name: string): void {
     const wasPlaying = this.timer !== null;
     this.halt();
-    this.file = file; this.fileName = name;
+    this.file = file; this.fileName = name; this.startAt = 0; this.loopRegion = null;
     if (wasPlaying) this.start(); else this.changed();
   }
 
+  parsed(): ParsedSmf | null { return this.file; }
+
   setLoop(on: boolean): void { this.loop = on; this.changed(); }
+
+  /** Lusvenster (ms); null = het hele bestand. Korter dan 20 ms = geen venster. */
+  setRegion(r: LoopRegion | null): void {
+    const d = this.file?.durationMs ?? 0;
+    if (r) {
+      const start = Math.max(0, Math.min(r.start, r.end)), end = Math.min(d, Math.max(r.start, r.end));
+      this.loopRegion = end - start >= 20 ? { start, end } : null;
+    } else this.loopRegion = null;
+    if (this.loopRegion) this.loop = true;
+    this.changed();
+  }
+
+  /** Waar de lus terugspringt en waar hij eindigt. */
+  private bounds(): LoopRegion {
+    return this.loopRegion ?? { start: 0, end: this.file?.durationMs ?? 0 };
+  }
+
+  position(): number {
+    return this.timer ? Math.max(0, this.now() - this.t0) : this.startAt;
+  }
 
   state(): PlayerState {
     return {
       name: this.fileName, playing: this.timer !== null, loop: this.loop,
-      posMs: this.timer ? Math.max(0, this.now() - this.t0) : 0,
-      durationMs: this.file?.durationMs ?? 0, events: this.file?.events.length ?? 0,
+      posMs: this.position(), durationMs: this.file?.durationMs ?? 0,
+      events: this.file?.events.length ?? 0, region: this.loopRegion,
     };
   }
 
@@ -150,16 +215,46 @@ export class MidiFileSource implements MidiSource {
 
   start(): void {
     if (!this.file || this.timer) return;
-    this.t0 = this.now(); this.idx = 0;
+    this.jump(this.startAt);
     this.timer = setInterval(() => this.pump(), this.tickMs);
     this.pump();
     this.changed();
   }
 
-  stop(): void { this.halt(); this.changed(); }
+  stop(): void {
+    if (this.timer) this.startAt = this.position();
+    this.halt();
+    this.changed();
+  }
 
-  /** Terug naar het begin zonder te stoppen. */
-  restart(): void { if (this.timer) { this.releaseAll(); this.t0 = this.now(); this.idx = 0; this.changed(); } }
+  /** Terug naar het begin (van het lusvenster) zonder te stoppen. */
+  restart(): void { this.seek(this.bounds().start); }
+
+  /** Spring naar `ms` in het bestand; speelt hij, dan loopt hij daar verder. */
+  seek(ms: number): void {
+    const d = this.file?.durationMs ?? 0;
+    const at = Math.max(0, Math.min(d, ms));
+    if (this.timer) this.jump(at); else this.startAt = at;
+    this.changed();
+  }
+
+  /** Noten los, positie zetten, controllerstand van vóór `ms` nazenden. */
+  private jump(ms: number): void {
+    const f = this.file;
+    this.releaseAll();
+    this.t0 = this.now() - ms;
+    if (!f) { this.idx = 0; return; }
+    let i = 0;
+    const last = new Map<string, number[]>();   // laatste stand per soort
+    while (i < f.events.length && f.events[i]!.t < ms) {
+      const b = f.events[i]!.bytes, s = b[0]! & 0xF0;
+      if (s === 0xB0) last.set(`cc${b[0]}:${b[1]}`, b);
+      else if (s === 0xE0 || s === 0xD0) last.set(`s${b[0]}`, b);
+      i++;
+    }
+    this.idx = i;
+    for (const b of last.values()) { const e = toMidiEvent(b); if (e) this.emit(e); }
+  }
 
   private halt(): void {
     if (this.timer) { clearInterval(this.timer); this.timer = null; }
@@ -181,19 +276,23 @@ export class MidiFileSource implements MidiSource {
   pump(): void {
     const f = this.file;
     if (!f) return;
+    const b = this.bounds();
     const pos = this.now() - this.t0;
-    while (this.idx < f.events.length && f.events[this.idx]!.t <= pos) {
-      const e = toMidiEvent(f.events[this.idx]!.bytes);
+    const until = this.loop ? Math.min(pos, b.end) : pos;
+    while (this.idx < f.events.length && f.events[this.idx]!.t <= until) {
+      const ev = f.events[this.idx]!;
+      // In een lusvenster hoort een noot-aan precies op het einde bij de volgende ronde.
+      if (this.loop && this.loopRegion && ev.t >= b.end && (ev.bytes[0]! & 0xF0) === 0x90 && (ev.bytes[2] ?? 0) > 0) break;
+      const e = toMidiEvent(ev.bytes);
       this.idx++;
       if (e) this.emit(e);
     }
-    if (this.idx >= f.events.length && pos >= f.durationMs) {
-      this.releaseAll();
-      if (this.loop && f.events.length > 0) {
-        this.t0 += Math.max(f.durationMs, 1); this.idx = 0;
-      } else {
-        this.halt(); this.changed();
-      }
+    const atEnd = this.loop ? pos >= b.end : (this.idx >= f.events.length && pos >= f.durationMs);
+    if (!atEnd) return;
+    if (this.loop && f.events.length > 0 && b.end > b.start) {
+      this.jump(b.start);
+    } else {
+      this.halt(); this.startAt = 0; this.changed();
     }
   }
 }
