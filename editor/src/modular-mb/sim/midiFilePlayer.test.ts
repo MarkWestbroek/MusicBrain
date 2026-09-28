@@ -98,6 +98,22 @@ describe('seek, lusvenster en pianorol', () => {
     src.stop();
   });
 
+  it('pauze houdt de plek vast, rewind gaat naar het begin van het venster', () => {
+    let now = 0;
+    const src = new MidiFileSource(() => now, 1_000_000);
+    src.load(file(), 'x.mid');
+    src.start();
+    now = 1200; src.pump();
+    src.pause();
+    expect(src.state()).toMatchObject({ playing: false, posMs: 1200 });
+    now = 5000;
+    src.start();                                     // verder vanaf 1200
+    expect(Math.round(src.position())).toBe(1200);
+    src.setRegion({ start: 500, end: 1500 });
+    src.rewind();
+    expect(src.state()).toMatchObject({ playing: false, posMs: 500 });
+  });
+
   it('seek in stilstand zet het startpunt', () => {
     let now = 0;
     const src = new MidiFileSource(() => now, 1_000_000);

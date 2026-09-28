@@ -49,10 +49,16 @@ export function MidiFileUi({ source, running }: { source: MidiFileSource; runnin
           {st.playing
             ? <span style={{ color: '#15803d' }}>▶ {fmt(pos)}</span>
             : <span style={{ color: '#6b7280' }}>{running ? 'klaar' : 'start de sim om af te spelen'}</span>}
-          {running && (st.playing
-            ? <button onClick={() => source.restart()}>⏮ Opnieuw</button>
-            : <button onClick={() => source.start()}>▶ Afspelen</button>)}
-          {st.playing && <button onClick={() => source.stop()}>■ Stop</button>}
+          {running && (
+            <span style={{ display: 'inline-flex', gap: 4 }}>
+              {st.playing
+                ? <button onClick={() => source.pause()} title="Pauze: blijft staan waar hij is">⏸ Pauze</button>
+                : <button onClick={() => source.start()} title="Afspelen vanaf de afspeelkop">▶ Afspelen</button>}
+              <button onClick={() => source.rewind()} title="Stop en terug naar het begin (van het lusvenster)"
+                disabled={!st.playing && st.posMs === (st.region?.start ?? 0)}>■ Stop</button>
+              <button onClick={() => source.restart()} title="Naar het begin (van het lusvenster), blijft spelen">⏮</button>
+            </span>
+          )}
         </>
       )}
       {!st.name && <span style={{ color: '#6b7280' }}>Kies een .mid; hij speelt zodra de sim draait. Ook de .mid van een sim-opname werkt.</span>}

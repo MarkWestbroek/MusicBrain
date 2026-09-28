@@ -230,6 +230,12 @@ export class MidiFileSource implements MidiSource {
   /** Terug naar het begin (van het lusvenster) zonder te stoppen. */
   restart(): void { this.seek(this.bounds().start); }
 
+  /** Pauze: stilzetten op de huidige plek (zelfde als stop). */
+  pause(): void { this.stop(); }
+
+  /** Stop en terug naar het begin (van het lusvenster). */
+  rewind(): void { this.stop(); this.startAt = this.bounds().start; this.changed(); }
+
   /** Spring naar `ms` in het bestand; speelt hij, dan loopt hij daar verder. */
   seek(ms: number): void {
     const d = this.file?.durationMs ?? 0;
