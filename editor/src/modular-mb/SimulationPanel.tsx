@@ -7,7 +7,7 @@
 // ondersteunen — zie roadmap in Requirements.md §v0.3-simulatie.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useModularProject, updateProject, getProject } from './store';
+import { useModularProject, updateProject, getProject, uid } from './store';
 import { findPatchByBankProgram } from './recipe/classify';
 import { SamplerBankBar } from './sim/SamplerBankBar';
 import { AudioEngine, type EngineStatus } from './sim/AudioEngine';
@@ -26,7 +26,9 @@ import {
   type MidiSource, type MidiEvent, type SequencePattern,
 } from './sim/MidiSource';
 import type { ModularProject, Patch, ControlValue } from './types';
-import { MidiFileSource } from './sim/midiFilePlayer';
+import { MidiFileSource, parseSmf } from './sim/midiFilePlayer';
+import { TakeLibraryPanel } from './sim/TakeLibraryPanel';
+import { addPatchSnapshot } from './sim/takeLibrary';
 import { MidiFileUi } from './sim/MidiFileUi';
 import { midiMonitor } from './sim/midiMonitor';
 
@@ -89,6 +91,18 @@ export function SimulationPanel(): JSX.Element {
   const [lastTake, setLastTake] = useState<Take | null>(null);
   const [lib, setLib] = useState<LibrarySettings>(loadLibrarySettings);
   const [libOpen, setLibOpen] = useState(false);
+  const [takesOpen, setTakesOpen] = useState(false);
+  function takeMidi(bytes: Uint8Array, name: string): void {
+    const file = sources.file as MidiFileSource;
+    file.load(parseSmf(bytes), name);
+    if (sourceId !== 'file') switchSource('file');
+  }
+  function takePatch(bytes: Uint8Array, name: string): void {
+    const snap = JSON.parse(new TextDecoder().decode(bytes)) as ModularProject;
+    if (!snap || !Array.isArray(snap.patches) || !Array.isArray(snap.modules)) throw new Error('Geen geldig patch-bestand.');
+    const label = `Take ${name.replace(/^mmb-/, '')}`;
+    updateProject((p) => addPatchSnapshot(p, snap, label, uid), { forceCommit: true });
+  }
   const [libBusy, setLibBusy] = useState(false);
   const [libMsg, setLibMsg] = useState<{ ok: boolean; text: string } | null>(null);
   function updateLib(next: LibrarySettings): void { setLib(next); saveLibrarySettings(next); }
@@ -435,11 +449,17 @@ export function SimulationPanel(): JSX.Element {
             ✔ {recDone}
           </p>
         )}
-        {lastTake && !recording && (
+        {!recording && (
           <div style={{ ...row, marginTop: 6 }}>
-            <button onClick={() => void sendToLibrary()} disabled={libBusy}
-              title="Zet deze opname (alle bestanden, als één koppel) in de media library van musicbrain.nl">
-              {libBusy ? '… bezig' : '⤴ Naar library'}
+            {lastTake && (
+              <button onClick={() => void sendToLibrary()} disabled={libBusy}
+                title="Zet deze opname (alle bestanden, als één koppel) in de media library van musicbrain.nl">
+                {libBusy ? '… bezig' : '⤴ Naar library'}
+              </button>
+            )}
+            <button onClick={() => setTakesOpen((v) => !v)} style={takesOpen ? { fontWeight: 600 } : undefined}
+              title="Takes uit de media library: beluisteren, de MIDI afspelen, de patch terughalen">
+              📚 Takes
             </button>
             <button onClick={() => setLibOpen((v) => !v)} title="Token, map en tags voor de media library">⚙ Library</button>
             {libMsg && (
@@ -448,6 +468,9 @@ export function SimulationPanel(): JSX.Element {
               </span>
             )}
           </div>
+        )}
+        {takesOpen && !recording && (
+          <TakeLibraryPanel settings={lib} onMidi={takeMidi} onPatch={takePatch} />
         )}
         {libOpen && (
           <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 8px', fontSize: 12, marginTop: 6, maxWidth: 520 }}>
