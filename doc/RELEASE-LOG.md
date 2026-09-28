@@ -17,6 +17,23 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### fw 0.5.82 — SID: filter, 8580-model (2026-09-28)
+- `mmb_dsp::SidChip` krijgt het filter: een 2-polig state-variable filter
+  (ZDF/TPT, 12 dB/oct) met LP/BP/HP combineerbaar zoals op de chip (LP+HP =
+  notch; zonder mode is wat erdoor gaat stil). Cutoff = 11-bit register,
+  bij de 8580 vrijwel lineair ~30 Hz … ~12 kHz; resonantie 16 stappen tot
+  Q ≈ 4, geen zelfoscillatie. Mapping op het oor, niet gemeten.
+  Cutoffsprongen ~1 ms gladgestreken. Routing per stem (FILT 1–3) en EXT IN
+  (FILT EX); 3OFF alleen op het directe pad.
+- Module: knoppen **Filt**, **Cutoff** (0..2047), **Res** (0..15), **LP/BP/HP**;
+  ingangen **Cut+** (0..1 = het hele bereik) en **Ext** (EXT IN, altijd door
+  het filter). Paneel 16 HP (filterkolom rechts). Seed SID ×3: lowpass,
+  cutoff 700, res 8.
+- Tests: mapping, LP/HP, resonantie (5,7× op de cutoff), notch, EXT IN
+  (core-tests 129); wasm: lowpass en EXT IN.
+- Nog niet op de Teensy gemeten (een andere sessie had lopend LFO-werk in
+  de werkboom; niet mee-geflasht).
+
 ### fw 0.5.81 — SID: combined waveforms als bitlijn-model + Combo-knop (2026-09-28)
 - Combined waveforms zijn geen zuivere AND meer maar een eigen
   bitlijn-model (`SidChip::combinedModel`): elke uitgangsbit is een gewogen

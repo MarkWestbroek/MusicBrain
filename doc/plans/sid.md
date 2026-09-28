@@ -103,8 +103,9 @@ golfvormen met een zachte afronding) en dat eerlijk zo labelen.
    Tests: `firmware/core/tests/test_sid.cpp` (10 kerntests) en
    `editor/src/modular-mb/sim/wasmPorts.test.ts` (namen, toonhoogte,
    release, akkoord).
-4. Filter 8580 (ZDF-SVF, nette cutoffcurve), met routing per stem, EXT IN
-   en de modes LP/BP/HP.
+4. **Klaar (fw 0.5.82).** Filter 8580: ZDF-SVF 12 dB/oct, LP/BP/HP
+   combineerbaar, cutoff lineair ~30 Hz … ~12 kHz, res tot Q ≈ 4, routing
+   (Filt) en EXT IN. Mapping op het oor.
 5. Filter 6581: S-curve, verzadiging, "Curve"-knop; DC-offset per stem en
    de volume-klik (digi's), met DC-blokker.
 6. Combined waveforms. **Model klaar (fw 0.5.81):** bitlijn-model met

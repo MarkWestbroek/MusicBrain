@@ -23,14 +23,19 @@
  *  - ADSR per stem, cycle-exact als integer-toestandsmachine: de periodetabel,
  *    het pseudo-exponentiële verval (knikpunten 93/54/26/14/6) en de 15-bit
  *    rate-teller — waardoor de ADSR-bug vanzelf ontstaat;
+ *  - het filter, 8580-model (plan stap 4): een 2-polig state-variable filter
+ *    (ZDF/TPT, 12 dB/oct) met LP/BP/HP combineerbaar (LP+HP = notch), 11-bit
+ *    cutoff vrijwel lineair van ~30 Hz tot ~12 kHz, resonantie in 16 stappen
+ *    tot Q ≈ 4 (geen zelfoscillatie); routing per stem en EXT IN. Mapping op
+ *    het oor, niet gemeten;
  *  - 4-bit master volume en 3OFF;
  *  - een DC-blokker op de uitgang (eerste-orde hoogdoorlaat, 10 Hz): de rol
  *    van de koppelcondensator op de C64. Combined waveforms liggen vaak op de
  *    bodem van de DAC en geven anders een gelijkspanning die met de PW
  *    meezwaait.
- * Nog niet: het filter (registers worden wel bewaard), de DC-offset van de
- * 6581 en gemeten combined waveforms (de modelparameters zijn op het oor
- * gekozen, niet gemeten).
+ * Nog niet: het 6581-filter (S-curve, verzadiging), de DC-offset van de 6581
+ * en gemeten combined waveforms (de modelparameters zijn op het oor gekozen,
+ * niet gemeten).
  *
  * Band-limited: niet cycle-exact. Per audio-sample schuift de accumulator
  * ~22 SID-cycli door; elke sprong in de golfvorm (wrap, pulsflank, sync-reset,
@@ -65,11 +70,23 @@ public:
         Reset();
     }
 
+    /** Cutoff in Hz bij een 11-bit registerwaarde (8580-model). */
+    static float cutoffHz8580(int reg) {
+        return kFcLo + static_cast<float>(reg < 0 ? 0 : (reg > 2047 ? 2047 : reg)) * ((kFcHi - kFcLo) / 2047.0f);
+    }
+    /** Q bij een 4-bit resonantiewaarde (8580-model): 0,707 … ≈ 4. */
+    static float resonanceQ8580(int res) {
+        return 0.7071f * std::exp2(static_cast<float>(res & 15) * (kResOctaves / 15.0f));
+    }
+
     void Reset() {
         for (auto& r : regs_) r = 0;
         for (auto& v : voice_) v = Voice{};
         cycleFrac_ = 0.0;
         dcX1_ = dcY1_ = 0.0f;
+        ic1_ = ic2_ = 0.0f;
+        updateFilter();
+        g_ = gTarget_;
     }
 
     double clock() const { return clock_; }
@@ -85,6 +102,8 @@ public:
             v.gate = gate;
             if (val & kTest) { v.acc = 0.0; v.lfsr = kLfsrInit; }
             ensureTable(val);
+        } else if (reg >= 0x15 && reg <= 0x17) {
+            updateFilter();
         }
     }
 
@@ -114,8 +133,9 @@ public:
     }
     uint8_t reg(int r) const { return (r >= 0 && r < kNumRegs) ? regs_[r] : 0; }
 
-    /** Eén sample, mono. Eén stem op vol volume ≈ ±1; drie stemmen ≈ ±3. */
-    float Process() {
+    /** Eén sample, mono. Eén stem op vol volume ≈ ±1; drie stemmen ≈ ±3.
+     *  @p ext = EXT IN (±1, telt als één stem); door het filter als FILT EX aan staat. */
+    float Process(float ext = 0.0f) {
         cycleFrac_ += cyclesPerSample_;
         const int cycles = static_cast<int>(cycleFrac_);
         cycleFrac_ -= cycles;
@@ -126,7 +146,7 @@ public:
         Free fr[3];
         for (int i = 0; i < 3; ++i) fr[i] = freeEdges(i);
 
-        float mix = 0.0f;
+        float direct = 0.0f, filtIn = 0.0f;
         const uint8_t modeVol = regs_[0x18];
         const uint8_t filt = regs_[0x17] & 0x0f;
         for (int i = 0; i < 3; ++i) {
@@ -135,11 +155,14 @@ public:
             Voice& v = voice_[i];
             const float out = w * v.prevEnv * (1.0f / 255.0f);
             v.prevEnv = static_cast<float>(v.env);
+            if (filt & (1u << i)) { filtIn += out; continue; }
             // 3OFF: stem 3 uit de mix, tenzij hij door het filter gaat.
-            if (i == 2 && (modeVol & 0x80) && !(filt & 0x04)) continue;
-            mix += out;
+            if (i == 2 && (modeVol & 0x80)) continue;
+            direct += out;
         }
-        const float x = mix * static_cast<float>(modeVol & 0x0f) * (1.0f / 15.0f);
+        if (filt & 0x08) filtIn += ext; else direct += ext;
+        const float x = (direct + processFilter(filtIn, modeVol))
+                      * static_cast<float>(modeVol & 0x0f) * (1.0f / 15.0f);
         // DC-blokker: y = x − x₋₁ + R·y₋₁.
         const float y = x - dcX1_ + dcR_ * dcY1_;
         dcX1_ = x; dcY1_ = y;
@@ -163,6 +186,33 @@ public:
     enum EnvState { kAttack = 0, kDecaySustain = 1, kRelease = 2 };
 
 private:
+    /** Doelcoëfficiënten uit $15/$16 (cutoff) en $17 (resonantie). */
+    void updateFilter() {
+        const int fc = (regs_[0x15] & 7) | (regs_[0x16] << 3);
+        float hz = cutoffHz8580(fc);
+        if (hz > 0.45f * fs_) hz = 0.45f * fs_;
+        gTarget_ = std::tan(3.14159265f * hz / fs_);
+        k_ = 1.0f / resonanceQ8580(regs_[0x17] >> 4);
+    }
+
+    /** ZDF-SVF (Zavalishin/Simper), één sample; somt de gekozen modes. */
+    float processFilter(float in, uint8_t modeVol) {
+        g_ += (gTarget_ - g_) * kCutoffGlide;         // cutoffsprongen ~1 ms gladstrijken
+        const float a1 = 1.0f / (1.0f + g_ * (g_ + k_));
+        const float a2 = g_ * a1, a3 = g_ * a2;
+        const float v3 = in - ic2_;
+        const float v1 = a1 * ic1_ + a2 * v3;         // band
+        const float v2 = ic2_ + a2 * ic1_ + a3 * v3;  // laag
+        ic1_ = 2.0f * v1 - ic1_;
+        ic2_ = 2.0f * v2 - ic2_;
+        const float hp = in - k_ * v1 - v2;
+        float y = 0.0f;
+        if (modeVol & 0x10) y += v2;
+        if (modeVol & 0x20) y += v1;
+        if (modeVol & 0x40) y += hp;
+        return y;
+    }
+
     static constexpr uint32_t kLfsrInit = 0x7ffff8;
     static constexpr double   k2p32 = 4294967296.0;
     static constexpr double   k2p31 = 2147483648.0;
@@ -499,6 +549,10 @@ private:
     float    cmK_[kComboR + 1] = { 1.f, 0.f, 0.f, 0.f, 0.f };
     std::unique_ptr<uint16_t[]> table_[8];            // op index tri|saw|pulse (pulse = hoog)
     float   dcR_ = 0.9986f, dcX1_ = 0.0f, dcY1_ = 0.0f;
+    // Filter (8580-model): cutoff-bereik, resonantie tot 0,707·2^kResOctaves.
+    static constexpr float kFcLo = 30.0f, kFcHi = 12000.0f, kResOctaves = 2.5f;
+    static constexpr float kCutoffGlide = 0.02f;
+    float   g_ = 0.0f, gTarget_ = 0.0f, k_ = 1.4142f, ic1_ = 0.0f, ic2_ = 0.0f;
 };
 
 /**
@@ -514,6 +568,8 @@ public:
         chip_.Init(sampleRate);
         for (int k = 0; k < kVoices; ++k) { writeFreq(k); writePw(k); writeAdsr(k); writeControl(k); }
         writeVolume();
+        writeCutoff();
+        writeResFilt();
     }
     SidChip& chip() { return chip_; }
 
@@ -550,9 +606,23 @@ public:
     /** Combined-waveform-sterkte 0..10 (0 = AND, 4 ≈ 8580, 7 ≈ 6581). */
     void setCombo(float c)       { chip_.setCombo(c); }
 
-    /** Eén sample, mono, ±1 (hard begrensd). */
-    float Process() {
-        const float y = chip_.Process() * level_ * kGain;
+    // ── filter ───────────────────────────────────────────────────────
+    /** Cutoff als 11-bit registerwaarde 0..2047. */
+    void setCutoff(float r)      { cutoff_ = r; writeCutoff(); }
+    /** Cutoff-CV 0..1 = het hele bereik erbovenop (negatief = omlaag). */
+    void setCutoffCv(float cv)   { if (cv != cutoffCv_) { cutoffCv_ = cv; writeCutoff(); } }
+    void setRes(int n)           { res_ = nib(n); writeResFilt(); }
+    /** De drie stemmen door het filter (FILT 1–3). EXT IN gaat er altijd door. */
+    void setFilt(bool on)        { filt_ = on; writeResFilt(); }
+    void setMode(uint8_t bit, bool on) {
+        mode_ = static_cast<uint8_t>(on ? (mode_ | bit) : (mode_ & ~bit));
+        writeVolume();
+    }
+    enum : uint8_t { kLp = 0x10, kBp = 0x20, kHp = 0x40 };
+
+    /** Eén sample, mono, ±1 (hard begrensd). @p ext = EXT IN (±1). */
+    float Process(float ext = 0.0f) {
+        const float y = chip_.Process(ext) * level_ * kGain;
         return y > 1.f ? 1.f : (y < -1.f ? -1.f : y);
     }
 
@@ -598,7 +668,17 @@ private:
         if (gate_[k]) c |= SidChip::kGate;
         chip_.write(k * 7 + 4, c);
     }
-    void writeVolume() { chip_.write(0x18, static_cast<uint8_t>((chip_.reg(0x18) & 0xf0) | volume_)); }
+    void writeVolume() { chip_.write(0x18, static_cast<uint8_t>(mode_ | volume_)); }
+    void writeCutoff() {
+        float r = cutoff_ + cutoffCv_ * 2047.0f;
+        r = r < 0.f ? 0.f : (r > 2047.f ? 2047.f : r);
+        const unsigned v = static_cast<unsigned>(r + 0.5f);
+        chip_.write(0x15, v & 7);
+        chip_.write(0x16, static_cast<uint8_t>(v >> 3));
+    }
+    void writeResFilt() {
+        chip_.write(0x17, static_cast<uint8_t>((res_ << 4) | 0x08 | (filt_ ? 0x07 : 0x00)));
+    }
 
     SidChip chip_;
     float   voct_[kVoices] = {};
@@ -609,6 +689,9 @@ private:
     float   pw_ = 0.5f, pwCv_ = 0.f;
     uint8_t attack_ = 0, decay_ = 9, sustain_ = 10, release_ = 9, volume_ = 15;
     float   level_ = 0.8f;
+    float   cutoff_ = 1024.f, cutoffCv_ = 0.f;
+    uint8_t res_ = 0, mode_ = kLp;
+    bool    filt_ = false;
 };
 
 }  // namespace mmb_dsp

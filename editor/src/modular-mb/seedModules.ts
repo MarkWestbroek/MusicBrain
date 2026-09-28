@@ -1421,22 +1421,26 @@ function mmbSampler() {
 // + 2 van het plan: oscillatoren, noise, ring/sync en de ADSR — nog zonder
 // filter.
 function mmbSid() {
-  const w = W(12);
+  // Links het stemmenblok (de oude 12 HP), rechts een filterkolom van 4 HP.
+  const w = W(12), full = W(16);
+  const fx = w + (full - w) / 2;                              // midden filterkolom
   const colX = (i: number) => w * (0.30 + i * 0.2);          // drie cel-kolommen
   const cells = [1, 2, 3];
   const onOff = ['Uit', 'Aan'];
   const adsr = { size: 'small' as const, min: 0, max: 15, step: 1, color: '#c4b5fd' };
+  const flt = '#38bdf8';
   return assemble({
     typeId: 'tp_mmb_sid', categoryId: 'vco', variant: 'SID 6581/8580 (emulatie)',
-    brand: 'MMB', model: 'SID', hp: 12, texture: 'pcb-black', baseColor: '#2a2440', internal: true,
+    brand: 'MMB', model: 'SID', hp: 16, texture: 'pcb-black', baseColor: '#2a2440', internal: true,
     role: 'multi',
     cellGroups: [{ id: 'voice', label: 'Stem', count: 3, portIds: ['voct', 'gate'], controlIds: [] }],
     texts: [
-      { x: w/2, y: 8,   text: 'SID', fontSize: 2.2, color: '#f9fafb', align: 'middle' },
-      { x: w/2, y: 14,  text: '6581 · 3 stemmen · C64', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
-      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+      { x: full/2, y: 8,   text: 'SID', fontSize: 2.2, color: '#f9fafb', align: 'middle' },
+      { x: full/2, y: 14,  text: '6581 · 3 stemmen · filter 8580 · C64', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
+      { x: full/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
       { x: 3, y: 97,  text: 'V/Oct', fontSize: 1.0, color: '#9ca3af', align: 'start' },
       { x: 3, y: 109, text: 'Gate',  fontSize: 1.0, color: '#9ca3af', align: 'start' },
+      { x: fx, y: 19, text: 'FILTER', fontSize: 1.1, color: flt, align: 'middle' },
     ],
     items: [
       // Golfvormen: elk los aan/uit; meer dan één tegelijk = combined waveform.
@@ -1459,13 +1463,22 @@ function mmbSid() {
       knob('fine',   'Fine',   w*0.38, 78, { size: 'small', min: -100, max: 100, def: 0, unit: 'ct', color: '#f9fafb' }),
       knob('volume', 'Vol',    w*0.62, 78, { size: 'small', min: 0, max: 15, def: 15, step: 1, color: '#9ca3af' }),
       knob('level',  'Level',  w*0.86, 78, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      // Filter (8580-model): registerwaarden zoals op de chip.
+      sw('filt', 'Filt', fx, 27, onOff, 0),
+      knob('cutoff', 'Cutoff', fx, 44, { size: 'medium', min: 0, max: 2047, def: 1024, step: 1, color: flt }),
+      knob('res',    'Res',    fx, 60, { size: 'small', min: 0, max: 15, def: 0, step: 1, color: flt }),
+      sw('lp', 'LP', fx - 6.2, 76, onOff, 1),
+      sw('bp', 'BP', fx,       76, onOff, 0),
+      sw('hp', 'HP', fx + 6.2, 76, onOff, 0),
       ...cells.map((k) => inPort(`voct_${k}`, `${k}`, 'cv',   colX(k - 1), 96,  { cellGroupId: 'voice' })),
       ...cells.map((k) => inPort(`gate_${k}`, '',     'gate', colX(k - 1), 108, { cellGroupId: 'voice' })),
+      inPort('cutoff_cv', 'Cut+', 'cv',    fx, 96),
+      inPort('ext_in',    'Ext',  'audio', fx, 108),
       inPort('bend',  'Bend', 'cv', w*0.14, 120),
       inPort('pw_cv', 'PW+',  'cv', w*0.38, 120),
-      outPort('out',  'Out',  'audio', w*0.84, 120),
+      outPort('out',  'Out',  'audio', fx, 120),
     ],
-    notes: 'De geluidschip van de Commodore 64 (MOS 6581/8580), als eigen emulatie op registerniveau — geen reSID-code. Drie stemmen, elk met een 24-bit oscillator en vier golfvormen: Tri, Saw, Pulse (breedte met PW, ook via PW+) en Noise (een 23-bit schuifregister). Zet je er meer dan één aan, dan krijg je een combined waveform: de golfvormen hangen dan aan dezelfde lijnen naar de DAC en een 0 trekt harder dan een 1, dus het lijkt op een AND, maar zwakker. Combo regelt hoe sterk: 0 = zuivere AND, 8580 en 6581 zijn gemarkeerd (op de 6581 wordt tri+saw dun en zacht), 10 gaat nog verder. Een eigen model, op het oor afgesteld, niet gemeten aan een chip. Noise in een combinatie sterft uit, zoals op de chip: de uitgang schrijft terug in het schuifregister. Wissel je daarna van golfvorm, dan zet de module het schuifregister terug met de test-bit (zoals C64-spelers dat deden). Ring en Sync koppelen elke stem aan de vorige (3 → 1 → 2 → 3): Ring vervangt de driehoek door een ringmodulatie met die stem, Sync zet de oscillator terug bij elke periode van die stem. De ADSR staat in registerwaarden 0..15 zoals op de chip (attack 2 ms tot 8 s, decay en release 6 ms tot 24 s, sustain in 16 stappen) en heeft de beroemde ADSR-bug: wissel je naar een snellere rate terwijl de interne teller al verder staat, dan wacht de envelope tot die rond is (tot ~33 ms). Vol is het 4-bit mastervolume van de chip. Multi-module: drie stem-cellen (voct_k/gate_k) die één chip delen; polyfoon spelen = een PolyGroup over de cellen (Poly ▾ → SID), MIDI-in verdeelt de noten. Het filter volgt in een volgende stap. Firmware tp_mmb_sid, mmb_dsp::SidSynth — in de simulator draait dezelfde code als wasm.',
+    notes: 'De geluidschip van de Commodore 64 (MOS 6581/8580), als eigen emulatie op registerniveau — geen reSID-code. Drie stemmen, elk met een 24-bit oscillator en vier golfvormen: Tri, Saw, Pulse (breedte met PW, ook via PW+) en Noise (een 23-bit schuifregister). Zet je er meer dan één aan, dan krijg je een combined waveform: de golfvormen hangen dan aan dezelfde lijnen naar de DAC en een 0 trekt harder dan een 1, dus het lijkt op een AND, maar zwakker. Combo regelt hoe sterk: 0 = zuivere AND, 8580 en 6581 zijn gemarkeerd (op de 6581 wordt tri+saw dun en zacht), 10 gaat nog verder. Een eigen model, op het oor afgesteld, niet gemeten aan een chip. Noise in een combinatie sterft uit, zoals op de chip: de uitgang schrijft terug in het schuifregister. Wissel je daarna van golfvorm, dan zet de module het schuifregister terug met de test-bit (zoals C64-spelers dat deden). Ring en Sync koppelen elke stem aan de vorige (3 → 1 → 2 → 3): Ring vervangt de driehoek door een ringmodulatie met die stem, Sync zet de oscillator terug bij elke periode van die stem. De ADSR staat in registerwaarden 0..15 zoals op de chip (attack 2 ms tot 8 s, decay en release 6 ms tot 24 s, sustain in 16 stappen) en heeft de beroemde ADSR-bug: wissel je naar een snellere rate terwijl de interne teller al verder staat, dan wacht de envelope tot die rond is (tot ~33 ms). Vol is het 4-bit mastervolume van de chip. Multi-module: drie stem-cellen (voct_k/gate_k) die één chip delen; polyfoon spelen = een PolyGroup over de cellen (Poly ▾ → SID), MIDI-in verdeelt de noten. Filter (8580-model): een 2-polig state-variable filter (12 dB/oct) met LP, BP en HP als losse schakelaars — combineerbaar zoals op de chip, LP+HP geeft een notch; zonder mode is wat door het filter gaat stil. Cutoff is het 11-bit register (0..2047, bij de 8580 vrijwel lineair van ~30 Hz tot ~12 kHz), Res het 4-bit register (tot Q ≈ 4, geen zelfoscillatie); beide op het oor, niet gemeten. Filt stuurt de drie stemmen door het filter. Cut+ telt op bij de cutoff (0..1 = het hele bereik, een envelope geeft de klassieke SID-bas). Ext is EXT IN: elk ander signaal gaat altijd door het SID-filter. Het 6581-filter (vuiler, met zijn S-curve) volgt nog. Firmware tp_mmb_sid, mmb_dsp::SidSynth — in de simulator draait dezelfde code als wasm.',
   });
 }
 

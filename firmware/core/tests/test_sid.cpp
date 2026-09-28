@@ -246,3 +246,73 @@ MB_TEST(sid_noise_dies_in_combination_and_revives) {
     MB_REQUIRE(s.chip().lfsr(0) != 0);
     MB_REQUIRE(e / (22050 - 4411) > 0.01);
 }
+
+namespace {
+/** Cutoffregister voor een frequentie in het 8580-model. */
+int fcReg(double hz) { return int((hz - 30.0) * 2047.0 / (12000.0 - 30.0) + 0.5); }
+/** Stem 1 als saw op @p f0; filter met cutoff @p fc, mode @p mode ($18-bits), res @p res. */
+std::vector<float> filteredSaw(double f0, double fc, uint8_t mode, int res, bool route = true) {
+    SidChip c = fresh();
+    setFreq(c, 0, f0); sustainFull(c, 0);
+    const int r = fcReg(fc);
+    c.write(0x15, r & 7); c.write(0x16, uint8_t(r >> 3));
+    c.write(0x17, uint8_t((res << 4) | (route ? 0x01 : 0x00)));
+    c.write(0x18, uint8_t(mode | 15));
+    c.write(4, SidChip::kSaw | SidChip::kGate);
+    return render(c, 22050);
+}
+}  // namespace
+
+MB_TEST(sid_filter_cutoff_mapping_8580) {
+    MB_REQUIRE(std::abs(SidChip::cutoffHz8580(0) - 30.f) < 0.01f);
+    MB_REQUIRE(std::abs(SidChip::cutoffHz8580(2047) - 12000.f) < 0.5f);
+    MB_REQUIRE(std::abs(SidChip::resonanceQ8580(0) - 0.7071f) < 0.001f);
+    MB_REQUIRE(SidChip::resonanceQ8580(15) > 3.5f && SidChip::resonanceQ8580(15) < 4.5f);
+}
+
+MB_TEST(sid_filter_lowpass_and_highpass) {
+    const auto dry = filteredSaw(220, 500, 0x10, 0, false);   // niet door het filter
+    const auto lp  = filteredSaw(220, 500, 0x10, 0);
+    const auto hp  = filteredSaw(220, 2000, 0x40, 0);
+    const double d1 = tone(dry, 220, 4410), d10 = tone(dry, 2200, 4410);
+    const double l1 = tone(lp, 220, 4410),  l10 = tone(lp, 2200, 4410);
+    const double h1 = tone(hp, 220, 4410),  h10 = tone(hp, 2200, 4410);
+    std::printf("        LP 500 Hz: grondtoon %.2f×, 10e harmonische %.3f×\n", l1 / d1, l10 / d10);
+    std::printf("        HP 2 kHz:  grondtoon %.3f×, 10e harmonische %.2f×\n", h1 / d1, h10 / d10);
+    MB_REQUIRE(l1 / d1 > 0.7 && l1 / d1 < 1.3);          // grondtoon onder de cutoff blijft
+    MB_REQUIRE(l10 / d10 < 0.08);                        // 2-polig: ~2 oct boven fc ≈ −22 dB of meer
+    MB_REQUIRE(h1 / d1 < 0.03);                          // HP haalt de grondtoon weg
+    MB_REQUIRE(h10 / d10 > 0.6);
+}
+
+MB_TEST(sid_filter_resonance_and_modes) {
+    // Resonantie tilt de harmonische bij de cutoff op (saw 110 Hz, fc 880 Hz = 8e).
+    const double r0 = tone(filteredSaw(110, 880, 0x10, 0), 880, 4410);
+    const double r15 = tone(filteredSaw(110, 880, 0x10, 15), 880, 4410);
+    std::printf("        res 15 / res 0 op de cutoff: %.2f×\n", r15 / r0);
+    MB_REQUIRE(r15 / r0 > 2.5);
+    // Door het filter zonder mode: stil (zoals op de chip).
+    const auto none = filteredSaw(220, 1000, 0x00, 0);
+    double e = 0; for (int i = 4410; i < (int)none.size(); ++i) e += double(none[i]) * none[i];
+    MB_REQUIRE(e / (none.size() - 4410) < 1e-6);
+    // LP+HP = notch: de component op de cutoff zakt weg t.o.v. LP alleen.
+    const double lp = tone(filteredSaw(110, 880, 0x10, 0), 880, 4410);
+    const double notch = tone(filteredSaw(110, 880, 0x50, 0), 880, 4410);
+    std::printf("        notch/LP op de cutoff: %.3f×\n", notch / lp);
+    MB_REQUIRE(notch / lp < 0.2);
+}
+
+MB_TEST(sid_filter_ext_in) {
+    // EXT IN (1 kHz sinus) door een LP op 200 Hz: sterk gedempt; zonder FILT EX droog.
+    for (int routed = 0; routed < 2; ++routed) {
+        SidChip c = fresh();
+        const int r = fcReg(200);
+        c.write(0x15, r & 7); c.write(0x16, uint8_t(r >> 3));
+        c.write(0x17, routed ? 0x08 : 0x00); c.write(0x18, 0x10 | 15);
+        std::vector<float> y(22050);
+        for (int i = 0; i < 22050; ++i) y[i] = c.Process(0.5f * float(std::sin(2 * kPi * 1000.0 * i / kFs)));
+        const double a = tone(y, 1000, 4410);
+        std::printf("        EXT IN 1 kHz %s: %.3f\n", routed ? "door LP 200 Hz" : "droog", a);
+        MB_REQUIRE(routed ? a < 0.02 : a > 0.2);
+    }
+}

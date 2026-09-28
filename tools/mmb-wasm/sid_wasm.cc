@@ -18,24 +18,26 @@ MmbPort MMB_INPUTS[] = {
     { "voct_1", MMB_CV, 0, {} },   { "voct_2", MMB_CV, 0, {} },   { "voct_3", MMB_CV, 0, {} },
     { "gate_1", MMB_GATE, 0, {} }, { "gate_2", MMB_GATE, 0, {} }, { "gate_3", MMB_GATE, 0, {} },
     { "bend", MMB_CV, 0, {} },     { "pw_cv", MMB_CV, 0, {} },
+    { "cutoff_cv", MMB_CV, 0, {} }, { "ext_in", MMB_AUDIO, 0, {} },
 };
-const int MMB_NUM_INPUTS = 2 * kVoices + 2;
+const int MMB_NUM_INPUTS = 2 * kVoices + 4;
 inline int IN_VOCT(int k) { return k; }
 inline int IN_GATE(int k) { return kVoices + k; }
-enum { IN_BEND = 2 * kVoices, IN_PW };
+enum { IN_BEND = 2 * kVoices, IN_PW, IN_CUTOFF, IN_EXT };
 
 MmbPort MMB_OUTPUTS[] = { { "out", MMB_AUDIO, 0, {} } };
 const int MMB_NUM_OUTPUTS = 1;
 
 enum { C_TRI, C_SAW, C_PULSE, C_NOISE, C_PW, C_RING, C_SYNC, C_ATTACK, C_DECAY, C_SUSTAIN, C_RELEASE,
-       C_COARSE, C_FINE, C_VOLUME, C_LEVEL, C_COMBO };
+       C_COARSE, C_FINE, C_VOLUME, C_LEVEL, C_COMBO, C_CUTOFF, C_RES, C_FILT, C_LP, C_BP, C_HP };
 MmbControl MMB_CONTROLS[] = {
     { "tri", 0.f }, { "saw", 0.f }, { "pulse", 1.f }, { "noise", 0.f }, { "pw", 0.5f },
     { "ring", 0.f }, { "sync", 0.f },
     { "attack", 0.f }, { "decay", 9.f }, { "sustain", 10.f }, { "release", 9.f },
     { "coarse", 0.f }, { "fine", 0.f }, { "volume", 15.f }, { "level", 0.8f }, { "combo", 7.f },
+    { "cutoff", 1024.f }, { "res", 0.f }, { "filt", 0.f }, { "lp", 1.f }, { "bp", 0.f }, { "hp", 0.f },
 };
-const int MMB_NUM_CONTROLS = 16;
+const int MMB_NUM_CONTROLS = 22;
 
 namespace {
 mmb_dsp::SidSynth g_sid;
@@ -63,6 +65,12 @@ void mmb_on_control(int idx, float v) {
         case C_VOLUME:  g_sid.setVolume(nib(v)); break;
         case C_LEVEL:   g_sid.setLevel(v); break;
         case C_COMBO:   g_sid.setCombo(v); break;
+        case C_CUTOFF:  g_sid.setCutoff(v); break;
+        case C_RES:     g_sid.setRes(nib(v)); break;
+        case C_FILT:    g_sid.setFilt(v >= 0.5f); break;
+        case C_LP:      g_sid.setMode(mmb_dsp::SidSynth::kLp, v >= 0.5f); break;
+        case C_BP:      g_sid.setMode(mmb_dsp::SidSynth::kBp, v >= 0.5f); break;
+        case C_HP:      g_sid.setMode(mmb_dsp::SidSynth::kHp, v >= 0.5f); break;
     }
 }
 
@@ -73,6 +81,9 @@ void mmb_process(int frames) {
     }
     g_sid.setBend(mmb_connected(IN_BEND) ? mmb_in0(IN_BEND) : 0.f);
     g_sid.setPwCv(mmb_connected(IN_PW) ? mmb_in0(IN_PW) : 0.f);
+    g_sid.setCutoffCv(mmb_connected(IN_CUTOFF) ? mmb_in0(IN_CUTOFF) : 0.f);
+    const float* ext = MMB_INPUTS[IN_EXT].buf;
+    const bool hasExt = mmb_connected(IN_EXT);
     float* out = MMB_OUTPUTS[0].buf;
-    for (int i = 0; i < frames; ++i) out[i] = g_sid.Process();
+    for (int i = 0; i < frames; ++i) out[i] = g_sid.Process(hasExt ? ext[i] : 0.f);
 }

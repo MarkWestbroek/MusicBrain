@@ -1097,3 +1097,33 @@ describe('tp_mmb_sid', () => {
     expect(rms(three!, from)).toBeGreaterThan(1.4 * rms(one!, from));
   });
 });
+
+describe('tp_mmb_sid filter', () => {
+  it('lowpass dooft de boventonen, EXT IN gaat door het filter', async () => {
+    const run = async (ctl: Record<string, number>, feed: (t: number, m: Mod) => void): Promise<Float32Array> => {
+      const m = await load('tp_mmb_sid');
+      for (const [id, v] of Object.entries({ pulse: 0, saw: 1, sustain: 15, ...ctl })) m.setCtl(id, v);
+      return m.render(0.5, feed)[0]!;
+    };
+    const note = (_t: number, mm: Mod): void => { mm.setIn('voct_1', -1); mm.setIn('gate_1', 1); };
+    const dry = await run({ filt: 0 }, note);
+    const lp = await run({ filt: 1, lp: 1, cutoff: 60, res: 0 }, note);       // ~380 Hz
+    const from = 4410;
+    // Saw op C3 (130,8 Hz): de 10e harmonische (1308 Hz) zakt ver weg.
+    const h = (x: Float32Array, f: number): number => {
+      let re = 0, im = 0;
+      for (let i = from; i < x.length; i++) { const w = 2 * Math.PI * f * i / 44100; re += x[i]! * Math.cos(w); im += x[i]! * Math.sin(w); }
+      return Math.hypot(re, im) / (x.length - from);
+    };
+    expect(h(lp, 1308) / h(dry, 1308)).toBeLessThan(0.1);
+    expect(h(lp, 130.8) / h(dry, 130.8)).toBeGreaterThan(0.6);
+    // EXT IN (2 kHz) door een lowpass op ~380 Hz: flink zachter dan met de cutoff open.
+    const ext = (t: number, mm: Mod): void => {
+      const b = mm.inBuf('ext_in');
+      for (let k = 0; k < mm.block; k++) b[k] = 0.5 * Math.sin(2 * Math.PI * 2000 * (t + k / mm.rate));
+    };
+    const shut = await run({ lp: 1, cutoff: 60 }, ext);
+    const open = await run({ lp: 1, cutoff: 2047 }, ext);
+    expect(rms(shut, from)).toBeLessThan(0.2 * rms(open, from));
+  });
+});
