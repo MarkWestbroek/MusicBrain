@@ -141,3 +141,19 @@ describe('module-preset op een PolyGroup van modules', () => {
     for (const id of members) expect(cs[id]).toMatchObject({ ring_2: 1, tri_2: 1, coarse_2: 5 });
   });
 });
+
+describe('doel-modulelijst van de module-presets', () => {
+  it('patch-modules eerst, een PolyGroup één keer (×N), interne prototypes erachter', async () => {
+    const { moduleTargets } = await import('./PresetsModal');
+    const p = seedSid3Patch(seedInternals(emptyModularProject()), 4);
+    const patch = p.patches.find((x) => x.id === p.activePatchId)!;
+    const opts = moduleTargets(p, patch.rackIds);
+    const sid3 = opts.filter((o) => o.typeId === 'tp_mmb_sid3');
+    expect(sid3.filter((o) => o.inPatch)).toHaveLength(1);
+    expect(sid3.find((o) => o.inPatch)!.label).toContain('×4');
+    const firstOther = opts.findIndex((o) => !o.inPatch);
+    expect(opts.slice(0, firstOther).every((o) => o.inPatch)).toBe(true);
+    expect(opts.slice(firstOther).every((o) => !o.inPatch)).toBe(true);
+    expect(opts.length).toBeLessThan(p.modules.length);
+  });
+});

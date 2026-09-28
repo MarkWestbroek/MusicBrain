@@ -7,7 +7,7 @@
 //
 // Daarboven Import/Export voor de hele bibliotheek (.json).
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { setProject, useModularProject, getProject } from './store';
 import {
   type PatchPresetData,
@@ -531,13 +531,8 @@ function ModulePresetsTab({ userPresets, onChange }: ModuleTabProps): JSX.Elemen
   const activePatch = project.patches.find((p) => p.id === project.activePatchId)
                    ?? project.patches[0];
 
-  const moduleOptions = project.modules.map((m) => {
-    const t = project.moduleTypes.find((x) => x.id === m.typeId);
-    return {
-      id: m.id, typeId: m.typeId,
-      label: `${m.name} ${t ? `(${t.variant})` : ''}`.trim(),
-    };
-  });
+  const moduleOptions = useMemo(() => moduleTargets(project, activePatch?.rackIds ?? []),
+    [project, activePatch]);
 
   const [selectedModuleId, setSelectedModuleId] = useState<string>(moduleOptions[0]?.id ?? '');
   const [name, setName] = useState('');
@@ -601,15 +596,7 @@ function ModulePresetsTab({ userPresets, onChange }: ModuleTabProps): JSX.Elemen
       {/* Module picker */}
       <div style={section}>
         <div style={sectionTitle}>Doel-module</div>
-        <select
-          value={selectedModuleId}
-          onChange={(e) => setSelectedModuleId(e.target.value)}
-          style={{ ...input, width: '100%' }}
-        >
-          {moduleOptions.map((o) => (
-            <option key={o.id} value={o.id}>{o.label}</option>
-          ))}
-        </select>
+        <ModulePicker options={moduleOptions} value={selectedModuleId} onChange={setSelectedModuleId} />
         <div style={meta}>
           Type: {selectedType ? `${selectedType.id} (${selectedType.variant})` : '—'} ·
           Controls: {Object.keys(currentValues).length}
@@ -678,6 +665,96 @@ function ModulePresetsTab({ userPresets, onChange }: ModuleTabProps): JSX.Elemen
 // ═══════════════════════════════════════════════════════════════════════
 //  Styles
 // ═══════════════════════════════════════════════════════════════════════
+
+// ─── Doel-module kiezen: zoeken in plaats van een lange lijst ───────────
+
+interface ModuleTarget { id: string; typeId: string; label: string; inPatch: boolean; search: string }
+
+/**
+ * Modules waar een module-preset op kan: eerst die in de actieve patch, dan
+ * de rest. Van een PolyGroup van modules staat alleen de eerste erin (met
+ * ×N), want een preset komt toch op alle stemmen.
+ */
+export function moduleTargets(project: ReturnType<typeof useModularProject>, rackIds: string[]): ModuleTarget[] {
+  const followers = new Set<string>();
+  const groupSize = new Map<string, number>();
+  for (const g of project.racks.flatMap((r) => r.polyGroups ?? [])) {
+    const mods = g.members.filter((m) => m.kind === 'module').map((m) => m.moduleId);
+    if (mods.length > 1) { groupSize.set(mods[0]!, mods.length); mods.slice(1).forEach((id) => followers.add(id)); }
+  }
+  const inPatch = new Set(project.racks.filter((r) => rackIds.includes(r.id) && r.kind !== 'internal')
+    .flatMap((r) => r.slots.map((s) => s.moduleId)));
+  return project.modules
+    .filter((m) => !followers.has(m.id))
+    .map((m) => {
+      const t = project.moduleTypes.find((x) => x.id === m.typeId);
+      const n = groupSize.get(m.id);
+      const label = `${m.name}${n ? ` ×${n}` : ''} ${t ? `(${t.variant})` : ''}`.trim();
+      return { id: m.id, typeId: m.typeId, label, inPatch: inPatch.has(m.id),
+               search: `${label} ${m.typeId}`.toLowerCase() };
+    })
+    .sort((a, b) => Number(b.inPatch) - Number(a.inPatch));
+}
+
+/** Tekstveld met een lijst die zich beperkt tot wat je typt (alle woorden
+ *  moeten voorkomen in naam, variant of type). Pijltjes + Enter kiezen. */
+function ModulePicker({ options, value, onChange }: {
+  options: ModuleTarget[]; value: string; onChange: (id: string) => void;
+}): JSX.Element {
+  const current = options.find((o) => o.id === value);
+  const [query, setQuery] = useState('');
+  const [open, setOpen] = useState(false);
+  const [hi, setHi] = useState(0);
+  const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+  const hits = options.filter((o) => terms.every((t) => o.search.includes(t))).slice(0, 60);
+  const pick = (o: ModuleTarget | undefined): void => {
+    if (!o) return;
+    onChange(o.id); setQuery(''); setOpen(false);
+  };
+  return (
+    <div style={{ position: 'relative' }}>
+      <input
+        type="text"
+        value={open ? query : (current?.label ?? '')}
+        placeholder="Typ om te zoeken (naam, type)…"
+        onFocus={() => { setOpen(true); setQuery(''); setHi(0); }}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onChange={(e) => { setQuery(e.target.value); setHi(0); setOpen(true); }}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowDown') { e.preventDefault(); setHi((h) => Math.min(h + 1, hits.length - 1)); }
+          else if (e.key === 'ArrowUp') { e.preventDefault(); setHi((h) => Math.max(h - 1, 0)); }
+          else if (e.key === 'Enter') { e.preventDefault(); pick(hits[hi]); (e.target as HTMLInputElement).blur(); }
+          else if (e.key === 'Escape') { setOpen(false); (e.target as HTMLInputElement).blur(); }
+        }}
+        style={{ ...input, width: '100%' }}
+      />
+      {open && (
+        <ul style={{
+          position: 'absolute', zIndex: 10, left: 0, right: 0, top: '100%', margin: '2px 0 0', padding: 0,
+          listStyle: 'none', maxHeight: 260, overflowY: 'auto', background: '#0f172a',
+          border: '1px solid #334155', borderRadius: 6,
+        }}>
+          {hits.length === 0 && <li style={{ padding: '6px 10px', color: '#64748b' }}>Niets gevonden.</li>}
+          {hits.map((o, i) => (
+            <li
+              key={o.id}
+              onMouseDown={(e) => { e.preventDefault(); pick(o); }}
+              onMouseEnter={() => setHi(i)}
+              style={{
+                padding: '5px 10px', cursor: 'pointer', fontSize: 13,
+                background: i === hi ? '#1e293b' : 'transparent',
+                color: o.inPatch ? '#e2e8f0' : '#94a3b8',
+                borderTop: i > 0 && o.inPatch !== hits[i - 1]!.inPatch ? '1px solid #334155' : undefined,
+              }}
+            >
+              {o.label}{o.inPatch ? '' : ' · niet in deze patch'}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 const btn: React.CSSProperties = {
   padding: '4px 10px', background: '#1e293b', color: '#e2e8f0',
