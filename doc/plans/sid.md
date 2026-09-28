@@ -117,9 +117,9 @@ golfvormen met een zachte afronding) en dat eerlijk zo labelen.
 
 7. **Klaar (fw 0.5.84).** SID 3-osc (`tp_mmb_sid3`): instellingen per stem,
    Stack/Split, poly via een PolyGroup van modules (elke noot een eigen chip).
-8. Open: cpu. Eén chip kost op de Teensy ~10–12 %. Winst: een chip met alle
-   envelopes op 0 en een uitgeklonken filter overslaan; de oscillator per
-   sample in float/fixed-point in plaats van double.
+8. **Klaar (fw 0.5.85).** Cpu: stille chips overslaan, oscillator als
+   integer-fase met float-tijdstippen. Een actieve chip ~8 % op de Teensy
+   (was ~12 %), een stille bijna niets; ×4 met vier noten 34 %.
 
 Uitbreidingen die aan de module kunnen, los van de volgorde: hard restart
 (ADSR één frame op 0 vóór een noot, de tracker-truc tegen de ADSR-bug), een

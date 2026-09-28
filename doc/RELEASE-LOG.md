@@ -17,6 +17,24 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### fw 0.5.85 — SID sneller: stille chips overslaan, oscillator zonder doubles (2026-09-28)
+- Een chip met alle envelopes op nul rekent alleen nog fase, envelope-teller,
+  het uitklinken van het filter en de DC-blokker (pc: 34 → 8 ns/sample).
+- Oscillator als 32-bit integer-fase, stap per sample bij het schrijven van
+  het frequentieregister, 64-bit vergelijkingen en float-tijdstippen voor de
+  BLEP; zonder sync exact acc + inc (geen drift). Envelope-cyclusteller in
+  float. Core-tests 135 groen, ook de bit-exacte LFSR-referentie.
+- **Gemeten op de Teensy** (aangehouden noten, hele patch):
+  | | 0.5.84 | 0.5.85 |
+  |---|---|---|
+  | SID 3-osc ×4, 1 noot | ~50 % | 14,7 % |
+  | SID 3-osc ×4, 4 noten | 50,2 % | 34,4 % |
+  | SID 3-osc lead | 13,2 % | 9,4 % |
+  | SID ×3, akkoord | 12,5 % | 9,0 % |
+  Een actieve chip ~8 % (was ~12 %), een stille bijna niets. De
+  "nul-gaten" van teensy_live in deze opnamen zijn langzame nuldoorgangen
+  van een lage gefilterde golf, geen uitval.
+
 ### fw 0.5.84 — SID 3-osc: instellingen per stem, Stack/Split (2026-09-28)
 - **`tp_mmb_sid3`** (Sid3Module.h, sid3_wasm): dezelfde engine als de SID,
   een ander paneel (28 HP, drie stemrijen zoals een C64-tracker): per stem
