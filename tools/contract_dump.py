@@ -73,6 +73,9 @@ OVERRIDES: dict[str, dict[str, list[str]]] = {
     "tp_mmb_sampler": {"implemented": [], "ignored": [],
                        "ports": _rng("voct_", 8) + _rng("gate_", 8) + _rng("vel_", 8)
                                 + _rng("cutoff_", 8) + _rng("env_", 8)},
+    # SID: 3 stem-cellen, zelfde cellOf()-idioom als de sampler.
+    "tp_mmb_sid": {"implemented": [], "ignored": [],
+                   "ports": _rng("voct_", 3) + _rng("gate_", 3)},
 }
 
 

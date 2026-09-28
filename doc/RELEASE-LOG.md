@@ -17,6 +17,35 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### fw 0.5.80 — SID: DC-blokker op de uitgang (2026-09-28)
+- `mmb_dsp::SidChip` krijgt een eerste-orde hoogdoorlaat op 10 Hz aan de
+  uitgang: de rol van de koppelcondensator op de C64. Combined waveforms
+  (tri+pulse) liggen het grootste deel van de periode op de bodem van de DAC
+  en gaven een gelijkspanning tot −0,875 die met de PWM meezwaaide.
+- **Gemeten op de Teensy** (tri+pulse, C3, LFO op PW): DC binnen ±0,007
+  (was −0,035…−0,15); het meezwaaiende niveau blijft (ac 0,09 ↔ 0,20).
+  De breukentest telt de flanken van het pulsraampje (pc-kern 258/s,
+  Teensy 230/s): golfvorm, geen haperingen.
+- Test `sid_dc_blocker_centres_combined_waveforms`.
+
+### fw 0.5.79 — SID (6581/8580): eigen emulatie, stap 1–3 (2026-09-28)
+- **`tp_mmb_sid`** (`mmb_dsp/sid.h`): de C64-chip als eigen, clean-room
+  emulatie op registerniveau (geen reSID-code; plan `doc/plans/sid.md`).
+  Drie stemmen met 24-bit oscillator, tri/saw/pulse/noise (23-bit LFSR),
+  combinaties als AND (benadering), ring-mod en hard sync; PolyBLEP op elke
+  sprong op zijn exacte tijdstip. ADSR cycle-exact met de periodetabel, het
+  exponentiële verval en de 15-bit rate-teller, dus mét ADSR-bug. 4-bit
+  volume en 3OFF. **Nog zonder filter.**
+- Multi-module met drie stem-cellen (`voct_k`/`gate_k`), gedeelde knoppen
+  (golfvorm-schakelaars, PW + PW-CV, ring, sync, A/D/S/R in registerwaarden
+  0..15, coarse/fine, volume, level); wasm voor de sim. Seed
+  **Poly ▾ → 🕹️ SID ×3 (C64)**: pulse met LFO-PWM.
+- Tests: `test_sid.cpp` in de core-tests (toonhoogte, pulsbreedte, LFSR
+  tegen referentie, ADSR-tijden, ADSR-bug, sync, ring, aliasing),
+  `wasmPorts.test.ts` (namen, toonhoogte, release, akkoord); contract 74 modules.
+- **Gemeten op de Teensy** (seed, akkoord + loopje): C-E-G = 261,4 / 329,4 /
+  391,6 Hz, A4 = 439,6 Hz; cpu 10,7 % voor de hele patch, usbQ zonder overruns.
+
 ### fw 0.5.78 — Rotary (Leslie-stijl), shimmer, korrel-harmonizer, Lamp age (2026-09-25)
 - **Rotary** (`tp_mmb_rotary`, `mmb_dsp/leslie.h`): hoorn (hoog) en trommel
   (laag, scheiding 800 Hz, LR4), elk met eigen motor en traagheid (hoorn

@@ -16,6 +16,7 @@ import { exportPanel, importPanel, parsePanelFile } from './panelIO';
 import { BUS_SOLO_FX, CONSOLE_EQ_SOLO_FX, PARA_EQ_SOLO_FX, DIODE_SOLO_FX, EQ_SOLO_FX, FET_SOLO_FX, OPTO_SOLO_FX, SAMPLER_MASTER_FX, VARIMU_SOLO_FX, STEREO_TAPE_SOLO_FX, DIGITAL_ECHO_SOLO_FX, BBD_SOLO_FX, RINGMOD_SOLO_FX, OCTAVER_SOLO_FX, HARMONIZER_SOLO_FX, REVERB_SOLO_FX, SPRING_SOLO_FX, TREMOLO_SOLO_FX, STEREO_PHASER_SOLO_FX, VIBE_SOLO_FX, ROTARY_SOLO_FX, SHIMMER_SOLO_FX, seedExampleModules, seedInternals, seedTestPatch, seedFmTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, seedDx7PolyPatch, seedSamplerPolyPatch, seedWarpsVocoderPatch, seed808JamPatch, seedKrellPatch, type PolySeedOptions } from './seedModules';
 import { seedCs80BrassPatch } from './seedBrass';
 import { seedAxelFLeadPatch } from './seedAxelF';
+import { seedSidPolyPatch } from './seedSid';
 
 /** Effecten achter de solo-seeds (Solo ▾): de stand en de tooltip. */
 const SOLO_FX = {
@@ -420,6 +421,14 @@ export function ModularMbApp(): JSX.Element {
                     padding: '7px 12px', cursor: 'pointer', fontSize: 13,
                   }}
                 >🎹 Axel F-lead (2 saws)</button>
+                <button
+                  onClick={() => { setProject(seedSidPolyPatch(getProject())); setShowPoly(false); }}
+                  title="SID ×3 (C64): één SID-emulatie met drie stem-cellen als PolyGroup, MIDI-in verdeelt de noten. Pulse met een langzame PWM (LFO op PW+), pitch-wheel op Bend. Nog zonder filter."
+                  style={{
+                    textAlign: 'left', border: 'none', background: 'transparent',
+                    padding: '7px 12px', cursor: 'pointer', fontSize: 13,
+                  }}
+                >🕹️ SID ×3 (C64)</button>
                 <button
                   onClick={() => { setProject(seedDx7PolyPatch(getProject(), 8)); setShowPoly(false); }}
                   title="8-stemmige DX7 (msfa/Dexed-kern): MidiIn -> 8x DX7 -> Mixer8 -> OUT, stereo uitgewaaierd. Bank-knop kiest een factory-ROM (1A..4B); USER = .syx via de Teensy-modal."

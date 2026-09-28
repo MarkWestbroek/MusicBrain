@@ -1045,3 +1045,40 @@ describe('tp_mmb_midiin (MidiInModule zelf)', () => {
     expect(o[idx(m, 'cv_bend')]![5]).toBeCloseTo(0.984, 2);             // cv_bend blijft ook
   });
 });
+
+describe('tp_mmb_sid', () => {
+  it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_sid'); });
+
+  /** Stijgende nuldoorgangen per seconde over [from, to). */
+  const hz = (a: Float32Array, rate: number, from: number, to: number): number => {
+    let n = 0;
+    for (let i = from + 1; i < to; i++) if (a[i - 1]! < 0 && a[i]! >= 0) n++;
+    return n * rate / (to - from);
+  };
+
+  it('saw op V/oct 0 speelt C4 (261,6 Hz), en release dooft uit', async () => {
+    const m = await load('tp_mmb_sid');
+    m.setCtl('pulse', 0); m.setCtl('saw', 1); m.setCtl('attack', 0); m.setCtl('sustain', 15); m.setCtl('release', 0);
+    const [out] = m.render(1.2, (t, mm) => { mm.setIn('voct_1', 0); mm.setIn('gate_1', t < 0.8 ? 1 : 0); });
+    const f = hz(out!, m.rate, Math.round(m.rate * 0.1), Math.round(m.rate * 0.7));
+    expect(f).toBeGreaterThan(259);
+    expect(f).toBeLessThan(264);
+    expect(rms(out!, Math.round(m.rate * 0.2), Math.round(m.rate * 0.7))).toBeGreaterThan(0.1);
+    // Release 0 = ~6 ms: 100 ms na de gate is hij stil.
+    expect(peak(out!, Math.round(m.rate * 0.9))).toBeLessThan(0.01);
+  });
+
+  it('drie cellen klinken tegelijk (akkoord)', async () => {
+    const m = await load('tp_mmb_sid');
+    m.setCtl('pulse', 0); m.setCtl('tri', 1); m.setCtl('sustain', 15);
+    const [one] = m.render(0.5, (_t, mm) => { mm.setIn('voct_1', 0); mm.setIn('gate_1', 1); });
+    const m3 = await load('tp_mmb_sid');
+    m3.setCtl('pulse', 0); m3.setCtl('tri', 1); m3.setCtl('sustain', 15);
+    const [three] = m3.render(0.5, (_t, mm) => {
+      mm.setIn('voct_1', 0); mm.setIn('voct_2', 4 / 12); mm.setIn('voct_3', 7 / 12);
+      mm.setIn('gate_1', 1); mm.setIn('gate_2', 1); mm.setIn('gate_3', 1);
+    });
+    const from = Math.round(m.rate * 0.1);
+    expect(rms(three!, from)).toBeGreaterThan(1.4 * rms(one!, from));
+  });
+});

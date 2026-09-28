@@ -12,8 +12,11 @@ add_executable(core_tests
     test_midiin.cpp
     test_cvbreakout.cpp
     test_cvbreakin.cpp
+    test_sid.cpp
     test_main.cpp
 )
 target_link_libraries(core_tests PRIVATE musicbrain_core)
+# Header-only DSP-kernen (mmb_dsp/*.h) die zonder Teensy te toetsen zijn.
+target_include_directories(core_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../../lib/mmb-dsp)
 
 add_test(NAME core_tests COMMAND core_tests)

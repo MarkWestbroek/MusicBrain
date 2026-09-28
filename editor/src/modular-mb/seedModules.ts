@@ -1411,6 +1411,57 @@ function mmbSampler() {
   });
 }
 
+// ── SID (MOS 6581/8580) ────────────────────────────────────────────────
+// Eigen emulatie op registerniveau (mmb_dsp::SidSynth, doc/plans/sid.md), als
+// multi-module: drie stem-cellen die één chip delen, zoals op de C64. Stap 1
+// + 2 van het plan: oscillatoren, noise, ring/sync en de ADSR — nog zonder
+// filter.
+function mmbSid() {
+  const w = W(12);
+  const colX = (i: number) => w * (0.30 + i * 0.2);          // drie cel-kolommen
+  const cells = [1, 2, 3];
+  const onOff = ['Uit', 'Aan'];
+  const adsr = { size: 'small' as const, min: 0, max: 15, step: 1, color: '#c4b5fd' };
+  return assemble({
+    typeId: 'tp_mmb_sid', categoryId: 'vco', variant: 'SID 6581/8580 (emulatie)',
+    brand: 'MMB', model: 'SID', hp: 12, texture: 'pcb-black', baseColor: '#2a2440', internal: true,
+    role: 'multi',
+    cellGroups: [{ id: 'voice', label: 'Stem', count: 3, portIds: ['voct', 'gate'], controlIds: [] }],
+    texts: [
+      { x: w/2, y: 8,   text: 'SID', fontSize: 2.2, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: '6581 · 3 stemmen · C64', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+      { x: 3, y: 97,  text: 'V/Oct', fontSize: 1.0, color: '#9ca3af', align: 'start' },
+      { x: 3, y: 109, text: 'Gate',  fontSize: 1.0, color: '#9ca3af', align: 'start' },
+    ],
+    items: [
+      // Golfvormen: elk los aan/uit; meer dan één tegelijk = combined waveform.
+      sw('tri',   'Tri',   w*0.14, 26, onOff, 0),
+      sw('saw',   'Saw',   w*0.38, 26, onOff, 0),
+      sw('pulse', 'Pulse', w*0.62, 26, onOff, 1),
+      sw('noise', 'Noise', w*0.86, 26, onOff, 0),
+      knob('pw', 'PW', w*0.18, 44, { size: 'medium', min: 0, max: 1, def: 0.5, color: '#fb923c' }),
+      sw('ring', 'Ring', w*0.50, 42, onOff, 0),
+      sw('sync', 'Sync', w*0.80, 42, onOff, 0),
+      // ADSR in registerwaarden 0..15 (attack 2 ms … 8 s, decay/release 6 ms … 24 s).
+      knob('attack',  'A', w*0.14, 60, { ...adsr, def: 0 }),
+      knob('decay',   'D', w*0.38, 60, { ...adsr, def: 9 }),
+      knob('sustain', 'S', w*0.62, 60, { ...adsr, def: 10 }),
+      knob('release', 'R', w*0.86, 60, { ...adsr, def: 9 }),
+      knob('coarse', 'Coarse', w*0.14, 78, { size: 'small', min: -24, max: 24, def: 0, step: 1, unit: 'semi', color: '#f9fafb' }),
+      knob('fine',   'Fine',   w*0.38, 78, { size: 'small', min: -100, max: 100, def: 0, unit: 'ct', color: '#f9fafb' }),
+      knob('volume', 'Vol',    w*0.62, 78, { size: 'small', min: 0, max: 15, def: 15, step: 1, color: '#9ca3af' }),
+      knob('level',  'Level',  w*0.86, 78, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      ...cells.map((k) => inPort(`voct_${k}`, `${k}`, 'cv',   colX(k - 1), 96,  { cellGroupId: 'voice' })),
+      ...cells.map((k) => inPort(`gate_${k}`, '',     'gate', colX(k - 1), 108, { cellGroupId: 'voice' })),
+      inPort('bend',  'Bend', 'cv', w*0.14, 120),
+      inPort('pw_cv', 'PW+',  'cv', w*0.38, 120),
+      outPort('out',  'Out',  'audio', w*0.84, 120),
+    ],
+    notes: 'De geluidschip van de Commodore 64 (MOS 6581/8580), als eigen emulatie op registerniveau — geen reSID-code. Drie stemmen, elk met een 24-bit oscillator en vier golfvormen: Tri, Saw, Pulse (breedte met PW, ook via PW+) en Noise (een 23-bit schuifregister). Zet je er meer dan één aan, dan krijg je een combined waveform (de AND van de golfvormen — een benadering; echte chips verschillen per exemplaar). Ring en Sync koppelen elke stem aan de vorige (3 → 1 → 2 → 3): Ring vervangt de driehoek door een ringmodulatie met die stem, Sync zet de oscillator terug bij elke periode van die stem. De ADSR staat in registerwaarden 0..15 zoals op de chip (attack 2 ms tot 8 s, decay en release 6 ms tot 24 s, sustain in 16 stappen) en heeft de beroemde ADSR-bug: wissel je naar een snellere rate terwijl de interne teller al verder staat, dan wacht de envelope tot die rond is (tot ~33 ms). Vol is het 4-bit mastervolume van de chip. Multi-module: drie stem-cellen (voct_k/gate_k) die één chip delen; polyfoon spelen = een PolyGroup over de cellen (Poly ▾ → SID), MIDI-in verdeelt de noten. Het filter volgt in een volgende stap. Firmware tp_mmb_sid, mmb_dsp::SidSynth — in de simulator draait dezelfde code als wasm.',
+  });
+}
+
 // 10b. MMB TAPE ECHO — 8 HP. Bandecho: één-koppige tape-delay met verzadiging,
 //      toonverlies per omloop en wow/flutter (firmware TapeEchoModule.h op de
 //      header-only kern mmb_dsp::TapeEcho; dezelfde kern draait als wasm in de
@@ -3257,7 +3308,7 @@ function mmbEnvFollowerMono() {
 // ── public entry ───────────────────────────────────────────────────────
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbEcho(), mmbTapeEcho(), mmbStereoTapeEcho(), mmbDigitalEcho(), mmbBbdChorus(), mmbRingMod(), mmbOctaver(), mmbHarmonizer(), mmbReverb(), mmbTremolo(), mmbStereoPhaser(), mmbVibe(), mmbRotary(), mmbShimmer(), mmbFetComp(),mmbOptoComp(), mmbBusComp(),mmbVariMuComp(), mmbProgramEq(), mmbDiodeComp(), mmbConsoleEq(), mmbParaEq(), mmbSampler(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbEnvFollower(), mmbEnvFollowerMono()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbEcho(), mmbTapeEcho(), mmbStereoTapeEcho(), mmbDigitalEcho(), mmbBbdChorus(), mmbRingMod(), mmbOctaver(), mmbHarmonizer(), mmbReverb(), mmbTremolo(), mmbStereoPhaser(), mmbVibe(), mmbRotary(), mmbShimmer(), mmbFetComp(),mmbOptoComp(), mmbBusComp(),mmbVariMuComp(), mmbProgramEq(), mmbDiodeComp(), mmbConsoleEq(), mmbParaEq(), mmbSampler(), mmbSid(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbEnvFollower(), mmbEnvFollowerMono()];
   const newTypes = all.map((x) => x.type);
 
   // Upgrade-pad: bestaande interne types worden in-place VERVANGEN (zelfde
