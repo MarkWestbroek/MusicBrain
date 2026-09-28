@@ -57,7 +57,9 @@ render-bottom.png
 render-persp.png
 board-top.svg
 hardware/schematics/*/*.net
-hardware/kicad-generators/__pycache__/
+# Python-bytecode (overal): wordt door Python zelf (opnieuw) aangemaakt, per versie en machine.
+__pycache__/
+*.pyc
 
 # Secrets: env-bestanden met o.a. de Imprint INGEST_TOKEN — NOOIT committen.
 # Het sjabloon .env.example (zonder waardes) blijft wel getrackt.
