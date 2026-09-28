@@ -15,6 +15,7 @@ import { getEngine } from './sim/engineSingleton';
 import {
   MasterRecorder, encodeWav, dbfs, wavFileName, downloadWav,
 } from './sim/wavRecorder';
+import { MidiRecorder, encodeSmf, patchSnapshot, siblingName, downloadBlob } from './sim/midiRecorder';
 import { dx7Host, WasmModule } from './runtime';
 import { simSupportOf, type SimSupport } from './sim/simSupport';
 import {
@@ -62,6 +63,20 @@ export function SimulationPanel(): JSX.Element {
   const [recording, setRecording] = useState(false);
   const [recSecs, setRecSecs] = useState(0);
   const [recDone, setRecDone] = useState<string | null>(null);
+  // MIDI loopt mee (engine.onMidi); de .mid en eventueel de patch komen
+  // naast de WAV, met dezelfde naam.
+  const midiRecRef = useRef<MidiRecorder | null>(null);
+  if (midiRecRef.current === null) midiRecRef.current = new MidiRecorder();
+  const midiRec = midiRecRef.current;
+  const midiUnsubRef = useRef<(() => void) | null>(null);
+  const [recWithPatch, setRecWithPatch] = useState<boolean>(() => {
+    try { return localStorage.getItem('mmb.rec.patchJson') !== '0'; } catch { return true; }
+  });
+  function toggleRecWithPatch(on: boolean): void {
+    setRecWithPatch(on);
+    try { localStorage.setItem('mmb.rec.patchJson', on ? '1' : '0'); } catch { /* geen opslag */ }
+  }
+  function stopMidiTap(): void { midiUnsubRef.current?.(); midiUnsubRef.current = null; }
   // Tijdens het openen van de Teensy-ingang (toestemmingsdialoog) de knop dicht.
   const [compareBusy, setCompareBusy] = useState(false);
   async function toggleCompare(): Promise<void> {
@@ -229,8 +244,12 @@ export function SimulationPanel(): JSX.Element {
       // dan is meteen starten wat je bedoelde.
       if (!status.running) await startAll();
       await recorder.start(engine.recorderTap());
+      midiRec.start();
+      stopMidiTap();
+      midiUnsubRef.current = engine.onMidi(midiRec.record);
       setRecording(true);
     } catch (err) {
+      stopMidiTap();
       setRecording(false);
       setError(err instanceof Error ? err.message : String(err));
     }
@@ -239,17 +258,32 @@ export function SimulationPanel(): JSX.Element {
   async function stopRec(): Promise<void> {
     try {
       const r = await recorder.stop();
+      stopMidiTap();
+      const midi = midiRec.stop(r.seconds * 1000);
       setRecording(false);
       if (r.frames === 0) { setRecDone('niets opgenomen — de tap kreeg geen blokken door'); return; }
       const name = wavFileName(patch?.name ?? 'patch');
       downloadWav(encodeWav(r.channels, r.sampleRate, 'i24'), name);
+      // Zelfde naam, andere extensie: zo blijft het koppel bij elkaar. Geen
+      // .mid als er niets gespeeld is (bv. een drone of generatieve patch).
+      const extra: string[] = [];
+      if (midi.length > 0) {
+        downloadBlob(encodeSmf(midi, { lengthMs: r.seconds * 1000, name: patch?.name }), siblingName(name, '.mid'), 'audio/midi');
+        extra.push(`${midi.length} MIDI-events`);
+      }
+      if (recWithPatch && patch) {
+        downloadBlob(JSON.stringify(patchSnapshot(project, patch), null, 1), siblingName(name, '.patch.json'), 'application/json');
+        extra.push('patch');
+      }
       const db = dbfs(r.peak);
       // De piek erbij, want een zachte render merk je anders pas als de
       // bank-import er int16 van maakt en je drie bits kwijt bent.
       const level = db === null ? 'stilte' : `piek ${db.toFixed(1)} dBFS`;
       setRecDone(`${name} · ${r.seconds.toFixed(1)} s · ${r.sampleRate} Hz · ${level}`
-               + (r.clipped ? ' · ⚠ overstuurd' : ''));
+               + (r.clipped ? ' · ⚠ overstuurd' : '')
+               + (extra.length ? ` · + ${extra.join(' + ')}` : ''));
     } catch (err) {
+      stopMidiTap();
       setRecording(false);
       setError(err instanceof Error ? err.message : String(err));
     }
@@ -296,12 +330,17 @@ export function SimulationPanel(): JSX.Element {
               : <button onClick={stopAll}>■ Stop</button>}
             {!recording
               ? <button onClick={() => void startRec()}
-                  title="Schrijft de master-som rechtstreeks mee als WAV — geen BlackHole of DAW nodig">
+                  title="Schrijft de master-som rechtstreeks mee als WAV, en de gespeelde MIDI als .mid met dezelfde naam — geen BlackHole of DAW nodig">
                   ⏺ Opname
                 </button>
               : <button onClick={() => void stopRec()} style={{ color: '#b91c1c', fontWeight: 600 }}>
                   ⏹ Stop · {recSecs.toFixed(1)} s
                 </button>}
+            <label style={{ fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+              title="Bewaar de patch als .patch.json naast de opname (te laden via Importeren), zodat je de MIDI later opnieuw door dezelfde klank kunt sturen">
+              <input type="checkbox" checked={recWithPatch} onChange={(e) => toggleRecWithPatch(e.target.checked)} />
+              patch mee
+            </label>
           </span>
         </div>
         <div style={row}>

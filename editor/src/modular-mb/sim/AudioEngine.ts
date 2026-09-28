@@ -247,6 +247,14 @@ export class AudioEngine {
    *  gaat, ná het volume. Normaal de simulator; tijdens het vergelijken
    *  Teensy links en simulator rechts — dan kun je beide kanten achteraf
    *  naast elkaar leggen. */
+  /** Luistert mee met alle MIDI die de engine naar de MidiIn-modules stuurt
+   *  (klavier, sequencer, Web MIDI) — voor de MIDI-opname naast de WAV. */
+  private midiTaps = new Set<(status: number, d1: number, d2: number) => void>();
+  onMidi(fn: (status: number, d1: number, d2: number) => void): () => void {
+    this.midiTaps.add(fn);
+    return () => { this.midiTaps.delete(fn); };
+  }
+
   recorderTap(): Tone.Gain {
     if (!this.recordBus) this.recordBus = new Tone.Gain(1);
     if (!this.recordBusWired) {
@@ -496,6 +504,7 @@ export class AudioEngine {
    * het kanaal waar MIDI-In naar luistert.
    */
   private sendMidi(status: number, d1: number, d2: number): void {
+    for (const tap of this.midiTaps) tap(status, d1 & 0x7F, d2 & 0x7F);
     for (const node of this.nodes.values()) {
       if (node.kind !== 'wasm' || node.type.id !== MIDIIN) continue;
       const ch = Math.max(1, Math.min(16, Math.round(readKnob(node.controls, 'channel', 0)) || 1));
