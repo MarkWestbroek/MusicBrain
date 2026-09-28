@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseSmf, MidiFileSource, toMidiEvent, SmfError, noteSpans } from './midiFilePlayer';
+import { parseSmf, MidiFileSource, toMidiEvent, SmfError, noteSpans, controllerSeries } from './midiFilePlayer';
 import { encodeSmf } from './midiRecorder';
 import type { MidiEvent } from './MidiSource';
 
@@ -146,5 +146,32 @@ describe('seek, lusvenster en pianorol', () => {
     src.setRegion(null);
     expect(src.state().region).toBeNull();
     src.stop();
+  });
+});
+
+describe('snelheid en controller-laag', () => {
+  it('halve snelheid: plek in het bestand loopt half zo snel, en blijft staan bij wisselen', () => {
+    let now = 0;
+    const src = new MidiFileSource(() => now, 1_000_000);
+    src.load(parseSmf(encodeSmf([{ t: 0, status: 0x90, d1: 60, d2: 1 }, { t: 3000, status: 0x80, d1: 60, d2: 0 }], { lengthMs: 4000 })), 'x.mid');
+    src.start();
+    now = 1000; expect(Math.round(src.position())).toBe(1000);
+    src.setSpeed(0.5);
+    expect(Math.round(src.position())).toBe(1000);
+    now = 2000; expect(Math.round(src.position())).toBe(1500);
+    src.setSpeed(2);
+    now = 2500; expect(Math.round(src.position())).toBe(2500);
+    src.stop();
+  });
+  it('controllerSeries: mod, aftertouch, bend en overige CC apart', () => {
+    const f = parseSmf(encodeSmf([
+      { t: 0, status: 0xB0, d1: 1, d2: 127 }, { t: 100, status: 0xD0, d1: 64, d2: 0 },
+      { t: 200, status: 0xE0, d1: 0, d2: 64 }, { t: 300, status: 0xB0, d1: 74, d2: 0 },
+      { t: 400, status: 0xB0, d1: 123, d2: 0 },
+    ], { lengthMs: 500 }));
+    const c = controllerSeries(f);
+    expect(c.map((x) => x.label)).toEqual(['Modwheel', 'Aftertouch', 'Pitch bend', 'CC 74']);
+    expect(c[0]!.points[0]!.v).toBe(1);
+    expect(c[2]!.points[0]!.v).toBeCloseTo(0.5, 2);
   });
 });

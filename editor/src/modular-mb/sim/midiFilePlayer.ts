@@ -142,6 +142,29 @@ export function noteSpans(f: ParsedSmf): NoteSpan[] {
   return out.sort((a, b) => a.start - b.start);
 }
 
+/** Controllers voor de laag onder de noten: stappen (t, 0..1) per soort. */
+export type CtlKind = 'mod' | 'at' | 'bend' | 'cc';
+export interface CtlSeries { kind: CtlKind; label: string; points: { t: number; v: number }[] }
+
+export function controllerSeries(f: ParsedSmf): CtlSeries[] {
+  const by = new Map<string, CtlSeries>();
+  const add = (key: string, kind: CtlKind, label: string, t: number, v: number): void => {
+    let s = by.get(key);
+    if (!s) { s = { kind, label, points: [] }; by.set(key, s); }
+    s.points.push({ t, v });
+  };
+  for (const e of f.events) {
+    const b = e.bytes, s = b[0]! & 0xF0;
+    if (s === 0xB0 && b[1] === 1) add('mod', 'mod', 'Modwheel', e.t, b[2]! / 127);
+    else if (s === 0xB0 && b[1]! < 120) add(`cc${b[1]}`, 'cc', `CC ${b[1]}`, e.t, b[2]! / 127);
+    else if (s === 0xD0) add('at', 'at', 'Aftertouch', e.t, b[1]! / 127);
+    else if (s === 0xA0) add('at', 'at', 'Aftertouch', e.t, b[2]! / 127);
+    else if (s === 0xE0) add('bend', 'bend', 'Pitch bend', e.t, (((b[2]! << 7) | b[1]!) / 16383));
+  }
+  const order: CtlKind[] = ['mod', 'at', 'bend', 'cc'];
+  return [...by.values()].sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind) || a.label.localeCompare(b.label));
+}
+
 /**
  * Speelt een geladen bestand af zodra de sim de bron start. `now` en de
  * timer zijn injecteerbaar voor tests. Springen (seek) en een lusvenster
@@ -164,6 +187,8 @@ export class MidiFileSource implements MidiSource {
   private loopRegion: LoopRegion | null = null;
   /** Eigen raster (tempo/tel 1) bovenop wat het bestand zegt; alleen voor weergave. */
   private gridOverride: Partial<Grid> | null = null;
+  /** Afspeelsnelheid (1 = zoals opgenomen). Alleen voor de sim; een widget met audio laat hem op 1. */
+  private speed = 1;
   loop = true;
 
   constructor(
@@ -199,6 +224,18 @@ export class MidiFileSource implements MidiSource {
 
   gridIsCustom(): boolean { return this.gridOverride !== null; }
 
+  getSpeed(): number { return this.speed; }
+
+  /** Sneller of trager afspelen (0,25–4); de plek in het bestand blijft staan. */
+  setSpeed(x: number): void {
+    const next = Math.max(0.25, Math.min(4, x));
+    if (next === this.speed) return;
+    const pos = this.position();
+    this.speed = next;
+    if (this.timer) this.t0 = this.now() - pos / next;
+    this.changed();
+  }
+
   setLoop(on: boolean): void { this.loop = on; this.changed(); }
 
   /** Lusvenster (ms); null = het hele bestand. Korter dan 20 ms = geen venster. */
@@ -218,7 +255,7 @@ export class MidiFileSource implements MidiSource {
   }
 
   position(): number {
-    return this.timer ? Math.max(0, this.now() - this.t0) : this.startAt;
+    return this.timer ? Math.max(0, (this.now() - this.t0) * this.speed) : this.startAt;
   }
 
   state(): PlayerState {
@@ -268,7 +305,7 @@ export class MidiFileSource implements MidiSource {
   private jump(ms: number): void {
     const f = this.file;
     this.releaseAll();
-    this.t0 = this.now() - ms;
+    this.t0 = this.now() - ms / this.speed;
     if (!f) { this.idx = 0; return; }
     let i = 0;
     const last = new Map<string, number[]>();   // laatste stand per soort
@@ -303,7 +340,7 @@ export class MidiFileSource implements MidiSource {
     const f = this.file;
     if (!f) return;
     const b = this.bounds();
-    const pos = this.now() - this.t0;
+    const pos = (this.now() - this.t0) * this.speed;
     const until = this.loop ? Math.min(pos, b.end) : pos;
     while (this.idx < f.events.length && f.events[this.idx]!.t <= until) {
       const ev = f.events[this.idx]!;

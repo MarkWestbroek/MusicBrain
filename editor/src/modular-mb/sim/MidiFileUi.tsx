@@ -37,6 +37,13 @@ export function MidiFileUi({ source, running, onStartSim }: { source: MidiFileSo
       <label style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}>
         <input type="checkbox" checked={st.loop} onChange={(e) => source.setLoop(e.target.checked)} /> lus
       </label>
+      <label style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}
+        title="Sneller of trager afspelen; toonhoogte en klank blijven gelijk, alleen de noten schuiven">
+        snelheid
+        <select value={source.getSpeed()} onChange={(e) => source.setSpeed(Number(e.target.value))}>
+          {[0.5, 0.75, 0.9, 1, 1.1, 1.25, 1.5, 2].map((x) => <option key={x} value={x}>{Math.round(x * 100)}%</option>)}
+        </select>
+      </label>
       {st.name && <span><strong>{st.name}</strong> · {st.events} events · {fmt(st.durationMs)}</span>}
       {!st.name && <span style={{ color: '#6b7280' }}>Kies een .mid; hij speelt zodra de sim draait. Ook de .mid van een sim-opname werkt.</span>}
       {err && <span style={{ color: '#b91c1c' }}>⚠ {err}</span>}

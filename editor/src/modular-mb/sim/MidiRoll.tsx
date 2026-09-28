@@ -10,7 +10,10 @@
 //   - breedte volgt de ruimte; hoogte met de greep onderaan (of vast via prop).
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { noteSpans, type MidiFileSource } from './midiFilePlayer';
+import { noteSpans, controllerSeries, type MidiFileSource, type CtlKind } from './midiFilePlayer';
+
+/** Kleuren van de controller-laag. */
+export const CTL_COLOR: Record<CtlKind, string> = { mod: '#4ade80', at: '#f472b6', bend: '#a78bfa', cc: '#94a3b8' };
 
 const RULER = 18;
 const H_KEY = 'mmb.midiroll.h';
@@ -91,6 +94,9 @@ export function MidiRoll({ source, canPlay = true, onRequestStart, height }: {
   useEffect(() => source.onState(() => setTick((x) => x + 1)), [source]);
   const file = source.parsed();
   const spans = useMemo(() => (file ? noteSpans(file) : []), [file]);
+  const ctl = useMemo(() => (file ? controllerSeries(file) : []), [file]);
+  // Laag onderin voor modwheel/aftertouch/bend/CC, alleen als ze er zijn.
+  const LANE = ctl.length && H >= 90 ? Math.round(Math.min(40, Math.max(22, H * 0.2))) : 0;
   const st = source.state();
 
   useEffect(() => {
@@ -162,11 +168,30 @@ export function MidiRoll({ source, canPlay = true, onRequestStart, height }: {
         g.strokeStyle = m === 0 && off > 0 ? '#64748b' : '#334155'; g.beginPath(); g.moveTo(x, RULER); g.lineTo(x, H); g.stroke();
         if (m >= 0 && m % labelEvery === 0) { g.fillStyle = '#94a3b8'; g.fillText(String(m + 1), x + 3, RULER / 2); }
       }
-      const rh = (H - RULER - 4) / rows;
+      const rh = (H - RULER - LANE - 4) / rows;
       for (const n of spans) {
         const x = xOf(n.start), w = Math.max(1.5, xOf(n.end) - x), y = RULER + 2 + (hi - n.note) * rh;
         g.fillStyle = `rgba(56, 189, 248, ${0.35 + 0.65 * (n.vel / 127)})`;
         g.fillRect(x, y, w, Math.max(1.5, rh - 1));
+      }
+      if (LANE) {
+        const top = H - LANE;
+        g.fillStyle = '#0b1222'; g.fillRect(0, top, width, LANE);
+        g.strokeStyle = '#1e293b'; g.beginPath(); g.moveTo(0, top + 0.5); g.lineTo(width, top + 0.5); g.stroke();
+        const yOf = (v: number): number => top + 2 + (1 - v) * (LANE - 4);
+        g.lineWidth = 1.5;
+        for (const series of ctl) {
+          g.strokeStyle = CTL_COLOR[series.kind]; g.globalAlpha = series.kind === 'cc' ? 0.6 : 0.9;
+          g.beginPath();
+          series.points.forEach((p, i) => {
+            const x = xOf(p.t), y = yOf(p.v);
+            if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
+            const next = series.points[i + 1];
+            g.lineTo(next ? xOf(next.t) : width, y);            // stap: waarde blijft staan
+          });
+          g.stroke();
+        }
+        g.globalAlpha = 1; g.lineWidth = 1;
       }
       const px = Math.round(xOf(s.posMs)) + 0.5;
       g.strokeStyle = s.playing ? '#ef4444' : '#f87171'; g.lineWidth = 1.5;
@@ -316,6 +341,16 @@ export function MidiRoll({ source, canPlay = true, onRequestStart, height }: {
         {st.region
           ? <span style={{ color: '#b45309' }} title="Dubbelklik op het oranje venster om het weg te halen">lus {fmt(st.region.start)}–{fmt(st.region.end)}</span>
           : <span>Sleep in de liniaal voor een lusvenster (klikt op tellen, Alt = vrij). Spatie = afspelen/pauze.</span>}
+        {ctl.length > 0 && (
+          <span style={{ display: 'inline-flex', gap: 8 }} title="Controller-laag onderin de rol">
+            {(['mod', 'at', 'bend', 'cc'] as const).filter((k) => ctl.some((c) => c.kind === k)).map((k) => (
+              <span key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                <span style={{ width: 10, height: 3, background: CTL_COLOR[k], display: 'inline-block', borderRadius: 1 }} />
+                {k === 'cc' ? ctl.filter((c) => c.kind === 'cc').map((c) => c.label).join(', ') : ctl.find((c) => c.kind === k)!.label}
+              </span>
+            ))}
+          </span>
+        )}
       </div>
     </div>
   );
