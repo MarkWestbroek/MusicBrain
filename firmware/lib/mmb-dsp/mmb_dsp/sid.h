@@ -17,7 +17,8 @@
  *    eromheen, waarin een 0 harder trekt dan een 1. Eén knop (`setCombo`,
  *    0..10) schuift van zuivere AND (0) via de 8580 (4) naar de 6581 (7) en
  *    verder. Combineer je noise, dan schrijft de uitgang terug in de LFSR en
- *    sterft de ruis uit, zoals op de chip;
+ *    sterft de ruis uit, zoals op de chip (noise-combinaties rekenen als
+ *    zuivere AND: goedkoop, en de ruis is er toch snel uit);
  *  - noise: 23-bit LFSR (terugkoppeling bits 22 ^ 17), geklokt op de
  *    stijgende flank van accumulator-bit 19, 8 uitgangsbits;
  *  - ADSR per stem, cycle-exact als integer-toestandsmachine: de periodetabel,
@@ -166,6 +167,9 @@ public:
         for (int m = 0; m < 8; ++m) if (table_[m]) fillTable(m);
     }
     float combo() const { return combo_; }
+    /** Combined-waveform-tabellen delen met @p owner (zelfde Combo-stand, zoals
+     *  de chips van één SidMulti): scheelt 8 KB per combinatie per chip. */
+    void shareTablesFrom(SidChip* owner) { tableOwner_ = owner ? owner : this; }
 
     /** Uitgang van een combinatie in 1/16 van een 12-bit stap (test-/meethaakje). */
     uint16_t combinedValue(uint8_t ctrl, uint32_t acc12, bool triFlip, uint32_t lfsr, bool pulseHigh) const {
@@ -376,12 +380,25 @@ private:
         }
         // Combinaties: een lage puls trekt alle bits hard naar 0.
         if ((sel & kPulse) && !pulseHigh) return -1.0f;
+        // Met noise erbij: zuivere AND. Goedkoop (het bitlijn-model zou per
+        // sample opnieuw moeten, want de ruisbits wisselen), en de ruis sterft
+        // in een combinatie binnen een fractie van een seconde toch uit.
+        if (sel & kNoise) return (static_cast<float>(andValue(sel, acc32, triMsb, lfsr)) - 2048.0f) * (1.0f / 2048.0f);
         const bool triFlip = (ctrl & kRing) && srcMsb;
         const uint32_t acc12 = acc32 >> 20;
-        const uint16_t* t = table_[(sel >> 4) & 7].get();
-        const uint16_t v16 = (t && !(sel & kNoise) && !triFlip)
-            ? t[acc12] : combinedModel(sel, acc12, triFlip, lfsr, pulseHigh);
+        const uint16_t* t = tableOwner_->table_[(sel >> 4) & 7].get();
+        const uint16_t v16 = (t && !triFlip) ? t[acc12] : combinedModel(sel, acc12, triFlip, lfsr, pulseHigh);
         return (static_cast<float>(v16) * (1.0f / 16.0f) - 2048.0f) * (1.0f / 2048.0f);
+    }
+
+    /** Zuivere AND van de gekozen 12-bit golfvormen (pulse = hoog; de lage
+     *  puls is al afgevangen). Gebruikt voor combinaties met noise. */
+    static uint16_t andValue(uint8_t sel, uint32_t acc32, bool triMsb, uint32_t lfsr) {
+        uint32_t v = 0xfff;
+        if (sel & kTri)   v &= (((acc32 << 1) ^ (triMsb ? 0xffffffffu : 0u)) >> 20) & 0xffe;
+        if (sel & kSaw)   v &= acc32 >> 20;
+        if (sel & kNoise) v &= static_cast<uint32_t>(noiseBits(lfsr)) << 4;
+        return static_cast<uint16_t>(v);
     }
 
     /**
@@ -439,9 +456,10 @@ private:
     /** Tabel voor een tri/saw/pulse-combinatie (pulse = hoog), geïndexeerd op acc12. */
     void ensureTable(uint8_t ctrl) {
         const int m = (ctrl >> 4) & 7;               // tri=1, saw=2, pulse=4
+        if (tableOwner_ != this) { tableOwner_->ensureTable(ctrl); return; }
         if (m == 0 || m == 1 || m == 2 || m == 4 || table_[m]) return;
         table_[m].reset(new uint16_t[4096]);
-        fillTable(m);
+        if (table_[m]) fillTable(m);                  // geen geheugen: rekent zonder tabel verder
     }
     void fillTable(int m) {
         const uint8_t sel = static_cast<uint8_t>(m << 4);
@@ -523,9 +541,9 @@ private:
                     v.lfsr = clockLfsr(v.lfsr);
                     if ((ctrl & kNoise) && (ctrl & (kTri | kSaw | kPulse))) {
                         const bool ph = (ctrl & kTest) || after >= thr;
-                        uint16_t o = 0;
-                        if (!(ctrl & kPulse) || ph)
-                            combinedModel(ctrl & 0xf0, after >> 20, (ctrl & kRing) && srcMsb, v.lfsr, ph, &o);
+                        const bool triMsb = ((after >> 31) != 0) != ((ctrl & kRing) && srcMsb);
+                        const uint16_t o = ((ctrl & kPulse) && !ph) ? 0
+                            : andValue(ctrl & 0xf0, after, triMsb, v.lfsr);
                         v.lfsr = noiseWriteBack(v.lfsr, o);
                     }
                     break;
@@ -633,6 +651,7 @@ private:
     float    combo_ = -1.0f, cmA_ = 0.f, cmT_ = 0.5f, cmP_ = 1.f, cmW_ = 0.001f;
     float    cmK_[kComboR + 1] = { 1.f, 0.f, 0.f, 0.f, 0.f };
     std::unique_ptr<uint16_t[]> table_[8];            // op index tri|saw|pulse (pulse = hoog)
+    SidChip* tableOwner_ = this;                      // wiens tabellen deze chip leest
     float   dcR_ = 0.9986f, dcX1_ = 0.0f, dcY1_ = 0.0f;
     // Filter (8580-model): cutoff-bereik, resonantie tot 0,707·2^kResOctaves.
     static constexpr float kFcLo = 30.0f, kFcHi = 12000.0f, kResOctaves = 2.5f;
@@ -853,6 +872,7 @@ public:
 
     void Init(float sampleRate) {
         for (auto& c : chip_) c.Init(sampleRate);
+        for (int j = 1; j < kMaxChips; ++j) chip_[j].chip().shareTablesFrom(&chip_[0].chip());
         limiter_.Init(sampleRate);
         updatePan();
     }

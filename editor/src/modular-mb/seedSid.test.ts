@@ -88,3 +88,25 @@ describe('seedSidPolyPatch met meer chips', () => {
     expect(patch.controlState[sid.id]).toMatchObject({ chips: 4 });
   });
 });
+
+describe('SID-seeds in een project met een oudere SID', () => {
+  it('werken de SID-definitie eerst bij (12 cellen, out_l/out_r)', () => {
+    const fresh = seedInternals(emptyModularProject());
+    // Nabootsen: de SID zoals hij was vóór de chips (3 cellen, alleen `out`).
+    const old = {
+      ...fresh,
+      moduleTypes: fresh.moduleTypes.map((t) => t.id !== 'tp_mmb_sid' ? t : {
+        ...t,
+        cellGroups: t.cellGroups!.map((g) => ({ ...g, count: 3 })),
+        ports: t.ports.filter((pt) => !['out_l', 'out_r', 'sid_1', 'sid_2', 'sid_3', 'sid_4'].includes(pt.id)
+          && !/^(voct|gate)_([4-9]|1[0-2])$/.test(pt.id)),
+      }),
+    };
+    const p = seedSidPolyPatch(old, 4);
+    const t = p.moduleTypes.find((x) => x.id === 'tp_mmb_sid')!;
+    expect(t.cellGroups![0]!.count).toBe(12);
+    expect(t.ports.some((pt) => pt.id === 'out_l')).toBe(true);
+    const patch = p.patches.find((x) => x.id === p.activePatchId)!;
+    validateOps(p, [], patch.id);
+  });
+});

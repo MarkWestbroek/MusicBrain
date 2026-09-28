@@ -11,8 +11,10 @@ import { uid } from './store';
 export function seedSidPolyPatch(project: ModularProject, chips = 1): ModularProject {
   const C = Math.max(1, Math.min(4, Math.round(chips)));
   const N = 3 * C;
-  const needed = ['tp_mmb_midiin', 'tp_mmb_sid', 'tp_mmb_lfo', 'tp_mmb_out'];
-  const p = needed.some((tid) => !project.moduleTypes.some((t) => t.id === tid)) ? seedInternals(project) : project;
+  // Altijd de interne modules bijwerken: een project met een oudere SID-
+  // definitie (minder cellen, zonder out_l/out_r) zou anders kabels krijgen
+  // naar poorten die het nog niet kent — en stil blijven.
+  const p = seedInternals(project);
   const fresh = (tid: string): ModuleInstance => {
     const proto = p.modules.find((m) => m.typeId === tid)!;
     return { ...proto, id: uid('mod'), internal: false, visual: proto.visual };
@@ -103,8 +105,10 @@ const SID3_SOUND: Record<string, ControlValue> = {
 export function seedSid3Patch(project: ModularProject, voiceCount = 1): ModularProject {
   const N = Math.max(1, Math.min(8, Math.round(voiceCount)));
   const mixerTypeId = N > 4 ? 'tp_mmb_mixer8' : 'tp_mmb_mixer';
-  const needed = ['tp_mmb_midiin', 'tp_mmb_sid3', 'tp_mmb_out', ...(N > 1 ? [mixerTypeId] : [])];
-  const p = needed.some((tid) => !project.moduleTypes.some((t) => t.id === tid)) ? seedInternals(project) : project;
+  // Altijd de interne modules bijwerken: een project met een oudere SID-
+  // definitie (minder cellen, zonder out_l/out_r) zou anders kabels krijgen
+  // naar poorten die het nog niet kent — en stil blijven.
+  const p = seedInternals(project);
   const fresh = (tid: string): ModuleInstance => {
     const proto = p.modules.find((m) => m.typeId === tid)!;
     return { ...proto, id: uid('mod'), internal: false, visual: proto.visual };

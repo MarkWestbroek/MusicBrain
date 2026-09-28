@@ -17,6 +17,23 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### fw 0.5.87 — SID: noise-combinaties overbelastten, seeds met een oude SID bleven stil (2026-09-28)
+- **Noise + een andere golfvorm legde de Teensy stil.** Voor noise-combinaties
+  was er geen tabel, dus het bitlijn-model rekende elk sample opnieuw: pulse+
+  noise 4,6×, noise+saw+tri 12× zo duur (pc, 4 chips). De seed staat op pulse,
+  dus noise aanzetten gaf meteen pulse+noise; met 12 stemmen ging de audio ver
+  over 100 % en kwam niet terug. Noise-combinaties rekenen nu als zuivere AND
+  (de ruis sterft er toch snel in uit); alle combinaties kosten nu ongeveer
+  wat pulse kost.
+- De chips van één SID-module delen hun combined-waveform-tabellen (max. 32 KB
+  i.p.v. 128 KB heap); lukt een tabel niet, dan rekent de chip zonder verder.
+- **In de sim bleven SID ×6/×12 stil** in een project met de oude SID-definitie:
+  de seeds haalden de modules alleen op als ze ontbraken en legden kabels naar
+  cellen en uitgangen die die definitie niet kende. De SID-seeds werken de
+  interne modules nu altijd eerst bij (zoals Internals).
+- **Gemeten op de Teensy** (SID ×12, 12 noten): pulse+noise 47 %, noise 45 %,
+  noise+saw+tri 48 %, daarna pulse 36 % — geen uitval meer.
+
 ### fw 0.5.86 — SID: 1–4 chips in één module, stereo (2026-09-28)
 - `tp_mmb_sid` wordt `mmb_dsp::SidMulti`: knop **SIDs** (1–4) en 12
   stem-cellen; cel 1–3 = chip 1, 4–6 = chip 2, enzovoort, elk een eigen
