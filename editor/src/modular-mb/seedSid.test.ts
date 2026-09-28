@@ -21,3 +21,29 @@ describe('seedSidPolyPatch', () => {
     }
   });
 });
+
+describe('seedInternals na een bredere SID', () => {
+  it('schuift de buurman op in plaats van eroverheen te liggen', () => {
+    // Nabootsen: een project van vóór het filter (SID 12 HP, LFO er direct naast).
+    const p0 = seedSidPolyPatch(seedInternals(emptyModularProject()));
+    const rack = p0.racks.find((r) => r.id === p0.activeRackId)!;
+    const sid = p0.modules.find((m) => m.typeId === 'tp_mmb_sid' && rack.slots.some((s) => s.moduleId === m.id))!;
+    const sidSlot = rack.slots.find((s) => s.moduleId === sid.id)!;
+    const lfoSlot = rack.slots.find((s) => p0.modules.find((m) => m.id === s.moduleId)!.typeId === 'tp_mmb_lfo')!;
+    const old = {
+      ...p0,
+      modules: p0.modules.map((m) => (m.id === sid.id ? { ...m, visual: { ...m.visual, hpWidth: 12 } } : m)),
+      racks: p0.racks.map((r) => (r.id !== rack.id ? r : {
+        ...r, slots: r.slots.map((s) => (s.id === lfoSlot.id ? { ...s, hpOffset: sidSlot.hpOffset + 12 } : s)),
+      })),
+    };
+    const up = seedInternals(old);
+    const r = up.racks.find((x) => x.id === rack.id)!;
+    const width = (id: string) => up.modules.find((m) => m.id === id)!.visual.hpWidth;
+    const row = r.slots.filter((s) => s.row === sidSlot.row).sort((a, b) => a.hpOffset - b.hpOffset);
+    for (let i = 1; i < row.length; i++)
+      expect(row[i]!.hpOffset).toBeGreaterThanOrEqual(row[i - 1]!.hpOffset + width(row[i - 1]!.moduleId));
+    expect(width(sid.id)).toBe(16);
+    expect(r.slots.find((s) => s.id === lfoSlot.id)!.hpOffset).toBe(sidSlot.hpOffset + 16);
+  });
+});

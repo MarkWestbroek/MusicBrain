@@ -3376,6 +3376,11 @@ export function seedInternals(project: ModularProject): ModularProject {
       : r);
 
   const upgradedIds = new Set(upgraded.map((t) => t.id));
+  const modules = [
+    ...project.modules.map((m) => visualByType.has(m.typeId)
+      ? { ...m, visual: visualByType.get(m.typeId)! } : m),
+    ...newModules,
+  ];
   return {
     ...project,
     // map + dedupe: eerdere seedInternals-runs stapelden duplicaten van
@@ -3388,13 +3393,44 @@ export function seedInternals(project: ModularProject): ModularProject {
           || arr.findIndex((u) => u.id === t.id) === i),
       ...brandNew.map((x) => x.type),
     ],
-    modules: [
-      ...project.modules.map((m) => visualByType.has(m.typeId)
-        ? { ...m, visual: visualByType.get(m.typeId)! } : m),
-      ...newModules,
-    ],
-    racks: updatedRacks,
+    modules,
+    racks: pushApartGrown(updatedRacks, project.modules, modules),
   };
+}
+
+/**
+ * Een paneel dat bij een upgrade breder wordt (de SID ging van 12 naar
+ * 16 HP) blijft op zijn plek staan; zonder ingreep ligt de buurman er dan
+ * overheen. In elke rij met zo'n gegroeide module schuiven de modules
+ * erachter door tot ze niet meer overlappen; de rij groeit zo nodig mee.
+ * Rijen zonder gegroeide module blijven onaangeroerd.
+ */
+function pushApartGrown(racks: Rack[], before: ModuleInstance[], after: ModuleInstance[]): Rack[] {
+  const oldHp = new Map(before.map((m) => [m.id, m.visual.hpWidth]));
+  const hpOf = new Map(after.map((m) => [m.id, m.visual.hpWidth]));
+  const grown = new Set(after.filter((m) => m.visual.hpWidth > (oldHp.get(m.id) ?? m.visual.hpWidth)).map((m) => m.id));
+  if (grown.size === 0) return racks;
+  return racks.map((r) => {
+    const rows = new Set(r.slots.filter((s) => grown.has(s.moduleId)).map((s) => s.row));
+    if (rows.size === 0) return r;
+    const moved = new Map<string, number>();
+    let maxEnd = 0;
+    for (const row of rows) {
+      let cursor = 0;
+      for (const s of r.slots.filter((x) => x.row === row).sort((a, b) => a.hpOffset - b.hpOffset)) {
+        const at = Math.max(s.hpOffset, cursor);
+        if (at !== s.hpOffset) moved.set(s.id, at);
+        cursor = at + (hpOf.get(s.moduleId) ?? 0);
+        maxEnd = Math.max(maxEnd, cursor);
+      }
+    }
+    if (moved.size === 0) return r;
+    return {
+      ...r,
+      hpPerRow: Math.max(r.hpPerRow, maxEnd),
+      slots: r.slots.map((s) => (moved.has(s.id) ? { ...s, hpOffset: moved.get(s.id)! } : s)),
+    };
+  });
 }
 
 export function seedExampleModules(project: ModularProject): ModularProject {
