@@ -113,3 +113,30 @@ export async function uploadTake(
   if (!body || !Array.isArray(body.assets)) throw new LibraryError('Onverwacht antwoord van de library (geen assets).');
   return body.assets as UploadedAsset[];
 }
+
+/** "mmb-cs-80-koper-20260928-120000" → { name: "cs-80-koper", stamp: "20260928-120000" }. */
+export function splitTakeName(group: string): { name: string; stamp: string } {
+  const m = /^(?:mmb-)?(.*?)-?(\d{8}-\d{6})?$/.exec(group);
+  return { name: m?.[1] || group, stamp: m?.[2] ?? '' };
+}
+
+/** Bestandsvriendelijke naam: kleine letters, streepjes, geen accenten. */
+export function slugName(s: string): string {
+  return s.normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^\w]+/g, '-').replace(/^-|-$/g, '').toLowerCase();
+}
+
+/**
+ * Een take hernoemen vóór het versturen: nieuwe naam, zelfde tijdstempel,
+ * alle bestanden en de group mee. Lege naam = ongewijzigd.
+ */
+export function renameTake(take: Take, name: string): Take {
+  const slug = slugName(name);
+  if (!slug) return take;
+  const { stamp } = splitTakeName(take.group);
+  const group = `mmb-${slug}${stamp ? `-${stamp}` : ''}`;
+  if (group === take.group) return take;
+  return {
+    group,
+    files: take.files.map((f) => ({ ...f, name: f.name.startsWith(take.group) ? group + f.name.slice(take.group.length) : f.name })),
+  };
+}

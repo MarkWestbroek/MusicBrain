@@ -17,7 +17,7 @@ import {
 } from './sim/wavRecorder';
 import { MidiRecorder, encodeSmf, patchSnapshot, siblingName } from './sim/midiRecorder';
 import {
-  loadLibrarySettings, saveLibrarySettings, uploadTake, parseTags, type LibrarySettings, type Take,
+  loadLibrarySettings, saveLibrarySettings, uploadTake, parseTags, renameTake, splitTakeName, type LibrarySettings, type Take,
 } from './sim/mediaLibrary';
 import { dx7Host, WasmModule } from './runtime';
 import { simSupportOf, type SimSupport } from './sim/simSupport';
@@ -88,7 +88,10 @@ export function SimulationPanel(): JSX.Element {
     try { localStorage.setItem('mmb.rec.patchJson', on ? '1' : '0'); } catch { /* geen opslag */ }
   }
   // Laatste opname, klaar om naar de media library te sturen (versie 2).
-  const [lastTake, setLastTake] = useState<Take | null>(null);
+  const [lastTake, setLastTakeRaw] = useState<Take | null>(null);
+  // Naam voor de library; de tijdstempel blijft er automatisch achter.
+  const [takeName, setTakeName] = useState('');
+  function setLastTake(t: Take | null): void { setLastTakeRaw(t); setTakeName(t ? splitTakeName(t.group).name : ''); }
   const [lib, setLib] = useState<LibrarySettings>(loadLibrarySettings);
   const [libOpen, setLibOpen] = useState(false);
   const [takesOpen, setTakesOpen] = useState(false);
@@ -111,8 +114,9 @@ export function SimulationPanel(): JSX.Element {
     if (!lib.token.trim()) { setLibOpen(true); setLibMsg({ ok: false, text: 'Vul eerst een API-token in.' }); return; }
     setLibBusy(true); setLibMsg(null);
     try {
-      const assets = await uploadTake(lastTake, lib);
-      setLibMsg({ ok: true, text: `In de library: ${assets.length} bestand${assets.length === 1 ? '' : 'en'} in ${lib.folder || '(root)'}, koppel ${lastTake.group}` });
+      const take = renameTake(lastTake, takeName);
+      const assets = await uploadTake(take, lib);
+      setLibMsg({ ok: true, text: `In de library: ${assets.length} bestand${assets.length === 1 ? '' : 'en'} in ${lib.folder || '(root)'}, koppel ${take.group}` });
     } catch (err) {
       setLibMsg({ ok: false, text: err instanceof Error ? err.message : String(err) });
     } finally {
@@ -451,6 +455,15 @@ export function SimulationPanel(): JSX.Element {
         )}
         {!recording && (
           <div style={{ ...row, marginTop: 6 }}>
+            {lastTake && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, fontSize: 12 }}
+                title="Naam van de take in de library; datum en tijd blijven erachter zodat takes uniek en op volgorde blijven">
+                <input value={takeName} onChange={(e) => setTakeName(e.target.value)} disabled={libBusy}
+                  onKeyDown={(e) => { if (e.key === 'Enter') void sendToLibrary(); }}
+                  style={{ width: 200 }} aria-label="Naam van de take" />
+                <span style={{ color: '#9ca3af' }}>-{splitTakeName(lastTake.group).stamp}</span>
+              </span>
+            )}
             {lastTake && (
               <button onClick={() => void sendToLibrary()} disabled={libBusy}
                 title="Zet deze opname (alle bestanden, als één koppel) in de media library van musicbrain.nl">

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { uploadTake, takeForm, parseTags, LibraryError, DEFAULT_LIBRARY, type Take } from './mediaLibrary';
+import { uploadTake, takeForm, parseTags, LibraryError, DEFAULT_LIBRARY, renameTake, splitTakeName, slugName, type Take } from './mediaLibrary';
 
 const take: Take = {
   group: 'mmb-koper-20260928-120000',
@@ -49,5 +49,16 @@ describe('mediaLibrary', () => {
 
   it('parseTags', () => {
     expect(parseTags(' a, b ,,a,c ')).toEqual(['a', 'b', 'c']);
+  });
+});
+
+describe('take hernoemen', () => {
+  it('naam wijzigt, tijdstempel en extensies blijven', () => {
+    const r = renameTake(take, 'Vangelis Blade Runner!');
+    expect(r.group).toBe('mmb-vangelis-blade-runner-20260928-120000');
+    expect(r.files.map((f) => f.name)).toEqual(['mmb-vangelis-blade-runner-20260928-120000.wav', 'mmb-vangelis-blade-runner-20260928-120000.mid']);
+    expect(renameTake(take, '  ')).toBe(take);
+    expect(splitTakeName(take.group)).toEqual({ name: 'koper', stamp: '20260928-120000' });
+    expect(slugName('Café Élan')).toBe('cafe-elan');
   });
 });
