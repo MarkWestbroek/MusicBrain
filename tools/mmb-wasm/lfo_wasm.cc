@@ -20,7 +20,8 @@ MmbPort MMB_OUTPUTS[] = { { "out", MMB_CV, 0, {} }, { "out_inv", MMB_CV, 0, {} }
 const int MMB_NUM_OUTPUTS = 2;
 MmbControl MMB_CONTROLS[] = {
     { "rate", 1.0f }, { "wave", 0.0f }, { "depth", 1.0f }, { "bipolar", 1.0f }, { "run", 0.0f },
+    { "rate_cv_amt", 1.0f },
 };
-const int MMB_NUM_CONTROLS = 5;
+const int MMB_NUM_CONTROLS = 6;
 
 mb::runtime::Module* cvhost_make() { return new mb::runtime::Lfo("lfo"); }

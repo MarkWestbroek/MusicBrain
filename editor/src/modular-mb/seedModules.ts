@@ -668,16 +668,20 @@ function mmbLfo() {
       { x: w/2, y: 126, text: 'MMB',  fontSize: 1.8, color: '#f9fafb', align: 'middle' },
     ],
     items: [
-      knob('rate',  'Rate',  w/2, 26, { size: 'large',  min: 0.01, max: 50, def: 1,  unit: 'Hz', color: '#f9fafb' }),
-      sw  ('wave',  'Wave',  w/2, 56, ['Sin','Tri','Saw','Sqr','S&H'], 0),
-      knob('depth', 'Depth', w/2, 78, { size: 'medium', min: 0,    max: 1,  def: 1, color: '#f9fafb' }),
-      toggle('bipolar','Bip', w*0.25, 96, true),
-      sw    ('run',   'Run',  w*0.75, 96, ['Always','Gated','OneShot'], 0),
+      knob('rate',  'Rate',  w/2, 24, { size: 'large',  min: 0.01, max: 50, def: 1,  unit: 'Hz', color: '#f9fafb' }),
+      sw  ('wave',  'Wave',  w/2, 47, ['Sin','Tri','Saw','Sqr','S&H'], 0),
+      knob('depth', 'Depth', w/2, 63, { size: 'medium', min: 0,    max: 1,  def: 1, color: '#f9fafb' }),
+      toggle('bipolar','Bip', w*0.25, 79, true),
+      sw    ('run',   'Run',  w*0.75, 79, ['Always','Gated','OneShot'], 0),
+      // Attenuverter op de Rate-ingang, recht boven die jack: 1 = ±4 oct bij
+      // ±1 CV (zoals vroeger), 0 = CV genegeerd, onder 0 omgekeerd.
+      knob('rate_cv_amt', 'Rate CV', w*0.25, 93, { size: 'small', min: -1, max: 1, def: 1, color: '#f9fafb' }),
 
-      inPort ('rate_cv','Rate', 'cv',     w*0.25, 112),
-      inPort ('reset',  'Rst',  'trigger',w*0.50, 112),
-      outPort('out',    'Out',  'cv',     w*0.75, 112),
-      outPort('out_inv','Inv',  'cv',     w*0.50, 122),
+      // Ingangen boven, uitgangen onder; MMB past tussen Out en Inv.
+      inPort ('rate_cv','Rate', 'cv',     w*0.25, 106),
+      inPort ('reset',  'Rst',  'trigger',w*0.75, 106),
+      outPort('out',    'Out',  'cv',     w*0.25, 118),
+      outPort('out_inv','Inv',  'cv',     w*0.75, 118),
     ],
     notes: 'Interne MMB LFO; bipolar=on geeft \u00b1depth, off geeft 0..depth.',
   });

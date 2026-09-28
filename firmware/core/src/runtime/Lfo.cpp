@@ -58,6 +58,8 @@ void Lfo::setControl(std::string_view controlId, ControlValue value) {
 
     if (controlId == "rate" || controlId == "freq") {
         rateHz_ = std::clamp(asFloat(1.0f), 0.001f, 5000.0f);
+    } else if (controlId == "rate_cv_amt") {
+        rateCvAmt_ = std::clamp(asFloat(1.0f), -1.0f, 1.0f);
     } else if (controlId == "depth" || controlId == "amount") {
         depth_ = std::clamp(asFloat(1.0f), 0.0f, 1.0f);
     } else if (controlId == "wave" || controlId == "shape") {
@@ -106,8 +108,9 @@ void Lfo::tick() {
     const float prevPhase = phase_;
     // Apply exponential rate-CV modulation (0 input = base rate).
     float effRateHz = rateHz_;
-    if (rateCv_ != 0.0f) {
-        effRateHz = std::clamp(rateHz_ * std::pow(2.0f, rateCv_ * kRateCvOctaves),
+    const float rateMod = rateCv_ * rateCvAmt_;
+    if (rateMod != 0.0f) {
+        effRateHz = std::clamp(rateHz_ * std::pow(2.0f, rateMod * kRateCvOctaves),
                                0.001f, 5000.0f);
     }
     phase_ += effRateHz * kSecondsPerTick;

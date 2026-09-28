@@ -603,6 +603,7 @@
         "depth",
         "freq",
         "rate",
+        "rate_cv_amt",
         "run",
         "shape",
         "wave"

@@ -479,6 +479,21 @@ describe('tp_mmb_lfo (firmwareklasse zelf)', () => {
     expect(cycles(out!)).toBeLessThanOrEqual(16);
   });
 
+  it('rate_cv_amt verzwakt en keert om: 0 negeert de CV, −1 is een octaaf trager', async () => {
+    const off = await load('tp_mmb_lfo');
+    off.setCtl('rate', 2); off.setCtl('rate_cv_amt', 0);
+    off.setIn('rate_cv', 0.25);
+    const [a] = off.render(4.0);
+    expect(cycles(a!)).toBeGreaterThanOrEqual(7);
+    expect(cycles(a!)).toBeLessThanOrEqual(8);
+    const inv = await load('tp_mmb_lfo');
+    inv.setCtl('rate', 2); inv.setCtl('rate_cv_amt', -1);
+    inv.setIn('rate_cv', 0.25);
+    const [b] = inv.render(4.0);
+    expect(cycles(b!)).toBeGreaterThanOrEqual(3);
+    expect(cycles(b!)).toBeLessThanOrEqual(4);
+  });
+
   it('een reset-flank zet de fase terug op nul', async () => {
     const m = await load('tp_mmb_lfo');
     m.setCtl('rate', 1); m.setCtl('wave', 2);           // zaagtand: fase is direct af te lezen

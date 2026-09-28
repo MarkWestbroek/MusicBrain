@@ -128,6 +128,32 @@ MB_TEST(lfo_sample_and_hold_stable_within_cycle) {
     MB_REQUIRE(changed);
 }
 
+MB_TEST(lfo_rate_cv_amt_attenuverts_rate_cv) {
+    // rate_cv +0.25 × 4 oct = +1 oct: 1 Hz → 2 Hz, dus na 250 ms fase 0,5.
+    Lfo full("l");
+    full.writeCvPort("rate_cv", 0.25f);
+    tickN(full, 250);
+    MB_REQUIRE(std::fabs(full.phase() - 0.5f) < 0.01f);
+    // amt 0.5 → +½ oct: 2^0.5 Hz ≈ 1,414 Hz → fase ≈ 0,354.
+    Lfo half("l");
+    half.setControl("rate_cv_amt", 0.5f);
+    half.writeCvPort("rate_cv", 0.25f);
+    tickN(half, 250);
+    MB_REQUIRE(std::fabs(half.phase() - 0.3536f) < 0.01f);
+    // amt 0 → CV genegeerd: 1 Hz → fase 0,25.
+    Lfo off("l");
+    off.setControl("rate_cv_amt", 0.0f);
+    off.writeCvPort("rate_cv", 0.25f);
+    tickN(off, 250);
+    MB_REQUIRE(std::fabs(off.phase() - 0.25f) < 0.01f);
+    // amt −1 → omgekeerd: −1 oct = 0,5 Hz → fase 0,125.
+    Lfo inv("l");
+    inv.setControl("rate_cv_amt", -1.0f);
+    inv.writeCvPort("rate_cv", 0.25f);
+    tickN(inv, 250);
+    MB_REQUIRE(std::fabs(inv.phase() - 0.125f) < 0.01f);
+}
+
 MB_TEST(lfo_reset_resets_phase) {
     Lfo lfo("l");
     tickN(lfo, 300);

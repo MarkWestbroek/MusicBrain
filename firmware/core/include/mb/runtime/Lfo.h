@@ -36,6 +36,8 @@
  * Exponentially modulates the base rate: a value of +1 multiplies the rate
  * by 2^`kRateCvOctaves`, −1 divides it by the same factor, 0 leaves it at
  * the `rate` control.  Lets an envelope or another LFO sweep the speed.
+ * The `rate_cv_amt` control (−1 … +1, default 1) scales the input first:
+ * an attenuverter, so 0 ignores the CV and −1 inverts it.
  *
  * **Outputs:**
  * - `out`     — the LFO value.
@@ -92,7 +94,7 @@ public:
 
     /** @brief Apply a layer-2 control change.
      *  Supported ids: `"rate"` / `"freq"`, `"wave"` / `"shape"`,
-     *  `"depth"` / `"amount"`, `"bipolar"`, `"run"`.  Unknown ids are
+     *  `"depth"` / `"amount"`, `"bipolar"`, `"run"`, `"rate_cv_amt"`.  Unknown ids are
      *  silently ignored for backwards compatibility. */
     void setControl(std::string_view controlId, ControlValue value) override;
 
@@ -198,6 +200,7 @@ private:
     bool  lastGate_    = false;    // for rising-edge detection in OneShot
     bool  lastResetHigh_ = false;  // for rising-edge detection on the reset CV input
     float rateCv_      = 0.0f;     // exponential rate modulation from `rate_cv` input
+    float rateCvAmt_   = 1.0f;     // attenuverter on `rate_cv` (−1 … +1)
     float shCached_    = 0.0f;     // current S&H sample, refreshed each cycle
     std::uint32_t rng_ = 0xA341316Cu;  // xorshift32 state (arbitrary seed)
     float value_       = 0.0f;
