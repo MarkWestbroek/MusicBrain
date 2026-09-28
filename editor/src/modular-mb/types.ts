@@ -132,9 +132,10 @@ export interface KnobControl {
    * Optional rotary-stepper rendering: draw tick marks around the skirt at
    * every integer step from `min` to `max`. Positions in `highlight` get
    * longer/thicker marks. Currently only honoured when `min`/`max` are
-   * integers and the range is ≤ 24.
+   * integers and the range is ≤ 24. `labels` zet bij een gemarkeerde
+   * positie een tekst in plaats van het getal (bv. `{ 4: '8580' }`).
    */
-  ticks?: { every?: number; highlight?: number[] };
+  ticks?: { every?: number; highlight?: number[]; labels?: Record<number, string> };
 }
 
 export interface SliderControl {

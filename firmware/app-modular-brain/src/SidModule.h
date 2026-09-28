@@ -21,7 +21,8 @@
  *
  * Controls: tri, saw, pulse, noise (aan/uit, samen = combined waveform),
  * pw (0..1), ring, sync, attack/decay/sustain/release (0..15, de
- * registerwaarden), coarse (st), fine (ct), volume (0..15), level (0..1).
+ * registerwaarden), coarse (st), fine (ct), volume (0..15), level (0..1),
+ * combo (0..10: sterkte van de combined waveforms; 0 = AND, 4 ≈ 8580, 7 ≈ 6581).
  */
 
 #include "AudioModule.h"
@@ -113,6 +114,7 @@ public:
         else if (controlId == "fine")    s.setFine(asFloat(0.f));
         else if (controlId == "volume")  s.setVolume(asInt(15));
         else if (controlId == "level")   s.setLevel(asFloat(0.8f));
+        else if (controlId == "combo")   s.setCombo(asFloat(7.0f));
     }
 
     static void registerFactory() {

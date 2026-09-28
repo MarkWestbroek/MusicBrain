@@ -28,7 +28,7 @@ const W = (hp: number) => hp * MM_PER_HP;
 
 function knob(id: string, label: string, x: number, y: number,
               opts: Partial<{ min: number; max: number; def: number; size: 'small'|'medium'|'large'; color: string; style: string; unit: string;
-                              step: number; taper: Taper; ticks: { every?: number; highlight?: number[] } }> = {}) {
+                              step: number; taper: Taper; ticks: { every?: number; highlight?: number[]; labels?: Record<number, string> } }> = {}) {
   // Stempelen wat `derivedTaper` er toch al van zou maken, zodat een
   // geëxporteerd paneel zijn curve zichtbaar meedraagt.
   const taper = opts.taper
@@ -1440,9 +1440,12 @@ function mmbSid() {
       sw('saw',   'Saw',   w*0.38, 26, onOff, 0),
       sw('pulse', 'Pulse', w*0.62, 26, onOff, 1),
       sw('noise', 'Noise', w*0.86, 26, onOff, 0),
-      knob('pw', 'PW', w*0.18, 44, { size: 'medium', min: 0, max: 1, def: 0.5, color: '#fb923c' }),
-      sw('ring', 'Ring', w*0.50, 42, onOff, 0),
-      sw('sync', 'Sync', w*0.80, 42, onOff, 0),
+      knob('pw', 'PW', w*0.16, 44, { size: 'medium', min: 0, max: 1, def: 0.5, color: '#fb923c' }),
+      // Combined waveforms: 0 = zuivere AND, de chips gemarkeerd, 10 = nog zwakker dan een 6581.
+      knob('combo', 'Combo', w*0.44, 44, { size: 'medium', min: 0, max: 10, def: 7, color: '#c4b5fd',
+        ticks: { every: 1, highlight: [4, 7], labels: { 4: '8580', 7: '6581' } } }),
+      sw('ring', 'Ring', w*0.70, 42, onOff, 0),
+      sw('sync', 'Sync', w*0.90, 42, onOff, 0),
       // ADSR in registerwaarden 0..15 (attack 2 ms … 8 s, decay/release 6 ms … 24 s).
       knob('attack',  'A', w*0.14, 60, { ...adsr, def: 0 }),
       knob('decay',   'D', w*0.38, 60, { ...adsr, def: 9 }),
@@ -1458,7 +1461,7 @@ function mmbSid() {
       inPort('pw_cv', 'PW+',  'cv', w*0.38, 120),
       outPort('out',  'Out',  'audio', w*0.84, 120),
     ],
-    notes: 'De geluidschip van de Commodore 64 (MOS 6581/8580), als eigen emulatie op registerniveau — geen reSID-code. Drie stemmen, elk met een 24-bit oscillator en vier golfvormen: Tri, Saw, Pulse (breedte met PW, ook via PW+) en Noise (een 23-bit schuifregister). Zet je er meer dan één aan, dan krijg je een combined waveform (de AND van de golfvormen — een benadering; echte chips verschillen per exemplaar). Ring en Sync koppelen elke stem aan de vorige (3 → 1 → 2 → 3): Ring vervangt de driehoek door een ringmodulatie met die stem, Sync zet de oscillator terug bij elke periode van die stem. De ADSR staat in registerwaarden 0..15 zoals op de chip (attack 2 ms tot 8 s, decay en release 6 ms tot 24 s, sustain in 16 stappen) en heeft de beroemde ADSR-bug: wissel je naar een snellere rate terwijl de interne teller al verder staat, dan wacht de envelope tot die rond is (tot ~33 ms). Vol is het 4-bit mastervolume van de chip. Multi-module: drie stem-cellen (voct_k/gate_k) die één chip delen; polyfoon spelen = een PolyGroup over de cellen (Poly ▾ → SID), MIDI-in verdeelt de noten. Het filter volgt in een volgende stap. Firmware tp_mmb_sid, mmb_dsp::SidSynth — in de simulator draait dezelfde code als wasm.',
+    notes: 'De geluidschip van de Commodore 64 (MOS 6581/8580), als eigen emulatie op registerniveau — geen reSID-code. Drie stemmen, elk met een 24-bit oscillator en vier golfvormen: Tri, Saw, Pulse (breedte met PW, ook via PW+) en Noise (een 23-bit schuifregister). Zet je er meer dan één aan, dan krijg je een combined waveform: de golfvormen hangen dan aan dezelfde lijnen naar de DAC en een 0 trekt harder dan een 1, dus het lijkt op een AND, maar zwakker. Combo regelt hoe sterk: 0 = zuivere AND, 8580 en 6581 zijn gemarkeerd (op de 6581 wordt tri+saw dun en zacht), 10 gaat nog verder. Een eigen model, op het oor afgesteld, niet gemeten aan een chip. Noise in een combinatie sterft uit, zoals op de chip: de uitgang schrijft terug in het schuifregister. Wissel je daarna van golfvorm, dan zet de module het schuifregister terug met de test-bit (zoals C64-spelers dat deden). Ring en Sync koppelen elke stem aan de vorige (3 → 1 → 2 → 3): Ring vervangt de driehoek door een ringmodulatie met die stem, Sync zet de oscillator terug bij elke periode van die stem. De ADSR staat in registerwaarden 0..15 zoals op de chip (attack 2 ms tot 8 s, decay en release 6 ms tot 24 s, sustain in 16 stappen) en heeft de beroemde ADSR-bug: wissel je naar een snellere rate terwijl de interne teller al verder staat, dan wacht de envelope tot die rond is (tot ~33 ms). Vol is het 4-bit mastervolume van de chip. Multi-module: drie stem-cellen (voct_k/gate_k) die één chip delen; polyfoon spelen = een PolyGroup over de cellen (Poly ▾ → SID), MIDI-in verdeelt de noten. Het filter volgt in een volgende stap. Firmware tp_mmb_sid, mmb_dsp::SidSynth — in de simulator draait dezelfde code als wasm.',
   });
 }
 

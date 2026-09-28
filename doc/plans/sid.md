@@ -107,8 +107,11 @@ golfvormen met een zachte afronding) en dat eerlijk zo labelen.
    en de modes LP/BP/HP.
 5. Filter 6581: S-curve, verzadiging, "Curve"-knop; DC-offset per stem en
    de volume-klik (digi's), met DC-blokker.
-6. Combined waveforms: eerst de huidige AND-benadering, later eigen
-   metingen met de kaart (§4).
+6. Combined waveforms. **Model klaar (fw 0.5.81):** bitlijn-model met
+   zachte drempel en een Combo-knop (0 = AND, 4 = 8580, 7 = 6581, 10 =
+   verder), noise-terugschrijving in de LFSR. Parameters op het oor; later
+   vervangen door eigen metingen met de kaart (§4). Mark heeft geen C64
+   meer, dus meten wacht op de SID-kaart rev 0.2.
 
 Uitbreidingen die aan de module kunnen, los van de volgorde: hard restart
 (ADSR één frame op 0 vóór een noot, de tracker-truc tegen de ADSR-bug), een

@@ -10,8 +10,14 @@
  *
  * Wat er in deze stap zit (plan §2, stap 1 + 2):
  *  - drie stemmen: 24-bit fase-accumulator, golfvormen tri/saw/pulse/noise,
- *    combinaties als AND van de 12-bit waarden (benadering), ring-mod en
- *    hard sync (bron = de vorige stem, cyclisch 3 → 1 → 2 → 3), test-bit;
+ *    ring-mod en hard sync (bron = de vorige stem, cyclisch 3 → 1 → 2 → 3),
+ *    test-bit;
+ *  - combined waveforms via een eigen bitlijn-model (zie combinedModel):
+ *    elke uitgangsbit is een gewogen stemming van de gekozen golfvorm-bits
+ *    eromheen, waarin een 0 harder trekt dan een 1. Eén knop (`setCombo`,
+ *    0..10) schuift van zuivere AND (0) via de 8580 (4) naar de 6581 (7) en
+ *    verder. Combineer je noise, dan schrijft de uitgang terug in de LFSR en
+ *    sterft de ruis uit, zoals op de chip;
  *  - noise: 23-bit LFSR (terugkoppeling bits 22 ^ 17), geklokt op de
  *    stijgende flank van accumulator-bit 19, 8 uitgangsbits;
  *  - ADSR per stem, cycle-exact als integer-toestandsmachine: de periodetabel,
@@ -23,7 +29,8 @@
  *    bodem van de DAC en geven anders een gelijkspanning die met de PW
  *    meezwaait.
  * Nog niet: het filter (registers worden wel bewaard), de DC-offset van de
- * 6581 en gemeten combined waveforms.
+ * 6581 en gemeten combined waveforms (de modelparameters zijn op het oor
+ * gekozen, niet gemeten).
  *
  * Band-limited: niet cycle-exact. Per audio-sample schuift de accumulator
  * ~22 SID-cycli door; elke sprong in de golfvorm (wrap, pulsflank, sync-reset,
@@ -33,6 +40,7 @@
 
 #include <cmath>
 #include <cstdint>
+#include <memory>
 
 namespace mmb_dsp {
 
@@ -53,6 +61,7 @@ public:
         clock_ = clock;
         cyclesPerSample_ = clock / sampleRate;
         dcR_ = std::exp(-2.0f * 3.14159265f * kDcBlockHz / sampleRate);
+        setCombo(kComboDefault);
         Reset();
     }
 
@@ -75,7 +84,33 @@ public:
             else if (!gate && v.gate) { v.envState = kRelease; }
             v.gate = gate;
             if (val & kTest) { v.acc = 0.0; v.lfsr = kLfsrInit; }
+            ensureTable(val);
         }
+    }
+
+    /**
+     * Sterkte van het combined-waveform-effect, 0..10: 0 = zuivere AND,
+     * 4 ≈ 8580, 7 ≈ 6581, 10 = nog zwakker dan een 6581. Bouwt de tabellen
+     * opnieuw; roep dit aan buiten de audio-interrupt (zoals write()).
+     */
+    void setCombo(float c) {
+        c = c < 0.f ? 0.f : (c > 10.f ? 10.f : c);
+        if (c == combo_) return;
+        combo_ = c;
+        const float s = c * 0.1f;
+        cmA_ = kComboA * s;
+        cmT_ = 0.5f + kComboT * s;
+        cmP_ = 1.0f - kComboP * s;
+        if (cmP_ < 0.f) cmP_ = 0.f;
+        cmW_ = 0.001f + kComboW * s;
+        for (int d = 0; d <= kComboR; ++d) cmK_[d] = d == 0 ? 1.0f : std::pow(cmA_, static_cast<float>(d));
+        for (int m = 0; m < 8; ++m) if (table_[m]) fillTable(m);
+    }
+    float combo() const { return combo_; }
+
+    /** Uitgang van een combinatie in 1/16 van een 12-bit stap (test-/meethaakje). */
+    uint16_t combinedValue(uint8_t ctrl, uint32_t acc12, bool triFlip, uint32_t lfsr, bool pulseHigh) const {
+        return combinedModel(ctrl & 0xf0, acc12, triFlip, lfsr, pulseHigh);
     }
     uint8_t reg(int r) const { return (r >= 0 && r < kNumRegs) ? regs_[r] : 0; }
 
@@ -182,7 +217,7 @@ private:
     }
 
     /** Golfvorm-uitgang voor een accumulatorstand (32 bits), ±1. */
-    static float waveform(uint8_t ctrl, uint32_t acc32, bool srcMsb, uint32_t lfsr, uint32_t pwThr) {
+    float waveform(uint8_t ctrl, uint32_t acc32, bool srcMsb, uint32_t lfsr, uint32_t pwThr) const {
         const uint8_t sel = ctrl & 0xf0;
         if (!sel) return 0.0f;
         const bool msb = (acc32 >> 31) != 0;
@@ -196,14 +231,87 @@ private:
             case kNoise: return (noiseBits(lfsr) + 0.5f) * (1.0f / 128.0f) - 1.0f;
             default: break;
         }
-        // Combinaties: AND van de 12-bit waarden. Echte chips wijken hier
-        // per exemplaar van af (plan §2, stap 6: meten).
-        uint32_t v = 0xfff;
-        if (sel & kTri)   v &= (tri32 >> 20) & 0xffe;
-        if (sel & kSaw)   v &= acc32 >> 20;
-        if (sel & kPulse) v &= pulseHigh ? 0xfff : 0;
-        if (sel & kNoise) v &= static_cast<uint32_t>(noiseBits(lfsr)) << 4;
-        return (static_cast<float>(v) - 2048.0f) * (1.0f / 2048.0f);
+        // Combinaties: een lage puls trekt alle bits hard naar 0.
+        if ((sel & kPulse) && !pulseHigh) return -1.0f;
+        const bool triFlip = (ctrl & kRing) && srcMsb;
+        const uint32_t acc12 = acc32 >> 20;
+        const uint16_t* t = table_[(sel >> 4) & 7].get();
+        const uint16_t v16 = (t && !(sel & kNoise) && !triFlip)
+            ? t[acc12] : combinedModel(sel, acc12, triFlip, lfsr, pulseHigh);
+        return (static_cast<float>(v16) * (1.0f / 16.0f) - 2048.0f) * (1.0f / 2048.0f);
+    }
+
+    /**
+     * Bitlijn-model voor combined waveforms (eigen model, niet gemeten).
+     *
+     * Op de chip hangen de gekozen golfvormen samen aan dezelfde 12 lijnen
+     * naar de DAC. Een 0 trekt in NMOS harder dan een 1 omhoog houdt (vandaar
+     * "AND-achtig"), en een lijn voelt zijn buren mee. Model: per bit j tellen
+     * we de drijvers die 1 zijn (een hoge puls telt mee met gewicht cmP_) en
+     * die 0 zijn (gewicht kComboZ). Het met cmK_[|i−j|] gewogen aandeel enen
+     * rond bit i bepaalt hoe ver die lijn omhoog komt: een zachte drempel rond
+     * cmT_ met breedte cmW_ (een half omlaag getrokken lijn geeft de DAC een
+     * halve bijdrage). Met cmA_ = 0 (geen buren), cmT_ = 0,5 en een smalle
+     * cmW_ is dat exact de AND. De parameters zijn op het oor gekozen, zodat
+     * het niveau van een combinatie bij de 8580 (4) op ~55–85 % van de AND
+     * ligt en bij de 6581 (7) op ~30–50 %.
+     *
+     * Uitgang in 1/16 van een 12-bit stap; @p bits krijgt de uitgangsbits
+     * die meer dan half hoog staan (voor de noise-terugschrijving).
+     */
+    uint16_t combinedModel(uint8_t sel, uint32_t acc12, bool triFlip, uint32_t lfsr, bool pulseHigh,
+                           uint16_t* bits = nullptr) const {
+        const bool msb = (acc12 >> 11) & 1u;
+        const uint32_t tri12 = ((acc12 << 1) ^ ((msb != triFlip) ? 0xffeu : 0u)) & 0xffeu;
+        const uint32_t noi12 = static_cast<uint32_t>(noiseBits(lfsr)) << 4;
+        float one[12], all[12];
+        for (int j = 0; j < 12; ++j) {
+            float o = 0.f, z = 0.f;
+            if (sel & kTri)   { if ((tri12 >> j) & 1u) o += 1.f; else z += 1.f; }
+            if (sel & kSaw)   { if ((acc12 >> j) & 1u) o += 1.f; else z += 1.f; }
+            if (sel & kNoise) { if ((noi12 >> j) & 1u) o += 1.f; else z += 1.f; }
+            if ((sel & kPulse) && pulseHigh) o += cmP_;
+            one[j] = o;
+            all[j] = o + kComboZ * z;
+        }
+        float out = 0.f;
+        uint16_t hiBits = 0;
+        for (int i = 0; i < 12; ++i) {
+            float num = 0.f, den = 0.f;
+            const int lo = i - kComboR < 0 ? 0 : i - kComboR, hi = i + kComboR > 11 ? 11 : i + kComboR;
+            for (int j = lo; j <= hi; ++j) {
+                const float k = cmK_[j > i ? j - i : i - j];
+                num += k * one[j]; den += k * all[j];
+            }
+            if (den <= 0.f) continue;
+            float f = (num / den - cmT_) / cmW_ + 0.5f;
+            f = f < 0.f ? 0.f : (f > 1.f ? 1.f : f);
+            out += f * static_cast<float>(1u << i);
+            if (f > 0.5f) hiBits |= static_cast<uint16_t>(1u << i);
+        }
+        if (bits) *bits = hiBits;
+        return static_cast<uint16_t>(out * 16.0f + 0.5f);
+    }
+
+    /** Tabel voor een tri/saw/pulse-combinatie (pulse = hoog), geïndexeerd op acc12. */
+    void ensureTable(uint8_t ctrl) {
+        const int m = (ctrl >> 4) & 7;               // tri=1, saw=2, pulse=4
+        if (m == 0 || m == 1 || m == 2 || m == 4 || table_[m]) return;
+        table_[m].reset(new uint16_t[4096]);
+        fillTable(m);
+    }
+    void fillTable(int m) {
+        const uint8_t sel = static_cast<uint8_t>(m << 4);
+        for (uint32_t a = 0; a < 4096; ++a) table_[m][a] = combinedModel(sel, a, false, 0, true);
+    }
+
+    /** Combinatie met noise: waar de uitgang 0 is, worden de LFSR-aftakkingen
+     *  gewist (de uitgang schrijft terug) — de ruis sterft uit. */
+    static uint32_t noiseWriteBack(uint32_t lfsr, uint16_t out12) {
+        static constexpr uint8_t kTap[8] = { 0, 2, 5, 9, 11, 14, 18, 20 };   // uitgangsbit 4..11
+        for (int b = 0; b < 8; ++b)
+            if (!((out12 >> (4 + b)) & 1u)) lfsr &= ~(1u << kTap[b]);
+        return lfsr;
     }
 
     enum EvType { kEvWrap, kEvPulse, kEvNoise, kEvSrc, kEvSync };
@@ -268,6 +376,13 @@ private:
                     after = clampAcc(x >= k2p32 ? x - k2p32 : x);
                     before = after - 1u;
                     v.lfsr = clockLfsr(v.lfsr);
+                    if ((ctrl & kNoise) && (ctrl & (kTri | kSaw | kPulse))) {
+                        const bool ph = (ctrl & kTest) || after >= thr;
+                        uint16_t o = 0;
+                        if (!(ctrl & kPulse) || ph)
+                            combinedModel(ctrl & 0xf0, after >> 20, (ctrl & kRing) && srcMsb, v.lfsr, ph, &o);
+                        v.lfsr = noiseWriteBack(v.lfsr, o);
+                    }
                     break;
                 }
                 case kEvSrc:
@@ -373,6 +488,16 @@ private:
     double  cyclesPerSample_ = kClockPal / 44100.0;
     double  cycleFrac_ = 0.0;
     static constexpr float kDcBlockHz = 10.0f;
+    // Combined-waveform-model: straal, gewicht van een 0-drijver, en hoe ver
+    // buurkoppeling (A), drempel (T), pulssterkte (P) en drempelbreedte (W)
+    // meeschuiven met combo/10. Gekozen met een rooster op niveaudoelen
+    // (scratch tune_combo.py), niet gemeten aan een chip.
+    static constexpr int   kComboR = 4;
+    static constexpr float kComboDefault = 7.0f;     // het 6581-punt
+    static constexpr float kComboZ = 2.0f, kComboA = 0.6f, kComboT = 0.5f, kComboP = 1.1f, kComboW = 1.5f;
+    float    combo_ = -1.0f, cmA_ = 0.f, cmT_ = 0.5f, cmP_ = 1.f, cmW_ = 0.001f;
+    float    cmK_[kComboR + 1] = { 1.f, 0.f, 0.f, 0.f, 0.f };
+    std::unique_ptr<uint16_t[]> table_[8];            // op index tri|saw|pulse (pulse = hoog)
     float   dcR_ = 0.9986f, dcX1_ = 0.0f, dcY1_ = 0.0f;
 };
 
@@ -400,7 +525,17 @@ public:
     void setBend(float v)        { if (v != bend_) { bend_ = v; allFreq(); } }
     void setCoarse(float st)     { coarse_ = st; allFreq(); }
     void setFine(float ct)       { fine_ = ct; allFreq(); }
-    void setWave(uint8_t bits)   { wave_ = bits & 0xf0; allControl(); }
+    /** Nieuwe golfvormkeuze. Zit er noise in, dan eerst even de test-bit:
+     *  noise die in een combinatie is uitgestorven (LFSR leeg) komt zo terug. */
+    void setWave(uint8_t bits) {
+        bits &= 0xf0;
+        if (bits == wave_) return;
+        wave_ = bits;
+        if (wave_ & SidChip::kNoise)
+            for (int k = 0; k < kVoices; ++k)
+                chip_.write(k * 7 + 4, static_cast<uint8_t>(chip_.reg(k * 7 + 4) | SidChip::kTest));
+        allControl();
+    }
     void setWaveBit(uint8_t bit, bool on) { setWave(on ? (wave_ | bit) : (wave_ & ~bit)); }
     void setRing(bool on)        { ring_ = on; allControl(); }
     void setSync(bool on)        { sync_ = on; allControl(); }
@@ -412,6 +547,8 @@ public:
     void setRelease(int n)       { release_ = nib(n); allAdsr(); }
     void setVolume(int n)        { volume_ = nib(n); writeVolume(); }
     void setLevel(float l)       { level_ = l < 0.f ? 0.f : (l > 1.f ? 1.f : l); }
+    /** Combined-waveform-sterkte 0..10 (0 = AND, 4 ≈ 8580, 7 ≈ 6581). */
+    void setCombo(float c)       { chip_.setCombo(c); }
 
     /** Eén sample, mono, ±1 (hard begrensd). */
     float Process() {

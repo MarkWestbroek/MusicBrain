@@ -28,14 +28,14 @@ MmbPort MMB_OUTPUTS[] = { { "out", MMB_AUDIO, 0, {} } };
 const int MMB_NUM_OUTPUTS = 1;
 
 enum { C_TRI, C_SAW, C_PULSE, C_NOISE, C_PW, C_RING, C_SYNC, C_ATTACK, C_DECAY, C_SUSTAIN, C_RELEASE,
-       C_COARSE, C_FINE, C_VOLUME, C_LEVEL };
+       C_COARSE, C_FINE, C_VOLUME, C_LEVEL, C_COMBO };
 MmbControl MMB_CONTROLS[] = {
     { "tri", 0.f }, { "saw", 0.f }, { "pulse", 1.f }, { "noise", 0.f }, { "pw", 0.5f },
     { "ring", 0.f }, { "sync", 0.f },
     { "attack", 0.f }, { "decay", 9.f }, { "sustain", 10.f }, { "release", 9.f },
-    { "coarse", 0.f }, { "fine", 0.f }, { "volume", 15.f }, { "level", 0.8f },
+    { "coarse", 0.f }, { "fine", 0.f }, { "volume", 15.f }, { "level", 0.8f }, { "combo", 7.f },
 };
-const int MMB_NUM_CONTROLS = 15;
+const int MMB_NUM_CONTROLS = 16;
 
 namespace {
 mmb_dsp::SidSynth g_sid;
@@ -62,6 +62,7 @@ void mmb_on_control(int idx, float v) {
         case C_FINE:    g_sid.setFine(v); break;
         case C_VOLUME:  g_sid.setVolume(nib(v)); break;
         case C_LEVEL:   g_sid.setLevel(v); break;
+        case C_COMBO:   g_sid.setCombo(v); break;
     }
 }
 

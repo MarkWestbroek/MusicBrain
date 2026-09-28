@@ -17,6 +17,26 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### fw 0.5.81 — SID: combined waveforms als bitlijn-model + Combo-knop (2026-09-28)
+- Combined waveforms zijn geen zuivere AND meer maar een eigen
+  bitlijn-model (`SidChip::combinedModel`): elke uitgangsbit is een gewogen
+  stemming van de gekozen golfvorm-bits eromheen, een 0 trekt harder dan een
+  1, een hoge puls trekt zwak mee, met een zachte drempel (een half omlaag
+  getrokken lijn geeft de DAC een halve bijdrage). Tabellen per combinatie,
+  gebouwd buiten de audio-interrupt.
+- Knop **Combo** (0..10) met de chips gemarkeerd op de schaal: 0 = zuivere
+  AND, **8580** (4), **6581** (7, standaard), 10 = nog zwakker. Parameters
+  gekozen met een rooster op niveaudoelen, **niet gemeten aan een chip**:
+  tri+saw 57 % / 34 %, tri+pulse 82 % / 45 % van de AND bij 8580 / 6581.
+  Knop-ticks kunnen nu een tekst dragen (`ticks.labels`).
+- Noise in een combinatie sterft uit: de uitgang schrijft terug in de LFSR.
+  Bij een golfvormwissel met noise geeft de module even de test-bit, zodat
+  de ruis terugkomt.
+- **Gemeten op de Teensy** (tri+pulse, C3): ac 0,160 (combo 0) → 0,135
+  (8580) → 0,073 (6581), DC 0.
+- Tests: exact AND bij 0, dalend niveau over de knop, noise sterft uit en
+  komt terug (core-tests 125).
+
 ### fw 0.5.80 — SID: DC-blokker op de uitgang (2026-09-28)
 - `mmb_dsp::SidChip` krijgt een eerste-orde hoogdoorlaat op 10 Hz aan de
   uitgang: de rol van de koppelcondensator op de C64. Combined waveforms

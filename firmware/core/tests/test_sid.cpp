@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <initializer_list>
 #include <vector>
 
 using mmb_dsp::SidChip;
@@ -185,7 +186,8 @@ MB_TEST(sid_dc_blocker_centres_combined_waveforms) {
     // Tri+pulse ligt met pw 3072 het grootste deel van de periode op de bodem
     // van de DAC (naïef DC −0,875); de koppelcondensator (10 Hz) haalt dat weg
     // en laat het wisselende deel staan.
-    SidChip c = fresh(); setFreq(c, 0, 220); sustainFull(c, 0); setPw(c, 0, 3072);
+    SidChip c = fresh(); c.setCombo(0.f);           // zuivere AND: de grootste DC
+    setFreq(c, 0, 220); sustainFull(c, 0); setPw(c, 0, 3072);
     c.write(4, SidChip::kTri | SidChip::kPulse | SidChip::kGate);
     auto y = render(c, 44100);
     double s = 0, s2 = 0; const int from = 22050;
@@ -194,4 +196,53 @@ MB_TEST(sid_dc_blocker_centres_combined_waveforms) {
     std::printf("        tri+pulse pw 75 %%: dc %+.4f, ac %.3f\n", dc, ac);
     MB_REQUIRE(std::abs(dc) < 0.01);
     MB_REQUIRE(ac > 0.2);
+}
+
+MB_TEST(sid_combo_zero_is_exact_and) {
+    // Knop op 0: het bitlijn-model is exact de AND van de 12-bit golfvormen.
+    SidChip c = fresh(); c.setCombo(0.f);
+    for (uint32_t a = 0; a < 4096; ++a) {
+        const uint32_t msb = (a >> 11) & 1u;
+        const uint32_t tri = ((a << 1) ^ (msb ? 0xffeu : 0u)) & 0xffeu;
+        MB_REQUIRE(c.combinedValue(SidChip::kTri | SidChip::kSaw, a, false, 0, true) == (tri & a) * 16u);
+        MB_REQUIRE(c.combinedValue(SidChip::kSaw | SidChip::kPulse, a, false, 0, true) == a * 16u);
+    }
+}
+
+MB_TEST(sid_combo_weakens_from_and_via_8580_to_6581) {
+    // Het niveau van een combinatie daalt over de knop: AND > 8580 > 6581 > 10,
+    // en blijft hoorbaar (op het oor gekozen doelen, zie SidChip::combinedModel).
+    const int combos[2] = { SidChip::kTri | SidChip::kSaw, SidChip::kTri | SidChip::kPulse };
+    for (int w : combos) {
+        double prev = 1e9, and0 = 0;
+        for (float knob : { 0.f, 4.f, 7.f, 10.f }) {
+            SidChip c = fresh(); c.setCombo(knob);
+            setFreq(c, 0, 220); sustainFull(c, 0); setPw(c, 0, 2048);
+            c.write(4, static_cast<uint8_t>(w | SidChip::kGate));
+            auto y = render(c, 22050);
+            double s2 = 0; for (int i = 8820; i < 22050; ++i) s2 += double(y[i]) * y[i];
+            const double lvl = std::sqrt(s2 / (22050 - 8820));
+            if (knob == 0.f) and0 = lvl;
+            std::printf("        golf %02x combo %2.0f: %.3f (%.0f %% van AND)\n", w, knob, lvl, 100 * lvl / and0);
+            MB_REQUIRE(lvl < prev);
+            MB_REQUIRE(lvl > 0.15 * and0);
+            prev = lvl;
+        }
+    }
+}
+
+MB_TEST(sid_noise_dies_in_combination_and_revives) {
+    // Noise + saw: de uitgang schrijft terug in de LFSR en de ruis sterft uit.
+    mmb_dsp::SidSynth s; s.Init(kFs);
+    s.setAttack(0); s.setSustain(15);
+    s.setWave(SidChip::kNoise | SidChip::kSaw); s.setVoct(0, 1.f); s.gate(0, true);
+    for (int i = 0; i < 44100; ++i) s.Process();
+    std::printf("        LFSR na 1 s noise+saw: %06x\n", unsigned(s.chip().lfsr(0)));
+    MB_REQUIRE(s.chip().lfsr(0) == 0);
+    // Terug naar alleen noise: de test-bit zet de LFSR terug, er is weer ruis.
+    s.setWave(SidChip::kNoise);
+    double e = 0; for (int i = 0; i < 22050; ++i) { const float y = s.Process(); if (i > 4410) e += double(y) * y; }
+    std::printf("        daarna alleen noise: rms² %.4f\n", e / (22050 - 4411));
+    MB_REQUIRE(s.chip().lfsr(0) != 0);
+    MB_REQUIRE(e / (22050 - 4411) > 0.01);
 }
