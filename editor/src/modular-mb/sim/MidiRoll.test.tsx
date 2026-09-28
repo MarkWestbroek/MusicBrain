@@ -15,7 +15,7 @@ describe('MidiFileUi met pianorol', () => {
     expect(html).toContain('<canvas');
     expect(html).toContain('0:01.5 / 0:04.0 · 120 BPM');
     expect(html).toContain('lus 0:01.0–0:03.0');
-    expect(html).toContain('⏪');
+    expect(html).toContain('aria-label="Maat terug"');
     expect(html).not.toContain('venster weg');
     expect(html).toContain('take.mid');
   });

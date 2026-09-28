@@ -33,6 +33,19 @@ export function barEvery(barPx: number, minPx: number): number {
   return k;
 }
 
+/** Transport-iconen als SVG: overal even groot en in de tekstkleur (emoji verschillen per systeem). */
+type IconKind = 'back' | 'play' | 'pause' | 'stop' | 'fwd';
+function Icon({ kind }: { kind: IconKind }): JSX.Element {
+  const p: Record<IconKind, JSX.Element> = {
+    back:  <><path d="M8 3 L1 8 L8 13 Z" /><path d="M15 3 L8 8 L15 13 Z" /></>,
+    play:  <path d="M5 2.5 L13.5 8 L5 13.5 Z" />,
+    pause: <><rect x="4" y="3" width="3" height="10" /><rect x="9" y="3" width="3" height="10" /></>,
+    stop:  <rect x="3.5" y="3.5" width="9" height="9" />,
+    fwd:   <><path d="M1 3 L8 8 L1 13 Z" /><path d="M8 3 L15 8 L8 13 Z" /></>,
+  };
+  return <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden>{p[kind]}</svg>;
+}
+
 function loadHeight(): number {
   try { const v = Number(localStorage.getItem(H_KEY)); if (v >= 60 && v <= 480) return v; } catch { /* geen opslag */ }
   return 132;
@@ -201,14 +214,14 @@ export function MidiRoll({ source, canPlay = true, height }: {
       )}
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 11, color: '#64748b', marginTop: 4, flexWrap: 'wrap' }}>
         <span style={{ display: 'inline-flex', gap: 3 }}>
-          <button style={tbtn} onClick={(e) => step(-1, e.shiftKey)} onDoubleClick={() => step(-1, true)} title="Eén maat terug (dubbelklik of Shift: naar het begin)">⏪</button>
+          <button style={tbtn} onClick={(e) => step(-1, e.shiftKey)} onDoubleClick={() => step(-1, true)} title="Eén maat terug (dubbelklik of Shift: naar het begin)" aria-label="Maat terug"><Icon kind="back" /></button>
           {st.playing
-            ? <button style={tbtn} onClick={() => source.pause()} title="Pauze">⏸</button>
+            ? <button style={tbtn} onClick={() => source.pause()} title="Pauze" aria-label="Pauze"><Icon kind="pause" /></button>
             : <button style={tbtn} onClick={() => source.start()} disabled={!canPlay}
-                title={canPlay ? 'Afspelen vanaf de afspeelkop' : 'Start eerst de sim'}>▶</button>}
+                title={canPlay ? 'Afspelen vanaf de afspeelkop' : 'Start eerst de sim'} aria-label="Afspelen"><Icon kind="play" /></button>}
           <button style={tbtn} onClick={() => source.rewind()} title="Stop en terug naar het begin (van het lusvenster)"
-            disabled={!st.playing && st.posMs === (st.region?.start ?? 0)}>■</button>
-          <button style={tbtn} onClick={(e) => step(1, e.shiftKey)} onDoubleClick={() => step(1, true)} title="Eén maat verder (dubbelklik of Shift: naar het einde)">⏩</button>
+            disabled={!st.playing && st.posMs === (st.region?.start ?? 0)} aria-label="Stop"><Icon kind="stop" /></button>
+          <button style={tbtn} onClick={(e) => step(1, e.shiftKey)} onDoubleClick={() => step(1, true)} title="Eén maat verder (dubbelklik of Shift: naar het einde)" aria-label="Maat verder"><Icon kind="fwd" /></button>
         </span>
         <span style={{ fontVariantNumeric: 'tabular-nums' }}>{fmt(st.posMs)} / {fmt(st.durationMs)} · {Math.round(file.bpm)} BPM</span>
         {st.region
