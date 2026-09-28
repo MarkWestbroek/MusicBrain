@@ -76,6 +76,13 @@ OVERRIDES: dict[str, dict[str, list[str]]] = {
     # SID: 3 stem-cellen, zelfde cellOf()-idioom als de sampler.
     "tp_mmb_sid": {"implemented": [], "ignored": [],
                    "ports": _rng("voct_", 3) + _rng("gate_", 3)},
+    # SID 3-osc: per-stem-controls `<naam>_<k>` via voiceOf() — tekstueel
+    # onzichtbaar, dus hier uitgeschreven.
+    "tp_mmb_sid3": {"implemented": [f"{n}_{k}" for n in ("tri", "saw", "pulse", "noise", "pw", "ring", "sync",
+                                                         "attack", "decay", "sustain", "release",
+                                                         "coarse", "fine", "filt") for k in (1, 2, 3)],
+                    "ignored": [],
+                    "ports": _rng("voct_", 3) + _rng("gate_", 3)},
 }
 
 

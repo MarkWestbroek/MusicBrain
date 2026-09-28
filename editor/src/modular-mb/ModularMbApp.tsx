@@ -16,7 +16,7 @@ import { exportPanel, importPanel, parsePanelFile } from './panelIO';
 import { BUS_SOLO_FX, CONSOLE_EQ_SOLO_FX, PARA_EQ_SOLO_FX, DIODE_SOLO_FX, EQ_SOLO_FX, FET_SOLO_FX, OPTO_SOLO_FX, SAMPLER_MASTER_FX, VARIMU_SOLO_FX, STEREO_TAPE_SOLO_FX, DIGITAL_ECHO_SOLO_FX, BBD_SOLO_FX, RINGMOD_SOLO_FX, OCTAVER_SOLO_FX, HARMONIZER_SOLO_FX, REVERB_SOLO_FX, SPRING_SOLO_FX, TREMOLO_SOLO_FX, STEREO_PHASER_SOLO_FX, VIBE_SOLO_FX, ROTARY_SOLO_FX, SHIMMER_SOLO_FX, seedExampleModules, seedInternals, seedTestPatch, seedFmTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, seedDx7PolyPatch, seedSamplerPolyPatch, seedWarpsVocoderPatch, seed808JamPatch, seedKrellPatch, type PolySeedOptions } from './seedModules';
 import { seedCs80BrassPatch } from './seedBrass';
 import { seedAxelFLeadPatch } from './seedAxelF';
-import { seedSidPolyPatch } from './seedSid';
+import { seedSid3Patch, seedSidPolyPatch } from './seedSid';
 
 /** Effecten achter de solo-seeds (Solo ▾): de stand en de tooltip. */
 const SOLO_FX = {
@@ -431,6 +431,22 @@ export function ModularMbApp(): JSX.Element {
                     padding: '7px 12px', cursor: 'pointer', fontSize: 13,
                   }}
                 >🕹️ SID ×3 (C64)</button>
+                <button
+                  onClick={() => { setProject(seedSid3Patch(getProject(), 1)); setShowPoly(false); }}
+                  title="SID 3-osc lead: één SID met instellingen per stem, Stack — drie oscillatoren op één noot (pulse, saw 8 ct hoger, driehoek een octaaf lager) door een 6581-lowpass."
+                  style={{
+                    textAlign: 'left', border: 'none', background: 'transparent',
+                    padding: '7px 12px', cursor: 'pointer', fontSize: 13,
+                  }}
+                >🕹️ SID 3-osc lead (mono)</button>
+                <button
+                  onClick={() => { setProject(seedSid3Patch(getProject(), 4)); setShowPoly(false); }}
+                  title="SID 3-osc ×4: vier SID 3-osc's in een PolyGroup — elke noot een eigen chip met eigen filter, via een mixer."
+                  style={{
+                    textAlign: 'left', border: 'none', background: 'transparent',
+                    padding: '7px 12px', cursor: 'pointer', fontSize: 13,
+                  }}
+                >🕹️ SID 3-osc ×4 (poly)</button>
                 <button
                   onClick={() => { setProject(seedDx7PolyPatch(getProject(), 8)); setShowPoly(false); }}
                   title="8-stemmige DX7 (msfa/Dexed-kern): MidiIn -> 8x DX7 -> Mixer8 -> OUT, stereo uitgewaaierd. Bank-knop kiest een factory-ROM (1A..4B); USER = .syx via de Teensy-modal."

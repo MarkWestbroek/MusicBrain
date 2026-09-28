@@ -619,9 +619,15 @@ private:
 };
 
 /**
- * Besturingslaag: drie stem-cellen (V/oct + gate), gedeelde knoppen, alles
- * naar SID-registers. De firmwaremodule en de wasm zijn hier dunne schillen
- * omheen; een hardware-backend (de SID-kaart) krijgt later dezelfde writes.
+ * Besturingslaag: drie stemmen (V/oct + gate), alles naar SID-registers. De
+ * firmwaremodules en de wasm zijn hier dunne schillen omheen; een
+ * hardware-backend (de SID-kaart) krijgt later dezelfde writes.
+ *
+ * Elke stem heeft zijn eigen instellingen (golfvorm, PW, ring/sync, ADSR,
+ * coarse/fine, filterroute). De setters zonder stemnummer zetten alle drie
+ * tegelijk — zo gebruikt de SID ×3 (tp_mmb_sid) hem; de SID 3-osc
+ * (tp_mmb_sid3) zet ze per stem. In Stack-stand volgen stem 2 en 3 de
+ * toonhoogte en gate van stem 1 (drie oscillatoren op één noot).
  */
 class SidSynth {
 public:
@@ -637,34 +643,65 @@ public:
     }
     SidChip& chip() { return chip_; }
 
-    // ── per cel ──────────────────────────────────────────────────────
-    void setVoct(int k, float v) { if (ok(k) && v != voct_[k]) { voct_[k] = v; writeFreq(k); } }
-    void gate(int k, bool high)  { if (ok(k) && high != gate_[k]) { gate_[k] = high; writeControl(k); } }
+    // ── toonhoogte en gate per stem ──────────────────────────────────
+    void setVoct(int k, float v) {
+        if (!ok(k) || v == voct_[k]) return;
+        voct_[k] = v;
+        if (stack_ && k == 0) allFreq(); else writeFreq(k);
+    }
+    void gate(int k, bool high) {
+        if (!ok(k) || high == gate_[k]) return;
+        gate_[k] = high;
+        if (stack_ && k == 0) allControl(); else writeControl(k);
+    }
+    /** Stack: stem 2 en 3 volgen V/oct en gate van stem 1. Uit = Split. */
+    void setStack(bool on)       { if (on != stack_) { stack_ = on; allFreq(); allControl(); } }
+
+    // ── per stem ─────────────────────────────────────────────────────
+    /** Nieuwe golfvormkeuze voor stem @p k. Zit er noise in, dan eerst even
+     *  de test-bit: noise die in een combinatie is uitgestorven komt terug. */
+    void setWave(int k, uint8_t bits) {
+        if (!ok(k)) return;
+        bits &= 0xf0;
+        if (bits == v_[k].wave) return;
+        v_[k].wave = bits;
+        if (bits & SidChip::kNoise)
+            chip_.write(k * 7 + 4, static_cast<uint8_t>(chip_.reg(k * 7 + 4) | SidChip::kTest));
+        writeControl(k);
+    }
+    void setWaveBit(int k, uint8_t bit, bool on) {
+        if (ok(k)) setWave(k, on ? (v_[k].wave | bit) : (v_[k].wave & ~bit));
+    }
+    void setRing(int k, bool on)    { if (ok(k)) { v_[k].ring = on; writeControl(k); } }
+    void setSync(int k, bool on)    { if (ok(k)) { v_[k].sync = on; writeControl(k); } }
+    void setPw(int k, float pw)     { if (ok(k)) { v_[k].pw = pw; writePw(k); } }
+    void setAttack(int k, int n)    { if (ok(k)) { v_[k].attack = nib(n);  writeAdsr(k); } }
+    void setDecay(int k, int n)     { if (ok(k)) { v_[k].decay = nib(n);   writeAdsr(k); } }
+    void setSustain(int k, int n)   { if (ok(k)) { v_[k].sustain = nib(n); writeAdsr(k); } }
+    void setRelease(int k, int n)   { if (ok(k)) { v_[k].release = nib(n); writeAdsr(k); } }
+    void setCoarse(int k, float st) { if (ok(k)) { v_[k].coarse = st; writeFreq(k); } }
+    void setFine(int k, float ct)   { if (ok(k)) { v_[k].fine = ct; writeFreq(k); } }
+    /** Stem @p k door het filter (FILT k). */
+    void setFilt(int k, bool on)    { if (ok(k)) { v_[k].filt = on; writeResFilt(); } }
+
+    // ── alle stemmen tegelijk ────────────────────────────────────────
+    void setWave(uint8_t bits)            { for (int k = 0; k < kVoices; ++k) setWave(k, bits); }
+    void setWaveBit(uint8_t bit, bool on) { for (int k = 0; k < kVoices; ++k) setWaveBit(k, bit, on); }
+    void setRing(bool on)        { for (int k = 0; k < kVoices; ++k) setRing(k, on); }
+    void setSync(bool on)        { for (int k = 0; k < kVoices; ++k) setSync(k, on); }
+    void setPw(float pw)         { for (int k = 0; k < kVoices; ++k) setPw(k, pw); }
+    void setAttack(int n)        { for (int k = 0; k < kVoices; ++k) setAttack(k, n); }
+    void setDecay(int n)         { for (int k = 0; k < kVoices; ++k) setDecay(k, n); }
+    void setSustain(int n)       { for (int k = 0; k < kVoices; ++k) setSustain(k, n); }
+    void setRelease(int n)       { for (int k = 0; k < kVoices; ++k) setRelease(k, n); }
+    void setCoarse(float st)     { for (int k = 0; k < kVoices; ++k) setCoarse(k, st); }
+    void setFine(float ct)       { for (int k = 0; k < kVoices; ++k) setFine(k, ct); }
+    /** De drie stemmen door het filter (FILT 1–3). EXT IN gaat er altijd door. */
+    void setFilt(bool on)        { for (int k = 0; k < kVoices; ++k) setFilt(k, on); }
 
     // ── gedeeld ──────────────────────────────────────────────────────
     void setBend(float v)        { if (v != bend_) { bend_ = v; allFreq(); } }
-    void setCoarse(float st)     { coarse_ = st; allFreq(); }
-    void setFine(float ct)       { fine_ = ct; allFreq(); }
-    /** Nieuwe golfvormkeuze. Zit er noise in, dan eerst even de test-bit:
-     *  noise die in een combinatie is uitgestorven (LFSR leeg) komt zo terug. */
-    void setWave(uint8_t bits) {
-        bits &= 0xf0;
-        if (bits == wave_) return;
-        wave_ = bits;
-        if (wave_ & SidChip::kNoise)
-            for (int k = 0; k < kVoices; ++k)
-                chip_.write(k * 7 + 4, static_cast<uint8_t>(chip_.reg(k * 7 + 4) | SidChip::kTest));
-        allControl();
-    }
-    void setWaveBit(uint8_t bit, bool on) { setWave(on ? (wave_ | bit) : (wave_ & ~bit)); }
-    void setRing(bool on)        { ring_ = on; allControl(); }
-    void setSync(bool on)        { sync_ = on; allControl(); }
-    void setPw(float pw)         { pw_ = pw; allPw(); }
     void setPwCv(float cv)       { if (cv != pwCv_) { pwCv_ = cv; allPw(); } }
-    void setAttack(int n)        { attack_ = nib(n);  allAdsr(); }
-    void setDecay(int n)         { decay_ = nib(n);   allAdsr(); }
-    void setSustain(int n)       { sustain_ = nib(n); allAdsr(); }
-    void setRelease(int n)       { release_ = nib(n); allAdsr(); }
     void setVolume(int n)        { volume_ = nib(n); writeVolume(); }
     void setLevel(float l)       { level_ = l < 0.f ? 0.f : (l > 1.f ? 1.f : l); }
     /** Combined-waveform-sterkte 0..10 (0 = AND, 4 ≈ 8580, 7 ≈ 6581). */
@@ -676,8 +713,6 @@ public:
     /** Cutoff-CV 0..1 = het hele bereik erbovenop (negatief = omlaag). */
     void setCutoffCv(float cv)   { if (cv != cutoffCv_) { cutoffCv_ = cv; writeCutoff(); } }
     void setRes(int n)           { res_ = nib(n); writeResFilt(); }
-    /** De drie stemmen door het filter (FILT 1–3). EXT IN gaat er altijd door. */
-    void setFilt(bool on)        { filt_ = on; writeResFilt(); }
     void setMode(uint8_t bit, bool on) {
         mode_ = static_cast<uint8_t>(on ? (mode_ | bit) : (mode_ & ~bit));
         writeVolume();
@@ -704,36 +739,45 @@ private:
     /** Eén stem op vol volume ≈ ±0,5 bij level 1; drie stemmen tot ±1,5 (dan begrensd). */
     static constexpr float kGain = 0.5f;
 
+    struct Voice {
+        uint8_t wave = SidChip::kPulse;
+        bool    ring = false, sync = false, filt = false;
+        float   pw = 0.5f, coarse = 0.f, fine = 0.f;
+        uint8_t attack = 0, decay = 9, sustain = 10, release = 9;
+    };
+
     static bool ok(int k) { return k >= 0 && k < kVoices; }
     static uint8_t nib(int n) { return static_cast<uint8_t>(n < 0 ? 0 : (n > 15 ? 15 : n)); }
     void allFreq()    { for (int k = 0; k < kVoices; ++k) writeFreq(k); }
     void allControl() { for (int k = 0; k < kVoices; ++k) writeControl(k); }
     void allPw()      { for (int k = 0; k < kVoices; ++k) writePw(k); }
-    void allAdsr()    { for (int k = 0; k < kVoices; ++k) writeAdsr(k); }
+    /** In Stack-stand volgen stem 2 en 3 de toonhoogte en gate van stem 1. */
+    float voctOf(int k) const { return stack_ ? voct_[0] : voct_[k]; }
+    bool  gateOf(int k) const { return stack_ ? gate_[0] : gate_[k]; }
 
     void writeFreq(int k) {
         // V/oct rond C4 (MIDI 60 = 0 V = 261,63 Hz), zoals de rest van MMB.
-        const double oct = voct_[k] + bend_ + (coarse_ + fine_ * 0.01) / 12.0;
+        const double oct = voctOf(k) + bend_ + (v_[k].coarse + v_[k].fine * 0.01) / 12.0;
         const uint16_t f = freqReg(261.6255653 * std::pow(2.0, oct));
         chip_.write(k * 7 + 0, f & 0xff);
         chip_.write(k * 7 + 1, f >> 8);
     }
     void writePw(int k) {
-        float p = pw_ + pwCv_;
+        float p = v_[k].pw + pwCv_;
         p = p < 0.f ? 0.f : (p > 1.f ? 1.f : p);
         const unsigned v = static_cast<unsigned>(p * 4095.0f + 0.5f);
         chip_.write(k * 7 + 2, v & 0xff);
         chip_.write(k * 7 + 3, (v >> 8) & 0x0f);
     }
     void writeAdsr(int k) {
-        chip_.write(k * 7 + 5, static_cast<uint8_t>((attack_ << 4) | decay_));
-        chip_.write(k * 7 + 6, static_cast<uint8_t>((sustain_ << 4) | release_));
+        chip_.write(k * 7 + 5, static_cast<uint8_t>((v_[k].attack << 4) | v_[k].decay));
+        chip_.write(k * 7 + 6, static_cast<uint8_t>((v_[k].sustain << 4) | v_[k].release));
     }
     void writeControl(int k) {
-        uint8_t c = wave_;
-        if (ring_) c |= SidChip::kRing;
-        if (sync_) c |= SidChip::kSync;
-        if (gate_[k]) c |= SidChip::kGate;
+        uint8_t c = v_[k].wave;
+        if (v_[k].ring) c |= SidChip::kRing;
+        if (v_[k].sync) c |= SidChip::kSync;
+        if (gateOf(k)) c |= SidChip::kGate;
         chip_.write(k * 7 + 4, c);
     }
     void writeVolume() { chip_.write(0x18, static_cast<uint8_t>(mode_ | volume_)); }
@@ -745,21 +789,21 @@ private:
         chip_.write(0x16, static_cast<uint8_t>(v >> 3));
     }
     void writeResFilt() {
-        chip_.write(0x17, static_cast<uint8_t>((res_ << 4) | 0x08 | (filt_ ? 0x07 : 0x00)));
+        uint8_t f = 0x08;                                // EXT IN altijd door het filter
+        for (int k = 0; k < kVoices; ++k) if (v_[k].filt) f |= static_cast<uint8_t>(1u << k);
+        chip_.write(0x17, static_cast<uint8_t>((res_ << 4) | f));
     }
 
     SidChip chip_;
+    Voice   v_[kVoices];
     float   voct_[kVoices] = {};
     bool    gate_[kVoices] = {};
-    float   bend_ = 0.f, coarse_ = 0.f, fine_ = 0.f;
-    uint8_t wave_ = SidChip::kPulse;
-    bool    ring_ = false, sync_ = false;
-    float   pw_ = 0.5f, pwCv_ = 0.f;
-    uint8_t attack_ = 0, decay_ = 9, sustain_ = 10, release_ = 9, volume_ = 15;
+    bool    stack_ = false;
+    float   bend_ = 0.f, pwCv_ = 0.f;
+    uint8_t volume_ = 15;
     float   level_ = 0.8f;
     float   cutoff_ = 1024.f, cutoffCv_ = 0.f;
     uint8_t res_ = 0, mode_ = kLp;
-    bool    filt_ = false;
 };
 
 }  // namespace mmb_dsp

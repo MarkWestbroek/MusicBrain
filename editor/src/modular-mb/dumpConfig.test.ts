@@ -11,12 +11,14 @@ import { it } from 'vitest';
 
 import { emptyModularProject } from './types';
 import { HARMONIZER_SOLO_FX, OCTAVER_SOLO_FX, REVERB_SOLO_FX, RINGMOD_SOLO_FX, SAMPLER_MASTER_FX, STEREO_TAPE_SOLO_FX, TREMOLO_SOLO_FX, VIBE_SOLO_FX, ROTARY_SOLO_FX, SHIMMER_SOLO_FX, seedInternals, seedPolyVoicePatch, seedSamplerPolyPatch, seedSoloVoicePatch } from './seedModules';
-import { seedSidPolyPatch } from './seedSid';
+import { seedSid3Patch, seedSidPolyPatch } from './seedSid';
 import { buildConfigPayload } from './teensyLink';
 
 const stk = { sound: 0, level: 0.8 };
 const seeds = {
   'sid':         () => seedSidPolyPatch(seedInternals(emptyModularProject())),
+  'sid3':        () => seedSid3Patch(seedInternals(emptyModularProject()), 1),
+  'sid3x4':      () => seedSid3Patch(seedInternals(emptyModularProject()), 4),
   'sampler':     () => seedSamplerPolyPatch(seedInternals(emptyModularProject()), 8, false),
   'solo-tape':   () => seedSoloVoicePatch(seedInternals(emptyModularProject()), 'tp_mmb_stk_sound', 'STK', 'out', 'out', stk, STEREO_TAPE_SOLO_FX),
   // Kale VCO (klinkt zonder gate, licht op de heap): meetbron voor ringmod/octaver.

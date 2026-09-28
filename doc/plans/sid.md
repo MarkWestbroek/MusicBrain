@@ -115,11 +115,16 @@ golfvormen met een zachte afronding) en dat eerlijk zo labelen.
    vervangen door eigen metingen met de kaart (§4). Mark heeft geen C64
    meer, dus meten wacht op de SID-kaart rev 0.2.
 
+7. **Klaar (fw 0.5.84).** SID 3-osc (`tp_mmb_sid3`): instellingen per stem,
+   Stack/Split, poly via een PolyGroup van modules (elke noot een eigen chip).
+8. Open: cpu. Eén chip kost op de Teensy ~10–12 %. Winst: een chip met alle
+   envelopes op 0 en een uitgeklonken filter overslaan; de oscillator per
+   sample in float/fixed-point in plaats van double.
+
 Uitbreidingen die aan de module kunnen, los van de volgorde: hard restart
 (ADSR één frame op 0 vóór een noot, de tracker-truc tegen de ADSR-bug), een
 "PAL-frame"-stand (CV-wijzigingen 50× per seconde, de getrapte C64-beweging),
-een arp-akkoordstand (één stem die op 50 Hz door een akkoord loopt), en
-knoppen per stem (nu gelden ze voor alle drie).
+een arp-akkoordstand (één stem die op 50 Hz door een akkoord loopt).
 
 ## 3. Spoor B: echte chip op een buskaart ("SID-kaart")
 

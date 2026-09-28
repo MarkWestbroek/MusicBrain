@@ -17,6 +17,26 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### fw 0.5.84 — SID 3-osc: instellingen per stem, Stack/Split (2026-09-28)
+- **`tp_mmb_sid3`** (Sid3Module.h, sid3_wasm): dezelfde engine als de SID,
+  een ander paneel (28 HP, drie stemrijen zoals een C64-tracker): per stem
+  golfvormen, PW, Ring, Sync, A/D/S/R, Coarse, Fine en Filt; gedeeld Combo,
+  Vol, Level en het filter (Cutoff, Res, LP/BP/HP, Chip, Curve), met Bend,
+  PW+, Cut+ en Ext.
+- **Stack** (standaard): V/Oct 1 en Gate 1 sturen alle drie de stemmen, elk
+  verstemd met eigen Coarse/Fine — drie oscillatoren op één noot; ring en
+  sync krijgen een vast interval. **Split**: elke stem een eigen V/Oct/Gate.
+- Geen cel-module: polyfoon = meerdere SID 3-osc's in een PolyGroup, elke
+  noot een eigen chip met eigen filter. Seeds Poly ▾ → **SID 3-osc lead**
+  (mono) en **SID 3-osc ×4**.
+- `mmb_dsp::SidSynth` is intern per stem; de setters zonder stemnummer zetten
+  alle drie (de SID ×3 gedraagt zich als voorheen).
+- Tests: core `sid_synth_stack_and_split` (135), wasm-namen en Stack/Split,
+  seed-tests (mono en ×4); editor 646.
+- **Gemeten op de Teensy**: lead 13,2 % cpu (hele patch), ×4 **50,2 %** —
+  één chip kost ~10–12 %. Optimalisatie (stille chips overslaan, minder
+  double-rekenwerk per sample) staat open.
+
 ### fw 0.5.83 — SID: 6581-model voor filter en uitgang (2026-09-28)
 - Schakelaar **Chip 6581/8580** (standaard 6581) kiest het model van filter
   en uitgang; knop **Curve** (0..1) voor de spreiding tussen 6581-exemplaren.

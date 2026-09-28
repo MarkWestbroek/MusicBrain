@@ -1485,6 +1485,84 @@ function mmbSid() {
   });
 }
 
+// ── SID 3-osc ─────────────────────────────────────────────────────────
+// Zelfde engine als de SID (mmb_dsp::SidSynth), maar met instellingen per
+// stem, drie rijen zoals in een C64-tracker. Stack: één noot stuurt alle drie
+// de stemmen (elk met eigen Coarse/Fine); Split: elke stem een eigen ingang.
+// Geen cel-module: polyfoon = meerdere SID 3-osc's in een PolyGroup.
+function mmbSid3() {
+  const w = W(28);
+  const onOff = ['Uit', 'Aan'];
+  const small = (color: string) => ({ size: 'small' as const, color });
+  const adsr = { size: 'small' as const, min: 0, max: 15, step: 1, color: '#c4b5fd' };
+  const flt = '#38bdf8';
+  const rowY = [24, 44, 64];
+  const defs = [                                   // standaardstemmen
+    { tri: 0, saw: 0, pulse: 1, coarse: 0, fine: 0 },
+    { tri: 0, saw: 1, pulse: 0, coarse: 0, fine: 8 },
+    { tri: 1, saw: 0, pulse: 0, coarse: -12, fine: 0 },
+  ];
+  const voiceRow = (k: number) => {
+    const y = rowY[k - 1]!, d = defs[k - 1]!;
+    return [
+      sw(`tri_${k}`,   'Tri',   12, y, onOff, d.tri),
+      sw(`saw_${k}`,   'Saw',   21, y, onOff, d.saw),
+      sw(`pulse_${k}`, 'Pulse', 30, y, onOff, d.pulse),
+      sw(`noise_${k}`, 'Noise', 39, y, onOff, 0),
+      knob(`pw_${k}`, 'PW', 49, y + 2, { ...small('#fb923c'), min: 0, max: 1, def: 0.5 }),
+      sw(`ring_${k}`, 'Ring', 59, y, onOff, 0),
+      sw(`sync_${k}`, 'Sync', 68, y, onOff, 0),
+      knob(`attack_${k}`,  'A', 78, y + 2, { ...adsr, def: 0 }),
+      knob(`decay_${k}`,   'D', 87, y + 2, { ...adsr, def: 9 }),
+      knob(`sustain_${k}`, 'S', 96, y + 2, { ...adsr, def: 10 }),
+      knob(`release_${k}`, 'R', 105, y + 2, { ...adsr, def: 9 }),
+      knob(`coarse_${k}`, 'Coarse', 115, y + 2, { ...small('#f9fafb'), min: -24, max: 24, def: d.coarse, step: 1, unit: 'semi' }),
+      knob(`fine_${k}`,   'Fine',   124, y + 2, { ...small('#f9fafb'), min: -100, max: 100, def: d.fine, unit: 'ct' }),
+      sw(`filt_${k}`, 'Filt', 134, y, onOff, 0),
+    ];
+  };
+  return assemble({
+    typeId: 'tp_mmb_sid3', categoryId: 'vco', variant: 'SID 3-osc (emulatie, per stem)',
+    brand: 'MMB', model: 'SID 3-OSC', hp: 28, texture: 'pcb-black', baseColor: '#2a2440', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'SID 3-OSC', fontSize: 2.2, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: 'drie stemmen, elk eigen instellingen · Stack / Split · 6581/8580', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+      ...rowY.map((y, i) => ({ x: 4, y: y + 1, text: `${i + 1}`, fontSize: 2.0, color: '#c4b5fd', align: 'middle' as const })),
+      { x: 105, y: 79, text: 'FILTER', fontSize: 1.0, color: flt, align: 'middle' },
+    ],
+    items: [
+      ...voiceRow(1), ...voiceRow(2), ...voiceRow(3),
+      // Gedeeld
+      sw('stack', 'Stack', 12, 86, ['Split', 'Stack'], 1),
+      knob('combo', 'Combo', 27, 88, { size: 'medium', min: 0, max: 10, def: 7, color: '#c4b5fd',
+        ticks: { every: 1, highlight: [4, 7], labels: { 4: '8580', 7: '6581' } } }),
+      knob('volume', 'Vol',   43, 88, { ...small('#9ca3af'), min: 0, max: 15, def: 15, step: 1 }),
+      knob('level',  'Level', 53, 88, { ...small('#f9fafb'), min: 0, max: 1, def: 0.8 }),
+      knob('cutoff', 'Cutoff', 68, 88, { size: 'medium', min: 0, max: 2047, def: 1024, step: 1, color: flt }),
+      knob('res',    'Res',    81, 88, { ...small(flt), min: 0, max: 15, def: 0, step: 1 }),
+      sw('lp', 'LP',  91, 86, onOff, 1),
+      sw('bp', 'BP',  99, 86, onOff, 0),
+      sw('hp', 'HP', 107, 86, onOff, 0),
+      sw('model', 'Chip', 118, 86, ['6581', '8580'], 0),
+      knob('curve', 'Curve', 130, 88, { ...small('#9ca3af'), min: 0, max: 1, def: 0.5 }),
+      // Jacks
+      inPort('voct_1', 'V/Oct 1', 'cv',   12, 108),
+      inPort('voct_2', '2',       'cv',   22, 108),
+      inPort('voct_3', '3',       'cv',   32, 108),
+      inPort('gate_1', 'Gate 1',  'gate', 44, 108),
+      inPort('gate_2', '2',       'gate', 54, 108),
+      inPort('gate_3', '3',       'gate', 64, 108),
+      inPort('bend',      'Bend', 'cv',    78, 108),
+      inPort('pw_cv',     'PW+',  'cv',    88, 108),
+      inPort('cutoff_cv', 'Cut+', 'cv',    98, 108),
+      inPort('ext_in',    'Ext',  'audio', 110, 108),
+      outPort('out', 'Out', 'audio', 130, 108),
+    ],
+    notes: 'De SID van de Commodore 64 met instellingen per stem — dezelfde eigen emulatie als de SID-module, een ander paneel. Elke rij is één stem: golfvormen (Tri, Saw, Pulse, Noise; samen = combined waveform), PW, Ring en Sync (gekoppeld aan de vorige stem: 3 → 1 → 2 → 3), een ADSR in registerwaarden 0..15, Coarse en Fine, en Filt (deze stem door het filter). Stack (standaard): V/Oct 1 en Gate 1 sturen alle drie de stemmen, elk verstemd met zijn eigen Coarse/Fine — drie oscillatoren op één noot, zoals veel C64-leads en -bassen gemaakt zijn; ring en sync hebben dan een vast interval (probeer stem 2 met Sync aan en Coarse +7, of Ring op een driehoek). Split: elke stem een eigen V/Oct en Gate, zoals in een C64-tune (bas, melodie en drum op één chip). Gedeeld: Combo (0 = AND, 8580 en 6581 gemarkeerd), Vol (4-bit), Level, en het filter (Cutoff 0..2047, Res 0..15, LP/BP/HP combineerbaar, Chip 6581/8580, Curve voor de spreiding van de 6581), met Cut+ (0..1 = het hele bereik), PW+ (bij alle stemmen) en Ext (EXT IN door het filter). Polyfoon spelen: zet meerdere SID 3-osc\'s in een PolyGroup (Poly ▾ → SID 3-osc ×4): elke noot krijgt een eigen chip met eigen filter, zoals een stapel SID\'s. Standaardstemmen: pulse; saw 8 cent hoger; driehoek een octaaf lager. Firmware tp_mmb_sid3, mmb_dsp::SidSynth — in de simulator draait dezelfde code als wasm.',
+  });
+}
+
 // 10b. MMB TAPE ECHO — 8 HP. Bandecho: één-koppige tape-delay met verzadiging,
 //      toonverlies per omloop en wow/flutter (firmware TapeEchoModule.h op de
 //      header-only kern mmb_dsp::TapeEcho; dezelfde kern draait als wasm in de
@@ -3331,7 +3409,7 @@ function mmbEnvFollowerMono() {
 // ── public entry ───────────────────────────────────────────────────────
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbEcho(), mmbTapeEcho(), mmbStereoTapeEcho(), mmbDigitalEcho(), mmbBbdChorus(), mmbRingMod(), mmbOctaver(), mmbHarmonizer(), mmbReverb(), mmbTremolo(), mmbStereoPhaser(), mmbVibe(), mmbRotary(), mmbShimmer(), mmbFetComp(),mmbOptoComp(), mmbBusComp(),mmbVariMuComp(), mmbProgramEq(), mmbDiodeComp(), mmbConsoleEq(), mmbParaEq(), mmbSampler(), mmbSid(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbEnvFollower(), mmbEnvFollowerMono()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbEcho(), mmbTapeEcho(), mmbStereoTapeEcho(), mmbDigitalEcho(), mmbBbdChorus(), mmbRingMod(), mmbOctaver(), mmbHarmonizer(), mmbReverb(), mmbTremolo(), mmbStereoPhaser(), mmbVibe(), mmbRotary(), mmbShimmer(), mmbFetComp(),mmbOptoComp(), mmbBusComp(),mmbVariMuComp(), mmbProgramEq(), mmbDiodeComp(), mmbConsoleEq(), mmbParaEq(), mmbSampler(), mmbSid(), mmbSid3(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbEnvFollower(), mmbEnvFollowerMono()];
   const newTypes = all.map((x) => x.type);
 
   // Upgrade-pad: bestaande interne types worden in-place VERVANGEN (zelfde

@@ -369,3 +369,26 @@ MB_TEST(sid_synth_init_without_click) {
     std::printf("        stilte na Init: piek %.5f\n", p);
     MB_REQUIRE(p < 0.001f);
 }
+
+MB_TEST(sid_synth_stack_and_split) {
+    // Stack: V/oct en gate van stem 1 sturen alle drie, elk met eigen coarse
+    // (0, +7, −12 halve tonen) → componenten op C4, G4 en C3.
+    mmb_dsp::SidSynth s; s.Init(kFs); s.setModel(SidChip::kModel8580);
+    s.setWave(SidChip::kTri); s.setAttack(0); s.setSustain(15);
+    s.setCoarse(1, 7.f); s.setCoarse(2, -12.f);
+    s.setStack(true); s.setVoct(0, 0.f); s.gate(0, true);
+    std::vector<float> y(22050);
+    for (auto& v : y) v = s.Process();
+    const double c4 = tone(y, 261.63, 4410), g4 = tone(y, 392.0, 4410), c3 = tone(y, 130.81, 4410);
+    std::printf("        stack: C4 %.3f  G4 %.3f  C3 %.3f\n", c4, g4, c3);
+    MB_REQUIRE(c4 > 0.05 && g4 > 0.05 && c3 > 0.05);
+    // Split: stem 2 en 3 zonder eigen gate blijven stil; alleen C4 klinkt.
+    mmb_dsp::SidSynth t; t.Init(kFs); t.setModel(SidChip::kModel8580);
+    t.setWave(SidChip::kTri); t.setAttack(0); t.setSustain(15);
+    t.setCoarse(1, 7.f); t.setCoarse(2, -12.f);
+    t.setVoct(0, 0.f); t.gate(0, true);
+    for (auto& v : y) v = t.Process();
+    const double sg4 = tone(y, 392.0, 4410), sc3 = tone(y, 130.81, 4410);
+    std::printf("        split: G4 %.4f  C3 %.4f\n", sg4, sc3);
+    MB_REQUIRE(sg4 < 0.005 && sc3 < 0.005);
+}

@@ -3,7 +3,7 @@ import { emptyModularProject } from './types';
 import { seedInternals } from './seedModules';
 import { expandPatchConnections } from './polyExpand';
 import { validateOps } from './recipe/compile';
-import { seedSidPolyPatch } from './seedSid';
+import { seedSid3Patch, seedSidPolyPatch } from './seedSid';
 
 describe('seedSidPolyPatch', () => {
   it('MidiIn → SID-cel 1, uitgewaaierd over drie cellen; LFO op PW+', () => {
@@ -45,5 +45,27 @@ describe('seedInternals na een bredere SID', () => {
       expect(row[i]!.hpOffset).toBeGreaterThanOrEqual(row[i - 1]!.hpOffset + width(row[i - 1]!.moduleId));
     expect(width(sid.id)).toBe(16);
     expect(r.slots.find((s) => s.id === lfoSlot.id)!.hpOffset).toBe(sidSlot.hpOffset + 16);
+  });
+});
+
+describe('seedSid3Patch', () => {
+  it('mono: MidiIn → voct_1/gate_1, contract klopt', () => {
+    const p = seedSid3Patch(seedInternals(emptyModularProject()), 1);
+    const patch = p.patches.find((x) => x.id === p.activePatchId)!;
+    const typeOf = (id: string) => p.modules.find((m) => m.id === id)!.typeId;
+    const e = patch.connections.map((c) => `${typeOf(c.from.moduleId)}.${c.from.portId}>${typeOf(c.to.moduleId)}.${c.to.portId}`);
+    expect(e).toContain('tp_mmb_midiin.pitch>tp_mmb_sid3.voct_1');
+    expect(e).toContain('tp_mmb_sid3.out>tp_mmb_out.l');
+    validateOps(p, [], patch.id);
+  });
+  it('×4: PolyGroup over vier modules, uitgewaaierd naar de mixer', () => {
+    const p = seedSid3Patch(seedInternals(emptyModularProject()), 4);
+    const patch = p.patches.find((x) => x.id === p.activePatchId)!;
+    validateOps(p, [], patch.id);
+    const flat = expandPatchConnections(patch, p);
+    const typeOf = (id: string) => p.modules.find((m) => m.id === id)!.typeId;
+    const sidsFed = new Set(flat.filter((c) => c.to.portId === 'voct_1' && typeOf(c.to.moduleId) === 'tp_mmb_sid3').map((c) => c.to.moduleId));
+    expect(sidsFed.size).toBe(4);
+    for (const k of [1, 2, 3, 4]) expect(flat.some((c) => c.to.portId === `in${k}`)).toBe(true);
   });
 });

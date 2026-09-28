@@ -1127,3 +1127,27 @@ describe('tp_mmb_sid filter', () => {
     expect(rms(shut, from)).toBeLessThan(0.2 * rms(open, from));
   });
 });
+
+describe('tp_mmb_sid3', () => {
+  it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_sid3'); });
+
+  it('Stack: één noot laat drie stemmen klinken (C4, G4, C3); Split: alleen stem 1', async () => {
+    const tone = (x: Float32Array, f: number, from: number): number => {
+      let re = 0, im = 0;
+      for (let i = from; i < x.length; i++) { const w = 2 * Math.PI * f * i / 44100; re += x[i]! * Math.cos(w); im += x[i]! * Math.sin(w); }
+      return Math.hypot(re, im) / (x.length - from);
+    };
+    const run = async (stack: number): Promise<Float32Array> => {
+      const m = await load('tp_mmb_sid3');
+      const ctl: Record<string, number> = { stack, model: 1, sustain_1: 15, sustain_2: 15, sustain_3: 15,
+        pulse_1: 0, tri_1: 1, saw_2: 0, tri_2: 1, fine_2: 0, coarse_2: 7, coarse_3: -12 };
+      for (const [id, v] of Object.entries(ctl)) m.setCtl(id, v);
+      return m.render(0.5, (_t, mm) => { mm.setIn('voct_1', 0); mm.setIn('gate_1', 1); })[0]!;
+    };
+    const st = await run(1), sp = await run(0);
+    expect(tone(st, 392.0, 4410)).toBeGreaterThan(0.05);
+    expect(tone(st, 130.81, 4410)).toBeGreaterThan(0.05);
+    expect(tone(sp, 261.63, 4410)).toBeGreaterThan(0.05);
+    expect(tone(sp, 392.0, 4410)).toBeLessThan(0.005);
+  });
+});

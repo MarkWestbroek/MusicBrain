@@ -89,6 +89,7 @@
 #include "ParamEqModule.h"
 #include "SamplerModule.h"
 #include "SidModule.h"
+#include "Sid3Module.h"
 #include "CombModule.h"
 #include "PhaserModule.h"
 #include "NoiseModule.h"
@@ -169,6 +170,7 @@ inline void registerAllRuntimeModules() {
     ParamEqModule::registerFactory();   // parametrische EQ, SSL/API-stijl (mmb-dsp), ook als wasm
     SamplerModule::registerFactory();   // sample-speler (mmb-dsp), PSRAM + SD; ook als wasm
     SidModule::registerFactory();       // SID 6581/8580, eigen emulatie (mmb-dsp), 3 stem-cellen; ook als wasm
+    Sid3Module::registerFactory();      // SID 3-osc: zelfde engine, instellingen per stem (Stack/Split); ook als wasm
     CombModule::registerFactory();      // FW-AU-3: tuned comb resonator
     PhaserModule::registerFactory();    // FW-AU-2: all-pass phaser
     NoiseModule::registerFactory();     // wit/roze/bruin (mmb-dsp), ook als wasm in de simulator
