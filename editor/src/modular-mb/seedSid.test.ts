@@ -110,3 +110,21 @@ describe('SID-seeds in een project met een oudere SID', () => {
     validateOps(p, [], patch.id);
   });
 });
+
+describe('SID-presets', () => {
+  it('gebruiken alleen knoppen die het paneel kent, binnen hun bereik', async () => {
+    const { factoryModulePresets } = await import('./presets');
+    const types = seedInternals(emptyModularProject()).moduleTypes;
+    const sidPresets = factoryModulePresets.filter((x) => x.typeId === 'tp_mmb_sid' || x.typeId === 'tp_mmb_sid3');
+    expect(sidPresets.length).toBeGreaterThanOrEqual(10);
+    for (const pr of sidPresets) {
+      const t = types.find((x) => x.id === pr.typeId)!;
+      for (const [id, v] of Object.entries(pr.controlValues)) {
+        const c = t.controls.find((x) => x.id === id) as { kind: string; min?: number; max?: number; positions?: string[] } | undefined;
+        expect(c, `${pr.id}: ${id}`).toBeTruthy();
+        if (c!.kind === 'knob') { expect(v as number).toBeGreaterThanOrEqual(c!.min!); expect(v as number).toBeLessThanOrEqual(c!.max!); }
+        if (c!.kind === 'switch') expect(v as number).toBeLessThan(c!.positions!.length);
+      }
+    }
+  });
+});

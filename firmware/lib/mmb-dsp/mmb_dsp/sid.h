@@ -861,7 +861,8 @@ private:
  * SidChip's stille pad vrijwel gratis.
  *
  * Uitgangen: mono som, stereo (chips over het beeld verdeeld met Spread) en
- * elke chip apart (om zelf te mengen en te pannen). Een limiter op de sommen
+ * elke chip apart (om zelf te mengen en te pannen). EXT IN per chip, elk door
+ * het filter van die chip. Een limiter op de sommen
  * houdt vier chips samen binnen ±1.
  */
 class SidMulti {
@@ -897,18 +898,24 @@ public:
     /** Iets op alle chips toepassen (de gedeelde knoppen). */
     template <class F> void all(F f) { for (auto& c : chip_) f(c); }
 
-    /** Eén sample. @p ext = EXT IN (gaat door het filter van chip 1).
+    /** Eén sample. @p ext = EXT IN per chip (kMaxChips waarden, elk door het
+     *  filter van zijn eigen chip: stereo over chip 1+2, quad over 1–4).
      *  @p out krijgt kNumOuts waarden: mono, L, R, chip 1..4. */
-    void Process(float ext, float* out) {
+    void Process(const float* ext, float* out) {
         float mono = 0.f, l = 0.f, r = 0.f;
         for (int j = 0; j < kMaxChips; ++j) {
-            const float y = j < chips_ ? chip_[j].Process(j == 0 ? ext : 0.f) : 0.f;
+            const float y = j < chips_ ? chip_[j].Process(ext[j]) : 0.f;
             out[kOutChip1 + j] = y;
             mono += y; l += y * panL_[j]; r += y * panR_[j];
         }
         float sum[3] = { mono * gain_, l * gain_, r * gain_ };
         limiter_.Process(sum, 3);
         out[kOutMono] = sum[0]; out[kOutL] = sum[1]; out[kOutR] = sum[2];
+    }
+    /** Eén sample met alleen EXT IN op chip 1. */
+    void Process(float ext1, float* out) {
+        const float ext[kMaxChips] = { ext1, 0.f, 0.f, 0.f };
+        Process(ext, out);
     }
 
 private:

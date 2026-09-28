@@ -20,7 +20,7 @@
  * | in  | `bend`   | Cv    | V/oct bovenop alle stemmen |
  * | in  | `pw`     | Cv    | Opgeteld bij de pulsbreedte (0..1), ook `pw_cv` |
  * | in  | `cutoff` | Cv    | Opgeteld bij de cutoff (0..1 = het hele bereik), ook `cutoff_cv` |
- * | in  | `ext_in` | Audio | EXT IN: door het filter van chip 1 |
+ * | in  | `ext_in`, `ext_2..4` | Audio | EXT IN per chip, elk door het filter van die chip (`ext_in` = chip 1) |
  * | out | `out`    | Audio | Mono som (met limiter) |
  * | out | `out_l`/`out_r` | Audio | Stereo: chips verdeeld met `spread` |
  * | out | `sid_j`  | Audio | Chip j apart (j = 1..4), om zelf te mengen |
@@ -72,34 +72,38 @@ private:
 class SidMultiStream : public AudioStream {
 public:
     static constexpr int kOuts = mmb_dsp::SidMulti::kNumOuts;
-    SidMultiStream() : AudioStream(1, inputQueue_) { sid_.Init(AUDIO_SAMPLE_RATE_EXACT); }
+    SidMultiStream() : AudioStream(mmb_dsp::SidMulti::kMaxChips, inputQueue_) { sid_.Init(AUDIO_SAMPLE_RATE_EXACT); }
     mmb_dsp::SidMulti& sid() { return sid_; }
 
     void update() override {
-        audio_block_t* ext = receiveReadOnly(0);
+        constexpr int kIns = mmb_dsp::SidMulti::kMaxChips;
+        audio_block_t* ext[kIns];
+        for (int j = 0; j < kIns; ++j) ext[j] = receiveReadOnly(j);
+        auto releaseExt = [&] { for (auto* e : ext) if (e) release(e); };
         audio_block_t* out[kOuts];
         for (int c = 0; c < kOuts; ++c) {
             out[c] = allocate();
             if (!out[c]) {
                 for (int k = 0; k < c; ++k) release(out[k]);
-                if (ext) release(ext);
+                releaseExt();
                 return;
             }
         }
-        float y[kOuts];
+        float y[kOuts], x[kIns];
         for (int i = 0; i < AUDIO_BLOCK_SAMPLES; ++i) {
-            sid_.Process(ext ? ext->data[i] * (1.0f / 32768.0f) : 0.0f, y);
+            for (int j = 0; j < kIns; ++j) x[j] = ext[j] ? ext[j]->data[i] * (1.0f / 32768.0f) : 0.0f;
+            sid_.Process(x, y);
             for (int c = 0; c < kOuts; ++c) {
                 const float v = y[c] > 1.f ? 1.f : (y[c] < -1.f ? -1.f : y[c]);
                 out[c]->data[i] = static_cast<int16_t>(v * 32767.0f);
             }
         }
         for (int c = 0; c < kOuts; ++c) { transmit(out[c], c); release(out[c]); }
-        if (ext) release(ext);
+        releaseExt();
     }
 
 private:
-    audio_block_t* inputQueue_[1] = { nullptr };
+    audio_block_t* inputQueue_[mmb_dsp::SidMulti::kMaxChips] = {};
     mmb_dsp::SidMulti sid_;
 };
 
@@ -119,8 +123,15 @@ public:
         return {};
     }
     AudioPort inputPort(std::string_view portId) const override {
-        if (portId == "ext_in") return { const_cast<SidMultiStream*>(&stream_), 0, true };
+        const int j = extOf(portId);
+        if (j >= 0) return { const_cast<SidMultiStream*>(&stream_), static_cast<uint8_t>(j), true };
         return {};
+    }
+    /** `ext_in` = chip 1, `ext_2..4` = chip 2..4 → 0-based, anders −1. */
+    static int extOf(std::string_view portId) {
+        if (portId == "ext_in") return 0;
+        const int j = cellOf(portId, "ext", mmb_dsp::SidMulti::kMaxChips);
+        return (j >= 1 && portId != "ext") ? j : -1;
     }
     PortKind outputPortKind(std::string_view portId) const override {
         if (portId == "out" || portId == "out_l" || portId == "out_r") return PortKind::Audio;
@@ -144,7 +155,7 @@ public:
         if (cellOf(portId, "voct") >= 0) return PortKind::Cv;
         if (cellOf(portId, "gate") >= 0) return PortKind::Gate;
         if (portId == "bend" || cvPortIs(portId, "pw") || cvPortIs(portId, "cutoff")) return PortKind::Cv;
-        if (portId == "ext_in") return PortKind::Audio;
+        if (extOf(portId) >= 0) return PortKind::Audio;
         return PortKind::None;
     }
     void writeCvPort(std::string_view portId, float value) override {

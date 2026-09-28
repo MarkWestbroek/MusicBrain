@@ -5,7 +5,7 @@
 // Multi-module zoals de sampler: 1–4 chips met elk drie stem-cellen
 // (voct_1..12/gate_1..12; cel 1–3 = chip 1, 4–6 = chip 2, …); wie welke cel
 // bespeelt beslist MIDI-in (PolyGroup). Uitgangen: mono, stereo (Spread) en
-// elke chip apart.
+// elke chip apart. EXT IN per chip (ext_in = chip 1, ext_2..4).
 #include "mmb_abi.h"
 #include "mmb_dsp/sid.h"
 
@@ -25,12 +25,13 @@ MmbPort MMB_INPUTS[] = {
     { "gate_7", MMB_GATE, 0, {} },  { "gate_8", MMB_GATE, 0, {} },  { "gate_9", MMB_GATE, 0, {} },
     { "gate_10", MMB_GATE, 0, {} }, { "gate_11", MMB_GATE, 0, {} }, { "gate_12", MMB_GATE, 0, {} },
     { "bend", MMB_CV, 0, {} },      { "pw_cv", MMB_CV, 0, {} },
-    { "cutoff_cv", MMB_CV, 0, {} }, { "ext_in", MMB_AUDIO, 0, {} },
+    { "cutoff_cv", MMB_CV, 0, {} },
+    { "ext_in", MMB_AUDIO, 0, {} }, { "ext_2", MMB_AUDIO, 0, {} }, { "ext_3", MMB_AUDIO, 0, {} }, { "ext_4", MMB_AUDIO, 0, {} },
 };
-const int MMB_NUM_INPUTS = 2 * kCells + 4;
+const int MMB_NUM_INPUTS = 2 * kCells + 3 + mmb_dsp::SidMulti::kMaxChips;
 inline int IN_VOCT(int k) { return k; }
 inline int IN_GATE(int k) { return kCells + k; }
-enum { IN_BEND = 2 * kCells, IN_PW, IN_CUTOFF, IN_EXT };
+enum { IN_BEND = 2 * kCells, IN_PW, IN_CUTOFF, IN_EXT };   // IN_EXT + j = chip j
 
 // Zelfde volgorde als mmb_dsp::SidMulti::Out.
 MmbPort MMB_OUTPUTS[] = {
@@ -103,11 +104,13 @@ void mmb_process(int frames) {
     const float pw = mmb_connected(IN_PW) ? mmb_in0(IN_PW) : 0.f;
     const float cut = mmb_connected(IN_CUTOFF) ? mmb_in0(IN_CUTOFF) : 0.f;
     g_sid.all([&](mmb_dsp::SidSynth& s) { s.setBend(bend); s.setPwCv(pw); s.setCutoffCv(cut); });
-    const float* ext = MMB_INPUTS[IN_EXT].buf;
-    const bool hasExt = mmb_connected(IN_EXT);
-    float y[mmb_dsp::SidMulti::kNumOuts];
+    constexpr int kChips = mmb_dsp::SidMulti::kMaxChips;
+    bool has[kChips];
+    for (int j = 0; j < kChips; ++j) has[j] = mmb_connected(IN_EXT + j);
+    float y[mmb_dsp::SidMulti::kNumOuts], x[kChips];
     for (int i = 0; i < frames; ++i) {
-        g_sid.Process(hasExt ? ext[i] : 0.f, y);
+        for (int j = 0; j < kChips; ++j) x[j] = has[j] ? MMB_INPUTS[IN_EXT + j].buf[i] : 0.f;
+        g_sid.Process(x, y);
         for (int o = 0; o < MMB_NUM_OUTPUTS; ++o) MMB_OUTPUTS[o].buf[i] = y[o];
     }
 }

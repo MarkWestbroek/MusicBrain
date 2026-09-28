@@ -1168,3 +1168,17 @@ describe('tp_mmb_sid chips en stereo', () => {
     expect(rms(two[idx('out_l')]!, from)).toBeLessThan(0.01 * rms(two[idx('out_r')]!, from));
   });
 });
+
+describe('tp_mmb_sid EXT per chip', () => {
+  it('Ext 2 gaat door chip 2 en komt alleen op S2 uit', async () => {
+    const m = await load('tp_mmb_sid');
+    for (const [id, v] of Object.entries({ chips: 2, model: 1, cutoff: 2047 })) m.setCtl(id, v);
+    const outs = m.render(0.5, (t, mm) => {
+      const b = mm.inBuf('ext_2');
+      for (let k = 0; k < mm.block; k++) b[k] = 0.5 * Math.sin(2 * Math.PI * 1000 * (t + k / mm.rate));
+    });
+    const idx = (id: string) => ['out', 'out_l', 'out_r', 'sid_1', 'sid_2', 'sid_3', 'sid_4'].indexOf(id);
+    expect(rms(outs[idx('sid_2')]!, 4410)).toBeGreaterThan(0.03);
+    expect(rms(outs[idx('sid_1')]!, 4410)).toBeLessThan(1e-4);
+  });
+});

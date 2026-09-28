@@ -17,6 +17,17 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### fw 0.5.88 — SID: EXT IN per chip, SID-klanken in de Presets (2026-09-28)
+- EXT IN per chip: `ext_in` (chip 1), `ext_2`, `ext_3`, `ext_4`, elk door het
+  filter van zijn eigen chip — een stereobron op Ext 1+2 (SIDs = 2) of quad op
+  1–4; met Spread komt het ook weer over het stereobeeld uit.
+- Twaalf SID-klanken als factory-module-presets (**Presets → module**): voor de
+  SID Hubbard-bas, Pulse-lead, Tri+saw dun (6581), Akkoordbel (ring),
+  Noise-snare, PWM-strings, Resonante bandpass; voor de SID 3-osc Sync-lead,
+  Ringbel, Dikke bas, Orgel en Tune-kit (Split). Ze zetten alleen knoppen, niet
+  het aantal chips of de kabels. Test: elke knop bestaat en valt binnen bereik.
+- Tests: core `sid_multi_ext_per_chip` (137), wasm EXT per chip; editor 655.
+
 ### fw 0.5.87 — SID: noise-combinaties overbelastten, seeds met een oude SID bleven stil (2026-09-28)
 - **Noise + een andere golfvorm legde de Teensy stil.** Voor noise-combinaties
   was er geen tabel, dus het bitlijn-model rekende elk sample opnieuw: pulse+

@@ -422,3 +422,19 @@ MB_TEST(sid_multi_cells_chips_and_stereo) {
         MB_REQUIRE(std::abs(o[mmb_dsp::SidMulti::kOutL] - o[mmb_dsp::SidMulti::kOutMono]) < 1e-6f);
     }
 }
+
+MB_TEST(sid_multi_ext_per_chip) {
+    // EXT IN 2 (1 kHz) gaat door het filter van chip 2 en komt alleen op S2 uit.
+    mmb_dsp::SidMulti m; m.Init(kFs); m.setChips(2);
+    m.all([](mmb_dsp::SidSynth& c) { c.setModel(SidChip::kModel8580); c.setCutoff(2047.f); });
+    float o[mmb_dsp::SidMulti::kNumOuts];
+    double e1 = 0, e2 = 0;
+    for (int i = 0; i < 22050; ++i) {
+        const float x[4] = { 0.f, 0.5f * float(std::sin(2 * kPi * 1000.0 * i / kFs)), 0.f, 0.f };
+        m.Process(x, o);
+        if (i > 4410) { e1 += double(o[mmb_dsp::SidMulti::kOutChip1]) * o[mmb_dsp::SidMulti::kOutChip1];
+                        e2 += double(o[mmb_dsp::SidMulti::kOutChip1 + 1]) * o[mmb_dsp::SidMulti::kOutChip1 + 1]; }
+    }
+    std::printf("        EXT 2: chip 1 %.5f, chip 2 %.4f (rms²)\n", e1 / 17639, e2 / 17639);
+    MB_REQUIRE(e1 / 17639 < 1e-8 && e2 / 17639 > 0.001);
+}

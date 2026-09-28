@@ -594,4 +594,74 @@ export const factoryModulePresets: ModulePresetData[] = [
     controlValues: { wave: 2, coarse: 0, fine: 7, level: 0.85 },
     createdAt: 0,
   },
+  ...sidPresets(),
 ];
+
+// ── SID-klanken ─────────────────────────────────────────────────────────
+// Typische C64-geluiden als module-presets: laad ze op een SID (poly, 1–4
+// chips) of een SID 3-osc. Alleen knopstanden — het aantal chips, Spread en
+// de kabels blijven wat ze waren. Registerwaarden zoals op de chip (ADSR en
+// Res 0..15, Cutoff 0..2047).
+function sidPresets(): ModulePresetData[] {
+  const off = { tri: 0, saw: 0, pulse: 0, noise: 0, ring: 0, sync: 0 };
+  const sid = (id: string, name: string, description: string, v: Record<string, ControlValue>): ModulePresetData => ({
+    id: `fm_sid_${id}`, name: `SID — ${name}`, description, typeId: 'tp_mmb_sid',
+    controlValues: { ...off, coarse: 0, fine: 0, filt: 0, lp: 1, bp: 0, hp: 0, res: 0, volume: 15, ...v },
+    createdAt: 0,
+  });
+  /** SID 3-osc: per stem k = 1..3 (golfvormen standaard uit), plus gedeeld. */
+  const sid3 = (id: string, name: string, description: string,
+                voices: Record<string, ControlValue>[], shared: Record<string, ControlValue>): ModulePresetData => ({
+    id: `fm_sid3_${id}`, name: `SID 3-osc — ${name}`, description, typeId: 'tp_mmb_sid3',
+    controlValues: {
+      stack: 1, lp: 1, bp: 0, hp: 0, res: 0, volume: 15, ...shared,
+      ...Object.fromEntries(voices.flatMap((v, i) => Object.entries({
+        ...off, pw: 0.5, coarse: 0, fine: 0, filt: 0, attack: 0, decay: 9, sustain: 10, release: 9, ...v,
+      }).map(([k, x]) => [`${k}_${i + 1}`, x]))),
+    },
+    createdAt: 0,
+  });
+  return [
+    sid('hubbard_bass', 'Hubbard-bas', 'Pulse met een smalle breedte door een laag 6581-lowpass met veel resonantie, korte decay. Met de LFO op PW+ (seed SID ×3) krijg je de pompende PWM van Rob Hubbard.',
+      { pulse: 1, pw: 0.3, attack: 0, decay: 8, sustain: 4, release: 6, filt: 1, cutoff: 350, res: 10, model: 0, combo: 7 }),
+    sid('pulse_lead', 'Pulse-lead', 'Brede puls, snelle attack en lange sustain, geen filter: de heldere lead van talloze C64-tunes. Vibrato via het modwheel.',
+      { pulse: 1, pw: 0.45, attack: 1, decay: 9, sustain: 11, release: 8, model: 0 }),
+    sid('thin_lead', 'Tri+saw dun (6581)', 'Tri en saw tegelijk: op een 6581 (Combo 7) een dun, nasaal combined-waveform-geluid. Zet Combo op 4 voor de vollere 8580.',
+      { tri: 1, saw: 1, attack: 0, decay: 9, sustain: 10, release: 8, combo: 7, model: 0 }),
+    sid('chord_bell', 'Akkoordbel (ring)', 'Driehoek met Ring: elke stem ringt met de vorige, dus in een akkoord maken de noten elkaar metalig. Geen sustain, lange decay, 8580.',
+      { tri: 1, ring: 1, attack: 0, decay: 10, sustain: 0, release: 10, model: 1 }),
+    sid('noise_snare', 'Noise-snare', 'Ruis door een bandpass met wat resonantie, korte decay. Hoog spelen = snare/hihat, laag = tom.',
+      { noise: 1, attack: 0, decay: 6, sustain: 0, release: 5, filt: 1, lp: 0, bp: 1, cutoff: 1200, res: 4, model: 0 }),
+    sid('pwm_strings', 'PWM-strings', 'Puls met een trage attack en lange release door een halfopen lowpass: het strijkersbed. Werkt het best met de LFO op PW+.',
+      { pulse: 1, pw: 0.5, attack: 7, decay: 8, sustain: 12, release: 10, filt: 1, cutoff: 900, res: 3, model: 0 }),
+    sid('reso_sweep', 'Resonante bandpass', 'Saw door een smalle 8580-bandpass: zet Cut+ op een LFO of envelope voor de klassieke filtersweep.',
+      { saw: 1, attack: 5, decay: 10, sustain: 12, release: 11, filt: 1, lp: 0, bp: 1, cutoff: 600, res: 12, model: 1 }),
+
+    sid3('sync_lead', 'Sync-lead', 'Stem 1 is een stille bron op de noot; stem 2 (saw, +7) wordt erdoor gesynct — de snijdende sync-lead. Stem 3: puls een octaaf lager voor body. Draai Coarse 2 voor de sync-kleur.',
+      [{ attack: 0, decay: 9, sustain: 12, release: 8 },
+       { saw: 1, sync: 1, coarse: 7, attack: 0, decay: 9, sustain: 12, release: 8 },
+       { pulse: 1, pw: 0.4, coarse: -12, attack: 0, decay: 9, sustain: 9, release: 8 }],
+      { model: 1, combo: 7 }),
+    sid3('ring_bell', 'Ringbel', 'Stem 2 (driehoek, +5) wordt geringd door stem 1 (driehoek op de noot): een klokachtige, inharmonische toon. Geen sustain.',
+      [{ tri: 1, attack: 0, decay: 10, sustain: 0, release: 10 },
+       { tri: 1, ring: 1, coarse: 5, fine: 7, attack: 0, decay: 10, sustain: 0, release: 10 },
+       {}],
+      { model: 1 }),
+    sid3('fat_bass', 'Dikke bas', 'Puls en saw een octaaf lager, driehoek twee octaven lager, allemaal door een laag 6581-lowpass met resonantie.',
+      [{ pulse: 1, pw: 0.25, coarse: -12, filt: 1, attack: 0, decay: 7, sustain: 6, release: 5 },
+       { saw: 1, coarse: -12, fine: 6, filt: 1, attack: 0, decay: 7, sustain: 6, release: 5 },
+       { tri: 1, coarse: -24, filt: 1, attack: 0, decay: 7, sustain: 8, release: 5 }],
+      { cutoff: 400, res: 10, model: 0, combo: 7 }),
+    sid3('organ', 'Orgel', 'Puls op de noot, driehoek een octaaf en een duodecime hoger: registers als een orgel, volle sustain.',
+      [{ pulse: 1, pw: 0.5, attack: 1, decay: 0, sustain: 15, release: 5 },
+       { tri: 1, coarse: 12, attack: 1, decay: 0, sustain: 15, release: 5 },
+       { tri: 1, coarse: 19, attack: 1, decay: 0, sustain: 15, release: 5 }],
+      { model: 1 }),
+    sid3('tune_kit', 'Tune-kit (Split)', 'Split: drie losse partijen zoals in een C64-tune — stem 1 bas (puls, gefilterd), stem 2 lead (saw), stem 3 drum (ruis, kort). Geef elke stem een eigen V/Oct en Gate.',
+      [{ pulse: 1, pw: 0.3, filt: 1, attack: 0, decay: 8, sustain: 5, release: 5 },
+       { saw: 1, attack: 1, decay: 9, sustain: 11, release: 8 },
+       { noise: 1, attack: 0, decay: 5, sustain: 0, release: 4 }],
+      { stack: 0, cutoff: 500, res: 8, model: 0 }),
+  ];
+}
+

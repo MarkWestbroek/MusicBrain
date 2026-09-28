@@ -1,6 +1,6 @@
 {
   "$comment": "GEGENEREERD door tools/contract_dump.py — niet met de hand bewerken. Poort-ids zijn letterlijk wat de firmware accepteert (aliassen als out/out_l en naam/naam_cv staan er dus allebei in).",
-  "firmwareVersion": "0.5.87",
+  "firmwareVersion": "0.5.88",
   "modules": {
     "tp_mmb_ahdsr": {
       "typeId": "tp_mmb_ahdsr",
@@ -1401,6 +1401,9 @@
         "bend",
         "cutoff",
         "cutoff_cv",
+        "ext_2",
+        "ext_3",
+        "ext_4",
         "ext_in",
         "gate_1",
         "gate_10",
