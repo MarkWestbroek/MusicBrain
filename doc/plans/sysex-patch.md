@@ -1,7 +1,8 @@
 # MusicBrain-patches als SysEx
 
-Status: editor klaar (export/import `.syx`, SysEx in de `.mid` van een take);
-firmware-ontvangst nog te bouwen.
+Status: gebouwd. Editor: export/import `.syx`, SysEx in de `.mid` van een take.
+Firmware (0.5.89): ontvangt cmd 02 via USB-MIDI en laadt de patch; op de
+hardware getest (4-stemmige patch, 27 berichten, klinkt).
 
 ## Waarom
 
@@ -61,15 +62,21 @@ die hij niet kent.
   op tijd 0 in de geëxporteerde `.mid`.
 - `parseSmf` levert SysEx uit een `.mid` op (`ParsedSmf.sysex`).
 
-## Firmware (te bouwen)
+## Firmware (gebouwd, 0.5.89)
 
-1. `usbMIDI.setHandleSystemExclusive` (en de DIN-ingang als die er is):
-   berichten met `F0 7D 4D 42 01 02` verzamelen tot `seq == tot−1`, het
-   controlegetal per bericht controleren, dan uitpakken, inflaten en de JSON
-   aanbieden aan dezelfde code die nu `config` van de link verwerkt.
-2. Inflate: miniz/tinf (klein, geen heap nodig voor uitpakken in een vaste
-   buffer). De grootte van de JSON is nu ruim onder de 96 KB-regelbuffer van
-   de link.
-3. `cmd 01` negeren (dat is voor editors).
-4. Optioneel later: een verzoek (`cmd 10` = "stuur je huidige patch") en een
-   antwoord met `02`, voor een SysEx-librarian.
+- `firmware/core/include/mb/Protocol/Inflate.h`: eigen raw-DEFLATE-decoder
+  (stored, fixed, dynamic), met een plafond voor de uitvoer.
+- `firmware/core/include/mb/Protocol/MbSysex.h`: `MbSysexAssembler` verzamelt
+  de berichten van cmd 02 in volgorde, controleert elk controlegetal, pakt uit
+  en levert de JSON. cmd 01 en vreemde SysEx worden genegeerd.
+- `main.cpp`: `usbMIDI.setHandleSystemExclusive` plakt USB-stukken aan elkaar
+  en stuurt een complete config door `onConfigReceived`, dezelfde route als de
+  link. Meldingen in de log: `sysex: config ontvangen (N bytes)` of `sysex: <fout>`.
+- Tests: `core/tests/test_mbsysex.cpp` met vectoren uit de editor-encoder en
+  node-zlib (`mb_sysex_vectors.h`).
+
+Nog open:
+
+- Een verzoek (`cmd 10` = "stuur je huidige patch") en een antwoord met `02`,
+  voor een SysEx-librarian.
+- DIN-MIDI-ingang, als de hardware er een krijgt.

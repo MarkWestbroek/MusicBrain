@@ -34,6 +34,8 @@
 #include "SamplerModule.h"
 #include "UsbQueueProbe.h"
 #include "mmb_dsp/sampler_selftest.h"
+#include "mb/Protocol/MbSysex.h"
+#include <vector>
 
 // Vrij heap-geheugen (Teensy-linker-symbolen). Buiten de anonieme namespace,
 // anders krijgt extern "C" interne linkage en linkt het niet.
@@ -594,6 +596,37 @@ void handleAfterTouchPoly(uint8_t channel, uint8_t note, uint8_t pressure) {
     }
 }
 
+// MusicBrain-patch via SysEx (doc/plans/sysex-patch.md): een DAW die een .mid
+// of .syx afspeelt, stuurt de klank mee. cmd 02 bevat dezelfde regel als de
+// link ({"type":"config","project":…}) en gaat door dezelfde route; cmd 01
+// (editor-patch) en vreemde SysEx worden genegeerd. De USB-sysexbuffer knipt
+// lange berichten op (complete=false); die plakken we eerst aan elkaar.
+mb::protocol::MbSysexAssembler sysexPatch;
+std::vector<uint8_t> sysexChunk;
+void handleSysEx(const uint8_t* data, uint16_t length, bool complete) {
+    if (sysexChunk.size() + length > 4096) sysexChunk.clear();   // geen van onze berichten is zo lang
+    sysexChunk.insert(sysexChunk.end(), data, data + length);
+    if (!complete) return;
+    using S = mb::protocol::MbSysexAssembler::Status;
+    const S st = sysexPatch.feed(sysexChunk.data(), sysexChunk.size());
+    sysexChunk.clear();
+    if (st == S::Error) {
+        mmb_link::TeensyLink::logf("sysex: %s", sysexPatch.error());
+    } else if (st == S::Done) {
+        JsonDocument doc;
+        const DeserializationError err = deserializeJson(doc, sysexPatch.text());
+        const char* type = doc["type"] | "";
+        if (err) {
+            mmb_link::TeensyLink::logf("sysex: JSON ongeldig (%s)", err.c_str());
+        } else if (strcmp(type, "config") != 0) {
+            mmb_link::TeensyLink::logf("sysex: onbekend type '%s'", type);
+        } else {
+            mmb_link::TeensyLink::logf("sysex: config ontvangen (%u bytes)", static_cast<unsigned>(sysexPatch.text().size()));
+            onConfigReceived(doc["project"].as<JsonObjectConst>());
+        }
+    }
+}
+
 /*
  * Note: we deliberately do NOT echo notes back over usbMIDI.  An earlier
  * step transposed every note +12 and re-sent it for the host-side
@@ -788,6 +821,7 @@ void setup() {
     usbMIDI.setHandlePitchChange  (handlePitchChange);
     usbMIDI.setHandleAfterTouchChannel(handleAfterTouchChannel);
     usbMIDI.setHandleAfterTouchPoly   (handleAfterTouchPoly);
+    usbMIDI.setHandleSystemExclusive  (handleSysEx);   // patch via SysEx
 
     mmb_link::registerAllRuntimeModules();
     link.begin(onConfigReceived, onSelectPatch, onSetStatic, onMidiNote, onMidiBend, onMidiCc);
