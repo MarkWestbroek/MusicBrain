@@ -1,26 +1,36 @@
-// LyricModal — een lyricbank maken voor de module ZANG: opnemen of wav's
-// kiezen, per opname de lettergrepen intypen, en de bank naar de simulator,
-// naar een bestand of naar de Teensy sturen.
+// LyricModal — een lyricbank maken voor de module ZANG: opnemen, wav's kiezen
+// of tekst laten inspreken; per opname de lettergrepen intypen en de grenzen
+// bijstellen; en de bank naar de simulator, een bestand of de Teensy sturen.
 //
-// Het rekenwerk zit in analyze.ts (toonhoogte, pitch marks, lettergrepen) en
-// lyricBank.ts (het .mmbl-formaat); dit bestand is alleen het venster.
+// Het rekenwerk zit in analyze.ts (toonhoogte, pitch marks, lettergrepen),
+// tts.ts (de Piper-dienst en grenzen uit foneemtijden) en lyricBank.ts (het
+// .mmbl-formaat); dit bestand is alleen het venster.
 // Achtergrond: doc/plans/zingende-stemmen.md.
 import { useEffect, useRef, useState } from 'react';
 
 import { WasmModule } from '../runtime';
 import { sendBank, useTeensyLink } from '../teensyLink';
-import { analyzeRecording, type SyllableAnalysis } from './analyze';
+import { LYRIC_RATE, analyzeRecording, type Span, type SyllableAnalysis } from './analyze';
 import { buildLyricBank, fromAnalysis, parseLyricBank, type LyricBankData } from './lyricBank';
+import { SyllableEditor } from './SyllableEditor';
+import {
+  TTS_DEFAULTS, TTS_LOCAL_ENDPOINT, listVoices, loadTtsSettings, saveTtsSettings, spansFromPhonemes, speak,
+  type TtsSettings, type TtsVoice,
+} from './tts';
 
 export const ZANG_TYPE_ID = 'tp_mmb_zang';
 
-interface Take {
+export interface Take {
   id: number;
   name: string;
   mono: Float32Array;
   rate: number;
   /** Lettergrepen zoals getypt: "zon-ne-tje" of "zon ne tje". */
   text: string;
+  /** Grenzen in frames van de opname; null = nog niet bepaald. */
+  spans: Span[] | null;
+  /** Waar de grenzen vandaan komen. */
+  origin: 'auto' | 'hand' | 'tekst';
   syllables: SyllableAnalysis[];
   note: string;
 }
@@ -28,6 +38,11 @@ interface Take {
 /** "zon-ne-tje" → ["zon", "ne", "tje"]; leeg = zelf laten zoeken. */
 export function splitText(text: string): string[] {
   return text.split(/[\s\-·|]+/).map((s) => s.trim()).filter((s) => s.length > 0);
+}
+
+/** "zon-ne-tje slaap" → "zonnetje slaap": wat de spraakdienst moet uitspreken. */
+export function spokenText(text: string): string {
+  return text.replace(/[-·|]+/g, '').replace(/\s+/g, ' ').trim();
 }
 
 /** De bank in de simulator zetten: het hele bestand als blob in slot 0. */
@@ -47,14 +62,33 @@ async function decodeToMono(data: ArrayBuffer): Promise<{ mono: Float32Array; ra
   return { mono, rate: b.sampleRate };
 }
 
-function analyze(take: Take): Take {
+/**
+ * Analyseer een opname. Met `take.spans` liggen de grenzen vast (met de hand
+ * gezet of uit de tekst); zonder zoekt de analyse ze zelf en bewaren we wat
+ * hij vond, zodat de golfvorm ze toont.
+ */
+export function analyzeTake(take: Take): Take {
   const want = splitText(take.text);
   try {
+    if (take.spans && take.spans.length > 0) {
+      const texts = take.spans.map((_, i) => want[i] ?? '');
+      const syllables = analyzeRecording(take.mono, take.rate, { syllables: texts, spans: take.spans });
+      const note = want.length && want.length !== take.spans.length
+        ? `${want.length} lettergrepen getypt, ${take.spans.length} vakken in de golfvorm`
+        : '';
+      return { ...take, syllables, note };
+    }
     const syllables = analyzeRecording(take.mono, take.rate, want.length ? { syllables: want } : {});
+    const k = take.rate / LYRIC_RATE;
+    const spans = syllables.map((s) => ({
+      start: Math.round(s.sourceStart * k), end: Math.round(s.sourceEnd * k), wordEnd: s.wordEnd,
+    }));
+    // Buren binnen een woord delen hun grens, ook na het afronden.
+    for (let i = 1; i < spans.length; i++) if (!spans[i - 1]!.wordEnd) spans[i]!.start = spans[i - 1]!.end;
     const note = want.length && syllables.length !== want.length
       ? `${want.length} lettergrepen getypt, ${syllables.length} gevonden`
       : '';
-    return { ...take, syllables, note };
+    return { ...take, spans, origin: 'auto', syllables, note };
   } catch (err) {
     return { ...take, syllables: [], note: `analyse mislukt: ${err instanceof Error ? err.message : String(err)}` };
   }
@@ -69,9 +103,15 @@ export function LyricModal({ open, onClose }: { open: boolean; onClose: () => vo
   const [status, setStatus] = useState('');
   const [recording, setRecording] = useState(false);
   const [loaded, setLoaded] = useState<LyricBankData | null>(null);
+  const [tts, setTts] = useState<TtsSettings>(() => loadTtsSettings());
+  const [ttsText, setTtsText] = useState('');
+  const [ttsBusy, setTtsBusy] = useState(false);
+  const [ttsSetup, setTtsSetup] = useState(false);
+  const [voices, setVoices] = useState<TtsVoice[]>([]);
   const nextId = useRef(1);
   const recorder = useRef<MediaRecorder | null>(null);
   const chunks = useRef<Blob[]>([]);
+  const player = useRef<AudioContext | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -80,17 +120,34 @@ export function LyricModal({ open, onClose }: { open: boolean; onClose: () => vo
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
 
+  // Welke stemmen heeft de dienst? Stil falen: zonder dienst werkt de rest gewoon.
+  useEffect(() => {
+    if (!open) return;
+    let alive = true;
+    listVoices(tts).then((v) => { if (alive) setVoices(v); }).catch(() => { if (alive) setVoices([]); });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, tts.endpoint, tts.code]);
+
   if (!open) return null;
 
   const fail = (what: string, err: unknown): void =>
     setStatus(`mislukt (${what}): ${err instanceof Error ? err.message : String(err)}`);
+  const changeTts = (patch: Partial<TtsSettings>): void => {
+    setTts((s) => { const n = { ...s, ...patch }; saveTtsSettings(n); return n; });
+  };
+
+  function addTake(take: Omit<Take, 'id' | 'syllables' | 'note'>): Take {
+    const t = analyzeTake({ ...take, id: nextId.current++, syllables: [], note: '' });
+    setTakes((list) => [...list, t]);
+    setLoaded(null);
+    return t;
+  }
 
   async function addAudio(data: ArrayBuffer, label: string): Promise<void> {
     const { mono, rate } = await decodeToMono(data);
-    const take = analyze({ id: nextId.current++, name: label, mono, rate, text: '', syllables: [], note: '' });
-    setTakes((t) => [...t, take]);
-    setLoaded(null);
-    setStatus(`${label}: ${(mono.length / rate).toFixed(2)} s, ${take.syllables.length} lettergrepen gevonden`);
+    const t = addTake({ name: label, mono, rate, text: '', spans: null, origin: 'auto' });
+    setStatus(`${label}: ${(mono.length / rate).toFixed(2)} s, ${t.syllables.length} lettergrepen gevonden`);
   }
 
   async function addFiles(files: FileList): Promise<void> {
@@ -125,17 +182,47 @@ export function LyricModal({ open, onClose }: { open: boolean; onClose: () => vo
     }
   }
 
-  function setText(id: number, text: string): void {
-    setTakes((t) => t.map((x) => (x.id === id ? { ...x, text } : x)));
+  async function sayIt(): Promise<void> {
+    const typed = ttsText.trim();
+    if (!typed) return;
+    setTtsBusy(true);
+    try {
+      setStatus('inspreken…');
+      const r = await speak(tts, spokenText(typed));
+      const mono = new Float32Array(r.pcm.length);
+      for (let i = 0; i < mono.length; i++) mono[i] = r.pcm[i]! / 32768;
+      const syl = splitText(typed);
+      const spans = spansFromPhonemes(syl, r.phonemes, r.rate);
+      const t = addTake({
+        name: `${spokenText(typed)} (${r.voice.split('-')[1] ?? r.voice})`, mono, rate: r.rate,
+        text: typed, spans, origin: spans ? 'tekst' : 'auto',
+      });
+      setTtsText('');
+      setStatus(spans
+        ? `ingesproken: ${t.syllables.length} lettergrepen, grenzen uit de tekst`
+        : `ingesproken: ${t.syllables.length} lettergrepen — het aantal klinkers klopte niet met wat je typte, dus de grenzen zijn geschat`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setTtsSetup(true);
+      setStatus(`mislukt (inspreken): ${/Failed to fetch|NetworkError|404/.test(msg) ? 'de spraakdienst is niet bereikbaar — zie ⚙' : msg}`);
+    } finally {
+      setTtsBusy(false);
+    }
   }
-  function reanalyze(id: number): void {
-    setTakes((t) => t.map((x) => (x.id === id ? analyze(x) : x)));
+
+  const update = (id: number, fn: (t: Take) => Take): void => {
+    setTakes((list) => list.map((x) => (x.id === id ? fn(x) : x)));
     setLoaded(null);
-  }
-  function remove(id: number): void {
-    setTakes((t) => t.filter((x) => x.id !== id));
-    setLoaded(null);
-  }
+  };
+  const setText = (id: number, text: string): void =>
+    setTakes((list) => list.map((x) => (x.id === id ? { ...x, text } : x)));
+  /** Tekst toepassen: met vaste grenzen alleen de labels, anders opnieuw zoeken. */
+  const applyText = (id: number): void => update(id, (t) => analyzeTake(t));
+  /** Grenzen weggooien en opnieuw laten zoeken. */
+  const redetect = (id: number): void => update(id, (t) => analyzeTake({ ...t, spans: null, origin: 'auto' }));
+  const setSpans = (id: number, spans: Span[]): void =>
+    update(id, (t) => analyzeTake({ ...t, spans, origin: 'hand' }));
+  const remove = (id: number): void => { setTakes((t) => t.filter((x) => x.id !== id)); setLoaded(null); };
   function move(id: number, dir: -1 | 1): void {
     setTakes((t) => {
       const i = t.findIndex((x) => x.id === id), j = i + dir;
@@ -146,14 +233,19 @@ export function LyricModal({ open, onClose }: { open: boolean; onClose: () => vo
     });
     setLoaded(null);
   }
-  function play(take: Take): void {
+
+  function play(take: Take, start = 0, end = take.mono.length): void {
+    void player.current?.close();
     const ctx = new AudioContext();
-    const b = ctx.createBuffer(1, take.mono.length, take.rate);
-    b.copyToChannel(take.mono as Float32Array<ArrayBuffer>, 0);
+    player.current = ctx;
+    const part = take.mono.slice(Math.max(0, start), Math.min(take.mono.length, end));
+    if (part.length < 2) return;
+    const b = ctx.createBuffer(1, part.length, take.rate);
+    b.copyToChannel(part as Float32Array<ArrayBuffer>, 0);
     const src = ctx.createBufferSource();
     src.buffer = b;
     src.connect(ctx.destination);
-    src.onended = () => { void ctx.close(); };
+    src.onended = () => { if (player.current === ctx) { player.current = null; void ctx.close(); } };
     src.start();
   }
 
@@ -216,13 +308,14 @@ export function LyricModal({ open, onClose }: { open: boolean; onClose: () => vo
     display: 'flex', alignItems: 'center', justifyContent: 'center',
   };
   const panel: React.CSSProperties = {
-    background: '#fff', borderRadius: 8, padding: 18, width: 760, maxWidth: '94vw', maxHeight: '90vh',
+    background: '#fff', borderRadius: 8, padding: 18, width: 820, maxWidth: '94vw', maxHeight: '90vh',
     overflowY: 'auto', boxShadow: '0 12px 40px rgba(0,0,0,0.3)', fontSize: 13,
   };
   const chip: React.CSSProperties = {
     display: 'inline-block', border: '1px solid #cbd5e1', borderRadius: 4, padding: '2px 6px',
     margin: '2px 4px 2px 0', fontFamily: 'monospace', fontSize: 12, background: '#f8fafc',
   };
+  const box: React.CSSProperties = { border: '1px solid #e2e8f0', borderRadius: 6, padding: 8, marginBottom: 8 };
   const syllableChips = (list: { text: string; ms: number; hz: number; sustain: boolean; wordEnd: boolean }[]): JSX.Element => (
     <div>
       {list.map((s, i) => (
@@ -233,8 +326,12 @@ export function LyricModal({ open, onClose }: { open: boolean; onClose: () => vo
       ))}
     </div>
   );
+  const originLabel: Record<Take['origin'], string> = {
+    auto: 'grenzen geschat', hand: 'grenzen met de hand gezet', tekst: 'grenzen uit de tekst',
+  };
 
   const total = loaded ? loaded.syllables.length : takes.reduce((n, t) => n + t.syllables.length, 0);
+  const local = tts.endpoint.startsWith('http://127.0.0.1') || tts.endpoint.startsWith('http://localhost');
 
   return (
     <div style={overlay} onClick={onClose}>
@@ -245,14 +342,14 @@ export function LyricModal({ open, onClose }: { open: boolean; onClose: () => vo
           <button onClick={onClose} style={{ marginLeft: 'auto' }}>✕</button>
         </div>
         <p style={{ color: '#475569', margin: '8px 0 12px' }}>
-          Spreek een woord in (of kies een wav), typ de lettergrepen erbij — <code>zon-ne-tje</code> —
-          en klik op <strong>Analyseer</strong>. De module ZANG zingt ze daarna op de noten die je speelt:
-          elke aanslag de volgende lettergreep, en de klinker blijft klinken zolang je de toets vasthoudt.
-          Spreek rustig, op één toon, en dicht bij de microfoon; een lettergreep met ⚠ heeft geen
-          duidelijke klinker en speelt maar één keer af.
+          Spreek een woord in, kies een wav, of laat tekst inspreken. Typ de lettergrepen met streepjes —
+          <code> zon-ne-tje</code> — en de module ZANG zingt ze op de noten die je speelt: elke aanslag de
+          volgende lettergreep, en de klinker blijft klinken zolang je de toets vasthoudt. Klopt een grens
+          niet, sleep hem dan in de golfvorm. Een lettergreep met ⚠ heeft geen duidelijke klinker en speelt
+          maar één keer af.
         </p>
 
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
           <button onClick={() => void toggleRecord()} style={recording ? { color: '#b91c1c', fontWeight: 600 } : undefined}>
             {recording ? '⏹ Stop' : '⏺ Opnemen'}
           </button>
@@ -266,20 +363,76 @@ export function LyricModal({ open, onClose }: { open: boolean; onClose: () => vo
           </label>
         </div>
 
+        <div style={{ ...box, background: '#f8fafc' }}>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+            <span title="Tekst naar spraak met Piper">🗣 Laat inspreken</span>
+            <input value={ttsText} placeholder="zon-ne-tje  (streepjes tussen de lettergrepen)" style={{ flex: 1, minWidth: 220 }}
+              onChange={(e) => setTtsText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !ttsBusy) void sayIt(); }} />
+            <select value={tts.voice} onChange={(e) => changeTts({ voice: e.target.value })} title="Stem">
+              {(voices.length ? voices : [{ id: tts.voice, name: tts.voice.split('-')[1] ?? tts.voice, language: '' } as TtsVoice])
+                .map((v) => <option key={v.id} value={v.id}>{v.name}{v.language ? ` (${v.language})` : ''}</option>)}
+            </select>
+            <label title="Spreektempo: hoger is trager, met langere klinkers die beter aan te houden zijn">
+              tempo <input type="number" min={0.7} max={2.5} step={0.1} value={tts.lengthScale} style={{ width: 52 }}
+                onChange={(e) => changeTts({ lengthScale: Math.max(0.5, Math.min(3, Number(e.target.value) || 1)) })} />
+            </label>
+            <button onClick={() => void sayIt()} disabled={ttsBusy || !ttsText.trim()}>{ttsBusy ? '…' : 'Spreek in'}</button>
+            <button onClick={() => setTtsSetup((v) => !v)} title="Waar draait de spraakdienst?">⚙</button>
+          </div>
+          {ttsSetup && (
+            <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', color: '#475569' }}>
+              <label>dienst <input value={tts.endpoint} style={{ width: 210 }}
+                onChange={(e) => changeTts({ endpoint: e.target.value.trim() })} /></label>
+              <button onClick={() => changeTts({ endpoint: TTS_DEFAULTS.endpoint })}>MusicBrain-server</button>
+              <button onClick={() => changeTts({ endpoint: TTS_LOCAL_ENDPOINT, code: '' })}>eigen computer</button>
+              {!local && (
+                <label>toegangscode <input value={tts.code} type="password" style={{ width: 150 }}
+                  placeholder="dezelfde als voor de AI"
+                  onChange={(e) => changeTts({ code: e.target.value.trim() })} /></label>
+              )}
+              <span style={{ fontSize: 12, width: '100%' }}>
+                {voices.length
+                  ? `verbonden: ${voices.length} stemmen`
+                  : 'geen verbinding met de spraakdienst. Op je eigen computer start je hem met tools/piper-tts (zie de README daar).'}
+              </span>
+            </div>
+          )}
+        </div>
+
         {takes.map((t, i) => (
-          <div key={t.id} style={{ border: '1px solid #e2e8f0', borderRadius: 6, padding: 8, marginBottom: 8 }}>
+          <div key={t.id} style={box}>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-              <button onClick={() => play(t)} title="De opname afspelen">▶</button>
+              <button onClick={() => play(t)} title="De hele opname afspelen">▶</button>
               <strong>{t.name}</strong>
-              <span style={{ color: '#94a3b8' }}>{(t.mono.length / t.rate).toFixed(2)} s</span>
+              <span style={{ color: '#94a3b8' }}>{(t.mono.length / t.rate).toFixed(2)} s · {originLabel[t.origin]}</span>
               <input value={t.text} placeholder="lettergrepen: zon-ne-tje" style={{ flex: 1, minWidth: 160 }}
                 onChange={(e) => setText(t.id, e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') reanalyze(t.id); }} />
-              <button onClick={() => reanalyze(t.id)}>Analyseer</button>
+                onBlur={() => applyText(t.id)}
+                onKeyDown={(e) => { if (e.key === 'Enter') applyText(t.id); }} />
+              <button onClick={() => redetect(t.id)} title="Grenzen weggooien en opnieuw laten zoeken">Zoek opnieuw</button>
               <button onClick={() => move(t.id, -1)} disabled={i === 0} title="Eerder in het liedje">↑</button>
               <button onClick={() => move(t.id, 1)} disabled={i === takes.length - 1} title="Later in het liedje">↓</button>
               <button onClick={() => remove(t.id)} title="Weggooien">🗑</button>
             </div>
+            {t.spans && t.spans.length > 0 && (
+              <div style={{ marginTop: 6 }}>
+                <SyllableEditor
+                  mono={t.mono} rate={t.rate} spans={t.spans}
+                  texts={t.syllables.map((s) => s.text)}
+                  sustain={t.syllables.map((s, k) => {
+                    const sp = t.spans![k];
+                    if (!sp || s.sustainEnd <= s.sustainStart) return null;
+                    const f = t.rate / s.rate;
+                    return {
+                      start: sp.start + s.marks[s.sustainStart]!.frame * f,
+                      end: sp.start + s.marks[s.sustainEnd]!.frame * f,
+                    };
+                  })}
+                  onChange={(spans) => setSpans(t.id, spans)}
+                  onPlay={(a, b) => play(t, a, b)} />
+              </div>
+            )}
             <div style={{ marginTop: 6 }}>
               {syllableChips(t.syllables.map((s) => ({
                 text: s.text, ms: (s.data.length / s.rate) * 1000, hz: s.pitchHz,
@@ -289,9 +442,15 @@ export function LyricModal({ open, onClose }: { open: boolean; onClose: () => vo
             {t.note && <div style={{ color: '#b45309', marginTop: 4 }}>⚠ {t.note}</div>}
           </div>
         ))}
+        {takes.length > 0 && (
+          <p style={{ color: '#94a3b8', fontSize: 12, margin: '0 0 8px' }}>
+            Golfvorm: sleep een grens · dubbelklik splitst · shift-klik op een rode grens voegt samen · klik speelt
+            het vak af · de groene balk onderin is de klinker die aangehouden wordt.
+          </p>
+        )}
 
         {loaded && (
-          <div style={{ border: '1px solid #e2e8f0', borderRadius: 6, padding: 8, marginBottom: 8 }}>
+          <div style={box}>
             <strong>{loaded.name}</strong>{' '}
             <span style={{ color: '#94a3b8' }}>geopende bank, {loaded.syllables.length} lettergrepen</span>
             <div style={{ marginTop: 6 }}>
@@ -320,9 +479,7 @@ export function LyricModal({ open, onClose }: { open: boolean; onClose: () => vo
         <div style={{ minHeight: 18, marginTop: 8, color: status.startsWith('mislukt') ? '#b91c1c' : '#334155' }}>{status}</div>
         <p style={{ color: '#94a3b8', marginTop: 10, marginBottom: 0, fontSize: 12 }}>
           De bank blijft in de browser tot een herlaad; bewaar hem als <code>.mmbl</code>. Op de Teensy kiest de
-          knop <strong>Bank</strong> van ZANG het bestand <code>/mmb/lyrics/NN.mmbl</code>. De automatische
-          lettergreepgrenzen zijn een schatting: klinkt een lettergreep verkeerd afgeknipt, spreek het woord dan
-          met korte pauzes tussen de lettergrepen in.
+          knop <strong>Bank</strong> van ZANG het bestand <code>/mmb/lyrics/NN.mmbl</code>.
         </p>
       </div>
     </div>

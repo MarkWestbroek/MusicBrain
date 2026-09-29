@@ -40,6 +40,7 @@ const seeds = {
   // Koor (sampler) als drager van Warps' vocoder; modulator = Plaits Speech of AUDIO IN.
   'vocoder-choir': () => seedVocoderChoirPatch(seedInternals(emptyModularProject()), 'plaits'),
   'vocoder-mic':   () => seedVocoderChoirPatch(seedInternals(emptyModularProject()), 'mic'),
+  'vocoder-zang':  () => seedVocoderChoirPatch(seedInternals(emptyModularProject()), 'zang'),
   // Zingende stem: ZANG ×8 met galm; de lyricbank staat op de SD (/mmb/lyrics).
   'zang':          () => seedZangPatch(seedInternals(emptyModularProject())),
 };

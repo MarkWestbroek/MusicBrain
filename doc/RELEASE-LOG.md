@@ -17,6 +17,26 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-09-30 — Zang: tekst laten inspreken en grenzen verslepen (editor, geen nieuwe firmware)
+- **🗣 Laat inspreken** in het Zang-venster: typ `zon-ne-tje`, kies een stem
+  en een tempo, en de tekst wordt uitgesproken door Piper. De dienst
+  ([tools/piper-tts](../tools/piper-tts/README.md)) stuurt per foneem het
+  begin en de lengte mee; daaruit komen de lettergreepgrenzen, verdeeld
+  zoals je ze typt. De grens tussen "zon" en "ne", die in de golfvorm niet
+  te zien is, valt daarmee precies. Vier regels tekst met twee stemmen: alle
+  21 lettergrepen goed, elk met een klinkerkern.
+- **Golfvorm met versleepbare grenzen** per opname: slepen verschuift (buren
+  binnen een woord delen hun grens), dubbelklik splitst, shift-klik voegt
+  samen, klik speelt het vak af. De groene balk is de klinker die
+  aangehouden wordt. De analyse draait opnieuw bij loslaten.
+- **Seed "Koor zingt jouw woorden"** (Solo-menu): ZANG als modulator van de
+  Warps-vocoder, het koor als drager. ZANG heeft zelf geen draaggolf (PSOLA
+  speelt de opname af); via de vocoder zingt het koor wat ZANG articuleert.
+- De spraakdienst draait nu alleen lokaal (⚙ → eigen computer). Uitrollen op
+  de VPS staat beschreven in de README, maar is nog niet gedaan.
+- Piper is GPL-3.0 en draait als los programma; de vier gekozen stemmen
+  hebben een CC0-dataset. Tests: editor 740.
+
 ### fw 0.5.92 — ZANG: woorden zingen met PSOLA (2026-09-29)
 - **Nieuwe module ZANG** (`tp_mmb_zang`): ingesproken lettergrepen op de
   noten die je speelt. PSOLA knipt de opname in grains van twee stemperioden

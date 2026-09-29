@@ -4892,16 +4892,19 @@ export function seedZangPatch(project: ModularProject, voiceCount = 8): ModularP
  * - `modulator = 'mic'`: AUDIO IN — je eigen stem (simulator: microfoon van
  *   de browser; Teensy: USB-audio van de pc). Praat of zing, en speel
  *   akkoorden: het koor zingt wat jij zegt, op de noten die jij speelt.
+ * - `modulator = 'zang'`: de module ZANG — de lettergrepen uit je lyricbank.
+ *   ZANG zingt ze zelf al op toon; hier levert hij alleen de articulatie en
+ *   zingt het koor ze. Geen microfoon nodig, en je eigen woorden.
  *
  * Warps staat op `shape` 0 (externe carrier op in1) en `algo` 6,2 (vocoder
  * met snelle release; naar 8 toe worden de banden trager tot bevroren).
  * De sampler is mono naar Warps (out_l); acht stemmen, dus akkoorden.
  */
 export function seedVocoderChoirPatch(
-  project: ModularProject, modulator: 'plaits' | 'mic' = 'plaits', voiceCount = 8,
+  project: ModularProject, modulator: 'plaits' | 'mic' | 'zang' = 'plaits', voiceCount = 8,
 ): ModularProject {
   const N = Math.max(2, Math.min(8, Math.round(voiceCount)));
-  const modType = modulator === 'mic' ? 'tp_mmb_audioin' : 'tp_mmb_plaits';
+  const modType = modulator === 'mic' ? 'tp_mmb_audioin' : modulator === 'zang' ? 'tp_mmb_zang' : 'tp_mmb_plaits';
   const needed = ['tp_mmb_midiin', 'tp_mmb_sampler', 'tp_mmb_warps', 'tp_mmb_out', modType];
   const missing = needed.some((tid) => !project.moduleTypes.some((t) => t.id === tid))
     || needed.some((tid) => !project.modules.some((m) => m.typeId === tid));
@@ -4916,7 +4919,10 @@ export function seedVocoderChoirPatch(
   const mod   = fresh(modType);
   const warps = fresh('tp_mmb_warps');
   const out   = fresh('tp_mmb_out');
-  const name = modulator === 'mic' ? 'Koor zingt jouw stem' : 'Koor zingt woorden';
+  const name = modulator === 'mic' ? 'Koor zingt jouw stem'
+    : modulator === 'zang' ? 'Koor zingt jouw woorden' : 'Koor zingt woorden';
+  const modLabel = modulator === 'mic' ? 'AUDIO IN (microfoon)'
+    : modulator === 'zang' ? 'ZANG (lyricbank)' : 'Plaits Speech';
 
   let offset = 0;
   const slot = (m: ModuleInstance): RackSlot => {
@@ -4928,7 +4934,7 @@ export function seedVocoderChoirPatch(
   const slots = all.map(slot);
   const rack: Rack = {
     id: uid('rack'), name,
-    description: `MidiIn → SAMPLER (koor, ${N} stemmen) = drager; ${modulator === 'mic' ? 'AUDIO IN (microfoon)' : 'Plaits Speech'} = modulator; Warps vocoder → OUT.`,
+    description: `MidiIn → SAMPLER (koor, ${N} stemmen) = drager; ${modLabel} = modulator; Warps vocoder → OUT.`,
     rows: 1, hpPerRow: Math.max(64, offset + 4),
     slots,
     kind: 'physical',
@@ -4937,7 +4943,12 @@ export function seedVocoderChoirPatch(
       members: Array.from({ length: N }, (_, i) => ({
         kind: 'cell' as const, moduleId: smp.id, cellGroupId: 'voice', cellIndex: i,
       })),
-    }],
+    }, ...(modulator === 'zang' ? [{
+      id: uid('poly'), label: 'ZANG', voiceCount: N,
+      members: Array.from({ length: N }, (_, i) => ({
+        kind: 'cell' as const, moduleId: mod.id, cellGroupId: 'voice', cellIndex: i,
+      })),
+    }] : [])],
   };
 
   const c = (fm: ModuleInstance, fp: string, tm: ModuleInstance, tp: string): PatchConnection => ({
@@ -4945,9 +4956,17 @@ export function seedVocoderChoirPatch(
     from: { moduleId: fm.id, portId: fp },
     to:   { moduleId: tm.id, portId: tp },
   });
+  // ZANG als modulator zit óók in een PolyGroup: elke noot zingt zijn
+  // lettergreep op zijn eigen cel, net als het koor. De vocoder krijgt de som;
+  // een akkoord deelt toch al één lettergreep.
+  const zangTrigger = modulator === 'zang'
+    ? [c(mi, 'pitch', mod, 'voct_1'), c(mi, 'gate', mod, 'gate_1'), c(mi, 'vel', mod, 'vel_1')]
+    : [];
   const patch: Patch = {
     id: uid('patch'), name,
-    description: (modulator === 'mic'
+    description: (modulator === 'zang'
+      ? 'Speel akkoorden: bij elke aanslag levert ZANG de volgende lettergreep uit je lyricbank, en het koor (sampler, bank 5) zingt hem via de vocoder. Maak de bank met 🎤 Zang. Formant op ZANG schuift de klinkerkleur van het koor.'
+      : modulator === 'mic'
       ? 'Praat of zing in de microfoon en speel akkoorden: het koor (sampler, bank 5) zingt wat jij zegt op de noten die jij speelt. Simulator: de browser vraagt toestemming voor de microfoon; gebruik een koptelefoon. Teensy: stuur je microfoon naar het afspeelapparaat "Teensy MIDI/Audio" (doc/teensy-aan-de-pc.md §5).'
       : 'Speel akkoorden: bij elke aanslag spreekt Plaits (engine 15, Speech) een woord, en het koor (sampler, bank 5) zingt het via de vocoder. Morph kiest het woord, Harmonics de woordbank (boven 0,45), Timbre de formanten.')
       + ' Warps Algo 6–8 = vocoder (6 = snel en verstaanbaar, 8 = bevroren klinker); Timbre = formantverschuiving (0,5 = neutraal); Drive 2 = hoe hard de modulator de banden opent.',
@@ -4960,7 +4979,9 @@ export function seedVocoderChoirPatch(
       c(smp, 'out_l', warps, 'in1'),
       ...(modulator === 'mic'
         ? [c(mod, 'out_l', warps, 'in2')]
-        : [c(mi, 'pitch', mod, 'voct'), c(mi, 'gate', mod, 'gate'), c(mod, 'out', warps, 'in2')]),
+        : modulator === 'zang'
+          ? [...zangTrigger, c(mod, 'out_l', warps, 'in2')]
+          : [c(mi, 'pitch', mod, 'voct'), c(mi, 'gate', mod, 'gate'), c(mod, 'out', warps, 'in2')]),
       c(warps, 'out', out, 'l'),
       c(warps, 'out', out, 'r'),
     ],
@@ -4969,6 +4990,8 @@ export function seedVocoderChoirPatch(
       [smp.id]:   { bank: 5, level: 0.9 },
       [mod.id]:   modulator === 'mic'
         ? { level: 1.5, mono: 1 }
+        : modulator === 'zang'
+          ? { bank: 0, syl: 0, mode: 2, speed: 1, formant: 0, attack: 2, release: 120, coarse: 0, fine: 0, level: 1 }
         : { engine: 15, harmonics: 0.55, timbre: 0.5, morph: 0.3, decay: 0.8, lpg: 0.5, level: 0.9 },
       [warps.id]: { algo: 6.2, timbre: 0.5, shape: 0, drive1: 1, drive2: 1.6, coarse: 0, level: 0.9 },  // 6–8 = vocoder; 6,2 = snelle release, verstaanbaar
       [out.id]:   { level: 0.85 },

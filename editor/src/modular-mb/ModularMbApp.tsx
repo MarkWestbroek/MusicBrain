@@ -661,6 +661,14 @@ export function ModularMbApp(): JSX.Element {
                   }}
                 >🎤 Koor zingt jouw stem (vocoder + mic)</button>
                 <button
+                  onClick={() => { setProject(seedVocoderChoirPatch(getProject(), 'zang')); setShowSolo(false); }}
+                  title="Het koor zingt jouw woorden: de module ZANG levert bij elke aanslag de volgende lettergreep uit je lyricbank, het koor zingt hem via de vocoder. Maak de bank met 🎤 Zang."
+                  style={{
+                    textAlign: 'left', border: 'none', background: 'transparent',
+                    padding: '7px 12px', cursor: 'pointer', fontSize: 13,
+                  }}
+                >🎶 Koor zingt jouw woorden (vocoder + ZANG)</button>
+                <button
                   onClick={() => { setProject(seed808JamPatch(getProject())); setShowSolo(false); }}
                   title="Zelfspelend 808-ritme: Marbles klokt kick/snare/hat (Peaks-drums) door een mixer. Draai aan Marbles Deja vu voor een vaste groove."
                   style={{

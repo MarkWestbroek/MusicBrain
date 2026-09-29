@@ -96,6 +96,7 @@ function allSeededProject(): ModularProject {
   p = seedWarpsVocoderPatch(p);
   p = seedVocoderChoirPatch(p, 'plaits');
   p = seedVocoderChoirPatch(p, 'mic');
+  p = seedVocoderChoirPatch(p, 'zang');
   p = seedZangPatch(p);
   return p;
 }

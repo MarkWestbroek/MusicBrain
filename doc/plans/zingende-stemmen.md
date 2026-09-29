@@ -182,11 +182,14 @@ Regels:
 
 ## 8. Stappen
 
-**Stand 2026-09-29 (fw 0.5.92):** stap 1, 2 en 3 zijn klaar en op de hardware
-gemeten; van stap 4 staat het venster 🎤 Zang er (opnemen, wav's,
-lettergrepen intypen, naar simulator/bestand/Teensy), nog zonder golfvorm en
-verschuifbare grenzen; stap 5 is open. De microfoon in de browser (opnemen
-in het venster en AUDIO IN) is nog niet in een browser uitgeprobeerd.
+**Stand 2026-09-30:** stap 1 tot en met 4 zijn klaar. Stap 1–3 zijn op de
+hardware gemeten (fw 0.5.92); het venster 🎤 Zang heeft opnemen, wav's,
+lettergrepen intypen, een golfvorm met versleepbare grenzen, en tekst laten
+inspreken. De microfoon in de browser werkt (door Mark bevestigd). Van stap 5
+draait de dienst lokaal (`tools/piper-tts`), met grenzen uit de
+foneemtijden; **uitrollen op de VPS moet nog**. Het venster en de
+golfvorm-editor zijn getypecheckt en hun rekenwerk is getest, maar nog niet
+in een browser bekeken.
 
 1. **Kern en formaat.** `mmb_dsp/psola.h` (stem + lettergreepspeler),
    `mmb_dsp/lyric_bank.h` (formaat), analyse in TypeScript
@@ -205,11 +208,14 @@ in het venster en AUDIO IN) is nog niet in een browser uitgeprobeerd.
 
 ## 9. Open punten
 
-- **Lettergreepgrenzen.** De energie-methode vindt de grens niet als er
-  tussen twee klinkers geen dal zit ("zon-ne": o, n en e lopen in elkaar
-  over). Nu: het getypte aantal afdwingen door de langste lettergreep te
-  splitsen tussen 40 en 75 %. Beter: uitlijnen op de tekst (forced
-  alignment), of de gebruiker de grens laten slepen.
+- **Lettergreepgrenzen bij eigen opnames.** De energie-methode vindt de
+  grens niet als er tussen twee klinkers geen dal zit ("zon-ne": o, n en e
+  lopen in elkaar over). Bij ingesproken tekst is dat opgelost (grenzen uit
+  de foneemtijden van Piper); bij een eigen opname dwingt de analyse het
+  getypte aantal af door de langste lettergreep te splitsen, en sleep je de
+  grens zo nodig goed. Echt oplossen vraagt uitlijnen op de tekst (forced
+  alignment); een goedkope tussenweg is de eigen opname vergelijken met
+  dezelfde tekst uit Piper en diens grenzen meerekken (DTW).
 - **Wiebel in korte kernen.** Een klinkerkern waarin de klank snel verandert
   (n → sjwa) klinkt bij heen-en-weer lopen minder stil dan een lange klinker:
   de toonhoogte klopt, de kleur beweegt. Mogelijk alleen het stabielste derde
