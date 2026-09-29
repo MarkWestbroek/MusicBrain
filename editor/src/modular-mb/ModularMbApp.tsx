@@ -537,7 +537,7 @@ export function ModularMbApp(): JSX.Element {
                 {([
                   { label: '💍 Rings (resonator)', t: 'tp_mmb_rings', n: 'Rings', l: 'out_l', r: 'out_r',
                     c: { structure: 0.4, brightness: 0.6, damping: 0.6, position: 0.3, model: 0, polyphony: 1, level: 0.8 } },
-                  { label: '🎛️ Plaits (16 engines)', t: 'tp_mmb_plaits', n: 'Plaits', l: 'out', r: 'aux',
+                  { label: '🎛️ Plaits (24 engines)', t: 'tp_mmb_plaits', n: 'Plaits', l: 'out', r: 'aux',
                     c: { engine: 0, harmonics: 0.5, timbre: 0.5, morph: 0.5, decay: 0.6, lpg: 0.5, level: 0.8 } },
                   { label: '💎 Elements (modaal)', t: 'tp_mmb_elements', n: 'Elements', l: 'out_l', r: 'out_r',
                     c: { strike: 0.8, space: 0.5, level: 0.8 } },
@@ -616,7 +616,7 @@ export function ModularMbApp(): JSX.Element {
                 >☁️ Clouds ambient (+Tides)</button>
                 <button
                   onClick={() => { setProject(seedGenerativeJamPatch(getProject())); setShowSolo(false); }}
-                  title="Zelfspelend: Marbles kiest noten en klokt Plaits (string-engine), Clouds + Tides maken er een drijvende wolk van. Geen MIDI nodig."
+                  title="Zelfspelend: Marbles kiest noten en klokt Plaits (grain-engine), Clouds + Tides maken er een drijvende wolk van. Geen MIDI nodig."
                   style={{
                     textAlign: 'left', border: 'none', background: 'transparent',
                     padding: '7px 12px', cursor: 'pointer', fontSize: 13,

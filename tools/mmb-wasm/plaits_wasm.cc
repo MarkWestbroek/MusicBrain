@@ -1,5 +1,6 @@
 // tp_mmb_plaits — Mutable Instruments Plaits (spiegel van PlaitsModule.h).
-// Native 48 kHz, blokken van 24 (kMaxBlockSize). 16 engines.
+// Native 48 kHz, blokken van 24 (kMaxBlockSize). 24 engines (Plaits 1.2,
+// nummering = registratievolgorde in voice.cc, zie PlaitsModule.h).
 #include "mmb_abi.h"
 #include "plaits/dsp/voice.h"
 #include "stmlib/utils/buffer_allocator.h"
@@ -49,7 +50,7 @@ void mmb_setup() {
 
 void mmb_on_control(int idx, float v) {
     switch (idx) {
-        case C_ENGINE: { int e = static_cast<int>(v); if (e < 0) e = 0; if (e > 15) e = 15; g_patch.engine = e; break; }
+        case C_ENGINE: { int e = static_cast<int>(v); if (e < 0) e = 0; if (e > 23) e = 23; g_patch.engine = e; break; }
         case C_HARMONICS: g_knob[0] = mmb_clamp01(v); break;
         case C_TIMBRE:    g_knob[1] = mmb_clamp01(v); break;
         case C_MORPH:     g_knob[2] = mmb_clamp01(v); break;

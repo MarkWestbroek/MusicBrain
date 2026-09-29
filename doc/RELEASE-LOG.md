@@ -17,6 +17,29 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### fw 0.5.90 — Plaits: engine-nummering gecorrigeerd, 24 engines (2026-09-29)
+- De gevendorde Plaits is firmware 1.2 met **24 engines**, en die registreert
+  de acht nieuwe engines vóór de klassieke zestien. De module gaf `engine`
+  rechtstreeks door als index in die lijst, maar klemde op 15 en de editor
+  beschreef de oude 16-lijst. Gevolg: alles stond acht plaatsen verschoven
+  ("7 = Speech" was Chiptune, "0 = VA" was VA+VCF), Speech zat op 15, en
+  Swarm t/m Hi-hat (16–23) waren onbereikbaar.
+- Fix: control en knop lopen nu tot 23; de nummering blijft de
+  registratievolgorde, dus **bestaande patches klinken ongewijzigd** — alleen
+  de labels kloppen voortaan. Volledige lijst in `PlaitsModule.h` en op het
+  paneel: 0 VA+VCF · 1 Phase distortion · 2/3/4 6-op FM · 5 Wave terrain ·
+  6 String machine · 7 Chiptune · 8 VA · 9 Waveshape · 10 FM · 11 Grain ·
+  12 Additive · 13 Wavetable · 14 Chord · 15 Speech · 16 Swarm · 17 Noise ·
+  18 Particle · 19 String · 20 Modal · 21 Bass drum · 22 Snare · 23 Hi-hat.
+- De demo's "generatieve jam" en "vocoder" gebruikten engine 11 in de
+  veronderstelling dat dat String was; het is Grain. Nummers ongewijzigd
+  gelaten (zo klonken ze al), commentaar en knoptekst aangepast.
+- Speech (15) gebruiken: Trig gepatcht (anders stilte), V/Oct voor de
+  toonhoogte; Harmonics kiest het model (0–0,33 klinkers formant→SAM→LPC,
+  0,33–0,45 LPC-fonemen, daarboven vijf TI-woordbanken), Morph de klinker of
+  het woord, Timbre de formantverschuiving. Lang aanhouden: Harmonics ≈ 0,3.
+- Zelfde fix in `tools/mmb-wasm/plaits_wasm.cc`; wasm herbouwd; editor 708.
+
 ### fw 0.5.88 — SID: EXT IN per chip, SID-klanken in de Presets (2026-09-28)
 - EXT IN per chip: `ext_in` (chip 1), `ext_2`, `ext_3`, `ext_4`, elk door het
   filter van zijn eigen chip — een stereobron op Ext 1+2 (SIDs = 2) of quad op

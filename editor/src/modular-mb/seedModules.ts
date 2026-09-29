@@ -2567,14 +2567,18 @@ function mmbPlaits() {
     hp: 12, texture: 'pcb-black', baseColor: '#111827', internal: true,
     texts: [
       { x: w/2, y: 8,   text: 'PLAITS', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
-      { x: w/2, y: 13,  text: '16 engines · macro-osc', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 13,  text: '24 engines · macro-osc', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
       { x: w/2, y: 126, text: 'MI', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
     ],
     items: [
-      // Engine-keuze: 0=VA 1=Waveshape 2=FM 3=Grain 4=Additive 5=Wavetable
-      // 6=Chord 7=Speech 8=Swarm 9=Noise 10=Particle 11=String 12=Modal
-      // 13=BassDrum 14=Snare 15=HiHat.
-      knob   ('engine', 'Engine', w*0.28, 26, { size: 'medium', min: 0, max: 15, def: 0, step: 1, color: '#f9fafb' }),
+      // Engine-keuze = registratievolgorde in Plaits 1.2 (voice.cc), de acht
+      // nieuwe engines staan vóór de klassieke zestien:
+      // 0=VA+VCF 1=PhaseDist 2/3/4=6-op FM A/B/C 5=WaveTerrain 6=StringMachine
+      // 7=Chiptune 8=VA 9=Waveshape 10=FM 11=Grain 12=Additive 13=Wavetable
+      // 14=Chord 15=Speech 16=Swarm 17=Noise 18=Particle 19=String 20=Modal
+      // 21=BassDrum 22=Snare 23=HiHat. (Tot 2026-09-29 stond hier de oude
+      // 16-lijst met max 15: "7=Speech" was Chiptune, 16–23 onbereikbaar.)
+      knob   ('engine', 'Engine', w*0.28, 26, { size: 'medium', min: 0, max: 23, def: 0, step: 1, color: '#f9fafb' }),
       display('engDisp', w*0.66, 26, { digits: 2, style: 'led', bindTo: 'engine', format: 'int' }),
       knob('harmonics', 'Harmonics', col(0), 52, { size: 'large', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
       knob('timbre',    'Timbre',    col(1), 52, { size: 'large', min: 0, max: 1, def: 0.5, color: '#e11d48' }),
@@ -2593,7 +2597,7 @@ function mmbPlaits() {
       outPort('out',  'Out',   'audio', w*0.62, 118),
       outPort('aux',  'Aux',   'audio', w*0.86, 118),
     ],
-    notes: 'Mutable Instruments Plaits macro-oscillator (firmware tp_mmb_plaits, FW-AU-12). Eén knop kiest uit 16 engines: 0 VA · 1 Waveshape · 2 FM · 3 Grain · 4 Additive · 5 Wavetable · 6 Chord · 7 Speech · 8 Swarm · 9 Noise · 10 Particle · 11 String · 12 Modal · 13 BassDrum · 14 Snare · 15 HiHat. Harmonics/Timbre/Morph zijn de drie macro-parameters (per engine anders). De interne low-pass-gate (Decay/LPG) vuurt per Trig; Aux draagt de engine-variant. CV-ingangen: harmonics_cv/timbre_cv/morph_cv/level_cv (alias zonder _cv werkt ook).',
+    notes: 'Mutable Instruments Plaits macro-oscillator (firmware tp_mmb_plaits, FW-AU-12). Eén knop kiest uit 24 engines (Plaits 1.2): 0 VA+VCF · 1 Phase distortion · 2/3/4 6-op FM A/B/C · 5 Wave terrain · 6 String machine · 7 Chiptune · 8 VA · 9 Waveshape · 10 FM · 11 Grain · 12 Additive · 13 Wavetable · 14 Chord · 15 Speech · 16 Swarm · 17 Noise · 18 Particle · 19 String · 20 Modal · 21 BassDrum · 22 Snare · 23 HiHat. Speech (15): Trig moet gepatcht zijn; Harmonics kiest het model (0–0,33 klinkers formant→SAM→LPC, 0,33–0,45 LPC-fonemen, daarboven vijf woordbanken), Morph de klinker of het woord, Timbre de formantverschuiving. Harmonics/Timbre/Morph zijn de drie macro-parameters (per engine anders). De interne low-pass-gate (Decay/LPG) vuurt per Trig; Aux draagt de engine-variant. CV-ingangen: harmonics_cv/timbre_cv/morph_cv/level_cv (alias zonder _cv werkt ook).',
   });
 }
 
@@ -4639,7 +4643,7 @@ export function seed808JamPatch(project: ModularProject): ModularProject {
 
 /**
  * Vocoder-demo: jouw keyboard bespeelt Warps' interne zaag-carrier (V/Oct),
- * en een Marbles-geklokte Plaits (string-engine) levert het ritmische
+ * en een Marbles-geklokte Plaits (grain-engine) levert het ritmische
  * modulator-signaal — de zaag "spreekt" in het ritme van de generatieve
  * plukjes. Houd een akkoordnoot aan en draai aan Timbre en Déjà vu.
  */
@@ -4694,7 +4698,7 @@ export function seedWarpsVocoderPatch(project: ModularProject): ModularProject {
     controlState: {
       [mi.id]:     { channel: 0, voiceCount: 1 },
       [mar.id]:    { tempo: 220, bias: 0.45, jitter: 0.05, model: 0, dejavu: 0, length: 8, spread: 0.5, xbias: 0.5, steps: 0.8, scale: 2, range: 1 },
-      [plaits.id]: { engine: 11, harmonics: 0.5, timbre: 0.5, morph: 0.5, decay: 0.6, lpg: 0.6 },
+      [plaits.id]: { engine: 11, harmonics: 0.5, timbre: 0.5, morph: 0.5, decay: 0.6, lpg: 0.6 },  // 11 = Grain (heette hier string; nummering gecorrigeerd 2026-09-29, klank ongewijzigd)
       [warps.id]:  { algo: 8, timbre: 0.5, shape: 3, drive1: 1, drive2: 1.3, coarse: 0, level: 0.85 },
       [out.id]:    { level: 0.85 },
     },
@@ -4962,7 +4966,7 @@ export function seedGenerativeJamPatch(project: ModularProject): ModularProject 
     ],
     controlState: {
       [mar.id]:    { tempo: 180, bias: 0.4, jitter: 0.1, model: 0, dejavu: 0, length: 8, spread: 0.5, xbias: 0.5, steps: 0.8, scale: 2, range: 1 },
-      [plaits.id]: { engine: 11, harmonics: 0.5, timbre: 0.45, morph: 0.5, decay: 0.55, lpg: 0.6 },  // string — tokkelt mooi
+      [plaits.id]: { engine: 11, harmonics: 0.5, timbre: 0.45, morph: 0.5, decay: 0.55, lpg: 0.6 },  // 11 = Grain — tokkelt mooi (heette hier string; klank ongewijzigd)
       [tides.id]:  { rate: 0.07, mode: 1, output: 2, shape: 0.5, slope: 0.5, smooth: 0.6, shift: 0.5 },
       [clouds.id]: { position: 0.35, size: 0.6, pitch: 0, density: 0.5, texture: 0.5, mix: 0.55, spread: 0.6, feedback: 0.3, reverb: 0.55, mode: 0 },
       [out.id]:    { level: 0.8 },
@@ -5040,7 +5044,7 @@ export function seedCloudsAmbientPatch(project: ModularProject): ModularProject 
       c(clouds, 'out_r', out, 'r'),
     ],
     controlState: {
-      [plaits.id]: { engine: 4, harmonics: 0.55, timbre: 0.5, morph: 0.4, decay: 0.7, lpg: 0.5 },  // additive — draagt lang
+      [plaits.id]: { engine: 4, harmonics: 0.55, timbre: 0.5, morph: 0.4, decay: 0.7, lpg: 0.5 },  // 4 = 6-op FM C — draagt lang (heette hier additive; klank ongewijzigd)
       [tides.id]:  { rate: 0.08, mode: 1, output: 2, shape: 0.5, slope: 0.5, smooth: 0.6, shift: 0.5 },  // loop + phase = quadratuur-LFO
       [clouds.id]: { position: 0.3, size: 0.7, pitch: 0, density: 0.45, texture: 0.5, mix: 0.7, spread: 0.6, feedback: 0.35, reverb: 0.6, mode: 0 },
       [out.id]:    { level: 0.8 },

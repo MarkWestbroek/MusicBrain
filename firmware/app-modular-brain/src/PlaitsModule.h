@@ -6,9 +6,19 @@
  *
  * @details
  * Wrapper rond de gevendorde Plaits-DSP (`firmware/lib/mi-plaits`, MIT,
- * (c) Emilie Gillet): één module met 16 synth-engines — van virtual-analog
- * en FM tot granular, spraak, modaal en drums. Engine-keuze via de
- * `engine`-control; `harmonics`/`timbre`/`morph` zijn de drie macro-knoppen.
+ * (c) Emilie Gillet, firmware 1.2): één module met 24 synth-engines — van
+ * virtual-analog en FM tot granular, spraak, modaal en drums. Engine-keuze via
+ * de `engine`-control; `harmonics`/`timbre`/`morph` zijn de drie macro-knoppen.
+ *
+ * Engine-nummering = registratievolgorde in plaits/dsp/voice.cc (1.2 zet de
+ * acht nieuwe engines vóór de klassieke zestien):
+ *   0 VA+VCF · 1 Phase distortion · 2 6-op FM A · 3 6-op FM B · 4 6-op FM C ·
+ *   5 Wave terrain · 6 String machine · 7 Chiptune · 8 VA · 9 Waveshaping ·
+ *   10 FM · 11 Grain · 12 Additive · 13 Wavetable · 14 Chord · 15 Speech ·
+ *   16 Swarm · 17 Noise · 18 Particle · 19 String · 20 Modal · 21 Bass drum ·
+ *   22 Snare · 23 Hi-hat.
+ * (Tot fw 0.5.89 klemde de control op 15 en beschreef de editor de oude
+ * 16-lijst: "7 = Speech" was in werkelijkheid Chiptune.)
  *
  * Zelfde architectuur en lessen als Elements/Rings (FW-AU-9/11):
  * 48 kHz → 44.1 kHz resampling, genulde allocatie, NaN-vangnet, peak-meter.
@@ -26,7 +36,7 @@
  * | out | `out_l`     | Audio | Hoofd-uitgang (OUT)                          |
  * | out | `out_r`     | Audio | AUX-uitgang (variant/sub)                    |
  *
- * Controls: `engine` (0..15), `harmonics` `timbre` `morph` (0..1),
+ * Controls: `engine` (0..23), `harmonics` `timbre` `morph` (0..1),
  * `decay` (0..1, interne LPG), `lpg` (0..1, LPG-kleur), `coarse` (semitonen),
  * `fine` (centen), `level` (0..1 uitgang).
  */
@@ -284,7 +294,7 @@ public:
         else if (controlId == "engine") {
             int e = static_cast<int>(asFloat(0.0f));
             if (e < 0) e = 0;
-            if (e > 15) e = 15;
+            if (e > 23) e = 23;
             voice_.patch().engine = e;
         }
         else if (controlId == "coarse") { coarse_ = asFloat(0.0f); applyPitch(); }
