@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react';
 import type { LibrarySettings } from './mediaLibrary';
 import { listTakes, fetchAsset, type TakeEntry } from './takeLibrary';
+import { openTakeEditor, takeFromBytes } from './TakeEditorWindow';
 
 export function TakeLibraryPanel({ settings, onMidi, onPatch }: {
   settings: LibrarySettings;
@@ -23,6 +24,22 @@ export function TakeLibraryPanel({ settings, onMidi, onPatch }: {
     finally { setBusy(null); }
   }
   useEffect(() => { if (settings.token.trim()) void refresh(); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function edit(t: TakeEntry): Promise<void> {
+    if (!t.wav) return;
+    setBusy(`${t.group}:edit`); setMsg(null);
+    try {
+      const [wav, mid, patch] = await Promise.all([
+        fetchAsset(t.wav),
+        t.mid ? fetchAsset(t.mid) : Promise.resolve(null),
+        t.patch ? fetchAsset(t.patch) : Promise.resolve(null),
+      ]);
+      openTakeEditor(takeFromBytes(t.group, wav, mid, patch ? new Blob([patch], { type: 'application/json' }) : null,
+        { group: t.group, wav: t.wav.slug, mid: t.mid?.slug }));
+    } catch (e) {
+      setMsg({ ok: false, text: e instanceof Error ? e.message : String(e) });
+    } finally { setBusy(null); }
+  }
 
   async function load(t: TakeEntry, what: 'mid' | 'patch'): Promise<void> {
     const asset = what === 'mid' ? t.mid : t.patch;
@@ -71,6 +88,10 @@ export function TakeLibraryPanel({ settings, onMidi, onPatch }: {
                     <button disabled={!t.patch || busy !== null} onClick={() => void load(t, 'patch')}
                       title="De patch van deze take als nieuwe patch toevoegen (je eigen patches blijven staan)">
                       {busy === `${t.group}:patch` ? '…' : '⤵ Patch'}
+                    </button>{' '}
+                    <button disabled={!t.wav || busy !== null} onClick={() => void edit(t)}
+                      title="In de take-editor openen: bijsnijden, exporteren (wav + mid, Reaper), terug naar de library">
+                      {busy === `${t.group}:edit` ? '…' : '✎'}
                     </button>
                   </td>
                 </tr>

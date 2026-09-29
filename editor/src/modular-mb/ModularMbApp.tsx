@@ -50,6 +50,7 @@ import { PatcherPanel } from './PatcherPanel';
 import { SimulationPanel } from './SimulationPanel';
 import { SimQuickBar } from './sim/SimQuickBar';
 import { MidiMonitorHost } from './sim/MidiMonitorWindow';
+import { TakeEditorHost } from './sim/TakeEditorWindow';
 import { ControlSurfacePanel } from './ControlSurfacePanel';
 import { PresetsModal } from './PresetsModal';
 import { TeensyLinkModal } from './TeensyLinkModal';
@@ -727,6 +728,7 @@ export function ModularMbApp(): JSX.Element {
         <SimQuickBar />
       </nav>
       <MidiMonitorHost />
+      <TakeEditorHost />
 
       {tab === 'patches'    && <PatchesPanel />}
       {tab === 'modules'    && <ModulesPanel />}

@@ -28,6 +28,7 @@ import {
 import type { ModularProject, Patch, ControlValue } from './types';
 import { MidiFileSource, parseSmf } from './sim/midiFilePlayer';
 import { TakeLibraryPanel } from './sim/TakeLibraryPanel';
+import { openTakeEditor, takeFromBytes } from './sim/TakeEditorWindow';
 import { addPatchSnapshot } from './sim/takeLibrary';
 import { MidiFileUi } from './sim/MidiFileUi';
 import { midiMonitor } from './sim/midiMonitor';
@@ -95,6 +96,19 @@ export function SimulationPanel(): JSX.Element {
   const [lib, setLib] = useState<LibrarySettings>(loadLibrarySettings);
   const [libOpen, setLibOpen] = useState(false);
   const [takesOpen, setTakesOpen] = useState(false);
+  async function editLastTake(): Promise<void> {
+    if (!lastTake) return;
+    try {
+      const wav = lastTake.files.find((f) => f.name.endsWith('.wav'));
+      const mid = lastTake.files.find((f) => f.name.endsWith('.mid'));
+      const patchFile = lastTake.files.find((f) => f.name.endsWith('.patch.json'));
+      if (!wav) return;
+      openTakeEditor(takeFromBytes(lastTake.group, new Uint8Array(await wav.blob.arrayBuffer()),
+        mid ? new Uint8Array(await mid.blob.arrayBuffer()) : null, patchFile?.blob ?? null));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
   function takeMidi(bytes: Uint8Array, name: string, slug: string): void {
     const file = sources.file as MidiFileSource;
     file.load(parseSmf(bytes), name, { slug });
@@ -475,6 +489,9 @@ export function SimulationPanel(): JSX.Element {
                 title="Zet deze opname (alle bestanden, als één koppel) in de media library van musicbrain.nl">
                 {libBusy ? '… bezig' : '⤴ Naar library'}
               </button>
+            )}
+            {lastTake && (
+              <button onClick={() => void editLastTake()} title="Deze opname in de take-editor openen: bijsnijden en exporteren">✎ Bewerken</button>
             )}
             <button onClick={() => setTakesOpen((v) => !v)} style={takesOpen ? { fontWeight: 600 } : undefined}
               title="Takes uit de media library: beluisteren, de MIDI afspelen, de patch terughalen">

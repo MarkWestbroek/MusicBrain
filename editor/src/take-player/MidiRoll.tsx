@@ -145,11 +145,14 @@ export interface MidiRollProps {
   label?: string;
   /** Controller-laag (modwheel, aftertouch, bend, CC) tonen; standaard aan. */
   controllers?: boolean;
+  /** Golfvorm achter de noten: min/max-paren over [0, peaksMs]. */
+  peaks?: Float32Array | null;
+  peaksMs?: number;
 }
 
 export function MidiRoll({
   playback: src, canPlay = true, onRequestStart, height, gridControls = false,
-  keyScope = 'focus', palette, tokens = true, hints = true, label, controllers = true,
+  keyScope = 'focus', palette, tokens = true, hints = true, label, controllers = true, peaks, peaksMs,
 }: MidiRollProps): ReactElement {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -254,6 +257,17 @@ export function MidiRoll({
         g.strokeStyle = m === 0 && off > 0 ? pal.label : pal.line;
         g.beginPath(); g.moveTo(x, RULER); g.lineTo(x, H); g.stroke();
         if (m >= 0 && m % labelEvery === 0) { g.fillStyle = pal.label; g.fillText(String(m + 1), x + 3, RULER / 2); }
+      }
+      if (peaks && peaks.length >= 2 && peaksMs) {
+        // Golfvorm achter de noten, gedempt.
+        const cols = peaks.length / 2, top = RULER + 1, hh = H - RULER - LANE - 2, mid = top + hh / 2;
+        g.fillStyle = pal.label; g.globalAlpha = 0.28;
+        for (let c = 0; c < cols; c++) {
+          const x0 = xOf((c / cols) * peaksMs), x1 = xOf(((c + 1) / cols) * peaksMs);
+          const lo = peaks[c * 2]!, hi = peaks[c * 2 + 1]!;
+          g.fillRect(x0, mid - hi * hh / 2, Math.max(1, x1 - x0), Math.max(1, (hi - lo) * hh / 2));
+        }
+        g.globalAlpha = 1;
       }
       const rh = (H - RULER - LANE - 4) / rows;
       g.fillStyle = pal.notes;

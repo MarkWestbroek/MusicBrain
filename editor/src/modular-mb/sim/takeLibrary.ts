@@ -85,7 +85,7 @@ export async function listTakes(
   return groupTakes(body.assets as LibraryAsset[]);
 }
 
-export async function fetchAsset(a: LibraryAsset, fetchImpl: typeof fetch = fetch): Promise<Uint8Array> {
+export async function fetchAsset(a: LibraryAsset, fetchImpl: typeof fetch = fetch): Promise<Uint8Array<ArrayBuffer>> {
   let res: Response;
   try { res = await fetchImpl(a.url); } catch (err) {
     throw new LibraryError(`Bestand niet op te halen (${err instanceof Error ? err.message : String(err)}). Heeft de library CORS op /api/assets?`);
