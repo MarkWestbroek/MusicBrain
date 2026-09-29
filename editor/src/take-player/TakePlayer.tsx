@@ -6,7 +6,7 @@
 // Zonder .mid (of als die niet te laden is) blijft alleen de audiospeler over,
 // met de standaardbediening van de browser.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { AudioPlayback } from './playback';
 import { parseSmf } from './smf';
 import { MidiRoll } from './MidiRoll';
@@ -26,7 +26,7 @@ export interface TakePlayerProps {
   hints?: boolean;
 }
 
-export function TakePlayer({ audioUrl, midiUrl, title, height = 160, controllers = true, hints = false }: TakePlayerProps): JSX.Element {
+export function TakePlayer({ audioUrl, midiUrl, title, height = 160, controllers = true, hints = false }: TakePlayerProps): ReactElement {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [pb, setPb] = useState<AudioPlayback | null>(null);
   const [hasMidi, setHasMidi] = useState(false);

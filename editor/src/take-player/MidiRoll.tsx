@@ -18,7 +18,7 @@
 //
 // Alleen React als afhankelijkheid. Canvas alleen client-side (in effects).
 
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type ReactElement } from 'react';
 import { noteSpans, controllerSeries, type CtlKind } from './smf';
 import type { Playback } from './playback';
 
@@ -107,8 +107,8 @@ export function describeRoll(bars: number, notes: number, controllers: string[])
 }
 
 type IconKind = 'back' | 'play' | 'pause' | 'stop' | 'fwd';
-function Icon({ kind }: { kind: IconKind }): JSX.Element {
-  const p: Record<IconKind, JSX.Element> = {
+function Icon({ kind }: { kind: IconKind }): ReactElement {
+  const p: Record<IconKind, ReactElement> = {
     back:  <><path d="M8 3 L1 8 L8 13 Z" /><path d="M15 3 L8 8 L15 13 Z" /></>,
     play:  <path d="M5 2.5 L13.5 8 L5 13.5 Z" />,
     pause: <><rect x="4" y="3" width="3" height="10" /><rect x="9" y="3" width="3" height="10" /></>,
@@ -150,7 +150,7 @@ export interface MidiRollProps {
 export function MidiRoll({
   playback: src, canPlay = true, onRequestStart, height, gridControls = false,
   keyScope = 'focus', palette, tokens = true, hints = true, label, controllers = true,
-}: MidiRollProps): JSX.Element {
+}: MidiRollProps): ReactElement {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const hintId = useId();
