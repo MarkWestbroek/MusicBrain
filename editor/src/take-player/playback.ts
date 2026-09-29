@@ -85,9 +85,10 @@ export class AudioPlayback implements Playback {
     this.listeners.clear();
   }
 
-  setFile(file: ParsedSmf | null, name: string | null = null): void {
+  /** Nieuw bestand; keepRegion houdt het lusvenster vast (bij bewerken), tenzij het bestand er zelf een heeft. */
+  setFile(file: ParsedSmf | null, name: string | null = null, keepRegion = false): void {
     this.file = file; this.name = name;
-    this.region = file?.loop ? { ...file.loop } : null;
+    this.region = file?.loop ? { ...file.loop } : keepRegion ? normRegion(this.region, this.durationMs()) : null;
     this.changed();
   }
 

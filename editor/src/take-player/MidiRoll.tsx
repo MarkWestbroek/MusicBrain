@@ -21,6 +21,20 @@
 import { useEffect, useId, useMemo, useRef, useState, type ReactElement } from 'react';
 import { noteSpans, controllerSeries, type CtlKind } from './smf';
 import type { Playback } from './playback';
+import { notesOf, moveNotes, resizeNotes, deleteNotes, snapTime, sortNotes, type EditNote, type EditGrid, type DrawKind } from './noteEdit';
+
+/** Bewerken in de rol (take-editor). Zonder = alleen afspelen (widget). */
+export interface RollEdit {
+  /** 'play' = klikken springt; 'notes' = noten selecteren/verplaatsen/rekken/toevoegen; 'draw' = controllerlijn tekenen in de laag. */
+  tool: 'play' | 'notes' | 'draw';
+  /** Onderverdeling van een tel voor vastklikken (4 = zestienden). */
+  div: number;
+  /** Nieuwe notenlijst na een bewerking (één stap ongedaan maken). */
+  onNotes(next: EditNote[]): void;
+  onSelection?(sel: number[]): void;
+  drawKind?: DrawKind;
+  onDraw?(points: { t: number; v: number }[]): void;
+}
 
 const RULER = 18;
 const H_KEY = 'mmb.midiroll.h';
@@ -148,11 +162,13 @@ export interface MidiRollProps {
   /** Golfvorm achter de noten: min/max-paren over [0, peaksMs]. */
   peaks?: Float32Array | null;
   peaksMs?: number;
+  /** Bewerken (take-editor); weg = alleen afspelen. */
+  edit?: RollEdit;
 }
 
 export function MidiRoll({
   playback: src, canPlay = true, onRequestStart, height, gridControls = false,
-  keyScope = 'focus', palette, tokens = true, hints = true, label, controllers = true, peaks, peaksMs,
+  keyScope = 'focus', palette, tokens = true, hints = true, label, controllers = true, peaks, peaksMs, edit,
 }: MidiRollProps): ReactElement {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -166,7 +182,23 @@ export function MidiRoll({
   const spans = useMemo(() => (file ? noteSpans(file) : []), [file]);
   const ctl = useMemo(() => (file && controllers ? controllerSeries(file) : []), [file, controllers]);
   // Laag onderin voor modwheel/aftertouch/bend/CC, alleen als ze er zijn.
-  const LANE = ctl.length && H >= 90 ? Math.round(Math.min(40, Math.max(22, H * 0.2))) : 0;
+  const tool = edit?.tool ?? 'play';
+  const LANE = tool === 'draw' && H >= 90 ? Math.max(40, Math.round(H * 0.25))
+    : ctl.length && H >= 90 ? Math.round(Math.min(40, Math.max(22, H * 0.2))) : 0;
+  // Bewerken: noten met kanaal, selectie, voorbeeld tijdens slepen.
+  const notes = useMemo(() => (file && edit ? notesOf(file) : []), [file, !!edit]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const [sel, setSel] = useState<number[]>([]);
+  const pendingSel = useRef<EditNote[] | null>(null);
+  const [preview, setPreview] = useState<EditNote[] | null>(null);
+  const [drawPts, setDrawPts] = useState<{ t: number; v: number }[] | null>(null);
+  useEffect(() => {
+    // Na een bewerking dezelfde noten weer selecteren.
+    const want = pendingSel.current; pendingSel.current = null;
+    const idx = want ? want.map((w) => notes.findIndex((n) => n.note === w.note && n.ch === w.ch && Math.abs(n.start - w.start) < 0.5)).filter((i) => i >= 0) : [];
+    setSel(idx); edit?.onSelection?.(idx);
+  }, [notes]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const select = (idx: number[]): void => { setSel(idx); edit?.onSelection?.(idx); };
+  const commit = (next: EditNote[], selected: EditNote[]): void => { pendingSel.current = selected; edit?.onNotes(sortNotes(next)); };
   const st = src.state();
 
   // Kleuren: tokens/palet, opnieuw bij een themawissel (data-theme/class op <html>).
@@ -210,9 +242,23 @@ export function MidiRoll({
   const msOf = (x: number): number => Math.max(0, Math.min(dur, (x / width) * dur));
   const snap = (ms: number, free: boolean): number => (free ? ms : off + Math.round((ms - off) / beatMs) * beatMs);
 
-  const lo = spans.length ? Math.min(...spans.map((s) => s.note)) - 2 : 48;
-  const hi = spans.length ? Math.max(...spans.map((s) => s.note)) + 2 : 72;
+  const pitchSrc: { note: number }[] = edit ? notes : spans;
+  const margin = edit ? 4 : 2;
+  let lo = pitchSrc.length ? Math.min(...pitchSrc.map((s) => s.note)) - margin : 48;
+  let hi = pitchSrc.length ? Math.max(...pitchSrc.map((s) => s.note)) + margin : 72;
+  if (edit && hi - lo < 24) { const c = Math.round((hi + lo) / 2); lo = c - 12; hi = c + 12; }
   const rows = Math.max(1, hi - lo + 1);
+  const rhOf = (): number => (H - RULER - LANE - 4) / rows;
+  const gridE = (): EditGrid => ({ beatMs, offsetMs: off, div: edit?.div ?? 4 });
+  /** Welke noot onder (x, y), en of je de rechterrand pakt. */
+  const hitNote = (x: number, y: number): { i: number; edge: boolean } | null => {
+    const shown = preview ?? notes, rh = rhOf();
+    for (let i = shown.length - 1; i >= 0; i--) {
+      const n = shown[i]!, x0 = xOf(n.start), x1 = Math.max(x0 + 3, xOf(n.end)), y0 = RULER + 2 + (hi - n.note) * rh;
+      if (x >= x0 - 1 && x <= x1 + 1 && y >= y0 && y <= y0 + Math.max(3, rh)) return { i, edge: x1 - x0 > 8 && x >= x1 - 5 };
+    }
+    return null;
+  };
 
   useEffect(() => {
     const cv = canvasRef.current;
@@ -271,11 +317,17 @@ export function MidiRoll({
       }
       const rh = (H - RULER - LANE - 4) / rows;
       g.fillStyle = pal.notes;
-      for (const n of spans) {
+      const shown: { note: number; start: number; end: number; vel: number }[] = preview ?? (edit ? notes : spans);
+      const selSet = new Set(sel);
+      shown.forEach((n, i) => {
         const x = xOf(n.start), w = Math.max(1.5, xOf(n.end) - x), y = RULER + 2 + (hi - n.note) * rh;
         g.globalAlpha = 0.35 + 0.65 * (n.vel / 127);
         g.fillRect(x, y, w, Math.max(1.5, rh - 1));
-      }
+        if (selSet.has(i)) {
+          g.globalAlpha = 1; g.strokeStyle = pal.playhead; g.lineWidth = 1.5;
+          g.strokeRect(x + 0.5, y + 0.5, Math.max(1, w - 1), Math.max(1, rh - 2)); g.lineWidth = 1;
+        }
+      });
       g.globalAlpha = 1;
       if (LANE) {
         const top = H - LANE;
@@ -295,6 +347,12 @@ export function MidiRoll({
           g.stroke();
         }
         g.globalAlpha = 1; g.lineWidth = 1;
+        if (drawPts && drawPts.length) {
+          // Wat je nu tekent, over de laag heen.
+          g.strokeStyle = pal.playhead; g.lineWidth = 2; g.beginPath();
+          drawPts.forEach((p, i) => { const x = xOf(p.t), y = yOf(p.v); if (i === 0) g.moveTo(x, y); else g.lineTo(x, y); });
+          g.stroke(); g.lineWidth = 1;
+        }
       }
       const px = Math.round(xOf(s.posMs)) + 0.5;
       g.strokeStyle = pal.playhead; g.lineWidth = 1.5; g.globalAlpha = s.playing ? 1 : 0.7;
@@ -306,7 +364,11 @@ export function MidiRoll({
   });
 
   // Slepen in de rol
-  type Drag = { kind: 'draw' | 'left' | 'right' | 'inside' | 'notes'; x0: number; moved: boolean; fixed?: number };
+  type Drag = {
+    kind: 'draw' | 'left' | 'right' | 'inside' | 'notes' | 'nmove' | 'nresize' | 'ctl';
+    x0: number; moved: boolean; fixed?: number;
+    y0?: number; anchor?: number; base?: EditNote[]; idx?: number[];
+  };
   const drag = useRef<Drag | null>(null);
   const [cursor, setCursor] = useState('pointer');
   const regionPx = (): { x0: number; x1: number } | null => st.region ? { x0: xOf(st.region.start), x1: xOf(st.region.end) } : null;
@@ -316,7 +378,27 @@ export function MidiRoll({
     const y = e.clientY - e.currentTarget.getBoundingClientRect().top;
     const x = localX(e);
     e.currentTarget.setPointerCapture(e.pointerId);
-    if (y >= RULER) { drag.current = { kind: 'notes', x0: x, moved: false }; src.seek(msOf(x)); return; }
+    if (y >= RULER) {
+      const inLane = LANE > 0 && y >= H - LANE;
+      if (tool === 'draw' && inLane) {
+        drag.current = { kind: 'ctl', x0: x, moved: false };
+        setDrawPts([{ t: msOf(x), v: laneV(y) }]);
+        return;
+      }
+      if (tool === 'notes' && !inLane) {
+        const h = hitNote(x, y);
+        if (h) {
+          let s2 = sel;
+          if (e.shiftKey) s2 = sel.includes(h.i) ? sel.filter((i) => i !== h.i) : [...sel, h.i];
+          else if (!sel.includes(h.i)) s2 = [h.i];
+          select(s2);
+          drag.current = { kind: h.edge ? 'nresize' : 'nmove', x0: x, y0: y, moved: false, anchor: h.i, base: notes, idx: s2.includes(h.i) ? s2 : [h.i] };
+          return;
+        }
+        if (!e.shiftKey) select([]);
+      }
+      drag.current = { kind: 'notes', x0: x, moved: false }; src.seek(msOf(x)); return;
+    }
     const hit = rulerHit(x, regionPx());
     const r = st.region;
     drag.current = hit === 'left' && r ? { kind: 'left', x0: x, moved: false, fixed: r.end }
@@ -326,14 +408,29 @@ export function MidiRoll({
   function move(e: React.PointerEvent<HTMLCanvasElement>): void {
     const d = drag.current;
     const x = localX(e);
+    const y = e.clientY - e.currentTarget.getBoundingClientRect().top;
     if (!d) {
-      const y = e.clientY - e.currentTarget.getBoundingClientRect().top;
-      const hit = y < RULER ? rulerHit(x, regionPx()) : 'outside';
-      const c = hit === 'left' || hit === 'right' ? 'ew-resize' : 'pointer';
+      let c = 'pointer';
+      if (y < RULER) { const hit = rulerHit(x, regionPx()); if (hit === 'left' || hit === 'right') c = 'ew-resize'; }
+      else if (tool === 'draw' && LANE && y >= H - LANE) c = 'crosshair';
+      else if (tool === 'notes') { const h = hitNote(x, y); c = h ? (h.edge ? 'ew-resize' : 'move') : 'default'; }
       if (c !== cursor) setCursor(c);
       return;
     }
-    if (Math.abs(x - d.x0) > 3) d.moved = true;
+    if (Math.abs(x - d.x0) > 3 || Math.abs(y - (d.y0 ?? y)) > 3) d.moved = true;
+    if ((d.kind === 'nmove' || d.kind === 'nresize') && d.base && d.idx && d.anchor !== undefined) {
+      if (!d.moved) return;
+      const a = d.base[d.anchor]!, dt = msOf(x) - msOf(d.x0), g = gridE();
+      if (d.kind === 'nmove') {
+        const ns = e.altKey ? a.start + dt : snapTime(a.start + dt, g);
+        setPreview(moveNotes(d.base, d.idx, ns - a.start, -Math.round((y - (d.y0 ?? y)) / rhOf())));
+      } else {
+        const ne = e.altKey ? a.end + dt : snapTime(a.end + dt, g);
+        setPreview(resizeNotes(d.base, d.idx, ne - a.end));
+      }
+      return;
+    }
+    if (d.kind === 'ctl') { setDrawPts((p) => [...(p ?? []), { t: msOf(x), v: laneV(y) }]); return; }
     if (d.kind === 'notes') src.seek(msOf(x));
     else if ((d.kind === 'left' || d.kind === 'right') && d.fixed !== undefined) src.setRegion({ start: snap(msOf(x), e.altKey), end: d.fixed });
     else if (d.kind === 'draw' && d.moved) src.setRegion({ start: snap(msOf(d.x0), e.altKey), end: snap(msOf(x), e.altKey) });
@@ -342,6 +439,35 @@ export function MidiRoll({
     const d = drag.current;
     drag.current = null;
     if ((d?.kind === 'draw' || d?.kind === 'inside') && !d.moved) src.seek(msOf(localX(e)));
+    if ((d?.kind === 'nmove' || d?.kind === 'nresize') && preview && d.idx) {
+      commit(preview, d.idx.map((i) => preview[i]!));
+      setPreview(null);
+    }
+    if (d?.kind === 'ctl') {
+      const pts = drawPts ?? [];
+      setDrawPts(null);
+      if (pts.length) edit?.onDraw?.(pts);
+    }
+  }
+  /** Waarde 0..1 op hoogte y in de controller-laag. */
+  function laneV(y: number): number {
+    const top = H - LANE;
+    return Math.max(0, Math.min(1, 1 - (y - top - 2) / Math.max(1, LANE - 4)));
+  }
+  function onDouble(e: React.MouseEvent<HTMLCanvasElement>): void {
+    const x = localX(e), y = e.clientY - e.currentTarget.getBoundingClientRect().top;
+    if (tool === 'notes' && y >= RULER && !(LANE && y >= H - LANE)) {
+      // Dubbelklik: op een noot = weghalen, op een lege plek = noot toevoegen (één tel).
+      const h = hitNote(x, y);
+      if (h) { commit(deleteNotes(notes, [h.i]), []); return; }
+      const g = gridE();
+      const start = Math.max(0, e.altKey ? msOf(x) : snapTime(msOf(x), g));
+      const pitch = Math.max(0, Math.min(127, hi - Math.floor((y - RULER - 2) / rhOf())));
+      const n: EditNote = { note: pitch, start, end: start + beatMs, vel: 100, ch: 0 };
+      commit([...notes, n], [n]);
+      return;
+    }
+    if (inRegion(x) && (tool === 'play' || y < RULER)) src.setRegion(null);
   }
 
   const taps = useRef<number[]>([]);
@@ -371,7 +497,24 @@ export function MidiRoll({
   };
   /** Toetsen met focus in de rol. */
   function onKeyDown(e: React.KeyboardEvent<HTMLDivElement>): void {
-    if (typing(e.target) || e.ctrlKey || e.metaKey || e.altKey || !file) return;
+    if (typing(e.target) || !file) return;
+    if (tool === 'notes') {
+      const mod = e.ctrlKey || e.metaKey;
+      if (mod && e.key.toLowerCase() === 'a') { select(notes.map((_, i) => i)); e.preventDefault(); return; }
+      if (e.key === 'Escape') { select([]); e.preventDefault(); return; }
+      if (sel.length && (e.key === 'Delete' || e.key === 'Backspace')) { commit(deleteNotes(notes, sel), []); e.preventDefault(); return; }
+      if (sel.length && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+        const dp = (e.key === 'ArrowUp' ? 1 : -1) * (e.shiftKey ? 12 : 1);
+        const next = moveNotes(notes, sel, 0, dp);
+        commit(next, sel.map((i) => next[i]!)); e.preventDefault(); return;
+      }
+      if (sel.length && (e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !mod) {
+        const g = gridE(), stepMs = (g.beatMs / g.div) * (e.key === 'ArrowLeft' ? -1 : 1);
+        const next = moveNotes(notes, sel, stepMs, 0);
+        commit(next, sel.map((i) => next[i]!)); e.preventDefault(); return;
+      }
+    }
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.code === 'Space') { if (!e.repeat) toggle(); }
     else if (e.key === 'ArrowLeft') step(-1, e.shiftKey);
     else if (e.key === 'ArrowRight') step(1, e.shiftKey);
@@ -431,7 +574,7 @@ export function MidiRoll({
       <canvas ref={canvasRef} role="img" aria-label={summary} aria-describedby={hints ? hintId : undefined}
         style={{ width, height: H, display: 'block', borderRadius: height === undefined ? '4px 4px 0 0' : 4, cursor, touchAction: 'none' }}
         onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={() => { drag.current = null; }}
-        onDoubleClick={(e) => { if (inRegion(localX(e))) src.setRegion(null); }} />
+        onDoubleClick={onDouble} />
       {height === undefined && (
         <div onPointerDown={gripDown} onPointerMove={gripMove} onPointerUp={gripUp} title="Sleep om de hoogte te veranderen"
           style={{ height: 6, background: pal.surface, borderRadius: '0 0 4px 4px', cursor: 'ns-resize', touchAction: 'none',
@@ -472,7 +615,10 @@ export function MidiRoll({
         {!gridControls && <span>{Math.round(grid.bpm * 10) / 10} BPM</span>}
         {st.region
           ? <span style={{ color: pal.region }} title="Dubbelklik op het venster om het weg te halen">lus {fmt(st.region.start)}–{fmt(st.region.end)}</span>
-          : hints ? <span id={hintId}>Sleep in de liniaal voor een lusvenster (klikt op tellen, Alt = vrij). Spatie = afspelen/pauze.</span> : null}
+          : hints ? <span id={hintId}>{tool === 'notes'
+              ? 'Klik = selecteren (Shift = erbij), slepen = verplaatsen, rand = rekken, dubbelklik = toevoegen/weghalen, Delete, ↑/↓ = toonhoogte, Ctrl+A. Alt = vrij van het raster.'
+              : tool === 'draw' ? 'Teken in de laag onderin een controllerlijn.'
+              : 'Sleep in de liniaal voor een lusvenster (klikt op tellen, Alt = vrij). Spatie = afspelen/pauze.'}</span> : null}
         {ctlKinds.length > 0 && (
           <span style={{ display: 'inline-flex', gap: 8 }} title="Controller-laag onderin de rol">
             {ctlKinds.map((k) => (

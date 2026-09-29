@@ -5,7 +5,8 @@
 // of vervangen). Openen vanuit 📚 Takes (✎), na een opname, of met bestanden.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { MidiRoll } from '../../take-player/MidiRoll';
+import { MidiRoll, type RollEdit } from '../../take-player/MidiRoll';
+import { notesOf, rebuildSmf, quantize, setVelocity, drawController, type EditNote, type DrawKind } from '../../take-player/noteEdit';
 import { AudioPlayback } from '../../take-player/playback';
 import { parseSmf, type ParsedSmf } from '../../take-player/smf';
 import { EDITOR_PALETTE } from './MidiRoll';
@@ -75,6 +76,12 @@ function TakeEditorWindow({ initial, onClose }: { initial: TakeDoc; onClose: () 
   // De patch van de take als SysEx op tel 0 van de .mid: speelt een DAW de
   // .mid af naar de MusicBrain, dan komt eerst de klank mee.
   const [embedPatch, setEmbedPatch] = useState(true);
+  // Bewerken: gereedschap, raster, selectie, kwantiseren, controller tekenen.
+  const [tool, setTool] = useState<RollEdit['tool']>('play');
+  const [div, setDiv] = useState(4);
+  const [selIdx, setSelIdx] = useState<number[]>([]);
+  const [strength, setStrength] = useState(100);
+  const [drawSel, setDrawSel] = useState('mod');
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [pos, setPos] = useState(() => ({ x: Math.max(16, (window.innerWidth - 800) / 2), y: 70 }));
@@ -97,7 +104,7 @@ function TakeEditorWindow({ initial, onClose }: { initial: TakeDoc; onClose: () 
     return () => { p.destroy(); setPb(null); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wavUrl]);
-  useEffect(() => { pb?.setFile(midi, doc.name); }, [pb, doc.midi]);
+  useEffect(() => { pb?.setFile(midi, doc.name, true); }, [pb, doc.midi]);
   const [, setTick] = useState(0);
   useEffect(() => pb?.onState(() => setTick((x) => x + 1)), [pb]);   // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -148,8 +155,33 @@ function TakeEditorWindow({ initial, onClose }: { initial: TakeDoc; onClose: () 
     }
     setHistory((h) => [...h, doc]);
     setDoc({ ...doc, wav, midi: newMidi });
+    pb?.setRegion(null);   // het venster is nu het hele stuk
     setMsg({ ok: true, text: `Bijgesneden tot ${((region.end - region.start) / 1000).toFixed(2)} s.` });
   }
+
+  /** Een bewerking van de MIDI: één stap in de geschiedenis. */
+  function applyMidi(next: ParsedSmf, text?: string): void {
+    setHistory((h) => [...h, doc]);
+    setDoc({ ...doc, midi: next });
+    if (text) setMsg({ ok: true, text });
+  }
+  const editNotes = useMemo(() => notesOf(midi), [midi]);
+  const drawKind = (): DrawKind => drawSel === 'at' ? { type: 'at' } : drawSel === 'bend' ? { type: 'bend' } : { type: 'cc', cc: drawSel === 'mod' ? 1 : Number(drawSel.replace('cc', '')) || 1 };
+  const rollEdit: RollEdit | undefined = tool === 'play' ? undefined : {
+    tool, div,
+    onNotes: (next: EditNote[]) => applyMidi(rebuildSmf(midi, next)),
+    onSelection: setSelIdx,
+    drawKind: drawKind(),
+    onDraw: (pts) => applyMidi(drawController(midi, drawKind(), pts), `Controllerlijn getekend (${pts.length} punten).`),
+  };
+  function doQuantize(): void {
+    const idx = selIdx.length ? selIdx : editNotes.map((_, i) => i);
+    if (!idx.length) return;
+    const g = pb?.grid() ?? { bpm: midi.bpm, offsetMs: 0, beatsPerBar: midi.beatsPerBar };
+    const next = quantize(editNotes, idx, { beatMs: 60_000 / g.bpm, offsetMs: g.offsetMs, div }, strength / 100);
+    applyMidi(rebuildSmf(midi, next), `${idx.length} noten gekwantiseerd (raster ${({ 1: "1/4", 2: "1/8", 3: "1/8 triool", 4: "1/16", 6: "1/16 triool", 8: "1/32" } as Record<number, string>)[div] ?? div}, ${strength}%).`);
+  }
+  const selVel = selIdx.length ? Math.round(selIdx.reduce((a, i) => a + (editNotes[i]?.vel ?? 0), 0) / selIdx.length) : null;
 
   function undo(): void {
     const prev = history[history.length - 1];
@@ -247,7 +279,49 @@ function TakeEditorWindow({ initial, onClose }: { initial: TakeDoc; onClose: () 
       </div>
       <div style={{ padding: '0 12px' }}>
         <audio ref={audioRef} src={wavUrl} preload="auto" style={{ display: 'none' }} />
-        {pb && <MidiRoll playback={pb} palette={EDITOR_PALETTE} tokens={false} keyScope="focus" peaks={peaks} peaksMs={durMs} label={`Take ${name}`} />}
+        {pb && <MidiRoll playback={pb} palette={EDITOR_PALETTE} tokens={false} keyScope="focus" peaks={peaks} peaksMs={durMs} label={`Take ${name}`} edit={rollEdit} />}
+      </div>
+      <div style={row} role="toolbar" aria-label="Bewerken">
+        <span style={{ display: 'inline-flex', gap: 2 }}>
+          {([['play', '▶ Afspelen', 'Klikken springt in de take'], ['notes', '✎ Noten', 'Noten selecteren, verplaatsen, rekken, toevoegen, weghalen'], ['draw', '〰 Controller', 'Een controllerlijn tekenen in de laag onderin']] as const).map(([t, lab, tip]) => (
+            <button key={t} onClick={() => setTool(t)} aria-pressed={tool === t} title={tip}
+              style={tool === t ? { fontWeight: 700, background: '#e0f2fe' } : undefined}>{lab}</button>
+          ))}
+        </span>
+        <label title="Raster voor vastklikken en kwantiseren">raster
+          <select value={div} onChange={(e) => setDiv(Number(e.target.value))}>
+            {[[1, '1/4'], [2, '1/8'], [3, '1/8 triool'], [4, '1/16'], [6, '1/16 triool'], [8, '1/32']].map(([d, l]) => <option key={d} value={d}>{l}</option>)}
+          </select>
+        </label>
+        {tool === 'notes' && (
+          <>
+            <button onClick={doQuantize} title={selIdx.length ? 'De geselecteerde noten kwantiseren' : 'Alle noten kwantiseren'}>
+              ⊞ Kwantiseer {selIdx.length ? `(${selIdx.length})` : '(alles)'}
+            </button>
+            <label title="Hoe ver de noten naar het raster schuiven">sterkte
+              <input type="number" min={0} max={100} step={10} value={strength} onChange={(e) => setStrength(Math.max(0, Math.min(100, Number(e.target.value) || 0)))} style={{ width: 48 }} />%
+            </label>
+            {selVel !== null && (
+              <label title="Velocity van de selectie (1–127)">velocity
+                <input type="number" min={1} max={127} value={selVel} style={{ width: 52 }}
+                  onChange={(e) => { const v = Number(e.target.value); if (v >= 1 && v <= 127) applyMidi(rebuildSmf(midi, setVelocity(editNotes, selIdx, v))); }} />
+              </label>
+            )}
+          </>
+        )}
+        {tool === 'draw' && (
+          <label title="Welke controller je tekent">controller
+            <select value={drawSel} onChange={(e) => setDrawSel(e.target.value)}>
+              <option value="mod">Modwheel (CC 1)</option>
+              <option value="at">Aftertouch</option>
+              <option value="bend">Pitch bend</option>
+              <option value="cc74">CC 74 (cutoff)</option>
+              <option value="cc71">CC 71 (resonantie)</option>
+              <option value="cc11">CC 11 (expressie)</option>
+              <option value="cc64">CC 64 (sustain)</option>
+            </select>
+          </label>
+        )}
       </div>
       <div style={row}>
         <button onClick={crop} disabled={!region} title={region ? 'Audio en MIDI samen bijsnijden tot het lusvenster' : 'Sleep eerst in de liniaal een venster'}>
