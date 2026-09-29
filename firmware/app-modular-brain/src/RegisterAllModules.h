@@ -93,6 +93,7 @@
 #include "CombModule.h"
 #include "PhaserModule.h"
 #include "NoiseModule.h"
+#include "AudioInModule.h"
 #include "VcaModule.h"
 #include "StereoVcaModule.h"
 #include "VcfModule.h"
@@ -174,6 +175,7 @@ inline void registerAllRuntimeModules() {
     CombModule::registerFactory();      // FW-AU-3: tuned comb resonator
     PhaserModule::registerFactory();    // FW-AU-2: all-pass phaser
     NoiseModule::registerFactory();     // wit/roze/bruin (mmb-dsp), ook als wasm in de simulator
+    AudioInModule::registerFactory();   // USB-audio van de pc als bron (AudioInputUSB); sim = microfoon
     VcaModule::registerFactory();
     StereoVcaModule::registerFactory(); // FW-AU-1: stereo VCA / panner
     VcfModule::registerFactory();

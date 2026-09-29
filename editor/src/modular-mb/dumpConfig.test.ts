@@ -10,7 +10,7 @@ import { writeFileSync } from 'node:fs';
 import { it } from 'vitest';
 
 import { emptyModularProject } from './types';
-import { HARMONIZER_SOLO_FX, OCTAVER_SOLO_FX, REVERB_SOLO_FX, RINGMOD_SOLO_FX, SAMPLER_MASTER_FX, STEREO_TAPE_SOLO_FX, TREMOLO_SOLO_FX, VIBE_SOLO_FX, ROTARY_SOLO_FX, SHIMMER_SOLO_FX, seedInternals, seedPolyVoicePatch, seedSamplerPolyPatch, seedSoloVoicePatch } from './seedModules';
+import { HARMONIZER_SOLO_FX, OCTAVER_SOLO_FX, REVERB_SOLO_FX, RINGMOD_SOLO_FX, SAMPLER_MASTER_FX, STEREO_TAPE_SOLO_FX, TREMOLO_SOLO_FX, VIBE_SOLO_FX, ROTARY_SOLO_FX, SHIMMER_SOLO_FX, seedInternals, seedPolyVoicePatch, seedSamplerPolyPatch, seedSoloVoicePatch, seedVocoderChoirPatch } from './seedModules';
 import { seedSid3Patch, seedSidPolyPatch } from './seedSid';
 import { buildConfigPayload } from './teensyLink';
 
@@ -37,6 +37,9 @@ const seeds = {
   'sampler-wah': () => seedSamplerPolyPatch(seedInternals(emptyModularProject()), 8, true),
   'sampler-wah-fet': () => seedSamplerPolyPatch(seedInternals(emptyModularProject()), 8, true, true),
   'sampler-master': () => seedSamplerPolyPatch(seedInternals(emptyModularProject()), 8, false, SAMPLER_MASTER_FX),
+  // Koor (sampler) als drager van Warps' vocoder; modulator = Plaits Speech of AUDIO IN.
+  'vocoder-choir': () => seedVocoderChoirPatch(seedInternals(emptyModularProject()), 'plaits'),
+  'vocoder-mic':   () => seedVocoderChoirPatch(seedInternals(emptyModularProject()), 'mic'),
 };
 
 it.skipIf(!process.env.MMB_DUMP_CONFIG)('config-payload naar bestand', () => {

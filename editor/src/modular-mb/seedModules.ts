@@ -1311,6 +1311,33 @@ function mmbNoise() {
   });
 }
 
+// 9b. MMB AUDIO IN — 4 HP. Geluid van buiten de patch in: op de Teensy de
+//     USB-audio die de pc naar hem afspeelt (AudioInputUSB), in de simulator
+//     de microfoon van de browser. Zie AudioInModule.h en
+//     doc/teensy-aan-de-pc.md §5.
+function mmbAudioIn() {
+  const w = W(4);
+  return assemble({
+    typeId: 'tp_mmb_audioin',
+    categoryId: 'utility',
+    variant: 'Audio input',
+    brand: 'MMB', model: 'AUDIO IN',
+    hp: 4, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'IN',   fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13,  text: 'mic · usb', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB',  fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('level', 'Level', w/2, 30, { size: 'large', min: 0, max: 2, def: 1, color: '#f9fafb' }),
+      sw  ('mono', 'Mono', w/2, 62, ['stereo', 'mono'], 1),
+      outPort('out_l', 'L', 'audio', w*0.30, 100),
+      outPort('out_r', 'R', 'audio', w*0.70, 100),
+    ],
+    notes: 'Audio-ingang. In de simulator: de microfoon van de browser (de standaard-ingang van je systeem; de browser vraagt toestemming). Op de Teensy: wat de pc naar het afspeelapparaat "Teensy MIDI/Audio" stuurt — zet in Windows bij je headset-microfoon "Listen to this device" aan met de Teensy als afspeelapparaat. Mono sommeert L+R naar beide uitgangen (een microfoon is mono). Gebruik een koptelefoon, anders gaat het rondzingen.',
+  });
+}
+
 // 10. MMB ECHO — 6 HP. Stereo-feedback delay (Tone.FeedbackDelay).
 function mmbEcho() {
   const w = W(6);
@@ -3431,7 +3458,7 @@ function mmbEnvFollowerMono() {
 // ── public entry ───────────────────────────────────────────────────────
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbEcho(), mmbTapeEcho(), mmbStereoTapeEcho(), mmbDigitalEcho(), mmbBbdChorus(), mmbRingMod(), mmbOctaver(), mmbHarmonizer(), mmbReverb(), mmbTremolo(), mmbStereoPhaser(), mmbVibe(), mmbRotary(), mmbShimmer(), mmbFetComp(),mmbOptoComp(), mmbBusComp(),mmbVariMuComp(), mmbProgramEq(), mmbDiodeComp(), mmbConsoleEq(), mmbParaEq(), mmbSampler(), mmbSid(), mmbSid3(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbEnvFollower(), mmbEnvFollowerMono()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbAudioIn(), mmbEcho(), mmbTapeEcho(), mmbStereoTapeEcho(), mmbDigitalEcho(), mmbBbdChorus(), mmbRingMod(), mmbOctaver(), mmbHarmonizer(), mmbReverb(), mmbTremolo(), mmbStereoPhaser(), mmbVibe(), mmbRotary(), mmbShimmer(), mmbFetComp(),mmbOptoComp(), mmbBusComp(),mmbVariMuComp(), mmbProgramEq(), mmbDiodeComp(), mmbConsoleEq(), mmbParaEq(), mmbSampler(), mmbSid(), mmbSid3(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbEnvFollower(), mmbEnvFollowerMono()];
   const newTypes = all.map((x) => x.type);
 
   // Upgrade-pad: bestaande interne types worden in-place VERVANGEN (zelfde
@@ -4699,8 +4726,112 @@ export function seedWarpsVocoderPatch(project: ModularProject): ModularProject {
       [mi.id]:     { channel: 0, voiceCount: 1 },
       [mar.id]:    { tempo: 220, bias: 0.45, jitter: 0.05, model: 0, dejavu: 0, length: 8, spread: 0.5, xbias: 0.5, steps: 0.8, scale: 2, range: 1 },
       [plaits.id]: { engine: 11, harmonics: 0.5, timbre: 0.5, morph: 0.5, decay: 0.6, lpg: 0.6 },  // 11 = Grain (heette hier string; nummering gecorrigeerd 2026-09-29, klank ongewijzigd)
-      [warps.id]:  { algo: 8, timbre: 0.5, shape: 3, drive1: 1, drive2: 1.3, coarse: 0, level: 0.85 },
+      [warps.id]:  { algo: 6.2, timbre: 0.5, shape: 3, drive1: 1, drive2: 1.3, coarse: 0, level: 0.85 },  // 6–8 = vocoder; 6,2 = snelle release (8 = bevroren)
       [out.id]:    { level: 0.85 },
+    },
+    envelopes: [], lfos: [],
+  };
+
+  return {
+    ...p,
+    racks:        [...p.racks, rack],
+    modules:      [...p.modules, ...all],
+    patches:      [...p.patches, patch],
+    activeRackId:  rack.id,
+    activePatchId: patch.id,
+  };
+}
+
+/**
+ * Het koor zingt woorden: de sampler (Concert Choir, bank 5) is de **drager**
+ * van Warps' vocoder, en de modulator levert de articulatie.
+ *
+ * - `modulator = 'plaits'`: Plaits' spraak-engine (15) spreekt bij elke
+ *   aanslag een woord uit de TI-woordbank; het koor neemt de klinkers en
+ *   medeklinkers over. Werkt zonder microfoon. Morph kiest het woord.
+ * - `modulator = 'mic'`: AUDIO IN — je eigen stem (simulator: microfoon van
+ *   de browser; Teensy: USB-audio van de pc). Praat of zing, en speel
+ *   akkoorden: het koor zingt wat jij zegt, op de noten die jij speelt.
+ *
+ * Warps staat op `shape` 0 (externe carrier op in1) en `algo` 6,2 (vocoder
+ * met snelle release; naar 8 toe worden de banden trager tot bevroren).
+ * De sampler is mono naar Warps (out_l); acht stemmen, dus akkoorden.
+ */
+export function seedVocoderChoirPatch(
+  project: ModularProject, modulator: 'plaits' | 'mic' = 'plaits', voiceCount = 8,
+): ModularProject {
+  const N = Math.max(2, Math.min(8, Math.round(voiceCount)));
+  const modType = modulator === 'mic' ? 'tp_mmb_audioin' : 'tp_mmb_plaits';
+  const needed = ['tp_mmb_midiin', 'tp_mmb_sampler', 'tp_mmb_warps', 'tp_mmb_out', modType];
+  const missing = needed.some((tid) => !project.moduleTypes.some((t) => t.id === tid))
+    || needed.some((tid) => !project.modules.some((m) => m.typeId === tid));
+  const p = missing ? seedInternals(project) : project;
+
+  const fresh = (tid: string): ModuleInstance => {
+    const proto = p.modules.find((m) => m.typeId === tid)!;
+    return { ...proto, id: uid('mod'), internal: false, visual: proto.visual };
+  };
+  const mi    = fresh('tp_mmb_midiin');
+  const smp   = fresh('tp_mmb_sampler');
+  const mod   = fresh(modType);
+  const warps = fresh('tp_mmb_warps');
+  const out   = fresh('tp_mmb_out');
+  const name = modulator === 'mic' ? 'Koor zingt jouw stem' : 'Koor zingt woorden';
+
+  let offset = 0;
+  const slot = (m: ModuleInstance): RackSlot => {
+    const s: RackSlot = { id: uid('slot'), moduleId: m.id, row: 0, hpOffset: offset };
+    offset += m.visual.hpWidth;
+    return s;
+  };
+  const all = [mi, smp, mod, warps, out];
+  const slots = all.map(slot);
+  const rack: Rack = {
+    id: uid('rack'), name,
+    description: `MidiIn → SAMPLER (koor, ${N} stemmen) = drager; ${modulator === 'mic' ? 'AUDIO IN (microfoon)' : 'Plaits Speech'} = modulator; Warps vocoder → OUT.`,
+    rows: 1, hpPerRow: Math.max(64, offset + 4),
+    slots,
+    kind: 'physical',
+    polyGroups: [{
+      id: uid('poly'), label: 'SAMPLER', voiceCount: N,
+      members: Array.from({ length: N }, (_, i) => ({
+        kind: 'cell' as const, moduleId: smp.id, cellGroupId: 'voice', cellIndex: i,
+      })),
+    }],
+  };
+
+  const c = (fm: ModuleInstance, fp: string, tm: ModuleInstance, tp: string): PatchConnection => ({
+    id: uid('conn'),
+    from: { moduleId: fm.id, portId: fp },
+    to:   { moduleId: tm.id, portId: tp },
+  });
+  const patch: Patch = {
+    id: uid('patch'), name,
+    description: (modulator === 'mic'
+      ? 'Praat of zing in de microfoon en speel akkoorden: het koor (sampler, bank 5) zingt wat jij zegt op de noten die jij speelt. Simulator: de browser vraagt toestemming voor de microfoon; gebruik een koptelefoon. Teensy: stuur je microfoon naar het afspeelapparaat "Teensy MIDI/Audio" (doc/teensy-aan-de-pc.md §5).'
+      : 'Speel akkoorden: bij elke aanslag spreekt Plaits (engine 15, Speech) een woord, en het koor (sampler, bank 5) zingt het via de vocoder. Morph kiest het woord, Harmonics de woordbank (boven 0,45), Timbre de formanten.')
+      + ' Warps Algo 6–8 = vocoder (6 = snel en verstaanbaar, 8 = bevroren klinker); Timbre = formantverschuiving (0,5 = neutraal); Drive 2 = hoe hard de modulator de banden opent.',
+    voiceCount: N,
+    rackIds: [rack.id],
+    connections: [
+      c(mi, 'pitch', smp, 'voct_1'),
+      c(mi, 'gate',  smp, 'gate_1'),
+      c(mi, 'vel',   smp, 'vel_1'),
+      c(smp, 'out_l', warps, 'in1'),
+      ...(modulator === 'mic'
+        ? [c(mod, 'out_l', warps, 'in2')]
+        : [c(mi, 'pitch', mod, 'voct'), c(mi, 'gate', mod, 'gate'), c(mod, 'out', warps, 'in2')]),
+      c(warps, 'out', out, 'l'),
+      c(warps, 'out', out, 'r'),
+    ],
+    controlState: {
+      [mi.id]:    { channel: 0, voiceCount: N, steal: 0 },
+      [smp.id]:   { bank: 5, level: 0.9 },
+      [mod.id]:   modulator === 'mic'
+        ? { level: 1.5, mono: 1 }
+        : { engine: 15, harmonics: 0.55, timbre: 0.5, morph: 0.3, decay: 0.8, lpg: 0.5, level: 0.9 },
+      [warps.id]: { algo: 6.2, timbre: 0.5, shape: 0, drive1: 1, drive2: 1.6, coarse: 0, level: 0.9 },  // 6–8 = vocoder; 6,2 = snelle release, verstaanbaar
+      [out.id]:   { level: 0.85 },
     },
     envelopes: [], lfos: [],
   };

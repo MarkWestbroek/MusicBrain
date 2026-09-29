@@ -13,7 +13,7 @@ import { startDemo, DemoCaption, type DemoState, type DemoHandle } from './recip
 import type { PatchOp } from './recipe/types';
 import { emptyModularProject } from './types';
 import { exportPanel, importPanel, parsePanelFile } from './panelIO';
-import { BUS_SOLO_FX, CONSOLE_EQ_SOLO_FX, PARA_EQ_SOLO_FX, DIODE_SOLO_FX, EQ_SOLO_FX, FET_SOLO_FX, OPTO_SOLO_FX, SAMPLER_MASTER_FX, VARIMU_SOLO_FX, STEREO_TAPE_SOLO_FX, DIGITAL_ECHO_SOLO_FX, BBD_SOLO_FX, RINGMOD_SOLO_FX, OCTAVER_SOLO_FX, HARMONIZER_SOLO_FX, REVERB_SOLO_FX, SPRING_SOLO_FX, TREMOLO_SOLO_FX, STEREO_PHASER_SOLO_FX, VIBE_SOLO_FX, ROTARY_SOLO_FX, SHIMMER_SOLO_FX, seedExampleModules, seedInternals, seedTestPatch, seedFmTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, seedDx7PolyPatch, seedSamplerPolyPatch, seedWarpsVocoderPatch, seed808JamPatch, seedKrellPatch, type PolySeedOptions } from './seedModules';
+import { BUS_SOLO_FX, CONSOLE_EQ_SOLO_FX, PARA_EQ_SOLO_FX, DIODE_SOLO_FX, EQ_SOLO_FX, FET_SOLO_FX, OPTO_SOLO_FX, SAMPLER_MASTER_FX, VARIMU_SOLO_FX, STEREO_TAPE_SOLO_FX, DIGITAL_ECHO_SOLO_FX, BBD_SOLO_FX, RINGMOD_SOLO_FX, OCTAVER_SOLO_FX, HARMONIZER_SOLO_FX, REVERB_SOLO_FX, SPRING_SOLO_FX, TREMOLO_SOLO_FX, STEREO_PHASER_SOLO_FX, VIBE_SOLO_FX, ROTARY_SOLO_FX, SHIMMER_SOLO_FX, seedExampleModules, seedInternals, seedTestPatch, seedFmTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, seedDx7PolyPatch, seedSamplerPolyPatch, seedWarpsVocoderPatch, seedVocoderChoirPatch, seed808JamPatch, seedKrellPatch, type PolySeedOptions } from './seedModules';
 import { seedCs80BrassPatch } from './seedBrass';
 import { seedAxelFLeadPatch } from './seedAxelF';
 import { seedSid3Patch, seedSidPolyPatch } from './seedSid';
@@ -630,6 +630,22 @@ export function ModularMbApp(): JSX.Element {
                     padding: '7px 12px', cursor: 'pointer', fontSize: 13,
                   }}
                 >🗣️ Warps vocoder</button>
+                <button
+                  onClick={() => { setProject(seedVocoderChoirPatch(getProject(), 'plaits')); setShowSolo(false); }}
+                  title="Het koor zingt woorden: de sampler (koor) is de drager van Warps' vocoder, Plaits' spraak-engine spreekt bij elke aanslag een woord. Speel akkoorden; Morph kiest het woord."
+                  style={{
+                    textAlign: 'left', border: 'none', background: 'transparent',
+                    padding: '7px 12px', cursor: 'pointer', fontSize: 13,
+                  }}
+                >🎶 Koor zingt woorden (vocoder)</button>
+                <button
+                  onClick={() => { setProject(seedVocoderChoirPatch(getProject(), 'mic')); setShowSolo(false); }}
+                  title="Het koor zingt jouw stem: praat of zing in de microfoon (AUDIO IN) en speel akkoorden. Gebruik een koptelefoon."
+                  style={{
+                    textAlign: 'left', border: 'none', background: 'transparent',
+                    padding: '7px 12px', cursor: 'pointer', fontSize: 13,
+                  }}
+                >🎤 Koor zingt jouw stem (vocoder + mic)</button>
                 <button
                   onClick={() => { setProject(seed808JamPatch(getProject())); setShowSolo(false); }}
                   title="Zelfspelend 808-ritme: Marbles klokt kick/snare/hat (Peaks-drums) door een mixer. Draai aan Marbles Deja vu voor een vaste groove."

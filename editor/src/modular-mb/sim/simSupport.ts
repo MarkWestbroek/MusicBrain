@@ -25,6 +25,7 @@ export type SimSupport = 'wasm' | 'tone' | 'none';
 /** Modules die `makeNode` uit Web Audio-nodes bouwt, buiten de wasm om. */
 const TONE_BY_TYPE_ID: ReadonlySet<string> = new Set([
   'tp_mmb_mixer', 'tp_mmb_mixer8', 'tp_mmb_mixer16', 'tp_mmb_out',
+  'tp_mmb_audioin',   // microfoon via getUserMedia (firmware: AudioInputUSB)
 ]);
 
 /**

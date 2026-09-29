@@ -146,3 +146,57 @@ config-push met dezelfde module-id hergebruikt de instantie, dus poke
 `bypass=0` expliciet als een eerdere run hem aanzette. En de eerste run na
 het flashen laadt de sampler zijn bank nog van de SD: doe eerst een korte
 opwarmrun voordat je een referentie opneemt.
+
+
+## 5. Geluid de Teensy in: microfoon, headset, DAW (AUDIO IN)
+
+De brain heeft geen analoge ingang, maar de USB-audio loopt in twee
+richtingen. Voor Windows is de Teensy behalve een microfoon óók een
+**afspeelapparaat** ("Teensy MIDI/Audio" bij de luidsprekers). Alles wat de pc
+daarheen afspeelt komt in de patch uit de module **AUDIO IN**
+(`tp_mmb_audioin`, sinds fw 0.5.91): `out_l` en `out_r`, met `level` en een
+`mono`-schakelaar (L+R naar beide uitgangen; standaard aan, want een
+microfoon is mono).
+
+### Een headset-microfoon naar de Teensy
+
+1. *Geluidsinstellingen → Meer geluidsinstellingen → tabblad Opnemen*.
+2. Dubbelklik je headset-microfoon → tabblad **Luisteren**.
+3. Vink *Naar dit apparaat luisteren* aan en kies bij *Afspelen via dit
+   apparaat* **Teensy MIDI/Audio**. Toepassen.
+4. Zet het niveau van de microfoon op het tabblad *Niveaus* rond 80–100.
+
+Je stem gaat nu rechtstreeks de Teensy in. Zet de Teensy **niet** als
+standaard-afspeelapparaat van Windows: dan gaat ook elk systeemgeluid de
+patch in. Een DAW of mediaspeler kan de Teensy per programma als uitgang
+kiezen.
+
+Let op de lus: staat bij de **Teensy** (tabblad Opnemen) óók *Luisteren* aan
+naar je headset (§1), dan hoor je jezelf via de patch terug — dat is de
+bedoeling bij een vocoder. Gebruik een koptelefoon, geen speakers: anders
+hoort de microfoon de uitgang en gaat het rondzingen.
+
+### In de simulator
+
+Daar is AUDIO IN de microfoon van de browser: de standaard-ingang van je
+systeem. De browser vraagt één keer toestemming; onder het Simulatie-paneel
+staat welke ingang hij gebruikt. Echo-onderdrukking, ruisfilter en
+automatische versterking staan uit, want die knippen juist de medeklinkers
+weg waar een vocoder van leeft. Wil je een andere microfoon: maak die in
+Windows de standaard-ingang en herlaad de pagina.
+
+### Testen zonder microfoon
+
+De seed **🎤 Koor zingt jouw stem** (Solo-menu) zet de keten klaar: sampler
+(koor, bank 5) als drager, AUDIO IN als modulator, Warps op de vocoder.
+Config dumpen voor `teensy_live.py`:
+
+```bash
+cd editor && MMB_DUMP_CONFIG=../cfg.json MMB_SEED=vocoder-mic \
+  npx vitest run src/modular-mb/dumpConfig.test.ts && cd ..
+```
+
+(`vocoder-choir` is dezelfde keten met Plaits' spraak-engine als modulator;
+die heeft geen ingang nodig.) Een lusproef — sinus naar het afspeelapparaat,
+patch AUDIO IN → OUT, opnemen — hoort het signaal één-op-één terug te geven:
+piek 0,5 erin is piek 0,5 eruit.

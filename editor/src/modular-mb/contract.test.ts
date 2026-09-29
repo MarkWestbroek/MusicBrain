@@ -36,6 +36,8 @@ import {
   PARA_EQ_SOLO_FX,
   SAMPLER_MASTER_FX,
   seedTestPatch,
+  seedVocoderChoirPatch,
+  seedWarpsVocoderPatch,
 } from './seedModules';
 
 // ── Contract laden ────────────────────────────────────────────────────────
@@ -90,6 +92,9 @@ function allSeededProject(): ModularProject {
   p = seedSoloVoicePatch(p, 'tp_mmb_rings', 'Rings', 'out_l', 'out_r', {}, CONSOLE_EQ_SOLO_FX);
   p = seedSoloVoicePatch(p, 'tp_mmb_plaits', 'Plaits', 'out', 'aux', {}, PARA_EQ_SOLO_FX);
   p = seedSamplerPolyPatch(p, 8, false, SAMPLER_MASTER_FX);
+  p = seedWarpsVocoderPatch(p);
+  p = seedVocoderChoirPatch(p, 'plaits');
+  p = seedVocoderChoirPatch(p, 'mic');
   return p;
 }
 

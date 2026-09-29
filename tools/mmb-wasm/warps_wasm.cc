@@ -1,11 +1,13 @@
 // tp_mmb_warps — Mutable Instruments Warps (spiegel van WarpsModule.h).
-// Native 44,1 kHz zoals de firmware (Modulator oversampled zelf), blok 32.
+// Native 44,1 kHz zoals de firmware (Modulator oversampled zelf), blok 60:
+// de filterbank van de vocoder decimeert ÷3 en ÷12 en wil een veelvoud van 12
+// (Warps' eigen blokgrootte; zie WarpsModule.h "Blokgrootte").
 #include "mmb_abi.h"
 #include "warps/dsp/modulator.h"
 
 const char* const MMB_TYPE_ID     = "tp_mmb_warps";
 const float       MMB_NATIVE_RATE = 44100.0f;
-const int         MMB_BLOCK       = 32;
+const int         MMB_BLOCK       = 60;
 
 enum { IN_1, IN_2, IN_VOCT, IN_ALGO, IN_TIMBRE };
 MmbPort MMB_INPUTS[] = {
@@ -26,8 +28,18 @@ const int MMB_NUM_CONTROLS = 7;
 namespace {
 warps::Modulator g_mod;
 float g_algoBase = 0.f, g_timbreBase = 0.5f, g_coarse = 0.f, g_level = 0.8f;
+int   g_shape = 0;
+// In het vocoder-gebied bestaat alleen shape 1..3 (de kern neemt shape + 1).
+void applyShape(float algo) {
+    int s = g_shape;
+    if (algo > 5.4f && s > 3) s = 3;
+    g_mod.mutable_parameters()->carrier_shape = s;
+}
 warps::ShortFrame g_in[MMB_MAX_BLOCK], g_out[MMB_MAX_BLOCK];
 float clamp02(float v) { return v < 0.f ? 0.f : (v > 2.f ? 2.f : v); }
+// Knop 0..8 → Warps-kern 0..1 (modulator.cc rekent zelf weer ×8); zie
+// WarpsModule.h "Algo-schaal".
+constexpr float kAlgoScale = 1.f / 8.f;
 }
 
 void mmb_setup() {
@@ -42,9 +54,9 @@ void mmb_setup() {
 void mmb_on_control(int idx, float v) {
     auto* p = g_mod.mutable_parameters();
     switch (idx) {
-        case C_ALGO:   g_algoBase = v < 0.f ? 0.f : (v > 8.f ? 8.f : v); p->modulation_algorithm = g_algoBase; break;
+        case C_ALGO:   g_algoBase = v < 0.f ? 0.f : (v > 8.f ? 8.f : v); p->modulation_algorithm = g_algoBase * kAlgoScale; applyShape(g_algoBase); break;
         case C_TIMBRE: g_timbreBase = mmb_clamp01(v); p->modulation_parameter = g_timbreBase; break;
-        case C_SHAPE:  { int s = static_cast<int>(v); if (s < 0) s = 0; if (s > 5) s = 5; p->carrier_shape = s; break; }
+        case C_SHAPE:  { int s = static_cast<int>(v); if (s < 0) s = 0; if (s > 5) s = 5; g_shape = s; applyShape(p->modulation_algorithm * 8.f); break; }
         case C_DRIVE1: p->channel_drive[0] = clamp02(v); break;
         case C_DRIVE2: p->channel_drive[1] = clamp02(v); break;
         case C_COARSE: g_coarse = v; p->note = 60.f + g_coarse; break;
@@ -55,7 +67,7 @@ void mmb_on_control(int idx, float v) {
 void mmb_process(int frames) {
     auto* p = g_mod.mutable_parameters();
     p->note = 60.f + 12.f * mmb_in0(IN_VOCT) + g_coarse;
-    if (mmb_connected(IN_ALGO)) { float a = g_algoBase + 4.f * mmb_in0(IN_ALGO); if (a < 0.f) a = 0.f; if (a > 8.f) a = 8.f; p->modulation_algorithm = a; }
+    if (mmb_connected(IN_ALGO)) { float a = g_algoBase + 4.f * mmb_in0(IN_ALGO); if (a < 0.f) a = 0.f; if (a > 8.f) a = 8.f; p->modulation_algorithm = a * kAlgoScale; applyShape(a); }
     if (mmb_connected(IN_TIMBRE)) { p->modulation_parameter = mmb_clamp01(g_timbreBase + mmb_in0(IN_TIMBRE)); }
     for (int k = 0; k < frames; ++k) {
         float a = MMB_INPUTS[IN_1].buf[k], b = MMB_INPUTS[IN_2].buf[k];

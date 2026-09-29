@@ -17,6 +17,37 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### fw 0.5.91 — AUDIO IN, en een Warps-vocoder die het doet (2026-09-29)
+- **Nieuwe module AUDIO IN** (`tp_mmb_audioin`): de USB-audio die de pc naar
+  het afspeelapparaat "Teensy MIDI/Audio" stuurt (`AudioInputUSB`) als bron
+  in de patch — `out_l`/`out_r`, `level` 0..2, `mono` (L+R naar beide,
+  standaard aan). Een headset-microfoon gaat erin via *Naar dit apparaat
+  luisteren*; zie [teensy-aan-de-pc.md §5](teensy-aan-de-pc.md). In de
+  simulator is het de microfoon van de browser (getUserMedia, rauw: zonder
+  echo-onderdrukking en AGC); het Simulatie-paneel toont welke ingang open
+  staat. Lusproef op de hardware: 440/660 Hz met piek 0,5 erin komt met piek
+  0,5 terug, en `mono` geeft beide tonen even sterk op L.
+- **Warps: drie fouten die samen de vocoder onbruikbaar maakten.**
+  (1) *Algo-schaal.* De knop loopt 0..8, de kern wil 0..1; de module gaf 0..8
+  ongeschaald door. Alles vanaf 1 was daardoor dezelfde bevroren vocoder en
+  de tussenliggende algoritmes (fold, ringmod, XOR, comparator) waren alleen
+  met een bijna-dichte knop te bereiken. Nu ÷8: 0 crossfade · 1 fold ·
+  2 analoge ringmod · 3 digitale ringmod · 4 XOR · 5 comparator · 6–8
+  vocoder, met de positie als release (6 snel, 8 bevroren).
+  **Bestaande patches met Warps klinken hierdoor anders** — ze doen nu wat
+  het paneel zegt. (2) *Blokgrootte.* De filterbank decimeert ÷3 en ÷12 en
+  rekent alleen goed op veelvouden van 12; de firmware voerde halve blokken
+  van 64 aan en de vocoder gaf op de Teensy NaN, dus exacte stilte. Nu een
+  FIFO in brokken van 60 (1,4 ms vertraging); de wasm rekent ook op 60.
+  (3) *Shape.* In de vocoder bestaat alleen shape 1..3; 4 en 5 wezen buiten
+  de oscillatortabel (de wasm crashte erop). De module klemt shape daar op 3.
+- **Seeds "Koor zingt woorden" en "Koor zingt jouw stem"** (Solo-menu): de
+  sampler (Concert Choir, bank 5, acht stemmen) is de drager van de vocoder;
+  de modulator is Plaits' spraak-engine (een woord per aanslag) of AUDIO IN
+  (je eigen stem). De bestaande Warps-vocoder-demo staat nu op algo 6,2.
+- Gemeten op de Teensy: beide seeds klinken (piek 0,69); cpu 55 % met Plaits
+  als modulator, 28 % met AUDIO IN. Tests: editor 713, contract 76 modules.
+
 ### fw 0.5.90 — Plaits: engine-nummering gecorrigeerd, 24 engines (2026-09-29)
 - De gevendorde Plaits is firmware 1.2 met **24 engines**, en die registreert
   de acht nieuwe engines vóór de klassieke zestien. De module gaf `engine`

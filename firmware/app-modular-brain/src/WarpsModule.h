@@ -25,7 +25,30 @@
  * | out | `out`  | Audio | Hoofduitgang (1+2)                            |
  * | out | `aux`  | Audio | Aux-uitgang (2+1 — omgekeerde rol)            |
  *
- * Controls: `algo` (0..8, morpht — 8 = vocoder), `timbre` (0..1),
+ * **Algo-schaal.** De knop loopt 0..8 en morpht tussen de algoritmes; de
+ * Warps-kern zelf wil 0..1, dus de module deelt door 8 (tot fw 0.5.90 ging
+ * de 0..8 ongeschaald de kern in: alles vanaf 1 was dezelfde *bevroren*
+ * vocoder, en de vocoder volgde de modulator dus nooit).
+ *   0 crossfade · 1 fold · 2 analoge ringmod · 3 digitale ringmod · 4 XOR ·
+ *   5 comparator · 5,6–6 overgang · **6–8 vocoder**, waarbij de positie de
+ *   release van de banden is: 6 = snel (spraak verstaanbaar), 7 = traag,
+ *   8 = bevroren (de klinker blijft staan).
+ * Timbre is in de vocoder de formantverschuiving; 0,5 = zuiver vocoderen,
+ * daarbuiten lekt er ook drager langs de banden.
+ *
+ * **Blokgrootte.** De filterbank van de vocoder decimeert intern ÷3 en ÷12
+ * en rekent dus alleen goed op blokken die een veelvoud van 12 zijn (Warps
+ * zelf: 60). Een Teensy-audioblok is 128 en dat is geen veelvoud van 12:
+ * tot fw 0.5.90 ging het in twee halve blokken van 64 de kern in, en gaf de
+ * vocoder op de hardware NaN — exact stilte. Nu loopt alles door een kleine
+ * FIFO in brokken van 60, met 60 samples (1,4 ms) vaste vertraging.
+ *
+ * **Shape in de vocoder.** De vocoder kiest zijn interne drager als
+ * `shape + 1` (zaag/puls/ruis), dus alleen shape 1..3 bestaat daar; 4 en 5
+ * wijzen buiten de tabel. In het vocoder-gebied (algo > 5,4) klemt de module
+ * shape daarom op 3.
+ *
+ * Controls: `algo` (0..8, zie boven), `timbre` (0..1),
  * `shape` (0=extern, 1..5 interne carrier), `drive1`/`drive2` (0..2),
  * `coarse` (semitonen offset interne osc), `level` (0..1).
  */
@@ -88,17 +111,26 @@ public:
             return;
         }
 
-        warps::ShortFrame inF[AUDIO_BLOCK_SAMPLES];
-        warps::ShortFrame outF[AUDIO_BLOCK_SAMPLES];
+        // Invoer achteraan de FIFO; dan in brokken van kChunk door de kern.
+        // Invariant na elke update: inCount_ + outCount_ == kChunk, dus de
+        // buffers van kChunk + AUDIO_BLOCK_SAMPLES lopen nooit over en er
+        // staan altijd genoeg samples klaar (rest van 128 mod 60 is ≤ 56).
         for (int i = 0; i < AUDIO_BLOCK_SAMPLES; ++i) {
-            inF[i].l = in1 ? in1->data[i] : 0;
-            inF[i].r = in2 ? in2->data[i] : 0;
+            inFifo_[inCount_ + i].l = in1 ? in1->data[i] : 0;
+            inFifo_[inCount_ + i].r = in2 ? in2->data[i] : 0;
         }
-        // kMaxBlockSize = 96 → twee halve blokken van 64.
-        modulator_.Process(inF, outF, AUDIO_BLOCK_SAMPLES / 2);
-        modulator_.Process(inF + AUDIO_BLOCK_SAMPLES / 2,
-                           outF + AUDIO_BLOCK_SAMPLES / 2,
-                           AUDIO_BLOCK_SAMPLES / 2);
+        inCount_ += AUDIO_BLOCK_SAMPLES;
+        int done = 0;
+        while (inCount_ - done >= kChunk) {
+            modulator_.Process(inFifo_ + done, outFifo_ + outCount_, kChunk);
+            done += kChunk;
+            outCount_ += kChunk;
+        }
+        inCount_ -= done;
+        if (done && inCount_ > 0)
+            std::memmove(inFifo_, inFifo_ + done, sizeof(inFifo_[0]) * inCount_);
+
+        const warps::ShortFrame* outF = outFifo_;
         for (int i = 0; i < AUDIO_BLOCK_SAMPLES; ++i) {
             float m = outF[i].l * level_;
             float a = outF[i].r * level_;
@@ -109,6 +141,11 @@ public:
             outM->data[i] = static_cast<int16_t>(m);
             outA->data[i] = static_cast<int16_t>(a);
         }
+        outCount_ -= AUDIO_BLOCK_SAMPLES;
+        if (outCount_ > 0)
+            std::memmove(outFifo_, outFifo_ + AUDIO_BLOCK_SAMPLES,
+                         sizeof(outFifo_[0]) * outCount_);
+
         transmit(outM, 0);
         transmit(outA, 1);
         release(outM);
@@ -118,7 +155,17 @@ public:
     }
 
 private:
+    /// Brok waarin de kern rekent: veelvoud van 12 (filterbank ÷3 en ÷12),
+    /// en Warps' eigen blokgrootte.
+    static constexpr int kChunk = 60;
+    static constexpr int kFifo  = kChunk + AUDIO_BLOCK_SAMPLES;
+    static_assert(AUDIO_BLOCK_SAMPLES >= kChunk, "FIFO rekent op blok >= brok");
+
     audio_block_t* inputQueueArray_[2] = { nullptr, nullptr };
+    warps::ShortFrame inFifo_[kFifo]  = {};
+    warps::ShortFrame outFifo_[kFifo] = {};
+    int inCount_  = 0;
+    int outCount_ = kChunk;      ///< kChunk stilte vooraf = de vaste vertraging
     warps::Modulator modulator_;
     volatile bool  ready_ = false;
     volatile float peak_  = 0.0f;
@@ -179,7 +226,8 @@ public:
             float a = algoBase_ + 4.0f * value;
             if (a < 0.0f) a = 0.0f;
             if (a > 8.0f) a = 8.0f;
-            p->modulation_algorithm = a;
+            p->modulation_algorithm = a * kAlgoScale;
+            applyShape(a);
         } else if (cvPortIs(portId, "timbre")) {
             float t = timbreBase_ + value;
             if (t < 0.0f) t = 0.0f;
@@ -200,7 +248,8 @@ public:
             algoBase_ = asFloat(0.0f);
             if (algoBase_ < 0.0f) algoBase_ = 0.0f;
             if (algoBase_ > 8.0f) algoBase_ = 8.0f;
-            p->modulation_algorithm = algoBase_;
+            p->modulation_algorithm = algoBase_ * kAlgoScale;
+            applyShape(algoBase_);
         }
         else if (controlId == "timbre") {
             timbreBase_ = asFloat(0.5f);
@@ -212,7 +261,8 @@ public:
             int sh = static_cast<int>(asFloat(0.0f));
             if (sh < 0) sh = 0;
             if (sh > 5) sh = 5;
-            p->carrier_shape = sh;
+            shape_ = sh;
+            applyShape(p->modulation_algorithm * 8.0f);
         }
         else if (controlId == "drive1") p->channel_drive[0] = clamp02(asFloat(1.0f));
         else if (controlId == "drive2") p->channel_drive[1] = clamp02(asFloat(1.0f));
@@ -236,10 +286,22 @@ private:
     static float clamp02(float v) {
         return v < 0.0f ? 0.0f : (v > 2.0f ? 2.0f : v);
     }
+    /// Knop 0..8 → Warps-kern 0..1 (modulator.cc rekent zelf weer ×8).
+    static constexpr float kAlgoScale = 1.0f / 8.0f;
+    /// Vanaf hier mengt de kern de vocoder-oscillator in (vocoder_amount > 0).
+    static constexpr float kVocoderFrom = 5.4f;
+
+    /// Zet de drager-shape, in het vocoder-gebied geklemd op 3 (zie kop).
+    void applyShape(float algo) {
+        int sh = shape_;
+        if (algo > kVocoderFrom && sh > 3) sh = 3;
+        voice_.params()->carrier_shape = sh;
+    }
 
     mutable WarpsVoice voice_;
     float algoBase_   = 0.0f;
     float timbreBase_ = 0.5f;
+    int   shape_      = 0;
     float coarse_     = 0.0f;
 };
 

@@ -44,6 +44,8 @@ export interface EngineStatus {
   liveControls: Record<string, Record<string, ControlValue>>;
   /** Vergelijken met de Teensy: aan/uit, welk apparaat, of waarom het niet lukte. */
   compare?: { on: boolean; device?: string; error?: string };
+  /** AUDIO IN in de patch: is de microfoon open, welke, of waarom niet. */
+  mic?: { on: boolean; device?: string; error?: string };
 }
 
 const MIDIIN = MIDIIN_TYPE;
@@ -81,7 +83,23 @@ interface WasmNode extends BaseNode {
   voctDriven: boolean;
   gateDriven: boolean;
 }
-type EngineNode = OutNode | MixerNode | WasmNode;
+/** AUDIO IN: de microfoon van de browser (getUserMedia) als bron. Eén
+ *  gedeelde stream per engine; per node een split naar out_l/out_r, met
+ *  `mono` (½·(L+R) op beide) en `level` — zoals AudioInModule.h. */
+interface AudioInNode extends BaseNode {
+  kind: 'audioin';
+  /** Ingang: hier hangt de microfoonstream aan zodra hij open is. */
+  inGain: Tone.Gain;
+  mono: Tone.Mono;
+  split: Tone.Split;
+  outL: Tone.Gain;
+  outR: Tone.Gain;
+  /** Mono-route (via Tone.Mono) of rechtstreeks stereo. */
+  isMono: boolean;
+}
+type EngineNode = OutNode | MixerNode | WasmNode | AudioInNode;
+
+const AUDIOIN = 'tp_mmb_audioin';
 
 /** Stilte tussen loslaten en opnieuw aanslaan van dezelfde wasm-stem (ms).
  *  Eén renderblok is ~2,7 ms; hierna heeft de module de dalende flank gezien. */
@@ -142,6 +160,11 @@ export class AudioEngine {
   private teensyStream: MediaStream | null = null;
   private teensySrc: MediaStreamAudioSourceNode | null = null;
   private teensySide: Tone.Panner | null = null;
+  /** De microfoon voor AUDIO IN-modules; blijft open over rebuilds heen en
+   *  gaat dicht zodra er geen AUDIO IN meer in de patch staat. */
+  private micStream: MediaStream | null = null;
+  private micSrc: MediaStreamAudioSourceNode | null = null;
+  private micGeneration = 0;
   private rafId: number | null = null;
 
   // ── Het klavier-gemak (modules zonder voct/gate-kabel) ─────────────
@@ -241,6 +264,91 @@ export class AudioEngine {
     this.connections = patch.connections;
     const simConns = plan.conns;
     for (const conn of simConns) this.wire(conn);
+
+    // 4. AUDIO IN: microfoon openen (of loslaten als er geen meer in zit).
+    void this.syncMic();
+  }
+
+  // ── AUDIO IN: de microfoon van de browser ─────────────────────────────
+
+  private audioInNodes(): AudioInNode[] {
+    const out: AudioInNode[] = [];
+    for (const n of this.nodes.values()) if (n.kind === 'audioin') out.push(n);
+    return out;
+  }
+
+  /** Open de microfoon als er AUDIO IN-nodes zijn en hang hem eraan; anders
+   *  dicht. Async, want getUserMedia vraagt toestemming; een rebuild
+   *  ondertussen wint (generatieteller). */
+  private async syncMic(): Promise<void> {
+    const gen = ++this.micGeneration;
+    if (this.audioInNodes().length === 0) {
+      if (this.micStream || this.status.mic) {
+        this.stopMic();
+        this.status.mic = undefined;
+        this.emit();
+      }
+      return;
+    }
+    if (!this.micSrc) {
+      const media = typeof navigator !== 'undefined' ? navigator.mediaDevices : undefined;
+      if (!media?.getUserMedia) {
+        this.status.mic = { on: false, error: 'Deze browser kan geen microfoon openen.' };
+        this.emit();
+        return;
+      }
+      try {
+        await Tone.start();
+        // Rauw: geen echo-onderdrukking, ruisfilter of AGC — een vocoder wil
+        // het echte signaal, en de "verbeteringen" van de browser knippen
+        // juist de medeklinkers weg.
+        const stream = await media.getUserMedia({ audio: {
+          echoCancellation: false, noiseSuppression: false, autoGainControl: false,
+        } });
+        if (gen !== this.micGeneration) { stream.getTracks().forEach((t) => t.stop()); return; }
+        const ctx = Tone.getContext().rawContext as AudioContext;
+        this.micStream = stream;
+        this.micSrc = ctx.createMediaStreamSource(stream);
+        const track = stream.getAudioTracks()[0];
+        track?.addEventListener('ended', () => {
+          this.stopMic();
+          this.status.mic = { on: false, error: 'De microfoon is weggevallen.' };
+          this.emit();
+        });
+        this.status.mic = { on: true, device: track?.label || 'microfoon' };
+      } catch (err) {
+        const name = err instanceof DOMException ? err.name : '';
+        this.status.mic = {
+          on: false,
+          error: name === 'NotAllowedError'
+            ? 'De browser kreeg geen toestemming voor de microfoon.'
+            : name === 'NotFoundError'
+              ? 'Geen microfoon gevonden.'
+              : `Microfoon openen mislukt: ${err instanceof Error ? err.message : String(err)}`,
+        };
+        this.emit();
+        return;
+      }
+    }
+    if (gen !== this.micGeneration || !this.micSrc) return;
+    for (const n of this.audioInNodes()) {
+      try { Tone.connect(this.micSrc, n.inGain); } catch { /* al verbonden */ }
+    }
+    this.emit();
+  }
+
+  private stopMic(): void {
+    this.micStream?.getTracks().forEach((t) => t.stop());
+    this.micStream = null;
+    try { this.micSrc?.disconnect(); } catch { /* al los */ }
+    this.micSrc = null;
+  }
+
+  /** Route van een AUDIO IN-node: stereo rechtstreeks, of via Mono. */
+  private routeAudioIn(n: AudioInNode): void {
+    n.inGain.disconnect(); n.mono.disconnect();
+    if (n.isMono) { n.inGain.connect(n.mono); n.mono.connect(n.split); }
+    else n.inGain.connect(n.split);
   }
 
   /** Node waarop een opname mag meeluisteren: precies wat naar de speakers
@@ -396,6 +504,11 @@ export class AudioEngine {
         if (controlId === 'level') { node.inGain.gain.rampTo(clamp(num, 0, 1), 0.02); return true; }
         return true;
       }
+      case 'audioin': {
+        if (controlId === 'level') { node.inGain.gain.rampTo(clamp(num, 0, 2), 0.02); return true; }
+        if (controlId === 'mono') { node.isMono = num >= 0.5; this.routeAudioIn(node); return true; }
+        return true;
+      }
       case 'mixer':
         return false;
     }
@@ -414,6 +527,10 @@ export class AudioEngine {
       switch (node.kind) {
         case 'wasm': node.runtime.dispose(); break;
         case 'out': node.inGain.dispose(); break;
+        case 'audioin':
+          node.inGain.dispose(); node.mono.dispose(); node.split.dispose();
+          node.outL.dispose(); node.outR.dispose();
+          break;
         case 'mixer': node.inputs.forEach((g) => g.dispose()); node.panners.forEach((p) => p.dispose()); node.out.dispose(); break;
       }
     }
@@ -457,6 +574,20 @@ export class AudioEngine {
       const inGain = new Tone.Gain(level);
       if (this.master) inGain.connect(this.master);
       return { ...base, kind: 'out', inGain };
+    }
+    if (t.id === AUDIOIN) {
+      const level = clamp(readKnob(controls, 'level', 1), 0, 2);
+      const isMono = readKnob(controls, 'mono', 1) >= 0.5;
+      const inGain = new Tone.Gain(level);
+      const mono = new Tone.Mono();
+      const split = new Tone.Split();
+      const outL = new Tone.Gain(1);
+      const outR = new Tone.Gain(1);
+      split.connect(outL, 0, 0);
+      split.connect(outR, 1, 0);
+      const node: AudioInNode = { ...base, kind: 'audioin', inGain, mono, split, outL, outR, isMono };
+      this.routeAudioIn(node);
+      return node;
     }
     if (WasmModule.supports(t.id)) {
       const rt = t.id === MIDIIN
@@ -810,6 +941,7 @@ function outputOf(n: EngineNode, portId: string): Tone.ToneAudioNode | null {
   switch (n.kind) {
     case 'wasm': return n.runtime.outGain(portId) ?? n.runtime.outGain(portId === 'out' ? 'out_l' : 'out') ?? null;
     case 'mixer': return n.out;
+    case 'audioin': return portId === 'out_r' ? n.outR : n.outL;
     default: return null;
   }
 }
@@ -817,6 +949,7 @@ function inputOf(n: EngineNode, portId: string): Tone.ToneAudioNode | null {
   switch (n.kind) {
     case 'wasm': return n.runtime.inGain(portId) ?? n.runtime.inGain(portId === 'in' ? 'in_l' : 'in') ?? null;
     case 'out': return n.inGain;
+    case 'audioin': return null;
     case 'mixer': {
       // portId 'inN' (1-based) kiest het kanaal; onbekend → kanaal 1.
       const idx = /^in\d+$/.test(portId) ? Number(portId.slice(2)) - 1 : 0;

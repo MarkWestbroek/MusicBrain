@@ -49,6 +49,7 @@ export const CATALOG: Record<string, CatalogEntry> = {
   tp_mmb_quad_vco_shared: { short: 'Quad-VCO', kind: 'source', aliases: ['quad vco', 'quadvco', '4 vco'] },
   tp_mmb_octa_vco:  { short: 'Octa-VCO', kind: 'source', aliases: ['octa vco', 'octavco', '8 vco'] },
   tp_mmb_noise:     { short: 'Noise',    kind: 'noise',  aliases: ['noise', 'ruis'] },
+  tp_mmb_audioin:   { short: 'Audio In', kind: 'source', aliases: ['audio in', 'audioin', 'microfoon', 'mic', 'line in', 'ingang'] },
   tp_mmb_peaks:     { short: 'Peaks',    kind: 'drum',   aliases: ['peaks', 'drum', 'drums'] },
   tp_mmb_cr78:      { short: 'CR-78',    kind: 'drum',   aliases: ['cr78', 'cr 78', 'roland drum'] },
 

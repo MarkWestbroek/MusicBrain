@@ -475,6 +475,17 @@ export function SimulationPanel(): JSX.Element {
             Teensy links, simulator rechts.
           </p>
         )}
+        {status.mic?.on && (
+          <p style={{ color: '#475569', fontSize: 12, margin: '6px 0 0' }}>
+            🎤 AUDIO IN luistert naar: {status.mic.device}. Gebruik een koptelefoon,
+            anders hoort de microfoon de speakers en gaat het rondzingen.
+          </p>
+        )}
+        {status.mic?.error && (
+          <p style={{ color: '#b91c1c', fontSize: 12, margin: '6px 0 0' }}>
+            ⚠ AUDIO IN: {status.mic.error}
+          </p>
+        )}
         {status.compare?.error && (
           <p style={{ color: '#b91c1c', fontSize: 12, margin: '6px 0 0' }}>
             ⚠ {status.compare.error}
