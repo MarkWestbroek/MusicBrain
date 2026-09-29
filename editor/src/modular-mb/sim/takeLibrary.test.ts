@@ -71,3 +71,12 @@ describe('addPatchSnapshot', () => {
     expandPatchConnections(np, r);
   });
 });
+
+describe('.syx in een take', () => {
+  it('herkend op mime of extensie, niet als patch.json', () => {
+    const g = 'mmb-x-20260929-120000';
+    const t = groupTakes([a(g, `${g}.syx`, 'application/x-sysex'), a(g, `${g}.patch.json`, 'application/json')]);
+    expect(t[0]!.syx?.title).toBe(`${g}.syx`);
+    expect(t[0]!.patch?.title).toBe(`${g}.patch.json`);
+  });
+});

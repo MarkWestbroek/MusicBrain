@@ -89,6 +89,7 @@ export function TakeLibraryPanel({ settings, onMidi, onPatch }: {
                       title="De patch van deze take als nieuwe patch toevoegen (je eigen patches blijven staan)">
                       {busy === `${t.group}:patch` ? '…' : '⤵ Patch'}
                     </button>{' '}
+                    {t.syx && <a href={t.syx.url} download title="De patch als SysEx (.syx) downloaden, voor een SysEx-librarian of DAW">⤓ .syx</a>}{' '}
                     <button disabled={!t.wav || busy !== null} onClick={() => void edit(t)}
                       title="In de take-editor openen: bijsnijden, exporteren (wav + mid, Reaper), terug naar de library">
                       {busy === `${t.group}:edit` ? '…' : '✎'}

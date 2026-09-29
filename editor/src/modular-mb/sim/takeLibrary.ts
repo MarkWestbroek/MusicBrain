@@ -29,6 +29,8 @@ export interface TakeEntry {
   wav?: LibraryAsset;
   mid?: LibraryAsset;
   patch?: LibraryAsset;
+  /** De patch als SysEx (.syx), voor een librarian of DAW. */
+  syx?: LibraryAsset;
   other: LibraryAsset[];
 }
 
@@ -38,6 +40,7 @@ function fileName(a: LibraryAsset): string {
 
 function isWav(a: LibraryAsset): boolean { return a.mime === 'audio/wav' || a.mime === 'audio/x-wav' || fileName(a).endsWith('.wav'); }
 function isMid(a: LibraryAsset): boolean { return a.mime === 'audio/midi' || a.mime === 'audio/x-midi' || /\.midi?$/.test(fileName(a)); }
+function isSyx(a: LibraryAsset): boolean { return a.mime === 'application/x-sysex' || fileName(a).endsWith('.syx'); }
 function isPatch(a: LibraryAsset): boolean { return a.mime === 'application/json' || fileName(a).endsWith('.json'); }
 
 /** `mmb-koper-20260928-120000` → Date (lokale tijd), of null. */
@@ -57,6 +60,7 @@ export function groupTakes(assets: readonly LibraryAsset[]): TakeEntry[] {
     if (!t) { t = { group: g, when: takeTime(g), other: [] }; by.set(g, t); }
     if (isWav(a) && !t.wav) t.wav = a;
     else if (isMid(a) && !t.mid) t.mid = a;
+    else if (isSyx(a) && !t.syx) t.syx = a;
     else if (isPatch(a) && !t.patch) t.patch = a;
     else t.other.push(a);
   }
