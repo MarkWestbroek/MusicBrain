@@ -14,6 +14,7 @@ import { parseWav, wavPeaks, cropWav, cropMidi, wavDurationMs, type WavData } fr
 import { encodeWav } from './wavRecorder';
 import { encodeSmf, slimSnapshot, MARKER_LOOP_START, MARKER_LOOP_END, MARKER_TEL1, type MidiEvent } from './midiRecorder';
 import { buildRpp } from './exportRpp';
+import { buildDawProject } from './exportDawProject';
 import { loadLibrarySettings, uploadTake, replaceAsset, slugName, splitTakeName } from './mediaLibrary';
 import { encodePatchSysex, SYSEX_CMD } from './patchSysex';
 import { buildConfigPayload } from '../teensyLink';
@@ -208,6 +209,17 @@ function TakeEditorWindow({ initial, onClose }: { initial: TakeDoc; onClose: () 
     setMsg({ ok: true, text: `${stem}.rpp en .wav gedownload. Zet ze in dezelfde map en open het project in Reaper.` });
   }
 
+  async function exportDawProject(): Promise<void> {
+    const g = pb?.grid() ?? { bpm: midi.bpm, offsetMs: 0, beatsPerBar: midi.beatsPerBar };
+    const wavBytes = new Uint8Array(await wavBlob.arrayBuffer());
+    const zip = buildDawProject({
+      name: name || 'take', bpm: g.bpm, beatsPerBar: g.beatsPerBar, lengthMs: durMs, notes: editNotes,
+      audio: { file: `audio/${stem}.wav`, channels: doc.wav.channels.length, sampleRate: doc.wav.sampleRate, seconds: durMs / 1000 },
+    }, wavBytes);
+    download(zip, `${stem}.dawproject`, 'application/zip');
+    setMsg({ ok: true, text: `${stem}.dawproject gedownload (Bitwig, Studio One, Cubase 14+). Controllers gaan nog niet mee.` });
+  }
+
   async function toLibraryNew(): Promise<void> {
     setBusy('new'); setMsg(null);
     try {
@@ -337,6 +349,7 @@ function TakeEditorWindow({ initial, onClose }: { initial: TakeDoc; onClose: () 
           </label>
         )}
         <button onClick={() => void exportFiles()} title="Download de wav en de .mid (met tempo, tel 1 en lus als markers)">⤓ wav + mid</button>
+        <button onClick={() => void exportDawProject()} title="Download een DAWproject (Bitwig, Studio One, Cubase 14+): wav en MIDI in één bestand">⤓ DAWproject</button>
         <button onClick={exportReaper} title="Download een Reaper-project (.rpp) met de wav als audiotrack en de MIDI als MIDI-track">⤓ Reaper</button>
         <button onClick={() => void toLibraryNew()} disabled={busy !== null} title="Als nieuwe take in de media library zetten">
           {busy === 'new' ? '…' : '⤴ Nieuwe take'}
