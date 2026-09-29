@@ -21,6 +21,8 @@ export interface ParsedSmf {
   loop?: { start: number; end: number };
   /** Uit marker "MMB tel 1" (ms): waar tel 1 van het raster ligt. */
   tel1Ms?: number;
+  /** SysEx-berichten in het bestand (elk F0 … F7), bv. een patch. */
+  sysex?: Uint8Array[];
 }
 
 export class SmfError extends Error {}
@@ -41,6 +43,7 @@ export function parseSmf(buf: Uint8Array): ParsedSmf {
   let name: string | undefined;
   let timeSigNum: number | undefined;
   const markers: { tick: number; text: string }[] = [];
+  const sysex: Uint8Array[] = [];
   let order = 0;
   let endTick = 0;
   for (let tr = 0; tr < ntrks && p + 8 <= buf.length; tr++) {
@@ -65,7 +68,11 @@ export function parseSmf(buf: Uint8Array): ParsedSmf {
         if (type === 0x2F) { endTick = Math.max(endTick, tick); }
         q += n; continue;
       }
-      if (s === 0xF0 || s === 0xF7) { q += vl(); continue; }
+      if (s === 0xF0 || s === 0xF7) {
+        const n = vl();
+        if (s === 0xF0) { const m = new Uint8Array(n + 1); m[0] = 0xF0; m.set(buf.subarray(q, q + n), 1); sysex.push(m); }
+        q += n; continue;
+      }
       if (s < 0x80) break;                       // kapot spoor: niet verder gokken
       running = s;
       const hi = s & 0xF0;
@@ -110,6 +117,7 @@ export function parseSmf(buf: Uint8Array): ParsedSmf {
     bpm: division & 0x8000 ? 120 : 60_000_000 / firstTempo, beatsPerBar: timeSigNum || 4,
     ...(ls !== undefined && le !== undefined && le > ls ? { loop: { start: ls, end: le } } : {}),
     ...(tel1 !== undefined ? { tel1Ms: tel1 } : {}),
+    ...(sysex.length ? { sysex } : {}),
   };
 }
 

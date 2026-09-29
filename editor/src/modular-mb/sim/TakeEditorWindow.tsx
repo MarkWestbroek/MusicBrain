@@ -11,9 +11,12 @@ import { parseSmf, type ParsedSmf } from '../../take-player/smf';
 import { EDITOR_PALETTE } from './MidiRoll';
 import { parseWav, wavPeaks, cropWav, cropMidi, wavDurationMs, type WavData } from './takeEdit';
 import { encodeWav } from './wavRecorder';
-import { encodeSmf, MARKER_LOOP_START, MARKER_LOOP_END, MARKER_TEL1, type MidiEvent } from './midiRecorder';
+import { encodeSmf, slimSnapshot, MARKER_LOOP_START, MARKER_LOOP_END, MARKER_TEL1, type MidiEvent } from './midiRecorder';
 import { buildRpp } from './exportRpp';
 import { loadLibrarySettings, uploadTake, replaceAsset, slugName, splitTakeName } from './mediaLibrary';
+import { encodePatchSysex, SYSEX_CMD } from './patchSysex';
+import { buildConfigPayload } from '../teensyLink';
+import type { ModularProject } from '../types';
 
 export interface TakeDoc {
   /** Naam zonder extensie, bv. "mmb-koper-20260929-101500". */
@@ -69,6 +72,9 @@ function TakeEditorWindow({ initial, onClose }: { initial: TakeDoc; onClose: () 
   const [doc, setDoc] = useState<TakeDoc>(initial);
   const [name, setName] = useState(() => splitTakeName(initial.name).name);
   const [fadeMs, setFadeMs] = useState(5);
+  // De patch van de take als SysEx op tel 0 van de .mid: speelt een DAW de
+  // .mid af naar de MusicBrain, dan komt eerst de klank mee.
+  const [embedPatch, setEmbedPatch] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [pos, setPos] = useState(() => ({ x: Math.max(16, (window.innerWidth - 800) / 2), y: 70 }));
@@ -108,13 +114,25 @@ function TakeEditorWindow({ initial, onClose }: { initial: TakeDoc; onClose: () 
   const region = pb?.state().region ?? null;
   const stem = `mmb-${slugName(name) || 'take'}-${splitTakeName(doc.name).stamp || stamp()}`;
 
-  /** De .mid zoals hij nu is, met tel 1 en het lusvenster als markers. */
-  function midBytes(): Uint8Array<ArrayBuffer> {
+  /** De patch als SysEx-berichten (firmwareconfig + editor-patch), of leeg. */
+  async function patchSysex(): Promise<Uint8Array[]> {
+    if (!embedPatch || !doc.patch) return [];
+    const json = await doc.patch.text();
+    const snap = JSON.parse(json) as ModularProject;
+    return [
+      ...await encodePatchSysex(SYSEX_CMD.firmwareConfig, buildConfigPayload(snap).json),
+      ...await encodePatchSysex(SYSEX_CMD.editorPatch, JSON.stringify(slimSnapshot(snap))),
+    ];
+  }
+
+  /** De .mid zoals hij nu is, met tel 1 en het lusvenster als markers (en de patch als SysEx). */
+  async function midBytes(): Promise<Uint8Array<ArrayBuffer>> {
+    const sysex = await patchSysex();
     const g = pb?.grid() ?? { bpm: midi.bpm, offsetMs: midi.tel1Ms ?? 0, beatsPerBar: midi.beatsPerBar };
     const markers: { t: number; text: string }[] = [];
     if (g.offsetMs > 0) markers.push({ t: g.offsetMs, text: MARKER_TEL1 });
     if (region) markers.push({ t: region.start, text: MARKER_LOOP_START }, { t: region.end, text: MARKER_LOOP_END });
-    return encodeSmf(eventsOf(midi), { lengthMs: durMs, name: name || undefined, bpm: g.bpm, beatsPerBar: g.beatsPerBar, markers });
+    return encodeSmf(eventsOf(midi), { lengthMs: durMs, name: name || undefined, bpm: g.bpm, beatsPerBar: g.beatsPerBar, markers, sysex });
   }
 
   function crop(): void {
@@ -141,9 +159,9 @@ function TakeEditorWindow({ initial, onClose }: { initial: TakeDoc; onClose: () 
     setMsg(null);
   }
 
-  function exportFiles(): void {
+  async function exportFiles(): Promise<void> {
     download(wavBlob, `${stem}.wav`, 'audio/wav');
-    if (doc.midi) download(midBytes(), `${stem}.mid`, 'audio/midi');
+    if (doc.midi) download(await midBytes(), `${stem}.mid`, 'audio/midi');
     setMsg({ ok: true, text: `${stem}.wav${doc.midi ? ' en .mid' : ''} gedownload.` });
   }
 
@@ -163,7 +181,7 @@ function TakeEditorWindow({ initial, onClose }: { initial: TakeDoc; onClose: () 
     try {
       const group = `mmb-${slugName(name) || 'take'}-${stamp()}`;
       const files = [{ name: `${group}.wav`, blob: wavBlob }];
-      if (doc.midi) files.push({ name: `${group}.mid`, blob: new Blob([midBytes()], { type: 'audio/midi' }) });
+      if (doc.midi) files.push({ name: `${group}.mid`, blob: new Blob([await midBytes()], { type: 'audio/midi' }) });
       if (doc.patch) files.push({ name: `${group}.patch.json`, blob: doc.patch });
       const assets = await uploadTake({ group, files }, loadLibrarySettings());
       setMsg({ ok: true, text: `Nieuwe take in de library: ${group} (${assets.length} bestanden).` });
@@ -179,7 +197,7 @@ function TakeEditorWindow({ initial, onClose }: { initial: TakeDoc; onClose: () 
     try {
       const s = loadLibrarySettings();
       await replaceAsset(o.wav, { name: `${stem}.wav`, blob: wavBlob }, s);
-      if (o.mid && doc.midi) await replaceAsset(o.mid, { name: `${stem}.mid`, blob: new Blob([midBytes()], { type: 'audio/midi' }) }, s);
+      if (o.mid && doc.midi) await replaceAsset(o.mid, { name: `${stem}.mid`, blob: new Blob([await midBytes()], { type: 'audio/midi' }) }, s);
       setMsg({ ok: true, text: 'Vervangen in de library; de vorige versies blijven in de geschiedenis.' });
     } catch (e) {
       setMsg({ ok: false, text: e instanceof Error ? e.message : String(e) });
@@ -239,7 +257,12 @@ function TakeEditorWindow({ initial, onClose }: { initial: TakeDoc; onClose: () 
           onChange={(e) => setFadeMs(Math.max(0, Math.min(200, Number(e.target.value) || 0)))} style={{ width: 50 }} /> ms</label>
         <button onClick={undo} disabled={!history.length} title="Laatste bewerking terugdraaien">↶ Ongedaan</button>
         <span style={{ marginLeft: 'auto' }} />
-        <button onClick={exportFiles} title="Download de wav en de .mid (met tempo, tel 1 en lus als markers)">⤓ wav + mid</button>
+        {doc.patch && (
+          <label title="De patch van de take als SysEx in de .mid (op tel 0): een DAW die de .mid naar de MusicBrain speelt, stuurt dan eerst de klank mee">
+            <input type="checkbox" checked={embedPatch} onChange={(e) => setEmbedPatch(e.target.checked)} /> patch in .mid
+          </label>
+        )}
+        <button onClick={() => void exportFiles()} title="Download de wav en de .mid (met tempo, tel 1 en lus als markers)">⤓ wav + mid</button>
         <button onClick={exportReaper} title="Download een Reaper-project (.rpp) met de wav als audiotrack en de MIDI als MIDI-track">⤓ Reaper</button>
         <button onClick={() => void toLibraryNew()} disabled={busy !== null} title="Als nieuwe take in de media library zetten">
           {busy === 'new' ? '…' : '⤴ Nieuwe take'}

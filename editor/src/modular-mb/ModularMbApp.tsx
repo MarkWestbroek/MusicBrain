@@ -51,6 +51,7 @@ import { SimulationPanel } from './SimulationPanel';
 import { SimQuickBar } from './sim/SimQuickBar';
 import { MidiMonitorHost } from './sim/MidiMonitorWindow';
 import { TakeEditorHost } from './sim/TakeEditorWindow';
+import { PatchExportMenu } from './sim/PatchExportMenu';
 import { ControlSurfacePanel } from './ControlSurfacePanel';
 import { PresetsModal } from './PresetsModal';
 import { TeensyLinkModal } from './TeensyLinkModal';
@@ -293,6 +294,7 @@ export function ModularMbApp(): JSX.Element {
         <div className="es-projectbar-actions">
           <button onClick={onExport} title="Project downloaden als JSON">↓ Exporteer</button>
           <button onClick={() => importRef.current?.click()} title="JSON-bestand laden">↑ Importeer</button>
+          <PatchExportMenu />
           <input ref={importRef} type="file" accept=".json,application/json"
             style={{ display: 'none' }} onChange={onImportFile} />
           <span style={{ position: 'relative', display: 'inline-block' }}>

@@ -54,6 +54,8 @@ export interface SmfOptions {
   beatsPerBar?: number;
   /** Markers (meta 0x06) op een tijd in ms: lus, tel 1. */
   markers?: { t: number; text: string }[];
+  /** SysEx-berichten (elk F0 … F7) op tijd 0, bv. de patch van de take. */
+  sysex?: Uint8Array[];
 }
 
 export function encodeSmf(events: readonly MidiEvent[], opts: SmfOptions = {}): Uint8Array<ArrayBuffer> {
@@ -67,6 +69,12 @@ export function encodeSmf(events: readonly MidiEvent[], opts: SmfOptions = {}): 
   meta(0x51, [(us >> 16) & 0xFF, (us >> 8) & 0xFF, us & 0xFF]);
   const bpb = Math.max(1, Math.min(32, Math.round(opts.beatsPerBar ?? 4)));
   meta(0x58, [bpb, 2, 24, 8]);
+  // SysEx op tijd 0: F0 <lengte> <bytes na F0, t/m F7>.
+  for (const m of opts.sysex ?? []) {
+    if (m[0] !== 0xF0 || m[m.length - 1] !== 0xF7) continue;
+    const rest = [...m.subarray(1)];
+    track.push(0, 0xF0, ...varLen(rest.length), ...rest);
+  }
 
   // Kanaalberichten en markers samen op tijd; markers vóór events op hetzelfde moment.
   type Item = { t: number; order: number; e?: MidiEvent; marker?: string };
@@ -196,4 +204,13 @@ export function downloadBlob(data: BlobPart, filename: string, type: string): vo
   a.href = url; a.download = filename;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
+
+/**
+ * Een patch-snapshot zonder wat elke editor zelf al heeft: de moduletypes en
+ * de interne prototypemodules (seedInternals vult ze bij het laden weer aan).
+ * Voor SysEx, waar elke byte telt; een .patch.json blijft volledig.
+ */
+export function slimSnapshot(snap: ModularProject): ModularProject {
+  return { ...snap, moduleTypes: [], modules: snap.modules.filter((m) => !m.internal) };
 }
