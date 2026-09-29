@@ -231,6 +231,8 @@ private:
      * de laatste byte de ack. Vijf seconden zonder bytes = afbreken.
      *
      *   editor → {"type":"bankPut","bank":N,"size":S}
+     *            (met "kind":"lyric" gaat hij naar /mmb/lyrics/NN.mmbl; de
+     *             handlers krijgen dan bank 100 + N, zie ZangModule.h)
      *   teensy → {"type":"ack","ok":true,"applied":"bankPut","phase":"begin",...}
      *   editor → S bytes
      *   teensy → {"type":"bankProgress","bank":N,"bytes":n,"size":S}   (elke 256 KB)
@@ -250,7 +252,7 @@ private:
             if (doneBytes - rawMark_ >= 256u * 1024u) {
                 rawMark_ = doneBytes;
                 JsonDocument p;
-                p["type"] = "bankProgress"; p["bank"] = rawBank_;
+                p["type"] = "bankProgress"; p["bank"] = rawBank_ % kLyricBase;
                 p["bytes"] = doneBytes; p["size"] = rawTotal_;
                 serializeJson(p, Serial); Serial.println();
             }
@@ -258,7 +260,8 @@ private:
         if (rawRemaining_ == 0) {
             const bool ok = onBankDone_ ? onBankDone_(rawBank_, true) : false;
             JsonDocument extra;
-            extra["phase"] = "done"; extra["bank"] = rawBank_; extra["bytes"] = rawTotal_;
+            extra["phase"] = "done"; extra["bank"] = rawBank_ % kLyricBase; extra["bytes"] = rawTotal_;
+            if (rawBank_ >= kLyricBase) extra["kind"] = "lyric";
             if (ok) sendAckOk("bankPut", extra);
             else    sendAckErr("bankPut: schrijven of hernoemen mislukt");
             rawBank_ = -1;
@@ -268,6 +271,10 @@ private:
             sendAckErr("bankPut: timeout, upload afgebroken");
         }
     }
+
+    /// Lyricbanken (ZANG) reizen over hetzelfde bankPut-protocol, met
+    /// bank-id 100 + NN naar de handlers.
+    static constexpr int kLyricBase = 100;
 
     char   buf_[kLineMax];
     uint8_t  rawBuf_[512];
@@ -435,18 +442,23 @@ private:
             const int bank = doc["bank"] | -1;
             const uint32_t size = doc["size"] | 0u;
             const uint32_t crc  = doc["crc"]  | 0u;      // CRC32 (IEEE) over alle bytes; 0 = niet controleren
+            const char* kind = doc["kind"] | "";
+            const bool lyric = strcmp(kind, "lyric") == 0;
             if (bank < 0 || bank > 15 || size < 44) { sendAckErr("bankPut: bank 0-15 en size nodig"); return; }
-            if (!onBankBegin_ || !onBankBegin_(bank, size, crc)) { sendAckErr("bankPut: kan bestand niet openen (SD?)"); return; }
-            rawBank_ = bank; rawTotal_ = size; rawRemaining_ = size; rawMark_ = 0; rawLastMs_ = millis();
+            const int target = lyric ? kLyricBase + bank : bank;
+            if (!onBankBegin_ || !onBankBegin_(target, size, crc)) { sendAckErr("bankPut: kan bestand niet openen (SD?)"); return; }
+            rawBank_ = target; rawTotal_ = size; rawRemaining_ = size; rawMark_ = 0; rawLastMs_ = millis();
             JsonDocument extra;
             extra["phase"] = "begin"; extra["bank"] = bank; extra["size"] = size;
+            if (lyric) extra["kind"] = "lyric";
             sendAckOk("bankPut", extra);
             return;
         }
         if (strcmp(type, "bankDelete") == 0) {
             const int bank = doc["bank"] | -1;
             if (bank < 0 || bank > 15) { sendAckErr("bankDelete: bank 0-15"); return; }
-            const bool ok = onBankDelete_ && onBankDelete_(bank);
+            const char* kind = doc["kind"] | "";
+            const bool ok = onBankDelete_ && onBankDelete_(strcmp(kind, "lyric") == 0 ? kLyricBase + bank : bank);
             JsonDocument extra;
             extra["bank"] = bank;
             if (ok) sendAckOk("bankDelete", extra); else sendAckErr("bankDelete: niet gevonden of SD-fout");

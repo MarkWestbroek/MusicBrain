@@ -1,6 +1,6 @@
 {
   "$comment": "GEGENEREERD door tools/contract_dump.py — niet met de hand bewerken. Poort-ids zijn letterlijk wat de firmware accepteert (aliassen als out/out_l en naam/naam_cv staan er dus allebei in).",
-  "firmwareVersion": "0.5.91",
+  "firmwareVersion": "0.5.92",
   "modules": {
     "tp_mmb_ahdsr": {
       "typeId": "tp_mmb_ahdsr",
@@ -1916,6 +1916,60 @@
         "fine",
         "level"
       ]
+    },
+    "tp_mmb_zang": {
+      "typeId": "tp_mmb_zang",
+      "source": "firmware/app-modular-brain/src/ZangModule.h",
+      "ports": [
+        "bend",
+        "formant",
+        "formant_cv",
+        "gate_1",
+        "gate_2",
+        "gate_3",
+        "gate_4",
+        "gate_5",
+        "gate_6",
+        "gate_7",
+        "gate_8",
+        "next",
+        "out",
+        "out_l",
+        "out_r",
+        "reset",
+        "syl",
+        "syl_cv",
+        "syl_out",
+        "vel_1",
+        "vel_2",
+        "vel_3",
+        "vel_4",
+        "vel_5",
+        "vel_6",
+        "vel_7",
+        "vel_8",
+        "voct_1",
+        "voct_2",
+        "voct_3",
+        "voct_4",
+        "voct_5",
+        "voct_6",
+        "voct_7",
+        "voct_8"
+      ],
+      "controls": [
+        "attack",
+        "bank",
+        "coarse",
+        "fine",
+        "formant",
+        "level",
+        "mode",
+        "release",
+        "speed",
+        "syl"
+      ],
+      "controlsIgnored": []
     }
   }
 }

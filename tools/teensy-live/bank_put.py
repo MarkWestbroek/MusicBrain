@@ -7,6 +7,11 @@ editor (zie TeensyLink.h, pollRaw):
   .venv/Scripts/python tools/teensy-live/bank_put.py --delete <bank>
   .venv/Scripts/python tools/teensy-live/bank_put.py --list
 
+Een `.mmbl` (lyricbank voor de module ZANG) gaat op dezelfde manier en komt
+in /mmb/lyrics/NN.mmbl; het script ziet het aan de magic. Verwijderen:
+
+  .venv/Scripts/python tools/teensy-live/bank_put.py --delete <bank> --lyric
+
 De editor-link moet dicht zijn (de COM-poort is exclusief).
 """
 import json
@@ -40,7 +45,7 @@ def wait_for(s, pred, timeout, buf=b''):
         buf = lines[-1]
         for l in lines[:-1]:
             if not l.startswith(b'{'):
-                if b'[sampler]' in l:
+                if b'[sampler]' in l or b'[zang]' in l:
                     print('   ', l.decode(errors='replace').strip())
                 continue
             try:
@@ -69,17 +74,24 @@ def main():
         return
     if sys.argv[1] == '--delete':
         bank = int(sys.argv[2])
-        s.write(json.dumps({'type': 'bankDelete', 'bank': bank}).encode() + b'\n')
+        msg = {'type': 'bankDelete', 'bank': bank}
+        if '--lyric' in sys.argv:
+            msg['kind'] = 'lyric'
+        s.write(json.dumps(msg).encode() + b'\n')
         ack, _ = wait_for(s, lambda o: o.get('type') == 'ack' and (o.get('applied') == 'bankDelete' or not o.get('ok')), 15)
         print('ok' if ack.get('ok') else f"mislukt: {ack.get('err')}")
         return
     path, bank = sys.argv[1], int(sys.argv[2])
     data = open(path, 'rb').read()
-    if data[:4] != b'MMBS':
-        raise SystemExit('geen .mmbs (magic MMBS ontbreekt)')
-    print(f'{path}: {len(data) // 1024} KB naar bank {bank:02d}')
+    if data[:4] not in (b'MMBS', b'MMBL'):
+        raise SystemExit('geen .mmbs of .mmbl (magic MMBS/MMBL ontbreekt)')
+    lyric = data[:4] == b'MMBL'
+    print(f"{path}: {len(data) // 1024} KB naar {'lyricbank' if lyric else 'bank'} {bank:02d}")
     crc = zlib.crc32(data) & 0xFFFFFFFF
-    s.write(json.dumps({'type': 'bankPut', 'bank': bank, 'size': len(data), 'crc': crc}).encode() + b'\n')
+    msg = {'type': 'bankPut', 'bank': bank, 'size': len(data), 'crc': crc}
+    if lyric:
+        msg['kind'] = 'lyric'
+    s.write(json.dumps(msg).encode() + b'\n')
     ack, rest = wait_for(s, lambda o: o.get('type') == 'ack' and (o.get('phase') == 'begin' or not o.get('ok')), 10)
     if not ack.get('ok'):
         raise SystemExit(f"geweigerd: {ack.get('err')}")

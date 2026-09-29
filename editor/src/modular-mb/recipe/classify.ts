@@ -20,7 +20,7 @@ const FAMILY_BY_TYPE: Record<string, Family> = {
   tp_mmb_fm_vco: 'FM', tp_mmb_dx7: 'FM',
   tp_mmb_string: 'Physical modelling', tp_mmb_stk_sound: 'Physical modelling', tp_mmb_rings: 'Physical modelling',
   tp_mmb_elements: 'Physical modelling', tp_mmb_plaits: 'Physical modelling',
-  tp_mmb_sampler: 'Sampling',
+  tp_mmb_sampler: 'Sampling', tp_mmb_zang: 'Sampling',
   tp_mmb_peaks: 'Drums', tp_mmb_cr78: 'Drums', tp_mmb_grids: 'Drums',
   tp_mmb_marbles: 'Generatief',
 };

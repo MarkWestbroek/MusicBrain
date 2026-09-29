@@ -46,6 +46,7 @@ export const CATALOG: Record<string, CatalogEntry> = {
   tp_mmb_elements:  { short: 'Elements', kind: 'source', aliases: ['elements'] },
   tp_mmb_dx7:       { short: 'DX7',      kind: 'source', aliases: ['dx7', 'dx 7', 'fm 6op', '6op fm', 'yamaha'] },
   tp_mmb_sampler:   { short: 'Sampler',  kind: 'source', aliases: ['sampler', 'multisampler', 'sample', 'samples'] },
+  tp_mmb_zang:      { short: 'Zang',     kind: 'source', aliases: ['zang', 'zingen', 'zangstem', 'lyric', 'lyrics', 'woorden', 'psola'] },
   tp_mmb_quad_vco_shared: { short: 'Quad-VCO', kind: 'source', aliases: ['quad vco', 'quadvco', '4 vco'] },
   tp_mmb_octa_vco:  { short: 'Octa-VCO', kind: 'source', aliases: ['octa vco', 'octavco', '8 vco'] },
   tp_mmb_noise:     { short: 'Noise',    kind: 'noise',  aliases: ['noise', 'ruis'] },

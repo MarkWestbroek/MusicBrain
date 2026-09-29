@@ -38,6 +38,7 @@ import {
   seedTestPatch,
   seedVocoderChoirPatch,
   seedWarpsVocoderPatch,
+  seedZangPatch,
 } from './seedModules';
 
 // ── Contract laden ────────────────────────────────────────────────────────
@@ -95,6 +96,7 @@ function allSeededProject(): ModularProject {
   p = seedWarpsVocoderPatch(p);
   p = seedVocoderChoirPatch(p, 'plaits');
   p = seedVocoderChoirPatch(p, 'mic');
+  p = seedZangPatch(p);
   return p;
 }
 

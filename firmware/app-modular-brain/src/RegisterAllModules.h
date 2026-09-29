@@ -88,6 +88,7 @@
 #include "ShimmerModule.h"
 #include "ParamEqModule.h"
 #include "SamplerModule.h"
+#include "ZangModule.h"
 #include "SidModule.h"
 #include "Sid3Module.h"
 #include "CombModule.h"
@@ -170,6 +171,7 @@ inline void registerAllRuntimeModules() {
     ShimmerModule::registerFactory();        // shimmer reverb: plaat + korrel-shifter in de lus (mmb-dsp), ook als wasm
     ParamEqModule::registerFactory();   // parametrische EQ, SSL/API-stijl (mmb-dsp), ook als wasm
     SamplerModule::registerFactory();   // sample-speler (mmb-dsp), PSRAM + SD; ook als wasm
+    ZangModule::registerFactory();      // zingende stemmen: PSOLA op een lyricbank (.mmbl); ook als wasm
     SidModule::registerFactory();       // SID 6581/8580, eigen emulatie (mmb-dsp), 3 stem-cellen; ook als wasm
     Sid3Module::registerFactory();      // SID 3-osc: zelfde engine, instellingen per stem (Stack/Split); ook als wasm
     CombModule::registerFactory();      // FW-AU-3: tuned comb resonator

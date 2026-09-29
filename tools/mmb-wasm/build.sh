@@ -176,6 +176,7 @@ sel envfollower && EXTRA="-DMMB_EF_CELLS=1" build envfollower tp_mmb_env_followe
 
 # Banken (blobs) leven in het wasm-geheugen: ruime bovengrens.
 sel sampler && MAXMEM=2147483648 build sampler tp_mmb_sampler "$LIB/mmb-dsp" --
+sel zang && build zang tp_mmb_zang "$LIB/mmb-dsp" --
 sel sid && build sid tp_mmb_sid "$LIB/mmb-dsp" --
 sel sid3 && build sid3 tp_mmb_sid3 "$LIB/mmb-dsp" --
 MSFA="$LIB/msfa"

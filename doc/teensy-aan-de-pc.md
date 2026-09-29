@@ -110,6 +110,21 @@ samplebank moet op een SD-kaart.
   test`) bit-gelijk via de CRC-zelftest. Grens: 4 GB per bank, 256 samples,
   512 zones.
 
+### Lyricbanken voor ZANG
+
+De module ZANG leest `/mmb/lyrics/NN.mmbl` (knop Bank = NN). Je maakt zo'n
+bank in de editor met **🎤 Zang** en stuurt hem met ⤒ Teensy, of vanaf de
+commandoregel met hetzelfde script als de samplebanken — het ziet aan het
+bestand welke soort het is:
+
+```bash
+.venv/Scripts/python tools/teensy-live/bank_put.py liedje.mmbl 0
+.venv/Scripts/python tools/teensy-live/bank_put.py --delete 0 --lyric
+```
+
+Een lyricbank gaat in één keer naar PSRAM (er wordt niet gestreamd) en staat
+los van de samplebank: koor en zang kunnen samen in één patch.
+
 ## 4. Zelf testen zonder handen (noten sturen en opnemen)
 
 `tools/teensy-live/teensy_live.py` speelt de noten uit een Teensy-log van de

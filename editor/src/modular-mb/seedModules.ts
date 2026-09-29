@@ -1442,6 +1442,65 @@ function mmbSampler() {
   });
 }
 
+// ── ZANG ────────────────────────────────────────────────────────────────
+// Zingende stemmen: ingesproken lettergrepen op de noten die je speelt, met
+// PSOLA (mmb_dsp::ZangEngine, doc/plans/zingende-stemmen.md). Multi-module
+// met acht stem-cellen, zoals de sampler; de lyricbank (.mmbl) maak je met
+// de knop 🎤 Zang.
+function mmbZang() {
+  const w = W(14);
+  const colX = (i: number) => w * (0.0625 + i * 0.125);
+  const cells = [1, 2, 3, 4, 5, 6, 7, 8];
+  return assemble({
+    typeId: 'tp_mmb_zang',
+    categoryId: 'vco',
+    variant: 'Zingende stemmen',
+    brand: 'MMB', model: 'ZANG',
+    hp: 14, texture: 'pcb-black', baseColor: '#2a1a2e', internal: true,
+    role: 'multi',
+    cellGroups: [{
+      id: 'voice',
+      label: 'Stem',
+      count: 8,
+      portIds: ['voct', 'gate', 'vel'],
+      controlIds: [],
+    }],
+    texts: [
+      { x: w/2, y: 8,   text: 'ZANG', fontSize: 2.2, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: 'woorden · 8 stemmen · PSOLA', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+      { x: 3, y: 97,  text: 'V/Oct', fontSize: 1.0, color: '#9ca3af', align: 'start' },
+      { x: 3, y: 109, text: 'Gate',  fontSize: 1.0, color: '#9ca3af', align: 'start' },
+      { x: 3, y: 121, text: 'Vel',   fontSize: 1.0, color: '#9ca3af', align: 'start' },
+    ],
+    items: [
+      knob('bank',  'Bank',  w*0.12, 28, { size: 'medium', min: 0, max: 15, def: 0, step: 1, color: '#f5a623', ticks: { every: 1, highlight: [0, 15] } }),
+      knob('syl',   'Lettergr.', w*0.32, 28, { size: 'medium', min: 0, max: 255, def: 0, step: 1, color: '#f5a623' }),
+      display('sylDisp', w*0.50, 28, { digits: 3, style: 'led', bindTo: 'syl', format: 'int' }),
+      sw  ('mode',  'Mode',  w*0.68, 28, ['Vast', 'Volgende', 'Vlg+terug'], 1),
+      knob('level', 'Level', w*0.88, 28, { size: 'medium', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      knob('speed',   'Speed',   w*0.12, 52, { size: 'small', min: 0.25, max: 4, def: 1, color: '#f9fafb' }),
+      knob('formant', 'Formant', w*0.28, 52, { size: 'medium', min: -12, max: 12, def: 0, unit: 'semi', color: '#e879f9' }),
+      knob('attack',  'Att',     w*0.44, 52, { size: 'small', min: 0, max: 500, def: 5, unit: 'ms', color: '#9ca3af' }),
+      knob('release', 'Rel',     w*0.58, 52, { size: 'small', min: 5, max: 3000, def: 250, unit: 'ms', color: '#9ca3af' }),
+      knob('coarse',  'Coarse',  w*0.72, 52, { size: 'small', min: -24, max: 24, def: 0, unit: 'semi', color: '#f9fafb' }),
+      knob('fine',    'Fine',    w*0.86, 52, { size: 'small', min: -100, max: 100, def: 0, unit: 'ct', color: '#f9fafb' }),
+      inPort ('syl_cv',     'Syl',   'cv',   w*0.08, 74),
+      inPort ('next',       'Next',  'gate', w*0.22, 74),
+      inPort ('reset',      'Reset', 'gate', w*0.36, 74),
+      inPort ('formant_cv', 'Frm',   'cv',   w*0.50, 74),
+      inPort ('bend',       'Bend',  'cv',   w*0.64, 74),
+      outPort('syl_out',    'Syl',   'cv',   w*0.78, 74),
+      outPort('out_l', 'L', 'audio', w*0.86, 84),
+      outPort('out_r', 'R', 'audio', w*0.94, 84),
+      ...cells.map((k) => inPort(`voct_${k}`, `${k}`, 'cv',   colX(k - 1), 96,  { cellGroupId: 'voice' })),
+      ...cells.map((k) => inPort(`gate_${k}`, '',     'gate', colX(k - 1), 108, { cellGroupId: 'voice' })),
+      ...cells.map((k) => inPort(`vel_${k}`,  '',     'cv',   colX(k - 1), 120, { cellGroupId: 'voice' })),
+    ],
+    notes: 'Zingende stemmen. Een lyricbank bevat ingesproken lettergrepen; ZANG zingt ze op de noot die je speelt, met de klinkerkleur van de opname (PSOLA: korte stukjes van twee stemperioden, opnieuw aan elkaar geplakt op de gevraagde toonhoogte). Zolang de gate open is blijft de klinker klinken; bij loslaten speelt de slotmedeklinker uit. Mode: Vast = altijd lettergreep Lettergr.; Volgende = elke aanslag de volgende (een akkoord deelt er één); Vlg+terug = idem, maar na 2 s stilte terug naar het begin. Next en Reset doen hetzelfde met een gate, Syl (CV 0..1) kiest rechtstreeks. Formant schuift de klinkerkleur los van de toonhoogte: omhoog = kinderstem, omlaag = reus. Speed rekt de medeklinkers en overgangen. Bereik: ruwweg een octaaf rond de gesproken toonhoogte klinkt natuurlijk. De bank maak je met 🎤 Zang (opnemen of wav, lettergrepen intypen); op de Teensy staat hij in /mmb/lyrics/NN.mmbl en kiest Bank het nummer. Acht stem-cellen als de sampler: polyfoon = een PolyGroup over de cellen (Poly ▾ → Zingende stem). Firmware tp_mmb_zang.',
+  });
+}
+
 // ── SID (MOS 6581/8580) ────────────────────────────────────────────────
 // Eigen emulatie op registerniveau (mmb_dsp::SidSynth, doc/plans/sid.md), als
 // multi-module: drie stem-cellen die één chip delen, zoals op de C64. Stap 1
@@ -3458,7 +3517,7 @@ function mmbEnvFollowerMono() {
 // ── public entry ───────────────────────────────────────────────────────
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbAudioIn(), mmbEcho(), mmbTapeEcho(), mmbStereoTapeEcho(), mmbDigitalEcho(), mmbBbdChorus(), mmbRingMod(), mmbOctaver(), mmbHarmonizer(), mmbReverb(), mmbTremolo(), mmbStereoPhaser(), mmbVibe(), mmbRotary(), mmbShimmer(), mmbFetComp(),mmbOptoComp(), mmbBusComp(),mmbVariMuComp(), mmbProgramEq(), mmbDiodeComp(), mmbConsoleEq(), mmbParaEq(), mmbSampler(), mmbSid(), mmbSid3(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbEnvFollower(), mmbEnvFollowerMono()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbAudioIn(), mmbEcho(), mmbTapeEcho(), mmbStereoTapeEcho(), mmbDigitalEcho(), mmbBbdChorus(), mmbRingMod(), mmbOctaver(), mmbHarmonizer(), mmbReverb(), mmbTremolo(), mmbStereoPhaser(), mmbVibe(), mmbRotary(), mmbShimmer(), mmbFetComp(),mmbOptoComp(), mmbBusComp(),mmbVariMuComp(), mmbProgramEq(), mmbDiodeComp(), mmbConsoleEq(), mmbParaEq(), mmbSampler(), mmbZang(), mmbSid(), mmbSid3(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbEnvFollower(), mmbEnvFollowerMono()];
   const newTypes = all.map((x) => x.type);
 
   // Upgrade-pad: bestaande interne types worden in-place VERVANGEN (zelfde
@@ -4728,6 +4787,87 @@ export function seedWarpsVocoderPatch(project: ModularProject): ModularProject {
       [plaits.id]: { engine: 11, harmonics: 0.5, timbre: 0.5, morph: 0.5, decay: 0.6, lpg: 0.6 },  // 11 = Grain (heette hier string; nummering gecorrigeerd 2026-09-29, klank ongewijzigd)
       [warps.id]:  { algo: 6.2, timbre: 0.5, shape: 3, drive1: 1, drive2: 1.3, coarse: 0, level: 0.85 },  // 6–8 = vocoder; 6,2 = snelle release (8 = bevroren)
       [out.id]:    { level: 0.85 },
+    },
+    envelopes: [], lfos: [],
+  };
+
+  return {
+    ...p,
+    racks:        [...p.racks, rack],
+    modules:      [...p.modules, ...all],
+    patches:      [...p.patches, patch],
+    activeRackId:  rack.id,
+    activePatchId: patch.id,
+  };
+}
+
+/**
+ * Zingende stem: MidiIn → ZANG (acht stem-cellen als PolyGroup) → galm → OUT.
+ * Elke aanslag zingt de volgende lettergreep van de lyricbank; een akkoord
+ * deelt er één. De bank komt uit 🎤 Zang (simulator) of van de SD-kaart
+ * (/mmb/lyrics/NN.mmbl, knop Bank).
+ */
+export function seedZangPatch(project: ModularProject, voiceCount = 8): ModularProject {
+  const N = Math.max(2, Math.min(8, Math.round(voiceCount)));
+  const needed = ['tp_mmb_midiin', 'tp_mmb_zang', 'tp_mmb_reverb', 'tp_mmb_out'];
+  const missing = needed.some((tid) => !project.moduleTypes.some((t) => t.id === tid))
+    || needed.some((tid) => !project.modules.some((m) => m.typeId === tid));
+  const p = missing ? seedInternals(project) : project;
+
+  const fresh = (tid: string): ModuleInstance => {
+    const proto = p.modules.find((m) => m.typeId === tid)!;
+    return { ...proto, id: uid('mod'), internal: false, visual: proto.visual };
+  };
+  const mi   = fresh('tp_mmb_midiin');
+  const zang = fresh('tp_mmb_zang');
+  const rev  = fresh('tp_mmb_reverb');
+  const out  = fresh('tp_mmb_out');
+  const name = 'Zingende stem';
+
+  let offset = 0;
+  const slot = (m: ModuleInstance): RackSlot => {
+    const s: RackSlot = { id: uid('slot'), moduleId: m.id, row: 0, hpOffset: offset };
+    offset += m.visual.hpWidth;
+    return s;
+  };
+  const all = [mi, zang, rev, out];
+  const slots = all.map(slot);
+  const rack: Rack = {
+    id: uid('rack'), name,
+    description: `MidiIn → ZANG (${N} stem-cellen als PolyGroup) → galm → OUT.`,
+    rows: 1, hpPerRow: Math.max(64, offset + 4),
+    slots,
+    kind: 'physical',
+    polyGroups: [{
+      id: uid('poly'), label: 'ZANG', voiceCount: N,
+      members: Array.from({ length: N }, (_, i) => ({
+        kind: 'cell' as const, moduleId: zang.id, cellGroupId: 'voice', cellIndex: i,
+      })),
+    }],
+  };
+
+  const c = (fm: ModuleInstance, fp: string, tm: ModuleInstance, tp: string): PatchConnection => ({
+    id: uid('conn'),
+    from: { moduleId: fm.id, portId: fp },
+    to:   { moduleId: tm.id, portId: tp },
+  });
+  const patch: Patch = {
+    id: uid('patch'), name,
+    description: 'Speel een melodie: elke aanslag zingt de volgende lettergreep, en de klinker blijft klinken zolang je de toets vasthoudt. Een akkoord zingt één lettergreep op alle noten. Maak eerst een lyricbank met 🎤 Zang (opnemen of wav, lettergrepen intypen) en zet hem in de simulator of op de Teensy. Formant = klinkerkleur (omhoog kinderstem, omlaag reus); Mode Vlg+terug begint na 2 s stilte weer bij de eerste lettergreep; de pitch-wheel buigt alle stemmen.',
+    voiceCount: N,
+    rackIds: [rack.id],
+    connections: [
+      c(mi, 'pitch', zang, 'voct_1'),
+      c(mi, 'gate',  zang, 'gate_1'),
+      c(mi, 'vel',   zang, 'vel_1'),
+      c(mi, 'cv_bend', zang, 'bend'),
+      ...stereoChain(c, zang, [rev], out),
+    ],
+    controlState: {
+      [mi.id]:   { channel: 0, voiceCount: N, steal: 0 },
+      [zang.id]: { bank: 0, syl: 0, mode: 2, speed: 1, formant: 0, attack: 5, release: 250, coarse: 0, fine: 0, level: 0.8 },
+      [rev.id]:  { mix: 0.25 },
+      [out.id]:  { level: 0.85 },
     },
     envelopes: [], lfos: [],
   };

@@ -597,6 +597,9 @@ export async function sendDx7Bank(bytes: Uint8Array): Promise<void> {
  * poort (Web Serial doet de flow control), de Teensy hernoemt en laadt de
  * bank opnieuw als die in gebruik was. Zie TeensyLink.h (pollRaw) voor het
  * protocol. `onProgress` krijgt elke 256 KB een tussenstand.
+ *
+ * Met `kind = 'lyric'` is het een `.mmbl` (lyricbank voor ZANG) en komt hij
+ * in `/mmb/lyrics/NN.mmbl`.
  */
 /** CRC32 (IEEE, zoals zlib.crc32) — de Teensy telt dezelfde mee en weigert bij verschil. */
 function crc32(bytes: Uint8Array): number {
@@ -609,7 +612,8 @@ function crc32(bytes: Uint8Array): number {
 }
 
 export async function sendBank(bank: number, bytes: Uint8Array,
-                               onProgress?: (bytes: number, size: number) => void): Promise<void> {
+                               onProgress?: (bytes: number, size: number) => void,
+                               kind: 'sample' | 'lyric' = 'sample'): Promise<void> {
   if (!writer) throw new Error('niet verbonden');
   if (bank < 0 || bank > 15) throw new Error('bank 0-15');
   const applied = (m: Record<string, unknown>, phase: string): boolean =>
@@ -621,7 +625,10 @@ export async function sendBank(bank: number, bytes: Uint8Array,
   // de poort een bytestroom, en een status-poll die net dán zou vertrekken
   // komt in het bestand terecht.
   if (statusPollTimer) { clearInterval(statusPollTimer); statusPollTimer = null; }
-  await writeLine(JSON.stringify({ type: 'bankPut', bank, size: bytes.length, crc: crc32(bytes) }));
+  await writeLine(JSON.stringify({
+    type: 'bankPut', bank, size: bytes.length, crc: crc32(bytes),
+    ...(kind === 'lyric' ? { kind: 'lyric' } : {}),
+  }));
   uploading = true;
   const begin = waitForAck((m) => applied(m, 'begin') || failed(m), 5000, 'bankPut');
   let b: Record<string, unknown>;

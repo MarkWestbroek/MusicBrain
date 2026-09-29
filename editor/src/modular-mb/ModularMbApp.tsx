@@ -13,7 +13,7 @@ import { startDemo, DemoCaption, type DemoState, type DemoHandle } from './recip
 import type { PatchOp } from './recipe/types';
 import { emptyModularProject } from './types';
 import { exportPanel, importPanel, parsePanelFile } from './panelIO';
-import { BUS_SOLO_FX, CONSOLE_EQ_SOLO_FX, PARA_EQ_SOLO_FX, DIODE_SOLO_FX, EQ_SOLO_FX, FET_SOLO_FX, OPTO_SOLO_FX, SAMPLER_MASTER_FX, VARIMU_SOLO_FX, STEREO_TAPE_SOLO_FX, DIGITAL_ECHO_SOLO_FX, BBD_SOLO_FX, RINGMOD_SOLO_FX, OCTAVER_SOLO_FX, HARMONIZER_SOLO_FX, REVERB_SOLO_FX, SPRING_SOLO_FX, TREMOLO_SOLO_FX, STEREO_PHASER_SOLO_FX, VIBE_SOLO_FX, ROTARY_SOLO_FX, SHIMMER_SOLO_FX, seedExampleModules, seedInternals, seedTestPatch, seedFmTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, seedDx7PolyPatch, seedSamplerPolyPatch, seedWarpsVocoderPatch, seedVocoderChoirPatch, seed808JamPatch, seedKrellPatch, type PolySeedOptions } from './seedModules';
+import { BUS_SOLO_FX, CONSOLE_EQ_SOLO_FX, PARA_EQ_SOLO_FX, DIODE_SOLO_FX, EQ_SOLO_FX, FET_SOLO_FX, OPTO_SOLO_FX, SAMPLER_MASTER_FX, VARIMU_SOLO_FX, STEREO_TAPE_SOLO_FX, DIGITAL_ECHO_SOLO_FX, BBD_SOLO_FX, RINGMOD_SOLO_FX, OCTAVER_SOLO_FX, HARMONIZER_SOLO_FX, REVERB_SOLO_FX, SPRING_SOLO_FX, TREMOLO_SOLO_FX, STEREO_PHASER_SOLO_FX, VIBE_SOLO_FX, ROTARY_SOLO_FX, SHIMMER_SOLO_FX, seedExampleModules, seedInternals, seedTestPatch, seedFmTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, seedDx7PolyPatch, seedSamplerPolyPatch, seedWarpsVocoderPatch, seedVocoderChoirPatch, seedZangPatch, seed808JamPatch, seedKrellPatch, type PolySeedOptions } from './seedModules';
 import { seedCs80BrassPatch } from './seedBrass';
 import { seedAxelFLeadPatch } from './seedAxelF';
 import { seedSid3Patch, seedSidPolyPatch } from './seedSid';
@@ -59,6 +59,7 @@ import { TeensyLinkModal } from './TeensyLinkModal';
 import { WaveDrawModal } from './WaveDrawModal';
 import { SampleModal } from './SampleModal';
 import { SampleImportModal } from './SampleImportModal';
+import { LyricModal } from './lyric/LyricModal';
 import { Dx7EditorModal } from './Dx7EditorModal';
 // Reuse the ES project-bar CSS classes (.es-projectbar*) — same visual language.
 import '../effect-switcher/styles.css';
@@ -86,6 +87,7 @@ export function ModularMbApp(): JSX.Element {
   const [showWave,    setShowWave]    = useState(false);
   const [showSample,  setShowSample]  = useState(false);
   const [showImport,  setShowImport]  = useState(false);
+  const [showLyric,   setShowLyric]   = useState(false);
   const [showDx7,     setShowDx7]     = useState(false);
   const [showPoly,    setShowPoly]    = useState(false);
   const [showStress,  setShowStress]  = useState(false);
@@ -353,6 +355,10 @@ export function ModularMbApp(): JSX.Element {
             title="Eén lange opname (C1 zacht/midden/hard, C2 idem, …) ontleden tot een keymap: toonhoogte, velocity-lagen, uitsterving en loop-punten"
           >🎹 Multisample</button>
           <button
+            onClick={() => setShowLyric(true)}
+            title="Woorden om te zingen: spreek in of kies een wav, typ de lettergrepen, en de module ZANG zingt ze op de noten die je speelt"
+          >🎤 Zang</button>
+          <button
             onClick={() => setShowDx7(true)}
             title="DX7-patch bewerken: algoritme, operators, envelopes — je hoort elke wijziging meteen in alle DX7-modules"
           >🎛 DX7</button>
@@ -492,6 +498,14 @@ export function ModularMbApp(): JSX.Element {
                     padding: '7px 12px', cursor: 'pointer', fontSize: 13,
                   }}
                 >🎧 Sampler ×8 (cellen)</button>
+                <button
+                  onClick={() => { setProject(seedZangPatch(getProject(), 8)); setShowPoly(false); }}
+                  title="Zingende stem: ZANG met acht stem-cellen als PolyGroup, met galm. Elke aanslag zingt de volgende lettergreep. Maak een lyricbank via 🎤 Zang."
+                  style={{
+                    textAlign: 'left', border: 'none', background: 'transparent',
+                    padding: '7px 12px', cursor: 'pointer', fontSize: 13,
+                  }}
+                >🎤 Zingende stem ×8</button>
                 <button
                   onClick={() => { setProject(seedSamplerPolyPatch(getProject(), 8, true)); setShowPoly(false); }}
                   title="Sampler ×8 met per stem een MS-20 in de cel, gestuurd door de envelope-follower van diezelfde stem: env_k → cutoff_k. Eén kabel in de patcher, uitgevouwen over alle stemmen."
@@ -770,6 +784,7 @@ export function ModularMbApp(): JSX.Element {
       <WaveDrawModal open={showWave} onClose={() => setShowWave(false)} />
       <SampleModal open={showSample} onClose={() => setShowSample(false)} />
       <SampleImportModal open={showImport} onClose={() => setShowImport(false)} />
+      <LyricModal open={showLyric} onClose={() => setShowLyric(false)} />
       <Dx7EditorModal open={showDx7} onClose={() => setShowDx7(false)} />
     </section>
   );

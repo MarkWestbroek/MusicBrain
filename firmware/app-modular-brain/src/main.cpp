@@ -32,6 +32,7 @@
 #include "Dx7Module.h"
 #include "WarpsModule.h"
 #include "SamplerModule.h"
+#include "ZangModule.h"
 #include "UsbQueueProbe.h"
 #include "mmb_dsp/sampler_selftest.h"
 #include "mb/Protocol/MbSysex.h"
@@ -69,6 +70,9 @@ inline int freeHeapBytes() {
 // One MidiInModule owns the allocator + per-voice state. It is the OO
 // entry point: the audio graph just mirrors its state.
 mb::runtime::MidiInModule midiIn{"midi1"};
+
+// Loopt er een upload naar de lyricbank (ZANG) of naar de samplebank?
+static bool gUploadLyric = false;
 
 // Per-voice audio chain.
 AudioSynthWaveform     osc[kVoices];
@@ -508,6 +512,20 @@ void onGetStatus(JsonObject s) {
         s["tidesOut1"] = mod->readCvPort("out1");
         break;
     }
+    // ... Zang: geladen lyricbank, stemmen en output-peak.
+    for (auto& [id, mod] : runtime.instances()) {
+        if (mod->typeId() != std::string_view{mmb_link::ZangModule::kTypeId}) continue;
+        auto* zm = static_cast<mmb_link::ZangModule*>(mod.get());
+        auto& store = mmb_link::LyricStore::instance();
+        JsonObject z = s["zang"].to<JsonObject>();
+        z["bank"] = store.loaded();
+        z["name"] = store.name();
+        z["syllables"] = store.syllables();
+        z["kb"] = store.bytes() / 1024;
+        z["voices"] = zm->stream().activeVoices();
+        z["peak"] = zm->stream().takePeak();
+        break;
+    }
     // ... Warps: ready + output-peak.
     for (auto& [id, mod] : runtime.instances()) {
         if (mod->typeId() != std::string_view{mmb_link::WarpsModule::kTypeId}) continue;
@@ -833,10 +851,27 @@ void setup() {
     link.onGetStatus(onGetStatus);       // telemetrie voor de editor
     link.onSelfTest(onSelfTest);
     link.onBankPut(
-        [](int bank, uint32_t size, uint32_t crc) { return mmb_link::SampleBank::instance().uploadBegin(bank, size, crc); },
-        [](const uint8_t* d, size_t n) { mmb_link::SampleBank::instance().uploadBytes(d, n); },
-        [](int bank, bool ok) { return mmb_link::SampleBank::instance().uploadDone(bank, ok); });
-    link.onBankDelete([](int bank) { return mmb_link::SampleBank::instance().deleteBank(bank); });
+        // Bank 100 + NN = lyricbank voor ZANG (kind "lyric" op de link).
+        [](int bank, uint32_t size, uint32_t crc) {
+            gUploadLyric = bank >= mmb_link::LyricStore::kLinkBase;
+            return gUploadLyric
+                ? mmb_link::LyricStore::instance().uploadBegin(bank - mmb_link::LyricStore::kLinkBase, size, crc)
+                : mmb_link::SampleBank::instance().uploadBegin(bank, size, crc);
+        },
+        [](const uint8_t* d, size_t n) {
+            if (gUploadLyric) mmb_link::LyricStore::instance().uploadBytes(d, n);
+            else mmb_link::SampleBank::instance().uploadBytes(d, n);
+        },
+        [](int bank, bool ok) {
+            return bank >= mmb_link::LyricStore::kLinkBase
+                ? mmb_link::LyricStore::instance().uploadDone(bank - mmb_link::LyricStore::kLinkBase, ok)
+                : mmb_link::SampleBank::instance().uploadDone(bank, ok);
+        });
+    link.onBankDelete([](int bank) {
+        return bank >= mmb_link::LyricStore::kLinkBase
+            ? mmb_link::LyricStore::instance().deleteBank(bank - mmb_link::LyricStore::kLinkBase)
+            : mmb_link::SampleBank::instance().deleteBank(bank);
+    });
     link.onSamplerHead([](int ms, bool force) {
         mmb_link::SampleBank::instance().setHeadMs(static_cast<uint32_t>(ms), force);
     });         // diagnose: MS-20 in de sampler, zonder uitgang

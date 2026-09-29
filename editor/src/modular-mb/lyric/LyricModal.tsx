@@ -1,0 +1,330 @@
+// LyricModal — een lyricbank maken voor de module ZANG: opnemen of wav's
+// kiezen, per opname de lettergrepen intypen, en de bank naar de simulator,
+// naar een bestand of naar de Teensy sturen.
+//
+// Het rekenwerk zit in analyze.ts (toonhoogte, pitch marks, lettergrepen) en
+// lyricBank.ts (het .mmbl-formaat); dit bestand is alleen het venster.
+// Achtergrond: doc/plans/zingende-stemmen.md.
+import { useEffect, useRef, useState } from 'react';
+
+import { WasmModule } from '../runtime';
+import { sendBank, useTeensyLink } from '../teensyLink';
+import { analyzeRecording, type SyllableAnalysis } from './analyze';
+import { buildLyricBank, fromAnalysis, parseLyricBank, type LyricBankData } from './lyricBank';
+
+export const ZANG_TYPE_ID = 'tp_mmb_zang';
+
+interface Take {
+  id: number;
+  name: string;
+  mono: Float32Array;
+  rate: number;
+  /** Lettergrepen zoals getypt: "zon-ne-tje" of "zon ne tje". */
+  text: string;
+  syllables: SyllableAnalysis[];
+  note: string;
+}
+
+/** "zon-ne-tje" → ["zon", "ne", "tje"]; leeg = zelf laten zoeken. */
+export function splitText(text: string): string[] {
+  return text.split(/[\s\-·|]+/).map((s) => s.trim()).filter((s) => s.length > 0);
+}
+
+/** De bank in de simulator zetten: het hele bestand als blob in slot 0. */
+export function loadLyricBankIntoSim(buf: ArrayBuffer, name: string): void {
+  const even = buf.byteLength & 1 ? buf.slice(0, buf.byteLength - 1) : buf;
+  WasmModule.setBlob(ZANG_TYPE_ID, 0, new Int16Array(even), 22050, name, 1);
+}
+
+async function decodeToMono(data: ArrayBuffer): Promise<{ mono: Float32Array; rate: number }> {
+  const ctx = new OfflineAudioContext(1, 1, 44100);
+  const b = await ctx.decodeAudioData(data);
+  const mono = new Float32Array(b.length);
+  for (let c = 0; c < b.numberOfChannels; c++) {
+    const src = b.getChannelData(c);
+    for (let i = 0; i < b.length; i++) mono[i] = mono[i]! + src[i]! / b.numberOfChannels;
+  }
+  return { mono, rate: b.sampleRate };
+}
+
+function analyze(take: Take): Take {
+  const want = splitText(take.text);
+  try {
+    const syllables = analyzeRecording(take.mono, take.rate, want.length ? { syllables: want } : {});
+    const note = want.length && syllables.length !== want.length
+      ? `${want.length} lettergrepen getypt, ${syllables.length} gevonden`
+      : '';
+    return { ...take, syllables, note };
+  } catch (err) {
+    return { ...take, syllables: [], note: `analyse mislukt: ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+export function LyricModal({ open, onClose }: { open: boolean; onClose: () => void }): JSX.Element | null {
+  const link = useTeensyLink();
+  const linked = link.status.kind === 'connected';
+  const [takes, setTakes] = useState<Take[]>([]);
+  const [name, setName] = useState('Mijn liedje');
+  const [bankNo, setBankNo] = useState(0);
+  const [status, setStatus] = useState('');
+  const [recording, setRecording] = useState(false);
+  const [loaded, setLoaded] = useState<LyricBankData | null>(null);
+  const nextId = useRef(1);
+  const recorder = useRef<MediaRecorder | null>(null);
+  const chunks = useRef<Blob[]>([]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent): void => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  const fail = (what: string, err: unknown): void =>
+    setStatus(`mislukt (${what}): ${err instanceof Error ? err.message : String(err)}`);
+
+  async function addAudio(data: ArrayBuffer, label: string): Promise<void> {
+    const { mono, rate } = await decodeToMono(data);
+    const take = analyze({ id: nextId.current++, name: label, mono, rate, text: '', syllables: [], note: '' });
+    setTakes((t) => [...t, take]);
+    setLoaded(null);
+    setStatus(`${label}: ${(mono.length / rate).toFixed(2)} s, ${take.syllables.length} lettergrepen gevonden`);
+  }
+
+  async function addFiles(files: FileList): Promise<void> {
+    for (const f of Array.from(files)) {
+      try { await addAudio(await f.arrayBuffer(), f.name); } catch (err) { fail(f.name, err); }
+    }
+  }
+
+  async function toggleRecord(): Promise<void> {
+    if (recording) { recorder.current?.stop(); return; }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: {
+        echoCancellation: false, noiseSuppression: false, autoGainControl: false,
+      } });
+      const rec = new MediaRecorder(stream);
+      chunks.current = [];
+      rec.ondataavailable = (e) => { if (e.data.size > 0) chunks.current.push(e.data); };
+      rec.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        setRecording(false);
+        const blob = new Blob(chunks.current, { type: rec.mimeType });
+        void blob.arrayBuffer()
+          .then((buf) => addAudio(buf, `opname ${nextId.current}`))
+          .catch((err) => fail('opname', err));
+      };
+      recorder.current = rec;
+      rec.start();
+      setRecording(true);
+      setStatus('opnemen… spreek het woord rustig en duidelijk in, en klik dan op Stop');
+    } catch (err) {
+      fail('microfoon', err);
+    }
+  }
+
+  function setText(id: number, text: string): void {
+    setTakes((t) => t.map((x) => (x.id === id ? { ...x, text } : x)));
+  }
+  function reanalyze(id: number): void {
+    setTakes((t) => t.map((x) => (x.id === id ? analyze(x) : x)));
+    setLoaded(null);
+  }
+  function remove(id: number): void {
+    setTakes((t) => t.filter((x) => x.id !== id));
+    setLoaded(null);
+  }
+  function move(id: number, dir: -1 | 1): void {
+    setTakes((t) => {
+      const i = t.findIndex((x) => x.id === id), j = i + dir;
+      if (i < 0 || j < 0 || j >= t.length) return t;
+      const c = t.slice();
+      [c[i], c[j]] = [c[j]!, c[i]!];
+      return c;
+    });
+    setLoaded(null);
+  }
+  function play(take: Take): void {
+    const ctx = new AudioContext();
+    const b = ctx.createBuffer(1, take.mono.length, take.rate);
+    b.copyToChannel(take.mono as Float32Array<ArrayBuffer>, 0);
+    const src = ctx.createBufferSource();
+    src.buffer = b;
+    src.connect(ctx.destination);
+    src.onended = () => { void ctx.close(); };
+    src.start();
+  }
+
+  /** De bank zoals hij nu in het venster staat, of null als er niets is. */
+  function currentBank(): { data: LyricBankData; bytes: ArrayBuffer } | null {
+    const data = loaded ?? fromAnalysis(name.trim() || 'Liedje', takes.flatMap((t) => t.syllables));
+    if (data.syllables.length === 0) { setStatus('er zijn nog geen lettergrepen'); return null; }
+    return { data, bytes: buildLyricBank(data) };
+  }
+
+  function toSim(): void {
+    const b = currentBank();
+    if (!b) return;
+    loadLyricBankIntoSim(b.bytes, b.data.name);
+    const n = WasmModule.count(ZANG_TYPE_ID);
+    setStatus(`in de simulator: "${b.data.name}", ${b.data.syllables.length} lettergrepen, ${(b.bytes.byteLength / 1024).toFixed(0)} KB`
+      + (n === 0 ? ' — zet een ZANG-module in het rack (Poly ▾ → Zingende stem)' : ''));
+  }
+
+  function download(): void {
+    const b = currentBank();
+    if (!b) return;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([b.bytes], { type: 'application/octet-stream' }));
+    a.download = `${String(bankNo).padStart(2, '0')}.mmbl`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    setStatus(`${a.download} bewaard — hoort op de SD-kaart in /mmb/lyrics/`);
+  }
+
+  async function openBank(file: File): Promise<void> {
+    try {
+      const buf = await file.arrayBuffer();
+      const data = parseLyricBank(buf);
+      setLoaded(data);
+      setName(data.name);
+      setTakes([]);
+      loadLyricBankIntoSim(buf, data.name);
+      setStatus(`${file.name} geopend en in de simulator gezet: ${data.syllables.length} lettergrepen`);
+    } catch (err) {
+      fail(file.name, err);
+    }
+  }
+
+  async function toTeensy(): Promise<void> {
+    const b = currentBank();
+    if (!b) return;
+    try {
+      setStatus('naar de Teensy…');
+      await sendBank(bankNo, new Uint8Array(b.bytes),
+        (done, size) => setStatus(`naar de Teensy… ${(done / 1024).toFixed(0)} van ${(size / 1024).toFixed(0)} KB`), 'lyric');
+      setStatus(`op de Teensy: lyricbank ${String(bankNo).padStart(2, '0')} ("${b.data.name}")`);
+    } catch (err) {
+      fail('Teensy', err);
+    }
+  }
+
+  const overlay: React.CSSProperties = {
+    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 60,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+  };
+  const panel: React.CSSProperties = {
+    background: '#fff', borderRadius: 8, padding: 18, width: 760, maxWidth: '94vw', maxHeight: '90vh',
+    overflowY: 'auto', boxShadow: '0 12px 40px rgba(0,0,0,0.3)', fontSize: 13,
+  };
+  const chip: React.CSSProperties = {
+    display: 'inline-block', border: '1px solid #cbd5e1', borderRadius: 4, padding: '2px 6px',
+    margin: '2px 4px 2px 0', fontFamily: 'monospace', fontSize: 12, background: '#f8fafc',
+  };
+  const syllableChips = (list: { text: string; ms: number; hz: number; sustain: boolean; wordEnd: boolean }[]): JSX.Element => (
+    <div>
+      {list.map((s, i) => (
+        <span key={i} style={{ ...chip, borderColor: s.sustain ? '#cbd5e1' : '#f59e0b', marginRight: s.wordEnd ? 14 : 4 }}
+          title={`${s.ms.toFixed(0)} ms · ${s.hz > 0 ? `${s.hz.toFixed(0)} Hz gesproken` : 'stemloos'} · ${s.sustain ? 'aan te houden' : 'geen klinkerkern: speelt één keer af'}`}>
+          {s.text || '·'} <span style={{ color: '#94a3b8' }}>{s.ms.toFixed(0)}</span>{s.sustain ? '' : ' ⚠'}
+        </span>
+      ))}
+    </div>
+  );
+
+  const total = loaded ? loaded.syllables.length : takes.reduce((n, t) => n + t.syllables.length, 0);
+
+  return (
+    <div style={overlay} onClick={onClose}>
+      <div style={panel} onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+          <h3 style={{ margin: 0 }}>🎤 Zang — woorden om te zingen</h3>
+          <span style={{ color: '#64748b' }}>lyricbank voor de module ZANG</span>
+          <button onClick={onClose} style={{ marginLeft: 'auto' }}>✕</button>
+        </div>
+        <p style={{ color: '#475569', margin: '8px 0 12px' }}>
+          Spreek een woord in (of kies een wav), typ de lettergrepen erbij — <code>zon-ne-tje</code> —
+          en klik op <strong>Analyseer</strong>. De module ZANG zingt ze daarna op de noten die je speelt:
+          elke aanslag de volgende lettergreep, en de klinker blijft klinken zolang je de toets vasthoudt.
+          Spreek rustig, op één toon, en dicht bij de microfoon; een lettergreep met ⚠ heeft geen
+          duidelijke klinker en speelt maar één keer af.
+        </p>
+
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
+          <button onClick={() => void toggleRecord()} style={recording ? { color: '#b91c1c', fontWeight: 600 } : undefined}>
+            {recording ? '⏹ Stop' : '⏺ Opnemen'}
+          </button>
+          <label>of wav's:{' '}
+            <input type="file" multiple accept="audio/*,.wav,.mp3,.flac,.ogg,.m4a"
+              onChange={(e) => { if (e.target.files) void addFiles(e.target.files); e.currentTarget.value = ''; }} />
+          </label>
+          <label style={{ marginLeft: 'auto' }}>bestaande bank:{' '}
+            <input type="file" accept=".mmbl"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) void openBank(f); e.currentTarget.value = ''; }} />
+          </label>
+        </div>
+
+        {takes.map((t, i) => (
+          <div key={t.id} style={{ border: '1px solid #e2e8f0', borderRadius: 6, padding: 8, marginBottom: 8 }}>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+              <button onClick={() => play(t)} title="De opname afspelen">▶</button>
+              <strong>{t.name}</strong>
+              <span style={{ color: '#94a3b8' }}>{(t.mono.length / t.rate).toFixed(2)} s</span>
+              <input value={t.text} placeholder="lettergrepen: zon-ne-tje" style={{ flex: 1, minWidth: 160 }}
+                onChange={(e) => setText(t.id, e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') reanalyze(t.id); }} />
+              <button onClick={() => reanalyze(t.id)}>Analyseer</button>
+              <button onClick={() => move(t.id, -1)} disabled={i === 0} title="Eerder in het liedje">↑</button>
+              <button onClick={() => move(t.id, 1)} disabled={i === takes.length - 1} title="Later in het liedje">↓</button>
+              <button onClick={() => remove(t.id)} title="Weggooien">🗑</button>
+            </div>
+            <div style={{ marginTop: 6 }}>
+              {syllableChips(t.syllables.map((s) => ({
+                text: s.text, ms: (s.data.length / s.rate) * 1000, hz: s.pitchHz,
+                sustain: s.sustainEnd > s.sustainStart, wordEnd: s.wordEnd,
+              })))}
+            </div>
+            {t.note && <div style={{ color: '#b45309', marginTop: 4 }}>⚠ {t.note}</div>}
+          </div>
+        ))}
+
+        {loaded && (
+          <div style={{ border: '1px solid #e2e8f0', borderRadius: 6, padding: 8, marginBottom: 8 }}>
+            <strong>{loaded.name}</strong>{' '}
+            <span style={{ color: '#94a3b8' }}>geopende bank, {loaded.syllables.length} lettergrepen</span>
+            <div style={{ marginTop: 6 }}>
+              {syllableChips(loaded.syllables.map((s) => ({
+                text: s.text, ms: (s.data.length / loaded.rate) * 1000, hz: s.pitchHz,
+                sustain: s.sustainEnd > s.sustainStart, wordEnd: s.wordEnd,
+              })))}
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 10 }}>
+          <label>Naam <input value={name} maxLength={27} style={{ width: 160 }}
+            onChange={(e) => setName(e.target.value)} disabled={loaded !== null} /></label>
+          <span style={{ color: '#64748b' }}>{total} lettergrepen</span>
+          <button onClick={toSim} disabled={total === 0} style={{ marginLeft: 'auto' }}
+            title="De bank in de ZANG-modules van de simulator zetten">Naar simulator</button>
+          <label>bank <input type="number" min={0} max={15} value={bankNo} style={{ width: 48 }}
+            onChange={(e) => setBankNo(Math.max(0, Math.min(15, Number(e.target.value))))} /></label>
+          <button onClick={download} disabled={total === 0}
+            title="Als NN.mmbl bewaren, voor /mmb/lyrics op de SD-kaart">⤓ .mmbl</button>
+          <button onClick={() => void toTeensy()} disabled={total === 0 || !linked}
+            title={linked ? 'Via de link naar /mmb/lyrics/NN.mmbl op de SD-kaart' : 'Verbind eerst met de Teensy'}>⤒ Teensy</button>
+        </div>
+
+        <div style={{ minHeight: 18, marginTop: 8, color: status.startsWith('mislukt') ? '#b91c1c' : '#334155' }}>{status}</div>
+        <p style={{ color: '#94a3b8', marginTop: 10, marginBottom: 0, fontSize: 12 }}>
+          De bank blijft in de browser tot een herlaad; bewaar hem als <code>.mmbl</code>. Op de Teensy kiest de
+          knop <strong>Bank</strong> van ZANG het bestand <code>/mmb/lyrics/NN.mmbl</code>. De automatische
+          lettergreepgrenzen zijn een schatting: klinkt een lettergreep verkeerd afgeknipt, spreek het woord dan
+          met korte pauzes tussen de lettergrepen in.
+        </p>
+      </div>
+    </div>
+  );
+}

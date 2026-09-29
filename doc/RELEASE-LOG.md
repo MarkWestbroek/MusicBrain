@@ -17,6 +17,40 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### fw 0.5.92 — ZANG: woorden zingen met PSOLA (2026-09-29)
+- **Nieuwe module ZANG** (`tp_mmb_zang`): ingesproken lettergrepen op de
+  noten die je speelt. PSOLA knipt de opname in grains van twee stemperioden
+  rond vooraf bepaalde *pitch marks* en plakt ze op de gevraagde afstand
+  terug: andere toonhoogte, zelfde klinkerkleur. Zolang de gate open is loopt
+  de stem heen en weer door de klinkerkern; bij loslaten speelt de
+  slotmedeklinker uit. Acht stem-cellen zoals de sampler. Knoppen: Bank,
+  Lettergr., Mode (vast / volgende per aanslag / idem met terugkeer na 2 s
+  stilte), Speed, Formant (klinkerkleur los van de toonhoogte), Att, Rel,
+  Coarse, Fine, Level. Ingangen: Syl, Next, Reset, Formant, Bend. Een akkoord
+  deelt één lettergreep. Plan: [plans/zingende-stemmen.md](plans/zingende-stemmen.md).
+- **Lyricbank `.mmbl`** (`mmb_dsp/lyric_bank.h`): lettergrepen, hun marks en
+  klinkerkern, 22 kHz mono, ~44 KB per seconde. Op de Teensy in
+  `/mmb/lyrics/NN.mmbl`, in één keer naar PSRAM, met eigen opslag naast de
+  sampler. Upload over het bestaande `bankPut` met `"kind":"lyric"`
+  (`bank_put.py` ziet het aan de magic; in de editor de knop ⤒ Teensy).
+- **Analyse in de editor** (`editor/src/modular-mb/lyric/`): toonhoogte
+  volgens het recept van Praat (kandidaten per frame, beste pad), pitch
+  marks op de pulsen en onderling uitgelijnd op golfvorm, lettergreepgrenzen
+  uit de energie tussen 500 en 2000 Hz, klinkerkern, niveau per lettergreep
+  gelijkgetrokken. Venster **🎤 Zang**: opnemen of wav's kiezen, lettergrepen
+  intypen (`zon-ne-tje`), naar simulator, bestand of Teensy. Seed
+  **🎤 Zingende stem ×8** in het Poly-menu.
+- Gemeten. Wasm: toonhoogte binnen 20 cent van C3 tot C5 bij een stem van
+  125 Hz, klinker houdt 3 s aan, formant verschuift het spectrum en niet de
+  toonhoogte. Teensy, bank van 21 lettergrepen (Windows-stem Frank): 18
+  noten binnen 6 cent, twee binnen 25 cent (korte kernen, en de meting rekent
+  in hele samples), één lettergreep zonder klinkerkern; cpu 12 % met drie
+  stemmen tegen 11,6 % zonder. Tests: editor 729 (13 nieuw), contract 77
+  modules.
+- Bekende grenzen: de automatische lettergreepgrenzen zijn een schatting
+  (twee klinkers met een `n` ertussen hebben geen dal); grenzen verschuiven
+  in de editor en tekst inspreken met Piper zijn de volgende stappen.
+
 ### fw 0.5.91 — AUDIO IN, en een Warps-vocoder die het doet (2026-09-29)
 - **Nieuwe module AUDIO IN** (`tp_mmb_audioin`): de USB-audio die de pc naar
   het afspeelapparaat "Teensy MIDI/Audio" stuurt (`AudioInputUSB`) als bron
