@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react';
 import { MidiFileSource, parseSmf, encodeEdited } from './midiFilePlayer';
 import { MidiRoll } from './MidiRoll';
+import { offerFromSysex } from './PatchInbox';
 
 const fmt = (ms: number): string => {
   const s = Math.max(0, ms) / 1000;
@@ -62,6 +63,7 @@ export function MidiFileUi({ source, running, onStartSim, onReplace }: {
       if (parsed.events.length === 0) throw new Error('Het bestand bevat geen noten of controllers.');
       source.load(parsed, file.name);
       setErr(null);
+      void offerFromSysex(parsed.sysex, file.name);
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     }

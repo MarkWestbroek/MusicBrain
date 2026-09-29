@@ -52,6 +52,7 @@ import { SimQuickBar } from './sim/SimQuickBar';
 import { MidiMonitorHost } from './sim/MidiMonitorWindow';
 import { TakeEditorHost } from './sim/TakeEditorWindow';
 import { PatchExportMenu } from './sim/PatchExportMenu';
+import { PatchInboxHost } from './sim/PatchInbox';
 import { ControlSurfacePanel } from './ControlSurfacePanel';
 import { PresetsModal } from './PresetsModal';
 import { TeensyLinkModal } from './TeensyLinkModal';
@@ -731,6 +732,7 @@ export function ModularMbApp(): JSX.Element {
       </nav>
       <MidiMonitorHost />
       <TakeEditorHost />
+      <PatchInboxHost />
 
       {tab === 'patches'    && <PatchesPanel />}
       {tab === 'modules'    && <ModulesPanel />}

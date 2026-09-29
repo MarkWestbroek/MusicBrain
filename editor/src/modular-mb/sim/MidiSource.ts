@@ -18,7 +18,8 @@ export type MidiEvent =
   | { kind: 'pitchBend'; value: number; }   // 14-bit 0-16383 (8192 = centre)
   | { kind: 'pressure';  value: number; }   // channel aftertouch (0xD0), 0..127
   | { kind: 'polyPressure'; note: number; value: number; }   // per toets (0xA0), 0..127
-  | { kind: 'program';   program: number; };  // program change (0xC0), 0..127 — kiest een patch (ED-RC-8)
+  | { kind: 'program';   program: number; }   // program change (0xC0), 0..127 — kiest een patch (ED-RC-8)
+  | { kind: 'sysex';     data: Uint8Array; };  // volledig SysEx-bericht (F0 … F7), bv. een MusicBrain-patch
 
 export type MidiListener = (e: MidiEvent) => void;
 
@@ -303,7 +304,10 @@ export class WebMidiSource extends BaseSource {
     if (!WebMidiSource.isSupported()) {
       throw new Error('Web MIDI niet ondersteund in deze browser.');
     }
-    this.access = await navigator.requestMIDIAccess({ sysex: false });
+    // Met SysEx-toestemming (Chrome vraagt het eenmalig), zodat een DAW een
+    // patch kan meesturen; geweigerd = gewoon zonder SysEx verder.
+    try { this.access = await navigator.requestMIDIAccess({ sysex: true }); }
+    catch { this.access = await navigator.requestMIDIAccess({ sysex: false }); }
     this.bindInputs();
     this.access.onstatechange = () => this.bindInputs();
   }
@@ -337,6 +341,7 @@ export class WebMidiSource extends BaseSource {
 
   private onMessage = (ev: MIDIMessageEvent): void => {
     const data = ev.data;
+    if (data && data[0] === 0xF0) { this.emit({ kind: 'sysex', data: new Uint8Array(data) }); return; }
     if (!data || data.length < 2) return;
     const status = data[0]! & 0xf0;
     const d1 = data[1]!;

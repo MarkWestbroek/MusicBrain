@@ -15,9 +15,11 @@ import { encodeWav } from './wavRecorder';
 import { encodeSmf, slimSnapshot, MARKER_LOOP_START, MARKER_LOOP_END, MARKER_TEL1, type MidiEvent } from './midiRecorder';
 import { buildRpp } from './exportRpp';
 import { buildDawProject } from './exportDawProject';
-import { loadLibrarySettings, uploadTake, replaceAsset, slugName, splitTakeName } from './mediaLibrary';
+import { loadLibrarySettings, uploadTakeWithExtras, replaceAsset, slugName, splitTakeName } from './mediaLibrary';
+import { joinSysex } from './patchSysex';
 import { encodePatchSysex, SYSEX_CMD } from './patchSysex';
 import { buildConfigPayload } from '../teensyLink';
+import { offerFromSysex } from './PatchInbox';
 import type { ModularProject } from '../types';
 
 export interface TakeDoc {
@@ -89,6 +91,8 @@ function TakeEditorWindow({ initial, onClose }: { initial: TakeDoc; onClose: () 
   const drag = useRef<{ dx: number; dy: number } | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [pb, setPb] = useState<AudioPlayback | null>(null);
+  // Een .mid met een patch erin (SysEx): aanbieden om te laden.
+  useEffect(() => { if (!initial.patch) void offerFromSysex(initial.midi?.sysex, `de .mid van ${initial.name}`); }, [initial]);
 
   const durMs = wavDurationMs(doc.wav);
   const midi = doc.midi ?? emptyMidi(durMs);
@@ -124,7 +128,11 @@ function TakeEditorWindow({ initial, onClose }: { initial: TakeDoc; onClose: () 
 
   /** De patch als SysEx-berichten (firmwareconfig + editor-patch), of leeg. */
   async function patchSysex(): Promise<Uint8Array[]> {
-    if (!embedPatch || !doc.patch) return [];
+    if (!embedPatch) return [];
+    return patchSysexAlways();
+  }
+  async function patchSysexAlways(): Promise<Uint8Array[]> {
+    if (!doc.patch) return [];
     const json = await doc.patch.text();
     const snap = JSON.parse(json) as ModularProject;
     return [
@@ -227,8 +235,11 @@ function TakeEditorWindow({ initial, onClose }: { initial: TakeDoc; onClose: () 
       const files = [{ name: `${group}.wav`, blob: wavBlob }];
       if (doc.midi) files.push({ name: `${group}.mid`, blob: new Blob([await midBytes()], { type: 'audio/midi' }) });
       if (doc.patch) files.push({ name: `${group}.patch.json`, blob: doc.patch });
-      const assets = await uploadTake({ group, files }, loadLibrarySettings());
-      setMsg({ ok: true, text: `Nieuwe take in de library: ${group} (${assets.length} bestanden).` });
+      // De patch ook als .syx in de groep, los van het vinkje "patch in .mid".
+      const syx = await patchSysexAlways();
+      const extras = syx.length ? [{ name: `${group}.syx`, blob: new Blob([joinSysex(syx)], { type: 'application/octet-stream' }) }] : [];
+      const { assets, extraErrors } = await uploadTakeWithExtras({ group, files, extras }, loadLibrarySettings());
+      setMsg({ ok: true, text: `Nieuwe take in de library: ${group} (${assets.length} bestanden)${extraErrors.length ? ` — niet mee: ${extraErrors.join('; ')}` : '.'}` });
     } catch (e) {
       setMsg({ ok: false, text: e instanceof Error ? e.message : String(e) });
     } finally { setBusy(null); }

@@ -126,3 +126,50 @@ export function joinSysex(msgs: readonly Uint8Array[]): Uint8Array<ArrayBuffer> 
   for (const m of msgs) { out.set(m, o); o += m.length; }
   return out;
 }
+
+/**
+ * Live SysEx verzamelen (Web MIDI, of uit een .mid): geef elk bericht; is een
+ * MusicBrain-reeks compleet, dan komt de inhoud terug. Vreemde SysEx en
+ * onvolledige reeksen geven null. Een nieuwe reeks (seq 0) begint opnieuw.
+ */
+export class SysexCollector {
+  private groups = new Map<number, { total: number; msgs: Uint8Array[] }>();
+
+  async feed(m: Uint8Array): Promise<{ cmd: SysexCmd; json: string } | null> {
+    if (!isMusicBrainSysex(m) || m.length < 13) return null;
+    const cmd = m[5]!, seq = (m[6]! << 7) | m[7]!, total = (m[8]! << 7) | m[9]!;
+    let g = this.groups.get(cmd);
+    if (seq === 0 || !g || g.total !== total) { g = { total, msgs: [] }; this.groups.set(cmd, g); }
+    if (seq !== g.msgs.length) { this.groups.delete(cmd); return null; }   // gat in de reeks
+    g.msgs.push(m);
+    if (g.msgs.length < g.total) return null;
+    this.groups.delete(cmd);
+    const got = await decodePatchSysex(g.msgs);
+    const json = got.get(cmd as SysexCmd);
+    return json === undefined ? null : { cmd: cmd as SysexCmd, json };
+  }
+}
+
+/** Fabrikanten die je in de praktijk tegenkomt (1- en 3-byte-ID's). */
+const MANUFACTURERS: Record<string, string> = {
+  '01': 'Sequential', '04': 'Moog', '06': 'Lexicon', '07': 'Kurzweil', '0f': 'Ensoniq', '10': 'Oberheim',
+  '18': 'E-mu', '40': 'Kawai', '41': 'Roland', '42': 'Korg', '43': 'Yamaha', '44': 'Casio', '47': 'Akai',
+  '7d': 'eigen gebruik', '7e': 'universeel (non-realtime)', '7f': 'universeel (realtime)',
+  '002032': 'Behringer', '00206b': 'Arturia', '002029': 'Novation', '00201f': 'TC Electronic',
+  '000066': 'Mackie', '002033': 'Nord (Clavia)', '00202b': 'Native Instruments', '000106': 'Elektron',
+};
+
+/** Korte omschrijving van een SysEx-bericht, voor de MIDI-monitor. */
+export function describeSysex(m: Uint8Array | readonly number[]): string {
+  const b = m as ArrayLike<number>;
+  if (b.length < 3) return `${b.length} bytes`;
+  if (b[1] === MB_MANUFACTURER && b[2] === MB_SIG[0] && b[3] === MB_SIG[1] && b.length >= 13) {
+    const cmd = b[5], seq = ((b[6]! << 7) | b[7]!) + 1, tot = (b[8]! << 7) | b[9]!;
+    const what = cmd === SYSEX_CMD.editorPatch ? 'editor-patch' : cmd === SYSEX_CMD.firmwareConfig ? 'firmwareconfig' : `cmd ${cmd}`;
+    return `MusicBrain ${what}, deel ${seq} van ${tot}`;
+  }
+  const hex = (x: number): string => x.toString(16).padStart(2, '0');
+  const id = b[1] === 0 && b.length >= 4 ? hex(b[1]!) + hex(b[2]!) + hex(b[3]!) : hex(b[1]!);
+  const who = MANUFACTURERS[id] ?? `fabrikant ${id.toUpperCase()}`;
+  return `${who}, ${b.length} bytes`;
+}

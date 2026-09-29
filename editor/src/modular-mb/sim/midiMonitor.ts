@@ -12,6 +12,8 @@
 //
 // `describeMidi` en `formatBytes` zijn zuiver — zie midiMonitor.test.ts.
 
+import { describeSysex } from './patchSysex';
+
 export type MonDir = 'in' | 'patch';
 
 export interface MonEntry {
@@ -56,7 +58,7 @@ export function describeMidi(bytes: readonly number[]): MidiDescription {
   const s = bytes[0] ?? 0, d1 = bytes[1] ?? 0, d2 = bytes[2] ?? 0;
   if (s >= 0xF0) {
     const type = SYSTEM[s] ?? `Systeem ${s.toString(16).toUpperCase()}`;
-    return { type, channel: null, text: s === 0xF0 ? `${bytes.length} bytes` : '', realtime: s === 0xF8 || s === 0xFE };
+    return { type, channel: null, text: s === 0xF0 ? describeSysex(bytes) : '', realtime: s === 0xF8 || s === 0xFE };
   }
   const ch = (s & 0x0F) + 1;
   switch (s & 0xF0) {
@@ -162,7 +164,9 @@ export class MidiMonitor {
     this.rawStarting = (async () => {
       try {
         if (typeof navigator === 'undefined' || !navigator.requestMIDIAccess) throw new Error('Web MIDI wordt niet ondersteund in deze browser.');
-        this.access = await navigator.requestMIDIAccess({ sysex: false });
+        // Met SysEx als het mag (dan zie je patches en dumps), anders zonder.
+        try { this.access = await navigator.requestMIDIAccess({ sysex: true }); }
+        catch { this.access = await navigator.requestMIDIAccess({ sysex: false }); }
         this.rawError = null;
         this.bindAll();
         this.access.addEventListener('statechange', () => this.bindAll());

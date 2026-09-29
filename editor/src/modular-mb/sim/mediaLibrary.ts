@@ -59,6 +59,12 @@ export interface Take {
   /** Take-id: de gedeelde bestandsnaam zonder extensie. */
   group: string;
   files: TakeFile[];
+  /**
+   * Bestanden die los achteraan gaan (bv. de .syx): wordt zo'n soort nog
+   * niet geaccepteerd, dan staat de take er toch (uploads zijn alles-of-niets).
+   * Ze worden niet gedownload na een opname.
+   */
+  extras?: TakeFile[];
 }
 
 export interface UploadedAsset { slug: string; kind: string; url: string; group?: string }
@@ -138,7 +144,24 @@ export function renameTake(take: Take, name: string): Take {
   return {
     group,
     files: take.files.map((f) => ({ ...f, name: f.name.startsWith(take.group) ? group + f.name.slice(take.group.length) : f.name })),
+    ...(take.extras ? { extras: take.extras.map((f) => ({ ...f, name: f.name.startsWith(take.group) ? group + f.name.slice(take.group.length) : f.name })) } : {}),
   };
+}
+
+/**
+ * Een take uploaden, en daarna de extra's (zoals de .syx) per stuk in dezelfde
+ * group. Een geweigerde extra laat de take staan; de reden komt terug.
+ */
+export async function uploadTakeWithExtras(
+  take: Take, s: LibrarySettings, fetchImpl: typeof fetch = fetch,
+): Promise<{ assets: UploadedAsset[]; extraErrors: string[] }> {
+  const assets = await uploadTake({ group: take.group, files: take.files }, s, fetchImpl);
+  const extraErrors: string[] = [];
+  for (const x of take.extras ?? []) {
+    try { assets.push(...await uploadTake({ group: take.group, files: [x] }, s, fetchImpl)); }
+    catch (e) { extraErrors.push(`${x.name}: ${e instanceof Error ? e.message : String(e)}`); }
+  }
+  return { assets, extraErrors };
 }
 
 /**

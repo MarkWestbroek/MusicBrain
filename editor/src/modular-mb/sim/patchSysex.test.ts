@@ -54,3 +54,24 @@ describe('SysEx in een .mid', () => {
     expect((await decodePatchSysex(f.sysex!)).get(SYSEX_CMD.editorPatch)).toContain('hallo');
   });
 });
+
+describe('SysexCollector en describeSysex', () => {
+  it('verzamelt een live reeks; vreemde SysEx en gaten geven null', async () => {
+    const { SysexCollector, describeSysex } = await import('./patchSysex');
+    const msgs = await encodePatchSysex(SYSEX_CMD.editorPatch, JSON.stringify({ n: 'x'.repeat(3000) + Math.random() }));
+    const c = new SysexCollector();
+    expect(await c.feed(Uint8Array.from([0xF0, 0x43, 0x10, 0xF7]))).toBeNull();
+    let got = null;
+    for (const m of msgs) got = await c.feed(m);
+    expect(got!.cmd).toBe(SYSEX_CMD.editorPatch);
+    expect(got!.json).toContain('xxx');
+    if (msgs.length > 2) {
+      const c2 = new SysexCollector();
+      await c2.feed(msgs[0]!);
+      expect(await c2.feed(msgs[2]!)).toBeNull();          // gat → opnieuw beginnen
+    }
+    expect(describeSysex(msgs[0]!)).toMatch(/^MusicBrain editor-patch, deel 1 van \d+$/);
+    expect(describeSysex([0xF0, 0x41, 0x10, 0x42, 0xF7])).toBe('Roland, 5 bytes');
+    expect(describeSysex([0xF0, 0x00, 0x20, 0x6B, 0x7F, 0xF7])).toBe('Arturia, 6 bytes');
+  });
+});

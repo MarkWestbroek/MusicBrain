@@ -44,3 +44,11 @@ describe('MidiMonitor', () => {
     expect(m.list().length).toBe(0);
   });
 });
+
+describe('SysEx in de monitor', () => {
+  it('fabrikant of MusicBrain-patch', () => {
+    expect(describeMidi([0xF0, 0x43, 0x10, 0x4C, 0xF7])).toMatchObject({ type: 'SysEx', text: 'Yamaha, 5 bytes' });
+    const mb = [0xF0, 0x7D, 0x4D, 0x42, 0x01, 0x02, 0x00, 0x02, 0x00, 0x1B, 0x00, 0x00, 0xF7];
+    expect(describeMidi(mb).text).toBe('MusicBrain firmwareconfig, deel 3 van 27');
+  });
+});

@@ -17,7 +17,7 @@ import {
 } from './sim/wavRecorder';
 import { MidiRecorder, encodeSmf, patchSnapshot, siblingName, takeTempo, patchTempo } from './sim/midiRecorder';
 import {
-  loadLibrarySettings, saveLibrarySettings, uploadTake, replaceAsset, parseTags, renameTake, splitTakeName, type LibrarySettings, type Take,
+  loadLibrarySettings, saveLibrarySettings, uploadTakeWithExtras, replaceAsset, parseTags, renameTake, splitTakeName, type LibrarySettings, type Take,
 } from './sim/mediaLibrary';
 import { dx7Host, WasmModule } from './runtime';
 import { simSupportOf, type SimSupport } from './sim/simSupport';
@@ -30,6 +30,9 @@ import { MidiFileSource, parseSmf } from './sim/midiFilePlayer';
 import { TakeLibraryPanel } from './sim/TakeLibraryPanel';
 import { openTakeEditor, takeFromBytes } from './sim/TakeEditorWindow';
 import { addPatchSnapshot } from './sim/takeLibrary';
+import { SysexCollector, SYSEX_CMD, joinSysex } from './sim/patchSysex';
+import { patchToSysex } from './sim/PatchExportMenu';
+import { offerPatch, offerFromSysex } from './sim/PatchInbox';
 import { MidiFileUi } from './sim/MidiFileUi';
 import { midiMonitor } from './sim/midiMonitor';
 
@@ -111,7 +114,9 @@ export function SimulationPanel(): JSX.Element {
   }
   function takeMidi(bytes: Uint8Array, name: string, slug: string): void {
     const file = sources.file as MidiFileSource;
-    file.load(parseSmf(bytes), name, { slug });
+    const parsed = parseSmf(bytes);
+    file.load(parsed, name, { slug });
+    void offerFromSysex(parsed.sysex, `${name}`);
     if (sourceId !== 'file') switchSource('file');
   }
   function takePatch(bytes: Uint8Array, name: string): void {
@@ -129,8 +134,9 @@ export function SimulationPanel(): JSX.Element {
     setLibBusy(true); setLibMsg(null);
     try {
       const take = renameTake(lastTake, takeName);
-      const assets = await uploadTake(take, lib);
-      setLibMsg({ ok: true, text: `In de library: ${assets.length} bestand${assets.length === 1 ? '' : 'en'} in ${lib.folder || '(root)'}, koppel ${take.group}` });
+      const { assets, extraErrors } = await uploadTakeWithExtras(take, lib);
+      setLibMsg({ ok: true, text: `In de library: ${assets.length} bestand${assets.length === 1 ? '' : 'en'} in ${lib.folder || '(root)'}, koppel ${take.group}`
+        + (extraErrors.length ? ` (niet mee: ${extraErrors.join('; ')})` : '') });
     } catch (err) {
       setLibMsg({ ok: false, text: err instanceof Error ? err.message : String(err) });
     } finally {
@@ -225,6 +231,11 @@ export function SimulationPanel(): JSX.Element {
       // patch = program (ED-RC-8). Alleen CC 0 zonder voorafgaand program
       // onthouden we; een program zonder bank zoekt in alle mappen.
       if (e.kind === 'cc' && e.controller === 0) bankRef.current = e.value;
+      // Een patch via SysEx (bv. een DAW die een .mid met patch afspeelt):
+      // verzamelen en aanbieden, niet ongevraagd laden.
+      if (e.kind === 'sysex') {
+        void sysexIn.current.feed(e.data).then((r) => { if (r?.cmd === SYSEX_CMD.editorPatch) offerPatch(r.json, 'MIDI'); }).catch(() => {});
+      }
       if (e.kind === 'program') {
         const hit = findPatchByBankProgram(getProject(), bankRef.current, e.program);
         if (hit && hit.id !== getProject().activePatchId) {
@@ -236,6 +247,7 @@ export function SimulationPanel(): JSX.Element {
     return () => { unsub(); };
   }, [engine, source]);
   const bankRef = useRef<number | null>(null);
+  const sysexIn = useRef(new SysexCollector());
 
   // De actieve bron volgt de engine: draait hij, dan luistert de bron mee.
   // Dit hoort hier en niet in startAll(), want de bron kan ná ▶ Start
@@ -351,7 +363,13 @@ export function SimulationPanel(): JSX.Element {
         document.body.appendChild(a); a.click(); a.remove();
         setTimeout(() => URL.revokeObjectURL(url), 10_000);
       }
-      setLastTake({ group: siblingName(name, ''), files });
+      // De patch ook als .syx in de groep (niet downloaden: dat zijn er al genoeg).
+      const extras: Take['files'] = [];
+      if (recWithPatch && patch) {
+        try { extras.push({ name: siblingName(name, '.syx'), blob: new Blob([joinSysex(await patchToSysex(project))], { type: 'application/octet-stream' }) }); }
+        catch { /* zonder .syx verder */ }
+      }
+      setLastTake({ group: siblingName(name, ''), files, extras });
       setLibMsg(null);
       const db = dbfs(r.peak);
       // De piek erbij, want een zachte render merk je anders pas als de

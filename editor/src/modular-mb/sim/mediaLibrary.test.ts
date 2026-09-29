@@ -83,3 +83,23 @@ describe('replaceAsset', () => {
     await expect(replaceAsset('m', f, settings, st(405))).rejects.toThrow(/kent vervangen nog niet/);
   });
 });
+
+describe('extra bestanden (.syx) los achteraan', () => {
+  it('take komt erin, geweigerde extra geeft alleen een melding', async () => {
+    const { uploadTakeWithExtras, renameTake } = await import('./mediaLibrary');
+    const posts: string[][] = [];
+    const fake = (async (_url: string, init: RequestInit) => {
+      const names = (init.body as FormData).getAll('file[]').map((f) => (f as File).name);
+      posts.push(names);
+      if (names.some((n) => n.endsWith('.syx'))) return new Response(JSON.stringify({ error: 'Unsupported file type' }), { status: 415 });
+      return new Response(JSON.stringify({ assets: names.map((n) => ({ slug: n, kind: 'x', url: '/' + n })) }), { status: 201 });
+    }) as unknown as typeof fetch;
+    const t = renameTake({ ...take, extras: [{ name: `${take.group}.syx`, blob: new Blob([new Uint8Array([0xF0, 0xF7])]) }] }, 'nieuw');
+    expect(t.extras![0]!.name).toBe('mmb-nieuw-20260928-120000.syx');
+    const r = await uploadTakeWithExtras(t, settings, fake);
+    expect(posts).toHaveLength(2);
+    expect(posts[1]).toEqual(['mmb-nieuw-20260928-120000.syx']);
+    expect(r.assets).toHaveLength(2);
+    expect(r.extraErrors[0]).toMatch(/\.syx: .*Bestandstype/);
+  });
+});
