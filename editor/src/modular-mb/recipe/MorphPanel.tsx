@@ -6,15 +6,17 @@
 // Teensy-kant komen later (doc/plans/morph-a-b.md).
 //
 // Spelen met A en B zonder de morph te verlaten: de knoppen A en B zetten de
-// schuif helemaal links of rechts; dubbelklik op de schuif = het midden. Staat
-// de schuif op een uiteinde, dan ís de morph die patch: een knop die je daar
-// draait wordt meteen in A (of B) bewaard, met een melding en Annuleer. In de
-// tussenstand wordt niets bewaard (de volgende schuifbeweging rekent opnieuw).
+// schuif helemaal links of rechts; dubbelklik op de schuif = het midden.
+// Draaien aan knoppen verandert alleen de morph (de volgende schuifbeweging
+// rekent opnieuw); A en B veranderen nooit vanzelf. Bewaren is een bewuste
+// keuze in het menu Bewaar ▾ bovenaan (MorphSaveMenu): in A, in B, als nieuwe
+// patch, of als nieuwe patch die meteen op A of B komt.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { updateProject } from '../store';
+import { updateProject, uid } from '../store';
 import type { ControlValue, ModularProject, Patch } from '../types';
 import { morphDescriptor, describeMorph, upsertMorph, morphPatch } from './morph';
+import { savePatch } from './saved';
 
 /** Knoppen in de morph-patch die afwijken van wat de morph op stand t geeft:
  *  dat heeft iemand gedraaid. */
@@ -45,45 +47,85 @@ export function writeEditsTo(p: ModularProject, targetId: string, edits: { modul
   };
 }
 
-interface Notice { text: string; undo?: { targetId: string; before: Patch['controlState'] } }
+/** De morph-patch: welke kant, welke patch. */
+function sides(p: ModularProject, morphId: string): { mp: Patch; a: string; b: string; t: number } | null {
+  const mp = p.patches.find((x) => x.id === morphId);
+  return mp?.morph ? { mp, a: mp.morph.a, b: mp.morph.b, t: mp.morph.t } : null;
+}
+
+/**
+ * Bewaar de huidige stand van de morph (knopstanden) in A of B, en zet de
+ * schuif op die kant — dan hoor je precies wat je bewaarde. Kabels van A/B
+ * blijven zoals ze zijn. Twee stappen voor de store: eerst schrijven, dan
+ * bewaren (anders markeert de dirty-tracking hem meteen weer als gewijzigd).
+ */
+export function saveMorphInto(p: ModularProject, morphId: string, side: 'a' | 'b'): { write: ModularProject; commit: (q: ModularProject) => ModularProject } | null {
+  const s = sides(p, morphId);
+  if (!s) return null;
+  const target = side === 'a' ? s.a : s.b;
+  const write = {
+    ...p,
+    patches: p.patches.map((x) => (x.id === target ? { ...x, controlState: { ...x.controlState, ...structuredClone(s.mp.controlState) } } : x)),
+  };
+  const commit = (q: ModularProject): ModularProject => {
+    const saved = savePatch(q, target);
+    try { return upsertMorph(saved, s.a, s.b, side === 'a' ? 0 : 1, morphId); } catch { return saved; }
+  };
+  return { write, commit };
+}
+
+/**
+ * Bewaar de huidige stand als nieuwe patch: de knopstanden van de morph en
+ * de kabels die op de Teensy ook aan zouden staan (gewicht ≥ 0,5). Met
+ * @p place komt de nieuwe patch meteen op A of B van de morph (schuif naar
+ * die kant). Geeft ook de nieuwe id terug.
+ */
+export function saveMorphAsNew(p: ModularProject, morphId: string, name: string, place?: 'a' | 'b'): { project: ModularProject; id: string } | null {
+  const s = sides(p, morphId);
+  if (!s) return null;
+  const base = p.patches.find((x) => x.id === s.a);
+  if (!base) return null;
+  const id = uid('patch');
+  const { saved: _s, showingSaved: _v, programNumber: _pn, morph: _m, ...rest } = base; void _s; void _v; void _pn; void _m;
+  const copy: Patch = {
+    ...(structuredClone(rest) as Patch), id, name,
+    connections: s.mp.connections
+      .filter((c) => c.attenuation === undefined || c.attenuation >= 0.5)
+      .map((c) => { const { attenuation: _a, ...r } = c; void _a; return structuredClone(r); }),
+    controlState: structuredClone(s.mp.controlState),
+  };
+  let q: ModularProject = { ...p, patches: [...p.patches, copy] };
+  if (place) {
+    try { q = upsertMorph(q, place === 'a' ? id : s.a, place === 'b' ? id : s.b, place === 'a' ? 0 : 1, morphId); } catch { /* laat staan */ }
+  }
+  return { project: q, id };
+}
 
 export function MorphPanel(props: { project: ModularProject; patch: Patch }): JSX.Element | null {
   const { project, patch } = props;
   const m = patch.morph;
   const [dragging, setDragging] = useState(false);
-  const [notice, setNotice] = useState<Notice | null>(null);
   const desc = useMemo(() => {
     if (!m) return null;
     try { return { ok: true as const, d: morphDescriptor(project, m.a, m.b) }; }
     catch (e) { return { ok: false as const, error: e instanceof Error ? e.message : String(e) }; }
   }, [project, m]);
 
-  // Knop gedraaid op een uiteinde → meteen in A of B bewaren. Alleen wat
-  // sinds de vorige weergave veranderde telt (een oudere morph-patch die net
-  // anders is uitgerekend is geen draai van jou).
+  // Knoppen die je in de morph draaide (sinds de laatste schuifbeweging): niet
+  // bewaard. Alleen wat sinds de vorige weergave veranderde telt — een oudere
+  // morph-patch die net anders is uitgerekend is geen draai van jou.
+  const [touched, setTouched] = useState<Set<string>>(new Set());
   const prevCs = useRef<{ id: string; cs: Patch['controlState'] } | null>(null);
-  const atEnd = m ? (m.t <= 0 ? m.a : m.t >= 1 ? m.b : null) : null;
   useEffect(() => {
     const last = prevCs.current;
     prevCs.current = { id: patch.id, cs: patch.controlState };
-    if (!m || !last || last.id !== patch.id || last.cs === patch.controlState) return;   // eerste weergave of andere patch
+    if (!m || !last || last.id !== patch.id) { setTouched(new Set()); return; }
+    if (last.cs === patch.controlState) return;
     const prev = last.cs;
-    const changed = (e: { moduleId: string; controlId: string }) =>
-      JSON.stringify(prev[e.moduleId]?.[e.controlId]) !== JSON.stringify(patch.controlState[e.moduleId]?.[e.controlId]);
-    const edits = morphEdits(project, patch).filter(changed);
-    if (!edits.length) return;
-    if (!atEnd) {
-      setNotice({ text: 'Tussenstand: een knop die je hier draait wordt niet bewaard — de volgende schuifbeweging rekent opnieuw. Zet de schuif op A of B om daar te bewerken.' });
-      return;
-    }
-    const target = project.patches.find((x) => x.id === atEnd);
-    if (!target) return;
-    const before = target.controlState;
-    updateProject((p) => writeEditsTo(p, atEnd, edits), { forceCommit: true });
-    const side = atEnd === m.a ? 'A' : 'B';
-    const what = edits.length === 1 ? `${edits[0]!.controlId}` : `${edits.length} knoppen`;
-    setNotice({ text: `✓ ${what} bewaard in ${side} · ${target.name}`, undo: { targetId: atEnd, before } });
-  }, [patch.controlState]);   // eslint-disable-line react-hooks/exhaustive-deps
+    const edits = morphEdits(project, patch).filter((e) =>
+      JSON.stringify(prev[e.moduleId]?.[e.controlId]) !== JSON.stringify(patch.controlState[e.moduleId]?.[e.controlId]));
+    if (edits.length) setTouched((t) => new Set([...t, ...edits.map((e) => `${e.moduleId}.${e.controlId}`)]));
+  }, [patch.controlState, patch.id]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!m) return null;
   const A = project.patches.find((x) => x.id === m.a), B = project.patches.find((x) => x.id === m.b);
@@ -91,19 +133,10 @@ export function MorphPanel(props: { project: ModularProject; patch: Patch }): JS
 
   function setT(next: number, commit: boolean): void {
     const u = Math.max(0, Math.min(1, next));
+    setTouched(new Set());
     updateProject((p) => {
       try { return upsertMorph(p, m!.a, m!.b, u, patch.id); } catch { return p; }
     }, commit ? { forceCommit: true } : { skipHistory: true });
-  }
-
-  function undo(n: Notice): void {
-    if (!n.undo) return;
-    const { targetId, before } = n.undo;
-    updateProject((p) => {
-      const q = { ...p, patches: p.patches.map((x) => (x.id === targetId ? { ...x, controlState: before } : x)) };
-      try { return upsertMorph(q, m!.a, m!.b, m!.t, patch.id); } catch { return q; }
-    }, { forceCommit: true });
-    setNotice(null);
   }
 
   const pct = Math.round(t * 100);
@@ -114,7 +147,7 @@ export function MorphPanel(props: { project: ModularProject; patch: Patch }): JS
                   background: 'var(--mb-accent-tint)', borderRadius: 8, fontSize: 13 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <span style={{ fontWeight: 700, letterSpacing: 0.5 }}>MORPH</span>
-        <button onClick={() => setT(0, true)} style={on(0)} title="Schuif helemaal naar A (links). Knoppen die je daar draait worden in A bewaard.">A · {A?.name ?? '?'}</button>
+        <button onClick={() => setT(0, true)} style={on(0)} title="Schuif helemaal naar A (links)">A · {A?.name ?? '?'}</button>
         {/* Balk met wijzer: de werkelijke stand (later inclusief modulatie). */}
         <div style={{ position: 'relative', flex: 1, minWidth: 220, height: 28 }}>
           <div style={{ position: 'absolute', left: 0, right: 0, top: 12, height: 4, background: '#cbd2d9', borderRadius: 2 }} />
@@ -133,20 +166,77 @@ export function MorphPanel(props: { project: ModularProject; patch: Patch }): JS
                  style={{ position: 'absolute', inset: 0, width: '100%', opacity: 0, cursor: 'ew-resize', margin: 0 }} />
         </div>
         <span style={{ fontFamily: 'var(--mb-font-mono)', minWidth: 42, textAlign: 'right' }}>{pct}%</span>
-        <button onClick={() => setT(1, true)} style={on(1)} title="Schuif helemaal naar B (rechts). Knoppen die je daar draait worden in B bewaard.">B · {B?.name ?? '?'}</button>
+        <button onClick={() => setT(1, true)} style={on(1)} title="Schuif helemaal naar B (rechts)">B · {B?.name ?? '?'}</button>
         <span style={{ fontSize: 11, color: desc?.ok ? '#475569' : '#b91c1c' }}>
           {desc?.ok ? describeMorph(project, desc.d) : desc?.error}
           {desc?.ok && desc.d.warnings.length > 0 ? ` · ${desc.d.warnings.join(' ')}` : ''}
         </span>
       </div>
-      {notice && (
-        <div role="status" style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6, fontSize: 12,
-                                    color: notice.undo ? '#065f46' : '#92400e' }}>
-          <span>{notice.text}</span>
-          {notice.undo && <button onClick={() => undo(notice)} style={{ ...btn, padding: '1px 8px' }}>Annuleer</button>}
-          <button onClick={() => setNotice(null)} style={{ ...btn, padding: '1px 6px', background: 'transparent', border: 'none' }} aria-label="Sluiten">✕</button>
+      {touched.size > 0 && (
+        <div role="status" style={{ marginTop: 6, fontSize: 12, color: '#92400e' }}>
+          ● {touched.size === 1 ? '1 knop' : `${touched.size} knoppen`} gewijzigd in de morph — niet bewaard.
+          A en B veranderen niet vanzelf; een schuifbeweging rekent opnieuw. Bewaren: <b>Bewaar ▾</b> bovenaan.
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Bewaar-menu voor een morph (staat bovenaan op de plek van "Bewaar als…").
+ * Alles is een bewuste keuze: A of B overschrijven vraagt eerst bevestiging,
+ * een nieuwe patch vraagt een naam.
+ */
+export function MorphSaveMenu(props: { project: ModularProject; patch: Patch }): JSX.Element | null {
+  const { project, patch } = props;
+  const [open, setOpen] = useState(false);
+  const [done, setDone] = useState<string | null>(null);
+  const m = patch.morph;
+  if (!m) return null;
+  const A = project.patches.find((x) => x.id === m.a), B = project.patches.find((x) => x.id === m.b);
+  const pct = Math.round(m.t * 100);
+  const flash = (text: string): void => { setDone(text); setTimeout(() => setDone(null), 4000); };
+
+  function into(side: 'a' | 'b'): void {
+    const target = side === 'a' ? A : B;
+    if (!target) return;
+    if (!window.confirm(`De knopstanden van de morph (stand ${pct}%) bewaren in ${side.toUpperCase()} · "${target.name}"?\n\nDat overschrijft de knoppen van die patch (kabels blijven). De schuif gaat daarna naar ${side.toUpperCase()}.`)) return;
+    const r = saveMorphInto(project, patch.id, side);
+    if (!r) return;
+    updateProject(() => r.write, { forceCommit: true });
+    updateProject((q) => r.commit(q), { forceCommit: true });
+    flash(`✓ Bewaard in ${side.toUpperCase()} · ${target.name}`);
+  }
+  function asNew(place?: 'a' | 'b'): void {
+    const suggested = `${A?.name ?? 'A'} ⇄ ${B?.name ?? 'B'} ${pct}%`;
+    const name = window.prompt(place ? `Nieuwe patch uit de huidige stand (${pct}%), daarna op ${place.toUpperCase()} van de morph. Naam:` : `Nieuwe patch uit de huidige stand (${pct}%). Naam:`, suggested);
+    if (name === null) return;
+    let id = '';
+    updateProject((q) => { const r = saveMorphAsNew(q, patch.id, name.trim() || suggested, place); if (!r) return q; id = r.id; return r.project; }, { forceCommit: true });
+    if (id) flash(place ? `✓ Nieuwe patch "${name.trim() || suggested}" staat op ${place.toUpperCase()}` : `✓ Nieuwe patch "${name.trim() || suggested}"`);
+  }
+
+  const item: React.CSSProperties = { display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 12, whiteSpace: 'nowrap' };
+  const pick = (fn: () => void) => () => { setOpen(false); fn(); };
+  return (
+    <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+      <button onClick={() => setOpen((o) => !o)} style={{ fontSize: 12, padding: '3px 10px', whiteSpace: 'nowrap' }}
+              title="De huidige stand van de morph bewaren: in A, in B of als nieuwe patch" aria-haspopup="menu" aria-expanded={open}>
+        Bewaar ▾
+      </button>
+      {open && (
+        <div role="menu" style={{ position: 'absolute', top: '100%', left: 0, zIndex: 50, marginTop: 4, background: '#fff', color: '#0f172a',
+                                  border: '1px solid #cbd2d9', borderRadius: 6, boxShadow: '0 6px 20px rgba(0,0,0,0.2)', padding: 4 }}
+             onMouseLeave={() => setOpen(false)}>
+          <button role="menuitem" style={item} onClick={pick(() => into('a'))}>Bewaar in A · {A?.name ?? '?'}</button>
+          <button role="menuitem" style={item} onClick={pick(() => into('b'))}>Bewaar in B · {B?.name ?? '?'}</button>
+          <div style={{ borderTop: '1px solid #e5e7eb', margin: '4px 0' }} />
+          <button role="menuitem" style={item} onClick={pick(() => asNew())}>Als nieuwe patch…</button>
+          <button role="menuitem" style={item} onClick={pick(() => asNew('a'))}>Als nieuwe patch, en zet hem op A…</button>
+          <button role="menuitem" style={item} onClick={pick(() => asNew('b'))}>Als nieuwe patch, en zet hem op B…</button>
+        </div>
+      )}
+      {done && <span role="status" style={{ fontSize: 12, color: '#065f46' }}>{done}</span>}
+    </span>
   );
 }

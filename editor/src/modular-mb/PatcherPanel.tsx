@@ -12,7 +12,7 @@ import { PatcherMatrixPanel } from './PatcherMatrixPanel';
 import { TeensyStatusBar } from './TeensyStatusBar';
 import type { Patch } from './types';
 import { PatchStepper, CompareSlots } from './recipe/PatchSwitcher';
-import { MorphPanel } from './recipe/MorphPanel';
+import { MorphPanel, MorphSaveMenu } from './recipe/MorphPanel';
 import { isDirty, saveAsPatch } from './recipe/saved';
 
 type View = 'graph' | 'matrix';
@@ -65,10 +65,12 @@ export function PatcherPanel(): JSX.Element {
             de laatst gestuurde config (A/B-set), dan is het een selectPatch. */}
         <PatchStepper project={project} patch={patch} />
         <CompareSlots project={project} patch={patch} />
-        <button onClick={saveAsNewPatch} style={{ fontSize: 12, padding: '3px 10px', whiteSpace: 'nowrap' }}
-          title="Bewaar deze patch als een nieuwe patch (kopie met nieuwe naam)">
-          Bewaar als…
-        </button>
+        {patch.morph
+          ? <MorphSaveMenu project={project} patch={patch} />
+          : <button onClick={saveAsNewPatch} style={{ fontSize: 12, padding: '3px 10px', whiteSpace: 'nowrap' }}
+              title="Bewaar deze patch als een nieuwe patch (kopie met nieuwe naam)">
+              Bewaar als…
+            </button>}
         <div style={{
           marginLeft: 'auto', display: 'flex', gap: 0,
           border: '1px solid #cbd2d9', borderRadius: 6, overflow: 'hidden',

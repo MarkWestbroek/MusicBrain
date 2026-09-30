@@ -222,3 +222,38 @@ describe('MORPH-paneel: knoppen aan een uiteinde bewaren in A of B', () => {
     expect(morphEdits(p, turned)).toEqual([]);
   });
 });
+
+describe('MORPH: bewust bewaren (Bewaar ▾)', () => {
+  const morphAt = (t: number) => {
+    const { p: p0, a, b } = abBus();
+    const p = upsertMorph(p0, a, b, t);
+    return { p, a, b, mid: p.patches.find((x) => x.morph)!.id };
+  };
+
+  it('Bewaar in A: knoppen van de tussenstand in A, B blijft, schuif naar A', async () => {
+    const { saveMorphInto } = await import('./MorphPanel');
+    const { p, a, b, mid } = morphAt(0.5);
+    const mp = p.patches.find((x) => x.id === mid)!;
+    const bBefore = JSON.stringify(p.patches.find((x) => x.id === b)!.controlState);
+    const r = saveMorphInto(p, mid, 'a')!;
+    const q = r.commit(r.write);
+    const A = q.patches.find((x) => x.id === a)!;
+    for (const [id, cs] of Object.entries(mp.controlState)) for (const [k, v] of Object.entries(cs ?? {})) expect(A.controlState[id]?.[k]).toEqual(v);
+    expect(JSON.stringify(q.patches.find((x) => x.id === b)!.controlState)).toBe(bBefore);
+    expect(q.patches.find((x) => x.id === mid)!.morph!.t).toBe(0);
+    expect(A.saved).toBeUndefined();
+  });
+
+  it('Als nieuwe patch, op A: morph wijst naar de nieuwe patch; geen gewogen kabels', async () => {
+    const { saveMorphAsNew } = await import('./MorphPanel');
+    const { p, a, b, mid } = morphAt(0.3);
+    const r = saveMorphAsNew(p, mid, 'Tussenstand', 'a')!;
+    const neu = r.project.patches.find((x) => x.id === r.id)!;
+    expect(neu.name).toBe('Tussenstand');
+    expect(neu.morph).toBeUndefined();
+    expect(neu.connections.every((c) => c.attenuation === undefined)).toBe(true);
+    const m = r.project.patches.find((x) => x.id === mid)!.morph!;
+    expect(m).toMatchObject({ a: r.id, b, t: 0 });
+    expect(r.project.patches.find((x) => x.id === a)).toBeTruthy();   // oude A blijft bestaan
+  });
+});
