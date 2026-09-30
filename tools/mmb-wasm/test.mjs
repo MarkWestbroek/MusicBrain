@@ -82,11 +82,13 @@ function rms(samples) {
 }
 
 async function checkFof(file) {
-  const makeVoice = async (frequency, vowel, phonation, tone = 0.5, velocity) => {
+  const makeVoice = async (frequency, vowel, phonation, tone = 0.5, velocity, pressure) => {
     const module = await load(file);
     assert(module.controls.some(control => control.id === 'voice'), 'FOF: Voice control missing');
     assert(module.inputs.some(input => input.id === 'vel'), 'FOF: velocity input missing');
+    assert(module.inputs.some(input => input.id === 'pressure'), 'FOF: pressure input missing');
     if (velocity !== undefined) module.setIn('vel', velocity);
+    if (pressure !== undefined) module.setIn('pressure', pressure);
     module.setCtl('breath', 0);
     module.setCtl('vibrato', 0);
     module.setCtl('voice', phonation);
@@ -139,6 +141,48 @@ async function checkFof(file) {
   const tail = captureFof(releasedZero, 0.1);
   assert(rms(tail) > 0.0001, 'FOF: note-off must not cut the tail');
   assert.deepEqual(tail, captureFof(releasedHeld, 0.1), 'FOF: note-off velocity must not change the release');
+  // Pressure: doorlopende expressie tijdens de noot. Ongepatcht == 1 en moet
+  // sample-exact de oude stem geven; lager = zachter (met vloer), ademiger en
+  // een zachtere sluiting; sprongen worden in ~20 ms gladgestreken.
+  const fullPressure = captureFof(await makeVoice(220, 0, 0.35, 0.5, undefined, 1), 0.2);
+  assert.deepEqual(unpatched, fullPressure, 'FOF: unconnected pressure must equal pressure 1');
+  assert.deepEqual(captureFof(await makeVoice(220, 0, 0.35, 0.5, undefined, 10), 0.2), unpatched, 'FOF: pressure above one must clamp');
+  const pressureLevels = [];
+  for (const pressure of [0, 0.25, 0.5, 0.75, 1]) {
+    const samples = captureFof(await makeVoice(220, 0, 0.35, 0.5, undefined, pressure), 0.2);
+    pressureLevels.push(rms(samples));
+    if (pressure === 0) {
+      assert(brightness(samples) < brightness(fullPressure) * 0.9, 'FOF: low pressure must soften the closure');
+    }
+  }
+  for (let index = 1; index < pressureLevels.length; index++) {
+    assert(pressureLevels[index] > pressureLevels[index - 1] * 1.05, `FOF: pressure response must rise monotonically (${pressureLevels})`);
+  }
+  assert(pressureLevels[0] > pressureLevels[4] * 0.05 && pressureLevels[0] < pressureLevels[4] * 0.3,
+    `FOF: pressure floor out of range (${pressureLevels[0] / pressureLevels[4]})`);
+  const breathyFull = await makeVoice(220, 0, 0.35, 0.5, undefined, 1);
+  const breathyLow = await makeVoice(220, 0, 0.35, 0.5, undefined, 0.2);
+  breathyFull.setCtl('breath', 0.5);
+  breathyLow.setCtl('breath', 0.5);
+  const breathRatio = samples => {
+    let hf = 0;
+    for (let index = 2; index < samples.length; index++) hf += (samples[index] - 2 * samples[index - 1] + samples[index - 2]) ** 2;
+    return hf / samples.length / rms(samples) ** 2;
+  };
+  assert(breathRatio(captureFof(breathyLow, 0.2)) > breathRatio(captureFof(breathyFull, 0.2)) * 1.2, 'FOF: low pressure must be breathier');
+  const stepped = await makeVoice(220, 0, 0.35, 0.5, undefined, 0);
+  captureFof(stepped, 0.2);
+  const before = captureFof(stepped, 0.02);
+  stepped.setIn('pressure', 1);
+  const after = captureFof(stepped, 0.02);
+  const maxStep = samples => { let step = 0; for (let index = 1; index < samples.length; index++) step = Math.max(step, Math.abs(samples[index] - samples[index - 1])); return step; };
+  assert(maxStep(after) < maxStep(fullPressure) * 1.5 && rms(after) < rms(fullPressure) * 0.9 && rms(after) > rms(before) * 1.2,
+    'FOF: a pressure jump must be smoothed, not stepped');
+  captureFof(stepped, 0.1);
+  const settled = captureFof(stepped, 0.2);
+  assert(Math.abs(rms(settled) / rms(fullPressure) - 1) < 0.02, `FOF: pressure must settle within ~120 ms (${rms(settled) / rms(fullPressure)})`);
+  const jumpy = await makeVoice(880, 0.5, 0, 0.5, undefined, 0);
+  for (let toggle = 0; toggle < 40; toggle++) { jumpy.setIn('pressure', toggle % 2 ? 0 : 1); captureFof(jumpy, 0.005); }
   const release = await makeVoice(220, 0.25, 0.35);
   const held = rms(captureFof(release, 0.1));
   release.setIn('gate', 0);
@@ -163,7 +207,7 @@ async function checkFof(file) {
       }
     }
   }
-  console.log('FOF regression: 45 pitch/vowel/Voice cases, spectral tilt, velocity volume/timbre/default/clamps/note-off, release/retrigger/mute and 8 extreme cases passed.');
+  console.log('FOF regression: 45 pitch/vowel/Voice cases, spectral tilt, velocity volume/timbre/default/clamps/note-off, pressure default/clamp/monotone/floor/timbre/breath/smoothing/jumps, release/retrigger/mute and 8 extreme cases passed.');
 }
 
 const only = process.argv[2];

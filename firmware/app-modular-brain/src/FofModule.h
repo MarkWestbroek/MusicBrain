@@ -18,6 +18,7 @@ public:
     void setFrequency(float hz) { voice_.setFrequency(hz); }
     void setGate(bool high) { voice_.setGate(high && active_); }
     void setVelocity(float value) { voice_.setVelocity(value); }
+    void setPressure(float value) { voice_.setPressure(value); }
     void setVowel(float value) { voice_.setVowel(value); }
     void setVoice(float value) { voice_.setVoice(value); }
     void setTone(float value) { voice_.setTone(value); }
@@ -58,7 +59,7 @@ public:
     }
     PortKind inputPortKind(std::string_view portId) const override {
         if (portId == "gate") return PortKind::Gate;
-        if (portId == "voct" || portId == "vowel" || portId == "breath" || portId == "vel") return PortKind::Cv;
+        if (portId == "voct" || portId == "vowel" || portId == "breath" || portId == "vel" || portId == "pressure") return PortKind::Cv;
         return PortKind::None;
     }
 
@@ -70,6 +71,8 @@ public:
             stream_.setGate(gate_);
         } else if (portId == "vel") {
             stream_.setVelocity(clamp01(value));
+        } else if (portId == "pressure") {
+            stream_.setPressure(clamp01(value));
         } else if (portId == "vowel") {
             vowelCv_ = value;
             stream_.setVowel(clamp01(vowel_ + vowelCv_) * 4.0f);
@@ -77,6 +80,12 @@ public:
             breathCv_ = value;
             stream_.setBreath(clamp01(breath_ + breathCv_));
         }
+    }
+
+    /** Unplugging Vel or Pressure restores full strength (the wasm wrapper
+     *  does the same for an unconnected input); other CV ports fall back to 0. */
+    void onCvDisconnected(std::string_view portId) override {
+        writeCvPort(portId, portId == "vel" || portId == "pressure" ? 1.0f : 0.0f);
     }
 
     void setControl(std::string_view controlId, mb::runtime::ControlValue value) override {

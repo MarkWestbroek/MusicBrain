@@ -19,6 +19,7 @@ public:
         attackCoefficient_ = timeCoefficient(0.018f);
         releaseCoefficient_ = timeCoefficient(0.12f);
         voiceCoefficient_ = timeCoefficient(0.005f);
+        pressureCoefficient_ = timeCoefficient(0.02f);
         reset();
         updateFormants();
     }
@@ -30,7 +31,8 @@ public:
         breathLow_ = 0.0f;
         previousFlow_ = 0.0f;
         heldVelocity_ = velocity_;
-        smoothVoice_ = clamp(voice_ + 0.3f * (1.0f - heldVelocity_), 0.0f, 1.0f);
+        smoothPressure_ = pressure_;
+        smoothVoice_ = voiceTarget();
         noiseState_ = 0x6d2b79f5u;
         for (auto& formant : formants_) { formant.y1 = 0.0f; formant.y2 = 0.0f; }
     }
@@ -38,6 +40,11 @@ public:
     void setFrequency(float hz) { frequency_ = clamp(hz, 40.0f, 2000.0f); }
     void setGate(bool high) { gate_ = high; }
     void setVelocity(float velocity) { velocity_ = clamp(velocity, 0.0f, 1.0f); }
+    /** Continuous expression during the note (breath controller, aftertouch,
+     *  CV), 0..1. Default 1 keeps the unpatched voice sample-exact: every
+     *  coupling below is written as `1 - k * (1 - pressure)` so pressure 1
+     *  contributes exactly zero. Smoothed over ~20 ms. */
+    void setPressure(float pressure) { pressure_ = clamp(pressure, 0.0f, 1.0f); }
     void setVowel(float vowel) {
         const float next = clamp(vowel, 0.0f, 4.0f);
         if (next != vowel_) { vowel_ = next; updateFormants(); }
@@ -52,8 +59,9 @@ public:
         if (gate_) heldVelocity_ = velocity_;
         const float envTarget = gate_ ? velocity_ : 0.0f;
         envelope_ += (envTarget - envelope_) * (gate_ ? attackCoefficient_ : releaseCoefficient_);
-        const float voiceTarget = clamp(voice_ + 0.3f * (1.0f - heldVelocity_), 0.0f, 1.0f);
-        smoothVoice_ += (voiceTarget - smoothVoice_) * voiceCoefficient_;
+        smoothPressure_ += (pressure_ - smoothPressure_) * pressureCoefficient_;
+        const float slack = 1.0f - smoothPressure_;
+        smoothVoice_ += (voiceTarget() - smoothVoice_) * voiceCoefficient_;
 
         vibratoPhase_ += 5.3f / sampleRate_;
         if (vibratoPhase_ >= 1.0f) vibratoPhase_ -= 1.0f;
@@ -86,8 +94,13 @@ public:
 
         const float noise = whiteNoise();
         breathLow_ += 0.08f * (noise - breathLow_);
-        const float aspiration = (noise - breathLow_) * breath_ * 0.16f * (0.25f + 0.75f * flow);
-        const float output = (voiced + aspiration) * envelope_ * level_;
+        // Pressure couplings (all exactly 1 at full pressure): quieter with a
+        // floor of 0.15, breathier (only if Breath is up) and a softer, longer
+        // closure through voiceTarget().
+        const float pressureGain = 1.0f - 0.85f * slack;
+        const float aspirationGain = 1.0f + 0.75f * slack;
+        const float aspiration = (noise - breathLow_) * breath_ * aspirationGain * 0.16f * (0.25f + 0.75f * flow);
+        const float output = (voiced + aspiration) * envelope_ * pressureGain * level_;
         return clamp(output, -1.0f, 1.0f);
     }
 
@@ -125,6 +138,12 @@ private:
         return value < low ? low : (value > high ? high : value);
     }
 
+    /** Effective phonation: the Voice knob, softened by a gentle attack
+     *  (heldVelocity) and by low pressure. */
+    float voiceTarget() const {
+        return clamp(voice_ + 0.3f * (1.0f - heldVelocity_) + 0.25f * (1.0f - smoothPressure_), 0.0f, 1.0f);
+    }
+
     float timeCoefficient(float seconds) const {
         return 1.0f - std::exp(-1.0f / (seconds * sampleRate_));
     }
@@ -159,6 +178,8 @@ private:
     float frequency_ = 261.6256f;
     float velocity_ = 1.0f;
     float heldVelocity_ = 1.0f;
+    float pressure_ = 1.0f;
+    float smoothPressure_ = 1.0f;
     float vowel_ = 0.0f;
     float voice_ = 0.35f;
     float smoothVoice_ = 0.35f;
@@ -173,6 +194,7 @@ private:
     float attackCoefficient_ = 0.0f;
     float releaseCoefficient_ = 0.0f;
     float voiceCoefficient_ = 0.0f;
+    float pressureCoefficient_ = 0.0f;
     float breathLow_ = 0.0f;
     uint32_t noiseState_ = 0x6d2b79f5u;
     bool gate_ = false;

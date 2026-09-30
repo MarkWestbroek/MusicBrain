@@ -1,7 +1,9 @@
 # Overdracht: FOF-VOICE als bespeelbaar steminstrument
 
-**Datum:** 2026-10-01. **Status:** werkend en getest prototype; luistertest,
-aliasingmeting en fysieke Teensy-proef staan nog open.
+**Datum:** 2026-10-01 (bijgewerkt na de Pressure-stap, dezelfde dag).
+**Status:** werkend en getest prototype met `Vel` en `Pressure`; meetmatrix en
+aliasingmeting zijn gedaan; luisteroordeel op oor en fysieke Teensy-proef staan
+nog open.
 
 Dit document is bedoeld als zelfstandig startpunt voor een volgende chatsessie.
 De bredere inhoudelijke onderbouwing staat in
@@ -27,10 +29,15 @@ De snelste proef:
 5. Vergelijk `Voice=0` en `Voice=1`, eerst met `Breath=0` en `Vibrato=0`.
 6. Gebruik een velocitygevoelig MIDI-klavier of patch CV naar `Vel` om zachte
    en harde aanslagen te vergelijken.
+7. Patch MIDI-IN `Press` (aftertouch) of een LFO naar `Press` en houd een noot
+   vast: lagere druk is zachter, ademiger (met `Breath` open) en zachter
+   gesloten. `Press` wordt bewust niet automatisch bedraad: zonder aftertouch
+   staat MIDI-IN `Press` op 0 en zou de stem dof en zacht klinken.
 
-De eerstvolgende aanbevolen ontwikkelstap is **Pressure plus een
-reproduceerbare luister- en aliasingtest**. Bouw niet meteen een veel groter
-vocal-tractmodel voordat duidelijk is welk hoorbaar probleem nu domineert.
+De eerstvolgende aanbevolen ontwikkelstap is **luisteren op oor aan de hand
+van de gerenderde matrix en dan beslissen over de aliasing bij hoge noten**
+(zie [Meetresultaten](#meetresultaten-2026-10-01)). Bouw niet meteen een veel
+groter vocal-tractmodel voordat duidelijk is welk hoorbaar probleem domineert.
 
 ## Relevante commits
 
@@ -41,6 +48,7 @@ De FOF-implementatie is in drie afzonderlijke commits opgebouwd:
 | `c87574d` | Eerste speelbare FOF-kern, WASM/Teensy-wrapper, editorpaneel, mono-seed, onderzoek en rooktest |
 | `1b7c4f9` | Asymmetrische glottale bron, `Voice`-control en uitgebreide audioregressies |
 | `3a05cc8` | Velocitygevoelig volume/fonatie, note-off-behoud en upgrade van oude FOF-definities |
+| Pressure-stap (2026-10-01, zie `git log -- tools/mmb-wasm/render-fof-matrix.mjs`) | `pressure`-ingang in kern/wrappers/paneel, `onCvDisconnected` op Teensy, pressure-regressies, meetmatrixscript |
 
 `8a69c1f` is Material Bridge en is geen onderdeel van FOF.
 
@@ -61,6 +69,7 @@ De FOF-implementatie is in drie afzonderlijke commits opgebouwd:
 | Classificatie | `editor/src/modular-mb/recipe/classify.ts` | Familie `Physical modelling` |
 | Contract | `firmware/app-modular-brain/contract/module-types.json` | Gegenereerde/gesynchroniseerde firmware-interface |
 | Tests | `tools/mmb-wasm/test.mjs` | Audioregressies op de echte WASM-kern |
+| Meetmatrix | `tools/mmb-wasm/render-fof-matrix.mjs` | Luister-/aliasingmatrix op de WASM-kern: `report.json` plus wav's, standaard in de tmp-map |
 | Editortests | `editor/src/modular-mb/contract.test.ts` | Poort/controlcontract, seedbedrading en migratie |
 
 Belangrijke architectuurkeuze: de DSP-kern kent geen editor, WASM of
@@ -79,6 +88,7 @@ gelijk; voeg geen klankalgoritme alleen in TypeScript toe.
 | `vowel` | CV | Telt op bij de Vowel-knop en wordt daarna begrensd |
 | `breath` | CV | Telt op bij Breath en wordt daarna begrensd |
 | `vel` | CV | 0-1 aanslagsterkte; zonder kabel is de waarde 1 |
+| `pressure` | CV | 0-1 doorlopende expressie tijdens de noot; zonder kabel is de waarde 1 (sample-exact de oude stem) |
 | `out` | Audio | Monosignaal; de mono-seed verbindt dit met L en R |
 
 ### Controls
@@ -92,9 +102,15 @@ gelijk; voeg geen klankalgoritme alleen in TypeScript toe.
 | `voice` | 0,35 | Korte/heldere naar langere/zachtere glottale open- en sluitfase |
 | `level` | 0,8 | Eindniveau |
 
-Nieuwe mono-seeds verbinden MIDI `pitch`, `gate` en `vel` automatisch. Het
-bestaande `seedInternals()`-upgradepad vervangt een oude FOF-moduledefinitie
-zonder `vel` en behoudt bestaande patches en controlwaarden.
+Nieuwe mono-seeds verbinden MIDI `pitch`, `gate` en `vel` automatisch;
+`pressure` blijft ongepatcht (zie stap 7 hierboven). Het bestaande
+`seedInternals()`-upgradepad vervangt een oude FOF-moduledefinitie zonder `vel`
+of `pressure` en behoudt bestaande patches en controlwaarden.
+
+Op Teensy herstelt `onCvDisconnected` bij het lostrekken van `vel` of
+`pressure` de waarde 1 (andere CV-poorten vallen terug op 0). Zonder die
+override zette de basisklasse `vel` op 0 en viel de stem stil na het
+lostrekken van de velocitykabel; dat is in deze stap meegenomen.
 
 ## DSP-model
 
@@ -118,6 +134,23 @@ effectiveVoice = clamp(voice + 0.3 * (1 - heldVelocity), 0, 1)
 Een zachte aanslag is dus niet alleen stiller maar heeft ook een langere,
 zachtere sluiting. `heldVelocity` blijft tijdens release staan. Als MIDI bij
 note-off velocity nul levert, verandert of kapt dat de uitklank niet af.
+
+### Pressure
+
+`setPressure(0..1)`, default 1, wordt over 20 ms gladgestreken naar
+`smoothPressure`. Met `slack = 1 - smoothPressure` gelden drie koppelingen,
+alle exact 1 respectievelijk 0 bij volle druk:
+
+```text
+pressureGain   = 1 - 0.85 * slack        (vloer 0,15 bij druk 0)
+aspirationGain = 1 + 0.75 * slack        (alleen hoorbaar als Breath > 0)
+effectiveVoice = clamp(voice + 0.3 * (1 - heldVelocity) + 0.25 * slack, 0, 1)
+```
+
+Pitch, formantfrequenties en vibrato zijn bewust niet gekoppeld. Een
+ongepatchte ingang geeft sample-exact dezelfde output als de binary van vóór
+deze stap; dat is met een aparte vergelijking van de oude en nieuwe wasm over
+vier configuraties (met en zonder velocity, met release) bevestigd.
 
 ### Formanten
 
@@ -162,6 +195,11 @@ De test controleert onder meer:
 - sample-exact dezelfde klank bij ongepatchte velocity en velocity 1;
 - begrenzing van velocity buiten 0-1;
 - velocity nul bij note-off verandert de release sample-exact niet;
+- Pressure: ongepatcht == 1 (sample-exact), begrenzing boven 1, monotoon
+  stijgende RMS over 0/0,25/0,5/0,75/1, vloer tussen 5 en 30 procent van vol,
+  zachtere sluiting bij druk 0, meer hoogfrequente ademruis bij lage druk,
+  een sprong 0 naar 1 zonder stap en binnen ~120 ms uitgemiddeld, en 40
+  snelle drukwisselingen bij 880 Hz zonder NaN of clipping;
 - release, hertrigger en exact mute bij `Level=0`;
 - acht extreme gevallen met 40/2000 Hz, Voice/Tone-extremen, maximale
   adem/vibrato en CV buiten bereik.
@@ -189,19 +227,15 @@ npm --prefix editor run build
 .\.venv\Scripts\pio.exe run -d firmware\app-modular-brain
 ```
 
-Laatste bekende resultaten op 2026-10-01:
+Laatste bekende resultaten op 2026-10-01 (na de Pressure-stap):
 
-- WASM-binary: 65.038 bytes;
-- rooktestpiek ongeveer 0,164 en circa 0,2-0,3 procent van realtime op de
+- WASM-binary: 66.315 bytes;
+- rooktestpiek ongeveer 0,164 en circa 0,2 procent van realtime op de
   ontwikkel-pc; dit is geen betrouwbare browser- of Teensy-CPU-meting;
-- gerichte FOF-editortests: 5 geslaagd;
-- Teensy-build: geslaagd, 57.024 bytes vrije RAM1 en 269.408 bytes vrije RAM2;
+- gerichte FOF-editortests: 7 geslaagd; volledige typecheck geslaagd;
+- Teensy-build: geslaagd, 57.024 bytes vrije RAM1 en 269.408 bytes vrije RAM2
+  (ongewijzigd);
 - niet geflasht en niet fysiek beluisterd.
-
-Tijdens de laatste sessie faalde de volledige worktree-typecheck tijdelijk in
-gelijktijdig gewijzigd Material Bridge-demowerk. Een volledige TypeScript-check
-op de exact gestagede FOF-bronnen slaagde. Controleer de actuele worktree
-opnieuw; neem een oude, inmiddels opgeloste fout niet als blijvende status over.
 
 ## Werkboom en commitveiligheid
 
@@ -221,69 +255,99 @@ Voor een volgende commit:
 5. Bekijk `git diff --cached --check` en `git diff --cached --stat` vóór commit.
 6. Push of flash niet zonder expliciete opdracht.
 
-## Aanbevolen vervolg: Pressure en meetbare luisterproef
+## Meetresultaten 2026-10-01
 
-### Doel
+De Pressure-stap uit de vorige versie van dit document is gebouwd zoals
+voorgesteld (default 1, 20 ms smoothing, drie kleine koppelingen; zie
+[Pressure](#pressure)). Daarna is de luistermatrix als script gerenderd:
 
-Maak langdurige expressie onafhankelijk van de aanslag. `Vel` blijft de
-note-on-eigenschap; een nieuwe `pressure`-ingang volgt breath controller,
-channel/poly-aftertouch of CV tijdens de noot.
+```powershell
+node tools/mmb-wasm/render-fof-matrix.mjs            # naar %TEMP%\mmb-fof-matrix
+node tools/mmb-wasm/render-fof-matrix.mjs D:\pad     # of een eigen map
+```
 
-### Eerste, beperkte implementatie
+Matrix: F0 110/220/440/880 Hz × klinker A/I/U × Voice 0/0,35/1 × Pressure
+laag 0,2/midden 0,6/hoog 1/sweep × Breath 0/0,3, droog, vibrato 0, tone 0,5,
+gate 1,2 s van 1,4 s. Dat zijn 288 takes plus een aliasingreeks tot 1760 Hz.
+Per take staan RMS, piek, spectraal zwaartepunt, energie boven 4 kHz en (bij
+vaste druk zonder adem) een aliasingmaat in `report.json`: energie tussen de
+harmonischen van F0 (buiten ±4 bins van k·F0, Blackman-Harris, 32768 punten)
+tegenover energie op de harmonischen. Bij 44,1 kHz is 44100 mod F0 = 100 Hz
+voor alle vier de F0's, dus gevouwen partiëlen vallen ruim buiten de hoofdlob.
+Het script schrijft 23 wav's om te beluisteren: pressure-sweeps (alle F0's en
+klinkers, Voice 0,35, Breath 0,3), laag/midden/hoog op 220 Hz A, en Voice 0
+tegenover 1 op 440 en 880 Hz, ook op gelijke RMS (`-rms-0.1`). De wav's staan
+bewust niet in de repo; render ze opnieuw met het script.
 
-Voeg `setPressure(float)` toe met default 1 voor achterwaartse compatibiliteit
-en ongeveer 10-30 ms smoothing. Laat Pressure in de eerste proef maximaal drie
-zaken koppelen:
+### Pressure-respons (klinker A, Voice 0,35)
 
-1. amplitude, met een vloer zodat lage druk nog hoorbaar kan zijn;
-2. aspiratieniveau;
-3. een kleine Voice-verschuiving naar sterker/helderder bij hogere druk.
+| F0 | Breath | RMS laag | RMS midden | RMS hoog | Centroid laag naar hoog |
+|---:|---:|---:|---:|---:|---|
+| 110 | 0 | −46,8 | −38,7 | −33,4 dBFS | 469 naar 620 Hz |
+| 110 | 0,3 | −42,3 | −36,3 | −32,3 dBFS | 7593 naar 3056 Hz |
+| 220 | 0 | −39,7 | −32,8 | −28,7 dBFS | 640 naar 701 Hz |
+| 220 | 0,3 | −38,3 | −32,0 | −28,2 dBFS | 3409 naar 1642 Hz |
+| 440 | 0 | −33,9 | −27,2 | −23,3 dBFS | 778 naar 812 Hz |
+| 880 | 0 | −26,9 | −20,8 | −17,4 dBFS | 889 naar 894 Hz |
 
-Begin niet meteen met pitch, formantfrequenties en vibrato tegelijk. Dan is
-niet meer vast te stellen welke koppeling muzikaal helpt. Maak de koppelingen
-klein, documenteer de formule en voeg tests toe voor defaultcompatibiliteit,
-smoothing, monotone RMS-respons en geen klik/NaN bij sprongen.
+Lezing: lage druk is 9,5-13 dB zachter dan volle druk (0,15-vloer plus de
+zachtere sluiting) en donkerder. Met `Breath` 0,3 kantelt het zwaartepunt bij
+lage druk naar de ademruis; bij 110 Hz laag is de energie boven 4 kHz nog maar
+2,6 dB onder het totaal. Dat is de bedoelde "ademig bij weinig druk", maar
+mogelijk te veel: dit is het eerste punt om op oor te beoordelen. Als het te
+ruisig is, verlaag de 0,75 in `aspirationGain` (bijvoorbeeld 0,4) voordat je
+aan de andere koppelingen draait.
 
-### Luistermatrix
+### Aliasing (klinker A, volle druk, Breath 0)
 
-Render of speel dezelfde noten onder vaste condities:
+| F0 | Voice 0 | Voice 0,35 | Voice 1 |
+|---:|---:|---:|---:|
+| 110 | −89 | −90 | −89 dB |
+| 220 | −77 | −88 | −87 dB |
+| 440 | −66 | −85 | −95 dB |
+| 880 | −53 | −79 | −88 dB |
+| 1320 | −44 | −61 | −73 dB |
+| 1760 | −34 | −58 | −72 dB |
 
-| Variabele | Waarden |
-|---|---|
-| F0 | 110, 220, 440 en 880 Hz |
-| Klinker | A, I en U |
-| Voice | 0, 0,35 en 1 |
-| Pressure | laag, midden, hoog en een langzame sweep |
-| Breath | 0 en een matige waarde |
+Lezing: aliasing zit vrijwel volledig in de korte sluiting van `Voice=0`
+(4 procent van de periode, bij 880 Hz twee samples). Tot en met 880 Hz blijft
+het onder −52 dB ten opzichte van de harmonischen; op de standaardstand 0,35
+onder −79 dB. Boven 1 kHz met Voice 0 wordt het meetbaar fors (−34 dB bij
+1760 Hz). Klinker I en U liggen binnen 1-2 dB van A. Er is dus geen reden om
+de bron nu om te bouwen; wel om te beluisteren of `Voice` onder circa 0,15 op
+hoge noten scherp of "digitaal" klinkt. Als dat zo is, is de eerste optie uit
+de eerdere lijst de goedkoopste en meest gerichte: de minimale sluitduur
+(`closure = 0.04 + 0.20 * voice`) laten meegroeien met F0, zodat de sluiting
+nooit korter wordt dan ongeveer vier samples. Oversampling of een andere bron
+is op basis van deze meting niet nodig.
 
-Vergelijk op gelijk ervaren volume waar het om klank gaat. Beoordeel apart:
+### Wat de meting niet zegt
 
-- zangkarakter;
-- controleerbaarheid;
-- helderheid zonder scherpte;
-- hoorbare stappen of klikken;
-- pitchstabiliteit;
-- ruisgedrag bij lage druk.
+- Geen luisteroordeel: de tabellen zeggen niets over zangkarakter,
+  controleerbaarheid of hoorbaarheid van stappen. Beoordeel de 23 wav's op
+  oor met de eerder afgesproken criteria: zangkarakter, controleerbaarheid,
+  helderheid zonder scherpte, hoorbare stappen of klikken, pitchstabiliteit
+  en ruisgedrag bij lage druk. Leg vooraf vast welk hoorbaar verschil een
+  hypothese bevestigt of weerlegt.
+- Geen Teensy-meting: CPU en klank op de hardware zijn niet gemeten.
+- De aliasingmaat telt periode-jitter (de sluiting valt per periode op een
+  andere fractie van een sample) mee als "tussen de harmonischen"; dat is
+  bewust, want het is even onharmonisch.
 
-Bewaar droge opnames met parameterinstellingen. Een toekomstige chat moet niet
-alleen vragen "klinkt het beter?", maar vooraf aangeven welk hoorbaar verschil
-een hypothese bevestigt of weerlegt.
+## Aanbevolen vervolg
 
-### Aliasingmeting
-
-De bron is niet oversampled en niet expliciet bandbegrensd. Meet daarom eerst
-een sweep en hoge vaste noten met `Voice=0`, omdat de korte sluiting de meeste
-hoge frequenties oplevert. Vergelijk energie boven de harmonisch mogelijke
-band met een zachtere Voice-stand. Als aliasing duidelijk hoorbaar of meetbaar
-is, vergelijk dan in deze volgorde:
-
-1. minimale sluitduur vergroten;
-2. eenvoudige bron-tilt of bandbegrenzing;
-3. alleen de bron 2x oversamplen en terugfilteren;
-4. pas daarna een volledige andere bron overwegen.
-
-Elke optie moet dezelfde WASM/Teensy-kern houden en op Teensy worden
-geprofiled. Kies niet automatisch de theoretisch meest exacte optie.
+1. **Beluisteren.** Render de matrix, luister de sweeps en de Voice-paren en
+   noteer per criterium een oordeel. Pas daarna koppelingsfactoren aan (eerst
+   `aspirationGain`, zie boven).
+2. **Sluitduur bij hoge F0** alleen als het luisteroordeel Voice 0 boven
+   ongeveer 1 kHz scherp vindt; houd de `Voice`-regressie (spectral tilt) en
+   de sample-exacte compatibiliteit bij volle druk in stand.
+3. **Teensy-proef:** flashen, MIDI-IN `Press` naar `Press` patchen met een
+   aftertouch-klavier en de `vel`-kabel lostrekken om `onCvDisconnected` te
+   horen werken.
+4. **Pressure via breath controller:** MIDI-IN levert naast `press`
+   (aftertouch) ook CC1/CC2; een breath controller (CC2) kan dus nu al via de
+   CC2-uitgang, zonder firmwarewerk.
 
 ## Latere richtingen
 
@@ -308,15 +372,16 @@ geprofiled. Kies niet automatisch de theoretisch meest exacte optie.
 - FOF en ZANG hebben verschillende rollen: berekende bespeelbare klinker versus
   PSOLA-resynthese van opgenomen/gegenereerde lettergrepen.
 
-## Definition of done voor de volgende stap
+## Definition of done van de Pressure-stap
 
-Pressure/luistermeting is pas klaar wanneer:
-
-- browser en Teensy dezelfde control en formule gebruiken;
-- een ongepatchte Pressure-ingang sample- of meetbaar compatibel is met de
-  huidige stem;
-- geautomatiseerde tests smoothing, bereik, stabiliteit en release afdekken;
-- WASM-, gerichte editor- en Teensy-builds slagen;
-- droge A/B-opnames of spectra met instellingen beschikbaar zijn;
-- de hoorbare uitkomst en eventuele aliasing zijn gedocumenteerd;
-- alleen eigen FOF-hunks zijn gecommit.
+- [x] browser en Teensy gebruiken dezelfde control en formule (`FofVoice`);
+- [x] een ongepatchte Pressure-ingang is sample-exact compatibel met de stem
+      van voor deze stap (oude en nieuwe wasm vergeleken);
+- [x] geautomatiseerde tests dekken smoothing, bereik, monotonie, vloer,
+      timbre, sprongen en release af;
+- [x] WASM-, gerichte editor-, typecheck- en Teensy-builds slagen;
+- [x] droge opnames en spectra met instellingen zijn reproduceerbaar te
+      renderen (`render-fof-matrix.mjs`, `report.json`);
+- [x] de gemeten aliasing is gedocumenteerd;
+- [ ] de hoorbare uitkomst is op oor beoordeeld en genoteerd;
+- [ ] alleen eigen FOF-hunks zijn gecommit (controleer bij de commit).

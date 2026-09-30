@@ -3264,10 +3264,11 @@ function mmbFof() {
       inPort('gate', 'Gate', 'gate', w*0.42, 106),
       inPort('vowel', 'Vow+', 'cv', w*0.18, 120),
       inPort('breath', 'Air+', 'cv', w*0.42, 120),
-      inPort('vel', 'Vel', 'cv', w*0.76, 106),
+      inPort('vel', 'Vel', 'cv', w*0.66, 106),
+      inPort('pressure', 'Press', 'cv', w*0.86, 106),
       outPort('out', 'Out', 'audio', w*0.76, 120),
     ],
-    notes: 'FOF/CHANT-geinspireerde zangoscillator met asymmetrische glottale bron. Vowel morft door A-E-I-O-U; formanten blijven staan bij pitchverandering. Voice loopt van korte, heldere sluiting naar langer, zachter open/sluitgedrag. Vel (0-1) regelt volume en verzacht de sluiting bij zachte aanslagen; zonder kabel volle sterkte. Tone bepaalt de resonantiebreedte, Breath voegt pulsgebonden aspiratie toe en Vibrato geeft maximaal 22 cent bij 5,3 Hz. Geen exacte LF-bron, spraaksynthese of volledige CHANT-reconstructie. Mono; polyfonie via PolyGroup.',
+    notes: 'FOF/CHANT-geinspireerde zangoscillator met asymmetrische glottale bron. Vowel morft door A-E-I-O-U; formanten blijven staan bij pitchverandering. Voice loopt van korte, heldere sluiting naar langer, zachter open/sluitgedrag. Vel (0-1) regelt volume en verzacht de sluiting bij zachte aanslagen; zonder kabel volle sterkte. Press (0-1) is de doorlopende expressie tijdens de noot (MidiIn Press/aftertouch, breath controller of CV): lager = zachter (vloer 0,15), ademiger (als Breath open staat) en een langere, zachtere sluiting; zonder kabel volle druk, ~20 ms gladgestreken. Tone bepaalt de resonantiebreedte, Breath voegt pulsgebonden aspiratie toe en Vibrato geeft maximaal 22 cent bij 5,3 Hz. Geen exacte LF-bron, spraaksynthese of volledige CHANT-reconstructie. Mono; polyfonie via PolyGroup.',
   });
 }
 
@@ -4419,8 +4420,11 @@ export function seedSoloVoicePatch(
 ): ModularProject {
   const needed = [typeId, 'tp_mmb_midiin', 'tp_mmb_out', ...(fx ? [fx.typeId] : [])];
   const missing = needed.some((tid) => !project.moduleTypes.some((t) => t.id === tid));
+  // FOF kreeg later `vel` (2026-10-01) en `pressure` (2026-10-01, Pressure-stap):
+  // een oud project met een FOF-type zonder die poorten wordt eerst ververst.
+  const fofPorts = project.moduleTypes.find((type) => type.id === typeId)?.ports.map((port) => port.id) ?? [];
   const needsFofUpgrade = typeId === 'tp_mmb_fof'
-    && !project.moduleTypes.find((type) => type.id === typeId)?.ports.some((port) => port.id === 'vel');
+    && !['vel', 'pressure'].every((id) => fofPorts.includes(id));
   const p = missing || needsFofUpgrade ? seedInternals(project) : project;
 
   const fresh = (tid: string): ModuleInstance => {

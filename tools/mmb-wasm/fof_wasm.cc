@@ -7,13 +7,13 @@ const char* const MMB_TYPE_ID = "tp_mmb_fof";
 const float MMB_NATIVE_RATE = 44100.0f;
 const int MMB_BLOCK = 32;
 
-enum { IN_VOCT, IN_GATE, IN_VOWEL, IN_BREATH, IN_VEL };
+enum { IN_VOCT, IN_GATE, IN_VOWEL, IN_BREATH, IN_VEL, IN_PRESSURE };
 MmbPort MMB_INPUTS[] = {
     { "voct", MMB_CV, 0, {} }, { "gate", MMB_GATE, 0, {} },
     { "vowel", MMB_CV, 0, {} }, { "breath", MMB_CV, 0, {} },
-    { "vel", MMB_CV, 0, {} },
+    { "vel", MMB_CV, 0, {} }, { "pressure", MMB_CV, 0, {} },
 };
-const int MMB_NUM_INPUTS = 5;
+const int MMB_NUM_INPUTS = 6;
 MmbPort MMB_OUTPUTS[] = { { "out", MMB_AUDIO, 0, {} } };
 const int MMB_NUM_OUTPUTS = 1;
 
@@ -48,6 +48,7 @@ void mmb_process(int frames) {
     voice.setFrequency(261.6256f * std::pow(2.0f, voct));
     voice.setGate(mmb_gate_in(IN_GATE));
     voice.setVelocity(mmb_connected(IN_VEL) ? mmb_clamp01(mmb_in0(IN_VEL)) : 1.0f);
+    voice.setPressure(mmb_connected(IN_PRESSURE) ? mmb_clamp01(mmb_in0(IN_PRESSURE)) : 1.0f);
     voice.setVowel(mmb_clamp01(vowel + (mmb_connected(IN_VOWEL) ? mmb_in0(IN_VOWEL) : 0.0f)) * 4.0f);
     voice.setBreath(mmb_clamp01(breath + (mmb_connected(IN_BREATH) ? mmb_in0(IN_BREATH) : 0.0f)));
     for (int i = 0; i < frames; ++i) MMB_OUTPUTS[0].buf[i] = voice.process();

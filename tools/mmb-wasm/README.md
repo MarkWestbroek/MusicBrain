@@ -124,6 +124,7 @@ node tools/mmb-wasm/test.mjs       # rooktest: poorten, pieken, flanken, CPU
 node tools/mmb-wasm/test-analysis.mjs   # sample-analyse op een kunstmatige take
 node tools/mmb-wasm/test-sampler.mjs    # take → keymap → sampler, end-to-end
 node tools/mmb-wasm/render-samples.mjs   # voorbeeldsamples renderen
+node tools/mmb-wasm/render-fof-matrix.mjs [map]  # FOF: luister-/aliasingmatrix, report.json + wav's (default tmp)
 node tools/mmb-wasm/make-test-bank.mjs   # testopname (Elements) + .mmbs-bank
 ```
 

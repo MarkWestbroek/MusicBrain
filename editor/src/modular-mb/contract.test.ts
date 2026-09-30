@@ -124,16 +124,25 @@ it('Material Bridge demo deelt twee ritmes en velocity, met alleen Memory als A/
   expect(clocks.map((module) => withMemory!.controlState[module.id]!.rate)).toEqual([2, 3]);
 });
 
-it('FOF solo vernieuwt een oud poortcontract zonder bestaande patches te wijzigen', () => {
+it.each([['vel'], ['pressure']])('FOF solo vernieuwt een oud poortcontract zonder %s zonder bestaande patches te wijzigen', (missingPort) => {
   const original = seedSoloVoicePatch(emptyModularProject(), 'tp_mmb_fof', 'Oude FOF', 'out', 'out', { voice: 0.8 });
   const legacy = {
     ...original,
     moduleTypes: original.moduleTypes.map((type) => type.id === 'tp_mmb_fof'
-      ? { ...type, ports: type.ports.filter((port) => port.id !== 'vel') } : type),
+      ? { ...type, ports: type.ports.filter((port) => port.id !== missingPort) } : type),
   };
   const upgraded = seedSoloVoicePatch(legacy, 'tp_mmb_fof', 'Nieuwe FOF', 'out', 'out');
-  expect(upgraded.moduleTypes.find((type) => type.id === 'tp_mmb_fof')!.ports.map((port) => port.id)).toContain('vel');
+  const ports = upgraded.moduleTypes.find((type) => type.id === 'tp_mmb_fof')!.ports.map((port) => port.id);
+  expect(ports).toContain('vel');
+  expect(ports).toContain('pressure');
   expect(upgraded.patches.slice(0, -1)).toEqual(original.patches);
+});
+
+it('FOF solo laat Press ongepatcht (MidiIn Press is 0 zonder aftertouch)', () => {
+  const patch = project.patches.find((item) => item.name === 'FOF Stem solo')!;
+  expect(patch.connections.some((connection) => connection.to.portId === 'pressure')).toBe(false);
+  const fof = project.moduleTypes.find((type) => type.id === 'tp_mmb_fof')!;
+  expect(fof.ports.find((port) => port.id === 'pressure')).toMatchObject({ direction: 'in', signalType: 'cv' });
 });
 
 it('FOF solo verbindt pitch, gate, velocity en mono naar beide uitgangen', () => {

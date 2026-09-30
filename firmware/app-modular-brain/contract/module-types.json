@@ -526,6 +526,7 @@
         "breath",
         "gate",
         "out",
+        "pressure",
         "vel",
         "voct",
         "vowel"
