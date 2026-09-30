@@ -17,11 +17,11 @@ public:
         switch (control) {
             case Pitch: pitch_ = finiteClamp(value, -36, 36, 0); break;
             case Spread: spread_ = finiteClamp(value, 0, 1, 0.35f); break;
-            case Coupling: coupling_ = finiteClamp(value, 0, 1, 0.5f); break;
+            case Coupling: coupling_ = finiteClamp(value, 0, 1, 0.5f); return;
             case Decay: decay_ = finiteClamp(value, 0.05f, 8, 2); break;
             case Memory: memory_ = finiteClamp(value, 0, 1, 0.7f); break;
             case Recovery: recovery_ = finiteClamp(value, 0.1f, 10, 2); break;
-            case Pickup: pickup_ = finiteClamp(value, 0, 1, 0.25f); break;
+            case Pickup: pickup_ = finiteClamp(value, 0, 1, 0.25f); return;
             case Level: level_ = finiteClamp(value, 0, 1, 0.8f); break;
             default: return;
         }
@@ -40,8 +40,21 @@ public:
         broken_ = false;
     }
 
+    void setModulation(float coupling, float pickup) {
+        couplingCv_ = finiteClamp(coupling, -1, 1, 0);
+        pickupCv_ = finiteClamp(pickup, -1, 1, 0);
+    }
+
+    float effectiveCoupling() const { return couplingSmoothed_; }
+    float effectivePickup() const { return pickupSmoothed_; }
+
     void Tick(float input, float gateA, float gateB, float velocity, float reset,
               float& left, float& right) {
+        const float couplingTarget = finiteClamp(coupling_ + couplingCv_, 0, 1, coupling_);
+        const float pickupTarget = finiteClamp(pickup_ + pickupCv_, 0, 1, pickup_);
+        couplingSmoothed_ += (couplingTarget - couplingSmoothed_) * (started_ ? slew_ : 1);
+        pickupSmoothed_ += (pickupTarget - pickupSmoothed_) * (started_ ? slew_ : 1);
+        started_ = true;
         const bool highA = gateA >= 0.5f, highB = gateB >= 0.5f;
         const bool highReset = reset >= 0.5f;
         if (highReset && !resetHigh_) clear();
@@ -72,15 +85,16 @@ public:
             imag_[node] = damping * (sine_[node] * real_[node] + cosine_[node] * imag_[node]);
             real_[node] = damping * next;
         }
-        exchange(0, 1, couplingStep_);
-        exchange(1, 2, couplingStep_ * (1 - memory_ * (1 - contact_)));
-        exchange(2, 3, couplingStep_);
+        const float couplingStep = couplingSmoothed_ * couplingScale_;
+        exchange(0, 1, couplingStep);
+        exchange(1, 2, couplingStep * (1 - memory_ * (1 - contact_)));
+        exchange(2, 3, couplingStep);
         for (int node = 0; node < 4; ++node) {
             if (std::fabs(real_[node]) < 1e-18f) real_[node] = 0;
             if (std::fabs(imag_[node]) < 1e-18f) imag_[node] = 0;
         }
-        left = level_ * 0.45f * ((1 - pickup_) * real_[0] + pickup_ * real_[1]);
-        right = level_ * 0.45f * ((1 - pickup_) * real_[3] + pickup_ * real_[2]);
+        left = level_ * 0.45f * ((1 - pickupSmoothed_) * real_[0] + pickupSmoothed_ * real_[1]);
+        right = level_ * 0.45f * ((1 - pickupSmoothed_) * real_[3] + pickupSmoothed_ * real_[2]);
     }
 
     float energyTotal() const {
@@ -109,7 +123,7 @@ private:
         attack_ = 1 - std::exp(-1 / (0.025f * rate_));
         release_ = 1 - std::exp(-1 / (recovery_ * rate_));
         slew_ = 1 - std::exp(-1 / (0.01f * rate_));
-        couplingStep_ = coupling_ * 1800 / rate_;
+        couplingScale_ = 1800 / rate_;
     }
 
     void exchange(int first, int second, float amount) {
@@ -127,9 +141,10 @@ private:
     float rate_ = 44100, pitch_ = 0, spread_ = 0.35f, coupling_ = 0.5f;
     float decay_ = 2, memory_ = 0.7f, recovery_ = 2, pickup_ = 0.25f, level_ = 0.8f, voct_ = 0;
     float real_[4] = {}, imag_[4] = {}, cosine_[4] = {}, sine_[4] = {};
-    float damping_ = 0, attack_ = 0, release_ = 0, slew_ = 0, couplingStep_ = 0;
+    float damping_ = 0, attack_ = 0, release_ = 0, slew_ = 0, couplingScale_ = 0;
+    float couplingCv_ = 0, pickupCv_ = 0, couplingSmoothed_ = 0.5f, pickupSmoothed_ = 0.25f;
     float stress_ = 0, contact_ = 1;
-    bool broken_ = false, gateAHigh_ = false, gateBHigh_ = false, resetHigh_ = false;
+    bool broken_ = false, gateAHigh_ = false, gateBHigh_ = false, resetHigh_ = false, started_ = false;
 };
 
 }

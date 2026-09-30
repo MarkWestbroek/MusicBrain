@@ -20,6 +20,7 @@ int main() {
                 bridge.setControl(Bridge::Coupling, sample % 256 ? 0 : 1);
                 bridge.setControl(Bridge::Spread, sample % 512 ? 0 : 1);
                 bridge.setVoct(sample % 256 ? -2 : 2);
+                bridge.setModulation(sample % 256 ? -1 : 1, sample % 512 ? -1 : 1);
             }
             bridge.Tick(0, 0, 0, 1, 0, left, right);
             const float energy = bridge.energyTotal();
@@ -48,6 +49,29 @@ int main() {
         }
         bridge.Tick(0, 0, 0, 1, 1, left, right);
         assert(bridge.energyTotal() == 0 && bridge.stress() == 0);
+
+        for (const int block : {32, 128}) {
+            Bridge smoothed;
+            smoothed.Init(rate);
+            smoothed.setControl(Bridge::Coupling, 0);
+            smoothed.setControl(Bridge::Pickup, 0);
+            smoothed.Tick(0, 0, 0, 1, 0, left, right);
+            const int samples = static_cast<int>(rate * 0.01f);
+            for (int sample = 0; sample < samples; ++sample) {
+                if (sample % block == 0) smoothed.setModulation(1, 1);
+                smoothed.Tick(0, 0, 0, 1, 0, left, right);
+                const float expected = 1 - std::exp(-(sample + 1) / (rate * 0.01f));
+                assert(std::fabs(smoothed.effectiveCoupling() - expected) < 0.0001f);
+                assert(std::fabs(smoothed.effectivePickup() - expected) < 0.0001f);
+            }
+            const float before = smoothed.effectiveCoupling();
+            smoothed.setModulation(0, 0);
+            smoothed.Tick(0, 1, 0, 1, 0, left, right);
+            assert(smoothed.energyTotal() > 1);
+            assert(smoothed.effectiveCoupling() < before && smoothed.effectiveCoupling() > before - 0.01f);
+            smoothed.Tick(0, 0, 0, 1, 1, left, right);
+            assert(smoothed.energyTotal() == 0 && smoothed.stress() == 0);
+        }
     }
-    std::printf("PASS: passivity, hysteresis, recovery, energy limit, reset at 4 rates; kernel %zu bytes\n", sizeof(Bridge));
+    std::printf("PASS: CV passivity, 10 ms smoothing (32/128 blocks), hysteresis, recovery, energy limit, reset at 4 rates; kernel %zu bytes\n", sizeof(Bridge));
 }

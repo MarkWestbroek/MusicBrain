@@ -623,13 +623,13 @@ voor extern geluid van. Reset is een onmiddellijke wisactie en kan klikken.
 ### Implementatie en verificatie
 
 - Gedeelde header-only DSP: `firmware/lib/mmb-dsp/mmb_dsp/material_bridge.h`.
-  De kernel is **136 bytes** in de wasm-check, zonder heap of samplebuffers.
+  De kernel is **156 bytes** na de CV-uitbreiding, zonder heap of samplebuffers.
 - Teensy: `MaterialBridgeModule.h`, geregistreerd in `RegisterAllModules.h`.
   AudioStream met mono-in/stereo-uit; parameteroverdracht aan het begin van
   het audioblok, stressuitlezing via de bestaande CV-bridge. Retired streams
   blijven bestaan en worden stilgezet, conform de AudioStream-lifetime.
 - Browser: `tools/mmb-wasm/materialbridge_wasm.cc`, ABI op 44,1 kHz/32,
-  gebouwd als `editor/public/wasm/tp_mmb_material_bridge.wasm` (63.430 bytes).
+  gebouwd als `editor/public/wasm/tp_mmb_material_bridge.wasm` (66.007 bytes).
   Geen afzonderlijke JS-benadering. Dezelfde kern draait op beide platforms,
   maar CV-timing en int16-audio op Teensy zijn niet bit-identiek aan WebAudio.
 - Zeven wasm-tests: contract, stilte, overdracht, Hit B/velocity nul,
@@ -652,16 +652,247 @@ voor extern geluid van. Reset is een onmiddellijke wisactie en kan klikken.
    geheugen en een geslaagde build bewijzen geen realtime CPU-marge.
 3. Koppeling verschuift de gezamenlijke modi. V/Oct stemt de losse knopen,
    niet gegarandeerd de waargenomen grondtoon: nog geen concertstemming.
-4. Abrupte knop- en toonhoogtewissels zijn energiebegrensd maar nog niet
-   allemaal klikvrij. Alleen het hysteretische brugcontact heeft smoothing.
+4. Couple en Pickup (knop plus CV) en het hysteretische brugcontact hebben
+  smoothing. Andere knop- en toonhoogtewissels zijn energiebegrensd maar
+  nog niet allemaal klikvrij; er is bewust geen impliciet portamento.
 5. Geen audio-rate externe CV-pariteit, geen observer-loading, geen
    topologiemutaties, geen gedeeld polyfoon MIDI-spectrum. Die blijven
    afzonderlijke proeven uit het oorspronkelijke voorstel.
 
+## Aanbevolen vervolg voor Material Bridge
+
+**Vastgelegd: 2026-09-30. Bijgewerkt: demonstratie, A/B-renderer en CV-smoothing
+zijn uitgevoerd. Blinde luisterbeoordeling, stemming en hardwaremetingen blijven open.**
+
+De aanbeveling is om Material Bridge eerst beter bespeelbaar en beoordeelbaar
+te maken, niet om direct meer resonatoren of een vrij bewerkbare graaf toe
+te voegen. Technisch is aangetoond dat energie wordt uitgewisseld en dat
+materiaalgeheugen de uitklank verandert. Nog niet aangetoond is dat een
+muzikant dit gedrag leert herkennen en bewust in zijn spel kan gebruiken.
+
+**De eerste bouwstappen zijn beschikbaar: demonstratiepatch, A/B-takes en
+twee CV-ingangen met smoothing.** Hieronder staan de oorspronkelijke
+toetscriteria; de uitvoering en meetresultaten staan erna. Stemming en
+hardwaremetingen volgen pas na de muzikale beoordeling.
+
+### Stap 1: demonstratiepatch en eerlijke luistervergelijking
+
+Maak een reproduceerbare, zelfspelende patch met twee verschillende ritmes
+op Hit A en Hit B. Laat zachte en harde aanslagen elkaar afwisselen, zodat
+een volgende aanslag aankomt terwijl het materiaal nog belast is. Begin met
+een vaste toonhoogte en vaste overige controls: anders zijn de oorzaken van
+een klankverandering moeilijk uit elkaar te houden.
+
+De huidige module heeft **een gedeelde velocity-ingang**. Stel die voor elke
+aanslag in en laat haar tijdens de gateflank stabiel staan. Gelijktijdige
+aanslagen krijgen dezelfde velocity; deze demonstratie vereist dus geen
+nieuwe velocity-ingang per exciter. Gebruik gates van minstens 5 ms zodat
+dezelfde demonstratie ook binnen de huidige Teensy-blokafhandeling past.
+
+Lever twee versies van dezelfde uitvoering op: Memory=0 als referentie en
+Memory=0,85 als materiaalgeheugenproef. Reset beide voor het begin en gebruik
+identieke timing, velocities en overige instellingen. Match de gemiddelde
+luidheid met een vaste gain per opname; normaliseer niet iedere aanslag
+afzonderlijk, want dan verdwijnt juist een deel van de te onderzoeken dynamiek.
+
+Beoordeel niet alleen of de versie met geheugen korter of zachter klinkt.
+De vraag is of de eerdere belasting herkenbaar doorwerkt in een volgende
+aanslag, de resonantieverdeling en de verhouding tussen de pickups. Vergelijk
+zo nodig ook met een referentie zonder geheugen maar met kortere Decay: als
+dat hetzelfde muzikale resultaat geeft, is de complexere brug nog niet
+overtuigend gerechtvaardigd.
+
+**Toetscriteria:** de patch start zonder handmatige noten; beide exciters zijn
+afzonderlijk hoorbaar te maken; een reset en herhaling leveren hetzelfde
+gedrag op; Stress loopt op en herstelt. Leg daarnaast de resultaten van een
+blinde, luidheidsgematchte A/B-luisterproef vast. Hoorbare verschillen zijn
+geen automatische go: noteer ook of de speler ze kan voorspellen en inzetten.
+Bij een onduidelijk resultaat eerst het model of de demonstratie bijstellen,
+niet het netwerk vergroten.
+
+### Stap 2: Couple en Pickup als expressieve CV-besturing
+
+Voeg **`coupling_cv` en `pickup_cv`** toe aan de gedeelde module-interface,
+beide wrappers, het firmwarecontract en het editorpaneel. Daarmee kunnen
+bijvoorbeeld een modwheel, LFO of trackpad de energie-uitwisseling en
+luisterpositie bewegen. De pickups blijven passieve waarnemers: dit is nog
+geen observer-coupled model waarbij luisteren het materiaal belast.
+
+Voorgestelde semantiek: de CV telt op bij de knopstand en de effectieve
+waarde wordt begrensd op 0..1. Een ontbrekende kabel levert nul modulatie;
+loskoppelen brengt de knopstand terug. Een negatieve CV kan dus ook omlaag
+moduleren. Deze afspraak moet op Teensy en in de browser hetzelfde zijn en
+expliciet worden getest; de bestaande presets moeten zonder nieuwe kabels
+ongewijzigd bruikbaar blijven.
+
+Voer parameter-smoothing uit in de **gedeelde DSP-kern**, op basis van tijd
+en samplerate, niet met een verschillend tempo per wrapperblok. Begin met
+Couple en Pickup en neem de overige continue controls mee waar abrupte
+wijzigingen ongewenste tikken veroorzaken. Gateflanken blijven scherp;
+Reset blijft een bewuste onmiddellijke wisactie. Maak toonhoogte niet
+stilzwijgend traag: pitch-smoothing en eventueel portamento vragen een
+afzonderlijke muzikale afweging.
+
+**Toetscriteria:** CV nul, negatieve/positieve CV, uitersten, ongeldige waarden
+en loskoppelen zijn getest. Een stapverandering in Couple/Pickup verloopt
+vloeiend op verschillende samplerates en bij blokken van 32 en 128 samples.
+De bestaande energiegrens en passiviteit blijven gelden tijdens sweeps.
+Controleer paneel, kabels en hoorbare bediening in een echte browser en bouw
+de Teensy-firmware; claim nog geen gelijke externe CV-timing op beide platforms.
+
+### Stap 3: stemming en realtime gedrag op Teensy
+
+Meet eerst hoe de waargenomen grondtoon en dominante modi veranderen met
+Pitch, Spread en Couple. V/Oct stemt nu de losse knopen; de gekoppelde
+structuur heeft niet noodzakelijk dezelfde grondtoon. Onderzoek pas op basis
+van die metingen of een tonale ankerlaag, compensatie of een optionele
+gestemde modus helpt. Behoud de vrije materiaalstand als referentie: exacte
+stemming mag het onderscheidende gedrag niet ongemerkt vervangen.
+
+Test vervolgens de demonstratiepatch op een echte Teensy: CPU- en
+interruptbelasting, audio-uitval, snelle/herhaalde triggers, parameterbeweging,
+reset en langdurige werking. Meet zowel de module in een eenvoudige patch
+als naast andere DSP. Noteer firmwareversie, samplerate, blokgrootte,
+patchconfiguratie en gemeten marges; een geslaagde build of klein geheugen
+is geen bewijs van realtime capaciteit. Flashen is een afzonderlijke,
+bewuste stap en is met deze documentatie niet uitgevoerd.
+
+**Toetscriteria:** een vastgelegd stembereik met bekende afwijkingen en een
+hardwareverslag met gemeten belasting en eventuele gemiste triggers of
+audiofouten. Stel de bruikbare grenzen vast voordat extra polyfonie of grotere
+netwerken worden beloofd.
+
+### Prioriteit en afbakening
+
+| Volgorde | Resultaat | Backlog |
+|---|---|---|
+| 1 | Zelfspelende tweepuntsdemonstratie en luidheidsgematchte Memory-A/B | ED-SM-MB-2 |
+| 2 | Couple/Pickup-CV, gedeelde smoothing, contract- en regressietests | ED-SM-MB-3 |
+| 3 | Stemmingsonderzoek en gemeten realtime gedrag op Teensy | ED-SM-MB-4 |
+| Later | Meer knopen, vrij bewerkbare topologie of automatisch groeiend netwerk | Alleen na een overtuigende muzikale proef |
+
+Een volledige graafeditor, morphogenetische groei, FPGA-port en uitbreiding
+naar veel stemmen vallen buiten deze vervolgstap. De eerstvolgende beslissing
+gaat over **eigen speelgedrag**, niet over het aantal functies.
+
+## Uitvoering: demo, A/B en CV-smoothing
+
+### Demonstratie en herhaalbare takes
+
+**Solo > Material Bridge demo (2:3)** voegt een rack met twee SEQ-16-modules,
+Material Bridge en stereo-OUT toe, plus twee patches: `Memory aan` (0,85) en
+`Memory uit` (0). Bestaande patches blijven behouden. Start de simulator:
+handmatige MIDI-noten zijn niet nodig. Beide patches gebruiken hetzelfde rack,
+dezelfde kabels en dezelfde parameters, met alleen Memory als verschil.
+
+- SEQ A: 2 Hz, gatefractie 0,1 (circa 50 ms), acht stappen.
+- SEQ B: 3 Hz, gatefractie 0,1 (circa 33 ms), tweede aanslagpunt.
+- SEQ A CV levert de gedeelde velocity: semitonestappen
+  `3, 12, 5, 12, 3, 9, 12, 4`, Root 60. Door deling door 12 ontstaan
+  velocities `0,25; 1; 0,417; 1; 0,25; 0,75; 1; 0,333`.
+- De instrumentgrondtoon blijft C3: Pitch -12, geen kabel op V/Oct.
+  Spread 0,12, Couple 0,65, Decay 4 s, Recover 2 s, Pickup 0,25, Level 0,8.
+- Beide exciters delen velocity, ook bij gelijktijdige aanslagen. Ontkoppel
+  een van de gatekabels om het andere aanslagpunt afzonderlijk te beluisteren.
+
+Live patchwisselen is geen gecontroleerde A/B: het garandeert geen reset van
+sequencers, resonatoren of stress, en de live uitgangsniveaus zijn niet gematcht.
+Gebruik daarvoor de renderer vanuit de repositoryroot:
+
+```powershell
+node tools/mmb-wasm/render-material-bridge.mjs editor/public/material-bridge-ab
+```
+
+Zonder uitvoermap schrijft hij naar de tijdelijke map `mmb-material-bridge-ab`.
+Hij gebruikt de echte demoseed en de echte SEQ-16- en Material Bridge-wasm,
+geen nagemaakte oscillator of ritmische formule. Iedere take krijgt een nieuwe
+instantie en reset; beide gebruiken exact dezelfde opgeslagen gate-/velocity-
+samples. De sequencers draaien op 1 kHz; hun waarden worden sample-and-hold
+doorgegeven aan de DSP op 44,1 kHz. Velocity staat vast voordat dezelfde
+DSP-sample de gateflank verwerkt. Dit is een deterministische referentie,
+geen bewijs van identieke scheduling door WebAudio of Teensy CvGraph.
+
+De opname duurt 20 s: na 12 s komen geen nieuwe aanslagen meer, lopende gates
+mogen uitlopen en het materiaal herstelt in de resterende tijd. De test telde
+24 aanslagen op A en 37 op B. De reset geeft beide sequencers een eerste gate;
+door de 1-kHz-klok en faseafronding kan de laatste B-aanslag nog net voor de
+12-s-grens vallen. Alle opgenomen gates duren minstens 5 ms.
+
+Uitvoer: `memory-on.wav`, `memory-off.wav` (stereo PCM16) en `report.json`
+met instellingen, meetwaarden, gains en SHA-256-hashes. Met een editorserver
+zijn de bestanden bereikbaar onder `/material-bridge-ab/`.
+
+| Meting | Memory 0,85 | Memory 0 |
+|---|---|---|
+| Ruwe stereo-RMS | 0,0407194 | 0,0977310 |
+| Vaste gain voor gehele take | 2,362670 | 0,984401 |
+| Gematchte stereo-RMS | 0,0962065 | 0,0962065 |
+| Gematchte piek | 0,900000 | 0,503576 |
+| Maximale Stress | 0,978874 | 0,999967 |
+| Stress aan het einde | 0,013427 | 0,018319 |
+
+De renderer controleert reproduceerbaarheid van de Memory-aan-take
+sample-voor-sample, eindige en begrensde audio, herstel, gatebreedte en minder
+dan 0,01 dB RMS-afwijking na PCM16-kwantisatie. Geen limiter, normalisatie per
+aanslag of compressor: het karakter van de dynamiek blijft behouden.
+**RMS-matching is geen perceptuele LUFS-matching en geen afgeronde blinde
+luisterproef.** De takes zijn bewust herkenbaar benoemd; laat iemand de
+volgorde blind aanbieden voor een luisterbeoordeling. Een kortere-Decay-
+referentie, herkenning van eerder opgebouwde stress en doelbewuste
+bespeelbaarheid zijn nog niet muzikaal beoordeeld.
+
+### CV-contract en smoothing
+
+De ingangen `coupling_cv` en `pickup_cv` staan op het 14HP-paneel als `Cpl+`
+en `Pick+`. Voor beide geldt: effectieve doelwaarde = `clamp(knop + CV, 0, 1)`.
+Negatieve CV moduleert omlaag; buitenbereik-CV wordt verzadigd en NaN/Infinity
+betekent nul modulatie. Zonder kabel geldt eveneens nul modulatie.
+Loskoppelen keert gesmoothd terug naar de knopstand, ook wanneer in de
+wasm-invoerbuffer nog een oude CV-waarde staat.
+
+De gedeelde kernel gebruikt per sample een eerste-ordefilter met een
+tijdsconstante van 10 ms, coefficient `1 - exp(-1 / (0,01 * samplerate))`.
+Na 10 ms is circa 63,2% van een stap afgelegd, na 50 ms circa 99,3%.
+Dit geldt voor handmatige Couple/Pickup-wijzigingen en hun CV samen.
+De eerste DSP-sample neemt de ingestelde doelwaarden direct over: een nieuw
+gestarte preset hoeft niet vanaf fabrieksdefaults te glijden. Reset wist
+energie/stress direct maar herstart de parametersmoother niet. Gates blijven
+flankgestuurd, V/Oct krijgt geen glide en andere controls zijn niet gewijzigd.
+
+De CV-setter berekent geen trigonometrie en herstemt geen resonatoren.
+Wasm leest de nieuwe ingangen samplegewijs; Teensy neemt hun waarden aan
+het begin van ieder 128-sample blok over. De smoothingtijd is gelijk, maar
+extern aangeboden snelle CV heeft daardoor nog steeds verschillende timing.
+De pickups blijven passieve waarnemers; de koppelingen blijven unitair en
+voegen tijdens modulatie geen energie toe.
+
+### Verificatie en grenzen
+
+- 300 tests geslaagd in `contract.test.ts` en `sim/wasmPorts.test.ts`, waaronder
+  16 Material Bridge-wasm-tests en een nieuwe demo-/A/B-contracttest.
+- C++-invarianten slagen op 32/44,1/48/96 kHz: passiviteit bij CV-sprongen,
+  de analytische 10-ms-curve bij blokken van 32/128 samples, directe gate/reset,
+  hysterese, herstel en energiegrens. Kernel: 156 bytes; wasm: 66.007 bytes.
+- TypeScript-check en editorproductiebouw slagen. PlatformIO Teensy 4.1-build
+  slaagt. Bestaande compilerwaarschuwingen en de bundelgroottewaarschuwing
+  blijven buiten deze wijziging. **Niet geflasht en geen hardware-CPU-meting.**
+- Geisoleerde headless Chromium-sessie: menu via echte klikken, demo starten,
+  draaiende AudioContext en gemeten uitgangsaudio (piek circa 0,055), geen
+  JavaScript-fouten. CV-kabels in de live projectstate toegevoegd en zichtbaar
+  als zeven verbindingen. Nieuwe labels liggen binnen het paneel en overlappen
+  elkaar niet bij 1440x1000 en 390x844. Screenshots gemaakt; dit is geen
+  audit van de volledige mobiele editor en geen menselijke klankbeoordeling.
+
 ## Beslispunt
 
 State-Graph Synthesis verdient voorlopig de status **onderzoeksinstrument**, niet
-productarchitectuur. De eerstvolgende concrete stap is een softwareprototype
-met één gedeelde resonator, één hysteretische brug en twee pickups. Alleen als
-spelers het geheugen en de onderlinge beïnvloeding hoorbaar kunnen voorspellen,
-is een editor- en FPGA-traject gerechtvaardigd.
+productarchitectuur. Het compacte Material Bridge-prototype is gebouwd;
+de demonstratie en expressieve besturing uit het
+[vervolgvoorstel](#aanbevolen-vervolg-voor-material-bridge) zijn beschikbaar.
+De volgende stap is hun muzikale beoordeling. Alleen als spelers
+het geheugen en de onderlinge beinvloeding hoorbaar kunnen voorspellen en
+gebruiken, is een volledige graafeditor gerechtvaardigd. Een FPGA-traject
+vraagt daarnaast profiling die een concrete technische noodzaak aantoont.
+
+Voor een volgende implementatie- of onderzoekssessie staat de praktische
+context in [Material Bridge: overdracht en vervolg](material-bridge-handover.md).

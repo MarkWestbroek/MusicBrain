@@ -23,6 +23,7 @@ import {
   seedCloudsAmbientPatch,
   seedCvBridgePatch,
   seedInternals,
+  seedMaterialBridgeDemo,
   seedPolyVoicePatch,
   seedSamplerPolyPatch,
   seedSoloVoicePatch,
@@ -100,10 +101,29 @@ function allSeededProject(): ModularProject {
   p = seedVocoderChoirPatch(p, 'mic');
   p = seedVocoderChoirPatch(p, 'zang');
   p = seedZangPatch(p);
+  p = seedMaterialBridgeDemo(p);
   return p;
 }
 
 const project = allSeededProject();
+it('Material Bridge demo deelt twee ritmes en velocity, met alleen Memory als A/B-verschil', () => {
+  const demo = seedMaterialBridgeDemo(emptyModularProject());
+  const [withMemory, withoutMemory] = demo.patches.slice(-2);
+  expect(withMemory!.rackIds).toEqual(withoutMemory!.rackIds);
+  expect(withMemory!.connections.map(({ from, to }) => ({ from, to })))
+    .toEqual(withoutMemory!.connections.map(({ from, to }) => ({ from, to })));
+  const materialId = withMemory!.connections.find((connection) => connection.to.portId === 'gate')!.to.moduleId;
+  expect(withMemory!.controlState[materialId]!.memory).toBe(0.85);
+  expect(withoutMemory!.controlState).toEqual({
+    ...withMemory!.controlState,
+    [materialId]: { ...withMemory!.controlState[materialId], memory: 0 },
+  });
+  expect(withMemory!.connections.filter((connection) => connection.to.moduleId === materialId)
+    .map((connection) => connection.to.portId).sort()).toEqual(['gate', 'gate_b', 'vel']);
+  const clocks = demo.modules.filter((module) => withMemory!.controlState[module.id]?.rate !== undefined);
+  expect(clocks.map((module) => withMemory!.controlState[module.id]!.rate)).toEqual([2, 3]);
+});
+
 it('FOF solo vernieuwt een oud poortcontract zonder bestaande patches te wijzigen', () => {
   const original = seedSoloVoicePatch(emptyModularProject(), 'tp_mmb_fof', 'Oude FOF', 'out', 'out', { voice: 0.8 });
   const legacy = {

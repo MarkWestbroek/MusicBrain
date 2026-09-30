@@ -1,0 +1,111 @@
+{
+  "rate": 44100,
+  "seconds": 20,
+  "activeSeconds": 12,
+  "hits": [
+    24,
+    37
+  ],
+  "matching": "Whole-take stereo RMS, one constant gain per take; not perceptual LUFS or a blind listening result.",
+  "timing": "Actual Seq16 wasm at 1 kHz, sample-and-hold to 44.1 kHz, velocity written before gates in each DSP sample. Live wrapper scheduling may differ.",
+  "controls": [
+    {
+      "mod_p5bl4sh": {
+        "s1": 3,
+        "s2": 12,
+        "s3": 5,
+        "s4": 12,
+        "s5": 3,
+        "s6": 9,
+        "s7": 12,
+        "s8": 4,
+        "root": 60,
+        "rate": 2,
+        "gate": 0.1,
+        "length": 8,
+        "run": 0
+      },
+      "mod_qhk1vvy": {
+        "root": 60,
+        "rate": 3,
+        "gate": 0.1,
+        "length": 8,
+        "run": 0
+      },
+      "mod_8qrdxkt": {
+        "pitch": -12,
+        "spread": 0.12,
+        "coupling": 0.65,
+        "decay": 4,
+        "memory": 0.85,
+        "recovery": 2,
+        "pickup": 0.25,
+        "level": 0.8
+      },
+      "mod_pamrqi1": {
+        "level": 0.8
+      }
+    },
+    {
+      "mod_p5bl4sh": {
+        "s1": 3,
+        "s2": 12,
+        "s3": 5,
+        "s4": 12,
+        "s5": 3,
+        "s6": 9,
+        "s7": 12,
+        "s8": 4,
+        "root": 60,
+        "rate": 2,
+        "gate": 0.1,
+        "length": 8,
+        "run": 0
+      },
+      "mod_qhk1vvy": {
+        "root": 60,
+        "rate": 3,
+        "gate": 0.1,
+        "length": 8,
+        "run": 0
+      },
+      "mod_8qrdxkt": {
+        "pitch": -12,
+        "spread": 0.12,
+        "coupling": 0.65,
+        "decay": 4,
+        "memory": 0,
+        "recovery": 2,
+        "pickup": 0.25,
+        "level": 0.8
+      },
+      "mod_pamrqi1": {
+        "level": 0.8
+      }
+    }
+  ],
+  "takes": [
+    {
+      "name": "memory-on.wav",
+      "memory": 0.85,
+      "gain": 2.3626701883627557,
+      "rawRms": 0.04071938377321416,
+      "matchedRms": 0.09620647412947522,
+      "matchedPeak": 0.9,
+      "stressPeak": 0.9788742065429688,
+      "stressEnd": 0.013426958583295345,
+      "sha256": "4b937ad6d09da9fb6572392ccc6deec133478e044cd4b608dfeba9a6ef0b28e7"
+    },
+    {
+      "name": "memory-off.wav",
+      "memory": 0,
+      "gain": 0.9844006912703657,
+      "rawRms": 0.09773101033210481,
+      "matchedRms": 0.09620647412947522,
+      "matchedPeak": 0.5035755221373631,
+      "stressPeak": 0.9999671578407288,
+      "stressEnd": 0.018318714573979378,
+      "sha256": "287722b932f6d32e8087917ed1fca2c389a66ba4a6ab8b6873049e4ab7524395"
+    }
+  ]
+}

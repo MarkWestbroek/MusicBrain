@@ -676,11 +676,13 @@
       "typeId": "tp_mmb_material_bridge",
       "source": "firmware/app-modular-brain/src/MaterialBridgeModule.h",
       "ports": [
+        "coupling_cv",
         "gate",
         "gate_b",
         "in",
         "out_l",
         "out_r",
+        "pickup_cv",
         "reset",
         "stress",
         "vel",

@@ -31,6 +31,7 @@ public:
             }
         }
         bridge_.setVoct(inputs_[0]);
+        bridge_.setModulation(inputs_[5], inputs_[6]);
         const float gateA = inputs_[1], gateB = inputs_[2], velocity = inputs_[3], reset = inputs_[4];
         audio_block_t* left = allocate();
         audio_block_t* right = allocate();
@@ -52,7 +53,7 @@ private:
     mmb_dsp::MaterialBridge bridge_;
     volatile float controls_[8] = {0, 0.35f, 0.5f, 2, 0.7f, 2, 0.25f, 0.8f};
     float applied_[8] = {0, 0.35f, 0.5f, 2, 0.7f, 2, 0.25f, 0.8f};
-    volatile float inputs_[5] = {0, 0, 0, 1, 0};
+    volatile float inputs_[7] = {0, 0, 0, 1, 0, 0, 0};
     volatile float stress_ = 0;
     volatile bool active_ = true;
 };
@@ -78,7 +79,7 @@ public:
     }
     PortKind inputPortKind(std::string_view portId) const override {
         if (portId == "in") return PortKind::Audio;
-        if (portId == "voct" || portId == "vel") return PortKind::Cv;
+        if (portId == "voct" || portId == "vel" || portId == "coupling_cv" || portId == "pickup_cv") return PortKind::Cv;
         if (portId == "gate" || portId == "gate_b" || portId == "reset") return PortKind::Gate;
         return PortKind::None;
     }
@@ -91,6 +92,8 @@ public:
         else if (portId == "gate_b") stream_.cv(2, value);
         else if (portId == "vel") stream_.cv(3, value);
         else if (portId == "reset") stream_.cv(4, value);
+        else if (portId == "coupling_cv") stream_.cv(5, value);
+        else if (portId == "pickup_cv") stream_.cv(6, value);
     }
     void onCvDisconnected(std::string_view portId) override {
         writeCvPort(portId, portId == "vel" ? 1 : 0);

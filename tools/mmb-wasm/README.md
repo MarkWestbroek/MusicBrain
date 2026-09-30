@@ -154,17 +154,27 @@ wat een lib mist vindt de build in de andere (zoals de firmware-LDF).
 `tp_mmb_material_bridge` gebruikt de gedeelde kernel
 `firmware/lib/mmb-dsp/mmb_dsp/material_bridge.h`: vier energiegekoppelde
 resonatoren, een hysteretisch brugcontact, twee aanslagpunten en stereo-pickups.
-Native rate/blok: 44,1 kHz/32. De kernel bevat 136 bytes toestand en geen heap.
+Native rate/blok: 44,1 kHz/32. De kernel bevat 156 bytes toestand en geen heap.
+`coupling_cv` en `pickup_cv` tellen begrensd bij de knop op; beide gebruiken
+samplegebaseerde 10-ms smoothing, zonder pitch-glide of vertraagde gate/reset.
 
 ```sh
 tools/mmb-wasm/build.sh materialbridge
 tools/mmb-wasm/bitcheck/check.sh materialbridge
+node tools/mmb-wasm/render-material-bridge.mjs editor/public/material-bridge-ab
 ```
 
 De tweede opdracht is hier een **invariantentest**, geen vergelijking met
 een oude implementatie: passiviteit bij parameterwissels, hysterese,
 herstel, energiebegrenzing en reset op vier samplerates. De bestaande
-`editor/src/modular-mb/sim/wasmPorts.test.ts` bevat zeven gedragstests.
+`editor/src/modular-mb/sim/wasmPorts.test.ts` bevat zestien gedragstests.
+De invariantentest toetst ook de smoothingcurve bij 32/128-sample updates
+en passiviteit tijdens CV-sprongen. De derde opdracht gebruikt de echte
+demoseed en sequencer-wasm voor twee 20-s stereo-WAV's, met dezelfde stimuli
+en een vaste RMS-gain per take. Hij controleert reproduceerbaarheid, gates,
+herstel en clipping en schrijft meetwaarden/hashes naar `report.json`.
+Zonder uitvoermap wordt de OS-tempmap gebruikt. Dit is geen blinde of
+perceptueel LUFS-gematchte luisterbeoordeling.
 Zie [het prototypeplan](../../doc/plans/state-graph-synthesis.md#material-bridge-eerste-uitvoerbare-proef-2026-09-30)
 voor bediening, gate-timingverschillen en nog open hardwaremetingen.
 

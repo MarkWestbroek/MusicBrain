@@ -18,6 +18,7 @@ import { BUS_SOLO_FX, CONSOLE_EQ_SOLO_FX, PARA_EQ_SOLO_FX, DIODE_SOLO_FX, EQ_SOL
 import { seedCs80BrassPatch } from './seedBrass';
 import { seedAxelFLeadPatch } from './seedAxelF';
 import { seedSid3Patch, seedSidPolyPatch } from './seedSid';
+import { seedMaterialBridgeDemo } from './seedModules';
 
 /** Effecten achter de solo-seeds (Solo ▾): de stand en de tooltip. */
 const SOLO_FX = {
@@ -667,6 +668,11 @@ export function ModularMbApp(): JSX.Element {
                     padding: '7px 12px', cursor: 'pointer', fontSize: 13,
                   }}
                 >🎲 Generative jam (Marbles)</button>
+                <button
+                  onClick={() => { setProject(seedMaterialBridgeDemo(getProject())); setShowSolo(false); }}
+                  title="Twee zelfspelende ritmes op Hit A/B, gedeelde velocity en twee Memory-varianten."
+                  style={{ textAlign: 'left', border: 'none', background: 'transparent', padding: '7px 12px', cursor: 'pointer', fontSize: 13 }}
+                >Material Bridge demo (2:3)</button>
                 <button
                   onClick={() => { setProject(seedWarpsVocoderPatch(getProject())); setShowSolo(false); }}
                   title="Vocoder: jouw keyboard bespeelt Warps' interne zaag-carrier; Marbles klokt Plaits als ritmische modulator. Houd een noot aan en draai Timbre."

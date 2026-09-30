@@ -200,6 +200,41 @@ describe('tp_mmb_stereo_vca', () => {
 });
 
 describe('tp_mmb_material_bridge', () => {
+  it.each([
+    [0, 0.25], [0.3, 0.55], [-0.2, 0.05], [9, 1], [-9, 0],
+    [NaN, 0.25], [Infinity, 0.25], [-Infinity, 0.25],
+  ])('CV %s telt bij de knop op, met sanitizing en begrenzing', async (cv, expected) => {
+    const actual = await load('tp_mmb_material_bridge');
+    const reference = await load('tp_mmb_material_bridge');
+    for (const control of ['coupling', 'pickup']) {
+      actual.setCtl(control, 0.25);
+      actual.setIn(`${control}_cv`, cv);
+      reference.setCtl(control, expected);
+    }
+    actual.setIn('gate', 1); reference.setIn('gate', 1);
+    const rendered = actual.render(0.2), wanted = reference.render(0.2);
+    for (let channel = 0; channel < 3; channel++) {
+      const error = rendered[channel]!.map((value, sample) => value - wanted[channel]![sample]!);
+      expect(peak(error)).toBeLessThan(0.0001);
+    }
+  });
+
+  it('loskoppelen valt gesmoothd terug op de knop, ook als de buffer nog CV bevat', async () => {
+    const actual = await load('tp_mmb_material_bridge');
+    const reference = await load('tp_mmb_material_bridge');
+    for (const control of ['coupling', 'pickup']) {
+      actual.setCtl(control, 0.25); actual.setIn(`${control}_cv`, 0.5);
+      reference.setCtl(control, 0.75);
+    }
+    for (const module of [actual, reference]) { module.setIn('gate', 1); module.render(0.1); }
+    for (const control of ['coupling', 'pickup']) {
+      actual.setIn(`${control}_cv`, 0.5, false);
+      reference.setCtl(control, 0.25);
+    }
+    const rendered = actual.render(0.2), wanted = reference.render(0.2);
+    for (let channel = 0; channel < 3; channel++) expect(rendered[channel]).toEqual(wanted[channel]);
+  });
+
   it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_material_bridge'); });
 
   it('blijft stil zonder excitatie', async () => {

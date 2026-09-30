@@ -73,13 +73,32 @@ invloed uit; `Recover` bepaalt het herstel. `Hit B` is een tweede aanslagpunt,
 | Onderdeel | Status |
 |---|---|
 | Paneel, solopatch, stereo en velocity | Geimplementeerd |
+| Zelfspelende tweepuntsdemo en reproduceerbare Memory-A/B-takes | Geimplementeerd; blinde luisterbeoordeling open |
+| Couple/Pickup-CV en 10-ms smoothing | Gedeelde DSP, paneel en beide wrappers getest |
 | Browser/Teensy DSP | Dezelfde C++-kern; wasm en firmware gebouwd |
 | Energie, hysterese, herstel en contracten | Automatisch getest |
 | Muzikale beoordeling en Teensy CPU-meting | Nog open; niet geflasht |
 
+**Solo > Material Bridge demo (2:3)** maakt twee Memory-varianten met twee
+SEQ-16-ritmes en gedeelde zachte/harde velocity. Start **Sim**; MIDI is niet
+nodig. `Cpl+` en `Pick+` tellen CV op bij de knop, begrensd op 0..1;
+loskoppelen keert vloeiend terug naar de knopstand. De smoothingtijd is
+10 ms; pitch, gates en reset krijgen geen vertraging.
+
+Voor een gecontroleerde vergelijking: voer vanuit de repositoryroot
+`node tools/mmb-wasm/render-material-bridge.mjs editor/public/material-bridge-ab`
+uit. Dit maakt twee 20-seconden stereo-WAV's en een meetrapport, te openen via
+`/material-bridge-ab/memory-on.wav` en `/material-bridge-ab/memory-off.wav` op
+de editorserver. Iedere take begint gereset en gebruikt identieke stimuli;
+een vaste gain per take matcht de stereo-RMS binnen 0,01 dB. Live patchwisselen
+reset niet automatisch en is niet niveau-gematcht. RMS-matching vervangt geen
+perceptuele of blinde luisterproef.
+
 Dit is een klein onderzoeksinstrument, geen volwaardige state-graph-editor
 en geen precies concertgestemde poly-synth. Het model, de controls en de
 verificatie staan in [State-Graph Synthesis](../doc/plans/state-graph-synthesis.md#material-bridge-eerste-uitvoerbare-proef-2026-09-30).
+Een volgende sessie kan beginnen bij het zelfstandige
+[Material Bridge-overdrachtsdocument](../doc/plans/material-bridge-handover.md).
 
 ## Losse demo-pagina's
 

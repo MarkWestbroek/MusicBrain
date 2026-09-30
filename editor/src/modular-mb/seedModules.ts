@@ -3289,8 +3289,10 @@ function mmbMaterialBridge() {
       knob('decay', 'Decay', w*0.18, 53, { size: 'medium', min: 0.05, max: 8, def: 2, unit: 's', color: '#f9fafb' }),
       knob('memory', 'Memory', w*0.50, 53, { size: 'medium', min: 0, max: 1, def: 0.7, color: '#fb7185' }),
       knob('recovery', 'Recover', w*0.82, 53, { size: 'medium', min: 0.1, max: 10, def: 2, unit: 's', color: '#f9fafb' }),
-      knob('pickup', 'Pickup', w*0.32, 78, { size: 'small', min: 0, max: 1, def: 0.25, color: '#6ee7b7' }),
-      knob('level', 'Level', w*0.68, 78, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      inPort('coupling_cv', 'Cpl+', 'cv', w*0.12, 78),
+      knob('pickup', 'Pickup', w*0.36, 78, { size: 'small', min: 0, max: 1, def: 0.25, color: '#6ee7b7' }),
+      knob('level', 'Level', w*0.64, 78, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      inPort('pickup_cv', 'Pick+', 'cv', w*0.88, 78),
       inPort('in', 'In', 'audio', w*0.10, 100),
       inPort('voct', 'V/Oct', 'cv', w*0.30, 100),
       inPort('gate', 'Hit A', 'gate', w*0.50, 100),
@@ -4726,6 +4728,58 @@ export function seedKrellPatch(project: ModularProject): ModularProject {
  * maken een steeds wisselend ritme. Draai aan Marbles Déjà vu om een groove
  * vast te zetten.
  */
+export function seedMaterialBridgeDemo(project: ModularProject): ModularProject {
+  const p = seedInternals(project);
+  const fresh = (typeId: string): ModuleInstance => {
+    const proto = p.modules.find((module) => module.typeId === typeId)!;
+    return { ...proto, id: uid('mod'), internal: false, visual: proto.visual };
+  };
+  const rhythmA = fresh('tp_mmb_seq8');
+  const rhythmB = fresh('tp_mmb_seq8');
+  const material = fresh('tp_mmb_material_bridge');
+  const out = fresh('tp_mmb_out');
+  const modules = [rhythmA, rhythmB, material, out];
+  let offset = 0;
+  const rack: Rack = {
+    id: uid('rack'), name: 'Material Bridge demo',
+    description: 'Twee ritmes (2 en 3 Hz) delen materiaal en velocity; vaste grondtoon.',
+    rows: 1, hpPerRow: 64, kind: 'physical',
+    slots: modules.map((module) => {
+      const slot: RackSlot = { id: uid('slot'), moduleId: module.id, row: 0, hpOffset: offset };
+      offset += module.visual.hpWidth;
+      return slot;
+    }),
+  };
+  rack.hpPerRow = Math.max(64, offset);
+  const cable = (from: ModuleInstance, output: string, to: ModuleInstance, input: string): PatchConnection => ({
+    id: uid('conn'), from: { moduleId: from.id, portId: output }, to: { moduleId: to.id, portId: input },
+  });
+  const connections = [
+    cable(rhythmA, 'cv', material, 'vel'),
+    cable(rhythmA, 'gate_out', material, 'gate'),
+    cable(rhythmB, 'gate_out', material, 'gate_b'),
+    cable(material, 'out_l', out, 'l'), cable(material, 'out_r', out, 'r'),
+  ];
+  const steps = { s1: 3, s2: 12, s3: 5, s4: 12, s5: 3, s6: 9, s7: 12, s8: 4 };
+  const patches = [0.85, 0].map((memory): Patch => ({
+    id: uid('patch'), name: `Material Bridge demo - Memory ${memory === 0 ? 'uit' : 'aan'}`,
+    description: 'Zelfspelend 2:3-ritme, vaste C3 en gedeelde velocity. Beide varianten verschillen alleen in Memory; live wisselen reset de toestand niet. Gebruik de gerenderde takes voor een gematchte vergelijking.',
+    voiceCount: 1, rackIds: [rack.id],
+    connections: connections.map((connection) => ({ ...connection, id: uid('conn') })),
+    controlState: {
+      [rhythmA.id]: { ...steps, root: 60, rate: 2, gate: 0.1, length: 8, run: 0 },
+      [rhythmB.id]: { root: 60, rate: 3, gate: 0.1, length: 8, run: 0 },
+      [material.id]: { pitch: -12, spread: 0.12, coupling: 0.65, decay: 4, memory, recovery: 2, pickup: 0.25, level: 0.8 },
+      [out.id]: { level: 0.8 },
+    },
+    envelopes: [], lfos: [],
+  }));
+  return {
+    ...p, modules: [...p.modules, ...modules], racks: [...p.racks, rack],
+    patches: [...p.patches, ...patches], activeRackId: rack.id, activePatchId: patches[0]!.id,
+  };
+}
+
 export function seed808JamPatch(project: ModularProject): ModularProject {
   const needed = ['tp_mmb_marbles', 'tp_mmb_peaks', 'tp_mmb_mixer', 'tp_mmb_out'];
   const missing = needed.some((tid) => !project.moduleTypes.some((t) => t.id === tid));
