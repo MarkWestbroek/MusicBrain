@@ -28,7 +28,8 @@ export function runCommand(p: ModularProject, cmd: Command): EditResult {
       const pid = needPatch();
       const m = findModuleByWord(p, pid, cmd.from);
       if (!m) throw new RecipeError(`Geen module "${cmd.from}" in deze patch.`);
-      return replaceModule(p, pid, m.id, cmd.to);
+      // Kan niet vragen: gebruiken andere patches de module, dan alleen hier.
+      return replaceModule(p, pid, m.id, cmd.to, cmd.scope ?? 'auto');
     }
     case 'addBus': return addBusFx(p, needPatch(), cmd.module);
     case 'move': {

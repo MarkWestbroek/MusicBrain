@@ -21,7 +21,7 @@ import type { PatchRecipe, RecipeModule } from './types';
 export type Command =
   | { kind: 'build'; recipe: PatchRecipe; mentioned: string[]; explicitNew: boolean }
   | { kind: 'voices'; voices: number }
-  | { kind: 'replace'; from: string; to: string }
+  | { kind: 'replace'; from: string; to: string; scope?: 'auto' | 'patch' | 'rack' | 'all' }
   | { kind: 'addBus'; module: string }
   | { kind: 'addModulation'; source: string; target: string; port: string | null }
   | { kind: 'move'; module: string; relation: 'before' | 'after' | 'swap'; target: string }

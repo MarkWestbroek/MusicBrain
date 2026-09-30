@@ -165,7 +165,84 @@ function mapPorts(oldT: ModuleType, newT: ModuleType): Map<string, string> {
 
 // ── replaceModule ───────────────────────────────────────────────────────
 
-export function replaceModule(project: ModularProject, patchId: string, moduleId: string, newTypeRef: string): EditResult {
+/**
+ * Hoe ver een vervanging reikt, als de module ook in andere patches op
+ * hetzelfde rack wordt gebruikt:
+ *   'all'   — de module zelf verandert, dus in álle patches (upgrade);
+ *   'patch' — deze patch krijgt een eigen nieuwe module in hetzelfde rack
+ *             (achteraan de rij) en alleen zijn kabels gaan erheen;
+ *   'rack'  — deze patch krijgt een eigen kopie van het rack, met daarin
+ *             de nieuwe module;
+ *   'auto'  — 'patch' als andere patches de module gebruiken, anders 'all'
+ *             (voor de commandoregel, AI en MCP, die niet kunnen vragen).
+ */
+export type ReplaceScope = 'all' | 'patch' | 'rack' | 'auto';
+
+/** Andere patches die deze module (of zijn poly-groep) bekabelen. */
+export function otherPatchesUsing(p: ModularProject, patchId: string, moduleId: string): Patch[] {
+  const grp = groupOf(p, moduleId);
+  const ids = grp ? grp.group.members.flatMap((m) => (m.kind === 'module' ? [m.moduleId] : [])) : [moduleId];
+  return p.patches.filter((x) => x.id !== patchId
+    && x.connections.some((c) => ids.includes(c.from.moduleId) || ids.includes(c.to.moduleId)));
+}
+
+/** Vervang in één patch de module-ids volgens @p map (kabels, knopstanden,
+ *  envelopes/LFO's — alles behalve id, naam en racks). */
+function remapPatch(p: ModularProject, patchId: string, map: Map<string, string>): ModularProject {
+  return withPatch(p, patchId, (x) => {
+    const { id, name, rackIds, ...rest } = x;
+    let json = JSON.stringify(rest);
+    for (const [a, b] of map) json = json.split(`"${a}"`).join(`"${b}"`);
+    return { ...(JSON.parse(json) as typeof rest), id, name, rackIds };
+  });
+}
+
+/** Deze patch krijgt eigen kopieën van de module (of zijn hele poly-groep),
+ *  achteraan dezelfde rackrij; zijn kabels en knoppen gaan naar de kopieën. */
+function forkForPatch(p: ModularProject, patchId: string, moduleId: string): { project: ModularProject; id: string } {
+  const grp = groupOf(p, moduleId);
+  const ids = grp ? grp.group.members.flatMap((m) => (m.kind === 'module' ? [m.moduleId] : [])) : [moduleId];
+  const map = new Map(ids.map((id) => [id, uid('mod')]));
+  for (const id of ids) {
+    const loc = slotOf(p, id);
+    const copy = { ...moduleOf(p, id), id: map.get(id)! };
+    p = loc ? placeAtRowEnd(p, loc.rack.id, loc.slot.row, copy) : { ...p, modules: [...p.modules, copy] };
+  }
+  if (grp) {
+    p = withRack(p, grp.rack.id, (r) => ({
+      ...r,
+      polyGroups: [...(r.polyGroups ?? []), {
+        ...grp.group, id: uid('poly'),
+        members: grp.group.members.map((m) => (m.kind === 'module' && map.has(m.moduleId) ? { ...m, moduleId: map.get(m.moduleId)! } : m)),
+      }],
+    }));
+  }
+  return { project: remapPatch(p, patchId, map), id: map.get(moduleId)! };
+}
+
+/** Deze patch krijgt een eigen kopie van het rack waarin de module staat. */
+function forkRackForPatch(p: ModularProject, patchId: string, moduleId: string): { project: ModularProject; id: string } {
+  const loc = slotOf(p, moduleId);
+  if (!loc) throw new RecipeError('De module staat in geen rack.');
+  const rack = loc.rack;
+  const patch = patchOf(p, patchId);
+  const map = new Map(rack.slots.map((sl) => [sl.moduleId, uid('mod')]));
+  const copies = rack.slots.map((sl) => ({ ...moduleOf(p, sl.moduleId), id: map.get(sl.moduleId)! }));
+  const newRack: Rack = {
+    ...rack, id: uid('rack'), name: `${rack.name} — ${patch.name}`,
+    slots: rack.slots.map((sl) => ({ ...sl, id: uid('slot'), moduleId: map.get(sl.moduleId)! })),
+    polyGroups: (rack.polyGroups ?? []).map((g) => ({
+      ...g, id: uid('poly'),
+      members: g.members.map((m) => (map.has(m.moduleId) ? { ...m, moduleId: map.get(m.moduleId)! } : m)),
+    })),
+  };
+  p = { ...p, modules: [...p.modules, ...copies], racks: [...p.racks, newRack] };
+  p = withPatch(p, patchId, (x) => ({ ...x, rackIds: x.rackIds.map((r) => (r === rack.id ? newRack.id : r)) }));
+  return { project: remapPatch(p, patchId, map), id: map.get(moduleId)! };
+}
+
+export function replaceModule(project: ModularProject, patchId: string, moduleId: string, newTypeRef: string,
+                              scope: ReplaceScope = 'all'): EditResult {
   const warnings: string[] = [];
   let p = ensureType(project, resolveOrThrow(newTypeRef, seedInternals(project).moduleTypes));
   const newTypeId = resolveOrThrow(newTypeRef, p.moduleTypes);
@@ -175,6 +252,21 @@ export function replaceModule(project: ModularProject, patchId: string, moduleId
   const oldT = typeOf(p, old.typeId);
   if (newT.role === 'multi' || oldT.role === 'multi') {
     throw new RecipeError(`${shortName((newT.role === 'multi' ? newT : oldT).id, p.moduleTypes)} is een multi-module (cellen, bijv. 8 stemmen in één module); vervangen van of door zo'n module kan nog niet.`);
+  }
+  // Wordt de module ook elders gebruikt? Dan eerst een eigen exemplaar (of
+  // rack) voor deze patch, en díe vervangen: de andere patches blijven zoals
+  // ze waren.
+  const others = otherPatchesUsing(p, patchId, moduleId);
+  if (scope === 'auto') scope = others.length ? 'patch' : 'all';
+  if (scope !== 'all' && others.length) {
+    const fork = scope === 'rack' ? forkRackForPatch(p, patchId, moduleId) : forkForPatch(p, patchId, moduleId);
+    const r = replaceModule(fork.project, patchId, fork.id, newTypeId, 'all');
+    const names = others.map((x) => x.name).join(', ');
+    return {
+      ...r,
+      summary: `${r.summary} — alleen in deze patch (${scope === 'rack' ? 'eigen kopie van het rack' : 'nieuwe module achteraan het rack'})`,
+      warnings: [...r.warnings, `${shortName(oldT.id, p.moduleTypes)} blijft in ${names}.`],
+    };
   }
   // Mono ↔ stereo buiten een poly-groep: L/R-paar samenvoegen of splitsen.
   const kOld = stereoKind(oldT), kNew = stereoKind(newT);

@@ -71,8 +71,9 @@ export const TOOLS: ToolDef[] = [
     description: 'Maak de actieve patch N-stemmig (1 = mono). Kloont de stemketen en maakt poly-groepen; de mixer groeit mee.',
     inputSchema: { type: 'object', properties: { voices: { type: 'integer', minimum: 1, maximum: 16 } }, required: ['voices'] } },
   { name: 'replace_module', mutating: true,
-    description: 'Vervang een module in de actieve patch door een ander type. "from" is een module-id, een rolwoord (osc, filter, vca) of een alias van het huidige type. Bij een poly-groep wordt de hele groep vervangen; kabels blijven waar de poorten overeenkomen.',
-    inputSchema: { type: 'object', properties: { from: { type: 'string' }, to: MODULE_REF }, required: ['from', 'to'] } },
+    description: 'Vervang een module in de actieve patch door een ander type. "from" is een module-id, een rolwoord (osc, filter, vca) of een alias van het huidige type. Bij een poly-groep wordt de hele groep vervangen; kabels blijven waar de poorten overeenkomen. Gebruiken andere patches op hetzelfde rack de module ook, dan bepaalt "scope" hoe ver het reikt: "patch" (standaard: een nieuwe module in het rack, alleen deze patch ompatcht), "rack" (eigen kopie van het rack voor deze patch) of "all" (overal vervangen, bijv. een upgrade).',
+    inputSchema: { type: 'object', properties: { from: { type: 'string' }, to: MODULE_REF,
+      scope: { type: 'string', enum: ['patch', 'rack', 'all'] } }, required: ['from', 'to'] } },
   { name: 'add_bus_fx', mutating: true,
     description: 'Zet een effect op de bus, tussen de mixer en OUT, in de actieve patch.',
     inputSchema: { type: 'object', properties: { module: MODULE_REF }, required: ['module'] } },
@@ -217,7 +218,11 @@ export function commandForTool(name: string, args: Record<string, unknown>): Com
       if (!Number.isFinite(v)) throw new RecipeError('set_voices: voices ontbreekt.');
       return { kind: 'voices', voices: Math.max(1, Math.min(16, Math.round(v))) };
     }
-    case 'replace_module':  return { kind: 'replace', from: str('from'), to: str('to') };
+    case 'replace_module': {
+      const scope = args.scope === undefined ? undefined : str('scope');
+      if (scope !== undefined && !['patch', 'rack', 'all'].includes(scope)) throw new RecipeError('replace_module: scope moet patch, rack of all zijn.');
+      return { kind: 'replace', from: str('from'), to: str('to'), ...(scope ? { scope: scope as 'patch' | 'rack' | 'all' } : {}) };
+    }
     case 'add_bus_fx':      return { kind: 'addBus', module: str('module') };
     case 'move_module': {
       const rel = str('relation');

@@ -2,16 +2,22 @@
 // een module of op de patch als geheel.
 //   module : Vervang door ▸ · LFO op ▸ · Envelope op ▸ · (OUT) Bus-effect ▸
 //   patch  : Stemmen ▸ · Bus-effect toevoegen ▸
+//
+// Vervangen van een module die ook in andere patches op hetzelfde rack wordt
+// gebruikt vraagt eerst hoe ver het moet reiken (alleen hier, eigen rack of
+// overal) — anders veranderen die patches ongemerkt mee.
 
 import { useEffect, useMemo, useState } from 'react';
 import { updateProject, useModularProject } from '../store';
 import { resolvePorts } from '../types';
 import { kindOf, shortName, type ModuleKindTag } from './catalog';
-import { replaceModule, setVoices, addBusFx, addModulation, removeModule, type EditResult } from './edits';
+import { replaceModule, otherPatchesUsing, setVoices, addBusFx, addModulation, removeModule, type EditResult, type ReplaceScope } from './edits';
 
 export interface MenuAnchor { x: number; y: number; moduleId: string | null }
 
-interface Item { label: string; run?: () => EditResult; sub?: Item[]; disabled?: boolean }
+interface Item { label: string; run?: () => EditResult; sub?: Item[]; disabled?: boolean; ask?: ReplaceAsk }
+/** Vervangen van een module die ook elders gebruikt wordt: eerst vragen. */
+interface ReplaceAsk { from: string; to: string; users: string[]; run: (scope: ReplaceScope) => EditResult }
 
 export function RecipeContextMenu(props: {
   anchor: MenuAnchor; patchId: string; onClose: () => void;
@@ -20,6 +26,7 @@ export function RecipeContextMenu(props: {
   const { anchor, patchId, onClose, onResult } = props;
   const project = useModularProject();
   const [openSub, setOpenSub] = useState<number | null>(null);
+  const [asking, setAsking] = useState<ReplaceAsk | null>(null);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => { if (e.key === 'Escape') onClose(); };
@@ -57,7 +64,17 @@ export function RecipeContextMenu(props: {
         : internal).filter((x) => x.id !== m.typeId);
       out.push({
         label: `Vervang ${shortName(m.typeId, types)} door`,
-        sub: candidates.map((x) => ({ label: shortName(x.id, types), run: () => replaceModule(p, patchId, m.id, x.id) })),
+        sub: candidates.map((x) => {
+          const users = otherPatchesUsing(p, patchId, m.id).map((q) => q.name);
+          return {
+            label: shortName(x.id, types),
+            run: () => replaceModule(p, patchId, m.id, x.id, 'all'),
+            ...(users.length ? { ask: {
+              from: shortName(m.typeId, types), to: shortName(x.id, types), users,
+              run: (scope: ReplaceScope) => replaceModule(p, patchId, m.id, x.id, scope),
+            } } : {}),
+          };
+        }),
       });
     }
     const cvIns = resolvePorts(m, types).filter((q) => q.direction === 'in' && q.signalType === 'cv');
@@ -76,10 +93,13 @@ export function RecipeContextMenu(props: {
   }, [project, anchor.moduleId, patchId]);
 
   const fire = (item: Item): void => {
-    if (!item.run) return;
+    if (item.ask) { setAsking(item.ask); return; }
+    if (item.run) runEdit(item.run);
+  };
+  const runEdit = (run: () => EditResult): void => {
     try {
       let res: EditResult | null = null;
-      updateProject((_p) => { res = item.run!(); return res.project; }, { forceCommit: true });
+      updateProject((_p) => { res = run(); return res.project; }, { forceCommit: true });
       const r = res as EditResult | null;
       if (r) onResult({ ok: true, text: r.summary + (r.warnings.length ? ` — ${r.warnings.join(' ')}` : '') });
     } catch (e) {
@@ -97,6 +117,37 @@ export function RecipeContextMenu(props: {
     display: 'flex', justifyContent: 'space-between', gap: 12, padding: '5px 10px',
     cursor: 'pointer', borderRadius: 4, whiteSpace: 'nowrap',
   };
+  if (asking) {
+    const choice: React.CSSProperties = {
+      display: 'block', width: '100%', textAlign: 'left', padding: '8px 10px', marginTop: 6,
+      border: '1px solid #cbd2d9', borderRadius: 6, background: '#f8fafc', cursor: 'pointer', fontSize: 13,
+    };
+    const others = asking.users.length === 1 ? `patch "${asking.users[0]}"` : `${asking.users.length} andere patches (${asking.users.join(', ')})`;
+    return (
+      <div style={{ position: 'fixed', inset: 0, zIndex: 90, background: 'rgba(15,23,42,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+           onMouseDown={(e) => { e.stopPropagation(); onClose(); }}>
+        <div style={{ ...menu, position: 'relative', maxWidth: 460, padding: 16 }} onMouseDown={(e) => e.stopPropagation()}>
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>{asking.from} vervangen door {asking.to}</div>
+          <div style={{ color: '#475569' }}>
+            Let op: deze {asking.from} wordt ook gebruikt in {others}. Hoe ver moet de vervanging reiken?
+          </div>
+          <button style={choice} onClick={() => runEdit(() => asking.run('patch'))}>
+            <b>Alleen in deze patch</b> — een nieuwe {asking.to} achteraan in het rack; de kabels van deze patch gaan erheen. De {asking.from} blijft voor de andere patches.
+          </button>
+          <button style={choice} onClick={() => runEdit(() => asking.run('rack'))}>
+            <b>Nieuw rack voor deze patch</b> — een kopie van het rack met de {asking.to} erin; de andere patches houden het oude rack.
+          </button>
+          <button style={choice} onClick={() => runEdit(() => asking.run('all'))}>
+            <b>Overal vervangen</b> — ook in {others} (bijvoorbeeld bij een upgrade).
+          </button>
+          <button style={{ ...choice, background: 'transparent', border: 'none', textAlign: 'center', color: '#64748b' }} onClick={onClose}>
+            Annuleren
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const x = Math.min(anchor.x, window.innerWidth - 220);
   const y = Math.min(anchor.y, window.innerHeight - 40 * Math.max(1, items.length) - 20);
 
