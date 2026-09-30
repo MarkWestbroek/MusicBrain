@@ -141,15 +141,19 @@ export function ModulePanel({
       ))}
 
       {/* Text labels */}
-      {(visual.texts ?? []).map((t, i) => (
-        <text key={`txt-${i}`} x={t.x} y={t.y}
-          fontSize={t.fontSize ?? 2.4}
-          fill={t.color ?? textCol}
-          textAnchor={t.align ?? 'middle'}
-          fontWeight={500}>
-          {t.text}
-        </text>
-      ))}
+      {(visual.texts ?? []).map((t, i) => {
+        const fit = panelTextFit(t, widthMm);
+        return (
+          <text key={`txt-${i}`} x={t.x} y={t.y}
+            fontSize={fit.fontSize}
+            fill={t.color ?? textCol}
+            textAnchor={t.align ?? 'middle'}
+            fontWeight={500}
+            {...(fit.textLength ? { textLength: fit.textLength, lengthAdjust: 'spacingAndGlyphs' } : {})}>
+            {t.text}
+          </text>
+        );
+      })}
 
       {/* Ports */}
       {ports.map((p) => {
@@ -375,6 +379,31 @@ function Decoration({ dec, textCol }: { dec: import('./types').PanelDecoration; 
       return <rect x={dec.x} y={dec.y} width={dec.w ?? 10} height={dec.h ?? 10}
         fill="#5b6470" rx={0.8} />;
   }
+}
+
+// ── Paneelteksten ──────────────────────────────────────────────────────
+
+/**
+ * Ondertitels in de kop (onder de modulenaam, y 10–18) staan in de
+ * definities op 1,0–1,2 mm en waren nauwelijks leesbaar: die tekenen we
+ * ~40% groter (max 1,6). Past de tekst dan niet meer in de paneelbreedte,
+ * dan krimpt hij horizontaal (textLength) in plaats van over de rand te lopen.
+ * Andere kleine teksten (bij knoppen en jacks) blijven zoals ontworpen.
+ */
+export function panelTextFit(
+  t: { x: number; y: number; text: string; fontSize?: number; align?: 'start' | 'middle' | 'end' },
+  widthMm: number,
+): { fontSize: number; textLength?: number } {
+  const base = t.fontSize ?? 2.4;
+  const subtitle = t.y >= 10 && t.y <= 18 && base < 1.5;
+  const fontSize = subtitle ? Math.min(1.6, Math.round(base * 1.4 * 100) / 100) : base;
+  if (!subtitle) return { fontSize };
+  const margin = 1.5;
+  const avail = t.align === 'start' ? widthMm - t.x - margin
+    : t.align === 'end' ? t.x - margin
+    : 2 * Math.min(t.x, widthMm - t.x) - 2 * margin;
+  const estimate = t.text.length * fontSize * 0.55;   // gemiddelde tekenbreedte van system-ui
+  return estimate > avail && avail > 0 ? { fontSize, textLength: Math.round(avail * 100) / 100 } : { fontSize };
 }
 
 // ── Port glyph ─────────────────────────────────────────────────────────
