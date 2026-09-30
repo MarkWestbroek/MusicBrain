@@ -709,6 +709,12 @@ export function removeModule(project: ModularProject, patchId: string, moduleId:
   // Nog in gebruik door een andere patch? Dan blijft hij in het rack.
   const usedElsewhere = p.patches.some((x) => x.id !== patchId && x.connections.some(touches));
   if (!usedElsewhere) {
+    // Gat dichten: de modules rechts van elke weggehaalde module schuiven naar
+    // links, met zijn breedte (van rechts naar links, zodat meerdere gaten in
+    // één rij goed gaan). Bestaande tussenruimtes elders blijven staan.
+    const gone = targets.flatMap((id) => { const loc = slotOf(p, id); return loc ? [{ ...loc, width: moduleOf(p, id).visual.hpWidth }] : []; })
+      .sort((x, y) => y.slot.hpOffset - x.slot.hpOffset);
+    for (const g of gone) p = shiftRow(p, g.rack.id, g.slot, -g.width);
     p = {
       ...p,
       modules: p.modules.filter((m) => !targets.includes(m.id)),

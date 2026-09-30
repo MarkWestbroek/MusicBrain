@@ -137,4 +137,24 @@ describe('module vervangen als andere patches hem ook gebruiken', () => {
     expect(overlaps(r)).toEqual([]);
     validateOps(r, [], a); validateOps(r, [], b);
   });
+
+  it('verwijderen uit het rack sluit het gat: de module rechts ervan schuift naar links', () => {
+    const p = buildRecipe(seedInternals(emptyModularProject()), { voices: 1, source: 'vco' });
+    const a = p.activePatchId!;
+    const typeOf = (id: string) => p.modules.find((m) => m.id === id)!.typeId;
+    const vcf = p.patches.find((x) => x.id === a)!.connections.map((c) => c.to.moduleId).find((id) => typeOf(id) === 'tp_mmb_vcf')!;
+    const rack = p.racks.find((r) => r.slots.some((sl) => sl.moduleId === vcf))!;
+    const old = rack.slots.find((sl) => sl.moduleId === vcf)!;
+    const next = rack.slots.filter((sl) => sl.row === old.row && sl.hpOffset > old.hpOffset).sort((x, y) => x.hpOffset - y.hpOffset)[0]!;
+    const r = removeModule(p, a, vcf).project;
+    const moved = r.racks.find((x) => x.id === rack.id)!.slots.find((sl) => sl.id === next.id)!;
+    // Alles wat links van `next` in die rij is weggehaald (de VCF, en zijn
+    // filter-envelope die alleen hem stuurde), sluit aan.
+    const w = (id: string) => p.modules.find((m) => m.id === id)!.visual.hpWidth;
+    const goneLeft = rack.slots.filter((sl) => sl.row === old.row && sl.hpOffset < next.hpOffset
+      && !r.modules.some((m) => m.id === sl.moduleId)).reduce((sum, sl) => sum + w(sl.moduleId), 0);
+    expect(goneLeft).toBeGreaterThanOrEqual(w(vcf));
+    expect(moved.hpOffset).toBe(next.hpOffset - goneLeft);
+    expect(overlaps(r)).toEqual([]);
+  });
 });
