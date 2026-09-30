@@ -71,6 +71,37 @@ public:
     const char* name() const { return bank_.name(); }
     uint32_t bytes() const { return bytes_; }
 
+    /** Naam van bank k op de kaart ("" = niet aanwezig, "?" = geen geldige bank). */
+    const char* cardName(int k) const { return (k >= 0 && k < 16) ? names_[k] : ""; }
+    /** Hoogste banknummer op de kaart, of −1. */
+    int cardLast() const {
+        int last = -1;
+        for (int k = 0; k < 16; ++k) if (names_[k][0]) last = k;
+        return last;
+    }
+    /** Kaart inventariseren: de naam uit de kop van elke NN.mmbl. Bij het
+     *  opstarten, na een upload en na verwijderen. */
+    void snapshot() {
+        for (auto& n : names_) n[0] = '\0';
+        if (!card()) return;
+        char path[40];
+        for (int k = 0; k < 16; ++k) {
+            snprintf(path, sizeof(path), "%s/%02d.mmbl", kDir, k);
+            FsFile f = SD.sdfs.open(path, O_READ);
+            if (!f) continue;
+            mmb_dsp::LyricHeader h{};
+            const bool ok = f.read(&h, sizeof(h)) == static_cast<int>(sizeof(h))
+                         && std::memcmp(h.magic, "MMBL", 4) == 0;
+            f.close();
+            if (!ok) { std::strcpy(names_[k], "?"); continue; }
+            std::memcpy(names_[k], h.name, sizeof(h.name));
+            names_[k][sizeof(names_[k]) - 1] = '\0';
+            if (!names_[k][0]) std::strcpy(names_[k], "(zonder naam)");
+        }
+        scanned_ = true;
+    }
+    bool scanned() const { return scanned_; }
+
     /**
      * Laad `/mmb/lyrics/NN.mmbl`. Vanuit de main thread. De stemmen zwijgen
      * eerst (versie omhoog, even wachten tot de audioroutine het gezien
@@ -162,6 +193,7 @@ public:
         SD.sdfs.remove(dst);
         if (!SD.sdfs.rename(part, dst)) { SD.sdfs.remove(part); return false; }
         if (reload) { loaded_ = -1; load(index); }
+        snapshot();
         Serial.printf("[zang] bank %02d geschreven via de link: %lu KB\n", index,
                       static_cast<unsigned long>(upBytes_ / 1024));
         return true;
@@ -171,7 +203,9 @@ public:
         char dst[40];
         snprintf(dst, sizeof(dst), "%s/%02d.mmbl", kDir, index);
         if (loaded_ == index) { release(); loaded_ = -1; }
-        return SD.sdfs.remove(dst);
+        const bool ok = SD.sdfs.remove(dst);
+        snapshot();
+        return ok;
     }
 
 private:
@@ -248,7 +282,8 @@ private:
     uint8_t* data_ = nullptr;
     uint32_t cap_ = 0, bytes_ = 0, version_ = 1;
     int      loaded_ = -1;
-    bool     inPsram_ = false, dirReady_ = false;
+    bool     inPsram_ = false, dirReady_ = false, scanned_ = false;
+    char     names_[16][29] = {};
     FsFile   upFile_;
     bool     upErr_ = false;
     int      upIndex_ = -1;
@@ -355,7 +390,9 @@ public:
     static constexpr const char* kTypeId = "tp_mmb_zang";
 
     explicit ZangModule(std::string_view id) : AudioModule(kTypeId, id) {
-        LyricStore::instance().load(bank_);
+        LyricStore& store = LyricStore::instance();
+        if (!store.scanned()) store.snapshot();
+        store.load(bank_);
     }
 
     ZangStream& stream() { return stream_; }

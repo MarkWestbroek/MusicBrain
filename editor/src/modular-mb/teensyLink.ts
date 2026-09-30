@@ -68,6 +68,7 @@ export interface DeviceStatus {
   sdMB?: number;      // grootte van de kaart in MB
   sdBanks?: number;   // bit k = /mmb/banks/kk.mmbs staat erop
   sdBankNames?: string[];  // naam uit de kop van elke bank, op banknummer
+  lyricNames?: string[];   // idem voor de lyricbanken van ZANG (/mmb/lyrics)
   sdTries?: number;   // bij de hoeveelste poging de kaart openging
   sdMs?: number;      // hoe lang openen bij het opstarten duurde
   sdErr?: number;     // SdFat-foutcode van de laatste mislukte poging
@@ -259,6 +260,7 @@ function handleLine(line: string): void {
           sdMB:     num(msg.sdMB),
           sdBanks:  num(msg.sdBanks),
           sdBankNames: Array.isArray(msg.sdBankNames) ? msg.sdBankNames.map(String) : undefined,
+          lyricNames: Array.isArray(msg.lyricNames) ? msg.lyricNames.map(String) : undefined,
           sdTries:  num(msg.sdTries),
           sdMs:     num(msg.sdMs),
           sdErr:    num(msg.sdErr),

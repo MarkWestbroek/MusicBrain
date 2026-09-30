@@ -6,12 +6,13 @@
 // tts.ts (de Piper-dienst en grenzen uit foneemtijden) en lyricBank.ts (het
 // .mmbl-formaat); dit bestand is alleen het venster.
 // Achtergrond: doc/plans/zingende-stemmen.md.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
 import { WasmModule } from '../runtime';
 import { sendBank, useTeensyLink } from '../teensyLink';
 import { LYRIC_RATE, analyzeRecording, type Span, type SyllableAnalysis } from './analyze';
 import { buildLyricBank, fromAnalysis, parseLyricBank, type LyricBankData } from './lyricBank';
+import { deleteSimLyricBank, lyricBanksVersion, setSimLyricBank, simLyricBanks, subscribeLyricBanks } from './lyricStore';
 import { SyllableEditor } from './SyllableEditor';
 import {
   TTS_DEFAULTS, TTS_LOCAL_ENDPOINT, listVoices, loadTtsSettings, saveTtsSettings, spansFromPhonemes, speak,
@@ -48,11 +49,10 @@ export function spokenText(text: string): string {
   return text.replace(/[-·|]+/g, '').replace(/\s+/g, ' ').trim();
 }
 
-/** De bank in de simulator zetten: het hele bestand als blob in slot `bank`
- *  (0–15, de Bank-knop van ZANG). */
-export function loadLyricBankIntoSim(buf: ArrayBuffer, name: string, bank = 0): void {
-  const even = buf.byteLength & 1 ? buf.slice(0, buf.byteLength - 1) : buf;
-  WasmModule.setBlob(ZANG_TYPE_ID, Math.max(0, Math.min(15, Math.round(bank))), new Int16Array(even), 22050, name, 1);
+/** De bank in de simulator zetten als bank `bank` (0–15, de Bank-knop van
+ *  ZANG) en in de browser bewaren; zie lyricStore.ts. */
+export function loadLyricBankIntoSim(buf: ArrayBuffer, name: string, bank = 0, syllables = 0): Promise<boolean> {
+  return setSimLyricBank(bank, buf, name, syllables);
 }
 
 async function decodeToMono(data: ArrayBuffer): Promise<{ mono: Float32Array; rate: number }> {
@@ -101,6 +101,8 @@ export function analyzeTake(take: Take): Take {
 export function LyricModal({ open, onClose }: { open: boolean; onClose: () => void }): JSX.Element | null {
   const link = useTeensyLink();
   const linked = link.status.kind === 'connected';
+  useSyncExternalStore(subscribeLyricBanks, lyricBanksVersion);
+  const stored = simLyricBanks();
   const [takes, setTakes] = useState<Take[]>([]);
   const [name, setName] = useState('Mijn liedje');
   const [bankNo, setBankNo] = useState(0);
@@ -276,13 +278,15 @@ export function LyricModal({ open, onClose }: { open: boolean; onClose: () => vo
     return { data, bytes: buildLyricBank(data) };
   }
 
-  function toSim(): void {
+  async function toSim(): Promise<void> {
     const b = currentBank();
     if (!b) return;
-    loadLyricBankIntoSim(b.bytes, b.data.name, bankNo);
+    const saved = await loadLyricBankIntoSim(b.bytes, b.data.name, bankNo, b.data.syllables.length);
     const n = WasmModule.count(ZANG_TYPE_ID);
-    setStatus(`in de simulator als bank ${bankNo}: "${b.data.name}", ${b.data.syllables.length} lettergrepen, ${(b.bytes.byteLength / 1024).toFixed(0)} KB — zet de Bank-knop van ZANG op ${bankNo}`
-      + (n === 0 ? ' — zet een ZANG-module in het rack (Poly ▾ → Zingende stem)' : ''));
+    setStatus(`bank ${String(bankNo).padStart(2, '0')} in de simulator: "${b.data.name}", ${b.data.syllables.length} lettergrepen, ${(b.bytes.byteLength / 1024).toFixed(0)} KB`
+      + (saved ? ', bewaard in deze browser' : ' — bewaren lukte niet (privévenster?), hij blijft tot een herlaad')
+      + ` — zet de Bank-knop van ZANG op ${bankNo}`
+      + (n === 0 ? '; zet een ZANG-module in het rack (Poly ▾ → Zingende stem)' : ''));
   }
 
   function download(): void {
@@ -303,8 +307,8 @@ export function LyricModal({ open, onClose }: { open: boolean; onClose: () => vo
       setLoaded(data);
       setName(data.name);
       setTakes([]);
-      loadLyricBankIntoSim(buf, data.name, bankNo);
-      setStatus(`${file.name} geopend en in de simulator gezet als bank ${bankNo}: ${data.syllables.length} lettergrepen`);
+      await loadLyricBankIntoSim(buf, data.name, bankNo, data.syllables.length);
+      setStatus(`${file.name} geopend en in de simulator gezet als bank ${String(bankNo).padStart(2, '0')}: ${data.syllables.length} lettergrepen`);
     } catch (err) {
       fail(file.name, err);
     }
@@ -499,7 +503,7 @@ export function LyricModal({ open, onClose }: { open: boolean; onClose: () => vo
           <label>Naam <input value={name} maxLength={27} style={{ width: 160 }}
             onChange={(e) => setName(e.target.value)} disabled={loaded !== null} /></label>
           <span style={{ color: '#64748b' }}>{total} lettergrepen</span>
-          <button onClick={toSim} disabled={total === 0} style={{ marginLeft: 'auto' }}
+          <button onClick={() => void toSim()} disabled={total === 0} style={{ marginLeft: 'auto' }}
             title="De bank in de ZANG-modules van de simulator zetten">Naar simulator</button>
           <label>bank <input type="number" min={0} max={15} value={bankNo} style={{ width: 48 }}
             onChange={(e) => setBankNo(Math.max(0, Math.min(15, Number(e.target.value))))} /></label>
@@ -510,10 +514,23 @@ export function LyricModal({ open, onClose }: { open: boolean; onClose: () => vo
         </div>
 
         <div style={{ minHeight: 18, marginTop: 8, color: status.startsWith('mislukt') ? '#b91c1c' : '#334155' }}>{status}</div>
+        {stored.length > 0 && (
+          <div style={{ marginTop: 8, fontSize: 12, color: '#475569' }}>
+            In de simulator (bewaard in deze browser):{' '}
+            {stored.map((b) => (
+              <span key={b.nn} style={{ ...chip, fontFamily: 'inherit' }} title={`${b.syllables} lettergrepen`}>
+                <strong>{String(b.nn).padStart(2, '0')}</strong> {b.name}
+                <button onClick={() => void deleteSimLyricBank(b.nn)} title="Uit de simulator en de browseropslag halen"
+                  style={{ marginLeft: 4, border: 'none', background: 'transparent', cursor: 'pointer', padding: 0 }}>✕</button>
+              </span>
+            ))}
+          </div>
+        )}
         <p style={{ color: '#94a3b8', marginTop: 10, marginBottom: 0, fontSize: 12 }}>
-          Het banknummer geldt voor de simulator én de Teensy: <strong>Naar simulator</strong> zet de bank in dat
-          nummer (tot een herlaad van de pagina), en op de Teensy is het <code>/mmb/lyrics/NN.mmbl</code>. De knop
-          <strong>Bank</strong> van ZANG kiest het nummer.
+          Het banknummer geldt voor de simulator én de Teensy: <strong>Naar simulator</strong> zet de bank onder
+          dat nummer en bewaart hem in deze browser; op de Teensy is het <code>/mmb/lyrics/NN.mmbl</code>. De knop
+          <strong>Bank</strong> van ZANG kiest het nummer, en het paneel toont de naam. In de patch staat alleen het
+          nummer; het bestand (⤓ .mmbl) is wat je bewaart en meeneemt.
         </p>
       </div>
     </div>

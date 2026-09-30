@@ -15,6 +15,7 @@ import { MidiPortLeds } from './sim/MidiPortLeds';
 import { useTeensyLink } from './teensyLink';
 import { bankTitle } from './teensyStorage';
 import { subscribeBanks, banksVersion, simBankName } from './sim/bankAutoLoad';
+import { subscribeLyricBanks, lyricBanksVersion, simLyricBank } from './lyric/lyricStore';
 import {
   dragTravelPx, fromTaper, toTaper, wheelStep,
   FINE_FACTOR, WHEEL_NOTCH_PX,
@@ -209,6 +210,10 @@ export function ModulePanel({
         <SamplerBankStrip cx={widthMm / 2} y={15.6} w={widthMm * 0.62}
           bank={Number(controlState?.bank ?? 0)} />
       )}
+      {mod.typeId === 'tp_mmb_zang' && (
+        <ZangBankStrip cx={widthMm / 2} y={15.6} w={widthMm * 0.62}
+          bank={Number(controlState?.bank ?? 0)} />
+      )}
     </svg>
   );
 }
@@ -232,6 +237,40 @@ function SamplerBankStrip({ cx, y, w, bank }: { cx: number; y: number; w: number
       <title>{fromSim
         ? 'Bank in de simulator, van de server (Simulatie-tab: kies een andere). Met een Teensy aan de kabel staat hier de bank van de SD-kaart.'
         : 'Bank op de SD-kaart van de Teensy (/mmb/banks/NN.mmbs); de naam komt uit de bank zelf.'}</title>
+      <rect x={cx - w / 2} y={y} width={w} height={3.6} rx={0.6}
+        fill="#0b1220" stroke="#1e293b" strokeWidth={0.15} />
+      <text x={cx} y={y + 2.55} fontSize={1.9} fill={col} textAnchor="middle"
+        fontFamily="ui-monospace, monospace">{text}</text>
+    </g>
+  );
+}
+
+/** Displaystrookje op het ZANG-paneel: nummer en naam van de lyricbank. Met
+ *  een Teensy aan de kabel de naam van /mmb/lyrics/NN.mmbl op de SD-kaart,
+ *  anders de bank die 🎤 Zang in de simulator zette. */
+function ZangBankStrip({ cx, y, w, bank }: { cx: number; y: number; w: number; bank: number }): JSX.Element {
+  const link = useTeensyLink();
+  const st = link.status.kind === 'connected' ? link.lastStatus : undefined;
+  useSyncExternalStore(subscribeLyricBanks, lyricBanksVersion);
+  const k = Math.max(0, Math.round(bank));
+  const nn = String(k).padStart(2, '0');
+  let text: string, col: string, title: string;
+  if (st?.lyricNames) {
+    const name = st.lyricNames[k] ?? '';
+    text = name ? `${nn} · ${name}` : `${nn} · niet op de kaart`;
+    col = name ? '#67e8f9' : '#fbbf24';
+    title = 'Lyricbank op de SD-kaart van de Teensy (/mmb/lyrics/NN.mmbl); de naam komt uit de bank zelf.';
+  } else {
+    const sim = simLyricBank(k);
+    text = sim ? `${nn} · ${sim.name}` : `${nn} · geen bank`;
+    col = sim ? '#a5b4fc' : '#64748b';
+    title = sim
+      ? `Lyricbank in de simulator, ${sim.syllables} lettergrepen (bewaard in deze browser; 🎤 Zang om te wisselen).`
+      : 'Geen lyricbank onder dit nummer: maak er een met 🎤 Zang en kies dit nummer bij "Naar simulator".';
+  }
+  return (
+    <g>
+      <title>{title}</title>
       <rect x={cx - w / 2} y={y} width={w} height={3.6} rx={0.6}
         fill="#0b1220" stroke="#1e293b" strokeWidth={0.15} />
       <text x={cx} y={y + 2.55} fontSize={1.9} fill={col} textAnchor="middle"

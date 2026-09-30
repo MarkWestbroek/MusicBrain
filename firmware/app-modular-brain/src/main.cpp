@@ -527,6 +527,11 @@ void onGetStatus(JsonObject s) {
         z["kb"] = store.bytes() / 1024;
         z["voices"] = zm->stream().activeVoices();
         z["peak"] = zm->stream().takePeak();
+        // De namen van de lyricbanken op de kaart, op nummer, tot en met de
+        // hoogste die er is — voor het display op het ZANG-paneel.
+        const int last = store.cardLast();
+        JsonArray names = s["lyricNames"].to<JsonArray>();
+        for (int k = 0; k <= last; ++k) names.add(store.cardName(k));
         break;
     }
     // ... Warps: ready + output-peak.

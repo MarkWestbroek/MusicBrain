@@ -1467,7 +1467,7 @@ function mmbZang() {
     }],
     texts: [
       { x: w/2, y: 8,   text: 'ZANG', fontSize: 2.2, color: '#f9fafb', align: 'middle' },
-      { x: w/2, y: 14,  text: 'woorden · 8 stemmen · PSOLA', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 12,  text: 'woorden · 8 stemmen · PSOLA', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
       { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
       { x: 3, y: 97,  text: 'V/Oct', fontSize: 1.0, color: '#9ca3af', align: 'start' },
       { x: 3, y: 109, text: 'Gate',  fontSize: 1.0, color: '#9ca3af', align: 'start' },

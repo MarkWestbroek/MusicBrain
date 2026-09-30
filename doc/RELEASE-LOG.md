@@ -17,6 +17,16 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### fw 0.5.94 — ZANG: banknamen op het paneel, banken bewaard in de browser (2026-09-30)
+- De Teensy meldt in de status de namen van de lyricbanken op de kaart
+  (`lyricNames`, uit de kop van elke `/mmb/lyrics/NN.mmbl`); het ZANG-paneel
+  toont nummer en naam in een strook, zoals de sampler.
+- Editor: lyricbanken die je naar de simulator stuurt worden in de browser
+  bewaard (IndexedDB, per nummer 0–15) en bij de eerste ZANG-module weer
+  geladen; het venster toont welke er staan, met ✕ om er een weg te halen.
+  De patch bevat alleen het banknummer; het bestand `.mmbl` is wat je
+  bewaart. Zonder Teensy toont de strook de naam uit de simulator.
+
 ### fw 0.5.93 — Review-fixes: verdwenen kabels, dubbele ids, Brass, VCO, audio-fan-in; sim: parkeerpool (2026-09-30)
 Aanleiding: de externe review
 [code-review-firmware-wasm-2026-09-29.md](code-review-firmware-wasm-2026-09-29.md)
