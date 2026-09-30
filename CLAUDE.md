@@ -5,7 +5,7 @@ Kort en concreet; achtergrond staat in de gelinkte documenten.
 ## Ingangen
 
 - Publieke ingang en routes: [README.md](README.md). Leeswijzer van de docmap: [doc/README.md](doc/README.md).
-- Hardware (KiCad): eerst [doc/site-publicatie-werkwijze.md](doc/site-publicatie-werkwijze.md) lezen.
+- Hardware (KiCad): eerst [hardware/kicad-generators/WERKWIJZE.md](hardware/kicad-generators/WERKWIJZE.md) lezen.
 - Open werk: [doc/BACKLOG.md](doc/BACKLOG.md); wat er per versie bijkwam: [doc/RELEASE-LOG.md](doc/RELEASE-LOG.md).
 
 ## Na een nieuwe of gewijzigde module (firmware, wasm of editorpaneel)

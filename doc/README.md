@@ -59,7 +59,7 @@ Elk plan draagt zijn eigen datum en status. Kort per thema:
 - **Onderzoek (geen productbelofte)**: [musicbrain-instrument-lab.md](plans/musicbrain-instrument-lab.md), [state-graph-synthesis.md](plans/state-graph-synthesis.md), [FPGA-physical-modelling.md](plans/FPGA-physical-modelling.md), [analoge-fx-verkenning.md](plans/analoge-fx-verkenning.md).
 - **Hardware**: [ssi2140_8voice_buildspec.md](plans/ssi2140_8voice_buildspec.md) (let op: pinout in de buildspec is fout, zie de vcf8-README), [vcf8kern-handover.md](plans/vcf8kern-handover.md), [vcf8kern-mac-overdracht.md](plans/vcf8kern-mac-overdracht.md), [vco8-chip-keuze.md](plans/vco8-chip-keuze.md), [analog-patch-matrix.md](plans/analog-patch-matrix.md), [matrix-routing-handover.md](plans/matrix-routing-handover.md), [rp2040-spi-slave-testplan.md](plans/rp2040-spi-slave-testplan.md).
 
-Hardware-ontwerpdocumenten in deze map: [busboard-v2-plan.md](busboard-v2-plan.md), [busboard-v3-plan.md](busboard-v3-plan.md), [busexp-plan.md](busexp-plan.md), [axon-plan.md](axon-plan.md). De bord-README's onder `hardware/schematics/` zijn leidend voor de gebouwde revisies; begin daar met `doc/site-publicatie-werkwijze.md`.
+Hardware-ontwerpdocumenten in deze map: [busboard-v2-plan.md](busboard-v2-plan.md), [busboard-v3-plan.md](busboard-v3-plan.md), [busexp-plan.md](busexp-plan.md), [axon-plan.md](axon-plan.md). De bord-README's onder `hardware/schematics/` zijn leidend voor de gebouwde revisies; begin met `hardware/kicad-generators/WERKWIJZE.md`.
 
 ## Website en Imprint
 
