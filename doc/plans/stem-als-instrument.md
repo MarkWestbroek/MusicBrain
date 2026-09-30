@@ -6,6 +6,10 @@ Vervolg op [ZANG met PSOLA](zingende-stemmen.md), de
 [syntheseverkenning](synthesetechnieken-verkenning.md) en
 [State-Graph Synthesis](state-graph-synthesis.md).
 
+Voor implementatie-overdracht naar een volgende chatsessie, inclusief
+bestandskaart, commando's, tests, commitveiligheid en een uitgewerkt voorstel
+voor Pressure en aliasingmeting: [FOF-VOICE overdracht](fof-voice-overdracht.md).
+
 ## Gebouwd prototype: FOF-VOICE
 
 Op 2026-09-30 is de eerste proef als echte MusicBrain-module gebouwd:
