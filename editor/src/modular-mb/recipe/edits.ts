@@ -130,6 +130,21 @@ function placeAtRowEnd(p: ModularProject, rackId: string, row: number, mod: Modu
 }
 
 /** Schuif alles rechts van `slot` in dezelfde rij `delta` HP op. */
+/** Plaats een module direct rechts naast @p slot; de rest van de rij schuift
+ *  op met de breedte van de nieuwe module (het rack groeit mee). Zo blijven
+ *  soortgelijke modules bij elkaar. */
+function placeRightOf(p: ModularProject, rackId: string, slot: RackSlot, mod: ModuleInstance): ModularProject {
+  const left = p.modules.find((m) => m.id === slot.moduleId);
+  const hpOffset = slot.hpOffset + (left?.visual.hpWidth ?? 0);
+  p = shiftRow(p, rackId, slot, mod.visual.hpWidth);
+  const newSlot: RackSlot = { id: uid('slot'), moduleId: mod.id, row: slot.row, hpOffset };
+  return withRack({ ...p, modules: [...p.modules, mod] }, rackId, (r) => ({
+    ...r,
+    hpPerRow: Math.max(r.hpPerRow, rowEnd({ ...p, modules: [...p.modules, mod] }, { ...r, slots: [...r.slots, newSlot] }, slot.row) + 2),
+    slots: [...r.slots, newSlot],
+  }));
+}
+
 function shiftRow(p: ModularProject, rackId: string, slot: RackSlot, delta: number): ModularProject {
   if (delta === 0) return p;
   return withRack(p, rackId, (r) => ({
@@ -170,7 +185,8 @@ function mapPorts(oldT: ModuleType, newT: ModuleType): Map<string, string> {
  * hetzelfde rack wordt gebruikt:
  *   'all'   — de module zelf verandert, dus in álle patches (upgrade);
  *   'patch' — deze patch krijgt een eigen nieuwe module in hetzelfde rack
- *             (achteraan de rij) en alleen zijn kabels gaan erheen;
+ *             (direct rechts naast de oude; de rij schuift op) en alleen
+ *             zijn kabels gaan erheen;
  *   'rack'  — deze patch krijgt een eigen kopie van het rack, met daarin
  *             de nieuwe module;
  *   'auto'  — 'patch' als andere patches de module gebruiken, anders 'all'
@@ -198,7 +214,8 @@ function remapPatch(p: ModularProject, patchId: string, map: Map<string, string>
 }
 
 /** Deze patch krijgt eigen kopieën van de module (of zijn hele poly-groep),
- *  achteraan dezelfde rackrij; zijn kabels en knoppen gaan naar de kopieën. */
+ *  direct rechts naast het origineel; zijn kabels en knoppen gaan naar de
+ *  kopieën. */
 function forkForPatch(p: ModularProject, patchId: string, moduleId: string): { project: ModularProject; id: string } {
   const grp = groupOf(p, moduleId);
   const ids = grp ? grp.group.members.flatMap((m) => (m.kind === 'module' ? [m.moduleId] : [])) : [moduleId];
@@ -206,7 +223,7 @@ function forkForPatch(p: ModularProject, patchId: string, moduleId: string): { p
   for (const id of ids) {
     const loc = slotOf(p, id);
     const copy = { ...moduleOf(p, id), id: map.get(id)! };
-    p = loc ? placeAtRowEnd(p, loc.rack.id, loc.slot.row, copy) : { ...p, modules: [...p.modules, copy] };
+    p = loc ? placeRightOf(p, loc.rack.id, loc.slot, copy) : { ...p, modules: [...p.modules, copy] };
   }
   if (grp) {
     p = withRack(p, grp.rack.id, (r) => ({
@@ -264,7 +281,7 @@ export function replaceModule(project: ModularProject, patchId: string, moduleId
     const names = others.map((x) => x.name).join(', ');
     return {
       ...r,
-      summary: `${r.summary} — alleen in deze patch (${scope === 'rack' ? 'eigen kopie van het rack' : 'nieuwe module achteraan het rack'})`,
+      summary: `${r.summary} — alleen in deze patch (${scope === 'rack' ? 'eigen kopie van het rack' : 'nieuwe module naast de oude in het rack'})`,
       warnings: [...r.warnings, `${shortName(oldT.id, p.moduleTypes)} blijft in ${names}.`],
     };
   }

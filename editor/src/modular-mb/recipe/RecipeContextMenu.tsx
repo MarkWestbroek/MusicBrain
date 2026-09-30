@@ -132,7 +132,7 @@ export function RecipeContextMenu(props: {
             Let op: deze {asking.from} wordt ook gebruikt in {others}. Hoe ver moet de vervanging reiken?
           </div>
           <button style={choice} onClick={() => runEdit(() => asking.run('patch'))}>
-            <b>Alleen in deze patch</b> — een nieuwe {asking.to} achteraan in het rack; de kabels van deze patch gaan erheen. De {asking.from} blijft voor de andere patches.
+            <b>Alleen in deze patch</b> — een nieuwe {asking.to} naast de {asking.from} in het rack (de rest schuift op); de kabels van deze patch gaan erheen. De {asking.from} blijft voor de andere patches.
           </button>
           <button style={choice} onClick={() => runEdit(() => asking.run('rack'))}>
             <b>Nieuw rack voor deze patch</b> — een kopie van het rack met de {asking.to} erin; de andere patches houden het oude rack.
