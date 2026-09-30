@@ -3240,6 +3240,35 @@ function mmbStkSound() {
   });
 }
 
+function mmbFof() {
+  const w = W(8);
+  return assemble({
+    typeId: 'tp_mmb_fof',
+    categoryId: 'vco',
+    variant: 'FOF zingende formantstem',
+    brand: 'MMB', model: 'FOF-VOICE',
+    hp: 8, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    texts: [
+      { x: w/2, y: 8, text: 'FOF-VOICE', fontSize: 2.0, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14, text: 'A · E · I · O · U', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('vowel', 'Vowel', w*0.30, 30, { size: 'medium', min: 0, max: 1, def: 0, color: '#f9fafb' }),
+      knob('tone', 'Tone', w*0.70, 30, { size: 'medium', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('breath', 'Breath', w*0.30, 58, { size: 'small', min: 0, max: 1, def: 0.08, color: '#9ca3af' }),
+      knob('vibrato', 'Vibrato', w*0.70, 58, { size: 'small', min: 0, max: 1, def: 0.12, color: '#9ca3af' }),
+      knob('level', 'Level', w/2, 80, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      inPort('voct', 'V/Oct', 'cv', w*0.18, 106),
+      inPort('gate', 'Gate', 'gate', w*0.42, 106),
+      inPort('vowel', 'Vow+', 'cv', w*0.18, 120),
+      inPort('breath', 'Air+', 'cv', w*0.42, 120),
+      outPort('out', 'Out', 'audio', w*0.76, 113),
+    ],
+    notes: 'FOF/CHANT-geinspireerde zangoscillator. Vowel morft continu door A-E-I-O-U; formanten blijven op hun plaats wanneer de toonhoogte verandert. Tone bepaalt de resonantiebreedte, Breath voegt aspiratie toe en Vibrato geeft maximaal 22 cent bij 5,3 Hz. Dit is een lichte eerste formantstem, geen spraaksynthese of volledige CHANT-reconstructie. Mono; polyfonie via PolyGroup.',
+  });
+}
+
 // 21. MMB RESONATOR — 10 HP. Sympathetic-resonator-bank (firmware
 //     tp_mmb_resonator, FW-FX-6): 12 Karplus-achtige snaar-resonatoren
 //     gestemd op een schaal rond de grondtoon; het ingangssignaal excite't
@@ -3519,7 +3548,7 @@ function mmbEnvFollowerMono() {
 // ── public entry ───────────────────────────────────────────────────────
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbAudioIn(), mmbEcho(), mmbTapeEcho(), mmbStereoTapeEcho(), mmbDigitalEcho(), mmbBbdChorus(), mmbRingMod(), mmbOctaver(), mmbHarmonizer(), mmbReverb(), mmbTremolo(), mmbStereoPhaser(), mmbVibe(), mmbRotary(), mmbShimmer(), mmbFetComp(),mmbOptoComp(), mmbBusComp(),mmbVariMuComp(), mmbProgramEq(), mmbDiodeComp(), mmbConsoleEq(), mmbParaEq(), mmbSampler(), mmbZang(), mmbSid(), mmbSid3(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbEnvFollower(), mmbEnvFollowerMono()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbAudioIn(), mmbEcho(), mmbTapeEcho(), mmbStereoTapeEcho(), mmbDigitalEcho(), mmbBbdChorus(), mmbRingMod(), mmbOctaver(), mmbHarmonizer(), mmbReverb(), mmbTremolo(), mmbStereoPhaser(), mmbVibe(), mmbRotary(), mmbShimmer(), mmbFetComp(),mmbOptoComp(), mmbBusComp(),mmbVariMuComp(), mmbProgramEq(), mmbDiodeComp(), mmbConsoleEq(), mmbParaEq(), mmbSampler(), mmbZang(), mmbSid(), mmbSid3(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbFof(), mmbEnvFollower(), mmbEnvFollowerMono()];
   const newTypes = all.map((x) => x.type);
 
   // Upgrade-pad: bestaande interne types worden in-place VERVANGEN (zelfde

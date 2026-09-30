@@ -49,7 +49,7 @@ export class WasmModule extends AudioModule {
     'tp_mmb_stereo_tape_echo', 'tp_mmb_digital_echo', 'tp_mmb_bbd_chorus', 'tp_mmb_ringmod', 'tp_mmb_octaver',
     'tp_mmb_harmonizer', 'tp_mmb_reverb', 'tp_mmb_tremolo', 'tp_mmb_stereo_phaser', 'tp_mmb_vibe', 'tp_mmb_sid', 'tp_mmb_sid3', 'tp_mmb_rotary', 'tp_mmb_shimmer',
     // Stap 6: de modules die vroeger aan de noot-dispatcher hingen.
-    'tp_mmb_vco', 'tp_mmb_fm_vco', 'tp_mmb_vca', 'tp_mmb_ahdsr', 'tp_mmb_cvmath', 'tp_mmb_seq8', 'tp_mmb_midiin',
+    'tp_mmb_vco', 'tp_mmb_fm_vco', 'tp_mmb_fof', 'tp_mmb_vca', 'tp_mmb_ahdsr', 'tp_mmb_cvmath', 'tp_mmb_seq8', 'tp_mmb_midiin',
   ]);
   static supports(typeId: string): boolean { return WasmModule.typeIds.has(typeId); }
 

@@ -528,6 +528,14 @@ export function ModularMbApp(): JSX.Element {
                   }}
                 >🎤 Zingende stem ×8</button>
                 <button
+                  onClick={() => { setProject(seedSoloVoicePatch(getProject(), 'tp_mmb_fof', 'FOF Stem', 'out', 'out', { vowel: 0, tone: 0.5, breath: 0.08, vibrato: 0.12, level: 0.8 })); setShowPoly(false); }}
+                  title="FOF/CHANT-geinspireerde monofone zangoscillator. Speel noten en morf met Vowel door A-E-I-O-U; geen opname of lyricbank nodig."
+                  style={{
+                    textAlign: 'left', border: 'none', background: 'transparent',
+                    padding: '7px 12px', cursor: 'pointer', fontSize: 13,
+                  }}
+                >FOF Stem (mono)</button>
+                <button
                   onClick={() => { setProject(seedSamplerPolyPatch(getProject(), 8, true)); setShowPoly(false); }}
                   title="Sampler ×8 met per stem een MS-20 in de cel, gestuurd door de envelope-follower van diezelfde stem: env_k → cutoff_k. Eén kabel in de patcher, uitgevouwen over alle stemmen."
                   style={{

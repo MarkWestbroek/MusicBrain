@@ -106,6 +106,7 @@
 #include "OutModule.h"
 #include "mb/runtime/CvMath.h"
 #include "StkSoundModule.h"    // FW-AU-10: multi-sound STK physical modelling
+#include "FofModule.h"
 
 namespace mmb_link {
 
@@ -126,6 +127,7 @@ inline void registerAllRuntimeModules() {
     DrawVcoModule::registerFactory();   // FW-AU-6: draw-waveshape oscillator
     StringModule::registerFactory();    // FW-AU-8: Karplus-Strong string
     StkSoundModule::registerFactory();  // FW-AU-10: multi-sound STK physical modelling
+    FofModule::registerFactory();       // zingende formantstem, FOF/CHANT-geinspireerd
     ElementsModule::registerFactory();  // FW-AU-9: Mutable Instruments Elements voice
     ElementsReverbModule::registerFactory(); // FW-FX-3: Elements Dattorro reverb
     RingsModule::registerFactory();     // FW-AU-11: Mutable Rings resonator

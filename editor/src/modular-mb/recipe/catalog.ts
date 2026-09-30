@@ -41,6 +41,8 @@ export const CATALOG: Record<string, CatalogEntry> = {
                       playable: { pluck: 0.9, level: 0.9 } },
   tp_mmb_stk_sound: { short: 'STK',      kind: 'source', aliases: ['stk', 'stk sound', 'physical model', 'physical modelling', 'fysisch model'],
                       playable: { sound: 0, level: 0.9, strength: 0.7, timbre: 0.5, modulation: 0.5 } },
+  tp_mmb_fof:       { short: 'FOF Stem', kind: 'source', aliases: ['fof', 'chant', 'stem', 'vocal', 'klinker', 'zangoscillator'],
+                      playable: { vowel: 0, tone: 0.5, breath: 0.08, vibrato: 0.12, level: 0.8 } },
   tp_mmb_plaits:    { short: 'Plaits',   kind: 'source', aliases: ['plaits', 'macro osc', 'macro oscillator'] },
   tp_mmb_rings:     { short: 'Rings',    kind: 'source', aliases: ['rings', 'resonator osc', 'modal'] },
   tp_mmb_elements:  { short: 'Elements', kind: 'source', aliases: ['elements'] },

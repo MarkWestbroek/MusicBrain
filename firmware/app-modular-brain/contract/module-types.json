@@ -519,6 +519,24 @@
         "wave"
       ]
     },
+    "tp_mmb_fof": {
+      "typeId": "tp_mmb_fof",
+      "source": "firmware/app-modular-brain/src/FofModule.h",
+      "ports": [
+        "breath",
+        "gate",
+        "out",
+        "voct",
+        "vowel"
+      ],
+      "controls": [
+        "breath",
+        "level",
+        "tone",
+        "vibrato",
+        "vowel"
+      ]
+    },
     "tp_mmb_gate_out": {
       "typeId": "tp_mmb_gate_out",
       "source": "firmware/core/include/mb/runtime/GateOut.h",

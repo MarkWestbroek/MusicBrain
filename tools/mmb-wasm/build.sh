@@ -148,6 +148,7 @@ sel ms20 && build ms20 tp_mmb_ms20 "$LIB/mmb-dsp" --
 
 STK="$LIB/stk"
 sel stksound && build stksound tp_mmb_stk_sound "$STK/include" "$STK/include/stk" -- "$STK"/src/*.cpp
+sel fof && build fof tp_mmb_fof "$LIB/mmb-dsp" --
 
 sel tapeecho && build tapeecho tp_mmb_tape_echo "$LIB/mmb-dsp" --
 sel fetcomp && build fetcomp tp_mmb_fet_comp "$LIB/mmb-dsp" --

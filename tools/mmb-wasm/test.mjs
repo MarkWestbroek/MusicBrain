@@ -124,4 +124,10 @@ for (const f of files) {
   const stats = run(m, 2.0, script);
   const ms = Number(process.hrtime.bigint() - t0) / 1e6 / 2;
   report(m, stats, ms);
+  if (id === 'tp_mmb_fof') {
+    const peak = stats[0].peak;
+    if (!Number.isFinite(peak) || peak < 0.02 || peak > 1.001) {
+      throw new Error(`FOF-rooktest: ongeldige audiopiek ${peak}`);
+    }
+  }
 }

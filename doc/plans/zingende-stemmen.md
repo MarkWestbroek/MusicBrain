@@ -6,6 +6,12 @@ noten die je speelt. Dit stuk zet op een rij wat er al is, waarom we voor
 PSOLA kiezen, hoe het formaat en de module eruitzien, en in welke stappen we
 het bouwen.
 
+**Vervolgverkenning (2026-09-30):**
+[De stem als bespeelbaar instrument](stem-als-instrument.md) onderzoekt
+FOF/CHANT, articulatorische modellen en hybride neurale DSP voor expressievere
+zang, inclusief compacte hardware en concrete vergelijkingsproeven. Dit is
+onderzoeksadvies, geen vervanging van de huidige PSOLA-implementatie.
+
 ## 1. Wat er al is (sinds fw 0.5.90/0.5.91)
 
 | Wat | Hoe | Oordeel |
