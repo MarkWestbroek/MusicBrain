@@ -11,6 +11,14 @@
 
 ## 1. Editor (Modular Music Brain)
 
+UX-voorstel (2026-09-30, nog te bespreken):
+[Editor UX-aanbevelingen](plans/editor-ux-aanbevelingen.md).
+Voorgestelde eerste stappen: modulevoorraad doorzoekbaar maken, bovenbalk
+taakgericht groeperen en inspector verbeteren. Grote en lange schermen zijn
+het uitgangspunt; prioriteiten en toetscriteria staan in het voorstel. Voor de
+bovenbalk bestaat een klikbare, niet-mutende
+[toolbarvergelijking](../editor/public/toolbar-vergelijking.html).
+
 ### 1.1 Rack-scherm
 
 | # | Prio | Status | Item |

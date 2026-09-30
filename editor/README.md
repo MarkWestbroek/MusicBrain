@@ -12,6 +12,12 @@ npm run dev
 
 Then open http://localhost:5173.
 
+### UX-proeven
+
+- [Toolbarvergelijking](public/toolbar-vergelijking.html): klikbare vergelijking
+  van de huidige en taakgericht gegroepeerde Modular MB-bovenbalk. De proef kan
+  beide versies boven of naast elkaar tonen en wijzigt geen projectgegevens.
+
 ## Live demo
 
 Draait als demo op **[editor.musicbrain.nl](https://editor.musicbrain.nl)**

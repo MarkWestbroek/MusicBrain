@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MusicBrain | Toolbarvergelijking</title>
+  <style>
+    :root { font-family: "Segoe UI", sans-serif; color: #202b38; background: #edf0f3; font-size: 14px; --accent: #f5a623; --line: #d4dce5; }
+    * { box-sizing: border-box; letter-spacing: 0; }
+    body { margin: 0; }
+    button, summary, input { font: inherit; }
+    button, summary { cursor: pointer; }
+    button, .tabs span { border: 1px solid var(--line); border-radius: 4px; background: white; color: inherit; padding: 7px 11px; }
+    button:hover, summary:hover { background: #f1f4f7; }
+    :focus-visible { outline: 2px solid #b27510; outline-offset: 3px; }
+    .review { padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; border-bottom: 1px solid var(--line); background: white; }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    .subtitle { color: #657283; font-size: 13px; }
+    fieldset { display: flex; flex-wrap: wrap; gap: 4px; border: 0; padding: 0; margin: 0; }
+    legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+    .choice { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px; cursor: pointer; }
+    .choice:has(:checked) { background: #fff2d6; border-color: #dba23b; }
+    input { accent-color: #b27510; }
+    main { padding: 24px; display: grid; gap: 28px; }
+    main[data-layout="side"] { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    main[data-layout="proposal"] .baseline { display: none; }
+    section { min-width: 0; }
+    .caption { display: flex; align-items: baseline; gap: 12px; margin-bottom: 10px; }
+    h2 { margin: 0; font-size: 15px; }
+    .caption span { color: #657283; font-size: 12px; }
+    .workspace { background: white; border-top: 3px solid #a8b3bf; padding: 16px; }
+    .proposal .workspace { border-top-color: var(--accent); }
+    .brand { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 18px; }
+    .wordmark { display: flex; align-items: center; gap: 8px; font-size: 20px; font-weight: 700; color: #101820; }
+    .wordmark em { color: #bb7300; font-style: normal; }
+    .wordmark small { font-weight: 400; font-size: 10px; color: #738194; }
+    .modes { display: flex; flex-wrap: wrap; gap: 4px; font-size: 11px; }
+    .modes span { padding: 4px 8px; background: #f5f7fa; border: 1px solid var(--line); border-radius: 3px; }
+    .modes .active { background: var(--accent); color: #211600; border-color: #dc971f; }
+    .project { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 10px 12px; background: #f3f6f9; border: 1px solid #e0e7ee; border-radius: 4px; }
+    .identity { display: flex; gap: 9px; align-items: center; flex-wrap: wrap; }
+    .identity strong { font-size: 13px; }
+    .meta { color: #657283; font-size: 11px; }
+    .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-left: auto; }
+    .baseline .actions button { font-size: 11px; padding: 5px 7px; }
+    .proposal .project { background: radial-gradient(#dbe3ec .65px, transparent .65px) 0 0 / 9px 9px, #f7f9fb; }
+    .proposal .actions { gap: 6px; }
+    .proposal .actions > button { font-size: 13px; }
+    .recipe { font-weight: 600; border-color: #d6b575; background: #fff9eb; }
+    details { position: relative; }
+    summary { list-style: none; padding: 8px 10px; border: 1px solid transparent; border-radius: 4px; font-size: 13px; white-space: nowrap; }
+    summary::-webkit-details-marker { display: none; }
+    summary::after { content: '\25BE'; padding-left: 8px; color: #657283; }
+    details[open] > summary { background: white; border-color: #d2a24d; }
+    .menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 10; width: 242px; max-width: calc(100vw - 64px); max-height: 420px; overflow-y: auto; padding: 6px; background: white; border: 1px solid var(--line); border-radius: 5px; box-shadow: 0 8px 24px #17263924; }
+    .menu button { display: block; width: 100%; text-align: left; border: 0; padding: 9px 10px; font-size: 13px; }
+    .menu hr { border: 0; border-top: 1px solid #e3e8ee; margin: 5px 4px; }
+    .menu-heading { padding: 8px 10px 4px; font-size: 10px; text-transform: uppercase; color: #738194; }
+    .tabs { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; border-bottom: 1px solid var(--line); margin-top: 16px; padding-bottom: 0; font-size: 12px; }
+    .tabs span { padding: 7px 10px; background: #f6f8fa; border-radius: 4px 4px 0 0; }
+    .tabs .active { border-top: 3px solid var(--accent); background: white; font-weight: 600; padding-top: 5px; }
+    .tabs .status { margin-left: auto; background: white; border: 0; border-radius: 0; color: #47695b; font-size: 11px; }
+    .patch { padding: 13px 0; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 12px; }
+    .patch .modified { color: #96600a; }
+    .patch .bank { color: #687688; }
+    .patch .view { margin-left: auto; color: #687688; }
+    .canvas-edge { height: 38px; background: radial-gradient(#364358 1px, transparent 1px) 0 0 / 20px 20px, #111827; border-radius: 4px; }
+    button.selected { background: #fff0c9 !important; outline: 2px solid #c68919; outline-offset: -2px; }
+    .selection { margin: 0 24px 24px; padding: 14px 0; border-top: 1px solid #cdd6df; display: flex; gap: 12px; flex-wrap: wrap; color: #566578; font-size: 13px; }
+    output { color: #202b38; font-weight: 600; overflow-wrap: anywhere; }
+    @media (max-width: 800px) {
+      main[data-layout="side"] { grid-template-columns: minmax(0, 1fr); }
+      main { padding: 16px; }
+      .review { padding: 16px; }
+      .workspace { padding: 12px; }
+      .actions { margin-left: 0; }
+      .menu { position: fixed; top: var(--menu-top, 140px); left: 24px; right: 24px; width: auto; max-width: none; max-height: calc(100dvh - var(--menu-top, 140px) - 16px); }
+    }
+  </style>
+</head>
+<body>
+  <header class="review">
+    <div><h1>MusicBrain <span style="font-weight:400">/ Bovenbalk</span></h1><div class="subtitle">Ontwerpvergelijking · voorbeeldproject · geen projectwijzigingen</div></div>
+    <fieldset><legend>Vergelijkingsweergave</legend>
+      <label class="choice"><input type="radio" name="layout" value="stack" checked> Boven elkaar</label>
+      <label class="choice"><input type="radio" name="layout" value="side"> Naast elkaar</label>
+      <label class="choice"><input type="radio" name="layout" value="proposal"> Alleen voorstel</label>
+    </fieldset>
+  </header>
+  <main data-layout="stack">
+    <section class="baseline" aria-labelledby="baseline-title"><div class="caption"><h2 id="baseline-title">A / Huidige indeling</h2><span>Nagebouwde toolbar</span></div><div class="workspace"></div></section>
+    <section class="proposal" aria-labelledby="proposal-title"><div class="caption"><h2 id="proposal-title">B / Taakgerichte indeling</h2><span>Dezelfde 23 acties</span></div><div class="workspace"></div></section>
+  </main>
+  <div class="selection"><span>Geselecteerde voorbeeldactie</span><output aria-live="polite">Geen selectie</output></div>
+  <template id="shell">
+    <div class="brand">
+      <div class="wordmark">
+        <svg width="32" height="30" viewBox="0 0 70 60" role="img" aria-label="MusicBrain">
+          <g fill="none" stroke="#f5a623" stroke-width="3" stroke-linecap="round"><path d="M14 42 Q 12 18 33 13 M33 13 Q 58 12 57 33 M14 42 Q 20 54 38 51 M38 51 Q 54 48 57 33 M25 32 Q 35 24 46 33"/></g>
+          <g fill="white" stroke="#f5a623" stroke-width="3"><circle cx="14" cy="42" r="5.5"/><circle cx="33" cy="13" r="5.5"/><circle cx="57" cy="33" r="5.5"/><circle cx="38" cy="51" r="5.5"/></g><circle cx="35.5" cy="31" r="4" fill="#f5a623"/>
+        </svg>
+        <span>Music<em>Brain</em> <small>EDITOR</small></span>
+      </div>
+      <div class="modes"><span>Effect-switcher</span><span>Amp-switcher</span><span class="active">Modular MB</span><span>Scope</span></div>
+    </div>
+    <div class="project"><div class="identity"><strong>ModularMB</strong><span class="meta">v&mdash;</span><span class="meta">566 modules · 62 patches</span></div><div class="actions"></div></div>
+    <div class="tabs"><span>Categorie&euml;n</span><span>Modules</span><span>Rack</span><span>Patches</span><span class="active">Patcher</span><span>Simulatie</span><span>Surface</span><span class="status">Sim uit · MIDI niet verbonden</span></div>
+    <div class="patch"><span class="bank">BANK 5 / PATCH 23</span><strong>Zingende stem</strong><span class="modified">Gewijzigd</span><span class="meta">8 verbindingen</span><span class="view">Graph / Matrix</span></div>
+    <div class="canvas-edge" aria-hidden="true"></div>
+  </template>
+  <script>
+    const groups = [
+      { name: 'Project', sections: [{ items: ['Exporteer', 'Importeer', 'Panels'] }, { items: ['Nieuw'] }] },
+      { name: 'Klanktools', sections: [{ items: ['Wave', 'Sample', 'Multisample', 'Zang', 'DX7'] }] },
+      { name: 'Hardware', sections: [{ items: ['Teensy', 'SysEx'] }] },
+      { name: 'Voorbeelden & tests', sections: [
+        { title: 'Opbouwen', items: ['Voorbeelden', 'Internals', 'Poly', 'Solo'] },
+        { title: 'Diagnostiek', items: ['Test-patch', 'FM-test', 'CV-bridge', 'Stress'] }
+      ] }
+    ];
+    const original = ['Exporteer', 'Importeer', 'SysEx', 'Panels', 'Recept', '?', 'Presets', 'Teensy', 'Wave', 'Sample', 'Multisample', 'Zang', 'DX7', 'Voorbeelden', 'Internals', 'Test-patch', 'FM-test', 'CV-bridge', 'Poly', 'Solo', 'Stress', 'Nieuw'];
+    const dropdowns = ['SysEx', 'Panels', 'Poly', 'Solo', 'Stress'];
+    const labels = { Exporteer: '\u2193 Exporteer', Importeer: '\u2191 Importeer', Recept: '\u2318 Recept' };
+    const destinations = new Map(groups.flatMap(group => group.sections.flatMap(section => section.items.map(item => [item, group.name]))));
+    function action(name, old = false) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.dataset.action = name;
+      button.textContent = (labels[name] || name) + (old && dropdowns.includes(name) ? ' \u25be' : '');
+      button.title = name === '?' ? 'Rondleiding' : name;
+      button.setAttribute('aria-label', name === '?' ? 'Rondleiding' : name);
+      if (name === 'Recept') button.classList.add('recipe');
+      button.addEventListener('click', () => {
+        document.querySelectorAll('[data-action]').forEach(control => control.classList.toggle('selected', control.dataset.action === name));
+        document.querySelector('output').textContent = `${destinations.get(name) || 'Direct bereikbaar'} > ${name === '?' ? 'Rondleiding' : name}`;
+        const openMenu = button.closest('details');
+        if (openMenu) { openMenu.open = false; openMenu.querySelector('summary').focus(); }
+      });
+      return button;
+    }
+    document.querySelectorAll('.workspace').forEach(workspace => workspace.append(document.querySelector('#shell').content.cloneNode(true)));
+    original.forEach(name => document.querySelector('.baseline .actions').append(action(name, true)));
+    const proposed = document.querySelector('.proposal .actions');
+    groups.forEach(group => {
+      const disclosure = document.createElement('details');
+      const summary = document.createElement('summary');
+      summary.textContent = group.name;
+      const menu = document.createElement('div');
+      menu.className = 'menu';
+      group.sections.forEach((section, index) => {
+        if (index) menu.append(document.createElement('hr'));
+        if (section.title) {
+          const heading = document.createElement('div');
+          heading.className = 'menu-heading';
+          heading.textContent = section.title;
+          menu.append(heading);
+        }
+        section.items.forEach(name => menu.append(action(name)));
+      });
+      summary.addEventListener('click', () => {
+        document.querySelectorAll('details').forEach(other => { if (other !== disclosure) other.open = false; });
+        const top = Math.min(summary.getBoundingClientRect().bottom + 6, innerHeight - 180);
+        menu.style.setProperty('--menu-top', `${Math.max(16, top)}px`);
+      });
+      disclosure.append(summary, menu);
+      proposed.append(disclosure);
+    });
+    ['Recept', 'Presets', '?'].forEach(name => proposed.append(action(name)));
+    document.querySelectorAll('input[name="layout"]').forEach(input => input.addEventListener('change', () => {
+      document.querySelector('main').dataset.layout = input.value;
+      document.querySelectorAll('details').forEach(menu => { menu.open = false; });
+    }));
+    document.addEventListener('click', event => {
+      if (!event.target.closest('details')) document.querySelectorAll('details').forEach(menu => { menu.open = false; });
+    });
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape') document.querySelectorAll('details[open]').forEach(menu => {
+        menu.open = false;
+        menu.querySelector('summary').focus();
+      });
+    });
+    document.querySelector('.proposal .caption span').textContent = `Dezelfde ${original.length} acties`;
+  </script>
+</body>
+</html>
