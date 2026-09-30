@@ -59,6 +59,7 @@
 #include "StagesModule.h"
 #include "PeaksModule.h"
 #include "ResonatorModule.h"
+#include "MaterialBridgeModule.h"
 #include "Cr78Module.h"
 #include "QuantModule.h"
 #include "ChordModule.h"
@@ -143,6 +144,7 @@ inline void registerAllRuntimeModules() {
     StagesModule::registerFactory();    // FW-CV-3: Mutable Stages segment-generator
     PeaksModule::registerFactory();     // FW-AU-15: Mutable Peaks drums (808)
     ResonatorModule::registerFactory(); // FW-FX-6: sympathetic-resonator-bank
+    MaterialBridgeModule::registerFactory();
     Cr78Module::registerFactory();      // FW-AU-16: CR-78 drums (berekend)
     QuantModule::registerFactory();     // FW-CV-4: V/Oct-quantizer naar schaal
     ChordModule::registerFactory();     // FW-CV-5: chord-generator (4 stemmen)

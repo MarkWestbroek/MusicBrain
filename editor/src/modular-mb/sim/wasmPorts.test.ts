@@ -199,6 +199,88 @@ describe('tp_mmb_stereo_vca', () => {
   });
 });
 
+describe('tp_mmb_material_bridge', () => {
+  it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_material_bridge'); });
+
+  it('blijft stil zonder excitatie', async () => {
+    const module = await load('tp_mmb_material_bridge');
+    for (const output of module.render(0.1)) expect(peak(output)).toBe(0);
+  });
+
+  it('draagt alleen met koppeling energie over naar de andere pickup', async () => {
+    for (const coupling of [0, 1]) {
+      const module = await load('tp_mmb_material_bridge');
+      module.setCtl('coupling', coupling);
+      module.setCtl('spread', 0);
+      module.setCtl('memory', 0);
+      module.setIn('gate', 1);
+      const [left, right] = module.render(0.2);
+      expect(peak(left!)).toBeGreaterThan(0.1);
+      if (coupling === 0) expect(peak(right!)).toBe(0);
+      else expect(peak(right!)).toBeGreaterThan(0.05);
+    }
+  });
+
+  it('slaat met gate_b de rechterkant aan en respecteert velocity nul', async () => {
+    const module = await load('tp_mmb_material_bridge');
+    module.setCtl('coupling', 0);
+    module.setIn('gate_b', 1);
+    module.setIn('vel', 0);
+    for (const output of module.render(0.02)) expect(peak(output)).toBe(0);
+    module.setIn('gate_b', 0);
+    module.render(0.01);
+    module.setIn('gate_b', 1);
+    module.setIn('vel', 1);
+    const [left, right] = module.render(0.1);
+    expect(peak(left!)).toBe(0);
+    expect(peak(right!)).toBeGreaterThan(0.1);
+  });
+
+  it('bouwt materiaalgeheugen op, herstelt en reset energie en geheugen', async () => {
+    const module = await load('tp_mmb_material_bridge');
+    module.setCtl('decay', 8);
+    module.setCtl('recovery', 0.1);
+    module.setIn('gate', 1);
+    const stressed = module.render(0.2)[2]!;
+    expect(peak(stressed)).toBeGreaterThan(0.6);
+    module.setIn('gate', 0);
+    const recovered = module.render(2)[2]!;
+    expect(recovered[recovered.length - 1]!).toBeLessThan(0.05);
+    module.setIn('reset', 1);
+    for (const output of module.render(0.02)) expect(peak(output)).toBe(0);
+  });
+
+  it('verandert de uitklank causaal wanneer materiaalgeheugen aanstaat', async () => {
+    const tails: Float32Array[] = [];
+    for (const memory of [0, 1]) {
+      const module = await load('tp_mmb_material_bridge');
+      module.setCtl('decay', 8);
+      module.setCtl('memory', memory);
+      module.setIn('gate', 1);
+      tails.push(module.render(0.8)[0]!);
+    }
+    expect(rms(tails[1]!, 22050)).toBeLessThan(rms(tails[0]!, 22050) * 0.7);
+  });
+
+  it('blijft eindig en begrensd bij uitersten en ongeldige inputs', async () => {
+    const module = await load('tp_mmb_material_bridge');
+    module.setCtl('coupling', 1);
+    module.setCtl('decay', 8);
+    module.setCtl('level', 1);
+    module.setCtl('spread', Number.NaN);
+    const outputs = module.render(0.5, (time, current) => {
+      current.setIn('gate', Math.floor(time * 1000) % 2);
+      current.setIn('gate_b', Math.floor(time * 700) % 2);
+      current.setIn('in', time < 0.2 ? 1 : Number.NaN);
+      current.setIn('voct', time < 0.3 ? 100 : Number.POSITIVE_INFINITY);
+    });
+    for (const output of outputs) {
+      expect(output.every(Number.isFinite)).toBe(true);
+      expect(peak(output)).toBeLessThanOrEqual(1);
+    }
+  });
+});
+
 describe('tp_mmb_resonator', () => {
   it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_resonator'); });
 

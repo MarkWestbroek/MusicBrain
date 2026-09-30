@@ -149,6 +149,25 @@ compiler `clang++.exe`; de losse `wasi-sysroot`-download volstaat daar niet
 wat een lib mist vindt de build in de andere (zoals de firmware-LDF).
 `shim/avr/pgmspace.h` maakt `FLASHMEM`/`PROGMEM` leeg.
 
+## Material Bridge (2026-09-30)
+
+`tp_mmb_material_bridge` gebruikt de gedeelde kernel
+`firmware/lib/mmb-dsp/mmb_dsp/material_bridge.h`: vier energiegekoppelde
+resonatoren, een hysteretisch brugcontact, twee aanslagpunten en stereo-pickups.
+Native rate/blok: 44,1 kHz/32. De kernel bevat 136 bytes toestand en geen heap.
+
+```sh
+tools/mmb-wasm/build.sh materialbridge
+tools/mmb-wasm/bitcheck/check.sh materialbridge
+```
+
+De tweede opdracht is hier een **invariantentest**, geen vergelijking met
+een oude implementatie: passiviteit bij parameterwissels, hysterese,
+herstel, energiebegrenzing en reset op vier samplerates. De bestaande
+`editor/src/modular-mb/sim/wasmPorts.test.ts` bevat zeven gedragstests.
+Zie [het prototypeplan](../../doc/plans/state-graph-synthesis.md#material-bridge-eerste-uitvoerbare-proef-2026-09-30)
+voor bediening, gate-timingverschillen en nog open hardwaremetingen.
+
 ## Een module toevoegen
 
 1. `tools/mmb-wasm/<naam>_wasm.cc`: kopieer de control- en poortafhandeling

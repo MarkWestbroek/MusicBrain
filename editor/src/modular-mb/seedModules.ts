@@ -3269,6 +3269,40 @@ function mmbFof() {
   });
 }
 
+function mmbMaterialBridge() {
+  const w = W(14);
+  return assemble({
+    typeId: 'tp_mmb_material_bridge', categoryId: 'vco',
+    variant: 'Material Bridge (gekoppelde resonatoren)',
+    brand: 'MMB', model: 'MATERIAL BRIDGE',
+    hp: 14, texture: 'pcb-black', baseColor: '#163c39', internal: true,
+    texts: [
+      { x: w/2, y: 8, text: 'MATERIAL BRIDGE', fontSize: 2.2, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('pitch', 'Pitch', w*0.18, 27, { size: 'medium', min: -36, max: 36, def: 0, unit: 'semi', color: '#f9fafb' }),
+      knob('spread', 'Spread', w*0.50, 27, { size: 'medium', min: 0, max: 1, def: 0.35, color: '#f9fafb' }),
+      knob('coupling', 'Couple', w*0.82, 27, { size: 'medium', min: 0, max: 1, def: 0.5, color: '#6ee7b7' }),
+      knob('decay', 'Decay', w*0.18, 53, { size: 'medium', min: 0.05, max: 8, def: 2, unit: 's', color: '#f9fafb' }),
+      knob('memory', 'Memory', w*0.50, 53, { size: 'medium', min: 0, max: 1, def: 0.7, color: '#fb7185' }),
+      knob('recovery', 'Recover', w*0.82, 53, { size: 'medium', min: 0.1, max: 10, def: 2, unit: 's', color: '#f9fafb' }),
+      knob('pickup', 'Pickup', w*0.32, 78, { size: 'small', min: 0, max: 1, def: 0.25, color: '#6ee7b7' }),
+      knob('level', 'Level', w*0.68, 78, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      inPort('in', 'In', 'audio', w*0.10, 100),
+      inPort('voct', 'V/Oct', 'cv', w*0.30, 100),
+      inPort('gate', 'Hit A', 'gate', w*0.50, 100),
+      inPort('gate_b', 'Hit B', 'gate', w*0.70, 100),
+      inPort('vel', 'Vel', 'cv', w*0.90, 100),
+      inPort('reset', 'Reset', 'gate', w*0.18, 117),
+      outPort('stress', 'Stress', 'cv', w*0.40, 117),
+      outPort('out_l', 'L', 'audio', w*0.64, 117),
+      outPort('out_r', 'R', 'audio', w*0.84, 117),
+    ],
+    notes: 'Experimentele state-graph voice: vier resonatoren delen energie via drie passieve koppelingen. Hit A/B slaan de uiteinden aan; audio exciteert A. Memory laat energiebelasting de middelste brug tijdelijk verzwakken en de uitklank dempen. Recover bepaalt het herstel; Stress geeft de toestand als CV. Pickup verplaatst twee passieve stereo-pickups. Reset wist energie en geheugen. V/Oct rond C4 stemt het hele materiaal; koppeling verandert ook de modi, dus geen exacte concertstemming. Dezelfde C++-kern op Teensy en in wasm.',
+  });
+}
+
 // 21. MMB RESONATOR — 10 HP. Sympathetic-resonator-bank (firmware
 //     tp_mmb_resonator, FW-FX-6): 12 Karplus-achtige snaar-resonatoren
 //     gestemd op een schaal rond de grondtoon; het ingangssignaal excite't
@@ -3549,6 +3583,7 @@ function mmbEnvFollowerMono() {
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
   const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbAudioIn(), mmbEcho(), mmbTapeEcho(), mmbStereoTapeEcho(), mmbDigitalEcho(), mmbBbdChorus(), mmbRingMod(), mmbOctaver(), mmbHarmonizer(), mmbReverb(), mmbTremolo(), mmbStereoPhaser(), mmbVibe(), mmbRotary(), mmbShimmer(), mmbFetComp(),mmbOptoComp(), mmbBusComp(),mmbVariMuComp(), mmbProgramEq(), mmbDiodeComp(), mmbConsoleEq(), mmbParaEq(), mmbSampler(), mmbZang(), mmbSid(), mmbSid3(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbFof(), mmbEnvFollower(), mmbEnvFollowerMono()];
+  all.push(mmbMaterialBridge());
   const newTypes = all.map((x) => x.type);
 
   // Upgrade-pad: bestaande interne types worden in-place VERVANGEN (zelfde
@@ -4422,6 +4457,7 @@ export function seedSoloVoicePatch(
     connections: [
       c(mi, 'pitch', inst, 'voct'),
       c(mi, 'gate',  inst, 'gate'),
+      ...(typeId === 'tp_mmb_material_bridge' ? [c(mi, 'vel', inst, 'vel')] : []),
       // Mono-effect (ringmod, octaver): L erin, de ene uitgang naar L én R.
       ...(fxm && fx!.mono
         ? [c(inst, outL, fxm, 'in'), c(fxm, 'out', out, 'l'), c(fxm, 'out', out, 'r')]

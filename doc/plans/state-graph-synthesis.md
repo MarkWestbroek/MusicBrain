@@ -1,6 +1,6 @@
 # State-Graph Synthesis
 
-**Status:** concept / onderzoeksvoorstel
+**Status:** onderzoeksvoorstel; compact Material Bridge-prototype gebouwd (2026-09-30)
 
 **Datum:** 2026-09-01
 
@@ -529,6 +529,134 @@ is.
   bestaande code: 12 gestemde resonatoren op één gedeelde excitatie. Het is een
   sterren-topologie zonder onderlinge koppeling en zonder hysterese — precies
   de twee dingen die dit voorstel toevoegt.
+
+## Material Bridge: eerste uitvoerbare proef (2026-09-30)
+
+De review in [Synthesetechnieken](synthesetechnieken-verkenning.md), vooral
+de ontbrekende onderlinge resonatorkoppeling in sectie F, is opgepakt als
+**Material Bridge** (`tp_mmb_material_bridge`). Geen stem/zang, geen FPGA
+en geen nieuwe graafeditor: een kleine, vaste state graph binnen de bestaande
+modulearchitectuur. De concrete onderzoeksvraag is of een tweede aanslag
+anders reageert doordat hetzelfde materiaal nog belast is.
+
+Dit is een bewuste versmalling van het oorspronkelijke prototype: **vier
+quadratuurresonatoren, drie verbindingen, twee aanslagpunten, twee pickups en
+een brug met geheugen**. Geen delaylijnen, mesh, vrij bewerkbare topologie of
+akkoordherkenning. Het is een eigen experimenteel model, geen reconstructie
+van een bestaand fysiek instrument en geen claim op een nieuwe synthesevorm.
+
+```mermaid
+flowchart LR
+    A[Hit A / audio] --> R0((0))
+    R0 <--> R1((1))
+    R1 <-->|brug met geheugen| R2((2))
+    R2 <--> R3((3))
+    B[Hit B] --> R3
+    R0 --> L[Pickup L]
+    R1 --> L
+    R2 --> R[Pickup R]
+    R3 --> R
+    E[Totale modeleenergie] --> S[Stress / herstel]
+    S --> C[Brugsterkte en demping]
+```
+
+### Model en veiligheid
+
+Een resonator bewaart een complex quadratuurpaar. Zijn frequentierotatie
+bewaart de norm; een exponentiele dempingsfactor maakt de vrije uitklank
+passief. Een verbinding gebruikt de transformatie
+`z_a' = c*z_a + i*s*z_b`, `z_b' = c*z_b + i*s*z_a`, met
+`c=(1-t*t)/(1+t*t)` en `s=2*t/(1+t*t)`. Deze is unitair: de som van beide
+kwadratische normen blijft behouden. Ook een gewijzigde koppeling voegt dus
+geen energie toe. Samplegewijs uitvoeren voorkomt een audioblokvertraging
+**binnen** het netwerk; externe kabels behouden de normale platformlatency.
+
+`Stress` volgt de begrensde totale energie met 25 ms aanval en instelbaar
+herstel. Boven 0,60 verzwakt de middelste brug; pas onder 0,25 herstelt zij.
+Dat zijn echte afzonderlijke omschakeldrempels, niet alleen een envelope.
+De brugovergang wordt over circa 10 ms gladgestreken. `Memory` mengt dit
+gedrag in en verhoogt ook de demping bij belasting. Bij `Memory=0` heeft de
+stressvolger geen invloed op de klank: een bruikbare A/B-referentie.
+
+De som van de vier resonatornormen wordt na excitatie tot 4 begrensd.
+Dit is een **genormaliseerde modeleenergie**, niet joules. Het is een
+expliciete excitatiebegrenzing, geen uitgangslimiter die een instabiele lus
+moet verbergen. De passieve pickups lezen alleen mee. Output is maximaal
+circa 0,9 bij `Level=1`; ongeldige audio/CV/controls worden begrensd of
+vervangen, zeer kleine resonatortoestanden worden nul. Reset wist energie
+en materiaalgeheugen, zonder een aangehouden gate opnieuw aan te slaan.
+
+### Bediening en patch
+
+In de editor: **Solo > Material Bridge (materiaalgeheugen)**. De seed voegt
+een rack toe met MIDI-IN, Material Bridge en OUT. Pitch, gate en velocity
+zijn bekabeld; beide pickups gaan afzonderlijk naar links/rechts. Speel
+korte, gescheiden noten en vergelijk zachte aanslagen met een reeks harde.
+Alle noten stemmen hetzelfde materiaal opnieuw; dit zijn geen vier
+onafhankelijke polyfone stemmen.
+
+| Control | Bereik / default | Betekenis |
+|---|---|---|
+| Pitch | -36..36 semi / 0 | Grondtoon rond C4, bovenop V/Oct |
+| Spread | 0..1 / 0,35 | Van bijna gelijke naar inharmonisch gespreide modi |
+| Couple | 0..1 / 0,5 | Energie-uitwisseling tussen de resonatoren |
+| Decay | 0,05..8 s / 2 | Nominale -60 dB-tijd zonder extra geheugendemping |
+| Memory | 0..1 / 0,7 | Invloed van belasting op brug en demping |
+| Recover | 0,1..10 s / 2 | Tijdconstante waarmee stress terugloopt |
+| Pickup | 0..1 / 0,25 | Beide pickups bewegen van buiten naar binnen |
+| Level | 0..1 / 0,8 | Uitgangsniveau |
+
+Ingangen: `in` audio op resonator 0; `gate`/`gate_b` slaan resonator 0/3
+aan op een stijgende flank; `vel` is 0..1 en standaard 1 zonder kabel;
+`voct` is 1 V/oct rond C4; `reset` wist op een stijgende flank en onderdrukt
+nieuwe excitatie zolang hij hoog is. Uitgangen: `out_l`, `out_r`, `stress`
+(0..1 CV). Gebruik voor Teensy-gates pulsen die minstens een audioblok
+overbruggen, bijvoorbeeld 5 ms. De browser kan gates samplegewijs verwerken;
+de Teensy-wrapper bemonstert CV/gates per blok van 128 samples.
+
+De soloseed kiest iets expressievere standen: Spread 0,12, Couple 0,65,
+Decay 4 s, Memory 0,85. Proeven: Couple=0 isoleert de aanslagpunten;
+Memory=0 versus 0,85 vergelijkt de uitklank; een klok naar Hit B laat twee
+exciters hetzelfde materiaal bespelen; audio naar In maakt er een resonator
+voor extern geluid van. Reset is een onmiddellijke wisactie en kan klikken.
+
+### Implementatie en verificatie
+
+- Gedeelde header-only DSP: `firmware/lib/mmb-dsp/mmb_dsp/material_bridge.h`.
+  De kernel is **136 bytes** in de wasm-check, zonder heap of samplebuffers.
+- Teensy: `MaterialBridgeModule.h`, geregistreerd in `RegisterAllModules.h`.
+  AudioStream met mono-in/stereo-uit; parameteroverdracht aan het begin van
+  het audioblok, stressuitlezing via de bestaande CV-bridge. Retired streams
+  blijven bestaan en worden stilgezet, conform de AudioStream-lifetime.
+- Browser: `tools/mmb-wasm/materialbridge_wasm.cc`, ABI op 44,1 kHz/32,
+  gebouwd als `editor/public/wasm/tp_mmb_material_bridge.wasm` (63.430 bytes).
+  Geen afzonderlijke JS-benadering. Dezelfde kern draait op beide platforms,
+  maar CV-timing en int16-audio op Teensy zijn niet bit-identiek aan WebAudio.
+- Zeven wasm-tests: contract, stilte, overdracht, Hit B/velocity nul,
+  stress/herstel/reset, causale klankverandering en ongeldige/extreme invoer.
+  Samen met bestaande wasm- en firmwarecontracttests: **286 tests geslaagd**.
+- C++-check op 32/44,1/48/96 kHz: vrije energie daalt ook bij wisselende
+  frequenties en koppelingen; hysterese/herstel, energielimiet en reset
+  slagen. Uitvoerbaar via `bash tools/mmb-wasm/bitcheck/check.sh materialbridge`.
+- `npm --prefix editor run typecheck` en `npm --prefix editor run build`
+  slagen. De volledige PlatformIO-build voor Teensy 4.1 slaagt; **niet
+  geflasht**. Bestaande compiler- en bundelgroottewaarschuwingen blijven staan.
+- Solopatch en paneel in de browser aangemaakt naast de bestaande FOF-patch.
+  Dit vervangt geen luisterproef of meting van realtime audio op hardware.
+
+### Open grenzen
+
+1. Luistertest: is materiaalgeheugen herkenbaar en bespeelbaar, ook na
+   luidheidsmatching met Memory=0? Sneller uitdoven alleen bewijst dat niet.
+2. Teensy flashen en CPU/interruptbudget meten in een echte patch. Klein
+   geheugen en een geslaagde build bewijzen geen realtime CPU-marge.
+3. Koppeling verschuift de gezamenlijke modi. V/Oct stemt de losse knopen,
+   niet gegarandeerd de waargenomen grondtoon: nog geen concertstemming.
+4. Abrupte knop- en toonhoogtewissels zijn energiebegrensd maar nog niet
+   allemaal klikvrij. Alleen het hysteretische brugcontact heeft smoothing.
+5. Geen audio-rate externe CV-pariteit, geen observer-loading, geen
+   topologiemutaties, geen gedeeld polyfoon MIDI-spectrum. Die blijven
+   afzonderlijke proeven uit het oorspronkelijke voorstel.
 
 ## Beslispunt
 

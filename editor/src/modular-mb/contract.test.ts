@@ -89,6 +89,7 @@ function allSeededProject(): ModularProject {
   p = seedSoloVoicePatch(p, 'tp_mmb_plaits', 'Plaits', 'out', 'aux', {}, BUS_SOLO_FX);
   p = seedSoloVoicePatch(p, 'tp_mmb_elements', 'Elements', 'out_l', 'out_r', {}, VARIMU_SOLO_FX);
   p = seedSoloVoicePatch(p, 'tp_mmb_stk_sound', 'STK', 'out', 'out', {}, EQ_SOLO_FX);
+  p = seedSoloVoicePatch(p, 'tp_mmb_material_bridge', 'Material Bridge', 'out_l', 'out_r', {});
   p = seedSoloVoicePatch(p, 'tp_mmb_fof', 'FOF Stem', 'out', 'out', { vowel: 0, tone: 0.5, breath: 0.08, vibrato: 0.12, level: 0.8 });
   p = seedSoloVoicePatch(p, 'tp_mmb_dx7', 'DX7', 'out', 'out', {}, DIODE_SOLO_FX);
   p = seedSoloVoicePatch(p, 'tp_mmb_rings', 'Rings', 'out_l', 'out_r', {}, CONSOLE_EQ_SOLO_FX);
@@ -103,6 +104,13 @@ function allSeededProject(): ModularProject {
 }
 
 const project = allSeededProject();
+it('Material Bridge solo verbindt pitch, gate, velocity en beide pickups', () => {
+  const patch = project.patches.find((item) => item.name === 'Material Bridge solo')!;
+  expect(patch.connections.map((connection) => [connection.from.portId, connection.to.portId])).toEqual([
+    ['pitch', 'voct'], ['gate', 'gate'], ['vel', 'vel'], ['out_l', 'l'], ['out_r', 'r'],
+  ]);
+});
+
 const internalTypes = project.moduleTypes.filter(
   (t) => t.id.startsWith('tp_mmb_') && contract.modules[t.id]);
 

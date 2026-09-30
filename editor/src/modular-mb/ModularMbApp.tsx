@@ -578,6 +578,8 @@ export function ModularMbApp(): JSX.Element {
                 onMouseLeave={() => setShowSolo(false)}
               >
                 {([
+                  { label: 'Material Bridge (materiaalgeheugen)', t: 'tp_mmb_material_bridge', n: 'Material Bridge', l: 'out_l', r: 'out_r',
+                    c: { spread: 0.12, coupling: 0.65, decay: 4, memory: 0.85, recovery: 2, pickup: 0.25, level: 0.8 } },
                   { label: '💍 Rings (resonator)', t: 'tp_mmb_rings', n: 'Rings', l: 'out_l', r: 'out_r',
                     c: { structure: 0.4, brightness: 0.6, damping: 0.6, position: 0.3, model: 0, polyphony: 1, level: 0.8 } },
                   { label: '🎛️ Plaits (24 engines)', t: 'tp_mmb_plaits', n: 'Plaits', l: 'out', r: 'aux',

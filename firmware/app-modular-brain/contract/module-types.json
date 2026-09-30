@@ -670,6 +670,31 @@
         "xbias"
       ]
     },
+    "tp_mmb_material_bridge": {
+      "typeId": "tp_mmb_material_bridge",
+      "source": "firmware/app-modular-brain/src/MaterialBridgeModule.h",
+      "ports": [
+        "gate",
+        "gate_b",
+        "in",
+        "out_l",
+        "out_r",
+        "reset",
+        "stress",
+        "vel",
+        "voct"
+      ],
+      "controls": [
+        "coupling",
+        "decay",
+        "level",
+        "memory",
+        "pickup",
+        "pitch",
+        "recovery",
+        "spread"
+      ]
+    },
     "tp_mmb_midiin": {
       "typeId": "tp_mmb_midiin",
       "source": "firmware/core/include/mb/runtime/MidiIn.h",

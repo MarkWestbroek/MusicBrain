@@ -41,6 +41,26 @@ Drie projectmodi via knoppen bovenin:
 
 Device-discovery + WebSerial upload (synchroniseren met firmware) komt in Stage 7.
 
+### Material Bridge
+
+**Solo > Material Bridge (materiaalgeheugen)** voegt een bespeelbare patch toe:
+MIDI-IN (pitch, gate, velocity) naar vier gekoppelde resonatoren, met twee
+pickups naar stereo-OUT. Hard spelen bouwt stress op: de middelste brug
+verzwakt tijdelijk en het materiaal dempt sterker. `Memory=0` schakelt die
+invloed uit; `Recover` bepaalt het herstel. `Hit B` is een tweede aanslagpunt,
+`In` accepteert externe audio en `Stress` is beschikbaar als CV.
+
+| Onderdeel | Status |
+|---|---|
+| Paneel, solopatch, stereo en velocity | Geimplementeerd |
+| Browser/Teensy DSP | Dezelfde C++-kern; wasm en firmware gebouwd |
+| Energie, hysterese, herstel en contracten | Automatisch getest |
+| Muzikale beoordeling en Teensy CPU-meting | Nog open; niet geflasht |
+
+Dit is een klein onderzoeksinstrument, geen volwaardige state-graph-editor
+en geen precies concertgestemde poly-synth. Het model, de controls en de
+verificatie staan in [State-Graph Synthesis](../doc/plans/state-graph-synthesis.md#material-bridge-eerste-uitvoerbare-proef-2026-09-30).
+
 ## Losse demo-pagina's
 
 Naast de React-app staan er zelfstandige pagina's in `public/`. Ze hebben geen
