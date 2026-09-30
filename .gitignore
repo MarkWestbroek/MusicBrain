@@ -86,3 +86,8 @@ editor/public/banks/*
 # DX7-banken onder public/dx7/ komen uit de release (banks.json), niet uit git.
 editor/public/dx7/*.syx
 !editor/public/banks/index.json
+
+# piper-tts: stemmen en de lokale venv staan buiten git (zie tools/piper-tts/README.md)
+tools/piper-tts/voices/
+tools/piper-tts/.venv/
+tools/piper-tts/usage.jsonl

@@ -32,8 +32,18 @@
 - **Seed "Koor zingt jouw woorden"** (Solo-menu): ZANG als modulator van de
   Warps-vocoder, het koor als drager. ZANG heeft zelf geen draaggolf (PSOLA
   speelt de opname af); via de vocoder zingt het koor wat ZANG articuleert.
-- De spraakdienst draait nu alleen lokaal (⚙ → eigen computer). Uitrollen op
-  de VPS staat beschreven in de README, maar is nog niet gedaan.
+- **Loop-zoeker voor de klinkerkern**, zoals bij de sampler: niet langer "het
+  langste luide stuk", maar de vier tot twaalf perioden waarin de golfvorm
+  het meest gelijk blijft (elke periode op zijn opvolger én de eerste op de
+  laatste), vlak van volume, liefst luid. Aanhouden was "lalala" doordat de
+  kern een hele dalende klinker besloeg; gemeten op "ja" ging de modulatie
+  tijdens het aanhouden van 5,9 naar 0,9 dB. Een krakerige kern (gelijkenis
+  onder 80 % of gesproken onder 75 Hz, zoals Franks laatste "slaap") krijgt
+  in het venster "⚠ lus": daar helpt alleen opnieuw inspreken.
+- De spraakdienst draait lokaal: `tools\piper-tts\start.cmd` (venv en
+  stemmen in `tools/piper-tts/`, buiten git), in de editor ⚙ → eigen
+  computer. Uitrollen op de VPS staat beschreven in de README, maar is nog
+  niet gedaan.
 - Piper is GPL-3.0 en draait als los programma; de vier gekozen stemmen
   hebben een CC0-dataset. Tests: editor 740.
 

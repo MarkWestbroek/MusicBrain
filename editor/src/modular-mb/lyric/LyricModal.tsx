@@ -316,14 +316,20 @@ export function LyricModal({ open, onClose }: { open: boolean; onClose: () => vo
     margin: '2px 4px 2px 0', fontFamily: 'monospace', fontSize: 12, background: '#f8fafc',
   };
   const box: React.CSSProperties = { border: '1px solid #e2e8f0', borderRadius: 6, padding: 8, marginBottom: 8 };
-  const syllableChips = (list: { text: string; ms: number; hz: number; sustain: boolean; wordEnd: boolean }[]): JSX.Element => (
+  const syllableChips = (list: { text: string; ms: number; hz: number; sustain: boolean; quality: number; wordEnd: boolean }[]): JSX.Element => (
     <div>
-      {list.map((s, i) => (
-        <span key={i} style={{ ...chip, borderColor: s.sustain ? '#cbd5e1' : '#f59e0b', marginRight: s.wordEnd ? 14 : 4 }}
-          title={`${s.ms.toFixed(0)} ms · ${s.hz > 0 ? `${s.hz.toFixed(0)} Hz gesproken` : 'stemloos'} · ${s.sustain ? 'aan te houden' : 'geen klinkerkern: speelt één keer af'}`}>
-          {s.text || '·'} <span style={{ color: '#94a3b8' }}>{s.ms.toFixed(0)}</span>{s.sustain ? '' : ' ⚠'}
-        </span>
-      ))}
+      {list.map((s, i) => {
+        const rough = s.sustain && (s.quality < 0.8 || (s.hz > 0 && s.hz < 75));
+        const why = !s.sustain ? 'geen klinkerkern: speelt één keer af'
+          : rough ? `de lus is krakerig (${s.hz > 0 && s.hz < 75 ? 'krakende stem, ' : ''}gelijkenis ${(s.quality * 100).toFixed(0)} %): spreek de klinker vlakker en luider in`
+          : `aan te houden (lus ${(s.quality * 100).toFixed(0)} %)`;
+        return (
+          <span key={i} style={{ ...chip, borderColor: s.sustain && !rough ? '#cbd5e1' : '#f59e0b', marginRight: s.wordEnd ? 14 : 4 }}
+            title={`${s.ms.toFixed(0)} ms · ${s.hz > 0 ? `${s.hz.toFixed(0)} Hz gesproken` : 'stemloos'} · ${why}`}>
+            {s.text || '·'} <span style={{ color: '#94a3b8' }}>{s.ms.toFixed(0)}</span>{s.sustain && !rough ? '' : rough ? ' ⚠ lus' : ' ⚠'}
+          </span>
+        );
+      })}
     </div>
   );
   const originLabel: Record<Take['origin'], string> = {
@@ -346,7 +352,7 @@ export function LyricModal({ open, onClose }: { open: boolean; onClose: () => vo
           <code> zon-ne-tje</code> — en de module ZANG zingt ze op de noten die je speelt: elke aanslag de
           volgende lettergreep, en de klinker blijft klinken zolang je de toets vasthoudt. Klopt een grens
           niet, sleep hem dan in de golfvorm. Een lettergreep met ⚠ heeft geen duidelijke klinker en speelt
-          maar één keer af.
+          maar één keer af; "⚠ lus" betekent dat de klinker krakerig is en aanhouden niet mooi klinkt.
         </p>
 
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
@@ -436,7 +442,7 @@ export function LyricModal({ open, onClose }: { open: boolean; onClose: () => vo
             <div style={{ marginTop: 6 }}>
               {syllableChips(t.syllables.map((s) => ({
                 text: s.text, ms: (s.data.length / s.rate) * 1000, hz: s.pitchHz,
-                sustain: s.sustainEnd > s.sustainStart, wordEnd: s.wordEnd,
+                sustain: s.sustainEnd > s.sustainStart, quality: s.sustainQuality, wordEnd: s.wordEnd,
               })))}
             </div>
             {t.note && <div style={{ color: '#b45309', marginTop: 4 }}>⚠ {t.note}</div>}
@@ -456,7 +462,7 @@ export function LyricModal({ open, onClose }: { open: boolean; onClose: () => vo
             <div style={{ marginTop: 6 }}>
               {syllableChips(loaded.syllables.map((s) => ({
                 text: s.text, ms: (s.data.length / loaded.rate) * 1000, hz: s.pitchHz,
-                sustain: s.sustainEnd > s.sustainStart, wordEnd: s.wordEnd,
+                sustain: s.sustainEnd > s.sustainStart, quality: 1, wordEnd: s.wordEnd,
               })))}
             </div>
           </div>

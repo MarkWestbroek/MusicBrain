@@ -216,10 +216,11 @@ in een browser bekeken.
   grens zo nodig goed. Echt oplossen vraagt uitlijnen op de tekst (forced
   alignment); een goedkope tussenweg is de eigen opname vergelijken met
   dezelfde tekst uit Piper en diens grenzen meerekken (DTW).
-- **Wiebel in korte kernen.** Een klinkerkern waarin de klank snel verandert
-  (n → sjwa) klinkt bij heen-en-weer lopen minder stil dan een lange klinker:
-  de toonhoogte klopt, de kleur beweegt. Mogelijk alleen het stabielste derde
-  aanhouden, of de grains in de kern middelen.
+- **Krakende stem.** Een klinker die in vocal fry eindigt (Franks laatste
+  "slaap", 64 Hz, losse pulsen) is met PSOLA niet mooi aan te houden: de
+  pulsen worden bij hoger zingen "kkgkg". De loop-zoeker mijdt zulke stukken
+  en het venster waarschuwt (⚠ lus); de oplossing is opnieuw inspreken,
+  vlakker en luider, of een Piper-stem.
 
 - Bereik: hoe klinkt een mannenstem twee octaven omhoog? Waarschijnlijk wil
   je per bank een hoge en een lage opname. Meten in stap 1.

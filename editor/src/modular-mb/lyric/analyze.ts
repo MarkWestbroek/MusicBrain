@@ -38,6 +38,8 @@ export interface SyllableAnalysis {
   /** Klinkerkern als mark-indexen; end <= start = niet aan te houden. */
   sustainStart: number;
   sustainEnd: number;
+  /** Hoe goed de kern als lus klinkt, 0..1 (zie findSustain). */
+  sustainQuality: number;
   /** Mediaan van de gesproken toonhoogte; 0 = geen stemhebbend deel. */
   pitchHz: number;
   /** Laatste lettergreep van een woord. */
@@ -563,9 +565,30 @@ export interface AnalyzeOptions {
   split?: SplitOptions;
 }
 
-/** Klinkerkern: het langste stemhebbende stuk boven 50 % van de piek, middelste 60 %. */
-export function findSustain(data: Float32Array, rate: number, marks: Mark[]): { start: number; end: number } {
-  if (marks.length < 4) return { start: 0, end: 0 };
+export interface SustainRegion {
+  /** Mark-indexen; end <= start = geen kern. */
+  start: number;
+  end: number;
+  /** Hoe goed de lus klinkt, 0..1: gelijkenis van de perioden in de lus. Onder
+   *  ~0,8 hoor je de lus (krakende stem, losse pulsen). */
+  quality: number;
+}
+
+/**
+ * Klinkerkern: het stukje waar de stem heen en weer loopt zolang de toets
+ * ingedrukt is. Net als de loop-zoeker van de sampler zoeken we het stuk
+ * waar de golfvorm het meest gelijk blijft: vier tot twaalf perioden, allemaal
+ * stemhebbend, waarin elke periode op zijn opvolger lijkt én de eerste op de
+ * laatste (een klank die langzaam verkleurt, zoals de j die in de a van "ja"
+ * overgaat, lijkt van periode tot periode wél op zichzelf maar van begin tot
+ * eind niet), zonder al te veel verschil in volume, liefst luid en liefst
+ * lang (een lus van vier perioden klinkt al gauw als een zoemer). Zo blijft
+ * de aanzet buiten de kern (anders wordt aanhouden "jajaja") en het krakende
+ * staartje van een dalende stem ook (dat wordt "kkgkg").
+ */
+export function findSustain(data: Float32Array, rate: number, marks: Mark[]): SustainRegion {
+  const none = { start: 0, end: 0, quality: 0 };
+  if (marks.length < 4) return none;
   const win = Math.round(rate * 0.012);
   const level = marks.map((m) => {
     let e = 0, c = 0;
@@ -573,19 +596,44 @@ export function findSustain(data: Float32Array, rate: number, marks: Mark[]): { 
     return m.unvoiced || c === 0 ? 0 : Math.sqrt(e / c);
   });
   const peak = Math.max(...level);
-  if (peak <= 0) return { start: 0, end: 0 };
-  let bestA = 0, bestLen = 0, a = -1;
-  for (let i = 0; i <= level.length; i++) {
-    const ok = i < level.length && level[i]! >= 0.5 * peak;
-    if (ok && a < 0) a = i;
-    if (!ok && a >= 0) { if (i - a > bestLen) { bestLen = i - a; bestA = a; } a = -1; }
+  if (peak <= 0) return none;
+
+  /** Gelijkenis van de golf rond mark i met die rond mark j, over één periode van i. */
+  const sim = (i: number, j: number): number => {
+    const mi = marks[i]!, mj = marks[j]!;
+    if (mi.unvoiced || mj.unvoiced) return 0;
+    const next = marks[i + 1] ?? marks[i - 1];
+    const half = Math.max(4, Math.round(Math.abs((next?.frame ?? mi.frame + 8) - mi.frame) / 2));
+    let num = 0, e0 = 0, e1 = 0;
+    for (let k = -half; k <= half; k++) {
+      const p = mi.frame + k, q = mj.frame + k;
+      if (p < 0 || q < 0 || p >= data.length || q >= data.length) continue;
+      num += data[p]! * data[q]!; e0 += data[p]! * data[p]!; e1 += data[q]! * data[q]!;
+    }
+    return e0 > 0 && e1 > 0 ? num / Math.sqrt(e0 * e1) : 0;
+  };
+  const adjacent = new Float32Array(Math.max(0, marks.length - 1));
+  for (let k = 0; k + 1 < marks.length; k++) adjacent[k] = sim(k, k + 1);
+
+  const MIN = 4, MAX = 12;
+  let best = -Infinity, bestA = 0, bestB = 0, bestQ = 0;
+  for (let a = 0; a + MIN - 1 < marks.length; a++) {
+    if (marks[a]!.unvoiced || level[a]! < 0.35 * peak) continue;
+    let adjSum = 0, levelSum = level[a]!, lo = level[a]!, hi = level[a]!;
+    for (let b = a + 1; b < marks.length && b - a + 1 <= MAX; b++) {
+      if (marks[b]!.unvoiced || level[b]! < 0.35 * peak) break;
+      adjSum += adjacent[b - 1]!;
+      levelSum += level[b]!;
+      lo = Math.min(lo, level[b]!); hi = Math.max(hi, level[b]!);
+      const len = b - a + 1;
+      if (len < MIN) continue;
+      const quality = Math.min(adjSum / (len - 1), sim(a, b));
+      const score = quality * Math.sqrt(lo / hi) + 0.008 * len + 0.2 * (levelSum / len / peak);
+      if (score > best) { best = score; bestA = a; bestB = b; bestQ = quality; }
+    }
   }
-  // Een lage stem heeft maar een paar perioden per lettergreep: vier volstaan.
-  if (bestLen < 4) return { start: 0, end: 0 };
-  const trim = Math.floor(bestLen * 0.2);
-  const start = bestA + trim, end = bestA + bestLen - 1 - trim;
-  if (end - start >= 2) return { start, end };
-  return { start: bestA, end: bestA + bestLen - 1 };
+  if (best === -Infinity) return none;
+  return { start: bestA, end: bestB, quality: Math.max(0, bestQ) };
 }
 
 /**
@@ -643,7 +691,7 @@ export function analyzeRecording(x: Float32Array, rate: number, opt: AnalyzeOpti
     const sus = findSustain(data, LYRIC_RATE, own);
     return {
       data, rate: LYRIC_RATE, marks: own,
-      sustainStart: sus.start, sustainEnd: sus.end,
+      sustainStart: sus.start, sustainEnd: sus.end, sustainQuality: sus.quality,
       pitchHz: median(f0),
       wordEnd: sp.wordEnd,
       text: opt.syllables?.[idx] ?? '',

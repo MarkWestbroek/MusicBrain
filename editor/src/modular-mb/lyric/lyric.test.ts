@@ -143,6 +143,9 @@ describe('lyric/analyze', () => {
     for (const s of syl) {
       expect(s.rate).toBe(LYRIC_RATE);
       expect(s.sustainEnd).toBeGreaterThan(s.sustainStart);
+      expect(s.sustainQuality).toBeGreaterThan(0.85);                    // een gladde synthetische klinker
+      // de lus ligt in de klinker, niet in de aanzet: minstens 40 ms na het begin
+      expect(s.marks[s.sustainStart]!.frame).toBeGreaterThan(0.04 * LYRIC_RATE);
       expect(s.marks[s.sustainStart]!.unvoiced).toBe(false);
       expect(s.marks[s.sustainEnd]!.unvoiced).toBe(false);
       for (let i = 1; i < s.marks.length; i++) expect(s.marks[i]!.frame).toBeGreaterThan(s.marks[i - 1]!.frame);
@@ -166,7 +169,7 @@ describe('lyric/analyze', () => {
     const x = consonant(LYRIC_RATE, 0.2);
     const marks = placeMarks(x, LYRIC_RATE, trackPitch(x, LYRIC_RATE));
     expect(marks.every((m) => m.unvoiced)).toBe(true);
-    expect(findSustain(x, LYRIC_RATE, marks)).toEqual({ start: 0, end: 0 });
+    expect(findSustain(x, LYRIC_RATE, marks)).toEqual({ start: 0, end: 0, quality: 0 });
   });
 });
 

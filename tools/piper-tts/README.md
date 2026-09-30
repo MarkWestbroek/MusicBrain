@@ -51,16 +51,27 @@ licentie te volgen.
 
 ## Op je eigen computer
 
+Eenmalig (vanuit de map van het repo; op Linux/Mac is het `bin/` in plaats
+van `Scripts/`):
+
 ```bash
-python -m venv .venv-tts
-.venv-tts/Scripts/pip install "piper-tts[alignment]"          # Linux/Mac: .venv-tts/bin/pip
-.venv-tts/Scripts/python -m piper.download_voices --data-dir voices \
-    nl_NL-pim-medium nl_BE-nathalie-medium
-.venv-tts/Scripts/python tools/piper-tts/server.py --voices voices --open --cors "*"
+python -m venv tools/piper-tts/.venv
+tools/piper-tts/.venv/Scripts/pip install "piper-tts[alignment]"
+tools/piper-tts/.venv/Scripts/python -m piper.download_voices \
+    --data-dir tools/piper-tts/voices nl_NL-pim-medium nl_BE-nathalie-medium
 ```
 
-In de editor: 🎤 Zang → ⚙ → **eigen computer**. Er is geen code nodig; de
-dienst luistert alleen op `127.0.0.1`.
+Daarna, elke keer dat je hem nodig hebt, dubbelklik op `tools\piper-tts\start.cmd`
+of:
+
+```bash
+tools/piper-tts/.venv/Scripts/python tools/piper-tts/server.py --open --cors "*"
+```
+
+De stemmen staan standaard in `tools/piper-tts/voices` (buiten git, net als
+de `.venv`). In de editor: 🎤 Zang → ⚙ → **eigen computer**. Er is geen code
+nodig; de dienst luistert alleen op `127.0.0.1`. Sluit het venster van de
+dienst met Ctrl+C.
 
 Proberen zonder editor:
 

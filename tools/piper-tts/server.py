@@ -24,7 +24,7 @@ en geeft de audio door; de editor en de firmware bevatten geen Piper-code.
 Starten (lokaal):
     pip install "piper-tts[alignment]"
     python -m piper.download_voices --data-dir voices nl_NL-pim-medium
-    python server.py --voices voices --open
+    python server.py --open --cors "*"        # stemmen uit tools/piper-tts/voices
 
 Omgevingsvariabelen (of de gelijknamige opties):
     TTS_HOST (127.0.0.1)   TTS_PORT (8788)   TTS_VOICES (./voices)
@@ -251,7 +251,8 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--host', default=os.environ.get('TTS_HOST', '127.0.0.1'))
     ap.add_argument('--port', type=int, default=int(os.environ.get('TTS_PORT', '8788')))
-    ap.add_argument('--voices', default=os.environ.get('TTS_VOICES', 'voices'))
+    ap.add_argument('--voices', default=os.environ.get('TTS_VOICES', str(Path(__file__).resolve().parent / 'voices')),
+                    help='map met .onnx-stemmen (standaard tools/piper-tts/voices)')
     ap.add_argument('--invites', default=os.environ.get('TTS_INVITES', ''))
     ap.add_argument('--usage', default=os.environ.get('TTS_USAGE', ''))
     ap.add_argument('--per-day', type=int, default=int(os.environ.get('TTS_PER_DAY', '200')))
