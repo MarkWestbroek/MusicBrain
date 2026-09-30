@@ -12,7 +12,7 @@ import { CommandPalette } from './recipe/CommandPalette';
 import { Tour, tourSeen } from './recipe/Tour';
 import { startDemo, DemoCaption, type DemoState, type DemoHandle } from './recipe/demo';
 import type { PatchOp } from './recipe/types';
-import { emptyModularProject } from './types';
+import { emptyModularProject, type ModularProject } from './types';
 import { exportPanel, importPanel, parsePanelFile } from './panelIO';
 import { BUS_SOLO_FX, CONSOLE_EQ_SOLO_FX, PARA_EQ_SOLO_FX, DIODE_SOLO_FX, EQ_SOLO_FX, FET_SOLO_FX, OPTO_SOLO_FX, SAMPLER_MASTER_FX, VARIMU_SOLO_FX, STEREO_TAPE_SOLO_FX, DIGITAL_ECHO_SOLO_FX, BBD_SOLO_FX, RINGMOD_SOLO_FX, OCTAVER_SOLO_FX, HARMONIZER_SOLO_FX, REVERB_SOLO_FX, SPRING_SOLO_FX, TREMOLO_SOLO_FX, STEREO_PHASER_SOLO_FX, VIBE_SOLO_FX, ROTARY_SOLO_FX, SHIMMER_SOLO_FX, seedExampleModules, seedInternals, seedTestPatch, seedFmTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, seedDx7PolyPatch, seedSamplerPolyPatch, seedWarpsVocoderPatch, seedVocoderChoirPatch, seedZangPatch, seed808JamPatch, seedKrellPatch, type PolySeedOptions } from './seedModules';
 import { seedCs80BrassPatch } from './seedBrass';
@@ -61,6 +61,15 @@ import { WaveDrawModal } from './WaveDrawModal';
 import { SampleModal } from './SampleModal';
 import { SampleImportModal } from './SampleImportModal';
 import { LyricModal } from './lyric/LyricModal';
+
+/** Stand van de Bank-knop van de eerste ZANG-module in de actieve patch (0 als er geen is). */
+function zangBankInPatch(project: ModularProject): number {
+  const patch = project.patches.find((p) => p.id === project.activePatchId);
+  if (!patch) return 0;
+  const zang = project.modules.find((m) => m.typeId === 'tp_mmb_zang' && patch.controlState[m.id]);
+  const v = zang ? patch.controlState[zang.id]?.bank : undefined;
+  return typeof v === 'number' ? v : 0;
+}
 import { Dx7EditorModal } from './Dx7EditorModal';
 // Reuse the ES project-bar CSS classes (.es-projectbar*) — same visual language.
 import '../effect-switcher/styles.css';
@@ -804,7 +813,7 @@ export function ModularMbApp(): JSX.Element {
       <WaveDrawModal open={showWave} onClose={() => setShowWave(false)} />
       <SampleModal open={showSample} onClose={() => setShowSample(false)} />
       <SampleImportModal open={showImport} onClose={() => setShowImport(false)} />
-      <LyricModal open={showLyric} onClose={() => setShowLyric(false)} />
+      <LyricModal open={showLyric} onClose={() => setShowLyric(false)} defaultBank={zangBankInPatch(project)} />
       <Dx7EditorModal open={showDx7} onClose={() => setShowDx7(false)} />
     </section>
   );

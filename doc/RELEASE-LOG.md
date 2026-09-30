@@ -23,9 +23,18 @@
   toont nummer en naam in een strook, zoals de sampler.
 - Editor: lyricbanken die je naar de simulator stuurt worden in de browser
   bewaard (IndexedDB, per nummer 0–15) en bij de eerste ZANG-module weer
-  geladen; het venster toont welke er staan, met ✕ om er een weg te halen.
-  De patch bevat alleen het banknummer; het bestand `.mmbl` is wat je
-  bewaart. Zonder Teensy toont de strook de naam uit de simulator.
+  geladen. De patch bevat alleen het banknummer; het bestand `.mmbl` is wat
+  je bewaart. Zonder Teensy toont de strook de naam uit de simulator.
+- **Eén knop, één nummer.** "→ Bank NN" zet de bank in de simulator én, als
+  de Teensy verbonden is, op de SD-kaart. Het nummer neemt bij openen de
+  stand van de Bank-knop in de patch over; een tabel toont per nummer wat de
+  simulator en de kaart hebben, met ≠ als dat verschilt.
+- **Een `.mmbl` opnieuw bewerken.** Openen maakt er weer opnames van, per
+  woord één, met de grenzen en lussen uit de bank: naam, tekst, volgorde,
+  grenzen en lus zijn te veranderen en de bank is opnieuw te sturen.
+- **De lus horen.** Klik op de groene balk of op een lettergreep-chip: de lus
+  speelt anderhalve seconde zoals ZANG hem aanhoudt (heen en weer door de
+  kern, dezelfde grains als de kern), op de gesproken toonhoogte.
 
 ### fw 0.5.93 — Review-fixes: verdwenen kabels, dubbele ids, Brass, VCO, audio-fan-in; sim: parkeerpool (2026-09-30)
 Aanleiding: de externe review

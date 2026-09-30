@@ -29,6 +29,8 @@ export interface SyllableEditorProps {
   onChange(spans: Span[]): void;
   /** De groene balk (lus) van lettergreep `index` is versleept: nieuwe grenzen in frames van de opname. */
   onSustainChange?(index: number, start: number, end: number): void;
+  /** Klik óp de groene balk (niet aan een uiteinde): de lus laten horen. */
+  onPlayLoop?(index: number): void;
   onPlay(start: number, end: number): void;
 }
 
@@ -249,6 +251,11 @@ export function SyllableEditor(p: SyllableEditorProps): JSX.Element {
           setLive(null);
           if (d) return;                                   // klik óp een grens: niets afspelen
           const f = toFrame(xOf(e));
+          // Klik op de groene balk: de lus horen zoals ZANG hem aanhoudt.
+          if (p.onPlayLoop && yOf(e) >= HEIGHT - SUS_H) {
+            const k = (p.sustain ?? []).findIndex((sus) => sus && f >= sus.start && f <= sus.end);
+            if (k >= 0) { p.onPlayLoop(k); return; }
+          }
           const s = spans.find((sp) => f >= sp.start && f < sp.end);
           if (s) p.onPlay(s.start, s.end);
         }}

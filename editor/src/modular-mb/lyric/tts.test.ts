@@ -129,3 +129,67 @@ describe('lyric/SyllableEditor: grenzen verschuiven', () => {
     expect(mergeAt(spans, edgesOf(spans)[2]!)).toBe(spans);                     // geen gedeelde grens
   });
 });
+
+describe('lyric/preview: de lus laten horen', () => {
+  it('houdt de klinker zo lang als gevraagd, zonder klikken op de naden', async () => {
+    const { analyzeRecording, LYRIC_RATE: R } = await import('./analyze');
+    const { renderSustainLoop } = await import('./preview');
+    // dezelfde synthetische klinker als in lyric.test.ts, kort en zonder ruis
+    const n = Math.round(0.35 * R);
+    const src = new Float32Array(n);
+    let phase = 0;
+    for (let i = 0; i < n; i++) { phase += 120 / R; if (phase >= 1) { phase -= 1; src[i] = 1; } }
+    const y = new Float32Array(n);
+    let y1 = 0, y2 = 0;
+    const r = Math.exp((-Math.PI * 90) / R), a1 = 2 * r * Math.cos((2 * Math.PI * 700) / R), a2 = -r * r;
+    for (let i = 0; i < n; i++) { const v = src[i]! + a1 * y1 + a2 * y2; y[i] = v * 0.05; y2 = y1; y1 = v; }
+    const syl = analyzeRecording(y, R, { syllables: ['a'] })[0]!;
+    expect(syl.sustainEnd).toBeGreaterThan(syl.sustainStart);
+    const out = renderSustainLoop(syl, 1.0);
+    expect(out.length).toBeGreaterThan(1.0 * R);
+    expect(out.length).toBeLessThan(1.6 * R);
+    // geen sprongen: het grootste verschil tussen twee samples blijft klein
+    let maxJump = 0, peak = 0;
+    for (let i = 1; i < out.length; i++) { maxJump = Math.max(maxJump, Math.abs(out[i]! - out[i - 1]!)); peak = Math.max(peak, Math.abs(out[i]!)); }
+    expect(peak).toBeGreaterThan(0.01);
+    expect(maxJump).toBeLessThan(peak * 0.6);
+  });
+});
+
+describe('lyric/LyricModal: een bank opnieuw openen', () => {
+  it('wordt weer opnames per woord, met dezelfde grenzen en lussen, en schrijft dezelfde bank terug', async () => {
+    const { analyzeRecording, LYRIC_RATE: R } = await import('./analyze');
+    const { buildLyricBank, fromAnalysis, parseLyricBank } = await import('./lyricBank');
+    const { takesFromBank } = await import('./LyricModal');
+    // twee woorden: "aa" en "aa-aa" (klinkers met stilte ertussen)
+    const vowel = (secs: number): Float32Array => {
+      const n = Math.round(secs * R), out = new Float32Array(n);
+      let phase = 0, y1 = 0, y2 = 0;
+      const r = Math.exp((-Math.PI * 90) / R), a1 = 2 * r * Math.cos((2 * Math.PI * 700) / R), a2 = -r * r;
+      for (let i = 0; i < n; i++) {
+        phase += 120 / R; let x = 0; if (phase >= 1) { phase -= 1; x = 1; }
+        const v = x + a1 * y1 + a2 * y2; out[i] = v * 0.05; y2 = y1; y1 = v;
+      }
+      return out;
+    };
+    const gap = new Float32Array(Math.round(0.3 * R));
+    const x = new Float32Array([...gap, ...vowel(0.3), ...gap, ...vowel(0.25), ...vowel(0.25), ...gap]);
+    const syl = analyzeRecording(x, R, { syllables: ['aa', 'ba', 'ka'] });
+    expect(syl.length).toBe(3);
+    const bank = fromAnalysis('Test', syl);
+    const takes = takesFromBank(parseLyricBank(buildLyricBank(bank)), 1);
+    expect(takes.length).toBe(2);                                    // "aa" en "ba-ka"
+    expect(takes[0]!.text).toBe('aa');
+    expect(takes[1]!.text).toBe('ba-ka');
+    expect(takes[1]!.spans!.length).toBe(2);
+    expect(takes[1]!.origin).toBe('bank');
+    // de lus uit de bank is overgenomen, en het geheel is weer een bank van drie lettergrepen
+    const again = fromAnalysis('Test', takes.flatMap((t) => t.syllables));
+    expect(again.syllables.length).toBe(3);
+    again.syllables.forEach((s, i) => {
+      expect(s.data.length).toBe(bank.syllables[i]!.data.length);
+      expect(s.text).toBe(bank.syllables[i]!.text);
+      expect(s.sustainEnd > s.sustainStart).toBe(bank.syllables[i]!.sustainEnd > bank.syllables[i]!.sustainStart);
+    });
+  });
+});
