@@ -50,12 +50,15 @@ Geen opname, lyricbank of extra hardware nodig. Start audio in Simulatie.
 |---|---|
 | Vowel | Continue A-E-I-O-U-morf, onafhankelijk van toonhoogte |
 | Voice | Korte/heldere naar langere/zachtere glottale sluiting; default 0,35 |
+| Vel-ingang | Aanslagsterkte 0-1 stuurt volume en fonatie; automatisch vanuit MIDI in nieuwe seeds |
 | Tone / Breath | Formantbreedte / pulsgebonden aspiratie |
 | Vibrato / Level | Vibratodiepte / uitgangsniveau |
 
 De gedeelde C++-kern draait in WASM en op Teensy. Dit is een experimentele
 formantstem met een vereenvoudigde glottale bron, geen volledige CHANT- of
-LF-reconstructie. Herlaad en maak de seed opnieuw voor het uitgebreide paneel.
+LF-reconstructie. Herlaad en maak de seed opnieuw voor het uitgebreide paneel;
+oude FOF-definities worden daarbij vernieuwd zonder bestaande patches te wissen.
+Zacht/hard vergelijken kan met een aanslaggevoelig MIDI-klavier of CV op `Vel`.
 Zie [proefinstructies, tests en vervolgstappen](../doc/plans/stem-als-instrument.md).
 
 ### Material Bridge

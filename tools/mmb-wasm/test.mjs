@@ -82,9 +82,11 @@ function rms(samples) {
 }
 
 async function checkFof(file) {
-  const makeVoice = async (frequency, vowel, phonation, tone = 0.5) => {
+  const makeVoice = async (frequency, vowel, phonation, tone = 0.5, velocity) => {
     const module = await load(file);
     assert(module.controls.some(control => control.id === 'voice'), 'FOF: Voice control missing');
+    assert(module.inputs.some(input => input.id === 'vel'), 'FOF: velocity input missing');
+    if (velocity !== undefined) module.setIn('vel', velocity);
     module.setCtl('breath', 0);
     module.setCtl('vibrato', 0);
     module.setCtl('voice', phonation);
@@ -119,6 +121,24 @@ async function checkFof(file) {
     return difference / samples.length / rms(samples) ** 2;
   };
   assert(brightness(closed) > brightness(open) * 1.1, 'FOF: Voice must change spectral tilt, not just level');
+  const unpatched = captureFof(await makeVoice(220, 0, 0.35), 0.2);
+  const loud = captureFof(await makeVoice(220, 0, 0.35, 0.5, 1), 0.2);
+  const soft = captureFof(await makeVoice(220, 0, 0.35, 0.5, 0.25), 0.2);
+  assert.deepEqual(unpatched, loud, 'FOF: unconnected velocity must preserve the old sound');
+  assert(rms(loud) > rms(soft) * 1.5, 'FOF: soft playing must reduce volume');
+  const softRms = rms(soft), loudRms = rms(loud);
+  const shapeDifference = soft.reduce((sum, sample, index) => sum + (sample / softRms - loud[index] / loudRms) ** 2, 0) / soft.length;
+  assert(shapeDifference > 0.01, 'FOF: velocity must change timbre, not just volume');
+  assert.equal(rms(captureFof(await makeVoice(220, 0, 0.35, 0.5, -10), 0.1)), 0, 'FOF: negative velocity must clamp to silence');
+  assert.deepEqual(captureFof(await makeVoice(220, 0, 0.35, 0.5, 10), 0.2), loud, 'FOF: velocity above one must clamp');
+  const releasedZero = await makeVoice(220, 0, 0.35, 0.5, 0.4);
+  const releasedHeld = await makeVoice(220, 0, 0.35, 0.5, 0.4);
+  releasedZero.setIn('gate', 0);
+  releasedHeld.setIn('gate', 0);
+  releasedZero.setIn('vel', 0);
+  const tail = captureFof(releasedZero, 0.1);
+  assert(rms(tail) > 0.0001, 'FOF: note-off must not cut the tail');
+  assert.deepEqual(tail, captureFof(releasedHeld, 0.1), 'FOF: note-off velocity must not change the release');
   const release = await makeVoice(220, 0.25, 0.35);
   const held = rms(captureFof(release, 0.1));
   release.setIn('gate', 0);
@@ -143,7 +163,7 @@ async function checkFof(file) {
       }
     }
   }
-  console.log('FOF regression: 45 pitch/vowel/Voice cases, spectral tilt, release/retrigger/mute and 8 extreme cases passed.');
+  console.log('FOF regression: 45 pitch/vowel/Voice cases, spectral tilt, velocity volume/timbre/default/clamps/note-off, release/retrigger/mute and 8 extreme cases passed.');
 }
 
 const only = process.argv[2];

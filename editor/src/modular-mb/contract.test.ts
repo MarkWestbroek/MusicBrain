@@ -104,6 +104,25 @@ function allSeededProject(): ModularProject {
 }
 
 const project = allSeededProject();
+it('FOF solo vernieuwt een oud poortcontract zonder bestaande patches te wijzigen', () => {
+  const original = seedSoloVoicePatch(emptyModularProject(), 'tp_mmb_fof', 'Oude FOF', 'out', 'out', { voice: 0.8 });
+  const legacy = {
+    ...original,
+    moduleTypes: original.moduleTypes.map((type) => type.id === 'tp_mmb_fof'
+      ? { ...type, ports: type.ports.filter((port) => port.id !== 'vel') } : type),
+  };
+  const upgraded = seedSoloVoicePatch(legacy, 'tp_mmb_fof', 'Nieuwe FOF', 'out', 'out');
+  expect(upgraded.moduleTypes.find((type) => type.id === 'tp_mmb_fof')!.ports.map((port) => port.id)).toContain('vel');
+  expect(upgraded.patches.slice(0, -1)).toEqual(original.patches);
+});
+
+it('FOF solo verbindt pitch, gate, velocity en mono naar beide uitgangen', () => {
+  const patch = project.patches.find((item) => item.name === 'FOF Stem solo')!;
+  expect(patch.connections.map((connection) => [connection.from.portId, connection.to.portId])).toEqual([
+    ['pitch', 'voct'], ['gate', 'gate'], ['vel', 'vel'], ['out', 'l'], ['out', 'r'],
+  ]);
+});
+
 it('Material Bridge solo verbindt pitch, gate, velocity en beide pickups', () => {
   const patch = project.patches.find((item) => item.name === 'Material Bridge solo')!;
   expect(patch.connections.map((connection) => [connection.from.portId, connection.to.portId])).toEqual([

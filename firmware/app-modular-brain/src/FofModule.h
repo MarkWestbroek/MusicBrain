@@ -17,6 +17,7 @@ public:
 
     void setFrequency(float hz) { voice_.setFrequency(hz); }
     void setGate(bool high) { voice_.setGate(high && active_); }
+    void setVelocity(float value) { voice_.setVelocity(value); }
     void setVowel(float value) { voice_.setVowel(value); }
     void setVoice(float value) { voice_.setVoice(value); }
     void setTone(float value) { voice_.setTone(value); }
@@ -57,7 +58,7 @@ public:
     }
     PortKind inputPortKind(std::string_view portId) const override {
         if (portId == "gate") return PortKind::Gate;
-        if (portId == "voct" || portId == "vowel" || portId == "breath") return PortKind::Cv;
+        if (portId == "voct" || portId == "vowel" || portId == "breath" || portId == "vel") return PortKind::Cv;
         return PortKind::None;
     }
 
@@ -67,6 +68,8 @@ public:
         } else if (portId == "gate") {
             gate_ = value >= 0.5f;
             stream_.setGate(gate_);
+        } else if (portId == "vel") {
+            stream_.setVelocity(clamp01(value));
         } else if (portId == "vowel") {
             vowelCv_ = value;
             stream_.setVowel(clamp01(vowel_ + vowelCv_) * 4.0f);

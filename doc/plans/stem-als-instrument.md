@@ -36,12 +36,18 @@ articulatiescore.
   De standaardstand is 0,35; vergelijk ook op gelijk ervaren volume.
 6. Voeg daarna `Breath` toe: de ruis ademt nu mee met de glottale opening.
   Probeer `Tone` en `Vibrato` en houd noten aan tijdens de klinkermorf.
+7. Speel dezelfde noot zacht en hard op een aanslaggevoelig MIDI-klavier.
+  Nieuwe FOF-seeds verbinden velocity automatisch met `Vel`: zacht spelen
+  verlaagt het volume en maakt de glottissluiting zachter. Een schermklavier
+  met vaste velocity laat dit verschil niet horen; patch dan zelf een CV.
 
 Bij een bestaande patch: herlaad de editor en maak opnieuw de FOF-mono-seed
-om ook de nieuwe `Voice`-knop in het paneel te krijgen. Bestaande patches zonder
+om ook de nieuwe `Voice`-knop en `Vel`-poort in het paneel te krijgen. De seed
+vernieuwt verouderde FOF-definities via het bestaande interne upgradepad;
+bestaande patches en controlwaarden blijven behouden. Bestaande patches zonder
 opgeslagen `voice`-waarde gebruiken de DSP-default van 0,35.
 
-Los patchen kan ook. Ingangen zijn `voct`, `gate`, `vowel` en `breath`; uitgang
+Los patchen kan ook. Ingangen zijn `voct`, `gate`, `vowel`, `breath` en `vel`; uitgang
 is mono `out`. `Vowel`- en `Breath`-CV tellen op bij hun knop. Een LFO of
 envelope naar `vowel` maakt articulatiebeweging; velocity of een
 ademcontroller naar `breath` maakt de inzet luchtiger. `Vibrato` loopt op
@@ -89,6 +95,34 @@ productiebuild en alle 175 huidige contracttests slagen. Ook de tweede versie
 is volledig voor Teensy gebouwd: 57.024 bytes vrije RAM1 en 269.408 bytes
 vrije RAM2 voor heap/new in de huidige workspace-build. Er is niet geflasht;
 fysieke luisterproef en CPU-profiling blijven open.
+
+### Derde stap: velocity en aanslagexpressie (2026-10-01)
+
+De `vel`-ingang verwacht 0-1. Bij open gate is velocity het doel van de
+amplitude-envelope. Lagere velocity schuift daarnaast de glottale bron
+richting een langere, zachtere sluiting: effectief
+`Voice = clamp(knop + 0.3 * (1 - velocity), 0, 1)`. Dit is een eenvoudige
+muzikale koppeling, geen gekalibreerd model van ademdruk. Toonhoogte en
+klinkertabellen veranderen niet. Een continue CV kan dezelfde ingang als
+expressiebesturing gebruiken zolang de gate open is.
+
+Tijdens release blijft de laatste fonatie behouden. Velocity die bij
+MIDI-note-off naar nul gaat kapt de amplitude-envelope dus niet af en
+verandert de uitklank niet. Een nieuwe ongepatchte stem gebruikt velocity 1
+en produceert exact de eerdere golfvorm; waarden buiten 0-1 worden begrensd.
+
+De bestaande WASM-test toetst nu ook zacht/hard-volume, genormaliseerd
+klankverschil, sample-exacte ongepatchte compatibiliteit, begrenzing en
+sample-exact behoud van release bij velocity nul op note-off. Deze tests en
+de volledige Teensy-build slagen. De vijf gerichte editorcontracttests slagen
+met `npm --prefix editor test -- contract.test.ts -t 'FOF|tp_mmb_fof'`, inclusief
+automatische velocitybedrading en behoud van bestaande patches bij upgrade.
+De volledige workspace-controle raakte tijdens parallel werk aan Material
+Bridge tijdelijk een typefout en een onvolledig poortcontract; die wijzigingen
+zijn niet onderdeel van deze FOF-stap. Een volledige editor-typecheck op de
+exact gestagede bronnen slaagt wel (indexinhoud in geheugen, werkbestanden
+ongewijzigd). De browserproef bevestigt ook de vernieuwde zes poorten in een
+bestaand project. Niet geflasht of fysiek beluisterd.
 
 ### Bekende beperkingen en volgende stappen
 

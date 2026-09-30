@@ -29,13 +29,15 @@ public:
         envelope_ = 0.0f;
         breathLow_ = 0.0f;
         previousFlow_ = 0.0f;
-        smoothVoice_ = voice_;
+        heldVelocity_ = velocity_;
+        smoothVoice_ = clamp(voice_ + 0.3f * (1.0f - heldVelocity_), 0.0f, 1.0f);
         noiseState_ = 0x6d2b79f5u;
         for (auto& formant : formants_) { formant.y1 = 0.0f; formant.y2 = 0.0f; }
     }
 
     void setFrequency(float hz) { frequency_ = clamp(hz, 40.0f, 2000.0f); }
     void setGate(bool high) { gate_ = high; }
+    void setVelocity(float velocity) { velocity_ = clamp(velocity, 0.0f, 1.0f); }
     void setVowel(float vowel) {
         const float next = clamp(vowel, 0.0f, 4.0f);
         if (next != vowel_) { vowel_ = next; updateFormants(); }
@@ -47,9 +49,11 @@ public:
     void setLevel(float level) { level_ = clamp(level, 0.0f, 1.0f); }
 
     float process() {
-        const float envTarget = gate_ ? 1.0f : 0.0f;
+        if (gate_) heldVelocity_ = velocity_;
+        const float envTarget = gate_ ? velocity_ : 0.0f;
         envelope_ += (envTarget - envelope_) * (gate_ ? attackCoefficient_ : releaseCoefficient_);
-        smoothVoice_ += (voice_ - smoothVoice_) * voiceCoefficient_;
+        const float voiceTarget = clamp(voice_ + 0.3f * (1.0f - heldVelocity_), 0.0f, 1.0f);
+        smoothVoice_ += (voiceTarget - smoothVoice_) * voiceCoefficient_;
 
         vibratoPhase_ += 5.3f / sampleRate_;
         if (vibratoPhase_ >= 1.0f) vibratoPhase_ -= 1.0f;
@@ -153,6 +157,8 @@ private:
 
     float sampleRate_ = 44100.0f;
     float frequency_ = 261.6256f;
+    float velocity_ = 1.0f;
+    float heldVelocity_ = 1.0f;
     float vowel_ = 0.0f;
     float voice_ = 0.35f;
     float smoothVoice_ = 0.35f;
