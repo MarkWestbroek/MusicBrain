@@ -1,0 +1,22 @@
+# Controleert bij elke push/PR of lokale Markdown-links naar een bestaand
+# bestand wijzen. Zie tools/check_md_links.py; lokaal: python tools/check_md_links.py
+name: Docs linkcheck
+
+on:
+  push:
+    paths: ["**/*.md", "tools/check_md_links.py", ".github/workflows/docs-linkcheck.yml"]
+  pull_request:
+    paths: ["**/*.md", "tools/check_md_links.py", ".github/workflows/docs-linkcheck.yml"]
+  workflow_dispatch:
+
+jobs:
+  linkcheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Markdown-links controleren
+        run: python tools/check_md_links.py

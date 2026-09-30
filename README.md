@@ -100,6 +100,8 @@ development history and [release notes](doc/RELEASE-LOG.md) for later changes.
 
 ## Feature guide
 
+The generated [module catalogue](doc/module-catalogus.md) lists every internal module with ports, controls, simulator status, firmware status and the example patches that use it (regenerate with `npm run catalog` in `editor/`).
+
 The linked guides include both current behavior and dated development notes;
 some are in Dutch. Check their status and version before treating a proposal
 or an old limitation as current. A module panel is not proof that a physical

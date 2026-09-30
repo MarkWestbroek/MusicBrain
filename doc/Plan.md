@@ -1,5 +1,10 @@
 # MusicBrain – Plan & Trade‑off Analysis
 
+> **Historisch document (voorjaar 2026).** De roadmap hieronder (o.a. een
+> Python/Qt-desktopeditor) is achterhaald: de editor is een browser-app en de
+> firmware draait op Teensy 4.1. Actuele stand: [README](../README.md);
+> besluiten: [ADRs](adr/README.md); open werk: [BACKLOG](BACKLOG.md).
+
 This document elaborates on the three subprojects described in [Requirements.md](Requirements.md) and the two SysML overviews (`Overview.pdf`, `MIDI to CV.pdf`). It works out the architectural choices, weighs pros/cons, and ends with a concrete recommendation and a phased roadmap.
 
 The central insight from the SysML diagrams is that all three projects share the same skeleton:

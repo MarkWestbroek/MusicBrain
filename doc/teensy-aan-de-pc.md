@@ -68,8 +68,12 @@ cd firmware/app-modular-brain
 
 ## 3. De SD-kaart (voor de sampler)
 
-Samples gaan **niet** over de kabel — alleen DX7-banken doen dat. Een
-samplebank moet op een SD-kaart.
+> **Actueel (fw 0.5.67 en later):** een samplebank staat op de SD-kaart van de
+> Teensy, maar je hoeft de kaart er niet voor uit te halen: de editor
+> (🎹 Multisample → **⤒ naar Teensy**) en `tools/teensy-live/bank_put.py`
+> sturen hem over de kabel, zie het punt "Bank sturen" hieronder. De kaart in
+> de pc steken en het bestand zelf in `/mmb/banks/` zetten kan ook. DX7-banken
+> hebben geen SD-kaart nodig: die gaan altijd over de kabel.
 
 - De firmware gebruikt het **ingebouwde microSD-slot van de Teensy 4.1**
   (`SD.begin(BUILTIN_SDCARD)`): het metalen sleufje aan de korte kant,

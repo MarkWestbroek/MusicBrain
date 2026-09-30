@@ -205,7 +205,7 @@ S = ½–1 day, M = 1–3 days, L = 1 week+. Total: ~2 weeks of focused work for
 | [uWebSockets](https://github.com/uNetworking/uWebSockets) or cpp-httplib | sim | WebSocket server | Apache-2.0 / MIT |
 | (existing) [nlohmann/json](https://github.com/nlohmann/json) | sim | Trace records | MIT |
 
-All MIT/BSD/Apache-2.0 — compatible with our MIT licence ([ADR 0007](adr/0007-license.md)).
+All MIT/BSD/Apache-2.0 — compatible with our MIT licence ([ADR 0007](adr/0007-licensing.md)).
 
 ---
 

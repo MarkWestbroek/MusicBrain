@@ -75,7 +75,7 @@ Toets: project openen/exporteren, een klanktool openen en hardware verbinden
 hebben elk een voorspelbare plek. Veelgebruikte handelingen vereisen niet
 onnodig meer klikken dan nu.
 
-Klikbaar ontwerp: [Toolbarvergelijking](../../editor/public/toolbar-vergelijking.html).
+Klikbaar ontwerp: [Toolbarvergelijking](toolbar-vergelijking.html).
 De proef toont de huidige en voorgestelde indeling boven of naast elkaar en
 kan ook alleen het voorstel tonen. Alle bestaande acties zijn opgenomen, maar
 de knoppen veranderen bewust geen projectgegevens. Voorgestelde indeling:
@@ -167,6 +167,18 @@ blijven bereikbaar zonder permanent de volledige regel te hoeven lezen.
 - Beoordeel zowel een gangbaar desktopformaat als een breed/groot scherm.
   Een smal venster is een aanvullende controle, niet het primaire ontwerpdoel.
 - Deze taak legt alleen het voorstel vast; er zijn geen editorfuncties aangepast.
+
+## Besluit 2026-10-01 (Mark)
+
+- Voorzichtig en stap voor stap; eerst per punt het bestaande gedrag
+  controleren, dan de kleinste bruikbare wijziging.
+- **UX-02 niet als vast menu alleen.** In de testfase worden veel knoppen
+  gebruikt en die zijn nu snel bereikbaar. Gewenst: een vast, taakgericht
+  gegroepeerd menu **plus een configureerbaar snelmenu** waarin de gebruiker
+  zelf knoppen uit de menu's naar de balk kan zetten. De huidige snelle
+  bereikbaarheid mag niet verloren gaan.
+- Volgorde blijft UX-01 (zoeken in de modulevoorraad) eerst; UX-02 en UX-03
+  daarna, elk na akkoord.
 
 ## Vervolg
 

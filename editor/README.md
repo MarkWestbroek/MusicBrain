@@ -14,9 +14,10 @@ Then open http://localhost:5173.
 
 ### UX-proeven
 
-- [Toolbarvergelijking](public/toolbar-vergelijking.html): klikbare vergelijking
-  van de huidige en taakgericht gegroepeerde Modular MB-bovenbalk. De proef kan
-  beide versies boven of naast elkaar tonen en wijzigt geen projectgegevens.
+- [Toolbarvergelijking](../doc/plans/toolbar-vergelijking.html): klikbare
+  vergelijking van de huidige en taakgericht gegroepeerde Modular MB-bovenbalk
+  (hoort bij [doc/plans/editor-ux-aanbevelingen.md](../doc/plans/editor-ux-aanbevelingen.md)).
+  Staat bewust in `doc/`, niet in `public/`, zodat de proef niet mee-deployt.
 
 ## Live demo
 
@@ -45,7 +46,15 @@ Drie projectmodi via knoppen bovenin:
 | **Amp-switcher** | Placeholder — moet nog uitgewerkt worden |
 | **Poly-synth (scope)** | Live CV/gate-trace van `mb_simulator` via `tools/scope-bridge` |
 
-Device-discovery + WebSerial upload (synchroniseren met firmware) komt in Stage 7.
+Verbinding met hardware verschilt per modus:
+
+- **Modular MB**: de Teensy-link (knop **Teensy**) werkt via WebSerial (Chrome/
+  Edge): patch/config naar de Teensy, DX7-/sample-/lyricbanken uploaden,
+  firmware-release downloaden en de versie van het verbonden apparaat zien.
+  Zie [doc/teensy-aan-de-pc.md](../doc/teensy-aan-de-pc.md).
+- **Effect-switcher**: offline editor; sync met de ESP32-hardware is nog niet
+  gebouwd (zie "Toekomst" hieronder).
+- **Amp-switcher**: placeholder, geen verbinding.
 
 ### FOF Singing Voice
 
@@ -205,17 +214,18 @@ Op de Chain-tab: selecteer een apparaat → rechts paneel → **Uploaden**. Het 
 - Plaatje ophalen van internet via merk+model lookup
 - MIDI-out per patch (CC-berichten meesturen om bv. echo-tijd te zetten)
 - Bank-systeem voor >128 patches
-- Sync met firmware via WebSerial / HTTP (Stage 7) — zie ook
+- Sync met firmware via WebSerial / HTTP (in het oude plan "Stage 7") — zie ook
   [`firmware/app-effect-switcher/esp32/`](../firmware/app-effect-switcher/esp32/README.md)
-  voor de ESP32-doelhardware met REST-API.
+  voor de ESP32-doelhardware met REST-API. Alleen Modular MB heeft nu een
+  werkende link (zie "Status").
 
 ## Connecting to a device
 
-Two transports, both will speak the same JSON-RPC schema (`doc/protocols/schemas/api.jsonrpc.v1.json`, TBD):
+Transports per project (the shared JSON-RPC schema `doc/protocols/schemas/api.jsonrpc.v1.json` is still a plan; Modular MB speaks JSON lines over USB-CDC today):
 
 | Transport | When | How |
 |---|---|---|
-| **WebSerial** (USB-CDC) | All projects, no extra hardware | Browser API; works in Chromium-based browsers. |
+| **WebSerial** (USB-CDC) | Modular MB: working (Teensy link). Other projects: planned. | Browser API; works in Chromium-based browsers. |
 | **WebSocket** (via ESP32 side car) | Project 3 on stage / from tablet | mDNS-discovered `musicbrain.local`. |
 | **Plain HTTP/REST** (ESP32 effect-switcher) | Project 1 op stage / vanaf tablet | mDNS `musicbrain.local`, eindpunten `GET/PUT /api/config`, `POST /api/patch/<id>`. Zie [esp32/README.md](../firmware/app-effect-switcher/esp32/README.md). |
 

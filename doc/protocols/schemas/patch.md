@@ -5,7 +5,7 @@ Core-level (application-agnostic) representation of one preset, as produced by
 opaque to the core (it can be CBOR, raw bytes, or anything else the app
 defines).
 
-See [ADR 0005 — Patch format JSON in editor, CBOR on device](../../adr/0005-patch-format-json-cbor.md).
+See [ADR 0005 — Patch format JSON in editor, CBOR on device](../../adr/0005-patch-storage-format.md).
 
 ---
 

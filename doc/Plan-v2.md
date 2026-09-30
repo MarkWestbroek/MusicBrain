@@ -1,5 +1,10 @@
 # MusicBrain — Updated Plan (v2)
 
+> **Historisch document (momentopname 17 mei 2026).** De stappen hieronder zijn
+> grotendeels uitgevoerd of ingehaald. Actuele stand: [README](../README.md);
+> wat er per versie bijkwam: [RELEASE-LOG](RELEASE-LOG.md); open werk:
+> [BACKLOG](BACKLOG.md).
+
 > Successor to [Plan.md](Plan.md). The original plan was written *before* you answered the eight open questions; this version bakes the decisions in (see [doc/adr/](adr/)) and translates them into a concrete, step-by-step engineering plan.
 
 ---
@@ -19,10 +24,10 @@
 | Project 1 UI | Minimal LCD on-stage + remote editor | [0003](adr/0003-project1-ui.md) |
 | Pitch DAC | 16-bit (DAC8568) | [0004](adr/0004-dac-resolution.md), [tech/dac-comparison.md](tech/dac-comparison.md) |
 | Other CVs | 12-bit (MCP4922) + S&H + CD4051 | [0004](adr/0004-dac-resolution.md), [tech/dac-sh-mux.md](tech/dac-sh-mux.md) |
-| Patch format | JSON in git/editor; CBOR on device | [0005](adr/0005-patch-format.md) |
+| Patch format | JSON in git/editor; CBOR on device | [0005](adr/0005-patch-storage-format.md) |
 | Inter-case transport | CAN-FD primary, RS-485 fallback | [0006](adr/0006-multi-case-transport.md) |
 | In-case transport | SPI with custom 62-byte frame | [protocols/spi-frame.md](protocols/spi-frame.md) |
-| License | MIT | [0007](adr/0007-license.md) |
+| License | MIT | [0007](adr/0007-licensing.md) |
 | Latency budget (project 3) | ≤ 5 ms note-on → CV settle | [0008](adr/0008-latency-and-interpolation.md) |
 | Interpolation | 20–50 kHz per-breakout interpolator | [0008](adr/0008-latency-and-interpolation.md) |
 

@@ -215,6 +215,16 @@ Details en de CC-map: [`snaarbank-testlab.md`](snaarbank-testlab.md) en
 
 ## 7. Wat nog open staat
 
+> **Actueel (2026-10-01):** de lijst hieronder is van september 2026 en
+> grotendeels ingehaald. Sampler en tape echo zitten in de firmware en zijn
+> op de Teensy gemeten (sampler met SD-streaming, fw 0.5.66/0.5.67; tape echo
+> in het contract sinds de wasm-stap, de effectenbatches fw 0.5.71/0.5.72
+> voegden de stereo-variant toe). De simulator is polyfoon (ED-SM-3,
+> 2026-09-06) en sinds [parity-stap 6](sim-firmware-parity-plan.md)
+> (2026-09-24) draaien álle interne modules als wasm, dus de Tone-ADSR/
+> Tone-VCO-grens bestaat niet meer. Wat nog open is staat in de
+> [backlog](BACKLOG.md) onder ED-SM.
+
 - **Firmware niet op hardware gebouwd**: tape echo en sampler
   (`SD.begin(BUILTIN_SDCARD)`, `extmem_malloc`, `/mmb/banks/NN.mmbs`) wachten op
   een Teensy met toolchain.
