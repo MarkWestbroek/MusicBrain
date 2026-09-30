@@ -10,6 +10,7 @@ import {
   type ModularProject,
   emptyModularProject,
   migrateProject,
+  pruneOrphanGroups,
 } from './types';
 import { trackSaved } from './recipe/saved';
 
@@ -62,7 +63,7 @@ export function getProject(): ModularProject { return current; }
  *  Reset the undo/redo history (load = nieuw uitgangspunt). */
 export function setProject(next: ModularProject | unknown): boolean {
   if (next && typeof next === 'object' && (next as { version?: unknown }).version === 2) {
-    current = next as ModularProject;
+    current = pruneOrphanGroups(next as ModularProject).project;
     past.length = 0; future.length = 0; lastPushAt = 0;
     emit();
     return true;

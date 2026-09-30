@@ -943,11 +943,44 @@ export function migrateProject(input: unknown): ModularProject | null {
   return null;
 }
 
+/**
+ * Voice-groepen opruimen die naar verdwenen modules wijzen. Zo'n groep
+ * ontstond bijvoorbeeld als modules eerst uit hun rackslot en daarna als
+ * "losse module" uit het project werden gehaald: de groep bleef staan en
+ * verscheen als extra "Vibe × 8" zonder werking.
+ *   - een lid (module of cel) waarvan de module niet meer bestaat, gaat eruit;
+ *   - een groep die daarna minder dan twee leden heeft, verdwijnt;
+ *   - houdt een groep er minder over, dan volgt zijn stemmental.
+ * Geeft ook terug hoeveel groepen en leden er weg zijn (0/0 = niets te doen,
+ * en dan is `project` hetzelfde object).
+ */
+export function pruneOrphanGroups(p: ModularProject): { project: ModularProject; groups: number; members: number } {
+  const alive = new Set(p.modules.map((m) => m.id));
+  let groups = 0, members = 0;
+  const racks = p.racks.map((r) => {
+    if (!r.polyGroups?.length) return r;
+    let changed = false;
+    const kept: PolyGroup[] = [];
+    for (const g of r.polyGroups) {
+      const left = g.members.filter((m) => alive.has(m.moduleId));
+      if (left.length === g.members.length) { kept.push(g); continue; }
+      changed = true;
+      members += g.members.length - left.length;
+      if (left.length < 2) { groups++; continue; }
+      kept.push({ ...g, members: left, voiceCount: Math.min(g.voiceCount, left.length) });
+    }
+    return changed ? { ...r, polyGroups: kept } : r;
+  });
+  return groups || members ? { project: { ...p, racks }, groups, members } : { project: p, groups: 0, members: 0 };
+}
+
 /** Repair a v2 project loaded from older snapshots:
  *  - fills `Patch.rackIds` from legacy `rackId`
  *  - geeft een patch zonder rack er één
- *  - haalt het prototype-rack weg waar het niet gebruikt wordt  */
+ *  - haalt het prototype-rack weg waar het niet gebruikt wordt
+ *  - ruimt voice-groepen op die naar verdwenen modules wijzen  */
 function normaliseV2(p: ModularProject): ModularProject {
+  p = pruneOrphanGroups(p).project;
   const internalRack = p.racks.find((r) => r.kind === 'internal');
   // Het interne rack is de catalogus: één prototype per moduletype. Stond het
   // in een patch, dan tekende de patcher ze allemaal.

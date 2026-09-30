@@ -111,7 +111,15 @@ De rechtsklik-werkwoorden werken op een bestaande patch en horen bij dezelfde
 laag:
 
 - **Vervang module door …** Poorten worden op rol gemapt (pitch, gate, audio
-  in/uit, cv). Bij een poly-groep wordt de hele groep vervangen.
+  in/uit, cv). Bij een poly-groep wordt de hele groep vervangen. Gebruiken
+  andere patches op hetzelfde rack de module ook, dan vraagt de editor eerst
+  hoe ver het moet reiken (zie "Vervangen en verwijderen in een gedeeld
+  rack" hieronder).
+- **Verwijder module (audio doorverbinden).** Idem: bij een gedeelde module
+  eerst de vraag.
+- **Ga naar rack.** Opent het Rack-tabblad met het rack van de module actief
+  en de module geselecteerd. Layout (verschuiven, aansluiten) hoort in het
+  rack, want dat wordt door meer patches gedeeld.
 - **Maak ×N poly / terug naar mono.** De stemketen is grafisch bepaalbaar:
   alles wat bereikbaar is vanaf de voice-poorten van MIDI-in en vóór de
   mixer ligt. Die keten wordt N keer gekloond en in poly-groepen gezet.
@@ -171,6 +179,32 @@ oplevert. Omzetten van de seeds naar recepten kan later.
   module-id, mapt poorten op rol (audio in/uit, voct, gate, vel, tune, cv,
   modulation, strength) en daarna op gelijke id; onmapbare kabels vervallen
   met een waarschuwing. Een lid van een poly-groep vervangt de hele groep.
+  Wordt de nieuwe module breder, dan schuift de rest van de rij op (geen
+  overlap; het rack groeit mee).
+- **Vervangen en verwijderen in een gedeeld rack** (2026-09-30). Een rack
+  wordt vaak door meer patches gebruikt; vervangen op dezelfde id
+  veranderde dan álle patches (een FET-comp werd overal een Rotary).
+  `replaceModule(…, scope)` en `removeModule(…, scope)`:
+  - `otherPatchesUsing()` = andere patches die de module (of zijn
+    poly-groep) bekabelen. Is die lijst leeg, dan geen vraag.
+  - Rechtsklik vraagt anders eerst (venster `ReplaceScopeDialog`):
+    **Alleen in/uit deze patch**, **Nieuw rack voor deze patch** en — alleen
+    bij vervangen — **Overal vervangen** (bewust, bijv. een upgrade). Uit
+    andere patches verwijderen kan nooit.
+  - *Alleen in deze patch* (vervangen): deze patch krijgt een eigen kopie
+    van de module (of de hele poly-groep), **direct rechts naast het
+    origineel** in dezelfde rij; de rest schuift op. Alleen de kabels en
+    knoppen van deze patch gaan naar de kopie, die daarna wordt vervangen.
+  - *Nieuw rack voor deze patch*: een kopie van het hele rack (nieuwe
+    module-id's), de patch wijst voortaan daarheen; de andere patches
+    houden het oude rack.
+  - Commandoregel, AI en MCP kunnen niet vragen: `scope: 'auto'` = *alleen
+    in deze patch* als anderen de module gebruiken, anders overal. De
+    MCP-tool `replace_module` heeft een optionele `scope`.
+  - Gaat een module echt uit het rack, dan **sluit het gat**: de modules
+    rechts ervan schuiven met zijn breedte naar links (ook voor
+    meegenomen modulatiebronnen); bestaande tussenruimtes elders blijven.
+  - Tests: `recipe/replaceScope.test.ts`, `recipe/replaceDialog.test.tsx`.
 - **×N poly.** Bij een mono patch is de stemketen alles wat vooruit
   bereikbaar is vanaf de voice-poorten van de event-source, tot aan een
   sommerende sink (mixer) of OUT. Followers komen in rij master+v; een
@@ -233,6 +267,16 @@ uit, puur programmatisch (besluit 2026-09-24: geen AI in de beslissing).
 - **Rapport eerst.** Knop "🧹 Optimaliseer racks…" in de Patches-tab toont
   het plan met vinkjes en de overgeslagen paren met reden; Toepassen is één
   undo-stap. Als tools: `analyze_racks` en `optimize_racks` (ook via MCP).
+- **Lege voice-groepen** (2026-09-30). Een poly-groep die naar verdwenen
+  modules wijst doet niets en verscheen als extra "× N" in de patcher (bij
+  Mark: een tweede "Vibe × 8"). Oorzaak: modules eerst uit hun rackslot
+  gehaald (Rack-tab), daarna als losse modules verwijderd — de groep bleef.
+  `pruneOrphanGroups()` (types.ts): leden van verdwenen modules eruit, een
+  groep met minder dan twee leden weg, anders volgt het stemmental. Draait
+  **automatisch bij het laden** (`normaliseV2`, en in `setProject` voor een
+  v2-bestand), in de bezem als actie **"lege voice-groepen opruimen"**
+  (zichtbaar in het rapport), en na "losse modules verwijderen", zodat daar
+  geen nieuwe achterblijven. Tests: `recipe/pruneGroups.test.ts`.
 
 Open: een recept meteen in een bestaand rack bouwen (nu: bouwen en daarna
 optimaliseren).

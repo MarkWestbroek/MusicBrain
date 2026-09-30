@@ -248,6 +248,37 @@ Drie zichten op één rack in de Patcher: **A**, **B**, **Morph**.
   morph (aftertouch per toets) is een latere uitbreiding met een MORPH in
   de poly-groep.
 
+### Zoals gebouwd (ED-MORPH-2, stand 2026-09-30)
+
+Het ontwerp hierboven (knoppen in de morph bevroren) is in de eerste versie
+losser uitgevallen; zo werkt het nu:
+
+- **MORPH-paneel** boven de graph (horizontaal): de knoppen **A · naam** en
+  **B · naam** zetten de schuif helemaal links/rechts — je blijft in de
+  morph (vroeger sprongen ze naar patch A/B). **Dubbelklik op de schuif** =
+  het midden (streepje op de balk), zoals een pan in Logic; de ½-knop is weg.
+- **Knoppen in de morph zijn te draaien**, maar dat verandert alleen de
+  morph-patch: A en B veranderen **nooit vanzelf** (de bron ongemerkt
+  aanpassen is juist niet de bedoeling). Het paneel meldt "N knoppen
+  gewijzigd — niet bewaard"; een schuifbeweging rekent opnieuw.
+- **Bewaar ▾** staat bij een morph bovenaan op de plek van "Bewaar als…".
+  Alles is een bewuste keuze:
+  - **Bewaar in A / in B** (met bevestiging): de knopstanden van de huidige
+    stand worden A (of B); kabels blijven. Daarna is A bewaard en gaat de
+    schuif naar A, zodat je hoort wat je bewaarde.
+  - **Als nieuwe patch…** (naam): de huidige stand als gewone patch, met de
+    kabels die op de Teensy ook aan staan (gewicht ≥ 0,5).
+  - **Als nieuwe patch, en zet hem op A / op B**: idem, en de morph loopt
+    voortaan tussen de nieuwe patch en de andere kant (de oude blijft).
+- Op de uiteinden is de morph **exact** A of B (`morphControlValue` geeft
+  bij t = 0/1 de waarde zelf, geen taper-afrondingsrest).
+- Een knop die maar in één patch is opgeslagen, telt aan de andere kant als
+  zijn **standaardwaarde** (anders bleef hij op elke stand de waarde van A
+  houden; gevonden bij een sampler-auto-wah).
+- Code: `recipe/MorphPanel.tsx` (`MorphPanel`, `MorphSaveMenu`,
+  `saveMorphInto`, `saveMorphAsNew`, `morphEdits`); tests in
+  `recipe/morph.test.ts`.
+
 ## Fasering
 
 | Ticket | Wat | Afhankelijk van |

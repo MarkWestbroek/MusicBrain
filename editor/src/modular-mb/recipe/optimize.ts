@@ -20,6 +20,7 @@
 // Verschillend stemmental (poly-groepen) = nooit samenvoegen.
 
 import type { ModularProject, ModuleInstance, Patch, PolyGroup, Rack, RackSlot } from '../types';
+import { pruneOrphanGroups } from '../types';
 import { uid } from '../store';
 import { shortName } from './catalog';
 import { RecipeError } from './types';
@@ -34,6 +35,7 @@ export type OptimizeAction = (
   | { kind: 'removeModules'; moduleIds: string[]; label: string; detail: string }
   | { kind: 'removePatch';   patchId: string;   label: string; detail: string }
   | { kind: 'mergeRacks';    into: string; from: string; diff: number; label: string; detail: string }
+  | { kind: 'pruneGroups';   label: string; detail: string }
 ) & {
   /** Staat in het rapport standaard uit (bijna-duplicaat: alleen knopstanden verschillen). */
   defaultOff?: boolean;
@@ -345,6 +347,17 @@ export function analyzeProject(project: ModularProject, opts: OptimizeOptions = 
     actions.push({ kind: 'removeModules', moduleIds: orphanMods, label: `${orphanMods.length} losse modules verwijderen`,
       detail: 'Modules die in geen enkel rack meer staan.' });
   }
+  // Voice-groepen die naar verdwenen modules wijzen (ook na het weghalen van
+  // de losse modules hierboven).
+  {
+    const gone = new Set(orphanMods);
+    const probe = pruneOrphanGroups({ ...p, modules: p.modules.filter((m) => !gone.has(m.id)) });
+    if (probe.groups || probe.members) {
+      actions.push({ kind: 'pruneGroups',
+        label: `${probe.groups} lege voice-groep${probe.groups === 1 ? '' : 'en'} opruimen`,
+        detail: `Voice-groepen die naar verdwenen modules wijzen (${probe.members} leden); ze doen niets en verschijnen alleen als extra "× N".` });
+    }
+  }
   for (const x of p.patches) {
     if (x.connections.length === 0) {
       actions.push({ kind: 'removePatch', patchId: x.id, label: `Lege patch "${x.name}" verwijderen`, detail: 'Geen kabels.' });
@@ -394,6 +407,7 @@ export function analyzeProject(project: ModularProject, opts: OptimizeOptions = 
     n('mergeRacks') ? `${n('mergeRacks')} racks samenvoegen` : null,
     n('removeRack') ? `${n('removeRack')} racks zonder patch` : null,
     n('removeModules') ? 'losse modules' : null,
+    n('pruneGroups') ? 'lege voice-groepen' : null,
     n('removePatch') ? `${n('removePatch')} lege patches` : null,
   ].filter(Boolean);
   return { actions, skipped, summary: parts.length ? parts.join(' · ') : 'Niets te optimaliseren.' };
@@ -422,7 +436,15 @@ export function applyActions(project: ModularProject, actions: OptimizeAction[])
               patches: p.patches.map((x) => ({ ...x,
                 connections: x.connections.filter((c) => !ids.has(c.from.moduleId) && !ids.has(c.to.moduleId)),
                 controlState: Object.fromEntries(Object.entries(x.controlState).filter(([id]) => !ids.has(id))) })) };
+        // Ook uit hun voice-groep, anders blijft er een groep naar niets staan.
+        p = pruneOrphanGroups(p).project;
         done.push(`${a.moduleIds.length} losse modules weg`);
+        break;
+      }
+      case 'pruneGroups': {
+        const r = pruneOrphanGroups(p);
+        p = r.project;
+        if (r.groups || r.members) done.push(`${r.groups} lege voice-groep${r.groups === 1 ? '' : 'en'} opgeruimd`);
         break;
       }
       case 'removePatch':
