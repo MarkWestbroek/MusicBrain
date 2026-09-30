@@ -370,7 +370,15 @@ dispatcher niet. Nu ook niet meer in de simulator:
    zo'n module niets.
 5. **Twee kabels op één cv/gate-ingang**: de laatste verandering wint, zoals
    in de CvGraph (niet de som die Web Audio maakt). Zie
-   `WasmModule.addFeeder` en de `groups` in de worklet.
+   `WasmModule.addFeeder` en de `groups` in de worklet. Twee *audio*-kabels
+   op één ingang tellen op; sinds fw 0.5.93 doet de Teensy dat ook (verborgen
+   `AudioMixer4` in `AudioGraph`) — daarvóór klonk daar alleen de eerste, want
+   `AudioConnection` is first-source-wins.
+6. **Een kabel die weggaat** zet de ingang op 0 (gate laag, geen modulatie,
+   0 V) — de simulator deed dat al voor een ingang zonder kabel; sinds
+   fw 0.5.93 meldt de CvGraph het ook (`Module::onCvDisconnected`) en past
+   de firmware daarna de knoppen van die module opnieuw toe, zodat een CV die
+   de knop verving (`rate_cv`, `mix_cv`) de knopstand teruggeeft.
 
 In Chromium nagelopen met Playwright (een script in de scratchpad, niet in de
 repo): vierstemmig speelt C/E/G op drie stemmen en is stil na loslaten; de
@@ -381,7 +389,8 @@ Wat je hoort dat anders is dan vroeger — allemaal omdat de hardware het zo
 doet (zie de Teensy-todo):
 
 - Een **VCA zonder CV-kabel is dicht**; de Gain-knop doet niets.
-- **Coarse/Fine op de VCO** tellen pas mee bij de volgende noot.
+- ~~**Coarse/Fine op de VCO** tellen pas mee bij de volgende noot.~~ Sinds
+  fw 0.5.93 herstemmen ze direct, aan beide kanten.
 - **Mono overlappend spelen slaat de envelope niet opnieuw aan** (FW-10: de
   gate gaat binnen één tick uit en aan).
 - Een **vrijlopende sequencer** (Run = Free) speelt door, ook als je het

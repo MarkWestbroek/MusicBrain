@@ -17,6 +17,51 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### fw 0.5.93 — Review-fixes: verdwenen kabels, dubbele ids, Brass, VCO, audio-fan-in; sim: parkeerpool (2026-09-30)
+Aanleiding: de externe review
+[code-review-firmware-wasm-2026-09-29.md](code-review-firmware-wasm-2026-09-29.md)
+(GPT Astra), plus een melding uit de PATCHES-sessie. Van de vijf
+review-bevindingen waren er drie al bekend; de twee nieuwe zaten in de
+lifecycle-laag.
+- **Kabel weg = ingang op 0.** De CV-bridge schrijft alleen bij een
+  verandering, dus na het lostrekken van een kabel (of een patchwissel) bleef
+  de laatste waarde staan: een filter dat open bleef hangen, een envelope in
+  sustain. `CvGraph::build()` meldt nu elke ingang die zijn kabel kwijt is
+  (`Module::onCvDisconnected`, standaard 0 V / gate laag) en past daarna de
+  knoppen van die module opnieuw toe — nodig omdat veel `_cv`-ingangen de
+  knop *vervangen* in plaats van optellen. Gevolg: een `voct`-kabel
+  lostrekken zet de toon op C4, zoals bij een module die nooit een kabel had.
+- **Dubbele module-id in een config** maakte een tweede module aan die niet
+  in de map paste en werd vernietigd — precies de AudioStream-vernietiging
+  waar de retire-pool tegen bestaat. Wordt nu overgeslagen en gelogd.
+- **Audio-fan-in.** Meer audiokabels op één ingang (acht stemmen
+  rechtstreeks op OUT) speelden op de Teensy alleen de eerste:
+  `AudioConnection` is first-source-wins. `AudioGraph` groepeert de kabels
+  per ingang en zet bij meer dan één bron een verborgen `AudioMixer4`
+  (gain 1, cascade boven vier) ertussen — sommeren zoals de sim. De mixers
+  leven in een pool die nooit wordt vernietigd. Gevonden door PATCHES in
+  "8× DX7 + VIBE".
+- **Brass** verloor de Timbre-knop bij elke nieuwe toon (`setFrequency()`
+  zet de lipspanning terug): `applyControlChanges()` na `setPitch()` en
+  `noteOn()`. **VCO** Coarse/Fine herstemmen direct (was: pas bij de
+  volgende V/Oct-schrijf), firmware én `vco_wasm.cc`. **Warps** `coarse`
+  gooide de V/Oct weg tot de volgende CV-schrijf.
+- **Simulator: parkeerpool voor worklet-nodes.** Elke herbouw van de patch
+  maakte alle wasm-instanties opnieuw; de audiothread ruimde de oude niet
+  op, en na een paar patchwissels viel elke nieuwe om ("Cannot allocate
+  Wasm memory for new instance", alleen herladen hielp). Nodes worden nu
+  geparkeerd en hergebruikt, met het geheugen van dezelfde instantie
+  teruggezet naar het beginbeeld; daarvoor een eigen `sbrk()` in
+  `mmb_abi.h` (anders groeide de heap per reset verder — alle wasm
+  herbouwd). Verder: één compilatie per type op de hoofdthread, opvang van
+  fouten in `process()` met verse instantie, en de echte foutmelding in de
+  statusbalk. Zie [tools/mmb-wasm/README.md](../tools/mmb-wasm/README.md).
+- Nog open uit de review: Elements' `blow_in`/`strike_in` doen op hardware
+  niets (bekend sinds juni), STK vernietigt het oude instrument binnen de
+  audio-fence, VCF `cv_amt`-default fw 2 / wasm 1, CI draait geen tests.
+- Tests: editor 759 (5 nieuw). Firmware gebouwd; hardwaretest van de vier
+  punten hierboven volgt bij het flashen.
+
 ### 2026-09-30 — Zang: tekst laten inspreken en grenzen verslepen (editor, geen nieuwe firmware)
 - **🗣 Laat inspreken** in het Zang-venster: typ `zon-ne-tje`, kies een stem
   en een tempo, en de tekst wordt uitgesproken door Piper. De dienst

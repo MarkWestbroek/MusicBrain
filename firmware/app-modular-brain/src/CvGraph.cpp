@@ -29,6 +29,13 @@ void CvGraph::build(
     const std::unordered_map<std::string,
                              std::unique_ptr<mb::runtime::Module>>& instances)
 {
+    // Ingangen die tot nu toe een kabel hadden: wie er straks geen meer heeft,
+    // krijgt dat te horen (releaseVanished). De modules zelf blijven leven, ook
+    // als ze uit de config verdwenen zijn (retire-pool), dus de pointers kloppen.
+    std::vector<std::pair<mb::runtime::Module*, std::string>> had;
+    had.reserve(routes_.size());
+    for (const auto& r : routes_) had.emplace_back(r.dst, r.dstPort);
+
     tearDown();
     // Interne routes van de vorige patch vergeten; die van deze patch komen
     // hieronder opnieuw binnen via routeInternally().
@@ -37,6 +44,7 @@ void CvGraph::build(
     JsonArrayConst conns = patch["connections"].as<JsonArrayConst>();
     if (conns.isNull()) {
         TeensyLink::log("CvGraph: no connections array in patch");
+        releaseVanished(had);
         return;
     }
 
@@ -97,7 +105,34 @@ void CvGraph::build(
                          toModId,   toPortId,   kindName(dstKind));
     }
 
-    TeensyLink::logf("CvGraph: routes=%d skipped=%d", routedCount(), skipped_);
+    const int released = releaseVanished(had);
+    TeensyLink::logf("CvGraph: routes=%d skipped=%d released=%d",
+                     routedCount(), skipped_, released);
+}
+
+int CvGraph::releaseVanished(
+    const std::vector<std::pair<mb::runtime::Module*, std::string>>& had)
+{
+    released_.clear();
+    int released = 0;
+    for (std::size_t i = 0; i < had.size(); ++i) {
+        const auto& [dst, port] = had[i];
+        // Twee kabels op dezelfde ingang: één keer melden is genoeg.
+        bool seen = false;
+        for (std::size_t j = 0; j < i && !seen; ++j)
+            seen = (had[j].first == dst && had[j].second == port);
+        if (seen) continue;
+        bool still = false;
+        for (const auto& r : routes_)
+            if (r.dst == dst && r.dstPort == port) { still = true; break; }
+        if (still) continue;
+        dst->onCvDisconnected(port);
+        ++released;
+        bool listed = false;
+        for (const auto* m : released_) if (m == dst) { listed = true; break; }
+        if (!listed) released_.push_back(dst);
+    }
+    return released;
 }
 
 void CvGraph::tickBridge() {

@@ -256,6 +256,9 @@ void activatePatchAndBuild(const char* patchId) {
             applyPatchVoiceCount(patch);
             audioGraph.build(patch, runtime.instances());
             cvGraph.build(patch, runtime.instances());
+            // Een ingang die zijn kabel kwijt is staat nu op 0; waar de CV de
+            // knop verving (rate_cv, mix_cv, …) moet de knopstand terugkomen.
+            for (const auto* m : cvGraph.released()) runtime.applyControlState(patch, m);
             // Peak audio-block usage after (re)building. If this approaches the
             // AudioMemory() budget the pool is too small for the patch.
             mmb_link::TeensyLink::logf("audio blocks: peak=%u / budget=%u",

@@ -22,7 +22,8 @@
  *
  * **Pitch update:** call `updatePitch(volts)` from the CV bridge whenever
  * the upstream V/Oct source changes value.  The voltage is shifted by the
- * coarse/fine offsets before being converted to Hz.
+ * coarse/fine offsets before being converted to Hz; a coarse/fine change
+ * retunes immediately as well (it used to wait for the next V/Oct write).
  */
 
 #include "AudioModule.h"
@@ -126,8 +127,10 @@ public:
             if (w >= 0 && w < 4) osc_.begin(kWaves[w]);
         } else if (controlId == "coarse") {
             coarse_ = asFloat(0.0f);
+            recomputeHz();
         } else if (controlId == "fine") {
             fine_ = asFloat(0.0f);
+            recomputeHz();
         } else if (controlId == "level") {
             osc_.amplitude(asFloat(0.8f));
         }

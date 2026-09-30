@@ -145,6 +145,19 @@ public:
      *  The patch and the bus never see those implementation details. */
     virtual void writeCvPort(std::string_view /*portId*/, float /*value*/) {}
 
+    /** @brief De kabel naar deze CV/gate-ingang is weg (patchwissel, of in de
+     *  editor losgetrokken).
+     *
+     *  De CV-bridge schrijft alleen bij een verandering, dus zonder dit bleef
+     *  de laatste waarde van de verdwenen kabel staan: een filter dat open
+     *  blijft hangen, een envelope die in sustain blijft. Standaard gaat de
+     *  ingang naar 0 (geen modulatie, gate laag, 0 V), zoals bij een module
+     *  die nooit een kabel had. Ingangen waarvan de CV de knop vervangt
+     *  (`rate_cv`, `mix_cv`, …) krijgen hun knopstand terug doordat de
+     *  aanroeper hierna de controls van de module opnieuw toepast. Een module
+     *  waar 0 niet "niets" is, overschrijft dit. */
+    virtual void onCvDisconnected(std::string_view portId) { writeCvPort(portId, 0.0f); }
+
     /** @brief Wil de module een CV-kabel van zichzelf naar zichzelf zelf
      *  afhandelen, op audiotempo, in plaats van via de CvGraph (1 kHz, en pas
      *  bij het volgende audioblok van 128 samples toegepast)?

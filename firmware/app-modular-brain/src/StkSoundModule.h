@@ -234,6 +234,9 @@ public:
         gate_     = true;
 #if HAVE_STK
         if (instr_) instr_->noteOn(midiNoteToHz(midiNote), strength);
+        // noteOn() zet bij Brass via setFrequency() de lipspanning terug op
+        // de toon — de timbre-knop (CC#2) moet daarna opnieuw, zie setPitch().
+        applyControlChanges();
 #else
         stubFreq_ = midiNoteToHz(midiNote);
 #endif
@@ -250,6 +253,10 @@ public:
         note_ = 60.0f + 12.0f * voct;
 #if HAVE_STK
         if (instr_) instr_->setFrequency(midiNoteToHz(note_));  // live tracking
+        // Brass::setFrequency() stemt de lipspanning af op de toon en wist
+        // daarmee wat CC#2 (timbre) had gezet; de wasm-wrapper past de
+        // controls om dezelfde reden ná de toonhoogte toe.
+        applyControlChanges();
 #else
         stubFreq_ = midiNoteToHz(note_);
 #endif

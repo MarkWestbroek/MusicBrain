@@ -1,11 +1,10 @@
 // tp_mmb_vco — de gewone VCO (spiegel van VcoModule.h). Native 44,1 kHz,
 // blok 32. De oscillator is `AudioSynthWaveform` (teensy_waveform.h).
 //
-// Twee eigenaardigheden van de firmware doen we na, want pariteit:
-//  * `coarse` en `fine` worden opgeslagen maar pas verrekend bij de volgende
-//    schrijf op `voct` of `tune` — aan Coarse draaien tijdens een noot doet
-//    niets tot de volgende noot.
+// Eén eigenaardigheid van de firmware doen we na, want pariteit:
 //  * `fm`, `sync` en `fm_amt` doen niets ("not yet implemented").
+// (Tot 2026-09-30 wachtten `coarse`/`fine` hier, net als in de firmware, op
+// de volgende `voct`-schrijf; nu herstemmen beide kanten direct.)
 #include <cmath>
 
 #include "mmb_abi.h"
@@ -54,8 +53,8 @@ void mmb_on_control(int idx, float v) {
             if (w >= 0 && w < 4) g_osc.begin(kWaves[w]);
             break;
         }
-        case C_COARSE: g_coarse = v; break;     // pas bij de volgende voct/tune
-        case C_FINE:   g_fine = v; break;
+        case C_COARSE: g_coarse = v; recomputeHz(); break;
+        case C_FINE:   g_fine = v; recomputeHz(); break;
         case C_LEVEL:  g_osc.amplitude(v); break;
         default: break;                          // fm_amt: firmware doet er niets mee
     }

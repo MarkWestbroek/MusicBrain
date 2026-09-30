@@ -75,6 +75,10 @@ dat duizend keer per seconde, dus de knop wordt telkens overschreven. Eén regel
 `applyControlChanges()` aanroepen aan het eind van `setPitch()` in
 `StkSoundModule.h`. Verandert de klank van bestaande Brass-patches — nu doet
 Timbre niets, daarna wel.
+*Gedaan 2026-09-30* — in `setPitch()` én `noteOn()` (die doet ook een
+`setFrequency()`). Precieser dan hierboven: de CV-bridge schrijft alleen bij
+een verandering, dus de timbre ging verloren bij elke nieuwe toon, niet
+duizend keer per seconde. Nog niet op hardware gehoord.
 
 ## 4. Rommel die opvalt
 
@@ -180,6 +184,9 @@ op een dalende gate die niet meer komt. Voor een echte lus moet Sustain bij
 `VcoModule::setControl` slaat ze op maar roept `recomputeHz()` niet aan
 (de FM-VCO wél). Draai je aan Coarse terwijl een noot klinkt, dan gebeurt er
 niets tot de volgende V/Oct-verandering. Eén regel.
+*Gedaan 2026-09-30*, firmware én `vco_wasm.cc` (herbouwd). Warps had
+hetzelfde in een andere vorm: `coarse` zette de noot op `60 + coarse` en
+gooide de V/Oct weg tot de volgende CV-schrijf — ook gefixt.
 
 **De VCA negeert zijn Gain-knop en is dicht zonder CV-kabel.** `gain` en
 `resp` staan op het paneel, maar `VcaModule::setControl` doet niets. Een VCA

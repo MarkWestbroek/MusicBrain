@@ -33,6 +33,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace mmb_link {
@@ -66,8 +67,19 @@ public:
     int routedCount() const { return static_cast<int>(routes_.size()); }
     int skippedCount() const { return skipped_; }
 
+    /** @brief Modules die bij de laatste `build()` een CV-kabel kwijtraakten.
+     *  De aanroeper past hun controls opnieuw toe: waar de CV de knop verving,
+     *  telt de knop weer. */
+    const std::vector<mb::runtime::Module*>& released() const { return released_; }
+
 private:
+    /** @brief Meld `onCvDisconnected()` aan elke ingang uit @p had die in de
+     *  nieuwe routes geen kabel meer heeft. @return aantal gemelde ingangen. */
+    int releaseVanished(
+        const std::vector<std::pair<mb::runtime::Module*, std::string>>& had);
+
     std::vector<Route> routes_;
+    std::vector<mb::runtime::Module*> released_;
     int skipped_ = 0;
 };
 

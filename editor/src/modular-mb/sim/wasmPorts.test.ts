@@ -864,15 +864,17 @@ describe('tp_mmb_vco (VcoModule, AudioSynthWaveform)', () => {
     expect(peak(out)).toBeCloseTo(0.9, 2);
   });
 
-  it('coarse telt pas mee bij de volgende voct-schrijf (firmware-eigenaardigheid)', async () => {
+  it('coarse herstemt meteen, ook tijdens een klinkende noot', async () => {
+    // Tot 2026-09-30 wachtten firmware én wrapper op de volgende voct-schrijf
+    // (review-bevinding 5); nu herberekenen beide direct.
     const m = await load('tp_mmb_vco');
     m.setCtl('wave', 0);
     m.setIn('voct', 0);
     m.render(0.05);
     m.setCtl('coarse', 12);
-    expect(hzOf(m.render(1.0)[0]!, m.rate)).toBeCloseTo(261.63, 0);   // nog niets
-    m.setIn('voct', 0.0001);                                            // nieuwe schrijf
     expect(hzOf(m.render(1.0)[0]!, m.rate)).toBeCloseTo(523.3, 0);
+    m.setCtl('fine', -1200);                                            // een octaaf terug, in centen
+    expect(hzOf(m.render(1.0)[0]!, m.rate)).toBeCloseTo(261.63, 0);
   });
 });
 

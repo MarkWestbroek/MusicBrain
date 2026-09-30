@@ -124,6 +124,14 @@ public:
             const char* id     = m["id"]     | "";
             const char* typeId = m["typeId"] | "";
             if (!*id || !*typeId) { ++r.unknown; continue; }
+            // Zelfde id nog eens in de config: overslaan. Een tweede module
+            // aanmaken die daarna niet in `next` past, vernietigt een
+            // AudioStream — precies wat de retire-pool moet voorkomen.
+            if (next.find(std::string{id}) != next.end()) {
+                TeensyLink::logf("runtime: dubbele module-id %s overgeslagen", id);
+                ++r.unknown;
+                continue;
+            }
             // Reuse an unchanged instance — keeps its AudioStream out of the
             // destroy path. Control state is re-applied on patch activation.
             auto it = instances_.find(std::string{id});
@@ -155,8 +163,7 @@ public:
         }
         // Whatever is still in instances_ disappeared from the new config and
         // cannot be safely destroyed — retire it (kept alive, silent).
-        // Wat nu nog in instances_ zit, stond dubbel in de config (zelfde id
-        // twee keer) — ook parkeren.
+        // De eerste lus heeft de meeste al geparkeerd; dit is het vangnet.
         for (auto& kv : instances_) {
             if (!kv.second) continue;
             kv.second->onRetire();
@@ -216,15 +223,17 @@ public:
      *   patch.controlState = { moduleId: { controlId: value, ... }, ... }
      * Values may be float, int (long), or bool.
      *
+     * @param only  Alleen deze module (nullptr = allemaal).
      * @return Number of `setControl()` calls that actually fired.
      */
-    int applyControlState(JsonObjectConst patch) {
+    int applyControlState(JsonObjectConst patch,
+                          const mb::runtime::Module* only = nullptr) {
         JsonObjectConst cs = patch["controlState"].as<JsonObjectConst>();
         if (cs.isNull()) return 0;
         int n = 0;
         for (JsonPairConst modPair : cs) {
             auto* mod = find(modPair.key().c_str());
-            if (!mod) continue;
+            if (!mod || (only && mod != only)) continue;
             JsonObjectConst ctrls = modPair.value().as<JsonObjectConst>();
             if (ctrls.isNull()) continue;
             for (JsonPairConst kv : ctrls) {

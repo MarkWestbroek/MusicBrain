@@ -20,6 +20,17 @@
  * `tearDown()` (or calling `build()` again) destroys all owned connections,
  * safely tearing down the previous audio graph.
  *
+ * **Fan-in (meer kabels op één ingang).** De Teensy-audiobibliotheek staat
+ * één verbinding per bestemmingsingang toe; een tweede `AudioConnection` op
+ * een bezette ingang doet stil niets, dus van acht stemmen rechtstreeks op
+ * OUT klonk alleen de eerste — terwijl de simulator ze optelt. Daarom
+ * groepeert `build()` de kabels per (bestemmingsstream, kanaal) en zet bij
+ * meer dan één bron een verborgen `AudioMixer4` (gain 1, dus sommeren zoals
+ * de sim) ertussen, bij meer dan vier bronnen een cascade. De mixers zijn
+ * zelf `AudioStream`s en mogen dus nooit worden vernietigd (zie de
+ * retire-pool in ProjectRuntime): ze leven in een pool die over rebuilds
+ * heen blijft en per patch opnieuw wordt uitgedeeld.
+ *
  * **Thread safety:** `build()` and `tearDown()` wrap graph mutations in
  * `AudioNoInterrupts()` / `AudioInterrupts()`.
  */
@@ -63,8 +74,25 @@ public:
     /** @brief Number of patch connections skipped (non-audio or unresolved). */
     int skippedCount() const { return skipped_; }
 
+    /** @brief Verborgen fan-in-mixers in gebruik door de huidige patch. */
+    int mixersInUse() const { return mixersUsed_; }
+
 private:
+    /** Eén bestemmingsingang met alle bronnen die erop zitten. */
+    struct FanIn {
+        AudioPort dst;
+        std::vector<AudioPort> srcs;
+    };
+
+    /** Een mixer uit de pool (of een nieuwe), alle vier de gains op 1. */
+    AudioMixer4& takeMixer();
+    /** Eén `AudioConnection` maken en bewaren. */
+    void connect(const AudioPort& src, AudioStream& dst, unsigned char dstCh);
+
     std::vector<std::unique_ptr<AudioConnection>> conns_;
+    /** Nooit vernietigd (AudioStream-lifetime); hergebruikt per rebuild. */
+    std::vector<std::unique_ptr<AudioMixer4>> mixers_;
+    int mixersUsed_ = 0;
     int wired_   = 0;
     int skipped_ = 0;
 };

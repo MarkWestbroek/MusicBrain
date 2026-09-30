@@ -220,7 +220,8 @@ public:
     void writeCvPort(std::string_view portId, float value) override {
         auto* p = voice_.params();
         if (portId == "voct") {
-            p->note = 60.0f + 12.0f * value + coarse_;
+            voct_ = value;
+            p->note = 60.0f + 12.0f * voct_ + coarse_;
         } else if (cvPortIs(portId, "algo")) {
             // ±1 CV schuift ±4 algoritmes bovenop de knop.
             float a = algoBase_ + 4.0f * value;
@@ -267,8 +268,10 @@ public:
         else if (controlId == "drive1") p->channel_drive[0] = clamp02(asFloat(1.0f));
         else if (controlId == "drive2") p->channel_drive[1] = clamp02(asFloat(1.0f));
         else if (controlId == "coarse") {
+            // Met de laatste V/Oct erbij — zonder die term viel de noot bij
+            // elke draai aan Coarse terug op C4 tot de volgende CV-schrijf.
             coarse_ = asFloat(0.0f);
-            p->note = 60.0f + coarse_;
+            p->note = 60.0f + 12.0f * voct_ + coarse_;
         }
         else if (controlId == "level")  voice_.setLevel(asFloat(0.8f));
     }
@@ -303,6 +306,7 @@ private:
     float timbreBase_ = 0.5f;
     int   shape_      = 0;
     float coarse_     = 0.0f;
+    float voct_       = 0.0f;   ///< Laatste V/Oct, zodat `coarse` hem niet wist.
 };
 
 }  // namespace mmb_link
