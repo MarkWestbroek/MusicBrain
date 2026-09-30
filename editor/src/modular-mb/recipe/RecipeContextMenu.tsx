@@ -7,7 +7,7 @@
 // gebruikt vraagt eerst hoe ver het moet reiken (alleen hier, eigen rack of
 // overal) — anders veranderen die patches ongemerkt mee.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useId, useRef } from 'react';
 import { updateProject, useModularProject } from '../store';
 import { resolvePorts } from '../types';
 import { kindOf, shortName, type ModuleKindTag } from './catalog';
@@ -118,34 +118,7 @@ export function RecipeContextMenu(props: {
     cursor: 'pointer', borderRadius: 4, whiteSpace: 'nowrap',
   };
   if (asking) {
-    const choice: React.CSSProperties = {
-      display: 'block', width: '100%', textAlign: 'left', padding: '8px 10px', marginTop: 6,
-      border: '1px solid #cbd2d9', borderRadius: 6, background: '#f8fafc', cursor: 'pointer', fontSize: 13,
-    };
-    const others = asking.users.length === 1 ? `patch "${asking.users[0]}"` : `${asking.users.length} andere patches (${asking.users.join(', ')})`;
-    return (
-      <div style={{ position: 'fixed', inset: 0, zIndex: 90, background: 'rgba(15,23,42,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-           onMouseDown={(e) => { e.stopPropagation(); onClose(); }}>
-        <div style={{ ...menu, position: 'relative', maxWidth: 460, padding: 16 }} onMouseDown={(e) => e.stopPropagation()}>
-          <div style={{ fontWeight: 600, marginBottom: 4 }}>{asking.from} vervangen door {asking.to}</div>
-          <div style={{ color: '#475569' }}>
-            Let op: deze {asking.from} wordt ook gebruikt in {others}. Hoe ver moet de vervanging reiken?
-          </div>
-          <button style={choice} onClick={() => runEdit(() => asking.run('patch'))}>
-            <b>Alleen in deze patch</b> — een nieuwe {asking.to} naast de {asking.from} in het rack (de rest schuift op); de kabels van deze patch gaan erheen. De {asking.from} blijft voor de andere patches.
-          </button>
-          <button style={choice} onClick={() => runEdit(() => asking.run('rack'))}>
-            <b>Nieuw rack voor deze patch</b> — een kopie van het rack met de {asking.to} erin; de andere patches houden het oude rack.
-          </button>
-          <button style={choice} onClick={() => runEdit(() => asking.run('all'))}>
-            <b>Overal vervangen</b> — ook in {others} (bijvoorbeeld bij een upgrade).
-          </button>
-          <button style={{ ...choice, background: 'transparent', border: 'none', textAlign: 'center', color: '#64748b' }} onClick={onClose}>
-            Annuleren
-          </button>
-        </div>
-      </div>
-    );
+    return <ReplaceScopeDialog ask={asking} onRun={(scope) => runEdit(() => asking.run(scope))} onCancel={onClose} />;
   }
 
   const x = Math.min(anchor.x, window.innerWidth - 220);
@@ -175,6 +148,86 @@ export function RecipeContextMenu(props: {
           )}
         </div>
       ))}
+    </div>
+  );
+}
+
+/**
+ * Vraag bij "Vervang door" als andere patches de module ook gebruiken: hoe ver
+ * moet de vervanging reiken? Zelfde vorm als de andere vensters van de editor
+ * (kop met ✕, keuzes, Annuleren/Vervangen); "alleen deze patch" staat klaar
+ * omdat die niets van andere patches verandert. Enter = vervangen, Esc = annuleren.
+ */
+export function ReplaceScopeDialog({ ask, onRun, onCancel }: {
+  ask: ReplaceAsk;
+  onRun: (scope: ReplaceScope) => void;
+  onCancel: () => void;
+}): JSX.Element {
+  const [scope, setScope] = useState<Exclude<ReplaceScope, 'auto'>>('patch');
+  const titleId = useId();
+  const okRef = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => { okRef.current?.focus(); }, []);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') { e.preventDefault(); onCancel(); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onCancel]);
+
+  const names = ask.users.length <= 3 ? ask.users.map((u) => `"${u}"`).join(', ')
+    : `${ask.users.slice(0, 3).map((u) => `"${u}"`).join(', ')} en ${ask.users.length - 3} meer`;
+  const others = ask.users.length === 1 ? `patch ${names}` : `${ask.users.length} andere patches (${names})`;
+  const options: { id: Exclude<ReplaceScope, 'auto'>; title: string; detail: string }[] = [
+    { id: 'patch', title: 'Alleen in deze patch',
+      detail: `Een nieuwe ${ask.to} naast de ${ask.from}; de kabels van deze patch gaan erheen. De andere patches houden de ${ask.from}.` },
+    { id: 'rack', title: 'Nieuw rack voor deze patch',
+      detail: `Een kopie van het rack met de ${ask.to} erin. De andere patches houden het oude rack.` },
+    { id: 'all', title: 'Overal vervangen',
+      detail: `Ook in ${others}, bijvoorbeeld bij een upgrade.` },
+  ];
+
+  const overlay: React.CSSProperties = {
+    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 90,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+  };
+  const panel: React.CSSProperties = {
+    background: '#fff', color: '#0f172a', borderRadius: 8, padding: 18, width: 480, maxWidth: '94vw',
+    boxShadow: '0 12px 40px rgba(0,0,0,0.3)', fontSize: 13,
+  };
+  return (
+    <div style={overlay} onMouseDown={(e) => { e.stopPropagation(); onCancel(); }}>
+      <div style={panel} role="dialog" aria-modal="true" aria-labelledby={titleId} onMouseDown={(e) => e.stopPropagation()}
+           onKeyDown={(e) => { if (e.key === 'Enter' && !(e.target instanceof HTMLButtonElement)) { e.preventDefault(); onRun(scope); } }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <h3 id={titleId} style={{ margin: 0, flex: 1 }}>{ask.from} vervangen door {ask.to}</h3>
+          <button onClick={onCancel} aria-label="Sluiten">✕</button>
+        </div>
+        <div style={{ color: '#475569', margin: '6px 0 12px' }}>
+          Deze {ask.from} zit ook in {others}. Hoe ver moet de vervanging reiken?
+        </div>
+        <div role="radiogroup" aria-label="Bereik van de vervanging">
+          {options.map((o) => {
+            const on = scope === o.id;
+            return (
+              <label key={o.id} style={{
+                display: 'flex', gap: 8, alignItems: 'flex-start', padding: '8px 10px', borderRadius: 6, marginBottom: 6, cursor: 'pointer',
+                border: on ? '1px solid var(--mb-accent, #d97706)' : '1px solid #e5e7eb', background: on ? '#fefce8' : '#f8fafc',
+              }}>
+                <input type="radio" name="replace-scope" checked={on} onChange={() => setScope(o.id)} style={{ marginTop: 3 }} />
+                <span>
+                  <span style={{ fontWeight: 600 }}>{o.title}</span>
+                  <span style={{ display: 'block', color: '#475569', fontSize: 12 }}>{o.detail}</span>
+                </span>
+              </label>
+            );
+          })}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
+          <button onClick={onCancel}>Annuleren</button>
+          <button ref={okRef} className="primary" onClick={() => onRun(scope)}>Vervangen</button>
+        </div>
+      </div>
     </div>
   );
 }
