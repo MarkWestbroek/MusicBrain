@@ -202,3 +202,23 @@ describe('knoppen die maar in één patch zijn opgeslagen', () => {
     expect(Number(morphPatch(p, d, 0).controlState[vcf]!.q)).toBeCloseTo(def.defaultValue, 5);
   });
 });
+
+describe('MORPH-paneel: knoppen aan een uiteinde bewaren in A of B', () => {
+  it('morphEdits ziet een gedraaide knop; writeEditsTo zet hem in A; daarna is er niets meer af te wijken', async () => {
+    const { morphEdits, writeEditsTo } = await import('./MorphPanel');
+    const { p: p0, a, b } = abBus();
+    let p = upsertMorph(p0, a, b, 0);
+    const mp = p.patches.find((x) => x.morph)!;
+    expect(morphEdits(p, mp)).toEqual([]);
+    // Draai de cutoff van een VCF in de morph-patch.
+    const vcf = mp.connections.map((c) => c.to.moduleId).find((id) => typeOf(p, id) === 'tp_mmb_vcf')!;
+    const turned = { ...mp, controlState: { ...mp.controlState, [vcf]: { ...mp.controlState[vcf], cutoff: 777 } } };
+    p = { ...p, patches: p.patches.map((x) => (x.id === mp.id ? turned : x)) };
+    const edits = morphEdits(p, turned);
+    expect(edits).toEqual([{ moduleId: vcf, controlId: 'cutoff', value: 777 }]);
+    p = writeEditsTo(p, a, edits);
+    expect(p.patches.find((x) => x.id === a)!.controlState[vcf]!.cutoff).toBe(777);
+    expect(p.patches.find((x) => x.id === b)!.controlState[vcf]?.cutoff).not.toBe(777);
+    expect(morphEdits(p, turned)).toEqual([]);
+  });
+});

@@ -99,6 +99,10 @@ export function ruleFor(c: Control): ControlRule | null {
 export function morphControlValue(c: Control, entry: MorphControl, t: number): ControlValue {
   const u = Math.max(0, Math.min(1, t));
   const a = entry.a, b = entry.b;
+  // Op de uiteinden exact A of B (de taper-heen-en-terugweg laat anders een
+  // afrondingsrestje achter, en dan lijkt een onaangeraakte knop gedraaid).
+  if (u <= 0) return a;
+  if (u >= 1) return b;
   switch (entry.rule) {
     case 'snap': return u < 0.5 ? a : b;
     case 'ordinal': case 'step': {
