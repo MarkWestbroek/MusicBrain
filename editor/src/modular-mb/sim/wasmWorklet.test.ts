@@ -159,3 +159,132 @@ describe('mmb-worklet: twee kabels op één cv-ingang', () => {
     expect(at[0.8]).toBeCloseTo(0.9, 5);   // en nu kabel 2
   });
 });
+
+describe('mmb-worklet: herstel na een crash', () => {
+  // Gooit process() een fout, dan zet Web Audio de processor voorgoed stil
+  // — "worklet-processor gecrasht", en alleen een herlaad hielp. De host
+  // vangt de fout nu zelf op, begint met een verse wasm-instantie en vraagt
+  // de hoofdthread de toestand opnieuw te sturen.
+  const CTX = 48000;
+  beforeAll(async () => { await loadHost(CTX); });
+  afterAll(() => { vi.unstubAllGlobals(); });
+
+  /** Processor met een logboek van wat hij terugstuurt; `renderBlock`
+   *  is de plek waar de wasm rendert, dus dáár laten we hem vallen. */
+  async function crashable(wasm: Uint8Array | WebAssembly.Module) {
+    const bytes = wasmBytes('tp_mmb_vcf');
+    const { inputs, outputs } = await portsOf(bytes);
+    const p = new Processor!({ processorOptions: { wasm, inputs, outputs } }) as Proc & {
+      ex: object | null; renderBlock?: () => void; alive: boolean;
+    };
+    const sent: Array<Record<string, unknown>> = [];
+    p.port.postMessage = (m: unknown) => { sent.push(m as Record<string, unknown>); };
+    p.port.send({ t: 'ctl', id: 'cutoff', v: 18000 });
+    p.port.send({ t: 'cabled', id: inputs[0], on: true });
+    const inBuf = inputs.map(() => [new Float32Array(QUANTUM)]);
+    const outBuf = outputs.map(() => [new Float32Array(QUANTUM)]);
+    return { p, sent, inBuf, outBuf };
+  }
+
+  it('vangt de fout op, rendert door op een verse instantie en meldt het', async () => {
+    const { p, sent, inBuf, outBuf } = await crashable(wasmBytes('tp_mmb_vcf'));
+    for (let b = 0; b < 8; b++) p.process(inBuf, outBuf, {});
+    const before = p.ex;
+    p.renderBlock = () => { throw new WebAssembly.RuntimeError('memory access out of bounds'); };
+    outBuf[0]![0]!.fill(1);
+    expect(p.process(inBuf, outBuf, {})).toBe(true);        // blijft leven
+    expect(Math.max(...outBuf[0]![0]!)).toBe(0);             // stilte, geen rommel
+    const crashed = sent.find((m) => m.t === 'crashed');
+    expect(crashed).toMatchObject({ fatal: false, crashes: 1 });
+    expect(String(crashed!.message)).toContain('memory access out of bounds');
+    expect(p.ex).not.toBe(before);                           // verse instantie
+
+    // Daarna gewoon weer geluid: een sinus komt er als sinus uit.
+    delete p.renderBlock;
+    const blocks = Math.round(CTX / QUANTUM);
+    const rec = new Float32Array(blocks * QUANTUM);
+    let ph = 0;
+    for (let b = 0; b < blocks; b++) {
+      for (let k = 0; k < QUANTUM; k++) { inBuf[0]![0]![k] = 0.5 * Math.sin(ph); ph += 2 * Math.PI * 220 / CTX; }
+      p.process(inBuf, outBuf, {});
+      rec.set(outBuf[0]![0]!, b * QUANTUM);
+    }
+    expect(toneSnr(rec, 220, CTX, Math.round(CTX * 0.2))).toBeGreaterThan(40);
+  });
+
+  it('geeft op als hij blijft vallen, en zegt dat', async () => {
+    const { p, sent, inBuf, outBuf } = await crashable(wasmBytes('tp_mmb_vcf'));
+    for (let b = 0; b < 8; b++) p.process(inBuf, outBuf, {});
+    p.renderBlock = () => { throw new Error('unreachable'); };
+    // Na elk herstel bouwt hij eerst weer een voorsprong op (primeLeft), dus
+    // niet elke aanroep rendert: ruim de tijd nemen.
+    let alive = true;
+    for (let i = 0; i < 60 && alive; i++) alive = p.process(inBuf, outBuf, {});
+    expect(alive).toBe(false);
+    const fatal = sent.filter((m) => m.t === 'crashed' && m.fatal);
+    expect(fatal).toHaveLength(1);
+    expect(sent.filter((m) => m.t === 'crashed' && !m.fatal).length).toBeGreaterThan(1);
+  });
+
+  it('parkeren en resetten: zelfde instantie, geheugen weer als nieuw', async () => {
+    const { p, inBuf, outBuf } = await crashable(wasmBytes('tp_mmb_vcf'));
+    const exBefore = p.ex as { memory: WebAssembly.Memory; mmb_control_value(i: number): number };
+    const cutoffIdx = 0;                                   // eerste control van de VCF
+    expect(exBefore.mmb_control_value(cutoffIdx)).toBe(18000);
+    for (let b = 0; b < 8; b++) p.process(inBuf, outBuf, {});
+
+    p.port.send({ t: 'park' });
+    outBuf[0]![0]!.fill(1);
+    expect(p.process(inBuf, outBuf, {})).toBe(true);      // leeft, rendert niet
+    expect(outBuf[0]![0]![0]).toBe(1);                     // raakt de uitgang niet aan
+
+    p.port.send({ t: 'reset' });
+    expect(p.ex).toBe(exBefore);                           // geen nieuwe instantie
+    expect(exBefore.mmb_control_value(cutoffIdx)).toBe(2000);   // fabrieksstand terug
+    p.port.send({ t: 'ctl', id: 'cutoff', v: 18000 });
+    p.port.send({ t: 'cabled', id: 'in', on: true });
+    const blocks = Math.round(CTX / QUANTUM);
+    const rec = new Float32Array(blocks * QUANTUM);
+    let ph = 0;
+    for (let b = 0; b < blocks; b++) {
+      for (let k = 0; k < QUANTUM; k++) { inBuf[0]![0]![k] = 0.5 * Math.sin(ph); ph += 2 * Math.PI * 220 / CTX; }
+      p.process(inBuf, outBuf, {});
+      rec.set(outBuf[0]![0]!, b * QUANTUM);
+    }
+    expect(toneSnr(rec, 220, CTX, Math.round(CTX * 0.2))).toBeGreaterThan(40);
+  });
+
+  it('een module die heap gebruikt groeit niet bij elke reset verder (STK)', async () => {
+    // Na een reset denkt malloc dat er nog niets is uitgedeeld; wasi-libc
+    // neemt dan alles tot de huidige geheugengrootte als heap, dus de
+    // eerder bijgegroeide pagina's worden hergebruikt in plaats van dat er
+    // telkens nieuwe bijkomen.
+    const bytes = wasmBytes('tp_mmb_stk_sound');
+    const { inputs, outputs } = await portsOf(bytes);
+    const p = new Processor!({ processorOptions: { wasm: bytes, inputs, outputs } }) as Proc & { ex: { memory: WebAssembly.Memory } };
+    p.port.postMessage = () => { /* stil */ };
+    const inBuf = inputs.map(() => [new Float32Array(QUANTUM)]);
+    const outBuf = outputs.map(() => [new Float32Array(QUANTUM)]);
+    const cycle = (): number => {
+      for (const sound of [2, 4, 7, 8]) {                  // Bowed, Brass, BandedWG, Mandolin: elk een verse alloc
+        p.port.send({ t: 'ctl', id: 'sound', v: sound });
+        for (let b = 0; b < 4; b++) p.process(inBuf, outBuf, {});
+      }
+      p.port.send({ t: 'park' });
+      p.port.send({ t: 'reset' });
+      return p.ex.memory.buffer.byteLength;
+    };
+    const first = cycle();
+    const second = cycle();
+    let last = second;
+    for (let i = 0; i < 6; i++) last = cycle();
+    expect(last).toBe(second);                             // na de eerste ronde stabiel
+    expect(last).toBeLessThanOrEqual(first * 2);
+  });
+
+  it('neemt ook een al gecompileerde module aan (één compilatie per type)', async () => {
+    const mod = await WebAssembly.compile(wasmBytes('tp_mmb_vcf'));
+    const { p, inBuf, outBuf } = await crashable(mod);
+    for (let b = 0; b < 8; b++) expect(p.process(inBuf, outBuf, {})).toBe(true);
+  });
+});

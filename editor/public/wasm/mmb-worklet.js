@@ -2,9 +2,12 @@
 // (tools/mmb-wasm/mmb_abi.h). Eén processor-klasse voor elke Teensy-module
 // die als .wasm gebouwd is: hij leest poorten en controls uit de wasm zelf.
 //
-// processorOptions: { wasm: Uint8Array, inputs: string[], outputs: string[] }
-//   inputs/outputs = poort-ids in de volgorde van de worklet-kanalen (de
-//   editor-moduledefinitie); ids die de wasm niet kent worden genegeerd.
+// processorOptions: { wasm: WebAssembly.Module | Uint8Array, inputs: string[], outputs: string[] }
+//   wasm = de module, bij voorkeur al gecompileerd op de hoofdthread (één
+//   keer per type; bytes compileren hier ook, maar dan per instantie op de
+//   audiothread). inputs/outputs = poort-ids in de volgorde van de worklet-
+//   kanalen (de editor-moduledefinitie); ids die de wasm niet kent worden
+//   genegeerd.
 // Berichten: {t:'ctl', id, v}  control op naam
 //            {t:'in', id, v, slew?}  handmatige ingangswaarde (klavier:
 //                              voct/gate), telt op bij het kabelsignaal, zet
@@ -16,7 +19,33 @@
 //            {t:'midi', s, d1, d2}  MIDI-bericht naar mmb_midi() (MIDI-In)
 // Terug:     {t:'tele', v}  bij verandering van mmb_telemetry() (de stap van
 //                              de sequencer, voor de lampjes op het paneel)
+//            {t:'crashed', message, fatal}  zie "Herstel" hieronder
+//            {t:'park'}     node gaat de parkeerpool in: niets meer renderen
+//            {t:'reset'}    node komt uit de pool: wasm-geheugen terug naar de
+//                           beginstand (zelfde instantie), daarna stuurt de
+//                           hoofdthread controls/kabels/blobs opnieuw
 //            {t:'dispose'}
+// Parkeren: elke herbouw van de patch (kabel erbij, patchwissel) maakte alle
+// nodes opnieuw, en de wasm-geheugens van de oude bleven staan tot de GC
+// van de audiothread ze ooit opruimde — die kwam niet, en na een paar
+// wisselingen viel elke nieuwe instantie om: "Out of memory: Cannot
+// allocate Wasm memory for new instance". Daarom blijft een node leven en
+// hergebruikt WasmModule.ts hem voor de volgende module van hetzelfde type,
+// zoals de retire-pool in de firmware. Het geheugen wordt niet opnieuw
+// aangemaakt maar teruggezet: een kopie van het beginbeeld (data + lege
+// BSS, genomen vóór mmb_init) gaat er weer overheen, dus alles staat zoals
+// bij een verse instantie. Wat het geheugen daarna aan heap had bijgegroeid
+// blijft staan; wasi-libc's malloc neemt bij de eerste aanroep alles tussen
+// __heap_base en de huidige geheugengrootte als heap, dus dat wordt gewoon
+// weer gebruikt en groeit niet bij elke reset verder.
+// Herstel: gooit de wasm (een trap: geheugen buiten bereik, stack-overloop,
+// `unreachable`) of de host zelf in process() een fout, dan zet Web Audio de
+// processor voorgoed stil en blijft de module de rest van de sessie zwijgen
+// ("worklet-processor gecrasht" — alleen een herlaad hielp). Daarom vangt
+// process() de fout, maakt een verse instantie van dezelfde module (schone
+// DSP-toestand) en meldt 'crashed' aan de hoofdthread, die controls, kabels
+// en blobs opnieuw stuurt. Lukt dat herstel niet, of blijft hij vallen, dan
+// is de melding `fatal` en vervangt de hoofdthread de hele node.
 // Resampling: ingangen contextrate → native (lineair), uitgangen native →
 // context (audio lineair, cv/gate zero-order-hold zodat gates gates blijven).
 /* global AudioWorkletProcessor, registerProcessor, sampleRate */
@@ -43,16 +72,15 @@ class MmbProcessor extends AudioWorkletProcessor {
   constructor(options) {
     super();
     const { wasm, inputs, outputs } = options.processorOptions;
-    const mod = new WebAssembly.Module(wasm);
-    const imports = {};
-    for (const imp of WebAssembly.Module.imports(mod)) {
-      imports[imp.module] = imports[imp.module] || {};
-      imports[imp.module][imp.name] = imp.name === 'proc_exit'
+    this.mod = wasm instanceof WebAssembly.Module ? wasm : new WebAssembly.Module(wasm);
+    this.imports = {};
+    for (const imp of WebAssembly.Module.imports(this.mod)) {
+      this.imports[imp.module] = this.imports[imp.module] || {};
+      this.imports[imp.module][imp.name] = imp.name === 'proc_exit'
         ? (c) => { throw new Error('wasm proc_exit ' + c); }
         : () => 0;
     }
-    const ex = this.ex = new WebAssembly.Instance(mod, imports).exports;
-    ex.mmb_init();
+    const ex = this.instantiate();
     const cstr = (p) => { const m = new Uint8Array(ex.memory.buffer); let s = ''; for (let i = p; m[i]; i++) s += String.fromCharCode(m[i]); return s; };
 
     this.typeId = cstr(ex.mmb_type_id());
@@ -60,12 +88,15 @@ class MmbProcessor extends AudioWorkletProcessor {
     this.block = ex.mmb_block();
     this.ratio = this.rate / sampleRate;          // native samples per context sample
 
-    // Wasm-poorten op naam.
+    // Wasm-poorten op naam. `ptr` wijst in het wasm-geheugen; na een herstel
+    // (verse instantie van dezelfde module) staan de buffers op dezelfde
+    // adressen, maar refreshPtrs() vraagt ze voor de zekerheid opnieuw op.
     const wIn = new Map(), wOut = new Map();
     for (let i = 0; i < ex.mmb_num_inputs(); i++) wIn.set(cstr(ex.mmb_input_id(i)), { idx: i, kind: ex.mmb_input_kind(i), ptr: ex.mmb_input_ptr(i) });
     for (let i = 0; i < ex.mmb_num_outputs(); i++) wOut.set(cstr(ex.mmb_output_id(i)), { idx: i, kind: ex.mmb_output_kind(i), ptr: ex.mmb_output_ptr(i) });
     this.ctlIdx = new Map();
     for (let i = 0; i < ex.mmb_num_controls(); i++) this.ctlIdx.set(cstr(ex.mmb_control_id(i)), i);
+    this.crashes = 0;
 
     // Editor-kanalen → wasm-poorten. Aliassen: 'in'/'in_l', 'out'/'out_l',
     // en parameter-CV's met of zonder '_cv'.
@@ -107,12 +138,18 @@ class MmbProcessor extends AudioWorkletProcessor {
     // een 220 Hz-sinus tilde dit de SNR van 16 naar 84 dB. De prijs is een
     // paar ms latency.
     const slack = (this.block + 2) / this.ratio;   // benodigde invoer in contextsamples
-    this.primeLeft = Math.max(1, Math.ceil(slack / 128));
+    this.primeQuanta = Math.max(1, Math.ceil(slack / 128));
+    this.primeLeft = this.primeQuanta;
     this.alive = true;
+    this.parked = false;
 
     this.port.onmessage = (e) => {
       const m = e.data;
+      const ex = this.ex;
+      if (!ex) return;
       switch (m.t) {
+        case 'park': this.parked = true; break;
+        case 'reset': this.resetInPlace(); break;
         case 'ctl': { const i = this.ctlIdx.get(m.id); if (i !== undefined) ex.mmb_set_control(i, +m.v); break; }
         case 'in': {
           const p = this.byId.get(m.id);
@@ -154,7 +191,13 @@ class MmbProcessor extends AudioWorkletProcessor {
           ex.mmb_zone_count(m.zones.length);
           break;
         }
-        case 'dispose': this.alive = false; break;
+        case 'dispose':
+          // Loslaten wat de GC anders vasthoudt: elke herbouw van de patch
+          // maakt nieuwe instanties, en de wasm-geheugens van de oude tellen
+          // mee tot ze zijn opgeruimd.
+          this.alive = false;
+          this.ex = null;
+          break;
       }
     };
     this.port.postMessage({
@@ -162,6 +205,76 @@ class MmbProcessor extends AudioWorkletProcessor {
       unknownInputs: this.ins.filter((p) => !p.w).map((p) => p.id),
       unknownOutputs: this.outs.filter((p) => !p.w).map((p) => p.id),
     });
+  }
+
+  /** Verse wasm-instantie (bij de start, en na een crash). */
+  instantiate() {
+    const ex = this.ex = new WebAssembly.Instance(this.mod, this.imports).exports;
+    // Beginbeeld vóór mmb_init: hiermee zet resetInPlace() dezelfde
+    // instantie later terug in de staat van een verse.
+    this.image0 = new Uint8Array(ex.memory.buffer.slice(0));
+    ex.mmb_init();
+    return ex;
+  }
+
+  /** Resampler en kabelgeheugen naar het begin (na reset of herstel). */
+  rewind() {
+    for (const p of this.ins) { p.ring.fill(0); p.written = 0; p.manual = 0; p.target = 0; p.slew = 0; p.cabled = false; p.connected = false; }
+    for (const o of this.outs) o.ring.fill(0);
+    for (const g of this.groups) { g.last.fill(NaN); g.cur = 0; }
+    this.nativeWritten = 0;
+    this.outPos = 0;
+    this.primeLeft = this.primeQuanta;
+    this.lastTele = undefined;
+  }
+
+  /** Uit de parkeerpool: geheugen terug naar het beginbeeld, DSP opnieuw
+   *  geïnitialiseerd, zelfde instantie (geen nieuw wasm-geheugen). */
+  resetInPlace() {
+    const ex = this.ex;
+    new Uint8Array(ex.memory.buffer).set(this.image0);   // g_mmb_inited staat weer op false
+    ex.mmb_init();
+    this.refreshPtrs();
+    this.rewind();
+    this.crashes = 0;
+    this.parked = false;
+    this.alive = true;
+  }
+
+  /** Bufferadressen opnieuw uit de (nieuwe) instantie halen. */
+  refreshPtrs() {
+    const ex = this.ex;
+    for (const g of this.groups) g.w.ptr = ex.mmb_input_ptr(g.w.idx);
+    for (const o of this.outs) if (o.w) o.w.ptr = ex.mmb_output_ptr(o.w.idx);
+  }
+
+  /**
+   * Na een fout in process(): stilte voor dit quantum, verse instantie,
+   * resampler terug naar het begin, en de hoofdthread vragen de toestand
+   * (controls, kabels, blobs) opnieuw te sturen. Blijft hij vallen, dan
+   * geven we op en laat de hoofdthread de node vervangen.
+   */
+  recover(err, outputs) {
+    for (const out of outputs) for (const ch of out) ch.fill(0);
+    const message = err && err.message ? `${err.name || 'Error'}: ${err.message}` : String(err);
+    this.crashes++;
+    if (this.crashes > 8) {
+      this.alive = false;
+      this.ex = null;
+      this.port.postMessage({ t: 'crashed', message, fatal: true, crashes: this.crashes });
+      return;
+    }
+    try {
+      this.instantiate();
+      this.refreshPtrs();
+      this.rewind();
+      this.port.postMessage({ t: 'crashed', message, fatal: false, crashes: this.crashes });
+    } catch (e2) {
+      this.alive = false;
+      this.ex = null;
+      const why = e2 && e2.message ? e2.message : String(e2);
+      this.port.postMessage({ t: 'crashed', message: `${message} — herstel mislukt: ${why}`, fatal: true, crashes: this.crashes });
+    }
   }
 
   /** Invoer van ingang `p` op contexttijd `t` (cubisch voor audio, lineair voor cv/gate). */
@@ -213,6 +326,17 @@ class MmbProcessor extends AudioWorkletProcessor {
   }
 
   process(inputs, outputs) {
+    if (!this.alive) return false;
+    if (this.parked) return true;      // in de pool: leven, niets doen
+    try {
+      return this.render(inputs, outputs);
+    } catch (err) {
+      this.recover(err, outputs);
+      return this.alive;
+    }
+  }
+
+  render(inputs, outputs) {
     const n = outputs[0] && outputs[0][0] ? outputs[0][0].length : 128;
     // 1. ingangen (contextrate) in de ringen.
     for (let i = 0; i < this.ins.length; i++) {

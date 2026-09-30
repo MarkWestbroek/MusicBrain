@@ -94,6 +94,27 @@ signaal. Die meting staat als test in
 Wasm→wasm-kabels lopen via een DelayNode van één render-quantum (~2,7 ms):
 Web Audio dempt anders elke lus (Stages.eoc → eigen gate, Marbles ↔ Stages).
 
+**Parkeerpool (sinds 2026-09-30).** Elke module is een eigen wasm-instantie
+met eigen geheugen, en elke herbouw van de patch (kabel erbij, patchwissel)
+maakte ze allemaal opnieuw. De audiothread ruimde de oude niet op, en na een
+paar wisselingen viel elke nieuwe om: `Out of memory: Cannot allocate Wasm
+memory for new instance` — alleen herladen hielp. Nu doet `WasmModule` wat
+de retire-pool in de firmware doet: een weggegooide node gaat geparkeerd
+een pool in (per type + poortlijst, max 16), en de volgende module van dat
+type krijgt hem terug met bericht `reset`. De worklet zet dan het geheugen
+van *dezelfde* instantie terug naar het beginbeeld (kopie van data + lege
+BSS, genomen vóór `mmb_init`) en roept `mmb_init()` opnieuw; de hoofdthread
+stuurt daarna controls, kabels en blobs. Daarvoor heeft `mmb_abi.h` een
+eigen `sbrk()`: die van wasi-libc begint na zo'n reset bovenop het oude
+einde van het geheugen, waardoor de heap per reset verder ratelde (STK
+~0,4 MB, de sampler een hele bank); de eigen versie deelt eerst het al
+bijgegroeide stuk boven `__heap_end` opnieuw uit. De wasm wordt bovendien
+één keer per type gecompileerd op de hoofdthread (`WebAssembly.compile`) en
+als `Module` aan de worklet gegeven. Gooit `process()` toch een fout (een
+trap, een detached buffer), dan vangt de worklet die, begint met een verse
+instantie en meldt `crashed`; na acht keer geeft hij op en vervangt
+`WasmModule` de node (max drie keer). Tests: `wasmWorklet.test.ts`.
+
 ## Bouwen en testen
 
 ```sh

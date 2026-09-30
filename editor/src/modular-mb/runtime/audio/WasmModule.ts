@@ -83,7 +83,12 @@ export class WasmModule extends AudioModule {
   }
 
   private static worklet: Promise<void> | null = null;
-  private static readonly wasm = new Map<string, Promise<Uint8Array>>();
+  /** Per type: de bytes én de één keer gecompileerde module. De worklet
+   *  krijgt de module (structured clone deelt de compilatie); compileren per
+   *  instantie op de audiothread was bij een herbouw van een grote patch
+   *  tientallen keren hetzelfde werk. Bytes blijven als terugval voor een
+   *  browser die een Module niet naar een worklet kan sturen. */
+  private static readonly wasm = new Map<string, Promise<{ bytes: Uint8Array; mod: WebAssembly.Module | null }>>();
   private static readonly instances = new Set<WasmModule>();
   static lastError: string | null = null;
 
@@ -136,7 +141,37 @@ export class WasmModule extends AudioModule {
     if (n === 0) return null;
     let ready = 0;
     for (const m of WasmModule.instances) if (m.node) ready++;
-    return `wasm-modules: ${ready}/${n} actief`;
+    let parked = 0;
+    for (const list of WasmModule.pool.values()) parked += list.length;
+    return `wasm-modules: ${ready}/${n} actief` + (parked ? ` · ${parked} geparkeerd` : '');
+  }
+
+  /**
+   * Parkeerpool: nodes van weggegooide modules, per type + poortlijst. Een
+   * herbouw van de patch maakte alle worklet-nodes opnieuw, en de wasm-
+   * geheugens van de oude ruimde de audiothread niet op; na een paar
+   * wisselingen viel elke nieuwe instantie om ("Cannot allocate Wasm memory
+   * for new instance"). Nu blijft een node leven en krijgt de volgende module
+   * van hetzelfde type hem terug, met het geheugen teruggezet naar de
+   * beginstand (zie 'reset' in mmb-worklet.js) — de retire-pool van de
+   * firmware, maar dan in de browser. Per sleutel begrensd; wat er niet meer
+   * in past gaat alsnog weg.
+   */
+  private static readonly pool = new Map<string, { node: AudioWorkletNode; ctx: BaseAudioContext }[]>();
+  private static readonly kPoolPerKey = 16;
+  private static poolKey(typeId: string, inputIds: string[], outputIds: string[]): string {
+    return `${typeId}|${inputIds.join(',')}|${outputIds.join(',')}`;
+  }
+  private static takeParked(key: string): AudioWorkletNode | null {
+    const list = WasmModule.pool.get(key);
+    if (!list) return null;
+    const ctx = Tone.getContext().rawContext as unknown as BaseAudioContext;
+    while (list.length) {
+      const e = list.pop()!;
+      if (e.ctx === ctx) return e.node;
+      try { e.node.port.postMessage({ t: 'dispose' }); } catch { /* al weg */ }
+    }
+    return null;
   }
 
   private static ensureWorklet(): Promise<void> {
@@ -151,7 +186,7 @@ export class WasmModule extends AudioModule {
     return WasmModule.worklet;
   }
 
-  private static loadWasm(typeId: string): Promise<Uint8Array> {
+  private static loadWasm(typeId: string): Promise<{ bytes: Uint8Array; mod: WebAssembly.Module | null }> {
     let p = WasmModule.wasm.get(typeId);
     if (!p) {
       const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
@@ -162,7 +197,10 @@ export class WasmModule extends AudioModule {
       // sim na de DX7-glidefix nog de oude DX7, terwijl de rest wél nieuw was.
       p = fetch(`${base}wasm/${typeId}.wasm`, { cache: 'no-cache' }).then(async (r) => {
         if (!r.ok) throw new Error(`${typeId}.wasm niet gevonden`);
-        return new Uint8Array(await r.arrayBuffer());
+        const bytes = new Uint8Array(await r.arrayBuffer());
+        let mod: WebAssembly.Module | null = null;
+        try { mod = await WebAssembly.compile(bytes); } catch { /* dan compileert de worklet zelf */ }
+        return { bytes, mod };
       });
       p.catch(() => WasmModule.wasm.delete(typeId));
       WasmModule.wasm.set(typeId, p);
@@ -184,6 +222,11 @@ export class WasmModule extends AudioModule {
   nativeRate = 0;
   /** Meldingen uit de wasm (`mmb_telemetry()`, bv. de stap van de sequencer). */
   onTelemetry: ((v: number) => void) | null = null;
+  /** Herstel na een crash: hoe vaak de node al vervangen is (zie restart()). */
+  private restarts = 0;
+  private static readonly kMaxRestarts = 3;
+  /** False zodra de node een crash meldde: dan niet meer parkeren. */
+  private healthy = true;
 
   /**
    * @param opts.voices Stem-uitgangen erbij: voor elke uit-poort met
@@ -211,46 +254,129 @@ export class WasmModule extends AudioModule {
 
     Promise.all([WasmModule.ensureWorklet(), WasmModule.loadWasm(type.id)]).then(([, wasm]) => {
       if (this.disposed) return;
-      const node = Tone.getContext().createAudioWorkletNode('mmb-wasm', {
-        numberOfInputs: Math.max(1, this.inputIds.length),
-        numberOfOutputs: Math.max(1, this.outputIds.length),
-        outputChannelCount: Array.from({ length: Math.max(1, this.outputIds.length) }, () => 1),
-        processorOptions: { wasm, inputs: this.inputIds, outputs: this.outputIds },
-      });
-      node.port.onmessage = (e: MessageEvent) => {
-        const m = e.data;
-        if (m?.t === 'tele') { this.onTelemetry?.(Number(m.v)); return; }
-        if (m?.t === 'ready') {
-          this.nativeRate = Number(m.rate);
-          if (m.unknownInputs?.length || m.unknownOutputs?.length) {
-            console.info(`[wasm ${type.id}] poorten zonder wasm-tegenhanger:`, m.unknownInputs, m.unknownOutputs);
-          }
-        }
-      };
-      node.onprocessorerror = () => { WasmModule.lastError = `${type.id}: worklet-processor gecrasht`; };
-      this.inputIds.forEach((id, k) => Tone.connect(this.inGains.get(id)!, node as unknown as AudioNode, 0, k));
-      this.outputIds.forEach((id, j) => Tone.connect(node as unknown as AudioNode, this.outGains.get(id)!, j, 0));
-      this.node = node;
-      WasmModule.lastError = null;
-      // Beginstand van alle controls, kabelstatus, dan de wachtrij.
-      for (const [id, v] of Object.entries(this.controlValues)) {
-        if (typeof v === 'number' || typeof v === 'boolean') this.post({ t: 'ctl', id, v: Number(v) });
-      }
-      for (const id of this.cabled) this.post({ t: 'cabled', id, on: true });
-      const blobs = WasmModule.blobs.get(type.id);
-      if (blobs) for (const [slot, b] of blobs) this.postBlob(slot, b.data, b.rate, b.channels);
-      const own = WasmModule.instanceBlobs.get(this.id);
-      if (own) for (const [slot, b] of own) this.postBlob(slot, b.data, b.rate, b.channels);
-      const tc = WasmModule.typeControls.get(type.id);
-      if (tc) for (const [id, v] of tc) this.post({ t: 'ctl', id, v });
-      const zones = WasmModule.zoneMaps.get(type.id);
-      if (zones) this.postZones(zones);
-      for (const m of this.pending) this.post(m);
-      this.pending = [];
+      // Pas hier, ná build(): addFeeder() kan de poortlijst nog uitbreiden.
+      const parked = WasmModule.takeParked(WasmModule.poolKey(type.id, this.inputIds, this.outputIds));
+      if (parked) this.attach(parked, wasm, true);
+      else this.createNode(wasm);
     }).catch((err: unknown) => {
       WasmModule.lastError = `${type.id}: ${err instanceof Error ? err.message : String(err)}`;
       console.error('[wasm] module niet geladen:', type.id, err);
     });
+  }
+
+  /** Een nieuwe worklet-node maken en aansluiten. */
+  private createNode(wasm: { bytes: Uint8Array; mod: WebAssembly.Module | null }): void {
+    const opts = (payload: WebAssembly.Module | Uint8Array): AudioWorkletNodeOptions => ({
+      numberOfInputs: Math.max(1, this.inputIds.length),
+      numberOfOutputs: Math.max(1, this.outputIds.length),
+      outputChannelCount: Array.from({ length: Math.max(1, this.outputIds.length) }, () => 1),
+      processorOptions: { wasm: payload, inputs: this.inputIds, outputs: this.outputIds },
+    });
+    let node: AudioWorkletNode;
+    try {
+      node = Tone.getContext().createAudioWorkletNode('mmb-wasm', opts(wasm.mod ?? wasm.bytes));
+    } catch (err) {
+      // Een Module die niet naar de worklet te klonen is: dan de bytes.
+      if (!wasm.mod) throw err;
+      wasm.mod = null;
+      node = Tone.getContext().createAudioWorkletNode('mmb-wasm', opts(wasm.bytes));
+    }
+    this.attach(node, wasm, false);
+  }
+
+  /** Node (nieuw of uit de pool) aan de poort-Gains hangen en de toestand sturen. */
+  private attach(node: AudioWorkletNode, wasm: { bytes: Uint8Array; mod: WebAssembly.Module | null }, reused: boolean): void {
+    const type = this.type;
+    node.port.onmessage = (e: MessageEvent) => {
+      const m = e.data;
+      if (m?.t === 'tele') { this.onTelemetry?.(Number(m.v)); return; }
+      if (m?.t === 'ready') {
+        this.nativeRate = Number(m.rate);
+        if (m.unknownInputs?.length || m.unknownOutputs?.length) {
+          console.info(`[wasm ${type.id}] poorten zonder wasm-tegenhanger:`, m.unknownInputs, m.unknownOutputs);
+        }
+        return;
+      }
+      if (m?.t === 'crashed') {
+        // De worklet heeft een fout in process() opgevangen (zie de kop van
+        // mmb-worklet.js). Niet fataal: hij draait al op een verse instantie
+        // en wil de toestand terug. Fataal: de hele node vervangen.
+        const msg = String(m.message ?? '?');
+        console.warn(`[wasm ${type.id}] ${m.fatal ? 'gecrasht' : 'crash hersteld'} (${m.crashes}×):`, msg);
+        if (m.fatal) { this.restart(msg, wasm); return; }
+        WasmModule.lastError = `${type.id}: crash hersteld — ${msg}`;
+        this.syncState();
+      }
+    };
+    node.onprocessorerror = (e: Event) => {
+      // De constructor of process() gooide iets vóór onze try/catch (bv.
+      // "Cannot allocate Wasm memory" bij het aanmaken). Chrome geeft een
+      // ErrorEvent met de tekst; die willen we zien.
+      const msg = (e as ErrorEvent).message || 'worklet-processor gecrasht';
+      console.error(`[wasm ${type.id}] processorerror:`, msg);
+      this.restart(msg, wasm);
+    };
+    this.inputIds.forEach((id, k) => Tone.connect(this.inGains.get(id)!, node as unknown as AudioNode, 0, k));
+    this.outputIds.forEach((id, j) => Tone.connect(node as unknown as AudioNode, this.outGains.get(id)!, j, 0));
+    this.node = node;
+    this.healthy = true;
+    WasmModule.lastError = this.restarts ? `${type.id}: node vervangen na crash (${this.restarts}×)` : null;
+    if (reused) node.port.postMessage({ t: 'reset' });   // geheugen naar de beginstand, dan de toestand
+    this.syncState();
+  }
+
+  /** Node loskoppelen van de poort-Gains (parkeren of vervangen). */
+  private detach(node: AudioWorkletNode): void {
+    this.inputIds.forEach((id, k) => { try { this.inGains.get(id)!.disconnect(node as unknown as AudioNode, 0, k); } catch { /* al los */ } });
+    try { (node as unknown as AudioNode).disconnect(); } catch { /* al los */ }
+  }
+
+  /** Beginstand van alle controls, kabelstatus, blobs, keymap, dan de wachtrij. */
+  private syncState(): void {
+    const type = this.type;
+    for (const [id, v] of Object.entries(this.controlValues)) {
+      if (typeof v === 'number' || typeof v === 'boolean') this.post({ t: 'ctl', id, v: Number(v) });
+    }
+    for (const id of this.cabled) this.post({ t: 'cabled', id, on: true });
+    const blobs = WasmModule.blobs.get(type.id);
+    if (blobs) for (const [slot, b] of blobs) this.postBlob(slot, b.data, b.rate, b.channels);
+    const own = WasmModule.instanceBlobs.get(this.id);
+    if (own) for (const [slot, b] of own) this.postBlob(slot, b.data, b.rate, b.channels);
+    const tc = WasmModule.typeControls.get(type.id);
+    if (tc) for (const [id, v] of tc) this.post({ t: 'ctl', id, v });
+    const zones = WasmModule.zoneMaps.get(type.id);
+    if (zones) this.postZones(zones);
+    for (const m of this.pending) this.post(m);
+    this.pending = [];
+  }
+
+  /**
+   * Node vervangen na een crash die de worklet zelf niet kon opvangen. De
+   * poort-Gains blijven staan, dus de kabels van de engine merken er niets
+   * van; alleen de DSP-toestand (galmstaart, lopende noot) is weg. Met een
+   * oplopende wachttijd, zodat een tijdelijk tekort (wasm-geheugen dat de
+   * GC nog moet vrijgeven) een kans krijgt; na kMaxRestarts geven we op.
+   */
+  private restart(reason: string, wasm: { bytes: Uint8Array; mod: WebAssembly.Module | null }): void {
+    if (this.disposed) return;
+    this.healthy = false;
+    const old = this.node;
+    this.node = null;
+    if (old) {
+      try { old.port.postMessage({ t: 'dispose' }); } catch { /* al weg */ }
+      this.detach(old);
+    }
+    if (this.restarts >= WasmModule.kMaxRestarts) {
+      WasmModule.lastError = `${this.type.id}: worklet-processor gecrasht (${reason}) — herstel ${this.restarts}× mislukt`;
+      return;
+    }
+    this.restarts++;
+    WasmModule.lastError = `${this.type.id}: worklet-processor gecrasht (${reason}) — herstart ${this.restarts}/${WasmModule.kMaxRestarts}`;
+    setTimeout(() => {
+      if (this.disposed) return;
+      try { this.createNode(wasm); }
+      catch (err) { this.restart(err instanceof Error ? err.message : String(err), wasm); }
+    }, 250 * this.restarts);
   }
 
   get input(): Tone.ToneAudioNode { return this.inGains.values().next().value ?? this.outGains.values().next().value!; }
@@ -324,9 +450,18 @@ export class WasmModule extends AudioModule {
     this.disposed = true;
     WasmModule.instances.delete(this);
     if (this.node) {
-      this.node.port.postMessage({ t: 'dispose' });
-      try { (this.node as unknown as AudioNode).disconnect(); } catch { /* al los */ }
+      const node = this.node;
       this.node = null;
+      this.detach(node);
+      const key = WasmModule.poolKey(this.type.id, this.inputIds, this.outputIds);
+      let list = WasmModule.pool.get(key);
+      if (!list) { list = []; WasmModule.pool.set(key, list); }
+      if (this.healthy && list.length < WasmModule.kPoolPerKey) {
+        node.port.postMessage({ t: 'park' });
+        list.push({ node, ctx: Tone.getContext().rawContext as unknown as BaseAudioContext });
+      } else {
+        node.port.postMessage({ t: 'dispose' });
+      }
     }
     for (const g of this.inGains.values()) g.dispose();
     for (const g of this.outGains.values()) g.dispose();

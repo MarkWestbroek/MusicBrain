@@ -22,11 +22,44 @@
 //     schrijft dan elke tick).
 // Elk render-blok is precies mmb_block() frames op mmb_native_rate().
 #pragma once
+#include <cerrno>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 
 #define MMB_MAX_BLOCK 256
+
+#ifdef __wasm__
+// Eigen sbrk() in plaats van die van wasi-libc — voor de parkeerpool van de
+// worklet-host. Die zet een geparkeerde instantie terug door het beginbeeld
+// van het geheugen (data + lege BSS) over het bestaande geheugen te leggen;
+// malloc begint dan opnieuw met de heap [__heap_base, __heap_end), maar het
+// geheugen zelf is intussen groter (memory.grow krimpt nooit). wasi-libc's
+// sbrk neemt als "huidige grens" altijd de geheugengrootte, waardoor elke
+// nieuwe heap-aanvraag ná een reset weer bovenop het oude eind komt: het
+// geheugen ratelde per reset ~0,4 MB verder (STK) tot de bovengrens, of bij
+// de sampler een hele bank per keer. Deze sbrk houdt zijn eigen grens bij in
+// BSS — na een reset dus weer 0 — en deelt eerst het al bijgegroeide stuk
+// boven __heap_end opnieuw uit; pas daarna groeit hij het geheugen.
+extern "C" char __heap_end;
+extern "C" void* sbrk(intptr_t increment) {
+    static uintptr_t brk = 0;
+    if (brk == 0) brk = reinterpret_cast<uintptr_t>(&__heap_end);
+    if (increment < 0) { errno = EINVAL; return reinterpret_cast<void*>(-1); }
+    const uintptr_t old  = brk;
+    const uintptr_t want = old + static_cast<uintptr_t>(increment);
+    const uintptr_t size = static_cast<uintptr_t>(__builtin_wasm_memory_size(0)) * 65536u;
+    if (want > size) {
+        const uintptr_t pages = (want - size + 65535u) / 65536u;
+        if (__builtin_wasm_memory_grow(0, pages) == static_cast<uintptr_t>(-1)) {
+            errno = ENOMEM;
+            return reinterpret_cast<void*>(-1);
+        }
+    }
+    brk = want;
+    return reinterpret_cast<void*>(old);
+}
+#endif
 
 #ifdef __wasm__
 #define MMB_EXPORT(name) extern "C" __attribute__((export_name(#name)))
