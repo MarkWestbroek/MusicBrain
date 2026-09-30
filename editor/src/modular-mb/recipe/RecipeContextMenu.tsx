@@ -12,11 +12,12 @@ import { useEffect, useMemo, useState, useId, useRef } from 'react';
 import { updateProject, useModularProject } from '../store';
 import { resolvePorts } from '../types';
 import { kindOf, shortName, type ModuleKindTag } from './catalog';
+import { requestRackFocus } from '../rackFocus';
 import { replaceModule, otherPatchesUsing, setVoices, addBusFx, addModulation, removeModule, type EditResult, type ReplaceScope } from './edits';
 
 export interface MenuAnchor { x: number; y: number; moduleId: string | null }
 
-interface Item { label: string; run?: () => EditResult; sub?: Item[]; disabled?: boolean; ask?: ScopeAsk }
+interface Item { label: string; run?: () => EditResult; sub?: Item[]; disabled?: boolean; ask?: ScopeAsk; go?: () => void }
 /** Vervangen van een module die ook elders gebruikt wordt: eerst vragen. */
 interface ReplaceAsk { kind?: 'replace'; from: string; to: string; users: string[]; run: (scope: ReplaceScope) => EditResult }
 /** Verwijderen van een module die ook elders gebruikt wordt: uit deze patch,
@@ -104,10 +105,13 @@ export function RecipeContextMenu(props: {
       });
     }
     out.push(voiceItems);
+    // Layout hoort in het rack (dat delen meer patches): daarheen springen.
+    out.push({ label: 'Ga naar rack', go: () => requestRackFocus(m.id) });
     return out;
   }, [project, anchor.moduleId, patchId]);
 
   const fire = (item: Item): void => {
+    if (item.go) { item.go(); onClose(); return; }
     if (item.ask) { setAsking(item.ask); return; }
     if (item.run) runEdit(item.run);
   };

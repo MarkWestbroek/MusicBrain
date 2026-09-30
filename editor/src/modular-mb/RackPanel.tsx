@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import { updateProject, useModularProject, uid } from './store';
 import { ModulePanel } from './ModulePanel';
 import { compactRack as compactRackLayout } from './rackLayout';
+import { takeRackFocus } from './rackFocus';
 import { useEngineStatus } from './sim/engineSingleton';
 import {
   type Rack, type RackSlot, type ModuleInstance, type ModuleType,
@@ -57,6 +58,13 @@ export function RackPanel(): JSX.Element {
   // Which voice-group's popover is currently open (also drives the group
   // highlight ring around its member slots in the grid). null = none.
   const [openGroupId, setOpenGroupId] = useState<string | null>(null);
+  // "Ga naar rack" vanuit de patcher: de gevraagde module selecteren.
+  useEffect(() => {
+    const id = takeRackFocus();
+    if (!id) return;
+    const slot = rack?.slots.find((s) => s.moduleId === id);
+    if (slot) { setSelectedSlotIds(new Set([slot.id])); setActiveRow(slot.row); }
+  }, [rack?.id]);   // eslint-disable-line react-hooks/exhaustive-deps
   // Rack zoom factor (multiplies the base px-per-mm). 1 = 100%. Persisted in
   // localStorage so it survives unmount when switching tabs.
   const [zoom, setZoom] = useState<number>(() => {
@@ -348,6 +356,22 @@ function RackGrid({ rack, modules, types, activeRow, onSelectRow,
       ...p,
       racks: p.racks.map((r) => r.id === rack.id
         ? { ...r, slots: r.slots.filter((s) => s.id !== slotId) } : r),
+    }));
+  }
+
+  /** Schuif één module naar links tot hij tegen zijn linkerbuur (of de rand) zit. */
+  function snapLeft(slotId: string): void {
+    updateProject((p) => ({
+      ...p,
+      racks: p.racks.map((r) => {
+        if (r.id !== rack.id) return r;
+        const slot = r.slots.find((s) => s.id === slotId);
+        if (!slot) return r;
+        const width = (id: string) => p.modules.find((m) => m.id === id)?.visual.hpWidth ?? 0;
+        const left = r.slots.filter((s) => s.row === slot.row && s.id !== slotId && s.hpOffset < slot.hpOffset)
+          .reduce((end, s) => Math.max(end, s.hpOffset + width(s.moduleId)), 0);
+        return { ...r, slots: r.slots.map((s) => (s.id === slotId ? { ...s, hpOffset: Math.min(slot.hpOffset, left) } : s)) };
+      }),
     }));
   }
 
@@ -1079,6 +1103,8 @@ function RackGrid({ rack, modules, types, activeRow, onSelectRow,
                   <li><button style={ctxItem} onClick={() => { moveRow(menu.slotId,  1);    close(); }}>▼ Rij omlaag</button></li>
                   <li><button style={ctxItem} onClick={() => { moveSlot(menu.slotId, -1);   close(); }}>◀ 1 HP naar links</button></li>
                   <li><button style={ctxItem} onClick={() => { moveSlot(menu.slotId,  1);   close(); }}>▶ 1 HP naar rechts</button></li>
+                  <li><button style={ctxItem} onClick={() => { snapLeft(menu.slotId);       close(); }}>⇤ Aansluiten naar links</button></li>
+                  <li><button style={ctxItem} onClick={() => { updateProject((p) => ({ ...p, racks: p.racks.map((x) => (x.id === rack.id ? compactRackLayout(x, p.modules) : x)) })); close(); }}>⇤ Rack compact (alle gaten dicht)</button></li>
                   <li style={ctxSep} />
                   {sharedGroupId
                     ? <>

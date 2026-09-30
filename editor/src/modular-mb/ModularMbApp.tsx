@@ -6,6 +6,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { setProject, updateProject, useModularProject, getProject, undo, redo } from './store';
+import { onRackFocus } from './rackFocus';
 import { savePatch } from './recipe/saved';
 import { CommandPalette } from './recipe/CommandPalette';
 import { Tour, tourSeen } from './recipe/Tour';
@@ -128,6 +129,17 @@ export function ModularMbApp(): JSX.Element {
   useEffect(() => {
     if (!tourSeen() && project.patches.length === 0) setShowTour(true);
   }, []);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  // "Ga naar rack" (rechtsklik in de patcher): het rack van de module actief
+  // maken en naar het Rack-tabblad; RackPanel selecteert de module.
+  useEffect(() => onRackFocus((moduleId) => {
+    updateProject((p) => {
+      const r = p.racks.find((x) => x.kind !== 'internal' && x.slots.some((sl) => sl.moduleId === moduleId))
+             ?? p.racks.find((x) => x.slots.some((sl) => sl.moduleId === moduleId));
+      return r ? { ...p, activeRackId: r.id } : p;
+    });
+    setTab('rack');
+  }), []);
 
   // ─── Demonstratie: ops van een recept stap voor stap afspelen ─────────
   function runDemo(ops: PatchOp[]): void {
