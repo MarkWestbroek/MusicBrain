@@ -60,6 +60,57 @@ Toets: in een project met honderden modules kan een gebruiker een specifieke
 bestaande module vinden en plaatsen zonder eerst de hele voorraad door te scrollen.
 Gelijke typen blijven als afzonderlijke instanties herkenbaar.
 
+#### Onderzoek bestaand gedrag (2026-10-01, nog niets gewijzigd)
+
+Bron: `ModuleSidebar` in `editor/src/modular-mb/RackPanel.tsx` en de
+Modules-tab (`ModulesPanel.tsx`).
+
+Wat er nu gebeurt:
+
+- De voorraad is `alle modules van het project die niet in dít rack staan`.
+  Een fysiek rack toont dus ook de 78 interne prototypes (die in het interne
+  rack staan) en alle instanties die in andere racks geplaatst zijn. Gemeten
+  op een vers project met Krell- en Zang-seed: rack Krell heeft 6 slots en een
+  voorraad van 82, waarvan 78 prototypes. De 566 modules uit de screenshots
+  zijn het gevolg: elke seed maakt eigen instanties, en elk rack ziet de
+  instanties van alle andere racks als "niet in rack".
+- Elke kaart rendert een volledig `ModulePanel` (SVG, 1,2 px/mm) met live
+  controlwaarden. Bij honderden kaarten is dat de zwaarste render van het
+  Rack-scherm.
+- Er is geen zoekveld, filter of groepering in de sidebar; wel één sortering
+  (projectvolgorde). De Modules-tab heeft dat allemaal al: `matches()`
+  (substring, meerdere termen), `ListFilter` (zoekveld + intern/extern +
+  teller), sim-filter en sorteerbare kolommen. Die zijn niet geëxporteerd.
+- Plaatsen gebeurt met "Plaats →" in de gekozen rij (eerste vrije HP). Het
+  controleert niet of de module al in een ander rack staat; dezelfde instantie
+  kan dus in twee racks tegelijk zitten. Een prototype uit het interne rack
+  plaatsen in een fysiek rack deelt het prototype, het maakt geen nieuw
+  exemplaar.
+- Een nieuw exemplaar van een type maak je op twee plekken: "+ Module" in de
+  Modules-tab (naam `<variant> N`, automatische paneellayout) of rechtsklik
+  "⎘ Dupliceer module" in het rack. Vanuit de sidebar kan het niet.
+
+Kleinste bruikbare verbetering, in volgorde, elk apart te toetsen:
+
+1. **Standaardfilter "vrij"**: verberg modules die al in een ander rack staan
+   en verberg de interne prototypes; een schakelaar "toon ook geplaatst
+   elders / prototypes" houdt het oude gedrag bereikbaar. Alleen dit brengt de
+   voorraad in het voorbeeldproject van 82 naar 4 kaarten.
+2. **Zoekveld en typefilter** door `matches()` en `ListFilter` uit de
+   Modules-tab te exporteren en te hergebruiken (zoeken op naam, type,
+   type-id). Geen nieuwe zoeklogica.
+3. **Groepering per type met aantal**, ingeklapt bij meer dan ca. 20 kaarten;
+   de kaart toont dan alleen naam, type en HP en pas het paneel bij openklappen
+   of hover. Dat lost ook de render-last op.
+4. **"Nieuw exemplaar" naast "Plaats"**: één knop in de sidebar die een
+   instantie van een gekozen type maakt en meteen plaatst (dezelfde code als
+   "+ Module"), zodat plaatsen van bestaand en aanmaken van nieuw zichtbaar
+   verschillende handelingen zijn.
+
+Buiten UX-01, maar gevonden: een module in twee racks tegelijk is nu
+mogelijk. Of dat gewenst is (breakout dual-weergave, ED-RK-3) of een bug,
+bepaalt hoe stap 1 "geplaatst elders" moet tellen.
+
 ### UX-02: Bovenbalk taakgericht groeperen
 
 Projectacties, klankeditors, hardwarefuncties, voorbeelden en testfuncties staan
