@@ -22,10 +22,12 @@ export interface TtsSettings {
   voice: string;
   /** Spreektempo: 1 = normaal, hoger = trager (langere klinkers, makkelijker aan te houden). */
   lengthScale: number;
+  /** Spreker binnen een meerstemmig model (mls heeft er 52); 0 = de eerste. */
+  speaker: number;
 }
 
 const STORAGE_KEY = 'mmb.tts.v1';
-export const TTS_DEFAULTS: TtsSettings = { endpoint: '/tts', code: '', voice: 'nl_NL-pim-medium', lengthScale: 1.3 };
+export const TTS_DEFAULTS: TtsSettings = { endpoint: '/tts', code: '', voice: 'nl_NL-pim-medium', lengthScale: 1.3, speaker: 0 };
 export const TTS_LOCAL_ENDPOINT = 'http://127.0.0.1:8788/tts';
 
 export function loadTtsSettings(): TtsSettings {
@@ -58,7 +60,7 @@ export async function listVoices(s: TtsSettings): Promise<TtsVoice[]> {
 export async function speak(s: TtsSettings, text: string): Promise<TtsResult> {
   const r = await fetch(`${s.endpoint.replace(/\/$/, '')}/speak`, {
     method: 'POST', headers: headers(s),
-    body: JSON.stringify({ text, voice: s.voice, lengthScale: s.lengthScale }),
+    body: JSON.stringify({ text, voice: s.voice, lengthScale: s.lengthScale, ...(s.speaker ? { speaker: s.speaker } : {}) }),
   });
   if (!r.ok) await fail(r);
   const j = await r.json() as { rate: number; pcm: string; phonemes: TtsPhoneme[]; text: string; voice: string };

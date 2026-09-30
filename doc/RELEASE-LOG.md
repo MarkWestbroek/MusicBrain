@@ -40,6 +40,19 @@
   tijdens het aanhouden van 5,9 naar 0,9 dB. Een krakerige kern (gelijkenis
   onder 80 % of gesproken onder 75 Hz, zoals Franks laatste "slaap") krijgt
   in het venster "⚠ lus": daar helpt alleen opnieuw inspreken.
+- **Lus-zoeker, tweede ronde.** De lus begint pas een paar perioden ná de
+  aanzet en ligt liefst rond het midden van de klinker: met de eerste versie
+  bleef "ja" in de j hangen en klonk aanhouden als "ie". Volume mag binnen de
+  lus zakken (tremolo hoort bij zingen); vorm moet gelijk blijven. De groene
+  balk in de golfvorm is nu zelf te verslepen aan zijn uiteinden.
+- **Banken in de simulator.** De Bank-knop van ZANG deed in de simulator
+  niets: er was één slot. Nu zestien, en 🎤 Zang zet de bank in het nummer
+  dat in het venster staat. Het display op het paneel toont de lettergreep
+  die aan de beurt is (telemetrie), en de knop heet Start; de modes heten
+  Vast, Door en Door+terug.
+- **Sprekerkeuze** voor het meerstemmige MLS-model (52 sprekers); twee extra
+  vrouwenstemmen (`mls_5809`, `mls_7432`, lagere kwaliteit) in de README,
+  met de gemeten toonhoogtes.
 - De spraakdienst draait lokaal: `tools\piper-tts\start.cmd` (venv en
   stemmen in `tools/piper-tts/`, buiten git), in de editor ⚙ → eigen
   computer. Uitrollen op de VPS staat beschreven in de README, maar is nog

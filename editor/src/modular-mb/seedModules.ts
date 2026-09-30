@@ -1475,9 +1475,11 @@ function mmbZang() {
     ],
     items: [
       knob('bank',  'Bank',  w*0.12, 28, { size: 'medium', min: 0, max: 15, def: 0, step: 1, color: '#f5a623', ticks: { every: 1, highlight: [0, 15] } }),
-      knob('syl',   'Lettergr.', w*0.32, 28, { size: 'medium', min: 0, max: 255, def: 0, step: 1, color: '#f5a623' }),
-      display('sylDisp', w*0.50, 28, { digits: 3, style: 'led', bindTo: 'syl', format: 'int' }),
-      sw  ('mode',  'Mode',  w*0.68, 28, ['Vast', 'Volgende', 'Vlg+terug'], 1),
+      knob('syl',   'Start', w*0.32, 28, { size: 'medium', min: 0, max: 255, def: 0, step: 1, color: '#f5a623' }),
+      // Het display toont de lettergreep die aan de beurt is (telemetrie uit
+      // de wasm), niet de knop.
+      display('sylDisp', w*0.50, 28, { digits: 3, style: 'led', bindTo: '__currentSyl', format: 'int' }),
+      sw  ('mode',  'Mode',  w*0.68, 28, ['Vast', 'Door', 'Door+terug'], 1),
       knob('level', 'Level', w*0.88, 28, { size: 'medium', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
       knob('speed',   'Speed',   w*0.12, 52, { size: 'small', min: 0.25, max: 4, def: 1, color: '#f9fafb' }),
       knob('formant', 'Formant', w*0.28, 52, { size: 'medium', min: -12, max: 12, def: 0, unit: 'semi', color: '#e879f9' }),
@@ -1497,7 +1499,7 @@ function mmbZang() {
       ...cells.map((k) => inPort(`gate_${k}`, '',     'gate', colX(k - 1), 108, { cellGroupId: 'voice' })),
       ...cells.map((k) => inPort(`vel_${k}`,  '',     'cv',   colX(k - 1), 120, { cellGroupId: 'voice' })),
     ],
-    notes: 'Zingende stemmen. Een lyricbank bevat ingesproken lettergrepen; ZANG zingt ze op de noot die je speelt, met de klinkerkleur van de opname (PSOLA: korte stukjes van twee stemperioden, opnieuw aan elkaar geplakt op de gevraagde toonhoogte). Zolang de gate open is blijft de klinker klinken; bij loslaten speelt de slotmedeklinker uit. Mode: Vast = altijd lettergreep Lettergr.; Volgende = elke aanslag de volgende (een akkoord deelt er één); Vlg+terug = idem, maar na 2 s stilte terug naar het begin. Next en Reset doen hetzelfde met een gate, Syl (CV 0..1) kiest rechtstreeks. Formant schuift de klinkerkleur los van de toonhoogte: omhoog = kinderstem, omlaag = reus. Speed rekt de medeklinkers en overgangen. Bereik: ruwweg een octaaf rond de gesproken toonhoogte klinkt natuurlijk. De bank maak je met 🎤 Zang (opnemen of wav, lettergrepen intypen); op de Teensy staat hij in /mmb/lyrics/NN.mmbl en kiest Bank het nummer. Acht stem-cellen als de sampler: polyfoon = een PolyGroup over de cellen (Poly ▾ → Zingende stem). Firmware tp_mmb_zang.',
+    notes: 'Zingende stemmen. Een lyricbank bevat ingesproken lettergrepen; ZANG zingt ze op de noot die je speelt, met de klinkerkleur van de opname (PSOLA: korte stukjes van twee stemperioden, opnieuw aan elkaar geplakt op de gevraagde toonhoogte). Zolang de gate open is blijft de klinker klinken; bij loslaten speelt de slotmedeklinker uit. Start = de lettergreep waar het liedje begint (0 = de eerste). Mode: Vast = altijd die ene lettergreep (de knop kiest welke); Door = elke aanslag de volgende, rond naar het begin (een akkoord deelt er één); Door+terug = idem, maar na 2 s stilte begint het liedje opnieuw bij Start. Het display toont de lettergreep die aan de beurt is. Bank kiest de lyricbank: in de simulator het nummer waaronder 🎤 Zang hem zette, op de Teensy /mmb/lyrics/NN.mmbl. Next en Reset doen hetzelfde met een gate, Syl (CV 0..1) kiest rechtstreeks. Formant schuift de klinkerkleur los van de toonhoogte: omhoog = kinderstem, omlaag = reus. Speed rekt de medeklinkers en overgangen. Bereik: ruwweg een octaaf rond de gesproken toonhoogte klinkt natuurlijk. De bank maak je met 🎤 Zang (opnemen of wav, lettergrepen intypen); op de Teensy staat hij in /mmb/lyrics/NN.mmbl en kiest Bank het nummer. Acht stem-cellen als de sampler: polyfoon = een PolyGroup over de cellen (Poly ▾ → Zingende stem). Firmware tp_mmb_zang.',
   });
 }
 

@@ -24,6 +24,7 @@ it.skipIf(!process.env.MMB_TTS_TEXT)('lyricbank uit tekst', async () => {
     code: process.env.MMB_TTS_CODE ?? '',
     voice: process.env.MMB_TTS_VOICE ?? 'nl_NL-pim-medium',
     lengthScale: Number(process.env.MMB_TTS_SCALE ?? 1.3),
+    speaker: Number(process.env.MMB_TTS_SPEAKER ?? 0),
   };
   const all: SyllableAnalysis[] = [];
   for (const line of process.env.MMB_TTS_TEXT!.split('|').map((l) => l.trim()).filter(Boolean)) {

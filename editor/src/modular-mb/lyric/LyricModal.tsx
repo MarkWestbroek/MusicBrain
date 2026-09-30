@@ -31,6 +31,9 @@ export interface Take {
   spans: Span[] | null;
   /** Waar de grenzen vandaan komen. */
   origin: 'auto' | 'hand' | 'tekst';
+  /** Met de hand gezette lus per vak, in frames van de opname (relatief aan
+   *  het begin van het vak); null = zelf zoeken. */
+  sustains: ({ start: number; end: number } | null)[];
   syllables: SyllableAnalysis[];
   note: string;
 }
@@ -45,10 +48,11 @@ export function spokenText(text: string): string {
   return text.replace(/[-·|]+/g, '').replace(/\s+/g, ' ').trim();
 }
 
-/** De bank in de simulator zetten: het hele bestand als blob in slot 0. */
-export function loadLyricBankIntoSim(buf: ArrayBuffer, name: string): void {
+/** De bank in de simulator zetten: het hele bestand als blob in slot `bank`
+ *  (0–15, de Bank-knop van ZANG). */
+export function loadLyricBankIntoSim(buf: ArrayBuffer, name: string, bank = 0): void {
   const even = buf.byteLength & 1 ? buf.slice(0, buf.byteLength - 1) : buf;
-  WasmModule.setBlob(ZANG_TYPE_ID, 0, new Int16Array(even), 22050, name, 1);
+  WasmModule.setBlob(ZANG_TYPE_ID, Math.max(0, Math.min(15, Math.round(bank))), new Int16Array(even), 22050, name, 1);
 }
 
 async function decodeToMono(data: ArrayBuffer): Promise<{ mono: Float32Array; rate: number }> {
@@ -72,7 +76,7 @@ export function analyzeTake(take: Take): Take {
   try {
     if (take.spans && take.spans.length > 0) {
       const texts = take.spans.map((_, i) => want[i] ?? '');
-      const syllables = analyzeRecording(take.mono, take.rate, { syllables: texts, spans: take.spans });
+      const syllables = analyzeRecording(take.mono, take.rate, { syllables: texts, spans: take.spans, sustains: take.sustains });
       const note = want.length && want.length !== take.spans.length
         ? `${want.length} lettergrepen getypt, ${take.spans.length} vakken in de golfvorm`
         : '';
@@ -146,7 +150,7 @@ export function LyricModal({ open, onClose }: { open: boolean; onClose: () => vo
 
   async function addAudio(data: ArrayBuffer, label: string): Promise<void> {
     const { mono, rate } = await decodeToMono(data);
-    const t = addTake({ name: label, mono, rate, text: '', spans: null, origin: 'auto' });
+    const t = addTake({ name: label, mono, rate, text: '', spans: null, origin: 'auto', sustains: [] });
     setStatus(`${label}: ${(mono.length / rate).toFixed(2)} s, ${t.syllables.length} lettergrepen gevonden`);
   }
 
@@ -194,8 +198,8 @@ export function LyricModal({ open, onClose }: { open: boolean; onClose: () => vo
       const syl = splitText(typed);
       const spans = spansFromPhonemes(syl, r.phonemes, r.rate);
       const t = addTake({
-        name: `${spokenText(typed)} (${r.voice.split('-')[1] ?? r.voice})`, mono, rate: r.rate,
-        text: typed, spans, origin: spans ? 'tekst' : 'auto',
+        name: `${spokenText(typed)} (${r.voice.split('-')[1] ?? r.voice}${tts.speaker ? ` ${tts.speaker}` : ''})`, mono, rate: r.rate,
+        text: typed, spans, origin: spans ? 'tekst' : 'auto', sustains: [],
       });
       setTtsText('');
       setStatus(spans
@@ -218,10 +222,26 @@ export function LyricModal({ open, onClose }: { open: boolean; onClose: () => vo
     setTakes((list) => list.map((x) => (x.id === id ? { ...x, text } : x)));
   /** Tekst toepassen: met vaste grenzen alleen de labels, anders opnieuw zoeken. */
   const applyText = (id: number): void => update(id, (t) => analyzeTake(t));
-  /** Grenzen weggooien en opnieuw laten zoeken. */
-  const redetect = (id: number): void => update(id, (t) => analyzeTake({ ...t, spans: null, origin: 'auto' }));
+  /** Grenzen (en lussen) weggooien en opnieuw laten zoeken. */
+  const redetect = (id: number): void => update(id, (t) => analyzeTake({ ...t, spans: null, origin: 'auto', sustains: [] }));
+  /** Nieuwe grenzen: de lussen van vakken die niet veranderden blijven staan. */
   const setSpans = (id: number, spans: Span[]): void =>
-    update(id, (t) => analyzeTake({ ...t, spans, origin: 'hand' }));
+    update(id, (t) => analyzeTake({
+      ...t, spans, origin: 'hand',
+      sustains: spans.map((sp) => {
+        const k = t.spans?.findIndex((o) => o.start === sp.start && o.end === sp.end) ?? -1;
+        return k >= 0 ? t.sustains[k] ?? null : null;
+      }),
+    }));
+  /** De lus van vak `index` met de hand gezet (frames van de opname, absoluut). */
+  const setSustain = (id: number, index: number, start: number, end: number): void =>
+    update(id, (t) => {
+      const sp = t.spans?.[index];
+      if (!sp) return t;
+      const sustains = (t.spans ?? []).map((_, i) => t.sustains[i] ?? null);
+      sustains[index] = { start: start - sp.start, end: end - sp.start };
+      return analyzeTake({ ...t, sustains });
+    });
   const remove = (id: number): void => { setTakes((t) => t.filter((x) => x.id !== id)); setLoaded(null); };
   function move(id: number, dir: -1 | 1): void {
     setTakes((t) => {
@@ -259,9 +279,9 @@ export function LyricModal({ open, onClose }: { open: boolean; onClose: () => vo
   function toSim(): void {
     const b = currentBank();
     if (!b) return;
-    loadLyricBankIntoSim(b.bytes, b.data.name);
+    loadLyricBankIntoSim(b.bytes, b.data.name, bankNo);
     const n = WasmModule.count(ZANG_TYPE_ID);
-    setStatus(`in de simulator: "${b.data.name}", ${b.data.syllables.length} lettergrepen, ${(b.bytes.byteLength / 1024).toFixed(0)} KB`
+    setStatus(`in de simulator als bank ${bankNo}: "${b.data.name}", ${b.data.syllables.length} lettergrepen, ${(b.bytes.byteLength / 1024).toFixed(0)} KB — zet de Bank-knop van ZANG op ${bankNo}`
       + (n === 0 ? ' — zet een ZANG-module in het rack (Poly ▾ → Zingende stem)' : ''));
   }
 
@@ -283,8 +303,8 @@ export function LyricModal({ open, onClose }: { open: boolean; onClose: () => vo
       setLoaded(data);
       setName(data.name);
       setTakes([]);
-      loadLyricBankIntoSim(buf, data.name);
-      setStatus(`${file.name} geopend en in de simulator gezet: ${data.syllables.length} lettergrepen`);
+      loadLyricBankIntoSim(buf, data.name, bankNo);
+      setStatus(`${file.name} geopend en in de simulator gezet als bank ${bankNo}: ${data.syllables.length} lettergrepen`);
     } catch (err) {
       fail(file.name, err);
     }
@@ -375,10 +395,16 @@ export function LyricModal({ open, onClose }: { open: boolean; onClose: () => vo
             <input value={ttsText} placeholder="zon-ne-tje  (streepjes tussen de lettergrepen)" style={{ flex: 1, minWidth: 220 }}
               onChange={(e) => setTtsText(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && !ttsBusy) void sayIt(); }} />
-            <select value={tts.voice} onChange={(e) => changeTts({ voice: e.target.value })} title="Stem">
+            <select value={tts.voice} onChange={(e) => changeTts({ voice: e.target.value, speaker: 0 })} title="Stem">
               {(voices.length ? voices : [{ id: tts.voice, name: tts.voice.split('-')[1] ?? tts.voice, language: '' } as TtsVoice])
-                .map((v) => <option key={v.id} value={v.id}>{v.name}{v.language ? ` (${v.language})` : ''}</option>)}
+                .map((v) => <option key={v.id} value={v.id}>{v.name}{v.language ? ` (${v.language})` : ''}{v.speakers > 1 ? ` · ${v.speakers} sprekers` : ''}</option>)}
             </select>
+            {(voices.find((v) => v.id === tts.voice)?.speakers ?? 1) > 1 && (
+              <label title="Welke van de sprekers van dit model (0 = de eerste)">
+                spreker <input type="number" min={0} max={(voices.find((v) => v.id === tts.voice)?.speakers ?? 1) - 1} value={tts.speaker} style={{ width: 48 }}
+                  onChange={(e) => changeTts({ speaker: Math.max(0, Number(e.target.value) || 0) })} />
+              </label>
+            )}
             <label title="Spreektempo: hoger is trager, met langere klinkers die beter aan te houden zijn">
               tempo <input type="number" min={0.7} max={2.5} step={0.1} value={tts.lengthScale} style={{ width: 52 }}
                 onChange={(e) => changeTts({ lengthScale: Math.max(0.5, Math.min(3, Number(e.target.value) || 1)) })} />
@@ -436,6 +462,7 @@ export function LyricModal({ open, onClose }: { open: boolean; onClose: () => vo
                     };
                   })}
                   onChange={(spans) => setSpans(t.id, spans)}
+                  onSustainChange={(i, a, b) => setSustain(t.id, i, a, b)}
                   onPlay={(a, b) => play(t, a, b)} />
               </div>
             )}
@@ -484,8 +511,9 @@ export function LyricModal({ open, onClose }: { open: boolean; onClose: () => vo
 
         <div style={{ minHeight: 18, marginTop: 8, color: status.startsWith('mislukt') ? '#b91c1c' : '#334155' }}>{status}</div>
         <p style={{ color: '#94a3b8', marginTop: 10, marginBottom: 0, fontSize: 12 }}>
-          De bank blijft in de browser tot een herlaad; bewaar hem als <code>.mmbl</code>. Op de Teensy kiest de
-          knop <strong>Bank</strong> van ZANG het bestand <code>/mmb/lyrics/NN.mmbl</code>.
+          Het banknummer geldt voor de simulator én de Teensy: <strong>Naar simulator</strong> zet de bank in dat
+          nummer (tot een herlaad van de pagina), en op de Teensy is het <code>/mmb/lyrics/NN.mmbl</code>. De knop
+          <strong>Bank</strong> van ZANG kiest het nummer.
         </p>
       </div>
     </div>

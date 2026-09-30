@@ -31,17 +31,23 @@ spraaksysteem. Het rekent op een gewone processor: na het laden van een stem
 
 ## Stemmen en licenties
 
-| Stem | Taal | Dataset |
-|---|---|---|
-| `nl_NL-pim-medium` | Nederlands | CC0 |
-| `nl_NL-ronnie-medium` | Nederlands | CC0 |
-| `nl_NL-alex-medium` | Nederlands | CC0 |
-| `nl_BE-nathalie-medium` | Vlaams | CC0 |
-| `nl_NL-mls-medium` | Nederlands, 52 sprekers | CC-BY 4.0 (naamsvermelding) |
+| Stem | Taal | Klinkt als | Dataset |
+|---|---|---|---|
+| `nl_NL-pim-medium` | Nederlands | man, ~165 Hz | CC0 |
+| `nl_NL-ronnie-medium` | Nederlands | man | CC0 |
+| `nl_NL-alex-medium` | Nederlands | man, ~165 Hz | CC0 |
+| `nl_BE-nathalie-medium` | Vlaams | vrouw | CC0 |
+| `nl_NL-mls_5809-low` | Nederlands | vrouw, ~185 Hz, lagere kwaliteit | CC-BY 4.0 |
+| `nl_NL-mls_7432-low` | Nederlands | vrouw, ~230 Hz, lagere kwaliteit | CC-BY 4.0 |
+| `nl_NL-mls-medium` | Nederlands, 52 sprekers | kies de spreker in het venster | CC-BY 4.0 (naamsvermelding) |
 
 Bron: het bestand `MODEL_CARD` bij elke stem op
 <https://huggingface.co/rhasspy/piper-voices>. Het Dockerfile haalt de vier
-CC0-stemmen op.
+CC0-stemmen op. Een echte Nederlandse vrouwenstem in medium-kwaliteit is er
+(nog) niet; de MLS-stemmen komen uit voorgelezen boeken en zeggen soms iets
+anders dan je typt. Van het meerstemmige model klinken deze sprekers als
+vrouw (gemeten aan de toonhoogte, boven 180 Hz): 2, 3, 5, 6, 9, 10, 15, 18,
+19, 22, 25, 26, 29, 30, 34, 35, 38, 47, 48 — 6, 15, 26 en 35 het hoogst.
 
 **Piper zelf is GPL-3.0**, net als eSpeak-NG dat erin zit. Dit dienstje
 roept Piper aan als los programma en geeft de audio door. De editor en de
@@ -128,7 +134,8 @@ POST /tts/speak      {"text": "zonnetje", "voice": "nl_NL-pim-medium", "lengthSc
      "phonemes": [{"p": "^", "start": 0, "samples": 7936}, {"p": "z", ...}], ...}
 ```
 
-`lengthScale` is het tempo: 1 is normaal, hoger is trager. Voor zingen werkt
+`speaker` (0..n−1) kiest de spreker in een meerstemmig model. `lengthScale`
+is het tempo: 1 is normaal, hoger is trager. Voor zingen werkt
 1,3 tot 1,5 goed: de klinkers worden langer en zijn beter aan te houden.
 Tekst is begrensd op 400 tekens per verzoek. `^` en `$` zijn de stilte voor
 en na de zin; `ˈ` is een klemtoonteken, dat de editor bij de klinker erna

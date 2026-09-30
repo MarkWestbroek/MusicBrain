@@ -561,6 +561,9 @@ export interface AnalyzeOptions {
   syllables?: string[];
   /** Vaste grenzen (frames op de bronrate van de opname) in plaats van zelf zoeken. */
   spans?: Span[];
+  /** Per lettergreep een met de hand gekozen lus, in frames op de bronrate
+   *  relatief aan het begin van de lettergreep; null = zelf zoeken. */
+  sustains?: ({ start: number; end: number } | null)[];
   pitch?: PitchOptions;
   split?: SplitOptions;
 }
@@ -576,15 +579,17 @@ export interface SustainRegion {
 
 /**
  * Klinkerkern: het stukje waar de stem heen en weer loopt zolang de toets
- * ingedrukt is. Net als de loop-zoeker van de sampler zoeken we het stuk
- * waar de golfvorm het meest gelijk blijft: vier tot twaalf perioden, allemaal
- * stemhebbend, waarin elke periode op zijn opvolger lijkt én de eerste op de
- * laatste (een klank die langzaam verkleurt, zoals de j die in de a van "ja"
- * overgaat, lijkt van periode tot periode wél op zichzelf maar van begin tot
- * eind niet), zonder al te veel verschil in volume, liefst luid en liefst
- * lang (een lus van vier perioden klinkt al gauw als een zoemer). Zo blijft
- * de aanzet buiten de kern (anders wordt aanhouden "jajaja") en het krakende
- * staartje van een dalende stem ook (dat wordt "kkgkg").
+ * ingedrukt is. Net als de loop-zoeker van de sampler zoeken we een stuk
+ * waarin de golfvorm gelijk blijft van vorm: elke periode lijkt op zijn
+ * opvolger én de eerste op de laatste (een klank die langzaam verkleurt,
+ * zoals de j die in de a van "ja" overgaat, lijkt van periode tot periode wél
+ * op zichzelf maar van begin tot eind niet). Volume mag binnen de lus best
+ * wat zakken: heen en weer lopen maakt daar een tremolo van, en dat hoort
+ * bij zingen. Wat niet mag is de aanzet meenemen (dan wordt aanhouden
+ * "jajaja", of een "ie" als de lus in de j blijft hangen), dus de lus begint
+ * pas een paar perioden ná het begin van het stemhebbende stuk en ligt
+ * liefst rond het midden van de klinker. Lang is goed: hoe langer de lus, hoe
+ * minder je het keren hoort.
  */
 export function findSustain(data: Float32Array, rate: number, marks: Mark[]): SustainRegion {
   const none = { start: 0, end: 0, quality: 0 };
@@ -615,25 +620,55 @@ export function findSustain(data: Float32Array, rate: number, marks: Mark[]): Su
   const adjacent = new Float32Array(Math.max(0, marks.length - 1));
   for (let k = 0; k + 1 < marks.length; k++) adjacent[k] = sim(k, k + 1);
 
-  const MIN = 4, MAX = 12;
+  // Het stemhebbende, luide stuk waar de lus in mag: de langste reeks marks
+  // die stemhebbend zijn en boven 35 % van de piek blijven.
+  const usable = marks.map((m, k) => !m.unvoiced && level[k]! >= 0.35 * peak);
+  let runA = -1, runB = -1, cur = -1;
+  for (let k = 0; k <= marks.length; k++) {
+    const ok = k < marks.length && usable[k];
+    if (ok && cur < 0) cur = k;
+    if (!ok && cur >= 0) { if (k - cur > runB - runA) { runA = cur; runB = k; } cur = -1; }
+  }
+  if (runA < 0 || runB - runA < 4) return none;
+  const runLen = runB - runA;
+  // De aanzet blijft erbuiten: de eerste 3 perioden (of 15 % bij een lange klinker).
+  const onset = runA + Math.min(Math.max(3, Math.round(runLen * 0.15)), Math.max(0, runLen - 4));
+  const runMid = runA + runLen / 2;
+
+  const MIN = 4, MAX = 40, GOOD = 0.8;
   let best = -Infinity, bestA = 0, bestB = 0, bestQ = 0;
-  for (let a = 0; a + MIN - 1 < marks.length; a++) {
-    if (marks[a]!.unvoiced || level[a]! < 0.35 * peak) continue;
-    let adjSum = 0, levelSum = level[a]!, lo = level[a]!, hi = level[a]!;
-    for (let b = a + 1; b < marks.length && b - a + 1 <= MAX; b++) {
-      if (marks[b]!.unvoiced || level[b]! < 0.35 * peak) break;
+  for (let a = onset; a + MIN - 1 < runB; a++) {
+    let adjSum = 0, levelSum = level[a]!;
+    for (let b = a + 1; b < runB && b - a + 1 <= MAX; b++) {
       adjSum += adjacent[b - 1]!;
       levelSum += level[b]!;
-      lo = Math.min(lo, level[b]!); hi = Math.max(hi, level[b]!);
       const len = b - a + 1;
       if (len < MIN) continue;
       const quality = Math.min(adjSum / (len - 1), sim(a, b));
-      const score = quality * Math.sqrt(lo / hi) + 0.008 * len + 0.2 * (levelSum / len / peak);
+      const center = 1 - Math.min(1, Math.abs((a + b) / 2 - runMid) / (runLen / 2));
+      // Vorm gaat voor; daarna lang, luid en in het midden.
+      const score = (quality >= GOOD ? quality : quality - 0.5)
+        + 0.006 * Math.min(len, 24) + 0.15 * (levelSum / len / peak) + 0.1 * center;
       if (score > best) { best = score; bestA = a; bestB = b; bestQ = quality; }
     }
   }
   if (best === -Infinity) return none;
   return { start: bestA, end: bestB, quality: Math.max(0, bestQ) };
+}
+
+/** Zet een met de hand gekozen lus (frames op `rate`) om naar mark-indexen. */
+export function sustainFromFrames(marks: Mark[], start: number, end: number): { start: number; end: number } {
+  const nearest = (f: number): number => {
+    let best = 0, dist = Infinity;
+    marks.forEach((m, k) => { const d = Math.abs(m.frame - f); if (d < dist) { dist = d; best = k; } });
+    return best;
+  };
+  let a = nearest(start), b = nearest(end);
+  if (b < a) [a, b] = [b, a];
+  // minstens twee perioden, en alleen stemhebbende marks
+  while (a < b && marks[a]!.unvoiced) a++;
+  while (b > a && marks[b]!.unvoiced) b--;
+  return b - a >= 1 ? { start: a, end: b } : { start: 0, end: 0 };
 }
 
 /**
@@ -688,7 +723,11 @@ export function analyzeRecording(x: Float32Array, rate: number, opt: AnalyzeOpti
       const v = track.f0[f];
       if (v !== undefined && v > 0) f0.push(v);
     }
-    const sus = findSustain(data, LYRIC_RATE, own);
+    const wanted = opt.sustains?.[idx];
+    const k = LYRIC_RATE / rate;
+    const sus = wanted
+      ? { ...sustainFromFrames(own, wanted.start * k, wanted.end * k), quality: 1 }
+      : findSustain(data, LYRIC_RATE, own);
     return {
       data, rate: LYRIC_RATE, marks: own,
       sustainStart: sus.start, sustainEnd: sus.end, sustainQuality: sus.quality,

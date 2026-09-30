@@ -5,6 +5,7 @@
 //   dubbelklik in een vak    daar splitsen
 //   shift-klik op een grens  de twee vakken samenvoegen
 //   klik in een vak          dat stukje van de opname afspelen
+//   groene balk onderin      de lus (klinkerkern); sleep aan een uiteinde
 //
 // De grenzen zijn `Span`s in frames van de opname. Dit bestand rekent alleen
 // met die getallen (zie de functies onderaan, los te testen); de analyse
@@ -15,6 +16,8 @@ import type { Span } from './analyze';
 
 const HEIGHT = 96;
 const GRAB_PX = 7;
+/** Hoogte van de groene balk (de lus) onderin. */
+const SUS_H = 12;
 
 export interface SyllableEditorProps {
   mono: Float32Array;
@@ -24,6 +27,8 @@ export interface SyllableEditorProps {
   /** Klinkerkern per lettergreep, in frames van de opname (of null). */
   sustain?: ({ start: number; end: number } | null)[];
   onChange(spans: Span[]): void;
+  /** De groene balk (lus) van lettergreep `index` is versleept: nieuwe grenzen in frames van de opname. */
+  onSustainChange?(index: number, start: number, end: number): void;
   onPlay(start: number, end: number): void;
 }
 
@@ -79,7 +84,9 @@ export function SyllableEditor(p: SyllableEditorProps): JSX.Element {
   const wrap = useRef<HTMLDivElement | null>(null);
   const [width, setWidth] = useState(700);
   const [live, setLive] = useState<Span[] | null>(null);
+  const [liveSus, setLiveSus] = useState<{ index: number; start: number; end: number } | null>(null);
   const drag = useRef<{ edge: Edge; moved: boolean } | null>(null);
+  const susDrag = useRef<{ index: number; side: 'start' | 'end'; start: number; end: number; moved: boolean } | null>(null);
   const spans = live ?? p.spans;
   const total = p.mono.length;
   const minLen = Math.round(p.rate * 0.03);
@@ -112,10 +119,13 @@ export function SyllableEditor(p: SyllableEditorProps): JSX.Element {
     spans.forEach((s, i) => {
       g.fillStyle = i % 2 ? 'rgba(59,130,246,0.10)' : 'rgba(245,158,11,0.12)';
       g.fillRect(toX(s.start), 0, toX(s.end) - toX(s.start), HEIGHT);
-      const sus = p.sustain?.[i];
+      const sus = liveSus?.index === i ? liveSus : p.sustain?.[i];
       if (sus && !live) {
-        g.fillStyle = 'rgba(16,185,129,0.22)';
-        g.fillRect(toX(sus.start), HEIGHT - 10, Math.max(1, toX(sus.end) - toX(sus.start)), 10);
+        g.fillStyle = 'rgba(16,185,129,0.35)';
+        g.fillRect(toX(sus.start), HEIGHT - SUS_H, Math.max(1, toX(sus.end) - toX(sus.start)), SUS_H);
+        g.fillStyle = '#059669';
+        g.fillRect(Math.round(toX(sus.start)) - 1, HEIGHT - SUS_H, 3, SUS_H);
+        g.fillRect(Math.round(toX(sus.end)) - 1, HEIGHT - SUS_H, 3, SUS_H);
       }
     });
 
@@ -152,7 +162,7 @@ export function SyllableEditor(p: SyllableEditorProps): JSX.Element {
     }
     g.lineWidth = 1;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spans, p.mono, p.texts, p.sustain, width, live]);
+  }, [spans, p.mono, p.texts, p.sustain, width, live, liveSus]);
 
   const edgeNear = (x: number): Edge | null => {
     let best: Edge | null = null, dist = GRAB_PX + 1;
@@ -164,13 +174,35 @@ export function SyllableEditor(p: SyllableEditorProps): JSX.Element {
   };
   const xOf = (e: React.PointerEvent | React.MouseEvent): number =>
     e.clientX - (canvas.current?.getBoundingClientRect().left ?? 0);
+  const yOf = (e: React.PointerEvent | React.MouseEvent): number =>
+    e.clientY - (canvas.current?.getBoundingClientRect().top ?? 0);
+  /** Een uiteinde van een groene balk onder de muis? */
+  const susHandleNear = (x: number, y: number): { index: number; side: 'start' | 'end' } | null => {
+    if (y < HEIGHT - SUS_H - GRAB_PX) return null;
+    let best: { index: number; side: 'start' | 'end' } | null = null, dist = GRAB_PX + 1;
+    (p.sustain ?? []).forEach((sus, i) => {
+      if (!sus) return;
+      for (const side of ['start', 'end'] as const) {
+        const d = Math.abs(toX(sus[side]) - x);
+        if (d < dist) { dist = d; best = { index: i, side }; }
+      }
+    });
+    return best;
+  };
 
   return (
     <div ref={wrap} style={{ width: '100%' }}>
       <canvas ref={canvas}
         style={{ width, height: HEIGHT, display: 'block', borderRadius: 4, border: '1px solid #e2e8f0', touchAction: 'none', cursor: 'col-resize' }}
-        title="Sleep een grens · dubbelklik = splitsen · shift-klik op een rode grens = samenvoegen · klik = afspelen"
+        title="Sleep een grens · dubbelklik = splitsen · shift-klik op een rode grens = samenvoegen · klik = afspelen · sleep de uiteinden van de groene balk = de lus"
         onPointerDown={(e) => {
+          const h = p.onSustainChange ? susHandleNear(xOf(e), yOf(e)) : null;
+          if (h) {
+            const sus = p.sustain![h.index]!;
+            susDrag.current = { ...h, start: sus.start, end: sus.end, moved: false };
+            e.currentTarget.setPointerCapture(e.pointerId);
+            return;
+          }
           const edge = edgeNear(xOf(e));
           if (!edge) return;
           if (e.shiftKey) { p.onChange(mergeAt(spans, edge)); return; }
@@ -178,8 +210,22 @@ export function SyllableEditor(p: SyllableEditorProps): JSX.Element {
           e.currentTarget.setPointerCapture(e.pointerId);
         }}
         onPointerMove={(e) => {
+          const sd = susDrag.current;
+          if (sd) {
+            const sp = spans[sd.index]!;
+            const minLen = Math.round(p.rate * 0.02);
+            let f = Math.round(Math.max(sp.start, Math.min(sp.end, toFrame(xOf(e)))));
+            if (sd.side === 'start') f = Math.min(f, sd.end - minLen); else f = Math.max(f, sd.start + minLen);
+            sd[sd.side] = f; sd.moved = true;
+            setLiveSus({ index: sd.index, start: sd.start, end: sd.end });
+            return;
+          }
           const d = drag.current;
-          if (!d) { e.currentTarget.style.cursor = edgeNear(xOf(e)) ? 'col-resize' : 'pointer'; return; }
+          if (!d) {
+            e.currentTarget.style.cursor = (p.onSustainChange && susHandleNear(xOf(e), yOf(e))) ? 'ew-resize'
+              : edgeNear(xOf(e)) ? 'col-resize' : 'pointer';
+            return;
+          }
           d.moved = true;
           const next = moveEdge(live ?? p.spans, d.edge, toFrame(xOf(e)), minLen, total);
           // de gesleepte grens opnieuw opzoeken: zijn frame is veranderd
@@ -188,6 +234,14 @@ export function SyllableEditor(p: SyllableEditorProps): JSX.Element {
           setLive(next);
         }}
         onPointerUp={(e) => {
+          const sd = susDrag.current;
+          if (sd) {
+            susDrag.current = null;
+            try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* al los */ }
+            setLiveSus(null);
+            if (sd.moved) p.onSustainChange?.(sd.index, sd.start, sd.end);
+            return;
+          }
           const d = drag.current;
           drag.current = null;
           try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* al los */ }

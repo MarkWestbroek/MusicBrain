@@ -3,9 +3,11 @@
 // Native 44,1 kHz, blok 32. Acht stem-cellen zoals de sampler: `voct_k`,
 // `gate_k`, `vel_k`; de stemtoewijzer zit in MIDI-in.
 //
-// De lyricbank (.mmbl, zie mmb_dsp/lyric_bank.h) komt als één blob in slot 0
-// via de gewone blob-exports: het hele bestand, als int16 gelezen. `rate` en
-// `channels` van de blob doen er niet toe; de bank draagt zijn eigen rate.
+// Lyricbanken (.mmbl, zie mmb_dsp/lyric_bank.h) komen als blobs binnen via de
+// gewone blob-exports: slot = banknummer 0..15 (de Bank-knop), inhoud = het
+// hele bestand als int16 gelezen. `rate` en `channels` van de blob doen er
+// niet toe; de bank draagt zijn eigen rate. `mmb_telemetry()` meldt de
+// lettergreep die aan de beurt is (het display op het paneel).
 #include "mmb_abi.h"
 #include <cstdlib>
 #include <cstring>
@@ -43,45 +45,55 @@ MmbPort MMB_OUTPUTS[] = {
 };
 const int MMB_NUM_OUTPUTS = 3;
 
-enum { C_SYL, C_MODE, C_SPEED, C_FORMANT, C_ATTACK, C_RELEASE, C_COARSE, C_FINE, C_LEVEL };
+enum { C_BANK, C_SYL, C_MODE, C_SPEED, C_FORMANT, C_ATTACK, C_RELEASE, C_COARSE, C_FINE, C_LEVEL };
 MmbControl MMB_CONTROLS[] = {
-    { "syl", 0.f }, { "mode", 1.f }, { "speed", 1.f }, { "formant", 0.f },
+    { "bank", 0.f }, { "syl", 0.f }, { "mode", 1.f }, { "speed", 1.f }, { "formant", 0.f },
     { "attack", 5.f }, { "release", 250.f }, { "coarse", 0.f }, { "fine", 0.f }, { "level", 0.8f },
 };
-const int MMB_NUM_CONTROLS = 9;
+const int MMB_NUM_CONTROLS = 10;
 
 namespace {
+constexpr int kBanks = 16;
 mmb_dsp::ZangEngine g_engine;
-mmb_dsp::LyricBank  g_bank;
-uint8_t* g_blob = nullptr;
-int      g_cap = 0;
+mmb_dsp::LyricBank  g_bank[kBanks];
+uint8_t* g_blob[kBanks] = {};
+int      g_cap[kBanks] = {};
+int      g_bankSel = 0;
 bool     g_gate[kVoices];
 bool     g_next = false, g_reset = false;
 float    g_coarse = 0.f, g_fine = 0.f;
+
+void selectBank() {
+    const mmb_dsp::LyricBank& b = g_bank[g_bankSel];
+    if (g_engine.bank() != (b.valid() ? &b : nullptr)) g_engine.set_bank(b.valid() ? &b : nullptr);
+}
 }
 
 // ── bank-exports (zelfde namen als de sampler: de host kent ze al) ────
 MMB_EXPORT(mmb_blob_ptr) int16_t* mmb_blob_ptr(int slot, int bytes) {
-    if (slot != 0 || bytes <= 0) return nullptr;
-    g_engine.set_bank(nullptr);             // stemmen stil vóór het blok verhuist
-    g_bank.detach();
-    if (g_cap < bytes) {
-        void* p = std::realloc(g_blob, static_cast<size_t>(bytes));
+    if (slot < 0 || slot >= kBanks || bytes <= 0) return nullptr;
+    if (slot == g_bankSel) g_engine.set_bank(nullptr);   // stemmen stil vóór het blok verhuist
+    g_bank[slot].detach();
+    if (g_cap[slot] < bytes) {
+        void* p = std::realloc(g_blob[slot], static_cast<size_t>(bytes));
         if (!p) return nullptr;
-        g_blob = static_cast<uint8_t*>(p);
-        g_cap = bytes;
+        g_blob[slot] = static_cast<uint8_t*>(p);
+        g_cap[slot] = bytes;
     }
-    return reinterpret_cast<int16_t*>(g_blob);
+    return reinterpret_cast<int16_t*>(g_blob[slot]);
 }
 MMB_EXPORT(mmb_blob_commit) void mmb_blob_commit(int slot, int frames, float /*rate*/, int channels) {
-    if (slot != 0 || !g_blob) return;
+    if (slot < 0 || slot >= kBanks || !g_blob[slot]) return;
     if (channels < 1) channels = 1;
     size_t bytes = static_cast<size_t>(frames) * static_cast<size_t>(channels) * 2u;
-    if (bytes > static_cast<size_t>(g_cap)) bytes = static_cast<size_t>(g_cap);
-    if (g_bank.attach(g_blob, bytes)) g_engine.set_bank(&g_bank);
+    if (bytes > static_cast<size_t>(g_cap[slot])) bytes = static_cast<size_t>(g_cap[slot]);
+    g_bank[slot].attach(g_blob[slot], bytes);
+    selectBank();
 }
-/** Diagnose: aantal lettergrepen in de geladen bank (0 = geen geldige bank). */
-MMB_EXPORT(mmb_zang_syllables) int mmb_zang_syllables() { return g_bank.numSyllables(); }
+/** Diagnose: aantal lettergrepen in de gekozen bank (0 = geen geldige bank). */
+MMB_EXPORT(mmb_zang_syllables) int mmb_zang_syllables() { return g_bank[g_bankSel].numSyllables(); }
+/** Voor het display op het paneel: de lettergreep die aan de beurt is. */
+MMB_EXPORT(mmb_telemetry) float mmb_telemetry() { return static_cast<float>(g_engine.current()); }
 /** Diagnose: index van de lettergreep die nu aan de beurt is. */
 MMB_EXPORT(mmb_zang_current) int mmb_zang_current() { return g_engine.current(); }
 MMB_EXPORT(mmb_active_voices) int mmb_active_voices() { return g_engine.activeVoices(); }
@@ -93,6 +105,12 @@ void mmb_setup() {
 
 void mmb_on_control(int idx, float v) {
     switch (idx) {
+        case C_BANK: {
+            int b = static_cast<int>(std::lround(v));
+            g_bankSel = b < 0 ? 0 : (b >= kBanks ? kBanks - 1 : b);
+            selectBank();
+            break;
+        }
         case C_SYL:     g_engine.set_syllable(static_cast<int>(std::lround(v))); break;
         case C_MODE:    g_engine.set_mode(static_cast<int>(std::lround(v))); break;
         case C_SPEED:   g_engine.set_speed(v); break;

@@ -100,6 +100,7 @@ interface AudioInNode extends BaseNode {
 type EngineNode = OutNode | MixerNode | WasmNode | AudioInNode;
 
 const AUDIOIN = 'tp_mmb_audioin';
+const AUDIOIN_ZANG = 'tp_mmb_zang';
 
 /** Stilte tussen loslaten en opnieuw aanslaan van dezelfde wasm-stem (ms).
  *  Eén renderblok is ~2,7 ms; hierna heeft de module de dalende flank gezien. */
@@ -603,6 +604,14 @@ export class AudioEngine {
           this.emit();
         };
         this.seqDisplays(node);
+      }
+      if (t.id === AUDIOIN_ZANG) {
+        // Het display van ZANG: welke lettergreep is aan de beurt.
+        rt.onTelemetry = (v) => {
+          const live = (this.status.liveControls[m.id] ??= {});
+          live.__currentSyl = Math.round(v);
+          this.emit();
+        };
       }
       return node;
     }
