@@ -5,7 +5,8 @@
 //
 // Vervangen van een module die ook in andere patches op hetzelfde rack wordt
 // gebruikt vraagt eerst hoe ver het moet reiken (alleen hier, eigen rack of
-// overal) — anders veranderen die patches ongemerkt mee.
+// overal) — anders veranderen die patches ongemerkt mee. Verwijderen vraagt
+// hetzelfde, zonder "overal" (uit andere patches halen doen we nooit).
 
 import { useEffect, useMemo, useState, useId, useRef } from 'react';
 import { updateProject, useModularProject } from '../store';
@@ -15,9 +16,13 @@ import { replaceModule, otherPatchesUsing, setVoices, addBusFx, addModulation, r
 
 export interface MenuAnchor { x: number; y: number; moduleId: string | null }
 
-interface Item { label: string; run?: () => EditResult; sub?: Item[]; disabled?: boolean; ask?: ReplaceAsk }
+interface Item { label: string; run?: () => EditResult; sub?: Item[]; disabled?: boolean; ask?: ScopeAsk }
 /** Vervangen van een module die ook elders gebruikt wordt: eerst vragen. */
-interface ReplaceAsk { from: string; to: string; users: string[]; run: (scope: ReplaceScope) => EditResult }
+interface ReplaceAsk { kind?: 'replace'; from: string; to: string; users: string[]; run: (scope: ReplaceScope) => EditResult }
+/** Verwijderen van een module die ook elders gebruikt wordt: uit deze patch,
+ *  of een eigen rack zonder de module. */
+interface RemoveAsk { kind: 'remove'; from: string; users: string[]; run: (scope: 'patch' | 'rack') => EditResult }
+type ScopeAsk = ReplaceAsk | RemoveAsk;
 
 export function RecipeContextMenu(props: {
   anchor: MenuAnchor; patchId: string; onClose: () => void;
@@ -26,7 +31,7 @@ export function RecipeContextMenu(props: {
   const { anchor, patchId, onClose, onResult } = props;
   const project = useModularProject();
   const [openSub, setOpenSub] = useState<number | null>(null);
-  const [asking, setAsking] = useState<ReplaceAsk | null>(null);
+  const [asking, setAsking] = useState<ScopeAsk | null>(null);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => { if (e.key === 'Escape') onClose(); };
@@ -87,7 +92,17 @@ export function RecipeContextMenu(props: {
       }
     }
     if (m.typeId === 'tp_mmb_out') out.push({ label: 'Bus-effect vóór OUT', sub: fxItems() });
-    else out.push({ label: `Verwijder ${shortName(m.typeId, types)} (audio doorverbinden)`, run: () => removeModule(p, patchId, m.id) });
+    else {
+      const users = otherPatchesUsing(p, patchId, m.id).map((q) => q.name);
+      out.push({
+        label: `Verwijder ${shortName(m.typeId, types)} (audio doorverbinden)`,
+        run: () => removeModule(p, patchId, m.id),
+        ...(users.length ? { ask: {
+          kind: 'remove' as const, from: shortName(m.typeId, types), users,
+          run: (scope: 'patch' | 'rack') => removeModule(p, patchId, m.id, scope),
+        } } : {}),
+      });
+    }
     out.push(voiceItems);
     return out;
   }, [project, anchor.moduleId, patchId]);
@@ -118,7 +133,8 @@ export function RecipeContextMenu(props: {
     cursor: 'pointer', borderRadius: 4, whiteSpace: 'nowrap',
   };
   if (asking) {
-    return <ReplaceScopeDialog ask={asking} onRun={(scope) => runEdit(() => asking.run(scope))} onCancel={onClose} />;
+    return <ReplaceScopeDialog ask={asking} onCancel={onClose}
+      onRun={(scope) => runEdit(() => (asking.kind === 'remove' ? asking.run(scope === 'rack' ? 'rack' : 'patch') : asking.run(scope)))} />;
   }
 
   const x = Math.min(anchor.x, window.innerWidth - 220);
@@ -153,14 +169,15 @@ export function RecipeContextMenu(props: {
 }
 
 /**
- * Vraag bij "Vervang door" als andere patches de module ook gebruiken: hoe ver
- * moet de vervanging reiken? Zelfde vorm als de andere vensters van de editor
+ * Vraag bij "Vervang door" (en "Verwijder") als andere patches de module ook
+ * gebruiken: hoe ver moet het reiken? Bij verwijderen zijn er twee keuzes:
+ * alleen uit deze patch, of een eigen rack zonder de module. Zelfde vorm als de andere vensters van de editor
  * (kop met ✕, keuzes, Annuleren/Vervangen); "alleen deze patch" staat klaar
  * omdat die niets van andere patches verandert. Enter = vervangen, Esc = annuleren.
  */
 export function ReplaceScopeDialog({ ask, onRun, onCancel }: {
-  ask: ReplaceAsk;
-  onRun: (scope: ReplaceScope) => void;
+  ask: ScopeAsk;
+  onRun: (scope: Exclude<ReplaceScope, 'auto'>) => void;
   onCancel: () => void;
 }): JSX.Element {
   const [scope, setScope] = useState<Exclude<ReplaceScope, 'auto'>>('patch');
@@ -178,7 +195,13 @@ export function ReplaceScopeDialog({ ask, onRun, onCancel }: {
   const names = ask.users.length <= 3 ? ask.users.map((u) => `"${u}"`).join(', ')
     : `${ask.users.slice(0, 3).map((u) => `"${u}"`).join(', ')} en ${ask.users.length - 3} meer`;
   const others = ask.users.length === 1 ? `patch ${names}` : `${ask.users.length} andere patches (${names})`;
-  const options: { id: Exclude<ReplaceScope, 'auto'>; title: string; detail: string }[] = [
+  const removing = ask.kind === 'remove';
+  const options: { id: Exclude<ReplaceScope, 'auto'>; title: string; detail: string }[] = ask.kind === 'remove' ? [
+    { id: 'patch', title: 'Alleen uit deze patch',
+      detail: `De kabels van deze patch gaan eraf (audio doorverbonden). De ${ask.from} blijft in het rack voor de andere patches.` },
+    { id: 'rack', title: 'Nieuw rack voor deze patch',
+      detail: `Een kopie van het rack zonder de ${ask.from}. De andere patches houden het oude rack.` },
+  ] : [
     { id: 'patch', title: 'Alleen in deze patch',
       detail: `Een nieuwe ${ask.to} naast de ${ask.from}; de kabels van deze patch gaan erheen. De andere patches houden de ${ask.from}.` },
     { id: 'rack', title: 'Nieuw rack voor deze patch',
@@ -200,13 +223,13 @@ export function ReplaceScopeDialog({ ask, onRun, onCancel }: {
       <div style={panel} role="dialog" aria-modal="true" aria-labelledby={titleId} onMouseDown={(e) => e.stopPropagation()}
            onKeyDown={(e) => { if (e.key === 'Enter' && !(e.target instanceof HTMLButtonElement)) { e.preventDefault(); onRun(scope); } }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <h3 id={titleId} style={{ margin: 0, flex: 1 }}>{ask.from} vervangen door {ask.to}</h3>
+          <h3 id={titleId} style={{ margin: 0, flex: 1 }}>{ask.kind === 'remove' ? `${ask.from} verwijderen` : `${ask.from} vervangen door ${ask.to}`}</h3>
           <button onClick={onCancel} aria-label="Sluiten">✕</button>
         </div>
         <div style={{ color: '#475569', margin: '6px 0 12px' }}>
-          Deze {ask.from} zit ook in {others}. Hoe ver moet de vervanging reiken?
+          Deze {ask.from} zit ook in {others}. {removing ? 'Daar blijft hij in elk geval staan.' : 'Hoe ver moet de vervanging reiken?'}
         </div>
-        <div role="radiogroup" aria-label="Bereik van de vervanging">
+        <div role="radiogroup" aria-label={removing ? 'Bereik van het verwijderen' : 'Bereik van de vervanging'}>
           {options.map((o) => {
             const on = scope === o.id;
             return (
@@ -225,7 +248,7 @@ export function ReplaceScopeDialog({ ask, onRun, onCancel }: {
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
           <button onClick={onCancel}>Annuleren</button>
-          <button ref={okRef} className="primary" onClick={() => onRun(scope)}>Vervangen</button>
+          <button ref={okRef} className="primary" onClick={() => onRun(scope)}>{removing ? 'Verwijderen' : 'Vervangen'}</button>
         </div>
       </div>
     </div>

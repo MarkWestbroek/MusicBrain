@@ -18,4 +18,16 @@ describe('ReplaceScopeDialog', () => {
     expect(html).toContain('>Annuleren<');
     expect(html).toContain('>Vervangen<');
   });
+
+  it('verwijder-variant: twee keuzes (alleen uit deze patch vooraf), knop Verwijderen', () => {
+    const html = renderToStaticMarkup(createElement(ReplaceScopeDialog, {
+      ask: { kind: 'remove', from: 'FET Comp', users: ['Lead'], run: () => { throw new Error('niet'); } },
+      onRun: () => {}, onCancel: () => {},
+    }));
+    expect(html).toContain('FET Comp verwijderen');
+    expect((html.match(/type="radio"/g) ?? []).length).toBe(2);
+    expect(html).toMatch(/checked=""[^>]*\/?>\s*<span><span[^>]*>Alleen uit deze patch/);
+    expect(html).toContain('>Verwijderen<');
+    expect(html).not.toContain('Overal');
+  });
 });

@@ -3,7 +3,7 @@ import { emptyModularProject, type ModularProject } from '../types';
 import { seedInternals } from '../seedModules';
 import { buildRecipe, validateOps } from './compile';
 import { mergeRacks } from './optimize';
-import { replaceModule, otherPatchesUsing } from './edits';
+import { replaceModule, removeModule, otherPatchesUsing } from './edits';
 import { runCommand } from './commands';
 
 /** Twee patches (A, B) op één rack, met dezelfde VCF-modules. */
@@ -115,5 +115,26 @@ describe('module vervangen als andere patches hem ook gebruiken', () => {
       const r = replaceModule(p, a, vco, 'tp_mmb_plaits', scope).project;
       expect(overlaps(r), scope).toEqual([]);
     }
+  });
+
+  it("verwijderen 'patch': alleen de kabels van A; de VCF blijft in het rack voor B", () => {
+    const { p, a, b, vcf } = shared();
+    const r = removeModule(p, a, vcf, 'patch').project;
+    expect(types(r, a).has('tp_mmb_vcf')).toBe(false);
+    expect(types(r, b).has('tp_mmb_vcf')).toBe(true);
+    expect(r.racks.some((x) => x.slots.some((sl) => sl.moduleId === vcf))).toBe(true);
+  });
+
+  it("verwijderen 'rack': A krijgt een eigen rack zonder de VCF; B houdt het oude", () => {
+    const { p, a, b, vcf } = shared();
+    const r = removeModule(p, a, vcf, 'rack').project;
+    const ra = r.patches.find((x) => x.id === a)!, rb = r.patches.find((x) => x.id === b)!;
+    expect(ra.rackIds).not.toEqual(rb.rackIds);
+    expect(types(r, a).has('tp_mmb_vcf')).toBe(false);
+    expect(types(r, b).has('tp_mmb_vcf')).toBe(true);
+    const own = r.racks.find((x) => ra.rackIds.includes(x.id) && x.kind !== 'internal')!;
+    expect(own.slots.some((sl) => r.modules.find((m) => m.id === sl.moduleId)!.typeId === 'tp_mmb_vcf')).toBe(false);
+    expect(overlaps(r)).toEqual([]);
+    validateOps(r, [], a); validateOps(r, [], b);
   });
 });

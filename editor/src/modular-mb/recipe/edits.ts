@@ -646,7 +646,15 @@ export function moveModule(project: ModularProject, patchId: string, moduleId: s
  * neemt de hele groep mee. De module blijft in het rack staan als andere
  * patches hem gebruiken; anders gaat hij ook uit het rack.
  */
-export function removeModule(project: ModularProject, patchId: string, moduleId: string): EditResult {
+export function removeModule(project: ModularProject, patchId: string, moduleId: string,
+                             scope: 'patch' | 'rack' = 'patch'): EditResult {
+  // 'rack': deze patch krijgt een eigen kopie van het rack, en daaruit gaat de
+  // module weg; de andere patches houden het oude rack met de module erin.
+  if (scope === 'rack' && otherPatchesUsing(project, patchId, moduleId).length) {
+    const fork = forkRackForPatch(project, patchId, moduleId);
+    const r = removeModule(fork.project, patchId, fork.id, 'patch');
+    return { ...r, summary: `${r.summary.replace(/\.$/, '')} — in een eigen kopie van het rack.`, warnings: [] };
+  }
   let p = project;
   const patch = patchOf(p, patchId);
   const mod = moduleOf(p, moduleId);
