@@ -179,3 +179,26 @@ describe('controls', () => {
     expect(d.controls.map((c) => c.controlId)).toEqual(['cutoff']);
   });
 });
+
+describe('knoppen die maar in één patch zijn opgeslagen', () => {
+  it('tellen aan de andere kant als hun standaardwaarde (100 % = B)', () => {
+    const { p: p0, a, b } = abBus();
+    const vcf = active({ ...p0, activePatchId: b }).connections
+      .map((c) => c.to.moduleId).find((id) => typeOf(p0, id) === 'tp_mmb_vcf')!;
+    const def = p0.moduleTypes.find((t) => t.id === 'tp_mmb_vcf')!.controls.find((c) => c.id === 'q') as { defaultValue: number };
+    const bq = def.defaultValue + 0.3;
+    // A: q niet opgeslagen (standaard); B: q expliciet anders.
+    const p: ModularProject = {
+      ...p0,
+      patches: p0.patches.map((x) => {
+        if (x.id === a) { const { q: _q, ...rest } = x.controlState[vcf] ?? {}; void _q; return { ...x, controlState: { ...x.controlState, [vcf]: rest } }; }
+        if (x.id === b) return { ...x, controlState: { ...x.controlState, [vcf]: { ...x.controlState[vcf], q: bq } } };
+        return x;
+      }),
+    };
+    const d = morphDescriptor(p, a, b);
+    expect(d.controls.some((c) => c.moduleId === vcf && c.controlId === 'q')).toBe(true);
+    expect(Number(morphPatch(p, d, 1).controlState[vcf]!.q)).toBeCloseTo(bq, 5);
+    expect(Number(morphPatch(p, d, 0).controlState[vcf]!.q)).toBeCloseTo(def.defaultValue, 5);
+  });
+});

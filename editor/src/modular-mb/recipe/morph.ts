@@ -77,6 +77,14 @@ export function isOrdinalSwitch(c: Extract<Control, { kind: 'switch' }>): boolea
   return c.positions.length >= 2 && numeric >= c.positions.length - 1;   // "All"/"Auto" als uiterste mag
 }
 
+/** Standaardwaarde van een control (zoals het paneel hem toont als hij niet
+ *  in de controlState staat), of undefined als hij er geen heeft. */
+function defaultOf(c: Control): ControlValue | undefined {
+  if ('defaultValue' in c && c.defaultValue !== undefined) return c.defaultValue as ControlValue;
+  if (c.kind === 'switch') return c.defaultIndex ?? 0;
+  return undefined;
+}
+
 export function ruleFor(c: Control): ControlRule | null {
   switch (c.kind) {
     case 'knob': case 'slider': return 'step' in c && c.step ? 'step' : 'taper';
@@ -221,7 +229,10 @@ export function morphDescriptor(p: ModularProject, aId: string, bId: string): Mo
     const m = mods.get(id); if (!m) continue;
     const ca = A.controlState[id] ?? {}, cb = B.controlState[id] ?? {};
     for (const c of resolveControls(m, types)) {
-      const va = ca[c.id], vb = cb[c.id];
+      // Niet opgeslagen = de standaardwaarde. Anders slaat de morph een knop
+      // over die maar in één patch is aangeraakt, en blijft hij op elke stand
+      // de waarde van A houden — ook op 100 %.
+      const va = ca[c.id] ?? defaultOf(c), vb = cb[c.id] ?? defaultOf(c);
       if (va === undefined || vb === undefined || JSON.stringify(va) === JSON.stringify(vb)) continue;
       const rule = ruleFor(c);
       if (!rule) continue;
