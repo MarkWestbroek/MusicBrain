@@ -41,6 +41,23 @@ Drie projectmodi via knoppen bovenin:
 
 Device-discovery + WebSerial upload (synchroniseren met firmware) komt in Stage 7.
 
+### FOF Singing Voice
+
+**Poly > FOF Stem (mono)** maakt een patch van MIDI-IN via FOF-VOICE naar OUT.
+Geen opname, lyricbank of extra hardware nodig. Start audio in Simulatie.
+
+| Control | Functie |
+|---|---|
+| Vowel | Continue A-E-I-O-U-morf, onafhankelijk van toonhoogte |
+| Voice | Korte/heldere naar langere/zachtere glottale sluiting; default 0,35 |
+| Tone / Breath | Formantbreedte / pulsgebonden aspiratie |
+| Vibrato / Level | Vibratodiepte / uitgangsniveau |
+
+De gedeelde C++-kern draait in WASM en op Teensy. Dit is een experimentele
+formantstem met een vereenvoudigde glottale bron, geen volledige CHANT- of
+LF-reconstructie. Herlaad en maak de seed opnieuw voor het uitgebreide paneel.
+Zie [proefinstructies, tests en vervolgstappen](../doc/plans/stem-als-instrument.md).
+
 ### Material Bridge
 
 **Solo > Material Bridge (materiaalgeheugen)** voegt een bespeelbare patch toe:

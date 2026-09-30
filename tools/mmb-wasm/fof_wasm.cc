@@ -16,12 +16,12 @@ const int MMB_NUM_INPUTS = 4;
 MmbPort MMB_OUTPUTS[] = { { "out", MMB_AUDIO, 0, {} } };
 const int MMB_NUM_OUTPUTS = 1;
 
-enum { C_VOWEL, C_TONE, C_BREATH, C_VIBRATO, C_LEVEL };
+enum { C_VOWEL, C_TONE, C_BREATH, C_VIBRATO, C_LEVEL, C_VOICE };
 MmbControl MMB_CONTROLS[] = {
     { "vowel", 0.0f }, { "tone", 0.5f }, { "breath", 0.08f },
-    { "vibrato", 0.12f }, { "level", 0.8f },
+    { "vibrato", 0.12f }, { "level", 0.8f }, { "voice", 0.35f },
 };
-const int MMB_NUM_CONTROLS = 5;
+const int MMB_NUM_CONTROLS = 6;
 
 namespace {
 mmb_dsp::FofVoice voice;
@@ -38,6 +38,7 @@ void mmb_on_control(int index, float value) {
         case C_BREATH: breath = mmb_clamp01(value); break;
         case C_VIBRATO: voice.setVibrato(mmb_clamp01(value)); break;
         case C_LEVEL: voice.setLevel(mmb_clamp01(value)); break;
+        case C_VOICE: voice.setVoice(mmb_clamp01(value)); break;
     }
 }
 

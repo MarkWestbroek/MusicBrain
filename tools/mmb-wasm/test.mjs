@@ -4,6 +4,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import assert from 'node:assert/strict';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const dir = join(root, 'editor/public/wasm');
@@ -63,6 +64,86 @@ function report(m, stats, ms) {
     return o.kind === 0 ? `${o.id} peak ${s.peak.toFixed(3)}` : `${o.id} [${s.min.toFixed(2)}..${s.max.toFixed(2)}]${o.kind === 2 ? ` ${s.edges} flanken` : ''}`;
   });
   console.log(`${m.typeId.padEnd(18)} ${String(m.rate).padStart(5)} Hz/${String(m.block).padStart(2)}  ${parts.join(' · ')}  (${ms.toFixed(0)} ms/s = ${(ms / 10).toFixed(1)}% CPU)`);
+}
+
+function captureFof(module, seconds) {
+  const samples = new Float32Array(Math.ceil(module.rate * seconds / module.block) * module.block);
+  for (let offset = 0; offset < samples.length; offset += module.block) {
+    module.ex.mmb_render(module.block);
+    samples.set(module.outBuf(0).subarray(0, module.block), offset);
+  }
+  assert(samples.every(Number.isFinite), 'FOF: non-finite sample');
+  assert(samples.every(sample => Math.abs(sample) < 0.999), 'FOF: clipping');
+  return samples;
+}
+
+function rms(samples) {
+  return Math.sqrt(samples.reduce((sum, sample) => sum + sample * sample, 0) / samples.length);
+}
+
+async function checkFof(file) {
+  const makeVoice = async (frequency, vowel, phonation, tone = 0.5) => {
+    const module = await load(file);
+    assert(module.controls.some(control => control.id === 'voice'), 'FOF: Voice control missing');
+    module.setCtl('breath', 0);
+    module.setCtl('vibrato', 0);
+    module.setCtl('voice', phonation);
+    module.setCtl('vowel', vowel);
+    module.setCtl('tone', tone);
+    module.setIn('voct', Math.log2(frequency / 261.6256));
+    module.setIn('gate', 1);
+    captureFof(module, 0.15);
+    return module;
+  };
+  for (const frequency of [110, 220, 440]) {
+    for (const vowel of [0, 0.25, 0.5, 0.75, 1]) {
+      for (const phonation of [0, 0.35, 1]) {
+        const module = await makeVoice(frequency, vowel, phonation);
+        const samples = captureFof(module, 0.12);
+        assert(rms(samples) > 0.0001, `FOF: silent vowel ${vowel} at ${frequency} Hz`);
+        const lag = Math.round(module.rate / frequency);
+        let error = 0, energy = 0;
+        for (let index = lag; index < samples.length; index++) {
+          error += (samples[index] - samples[index - lag]) ** 2;
+          energy += samples[index] ** 2;
+        }
+        assert(error / energy < 0.12, `FOF: pitch drift at ${frequency} Hz (${error / energy})`);
+      }
+    }
+  }
+  const closed = captureFof(await makeVoice(220, 0, 0), 0.2);
+  const open = captureFof(await makeVoice(220, 0, 1), 0.2);
+  const brightness = samples => {
+    let difference = 0;
+    for (let index = 1; index < samples.length; index++) difference += (samples[index] - samples[index - 1]) ** 2;
+    return difference / samples.length / rms(samples) ** 2;
+  };
+  assert(brightness(closed) > brightness(open) * 1.1, 'FOF: Voice must change spectral tilt, not just level');
+  const release = await makeVoice(220, 0.25, 0.35);
+  const held = rms(captureFof(release, 0.1));
+  release.setIn('gate', 0);
+  captureFof(release, 1.2);
+  assert(rms(captureFof(release, 0.1)) < held * 0.001, 'FOF: release does not decay');
+  release.setIn('gate', 1);
+  assert(rms(captureFof(release, 0.2)) > held * 0.5, 'FOF: retrigger stays silent');
+  release.setCtl('level', 0);
+  assert(rms(captureFof(release, 0.1)) === 0, 'FOF: level zero must mute');
+  for (const frequency of [40, 2000]) {
+    for (const phonation of [0, 1]) {
+      for (const tone of [0, 1]) {
+        const module = await makeVoice(frequency, 0.5, phonation, tone);
+        module.setCtl('breath', 1);
+        module.setCtl('vibrato', 1);
+        module.setIn('vowel', -10);
+        captureFof(module, 0.15);
+        module.setIn('vowel', 10);
+        module.setIn('breath', 10);
+        module.setCtl('voice', 1 - phonation);
+        captureFof(module, 0.15);
+      }
+    }
+  }
+  console.log('FOF regression: 45 pitch/vowel/Voice cases, spectral tilt, release/retrigger/mute and 8 extreme cases passed.');
 }
 
 const only = process.argv[2];
@@ -129,5 +210,6 @@ for (const f of files) {
     if (!Number.isFinite(peak) || peak < 0.02 || peak > 1.001) {
       throw new Error(`FOF-rooktest: ongeldige audiopiek ${peak}`);
     }
+    await checkFof(f);
   }
 }

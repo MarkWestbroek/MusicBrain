@@ -534,6 +534,7 @@
         "level",
         "tone",
         "vibrato",
+        "voice",
         "vowel"
       ]
     },

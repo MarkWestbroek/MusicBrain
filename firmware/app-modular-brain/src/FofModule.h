@@ -18,6 +18,7 @@ public:
     void setFrequency(float hz) { voice_.setFrequency(hz); }
     void setGate(bool high) { voice_.setGate(high && active_); }
     void setVowel(float value) { voice_.setVowel(value); }
+    void setVoice(float value) { voice_.setVoice(value); }
     void setTone(float value) { voice_.setTone(value); }
     void setBreath(float value) { voice_.setBreath(value); }
     void setVibrato(float value) { voice_.setVibrato(value); }
@@ -85,6 +86,8 @@ public:
             stream_.setVowel(clamp01(vowel_ + vowelCv_) * 4.0f);
         } else if (controlId == "tone") {
             stream_.setTone(clamp01(number));
+        } else if (controlId == "voice") {
+            stream_.setVoice(clamp01(number));
         } else if (controlId == "breath") {
             breath_ = clamp01(number);
             stream_.setBreath(clamp01(breath_ + breathCv_));

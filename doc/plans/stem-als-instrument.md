@@ -13,8 +13,10 @@ Op 2026-09-30 is de eerste proef als echte MusicBrain-module gebouwd:
 editorsimulator en op de Teensy 4.1. Er is geen opname, bank, Piper-dienst of
 extra hardware nodig.
 
-De kern gebruikt een pitch-synchrone impuls die vijf gedempte sinusresonatoren
-exciteert. Hun frequenties, bandbreedtes en niveaus morfen tussen vijf vaste
+De eerste versie gebruikte een pitch-synchrone impuls. De tweede versie
+gebruikt een asymmetrische glottale flow met een cosine-openingsfase en een
+kortere cosine-sluitfase. Het sampleverschil van die flow exciteert vijf
+gedempte sinusresonatoren. Hun frequenties, bandbreedtes en niveaus morfen tussen vijf vaste
 klinkerprofielen. Omdat de formanten niet met F0 meeschuiven, blijft de
 klinkerkleur bij verschillende noten herkenbaar. Dit is FOF/CHANT-geinspireerd,
 maar nog geen volledige reconstructie van CHANT: er zijn geen afzonderlijke
@@ -29,8 +31,15 @@ articulatiescore.
 3. Open `Simulatie`, start audio en speel op het schermklavier of via MIDI.
 4. Draai eerst `Vowel` langzaam van 0 naar 1: dat doorloopt
    `A -> E -> I -> O -> U`.
-5. Probeer daarna `Tone`, `Breath` en `Vibrato`. Houd een noot aan tijdens
-   het bewegen; juist de continue klinkermorf is de kern van deze proef.
+5. Zet `Breath` en `Vibrato` eerst op nul. Vergelijk op dezelfde noot
+  `Voice=0` (kort sluiten, helder) met `Voice=1` (langer open/sluiten, zacht).
+  De standaardstand is 0,35; vergelijk ook op gelijk ervaren volume.
+6. Voeg daarna `Breath` toe: de ruis ademt nu mee met de glottale opening.
+  Probeer `Tone` en `Vibrato` en houd noten aan tijdens de klinkermorf.
+
+Bij een bestaande patch: herlaad de editor en maak opnieuw de FOF-mono-seed
+om ook de nieuwe `Voice`-knop in het paneel te krijgen. Bestaande patches zonder
+opgeslagen `voice`-waarde gebruiken de DSP-default van 0,35.
 
 Los patchen kan ook. Ingangen zijn `voct`, `gate`, `vowel` en `breath`; uitgang
 is mono `out`. `Vowel`- en `Breath`-CV tellen op bij hun knop. Een LFO of
@@ -47,20 +56,48 @@ ademcontroller naar `breath` maakt de inzet luchtiger. `Vibrato` loopt op
 - Editorpaneel, catalogus, classificatie en mono-seed staan in de bestaande
   modulaire editorstructuur.
 
-De wasm-rooktest rendert twee seconden, faalt bij stilte/NaN/clipping en mat
-een piek van 0,232. Op de ontwikkel-pc kostte de renderlus 0,2-0,3 procent van
-een realtime seconde; dat is geen browser- of Teensy-CPU-meting. De volledige
-Teensy-build slaagt: 600.672 bytes code, 57.024 bytes vrije RAM1 en 269.408
-bytes vrije RAM2 voor heap/new. De editor typecheckt en alle 171 contracttests
-slagen. De module is nog niet op fysieke hardware beluisterd of geprofiled.
+### Tweede stap: glottale bron en Voice
+
+`Voice` verandert de openingsduur van 45 naar 60 procent van de periode en
+de sluitduur van 4 naar 24 procent. De resterende tijd is de glottis gesloten.
+De flow en zijn helling sluiten continu aan; de discrete afgeleide heeft in
+stationair bedrijf geen DC. De control wordt over ongeveer 5 ms gladgestreken.
+Dit is een Rosenberg-achtige cosinebenadering van open/sluitgedrag, **geen
+exact Liljencrants-Fant-model** en geen mechanisch stembandenmodel.
+
+De excitatiesterkte is verlaagd nadat de eerste regressietest clipping vond
+bij een resonante klinker/toonhoogtecombinatie. `Breath` houdt een kleine
+continue luchtcomponent, maar wordt vooral tijdens de opening doorgelaten.
+Envelope-coefficienten worden eenmaal berekend; ongewijzigde klinkerwaarden
+berekenen niet ieder WASM-blok opnieuw de formanten. `reset()` wist nu ook
+de ruis- en bronhistorie en behoudt de ingestelde resonatorcoefficienten.
+
+Validatie met `node tools/mmb-wasm/test.mjs tp_mmb_fof`:
+
+- 45 combinaties: 110/220/440 Hz, vijf klinkers en drie Voice-standen.
+  Iedere combinatie is eindig, niet stil, niet geclipt en periodiek op F0.
+- De genormaliseerde sampleverschilenergie is bij `Voice=0` groter dan bij
+  `Voice=1`: de control verandert spectrale helderheid, niet alleen volume.
+- Gate-release valt na 1,2 seconde onder 0,1 procent van de sustain-RMS;
+  hertrigger werkt en `Level=0` dempt exact.
+- Acht randgevallen combineren 40/2000 Hz, beide Voice- en Tone-extremen,
+  maximale adem/vibrato en buitenbereik-CV. Geen NaN/Inf of clipping.
+
+De nieuwe rooktest mat een piek van 0,164 en ongeveer 0,2 procent rekentijd
+op deze ontwikkel-pc. Dat is geen browser- of Teensy-CPU-meting. Editor-typecheck,
+productiebuild en alle 175 huidige contracttests slagen. Ook de tweede versie
+is volledig voor Teensy gebouwd: 57.024 bytes vrije RAM1 en 269.408 bytes
+vrije RAM2 voor heap/new in de huidige workspace-build. Er is niet geflasht;
+fysieke luisterproef en CPU-profiling blijven open.
 
 ### Bekende beperkingen en volgende stappen
 
 - De klinkertabellen zijn algemene volwassen-stemwaarden, geen Nederlandse
   zanger of persoonlijk stemprofiel.
-- De eenvoudige impulsbron klinkt synthetisch; LF-achtige glottispulsen,
-  spectral tilt en druk/registerkoppeling zijn de belangrijkste volgende
-  klankverbeteringen.
+- De nieuwe glottale bron geeft regelbare spectrale helling, maar mist
+  druk/registerkoppeling en een gekalibreerde LF-golfvorm. De klank is nog
+  niet muzikaal beoordeeld. Er is geen oversampling of expliciete
+  bandbegrenzing; aliasing bij hoge noten en korte sluiting moet worden gemeten.
 - Alleen aspiratieruis is gemodelleerd. Medeklinkers, tweeklanken, onsetvormen,
   melisma's en woorden ontbreken.
 - De envelope heeft vaste attack/release. Expressieve controls voor druk,

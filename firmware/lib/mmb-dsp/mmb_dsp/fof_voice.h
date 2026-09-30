@@ -7,7 +7,7 @@ namespace mmb_dsp {
 
 /** Lightweight FOF/CHANT-inspired singing-formant voice.
  *
- * A pitch-synchronous impulse excites five damped sinusoidal formants. The
+ * A differentiated, asymmetric glottal flow excites five damped formants. The
  * formant frequencies stay fixed while pitch changes, so vowel colour and F0
  * remain independent. This is deliberately a playable first model, not a
  * complete reconstruction of IRCAM CHANT.
@@ -16,6 +16,9 @@ class FofVoice {
 public:
     void init(float sampleRate) {
         sampleRate_ = sampleRate > 8000.0f ? sampleRate : 44100.0f;
+        attackCoefficient_ = timeCoefficient(0.018f);
+        releaseCoefficient_ = timeCoefficient(0.12f);
+        voiceCoefficient_ = timeCoefficient(0.005f);
         reset();
         updateFormants();
     }
@@ -24,13 +27,20 @@ public:
         pitchPhase_ = 0.0f;
         vibratoPhase_ = 0.0f;
         envelope_ = 0.0f;
+        breathLow_ = 0.0f;
+        previousFlow_ = 0.0f;
+        smoothVoice_ = voice_;
         noiseState_ = 0x6d2b79f5u;
-        for (auto& formant : formants_) formant = {};
+        for (auto& formant : formants_) { formant.y1 = 0.0f; formant.y2 = 0.0f; }
     }
 
     void setFrequency(float hz) { frequency_ = clamp(hz, 40.0f, 2000.0f); }
     void setGate(bool high) { gate_ = high; }
-    void setVowel(float vowel) { vowel_ = clamp(vowel, 0.0f, 4.0f); updateFormants(); }
+    void setVowel(float vowel) {
+        const float next = clamp(vowel, 0.0f, 4.0f);
+        if (next != vowel_) { vowel_ = next; updateFormants(); }
+    }
+    void setVoice(float voice) { voice_ = clamp(voice, 0.0f, 1.0f); }
     void setBreath(float breath) { breath_ = clamp(breath, 0.0f, 1.0f); }
     void setTone(float tone) { tone_ = clamp(tone, 0.0f, 1.0f); updateFormants(); }
     void setVibrato(float depth) { vibrato_ = clamp(depth, 0.0f, 1.0f); }
@@ -38,8 +48,8 @@ public:
 
     float process() {
         const float envTarget = gate_ ? 1.0f : 0.0f;
-        const float envTime = gate_ ? 0.018f : 0.12f;
-        envelope_ += (envTarget - envelope_) * timeCoefficient(envTime);
+        envelope_ += (envTarget - envelope_) * (gate_ ? attackCoefficient_ : releaseCoefficient_);
+        smoothVoice_ += (voice_ - smoothVoice_) * voiceCoefficient_;
 
         vibratoPhase_ += 5.3f / sampleRate_;
         if (vibratoPhase_ >= 1.0f) vibratoPhase_ -= 1.0f;
@@ -47,11 +57,17 @@ public:
             std::sin(kTwoPi * vibratoPhase_) * vibrato_ * 0.22f / 12.0f);
         pitchPhase_ += frequency_ * vibratoRatio / sampleRate_;
 
-        float pulse = 0.0f;
-        if (pitchPhase_ >= 1.0f) {
-            pitchPhase_ -= 1.0f;
-            pulse = 1.0f;
+        if (pitchPhase_ >= 1.0f) pitchPhase_ -= 1.0f;
+        const float rise = 0.45f + 0.15f * smoothVoice_;
+        const float closure = 0.04f + 0.20f * smoothVoice_;
+        float flow = 0.0f;
+        if (pitchPhase_ < rise) {
+            flow = 0.5f - 0.5f * std::cos(kPi * pitchPhase_ / rise);
+        } else if (pitchPhase_ < rise + closure) {
+            flow = 0.5f + 0.5f * std::cos(kPi * (pitchPhase_ - rise) / closure);
         }
+        const float pulse = 0.8f * (previousFlow_ - flow);
+        previousFlow_ = flow;
 
         float voiced = 0.0f;
         for (int i = 0; i < kFormants; ++i) {
@@ -66,7 +82,7 @@ public:
 
         const float noise = whiteNoise();
         breathLow_ += 0.08f * (noise - breathLow_);
-        const float aspiration = (noise - breathLow_) * breath_ * 0.16f;
+        const float aspiration = (noise - breathLow_) * breath_ * 0.16f * (0.25f + 0.75f * flow);
         const float output = (voiced + aspiration) * envelope_ * level_;
         return clamp(output, -1.0f, 1.0f);
     }
@@ -138,6 +154,9 @@ private:
     float sampleRate_ = 44100.0f;
     float frequency_ = 261.6256f;
     float vowel_ = 0.0f;
+    float voice_ = 0.35f;
+    float smoothVoice_ = 0.35f;
+    float previousFlow_ = 0.0f;
     float breath_ = 0.08f;
     float tone_ = 0.5f;
     float vibrato_ = 0.12f;
@@ -145,6 +164,9 @@ private:
     float pitchPhase_ = 0.0f;
     float vibratoPhase_ = 0.0f;
     float envelope_ = 0.0f;
+    float attackCoefficient_ = 0.0f;
+    float releaseCoefficient_ = 0.0f;
+    float voiceCoefficient_ = 0.0f;
     float breathLow_ = 0.0f;
     uint32_t noiseState_ = 0x6d2b79f5u;
     bool gate_ = false;

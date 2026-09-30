@@ -3258,14 +3258,15 @@ function mmbFof() {
       knob('tone', 'Tone', w*0.70, 30, { size: 'medium', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
       knob('breath', 'Breath', w*0.30, 58, { size: 'small', min: 0, max: 1, def: 0.08, color: '#9ca3af' }),
       knob('vibrato', 'Vibrato', w*0.70, 58, { size: 'small', min: 0, max: 1, def: 0.12, color: '#9ca3af' }),
-      knob('level', 'Level', w/2, 80, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      knob('voice', 'Voice', w*0.30, 82, { size: 'small', min: 0, max: 1, def: 0.35, color: '#9ca3af' }),
+      knob('level', 'Level', w*0.70, 82, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
       inPort('voct', 'V/Oct', 'cv', w*0.18, 106),
       inPort('gate', 'Gate', 'gate', w*0.42, 106),
       inPort('vowel', 'Vow+', 'cv', w*0.18, 120),
       inPort('breath', 'Air+', 'cv', w*0.42, 120),
       outPort('out', 'Out', 'audio', w*0.76, 113),
     ],
-    notes: 'FOF/CHANT-geinspireerde zangoscillator. Vowel morft continu door A-E-I-O-U; formanten blijven op hun plaats wanneer de toonhoogte verandert. Tone bepaalt de resonantiebreedte, Breath voegt aspiratie toe en Vibrato geeft maximaal 22 cent bij 5,3 Hz. Dit is een lichte eerste formantstem, geen spraaksynthese of volledige CHANT-reconstructie. Mono; polyfonie via PolyGroup.',
+    notes: 'FOF/CHANT-geinspireerde zangoscillator met asymmetrische glottale bron. Vowel morft door A-E-I-O-U; formanten blijven staan bij pitchverandering. Voice loopt van korte, heldere sluiting naar langer, zachter open/sluitgedrag. Tone bepaalt de resonantiebreedte, Breath voegt pulsgebonden aspiratie toe en Vibrato geeft maximaal 22 cent bij 5,3 Hz. Geen exacte LF-bron, spraaksynthese of volledige CHANT-reconstructie. Mono; polyfonie via PolyGroup.',
   });
 }
 

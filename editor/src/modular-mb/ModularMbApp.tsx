@@ -528,7 +528,7 @@ export function ModularMbApp(): JSX.Element {
                   }}
                 >🎤 Zingende stem ×8</button>
                 <button
-                  onClick={() => { setProject(seedSoloVoicePatch(getProject(), 'tp_mmb_fof', 'FOF Stem', 'out', 'out', { vowel: 0, tone: 0.5, breath: 0.08, vibrato: 0.12, level: 0.8 })); setShowPoly(false); }}
+                  onClick={() => { setProject(seedSoloVoicePatch(getProject(), 'tp_mmb_fof', 'FOF Stem', 'out', 'out', { vowel: 0, tone: 0.5, breath: 0.08, vibrato: 0.12, level: 0.8, voice: 0.35 })); setShowPoly(false); }}
                   title="FOF/CHANT-geinspireerde monofone zangoscillator. Speel noten en morf met Vowel door A-E-I-O-U; geen opname of lyricbank nodig."
                   style={{
                     textAlign: 'left', border: 'none', background: 'transparent',
