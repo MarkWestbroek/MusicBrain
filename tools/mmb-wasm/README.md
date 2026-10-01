@@ -181,6 +181,25 @@ perceptueel LUFS-gematchte luisterbeoordeling.
 Zie [het prototypeplan](../../doc/plans/state-graph-synthesis.md#material-bridge-eerste-uitvoerbare-proef-2026-09-30)
 voor bediening, gate-timingverschillen en nog open hardwaremetingen.
 
+## Vier onderzoeksmodules (2026-10-02)
+
+Zelfde recept als Material Bridge (gedeelde kern in `mmb_dsp/`, wasm- en
+Teensy-wrapper, invariantentest op vier samplerates, paneel, Solo-seed):
+
+| typeId | Kern | Techniek | Rate/blok |
+|---|---|---|---|
+| `tp_mmb_scanned` | `scanned_string.h` (620 B) | Scanned synthesis: massa-veerring van 64 punten als levende golftabel | 44,1 kHz/32 |
+| `tp_mmb_reservoir` | `reservoir.h` (64 B) | Resource-coupled: gedeelde herstellende bron voor vier stemmen (CV, via cvhost) | 1 kHz/1 |
+| `tp_mmb_gendyn` | `gendyn.h` (272 B) | GENDYN: gestemde dynamische stochastische synthese | 44,1 kHz/32 |
+| `tp_mmb_excitable` | `excitable.h` (2424 B) | Excitable media: 16x16 prikkelbare cellen, twee pacemakers, twee pickups | 44,1 kHz/32 |
+
+```sh
+tools/mmb-wasm/build.sh scanned      # idem reservoir, gendyn, excitable
+tools/mmb-wasm/bitcheck/check.sh scanned
+```
+
+Model, metingen en open punten: [doc/plans/nieuwe-synthesemodules-handover.md](../../doc/plans/nieuwe-synthesemodules-handover.md).
+
 ## Een module toevoegen
 
 1. `tools/mmb-wasm/<naam>_wasm.cc`: kopieer de control- en poortafhandeling

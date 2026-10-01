@@ -56,6 +56,17 @@ Verbinding met hardware verschilt per modus:
   gebouwd (zie "Toekomst" hieronder).
 - **Amp-switcher**: placeholder, geen verbinding.
 
+### Vier onderzoeksmodules (2026-10-02)
+
+Onder **Solo ▾**: **Scanned** (levende golftabel: een traag bewegende
+massa-veerring, aanslag en aftertouch-druk), **GENDYN** (Xenakis' stochastische
+golfvorm, gestemd en per noot reproduceerbaar), **Excitable** (prikkelbaar
+celraster met twee pacemakers, subharmonieken uit de refractaire tijd) en de
+**Reservoir demo** (twee zelfspelende stemmen die een eindige, herstellende
+bron delen; A/B met Drain 0,8 tegenover 0). Alle vier draaien dezelfde
+C++-kern in wasm en op de Teensy; geen van de vier is al door een mens
+beluisterd. Zie [de overdracht](../doc/plans/nieuwe-synthesemodules-handover.md).
+
 ### FOF Singing Voice
 
 **Poly > FOF Stem (mono)** maakt een patch van MIDI-IN via FOF-VOICE naar OUT.

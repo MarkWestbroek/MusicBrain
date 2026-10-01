@@ -212,6 +212,8 @@ elkaar gekoppelde oscillatoren die inregelen.
   de lus verandert het gedrag hoorbaar. Dit is criterium 1 in zuivere vorm.
 
 ### Scanned synthesis (Verplank, Shaw, Mathews)
+**Gebouwd 2026-10-02 als `tp_mmb_scanned`**, zie [overdracht](nieuwe-synthesemodules-handover.md).
+
 Een massa-veersysteem draait op lage snelheid en je leest de vorm ervan uit als
 golftabel op audiorate. De golfvorm leeft, heeft traagheid, en je kunt hem
 tijdens het spelen aanraken en verstoren.
@@ -226,6 +228,8 @@ tijdens het spelen aanraken en verstoren.
 ## E. Algoritmisch en niet-klassiek
 
 ### Dynamische stochastische synthese (GENDYN, Xenakis)
+**Gebouwd 2026-10-02 als `tp_mmb_gendyn`**, zie [overdracht](nieuwe-synthesemodules-handover.md).
+
 Geen golfvorm en geen model: de breekpunten van de golf lopen zelf een random
 walk binnen begrenzingen, per cyclus. Ruw en herkenbaar.
 
@@ -282,6 +286,8 @@ het model, de veiligheidseisen en de proeven staan in het eigen document.
 
 ### Resource-coupled synthesis
 
+**Gebouwd 2026-10-02 als `tp_mmb_reservoir` met tweestemmige demo**, zie [overdracht](nieuwe-synthesemodules-handover.md).
+
 Meerdere stemmen putten uit één eindige, langzaam herstellende bron: luchtdruk,
 snaarspanning, voedingsspanning. Een harde noot laat tijdelijk minder over voor
 de volgende, en het herstel is hoorbaar.
@@ -298,6 +304,8 @@ de volgende, en het herstel is hoorbaar.
   zijn.
 
 ### Excitable media
+
+**Gebouwd 2026-10-02 als `tp_mmb_excitable`** (16x16-raster, twee pacemakers), zie [overdracht](nieuwe-synthesemodules-handover.md).
 
 Cellen met rust-, actieve en refractaire toestand; een aanslag stuurt golven
 over een raster die botsen, uitdoven of gesloten banen vormen.
