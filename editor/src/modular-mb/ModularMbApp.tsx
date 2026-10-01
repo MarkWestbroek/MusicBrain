@@ -583,6 +583,8 @@ export function ModularMbApp(): JSX.Element {
                     c: { tension: 0.6, damping: 0.3, restore: 0.3, speed: 0.15, position: 0.5, width: 0.3, level: 0.8 } },
                   { label: '🎲 GENDYN (stochastisch)', t: 'tp_mmb_gendyn', n: 'GENDYN', l: 'out', r: 'out',
                     c: { points: 12, amp_step: 0.3, dur_step: 0.3, dist: 0.3, smooth: 0.5, settle: 0.1, seed: 1, level: 0.8 } },
+                  { label: '🫧 Excitable (prikkelbaar medium)', t: 'tp_mmb_excitable', n: 'Excitable', l: 'out_l', r: 'out_r',
+                    c: { detune: 7, excite: 3, refract: 12, thresh: 1, speed: 2, pickup: 0.4, level: 0.8 } },
                   { label: 'Material Bridge (materiaalgeheugen)', t: 'tp_mmb_material_bridge', n: 'Material Bridge', l: 'out_l', r: 'out_r',
                     c: { spread: 0.12, coupling: 0.65, decay: 4, memory: 0.85, recovery: 2, pickup: 0.25, level: 0.8 } },
                   { label: '💍 Rings (resonator)', t: 'tp_mmb_rings', n: 'Rings', l: 'out_l', r: 'out_r',

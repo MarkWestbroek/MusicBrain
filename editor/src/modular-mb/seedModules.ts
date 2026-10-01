@@ -3540,6 +3540,44 @@ function mmbGendyn() {
   });
 }
 
+// MMB EXCITABLE — 12 HP. Excitable-media synthesis (firmware tp_mmb_excitable):
+//     een 16x16-raster van prikkelbare cellen met twee pacemakers (A links,
+//     B rechts) en twee pickups. Fronten lopen, botsen en doven; een korte
+//     periode tegenover de refractaire tijd geeft subharmonieken.
+function mmbExcitable() {
+  const w = W(12);
+  return assemble({
+    typeId: 'tp_mmb_excitable', categoryId: 'vco',
+    variant: 'Excitable (prikkelbaar medium)',
+    brand: 'MMB', model: 'EXCITABLE',
+    hp: 12, texture: 'pcb-black', baseColor: '#1f3d2a', internal: true,
+    texts: [
+      { x: w/2, y: 8, text: 'EXCITABLE', fontSize: 2.2, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13, text: 'prikkelbaar celraster, 2 pacemakers', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('pitch', 'Pitch', w*0.18, 29, { size: 'medium', min: -36, max: 36, def: 0, unit: 'semi', color: '#f9fafb' }),
+      knob('detune', 'Detune B', w*0.50, 29, { size: 'medium', min: -24, max: 24, def: 7, step: 1, unit: 'semi', color: '#f9fafb' }),
+      knob('refract', 'Refract', w*0.82, 29, { size: 'medium', min: 2, max: 60, def: 12, step: 1, color: '#4ade80' }),
+      knob('excite', 'Excite', w*0.18, 55, { size: 'medium', min: 1, max: 8, def: 3, step: 1, color: '#4ade80' }),
+      knob('thresh', 'Thresh', w*0.50, 55, { size: 'medium', min: 1, max: 3, def: 1, step: 1, color: '#f9fafb' }),
+      knob('pickup', 'Pickup', w*0.82, 55, { size: 'medium', min: 0, max: 1, def: 0.4, color: '#4ade80' }),
+      sw('speed', 'Speed', w*0.30, 79, ['1', '2', '4'], 1),
+      knob('level', 'Level', w*0.75, 79, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      inPort('voct', 'V/Oct', 'cv', w*0.12, 100),
+      inPort('gate', 'Gate A', 'gate', w*0.31, 100),
+      inPort('voct_b', 'V/Oct B', 'cv', w*0.50, 100),
+      inPort('gate_b', 'Gate B', 'gate', w*0.69, 100),
+      inPort('reset', 'Reset', 'gate', w*0.88, 100),
+      outPort('activity', 'Activity', 'cv', w*0.22, 117),
+      outPort('out_l', 'L', 'audio', w*0.58, 117),
+      outPort('out_r', 'R', 'audio', w*0.82, 117),
+    ],
+    notes: 'Excitable-media synthesis: een begrensd raster van 16x16 prikkelbare cellen (rust, actief gedurende Excite stappen, refractair gedurende Refract stappen). Een rustende cel wordt actief zodra Thresh van zijn vier buren actief is. Pacemaker A (links) en B (rechts) prikkelen hun cel op de toonhoogte van V/Oct (B met Detune en V/Oct B erbij) zolang hun gate hoog is; de golffronten lopen een cel per stap, doven aan de rand en vernietigen elkaar waar ze botsen. Speed is het aantal audiosamples per mediumstap (1 = fijnst, zwaar op de Teensy). Pickup verplaatst beide pickups van de bronnen (0) naar het midden (1) waar de fronten botsen. Is de periode korter dan Excite + Refract, dan negeert de cel elke tweede of derde prikkel: subharmonieken ontstaan causaal uit het medium (bij Pitch +24 en Refract 60 klinkt weer ongeveer de grondtoon). Activity (CV 0..1) is het aandeel actieve en refractaire cellen. Pulsvormig geluid; de toonhoogte heeft stapjitter van een mediumstap. Onderzoeksmodule.',
+  });
+}
+
 // 24. MMB CHORD — 6 HP. Chord-generator (firmware tp_mmb_chord, FW-CV-5):
 //     1 V/Oct in → 4 gestemde CV-uitgangen. Voedt Octa-VCO / 4 VCO's /
 //     de resonator-bank; achter de quantizer blijft alles in de toonsoort.
@@ -3726,6 +3764,7 @@ export function seedInternals(project: ModularProject): ModularProject {
   all.push(mmbScanned());
   all.push(mmbReservoir());
   all.push(mmbGendyn());
+  all.push(mmbExcitable());
   const newTypes = all.map((x) => x.type);
 
   // Upgrade-pad: bestaande interne types worden in-place VERVANGEN (zelfde

@@ -121,6 +121,7 @@ sel resonator && build resonator tp_mmb_resonator "$LIB/mmb-dsp" --
 sel materialbridge && build materialbridge tp_mmb_material_bridge "$LIB/mmb-dsp" --
 sel scanned && build scanned tp_mmb_scanned "$LIB/mmb-dsp" --
 sel gendyn && build gendyn tp_mmb_gendyn "$LIB/mmb-dsp" --
+sel excitable && build excitable tp_mmb_excitable "$LIB/mmb-dsp" --
 sel cr78 && build cr78 tp_mmb_cr78 "$LIB/mmb-dsp" --
 sel comp && build comp tp_mmb_comp "$LIB/mmb-dsp" --
 sel comb && build comb tp_mmb_comb --

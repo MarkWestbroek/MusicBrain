@@ -475,6 +475,91 @@ describe('tp_mmb_gendyn', () => {
   });
 });
 
+describe('tp_mmb_excitable', () => {
+  it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_excitable'); });
+
+  const pulses = (signal: Float32Array, threshold = 0.1): number => {
+    let count = 0, above = false;
+    for (const value of signal) { const now = value > threshold; if (now && !above) count++; above = now; }
+    return count;
+  };
+
+  it('is stil zonder gate en geeft met Gate A pulsen op de toonhoogte van V/Oct', async () => {
+    const module = await load('tp_mmb_excitable');
+    module.setCtl('pickup', 0);
+    for (const output of module.render(0.1)) expect(peak(output)).toBe(0);
+    module.setIn('gate', 1);
+    module.setIn('voct', -1); // C3 = 130,8 Hz
+    module.render(0.2);
+    const [left, , activity] = module.render(1);
+    expect(pulses(left!)).toBeGreaterThan(125);
+    expect(pulses(left!)).toBeLessThan(137);
+    expect(peak(left!)).toBeGreaterThan(0.2);
+    expect(peak(left!)).toBeLessThanOrEqual(1);
+    expect(peak(activity!)).toBeGreaterThan(0);
+  });
+
+  it('dooft na loslaten en Reset wist het medium', async () => {
+    const module = await load('tp_mmb_excitable');
+    module.setIn('gate', 1);
+    module.render(0.3);
+    module.setIn('gate', 0);
+    module.render(0.03);
+    const [left, , activity] = module.render(0.1);
+    expect(peak(left!)).toBeLessThan(0.02);
+    expect(peak(activity!)).toBe(0);
+    module.setIn('gate', 1);
+    module.render(0.1);
+    module.setIn('reset', 1);
+    const [, , cleared] = module.render(0.01);
+    expect(cleared![cleared!.length - 1]!).toBe(0);
+  });
+
+  it('blokkeert bij korte periode en lange refractaire tijd elke tweede prikkel (subharmoniek)', async () => {
+    const count = async (refract: number) => {
+      const module = await load('tp_mmb_excitable');
+      module.setCtl('pickup', 0);
+      module.setCtl('pitch', 24);
+      module.setCtl('refract', refract);
+      module.setIn('gate', 1);
+      module.render(0.2);
+      return pulses(module.render(1)[0]!);
+    };
+    expect(await count(2)).toBeGreaterThan(1000);
+    expect(await count(60)).toBeLessThan(600);
+  });
+
+  it('laat botsende fronten elkaar vernietigen: het midden hoort minder pulsen dan beide bronnen samen', async () => {
+    const module = await load('tp_mmb_excitable');
+    module.setCtl('pickup', 1);
+    module.setCtl('detune', 7);
+    module.setIn('gate', 1);
+    module.setIn('gate_b', 1);
+    module.render(0.2);
+    const [left] = module.render(1);
+    expect(pulses(left!)).toBeGreaterThan(100);
+    expect(pulses(left!)).toBeLessThan(262 + 392);
+  });
+
+  it('blijft eindig en begrensd bij uitersten en ongeldige inputs', async () => {
+    const module = await load('tp_mmb_excitable');
+    module.setCtl('speed', 1);
+    module.setCtl('excite', 8);
+    module.setCtl('refract', Number.NaN);
+    module.setCtl('level', 1);
+    const outputs = module.render(0.3, (time, current) => {
+      current.setIn('gate', 1);
+      current.setIn('gate_b', Math.floor(time * 200) % 2);
+      current.setIn('voct', time < 0.15 ? 100 : Number.POSITIVE_INFINITY);
+      current.setIn('voct_b', Number.NaN);
+    });
+    for (const output of outputs) {
+      expect(output.every(Number.isFinite)).toBe(true);
+      expect(peak(output)).toBeLessThanOrEqual(1);
+    }
+  });
+});
+
 describe('tp_mmb_resonator', () => {
   it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_resonator'); });
 

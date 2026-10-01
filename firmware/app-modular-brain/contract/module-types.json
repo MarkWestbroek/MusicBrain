@@ -479,6 +479,30 @@
       ],
       "controlsIgnored": []
     },
+    "tp_mmb_excitable": {
+      "typeId": "tp_mmb_excitable",
+      "source": "firmware/app-modular-brain/src/ExcitableModule.h",
+      "ports": [
+        "activity",
+        "gate",
+        "gate_b",
+        "out_l",
+        "out_r",
+        "reset",
+        "voct",
+        "voct_b"
+      ],
+      "controls": [
+        "detune",
+        "excite",
+        "level",
+        "pickup",
+        "pitch",
+        "refract",
+        "speed",
+        "thresh"
+      ]
+    },
     "tp_mmb_fet_comp": {
       "typeId": "tp_mmb_fet_comp",
       "source": "firmware/app-modular-brain/src/FetCompModule.h",
