@@ -58,7 +58,8 @@ De FOF-implementatie is in drie afzonderlijke commits opgebouwd:
 | `3a05cc8` | Velocitygevoelig volume/fonatie, note-off-behoud en upgrade van oude FOF-definities |
 | `d90c383` | `pressure`-ingang in kern/wrappers/paneel, `onCvDisconnected` op Teensy, pressure-regressies, meetmatrixscript |
 | `f016f67` | Pressure herbalanceerd (minder volume, meer sluiting en adem), `vibrato`- en `voice`-CV, zes `*_amt`-attenuators, paneel 12 HP |
-| Lettergreep-stap (2026-10-01) | Vibrato tot 100 cent; `Syl`-schakelaar, `syl_cv` + `syl_amt`; synthetische /d/ (sluiting, burst, glijbaan) voor doo en da; paneel 14 HP |
+| `0c0c1a8` | Vibrato tot 100 cent; `Syl`-schakelaar, `syl_cv` + `syl_amt`; synthetische /d/ (sluiting, burst, glijbaan) voor doo en da; paneel 14 HP |
+| Coarticulatie-stap (2026-10-01, na luisterronde 2) | Locus-vergelijkingen, F1 sneller dan F2/F3 met halve cosinus, intrinsieke toonhoogte/niveau/adem per klinker aan de kaak gekoppeld, burst volgt de klinker |
 
 `8a69c1f` is Material Bridge en is geen onderdeel van FOF.
 
@@ -207,22 +208,45 @@ De /d/ is CHANT-achtig opgebouwd uit drie fasen in `advanceOnset`:
 
 | Fase | Duur | Wat er gebeurt |
 |---|---:|---|
-| Sluiting | 20 ms | Formanten op de alveolaire locus (F1 200, F2 1800, F3 2700 Hz), stembron op 0,15 (murmur) |
-| Burst | 6 ms | Witte ruis door een resonator op 3,8 kHz (bandbreedte 800 Hz), lineair uitdovend; stembron op 0,4 |
-| Glijbaan | 60 ms | F1-F3 lopen exponentieel (tijdconstante 15 ms, update per 32 samples) naar de klinker; stembron groeit van 0,4 naar 1 |
+| Sluiting | 20 ms | Formanten op de startpositie van de /d/ (zie locus-vergelijking), stembron op 0,15 (murmur), kaak dicht (`jawMix` 0) |
+| Burst | 6 ms | Witte ruis door een resonator (bandbreedte 800 Hz) waarvan het centrum met de klinker meebeweegt: 2400 + 1,2 × F2(klinker), begrensd op 2500-4500 Hz; lineair uitdovend; stembron op 0,4 |
+| Glijbaan | 50 ms | Halve-cosinusovergang van start naar klinker: F1 in 25 ms, F2 en F3 in 50 ms (update per 32 samples); stembron groeit van 0,4 naar 1; `jawMix` volgt F1 |
+
+Startpositie per plaats van articulatie, als **locus-vergelijking** (Sussman
+e.a. 1991; de d "leunt" al naar de klinker die volgt, Öhman 1966). Voor de
+alveolaire /d/: F1 200 Hz, F2 = 0,45 × F2(klinker) + 1000 Hz (da start op
+1518 Hz, doo op 1315 Hz), F3 2600 Hz. De eerste versie had een vaste locus
+(F2 1800 Hz) en één exponentiële glijbaan van 60 ms voor alle drie; dat
+klonk voor doo goed en voor da onnatuurlijk, omdat de sprong van F1 200 naar
+800 Hz en F2 1800 naar 1150 Hz in hetzelfde trage tempo liep.
+
+**Intrinsieke klinkereigenschappen.** De klinkertabel heeft drie extra
+kolommen die met de kaakopening meekomen: toonhoogte in cent (a −12, e −4,
+i 0, o −6, u 0; open klinkers zingen iets lager, Whalen & Levitt 1995, hier
+klein gehouden omdat zangers het grotendeels compenseren), niveau in dB
+(a +2,5, e +1, o +1,5) en een ademfactor op de Breath-knop (a ×1,6, e ×1,2,
+o ×1,3, zodat Breath 0 schoon blijft; Lehiste & Peterson 1961 voor luidheid). Ze worden lineair mee-geïnterpoleerd met de
+Vowel-morf en vermenigvuldigd met `jawMix` (0 tijdens de sluiting, met F1
+mee open tijdens de glijbaan, 1 daarna), zodat de toon pas zakt en de lucht
+pas toeneemt terwijl de mond opengaat. Hierdoor is de losse klinker (Syl 0)
+**niet meer sample-exact** gelijk aan de oorspronkelijke stem: a is 2,5 dB
+luider, 12 cent lager en bij gelijke Breath-stand ademiger. De periodiciteitstest zoekt daarom
+de beste periode binnen 3 procent en controleert de −12 cent van de a.
 
 Na de glijbaan worden de formantcoëfficiënten exact uit de klinkertabel
 herladen, zodat de stationaire klank bitgelijk is aan de losse klinker. De
-stembron is tijdens burst en glijbaan gedempt omdat F1 op de locus vlak bij
-een lage grondtoon ligt en de overgang anders luider is dan de klinker. Er is
-nog geen slotmedeklinker (gate dicht = gewone release) en geen stemloze
-tegenhanger (/t/ zou een langere, stillere sluiting en een latere stem-
-inzet krijgen).
+stembron is tijdens burst en glijbaan gedempt omdat F1 op de startpositie
+vlak bij een lage grondtoon ligt en de overgang anders luider is dan de
+klinker. Er is nog geen slotmedeklinker (gate dicht = gewone release) en
+geen stemloze tegenhanger (/t/ zou een langere, stillere sluiting en een
+latere steminzet krijgen).
 
 Metingen op 220 Hz (droog): de sluiting ligt 45 procent onder de gewone
-klinkeraanzet, het burstvenster heeft tien keer zoveel hoogfrequente energie
-als de klinker op dezelfde plek, en vanaf 200 ms is de RMS gelijk aan die van
-de losse klinker. Op oor nog niet beoordeeld.
+klinkeraanzet, het burstvenster van doo heeft zes keer zoveel hoogfrequente
+energie als de klinker op dezelfde plek, en vanaf 200 ms is de RMS gelijk aan
+die van de losse klinker. Luisterronde 2: "doo klinkt best goed, da heel
+onrealistisch" (met de vaste locus); de coarticulatieversie is nog niet
+beoordeeld.
 
 ### Envelope, ruis en output
 
@@ -297,8 +321,9 @@ Laatste bekende resultaten op 2026-10-01 (na de Pressure-stap):
   ontwikkel-pc; dit is geen betrouwbare browser- of Teensy-CPU-meting;
 - gerichte FOF-editortests: 9 geslaagd (186 contracttests totaal); volledige
   typecheck geslaagd;
-- oude en nieuwe wasm sample-exact bij Syl 0, Press ongepatcht en Vibrato 0
-  (vibrato-diepte is bewust veranderd);
+- WASM-binary na de coarticulatie-stap: 74.886 bytes; de losse klinker is
+  sinds die stap bewust niet meer sample-exact gelijk aan de eerste versie
+  (intrinsieke toonhoogte/niveau/adem per klinker);
 - Teensy-build: geslaagd, 57.024 bytes vrije RAM1 en 269.408 bytes vrije RAM2
   (ongewijzigd);
 - niet geflasht en niet fysiek beluisterd.
@@ -434,13 +459,16 @@ is op basis van deze meting niet nodig.
    de ademkoppeling te horen en draai `Prs` terug als het geheel te veel
    doet. Noteer per criterium een oordeel. Pas daarna koppelingsfactoren
    aan (eerst `aspirationGain`, zie boven).
-2. **Doo/da op oor.** Speel de Police-riff met `Syl` of CC1 op `Syl+`. Te
-   beoordelen: is de d herkenbaar, is de aanzet niet te luid of te zacht
-   (burstgain 0,4 en de stembrondemping 0,15/0,4 in `advanceOnset`), stoort
-   de 20 ms vertraging van de klinker. Daarna pas uitbreiden: eerst /b/ en
-   /g/ (alleen een andere locus en burstfrequentie), dan /t/-/k/-/p/
-   (stemloos: langere sluiting, latere steminzet), dan /m/-/n/-/l/ en de
-   slotmedeklinker bij gate dicht.
+2. **Doo/da op oor, ronde 3.** Speel de Police-riff met `Syl` of CC1 op
+   `Syl+` en vergelijk da met de vorige versie (0c0c1a8) als referentie. Te
+   beoordelen: is da nu geloofwaardig, is de d herkenbaar, is de aanzet niet
+   te luid of te zacht (burstgain 0,4 en de stembrondemping 0,15/0,4 in
+   `advanceOnset`), is de −12 cent van de a storend in een melodie (dan de
+   `cents`-kolom verkleinen), stoort de 20 ms vertraging van de klinker.
+   Daarna pas uitbreiden: eerst /b/ en /g/ (alleen een andere `Place`:
+   labiaal ongeveer slope 0,8 en intercept 200 Hz, velair slope ~0,9), dan
+   /t/-/k/-/p/ (stemloos: langere sluiting, latere steminzet), dan
+   /m/-/n/-/l/ en de slotmedeklinker bij gate dicht.
 3. **Sluitduur bij hoge F0** alleen als het luisteroordeel Voice 0 boven
    ongeveer 1 kHz scherp vindt; houd de `Voice`-regressie (spectral tilt) en
    de sample-exacte compatibiliteit bij volle druk in stand.

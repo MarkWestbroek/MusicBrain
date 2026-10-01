@@ -105,13 +105,24 @@ async function checkFof(file) {
         const module = await makeVoice(frequency, vowel, phonation);
         const samples = captureFof(module, 0.12);
         assert(rms(samples) > 0.0001, `FOF: silent vowel ${vowel} at ${frequency} Hz`);
-        const lag = Math.round(module.rate / frequency);
-        let error = 0, energy = 0;
-        for (let index = lag; index < samples.length; index++) {
-          error += (samples[index] - samples[index - lag]) ** 2;
-          energy += samples[index] ** 2;
+        // Periodiciteit: zoek de beste lag binnen 3 % van de nominale periode;
+        // open klinkers zingen bewust een paar cent lager (intrinsieke toonhoogte).
+        const nominal = module.rate / frequency;
+        let bestLag = 0, bestRatio = Infinity;
+        for (let lag = Math.floor(nominal * 0.97); lag <= Math.ceil(nominal * 1.03); lag++) {
+          let error = 0, energy = 0;
+          for (let index = lag; index < samples.length; index++) {
+            error += (samples[index] - samples[index - lag]) ** 2;
+            energy += samples[index] ** 2;
+          }
+          if (error / energy < bestRatio) { bestRatio = error / energy; bestLag = lag; }
         }
-        assert(error / energy < 0.12, `FOF: pitch drift at ${frequency} Hz (${error / energy})`);
+        assert(bestRatio < 0.12, `FOF: pitch drift at ${frequency} Hz (${bestRatio})`);
+        if (frequency === 110 && phonation === 0.35) {
+          const cents = 1200 * Math.log2(bestLag / nominal);
+          if (vowel === 0) assert(cents > 6 && cents < 18, `FOF: /a/ must sit ~12 cent low (${cents})`);
+          if (vowel === 0.5) assert(Math.abs(cents) < 4, `FOF: /i/ must sit on pitch (${cents})`);
+        }
       }
     }
   }
@@ -235,6 +246,7 @@ async function checkFof(file) {
   const plainA = await windows(await startVoice({ vowel: 0 }));
   const da = await windows(await startVoice({ syl: 2 }));
   assert(rms(doo.closure) < rms(plainOe.closure) * 0.75, 'FOF: /d/ closure must dip below the plain vowel onset');
+  assert(rms(plainA.steady) > rms(plainOe.steady) * 0.6, 'FOF: open /a/ must not be much quieter than /oe/ (intrinsic level)');
   assert(brightness(doo.burst) > brightness(plainOe.burst) * 3, 'FOF: /d/ burst must add high-frequency energy');
   assert(Math.abs(rms(doo.steady) / rms(plainOe.steady) - 1) < 0.01, 'FOF: doo must settle on the oe vowel');
   assert(Math.abs(rms(da.steady) / rms(plainA.steady) - 1) < 0.01, 'FOF: da must settle on the a vowel');
@@ -284,7 +296,7 @@ async function checkFof(file) {
       }
     }
   }
-  console.log('FOF regression: 45 pitch/vowel/Voice cases, spectral tilt, velocity volume/timbre/default/clamps/note-off, pressure default/clamp/monotone/floor/timbre/breath/smoothing/jumps, attenuators + vibrato/voice CV, syllables doo/da (closure, burst, settle, CV, hold, retrigger), release/retrigger/mute and 8 extreme cases passed.');
+  console.log('FOF regression: 45 pitch/vowel/Voice cases, spectral tilt, velocity volume/timbre/default/clamps/note-off, pressure default/clamp/monotone/floor/timbre/breath/smoothing/jumps, attenuators + vibrato/voice CV, syllables doo/da (closure, burst, settle, CV, hold, retrigger), intrinsic vowel pitch/level, release/retrigger/mute and 8 extreme cases passed.');
 }
 
 const only = process.argv[2];
