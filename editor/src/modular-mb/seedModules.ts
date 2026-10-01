@@ -3241,34 +3241,46 @@ function mmbStkSound() {
 }
 
 function mmbFof() {
-  const w = W(8);
+  const w = W(12);
+  // Zes CV-ingangen onderaan, elk met zijn attenuator er recht boven.
+  const cvCols = [0.10, 0.26, 0.42, 0.58, 0.74, 0.90].map((f) => w * f);
+  const amt = (id: string, label: string, x: number) =>
+    knob(id, label, x, 104, { size: 'small', min: 0, max: 1, def: 1, color: '#9ca3af' });
   return assemble({
     typeId: 'tp_mmb_fof',
     categoryId: 'vco',
     variant: 'FOF zingende formantstem',
     brand: 'MMB', model: 'FOF-VOICE',
-    hp: 8, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    hp: 12, texture: 'pcb-black', baseColor: '#111827', internal: true,
     texts: [
       { x: w/2, y: 8, text: 'FOF-VOICE', fontSize: 2.0, color: '#f9fafb', align: 'middle' },
       { x: w/2, y: 14, text: 'A · E · I · O · U', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
       { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
     ],
     items: [
-      knob('vowel', 'Vowel', w*0.30, 30, { size: 'medium', min: 0, max: 1, def: 0, color: '#f9fafb' }),
-      knob('tone', 'Tone', w*0.70, 30, { size: 'medium', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
-      knob('breath', 'Breath', w*0.30, 58, { size: 'small', min: 0, max: 1, def: 0.08, color: '#9ca3af' }),
-      knob('vibrato', 'Vibrato', w*0.70, 58, { size: 'small', min: 0, max: 1, def: 0.12, color: '#9ca3af' }),
-      knob('voice', 'Voice', w*0.30, 82, { size: 'small', min: 0, max: 1, def: 0.35, color: '#9ca3af' }),
-      knob('level', 'Level', w*0.70, 82, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
-      inPort('voct', 'V/Oct', 'cv', w*0.18, 106),
-      inPort('gate', 'Gate', 'gate', w*0.42, 106),
-      inPort('vowel', 'Vow+', 'cv', w*0.18, 120),
-      inPort('breath', 'Air+', 'cv', w*0.42, 120),
-      inPort('vel', 'Vel', 'cv', w*0.66, 106),
-      inPort('pressure', 'Press', 'cv', w*0.86, 106),
-      outPort('out', 'Out', 'audio', w*0.76, 120),
+      knob('vowel', 'Vowel', w*0.25, 28, { size: 'medium', min: 0, max: 1, def: 0, color: '#f9fafb' }),
+      knob('tone', 'Tone', w*0.75, 28, { size: 'medium', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('breath', 'Breath', w*0.20, 52, { size: 'small', min: 0, max: 1, def: 0.08, color: '#9ca3af' }),
+      knob('vibrato', 'Vibrato', w*0.50, 52, { size: 'small', min: 0, max: 1, def: 0.12, color: '#9ca3af' }),
+      knob('voice', 'Voice', w*0.80, 52, { size: 'small', min: 0, max: 1, def: 0.35, color: '#9ca3af' }),
+      knob('level', 'Level', w*0.50, 72, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      inPort('voct', 'V/Oct', 'cv', w*0.20, 88),
+      inPort('gate', 'Gate', 'gate', w*0.50, 88),
+      outPort('out', 'Out', 'audio', w*0.80, 88),
+      amt('vowel_amt', 'Vow', cvCols[0]!),
+      amt('breath_amt', 'Air', cvCols[1]!),
+      amt('vibrato_amt', 'Vib', cvCols[2]!),
+      amt('voice_amt', 'Voi', cvCols[3]!),
+      amt('vel_amt', 'Vel', cvCols[4]!),
+      amt('press_amt', 'Prs', cvCols[5]!),
+      inPort('vowel', 'Vow+', 'cv', cvCols[0]!, 120),
+      inPort('breath', 'Air+', 'cv', cvCols[1]!, 120),
+      inPort('vibrato', 'Vib+', 'cv', cvCols[2]!, 120),
+      inPort('voice', 'Voi+', 'cv', cvCols[3]!, 120),
+      inPort('vel', 'Vel', 'cv', cvCols[4]!, 120),
+      inPort('pressure', 'Press', 'cv', cvCols[5]!, 120),
     ],
-    notes: 'FOF/CHANT-geinspireerde zangoscillator met asymmetrische glottale bron. Vowel morft door A-E-I-O-U; formanten blijven staan bij pitchverandering. Voice loopt van korte, heldere sluiting naar langer, zachter open/sluitgedrag. Vel (0-1) regelt volume en verzacht de sluiting bij zachte aanslagen; zonder kabel volle sterkte. Press (0-1) is de doorlopende expressie tijdens de noot (MidiIn Press/aftertouch, breath controller of CV): lager = zachter (vloer 0,15), ademiger (als Breath open staat) en een langere, zachtere sluiting; zonder kabel volle druk, ~20 ms gladgestreken. Tone bepaalt de resonantiebreedte, Breath voegt pulsgebonden aspiratie toe en Vibrato geeft maximaal 22 cent bij 5,3 Hz. Geen exacte LF-bron, spraaksynthese of volledige CHANT-reconstructie. Mono; polyfonie via PolyGroup.',
+    notes: 'FOF/CHANT-geinspireerde zangoscillator met asymmetrische glottale bron. Vowel morft door A-E-I-O-U; formanten blijven staan bij pitchverandering. Voice loopt van korte, heldere sluiting naar langer, zachter open/sluitgedrag. Vel (0-1) regelt volume en verzacht de sluiting bij zachte aanslagen; zonder kabel volle sterkte. Press (0-1) is de doorlopende expressie tijdens de noot (MidiIn Press/aftertouch, breath controller of CV): lager = iets zachter (vloer 0,5), duidelijk ademiger (als Breath open staat) en een langere, zachtere sluiting; zonder kabel volle druk, ~20 ms gladgestreken. Vow+/Air+/Vib+/Voi+ tellen op bij de knop; de kleine knop boven elke CV-jack is de attenuator (1 = vol, 0 = kabel doet niets; bij Vel en Press = gevoeligheid). Tone bepaalt de resonantiebreedte, Breath voegt pulsgebonden aspiratie toe en Vibrato geeft maximaal 22 cent bij 5,3 Hz. Geen exacte LF-bron, spraaksynthese of volledige CHANT-reconstructie. Mono; polyfonie via PolyGroup.',
   });
 }
 
@@ -4425,7 +4437,7 @@ export function seedSoloVoicePatch(
   // een oud project met een FOF-type zonder die poorten wordt eerst ververst.
   const fofPorts = project.moduleTypes.find((type) => type.id === typeId)?.ports.map((port) => port.id) ?? [];
   const needsFofUpgrade = typeId === 'tp_mmb_fof'
-    && !['vel', 'pressure'].every((id) => fofPorts.includes(id));
+    && !['vel', 'pressure', 'vibrato', 'voice'].every((id) => fofPorts.includes(id));
   const p = missing || needsFofUpgrade ? seedInternals(project) : project;
 
   const fresh = (tid: string): ModuleInstance => {

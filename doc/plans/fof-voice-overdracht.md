@@ -1,9 +1,11 @@
 # Overdracht: FOF-VOICE als bespeelbaar steminstrument
 
-**Datum:** 2026-10-01 (bijgewerkt na de Pressure-stap, dezelfde dag).
-**Status:** werkend en getest prototype met `Vel` en `Pressure`; meetmatrix en
-aliasingmeting zijn gedaan; luisteroordeel op oor en fysieke Teensy-proef staan
-nog open.
+**Datum:** 2026-10-01 (bijgewerkt na de Pressure-stap en de eerste
+luisterronde, dezelfde dag). **Status:** werkend en getest prototype met
+`Vel`, `Pressure`, CV op alle expressieknoppen en een attenuator per
+CV-ingang; meetmatrix en aliasingmeting zijn gedaan; eerste luisterronde met
+aftertouch is gedaan (zie [Luisterronde 1](#luisterronde-1-2026-10-01));
+fysieke Teensy-proef staat nog open.
 
 Dit document is bedoeld als zelfstandig startpunt voor een volgende chatsessie.
 De bredere inhoudelijke onderbouwing staat in
@@ -48,7 +50,8 @@ De FOF-implementatie is in drie afzonderlijke commits opgebouwd:
 | `c87574d` | Eerste speelbare FOF-kern, WASM/Teensy-wrapper, editorpaneel, mono-seed, onderzoek en rooktest |
 | `1b7c4f9` | Asymmetrische glottale bron, `Voice`-control en uitgebreide audioregressies |
 | `3a05cc8` | Velocitygevoelig volume/fonatie, note-off-behoud en upgrade van oude FOF-definities |
-| Pressure-stap (2026-10-01, zie `git log -- tools/mmb-wasm/render-fof-matrix.mjs`) | `pressure`-ingang in kern/wrappers/paneel, `onCvDisconnected` op Teensy, pressure-regressies, meetmatrixscript |
+| `d90c383` | `pressure`-ingang in kern/wrappers/paneel, `onCvDisconnected` op Teensy, pressure-regressies, meetmatrixscript |
+| Attenuator-stap (2026-10-01, na luisterronde 1) | Pressure herbalanceerd (minder volume, meer sluiting en adem), `vibrato`- en `voice`-CV, zes `*_amt`-attenuators, paneel 12 HP |
 
 `8a69c1f` is Material Bridge en is geen onderdeel van FOF.
 
@@ -87,8 +90,18 @@ gelijk; voeg geen klankalgoritme alleen in TypeScript toe.
 | `gate` | Gate | Hoge gate opent de vaste attack; lage gate start release |
 | `vowel` | CV | Telt op bij de Vowel-knop en wordt daarna begrensd |
 | `breath` | CV | Telt op bij Breath en wordt daarna begrensd |
+| `vibrato` | CV | Telt op bij de Vibrato-knop en wordt daarna begrensd |
+| `voice` | CV | Telt op bij de Voice-knop en wordt daarna begrensd |
 | `vel` | CV | 0-1 aanslagsterkte; zonder kabel is de waarde 1 |
 | `pressure` | CV | 0-1 doorlopende expressie tijdens de noot; zonder kabel is de waarde 1 (sample-exact de oude stem) |
+
+Elke CV-ingang heeft een attenuator in de wrapper (niet in de kern), met
+dezelfde formules op Teensy (`FofModule::apply`) en in wasm (`mmb_process`):
+
+```text
+vowel/breath/vibrato/voice:  effectief = clamp01(knop + amt * cv)
+vel/pressure:                effectief = 1 - amt * (1 - cv)     (amt 0 = kabel doet niets)
+```
 | `out` | Audio | Monosignaal; de mono-seed verbindt dit met L en R |
 
 ### Controls
@@ -101,6 +114,8 @@ gelijk; voeg geen klankalgoritme alleen in TypeScript toe.
 | `vibrato` | 0,12 | 5,3 Hz; maximum is 22 cent |
 | `voice` | 0,35 | Korte/heldere naar langere/zachtere glottale open- en sluitfase |
 | `level` | 0,8 | Eindniveau |
+| `vowel_amt`, `breath_amt`, `vibrato_amt`, `voice_amt` | 1 | Attenuator van de bijbehorende CV-ingang |
+| `vel_amt`, `press_amt` | 1 | Gevoeligheid voor Vel en Press (0 = geen effect) |
 
 Nieuwe mono-seeds verbinden MIDI `pitch`, `gate` en `vel` automatisch;
 `pressure` blijft ongepatcht (zie stap 7 hierboven). Het bestaande
@@ -142,12 +157,16 @@ note-off velocity nul levert, verandert of kapt dat de uitklank niet af.
 alle exact 1 respectievelijk 0 bij volle druk:
 
 ```text
-pressureGain   = 1 - 0.85 * slack        (vloer 0,15 bij druk 0)
-aspirationGain = 1 + 0.75 * slack        (alleen hoorbaar als Breath > 0)
-effectiveVoice = clamp(voice + 0.3 * (1 - heldVelocity) + 0.25 * slack, 0, 1)
+pressureGain   = 1 - 0.5 * slack         (vloer 0,5 = -6 dB bij druk 0)
+aspirationGain = 1 + 1.5 * slack         (alleen hoorbaar als Breath > 0)
+effectiveVoice = clamp(voice + 0.3 * (1 - heldVelocity) + 0.45 * slack, 0, 1)
 ```
 
-Pitch, formantfrequenties en vibrato zijn bewust niet gekoppeld. Een
+De eerste versie (vloer 0,15, adem +0,75, Voice +0,25) is na luisterronde 1
+herbalanceerd: Mark hoorde met aftertouch vooral volume en weinig klank. De
+volumekoppeling is daarom gehalveerd en de sluiting- en ademkoppeling zijn
+versterkt. Pitch, formantfrequenties en vibrato zijn bewust niet gekoppeld;
+wie vibrato aan druk wil, patcht Press naar `Vib+` met de attenuator. Een
 ongepatchte ingang geeft sample-exact dezelfde output als de binary van vóór
 deze stap; dat is met een aparte vergelijking van de oude en nieuwe wasm over
 vier configuraties (met en zonder velocity, met release) bevestigd.
@@ -229,10 +248,11 @@ npm --prefix editor run build
 
 Laatste bekende resultaten op 2026-10-01 (na de Pressure-stap):
 
-- WASM-binary: 66.315 bytes;
-- rooktestpiek ongeveer 0,164 en circa 0,2 procent van realtime op de
+- WASM-binary: 68.986 bytes;
+- rooktestpiek ongeveer 0,164 en circa 0,2-0,3 procent van realtime op de
   ontwikkel-pc; dit is geen betrouwbare browser- of Teensy-CPU-meting;
-- gerichte FOF-editortests: 7 geslaagd; volledige typecheck geslaagd;
+- gerichte FOF-editortests: 8 geslaagd (185 contracttests totaal); volledige
+  typecheck geslaagd;
 - Teensy-build: geslaagd, 57.024 bytes vrije RAM1 en 269.408 bytes vrije RAM2
   (ongewijzigd);
 - niet geflasht en niet fysiek beluisterd.
@@ -279,24 +299,37 @@ klinkers, Voice 0,35, Breath 0,3), laag/midden/hoog op 220 Hz A, en Voice 0
 tegenover 1 op 440 en 880 Hz, ook op gelijke RMS (`-rms-0.1`). De wav's staan
 bewust niet in de repo; render ze opnieuw met het script.
 
-### Pressure-respons (klinker A, Voice 0,35)
+### Pressure-respons (klinker A, Voice 0,35), na de herbalancering
 
 | F0 | Breath | RMS laag | RMS midden | RMS hoog | Centroid laag naar hoog |
 |---:|---:|---:|---:|---:|---|
-| 110 | 0 | −46,8 | −38,7 | −33,4 dBFS | 469 naar 620 Hz |
-| 110 | 0,3 | −42,3 | −36,3 | −32,3 dBFS | 7593 naar 3056 Hz |
-| 220 | 0 | −39,7 | −32,8 | −28,7 dBFS | 640 naar 701 Hz |
-| 220 | 0,3 | −38,3 | −32,0 | −28,2 dBFS | 3409 naar 1642 Hz |
-| 440 | 0 | −33,9 | −27,2 | −23,3 dBFS | 778 naar 812 Hz |
-| 880 | 0 | −26,9 | −20,8 | −17,4 dBFS | 889 naar 894 Hz |
+| 110 | 0 | −43,7 | −38,5 | −33,4 dBFS | 310 naar 620 Hz |
+| 110 | 0,3 | −35,1 | −34,2 | −32,3 dBFS | 10004 naar 3056 Hz |
+| 220 | 0 | −35,2 | −31,6 | −28,7 dBFS | 587 naar 701 Hz |
+| 220 | 0,3 | −32,4 | −30,3 | −28,2 dBFS | 5625 naar 1642 Hz |
+| 440 | 0 | −29,1 | −25,8 | −23,3 dBFS | 745 naar 812 Hz |
+| 880 | 0 | −21,2 | −18,9 | −17,4 dBFS | 887 naar 894 Hz |
 
-Lezing: lage druk is 9,5-13 dB zachter dan volle druk (0,15-vloer plus de
-zachtere sluiting) en donkerder. Met `Breath` 0,3 kantelt het zwaartepunt bij
-lage druk naar de ademruis; bij 110 Hz laag is de energie boven 4 kHz nog maar
-2,6 dB onder het totaal. Dat is de bedoelde "ademig bij weinig druk", maar
-mogelijk te veel: dit is het eerste punt om op oor te beoordelen. Als het te
-ruisig is, verlaag de 0,75 in `aspirationGain` (bijvoorbeeld 0,4) voordat je
-aan de andere koppelingen draait.
+Lezing: lage druk is nu 4-10 dB zachter dan volle druk (was 9,5-13 dB); het
+restant boven de 6 dB-vloer komt van de langere sluiting, die bij lage F0 ook
+energie kost. Het zwaartepunt zakt bij lage druk duidelijk (110 Hz: 620 naar
+310 Hz). Met `Breath` 0,3 wordt lage druk sterk ademig; bij 110 Hz laag ligt
+de energie boven 4 kHz nog maar 1,4 dB onder het totaal. Als dat op oor te
+ruisig is, verlaag de 1,5 in `aspirationGain` (bijvoorbeeld 0,8); als de
+sluiting te dof wordt, verlaag de 0,45 in `voiceTarget()`. De `Prs`-
+attenuator schaalt alle drie samen, niet hun onderlinge balans.
+
+### Luisterronde 1 (2026-10-01)
+
+Mark heeft aftertouch (MIDI-IN `Press`, via een telefoon-app) op `Press`
+gepatcht met de eerste koppelingsset (vloer 0,15, adem +0,75, Voice +0,25).
+Oordeel: "vooral veel harder bij druk, weinig ander verschil". Dat is
+consistent met de meting (tot 13 dB volumeverschil tegenover een klein
+zwaartepuntverschil) en is de aanleiding voor de herbalancering hierboven.
+Tweede wens uit dezelfde ronde: `Vibrato` en `Voice` als CV-ingang en een
+attenuator op alle ingangen; beide zijn gebouwd. Het paneel is daarmee 12 HP:
+knoppen boven, V/Oct-Gate-Out in het midden, zes attenuators recht boven de
+zes CV-jacks onderaan. De nieuwe balans is nog niet op oor beoordeeld.
 
 ### Aliasing (klinker A, volle druk, Breath 0)
 
@@ -336,9 +369,11 @@ is op basis van deze meting niet nodig.
 
 ## Aanbevolen vervolg
 
-1. **Beluisteren.** Render de matrix, luister de sweeps en de Voice-paren en
-   noteer per criterium een oordeel. Pas daarna koppelingsfactoren aan (eerst
-   `aspirationGain`, zie boven).
+1. **Beluisteren, ronde 2.** Zelfde patch als ronde 1 (aftertouch op
+   `Press`), nu met de herbalanceerde koppelingen; zet `Breath` rond 0,2 om
+   de ademkoppeling te horen en draai `Prs` terug als het geheel te veel
+   doet. Noteer per criterium een oordeel. Pas daarna koppelingsfactoren
+   aan (eerst `aspirationGain`, zie boven).
 2. **Sluitduur bij hoge F0** alleen als het luisteroordeel Voice 0 boven
    ongeveer 1 kHz scherp vindt; houd de `Voice`-regressie (spectral tilt) en
    de sample-exacte compatibiliteit bij volle druk in stand.
@@ -383,5 +418,6 @@ is op basis van deze meting niet nodig.
 - [x] droge opnames en spectra met instellingen zijn reproduceerbaar te
       renderen (`render-fof-matrix.mjs`, `report.json`);
 - [x] de gemeten aliasing is gedocumenteerd;
-- [ ] de hoorbare uitkomst is op oor beoordeeld en genoteerd;
+- [x] eerste luisterronde gedaan en verwerkt (herbalancering, CV's,
+      attenuators); tweede ronde met de nieuwe balans staat open;
 - [ ] alleen eigen FOF-hunks zijn gecommit (controleer bij de commit).

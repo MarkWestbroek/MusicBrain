@@ -528,16 +528,24 @@
         "out",
         "pressure",
         "vel",
+        "vibrato",
         "voct",
+        "voice",
         "vowel"
       ],
       "controls": [
         "breath",
+        "breath_amt",
         "level",
+        "press_amt",
         "tone",
+        "vel_amt",
         "vibrato",
+        "vibrato_amt",
         "voice",
-        "vowel"
+        "voice_amt",
+        "vowel",
+        "vowel_amt"
       ]
     },
     "tp_mmb_gate_out": {

@@ -94,11 +94,13 @@ public:
 
         const float noise = whiteNoise();
         breathLow_ += 0.08f * (noise - breathLow_);
-        // Pressure couplings (all exactly 1 at full pressure): quieter with a
-        // floor of 0.15, breathier (only if Breath is up) and a softer, longer
-        // closure through voiceTarget().
-        const float pressureGain = 1.0f - 0.85f * slack;
-        const float aspirationGain = 1.0f + 0.75f * slack;
+        // Pressure couplings (all exactly 1 at full pressure): a little quieter
+        // (floor 0.5, -6 dB), clearly breathier (only if Breath is up) and a
+        // softer, longer closure through voiceTarget(). Loudness is kept small
+        // on purpose: the first listening test (2026-10-01) heard mostly
+        // volume with the earlier 0.15 floor.
+        const float pressureGain = 1.0f - 0.5f * slack;
+        const float aspirationGain = 1.0f + 1.5f * slack;
         const float aspiration = (noise - breathLow_) * breath_ * aspirationGain * 0.16f * (0.25f + 0.75f * flow);
         const float output = (voiced + aspiration) * envelope_ * pressureGain * level_;
         return clamp(output, -1.0f, 1.0f);
@@ -141,7 +143,7 @@ private:
     /** Effective phonation: the Voice knob, softened by a gentle attack
      *  (heldVelocity) and by low pressure. */
     float voiceTarget() const {
-        return clamp(voice_ + 0.3f * (1.0f - heldVelocity_) + 0.25f * (1.0f - smoothPressure_), 0.0f, 1.0f);
+        return clamp(voice_ + 0.3f * (1.0f - heldVelocity_) + 0.45f * (1.0f - smoothPressure_), 0.0f, 1.0f);
     }
 
     float timeCoefficient(float seconds) const {

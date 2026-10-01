@@ -66,7 +66,9 @@ Geen opname, lyricbank of extra hardware nodig. Start audio in Simulatie.
 | Vowel | Continue A-E-I-O-U-morf, onafhankelijk van toonhoogte |
 | Voice | Korte/heldere naar langere/zachtere glottale sluiting; default 0,35 |
 | Vel-ingang | Aanslagsterkte 0-1 stuurt volume en fonatie; automatisch vanuit MIDI in nieuwe seeds |
-| Press-ingang | Doorlopende expressie tijdens de noot (0-1): zachter met een vloer, ademiger als Breath open staat, langere sluiting; zonder kabel volle druk |
+| Press-ingang | Doorlopende expressie tijdens de noot (0-1): iets zachter (vloer −6 dB), duidelijk ademiger als Breath open staat, langere sluiting; zonder kabel volle druk |
+| Vow+ / Air+ / Vib+ / Voi+ | CV telt op bij de Vowel-, Breath-, Vibrato- en Voice-knop |
+| Attenuators | Kleine knop boven elke CV-jack: 1 = vol, 0 = kabel doet niets; bij Vel en Press is dit de gevoeligheid |
 | Tone / Breath | Formantbreedte / pulsgebonden aspiratie |
 | Vibrato / Level | Vibratodiepte / uitgangsniveau |
 

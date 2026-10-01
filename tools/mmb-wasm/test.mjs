@@ -158,7 +158,7 @@ async function checkFof(file) {
   for (let index = 1; index < pressureLevels.length; index++) {
     assert(pressureLevels[index] > pressureLevels[index - 1] * 1.05, `FOF: pressure response must rise monotonically (${pressureLevels})`);
   }
-  assert(pressureLevels[0] > pressureLevels[4] * 0.05 && pressureLevels[0] < pressureLevels[4] * 0.3,
+  assert(pressureLevels[0] > pressureLevels[4] * 0.2 && pressureLevels[0] < pressureLevels[4] * 0.6,
     `FOF: pressure floor out of range (${pressureLevels[0] / pressureLevels[4]})`);
   const breathyFull = await makeVoice(220, 0, 0.35, 0.5, undefined, 1);
   const breathyLow = await makeVoice(220, 0, 0.35, 0.5, undefined, 0.2);
@@ -181,6 +181,38 @@ async function checkFof(file) {
   captureFof(stepped, 0.1);
   const settled = captureFof(stepped, 0.2);
   assert(Math.abs(rms(settled) / rms(fullPressure) - 1) < 0.02, `FOF: pressure must settle within ~120 ms (${rms(settled) / rms(fullPressure)})`);
+  // Attenuators en de vibrato/voice-CV-ingangen (wrapper-niveau). Elke
+  // vergelijking zet knop en kabel op hetzelfde moment, na dezelfde attack.
+  const attenuated = await makeVoice(220, 0, 0.35);
+  attenuated.setCtl('vel_amt', 0);
+  attenuated.setCtl('press_amt', 0);
+  attenuated.setIn('vel', 0.25);
+  attenuated.setIn('pressure', 0);
+  assert.deepEqual(captureFof(attenuated, 0.2), unpatched, 'FOF: vel_amt/press_amt 0 must ignore the cables');
+  const quarterVel = await makeVoice(220, 0, 0.35);
+  const scaledVel = await makeVoice(220, 0, 0.35);
+  quarterVel.setIn('vel', 0.25);
+  scaledVel.setCtl('vel_amt', 0.75);
+  scaledVel.setIn('vel', 0);
+  const quarter = captureFof(quarterVel, 0.2);
+  assert(rms(quarter) < rms(unpatched) * 0.5, 'FOF: vel 0.25 after the attack must get quieter');
+  assert.deepEqual(captureFof(scaledVel, 0.2), quarter, 'FOF: vel_amt 0.75 with vel 0 must equal vel 0.25');
+  const voiceCv = await makeVoice(220, 0, 0);
+  const voiceKnob = await makeVoice(220, 0, 0);
+  voiceCv.setIn('voice', 1);
+  voiceKnob.setCtl('voice', 1);
+  assert.deepEqual(captureFof(voiceCv, 0.2), captureFof(voiceKnob, 0.2), 'FOF: voice CV must add to the Voice knob');
+  voiceCv.setCtl('voice_amt', 0);
+  voiceKnob.setCtl('voice', 0);
+  assert.deepEqual(captureFof(voiceCv, 0.2), captureFof(voiceKnob, 0.2), 'FOF: voice_amt 0 must ignore the cable');
+  const vibratoCv = await makeVoice(220, 0, 0.35);
+  const vibratoKnob = await makeVoice(220, 0, 0.35);
+  vibratoCv.setIn('vibrato', 0.6);
+  vibratoKnob.setCtl('vibrato', 0.6);
+  assert.deepEqual(captureFof(vibratoCv, 0.3), captureFof(vibratoKnob, 0.3), 'FOF: vibrato CV must add to the knob');
+  vibratoCv.setCtl('vibrato_amt', 0.5);
+  vibratoKnob.setCtl('vibrato', 0.3);
+  assert.deepEqual(captureFof(vibratoCv, 0.3), captureFof(vibratoKnob, 0.3), 'FOF: vibrato_amt must scale the CV');
   const jumpy = await makeVoice(880, 0.5, 0, 0.5, undefined, 0);
   for (let toggle = 0; toggle < 40; toggle++) { jumpy.setIn('pressure', toggle % 2 ? 0 : 1); captureFof(jumpy, 0.005); }
   const release = await makeVoice(220, 0.25, 0.35);
@@ -207,7 +239,7 @@ async function checkFof(file) {
       }
     }
   }
-  console.log('FOF regression: 45 pitch/vowel/Voice cases, spectral tilt, velocity volume/timbre/default/clamps/note-off, pressure default/clamp/monotone/floor/timbre/breath/smoothing/jumps, release/retrigger/mute and 8 extreme cases passed.');
+  console.log('FOF regression: 45 pitch/vowel/Voice cases, spectral tilt, velocity volume/timbre/default/clamps/note-off, pressure default/clamp/monotone/floor/timbre/breath/smoothing/jumps, attenuators + vibrato/voice CV, release/retrigger/mute and 8 extreme cases passed.');
 }
 
 const only = process.argv[2];

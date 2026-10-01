@@ -59,7 +59,8 @@ public:
     }
     PortKind inputPortKind(std::string_view portId) const override {
         if (portId == "gate") return PortKind::Gate;
-        if (portId == "voct" || portId == "vowel" || portId == "breath" || portId == "vel" || portId == "pressure") return PortKind::Cv;
+        if (portId == "voct" || portId == "vowel" || portId == "breath" || portId == "vibrato" || portId == "voice"
+            || portId == "vel" || portId == "pressure") return PortKind::Cv;
         return PortKind::None;
     }
 
@@ -70,15 +71,17 @@ public:
             gate_ = value >= 0.5f;
             stream_.setGate(gate_);
         } else if (portId == "vel") {
-            stream_.setVelocity(clamp01(value));
+            velCv_ = clamp01(value); apply();
         } else if (portId == "pressure") {
-            stream_.setPressure(clamp01(value));
+            pressCv_ = clamp01(value); apply();
         } else if (portId == "vowel") {
-            vowelCv_ = value;
-            stream_.setVowel(clamp01(vowel_ + vowelCv_) * 4.0f);
+            vowelCv_ = value; apply();
         } else if (portId == "breath") {
-            breathCv_ = value;
-            stream_.setBreath(clamp01(breath_ + breathCv_));
+            breathCv_ = value; apply();
+        } else if (portId == "vibrato") {
+            vibratoCv_ = value; apply();
+        } else if (portId == "voice") {
+            voiceCv_ = value; apply();
         }
     }
 
@@ -93,21 +96,18 @@ public:
         if (const auto* floatValue = std::get_if<float>(&value)) number = *floatValue;
         else if (const auto* intValue = std::get_if<int32_t>(&value)) number = static_cast<float>(*intValue);
         else if (const auto* boolValue = std::get_if<bool>(&value)) number = *boolValue ? 1.0f : 0.0f;
-        if (controlId == "vowel") {
-            vowel_ = clamp01(number);
-            stream_.setVowel(clamp01(vowel_ + vowelCv_) * 4.0f);
-        } else if (controlId == "tone") {
-            stream_.setTone(clamp01(number));
-        } else if (controlId == "voice") {
-            stream_.setVoice(clamp01(number));
-        } else if (controlId == "breath") {
-            breath_ = clamp01(number);
-            stream_.setBreath(clamp01(breath_ + breathCv_));
-        } else if (controlId == "vibrato") {
-            stream_.setVibrato(clamp01(number));
-        } else if (controlId == "level") {
-            stream_.setLevel(clamp01(number));
-        }
+        if (controlId == "vowel") { vowel_ = clamp01(number); apply(); }
+        else if (controlId == "tone") { stream_.setTone(clamp01(number)); }
+        else if (controlId == "voice") { voice_ = clamp01(number); apply(); }
+        else if (controlId == "breath") { breath_ = clamp01(number); apply(); }
+        else if (controlId == "vibrato") { vibrato_ = clamp01(number); apply(); }
+        else if (controlId == "level") { stream_.setLevel(clamp01(number)); }
+        else if (controlId == "vowel_amt") { vowelAmt_ = clamp01(number); apply(); }
+        else if (controlId == "breath_amt") { breathAmt_ = clamp01(number); apply(); }
+        else if (controlId == "vibrato_amt") { vibratoAmt_ = clamp01(number); apply(); }
+        else if (controlId == "voice_amt") { voiceAmt_ = clamp01(number); apply(); }
+        else if (controlId == "vel_amt") { velAmt_ = clamp01(number); apply(); }
+        else if (controlId == "press_amt") { pressAmt_ = clamp01(number); apply(); }
     }
 
     void onRetire() override { stream_.setActive(false); }
@@ -126,11 +126,26 @@ private:
         return value < 0.0f ? 0.0f : (value > 1.0f ? 1.0f : value);
     }
 
+    /** Knob + attenuated CV for the four modulation inputs; Vel and Press
+     *  are scaled towards 1 (amt 0 = no effect), so every amt defaults to 1
+     *  and an unpatched input leaves the voice untouched. Same formulas as
+     *  tools/mmb-wasm/fof_wasm.cc. */
+    void apply() {
+        stream_.setVowel(clamp01(vowel_ + vowelAmt_ * vowelCv_) * 4.0f);
+        stream_.setBreath(clamp01(breath_ + breathAmt_ * breathCv_));
+        stream_.setVibrato(clamp01(vibrato_ + vibratoAmt_ * vibratoCv_));
+        stream_.setVoice(clamp01(voice_ + voiceAmt_ * voiceCv_));
+        stream_.setVelocity(1.0f - velAmt_ * (1.0f - velCv_));
+        stream_.setPressure(1.0f - pressAmt_ * (1.0f - pressCv_));
+    }
+
     mutable FofAudioStream stream_;
-    float vowel_ = 0.0f;
-    float vowelCv_ = 0.0f;
-    float breath_ = 0.08f;
-    float breathCv_ = 0.0f;
+    float vowel_ = 0.0f, vowelCv_ = 0.0f, vowelAmt_ = 1.0f;
+    float breath_ = 0.08f, breathCv_ = 0.0f, breathAmt_ = 1.0f;
+    float vibrato_ = 0.12f, vibratoCv_ = 0.0f, vibratoAmt_ = 1.0f;
+    float voice_ = 0.35f, voiceCv_ = 0.0f, voiceAmt_ = 1.0f;
+    float velCv_ = 1.0f, velAmt_ = 1.0f;
+    float pressCv_ = 1.0f, pressAmt_ = 1.0f;
     bool gate_ = false;
 };
 
