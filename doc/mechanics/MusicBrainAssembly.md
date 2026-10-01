@@ -67,3 +67,24 @@ EXP 1–6 aangeduid.
 
 De volledige getoonde opstelling is 80 HP: 40 HP hoofdunit + 8 HP audio-I/O +
 32 HP uitbreiding.
+## Paneelbesluit 1 oktober 2026: 48 HP, paneel breder dan de print
+
+Bij het bouwen van de 3D-montage-animatie op musicbrain.nl (`/cortex`) bleek
+dat concept v1 en busboard v3.1 elkaar tegenspreken: de zes slots zitten op
+het busboard **gecentreerd** (gemeten in het KiCad-model: 48,3 + 20,32·i mm
+vanaf de linker bordrand), terwijl v1 de zes kolommen rechts zet (84–184 mm)
+om links 70 mm console te houden. Op 40 HP past dat niet samen. Ook stonden
+de jack/pot-rijen in v1 op 12,6 mm; de jack8 en pot8front liggen op
+**13,75 mm**.
+
+Gekozen (optie 2, zonder busboard-respin): **`frontpanel-v3.svg`** — 48 HP
+(243,84 mm). Het busboard zit vanaf x = 35,7 mm, de kolommen staan boven de
+echte slots (84,0 / 104,3 / 124,6 / 144,9 / 165,2 / 185,6), de console blijft
+links (zonder PCB erachter; ruimte voor de ESP plat), en de codec-audio komt
+als paneelbussen rechts over het hub-gebied (IN 6 + TUNE, OUT 8) — het losse
+8 HP-audiofront vervalt. Nog te doen in deze macro: `main_hp=48`,
+busboard-offset 35,7, kolommen op de slots, audio-unit weg.
+
+Bewaard als alternatief: **`frontpanel-sketch-40hp-portrait.svg`** — 40 HP met
+de kolommen op de slots, display staand (33 × 58) in de linkerstrook en de
+MIDI-DIN's gestapeld rechts.
