@@ -2,10 +2,11 @@
 
 **Datum:** 2026-10-01 (bijgewerkt na de Pressure-stap en de eerste
 luisterronde, dezelfde dag). **Status:** werkend en getest prototype met
-`Vel`, `Pressure`, CV op alle expressieknoppen en een attenuator per
-CV-ingang; meetmatrix en aliasingmeting zijn gedaan; eerste luisterronde met
-aftertouch is gedaan (zie [Luisterronde 1](#luisterronde-1-2026-10-01));
-fysieke Teensy-proef staat nog open.
+`Vel`, `Pressure`, CV op alle expressieknoppen, een attenuator per CV-ingang
+en een eerste lettergreeptabel (`Syl`: Vowel / Doo / Da met synthetische d);
+meetmatrix en aliasingmeting zijn gedaan; eerste luisterronde met aftertouch
+is gedaan (zie [Luisterronde 1](#luisterronde-1-2026-10-01)); fysieke
+Teensy-proef en het luisteroordeel over doo/da staan nog open.
 
 Dit document is bedoeld als zelfstandig startpunt voor een volgende chatsessie.
 De bredere inhoudelijke onderbouwing staat in
@@ -29,12 +30,17 @@ De snelste proef:
 3. Open `Simulatie`, start audio en speel via MIDI of het schermklavier.
 4. Morf `Vowel` langzaam door A-E-I-O-U.
 5. Vergelijk `Voice=0` en `Voice=1`, eerst met `Breath=0` en `Vibrato=0`.
+   Vibrato 1,0 is een halve toon; rond 0,3 klinkt het als een zanger.
 6. Gebruik een velocitygevoelig MIDI-klavier of patch CV naar `Vel` om zachte
    en harde aanslagen te vergelijken.
 7. Patch MIDI-IN `Press` (aftertouch) of een LFO naar `Press` en houd een noot
    vast: lagere druk is zachter, ademiger (met `Breath` open) en zachter
    gesloten. `Press` wordt bewust niet automatisch bedraad: zonder aftertouch
    staat MIDI-IN `Press` op 0 en zou de stem dof en zacht klinken.
+8. Zet `Syl` op Doo of Da en speel korte noten: elke aanslag begint met een
+   d. Of patch MIDI-IN `CC1` naar `Syl+` en stuur vanaf een pad-app CC1 = 0
+   (Vowel-knop), 64 (doo) of 127 (da): linkerhand kiest de lettergreep,
+   rechterhand speelt. De keuze wordt bij de gate-flank gelezen.
 
 De eerstvolgende aanbevolen ontwikkelstap is **luisteren op oor aan de hand
 van de gerenderde matrix en dan beslissen over de aliasing bij hoge noten**
@@ -51,7 +57,8 @@ De FOF-implementatie is in drie afzonderlijke commits opgebouwd:
 | `1b7c4f9` | Asymmetrische glottale bron, `Voice`-control en uitgebreide audioregressies |
 | `3a05cc8` | Velocitygevoelig volume/fonatie, note-off-behoud en upgrade van oude FOF-definities |
 | `d90c383` | `pressure`-ingang in kern/wrappers/paneel, `onCvDisconnected` op Teensy, pressure-regressies, meetmatrixscript |
-| Attenuator-stap (2026-10-01, na luisterronde 1) | Pressure herbalanceerd (minder volume, meer sluiting en adem), `vibrato`- en `voice`-CV, zes `*_amt`-attenuators, paneel 12 HP |
+| `f016f67` | Pressure herbalanceerd (minder volume, meer sluiting en adem), `vibrato`- en `voice`-CV, zes `*_amt`-attenuators, paneel 12 HP |
+| Lettergreep-stap (2026-10-01) | Vibrato tot 100 cent; `Syl`-schakelaar, `syl_cv` + `syl_amt`; synthetische /d/ (sluiting, burst, glijbaan) voor doo en da; paneel 14 HP |
 
 `8a69c1f` is Material Bridge en is geen onderdeel van FOF.
 
@@ -94,6 +101,7 @@ gelijk; voeg geen klankalgoritme alleen in TypeScript toe.
 | `voice` | CV | Telt op bij de Voice-knop en wordt daarna begrensd |
 | `vel` | CV | 0-1 aanslagsterkte; zonder kabel is de waarde 1 |
 | `pressure` | CV | 0-1 doorlopende expressie tijdens de noot; zonder kabel is de waarde 1 (sample-exact de oude stem) |
+| `syl_cv` | CV | 0-1 over de lettergreeptabel, telt op bij `Syl` (zoals `syl_cv` bij ZANG); zonder kabel 0 |
 
 Elke CV-ingang heeft een attenuator in de wrapper (niet in de kern), met
 dezelfde formules op Teensy (`FofModule::apply`) en in wasm (`mmb_process`):
@@ -101,6 +109,7 @@ dezelfde formules op Teensy (`FofModule::apply`) en in wasm (`mmb_process`):
 ```text
 vowel/breath/vibrato/voice:  effectief = clamp01(knop + amt * cv)
 vel/pressure:                effectief = 1 - amt * (1 - cv)     (amt 0 = kabel doet niets)
+syl:                         index = round(Syl + amt * clamp01(cv) * (N - 1)), N = 3
 ```
 | `out` | Audio | Monosignaal; de mono-seed verbindt dit met L en R |
 
@@ -111,11 +120,13 @@ vel/pressure:                effectief = 1 - amt * (1 - cv)     (amt 0 = kabel d
 | `vowel` | 0 | Genormaliseerde A-E-I-O-U-morf; de kern gebruikt intern 0-4 |
 | `tone` | 0,5 | Verandert formantbandbreedtes via `brightness = 0.65 + 0.7 * tone` |
 | `breath` | 0,08 | Hoogdoorlaat-aspiratieruis, vooral hoorbaar tijdens glottale opening |
-| `vibrato` | 0,12 | 5,3 Hz; maximum is 22 cent |
+| `vibrato` | 0,12 | 5,3 Hz; 1,0 = een halve toon (100 cent); was 22 cent tot de lettergreep-stap |
 | `voice` | 0,35 | Korte/heldere naar langere/zachtere glottale open- en sluitfase |
 | `level` | 0,8 | Eindniveau |
 | `vowel_amt`, `breath_amt`, `vibrato_amt`, `voice_amt` | 1 | Attenuator van de bijbehorende CV-ingang |
 | `vel_amt`, `press_amt` | 1 | Gevoeligheid voor Vel en Press (0 = geen effect) |
+| `syl` | 0 | Schakelaar: 0 = Vowel-knop, 1 = doo, 2 = da |
+| `syl_amt` | 1 | Attenuator van `syl_cv` |
 
 Nieuwe mono-seeds verbinden MIDI `pitch`, `gate` en `vel` automatisch;
 `pressure` blijft ongepatcht (zie stap 7 hierboven). Het bestaande
@@ -183,11 +194,41 @@ en geen articulatorisch mondmodel. `Tone` verandert vooral de resonantieradius
 via de effectieve bandbreedte. Ongewijzigde Vowel-waarden herberekenen de
 coefficienten niet; `Tone` doet dat momenteel wel bij iedere setter-call.
 
+### Lettergrepen en de synthetische /d/
+
+`kSyllables` in de kern koppelt een index aan een aanzetmedeklinker en een
+klinker: 0 = geen aanzet, klinker uit de Vowel-knop/CV (de oorspronkelijke
+stem, sample-exact); 1 = /d/ + oe (tabelrij u); 2 = /d/ + a. De keuze wordt
+op de stijgende gateflank gelezen (`startNote`); een wijziging tijdens de
+noot wacht tot de volgende aanslag. De klinker van een lettergreep blijft
+staan zolang de noot klinkt, ook als de Vowel-knop draait.
+
+De /d/ is CHANT-achtig opgebouwd uit drie fasen in `advanceOnset`:
+
+| Fase | Duur | Wat er gebeurt |
+|---|---:|---|
+| Sluiting | 20 ms | Formanten op de alveolaire locus (F1 200, F2 1800, F3 2700 Hz), stembron op 0,15 (murmur) |
+| Burst | 6 ms | Witte ruis door een resonator op 3,8 kHz (bandbreedte 800 Hz), lineair uitdovend; stembron op 0,4 |
+| Glijbaan | 60 ms | F1-F3 lopen exponentieel (tijdconstante 15 ms, update per 32 samples) naar de klinker; stembron groeit van 0,4 naar 1 |
+
+Na de glijbaan worden de formantcoëfficiënten exact uit de klinkertabel
+herladen, zodat de stationaire klank bitgelijk is aan de losse klinker. De
+stembron is tijdens burst en glijbaan gedempt omdat F1 op de locus vlak bij
+een lage grondtoon ligt en de overgang anders luider is dan de klinker. Er is
+nog geen slotmedeklinker (gate dicht = gewone release) en geen stemloze
+tegenhanger (/t/ zou een langere, stillere sluiting en een latere stem-
+inzet krijgen).
+
+Metingen op 220 Hz (droog): de sluiting ligt 45 procent onder de gewone
+klinkeraanzet, het burstvenster heeft tien keer zoveel hoogfrequente energie
+als de klinker op dezelfde plek, en vanaf 200 ms is de RMS gelijk aan die van
+de losse klinker. Op oor nog niet beoordeeld.
+
 ### Envelope, ruis en output
 
 - attacktijd: 18 ms;
 - releasetijd: 120 ms;
-- vibrato: sinus op 5,3 Hz;
+- vibrato: sinus op 5,3 Hz, tot een halve toon;
 - noise: deterministische xorshift, eenvoudig hoogdoorlaatgedrag;
 - aspiratie volgt gedeeltelijk de glottale opening;
 - eindoutput wordt begrensd op -1 tot +1.
@@ -214,6 +255,9 @@ De test controleert onder meer:
 - sample-exact dezelfde klank bij ongepatchte velocity en velocity 1;
 - begrenzing van velocity buiten 0-1;
 - velocity nul bij note-off verandert de release sample-exact niet;
+- lettergrepen: sluitingsdip, burst, convergentie naar de klinker (doo op
+  oe, da op a), `syl_cv`-keuze en `syl_amt`, keuze pas bij de volgende gate,
+  hertrigger speelt de aanzet opnieuw, extreme da op 880 Hz zonder clipping;
 - Pressure: ongepatcht == 1 (sample-exact), begrenzing boven 1, monotoon
   stijgende RMS over 0/0,25/0,5/0,75/1, vloer tussen 5 en 30 procent van vol,
   zachtere sluiting bij druk 0, meer hoogfrequente ademruis bij lage druk,
@@ -248,11 +292,13 @@ npm --prefix editor run build
 
 Laatste bekende resultaten op 2026-10-01 (na de Pressure-stap):
 
-- WASM-binary: 68.986 bytes;
+- WASM-binary: 73.889 bytes;
 - rooktestpiek ongeveer 0,164 en circa 0,2-0,3 procent van realtime op de
   ontwikkel-pc; dit is geen betrouwbare browser- of Teensy-CPU-meting;
-- gerichte FOF-editortests: 8 geslaagd (185 contracttests totaal); volledige
+- gerichte FOF-editortests: 9 geslaagd (186 contracttests totaal); volledige
   typecheck geslaagd;
+- oude en nieuwe wasm sample-exact bij Syl 0, Press ongepatcht en Vibrato 0
+  (vibrato-diepte is bewust veranderd);
 - Teensy-build: geslaagd, 57.024 bytes vrije RAM1 en 269.408 bytes vrije RAM2
   (ongewijzigd);
 - niet geflasht en niet fysiek beluisterd.
@@ -327,9 +373,23 @@ Oordeel: "vooral veel harder bij druk, weinig ander verschil". Dat is
 consistent met de meting (tot 13 dB volumeverschil tegenover een klein
 zwaartepuntverschil) en is de aanleiding voor de herbalancering hierboven.
 Tweede wens uit dezelfde ronde: `Vibrato` en `Voice` als CV-ingang en een
-attenuator op alle ingangen; beide zijn gebouwd. Het paneel is daarmee 12 HP:
-knoppen boven, V/Oct-Gate-Out in het midden, zes attenuators recht boven de
-zes CV-jacks onderaan. De nieuwe balans is nog niet op oor beoordeeld.
+attenuator op alle ingangen; beide zijn gebouwd. Daarna bleek de vibrato
+"zwak" en leek de attenuator niets te doen: de maximale diepte was 22 cent.
+Die is naar 100 cent gezet. Het paneel is nu 14 HP: knoppen boven, `Syl` en
+Level in het midden, V/Oct-Gate-Out, en zeven attenuators recht boven de
+zeven CV-jacks onderaan. De nieuwe Pressure-balans, de vibratodiepte en
+doo/da zijn nog niet op oor beoordeeld.
+
+### Spelconcept: linkerhand kiest, rechterhand speelt
+
+Mark's idee (2026-10-01): een beperkte set lettergrepen op een pad-panel op
+telefoon of tablet dat per pad een CC-waarde stuurt, en de melodie op het
+MIDI-klavier. Dat lost het timingprobleem van medeklinkers op: de keuze is
+bekend vóór de aanslag, dus de aanzet start direct op de gate zonder
+voorspellen. `syl_cv` volgt daarom de ZANG-conventie (0..1 over de tabel).
+Testrepertoire: "doo/da" (Police) met de huidige tabel; "va der ja cob slaapt
+gij nog al le klo ken lui den bim bam bom" vraagt v, d, r, j, k, b, s, l, p,
+t, g, n, m en de klinkers aa, schwa, o, oe, ij en ui, dus meerdere stappen.
 
 ### Aliasing (klinker A, volle druk, Breath 0)
 
@@ -374,13 +434,20 @@ is op basis van deze meting niet nodig.
    de ademkoppeling te horen en draai `Prs` terug als het geheel te veel
    doet. Noteer per criterium een oordeel. Pas daarna koppelingsfactoren
    aan (eerst `aspirationGain`, zie boven).
-2. **Sluitduur bij hoge F0** alleen als het luisteroordeel Voice 0 boven
+2. **Doo/da op oor.** Speel de Police-riff met `Syl` of CC1 op `Syl+`. Te
+   beoordelen: is de d herkenbaar, is de aanzet niet te luid of te zacht
+   (burstgain 0,4 en de stembrondemping 0,15/0,4 in `advanceOnset`), stoort
+   de 20 ms vertraging van de klinker. Daarna pas uitbreiden: eerst /b/ en
+   /g/ (alleen een andere locus en burstfrequentie), dan /t/-/k/-/p/
+   (stemloos: langere sluiting, latere steminzet), dan /m/-/n/-/l/ en de
+   slotmedeklinker bij gate dicht.
+3. **Sluitduur bij hoge F0** alleen als het luisteroordeel Voice 0 boven
    ongeveer 1 kHz scherp vindt; houd de `Voice`-regressie (spectral tilt) en
    de sample-exacte compatibiliteit bij volle druk in stand.
-3. **Teensy-proef:** flashen, MIDI-IN `Press` naar `Press` patchen met een
+4. **Teensy-proef:** flashen, MIDI-IN `Press` naar `Press` patchen met een
    aftertouch-klavier en de `vel`-kabel lostrekken om `onCvDisconnected` te
    horen werken.
-4. **Pressure via breath controller:** MIDI-IN levert naast `press`
+5. **Pressure via breath controller:** MIDI-IN levert naast `press`
    (aftertouch) ook CC1/CC2; een breath controller (CC2) kan dus nu al via de
    CC2-uitgang, zonder firmwarewerk.
 
@@ -403,7 +470,8 @@ is op basis van deze meting niet nodig.
 - De klinkertabel modelleert geen specifieke persoon of Nederlandse uitspraak.
 - Technische regressies bewijzen niet dat de stem overtuigend menselijk klinkt.
 - Snelle offline/WASM-rendering bewijst geen lage instrumentlatency.
-- De module heeft nog geen woorden, medeklinkers, tweeklanken of melisma's.
+- De module heeft één synthetische medeklinker (/d/) en twee lettergrepen;
+  geen woorden, slotmedeklinkers, tweeklanken of melisma's.
 - FOF en ZANG hebben verschillende rollen: berekende bespeelbare klinker versus
   PSOLA-resynthese van opgenomen/gegenereerde lettergrepen.
 

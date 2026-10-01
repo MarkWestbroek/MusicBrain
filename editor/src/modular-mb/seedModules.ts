@@ -812,7 +812,7 @@ function mmbQuadMixerShared() {
     categoryId: 'utility',
     variant: 'Quad Mixer (per-cell pan, shared volume)',
     brand: 'MMB', model: 'QUAD-MIX-S',
-    hp: 12, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    hp: 14, texture: 'pcb-black', baseColor: '#111827', internal: true,
     role: 'multi',
     cellGroups: [{
       id: 'chan',
@@ -1163,7 +1163,7 @@ function mmbMixer8() {
     categoryId: 'utility',
     variant: 'Stereo mixer (8-in)',
     brand: 'MMB', model: 'MIX8',
-    hp: 12, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    hp: 14, texture: 'pcb-black', baseColor: '#111827', internal: true,
     texts: [
       { x: w/2, y: 8,   text: 'MIXER-8', fontSize: 2.2, color: '#f9fafb', align: 'middle' },
       { x: w/2, y: 126, text: 'MMB',     fontSize: 1.6, color: '#f9fafb', align: 'middle' },
@@ -2652,7 +2652,7 @@ function mmbPlaits() {
     categoryId: 'vco',
     variant: 'Plaits (MI macro-osc)',
     brand: 'MI', model: 'PLAITS',
-    hp: 12, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    hp: 14, texture: 'pcb-black', baseColor: '#111827', internal: true,
     texts: [
       { x: w/2, y: 8,   text: 'PLAITS', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
       { x: w/2, y: 13,  text: '24 engines · macro-osc', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
@@ -3241,9 +3241,9 @@ function mmbStkSound() {
 }
 
 function mmbFof() {
-  const w = W(12);
-  // Zes CV-ingangen onderaan, elk met zijn attenuator er recht boven.
-  const cvCols = [0.10, 0.26, 0.42, 0.58, 0.74, 0.90].map((f) => w * f);
+  const w = W(14);
+  // Zeven CV-ingangen onderaan, elk met zijn attenuator er recht boven.
+  const cvCols = [0.08, 0.22, 0.36, 0.50, 0.64, 0.78, 0.92].map((f) => w * f);
   const amt = (id: string, label: string, x: number) =>
     knob(id, label, x, 104, { size: 'small', min: 0, max: 1, def: 1, color: '#9ca3af' });
   return assemble({
@@ -3251,7 +3251,7 @@ function mmbFof() {
     categoryId: 'vco',
     variant: 'FOF zingende formantstem',
     brand: 'MMB', model: 'FOF-VOICE',
-    hp: 12, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    hp: 14, texture: 'pcb-black', baseColor: '#111827', internal: true,
     texts: [
       { x: w/2, y: 8, text: 'FOF-VOICE', fontSize: 2.0, color: '#f9fafb', align: 'middle' },
       { x: w/2, y: 14, text: 'A · E · I · O · U', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
@@ -3263,24 +3263,27 @@ function mmbFof() {
       knob('breath', 'Breath', w*0.20, 52, { size: 'small', min: 0, max: 1, def: 0.08, color: '#9ca3af' }),
       knob('vibrato', 'Vibrato', w*0.50, 52, { size: 'small', min: 0, max: 1, def: 0.12, color: '#9ca3af' }),
       knob('voice', 'Voice', w*0.80, 52, { size: 'small', min: 0, max: 1, def: 0.35, color: '#9ca3af' }),
-      knob('level', 'Level', w*0.50, 72, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      sw('syl', 'Syl', w*0.22, 72, ['Vowel', 'Doo', 'Da'], 0),
+      knob('level', 'Level', w*0.62, 72, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
       inPort('voct', 'V/Oct', 'cv', w*0.20, 88),
       inPort('gate', 'Gate', 'gate', w*0.50, 88),
       outPort('out', 'Out', 'audio', w*0.80, 88),
-      amt('vowel_amt', 'Vow', cvCols[0]!),
-      amt('breath_amt', 'Air', cvCols[1]!),
-      amt('vibrato_amt', 'Vib', cvCols[2]!),
-      amt('voice_amt', 'Voi', cvCols[3]!),
-      amt('vel_amt', 'Vel', cvCols[4]!),
-      amt('press_amt', 'Prs', cvCols[5]!),
-      inPort('vowel', 'Vow+', 'cv', cvCols[0]!, 120),
-      inPort('breath', 'Air+', 'cv', cvCols[1]!, 120),
-      inPort('vibrato', 'Vib+', 'cv', cvCols[2]!, 120),
-      inPort('voice', 'Voi+', 'cv', cvCols[3]!, 120),
-      inPort('vel', 'Vel', 'cv', cvCols[4]!, 120),
-      inPort('pressure', 'Press', 'cv', cvCols[5]!, 120),
+      amt('syl_amt', 'Syl', cvCols[0]!),
+      amt('vowel_amt', 'Vow', cvCols[1]!),
+      amt('breath_amt', 'Air', cvCols[2]!),
+      amt('vibrato_amt', 'Vib', cvCols[3]!),
+      amt('voice_amt', 'Voi', cvCols[4]!),
+      amt('vel_amt', 'Vel', cvCols[5]!),
+      amt('press_amt', 'Prs', cvCols[6]!),
+      inPort('syl_cv', 'Syl+', 'cv', cvCols[0]!, 120),
+      inPort('vowel', 'Vow+', 'cv', cvCols[1]!, 120),
+      inPort('breath', 'Air+', 'cv', cvCols[2]!, 120),
+      inPort('vibrato', 'Vib+', 'cv', cvCols[3]!, 120),
+      inPort('voice', 'Voi+', 'cv', cvCols[4]!, 120),
+      inPort('vel', 'Vel', 'cv', cvCols[5]!, 120),
+      inPort('pressure', 'Press', 'cv', cvCols[6]!, 120),
     ],
-    notes: 'FOF/CHANT-geinspireerde zangoscillator met asymmetrische glottale bron. Vowel morft door A-E-I-O-U; formanten blijven staan bij pitchverandering. Voice loopt van korte, heldere sluiting naar langer, zachter open/sluitgedrag. Vel (0-1) regelt volume en verzacht de sluiting bij zachte aanslagen; zonder kabel volle sterkte. Press (0-1) is de doorlopende expressie tijdens de noot (MidiIn Press/aftertouch, breath controller of CV): lager = iets zachter (vloer 0,5), duidelijk ademiger (als Breath open staat) en een langere, zachtere sluiting; zonder kabel volle druk, ~20 ms gladgestreken. Vow+/Air+/Vib+/Voi+ tellen op bij de knop; de kleine knop boven elke CV-jack is de attenuator (1 = vol, 0 = kabel doet niets; bij Vel en Press = gevoeligheid). Tone bepaalt de resonantiebreedte, Breath voegt pulsgebonden aspiratie toe en Vibrato geeft maximaal 22 cent bij 5,3 Hz. Geen exacte LF-bron, spraaksynthese of volledige CHANT-reconstructie. Mono; polyfonie via PolyGroup.',
+    notes: 'FOF/CHANT-geinspireerde zangoscillator met asymmetrische glottale bron. Vowel morft door A-E-I-O-U; formanten blijven staan bij pitchverandering. Voice loopt van korte, heldere sluiting naar langer, zachter open/sluitgedrag. Vel (0-1) regelt volume en verzacht de sluiting bij zachte aanslagen; zonder kabel volle sterkte. Press (0-1) is de doorlopende expressie tijdens de noot (MidiIn Press/aftertouch, breath controller of CV): lager = iets zachter (vloer 0,5), duidelijk ademiger (als Breath open staat) en een langere, zachtere sluiting; zonder kabel volle druk, ~20 ms gladgestreken. Vow+/Air+/Vib+/Voi+ tellen op bij de knop; de kleine knop boven elke CV-jack is de attenuator (1 = vol, 0 = kabel doet niets; bij Vel en Press = gevoeligheid). Syl kiest een lettergreep: Vowel = de Vowel-knop, Doo en Da = synthetische d (20 ms sluiting, burst rond 3,8 kHz, formantglijbaan) plus oe of a; Syl+ (0-1 over de tabel, zoals syl_cv bij ZANG) telt op bij de schakelaar. De lettergreep wordt bij de gate-flank gelezen: kies hem vóór de noot (linkerhand pads, rechterhand melodie). Tone bepaalt de resonantiebreedte, Breath voegt pulsgebonden aspiratie toe en Vibrato geeft maximaal een halve toon (100 cent) bij 5,3 Hz. Geen exacte LF-bron, spraaksynthese of volledige CHANT-reconstructie. Mono; polyfonie via PolyGroup.',
   });
 }
 
@@ -4437,7 +4440,7 @@ export function seedSoloVoicePatch(
   // een oud project met een FOF-type zonder die poorten wordt eerst ververst.
   const fofPorts = project.moduleTypes.find((type) => type.id === typeId)?.ports.map((port) => port.id) ?? [];
   const needsFofUpgrade = typeId === 'tp_mmb_fof'
-    && !['vel', 'pressure', 'vibrato', 'voice'].every((id) => fofPorts.includes(id));
+    && !['vel', 'pressure', 'vibrato', 'voice', 'syl_cv'].every((id) => fofPorts.includes(id));
   const p = missing || needsFofUpgrade ? seedInternals(project) : project;
 
   const fresh = (tid: string): ModuleInstance => {

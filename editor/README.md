@@ -69,8 +69,9 @@ Geen opname, lyricbank of extra hardware nodig. Start audio in Simulatie.
 | Press-ingang | Doorlopende expressie tijdens de noot (0-1): iets zachter (vloer −6 dB), duidelijk ademiger als Breath open staat, langere sluiting; zonder kabel volle druk |
 | Vow+ / Air+ / Vib+ / Voi+ | CV telt op bij de Vowel-, Breath-, Vibrato- en Voice-knop |
 | Attenuators | Kleine knop boven elke CV-jack: 1 = vol, 0 = kabel doet niets; bij Vel en Press is dit de gevoeligheid |
+| Syl / Syl+ | Lettergreep: Vowel (de knop), Doo of Da met een synthetische d; Syl+ (0-1 over de tabel) telt op, bijvoorbeeld CC1 vanaf een pad-app; gelezen bij de gate-flank |
 | Tone / Breath | Formantbreedte / pulsgebonden aspiratie |
-| Vibrato / Level | Vibratodiepte / uitgangsniveau |
+| Vibrato / Level | Vibratodiepte (1,0 = een halve toon) / uitgangsniveau |
 
 De gedeelde C++-kern draait in WASM en op Teensy. Dit is een experimentele
 formantstem met een vereenvoudigde glottale bron, geen volledige CHANT- of

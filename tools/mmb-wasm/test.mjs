@@ -213,6 +213,51 @@ async function checkFof(file) {
   vibratoCv.setCtl('vibrato_amt', 0.5);
   vibratoKnob.setCtl('vibrato', 0.3);
   assert.deepEqual(captureFof(vibratoCv, 0.3), captureFof(vibratoKnob, 0.3), 'FOF: vibrato_amt must scale the CV');
+  // Lettergrepen: Syl 0 = Vowel-knop (de oude stem), 1 = doo, 2 = da. De
+  // d-aanzet is 20 ms sluiting (murmur, lage F1), 6 ms burst rond 3,8 kHz en
+  // 60 ms formantglijbaan; daarna staan de formanten exact op de klinker.
+  const startVoice = async (controls, inputs = {}) => {
+    const module = await load(file);
+    module.setCtl('breath', 0);
+    module.setCtl('vibrato', 0);
+    for (const [id, value] of Object.entries(controls)) module.setCtl(id, value);
+    for (const [id, value] of Object.entries(inputs)) module.setIn(id, value);
+    module.setIn('voct', Math.log2(220 / 261.6256));
+    module.setIn('gate', 1);
+    return module;
+  };
+  const windows = async (module) => ({
+    closure: captureFof(module, 0.019), burst: captureFof(module, 0.009),
+    glide: captureFof(module, 0.06), steady: captureFof(module, 0.2),
+  });
+  const plainOe = await windows(await startVoice({ vowel: 1 }));
+  const doo = await windows(await startVoice({ syl: 1 }));
+  const plainA = await windows(await startVoice({ vowel: 0 }));
+  const da = await windows(await startVoice({ syl: 2 }));
+  assert(rms(doo.closure) < rms(plainOe.closure) * 0.75, 'FOF: /d/ closure must dip below the plain vowel onset');
+  assert(brightness(doo.burst) > brightness(plainOe.burst) * 3, 'FOF: /d/ burst must add high-frequency energy');
+  assert(Math.abs(rms(doo.steady) / rms(plainOe.steady) - 1) < 0.01, 'FOF: doo must settle on the oe vowel');
+  assert(Math.abs(rms(da.steady) / rms(plainA.steady) - 1) < 0.01, 'FOF: da must settle on the a vowel');
+  assert(Math.abs(rms(da.steady) / rms(doo.steady) - 1) > 0.2, 'FOF: doo and da must differ in vowel');
+  assert.deepEqual(await windows(await startVoice({}, { syl_cv: 0.5 })), doo, 'FOF: syl_cv 0.5 must select doo');
+  assert.deepEqual(await windows(await startVoice({}, { syl_cv: 1 })), da, 'FOF: syl_cv 1 must select da');
+  assert.deepEqual(await windows(await startVoice({ syl_amt: 0 }, { syl_cv: 1 })), plainA, 'FOF: syl_amt 0 must ignore the cable');
+  const heldDoo = await startVoice({ syl: 1 });
+  await windows(heldDoo);
+  heldDoo.setCtl('syl', 2);
+  assert(Math.abs(rms(captureFof(heldDoo, 0.2)) / rms(doo.steady) - 1) < 0.01, 'FOF: a syllable change must wait for the next gate');
+  heldDoo.setIn('gate', 0);
+  captureFof(heldDoo, 0.3);
+  heldDoo.setIn('gate', 1);
+  const retrigger = await windows(heldDoo);
+  // De sluiting staat op de locus (F1 200 Hz, murmur): veel donkerder dan de
+  // klinker zelf, ook bij de heldere a; een gewone klinkeraanzet is dat niet.
+  assert(brightness(plainA.closure) > brightness(plainA.steady) * 0.7, 'FOF: plain vowel onset keeps its colour');
+  assert(brightness(da.closure) < brightness(da.steady) * 0.3, 'FOF: /d/ closure must be dark');
+  assert(brightness(retrigger.closure) < brightness(retrigger.steady) * 0.3, 'FOF: retrigger must play the onset again');
+  assert(Math.abs(rms(retrigger.steady) / rms(plainA.steady) - 1) < 0.02, 'FOF: retrigger must use the newly chosen syllable');
+  const extremeDa = await startVoice({ syl: 2, breath: 1, voice: 0, tone: 1 }, { voct: Math.log2(880 / 261.6256), pressure: 0 });
+  await windows(extremeDa);
   const jumpy = await makeVoice(880, 0.5, 0, 0.5, undefined, 0);
   for (let toggle = 0; toggle < 40; toggle++) { jumpy.setIn('pressure', toggle % 2 ? 0 : 1); captureFof(jumpy, 0.005); }
   const release = await makeVoice(220, 0.25, 0.35);
@@ -239,7 +284,7 @@ async function checkFof(file) {
       }
     }
   }
-  console.log('FOF regression: 45 pitch/vowel/Voice cases, spectral tilt, velocity volume/timbre/default/clamps/note-off, pressure default/clamp/monotone/floor/timbre/breath/smoothing/jumps, attenuators + vibrato/voice CV, release/retrigger/mute and 8 extreme cases passed.');
+  console.log('FOF regression: 45 pitch/vowel/Voice cases, spectral tilt, velocity volume/timbre/default/clamps/note-off, pressure default/clamp/monotone/floor/timbre/breath/smoothing/jumps, attenuators + vibrato/voice CV, syllables doo/da (closure, burst, settle, CV, hold, retrigger), release/retrigger/mute and 8 extreme cases passed.');
 }
 
 const only = process.argv[2];

@@ -19,6 +19,7 @@ public:
     void setGate(bool high) { voice_.setGate(high && active_); }
     void setVelocity(float value) { voice_.setVelocity(value); }
     void setPressure(float value) { voice_.setPressure(value); }
+    void setSyllable(int index) { voice_.setSyllable(index); }
     void setVowel(float value) { voice_.setVowel(value); }
     void setVoice(float value) { voice_.setVoice(value); }
     void setTone(float value) { voice_.setTone(value); }
@@ -60,7 +61,7 @@ public:
     PortKind inputPortKind(std::string_view portId) const override {
         if (portId == "gate") return PortKind::Gate;
         if (portId == "voct" || portId == "vowel" || portId == "breath" || portId == "vibrato" || portId == "voice"
-            || portId == "vel" || portId == "pressure") return PortKind::Cv;
+            || portId == "vel" || portId == "pressure" || portId == "syl_cv") return PortKind::Cv;
         return PortKind::None;
     }
 
@@ -82,6 +83,8 @@ public:
             vibratoCv_ = value; apply();
         } else if (portId == "voice") {
             voiceCv_ = value; apply();
+        } else if (portId == "syl_cv") {
+            sylCv_ = value; apply();
         }
     }
 
@@ -108,6 +111,8 @@ public:
         else if (controlId == "voice_amt") { voiceAmt_ = clamp01(number); apply(); }
         else if (controlId == "vel_amt") { velAmt_ = clamp01(number); apply(); }
         else if (controlId == "press_amt") { pressAmt_ = clamp01(number); apply(); }
+        else if (controlId == "syl") { syl_ = number; apply(); }
+        else if (controlId == "syl_amt") { sylAmt_ = clamp01(number); apply(); }
     }
 
     void onRetire() override { stream_.setActive(false); }
@@ -137,6 +142,9 @@ private:
         stream_.setVoice(clamp01(voice_ + voiceAmt_ * voiceCv_));
         stream_.setVelocity(1.0f - velAmt_ * (1.0f - velCv_));
         stream_.setPressure(1.0f - pressAmt_ * (1.0f - pressCv_));
+        // Syllable: switch + CV over the table (0..1 = first..last), like ZANG's syl_cv.
+        const float span = static_cast<float>(mmb_dsp::FofVoice::kSyllableCount - 1);
+        stream_.setSyllable(static_cast<int>(std::lround(syl_ + sylAmt_ * clamp01(sylCv_) * span)));
     }
 
     mutable FofAudioStream stream_;
@@ -146,6 +154,7 @@ private:
     float voice_ = 0.35f, voiceCv_ = 0.0f, voiceAmt_ = 1.0f;
     float velCv_ = 1.0f, velAmt_ = 1.0f;
     float pressCv_ = 1.0f, pressAmt_ = 1.0f;
+    float syl_ = 0.0f, sylCv_ = 0.0f, sylAmt_ = 1.0f;
     bool gate_ = false;
 };
 

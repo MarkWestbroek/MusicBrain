@@ -133,7 +133,7 @@ it('Material Bridge demo deelt twee ritmes en velocity, met alleen Memory en Fat
   expect(velocities.every((velocity) => velocity === 0 || velocity === 1 || velocity < 0.5)).toBe(true);
 });
 
-it.each([['vel'], ['pressure'], ['voice']])('FOF solo vernieuwt een oud poortcontract zonder %s zonder bestaande patches te wijzigen', (missingPort) => {
+it.each([['vel'], ['pressure'], ['voice'], ['syl_cv']])('FOF solo vernieuwt een oud poortcontract zonder %s zonder bestaande patches te wijzigen', (missingPort) => {
   const original = seedSoloVoicePatch(emptyModularProject(), 'tp_mmb_fof', 'Oude FOF', 'out', 'out', { voice: 0.8 });
   const legacy = {
     ...original,
@@ -142,7 +142,7 @@ it.each([['vel'], ['pressure'], ['voice']])('FOF solo vernieuwt een oud poortcon
   };
   const upgraded = seedSoloVoicePatch(legacy, 'tp_mmb_fof', 'Nieuwe FOF', 'out', 'out');
   const ports = upgraded.moduleTypes.find((type) => type.id === 'tp_mmb_fof')!.ports.map((port) => port.id);
-  expect(ports).toEqual(expect.arrayContaining(['vel', 'pressure', 'vibrato', 'voice']));
+  expect(ports).toEqual(expect.arrayContaining(['vel', 'pressure', 'vibrato', 'voice', 'syl_cv']));
   expect(upgraded.patches.slice(0, -1)).toEqual(original.patches);
 });
 
@@ -157,10 +157,12 @@ it('FOF heeft voor elke CV-ingang een attenuator die standaard op 1 staat', () =
   const fof = project.moduleTypes.find((type) => type.id === 'tp_mmb_fof')!;
   const knobs = fof.controls.filter((item) => item.kind === 'knob');
   for (const [port, control] of [['vowel', 'vowel_amt'], ['breath', 'breath_amt'], ['vibrato', 'vibrato_amt'],
-    ['voice', 'voice_amt'], ['vel', 'vel_amt'], ['pressure', 'press_amt']] as const) {
+    ['voice', 'voice_amt'], ['vel', 'vel_amt'], ['pressure', 'press_amt'], ['syl_cv', 'syl_amt']] as const) {
     expect(fof.ports.find((item) => item.id === port)).toMatchObject({ direction: 'in', signalType: 'cv' });
     expect(knobs.find((knob) => knob.id === control)?.defaultValue).toBe(1);
   }
+  const syl = fof.controls.find((item) => item.id === 'syl');
+  expect(syl).toMatchObject({ kind: 'switch', positions: ['Vowel', 'Doo', 'Da'], defaultIndex: 0 });
 });
 
 it('FOF solo verbindt pitch, gate, velocity en mono naar beide uitgangen', () => {
