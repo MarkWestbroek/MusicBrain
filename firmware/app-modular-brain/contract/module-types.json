@@ -1400,6 +1400,31 @@
       ],
       "controlsIgnored": []
     },
+    "tp_mmb_scanned": {
+      "typeId": "tp_mmb_scanned",
+      "source": "firmware/app-modular-brain/src/ScannedModule.h",
+      "ports": [
+        "energy",
+        "gate",
+        "in",
+        "out",
+        "pos_cv",
+        "press",
+        "reset",
+        "vel",
+        "voct"
+      ],
+      "controls": [
+        "damping",
+        "level",
+        "pitch",
+        "position",
+        "restore",
+        "speed",
+        "tension",
+        "width"
+      ]
+    },
     "tp_mmb_seq8": {
       "typeId": "tp_mmb_seq8",
       "source": "firmware/core/include/mb/runtime/Seq16.h",

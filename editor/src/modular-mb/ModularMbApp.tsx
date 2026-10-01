@@ -579,6 +579,8 @@ export function ModularMbApp(): JSX.Element {
                 onMouseLeave={() => setShowSolo(false)}
               >
                 {([
+                  { label: '〰️ Scanned (levende golftabel)', t: 'tp_mmb_scanned', n: 'Scanned', l: 'out', r: 'out',
+                    c: { tension: 0.6, damping: 0.3, restore: 0.3, speed: 0.15, position: 0.5, width: 0.3, level: 0.8 } },
                   { label: 'Material Bridge (materiaalgeheugen)', t: 'tp_mmb_material_bridge', n: 'Material Bridge', l: 'out_l', r: 'out_r',
                     c: { spread: 0.12, coupling: 0.65, decay: 4, memory: 0.85, recovery: 2, pickup: 0.25, level: 0.8 } },
                   { label: '💍 Rings (resonator)', t: 'tp_mmb_rings', n: 'Rings', l: 'out_l', r: 'out_r',

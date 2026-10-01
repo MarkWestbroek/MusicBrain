@@ -334,6 +334,83 @@ describe('tp_mmb_material_bridge', () => {
   });
 });
 
+describe('tp_mmb_scanned', () => {
+  it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_scanned'); });
+
+  it('blijft stil zonder aanslag of druk', async () => {
+    const module = await load('tp_mmb_scanned');
+    for (const output of module.render(0.2)) expect(peak(output)).toBe(0);
+  });
+
+  it('klinkt na een aanslag en wordt luider met velocity', async () => {
+    const peaks: number[] = [];
+    for (const velocity of [0.3, 1]) {
+      const module = await load('tp_mmb_scanned');
+      module.setIn('vel', velocity);
+      const [out, energy] = module.render(0.5, (time, current) => current.setIn('gate', time < 0.01 ? 1 : 0));
+      peaks.push(peak(out!));
+      expect(peak(energy!)).toBeGreaterThan(0.01);
+    }
+    expect(peaks[0]!).toBeGreaterThan(0.05);
+    expect(peaks[1]!).toBeGreaterThan(peaks[0]! * 2);
+  });
+
+  it('geeft bij gehouden druk een stilstaande golfvorm op de toonhoogte van V/Oct', async () => {
+    const module = await load('tp_mmb_scanned');
+    module.setCtl('damping', 1);
+    module.setCtl('speed', 0.5);
+    module.setIn('press', 1);
+    module.setIn('voct', 1); // C5 = 523,25 Hz
+    module.render(1.5);
+    const [out] = module.render(0.2);
+    const period = module.rate / 523.251;
+    // Autocorrelatie: beste lag moet de periode zijn.
+    let best = 0, bestLag = 0;
+    for (let lag = 20; lag < 400; lag++) {
+      let sum = 0;
+      for (let index = 0; index + lag < out!.length; index++) sum += out![index]! * out![index + lag]!;
+      if (sum > best) { best = sum; bestLag = lag; }
+    }
+    expect(Math.abs(bestLag - period)).toBeLessThanOrEqual(1);
+    expect(peak(out!)).toBeGreaterThan(0.2);
+  });
+
+  it('veert na loslaten terug en reset wist de ring', async () => {
+    const module = await load('tp_mmb_scanned');
+    module.setCtl('damping', 0.8);
+    module.setIn('press', 1);
+    const [pressed, energyPressed] = module.render(1);
+    module.setIn('press', 0);
+    const [, energyReleased] = module.render(2);
+    expect(energyReleased![energyReleased!.length - 1]!).toBeLessThan(energyPressed![energyPressed!.length - 1]! * 0.2);
+    expect(peak(pressed!)).toBeGreaterThan(0.1);
+    module.setIn('press', 1);
+    module.render(0.5);
+    module.setIn('reset', 1);
+    module.setIn('press', 0);
+    const [, energy] = module.render(0.05);
+    expect(energy![energy!.length - 1]!).toBe(0);
+  });
+
+  it('blijft eindig en begrensd bij uitersten en ongeldige inputs', async () => {
+    const module = await load('tp_mmb_scanned');
+    module.setCtl('speed', 1);
+    module.setCtl('tension', 1);
+    module.setCtl('level', 1);
+    module.setCtl('restore', Number.NaN);
+    const outputs = module.render(0.5, (time, current) => {
+      current.setIn('gate', Math.floor(time * 500) % 2);
+      current.setIn('press', time < 0.3 ? 1 : Number.NaN);
+      current.setIn('in', time < 0.2 ? 1 : Number.POSITIVE_INFINITY);
+      current.setIn('voct', time < 0.3 ? 100 : Number.NEGATIVE_INFINITY);
+    });
+    for (const output of outputs) {
+      expect(output.every(Number.isFinite)).toBe(true);
+      expect(peak(output)).toBeLessThanOrEqual(1);
+    }
+  });
+});
+
 describe('tp_mmb_resonator', () => {
   it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_resonator'); });
 

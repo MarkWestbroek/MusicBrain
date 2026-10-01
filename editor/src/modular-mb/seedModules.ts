@@ -3424,6 +3424,45 @@ function mmbQuant() {
   });
 }
 
+// MMB SCANNED — 12 HP. Scanned synthesis (firmware tp_mmb_scanned): een
+//     traag bewegende massa-veerring van 64 punten wordt op audiotempo als
+//     golftabel uitgelezen. Hit slaat de ring aan, Press drukt een vinger in
+//     de ring, loslaten laat hem terugveren. Dezelfde C++-kern als de Teensy.
+function mmbScanned() {
+  const w = W(12);
+  return assemble({
+    typeId: 'tp_mmb_scanned', categoryId: 'vco',
+    variant: 'Scanned (levende golftabel)',
+    brand: 'MMB', model: 'SCANNED',
+    hp: 12, texture: 'pcb-black', baseColor: '#2a1f3d', internal: true,
+    texts: [
+      { x: w/2, y: 8, text: 'SCANNED', fontSize: 2.2, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13, text: 'massa-veerring als golftabel', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('pitch', 'Pitch', w*0.18, 29, { size: 'medium', min: -36, max: 36, def: 0, unit: 'semi', color: '#f9fafb' }),
+      knob('tension', 'Tension', w*0.50, 29, { size: 'medium', min: 0, max: 1, def: 0.6, color: '#c084fc' }),
+      knob('damping', 'Damping', w*0.82, 29, { size: 'medium', min: 0, max: 1, def: 0.3, color: '#f9fafb' }),
+      knob('restore', 'Return', w*0.18, 55, { size: 'medium', min: 0, max: 1, def: 0.3, color: '#c084fc' }),
+      knob('speed', 'Speed', w*0.50, 55, { size: 'medium', min: 0.02, max: 1, def: 0.15, color: '#c084fc' }),
+      knob('width', 'Width', w*0.82, 55, { size: 'medium', min: 0, max: 1, def: 0.3, color: '#f9fafb' }),
+      knob('position', 'Position', w*0.18, 79, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      inPort('pos_cv', 'Pos+', 'cv', w*0.42, 79),
+      inPort('press', 'Press', 'cv', w*0.64, 79),
+      knob('level', 'Level', w*0.86, 79, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      inPort('in', 'In', 'audio', w*0.12, 100),
+      inPort('voct', 'V/Oct', 'cv', w*0.31, 100),
+      inPort('gate', 'Hit', 'gate', w*0.50, 100),
+      inPort('vel', 'Vel', 'cv', w*0.69, 100),
+      inPort('reset', 'Reset', 'gate', w*0.88, 100),
+      outPort('energy', 'Energy', 'cv', w*0.30, 117),
+      outPort('out', 'Out', 'audio', w*0.70, 117),
+    ],
+    notes: 'Scanned synthesis (Verplank/Mathews/Shaw): een gesloten ring van 64 massa\'s met veren naar de buren (Tension) en een terugveer naar rust (Return) beweegt traag; Speed vertraagt of versnelt het materiaal (fysica op ~5,5 kHz, met Speed verder omlaag). De vorm van de ring wordt op de toonhoogte van V/Oct en Pitch als golftabel uitgelezen, dus de golfvorm leeft en trilt na. Hit slaat de ring aan rond Position met Vel als kracht; Press (0..1) drukt een vinger in de ring en geeft een stilstaande vorm die bij loslaten terugveert; In duwt met audio. Width is de breedte van de vinger. Energy (CV 0..1) is de uitwijking van de ring. Reset wist posities en snelheden. Mono; dezelfde C++-kern op Teensy en in wasm.',
+  });
+}
+
 // 24. MMB CHORD — 6 HP. Chord-generator (firmware tp_mmb_chord, FW-CV-5):
 //     1 V/Oct in → 4 gestemde CV-uitgangen. Voedt Octa-VCO / 4 VCO's /
 //     de resonator-bank; achter de quantizer blijft alles in de toonsoort.
@@ -3607,6 +3646,7 @@ function mmbEnvFollowerMono() {
 export function seedInternals(project: ModularProject): ModularProject {
   const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbAudioIn(), mmbEcho(), mmbTapeEcho(), mmbStereoTapeEcho(), mmbDigitalEcho(), mmbBbdChorus(), mmbRingMod(), mmbOctaver(), mmbHarmonizer(), mmbReverb(), mmbTremolo(), mmbStereoPhaser(), mmbVibe(), mmbRotary(), mmbShimmer(), mmbFetComp(),mmbOptoComp(), mmbBusComp(),mmbVariMuComp(), mmbProgramEq(), mmbDiodeComp(), mmbConsoleEq(), mmbParaEq(), mmbSampler(), mmbZang(), mmbSid(), mmbSid3(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbFof(), mmbEnvFollower(), mmbEnvFollowerMono()];
   all.push(mmbMaterialBridge());
+  all.push(mmbScanned());
   const newTypes = all.map((x) => x.type);
 
   // Upgrade-pad: bestaande interne types worden in-place VERVANGEN (zelfde
@@ -4485,7 +4525,9 @@ export function seedSoloVoicePatch(
     connections: [
       c(mi, 'pitch', inst, 'voct'),
       c(mi, 'gate',  inst, 'gate'),
-      ...(typeId === 'tp_mmb_material_bridge' || typeId === 'tp_mmb_fof' ? [c(mi, 'vel', inst, 'vel')] : []),
+      ...(typeId === 'tp_mmb_material_bridge' || typeId === 'tp_mmb_fof' || typeId === 'tp_mmb_scanned' ? [c(mi, 'vel', inst, 'vel')] : []),
+      // Scanned: aftertouch drukt de vinger in de ring.
+      ...(typeId === 'tp_mmb_scanned' ? [c(mi, 'press', inst, 'press')] : []),
       // Mono-effect (ringmod, octaver): L erin, de ene uitgang naar L én R.
       ...(fxm && fx!.mono
         ? [c(inst, outL, fxm, 'in'), c(fxm, 'out', out, 'l'), c(fxm, 'out', out, 'r')]
