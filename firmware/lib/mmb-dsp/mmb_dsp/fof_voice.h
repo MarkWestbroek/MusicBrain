@@ -21,7 +21,7 @@ public:
         voiceCoefficient_ = timeCoefficient(0.005f);
         pressureCoefficient_ = timeCoefficient(0.02f);
         closureSamples_ = static_cast<int>(0.020f * sampleRate_);
-        burstSamples_ = static_cast<int>(0.006f * sampleRate_);
+        burstSamples_ = static_cast<int>(0.008f * sampleRate_);
         // Formant transitions after a stop release (Klatt-style rules): F1 is
         // fast, F2/F3 take about twice as long. The glide ends with the slowest.
         glideSamplesF1_ = static_cast<int>(0.025f * sampleRate_);
@@ -47,6 +47,8 @@ public:
         onsetSamples_ = 0;
         burst_.y1 = 0.0f; burst_.y2 = 0.0f;
         jawMix_ = 1.0f;
+        upperDrive_ = 1.0f;
+        onsetCents_ = 0.0f;
         controlTick_ = 0;
         updateIntrinsic();
     }
@@ -108,7 +110,7 @@ public:
         // Levitt 1995), scaled by how far the jaw has opened (jawMix_).
         const float vibratoRatio = std::pow(2.0f,
             std::sin(kTwoPi * vibratoPhase_) * vibrato_ * 1.0f / 12.0f
-            + jawMix_ * vowelCents_ / 1200.0f);
+            + (jawMix_ * vowelCents_ + onsetCents_) / 1200.0f);
         pitchPhase_ += frequency_ * vibratoRatio / sampleRate_;
         if ((++controlTick_ & 31) == 0) updateIntrinsic();
 
@@ -137,7 +139,7 @@ public:
             // During a stop closure only F1 is driven: the closed mouth radiates
             // a low "voice bar" through the cheeks, nothing above a few
             // hundred hertz (driving all formants sounded like a nasal murmur).
-            const float drive = (i > 0 && closureMute_) ? 0.0f : excitation;
+            const float drive = i > 0 ? excitation * upperDrive_ : excitation;
             const float next = formant.coefficient * formant.y1
                 - formant.radiusSquared * formant.y2
                 + drive * formant.gain;
@@ -336,9 +338,17 @@ private:
         }
         loadFormants(currentHz_, currentBw_, currentDb_);
         const float burstHz = place.burstIntercept + place.burstSlope * targetHz_[1];
-        setBurstFrequency(clamp(burstHz, place.burstMin, place.burstMax), place.burstBandwidth, place.burstGain);
+        // Burst and voice bar scale with pitch: the vowel itself is ~16 dB
+        // louder at 880 Hz than at 110 Hz (F1 lands on a harmonic), so a fixed
+        // burst is a /t/ down low and inaudible up high. Rounded vowels (low
+        // F2) get a weaker burst.
+        pitchScale_ = clamp(frequency_ / 220.0f, 0.5f, 3.0f);
+        const float rounding = clamp((targetHz_[1] - 700.0f) / 450.0f, 0.0f, 1.0f);
+        setBurstFrequency(clamp(burstHz, place.burstMin, place.burstMax), place.burstBandwidth,
+                          place.burstGain * (0.6f + 0.4f * rounding) * pitchScale_);
         onsetPhase_ = OnsetPhase::Closure;
-        closureMute_ = true;
+        upperDrive_ = 0.0f;
+        onsetCents_ = -60.0f;
         onsetSamples_ = 0;
         burst_.y1 = 0.0f; burst_.y2 = 0.0f;
         jawMix_ = 0.0f;
@@ -347,7 +357,8 @@ private:
 
     void finishOnset() {
         onsetPhase_ = OnsetPhase::Idle;
-        closureMute_ = false;
+        upperDrive_ = 1.0f;
+        onsetCents_ = 0.0f;
         onsetSamples_ = 0;
         burst_.y1 = 0.0f; burst_.y2 = 0.0f;
         if (kSyllables[syllable_].vowel < 0) activeVowel_ = vowel_;
@@ -363,15 +374,17 @@ private:
         ++onsetSamples_;
         switch (onsetPhase_) {
         case OnsetPhase::Closure:
-            excitation *= 0.08f;
-            if (onsetSamples_ >= closureSamples_) { onsetPhase_ = OnsetPhase::Burst; onsetSamples_ = 0; closureMute_ = false; }
+            excitation *= 0.08f * pitchScale_;
+            if (onsetSamples_ >= closureSamples_) { onsetPhase_ = OnsetPhase::Burst; onsetSamples_ = 0; }
             break;
-        case OnsetPhase::Burst:
+        case OnsetPhase::Burst: {
             burstRinging = true;
             excitation *= 0.4f;
-            burstDrive = 1.0f - static_cast<float>(onsetSamples_) / static_cast<float>(burstSamples_);
-            if (onsetSamples_ >= burstSamples_) { onsetPhase_ = OnsetPhase::Glide; onsetSamples_ = 0; }
-            break;
+            const float t = static_cast<float>(onsetSamples_) / static_cast<float>(burstSamples_);
+            burstDrive = (1.0f - t) * (1.0f - t);
+            upperDrive_ = t;   // F2-F5 come in over the burst instead of as a step
+            if (onsetSamples_ >= burstSamples_) { onsetPhase_ = OnsetPhase::Glide; onsetSamples_ = 0; upperDrive_ = 1.0f; }
+            break; }
         case OnsetPhase::Glide: {
             burstRinging = true;
             // Ease the voicing in: F1 near the locus sits close to F0 and would
@@ -387,6 +400,10 @@ private:
                 }
                 loadFormants(currentHz_, currentBw_, currentDb_);
                 jawMix_ = halfCosine(f1Progress);
+                // Voiced stops start with a low, rising F0 at voice onset
+                // (Haggard et al. 1970): a /d/ versus /t/ cue that also
+                // survives high pitches where the formant cues get sparse.
+                onsetCents_ = -60.0f * (1.0f - halfCosine(progress));
             }
             if (onsetSamples_ >= glideSamples_) finishOnset();
             break; }
@@ -428,7 +445,9 @@ private:
     float startHz_[3]{};
     float vowelCents_ = 0.0f, vowelGainDb_ = 0.0f, vowelBreath_ = 0.0f;
     float jawMix_ = 1.0f;
-    bool closureMute_ = false;
+    float upperDrive_ = 1.0f;     // drive of F2-F5 relative to F1 (0 during a stop closure)
+    float onsetCents_ = 0.0f;     // F0 dip at a voiced stop release
+    float pitchScale_ = 1.0f;
     float intrinsicGain_ = 1.0f, intrinsicBreath_ = 0.0f;
     uint32_t controlTick_ = 0;
     int glideSamplesF1_ = 1102;
