@@ -274,8 +274,9 @@ function PoolBrowser({ onClose }: { onClose: () => void }): JSX.Element {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
                 <button onClick={() => void load(it)} disabled={busy !== null} title="Als nieuwe patch toevoegen; je eigen patches blijven staan">{busy === it.slug ? '…' : '⤵ Laden'}</button>
                 {it.takes?.length ? <button onClick={() => void demoUrl(it)} disabled={it.slug in demos} title="Demo beluisteren">▶ demo</button> : null}
-                <a href={`${base}/patches/${encodeURIComponent(it.slug)}`} target="_blank" rel="noreferrer" style={{ fontSize: 12 }}>pagina ↗</a>
-                <a href={assetUrl(it.file, lib)} download style={{ fontSize: 12 }}>⤓ .patch.json</a>
+                <a href={it.url || `${base}/patches/${encodeURIComponent(it.slug)}`} target="_blank" rel="noreferrer" style={{ fontSize: 12 }}>pagina ↗</a>
+                <a href={it.fileUrl || assetUrl(it.file, lib)} download style={{ fontSize: 12 }}>⤓ .patch.json</a>
+                {it.syxUrl && <a href={it.syxUrl} download style={{ fontSize: 12 }}>⤓ .syx</a>}
               </div>
             </div>
           );

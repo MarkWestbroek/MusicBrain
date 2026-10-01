@@ -33,6 +33,11 @@ export interface PoolItem {
   answered?: boolean;
   created?: string;
   updated?: string;
+  publishedAt?: string;
+  /** Pagina op de site, en absolute download-URL's (Imprint geeft ze mee). */
+  url?: string;
+  fileUrl?: string;
+  syxUrl?: string;
 }
 
 export interface Proposal {
@@ -79,6 +84,8 @@ async function fail(res: Response, what: string): Promise<never> {
     : res.status === 403 ? 'Token mist het recht om patches voor te stellen (scope patch:propose).'
     : res.status === 404 ? 'De patch-pool bestaat nog niet op deze site.'
     : res.status === 413 ? 'Te groot.'
+    : res.status === 422 ? 'De pool kent de patch waarvan deze is afgeleid niet (derivedFrom).'
+    : res.status === 400 ? 'De pool wees het voorstel af (ongeldige inhoud).'
     : `${what} mislukt: HTTP ${res.status}.`;
   throw new LibraryError(why + detail);
 }
@@ -138,7 +145,7 @@ export async function listPool(
 /** Het patchbestand van een item ophalen (JSON-tekst). */
 export async function fetchPatchFile(item: PoolItem, s: LibrarySettings, fetchImpl: typeof fetch = fetch): Promise<string> {
   let res: Response;
-  try { res = await fetchImpl(assetUrl(item.file, s)); }
+  try { res = await fetchImpl(item.fileUrl || assetUrl(item.file, s)); }
   catch (err) { throw new LibraryError(`Patchbestand niet op te halen (${err instanceof Error ? err.message : String(err)}).`); }
   if (!res.ok) await fail(res, 'Patchbestand ophalen');
   return await res.text();
