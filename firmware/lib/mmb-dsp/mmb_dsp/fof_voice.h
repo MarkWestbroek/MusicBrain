@@ -140,8 +140,14 @@ public:
         float upperExcitation = pulse;
         if (engineActive_) {
             advanceEngine();
-            excitation = pulse * voicing_ * amVoiceGain_ + noise * aspirationDrive_ * 0.15f;
-            upperExcitation = pulse * voicing_ * amVoiceGain_ * upperDrive_ + noise * aspirationDrive_;
+            // Frication through the vocal tract. For a voiced fricative (g, v)
+            // every glottal pulse pushes a puff of air through the
+            // constriction: gating the noise with the flow is what glues the
+            // noise to the voice instead of layering a maraca on an n.
+            const float gate = pulsedAspiration_ ? (0.25f + 0.75f * flow) : 1.0f;
+            const float air = noise * aspirationDrive_ * gate;
+            excitation = pulse * voicing_ * amVoiceGain_ + air * 0.15f;
+            upperExcitation = pulse * voicing_ * amVoiceGain_ * upperDrive_ + air;
         }
 
         float voiced = 0.0f;
@@ -293,6 +299,7 @@ private:
         NoiseShape noiseShape;
         float noiseHz, noiseBw, noiseGain;
         float amHz, amNoise, amVoice;   // roughness: slow amplitude modulation (uvular ch/g/r ~16-20 Hz)
+        bool pulsedAspiration;          // aspiration noise gated by the glottal flow (voiced fricatives: g, v, z)
         bool vowel;             // true: snap to the exact vowel at the end of the ramp
         Ph vowelRow;            // which vowel row the targets came from (vowel segments)
     };
@@ -406,7 +413,7 @@ private:
         s.bwScale = 1.0f; s.rampSamples = ms(40.0f); s.holdSamples = 0;
         s.voicing = 1.0f; s.upper = 1.0f; s.aspiration = 0.0f; s.cents = 0.0f; s.breath = 0.0f; s.jaw = 1.0f;
         s.noiseShape = NS_NONE; s.noiseHz = 4500.0f; s.noiseBw = 3000.0f; s.noiseGain = 0.0f;
-        s.amHz = 0.0f; s.amNoise = 0.0f; s.amVoice = 0.0f;
+        s.amHz = 0.0f; s.amNoise = 0.0f; s.amVoice = 0.0f; s.pulsedAspiration = false;
         s.vowel = false; s.vowelRow = P_NONE;
         return s;
     }
@@ -434,8 +441,8 @@ private:
         if (c == C_S || c == C_Z) { s.noiseHz = 6500.0f; s.noiseBw = 2500.0f; s.noiseGain = 0.35f; }
         else if (c == C_F) { s.noiseHz = 4500.0f; s.noiseBw = 3000.0f; s.noiseGain = 0.12f; }
         else if (c == C_V) { s.noiseHz = 1500.0f; s.noiseBw = 2000.0f; s.noiseGain = 0.1f; }    // Piper pim: energy 150-1600 Hz
-        else if (c == C_G) { s.noiseHz = 900.0f; s.noiseBw = 1000.0f; s.noiseGain = 0.08f; s.amHz = 16.0f; s.amNoise = 0.6f; }  // voiced velar, weak
-        else { s.noiseHz = 1300.0f; s.noiseBw = 1200.0f; s.noiseGain = 0.22f; s.amHz = 16.0f; s.amNoise = 0.7f; }   // ch: Piper pim q25-75 580-2250, 16 Hz scrape
+        else if (c == C_G) { s.noiseHz = 1300.0f; s.noiseBw = 1200.0f; s.noiseGain = 0.03f; s.amHz = 16.0f; s.amNoise = 0.6f; }  // voiced velar: most noise goes through the tract (aspiration)
+        else { s.noiseHz = 1300.0f; s.noiseBw = 1200.0f; s.noiseGain = 0.1f; s.amHz = 16.0f; s.amNoise = 0.6f; }   // ch: Piper pim q25-75 580-2250, 16 Hz scrape
     }
 
     static void approximantTargets(Ph c, Segment& s) {
@@ -508,11 +515,15 @@ private:
             Segment fric = blank();
             locus(place, vowelF2, fric.hz);
             fric.bwScale = 1.5f; fric.rampSamples = ms(30.0f);
-            fric.holdSamples = ms(c == C_S ? 60.0f : c == C_V ? 90.0f : c == C_G ? 80.0f : c == C_X ? 100.0f : (voiced ? 40.0f : 65.0f));
-            fric.voicing = c == C_G ? 0.55f : voiced ? 0.35f : 0.0f;
-            fric.upper = c == C_G ? 0.5f : voiced ? 0.5f : 0.0f;
+            fric.holdSamples = ms(c == C_S ? 60.0f : c == C_V ? 90.0f : c == C_G ? 120.0f : c == C_X ? 130.0f : (voiced ? 40.0f : 65.0f));
+            fric.voicing = c == C_G ? 0.5f : voiced ? 0.35f : 0.0f;
+            fric.upper = c == C_G ? 0.7f : voiced ? 0.5f : 0.0f;
+            if (c == C_G) fric.hz[0] = 300.0f;   // not a closed voice bar: it hummed like an n
             fric.cents = voiced ? -30.0f : 30.0f; fric.jaw = 0.2f;
-            fric.aspiration = c == C_X ? 0.03f * pitchScale_ : 0.0f;   // a little through the tract: it belongs to the voice
+            // Velar frication mostly through the tract (velar locus = the
+            // cavity in front of the constriction), pulsed by the voice for g.
+            fric.aspiration = c == C_G ? 0.12f * pitchScale_ : c == C_X ? 0.08f * pitchScale_ : c == C_V ? 0.03f * pitchScale_ : 0.0f;
+            fric.pulsedAspiration = voiced;
             fricationNoise(c, fric);
             if (c == C_Z) fric.noiseGain *= 0.5f;
             push(fric);
@@ -576,8 +587,9 @@ private:
         case C_F: case C_S: case C_X: case C_V: case C_Z: case C_G: {
             Segment fric = blank();
             locus(place, vowelF2, fric.hz);
-            fric.bwScale = 1.5f; fric.rampSamples = ms(45.0f); fric.holdSamples = ms(90.0f);
-            fric.voicing = 0.0f; fric.upper = 0.0f; fric.jaw = 0.2f;
+            fric.bwScale = 1.5f; fric.rampSamples = ms(45.0f); fric.holdSamples = ms(c == C_X ? 140.0f : 90.0f);
+            fric.voicing = 0.0f; fric.upper = c == C_X ? 1.0f : 0.0f; fric.jaw = 0.2f;
+            fric.aspiration = c == C_X ? 0.08f * pitchScale_ : 0.0f;   // ch: through the tract, soft and long
             fricationNoise(c, fric);
             push(fric);
             break; }
@@ -761,6 +773,7 @@ private:
         } else {
             noiseDrive_ = 0.0f;
         }
+        pulsedAspiration_ = s.pulsedAspiration;
         if (s.amHz > 0.0f) {
             // Slow amplitude modulation: the scrape of a uvular ch, g or r.
             const float m = 0.5f - 0.5f * std::cos(kTwoPi * s.amHz * static_cast<float>(t) / sampleRate_);
@@ -825,6 +838,7 @@ private:
     float onsetBreath_ = 0.0f;     // soft air run-up through a closure
     float pitchScale_ = 1.0f;
     float amVoiceGain_ = 1.0f;
+    bool pulsedAspiration_ = false;
     float intrinsicGain_ = 1.0f, intrinsicBreath_ = 0.0f;
     uint32_t controlTick_ = 0;
     int syllable_ = 0;

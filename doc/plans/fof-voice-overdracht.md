@@ -255,11 +255,11 @@ resonatoren die nog nabellen van de vorige noot.
 | Stemhebbende plosief | b, d | sluiting 20 ramp + 5 (b: 20) vast: alleen F1 (220 Hz, bandbreedte ×2,5) op de locus (voice bar 0,08 × `pitchScale`), aanlooplucht, F0 −60 cent; burst 8: zwakke diffuse ruis (0,25), stem 0,25 tot F1 de locus uit is, F2-F5 komen op; klinkerglijbaan 50 |
 | Stemloze plosief | p, t, k | sluiting 20 + 15 stil, F0 +40 cent; burst 10 (k 0,25 compact rond 1600-3400 Hz, p/t 0,28); aspiratie 5 + 15 (ruis door F2-F5 0,08, F1 krijgt 15 procent); klinkerglijbaan 50 |
 | Nasaal | m, n | murmur 30 + 50: F1 250, F2 1000 (m) / 1500 (n), F3 2300, bandbreedte ×2,5, stem 0,5, F2-F5 op 0,25, F0 −20 cent |
-| Fricatief | f, v, s, z, ch (x), g (ɣ) | locus van de plaats, 30 ramp + vast: s 60, f 65, v 90, g 80, ch 100, z 40; ruisresonator s/z 6500 Hz ±2500 (0,35), f 4500 ±3000 (0,12), v 1500 ±2000 (0,1, laag en lang zoals pim), ch 1300 ±1200 (0,22) met 16 Hz schraap (diepte 0,7) en 3 procent door de formanten, g 900 ±1000 (0,08) met 16 Hz schraap; v stem 0,35 en F2-F5 op 0,5, g stem 0,55 en F2-F5 op 0,5 (pim's g is grotendeels stemhebbend) |
+| Fricatief | f, v, s, z, ch (x), g (ɣ) | locus van de plaats, 30 ramp + vast: s 60, f 65, v 90, g 120, ch 130, z 40; ruisresonator s/z 6500 Hz ±2500 (0,35), f 4500 ±3000 (0,12), v 1500 ±2000 (0,1, laag en lang zoals pim), ch 1300 ±1200 (0,1) met 16 Hz schraap en 0,08 door de formanten, g 1300 ±1200 (0,03) met 16 Hz schraap en 0,12 door de formanten; bij stemhebbende fricatieven (g, v) pulseert de formantruis mee met de glottale stroom; v stem 0,35 en F2-F5 op 0,5, g stem 0,5, F2-F5 op 0,7, F1 300 (pim's g is grotendeels stemhebbend) |
 | h | h | 20 + 50 ruis door de formantbank (0,15) |
 | Approximant | l, r, j, w | 40 ramp + vast: l 45, j 70, r 70 op eigen doelen: l 350/1100/2800, j 250/2100/2900 (stem 0,6, F2-F5 op 0,9: anders een n), w 300/900/2300; **r is de Nederlandse huig-r**: 400/1150/1900, bandbreedte ×2,5, stem 0,6, F2-F5 op 0,4, lichte ruis 1000 ±900 (0,07) en 18 Hz schraap op ruis (0,6) en stem (0,45), zoals pim's r (zwaartepunt 220-370 Hz, ~18 Hz modulatie) |
 | Klinker | 14 rijen | glijbaan 50 (na plosief) / 60 (na ander) / 30 (zonder aanzet), dan vast tot de gate valt; tweeklank ij: e 90 vast, ij-eind glijbaan 160; ui: ui-begin 70 vast, ui-midden glijbaan 80 + 40 vast, uu glijbaan 140 (driepunts: 620/1400 → 470/1560 → 260/1750, uit pim's lui/huis/uit) |
-| Slotmedeklinker | m, n, p, t, k, b, d, f, s, ch, l, r | nasaal 50 + 130 (m) / 110 (n); plosief 45 + 60 stil (in een cluster: eerste 45 + 25, tweede 25 + 45) + burst 8 + 18 (t/k 0,35, p 0,22) + 20 ms lucht (Nederlandse eindverscherping: altijd stemloos); fricatief 45 + 90 (ch met schraap); l 50 + 60; r 50 + 110 huig-r |
+| Slotmedeklinker | m, n, p, t, k, b, d, f, s, ch, l, r | nasaal 50 + 130 (m) / 110 (n); plosief 45 + 60 stil (in een cluster: eerste 45 + 25, tweede 25 + 45) + burst 8 + 18 (t/k 0,35, p 0,22) + 20 ms lucht (Nederlandse eindverscherping: altijd stemloos); fricatief 45 + 90, ch 45 + 140 met schraap en 0,08 door de formanten; l 50 + 60; r 50 + 110 huig-r |
 
 Plaatsen als locus-vergelijkingen (`Place`): labiaal F2 = 0,8 × F2(klinker)
 + 200, F3 2300, burst 1000-2500 Hz breed 2500; alveolair F2 = 0,45 × F2 +
@@ -585,6 +585,23 @@ duidelijke burst van 26 ms plus 20 ms lucht. m aan het eind 130 ms. ja is
 bewaard als nieuwe lettergreep "na" (20), met "hee" (21) en "djoed" (22)
 voor Hey Jude; ja zelf heeft een echte j. De tabel is nu 23 lang, de
 CC1-deling is 127/22. Nog niet op oor beoordeeld.
+
+#### Luisterronde 6b (2026-10-02, de g)
+
+"De g in nog is erg hard en kort; de g in gij is ook te kort, klinkt als nij
+met een maraca of andere ruis, maar nog niet samen. Hoe werkt dat met een
+g?" De g is een vernauwing van de tongrug bij het zachte verhemelte of de
+huig; de turbulentie daar wordt gefilterd door de holte vóór de vernauwing
+(velaire kleur) en de huig flappert mee (de 16 Hz schraap). Bij een g aan
+het begin trillen de stembanden tegelijk en stuwt elke puls een vlaag lucht
+door de vernauwing: de ruis pulseert mee met de stem, en dát lijmt ze aan
+elkaar. In het model liep de ruis doorlopend door een aparte resonator
+naast de stem (n plus maraca). Nu: de g-ruis gaat grotendeels door de eigen
+formanten van de stem (aspiratiepad naar F2-F5, op de velaire locus) en
+wordt gepoort door de glottale stroom (`pulsedAspiration`), de eigen
+resonator doet nog maar 0,03; F1 300 in plaats van de gesloten 200 (dat
+bromde als een n); 120 ms. De ch aan het eind: 140 ms, resonator 0,1 (was
+0,22) en 0,08 door de formanten. Nog niet op oor beoordeeld.
 
 #### Luisterronde 1 (2026-10-01)
 
