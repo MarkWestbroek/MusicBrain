@@ -3463,6 +3463,46 @@ function mmbScanned() {
   });
 }
 
+// MMB RESERVOIR — 8 HP. Resource-coupled synthesis (firmware tp_mmb_reservoir):
+//     een eindige, langzaam herstellende bron waar tot vier stemmen uit
+//     putten. Envelope of gate op In A..D, de geschaalde versie komt op
+//     Out A..D; Level/Starve/Empty geven de bron zelf. CV-module, 1 kHz.
+function mmbReservoir() {
+  const w = W(8);
+  return assemble({
+    typeId: 'tp_mmb_reservoir', categoryId: 'utility',
+    variant: 'Reservoir (gedeelde bron)',
+    brand: 'MMB', model: 'RESERVOIR',
+    hp: 8, texture: 'pcb-black', baseColor: '#1f2a3d', internal: true,
+    texts: [
+      { x: w/2, y: 8, text: 'RESERVOIR', fontSize: 2.2, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13, text: 'gedeelde herstellende bron', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('drain', 'Drain', w*0.28, 29, { size: 'medium', min: 0, max: 1, def: 0.5, color: '#60a5fa' }),
+      knob('recover', 'Recover', w*0.72, 29, { size: 'medium', min: 0.1, max: 20, def: 2, unit: 's', color: '#60a5fa' }),
+      knob('floor', 'Floor', w*0.20, 55, { size: 'small', min: 0, max: 1, def: 0.1, color: '#f9fafb' }),
+      knob('curve', 'Curve', w*0.50, 55, { size: 'small', min: 0.25, max: 4, def: 1, color: '#f9fafb' }),
+      knob('thresh', 'Empty@', w*0.80, 55, { size: 'small', min: 0, max: 1, def: 0.15, color: '#f9fafb' }),
+      inPort('in_a', 'A', 'cv', w*0.14, 76),
+      inPort('in_b', 'B', 'cv', w*0.38, 76),
+      inPort('in_c', 'C', 'cv', w*0.62, 76),
+      inPort('in_d', 'D', 'cv', w*0.86, 76),
+      outPort('out_a', 'A', 'cv', w*0.14, 92),
+      outPort('out_b', 'B', 'cv', w*0.38, 92),
+      outPort('out_c', 'C', 'cv', w*0.62, 92),
+      outPort('out_d', 'D', 'cv', w*0.86, 92),
+      inPort('refill', 'Refill', 'cv', w*0.25, 108),
+      inPort('reset', 'Reset', 'gate', w*0.75, 108),
+      outPort('level', 'Level', 'cv', w*0.18, 120),
+      outPort('starve', 'Starve', 'cv', w*0.50, 120),
+      outPort('empty', 'Empty', 'gate', w*0.82, 120),
+    ],
+    notes: 'Resource-coupled synthesis: een eindige bron (lucht, snaarspanning, voeding) waar tot vier stemmen tegelijk uit putten. Zet envelopes of gates (0..1) op In A..D; iedere belasting trekt de bron leeg (Drain 1 = een volle stem leegt hem in 1 s), de bron vult exponentieel bij met tijdconstante Recover. Out A..D is de eigen belasting maal het aanbod: stuur die naar de VCA-CV in plaats van de envelope zelf, dan laat een harde noot tijdelijk minder over voor de volgende stem en is het herstel hoorbaar. Aanbod = Floor + (1-Floor) * Level^Curve. Level is de bron (0..1), Starve het tekort (patch op cutoff of V/Oct met een attenuator), Empty een gate zodra de bron onder Empty@ zakt (hysterese 0,1) - laat het instrument stotteren. Refill vult extra bij, Reset maakt de bron direct vol. Onderzoeksmodule: toetst of gedeelde toestand anders speelt dan onafhankelijke stemmen.',
+  });
+}
+
 // 24. MMB CHORD — 6 HP. Chord-generator (firmware tp_mmb_chord, FW-CV-5):
 //     1 V/Oct in → 4 gestemde CV-uitgangen. Voedt Octa-VCO / 4 VCO's /
 //     de resonator-bank; achter de quantizer blijft alles in de toonsoort.
@@ -3647,6 +3687,7 @@ export function seedInternals(project: ModularProject): ModularProject {
   const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbAudioIn(), mmbEcho(), mmbTapeEcho(), mmbStereoTapeEcho(), mmbDigitalEcho(), mmbBbdChorus(), mmbRingMod(), mmbOctaver(), mmbHarmonizer(), mmbReverb(), mmbTremolo(), mmbStereoPhaser(), mmbVibe(), mmbRotary(), mmbShimmer(), mmbFetComp(),mmbOptoComp(), mmbBusComp(),mmbVariMuComp(), mmbProgramEq(), mmbDiodeComp(), mmbConsoleEq(), mmbParaEq(), mmbSampler(), mmbZang(), mmbSid(), mmbSid3(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbFof(), mmbEnvFollower(), mmbEnvFollowerMono()];
   all.push(mmbMaterialBridge());
   all.push(mmbScanned());
+  all.push(mmbReservoir());
   const newTypes = all.map((x) => x.type);
 
   // Upgrade-pad: bestaande interne types worden in-place VERVANGEN (zelfde

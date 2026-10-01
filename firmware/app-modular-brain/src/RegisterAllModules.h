@@ -61,6 +61,7 @@
 #include "ResonatorModule.h"
 #include "MaterialBridgeModule.h"
 #include "ScannedModule.h"
+#include "ReservoirModule.h"
 #include "Cr78Module.h"
 #include "QuantModule.h"
 #include "ChordModule.h"
@@ -147,6 +148,7 @@ inline void registerAllRuntimeModules() {
     ResonatorModule::registerFactory(); // FW-FX-6: sympathetic-resonator-bank
     MaterialBridgeModule::registerFactory();
     ScannedModule::registerFactory();   // scanned synthesis (massa-veerring als golftabel)
+    ReservoirModule::registerFactory(); // resource-coupled: gedeelde herstellende bron (CV)
     Cr78Module::registerFactory();      // FW-AU-16: CR-78 drums (berekend)
     QuantModule::registerFactory();     // FW-CV-4: V/Oct-quantizer naar schaal
     ChordModule::registerFactory();     // FW-CV-5: chord-generator (4 stemmen)

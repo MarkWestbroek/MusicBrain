@@ -126,6 +126,7 @@ sel comb && build comb tp_mmb_comb --
 CVINC=("$ROOT/firmware/core/include" "$ROOT/firmware/app-modular-brain/src")
 sel quant && build quant tp_mmb_quant "${CVINC[@]}" --
 sel chord && build chord tp_mmb_chord "${CVINC[@]}" --
+sel reservoir && build reservoir tp_mmb_reservoir "${CVINC[@]}" "$LIB/mmb-dsp" --
 sel grids && build grids tp_mmb_grids "${CVINC[@]}" --
 sel lfo   && build lfo   tp_mmb_lfo   "${CVINC[@]}" -- "$ROOT/firmware/core/src/runtime/Lfo.cpp"
 sel string && build string tp_mmb_string --

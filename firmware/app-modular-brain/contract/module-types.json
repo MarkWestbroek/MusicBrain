@@ -1209,6 +1209,32 @@
         "scale"
       ]
     },
+    "tp_mmb_reservoir": {
+      "typeId": "tp_mmb_reservoir",
+      "source": "firmware/app-modular-brain/src/ReservoirModule.h",
+      "ports": [
+        "empty",
+        "in_a",
+        "in_b",
+        "in_c",
+        "in_d",
+        "level",
+        "out_a",
+        "out_b",
+        "out_c",
+        "out_d",
+        "refill",
+        "reset",
+        "starve"
+      ],
+      "controls": [
+        "curve",
+        "drain",
+        "floor",
+        "recover",
+        "thresh"
+      ]
+    },
     "tp_mmb_resonator": {
       "typeId": "tp_mmb_resonator",
       "source": "firmware/app-modular-brain/src/ResonatorModule.h",

@@ -595,6 +595,62 @@ describe('tp_mmb_quant (firmwareklasse zelf)', () => {
   });
 });
 
+describe('tp_mmb_reservoir (firmwareklasse zelf)', () => {
+  it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_reservoir'); });
+
+  it('begint vol en loopt leeg onder belasting; de uitgang is belasting maal aanbod', async () => {
+    const m = await load('tp_mmb_reservoir');
+    m.setCtl('drain', 1); m.setCtl('recover', 20); m.setCtl('floor', 0); m.setCtl('curve', 1);
+    const [outA, , , , level] = m.render(0.01);
+    expect(level![0]!).toBeCloseTo(1, 3);
+    expect(outA![0]!).toBe(0);
+    m.setIn('in_a', 1);
+    const after = m.render(0.5);
+    const last = after[4]!.length - 1;
+    expect(after[4]![last]!).toBeLessThan(0.55);
+    expect(after[4]![last]!).toBeGreaterThan(0.4);
+    expect(after[0]![last]!).toBeCloseTo(after[4]![last]!, 4); // belasting 1 x aanbod (floor 0, curve 1)
+  });
+
+  it('deelt de bron: vier stemmen trekken sneller leeg dan een, en herstel volgt Recover', async () => {
+    const single = await load('tp_mmb_reservoir');
+    const quartet = await load('tp_mmb_reservoir');
+    for (const m of [single, quartet]) { m.setCtl('drain', 1); m.setCtl('recover', 20); }
+    single.setIn('in_a', 0.5);
+    for (const port of ['in_a', 'in_b', 'in_c', 'in_d']) quartet.setIn(port, 0.5);
+    const levelSingle = single.render(0.4)[4]!, levelQuartet = quartet.render(0.4)[4]!;
+    expect(levelQuartet[levelQuartet.length - 1]!).toBeLessThan(levelSingle[levelSingle.length - 1]! - 0.3);
+    // Loslaten: in 2 s (Recover) ~63 % van het tekort ingelopen.
+    for (const port of ['in_a', 'in_b', 'in_c', 'in_d']) quartet.setIn(port, 0);
+    quartet.setCtl('recover', 2);
+    const start = levelQuartet[levelQuartet.length - 1]!;
+    const recovered = quartet.render(2)[4]!;
+    expect(recovered[recovered.length - 1]!).toBeCloseTo(start + (1 - start) * (1 - Math.exp(-1)), 1);
+  });
+
+  it('Empty-gate heeft hysterese en Reset maakt de bron direct vol', async () => {
+    const m = await load('tp_mmb_reservoir');
+    m.setCtl('drain', 1); m.setCtl('recover', 20); m.setCtl('thresh', 0.3);
+    m.setIn('in_a', 1);
+    const [, , , , level, starve, empty] = m.render(1.2);
+    const last = level!.length - 1;
+    expect(empty![last]!).toBe(1);
+    expect(starve![last]!).toBeCloseTo(1 - level![last]!, 5);
+    // Net boven de drempel herstellen: nog steeds leeg (hysterese 0,1).
+    m.setIn('in_a', 0); m.setCtl('recover', 0.5);
+    const [, , , , level2, , empty2] = m.render(0.2, (time, current) => {
+      if (time > 0.1) current.setIn('in_a', 0.4);
+    });
+    const index = level2!.findIndex((value, i) => value > 0.32 && value < 0.38 && i > 0);
+    if (index >= 0) expect(empty2![index]!).toBe(1);
+    m.setIn('in_a', 0);
+    m.setIn('reset', 1);
+    const [, , , , level3, , empty3] = m.render(0.01);
+    expect(level3![level3!.length - 1]!).toBe(1);
+    expect(empty3![empty3!.length - 1]!).toBe(0);
+  });
+});
+
 describe('tp_mmb_chord (firmwareklasse zelf)', () => {
   it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_chord'); });
 
