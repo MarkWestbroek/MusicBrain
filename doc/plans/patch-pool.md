@@ -1,6 +1,6 @@
 # Patch-pool: patches centraal bewaren, delen en bespreken
 
-Datum: 2026-10-01. Status: voorstel, nog niets gebouwd. Aanleiding: Mark hecht
+Datum: 2026-10-01, besluiten 2026-10-02 (§9). Status: voorstel aangenomen, nog niets gebouwd. Aanleiding: Mark hecht
 aan patches die hij op verschillende plekken heeft gemaakt (desktop, laptop,
 live), wil geïnteresseerden een basisset meegeven, en wil dat anderen patches
 kunnen voorstellen en vragen kunnen stellen met de patch erbij.
@@ -58,7 +58,7 @@ Dat is nu de grootste praktische valkuil bij uitwisselen tussen versies.
 | Pool | Wie zet er iets in | Wie ziet het | Betekenis |
 |---|---|---|---|
 | `voorstel` | iedereen met een token | Mark (admin) + de inzender | wacht op beoordeling |
-| `experimenteel` | Mark zet erin, of een inzender met de rol "contributor" | iedereen | leuk, werkt, maar geen belofte |
+| `experimenteel` | Mark, of een ingelogde inzender (rol "contributor") | iedereen | leuk, werkt, maar geen belofte |
 | `centraal` | alleen Mark | iedereen | de basisset die bij de editor hoort |
 | `vraag` | iedereen met een token | iedereen | "ik probeer dit, lukt niet, wie helpt?" |
 
@@ -93,9 +93,13 @@ een video in VLC.
 Twee knoppen, allebei op bestaande bouwstenen:
 
 1. **⤴ Voorstellen** (Patches-tab, rechtsklik op een patch): naam, tekst,
-   tags, en een vinkje "take meesturen" als er een opname van is. Stuurt het
-   `.patch.json` + `.syx` naar de library en maakt het patch-item met pool
-   `voorstel` (of `vraag`, met de vraagtekst). Token zoals bij de library.
+   tags, en de take erbij. Is er een opname van deze patch, dan staat die
+   voorgeselecteerd; is er geen, dan maakt de knop **Demo opnemen** er een:
+   de sim speelt een vaste testsequentie (akkoord + loopje, met modwheel en
+   aftertouch) door de patch en neemt wav + mid op. Inkorten of bijwerken kan
+   in de take-editor (✎). Eén verzending stuurt patch, syx en take samen naar
+   de library (zelfde `group`) en maakt het patch-item met pool `voorstel`
+   (of `vraag`, met de vraagtekst). Token zoals bij de library.
 2. **📚 Patches van musicbrain.nl** (Patches-tab): bladeren per pool en tag,
    demo beluisteren, "Laden als nieuwe patch". Zelfde venster als 📚 Takes,
    met een compatibiliteitsregel per patch.
@@ -128,17 +132,39 @@ de seeds. Een script haalt bij elke editor-release de pool `centraal` op.
 
 Stap 1 en 2 kunnen tegelijk, zoals bij de library.
 
-## 9. Besluiten voor Mark
+## 9. Besluiten (Mark, 2026-10-02)
 
-1. **Pools**: de vier hierboven, of minder (bijvoorbeeld `voorstel`,
-   `centraal`, `vraag`)?
-2. **Wie mag naar `experimenteel`**: alleen jij, of ook een contributor-rol?
-3. **Take verplicht bij een voorstel?** Het maakt beoordelen veel makkelijker,
-   maar is een drempel.
-4. **Licentie** van gedeelde patches (CC0? CC-BY?). Daar vraagt iemand later
-   naar.
-5. **Gesprek nu of later**: stap 4 leunt op Imprints discussiemodel; tot die
-   tijd kan `question` + een "antwoord"-tekstveld in de admin volstaan.
+1. **Pools**: de vier uit §4.
+2. **Naar `experimenteel`**: Mark, en ook anderen zodra ze ingelogd zijn
+   (rol "contributor"). Tot de Imprint-logins er zijn: alleen Mark.
+3. **Take niet verplicht.** Ontbreekt hij, dan kan de editor er een genereren
+   ("Demo opnemen", §6). Patch en take moeten in één handeling te versturen
+   zijn.
+4. **Licentie**: zie §9a. Keuze: nog open; voorstel CC BY 4.0 als standaard,
+   met per patch de mogelijkheid om CC0 te kiezen.
+5. **Gesprek later.** Tot stap 4: `question` + een antwoordveld in de admin.
+
+### 9a. Licenties voor gedeelde patches
+
+Een patch is een creatief werk (zoals een preset of een partituur), geen
+software: de Creative Commons-licenties passen, de MIT/GPL-familie niet.
+Wat telt is of de ander mag delen, mag veranderen, moet noemen, en of hij
+eraan mag verdienen (een plaat met jouw patch telt al als commercieel).
+
+| Licentie | Naam noemen | Veranderen en doorgeven | Commercieel gebruik | Afgeleide onder dezelfde licentie | Past bij |
+|---|---|---|---|---|---|
+| **CC0** | nee | ja | ja | nee | de basisset: iedereen mag alles, nooit gedoe |
+| **CC BY 4.0** | ja | ja | ja | nee | de pool: delen met naamsvermelding, zoals de meeste presetbanken en Mutable-firmware-presets |
+| **CC BY-SA 4.0** | ja | ja | ja | **ja** | wie wil dat verbeteringen terugkomen; remt wel commerciële gebruikers |
+| **CC BY-NC 4.0** | ja | ja | **nee** | nee | lijkt vriendelijk, maar "niet-commercieel" is vaag: mag een muzikant de patch op een betaald album gebruiken? Afraden |
+| Alle rechten voorbehouden | – | nee | nee | – | alleen voor wie niets wil delen; dan hoort de patch niet in de pool |
+
+Aanbeveling: de pool vraagt bij het voorstellen om akkoord met **CC BY 4.0**
+(naam van de inzender komt automatisch in het item), en de basisset
+(`centraal`) zet Mark op **CC0**, zodat een geïnteresseerde hem zonder
+voorwaarden kan gebruiken, ook in een product. Een inzender die zijn
+voorstel liever ook CC0 maakt, vinkt dat aan. SA en NC bieden we niet aan:
+ze maken de pool onhandig zonder dat iemand er iets aan heeft.
 
 ## 10. Raakvlakken
 
