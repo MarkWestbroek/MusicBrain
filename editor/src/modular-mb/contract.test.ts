@@ -24,6 +24,7 @@ import {
   seedCvBridgePatch,
   seedInternals,
   seedMaterialBridgeDemo,
+  seedReservoirDemo,
   seedPolyVoicePatch,
   seedSamplerPolyPatch,
   seedSoloVoicePatch,
@@ -104,10 +105,33 @@ function allSeededProject(): ModularProject {
   p = seedVocoderChoirPatch(p, 'zang');
   p = seedZangPatch(p);
   p = seedMaterialBridgeDemo(p);
+  p = seedReservoirDemo(p);
   return p;
 }
 
 const project = allSeededProject();
+it('Reservoir demo stuurt beide envelopes door het reservoir, met alleen Drain als A/B-verschil', () => {
+  const demo = seedReservoirDemo(emptyModularProject());
+  const [shared, independent] = demo.patches.slice(-2);
+  expect(shared!.rackIds).toEqual(independent!.rackIds);
+  expect(shared!.connections.map(({ from, to }) => ({ from, to })))
+    .toEqual(independent!.connections.map(({ from, to }) => ({ from, to })));
+  const reservoirId = shared!.connections.find((connection) => connection.to.portId === 'in_a')!.to.moduleId;
+  expect(shared!.controlState[reservoirId]!.drain).toBe(0.8);
+  expect(independent!.controlState).toEqual({
+    ...shared!.controlState, [reservoirId]: { ...shared!.controlState[reservoirId], drain: 0 },
+  });
+  // Beide envelopes gaan het reservoir in en de geschaalde uitgang gaat naar de VCA-CV.
+  const into = shared!.connections.filter((connection) => connection.to.moduleId === reservoirId).map((connection) => connection.to.portId).sort();
+  expect(into).toEqual(['in_a', 'in_b']);
+  const outOf = shared!.connections.filter((connection) => connection.from.moduleId === reservoirId);
+  expect(outOf.map((connection) => connection.from.portId).sort()).toEqual(['out_a', 'out_b']);
+  for (const connection of outOf) {
+    expect(connection.to.portId).toBe('cv');
+    expect(demo.modules.find((module) => module.id === connection.to.moduleId)!.typeId).toBe('tp_mmb_vca');
+  }
+});
+
 it('Material Bridge demo deelt twee ritmes en velocity, met alleen Memory en Fatigue als A/B-verschil', () => {
   const demo = seedMaterialBridgeDemo(emptyModularProject());
   const [off, bridgeOnly, full] = demo.patches.slice(-3);

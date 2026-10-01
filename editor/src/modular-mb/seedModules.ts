@@ -4927,6 +4927,81 @@ export function seedMaterialBridgeDemo(project: ModularProject): ModularProject 
   };
 }
 
+/**
+ * Reservoir demo: twee zelfspelende stemmen (SEQ -> VCO -> VCA) waarvan de
+ * envelopes door een gedeeld reservoir lopen. In de variant "gedeelde bron"
+ * trekt iedere noot de bron leeg (Drain 0,7) en krijgt de andere stem minder;
+ * in "onafhankelijk" staat Drain op 0 en zijn de envelopes ongewijzigd. Dat
+ * is het enige verschil. Toetst of gedeelde toestand anders speelt dan
+ * onafhankelijke stemmen (resource-coupled synthesis).
+ */
+export function seedReservoirDemo(project: ModularProject): ModularProject {
+  const p = seedInternals(project);
+  const fresh = (typeId: string): ModuleInstance => {
+    const proto = p.modules.find((module) => module.typeId === typeId)!;
+    return { ...proto, id: uid('mod'), internal: false, visual: proto.visual };
+  };
+  const seqA = fresh('tp_mmb_seq8'), seqB = fresh('tp_mmb_seq8');
+  const vcoA = fresh('tp_mmb_vco'), vcoB = fresh('tp_mmb_vco');
+  const envA = fresh('tp_mmb_ahdsr'), envB = fresh('tp_mmb_ahdsr');
+  const reservoir = fresh('tp_mmb_reservoir');
+  const vcaA = fresh('tp_mmb_vca'), vcaB = fresh('tp_mmb_vca');
+  const mixer = fresh('tp_mmb_mixer');
+  const out = fresh('tp_mmb_out');
+  const modules = [seqA, seqB, vcoA, vcoB, envA, envB, reservoir, vcaA, vcaB, mixer, out];
+  let offset = 0;
+  const rack: Rack = {
+    id: uid('rack'), name: 'Reservoir demo',
+    description: 'Twee stemmen delen een eindige, herstellende bron: hun envelopes lopen door het reservoir naar de VCA-CV.',
+    rows: 1, hpPerRow: 64, kind: 'physical',
+    slots: modules.map((module) => {
+      const slot: RackSlot = { id: uid('slot'), moduleId: module.id, row: 0, hpOffset: offset };
+      offset += module.visual.hpWidth;
+      return slot;
+    }),
+  };
+  rack.hpPerRow = Math.max(64, offset);
+  const cable = (from: ModuleInstance, output: string, to: ModuleInstance, input: string): PatchConnection => ({
+    id: uid('conn'), from: { moduleId: from.id, portId: output }, to: { moduleId: to.id, portId: input },
+  });
+  const voice = (seq: ModuleInstance, vco: ModuleInstance, env: ModuleInstance, vca: ModuleInstance, port: string, mixIn: string) => [
+    cable(seq, 'cv', vco, 'voct'),
+    cable(seq, 'gate_out', env, 'gate'),
+    cable(env, 'cv_out', reservoir, `in_${port}`),
+    cable(reservoir, `out_${port}`, vca, 'cv'),
+    cable(vco, 'out', vca, 'in'),
+    cable(vca, 'out', mixer, mixIn),
+  ];
+  const connections = [
+    ...voice(seqA, vcoA, envA, vcaA, 'a', 'in1'),
+    ...voice(seqB, vcoB, envB, vcaB, 'b', 'in2'),
+    cable(mixer, 'out_l', out, 'l'), cable(mixer, 'out_r', out, 'r'),
+  ];
+  const variants: Array<[string, number]> = [['gedeelde bron', 0.8], ['onafhankelijk', 0]];
+  const patches = variants.map(([label, drain]): Patch => ({
+    id: uid('patch'), name: `Reservoir demo - ${label}`,
+    description: 'Twee zelfspelende stemmen (1 en 1,5 Hz) met envelopes door een gedeeld reservoir naar de VCA. De varianten verschillen alleen in Drain: 0,8 laat iedere noot de bron deels leegtrekken (gemeten: bron pendelt 0,44..0,65, stem A tot 11 dB zachter als B speelt), 0 laat de envelopes ongemoeid.',
+    voiceCount: 1, rackIds: [rack.id],
+    connections: connections.map((connection) => ({ ...connection, id: uid('conn') })),
+    controlState: {
+      [seqA.id]: { s1: 0, s2: 7, s3: 3, s4: 10, s5: 0, s6: 5, s7: 7, s8: 12, root: 48, rate: 1, gate: 0.5, length: 8, run: 0 },
+      [seqB.id]: { s1: 7, s2: 0, s3: 12, s4: 3, s5: 10, s6: 7, s7: 5, s8: 0, root: 55, rate: 1.5, gate: 0.4, length: 8, run: 0 },
+      [vcoA.id]: { wave: 2, level: 0.9 },
+      [vcoB.id]: { wave: 1, level: 0.9 },
+      [envA.id]: { attack: 5, hold: 0, decay: 150, sustain: 0.8, release: 250 },
+      [envB.id]: { attack: 5, hold: 0, decay: 150, sustain: 0.8, release: 250 },
+      [reservoir.id]: { drain, recover: 0.6, floor: 0.1, curve: 2, thresh: 0.15 },
+      [mixer.id]: { vol1: 0.8, pan1: -0.5, vol2: 0.8, pan2: 0.5 },
+      [out.id]: { level: 0.8 },
+    },
+    envelopes: [], lfos: [],
+  }));
+  return {
+    ...p, modules: [...p.modules, ...modules], racks: [...p.racks, rack],
+    patches: [...p.patches, ...patches], activeRackId: rack.id, activePatchId: patches[0]!.id,
+  };
+}
+
 export function seed808JamPatch(project: ModularProject): ModularProject {
   const needed = ['tp_mmb_marbles', 'tp_mmb_peaks', 'tp_mmb_mixer', 'tp_mmb_out'];
   const missing = needed.some((tid) => !project.moduleTypes.some((t) => t.id === tid));
