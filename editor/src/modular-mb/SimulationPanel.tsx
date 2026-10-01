@@ -33,6 +33,7 @@ import { addPatchSnapshot } from './sim/takeLibrary';
 import { SysexCollector, SYSEX_CMD, joinSysex } from './sim/patchSysex';
 import { patchToSysex } from './sim/PatchExportMenu';
 import { offerPatch, offerFromSysex } from './sim/PatchInbox';
+import { ModlinkPanel } from './sim/ModlinkPanel';
 import { MidiFileUi } from './sim/MidiFileUi';
 import { midiMonitor } from './sim/midiMonitor';
 
@@ -583,6 +584,8 @@ export function SimulationPanel(): JSX.Element {
         <SourceControls source={source} sourceId={sourceId} running={status.running} onStartSim={() => void startAll()}
           onReplace={async (slug, name, bytes) => (await replaceAsset(slug, { name, blob: new Blob([bytes], { type: 'audio/midi' }) }, lib)).slug} />
       </fieldset>
+
+      <ModlinkPanel />
 
       <ModuleMatchSummary project={project} patch={patch} />
     </div>

@@ -13,6 +13,7 @@
 //   ← {t:"welcome", id, slot, ccBase, ccCount}   antwoord van het doorgeefluik
 //   ← {t:"peers", list:[{id, role, name, slot}]} bij elke verandering
 //   → {t:"v", cc, v}        waarde 0..1  — van surfaces, naar alle hosts
+//                           (optioneel up:true = vinger los, host mag terugveren)
 //   → {t:"labels", items:[{cc, label}]}  — van hosts, naar alle surfaces
 //
 // Bedieningsvlak n krijgt CC ccBase..ccBase+ccCount-1. De Elements-firmware

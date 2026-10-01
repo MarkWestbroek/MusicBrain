@@ -74,7 +74,13 @@ export function connect(o) {
     return false;
   }
 
-  api.sendValue = function (cc, v) { return send({ t: "v", cc: cc, v: v }); };
+  // extra: optionele velden, bv. { up: true } als de vinger loslaat (een host
+  // kan dan terugveren, zoals aftertouch); oude hosts negeren het.
+  api.sendValue = function (cc, v, extra) {
+    var m = { t: "v", cc: cc, v: v };
+    if (extra) for (var k in extra) if (Object.prototype.hasOwnProperty.call(extra, k)) m[k] = extra[k];
+    return send(m);
+  };
   api.sendLabels = function (items) { return send({ t: "labels", items: items }); };
   api.close = function () {
     closed = true;

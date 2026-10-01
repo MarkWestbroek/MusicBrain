@@ -38,6 +38,12 @@ body {
 .bar .cc { color: var(--muted); }
 
 #pad { flex: 1 1 auto; display: block; width: 100%; touch-action: none; }
+.mode {
+  font: inherit; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+  background: var(--surface-2); color: var(--foreground); border: 1px solid var(--border);
+  border-radius: 4px; padding: 4px 8px;
+}
+.mode.on { border-color: var(--accent); color: var(--accent); }
 
 .legend {
   flex: 0 0 auto; display: grid; gap: 1px;
@@ -63,6 +69,9 @@ body {
   <span class="dot" id="dot"></span>
   <span class="name" id="slotName">verbinden&hellip;</span>
   <span class="spacer"></span>
+  <button class="mode" id="modeBtn" type="button">XY</button>
+  <button class="mode" id="orientBtn" type="button" hidden aria-label="Richting van de schuiven">↕</button>
+  <button class="mode" id="forceBtn" type="button" hidden>druk uit</button>
   <span class="cc" id="ccRange">&mdash;</span>
 </div>
 
@@ -114,6 +123,8 @@ var link = connect({
     labels = {};
     for (var i = 0; i < items.length; i++) labels[items[i].cc] = items[i].label;
     buildLegend();
+    // Schuiven die nog niet bewogen zijn naar hun rust: bend in het midden.
+    if (typeof faders !== "undefined") for (var j = 0; j < faders.length; j++) if (!faders[j].down && !faders[j].touched) faders[j].v = restOf(j);
   },
   onState: function (s) {
     dot.className = "dot " + (s === "verbonden" ? "on" : "off");
@@ -167,6 +178,7 @@ if (window.ResizeObserver) new ResizeObserver(resize).observe(canvas);
 else window.addEventListener("resize", resize);
 
 function draw() {
+  if (MODE === "faders") { drawFaders(); return; }
   var w = canvas.width, h = canvas.height, s = w / 400;   // schaalmaat
   g.clearRect(0, 0, w, h);
 
@@ -254,6 +266,7 @@ function freeSlot() {
 }
 
 canvas.addEventListener("pointerdown", function (e) {
+  if (MODE === "faders") { faderDown(e); return; }
   var idx = freeSlot();
   if (idx < 0) return;
   pointerSlot[e.pointerId] = idx;
@@ -263,16 +276,24 @@ canvas.addEventListener("pointerdown", function (e) {
   e.preventDefault();
 });
 canvas.addEventListener("pointermove", function (e) {
+  if (MODE === "faders") { faderMove(e); return; }
   var idx = pointerSlot[e.pointerId];
   if (idx === undefined) return;
   place(idx, e);
   e.preventDefault();
 });
 function lift(e) {
+  if (MODE === "faders") { faderLift(e); return; }
   var idx = pointerSlot[e.pointerId];
   if (idx === undefined) return;
   slots[idx].down = false;          // waarde blijft staan: modulatoren houden vast
   delete pointerSlot[e.pointerId];
+  // Loslaten melden (up), zodat een host kan terugveren (aftertouch, bend).
+  // Eerst wat nog wacht wegstrepen, anders komt er na de up nog een waarde.
+  var cx = ccOf(idx, 0), cy = ccOf(idx, 1);
+  delete dirty[cx]; delete dirty[cy];
+  link.sendValue(cx, slots[idx].x, { up: true });
+  link.sendValue(cy, slots[idx].y, { up: true });
 }
 canvas.addEventListener("pointerup", lift);
 canvas.addEventListener("pointercancel", lift);
@@ -289,6 +310,146 @@ if (navigator.wakeLock) {
   relock();
   document.addEventListener("visibilitychange", relock);
 }
+
+// ── Faderstand ─────────────────────────────────────────────────────────
+// Zes verticale schuiven naast elkaar, elk één as (CC ccBase+i), met
+// meerdere vingers tegelijk. Natuurlijker dan X en Y van één punt tegelijk.
+// Met "druk" aan komt de waarde uit de aanraakdruk: echte druk als het
+// toestel die meldt, anders hoe plat de vingertop wordt (contactvlak).
+var MODE = localStorage.getItem("pad.mode") === "faders" ? "faders" : "xy";
+var useForce = localStorage.getItem("pad.force") === "1";
+// ↕ staand (naast elkaar, omhoog = meer) of ↔ liggend (onder elkaar, rechts = meer).
+var ORIENT = localStorage.getItem("pad.orient") === "h" ? "h" : "v";
+var FADERS = 6;
+var faders = [];
+for (var fi = 0; fi < FADERS; fi++) faders.push({ v: 0, down: false, pid: null, base: 0, raw: "" });
+var forceInfo = "";
+
+function restOf(i) { return /Pitch bend/.test(labels[ccBase + i] || "") ? 0.5 : 0; }
+function springs(i) { return /↺/.test(labels[ccBase + i] || ""); }
+
+function forceValue(e, fd) {
+  // Echte druk: telt alleen als hij beweegt (veel toestellen melden vast 0,5 of 1).
+  var p = typeof e.pressure === "number" ? e.pressure : 0;
+  var size = Math.max(e.width || 0, e.height || 0);
+  if (fd.pmin === undefined) { fd.pmin = p; fd.pmax = p; }
+  fd.pmin = Math.min(fd.pmin, p); fd.pmax = Math.max(fd.pmax, p);
+  var real = fd.pmax - fd.pmin > 0.05 && p > 0 && p < 1;
+  forceInfo = "druk " + p.toFixed(2) + (real ? " (echt)" : " (vast)") + " · vlak " + size.toFixed(0) + "px";
+  if (real) return Math.max(0, Math.min(1, p));
+  if (!size) return fd.v;
+  if (!fd.base) fd.base = size;
+  // Vingertop ~60% groter bij flink drukken ≈ vol.
+  return Math.max(0, Math.min(1, (size - fd.base) / (fd.base * 0.6)));
+}
+
+function faderAt(e) {
+  var r = canvas.getBoundingClientRect();
+  var t = ORIENT === "h" ? (e.clientY - r.top) / r.height : (e.clientX - r.left) / r.width;
+  return Math.max(0, Math.min(FADERS - 1, Math.floor(t * FADERS)));
+}
+function faderSet(i, e) {
+  var r = canvas.getBoundingClientRect(), fd = faders[i];
+  var pos = ORIENT === "h" ? (e.clientX - r.left) / r.width : 1 - (e.clientY - r.top) / r.height;
+  fd.v = useForce ? forceValue(e, fd) : Math.max(0, Math.min(1, pos));
+  dirty[ccBase + i] = fd.v;
+}
+function faderDown(e) {
+  var i = faderAt(e), fd = faders[i];
+  if (fd.down) return;                         // één vinger per fader
+  fd.down = true; fd.pid = e.pointerId; fd.base = 0; fd.pmin = undefined; fd.pmax = undefined;
+  fd.touched = true;
+  try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* niet nodig */ }
+  faderSet(i, e);
+  e.preventDefault();
+}
+function faderMove(e) {
+  for (var i = 0; i < FADERS; i++) if (faders[i].pid === e.pointerId) { faderSet(i, e); e.preventDefault(); return; }
+}
+function faderLift(e) {
+  for (var i = 0; i < FADERS; i++) {
+    var fd = faders[i];
+    if (fd.pid !== e.pointerId) continue;
+    fd.down = false; fd.pid = null;
+    delete dirty[ccBase + i];
+    link.sendValue(ccBase + i, fd.v, { up: true });
+    if (springs(i)) fd.v = restOf(i);        // de host veert terug; de schuif ook
+  }
+}
+
+function drawFaders() {
+  var w = canvas.width, h = canvas.height, s = w / 400;
+  var font = getComputedStyle(document.body).fontFamily;
+  g.clearRect(0, 0, w, h);
+  var horiz = ORIENT === "h";
+  for (var i = 0; i < FADERS; i++) {
+    var fd = faders[i], col = COLORS[Math.floor(i / 2) % COLORS.length];
+    var rest = restOf(i);
+    var lab = labels[ccBase + i] || ("CC " + (ccBase + i));
+    var words = lab.replace(/\s*\(CC (\d+)\)/, "|CC $1").split("|");
+    if (horiz) {
+      // Rijen: label links, schuif rechts, waarde rechts erin.
+      var rowH = h / FADERS, p = 4 * s, y0 = i * rowH + p, rh = rowH - 2 * p;
+      var labW = 92 * s, x0 = labW, x1 = w - 6 * s;
+      g.fillStyle = "#151b23"; g.fillRect(x0, y0, x1 - x0, rh);
+      var xv = x0 + fd.v * (x1 - x0), xr = x0 + rest * (x1 - x0);
+      g.globalAlpha = fd.down ? 0.9 : 0.55; g.fillStyle = col;
+      g.fillRect(Math.min(xv, xr), y0, Math.max(2 * s, Math.abs(xv - xr)), rh);
+      g.globalAlpha = 1;
+      g.textAlign = "left"; g.textBaseline = "middle";
+      g.fillStyle = "#f2f4f8"; g.font = (10 * s) + "px " + font;
+      g.fillText(words[0], 6 * s, y0 + rh / 2 - (words[1] ? 6 * s : 0), labW - 10 * s);
+      if (words[1]) { g.fillStyle = "#8c96a5"; g.font = (8 * s) + "px " + font; g.fillText(words[1], 6 * s, y0 + rh / 2 + 7 * s, labW - 10 * s); }
+      g.fillStyle = "#f2f4f8"; g.font = (10 * s) + "px " + font; g.textAlign = "right";
+      g.fillText(fd.v.toFixed(2), x1 - 6 * s, y0 + rh / 2);
+    } else {
+      // Kolommen: waarde boven, schuif in het midden, label onder.
+      var colW = w / FADERS, pad = 4 * s, top = 22 * s, bottom = h - 34 * s, x0c = i * colW + pad, cw = colW - 2 * pad;
+      g.fillStyle = "#151b23"; g.fillRect(x0c, top, cw, bottom - top);
+      var yv = bottom - fd.v * (bottom - top), yr = bottom - rest * (bottom - top);
+      g.globalAlpha = fd.down ? 0.9 : 0.55; g.fillStyle = col;
+      g.fillRect(x0c, Math.min(yv, yr), cw, Math.max(2 * s, Math.abs(yr - yv)));
+      g.globalAlpha = 1;
+      g.fillStyle = "#f2f4f8"; g.font = (10 * s) + "px " + font; g.textAlign = "center"; g.textBaseline = "top";
+      g.fillText(fd.v.toFixed(2), x0c + cw / 2, 5 * s);
+      g.fillStyle = "#8c96a5"; g.font = (8 * s) + "px " + font;
+      g.fillText(words[0], x0c + cw / 2, bottom + 5 * s, cw);
+      if (words[1]) g.fillText(words[1], x0c + cw / 2, bottom + 17 * s, cw);
+    }
+  }
+  if (useForce && forceInfo) {
+    g.fillStyle = "#3ec9d8"; g.font = (9 * s) + "px " + font; g.textAlign = "left"; g.textBaseline = "top";
+    g.fillText(forceInfo, 6 * s, 4 * s);
+  }
+}
+
+function applyMode() {
+  var mb = document.getElementById("modeBtn"), fb = document.getElementById("forceBtn");
+  mb.textContent = MODE === "faders" ? "faders" : "XY";
+  fb.hidden = MODE !== "faders";
+  var ob = document.getElementById("orientBtn");
+  ob.hidden = MODE !== "faders";
+  ob.textContent = ORIENT === "h" ? "↔" : "↕";
+  fb.textContent = useForce ? "druk aan" : "druk uit";
+  fb.className = "mode" + (useForce ? " on" : "");
+  legend.style.display = MODE === "faders" ? "none" : "";
+}
+document.getElementById("modeBtn").addEventListener("click", function () {
+  MODE = MODE === "faders" ? "xy" : "faders";
+  try { localStorage.setItem("pad.mode", MODE); } catch (err) { /* geen opslag */ }
+  applyMode();
+});
+document.getElementById("orientBtn").addEventListener("click", function () {
+  ORIENT = ORIENT === "h" ? "v" : "h";
+  try { localStorage.setItem("pad.orient", ORIENT); } catch (err) { /* geen opslag */ }
+  applyMode();
+});
+document.getElementById("forceBtn").addEventListener("click", function () {
+  useForce = !useForce; forceInfo = "";
+  try { localStorage.setItem("pad.force", useForce ? "1" : "0"); } catch (err) { /* geen opslag */ }
+  applyMode();
+});
+applyMode();
 
 buildLegend();
 resize();
