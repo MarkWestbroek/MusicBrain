@@ -49,6 +49,7 @@ public:
         jawMix_ = 1.0f;
         upperDrive_ = 1.0f;
         onsetCents_ = 0.0f;
+        onsetBreath_ = 0.0f;
         controlTick_ = 0;
         updateIntrinsic();
     }
@@ -165,7 +166,7 @@ public:
         // volume with the earlier 0.15 floor.
         const float pressureGain = 1.0f - 0.5f * slack;
         const float aspirationGain = 1.0f + 1.5f * slack;
-        const float aspiration = (noise - breathLow_) * breath_ * (1.0f + intrinsicBreath_) * aspirationGain * 0.16f * (0.25f + 0.75f * flow);
+        const float aspiration = (noise - breathLow_) * (breath_ * (1.0f + intrinsicBreath_) + onsetBreath_) * aspirationGain * 0.16f * (0.25f + 0.75f * flow);
         const float output = (voiced + aspiration) * envelope_ * pressureGain * intrinsicGain_ * level_;
         return clamp(output, -1.0f, 1.0f);
     }
@@ -294,13 +295,18 @@ private:
         return 0.5f - 0.5f * std::cos(kPi * clipped);
     }
 
-    void loadFormants(const float* hz, const float* bandwidth, const float* db) {
+    /** `gainBandwidth` (optional) keeps the gain at the vowel's own damping
+     *  while the transition temporarily widens the resonances. */
+    void loadFormants(const float* hz, const float* bandwidth, const float* db, int count = kFormants,
+                      const float* gainBandwidth = nullptr) {
         const float brightness = 0.65f + 0.7f * tone_;
-        for (int i = 0; i < kFormants; ++i) {
+        for (int i = 0; i < count; ++i) {
             const float radius = std::exp(-kPi * bandwidth[i] * brightness / sampleRate_);
             formants_[i].coefficient = 2.0f * radius * std::cos(kTwoPi * hz[i] / sampleRate_);
             formants_[i].radiusSquared = radius * radius;
-            formants_[i].gain = std::pow(10.0f, db[i] / 20.0f) * (1.0f - radius) * 3.2f;
+            const float gainRadius = gainBandwidth
+                ? std::exp(-kPi * gainBandwidth[i] * brightness / sampleRate_) : radius;
+            formants_[i].gain = std::pow(10.0f, db[i] / 20.0f) * (1.0f - gainRadius) * 3.2f;
         }
     }
 
@@ -331,8 +337,12 @@ private:
         startHz_[0] = place.f1Locus;
         startHz_[1] = place.f2Slope * targetHz_[1] + place.f2Intercept;
         startHz_[2] = place.f3Locus;
+        // No coefficient jump: F1-F3 glide from wherever they are into the
+        // locus during the closure (the mouth closes), so a resonator that is
+        // still ringing from the previous note does not thump.
+        for (int i = 0; i < 3; ++i) fromHz_[i] = currentHz_[i];
         for (int i = 0; i < kFormants; ++i) {
-            currentHz_[i] = i < 3 ? startHz_[i] : targetHz_[i];
+            if (i >= 3) currentHz_[i] = targetHz_[i];
             currentBw_[i] = targetBw_[i];
             currentDb_[i] = targetDb_[i];
         }
@@ -359,6 +369,7 @@ private:
         onsetPhase_ = OnsetPhase::Idle;
         upperDrive_ = 1.0f;
         onsetCents_ = 0.0f;
+        onsetBreath_ = 0.0f;
         onsetSamples_ = 0;
         burst_.y1 = 0.0f; burst_.y2 = 0.0f;
         if (kSyllables[syllable_].vowel < 0) activeVowel_ = vowel_;
@@ -375,6 +386,15 @@ private:
         switch (onsetPhase_) {
         case OnsetPhase::Closure:
             excitation *= 0.08f * pitchScale_;
+            if ((onsetSamples_ & 7) == 0) {
+                const float shape = halfCosine(static_cast<float>(onsetSamples_) / static_cast<float>(closureSamples_));
+                for (int i = 0; i < 3; ++i) {
+                    currentHz_[i] = fromHz_[i] + (startHz_[i] - fromHz_[i]) * shape;
+                    currentBw_[i] = targetBw_[i] * (1.0f + shape);   // closed tract: damped
+                }
+                loadFormants(currentHz_, currentBw_, currentDb_, 3, targetBw_);
+                onsetBreath_ = 0.05f * shape;   // soft run-up of air before the release
+            }
             if (onsetSamples_ >= closureSamples_) { onsetPhase_ = OnsetPhase::Burst; onsetSamples_ = 0; }
             break;
         case OnsetPhase::Burst: {
@@ -390,16 +410,20 @@ private:
             // Ease the voicing in: F1 near the locus sits close to F0 and would
             // otherwise make the transition louder than the vowel itself.
             excitation *= 0.4f + 0.6f * static_cast<float>(onsetSamples_) / static_cast<float>(glideSamples_);
-            if ((onsetSamples_ & 31) == 0) {
-                // Half-cosine transitions: F1 (jaw) in 25 ms, F2/F3 (tongue) in 50 ms.
+            if ((onsetSamples_ & 7) == 0) {
+                // Half-cosine transitions: F1 (jaw) in 25 ms, F2/F3 (tongue) in
+                // 50 ms, every 8 samples so the coefficient steps stay small.
+                // Bandwidths narrow from twice the vowel's to the vowel's.
                 const float f1Progress = static_cast<float>(onsetSamples_) / static_cast<float>(glideSamplesF1_);
                 const float progress = static_cast<float>(onsetSamples_) / static_cast<float>(glideSamples_);
                 for (int i = 0; i < 3; ++i) {
                     const float shape = halfCosine(i == 0 ? f1Progress : progress);
                     currentHz_[i] = startHz_[i] + (targetHz_[i] - startHz_[i]) * shape;
+                    currentBw_[i] = targetBw_[i] * (2.0f - shape);
                 }
-                loadFormants(currentHz_, currentBw_, currentDb_);
+                loadFormants(currentHz_, currentBw_, currentDb_, 3, targetBw_);
                 jawMix_ = halfCosine(f1Progress);
+                onsetBreath_ = 0.05f * (1.0f - halfCosine(progress));
                 // Voiced stops start with a low, rising F0 at voice onset
                 // (Haggard et al. 1970): a /d/ versus /t/ cue that also
                 // survives high pitches where the formant cues get sparse.
@@ -443,10 +467,12 @@ private:
     float targetHz_[kFormants]{}, targetBw_[kFormants]{}, targetDb_[kFormants]{};
     float currentHz_[kFormants]{}, currentBw_[kFormants]{}, currentDb_[kFormants]{};
     float startHz_[3]{};
+    float fromHz_[3]{};
     float vowelCents_ = 0.0f, vowelGainDb_ = 0.0f, vowelBreath_ = 0.0f;
     float jawMix_ = 1.0f;
     float upperDrive_ = 1.0f;     // drive of F2-F5 relative to F1 (0 during a stop closure)
     float onsetCents_ = 0.0f;     // F0 dip at a voiced stop release
+    float onsetBreath_ = 0.0f;    // soft air run-up through the closure
     float pitchScale_ = 1.0f;
     float intrinsicGain_ = 1.0f, intrinsicBreath_ = 0.0f;
     uint32_t controlTick_ = 0;

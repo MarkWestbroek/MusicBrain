@@ -262,11 +262,11 @@ async function checkFof(file) {
   captureFof(heldDoo, 0.3);
   heldDoo.setIn('gate', 1);
   const retrigger = await windows(heldDoo);
-  // De sluiting staat op de locus (F1 200 Hz, murmur): veel donkerder dan de
-  // klinker zelf, ook bij de heldere a; een gewone klinkeraanzet is dat niet.
-  assert(brightness(plainA.closure) > brightness(plainA.steady) * 0.7, 'FOF: plain vowel onset keeps its colour');
-  assert(brightness(da.closure) < brightness(da.steady) * 0.3, 'FOF: /d/ closure must be dark');
-  assert(brightness(retrigger.closure) < brightness(retrigger.steady) * 0.3, 'FOF: retrigger must play the onset again');
+  // De sluiting is een zachte voice bar met een beetje lucht: veel stiller
+  // dan de klinker zelf; een gewone klinkeraanzet zit na 19 ms al rond 45 %.
+  assert(rms(plainA.closure) > rms(plainA.steady) * 0.35, 'FOF: plain vowel onset is just the attack');
+  assert(rms(da.closure) < rms(da.steady) * 0.2, 'FOF: /d/ closure must be quiet');
+  assert(rms(retrigger.closure) < rms(retrigger.steady) * 0.2, 'FOF: retrigger must play the onset again');
   assert(Math.abs(rms(retrigger.steady) / rms(plainA.steady) - 1) < 0.02, 'FOF: retrigger must use the newly chosen syllable');
   const extremeDa = await startVoice({ syl: 2, breath: 1, voice: 0, tone: 1 }, { voct: Math.log2(880 / 261.6256), pressure: 0 });
   await windows(extremeDa);

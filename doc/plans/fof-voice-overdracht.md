@@ -61,7 +61,8 @@ De FOF-implementatie is in drie afzonderlijke commits opgebouwd:
 | `0c0c1a8` | Vibrato tot 100 cent; `Syl`-schakelaar, `syl_cv` + `syl_amt`; synthetische /d/ (sluiting, burst, glijbaan) voor doo en da; paneel 14 HP |
 | `b1caa64` | Locus-vergelijkingen, F1 sneller dan F2/F3 met halve cosinus, intrinsieke toonhoogte/niveau/adem per klinker aan de kaak gekoppeld, burst volgt de klinker |
 | `71b82c3` | Sluiting drijft alleen F1 aan (voice bar), burst breedbandig (3000 Hz) en zwakker (0,3), F2-start iets verder van de klinker |
-| Toonhoogte-stap (2026-10-01, na luisterronde 4) | Burst en voice bar schalen met F0, F0-dip van −60 cent bij de steminzet, F2-F5 komen tijdens de burst geleidelijk op (geen tik), zwakkere burst bij geronde klinkers |
+| `19c9ec2` | Burst en voice bar schalen met F0, F0-dip van −60 cent bij de steminzet, F2-F5 komen tijdens de burst geleidelijk op (geen tik), zwakkere burst bij geronde klinkers |
+| Plop-stap (2026-10-01, na luisterronde 5) | Geen coëfficiëntensprong meer: F1-F3 glijden tijdens de sluiting naar de locus, updates per 8 samples, bandbreedtes tijdelijk dubbel (gain op de klinkerdemping gehouden), zachte aanloop van lucht door de sluiting |
 
 `8a69c1f` is Material Bridge en is geen onderdeel van FOF.
 
@@ -210,9 +211,9 @@ De /d/ is CHANT-achtig opgebouwd uit drie fasen in `advanceOnset`:
 
 | Fase | Duur | Wat er gebeurt |
 |---|---:|---|
-| Sluiting | 20 ms | Alleen F1 (op 200 Hz) wordt aangedreven, stembron op 0,08 × `pitchScale`: de "voice bar" van een gesloten mond; F2-F5 staan klaar op de startpositie maar krijgen niets; kaak dicht (`jawMix` 0); F0 −60 cent |
+| Sluiting | 20 ms | F1-F3 glijden (halve cosinus, per 8 samples) van waar ze stonden naar de startpositie, met bandbreedte oplopend tot het dubbele (gesloten mond is gedempt); alleen F1 wordt aangedreven, stembron op 0,08 × `pitchScale`: de "voice bar"; een zachte aanloop van lucht (`onsetBreath` tot 0,05) zwelt aan; kaak dicht (`jawMix` 0); F0 −60 cent |
 | Burst | 8 ms | Witte ruis door een brede resonator (bandbreedte 3000 Hz, "diffuus stijgend" zoals een alveolaire burst) met centrum 3600 + 0,8 × F2(klinker), begrensd op 3500-5500 Hz; gain 0,3 × (0,6-1,0 naar ronding van de klinker) × `pitchScale`; kwadratisch uitdovend; stembron op 0,4; F2-F5 komen lineair op van 0 naar vol (anders een tik) |
-| Glijbaan | 50 ms | Halve-cosinusovergang van start naar klinker: F1 in 25 ms, F2 en F3 in 50 ms (update per 32 samples); stembron groeit van 0,4 naar 1; `jawMix` volgt F1; F0 stijgt van −60 naar 0 cent (Haggard e.a. 1970: stemhebbende plosieven beginnen laag en stijgend, stemloze hoog en dalend) |
+| Glijbaan | 50 ms | Halve-cosinusovergang van start naar klinker: F1 in 25 ms, F2 en F3 in 50 ms (update per 8 samples), bandbreedtes van dubbel terug naar de klinker terwijl de gain op de klinkerdemping blijft; stembron groeit van 0,4 naar 1; de aanlooplucht sterft weg; `jawMix` volgt F1; F0 stijgt van −60 naar 0 cent (Haggard e.a. 1970: stemhebbende plosieven beginnen laag en stijgend, stemloze hoog en dalend) |
 
 `pitchScale` = clamp(F0 / 220, 0,5, 3). De klinker van FOF is bij 880 Hz
 ongeveer 16 dB luider dan bij 110 Hz (F1 valt dan op een boventoon), dus een
@@ -265,7 +266,15 @@ hoger hoe minder de d te herkennen is". Diagnose: de tik was de stap waarmee
 F2-F5 aan het begin van de burst van nul naar vol gingen; het toonhoogte-
 effect is het vaste burst-/voice-barniveau tegenover een klinker die 16 dB
 in niveau varieert over 110-880 Hz. De toonhoogte-stap pakt beide aan en
-voegt de F0-dip bij de steminzet toe; nog niet beoordeeld. Bekend uit de
+voegt de F0-dip bij de steminzet toe. Ronde 5: "veel beter, ze ploppen nog
+wel een beetje", met de suggestie van een zachte aanloop van stem en lucht.
+Diagnose plop: F1-F3 sprongen bij de gate in één sample naar de locus en
+daarna per 32 samples verder, terwijl de resonatoren (Q rond 10) nog
+energie vasthielden; elke coëfficiëntensprong zet die energie om in een
+lage bons. De plop-stap laat de formanten ook de sluiting in glijden, werkt
+per 8 samples bij en dempt F1-F3 tijdens de aanzet. Daarbij de aanloop van
+lucht uit de suggestie (de stem-aanloop was er al als voice bar). Nog niet
+beoordeeld. Bekend uit de
 literatuur: ook bij echte zangers wordt de medeklinker boven ~500 Hz slecht
 verstaanbaar (Scotto di Carlo & Germain 1985), omdat de boventonen te ver
 uit elkaar liggen om formantbewegingen te volgen.
@@ -343,7 +352,7 @@ Laatste bekende resultaten op 2026-10-01 (na de Pressure-stap):
   ontwikkel-pc; dit is geen betrouwbare browser- of Teensy-CPU-meting;
 - gerichte FOF-editortests: 9 geslaagd (186 contracttests totaal); volledige
   typecheck geslaagd;
-- WASM-binary na de toonhoogte-stap: 75.130 bytes; de losse klinker is
+- WASM-binary na de plop-stap: 76.925 bytes; de losse klinker is
   sinds die stap bewust niet meer sample-exact gelijk aan de eerste versie
   (intrinsieke toonhoogte/niveau/adem per klinker);
 - Teensy-build: geslaagd, 57.024 bytes vrije RAM1 en 269.408 bytes vrije RAM2
@@ -481,10 +490,11 @@ is op basis van deze meting niet nodig.
    de ademkoppeling te horen en draai `Prs` terug als het geheel te veel
    doet. Noteer per criterium een oordeel. Pas daarna koppelingsfactoren
    aan (eerst `aspirationGain`, zie boven).
-2. **Doo/da op oor, ronde 5.** Speel de Police-riff met `Syl` of CC1 op
+2. **Doo/da op oor, ronde 6.** Speel de Police-riff met `Syl` of CC1 op
    `Syl+` op lage, midden en hoge noten; vergelijk met de vorige versies
-   (0c0c1a8, b1caa64, 71b82c3). Knoppen: `pitchScale`-grenzen, de −60 cent
-   F0-dip, burstgain 0,3 en de rondingsfactor 0,6. Te
+   (0c0c1a8, b1caa64, 71b82c3, 19c9ec2). Knoppen: `pitchScale`-grenzen, de
+   −60 cent F0-dip, burstgain 0,3, de rondingsfactor 0,6, de aanlooplucht
+   0,05 en de bandbreedteverdubbeling tijdens de aanzet. Te
    beoordelen: is da nu geloofwaardig, is de d herkenbaar, is de aanzet niet
    te luid of te zacht (burstgain 0,4 en de stembrondemping 0,15/0,4 in
    `advanceOnset`), is de −12 cent van de a storend in een melodie (dan de
