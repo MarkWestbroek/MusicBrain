@@ -160,7 +160,7 @@ it('Material Bridge demo deelt twee ritmes en velocity, met alleen Memory en Fat
   expect(velocities.every((velocity) => velocity === 0 || velocity === 1 || velocity < 0.5)).toBe(true);
 });
 
-it.each([['vel'], ['pressure'], ['voice'], ['syl_cv']])('FOF solo vernieuwt een oud poortcontract zonder %s zonder bestaande patches te wijzigen', (missingPort) => {
+it.each([['vel'], ['pressure'], ['voice'], ['syl_cv'], ['next']])('FOF solo vernieuwt een oud poortcontract zonder %s zonder bestaande patches te wijzigen', (missingPort) => {
   const original = seedSoloVoicePatch(emptyModularProject(), 'tp_mmb_fof', 'Oude FOF', 'out', 'out', { voice: 0.8 });
   const legacy = {
     ...original,
@@ -169,7 +169,7 @@ it.each([['vel'], ['pressure'], ['voice'], ['syl_cv']])('FOF solo vernieuwt een 
   };
   const upgraded = seedSoloVoicePatch(legacy, 'tp_mmb_fof', 'Nieuwe FOF', 'out', 'out');
   const ports = upgraded.moduleTypes.find((type) => type.id === 'tp_mmb_fof')!.ports.map((port) => port.id);
-  expect(ports).toEqual(expect.arrayContaining(['vel', 'pressure', 'vibrato', 'voice', 'syl_cv']));
+  expect(ports).toEqual(expect.arrayContaining(['vel', 'pressure', 'vibrato', 'voice', 'syl_cv', 'next', 'reset']));
   expect(upgraded.patches.slice(0, -1)).toEqual(original.patches);
 });
 
@@ -189,9 +189,13 @@ it('FOF heeft voor elke CV-ingang een attenuator die standaard op 1 staat', () =
     expect(knobs.find((knob) => knob.id === control)?.defaultValue).toBe(1);
   }
   const syl = fof.controls.find((item) => item.id === 'syl');
-  expect(syl).toMatchObject({ kind: 'knob', min: 0, max: 19, step: 1, defaultValue: 0 });
-  expect((syl as { ticks?: { labels?: Record<number, string> } }).ticks?.labels?.[1]).toBe('doo');
-  expect((syl as { ticks?: { labels?: Record<number, string> } }).ticks?.labels?.[19]).toBe('de');
+  expect(syl).toMatchObject({ kind: 'knob', min: 0, max: 22, step: 1, defaultValue: 0 });
+  const disp = fof.controls.find((item) => item.id === 'sylDisp');
+  expect(disp).toMatchObject({ kind: 'display', bindTo: 'syl' });
+  expect((disp as { lookup?: string[][] }).lookup?.[0]).toHaveLength(23);
+  expect((disp as { lookup?: string[][] }).lookup?.[0]?.[1]).toBe('doo');
+  expect((disp as { lookup?: string[][] }).lookup?.[0]?.[20]).toBe('na');
+  for (const port of ['next', 'reset']) expect(fof.ports.find((item) => item.id === port)).toMatchObject({ direction: 'in', signalType: 'gate' });
 });
 
 it('FOF solo verbindt pitch, gate, velocity en mono naar beide uitgangen', () => {

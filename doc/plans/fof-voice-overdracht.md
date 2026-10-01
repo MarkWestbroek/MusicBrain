@@ -3,12 +3,13 @@
 **Datum:** 2026-10-01 (bijgewerkt na de Pressure-stap en de eerste
 luisterronde, dezelfde dag). **Status:** werkend en getest prototype met
 `Vel`, `Pressure`, CV op alle expressieknoppen, een attenuator per CV-ingang
-en een fonemenmotor met twintig lettergrepen (`Syl`: Vowel, doo, da en de
-hele Vader Jacob) met synthetische plosieven, nasalen, fricatieven,
-l/r/j/w, tweeklanken en slotmedeklinkers; meetmatrix, aliasingmeting en een
-formantvergelijking met de Piper-stem zijn gedaan; vijf luisterrondes op
-doo/da zijn verwerkt (zie [Luisterrondes](#luisterrondes)); de andere
-achttien lettergrepen en de fysieke Teensy-proef staan nog open.
+en een fonemenmotor met drieëntwintig lettergrepen (`Syl`: Vowel, doo, da,
+de hele Vader Jacob, na, hee, djoed) met synthetische plosieven, nasalen,
+fricatieven, l/r/j/w (Nederlandse schraap-r en -g), tweeklanken en
+slotmedeklinkers, een display en Next/Reset-stapingangen; meetmatrix,
+aliasingmeting en een formantvergelijking met de Piper-stem zijn gedaan;
+zes luisterrondes zijn verwerkt (zie [Luisterrondes](#luisterrondes)); de
+fysieke Teensy-proef staat nog open.
 
 Dit document is bedoeld als zelfstandig startpunt voor een volgende chatsessie.
 De bredere inhoudelijke onderbouwing staat in
@@ -47,14 +48,23 @@ De snelste proef:
 
    | # | Syl | CC1 | # | Syl | CC1 | # | Syl | CC1 | # | Syl | CC1 |
    |--:|---|--:|--:|---|--:|--:|---|--:|--:|---|--:|
-   | 0 | Vowel | 0 | 5 | ja | 33 | 10 | al | 67 | 15 | den | 100 |
-   | 1 | doo | 7 | 6 | cob | 40 | 11 | le | 74 | 16 | bim | 107 |
-   | 2 | da | 13 | 7 | slaapt | 47 | 12 | klo | 80 | 17 | bam | 114 |
-   | 3 | va | 20 | 8 | gij | 54 | 13 | ken | 87 | 18 | bom | 120 |
-   | 4 | der | 27 | 9 | nog | 60 | 14 | lui | 94 | 19 | de | 127 |
+   | 0 | Vowel | 0 | 6 | cob | 35 | 12 | klo | 69 | 18 | bom | 104 |
+   | 1 | doo | 6 | 7 | slaapt | 40 | 13 | ken | 75 | 19 | de | 110 |
+   | 2 | da | 12 | 8 | gij | 46 | 14 | lui | 81 | 20 | na | 115 |
+   | 3 | va | 17 | 9 | nog | 52 | 15 | den | 87 | 21 | hee | 121 |
+   | 4 | der | 23 | 10 | al | 58 | 16 | bim | 92 | 22 | djoed | 127 |
+   | 5 | ja | 29 | 11 | le | 63 | 17 | bam | 98 | | | |
 
-   Vader Jacob: va der ja cob · slaapt gij nog · al le klo ken lui den · bim
-   bam bom. Police: de doo doo doo, de da da da (19, 1, 1, 1, 19, 2, 2, 2).
+   CC1 = index × 127 / 22 (de tabel is sinds 2 oktober 23 lang; de oude
+   deling door 19 klopt niet meer). Vader Jacob: va der ja cob · slaapt gij
+   nog · al le klo ken lui den · bim bam bom. Police: de doo doo doo, de da
+   da da (19, 1, 1, 1, 19, 2, 2, 2). Hey Jude: na … hee djoed (20, 21, 22).
+9. **Stappen met een pedaal.** `Next` (gate) stapt bij elke flank één
+   lettergreep verder (en loopt rond), `Reset` gaat terug naar de knop. Een
+   sustainpedaal op de KeyStep Pro stuurt CC64: zet MIDI-IN `CC2#` op 64 en
+   patch `CC2` naar `Next`. Zet de knop op de eerste lettergreep van het
+   lied en trap voor elke volgende. Het display op het paneel toont de
+   knopstand, niet de pedaalstand (die leeft in de firmware/wasm).
 
 De eerstvolgende aanbevolen ontwikkelstap is **luisteren op oor aan de hand
 van de gerenderde matrix en dan beslissen over de aliasing bij hoge noten**
@@ -77,7 +87,8 @@ De FOF-implementatie is in drie afzonderlijke commits opgebouwd:
 | `71b82c3` | Sluiting drijft alleen F1 aan (voice bar), burst breedbandig (3000 Hz) en zwakker (0,3), F2-start iets verder van de klinker |
 | `19c9ec2` | Burst en voice bar schalen met F0, F0-dip van −60 cent bij de steminzet, F2-F5 komen tijdens de burst geleidelijk op (geen tik), zwakkere burst bij geronde klinkers |
 | `3b53142` | Geen coëfficiëntensprong meer: F1-F3 glijden tijdens de sluiting naar de locus, updates per 8 samples, bandbreedtes tijdelijk dubbel (gain op de klinkerdemping gehouden), zachte aanloop van lucht door de sluiting |
-| Fonemenmotor (nacht van 2026-10-01 op 02) | Segmentmotor in de kern: twintig lettergrepen, p/b/t/d/k, m/n, f/v/s/z/ch/g/h, l/r/j/w, tweeklanken, slotmedeklinkers; `Syl` als stapknop 0-19; `render-fof-syllables.mjs` + `formant-compare.py` tegen Piper |
+| `83a1b6b` | Segmentmotor in de kern: twintig lettergrepen, p/b/t/d/k, m/n, f/v/s/z/ch/g/h, l/r/j/w, tweeklanken, slotmedeklinkers; `Syl` als stapknop 0-19; `render-fof-syllables.mjs` + `formant-compare.py` tegen Piper |
+| Ronde-6-stap (2026-10-02) | Luisterronde 6 verwerkt: v laag en lang, schraap-r en -g met 16-18 Hz ruwheid uit pim's stem, j niet nasaal, k zachter, slot-t hoorbaar, ui als driepuntsverloop, ij-eindrij, o lager, m langer, aspiratie buiten F1; na/hee/djoed; display + Next/Reset; paneel 16 HP; tabel 23 |
 
 `8a69c1f` is Material Bridge en is geen onderdeel van FOF.
 
@@ -123,6 +134,8 @@ gelijk; voeg geen klankalgoritme alleen in TypeScript toe.
 | `vel` | CV | 0-1 aanslagsterkte; zonder kabel is de waarde 1 |
 | `pressure` | CV | 0-1 doorlopende expressie tijdens de noot; zonder kabel is de waarde 1 (sample-exact de oude stem) |
 | `syl_cv` | CV | 0-1 over de lettergreeptabel, telt op bij `Syl` (zoals `syl_cv` bij ZANG); zonder kabel 0 |
+| `next` | Gate | Stijgende flank = volgende lettergreep (stapteller, loopt rond) |
+| `reset` | Gate | Stijgende flank = stapteller op 0 (terug naar knop + CV) |
 
 Elke CV-ingang heeft een attenuator in de wrapper (niet in de kern), met
 dezelfde formules op Teensy (`FofModule::apply`) en in wasm (`mmb_process`):
@@ -130,7 +143,8 @@ dezelfde formules op Teensy (`FofModule::apply`) en in wasm (`mmb_process`):
 ```text
 vowel/breath/vibrato/voice:  effectief = clamp01(knop + amt * cv)
 vel/pressure:                effectief = 1 - amt * (1 - cv)     (amt 0 = kabel doet niets)
-syl:                         index = round(Syl + amt * clamp01(cv) * (N - 1)), N = 20
+syl:                         index = (round(Syl + amt * clamp01(cv) * (N - 1)) + stap) mod N, N = 23
+next/reset (gate):           flank op next: stap = (stap + 1) mod N; flank op reset: stap = 0
 ```
 | `out` | Audio | Monosignaal; de mono-seed verbindt dit met L en R |
 
@@ -146,7 +160,7 @@ syl:                         index = round(Syl + amt * clamp01(cv) * (N - 1)), N
 | `level` | 0,8 | Eindniveau |
 | `vowel_amt`, `breath_amt`, `vibrato_amt`, `voice_amt` | 1 | Attenuator van de bijbehorende CV-ingang |
 | `vel_amt`, `press_amt` | 1 | Gevoeligheid voor Vel en Press (0 = geen effect) |
-| `syl` | 0 | Stapknop 0-19: 0 = Vowel-knop, dan doo, da, va, der, ja, cob, slaapt, gij, nog, al, le, klo, ken, lui, den, bim, bam, bom, de |
+| `syl` | 0 | Stapknop 0-22: 0 = Vowel-knop, dan doo, da, va, der, ja, cob, slaapt, gij, nog, al, le, klo, ken, lui, den, bim, bam, bom, de, na, hee, djoed; het display `sylDisp` toont de naam |
 | `syl_amt` | 1 | Attenuator van `syl_cv` |
 
 Nieuwe mono-seeds verbinden MIDI `pitch`, `gate` en `vel` automatisch;
@@ -238,25 +252,28 @@ resonatoren die nog nabellen van de vorige noot.
 
 | Klasse | Fonemen | Segmenten (ms) |
 |---|---|---|
-| Stemhebbende plosief | b, d | sluiting 20 ramp + 5 (b: 20) vast: alleen F1 op de locus (voice bar 0,08 × `pitchScale`), aanlooplucht, F0 −60 cent; burst 8: zwakke diffuse ruis (0,25), stem 0,4, F2-F5 komen op; klinkerglijbaan 50 |
-| Stemloze plosief | p, t, k | sluiting 20 + 15 stil, F0 +40 cent; burst 10 (k 0,35, p/t 0,28); aspiratie 5 + 15 (ruis door de formanten 0,08); klinkerglijbaan 50 |
+| Stemhebbende plosief | b, d | sluiting 20 ramp + 5 (b: 20) vast: alleen F1 (220 Hz, bandbreedte ×2,5) op de locus (voice bar 0,08 × `pitchScale`), aanlooplucht, F0 −60 cent; burst 8: zwakke diffuse ruis (0,25), stem 0,25 tot F1 de locus uit is, F2-F5 komen op; klinkerglijbaan 50 |
+| Stemloze plosief | p, t, k | sluiting 20 + 15 stil, F0 +40 cent; burst 10 (k 0,25 compact rond 1600-3400 Hz, p/t 0,28); aspiratie 5 + 15 (ruis door F2-F5 0,08, F1 krijgt 15 procent); klinkerglijbaan 50 |
 | Nasaal | m, n | murmur 30 + 50: F1 250, F2 1000 (m) / 1500 (n), F3 2300, bandbreedte ×2,5, stem 0,5, F2-F5 op 0,25, F0 −20 cent |
-| Fricatief | f, v, s, z, ch (x), g (ɣ) | locus van de plaats, 30 ramp + 65 vast (s 60, stemhebbend 40); ruisresonator s/z 6500 Hz ±2500 (0,35), f/v 5000 ±4000 (0,12), ch/g 1800 ±900 (0,2); stemhebbend met voice bar 0,25 en halve ruis |
+| Fricatief | f, v, s, z, ch (x), g (ɣ) | locus van de plaats, 30 ramp + vast: s 60, f 65, v 90, g 80, ch 100, z 40; ruisresonator s/z 6500 Hz ±2500 (0,35), f 4500 ±3000 (0,12), v 1500 ±2000 (0,1, laag en lang zoals pim), ch 1300 ±1200 (0,22) met 16 Hz schraap (diepte 0,7) en 3 procent door de formanten, g 900 ±1000 (0,08) met 16 Hz schraap; v stem 0,35 en F2-F5 op 0,5, g stem 0,55 en F2-F5 op 0,5 (pim's g is grotendeels stemhebbend) |
 | h | h | 20 + 50 ruis door de formantbank (0,15) |
-| Approximant | l, r, j, w | 40 ramp + 45 vast (r 35) op eigen doelen: l 350/1100/2800, r 350/1300/1800 (lage F3), j 280/2250/2890, w 300/900/2300; stem 0,5, F2-F5 op 0,6 |
-| Klinker | 12 rijen | glijbaan 50 (na plosief) / 60 (na ander) / 30 (zonder aanzet), dan vast tot de gate valt; tweeklank: eerste klinker 110 vast, tweede glijbaan 130 |
-| Slotmedeklinker | m, n, p, t, k, b, d, f, s, ch, l, r | nasaal 50 + 90; plosief 45 + 60 stil (niet-laatste 30) + zwakke burst (Nederlandse eindverscherping: altijd stemloos); fricatief 45 + 90; l/r 50 + 60 |
+| Approximant | l, r, j, w | 40 ramp + vast: l 45, j 70, r 70 op eigen doelen: l 350/1100/2800, j 250/2100/2900 (stem 0,6, F2-F5 op 0,9: anders een n), w 300/900/2300; **r is de Nederlandse huig-r**: 400/1150/1900, bandbreedte ×2,5, stem 0,6, F2-F5 op 0,4, lichte ruis 1000 ±900 (0,07) en 18 Hz schraap op ruis (0,6) en stem (0,45), zoals pim's r (zwaartepunt 220-370 Hz, ~18 Hz modulatie) |
+| Klinker | 14 rijen | glijbaan 50 (na plosief) / 60 (na ander) / 30 (zonder aanzet), dan vast tot de gate valt; tweeklank ij: e 90 vast, ij-eind glijbaan 160; ui: ui-begin 70 vast, ui-midden glijbaan 80 + 40 vast, uu glijbaan 140 (driepunts: 620/1400 → 470/1560 → 260/1750, uit pim's lui/huis/uit) |
+| Slotmedeklinker | m, n, p, t, k, b, d, f, s, ch, l, r | nasaal 50 + 130 (m) / 110 (n); plosief 45 + 60 stil (in een cluster: eerste 45 + 25, tweede 25 + 45) + burst 8 + 18 (t/k 0,35, p 0,22) + 20 ms lucht (Nederlandse eindverscherping: altijd stemloos); fricatief 45 + 90 (ch met schraap); l 50 + 60; r 50 + 110 huig-r |
 
 Plaatsen als locus-vergelijkingen (`Place`): labiaal F2 = 0,8 × F2(klinker)
 + 200, F3 2300, burst 1000-2500 Hz breed 2500; alveolair F2 = 0,45 × F2 +
 1150, F3 2600, burst 3500-5500 breed 3000; velair F2 = 0,85 × F2 + 500, F3 =
 F2 + 500 (velar pinch), burst 1400-3200 breed 1000 (compact).
 
-Klinkertabel (Nederlands, mannelijk): aa 740/1350, a 600/980, e 580/1800,
-ee 400/1700, i 400/2000, ie 280/2250, o 520/900, oo 450/800, oe 325/700,
-schwa 420/1450, ui-begin 500/1500, uu 280/1800 (F1/F2). De Vowel-knop morft
-nog steeds over aa-ee-ie-oo-oe. Op 2 oktober zijn aa, a, o en schwa en de
-duren van k/t, b, s en v bijgesteld naar de Piper-meting hieronder.
+Klinkertabel (Nederlands, mannelijk): aa 740/1350, a 600/980, e 540/1700,
+ee 400/1700, i 400/2000, ie 280/2250, o 450/820, oo 450/800, oe 325/700,
+schwa 420/1450, ui-begin 620/1400, ui-midden 470/1560, uu 260/1750, ij-eind
+280/2080 (F1/F2). De Vowel-knop morft nog steeds over aa-ee-ie-oo-oe. Op 2
+oktober zijn aa, a, e, o, schwa, ui en ij en de duren van k/t, b, s en v
+bijgesteld naar de Piper-meting hieronder; de o heeft lagere
+formantniveaus omdat F1 en F2 bij lage tonen precies op boventonen vallen
+en de klank anders 7 dB boven de rest uitkomt.
 
 ### De synthetische /d/ (geschiedenis van de eerste stap)
 
@@ -410,7 +427,7 @@ Laatste bekende resultaten op 2026-10-01 (na de Pressure-stap):
   ontwikkel-pc; dit is geen betrouwbare browser- of Teensy-CPU-meting;
 - gerichte FOF-editortests: 9 geslaagd (186 contracttests totaal); volledige
   typecheck geslaagd;
-- WASM-binary na de fonemenmotor: 85.373 bytes; de losse klinker is
+- WASM-binary na de ronde-6-stap: 90.5 kB (zie `ls editor/public/wasm`); de losse klinker is
   sinds die stap bewust niet meer sample-exact gelijk aan de eerste versie
   (intrinsieke toonhoogte/niveau/adem per klinker);
 - Teensy-build: geslaagd, 57.024 bytes vrije RAM1 en 269.408 bytes vrije RAM2
@@ -512,14 +529,62 @@ Wat eruit geleerd en al verwerkt is:
   een ɛ, in het lied is het een schwa; de tabel houdt de schwa.
 - **Meer stemmen:** de dienst heeft naast alex ook pim, ronnie, nathalie
   (Vlaams, vrouw) en het 52-stemmige mls-model; `MMB_TTS_VOICE` kiest.
-  Een vrouwenstem geeft andere formanten (10-20 procent hoger) en is de
-  logische volgende meting als de FOF ooit een vrouwelijke tabel krijgt.
+  Mark: ronnie is raar, nathalie is Vlaams; pim is de referentie voor
+  Nederlands. Een vrouwenstem geeft andere formanten (10-20 procent hoger)
+  en is de logische volgende meting als de FOF ooit een vrouwelijke tabel
+  krijgt.
+
+#### Tweede meting: medeklinkers uit pim (2026-10-02)
+
+Na luisterronde 6 is per klank het spectrum van pim's (en alex') fonemen
+gemeten (zwaartepunt, kwartielen, stemhebbendheid, en de modulatiesnelheid
+van de omhullende), met `scratchpad/learn-piper.py` als wegwerpscript:
+
+| Klank | pim | Gevolg in de tabel |
+|---|---|---|
+| g aan het begin (gij, goed) | 93-116 ms, zwaartepunt 370-790 Hz, 33-86 procent stemhebbend, modulatie op F0 | g = stemhebbende velaire approximant-fricatief: stem 0,55, zwakke lage ruis 900 Hz, 16 Hz schraap |
+| ch aan het eind (nog, lach) | 116-128 ms, zwaartepunt 1600-2000, kwartielen 580-2250 Hz, piek 1300-1500, stemloos, **sterke 16-17 Hz modulatie** | ch = ruis 1300 ±1200 met 16 Hz schraap, 100-120 ms, 3 procent door de formanten (het hoort bij de stem) |
+| v (va, vier) | 128-151 ms, zwaartepunt 1330-1750, energie 150-1600 Hz, 30-54 procent stemhebbend | v = lage, lange, half stemhebbende ruis 1500 ±2000; de oude 5 kHz-ruis was de "hihat" |
+| r aan het eind (der, vier) | 104-116 ms, zwaartepunt 220-260 Hz (bijna alleen de grondtoon), 56-75 procent stemhebbend, 17-19 Hz modulatie | r = huig-r: donker, sterk gedempt, met 18 Hz schraap op stem en ruis, 110 ms |
+| r aan het begin (rood) | 116 ms, zwaartepunt 365, volledig stemhebbend | zelfde doelen, 70 ms |
+| j (ja) | 104 ms, volledig stemhebbend, zwaartepunt 360 | j = 250/2100/2900 met F2-F5 vol aangedreven (0,9); met gedempte hoge formanten was het een n |
+| ui (lui, huis, uit) | œ 600→480 / 1420→1540 in 70-100 ms, dan y 340→250 / 1590→1800 | driepuntsverloop 620/1400 → 470/1560 → 260/1750 |
+| ij (gij) | ɛ 515→485 / 1660→1800, ɪ 410→220 / 1970→2130 | e 540/1700 → ij-eind 280/2080 |
+| o (bom) | 410/800 | o 450/820 |
+
+Mark's beschrijving van de ui ("a → è → ò → ú") klopt met de meting: de
+kaak begint open (F1 600), de tong gaat naar voren (F2 omhoog) terwijl de
+mond sluit (F1 omlaag) en de lippen rond blijven (F2 blijft onder de ie).
 
 Niet gedaan: automatisch fitten. De tabel is met de hand bijgesteld op de
 klinkerkernen; medeklinkerloci en bursts zijn uit de literatuur, de
 Piper-overgangen zijn te ruw geschat om erop te fitten.
 
 ### Luisterrondes
+
+#### Luisterronde 6 (2026-10-02, Vader Jacob)
+
+Per lettergreep: doo/da "nog steeds een plop aan het begin"; va "hoge ruis,
+een hihat, plus ma"; der "klinkt als dul, de r moet harder; de Nederlandse
+r is bijna een g, niet rollend"; ja "bijna een perfecte na, bewaar als na";
+k (cob) "plopt nog te veel"; slaapt "= slaap, de t te kort of te dicht op de
+p"; gij "nij plus snare-ruis; leid de g af uit een Nederlandse stem"; nog
+"g veel te hoge ruis, wordt nos, hoort niet bij de stem; is de g
+stemhebbend?"; al, le, klo, ken "best goed"; lui "geen l-u-i maar een
+samengestelde klank met een verloop a → è → ò → ú"; den goed behalve de
+d-plop; bim/bam "iets langere m"; bom "de o te hoog, die moet een dip".
+
+Diagnose en wat gedaan is: de plop zat in de stem op 0,4 tijdens de burst
+terwijl F1 nog op 200 Hz (vlak bij F0) stond; nu 0,25 en F1-locus 220 met
+bandbreedte ×2,5 (de laagfrequente aandeel in de eerste 40 ms zakte van 60
+naar 50 procent; het is minder, niet weg). va, der, ja, gij, nog, lui en
+bom zijn op pim's meting gezet (tabel hierboven). De k: aspiratie ging
+door F1 en rommelde; nu door F2-F5, en de velaire burst hoger en zachter.
+slaapt: de p-sluiting korter, de t-sluiting korter, en de slot-t krijgt een
+duidelijke burst van 26 ms plus 20 ms lucht. m aan het eind 130 ms. ja is
+bewaard als nieuwe lettergreep "na" (20), met "hee" (21) en "djoed" (22)
+voor Hey Jude; ja zelf heeft een echte j. De tabel is nu 23 lang, de
+CC1-deling is 127/22. Nog niet op oor beoordeeld.
 
 #### Luisterronde 1 (2026-10-01)
 
@@ -590,14 +655,13 @@ is op basis van deze meting niet nodig.
    de ademkoppeling te horen en draai `Prs` terug als het geheel te veel
    doet. Noteer per criterium een oordeel. Pas daarna koppelingsfactoren
    aan (eerst `aspirationGain`, zie boven).
-2. **Vader Jacob op oor.** Zet de twintig pads op de CC1-waarden uit de
-   tabel bij "Start hier" en zing het lied; noteer per lettergreep wat je
-   hoort (welke medeklinker, te lang/kort, te luid/zacht, plop/tik). De
-   stelknoppen staan per klasse in `pushOnsetConsonant` en
-   `pushCodaConsonant` (duren, stemsterkte, ruisgain, loci). Verwachte
-   zwakke plekken: de velaire k-burst (compact, 1000 Hz breed) en de
-   ch/g-ruis zijn uit de literatuur, niet gemeten; de r is een
-   approximant met lage F3, geen tril; m/n hebben geen antiresonantie.
+2. **Vader Jacob op oor, ronde 7.** Pads op de nieuwe CC1-waarden (deling
+   door 22) of een sustainpedaal op `Next`; noteer per lettergreep wat je
+   hoort. Nieuw te beoordelen: de huig-r en -g (18/16 Hz schraap: te veel,
+   te weinig, te langzaam?), de lage v, de driepunts-ui, de slot-t van
+   slaapt, de nieuwe na/hee/djoed. Als doo/da nog ploppen: de stem tijdens
+   de burst (0,25) verder omlaag, of de F1-locus naar 260. De stelknoppen
+   staan per klasse in `pushOnsetConsonant` en `pushCodaConsonant`.
 3. **Doo/da-stelknoppen** als die nog niet goed zijn: `pitchScale`-grenzen,
    de −60 cent F0-dip, burstgain 0,25, de rondingsfactor 0,6, de
    aanlooplucht 0,05 en de bandbreedteverdubbeling tijdens de aanzet. Te

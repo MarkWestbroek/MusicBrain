@@ -53,7 +53,7 @@ public:
         segmentIndex_ = 0;
         segmentSamples_ = 0;
         voicing_ = 1.0f; upperDrive_ = 1.0f; onsetCents_ = 0.0f; onsetBreath_ = 0.0f;
-        aspirationDrive_ = 0.0f; noiseDrive_ = 0.0f; jawMix_ = 1.0f; currentBwScale_ = 1.0f;
+        aspirationDrive_ = 0.0f; noiseDrive_ = 0.0f; jawMix_ = 1.0f; currentBwScale_ = 1.0f; amVoiceGain_ = 1.0f;
         controlTick_ = 0;
         updateIntrinsic();
     }
@@ -62,7 +62,7 @@ public:
      *  knob/CV (the original instrument). The choice is read at the gate's
      *  rising edge, so pick the syllable before the note (left hand on a
      *  pad, right hand on the keys). The coda plays when the gate falls. */
-    static constexpr int kSyllableCount = 20;
+    static constexpr int kSyllableCount = 23;
     void setSyllable(int index) {
         syllable_ = index < 0 ? 0 : (index >= kSyllableCount ? kSyllableCount - 1 : index);
     }
@@ -137,9 +137,11 @@ public:
         // Phoneme engine (only touches the signal while a syllable is being
         // articulated; syllable 0 never enters this branch).
         float excitation = pulse;
+        float upperExcitation = pulse;
         if (engineActive_) {
             advanceEngine();
-            excitation = pulse * voicing_ + noise * aspirationDrive_;
+            excitation = pulse * voicing_ * amVoiceGain_ + noise * aspirationDrive_ * 0.15f;
+            upperExcitation = pulse * voicing_ * amVoiceGain_ * upperDrive_ + noise * aspirationDrive_;
         }
 
         float voiced = 0.0f;
@@ -148,7 +150,8 @@ public:
             // During a stop closure only F1 is driven: the closed mouth radiates
             // a low "voice bar" through the cheeks, nothing above a few
             // hundred hertz (driving all formants sounded like a nasal murmur).
-            const float drive = i > 0 ? excitation * upperDrive_ : excitation;
+            // Aspiration noise goes mainly into F2-F5; through F1 it rumbles.
+            const float drive = i > 0 ? upperExcitation : excitation;
             const float next = formant.coefficient * formant.y1
                 - formant.radiusSquared * formant.y2
                 + drive * formant.gain;
@@ -187,12 +190,12 @@ private:
     // ── Phoneme inventory ──────────────────────────────────────────────────
     enum Ph : uint8_t {
         P_NONE = 0,
-        // Vowels (Dutch spelling): aa, a, e, ee, i, ie, o, oo, oe, schwa, ui-start, uu (ui end)
-        V_AA, V_A, V_E, V_EE, V_I, V_IE, V_O, V_OO, V_OE, V_SCHWA, V_OEU, V_UU,
+        // Vowels (Dutch spelling): aa, a, e, ee, i, ie, o, oo, oe, schwa, ui-start, ui-middle, uu (ui end), ij-end
+        V_AA, V_A, V_E, V_EE, V_I, V_IE, V_O, V_OO, V_OE, V_SCHWA, V_OEU, V_OEU2, V_UU, V_IJ,
         // Consonants
         C_P, C_B, C_T, C_D, C_K, C_M, C_N, C_F, C_V, C_S, C_Z, C_X, C_G, C_H, C_L, C_R, C_J, C_W,
     };
-    static constexpr int kVowelRows = 12;
+    static constexpr int kVowelRows = 14;
 
     struct Vowel {
         float frequency[kFormants];
@@ -215,16 +218,18 @@ private:
     static constexpr Vowel kVowelTable[kVowelRows] = {
         {{ 740, 1350, 2700, 3700, 4800 }, { 80,  90, 120, 130, 140 }, {  0, -4, -20, -36, -60 }, -12.0f, 2.5f, 0.6f }, // aa (Piper: 710/1390)
         {{ 600,  980, 2500, 3600, 4700 }, { 80,  90, 130, 140, 150 }, {  0, -5, -22, -36, -60 },  -9.0f, 2.0f, 0.5f }, // a  (bam; Piper: 480-620/920-940)
-        {{ 580, 1800, 2550, 3500, 4600 }, { 70,  90, 110, 130, 140 }, {  0,-12, -18, -30, -50 },  -5.0f, 1.2f, 0.3f }, // e  (gij, start)
+        {{ 540, 1700, 2550, 3500, 4600 }, { 70,  90, 110, 130, 140 }, {  0,-12, -18, -30, -50 },  -5.0f, 1.2f, 0.3f }, // e  (gij, start; Piper: 515/1660)
         {{ 400, 1700, 2600, 3200, 3580 }, { 70,  80, 100, 120, 120 }, {  0,-14, -12, -14, -20 },  -4.0f, 1.0f, 0.2f }, // ee
         {{ 400, 2000, 2600, 3400, 4500 }, { 60,  90, 110, 130, 140 }, {  0,-14, -20, -34, -56 },  -2.0f, 0.5f, 0.1f }, // i  (bim)
         {{ 280, 2250, 2890, 3900, 4950 }, { 60,  90, 100, 120, 120 }, {  0,-18, -24, -36, -60 },   0.0f, 0.0f, 0.0f }, // ie
-        {{ 520,  900, 2500, 3500, 4600 }, { 80,  80, 120, 140, 150 }, {  0, -8, -24, -30, -56 },  -7.0f, 1.5f, 0.4f }, // o  (bom; Piper kop: 480/880)
+        {{ 450,  820, 2500, 3500, 4600 }, { 80,  90, 120, 140, 150 }, { -2,-12, -24, -30, -56 },  -8.0f, 0.0f, 0.4f }, // o  (bom; Piper bom: 410/800, kop: 480/880; F1/F2 land on harmonics at low F0, hence the lower levels)
         {{ 450,  800, 2830, 3800, 4950 }, { 70,  80, 100, 130, 135 }, {  0,-10, -22, -22, -50 },  -6.0f, 1.5f, 0.3f }, // oo
         {{ 325,  700, 2530, 3500, 4950 }, { 50,  60, 170, 180, 200 }, {  0,-12, -30, -40, -64 },   0.0f, 0.0f, 0.0f }, // oe
         {{ 420, 1450, 2500, 3400, 4500 }, { 90, 110, 140, 150, 160 }, {  0,-10, -22, -34, -56 },  -4.0f,-2.5f, 0.3f }, // schwa (unstressed, a little quieter; Piper: 350-400/1380-1510)
-        {{ 500, 1500, 2400, 3300, 4400 }, { 80, 100, 130, 140, 150 }, {  0,-10, -22, -32, -54 },  -5.0f, 1.0f, 0.3f }, // ui start
-        {{ 280, 1800, 2200, 3300, 4400 }, { 60,  90, 120, 130, 140 }, {  0,-16, -22, -34, -56 },   0.0f, 0.0f, 0.0f }, // uu (ui end)
+        {{ 620, 1400, 2400, 3300, 4400 }, { 80, 100, 130, 140, 150 }, {  0,-10, -22, -32, -54 },  -6.0f, 1.0f, 0.3f }, // ui start  (Piper: 600/1420)
+        {{ 470, 1560, 2300, 3300, 4400 }, { 70, 100, 130, 140, 150 }, {  0,-12, -22, -32, -54 },  -3.0f, 0.5f, 0.2f }, // ui middle (Piper: 480/1550)
+        {{ 260, 1750, 2200, 3300, 4400 }, { 60,  90, 120, 130, 140 }, {  0,-16, -22, -34, -56 },   0.0f, 0.0f, 0.0f }, // uu (ui end; Piper: 250/1750)
+        {{ 280, 2080, 2700, 3700, 4700 }, { 60,  90, 110, 130, 140 }, {  0,-16, -22, -34, -56 },   0.0f, 0.0f, 0.0f }, // ij end   (Piper: 220-300/2050-2130)
     };
     // The Vowel knob/CV morphs over the original five rows A-E-I-O-U.
     static constexpr Ph kMorphRows[5] = { V_AA, V_EE, V_IE, V_OO, V_OE };
@@ -243,30 +248,33 @@ private:
     };
     static constexpr Place kLabial   = { 200.0f, 0.80f,  200.0f, 2300.0f, 0.0f, 0.5f, 1000.0f, 1000.0f, 2500.0f, 2500.0f };
     static constexpr Place kAlveolar = { 200.0f, 0.45f, 1150.0f, 2600.0f, 0.0f, 0.8f, 3600.0f, 3500.0f, 5500.0f, 3000.0f };
-    static constexpr Place kVelar    = { 200.0f, 0.85f,  500.0f,    0.0f, 1.0f, 1.0f,  600.0f, 1400.0f, 3200.0f, 1000.0f };
+    static constexpr Place kVelar    = { 200.0f, 0.85f,  500.0f,    0.0f, 1.0f, 1.0f,  900.0f, 1600.0f, 3400.0f, 1200.0f };
 
-    struct Syllable { Ph onset[2]; Ph v1, v2; Ph coda[2]; };
+    struct Syllable { Ph onset[2]; Ph v1, v2, v3; Ph coda[2]; };
     static constexpr Syllable kSyllables[kSyllableCount] = {
-        { { P_NONE, P_NONE }, P_NONE,  P_NONE, { P_NONE, P_NONE } },   //  0 Vowel knob
-        { { C_D, P_NONE },    V_OE,    P_NONE, { P_NONE, P_NONE } },   //  1 doo
-        { { C_D, P_NONE },    V_AA,    P_NONE, { P_NONE, P_NONE } },   //  2 da
-        { { C_V, P_NONE },    V_AA,    P_NONE, { P_NONE, P_NONE } },   //  3 va
-        { { C_D, P_NONE },    V_SCHWA, P_NONE, { C_R, P_NONE } },      //  4 der
-        { { C_J, P_NONE },    V_AA,    P_NONE, { P_NONE, P_NONE } },   //  5 ja
-        { { C_K, P_NONE },    V_O,     P_NONE, { C_P, P_NONE } },      //  6 cob (kop)
-        { { C_S, C_L },       V_AA,    P_NONE, { C_P, C_T } },         //  7 slaapt
-        { { C_G, P_NONE },    V_E,     V_I,    { P_NONE, P_NONE } },   //  8 gij
-        { { C_N, P_NONE },    V_O,     P_NONE, { C_X, P_NONE } },      //  9 nog
-        { { P_NONE, P_NONE }, V_A,     P_NONE, { C_L, P_NONE } },      // 10 al
-        { { C_L, P_NONE },    V_SCHWA, P_NONE, { P_NONE, P_NONE } },   // 11 le
-        { { C_K, C_L },       V_O,     P_NONE, { P_NONE, P_NONE } },   // 12 klo
-        { { C_K, P_NONE },    V_SCHWA, P_NONE, { C_N, P_NONE } },      // 13 ken
-        { { C_L, P_NONE },    V_OEU,   V_UU,   { P_NONE, P_NONE } },   // 14 lui
-        { { C_D, P_NONE },    V_SCHWA, P_NONE, { C_N, P_NONE } },      // 15 den
-        { { C_B, P_NONE },    V_I,     P_NONE, { C_M, P_NONE } },      // 16 bim
-        { { C_B, P_NONE },    V_A,     P_NONE, { C_M, P_NONE } },      // 17 bam
-        { { C_B, P_NONE },    V_O,     P_NONE, { C_M, P_NONE } },      // 18 bom
-        { { C_D, P_NONE },    V_SCHWA, P_NONE, { P_NONE, P_NONE } },   // 19 de
+        { { P_NONE, P_NONE }, P_NONE,  P_NONE, P_NONE, { P_NONE, P_NONE } },   //  0 Vowel knob
+        { { C_D, P_NONE },    V_OE,    P_NONE, P_NONE, { P_NONE, P_NONE } },   //  1 doo
+        { { C_D, P_NONE },    V_AA,    P_NONE, P_NONE, { P_NONE, P_NONE } },   //  2 da
+        { { C_V, P_NONE },    V_AA,    P_NONE, P_NONE, { P_NONE, P_NONE } },   //  3 va
+        { { C_D, P_NONE },    V_SCHWA, P_NONE, P_NONE, { C_R, P_NONE } },      //  4 der
+        { { C_J, P_NONE },    V_AA,    P_NONE, P_NONE, { P_NONE, P_NONE } },   //  5 ja
+        { { C_K, P_NONE },    V_O,     P_NONE, P_NONE, { C_P, P_NONE } },      //  6 cob (kop)
+        { { C_S, C_L },       V_AA,    P_NONE, P_NONE, { C_P, C_T } },         //  7 slaapt
+        { { C_G, P_NONE },    V_E,     V_IJ,   P_NONE, { P_NONE, P_NONE } },   //  8 gij
+        { { C_N, P_NONE },    V_O,     P_NONE, P_NONE, { C_X, P_NONE } },      //  9 nog
+        { { P_NONE, P_NONE }, V_A,     P_NONE, P_NONE, { C_L, P_NONE } },      // 10 al
+        { { C_L, P_NONE },    V_SCHWA, P_NONE, P_NONE, { P_NONE, P_NONE } },   // 11 le
+        { { C_K, C_L },       V_O,     P_NONE, P_NONE, { P_NONE, P_NONE } },   // 12 klo
+        { { C_K, P_NONE },    V_SCHWA, P_NONE, P_NONE, { C_N, P_NONE } },      // 13 ken
+        { { C_L, P_NONE },    V_OEU,   V_OEU2, V_UU,   { P_NONE, P_NONE } },   // 14 lui
+        { { C_D, P_NONE },    V_SCHWA, P_NONE, P_NONE, { C_N, P_NONE } },      // 15 den
+        { { C_B, P_NONE },    V_I,     P_NONE, P_NONE, { C_M, P_NONE } },      // 16 bim
+        { { C_B, P_NONE },    V_A,     P_NONE, P_NONE, { C_M, P_NONE } },      // 17 bam
+        { { C_B, P_NONE },    V_O,     P_NONE, P_NONE, { C_M, P_NONE } },      // 18 bom
+        { { C_D, P_NONE },    V_SCHWA, P_NONE, P_NONE, { P_NONE, P_NONE } },   // 19 de
+        { { C_N, P_NONE },    V_AA,    P_NONE, P_NONE, { P_NONE, P_NONE } },   // 20 na  (Hey Jude)
+        { { C_H, P_NONE },    V_EE,    P_NONE, P_NONE, { P_NONE, P_NONE } },   // 21 hee
+        { { C_D, C_J },       V_OE,    P_NONE, P_NONE, { C_D, P_NONE } },      // 22 djoed (Jude)
     };
 
     // ── Segments ───────────────────────────────────────────────────────────
@@ -284,6 +292,7 @@ private:
         float jaw;              // jaw opening at the target (intrinsic vowel properties)
         NoiseShape noiseShape;
         float noiseHz, noiseBw, noiseGain;
+        float amHz, amNoise, amVoice;   // roughness: slow amplitude modulation (uvular ch/g/r ~16-20 Hz)
         bool vowel;             // true: snap to the exact vowel at the end of the ramp
         Ph vowelRow;            // which vowel row the targets came from (vowel segments)
     };
@@ -397,6 +406,7 @@ private:
         s.bwScale = 1.0f; s.rampSamples = ms(40.0f); s.holdSamples = 0;
         s.voicing = 1.0f; s.upper = 1.0f; s.aspiration = 0.0f; s.cents = 0.0f; s.breath = 0.0f; s.jaw = 1.0f;
         s.noiseShape = NS_NONE; s.noiseHz = 4500.0f; s.noiseBw = 3000.0f; s.noiseGain = 0.0f;
+        s.amHz = 0.0f; s.amNoise = 0.0f; s.amVoice = 0.0f;
         s.vowel = false; s.vowelRow = P_NONE;
         return s;
     }
@@ -422,14 +432,20 @@ private:
     static void fricationNoise(Ph c, Segment& s) {
         s.noiseShape = NS_FLAT;
         if (c == C_S || c == C_Z) { s.noiseHz = 6500.0f; s.noiseBw = 2500.0f; s.noiseGain = 0.35f; }
-        else if (c == C_F || c == C_V) { s.noiseHz = 5000.0f; s.noiseBw = 4000.0f; s.noiseGain = 0.12f; }
-        else { s.noiseHz = 1800.0f; s.noiseBw = 900.0f; s.noiseGain = 0.2f; }   // ch / g
+        else if (c == C_F) { s.noiseHz = 4500.0f; s.noiseBw = 3000.0f; s.noiseGain = 0.12f; }
+        else if (c == C_V) { s.noiseHz = 1500.0f; s.noiseBw = 2000.0f; s.noiseGain = 0.1f; }    // Piper pim: energy 150-1600 Hz
+        else if (c == C_G) { s.noiseHz = 900.0f; s.noiseBw = 1000.0f; s.noiseGain = 0.08f; s.amHz = 16.0f; s.amNoise = 0.6f; }  // voiced velar, weak
+        else { s.noiseHz = 1300.0f; s.noiseBw = 1200.0f; s.noiseGain = 0.22f; s.amHz = 16.0f; s.amNoise = 0.7f; }   // ch: Piper pim q25-75 580-2250, 16 Hz scrape
     }
 
     static void approximantTargets(Ph c, Segment& s) {
         if (c == C_L)      { s.hz[0] = 350.0f; s.hz[1] = 1100.0f; s.hz[2] = 2800.0f; }
-        else if (c == C_R) { s.hz[0] = 350.0f; s.hz[1] = 1300.0f; s.hz[2] = 1800.0f; }   // low F3 = /r/
-        else if (c == C_J) { s.hz[0] = 280.0f; s.hz[1] = 2250.0f; s.hz[2] = 2890.0f; }
+        else if (c == C_R) {   // Dutch uvular r: dark, damped, scraping (Piper pim: centroid 220-370 Hz, ~18 Hz AM)
+            s.hz[0] = 400.0f; s.hz[1] = 1150.0f; s.hz[2] = 1900.0f;
+            s.noiseShape = NS_FLAT; s.noiseHz = 1000.0f; s.noiseBw = 900.0f; s.noiseGain = 0.07f;
+            s.amHz = 18.0f; s.amNoise = 0.6f; s.amVoice = 0.45f;
+        }
+        else if (c == C_J) { s.hz[0] = 250.0f; s.hz[1] = 2100.0f; s.hz[2] = 2900.0f; }
         else               { s.hz[0] = 300.0f; s.hz[1] =  900.0f; s.hz[2] = 2300.0f; }   // w
     }
 
@@ -446,13 +462,15 @@ private:
             // voicing resumes, then the glide into the vowel (nucleus ramp).
             Segment closure = blank();
             locus(place, vowelF2, closure.hz);
-            closure.bwScale = 2.0f; closure.rampSamples = ms(20.0f); closure.holdSamples = ms(c == C_B ? 20.0f : 5.0f);
+            closure.hz[0] = 220.0f;
+            closure.bwScale = 2.5f; closure.rampSamples = ms(20.0f); closure.holdSamples = ms(c == C_B ? 20.0f : 5.0f);
             closure.voicing = 0.08f * pitchScale_; closure.upper = 0.0f; closure.breath = 0.05f;
             closure.cents = -60.0f; closure.jaw = 0.0f;
             push(closure);
             Segment burst = closure;
             burst.rampSamples = ms(8.0f); burst.holdSamples = 0;
-            burst.voicing = 0.4f; burst.upper = 1.0f;
+            // Voicing stays low until F1 has left the locus (F1 near F0 thumps).
+            burst.voicing = 0.25f; burst.upper = 1.0f;
             burst.noiseShape = NS_BURST; burst.noiseHz = burstHz; burst.noiseBw = place.burstBandwidth;
             burst.noiseGain = 0.25f * (0.6f + 0.4f * rounding) * pitchScale_;
             push(burst);
@@ -468,7 +486,7 @@ private:
             Segment burst = closure;
             burst.rampSamples = ms(10.0f); burst.holdSamples = 0; burst.upper = 1.0f;
             burst.noiseShape = NS_BURST; burst.noiseHz = burstHz; burst.noiseBw = place.burstBandwidth;
-            burst.noiseGain = (c == C_K ? 0.35f : 0.28f) * (0.6f + 0.4f * rounding) * pitchScale_;
+            burst.noiseGain = (c == C_K ? 0.25f : 0.28f) * (0.6f + 0.4f * rounding) * pitchScale_;
             push(burst);
             Segment vot = burst;
             vot.rampSamples = ms(5.0f); vot.holdSamples = ms(15.0f); vot.noiseShape = NS_NONE;
@@ -490,11 +508,13 @@ private:
             Segment fric = blank();
             locus(place, vowelF2, fric.hz);
             fric.bwScale = 1.5f; fric.rampSamples = ms(30.0f);
-            fric.holdSamples = ms(c == C_S ? 60.0f : (voiced ? 40.0f : 65.0f));
-            fric.voicing = voiced ? 0.25f : 0.0f; fric.upper = voiced ? 0.3f : 0.0f;
+            fric.holdSamples = ms(c == C_S ? 60.0f : c == C_V ? 90.0f : c == C_G ? 80.0f : c == C_X ? 100.0f : (voiced ? 40.0f : 65.0f));
+            fric.voicing = c == C_G ? 0.55f : voiced ? 0.35f : 0.0f;
+            fric.upper = c == C_G ? 0.5f : voiced ? 0.5f : 0.0f;
             fric.cents = voiced ? -30.0f : 30.0f; fric.jaw = 0.2f;
+            fric.aspiration = c == C_X ? 0.03f * pitchScale_ : 0.0f;   // a little through the tract: it belongs to the voice
             fricationNoise(c, fric);
-            if (voiced) fric.noiseGain *= 0.5f;
+            if (c == C_Z) fric.noiseGain *= 0.5f;
             push(fric);
             break; }
         case C_H: {
@@ -507,10 +527,12 @@ private:
             // Approximants: a vowel-like constriction, voiced, held briefly.
             Segment a = blank();
             approximantTargets(c, a);
-            a.bwScale = 1.5f; a.rampSamples = ms(40.0f); a.holdSamples = ms(c == C_R ? 35.0f : 45.0f);
+            a.bwScale = c == C_R ? 2.5f : 1.5f; a.rampSamples = ms(40.0f);
+            a.holdSamples = ms(c == C_R ? 70.0f : c == C_J ? 70.0f : 45.0f);
             // F1 of an approximant sits near a low F0 and would ring loud:
-            // keep the voicing modest.
-            a.voicing = 0.5f; a.upper = 0.6f; a.jaw = 0.3f;
+            // keep the voicing modest. j needs its upper formants (else it is an n).
+            a.voicing = c == C_J ? 0.6f : c == C_R ? 0.6f : 0.5f;
+            a.upper = c == C_J ? 0.9f : c == C_R ? 0.4f : 0.6f; a.jaw = 0.3f;
             push(a);
             break; }
         default: break;
@@ -518,29 +540,37 @@ private:
     }
 
     /** Append a coda consonant. Dutch final obstruents are voiceless. */
-    void pushCodaConsonant(Ph c, float vowelF2, bool last) {
+    void pushCodaConsonant(Ph c, float vowelF2, bool first, bool last) {
         const Place& place = placeOf(c);
         switch (c) {
         case C_M: case C_N: {
             Segment murmur = blank();
             murmur.hz[0] = 250.0f; murmur.hz[1] = c == C_M ? 1000.0f : 1500.0f; murmur.hz[2] = 2300.0f;
-            murmur.bwScale = 2.5f; murmur.rampSamples = ms(50.0f); murmur.holdSamples = ms(90.0f);
+            murmur.bwScale = 2.5f; murmur.rampSamples = ms(50.0f); murmur.holdSamples = ms(c == C_M ? 130.0f : 110.0f);
             murmur.voicing = 0.5f; murmur.upper = 0.25f; murmur.cents = -20.0f; murmur.jaw = 0.1f;
             push(murmur);
             break; }
         case C_P: case C_T: case C_K: case C_B: case C_D: {
             Segment closure = blank();
             locus(place, vowelF2, closure.hz);
-            closure.bwScale = 2.0f; closure.rampSamples = ms(45.0f); closure.holdSamples = ms(last ? 60.0f : 30.0f);
+            closure.bwScale = 2.0f; closure.rampSamples = ms(first ? 45.0f : 25.0f);
+            closure.holdSamples = ms(last ? (first ? 60.0f : 45.0f) : 25.0f);
             closure.voicing = 0.0f; closure.upper = 0.0f; closure.jaw = 0.0f;
             push(closure);
             if (last) {
+                // Released final stop: a clear burst plus a short puff of air
+                // ("slaapt" must end in a t, not fade out in the p closure).
                 Segment burst = closure;
-                burst.rampSamples = ms(8.0f); burst.holdSamples = ms(10.0f);
+                burst.rampSamples = ms(8.0f); burst.holdSamples = ms(18.0f);
                 burst.noiseShape = NS_BURST; burst.upper = 1.0f;
                 burst.noiseHz = clamp(place.burstIntercept + place.burstSlope * vowelF2, place.burstMin, place.burstMax);
-                burst.noiseBw = place.burstBandwidth; burst.noiseGain = 0.2f * pitchScale_;
+                burst.noiseBw = place.burstBandwidth;
+                burst.noiseGain = (c == C_P || c == C_B ? 0.22f : 0.35f) * pitchScale_;
                 push(burst);
+                Segment puff = burst;
+                puff.rampSamples = ms(5.0f); puff.holdSamples = ms(20.0f); puff.noiseShape = NS_NONE;
+                puff.aspiration = 0.06f * pitchScale_; puff.bwScale = 1.5f;
+                push(puff);
             }
             break; }
         case C_F: case C_S: case C_X: case C_V: case C_Z: case C_G: {
@@ -555,8 +585,8 @@ private:
             Segment a = blank();
             approximantTargets(c, a);
             if (c == C_L) a.hz[1] = 1000.0f;   // dark final l
-            a.bwScale = 1.5f; a.rampSamples = ms(50.0f); a.holdSamples = ms(60.0f);
-            a.voicing = 0.5f; a.upper = 0.6f; a.jaw = 0.3f;
+            a.bwScale = c == C_R ? 2.5f : 1.5f; a.rampSamples = ms(50.0f); a.holdSamples = ms(c == C_R ? 110.0f : 60.0f);
+            a.voicing = c == C_R ? 0.6f : 0.5f; a.upper = c == C_R ? 0.4f : 0.6f; a.jaw = 0.3f;
             push(a);
             break; }
         default: break;
@@ -606,9 +636,14 @@ private:
         const float vowelRamp = lastOnset == P_NONE ? 30.0f : (isStop(lastOnset) ? 50.0f : 60.0f);
         if (syl.v2 == P_NONE) {
             pushVowelSegment(syl.v1, vowelRamp, -1);
+        } else if (syl.v3 == P_NONE) {
+            pushVowelSegment(syl.v1, vowelRamp, ms(90.0f));
+            pushVowelSegment(syl.v2, 160.0f, -1);
         } else {
-            pushVowelSegment(syl.v1, vowelRamp, ms(110.0f));
-            pushVowelSegment(syl.v2, 130.0f, -1);
+            // Three-point diphthong (ui: open rounded start, mid, close end).
+            pushVowelSegment(syl.v1, vowelRamp, ms(70.0f));
+            pushVowelSegment(syl.v2, 80.0f, ms(40.0f));
+            pushVowelSegment(syl.v3, 140.0f, -1);
         }
         codaHold_ = false;
         if (envelope_ < 0.1f && segmentCount_ > 0) {
@@ -632,13 +667,13 @@ private:
         if (!engineActive_) return;
         const Syllable& syl = kSyllables[syllable_];
         if (syl.coda[0] == P_NONE) { codaHold_ = false; return; }
-        nucleusRow_ = syl.v2 != P_NONE ? syl.v2 : syl.v1;
+        nucleusRow_ = syl.v3 != P_NONE ? syl.v3 : syl.v2 != P_NONE ? syl.v2 : syl.v1;
         computeTargetsRow(nucleusRow_);
         segmentCount_ = 0;
         const float vowelF2 = targetHz_[1];
         for (int i = 0; i < 2; ++i) {
             if (syl.coda[i] == P_NONE) break;
-            pushCodaConsonant(syl.coda[i], vowelF2, i == 1 || syl.coda[1] == P_NONE);
+            pushCodaConsonant(syl.coda[i], vowelF2, i == 0, i == 1 || syl.coda[1] == P_NONE);
         }
         codaHold_ = true;
         beginSegments();
@@ -678,7 +713,7 @@ private:
 
     void leaveEngine() {
         engineActive_ = false; codaHold_ = false; noiseRinging_ = false; snapped_ = false;
-        voicing_ = 1.0f; upperDrive_ = 1.0f; aspirationDrive_ = 0.0f; noiseDrive_ = 0.0f;
+        voicing_ = 1.0f; upperDrive_ = 1.0f; aspirationDrive_ = 0.0f; noiseDrive_ = 0.0f; amVoiceGain_ = 1.0f;
         onsetCents_ = 0.0f; onsetBreath_ = 0.0f; jawMix_ = 1.0f; currentBwScale_ = 1.0f;
         updateFormants();
     }
@@ -726,6 +761,14 @@ private:
         } else {
             noiseDrive_ = 0.0f;
         }
+        if (s.amHz > 0.0f) {
+            // Slow amplitude modulation: the scrape of a uvular ch, g or r.
+            const float m = 0.5f - 0.5f * std::cos(kTwoPi * s.amHz * static_cast<float>(t) / sampleRate_);
+            noiseDrive_ *= 1.0f - s.amNoise * m;
+            amVoiceGain_ = 1.0f - s.amVoice * m;
+        } else {
+            amVoiceGain_ = 1.0f;
+        }
         if (t >= s.rampSamples && s.vowel && !snapped_) {
             // End of the glide into a vowel: exact table coefficients, so the
             // sustained sound is bit-identical to the plain vowel.
@@ -734,7 +777,7 @@ private:
             currentBwScale_ = 1.0f;
             loadFormants(currentHz_, currentBw_, currentDb_);
             voicing_ = 1.0f; upperDrive_ = 1.0f; aspirationDrive_ = 0.0f; onsetCents_ = 0.0f; onsetBreath_ = 0.0f; jawMix_ = 1.0f;
-            noiseRinging_ = false; noiseDrive_ = 0.0f;
+            noiseRinging_ = false; noiseDrive_ = 0.0f; amVoiceGain_ = 1.0f;
             updateIntrinsic();
         }
         if (s.holdSamples >= 0 && t >= s.rampSamples + s.holdSamples) nextSegment();
@@ -781,6 +824,7 @@ private:
     float onsetCents_ = 0.0f;      // F0 offset from the engine
     float onsetBreath_ = 0.0f;     // soft air run-up through a closure
     float pitchScale_ = 1.0f;
+    float amVoiceGain_ = 1.0f;
     float intrinsicGain_ = 1.0f, intrinsicBreath_ = 0.0f;
     uint32_t controlTick_ = 0;
     int syllable_ = 0;

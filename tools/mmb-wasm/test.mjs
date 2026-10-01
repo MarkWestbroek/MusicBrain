@@ -251,9 +251,23 @@ async function checkFof(file) {
   assert(Math.abs(rms(doo.steady) / rms(plainOe.steady) - 1) < 0.01, 'FOF: doo must settle on the oe vowel');
   assert(Math.abs(rms(da.steady) / rms(plainA.steady) - 1) < 0.01, 'FOF: da must settle on the a vowel');
   assert(Math.abs(rms(da.steady) / rms(doo.steady) - 1) > 0.2, 'FOF: doo and da must differ in vowel');
-  // syl_cv loopt 0..1 over de tabel van 20: index = round(cv * 19).
-  assert.deepEqual(await windows(await startVoice({}, { syl_cv: 1 / 19 })), doo, 'FOF: syl_cv 1/19 must select doo');
-  assert.deepEqual(await windows(await startVoice({}, { syl_cv: 2 / 19 })), da, 'FOF: syl_cv 2/19 must select da');
+  // syl_cv loopt 0..1 over de tabel van 23: index = round(cv * 22).
+  assert.deepEqual(await windows(await startVoice({}, { syl_cv: 1 / 22 })), doo, 'FOF: syl_cv 1/22 must select doo');
+  assert.deepEqual(await windows(await startVoice({}, { syl_cv: 2 / 22 })), da, 'FOF: syl_cv 2/22 must select da');
+  // Next/Reset: een flank op next stapt door (knop 0 + 1 stap = doo), reset gaat terug.
+  const steppedSyl = await load(file);
+  steppedSyl.setCtl('breath', 0); steppedSyl.setCtl('vibrato', 0);
+  steppedSyl.setIn('voct', Math.log2(220 / 261.6256));
+  steppedSyl.setIn('next', 1); captureFof(steppedSyl, 0.01); steppedSyl.setIn('next', 0); captureFof(steppedSyl, 0.01);
+  steppedSyl.setIn('gate', 1);
+  const steppedWindows = await windows(steppedSyl);
+  assert(Math.abs(rms(steppedWindows.steady) / rms(doo.steady) - 1) < 0.01, 'FOF: next must step from Vowel to doo');
+  assert(rms(steppedWindows.closure) < rms(steppedWindows.steady) * 0.2, 'FOF: stepped doo must play its onset');
+  steppedSyl.setIn('gate', 0); captureFof(steppedSyl, 0.3);
+  steppedSyl.setIn('reset', 1); captureFof(steppedSyl, 0.01); steppedSyl.setIn('reset', 0);
+  steppedSyl.setIn('gate', 1);
+  const resetWindows = await windows(steppedSyl);
+  assert(Math.abs(rms(resetWindows.steady) / rms(plainA.steady) - 1) < 0.02, 'FOF: reset must return to the knob (Vowel = a)');
   assert.deepEqual(await windows(await startVoice({ syl_amt: 0 }, { syl_cv: 1 })), plainA, 'FOF: syl_amt 0 must ignore the cable');
   const heldDoo = await startVoice({ syl: 1 });
   await windows(heldDoo);
@@ -274,7 +288,7 @@ async function checkFof(file) {
   // Alle twintig lettergrepen: eindig, niet geclipt, de klinker klinkt, de
   // coda speelt na de gate en sterft uit; na een stemloze slotmedeklinker
   // (cob = kop, slaapt, nog) komt de stem in de release niet terug.
-  for (let syl = 1; syl < 20; syl++) {
+  for (let syl = 1; syl < 23; syl++) {
     const module = await startVoice({ syl });
     captureFof(module, 0.15);
     const held = captureFof(module, 0.15);
@@ -292,7 +306,7 @@ async function checkFof(file) {
     assert(rms(captureFof(module, 0.1)) > 0.01, `FOF: syllable ${syl} must retrigger`);
   }
   for (const frequency of [110, 880]) {
-    for (const syl of [6, 7, 8, 14, 17]) {
+    for (const syl of [6, 7, 8, 14, 17, 22]) {
       const module = await startVoice({ syl, breath: 0.5 }, { voct: Math.log2(frequency / 261.6256) });
       captureFof(module, 0.3);
       module.setIn('gate', 0);
@@ -325,7 +339,7 @@ async function checkFof(file) {
       }
     }
   }
-  console.log('FOF regression: 45 pitch/vowel/Voice cases, spectral tilt, velocity volume/timbre/default/clamps/note-off, pressure default/clamp/monotone/floor/timbre/breath/smoothing/jumps, attenuators + vibrato/voice CV, syllables doo/da (closure, burst, settle, CV, hold, retrigger) + 19 table syllables (coda, decay, voiceless tail, retrigger, extremes), intrinsic vowel pitch/level, release/retrigger/mute and 8 extreme cases passed.');
+  console.log('FOF regression: 45 pitch/vowel/Voice cases, spectral tilt, velocity volume/timbre/default/clamps/note-off, pressure default/clamp/monotone/floor/timbre/breath/smoothing/jumps, attenuators + vibrato/voice CV, syllables doo/da (closure, burst, settle, CV, hold, retrigger) + 22 table syllables (coda, decay, voiceless tail, retrigger, extremes) + next/reset, intrinsic vowel pitch/level, release/retrigger/mute and 8 extreme cases passed.');
 }
 
 const only = process.argv[2];

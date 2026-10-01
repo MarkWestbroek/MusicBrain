@@ -7,15 +7,15 @@ const char* const MMB_TYPE_ID = "tp_mmb_fof";
 const float MMB_NATIVE_RATE = 44100.0f;
 const int MMB_BLOCK = 32;
 
-enum { IN_VOCT, IN_GATE, IN_VOWEL, IN_BREATH, IN_VEL, IN_PRESSURE, IN_VIBRATO, IN_VOICE, IN_SYL };
+enum { IN_VOCT, IN_GATE, IN_VOWEL, IN_BREATH, IN_VEL, IN_PRESSURE, IN_VIBRATO, IN_VOICE, IN_SYL, IN_NEXT, IN_RESET };
 MmbPort MMB_INPUTS[] = {
     { "voct", MMB_CV, 0, {} }, { "gate", MMB_GATE, 0, {} },
     { "vowel", MMB_CV, 0, {} }, { "breath", MMB_CV, 0, {} },
     { "vel", MMB_CV, 0, {} }, { "pressure", MMB_CV, 0, {} },
     { "vibrato", MMB_CV, 0, {} }, { "voice", MMB_CV, 0, {} },
-    { "syl_cv", MMB_CV, 0, {} },
+    { "syl_cv", MMB_CV, 0, {} }, { "next", MMB_GATE, 0, {} }, { "reset", MMB_GATE, 0, {} },
 };
-const int MMB_NUM_INPUTS = 9;
+const int MMB_NUM_INPUTS = 11;
 MmbPort MMB_OUTPUTS[] = { { "out", MMB_AUDIO, 0, {} } };
 const int MMB_NUM_OUTPUTS = 1;
 
@@ -43,6 +43,8 @@ float voiceKnob = 0.35f;
 float amt[6] = { 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f };
 float syl = 0.0f;
 float sylAmt = 1.0f;
+int sylStep = 0;
+bool nextWas = false, resetWas = false;
 float cvOr(int index, float fallback) { return mmb_connected(index) ? mmb_in0(index) : fallback; }
 }
 
@@ -74,7 +76,15 @@ void mmb_process(int frames) {
     voice.setVoice(mmb_clamp01(voiceKnob + amt[3] * cvOr(IN_VOICE, 0.0f)));
     voice.setVelocity(1.0f - amt[4] * (1.0f - mmb_clamp01(cvOr(IN_VEL, 1.0f))));
     voice.setPressure(1.0f - amt[5] * (1.0f - mmb_clamp01(cvOr(IN_PRESSURE, 1.0f))));
-    const float span = static_cast<float>(mmb_dsp::FofVoice::kSyllableCount - 1);
-    voice.setSyllable(static_cast<int>(std::lround(syl + sylAmt * mmb_clamp01(cvOr(IN_SYL, 0.0f)) * span)));
+    // Syllable: knob + CV over the table, plus a step counter driven by the
+    // `next` gate (rising edge = next syllable, wraps); `reset` goes back.
+    const int count = mmb_dsp::FofVoice::kSyllableCount;
+    const bool next = mmb_gate_in(IN_NEXT), reset = mmb_gate_in(IN_RESET);
+    if (next && !nextWas) sylStep = (sylStep + 1) % count;
+    if (reset && !resetWas) sylStep = 0;
+    nextWas = next; resetWas = reset;
+    const float span = static_cast<float>(count - 1);
+    const int base = static_cast<int>(std::lround(syl + sylAmt * mmb_clamp01(cvOr(IN_SYL, 0.0f)) * span));
+    voice.setSyllable(((base < 0 ? 0 : base) + sylStep) % count);
     for (int i = 0; i < frames; ++i) MMB_OUTPUTS[0].buf[i] = voice.process();
 }
