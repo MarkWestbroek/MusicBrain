@@ -25,6 +25,7 @@ import {
   seedInternals,
   seedMaterialBridgeDemo,
   seedReservoirDemo,
+  seedTapeStripPolyPatch,
   seedPolyVoicePatch,
   seedSamplerPolyPatch,
   seedSoloVoicePatch,
@@ -107,10 +108,21 @@ function allSeededProject(): ModularProject {
   p = seedZangPatch(p);
   p = seedMaterialBridgeDemo(p);
   p = seedReservoirDemo(p);
+  p = seedTapeStripPolyPatch(p, 8);
   return p;
 }
 
 const project = allSeededProject();
+it('Tape strip ×8 is een PolyGroup over de cellen met aftertouch op Press en bend op Bend', () => {
+  const patch = project.patches.find((item) => item.name === 'Tape strip ×8')!;
+  expect(patch.connections.map((connection) => [connection.from.portId, connection.to.portId])).toEqual([
+    ['pitch', 'voct_1'], ['gate', 'gate_1'], ['vel', 'vel_1'], ['press', 'press'], ['cv_bend', 'bend'], ['out_l', 'l'], ['out_r', 'r'],
+  ]);
+  const rack = project.racks.find((item) => item.id === patch.rackIds[0])!;
+  expect(rack.polyGroups?.[0]?.members).toHaveLength(8);
+  expect(rack.polyGroups?.[0]?.members.every((member) => member.kind === 'cell' && member.cellGroupId === 'voice')).toBe(true);
+});
+
 it('Reservoir demo stuurt beide envelopes door het reservoir, met alleen Drain als A/B-verschil', () => {
   const demo = seedReservoirDemo(emptyModularProject());
   const [shared, independent] = demo.patches.slice(-2);

@@ -18,7 +18,7 @@ import { BUS_SOLO_FX, CONSOLE_EQ_SOLO_FX, PARA_EQ_SOLO_FX, DIODE_SOLO_FX, EQ_SOL
 import { seedCs80BrassPatch } from './seedBrass';
 import { seedAxelFLeadPatch } from './seedAxelF';
 import { seedSid3Patch, seedSidPolyPatch } from './seedSid';
-import { seedMaterialBridgeDemo, seedReservoirDemo } from './seedModules';
+import { seedMaterialBridgeDemo, seedReservoirDemo, seedTapeStripPolyPatch } from './seedModules';
 
 /** Effecten achter de solo-seeds (Solo ▾): de stand en de tooltip. */
 const SOLO_FX = {
@@ -529,6 +529,14 @@ export function ModularMbApp(): JSX.Element {
                     padding: '7px 12px', cursor: 'pointer', fontSize: 13,
                   }}
                 >🎧 Sampler ×8 (cellen)</button>
+                <button
+                  onClick={() => { setProject(seedTapeStripPolyPatch(getProject(), 8)); setShowPoly(false); }}
+                  title="Mellotron-mechanica om de samplerbank: per toets een bandje van 8 s dat na loslaten terugspoelt, kopcontact, motorbelasting, wow/flutter en slijtage. Gebruikt de bank van de sampler (bankbalk in Simulatie)."
+                  style={{
+                    textAlign: 'left', border: 'none', background: 'transparent',
+                    padding: '7px 12px', cursor: 'pointer', fontSize: 13,
+                  }}
+                >📼 Tape strip ×8 (Mellotron)</button>
                 <button
                   onClick={() => { setProject(seedZangPatch(getProject(), 8)); setShowPoly(false); }}
                   title="Zingende stem: ZANG met acht stem-cellen als PolyGroup, met galm. Elke aanslag zingt de volgende lettergreep. Maak een lyricbank via 🎤 Zang."

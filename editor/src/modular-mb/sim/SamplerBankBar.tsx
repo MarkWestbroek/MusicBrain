@@ -11,7 +11,7 @@ export function SamplerBankBar(props: { project: ModularProject; patch: Patch })
   const { project, patch } = props;
   const link = useTeensyLink();
   const sdNames = link.lastStatus?.sdBankNames;
-  const sampler = project.modules.find((m) => m.typeId === 'tp_mmb_sampler'
+  const sampler = project.modules.find((m) => (m.typeId === 'tp_mmb_sampler' || m.typeId === 'tp_mmb_tapestrip')
     && patch.connections.some((c) => c.from.moduleId === m.id || c.to.moduleId === m.id));
   const nn = sampler ? Math.round(Number(patch.controlState[sampler.id]?.bank ?? 0)) : null;
   const [index, setIndex] = useState<BankIndex | null>(null);

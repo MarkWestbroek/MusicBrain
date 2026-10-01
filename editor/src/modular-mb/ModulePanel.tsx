@@ -206,7 +206,7 @@ export function ModulePanel({
         <MidiPortLeds ports={ports} placements={visual.portPlacements} controlState={controlState} r={JACK_R}
           act={visual.controlPlacements.act} />
       )}
-      {mod.typeId === 'tp_mmb_sampler' && (
+      {(mod.typeId === 'tp_mmb_sampler' || mod.typeId === 'tp_mmb_tapestrip') && (
         <SamplerBankStrip cx={widthMm / 2} y={15.6} w={widthMm * 0.62}
           bank={Number(controlState?.bank ?? 0)} />
       )}

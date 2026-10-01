@@ -40,7 +40,7 @@ import { addWorkletModule } from './workletLoader';
  */
 export class WasmModule extends AudioModule {
   static readonly typeIds: ReadonlySet<string> = new Set([
-    'tp_mmb_material_bridge', 'tp_mmb_scanned', 'tp_mmb_reservoir', 'tp_mmb_gendyn', 'tp_mmb_excitable',
+    'tp_mmb_material_bridge', 'tp_mmb_scanned', 'tp_mmb_reservoir', 'tp_mmb_gendyn', 'tp_mmb_excitable', 'tp_mmb_tapestrip',
     'tp_mmb_elements', 'tp_mmb_rings', 'tp_mmb_marbles', 'tp_mmb_stages',
     'tp_mmb_peaks', 'tp_mmb_morph_wt', 'tp_mmb_clouds',
     'tp_mmb_plaits', 'tp_mmb_tides', 'tp_mmb_warps', 'tp_mmb_tape_echo', 'tp_mmb_sampler', 'tp_mmb_zang',
@@ -102,6 +102,13 @@ export class WasmModule extends AudioModule {
   private static readonly instanceBlobs = new Map<string, Map<number, WasmBlob>>();
   /** Keymap per typeId — gedeeld door alle instanties, zoals de bank. */
   private static readonly zoneMaps = new Map<string, WasmZone[]>();
+  /** Typen die dezelfde bank krijgen als een ander type: de tape-strip
+   *  (Mellotron-mechanica) speelt de bank van de sampler, zoals op de Teensy
+   *  beide uit dezelfde PSRAM-bank lezen. Een blob of keymap voor de sampler
+   *  gaat dus ook naar deze typen. */
+  static readonly bankAliases: Readonly<Record<string, readonly string[]>> = {
+    tp_mmb_sampler: ['tp_mmb_tapestrip'],
+  };
 
   /** Sample naar slot `slot` van alle (huidige en toekomstige) instanties. */
   static setBlob(
@@ -112,6 +119,7 @@ export class WasmModule extends AudioModule {
     if (!m) { m = new Map(); WasmModule.blobs.set(typeId, m); }
     m.set(slot, { data, rate, name, channels });
     for (const inst of WasmModule.instances) if (inst.typeId === typeId) inst.postBlob(slot, data, rate, channels);
+    for (const alias of WasmModule.bankAliases[typeId] ?? []) WasmModule.setBlob(alias, slot, data, rate, name, channels);
   }
   /** Blob naar slot `slot` van één module (op id), nu en na een herbouw. */
   static setInstanceBlob(moduleId: string, slot: number, data: Int16Array, rate = 44100): void {
@@ -124,6 +132,7 @@ export class WasmModule extends AudioModule {
   static setZones(typeId: string, zones: WasmZone[]): void {
     WasmModule.zoneMaps.set(typeId, zones);
     for (const inst of WasmModule.instances) if (inst.typeId === typeId) inst.postZones(zones);
+    for (const alias of WasmModule.bankAliases[typeId] ?? []) WasmModule.setZones(alias, zones);
   }
   static getZones(typeId: string): WasmZone[] { return WasmModule.zoneMaps.get(typeId) ?? []; }
   static getBlobs(typeId: string): Map<number, WasmBlob> { return WasmModule.blobs.get(typeId) ?? new Map(); }

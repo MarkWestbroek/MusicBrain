@@ -1,6 +1,6 @@
-# Vier onderzoeksmodules: overdracht (2026-10-02)
+# Vijf onderzoeksmodules: overdracht (2026-10-02)
 
-**Status:** gebouwd, getest en gecommit in de nacht van 1 op 2 oktober 2026; niet beluisterd door een mens en niet op hardware geflasht.
+**Status:** gebouwd, getest en gecommit in de nacht van 1 op 2 oktober 2026; niet beluisterd door een mens en niet op hardware geflasht. De vijfde (Tape strip) kwam uit een idee van Mark later die nacht.
 **Herkomst:** de open kandidaten uit [Synthesetechnieken buiten de vier bekende](synthesetechnieken-verkenning.md) na het Material Bridge-werk van 2026-10-01 ([handover](material-bridge-handover.md)).
 
 Alle vier volgen het Material Bridge-recept: een gedeelde header-only C++-kern in `firmware/lib/mmb-dsp/mmb_dsp/`, een Teensy-wrapper in `firmware/app-modular-brain/src/`, een wasm-wrapper in `tools/mmb-wasm/`, een C++-invariantentest in `tools/mmb-wasm/bitcheck/` op 32/44,1/48/96 kHz, een paneel en Solo-seed in `seedModules.ts`, gedragstests in `wasmPorts.test.ts`, en het gegenereerde contract. Na iedere module slaagden vitest, de C++-check, de TypeScript-check, de editorbuild en de PlatformIO Teensy 4.1-build. Eindstand: 343 contract- en wasm-tests.
@@ -15,6 +15,7 @@ Open de editor, kies **Solo ▾** en daarna een van:
 | GENDYN (stochastisch) | `tp_mmb_gendyn` | Ruwe, wandelende golfvorm. Iedere noot begint hetzelfde (Seed) en wandelt weg. Amp 0 met Settle 0 is een stilstaande golf. |
 | Excitable (prikkelbaar medium) | `tp_mmb_excitable` | Pulsvormig; Gate B via MIDI zit niet in de solo-seed, patch zelf een tweede gate op Gate B. Draai Refract omhoog bij hoge noten voor subharmonieken. |
 | Reservoir demo (gedeelde bron) | `tp_mmb_reservoir` | Zelfspelend, twee patches: "gedeelde bron" (Drain 0,8) en "onafhankelijk" (Drain 0). Wissel en luister of de stemmen elkaar wegduwen. |
+| **Poly ▾ > Tape strip ×8 (Mellotron)** | `tp_mmb_tapestrip` | Speelt de bank van de sampler (bankbalk in Simulatie) met Mellotron-mechanica. Houd een toets langer dan 8 s, speel snel dezelfde toets opnieuw, speel akkoorden tegen enkele noten. |
 
 De Reservoir-module zelf staat onder de utility-modules en heeft geen eigen Solo-seed; hij is pas zinvol met twee of meer stemmen.
 
@@ -48,6 +49,24 @@ Gemeten: 262 pulsen/s op C4 bij de linker pickup; na loslaten binnen 20 ms leeg 
 
 Open: pulsvormige klank met stapjitter van een mediumstap (bij Speed 2 op 44,1 kHz ~45 µs, dus ~1 % periodejitter op C4). Het interessante zit in het samenspel van twee bronnen en in de refractaire blokkade, niet in de kale toon. Dit is de riskantste van de vier; een luisteroordeel kan hem ook afschrijven.
 
+## 5. Tape strip, Mellotron-mechanica om een gewone bank (`tp_mmb_tapestrip`, 16 HP)
+
+Marks idee: de Mellotron had goede opnames op band; de muziek zit in de onvolmaaktheid eromheen. Dus geen Mellotron-samples, maar de bestaande `.mmbs`-banken van de sampler, "gemellotroniseerd". Acht stemmen op dezelfde `SamplePlayer`-kern en (op de Teensy) dezelfde `SampleBank` als de sampler; in de simulator krijgt het type automatisch de bank van de sampler (`WasmModule.bankAliases`), dus bankbalk, multisample-import en autoload werken ongewijzigd.
+
+De kern `tape_strip.h` (1452 bytes) weet niets van samples en levert per noot de startpositie, per blok de snelheidsafwijking en per sample de bewerking:
+
+- **Bandje per toets** (128 posities): loopt met de klok mee, stopt abrupt op Length (1..8 s) met een fade van 6 ms; de toets blijft dan stil tot loslaten.
+- **Veerterugloop met geheugen**: na loslaten loopt het bandje terug (Return = terugloop van een volle strip, 0,1..4 s). Opnieuw indrukken terwijl het bandje onderweg is start op de huidige positie, via `SamplePlayer::playSeconds()` omgerekend naar een startoffset in het sample (transpositie meegerekend).
+- **Kopcontact** (Contact): opkomst van 8 tot 58 ms, hoogafval van 700 Hz naar vol, pitch-dip tot -60 cent die in ~50 ms wegtrekt.
+- **Motor**: belasting = spelende stemmen / 8 met 150 ms traagheid, tot -40 cent bij vol; Press (channel pressure) tot -40 cent extra.
+- **Wow** (0,55 Hz sinus plus random walk, tot 25 cent) en **Flutter** (6,3 en 11,1 Hz, tot 6 cent).
+- **Wear**: bandruis (-52 dB bij vol, alleen als er een band loopt), bandbreedte 12 kHz naar 3 kHz, zachte verzadiging.
+- Uitgangen Tape (positie van het laatst aangeslagen bandje, 0..1) en Load (motorbelasting).
+
+Toegevoegd aan de gedeelde sampler-kern: `playSeconds(midi, vel)` en `kill()`; de sampler zelf gebruikt ze niet. Getest met een synthetische bank in de wasm-tests (stopt na Length, terugloop met geheugen, kopcontact, motor, stil zonder bank, begrensd met slijtage) en de kern apart in de C++-check op vier samplerates.
+
+Open: niet beluisterd met een echte bank; de bankbalk-koppeling is alleen door code gecontroleerd, niet in de browser. Op de Teensy houdt de firmware een bank tegelijk: een sampler en een tape-strip met een ander banknummer wisselen elkaar af. Streaming: sampler en tape-strip melden samen 16 stemmen aan, precies de limiet (`kMaxStreams`); een tweede sampler ernaast streamt dan niet.
+
 ## Reproduceren
 
 ```powershell
@@ -55,10 +74,12 @@ Open: pulsvormige klank met stapjitter van een mediumstap (bij Speed 2 op 44,1 k
 & 'C:\Program Files\Git\bin\bash.exe' tools/mmb-wasm/build.sh reservoir
 & 'C:\Program Files\Git\bin\bash.exe' tools/mmb-wasm/build.sh gendyn
 & 'C:\Program Files\Git\bin\bash.exe' tools/mmb-wasm/build.sh excitable
+& 'C:\Program Files\Git\bin\bash.exe' tools/mmb-wasm/build.sh tapestrip
 & 'C:\Program Files\Git\bin\bash.exe' tools/mmb-wasm/bitcheck/check.sh scanned
 & 'C:\Program Files\Git\bin\bash.exe' tools/mmb-wasm/bitcheck/check.sh reservoir
 & 'C:\Program Files\Git\bin\bash.exe' tools/mmb-wasm/bitcheck/check.sh gendyn
 & 'C:\Program Files\Git\bin\bash.exe' tools/mmb-wasm/bitcheck/check.sh excitable
+& 'C:\Program Files\Git\bin\bash.exe' tools/mmb-wasm/bitcheck/check.sh tapestrip
 python tools/contract_dump.py
 editor/node_modules/.bin/vitest.cmd run --root editor src/modular-mb/contract.test.ts src/modular-mb/sim/wasmPorts.test.ts
 npm --prefix editor run typecheck
@@ -66,7 +87,7 @@ npm --prefix editor run build
 .\.venv\Scripts\pio.exe run -d firmware\app-modular-brain
 ```
 
-Commits: 508a05b (Scanned), 9607912 (Reservoir), bacc55d (GENDYN), b58189c (Reservoir demo), b01b8ea (Excitable).
+Commits: 508a05b (Scanned), 9607912 (Reservoir), bacc55d (GENDYN), b58189c (Reservoir demo), b01b8ea (Excitable), 1b26123 (docs); Tape strip in de commit na deze tekst.
 
 ## Wat niet is gedaan
 
@@ -81,4 +102,5 @@ Commits: 508a05b (Scanned), 9607912 (Reservoir), bacc55d (GENDYN), b58189c (Rese
 1. Luister kort naar alle vier via Solo en noteer per module: weg, bijstellen, of verder onderzoeken.
 2. Scanned en Reservoir-demo hebben de grootste kans om direct te overtuigen. Bij Reservoir: schakel tussen de twee patches tijdens het spelen.
 3. Excitable alleen verder brengen als het samenspel van twee bronnen iets doet wat een mixer van twee pulsgolven niet doet.
-4. Pas daarna CPU op de Teensy meten, te beginnen met Excitable op Speed 1.
+4. Tape strip met een echte bank (vleugel, koor) onder Poly ▾: eerst Length 8 en alles op default, dan Contact en Wear omhoog.
+5. Pas daarna CPU op de Teensy meten, te beginnen met Excitable op Speed 1.

@@ -181,7 +181,7 @@ perceptueel LUFS-gematchte luisterbeoordeling.
 Zie [het prototypeplan](../../doc/plans/state-graph-synthesis.md#material-bridge-eerste-uitvoerbare-proef-2026-09-30)
 voor bediening, gate-timingverschillen en nog open hardwaremetingen.
 
-## Vier onderzoeksmodules (2026-10-02)
+## Vijf onderzoeksmodules (2026-10-02)
 
 Zelfde recept als Material Bridge (gedeelde kern in `mmb_dsp/`, wasm- en
 Teensy-wrapper, invariantentest op vier samplerates, paneel, Solo-seed):
@@ -192,6 +192,7 @@ Teensy-wrapper, invariantentest op vier samplerates, paneel, Solo-seed):
 | `tp_mmb_reservoir` | `reservoir.h` (64 B) | Resource-coupled: gedeelde herstellende bron voor vier stemmen (CV, via cvhost) | 1 kHz/1 |
 | `tp_mmb_gendyn` | `gendyn.h` (272 B) | GENDYN: gestemde dynamische stochastische synthese | 44,1 kHz/32 |
 | `tp_mmb_excitable` | `excitable.h` (2424 B) | Excitable media: 16x16 prikkelbare cellen, twee pacemakers, twee pickups | 44,1 kHz/32 |
+| `tp_mmb_tapestrip` | `tape_strip.h` (1452 B) + `sample_player.h` | Mellotron-mechanica om de samplerbank: bandje per toets, veerterugloop, kopcontact, motor, wow/flutter, slijtage; zelfde blob/zone-exports als de sampler | 44,1 kHz/32 |
 
 ```sh
 tools/mmb-wasm/build.sh scanned      # idem reservoir, gendyn, excitable

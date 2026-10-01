@@ -73,6 +73,9 @@ OVERRIDES: dict[str, dict[str, list[str]]] = {
     "tp_mmb_sampler": {"implemented": [], "ignored": [],
                        "ports": _rng("voct_", 8) + _rng("gate_", 8) + _rng("vel_", 8)
                                 + _rng("cutoff_", 8) + _rng("env_", 8)},
+    # Tape strip (Mellotron-mechanica): 8 stem-cellen via SamplerModule::cellOf().
+    "tp_mmb_tapestrip": {"implemented": [], "ignored": [],
+                         "ports": _rng("voct_", 8) + _rng("gate_", 8) + _rng("vel_", 8)},
     # Zang: 8 stem-cellen via SamplerModule::cellOf().
     "tp_mmb_zang": {"implemented": [], "ignored": [],
                     "ports": _rng("voct_", 8) + _rng("gate_", 8) + _rng("vel_", 8)},

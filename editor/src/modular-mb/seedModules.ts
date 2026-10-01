@@ -812,7 +812,7 @@ function mmbQuadMixerShared() {
     categoryId: 'utility',
     variant: 'Quad Mixer (per-cell pan, shared volume)',
     brand: 'MMB', model: 'QUAD-MIX-S',
-    hp: 14, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    hp: 16, texture: 'pcb-black', baseColor: '#111827', internal: true,
     role: 'multi',
     cellGroups: [{
       id: 'chan',
@@ -1001,7 +1001,7 @@ function mmbMidiIn() {
     categoryId: 'utility',
     variant: 'MIDI-to-CV breakout',
     brand: 'MMB', model: 'MIDI-IN',
-    hp: 14, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    hp: 16, texture: 'pcb-black', baseColor: '#111827', internal: true,
     role: 'event-source',
     texts: [
       { x: w/2, y: 8,   text: 'MIDI-IN', fontSize: 2.2, color: '#f9fafb', align: 'middle' },
@@ -1163,7 +1163,7 @@ function mmbMixer8() {
     categoryId: 'utility',
     variant: 'Stereo mixer (8-in)',
     brand: 'MMB', model: 'MIX8',
-    hp: 14, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    hp: 16, texture: 'pcb-black', baseColor: '#111827', internal: true,
     texts: [
       { x: w/2, y: 8,   text: 'MIXER-8', fontSize: 2.2, color: '#f9fafb', align: 'middle' },
       { x: w/2, y: 126, text: 'MMB',     fontSize: 1.6, color: '#f9fafb', align: 'middle' },
@@ -1439,6 +1439,60 @@ function mmbSampler() {
       ...cells.map((k) => inPort(`vel_${k}`,    '',     'cv',   colX(k - 1), 120, { cellGroupId: 'voice' })),
     ],
     notes: 'Multisample-speler als multi-module: acht stem-cellen (voct_k/gate_k/vel_k) die één keymap-bank delen, elk met een filter in de stem (Filter: uit/SVF/MS-20 — dezelfde kernels als de losse VCF en MS-20) dat via cutoff_k gestuurd wordt, en een envelope-follower per stem op env_k (Sens tilt die met decibels op; zonder lift haalt een sample amper 0,2 en blijft de wah een kiertje). Auto-wah = env_k → cutoff_k. Een keymap met key- én velocity-zones kiest per noot en aanslag het juiste sample; V/Oct transponeert vanaf de root-noot van die zone; Bend (gedeelde CV-ingang, V/Oct) komt daar bij alle cellen bovenop — MidiIn.Bend → Bend en de pitch-wheel buigt alle stemmen mee (of een LFO voor vibrato). 1–4 kanalen (mono komt op L+R, stereo op L/R, quad op alle vier), gemengd over alle cellen. Limit (standaard aan): limiter + zachte begrenzing op die som, zodat een zingende MS-20 op een paar stemmen niet digitaal clipt; Uit = hard afknippen op ±1 (het gruis). Loop-modes: geen, one-shot, continu, of tot note-off. Polyfoon spelen = een PolyGroup over de cellen (Poly ▾ → Sampler ×8): MIDI-in verdeelt de noten, de sampler doet niets slims. Banken maak je met de 🎹 Multisample-import; die schrijft een .mmbs die je naar /mmb/banks/NN.mmbs op de SD kopieert — Bank kiest NN. In de simulator draait dezelfde kern (mmb_dsp::SamplePlayer) als wasm. Firmware tp_mmb_sampler.',
+  });
+}
+
+// MMB TAPE STRIP — 16 HP. Mellotron-mechanica om een gewone samplebank
+//     (firmware tp_mmb_tapestrip): acht stem-cellen op dezelfde bank als de
+//     sampler, met per toets een bandje van Length seconden dat na loslaten
+//     terugloopt, kopcontact, motorbelasting, wow/flutter en slijtage.
+function mmbTapeStrip() {
+  const w = W(16);
+  const colX = (i: number) => w * (0.0625 + i * 0.125);
+  const cells = [1, 2, 3, 4, 5, 6, 7, 8];
+  return assemble({
+    typeId: 'tp_mmb_tapestrip',
+    categoryId: 'vco',
+    variant: 'Tape strip (Mellotron-mechanica)',
+    brand: 'MMB', model: 'TAPE STRIP',
+    hp: 16, texture: 'pcb-black', baseColor: '#3b2a1a', internal: true,
+    role: 'multi',
+    cellGroups: [{
+      id: 'voice',
+      label: 'Stem',
+      count: 8,
+      portIds: ['voct', 'gate', 'vel'],
+      controlIds: [],
+    }],
+    texts: [
+      { x: w/2, y: 8,   text: 'TAPE STRIP', fontSize: 2.0, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: 'bank van de sampler · 8 bandjes', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+      { x: 3, y: 97,  text: 'V/Oct', fontSize: 1.0, color: '#9ca3af', align: 'start' },
+      { x: 3, y: 109, text: 'Gate',  fontSize: 1.0, color: '#9ca3af', align: 'start' },
+      { x: 3, y: 121, text: 'Vel',   fontSize: 1.0, color: '#9ca3af', align: 'start' },
+    ],
+    items: [
+      knob('bank',    'Bank',    w*0.10, 30, { size: 'medium', min: 0, max: 15, def: 0, step: 1, color: '#f5a623', ticks: { every: 1, highlight: [0, 15] } }),
+      knob('length',  'Length',  w*0.27, 30, { size: 'medium', min: 1, max: 8, def: 8, unit: 's', color: '#fbbf24' }),
+      knob('return',  'Return',  w*0.44, 30, { size: 'medium', min: 0.1, max: 4, def: 1, unit: 's', color: '#fbbf24' }),
+      knob('contact', 'Contact', w*0.61, 30, { size: 'medium', min: 0, max: 1, def: 0.5, color: '#fbbf24' }),
+      knob('level',   'Level',   w*0.80, 30, { size: 'medium', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      knob('motor',   'Motor',   w*0.10, 56, { size: 'small', min: 0, max: 1, def: 0.4, color: '#fbbf24' }),
+      knob('wow',     'Wow',     w*0.26, 56, { size: 'small', min: 0, max: 1, def: 0.3, color: '#f9fafb' }),
+      knob('flutter', 'Flutter', w*0.42, 56, { size: 'small', min: 0, max: 1, def: 0.3, color: '#f9fafb' }),
+      knob('wear',    'Wear',    w*0.58, 56, { size: 'small', min: 0, max: 1, def: 0.3, color: '#f9fafb' }),
+      inPort('press', 'Press', 'cv', w*0.74, 56),
+      inPort('bend',  'Bend',  'cv', w*0.88, 56),
+      outPort('tape', 'Tape', 'cv', w*0.10, 76),
+      outPort('load', 'Load', 'cv', w*0.26, 76),
+      outPort('out_l', 'L', 'audio', w*0.74, 76),
+      outPort('out_r', 'R', 'audio', w*0.88, 76),
+      ...cells.map((k) => inPort(`voct_${k}`, '', 'cv',   colX(k - 1), 96,  { cellGroupId: 'voice' })),
+      ...cells.map((k) => inPort(`gate_${k}`, '', 'gate', colX(k - 1), 108, { cellGroupId: 'voice' })),
+      ...cells.map((k) => inPort(`vel_${k}`,  '', 'cv',   colX(k - 1), 120, { cellGroupId: 'voice' })),
+    ],
+    notes: 'Mellotron-mechanica om een gewone samplebank: de goede opname komt uit de bank (dezelfde .mmbs-bank en Bank-knop als de SAMPLER; in de simulator krijgt deze module automatisch de bank van de sampler), de onvolmaaktheid komt hiervandaan. Per toets een bandje van Length seconden: na Length stopt de klank abrupt, hoe lang je de toets ook houdt. Loslaten laat het bandje met een veer terugspoelen (Return = terugloop van een volle strip); druk je de toets opnieuw in terwijl het bandje nog onderweg is, dan speelt hij vanaf de plek waar het bandje dan staat, zodat snelle herhalingen anders klinken dan de eerste aanslag. Contact is het drukkussen dat de band tegen de kop duwt: opkomst, hoogafval en een kleine pitch-dip bij het indrukken. Motor laat de capstan zakken onder belasting (meer toetsen = iets trager, met traagheid); Press (channel pressure) vertraagt licht. Wow en Flutter moduleren de snelheid; Wear voegt bandruis, bandbreedteverlies en zachte verzadiging toe. Tape (CV) is de positie van het laatst aangeslagen bandje, Load de motorbelasting. Acht stem-cellen; polyfoon via een PolyGroup (Poly ▾ → Tape strip ×8). Firmware tp_mmb_tapestrip op dezelfde SampleBank als de sampler.',
   });
 }
 
@@ -2610,7 +2664,7 @@ function mmbRings() {
     categoryId: 'vco',
     variant: 'Rings (MI resonator)',
     brand: 'MI', model: 'RINGS',
-    hp: 14, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    hp: 16, texture: 'pcb-black', baseColor: '#111827', internal: true,
     texts: [
       { x: w/2, y: 8,   text: 'RINGS', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
       { x: w/2, y: 13,  text: 'resonator · strum', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
@@ -2652,7 +2706,7 @@ function mmbPlaits() {
     categoryId: 'vco',
     variant: 'Plaits (MI macro-osc)',
     brand: 'MI', model: 'PLAITS',
-    hp: 14, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    hp: 16, texture: 'pcb-black', baseColor: '#111827', internal: true,
     texts: [
       { x: w/2, y: 8,   text: 'PLAITS', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
       { x: w/2, y: 13,  text: '24 engines · macro-osc', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
@@ -2699,7 +2753,7 @@ function mmbClouds() {
     categoryId: 'effect',
     variant: 'Clouds (MI granular)',
     brand: 'MI', model: 'CLOUDS',
-    hp: 14, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    hp: 16, texture: 'pcb-black', baseColor: '#111827', internal: true,
     texts: [
       { x: w/2, y: 8,   text: 'CLOUDS', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
       { x: w/2, y: 13,  text: 'granular · texture', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
@@ -2791,7 +2845,7 @@ function mmbMarbles() {
     categoryId: 'sequencer',
     variant: 'Marbles (MI random)',
     brand: 'MI', model: 'MARBLES',
-    hp: 14, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    hp: 16, texture: 'pcb-black', baseColor: '#111827', internal: true,
     texts: [
       { x: w/2, y: 8,   text: 'MARBLES', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
       { x: w/2, y: 13,  text: 'random · déjà vu', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
@@ -3769,6 +3823,7 @@ export function seedInternals(project: ModularProject): ModularProject {
   all.push(mmbReservoir());
   all.push(mmbGendyn());
   all.push(mmbExcitable());
+  all.push(mmbTapeStrip());
   const newTypes = all.map((x) => x.type);
 
   // Upgrade-pad: bestaande interne types worden in-place VERVANGEN (zelfde
@@ -5589,6 +5644,69 @@ export function seedSamplerPolyPatch(
     patches:      [...p.patches, patch],
     activeRackId:  rack.id,
     activePatchId: patch.id,
+  };
+}
+
+/**
+ * Tape strip ×N: Mellotron-mechanica om de samplerbank, als PolyGroup over de
+ * acht cellen. MidiIn verdeelt de noten; aftertouch gaat naar Press (kussen),
+ * de pitch-wheel naar Bend.
+ */
+export function seedTapeStripPolyPatch(project: ModularProject, voiceCount = 8): ModularProject {
+  const N = Math.max(2, Math.min(8, Math.round(voiceCount)));
+  const needed = ['tp_mmb_midiin', 'tp_mmb_tapestrip', 'tp_mmb_out'];
+  const missing = needed.some((tid) => !project.moduleTypes.some((t) => t.id === tid));
+  const p = missing ? seedInternals(project) : project;
+  const fresh = (tid: string): ModuleInstance => {
+    const proto = p.modules.find((m) => m.typeId === tid)!;
+    return { ...proto, id: uid('mod'), internal: false, visual: proto.visual };
+  };
+  const mi = fresh('tp_mmb_midiin');
+  const tape = fresh('tp_mmb_tapestrip');
+  const out = fresh('tp_mmb_out');
+  const name = `Tape strip ×${N}`;
+  let offset = 0;
+  const slot = (m: ModuleInstance): RackSlot => {
+    const s: RackSlot = { id: uid('slot'), moduleId: m.id, row: 0, hpOffset: offset };
+    offset += m.visual.hpWidth;
+    return s;
+  };
+  const slots = [slot(mi), slot(tape), slot(out)];
+  const rack: Rack = {
+    id: uid('rack'), name,
+    description: `MidiIn → TAPE STRIP (${N} stem-cellen als PolyGroup) → OUT. De bank van de sampler, de mechanica van een Mellotron.`,
+    rows: 1, hpPerRow: Math.max(64, offset + 4), slots, kind: 'physical',
+    polyGroups: [{
+      id: uid('poly'), label: 'TAPE STRIP', voiceCount: N,
+      members: Array.from({ length: N }, (_, i) => ({ kind: 'cell' as const, moduleId: tape.id, cellGroupId: 'voice', cellIndex: i })),
+    }],
+  };
+  const c = (fm: ModuleInstance, fp: string, tm: ModuleInstance, tp: string): PatchConnection => ({
+    id: uid('conn'), from: { moduleId: fm.id, portId: fp }, to: { moduleId: tm.id, portId: tp },
+  });
+  const patch: Patch = {
+    id: uid('patch'), name,
+    description: `${N}-stemmige tape strip op de samplerbank (Bank-knop; in de simulator de bank uit de bankbalk). Houd een toets langer dan Length: de klank stopt. Speel snel dezelfde toets opnieuw: het bandje is nog niet terug. Aftertouch drukt het kussen aan, de pitch-wheel buigt alle stemmen.`,
+    voiceCount: N, rackIds: [rack.id],
+    connections: [
+      c(mi, 'pitch', tape, 'voct_1'),
+      c(mi, 'gate', tape, 'gate_1'),
+      c(mi, 'vel', tape, 'vel_1'),
+      c(mi, 'press', tape, 'press'),
+      c(mi, 'cv_bend', tape, 'bend'),
+      c(tape, 'out_l', out, 'l'),
+      c(tape, 'out_r', out, 'r'),
+    ],
+    controlState: {
+      [mi.id]: { channel: 0, voiceCount: N, steal: 0 },
+      [tape.id]: { bank: 0, length: 8, return: 1, contact: 0.5, motor: 0.4, wow: 0.3, flutter: 0.3, wear: 0.3, level: 0.8 },
+      [out.id]: { level: 0.85 },
+    },
+    envelopes: [], lfos: [],
+  };
+  return {
+    ...p, racks: [...p.racks, rack], modules: [...p.modules, mi, tape, out],
+    patches: [...p.patches, patch], activeRackId: rack.id, activePatchId: patch.id,
   };
 }
 

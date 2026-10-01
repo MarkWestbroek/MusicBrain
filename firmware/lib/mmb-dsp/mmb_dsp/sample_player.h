@@ -278,6 +278,27 @@ public:
         return -1;
     }
 
+    /**
+     * Hoe lang `midi` met `velocity` klinkt in uitgangsseconden: de lengte
+     * van het sample van de passende zone, gedeeld door de afspeelsnelheid
+     * op die noot (transpositie en stemming meegerekend). 0 als er geen
+     * zone past. Voor de tape-strip: bandpositie -> startoffset.
+     */
+    float playSeconds(int midi, int velocity) const {
+        if (velocity < 1) velocity = 1;
+        if (velocity > 127) velocity = 127;
+        const int zi = findZone(midi, velocity);
+        if (zi < 0) return 0.0f;
+        const Zone& z = zones_[zi];
+        const SampleSlot& s = slots_[z.slot];
+        const float semis = static_cast<float>(midi) - z.root + transpose_ + z.tuneCents * 0.01f;
+        const float framesPerSecond = s.rate * std::exp2(semis / 12.0f);
+        return framesPerSecond > 0.0f ? static_cast<float>(s.frames) / framesPerSecond : 0.0f;
+    }
+
+    /** Stem onmiddellijk stil en vrij (zonder release) — het bandje is op. */
+    void kill() { reset(); }
+
     void noteOn(int midi, int velocity) {
         if (velocity < 1) velocity = 1;
         if (velocity > 127) velocity = 127;

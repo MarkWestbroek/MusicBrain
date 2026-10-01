@@ -560,6 +560,99 @@ describe('tp_mmb_excitable', () => {
   });
 });
 
+describe('tp_mmb_tapestrip (Mellotron-mechanica om de samplerbank)', () => {
+  it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_tapestrip'); });
+
+  /** Synthetische bank: 3 s sinus op 261,6 Hz, root 60, over alle toetsen. */
+  const withBank = async (seconds = 3): Promise<Mod> => {
+    const m = await load('tp_mmb_tapestrip');
+    const n = Math.round(44100 * seconds);
+    const data = Int16Array.from({ length: n }, (_, i) => Math.round(20000 * Math.sin(2 * Math.PI * 261.6256 * i / 44100)));
+    const p = m.ex.mmb_blob_ptr(0, data.byteLength);
+    expect(p).not.toBe(0);
+    new Uint8Array(m.ex.memory.buffer).set(new Uint8Array(data.buffer), p);
+    m.ex.mmb_blob_commit(0, n, 44100, 1);
+    m.ex.mmb_zone_set(0, 0, 0, 127, 1, 127, 60, 0, 1, 0, 0, 0, 0, 0, 0.02, 0, 0);
+    m.ex.mmb_zone_count(1);
+    m.setCtl('wow', 0); m.setCtl('flutter', 0); m.setCtl('wear', 0); m.setCtl('motor', 0);
+    return m;
+  };
+
+  it('speelt de bank op de toets en stopt na Length, hoe lang de toets ook vast blijft', async () => {
+    const m = await withBank(3);
+    m.setCtl('length', 1);
+    m.setIn('gate_1', 1);
+    const [left, , tape] = m.render(1.6);
+    const rate = m.rate;
+    expect(rms(left!, Math.round(0.2 * rate), Math.round(0.9 * rate))).toBeGreaterThan(0.1);
+    expect(peak(left!, Math.round(1.1 * rate))).toBeLessThan(0.002);
+    expect(tape![tape!.length - 1]!).toBeCloseTo(1, 1);
+  });
+
+  it('spoelt na loslaten terug en speelt bij snel herhalen vanaf de plek waar het bandje staat', async () => {
+    const m = await withBank(3);
+    m.setCtl('length', 2); m.setCtl('return', 2);   // terugloop 1 s per seconde band
+    m.setIn('gate_1', 1);
+    m.render(1.0);                                   // bandje op 1 s
+    m.setIn('gate_1', 0);
+    m.render(0.5);                                   // half terug: 0,5 s
+    const [, , tape] = m.render(0.001);
+    expect(tape![0]!).toBeCloseTo(0.25, 1);          // 0,5 s van 2 s
+    m.setIn('gate_1', 1);
+    const [left, , tape2] = m.render(0.3);
+    expect(tape2![tape2!.length - 1]!).toBeCloseTo((0.5 + 0.3) / 2, 1);
+    expect(rms(left!, Math.round(0.1 * m.rate))).toBeGreaterThan(0.1);
+    // Lang genoeg los: helemaal terug naar nul.
+    m.setIn('gate_1', 0);
+    m.render(1.5);
+    const [, , tape3] = m.render(0.001);
+    expect(tape3![0]!).toBe(0);
+  });
+
+  it('kopcontact: zachte opkomst en een pitch-dip die wegtrekt; zonder contact direct vol', async () => {
+    const soft = await withBank(3); soft.setCtl('contact', 1);
+    const hard = await withBank(3); hard.setCtl('contact', 0);
+    soft.setIn('gate_1', 1); hard.setIn('gate_1', 1);
+    const softOut = soft.render(0.3)[0]!, hardOut = hard.render(0.3)[0]!;
+    const early = Math.round(0.005 * soft.rate);
+    expect(peak(softOut, 0, early)).toBeLessThan(peak(hardOut, 0, early) * 0.5);
+    expect(rms(softOut, Math.round(0.2 * soft.rate))).toBeGreaterThan(rms(hardOut, Math.round(0.2 * soft.rate)) * 0.7);
+  });
+
+  it('motor: meer stemmen trekken de toonhoogte iets omlaag, Load volgt de belasting', async () => {
+    const hz = (signal: Float32Array, rate: number): number => {
+      let crossings = 0;
+      for (let i = 1; i < signal.length; i++) if (signal[i - 1]! < 0 && signal[i]! >= 0) crossings++;
+      return crossings / (signal.length / rate);
+    };
+    const one = await withBank(3); one.setCtl('motor', 1); one.setCtl('contact', 0);
+    const eight = await withBank(3); eight.setCtl('motor', 1); eight.setCtl('contact', 0);
+    one.setIn('gate_1', 1);
+    for (let k = 1; k <= 8; k++) eight.setIn(`gate_${k}`, 1);
+    one.render(0.5); eight.render(0.5);
+    const [oneOut, , , oneLoad] = one.render(1);
+    const [eightOut, , , eightLoad] = eight.render(1);
+    expect(hz(eightOut!, eight.rate)).toBeLessThan(hz(oneOut!, one.rate) * 0.995);
+    expect(eightLoad![eightLoad!.length - 1]!).toBeGreaterThan(0.9);
+    expect(oneLoad![oneLoad!.length - 1]!).toBeCloseTo(0.125, 1);
+  });
+
+  it('blijft stil zonder bank en begrensd met slijtage en alle stemmen tegelijk', async () => {
+    const empty = await load('tp_mmb_tapestrip');
+    empty.setIn('gate_1', 1);
+    for (const output of empty.render(0.2).slice(0, 2)) expect(peak(output)).toBe(0);
+    const worn = await withBank(2);
+    worn.setCtl('wear', 1); worn.setCtl('level', 1); worn.setCtl('wow', 1); worn.setCtl('flutter', 1);
+    for (let k = 1; k <= 8; k++) { worn.setIn(`gate_${k}`, 1); worn.setIn(`voct_${k}`, (k - 4) / 12); }
+    const outputs = worn.render(0.5, (time, current) => current.setIn('press', time < 0.2 ? 1 : Number.NaN));
+    for (const output of outputs) {
+      expect(output.every(Number.isFinite)).toBe(true);
+      expect(peak(output)).toBeLessThanOrEqual(1);
+    }
+    expect(rms(outputs[0]!)).toBeGreaterThan(0.05);
+  });
+});
+
 describe('tp_mmb_resonator', () => {
   it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_resonator'); });
 
