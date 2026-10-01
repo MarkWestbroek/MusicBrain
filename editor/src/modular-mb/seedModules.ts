@@ -3263,8 +3263,10 @@ function mmbFof() {
       knob('breath', 'Breath', w*0.20, 52, { size: 'small', min: 0, max: 1, def: 0.08, color: '#9ca3af' }),
       knob('vibrato', 'Vibrato', w*0.50, 52, { size: 'small', min: 0, max: 1, def: 0.12, color: '#9ca3af' }),
       knob('voice', 'Voice', w*0.80, 52, { size: 'small', min: 0, max: 1, def: 0.35, color: '#9ca3af' }),
-      sw('syl', 'Syl', w*0.22, 72, ['Vowel', 'Doo', 'Da'], 0),
-      knob('level', 'Level', w*0.62, 72, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      knob('syl', 'Syl', w*0.25, 72, { size: 'medium', min: 0, max: 19, def: 0, step: 1, color: '#fbbf24',
+        ticks: { every: 1, highlight: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+                 labels: { 0: 'Vowel', 1: 'doo', 2: 'da', 3: 'va', 4: 'der', 5: 'ja', 6: 'cob', 7: 'slaapt', 8: 'gij', 9: 'nog', 10: 'al', 11: 'le', 12: 'klo', 13: 'ken', 14: 'lui', 15: 'den', 16: 'bim', 17: 'bam', 18: 'bom', 19: 'de' } } }),
+      knob('level', 'Level', w*0.70, 72, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
       inPort('voct', 'V/Oct', 'cv', w*0.20, 88),
       inPort('gate', 'Gate', 'gate', w*0.50, 88),
       outPort('out', 'Out', 'audio', w*0.80, 88),
@@ -3283,7 +3285,7 @@ function mmbFof() {
       inPort('vel', 'Vel', 'cv', cvCols[5]!, 120),
       inPort('pressure', 'Press', 'cv', cvCols[6]!, 120),
     ],
-    notes: 'FOF/CHANT-geinspireerde zangoscillator met asymmetrische glottale bron. Vowel morft door A-E-I-O-U; formanten blijven staan bij pitchverandering. Voice loopt van korte, heldere sluiting naar langer, zachter open/sluitgedrag. Vel (0-1) regelt volume en verzacht de sluiting bij zachte aanslagen; zonder kabel volle sterkte. Press (0-1) is de doorlopende expressie tijdens de noot (MidiIn Press/aftertouch, breath controller of CV): lager = iets zachter (vloer 0,5), duidelijk ademiger (als Breath open staat) en een langere, zachtere sluiting; zonder kabel volle druk, ~20 ms gladgestreken. Vow+/Air+/Vib+/Voi+ tellen op bij de knop; de kleine knop boven elke CV-jack is de attenuator (1 = vol, 0 = kabel doet niets; bij Vel en Press = gevoeligheid). Syl kiest een lettergreep: Vowel = de Vowel-knop, Doo en Da = synthetische d (20 ms sluiting, burst rond 3,8 kHz, formantglijbaan) plus oe of a; Syl+ (0-1 over de tabel, zoals syl_cv bij ZANG) telt op bij de schakelaar. De lettergreep wordt bij de gate-flank gelezen: kies hem vóór de noot (linkerhand pads, rechterhand melodie). Tone bepaalt de resonantiebreedte, Breath voegt pulsgebonden aspiratie toe en Vibrato geeft maximaal een halve toon (100 cent) bij 5,3 Hz. Geen exacte LF-bron, spraaksynthese of volledige CHANT-reconstructie. Mono; polyfonie via PolyGroup.',
+    notes: 'FOF/CHANT-geinspireerde zangoscillator met asymmetrische glottale bron. Vowel morft door A-E-I-O-U; formanten blijven staan bij pitchverandering. Voice loopt van korte, heldere sluiting naar langer, zachter open/sluitgedrag. Vel (0-1) regelt volume en verzacht de sluiting bij zachte aanslagen; zonder kabel volle sterkte. Press (0-1) is de doorlopende expressie tijdens de noot (MidiIn Press/aftertouch, breath controller of CV): lager = iets zachter (vloer 0,5), duidelijk ademiger (als Breath open staat) en een langere, zachtere sluiting; zonder kabel volle druk, ~20 ms gladgestreken. Vow+/Air+/Vib+/Voi+ tellen op bij de knop; de kleine knop boven elke CV-jack is de attenuator (1 = vol, 0 = kabel doet niets; bij Vel en Press = gevoeligheid). Syl kiest een lettergreep uit een tabel van twintig (0 = de Vowel-knop; dan doo, da, va, der, ja, cob, slaapt, gij, nog, al, le, klo, ken, lui, den, bim, bam, bom, de): synthetische medeklinkers (plosieven met sluiting/burst/glijbaan, nasalen, fricatieven, l/r/j/w) en tweeklanken, en een slotmedeklinker die speelt als de gate valt. Syl+ (0-1 over de tabel, zoals syl_cv bij ZANG) telt op bij de knop: CC-waarde = index × 127 / 19. De lettergreep wordt bij de gate-flank gelezen: kies hem vóór de noot (linkerhand pads, rechterhand melodie). Tone bepaalt de resonantiebreedte, Breath voegt pulsgebonden aspiratie toe en Vibrato geeft maximaal een halve toon (100 cent) bij 5,3 Hz. Geen exacte LF-bron, spraaksynthese of volledige CHANT-reconstructie. Mono; polyfonie via PolyGroup.',
   });
 }
 

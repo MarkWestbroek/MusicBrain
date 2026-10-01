@@ -162,7 +162,9 @@ it('FOF heeft voor elke CV-ingang een attenuator die standaard op 1 staat', () =
     expect(knobs.find((knob) => knob.id === control)?.defaultValue).toBe(1);
   }
   const syl = fof.controls.find((item) => item.id === 'syl');
-  expect(syl).toMatchObject({ kind: 'switch', positions: ['Vowel', 'Doo', 'Da'], defaultIndex: 0 });
+  expect(syl).toMatchObject({ kind: 'knob', min: 0, max: 19, step: 1, defaultValue: 0 });
+  expect((syl as { ticks?: { labels?: Record<number, string> } }).ticks?.labels?.[1]).toBe('doo');
+  expect((syl as { ticks?: { labels?: Record<number, string> } }).ticks?.labels?.[19]).toBe('de');
 });
 
 it('FOF solo verbindt pitch, gate, velocity en mono naar beide uitgangen', () => {

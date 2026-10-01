@@ -125,6 +125,8 @@ node tools/mmb-wasm/test-analysis.mjs   # sample-analyse op een kunstmatige take
 node tools/mmb-wasm/test-sampler.mjs    # take → keymap → sampler, end-to-end
 node tools/mmb-wasm/render-samples.mjs   # voorbeeldsamples renderen
 node tools/mmb-wasm/render-fof-matrix.mjs [map]  # FOF: luister-/aliasingmatrix, report.json + wav's (default tmp)
+node tools/mmb-wasm/render-fof-syllables.mjs [map]  # FOF: alle lettergrepen als wav + Piper-referentie (dienst op 127.0.0.1:8788)
+python tools/mmb-wasm/formant-compare.py [map]      # FOF tegenover Piper: LPC-formanten, F0, foneemduren → report.md
 node tools/mmb-wasm/make-test-bank.mjs   # testopname (Elements) + .mmbs-bank
 ```
 

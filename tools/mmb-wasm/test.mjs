@@ -251,8 +251,9 @@ async function checkFof(file) {
   assert(Math.abs(rms(doo.steady) / rms(plainOe.steady) - 1) < 0.01, 'FOF: doo must settle on the oe vowel');
   assert(Math.abs(rms(da.steady) / rms(plainA.steady) - 1) < 0.01, 'FOF: da must settle on the a vowel');
   assert(Math.abs(rms(da.steady) / rms(doo.steady) - 1) > 0.2, 'FOF: doo and da must differ in vowel');
-  assert.deepEqual(await windows(await startVoice({}, { syl_cv: 0.5 })), doo, 'FOF: syl_cv 0.5 must select doo');
-  assert.deepEqual(await windows(await startVoice({}, { syl_cv: 1 })), da, 'FOF: syl_cv 1 must select da');
+  // syl_cv loopt 0..1 over de tabel van 20: index = round(cv * 19).
+  assert.deepEqual(await windows(await startVoice({}, { syl_cv: 1 / 19 })), doo, 'FOF: syl_cv 1/19 must select doo');
+  assert.deepEqual(await windows(await startVoice({}, { syl_cv: 2 / 19 })), da, 'FOF: syl_cv 2/19 must select da');
   assert.deepEqual(await windows(await startVoice({ syl_amt: 0 }, { syl_cv: 1 })), plainA, 'FOF: syl_amt 0 must ignore the cable');
   const heldDoo = await startVoice({ syl: 1 });
   await windows(heldDoo);
@@ -270,6 +271,34 @@ async function checkFof(file) {
   assert(Math.abs(rms(retrigger.steady) / rms(plainA.steady) - 1) < 0.02, 'FOF: retrigger must use the newly chosen syllable');
   const extremeDa = await startVoice({ syl: 2, breath: 1, voice: 0, tone: 1 }, { voct: Math.log2(880 / 261.6256), pressure: 0 });
   await windows(extremeDa);
+  // Alle twintig lettergrepen: eindig, niet geclipt, de klinker klinkt, de
+  // coda speelt na de gate en sterft uit; na een stemloze slotmedeklinker
+  // (cob = kop, slaapt, nog) komt de stem in de release niet terug.
+  for (let syl = 1; syl < 20; syl++) {
+    const module = await startVoice({ syl });
+    captureFof(module, 0.15);
+    const held = captureFof(module, 0.15);
+    assert(rms(held) > 0.01, `FOF: syllable ${syl} must sing its vowel`);
+    module.setIn('gate', 0);
+    const coda = captureFof(module, 0.25);
+    const tail = captureFof(module, 0.4);
+    const silence = captureFof(module, 0.2);
+    assert(rms(silence) < rms(held) * 0.02, `FOF: syllable ${syl} must decay after the coda (${rms(silence) / rms(held)})`);
+    if ([6, 7, 9].includes(syl)) {
+      assert(rms(tail) < rms(coda) * 0.35, `FOF: syllable ${syl} must not voice again after a voiceless coda (${rms(tail) / rms(coda)})`);
+    }
+    module.setIn('gate', 1);
+    captureFof(module, 0.3);
+    assert(rms(captureFof(module, 0.1)) > 0.01, `FOF: syllable ${syl} must retrigger`);
+  }
+  for (const frequency of [110, 880]) {
+    for (const syl of [6, 7, 8, 14, 17]) {
+      const module = await startVoice({ syl, breath: 0.5 }, { voct: Math.log2(frequency / 261.6256) });
+      captureFof(module, 0.3);
+      module.setIn('gate', 0);
+      captureFof(module, 0.4);
+    }
+  }
   const jumpy = await makeVoice(880, 0.5, 0, 0.5, undefined, 0);
   for (let toggle = 0; toggle < 40; toggle++) { jumpy.setIn('pressure', toggle % 2 ? 0 : 1); captureFof(jumpy, 0.005); }
   const release = await makeVoice(220, 0.25, 0.35);
@@ -296,7 +325,7 @@ async function checkFof(file) {
       }
     }
   }
-  console.log('FOF regression: 45 pitch/vowel/Voice cases, spectral tilt, velocity volume/timbre/default/clamps/note-off, pressure default/clamp/monotone/floor/timbre/breath/smoothing/jumps, attenuators + vibrato/voice CV, syllables doo/da (closure, burst, settle, CV, hold, retrigger), intrinsic vowel pitch/level, release/retrigger/mute and 8 extreme cases passed.');
+  console.log('FOF regression: 45 pitch/vowel/Voice cases, spectral tilt, velocity volume/timbre/default/clamps/note-off, pressure default/clamp/monotone/floor/timbre/breath/smoothing/jumps, attenuators + vibrato/voice CV, syllables doo/da (closure, burst, settle, CV, hold, retrigger) + 19 table syllables (coda, decay, voiceless tail, retrigger, extremes), intrinsic vowel pitch/level, release/retrigger/mute and 8 extreme cases passed.');
 }
 
 const only = process.argv[2];

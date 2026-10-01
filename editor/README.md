@@ -69,7 +69,7 @@ Geen opname, lyricbank of extra hardware nodig. Start audio in Simulatie.
 | Press-ingang | Doorlopende expressie tijdens de noot (0-1): iets zachter (vloer −6 dB), duidelijk ademiger als Breath open staat, langere sluiting; zonder kabel volle druk |
 | Vow+ / Air+ / Vib+ / Voi+ | CV telt op bij de Vowel-, Breath-, Vibrato- en Voice-knop |
 | Attenuators | Kleine knop boven elke CV-jack: 1 = vol, 0 = kabel doet niets; bij Vel en Press is dit de gevoeligheid |
-| Syl / Syl+ | Lettergreep: Vowel (de knop), Doo of Da met een synthetische d; Syl+ (0-1 over de tabel) telt op, bijvoorbeeld CC1 vanaf een pad-app; gelezen bij de gate-flank |
+| Syl / Syl+ | Lettergreep uit een tabel van twintig: Vowel (de knop), doo, da en de hele Vader Jacob (va der ja cob slaapt gij nog al le klo ken lui den bim bam bom) plus de; synthetische medeklinkers, tweeklanken en slotmedeklinkers bij het loslaten. Syl+ (0-1 over de tabel) telt op: CC1 = index × 127 / 19 vanaf een pad-app; gelezen bij de gate-flank |
 | Tone / Breath | Formantbreedte / pulsgebonden aspiratie |
 | Vibrato / Level | Vibratodiepte (1,0 = een halve toon) / uitgangsniveau |
 
