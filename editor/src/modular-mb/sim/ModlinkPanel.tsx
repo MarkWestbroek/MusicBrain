@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import { getEngine } from './engineSingleton';
 import { isConnected, sendMidiCC, sendMidiPressure, sendMidiBend } from '../teensyLink';
 import {
-  ModlinkHost, defaultMap, midiFor, slotAxisOf, labelsFor, axisName, CC_PER_SURFACE,
+  ModlinkHost, defaultMap, midiFor, slotAxisOf, labelsFor, axisName, freeCc, CC_PER_SURFACE,
   type AxisMap, type AxisTarget, type MidiOut,
 } from './modlinkHost';
 
@@ -133,7 +133,7 @@ export function ModlinkPanel(): JSX.Element {
                       const k = e.target.value;
                       setTarget(s.slot, i, k === 'none' ? { kind: 'none' } : k === 'at' ? { kind: 'at' } : k === 'bend' ? { kind: 'bend' }
                         : k === 'mod' ? { kind: 'cc', cc: 1 } : k === 'expr' ? { kind: 'cc', cc: 11 }
-                        : { kind: 'cc', cc: m.target.kind === 'cc' && m.target.cc !== 1 && m.target.cc !== 11 ? m.target.cc : 74 });
+                        : { kind: 'cc', cc: m.target.kind === 'cc' && m.target.cc !== 1 && m.target.cc !== 11 ? m.target.cc : freeCc(mapFor(s.slot), i) });
                     }}>
                       <option value="none">— vrij —</option>
                       <option value="at">Aftertouch</option>

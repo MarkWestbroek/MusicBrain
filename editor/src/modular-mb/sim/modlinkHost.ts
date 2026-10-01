@@ -35,6 +35,16 @@ export function defaultMap(): AxisMap[] {
 }
 
 /** "schuif 3 · punt 2 X": in de faderstand is as i schuif i+1, in de XY-stand de X (even i) of Y (oneven i) van punt i/2 + 1. */
+/**
+ * Een CC-nummer dat op dit vlak nog niet gebruikt wordt, voor als je een as
+ * op "CC …" zet: eerst de vrije reeks 20–31, dan 102–119.
+ */
+export function freeCc(map: readonly AxisMap[], except: number): number {
+  const used = new Set(map.filter((_, i) => i !== except).flatMap((m) => m.target.kind === 'cc' ? [m.target.cc] : []));
+  for (const cc of [...Array.from({ length: 12 }, (_, k) => 20 + k), ...Array.from({ length: 18 }, (_, k) => 102 + k)]) if (!used.has(cc)) return cc;
+  return 20;
+}
+
 export function axisName(i: number): string {
   return `schuif ${i + 1} · punt ${Math.floor(i / 2) + 1} ${i % 2 ? 'Y' : 'X'}`;
 }

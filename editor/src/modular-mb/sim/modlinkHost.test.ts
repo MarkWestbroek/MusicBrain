@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { midiFor, slotAxisOf, labelsFor, defaultMap, targetLabel, axisName, ccBaseForSlot } from './modlinkHost';
+import { midiFor, slotAxisOf, labelsFor, defaultMap, targetLabel, axisName, ccBaseForSlot, freeCc } from './modlinkHost';
 
 describe('modlink-host', () => {
   it('nummering zoals het doorgeefluik', () => {
@@ -19,6 +19,13 @@ describe('modlink-host', () => {
     expect(midiFor(m[0]!, 0.25)).toEqual({ kind: 'cc', cc: 74, value: 32 });
     expect(midiFor(m[0]!, 0.25, true)).toBeNull();                                 // cutoff blijft staan
     expect(midiFor({ target: { kind: 'none' }, spring: false }, 1)).toBeNull();
+  });
+  it('nieuwe CC-keuze krijgt een vrij nummer', () => {
+    const m = defaultMap();
+    expect(freeCc(m, 1)).toBe(20);
+    const m2 = [...m]; m2[2] = { target: { kind: 'cc', cc: 20 }, spring: false };
+    expect(freeCc(m2, 1)).toBe(21);
+    expect(freeCc(m2, 2)).toBe(20);                 // eigen nummer telt niet mee
   });
   it('labels voor de telefoons', () => {
     const l = labelsFor([1, 2], () => defaultMap());

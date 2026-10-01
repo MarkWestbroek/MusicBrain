@@ -297,6 +297,7 @@ function lift(e) {
 }
 canvas.addEventListener("pointerup", lift);
 canvas.addEventListener("pointercancel", lift);
+canvas.addEventListener("lostpointercapture", lift);   // ook als de browser de vinger kwijtraakt
 
 // iOS zoomt anders op een dubbeltik midden in een beweging.
 document.addEventListener("gesturestart", function (e) { e.preventDefault(); });
@@ -354,9 +355,21 @@ function faderSet(i, e) {
   fd.v = useForce ? forceValue(e, fd) : Math.max(0, Math.min(1, pos));
   dirty[ccBase + i] = fd.v;
 }
+// Android hergebruikt aanraaknummers. Mist er ooit een "loslaten", dan zou een
+// oude schuif aan dat nummer blijven hangen en met een andere vinger
+// meebewegen. Daarom: een nieuwe aanraking ruimt zo'n oude koppeling op, en
+// een schuif mag altijd door een nieuwe vinger worden overgenomen.
+function releaseFader(i) {
+  var fd = faders[i];
+  if (!fd.down) return;
+  fd.down = false; fd.pid = null;
+  delete dirty[ccBase + i];
+  link.sendValue(ccBase + i, fd.v, { up: true });
+  if (springs(i)) fd.v = restOf(i);
+}
 function faderDown(e) {
   var i = faderAt(e), fd = faders[i];
-  if (fd.down) return;                         // één vinger per fader
+  for (var k = 0; k < FADERS; k++) if (k !== i && faders[k].pid === e.pointerId) releaseFader(k);
   fd.down = true; fd.pid = e.pointerId; fd.base = 0; fd.pmin = undefined; fd.pmax = undefined;
   fd.touched = true;
   try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* niet nodig */ }
@@ -367,14 +380,7 @@ function faderMove(e) {
   for (var i = 0; i < FADERS; i++) if (faders[i].pid === e.pointerId) { faderSet(i, e); e.preventDefault(); return; }
 }
 function faderLift(e) {
-  for (var i = 0; i < FADERS; i++) {
-    var fd = faders[i];
-    if (fd.pid !== e.pointerId) continue;
-    fd.down = false; fd.pid = null;
-    delete dirty[ccBase + i];
-    link.sendValue(ccBase + i, fd.v, { up: true });
-    if (springs(i)) fd.v = restOf(i);        // de host veert terug; de schuif ook
-  }
+  for (var i = 0; i < FADERS; i++) if (faders[i].pid === e.pointerId) releaseFader(i);   // de host veert terug; de schuif ook
 }
 
 function drawFaders() {
