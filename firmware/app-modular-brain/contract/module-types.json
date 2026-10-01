@@ -557,6 +557,29 @@
       "ports": [],
       "controls": []
     },
+    "tp_mmb_gendyn": {
+      "typeId": "tp_mmb_gendyn",
+      "source": "firmware/app-modular-brain/src/GendynModule.h",
+      "ports": [
+        "chaos_cv",
+        "cycle",
+        "gate",
+        "out",
+        "reset",
+        "voct"
+      ],
+      "controls": [
+        "amp_step",
+        "dist",
+        "dur_step",
+        "level",
+        "pitch",
+        "points",
+        "seed",
+        "settle",
+        "smooth"
+      ]
+    },
     "tp_mmb_grids": {
       "typeId": "tp_mmb_grids",
       "source": "firmware/app-modular-brain/src/GridsModule.h",

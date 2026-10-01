@@ -411,6 +411,70 @@ describe('tp_mmb_scanned', () => {
   });
 });
 
+describe('tp_mmb_gendyn', () => {
+  it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_gendyn'); });
+
+  it('klinkt direct, blijft begrensd en de cyclusteller volgt V/Oct', async () => {
+    const module = await load('tp_mmb_gendyn');
+    module.setIn('voct', 1); // C5 = 523,25 Hz
+    const [out, cycle] = module.render(2);
+    expect(peak(out!)).toBeGreaterThan(0.1);
+    expect(peak(out!)).toBeLessThanOrEqual(1);
+    let cycles = 0;
+    for (let index = 1; index < cycle!.length; index++) if (cycle![index - 1]! < 0.5 && cycle![index]! >= 0.5) cycles++;
+    expect(cycles).toBeGreaterThan(1000);
+    expect(cycles).toBeLessThan(1100);
+  });
+
+  it('start met Hit en dezelfde Seed reproduceerbaar; een andere Seed klinkt anders', async () => {
+    const render = async (seed: number) => {
+      const module = await load('tp_mmb_gendyn');
+      module.setCtl('seed', seed);
+      module.setCtl('amp_step', 0.8);
+      return module.render(0.3, (time, current) => current.setIn('gate', time < 0.01 ? 1 : 0))[0]!;
+    };
+    const first = await render(5), second = await render(5), other = await render(6);
+    expect(first).toEqual(second);
+    let difference = 0;
+    for (let index = 0; index < first.length; index++) difference += Math.abs(first[index]! - other[index]!);
+    expect(difference).toBeGreaterThan(10);
+  });
+
+  it('zonder stappen is de golf stilstaand en periodiek', async () => {
+    const module = await load('tp_mmb_gendyn');
+    module.setCtl('amp_step', 0);
+    module.setCtl('dur_step', 0);
+    module.setCtl('settle', 0);
+    module.render(0.2);
+    const [out] = module.render(0.1);
+    const period = Math.round(module.rate / 261.6256);
+    let mismatch = 0, magnitude = 0;
+    for (let index = 0; index + period < out!.length; index++) {
+      mismatch += Math.abs(out![index]! - out![index + period]!);
+      magnitude += Math.abs(out![index]!);
+    }
+    expect(magnitude).toBeGreaterThan(0);
+    expect(mismatch).toBeLessThan(magnitude * 0.05);
+  });
+
+  it('blijft eindig bij uitersten en ongeldige inputs', async () => {
+    const module = await load('tp_mmb_gendyn');
+    module.setCtl('amp_step', 1);
+    module.setCtl('dur_step', 1);
+    module.setCtl('points', 24);
+    module.setCtl('smooth', Number.NaN);
+    const outputs = module.render(0.5, (time, current) => {
+      current.setIn('gate', Math.floor(time * 300) % 2);
+      current.setIn('chaos_cv', time < 0.2 ? 5 : Number.NaN);
+      current.setIn('voct', time < 0.3 ? 100 : Number.NEGATIVE_INFINITY);
+    });
+    for (const output of outputs) {
+      expect(output.every(Number.isFinite)).toBe(true);
+      expect(peak(output)).toBeLessThanOrEqual(1);
+    }
+  });
+});
+
 describe('tp_mmb_resonator', () => {
   it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_resonator'); });
 

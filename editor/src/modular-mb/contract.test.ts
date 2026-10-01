@@ -92,6 +92,7 @@ function allSeededProject(): ModularProject {
   p = seedSoloVoicePatch(p, 'tp_mmb_stk_sound', 'STK', 'out', 'out', {}, EQ_SOLO_FX);
   p = seedSoloVoicePatch(p, 'tp_mmb_material_bridge', 'Material Bridge', 'out_l', 'out_r', {});
   p = seedSoloVoicePatch(p, 'tp_mmb_scanned', 'Scanned', 'out', 'out', {});
+  p = seedSoloVoicePatch(p, 'tp_mmb_gendyn', 'GENDYN', 'out', 'out', {});
   p = seedSoloVoicePatch(p, 'tp_mmb_fof', 'FOF Stem', 'out', 'out', { vowel: 0, tone: 0.5, breath: 0.08, vibrato: 0.12, level: 0.8, voice: 0.35 });
   p = seedSoloVoicePatch(p, 'tp_mmb_dx7', 'DX7', 'out', 'out', {}, DIODE_SOLO_FX);
   p = seedSoloVoicePatch(p, 'tp_mmb_rings', 'Rings', 'out_l', 'out_r', {}, CONSOLE_EQ_SOLO_FX);

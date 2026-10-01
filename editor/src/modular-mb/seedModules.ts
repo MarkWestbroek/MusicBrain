@@ -3503,6 +3503,43 @@ function mmbReservoir() {
   });
 }
 
+// MMB GENDYN — 10 HP. Dynamische stochastische synthese (firmware
+//     tp_mmb_gendyn, Xenakis): breekpunten die per cyclus een begrensde
+//     random walk maken in amplitude en duur. Gestemd via V/Oct; Hit zaait
+//     de ruis opnieuw zodat iedere noot reproduceerbaar begint.
+function mmbGendyn() {
+  const w = W(10);
+  return assemble({
+    typeId: 'tp_mmb_gendyn', categoryId: 'vco',
+    variant: 'GENDYN (stochastisch)',
+    brand: 'MMB', model: 'GENDYN',
+    hp: 10, texture: 'pcb-black', baseColor: '#3d1f1f', internal: true,
+    texts: [
+      { x: w/2, y: 8, text: 'GENDYN', fontSize: 2.2, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13, text: 'dynamische stochastische synthese', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('pitch', 'Pitch', w*0.22, 29, { size: 'medium', min: -36, max: 36, def: 0, unit: 'semi', color: '#f9fafb' }),
+      knob('points', 'Points', w*0.78, 29, { size: 'medium', min: 3, max: 24, def: 12, step: 1, color: '#f9fafb' }),
+      knob('amp_step', 'Amp', w*0.22, 55, { size: 'medium', min: 0, max: 1, def: 0.3, color: '#fb923c' }),
+      knob('dur_step', 'Dur', w*0.78, 55, { size: 'medium', min: 0, max: 1, def: 0.3, color: '#fb923c' }),
+      knob('dist', 'Dist', w*0.16, 79, { size: 'small', min: 0, max: 1, def: 0.3, color: '#f9fafb' }),
+      knob('smooth', 'Smooth', w*0.39, 79, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('settle', 'Settle', w*0.61, 79, { size: 'small', min: 0, max: 1, def: 0.1, color: '#f9fafb' }),
+      knob('seed', 'Seed', w*0.84, 79, { size: 'small', min: 0, max: 99, def: 1, step: 1, color: '#f9fafb' }),
+      knob('level', 'Level', w*0.50, 100, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      inPort('voct', 'V/Oct', 'cv', w*0.14, 100),
+      inPort('gate', 'Hit', 'gate', w*0.32, 100),
+      inPort('chaos_cv', 'Amp+', 'cv', w*0.68, 100),
+      inPort('reset', 'Reset', 'gate', w*0.86, 100),
+      outPort('cycle', 'Cycle', 'gate', w*0.30, 117),
+      outPort('out', 'Out', 'audio', w*0.70, 117),
+    ],
+    notes: 'GENDYN (Xenakis, dynamische stochastische synthese): een cyclus bestaat uit Points breekpunten; na iedere cyclus zet elk breekpunt een random stap in amplitude (Amp, spiegelend binnen -1..1) en in duur (Dur, symmetrisch rond de nominale periode, zodat de gemiddelde toonhoogte V/Oct volgt). Dist mengt uniforme stappen (0) met een zwaarstaartige verdeling (1: veel kleine, af en toe een grote). Smooth loopt van rechte lijnstukken (ruw, veel boventonen) naar cosinusbogen. Settle trekt amplitudes per cyclus iets naar nul, zodat de golf niet aan de grenzen blijft hangen. Hit zaait de ruis opnieuw met Seed en herstelt de beginvorm: iedere noot begint hetzelfde en wandelt daarna weg; zonder Hit loopt de wandeling vrij door. Amp+ moduleert de stapgrootte (bijv. met een envelope: stabiel begin, chaotische staart). Cycle is hoog tijdens het eerste segment van elke cyclus. Niet bandbegrensd; dat is de aard van de techniek.',
+  });
+}
+
 // 24. MMB CHORD — 6 HP. Chord-generator (firmware tp_mmb_chord, FW-CV-5):
 //     1 V/Oct in → 4 gestemde CV-uitgangen. Voedt Octa-VCO / 4 VCO's /
 //     de resonator-bank; achter de quantizer blijft alles in de toonsoort.
@@ -3688,6 +3725,7 @@ export function seedInternals(project: ModularProject): ModularProject {
   all.push(mmbMaterialBridge());
   all.push(mmbScanned());
   all.push(mmbReservoir());
+  all.push(mmbGendyn());
   const newTypes = all.map((x) => x.type);
 
   // Upgrade-pad: bestaande interne types worden in-place VERVANGEN (zelfde

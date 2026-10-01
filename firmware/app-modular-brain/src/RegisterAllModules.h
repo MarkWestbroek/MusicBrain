@@ -62,6 +62,7 @@
 #include "MaterialBridgeModule.h"
 #include "ScannedModule.h"
 #include "ReservoirModule.h"
+#include "GendynModule.h"
 #include "Cr78Module.h"
 #include "QuantModule.h"
 #include "ChordModule.h"
@@ -149,6 +150,7 @@ inline void registerAllRuntimeModules() {
     MaterialBridgeModule::registerFactory();
     ScannedModule::registerFactory();   // scanned synthesis (massa-veerring als golftabel)
     ReservoirModule::registerFactory(); // resource-coupled: gedeelde herstellende bron (CV)
+    GendynModule::registerFactory();    // GENDYN: dynamische stochastische synthese
     Cr78Module::registerFactory();      // FW-AU-16: CR-78 drums (berekend)
     QuantModule::registerFactory();     // FW-CV-4: V/Oct-quantizer naar schaal
     ChordModule::registerFactory();     // FW-CV-5: chord-generator (4 stemmen)
