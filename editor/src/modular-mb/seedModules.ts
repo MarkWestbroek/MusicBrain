@@ -3287,9 +3287,10 @@ function mmbMaterialBridge() {
       knob('pitch', 'Pitch', w*0.18, 27, { size: 'medium', min: -36, max: 36, def: 0, unit: 'semi', color: '#f9fafb' }),
       knob('spread', 'Spread', w*0.50, 27, { size: 'medium', min: 0, max: 1, def: 0.35, color: '#f9fafb' }),
       knob('coupling', 'Couple', w*0.82, 27, { size: 'medium', min: 0, max: 1, def: 0.5, color: '#6ee7b7' }),
-      knob('decay', 'Decay', w*0.18, 53, { size: 'medium', min: 0.05, max: 8, def: 2, unit: 's', color: '#f9fafb' }),
-      knob('memory', 'Memory', w*0.50, 53, { size: 'medium', min: 0, max: 1, def: 0.7, color: '#fb7185' }),
-      knob('recovery', 'Recover', w*0.82, 53, { size: 'medium', min: 0.1, max: 10, def: 2, unit: 's', color: '#f9fafb' }),
+      knob('decay', 'Decay', w*0.14, 53, { size: 'small', min: 0.05, max: 8, def: 2, unit: 's', color: '#f9fafb' }),
+      knob('memory', 'Memory', w*0.38, 53, { size: 'small', min: 0, max: 1, def: 0.7, color: '#fb7185' }),
+      knob('fatigue', 'Fatigue', w*0.62, 53, { size: 'small', min: 0, max: 1, def: 0.5, color: '#fb7185' }),
+      knob('recovery', 'Recover', w*0.86, 53, { size: 'small', min: 0.1, max: 10, def: 2, unit: 's', color: '#f9fafb' }),
       inPort('coupling_cv', 'Cpl+', 'cv', w*0.12, 78),
       knob('pickup', 'Pickup', w*0.36, 78, { size: 'small', min: 0, max: 1, def: 0.25, color: '#6ee7b7' }),
       knob('level', 'Level', w*0.64, 78, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
@@ -3304,7 +3305,7 @@ function mmbMaterialBridge() {
       outPort('out_l', 'L', 'audio', w*0.64, 117),
       outPort('out_r', 'R', 'audio', w*0.84, 117),
     ],
-    notes: 'Experimentele state-graph voice: vier resonatoren delen energie via drie passieve koppelingen. Hit A/B slaan de uiteinden aan; audio exciteert A. Memory laat energiebelasting de middelste brug tijdelijk verzwakken en de uitklank dempen. Recover bepaalt het herstel; Stress geeft de toestand als CV. Pickup verplaatst twee passieve stereo-pickups. Reset wist energie en geheugen. V/Oct rond C4 stemt het hele materiaal; koppeling verandert ook de modi, dus geen exacte concertstemming. Dezelfde C++-kern op Teensy en in wasm.',
+    notes: 'Experimentele state-graph voice: vier resonatoren delen energie via drie passieve koppelingen. Hit A/B slaan de uiteinden aan; audio exciteert A. Een harde aanslag (velocity boven ~0,85) drijft Stress over de breekdrempel; pas onder de hersteldrempel sluit het contact weer (hysterese). Memory laat dat gebroken contact de middelste brug verzwakken: energie blijft dan aan de aangeslagen kant en de pickupbalans verandert, zonder extra demping. Fatigue voegt stressafhankelijke demping toe (kortere uitklank onder belasting). Recover bepaalt het herstel; Stress geeft de toestand als CV. Pickup verplaatst twee passieve stereo-pickups. Reset wist energie en geheugen. V/Oct rond C4 transponeert het hele spectrum; de koppeling schaalt mee, zodat de modusverhoudingen vast liggen. Couple spreidt de modi (bij 0,65 ligt de sterkste modus ~36 cent boven de grondtoon). Dezelfde C++-kern op Teensy en in wasm.',
   });
 }
 
@@ -4746,7 +4747,7 @@ export function seedMaterialBridgeDemo(project: ModularProject): ModularProject 
   let offset = 0;
   const rack: Rack = {
     id: uid('rack'), name: 'Material Bridge demo',
-    description: 'Twee ritmes (2 en 3 Hz) delen materiaal en velocity; vaste grondtoon.',
+    description: 'Zacht-hard-zacht-frase (2 Hz, 16 stappen) plus een trage tweede aanslag (0,5 Hz); vaste grondtoon.',
     rows: 1, hpPerRow: 64, kind: 'physical',
     slots: modules.map((module) => {
       const slot: RackSlot = { id: uid('slot'), moduleId: module.id, row: 0, hpOffset: offset };
@@ -4764,16 +4765,20 @@ export function seedMaterialBridgeDemo(project: ModularProject): ModularProject 
     cable(rhythmB, 'gate_out', material, 'gate_b'),
     cable(material, 'out_l', out, 'l'), cable(material, 'out_r', out, 'r'),
   ];
-  const steps = { s1: 3, s2: 12, s3: 5, s4: 12, s5: 3, s6: 9, s7: 12, s8: 4 };
-  const patches = [0.85, 0].map((memory): Patch => ({
-    id: uid('patch'), name: `Material Bridge demo - Memory ${memory === 0 ? 'uit' : 'aan'}`,
-    description: 'Zelfspelend 2:3-ritme, vaste C3 en gedeelde velocity. Beide varianten verschillen alleen in Memory; live wisselen reset de toestand niet. Gebruik de gerenderde takes voor een gematchte vergelijking.',
+  // Zes zachte noten (vel 0,33: stress blijft onder de hersteldrempel), een
+  // harde (vel 1: breekt de brug), zeven zachte tijdens breuk en herstel, twee
+  // stappen rust. Dezelfde zachte noot klinkt dus voor en na de harde aanslag.
+  const steps = { s1: 4, s2: 4, s3: 4, s4: 4, s5: 4, s6: 4, s7: 12, s8: 4, s9: 4, s10: 4, s11: 4, s12: 4, s13: 4, s14: 4, s15: 0, s16: 0 };
+  const variants: Array<[string, number, number]> = [['Memory uit', 0, 0], ['Alleen brug', 0.85, 0], ['Brug + vermoeiing', 0.85, 0.85]];
+  const patches = variants.map(([label, memory, fatigue]): Patch => ({
+    id: uid('patch'), name: `Material Bridge demo - ${label}`,
+    description: 'Zelfspelende zacht-hard-zacht-frase, vaste C3 en gedeelde velocity. De drie varianten verschillen alleen in Memory (brugcontact) en Fatigue (stressdemping); live wisselen reset de toestand niet. Gebruik de gerenderde takes voor een gematchte vergelijking.',
     voiceCount: 1, rackIds: [rack.id],
     connections: connections.map((connection) => ({ ...connection, id: uid('conn') })),
     controlState: {
-      [rhythmA.id]: { ...steps, root: 60, rate: 2, gate: 0.1, length: 8, run: 0 },
-      [rhythmB.id]: { root: 60, rate: 3, gate: 0.1, length: 8, run: 0 },
-      [material.id]: { pitch: -12, spread: 0.12, coupling: 0.65, decay: 4, memory, recovery: 2, pickup: 0.25, level: 0.8 },
+      [rhythmA.id]: { ...steps, root: 60, rate: 2, gate: 0.1, length: 16, run: 0 },
+      [rhythmB.id]: { root: 60, rate: 0.5, gate: 0.1, length: 8, run: 0 },
+      [material.id]: { pitch: -12, spread: 0.12, coupling: 0.65, decay: 4, memory, fatigue, recovery: 2, pickup: 0.25, level: 0.8 },
       [out.id]: { level: 0.8 },
     },
     envelopes: [], lfos: [],

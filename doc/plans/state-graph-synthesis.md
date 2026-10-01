@@ -1,6 +1,6 @@
 # State-Graph Synthesis
 
-**Status:** onderzoeksvoorstel; compact Material Bridge-prototype gebouwd (2026-09-30)
+**Status:** onderzoeksvoorstel; compact Material Bridge-prototype gebouwd (2026-09-30), stemming en demo hersteld (2026-10-01). De actuele stand, meetwaarden en vervolgstappen staan in [Material Bridge: overdracht en vervolg](material-bridge-handover.md); dit document bewaart het model en de ontwerpbesluiten.
 
 **Datum:** 2026-09-01
 
@@ -568,15 +568,20 @@ passief. Een verbinding gebruikt de transformatie
 `z_a' = c*z_a + i*s*z_b`, `z_b' = c*z_b + i*s*z_a`, met
 `c=(1-t*t)/(1+t*t)` en `s=2*t/(1+t*t)`. Deze is unitair: de som van beide
 kwadratische normen blijft behouden. Ook een gewijzigde koppeling voegt dus
-geen energie toe. Samplegewijs uitvoeren voorkomt een audioblokvertraging
+geen energie toe. De hoek `t` schaalt sinds 2026-10-01 met de grondtoon
+(`0,1 * Couple * hoek van de grondtoon`), zodat de modusverhoudingen vastliggen
+en V/Oct het hele spectrum transponeert; een vaste hoek per sample gaf een
+splitsing groter dan de grondtoon zelf. Samplegewijs uitvoeren voorkomt een audioblokvertraging
 **binnen** het netwerk; externe kabels behouden de normale platformlatency.
 
 `Stress` volgt de begrensde totale energie met 25 ms aanval en instelbaar
 herstel. Boven 0,60 verzwakt de middelste brug; pas onder 0,25 herstelt zij.
 Dat zijn echte afzonderlijke omschakeldrempels, niet alleen een envelope.
-De brugovergang wordt over circa 10 ms gladgestreken. `Memory` mengt dit
-gedrag in en verhoogt ook de demping bij belasting. Bij `Memory=0` heeft de
-stressvolger geen invloed op de klank: een bruikbare A/B-referentie.
+De brugovergang wordt over circa 10 ms gladgestreken. `Memory` mengt de
+brugverzwakking in; dat herverdeelt energie maar dissipeert niets. `Fatigue`
+(sinds 2026-10-01 een aparte control) verhoogt de demping bij belasting. Bij
+`Memory=0` en `Fatigue=0` heeft de stressvolger geen invloed op de klank: een
+bruikbare A/B-referentie.
 
 De som van de vier resonatornormen wordt na excitatie tot 4 begrensd.
 Dit is een **genormaliseerde modeleenergie**, niet joules. Het is een
@@ -601,7 +606,8 @@ onafhankelijke polyfone stemmen.
 | Spread | 0..1 / 0,35 | Van bijna gelijke naar inharmonisch gespreide modi |
 | Couple | 0..1 / 0,5 | Energie-uitwisseling tussen de resonatoren |
 | Decay | 0,05..8 s / 2 | Nominale -60 dB-tijd zonder extra geheugendemping |
-| Memory | 0..1 / 0,7 | Invloed van belasting op brug en demping |
+| Memory | 0..1 / 0,7 | Verzwakking van de middelste brug bij gebroken contact (geen extra demping) |
+| Fatigue | 0..1 / 0,5 | Stressafhankelijke extra demping (kortere uitklank onder belasting) |
 | Recover | 0,1..10 s / 2 | Tijdconstante waarmee stress terugloopt |
 | Pickup | 0..1 / 0,25 | Beide pickups bewegen van buiten naar binnen |
 | Level | 0..1 / 0,8 | Uitgangsniveau |
@@ -650,8 +656,10 @@ voor extern geluid van. Reset is een onmiddellijke wisactie en kan klikken.
    luidheidsmatching met Memory=0? Sneller uitdoven alleen bewijst dat niet.
 2. Teensy flashen en CPU/interruptbudget meten in een echte patch. Klein
    geheugen en een geslaagde build bewijzen geen realtime CPU-marge.
-3. Koppeling verschuift de gezamenlijke modi. V/Oct stemt de losse knopen,
-   niet gegarandeerd de waargenomen grondtoon: nog geen concertstemming.
+3. Koppeling verschuift de gezamenlijke modi; sinds 2026-10-01 schaalt de
+   koppeling met de grondtoon, zodat V/Oct zuiver transponeert. De sterkste
+   modus houdt per Couple-stand een vaste offset (tot ~50 cent); zie de
+   moduskaart in de handover.
 4. Couple en Pickup (knop plus CV) en het hysteretische brugcontact hebben
   smoothing. Andere knop- en toonhoogtewissels zijn energiebegrensd maar
   nog niet allemaal klikvrij; er is bewust geen impliciet portamento.
@@ -776,6 +784,14 @@ naar veel stemmen vallen buiten deze vervolgstap. De eerstvolgende beslissing
 gaat over **eigen speelgedrag**, niet over het aantal functies.
 
 ## Uitvoering: demo, A/B en CV-smoothing
+
+**Let op (2026-10-01):** de demo en de metingen hieronder beschrijven de
+eerste uitvoering met het 2:3-ritme en de ongeschaalde koppeling. Die demo
+hield de brug 94 % van de speeltijd gebroken en het verschil kwam vooral uit de
+stressdemping. De huidige demo (zacht-hard-zacht-frase, drie takes, Memory en
+Fatigue gescheiden) en de bijbehorende meetwaarden staan in de
+[handover](material-bridge-handover.md#demonstratie-instellingen). Deze sectie
+blijft staan als verslag van de eerste stap.
 
 ### Demonstratie en herhaalbare takes
 

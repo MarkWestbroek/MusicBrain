@@ -5,7 +5,7 @@ namespace mmb_dsp {
 
 class MaterialBridge {
 public:
-    enum Control { Pitch, Spread, Coupling, Decay, Memory, Recovery, Pickup, Level };
+    enum Control { Pitch, Spread, Coupling, Decay, Memory, Recovery, Pickup, Level, Fatigue };
 
     void Init(float rate) {
         *this = MaterialBridge();
@@ -23,6 +23,7 @@ public:
             case Recovery: recovery_ = finiteClamp(value, 0.1f, 10, 2); break;
             case Pickup: pickup_ = finiteClamp(value, 0, 1, 0.25f); return;
             case Level: level_ = finiteClamp(value, 0, 1, 0.8f); break;
+            case Fatigue: fatigue_ = finiteClamp(value, 0, 1, 0.5f); return;
             default: return;
         }
         prepare();
@@ -79,7 +80,7 @@ public:
         if (stress_ > 0.60f) broken_ = true;
         else if (stress_ < 0.25f) broken_ = false;
         contact_ += ((broken_ ? 0.08f : 1.0f) - contact_) * slew_;
-        const float damping = damping_ * (1 - memory_ * stress_ * 8 / rate_);
+        const float damping = damping_ * (1 - fatigue_ * stress_ * 8 / rate_);
         for (int node = 0; node < 4; ++node) {
             const float next = cosine_[node] * real_[node] - sine_[node] * imag_[node];
             imag_[node] = damping * (sine_[node] * real_[node] + cosine_[node] * imag_[node]);
@@ -123,7 +124,11 @@ private:
         attack_ = 1 - std::exp(-1 / (0.025f * rate_));
         release_ = 1 - std::exp(-1 / (recovery_ * rate_));
         slew_ = 1 - std::exp(-1 / (0.01f * rate_));
-        couplingScale_ = 1800 / rate_;
+        // Koppeling schaalt met de grondtoon: de modusverhoudingen blijven dan
+        // gelijk bij transpositie en V/Oct verschuift het hele spectrum. Bij
+        // Couple 1 splitst een paar ongeveer +-20 % (k = 0,1, hoek ~ 2*k*theta).
+        const float rootAngle = 6.28318530718f * finiteClamp(root, 10, rate_ * 0.20f, 261.625565f) / rate_;
+        couplingScale_ = 0.1f * rootAngle;
     }
 
     void exchange(int first, int second, float amount) {
@@ -139,7 +144,7 @@ private:
     }
 
     float rate_ = 44100, pitch_ = 0, spread_ = 0.35f, coupling_ = 0.5f;
-    float decay_ = 2, memory_ = 0.7f, recovery_ = 2, pickup_ = 0.25f, level_ = 0.8f, voct_ = 0;
+    float decay_ = 2, memory_ = 0.7f, recovery_ = 2, pickup_ = 0.25f, level_ = 0.8f, fatigue_ = 0.5f, voct_ = 0;
     float real_[4] = {}, imag_[4] = {}, cosine_[4] = {}, sine_[4] = {};
     float damping_ = 0, attack_ = 0, release_ = 0, slew_ = 0, couplingScale_ = 0;
     float couplingCv_ = 0, pickupCv_ = 0, couplingSmoothed_ = 0.5f, pickupSmoothed_ = 0.25f;

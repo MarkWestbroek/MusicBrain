@@ -106,22 +106,31 @@ function allSeededProject(): ModularProject {
 }
 
 const project = allSeededProject();
-it('Material Bridge demo deelt twee ritmes en velocity, met alleen Memory als A/B-verschil', () => {
+it('Material Bridge demo deelt twee ritmes en velocity, met alleen Memory en Fatigue als A/B-verschil', () => {
   const demo = seedMaterialBridgeDemo(emptyModularProject());
-  const [withMemory, withoutMemory] = demo.patches.slice(-2);
-  expect(withMemory!.rackIds).toEqual(withoutMemory!.rackIds);
-  expect(withMemory!.connections.map(({ from, to }) => ({ from, to })))
-    .toEqual(withoutMemory!.connections.map(({ from, to }) => ({ from, to })));
-  const materialId = withMemory!.connections.find((connection) => connection.to.portId === 'gate')!.to.moduleId;
-  expect(withMemory!.controlState[materialId]!.memory).toBe(0.85);
-  expect(withoutMemory!.controlState).toEqual({
-    ...withMemory!.controlState,
-    [materialId]: { ...withMemory!.controlState[materialId], memory: 0 },
+  const [off, bridgeOnly, full] = demo.patches.slice(-3);
+  for (const patch of [bridgeOnly, full]) {
+    expect(patch!.rackIds).toEqual(off!.rackIds);
+    expect(patch!.connections.map(({ from, to }) => ({ from, to })))
+      .toEqual(off!.connections.map(({ from, to }) => ({ from, to })));
+  }
+  const materialId = off!.connections.find((connection) => connection.to.portId === 'gate')!.to.moduleId;
+  expect(off!.controlState[materialId]).toMatchObject({ memory: 0, fatigue: 0 });
+  expect(bridgeOnly!.controlState).toEqual({
+    ...off!.controlState, [materialId]: { ...off!.controlState[materialId], memory: 0.85, fatigue: 0 },
   });
-  expect(withMemory!.connections.filter((connection) => connection.to.moduleId === materialId)
+  expect(full!.controlState).toEqual({
+    ...off!.controlState, [materialId]: { ...off!.controlState[materialId], memory: 0.85, fatigue: 0.85 },
+  });
+  expect(off!.connections.filter((connection) => connection.to.moduleId === materialId)
     .map((connection) => connection.to.portId).sort()).toEqual(['gate', 'gate_b', 'vel']);
-  const clocks = demo.modules.filter((module) => withMemory!.controlState[module.id]?.rate !== undefined);
-  expect(clocks.map((module) => withMemory!.controlState[module.id]!.rate)).toEqual([2, 3]);
+  const clocks = demo.modules.filter((module) => off!.controlState[module.id]?.rate !== undefined);
+  expect(clocks.map((module) => off!.controlState[module.id]!.rate)).toEqual([2, 0.5]);
+  // Frase: zacht (onder de hersteldrempel), een harde aanslag, zacht, rust.
+  const phrase = clocks[0]!;
+  const velocities = Array.from({ length: 16 }, (_, index) => off!.controlState[phrase.id]![`s${index + 1}`]! / 12);
+  expect(velocities.filter((velocity) => velocity === 1)).toHaveLength(1);
+  expect(velocities.every((velocity) => velocity === 0 || velocity === 1 || velocity < 0.5)).toBe(true);
 });
 
 it.each([['vel'], ['pressure']])('FOF solo vernieuwt een oud poortcontract zonder %s zonder bestaande patches te wijzigen', (missingPort) => {

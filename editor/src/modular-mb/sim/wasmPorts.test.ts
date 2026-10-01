@@ -285,16 +285,34 @@ describe('tp_mmb_material_bridge', () => {
     for (const output of module.render(0.02)) expect(peak(output)).toBe(0);
   });
 
-  it('verandert de uitklank causaal wanneer materiaalgeheugen aanstaat', async () => {
-    const tails: Float32Array[] = [];
-    for (const memory of [0, 1]) {
-      const module = await load('tp_mmb_material_bridge');
-      module.setCtl('decay', 8);
-      module.setCtl('memory', memory);
-      module.setIn('gate', 1);
-      tails.push(module.render(0.8)[0]!);
-    }
-    expect(rms(tails[1]!, 22050)).toBeLessThan(rms(tails[0]!, 22050) * 0.7);
+  /** Een harde aanslag (breekt de brug), dan 0,8 s uitklank per variant. */
+  const tailAfterHardHit = async (memory: number, fatigue: number) => {
+    const module = await load('tp_mmb_material_bridge');
+    module.setCtl('decay', 8);
+    module.setCtl('memory', memory);
+    module.setCtl('fatigue', fatigue);
+    module.setIn('gate', 1);
+    const [left, right] = module.render(0.8);
+    return { left: left!, right: right! };
+  };
+
+  it('Fatigue dempt de uitklank onder belasting', async () => {
+    const reference = await tailAfterHardHit(0, 0);
+    const fatigued = await tailAfterHardHit(0, 1);
+    expect(rms(fatigued.left, 22050)).toBeLessThan(rms(reference.left, 22050) * 0.7);
+  });
+
+  it('Memory verandert na een harde aanslag de pickupbalans, zonder de uitklank te verkorten', async () => {
+    const reference = await tailAfterHardHit(0, 0);
+    const bridged = await tailAfterHardHit(1, 0);
+    const half = 22050;
+    // Gebroken brug: minder energie bereikt de rechterkant, meer blijft links.
+    expect(rms(bridged.right, half)).toBeLessThan(rms(reference.right, half) * 0.8);
+    expect(rms(bridged.left, half)).toBeGreaterThan(rms(reference.left, half));
+    // Geen extra dissipatie: L+R-energie in de staart blijft in dezelfde orde.
+    const energy = ({ left, right }: { left: Float32Array; right: Float32Array }) =>
+      rms(left, half) ** 2 + rms(right, half) ** 2;
+    expect(energy(bridged)).toBeGreaterThan(energy(reference) * 0.7);
   });
 
   it('blijft eindig en begrensd bij uitersten en ongeldige inputs', async () => {

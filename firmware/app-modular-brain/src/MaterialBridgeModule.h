@@ -23,7 +23,7 @@ public:
             if (input) release(input);
             return;
         }
-        for (int index = 0; index < 8; ++index) {
+        for (int index = 0; index < 9; ++index) {
             const float value = controls_[index];
             if (value != applied_[index]) {
                 bridge_.setControl(index, value);
@@ -51,8 +51,8 @@ public:
 private:
     audio_block_t* inputQueue_[1] = {nullptr};
     mmb_dsp::MaterialBridge bridge_;
-    volatile float controls_[8] = {0, 0.35f, 0.5f, 2, 0.7f, 2, 0.25f, 0.8f};
-    float applied_[8] = {0, 0.35f, 0.5f, 2, 0.7f, 2, 0.25f, 0.8f};
+    volatile float controls_[9] = {0, 0.35f, 0.5f, 2, 0.7f, 2, 0.25f, 0.8f, 0.5f};
+    float applied_[9] = {0, 0.35f, 0.5f, 2, 0.7f, 2, 0.25f, 0.8f, 0.5f};
     volatile float inputs_[7] = {0, 0, 0, 1, 0, 0, 0};
     volatile float stress_ = 0;
     volatile bool active_ = true;
@@ -112,6 +112,7 @@ public:
         else if (controlId == "recovery") stream_.control(Kernel::Recovery, number);
         else if (controlId == "pickup") stream_.control(Kernel::Pickup, number);
         else if (controlId == "level") stream_.control(Kernel::Level, number);
+        else if (controlId == "fatigue") stream_.control(Kernel::Fatigue, number);
     }
     void onRetire() override { stream_.active(false); }
     void onReuse() override { stream_.active(true); }

@@ -19,12 +19,13 @@ const bundle = await build({
 const { seedMaterialBridgeDemo, emptyModularProject } = await import(
   `data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`);
 const project = seedMaterialBridgeDemo(emptyModularProject());
-const patches = project.patches.slice(-2);
+const patches = project.patches.slice(-3);
 const materialId = patches[0].connections.find(connection => connection.to.portId === 'gate').to.moduleId;
 const rhythmIds = ['gate', 'gate_b'].map(port => patches[0].connections.find(connection => connection.to.portId === port).from.moduleId);
 const rate = 44100;
-const seconds = 20;
-const activeSeconds = 12;
+// Twee frasecycli van 8 s (16 stappen op 2 Hz), daarna 6 s herstel.
+const seconds = 22;
+const activeSeconds = 16;
 const frames = seconds * rate;
 const destination = resolve(process.argv[2] ?? resolve(tmpdir(), 'mmb-material-bridge-ab'));
 
@@ -80,7 +81,7 @@ async function stimulus() {
       previous[index] = gate;
     }
   }
-  assert(hits[0] >= 24 && hits[1] >= 36, `Missing hits: ${hits}`);
+  assert(hits[0] >= 32 && hits[1] >= 8, `Missing hits: ${hits}`);
   for (const gate of gates) {
     let start = -1;
     for (let sample = 0; sample < frames; sample++) {
@@ -101,7 +102,7 @@ async function render(patch) {
   material.render(1);
   material.input('reset', 0);
   const audio = new Float32Array(frames * 2);
-  let peak = 0, energy = 0, stressPeak = 0;
+  let peak = 0, energy = 0, stressPeak = 0, broken = 0, loaded = 0;
   for (let offset = 0; offset < frames; offset += 32) {
     const count = Math.min(32, frames - offset);
     for (let sample = 0; sample < count; sample++) {
@@ -113,6 +114,10 @@ async function render(patch) {
     const left = material.output('out_l'), right = material.output('out_r'), stress = material.output('stress');
     for (let sample = 0; sample < count; sample++) {
       stressPeak = Math.max(stressPeak, stress[sample]);
+      if (offset + sample < activeSeconds * rate) {
+        if (stress[sample] > 0.6) broken++;
+        if (stress[sample] > 0.25) loaded++;
+      }
       for (let channel = 0; channel < 2; channel++) {
         const value = (channel === 0 ? left : right)[sample];
         assert(Number.isFinite(value));
@@ -126,7 +131,12 @@ async function render(patch) {
   assert(stressPeak > 0.6, 'Demo never stresses the bridge');
   const stressEnd = material.output('stress')[(frames - 1) % 32];
   assert(stressEnd < 0.1, `No recovery: ${stressEnd}`);
-  return { audio, peak, rms: Math.sqrt(energy / audio.length), stressPeak, stressEnd };
+  const activeSamples = activeSeconds * rate;
+  const stressAboveBreak = broken / activeSamples, stressAboveRecover = loaded / activeSamples;
+  // De frase moet de brug ook tijdens het spelen laten herstellen: anders is
+  // de A/B een statisch verschil en geen geheugen.
+  assert(stressAboveRecover < 0.6, `Bridge never recovers while playing: ${stressAboveRecover}`);
+  return { audio, peak, rms: Math.sqrt(energy / audio.length), stressPeak, stressEnd, stressAboveBreak, stressAboveRecover };
 }
 
 const takes = await Promise.all(patches.map(render));
@@ -151,18 +161,21 @@ function wav(audio, gain) {
 mkdirSync(destination, { recursive: true });
 const report = takes.map((take, index) => {
   const gain = targetRms / take.rms;
-  const name = index === 0 ? 'memory-on.wav' : 'memory-off.wav';
+  const { memory, fatigue } = patches[index].controlState[materialId];
+  const name = memory === 0 ? 'memory-off.wav' : fatigue === 0 ? 'bridge-only.wav' : 'bridge-fatigue.wav';
   const bytes = wav(take.audio, gain);
   writeFileSync(resolve(destination, name), bytes);
-  return { name, memory: patches[index].controlState[materialId].memory, gain,
+  return { name, memory, fatigue, gain,
     rawRms: take.rms, matchedRms: targetRms, matchedPeak: gain * take.peak,
     stressPeak: take.stressPeak, stressEnd: take.stressEnd,
+    stressAboveBreak: take.stressAboveBreak, stressAboveRecover: take.stressAboveRecover,
     sha256: createHash('sha256').update(bytes).digest('hex') };
 });
 writeFileSync(resolve(destination, 'report.json'), JSON.stringify({
   rate, seconds, activeSeconds, hits: drive.hits,
   matching: 'Whole-take stereo RMS, one constant gain per take; not perceptual LUFS or a blind listening result.',
   timing: 'Actual Seq16 wasm at 1 kHz, sample-and-hold to 44.1 kHz, velocity written before gates in each DSP sample. Live wrapper scheduling may differ.',
+  phrase: 'Six soft hits (vel 0.33, stress stays below the 0.25 recover threshold), one hard hit (vel 1, breaks the bridge), seven soft hits during break and recovery, two rests; Hit B every 2 s. stressAboveBreak/stressAboveRecover are fractions of the active time.',
   controls: patches.map(patch => patch.controlState), takes: report,
 }, null, 2));
 console.log(JSON.stringify({ destination, hits: drive.hits, reproducible: true, takes: report }, null, 2));

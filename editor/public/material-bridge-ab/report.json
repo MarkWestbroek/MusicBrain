@@ -1,111 +1,196 @@
 {
   "rate": 44100,
-  "seconds": 20,
-  "activeSeconds": 12,
+  "seconds": 22,
+  "activeSeconds": 16,
   "hits": [
-    24,
-    37
+    32,
+    9
   ],
   "matching": "Whole-take stereo RMS, one constant gain per take; not perceptual LUFS or a blind listening result.",
   "timing": "Actual Seq16 wasm at 1 kHz, sample-and-hold to 44.1 kHz, velocity written before gates in each DSP sample. Live wrapper scheduling may differ.",
+  "phrase": "Six soft hits (vel 0.33, stress stays below the 0.25 recover threshold), one hard hit (vel 1, breaks the bridge), seven soft hits during break and recovery, two rests; Hit B every 2 s. stressAboveBreak/stressAboveRecover are fractions of the active time.",
   "controls": [
     {
-      "mod_p5bl4sh": {
-        "s1": 3,
-        "s2": 12,
-        "s3": 5,
-        "s4": 12,
-        "s5": 3,
-        "s6": 9,
+      "mod_uz26lhe": {
+        "s1": 4,
+        "s2": 4,
+        "s3": 4,
+        "s4": 4,
+        "s5": 4,
+        "s6": 4,
         "s7": 12,
         "s8": 4,
+        "s9": 4,
+        "s10": 4,
+        "s11": 4,
+        "s12": 4,
+        "s13": 4,
+        "s14": 4,
+        "s15": 0,
+        "s16": 0,
         "root": 60,
         "rate": 2,
         "gate": 0.1,
-        "length": 8,
+        "length": 16,
         "run": 0
       },
-      "mod_qhk1vvy": {
+      "mod_gjlmken": {
         "root": 60,
-        "rate": 3,
+        "rate": 0.5,
         "gate": 0.1,
         "length": 8,
         "run": 0
       },
-      "mod_8qrdxkt": {
-        "pitch": -12,
-        "spread": 0.12,
-        "coupling": 0.65,
-        "decay": 4,
-        "memory": 0.85,
-        "recovery": 2,
-        "pickup": 0.25,
-        "level": 0.8
-      },
-      "mod_pamrqi1": {
-        "level": 0.8
-      }
-    },
-    {
-      "mod_p5bl4sh": {
-        "s1": 3,
-        "s2": 12,
-        "s3": 5,
-        "s4": 12,
-        "s5": 3,
-        "s6": 9,
-        "s7": 12,
-        "s8": 4,
-        "root": 60,
-        "rate": 2,
-        "gate": 0.1,
-        "length": 8,
-        "run": 0
-      },
-      "mod_qhk1vvy": {
-        "root": 60,
-        "rate": 3,
-        "gate": 0.1,
-        "length": 8,
-        "run": 0
-      },
-      "mod_8qrdxkt": {
+      "mod_9insuzb": {
         "pitch": -12,
         "spread": 0.12,
         "coupling": 0.65,
         "decay": 4,
         "memory": 0,
+        "fatigue": 0,
         "recovery": 2,
         "pickup": 0.25,
         "level": 0.8
       },
-      "mod_pamrqi1": {
+      "mod_xbwaht1": {
+        "level": 0.8
+      }
+    },
+    {
+      "mod_uz26lhe": {
+        "s1": 4,
+        "s2": 4,
+        "s3": 4,
+        "s4": 4,
+        "s5": 4,
+        "s6": 4,
+        "s7": 12,
+        "s8": 4,
+        "s9": 4,
+        "s10": 4,
+        "s11": 4,
+        "s12": 4,
+        "s13": 4,
+        "s14": 4,
+        "s15": 0,
+        "s16": 0,
+        "root": 60,
+        "rate": 2,
+        "gate": 0.1,
+        "length": 16,
+        "run": 0
+      },
+      "mod_gjlmken": {
+        "root": 60,
+        "rate": 0.5,
+        "gate": 0.1,
+        "length": 8,
+        "run": 0
+      },
+      "mod_9insuzb": {
+        "pitch": -12,
+        "spread": 0.12,
+        "coupling": 0.65,
+        "decay": 4,
+        "memory": 0.85,
+        "fatigue": 0,
+        "recovery": 2,
+        "pickup": 0.25,
+        "level": 0.8
+      },
+      "mod_xbwaht1": {
+        "level": 0.8
+      }
+    },
+    {
+      "mod_uz26lhe": {
+        "s1": 4,
+        "s2": 4,
+        "s3": 4,
+        "s4": 4,
+        "s5": 4,
+        "s6": 4,
+        "s7": 12,
+        "s8": 4,
+        "s9": 4,
+        "s10": 4,
+        "s11": 4,
+        "s12": 4,
+        "s13": 4,
+        "s14": 4,
+        "s15": 0,
+        "s16": 0,
+        "root": 60,
+        "rate": 2,
+        "gate": 0.1,
+        "length": 16,
+        "run": 0
+      },
+      "mod_gjlmken": {
+        "root": 60,
+        "rate": 0.5,
+        "gate": 0.1,
+        "length": 8,
+        "run": 0
+      },
+      "mod_9insuzb": {
+        "pitch": -12,
+        "spread": 0.12,
+        "coupling": 0.65,
+        "decay": 4,
+        "memory": 0.85,
+        "fatigue": 0.85,
+        "recovery": 2,
+        "pickup": 0.25,
+        "level": 0.8
+      },
+      "mod_xbwaht1": {
         "level": 0.8
       }
     }
   ],
   "takes": [
     {
-      "name": "memory-on.wav",
-      "memory": 0.85,
-      "gain": 2.3626701883627557,
-      "rawRms": 0.04071938377321416,
-      "matchedRms": 0.09620647412947522,
-      "matchedPeak": 0.9,
-      "stressPeak": 0.9788742065429688,
-      "stressEnd": 0.013426958583295345,
-      "sha256": "4b937ad6d09da9fb6572392ccc6deec133478e044cd4b608dfeba9a6ef0b28e7"
-    },
-    {
       "name": "memory-off.wav",
       "memory": 0,
-      "gain": 0.9844006912703657,
-      "rawRms": 0.09773101033210481,
-      "matchedRms": 0.09620647412947522,
-      "matchedPeak": 0.5035755221373631,
-      "stressPeak": 0.9999671578407288,
-      "stressEnd": 0.018318714573979378,
-      "sha256": "287722b932f6d32e8087917ed1fca2c389a66ba4a6ab8b6873049e4ab7524395"
+      "fatigue": 0,
+      "gain": 1.8591110208348527,
+      "rawRms": 0.028343251267712043,
+      "matchedRms": 0.05269325079809487,
+      "matchedPeak": 0.5884281006095406,
+      "stressPeak": 0.9771966338157654,
+      "stressEnd": 0.0072240522131323814,
+      "stressAboveBreak": 0.18137046485260772,
+      "stressAboveRecover": 0.48800736961451247,
+      "sha256": "041457bedba2e14f18f2de5f15e385e6e41a57387b79606b8b9531791517b058"
+    },
+    {
+      "name": "bridge-only.wav",
+      "memory": 0.85,
+      "fatigue": 0,
+      "gain": 2.018445106896419,
+      "rawRms": 0.026105862685122275,
+      "matchedRms": 0.05269325079809487,
+      "matchedPeak": 0.6388590068721813,
+      "stressPeak": 0.9771738648414612,
+      "stressEnd": 0.007063561584800482,
+      "stressAboveBreak": 0.1832638888888889,
+      "stressAboveRecover": 0.48285856009070294,
+      "sha256": "a56741ff29ba2b2207f126ac2c7de93fb67ad41a3601e3481a29fe821c53dfe9"
+    },
+    {
+      "name": "bridge-fatigue.wav",
+      "memory": 0.85,
+      "fatigue": 0.85,
+      "gain": 2.7995234717774946,
+      "rawRms": 0.018822221470655674,
+      "matchedRms": 0.05269325079809487,
+      "matchedPeak": 0.9,
+      "stressPeak": 0.820563793182373,
+      "stressEnd": 0.0054448386654257774,
+      "stressAboveBreak": 0.09260204081632653,
+      "stressAboveRecover": 0.3555598072562358,
+      "sha256": "12ac836e13f9be3e8a2284576b71ee9c4de90d568331a93f80be58d371da31f7"
     }
   ]
 }

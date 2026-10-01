@@ -72,6 +72,28 @@ int main() {
             smoothed.Tick(0, 0, 0, 1, 1, left, right);
             assert(smoothed.energyTotal() == 0 && smoothed.stress() == 0);
         }
+
+        // Memory (brugcontact) herverdeelt energie maar dissipeert niet:
+        // dezelfde harde aanslag geeft met en zonder Memory dezelfde totale
+        // energie. Fatigue dissipeert wel.
+        Bridge plain, bridged, fatigued;
+        for (Bridge* b : {&plain, &bridged, &fatigued}) { b->Init(rate); b->setControl(Bridge::Decay, 8); b->setControl(Bridge::Fatigue, 0); }
+        plain.setControl(Bridge::Memory, 0);
+        bridged.setControl(Bridge::Memory, 1);
+        fatigued.setControl(Bridge::Memory, 0);
+        fatigued.setControl(Bridge::Fatigue, 1);
+        float leftPlain = 0, rightPlain = 0, leftBridged = 0, rightBridged = 0;
+        for (int sample = 0; sample < static_cast<int>(rate); ++sample) {
+            const float gate = sample == 0 ? 1 : 0;
+            float l, r;
+            plain.Tick(0, gate, 0, 1, 0, l, r); leftPlain += l * l; rightPlain += r * r;
+            bridged.Tick(0, gate, 0, 1, 0, l, r); leftBridged += l * l; rightBridged += r * r;
+            fatigued.Tick(0, gate, 0, 1, 0, l, r);
+        }
+        assert(bridged.broken() || bridged.stress() < 0.25f);
+        assert(std::fabs(bridged.energyTotal() - plain.energyTotal()) < plain.energyTotal() * 0.01f);
+        assert(fatigued.energyTotal() < plain.energyTotal() * 0.1f);
+        assert(rightBridged < rightPlain * 0.8f && leftBridged > leftPlain);
     }
-    std::printf("PASS: CV passivity, 10 ms smoothing (32/128 blocks), hysteresis, recovery, energy limit, reset at 4 rates; kernel %zu bytes\n", sizeof(Bridge));
+    std::printf("PASS: CV passivity, 10 ms smoothing (32/128 blocks), hysteresis, recovery, energy limit, reset, memory-vs-fatigue at 4 rates; kernel %zu bytes\n", sizeof(Bridge));
 }

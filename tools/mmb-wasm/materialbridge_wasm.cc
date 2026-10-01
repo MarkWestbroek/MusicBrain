@@ -19,8 +19,9 @@ const int MMB_NUM_OUTPUTS = 3;
 MmbControl MMB_CONTROLS[] = {
     {"pitch", 0}, {"spread", 0.35f}, {"coupling", 0.5f}, {"decay", 2},
     {"memory", 0.7f}, {"recovery", 2}, {"pickup", 0.25f}, {"level", 0.8f},
+    {"fatigue", 0.5f},
 };
-const int MMB_NUM_CONTROLS = 8;
+const int MMB_NUM_CONTROLS = 9;
 
 namespace { mmb_dsp::MaterialBridge bridge; }
 void mmb_setup() { bridge.Init(MMB_NATIVE_RATE); }

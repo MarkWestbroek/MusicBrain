@@ -692,6 +692,7 @@
       "controls": [
         "coupling",
         "decay",
+        "fatigue",
         "level",
         "memory",
         "pickup",
