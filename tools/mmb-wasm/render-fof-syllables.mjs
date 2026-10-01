@@ -29,6 +29,9 @@ export const SYLLABLES = [
   { name: 'gij', text: 'gij' }, { name: 'nog', text: 'nog' }, { name: 'al', text: 'al' }, { name: 'le', text: 'le' },
   { name: 'klo', text: 'klo' }, { name: 'ken', text: 'ken' }, { name: 'lui', text: 'lui' }, { name: 'den', text: 'den' },
   { name: 'bim', text: 'bim' }, { name: 'bam', text: 'bam' }, { name: 'bom', text: 'bom' }, { name: 'de', text: 'de' },
+  { name: 'na', text: 'na' }, { name: 'hee', text: 'hee' }, { name: 'djoed', text: 'djoed' },
+  // Olifantje in het bos
+  { name: 'o', text: 'oo' }, { name: 'li', text: 'li' }, { name: 'fant', text: 'fant' }, { name: 'je', text: 'je' }, { name: 'in', text: 'in' }, { name: 'het', text: 'het' }, { name: 'bos', text: 'bos' }, { name: 'laat', text: 'laat' }, { name: 'ma', text: 'ma' }, { name: 'toch', text: 'toch' }, { name: 'niet', text: 'niet' }, { name: 'los', text: 'los' }, { name: 'an', text: 'an' }, { name: 'ders', text: 'ders' }, { name: 'raak', text: 'raak' }, { name: 'weg', text: 'weg' }, { name: 'kwijt', text: 'kwijt' }, { name: 'en', text: 'en' }, { name: 'dan', text: 'dan' }, { name: 'heb', text: 'heb' }, { name: 'la', text: 'la' }, { name: 'ter', text: 'ter' }, { name: 'spijt', text: 'spijt' },
 ];
 
 async function load() {

@@ -62,7 +62,7 @@ public:
      *  knob/CV (the original instrument). The choice is read at the gate's
      *  rising edge, so pick the syllable before the note (left hand on a
      *  pad, right hand on the keys). The coda plays when the gate falls. */
-    static constexpr int kSyllableCount = 23;
+    static constexpr int kSyllableCount = 46;
     void setSyllable(int index) {
         syllable_ = index < 0 ? 0 : (index >= kSyllableCount ? kSyllableCount - 1 : index);
     }
@@ -224,7 +224,7 @@ private:
     static constexpr Vowel kVowelTable[kVowelRows] = {
         {{ 740, 1350, 2700, 3700, 4800 }, { 80,  90, 120, 130, 140 }, {  0, -4, -20, -36, -60 }, -12.0f, 2.5f, 0.6f }, // aa (Piper: 710/1390)
         {{ 600,  980, 2500, 3600, 4700 }, { 80,  90, 130, 140, 150 }, {  0, -5, -22, -36, -60 },  -9.0f, 2.0f, 0.5f }, // a  (bam; Piper: 480-620/920-940)
-        {{ 540, 1700, 2550, 3500, 4600 }, { 70,  90, 110, 130, 140 }, {  0,-12, -18, -30, -50 },  -5.0f, 1.2f, 0.3f }, // e  (gij, start; Piper: 515/1660)
+        {{ 540, 1780, 2650, 3500, 4600 }, { 70,  90, 110, 130, 140 }, {  0,-12, -18, -30, -50 },  -5.0f, 1.2f, 0.3f }, // e  (gij, start; Piper: 515/1660-1800)
         {{ 400, 1700, 2600, 3200, 3580 }, { 70,  80, 100, 120, 120 }, {  0,-14, -12, -14, -20 },  -4.0f, 1.0f, 0.2f }, // ee
         {{ 400, 2000, 2600, 3400, 4500 }, { 60,  90, 110, 130, 140 }, {  0,-14, -20, -34, -56 },  -2.0f, 0.5f, 0.1f }, // i  (bim)
         {{ 280, 2250, 2890, 3900, 4950 }, { 60,  90, 100, 120, 120 }, {  0,-18, -24, -36, -60 },   0.0f, 0.0f, 0.0f }, // ie
@@ -235,7 +235,7 @@ private:
         {{ 620, 1400, 2400, 3300, 4400 }, { 80, 100, 130, 140, 150 }, {  0,-10, -22, -32, -54 },  -6.0f, 1.0f, 0.3f }, // ui start  (Piper: 600/1420)
         {{ 470, 1560, 2300, 3300, 4400 }, { 70, 100, 130, 140, 150 }, {  0,-12, -22, -32, -54 },  -3.0f, 0.5f, 0.2f }, // ui middle (Piper: 480/1550)
         {{ 260, 1750, 2200, 3300, 4400 }, { 60,  90, 120, 130, 140 }, {  0,-16, -22, -34, -56 },   0.0f, 0.0f, 0.0f }, // uu (ui end; Piper: 250/1750)
-        {{ 280, 2080, 2700, 3700, 4700 }, { 60,  90, 110, 130, 140 }, {  0,-16, -22, -34, -56 },   0.0f, 0.0f, 0.0f }, // ij end   (Piper: 220-300/2050-2130)
+        {{ 280, 2200, 2950, 3700, 4700 }, { 60,  90, 110, 130, 140 }, {  0,-16, -22, -34, -56 },   0.0f, 0.0f, 0.0f }, // ij end   (Piper: 220-300/2050-2130; a bit higher so it never rounds towards ui)
     };
     // The Vowel knob/CV morphs over the original five rows A-E-I-O-U.
     static constexpr Ph kMorphRows[5] = { V_AA, V_EE, V_IE, V_OO, V_OE };
@@ -281,6 +281,30 @@ private:
         { { C_N, P_NONE },    V_AA,    P_NONE, P_NONE, { P_NONE, P_NONE } },   // 20 na  (Hey Jude)
         { { C_H, P_NONE },    V_EE,    P_NONE, P_NONE, { P_NONE, P_NONE } },   // 21 hee
         { { C_D, C_J },       V_OE,    P_NONE, P_NONE, { C_D, P_NONE } },      // 22 djoed (Jude)
+        // Olifantje in het bos (23-45)
+        { { P_NONE, P_NONE }, V_OO,    P_NONE, P_NONE, { P_NONE, P_NONE } },   // 23 o
+        { { C_L, P_NONE },    V_IE,    P_NONE, P_NONE, { P_NONE, P_NONE } },   // 24 li
+        { { C_F, P_NONE },    V_A,     P_NONE, P_NONE, { C_N, C_T } },         // 25 fant
+        { { C_J, P_NONE },    V_SCHWA, P_NONE, P_NONE, { P_NONE, P_NONE } },   // 26 je
+        { { P_NONE, P_NONE }, V_I,     P_NONE, P_NONE, { C_N, P_NONE } },      // 27 in
+        { { C_H, P_NONE },    V_E,     P_NONE, P_NONE, { C_T, P_NONE } },      // 28 het
+        { { C_B, P_NONE },    V_O,     P_NONE, P_NONE, { C_S, P_NONE } },      // 29 bos
+        { { C_L, P_NONE },    V_AA,    P_NONE, P_NONE, { C_T, P_NONE } },      // 30 laat
+        { { C_M, P_NONE },    V_AA,    P_NONE, P_NONE, { P_NONE, P_NONE } },   // 31 ma
+        { { C_T, P_NONE },    V_O,     P_NONE, P_NONE, { C_X, P_NONE } },      // 32 toch
+        { { C_N, P_NONE },    V_IE,    P_NONE, P_NONE, { C_T, P_NONE } },      // 33 niet
+        { { C_L, P_NONE },    V_O,     P_NONE, P_NONE, { C_S, P_NONE } },      // 34 los
+        { { P_NONE, P_NONE }, V_A,     P_NONE, P_NONE, { C_N, P_NONE } },      // 35 an
+        { { C_D, P_NONE },    V_SCHWA, P_NONE, P_NONE, { C_R, C_S } },         // 36 ders
+        { { C_R, P_NONE },    V_AA,    P_NONE, P_NONE, { C_K, P_NONE } },      // 37 raak
+        { { C_W, P_NONE },    V_E,     P_NONE, P_NONE, { C_X, P_NONE } },      // 38 weg
+        { { C_K, C_W },       V_E,     V_IJ,   P_NONE, { C_T, P_NONE } },      // 39 kwijt
+        { { P_NONE, P_NONE }, V_E,     P_NONE, P_NONE, { C_N, P_NONE } },      // 40 en
+        { { C_D, P_NONE },    V_A,     P_NONE, P_NONE, { C_N, P_NONE } },      // 41 dan
+        { { C_H, P_NONE },    V_E,     P_NONE, P_NONE, { C_P, P_NONE } },      // 42 heb (hep)
+        { { C_L, P_NONE },    V_AA,    P_NONE, P_NONE, { P_NONE, P_NONE } },   // 43 la
+        { { C_T, P_NONE },    V_SCHWA, P_NONE, P_NONE, { C_R, P_NONE } },      // 44 ter
+        { { C_S, C_P },       V_E,     V_IJ,   P_NONE, { C_T, P_NONE } },      // 45 spijt
     };
 
     // ── Segments ───────────────────────────────────────────────────────────
@@ -441,8 +465,7 @@ private:
         if (c == C_S || c == C_Z) { s.noiseHz = 6500.0f; s.noiseBw = 2500.0f; s.noiseGain = 0.35f; }
         else if (c == C_F) { s.noiseHz = 4500.0f; s.noiseBw = 3000.0f; s.noiseGain = 0.12f; }
         else if (c == C_V) { s.noiseHz = 1500.0f; s.noiseBw = 2000.0f; s.noiseGain = 0.1f; }    // Piper pim: energy 150-1600 Hz
-        else if (c == C_G) { s.noiseHz = 1300.0f; s.noiseBw = 1200.0f; s.noiseGain = 0.03f; s.amHz = 16.0f; s.amNoise = 0.6f; }  // voiced velar: most noise goes through the tract (aspiration)
-        else { s.noiseHz = 1300.0f; s.noiseBw = 1200.0f; s.noiseGain = 0.1f; s.amHz = 16.0f; s.amNoise = 0.6f; }   // ch: Piper pim q25-75 580-2250, 16 Hz scrape
+        else { s.noiseHz = 1300.0f; s.noiseBw = 1200.0f; s.noiseGain = 0.05f; s.amHz = 16.0f; s.amNoise = 0.6f; }   // ch and hard g: Piper pim q25-75 580-2250, 16 Hz scrape
     }
 
     static void approximantTargets(Ph c, Segment& s) {
@@ -511,18 +534,20 @@ private:
         case C_F: case C_S: case C_X: case C_V: case C_Z: case C_G: {
             // Fricative: noise through its own resonator; voiced ones keep a
             // weak voice bar underneath.
-            const bool voiced = c == C_V || c == C_Z || c == C_G;
+            // Mark's g is the hard northern g: a voiceless uvular scrape, the
+            // voice starts with the vowel (a half-voiced g sounded like l/j).
+            const bool voiced = c == C_V || c == C_Z;
+            const bool velar = c == C_G || c == C_X;
             Segment fric = blank();
             locus(place, vowelF2, fric.hz);
             fric.bwScale = 1.5f; fric.rampSamples = ms(30.0f);
-            fric.holdSamples = ms(c == C_S ? 60.0f : c == C_V ? 90.0f : c == C_G ? 120.0f : c == C_X ? 130.0f : (voiced ? 40.0f : 65.0f));
-            fric.voicing = c == C_G ? 0.5f : voiced ? 0.35f : 0.0f;
-            fric.upper = c == C_G ? 0.7f : voiced ? 0.5f : 0.0f;
-            if (c == C_G) fric.hz[0] = 300.0f;   // not a closed voice bar: it hummed like an n
+            fric.holdSamples = ms(c == C_S ? 60.0f : c == C_V ? 90.0f : c == C_G ? 110.0f : c == C_X ? 130.0f : (voiced ? 40.0f : 65.0f));
+            fric.voicing = voiced ? 0.35f : 0.0f;
+            fric.upper = voiced ? 0.5f : velar ? 1.0f : 0.0f;
             fric.cents = voiced ? -30.0f : 30.0f; fric.jaw = 0.2f;
-            // Velar frication mostly through the tract (velar locus = the
-            // cavity in front of the constriction), pulsed by the voice for g.
-            fric.aspiration = c == C_G ? 0.12f * pitchScale_ : c == C_X ? 0.08f * pitchScale_ : c == C_V ? 0.03f * pitchScale_ : 0.0f;
+            // Velar frication partly through the tract (velar locus = the
+            // cavity in front of the constriction); v pulsed by the voice.
+            fric.aspiration = velar ? 0.05f * pitchScale_ : c == C_V ? 0.03f * pitchScale_ : 0.0f;
             fric.pulsedAspiration = voiced;
             fricationNoise(c, fric);
             if (c == C_Z) fric.noiseGain *= 0.5f;
@@ -589,7 +614,7 @@ private:
             locus(place, vowelF2, fric.hz);
             fric.bwScale = 1.5f; fric.rampSamples = ms(45.0f); fric.holdSamples = ms(c == C_X ? 140.0f : 90.0f);
             fric.voicing = 0.0f; fric.upper = c == C_X ? 1.0f : 0.0f; fric.jaw = 0.2f;
-            fric.aspiration = c == C_X ? 0.08f * pitchScale_ : 0.0f;   // ch: through the tract, soft and long
+            fric.aspiration = c == C_X ? 0.04f * pitchScale_ : 0.0f;   // ch: through the tract, soft and long
             fricationNoise(c, fric);
             push(fric);
             break; }

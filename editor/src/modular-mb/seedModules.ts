@@ -3240,7 +3240,8 @@ function mmbStkSound() {
   });
 }
 
-const FOF_SYLLABLES = ['Vowel', 'doo', 'da', 'va', 'der', 'ja', 'cob', 'slaapt', 'gij', 'nog', 'al', 'le', 'klo', 'ken', 'lui', 'den', 'bim', 'bam', 'bom', 'de', 'na', 'hee', 'djoed'];
+// Lettergreeptabel van de firmware (mmb_dsp::FofVoice::kSyllables), in dezelfde volgorde.
+const FOF_SYLLABLES = ['Vowel', 'doo', 'da', 'va', 'der', 'ja', 'cob', 'slaapt', 'gij', 'nog', 'al', 'le', 'klo', 'ken', 'lui', 'den', 'bim', 'bam', 'bom', 'de', 'na', 'hee', 'djoed', 'o', 'li', 'fant', 'je', 'in', 'het', 'bos', 'laat', 'ma', 'toch', 'niet', 'los', 'an', 'ders', 'raak', 'weg', 'kwijt', 'en', 'dan', 'heb', 'la', 'ter', 'spijt'];
 
 function mmbFof() {
   const w = W(16);
@@ -3265,7 +3266,7 @@ function mmbFof() {
       knob('breath', 'Breath', w*0.20, 52, { size: 'small', min: 0, max: 1, def: 0.08, color: '#9ca3af' }),
       knob('vibrato', 'Vibrato', w*0.50, 52, { size: 'small', min: 0, max: 1, def: 0.12, color: '#9ca3af' }),
       knob('voice', 'Voice', w*0.80, 52, { size: 'small', min: 0, max: 1, def: 0.35, color: '#9ca3af' }),
-      knob('syl', 'Syl', w*0.16, 72, { size: 'medium', min: 0, max: 22, def: 0, step: 1, color: '#fbbf24', ticks: { every: 1 } }),
+      knob('syl', 'Syl', w*0.16, 72, { size: 'medium', min: 0, max: 45, def: 0, step: 1, color: '#fbbf24' }),
       display('sylDisp', w*0.50, 72, { digits: 6, style: 'oled', bindTo: 'syl', lookup: [FOF_SYLLABLES], text: 'Vowel', size: 'small' }),
       knob('level', 'Level', w*0.84, 72, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
       inPort('voct', 'V/Oct', 'cv', w*0.12, 88),
@@ -3288,7 +3289,7 @@ function mmbFof() {
       inPort('vel', 'Vel', 'cv', cvCols[5]!, 120),
       inPort('pressure', 'Press', 'cv', cvCols[6]!, 120),
     ],
-    notes: 'FOF/CHANT-geinspireerde zangoscillator met asymmetrische glottale bron. Vowel morft door A-E-I-O-U; formanten blijven staan bij pitchverandering. Voice loopt van korte, heldere sluiting naar langer, zachter open/sluitgedrag. Vel (0-1) regelt volume en verzacht de sluiting bij zachte aanslagen; zonder kabel volle sterkte. Press (0-1) is de doorlopende expressie tijdens de noot (MidiIn Press/aftertouch, breath controller of CV): lager = iets zachter (vloer 0,5), duidelijk ademiger (als Breath open staat) en een langere, zachtere sluiting; zonder kabel volle druk, ~20 ms gladgestreken. Vow+/Air+/Vib+/Voi+ tellen op bij de knop; de kleine knop boven elke CV-jack is de attenuator (1 = vol, 0 = kabel doet niets; bij Vel en Press = gevoeligheid). Syl kiest een lettergreep uit een tabel van 23 (0 = de Vowel-knop; dan doo, da, va, der, ja, cob, slaapt, gij, nog, al, le, klo, ken, lui, den, bim, bam, bom, de, na, hee, djoed): synthetische medeklinkers (plosieven met sluiting/burst/glijbaan, nasalen, fricatieven, l/r/j/w met de Nederlandse schraap-r en -g) en tweeklanken, en een slotmedeklinker die speelt als de gate valt; het display toont de knopstand. Syl+ (0-1 over de tabel, zoals syl_cv bij ZANG) telt op bij de knop: CC-waarde = index × 127 / 22. Next (gate-flank) stapt naar de volgende lettergreep, Reset gaat terug naar de knop: een sustainpedaal via MIDI-IN CC2# = 64 werkt als stappedaal. De lettergreep wordt bij de gate-flank gelezen: kies hem vóór de noot (linkerhand pads, rechterhand melodie). Tone bepaalt de resonantiebreedte, Breath voegt pulsgebonden aspiratie toe en Vibrato geeft maximaal een halve toon (100 cent) bij 5,3 Hz. Geen exacte LF-bron, spraaksynthese of volledige CHANT-reconstructie. Mono; polyfonie via PolyGroup.',
+    notes: 'FOF/CHANT-geinspireerde zangoscillator met asymmetrische glottale bron. Vowel morft door A-E-I-O-U; formanten blijven staan bij pitchverandering. Voice loopt van korte, heldere sluiting naar langer, zachter open/sluitgedrag. Vel (0-1) regelt volume en verzacht de sluiting bij zachte aanslagen; zonder kabel volle sterkte. Press (0-1) is de doorlopende expressie tijdens de noot (MidiIn Press/aftertouch, breath controller of CV): lager = iets zachter (vloer 0,5), duidelijk ademiger (als Breath open staat) en een langere, zachtere sluiting; zonder kabel volle druk, ~20 ms gladgestreken. Vow+/Air+/Vib+/Voi+ tellen op bij de knop; de kleine knop boven elke CV-jack is de attenuator (1 = vol, 0 = kabel doet niets; bij Vel en Press = gevoeligheid). Syl kiest een lettergreep uit een tabel van 46 (0 = de Vowel-knop; dan doo, da, va, der, ja, cob, slaapt, gij, nog, al, le, klo, ken, lui, den, bim, bam, bom, de, na, hee, djoed, en 23-45 Olifantje in het bos: o, li, fant, je, in, het, bos, laat, ma, toch, niet, los, an, ders, raak, weg, kwijt, en, dan, heb, la, ter, spijt): synthetische medeklinkers (plosieven met sluiting/burst/glijbaan, nasalen, fricatieven, l/r/j/w met de Nederlandse schraap-r en -g) en tweeklanken, en een slotmedeklinker die speelt als de gate valt; het display toont de knopstand. Syl+ (0-1 over de tabel, zoals syl_cv bij ZANG) telt op bij de knop: CC-waarde = index × 127 / 45. Next (gate-flank) stapt naar de volgende lettergreep, Reset gaat terug naar de knop: een sustainpedaal via MIDI-IN CC2# = 64 werkt als stappedaal. De lettergreep wordt bij de gate-flank gelezen: kies hem vóór de noot (linkerhand pads, rechterhand melodie). Tone bepaalt de resonantiebreedte, Breath voegt pulsgebonden aspiratie toe en Vibrato geeft maximaal een halve toon (100 cent) bij 5,3 Hz. Geen exacte LF-bron, spraaksynthese of volledige CHANT-reconstructie. Mono; polyfonie via PolyGroup.',
   });
 }
 

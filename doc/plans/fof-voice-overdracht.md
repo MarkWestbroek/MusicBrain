@@ -3,8 +3,8 @@
 **Datum:** 2026-10-01 (bijgewerkt na de Pressure-stap en de eerste
 luisterronde, dezelfde dag). **Status:** werkend en getest prototype met
 `Vel`, `Pressure`, CV op alle expressieknoppen, een attenuator per CV-ingang
-en een fonemenmotor met drieëntwintig lettergrepen (`Syl`: Vowel, doo, da,
-de hele Vader Jacob, na, hee, djoed) met synthetische plosieven, nasalen,
+en een fonemenmotor met 46 lettergrepen (`Syl`: Vowel, doo, da, de hele
+Vader Jacob, na, hee, djoed en Olifantje in het bos) met synthetische plosieven, nasalen,
 fricatieven, l/r/j/w (Nederlandse schraap-r en -g), tweeklanken en
 slotmedeklinkers, een display en Next/Reset-stapingangen; meetmatrix,
 aliasingmeting en een formantvergelijking met de Piper-stem zijn gedaan;
@@ -48,17 +48,26 @@ De snelste proef:
 
    | # | Syl | CC1 | # | Syl | CC1 | # | Syl | CC1 | # | Syl | CC1 |
    |--:|---|--:|--:|---|--:|--:|---|--:|--:|---|--:|
-   | 0 | Vowel | 0 | 6 | cob | 35 | 12 | klo | 69 | 18 | bom | 104 |
-   | 1 | doo | 6 | 7 | slaapt | 40 | 13 | ken | 75 | 19 | de | 110 |
-   | 2 | da | 12 | 8 | gij | 46 | 14 | lui | 81 | 20 | na | 115 |
-   | 3 | va | 17 | 9 | nog | 52 | 15 | den | 87 | 21 | hee | 121 |
-   | 4 | der | 23 | 10 | al | 58 | 16 | bim | 92 | 22 | djoed | 127 |
-   | 5 | ja | 29 | 11 | le | 63 | 17 | bam | 98 | | | |
+   | 0 | Vowel | 0 | 12 | klo | 34 | 24 | li | 68 | 36 | ders | 102 |
+   | 1 | doo | 3 | 13 | ken | 37 | 25 | fant | 71 | 37 | raak | 104 |
+   | 2 | da | 6 | 14 | lui | 40 | 26 | je | 73 | 38 | weg | 107 |
+   | 3 | va | 8 | 15 | den | 42 | 27 | in | 76 | 39 | kwijt | 110 |
+   | 4 | der | 11 | 16 | bim | 45 | 28 | het | 79 | 40 | en | 113 |
+   | 5 | ja | 14 | 17 | bam | 48 | 29 | bos | 82 | 41 | dan | 116 |
+   | 6 | cob | 17 | 18 | bom | 51 | 30 | laat | 85 | 42 | heb | 119 |
+   | 7 | slaapt | 20 | 19 | de | 54 | 31 | ma | 87 | 43 | la | 121 |
+   | 8 | gij | 23 | 20 | na | 56 | 32 | toch | 90 | 44 | ter | 124 |
+   | 9 | nog | 25 | 21 | hee | 59 | 33 | niet | 93 | 45 | spijt | 127 |
+   | 10 | al | 28 | 22 | djoed | 62 | 34 | los | 96 |  |  |  |
+   | 11 | le | 31 | 23 | o | 65 | 35 | an | 99 |  |  |  |
 
-   CC1 = index × 127 / 22 (de tabel is sinds 2 oktober 23 lang; de oude
-   deling door 19 klopt niet meer). Vader Jacob: va der ja cob · slaapt gij
+   CC1 = index × 127 / 45 (de tabel is nu 46 lang; eerdere delingen door 19
+   en 22 kloppen niet meer). Vader Jacob: va der ja cob · slaapt gij
    nog · al le klo ken lui den · bim bam bom. Police: de doo doo doo, de da
-   da da (19, 1, 1, 1, 19, 2, 2, 2). Hey Jude: na … hee djoed (20, 21, 22).
+   da da (19, 1, 1, 1, 19, 2, 2, 2). Hey Jude: na … hee djoed (20, 21, 22). Olifantje in het bos: 23-45 in
+   de volgorde van het lied (o li fant je in het bos · laat je ma ma toch
+   niet los · an ders raak je de weg toch kwijt · en dan heb je la ter
+   spijt), met "je" (26) en "de" (19) hergebruikt.
 9. **Stappen met een pedaal.** `Next` (gate) stapt bij elke flank één
    lettergreep verder (en loopt rond), `Reset` gaat terug naar de knop. Een
    sustainpedaal op de KeyStep Pro stuurt CC64: zet MIDI-IN `CC2#` op 64 en
@@ -143,8 +152,8 @@ dezelfde formules op Teensy (`FofModule::apply`) en in wasm (`mmb_process`):
 ```text
 vowel/breath/vibrato/voice:  effectief = clamp01(knop + amt * cv)
 vel/pressure:                effectief = 1 - amt * (1 - cv)     (amt 0 = kabel doet niets)
-syl:                         index = (round(Syl + amt * clamp01(cv) * (N - 1)) + stap) mod N, N = 23
-next/reset (gate):           flank op next: stap = (stap + 1) mod N; flank op reset: stap = 0
+syl:                         index = (round(Syl + amt * clamp01(cv) * (N - 1)) + stap) mod N, N = 46
+next/reset (gate):           flank op next: stap = (stap + 1) mod N; flank op reset: stap = 0   (N = 46)
 ```
 | `out` | Audio | Monosignaal; de mono-seed verbindt dit met L en R |
 
@@ -160,7 +169,7 @@ next/reset (gate):           flank op next: stap = (stap + 1) mod N; flank op re
 | `level` | 0,8 | Eindniveau |
 | `vowel_amt`, `breath_amt`, `vibrato_amt`, `voice_amt` | 1 | Attenuator van de bijbehorende CV-ingang |
 | `vel_amt`, `press_amt` | 1 | Gevoeligheid voor Vel en Press (0 = geen effect) |
-| `syl` | 0 | Stapknop 0-22: 0 = Vowel-knop, dan doo, da, va, der, ja, cob, slaapt, gij, nog, al, le, klo, ken, lui, den, bim, bam, bom, de, na, hee, djoed; het display `sylDisp` toont de naam |
+| `syl` | 0 | Stapknop 0-45: 0 = Vowel-knop, 1-19 doo, da en Vader Jacob, 20-22 na/hee/djoed, 23-45 Olifantje in het bos; het display `sylDisp` toont de naam |
 | `syl_amt` | 1 | Attenuator van `syl_cv` |
 
 Nieuwe mono-seeds verbinden MIDI `pitch`, `gate` en `vel` automatisch;
@@ -255,11 +264,11 @@ resonatoren die nog nabellen van de vorige noot.
 | Stemhebbende plosief | b, d | sluiting 20 ramp + 5 (b: 20) vast: alleen F1 (220 Hz, bandbreedte ×2,5) op de locus (voice bar 0,08 × `pitchScale`), aanlooplucht, F0 −60 cent; burst 8: zwakke diffuse ruis (0,25), stem 0,25 tot F1 de locus uit is, F2-F5 komen op; klinkerglijbaan 50 |
 | Stemloze plosief | p, t, k | sluiting 20 + 15 stil, F0 +40 cent; burst 10 (k 0,25 compact rond 1600-3400 Hz, p/t 0,28); aspiratie 5 + 15 (ruis door F2-F5 0,08, F1 krijgt 15 procent); klinkerglijbaan 50 |
 | Nasaal | m, n | murmur 30 + 50: F1 250, F2 1000 (m) / 1500 (n), F3 2300, bandbreedte ×2,5, stem 0,5, F2-F5 op 0,25, F0 −20 cent |
-| Fricatief | f, v, s, z, ch (x), g (ɣ) | locus van de plaats, 30 ramp + vast: s 60, f 65, v 90, g 120, ch 130, z 40; ruisresonator s/z 6500 Hz ±2500 (0,35), f 4500 ±3000 (0,12), v 1500 ±2000 (0,1, laag en lang zoals pim), ch 1300 ±1200 (0,1) met 16 Hz schraap en 0,08 door de formanten, g 1300 ±1200 (0,03) met 16 Hz schraap en 0,12 door de formanten; bij stemhebbende fricatieven (g, v) pulseert de formantruis mee met de glottale stroom; v stem 0,35 en F2-F5 op 0,5, g stem 0,5, F2-F5 op 0,7, F1 300 (pim's g is grotendeels stemhebbend) |
+| Fricatief | f, v, s, z, ch (x), g | locus van de plaats, 30 ramp + vast: s 60, f 65, v 90, g 110, ch 130, z 40; ruisresonator s/z 6500 Hz ±2500 (0,35), f 4500 ±3000 (0,12), v 1500 ±2000 (0,1, laag en lang zoals pim), ch en harde g 1300 ±1200 (0,05) met 16 Hz schraap en 0,05 door de formanten (stemloos: Mark's noordelijke g; pim's g is stemhebbend maar klonk als l/j); bij v pulseert de formantruis mee met de glottale stroom (stem 0,35, F2-F5 op 0,5) |
 | h | h | 20 + 50 ruis door de formantbank (0,15) |
 | Approximant | l, r, j, w | 40 ramp + vast: l 45, j 70, r 70 op eigen doelen: l 350/1100/2800, j 250/2100/2900 (stem 0,6, F2-F5 op 0,9: anders een n), w 300/900/2300; **r is de Nederlandse huig-r**: 400/1150/1900, bandbreedte ×2,5, stem 0,6, F2-F5 op 0,4, lichte ruis 1000 ±900 (0,07) en 18 Hz schraap op ruis (0,6) en stem (0,45), zoals pim's r (zwaartepunt 220-370 Hz, ~18 Hz modulatie) |
 | Klinker | 14 rijen | glijbaan 50 (na plosief) / 60 (na ander) / 30 (zonder aanzet), dan vast tot de gate valt; tweeklank ij: e 90 vast, ij-eind glijbaan 160; ui: ui-begin 70 vast, ui-midden glijbaan 80 + 40 vast, uu glijbaan 140 (driepunts: 620/1400 → 470/1560 → 260/1750, uit pim's lui/huis/uit) |
-| Slotmedeklinker | m, n, p, t, k, b, d, f, s, ch, l, r | nasaal 50 + 130 (m) / 110 (n); plosief 45 + 60 stil (in een cluster: eerste 45 + 25, tweede 25 + 45) + burst 8 + 18 (t/k 0,35, p 0,22) + 20 ms lucht (Nederlandse eindverscherping: altijd stemloos); fricatief 45 + 90, ch 45 + 140 met schraap en 0,08 door de formanten; l 50 + 60; r 50 + 110 huig-r |
+| Slotmedeklinker | m, n, p, t, k, b, d, f, s, ch, l, r | nasaal 50 + 130 (m) / 110 (n); plosief 45 + 60 stil (in een cluster: eerste 45 + 25, tweede 25 + 45) + burst 8 + 18 (t/k 0,35, p 0,22) + 20 ms lucht (Nederlandse eindverscherping: altijd stemloos); fricatief 45 + 90, ch 45 + 140 met schraap en 0,04 door de formanten; l 50 + 60; r 50 + 110 huig-r |
 
 Plaatsen als locus-vergelijkingen (`Place`): labiaal F2 = 0,8 × F2(klinker)
 + 200, F3 2300, burst 1000-2500 Hz breed 2500; alveolair F2 = 0,45 × F2 +
@@ -602,6 +611,18 @@ wordt gepoort door de glottale stroom (`pulsedAspiration`), de eigen
 resonator doet nog maar 0,03; F1 300 in plaats van de gesloten 200 (dat
 bromde als een n); 120 ms. De ch aan het eind: 140 ms, resonator 0,1 (was
 0,22) en 0,08 door de formanten. Nog niet op oor beoordeeld.
+
+#### Luisterronde 6c (2026-10-02, harde g en Olifantje)
+
+"Gij is nu lui met ruis; de ij is wat te ui; in nog is de ruis juist te
+hard." De half stemhebbende g met een velaire locus vlak bij de ij-start is
+akoestisch een l/j-achtige approximant, vandaar "lui". Mark's g is de harde
+noordelijke g: stemloos, een schraap vóór de klinker, de stem begint pas
+bij de ij. De g is nu hetzelfde als de ch (1300 Hz ±1200, 16 Hz schraap,
+deels door de formanten), 110 ms, stemloos. De ij: e-start F2 1780 en F3
+2650, ij-eind F2 2200 en F3 2950, zodat hij niet richting de ui rondt. De
+ch in nog: resonator 0,05 en 0,04 door de formanten (de helft van ronde
+6b). Daarbij Olifantje in het bos als 23-45. Nog niet op oor beoordeeld.
 
 #### Luisterronde 1 (2026-10-01)
 

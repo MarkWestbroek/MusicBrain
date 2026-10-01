@@ -189,12 +189,13 @@ it('FOF heeft voor elke CV-ingang een attenuator die standaard op 1 staat', () =
     expect(knobs.find((knob) => knob.id === control)?.defaultValue).toBe(1);
   }
   const syl = fof.controls.find((item) => item.id === 'syl');
-  expect(syl).toMatchObject({ kind: 'knob', min: 0, max: 22, step: 1, defaultValue: 0 });
+  expect(syl).toMatchObject({ kind: 'knob', min: 0, max: 45, step: 1, defaultValue: 0 });
   const disp = fof.controls.find((item) => item.id === 'sylDisp');
   expect(disp).toMatchObject({ kind: 'display', bindTo: 'syl' });
-  expect((disp as { lookup?: string[][] }).lookup?.[0]).toHaveLength(23);
+  expect((disp as { lookup?: string[][] }).lookup?.[0]).toHaveLength(46);
   expect((disp as { lookup?: string[][] }).lookup?.[0]?.[1]).toBe('doo');
   expect((disp as { lookup?: string[][] }).lookup?.[0]?.[20]).toBe('na');
+  expect((disp as { lookup?: string[][] }).lookup?.[0]?.[45]).toBe('spijt');
   for (const port of ['next', 'reset']) expect(fof.ports.find((item) => item.id === port)).toMatchObject({ direction: 'in', signalType: 'gate' });
 });
 
