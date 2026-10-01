@@ -55,6 +55,7 @@ import { MidiMonitorHost } from './sim/MidiMonitorWindow';
 import { TakeEditorHost } from './sim/TakeEditorWindow';
 import { PatchExportMenu } from './sim/PatchExportMenu';
 import { PatchInboxHost } from './sim/PatchInbox';
+import { PoolWindowsHost, offerFromPool } from './sim/PoolWindows';
 import { ControlSurfacePanel } from './ControlSurfacePanel';
 import { PresetsModal } from './PresetsModal';
 import { TeensyLinkModal } from './TeensyLinkModal';
@@ -88,6 +89,14 @@ const TABS: { id: Tab; label: string }[] = [
 ];
 
 export function ModularMbApp(): JSX.Element {
+  // ?patch=<slug>: een patch van musicbrain.nl aanbieden via de inbox (patch-pool §5).
+  useEffect(() => {
+    const slug = new URLSearchParams(window.location.search).get('patch');
+    if (!slug) return;
+    void offerFromPool(slug).catch((e) => console.warn('patch-pool:', e instanceof Error ? e.message : e));
+    const u = new URL(window.location.href); u.searchParams.delete('patch');
+    window.history.replaceState(null, '', u.toString());
+  }, []);
   const project = useModularProject();
   const [tab,         setTab]         = useState<Tab>('patcher');
   const [editingName, setEditingName] = useState(false);
@@ -819,6 +828,7 @@ export function ModularMbApp(): JSX.Element {
       <MidiMonitorHost />
       <TakeEditorHost />
       <PatchInboxHost />
+      <PoolWindowsHost />
 
       {tab === 'patches'    && <PatchesPanel />}
       {tab === 'modules'    && <ModulesPanel />}

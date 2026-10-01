@@ -8,24 +8,31 @@ import { seedInternals } from '../seedModules';
 import { addPatchSnapshot } from './takeLibrary';
 import type { ModularProject } from '../types';
 import { SysexCollector, SYSEX_CMD } from './patchSysex';
+import { rememberOrigin } from './patchPool';
 
-export interface OfferedPatch { name: string; json: string; source: string }
+export interface OfferedPatch {
+  name: string; json: string; source: string;
+  /** Uit de patch-pool: slug (voor "afgeleid van") en moduletypes die deze editor mist. */
+  pool?: { slug: string; missing: string[] };
+}
 
 let pending: OfferedPatch | null = null;
 const listeners = new Set<(p: OfferedPatch | null) => void>();
 function set(p: OfferedPatch | null): void { pending = p; listeners.forEach((fn) => fn(p)); }
 
 /** Een editor-patch (JSON van cmd 01) aanbieden; de gebruiker beslist. */
-export function offerPatch(json: string, source: string): void {
+export function offerPatch(json: string, source: string, pool?: OfferedPatch['pool']): void {
   let name = 'Patch';
   try { name = (JSON.parse(json) as ModularProject).patches?.[0]?.name ?? name; } catch { return; }
-  set({ name, json, source });
+  set({ name, json, source, pool });
 }
 
 /** De aangeboden patch laden als nieuwe, actieve patch. */
 export function loadOffered(p: OfferedPatch): void {
   const snap = JSON.parse(p.json) as ModularProject;
-  updateProject((proj) => addPatchSnapshot(seedInternals(proj), snap, p.name, uid), { forceCommit: true });
+  let newId = '';
+  updateProject((proj) => { const r = addPatchSnapshot(seedInternals(proj), snap, p.name, uid); newId = r.activePatchId ?? ''; return r; }, { forceCommit: true });
+  if (p.pool && newId) rememberOrigin(newId, p.pool.slug);
 }
 
 export function PatchInboxHost(): JSX.Element | null {
@@ -41,6 +48,9 @@ export function PatchInboxHost(): JSX.Element | null {
       <div style={{ marginBottom: 8 }}>
         Patch <strong>{p.name}</strong> ontvangen via {p.source}.
       </div>
+      {p.pool && p.pool.missing.length > 0 && (
+        <div style={{ color: '#fcd34d', marginBottom: 6 }}>⚠ Deze editor kent {p.pool.missing.join(', ')} niet; die modules blijven stil.</div>
+      )}
       {err && <div style={{ color: '#fca5a5', marginBottom: 6 }}>⚠ {err}</div>}
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
         <button onClick={() => { setErr(null); set(null); }}>Negeren</button>

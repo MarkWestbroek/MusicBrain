@@ -34,6 +34,7 @@ import { SysexCollector, SYSEX_CMD, joinSysex } from './sim/patchSysex';
 import { patchToSysex } from './sim/PatchExportMenu';
 import { offerPatch, offerFromSysex } from './sim/PatchInbox';
 import { ModlinkPanel } from './sim/ModlinkPanel';
+import { setLastTake as rememberLastTake, markUploaded } from './sim/lastTakeStore';
 import { MidiFileUi } from './sim/MidiFileUi';
 import { midiMonitor } from './sim/midiMonitor';
 
@@ -136,6 +137,7 @@ export function SimulationPanel(): JSX.Element {
     try {
       const take = renameTake(lastTake, takeName);
       const { assets, extraErrors } = await uploadTakeWithExtras(take, lib);
+      if (patch) markUploaded(patch.id, take.group);
       setLibMsg({ ok: true, text: `In de library: ${assets.length} bestand${assets.length === 1 ? '' : 'en'} in ${lib.folder || '(root)'}, koppel ${take.group}`
         + (extraErrors.length ? ` (niet mee: ${extraErrors.join('; ')})` : '') });
     } catch (err) {
@@ -371,6 +373,7 @@ export function SimulationPanel(): JSX.Element {
         catch { /* zonder .syx verder */ }
       }
       setLastTake({ group: siblingName(name, ''), files, extras });
+      if (patch) rememberLastTake(patch.id, { group: siblingName(name, ''), files, extras });
       setLibMsg(null);
       const db = dbfs(r.peak);
       // De piek erbij, want een zachte render merk je anders pas als de

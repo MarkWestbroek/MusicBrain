@@ -13,6 +13,7 @@ import { canRedo, canUndo, redo, undo, updateProject, useModularProject, uid } f
 import type { Patch } from './types';
 import { OptimizeModal } from './recipe/OptimizeModal';
 import { ComparePatchesModal } from './recipe/ComparePatchesModal';
+import { openPropose, openPoolBrowser } from './sim/PoolWindows';
 import {
   autoFolders, bankPrograms, classifyPatch, comparePatches, groupKey, type GroupBy, type SortBy,
 } from './recipe/classify';
@@ -198,6 +199,8 @@ export function PatchesPanel(): JSX.Element {
         <button onClick={() => setShowCompare(true)} style={{ fontSize: 13 }}
           title="Twee patches naast elkaar: welke kabels en knopstanden verschillen">⇄ Vergelijk…</button>
         {showCompare && <ComparePatchesModal open onClose={() => setShowCompare(false)} />}
+        <button onClick={openPoolBrowser} style={{ fontSize: 13 }}
+          title="Patches van musicbrain.nl: de basisset, het lab en vragen van anderen — beluisteren en laden">📚 Pool…</button>
         <button onClick={() => undo()} disabled={!canUndo()} style={{ fontSize: 13 }} title="Ongedaan maken (Ctrl+Z buiten een tekstveld)">↶</button>
         <button onClick={() => redo()} disabled={!canRedo()} style={{ fontSize: 13 }} title="Opnieuw (Ctrl+Y)">↷</button>
         <span style={{ flex: 1 }} />
@@ -329,6 +332,8 @@ export function PatchesPanel(): JSX.Element {
                       {banks.get(x.id)?.bank}:{String(banks.get(x.id)?.program ?? 0).padStart(2, '0')}
                     </td>
                     <td style={{ padding: '4px 8px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <button onClick={() => { setActive(x.id); openPropose(x.id); }} style={{ fontSize: 11, marginRight: 4 }}
+                        title="Voorstellen voor de patch-pool op musicbrain.nl, of er een vraag over stellen (met demo)">⤴</button>
                       <button onClick={() => duplicatePatch(x.id)} style={{ fontSize: 11, marginRight: 4 }} title="Kopieer deze patch naar een nieuwe naam">⧉</button>
                       <button onClick={() => removePatch(x.id)} style={{ fontSize: 11 }}>×</button>
                     </td>
