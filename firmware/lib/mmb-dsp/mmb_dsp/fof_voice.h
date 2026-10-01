@@ -26,7 +26,7 @@ public:
         // fast, F2/F3 take about twice as long. The glide ends with the slowest.
         glideSamplesF1_ = static_cast<int>(0.025f * sampleRate_);
         glideSamples_ = static_cast<int>(0.050f * sampleRate_);
-        setBurstFrequency(3800.0f);
+        setBurstFrequency(4500.0f, 3000.0f);
         reset();
         updateFormants();
     }
@@ -134,9 +134,13 @@ public:
         float voiced = 0.0f;
         for (int i = 0; i < kFormants; ++i) {
             Formant& formant = formants_[i];
+            // During a stop closure only F1 is driven: the closed mouth radiates
+            // a low "voice bar" through the cheeks, nothing above a few
+            // hundred hertz (driving all formants sounded like a nasal murmur).
+            const float drive = (i > 0 && closureMute_) ? 0.0f : excitation;
             const float next = formant.coefficient * formant.y1
                 - formant.radiusSquared * formant.y2
-                + excitation * formant.gain;
+                + drive * formant.gain;
             formant.y2 = formant.y1;
             formant.y1 = next;
             voiced += next;
@@ -226,8 +230,10 @@ private:
         float f2Slope, f2Intercept;
         float f3Locus;
         float burstSlope, burstIntercept, burstMin, burstMax;
+        float burstBandwidth;   // alveolar bursts are diffuse (broadband, rising)
+        float burstGain;        // voiced stops have weak bursts
     };
-    static constexpr Place kAlveolar = { 200.0f, 0.45f, 1000.0f, 2600.0f, 1.2f, 2400.0f, 2500.0f, 4500.0f };
+    static constexpr Place kAlveolar = { 200.0f, 0.45f, 1150.0f, 2600.0f, 0.8f, 3600.0f, 3500.0f, 5500.0f, 3000.0f, 0.3f };
 
     static float clamp(float value, float low, float high) {
         return value < low ? low : (value > high ? high : value);
@@ -274,11 +280,11 @@ private:
         intrinsicBreath_ = jawMix_ * vowelBreath_;
     }
 
-    void setBurstFrequency(float hz) {
-        const float radius = std::exp(-kPi * 800.0f / sampleRate_);
+    void setBurstFrequency(float hz, float bandwidth, float gain = 0.3f) {
+        const float radius = std::exp(-kPi * bandwidth / sampleRate_);
         burst_.coefficient = 2.0f * radius * std::cos(kTwoPi * hz / sampleRate_);
         burst_.radiusSquared = radius * radius;
-        burst_.gain = (1.0f - radius) * 0.4f;
+        burst_.gain = (1.0f - radius) * gain;
     }
 
     static float halfCosine(float progress) {
@@ -330,8 +336,9 @@ private:
         }
         loadFormants(currentHz_, currentBw_, currentDb_);
         const float burstHz = place.burstIntercept + place.burstSlope * targetHz_[1];
-        setBurstFrequency(clamp(burstHz, place.burstMin, place.burstMax));
+        setBurstFrequency(clamp(burstHz, place.burstMin, place.burstMax), place.burstBandwidth, place.burstGain);
         onsetPhase_ = OnsetPhase::Closure;
+        closureMute_ = true;
         onsetSamples_ = 0;
         burst_.y1 = 0.0f; burst_.y2 = 0.0f;
         jawMix_ = 0.0f;
@@ -340,6 +347,7 @@ private:
 
     void finishOnset() {
         onsetPhase_ = OnsetPhase::Idle;
+        closureMute_ = false;
         onsetSamples_ = 0;
         burst_.y1 = 0.0f; burst_.y2 = 0.0f;
         if (kSyllables[syllable_].vowel < 0) activeVowel_ = vowel_;
@@ -355,8 +363,8 @@ private:
         ++onsetSamples_;
         switch (onsetPhase_) {
         case OnsetPhase::Closure:
-            excitation *= 0.15f;
-            if (onsetSamples_ >= closureSamples_) { onsetPhase_ = OnsetPhase::Burst; onsetSamples_ = 0; }
+            excitation *= 0.08f;
+            if (onsetSamples_ >= closureSamples_) { onsetPhase_ = OnsetPhase::Burst; onsetSamples_ = 0; closureMute_ = false; }
             break;
         case OnsetPhase::Burst:
             burstRinging = true;
@@ -420,6 +428,7 @@ private:
     float startHz_[3]{};
     float vowelCents_ = 0.0f, vowelGainDb_ = 0.0f, vowelBreath_ = 0.0f;
     float jawMix_ = 1.0f;
+    bool closureMute_ = false;
     float intrinsicGain_ = 1.0f, intrinsicBreath_ = 0.0f;
     uint32_t controlTick_ = 0;
     int glideSamplesF1_ = 1102;
