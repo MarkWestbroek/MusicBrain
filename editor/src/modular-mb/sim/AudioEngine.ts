@@ -59,8 +59,14 @@ interface BaseNode {
   /** Control-id remapping for external modules simulated by a proxy (simulationControlMap). */
   controlMap?: Record<string, string>;
 }
+/** OUT zoals OutModule.h: `l` gaat naar het linkerkanaal, `r` naar het
+ *  rechter, elk als mono-ingang. Een bron op alleen `l` klinkt dus alleen
+ *  links, net als op de Teensy. `inGain` is de Level-knop, ná het samenvoegen. */
 interface OutNode extends BaseNode {
   kind: 'out';
+  inL: Tone.Gain;
+  inR: Tone.Gain;
+  merge: Tone.Merge;
   inGain: Tone.Gain;
 }
 interface MixerNode extends BaseNode {
@@ -71,8 +77,11 @@ interface MixerNode extends BaseNode {
   inputs: Tone.Gain[];
   /** Per-kanaal stereo-panner (Pan-knop). */
   panners: Tone.Panner[];
-  /** Gesommeerde stereo-uitgang (out_l/out_r). */
+  /** Gesommeerde stereo-uitgang; `split` haalt er out_l en out_r uit. */
   out: Tone.Gain;
+  split: Tone.Split;
+  outL: Tone.Gain;
+  outR: Tone.Gain;
 }
 /** Teensy-module als wasm in een AudioWorklet. Elke poort is een Tone.Gain;
  *  cv/gate zijn audio-rate signalen. */
@@ -527,12 +536,15 @@ export class AudioEngine {
     for (const node of this.nodes.values()) {
       switch (node.kind) {
         case 'wasm': node.runtime.dispose(); break;
-        case 'out': node.inGain.dispose(); break;
+        case 'out': node.inL.dispose(); node.inR.dispose(); node.merge.dispose(); node.inGain.dispose(); break;
         case 'audioin':
           node.inGain.dispose(); node.mono.dispose(); node.split.dispose();
           node.outL.dispose(); node.outR.dispose();
           break;
-        case 'mixer': node.inputs.forEach((g) => g.dispose()); node.panners.forEach((p) => p.dispose()); node.out.dispose(); break;
+        case 'mixer':
+          node.inputs.forEach((g) => g.dispose()); node.panners.forEach((p) => p.dispose());
+          node.out.dispose(); node.split.dispose(); node.outL.dispose(); node.outR.dispose();
+          break;
       }
     }
     this.nodes.clear();
@@ -568,13 +580,27 @@ export class AudioEngine {
         g.connect(p); p.connect(out);
         inputs.push(g); panners.push(p);
       }
-      return { ...base, kind: 'mixer', channels, inputs, panners, out };
+      // out_l en out_r zijn twee mono-uitgangen, zoals op de Teensy: een
+      // stereo-effect krijgt zo links op in_l en rechts op in_r.
+      const split = new Tone.Split(2);
+      const outL = new Tone.Gain(1);
+      const outR = new Tone.Gain(1);
+      out.connect(split);
+      split.connect(outL, 0, 0);
+      split.connect(outR, 1, 0);
+      return { ...base, kind: 'mixer', channels, inputs, panners, out, split, outL, outR };
     }
     if (t.id === 'tp_mmb_out') {
       const level = clamp(readKnob(controls, 'level', 0.8), 0, 1);
+      const inL = monoGain();
+      const inR = monoGain();
+      const merge = new Tone.Merge();
+      inL.connect(merge, 0, 0);
+      inR.connect(merge, 0, 1);
       const inGain = new Tone.Gain(level);
+      merge.connect(inGain);
       if (this.master) inGain.connect(this.master);
-      return { ...base, kind: 'out', inGain };
+      return { ...base, kind: 'out', inL, inR, merge, inGain };
     }
     if (t.id === AUDIOIN) {
       const level = clamp(readKnob(controls, 'level', 1), 0, 2);
@@ -771,9 +797,6 @@ export class AudioEngine {
     if (!src || !dst) return;
     if (!this.portIndex.has(`${conn.from.moduleId}:${conn.from.portId}`)) return;
     if (!this.portIndex.has(`${conn.to.moduleId}:${conn.to.portId}`)) return;
-    // Mixer-uitgang is stereo via één Gain-node; out_l en out_r wijzen naar
-    // dezelfde node. Sluit alleen out_l aan zodat de OUT niet dubbel telt.
-    if (src.kind === 'mixer' && conn.from.portId === 'out_r') return;
     const out = outputOf(src, conn.from.portId);
     // Een tweede kabel op een cv/gate-ingang: eigen worklet-ingang, zodat de
     // laatste verandering wint zoals in de CvGraph (zie WasmModule.addFeeder).
@@ -949,7 +972,7 @@ export class AudioEngine {
 function outputOf(n: EngineNode, portId: string): Tone.ToneAudioNode | null {
   switch (n.kind) {
     case 'wasm': return n.runtime.outGain(portId) ?? n.runtime.outGain(portId === 'out' ? 'out_l' : 'out') ?? null;
-    case 'mixer': return n.out;
+    case 'mixer': return portId === 'out_r' ? n.outR : n.outL;
     case 'audioin': return portId === 'out_r' ? n.outR : n.outL;
     default: return null;
   }
@@ -957,7 +980,7 @@ function outputOf(n: EngineNode, portId: string): Tone.ToneAudioNode | null {
 function inputOf(n: EngineNode, portId: string): Tone.ToneAudioNode | null {
   switch (n.kind) {
     case 'wasm': return n.runtime.inGain(portId) ?? n.runtime.inGain(portId === 'in' ? 'in_l' : 'in') ?? null;
-    case 'out': return n.inGain;
+    case 'out': return portId === 'r' ? n.inR : n.inL;
     case 'audioin': return null;
     case 'mixer': {
       // portId 'inN' (1-based) kiest het kanaal; onbekend → kanaal 1.
@@ -968,6 +991,16 @@ function inputOf(n: EngineNode, portId: string): Tone.ToneAudioNode | null {
 }
 
 // ── value helpers ────────────────────────────────────────────────────
+
+/** Gain die alles wat binnenkomt tot één kanaal mengt (½·(L+R) bij stereo),
+ *  zoals een mono-jack: voor de ingangen van OUT. */
+function monoGain(): Tone.Gain {
+  const g = new Tone.Gain(1);
+  g.channelCount = 1;
+  g.channelCountMode = 'explicit';
+  g.channelInterpretation = 'speakers';
+  return g;
+}
 
 function readKnob(controls: Record<string, ControlValue>, id: string, def: number): number {
   const v = controls[id];
