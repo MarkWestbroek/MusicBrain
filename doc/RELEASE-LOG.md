@@ -17,6 +17,33 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-02 — Vijf onderzoeksmodules en Material Bridge-herstel (firmware gebouwd, nog geen nieuw versienummer)
+- **Material Bridge** (`tp_mmb_material_bridge`): de koppeling schaalt nu met
+  de grondtoon, zodat V/Oct het hele spectrum transponeert (voorheen lagen de
+  modi bij Couple 0,65 op 60 en 891 Hz voor een C4). `Memory` stuurt alleen
+  nog het hysteretische brugcontact; de stressdemping is de nieuwe control
+  `fatigue`. De demo is een zacht-hard-zacht-frase met drie RMS-gematchte
+  takes. Zie [material-bridge-handover](plans/material-bridge-handover.md).
+- **Scanned** (`tp_mmb_scanned`): scanned synthesis, een massa-veerring van 64
+  punten als levende golftabel; aanslag, aftertouch-druk, audio-in.
+- **Reservoir** (`tp_mmb_reservoir`, CV): resource-coupled synthesis, een
+  eindige herstellende bron voor vier stemmen; met tweestemmige demo.
+- **GENDYN** (`tp_mmb_gendyn`): gestemde dynamische stochastische synthese
+  (Xenakis), per noot reproduceerbaar via Seed.
+- **Excitable** (`tp_mmb_excitable`): raster van prikkelbare cellen met twee
+  pacemakers; subharmonieken uit de refractaire tijd.
+- **Tape strip** (`tp_mmb_tapestrip`): Mellotron-mechanica om de bank van de
+  sampler. Per toets een bandje van 1 tot 8 s dat na loslaten terugspoelt en
+  bij snel herhalen verder speelt waar het staat; kopcontact, motorbelasting,
+  wow/flutter, slijtage. Gelusde samples blijven klinken tot het bandje op
+  is. Nieuwe banken `gu-flute`, `gu-recorder`, `gu-strings`.
+- `tools/mmb-wasm/sf2-to-mmbs.mjs` werkt nu ook op Windows (esbuild via de
+  JS-API).
+- Alles op dezelfde C++-kern in wasm en firmware; contract 84 modules. Niet
+  geflasht en niet door een mens beluisterd op het moment van schrijven, op
+  de Tape strip in de simulator na. Zie
+  [nieuwe-synthesemodules-handover](plans/nieuwe-synthesemodules-handover.md).
+
 ### fw 0.5.94 — ZANG: banknamen op het paneel, banken bewaard in de browser (2026-09-30)
 - De Teensy meldt in de status de namen van de lyricbanken op de kaart
   (`lyricNames`, uit de kop van elke `/mmb/lyrics/NN.mmbl`); het ZANG-paneel

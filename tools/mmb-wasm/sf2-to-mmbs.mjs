@@ -19,9 +19,9 @@
 // Let op de licentie van de SoundFont die je omzet: de meeste zijn vrij te
 // gebruiken maar niet vrij te herdistribueren. De bank die hieruit komt is
 // een afgeleide; zet 'm dus niet in deze repo.
-import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join, basename } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -39,14 +39,16 @@ if (!sf2Path) {
   process.exit(1);
 }
 
+// esbuild via zijn JS-API (uit editor/node_modules): de shell-shim in .bin
+// bestaat op Windows niet als uitvoerbaar bestand, de API werkt overal.
 const tmp = mkdtempSync(join(tmpdir(), 'mmb-sf2-'));
-execFileSync(join(root, 'editor/node_modules/.bin/esbuild'), [
-  join(root, 'editor/src/modular-mb/sf2.ts'),
-  join(root, 'editor/src/modular-mb/sampleBank.ts'),
-  '--bundle', '--format=esm', '--platform=neutral', `--outdir=${tmp}`,
-], { stdio: 'pipe' });
-const S = await import(join(tmp, 'sf2.js'));
-const B = await import(join(tmp, 'sampleBank.js'));
+const { build } = createRequire(join(root, 'editor/package.json'))('esbuild');
+await build({
+  entryPoints: [join(root, 'editor/src/modular-mb/sf2.ts'), join(root, 'editor/src/modular-mb/sampleBank.ts')],
+  bundle: true, format: 'esm', platform: 'neutral', outdir: tmp, outExtension: { '.js': '.mjs' }, logLevel: 'silent',
+});
+const S = await import(pathToFileURL(join(tmp, 'sf2.mjs')).href);
+const B = await import(pathToFileURL(join(tmp, 'sampleBank.mjs')).href);
 
 const raw = readFileSync(sf2Path);
 const sf2 = S.readSf2(raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength));

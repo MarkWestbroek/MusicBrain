@@ -63,9 +63,11 @@ De kern `tape_strip.h` (1452 bytes) weet niets van samples en levert per noot de
 - **Wear**: bandruis (-52 dB bij vol, alleen als er een band loopt), bandbreedte 12 kHz naar 3 kHz, zachte verzadiging.
 - Uitgangen Tape (positie van het laatst aangeslagen bandje, 0..1) en Load (motorbelasting).
 
-Toegevoegd aan de gedeelde sampler-kern: `playSeconds(midi, vel)` en `kill()`; de sampler zelf gebruikt ze niet. Getest met een synthetische bank in de wasm-tests (stopt na Length, terugloop met geheugen, kopcontact, motor, stil zonder bank, begrensd met slijtage) en de kern apart in de C++-check op vier samplerates.
+Toegevoegd aan de gedeelde sampler-kern: `tapeStartOffset(midi, vel, seconden)`, `playSeconds(midi, vel)` en `kill()`; de sampler zelf gebruikt ze niet. `tapeStartOffset` vouwt de bandpositie de lus van een gelust sample in, zodat een kort SoundFont-sample (fluit, strijkers) blijft klinken tot het bandje op is; zonder lus en voorbij de opname blijft de toets stil.
 
-Open: niet beluisterd met een echte bank; de bankbalk-koppeling is alleen door code gecontroleerd, niet in de browser. Op de Teensy houdt de firmware een bank tegelijk: een sampler en een tape-strip met een ander banknummer wisselen elkaar af. Streaming: sampler en tape-strip melden samen 16 stemmen aan, precies de limiet (`kMaxStreams`); een tweede sampler ernaast streamt dan niet.
+Banken voor dit instrument (2026-10-02, uit GeneralUser GS): `gu-flute`, `gu-recorder`, `gu-strings`, naast het bestaande `gu-choir`. Kies ze in de bankbalk in Simulatie. Getest met een synthetische bank in de wasm-tests (stopt na Length, terugloop met geheugen, kopcontact, motor, stil zonder bank, begrensd met slijtage) en de kern apart in de C++-check op vier samplerates.
+
+Mark heeft de module in de simulator bespeeld en goed bevonden (2026-10-02). Open: Op de Teensy houdt de firmware een bank tegelijk: een sampler en een tape-strip met een ander banknummer wisselen elkaar af. Streaming: sampler en tape-strip melden samen 16 stemmen aan, precies de limiet (`kMaxStreams`); een tweede sampler ernaast streamt dan niet.
 
 ## Reproduceren
 

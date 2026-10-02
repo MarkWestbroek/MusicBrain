@@ -139,9 +139,9 @@ void mmb_process(int frames) {
             const int velocity = static_cast<int>(velIn * 127.0f);
             const int midi = static_cast<int>(std::lround(60.0f + 12.0f * (g_voct[k] - bend)));
             const float startSeconds = g_strip.noteOn(k, midi);
-            const float playSeconds = g_voice[k].playSeconds(midi, velocity);
-            if (playSeconds > 0.f && startSeconds < playSeconds) {
-                g_voice[k].set_startOffset(startSeconds / playSeconds);
+            const float offset = g_voice[k].tapeStartOffset(midi, velocity, startSeconds);
+            if (offset >= 0.f) {
+                g_voice[k].set_startOffset(offset);
                 g_voice[k].set_voct(g_voct[k] + g_strip.voctOffset(k));
                 g_voice[k].noteOn(midi, velocity);
             } else {

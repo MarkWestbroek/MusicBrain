@@ -296,6 +296,34 @@ public:
         return framesPerSecond > 0.0f ? static_cast<float>(s.frames) / framesPerSecond : 0.0f;
     }
 
+    /**
+     * Startoffset (0..1 van het sample) om `midi` te laten beginnen op
+     * `seconds` uitgangsseconden in de noot — voor de tape-strip, waar een
+     * bandje dat nog niet is teruggespoeld verder speelt waar het staat.
+     * Lust de zone, dan vouwt de positie de lus in (de opname gaat immers
+     * door); lust hij niet en ligt de positie voorbij het sample, dan −1:
+     * het bandje staat voorbij de opname.
+     */
+    float tapeStartOffset(int midi, int velocity, float seconds) const {
+        if (velocity < 1) velocity = 1;
+        if (velocity > 127) velocity = 127;
+        const int zi = findZone(midi, velocity);
+        if (zi < 0) return -1.0f;
+        const Zone& z = zones_[zi];
+        const SampleSlot& s = slots_[z.slot];
+        const float semis = static_cast<float>(midi) - z.root + transpose_ + z.tuneCents * 0.01f;
+        float frame = (seconds < 0.0f ? 0.0f : seconds) * s.rate * std::exp2(semis / 12.0f);
+        const bool loops = z.loopMode != LOOP_NONE && z.loopMode != LOOP_ONE_SHOT
+                        && z.loopEnd > z.loopStart && z.loopEnd <= s.frames;
+        if (loops && frame >= static_cast<float>(z.loopEnd)) {
+            const float length = static_cast<float>(z.loopEnd - z.loopStart);
+            frame = static_cast<float>(z.loopStart) + std::fmod(frame - static_cast<float>(z.loopStart), length);
+        } else if (!loops && frame >= static_cast<float>(s.frames - 1)) {
+            return -1.0f;
+        }
+        return s.frames > 1 ? frame / static_cast<float>(s.frames - 1) : 0.0f;
+    }
+
     /** Stem onmiddellijk stil en vrij (zonder release) — het bandje is op. */
     void kill() { reset(); }
 

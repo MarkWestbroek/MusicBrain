@@ -609,6 +609,30 @@ describe('tp_mmb_tapestrip (Mellotron-mechanica om de samplerbank)', () => {
     expect(tape3![0]!).toBe(0);
   });
 
+  it('een gelust kort sample blijft klinken als het bandje voorbij de opname staat', async () => {
+    // 0,5 s sinus, hele sample als lus (loopMode 2 = continu): zoals de
+    // fluit- en strijkersbanken uit een SoundFont.
+    const m = await load('tp_mmb_tapestrip');
+    const n = 22050;
+    const data = Int16Array.from({ length: n }, (_, i) => Math.round(20000 * Math.sin(2 * Math.PI * 441 * i / 44100)));
+    const p = m.ex.mmb_blob_ptr(0, data.byteLength);
+    new Uint8Array(m.ex.memory.buffer).set(new Uint8Array(data.buffer), p);
+    m.ex.mmb_blob_commit(0, n, 44100, 1);
+    m.ex.mmb_zone_set(0, 0, 0, 127, 1, 127, 60, 0, 1, 0, 2, 0, 22000, 0, 0.02, 0, 0);   // lus 0..22000: hele perioden
+    m.ex.mmb_zone_count(1);
+    m.setCtl('wow', 0); m.setCtl('flutter', 0); m.setCtl('wear', 0); m.setCtl('motor', 0);
+    m.setCtl('length', 4); m.setCtl('return', 4);
+    m.setIn('gate_1', 1);
+    const [held] = m.render(2.0);                    // ruim voorbij de 0,5 s van het sample
+    expect(rms(held!, Math.round(1.5 * m.rate))).toBeGreaterThan(0.1);
+    m.setIn('gate_1', 0);
+    m.render(0.2);                                   // bandje op ~1,8 s
+    m.setIn('gate_1', 1);
+    const [again, , tape] = m.render(0.3);
+    expect(tape![0]!).toBeGreaterThan(0.4);          // niet teruggespoeld
+    expect(rms(again!, Math.round(0.1 * m.rate))).toBeGreaterThan(0.1);
+  });
+
   it('kopcontact: zachte opkomst en een pitch-dip die wegtrekt; zonder contact direct vol', async () => {
     const soft = await withBank(3); soft.setCtl('contact', 1);
     const hard = await withBank(3); hard.setCtl('contact', 0);

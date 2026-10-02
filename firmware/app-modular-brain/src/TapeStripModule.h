@@ -84,9 +84,9 @@ public:
                 const int velocity = static_cast<int>(vel_[k] * 127.0f);
                 const int midi = static_cast<int>(lroundf(60.0f + 12.0f * voct_[k]));
                 const float startSeconds = strip_.noteOn(k, midi);
-                const float playSeconds = voice_[k].playSeconds(midi, velocity);
-                if (active_ && playSeconds > 0.0f && startSeconds < playSeconds) {
-                    voice_[k].set_startOffset(startSeconds / playSeconds);
+                const float offset = voice_[k].tapeStartOffset(midi, velocity, startSeconds);
+                if (active_ && offset >= 0.0f) {
+                    voice_[k].set_startOffset(offset);
                     voice_[k].set_voct(voct + strip_.voctOffset(k));
                     voice_[k].noteOn(midi, velocity);
                 } else {

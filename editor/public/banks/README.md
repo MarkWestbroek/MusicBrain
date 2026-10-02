@@ -11,7 +11,7 @@ control van de sampler kiest `NN`. Formaat: `firmware/lib/mmb-dsp/mmb_dsp/sample
 | `elements.mmbs` | eigen opname van de Elements-module; de **Testbank**-knop in de import haalt deze op |
 | `church-organ.mmbs` | eigen synthetische testbank (4 samples) |
 | `handdrum *.mmbs`, `small bells *.mmbs` | eigen opnames (Tomek's handpan, klankschalen), geïmporteerd uit `../sample-originals/` |
-| `gu-*.mmbs` | 21 presets uit **GeneralUser GS 2.0.3** van S. Christian Collins |
+| `gu-*.mmbs` | 24 presets uit **GeneralUser GS 2.0.3** van S. Christian Collins |
 
 GeneralUser GS is vrij te gebruiken en de licentie staat afgeleide banken toe
 met naamsvermelding — vandaar dat deze wél in de repo mogen. Opnieuw maken:
@@ -23,8 +23,16 @@ node tools/mmb-wasm/sf2-to-mmbs.mjs GeneralUser-GS.sf2 11 gu-vibraphone.mmbs --v
 ```
 
 De `--vel-track` per bank loopt van 10 dB (orgel, pads: daar valt de zachte
-aanslag anders weg) tot 24 dB (aangeslagen instrumenten). Alle 21 blijven
-binnen de firmware-limiet van 64 sloten en 256 zones, samen 8,6 MB.
+aanslag anders weg) tot 24 dB (aangeslagen instrumenten). Alle 24 blijven
+binnen de firmware-limiet van 64 sloten en 256 zones, samen 14,3 MB.
+
+`gu-flute`, `gu-recorder` en `gu-strings` (2026-10-02, `--vel-track=10`) zijn
+erbij gekomen voor de **Tape strip** (`tp_mmb_tapestrip`): met `gu-choir` zijn
+dat de drie klassieke Mellotron-banden (fluit, strijkers, koor) plus de
+blokfluit. Het intro van Strawberry Fields Forever is de fluit-tape van de
+Mellotron MkII: echte dwarsfluiten, door de band blokfluitachtig. Alle zones
+in deze banken lussen tot note-off; de Tape strip maakt daar bandjes van
+Length seconden van.
 
 ## Niet in git
 

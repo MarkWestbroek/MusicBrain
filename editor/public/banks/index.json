@@ -37,6 +37,11 @@
       "size": 400630
     },
     {
+      "file": "gu-flute.mmbs",
+      "name": "Flute",
+      "size": 809662
+    },
+    {
       "file": "gu-harp.mmbs",
       "name": "Orchestral Harp",
       "size": 307284
@@ -72,6 +77,11 @@
       "size": 135142
     },
     {
+      "file": "gu-recorder.mmbs",
+      "name": "Recorder",
+      "size": 225688
+    },
+    {
       "file": "gu-rhodes.mmbs",
       "name": "Tine Electric Piano",
       "size": 376570
@@ -90,6 +100,11 @@
       "file": "gu-steeldrums.mmbs",
       "name": "Steel Drums",
       "size": 56186
+    },
+    {
+      "file": "gu-strings.mmbs",
+      "name": "Slow Strings",
+      "size": 4684254
     },
     {
       "file": "gu-taiko.mmbs",
