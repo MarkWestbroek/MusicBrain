@@ -17,6 +17,54 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-02 — Modulatorpakket en klassiekers: zestien modules (firmware gebouwd, nog geen nieuw versienummer)
+Uit een doorlichting van de collectie ([analyse](plans/modulecollectie-analyse-2026-10.md)): de
+CV-modulatoren waren het dunst, en de West Coast-kant, een orgel en een paar
+klassieke schakelingen ontbraken.
+- **CV-pakket** (firmware-`CvModule`, 1 kHz; de simulator draait de klasse zelf):
+  **Clock** (`tp_mmb_clock`: delingen uit één fase, swing, maatzaag),
+  **Euclid** (`tp_mmb_euclid`: drie kanalen, Fill-CV), **Turing**
+  (`tp_mmb_turing`: schuifregister-lus die langzaam verandert), **Branches**
+  (`tp_mmb_branches`: Bernoulli-gate, eigen code), **Chaos** (`tp_mmb_chaos`:
+  Lorenz/Rössler/Thomas), **LFO-8** (`tp_mmb_lfo8`: acht verwante LFO's op één
+  knop), **Slope** (`tp_mmb_slope`: functiegenerator met rise/fall, kromming,
+  cycle, EOR/EOC), **Logic** (`tp_mmb_logic`: min/max, AND/OR/XOR,
+  vergelijker, gelijkrichter) en de firmwarekant van **S&H** (`tp_mmb_sh`; het
+  paneel bestond al, de simulator speelt hem nu ook).
+- **Folder** (`tp_mmb_folder`): West Coast-wavefolder, drie vouwvormen (Sine,
+  Tri, de vijf cellen van de Buchla 259), 4× overbemonsterd.
+- **LPG** (`tp_mmb_lpg`): low-pass gate met vactrol-gedrag en ping.
+- **Drive** (`tp_mmb_drive`): overdrive, distortion en fuzz naar drie
+  pedaalfamilies.
+- **Freq shift** (`tp_mmb_freqshift`): frequency shifter naar Bode, twee
+  zijbanden als uitgang, feedback.
+- **Acid** (`tp_mmb_acid`): basstem naar de TB-303 met accent en slide als
+  gate-ingangen.
+- **Rungler** (`tp_mmb_rungler`): chaotische stem naar de Benjolin van Rob
+  Hordijk; de rungler is ook een CV-uitgang.
+- **Organ** (`tp_mmb_organ`): tonewheel-orgel met negen trekstangen, twaalf
+  toetsen, foldback, key click, percussie, lek en scanner-vibrato; hoort voor
+  de ROTARY.
+- Demo's: Solo ▾ → Acid jam, West Coast, Rungler; Poly ▾ → Organ ×12.
+- Nieuw gereedschap voor volgende modules: `KernelStream.h` (Teensy) en
+  `tools/mmb-wasm/kernel_host.h` (wasm) voor kernels met één interface,
+  `mmb_dsp/oversample.h`, en `sim/wasmTestHost.ts` voor wasm-tests.
+- **Tweede ronde, zelfde dag**: **SEM** (`tp_mmb_sem`: 12 dB state-variable,
+  Mode traploos van laagdoorlaat via notch naar hoogdoorlaat, bandpass
+  apart), **Complex** (`tp_mmb_complex`: complex-oscillator naar de 259 met
+  FM-, AM- en timbre-index), **Wah** (`tp_mmb_wah`: pedaal, auto-wah op en
+  neer, LFO; type Wah of een klinkerfilter), **Ensemble**
+  (`tp_mmb_ensemble`: driefasig string-machine-chorus) en **E-piano**
+  (`tp_mmb_epiano`: tine of reed voor een pickup, twaalf toetsen, stereo
+  tremolo). Demo's: Solo ▾ → Buchla-stem, SEM sweep; Poly ▾ → E-piano ×12.
+- **Testbediening**: **Pads** (`tp_mmb_pads`: vier grote drukknoppen met
+  gate en trigger, latch per knop), **Faders** (`tp_mmb_faders`) en **Knobs**
+  (`tp_mmb_knobs`): vier schuiven of draaiknoppen als CV-bron, met bereik en
+  slew. Een momentary knop op een paneel is nu hoog zolang je hem indrukt
+  (minstens 100 ms) in plaats van een vaste puls van 100 ms, en kan groot.
+- Contract 108 modules (was 84) na de testbediening; eerder in de ronde 105; 86 nieuwe wasm-tests en acht C++-checks op
+  vier samplefrequenties. Niet geflasht en niet door een mens beluisterd.
+
 ### 2026-10-02 — Vijf onderzoeksmodules en Material Bridge-herstel (firmware gebouwd, nog geen nieuw versienummer)
 - **Material Bridge** (`tp_mmb_material_bridge`): de koppeling schaalt nu met
   de grondtoon, zodat V/Oct het hele spectrum transponeert (voorheen lagen de

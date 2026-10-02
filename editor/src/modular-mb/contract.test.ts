@@ -12,6 +12,7 @@
 //
 // Draaien: `npm test` in editor/.
 
+import { DRIVE_SOLO_FX, ENSEMBLE_SOLO_FX, FOLDER_SOLO_FX, FREQSHIFT_SOLO_FX, WAH_SOLO_FX, seedAcidJamPatch, seedComplexVoicePatch, seedEPianoPolyPatch, seedOrganPolyPatch, seedRunglerPatch, seedSemSweepPatch, seedWestCoastPatch } from './seedShowcase';
 import { describe, expect, it } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -109,6 +110,20 @@ function allSeededProject(): ModularProject {
   p = seedMaterialBridgeDemo(p);
   p = seedReservoirDemo(p);
   p = seedTapeStripPolyPatch(p, 8);
+  // Modulatorpakket en klassiekers (2026-10-02).
+  p = seedAcidJamPatch(p);
+  p = seedWestCoastPatch(p);
+  p = seedOrganPolyPatch(p);
+  p = seedSoloVoicePatch(p, 'tp_mmb_acid', 'ACID', 'out', 'out', {});
+  p = seedRunglerPatch(p);
+  p = seedSoloVoicePatch(p, 'tp_mmb_stk_sound', 'STK', 'out', 'out', {}, FOLDER_SOLO_FX);
+  p = seedSoloVoicePatch(p, 'tp_mmb_string', 'String', 'out', 'out', {}, DRIVE_SOLO_FX);
+  p = seedSoloVoicePatch(p, 'tp_mmb_rings', 'Rings', 'out_l', 'out_r', {}, FREQSHIFT_SOLO_FX);
+  p = seedComplexVoicePatch(p);
+  p = seedSemSweepPatch(p);
+  p = seedEPianoPolyPatch(p);
+  p = seedSoloVoicePatch(p, 'tp_mmb_stk_sound', 'STK', 'out', 'out', {}, ENSEMBLE_SOLO_FX);
+  p = seedSoloVoicePatch(p, 'tp_mmb_string', 'String', 'out', 'out', {}, WAH_SOLO_FX);
   return p;
 }
 

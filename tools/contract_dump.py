@@ -85,6 +85,12 @@ OVERRIDES: dict[str, dict[str, list[str]]] = {
                             + ["ext_2", "ext_3", "ext_4"]},
     # SID 3-osc: per-stem-controls `<naam>_<k>` via voiceOf() — tekstueel
     # onzichtbaar, dus hier uitgeschreven.
+    # Tonewheel-orgel: 12 toets-cellen via OrganModule::cellOf().
+    "tp_mmb_organ": {"implemented": [], "ignored": [],
+                     "ports": _rng("voct_", 12) + _rng("gate_", 12)},
+    # Elektrische piano: 12 stem-cellen via EPianoModule::cellOf().
+    "tp_mmb_epiano": {"implemented": [], "ignored": [],
+                      "ports": _rng("voct_", 12) + _rng("gate_", 12) + _rng("vel_", 12)},
     "tp_mmb_sid3": {"implemented": [f"{n}_{k}" for n in ("tri", "saw", "pulse", "noise", "pw", "ring", "sync",
                                                          "attack", "decay", "sustain", "release",
                                                          "coarse", "fine", "filt") for k in (1, 2, 3)],

@@ -130,6 +130,20 @@ sel quant && build quant tp_mmb_quant "${CVINC[@]}" --
 sel chord && build chord tp_mmb_chord "${CVINC[@]}" --
 sel reservoir && build reservoir tp_mmb_reservoir "${CVINC[@]}" "$LIB/mmb-dsp" --
 sel grids && build grids tp_mmb_grids "${CVINC[@]}" --
+# Modulatorpakket (2026-10-02): firmwareklassen via cvhost.
+sel sh && build sh tp_mmb_sh "${CVINC[@]}" --
+sel clock && build clock tp_mmb_clock "${CVINC[@]}" --
+sel euclid && build euclid tp_mmb_euclid "${CVINC[@]}" --
+sel turing && build turing tp_mmb_turing "${CVINC[@]}" --
+sel branches && build branches tp_mmb_branches "${CVINC[@]}" --
+sel chaos && build chaos tp_mmb_chaos "${CVINC[@]}" --
+sel lfo8 && build lfo8 tp_mmb_lfo8 "${CVINC[@]}" --
+sel slope && build slope tp_mmb_slope "${CVINC[@]}" --
+sel logic && build logic tp_mmb_logic "${CVINC[@]}" --
+# Testbediening (2026-10-02): drukknoppen, schuiven, draaiknoppen.
+sel pads && build pads tp_mmb_pads "${CVINC[@]}" --
+sel faders && build faders tp_mmb_faders "${CVINC[@]}" --
+sel knobs && build knobs tp_mmb_knobs "${CVINC[@]}" --
 sel lfo   && build lfo   tp_mmb_lfo   "${CVINC[@]}" -- "$ROOT/firmware/core/src/runtime/Lfo.cpp"
 sel string && build string tp_mmb_string --
 sel echo   && build echo   tp_mmb_echo   --
@@ -176,6 +190,19 @@ sel stereophaser && build stereophaser tp_mmb_stereo_phaser "$LIB/mmb-dsp" --
 sel vibe && build vibe tp_mmb_vibe "$LIB/mmb-dsp" --
 sel rotary && build rotary tp_mmb_rotary "$LIB/mmb-dsp" --
 sel shimmer && build shimmer tp_mmb_shimmer "$LIB/mmb-dsp" --
+# West Coast, pedalen en klassiekers (2026-10-02): kernels via kernel_host.h.
+sel folder && build folder tp_mmb_folder "$LIB/mmb-dsp" --
+sel lpg && build lpg tp_mmb_lpg "$LIB/mmb-dsp" --
+sel drive && build drive tp_mmb_drive "$LIB/mmb-dsp" --
+sel freqshift && build freqshift tp_mmb_freqshift "$LIB/mmb-dsp" --
+sel acid && build acid tp_mmb_acid "$LIB/mmb-dsp" --
+sel rungler && build rungler tp_mmb_rungler "$LIB/mmb-dsp" --
+sel organ && build organ tp_mmb_organ "$LIB/mmb-dsp" --
+sel sem && build sem tp_mmb_sem "$LIB/mmb-dsp" --
+sel complex && build complex tp_mmb_complex "$LIB/mmb-dsp" --
+sel wah && build wah tp_mmb_wah "$LIB/mmb-dsp" --
+sel ensemble && build ensemble tp_mmb_ensemble "$LIB/mmb-dsp" --
+sel epiano && build epiano tp_mmb_epiano "$LIB/mmb-dsp" --
 
 sel envfollower && build envfollower tp_mmb_env_follower "$LIB/mmb-dsp" --
 sel envfollower && EXTRA="-DMMB_EF_CELLS=1" build envfollower tp_mmb_env_follower_mono "$LIB/mmb-dsp" --

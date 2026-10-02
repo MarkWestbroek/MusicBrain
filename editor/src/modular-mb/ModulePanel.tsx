@@ -876,17 +876,34 @@ function ButtonGlyph({
   value: boolean; onChange?: (v: boolean) => void;
   textCol: string;
 }): JSX.Element {
-  function handle(): void {
+  // Momentary: hoog zolang de knop is ingedrukt (een gate die je kunt
+  // vasthouden), maar minstens 100 ms, zodat ook een vlugge klik door de
+  // 1 kHz-CV-tick en de controlPoke naar de Teensy komt.
+  const pressedAt = useRef(0);
+  const releaseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function press(e: React.PointerEvent<SVGGElement>): void {
     if (!onChange) return;
-    if (c.momentary) { onChange(true); setTimeout(() => onChange(false), 100); }
-    else onChange(!value);
+    if (!c.momentary) { onChange(!value); return; }
+    (e.target as Element).setPointerCapture?.(e.pointerId);
+    if (releaseTimer.current) { clearTimeout(releaseTimer.current); releaseTimer.current = null; }
+    pressedAt.current = Date.now();
+    onChange(true);
   }
+  function release(): void {
+    if (!onChange || !c.momentary || pressedAt.current === 0) return;
+    const wait = Math.max(0, 100 - (Date.now() - pressedAt.current));
+    pressedAt.current = 0;
+    releaseTimer.current = setTimeout(() => { releaseTimer.current = null; onChange(false); }, wait);
+  }
+  const r = c.size === 'large' ? 5.5 : c.size === 'medium' ? 3.5 : 2.2;
   return (
-    <g style={{ cursor: onChange ? 'pointer' : 'default' }} onClick={handle}>
-      <circle cx={x} cy={y} r={2.2}
+    <g style={{ cursor: onChange ? 'pointer' : 'default', touchAction: 'none' }}
+       onPointerDown={press} onPointerUp={release} onPointerCancel={release}>
+      <circle cx={x} cy={y} r={r}
         fill={value ? '#fbbf24' : (c.style === 'led' ? '#1a1a1a' : '#4b5563')}
         stroke="#000" strokeWidth={0.2} />
-      <text x={x} y={y + 4.4} fontSize={1.5} fill={textCol} textAnchor="middle">{c.label}</text>
+      {c.size === 'large' && <circle cx={x} cy={y} r={r * 0.78} fill="none" stroke="#000" strokeOpacity={0.35} strokeWidth={0.25} />}
+      <text x={x} y={y + r + 2.2} fontSize={1.5} fill={textCol} textAnchor="middle">{c.label}</text>
     </g>
   );
 }

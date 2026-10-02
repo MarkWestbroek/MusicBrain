@@ -19,6 +19,7 @@ import { seedCs80BrassPatch } from './seedBrass';
 import { seedAxelFLeadPatch } from './seedAxelF';
 import { seedSid3Patch, seedSidPolyPatch } from './seedSid';
 import { seedMaterialBridgeDemo, seedReservoirDemo, seedTapeStripPolyPatch } from './seedModules';
+import { DRIVE_SOLO_FX, ENSEMBLE_SOLO_FX, FOLDER_SOLO_FX, FREQSHIFT_SOLO_FX, WAH_SOLO_FX, seedAcidJamPatch, seedComplexVoicePatch, seedEPianoPolyPatch, seedOrganPolyPatch, seedRunglerPatch, seedSemSweepPatch, seedWestCoastPatch } from './seedShowcase';
 
 /** Effecten achter de solo-seeds (Solo ▾): de stand en de tooltip. */
 const SOLO_FX = {
@@ -43,6 +44,11 @@ const SOLO_FX = {
   rotary: { fx: ROTARY_SOLO_FX, title: 'Monofoon met ROTARY (Leslie-stijl): begint op Slow; zet Speed op Fast en hoor hoorn en trommel elk in hun eigen tempo opwinden. Hang de Fast-gate aan het mod-wiel voor de klassieke schakelaar.' },
   shimmer: { fx: SHIMMER_SOLO_FX, title: 'Monofoon met SHIMMER: plaatgalm met een octaaf omhoog in de lus (shimmer 0,55) — een glinsterende wolk boven wat je speelt.' },
   sphase: { fx: STEREO_PHASER_SOLO_FX, title: 'Monofoon met STEREO PHASER: 2 × 6 stages, rechts een kwartslag verschoven, feedback 0,45.' },
+  drive:  { fx: DRIVE_SOLO_FX, title: 'Monofoon met DRIVE in de overdrive-stand: het midden komt naar voren, het laag blijft strak. Probeer Mode Dist en Fuzz.' },
+  folder: { fx: FOLDER_SOLO_FX, title: 'Fluit (bijna een sinus) door de FOLDER (stand 259): draai Fold open en hoor de boventonen erbij vouwen; Sym voegt even boventonen toe.' },
+  fshift: { fx: FREQSHIFT_SOLO_FX, title: 'Monofoon met FREQ SHIFT (+35 Hz, wat feedback): de boventonen schuiven uit hun verhouding, klokachtig. Range 5 Hz geeft een trage zweving.' },
+  wah:    { fx: WAH_SOLO_FX, title: 'Monofoon met WAH in de stand Auto↑ (touch-wah): harder spelen opent het filter. Probeer Type Vowel voor het sprekende filter en Mode LFO.' },
+  ensemble: { fx: ENSEMBLE_SOLO_FX, title: 'Gestreken snaar door de ENSEMBLE: drie vertragingslijnen in drie fasen maken van één stem een strijkersgroep, breed en zonder hoorbaar golven.' },
 } as const;
 import { PatchesPanel } from './PatchesPanel';
 import { ModulesPanel } from './ModulesPanel';
@@ -538,6 +544,22 @@ export function ModularMbApp(): JSX.Element {
                   }}
                 >📼 Tape strip ×8 (Mellotron)</button>
                 <button
+                  onClick={() => { setProject(seedOrganPolyPatch(getProject())); setShowPoly(false); }}
+                  title="MidiIn → ORGAN (tonewheel-orgel, twaalf toetsen) → ROTARY → OUT. 888000000 met percussie en chorus; het mod-wiel schakelt de luidspreker."
+                  style={{
+                    textAlign: 'left', border: 'none', background: 'transparent',
+                    padding: '7px 12px', cursor: 'pointer', fontSize: 13,
+                  }}
+                >🎹 Organ ×12 (tonewheel + Rotary)</button>
+                <button
+                  onClick={() => { setProject(seedEPianoPolyPatch(getProject())); setShowPoly(false); }}
+                  title="MidiIn → E-PIANO (twaalf toetsen, velocity bekabeld) → OUT. Een model van tine en pickup; de klank verandert met de aanslag."
+                  style={{
+                    textAlign: 'left', border: 'none', background: 'transparent',
+                    padding: '7px 12px', cursor: 'pointer', fontSize: 13,
+                  }}
+                >🎹 E-piano ×12 (tine / reed)</button>
+                <button
                   onClick={() => { setProject(seedZangPatch(getProject(), 8)); setShowPoly(false); }}
                   title="Zingende stem: ZANG met acht stem-cellen als PolyGroup, met galm. Elke aanslag zingt de volgende lettergreep. Maak een lyricbank via 🎤 Zang."
                   style={{
@@ -596,6 +618,18 @@ export function ModularMbApp(): JSX.Element {
                 onMouseLeave={() => setShowSolo(false)}
               >
                 {([
+                  { label: '🧪 Acid (303-stijl bas)', t: 'tp_mmb_acid', n: 'ACID', l: 'out', r: 'out',
+                    c: { wave: 0, tune: -12, cutoff: 0.3, res: 0.8, envmod: 0.65, decay: 0.35, accent: 0.7, level: 0.8 } },
+                  { label: '〽️ Fluit + FOLDER (West Coast)', t: 'tp_mmb_stk_sound', n: 'STK', l: 'out', r: 'out',
+                    c: { sound: 3, level: 0.9 }, fx: 'folder' },
+                  { label: '🎻 Strijker + ENSEMBLE (string machine)', t: 'tp_mmb_stk_sound', n: 'STK', l: 'out', r: 'out',
+                    c: { sound: 2, level: 0.9 }, fx: 'ensemble' },
+                  { label: '🦆 String + WAH (touch-wah)', t: 'tp_mmb_string', n: 'String', l: 'out', r: 'out',
+                    c: { pluck: 0.8, level: 0.9 }, fx: 'wah' },
+                  { label: '🎸 String + DRIVE (overdrive/fuzz)', t: 'tp_mmb_string', n: 'String', l: 'out', r: 'out',
+                    c: { pluck: 0.6, level: 0.8 }, fx: 'drive' },
+                  { label: '🔔 Rings + FREQ SHIFT', t: 'tp_mmb_rings', n: 'Rings', l: 'out_l', r: 'out_r',
+                    c: { structure: 0.4, brightness: 0.6, damping: 0.6, position: 0.3, model: 0, polyphony: 1, level: 0.8 }, fx: 'fshift' },
                   { label: '〰️ Scanned (levende golftabel)', t: 'tp_mmb_scanned', n: 'Scanned', l: 'out', r: 'out',
                     c: { tension: 0.6, damping: 0.3, restore: 0.3, speed: 0.15, position: 0.5, width: 0.3, level: 0.8 } },
                   { label: '🎲 GENDYN (stochastisch)', t: 'tp_mmb_gendyn', n: 'GENDYN', l: 'out', r: 'out',
@@ -701,6 +735,31 @@ export function ModularMbApp(): JSX.Element {
                   title="Twee zelfspelende stemmen delen een eindige, herstellende bron; A/B: Drain 0,7 tegenover 0."
                   style={{ textAlign: 'left', border: 'none', background: 'transparent', padding: '7px 12px', cursor: 'pointer', fontSize: 13 }}
                 >Reservoir demo (gedeelde bron)</button>
+                <button
+                  onClick={() => { setProject(seedAcidJamPatch(getProject())); setShowSolo(false); }}
+                  title="Zelfspelend: Clock → Seq → ACID, Euclid op Accent en Slide, Chaos op de cutoff, kick op de tel. Draai aan Cutoff, Reso en Env mod."
+                  style={{ textAlign: 'left', border: 'none', background: 'transparent', padding: '7px 12px', cursor: 'pointer', fontSize: 13 }}
+                >🧪 Acid jam (Clock + Euclid + Chaos)</button>
+                <button
+                  onClick={() => { setProject(seedWestCoastPatch(getProject())); setShowSolo(false); }}
+                  title="Zelfspelend: Turing → Quantizer → sinus → FOLDER → LPG → galm; LFO-8 en Chaos bewegen de folder, de pulsen van Turing pingen de gate."
+                  style={{ textAlign: 'left', border: 'none', background: 'transparent', padding: '7px 12px', cursor: 'pointer', fontSize: 13 }}
+                >🌊 West Coast (Turing + Folder + LPG)</button>
+                <button
+                  onClick={() => { setProject(seedRunglerPatch(getProject())); setShowSolo(false); }}
+                  title="Zelfspelende chaos naar de Benjolin van Rob Hordijk: twee oscillatoren en een schuifregister die elkaar sturen. Het klavier stemt oscillator A."
+                  style={{ textAlign: 'left', border: 'none', background: 'transparent', padding: '7px 12px', cursor: 'pointer', fontSize: 13 }}
+                >🌀 Rungler (Benjolin-stijl chaos)</button>
+                <button
+                  onClick={() => { setProject(seedComplexVoicePatch(getProject())); setShowSolo(false); }}
+                  title="West Coast-stem onder het klavier: COMPLEX (259-stijl) door de LPG; SLOPE opent de gate en beweegt het timbre."
+                  style={{ textAlign: 'left', border: 'none', background: 'transparent', padding: '7px 12px', cursor: 'pointer', fontSize: 13 }}
+                >🎛️ Buchla-stem (Complex + LPG)</button>
+                <button
+                  onClick={() => { setProject(seedSemSweepPatch(getProject())); setShowSolo(false); }}
+                  title="Zelfspelend: zaag op een sequencerlijn door het SEM-filter; Mode schuift traag van laagdoorlaat via notch naar hoogdoorlaat."
+                  style={{ textAlign: 'left', border: 'none', background: 'transparent', padding: '7px 12px', cursor: 'pointer', fontSize: 13 }}
+                >🎚️ SEM sweep (LP → notch → HP)</button>
                 <button
                   onClick={() => { setProject(seedWarpsVocoderPatch(getProject())); setShowSolo(false); }}
                   title="Vocoder: jouw keyboard bespeelt Warps' interne zaag-carrier; Marbles klokt Plaits als ritmische modulator. Houd een noot aan en draai Timbre."

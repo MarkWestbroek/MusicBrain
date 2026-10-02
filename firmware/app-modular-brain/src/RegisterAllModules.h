@@ -70,6 +70,31 @@
 #include "ChordModule.h"
 #include "EnvFollowerModule.h"
 #include "GridsModule.h"
+// Modulatorpakket (2026-10-02): CV-modules.
+#include "SampleHoldModule.h"
+#include "ClockModule.h"
+#include "EuclidModule.h"
+#include "TuringModule.h"
+#include "BranchesModule.h"
+#include "ChaosModule.h"
+#include "Lfo8Module.h"
+#include "SlopeModule.h"
+#include "LogicModule.h"
+// West Coast, pedalen en klassiekers (2026-10-02): audiomodules op KernelStream.
+#include "WavefolderModule.h"
+#include "LpgModule.h"
+#include "DriveModule.h"
+#include "FreqShiftModule.h"
+#include "AcidModule.h"
+#include "RunglerModule.h"
+#include "OrganModule.h"
+#include "SemModule.h"
+#include "ComplexOscModule.h"
+#include "WahModule.h"
+#include "EnsembleModule.h"
+#include "EPianoModule.h"
+#include "PadsModule.h"
+#include "ManualCvModule.h"
 #include "CompDriveModule.h"
 #include "EchoModule.h"
 #include "TapeEchoModule.h"
@@ -161,6 +186,30 @@ inline void registerAllRuntimeModules() {
     EnvFollowerModule::registerFactory();     // FW-CV-6: 8-cel envelope follower (mmb-dsp), ook als wasm
     EnvFollowerMonoModule::registerFactory(); // idem, enkelvoudig
     GridsModule::registerFactory();     // FW-SQ-2: topologische drum-sequencer
+    SampleHoldModule::registerFactory(); // S&H / T&H / slew (paneel bestond al)
+    ClockModule::registerFactory();    // masterklok met delers, swing, maatzaag
+    EuclidModule::registerFactory();   // Euclidische ritmes, drie kanalen
+    TuringModule::registerFactory();   // schuifregister-sequencer
+    BranchesModule::registerFactory(); // Bernoulli-gate
+    ChaosModule::registerFactory();    // Lorenz / Rössler / Thomas als CV
+    Lfo8Module::registerFactory();     // acht verwante LFO's
+    SlopeModule::registerFactory();    // functiegenerator (rise/fall/cycle)
+    LogicModule::registerFactory();    // min/max, logica, vergelijker
+    WavefolderModule::registerFactory(); // West Coast-wavefolder (Sine/Tri/259)
+    LpgModule::registerFactory();       // low-pass gate met vactrol
+    DriveModule::registerFactory();     // overdrive / distortion / fuzz
+    FreqShiftModule::registerFactory(); // frequency shifter (Bode)
+    AcidModule::registerFactory();      // 303-stijl basstem met accent en slide
+    RunglerModule::registerFactory();   // Benjolin-stijl chaos (rungler)
+    OrganModule::registerFactory();     // tonewheel-orgel, 12 toetsen
+    SemModule::registerFactory();        // SEM-filter (LP→notch→HP, bandpass apart)
+    ComplexOscModule::registerFactory(); // complex-oscillator naar de 259
+    WahModule::registerFactory();        // wah / klinkerfilter, pedaal-auto-LFO
+    EnsembleModule::registerFactory();   // driefasig ensemble-chorus
+    EPianoModule::registerFactory();     // elektrische piano (tine/reed), 12 toetsen
+    PadsModule::registerFactory();       // vier drukknoppen: gate + trigger
+    FadersModule::registerFactory();     // vier schuiven als CV-bron
+    KnobsModule::registerFactory();      // vier draaiknoppen als CV-bron
     CompDriveModule::registerFactory(); // FW-FX-2: compressor + overdrive
     EchoModule::registerFactory();      // FW-AU-2: feedback delay
     TapeEchoModule::registerFactory();  // bandecho (mmb-dsp), ook als wasm in de simulator

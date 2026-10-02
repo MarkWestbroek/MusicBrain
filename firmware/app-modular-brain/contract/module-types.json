@@ -2,6 +2,47 @@
   "$comment": "GEGENEREERD door tools/contract_dump.py — niet met de hand bewerken. Poort-ids zijn letterlijk wat de firmware accepteert (aliassen als out/out_l en naam/naam_cv staan er dus allebei in).",
   "firmwareVersion": "0.5.94",
   "modules": {
+    "...": {
+      "typeId": "...",
+      "source": "firmware/app-modular-brain/src/ManualCvModule.h",
+      "ports": [
+        "out_1",
+        "out_2",
+        "out_3",
+        "out_4"
+      ],
+      "controls": [
+        "range",
+        "slew",
+        "v1",
+        "v2",
+        "v3",
+        "v4"
+      ]
+    },
+    "tp_mmb_acid": {
+      "typeId": "tp_mmb_acid",
+      "source": "firmware/app-modular-brain/src/AcidModule.h",
+      "ports": [
+        "accent",
+        "cutoff_cv",
+        "env",
+        "gate",
+        "out",
+        "slide",
+        "voct"
+      ],
+      "controls": [
+        "accent",
+        "cutoff",
+        "decay",
+        "envmod",
+        "level",
+        "res",
+        "tune",
+        "wave"
+      ]
+    },
     "tp_mmb_ahdsr": {
       "typeId": "tp_mmb_ahdsr",
       "source": "firmware/core/include/mb/runtime/Ahdsr.h",
@@ -62,6 +103,21 @@
         "tone"
       ]
     },
+    "tp_mmb_branches": {
+      "typeId": "tp_mmb_branches",
+      "source": "firmware/app-modular-brain/src/BranchesModule.h",
+      "ports": [
+        "a",
+        "b",
+        "in",
+        "p_cv"
+      ],
+      "controls": [
+        "latch",
+        "p",
+        "toggle"
+      ]
+    },
     "tp_mmb_bus_comp": {
       "typeId": "tp_mmb_bus_comp",
       "source": "firmware/app-modular-brain/src/BusCompModule.h",
@@ -85,6 +141,26 @@
         "threshold"
       ]
     },
+    "tp_mmb_chaos": {
+      "typeId": "tp_mmb_chaos",
+      "source": "firmware/app-modular-brain/src/ChaosModule.h",
+      "ports": [
+        "gate",
+        "rate_cv",
+        "reset",
+        "x",
+        "y",
+        "z"
+      ],
+      "controls": [
+        "bipolar",
+        "depth",
+        "model",
+        "rate",
+        "rate_cv_amt",
+        "shape"
+      ]
+    },
     "tp_mmb_chord": {
       "typeId": "tp_mmb_chord",
       "source": "firmware/app-modular-brain/src/ChordModule.h",
@@ -99,6 +175,28 @@
         "chord",
         "inv",
         "spread"
+      ]
+    },
+    "tp_mmb_clock": {
+      "typeId": "tp_mmb_clock",
+      "source": "firmware/app-modular-brain/src/ClockModule.h",
+      "ports": [
+        "bar",
+        "beat",
+        "div",
+        "ramp",
+        "reset",
+        "tempo_cv",
+        "x2",
+        "x3",
+        "x4"
+      ],
+      "controls": [
+        "div",
+        "run",
+        "swing",
+        "tempo",
+        "width"
       ]
     },
     "tp_mmb_clouds": {
@@ -179,6 +277,28 @@
         "ratio",
         "release",
         "threshold"
+      ]
+    },
+    "tp_mmb_complex": {
+      "typeId": "tp_mmb_complex",
+      "source": "firmware/app-modular-brain/src/ComplexOscModule.h",
+      "ports": [
+        "fm_cv",
+        "mod",
+        "out",
+        "timbre_cv",
+        "voct"
+      ],
+      "controls": [
+        "am",
+        "fm",
+        "level",
+        "mod_wave",
+        "pitch",
+        "ratio",
+        "symmetry",
+        "timbre",
+        "tmod"
       ]
     },
     "tp_mmb_console_eq": {
@@ -329,6 +449,22 @@
         "level"
       ]
     },
+    "tp_mmb_drive": {
+      "typeId": "tp_mmb_drive",
+      "source": "firmware/app-modular-brain/src/DriveModule.h",
+      "ports": [
+        "drive_cv",
+        "in",
+        "out"
+      ],
+      "controls": [
+        "drive",
+        "level",
+        "mix",
+        "mode",
+        "tone"
+      ]
+    },
     "tp_mmb_dx7": {
       "typeId": "tp_mmb_dx7",
       "source": "firmware/app-modular-brain/src/Dx7Module.h",
@@ -424,6 +560,25 @@
         "time"
       ]
     },
+    "tp_mmb_ensemble": {
+      "typeId": "tp_mmb_ensemble",
+      "source": "firmware/app-modular-brain/src/EnsembleModule.h",
+      "ports": [
+        "depth_cv",
+        "in_l",
+        "in_r",
+        "out_l",
+        "out_r"
+      ],
+      "controls": [
+        "depth",
+        "fast",
+        "level",
+        "mix",
+        "slow",
+        "tone"
+      ]
+    },
     "tp_mmb_env_follower": {
       "typeId": "tp_mmb_env_follower",
       "source": "firmware/app-modular-brain/src/EnvFollowerModule.h",
@@ -479,6 +634,89 @@
       ],
       "controlsIgnored": []
     },
+    "tp_mmb_epiano": {
+      "typeId": "tp_mmb_epiano",
+      "source": "firmware/app-modular-brain/src/EPianoModule.h",
+      "ports": [
+        "gate_1",
+        "gate_10",
+        "gate_11",
+        "gate_12",
+        "gate_2",
+        "gate_3",
+        "gate_4",
+        "gate_5",
+        "gate_6",
+        "gate_7",
+        "gate_8",
+        "gate_9",
+        "out_l",
+        "out_r",
+        "vel_1",
+        "vel_10",
+        "vel_11",
+        "vel_12",
+        "vel_2",
+        "vel_3",
+        "vel_4",
+        "vel_5",
+        "vel_6",
+        "vel_7",
+        "vel_8",
+        "vel_9",
+        "voct_1",
+        "voct_10",
+        "voct_11",
+        "voct_12",
+        "voct_2",
+        "voct_3",
+        "voct_4",
+        "voct_5",
+        "voct_6",
+        "voct_7",
+        "voct_8",
+        "voct_9"
+      ],
+      "controls": [
+        "bell",
+        "decay",
+        "drive",
+        "level",
+        "timbre",
+        "trem_rate",
+        "tremolo",
+        "type"
+      ],
+      "controlsIgnored": []
+    },
+    "tp_mmb_euclid": {
+      "typeId": "tp_mmb_euclid",
+      "source": "firmware/app-modular-brain/src/EuclidModule.h",
+      "ports": [
+        "any",
+        "clock",
+        "fill_1_cv",
+        "fill_2_cv",
+        "fill_3_cv",
+        "out_1",
+        "out_2",
+        "out_3",
+        "reset"
+      ],
+      "controls": [
+        "extclock",
+        "fill_1",
+        "fill_2",
+        "fill_3",
+        "rot_1",
+        "rot_2",
+        "rot_3",
+        "steps_1",
+        "steps_2",
+        "steps_3",
+        "tempo"
+      ]
+    },
     "tp_mmb_excitable": {
       "typeId": "tp_mmb_excitable",
       "source": "firmware/app-modular-brain/src/ExcitableModule.h",
@@ -501,6 +739,24 @@
         "refract",
         "speed",
         "thresh"
+      ]
+    },
+    "tp_mmb_faders": {
+      "typeId": "tp_mmb_faders",
+      "source": "firmware/app-modular-brain/src/ManualCvModule.h",
+      "ports": [
+        "out_1",
+        "out_2",
+        "out_3",
+        "out_4"
+      ],
+      "controls": [
+        "range",
+        "slew",
+        "v1",
+        "v2",
+        "v3",
+        "v4"
       ]
     },
     "tp_mmb_fet_comp": {
@@ -575,6 +831,40 @@
         "voice_amt",
         "vowel",
         "vowel_amt"
+      ]
+    },
+    "tp_mmb_folder": {
+      "typeId": "tp_mmb_folder",
+      "source": "firmware/app-modular-brain/src/WavefolderModule.h",
+      "ports": [
+        "fold_cv",
+        "in",
+        "out",
+        "sym_cv"
+      ],
+      "controls": [
+        "fold",
+        "level",
+        "mix",
+        "symmetry",
+        "type"
+      ]
+    },
+    "tp_mmb_freqshift": {
+      "typeId": "tp_mmb_freqshift",
+      "source": "firmware/app-modular-brain/src/FreqShiftModule.h",
+      "ports": [
+        "down",
+        "in",
+        "out",
+        "shift_cv"
+      ],
+      "controls": [
+        "fbk",
+        "level",
+        "mix",
+        "range",
+        "shift"
       ]
     },
     "tp_mmb_gate_out": {
@@ -661,6 +951,24 @@
         "window"
       ]
     },
+    "tp_mmb_knobs": {
+      "typeId": "tp_mmb_knobs",
+      "source": "firmware/app-modular-brain/src/ManualCvModule.h",
+      "ports": [
+        "out_1",
+        "out_2",
+        "out_3",
+        "out_4"
+      ],
+      "controls": [
+        "range",
+        "slew",
+        "v1",
+        "v2",
+        "v3",
+        "v4"
+      ]
+    },
     "tp_mmb_ladder": {
       "typeId": "tp_mmb_ladder",
       "source": "firmware/app-modular-brain/src/LadderModule.h",
@@ -700,6 +1008,66 @@
         "run",
         "shape",
         "wave"
+      ]
+    },
+    "tp_mmb_lfo8": {
+      "typeId": "tp_mmb_lfo8",
+      "source": "firmware/app-modular-brain/src/Lfo8Module.h",
+      "ports": [
+        "out_1",
+        "out_2",
+        "out_3",
+        "out_4",
+        "out_5",
+        "out_6",
+        "out_7",
+        "out_8",
+        "rate_cv",
+        "reset"
+      ],
+      "controls": [
+        "bipolar",
+        "depth",
+        "rate",
+        "shape",
+        "spread"
+      ]
+    },
+    "tp_mmb_logic": {
+      "typeId": "tp_mmb_logic",
+      "source": "firmware/app-modular-brain/src/LogicModule.h",
+      "ports": [
+        "a",
+        "abs",
+        "and",
+        "b",
+        "gt",
+        "inv",
+        "max",
+        "min",
+        "or",
+        "xor"
+      ],
+      "controls": [
+        "thresh"
+      ]
+    },
+    "tp_mmb_lpg": {
+      "typeId": "tp_mmb_lpg",
+      "source": "firmware/app-modular-brain/src/LpgModule.h",
+      "ports": [
+        "cv",
+        "env",
+        "in",
+        "out",
+        "trig"
+      ],
+      "controls": [
+        "decay",
+        "level",
+        "mode",
+        "offset",
+        "res"
       ]
     },
     "tp_mmb_marbles": {
@@ -1106,6 +1474,57 @@
         "peak"
       ]
     },
+    "tp_mmb_organ": {
+      "typeId": "tp_mmb_organ",
+      "source": "firmware/app-modular-brain/src/OrganModule.h",
+      "ports": [
+        "gate_1",
+        "gate_10",
+        "gate_11",
+        "gate_12",
+        "gate_2",
+        "gate_3",
+        "gate_4",
+        "gate_5",
+        "gate_6",
+        "gate_7",
+        "gate_8",
+        "gate_9",
+        "out",
+        "swell",
+        "voct_1",
+        "voct_10",
+        "voct_11",
+        "voct_12",
+        "voct_2",
+        "voct_3",
+        "voct_4",
+        "voct_5",
+        "voct_6",
+        "voct_7",
+        "voct_8",
+        "voct_9"
+      ],
+      "controls": [
+        "click",
+        "d1",
+        "d113",
+        "d135",
+        "d16",
+        "d2",
+        "d223",
+        "d4",
+        "d513",
+        "d8",
+        "leak",
+        "level",
+        "perc",
+        "perc_fast",
+        "perc_soft",
+        "vib"
+      ],
+      "controlsIgnored": []
+    },
     "tp_mmb_out": {
       "typeId": "tp_mmb_out",
       "source": "firmware/app-modular-brain/src/OutModule.h",
@@ -1117,6 +1536,31 @@
         "level"
       ],
       "controlsIgnored": []
+    },
+    "tp_mmb_pads": {
+      "typeId": "tp_mmb_pads",
+      "source": "firmware/app-modular-brain/src/PadsModule.h",
+      "ports": [
+        "any",
+        "gate_1",
+        "gate_2",
+        "gate_3",
+        "gate_4",
+        "trig_1",
+        "trig_2",
+        "trig_3",
+        "trig_4"
+      ],
+      "controls": [
+        "b1",
+        "b2",
+        "b3",
+        "b4",
+        "latch1",
+        "latch2",
+        "latch3",
+        "latch4"
+      ]
     },
     "tp_mmb_para_eq": {
       "typeId": "tp_mmb_para_eq",
@@ -1405,6 +1849,34 @@
         "spread"
       ]
     },
+    "tp_mmb_rungler": {
+      "typeId": "tp_mmb_rungler",
+      "source": "firmware/app-modular-brain/src/RunglerModule.h",
+      "ports": [
+        "cutoff_cv",
+        "out",
+        "pulse_b",
+        "pwm",
+        "rate_cv",
+        "rungler",
+        "tri_a",
+        "tri_b",
+        "voct"
+      ],
+      "controls": [
+        "cross_a",
+        "cross_b",
+        "cutoff",
+        "freq_a",
+        "freq_b",
+        "level",
+        "loop",
+        "res",
+        "run_a",
+        "run_b",
+        "sweep"
+      ]
+    },
     "tp_mmb_sampler": {
       "typeId": "tp_mmb_sampler",
       "source": "firmware/app-modular-brain/src/SamplerModule.h",
@@ -1500,6 +1972,25 @@
         "width"
       ]
     },
+    "tp_mmb_sem": {
+      "typeId": "tp_mmb_sem",
+      "source": "firmware/app-modular-brain/src/SemModule.h",
+      "ports": [
+        "bp",
+        "cutoff_cv",
+        "in",
+        "mode_cv",
+        "out"
+      ],
+      "controls": [
+        "cutoff",
+        "cv_amt",
+        "drive",
+        "level",
+        "mode",
+        "res"
+      ]
+    },
     "tp_mmb_seq8": {
       "typeId": "tp_mmb_seq8",
       "source": "firmware/core/include/mb/runtime/Seq16.h",
@@ -1537,6 +2028,19 @@
         "s9"
       ],
       "controlsIgnored": []
+    },
+    "tp_mmb_sh": {
+      "typeId": "tp_mmb_sh",
+      "source": "firmware/app-modular-brain/src/SampleHoldModule.h",
+      "ports": [
+        "in",
+        "out",
+        "trig"
+      ],
+      "controls": [
+        "mode",
+        "slew"
+      ]
     },
     "tp_mmb_shimmer": {
       "typeId": "tp_mmb_shimmer",
@@ -1715,6 +2219,25 @@
         "volume"
       ],
       "controlsIgnored": []
+    },
+    "tp_mmb_slope": {
+      "typeId": "tp_mmb_slope",
+      "source": "firmware/app-modular-brain/src/SlopeModule.h",
+      "ports": [
+        "eoc",
+        "eor",
+        "in",
+        "inv",
+        "out",
+        "time_cv",
+        "trig"
+      ],
+      "controls": [
+        "cycle",
+        "fall",
+        "rise",
+        "shape"
+      ]
     },
     "tp_mmb_stages": {
       "typeId": "tp_mmb_stages",
@@ -1985,6 +2508,26 @@
         "wave"
       ]
     },
+    "tp_mmb_turing": {
+      "typeId": "tp_mmb_turing",
+      "source": "firmware/app-modular-brain/src/TuringModule.h",
+      "ports": [
+        "change_cv",
+        "clock",
+        "cv",
+        "cv2",
+        "pulse",
+        "pulse2",
+        "reset"
+      ],
+      "controls": [
+        "change",
+        "extclock",
+        "length",
+        "range",
+        "tempo"
+      ]
+    },
     "tp_mmb_varimu_comp": {
       "typeId": "tp_mmb_varimu_comp",
       "source": "firmware/app-modular-brain/src/VariMuCompModule.h",
@@ -2080,6 +2623,26 @@
         "mode",
         "speed",
         "volume"
+      ]
+    },
+    "tp_mmb_wah": {
+      "typeId": "tp_mmb_wah",
+      "source": "firmware/app-modular-brain/src/WahModule.h",
+      "ports": [
+        "env",
+        "in",
+        "out",
+        "pedal_cv"
+      ],
+      "controls": [
+        "level",
+        "mix",
+        "mode",
+        "pedal",
+        "q",
+        "rate",
+        "sens",
+        "type"
       ]
     },
     "tp_mmb_warps": {

@@ -224,6 +224,23 @@ Brondump gebruiker (idee), nagenoeg ongewijzigd overgenomen:
 | FW-SQ-1 | 2 | ✅ | **Sequencer in firmware** (nu alleen editor/sim). Core-`CvModule` `tp_mmb_seq8` (`Seq16.h`/`Seq16.cpp`, host-testbaar): 16 stappen semitone-offset, root/rate/gate/length/run-modi (Free/Off/Gate), interne 1 kHz-klok óf externe `clock`/`reset`-ingang, V/Oct-`cv` + `gate_out` + `trig` uit, `voct_in` transpose. 8 host-tests in `test_seq16.cpp`. Editor `mmbSeq8()` bestond al en matcht de port-/control-ids. fw 0.5.13. |
 | FW-SQ-2 | 2 | 🔬 | **Poly-sequencer-ontwerp** — hoe werkt een step-sequencer N-stemmig; integratie met PolyGroup-expand. |
 
+### 2.6 Modulatoren en klassiekers (doorlichting 2026-10-02)
+
+Uit [`doc/plans/modulecollectie-analyse-2026-10.md`](plans/modulecollectie-analyse-2026-10.md): wat er aan CV-modulatoren, synthese en effecten miste.
+
+| # | Prio | Status | Item |
+|---|---|---|---|
+| FW-CV-7 | 2 | 🟡 | **CV-pakket**: Clock, Euclid, Turing, Branches, Chaos, LFO-8, Slope, Logic en de firmwarekant van S&H. Gebouwd en getest in wasm (2026-10-02), Teensy-build slaagt. **Open:** luisteren, flashen, panelen in de browser nalopen. |
+| FW-AU-18 | 2 | 🟡 | **West Coast en klassiekers**: Folder, LPG, Drive, Freq shift, Acid, Rungler, Organ. Gebouwd en getest in wasm (2026-10-02). **Open:** luisteroordeel (vooral het orgel voor de Rotary), CPU op de Teensy (Organ met alles open; de 4× oversampling van Folder en Drive). |
+| FW-CV-8 | 2 | ⏳ | **Arpeggiator**: houdt de toetsen van een PolyGroup vast en speelt ze als reeks (omhoog, omlaag, willekeurig, octaven), geklokt door Clock. Het bruikbare deel van Mutable Yarns. |
+| FW-CV-9 | 2 | ⏳ | **Clock volgt MIDI-clock** (en tap-tempo), zodat de sequencers met een DAW of drumcomputer meelopen. |
+| FW-CV-10 | 3 | ⏳ | **Meer modulatoren**: CV-recorder/looper, sequentiële schakelaar, burst/ratchet, toonhoogtevolger (audio → V/Oct). |
+| FW-AU-19 | 3 | 🟡 | **Tweede ronde emulaties**: complex-oscillator (`tp_mmb_complex`), SEM-filter (`tp_mmb_sem`), wah met klinkerstand (`tp_mmb_wah`), ensemble (`tp_mmb_ensemble`) en elektrische piano (`tp_mmb_epiano`). Gebouwd en getest in wasm (2026-10-02), Teensy-build slaagt. **Open:** luisteroordeel, vooral de E-piano (verhouding grondtoon/octaaf/bel) en aliasing bij hard gespeelde hoge noten. |
+| FW-AU-20 | 3 | ⏳ | **Volgende emulaties**: karakterfilters (Steiner-Parker, Wasp, Polivoks), de resten van de 808/909 (clap, toms, cowbell), hall-galm (FDN), gated reverb. |
+| ED-BK-1 | 2 | 🔬 | **Bank-store**: banken krijgen een uuid en revisie, de patch verwijst naar de bank in plaats van naar het nummer, meer dan 16 plekken. Voorstel met drie open besluiten: [`doc/plans/bank-store.md`](plans/bank-store.md). |
+| FW-CV-11 | 2 | ✅ | **Testbediening**: Pads, Faders, Knobs (2026-10-02). |
+| ED-RC-1 | 3 | ⏳ | **Receptcatalogus bijwerken**: `recipe/catalog.ts` kent de modules van 2026-10-01 en 2026-10-02 niet, dus een recept of de AI kan ze niet kiezen. |
+
 ---
 
 ## 3. Hardware — brain

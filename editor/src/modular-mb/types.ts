@@ -184,6 +184,9 @@ export interface ButtonControl {
   momentary: boolean;
   defaultValue?: boolean;
   style?: ButtonStyle;
+  /** Doorsnede op het paneel; standaard 'small' (4,4 mm). 'large' is een
+   *  drukknop om met de muis of een vinger op te slaan (PADS). */
+  size?: 'small' | 'medium' | 'large';
 }
 
 export interface JoystickControl {

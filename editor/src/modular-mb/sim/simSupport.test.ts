@@ -56,9 +56,10 @@ describe('simSupport', () => {
   it('noemt niet-gesimuleerde modules stil', () => {
     // Quad-VCO en quad-mixer staan alleen in de catalogus, niet in de firmware.
     expect(supportOf('tp_mmb_quad_vco_shared')).toBe('none');
-    // S&H staat in de catalogus maar bestaat niet in de firmware; de sim
-    // speelt hem bewust ook niet (zie de Teensy-todo).
-    expect(supportOf('tp_mmb_sh')).toBe('none');
+    expect(supportOf('tp_mmb_quad_mixer_shared')).toBe('none');
+    // S&H stond jarenlang alleen in de catalogus; sinds het modulatorpakket
+    // (2026-10-02) bestaat de firmwareklasse en speelt de sim hem als wasm.
+    expect(supportOf('tp_mmb_sh')).toBe('wasm');
   });
 
   it('speelt een externe module via zijn simulatedBy-proxy', () => {

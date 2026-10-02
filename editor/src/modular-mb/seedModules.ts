@@ -74,8 +74,8 @@ function toggle(id: string, label: string, x: number, y: number, def = false) {
 function sw(id: string, label: string, x: number, y: number, positions: string[], defaultIndex = 0) {
   return { control: { kind: 'switch' as const, id, label, positions, defaultIndex }, placement: { x, y } };
 }
-function button(id: string, label: string, x: number, y: number) {
-  return { control: { kind: 'button' as const, id, label, momentary: true }, placement: { x, y } };
+function button(id: string, label: string, x: number, y: number, size?: 'small' | 'medium' | 'large') {
+  return { control: { kind: 'button' as const, id, label, momentary: true, ...(size ? { size } : {}) }, placement: { x, y } };
 }
 function slider(id: string, label: string, x: number, y: number,
                 opts: Partial<{ min: number; max: number; def: number; lengthMm: number; unit: string; orientation: 'v'|'h' }> = {}) {
@@ -711,7 +711,7 @@ function mmbSh() {
       inPort ('trig', 'Trig', 'trigger',w*0.70, 92),
       outPort('out',  'Out',  'cv',     w/2,    114),
     ],
-    notes: 'Sample-and-hold met slew-limiter. In Slew-mode wordt de trigger-input genegeerd.',
+    notes: 'Sample-and-hold met slew-limiter. S&H: elke flank op Trig neemt de waarde van In over. T&H: zolang Trig hoog is volgt de uitgang In, laag = vasthouden. Slew: geen trigger nodig, de uitgang volgt In met de Slew-tijd (lag, portamento). Slew werkt in alle standen op de uitgang: S&H met slew geeft glijdende trapjes. Zit er geen kabel in In, dan is de bron interne ruis: S&H geeft de klassieke random-trap (zet er de Quantizer achter), Slew een traag zwervende random-CV. Firmware tp_mmb_sh; in de simulator draait dezelfde klasse als wasm.',
   });
 }
 
@@ -3636,6 +3636,737 @@ function mmbExcitable() {
   });
 }
 
+// ── Modulatorpakket (2026-10-02) ───────────────────────────────────────
+// Negen CV-modules die als firmwareklasse via cvhost ook in de simulator
+// draaien: Clock, Euclid, Turing, Branches, Chaos, LFO-8, Slope, Logic (en de
+// firmwarekant van S&H hierboven).
+
+// MMB CLOCK — 8 HP. Masterklok (firmware tp_mmb_clock): één fase, alle
+//     delingen daarvan afgeleid, swing op de zestienden, maatzaag.
+function mmbClock() {
+  const w = W(8);
+  return assemble({
+    typeId: 'tp_mmb_clock', categoryId: 'sequencer',
+    variant: 'Clock (masterklok + delers)',
+    brand: 'MMB', model: 'CLOCK',
+    hp: 8, texture: 'pcb-black', baseColor: '#1f2a3d', internal: true,
+    texts: [
+      { x: w/2, y: 8, text: 'CLOCK', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13, text: 'masterklok · delers · swing', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('tempo', 'Tempo', w*0.30, 30, { size: 'large', min: 20, max: 300, def: 120, unit: 'bpm', color: '#f9fafb' }),
+      toggle('run', 'Run', w*0.78, 30, true),
+      knob('swing', 'Swing', w*0.20, 56, { size: 'small', min: 0, max: 1, def: 0, color: '#60a5fa' }),
+      knob('width', 'Width', w*0.50, 56, { size: 'small', min: 0.05, max: 0.95, def: 0.5, color: '#f9fafb' }),
+      knob('div', 'Div', w*0.80, 56, { size: 'small', min: 1, max: 64, def: 6, step: 1, color: '#f9fafb' }),
+      inPort('reset', 'Rst', 'gate', w*0.25, 76),
+      inPort('tempo_cv', 'Tempo', 'cv', w*0.75, 76),
+      outPort('bar', 'Bar', 'gate', w*0.16, 96),
+      outPort('beat', 'Beat', 'gate', w*0.39, 96),
+      outPort('x2', '×2', 'gate', w*0.62, 96),
+      outPort('x3', '×3', 'gate', w*0.85, 96),
+      outPort('x4', '×4', 'gate', w*0.16, 114),
+      outPort('div', 'Div', 'gate', w*0.50, 114),
+      outPort('ramp', 'Ramp', 'cv', w*0.84, 114),
+    ],
+    notes: 'Masterklok: één tempo waar alle uitgangen van worden afgeleid, zodat ze onderling nooit verschuiven. Beat = kwartnoten, ×2 = achtsten, ×3 = triolen, ×4 = zestienden (de stapklok voor de sequencers: Seq Clk, of Grids/Euclid/Turing met ExtClk aan; zet bij de Seq de Rate-knop op het tempo van de stappen, want die bepaalt daar nog de lengte van de gate), Bar = één puls per maat van vier tellen, Div = elke Div zestienden (6 = gepunteerde kwart, 3 = gepunteerde achtste). Swing verschuift elke tweede zestiende op ×4: 0 = recht, 1 = triolen-swing. Width is de pulsbreedte. Ramp is een zaag van 0 naar 1 per maat: hang er een filter of een Morph aan en de modulatie loopt in de maat. Tempo-CV is exponentieel (+1 = dubbel tempo). Rst zet alles terug op de één; Run uit houdt de klok stil. Firmware tp_mmb_clock; in de simulator draait dezelfde klasse als wasm.',
+  });
+}
+
+// MMB EUCLID — 12 HP. Euclidische ritmes, drie kanalen (firmware
+//     tp_mmb_euclid). Kolom per kanaal: Steps / Fill / Rot.
+function mmbEuclid() {
+  const w = W(12);
+  const col = (i: number): number => w * (0.20 + i * 0.30);
+  const colors = ['#e11d48', '#0891b2', '#eab308'];
+  return assemble({
+    typeId: 'tp_mmb_euclid', categoryId: 'sequencer',
+    variant: 'Euclid (Euclidische ritmes ×3)',
+    brand: 'MMB', model: 'EUCLID',
+    hp: 12, texture: 'pcb-black', baseColor: '#1f2a3d', internal: true,
+    texts: [
+      { x: w/2, y: 8, text: 'EUCLID', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13, text: 'slagen gelijk verdeeld over stappen', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      ...[0, 1, 2].flatMap((i) => [
+        knob(`steps_${i+1}`, 'Steps', col(i), 26, { size: 'small', min: 1, max: 32, def: 16, step: 1, color: colors[i] }),
+        knob(`fill_${i+1}`, 'Fill', col(i), 44, { size: 'small', min: 0, max: 32, def: [4, 3, 5][i]!, step: 1, color: colors[i] }),
+        knob(`rot_${i+1}`, 'Rot', col(i), 62, { size: 'small', min: 0, max: 31, def: [0, 4, 2][i]!, step: 1, color: '#f9fafb' }),
+        inPort(`fill_${i+1}_cv`, 'Fill+', 'cv', col(i), 80),
+        outPort(`out_${i+1}`, `${i+1}`, 'gate', col(i), 96),
+      ]),
+      knob('tempo', 'Tempo', w*0.16, 114, { size: 'small', min: 20, max: 300, def: 120, unit: 'bpm', color: '#f9fafb' }),
+      toggle('extclock', 'ExtClk', w*0.36, 114),
+      inPort('clock', 'Clk', 'gate', w*0.54, 114),
+      inPort('reset', 'Rst', 'gate', w*0.72, 114),
+      outPort('any', 'Any', 'gate', w*0.90, 114),
+    ],
+    notes: 'Euclidische ritmegenerator met drie kanalen. Per kanaal verdeelt het algoritme Fill slagen zo gelijk mogelijk over Steps stappen; Rot draait het patroon. 3 op 8 is de tresillo, 5 op 8 met Rot 6 de cinquillo, 7 op 16 een samba-achtig patroon; veel traditionele ritmes zijn zo te maken (stap 0 is altijd raak, de rest volgt uit de verdeling). Geef de kanalen verschillende lengtes (16, 12, 7) en ze schuiven tegen elkaar: polymetriek. Fill+ telt op bij de Fill-knop (0..1 = 0..Steps), dus een LFO of Chaos maakt het ritme dichter en ijler. Klok zoals Grids: intern (Tempo, zestienden) of ExtClk aan + Clk (bijvoorbeeld Clock ×4). Any is hoog als een van de drie slaat. Stuur de uitgangen naar Peaks, de CR-78 of een envelope. Firmware tp_mmb_euclid; in de simulator draait dezelfde klasse als wasm.',
+  });
+}
+
+// MMB TURING — 8 HP. Schuifregister-sequencer (firmware tp_mmb_turing).
+function mmbTuring() {
+  const w = W(8);
+  return assemble({
+    typeId: 'tp_mmb_turing', categoryId: 'sequencer',
+    variant: 'Turing (lus die langzaam verandert)',
+    brand: 'MMB', model: 'TURING',
+    hp: 8, texture: 'pcb-black', baseColor: '#1f2a3d', internal: true,
+    texts: [
+      { x: w/2, y: 8, text: 'TURING', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13, text: 'schuifregister · 16 bits', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('change', 'Change', w/2, 31, { size: 'large', min: 0, max: 1, def: 0.1, color: '#e11d48',
+        ticks: { labels: { 0: 'slot', 0.5: 'random', 1: '2×' } } }),
+      knob('length', 'Length', w*0.25, 58, { size: 'small', min: 2, max: 16, def: 8, step: 1, color: '#f9fafb' }),
+      knob('range', 'Range', w*0.75, 58, { size: 'small', min: 0, max: 5, def: 2, unit: 'oct', color: '#f9fafb' }),
+      knob('tempo', 'Tempo', w*0.25, 78, { size: 'small', min: 20, max: 300, def: 120, unit: 'bpm', color: '#f9fafb' }),
+      toggle('extclock', 'ExtClk', w*0.75, 78),
+      inPort('clock', 'Clk', 'gate', w*0.18, 98),
+      inPort('reset', 'Rst', 'gate', w*0.50, 98),
+      inPort('change_cv', 'Chg+', 'cv', w*0.82, 98),
+      outPort('cv', 'CV', 'cv', w*0.14, 116),
+      outPort('cv2', 'CV2', 'cv', w*0.38, 116),
+      outPort('pulse', 'Pulse', 'gate', w*0.62, 116),
+      outPort('pulse2', 'P2', 'gate', w*0.86, 116),
+    ],
+    notes: 'Schuifregister-sequencer in de geest van de Turing Machine: een lus van Length stappen die je laat veranderen. Change is de kans dat het bit dat rondgaat omklapt: 0 = de lus zit op slot en herhaalt precies; 0,5 = elke stap een muntworp, geen herhaling; 1 = het bit klapt altijd om, de lus herhaalt na twee keer Length met een gespiegelde tweede helft. Daartussen verandert er af en toe een noot: draai open tot je iets hoort wat je bevalt en draai dicht om het te houden. CV is de 8-bits waarde van het register (0 tot Range octaven, ongekwantiseerd: zet er de Quantizer achter voor noten in een schaal); CV2 is dezelfde lijn acht stappen later, een canon. Pulse en P2 volgen twee bits van het register als ritme. Klok intern (Tempo, zestienden) of ExtClk aan + Clk. Rst zet het register terug op het beginpatroon, dus na een reset klinkt dezelfde lus. Firmware tp_mmb_turing; in de simulator draait dezelfde klasse als wasm.',
+  });
+}
+
+// MMB BRANCHES — 4 HP. Bernoulli-gate (firmware tp_mmb_branches).
+function mmbBranches() {
+  const w = W(4);
+  return assemble({
+    typeId: 'tp_mmb_branches', categoryId: 'utility',
+    variant: 'Branches (muntworp per trigger)',
+    brand: 'MMB', model: 'BRANCHES',
+    hp: 4, texture: 'pcb-black', baseColor: '#1f2a3d', internal: true,
+    texts: [
+      { x: w/2, y: 8, text: 'BRANCH', fontSize: 1.9, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('p', 'P(B)', w/2, 28, { size: 'medium', min: 0, max: 1, def: 0.5, color: '#e11d48' }),
+      toggle('toggle', 'Toggle', w/2, 50),
+      toggle('latch', 'Latch', w/2, 66),
+      inPort('in', 'In', 'gate', w*0.28, 86),
+      inPort('p_cv', 'P+', 'cv', w*0.72, 86),
+      outPort('a', 'A', 'gate', w*0.28, 110),
+      outPort('b', 'B', 'gate', w*0.72, 110),
+    ],
+    notes: 'Bernoulli-gate (naar het idee van Mutable Instruments Branches, eigen code): elke trigger op In gaat naar uitgang A of naar uitgang B; P(B) is de kans op B. Toggle aan: P is de kans dat de kant wisselt (1 = strak om-en-om, een klokdeler door twee; klein = lang dezelfde kant). Latch aan: de gekozen uitgang blijft hoog tot de worp de andere kant kiest, een willekeurige schakelaar. Typisch: klok erin, A naar de hihat en B naar een fill; of een gate uit de sequencer erin en met P bepalen hoe vaak het accent meedoet. P+ telt op bij de knop. Firmware tp_mmb_branches; in de simulator draait dezelfde klasse als wasm.',
+  });
+}
+
+// MMB CHAOS — 8 HP. Vreemde aantrekkers als modulator (firmware tp_mmb_chaos).
+function mmbChaos() {
+  const w = W(8);
+  return assemble({
+    typeId: 'tp_mmb_chaos', categoryId: 'lfo',
+    variant: 'Chaos (Lorenz / Rössler / Thomas)',
+    brand: 'MMB', model: 'CHAOS',
+    hp: 8, texture: 'pcb-black', baseColor: '#2a1f3d', internal: true,
+    texts: [
+      { x: w/2, y: 8, text: 'CHAOS', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13, text: 'vloeiend, nooit hetzelfde', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('rate', 'Rate', w*0.30, 30, { size: 'large', min: 0.005, max: 20, def: 0.2, unit: 'Hz', color: '#a78bfa' }),
+      sw('model', 'Model', w*0.78, 30, ['Lorenz', 'Rössler', 'Thomas'], 0),
+      knob('shape', 'Shape', w*0.22, 58, { size: 'small', min: 0, max: 1, def: 0.3, color: '#f9fafb' }),
+      knob('depth', 'Depth', w*0.50, 58, { size: 'small', min: 0, max: 1, def: 1, color: '#f9fafb' }),
+      toggle('bipolar', 'Bip', w*0.80, 58, true),
+      knob('rate_cv_amt', 'Rate CV', w*0.25, 78, { size: 'small', min: -1, max: 1, def: 1, color: '#f9fafb' }),
+      inPort('rate_cv', 'Rate', 'cv', w*0.25, 96),
+      inPort('reset', 'Rst', 'gate', w*0.75, 96),
+      outPort('x', 'X', 'cv', w*0.14, 116),
+      outPort('y', 'Y', 'cv', w*0.38, 116),
+      outPort('z', 'Z', 'cv', w*0.62, 116),
+      outPort('gate', 'Gate', 'gate', w*0.86, 116),
+    ],
+    notes: 'Chaotische modulator. Een LFO herhaalt zich en ruis heeft geen richting; een chaotisch stelsel zit ertussenin: het beweegt vloeiend en samenhangend, maar komt nooit precies terug. X, Y en Z zijn drie kanten van dezelfde beweging: modulaties die ermee gestuurd worden horen bij elkaar zonder gelijk te lopen. Lorenz: twee lobben; de baan cirkelt een poos om de ene en springt dan onvoorspelbaar naar de andere (Gate is hoog op de rechterlob: een onregelmatige schakelaar). Rössler: een bijna-sinus op X en Y die af en toe uitschiet, met op Z losse pieken; Shape loopt door de periodeverdubbeling, van periodiek naar chaotisch. Thomas: een trage, symmetrische dwaaltocht, het rustigste van de drie, voor drift over minuten. Rate is ruwweg het aantal omlopen per seconde (0,005 Hz = ruim drie minuten per omloop); Rate-CV is exponentieel (±1 = ±4 octaven maal Rate CV). Depth schaalt de uitgangen, Bip uit maakt ze 0..Depth. Rst herstelt de beginpositie, dus een patch begint reproduceerbaar. Firmware tp_mmb_chaos; in de simulator draait dezelfde klasse als wasm.',
+  });
+}
+
+// MMB LFO-8 — 10 HP. Acht verwante LFO's op één knop (firmware tp_mmb_lfo8).
+function mmbLfo8() {
+  const w = W(10);
+  const col = (i: number): number => w * (0.14 + (i % 4) * 0.24);
+  return assemble({
+    typeId: 'tp_mmb_lfo8', categoryId: 'lfo',
+    variant: 'LFO-8 (acht verwante LFO’s)',
+    brand: 'MMB', model: 'LFO-8',
+    hp: 10, texture: 'pcb-black', baseColor: '#2a1f3d', internal: true,
+    texts: [
+      { x: w/2, y: 8, text: 'LFO-8', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13, text: 'snel → traag · één knop', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('rate', 'Rate', w*0.28, 31, { size: 'large', min: 0.02, max: 50, def: 1, unit: 'Hz', color: '#a78bfa' }),
+      knob('spread', 'Spread', w*0.72, 31, { size: 'medium', min: 1.1, max: 3, def: 1.6, color: '#f9fafb' }),
+      knob('shape', 'Shape', w*0.18, 58, { size: 'small', min: 0, max: 1, def: 0, color: '#f9fafb',
+        ticks: { labels: { 0: 'tri', 1: 'sin' } } }),
+      knob('depth', 'Depth', w*0.46, 58, { size: 'small', min: 0, max: 1, def: 1, color: '#f9fafb' }),
+      toggle('bipolar', 'Bip', w*0.76, 58, true),
+      inPort('rate_cv', 'Rate', 'cv', w*0.28, 78),
+      inPort('reset', 'Rst', 'gate', w*0.72, 78),
+      ...Array.from({ length: 8 }, (_, i) =>
+        outPort(`out_${i+1}`, `${i+1}`, 'cv', col(i), i < 4 ? 98 : 116)),
+    ],
+    notes: 'Acht vrijlopende LFO’s op één Rate-knop. Uitgang 1 is de snelste (Rate), elke volgende is een factor Spread trager, met een kleine vaste afwijking per uitgang zodat ze nooit in de maat gaan lopen. Bij Rate 1 Hz en Spread 1,6 loopt uitgang 8 op ongeveer 0,04 Hz: van trilling tot getij op één knop. Prik overal een uitgang in en de hele patch beweegt samenhangend, zonder acht LFO’s te hoeven instellen. Shape loopt van driehoek naar sinus, Depth schaalt alle uitgangen, Bip uit maakt ze 0..Depth. Rate-CV is exponentieel (±1 = ±4 octaven) en werkt op alle acht; Rst zet alle fasen op nul. Firmware tp_mmb_lfo8; in de simulator draait dezelfde klasse als wasm.',
+  });
+}
+
+// MMB SLOPE — 8 HP. Functiegenerator (firmware tp_mmb_slope).
+function mmbSlope() {
+  const w = W(8);
+  return assemble({
+    typeId: 'tp_mmb_slope', categoryId: 'envelope',
+    variant: 'Slope (functiegenerator: rise/fall)',
+    brand: 'MMB', model: 'SLOPE',
+    hp: 8, texture: 'pcb-black', baseColor: '#2a1f3d', internal: true,
+    texts: [
+      { x: w/2, y: 8, text: 'SLOPE', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13, text: 'envelope · LFO · lag', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('rise', 'Rise', w*0.28, 30, { size: 'medium', min: 0.001, max: 20, def: 0.05, unit: 's', color: '#34d399' }),
+      knob('fall', 'Fall', w*0.72, 30, { size: 'medium', min: 0.001, max: 20, def: 0.5, unit: 's', color: '#f87171' }),
+      knob('shape', 'Shape', w*0.28, 56, { size: 'small', min: -1, max: 1, def: 0, color: '#f9fafb',
+        ticks: { labels: { [-1]: 'log', 0: 'lin', 1: 'exp' } } }),
+      toggle('cycle', 'Cycle', w*0.72, 56),
+      inPort('in', 'In', 'cv', w*0.18, 80),
+      inPort('trig', 'Trig', 'gate', w*0.50, 80),
+      inPort('time_cv', 'Time', 'cv', w*0.82, 80),
+      outPort('out', 'Out', 'cv', w*0.28, 98),
+      outPort('inv', 'Inv', 'cv', w*0.72, 98),
+      outPort('eor', 'EOR', 'gate', w*0.28, 116),
+      outPort('eoc', 'EOC', 'gate', w*0.72, 116),
+    ],
+    notes: 'Functiegenerator naar het bekende West Coast-bouwblok (Serge DUSG, later Maths): één schakeling die envelope, LFO, lag of envelope-volger is, afhankelijk van wat je erin steekt. Trig: een flank laat de uitgang naar 1 stijgen (Rise) en daarna naar 0 dalen (Fall), een AD-envelope. In: de uitgang volgt de ingang, omhoog met Rise en omlaag met Fall; een gate geeft een ASR-envelope, een V/Oct-lijn portamento met omhoog en omlaag apart, een gelijkgericht signaal (Logic Abs) een envelope-volger. Cycle: aan het eind van de daling start hij zichzelf opnieuw, een LFO waarvan Rise en Fall de vorm bepalen (zaag, driehoek, ramp). Shape buigt de lijnen: log = snel begin en trage nadering (zoals een condensator), lin = recht, exp = trage start en snel eind. Rise en Fall zijn de tijd voor een volle slag; Time-CV rekt beide (+1 = acht keer zo lang). EOR is hoog zolang de uitgang daalt, EOC geeft een puls aan het eind van de daling: keten er een tweede Slope aan, of gebruik hem als klok. Inv = 1 − Out. Firmware tp_mmb_slope; in de simulator draait dezelfde klasse als wasm.',
+  });
+}
+
+// MMB LOGIC — 6 HP. CV-gereedschap (firmware tp_mmb_logic).
+function mmbLogic() {
+  const w = W(6);
+  return assemble({
+    typeId: 'tp_mmb_logic', categoryId: 'utility',
+    variant: 'Logic (min/max, logica, vergelijker)',
+    brand: 'MMB', model: 'LOGIC',
+    hp: 6, texture: 'pcb-black', baseColor: '#1f2a3d', internal: true,
+    texts: [
+      { x: w/2, y: 8, text: 'LOGIC', fontSize: 2.2, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('thresh', 'Thresh', w/2, 26, { size: 'medium', min: -1, max: 1, def: 0.5, color: '#f9fafb' }),
+      inPort('a', 'A', 'cv', w*0.28, 48),
+      inPort('b', 'B', 'cv', w*0.72, 48),
+      outPort('min', 'Min', 'cv', w*0.28, 66),
+      outPort('max', 'Max', 'cv', w*0.72, 66),
+      outPort('and', 'AND', 'gate', w*0.28, 83),
+      outPort('or', 'OR', 'gate', w*0.72, 83),
+      outPort('xor', 'XOR', 'gate', w*0.28, 100),
+      outPort('gt', 'A>B', 'gate', w*0.72, 100),
+      outPort('abs', '|A|', 'cv', w*0.28, 117),
+      outPort('inv', '−A', 'cv', w*0.72, 117),
+    ],
+    notes: 'CV-gereedschap: twee ingangen, acht uitgangen die er elk iets anders mee doen. Het zijn de kleine bewerkingen waarmee twee eenvoudige modulatoren samen een ingewikkelde worden. Min en Max geven de laagste en de hoogste van A en B: op gates is dat AND en OR, op twee LFO’s een nieuwe golfvorm met knikken. AND, OR en XOR zijn gate-logica (een ingang telt als hoog boven Thresh): twee klokken door XOR geeft een derde, onregelmatiger ritme. A>B is een vergelijker; met alleen A aangesloten vergelijkt hij met Thresh en maakt hij van elke CV een gate (een LFO wordt een pulsgolf met instelbare breedte). |A| richt A gelijk: een bipolaire LFO wordt twee keer zo snel en unipolair, en met Slope erachter heb je een envelope-volger voor CV. −A keert A om. Firmware tp_mmb_logic; in de simulator draait dezelfde klasse als wasm.',
+  });
+}
+
+// ── West Coast, pedalen en klassiekers (2026-10-02) ────────────────────
+// Zeven audiomodules op gedeelde mmb_dsp-kernels (firmware via
+// KernelStream.h, simulator via kernel_host.h).
+
+// MMB FOLDER — 8 HP. Wavefolder (firmware tp_mmb_folder).
+function mmbFolder() {
+  const w = W(8);
+  return assemble({
+    typeId: 'tp_mmb_folder', categoryId: 'effect',
+    variant: 'Wavefolder (West Coast)',
+    brand: 'MMB', model: 'FOLDER',
+    hp: 8, texture: 'pcb-black', baseColor: '#3d2a1f', internal: true,
+    texts: [
+      { x: w/2, y: 8, text: 'FOLDER', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13, text: 'boventonen door vouwen', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('fold', 'Fold', w/2, 32, { size: 'large', min: 0, max: 1, def: 0.3, color: '#fb923c' }),
+      knob('symmetry', 'Sym', w*0.25, 60, { size: 'small', min: -1, max: 1, def: 0, color: '#f9fafb' }),
+      sw('type', 'Type', w*0.75, 60, ['Sine', 'Tri', '259'], 0),
+      knob('mix', 'Mix', w*0.25, 80, { size: 'small', min: 0, max: 1, def: 1, color: '#f9fafb' }),
+      knob('level', 'Level', w*0.75, 80, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      inPort('fold_cv', 'Fold+', 'cv', w*0.25, 98),
+      inPort('sym_cv', 'Sym+', 'cv', w*0.75, 98),
+      inPort('in', 'In', 'audio', w*0.25, 116),
+      outPort('out', 'Out', 'audio', w*0.75, 116),
+    ],
+    notes: 'Wavefolder: de West Coast-manier om boventonen te maken. Een filter haalt boventonen weg uit een rijke golf; een folder begint met een sinus of driehoek en vouwt de toppen terug zodra ze over een grens gaan. Hoe verder Fold open, hoe vaker de golf vouwt en hoe meer boventonen, in een patroon dat op FM lijkt maar strak harmonisch blijft. Zet er een envelope of LFO op Fold+ en de klank opent zoals een filter dat zou doen, maar dan andersom. Type: Sine = door een sinus (zacht, rond), Tri = hoekig terugvouwen (helder, scherp), 259 = de vijf vouwcellen van het timbre-circuit van de Buchla 259 (hol, neuzig). Sym schuift de golf voor het vouwen opzij en voegt even boventonen toe. Het werkt het best op een sinus of driehoek op volle sterkte; een zaag of een akkoord wordt snel ruis. Vier keer overbemonsterd. Mix mengt met het droge signaal. Erachter hoort een low-pass gate (LPG). Firmware tp_mmb_folder, mmb_dsp::Wavefolder; in de simulator draait dezelfde code als wasm.',
+  });
+}
+
+// MMB LPG — 6 HP. Low-pass gate met vactrol (firmware tp_mmb_lpg).
+function mmbLpg() {
+  const w = W(6);
+  return assemble({
+    typeId: 'tp_mmb_lpg', categoryId: 'vca',
+    variant: 'LPG (low-pass gate, vactrol)',
+    brand: 'MMB', model: 'LPG',
+    hp: 6, texture: 'pcb-black', baseColor: '#3d2a1f', internal: true,
+    texts: [
+      { x: w/2, y: 8, text: 'LPG', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13, text: 'filter + versterker', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('offset', 'Open', w*0.28, 28, { size: 'medium', min: 0, max: 1, def: 0, color: '#fb923c' }),
+      knob('decay', 'Decay', w*0.72, 28, { size: 'medium', min: 0.02, max: 4, def: 0.25, unit: 's', color: '#fb923c' }),
+      sw('mode', 'Mode', w/2, 50, ['LP', 'Both', 'VCA'], 1),
+      knob('res', 'Res', w*0.28, 68, { size: 'small', min: 0, max: 1, def: 0.1, color: '#f9fafb' }),
+      knob('level', 'Level', w*0.72, 68, { size: 'small', min: 0, max: 1, def: 0.9, color: '#f9fafb' }),
+      inPort('cv', 'CV', 'cv', w*0.28, 88),
+      inPort('trig', 'Ping', 'gate', w*0.72, 88),
+      inPort('in', 'In', 'audio', w*0.28, 104),
+      outPort('out', 'Out', 'audio', w*0.72, 104),
+      outPort('env', 'Env', 'cv', w/2, 118),
+    ],
+    notes: 'Low-pass gate: filter en versterker in één, gestuurd door een vactrol (een lampje tegen een lichtgevoelige weerstand). De weerstand reageert vlug op licht maar komt traag terug, en trager naarmate het donkerder wordt. In stand Both stuurt hij tegelijk de helderheid en het volume, zoals in de Buchla 292: een klank die uitsterft wordt ook doffer, net als een aangeslagen stuk hout of een getokkelde snaar. Ping: een trigger laat het lampje flitsen; zonder envelope geeft dat al een natuurlijke tik met een eigen staart (het bongo-geluid van de West Coast). Decay bepaalt hoe lang de vactrol nagloeit. CV (0..1) telt op bij Open: een envelope of LFO opent de gate geleidelijk, en ook dan komt hij traag terug. Mode LP = alleen het filter, VCA = alleen de versterker. Res geeft het filter een piek. Env is de toestand van de vactrol als CV (0..1): een envelope met dat nagloeien, voor elders in de patch. Firmware tp_mmb_lpg, mmb_dsp::Lpg; in de simulator draait dezelfde code als wasm.',
+  });
+}
+
+// MMB DRIVE — 6 HP. Overdrive / distortion / fuzz (firmware tp_mmb_drive).
+function mmbDrive() {
+  const w = W(6);
+  return assemble({
+    typeId: 'tp_mmb_drive', categoryId: 'effect',
+    variant: 'Drive (overdrive / distortion / fuzz)',
+    brand: 'MMB', model: 'DRIVE',
+    hp: 6, texture: 'pcb-black', baseColor: '#3d1f1f', internal: true,
+    texts: [
+      { x: w/2, y: 8, text: 'DRIVE', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13, text: 'drie pedalen', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('drive', 'Drive', w/2, 30, { size: 'large', min: 0, max: 1, def: 0.5, color: '#ef4444' }),
+      sw('mode', 'Mode', w/2, 54, ['OD', 'Dist', 'Fuzz'], 0),
+      knob('tone', 'Tone', w*0.28, 72, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('level', 'Level', w*0.72, 72, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('mix', 'Mix', w*0.28, 92, { size: 'small', min: 0, max: 1, def: 1, color: '#f9fafb' }),
+      inPort('drive_cv', 'Drv+', 'cv', w*0.72, 92),
+      inPort('in', 'In', 'audio', w*0.28, 114),
+      outPort('out', 'Out', 'audio', w*0.72, 114),
+    ],
+    notes: 'Drie vervormpedalen in één. Het verschil zit niet in meer gain, maar in wat er vóór en ná de clipper gefilterd wordt en hoe hard die knipt. OD = overdrive naar de groene overdrive (Tube Screamer-familie): alleen midden en hoog gaan de zachte clipper in en het schone signaal wordt er weer bij opgeteld; het laag blijft strak en het midden komt naar voren, zodat een solo door de band heen komt. Dist = distortion naar de RAT-familie: veel versterking in een trage opamp, dan harde dioden; ruiger en platter, Tone is hier het filter dat het hoog wegneemt. Fuzz = naar de Big Muff-familie: twee clippende trappen achter elkaar en een toonregeling met een gat in het midden; lange, zingende sustain. Level 0,5 is ongeveer even luid als onbewerkt. Drv+ telt op bij Drive (een envelope-volger erop: harder spelen = meer vervorming). Vier keer overbemonsterd. Een eigen model naar de topologie van de schakelingen, op het oor; geen simulatie per onderdeel. Firmware tp_mmb_drive, mmb_dsp::Drive; in de simulator draait dezelfde code als wasm.',
+  });
+}
+
+// MMB FREQ-SHIFT — 8 HP. Frequency shifter (firmware tp_mmb_freqshift).
+function mmbFreqShift() {
+  const w = W(8);
+  return assemble({
+    typeId: 'tp_mmb_freqshift', categoryId: 'effect',
+    variant: 'Frequency shifter (Bode)',
+    brand: 'MMB', model: 'FREQ-SHIFT',
+    hp: 8, texture: 'pcb-black', baseColor: '#1f3d36', internal: true,
+    texts: [
+      { x: w/2, y: 8, text: 'FREQ', fontSize: 2.2, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13, text: 'SHIFT', fontSize: 2.2, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('shift', 'Shift', w/2, 34, { size: 'large', min: -1, max: 1, def: 0.2, color: '#34d399',
+        ticks: { labels: { [-1]: '−', 0: '0', 1: '+' } } }),
+      sw('range', 'Range', w/2, 58, ['5 Hz', '50', '500', '5 k'], 1),
+      knob('fbk', 'Fbk', w*0.20, 78, { size: 'small', min: 0, max: 0.95, def: 0, color: '#f9fafb' }),
+      knob('mix', 'Mix', w*0.50, 78, { size: 'small', min: 0, max: 1, def: 1, color: '#f9fafb' }),
+      knob('level', 'Level', w*0.80, 78, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      inPort('in', 'In', 'audio', w*0.28, 98),
+      inPort('shift_cv', 'Shift+', 'cv', w*0.72, 98),
+      outPort('out', 'Up', 'audio', w*0.28, 116),
+      outPort('down', 'Down', 'audio', w*0.72, 116),
+    ],
+    notes: 'Frequency shifter naar Bode: schuift elke frequentie hetzelfde aantal hertz op. Dat is iets anders dan een pitch-shifter, die vermenigvuldigt: bij +100 Hz wordt 200/400/600 Hz niet 300/600/900 maar 300/500/700. De boventonen staan dan niet meer in een hele verhouding: klokachtig, metalig. Shift maal Range is de verschuiving (Range 5 Hz voor trage, eindeloos doorlopende zwevingen; 50 en 500 voor ontstemmen en klokken; 5 k voor ringmod-achtig geweld). Up is het mengsel van droog en de omhoog geschoven kant (Mix), Down de andere kant: zet Up links en Down rechts en een klein beetje Shift geeft een breed, draaiend stereobeeld. Fbk stuurt de geschoven klank terug de ingang in: elke ronde schuift hij verder, een spiraal van zijbanden. Shift+ telt op bij de knop (een LFO erop geeft vibrato dat de boventonen uit elkaar trekt). Techniek: enkelzijbandmodulatie met twee all-pass-ketens die 90 graden verschillen; de ongewenste zijband ligt van 40 Hz tot 18 kHz meer dan 44 dB lager (gemeten). Firmware tp_mmb_freqshift, mmb_dsp::FreqShifter; in de simulator draait dezelfde code als wasm.',
+  });
+}
+
+// MMB ACID — 12 HP. Basstem naar de TB-303 (firmware tp_mmb_acid).
+function mmbAcid() {
+  const w = W(12);
+  const col = (i: number): number => w * (0.12 + i * 0.19);
+  return assemble({
+    typeId: 'tp_mmb_acid', categoryId: 'vco',
+    variant: 'Acid (303-stijl basstem)',
+    brand: 'MMB', model: 'ACID',
+    hp: 12, texture: 'aluminum', baseColor: '#c9ccd1', internal: true,
+    texts: [
+      { x: w/2, y: 8, text: 'ACID', fontSize: 2.6, color: '#111827', align: 'middle' },
+      { x: w/2, y: 13, text: 'bass line · accent · slide', fontSize: 1.1, color: '#374151', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#111827', align: 'middle' },
+    ],
+    items: [
+      knob('tune', 'Tune', col(0), 30, { size: 'small', min: -24, max: 24, def: 0, unit: 'semi', step: 1, color: '#111827' }),
+      knob('cutoff', 'Cutoff', col(1), 30, { size: 'medium', min: 0, max: 1, def: 0.35, color: '#111827' }),
+      knob('res', 'Reso', col(2), 30, { size: 'medium', min: 0, max: 1, def: 0.7, color: '#111827' }),
+      knob('envmod', 'Env mod', col(3), 30, { size: 'medium', min: 0, max: 1, def: 0.6, color: '#111827' }),
+      knob('decay', 'Decay', col(4), 30, { size: 'small', min: 0.1, max: 3, def: 0.4, unit: 's', color: '#111827' }),
+      sw('wave', 'Wave', col(0), 58, ['Saw', 'Sqr'], 0),
+      knob('accent', 'Accent', col(2), 58, { size: 'medium', min: 0, max: 1, def: 0.6, color: '#dc2626' }),
+      knob('level', 'Level', col(4), 58, { size: 'small', min: 0, max: 1, def: 0.8, color: '#111827' }),
+      inPort('voct', 'V/Oct', 'cv', col(0), 92),
+      inPort('gate', 'Gate', 'gate', col(1), 92),
+      inPort('accent', 'Acc', 'gate', col(2), 92),
+      inPort('slide', 'Slide', 'gate', col(3), 92),
+      inPort('cutoff_cv', 'Cut+', 'cv', col(4), 92),
+      outPort('env', 'Env', 'cv', col(3), 114),
+      outPort('out', 'Out', 'audio', col(4), 114),
+    ],
+    notes: 'Complete basstem naar de TB-303: één oscillator (zaag of blok), een vierpolig ladderfilter dat hard piept maar net niet zelf gaat zingen, en een filter-envelope met alleen Decay. Het karakter komt van twee gate-ingangen die bij het begin van elke noot gelezen worden. Acc (accent): de noot is luider, de filter-envelope kort en hij opent verder; een tweede, tragere schakeling telt opeenvolgende accenten bij elkaar op, zodat het filter bij een rij accenten per noot hoger klimt (de knop Accent bepaalt hoeveel). Slide: de toonhoogte glijdt in ongeveer 60 ms naar de volgende noot en de envelopes slaan niet opnieuw aan (gebonden noot); houd Slide hoog over de nootgrens heen. Het patroon maak je met de sequencer (V/Oct + Gate); hang Acc en Slide aan een tweede rij, Euclid, Turing of Branches en het wordt een acid-lijn die zichzelf varieert. Draai tijdens het spelen aan Cutoff, Reso en Env mod: dat is het instrument. Tune staat in halve tonen; een baslijn wil −12 of −24. Env is de filter-envelope als CV. Eigen model naar de topologie van het apparaat, op het oor; geen simulatie per onderdeel. Solo ▾ → Acid jam speelt een lijn. Firmware tp_mmb_acid, mmb_dsp::Acid; in de simulator draait dezelfde code als wasm.',
+  });
+}
+
+// MMB RUNGLER — 12 HP. Benjolin-stijl chaos (firmware tp_mmb_rungler).
+function mmbRungler() {
+  const w = W(12);
+  const col = (i: number): number => w * (0.14 + i * 0.24);
+  return assemble({
+    typeId: 'tp_mmb_rungler', categoryId: 'vco',
+    variant: 'Rungler (Benjolin-stijl chaos)',
+    brand: 'MMB', model: 'RUNGLER',
+    hp: 12, texture: 'pcb-black', baseColor: '#2a1f3d', internal: true,
+    texts: [
+      { x: w/2, y: 8, text: 'RUNGLER', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13, text: 'getrapte chaos · naar Rob Hordijk', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('freq_a', 'Freq A', col(0), 28, { size: 'medium', min: 0.5, max: 5000, def: 110, unit: 'Hz', color: '#a78bfa' }),
+      knob('run_a', 'Run A', col(1), 28, { size: 'small', min: 0, max: 1, def: 0.4, color: '#e11d48' }),
+      knob('run_b', 'Run B', col(2), 28, { size: 'small', min: 0, max: 1, def: 0.3, color: '#e11d48' }),
+      knob('freq_b', 'Freq B', col(3), 28, { size: 'medium', min: 0.05, max: 2000, def: 3, unit: 'Hz', color: '#a78bfa' }),
+      knob('cross_a', 'B→A', col(0), 52, { size: 'small', min: 0, max: 1, def: 0, color: '#f9fafb' }),
+      toggle('loop', 'Loop', w/2, 52),
+      knob('cross_b', 'A→B', col(3), 52, { size: 'small', min: 0, max: 1, def: 0, color: '#f9fafb' }),
+      knob('cutoff', 'Cutoff', col(0), 74, { size: 'medium', min: 20, max: 12000, def: 900, unit: 'Hz', color: '#38bdf8' }),
+      knob('res', 'Res', col(1), 74, { size: 'small', min: 0, max: 1, def: 0.5, color: '#38bdf8' }),
+      knob('sweep', 'Sweep', col(2), 74, { size: 'small', min: 0, max: 1, def: 0.5, color: '#e11d48' }),
+      knob('level', 'Level', col(3), 74, { size: 'small', min: 0, max: 1, def: 0.7, color: '#f9fafb' }),
+      inPort('voct', 'V/Oct', 'cv', col(0), 94),
+      inPort('rate_cv', 'Rate B', 'cv', col(1), 94),
+      inPort('cutoff_cv', 'Cut+', 'cv', col(2), 94),
+      outPort('tri_a', 'Tri A', 'audio', col(3), 94),
+      outPort('rungler', 'Rung', 'cv', w*0.10, 114),
+      outPort('tri_b', 'Tri B', 'cv', w*0.30, 114),
+      outPort('pulse_b', 'Pls B', 'gate', w*0.50, 114),
+      outPort('pwm', 'PWM', 'audio', w*0.70, 114),
+      outPort('out', 'Out', 'audio', w*0.90, 114),
+    ],
+    notes: 'Chaotische stem naar de Benjolin van Rob Hordijk. Twee oscillatoren (A hoorbaar, B meestal traag) en daartussen de rungler: een schuifregister van acht bits dat door de puls van B geklokt wordt en de puls van A als data neemt. De laatste drie bits vormen een getrapte spanning van acht niveaus, en die spanning verstemt de oscillatoren die hem maken (Run A, Run B). Dat is een kring zonder begin: het gedrag loopt van vaste lussen via patronen die bijna herhalen tot ruis, afhankelijk van een paar knoppen. Hordijk noemde het getrapte chaos. Loop aan: het register voert alleen zijn eigen laatste bit terug en herhaalt (acht stappen); uit: nieuwe data van A komt erbij. B→A en A→B laten de driehoek van de een de ander verstemmen. Het geluid (Out) is een pulsgolf uit een vergelijker (driehoek A boven driehoek B) door een filter waarvan de cutoff met de rungler mee springt (Sweep); PWM is die pulsgolf zonder filter, Tri A de kale oscillator. Rung is de rungler zelf als CV (0..1): een getrapte modulator die bij de klank hoort, voor elders in de patch (via de Quantizer wordt het een melodie). Tri B en Pls B geven oscillator B als LFO en klok. V/Oct stemt A. Begin met Freq B rond 3 Hz en draai aan Run A. Niet bandbegrensd; dat hoort bij het instrument. Firmware tp_mmb_rungler, mmb_dsp::Rungler; in de simulator draait dezelfde code als wasm.',
+  });
+}
+
+// MMB ORGAN — 20 HP. Tonewheel-orgel met trekstangen (firmware tp_mmb_organ).
+function mmbOrgan() {
+  const w = W(20);
+  const barX = (i: number): number => 9 + i * 7.6;            // negen trekstangen
+  const colX = (i: number): number => 7 + i * 9.6;            // zes cel-kolommen, links
+  const cells = Array.from({ length: 12 }, (_, i) => i + 1);
+  const cellY = (k: number, gate: boolean) => (k <= 6 ? 90 : 110) + (gate ? 9 : 0);
+  const bars: [string, string, number, string][] = [
+    ['d16', "16'", 8, '#92400e'], ['d513', "5⅓'", 8, '#92400e'], ['d8', "8'", 8, '#f9fafb'],
+    ['d4', "4'", 0, '#f9fafb'], ['d223', "2⅔'", 0, '#111827'], ['d2', "2'", 0, '#f9fafb'],
+    ['d135', "1⅗'", 0, '#111827'], ['d113', "1⅓'", 0, '#111827'], ['d1', "1'", 0, '#f9fafb'],
+  ];
+  const rx = W(15);                                           // rechterkolom vanaf hier
+  return assemble({
+    typeId: 'tp_mmb_organ', categoryId: 'vco',
+    variant: 'Organ (tonewheel, trekstangen)',
+    brand: 'MMB', model: 'ORGAN',
+    hp: 20, texture: 'wood', baseColor: '#5b3a1e', internal: true,
+    role: 'multi',
+    cellGroups: [{ id: 'voice', label: 'Toets', count: 12, portIds: ['voct', 'gate'], controlIds: [] }],
+    texts: [
+      { x: w/2, y: 8, text: 'ORGAN', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13, text: '91 toonwielen · 9 trekstangen · 12 toetsen', fontSize: 1.1, color: '#e5e7eb', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+      { x: 3, y: 85, text: 'V/Oct · Gate — toetsen 1–6', fontSize: 0.9, color: '#e5e7eb', align: 'start' },
+      { x: 3, y: 105, text: 'toetsen 7–12', fontSize: 0.9, color: '#e5e7eb', align: 'start' },
+    ],
+    items: [
+      ...bars.map(([id, label, def], i) =>
+        slider(id, label, barX(i), 22, { min: 0, max: 8, def, lengthMm: 30 })),
+      sw('perc', 'Perc', rx + 6, 26, ['Uit', '2e', '3e'], 0),
+      toggle('perc_fast', 'Fast', rx + 19, 22, true),
+      toggle('perc_soft', 'Soft', rx + 19, 34, false),
+      sw('vib', 'Vib/Cho', rx + 6, 46, ['Uit', 'V1', 'V2', 'V3', 'C1', 'C2', 'C3'], 0),
+      knob('click', 'Click', rx + 19, 50, { size: 'small', min: 0, max: 1, def: 0.4, color: '#f9fafb' }),
+      knob('leak', 'Leak', rx + 6, 68, { size: 'small', min: 0, max: 1, def: 0.3, color: '#f9fafb' }),
+      knob('level', 'Level', rx + 19, 68, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      ...cells.map((k) => inPort(`voct_${k}`, '', 'cv',   colX((k - 1) % 6), cellY(k, false), { cellGroupId: 'voice' })),
+      ...cells.map((k) => inPort(`gate_${k}`, '', 'gate', colX((k - 1) % 6), cellY(k, true),  { cellGroupId: 'voice' })),
+      inPort('swell', 'Swell', 'cv', rx + 6, 100),
+      outPort('out', 'Out', 'audio', rx + 19, 100),
+    ],
+    notes: 'Tonewheel-orgel met trekstangen, gebouwd zoals de generator van een elektromechanisch orgel werkt en niet als negen sinussen per toets. Er draaien 91 toonwielen, altijd. Een toets maakt geen toon maar tapt negen wielen af (de voetmaten 16′, 5⅓′, 8′, 4′, 2⅔′, 2′, 1⅗′, 1⅓′, 1′) en de trekstangen (0..8, ongeveer 3 dB per stand) bepalen hoeveel van elk. Daar komt het karakter vandaan: twee toetsen die hetzelfde wiel aftappen krijgen dezelfde sinus in fase, dus het orgel zweeft niet met zichzelf; bovenin zijn de wielen op en vouwen de hoogste voetmaten een octaaf terug (foldback); en omdat de wielen doorlopen sluit een toets op een willekeurig punt van de golf: de key click (Click). Perc: percussie op de 2e of 3e harmonische, Fast of traag, Soft of normaal (normaal zet de trekstangen iets terug, zoals het origineel). Er is één percussie-envelope voor het hele klavier en hij slaat pas opnieuw aan als alle toetsen los zijn: legato spelen geeft alleen op de eerste noot een tik. Vib/Cho: scanner-vibrato V1..V3, of C1..C3 met het droge signaal erbij (het klassieke chorus). Leak laat wielen die in de kast naast elkaar zitten in elkaar lekken. Swell telt op bij Level: zet Level op 0 en een expressiepedaal (MIDI-IN CC) op Swell voor een zwelpedaal. Bekende registraties: 888000000 (jazz, met Perc 3e), 888888888 (vol), 838000000 (gospel-bas), 006876540 (fluitig). Twaalf toetsen tegelijk: Poly ▾ → Organ ×12 zet MIDI-in, het orgel en de ROTARY erachter klaar; de draaiende luidspreker en zijn buizenversterker horen erbij. De toonhoogte wordt op halve tonen afgerond. Firmware tp_mmb_organ, mmb_dsp::Tonewheel; in de simulator draait dezelfde code als wasm.',
+  });
+}
+
+// ── Tweede ronde klassiekers (2026-10-02): SEM, complex-oscillator, wah,
+// ensemble en elektrische piano. Zelfde recept als hierboven.
+
+// MMB SEM — 8 HP. Tweepolig state-variable filter (firmware tp_mmb_sem).
+function mmbSem() {
+  const w = W(8);
+  return assemble({
+    typeId: 'tp_mmb_sem', categoryId: 'vcf',
+    variant: 'SEM-filter (12 dB, LP→notch→HP)',
+    brand: 'MMB', model: 'SEM',
+    hp: 8, texture: 'pcb-black', baseColor: '#1f2a3d', internal: true,
+    texts: [
+      { x: w/2, y: 8, text: 'SEM', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13, text: '12 dB · state variable', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('cutoff', 'Cutoff', w*0.30, 31, { size: 'large', min: 20, max: 18000, def: 1000, unit: 'Hz', color: '#38bdf8' }),
+      knob('res', 'Res', w*0.78, 31, { size: 'medium', min: 0, max: 1, def: 0.3, color: '#38bdf8' }),
+      knob('mode', 'Mode', w/2, 58, { size: 'medium', min: 0, max: 1, def: 0, color: '#f9fafb',
+        ticks: { labels: { 0: 'LP', 0.5: 'notch', 1: 'HP' } } }),
+      knob('drive', 'Drive', w*0.20, 80, { size: 'small', min: 0, max: 1, def: 0.2, color: '#ef4444' }),
+      knob('cv_amt', 'CV amt', w*0.50, 80, { size: 'small', min: 0, max: 7, def: 4, unit: 'oct', color: '#f9fafb' }),
+      knob('level', 'Level', w*0.80, 80, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      inPort('cutoff_cv', 'F CV', 'cv', w*0.28, 98),
+      inPort('mode_cv', 'Mode+', 'cv', w*0.72, 98),
+      inPort('in', 'In', 'audio', w*0.18, 116),
+      outPort('out', 'Out', 'audio', w*0.50, 116),
+      outPort('bp', 'BP', 'audio', w*0.82, 116),
+    ],
+    notes: 'Het tweepolige state-variable filter van de Oberheim SEM. Waar een ladder (Moog, ACID) steil is en bij resonantie het laag wegdrukt, is dit filter mild: 12 dB per octaaf, een resonantie die kleurt maar niet zelf gaat zingen, en het laag blijft staan. Het bijzondere is Mode: die loopt traploos van laagdoorlaat via een notch (laag en hoog samen, met een gat op de cutoff) naar hoogdoorlaat. Een LFO op Mode+ laat het filter van karakter veranderen in plaats van alleen open en dicht gaan. De bandpass heeft een eigen uitgang (BP): zet Out links en BP rechts voor een breed beeld. F CV is in octaven (±1 maal CV amt). Drive stuurt het filter harder aan; de verzadiging zit in het filter zelf. Solo ▾ → SEM sweep laat het horen. Firmware tp_mmb_sem, mmb_dsp::Sem; in de simulator draait dezelfde code als wasm.',
+  });
+}
+
+// MMB COMPLEX — 12 HP. Complex-oscillator naar de 259 (firmware tp_mmb_complex).
+function mmbComplex() {
+  const w = W(12);
+  const col = (i: number): number => w * (0.14 + i * 0.24);
+  return assemble({
+    typeId: 'tp_mmb_complex', categoryId: 'vco',
+    variant: 'Complex-oscillator (259-stijl)',
+    brand: 'MMB', model: 'COMPLEX',
+    hp: 12, texture: 'pcb-black', baseColor: '#3d2a1f', internal: true,
+    texts: [
+      { x: w/2, y: 8, text: 'COMPLEX', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13, text: 'modulatie → hoofdoscillator → timbre', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('ratio', 'Ratio', col(0), 28, { size: 'medium', min: 0.01, max: 16, def: 2, color: '#a78bfa' }),
+      sw('mod_wave', 'Mod', col(1), 28, ['Sin', 'Tri', 'Saw'], 0),
+      knob('pitch', 'Pitch', col(2), 28, { size: 'medium', min: -48, max: 48, def: 0, unit: 'semi', step: 1, color: '#f9fafb' }),
+      knob('level', 'Level', col(3), 28, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      knob('fm', 'FM', col(0), 54, { size: 'small', min: 0, max: 1, def: 0, color: '#e11d48' }),
+      knob('am', 'AM', col(1), 54, { size: 'small', min: 0, max: 1, def: 0, color: '#e11d48' }),
+      knob('tmod', 'T mod', col(2), 54, { size: 'small', min: 0, max: 1, def: 0, color: '#e11d48' }),
+      knob('symmetry', 'Sym', col(3), 54, { size: 'small', min: -1, max: 1, def: 0, color: '#f9fafb' }),
+      knob('timbre', 'Timbre', w/2, 80, { size: 'large', min: 0, max: 1, def: 0.3, color: '#fb923c' }),
+      inPort('voct', 'V/Oct', 'cv', col(0), 104),
+      inPort('fm_cv', 'FM+', 'cv', col(1), 104),
+      inPort('timbre_cv', 'Tim+', 'cv', col(2), 104),
+      outPort('mod', 'Mod', 'audio', col(2), 118),
+      outPort('out', 'Out', 'audio', col(3), 118),
+    ],
+    notes: 'Complex-oscillator naar de Buchla 259: twee oscillatoren in één module. De modulatie-oscillator (frequentie = Ratio maal de grondtoon; hele getallen blijven harmonisch, daartussen wordt het klokachtig) bewerkt de hoofdoscillator op drie manieren, elk met een eigen index: FM (de toonhoogte, lineair en door nul heen), AM (hoe hard de sinus de vouwer in gaat) en T mod (hoe ver de vouwer open staat). De hoofdoscillator is een sinus die door het timbre-circuit gaat, de vijf vouwcellen van de 259: Timbre 0 is een zuivere sinus, verder open vouwt hij en komen er boventonen bij. Sym voegt even boventonen toe. Samen met een low-pass gate is dit de West Coast-stem: geen filter, de boventonen komen van FM en vouwen. Zet een envelope op Tim+ (helderder bij de aanslag) en een tweede op FM+. Mod is de modulatie-oscillator los. Vier keer overbemonsterd. Solo ▾ → Buchla-stem zet hem met Slope en LPG onder het klavier. Firmware tp_mmb_complex, mmb_dsp::ComplexOsc; in de simulator draait dezelfde code als wasm.',
+  });
+}
+
+// MMB WAH — 6 HP. Wah en klinkerfilter (firmware tp_mmb_wah).
+function mmbWah() {
+  const w = W(6);
+  return assemble({
+    typeId: 'tp_mmb_wah', categoryId: 'effect',
+    variant: 'Wah (pedaal / auto / LFO, + klinkers)',
+    brand: 'MMB', model: 'WAH',
+    hp: 6, texture: 'pcb-black', baseColor: '#3d1f1f', internal: true,
+    texts: [
+      { x: w/2, y: 8, text: 'WAH', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('pedal', 'Pedal', w/2, 27, { size: 'large', min: 0, max: 1, def: 0.3, color: '#fbbf24' }),
+      sw('mode', 'Mode', w*0.28, 50, ['Pedal', 'Auto↑', 'Auto↓', 'LFO'], 0),
+      sw('type', 'Type', w*0.72, 50, ['Wah', 'Vowel'], 0),
+      knob('sens', 'Sens', w*0.28, 68, { size: 'small', min: 0, max: 1, def: 0.6, color: '#f9fafb' }),
+      knob('rate', 'Rate', w*0.72, 68, { size: 'small', min: 0.05, max: 12, def: 2, unit: 'Hz', color: '#f9fafb' }),
+      knob('q', 'Q', w*0.18, 86, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('mix', 'Mix', w*0.50, 86, { size: 'small', min: 0, max: 1, def: 1, color: '#f9fafb' }),
+      knob('level', 'Level', w*0.82, 86, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      inPort('in', 'In', 'audio', w*0.28, 103),
+      inPort('pedal_cv', 'Ped+', 'cv', w*0.72, 103),
+      outPort('env', 'Env', 'cv', w*0.28, 117),
+      outPort('out', 'Out', 'audio', w*0.72, 117),
+    ],
+    notes: 'Wah: een smalle piek die door het midden van het spectrum schuift. Type Wah is het inductor-wahpedaal (Cry Baby-familie): de piek loopt van ongeveer 400 Hz (hak) naar 2,2 kHz (teen). Type Vowel zet er twee pieken neer die samen een klinker vormen en met het pedaal van OE via O, A en E naar IE lopen: een sprekend filter. Mode bepaalt wie het pedaal bedient. Pedal: de knop plus Ped+ (een expressiepedaal via MIDI-IN CC, een envelope of een LFO van buiten). Auto↑: een envelope-volger duwt het pedaal open, harder spelen is helderder (touch-wah, funk); Sens is de gevoeligheid en de knop Pedal de ruststand. Auto↓: andersom, harder spelen is doffer. LFO: een eigen sinus (Rate) tussen de knopstand en helemaal open. Q maakt de piek smaller en luider. Env is de envelope-volger als CV. Firmware tp_mmb_wah, mmb_dsp::Wah; in de simulator draait dezelfde code als wasm.',
+  });
+}
+
+// MMB ENSEMBLE — 6 HP. Driefasig chorus (firmware tp_mmb_ensemble).
+function mmbEnsemble() {
+  const w = W(6);
+  return assemble({
+    typeId: 'tp_mmb_ensemble', categoryId: 'effect',
+    variant: 'Ensemble (string-machine-chorus)',
+    brand: 'MMB', model: 'ENSEMBLE',
+    hp: 6, texture: 'pcb-black', baseColor: '#1f3d36', internal: true,
+    texts: [
+      { x: w/2, y: 8, text: 'ENSEMBLE', fontSize: 1.9, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13, text: 'drie fasen', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('depth', 'Depth', w/2, 30, { size: 'large', min: 0, max: 1, def: 0.7, color: '#2dd4bf' }),
+      knob('slow', 'Slow', w*0.28, 56, { size: 'small', min: 0.1, max: 3, def: 0.6, unit: 'Hz', color: '#f9fafb' }),
+      knob('fast', 'Fast', w*0.72, 56, { size: 'small', min: 2, max: 12, def: 6, unit: 'Hz', color: '#f9fafb' }),
+      knob('tone', 'Tone', w*0.18, 76, { size: 'small', min: 0, max: 1, def: 0.6, color: '#f9fafb' }),
+      knob('mix', 'Mix', w*0.50, 76, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      knob('level', 'Level', w*0.82, 76, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      inPort('depth_cv', 'D+', 'cv', w/2, 94),
+      inPort('in_l', 'L', 'audio', w*0.14, 114),
+      inPort('in_r', 'R', 'audio', w*0.38, 114),
+      outPort('out_l', 'L', 'audio', w*0.62, 114),
+      outPort('out_r', 'R', 'audio', w*0.86, 114),
+    ],
+    notes: 'Ensemble: het driefasige chorus van de string machines (Solina-familie). Een gewone chorus heeft één vertragingslijn met één LFO en je hoort de zweving op en neer gaan. Hier zijn het er drie, gemoduleerd door dezelfde twee LFO’s (Slow rond 0,6 Hz en Fast rond 6 Hz) maar steeds een derde slag verschoven. De drie fasen vullen elkaar altijd aan, dus er is geen moment waarop de modulatie stilvalt of omkeert: de klank wordt breed en dik zonder hoorbaar te golven. Een kale zaag wordt een strijkorkest; een orgel of elektrische piano krijgt ruimte. Depth is de diepte van beide LFO’s, Tone de bandbreedte van de emmertjesgeheugens (lager = doffer, ouder). Mono in geeft stereo uit (L en R worden gesommeerd). Firmware tp_mmb_ensemble, mmb_dsp::Ensemble; in de simulator draait dezelfde code als wasm.',
+  });
+}
+
+// MMB E-PIANO — 20 HP. Tine/reed voor een pickup (firmware tp_mmb_epiano).
+function mmbEPiano() {
+  const w = W(20);
+  const colX = (i: number): number => 6.5 + i * 8.05;         // twaalf cel-kolommen
+  const cells = Array.from({ length: 12 }, (_, i) => i + 1);
+  return assemble({
+    typeId: 'tp_mmb_epiano', categoryId: 'vco',
+    variant: 'E-piano (tine / reed)',
+    brand: 'MMB', model: 'E-PIANO',
+    hp: 20, texture: 'pcb-black', baseColor: '#3a2a1a', internal: true,
+    role: 'multi',
+    cellGroups: [{ id: 'voice', label: 'Toets', count: 12, portIds: ['voct', 'gate', 'vel'], controlIds: [] }],
+    texts: [
+      { x: w/2, y: 8, text: 'E-PIANO', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13, text: 'tine of reed voor een pickup · 12 toetsen', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+      { x: 3, y: 82, text: 'V/Oct · Gate · Vel per toets', fontSize: 0.9, color: '#9ca3af', align: 'start' },
+    ],
+    items: [
+      sw('type', 'Type', w*0.08, 30, ['Tine', 'Reed'], 0),
+      knob('timbre', 'Timbre', w*0.24, 30, { size: 'large', min: 0, max: 1, def: 0.35, color: '#fbbf24' }),
+      knob('bell', 'Bell', w*0.42, 30, { size: 'medium', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('decay', 'Decay', w*0.58, 30, { size: 'medium', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('drive', 'Drive', w*0.74, 30, { size: 'medium', min: 0, max: 1, def: 0.4, color: '#ef4444' }),
+      knob('level', 'Level', w*0.90, 30, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      knob('tremolo', 'Tremolo', w*0.24, 58, { size: 'small', min: 0, max: 1, def: 0.3, color: '#2dd4bf' }),
+      knob('trem_rate', 'Rate', w*0.42, 58, { size: 'small', min: 0.5, max: 12, def: 4.5, unit: 'Hz', color: '#2dd4bf' }),
+      outPort('out_l', 'L', 'audio', w*0.76, 58),
+      outPort('out_r', 'R', 'audio', w*0.90, 58),
+      ...cells.map((k) => inPort(`voct_${k}`, '', 'cv',   colX(k - 1), 88,  { cellGroupId: 'voice' })),
+      ...cells.map((k) => inPort(`gate_${k}`, '', 'gate', colX(k - 1), 100, { cellGroupId: 'voice' })),
+      ...cells.map((k) => inPort(`vel_${k}`,  `${k}`, 'cv', colX(k - 1), 112, { cellGroupId: 'voice' })),
+    ],
+    notes: 'Elektrische piano als model, zonder samples. De klank zit maar voor de helft in wat er trilt; de andere helft is hoe de pickup dat ziet, en die twee zijn hier apart gebouwd. Wat trilt: per toets een grondtoon die traag uitsterft en een hoge, niet-harmonische boventoon die snel wegsterft (Bell): de tik in de aanslag. Harder aanslaan geeft meer uitwijking en verhoudingsgewijs meer bel. Type Tine (Rhodes-familie): een magnetische pickup. Timbre is de plek van de tine voor de pickup, de stelschroef waarmee een technicus het instrument afregelt. Recht ervoor (0) passeert de tine het midden twee keer per trilling en klinkt vooral het octaaf: dun en glazig. Ernaast (hoger) komt de grondtoon terug: vol en rond. Drive is hoe dicht de tine bij de pickup staat: verder open gaat hij bij hard spelen blaffen. Type Reed (Wurlitzer-familie): een stalen tong voor een condensatorplaat; holler, nasaler, en de noot sterft sneller uit. Decay is de uitklinktijd (hoge noten korter, zoals het instrument). Tremolo is het heen-en-weer tussen links en rechts van het koffermodel. Velocity doet veel: zonder kabel op Vel krijgt elke noot een gemiddelde aanslag. Twaalf toetsen tegelijk: Poly ▾ → E-piano ×12. Zet er de ENSEMBLE, de PHASER of de TREMOLO achter. Eigen model op meting, geen kopie van een bepaald exemplaar. Firmware tp_mmb_epiano, mmb_dsp::EPiano; in de simulator draait dezelfde code als wasm.',
+  });
+}
+
+// ── Testbediening (2026-10-02): drukknoppen, schuiven, draaiknoppen ──
+// Om in de browser snel een gate- of CV-ingang te proberen.
+
+// MMB PADS — 8 HP. Vier grote drukknoppen (firmware tp_mmb_pads).
+function mmbPads() {
+  const w = W(8);
+  const px = (i: number): number => (i % 2 === 0 ? w * 0.28 : w * 0.72);
+  const py = (i: number): number => (i < 2 ? 30 : 58);
+  return assemble({
+    typeId: 'tp_mmb_pads', categoryId: 'utility',
+    variant: 'Pads (4 drukknoppen: gate + trigger)',
+    brand: 'MMB', model: 'PADS',
+    hp: 8, texture: 'pcb-black', baseColor: '#1f2937', internal: true,
+    texts: [
+      { x: w/2, y: 8, text: 'PADS', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13, text: 'drukken = gate', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      ...[0, 1, 2, 3].map((i) => button(`b${i+1}`, `${i+1}`, px(i), py(i), 'large')),
+      ...[0, 1, 2, 3].map((i) => toggle(`latch${i+1}`, 'Latch', w * (0.14 + i * 0.24), 76)),
+      ...[0, 1, 2, 3].map((i) => outPort(`gate_${i+1}`, `G${i+1}`, 'gate', w * (0.14 + i * 0.24), 94)),
+      ...[0, 1, 2, 3].map((i) => outPort(`trig_${i+1}`, `T${i+1}`, 'gate', w * (0.14 + i * 0.24), 108)),
+      outPort('any', 'Any', 'gate', w/2, 120),
+    ],
+    notes: 'Vier grote drukknoppen om een gate- of CV-ingang met de muis (of een vinger) te proberen: de Fast-ingang van de ROTARY, de Ping van de LPG, Accent en Slide van ACID, een Reset of een envelope. G1..G4 is hoog zolang je de knop indrukt (een vlugge klik duurt minstens 100 ms); T1..T4 geeft bij elke druk een puls van 10 ms. Latch aan: de gate wisselt bij elke druk (aan, uit), voor een schakelaar die blijft staan. Any is hoog als een van de vier gates hoog is. Op de Teensy komen de knoppen via de editor (live control) binnen. Firmware tp_mmb_pads; in de simulator draait dezelfde klasse als wasm.',
+  });
+}
+
+// MMB FADERS — 8 HP. Vier schuiven als CV-bron (firmware tp_mmb_faders).
+function mmbFaders() {
+  const w = W(8);
+  const col = (i: number): number => w * (0.14 + i * 0.24);
+  return assemble({
+    typeId: 'tp_mmb_faders', categoryId: 'utility',
+    variant: 'Faders (4 schuiven als CV)',
+    brand: 'MMB', model: 'FADERS',
+    hp: 8, texture: 'pcb-black', baseColor: '#1f2937', internal: true,
+    texts: [
+      { x: w/2, y: 8, text: 'FADERS', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13, text: 'handbediende CV', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      ...[0, 1, 2, 3].map((i) => slider(`v${i+1}`, `${i+1}`, col(i), 44, { min: 0, max: 1, def: 0, lengthMm: 44 })),
+      sw('range', 'Range', w*0.28, 82, ['×1', '×2', '×5'], 0),
+      knob('slew', 'Slew', w*0.72, 84, { size: 'small', min: 0, max: 2000, def: 10, unit: 'ms', color: '#f9fafb' }),
+      ...[0, 1, 2, 3].map((i) => outPort(`out_${i+1}`, `${i+1}`, 'cv', col(i), 112)),
+    ],
+    notes: 'Vier schuiven, elk een CV-uitgang van 0 tot 1: om een CV-ingang met de hand te proberen (de cutoff van een filter, Fold van de FOLDER, Pedal van de WAH, Mode van het SEM-filter). Range vermenigvuldigt: ×1, ×2 of ×5 (×5 op een V/Oct-ingang is vijf octaven per volle slag). Slew strijkt een sprong glad, zodat een vlugge schuif geen tik geeft; zet hem hoog voor trage overgangen. Op de Teensy komen de schuiven via de editor (live control) binnen. Firmware tp_mmb_faders; in de simulator draait dezelfde klasse als wasm.',
+  });
+}
+
+// MMB KNOBS — 6 HP. Vier draaiknoppen als bipolaire CV (firmware tp_mmb_knobs).
+function mmbKnobs() {
+  const w = W(6);
+  return assemble({
+    typeId: 'tp_mmb_knobs', categoryId: 'utility',
+    variant: 'Knobs (4 draaiknoppen als CV, ±)',
+    brand: 'MMB', model: 'KNOBS',
+    hp: 6, texture: 'pcb-black', baseColor: '#1f2937', internal: true,
+    texts: [
+      { x: w/2, y: 8, text: 'KNOBS', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13, text: 'midden = 0', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      ...[0, 1, 2, 3].map((i) => knob(`v${i+1}`, `${i+1}`, i % 2 === 0 ? w*0.28 : w*0.72, i < 2 ? 28 : 52,
+        { size: 'large', min: -1, max: 1, def: 0, color: '#f9fafb', ticks: { labels: { [-1]: '−', 0: '0', 1: '+' } } })),
+      sw('range', 'Range', w*0.28, 76, ['×1', '×2', '×5'], 0),
+      knob('slew', 'Slew', w*0.72, 78, { size: 'small', min: 0, max: 2000, def: 10, unit: 'ms', color: '#f9fafb' }),
+      ...[0, 1, 2, 3].map((i) => outPort(`out_${i+1}`, `${i+1}`, 'cv', i % 2 === 0 ? w*0.28 : w*0.72, i < 2 ? 98 : 114)),
+    ],
+    notes: 'Vier draaiknoppen, elk een bipolaire CV-uitgang van −1 tot 1 (midden = 0): voor ingangen die een plus en een min kennen, zoals Shift van de FREQ SHIFT, Sym van de FOLDER, F CV van een filter of een V/Oct-ingang (Range ×5 = vijf octaven elke kant op). Slew strijkt sprongen glad. Op de Teensy komen de knoppen via de editor (live control) binnen. Firmware tp_mmb_knobs; in de simulator draait dezelfde klasse als wasm.',
+  });
+}
+
 // 24. MMB CHORD — 6 HP. Chord-generator (firmware tp_mmb_chord, FW-CV-5):
 //     1 V/Oct in → 4 gestemde CV-uitgangen. Voedt Octa-VCO / 4 VCO's /
 //     de resonator-bank; achter de quantizer blijft alles in de toonsoort.
@@ -3824,6 +4555,10 @@ export function seedInternals(project: ModularProject): ModularProject {
   all.push(mmbGendyn());
   all.push(mmbExcitable());
   all.push(mmbTapeStrip());
+  all.push(mmbClock(), mmbEuclid(), mmbTuring(), mmbBranches(), mmbChaos(), mmbLfo8(), mmbSlope(), mmbLogic());
+  all.push(mmbFolder(), mmbLpg(), mmbDrive(), mmbFreqShift(), mmbAcid(), mmbRungler(), mmbOrgan());
+  all.push(mmbSem(), mmbComplex(), mmbWah(), mmbEnsemble(), mmbEPiano());
+  all.push(mmbPads(), mmbFaders(), mmbKnobs());
   const newTypes = all.map((x) => x.type);
 
   // Upgrade-pad: bestaande interne types worden in-place VERVANGEN (zelfde
