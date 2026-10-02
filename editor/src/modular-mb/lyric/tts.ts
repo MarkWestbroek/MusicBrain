@@ -9,6 +9,7 @@
 // gokken.
 
 import type { Span } from './analyze';
+import { SERVER_ENDPOINT, loadLlmConfig } from '../recipe/llm';
 
 export interface TtsPhoneme { p: string; start: number; samples: number }
 export interface TtsResult { rate: number; pcm: Int16Array; phonemes: TtsPhoneme[]; text: string; voice: string }
@@ -41,8 +42,22 @@ export function saveTtsSettings(s: TtsSettings): void {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch { /* quota/private */ }
 }
 
+/** De toegangscode van het AI-profiel "MusicBrain-server", als dat er is. */
+export function serverAiCode(): string {
+  try {
+    return loadLlmConfig().profiles.find((p) => p.endpoint === SERVER_ENDPOINT && p.apiKey.trim())?.apiKey.trim() ?? '';
+  } catch { return ''; }
+}
+
+/** De code die we meesturen: de ingevulde, anders die van het AI-profiel (alleen naar de eigen server). */
+export function effectiveCode(s: TtsSettings): string {
+  if (s.code.trim()) return s.code.trim();
+  return s.endpoint.startsWith('/') ? serverAiCode() : '';
+}
+
 function headers(s: TtsSettings): Record<string, string> {
-  return { 'Content-Type': 'application/json', ...(s.code ? { Authorization: `Bearer ${s.code}` } : {}) };
+  const code = effectiveCode(s);
+  return { 'Content-Type': 'application/json', ...(code ? { Authorization: `Bearer ${code}` } : {}) };
 }
 
 async function fail(r: Response): Promise<never> {

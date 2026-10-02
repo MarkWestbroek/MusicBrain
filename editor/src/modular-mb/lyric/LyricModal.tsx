@@ -19,7 +19,7 @@ import { deleteSimLyricBank, lyricBanksVersion, setSimLyricBank, simLyricBank, s
 import { renderSustainLoop } from './preview';
 import { SyllableEditor } from './SyllableEditor';
 import {
-  TTS_DEFAULTS, TTS_LOCAL_ENDPOINT, listVoices, loadTtsSettings, saveTtsSettings, spansFromPhonemes, speak,
+  TTS_DEFAULTS, TTS_LOCAL_ENDPOINT, effectiveCode, serverAiCode, listVoices, loadTtsSettings, saveTtsSettings, spansFromPhonemes, speak,
   type TtsSettings, type TtsVoice,
 } from './tts';
 
@@ -259,7 +259,9 @@ export function LyricModal({ open, onClose, defaultBank }: LyricModalProps): JSX
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setTtsSetup(true);
-      setStatus(`mislukt (inspreken): ${/Failed to fetch|NetworkError|404/.test(msg) ? 'de spraakdienst is niet bereikbaar — zie ⚙' : msg}`);
+      setStatus(`mislukt (inspreken): ${/Failed to fetch|NetworkError|404/.test(msg) ? 'de spraakdienst is niet bereikbaar — zie ⚙'
+        : /toegangscode/.test(msg) ? `${msg} — ${effectiveCode(tts) ? 'de ingevulde code wordt niet herkend; zie ⚙' : 'vul bij ⚙ de code in die met mb- begint'}`
+        : msg}`);
     } finally {
       setTtsBusy(false);
     }
@@ -474,9 +476,16 @@ export function LyricModal({ open, onClose, defaultBank }: LyricModalProps): JSX
               <button onClick={() => changeTts({ endpoint: TTS_DEFAULTS.endpoint })}>MusicBrain-server</button>
               <button onClick={() => changeTts({ endpoint: TTS_LOCAL_ENDPOINT, code: '' })}>eigen computer</button>
               {!local && (
-                <label>toegangscode <input value={tts.code} type="password" style={{ width: 150 }}
-                  placeholder="dezelfde als voor de AI"
+                <label title="De code die je van de beheerder kreeg (begint met mb-). Leeg = die van je AI-profiel MusicBrain-server.">
+                  toegangscode <input value={tts.code} type="password" style={{ width: 150 }}
+                  placeholder={serverAiCode() ? 'uit je AI-profiel' : 'begint met mb-'}
                   onChange={(e) => changeTts({ code: e.target.value.trim() })} /></label>
+              )}
+              {!local && tts.code && !tts.code.startsWith('mb-') && (
+                <span style={{ color: '#b45309', fontSize: 12 }}>
+                  ⚠ dit lijkt geen MusicBrain-code (die begint met mb-); een DeepSeek- of Claude-sleutel werkt hier niet.{' '}
+                  <button onClick={() => changeTts({ code: '' })} style={{ fontSize: 11 }}>wis</button>
+                </span>
               )}
               <span style={{ fontSize: 12, width: '100%' }}>
                 {voices.length
