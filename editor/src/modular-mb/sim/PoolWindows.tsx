@@ -1,5 +1,5 @@
 // Patch-pool in de editor (doc/plans/patch-pool.md §6):
-//   ⤴ Voorstellen — de actieve patch (of een vraag erover) naar musicbrain.nl,
+//   ⤴ Voorstellen — de actieve patch (of een vraag erover, of privé voor jezelf) naar musicbrain.nl,
 //     met de take erbij: de laatste opname van deze patch, of een demo die de
 //     sim zelf opneemt.
 //   📚 Patches — bladeren in de pool, demo beluisteren, laden als nieuwe patch
@@ -15,7 +15,7 @@ import { patchSnapshot, slimSnapshot } from './midiRecorder';
 import { patchRequires, missingTypes } from './patchRequires';
 import { encodePatchSysex, joinSysex, SYSEX_CMD } from './patchSysex';
 import { buildConfigPayload } from '../teensyLink';
-import { proposePatch, listPool, fetchPatchFile, rememberOrigin, originOf, siteBase, assetUrl, type PoolItem, type Pool, type License } from './patchPool';
+import { proposePatch, promotePatch, listPool, fetchPatchFile, rememberOrigin, originOf, siteBase, assetUrl, type PoolItem, type Pool, type License } from './patchPool';
 import { recordDemo } from './demoTake';
 import { lastTakeFor, setLastTake, markUploaded, onLastTake } from './lastTakeStore';
 import { listTakes, addPatchSnapshot } from './takeLibrary';
@@ -56,7 +56,7 @@ const lbl: React.CSSProperties = { display: 'block', fontSize: 12, color: '#4755
 function ProposeDialog({ patchId, onClose }: { patchId: string; onClose: () => void }): JSX.Element {
   const project = getProject();
   const patch = project.patches.find((p) => p.id === patchId);
-  const [kind, setKind] = useState<'proposal' | 'question'>('proposal');
+  const [kind, setKind] = useState<'proposal' | 'question' | 'private'>('proposal');
   const [title, setTitle] = useState(patch?.name ?? '');
   const [description, setDescription] = useState(patch?.description ?? '');
   const [question, setQuestion] = useState('');
@@ -121,7 +121,9 @@ function ProposeDialog({ patchId, onClose }: { patchId: string; onClose: () => v
         takes, lib,
       );
       setSent(true);
-      setMsg({ ok: true, text: kind === 'question' ? `Vraag geplaatst als "${item.slug}".` : `Voorgesteld als "${item.slug}"; Mark beoordeelt hem.` });
+      setMsg({ ok: true, text: kind === 'question' ? `Vraag geplaatst als "${item.slug}".`
+        : kind === 'private' ? `Privé bewaard als "${item.slug}". Alleen jij ziet hem (📚 Pool → Privé); daar kun je hem later alsnog voorstellen.`
+        : `Voorgesteld als "${item.slug}"; Mark beoordeelt hem.` });
     } catch (e) { setMsg({ ok: false, text: e instanceof Error ? e.message : String(e) }); }
     finally { setBusy(null); }
   }
@@ -130,12 +132,13 @@ function ProposeDialog({ patchId, onClose }: { patchId: string; onClose: () => v
     <div style={overlay} onMouseDown={(e) => { if (busy === null) onClose(); e.stopPropagation(); }}>
       <div style={panel} role="dialog" aria-label="Patch voorstellen" onMouseDown={(e) => e.stopPropagation()}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <h3 style={{ margin: 0, flex: 1 }}>{kind === 'question' ? 'Vraag stellen over' : 'Voorstellen voor de pool'}: {patch.name}</h3>
+          <h3 style={{ margin: 0, flex: 1 }}>{kind === 'question' ? 'Vraag stellen over' : kind === 'private' ? 'Privé bewaren' : 'Voorstellen voor de pool'}: {patch.name}</h3>
           <button onClick={onClose} aria-label="Sluiten" disabled={busy !== null}>✕</button>
         </div>
         <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
           <label><input type="radio" checked={kind === 'proposal'} onChange={() => setKind('proposal')} /> voorstel voor de pool</label>
           <label><input type="radio" checked={kind === 'question'} onChange={() => setKind('question')} /> vraag ("lukt niet, wie helpt?")</label>
+          <label title="Alleen jij ziet hem (per account). Later alsnog voor te stellen vanuit 📚 Pool → Privé."><input type="radio" checked={kind === 'private'} onChange={() => setKind('private')} /> privé (alleen voor mij)</label>
         </div>
         <label style={lbl}>Naam <input value={title} onChange={(e) => setTitle(e.target.value)} style={{ width: '100%' }} /></label>
         <label style={lbl}>Beschrijving (wat is het, hoe speel je het)
@@ -173,7 +176,7 @@ function ProposeDialog({ patchId, onClose }: { patchId: string; onClose: () => v
         {msg && <div style={{ marginTop: 10, padding: '6px 8px', borderRadius: 6, background: msg.ok ? '#ecfdf5' : '#fef2f2', color: msg.ok ? '#065f46' : '#991b1b' }}>{msg.ok ? '✓ ' : '✕ '}{msg.text}</div>}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 14 }}>
           <button onClick={onClose} disabled={busy !== null}>{sent ? 'Sluiten' : 'Annuleren'}</button>
-          {!sent && <button className="primary" onClick={() => void send()} disabled={busy !== null}>{busy === 'send' ? '… versturen' : kind === 'question' ? '⤴ Vraag plaatsen' : '⤴ Voorstellen'}</button>}
+          {!sent && <button className="primary" onClick={() => void send()} disabled={busy !== null}>{busy === 'send' ? '… versturen' : kind === 'question' ? '⤴ Vraag plaatsen' : kind === 'private' ? '🔒 Privé bewaren' : '⤴ Voorstellen'}</button>}
         </div>
       </div>
     </div>
@@ -191,6 +194,7 @@ const POOLS: { id: Pool; label: string; hint: string }[] = [
   { id: 'experimenteel', label: 'Lab', hint: 'werkt, maar geen belofte' },
   { id: 'vraag', label: 'Vragen', hint: 'patches waar iemand hulp bij zoekt' },
   { id: 'voorstel', label: 'Voorstellen', hint: 'wachten op beoordeling (alleen eigen en admin)' },
+  { id: 'prive', label: 'Privé', hint: 'alleen voor jou (het account achter je token); hier kun je ze alsnog voorstellen' },
 ];
 
 function PoolBrowser({ onClose }: { onClose: () => void }): JSX.Element {
@@ -240,6 +244,21 @@ function PoolBrowser({ onClose }: { onClose: () => void }): JSX.Element {
     finally { setBusy(null); }
   }
 
+  async function promote(it: PoolItem, kind: 'proposal' | 'question'): Promise<void> {
+    let question = '';
+    if (kind === 'question') {
+      question = window.prompt(`Je vraag over "${it.title}" (wat lukt er niet?)`) ?? '';
+      if (!question.trim()) return;
+    } else if (!window.confirm(`"${it.title}" voorstellen voor de pool? Hij is dan niet meer privé; Mark beoordeelt hem.`)) return;
+    setBusy(it.slug); setMsg(null);
+    try {
+      const r = await promotePatch(it.slug, kind === 'question' ? { kind, question } : { kind }, lib);
+      setItems((xs) => xs?.filter((x) => x.slug !== it.slug) ?? null);
+      setMsg({ ok: true, text: r.pool === 'vraag' ? `"${it.title}" staat nu bij Vragen.` : `"${it.title}" is voorgesteld; hij staat nu bij Voorstellen.` });
+    } catch (e) { setMsg({ ok: false, text: e instanceof Error ? e.message : String(e) }); }
+    finally { setBusy(null); }
+  }
+
   const base = siteBase(lib);
   return (
     <div style={overlay} onMouseDown={(e) => { onClose(); e.stopPropagation(); }}>
@@ -259,6 +278,7 @@ function PoolBrowser({ onClose }: { onClose: () => void }): JSX.Element {
           {items && <span style={{ color: '#6b7280', fontSize: 12 }}>{items.length} patch{items.length === 1 ? '' : 'es'}</span>}
         </div>
         {msg && <div style={{ marginTop: 8, padding: '6px 8px', borderRadius: 6, background: msg.ok ? '#ecfdf5' : '#fef2f2', color: msg.ok ? '#065f46' : '#991b1b' }}>{msg.ok ? '✓ ' : '✕ '}{msg.text}</div>}
+        {pool === 'prive' && !lib.token.trim() && <div style={{ color: '#6b7280', marginTop: 10 }}>Je privé-lijst zie je alleen met een API-token (⚙ Library in de Simulatie-tab).</div>}
         {items?.length === 0 && <div style={{ color: '#6b7280', marginTop: 10 }}>Niets in deze pool{tag ? ` met tag "${tag}"` : ''}.</div>}
         {items?.map((it) => {
           const missing = it.requires ? missingTypes(it.requires, project) : [];
@@ -278,6 +298,8 @@ function PoolBrowser({ onClose }: { onClose: () => void }): JSX.Element {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
                 <button onClick={() => void load(it)} disabled={busy !== null} title="Als nieuwe patch toevoegen; je eigen patches blijven staan">{busy === it.slug ? '…' : '⤵ Laden'}</button>
+                {it.pool === 'prive' && <button onClick={() => void promote(it, 'proposal')} disabled={busy !== null} title="Uit je privé-lijst naar Voorstellen; Mark beoordeelt hem. Kan één keer.">⤴ Voorstellen</button>}
+                {it.pool === 'prive' && <button onClick={() => void promote(it, 'question')} disabled={busy !== null} title="Uit je privé-lijst naar Vragen, met je vraag erbij">? Als vraag</button>}
                 {it.takes?.length ? <button onClick={() => void demoUrl(it)} disabled={it.slug in demos} title="Demo beluisteren">▶ demo</button> : null}
                 <a href={it.url || `${base}/patches/${encodeURIComponent(it.slug)}`} target="_blank" rel="noreferrer" style={{ fontSize: 12 }}>pagina ↗</a>
                 <a href={it.fileUrl || assetUrl(it.file, lib)} download style={{ fontSize: 12 }}>⤓ .patch.json</a>

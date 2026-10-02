@@ -69,6 +69,31 @@ describe('patch-pool client', () => {
   });
 });
 
+describe('privé-pool', () => {
+  it('buildProposal stuurt kind private zonder vraag', () => {
+    const b = buildProposal({ kind: 'private', title: 'Synthex ×8', description: '', tags: [], license: 'CC-BY-4.0', requires: req, question: 'weg' },
+      { file: { slug: 'f', kind: 'data', url: '' } }, []);
+    expect(b.kind).toBe('private');
+    expect(b).not.toHaveProperty('question');
+  });
+  it('promotePatch: PATCH /api/patches/<slug>, en de foutgevallen van het contract', async () => {
+    const { promotePatch } = await import('./patchPool');
+    const seen: { url: string; method?: string; body: unknown; auth?: string }[] = [];
+    const ok = (async (url: string, init: RequestInit) => {
+      seen.push({ url, method: init.method, body: JSON.parse(String(init.body)), auth: (init.headers as Record<string, string>).Authorization });
+      return new Response(JSON.stringify({ ok: true, slug: 'synthex-8', pool: 'vraag' }));
+    }) as unknown as typeof fetch;
+    const r = await promotePatch('synthex 8', { kind: 'question', question: ' waarom kraakt hij? ' }, s, ok);
+    expect(r.pool).toBe('vraag');
+    expect(seen[0]).toEqual({ url: 'https://musicbrain.nl/api/patches/synthex%208', method: 'PATCH', body: { kind: 'question', question: 'waarom kraakt hij?' }, auth: 'Bearer tok' });
+    const status = (n: number) => (async () => new Response('{}', { status: n })) as unknown as typeof fetch;
+    await expect(promotePatch('x', { kind: 'proposal' }, s, status(404))).rejects.toThrow(/niet \(meer\) in jouw privé-lijst/);
+    await expect(promotePatch('x', { kind: 'proposal' }, s, status(409))).rejects.toThrow(/al voorgesteld/);
+    await expect(promotePatch('x', { kind: 'proposal' }, s, status(403))).rejects.toThrow(/patch:propose/);
+    await expect(promotePatch('x', { kind: 'proposal' }, { ...s, token: '' }, ok)).rejects.toThrow(/Geen API-token/);
+  });
+});
+
 describe('afwijzing van de pool', () => {
   it('toont welke velden fout zijn', async () => {
     const { describeIssues, listPool } = await import('./patchPool');

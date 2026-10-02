@@ -2,18 +2,22 @@
 //
 // Contract met Imprint (2026-10-02):
 //   POST /api/patches   Bearer (scope patch:propose), JSON:
-//     { kind: "proposal"|"question", title, description, tags[], license,
+//     { kind: "proposal"|"question"|"private", title, description, tags[], license,
 //       file: "asset:<id>", syx?: "asset:<id>", takes?: group-slug[],
 //       requires, derivedFrom?: patch-slug, question?: string }
-//     → het item; pool wordt door de regel voorstel/vraag, author uit het token.
-//   GET  /api/patches?pool=&tag=&slug=   publiek voor experimenteel/centraal/vraag.
+//     → het item; pool wordt door de regel voorstel/vraag/prive, author uit het token.
+//   GET  /api/patches?pool=&tag=&slug=   publiek voor experimenteel/centraal/vraag;
+//     pool=prive geeft met token alleen de eigen privé-patches (per account).
+//   PATCH /api/patches/<slug>  { kind: "proposal" } | { kind: "question", question }
+//     → een eigen privé-patch alsnog voorstellen; alleen prive → voorstel/vraag,
+//     één keer (409 als hij niet meer privé is, 404 als hij van een ander is).
 // De bestanden gaan eerst via POST /api/media (één group), de id's komen in
 // het item als "asset:<id>"; lezen via GET /api/assets/_ref/<id>.
 
 import { LibraryError, uploadTake, type LibrarySettings, type UploadedAsset } from './mediaLibrary';
 import type { PatchRequires } from './patchRequires';
 
-export type Pool = 'voorstel' | 'experimenteel' | 'centraal' | 'vraag';
+export type Pool = 'voorstel' | 'experimenteel' | 'centraal' | 'vraag' | 'prive';
 export type License = 'CC-BY-4.0' | 'CC0';
 
 export interface PoolItem {
@@ -41,7 +45,8 @@ export interface PoolItem {
 }
 
 export interface Proposal {
-  kind: 'proposal' | 'question';
+  /** private = in je eigen privé-lijst; later alsnog voor te stellen (promotePatch). */
+  kind: 'proposal' | 'question' | 'private';
   title: string;
   description: string;
   tags: string[];
@@ -156,6 +161,25 @@ export async function listPool(
     : Array.isArray((body as { patches?: unknown })?.patches) ? (body as { patches: PoolItem[] }).patches : null;
   if (!list) throw new LibraryError('Onverwacht antwoord van de pool.');
   return list;
+}
+
+/** Een eigen privé-patch alsnog voorstellen, of er een vraag van maken. */
+export async function promotePatch(
+  slug: string, to: { kind: 'proposal' } | { kind: 'question'; question: string },
+  s: LibrarySettings, fetchImpl: typeof fetch = fetch,
+): Promise<{ slug: string; pool: Pool }> {
+  if (!s.token.trim()) throw new LibraryError('Geen API-token ingesteld (⚙ Library in de Simulatie-tab).');
+  const body = to.kind === 'question' ? { kind: 'question', question: to.question.trim() } : { kind: 'proposal' };
+  let res: Response;
+  try {
+    res = await fetchImpl(`${patchesUrl(s)}/${encodeURIComponent(slug)}`, {
+      method: 'PATCH', headers: { Authorization: `Bearer ${s.token.trim()}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+  } catch (err) { throw new LibraryError(`Pool niet bereikbaar (${err instanceof Error ? err.message : String(err)}).`); }
+  if (res.status === 404) throw new LibraryError('Die patch staat niet (meer) in jouw privé-lijst.');
+  if (res.status === 409) throw new LibraryError('Deze patch is al voorgesteld; alleen een privé-patch kun je nog voorstellen.');
+  if (!res.ok) await fail(res, 'Voorstellen');
+  return await res.json() as { slug: string; pool: Pool };
 }
 
 /** Het patchbestand van een item ophalen (JSON-tekst). */

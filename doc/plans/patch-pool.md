@@ -61,6 +61,7 @@ Dat is nu de grootste praktische valkuil bij uitwisselen tussen versies.
 | `experimenteel` | Mark, of een ingelogde inzender (rol "contributor") | iedereen | leuk, werkt, maar geen belofte |
 | `centraal` | alleen Mark | iedereen | de basisset die bij de editor hoort |
 | `vraag` | iedereen met een token | iedereen | "ik probeer dit, lukt niet, wie helpt?" |
+| `prive` | iedereen met een token | alleen de eigenaar (per account, niet per token) + redactie | eigen bewaarlijst; niet in zoeken of openbare lijsten. Eén keer om te zetten naar `voorstel` of `vraag` met `PATCH /api/patches/<slug>` (nooit hoger). Toegevoegd 2026-10-02 |
 
 Moderatie is één veld wijzigen in de admin, met de take-widget ernaast om te
 luisteren. Dat is precies het "beluisteren en in de pool zetten" uit de vraag.
@@ -134,7 +135,10 @@ Stap 1 en 2 kunnen tegelijk, zoals bij de library.
 
 ## 9. Besluiten (Mark, 2026-10-02)
 
-1. **Pools**: de vier uit §4.
+1. **Pools**: de vier uit §4, en sinds de avond van 2026-10-02 een vijfde, `prive`
+   (Marks verzoek: lokaal ontdekte patches voor jezelf bewaren). Live bij Imprint;
+   in de editor de keuze "privé (alleen voor mij)" in ⤴ Voorstellen en de tab
+   Privé in 📚 Pool, met ⤴ Voorstellen / ? Als vraag per patch.
 2. **Naar `experimenteel`**: Mark, en ook anderen zodra ze ingelogd zijn
    (rol "contributor"). Tot de Imprint-logins er zijn: alleen Mark.
 3. **Take niet verplicht.** Ontbreekt hij, dan kan de editor er een genereren
