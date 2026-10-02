@@ -652,6 +652,7 @@
         "gate_9",
         "out_l",
         "out_r",
+        "sustain",
         "vel_1",
         "vel_10",
         "vel_11",
@@ -679,6 +680,7 @@
       ],
       "controls": [
         "bell",
+        "damper",
         "decay",
         "drive",
         "level",
@@ -2669,6 +2671,31 @@
         "rate",
         "shape",
         "wave"
+      ]
+    },
+    "tp_mmb_tube": {
+      "typeId": "tp_mmb_tube",
+      "source": "firmware/app-modular-brain/src/TubeModule.h",
+      "ports": [
+        "drive_cv",
+        "in_l",
+        "in_r",
+        "out_l",
+        "out_r"
+      ],
+      "controls": [
+        "bass",
+        "bias",
+        "cab",
+        "drive",
+        "level",
+        "mid",
+        "mix",
+        "mode",
+        "presence",
+        "sag",
+        "stack",
+        "treble"
       ]
     },
     "tp_mmb_turing": {

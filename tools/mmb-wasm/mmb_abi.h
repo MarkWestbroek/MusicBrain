@@ -132,9 +132,21 @@ MMB_EXPORT(mmb_set_control)    void mmb_set_control(int i, float v) {
     mmb_on_control(i, v);
 }
 static bool g_mmb_inited = false;
+#ifdef __wasm__
+// Gelinkt als reactor (build.sh: -mexec-model=reactor): de linker zet dan geen
+// wrapper om elke export die vóór elke aanroep alle statische constructors
+// draait en erna de destructors (het "command"-model). Bij STK maakte dat bij
+// élke aanroep opnieuw geheugen aan: ~30 bytes per mmb_render, en het geheugen
+// kon groeien midden in mmb_input_connected (de worklet kreeg dan een
+// "detached ArrayBuffer"). Nu draaien de constructors één keer, hier.
+extern "C" void __wasm_call_ctors(void);
+#endif
 MMB_EXPORT(mmb_init)           void mmb_init() {
     if (g_mmb_inited) return;
     g_mmb_inited = true;
+#ifdef __wasm__
+    __wasm_call_ctors();
+#endif
     mmb_setup();
     // Beginstand van alle controls doorzetten naar de DSP.
     for (int i = 0; i < MMB_NUM_CONTROLS; ++i) mmb_on_control(i, MMB_CONTROLS[i].value);

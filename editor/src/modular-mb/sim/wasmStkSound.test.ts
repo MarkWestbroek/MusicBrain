@@ -24,7 +24,7 @@ interface Mod {
   inputs: string[]; outputs: string[]; controls: string[];
   setCtl(id: string, v: number): void;
   setIn(id: string, v: number, connected?: boolean): void;
-  render(seconds: number, gate: (t: number) => boolean): { peak: number; crossings: number };
+  render(seconds: number, gate: (t: number) => boolean): { peak: number; crossings: number; samples: Float32Array };
 }
 
 let bytes: Uint8Array;
@@ -64,6 +64,7 @@ async function load(): Promise<Mod> {
       const gateIdx = inputs.indexOf('gate');
       ex.mmb_input_connected(gateIdx, 1);
       let peak = 0, crossings = 0, prev = 0;
+      const samples = new Float32Array(Math.ceil(this.rate * seconds / this.block) * this.block);
       for (let t = 0; t < this.rate * seconds; t += this.block) {
         // STK alloceert per model bij note-on; sinds de kleine beginmaat
         // (build.sh) groeit het geheugen dan en is een oude view "detached".
@@ -73,12 +74,13 @@ async function load(): Promise<Mod> {
         const out = new Float32Array(ex.memory.buffer, outPtr, 64);
         for (let k = 0; k < this.block; k++) {
           const v = out[k]!;
+          samples[t + k] = v;
           if (Math.abs(v) > peak) peak = Math.abs(v);
           if (prev <= 0 && v > 0) crossings++;
           prev = v;
         }
       }
-      return { peak, crossings };
+      return { peak, crossings, samples };
     },
   };
 }
@@ -136,11 +138,19 @@ describe('tp_mmb_stk_sound (wasm)', () => {
       const m = await load();
       m.setCtl('sound', 1);              // Clarinet: houdt een stabiele toon aan
       m.setIn('voct', voct);
-      return m.render(1.0, () => true).crossings;
+      return m.render(1.0, () => true).samples;
+    };
+    // Grondtoon meten, niet de nuldoorgangen: die tellen de boventonen mee en
+    // verschuiven met de golfvorm (een klarinet heeft een sterke derde).
+    const level = (x: Float32Array, hz: number): number => {
+      const w = 2 * Math.PI * hz / 44100, from = 22050;
+      let re = 0, im = 0;
+      for (let i = from; i < x.length; i++) { re += x[i]! * Math.cos(w * i); im += x[i]! * Math.sin(w * i); }
+      return Math.hypot(re, im) / (x.length - from);
     };
     const laag = await tel(0), hoog = await tel(1);
-    expect(hoog / laag).toBeGreaterThan(1.7);
-    expect(hoog / laag).toBeLessThan(2.3);
+    expect(level(laag, 261.63)).toBeGreaterThan(level(laag, 523.25) * 10);
+    expect(level(hoog, 523.25)).toBeGreaterThan(level(hoog, 261.63) * 10);
   });
 
   it('zwijgt als de gate weer laag gaat', async () => {

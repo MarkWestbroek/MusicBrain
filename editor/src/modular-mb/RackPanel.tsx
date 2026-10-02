@@ -6,6 +6,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { updateProject, useModularProject, uid } from './store';
+import { ControlLabelFields, setControlLabel } from './controlLabels';
 import { ModulePanel } from './ModulePanel';
 import { compactRack as compactRackLayout } from './rackLayout';
 import { takeRackFocus } from './rackFocus';
@@ -271,6 +272,11 @@ function RackGrid({ rack, modules, types, activeRow, onSelectRow,
   const rowWidthMm = rack.hpPerRow * MM_PER_HP;
   const engineStatus = useEngineStatus();
   const voiceMap = buildVoiceMap(rack);
+  // Onderschriften van de actieve patch (PADS: "1 Start/Stop"); dubbelklik op
+  // het label onder een knop zet ze, net als in de Patcher.
+  const project = useModularProject();
+  const activePatchId = project.activePatchId;
+  const controlLabels = project.patches.find((x) => x.id === activePatchId)?.controlLabels;
 
   // Ingeklapte poly-groepen (backlog B4 / ED-RK-2): de master toont één blok
   // met "×N", de followers (voiceIndex ≥ 1) worden niet getekend. Per-rack
@@ -995,7 +1001,8 @@ function RackGrid({ rack, modules, types, activeRow, onSelectRow,
                     }}
                   />
                   <ModulePanel module={m} types={types} pxPerMm={PX} showPortLabels={isInternal}
-                    controlState={engineStatus.liveControls[m.id]} />
+                    controlState={engineStatus.liveControls[m.id]} controlLabels={controlLabels?.[m.id]}
+                    onControlLabelChange={activePatchId ? (controlId, text) => setControlLabel(activePatchId, m.id, controlId, text) : undefined} />
                   {voice && (
                     <>
                       {/* Kleur-ribbon onderaan = visuele tag van de voice-group. */}
@@ -1244,6 +1251,7 @@ function RackInspector({ rack, modules, types, selectedSlotIds, setSelectedSlotI
       <InspectorRow k="Rij"       v={String(slot.row + 1)} />
       <InspectorRow k="HP-offset" v={String(slot.hpOffset)} />
       <InspectorRow k="Module-id" v={mod.id} />
+      <ControlLabelFields moduleId={mod.id} controls={resolveControls(mod, types)} dark />
       <ModulePortsControls mod={mod} types={types} />
       <button onClick={deleteSelected} style={{ ...inspectorBtn, marginTop: 10, color: '#fca5a5' }}>
         × Verwijder uit rack

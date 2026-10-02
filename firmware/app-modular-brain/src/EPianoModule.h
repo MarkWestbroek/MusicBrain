@@ -17,9 +17,9 @@
  * tools/contract_dump.py.
  *
  * Poorten: voct_1..12 (CV), gate_1..12 (gate), vel_1..12 (CV 0..1; los = een
- * gemiddelde aanslag) → out_l, out_r (audio).
+ * gemiddelde aanslag), sustain (gate: het sustainpedaal) → out_l, out_r.
  * Controls: type (0 Tine, 1 Reed), timbre, bell, decay, drive, tremolo
- * (0..1), trem_rate (Hz), level.
+ * (0..1), trem_rate (Hz), level, damper (0 = geen dempers .. 1 = snel).
  */
 
 #include "AudioModule.h"
@@ -48,10 +48,11 @@ public:
     }
     PortKind inputPortKind(std::string_view portId) const override {
         if (cellOf(portId, "voct_") >= 0 || cellOf(portId, "vel_") >= 0) return PortKind::Cv;
-        if (cellOf(portId, "gate_") >= 0) return PortKind::Gate;
+        if (cellOf(portId, "gate_") >= 0 || portId == "sustain") return PortKind::Gate;
         return PortKind::None;
     }
     void writeCvPort(std::string_view portId, float value) override {
+        if (portId == "sustain") { stream_.cv(Kernel::kSustain, value); return; }
         int cell = cellOf(portId, "voct_");
         if (cell >= 0) { stream_.cv(cell, value); return; }
         cell = cellOf(portId, "vel_");
@@ -73,6 +74,7 @@ public:
         else if (controlId == "tremolo") stream_.control(Kernel::Tremolo, number);
         else if (controlId == "trem_rate") stream_.control(Kernel::TremRate, number);
         else if (controlId == "level") stream_.control(Kernel::Level, number);
+        else if (controlId == "damper") stream_.control(Kernel::Damper, number);
     }
     void onRetire() override { stream_.active(false); }
     void onReuse() override { stream_.active(true); }

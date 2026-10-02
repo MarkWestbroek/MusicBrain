@@ -66,6 +66,9 @@ export function WaveDrawModal({ open, onClose }: { open: boolean; onClose: () =>
   const waveRef = useRef<Float32Array>(makeShape('sine'));
   const lastIdxRef = useRef<number | null>(null);
   const pushTimer = useRef<number | null>(null);
+  // Alle hooks vóór de `if (!open) return null` hieronder: een hook daarna
+  // verandert het aantal hooks bij openen en React gooit dan (wit scherm).
+  const fileRef = useRef<HTMLInputElement>(null);
   const [, forceRender] = useState(0);
   const [targetId, setTargetId] = useState('');
   const [pushed, setPushed] = useState<string>('');
@@ -185,7 +188,6 @@ export function WaveDrawModal({ open, onClose }: { open: boolean; onClose: () =>
   // bestand, herbemonsteren elk naar 256 punten en zetten ze in USER-frame
   // 0..7 van de Morph-WT (sim + Teensy, per frame via `wslot`). Een Draw-VCO
   // krijgt alleen het eerste frame.
-  const fileRef = useRef<HTMLInputElement>(null);
   async function importWav(file: File): Promise<void> {
     if (!target) return;
     const mono = decodeWav(await file.arrayBuffer());

@@ -290,9 +290,11 @@ class MmbProcessor extends AudioWorkletProcessor {
 
   renderBlock() {
     const ex = this.ex, block = this.block, base = this.nativeWritten, inv = 1 / this.ratio;
-    const mem = ex.memory.buffer;
     for (const g of this.groups) {
-      const buf = new Float32Array(mem, g.w.ptr, block);
+      // Per ingang opnieuw: elke wasm-aanroep (ook mmb_input_connected
+      // hieronder, bij STK) kan het geheugen laten groeien, en dan is een
+      // eerder gepakte buffer losgekoppeld ("detached ArrayBuffer").
+      const buf = new Float32Array(ex.memory.buffer, g.w.ptr, block);
       const fs = g.feeders, lastCv = g.w.kind !== 0 && fs.length > 1;
       for (let k = 0; k < block; k++) {
         // native sample (base+k) ↔ context tijd (base+k)/ratio

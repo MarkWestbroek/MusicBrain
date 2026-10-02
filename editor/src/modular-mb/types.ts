@@ -652,6 +652,10 @@ export interface Patch {
   connections: PatchConnection[];
   /** Per module: controlId → ControlValue. */
   controlState: Record<string, Record<string, ControlValue>>;
+  /** Per module: controlId → label dat deze patch bij een bediening toont
+   *  (PADS 1 = "Start/Stop", FADERS 1 = "Cutoff"). Vrije tekst, los van
+   *  controlState; gaat (nog) niet naar de firmware — doc/plans/control-labels.md. */
+  controlLabels?: Record<string, Record<string, string>>;
   envelopes: EnvelopeInstance[];
   lfos: LfoInstance[];
   /** Patch-local repartitioning of rack PolyGroups (sketch §3.4). */

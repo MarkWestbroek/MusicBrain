@@ -8,7 +8,7 @@ const char* const MMB_TYPE_ID     = "tp_mmb_epiano";
 const float       MMB_NATIVE_RATE = 44100.0f;
 const int         MMB_BLOCK       = 32;
 
-// In de volgorde van de kernel: 12 x V/Oct, 12 x velocity, 12 x gate.
+// In de volgorde van de kernel: 12 x V/Oct, 12 x velocity, sustain, 12 x gate.
 MmbPort MMB_INPUTS[] = {
     { "voct_1", MMB_CV, 0, {} },
     { "voct_2", MMB_CV, 0, {} },
@@ -34,6 +34,7 @@ MmbPort MMB_INPUTS[] = {
     { "vel_10", MMB_CV, 0, {} },
     { "vel_11", MMB_CV, 0, {} },
     { "vel_12", MMB_CV, 0, {} },
+    { "sustain", MMB_GATE, 0, {} },
     { "gate_1", MMB_GATE, 0, {} },
     { "gate_2", MMB_GATE, 0, {} },
     { "gate_3", MMB_GATE, 0, {} },
@@ -47,15 +48,15 @@ MmbPort MMB_INPUTS[] = {
     { "gate_11", MMB_GATE, 0, {} },
     { "gate_12", MMB_GATE, 0, {} },
 };
-const int MMB_NUM_INPUTS = 36;
+const int MMB_NUM_INPUTS = 37;
 MmbPort MMB_OUTPUTS[] = { { "out_l", MMB_AUDIO, 0, {} }, { "out_r", MMB_AUDIO, 0, {} } };
 const int MMB_NUM_OUTPUTS = 2;
 MmbControl MMB_CONTROLS[] = {
     { "type", 0.0f }, { "timbre", 0.35f }, { "bell", 0.5f }, { "decay", 0.5f },
-    { "drive", 0.4f }, { "tremolo", 0.3f }, { "trem_rate", 4.5f }, { "level", 0.8f },
+    { "drive", 0.4f }, { "tremolo", 0.3f }, { "trem_rate", 4.5f }, { "level", 0.8f }, { "damper", 0.6f },
 };
-const int MMB_NUM_CONTROLS = 8;
+const int MMB_NUM_CONTROLS = 9;
 
 static const int kAudioIn[] = {0}, kAudioOut[] = {0, 1}, kCvOut[] = {0};
-static const int kCvIn[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35};
-MMB_KERNEL_HOST(mmb_dsp::EPiano, kAudioIn, 0, kCvIn, 36, kAudioOut, 2, kCvOut, 0)
+static const int kCvIn[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36};
+MMB_KERNEL_HOST(mmb_dsp::EPiano, kAudioIn, 0, kCvIn, 37, kAudioOut, 2, kCvOut, 0)

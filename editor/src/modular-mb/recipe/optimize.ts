@@ -148,7 +148,15 @@ const rackById = (p: ModularProject, id: string): Rack => {
   if (!r) throw new RecipeError(`Rack ${id} bestaat niet.`);
   return r;
 };
-const modById = (p: ModularProject) => new Map(p.modules.map((m) => [m.id, m]));
+// Per modules-lijst één keer: diffPatches vraagt hem per paar patches op, en
+// findDuplicatePatches vergelijkt alle paren (103 patches, 1144 modules ≈ 1 s
+// zonder cache).
+const modByIdCache = new WeakMap<ModuleInstance[], Map<string, ModuleInstance>>();
+const modById = (p: ModularProject): Map<string, ModuleInstance> => {
+  let map = modByIdCache.get(p.modules);
+  if (!map) { map = new Map(p.modules.map((m) => [m.id, m])); modByIdCache.set(p.modules, map); }
+  return map;
+};
 const patchesOf = (p: ModularProject, rackId: string) => p.patches.filter((x) => x.rackIds.includes(rackId));
 const rackVoices = (r: Rack): number => Math.max(1, ...(r.polyGroups ?? []).map((g) => g.voiceCount));
 

@@ -19,7 +19,7 @@ import { seedCs80BrassPatch } from './seedBrass';
 import { seedAxelFLeadPatch } from './seedAxelF';
 import { seedSid3Patch, seedSidPolyPatch } from './seedSid';
 import { seedMaterialBridgeDemo, seedReservoirDemo, seedTapeStripPolyPatch } from './seedModules';
-import { DRIVE_SOLO_FX, ENSEMBLE_SOLO_FX, FOLDER_SOLO_FX, FREQSHIFT_SOLO_FX, WAH_SOLO_FX, seedAcidJamPatch, seedComplexVoicePatch, seedEPianoPolyPatch, seedOrganPolyPatch, seedRunglerPatch, seedRhythmBoxPatch, seedSemSweepPatch, seedSynthexPolyPatch, seedWestCoastPatch } from './seedShowcase';
+import { DRIVE_SOLO_FX, ENSEMBLE_SOLO_FX, TUBE_SOLO_FX, FOLDER_SOLO_FX, FREQSHIFT_SOLO_FX, WAH_SOLO_FX, seedAcidJamPatch, seedComplexVoicePatch, seedEPianoPolyPatch, seedOrganPolyPatch, seedRunglerPatch, seedRhythmBoxPatch, seedSemSweepPatch, seedSynthexPolyPatch, seedWestCoastPatch } from './seedShowcase';
 
 /** Effecten achter de solo-seeds (Solo ▾): de stand en de tooltip. */
 const SOLO_FX = {
@@ -48,6 +48,7 @@ const SOLO_FX = {
   folder: { fx: FOLDER_SOLO_FX, title: 'Fluit (bijna een sinus) door de FOLDER (stand 259): draai Fold open en hoor de boventonen erbij vouwen; Sym voegt even boventonen toe.' },
   fshift: { fx: FREQSHIFT_SOLO_FX, title: 'Monofoon met FREQ SHIFT (+35 Hz, wat feedback): de boventonen schuiven uit hun verhouding, klokachtig. Range 5 Hz geeft een trage zweving.' },
   wah:    { fx: WAH_SOLO_FX, title: 'Monofoon met WAH in de stand Auto↑ (touch-wah): harder spelen opent het filter. Probeer Type Vowel voor het sprekende filter en Mode LFO.' },
+  tube:   { fx: TUBE_SOLO_FX, title: 'Getokkelde snaar door TUBE in de Amp-stand (Marshall-stack, flink opengedraaid): twee triodes, toonstack, eindtrap met sag en een kast. Probeer Stack Fender of Vox, en Mode Studio voor alleen buiswarmte.' },
   ensemble: { fx: ENSEMBLE_SOLO_FX, title: 'Gestreken snaar door de ENSEMBLE: drie vertragingslijnen in drie fasen maken van één stem een strijkersgroep, breed en zonder hoorbaar golven.' },
 } as const;
 import { PatchesPanel } from './PatchesPanel';
@@ -636,6 +637,8 @@ export function ModularMbApp(): JSX.Element {
                     c: { pluck: 0.8, level: 0.9 }, fx: 'wah' },
                   { label: '🎸 String + DRIVE (overdrive/fuzz)', t: 'tp_mmb_string', n: 'String', l: 'out', r: 'out',
                     c: { pluck: 0.6, level: 0.8 }, fx: 'drive' },
+                  { label: '🔥 String + TUBE (buizenversterker)', t: 'tp_mmb_string', n: 'String', l: 'out', r: 'out',
+                    c: { pluck: 0.6, level: 0.8 }, fx: 'tube' },
                   { label: '🔔 Rings + FREQ SHIFT', t: 'tp_mmb_rings', n: 'Rings', l: 'out_l', r: 'out_r',
                     c: { structure: 0.4, brightness: 0.6, damping: 0.6, position: 0.3, model: 0, polyphony: 1, level: 0.8 }, fx: 'fshift' },
                   { label: '〰️ Scanned (levende golftabel)', t: 'tp_mmb_scanned', n: 'Scanned', l: 'out', r: 'out',

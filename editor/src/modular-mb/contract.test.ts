@@ -12,7 +12,7 @@
 //
 // Draaien: `npm test` in editor/.
 
-import { DRIVE_SOLO_FX, ENSEMBLE_SOLO_FX, FOLDER_SOLO_FX, FREQSHIFT_SOLO_FX, WAH_SOLO_FX, seedAcidJamPatch, seedComplexVoicePatch, seedEPianoPolyPatch, seedOrganPolyPatch, seedRunglerPatch, seedRhythmBoxPatch, seedSemSweepPatch, seedSynthexPolyPatch, seedWestCoastPatch } from './seedShowcase';
+import { DRIVE_SOLO_FX, ENSEMBLE_SOLO_FX, TUBE_SOLO_FX, FOLDER_SOLO_FX, FREQSHIFT_SOLO_FX, WAH_SOLO_FX, seedAcidJamPatch, seedComplexVoicePatch, seedEPianoPolyPatch, seedOrganPolyPatch, seedRunglerPatch, seedRhythmBoxPatch, seedSemSweepPatch, seedSynthexPolyPatch, seedWestCoastPatch } from './seedShowcase';
 import { describe, expect, it } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -118,6 +118,7 @@ function allSeededProject(): ModularProject {
   p = seedRunglerPatch(p);
   p = seedSoloVoicePatch(p, 'tp_mmb_stk_sound', 'STK', 'out', 'out', {}, FOLDER_SOLO_FX);
   p = seedSoloVoicePatch(p, 'tp_mmb_string', 'String', 'out', 'out', {}, DRIVE_SOLO_FX);
+  p = seedSoloVoicePatch(p, 'tp_mmb_string', 'String', 'out', 'out', {}, TUBE_SOLO_FX);
   p = seedSoloVoicePatch(p, 'tp_mmb_rings', 'Rings', 'out_l', 'out_r', {}, FREQSHIFT_SOLO_FX);
   p = seedComplexVoicePatch(p);
   p = seedSemSweepPatch(p);

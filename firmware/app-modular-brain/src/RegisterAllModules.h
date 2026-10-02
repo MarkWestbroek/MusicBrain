@@ -98,6 +98,7 @@
 #include "RhythmBoxModule.h"
 #include "PercuterModule.h"
 #include "SynthexModule.h"
+#include "TubeModule.h"
 #include "CompDriveModule.h"
 #include "EchoModule.h"
 #include "TapeEchoModule.h"
@@ -216,6 +217,7 @@ inline void registerAllRuntimeModules() {
     RhythmBoxModule::registerFactory();  // ritmebox met de CR-78-presets
     PercuterModule::registerFactory();   // acht 8-bit drumkanalen (Dynacord Percuter)
     SynthexModule::registerFactory();    // polyfone stem naar de Elka Synthex
+    TubeModule::registerFactory();       // buizenoverdrive: gitaarversterker / studio
     CompDriveModule::registerFactory(); // FW-FX-2: compressor + overdrive
     EchoModule::registerFactory();      // FW-AU-2: feedback delay
     TapeEchoModule::registerFactory();  // bandecho (mmb-dsp), ook als wasm in de simulator

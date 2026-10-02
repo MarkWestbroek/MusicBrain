@@ -56,6 +56,8 @@ Elk plan draagt zijn eigen datum en status. Kort per thema:
 - **Editor**: [editor-ux-aanbevelingen.md](plans/editor-ux-aanbevelingen.md) (UX-01..07, besluit 2026-10-01), [patch-recept.md](plans/patch-recept.md) en [recept-tools-en-mcp.md](plans/recept-tools-en-mcp.md) (recepten, AI, MCP-server), [morph-a-b.md](plans/morph-a-b.md), [sysex-patch.md](plans/sysex-patch.md), [patch-pool.md](plans/patch-pool.md) (patches delen via musicbrain.nl), [control-surface.md](plans/control-surface.md) (Roto-Control).
 - **Stem en zang**: [stem-als-instrument.md](plans/stem-als-instrument.md), [fof-voice-overdracht.md](plans/fof-voice-overdracht.md), [zingende-stemmen.md](plans/zingende-stemmen.md).
 - **Synthex**: [synthex.md](plans/synthex.md) (polyfone stem naar de Elka Synthex, uit het schema afgeleid).
+- **Tube**: [tube.md](plans/tube.md) (buizenoverdrive: gitaarversterker en studiobuis).
+- **Labels per control**: [control-labels.md](plans/control-labels.md) (vrije tekst per patch bij PADS, faders en knoppen; plan om ze naar de Teensy te sturen).
 - **Percuter**: [percuter.md](plans/percuter.md) (acht 8-bit drumkanalen naar de Dynacord Percuter, cartridge-dumps omzetten).
 - **Ritmebox**: [ritmebox.md](plans/ritmebox.md) (CR-78-presets uit de Service Notes overgenomen, wat er ontbreekt, en waarom de Elka-ritmes niet uit de documentatie komen).
 - **Samplebanken**: [bank-store.md](plans/bank-store.md) (voorstel: banken met uuid en revisie, patch verwijst naar de bank in plaats van het nummer, meer dan 16 plekken).

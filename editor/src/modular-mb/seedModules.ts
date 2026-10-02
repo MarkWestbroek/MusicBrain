@@ -3975,6 +3975,42 @@ function mmbDrive() {
   });
 }
 
+// MMB TUBE — 10 HP. Buizenoverdrive: gitaarversterker of studio-voorversterker (firmware tp_mmb_tube).
+function mmbTube() {
+  const w = W(10);
+  return assemble({
+    typeId: 'tp_mmb_tube', categoryId: 'effect',
+    variant: 'Tube (buizenversterker / studio-buis)',
+    brand: 'MMB', model: 'TUBE',
+    hp: 10, texture: 'pcb-black', baseColor: '#2b1d12', internal: true,
+    texts: [
+      { x: w/2, y: 8, text: 'TUBE', fontSize: 2.4, color: '#fbbf24', align: 'middle' },
+      { x: w/2, y: 13, text: 'buizenoverdrive', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      sw('mode', 'Mode', w*0.25, 24, ['Studio', 'Amp'], 1),
+      knob('drive', 'Drive', w*0.68, 26, { size: 'large', min: 0, max: 1, def: 0.5, color: '#f59e0b' }),
+      sw('stack', 'Stack', w*0.25, 44, ['Fender', 'Marshall', 'Vox'], 0),
+      knob('bias', 'Bias', w*0.68, 46, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('bass', 'Bass', w*0.2, 62, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('mid', 'Mid', w*0.5, 62, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('treble', 'Treble', w*0.8, 62, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('presence', 'Pres', w*0.2, 79, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('sag', 'Sag', w*0.5, 79, { size: 'small', min: 0, max: 1, def: 0.4, color: '#f9fafb' }),
+      sw('cab', 'Cab', w*0.8, 79, ['Uit', 'Aan'], 1),
+      knob('mix', 'Mix', w*0.2, 96, { size: 'small', min: 0, max: 1, def: 1, color: '#f9fafb' }),
+      knob('level', 'Level', w*0.5, 96, { size: 'small', min: 0, max: 1, def: 0.6, color: '#f9fafb' }),
+      inPort('drive_cv', 'Drv+', 'cv', w*0.8, 96),
+      inPort('in_l', 'In L', 'audio', w*0.15, 114),
+      inPort('in_r', 'In R', 'audio', w*0.38, 114),
+      outPort('out_l', 'Out L', 'audio', w*0.62, 114),
+      outPort('out_r', 'Out R', 'audio', w*0.85, 114),
+    ],
+    notes: 'Buizenoverdrive in twee standen. Wat een buis anders doet dan een diode: hij clipt asymmetrisch (boven nul gaat er roosterstroom lopen en wordt de top zacht afgerond, onder nul knijpt hij later en harder dicht), dus even boventonen; en de roosterstroom laadt de koppelcondensator op, waardoor het werkpunt na een harde aanslag even wegzakt en in tientallen milliseconden terugkomt (blocking): de vervorming ademt mee met je spel. Amp = gitaarversterker: twee triodetrappen, dan de toonstack (Stack Fender: diep gat in het midden rond 400 Hz; Marshall: ondieper en hoger, meer midden; Vox top boost: weinig gat, helder) met Bass/Mid/Treble, dan de push-pull-eindtrap met Sag (de voeding zakt in bij hard spelen: compressie, sponziger) en Presence, en een kastsimulatie (Cab; zet hem uit voor een eigen kast of galm). Studio = één triodetrap en een uitgangstrafo die het laag iets verzadigt: warmte en tweede harmonische op een stem, synth of mix, zonder toonstack of kast; Level blijft ongeveer gelijk als je Drive draait. Bias: links koud (eerder dichtknijpen, rauwer), rechts warm (eerder roosterstroom, ronder). Mix maakt het parallel. Drv+ (CV) telt op bij Drive. Stereo: twee gelijke kanalen; alleen In L = mono naar beide. Vier keer overbemonsterd. Een eigen model op gedrag en topologie, geen simulatie per onderdeel. Firmware tp_mmb_tube, mmb_dsp::Tube; in de simulator draait dezelfde code als wasm.',
+  });
+}
+
 // MMB FREQ-SHIFT — 8 HP. Frequency shifter (firmware tp_mmb_freqshift).
 function mmbFreqShift() {
   const w = W(8);
@@ -4280,13 +4316,15 @@ function mmbEPiano() {
       knob('level', 'Level', w*0.90, 30, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
       knob('tremolo', 'Tremolo', w*0.24, 58, { size: 'small', min: 0, max: 1, def: 0.3, color: '#2dd4bf' }),
       knob('trem_rate', 'Rate', w*0.42, 58, { size: 'small', min: 0.5, max: 12, def: 4.5, unit: 'Hz', color: '#2dd4bf' }),
+      knob('damper', 'Damper', w*0.58, 58, { size: 'small', min: 0, max: 1, def: 0.6, color: '#f9fafb' }),
+      inPort('sustain', 'Sust', 'gate', w*0.08, 58),
       outPort('out_l', 'L', 'audio', w*0.76, 58),
       outPort('out_r', 'R', 'audio', w*0.90, 58),
       ...cells.map((k) => inPort(`voct_${k}`, '', 'cv',   colX(k - 1), 88,  { cellGroupId: 'voice' })),
       ...cells.map((k) => inPort(`gate_${k}`, '', 'gate', colX(k - 1), 100, { cellGroupId: 'voice' })),
       ...cells.map((k) => inPort(`vel_${k}`,  `${k}`, 'cv', colX(k - 1), 112, { cellGroupId: 'voice' })),
     ],
-    notes: 'Elektrische piano als model, zonder samples. De klank zit maar voor de helft in wat er trilt; de andere helft is hoe de pickup dat ziet, en die twee zijn hier apart gebouwd. Wat trilt: per toets een grondtoon die traag uitsterft en een hoge, niet-harmonische boventoon die snel wegsterft (Bell): de tik in de aanslag. Harder aanslaan geeft meer uitwijking en verhoudingsgewijs meer bel. Type Tine (Rhodes-familie): een magnetische pickup. Timbre is de plek van de tine voor de pickup, de stelschroef waarmee een technicus het instrument afregelt. Recht ervoor (0) passeert de tine het midden twee keer per trilling en klinkt vooral het octaaf: dun en glazig. Ernaast (hoger) komt de grondtoon terug: vol en rond. Drive is hoe dicht de tine bij de pickup staat: verder open gaat hij bij hard spelen blaffen. Type Reed (Wurlitzer-familie): een stalen tong voor een condensatorplaat; holler, nasaler, en de noot sterft sneller uit. Decay is de uitklinktijd (hoge noten korter, zoals het instrument). Tremolo is het heen-en-weer tussen links en rechts van het koffermodel. Velocity doet veel: zonder kabel op Vel krijgt elke noot een gemiddelde aanslag. Twaalf toetsen tegelijk: Poly ▾ → E-piano ×12. Zet er de ENSEMBLE, de PHASER of de TREMOLO achter. Eigen model op meting, geen kopie van een bepaald exemplaar. Firmware tp_mmb_epiano, mmb_dsp::EPiano; in de simulator draait dezelfde code als wasm.',
+    notes: 'Elektrische piano als model, zonder samples. De klank zit maar voor de helft in wat er trilt; de andere helft is hoe de pickup dat ziet, en die twee zijn hier apart gebouwd. Wat trilt: per toets een grondtoon die traag uitsterft en een hoge, niet-harmonische boventoon die snel wegsterft (Bell): de tik in de aanslag. Harder aanslaan geeft meer uitwijking en verhoudingsgewijs meer bel. Type Tine (Rhodes-familie): een magnetische pickup. Timbre is de plek van de tine voor de pickup, de stelschroef waarmee een technicus het instrument afregelt. Recht ervoor (0) passeert de tine het midden twee keer per trilling en klinkt vooral het octaaf: dun en glazig. Ernaast (hoger) komt de grondtoon terug: vol en rond. Drive is hoe dicht de tine bij de pickup staat: verder open gaat hij bij hard spelen blaffen. Type Reed (Wurlitzer-familie): een stalen tong voor een condensatorplaat; holler, nasaler, en de noot sterft sneller uit. Decay is de uitklinktijd (hoge noten korter, zoals het instrument). Tremolo is het heen-en-weer tussen links en rechts van het koffermodel. Damper is hoe snel de vilten demper een losgelaten toets stilt (0 = geen dempers: alles klinkt vrij uit; 1 = in ~15 ms); de bel wordt mee gedempt. Sust is het sustainpedaal (gate, bijvoorbeeld MIDI-IN CC2# = 64): zolang het hoog is klinken losgelaten toetsen vrij uit, en bij loslaten vallen de dempers op alle toetsen die niet meer ingedrukt zijn. Velocity doet veel: zonder kabel op Vel krijgt elke noot een gemiddelde aanslag. Twaalf toetsen tegelijk: Poly ▾ → E-piano ×12. Zet er de ENSEMBLE, de PHASER of de TREMOLO achter. Eigen model op meting, geen kopie van een bepaald exemplaar. Firmware tp_mmb_epiano, mmb_dsp::EPiano; in de simulator draait dezelfde code als wasm.',
   });
 }
 
@@ -4701,7 +4739,7 @@ export function seedInternals(project: ModularProject): ModularProject {
   all.push(mmbExcitable());
   all.push(mmbTapeStrip());
   all.push(mmbClock(), mmbEuclid(), mmbTuring(), mmbBranches(), mmbChaos(), mmbLfo8(), mmbSlope(), mmbLogic());
-  all.push(mmbFolder(), mmbLpg(), mmbDrive(), mmbFreqShift(), mmbAcid(), mmbRungler(), mmbOrgan());
+  all.push(mmbFolder(), mmbLpg(), mmbDrive(), mmbTube(), mmbFreqShift(), mmbAcid(), mmbRungler(), mmbOrgan());
   all.push(mmbSem(), mmbComplex(), mmbWah(), mmbEnsemble(), mmbEPiano());
   all.push(mmbPads(), mmbFaders(), mmbKnobs());
   all.push(mmbRhythm(), mmbPercuter(), mmbSynthex());

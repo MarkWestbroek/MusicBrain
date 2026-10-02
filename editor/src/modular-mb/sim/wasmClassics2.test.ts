@@ -247,6 +247,26 @@ describe('tp_mmb_epiano', () => {
     expect(Math.max(a, b) / Math.min(a, b)).toBeGreaterThan(3);
   });
 
+  it('dempers en sustainpedaal: met het pedaal klinkt een losgelaten toets door, zonder valt de demper erop', async () => {
+    const ring = async (set: (m: Mod) => void, feed: (t: number, m: Mod) => void): Promise<{ m: Mod; out: Float32Array }> => {
+      const m = await load('tp_mmb_epiano');
+      m.setCtl('tremolo', 0);
+      set(m);
+      return { m, out: m.render(1.2, (t, mm) => { mm.setIn('voct_1', 0); mm.setIn('vel_1', 0.8); mm.setIn('gate_1', t < 0.3 ? 1 : 0); feed(t, mm); }).out_l! };
+    };
+    const tail = (r: { m: Mod; out: Float32Array }): number => rms(r.out, at(0.5, r.m), at(0.7, r.m));
+    const damped = await ring(() => {}, () => {});
+    const pedal = await ring(() => {}, (t, mm) => mm.setIn('sustain', t < 0.8 ? 1 : 0));
+    const noDampers = await ring((m) => m.setCtl('damper', 0), () => {});
+    const fast = await ring((m) => m.setCtl('damper', 1), () => {});
+    expect(tail(pedal)).toBeGreaterThan(tail(damped) * 20);
+    expect(tail(noDampers)).toBeGreaterThan(tail(damped) * 20);
+    // Pedaal los op 0,8 s: daarna valt hij snel stil.
+    expect(rms(pedal.out, at(1.05, pedal.m), at(1.2, pedal.m))).toBeLessThan(tail(pedal) * 0.05);
+    // Snelle demper: binnen 50 ms na loslaten al ver weg.
+    expect(rms(fast.out, at(0.33, fast.m), at(0.36, fast.m))).toBeLessThan(rms(damped.out, at(0.33, damped.m), at(0.36, damped.m)));
+  });
+
   it('twaalf toetsen hard aangeslagen blijven eindig en binnen ±1', async () => {
     const m = await load('tp_mmb_epiano');
     m.setCtl('drive', 1); m.setCtl('bell', 1); m.setCtl('level', 1);
@@ -444,5 +464,56 @@ describe('tp_mmb_synthex', () => {
     for (const [id, v] of [['res', 10], ['noise', 10], ['ring', 1], ['lfo_osc', 1], ['lfo_vcf', 1], ['lfo_vca', 1], ['lfo_pw', 1], ['o1_wave', 2], ['env_amt', 10], ['glide', 1]] as const) m.setCtl(id, v);
     const o = m.render(2, (t, mm) => { for (let k = 1; k <= 8; k++) key(k, -2 + k * 0.4, 0.05 * k, 1.5)(t, mm); mm.setIn('bend', 1); mm.setIn('joy', 1); });
     for (const name of ['out_l', 'out_r']) { expect(o[name]!.every(Number.isFinite)).toBe(true); expect(peak(o[name]!)).toBeLessThanOrEqual(1); }
+  });
+});
+
+describe('tp_mmb_tube', () => {
+  it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_tube'); });
+
+  const tube = async (controls: Record<string, number>, hz = 220, amplitude = 0.3, seconds = 0.5) => {
+    const m = await load('tp_mmb_tube');
+    for (const [id, value] of Object.entries(controls)) m.setCtl(id, value);
+    const out = m.render(seconds, sine(hz, amplitude, 'in_l'));
+    return { m, l: out.out_l!, r: out.out_r! };
+  };
+  const harmonic = (m: Mod, out: Float32Array, hz: number, n: number): number => db(toneLevel(out, hz * n, m.rate, at(0.25, m)));
+
+  it('studio: vooral de tweede harmonische, en ongeveer even luid bij elke Drive', async () => {
+    const { m, l } = await tube({ mode: 0, drive: 0.5, cab: 0 });
+    expect(harmonic(m, l, 220, 2)).toBeGreaterThan(harmonic(m, l, 220, 3) + 2);
+    expect(harmonic(m, l, 220, 2)).toBeGreaterThan(harmonic(m, l, 220, 1) - 30);
+    const levels = await Promise.all([0, 0.5, 1].map(async (drive) => { const t = await tube({ mode: 0, drive, cab: 0 }); return db(rms(t.l, at(0.25, t.m))); }));
+    expect(Math.max(...levels) - Math.min(...levels)).toBeLessThan(4);
+  });
+
+  it('amp: meer Drive is meer vervorming, begrensd en eindig; L zonder R speelt op beide', async () => {
+    const clean = await tube({ mode: 1, drive: 0, cab: 0 }), hot = await tube({ mode: 1, drive: 1, cab: 0 });
+    const third = (t: typeof clean) => harmonic(t.m, t.l, 220, 3) - harmonic(t.m, t.l, 220, 1);
+    expect(third(hot)).toBeGreaterThan(third(clean) + 15);
+    expect(peak(hot.l)).toBeLessThanOrEqual(1);
+    expect(finite(hot.l) && finite(hot.r)).toBe(true);
+    expect(hot.r).toEqual(hot.l);
+  });
+
+  it('de stacks: Fender heeft het diepste gat rond 400 Hz', async () => {
+    const scoop = async (stack: number): Promise<number> => {
+      const level = async (hz: number) => { const t = await tube({ mode: 1, drive: 0, cab: 0, stack }, hz, 0.01, 0.3); return db(rms(t.l, at(0.15, t.m))); };
+      return await level(400) - (await level(100) + await level(1000)) / 2;
+    };
+    const fender = await scoop(0), marshall = await scoop(1), vox = await scoop(2);
+    expect(fender).toBeLessThan(marshall - 3);
+    expect(fender).toBeLessThan(vox - 3);
+  });
+
+  it('Sag maakt de eindtrap zachter bij hard spelen; Mix 0 is droog; Drive-CV telt op', async () => {
+    const level = async (sag: number) => { const t = await tube({ mode: 1, drive: 1, cab: 0, sag }, 110, 1); return rms(t.l, at(0.25, t.m)); };
+    expect(db(await level(1))).toBeLessThan(db(await level(0)) - 3);
+    const dry = await tube({ mode: 1, drive: 1, mix: 0 });
+    expect(harmonic(dry.m, dry.l, 220, 3) - harmonic(dry.m, dry.l, 220, 1)).toBeLessThan(-80);
+    const pushed = await load('tp_mmb_tube');
+    pushed.setCtl('mode', 0); pushed.setCtl('drive', 0); pushed.setIn('drive_cv', 1);
+    const p = pushed.render(0.5, sine(220, 0.3, 'in_l')).out_l!;
+    const base = await tube({ mode: 0, drive: 0 });
+    expect(harmonic(pushed, p, 220, 3)).toBeGreaterThan(harmonic(base.m, base.l, 220, 3) + 15);
   });
 });

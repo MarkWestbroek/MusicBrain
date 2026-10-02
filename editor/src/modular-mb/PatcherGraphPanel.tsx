@@ -23,6 +23,7 @@ import '@xyflow/react/dist/style.css';
 import { updateProject, useModularProject, uid } from './store';
 import { RecipeContextMenu, type MenuAnchor } from './recipe/RecipeContextMenu';
 import { ModulePanel } from './ModulePanel';
+import { ControlLabelFields, setControlLabel } from './controlLabels';
 import { sendControlPoke } from './teensyLink';
 import { polyControlTargets } from './polyExpand';
 import { DX7_VOICE_NAMES, DX7_BANK_SHORT } from './dx7BankNames';
@@ -52,6 +53,8 @@ interface ModuleNodeData {
   module: ModuleInstance;
   types: ModuleType[];
   controlState: Record<string, ControlValue>;
+  /** Onderschriften van deze patch voor deze module (Patch.controlLabels). */
+  controlLabels?: Record<string, string>;
   patchId: string;
   /** Aantal stemmen van de patch (patch.voiceCount). Gebruikt o.a. door de
    *  MIDI-IN om het stem-aantal te tonen en steal te grijzen bij mono. */
@@ -69,7 +72,7 @@ interface ModuleNodeData {
 }
 
 function ModuleNode({ data, selected }: NodeProps): JSX.Element {
-  const { module: m, types, controlState, patchId, voice, ghost, voiceCount, cellPoly } = data as unknown as ModuleNodeData;
+  const { module: m, types, controlState, controlLabels, patchId, voice, ghost, voiceCount, cellPoly } = data as unknown as ModuleNodeData;
   // Live-status (step-LEDs etc.) wordt hier lokaal gemerged zodat een
   // engineStatus-tick niet de hele graph laat re-builden — alleen deze
   // node re-rendert.
@@ -115,6 +118,10 @@ function ModuleNode({ data, selected }: NodeProps): JSX.Element {
     }));
   }
 
+  function setLabelHere(controlId: string, text: string): void {
+    setControlLabel(patchId, m.id, controlId, text);
+  }
+
   return (
     <div
       className="nopan nowheel"
@@ -138,10 +145,13 @@ function ModuleNode({ data, selected }: NodeProps): JSX.Element {
         pxPerMm={PX_PER_MM}
         showPortLabels={true}
         disabledControlIds={disabledControlIds}
+        controlLabels={controlLabels}
+        onControlLabelChange={ghost ? undefined : setLabelHere}
       />
       {voice && (
         <div style={{
-          position: 'absolute', top: 2, left: 2, zIndex: 5,
+          // Boven het paneel, niet erop: anders dekt het schuiven en knoppen af.
+          position: 'absolute', bottom: '100%', marginBottom: 2, left: 0, zIndex: 5, whiteSpace: 'nowrap',
           fontSize: 9, fontWeight: 600, color: '#0f172a',
           background: voice.group.color || '#22d3ee',
           padding: '1px 5px', borderRadius: 3,
@@ -155,7 +165,8 @@ function ModuleNode({ data, selected }: NodeProps): JSX.Element {
       )}
       {!voice && cellPoly && (
         <div style={{
-          position: 'absolute', top: 2, left: 2, zIndex: 5,
+          // Boven het paneel, niet erop: anders dekt het schuiven en knoppen af.
+          position: 'absolute', bottom: '100%', marginBottom: 2, left: 0, zIndex: 5, whiteSpace: 'nowrap',
           fontSize: 9, fontWeight: 600, color: '#0f172a',
           background: cellPoly.group.color || '#22d3ee',
           padding: '1px 5px', borderRadius: 3,
@@ -572,6 +583,7 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
           module: m,
           types: project.moduleTypes,
           controlState: patch.controlState[m.id] ?? {},
+          controlLabels: patch.controlLabels?.[m.id],
           patchId,
           voiceCount: patch.voiceCount,
           voice,
@@ -1049,6 +1061,7 @@ function PropertiesPanel(props: { patchId: string; selectedNodeId: string | null
           })}
         </tbody>
       </table>
+      <ControlLabelFields moduleId={m.id} controls={t.controls} patchId={patchId} />
       {ports.length > 0 && (
         <>
           <h4 style={{ fontSize: 10, textTransform: 'uppercase', color: '#6b7280', margin: '10px 0 4px' }}>

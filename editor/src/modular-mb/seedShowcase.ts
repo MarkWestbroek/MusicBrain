@@ -195,6 +195,12 @@ export const DRIVE_SOLO_FX = {
   controls: { drive: 0.6, tone: 0.5, level: 0.5, mode: 0, mix: 1 },
 } as const;
 
+/** TUBE achter een solo-instrument: Marshall-stand, flink aangestuurd. */
+export const TUBE_SOLO_FX = {
+  typeId: 'tp_mmb_tube', label: 'TUBE',
+  controls: { mode: 1, drive: 0.7, bias: 0.5, bass: 0.55, mid: 0.6, treble: 0.55, stack: 1, presence: 0.55, sag: 0.5, cab: 1, mix: 1, level: 0.6 },
+} as const;
+
 /** FOLDER achter een sinus: de 259-stand, een eind open. */
 export const FOLDER_SOLO_FX = {
   typeId: 'tp_mmb_folder', label: 'FOLDER', mono: true,
@@ -320,18 +326,19 @@ export function seedEPianoPolyPatch(project: ModularProject): ModularProject {
   }];
   const patch: Patch = {
     id: uid('patch'), name: `E-piano ×${N}`,
-    description: 'Elektrische piano met twaalf toetsen: een model van tine en pickup, zonder samples. Speel zacht en hard: de klank verandert met de aanslag, van rond naar blaffend. Timbre is de plek van de tine voor de pickup (0 = dun en glazig, hoger = vol); Bell is de tik in de aanslag; Type Reed geeft de hollere Wurlitzer-kant. Tremolo wiegt tussen links en rechts.',
+    description: 'Elektrische piano met twaalf toetsen: een model van tine en pickup, zonder samples. Speel zacht en hard: de klank verandert met de aanslag, van rond naar blaffend. Timbre is de plek van de tine voor de pickup (0 = dun en glazig, hoger = vol); Bell is de tik in de aanslag; Type Reed geeft de hollere Wurlitzer-kant. Tremolo wiegt tussen links en rechts. Het sustainpedaal (CC64) zit via MIDI-IN CC2 op Sust; Damper is hoe snel losgelaten toetsen stilvallen.',
     voiceCount: N, rackIds: [rack.id],
     connections: cables([
       [midi, 'pitch', piano, 'voct_1'],
       [midi, 'gate', piano, 'gate_1'],
       [midi, 'vel', piano, 'vel_1'],
+      [midi, 'cv_cc2', piano, 'sustain'],
       [piano, 'out_l', out, 'l'],
       [piano, 'out_r', out, 'r'],
     ]),
     controlState: {
-      [midi.id]: { channel: 0, voiceCount: N, steal: 0 },
-      [piano.id]: { type: 0, timbre: 0.35, bell: 0.5, decay: 0.5, drive: 0.4, tremolo: 0.3, trem_rate: 4.5, level: 0.8 },
+      [midi.id]: { channel: 0, voiceCount: N, steal: 0, cc2Num: 64 },
+      [piano.id]: { type: 0, timbre: 0.35, bell: 0.5, decay: 0.5, drive: 0.4, tremolo: 0.3, trem_rate: 4.5, level: 0.8, damper: 0.6 },
       [out.id]: { level: 0.85 },
     },
     envelopes: [], lfos: [],
@@ -366,6 +373,7 @@ export function seedRhythmBoxPatch(project: ModularProject): ModularProject {
       [box, 'out_l', out, 'l'],
       [box, 'out_r', out, 'r'],
     ]),
+    controlLabels: { [pads.id]: { b1: 'Start/Stop', b2: 'Restart' } },
     controlState: {
       [box.id]: { rhythm: 14, variation: 2, tempo: 128, run: 1, extclock: 0, accent: 0.6, bass: 0.8, snare: 0.8, metal: 0.7, perc: 0.7, level: 0.8 },
       [out.id]: { level: 0.85 },

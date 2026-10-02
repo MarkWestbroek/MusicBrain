@@ -54,7 +54,7 @@ build() {  # naam typeId include-dirs... -- bronnen...
     -std=c++17 -O3 -msimd128 -fno-exceptions -fno-rtti -DTEST \
     -Wno-unused-value -Wno-deprecated-register -include cstdio \
     -I"$HERE" -I"$HERE/shim" ${incs[@]+"${incs[@]}"} $FALLBACK_INC ${EXTRA:-} \
-    -nostartfiles -Wl,--no-entry -Wl,--export-memory -Wl,--max-memory="${MAXMEM:-$MAXMEM_DEFAULT}" -Wl,-z,stack-size=262144 \
+    -mexec-model=reactor -nostartfiles -Wl,--no-entry -Wl,--export-memory -Wl,--max-memory="${MAXMEM:-$MAXMEM_DEFAULT}" -Wl,-z,stack-size=262144 \
     -o "$OUTDIR/$typeId.wasm" \
     "$HERE/${name}_wasm.cc" "$@" 2> "$OUTDIR/$typeId.log"; then
     echo "   MISLUKT — zie $OUTDIR/$typeId.log"; grep -m3 "error:" "$OUTDIR/$typeId.log" | sed 's/^/   /'; FAILED="$FAILED $typeId"
@@ -205,6 +205,7 @@ sel ensemble && build ensemble tp_mmb_ensemble "$LIB/mmb-dsp" --
 sel epiano && build epiano tp_mmb_epiano "$LIB/mmb-dsp" --
 sel rhythm && build rhythm tp_mmb_rhythm "$LIB/mmb-dsp" --
 sel synthex && build synthex tp_mmb_synthex "$LIB/mmb-dsp" --
+sel tube && build tube tp_mmb_tube "$LIB/mmb-dsp" --
 
 sel envfollower && build envfollower tp_mmb_env_follower "$LIB/mmb-dsp" --
 sel envfollower && EXTRA="-DMMB_EF_CELLS=1" build envfollower tp_mmb_env_follower_mono "$LIB/mmb-dsp" --

@@ -76,6 +76,11 @@ export interface ModulePanelProps {
   /** Controls that are inactive in the current context (e.g. `steal` in a
    *  monophonic patch). Rendered greyed-out and non-interactive. */
   disabledControlIds?: ReadonlySet<string>;
+  /** Onderschriften van deze patch (controlId → tekst); getoond als klein
+   *  display bij een knop. */
+  controlLabels?: Record<string, string>;
+  /** Gezet = dubbelklik op het label van een knop vraagt om een onderschrift. */
+  onControlLabelChange?: (controlId: string, text: string) => void;
 }
 
 export function ModulePanel({
@@ -88,6 +93,8 @@ export function ModulePanel({
   pxPerMm = 3,
   showPortLabels = true,
   disabledControlIds,
+  controlLabels,
+  onControlLabelChange,
 }: ModulePanelProps): JSX.Element {
   const visual   = mod.visual;
   const widthMm  = visual.hpWidth * MM_PER_HP;
@@ -194,6 +201,8 @@ export function ModulePanel({
               controlState={controlState}
               onChange={!disabled && onControlChange ? (v) => onControlChange(c.id, v) : undefined}
               textCol={textCol}
+              caption={controlLabels?.[c.id]}
+              onCaption={onControlLabelChange ? (text) => onControlLabelChange(c.id, text) : undefined}
             />
           </g>
         );
@@ -514,17 +523,19 @@ function ControlGlyph(props: {
   controlState?: Record<string, ControlValue>;
   onChange?: (v: ControlValue) => void;
   textCol: string;
+  caption?: string;
+  onCaption?: (text: string) => void;
 }): JSX.Element | null {
-  const { control: c, x, y, rotation, sizeOverride, value, controls, controlState, onChange, textCol } = props;
+  const { control: c, x, y, rotation, sizeOverride, value, controls, controlState, onChange, textCol, caption, onCaption } = props;
   switch (c.kind) {
     case 'knob':
       return <KnobGlyph c={c} x={x} y={y} sizeOverride={sizeOverride}
         value={typeof value === 'number' ? value : c.defaultValue}
-        onChange={onChange} textCol={textCol} />;
+        onChange={onChange} textCol={textCol} caption={caption} />;
     case 'slider':
       return <SliderGlyph c={c} x={x} y={y} rotation={rotation}
         value={typeof value === 'number' ? value : c.defaultValue}
-        onChange={onChange} textCol={textCol} />;
+        onChange={onChange} textCol={textCol} caption={caption} />;
     case 'toggle':
       return <ToggleGlyph c={c} x={x} y={y}
         value={typeof value === 'boolean' ? value : c.defaultValue}
@@ -536,7 +547,7 @@ function ControlGlyph(props: {
     case 'button':
       return <ButtonGlyph c={c} x={x} y={y}
         value={typeof value === 'boolean' ? value : (c.defaultValue ?? false)}
-        onChange={onChange} textCol={textCol} />;
+        onChange={onChange} textCol={textCol} caption={caption} onCaption={onCaption} />;
     case 'joystick':
       return <JoystickGlyph c={c} x={x} y={y}
         value={typeof value === 'object' && value !== null && 'x' in value ? value : c.defaultValue}
@@ -559,13 +570,15 @@ function ControlGlyph(props: {
 // ── Knob ────────────────────────────────────────────────────────────────
 
 function KnobGlyph({
-  c, x, y, sizeOverride, value, onChange, textCol,
+  c, x, y, sizeOverride, value, onChange, textCol, caption,
 }: {
   c: import('./types').KnobControl;
   x: number; y: number;
   sizeOverride?: 'small' | 'medium' | 'large';
   value: number; onChange?: (v: number) => void;
   textCol: string;
+  /** Label van de patch (Patch.controlLabels): vervangt de gedrukte naam, in groen. */
+  caption?: string;
 }): JSX.Element {
   const size = sizeOverride ?? c.size ?? 'medium';
   const r = KNOB_R[size] ?? KNOB_R.medium!;
@@ -671,8 +684,8 @@ function KnobGlyph({
         stroke={pointerColourFor(c.style ?? 'generic', cap)}
         strokeWidth={Math.max(0.4, r * 0.16)} strokeLinecap="round" />
       {/* label below */}
-      <text x={x} y={y + r + 2.2} fontSize={1.8} fill={textCol}
-        textAnchor="middle" fontWeight={500}>{c.label}</text>
+      <text x={x} y={y + r + 2.2} fontSize={1.8} fill={caption ? '#4ade80' : textCol}
+        textAnchor="middle" fontWeight={500}>{caption ?? c.label}</text>
     </g>
   );
 }
@@ -747,12 +760,14 @@ function pointerColourFor(style: import('./types').KnobStyle, cap: string): stri
 // ── Slider ──────────────────────────────────────────────────────────────
 
 function SliderGlyph({
-  c, x, y, rotation, value, onChange, textCol,
+  c, x, y, rotation, value, onChange, textCol, caption,
 }: {
   c: import('./types').SliderControl;
   x: number; y: number; rotation: number;
   value: number; onChange?: (v: number) => void;
   textCol: string;
+  /** Label van de patch (Patch.controlLabels): vervangt de gedrukte naam, in groen. */
+  caption?: string;
 }): JSX.Element {
   const len = c.lengthMm ?? 18;
   const isV = c.orientation === 'v';
@@ -797,7 +812,7 @@ function SliderGlyph({
       <rect x={capX - 1.5} y={capY - 0.9} width={3} height={1.8}
         fill="#e5e7eb" stroke="#1a1a1a" strokeWidth={0.15} rx={0.3} />
       <text x={x} y={isV ? y2 + 2 : y + 3.6} fontSize={1.6}
-        fill={textCol} textAnchor="middle">{c.label}</text>
+        fill={caption ? '#4ade80' : textCol} textAnchor="middle">{caption ?? c.label}</text>
     </g>
   );
 }
@@ -869,12 +884,14 @@ function SwitchGlyph({
 // ── Button ──────────────────────────────────────────────────────────────
 
 function ButtonGlyph({
-  c, x, y, value, onChange, textCol,
+  c, x, y, value, onChange, textCol, caption, onCaption,
 }: {
   c: import('./types').ButtonControl;
   x: number; y: number;
   value: boolean; onChange?: (v: boolean) => void;
   textCol: string;
+  caption?: string;
+  onCaption?: (text: string) => void;
 }): JSX.Element {
   // Momentary: hoog zolang de knop is ingedrukt (een gate die je kunt
   // vasthouden), maar minstens 100 ms, zodat ook een vlugge klik door de
@@ -903,7 +920,54 @@ function ButtonGlyph({
         fill={value ? '#fbbf24' : (c.style === 'led' ? '#1a1a1a' : '#4b5563')}
         stroke="#000" strokeWidth={0.2} />
       {c.size === 'large' && <circle cx={x} cy={y} r={r * 0.78} fill="none" stroke="#000" strokeOpacity={0.35} strokeWidth={0.25} />}
-      <text x={x} y={y + r + 2.2} fontSize={1.5} fill={textCol} textAnchor="middle">{c.label}</text>
+      <CaptionLabel x={x} y={y + r} label={c.label} caption={caption} onCaption={onCaption} textCol={textCol}
+        width={Math.max(2 * r + 6, 14)} display={c.size === 'large'} />
+    </g>
+  );
+}
+
+/** Label onder een knop; met een onderschrift van de patch een klein groen
+ *  display ("1 Start/Stop"). Dubbelklik vraagt om de tekst (leeg = weg). */
+function CaptionLabel({ x, y, label, caption, onCaption, textCol, width, display = false }: {
+  x: number; y: number; label: string; caption?: string;
+  onCaption?: (text: string) => void; textCol: string; width: number;
+  /** Altijd een display tonen (grote knoppen, PADS), ook zonder tekst. */
+  display?: boolean;
+}): JSX.Element {
+  function edit(e: React.PointerEvent): void {
+    if (!onCaption) return;
+    e.stopPropagation();
+    const text = window.prompt(`Tekst bij ${label} (leeg = weghalen)`, caption ?? '');
+    if (text !== null) onCaption(text.trim().slice(0, 24));
+  }
+  const tip = onCaption ? <title>Tekst voor deze patch: rechts in de eigenschappen, of dubbelklik hier</title> : null;
+  // Dubbelklik zelf herkennen (twee keer drukken binnen 400 ms): in de patcher
+  // vangt de zoom van het canvas (d3-zoom) `dblclick` af voordat React hem
+  // ziet. En het label drukt de knop niet in.
+  const lastDown = useRef(0);
+  const stop = (e: React.PointerEvent): void => {
+    e.stopPropagation();
+    const now = Date.now();
+    if (now - lastDown.current < 400) { lastDown.current = 0; edit(e); } else lastDown.current = now;
+  };
+  if (!caption && !display) {
+    return (
+      <g onPointerDown={stop} style={{ cursor: onCaption ? 'text' : undefined }}>
+        {tip}
+        <text x={x} y={y + 2.2} fontSize={1.5} fill={textCol} textAnchor="middle">{label}</text>
+      </g>
+    );
+  }
+  const fit = Math.min(2.1, (width - 1) / (0.62 * ((caption?.length ?? 0) + label.length + 1)));
+  return (
+    <g onPointerDown={stop} style={{ cursor: onCaption ? 'text' : undefined }}>
+      {tip}
+      <rect x={x - width / 2} y={y + 0.6} width={width} height={3.4} rx={0.5}
+        fill="#06140c" stroke="#000" strokeWidth={0.15} />
+      <text x={x} y={y + 2.3 + fit * 0.35} fontSize={fit} fill="#4ade80" textAnchor="middle"
+        fontFamily="ui-monospace, monospace">
+        <tspan fill="#86efac" fillOpacity={0.6}>{label}</tspan>{caption ? ` ${caption}` : ''}
+      </text>
     </g>
   );
 }

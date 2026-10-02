@@ -34,17 +34,18 @@ namespace mmb_dsp {
 class EPiano {
 public:
     static constexpr int kVoices = 12;
-    enum Control { Type, Timbre, Bell, Decay, Drive, Tremolo, TremRate, Level, kControls };
-    // CV's: 0..11 V/Oct, 12..23 velocity, 24..35 gate (de gate als laatste:
-    // de aanslag leest toonhoogte en velocity van hetzelfde moment).
-    static constexpr int kVelBase = kVoices, kGateBase = 2 * kVoices, kCvIns = 3 * kVoices;
+    enum Control { Type, Timbre, Bell, Decay, Drive, Tremolo, TremRate, Level, Damper, kControls };
+    // CV's: 0..11 V/Oct, 12..23 velocity, 24 sustainpedaal, 25..36 gate (de
+    // gate als laatste: de aanslag leest toonhoogte en velocity van hetzelfde
+    // moment).
+    static constexpr int kVelBase = kVoices, kSustain = 2 * kVoices, kGateBase = 2 * kVoices + 1, kCvIns = 3 * kVoices + 1;
     static constexpr int kCvOuts = 0;
-    static constexpr float kDefaults[kControls] = {0.0f, 0.35f, 0.5f, 0.5f, 0.4f, 0.3f, 4.5f, 0.8f};
+    static constexpr float kDefaults[kControls] = {0.0f, 0.35f, 0.5f, 0.5f, 0.4f, 0.3f, 4.5f, 0.8f, 0.6f};
 
     void Init(float sampleRate) {
         *this = EPiano();
         sampleRate_ = finiteClamp(sampleRate, 8000, 192000, 44100);
-        damper_ = std::exp(-1 / (0.06f * sampleRate_));
+        setControl(Damper, kDefaults[Damper]);
         strike_ = 1 - std::exp(-1 / (0.0015f * sampleRate_));
     }
 
@@ -58,6 +59,14 @@ public:
             case Tremolo: tremolo_ = finiteClamp(value, 0, 1, 0.3f); break;
             case TremRate: tremRate_ = finiteClamp(value, 0.5f, 12, 4.5f); break;
             case Level: level_ = finiteClamp(value, 0, 1, 0.8f); break;
+            case Damper: {
+                // Hoe snel de demper een losgelaten toets stilt: 0 = geen
+                // dempers (alles klinkt vrij uit, zoals met het pedaal vast),
+                // 0,5 ~ 95 ms, 1 = 15 ms.
+                const float damper = finiteClamp(value, 0, 1, 0.6f);
+                damper_ = damper < 0.02f ? 1.0f : std::exp(-1 / (0.015f * std::pow(40.0f, 1 - damper) * sampleRate_));
+                break;
+            }
             default: break;
         }
     }
@@ -65,6 +74,7 @@ public:
     void setCv(int input, float value) {
         if (input >= 0 && input < kVoices) voct_[input] = finiteClamp(value, -5, 5, 0);
         else if (input >= kVelBase && input < kVelBase + kVoices) velocity_[input - kVelBase] = finiteClamp(value, 0, 1, 0);
+        else if (input == kSustain) sustain_ = value >= 0.5f;
         else if (input >= kGateBase && input < kGateBase + kVoices) {
             Voice& voice = voices_[input - kGateBase];
             const bool high = value >= 0.5f;
@@ -106,8 +116,11 @@ public:
                     const float gap = 1 - c;
                     sum += speed / (gap * gap) * 0.5f;
                 }
-                voice.amplitude *= voice.gate ? voice.decay : damper_;
-                voice.bell *= voice.gate ? voice.bellDecay : damper_;
+                // Toets vast of sustainpedaal: vrij uitklinken. Anders ligt de
+                // demper erop (nooit langzamer dan het vrije uitklinken).
+                const bool free = voice.gate || sustain_;
+                voice.amplitude *= free ? voice.decay : (damper_ < voice.decay ? damper_ : voice.decay);
+                voice.bell *= free ? voice.bellDecay : (damper_ < voice.bellDecay ? damper_ : voice.bellDecay);
                 if (voice.amplitude < 1e-5f && voice.bell < 1e-5f) voice.active = false;
             }
             tremPhase_ += tremRate_ / sampleRate_;
@@ -137,15 +150,22 @@ private:
         voice.increment = hz / sampleRate_;
         voice.phase = 0; voice.bellPhase = 0; voice.attack = 0;
         voice.amplitude = std::pow(velocity, 1.3f);
-        voice.bell = bell_ * velocity * velocity * (type_ == 0 ? 0.5f : 0.2f);
+        // De bel is een korte tik in de aanslag, geen tweede toon: de knop werkt
+        // kwadratisch (de onderste helft is subtiel) en helemaal open ligt hij
+        // ~10 dB onder de grondtoon. Boven ~15 kHz valt hij weg, anders vouwt
+        // hij bij hoge noten terug in het hoorbare gebied.
+        const float bellHz = hz * kBellRatio;
+        const float bellFade = finiteClamp((15000.0f - bellHz) / 5000.0f, 0, 1, 0);
+        voice.bell = bell_ * bell_ * std::pow(velocity, 2.8f) * (type_ == 0 ? 0.26f : 0.12f) * bellFade;
         voice.decay = std::exp(-1 / (sustain * sampleRate_));
-        voice.bellDecay = std::exp(-1 / (0.25f * scale * sampleRate_));
+        voice.bellDecay = std::exp(-1 / (0.08f * scale * scale * sampleRate_));
         voice.active = true;
     }
 
     Voice voices_[kVoices];
     float voct_[kVoices] = {}, velocity_[kVoices] = {};
     float sampleRate_ = 44100, damper_ = 0.999f, strike_ = 0.02f;
+    bool sustain_ = false;
     float timbre_ = 0.35f, bell_ = 0.5f, decay_ = 0.5f, drive_ = 0.4f, tremolo_ = 0.3f, tremRate_ = 4.5f, level_ = 0.8f;
     float tremPhase_ = 0;
     int type_ = 0;

@@ -12,10 +12,15 @@ export function OptimizeModal(props: { open: boolean; onClose: () => void }): JS
   const [maxDiff, setMaxDiff] = useState(2);
   const [off, setOff] = useState<Set<number>>(new Set());
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
+  // Alleen rekenen als het venster open is: de modal is altijd gemonteerd en
+  // analyzeProject vergelijkt alle patches paarsgewijs (103 patches ≈ 1 s).
+  // Dicht rekende hij bij elke projectwijziging mee, dus ook bij elke
+  // patchwissel in de Patches-tab.
   const plan = useMemo(() => {
+    if (!open) return { ok: false as const, error: '' };
     try { return { ok: true as const, plan: analyzeProject(project, { maxDiff }) }; }
     catch (e) { return { ok: false as const, error: e instanceof Error ? e.message : String(e) }; }
-  }, [project, maxDiff]);
+  }, [project, maxDiff, open]);
   // Acties die standaard uit staan (bijna-duplicaten) tellen als "uit" tenzij aangevinkt.
   const [on, setOn] = useState<Set<number>>(new Set());
   const isOn = (i: number, a: OptimizeAction): boolean => (a.defaultOff ? on.has(i) : !off.has(i));
