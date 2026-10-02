@@ -68,3 +68,13 @@ describe('patch-pool client', () => {
     for (let i = 1; i < sc.length; i++) expect(sc[i]!.t).toBeGreaterThanOrEqual(sc[i - 1]!.t);
   });
 });
+
+describe('afwijzing van de pool', () => {
+  it('toont welke velden fout zijn', async () => {
+    const { describeIssues, listPool } = await import('./patchPool');
+    expect(describeIssues([{ path: ['requires', 'editorVersion'], message: 'Invalid semver' }, 'los'])).toBe('requires.editorVersion: Invalid semver; los');
+    expect(describeIssues(undefined)).toBe('');
+    const bad = (async () => new Response(JSON.stringify({ error: 'Invalid patch', issues: [{ path: ['requires', 'firmwareContract'], message: 'Invalid semver' }] }), { status: 400 })) as unknown as typeof fetch;
+    await expect(listPool({}, s, bad)).rejects.toThrow('Invalid patch: requires.firmwareContract: Invalid semver');
+  });
+});

@@ -162,6 +162,14 @@ def main() -> int:
     with io.open(OUT_PATH, "w", encoding="utf-8", newline="\n") as f:
         json.dump(contract, f, indent=2, ensure_ascii=False)
         f.write("\n")
+    # Kopie van alleen de versie binnen editor/: de live build draait in een
+    # container die alleen editor/ ziet (geen git, geen firmware/), en heeft de
+    # contractversie nodig voor `requires` van gedeelde patches (patch-pool).
+    ver_path = os.path.join(ROOT, "editor", "contract-version.json")
+    with io.open(ver_path, "w", encoding="utf-8", newline="\n") as f:
+        json.dump({"$comment": "GEGENEREERD door tools/contract_dump.py",
+                   "firmwareVersion": fw_version}, f, indent=2, ensure_ascii=False)
+        f.write("\n")
     print(f"contract: {len(modules)} modules -> {os.path.relpath(OUT_PATH, ROOT)} "
           f"(fw {fw_version})")
     return 0

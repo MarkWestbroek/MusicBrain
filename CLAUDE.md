@@ -13,7 +13,7 @@ Kort en concreet; achtergrond staat in de gelinkte documenten.
 De firmware is leidend voor poorten en controls. Draai altijd, in deze volgorde:
 
 ```powershell
-python tools/contract_dump.py            # firmware → firmware/app-modular-brain/contract/module-types.json
+python tools/contract_dump.py            # firmware → firmware/app-modular-brain/contract/module-types.json (+ editor/contract-version.json; commit beide)
 cd editor; npm test                      # contract-test: paneel en seeds tegen het contract
 npm run catalog                          # regenereert doc/module-catalogus.md
 ```

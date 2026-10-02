@@ -77,9 +77,25 @@ export function buildProposal(p: Proposal, files: { file: UploadedAsset; syx?: U
   return out;
 }
 
+/** De `issues` van een afwijzing (zod-vorm: [{ path, message }], of losse strings) als korte tekst. */
+export function describeIssues(issues: unknown): string {
+  if (!Array.isArray(issues)) return '';
+  return issues.slice(0, 5).map((i) => {
+    if (typeof i === 'string') return i;
+    const o = i as { path?: unknown; message?: unknown };
+    const where = Array.isArray(o.path) ? o.path.join('.') : typeof o.path === 'string' ? o.path : '';
+    return [where, typeof o.message === 'string' ? o.message : ''].filter(Boolean).join(': ');
+  }).filter(Boolean).join('; ');
+}
+
 async function fail(res: Response, what: string): Promise<never> {
   let detail = '';
-  try { const j = JSON.parse(await res.text()) as { error?: unknown }; if (typeof j.error === 'string') detail = ` ${j.error}`; } catch { /* geen json */ }
+  try {
+    const j = JSON.parse(await res.text()) as { error?: unknown; issues?: unknown };
+    if (typeof j.error === 'string') detail = ` ${j.error}`;
+    const issues = describeIssues(j.issues);
+    if (issues) detail += `: ${issues}`;
+  } catch { /* geen json */ }
   const why = res.status === 401 ? 'Token ongeldig, verlopen of ingetrokken.'
     : res.status === 403 ? 'Token mist het recht om patches voor te stellen (scope patch:propose).'
     : res.status === 404 ? 'De patch-pool bestaat nog niet op deze site.'

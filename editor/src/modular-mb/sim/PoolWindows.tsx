@@ -95,6 +95,11 @@ function ProposeDialog({ patchId, onClose }: { patchId: string; onClose: () => v
     if (!title.trim()) { setMsg({ ok: false, text: 'Geef de patch een naam.' }); return; }
     if (kind === 'question' && !question.trim()) { setMsg({ ok: false, text: 'Schrijf je vraag.' }); return; }
     if (!lib.token.trim()) { setMsg({ ok: false, text: 'Geen API-token: zet hem bij ⚙ Library in de Simulatie-tab.' }); return; }
+    if (!req.editorVersion || !req.firmwareContract) {
+      // De pool eist beide versies; zonder zou hij "Invalid patch" antwoorden.
+      setMsg({ ok: false, text: 'Deze editor-build kent zijn eigen versie niet (editor of firmwarecontract ontbreekt), dus de pool zou het voorstel afwijzen. Herlaad de editor; blijft het zo, dan is de build verouderd.' });
+      return;
+    }
     setBusy('send'); setMsg(null);
     try {
       const group = `mmb-${slugName(title) || 'patch'}-${splitTakeName(existing?.take.group ?? '').stamp || stamp()}`;
