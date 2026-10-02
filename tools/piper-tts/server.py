@@ -15,7 +15,10 @@ lettergreep begint en eindigt, in plaats van het uit de golfvorm te schatten.
            "phonemes": [{"p": "z", "start": 7938, "samples": 3328}, ...]}
 
 Toegang: dezelfde toegangscodes als de AI-proxy (`Authorization: Bearer
-<code>`, uit invites.json), met een eigen daglimiet. Met `--open` is er geen
+<code>`, uit invites.json), of een persoonlijk token van de MusicBrain-site
+(`imp_…`, aangemaakt onder Account → tokens, met het recht "list media"):
+dat controleren we bij de site (TTS_IMPRINT_VERIFY) en onthouden het tien
+minuten. Elke code heeft een eigen daglimiet. Met `--open` is er geen
 code nodig; dat is voor op je eigen computer.
 
 Piper is GPL-3.0 en draait hier als los programma. Deze dienst roept het aan
@@ -35,7 +38,11 @@ Omgevingsvariabelen (of de gelijknamige opties):
 import argparse
 import base64
 import datetime
+import hashlib
 import json
+import time
+import urllib.error
+import urllib.request
 import os
 import sys
 import threading
@@ -118,9 +125,37 @@ def speak(voice, text: str, length_scale: float, speaker):
 class Access:
     """Toegangscodes van de AI-proxy, met een eigen teller per dag."""
 
-    def __init__(self, invites: Path | None, usage: Path, per_day: int, is_open: bool):
+    def __init__(self, invites: Path | None, usage: Path, per_day: int, is_open: bool, imprint_verify: str = ''):
         self.invites, self.usage, self.per_day, self.is_open = invites, usage, per_day, is_open
+        self.imprint_verify = imprint_verify
         self.lock = threading.Lock()
+        self.imprint_cache: dict[str, tuple[bool, float]] = {}
+
+    @staticmethod
+    def key(code: str) -> str:
+        """Wat we in het gebruikslog zetten: nooit een site-token zelf, wel een vingerafdruk."""
+        return 'imp:' + hashlib.sha256(code.encode()).hexdigest()[:12] if code.startswith('imp_') else code
+
+    def imprint_ok(self, code: str) -> bool:
+        """Is dit een geldig token van de MusicBrain-site? Antwoord tien minuten onthouden."""
+        if not self.imprint_verify:
+            return False
+        k = self.key(code)
+        hit = self.imprint_cache.get(k)
+        if hit and hit[1] > time.time():
+            return hit[0]
+        req = urllib.request.Request(self.imprint_verify, headers={'Authorization': f'Bearer {code}', 'User-Agent': 'piper-tts'})
+        try:
+            with urllib.request.urlopen(req, timeout=8) as r:
+                ok = 200 <= r.status < 300
+        except urllib.error.HTTPError as e:
+            ok = False if e.code in (401, 403) else None
+        except OSError:
+            ok = None
+        if ok is None:                       # site onbereikbaar: niet onthouden, wel weigeren
+            return False
+        self.imprint_cache[k] = (ok, time.time() + (600 if ok else 60))
+        return ok
 
     def check(self, header: str):
         """Geeft (naam, None) of (None, (status, melding))."""
@@ -132,6 +167,8 @@ class Access:
         except (OSError, ValueError):
             invites = []
         invite = next((i for i in invites if i.get('code') == code and i.get('active')), None)
+        if code.startswith('imp_') and self.imprint_ok(code):
+            invite = {'name': 'site-token ' + self.key(code)[4:10]}
         if not code or not invite:
             return None, (401, 'onbekende of ingetrokken toegangscode')
         today = datetime.date.today().isoformat()
@@ -143,7 +180,7 @@ class Access:
                         u = json.loads(line)
                     except ValueError:
                         continue
-                    if u.get('date') == today and u.get('code') == code:
+                    if u.get('date') == today and u.get('code') == self.key(code):
                         used += 1
         except OSError:
             pass
@@ -154,7 +191,7 @@ class Access:
     def log(self, header: str, name: str, voice: str, chars: int, seconds: float):
         code = header[7:].strip() if header.lower().startswith('bearer ') else ''
         row = {'date': datetime.date.today().isoformat(), 't': datetime.datetime.now().isoformat(timespec='seconds'),
-               'code': code, 'name': name, 'voice': voice, 'chars': chars, 'seconds': round(seconds, 2)}
+               'code': self.key(code), 'name': name, 'voice': voice, 'chars': chars, 'seconds': round(seconds, 2)}
         with self.lock:
             try:
                 with self.usage.open('a', encoding='utf-8') as f:
@@ -256,6 +293,8 @@ def main():
     ap.add_argument('--invites', default=os.environ.get('TTS_INVITES', ''))
     ap.add_argument('--usage', default=os.environ.get('TTS_USAGE', ''))
     ap.add_argument('--per-day', type=int, default=int(os.environ.get('TTS_PER_DAY', '200')))
+    ap.add_argument('--imprint-verify', default=os.environ.get('TTS_IMPRINT_VERIFY', ''),
+                    help='URL waarmee een imp_-token bij de site wordt gecontroleerd (200 = geldig)')
     ap.add_argument('--open', action='store_true', default=os.environ.get('TTS_OPEN', '') == '1',
                     help='geen toegangscode vragen (alleen op je eigen computer)')
     ap.add_argument('--cors', default=os.environ.get('TTS_CORS', ''),
@@ -267,14 +306,14 @@ def main():
         raise SystemExit(f'stemmenmap niet gevonden: {folder}')
     if a.open and a.host not in ('127.0.0.1', 'localhost', '::1') and os.environ.get('TTS_OPEN_ANYWAY') != '1':
         raise SystemExit('--open werkt alleen op 127.0.0.1: zonder code mag de dienst niet van buiten bereikbaar zijn')
-    if not a.open and not a.invites:
-        raise SystemExit('geef --invites (invites.json van de AI-proxy) of --open')
+    if not a.open and not a.invites and not a.imprint_verify:
+        raise SystemExit('geef --invites (invites.json van de AI-proxy), --imprint-verify of --open')
     voices = Voices(folder)
     found = voices.list()
     if not found:
         raise SystemExit(f'geen stemmen in {folder} (python -m piper.download_voices --data-dir {folder} nl_NL-pim-medium)')
     usage = Path(a.usage) if a.usage else folder / 'usage.jsonl'
-    access = Access(Path(a.invites) if a.invites else None, usage, a.per_day, a.open)
+    access = Access(Path(a.invites) if a.invites else None, usage, a.per_day, a.open, a.imprint_verify)
     # Een stem laden patcht het ONNX-model in het geheugen (voor de
     # foneemtijden), en dat gaat diep de stack in: met de standaardstack van
     # een thread (1 MB op Windows) stopt het proces zonder foutmelding.

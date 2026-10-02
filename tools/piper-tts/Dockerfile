@@ -23,6 +23,7 @@ ENV TTS_HOST=0.0.0.0 \
     TTS_INVITES=/invites/invites.json \
     TTS_USAGE=/data/usage.jsonl \
     TTS_PER_DAY=200 \
+    TTS_IMPRINT_VERIFY=https://musicbrain.nl/api/media?folder=__piper_tts_check__ \
     PYTHONUNBUFFERED=1 \
     PYTHONIOENCODING=utf-8
 

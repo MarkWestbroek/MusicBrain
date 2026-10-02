@@ -260,7 +260,7 @@ export function LyricModal({ open, onClose, defaultBank }: LyricModalProps): JSX
       const msg = err instanceof Error ? err.message : String(err);
       setTtsSetup(true);
       setStatus(`mislukt (inspreken): ${/Failed to fetch|NetworkError|404/.test(msg) ? 'de spraakdienst is niet bereikbaar — zie ⚙'
-        : /toegangscode/.test(msg) ? `${msg} — ${effectiveCode(tts) ? 'de ingevulde code wordt niet herkend; zie ⚙' : 'vul bij ⚙ de code in die met mb- begint'}`
+        : /toegangscode/.test(msg) ? `${msg} — ${effectiveCode(tts) ? 'de ingevulde code wordt niet herkend; zie ⚙' : 'vul bij ⚙ een token van de site in (imp_…)'}`
         : msg}`);
     } finally {
       setTtsBusy(false);
@@ -476,14 +476,14 @@ export function LyricModal({ open, onClose, defaultBank }: LyricModalProps): JSX
               <button onClick={() => changeTts({ endpoint: TTS_DEFAULTS.endpoint })}>MusicBrain-server</button>
               <button onClick={() => changeTts({ endpoint: TTS_LOCAL_ENDPOINT, code: '' })}>eigen computer</button>
               {!local && (
-                <label title="De code die je van de beheerder kreeg (begint met mb-). Leeg = die van je AI-profiel MusicBrain-server.">
+                <label title="Een token van de MusicBrain-site (imp_…, met het recht list media) of een AI-code (mb-…). Leeg = die van je AI-profiel MusicBrain-server.">
                   toegangscode <input value={tts.code} type="password" style={{ width: 150 }}
-                  placeholder={serverAiCode() ? 'uit je AI-profiel' : 'begint met mb-'}
+                  placeholder={serverAiCode() ? 'uit je AI-profiel' : 'imp_… van de site'}
                   onChange={(e) => changeTts({ code: e.target.value.trim() })} /></label>
               )}
-              {!local && tts.code && !tts.code.startsWith('mb-') && (
+              {!local && tts.code && !tts.code.startsWith('mb-') && !tts.code.startsWith('imp_') && (
                 <span style={{ color: '#b45309', fontSize: 12 }}>
-                  ⚠ dit lijkt geen MusicBrain-code (die begint met mb-); een DeepSeek- of Claude-sleutel werkt hier niet.{' '}
+                  ⚠ dit lijkt geen MusicBrain-code (imp_… van de site of mb-… voor de AI); een DeepSeek- of Claude-sleutel werkt hier niet.{' '}
                   <button onClick={() => changeTts({ code: '' })} style={{ fontSize: 11 }}>wis</button>
                 </span>
               )}

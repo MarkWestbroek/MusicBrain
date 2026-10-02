@@ -101,7 +101,7 @@ Caddy-backup `/etc/caddy/Caddyfile.bak-tts-20261002`. Container met
 | Onderdeel | Waar |
 |---|---|
 | Container | `musicbrain-tts`, gepubliceerd op `127.0.0.1:8788` |
-| Toegang | de codes van de AI-proxy: `/srv/musicbrain-ai/invites.json`, alleen-lezen gekoppeld |
+| Toegang | een persoonlijk token van de site (`imp_…`, op musicbrain.nl onder je account, met het recht *list media*), gecontroleerd bij de site via `TTS_IMPRINT_VERIFY` en tien minuten onthouden; of een code van de AI-proxy (`mb-…`, `/srv/musicbrain-ai/invites.json`, alleen-lezen gekoppeld) |
 | Gebruik | `/srv/musicbrain-tts/usage.jsonl`, met een eigen daglimiet (200 verzoeken per code) |
 | Webserver | Caddy, blok `editor.musicbrain.nl`: `handle /tts/* { reverse_proxy 127.0.0.1:8788 }` |
 
