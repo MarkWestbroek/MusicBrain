@@ -91,6 +91,13 @@ OVERRIDES: dict[str, dict[str, list[str]]] = {
     # Elektrische piano: 12 stem-cellen via EPianoModule::cellOf().
     "tp_mmb_epiano": {"implemented": [], "ignored": [],
                       "ports": _rng("voct_", 12) + _rng("gate_", 12) + _rng("vel_", 12)},
+    # Percuter: genummerde kanalen via PercuterModule::numbered().
+    "tp_mmb_percuter": {"implemented": _rng("level_", 8) + _rng("pan_", 8) + _rng("decay_", 8) + _rng("tune_", 8),
+                        "ignored": [],
+                        "ports": _rng("trig_", 8) + _rng("vel_", 8) + _rng("out_", 8)},
+    # Synthex: 8 stem-cellen via SynthexModule::cellOf().
+    "tp_mmb_synthex": {"implemented": [], "ignored": [],
+                       "ports": _rng("voct_", 8) + _rng("gate_", 8)},
     "tp_mmb_sid3": {"implemented": [f"{n}_{k}" for n in ("tri", "saw", "pulse", "noise", "pw", "ring", "sync",
                                                          "attack", "decay", "sustain", "release",
                                                          "coarse", "fine", "filt") for k in (1, 2, 3)],

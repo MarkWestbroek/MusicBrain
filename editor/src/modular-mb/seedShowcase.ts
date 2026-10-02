@@ -350,3 +350,61 @@ export const ENSEMBLE_SOLO_FX = {
   typeId: 'tp_mmb_ensemble', label: 'ENSEMBLE',
   controls: { depth: 0.75, slow: 0.6, fast: 6, tone: 0.6, mix: 0.8, level: 0.9 },
 } as const;
+
+/** Ritmebox met een paar drukknoppen ernaast: zelfspelend. */
+export function seedRhythmBoxPatch(project: ModularProject): ModularProject {
+  const { p, mods, rack } = build(project, ['tp_mmb_rhythm', 'tp_mmb_pads', 'tp_mmb_out'],
+    'Ritmebox', 'RHYTHM (CR-78-presets) → OUT; PADS 1 start/stopt, PADS 2 zet terug op de één.');
+  const [box, pads, out] = mods as [ModuleInstance, ModuleInstance, ModuleInstance];
+  const patch: Patch = {
+    id: uid('patch'), name: 'Ritmebox (CR-78)',
+    description: 'De ritmebox met de presets van de CR-78. Draai aan Rhythm voor een ander ritme en zet Variation op A, B of A+B. Pad 1 start en stopt, pad 2 zet terug op de één. Rock 4 en Disco zijn onzeker overgenomen; Samba, Mambo, Cha-cha, Beguine en Rhumba ontbreken nog.',
+    voiceCount: 1, rackIds: [rack.id],
+    connections: cables([
+      [pads, 'trig_1', box, 'start'],
+      [pads, 'trig_2', box, 'reset'],
+      [box, 'out_l', out, 'l'],
+      [box, 'out_r', out, 'r'],
+    ]),
+    controlState: {
+      [box.id]: { rhythm: 14, variation: 2, tempo: 128, run: 1, extclock: 0, accent: 0.6, bass: 0.8, snare: 0.8, metal: 0.7, perc: 0.7, level: 0.8 },
+      [out.id]: { level: 0.85 },
+    },
+    envelopes: [], lfos: [],
+  };
+  return finish(p, mods, rack, patch);
+}
+
+/** Synthex met acht stemmen, de pitch-wheel op de joystick-X. */
+export function seedSynthexPolyPatch(project: ModularProject): ModularProject {
+  const N = 8;
+  const { p, mods, rack } = build(project, ['tp_mmb_midiin', 'tp_mmb_synthex', 'tp_mmb_out'],
+    `Synthex ×${N}`, `MidiIn → SYNTHEX (${N} stem-cellen als PolyGroup) → OUT.`);
+  const [midi, synth, out] = mods as [ModuleInstance, ModuleInstance, ModuleInstance];
+  rack.polyGroups = [{
+    id: uid('poly'), label: 'SYNTHEX', voiceCount: N,
+    members: Array.from({ length: N }, (_, i) => ({ kind: 'cell' as const, moduleId: synth.id, cellGroupId: 'voice', cellIndex: i })),
+  }];
+  const patch: Patch = {
+    id: uid('patch'), name: `Synthex ×${N}`,
+    description: 'Acht stemmen naar de Elka Synthex: een zaag en een pulsgolf, iets verstemd, door het vierpolige filter met wat envelope, en de chorus aan. De pitch-wheel is de joystick (X), het mod-wiel opent het filter (Y). Probeer Mode BP of HP, Ring op oscillator 2, of Sync met Transpose +7.',
+    voiceCount: N, rackIds: [rack.id],
+    connections: cables([
+      [midi, 'pitch', synth, 'voct_1'],
+      [midi, 'gate', synth, 'gate_1'],
+      [midi, 'cv_bend', synth, 'bend'],
+      [midi, 'cv_mod', synth, 'joy'],
+      [synth, 'out_l', out, 'l'],
+      [synth, 'out_r', out, 'r'],
+    ]),
+    controlState: {
+      [midi.id]: { channel: 0, voiceCount: N, steal: 0 },
+      [synth.id]: { o1_oct: 2, o1_wave: 0, o1_level: 10, o2_oct: 2, o2_transpose: 0, o2_detune: 9, o2_wave: 2, o2_level: 8, sync: 0, ring: 0,
+        pw: 0.3, noise: 0, freq: 5, res: 3, env_amt: 5, kbd: 3, mode: 0, fa: 3, fd: 7, fs: 4, fr: 5, aa: 2, ad: 5, as: 8, ar: 6,
+        lfo_rate: 5.5, lfo_wave: 0, lfo_osc: 0, lfo_pw: 0.4, lfo_vcf: 0, lfo_vca: 0, glide: 0, tune: 0, chorus: 1, level: 0.8 },
+      [out.id]: { level: 0.85 },
+    },
+    envelopes: [], lfos: [],
+  };
+  return finish(p, mods, rack, patch);
+}

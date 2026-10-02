@@ -95,6 +95,9 @@
 #include "EPianoModule.h"
 #include "PadsModule.h"
 #include "ManualCvModule.h"
+#include "RhythmBoxModule.h"
+#include "PercuterModule.h"
+#include "SynthexModule.h"
 #include "CompDriveModule.h"
 #include "EchoModule.h"
 #include "TapeEchoModule.h"
@@ -210,6 +213,9 @@ inline void registerAllRuntimeModules() {
     PadsModule::registerFactory();       // vier drukknoppen: gate + trigger
     FadersModule::registerFactory();     // vier schuiven als CV-bron
     KnobsModule::registerFactory();      // vier draaiknoppen als CV-bron
+    RhythmBoxModule::registerFactory();  // ritmebox met de CR-78-presets
+    PercuterModule::registerFactory();   // acht 8-bit drumkanalen (Dynacord Percuter)
+    SynthexModule::registerFactory();    // polyfone stem naar de Elka Synthex
     CompDriveModule::registerFactory(); // FW-FX-2: compressor + overdrive
     EchoModule::registerFactory();      // FW-AU-2: feedback delay
     TapeEchoModule::registerFactory();  // bandecho (mmb-dsp), ook als wasm in de simulator

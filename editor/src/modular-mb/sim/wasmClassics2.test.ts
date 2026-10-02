@@ -256,3 +256,193 @@ describe('tp_mmb_epiano', () => {
     for (const name of ['out_l', 'out_r']) { expect(finite(o[name]!)).toBe(true); expect(peak(o[name]!)).toBeLessThanOrEqual(1); }
   });
 });
+
+describe('tp_mmb_rhythm', () => {
+  it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_rhythm'); });
+
+  const rising = (a: Float32Array): number[] => {
+    const edges: number[] = [];
+    for (let i = 1; i < a.length; i++) if (a[i - 1]! < 0.5 && a[i]! >= 0.5) edges.push(i);
+    return edges;
+  };
+
+  it('loopt op tempo en speelt de accenten van het patroon (Rock 1: elke tel)', async () => {
+    const m = await load('tp_mmb_rhythm');
+    m.setCtl('tempo', 120);
+    const o = m.render(4);
+    const steps = rising(o.step!);
+    expect(steps.length).toBeGreaterThanOrEqual(31);
+    expect(Math.abs((steps[9]! - steps[1]!) / 8 - 0.125 * m.rate)).toBeLessThan(2);
+    expect(rising(o.bar!)).toHaveLength(2);
+    const acc = rising(o.acc!);
+    expect(acc.length).toBe(8);                                   // 2 maten × 4 tellen
+    expect(peak(o.out_l!)).toBeGreaterThan(0.3);
+    expect(peak(o.out_l!)).toBeLessThanOrEqual(1);
+  });
+
+  it('de wals heeft drie tellen per maat; A+B wisselt de maten', async () => {
+    const m = await load('tp_mmb_rhythm');
+    m.setCtl('rhythm', 6); m.setCtl('tempo', 120);
+    const bars = rising(m.render(3.2).bar!);
+    expect(Math.abs((bars[1]! - bars[0]!) / m.rate - 1.5)).toBeLessThan(0.01);
+    // Variatie A tegen B klinkt anders (Waltz B heeft een extra cymbaal).
+    const render = async (variation: number): Promise<Float32Array> => {
+      const box = await load('tp_mmb_rhythm');
+      box.setCtl('rhythm', 6); box.setCtl('variation', variation);
+      return box.render(1.5).out_l!;
+    };
+    const a = await render(0), b = await render(1);
+    let difference = 0;
+    for (let i = 0; i < a.length; i++) difference += Math.abs(a[i]! - b[i]!);
+    expect(difference).toBeGreaterThan(10);
+  });
+
+  it('volgt een externe tel en verdeelt hem in triolen (Shuffle)', async () => {
+    const m = await load('tp_mmb_rhythm');
+    m.setCtl('rhythm', 7); m.setCtl('extclock', 1);
+    const o = m.render(4, (t, mm) => mm.setIn('clock', (t * 100 / 60) % 1 < 0.1 ? 1 : 0));   // 100 bpm
+    const steps = rising(o.step!);
+    for (let k = 5; k < 14; k++) expect(Math.abs((steps[k + 1]! - steps[k]!) / m.rate - 0.2)).toBeLessThan(0.002);
+  });
+
+  it('een puls op Start start en stopt; Run uit is stil', async () => {
+    const m = await load('tp_mmb_rhythm');
+    m.setCtl('run', 0);
+    const o = m.render(3, (t, mm) => mm.setIn('start', (t > 1 && t < 1.02) || (t > 2 && t < 2.02) ? 1 : 0));
+    expect(rms(o.out_l!, 0, at(0.99, m))).toBe(0);
+    const steps = rising(o.step!);
+    expect(steps[0]! / m.rate).toBeCloseTo(1, 1);
+    expect(steps[steps.length - 1]! / m.rate).toBeLessThan(2.01);
+    // Na de stop klinkt alleen nog de staart van de laatste slagen.
+    expect(rms(o.out_l!, at(2.6, m), at(3, m))).toBeLessThan(rms(o.out_l!, at(1.2, m), at(1.9, m)) * 0.1);
+  });
+});
+
+describe('tp_mmb_percuter', () => {
+  it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_percuter'); });
+
+  /** Een "cartridge": 8-bit materiaal als int16 (byte × 256), in slot `slot`. */
+  const cartridge = (m: Mod, slot: number, samples: number[], rate: number): void => {
+    const bytes = samples.length * 2;
+    const ptr = m.ex.mmb_blob_ptr(slot, bytes) as number;
+    const view = new Int16Array(m.ex.memory.buffer, ptr, samples.length);
+    samples.forEach((v, i) => { view[i] = Math.round(v * 127) * 256; });
+    m.ex.mmb_blob_commit(slot, samples.length, rate, 1);
+  };
+  const tone = (hz: number, rate: number, seconds: number): number[] =>
+    Array.from({ length: Math.round(rate * seconds) }, (_, i) => 0.8 * Math.sin(2 * Math.PI * hz * i / rate));
+  const hit = (channel: number, at = 0.01, velocity?: number) => (t: number, m: Mod): void => {
+    m.setIn(`trig_${channel}`, t >= at && t < at + 0.005 ? 1 : 0);
+    if (velocity !== undefined) m.setIn(`vel_${channel}`, velocity);
+  };
+
+  it('speelt slot k op kanaal k, zo lang als de cartridge, en zwijgt zonder cartridge', async () => {
+    const m = await load('tp_mmb_percuter');
+    cartridge(m, 0, tone(1000, 12500, 0.3), 12500);
+    const o = m.render(0.6, (t, mm) => { hit(1)(t, mm); hit(2)(t, mm); });
+    expect(rms(o.out_1!, at(0.05, m), at(0.25, m))).toBeGreaterThan(0.3);
+    expect(rms(o.out_1!, at(0.33, m), at(0.6, m))).toBe(0);
+    expect(peak(o.out_2!)).toBe(0);                              // kanaal 2: geen slot
+    expect(peak(o.out_l!)).toBeGreaterThan(0.2);
+  });
+
+  it('klinkt lo-fi: 8 bit en zonder interpolatie (spiegeltonen), het filter dempt die', async () => {
+    const raw = await load('tp_mmb_percuter'), filtered = await load('tp_mmb_percuter');
+    raw.setCtl('filter', 0);
+    for (const m of [raw, filtered]) cartridge(m, 0, tone(1000, 12500, 0.5), 12500);
+    const a = raw.render(0.5, hit(1)).out_1!, b = filtered.render(0.5, hit(1)).out_1!;
+    // Zero-order hold op 12,5 kHz: een spiegeltoon op 12,5 − 1 = 11,5 kHz.
+    const image = (x: Float32Array): number => toneLevel(x, 11500, raw.rate, at(0.05, raw), at(0.45, raw));
+    expect(image(a)).toBeGreaterThan(toneLevel(a, 1000, raw.rate, at(0.05, raw), at(0.45, raw)) * 0.03);
+    expect(image(b)).toBeLessThan(image(a) * 0.5);
+    // 8 bit: alle waarden zijn veelvouden van 1/128 (zonder filter en op volle sterkte).
+    for (let i = at(0.05, raw); i < at(0.1, raw); i++) expect(Math.abs(a[i]! * 128 - Math.round(a[i]! * 128))).toBeLessThan(1e-3);
+  });
+
+  it('velocity, stemming en het pitchpedaal: hoger is ook korter', async () => {
+    const play = async (setup: (m: Mod) => void, feed: (t: number, m: Mod) => void): Promise<Float32Array> => {
+      const m = await load('tp_mmb_percuter');
+      cartridge(m, 0, tone(500, 25000, 0.4), 25000);
+      setup(m);
+      return m.render(0.6, feed).out_1!;
+    };
+    const length = (x: Float32Array): number => { let last = 0; x.forEach((v, i) => { if (Math.abs(v) > 1e-4) last = i; }); return last / 44100; };
+    const soft = await play(() => {}, hit(1, 0.01, 0.4)), hard = await play(() => {}, hit(1, 0.01, 1));
+    expect(peak(hard)).toBeGreaterThan(peak(soft) * 4);
+    const base = await play(() => {}, hit(1));
+    const octave = await play((m) => m.setCtl('tune_1', 12), hit(1));
+    const pedal = await play(() => {}, (t, m) => { hit(1)(t, m); m.setIn('pitch', 1); });
+    expect(length(base)).toBeCloseTo(0.41, 1);
+    expect(length(octave)).toBeCloseTo(0.21, 1);
+    expect(length(pedal)).toBeCloseTo(0.21, 1);
+    // Decay korter dan het sample.
+    const short = await play((m) => m.setCtl('decay_1', 0), hit(1));
+    expect(rms(short, at(0.2, { rate: 44100 } as Mod), at(0.3, { rate: 44100 } as Mod))).toBeLessThan(rms(base, at(0.2, { rate: 44100 } as Mod), at(0.3, { rate: 44100 } as Mod)) * 0.05);
+  });
+
+  it('pan en volume werken op de som, niet op de losse uitgang', async () => {
+    const m = await load('tp_mmb_percuter');
+    cartridge(m, 0, tone(500, 25000, 0.3), 25000);
+    m.setCtl('pan_1', -1); m.setCtl('level_1', 0.5);
+    const o = m.render(0.3, hit(1));
+    expect(peak(o.out_r!)).toBeLessThan(1e-3);
+    expect(peak(o.out_l!)).toBeGreaterThan(0.2);
+    expect(peak(o.out_1!)).toBeGreaterThan(0.7);
+  });
+});
+
+describe('tp_mmb_synthex', () => {
+  it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_synthex'); });
+
+  const key = (cell: number, voct: number, from = 0, to = 99) => (t: number, m: Mod): void => {
+    m.setIn(`voct_${cell}`, voct);
+    m.setIn(`gate_${cell}`, t >= from && t < to ? 1 : 0);
+  };
+  const synth = async (set: (m: Mod) => void = () => {}): Promise<Mod> => {
+    const m = await load('tp_mmb_synthex');
+    m.setCtl('chorus', 0); m.setCtl('o2_level', 0); m.setCtl('env_amt', 0); m.setCtl('kbd', 0);
+    set(m);
+    return m;
+  };
+  const level = (m: Mod, out: Float32Array, hz: number, from = 0.2, to = 0.9): number => db(toneLevel(out, hz, m.rate, at(from, m), at(to, m)));
+
+  it('speelt de toonhoogte van V/Oct; de voetmaat verschuift octaven', async () => {
+    const m = await synth((x) => x.setCtl('freq', 10));
+    const out = m.render(1, key(1, 0)).out_l!;
+    expect(level(m, out, 261.63)).toBeGreaterThan(level(m, out, 277.18) + 40);
+    const low = await synth((x) => { x.setCtl('freq', 10); x.setCtl('o1_oct', 1); });
+    const lowOut = low.render(1, key(1, 0)).out_l!;
+    expect(level(low, lowOut, 130.81)).toBeGreaterThan(level(low, lowOut, 261.63) - 3);
+  });
+
+  it('het filter is LP, BP of HP en de resonantie maakt een piek', async () => {
+    const mode = async (value: number): Promise<{ m: Mod; out: Float32Array }> => {
+      const m = await synth((x) => { x.setCtl('freq', 5.64); x.setCtl('res', 0); x.setCtl('mode', value); });
+      return { m, out: m.render(1, key(1, -2)).out_l! };
+    };
+    const lp = await mode(0), hp = await mode(2);
+    expect(level(lp.m, lp.out, 65.41) - level(lp.m, lp.out, 65.41 * 30)).toBeGreaterThan(40);
+    expect(level(hp.m, hp.out, 65.41 * 30) - level(hp.m, hp.out, 65.41)).toBeGreaterThan(10);
+    const flat = await synth((x) => { x.setCtl('freq', 5.64); x.setCtl('res', 0); });
+    const peaky = await synth((x) => { x.setCtl('freq', 5.64); x.setCtl('res', 10); });
+    const a = flat.render(1, key(1, -2)).out_l!, b = peaky.render(1, key(1, -2)).out_l!;
+    expect(level(peaky, b, 65.41 * 15)).toBeGreaterThan(level(flat, a, 65.41 * 15) + 12);
+  });
+
+  it('envelope en release: na loslaten stil; sync trekt oscillator 2 op de toon van 1', async () => {
+    const m = await synth((x) => { x.setCtl('freq', 10); x.setCtl('aa', 0); x.setCtl('as', 5); x.setCtl('ar', 5); });
+    const out = m.render(2.5, key(1, 0, 0, 1)).out_l!;
+    expect(rms(out, at(0.6, m), at(0.9, m))).toBeGreaterThan(0.02);
+    expect(rms(out, at(2.2, m), at(2.5, m))).toBeLessThan(1e-4);
+    const s = await synth((x) => { x.setCtl('freq', 10); x.setCtl('o2_level', 10); x.setCtl('sync', 1); x.setCtl('o2_transpose', 7); });
+    const synced = s.render(1, key(1, 0)).out_l!;
+    expect(level(s, synced, 392)).toBeLessThan(level(s, synced, 261.63) - 40);
+  });
+
+  it('acht stemmen met alles open blijven eindig en binnen ±1', async () => {
+    const m = await load('tp_mmb_synthex');
+    for (const [id, v] of [['res', 10], ['noise', 10], ['ring', 1], ['lfo_osc', 1], ['lfo_vcf', 1], ['lfo_vca', 1], ['lfo_pw', 1], ['o1_wave', 2], ['env_amt', 10], ['glide', 1]] as const) m.setCtl(id, v);
+    const o = m.render(2, (t, mm) => { for (let k = 1; k <= 8; k++) key(k, -2 + k * 0.4, 0.05 * k, 1.5)(t, mm); mm.setIn('bend', 1); mm.setIn('joy', 1); });
+    for (const name of ['out_l', 'out_r']) { expect(o[name]!.every(Number.isFinite)).toBe(true); expect(peak(o[name]!)).toBeLessThanOrEqual(1); }
+  });
+});

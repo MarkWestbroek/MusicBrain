@@ -19,7 +19,7 @@ import { seedCs80BrassPatch } from './seedBrass';
 import { seedAxelFLeadPatch } from './seedAxelF';
 import { seedSid3Patch, seedSidPolyPatch } from './seedSid';
 import { seedMaterialBridgeDemo, seedReservoirDemo, seedTapeStripPolyPatch } from './seedModules';
-import { DRIVE_SOLO_FX, ENSEMBLE_SOLO_FX, FOLDER_SOLO_FX, FREQSHIFT_SOLO_FX, WAH_SOLO_FX, seedAcidJamPatch, seedComplexVoicePatch, seedEPianoPolyPatch, seedOrganPolyPatch, seedRunglerPatch, seedSemSweepPatch, seedWestCoastPatch } from './seedShowcase';
+import { DRIVE_SOLO_FX, ENSEMBLE_SOLO_FX, FOLDER_SOLO_FX, FREQSHIFT_SOLO_FX, WAH_SOLO_FX, seedAcidJamPatch, seedComplexVoicePatch, seedEPianoPolyPatch, seedOrganPolyPatch, seedRunglerPatch, seedRhythmBoxPatch, seedSemSweepPatch, seedSynthexPolyPatch, seedWestCoastPatch } from './seedShowcase';
 
 /** Effecten achter de solo-seeds (Solo ▾): de stand en de tooltip. */
 const SOLO_FX = {
@@ -560,6 +560,14 @@ export function ModularMbApp(): JSX.Element {
                   }}
                 >🎹 E-piano ×12 (tine / reed)</button>
                 <button
+                  onClick={() => { setProject(seedSynthexPolyPatch(getProject())); setShowPoly(false); }}
+                  title="MidiIn → SYNTHEX (acht stemmen naar de Elka Synthex) → OUT. Pitch-wheel = joystick X, mod-wiel = joystick Y (filter)."
+                  style={{
+                    textAlign: 'left', border: 'none', background: 'transparent',
+                    padding: '7px 12px', cursor: 'pointer', fontSize: 13,
+                  }}
+                >🎛️ Synthex ×8 (Elka)</button>
+                <button
                   onClick={() => { setProject(seedZangPatch(getProject(), 8)); setShowPoly(false); }}
                   title="Zingende stem: ZANG met acht stem-cellen als PolyGroup, met galm. Elke aanslag zingt de volgende lettergreep. Maak een lyricbank via 🎤 Zang."
                   style={{
@@ -760,6 +768,11 @@ export function ModularMbApp(): JSX.Element {
                   title="Zelfspelend: zaag op een sequencerlijn door het SEM-filter; Mode schuift traag van laagdoorlaat via notch naar hoogdoorlaat."
                   style={{ textAlign: 'left', border: 'none', background: 'transparent', padding: '7px 12px', cursor: 'pointer', fontSize: 13 }}
                 >🎚️ SEM sweep (LP → notch → HP)</button>
+                <button
+                  onClick={() => { setProject(seedRhythmBoxPatch(getProject())); setShowSolo(false); }}
+                  title="Ritmebox met de presets van de CR-78 (overgenomen uit de Service Notes). Draai aan Rhythm; pad 1 start/stopt."
+                  style={{ textAlign: 'left', border: 'none', background: 'transparent', padding: '7px 12px', cursor: 'pointer', fontSize: 13 }}
+                >🥁 Ritmebox (CR-78-presets)</button>
                 <button
                   onClick={() => { setProject(seedWarpsVocoderPatch(getProject())); setShowSolo(false); }}
                   title="Vocoder: jouw keyboard bespeelt Warps' interne zaag-carrier; Marbles klokt Plaits als ritmische modulator. Houd een noot aan en draai Timbre."

@@ -17,6 +17,34 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-02 — Synthex: polyfone stem naar de Elka Synthex (firmware gebouwd, nog geen nieuw versienummer)
+- **Synthex** (`tp_mmb_synthex`): acht stemmen naar het schema van de Elka
+  Synthex: twee oscillatoren per stem (ramp/square/pulse, voetmaat, transpose,
+  detune, sync, ring), ruis, menger in 16 stappen, het vierpolige
+  OTA-multimodefilter (LP/BP/HP), twee ADSR's, LFO met routing, glide en
+  chorus; joystick als bend en filter-CV. Demo: Poly ▾ → Synthex ×8. Split,
+  Double en de sequencer van het origineel ontbreken nog. Zie
+  [synthex](plans/synthex.md).
+
+### 2026-10-02 — Percuter: acht 8-bit drumkanalen (firmware gebouwd, nog geen nieuw versienummer)
+- **Percuter** (`tp_mmb_percuter`): acht kanalen naar de Dynacord Percuter;
+  kanaal k speelt slot k van een gewone samplebank, zonder interpolatie, op
+  8 bit en op de samplefrequentie van de cartridge. Per kanaal trigger,
+  velocity, volume, pan, verval, stemming en een losse uitgang; globaal
+  stemming, pitchpedaal (V/Oct) en een filter dat je uit kunt zetten.
+- `tools/mmb-wasm/percuter-to-mmbs.mjs` zet EPROM-dumps (8-bit unsigned PCM)
+  om naar een bank. Zie [percuter](plans/percuter.md).
+
+### 2026-10-02 — Ritmebox met de CR-78-presets (firmware gebouwd, nog geen nieuw versienummer)
+- **Rhythm** (`tp_mmb_rhythm`): ritmebox op de berekende CR-78-stemmen, met
+  15 ritmes overgenomen uit de CR-78 Service Notes (Rock 1–4, Disco 1–2,
+  Waltz, Shuffle, Slow rock, Swing, Foxtrot, Tango, Boogie, Enka, Bossa
+  nova), elk met A- en B-maat. Variatie A/B/A+B, start/stop met knop of
+  puls, externe tel met triolen, accent, groepsvolumes, uitgangen voor stap,
+  maat en accent. Rock 4 en Disco onzeker; Samba, Mambo, Cha-cha, Beguine,
+  Rhumba en de fill-ins ontbreken nog. Demo: Solo ▾ → Ritmebox. Zie
+  [ritmebox](plans/ritmebox.md).
+
 ### 2026-10-02 — Modulatorpakket en klassiekers: zestien modules (firmware gebouwd, nog geen nieuw versienummer)
 Uit een doorlichting van de collectie ([analyse](plans/modulecollectie-analyse-2026-10.md)): de
 CV-modulatoren waren het dunst, en de West Coast-kant, een orgel en een paar

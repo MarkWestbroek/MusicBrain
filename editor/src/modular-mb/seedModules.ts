@@ -4367,6 +4367,151 @@ function mmbKnobs() {
   });
 }
 
+// MMB RHYTHM — 16 HP. Ritmebox met de CR-78-presets (firmware tp_mmb_rhythm).
+/** Volgorde gelijk aan kCr78Patterns in firmware/lib/mmb-dsp/mmb_dsp/rhythm_box.h. */
+export const RHYTHM_NAMES = ['Rock 1', 'Rock 2', 'Rock 3', 'Rock 4', 'Disco 1', 'Disco 2', 'Waltz', 'Shuffle',
+  'Slow rock', 'Swing', 'Foxtrot', 'Tango', 'Boogie', 'Enka', 'Bossa nova'];
+function mmbRhythm() {
+  const w = W(16);
+  const col = (i: number): number => w * (0.10 + i * 0.16);
+  return assemble({
+    typeId: 'tp_mmb_rhythm', categoryId: 'drum',
+    variant: 'Rhythm box (CR-78-presets)',
+    brand: 'MMB', model: 'RHYTHM',
+    hp: 16, texture: 'wood', baseColor: '#4a3220', internal: true,
+    texts: [
+      { x: w/2, y: 8, text: 'RHYTHM', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13, text: 'ritmebox · presets naar de CR-78', fontSize: 1.1, color: '#e5e7eb', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      display('rhythmName', w*0.36, 24, { digits: 10, style: 'led-green', bindTo: 'rhythm', lookup: [RHYTHM_NAMES], text: 'Rock 1', size: 'medium' }),
+      knob('rhythm', 'Rhythm', w*0.80, 26, { size: 'medium', min: 0, max: RHYTHM_NAMES.length - 1, def: 0, step: 1, color: '#fbbf24' }),
+      sw('variation', 'Variation', w*0.14, 48, ['A', 'B', 'A+B'], 2),
+      knob('tempo', 'Tempo', w*0.42, 48, { size: 'large', min: 30, max: 300, def: 120, unit: 'bpm', color: '#f9fafb' }),
+      toggle('run', 'Run', w*0.68, 46, true),
+      toggle('extclock', 'ExtClk', w*0.88, 46),
+      knob('accent', 'Accent', col(0), 72, { size: 'small', min: 0, max: 1, def: 0.6, color: '#ef4444' }),
+      knob('bass', 'Bass', col(1), 72, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      knob('snare', 'Snare', col(2), 72, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      knob('metal', 'Metal', col(3), 72, { size: 'small', min: 0, max: 1, def: 0.7, color: '#f9fafb' }),
+      knob('perc', 'Perc', col(4), 72, { size: 'small', min: 0, max: 1, def: 0.7, color: '#f9fafb' }),
+      knob('level', 'Level', col(5), 72, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      inPort('start', 'Start', 'gate', col(0), 96),
+      inPort('clock', 'Clk', 'gate', col(1), 96),
+      inPort('reset', 'Rst', 'gate', col(2), 96),
+      outPort('step', 'Step', 'gate', col(3), 96),
+      outPort('bar', 'Bar', 'gate', col(4), 96),
+      outPort('acc', 'Acc', 'gate', col(5), 96),
+      outPort('out_l', 'L', 'audio', w*0.62, 114),
+      outPort('out_r', 'R', 'audio', w*0.84, 114),
+    ],
+    notes: 'Ritmebox met de presets van de Roland CR-78, gespeeld op dezelfde berekende CR-78-stemmen als de CR-78-module (basdrum, lage conga, lage en hoge bongo, snare, rimshot, claves, koebel, maracas, hihat, cymbal). De patronen zijn met de hand overgenomen uit het notenschrift in de CR-78 Service Notes (20 juni 1979): Rock 1–4, Disco 1–2, Waltz, Shuffle, Slow rock, Swing, Foxtrot, Tango, Boogie, Enka en Bossa nova, elk met een A- en een B-maat (Foxtrot en Tango zitten op het origineel samen op één knop: A en B). Rock 4 en de Disco-patronen zijn onzeker overgenomen; Samba, Mambo, Cha-cha, Beguine en Rhumba ontbreken nog, want die zijn in de scan niet betrouwbaar te lezen. Variation: A, B, of A+B om en om. Run start en stopt; een puls op Start wisselt ook (een voetschakelaar via PADS). Tempo is in tellen per minuut; ExtClk aan laat hem een externe tel volgen (bijvoorbeeld CLOCK Beat): de box meet de afstand tussen de tellen en verdeelt de stappen erover, ook triolen. Rst gaat terug naar het begin van maat A. Accent is hoe hard de geaccentueerde stappen eruit springen; Bass, Snare, Metal (hihat, cymbal, maracas) en Perc (bongo, conga, claves, koebel, rimshot) zijn de groepsvolumes. Step, Bar en Acc geven een puls per stap, op de één en op elk accent: synchroniseer er een sequencer of een envelope mee. Firmware tp_mmb_rhythm, mmb_dsp::RhythmBox; in de simulator draait dezelfde code als wasm.',
+  });
+}
+
+// MMB PERCUTER — 24 HP. Acht 8-bit drumkanalen (firmware tp_mmb_percuter).
+function mmbPercuter() {
+  const w = W(24);
+  const col = (k: number): number => 8 + k * 14.4;                // acht kanaalkolommen
+  const ch = Array.from({ length: 8 }, (_, k) => k + 1);
+  return assemble({
+    typeId: 'tp_mmb_percuter', categoryId: 'drum',
+    variant: 'Percuter (8 kanalen, 8-bit cartridges)',
+    brand: 'MMB', model: 'PERCUTER',
+    hp: 24, texture: 'pcb-black', baseColor: '#2b2b2b', internal: true,
+    texts: [
+      { x: w/2, y: 8, text: 'PERCUTER', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13, text: '8 track digital drum computer · 8-bit cartridges', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('bank', 'Bank', w*0.10, 25, { size: 'medium', min: 0, max: 15, def: 0, step: 1, color: '#f5a623', ticks: { every: 1, highlight: [0, 15] } }),
+      knob('tune', 'Tune', w*0.72, 25, { size: 'small', min: -12, max: 12, def: 0, unit: 'semi', color: '#f9fafb' }),
+      toggle('filter', 'Filter', w*0.84, 23, true),
+      knob('level', 'Level', w*0.94, 25, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      ...ch.flatMap((k) => [
+        knob(`level_${k}`, `${k}`, col(k - 1), 42, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+        knob(`pan_${k}`, 'Pan', col(k - 1), 55, { size: 'small', min: -1, max: 1, def: 0, color: '#9ca3af' }),
+        knob(`decay_${k}`, 'Dec', col(k - 1), 68, { size: 'small', min: 0, max: 1, def: 1, color: '#9ca3af' }),
+        knob(`tune_${k}`, 'Tune', col(k - 1), 81, { size: 'small', min: -12, max: 12, def: 0, unit: 'semi', color: '#9ca3af' }),
+        inPort(`trig_${k}`, 'Trig', 'gate', col(k - 1), 95),
+        inPort(`vel_${k}`, 'Vel', 'cv', col(k - 1), 106),
+        outPort(`out_${k}`, 'Out', 'audio', col(k - 1), 117),
+      ]),
+      inPort('pitch', 'Pitch', 'cv', w*0.30, 25),
+      outPort('out_l', 'L', 'audio', w*0.44, 25),
+      outPort('out_r', 'R', 'audio', w*0.56, 25),
+    ],
+    notes: 'Acht digitale drumkanalen naar de Dynacord Percuter (1984). Op het apparaat zit in elk kanaal een cartridge: een EPROM van 8 of 16 KB met kale 8-bit geluid, afgespeeld op 12,5 of 25 kHz. Het lo-fi-karakter komt van hoe hij afspeelt, en dat doet deze module ook: zonder interpolatie (je hoort de spiegeltonen boven de halve samplefrequentie), op 8 bit, en de toonhoogte is de afspeelklok, dus hoger gestemd is ook korter. Filter aan dempt de spiegeltonen zoals de de-emphasis van de cartridge; uit is rauw. Kanaal k speelt slot k van de samplebank die Bank kiest: dezelfde banken als de SAMPLER (/mmb/banks/NN.mmbs op de Teensy, de bankbalk in de simulator). Een bank maak je van cartridge-dumps met tools/mmb-wasm/percuter-to-mmbs.mjs: één .bin per kanaal, met per cartridge zijn eigen samplefrequentie. Per kanaal: Trig (gate), Vel (aanslag 0..1; zonder kabel volle sterkte), volume, Pan, Dec (1 = het hele sample, lager = korter) en Tune, en een eigen uitgang zonder volume en pan, zoals de losse uitgangen op het apparaat. Pitch is het pitchpedaal (V/Oct, op alle kanalen), Tune de globale stemming. Op de Teensy deelt hij de bank met de sampler en de tape strip: één bank tegelijk. Firmware tp_mmb_percuter, mmb_dsp::Percuter; in de simulator draait dezelfde code als wasm.',
+  });
+}
+
+// MMB SYNTHEX — 28 HP. Polyfone stem naar de Elka Synthex (firmware tp_mmb_synthex).
+function mmbSynthex() {
+  const w = W(28);
+  const col = (i: number): number => 9 + i * 17.2;
+  const cells = Array.from({ length: 8 }, (_, i) => i + 1);
+  return assemble({
+    typeId: 'tp_mmb_synthex', categoryId: 'vco',
+    variant: 'Synthex (8 stemmen, naar de Elka Synthex)',
+    brand: 'MMB', model: 'SYNTHEX',
+    hp: 28, texture: 'pcb-black', baseColor: '#1c1c22', internal: true,
+    role: 'multi',
+    cellGroups: [{ id: 'voice', label: 'Stem', count: 8, portIds: ['voct', 'gate'], controlIds: [] }],
+    texts: [
+      { x: w/2, y: 8, text: 'SYNTHEX', fontSize: 2.6, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13, text: 'OSC 1 · OSC 2 · MIX · FILTER · ENV F · ENV A · LFO · MASTER', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+      { x: 3, y: 99, text: 'V/Oct · Gate per stem', fontSize: 0.9, color: '#9ca3af', align: 'start' },
+    ],
+    items: [
+      sw('o1_oct', 'Feet', col(0), 24, ["16'", "8'", "4'", "2'"], 2),
+      sw('o1_wave', 'Wave', col(0), 42, ['Ramp', 'Sqr', 'Pulse'], 0),
+      knob('o1_level', 'Volume', col(0), 60, { size: 'medium', min: 0, max: 10, def: 10, color: '#f9fafb' }),
+      sw('o2_oct', 'Feet', col(1), 24, ["16'", "8'", "4'", "2'"], 2),
+      knob('o2_transpose', 'Transp', col(1), 78, { size: 'small', min: -12, max: 12, def: 0, unit: 'semi', color: '#f9fafb' }),
+      knob('o2_detune', 'Detune', col(2), 78, { size: 'small', min: -50, max: 50, def: 6, unit: 'ct', color: '#f9fafb' }),
+      sw('o2_wave', 'Wave', col(1), 42, ['Ramp', 'Sqr', 'Pulse'], 0),
+      knob('o2_level', 'Volume', col(1), 60, { size: 'medium', min: 0, max: 10, def: 8, color: '#f9fafb' }),
+      toggle('sync', 'Sync', col(2), 24, false),
+      toggle('ring', 'Ring', col(2), 36, false),
+      knob('pw', 'PW', col(0), 78, { size: 'small', min: 0.05, max: 0.5, def: 0.3, color: '#f9fafb' }),
+      knob('noise', 'Noise', col(2), 60, { size: 'small', min: 0, max: 10, def: 0, color: '#f9fafb' }),
+      knob('freq', 'Freq', col(3), 24, { size: 'medium', min: 0, max: 10, def: 6, color: '#f9fafb' }),
+      knob('res', 'Reso', col(3), 42, { size: 'medium', min: 0, max: 10, def: 2, color: '#f9fafb' }),
+      knob('env_amt', 'Env', col(3), 60, { size: 'small', min: 0, max: 10, def: 4, color: '#f9fafb' }),
+      knob('kbd', 'Kbd', col(3), 78, { size: 'small', min: 0, max: 10, def: 3, color: '#f9fafb' }),
+      sw('mode', 'Mode', col(4), 24, ['LP', 'BP', 'HP'], 0),
+      knob('fa', 'A', col(4), 42, { size: 'small', min: 0, max: 10, def: 0.5, color: '#f9fafb' }),
+      knob('fd', 'D', col(4), 54, { size: 'small', min: 0, max: 10, def: 5, color: '#f9fafb' }),
+      knob('fs', 'S', col(4), 66, { size: 'small', min: 0, max: 10, def: 6, color: '#f9fafb' }),
+      knob('fr', 'R', col(4), 78, { size: 'small', min: 0, max: 10, def: 4, color: '#f9fafb' }),
+      knob('aa', 'A', col(5), 42, { size: 'small', min: 0, max: 10, def: 0.5, color: '#f9fafb' }),
+      knob('ad', 'D', col(5), 54, { size: 'small', min: 0, max: 10, def: 5, color: '#f9fafb' }),
+      knob('as', 'S', col(5), 66, { size: 'small', min: 0, max: 10, def: 8, color: '#f9fafb' }),
+      knob('ar', 'R', col(5), 78, { size: 'small', min: 0, max: 10, def: 4, color: '#f9fafb' }),
+      knob('lfo_rate', 'Rate', col(6), 24, { size: 'small', min: 0.05, max: 20, def: 5, unit: 'Hz', color: '#f9fafb' }),
+      sw('lfo_wave', 'Wave', col(6), 42, ['Tri', 'Sqr', 'Saw', 'S&H'], 0),
+      knob('lfo_osc', '→Osc', col(6), 56, { size: 'small', min: 0, max: 1, def: 0, color: '#f9fafb' }),
+      knob('lfo_pw', '→PW', col(6), 66, { size: 'small', min: 0, max: 1, def: 0, color: '#f9fafb' }),
+      knob('lfo_vcf', '→VCF', col(6), 76, { size: 'small', min: 0, max: 1, def: 0, color: '#f9fafb' }),
+      knob('lfo_vca', '→VCA', col(6), 86, { size: 'small', min: 0, max: 1, def: 0, color: '#f9fafb' }),
+      knob('glide', 'Glide', col(5), 24, { size: 'small', min: 0, max: 1, def: 0, color: '#f9fafb' }),
+      knob('tune', 'Tune', col(7), 24, { size: 'small', min: -12, max: 12, def: 0, unit: 'semi', color: '#f9fafb' }),
+      toggle('chorus', 'Chorus', col(7), 42, true),
+      knob('level', 'Level', col(7), 58, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      ...cells.map((k) => inPort(`voct_${k}`, '', 'cv', 7 + (k - 1) * 12, 104, { cellGroupId: 'voice' })),
+      ...cells.map((k) => inPort(`gate_${k}`, '', 'gate', 7 + (k - 1) * 12, 115, { cellGroupId: 'voice' })),
+      inPort('bend', 'Joy X', 'cv', col(7), 78),
+      inPort('joy', 'Joy Y', 'cv', col(7), 90),
+      outPort('out_l', 'L', 'audio', col(7) - 6, 110),
+      outPort('out_r', 'R', 'audio', col(7) + 6, 110),
+    ],
+    notes: 'Polyfone stem naar de Elka Synthex (1981, ontwerp Mario Maggi), gebouwd naar het schema. Per stem twee oscillatoren; op het apparaat zijn die digitaal (tellers op 4 MHz), daarom stabiel. Golfvorm Ramp, Sqr of Pulse (met PW), voetmaat 16′ tot 2′; oscillator 2 heeft Transpose en Detune, Sync zet hem vast aan oscillator 1, Ring vervangt hem door het product van beide. De menger telt in 16 stappen, zoals de 4-bit volumes van het origineel, en heeft ruis. Het filter is het vierpolige OTA-filter van de Synthex: Mode kiest LP (24 dB), BP of HP, met Freq, Reso (tot net onder zingen), Env (de filter-envelope) en Kbd (toetsvolging). ENV F en ENV A zijn ADSR\u2019s in knopstanden 0..10 (2 ms tot 10 s). De LFO stuurt de oscillatoren, PW, het filter en het volume; Glide, Tune, de stereochorus en Level zitten bij MASTER. Joy X buigt de toonhoogte (V/Oct), Joy Y stuurt het filter, zoals de joystick. Acht stemmen tegelijk: Poly ▾ → Synthex ×8. Eigen model naar de topologie, geen simulatie per onderdeel. Firmware tp_mmb_synthex, mmb_dsp::Synthex; in de simulator draait dezelfde code als wasm.',
+  });
+}
+
 // 24. MMB CHORD — 6 HP. Chord-generator (firmware tp_mmb_chord, FW-CV-5):
 //     1 V/Oct in → 4 gestemde CV-uitgangen. Voedt Octa-VCO / 4 VCO's /
 //     de resonator-bank; achter de quantizer blijft alles in de toonsoort.
@@ -4559,6 +4704,7 @@ export function seedInternals(project: ModularProject): ModularProject {
   all.push(mmbFolder(), mmbLpg(), mmbDrive(), mmbFreqShift(), mmbAcid(), mmbRungler(), mmbOrgan());
   all.push(mmbSem(), mmbComplex(), mmbWah(), mmbEnsemble(), mmbEPiano());
   all.push(mmbPads(), mmbFaders(), mmbKnobs());
+  all.push(mmbRhythm(), mmbPercuter(), mmbSynthex());
   const newTypes = all.map((x) => x.type);
 
   // Upgrade-pad: bestaande interne types worden in-place VERVANGEN (zelfde
