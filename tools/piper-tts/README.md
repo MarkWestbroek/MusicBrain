@@ -92,7 +92,10 @@ Dat laatste maakt in één keer een lyricbank van getypte tekst.
 
 ## Op de VPS
 
-Nog niet uitgerold. Het patroon is dat van de AI-proxy
+**Uitgerold op 2026-10-02.** Bereikbaar op `https://editor.musicbrain.nl/tts/`;
+bouwmap `/srv/musicbrain-tts/build`, gebruik in `/srv/musicbrain-tts/data`,
+Caddy-backup `/etc/caddy/Caddyfile.bak-tts-20261002`. Container met
+`--memory 1g` (gebruikt ~240 MB met één stem geladen). Het patroon is dat van de AI-proxy
 ([tools/ai-proxy](../ai-proxy/README.md)):
 
 | Onderdeel | Waar |
