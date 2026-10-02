@@ -56,6 +56,16 @@ Gebouwd 2026-09-25 (ED-RC-10). Code: `server.mjs`, zonder afhankelijkheden
 Er staat geen Node op de host; daarom een container. Hij hoort niet bij de
 editor-deploy: een nieuwe editor-release laat de proxy met rust.
 
+## Toegang met een site-token
+
+Sinds 2026-10-02 werkt ook een **persoonlijk token van de MusicBrain-site**
+(`imp_…`, aangemaakt op musicbrain.nl onder je account, met het recht *list
+media*). De proxy vraagt de site of het token geldig is (`IMPRINT_VERIFY`,
+standaard `https://musicbrain.nl/api/media?folder=__ai_proxy_check__`) en
+onthoudt het antwoord tien minuten. Daglimiet per token: `IMPRINT_PER_DAY`
+(200). In `usage.jsonl` staat dan een vingerafdruk (`imp:…`), nooit het token.
+Intrekken gaat op de site; binnen tien minuten werkt het token hier niet meer.
+
 ## Codes beheren
 
 Op de VPS (`ssh vps1`; vanaf Windows via PowerShell, de sleutel zit in de

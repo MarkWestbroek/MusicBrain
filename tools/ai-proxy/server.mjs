@@ -20,9 +20,13 @@
 //   AI_PROXY_PORT   standaard 8787
 //   AI_PROXY_HOST   standaard 127.0.0.1 (Caddy zit ervoor); in een container 0.0.0.0
 //   AI_PROXY_DIR    map met invites.json en usage.jsonl (standaard naast dit script)
+//   IMPRINT_VERIFY  URL waarmee een persoonlijk token van de site (imp_…) wordt
+//                   gecontroleerd: 200 = geldig. Standaard musicbrain.nl/api/media;
+//                   leeg = alleen de eigen codes. Antwoord tien minuten onthouden.
+//   IMPRINT_PER_DAY daglimiet per site-token (standaard 200)
 
 import http from 'node:http';
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { appendFileSync, existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -87,6 +91,27 @@ if (!UPSTREAM_KEY) { console.error('ai-proxy: UPSTREAM_KEY ontbreekt'); process.
 const counts = usageToday();   // bij de start inlezen, daarna in het geheugen bijhouden
 let countDay = today();
 
+// ── Persoonlijke tokens van de site (imp_…) ───────────────────────────────
+const IMPRINT_VERIFY = process.env.IMPRINT_VERIFY ?? 'https://musicbrain.nl/api/media?folder=__ai_proxy_check__';
+const IMPRINT_PER_DAY = Number(process.env.IMPRINT_PER_DAY ?? 200);
+const siteCache = new Map();   // vingerafdruk → { ok, until }
+/** In logs en tellers staat nooit het token zelf, alleen een vingerafdruk. */
+const fingerprint = (code) => `imp:${createHash('sha256').update(code).digest('hex').slice(0, 12)}`;
+async function siteToken(code) {
+  if (!IMPRINT_VERIFY || !code.startsWith('imp_')) return null;
+  const key = fingerprint(code);
+  const hit = siteCache.get(key);
+  if (hit && hit.until > Date.now()) return hit.ok ? { name: `site-token ${key.slice(4, 10)}`, perDay: IMPRINT_PER_DAY, key } : null;
+  let ok;
+  try {
+    const r = await fetch(IMPRINT_VERIFY, { headers: { Authorization: `Bearer ${code}` }, signal: AbortSignal.timeout(8000) });
+    ok = r.ok ? true : (r.status === 401 || r.status === 403) ? false : undefined;
+  } catch { ok = undefined; }
+  if (ok === undefined) return null;          // site onbereikbaar: niet onthouden, wel weigeren
+  siteCache.set(key, { ok, until: Date.now() + (ok ? 600_000 : 60_000) });
+  return ok ? { name: `site-token ${key.slice(4, 10)}`, perDay: IMPRINT_PER_DAY, key } : null;
+}
+
 function send(res, status, obj) {
   res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
   res.end(JSON.stringify(obj));
@@ -98,10 +123,11 @@ const server = http.createServer(async (req, res) => {
   if (req.method !== 'POST' || url !== '/v1/chat/completions') return send(res, 404, { error: 'niet gevonden' });
 
   const code = /^Bearer\s+(.+)$/.exec(req.headers.authorization ?? '')?.[1]?.trim() ?? '';
-  const invite = readInvites().find((i) => i.code === code && i.active);
+  const own = readInvites().find((i) => i.code === code && i.active);
+  const invite = own ? { ...own, key: code } : await siteToken(code);
   if (!invite) return send(res, 401, { error: 'onbekende of ingetrokken toegangscode' });
   if (countDay !== today()) { counts.clear(); countDay = today(); }
-  const used = counts.get(code) ?? 0;
+  const used = counts.get(invite.key) ?? 0;
   if (used >= invite.perDay) return send(res, 429, { error: `daglimiet bereikt (${invite.perDay})` });
 
   let body = '';
@@ -114,7 +140,7 @@ const server = http.createServer(async (req, res) => {
   if (UPSTREAM_MODEL) json.model = UPSTREAM_MODEL;
   delete json.stream;   // geen streaming door de proxy
 
-  counts.set(code, used + 1);
+  counts.set(invite.key, used + 1);
   try {
     const up = await fetch(UPSTREAM_URL, {
       method: 'POST',
@@ -125,7 +151,7 @@ const server = http.createServer(async (req, res) => {
     const text = await up.text();
     let usage = null;
     try { usage = JSON.parse(text).usage ?? null; } catch { /* geen JSON */ }
-    appendFileSync(USAGE, JSON.stringify({ date: today(), t: new Date().toISOString(), code, name: invite.name, status: up.status, usage }) + '\n');
+    appendFileSync(USAGE, JSON.stringify({ date: today(), t: new Date().toISOString(), code: invite.key, name: invite.name, status: up.status, usage }) + '\n');
     res.writeHead(up.status, { 'Content-Type': up.headers.get('content-type') ?? 'application/json', 'Cache-Control': 'no-store' });
     res.end(text);
   } catch (e) {
