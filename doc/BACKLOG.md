@@ -103,6 +103,7 @@ bovenbalk bestaat een klikbare, niet-mutende
 |---|---|---|---|
 | ED-FR-1 | 2 | 🔬 | **Patch-front (black-box-kant van een patch).** `Patch.fronts[]`: benoemde selectie van controls en poorten met label en rasterlayout; waarden blijven in `controlState`. Front-tab, spelermodus, automatisch front voor patches zonder front, `front.svg` voor de pool. Voorstel: [plans/patch-front.md](plans/patch-front.md). |
 | ED-RX-1 | 2 | 🔬 | **Reflex: pedaalcatalogus, klanksimulatie en FX LOOP naar Cortex.** Pedaal = extern moduletype met `simulatedBy` op een bestaande effectmodule (gedeelde catalogus, ~30 pedalen); Reflex-keten als synthetisch project door de `AudioEngine`; `midiProgram`/`midiCcOut` in de editor (MVP eerste gebruiker); `tp_mmb_fx_loop`; audio-I/O-kaart als hardwarestap. Voorstel: [plans/pedaalsimulatie-effect-switcher.md](plans/pedaalsimulatie-effect-switcher.md). |
+| ED-FL-1 | 2 | 🔬 | **Signaalstroom per module (flow) in het contract.** Klein declaratief blokschema per moduletype (units + edges, controls en poorten per unit), als `// flow:`-regels in de firmware-headers, geparseerd door `contract_dump.py`; mermaid in de catalogus, blokschema in de inspector, afgeleide patchgraaf voor front en signaalpad-view (ED-PT-2). Voorstel: [plans/module-signaalstroom.md](plans/module-signaalstroom.md). |
 
 ---
 

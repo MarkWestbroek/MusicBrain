@@ -11,9 +11,12 @@ speelt.
 
 Een **front** is een benoemde, geordende selectie van `(module, control)` en
 `(module, poort)` uit een patch, met een eigen label per knop en een eigen
-layout. De waarden blijven in `patch.controlState`: een front is een
-*gezichtspunt* op de patch, geen kopie van de patch. Alles wat niet op het
-front staat is een vaste interne instelling van de black box.
+layout. De waarden blijven in `patch.controlState`: een front is een **view** op
+de patch, met de bijbehorende beperkte *controller* (in de zin van MVC),
+geen kopie van de patch. Draai je op het front aan een knop, dan is de patch
+zelf gewijzigd: die sla je op, zet je op A/B/C/D of morpht je zoals altijd.
+Alles wat niet op het front staat is een vaste interne instelling van de
+black box.
 
 Een patch zonder front krijgt een automatisch front (§5), zodat elke patch,
 ook die uit de pool, "dicht" te tonen is.
@@ -70,12 +73,19 @@ zoals eerder bij `controlLabels`, `morph` en `folder`.
 
 Afgesproken grenzen:
 
-- **Waarden staan niet in het front.** Twee fronts van één patch tonen
-  dezelfde cutoff. Wil je twee *klanken*, dan maak je twee patches (dupliceer,
-  of A/B); wil je twee *gezichtspunten*, dan maak je twee fronts.
-- **Geen macro's in v1.** Eén knop die drie controls draait is een
-  mini-morph (`recipe/morph.ts`, `ruleFor`) en vraagt een eigen waarde buiten
-  `controlState`. Dat is een logische stap 5, niet de eerste.
+- **Een patch is een patch.** Eén control 0,1 anders is een andere patch.
+  Twee fronts van één patch tonen dus dezelfde cutoff; wil je twee *klanken*,
+  dan maak je twee patches (dupliceer, A/B, morph), wil je twee *views*, dan
+  maak je twee fronts. Morph je tussen A en B, dan zie je op het front de
+  knoppen bewegen: hetzelfde mechanisme, minder op je scherm.
+- **Alleen views, geen transformaties.** Een `range` die maar een stuk van
+  de schaal toont (0,231–0,856, omdat daaronder de toon wegloopt en daarboven
+  de resonantie losgaat) is een view: virtuele touwtjes en elastiekjes. Eén
+  knop die drie controls in dezelfde richting meeneemt is dat nog net; één
+  knop die er één omhoog en twee omlaag draait, of een curve toepast, is een
+  CV- of audiotransformatie en hoort in een module. Macro's blijven buiten
+  v1 (stap 5) en krijgen nooit een eigen opgeslagen waarde: de stand is
+  afgeleid van de echte controls.
 - **Poorten blijven de echte poorten.** Kabels verwijzen altijd naar
   `(moduleId, portId)`, ook bij cel-poorten (`<portId>_<n>`). Een front-poort
   is een *bordje* op een bestaande jack, geen alias.
@@ -124,6 +134,14 @@ De simulator hoeft niets te weten: `SimulationPanel` is altijd gemount en
 hoort elke wijziging van `controlState`. Ook de Teensy hoeft niets te weten
 (§7).
 
+Een front is geen paneel, maar het *heeft* er een. Dat paneel is virtueel in
+de browser, en kan ook echt worden: een fysiek paneel (een Roto-Control, de
+KNOBS/FADERS-kaart, of een latere FRONT-kaart met potmeters en display) dat
+de onderliggende soft- en hardwaremodules bestuurt. De simulator simuleert
+dan dat paneel, zoals hij nu een modulepaneel simuleert. De koppeling van
+front-items aan fysieke knoppen loopt via de `midiMap`-bindings uit §7; de
+labels op het fysieke paneel via [control-labels.md](control-labels.md).
+
 ## 5. Automatisch front
 
 Een patch zonder `fronts` krijgt ter plekke een front "Auto" (niet
@@ -149,10 +167,24 @@ Solo ▾/Poly ▾-demo's zijn de eerste kandidaten.
 - **Spelermodus**: een schakelaar (en `?player=1` in de URL) die de editor
   opent op de Front-tab en de white-box-tabs achter één knop **Binnenkijken**
   zet. `?patch=<slug>&front=<id>` opent een pool-patch meteen dicht.
-- **Ontwerpen** gebeurt in het rack en de patcher: rechtsklik op een knop of
-  jack → "Op front zetten ▸ <frontnaam>"; in de Front-tab zelf alleen
-  volgorde (slepen), label, grootte, groepen en `range`. Zo blijft er één
-  plek waar je controls kiest en één plek waar je ze schikt.
+- **Ontwerpen** begint automatisch: de ontwerper kiest de grootte van het
+  front (kolommen, rijen) en het aantal controls, en de editor verzint het
+  front, deterministisch (§5) of met de optionele AI-laag die er voor
+  recepten al is ([patch-recept.md](patch-recept.md),
+  [recept-tools-en-mcp.md](recept-tools-en-mcp.md)): een "front-recept" dat
+  uit de patch en de signaalstroom een logisch en mooi front voorstelt.
+  Daarna bijwerken: rechtsklik op een knop of jack in rack of patcher →
+  "Op front zetten ▸ <frontnaam>"; in de Front-tab zelf volgorde (slepen),
+  label, grootte, groepen en `range`.
+- **Signaalstroom op het front.** Het front is geen betekenisloze
+  achtergrond zoals een modulepaneel, maar kent de flow: lijntjes tussen de
+  knoppen die het signaalpad verkorten, zoals op een ouderwetse of een
+  moderne eenvoudige synth. Die lijnen zijn een *afgeleide graaf*: de kabels
+  van de patch plus de interne signaalstroom van elke module. Die interne
+  kennis is er nu niet; daarvoor is [module-signaalstroom.md](module-signaalstroom.md)
+  (een klein blokschema per moduletype in het contract). Zonder die flows
+  valt het front terug op knoppen zonder lijnen. Een front blijft een view:
+  de graaf tekent, hij rekent niet.
 - **Mobiel**: het raster met `columns: 2` is al bruikbaar op een telefoon;
   samen met Modlink (ADR 0016) is het front de "modulator-tab" die daar
   nog beloofd is.
@@ -185,6 +217,7 @@ Solo ▾/Poly ▾-demo's zijn de eerste kandidaten.
 | 2 | editor | `FrontPanel.tsx` (virtueel paneel via `ModulePanel`) + automatisch front (§5) | middel |
 | 3 | editor | Tab Front, "Op front zetten" in rack en patcher, label/grootte/volgorde, spelermodus en URL | middel |
 | 4 | editor | vrije plaatsing (slepen op mm), `range` | klein |
+| 4b | editor | signaalstroom-lijnen uit kabels + module-flows (na [module-signaalstroom.md](module-signaalstroom.md) stap 5); front-recept (AI of deterministisch) met grootte en aantal als invoer | middel |
 | 5 | editor | macro-knop (mini-morph) | middel, later |
 | 6 | editor + Imprint | `front.svg` bij Voorstellen; veld op het contenttype; tonen op `/patches/<slug>` | klein |
 | 7 | editor + fw | front → bindings en labels bij patchwissel | middel, na control-labels fw |
@@ -192,15 +225,23 @@ Solo ▾/Poly ▾-demo's zijn de eerste kandidaten.
 Stap 1 en 2 zijn samen al demonstreerbaar: één seed met een front, de
 Front-tab, en de kabels uit beeld.
 
-## 9. Besluiten gevraagd
+## 9. Besluiten
 
-1. **Waarden in de patch, niet in het front** (§3). Als met "inclusief
-   instellingen" bedoeld is dat elk front zijn eigen knopstanden heeft, dan
-   is dat een patch-variant, en die hebben we al (dupliceren, A/B, morph).
-   Voorstel: front = gezichtspunt.
-2. **Raster eerst, vrije plaatsing later** (stap 4). Het raster geeft in
-   één keer een bruikbaar front en werkt op een telefoon.
-3. **Ontwerpen vanuit rack/patcher, schikken in de Front-tab** (§6), of
-   alles in de Front-tab met een zoekveld over alle controls van de patch?
-4. **Spelermodus als standaard** voor `?patch=<slug>`-links van de site?
-   Dan opent een gedeelde patch altijd dicht, met "Binnenkijken" ernaast.
+Opmerkingen van Mark bij het lezen, 2026-10-03, verwerkt in §1, §3, §4 en §6:
+
+1. **Front = view + beperkte controller (MVC).** Een patch is een patch;
+   wijzigen via het front wijzigt de patch. Afgehandeld: §1 en §3.
+2. **Geen macro's in v1; alleen views.** Deelbereik van een knop is een
+   view; één knop die er drie gelijk meeneemt is op het randje; omkeren of
+   curven is een module. Afgehandeld: §3.
+3. **Een front is geen paneel maar heeft er een**, virtueel of echt; de
+   simulator simuleert dat paneel. Afgehandeld: §4.
+4. **Ontwerpen automatisch**, met grootte en aantal controls als keuze van de
+   ontwerper, deterministisch of met AI; en met de signaalstroom als lijnen
+   op het front. Afgehandeld: §6, en het nieuwe voorstel
+   [module-signaalstroom.md](module-signaalstroom.md).
+
+Nog open:
+
+- **Raster eerst, vrije plaatsing later** (stap 4).
+- **Spelermodus als standaard** voor `?patch=<slug>`-links van de site?

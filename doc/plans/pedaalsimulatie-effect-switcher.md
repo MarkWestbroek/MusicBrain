@@ -238,3 +238,35 @@ moet de simulatie laten horen welke modules een gitarist wil hebben.
    live gitaar via een interface?
 4. **Volgorde**: stap 1 (MIDI-velden, MVP) vóór alles; daarna 2+3, of eerst
    de FX LOOP (stap 6) omdat die de twee editors verbindt?
+
+## 9. Eerste reactie van Mark (2026-10-03), nog niet uitgelezen
+
+- **Volgorde van denken.** Eerst: pedalen simuleren met wasm en de bestaande
+  Cortex-bibliotheek (§3, §4). Dan: vanuit Cortex naar een pedalenpatch,
+  omdat effecten soms los voelen van een instrument en instrumenten dan
+  effecten kiezen als black box (§5.1). Dan: Cortex als geluidsverwerkende
+  patch met een gitaar- of mixingang, waarvoor een pre-amp vóór de codec of
+  voorlopig een gewone audio-interface via de computer nodig is (§5.2, §5.3).
+- **Twee manieren van denken**: de Eurorack/synth-manier en de
+  gitaristenmanier; en daartussen de 19"-rack-gitarist met MIDI-voetcontroller,
+  de toetsenist met pedalen naast zich, en de relais-schakelbak als simpele
+  variant van de patchkabels in MMB. Het ontwerp moet die werelden niet in
+  één model persen.
+- **Besluit 1, twijfel.** Een pedaal als extern moduletype voelt als een
+  extra laag; interne onderdelen (processoren) worden al in verschillende
+  modules hergebruikt. Een pedaal is bovendien anders dan een synthmodule:
+  andere impedantie, ander gedrag, andere ranges; geen CV, meestal geen MIDI
+  (en als wel, dan aan het eind van de keten bij reverb en echo); mono in,
+  mono of stereo uit, nooit polyfoon (een hexafonische pickup daargelaten).
+  Dus meer dan een herverpakking. Nog te lezen.
+  *Alternatief dat hieruit volgt*: een eigen, dun pedaalmodel in Reflex
+  (`Pedal {brand, model, io, knobs[], sim: {typeId, controlMap, preset,
+  ranges}}`) waarvan `sim` alleen zegt welke wasm-kern het pedaal laat
+  klinken, rechtstreeks via `WasmModule` in plaats van via een `ModuleType`.
+  Het pedaal verschijnt dan niet als module in een Cortex-rack; de
+  verbinding tussen de werelden is de FX LOOP (§5.1), die een hele
+  pedalenpatch als black box in Cortex zet. Minder lagen, en het pedaalmodel
+  mag afwijken van het modulemodel waar het pedaal echt anders is.
+- **Besluit 2**: ja en nee, antwoord volgt.
+- **Besluit 3**: beide; een paar DI-opnames om mee te testen zijn handig.
+- **Besluit 4**: later.
