@@ -56,6 +56,7 @@ import { ModulesPanel } from './ModulesPanel';
 import { CategoriesPanel } from './CategoriesPanel';
 import { RackPanel } from './RackPanel';
 import { PatcherPanel } from './PatcherPanel';
+import { FrontTab } from './FrontTab';
 import { SimulationPanel } from './SimulationPanel';
 import { SimQuickBar } from './sim/SimQuickBar';
 import { MidiMonitorHost } from './sim/MidiMonitorWindow';
@@ -83,13 +84,14 @@ import { Dx7EditorModal } from './Dx7EditorModal';
 // Reuse the ES project-bar CSS classes (.es-projectbar*) — same visual language.
 import '../effect-switcher/styles.css';
 
-type Tab = 'patches' | 'modules' | 'rack' | 'categories' | 'patcher' | 'simulation' | 'surface';
+type Tab = 'patches' | 'modules' | 'rack' | 'categories' | 'front' | 'patcher' | 'simulation' | 'surface';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'categories', label: 'Categorieën' },
   { id: 'modules',    label: 'Modules' },
   { id: 'rack',       label: 'Rack' },
   { id: 'patches',    label: 'Patches' },
+  { id: 'front',      label: 'Front' },
   { id: 'patcher',    label: 'Patcher' },
   { id: 'simulation', label: 'Simulatie' },
   { id: 'surface',    label: 'Surface' },
@@ -917,6 +919,7 @@ export function ModularMbApp(): JSX.Element {
       {tab === 'modules'    && <ModulesPanel />}
       {tab === 'rack'       && <RackPanel />}
       {tab === 'categories' && <CategoriesPanel />}
+      {tab === 'front'      && <FrontTab />}
       {tab === 'patcher'    && <PatcherPanel />}
       {/* Surface-paneel is UI over de singleton surfaceBridge: de MIDI-
           koppeling zelf blijft actief als je naar een andere tab gaat. */}

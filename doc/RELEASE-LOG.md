@@ -27,6 +27,19 @@
   weergave of Front-tab (stap 2 en 3). `fronts.ts`: `frontIssues`,
   `addToFront`, `removeFromFront`; 8 tests. Zie
   [plans/patch-front.md](plans/patch-front.md).
+- **Front-tab en virtueel paneel** (`frontPanel.ts`, `FrontPanel.tsx`,
+  `FrontTab.tsx`): een front wordt een tijdelijk moduletype met de echte
+  controldefinities en een rasterlayout (kolommen, groepskopjes, jacks
+  onderaan), getekend door het bestaande `ModulePanel`; draaien gaat via
+  `setPatchControl`, live waarden komen als overlay terug. Een patch zonder
+  front krijgt een **automatisch front**: gelabelde controls (groot), controls
+  met een surface-binding, de PADS/FADERS/KNOBS-modules, aangevuld tot acht
+  knoppen in signaalvolgorde (bronnen eerst, poly-followers weg), plus de
+  AUDIO IN-uitgangen en onverbonden audio-ingangen als jacks. De tab
+  **Front** (tussen Patches en Patcher) toont de fronts van de actieve
+  patch naast Auto, met "Auto bewaren als front" en "Front verwijderen".
+  Nog geen "Op front zetten" in rack en patcher en geen spelermodus (stap 3).
+  7 tests.
 - **`setPatchControl`** (`setPatchControl.ts`): het recept "poly-fan-out,
   live naar de Teensy, `controlState` bijwerken" stond drie keer
   uitgeschreven (patcher-knop, eigenschappenpaneel, surface-bridge) en staat
