@@ -12,7 +12,7 @@
 import {
   type ModularProject, type ModuleInstance, type ModuleType, type Patch,
   type PatchConnection, type PolyGroup, type Rack, type RackSlot, type ControlValue,
-  resolvePorts, resolveControls, canConnect,
+  resolvePorts, resolveControls, canConnect, pruneAllFronts,
 } from '../types';
 import { uid } from '../store';
 import { seedInternals } from '../seedModules';
@@ -351,6 +351,8 @@ export function replaceModule(project: ModularProject, patchId: string, moduleId
     if (loc) p = shiftRow(p, loc.rack.id, loc.slot, delta);
   }
   for (const d of dropped) warnings.push(`Kabel op ${d} had geen tegenhanger op ${shortName(newTypeId, p.moduleTypes)} en is verwijderd.`);
+  // 5. Front-items op controls of poorten die het nieuwe type niet heeft.
+  p = pruneAllFronts(p);
 
   const n = targets.length;
   return {
@@ -704,7 +706,8 @@ export function removeModule(project: ModularProject, patchId: string, moduleId:
   p = withPatch(p, patchId, (x) => {
     const kept = x.connections.filter((c) => !touches(c));
     const cs = { ...x.controlState }; for (const id of targets) delete cs[id];
-    return { ...x, connections: [...kept, ...added.filter((c) => !dup(c, kept))], controlState: cs };
+    const fronts = x.fronts?.map((f) => ({ ...f, items: f.items.filter((it) => it.kind === 'group' || !targets.includes(it.moduleId)) }));
+    return { ...x, connections: [...kept, ...added.filter((c) => !dup(c, kept))], controlState: cs, ...(fronts ? { fronts } : {}) };
   });
   // Nog in gebruik door een andere patch? Dan blijft hij in het rack.
   const usedElsewhere = p.patches.some((x) => x.id !== patchId && x.connections.some(touches));

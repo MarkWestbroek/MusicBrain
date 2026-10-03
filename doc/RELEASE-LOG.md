@@ -17,6 +17,22 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-03 — Patch-front: datamodel en één schrijfpad voor controls (editor, geen nieuwe firmware)
+- **`Patch.fronts`** (`types.ts`): een front is een benoemde, geordende
+  selectie van controls en poorten van de patch met label, grootte,
+  deelbereik en rasterbreedte; waarden blijven in `controlState`. Items naar
+  verdwenen modules, controls of poorten worden gesnoeid bij laden
+  (`normaliseV2`), bij `removeModule` en bij `replaceModule`; een
+  patch-snapshot neemt fronts mee en hernoemt de module-ids. Nog geen
+  weergave of Front-tab (stap 2 en 3). `fronts.ts`: `frontIssues`,
+  `addToFront`, `removeFromFront`; 8 tests. Zie
+  [plans/patch-front.md](plans/patch-front.md).
+- **`setPatchControl`** (`setPatchControl.ts`): het recept "poly-fan-out,
+  live naar de Teensy, `controlState` bijwerken" stond drie keer
+  uitgeschreven (patcher-knop, eigenschappenpaneel, surface-bridge) en staat
+  nu één keer. Bijvangst: de patcher-knop volgde `polyOverrides` niet en de
+  surface-bridge stuurde ook niet-scalaire waarden; beide nu gelijk. 5 tests.
+
 ### 2026-10-02 — Tube: buizenoverdrive (gitaarversterker en studiobuis)
 - **`tp_mmb_tube`** (effect, 10 HP, stereo): triodetrappen met roosterstroom,
   bias-verschuiving (blocking) en vier keer overbemonsterd. **Amp**: twee

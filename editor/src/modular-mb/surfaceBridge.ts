@@ -21,9 +21,8 @@
 // usbMIDI firmware-kant aanlevert. Omni-bindings zenden feedback op kanaal 1.
 
 import { useSyncExternalStore } from 'react';
-import { getProject, updateProject, subscribe as subscribeStore } from './store';
-import { sendControlPoke } from './teensyLink';
-import { polyControlTargets } from './polyExpand';
+import { getProject, subscribe as subscribeStore } from './store';
+import { setPatchControl } from './setPatchControl';
 import { resolveControls } from './types';
 import { fromTaper, toTaper } from './taper';
 import type { MidiBinding, ModularProject, Patch } from './types';
@@ -137,22 +136,10 @@ function applyIncomingCc(ch1: number, cc: number, val: number): void {
 
   const v = ccToValue(b, val);
   const patch = activePatchOf(p);
-  // Poly-fan-out: een binding op een master geldt voor alle stemmen van de
-  // groep — zelfde semantiek als setControl in PatcherGraphPanel, anders
-  // wisselt bv. een DX7-program maar op 1 van de 8 stemmen.
-  const targets = patch ? polyControlTargets(patch, p, b.mod) : [b.mod];
-  if (patch) {
-    updateProject((px) => ({
-      ...px,
-      patches: px.patches.map((pa) => {
-        if (pa.id !== patch.id) return pa;
-        const cs = { ...pa.controlState };
-        for (const id of targets) cs[id] = { ...(cs[id] ?? {}), [b.ctrl]: v };
-        return { ...pa, controlState: cs };
-      }),
-    }));
-  }
-  for (const id of targets) void sendControlPoke(id, b.ctrl, v);
+  // Poly-fan-out en live naar de Teensy: hetzelfde pad als een knop in de
+  // patcher (setPatchControl.ts), anders wisselt bv. een DX7-program maar op
+  // 1 van de 8 stemmen. Zonder actieve patch is er niets om in te schrijven.
+  if (patch) setPatchControl(patch.id, b.mod, b.ctrl, v);
 }
 
 function onMidiMessage(ev: MIDIMessageEvent): void {

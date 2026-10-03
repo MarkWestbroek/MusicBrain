@@ -24,8 +24,7 @@ import { updateProject, useModularProject, uid } from './store';
 import { RecipeContextMenu, type MenuAnchor } from './recipe/RecipeContextMenu';
 import { ModulePanel } from './ModulePanel';
 import { ControlLabelFields, setControlLabel } from './controlLabels';
-import { sendControlPoke } from './teensyLink';
-import { polyControlTargets } from './polyExpand';
+import { setPatchControl } from './setPatchControl';
 import { DX7_VOICE_NAMES, DX7_BANK_SHORT } from './dx7BankNames';
 import { useEngineStatus } from './sim/engineSingleton';import {
   type ModuleInstance, type ModuleType, type Port, type PatchConnection,
@@ -94,28 +93,9 @@ function ModuleNode({ data, selected }: NodeProps): JSX.Element {
   const widthMm  = m.visual.hpWidth * MM_PER_HP;
 
   function setControl(controlId: string, value: ControlValue): void {
-    // Poly-groep: de master spreekt voor alle stemmen. Followers zijn in de
-    // patcher verborgen, dus een edit op de master moet naar élk groepslid —
-    // zowel live (controlPoke) als persistent (controlState). Anders raakt
-    // bv. de filter-ADSR alleen stem 1 en klinken de andere stemmen anders.
-    const targets = voice
-      ? voice.group.members
-          .filter((mem): mem is { kind: 'module'; moduleId: string } => mem.kind === 'module')
-          .map((mem) => mem.moduleId)
-      : [m.id];
-    // Live control-sync (FW-LIVE-1): push scalar changes straight to the
-    // device (quiet no-op when disconnected) so knob drags are heard live.
-    if (typeof value === 'number' || typeof value === 'boolean')
-      for (const id of targets) void sendControlPoke(id, controlId, value);
-    updateProject((p) => ({
-      ...p,
-      patches: p.patches.map((px) => {
-        if (px.id !== patchId) return px;
-        const cs = { ...px.controlState };
-        for (const id of targets) cs[id] = { ...(cs[id] ?? {}), [controlId]: value };
-        return { ...px, controlState: cs };
-      }),
-    }));
+    // Poly-groep: de master spreekt voor alle stemmen (followers zijn in de
+    // patcher verborgen), live én persistent; zie setPatchControl.ts.
+    setPatchControl(patchId, m.id, controlId, value);
   }
 
   function setLabelHere(controlId: string, text: string): void {
@@ -933,21 +913,7 @@ function PropertiesPanel(props: { patchId: string; selectedNodeId: string | null
 
   function setControl(controlId: string, value: ControlValue): void {
     if (!m || !patch) return;
-    // Poly-groep: edit op een groepslid geldt voor alle stemmen (zie
-    // ModuleNode.setControl / polyControlTargets).
-    const targets = polyControlTargets(patch, project, m.id);
-    // Live control-sync (FW-LIVE-1): mirror scalar edits to the device.
-    if (typeof value === 'number' || typeof value === 'boolean')
-      for (const id of targets) void sendControlPoke(id, controlId, value);
-    updateProject((p) => ({
-      ...p,
-      patches: p.patches.map((px) => {
-        if (px.id !== patchId) return px;
-        const cs = { ...px.controlState };
-        for (const id of targets) cs[id] = { ...(cs[id] ?? {}), [controlId]: value };
-        return { ...px, controlState: cs };
-      }),
-    }));
+    setPatchControl(patchId, m.id, controlId, value);
   }
 
   if (!m || !t || !patch) {

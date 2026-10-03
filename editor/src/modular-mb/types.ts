@@ -619,6 +619,34 @@ export interface PatchPolyOverride {
   unison?: boolean;
 }
 
+/** Eén item op een patch-front (doc/plans/patch-front.md §3): een control of
+ *  poort van een module in de patch, of een groepskopje. Waarden staan niet
+ *  hier maar in `Patch.controlState`; het front is een view. */
+export type FrontItem =
+  | {
+      kind: 'control'; moduleId: string; controlId: string;
+      /** Eigen label; valt terug op `controlLabels`, dan op de gedrukte naam. */
+      label?: string;
+      size?: 'small' | 'large';
+      /** Deelbereik van de knop dat het front toont (de "sweet spot"); een
+       *  view, geen transformatie. Binnen min/max van de control. */
+      range?: { min: number; max: number };
+    }
+  | { kind: 'port'; moduleId: string; portId: string; label?: string }
+  | { kind: 'group'; text: string };
+
+/** Een front: benoemde, geordende selectie uit de patch met rasterlayout.
+ *  Eén patch kan er meerdere hebben (spelen, klankontwerp, live). */
+export interface PatchFront {
+  id: string;
+  name: string;
+  /** Uitleg voor de speler ("druk na de aanslag door"). */
+  description?: string;
+  /** Kolommen van het raster; weggelaten = 4. */
+  columns?: number;
+  items: FrontItem[];
+}
+
 export interface Patch {
   id: string;
   name: string;
@@ -660,6 +688,10 @@ export interface Patch {
   lfos: LfoInstance[];
   /** Patch-local repartitioning of rack PolyGroups (sketch §3.4). */
   polyOverrides?: PatchPolyOverride[];
+  /** Fronts: black-box-views op deze patch (doc/plans/patch-front.md).
+   *  Optioneel en additief; geen klank, dus niet in `saved`. Items naar
+   *  verdwenen modules worden bij laden en bij edits gesnoeid (`pruneFronts`). */
+  fronts?: PatchFront[];
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -981,13 +1013,50 @@ export function pruneOrphanGroups(p: ModularProject): { project: ModularProject;
   return groups || members ? { project: { ...p, racks }, groups, members } : { project: p, groups: 0, members: 0 };
 }
 
+/** Snoei front-items die naar verdwenen modules, controls of poorten wijzen
+ *  (zoals `pruneOrphanGroups` voor poly-groepen). Geeft dezelfde patch terug
+ *  als er niets te snoeien was, zodat aanroepers op identiteit kunnen
+ *  vergelijken. Staat hier en niet in fronts.ts omdat `normaliseV2` hem
+ *  nodig heeft en types.ts niets importeert. */
+export function pruneFronts(patch: Patch, project: ModularProject): Patch {
+  if (!patch.fronts?.length) return patch;
+  let changed = false;
+  const fronts = patch.fronts.map((f) => {
+    const items = f.items.filter((it) => {
+      if (it.kind === 'group') return true;
+      const m = project.modules.find((x) => x.id === it.moduleId);
+      if (!m) return false;
+      return it.kind === 'control'
+        ? resolveControls(m, project.moduleTypes).some((c) => c.id === it.controlId)
+        : resolvePorts(m, project.moduleTypes).some((p) => p.id === it.portId);
+    });
+    if (items.length === f.items.length) return f;
+    changed = true;
+    return { ...f, items };
+  });
+  return changed ? { ...patch, fronts } : patch;
+}
+
+/** `pruneFronts` over alle patches van een project. */
+export function pruneAllFronts(project: ModularProject): ModularProject {
+  let changed = false;
+  const patches = project.patches.map((pa) => {
+    const next = pruneFronts(pa, project);
+    if (next !== pa) changed = true;
+    return next;
+  });
+  return changed ? { ...project, patches } : project;
+}
+
 /** Repair a v2 project loaded from older snapshots:
  *  - fills `Patch.rackIds` from legacy `rackId`
  *  - geeft een patch zonder rack er één
  *  - haalt het prototype-rack weg waar het niet gebruikt wordt
- *  - ruimt voice-groepen op die naar verdwenen modules wijzen  */
+ *  - ruimt voice-groepen op die naar verdwenen modules wijzen
+ *  - snoeit front-items naar verdwenen modules, controls of poorten  */
 function normaliseV2(p: ModularProject): ModularProject {
   p = pruneOrphanGroups(p).project;
+  p = pruneAllFronts(p);
   const internalRack = p.racks.find((r) => r.kind === 'internal');
   // Het interne rack is de catalogus: één prototype per moduletype. Stond het
   // in een patch, dan tekende de patcher ze allemaal.
