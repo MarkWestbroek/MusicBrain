@@ -164,9 +164,11 @@ Solo ▾/Poly ▾-demo's zijn de eerste kandidaten.
   frontkiezer (één patch, meerdere fronts, "+ Front", "Dupliceer"). Midden:
   het virtuele paneel. Onder: de bediening uit de Simulatie-tab die een
   speler nodig heeft (audio starten, schermtoetsenbord, MIDI-ingang).
-- **Spelermodus**: een schakelaar (en `?player=1` in de URL) die de editor
-  opent op de Front-tab en de white-box-tabs achter één knop **Binnenkijken**
-  zet. `?patch=<slug>&front=<id>` opent een pool-patch meteen dicht.
+- **Spelermodus**: de editor opent op de Front-tab met de white-box-tabs
+  achter één knop **Binnenkijken**. Dat is de standaard voor
+  `?patch=<slug>`-links (optioneel `&front=<id>`) en voor wie niet is
+  ingelogd. Binnenkijken mag altijd; de laatste keuze (open of dicht) wordt
+  onthouden, in de browser en later per gebruiker.
 - **Ontwerpen** begint automatisch: de ontwerper kiest de grootte van het
   front (kolommen, rijen) en het aantal controls, en de editor verzint het
   front, deterministisch (§5) of met de optionele AI-laag die er voor
@@ -241,7 +243,12 @@ Opmerkingen van Mark bij het lezen, 2026-10-03, verwerkt in §1, §3, §4 en §6
    op het front. Afgehandeld: §6, en het nieuwe voorstel
    [module-signaalstroom.md](module-signaalstroom.md).
 
-Nog open:
+Besloten (Mark, 2026-10-03, tweede ronde):
 
-- **Raster eerst, vrije plaatsing later** (stap 4).
-- **Spelermodus als standaard** voor `?patch=<slug>`-links van de site?
+5. **Raster eerst**, vrije plaatsing in stap 4.
+6. **Standaard dicht.** Een `?patch=<slug>`-link opent in de spelermodus;
+   zonder login ben je per definitie geen expert, dus dicht. Open maken mag
+   altijd. Open of dicht wordt onthouden (in de browser; per gebruiker zodra
+   er logins zijn): wie opent, blijft open; wie sluit, blijft dicht.
+7. **Ontwerpen** zoals in §6: automatisch beginnen, bijwerken vanuit rack en
+   patcher, schikken in de Front-tab.

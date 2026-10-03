@@ -9,10 +9,22 @@ blokdiagram vooraan in de datasheet van een signaalverwerkende chip.
 
 ## 1. Wat het is, en wat het niet is
 
-Een **flow** is een graaf van **units** (verwerkingseenheden) met gerichte
-**edges** ertussen. Elke poort en elke control van de module hangt aan één
-unit. Splitsen en samenvoegen zijn zelf units (`split`, `merge`), zoals fork
-en join in een activity diagram, zodat edges altijd simpel zijn.
+Een **flow** is een graaf van **units** met gerichte **edges** ertussen.
+Elke poort en elke control van de module hangt aan één unit.
+
+**Splitsen en samenvoegen.** In een signaalgraaf is splitsen gratis: één
+uitgang mag meerdere edges voeden (fan-out), daar hoort geen knoop bij.
+Samenvoegen is nooit neutraal: het is óf **optellen** (een `mix`-unit, met
+eventueel een niveau per ingang) óf **kiezen** (een `switch`-unit, één van N,
+meestal aan een mode-control). Beide hebben betekenis, dus beide zijn units,
+geen kale merge-knopen. Een fork/join zoals in een activity diagram
+(parallel starten en wachten) bestaat voor doorlopende signalen niet.
+
+**SysML.** Zo past de flow één-op-één op een internal block diagram (ibd)
+van de module: units zijn parts met `kind` als stereotype, de poorten van
+de module zijn de boundary ports, edges zijn connectors, en fan-out is
+gewoon meerdere connectors uit één port. Wie de flow als SysML wil tonen,
+kan dat uit dezelfde JSON genereren, net als de mermaid in de catalogus.
 
 Het is een **beschrijving**, geen DSP. De kernel rekent; de flow vertelt in
 welke volgorde en waar de knoppen zitten. Grofkorrelig, op datasheet-niveau:
@@ -45,7 +57,7 @@ In het contract (`module-types.json`), per moduletype, optioneel:
 
 | Veld | Betekenis |
 |---|---|
-| `units[].kind` | kleine vaste woordenlijst: `input`, `output`, `osc`, `filter`, `gain`, `env`, `lfo`, `delay`, `nonlinear`, `mix`, `split`, `merge`, `mod`, `logic`, `other` |
+| `units[].kind` | kleine vaste woordenlijst: `input`, `output`, `osc`, `filter`, `gain`, `env`, `lfo`, `delay`, `nonlinear`, `mix`, `switch`, `mod`, `logic`, `other` (met verplicht label) |
 | `units[].controls`, `units[].ports` | de controls en poorten van de module die bij deze unit horen; elk hoogstens één keer |
 | `edges[].signal` | optioneel: `audio`, `cv`, `gate`; weggelaten = audio |
 | cel-modules (`role: multi`) | één flow per cel, met de kale poort-id's; de editor plakt `_<n>` erachter zoals `polyExpand.ts` dat al doet |
@@ -101,14 +113,14 @@ optioneel en ontbreken betekent "één unit".
 | 5 | editor | afgeleide patchgraaf (kabels + flows, samenvouwen) als functie met tests; eerst gebruikt door het front, daarna door ED-PT-2 | middel |
 | 6 | firmware headers | de overige modules | handwerk, verspreid |
 
-## 5. Open
+## 5. Besluiten (Mark, 2026-10-03)
 
-- Naam: `flow` met `units`, of `processing units` zoals Mark het noemde? In
-  SysML-termen is het het internal block diagram van de module; `flow` is
-  korter in code en in de DSL.
-- Hoe grof: mag een unit `other` heten als de kernel iets doet dat geen
-  naam heeft (de Material Bridge, GENDYN)? Voorstel: ja, met een label.
-- Een flow is een belofte over de kernel die niemand controleert. Volstaat
-  de review bij het schrijven, of willen we een rooktest (unit `filter` met
-  `cutoff` moet het spectrum veranderen)? Voorstel: alleen review; de
-  luistertests dekken de rest.
+- **Naam**: `flow` voor de functionele graaf, `units` voor de knopen.
+  "Processing unit" was bedoeld als intern blok en vervalt als term.
+- **Splitsen en samenvoegen**: fan-out op edges, `mix` en `switch` als
+  units (§1). Tonen als SysML-ibd kan uit dezelfde JSON.
+- **Grofheid**: `other` mag, met verplicht label.
+- **Flows zijn documentatie, geen code**: je test code en je reviewt
+  documentatie. Dus review bij het schrijven, geen rooktest. De
+  contract-test toetst alleen dat de verwijzingen (controls, poorten)
+  bestaan, net als bij panelen.

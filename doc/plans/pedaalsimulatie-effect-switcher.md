@@ -60,51 +60,65 @@ Cortex heeft **geen analoge audio-in of -uit**: alleen USB-audio
 busboard is een codec-header (J17) en I2S gereserveerd, niet gebouwd. Er is
 geen gedocumenteerde koppeling tussen Reflex en Cortex.
 
-## 2. Ontwerpkeuze: een pedaal is een moduletype
+## 2. Ontwerpkeuze: een dun pedaalmodel in Reflex, de klank uit de Cortex-kernen
 
-Eén catalogus, gebruikt door beide editors:
+> Besluit 2026-10-03 (Mark): geen "pedaal = extern moduletype"; dat zou een
+> supermodel over beide werelden zijn. Reflex krijgt een eigen, dun
+> pedaalmodel; alleen de **klank** komt uit de bestaande wasm-kernen van
+> Cortex. Het eerdere alternatief staat in §9.
+
+Een pedaal is anders dan een synthmodule: andere impedantie, ander gedrag,
+andere ranges; geen CV, meestal geen MIDI (en als wel, dan aan het eind van
+de keten bij reverb en echo); mono in, mono of stereo uit; nooit polyfoon.
+Dus geen herverpakking van een module, maar een eigen model:
 
 ```ts
-// editor/src/pedals/catalog.ts (nieuw, gedeeld)
+// editor/src/effect-switcher/pedals.ts (catalogus, in code)
 {
-  id: 'pedal_ts9', brand: 'Ibanez', model: 'TS9', categoryId: 'overdrive',
-  io: 'mono',                                  // 'mono' | 'stereo' | 'mono-in-stereo-out'
-  controls: [ { id: 'drive', label: 'Drive' }, { id: 'tone', label: 'Tone' }, { id: 'level', label: 'Level' } ],
-  sim: { typeId: 'tp_mmb_drive',
-         controlMap: { drive: 'drive', tone: 'tone', level: 'level' },
-         preset: { mode: 0, mix: 1 } },        // vaste standen van de interne module
-  midi: null                                   // of { pc: true, cc: [{ id: 'mix', cc: 20 }] } voor MIDI-pedalen
+  id: 'ts9', brand: 'Ibanez', model: 'TS9', categoryId: 'overdrive',
+  io: 'mono',                                   // 'mono' | 'stereo' | 'mono-in-stereo-out'
+  knobs: [ { id: 'drive', label: 'Drive' }, { id: 'tone', label: 'Tone' }, { id: 'level', label: 'Level' } ],
+  midi: null,                                   // of { pc: true, cc: [{ knob: 'mix', cc: 20 }] }
+  sim: { kernel: 'tp_mmb_drive',                // welke wasm-kern het pedaal laat klinken
+         map: { drive: ['drive', 0.1, 0.9], tone: ['tone', 0.2, 0.8], level: ['level', 0, 1] },
+         fixed: { mode: 0, mix: 1 } }           // standen van de kern die het pedaal niet heeft
 }
 ```
 
-Elke catalogusregel wordt bij het laden een **extern `ModuleType`** met
-`simulatedBy` en `simulationControlMap`, plus één kleine uitbreiding op het
-bestaande mechanisme: `simulationPreset` (vaste waarden voor controls van de
-interne module die het pedaal niet heeft, zoals `mode` = OD). Het paneel is
-een getekend pedaalfront (knoppen, voetschakelaar-LED), geen foto: de
-online beeldzoeker in `ChainPanel.tsx` (allthepedals, effectsdatabase) blijft
-optioneel en levert geen rechtenvrije afbeeldingen; merk- en modelnamen als
-beschrijving zijn gewoon toegestaan.
+`sim` is de enige verwijzing naar Cortex: welke kern, hoe de pedaalknop
+(0–10) op het bereik van de kern valt, en wat vast staat. De Reflex-
+simulatie maakt die kern rechtstreeks aan via `WasmModule` (de worklet en
+de `.wasm`-bestanden zijn er al), niet via een `ModuleType`. Het pedaal
+verschijnt dus niet als module in een Cortex-rack; de verbinding tussen de
+werelden is de FX LOOP (§5.1), die een hele pedalenpatch als black box in
+een Cortex-patch zet. Een nieuwe pedaalfamilie zonder kern (BBD-delay) is
+één nieuwe `mmb_dsp`-kern volgens het vaste recept; die is dan ook in
+Cortex beschikbaar, maar dat is bijvangst.
 
-Winst van deze keuze:
+Het paneel is een getekend pedaalfront (knoppen, voetschakelaar-LED), geen
+foto: de online beeldzoeker in `ChainPanel.tsx` (allthepedals,
+effectsdatabase) blijft optioneel en levert geen rechtenvrije afbeeldingen;
+merk- en modelnamen als beschrijving zijn gewoon toegestaan.
 
-- Reflex krijgt pedalen mét knoppen en klank zonder eigen DSP-laag.
-- Dezelfde TS9 is in Cortex als module in een rack te zetten (de
-  `simulatedBy`-route bestaat al), dus een Cortex-patch kan "de pedalen van
-  Mark" bevatten.
-- Een nieuwe pedaalfamilie die geen interne module heeft (BBD-delay) is één
-  nieuwe `mmb_dsp`-kern volgens het vaste recept (kern, `*Module.h`,
-  `RegisterAllModules.h`, `*_wasm.cc`, paneel in `seedModules.ts`,
-  `contract_dump.py`, `npm test`, `npm run catalog`).
+**Reflex-datamodel.** `EffectDevice` krijgt `pedalId?` (catalogus) en
+`knobs?: Record<knobId, number>`: de knopstanden. Die zijn per apparaat,
+niet per patch, en ze betekenen hetzelfde als bij een extern moduletype in
+MMB: hangt er een echte Elements in het rack, dan kun je zijn knoppen niet
+vanuit de editor draaien, maar je kunt de stand wél vastleggen; de patch is
+dan een foto van je echte module. Zo ook hier: de knopstanden van een echte
+Big Muff zijn een foto, die je zelf op het pedaal nazet. Alleen een
+**gesimuleerd** pedaal (en straks de digitale Teensy-pedaalbak, §7) kan die
+stand ook echt aannemen en persisteren. Een Reflex-patch schakelt bypass,
+en stuurt MIDI (`midiProgram`/`midiCcOut` op `SwitcherPatch`, de velden die
+de firmware al leest) naar de pedalen die dat kunnen.
 
-**Reflex-datamodel.** `EffectDevice` krijgt `catalogId?` en
-`settings?: Record<controlId, number>`: de knopstanden *zoals ze op het
-pedaal staan*. Dat is per apparaat, niet per patch, want een echt pedaal
-onthoudt niets; een Reflex-patch schakelt alleen bypass. Alleen een
-MIDI-pedaal krijgt per patch iets mee, via `midiProgram`/`midiCcOut` op
-`SwitcherPatch`, dezelfde velden die de firmware al leest. Dat verschil
-(relais versus MIDI) is voor de doelgroep precies de les die een
-switcher leert.
+**De Sander-opstelling.** Wie, zoals de eerste Reflex-gebruiker, de knoppen
+vast laat staan en er tijdens een optreden niet aan zit, heeft één
+Reflex-opstelling als basis voor alle patches: alleen bypass en MIDI tellen,
+en elke patch is reproduceerbaar. Het [patch-front](patch-front.md) van zo'n
+opstelling heeft dan geen knoppen, behalve die via MIDI te bedienen zijn.
+Dat is meteen de definitie van een Reflex-front: de MIDI-bedienbare
+controls plus de voetschakelaars.
 
 ## 3. (a) De standaardverzameling
 
@@ -203,7 +217,7 @@ fase 3 DIN op de Teensy-UART).
 | Stap | Waar | Wat | Grootte |
 |---|---|---|---|
 | 1 | editor (Reflex) | `midiProgram` + `midiCcOut` op `SwitcherPatch`, in de Patches-tab en de device-sync; MVP-eis eerste gebruiker | klein |
-| 2 | editor (gedeeld) | `editor/src/pedals/catalog.ts` (~30 pedalen) → externe `ModuleType`s met `simulatedBy`; `simulationPreset`-uitbreiding; `EffectDevice.catalogId` + `settings`; tab "Pedalen" met getekend pedaalfront | middel |
+| 2 | editor (Reflex) | `effect-switcher/pedals.ts` (~30 pedalen, §2); `EffectDevice.pedalId` + `knobs`; tab "Pedalen" met getekend pedaalfront | middel |
 | 3 | editor (Reflex) | audiopad: keten → synthetisch project → `AudioEngine`; apparaatkiezer; DI-opname; pedaalkaarten met knoppen | middel |
 | 4 | editor (Reflex) | bypass als crossfade i.p.v. herbouw | klein |
 | 5 | fw + wasm | BBD-delay-kern (`bbd_delay.h`: BBD-chorus-kern met lange lijn, compander, klokruis, filterbank) → DM-2/Memory Man; noise gate; clean boost als Drive-stand of eigen kern | middel |
@@ -211,7 +225,9 @@ fase 3 DIN op de Teensy-UART).
 | 7 | hardware | audio-I/O-kaart met codec en Hi-Z-ingang (5.3) | groot |
 | 8 | fw | Reflex-brain stuurt PC/CC naar Cortex; Cortex DIN/USB-host MIDI-in (5.4) | middel, na control-surface fase 2/3 |
 
-Stap 1 en 2 kunnen tegelijk; stap 3 is de eerste die "klinkt". Luisteren
+Volgorde (besluit 2026-10-03): stap 1 eerst, als voorwaarde. Dan de
+Reflex-simulatie los testen (stap 2–4) en pas daarna over de subprojecten
+heen (stap 6 en verder). Stap 3 is de eerste die "klinkt". Luisteren
 naar Drive en Wah hoort bij stap 3: de catalogus maakt die modules voor het
 eerst voor gitaristen hoorbaar.
 
@@ -227,19 +243,19 @@ patch-pool levert de klanken. De audio-I/O-kaart uit 5.3 en dit pedaal delen
 het analoge front-end, dus die twee horen in één hardwarestap. Later; eerst
 moet de simulatie laten horen welke modules een gitarist wil hebben.
 
-## 8. Besluiten gevraagd
+## 8. Besluiten (Mark, 2026-10-03)
 
-1. **Pedaal = extern moduletype met `simulatedBy`** (§2), gedeeld tussen
-   Reflex en Cortex, in plaats van een eigen pedaalmodel in de switcher.
-2. **Knopstanden per apparaat, bypass per patch, MIDI per patch** (§2):
-   trouw aan hoe een bord werkt. Of wil je dat de simulatie ook
-   niet-MIDI-pedalen per patch anders laat staan ("wat als")?
-3. **Bron voor de simulatie**: eigen DI-opname (CC0) opnemen, of alleen
-   live gitaar via een interface?
-4. **Volgorde**: stap 1 (MIDI-velden, MVP) vóór alles; daarna 2+3, of eerst
-   de FX LOOP (stap 6) omdat die de twee editors verbindt?
+1. **Dun pedaalmodel in Reflex**, klank uit de Cortex-kernen via `sim`
+   (§2). Geen extern moduletype, geen supermodel over beide werelden; het
+   hergebruikt de kernen (en straks hun flows), niet het modulemodel.
+2. **Knopstanden zijn een foto van het echte pedaal**, zoals bij een extern
+   moduletype in MMB; alleen een gesimuleerd of digitaal pedaal neemt ze
+   echt aan. Bypass en MIDI per patch. Zie §2, en de Sander-opstelling.
+3. **Bron**: beide; een paar DI-opnames om mee te testen.
+4. **Volgorde**: stap 1 eerst (voorwaarde), dan de Reflex-simulatie los,
+   dan cross-subproject (§6).
 
-## 9. Eerste reactie van Mark (2026-10-03), nog niet uitgelezen
+## 9. Eerste reactie van Mark (2026-10-03), en het verworpen alternatief
 
 - **Volgorde van denken.** Eerst: pedalen simuleren met wasm en de bestaande
   Cortex-bibliotheek (§3, §4). Dan: vanuit Cortex naar een pedalenpatch,
@@ -252,21 +268,9 @@ moet de simulatie laten horen welke modules een gitarist wil hebben.
   de toetsenist met pedalen naast zich, en de relais-schakelbak als simpele
   variant van de patchkabels in MMB. Het ontwerp moet die werelden niet in
   één model persen.
-- **Besluit 1, twijfel.** Een pedaal als extern moduletype voelt als een
-  extra laag; interne onderdelen (processoren) worden al in verschillende
-  modules hergebruikt. Een pedaal is bovendien anders dan een synthmodule:
-  andere impedantie, ander gedrag, andere ranges; geen CV, meestal geen MIDI
-  (en als wel, dan aan het eind van de keten bij reverb en echo); mono in,
-  mono of stereo uit, nooit polyfoon (een hexafonische pickup daargelaten).
-  Dus meer dan een herverpakking. Nog te lezen.
-  *Alternatief dat hieruit volgt*: een eigen, dun pedaalmodel in Reflex
-  (`Pedal {brand, model, io, knobs[], sim: {typeId, controlMap, preset,
-  ranges}}`) waarvan `sim` alleen zegt welke wasm-kern het pedaal laat
-  klinken, rechtstreeks via `WasmModule` in plaats van via een `ModuleType`.
-  Het pedaal verschijnt dan niet als module in een Cortex-rack; de
-  verbinding tussen de werelden is de FX LOOP (§5.1), die een hele
-  pedalenpatch als black box in Cortex zet. Minder lagen, en het pedaalmodel
-  mag afwijken van het modulemodel waar het pedaal echt anders is.
-- **Besluit 2**: ja en nee, antwoord volgt.
-- **Besluit 3**: beide; een paar DI-opnames om mee te testen zijn handig.
-- **Besluit 4**: later.
+- **Verworpen**: pedaal als extern `ModuleType` met `simulatedBy` en
+  `simulationControlMap` (het eerste voorstel). Het was één catalogus voor
+  beide editors en zette een TS9 ook als module in een Cortex-rack, maar
+  het voegde een laag toe en perste een pedaal in het modulemodel. Het
+  `simulatedBy`-mechanisme zelf blijft wat het was: voor externe
+  Eurorack-modules in de simulator.
