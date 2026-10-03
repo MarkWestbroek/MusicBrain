@@ -97,6 +97,13 @@ bovenbalk bestaat een klikbare, niet-mutende
 | ED-RV-9 | 3 | 🟡 | **Unison/spread + sim voice-allocatie (idee uit brondump #6).** Eén toets → N stemmen met detune-spread (unison) i.p.v. N losse noten; plus een volwaardige polyfone voice-allocatie in de browser-sim (nu speelt alleen de master-stem `in1`, zie SIM-LIMITATION). **Firmware-helft gedaan (iter-5.17):** `MidiInModule` heeft nu `unison_` + `spreadCents_`. Bij `unison` aan stuurt één toets álle stemmen (last-note via de mono note-stack: `onNoteOn` broadcast naar `[0..voiceCount)`, `onNoteOff` valt terug op de stack-top of laat alle gates zakken). `spread` (centen, 0..200) waaiert de stemmen symmetrisch uit rond het midden via `spreadOffsetV(v)` → V/Oct-detune op `voicePitchV`/`pitch`/`pitchK`. Editor: `Uni`-switch + `Sprd`-knop op `mmbMidiIn()` (rij y=66), grijs bij mono (`MIDIIN_MONO_DISABLED`). Core-tests `midiin_unison_drives_all_voices` + `midiin_unison_spread_detunes_symmetrically`. **Nog open:** controleren of unison/spread ook in de browser-sim werkt. (De poly voice-allocatie in de sim zelf is gedaan: ED-SM-3, 2026-09-06; sinds parity-stap 6 draait MIDI-In als wasm en doet de firmwareklasse het stemgedrag.) |
 | ED-RV-10 | 2 | ✅ | **Mod-wheel (CC) via de editor-MIDI-bridge.** De live bridge (`TeensyLinkModal`) forwardde alleen note-on/off + pitch-bend; control-change (mod-wheel = CC1) viel weg, dus `cv_mod` bewoog niet bij spelen via de editor. Toegevoegd: `sendMidiCC()` (`teensyLink.ts`), `cc`-tak in de bridge-subscribe, `{"type":"cc"}`-frame + `MidiCcHandler`/`onMidiCc_` in `TeensyLink.h`, en `onMidiCc()` in `main.cpp` → bestaande `handleControlChange()` (→ `cv_mod`/`cv_cc*`). `WebMidiSource` emitte de `cc`-events al. fw 0.5.14. |
 
+### 1.8 Patch-front en Reflex-pedalen (voorstellen 2026-10-03)
+
+| # | Prio | Status | Item |
+|---|---|---|---|
+| ED-FR-1 | 2 | 🔬 | **Patch-front (black-box-kant van een patch).** `Patch.fronts[]`: benoemde selectie van controls en poorten met label en rasterlayout; waarden blijven in `controlState`. Front-tab, spelermodus, automatisch front voor patches zonder front, `front.svg` voor de pool. Voorstel: [plans/patch-front.md](plans/patch-front.md). |
+| ED-RX-1 | 2 | 🔬 | **Reflex: pedaalcatalogus, klanksimulatie en FX LOOP naar Cortex.** Pedaal = extern moduletype met `simulatedBy` op een bestaande effectmodule (gedeelde catalogus, ~30 pedalen); Reflex-keten als synthetisch project door de `AudioEngine`; `midiProgram`/`midiCcOut` in de editor (MVP eerste gebruiker); `tp_mmb_fx_loop`; audio-I/O-kaart als hardwarestap. Voorstel: [plans/pedaalsimulatie-effect-switcher.md](plans/pedaalsimulatie-effect-switcher.md). |
+
 ---
 
 ## 2. Firmware (brain-software)
