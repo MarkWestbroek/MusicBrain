@@ -17,6 +17,27 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-04 — Patch-front stap 3: op front zetten, bewerken, bewaarcyclus, spelermodus (editor, geen nieuwe firmware)
+- **Op front zetten.** Rechtsklik op een knop of jack in het Rack of de
+  Patcher opent een menu met de fronts van de patch (vinkje = staat erop;
+  klik zet erop of haalt eraf), "Nieuw front met dit item" en "Nieuw front
+  uit Auto, met dit item" (`FrontMenu.tsx`; `ModulePanel` kreeg
+  `onControlContextMenu`/`onPortContextMenu`). In de eigenschappen van een
+  module (rack-inspector en patcher) staat daarnaast een blok **Front (deze
+  patch)** met een vinkje per knop en jack (`FrontFields.tsx`).
+- **Bewerken in de Front-tab.** Een opgeslagen front heeft een bewerker:
+  naam, uitleg, kolommen, kopjes, en per item label, groot/klein, omhoog/
+  omlaag en weghalen; "+ Leeg front" naast "Auto bewaren als front".
+- **Bewaarcyclus.** `fronts` hoort nu bij de bewaarde velden
+  (`recipe/saved.ts`): een frontwijziging maakt de patch vuil, Bewaar legt
+  hem vast, Terug en Vergelijk werken ook op het front. Undo/redo werkte al.
+- **Spelermodus.** De editor opent standaard **dicht**: alleen het front van
+  de actieve patch met audio-start en MIDI-monitor, en een knop
+  **Binnenkijken ▸** die de hele editor opent; **◂ Dicht** sluit hem weer.
+  De keuze wordt onthouden (`mb.front.open` in de browser). `?front=<id>`
+  kiest het front bij het openen. Rationale: zonder login ben je geen
+  expert (doc/plans/patch-front.md §9).
+
 ### 2026-10-03 — Patch-front: datamodel en één schrijfpad voor controls (editor, geen nieuwe firmware)
 - **`Patch.fronts`** (`types.ts`): een front is een benoemde, geordende
   selectie van controls en poorten van de patch met label, grootte,

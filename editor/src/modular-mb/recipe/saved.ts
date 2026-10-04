@@ -13,21 +13,24 @@
 //   • Morph-patches doen niet mee: hun inhoud wordt uitgerekend.
 //
 // Bewaard wordt de klank: kabels, knopstanden, stemmen, racks, envelopes/
-// LFO's, poly-overrides. Naam, map en prog# gaan direct.
+// LFO's, poly-overrides; en sinds 2026-10-04 ook de fronts (een front
+// bewerk je tot je bewaart, doc/plans/patch-front.md §3). Naam, map en
+// prog# gaan direct.
 
 import type { ModularProject, Patch } from '../types';
 
-export type SavedFields = Pick<Patch, 'connections' | 'controlState' | 'voiceCount' | 'rackIds' | 'envelopes' | 'lfos' | 'polyOverrides'>;
+export type SavedFields = Pick<Patch, 'connections' | 'controlState' | 'voiceCount' | 'rackIds' | 'envelopes' | 'lfos' | 'polyOverrides' | 'fronts'>;
 
 export function snapshotOf(p: Patch): SavedFields {
   return {
     connections: p.connections, controlState: p.controlState, voiceCount: p.voiceCount,
     rackIds: p.rackIds, envelopes: p.envelopes, lfos: p.lfos,
     ...(p.polyOverrides ? { polyOverrides: p.polyOverrides } : {}),
+    ...(p.fronts ? { fronts: p.fronts } : {}),
   };
 }
 
-const sig = (s: SavedFields): string => JSON.stringify([s.connections, s.controlState, s.voiceCount, s.rackIds, s.envelopes, s.lfos, s.polyOverrides ?? null]);
+const sig = (s: SavedFields): string => JSON.stringify([s.connections, s.controlState, s.voiceCount, s.rackIds, s.envelopes, s.lfos, s.polyOverrides ?? null, s.fronts ?? null]);
 
 /** Na elke store-wijziging: leg de bewaarde versie vast bij de eerste
  *  wijziging van een schone patch, en ruim hem op als de bewerking weer
@@ -69,7 +72,7 @@ export function revertPatch(p: ModularProject, id: string): ModularProject {
   return { ...p, patches: p.patches.map((x) => {
     if (x.id !== id || !x.saved) return x;
     const back = x.showingSaved ? snapshotOf(x) : x.saved;
-    const { saved: _s, showingSaved: _v, ...rest } = x; void _s; void _v;
+    const { saved: _s, showingSaved: _v, fronts: _f, polyOverrides: _po, ...rest } = x; void _s; void _v; void _f; void _po;
     return { ...(rest as Patch), ...back };
   }) };
 }
@@ -78,7 +81,8 @@ export function revertPatch(p: ModularProject, id: string): ModularProject {
 export function toggleShowSaved(p: ModularProject, id: string): ModularProject {
   return { ...p, patches: p.patches.map((x) => {
     if (x.id !== id || !x.saved) return x;
-    return { ...x, ...x.saved, saved: snapshotOf(x), showingSaved: !x.showingSaved };
+    const { fronts: _f, polyOverrides: _po, ...rest } = x; void _f; void _po;
+    return { ...rest, ...x.saved, saved: snapshotOf(x), showingSaved: !x.showingSaved };
   }) };
 }
 

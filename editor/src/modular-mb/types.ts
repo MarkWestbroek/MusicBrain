@@ -666,7 +666,7 @@ export interface Patch {
    * Bewaarde versie (ED-RC-9), alleen aanwezig zolang de patch gewijzigd is
    * sinds de laatste Bewaar. Zie recipe/saved.ts.
    */
-  saved?: Pick<Patch, 'connections' | 'controlState' | 'voiceCount' | 'rackIds' | 'envelopes' | 'lfos' | 'polyOverrides'>;
+  saved?: Pick<Patch, 'connections' | 'controlState' | 'voiceCount' | 'rackIds' | 'envelopes' | 'lfos' | 'polyOverrides' | 'fronts'>;
   /** Tijdens vergelijken staat de bewaarde versie voor en zit de bewerking in `saved`. */
   showingSaved?: boolean;
   /** Optional MIDI Program Change number (0–127) used to select this patch
@@ -689,8 +689,9 @@ export interface Patch {
   /** Patch-local repartitioning of rack PolyGroups (sketch §3.4). */
   polyOverrides?: PatchPolyOverride[];
   /** Fronts: black-box-views op deze patch (doc/plans/patch-front.md).
-   *  Optioneel en additief; geen klank, dus niet in `saved`. Items naar
-   *  verdwenen modules worden bij laden en bij edits gesnoeid (`pruneFronts`). */
+   *  Optioneel en additief. Zit in de bewaarcyclus (`saved`): een front
+   *  bewerk je tot je bewaart, net als een kabel. Items naar verdwenen
+   *  modules worden bij laden en bij edits gesnoeid (`pruneFronts`). */
   fronts?: PatchFront[];
 }
 

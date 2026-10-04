@@ -70,3 +70,57 @@ function sameTarget(a: FrontItem, b: FrontItem): boolean {
   return a.kind === 'control' && b.kind === 'control' ? a.controlId === b.controlId
     : a.kind === 'port' && b.kind === 'port' ? a.portId === b.portId : false;
 }
+
+// ── Bewerken van een front (Front-tab) ────────────────────────────────────
+
+function withFront(patch: Patch, frontId: string, fn: (f: PatchFront) => PatchFront): Patch {
+  if (!patch.fronts?.some((f) => f.id === frontId)) return patch;
+  return { ...patch, fronts: patch.fronts.map((f) => (f.id === frontId ? fn(f) : f)) };
+}
+
+export function addFront(patch: Patch, front: PatchFront): Patch {
+  return { ...patch, fronts: [...(patch.fronts ?? []), front] };
+}
+
+export function removeFront(patch: Patch, frontId: string): Patch {
+  const fronts = (patch.fronts ?? []).filter((f) => f.id !== frontId);
+  const { fronts: _f, ...rest } = patch; void _f;
+  return fronts.length ? { ...rest, fronts } : rest;
+}
+
+export function updateFront(patch: Patch, frontId: string, change: Partial<Omit<PatchFront, 'id' | 'items'>>): Patch {
+  return withFront(patch, frontId, (f) => ({ ...f, ...change }));
+}
+
+/** Verplaats item `index` met `delta` plekken (−1 omhoog, +1 omlaag). */
+export function moveFrontItem(patch: Patch, frontId: string, index: number, delta: number): Patch {
+  return withFront(patch, frontId, (f) => {
+    const to = index + delta;
+    if (index < 0 || index >= f.items.length || to < 0 || to >= f.items.length) return f;
+    const items = [...f.items];
+    const [it] = items.splice(index, 1);
+    items.splice(to, 0, it!);
+    return { ...f, items };
+  });
+}
+
+export function updateFrontItem(patch: Patch, frontId: string, index: number, fn: (it: FrontItem) => FrontItem): Patch {
+  return withFront(patch, frontId, (f) => ({ ...f, items: f.items.map((it, i) => (i === index ? fn(it) : it)) }));
+}
+
+export function insertFrontItem(patch: Patch, frontId: string, index: number, item: FrontItem): Patch {
+  return withFront(patch, frontId, (f) => {
+    const items = [...f.items];
+    items.splice(Math.max(0, Math.min(index, items.length)), 0, item);
+    return { ...f, items };
+  });
+}
+
+export function removeFrontItemAt(patch: Patch, frontId: string, index: number): Patch {
+  return withFront(patch, frontId, (f) => ({ ...f, items: f.items.filter((_, i) => i !== index) }));
+}
+
+/** Staat dit doel (control of poort) op het front? */
+export function isOnFront(front: PatchFront, item: FrontItem): boolean {
+  return front.items.some((x) => sameTarget(x, item));
+}

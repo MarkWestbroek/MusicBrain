@@ -81,6 +81,10 @@ export interface ModulePanelProps {
   controlLabels?: Record<string, string>;
   /** Gezet = dubbelklik op het label van een knop vraagt om een onderschrift. */
   onControlLabelChange?: (controlId: string, text: string) => void;
+  /** Rechtsklik op een knop of jack (patch-front: "Op front zetten"). De
+   *  handler krijgt het muisevent voor de plek van het menu. */
+  onControlContextMenu?: (controlId: string, e: React.MouseEvent) => void;
+  onPortContextMenu?: (portId: string, e: React.MouseEvent) => void;
 }
 
 export function ModulePanel({
@@ -95,6 +99,8 @@ export function ModulePanel({
   disabledControlIds,
   controlLabels,
   onControlLabelChange,
+  onControlContextMenu,
+  onPortContextMenu,
 }: ModulePanelProps): JSX.Element {
   const visual   = mod.visual;
   const widthMm  = visual.hpWidth * MM_PER_HP;
@@ -168,15 +174,17 @@ export function ModulePanel({
         const pl = visual.portPlacements[p.id];
         if (!pl) return null;
         return (
-          <PortGlyph
-            key={`port-${p.id}`}
-            port={p} x={pl.x} y={pl.y}
-            labelPos={pl.labelPos ?? 'below'}
-            showLabel={showPortLabels}
-            highlighted={highlightedPortId === p.id}
-            onClick={onPortClick ? () => onPortClick(p.id, p) : undefined}
-            textCol={textCol}
-          />
+          <g key={`port-${p.id}`}
+            onContextMenu={onPortContextMenu ? (e) => { e.preventDefault(); e.stopPropagation(); onPortContextMenu(p.id, e); } : undefined}>
+            <PortGlyph
+              port={p} x={pl.x} y={pl.y}
+              labelPos={pl.labelPos ?? 'below'}
+              showLabel={showPortLabels}
+              highlighted={highlightedPortId === p.id}
+              onClick={onPortClick ? () => onPortClick(p.id, p) : undefined}
+              textCol={textCol}
+            />
+          </g>
         );
       })}
 
@@ -189,7 +197,9 @@ export function ModulePanel({
         return (
           <g key={`ctl-${c.id}`}
             opacity={disabled ? 0.35 : 1}
-            style={disabled ? { pointerEvents: 'none' } : undefined}>
+            style={disabled ? { pointerEvents: 'none' } : undefined}
+            onContextMenu={onControlContextMenu && c.kind !== 'display' && c.kind !== 'led'
+              ? (e) => { e.preventDefault(); e.stopPropagation(); onControlContextMenu(c.id, e); } : undefined}>
             {disabled && <title>Niet actief in deze patch</title>}
             <ControlGlyph
               control={c}

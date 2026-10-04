@@ -86,6 +86,9 @@ import '../effect-switcher/styles.css';
 
 type Tab = 'patches' | 'modules' | 'rack' | 'categories' | 'front' | 'patcher' | 'simulation' | 'surface';
 
+/** localStorage: '1' = de editor staat open (expert), anders dicht (speler). */
+const OPEN_KEY = 'mb.front.open';
+
 const TABS: { id: Tab; label: string }[] = [
   { id: 'categories', label: 'Categorieën' },
   { id: 'modules',    label: 'Modules' },
@@ -107,7 +110,20 @@ export function ModularMbApp(): JSX.Element {
     window.history.replaceState(null, '', u.toString());
   }, []);
   const project = useModularProject();
-  const [tab,         setTab]         = useState<Tab>('patcher');
+  // Spelermodus (patch-front §6): standaard dicht (alleen het front), want
+  // zonder login ben je geen expert. "Binnenkijken" opent de hele editor en
+  // wordt onthouden; "Dicht" sluit en wordt ook onthouden.
+  const [expert, setExpertState] = useState<boolean>(() => {
+    try { return localStorage.getItem(OPEN_KEY) === '1'; } catch { return false; }
+  });
+  const setExpert = (open: boolean): void => {
+    setExpertState(open);
+    try { localStorage.setItem(OPEN_KEY, open ? '1' : '0'); } catch { /* privémodus */ }
+    if (!open) setTab('front');
+  };
+  const [tab,         setTab]         = useState<Tab>(() => {
+    try { return localStorage.getItem(OPEN_KEY) === '1' ? 'patcher' : 'front'; } catch { return 'front'; }
+  });
   const [editingName, setEditingName] = useState(false);
   const [editingVer,  setEditingVer]  = useState(false);
   const [editingDesc, setEditingDesc] = useState(false);
@@ -155,7 +171,8 @@ export function ModularMbApp(): JSX.Element {
 
   // ─── Rondleiding: één keer automatisch bij een leeg project ───────────
   useEffect(() => {
-    if (!tourSeen() && project.patches.length === 0) setShowTour(true);
+    // De rondleiding gaat over rack en patcher; in de spelermodus (dicht) niet starten.
+    if (expert && !tourSeen() && project.patches.length === 0) setShowTour(true);
   }, []);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // "Ga naar rack" (rechtsklik in de patcher): het rack van de module actief
@@ -261,7 +278,8 @@ export function ModularMbApp(): JSX.Element {
   return (
     <section style={{ fontFamily: 'var(--mb-font-sans)' }}>
 
-      {/* ── Project header bar ── */}
+      {/* ── Project header bar (alleen open; de speler ziet het front) ── */}
+      {expert && (
       <div className="es-projectbar">
 
         {editingName ? (
@@ -877,15 +895,27 @@ export function ModularMbApp(): JSX.Element {
           >Nieuw</button>
         </div>
       </div>
+      )}
 
       <CommandPalette open={showCmd} onClose={() => setShowCmd(false)} onBuilt={() => setTab('patcher')}
         onDemo={(ops) => { setShowCmd(false); runDemo(ops); }} />
       <Tour open={showTour} onClose={() => setShowTour(false)} onTab={(t) => setTab(t as Tab)} onOpenCommand={() => setShowCmd(true)} />
       <DemoCaption state={demo} onSkip={() => demoRef.current?.finish()} onClose={() => { demoRef.current?.stop(); setDemo(null); }} />
 
-      {/* ── Sub-tabs ── */}
-      <nav style={{ display: 'flex', gap: 4, borderBottom: '1px solid #cbd2d9', marginBottom: 12 }}>
-        {TABS.map((t) => (
+      {/* ── Sub-tabs; dicht = alleen het front en "Binnenkijken" ── */}
+      <nav style={{ display: 'flex', gap: 4, borderBottom: '1px solid #cbd2d9', marginBottom: 12, alignItems: 'center' }}>
+        {!expert && (
+          <>
+            <span style={{ padding: '6px 14px', fontWeight: 700, fontSize: 13 }}>
+              {project.patches.find((x) => x.id === project.activePatchId)?.name ?? project.name}
+            </span>
+            <button onClick={() => { setExpert(true); setTab('patcher'); }} title="Open de hele editor: rack, kabels, modules"
+              style={{ padding: '4px 12px', fontSize: 12, borderRadius: 6, border: '1px solid #cbd2d9', background: '#f5f7fa', cursor: 'pointer' }}>
+              Binnenkijken ▸
+            </button>
+          </>
+        )}
+        {expert && TABS.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
@@ -908,6 +938,12 @@ export function ModularMbApp(): JSX.Element {
             {t.label}
           </button>
         ))}
+        {expert && (
+          <button onClick={() => setExpert(false)} title="Alleen het front tonen (spelermodus)"
+            style={{ padding: '4px 10px', fontSize: 12, borderRadius: 6, border: '1px solid #cbd2d9', background: '#f5f7fa', cursor: 'pointer' }}>
+            ◂ Dicht
+          </button>
+        )}
         <SimQuickBar />
       </nav>
       <MidiMonitorHost />
@@ -915,19 +951,19 @@ export function ModularMbApp(): JSX.Element {
       <PatchInboxHost />
       <PoolWindowsHost />
 
-      {tab === 'patches'    && <PatchesPanel />}
-      {tab === 'modules'    && <ModulesPanel />}
-      {tab === 'rack'       && <RackPanel />}
-      {tab === 'categories' && <CategoriesPanel />}
-      {tab === 'front'      && <FrontTab />}
-      {tab === 'patcher'    && <PatcherPanel />}
+      {expert && tab === 'patches'    && <PatchesPanel />}
+      {expert && tab === 'modules'    && <ModulesPanel />}
+      {expert && tab === 'rack'       && <RackPanel />}
+      {expert && tab === 'categories' && <CategoriesPanel />}
+      {(tab === 'front' || !expert) && <FrontTab expert={expert} />}
+      {expert && tab === 'patcher'    && <PatcherPanel />}
       {/* Surface-paneel is UI over de singleton surfaceBridge: de MIDI-
           koppeling zelf blijft actief als je naar een andere tab gaat. */}
-      {tab === 'surface'    && <ControlSurfacePanel />}
+      {expert && tab === 'surface'    && <ControlSurfacePanel />}
       {/* SimulationPanel blijft altijd gemount zodat de audio-engine en de
           gekozen MIDI-bron (bv. de auto-sequence) blijven draaien als je
           naar een andere tab gaat om aan knoppen te draaien of te patchen. */}
-      <div style={{ display: tab === 'simulation' ? 'block' : 'none' }}>
+      <div style={{ display: expert && tab === 'simulation' ? 'block' : 'none' }}>
         <SimulationPanel />
       </div>
 

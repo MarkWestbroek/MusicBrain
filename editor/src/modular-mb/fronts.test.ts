@@ -4,7 +4,10 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { addToFront, frontIssues, newFront, pruneFronts, removeFromFront } from './fronts';
+import {
+  addFront, addToFront, frontIssues, insertFrontItem, isOnFront, moveFrontItem, newFront, pruneFronts,
+  removeFromFront, removeFront, removeFrontItemAt, updateFront, updateFrontItem,
+} from './fronts';
 import { removeModule, replaceModule, findModuleByWord } from './recipe/edits';
 import { buildRecipe } from './recipe/compile';
 import { seedInternals } from './seedModules';
@@ -97,5 +100,32 @@ describe('fronts: snapshot', () => {
     expect(frontIssues(copy, p2)).toEqual([]);
     const ids = new Set(p2.modules.map((m) => m.id));
     for (const it of copy.fronts![0]!.items) if (it.kind !== 'group') expect(ids.has(it.moduleId)).toBe(true);
+  });
+});
+
+describe('fronts: bewerken', () => {
+  it('verplaatst, wijzigt, voegt in en verwijdert items; naam en kolommen', () => {
+    const { p, vcf, vco } = withFront();
+    let f = active(p);
+    const id = 'front_speel';
+    f = moveFrontItem(f, id, 2, -1);
+    expect(f.fronts![0]!.items.map((it) => it.kind)).toEqual(['control', 'control', 'group', 'port']);
+    f = moveFrontItem(f, id, 0, -1);   // buiten bereik: ongewijzigd
+    expect(f.fronts![0]!.items[0]).toMatchObject({ moduleId: vcf, controlId: 'cutoff' });
+    f = updateFrontItem(f, id, 1, (it) => (it.kind === 'control' ? { ...it, label: 'Fijn', size: 'large' } : it));
+    expect(f.fronts![0]!.items[1]).toMatchObject({ moduleId: vco, controlId: 'fine', label: 'Fijn', size: 'large' });
+    f = insertFrontItem(f, id, 0, { kind: 'group', text: 'Klank' });
+    expect(f.fronts![0]!.items[0]).toEqual({ kind: 'group', text: 'Klank' });
+    f = removeFrontItemAt(f, id, 0);
+    expect(f.fronts![0]!.items).toHaveLength(4);
+    f = updateFront(f, id, { name: 'Live', columns: 2, description: 'Twee kolommen' });
+    expect(f.fronts![0]).toMatchObject({ name: 'Live', columns: 2, description: 'Twee kolommen' });
+    expect(isOnFront(f.fronts![0]!, { kind: 'control', moduleId: vcf, controlId: 'cutoff' })).toBe(true);
+    expect(isOnFront(f.fronts![0]!, { kind: 'control', moduleId: vcf, controlId: 'q' })).toBe(false);
+    f = addFront(f, newFront('front_2', 'Tweede'));
+    expect(f.fronts).toHaveLength(2);
+    f = removeFront(f, id);
+    f = removeFront(f, 'front_2');
+    expect(f.fronts).toBeUndefined();
   });
 });

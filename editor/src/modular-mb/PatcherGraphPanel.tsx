@@ -25,6 +25,8 @@ import { RecipeContextMenu, type MenuAnchor } from './recipe/RecipeContextMenu';
 import { ModulePanel } from './ModulePanel';
 import { ControlLabelFields, setControlLabel } from './controlLabels';
 import { setPatchControl } from './setPatchControl';
+import { FrontMenu, type FrontMenuAnchor } from './FrontMenu';
+import { FrontFields } from './FrontFields';
 import { DX7_VOICE_NAMES, DX7_BANK_SHORT } from './dx7BankNames';
 import { useEngineStatus } from './sim/engineSingleton';import {
   type ModuleInstance, type ModuleType, type Port, type PatchConnection,
@@ -97,6 +99,8 @@ function ModuleNode({ data, selected }: NodeProps): JSX.Element {
     // patcher verborgen), live én persistent; zie setPatchControl.ts.
     setPatchControl(patchId, m.id, controlId, value);
   }
+  // Rechtsklik op een knop of jack: "Op front zetten" (patch-front §6).
+  const [frontMenu, setFrontMenu] = useState<FrontMenuAnchor | null>(null);
 
   function setLabelHere(controlId: string, text: string): void {
     setControlLabel(patchId, m.id, controlId, text);
@@ -127,7 +131,10 @@ function ModuleNode({ data, selected }: NodeProps): JSX.Element {
         disabledControlIds={disabledControlIds}
         controlLabels={controlLabels}
         onControlLabelChange={ghost ? undefined : setLabelHere}
+        onControlContextMenu={ghost ? undefined : (controlId, e) => setFrontMenu({ x: e.clientX, y: e.clientY, item: { kind: 'control', moduleId: m.id, controlId } })}
+        onPortContextMenu={ghost ? undefined : (portId, e) => setFrontMenu({ x: e.clientX, y: e.clientY, item: { kind: 'port', moduleId: m.id, portId } })}
       />
+      {frontMenu && <FrontMenu anchor={frontMenu} patchId={patchId} onClose={() => setFrontMenu(null)} />}
       {voice && (
         <div style={{
           // Boven het paneel, niet erop: anders dekt het schuiven en knoppen af.
@@ -1028,6 +1035,7 @@ function PropertiesPanel(props: { patchId: string; selectedNodeId: string | null
         </tbody>
       </table>
       <ControlLabelFields moduleId={m.id} controls={t.controls} patchId={patchId} />
+      <FrontFields moduleId={m.id} controls={t.controls} ports={ports} patchId={patchId} />
       {ports.length > 0 && (
         <>
           <h4 style={{ fontSize: 10, textTransform: 'uppercase', color: '#6b7280', margin: '10px 0 4px' }}>

@@ -1,6 +1,6 @@
 # Patch-front: de black-box-kant van een patch
 
-Datum: 2026-10-03. Status: **in uitvoering**: stap 0, 1 en 2 gebouwd (datamodel, schrijfhelper, virtueel paneel, automatisch front, eerste Front-tab; zie §8), de rest voorstel. Aanleiding: Mark
+Datum: 2026-10-03. Status: **in uitvoering**: stap 0 t/m 3 gebouwd (datamodel, schrijfhelper, virtueel paneel, automatisch front, Front-tab met bewerker, op front zetten, bewaarcyclus, spelermodus; zie §8), de rest voorstel. Aanleiding: Mark
 laat de editor aan musici zien; de klanken slaan aan, de kabels schrikken af.
 Gevraagd: één patch, meerdere "fronts"; een front toont een deelverzameling
 van de controls en poorten van de patch. Het rack met kabels blijft de
@@ -225,7 +225,7 @@ Solo ▾/Poly ▾-demo's zijn de eerste kandidaten.
 | 0 | editor | `setPatchControl`-helper uit de drie bestaande schrijfpaden trekken, met test | klein, **gebouwd 2026-10-03** |
 | 1 | editor | `Patch.fronts` + `FrontItem`-types, `normaliseV2`-snoei, `edits.ts`, contract-stijl test (`fronts.test.ts`) | klein, **gebouwd 2026-10-03** |
 | 2 | editor | `FrontPanel.tsx` (virtueel paneel via `ModulePanel`) + automatisch front (§5) | middel, **gebouwd 2026-10-03** (plus een eerste Front-tab met frontkiezer, "Auto bewaren als front" en "Front verwijderen") |
-| 3 | editor | "Op front zetten" in rack en patcher, label/grootte/volgorde in de Front-tab, `fronts` in `SavedFields`, spelermodus en URL | middel |
+| 3 | editor | "Op front zetten" in rack en patcher, label/grootte/volgorde in de Front-tab, `fronts` in `SavedFields`, spelermodus en URL | middel, **gebouwd 2026-10-04** |
 | 3b | editor | AI-frontrecept als terugval (besluit 2026-10-04): deterministisch eerst (`autoFront` met grootte en aantal als invoer), knop "✨ AI" via de bestaande LLM-laag van de recepten (`recipe/llm.ts`, providers en bring-your-own-key) met één nieuwe tool `propose_front` die de patch-samenvatting, de controls met hun `rankKnobs`-rang en de gewenste grootte krijgt en een front in dezelfde JSON-vorm teruggeeft; het voorstel landt als gewone bewerking (undo, bewaarcyclus), de ontwerper schaaft bij tot het goed is | middel |
 | 4 | editor | vrije plaatsing (slepen op mm), `range` | klein |
 | 4b | editor | signaalstroom-lijnen uit kabels + module-flows (na [module-signaalstroom.md](module-signaalstroom.md) stap 5); front-recept (AI of deterministisch) met grootte en aantal als invoer | middel |

@@ -7,6 +7,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { updateProject, useModularProject, uid } from './store';
 import { ControlLabelFields, setControlLabel } from './controlLabels';
+import { FrontFields } from './FrontFields';
+import { FrontMenu, type FrontMenuAnchor } from './FrontMenu';
 import { ModulePanel } from './ModulePanel';
 import { compactRack as compactRackLayout } from './rackLayout';
 import { takeRackFocus } from './rackFocus';
@@ -461,6 +463,8 @@ function RackGrid({ rack, modules, types, activeRow, onSelectRow,
 
   // Context-menu voor module-strip (rechter-muis op een slot).
   const [menu, setMenu] = useState<{ x: number; y: number; slotId: string } | null>(null);
+  // Rechtsklik op een knop of jack: "Op front zetten" (patch-front §6).
+  const [frontMenu, setFrontMenu] = useState<FrontMenuAnchor | null>(null);
 
   // ── Multi-select aware helpers ────────────────────────────────────
 
@@ -1002,7 +1006,9 @@ function RackGrid({ rack, modules, types, activeRow, onSelectRow,
                   />
                   <ModulePanel module={m} types={types} pxPerMm={PX} showPortLabels={isInternal}
                     controlState={engineStatus.liveControls[m.id]} controlLabels={controlLabels?.[m.id]}
-                    onControlLabelChange={activePatchId ? (controlId, text) => setControlLabel(activePatchId, m.id, controlId, text) : undefined} />
+                    onControlLabelChange={activePatchId ? (controlId, text) => setControlLabel(activePatchId, m.id, controlId, text) : undefined}
+                    onControlContextMenu={activePatchId ? (controlId, e) => setFrontMenu({ x: e.clientX, y: e.clientY, item: { kind: 'control', moduleId: m.id, controlId } }) : undefined}
+                    onPortContextMenu={activePatchId ? (portId, e) => setFrontMenu({ x: e.clientX, y: e.clientY, item: { kind: 'port', moduleId: m.id, portId } }) : undefined} />
                   {voice && (
                     <>
                       {/* Kleur-ribbon onderaan = visuele tag van de voice-group. */}
@@ -1038,6 +1044,7 @@ function RackGrid({ rack, modules, types, activeRow, onSelectRow,
           </div>
         );
       })}
+      {frontMenu && activePatchId && <FrontMenu anchor={frontMenu} patchId={activePatchId} onClose={() => setFrontMenu(null)} />}
       {menu && (() => {
         const multi = selectedSlotIds.size > 1;
         const close = () => setMenu(null);
@@ -1252,6 +1259,7 @@ function RackInspector({ rack, modules, types, selectedSlotIds, setSelectedSlotI
       <InspectorRow k="HP-offset" v={String(slot.hpOffset)} />
       <InspectorRow k="Module-id" v={mod.id} />
       <ControlLabelFields moduleId={mod.id} controls={resolveControls(mod, types)} dark />
+      <FrontFields moduleId={mod.id} controls={resolveControls(mod, types)} ports={resolvePorts(mod, types)} dark />
       <ModulePortsControls mod={mod} types={types} />
       <button onClick={deleteSelected} style={{ ...inspectorBtn, marginTop: 10, color: '#fca5a5' }}>
         × Verwijder uit rack

@@ -15,6 +15,38 @@ const setCutoff = (id: string, mod: string, v: number) => (q: ModularProject): M
   ...q, patches: q.patches.map((x) => (x.id === id ? { ...x, controlState: { ...x.controlState, [mod]: { ...x.controlState[mod], cutoff: v } } } : x)),
 });
 
+describe('bewaren: fronts', () => {
+  it('een front hoort bij de bewaarcyclus: wijzigen maakt vuil, Terug haalt het bewaarde front terug', () => {
+    let p = buildRecipe(base(), { source: 'vco' });
+    const id = p.activePatchId!;
+    const vcf = findModuleByWord(p, id, 'filter')!.id;
+    const withFront = (name: string) => (q: ModularProject): ModularProject => ({
+      ...q, patches: q.patches.map((x) => (x.id === id ? { ...x, fronts: [{ id: 'f1', name, items: [{ kind: 'control', moduleId: vcf, controlId: 'cutoff' }] }] } : x)),
+    });
+    p = upd(p, withFront('Spelen'));
+    expect(isDirty(pat(p, id))).toBe(true);
+    p = savePatch(p, id);
+    expect(isDirty(pat(p, id))).toBe(false);
+    p = upd(p, withFront('Anders'));
+    expect(isDirty(pat(p, id))).toBe(true);
+    expect(pat(p, id).saved!.fronts![0]!.name).toBe('Spelen');
+    p = toggleShowSaved(p, id);
+    expect(pat(p, id).fronts![0]!.name).toBe('Spelen');
+    p = toggleShowSaved(p, id);
+    p = revertPatch(p, id);
+    expect(pat(p, id).fronts![0]!.name).toBe('Spelen');
+    expect(isDirty(pat(p, id))).toBe(false);
+  });
+
+  it('Terug naar een versie zonder fronts haalt het front weg', () => {
+    let p = buildRecipe(base(), { source: 'vco' });
+    const id = p.activePatchId!;
+    p = upd(p, (q) => ({ ...q, patches: q.patches.map((x) => (x.id === id ? { ...x, fronts: [{ id: 'f1', name: 'X', items: [] }] } : x)) }));
+    p = revertPatch(p, id);
+    expect(pat(p, id).fronts).toBeUndefined();
+  });
+});
+
 describe('bewaren (ED-RC-9)', () => {
   it('eerste wijziging legt de bewaarde versie vast; terug naar gelijk = weer schoon', () => {
     let p = buildRecipe(base(), { source: 'vco' });
