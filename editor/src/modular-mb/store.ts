@@ -43,7 +43,12 @@ function scheduleSave(): void {
   }, SAVE_DEBOUNCE_MS);
 }
 
-let current: ModularProject = loadPersisted() ?? emptyModularProject();
+const persisted = loadPersisted();
+/** Eerste keer (niets bewaard): de app zet dan de standaardset neer
+ *  (demoSeeds.standardProject), zodat er meteen patches zijn om te kiezen en
+ *  te spelen. Niet hier, omdat de seeds `uid` uit deze module gebruiken. */
+export const freshStart = persisted === null;
+let current: ModularProject = persisted ?? emptyModularProject();
 const past: ModularProject[] = [];
 const future: ModularProject[] = [];
 const HISTORY_MAX = 100;

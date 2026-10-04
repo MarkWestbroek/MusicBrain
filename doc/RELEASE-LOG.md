@@ -44,6 +44,12 @@
   certificaat); de editor toont boven de werkbalk één oranje regel met de
   uitweg (`secureContext.ts`) en de MIDI-fout benoemt de oorzaak. Uitleg in
   `editor/README.md` ("Telefoon: geluid en MIDI alleen via https").
+- **Standaardset bij de eerste start** (`demoSeeds.standardProject`,
+  `store.freshStart`): wie de editor voor het eerst opent (niets bewaard in
+  de browser) begint met de negen voorbeeldpatches uit de Front-tab als
+  project "Standaardset", E-piano actief, in plaats van "Er is nog geen
+  patch". Alles blijft te verwijderen; Solo ▾/Poly ▾ zetten het zo weer
+  neer. 1 test.
 - **Knoppen draaien op de telefoon** (`ModulePanel.tsx`, `taper.ts`): met
   een vinger draai je een knop als een schroefje: de vinger loopt in een boog
   om het midden en de wijzer volgt (een hele wijzerslag van 270° is de hele

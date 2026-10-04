@@ -5,10 +5,11 @@
 // bar and reuses the same `.es-projectbar*` CSS classes.
 
 import { useEffect, useRef, useState } from 'react';
-import { setProject, updateProject, useModularProject, getProject, undo, redo } from './store';
+import { setProject, updateProject, useModularProject, getProject, undo, redo, freshStart } from './store';
 import { onRackFocus } from './rackFocus';
 import { savePatch } from './recipe/saved';
 import { SaveAsButton, SaveButton } from './PatchSave';
+import { standardProject } from './demoSeeds';
 import { CommandPalette } from './recipe/CommandPalette';
 import { Tour, tourSeen } from './recipe/Tour';
 import { startDemo, DemoCaption, type DemoState, type DemoHandle } from './recipe/demo';
@@ -115,6 +116,11 @@ export function ModularMbApp(): JSX.Element {
   // Spelermodus (patch-front §6): standaard dicht (alleen het front), want
   // zonder login ben je geen expert. "Binnenkijken" opent de hele editor en
   // wordt onthouden; "Dicht" sluit en wordt ook onthouden.
+  // Eerste keer: de standaardset, zodat je niet met "Er is nog geen patch"
+  // begint maar met een lijst om uit te kiezen en een front om op te spelen.
+  useEffect(() => {
+    if (freshStart && getProject().patches.length === 0) setProject(standardProject());
+  }, []);
   const playerPatch = project.patches.find((p) => p.id === project.activePatchId);
   const [expert, setExpertState] = useState<boolean>(() => {
     try { return localStorage.getItem(OPEN_KEY) === '1'; } catch { return false; }

@@ -7,7 +7,7 @@ import {
   VIBE_SOLO_FX, SHIMMER_SOLO_FX, STEREO_PHASER_SOLO_FX, seedGenerativeJamPatch, seedKrellPatch, seedSoloVoicePatch,
 } from './seedModules';
 import { TUBE_SOLO_FX, seedEPianoPolyPatch, seedOrganPolyPatch, seedSynthexPolyPatch } from './seedShowcase';
-import type { ModularProject } from './types';
+import { emptyModularProject, type ModularProject } from './types';
 
 export interface DemoSeed { label: string; title: string; run: (p: ModularProject) => ModularProject }
 
@@ -29,3 +29,15 @@ export const DEMO_SEEDS: DemoSeed[] = [
   { label: '🌌 Krell', title: 'Zelfspelend: Stages, Marbles en Clouds.', run: seedKrellPatch },
   { label: '🎲 Generative jam', title: 'Zelfspelend: Marbles kiest noten voor Plaits en Clouds.', run: seedGenerativeJamPatch },
 ];
+
+/** Het project waarmee een nieuwe gebruiker begint: de standaardset hierboven
+ *  als patches, de eerste (E-piano) actief. Wie de editor voor het eerst
+ *  opent ziet zo meteen een lijst om uit te kiezen en een front om op te
+ *  spelen, in plaats van "Er is nog geen patch". Alles blijft gewoon te
+ *  verwijderen; de Solo ▾/Poly ▾-menu's zetten hetzelfde er zo weer bij. */
+export function standardProject(): ModularProject {
+  let p = emptyModularProject();
+  for (const d of DEMO_SEEDS) p = d.run(p);
+  const first = p.patches[0];
+  return { ...p, name: 'Standaardset', activePatchId: first?.id ?? p.activePatchId, activeRackId: first?.rackIds[0] ?? p.activeRackId };
+}
