@@ -17,6 +17,21 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-04 — Patch-front stap 3b: AI-frontrecept (editor, geen nieuwe firmware)
+- **Deterministisch eerst, AI als terugval.** Twee nieuwe tools in het
+  receptraamwerk (`recipe/tools.ts`, dus ook in de MCP-server):
+  `get_front_candidates` (per module de speelbare controls in volgorde van
+  belang met label en stand, de jacks, de bestaande fronts en het
+  automatische front) en `propose_front` (naam, uitleg, kolommen, items
+  met module en control/poort als id of woord). `frontRecipe.ts` zet het
+  voorstel om: woorden oplossen, onbekende items weglaten met een
+  waarschuwing, front met dezelfde naam vervangen, `frontIssues` als
+  sluitstuk. Nieuw commando `front` in `recipe/parse.ts`/`commands.ts`.
+- **Knop "✨ AI-front"** in de Front-tab met een vrije wens als tekst;
+  gebruikt het AI-profiel van de commandoregel (Ctrl+K → ⚙). Het voorstel
+  landt als gewone bewerking: undo en de bewaarcyclus werken erop, en je
+  schaaft daarna bij in de bewerker. 4 tests.
+
 ### 2026-10-04 — Patch-front stap 3: op front zetten, bewerken, bewaarcyclus, spelermodus (editor, geen nieuwe firmware)
 - **Op front zetten.** Rechtsklik op een knop of jack in het Rack of de
   Patcher opent een menu met de fronts van de patch (vinkje = staat erop;

@@ -18,8 +18,10 @@ import {
   addFront, insertFrontItem, moveFrontItem, newFront, pruneFronts, removeFront, removeFrontItemAt,
   updateFront, updateFrontItem,
 } from './fronts';
+import { runCommands } from './recipe/commands';
+import { askAi, llmReady, loadLlmConfig } from './recipe/llm';
 import { updateProject, useModularProject, uid } from './store';
-import { resolveControls, resolvePorts, type FrontItem, type Patch, type PatchFront } from './types';
+import { resolveControls, resolvePorts, type FrontItem, type ModularProject, type Patch, type PatchFront } from './types';
 
 const AUTO = 'front_auto';
 
@@ -86,6 +88,7 @@ export function FrontTab({ expert = true }: { expert?: boolean }): JSX.Element {
           Draaien op het front wijzigt de patch; wat niet op het front staat, staat vast.
         </span>
       </div>
+      {expert && <FrontAi project={project} onDone={(id) => setChosen(id ?? null)} />}
       {front.description && <p style={{ margin: 0, maxWidth: 640, opacity: 0.85 }}>{front.description}</p>}
       <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
@@ -179,6 +182,47 @@ function FrontEditor({ patch, front, edit }: { patch: Patch; front: PatchFront; 
       <div style={{ fontSize: 11, color: '#6b7280' }}>
         Bewerkingen zitten in de bewaarcyclus van de patch (Bewaar, Terug, Vergelijk) en in undo (Ctrl+Z).
       </div>
+    </div>
+  );
+}
+
+// ── AI-frontrecept (stap 3b): deterministisch eerst, AI als dat niet goed is ──
+
+function FrontAi({ project, onDone }: { project: ModularProject; onDone: (frontId: string | null) => void }): JSX.Element {
+  const [wish, setWish] = useState('Een speelfront met de 6 tot 8 belangrijkste knoppen, gegroepeerd per functie, met korte Nederlandse labels.');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const config = loadLlmConfig();
+  const llm = config.profiles.find((x) => x.id === config.activeId) ?? config.profiles[0];
+  const ready = !!llm && llmReady(llm);
+
+  async function go(): Promise<void> {
+    if (!llm || busy) return;
+    setBusy(true); setMsg(null);
+    try {
+      const a = await askAi(`${wish.trim()} Gebruik get_front_candidates en stel het front voor met propose_front.`, project, llm, fetch);
+      const fronts = a.commands.filter((c) => c.kind === 'front');
+      if (!fronts.length) { setMsg({ ok: false, text: a.explanation || 'Het model stelde geen front voor.' }); return; }
+      const r = runCommands(project, fronts);
+      updateProject(() => r.project, { forceCommit: true });
+      const made = r.project.patches.find((x) => x.id === project.activePatchId)?.fronts?.at(-1);
+      onDone(made?.id ?? null);
+      setMsg({ ok: true, text: [r.summary, ...r.warnings, a.explanation].filter(Boolean).join(' — ') });
+    } catch (e) {
+      setMsg({ ok: false, text: e instanceof Error ? e.message : String(e) });
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', fontSize: 12 }}>
+      <input value={wish} onChange={(e) => setWish(e.target.value)} style={{ fontSize: 12, padding: '3px 6px', minWidth: 360, flex: '1 1 360px', maxWidth: 640 }}
+        placeholder="Wat voor front wil je? (vrije tekst)" disabled={busy} />
+      <button type="button" onClick={() => void go()} disabled={!ready || busy} style={{ fontSize: 12, padding: '3px 10px', cursor: ready ? 'pointer' : 'default' }}
+        title={ready ? 'Laat het AI-profiel uit de commandoregel (Ctrl+K, ⚙) een front voorstellen; het landt als gewone bewerking (undo, bewaarcyclus)' : 'Stel eerst een AI-profiel in: Ctrl+K → ⚙'}>
+        {busy ? '✨ bezig…' : '✨ AI-front'}
+      </button>
+      {!ready && <span style={{ color: '#6b7280' }}>Geen AI-profiel: Ctrl+K → ⚙ (bring-your-own-key of de MusicBrain-server).</span>}
+      {msg && <span style={{ color: msg.ok ? '#15803d' : '#b91c1c' }}>{msg.text}</span>}
     </div>
   );
 }

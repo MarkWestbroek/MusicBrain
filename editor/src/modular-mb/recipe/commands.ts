@@ -10,6 +10,8 @@ import {
 } from './edits';
 import type { Command } from './parse';
 import { RecipeError } from './types';
+import { applyFrontSpec } from '../frontRecipe';
+import { uid } from '../store';
 
 /** Voer een geparseerd commando uit op het project. Gooit RecipeError. */
 export function runCommand(p: ModularProject, cmd: Command): EditResult {
@@ -24,6 +26,7 @@ export function runCommand(p: ModularProject, cmd: Command): EditResult {
       return { project: buildRecipe(p, cmd.recipe), summary: `Gebouwd: ${r.summary}`, warnings: r.warnings };
     }
     case 'voices': return setVoices(p, needPatch(), cmd.voices);
+    case 'front': return applyFrontSpec(p, needPatch(), cmd.spec, uid('front'));
     case 'replace': {
       const pid = needPatch();
       const m = findModuleByWord(p, pid, cmd.from);

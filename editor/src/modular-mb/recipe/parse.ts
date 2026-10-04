@@ -14,6 +14,7 @@
 //   "voeg een tape echo toe op de bus"    → addBus { module: 'tape echo' }
 //   "zet een lfo op de cutoff van het filter" → addModulation { source: 'lfo', target: 'filter', port: 'cutoff' }
 
+import type { FrontSpec } from '../frontRecipe';
 import type { ModuleType } from '../types';
 import { CATALOG, kindOf, resolveTypeId, shortName } from './catalog';
 import type { PatchRecipe, RecipeModule } from './types';
@@ -29,7 +30,9 @@ export type Command =
   | { kind: 'set'; module: string; values: Record<string, unknown> }
   | { kind: 'spread'; width: number }
   | { kind: 'connect'; from: { module: string; port: string }; to: { module: string; port: string }; gain?: number }
-  | { kind: 'disconnect'; to: { module: string; port: string }; from?: { module: string; port: string } };
+  | { kind: 'disconnect'; to: { module: string; port: string }; from?: { module: string; port: string } }
+  /** Patch-front voorstellen (tool propose_front; doc/plans/patch-front.md stap 3b). */
+  | { kind: 'front'; spec: FrontSpec };
 
 export interface ParseResult {
   command: Command;
@@ -251,6 +254,7 @@ export function describeCommand(c: Command, types: ModuleType[]): string {
     case 'disconnect': return `Kabel${c.from ? ` ${nice(c.from.module)}.${c.from.port}` : 's'} → ${nice(c.to.module)}.${c.to.port} weghalen`;
     case 'spread': return `Verdeel de stemmen over het stereobeeld${c.width < 1 ? ` (breedte ${Math.round(c.width * 100)}%)` : ''}`;
     case 'set': return `Zet op ${nice(c.module)}: ${Object.entries(c.values).map(([k, v]) => `${k}=${typeof v === 'number' ? Math.round(v * 1000) / 1000 : String(v)}`).join(', ')}`;
+    case 'front': { const n = c.spec.items.filter((x) => x.kind !== 'group').length; return `Front "${c.spec.name}" met ${n} ${n === 1 ? 'item' : 'items'}`; }
   }
 }
 

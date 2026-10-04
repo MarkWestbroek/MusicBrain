@@ -15,6 +15,7 @@ import { runCommand } from './commands';
 import { describeCommand, type Command } from './parse';
 import { analyzeProject, optimizeProject } from './optimize';
 import { RecipeError, type PatchRecipe } from './types';
+import { frontCandidates, type FrontSpec } from '../frontRecipe';
 
 export interface JsonSchema { type: string; [k: string]: unknown }
 export interface ToolDef {
@@ -107,6 +108,19 @@ export const TOOLS: ToolDef[] = [
   { name: 'get_controls', mutating: false,
     description: 'Huidige knopstanden van een module in de actieve patch, met per knop het bereik (min/max), de schakelaarstanden en de standaardwaarde. "module" is een module-id of woord (mixer, filter, osc).',
     inputSchema: { type: 'object', properties: { module: { type: 'string' } }, required: ['module'] } },
+  { name: 'get_front_candidates', mutating: false,
+    description: 'Voor een patch-front (de black-box-kant van de patch, een view met een deelverzameling knoppen en jacks): per module van de actieve patch de speelbare controls in volgorde van vermoedelijk belang (rank 1 = belangrijkst), met label en huidige stand, de jacks, de bestaande fronts en het automatische front als vertrekpunt.',
+    inputSchema: { type: 'object', properties: { patchId: { type: 'string' } } } },
+  { name: 'propose_front', mutating: true,
+    description: 'Stel een patch-front voor: naam, uitleg voor de speler, kolommen (standaard 4) en items in rastervolgorde. Een item is een control {kind:"control", module, control, label?, size?}, een jack {kind:"port", module, port, label?} of een kopje {kind:"group", text}. Gebruik module-id\'s en control-/poort-id\'s uit get_front_candidates. Alleen bestaande controls; waarden horen niet in een front. Bestaat er al een front met deze naam, dan wordt het vervangen.',
+    inputSchema: { type: 'object', properties: {
+      name: { type: 'string' }, description: { type: 'string' }, columns: { type: 'integer', minimum: 1, maximum: 8 },
+      items: { type: 'array', items: { type: 'object', properties: {
+        kind: { type: 'string', enum: ['control', 'port', 'group'] },
+        module: { type: 'string' }, control: { type: 'string' }, port: { type: 'string' },
+        label: { type: 'string' }, size: { type: 'string', enum: ['small', 'large'] }, text: { type: 'string' },
+      }, required: ['kind'] } },
+    }, required: ['name', 'items'] } },
   { name: 'set_controls', mutating: true,
     description: 'Zet knoppen van een module in de actieve patch. "values" is een object knop-id → waarde (getal, of schakelaarstand op naam). Waarden buiten het bereik worden begrensd. Bij een poly-groep krijgen alle stemmen dezelfde stand. Voorbeeld stereo-spreiding over een 8-kanaals mixer: {"pan1":-1,"pan2":-0.714,…,"pan8":1}.',
     inputSchema: { type: 'object', properties: { module: { type: 'string' }, values: { type: 'object' } }, required: ['module', 'values'] } },
@@ -245,6 +259,12 @@ export function commandForTool(name: string, args: Record<string, unknown>): Com
       if (!v || typeof v !== 'object' || Array.isArray(v)) throw new RecipeError('set_controls: "values" moet een object zijn.');
       return { kind: 'set', module: str('module'), values: v as Record<string, unknown> };
     }
+    case 'propose_front': {
+      if (!Array.isArray(args.items)) throw new RecipeError('propose_front: "items" moet een lijst zijn.');
+      return { kind: 'front', spec: { name: str('name'), items: args.items as FrontSpec['items'],
+        ...(typeof args.description === 'string' ? { description: args.description } : {}),
+        ...(typeof args.columns === 'number' ? { columns: args.columns } : {}) } };
+    }
     case 'add_modulation':  return { kind: 'addModulation', source: str('source'), target: str('target'),
                                      port: typeof args.port === 'string' && args.port.trim() ? args.port.trim() : null };
     default: return null;
@@ -278,6 +298,8 @@ export function runTool(project: ModularProject, name: string, args: Record<stri
         return { content: { ok: false, error: e instanceof Error ? e.message : String(e) } };
       }
     }
+    case 'get_front_candidates':
+      return { content: frontCandidates(project, typeof args.patchId === 'string' ? args.patchId : project.activePatchId) };
     case 'get_controls': {
       const pid = project.activePatchId;
       const patch = project.patches.find((x) => x.id === pid);

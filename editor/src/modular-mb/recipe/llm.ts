@@ -153,6 +153,7 @@ export const TOOLS_PROMPT = [
   'Bewerk de bestaande patch met de kleinste passende tool; bouw alleen een nieuwe patch (build_patch) als daarom gevraagd wordt.',
   'Modules weghalen: remove_module. De volgorde in het rack veranderen: move_module (verandert niets aan het geluid).',
   'Knoppen draaien: eerst get_controls (huidige stand en bereik), dan set_controls.',
+  'Een patch-front (de speelkant van een patch: een view met een deelverzameling knoppen en jacks, geen waarden): eerst get_front_candidates, dan propose_front.',
   'Aftertouch, modwheel, bend of velocity ergens op zetten: add_modulation met die bron. Elke andere kabel: connect_ports; weghalen: disconnect_ports.',
   'MIDI-In "press" = aftertouch: channel pressure zet alle stemmen, poly pressure alleen die toets.',
   'Twee kabels op één cv-ingang tellen NIET vanzelf op (de laatste verandering wint); add_modulation en connect_ports zetten daarom zelf een optel-CvMath ertussen.',
