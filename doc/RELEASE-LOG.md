@@ -44,6 +44,10 @@
   certificaat); de editor toont boven de werkbalk één oranje regel met de
   uitweg (`secureContext.ts`) en de MIDI-fout benoemt de oorzaak. Uitleg in
   `editor/README.md` ("Telefoon: geluid en MIDI alleen via https").
+- **Knoppen draaien op de telefoon** (`ModulePanel.tsx`): knoppen en
+  schuiven hebben nu `touch-action: none`, net als de schakelaars en het
+  schermtoetsenbord. Zonder dat nam de browser de vinger voor scrollen
+  (pointercancel) en bleef de knop staan.
 - **Bewaren in de speelmodus.** "● Bewaar" (zodra er iets gewijzigd is) en
   "Bewaar als…" staan nu ook in de werkbalk van de speelmodus; de patcher-kop
   en de speelmodus delen één implementatie (`PatchSave.tsx`). Terug en A/B

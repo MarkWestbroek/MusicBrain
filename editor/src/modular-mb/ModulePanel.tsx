@@ -679,7 +679,9 @@ function KnobGlyph({
   }, [detent]);
 
   return (
-    <g ref={gRef} style={{ cursor: onChange ? 'ns-resize' : 'default' }}
+    // touchAction none: anders neemt de browser op een telefoon de vinger
+    // voor scrollen (pointercancel) en draait de knop niet.
+    <g ref={gRef} style={{ cursor: onChange ? 'ns-resize' : 'default', touchAction: 'none' }}
        onPointerDown={onPointerDown} onPointerMove={onPointerMove}
        onPointerUp={onPointerUp} onPointerCancel={onPointerUp}>
       {/* tick marks (rotary-stepper) */}
@@ -814,7 +816,7 @@ function SliderGlyph({
 
   return (
     <g transform={rotation ? `rotate(${rotation} ${x} ${y})` : undefined}
-       style={{ cursor: onChange ? (isV ? 'ns-resize' : 'ew-resize') : 'default' }}
+       style={{ cursor: onChange ? (isV ? 'ns-resize' : 'ew-resize') : 'default', touchAction: 'none' }}
        onPointerDown={onPointerDown} onPointerMove={onPointerMove}
        onPointerUp={onPointerUp} onPointerCancel={onPointerUp}>
       <line x1={x1} y1={y1} x2={x2} y2={y2}
