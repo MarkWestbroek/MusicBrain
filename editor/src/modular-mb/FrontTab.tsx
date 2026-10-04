@@ -9,7 +9,7 @@
 // (rechtsklik → "Op front zetten", of de frontvelden in de eigenschappen);
 // hier schik je ze.
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 import { FrontKeys } from './FrontKeys';
 import { FrontPanel } from './FrontPanel';
@@ -18,8 +18,10 @@ import {
   addFront, insertFrontItem, moveFrontItem, newFront, pruneFronts, removeFront, removeFrontItemAt,
   updateFront, updateFrontItem,
 } from './fronts';
-import { useState as useStateReact } from 'react';
+import { DEMO_SEEDS } from './demoSeeds';
 import { runCommands } from './recipe/commands';
+import { openPoolBrowser } from './sim/PoolWindows';
+import { getProject, setProject } from './store';
 import { askAi, llmReady, loadLlmConfig } from './recipe/llm';
 import { updateProject, useModularProject, uid } from './store';
 import { resolveControls, resolvePorts, type FrontItem, type ModularProject, type Patch, type PatchFront } from './types';
@@ -35,16 +37,11 @@ export function FrontTab({ expert = true }: { expert?: boolean }): JSX.Element {
     try { return new URLSearchParams(window.location.search).get('front'); } catch { return null; }
   });
 
-  if (!patch) {
-    return (
-      <div style={{ padding: 16, opacity: 0.8, maxWidth: 560, lineHeight: 1.5 }}>
-        <p style={{ margin: '0 0 8px' }}>Er is nog geen patch.</p>
-        {expert
-          ? <p style={{ margin: 0 }}>Kies een voorbeeld (Solo ▾ of Poly ▾ in de balk hierboven), laad een project, of bouw er een in Rack en Patcher.</p>
-          : <p style={{ margin: 0 }}>Klik op <strong>Binnenkijken ▸</strong> en kies een voorbeeld (Solo ▾ of Poly ▾), of open een patch via een link van musicbrain.nl. Daarna zie je hier het front: de belangrijkste knoppen, zonder kabels.</p>}
-      </div>
-    );
-  }
+  // Schikmodus (stap 4): items vrij slepen; alleen op een bewaard front.
+  // (Hook vóór de vroege return, anders klaagt React zodra er een patch komt.)
+  const [arrange, setArrange] = useState(false);
+
+  if (!patch) return <EmptyStart expert={expert} />;
 
   const fronts = pruneFronts(patch, project).fronts ?? [];
   const stored = chosen === AUTO ? undefined : (fronts.find((f) => f.id === chosen) ?? fronts[0]);
@@ -53,8 +50,6 @@ export function FrontTab({ expert = true }: { expert?: boolean }): JSX.Element {
 
   const edit = (fn: (x: Patch) => Patch): void =>
     updateProject((p) => ({ ...p, patches: p.patches.map((x) => (x.id === patch.id ? fn(x) : x)) }), { forceCommit: true });
-  // Schikmodus (stap 4): items vrij slepen; alleen op een bewaard front.
-  const [arrange, setArrange] = useStateReact(false);
   const arranging = expert && !isAuto && arrange;
 
   function saveAuto(): void {
@@ -240,6 +235,44 @@ function FrontAi({ project, onDone }: { project: ModularProject; onDone: (frontI
       </button>
       {!ready && <span style={{ color: '#6b7280' }}>Geen AI-profiel: Ctrl+K → ⚙ (bring-your-own-key of de MusicBrain-server).</span>}
       {msg && <span style={{ color: msg.ok ? '#15803d' : '#b91c1c' }}>{msg.text}</span>}
+    </div>
+  );
+}
+
+// ── Lege start: voorbeelden, een project openen, of de pool ───────────────
+
+function EmptyStart({ expert }: { expert: boolean }): JSX.Element {
+  const fileRef = useRef<HTMLInputElement>(null);
+  function onFile(e: React.ChangeEvent<HTMLInputElement>): void {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        if (!setProject(JSON.parse(reader.result as string))) alert('Ongeldig formaat: verwacht MMB-JSON (v1 of v2).');
+      } catch { alert('Kon het bestand niet lezen. Is het een MMB-JSON?'); }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  }
+  const btn: React.CSSProperties = { fontSize: 14, padding: '8px 12px', cursor: 'pointer', textAlign: 'left' };
+  return (
+    <div style={{ padding: 16, maxWidth: 560, lineHeight: 1.5 }}>
+      <p style={{ margin: '0 0 4px', fontWeight: 600 }}>Er is nog geen patch.</p>
+      <p style={{ margin: '0 0 12px', opacity: 0.8 }}>
+        Kies een voorbeeld; je ziet dan het front: de belangrijkste knoppen, zonder kabels, en een toetsenbord om te spelen.
+        {expert ? ' Of bouw er zelf een in Rack en Patcher.' : ' Binnenkijken ▸ opent de hele editor.'}
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 8 }}>
+        {DEMO_SEEDS.map((d) => (
+          <button key={d.label} type="button" style={btn} title={d.title} onClick={() => setProject(d.run(getProject()))}>{d.label}</button>
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
+        <button type="button" style={btn} onClick={() => fileRef.current?.click()}>↑ Project openen (.json)</button>
+        <input ref={fileRef} type="file" accept="application/json,.json" onChange={onFile} style={{ display: 'none' }} />
+        <button type="button" style={btn} onClick={openPoolBrowser} title="Patches van musicbrain.nl: bladeren en laden">📚 Patches van musicbrain.nl</button>
+      </div>
     </div>
   );
 }
