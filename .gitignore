@@ -73,6 +73,10 @@ __pycache__/
 # heeft zonder KiCad. BOM/CPL-CSV's blijven eveneens getrackt (klein, diff-baar,
 # ordergeschiedenis).
 **/fab/gerbers/
+# Uitzondering: zips van vervangen borden (deprecated/ en de nooit bestelde
+# busboard-v2) blijven lokaal als archief, niet in git.
+hardware/schematics/deprecated/**/fab/*.zip
+hardware/schematics/musicbrain-busboard-v2/fab/*.zip
 # Samplebanken: de kleine banken staan er wél in, zodat een kloon meteen iets
 # te spelen heeft (zie editor/public/banks/README.md). Wat groot is of niet
 # herverdeeld mag worden blijft lokaal.
