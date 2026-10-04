@@ -312,7 +312,12 @@ export class WebMidiSource extends BaseSource {
 
   async start(): Promise<void> {
     if (!WebMidiSource.isSupported()) {
-      throw new Error('Web MIDI niet ondersteund in deze browser.');
+      // Chrome kent Web MIDI wel, maar alleen in een secure context: via
+      // http://<ip>:5173 op de telefoon ontbreekt requestMIDIAccess gewoon.
+      const insecure = typeof window !== 'undefined' && window.isSecureContext === false;
+      throw new Error(insecure
+        ? 'Web MIDI werkt alleen via https of localhost; deze pagina is via http op een netwerkadres geopend.'
+        : 'Web MIDI niet ondersteund in deze browser.');
     }
     // Met SysEx-toestemming (Chrome vraagt het eenmalig), zodat een DAW een
     // patch kan meesturen; geweigerd = gewoon zonder SysEx verder.

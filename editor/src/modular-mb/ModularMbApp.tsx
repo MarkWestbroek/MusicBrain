@@ -81,6 +81,7 @@ function zangBankInPatch(project: ModularProject): number {
   return typeof v === 'number' ? v : 0;
 }
 import { Dx7EditorModal } from './Dx7EditorModal';
+import { currentSecureContextHint } from './secureContext';
 // Reuse the ES project-bar CSS classes (.es-projectbar*) — same visual language.
 import '../effect-switcher/styles.css';
 
@@ -902,6 +903,8 @@ export function ModularMbApp(): JSX.Element {
       <Tour open={showTour} onClose={() => setShowTour(false)} onTab={(t) => setTab(t as Tab)} onOpenCommand={() => setShowCmd(true)} />
       <DemoCaption state={demo} onSkip={() => demoRef.current?.finish()} onClose={() => { demoRef.current?.stop(); setDemo(null); }} />
 
+      <SecureContextNote />
+
       {/* ── Sub-tabs; dicht = alleen het front en "Binnenkijken" ── */}
       <nav style={{ display: 'flex', gap: 4, borderBottom: '1px solid #cbd2d9', marginBottom: 12, alignItems: 'center' }}>
         {!expert && (
@@ -986,5 +989,20 @@ export function ModularMbApp(): JSX.Element {
       <LyricModal open={showLyric} onClose={() => setShowLyric(false)} defaultBank={zangBankInPatch(project)} />
       <Dx7EditorModal open={showDx7} onClose={() => setShowDx7(false)} />
     </section>
+  );
+}
+
+/** Eén regel als de pagina geen secure context is (http op een
+ *  netwerkadres, typisch de telefoon): dan doen de wasm-modules en Web MIDI
+ *  het niet, en dat moet niet als losse foutjes per module binnenkomen. */
+function SecureContextNote() {
+  const hint = currentSecureContextHint();
+  if (!hint) return null;
+  return (
+    <div role="alert" style={{ margin: '0 0 10px', padding: '8px 12px', borderRadius: 6, background: '#fff4e5', border: '1px solid #f0b060', fontSize: 13, lineHeight: 1.4 }}>
+      <strong>Geen geluid en geen MIDI:</strong> {hint.text}{' '}
+      {hint.httpsUrl && <>Start de dev-server met <code>npm run dev:https</code> en open <a href={hint.httpsUrl}>{hint.httpsUrl}</a> (certificaat eenmalig accepteren). </>}
+      Of zet in Chrome <code>chrome://flags/#unsafely-treat-insecure-origin-as-secure</code> aan voor dit adres.
+    </div>
   );
 }

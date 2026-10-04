@@ -17,6 +17,39 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-04 — Speelmodus op de telefoon: wielen, pedalen, patchkeuze, https (editor, geen nieuwe firmware)
+- **Schermtoetsenbord compleet voor alle MIDI-IN-ingangen** (`sim/ScreenKeys.tsx`,
+  `sim/screenKeysLayout.ts`, `FrontKeys.tsx`): pitchbend- en modwiel naast de
+  toetsen (bend veert terug, mod blijft staan → CC 1); **Sust**-knop (CC 64:
+  tikken = vastzetten, vasthouden = tijdelijk) en een pedaalschuif op de
+  eerste CC van de MIDI-IN-module (`sim/midiInCc.ts`, standaard CC 74).
+  Schuiven over de toetsen blijft kiesbaar: noot (glissando), aftertouch
+  of bend. Octaaf en schuifkeuze worden onthouden.
+- **Stereopaar als één knop.** Twee gelijke mono-modules op L en R (zie
+  `edits.findTwin`) staan op het front als één knop en worden samen gestuurd
+  (`setPatchControl(…, { twins: true })`); in de patcher blijven ze los.
+  Het automatische front zet ook de karakterschakelaar (type, mode, model,
+  engine …) erop, zodat de E-piano zijn Tine/Reed-keuze toont.
+- **Speelmodus**: een patchkeuzelijst in de werkbalk als het project meer
+  patches heeft, en "◂ Speelmodus" vooraan in de tabbalk om terug te komen na
+  "Binnenkijken ▸". Zonder patch biedt de Front-tab de voorbeelden, "Project
+  openen" en de pool (`demoSeeds.ts`), ook op de telefoon. Rechtsklikmenu:
+  "Op het huidige front (Auto wordt bewaard)" als er nog geen bewaard front
+  is.
+- **Geluid en MIDI op de telefoon via het netwerk.** AudioWorklet (de
+  wasm-modules) en Web MIDI werken alleen in een secure context (https of
+  localhost); via `http://<ip>:5173` kreeg de telefoon "AudioWorkletNode is
+  only available in a secure context". Nieuw `npm run dev:https`
+  (`vite.config.https.ts`, `@vitejs/plugin-basic-ssl`, zelfondertekend
+  certificaat); de editor toont boven de werkbalk één oranje regel met de
+  uitweg (`secureContext.ts`) en de MIDI-fout benoemt de oorzaak. Uitleg in
+  `editor/README.md` ("Telefoon: geluid en MIDI alleen via https").
+- **Wit scherm op Windows/macOS opgelost**: `frontPanel.ts` naast
+  `FrontPanel.tsx` botste op een hoofdletterongevoelig bestandssysteem
+  (Vite probeerde `.ts` vóór `.tsx`); hernoemd naar `frontLayout.ts`, en
+  `filenames.test.ts` bewaakt dat geen twee modulenamen in één map alleen in
+  hoofdletters verschillen.
+
 ### 2026-10-04 — Patch-front stap 4 en 6: vrij schikken, hoes voor de pool (editor + Imprint)
 - **Vrij schikken** (stap 4): een item kan een eigen plek op het paneel
   krijgen (`pos` in mm); het raster blijft voor de rest. In de bewerker:

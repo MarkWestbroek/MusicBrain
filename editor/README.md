@@ -158,6 +158,27 @@ in de dev-server, zie [modlink/README.md](modlink/README.md) en
 > Let op: `server.host` maakt de dev-server bereikbaar voor alles in je
 > lokale netwerk, niet alleen voor localhost.
 
+### Telefoon: geluid en MIDI alleen via https
+
+AudioWorklet (alle wasm-modules), Web MIDI en de microfoon werken in de
+browser alleen in een *secure context*: `https://…` of `localhost`. Op de pc
+is `http://localhost:5173` dus goed, maar een telefoon die via
+`http://192.168.x.x:5173` binnenkomt krijgt "AudioWorkletNode is only
+available in a secure context" en "Web MIDI niet ondersteund"; de editor
+zet daar een oranje regel over boven de werkbalk. Drie uitwegen:
+
+- **`npm run dev:https`** (aanbevolen): dezelfde dev-server met een
+  zelfondertekend certificaat (`vite.config.https.ts`,
+  `@vitejs/plugin-basic-ssl`). Open op de telefoon
+  `https://<ip-van-je-pc>:5173` en accepteer het certificaat eenmalig
+  ("Geavanceerd" → "Doorgaan").
+- **Chrome-vlag** op de telefoon: `chrome://flags/#unsafely-treat-insecure-origin-as-secure`,
+  daar `http://<ip-van-je-pc>:5173` invullen, Enabled, Chrome herstarten.
+  Dan blijft gewoon `npm run dev` goed.
+- **USB-doorgeefluik** (Android): op de pc `chrome://inspect/#devices` →
+  Port forwarding `5173` → `localhost:5173`; de telefoon opent dan
+  `http://localhost:5173` en dat ís een secure context.
+
 ## Screenshots
 
 Gemaakt met de demo-data (knop **Demo** resp. **✨ Voorbeelden**/**✨ Test-patch**);

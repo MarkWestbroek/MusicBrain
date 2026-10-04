@@ -6,6 +6,7 @@
   "description": "Patch editor for MusicBrain devices (project 1, 2 and 3).",
   "scripts": {
     "dev": "vite",
+    "dev:https": "vite --config vite.config.https.ts",
     "build": "vite build",
     "banks": "node scripts/banks.mjs fetch",
     "banks:publish": "node scripts/banks.mjs publish",
@@ -26,6 +27,7 @@
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@types/ws": "^8.18.1",
+    "@vitejs/plugin-basic-ssl": "^1.2.0",
     "@vitejs/plugin-react": "^4.3.1",
     "tsx": "^4.23.15",
     "typedoc": "^0.28.19",
