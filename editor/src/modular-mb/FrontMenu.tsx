@@ -63,18 +63,31 @@ export function FrontMenu({ anchor, patchId, onClose }: { anchor: FrontMenuAncho
           </button>
         );
       })}
-      {fronts.length > 0 && <div style={{ borderTop: '1px solid #e5e7eb', margin: '4px 0' }} />}
+      {fronts.length === 0 && (
+        // Nog geen bewaard front: het front dat de speler nu ziet is Auto.
+        // Daarop zetten = Auto bewaren mét dit item, in één handeling.
+        <button type="button" style={{ ...row, fontWeight: 600 }}
+          onClick={() => edit((x) => {
+            const f = { ...autoFront(x, project), id: uid('front'), name: 'Front 1' };
+            return addToFront(addFront(x, f), f.id, item);
+          })}>
+          <span style={{ display: 'inline-block', width: 16 }}>+</span>Op het huidige front (Auto wordt bewaard)
+        </button>
+      )}
+      <div style={{ borderTop: '1px solid #e5e7eb', margin: '4px 0' }} />
       <button type="button" style={row}
         onClick={() => edit((x) => addFront(x, newFront(uid('front'), `Front ${fronts.length + 1}`, [item])))}>
-        <span style={{ display: 'inline-block', width: 16 }}>+</span>Nieuw front met dit item
+        <span style={{ display: 'inline-block', width: 16 }}>+</span>Nieuw leeg front met dit item
       </button>
-      <button type="button" style={row}
-        onClick={() => edit((x) => {
-          const f = { ...autoFront(x, project), id: uid('front'), name: `Front ${fronts.length + 1}` };
-          return addToFront(addFront(x, f), f.id, item);
-        })}>
-        <span style={{ display: 'inline-block', width: 16 }}>+</span>Nieuw front uit Auto, met dit item
-      </button>
+      {fronts.length > 0 && (
+        <button type="button" style={row}
+          onClick={() => edit((x) => {
+            const f = { ...autoFront(x, project), id: uid('front'), name: `Front ${fronts.length + 1}` };
+            return addToFront(addFront(x, f), f.id, item);
+          })}>
+          <span style={{ display: 'inline-block', width: 16 }}>+</span>Nieuw front uit Auto, met dit item
+        </button>
+      )}
     </div>,
     document.body,
   );
