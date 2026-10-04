@@ -94,8 +94,12 @@ Afgesproken grenzen:
 - **Morph-patch:** toont het front van patch A (items verwijzen naar
   modules in hetzelfde rack, dus ze kloppen); eigen fronts op een morph-patch
   staan we niet toe.
-- **Saved/dirty (`recipe/saved.ts`):** fronts horen niet bij `SavedFields`,
-  net als `controlLabels`: ze veranderen de klank niet.
+- **Saved/dirty (`recipe/saved.ts`):** fronts horen **wél** bij
+  `SavedFields` (besluit Mark 2026-10-04: "editen van een front is totdat je
+  het opslaat"). Daarmee gelden Bewaar, Terug, Bewaar als en Vergelijk ook
+  voor een front, en undo/redo werkt al omdat fronts in het project staan.
+  Eerder stond hier het omgekeerde (fronts veranderen de klank niet); dat is
+  verlaten omdat de bewerkervaring zwaarder weegt.
 
 Onderhoud in het model:
 
@@ -221,7 +225,8 @@ Solo ▾/Poly ▾-demo's zijn de eerste kandidaten.
 | 0 | editor | `setPatchControl`-helper uit de drie bestaande schrijfpaden trekken, met test | klein, **gebouwd 2026-10-03** |
 | 1 | editor | `Patch.fronts` + `FrontItem`-types, `normaliseV2`-snoei, `edits.ts`, contract-stijl test (`fronts.test.ts`) | klein, **gebouwd 2026-10-03** |
 | 2 | editor | `FrontPanel.tsx` (virtueel paneel via `ModulePanel`) + automatisch front (§5) | middel, **gebouwd 2026-10-03** (plus een eerste Front-tab met frontkiezer, "Auto bewaren als front" en "Front verwijderen") |
-| 3 | editor | Tab Front, "Op front zetten" in rack en patcher, label/grootte/volgorde, spelermodus en URL | middel |
+| 3 | editor | "Op front zetten" in rack en patcher, label/grootte/volgorde in de Front-tab, `fronts` in `SavedFields`, spelermodus en URL | middel |
+| 3b | editor | AI-frontrecept als terugval (besluit 2026-10-04): deterministisch eerst (`autoFront` met grootte en aantal als invoer), knop "✨ AI" via de bestaande LLM-laag van de recepten (`recipe/llm.ts`, providers en bring-your-own-key) met één nieuwe tool `propose_front` die de patch-samenvatting, de controls met hun `rankKnobs`-rang en de gewenste grootte krijgt en een front in dezelfde JSON-vorm teruggeeft; het voorstel landt als gewone bewerking (undo, bewaarcyclus), de ontwerper schaaft bij tot het goed is | middel |
 | 4 | editor | vrije plaatsing (slepen op mm), `range` | klein |
 | 4b | editor | signaalstroom-lijnen uit kabels + module-flows (na [module-signaalstroom.md](module-signaalstroom.md) stap 5); front-recept (AI of deterministisch) met grootte en aantal als invoer | middel |
 | 5 | editor | macro-knop (mini-morph) | middel, later |
