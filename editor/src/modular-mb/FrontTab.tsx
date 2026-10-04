@@ -13,7 +13,7 @@ import { useState } from 'react';
 
 import { FrontKeys } from './FrontKeys';
 import { FrontPanel } from './FrontPanel';
-import { autoFront } from './frontPanel';
+import { autoFront } from './frontLayout';
 import {
   addFront, insertFrontItem, moveFrontItem, newFront, pruneFronts, removeFront, removeFrontItemAt,
   updateFront, updateFrontItem,

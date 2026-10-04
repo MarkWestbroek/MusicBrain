@@ -8,7 +8,7 @@
 import { useState } from 'react';
 
 import { addFront, addToFront, isOnFront, removeFromFront } from './fronts';
-import { autoFront } from './frontPanel';
+import { autoFront } from './frontLayout';
 import { updateProject, useModularProject, uid } from './store';
 import type { Control, FrontItem, Patch, Port } from './types';
 

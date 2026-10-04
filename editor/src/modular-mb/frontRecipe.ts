@@ -13,7 +13,7 @@
 //     toevoegen (of vervangen als er al een front met die naam is).
 
 import { addFront, frontIssues } from './fronts';
-import { autoFront, patchModulesInSignalOrder, rankKnobs } from './frontPanel';
+import { autoFront, patchModulesInSignalOrder, rankKnobs } from './frontLayout';
 import { findModuleByWord, findControlByWord, findPortByWord, type EditResult } from './recipe/edits';
 import { RecipeError } from './recipe/types';
 import {

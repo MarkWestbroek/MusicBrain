@@ -8,7 +8,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import { ModulePanel } from './ModulePanel';
-import { autoFront, buildFrontModule, frontControlState } from './frontPanel';
+import { autoFront, buildFrontModule, frontControlState } from './frontLayout';
 import type { ModularProject, Patch, PatchFront } from './types';
 
 /** Het front dat de pool te zien krijgt: het eerste bewaarde, anders Auto. */

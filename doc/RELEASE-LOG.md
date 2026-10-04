@@ -94,7 +94,7 @@
   weergave of Front-tab (stap 2 en 3). `fronts.ts`: `frontIssues`,
   `addToFront`, `removeFromFront`; 8 tests. Zie
   [plans/patch-front.md](plans/patch-front.md).
-- **Front-tab en virtueel paneel** (`frontPanel.ts`, `FrontPanel.tsx`,
+- **Front-tab en virtueel paneel** (`frontLayout.ts`, `FrontPanel.tsx`,
   `FrontTab.tsx`): een front wordt een tijdelijk moduletype met de echte
   controldefinities en een rasterlayout (kolommen, groepskopjes, jacks
   onderaan), getekend door het bestaande `ModulePanel`; draaien gaat via

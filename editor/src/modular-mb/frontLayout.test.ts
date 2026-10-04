@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 
 import { ModulePanel } from './ModulePanel';
 import { frontIssues } from './fronts';
-import { autoFront, buildFrontModule, frontControlState, patchModulesInSignalOrder, rankKnobs } from './frontPanel';
+import { autoFront, buildFrontModule, frontControlState, patchModulesInSignalOrder, rankKnobs } from './frontLayout';
 import { findModuleByWord } from './recipe/edits';
 import { buildRecipe } from './recipe/compile';
 import { seedInternals, seedKrellPatch } from './seedModules';

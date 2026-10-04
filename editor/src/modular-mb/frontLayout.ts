@@ -1,5 +1,6 @@
 // Het front als virtueel paneel (doc/plans/patch-front.md §4) en het
-// automatische front (§5). Puur: geen React, geen store.
+// automatische front (§5). Puur: geen React, geen store. (Heet frontLayout
+// en niet frontPanel: op Windows botst dat met FrontPanel.tsx.)
 //
 // Een front wordt een tijdelijke ModuleType + ModuleInstance met de echte
 // controldefinities (taper, bereik, schakelstanden) en een rasterlayout in
@@ -123,8 +124,10 @@ export function buildFrontModule(front: PatchFront, patch: Patch, project: Modul
     const top = y + (withGroup ? GROUP_H : 0);
     const h = Math.max(...r.map((cell) => rowHeightFor(cell.c)));
     let segStart: number | null = inGroup ? 0 : null;
-    const closeSeg = (from: number, to: number) =>
+    const closeSeg = (from: number, to: number) => {
+      if (to < from) return;   // lege reeks (kopje op de eerste cel van een doorlopende groep)
       tile(MARGIN_X + CELL_W * from + 1, MARGIN_X + CELL_W * (to + 1) - 1, y + 0.8, top + h - 1.2);
+    };
     r.forEach((cell, i) => {
       controls.push(cell.c);
       const cx = MARGIN_X + CELL_W * (i + 0.5);

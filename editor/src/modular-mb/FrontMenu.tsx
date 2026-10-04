@@ -9,7 +9,7 @@ import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 
 import { addFront, addToFront, isOnFront, newFront, removeFromFront } from './fronts';
-import { autoFront } from './frontPanel';
+import { autoFront } from './frontLayout';
 import { updateProject, useModularProject, uid } from './store';
 import type { FrontItem, Patch } from './types';
 

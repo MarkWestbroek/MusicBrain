@@ -7,7 +7,7 @@
 import { useMemo, useRef, useState } from 'react';
 
 import { ModulePanel } from './ModulePanel';
-import { buildFrontModule, frontControlState } from './frontPanel';
+import { buildFrontModule, frontControlState } from './frontLayout';
 import { setPatchControl } from './setPatchControl';
 import { useEngineStatus } from './sim/engineSingleton';
 import type { ControlValue, ModularProject, Patch, PatchFront, Port } from './types';
