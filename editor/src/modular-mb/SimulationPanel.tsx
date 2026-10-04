@@ -620,6 +620,7 @@ function ScreenKeyboardUi({ source }: { source: ScreenKeyboardSource }): JSX.Ele
         onNoteOff={(midi) => source.releaseNote(midi)}
         onAftertouch={(midi, v) => source.aftertouch(midi, v)}
         onBend={(v) => source.bend(v)}
+        onMod={(v) => source.mod(v)}
         hint="Computertoetsen: A S D F G H J K (witte), W E T Y U (zwarte); Z/X octaaf" />
     </div>
   );

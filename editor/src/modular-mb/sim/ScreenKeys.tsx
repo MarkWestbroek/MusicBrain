@@ -16,12 +16,15 @@
 
 import { useRef, useState } from 'react';
 
-import { KEY_H, aftertouchFor, bendFor, keyAt, keyLayout, layoutWidth, velocityAt, type KeyRect } from './screenKeysLayout';
+import {
+  KEY_H, WHEEL_W, WHEELS_W, aftertouchFor, bendFor, bendFromY, keyAt, keyLayout, layoutWidth, modFromY, velocityAt, wheelAt,
+  type KeyRect, type Wheel,
+} from './screenKeysLayout';
 
 export type SlideMode = 'note' | 'bend';
 
 export function ScreenKeys({
-  octave, octaves = 2, onNoteOn, onNoteOff, onOctave, onAftertouch, onBend, slide = 'note', onSlide, maxWidth = 560, hint,
+  octave, octaves = 2, onNoteOn, onNoteOff, onOctave, onAftertouch, onBend, onMod, slide = 'note', onSlide, maxWidth = 560, hint,
 }: {
   octave: number; octaves?: number;
   onNoteOn: (midi: number, velocity: number) => void;
@@ -29,8 +32,10 @@ export function ScreenKeys({
   onOctave?: (delta: number) => void;
   /** Omhoog schuiven na de aanslag, 0..127 per noot. */
   onAftertouch?: (midi: number, value: number) => void;
-  /** Opzij schuiven in de bend-stand, 14-bits (8192 = midden). */
+  /** Opzij schuiven in de bend-stand, en het pitchwiel: 14-bits (8192 = midden). */
   onBend?: (value14: number) => void;
+  /** Het modwiel (CC 1), 0..127. Zonder deze callback zijn er geen wielen. */
+  onMod?: (value: number) => void;
   /** Wat opzij schuiven doet: de noot wisselen of buigen. */
   slide?: SlideMode;
   onSlide?: (mode: SlideMode) => void;
@@ -38,8 +43,15 @@ export function ScreenKeys({
   /** Tekst rechts van de octaafknoppen (bv. de computertoetsen). */
   hint?: string;
 }): JSX.Element {
+  // Wielen links (alleen met onMod); de toetsen schuiven dan WHEELS_W op.
+  const wheels = !!onMod;
+  const off = wheels ? WHEELS_W : 0;
   const keys = keyLayout((octave + 1) * 12, octaves);
-  const width = layoutWidth(keys);
+  const width = layoutWidth(keys) + off;
+  const [bendPos, setBendPos] = useState(8192);
+  const [modPos, setModPos] = useState(0);
+  // pointerId → wiel dat deze vinger vasthoudt.
+  const wheelHeld = useRef(new Map<number, Wheel>());
   const svgRef = useRef<SVGSVGElement>(null);
   // pointerId → noot en aanslagplek; en de ingedrukte noten voor de kleur.
   const held = useRef(new Map<number, { midi: number; x0: number; y0: number; at: number }>());
@@ -82,24 +94,41 @@ export function ScreenKeys({
     if (slide === 'bend') onBend?.(bendFor(x - h.x0));
   }
 
+  function wheelTo(w: Wheel, y: number): void {
+    if (w === 'bend') { const v = bendFromY(y); setBendPos(v); onBend?.(v); }
+    else { const v = modFromY(y); setModPos(v); onMod?.(v); }
+  }
   const onPointerDown = (e: React.PointerEvent<SVGSVGElement>): void => {
     if (e.button !== 0 && e.pointerType === 'mouse') return;
     e.preventDefault();
     svgRef.current?.setPointerCapture(e.pointerId);
     const { x, y } = pointOf(e);
-    const k = keyAt(keys, x, y);
-    if (k) press(e.pointerId, k, x, y);
+    const w = wheels ? wheelAt(x, y) : null;
+    if (w) { wheelHeld.current.set(e.pointerId, w); wheelTo(w, y); return; }
+    const k = keyAt(keys, x - off, y);
+    if (k) press(e.pointerId, k, x - off, y);
   };
   const onPointerMove = (e: React.PointerEvent<SVGSVGElement>): void => {
-    if (!held.current.has(e.pointerId)) return;
     const { x, y } = pointOf(e);
+    const w = wheelHeld.current.get(e.pointerId);
+    if (w) { wheelTo(w, y); return; }
+    if (!held.current.has(e.pointerId)) return;
     if (slide === 'note') {
-      const k = keyAt(keys, x, y);
-      if (k) press(e.pointerId, k, x, y);
+      const k = keyAt(keys, x - off, y);
+      if (k) press(e.pointerId, k, x - off, y);
     }
-    slideTo(e.pointerId, x, y);
+    slideTo(e.pointerId, x - off, y);
   };
-  const onPointerEnd = (e: React.PointerEvent<SVGSVGElement>): void => { release(e.pointerId); };
+  const onPointerEnd = (e: React.PointerEvent<SVGSVGElement>): void => {
+    const w = wheelHeld.current.get(e.pointerId);
+    if (w) {
+      wheelHeld.current.delete(e.pointerId);
+      // Het pitchwiel veert terug naar het midden; het modwiel blijft staan.
+      if (w === 'bend') { setBendPos(8192); onBend?.(8192); }
+      return;
+    }
+    release(e.pointerId);
+  };
 
   const btn: React.CSSProperties = { fontSize: 12, padding: '3px 10px', cursor: 'pointer' };
   return (
@@ -140,8 +169,21 @@ export function ScreenKeys({
         onLostPointerCapture={onPointerEnd}
         aria-label="Toetsenbord"
       >
+        {wheels && (
+          <g pointerEvents="none">
+            {/* Pitch bend: midden = rust; het blokje toont de stand. */}
+            <rect x={2} y={0} width={WHEEL_W} height={KEY_H} rx={2} fill="#1f2937" stroke="#000" strokeWidth={0.8} />
+            <line x1={2} y1={KEY_H / 2} x2={2 + WHEEL_W} y2={KEY_H / 2} stroke="#6b7280" strokeWidth={0.6} />
+            <rect x={3} y={KEY_H / 2 - (bendPos - 8192) / 8191 * (KEY_H / 2 - 4) - 3} width={WHEEL_W - 2} height={6} rx={1} fill="#fbbf24" />
+            <text x={2 + WHEEL_W / 2} y={KEY_H - 2} fontSize={5} textAnchor="middle" fill="#9ca3af">bend</text>
+            {/* Modwiel: onder = 0. */}
+            <rect x={2 + WHEEL_W + 4} y={0} width={WHEEL_W} height={KEY_H} rx={2} fill="#1f2937" stroke="#000" strokeWidth={0.8} />
+            <rect x={2 + WHEEL_W + 4 + 1} y={KEY_H - 4 - (modPos / 127) * (KEY_H - 8) - 3} width={WHEEL_W - 2} height={6} rx={1} fill="#60a5fa" />
+            <text x={2 + WHEEL_W + 4 + WHEEL_W / 2} y={KEY_H - 2} fontSize={5} textAnchor="middle" fill="#9ca3af">mod</text>
+          </g>
+        )}
         {keys.filter((k) => !k.black).map((k) => (
-          <g key={k.midi} pointerEvents="none">
+          <g key={k.midi} pointerEvents="none" transform={off ? `translate(${off} 0)` : undefined}>
             <rect x={k.x} y={k.y} width={k.w} height={k.h} rx={1.5}
               fill={down.has(k.midi) ? '#fde68a' : '#fafafa'} stroke="#1f2937" strokeWidth={0.8} />
             <text x={k.x + k.w / 2} y={k.h - 6} fontSize={9} textAnchor="middle" fill="#475569">
@@ -150,7 +192,7 @@ export function ScreenKeys({
           </g>
         ))}
         {keys.filter((k) => k.black).map((k) => (
-          <rect key={k.midi} pointerEvents="none" x={k.x} y={k.y} width={k.w} height={k.h} rx={1.2}
+          <rect key={k.midi} pointerEvents="none" x={k.x + off} y={k.y} width={k.w} height={k.h} rx={1.2}
             fill={down.has(k.midi) ? '#d97706' : '#1f2937'} stroke="#000" strokeWidth={0.8} />
         ))}
       </svg>

@@ -58,3 +58,29 @@ export function aftertouchFor(dy: number, h = KEY_H): number {
   const t = Math.max(0, Math.min(1, -dy / (0.6 * h)));
   return Math.round(t * 127);
 }
+
+// ── Wielen links van de toetsen: pitch bend (veert terug) en mod (blijft) ──
+
+export const WHEEL_W = 11;          // breedte van één wiel
+export const WHEELS_W = 2 * WHEEL_W + 8;   // het hele wielenblok incl. tussenruimte en rand
+
+export type Wheel = 'bend' | 'mod';
+
+/** Welk wiel ligt onder x (in de wielzone links van de toetsen)? */
+export function wheelAt(x: number, y: number, h = KEY_H): Wheel | null {
+  if (y < 0 || y > h) return null;
+  if (x >= 2 && x < 2 + WHEEL_W) return 'bend';
+  if (x >= 2 + WHEEL_W + 4 && x < 2 + 2 * WHEEL_W + 4) return 'mod';
+  return null;
+}
+
+/** Pitch bend uit de plek op het wiel: midden = 8192, bovenaan 16383. */
+export function bendFromY(y: number, h = KEY_H): number {
+  const t = Math.max(-1, Math.min(1, (h / 2 - y) / (h / 2)));
+  return Math.round(8192 + t * 8191);
+}
+
+/** Mod uit de plek op het wiel: onderaan 0, bovenaan 127. */
+export function modFromY(y: number, h = KEY_H): number {
+  return Math.round(Math.max(0, Math.min(1, (h - y) / h)) * 127);
+}

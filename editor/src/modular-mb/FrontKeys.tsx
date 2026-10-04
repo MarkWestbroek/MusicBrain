@@ -44,11 +44,12 @@ export function FrontKeys(): JSX.Element {
   // een patch met cv_press of per-noot-druk het allebei hoort.
   function aftertouch(midi: number, v: number): void { const e = getEngine(); e.pressure(v, midi); e.pressure(v); }
   function bend(v: number): void { getEngine().pitchBend(v); }
+  function mod(v: number): void { getEngine().controlChange(1, v); }
 
   return (
     <div>
       <ScreenKeys octave={octave} onOctave={setOctave} onNoteOn={noteOn} onNoteOff={noteOff}
-        onAftertouch={aftertouch} onBend={bend} slide={slide} onSlide={setSlide}
+        onAftertouch={aftertouch} onBend={bend} onMod={mod} slide={slide} onSlide={setSlide}
         hint={status.running ? 'Laag op de toets is hard; omhoog schuiven is aftertouch' : 'Eerste aanslag start de simulator'} />
       {err && <div style={{ color: '#b91c1c', fontSize: 12, marginTop: 4 }}>{err}</div>}
     </div>

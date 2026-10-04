@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { KEY_H, KEY_W, aftertouchFor, bendFor, keyAt, keyLayout, layoutWidth, velocityAt } from './screenKeysLayout';
+import { KEY_H, KEY_W, WHEEL_W, aftertouchFor, bendFor, bendFromY, keyAt, keyLayout, layoutWidth, modFromY, velocityAt, wheelAt } from './screenKeysLayout';
 
 describe('schermtoetsenbord: layout en hit-test', () => {
   const keys = keyLayout(60, 2);   // C4..C6
@@ -41,5 +41,17 @@ describe('schermtoetsenbord: layout en hit-test', () => {
     expect(aftertouchFor(20)).toBe(0);                 // omlaag: niets
     expect(aftertouchFor(-0.6 * KEY_H)).toBe(127);
     expect(aftertouchFor(-0.3 * KEY_H)).toBe(64);
+  });
+
+  it('wielen: bend links, mod rechts; bend veert om het midden, mod van onder naar boven', () => {
+    expect(wheelAt(2 + WHEEL_W / 2, 10)).toBe('bend');
+    expect(wheelAt(2 + WHEEL_W + 4 + WHEEL_W / 2, 10)).toBe('mod');
+    expect(wheelAt(2 + WHEEL_W + 1, 10)).toBeNull();
+    expect(wheelAt(5, KEY_H + 1)).toBeNull();
+    expect(bendFromY(KEY_H / 2)).toBe(8192);
+    expect(bendFromY(0)).toBe(16383);
+    expect(bendFromY(KEY_H)).toBe(1);
+    expect(modFromY(KEY_H)).toBe(0);
+    expect(modFromY(0)).toBe(127);
   });
 });

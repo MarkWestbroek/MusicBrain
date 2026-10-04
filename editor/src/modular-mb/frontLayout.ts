@@ -257,13 +257,19 @@ export function patchModulesInSignalOrder(patch: Patch, project: ModularProject)
  *  belang: de `playable`-lijst van de receptcatalogus, dan wat van zijn
  *  standaardwaarde afwijkt (bewust gezet), dan de paneelvolgorde. */
 export function rankKnobs(m: ModuleInstance, patch: Patch, project: ModularProject): Control[] {
-  const knobs = resolveControls(m, project.moduleTypes).filter((c) => c.kind === 'knob' || c.kind === 'slider');
+  // Draaiknoppen en schuiven, plus de schakelaars die het karakter kiezen
+  // (type, mode, stack, model, engine, wave): die horen op een speelfront
+  // (E-piano: Type tine/reed), andere schakelaars niet.
+  const knobs = resolveControls(m, project.moduleTypes).filter((c) =>
+    c.kind === 'knob' || c.kind === 'slider' || ((c.kind === 'switch' || c.kind === 'toggle') && CHARACTER_SWITCHES.has(c.id)));
   const playable = Object.keys(CATALOG[m.typeId]?.playable ?? {});
   const state = patch.controlState[m.id] ?? {};
   const deviates = (c: Control) => state[c.id] !== undefined && JSON.stringify(state[c.id]) !== JSON.stringify(defaultValueOf(c));
-  const rank = (c: Control) => (playable.includes(c.id) ? playable.indexOf(c.id) : playable.length + (deviates(c) ? 0 : 1000));
+  const rank = (c: Control) => (playable.includes(c.id) ? playable.indexOf(c.id)
+    : playable.length + (deviates(c) ? 0 : 1000) + (c.kind === 'switch' || c.kind === 'toggle' ? 500 : 0));
   return [...knobs].map((c, i) => ({ c, i })).sort((a, b) => rank(a.c) - rank(b.c) || a.i - b.i).map((x) => x.c);
 }
+const CHARACTER_SWITCHES = new Set(['type', 'mode', 'stack', 'model', 'engine', 'wave', 'algo', 'algorithm']);
 
 /** Het front voor een patch zonder front (§5): gelabelde controls, gebonden
  *  controls, de speelmodules, aangevuld tot `max` knoppen in signaalvolgorde;
