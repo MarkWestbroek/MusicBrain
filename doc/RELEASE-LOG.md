@@ -44,6 +44,14 @@
   certificaat); de editor toont boven de werkbalk één oranje regel met de
   uitweg (`secureContext.ts`) en de MIDI-fout benoemt de oorzaak. Uitleg in
   `editor/README.md` ("Telefoon: geluid en MIDI alleen via https").
+- **Bewaren in de speelmodus.** "● Bewaar" (zodra er iets gewijzigd is) en
+  "Bewaar als…" staan nu ook in de werkbalk van de speelmodus; de patcher-kop
+  en de speelmodus delen één implementatie (`PatchSave.tsx`). Terug en A/B
+  blijven achter "Binnenkijken" (plan §9, besluit 8).
+- **"Op het front zetten" plaatst bij de eigen module** (`fronts.addToFront`):
+  na de laatste knop van dezelfde module, of met een eigen kopje vóór de
+  jacks. Voorheen kwam de Type-schakelaar van de E-piano achteraan, in de
+  tegel van MMB OUT. 2 tests.
 - **Wit scherm op Windows/macOS opgelost**: `frontPanel.ts` naast
   `FrontPanel.tsx` botste op een hoofdletterongevoelig bestandssysteem
   (Vite probeerde `.ts` vóór `.tsx`); hernoemd naar `frontLayout.ts`, en

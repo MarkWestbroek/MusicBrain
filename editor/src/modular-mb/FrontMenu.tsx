@@ -30,6 +30,7 @@ export function FrontMenu({ anchor, patchId, onClose }: { anchor: FrontMenuAncho
   if (!patch) return null;
   const fronts = patch.fronts ?? [];
   const item = anchor.item;
+  const moduleName = item.kind !== 'group' ? project.modules.find((m) => m.id === item.moduleId)?.name : undefined;
 
   const edit = (fn: (x: Patch) => Patch): void => {
     updateProject((p) => ({ ...p, patches: p.patches.map((x) => (x.id === patchId ? fn(x) : x)) }), { forceCommit: true });
@@ -58,7 +59,7 @@ export function FrontMenu({ anchor, patchId, onClose }: { anchor: FrontMenuAncho
         const on = isOnFront(f, item);
         return (
           <button key={f.id} type="button" style={row}
-            onClick={() => edit((x) => (on ? removeFromFront(x, f.id, item) : addToFront(x, f.id, item)))}>
+            onClick={() => edit((x) => (on ? removeFromFront(x, f.id, item) : addToFront(x, f.id, item, moduleName)))}>
             <span style={{ display: 'inline-block', width: 16 }}>{on ? '✓' : ''}</span>{f.name}
           </button>
         );
@@ -69,7 +70,7 @@ export function FrontMenu({ anchor, patchId, onClose }: { anchor: FrontMenuAncho
         <button type="button" style={{ ...row, fontWeight: 600 }}
           onClick={() => edit((x) => {
             const f = { ...autoFront(x, project), id: uid('front'), name: 'Front 1' };
-            return addToFront(addFront(x, f), f.id, item);
+            return addToFront(addFront(x, f), f.id, item, moduleName);
           })}>
           <span style={{ display: 'inline-block', width: 16 }}>+</span>Op het huidige front (Auto wordt bewaard)
         </button>
@@ -83,7 +84,7 @@ export function FrontMenu({ anchor, patchId, onClose }: { anchor: FrontMenuAncho
         <button type="button" style={row}
           onClick={() => edit((x) => {
             const f = { ...autoFront(x, project), id: uid('front'), name: `Front ${fronts.length + 1}` };
-            return addToFront(addFront(x, f), f.id, item);
+            return addToFront(addFront(x, f), f.id, item, moduleName);
           })}>
           <span style={{ display: 'inline-block', width: 16 }}>+</span>Nieuw front uit Auto, met dit item
         </button>

@@ -22,6 +22,7 @@ export function FrontFields({ moduleId, controls, ports, patchId, dark = false }
   if (!patch) return null;
   const fronts = patch.fronts ?? [];
   const front = fronts.find((f) => f.id === chosen) ?? fronts[0];
+  const moduleName = project.modules.find((m) => m.id === moduleId)?.name;
   const playable = controls.filter((c) => c.kind !== 'display' && c.kind !== 'led');
   if (playable.length === 0 && ports.length === 0) return null;
 
@@ -29,7 +30,7 @@ export function FrontFields({ moduleId, controls, ports, patchId, dark = false }
     updateProject((p) => ({ ...p, patches: p.patches.map((x) => (x.id === patch.id ? fn(x) : x)) }), { forceCommit: true });
   const toggle = (item: FrontItem): void => {
     if (!front) return;
-    edit((x) => (isOnFront(front, item) ? removeFromFront(x, front.id, item) : addToFront(x, front.id, item)));
+    edit((x) => (isOnFront(front, item) ? removeFromFront(x, front.id, item) : addToFront(x, front.id, item, moduleName)));
   };
   const makeFront = (): void => {
     const f = { ...autoFront(patch, project), id: uid('front'), name: `Front ${fronts.length + 1}` };

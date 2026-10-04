@@ -6,14 +6,14 @@
 // purely a presentation choice (model-view-controller pattern).
 
 import { useState } from 'react';
-import { useModularProject, updateProject, uid } from './store';
+import { useModularProject } from './store';
 import { PatcherGraphPanel } from './PatcherGraphPanel';
 import { PatcherMatrixPanel } from './PatcherMatrixPanel';
 import { TeensyStatusBar } from './TeensyStatusBar';
 import type { Patch } from './types';
 import { PatchStepper, CompareSlots } from './recipe/PatchSwitcher';
-import { MorphPanel, MorphSaveMenu } from './recipe/MorphPanel';
-import { isDirty, saveAsPatch } from './recipe/saved';
+import { MorphPanel } from './recipe/MorphPanel';
+import { SaveAsButton } from './PatchSave';
 
 type View = 'graph' | 'matrix';
 
@@ -41,20 +41,6 @@ export function PatcherPanel(): JSX.Element {
     );
   }
 
-  /** Bewaar de huidige patch onder een nieuwe naam (binnen het project).
-   *  Maakt een diepe kopie met een vers id; deze wordt direct actief. Het
-   *  programmanummer wordt niet meegekopieerd (zou botsen met origineel). */
-  function saveAsNewPatch(): void {
-    if (!patch) return;
-    const suggested = `${patch.name} (kopie)`;
-    const name = window.prompt(
-      isDirty(patch)
-        ? 'Bewaar als — de bewerking wordt een nieuwe patch; het origineel gaat terug naar zijn bewaarde versie. Naam:'
-        : 'Bewaar patch als — nieuwe naam:', suggested);
-    if (name === null) return;
-    const id = uid('patch');
-    updateProject((p) => saveAsPatch(p, patch.id, id, name.trim() || suggested), { forceCommit: true });
-  }
   void (null as unknown as Patch);
 
   return (
@@ -65,12 +51,7 @@ export function PatcherPanel(): JSX.Element {
             de laatst gestuurde config (A/B-set), dan is het een selectPatch. */}
         <PatchStepper project={project} patch={patch} />
         <CompareSlots project={project} patch={patch} />
-        {patch.morph
-          ? <MorphSaveMenu project={project} patch={patch} />
-          : <button onClick={saveAsNewPatch} style={{ fontSize: 12, padding: '3px 10px', whiteSpace: 'nowrap' }}
-              title="Bewaar deze patch als een nieuwe patch (kopie met nieuwe naam)">
-              Bewaar als…
-            </button>}
+        <SaveAsButton project={project} patch={patch} />
         <div style={{
           marginLeft: 'auto', display: 'flex', gap: 0,
           border: '1px solid #cbd2d9', borderRadius: 6, overflow: 'hidden',

@@ -129,3 +129,29 @@ describe('fronts: bewerken', () => {
     expect(f.fronts).toBeUndefined();
   });
 });
+
+describe('fronts: plaats van een nieuw item', () => {
+  it('zet een knop bij de knoppen van zijn eigen module, niet achteraan in de laatste tegel', () => {
+    const { p, vcf, vco } = withFront();
+    // Front: [vcf cutoff] [kopje Toon] [vco fine] [vcf cv-jack]
+    const f = addToFront(active(p), 'front_speel', { kind: 'control', moduleId: vcf, controlId: 'resonance' }, 'VCF');
+    expect(f.fronts![0]!.items.map((it) => (it.kind === 'control' ? `${it.moduleId === vcf ? 'vcf' : 'vco'}.${it.controlId}` : it.kind)))
+      .toEqual(['vcf.cutoff', 'vcf.resonance', 'group', 'vco.fine', 'port']);
+    const g = addToFront(active(p), 'front_speel', { kind: 'control', moduleId: vco, controlId: 'coarse' }, 'VCO');
+    expect(g.fronts![0]!.items.map((it) => (it.kind === 'control' ? it.controlId : it.kind))).toEqual(['cutoff', 'group', 'fine', 'coarse', 'port']);
+  });
+
+  it('geeft een module zonder soortgenoot een eigen kopje vóór de jacks; een jack komt achteraan', () => {
+    const { p, vcf } = withFront();
+    const other = active(p).fronts![0]!.items.find((it) => it.kind === 'control')!.moduleId;
+    const vca = findModuleByWord(p, active(p).id, 'vca')?.id;
+    const mod = vca && vca !== other && vca !== vcf ? vca : null;
+    expect(mod).toBeTruthy();
+    if (!mod) return;
+    const f = addToFront(active(p), 'front_speel', { kind: 'control', moduleId: mod, controlId: 'gain' }, 'VCA');
+    const kinds = f.fronts![0]!.items.map((it) => (it.kind === 'group' ? `group:${it.text}` : it.kind));
+    expect(kinds).toEqual(['control', 'group:Toon', 'control', 'group:VCA', 'control', 'port']);
+    const g = addToFront(active(p), 'front_speel', { kind: 'port', moduleId: mod, portId: 'in' });
+    expect(g.fronts![0]!.items.at(-1)).toEqual({ kind: 'port', moduleId: mod, portId: 'in' });
+  });
+});

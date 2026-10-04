@@ -265,3 +265,18 @@ Besloten (Mark, 2026-10-03, tweede ronde):
    er logins zijn): wie opent, blijft open; wie sluit, blijft dicht.
 7. **Ontwerpen** zoals in §6: automatisch beginnen, bijwerken vanuit rack en
    patcher, schikken in de Front-tab.
+
+Besloten (Mark, 2026-10-04, bij het spelen):
+
+8. **Spelen is ook tweaken en bewaren.** De spelermodus krijgt daarom
+   "● Bewaar" (alleen zichtbaar als er iets gewijzigd is) en "Bewaar als…",
+   dezelfde knoppen als in de patcher-kop (`PatchSave.tsx`, één
+   implementatie). Terug naar bewaard en de A/B-vergelijking blijven in de
+   editor. **Later, niet nu:** de A/B-morph-truc (twee standen, één schuif)
+   ook in de spelermodus; dan als hetzelfde `CompareSlots`/`MorphPanel`
+   uit de patcher en niet als een eigen variant, zodat de spelermodus niet
+   opnieuw ingewikkeld wordt. Vuistregel voor de werkbalk: patchkeuze,
+   bewaren, Binnenkijken; de rest zit achter Binnenkijken.
+9. **Een item komt bij zijn module.** "Op het front zetten" plaatst een
+   knop na de laatste knop van dezelfde module (of met een eigen kopje vóór
+   de jacks), niet achteraan in de laatste tegel.

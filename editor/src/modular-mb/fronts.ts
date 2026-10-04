@@ -43,14 +43,33 @@ export function frontIssues(patch: Patch, project: ModularProject): string[] {
   return out;
 }
 
-/** Zet een control of poort op een front, achteraan; bestaat het item al, dan
- *  blijft het waar het staat. Maakt het front als het er nog niet is. */
-export function addToFront(patch: Patch, frontId: string, item: FrontItem): Patch {
+/** Zet een control of poort op een front; bestaat het item al, dan blijft
+ *  het waar het staat. Maakt het front als het er nog niet is.
+ *
+ *  Waar komt het te staan? Bij zijn eigen module: direct na het laatste item
+ *  van dezelfde module en soort (knop bij de knoppen, jack bij de jacks).
+ *  Zonder soortgenoot: een knop krijgt, als `groupText` (de modulenaam)
+ *  meekomt, een eigen kopje na de laatste knop (dus vóór de jacks); anders
+ *  achteraan. Zomaar achteraan zetten leek logisch, maar op een front met
+ *  kopjes belandde de Type-schakelaar van de E-piano dan in de tegel van
+ *  MMB OUT. */
+export function addToFront(patch: Patch, frontId: string, item: FrontItem, groupText?: string): Patch {
   const fronts = patch.fronts ?? [];
   const f = fronts.find((x) => x.id === frontId);
   if (!f) return { ...patch, fronts: [...fronts, { id: frontId, name: 'Front', items: [item] }] };
   if (item.kind !== 'group' && f.items.some((x) => sameTarget(x, item))) return patch;
-  return { ...patch, fronts: fronts.map((x) => (x.id === frontId ? { ...x, items: [...x.items, item] } : x)) };
+  const items = [...f.items];
+  if (item.kind === 'group') items.push(item);
+  else {
+    const lastOf = (pred: (x: FrontItem) => boolean): number => { let i = -1; items.forEach((x, k) => { if (pred(x)) i = k; }); return i; };
+    const sibling = lastOf((x) => x.kind === item.kind && x.moduleId === item.moduleId);
+    if (sibling >= 0) items.splice(sibling + 1, 0, item);
+    else if (item.kind === 'control' && groupText && items.some((x) => x.kind === 'group')) {
+      const lastControl = lastOf((x) => x.kind === 'control');
+      items.splice(lastControl + 1, 0, { kind: 'group', text: groupText }, item);
+    } else items.push(item);
+  }
+  return { ...patch, fronts: fronts.map((x) => (x.id === frontId ? { ...x, items } : x)) };
 }
 
 /** Haal een control of poort van een front. */

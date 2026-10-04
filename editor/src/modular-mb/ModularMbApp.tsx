@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import { setProject, updateProject, useModularProject, getProject, undo, redo } from './store';
 import { onRackFocus } from './rackFocus';
 import { savePatch } from './recipe/saved';
+import { SaveAsButton, SaveButton } from './PatchSave';
 import { CommandPalette } from './recipe/CommandPalette';
 import { Tour, tourSeen } from './recipe/Tour';
 import { startDemo, DemoCaption, type DemoState, type DemoHandle } from './recipe/demo';
@@ -114,6 +115,7 @@ export function ModularMbApp(): JSX.Element {
   // Spelermodus (patch-front §6): standaard dicht (alleen het front), want
   // zonder login ben je geen expert. "Binnenkijken" opent de hele editor en
   // wordt onthouden; "Dicht" sluit en wordt ook onthouden.
+  const playerPatch = project.patches.find((p) => p.id === project.activePatchId);
   const [expert, setExpertState] = useState<boolean>(() => {
     try { return localStorage.getItem(OPEN_KEY) === '1'; } catch { return false; }
   });
@@ -923,6 +925,10 @@ export function ModularMbApp(): JSX.Element {
                 {project.patches[0]?.name ?? project.name}
               </span>
             )}
+            {/* Spelen is ook tweaken: Bewaar zodra er iets gewijzigd is, en
+                Bewaar als. Terug en A/B wonen in de editor (Binnenkijken). */}
+            {playerPatch && <SaveButton patch={playerPatch} style={{ padding: '4px 12px' }} />}
+            {playerPatch && <SaveAsButton project={project} patch={playerPatch} style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid #cbd2d9', background: '#f5f7fa', cursor: 'pointer' }} />}
             <button onClick={() => { setExpert(true); setTab('patcher'); }} title="Open de hele editor: rack, kabels, modules"
               style={{ padding: '4px 12px', fontSize: 12, borderRadius: 6, border: '1px solid #cbd2d9', background: '#f5f7fa', cursor: 'pointer' }}>
               Binnenkijken ▸
