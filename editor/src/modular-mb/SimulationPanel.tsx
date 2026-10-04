@@ -26,6 +26,7 @@ import {
   type MidiSource, type MidiEvent, type SequencePattern,
 } from './sim/MidiSource';
 import { ScreenKeys, type SlideMode } from './sim/ScreenKeys';
+import { SUSTAIN_CC, midiInCcNumbers } from './sim/midiInCc';
 import type { ModularProject, Patch, ControlValue } from './types';
 import { MidiFileSource, parseSmf } from './sim/midiFilePlayer';
 import { TakeLibraryPanel } from './sim/TakeLibraryPanel';
@@ -609,6 +610,8 @@ function SourceControls({ source, sourceId, running, onStartSim, onReplace }: {
 function ScreenKeyboardUi({ source }: { source: ScreenKeyboardSource }): JSX.Element {
   const [octave, setOctave] = useState(source.getOctave());
   const [slide, setSlide] = useState<SlideMode>('note');
+  const project = useModularProject();
+  const cc = midiInCcNumbers(project.patches.find((x) => x.id === project.activePatchId), project);
   function shift(d: number): void {
     source.setOctave(octave + d);
     setOctave(source.getOctave());
@@ -621,6 +624,8 @@ function ScreenKeyboardUi({ source }: { source: ScreenKeyboardSource }): JSX.Ele
         onAftertouch={(midi, v) => source.aftertouch(midi, v)}
         onBend={(v) => source.bend(v)}
         onMod={(v) => source.mod(v)}
+        onSustain={(on) => source.cc(SUSTAIN_CC, on ? 127 : 0)}
+        pedal={{ label: `Pedaal CC ${cc.cc1}`, onChange: (v) => source.cc(cc.cc1, v) }}
         hint="Computertoetsen: A S D F G H J K (witte), W E T Y U (zwarte); Z/X octaaf" />
     </div>
   );

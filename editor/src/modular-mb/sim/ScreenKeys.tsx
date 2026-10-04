@@ -24,7 +24,7 @@ import {
 export type SlideMode = 'note' | 'bend';
 
 export function ScreenKeys({
-  octave, octaves = 2, onNoteOn, onNoteOff, onOctave, onAftertouch, onBend, onMod, slide = 'note', onSlide, maxWidth = 560, hint,
+  octave, octaves = 2, onNoteOn, onNoteOff, onOctave, onAftertouch, onBend, onMod, onSustain, pedal, slide = 'note', onSlide, maxWidth = 560, hint,
 }: {
   octave: number; octaves?: number;
   onNoteOn: (midi: number, velocity: number) => void;
@@ -36,6 +36,10 @@ export function ScreenKeys({
   onBend?: (value14: number) => void;
   /** Het modwiel (CC 1), 0..127. Zonder deze callback zijn er geen wielen. */
   onMod?: (value: number) => void;
+  /** Sustainpedaal (CC 64): tik = vast/los, vasthouden = tijdelijk. */
+  onSustain?: (on: boolean) => void;
+  /** Pedaalschuif (expressie/wah): het label zegt welk CC-nummer, 0..127. */
+  pedal?: { label: string; onChange: (value: number) => void };
   /** Wat opzij schuiven doet: de noot wisselen of buigen. */
   slide?: SlideMode;
   onSlide?: (mode: SlideMode) => void;
@@ -50,6 +54,12 @@ export function ScreenKeys({
   const width = layoutWidth(keys) + off;
   const [bendPos, setBendPos] = useState(8192);
   const [modPos, setModPos] = useState(0);
+  // Sustain: vast (tik) of tijdelijk (vasthouden); pedaalstand 0..127.
+  const [sustain, setSustain] = useState(false);
+  const sustainDownAt = useRef(0);
+  const wasLatched = useRef(false);
+  const [pedalPos, setPedalPos] = useState(0);
+  const setSus = (on: boolean): void => { setSustain(on); onSustain?.(on); };
   // pointerId → wiel dat deze vinger vasthoudt.
   const wheelHeld = useRef(new Map<number, Wheel>());
   const svgRef = useRef<SVGSVGElement>(null);
@@ -133,6 +143,41 @@ export function ScreenKeys({
   const btn: React.CSSProperties = { fontSize: 12, padding: '3px 10px', cursor: 'pointer' };
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxWidth }}>
+      {(onSustain || pedal) && (
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', touchAction: 'none' }}>
+          {onSustain && (
+            <button type="button"
+              title="Sustainpedaal (CC 64): tik = vast of los, vasthouden = tijdelijk"
+              onPointerDown={(e) => {
+                e.preventDefault();
+                sustainDownAt.current = Date.now();
+                wasLatched.current = sustain;
+                if (!sustain) setSus(true);
+              }}
+              onPointerUp={() => {
+                const quick = Date.now() - sustainDownAt.current < 250;
+                // Korte tik: aan en vast; stond hij al vast, dan uit. Lang
+                // vasthouden: tijdelijk, dus bij loslaten weer uit.
+                if (quick) setSus(!wasLatched.current);
+                else setSus(false);
+              }}
+              onPointerCancel={() => setSus(false)}
+              onContextMenu={(e) => e.preventDefault()}
+              style={{ ...btn, padding: '6px 14px', fontWeight: sustain ? 700 : 400, background: sustain ? '#fde68a' : undefined, userSelect: 'none' }}>
+              {sustain ? '⏺ Sustain' : '○ Sustain'}
+            </button>
+          )}
+          {pedal && (
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+              {pedal.label}
+              <input type="range" min={0} max={127} value={pedalPos}
+                onChange={(e) => { const v = Number(e.target.value); setPedalPos(v); pedal.onChange(v); }}
+                style={{ width: 140 }} />
+              <span style={{ width: 24, textAlign: 'right', color: '#6b7280' }}>{pedalPos}</span>
+            </label>
+          )}
+        </div>
+      )}
       {onOctave && (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <button type="button" onClick={() => onOctave(-1)} style={btn}>− octaaf</button>

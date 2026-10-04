@@ -98,7 +98,9 @@ export class ScreenKeyboardSource extends BaseSource {
   }
   bend(value14: number): void { this.emit({ kind: 'pitchBend', value: value14 }); }
   /** Modwiel op het schermtoetsenbord (CC 1). */
-  mod(value: number): void { this.emit({ kind: 'cc', controller: 1, value }); }
+  mod(value: number): void { this.cc(1, value); }
+  /** Willekeurige CC vanaf het schermtoetsenbord (sustain 64, pedaalschuif). */
+  cc(controller: number, value: number): void { this.emit({ kind: 'cc', controller, value: Math.max(0, Math.min(127, Math.round(value))) }); }
 
   /** Tikt de gebruiker in een tekstveld, dan is 'a' een letter — geen noot. */
   private static isTyping(e: KeyboardEvent): boolean {

@@ -8,13 +8,19 @@
 import { useState } from 'react';
 
 import { getEngine, useEngineStatus } from './sim/engineSingleton';
+import { SUSTAIN_CC, midiInCcNumbers } from './sim/midiInCc';
 import { ScreenKeys, type SlideMode } from './sim/ScreenKeys';
+import { useModularProject } from './store';
 
 const OCT_KEY = 'mb.front.octave';
 const SLIDE_KEY = 'mb.front.slide';
 
 export function FrontKeys(): JSX.Element {
   const status = useEngineStatus();
+  const project = useModularProject();
+  // De pedaalschuif stuurt op het nummer dat de MIDI-IN van deze patch als
+  // CC1# verwacht; sustain is altijd CC 64 (de patch zet CC2# daarop).
+  const cc = midiInCcNumbers(project.patches.find((x) => x.id === project.activePatchId), project);
   const [octave, setOctaveState] = useState<number>(() => {
     try { const raw = localStorage.getItem(OCT_KEY); const v = raw === null ? NaN : Number(raw); return v >= 0 && v <= 8 ? v : 4; } catch { return 4; }
   });
@@ -45,11 +51,14 @@ export function FrontKeys(): JSX.Element {
   function aftertouch(midi: number, v: number): void { const e = getEngine(); e.pressure(v, midi); e.pressure(v); }
   function bend(v: number): void { getEngine().pitchBend(v); }
   function mod(v: number): void { getEngine().controlChange(1, v); }
+  function sustain(on: boolean): void { getEngine().controlChange(SUSTAIN_CC, on ? 127 : 0); }
+  function pedal(v: number): void { getEngine().controlChange(cc.cc1, v); }
 
   return (
     <div>
       <ScreenKeys octave={octave} onOctave={setOctave} onNoteOn={noteOn} onNoteOff={noteOff}
-        onAftertouch={aftertouch} onBend={bend} onMod={mod} slide={slide} onSlide={setSlide}
+        onAftertouch={aftertouch} onBend={bend} onMod={mod} onSustain={sustain}
+        pedal={{ label: `Pedaal CC ${cc.cc1}`, onChange: pedal }} slide={slide} onSlide={setSlide}
         hint={status.running ? 'Laag op de toets is hard; omhoog schuiven is aftertouch' : 'Eerste aanslag start de simulator'} />
       {err && <div style={{ color: '#b91c1c', fontSize: 12, marginTop: 4 }}>{err}</div>}
     </div>
