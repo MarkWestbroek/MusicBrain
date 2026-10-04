@@ -18,7 +18,7 @@ import { subscribeBanks, banksVersion, simBankName } from './sim/bankAutoLoad';
 import { subscribeLyricBanks, lyricBanksVersion, simLyricBank } from './lyric/lyricStore';
 import {
   dragTravelPx, fromTaper, toTaper, wheelStep,
-  FINE_FACTOR, WHEEL_NOTCH_PX,
+  FINE_FACTOR, WHEEL_NOTCH_PX, ROTARY_SWEEP_DEG, angleDeg, rotaryStep,
 } from './taper';
 import {
   type ModuleInstance,
@@ -123,7 +123,9 @@ export function ModulePanel({
       width={widthMm * pxPerMm}
       height={heightMm * pxPerMm}
       viewBox={`0 0 ${widthMm} ${heightMm}`}
-      style={{ display: 'block', fontFamily: 'system-ui, sans-serif' }}
+      // Geen tik-oplichting op Android: anders flitst het hele paneel bij
+      // elke aanraking van een knop of toets.
+      style={{ display: 'block', fontFamily: 'system-ui, sans-serif', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}
     >
       {/* Panel background */}
       <rect x={0} y={0} width={widthMm} height={heightMm}
@@ -602,8 +604,15 @@ function KnobGlyph({
   const px = x + Math.sin(angle) * (r - 0.6);
   const py = y - Math.cos(angle) * (r - 0.6);
 
-  const dragState = useRef<{ startY: number; startT: number; fine: boolean } | null>(null);
+  // Muis: op en neer slepen. Vinger: draaien om het midden van de knop als
+  // een schroefje (doc: taper.ts, ROTARY_SWEEP_DEG) — de wijzer volgt de
+  // vinger, en verder van het midden is fijner.
+  const dragState = useRef<{
+    startY: number; startT: number; fine: boolean;
+    rotary?: { cx: number; cy: number; last: number; acc: number };
+  } | null>(null);
   const [active, setActive] = useState(false);
+  const capRef = useRef<SVGCircleElement | null>(null);
 
   /** Detents van de control: rotary-stepper-ticks en de step-kwantisatie. */
   const detent = c.ticks?.every ?? c.step ?? 0;
@@ -616,13 +625,25 @@ function KnobGlyph({
 
   function onPointerDown(e: React.PointerEvent<SVGGElement>): void {
     if (!onChange) return;
-    (e.target as Element).setPointerCapture(e.pointerId);
+    try { (e.target as Element).setPointerCapture(e.pointerId); } catch { /* synthetisch event zonder actieve pointer */ }
     dragState.current = { startY: e.clientY, startT: toTaper(value, c), fine: e.shiftKey };
+    if (e.pointerType === 'touch' && capRef.current) {
+      const b = capRef.current.getBoundingClientRect();
+      const cx = b.left + b.width / 2, cy = b.top + b.height / 2;
+      dragState.current.rotary = { cx, cy, last: angleDeg(cx, cy, e.clientX, e.clientY), acc: 0 };
+    }
     setActive(true);
   }
   function onPointerMove(e: React.PointerEvent<SVGGElement>): void {
     const d = dragState.current;
     if (!d || !onChange) return;
+    if (d.rotary) {
+      const a = angleDeg(d.rotary.cx, d.rotary.cy, e.clientX, e.clientY);
+      d.rotary.acc += rotaryStep(d.rotary.last, a);
+      d.rotary.last = a;
+      onChange(quantise(fromTaper(d.startT + d.rotary.acc / ROTARY_SWEEP_DEG, c)));
+      return;
+    }
     // Shift midden in de sleep: anker verzetten in plaats van de waarde laten
     // springen — je gaat gewoon vanaf hier vier keer zo langzaam verder.
     if (e.shiftKey !== d.fine) {
@@ -635,7 +656,7 @@ function KnobGlyph({
     onChange(quantise(fromTaper(d.startT + dy / travel, c)));
   }
   function onPointerUp(e: React.PointerEvent<SVGGElement>): void {
-    (e.target as Element).releasePointerCapture?.(e.pointerId);
+    try { (e.target as Element).releasePointerCapture(e.pointerId); } catch { /* geen actieve pointer (meer) */ }
     dragState.current = null;
     setActive(false);
   }
@@ -675,7 +696,18 @@ function KnobGlyph({
       if (moved) set(next);
     };
     el.addEventListener('wheel', onWheel, { passive: false });
-    return () => el.removeEventListener('wheel', onWheel);
+    // Telefoon: touch-action op een SVG-groep wordt niet overal gehonoreerd
+    // (Samsung/Chrome scrollt dan mee). Een niet-passieve touchstart met
+    // preventDefault houdt de vinger bij de knop; React's eigen touch-
+    // listeners zijn passief en kunnen dat niet.
+    const onTouch = (e: TouchEvent): void => { if (live.current.onChange) e.preventDefault(); };
+    el.addEventListener('touchstart', onTouch, { passive: false });
+    el.addEventListener('touchmove', onTouch, { passive: false });
+    return () => {
+      el.removeEventListener('wheel', onWheel);
+      el.removeEventListener('touchstart', onTouch);
+      el.removeEventListener('touchmove', onTouch);
+    };
   }, [detent]);
 
   return (
@@ -689,7 +721,7 @@ function KnobGlyph({
       {/* knurled skirt */}
       <circle cx={x} cy={y} r={r + 0.6} fill={ring} opacity={0.9} />
       {/* cap */}
-      <circle cx={x} cy={y} r={r} fill={cap}
+      <circle ref={capRef} cx={x} cy={y} r={r} fill={cap}
         stroke={active ? '#fff' : '#1a1a1a'} strokeWidth={active ? 0.4 : 0.2} />
       {/* pointer line */}
       <line x1={x} y1={y} x2={px} y2={py}
@@ -794,10 +826,22 @@ function SliderGlyph({
   const capY = isV ? y2 - tC * len : y;
 
   const dragState = useRef<{ startY: number; startX: number; startVal: number } | null>(null);
+  // Zie KnobGlyph: niet-passieve touchstart, anders scrolt de telefoon mee.
+  const gRef = useRef<SVGGElement | null>(null);
+  const canChange = useRef(!!onChange);
+  canChange.current = !!onChange;
+  useEffect(() => {
+    const el = gRef.current;
+    if (!el) return undefined;
+    const onTouch = (e: TouchEvent): void => { if (canChange.current) e.preventDefault(); };
+    el.addEventListener('touchstart', onTouch, { passive: false });
+    el.addEventListener('touchmove', onTouch, { passive: false });
+    return () => { el.removeEventListener('touchstart', onTouch); el.removeEventListener('touchmove', onTouch); };
+  }, []);
 
   function onPointerDown(e: React.PointerEvent<SVGGElement>): void {
     if (!onChange) return;
-    (e.target as Element).setPointerCapture(e.pointerId);
+    try { (e.target as Element).setPointerCapture(e.pointerId); } catch { /* synthetisch event zonder actieve pointer */ }
     dragState.current = { startY: e.clientY, startX: e.clientX, startVal: value };
   }
   function onPointerMove(e: React.PointerEvent<SVGGElement>): void {
@@ -810,12 +854,12 @@ function SliderGlyph({
     onChange(clamp(dragState.current.startVal + fraction * range, c.min, c.max));
   }
   function onPointerUp(e: React.PointerEvent<SVGGElement>): void {
-    (e.target as Element).releasePointerCapture?.(e.pointerId);
+    try { (e.target as Element).releasePointerCapture(e.pointerId); } catch { /* geen actieve pointer (meer) */ }
     dragState.current = null;
   }
 
   return (
-    <g transform={rotation ? `rotate(${rotation} ${x} ${y})` : undefined}
+    <g ref={gRef} transform={rotation ? `rotate(${rotation} ${x} ${y})` : undefined}
        style={{ cursor: onChange ? (isV ? 'ns-resize' : 'ew-resize') : 'default', touchAction: 'none' }}
        onPointerDown={onPointerDown} onPointerMove={onPointerMove}
        onPointerUp={onPointerUp} onPointerCancel={onPointerUp}>

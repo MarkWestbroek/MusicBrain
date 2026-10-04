@@ -142,7 +142,7 @@ export function ScreenKeys({
 
   const btn: React.CSSProperties = { fontSize: 12, padding: '3px 10px', cursor: 'pointer' };
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxWidth }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxWidth, WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}>
       {(onSustain || pedal) && (
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', touchAction: 'none' }}>
           {onSustain && (
@@ -204,6 +204,8 @@ export function ScreenKeys({
           touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none',
           // iOS: geen "kopieer/zoek"-callout bij lang drukken op de toetsen.
           WebkitTouchCallout: 'none',
+          // Android: geen tik-oplichting over het hele toetsenbord bij elke toets.
+          WebkitTapHighlightColor: 'transparent',
           cursor: 'pointer',
         } as React.CSSProperties}
         onContextMenu={(e) => e.preventDefault()}

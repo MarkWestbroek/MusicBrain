@@ -130,3 +130,27 @@ export function dragTravelPx(r: TaperRange): number {
   if (oct <= 0) return KNOB_TRAVEL_PX;
   return Math.min(720, Math.max(240, Math.round(PX_PER_OCTAVE * oct)));
 }
+
+// ── Draaien met een vinger (telefoon) ────────────────────────────────────
+// Op een aanraakscherm draai je een knop zoals een schroefje: de vinger
+// loopt in een boog om het midden van de knop, en de wijzer volgt de vinger.
+// Een boog van ROTARY_SWEEP_DEG (de wijzerslag van de knop) is de hele
+// taper. Verder van het midden = meer pixels per graad = fijner.
+
+/** De wijzerslag van een knop in graden (−135°..+135°). */
+export const ROTARY_SWEEP_DEG = 270;
+
+/** Hoek (graden) van een punt gezien vanuit het midden, 0 = rechts, met de
+ *  klok mee positief (schermcoördinaten: y omlaag). */
+export function angleDeg(cx: number, cy: number, px: number, py: number): number {
+  return Math.atan2(py - cy, px - cx) * 180 / Math.PI;
+}
+
+/** Het kleinste verschil van `prev` naar `next` in graden, in (−180, 180]:
+ *  over de ±180°-grens heen geen sprong van 360. */
+export function rotaryStep(prev: number, next: number): number {
+  let d = next - prev;
+  while (d <= -180) d += 360;
+  while (d > 180) d -= 360;
+  return d;
+}

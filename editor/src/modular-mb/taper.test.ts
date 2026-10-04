@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import {
   derivedTaper, dragTravelPx, effectiveTaper, fromTaper, toTaper, taperOctaves,
   wheelStep, KNOB_TRAVEL_PX, PX_PER_OCTAVE,
+  angleDeg, rotaryStep, ROTARY_SWEEP_DEG,
 } from './taper';
 
 const CUTOFF = { min: 20, max: 18000, taper: 'log' as const };
@@ -116,5 +117,25 @@ describe('taper', () => {
     // En met shift (vier keer zo lange weg) zit je onder de 10 cent.
     const fijn = 12 * Math.log2(fromTaper(t + 1 / (travel * 4), CUTOFF) / 300);
     expect(fijn * 100).toBeLessThan(10);
+  });
+});
+
+describe('draaien met een vinger', () => {
+  it('meet de hoek vanuit het midden, met de klok mee', () => {
+    expect(angleDeg(0, 0, 10, 0)).toBe(0);
+    expect(angleDeg(0, 0, 0, 10)).toBe(90);     // onder = 90° (y omlaag)
+    expect(angleDeg(0, 0, -10, 0)).toBe(180);
+  });
+
+  it('springt niet over de ±180°-grens', () => {
+    expect(rotaryStep(170, -170)).toBe(20);
+    expect(rotaryStep(-170, 170)).toBe(-20);
+    expect(rotaryStep(10, 40)).toBe(30);
+  });
+
+  it('een hele wijzerslag is de hele taper', () => {
+    let acc = 0; let prev = -135;
+    for (const a of [-90, -45, 0, 45, 90, 135]) { acc += rotaryStep(prev, a); prev = a; }
+    expect(acc / ROTARY_SWEEP_DEG).toBe(1);
   });
 });
