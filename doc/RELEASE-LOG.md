@@ -17,6 +17,21 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-04 — Patch-front stap 4 en 6: vrij schikken, hoes voor de pool (editor + Imprint)
+- **Vrij schikken** (stap 4): een item kan een eigen plek op het paneel
+  krijgen (`pos` in mm); het raster blijft voor de rest. In de bewerker:
+  vinkje "Vrij schikken (slepen op het paneel)" legt een laag met grepen
+  over het paneel, slepen zet de plek; "Alles terug in het raster" wist de
+  plekken. Het paneel groeit mee naar beneden.
+- **Hoes voor de patch-pool** (stap 6): bij ⤴ Voorstellen gaat het front
+  (het eerste bewaarde, anders Auto) als `<naam>.front.svg` mee naar de
+  library (`frontSvg.ts`); Imprint bewaart het als `front` op het item en
+  toont het op `/patches/<slug>` en als kaartbeeld in de lijsten
+  (Imprint-changelog, Unreleased). 📚 Pool toont het ook bij elke patch.
+- **Automatisch front, volgorde van modules**: eerst het audiopad (bron,
+  filter, effect, VCA, uit), dan envelopes, dan LFO's en de rest; een
+  receptpatch gaf anders LFO en envelopes vóór de VCO en het filter.
+
 ### 2026-10-04 — Patch-front stap 3b: AI-frontrecept (editor, geen nieuwe firmware)
 - **Deterministisch eerst, AI als terugval.** Twee nieuwe tools in het
   receptraamwerk (`recipe/tools.ts`, dus ook in de MCP-server):

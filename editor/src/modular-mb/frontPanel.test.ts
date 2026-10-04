@@ -11,7 +11,7 @@ import { autoFront, buildFrontModule, frontControlState, patchModulesInSignalOrd
 import { findModuleByWord } from './recipe/edits';
 import { buildRecipe } from './recipe/compile';
 import { seedInternals, seedKrellPatch } from './seedModules';
-import { emptyModularProject, resolveControls, type ModularProject, type ModuleInstance, type Patch, type PatchFront } from './types';
+import { emptyModularProject, resolveControls, type FrontItem, type ModularProject, type ModuleInstance, type Patch, type PatchFront } from './types';
 
 const resolveControlsOf = (p: ModularProject, m: ModuleInstance) => resolveControls(m, p.moduleTypes);
 
@@ -89,6 +89,23 @@ describe('buildFrontModule', () => {
   });
 });
 
+describe('buildFrontModule: vrije plaatsing', () => {
+  it('zet een item met pos op zijn eigen mm, buiten het raster, en maakt het paneel hoog genoeg', () => {
+    const { p, vcf, vco } = voice();
+    const front: PatchFront = { id: 'f', name: 'Vrij', columns: 2, items: [
+      { kind: 'control', moduleId: vcf, controlId: 'cutoff' },
+      { kind: 'control', moduleId: vco, controlId: 'fine', pos: { x: 30, y: 120 } },
+      { kind: 'port', moduleId: vcf, portId: 'cv', pos: { x: 60, y: 130 } },
+    ] };
+    const fm = buildFrontModule(front, active(p), p);
+    const cp = fm.module.visual.controlPlacements;
+    expect(cp.c0!.y).toBeLessThan(60);
+    expect(cp.c1).toMatchObject({ x: 30, y: 120 });
+    expect(fm.module.visual.portPlacements.p0).toMatchObject({ x: 60, y: 130 });
+    expect(fm.heightMm).toBeGreaterThanOrEqual(130 + 8);
+  });
+});
+
 describe('patchModulesInSignalOrder', () => {
   it('zet de bron vóór het filter en laat poly-followers weg', () => {
     const p = buildRecipe(base(), { voices: 4, source: 'vco', filter: 'vcf' });
@@ -132,6 +149,14 @@ describe('autoFront', () => {
     expect(frontIssues({ ...patch, fronts: [f] }, p)).toEqual([]);
     const keys = controls.map((it) => it.kind === 'control' ? `${it.moduleId}/${it.controlId}` : '');
     expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it('zet in een receptpatch de klankketen vóór de modulatoren', () => {
+    const { p, vco, vcf } = voice();
+    const f = autoFront(active(p), p);
+    const controls = f.items.filter((it): it is Extract<FrontItem, { kind: 'control' }> => it.kind === 'control');
+    expect(controls[0]!.moduleId).toBe(vco);
+    expect(controls.slice(0, 4).some((it) => it.moduleId === vcf && it.controlId === 'cutoff')).toBe(true);
   });
 
   it('zet gelabelde en gebonden controls voorop, groot', () => {

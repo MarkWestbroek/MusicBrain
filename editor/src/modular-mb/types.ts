@@ -631,8 +631,10 @@ export type FrontItem =
       /** Deelbereik van de knop dat het front toont (de "sweet spot"); een
        *  view, geen transformatie. Binnen min/max van de control. */
       range?: { min: number; max: number };
+      /** Vrije plaats op het paneel in mm (stap 4); weggelaten = in het raster. */
+      pos?: { x: number; y: number };
     }
-  | { kind: 'port'; moduleId: string; portId: string; label?: string }
+  | { kind: 'port'; moduleId: string; portId: string; label?: string; pos?: { x: number; y: number } }
   | { kind: 'group'; text: string };
 
 /** Een front: benoemde, geordende selectie uit de patch met rasterlayout.

@@ -16,6 +16,7 @@ import { patchRequires, missingTypes } from './patchRequires';
 import { encodePatchSysex, joinSysex, SYSEX_CMD } from './patchSysex';
 import { buildConfigPayload } from '../teensyLink';
 import { proposePatch, promotePatch, listPool, fetchPatchFile, rememberOrigin, originOf, siteBase, assetUrl, type PoolItem, type Pool, type License } from './patchPool';
+import { frontForPool, frontSvg } from '../frontSvg';
 import { recordDemo } from './demoTake';
 import { lastTakeFor, setLastTake, markUploaded, onLastTake } from './lastTakeStore';
 import { listTakes, addPatchSnapshot } from './takeLibrary';
@@ -115,9 +116,12 @@ function ProposeDialog({ patchId, onClose }: { patchId: string; onClose: () => v
       }
       const slim = slimSnapshot(snap);
       const syx = joinSysex([...await encodePatchSysex(SYSEX_CMD.firmwareConfig, buildConfigPayload(snap).json), ...await encodePatchSysex(SYSEX_CMD.editorPatch, JSON.stringify(slim))]);
+      // De hoes: het eerste bewaarde front, anders het automatische (patch-front §7).
+      const frontDoc = frontSvg(frontForPool(patch, project), patch, project);
       const item = await proposePatch(
         { kind, title, description, tags, license, requires: req, derivedFrom, question },
-        { group: `${group}-patch`, patchJson: new Blob([JSON.stringify(snap, null, 1)], { type: 'application/json' }), syx: new Blob([syx], { type: 'application/octet-stream' }) },
+        { group: `${group}-patch`, patchJson: new Blob([JSON.stringify(snap, null, 1)], { type: 'application/json' }), syx: new Blob([syx], { type: 'application/octet-stream' }),
+          front: new Blob([frontDoc], { type: 'image/svg+xml' }) },
         takes, lib,
       );
       setSent(true);
@@ -302,6 +306,7 @@ function PoolBrowser({ onClose }: { onClose: () => void }): JSX.Element {
                 {it.pool === 'prive' && <button onClick={() => void promote(it, 'question')} disabled={busy !== null} title="Uit je privé-lijst naar Vragen, met je vraag erbij">? Als vraag</button>}
                 {it.takes?.length ? <button onClick={() => void demoUrl(it)} disabled={it.slug in demos} title="Demo beluisteren">▶ demo</button> : null}
                 <a href={it.url || `${base}/patches/${encodeURIComponent(it.slug)}`} target="_blank" rel="noreferrer" style={{ fontSize: 12 }}>pagina ↗</a>
+                {it.frontUrl && <img src={it.frontUrl} alt="" title="Het front van deze patch" style={{ width: 140, borderRadius: 4, border: '1px solid #cbd2d9' }} />}
                 <a href={it.fileUrl || assetUrl(it.file, lib)} download style={{ fontSize: 12 }}>⤓ .patch.json</a>
                 {it.syxUrl && <a href={it.syxUrl} download style={{ fontSize: 12 }}>⤓ .syx</a>}
               </div>

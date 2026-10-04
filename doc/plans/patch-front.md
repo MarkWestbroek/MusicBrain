@@ -1,6 +1,6 @@
 # Patch-front: de black-box-kant van een patch
 
-Datum: 2026-10-03. Status: **in uitvoering**: stap 0 t/m 3 gebouwd (datamodel, schrijfhelper, virtueel paneel, automatisch front, Front-tab met bewerker, op front zetten, bewaarcyclus, spelermodus; zie §8), de rest voorstel. Aanleiding: Mark
+Datum: 2026-10-03. Status: **grotendeels gebouwd** (2026-10-03/04): stap 0 t/m 4 en 6 (datamodel, schrijfhelper, virtueel paneel, automatisch front, Front-tab met bewerker, op front zetten, bewaarcyclus, spelermodus, AI-frontrecept, vrij schikken, hoes voor de pool; zie §8). Open: 4b (signaalstroom-lijnen, na [module-signaalstroom.md](module-signaalstroom.md)), 5 (macro's) en 7 (front → bindings en labels op de Teensy). Aanleiding: Mark
 laat de editor aan musici zien; de klanken slaan aan, de kabels schrikken af.
 Gevraagd: één patch, meerdere "fronts"; een front toont een deelverzameling
 van de controls en poorten van de patch. Het rack met kabels blijft de
@@ -231,10 +231,10 @@ Solo ▾/Poly ▾-demo's zijn de eerste kandidaten.
 | 2 | editor | `FrontPanel.tsx` (virtueel paneel via `ModulePanel`) + automatisch front (§5) | middel, **gebouwd 2026-10-03** (plus een eerste Front-tab met frontkiezer, "Auto bewaren als front" en "Front verwijderen") |
 | 3 | editor | "Op front zetten" in rack en patcher, label/grootte/volgorde in de Front-tab, `fronts` in `SavedFields`, spelermodus en URL | middel, **gebouwd 2026-10-04** |
 | 3b | editor | **gebouwd 2026-10-04.** AI-frontrecept als terugval (besluit 2026-10-04): deterministisch eerst (`autoFront` met grootte en aantal als invoer), knop "✨ AI" via de bestaande LLM-laag van de recepten (`recipe/llm.ts`, providers en bring-your-own-key) met één nieuwe tool `propose_front` die de patch-samenvatting, de controls met hun `rankKnobs`-rang en de gewenste grootte krijgt en een front in dezelfde JSON-vorm teruggeeft; het voorstel landt als gewone bewerking (undo, bewaarcyclus), de ontwerper schaaft bij tot het goed is | middel |
-| 4 | editor | vrije plaatsing (slepen op mm), `range` | klein |
+| 4 | editor | vrije plaatsing (slepen op mm), `range` | klein, **gebouwd 2026-10-04** (`pos` per item, schiklaag in de Front-tab; `range` zat al in stap 2) |
 | 4b | editor | signaalstroom-lijnen uit kabels + module-flows (na [module-signaalstroom.md](module-signaalstroom.md) stap 5); front-recept (AI of deterministisch) met grootte en aantal als invoer | middel |
 | 5 | editor | macro-knop (mini-morph) | middel, later |
-| 6 | editor + Imprint | `front.svg` bij Voorstellen; veld op het contenttype; tonen op `/patches/<slug>` | klein |
+| 6 | editor + Imprint | `front.svg` bij Voorstellen; veld op het contenttype; tonen op `/patches/<slug>` | klein, **gebouwd 2026-10-04** |
 | 7 | editor + fw | front → bindings en labels bij patchwissel | middel, na control-labels fw |
 
 Stap 1 en 2 zijn samen al demonstreerbaar: één seed met een front, de

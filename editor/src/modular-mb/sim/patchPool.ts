@@ -30,6 +30,9 @@ export interface PoolItem {
   license?: License;
   file: string;              // "asset:<id>"
   syx?: string;
+  /** Het front als SVG-asset (patch-front §7); de pool geeft ook `frontUrl`. */
+  front?: string;
+  frontUrl?: string;
   takes?: string[];          // group-slugs
   requires?: PatchRequires;
   derivedFrom?: string;
@@ -69,13 +72,14 @@ export function assetUrl(ref: string, s: LibrarySettings): string {
 export const assetRef = (a: UploadedAsset): string => `asset:${a.slug}`;
 
 /** De JSON voor POST /api/patches, uit de geüploade bestanden en de invoer. */
-export function buildProposal(p: Proposal, files: { file: UploadedAsset; syx?: UploadedAsset }, takes: string[]): Record<string, unknown> {
+export function buildProposal(p: Proposal, files: { file: UploadedAsset; syx?: UploadedAsset; front?: UploadedAsset }, takes: string[]): Record<string, unknown> {
   const out: Record<string, unknown> = {
     kind: p.kind, title: p.title.trim(), description: p.description.trim(),
     tags: [...new Set(p.tags.map((t) => t.trim()).filter(Boolean))],
     license: p.license, file: assetRef(files.file), requires: p.requires,
   };
   if (files.syx) out.syx = assetRef(files.syx);
+  if (files.front) out.front = assetRef(files.front);
   if (takes.length) out.takes = takes;
   if (p.derivedFrom) out.derivedFrom = p.derivedFrom;
   if (p.kind === 'question') out.question = (p.question ?? '').trim();
@@ -117,7 +121,7 @@ async function fail(res: Response, what: string): Promise<never> {
  */
 export async function proposePatch(
   p: Proposal,
-  files: { group: string; patchJson: Blob; syx?: Blob | null },
+  files: { group: string; patchJson: Blob; syx?: Blob | null; front?: Blob | null },
   takes: string[],
   s: LibrarySettings,
   fetchImpl: typeof fetch = fetch,
@@ -131,7 +135,13 @@ export async function proposePatch(
     try { [syx] = await uploadTake({ group: files.group, files: [{ name: `${files.group}.syx`, blob: files.syx }] }, s, fetchImpl); }
     catch { syx = undefined; }   // zonder .syx verder: het voorstel telt
   }
-  const body = buildProposal(p, { file, syx }, takes);
+  // Het front als hoes (patch-front §7); ook optioneel.
+  let front: UploadedAsset | undefined;
+  if (files.front) {
+    try { [front] = await uploadTake({ group: files.group, files: [{ name: `${files.group}.front.svg`, blob: files.front }] }, s, fetchImpl); }
+    catch { front = undefined; }
+  }
+  const body = buildProposal(p, { file, syx, front }, takes);
   let res: Response;
   try {
     res = await fetchImpl(patchesUrl(s), {

@@ -7,7 +7,7 @@
 // een virtueel id (`c0`, `c1`, …) dat via `map` terugwijst naar
 // (moduleId, controlId); poorten net zo (`p0`, …).
 
-import { CATALOG } from './recipe/catalog';
+import { CATALOG, kindOf, type ModuleKindTag } from './recipe/catalog';
 import {
   MM_PER_HP, defaultValueOf, resolveControls, resolvePorts,
   type Control, type ControlValue, type FrontItem, type ModularProject, type ModuleInstance,
@@ -84,6 +84,9 @@ export function buildFrontModule(front: PatchFront, patch: Patch, project: Modul
   let row: Cell[] = [];
   const flush = () => { if (row.length) { rows.push(row); row = []; } };
   const portItems: Extract<FrontItem, { kind: 'port' }>[] = [];
+  // Vrij geplaatste items (stap 4) staan buiten het raster, op hun eigen mm.
+  const free: { c: Control; vid: string; size?: 'small' | 'large'; x: number; y: number }[] = [];
+  let freeBottom = 0;
   let portsHeader: string | undefined;
   let pendingGroup: string | undefined;
   let n = 0;
@@ -102,6 +105,11 @@ export function buildFrontModule(front: PatchFront, patch: Patch, project: Modul
       if (min < max) c = { ...c, min, max, defaultValue: Math.min(max, Math.max(min, c.defaultValue)) };
     }
     map[vid] = { kind: 'control', moduleId: it.moduleId, controlId: it.controlId };
+    if (it.pos) {
+      free.push({ c, vid, size: it.size, x: it.pos.x, y: it.pos.y });
+      freeBottom = Math.max(freeBottom, it.pos.y + rowHeightFor(c) / 2 + 4);
+      continue;
+    }
     row.push({ c, vid, size: it.size, group: pendingGroup });
     pendingGroup = undefined;
     if (row.length === columns) flush();
@@ -138,6 +146,7 @@ export function buildFrontModule(front: PatchFront, patch: Patch, project: Modul
   if (portItems.length) {
     y += 2;
     const portsTop = y;
+    let g = 0;   // rasterjacks (vrij geplaatste tellen niet mee voor de rijen)
     if (portsHeader) { texts.push({ x: MARGIN_X + 2.2, y: y + 3.7, text: portsHeader, fontSize: 2.1, align: 'start', color: '#374151' }); y += GROUP_H; }
     let i = 0;
     for (const it of portItems) {
@@ -148,15 +157,28 @@ export function buildFrontModule(front: PatchFront, patch: Patch, project: Modul
       const vid = `p${i}`;
       ports.push({ ...real, id: vid, name: it.label ?? real.name });
       map[vid] = { kind: 'port', moduleId: it.moduleId, portId: it.portId };
-      const col = i % columns;
-      const prow = Math.floor(i / columns);
+      if (it.pos) {
+        portPlacements[vid] = { x: it.pos.x, y: it.pos.y, labelPos: 'below' };
+        freeBottom = Math.max(freeBottom, it.pos.y + 8);
+        i++;
+        continue;
+      }
+      const col = g % columns;
+      const prow = Math.floor(g / columns);
       portPlacements[vid] = { x: MARGIN_X + CELL_W * (col + 0.5), y: y + 5 + prow * ROW_PORT, labelPos: 'below' };
-      i++;
+      i++; g++;
     }
-    y += Math.ceil(i / columns) * ROW_PORT;
-    if (i) tile(MARGIN_X + 1, MARGIN_X + CELL_W * Math.min(columns, i) - 1, portsTop + 0.8, y - 0.5);
+    y += Math.ceil(g / columns) * ROW_PORT;
+    if (g) tile(MARGIN_X + 1, MARGIN_X + CELL_W * Math.min(columns, g) - 1, portsTop + 0.8, y - 0.5);
   }
-  const heightMm = Math.max(40, y + BOTTOM);
+  for (const f of free) {
+    controls.push(f.c);
+    controlPlacements[f.vid] = {
+      x: f.x, y: f.y,
+      sizeOverride: f.c.kind === 'knob' ? (f.size === 'large' ? 'large' : f.size === 'small' ? 'small' : 'medium') : undefined,
+    };
+  }
+  const heightMm = Math.max(40, y + BOTTOM, freeBottom + BOTTOM);
   const hpWidth = Math.ceil(widthMm / MM_PER_HP);
 
   const type: ModuleType = {
@@ -269,11 +291,22 @@ export function autoFront(patch: Patch, project: ModularProject, max = 8): Patch
   //    de eerste twee knoppen, tot `max`. (Niet om de beurt: "T1" en "S1"
   //    zeggen zonder modulenaam niets.)
   const count = () => items.filter((it) => it.kind === 'control').length;
-  //    Welke twee: eerst de klankbepalende controls uit de receptcatalogus
-  //    (`playable`), dan controls die de ontwerper van hun standaardwaarde
-  //    heeft gezet, dan de paneelvolgorde.
+  //    Welke modules eerst: die op het audiopad (bron, filter, effect, VCA,
+  //    uit), dan envelopes, dan LFO's en de rest (mixers, CV-rekenwerk);
+  //    binnen een laag de signaalvolgorde. Anders kwamen in een receptpatch
+  //    de LFO en de envelopes vóór de VCO en het filter.
+  //    Welke twee knoppen: eerst de klankbepalende controls uit de
+  //    receptcatalogus (`playable`), dan controls die de ontwerper van hun
+  //    standaardwaarde heeft gezet, dan de paneelvolgorde.
   const roleOf = (m: ModuleInstance) => project.moduleTypes.find((t) => t.id === m.typeId)?.role;
-  for (const m of mods) {
+  const layer = (m: ModuleInstance): number => {
+    const t = project.moduleTypes.find((x) => x.id === m.typeId);
+    const k: ModuleKindTag = t ? kindOf(t) : 'util';
+    return k === 'source' || k === 'filter' || k === 'fx' || k === 'vca' || k === 'drum' || k === 'noise' ? 0
+      : k === 'out' ? 1 : k === 'env' ? 2 : k === 'lfo' || k === 'seq' ? 3 : 4;
+  };
+  const ordered = mods.map((m, i) => ({ m, i })).sort((a, b) => layer(a.m) - layer(b.m) || a.i - b.i).map((x) => x.m);
+  for (const m of ordered) {
     if (count() >= max) break;
     if (roleOf(m) === 'event-source') continue;   // MIDI-IN: kanaal en bendbereik zijn geen speelknoppen
     const next = rankKnobs(m, patch, project).filter((c) => !have.has(`${m.id}/${c.id}`)).slice(0, 2);
@@ -282,10 +315,11 @@ export function autoFront(patch: Patch, project: ModularProject, max = 8): Patch
     for (const c of next) { if (count() >= max) break; add(m.id, c.id); }
   }
 
-  // Jacks: AUDIO IN-uitgangen, dan onverbonden audio-ingangen (hoogstens 6).
+  // Jacks: AUDIO IN-uitgangen, dan onverbonden audio-ingangen (hoogstens 6),
+  //  in dezelfde laagvolgorde (een open mixeringang komt dus achteraan).
   const connectedIn = new Set(patch.connections.map((c) => `${c.to.moduleId}/${c.to.portId}`));
   const ports: FrontItem[] = [];
-  for (const m of mods) {
+  for (const m of ordered) {
     for (const p of resolvePorts(m, project.moduleTypes)) {
       if (ports.length >= 6) break;
       const isAudioInSrc = m.typeId === 'tp_mmb_audioin' && p.direction === 'out';

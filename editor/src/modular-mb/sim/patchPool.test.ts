@@ -18,6 +18,9 @@ describe('patch-pool client', () => {
     expect(b).toEqual({ kind: 'question', title: 'Koper', description: 'd', tags: ['lead'], license: 'CC-BY-4.0', file: 'asset:f1', syx: 'asset:s1', takes: ['g-1'], requires: req, question: 'lukt niet' });
     const p = buildProposal({ kind: 'proposal', title: 'x', description: '', tags: [], license: 'CC0', requires: req, question: 'weg' }, { file: { slug: 'f', kind: 'data', url: '' } }, []);
     expect(p).not.toHaveProperty('question'); expect(p).not.toHaveProperty('takes'); expect(p).not.toHaveProperty('syx');
+    expect(p).not.toHaveProperty('front');
+    const f = buildProposal({ kind: 'proposal', title: 'x', description: '', tags: [], license: 'CC0', requires: req }, { file: { slug: 'f', kind: 'data', url: '' }, front: { slug: 'fr', kind: 'svg', url: '' } }, []);
+    expect(f.front).toBe('asset:fr');
   });
   it('proposePatch: eerst de bestanden naar de library, dan POST /api/patches', async () => {
     const calls: { url: string; method: string; body?: unknown }[] = [];

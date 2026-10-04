@@ -18,6 +18,7 @@ import {
   addFront, insertFrontItem, moveFrontItem, newFront, pruneFronts, removeFront, removeFrontItemAt,
   updateFront, updateFrontItem,
 } from './fronts';
+import { useState as useStateReact } from 'react';
 import { runCommands } from './recipe/commands';
 import { askAi, llmReady, loadLlmConfig } from './recipe/llm';
 import { updateProject, useModularProject, uid } from './store';
@@ -52,6 +53,9 @@ export function FrontTab({ expert = true }: { expert?: boolean }): JSX.Element {
 
   const edit = (fn: (x: Patch) => Patch): void =>
     updateProject((p) => ({ ...p, patches: p.patches.map((x) => (x.id === patch.id ? fn(x) : x)) }), { forceCommit: true });
+  // Schikmodus (stap 4): items vrij slepen; alleen op een bewaard front.
+  const [arrange, setArrange] = useStateReact(false);
+  const arranging = expert && !isAuto && arrange;
 
   function saveAuto(): void {
     const f: PatchFront = { ...autoFront(patch!, project), id: uid('front'), name: `Front ${fronts.length + 1}` };
@@ -93,7 +97,8 @@ export function FrontTab({ expert = true }: { expert?: boolean }): JSX.Element {
       <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
           <div style={{ overflow: 'auto' }}>
-            <FrontPanel front={front} patch={patch} project={project} pxPerMm={4} />
+            <FrontPanel front={front} patch={patch} project={project} pxPerMm={4}
+              onArrange={arranging ? (i, pos) => edit((x) => updateFrontItem(x, front.id, i, (y) => (y.kind === 'group' ? y : { ...y, pos }))) : undefined} />
           </div>
           <FrontKeys />
         </div>
@@ -103,7 +108,7 @@ export function FrontTab({ expert = true }: { expert?: boolean }): JSX.Element {
               belangrijkste twee knoppen. Bewaar het als front om labels, volgorde en kopjes te bewerken; knoppen en
               jacks kies je in rack en patcher met rechtsklik → "Op front zetten".
             </div>
-          : <FrontEditor patch={patch} front={front} edit={edit} />)}
+          : <FrontEditor patch={patch} front={front} edit={edit} arrange={arrange} onArrange={setArrange} />)}
       </div>
     </div>
   );
@@ -111,7 +116,9 @@ export function FrontTab({ expert = true }: { expert?: boolean }): JSX.Element {
 
 // ── Bewerker van een opgeslagen front ────────────────────────────────────
 
-function FrontEditor({ patch, front, edit }: { patch: Patch; front: PatchFront; edit: (fn: (x: Patch) => Patch) => void }): JSX.Element {
+function FrontEditor({ patch, front, edit, arrange, onArrange }: {
+  patch: Patch; front: PatchFront; edit: (fn: (x: Patch) => Patch) => void; arrange: boolean; onArrange: (on: boolean) => void;
+}): JSX.Element {
   const project = useModularProject();
   const id = front.id;
   const input: React.CSSProperties = { fontSize: 12, padding: '2px 6px' };
@@ -149,6 +156,16 @@ function FrontEditor({ patch, front, edit }: { patch: Patch; front: PatchFront; 
           + Kopje
         </button>
       </label>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <label style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }} title="Sleep knoppen en jacks op het paneel naar een eigen plek; het raster blijft voor de rest">
+          <input type="checkbox" checked={arrange} onChange={(e) => onArrange(e.target.checked)} /> Vrij schikken (slepen op het paneel)
+        </label>
+        {front.items.some((it) => it.kind !== 'group' && it.pos) && (
+          <button type="button" style={small} onClick={() => edit((x) => ({ ...x, fronts: (x.fronts ?? []).map((f) => (f.id === id ? { ...f, items: f.items.map((it) => { if (it.kind === 'group') return it; const { pos: _p, ...rest } = it; void _p; return rest as FrontItem; }) } : f)) }))}>
+            Alles terug in het raster
+          </button>
+        )}
+      </div>
       <div style={{ fontSize: 11, color: '#6b7280' }}>
         Items in rastervolgorde. Knoppen en jacks toevoegen: rechtsklik in rack of patcher, of de frontvelden in de eigenschappen.
       </div>
