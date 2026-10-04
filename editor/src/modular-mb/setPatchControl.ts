@@ -16,6 +16,7 @@
 //   3. persistent: `patch.controlState[doel][control] = waarde`.
 
 import { polyControlTargets } from './polyExpand';
+import { findTwin } from './recipe/edits';
 import { getProject, updateProject } from './store';
 import { sendControlPoke } from './teensyLink';
 import type { ControlValue, ModularProject } from './types';
@@ -24,10 +25,21 @@ import type { ControlValue, ModularProject } from './types';
  *  Geeft het project ongewijzigd terug als de patch niet bestaat. */
 export function writePatchControl(
   project: ModularProject, patchId: string, moduleId: string, controlId: string, value: ControlValue,
+  opts: { twins?: boolean } = {},
 ): { project: ModularProject; targets: string[] } {
   const patch = project.patches.find((x) => x.id === patchId);
   if (!patch) return { project, targets: [] };
-  const targets = polyControlTargets(patch, project, moduleId);
+  let targets = polyControlTargets(patch, project, moduleId);
+  // Stereopaar (twee gelijke mono-modules op L en R, zie edits.findTwin):
+  // op een front staan ze als één knop, dus schrijft die naar allebei. In
+  // de patcher blijven L en R los te draaien (opts.twins uit).
+  if (opts.twins) {
+    for (const id of [...targets]) {
+      const m = project.modules.find((x) => x.id === id);
+      const tw = m ? findTwin(project, patch, m) : null;
+      for (const t of tw ?? []) if (!targets.includes(t.id)) targets = [...targets, t.id];
+    }
+  }
   const cs = { ...patch.controlState };
   for (const id of targets) cs[id] = { ...(cs[id] ?? {}), [controlId]: value };
   return {
@@ -39,12 +51,12 @@ export function writePatchControl(
 /** Met bijwerkingen: de store bijwerken én de waarde live naar de Teensy
  *  sturen. Geeft de module-id's terug waarop geschreven is. */
 export function setPatchControl(
-  patchId: string, moduleId: string, controlId: string, value: ControlValue,
+  patchId: string, moduleId: string, controlId: string, value: ControlValue, opts: { twins?: boolean } = {},
 ): string[] {
-  const { targets } = writePatchControl(getProject(), patchId, moduleId, controlId, value);
+  const { targets } = writePatchControl(getProject(), patchId, moduleId, controlId, value, opts);
   if (targets.length === 0) return targets;
   if (typeof value === 'number' || typeof value === 'boolean')
     for (const id of targets) void sendControlPoke(id, controlId, value);
-  updateProject((p) => writePatchControl(p, patchId, moduleId, controlId, value).project);
+  updateProject((p) => writePatchControl(p, patchId, moduleId, controlId, value, opts).project);
   return targets;
 }

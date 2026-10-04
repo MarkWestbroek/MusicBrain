@@ -906,14 +906,31 @@ export function ModularMbApp(): JSX.Element {
       <nav style={{ display: 'flex', gap: 4, borderBottom: '1px solid #cbd2d9', marginBottom: 12, alignItems: 'center' }}>
         {!expert && (
           <>
-            <span style={{ padding: '6px 14px', fontWeight: 700, fontSize: 13 }}>
-              {project.patches.find((x) => x.id === project.activePatchId)?.name ?? project.name}
-            </span>
+            {project.patches.length > 1 ? (
+              <select value={project.activePatchId ?? ''} title="Kies een patch"
+                onChange={(e) => updateProject((p) => {
+                  const x = p.patches.find((q) => q.id === e.target.value);
+                  return x ? { ...p, activePatchId: x.id, activeRackId: x.rackIds[0] ?? p.activeRackId } : p;
+                })}
+                style={{ padding: '4px 8px', fontWeight: 700, fontSize: 13, maxWidth: 260 }}>
+                {project.patches.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+              </select>
+            ) : (
+              <span style={{ padding: '6px 14px', fontWeight: 700, fontSize: 13 }}>
+                {project.patches[0]?.name ?? project.name}
+              </span>
+            )}
             <button onClick={() => { setExpert(true); setTab('patcher'); }} title="Open de hele editor: rack, kabels, modules"
               style={{ padding: '4px 12px', fontSize: 12, borderRadius: 6, border: '1px solid #cbd2d9', background: '#f5f7fa', cursor: 'pointer' }}>
               Binnenkijken ▸
             </button>
           </>
+        )}
+        {expert && (
+          <button onClick={() => setExpert(false)} title="Terug naar de speelmodus: alleen het front en het toetsenbord"
+            style={{ padding: '4px 10px', marginRight: 6, fontSize: 12, borderRadius: 6, border: '1px solid #cbd2d9', background: '#fff7e6', cursor: 'pointer', fontWeight: 600 }}>
+            ◂ Speelmodus
+          </button>
         )}
         {expert && TABS.map((t) => (
           <button
@@ -938,12 +955,6 @@ export function ModularMbApp(): JSX.Element {
             {t.label}
           </button>
         ))}
-        {expert && (
-          <button onClick={() => setExpert(false)} title="Alleen het front tonen (spelermodus)"
-            style={{ padding: '4px 10px', fontSize: 12, borderRadius: 6, border: '1px solid #cbd2d9', background: '#f5f7fa', cursor: 'pointer' }}>
-            ◂ Dicht
-          </button>
-        )}
         <SimQuickBar />
       </nav>
       <MidiMonitorHost />

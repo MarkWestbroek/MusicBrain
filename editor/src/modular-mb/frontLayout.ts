@@ -9,6 +9,7 @@
 // (moduleId, controlId); poorten net zo (`p0`, …).
 
 import { CATALOG, kindOf, type ModuleKindTag } from './recipe/catalog';
+import { findTwin } from './recipe/edits';
 import {
   MM_PER_HP, defaultValueOf, resolveControls, resolvePorts,
   type Control, type ControlValue, type FrontItem, type ModularProject, type ModuleInstance,
@@ -265,8 +266,9 @@ export function rankKnobs(m: ModuleInstance, patch: Patch, project: ModularProje
   const playable = Object.keys(CATALOG[m.typeId]?.playable ?? {});
   const state = patch.controlState[m.id] ?? {};
   const deviates = (c: Control) => state[c.id] !== undefined && JSON.stringify(state[c.id]) !== JSON.stringify(defaultValueOf(c));
+  // Volgorde: catalogus-playable, dan bewust gezet, dan een karakterschakelaar, dan de rest in paneelvolgorde.
   const rank = (c: Control) => (playable.includes(c.id) ? playable.indexOf(c.id)
-    : playable.length + (deviates(c) ? 0 : 1000) + (c.kind === 'switch' || c.kind === 'toggle' ? 500 : 0));
+    : playable.length + (deviates(c) ? 0 : c.kind === 'switch' || c.kind === 'toggle' ? 500 : 1000));
   return [...knobs].map((c, i) => ({ c, i })).sort((a, b) => rank(a.c) - rank(b.c) || a.i - b.i).map((x) => x.c);
 }
 const CHARACTER_SWITCHES = new Set(['type', 'mode', 'stack', 'model', 'engine', 'wave', 'algo', 'algorithm']);
@@ -315,10 +317,19 @@ export function autoFront(patch: Patch, project: ModularProject, max = 8): Patch
       : k === 'out' ? 1 : k === 'env' ? 2 : k === 'lfo' || k === 'seq' ? 3 : 4;
   };
   const ordered = mods.map((m, i) => ({ m, i })).sort((a, b) => layer(a.m) - layer(b.m) || a.i - b.i).map((x) => x.m);
+  // Een stereopaar (dezelfde mono-module op L en R) staat één keer op het
+  // front; de knop schrijft naar allebei (setPatchControl met twins).
+  const twinned = new Set<string>();
   for (const m of ordered) {
     if (count() >= max) break;
     if (roleOf(m) === 'event-source') continue;   // MIDI-IN: kanaal en bendbereik zijn geen speelknoppen
-    const next = rankKnobs(m, patch, project).filter((c) => !have.has(`${m.id}/${c.id}`)).slice(0, 2);
+    if (twinned.has(m.id)) continue;
+    const tw = findTwin(project, patch, m);
+    if (tw) twinned.add(tw[0].id === m.id ? tw[1].id : tw[0].id);
+    // De klankbron krijgt drie knoppen (daar zit het karakter), de rest twee.
+    const kind = project.moduleTypes.find((t) => t.id === m.typeId);
+    const per = kind && kindOf(kind) === 'source' ? 3 : 2;
+    const next = rankKnobs(m, patch, project).filter((c) => !have.has(`${m.id}/${c.id}`)).slice(0, per);
     if (!next.length) continue;
     items.push({ kind: 'group', text: m.name });
     for (const c of next) { if (count() >= max) break; add(m.id, c.id); }

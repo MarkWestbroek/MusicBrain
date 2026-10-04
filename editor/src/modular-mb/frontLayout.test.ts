@@ -11,6 +11,8 @@ import { autoFront, buildFrontModule, frontControlState, patchModulesInSignalOrd
 import { findModuleByWord } from './recipe/edits';
 import { buildRecipe } from './recipe/compile';
 import { seedInternals, seedKrellPatch } from './seedModules';
+import { seedEPianoPolyPatch } from './seedShowcase';
+import { addBusFx } from './recipe/edits';
 import { emptyModularProject, resolveControls, type FrontItem, type ModularProject, type ModuleInstance, type Patch, type PatchFront } from './types';
 
 const resolveControlsOf = (p: ModularProject, m: ModuleInstance) => resolveControls(m, p.moduleTypes);
@@ -135,6 +137,20 @@ describe('rankKnobs', () => {
     expect(rankKnobs(stages, base2, krell).map((c) => c.id)).toEqual(knobs.map((c) => c.id));
     expect(rankKnobs(stages, kp2, krell)[0]!.id).toBe(third.id);
     expect(panel.length).toBeGreaterThan(0);
+  });
+});
+
+describe('autoFront: E-piano', () => {
+  it('zet Type (karakterschakelaar) op het front en toont een stereopaar DRIVE één keer', () => {
+    const p0 = seedEPianoPolyPatch(base());
+    const p = addBusFx(p0, p0.activePatchId!, 'drive').project;   // DRIVE als L/R-paar op de bus
+    const patch = active(p);
+    const f = autoFront(patch, p);
+    const controls = f.items.filter((it): it is Extract<FrontItem, { kind: 'control' }> => it.kind === 'control');
+    const piano = p.modules.find((m) => m.typeId === 'tp_mmb_epiano' && controls.some((c) => c.moduleId === m.id))!;
+    expect(controls.some((c) => c.moduleId === piano.id && c.controlId === 'type')).toBe(true);
+    const drives = new Set(controls.filter((c) => p.modules.find((m) => m.id === c.moduleId)?.typeId === 'tp_mmb_drive').map((c) => c.moduleId));
+    expect(drives.size).toBe(1);
   });
 });
 

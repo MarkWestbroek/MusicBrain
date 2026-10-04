@@ -28,7 +28,7 @@ export function FrontPanel({ front, patch, project, pxPerMm = 3, onPortClick, on
   function onControlChange(vid: string, value: ControlValue): void {
     const t = fm.map[vid];
     if (!t || t.kind !== 'control') return;
-    setPatchControl(patch.id, t.moduleId, t.controlId, value);
+    setPatchControl(patch.id, t.moduleId, t.controlId, value, { twins: true });
   }
 
   // Schikmodus: grepen op de plekken van de items, slepen = nieuwe pos.

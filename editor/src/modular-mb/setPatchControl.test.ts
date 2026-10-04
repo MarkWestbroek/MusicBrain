@@ -7,6 +7,9 @@ import { describe, expect, it } from 'vitest';
 import { setPatchControl, writePatchControl } from './setPatchControl';
 import { getProject, setProject } from './store';
 import { emptyModularProject, type ModularProject, type Patch } from './types';
+import { seedInternals } from './seedModules';
+import { seedEPianoPolyPatch } from './seedShowcase';
+import { addBusFx } from './recipe/edits';
 
 function project(): ModularProject {
   const base = emptyModularProject();
@@ -73,5 +76,18 @@ describe('setPatchControl', () => {
     const targets = setPatchControl('patch_1', 'vco_a', 'tune', 0.75);
     expect(targets).toHaveLength(3);
     expect(state(getProject()).vco_c?.tune).toBe(0.75);
+  });
+
+  it('met twins: een stereopaar (DRIVE L/R) krijgt dezelfde waarde; zonder twins alleen de ene', () => {
+    const p0 = seedEPianoPolyPatch(seedInternals(emptyModularProject()));
+    const p = addBusFx(p0, p0.activePatchId!, 'drive').project;   // DRIVE als L/R-paar op de bus
+    const patch = p.patches.find((x) => x.id === p.activePatchId)!;
+    const drives = p.modules.filter((m) => m.typeId === 'tp_mmb_drive' && patch.connections.some((c) => c.from.moduleId === m.id || c.to.moduleId === m.id));
+    expect(drives.length).toBe(2);
+    const alone = writePatchControl(p, patch.id, drives[0]!.id, 'drive', 0.42);
+    expect(alone.targets).toEqual([drives[0]!.id]);
+    const both = writePatchControl(p, patch.id, drives[0]!.id, 'drive', 0.42, { twins: true });
+    expect(both.targets.sort()).toEqual(drives.map((d) => d.id).sort());
+    expect(both.project.patches.find((x) => x.id === patch.id)!.controlState[drives[1]!.id]?.drive).toBe(0.42);
   });
 });

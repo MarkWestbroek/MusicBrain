@@ -385,7 +385,7 @@ const isRightPort = (port: string) => /(^|_)r$/.test(port);
  * tegenhanger van dezelfde bronpoort gevoed wordt, of naar de tegenhanger van
  * dezelfde doelpoort voedt. Geeft [links, rechts] of null.
  */
-function findTwin(p: ModularProject, patch: Patch, mod: ModuleInstance): [ModuleInstance, ModuleInstance] | null {
+export function findTwin(p: ModularProject, patch: Patch, mod: ModuleInstance): [ModuleInstance, ModuleInstance] | null {
   const r = portRoles(typeOf(p, mod.typeId));
   const sameType = (id: string) => p.modules.find((m) => m.id === id && m.id !== mod.id && m.typeId === mod.typeId);
   for (const c of patch.connections) {
