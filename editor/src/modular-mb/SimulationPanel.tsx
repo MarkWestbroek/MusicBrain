@@ -25,6 +25,7 @@ import {
   ScreenKeyboardSource, TestSequenceSource, WebMidiSource, SEQUENCE_PATTERNS,
   type MidiSource, type MidiEvent, type SequencePattern,
 } from './sim/MidiSource';
+import { ScreenKeys } from './sim/ScreenKeys';
 import type { ModularProject, Patch, ControlValue } from './types';
 import { MidiFileSource, parseSmf } from './sim/midiFilePlayer';
 import { TakeLibraryPanel } from './sim/TakeLibraryPanel';
@@ -611,66 +612,12 @@ function ScreenKeyboardUi({ source }: { source: ScreenKeyboardSource }): JSX.Ele
     source.setOctave(octave + d);
     setOctave(source.getOctave());
   }
-  const startNote = (octave + 1) * 12;
-  const keys: { midi: number; black: boolean; label: string }[] = [];
-  for (let i = 0; i < 24; i++) {
-    const midi = startNote + i;
-    const note = midi % 12;
-    const black = [1, 3, 6, 8, 10].includes(note);
-    const labels = ['C','','D','','E','F','','G','','A','','B'];
-    keys.push({ midi, black, label: labels[note] ?? '' });
-  }
-  const wKeys = keys.filter((k) => !k.black);
-  const W = 22, H = 90;
-
-  function press(midi: number, e: React.PointerEvent<SVGRectElement>): void {
-    (e.target as Element).setPointerCapture(e.pointerId);
-    source.pressNote(midi);
-  }
-  const release = (midi: number): void => source.releaseNote(midi);
-
   return (
     <div style={{ marginTop: 6 }}>
-      <div style={row}>
-        <button onClick={() => shift(-1)} style={btn}>− octaaf</button>
-        <span style={{ fontSize: 12 }}>octaaf {octave} (toetsen Z/X)</span>
-        <button onClick={() => shift(1)} style={btn}>+ octaaf</button>
-        <span style={{ fontSize: 11, color: '#6b7280', marginLeft: 'auto' }}>
-          Computertoetsen: A S D F G H J K (witte), W E T Y U (zwarte)
-        </span>
-      </div>
-      <svg width={wKeys.length * W} height={H}
-        style={{ display: 'block', marginTop: 8, userSelect: 'none' }}>
-        {wKeys.map((k, i) => (
-          <g key={k.midi}>
-            <rect x={i * W} y={0} width={W - 1} height={H}
-              fill="#fafafa" stroke="#1f2937"
-              onPointerDown={(e) => press(k.midi, e)}
-              onPointerUp={() => release(k.midi)}
-              onPointerCancel={() => release(k.midi)}
-              onPointerLeave={(e) => { if (e.buttons) release(k.midi); }}
-              style={{ cursor: 'pointer' }} />
-            <text x={i * W + (W - 1) / 2} y={H - 6} fontSize={9}
-              textAnchor="middle" fill="#475569" pointerEvents="none">
-              {k.label}{k.label === 'C' ? Math.floor(k.midi / 12) - 1 : ''}
-            </text>
-          </g>
-        ))}
-        {keys.filter((k) => k.black).map((k) => {
-          const whiteIdx = wKeys.findIndex((w) => w.midi === k.midi - 1);
-          const cx = (whiteIdx + 1) * W - (W * 0.35);
-          return (
-            <rect key={k.midi}
-              x={cx} y={0} width={W * 0.7} height={H * 0.6}
-              fill="#1f2937" stroke="#000"
-              onPointerDown={(e) => press(k.midi, e)}
-              onPointerUp={() => release(k.midi)}
-              onPointerCancel={() => release(k.midi)}
-              onPointerLeave={(e) => { if (e.buttons) release(k.midi); }}
-              style={{ cursor: 'pointer' }} />
-          );
-        })}
-      </svg>
+      <ScreenKeys octave={octave} onOctave={shift}
+        onNoteOn={(midi, vel) => source.pressNote(midi, vel)}
+        onNoteOff={(midi) => source.releaseNote(midi)}
+        hint="Computertoetsen: A S D F G H J K (witte), W E T Y U (zwarte); Z/X octaaf" />
     </div>
   );
 }

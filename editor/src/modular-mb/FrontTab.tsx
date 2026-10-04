@@ -11,6 +11,7 @@
 
 import { useState } from 'react';
 
+import { FrontKeys } from './FrontKeys';
 import { FrontPanel } from './FrontPanel';
 import { autoFront } from './frontPanel';
 import {
@@ -87,8 +88,11 @@ export function FrontTab({ expert = true }: { expert?: boolean }): JSX.Element {
       </div>
       {front.description && <p style={{ margin: 0, maxWidth: 640, opacity: 0.85 }}>{front.description}</p>}
       <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-        <div style={{ overflow: 'auto' }}>
-          <FrontPanel front={front} patch={patch} project={project} pxPerMm={4} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
+          <div style={{ overflow: 'auto' }}>
+            <FrontPanel front={front} patch={patch} project={project} pxPerMm={4} />
+          </div>
+          <FrontKeys />
         </div>
         {expert && (isAuto
           ? <div style={{ fontSize: 12, color: '#6b7280', maxWidth: 300 }}>

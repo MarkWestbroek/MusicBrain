@@ -37,6 +37,17 @@
   De keuze wordt onthouden (`mb.front.open` in de browser). `?front=<id>`
   kiest het front bij het openen. Rationale: zonder login ben je geen
   expert (doc/plans/patch-front.md §9).
+- **Schermtoetsenbord dat ook op een telefoon werkt** (`sim/ScreenKeys.tsx`,
+  `sim/screenKeysLayout.ts`): het toetsengebied is een eigen zone met
+  `touch-action: none` (een scheve tik of een glijdende vinger schuift of
+  zoomt de pagina niet), zonder tekstselectie en lang-druk-menu; pointer-
+  events met capture op het hele klavier, één noot per vinger, glijden
+  wisselt de noot, meerdere vingers zijn meerdere noten, aanslag uit de
+  plek op de toets (laag = hard). De Simulatie-tab gebruikt hem nu ook.
+  Onder het front staat hij altijd (`FrontKeys.tsx`): speelt rechtstreeks
+  op de engine, los van de gekozen MIDI-bron, en de eerste aanslag start de
+  simulator. Het front schaalt mee op een smal scherm. Op een geëmuleerde
+  iPhone nagelopen: scheve veeg over een toets = één noot, geen scroll.
 
 ### 2026-10-03 — Patch-front: datamodel en één schrijfpad voor controls (editor, geen nieuwe firmware)
 - **`Patch.fronts`** (`types.ts`): een front is een benoemde, geordende

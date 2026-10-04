@@ -28,7 +28,9 @@ export function FrontPanel({ front, patch, project, pxPerMm = 3, onPortClick }: 
   }
 
   return (
-    <ModulePanel
+    <div className="mb-front" style={{ width: fm.widthMm * pxPerMm, maxWidth: '100%' }}>
+      <style>{`.mb-front > svg { width: 100%; height: auto; }`}</style>
+      <ModulePanel
       module={fm.module}
       types={[fm.type]}
       controlState={controlState}
@@ -38,6 +40,7 @@ export function FrontPanel({ front, patch, project, pxPerMm = 3, onPortClick }: 
         if (t?.kind === 'port') onPortClick(t.moduleId, t.portId, port);
       } : undefined}
       pxPerMm={pxPerMm}
-    />
+      />
+    </div>
   );
 }

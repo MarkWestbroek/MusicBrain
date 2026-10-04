@@ -195,9 +195,13 @@ Solo ▾/Poly ▾-demo's zijn de eerste kandidaten.
   (een klein blokschema per moduletype in het contract). Zonder die flows
   valt het front terug op knoppen zonder lijnen. Een front blijft een view:
   de graaf tekent, hij rekent niet.
-- **Mobiel**: het raster met `columns: 2` is al bruikbaar op een telefoon;
-  samen met Modlink (ADR 0016) is het front de "modulator-tab" die daar
-  nog beloofd is.
+- **Mobiel**: het paneel schaalt mee op een smal scherm, en onder het front
+  staat een schermtoetsenbord dat op een telefoon werkt (gebouwd
+  2026-10-04): het toetsengebied schuift of zoomt de pagina niet
+  (`touch-action: none`), geen tekstselectie of lang-druk-menu, één noot per
+  vinger, glijden wisselt de noot, aanslag uit de plek op de toets. Samen
+  met Modlink (ADR 0016) is het front de "modulator-tab" die daar nog
+  beloofd is.
 
 ## 7. Buiten de editor
 
