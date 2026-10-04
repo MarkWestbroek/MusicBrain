@@ -7,10 +7,11 @@
 // een virtueel id (`c0`, `c1`, …) dat via `map` terugwijst naar
 // (moduleId, controlId); poorten net zo (`p0`, …).
 
+import { CATALOG } from './recipe/catalog';
 import {
   MM_PER_HP, defaultValueOf, resolveControls, resolvePorts,
   type Control, type ControlValue, type FrontItem, type ModularProject, type ModuleInstance,
-  type ModuleType, type Patch, type PatchFront, type Port,
+  type ModuleType, type PanelDecoration, type Patch, type PatchFront, type Port,
 } from './types';
 
 export type FrontTarget =
@@ -67,6 +68,12 @@ export function buildFrontModule(front: PatchFront, patch: Patch, project: Modul
   const texts: NonNullable<ModuleInstance['visual']['texts']> = [
     { x: widthMm / 2, y: 6.5, text: front.name, fontSize: 3.2 },
   ];
+  // Subtiele tegels om elke groep (per rij een segment), iets donkerder dan
+  // het paneel, zodat de links uitgelijnde kopjes bij hun knoppen horen.
+  const decorations: PanelDecoration[] = [];
+  const TILE = '#bfc5cb';
+  const tile = (x0: number, x1: number, y0: number, y1: number) =>
+    decorations.push({ kind: 'rect', x: x0, y: y0, w: x1 - x0, h: y1 - y0, color: TILE });
 
   // Eerst de controls in rasterrijen; de jacks komen daaronder. Een
   // groepskopje hangt boven de cel die erop volgt (inline, geen eigen rij),
@@ -102,10 +109,14 @@ export function buildFrontModule(front: PatchFront, patch: Patch, project: Modul
   flush();
 
   let y = TOP;
+  let inGroup = false;   // een groep loopt door over rijen tot het volgende kopje
   for (const r of rows) {
     const withGroup = r.some((cell) => cell.group);
     const top = y + (withGroup ? GROUP_H : 0);
     const h = Math.max(...r.map((cell) => rowHeightFor(cell.c)));
+    let segStart: number | null = inGroup ? 0 : null;
+    const closeSeg = (from: number, to: number) =>
+      tile(MARGIN_X + CELL_W * from + 1, MARGIN_X + CELL_W * (to + 1) - 1, y + 0.8, top + h - 1.2);
     r.forEach((cell, i) => {
       controls.push(cell.c);
       const cx = MARGIN_X + CELL_W * (i + 0.5);
@@ -114,14 +125,20 @@ export function buildFrontModule(front: PatchFront, patch: Patch, project: Modul
         x: cx, y: cy,
         sizeOverride: cell.c.kind === 'knob' ? (cell.size === 'large' ? 'large' : cell.size === 'small' ? 'small' : 'medium') : undefined,
       };
-      if (cell.group) texts.push({ x: cx - CELL_W / 2 + 1.5, y: y + 3.6, text: cell.group, fontSize: 2.1, align: 'start', color: '#374151' });
+      if (cell.group) {
+        if (segStart !== null) closeSeg(segStart, i - 1);
+        segStart = i; inGroup = true;
+        texts.push({ x: cx - CELL_W / 2 + 2.2, y: y + 3.7, text: cell.group, fontSize: 2.1, align: 'start', color: '#374151' });
+      }
     });
+    if (segStart !== null) closeSeg(segStart, r.length - 1);
     y = top + h;
   }
 
   if (portItems.length) {
     y += 2;
-    if (portsHeader) { texts.push({ x: MARGIN_X + 1.5, y: y + 3.6, text: portsHeader, fontSize: 2.1, align: 'start', color: '#374151' }); y += GROUP_H; }
+    const portsTop = y;
+    if (portsHeader) { texts.push({ x: MARGIN_X + 2.2, y: y + 3.7, text: portsHeader, fontSize: 2.1, align: 'start', color: '#374151' }); y += GROUP_H; }
     let i = 0;
     for (const it of portItems) {
       const m = project.modules.find((x) => x.id === it.moduleId);
@@ -137,6 +154,7 @@ export function buildFrontModule(front: PatchFront, patch: Patch, project: Modul
       i++;
     }
     y += Math.ceil(i / columns) * ROW_PORT;
+    if (i) tile(MARGIN_X + 1, MARGIN_X + CELL_W * Math.min(columns, i) - 1, portsTop + 0.8, y - 0.5);
   }
   const heightMm = Math.max(40, y + BOTTOM);
   const hpWidth = Math.ceil(widthMm / MM_PER_HP);
@@ -147,7 +165,7 @@ export function buildFrontModule(front: PatchFront, patch: Patch, project: Modul
   };
   const module: ModuleInstance = {
     id: `front:${front.id}`, typeId: type.id, internal: true, name: front.name,
-    visual: { hpWidth, heightMm, texture: 'aluminum', texts, controlPlacements, portPlacements },
+    visual: { hpWidth, heightMm, texture: 'aluminum', decorations, texts, controlPlacements, portPlacements },
   };
   return { module, type, map, widthMm: hpWidth * MM_PER_HP, heightMm };
 }
@@ -210,6 +228,18 @@ export function patchModulesInSignalOrder(patch: Patch, project: ModularProject)
   return result.flatMap((id) => { const m = project.modules.find((x) => x.id === id); return m ? [m] : []; });
 }
 
+/** De knoppen en schuiven van een module in volgorde van vermoedelijk
+ *  belang: de `playable`-lijst van de receptcatalogus, dan wat van zijn
+ *  standaardwaarde afwijkt (bewust gezet), dan de paneelvolgorde. */
+export function rankKnobs(m: ModuleInstance, patch: Patch, project: ModularProject): Control[] {
+  const knobs = resolveControls(m, project.moduleTypes).filter((c) => c.kind === 'knob' || c.kind === 'slider');
+  const playable = Object.keys(CATALOG[m.typeId]?.playable ?? {});
+  const state = patch.controlState[m.id] ?? {};
+  const deviates = (c: Control) => state[c.id] !== undefined && JSON.stringify(state[c.id]) !== JSON.stringify(defaultValueOf(c));
+  const rank = (c: Control) => (playable.includes(c.id) ? playable.indexOf(c.id) : playable.length + (deviates(c) ? 0 : 1000));
+  return [...knobs].map((c, i) => ({ c, i })).sort((a, b) => rank(a.c) - rank(b.c) || a.i - b.i).map((x) => x.c);
+}
+
 /** Het front voor een patch zonder front (§5): gelabelde controls, gebonden
  *  controls, de speelmodules, aangevuld tot `max` knoppen in signaalvolgorde;
  *  jacks: de uitgangen van een AUDIO IN en onverbonden audio-ingangen. Niet
@@ -239,11 +269,14 @@ export function autoFront(patch: Patch, project: ModularProject, max = 8): Patch
   //    de eerste twee knoppen, tot `max`. (Niet om de beurt: "T1" en "S1"
   //    zeggen zonder modulenaam niets.)
   const count = () => items.filter((it) => it.kind === 'control').length;
+  //    Welke twee: eerst de klankbepalende controls uit de receptcatalogus
+  //    (`playable`), dan controls die de ontwerper van hun standaardwaarde
+  //    heeft gezet, dan de paneelvolgorde.
   const roleOf = (m: ModuleInstance) => project.moduleTypes.find((t) => t.id === m.typeId)?.role;
   for (const m of mods) {
     if (count() >= max) break;
     if (roleOf(m) === 'event-source') continue;   // MIDI-IN: kanaal en bendbereik zijn geen speelknoppen
-    const next = playable(m).filter((c) => (c.kind === 'knob' || c.kind === 'slider') && !have.has(`${m.id}/${c.id}`)).slice(0, 2);
+    const next = rankKnobs(m, patch, project).filter((c) => !have.has(`${m.id}/${c.id}`)).slice(0, 2);
     if (!next.length) continue;
     items.push({ kind: 'group', text: m.name });
     for (const c of next) { if (count() >= max) break; add(m.id, c.id); }

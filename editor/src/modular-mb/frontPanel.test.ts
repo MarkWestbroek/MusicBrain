@@ -7,11 +7,13 @@ import { describe, expect, it } from 'vitest';
 
 import { ModulePanel } from './ModulePanel';
 import { frontIssues } from './fronts';
-import { autoFront, buildFrontModule, frontControlState, patchModulesInSignalOrder } from './frontPanel';
+import { autoFront, buildFrontModule, frontControlState, patchModulesInSignalOrder, rankKnobs } from './frontPanel';
 import { findModuleByWord } from './recipe/edits';
 import { buildRecipe } from './recipe/compile';
 import { seedInternals, seedKrellPatch } from './seedModules';
-import { emptyModularProject, type ModularProject, type Patch, type PatchFront } from './types';
+import { emptyModularProject, resolveControls, type ModularProject, type ModuleInstance, type Patch, type PatchFront } from './types';
+
+const resolveControlsOf = (p: ModularProject, m: ModuleInstance) => resolveControls(m, p.moduleTypes);
 
 const base = () => seedInternals(emptyModularProject());
 const active = (p: ModularProject): Patch => p.patches.find((x) => x.id === p.activePatchId)!;
@@ -95,6 +97,27 @@ describe('patchModulesInSignalOrder', () => {
     const types = order.map((m) => m.typeId);
     expect(types.indexOf('tp_mmb_vco')).toBeLessThan(types.indexOf('tp_mmb_vcf'));
     expect(types.filter((t) => t === 'tp_mmb_vco')).toHaveLength(1);   // 4 stemmen, 1 master
+  });
+});
+
+describe('rankKnobs', () => {
+  it('zet de playable-controls uit de catalogus voorop, dan bewust gezette, dan paneelvolgorde', () => {
+    const { p, vcf } = voice();
+    const m = p.modules.find((x) => x.id === vcf)!;
+    const panel = (resolveControlsOf(p, m)).filter((c) => c.kind === 'knob' || c.kind === 'slider').map((c) => c.id);
+    // VCF staat in de catalogus met cutoff, q, cv_amt: die komen eerst.
+    expect(rankKnobs(m, active(p), p).slice(0, 2).map((c) => c.id)).toEqual(['cutoff', 'q']);
+    // Een module zonder catalogus-regel: een afwijkende waarde telt.
+    const krell = seedKrellPatch(base());
+    const kp = active(krell);
+    const stages = patchModulesInSignalOrder(kp, krell).find((x) => x.typeId === 'tp_mmb_stages')!;
+    const knobs = resolveControlsOf(krell, stages).filter((c) => c.kind === 'knob');
+    const third = knobs[2]!;
+    const kp2: Patch = { ...kp, controlState: { ...kp.controlState, [stages.id]: { [third.id]: (third.kind === 'knob' ? third.max : 1) } } };
+    const base2: Patch = { ...kp, controlState: { ...kp.controlState, [stages.id]: {} } };
+    expect(rankKnobs(stages, base2, krell).map((c) => c.id)).toEqual(knobs.map((c) => c.id));
+    expect(rankKnobs(stages, kp2, krell)[0]!.id).toBe(third.id);
+    expect(panel.length).toBeGreaterThan(0);
   });
 });
 

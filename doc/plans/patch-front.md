@@ -150,9 +150,13 @@ opgeslagen tot iemand het bewerkt), in deze volgorde:
 1. alle controls met een `controlLabels`-tekst;
 2. alle controls die in `midiMap.bindings` gebonden zijn;
 3. de PADS/FADERS/KNOBS-modules van de patch;
-4. aanvullen tot acht knoppen met de eerste knoppen van de modules in
-   signaalvolgorde (volgorde zoals ED-PT-2, de signaalpad-view, die later
-   ook wil).
+4. aanvullen tot acht knoppen: per module in signaalvolgorde (volgorde
+   zoals ED-PT-2, de signaalpad-view, die later ook wil) een kopje en twee
+   knoppen. Welke twee (besluit 2026-10-04): eerst de `playable`-controls
+   uit de receptcatalogus (`recipe/catalog.ts`), dan controls die van hun
+   standaardwaarde afwijken (bewust gezet), dan de paneelvolgorde. Later:
+   de unit-soort uit de flow ([module-signaalstroom.md](module-signaalstroom.md))
+   en een AI-frontrecept.
 
 Poorten: de onverbonden audio-, CV- en gate-ingangen van de patch en de
 uitgangen van een AUDIO IN. Een seed kan zijn front meeleveren; de

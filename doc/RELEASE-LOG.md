@@ -35,7 +35,11 @@
   front krijgt een **automatisch front**: gelabelde controls (groot), controls
   met een surface-binding, de PADS/FADERS/KNOBS-modules, aangevuld tot acht
   knoppen in signaalvolgorde (bronnen eerst, poly-followers weg), plus de
-  AUDIO IN-uitgangen en onverbonden audio-ingangen als jacks. De tab
+  AUDIO IN-uitgangen en onverbonden audio-ingangen als jacks. Welke twee
+  knoppen per module (`rankKnobs`): eerst de `playable`-controls uit de
+  receptcatalogus, dan controls die van hun standaardwaarde afwijken, dan de
+  paneelvolgorde. Elke groep krijgt een subtiele tegel op het paneel
+  (2026-10-04, na Marks eerste blik). De tab
   **Front** (tussen Patches en Patcher) toont de fronts van de actieve
   patch naast Auto, met "Auto bewaren als front" en "Front verwijderen".
   Nog geen "Op front zetten" in rack en patcher en geen spelermodus (stap 3).
