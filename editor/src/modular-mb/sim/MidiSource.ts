@@ -91,6 +91,12 @@ export class ScreenKeyboardSource extends BaseSource {
     if (!this.down.delete(midi)) return;
     this.emit({ kind: 'noteOff', note: midi });
   }
+  /** Omhoog schuiven op het schermtoetsenbord: per noot én als kanaaldruk. */
+  aftertouch(midi: number, value: number): void {
+    this.emit({ kind: 'polyPressure', note: midi, value });
+    this.emit({ kind: 'pressure', value });
+  }
+  bend(value14: number): void { this.emit({ kind: 'pitchBend', value: value14 }); }
 
   /** Tikt de gebruiker in een tekstveld, dan is 'a' een letter — geen noot. */
   private static isTyping(e: KeyboardEvent): boolean {

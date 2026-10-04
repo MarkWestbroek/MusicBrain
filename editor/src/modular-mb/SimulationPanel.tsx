@@ -25,7 +25,7 @@ import {
   ScreenKeyboardSource, TestSequenceSource, WebMidiSource, SEQUENCE_PATTERNS,
   type MidiSource, type MidiEvent, type SequencePattern,
 } from './sim/MidiSource';
-import { ScreenKeys } from './sim/ScreenKeys';
+import { ScreenKeys, type SlideMode } from './sim/ScreenKeys';
 import type { ModularProject, Patch, ControlValue } from './types';
 import { MidiFileSource, parseSmf } from './sim/midiFilePlayer';
 import { TakeLibraryPanel } from './sim/TakeLibraryPanel';
@@ -608,15 +608,18 @@ function SourceControls({ source, sourceId, running, onStartSim, onReplace }: {
 
 function ScreenKeyboardUi({ source }: { source: ScreenKeyboardSource }): JSX.Element {
   const [octave, setOctave] = useState(source.getOctave());
+  const [slide, setSlide] = useState<SlideMode>('note');
   function shift(d: number): void {
     source.setOctave(octave + d);
     setOctave(source.getOctave());
   }
   return (
     <div style={{ marginTop: 6 }}>
-      <ScreenKeys octave={octave} onOctave={shift}
+      <ScreenKeys octave={octave} onOctave={shift} slide={slide} onSlide={setSlide}
         onNoteOn={(midi, vel) => source.pressNote(midi, vel)}
         onNoteOff={(midi) => source.releaseNote(midi)}
+        onAftertouch={(midi, v) => source.aftertouch(midi, v)}
+        onBend={(v) => source.bend(v)}
         hint="Computertoetsen: A S D F G H J K (witte), W E T Y U (zwarte); Z/X octaaf" />
     </div>
   );

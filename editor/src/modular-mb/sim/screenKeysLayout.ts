@@ -44,3 +44,17 @@ export function velocityAt(k: KeyRect, y: number): number {
   const t = Math.max(0, Math.min(1, (y - k.y) / k.h));
   return Math.round((0.35 + 0.65 * t) * 100) / 100;
 }
+
+/** Pitch bend uit horizontaal schuiven: één toetsbreedte opzij = het volle
+ *  bereik (14-bits, 8192 = midden). */
+export function bendFor(dx: number, w = KEY_W): number {
+  const t = Math.max(-1, Math.min(1, dx / w));
+  return Math.round(8192 + t * 8191);
+}
+
+/** Aftertouch uit omhoog schuiven na de aanslag: 0 op de aanslagplek, 127
+ *  na 60 % van de toetshoogte omhoog; omlaag schuiven blijft 0. */
+export function aftertouchFor(dy: number, h = KEY_H): number {
+  const t = Math.max(0, Math.min(1, -dy / (0.6 * h)));
+  return Math.round(t * 127);
+}

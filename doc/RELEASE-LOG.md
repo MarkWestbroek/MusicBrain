@@ -48,6 +48,11 @@
   op de engine, los van de gekozen MIDI-bron, en de eerste aanslag start de
   simulator. Het front schaalt mee op een smal scherm. Op een geëmuleerde
   iPhone nagelopen: scheve veeg over een toets = één noot, geen scroll.
+  **Schuiven na de aanslag** (Marks vraag): omhoog = aftertouch, per noot
+  (poly pressure) én als kanaaldruk, 127 na 60 % van de toetshoogte; opzij
+  = naar keuze de noot wisselen (glijden, standaard) of **buigen** (één
+  toetsbreedte = het volle bendbereik, loslaten zet terug). Keuze "opzij:"
+  naast de octaafknoppen, onthouden onder het front.
 
 ### 2026-10-03 — Patch-front: datamodel en één schrijfpad voor controls (editor, geen nieuwe firmware)
 - **`Patch.fronts`** (`types.ts`): een front is een benoemde, geordende

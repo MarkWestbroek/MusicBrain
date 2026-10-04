@@ -7,18 +7,33 @@
 //     één noot; glijden naar een andere toets wisselt de noot (legato over
 //     het klavier), loslaten of annuleren laat los; meerdere vingers tegelijk
 //     zijn meerdere noten;
-//   • aanslag uit de plek op de toets: laag op de toets is hard.
-// De component weet niets van de engine: hij roept onNoteOn/onNoteOff.
+//   • aanslag uit de plek op de toets: laag op de toets is hard;
+//   • schuiven na de aanslag: omhoog = aftertouch (per noot én kanaal), en
+//     opzij = óf de noot wisselen (glijden, standaard) óf pitch bend
+//     (`slide: 'bend'`: één toetsbreedte = het volle bereik); loslaten zet
+//     bend en aftertouch terug.
+// De component weet niets van de engine: hij roept de callbacks.
 
 import { useRef, useState } from 'react';
 
-import { KEY_H, KEY_W, keyAt, keyLayout, layoutWidth, velocityAt, type KeyRect } from './screenKeysLayout';
+import { KEY_H, aftertouchFor, bendFor, keyAt, keyLayout, layoutWidth, velocityAt, type KeyRect } from './screenKeysLayout';
 
-export function ScreenKeys({ octave, octaves = 2, onNoteOn, onNoteOff, onOctave, maxWidth = 560, hint }: {
+export type SlideMode = 'note' | 'bend';
+
+export function ScreenKeys({
+  octave, octaves = 2, onNoteOn, onNoteOff, onOctave, onAftertouch, onBend, slide = 'note', onSlide, maxWidth = 560, hint,
+}: {
   octave: number; octaves?: number;
   onNoteOn: (midi: number, velocity: number) => void;
   onNoteOff: (midi: number) => void;
   onOctave?: (delta: number) => void;
+  /** Omhoog schuiven na de aanslag, 0..127 per noot. */
+  onAftertouch?: (midi: number, value: number) => void;
+  /** Opzij schuiven in de bend-stand, 14-bits (8192 = midden). */
+  onBend?: (value14: number) => void;
+  /** Wat opzij schuiven doet: de noot wisselen of buigen. */
+  slide?: SlideMode;
+  onSlide?: (mode: SlideMode) => void;
   maxWidth?: number;
   /** Tekst rechts van de octaafknoppen (bv. de computertoetsen). */
   hint?: string;
@@ -26,9 +41,10 @@ export function ScreenKeys({ octave, octaves = 2, onNoteOn, onNoteOff, onOctave,
   const keys = keyLayout((octave + 1) * 12, octaves);
   const width = layoutWidth(keys);
   const svgRef = useRef<SVGSVGElement>(null);
-  // pointerId → midi; en de ingedrukte noten voor de kleur.
-  const held = useRef(new Map<number, number>());
+  // pointerId → noot en aanslagplek; en de ingedrukte noten voor de kleur.
+  const held = useRef(new Map<number, { midi: number; x0: number; y0: number; at: number }>());
   const [down, setDown] = useState<Set<number>>(new Set());
+  const heldNotes = () => new Set([...held.current.values()].map((h) => h.midi));
 
   function pointOf(e: React.PointerEvent): { x: number; y: number } {
     const svg = svgRef.current!;
@@ -36,21 +52,34 @@ export function ScreenKeys({ octave, octaves = 2, onNoteOn, onNoteOff, onOctave,
     const sx = width / r.width, sy = KEY_H / r.height;
     return { x: (e.clientX - r.left) * sx, y: (e.clientY - r.top) * sy };
   }
-  function press(pointerId: number, k: KeyRect, y: number): void {
+  function press(pointerId: number, k: KeyRect, x: number, y: number): void {
     const prev = held.current.get(pointerId);
-    if (prev === k.midi) return;
-    if (prev !== undefined) release(pointerId);
-    held.current.set(pointerId, k.midi);
+    if (prev?.midi === k.midi) return;
+    if (prev) release(pointerId);
+    held.current.set(pointerId, { midi: k.midi, x0: x, y0: y, at: 0 });
     onNoteOn(k.midi, velocityAt(k, y));
-    setDown(new Set(held.current.values()));
+    setDown(heldNotes());
   }
   function release(pointerId: number): void {
-    const midi = held.current.get(pointerId);
-    if (midi === undefined) return;
+    const h = held.current.get(pointerId);
+    if (!h) return;
     held.current.delete(pointerId);
+    const still = heldNotes();
     // Alleen noteOff als geen andere vinger dezelfde noot nog vasthoudt.
-    if (![...held.current.values()].includes(midi)) onNoteOff(midi);
-    setDown(new Set(held.current.values()));
+    if (!still.has(h.midi)) {
+      if (h.at > 0) onAftertouch?.(h.midi, 0);
+      onNoteOff(h.midi);
+    }
+    if (held.current.size === 0 && slide === 'bend') onBend?.(8192);
+    setDown(still);
+  }
+  /** Schuiven na de aanslag: omhoog = aftertouch, opzij = bend (in de bend-stand). */
+  function slideTo(pointerId: number, x: number, y: number): void {
+    const h = held.current.get(pointerId);
+    if (!h) return;
+    const at = aftertouchFor(y - h.y0);
+    if (at !== h.at) { h.at = at; onAftertouch?.(h.midi, at); }
+    if (slide === 'bend') onBend?.(bendFor(x - h.x0));
   }
 
   const onPointerDown = (e: React.PointerEvent<SVGSVGElement>): void => {
@@ -59,13 +88,16 @@ export function ScreenKeys({ octave, octaves = 2, onNoteOn, onNoteOff, onOctave,
     svgRef.current?.setPointerCapture(e.pointerId);
     const { x, y } = pointOf(e);
     const k = keyAt(keys, x, y);
-    if (k) press(e.pointerId, k, y);
+    if (k) press(e.pointerId, k, x, y);
   };
   const onPointerMove = (e: React.PointerEvent<SVGSVGElement>): void => {
     if (!held.current.has(e.pointerId)) return;
     const { x, y } = pointOf(e);
-    const k = keyAt(keys, x, y);
-    if (k) press(e.pointerId, k, y);
+    if (slide === 'note') {
+      const k = keyAt(keys, x, y);
+      if (k) press(e.pointerId, k, x, y);
+    }
+    slideTo(e.pointerId, x, y);
   };
   const onPointerEnd = (e: React.PointerEvent<SVGSVGElement>): void => { release(e.pointerId); };
 
@@ -77,6 +109,15 @@ export function ScreenKeys({ octave, octaves = 2, onNoteOn, onNoteOff, onOctave,
           <button type="button" onClick={() => onOctave(-1)} style={btn}>− octaaf</button>
           <span style={{ fontSize: 12 }}>octaaf {octave}</span>
           <button type="button" onClick={() => onOctave(1)} style={btn}>+ octaaf</button>
+          {onSlide && (
+            <label style={{ fontSize: 12, display: 'inline-flex', gap: 4, alignItems: 'center' }} title="Wat opzij schuiven over de toetsen doet; omhoog schuiven is altijd aftertouch">
+              opzij:
+              <select value={slide} onChange={(e) => onSlide(e.target.value as SlideMode)} style={{ fontSize: 12 }}>
+                <option value="note">noot wisselen</option>
+                <option value="bend">buigen</option>
+              </select>
+            </label>
+          )}
           {hint && <span style={{ fontSize: 11, color: '#6b7280', marginLeft: 'auto' }}>{hint}</span>}
         </div>
       )}
@@ -117,4 +158,3 @@ export function ScreenKeys({ octave, octaves = 2, onNoteOn, onNoteOff, onOctave,
   );
 }
 
-export { KEY_W as SCREEN_KEY_W };

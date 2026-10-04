@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { KEY_H, KEY_W, keyAt, keyLayout, layoutWidth, velocityAt } from './screenKeysLayout';
+import { KEY_H, KEY_W, aftertouchFor, bendFor, keyAt, keyLayout, layoutWidth, velocityAt } from './screenKeysLayout';
 
 describe('schermtoetsenbord: layout en hit-test', () => {
   const keys = keyLayout(60, 2);   // C4..C6
@@ -30,5 +30,16 @@ describe('schermtoetsenbord: layout en hit-test', () => {
     expect(velocityAt(c, 0)).toBe(0.35);
     expect(velocityAt(c, KEY_H)).toBe(1);
     expect(velocityAt(c, KEY_H / 2)).toBe(0.68);
+  });
+
+  it('schuiven: opzij buigt (één toets = vol bereik), omhoog is aftertouch', () => {
+    expect(bendFor(0)).toBe(8192);
+    expect(bendFor(KEY_W)).toBe(16383);
+    expect(bendFor(-2 * KEY_W)).toBe(1);
+    expect(bendFor(KEY_W / 2)).toBe(8192 + 4096);
+    expect(aftertouchFor(0)).toBe(0);
+    expect(aftertouchFor(20)).toBe(0);                 // omlaag: niets
+    expect(aftertouchFor(-0.6 * KEY_H)).toBe(127);
+    expect(aftertouchFor(-0.3 * KEY_H)).toBe(64);
   });
 });

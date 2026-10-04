@@ -8,15 +8,20 @@
 import { useState } from 'react';
 
 import { getEngine, useEngineStatus } from './sim/engineSingleton';
-import { ScreenKeys } from './sim/ScreenKeys';
+import { ScreenKeys, type SlideMode } from './sim/ScreenKeys';
 
 const OCT_KEY = 'mb.front.octave';
+const SLIDE_KEY = 'mb.front.slide';
 
 export function FrontKeys(): JSX.Element {
   const status = useEngineStatus();
   const [octave, setOctaveState] = useState<number>(() => {
     try { const raw = localStorage.getItem(OCT_KEY); const v = raw === null ? NaN : Number(raw); return v >= 0 && v <= 8 ? v : 4; } catch { return 4; }
   });
+  const [slide, setSlideState] = useState<SlideMode>(() => {
+    try { return localStorage.getItem(SLIDE_KEY) === 'bend' ? 'bend' : 'note'; } catch { return 'note'; }
+  });
+  const setSlide = (m: SlideMode): void => { setSlideState(m); try { localStorage.setItem(SLIDE_KEY, m); } catch { /* geen opslag */ } };
   const [err, setErr] = useState<string | null>(null);
   const setOctave = (d: number): void => {
     const o = Math.max(0, Math.min(8, octave + d));
@@ -35,11 +40,16 @@ export function FrontKeys(): JSX.Element {
     engine.noteOn(midi, velocity);
   }
   function noteOff(midi: number): void { getEngine().noteOff(midi); }
+  // Omhoog schuiven: aftertouch per noot (poly) én als kanaaldruk, zodat
+  // een patch met cv_press of per-noot-druk het allebei hoort.
+  function aftertouch(midi: number, v: number): void { const e = getEngine(); e.pressure(v, midi); e.pressure(v); }
+  function bend(v: number): void { getEngine().pitchBend(v); }
 
   return (
     <div>
       <ScreenKeys octave={octave} onOctave={setOctave} onNoteOn={noteOn} onNoteOff={noteOff}
-        hint={status.running ? 'Tik of glij over de toetsen; laag op de toets is hard' : 'Eerste aanslag start de simulator'} />
+        onAftertouch={aftertouch} onBend={bend} slide={slide} onSlide={setSlide}
+        hint={status.running ? 'Laag op de toets is hard; omhoog schuiven is aftertouch' : 'Eerste aanslag start de simulator'} />
       {err && <div style={{ color: '#b91c1c', fontSize: 12, marginTop: 4 }}>{err}</div>}
     </div>
   );
