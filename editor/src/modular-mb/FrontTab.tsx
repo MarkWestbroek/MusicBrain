@@ -9,7 +9,7 @@
 // (rechtsklik → "Op front zetten", of de frontvelden in de eigenschappen);
 // hier schik je ze.
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { FrontKeys } from './FrontKeys';
 import { FrontPanel } from './FrontPanel';
@@ -42,6 +42,14 @@ export function FrontTab({ expert = true }: { expert?: boolean }): JSX.Element {
   // (Hook vóór de vroege return, anders klaagt React zodra er een patch komt.)
   const [arrange, setArrange] = useState(false);
   const stageRef = useRef<HTMLDivElement>(null);
+  // Op volledig scherm staat de werkbalk van de app buiten beeld; de
+  // patchkeuze komt dan bovenin het podium (niet in de stand "alleen toetsen").
+  const [full, setFull] = useState(false);
+  useEffect(() => {
+    const sync = (): void => setFull(!!document.fullscreenElement && document.fullscreenElement === stageRef.current);
+    document.addEventListener('fullscreenchange', sync);
+    return () => document.removeEventListener('fullscreenchange', sync);
+  }, []);
 
   if (!patch) return <EmptyStart expert={expert} />;
 
@@ -74,7 +82,8 @@ export function FrontTab({ expert = true }: { expert?: boolean }): JSX.Element {
   return (
     <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-        <PatchSelect project={project} onChoose={() => setChosen(null)} />
+        {/* In de speelmodus staat de patchkeuze al in de werkbalk van de app. */}
+        {expert && <PatchSelect project={project} onChoose={() => setChosen(null)} />}
         <select value={isAuto ? AUTO : front.id} onChange={(e) => setChosen(e.target.value)} style={{ fontSize: 12 }}>
           <option value={AUTO}>Auto (afgeleid, niet opgeslagen)</option>
           {fronts.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
@@ -97,9 +106,15 @@ export function FrontTab({ expert = true }: { expert?: boolean }): JSX.Element {
               achtergrond en scrollen, anders staat het front op zwart. */}
           <style>{`
             .mb-stage:fullscreen { background: #fff; overflow: auto; padding: 12px; box-sizing: border-box; }
-            .mb-stage:fullscreen[data-full-mode="keys"] > .mb-stage-front { display: none; }
+            .mb-stage:fullscreen[data-full-mode="keys"] > .mb-stage-front,
+            .mb-stage:fullscreen[data-full-mode="keys"] > .mb-stage-top { display: none; }
             .mb-stage:fullscreen[data-full-mode="keys"] { justify-content: center; }
           `}</style>
+          {full && (
+            <div className="mb-stage-top" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <PatchSelect project={project} onChoose={() => setChosen(null)} />
+            </div>
+          )}
           <div className="mb-stage-front" style={{ overflow: 'auto' }}>
             <FrontPanel front={front} patch={patch} project={project} pxPerMm={4}
               onArrange={arranging ? (i, pos) => edit((x) => updateFrontItem(x, front.id, i, (y) => (y.kind === 'group' ? y : { ...y, pos }))) : undefined} />

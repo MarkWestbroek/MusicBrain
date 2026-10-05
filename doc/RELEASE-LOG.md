@@ -44,6 +44,17 @@
   certificaat); de editor toont boven de werkbalk één oranje regel met de
   uitweg (`secureContext.ts`) en de MIDI-fout benoemt de oorzaak. Uitleg in
   `editor/README.md` ("Telefoon: geluid en MIDI alleen via https").
+- **Telefoon, derde ronde.** Schuiven zijn te pakken: een 8 mm breed
+  grijpvlak over de hele baan, en met een vinger springt de dop naar de
+  vinger (absoluut; met de muis blijft het relatief slepen). Letters op het
+  front anderhalf keer zo groot op een smal scherm (`ModulePanel`
+  `textScale`, alle labels en kopjes). Staande schuiven stonden half boven
+  hun tegel (`frontLayout`: midden op top + 3 + len/2). Werkbalk van het
+  toetsenbord compacter (past liggend op één regel): kortere pedaalschuif
+  zonder cijfer, "wisselen/buigen". **⏹ Panic**: alle noten uit, ook een
+  hangende (`AudioEngine.allNotesOff`, CC 123 naar elke MIDI-IN, gates laag,
+  toetsenstapel leeg; het klavier vergeet zijn vingers). Op volledig scherm
+  staat de patchkeuze bovenin het podium; in de speelmodus niet meer dubbel.
 - **Schermtoetsenbord, tweede ronde** (`sim/ScreenKeys.tsx`,
   `sim/screenKeysLayout.ts`, `FrontKeys.tsx`): octaaf − en + links en rechts
   boven het klavier (de C-labels tonen het octaaf), daartussen Sustain, de

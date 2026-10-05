@@ -76,7 +76,7 @@ export function FrontKeys({ stage }: { stage?: RefObject<HTMLElement | null> } =
     go.then(() => setFullMode(m)).catch(() => { /* geweigerd (iframe, iOS): dan niet */ });
   };
   const exitFull = (): void => { if (document.fullscreenElement) void document.exitFullscreen(); };
-  const fsBtn: React.CSSProperties = { fontSize: 12, padding: '3px 8px', cursor: 'pointer' };
+  const fsBtn: React.CSSProperties = { fontSize: 12, padding: '3px 6px', cursor: 'pointer' };
   const [err, setErr] = useState<string | null>(null);
   const setOctave = (d: number): void => {
     const o = Math.max(0, Math.min(8, octave + d));
@@ -102,16 +102,17 @@ export function FrontKeys({ stage }: { stage?: RefObject<HTMLElement | null> } =
   function mod(v: number): void { getEngine().controlChange(1, v); }
   function sustain(on: boolean): void { getEngine().controlChange(SUSTAIN_CC, on ? 127 : 0); }
   function pedal(v: number): void { getEngine().controlChange(cc.cc1, v); }
+  function panic(): void { getEngine().allNotesOff(); }
 
   return (
     <div>
       <ScreenKeys octave={octave} onOctave={setOctave} onNoteOn={noteOn} onNoteOff={noteOff}
         onAftertouch={aftertouch} onBend={bend} onMod={mod} onSustain={sustain}
         pedal={{ label: `Pedaal CC ${cc.cc1}`, onChange: pedal }} slide={slide} onSlide={setSlide}
-        bendKeys={bendKeys} onBendKeys={setBendKeys} tall={tall} onTall={setTall}
+        bendKeys={bendKeys} onBendKeys={setBendKeys} tall={tall} onTall={setTall} onPanic={panic}
         maxWidth={full && fullMode === 'keys' ? 4000 : 560}
         extra={canFull && stage ? (
-          <span style={{ display: 'inline-flex', gap: 4 }}>
+          <span style={{ display: 'inline-flex', gap: 2 }}>
             <button type="button" onClick={() => enterFull('stage')} style={{ ...fsBtn, fontWeight: full && fullMode === 'stage' ? 700 : 400, background: full && fullMode === 'stage' ? '#fde68a' : undefined }}
               title="Volledig scherm: front en toetsenbord" aria-label="Volledig scherm: front en toetsenbord">⛶</button>
             <button type="button" onClick={() => enterFull('keys')} style={{ ...fsBtn, fontWeight: full && fullMode === 'keys' ? 700 : 400, background: full && fullMode === 'keys' ? '#fde68a' : undefined }}

@@ -10,7 +10,11 @@
 // All coordinates are in millimetres; we convert to SVG user units 1:1 and
 // rely on CSS `width`/`height` for actual display scaling.
 
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+
+// Letters groter op een smal scherm (telefoon): het front schaalt op breedte,
+// en 1,8 mm wordt dan ~6 px. ModulePanel zet de factor; de glyphs lezen hem.
+const TextScale = createContext(1);
 import { MidiPortLeds } from './sim/MidiPortLeds';
 import { useTeensyLink } from './teensyLink';
 import { bankTitle } from './teensyStorage';
@@ -85,6 +89,8 @@ export interface ModulePanelProps {
    *  handler krijgt het muisevent voor de plek van het menu. */
   onControlContextMenu?: (controlId: string, e: React.MouseEvent) => void;
   onPortContextMenu?: (portId: string, e: React.MouseEvent) => void;
+  /** Letters groter (telefoon): vermenigvuldigt elke fontSize op het paneel. */
+  textScale?: number;
 }
 
 export function ModulePanel({
@@ -101,7 +107,9 @@ export function ModulePanel({
   onControlLabelChange,
   onControlContextMenu,
   onPortContextMenu,
+  textScale = 1,
 }: ModulePanelProps): JSX.Element {
+  const ts = textScale;
   const visual   = mod.visual;
   const widthMm  = visual.hpWidth * MM_PER_HP;
   const heightMm = visual.heightMm ?? PANEL_HEIGHT_MM;
@@ -119,6 +127,7 @@ export function ModulePanel({
   const cellBoxes = computeCellBoxes(type, visual);
 
   return (
+    <TextScale.Provider value={ts}>
     <svg
       width={widthMm * pxPerMm}
       height={heightMm * pxPerMm}
@@ -144,7 +153,7 @@ export function ModulePanel({
             fill="#ffffff" fillOpacity={0.04}
             stroke={b.color} strokeOpacity={0.5} strokeWidth={0.25}
             strokeDasharray="1.2 1.0" />
-          <text x={b.x + b.w / 2} y={b.y + 2.4} fontSize={1.7}
+          <text x={b.x + b.w / 2} y={b.y + 2.4} fontSize={1.7 * ts}
             fill={b.color} fillOpacity={0.85} textAnchor="middle" fontWeight={600}>
             {b.label}
           </text>
@@ -236,12 +245,14 @@ export function ModulePanel({
           bank={Number(controlState?.bank ?? 0)} />
       )}
     </svg>
+    </TextScale.Provider>
   );
 }
 
 /** Displaystrookje op het sampler-paneel: de naam van de gekozen bank, zoals
  *  de Teensy hem van de SD-kaart las (zie teensyStorage.bankTitle). */
 function SamplerBankStrip({ cx, y, w, bank }: { cx: number; y: number; w: number; bank: number }): JSX.Element {
+  const ts = useContext(TextScale);
   const link = useTeensyLink();
   const st = link.status.kind === 'connected' ? link.lastStatus : undefined;
   useSyncExternalStore(subscribeBanks, banksVersion);
@@ -260,7 +271,7 @@ function SamplerBankStrip({ cx, y, w, bank }: { cx: number; y: number; w: number
         : 'Bank op de SD-kaart van de Teensy (/mmb/banks/NN.mmbs); de naam komt uit de bank zelf.'}</title>
       <rect x={cx - w / 2} y={y} width={w} height={3.6} rx={0.6}
         fill="#0b1220" stroke="#1e293b" strokeWidth={0.15} />
-      <text x={cx} y={y + 2.55} fontSize={1.9} fill={col} textAnchor="middle"
+      <text x={cx} y={y + 2.55} fontSize={1.9 * ts} fill={col} textAnchor="middle"
         fontFamily="ui-monospace, monospace">{text}</text>
     </g>
   );
@@ -270,6 +281,7 @@ function SamplerBankStrip({ cx, y, w, bank }: { cx: number; y: number; w: number
  *  een Teensy aan de kabel de naam van /mmb/lyrics/NN.mmbl op de SD-kaart,
  *  anders de bank die 🎤 Zang in de simulator zette. */
 function ZangBankStrip({ cx, y, w, bank }: { cx: number; y: number; w: number; bank: number }): JSX.Element {
+  const ts = useContext(TextScale);
   const link = useTeensyLink();
   const st = link.status.kind === 'connected' ? link.lastStatus : undefined;
   useSyncExternalStore(subscribeLyricBanks, lyricBanksVersion);
@@ -294,7 +306,7 @@ function ZangBankStrip({ cx, y, w, bank }: { cx: number; y: number; w: number; b
       <title>{title}</title>
       <rect x={cx - w / 2} y={y} width={w} height={3.6} rx={0.6}
         fill="#0b1220" stroke="#1e293b" strokeWidth={0.15} />
-      <text x={cx} y={y + 2.55} fontSize={1.9} fill={col} textAnchor="middle"
+      <text x={cx} y={y + 2.55} fontSize={1.9 * ts} fill={col} textAnchor="middle"
         fontFamily="ui-monospace, monospace">{text}</text>
     </g>
   );
@@ -303,6 +315,7 @@ function ZangBankStrip({ cx, y, w, bank }: { cx: number; y: number; w: number; b
 /** Verticale VU-bar op het OUT-paneel — segmenten van onder (groen) naar
  *  boven (rood), gevuld naar de live master-outPeak. */
 function OutVuMeter({ cx, yTop }: { cx: number; yTop: number }): JSX.Element {
+  const ts = useContext(TextScale);
   const link = useTeensyLink();
   const peak = link.status.kind === 'connected'
     ? (link.lastStatus?.outPeak ?? 0) : undefined;
@@ -325,7 +338,7 @@ function OutVuMeter({ cx, yTop }: { cx: number; yTop: number }): JSX.Element {
             opacity={on ? 1 : (lit < 0 ? 0.5 : 0.9)} />
         );
       })}
-      <text x={cx} y={yTop + segs * (segH + gap) + 3} fontSize={1.5}
+      <text x={cx} y={yTop + segs * (segH + gap) + 3} fontSize={1.5 * ts}
         fill="#9ca3af" textAnchor="middle">VU</text>
     </g>
   );
@@ -413,6 +426,7 @@ function computeCellBoxes(
 // ── Decorations ────────────────────────────────────────────────────────
 
 function Decoration({ dec, textCol }: { dec: import('./types').PanelDecoration; textCol: string }): JSX.Element | null {
+  const ts = useContext(TextScale);
   switch (dec.kind) {
     case 'rect':
       return <rect x={dec.x} y={dec.y} width={dec.w ?? 0} height={dec.h ?? 0}
@@ -421,7 +435,7 @@ function Decoration({ dec, textCol }: { dec: import('./types').PanelDecoration; 
       return <line x1={dec.x} y1={dec.y} x2={dec.x2 ?? dec.x} y2={dec.y2 ?? dec.y}
         stroke={dec.color ?? '#444'} strokeWidth={0.3} />;
     case 'text':
-      return <text x={dec.x} y={dec.y} fontSize={dec.fontSize ?? 2}
+      return <text x={dec.x} y={dec.y} fontSize={(dec.fontSize ?? 2) * ts}
         fill={dec.color ?? textCol} textAnchor="middle">{dec.text}</text>;
     case 'tubeSlot':
       return (
@@ -478,6 +492,7 @@ function PortGlyph({
   onClick?: () => void;
   textCol: string;
 }): JSX.Element {
+  const ts = useContext(TextScale);
   const colour = SIGNAL_COLOUR[port.signalType];
   const label = port.name;
   const lx = labelPos === 'left'  ? x - JACK_R - 0.6
@@ -518,7 +533,7 @@ function PortGlyph({
         </>
       )}
       {showLabel && labelPos !== 'none' && (
-        <text x={lx} y={ly} fontSize={1.6} fill={textCol} textAnchor={anchor}
+        <text x={lx} y={ly} fontSize={1.6 * ts} fill={textCol} textAnchor={anchor}
           fontWeight={500}>{label}</text>
       )}
     </g>
@@ -592,6 +607,7 @@ function KnobGlyph({
   /** Label van de patch (Patch.controlLabels): vervangt de gedrukte naam, in groen. */
   caption?: string;
 }): JSX.Element {
+  const ts = useContext(TextScale);
   const size = sizeOverride ?? c.size ?? 'medium';
   const r = KNOB_R[size] ?? KNOB_R.medium!;
   const cap = c.color ?? capColourFor(c.style ?? 'generic');
@@ -728,7 +744,7 @@ function KnobGlyph({
         stroke={pointerColourFor(c.style ?? 'generic', cap)}
         strokeWidth={Math.max(0.4, r * 0.16)} strokeLinecap="round" />
       {/* label below */}
-      <text x={x} y={y + r + 2.2} fontSize={1.8} fill={caption ? '#4ade80' : textCol}
+      <text x={x} y={y + r + 2.2 + (ts - 1) * 1.6} fontSize={1.8 * ts} fill={caption ? '#4ade80' : textCol}
         textAnchor="middle" fontWeight={500}>{caption ?? c.label}</text>
     </g>
   );
@@ -740,6 +756,7 @@ function KnobTicks({
   c: import('./types').KnobControl;
   x: number; y: number; r: number;
 }): JSX.Element {
+  const ts = useContext(TextScale);
   const every = c.ticks?.every ?? 1;
   const highlight = new Set(c.ticks?.highlight ?? []);
   const range = c.max - c.min;
@@ -767,7 +784,7 @@ function KnobTicks({
         <text key={`l${v}`}
           x={x + Math.sin(a) * (r0 + len + 1.4)}
           y={y - Math.cos(a) * (r0 + len + 1.4) + 0.6}
-          fontSize={1.3} fill="#fbbf24" textAnchor="middle" fontWeight={600}>
+          fontSize={1.3 * ts} fill="#fbbf24" textAnchor="middle" fontWeight={600}>
           {c.ticks?.labels?.[Math.round(v)] ?? Math.round(v)}
         </text>
       );
@@ -813,6 +830,7 @@ function SliderGlyph({
   /** Label van de patch (Patch.controlLabels): vervangt de gedrukte naam, in groen. */
   caption?: string;
 }): JSX.Element {
+  const ts = useContext(TextScale);
   const len = c.lengthMm ?? 18;
   const isV = c.orientation === 'v';
   const t = (value - c.min) / (c.max - c.min || 1);
@@ -839,13 +857,26 @@ function SliderGlyph({
     return () => { el.removeEventListener('touchstart', onTouch); el.removeEventListener('touchmove', onTouch); };
   }, []);
 
+  // Vinger: de schuif staat waar je vinger is (absoluut; de baan is breed
+  // genoeg om te raken). Muis: relatief slepen, zoals bij de knop.
+  const absolute = useRef(false);
+  function valueAtClient(cx: number, cy: number): number | null {
+    const m = gRef.current?.getScreenCTM();
+    if (!m) return null;
+    const pt = new DOMPoint(cx, cy).matrixTransform(m.inverse());   // in de (gedraaide) groep
+    const t = isV ? (y2 - pt.y) / len : (pt.x - x1) / len;
+    return clamp(c.min + clamp(t, 0, 1) * (c.max - c.min), Math.min(c.min, c.max), Math.max(c.min, c.max));
+  }
   function onPointerDown(e: React.PointerEvent<SVGGElement>): void {
     if (!onChange) return;
     try { (e.target as Element).setPointerCapture(e.pointerId); } catch { /* synthetisch event zonder actieve pointer */ }
     dragState.current = { startY: e.clientY, startX: e.clientX, startVal: value };
+    absolute.current = e.pointerType === 'touch';
+    if (absolute.current) { const v = valueAtClient(e.clientX, e.clientY); if (v !== null) onChange(v); }
   }
   function onPointerMove(e: React.PointerEvent<SVGGElement>): void {
     if (!dragState.current || !onChange) return;
+    if (absolute.current) { const v = valueAtClient(e.clientX, e.clientY); if (v !== null) onChange(v); return; }
     const d = isV
       ? (dragState.current.startY - e.clientY)
       : (e.clientX - dragState.current.startX);
@@ -863,11 +894,13 @@ function SliderGlyph({
        style={{ cursor: onChange ? (isV ? 'ns-resize' : 'ew-resize') : 'default', touchAction: 'none' }}
        onPointerDown={onPointerDown} onPointerMove={onPointerMove}
        onPointerUp={onPointerUp} onPointerCancel={onPointerUp}>
+      {/* Grijpvlak: de hele baan, 8 mm breed — een vinger raakt de dunne lijn niet. */}
+      <rect x={isV ? x - 4 : x1 - 1.5} y={isV ? y1 - 1.5 : y - 4} width={isV ? 8 : len + 3} height={isV ? len + 3 : 8} fill="transparent" />
       <line x1={x1} y1={y1} x2={x2} y2={y2}
         stroke="#1a1a1a" strokeWidth={0.6} strokeLinecap="round" />
       <rect x={capX - 1.5} y={capY - 0.9} width={3} height={1.8}
         fill="#e5e7eb" stroke="#1a1a1a" strokeWidth={0.15} rx={0.3} />
-      <text x={x} y={isV ? y2 + 2 : y + 3.6} fontSize={1.6}
+      <text x={x} y={isV ? y2 + 2 + (ts - 1) * 1.4 : y + 3.6 + (ts - 1) * 1.4} fontSize={1.6 * ts}
         fill={caption ? '#4ade80' : textCol} textAnchor="middle">{caption ?? c.label}</text>
     </g>
   );
@@ -883,12 +916,13 @@ function ToggleGlyph({
   value: boolean; onChange?: (v: boolean) => void;
   textCol: string;
 }): JSX.Element {
+  const ts = useContext(TextScale);
   return (
     <g style={{ cursor: onChange ? 'pointer' : 'default' }}
        onClick={() => onChange?.(!value)}>
       {/* Label boven het schakelaartje, zodat "up = on" visueel klopt
           (label staat aan de "aan"-kant). */}
-      <text x={x} y={y - 4.4} fontSize={1.6} fill={textCol} textAnchor="middle">
+      <text x={x} y={y - 4.4} fontSize={1.6 * ts} fill={textCol} textAnchor="middle">
         {c.label}
       </text>
       <rect x={x - 2} y={y - 3} width={4} height={6} fill="#2a2a2a" rx={0.6}
@@ -896,7 +930,7 @@ function ToggleGlyph({
       <rect x={x - 1.4} y={value ? y - 2.5 : y + 0.4} width={2.8} height={2.1}
         fill="#e5e7eb" rx={0.3} />
       {/* Statusletter rechts van het schakelaartje. */}
-      <text x={x + 3.2} y={y + 0.7} fontSize={1.3} fill={value ? '#22c55e' : '#6b7280'}>
+      <text x={x + 3.2} y={y + 0.7} fontSize={1.3 * ts} fill={value ? '#22c55e' : '#6b7280'}>
         {value ? 'on' : 'off'}
       </text>
     </g>
@@ -913,6 +947,7 @@ function SwitchGlyph({
   value: number; onChange?: (v: number) => void;
   textCol: string;
 }): JSX.Element {
+  const ts = useContext(TextScale);
   const n = c.positions.length;
   const idx = Math.max(0, Math.min(n - 1, value));
   // Bij meer dan drie standen groeit het schuifje mee, anders plakken de
@@ -928,11 +963,11 @@ function SwitchGlyph({
       <rect x={x - 1.2} y={top + idx * step + 0.3} width={2.4} height={1.4}
         fill="#e5e7eb" rx={0.2} />
       {c.positions.map((p, i) => (
-        <text key={i} x={x + 2.4} y={top + i * step + 1.6} fontSize={1.6}
+        <text key={i} x={x + 2.4} y={top + i * step + 1.6} fontSize={1.6 * ts}
           fill={textCol} opacity={i === idx ? 1 : 0.55}
           fontWeight={i === idx ? 700 : 400}>{p}</text>
       ))}
-      <text x={x} y={top + h + 2.4} fontSize={1.5} fill={textCol} textAnchor="middle">{c.label}</text>
+      <text x={x} y={top + h + 2.4} fontSize={1.5 * ts} fill={textCol} textAnchor="middle">{c.label}</text>
     </g>
   );
 }
@@ -990,6 +1025,7 @@ function CaptionLabel({ x, y, label, caption, onCaption, textCol, width, display
   /** Altijd een display tonen (grote knoppen, PADS), ook zonder tekst. */
   display?: boolean;
 }): JSX.Element {
+  const ts = useContext(TextScale);
   function edit(e: React.PointerEvent): void {
     if (!onCaption) return;
     e.stopPropagation();
@@ -1010,7 +1046,7 @@ function CaptionLabel({ x, y, label, caption, onCaption, textCol, width, display
     return (
       <g onPointerDown={stop} style={{ cursor: onCaption ? 'text' : undefined }}>
         {tip}
-        <text x={x} y={y + 2.2} fontSize={1.5} fill={textCol} textAnchor="middle">{label}</text>
+        <text x={x} y={y + 2.2} fontSize={1.5 * ts} fill={textCol} textAnchor="middle">{label}</text>
       </g>
     );
   }
@@ -1039,6 +1075,7 @@ function JoystickGlyph({
   onChange?: (v: { x: number; y: number }) => void;
   textCol: string;
 }): JSX.Element {
+  const ts = useContext(TextScale);
   const r = 4;
   const dotX = x + clamp(value.x, -1, 1) * r;
   const dotY = y - clamp(value.y, -1, 1) * r;
@@ -1047,7 +1084,7 @@ function JoystickGlyph({
       <circle cx={x} cy={y} r={r} fill="#1a1a1a" stroke="#000" strokeWidth={0.2} />
       <circle cx={dotX} cy={dotY} r={1} fill="#fbbf24"
         style={{ cursor: onChange ? 'pointer' : 'default' }} />
-      <text x={x} y={y + r + 2.2} fontSize={1.5} fill={textCol} textAnchor="middle">{c.label}</text>
+      <text x={x} y={y + r + 2.2} fontSize={1.5 * ts} fill={textCol} textAnchor="middle">{c.label}</text>
     </g>
   );
 }
@@ -1061,12 +1098,13 @@ function ExoticGlyph({
   x: number; y: number; value: number;
   textCol: string;
 }): JSX.Element {
+  const ts = useContext(TextScale);
   return (
     <g>
       <rect x={x - 3} y={y - 3} width={6} height={6} fill="none"
         stroke="#9333ea" strokeDasharray="0.6 0.6" strokeWidth={0.3} />
-      <text x={x} y={y + 0.6} fontSize={1.4} fill={textCol} textAnchor="middle">?</text>
-      <text x={x} y={y + 5} fontSize={1.4} fill={textCol} textAnchor="middle">{c.label}</text>
+      <text x={x} y={y + 0.6} fontSize={1.4 * ts} fill={textCol} textAnchor="middle">?</text>
+      <text x={x} y={y + 5} fontSize={1.4 * ts} fill={textCol} textAnchor="middle">{c.label}</text>
     </g>
   );
 }
@@ -1082,6 +1120,7 @@ function DisplayGlyph({
   controlState?: Record<string, ControlValue>;
   textCol: string;
 }): JSX.Element {
+  const ts = useContext(TextScale);
   const style = c.style ?? 'led';
   // Resolve waarde
   let display = c.text ?? '';
@@ -1124,7 +1163,7 @@ function DisplayGlyph({
   return (
     <g>
       {c.label && (
-        <text x={x} y={y - h / 2 - labelOffset} fontSize={1.4} fill={textCol} textAnchor="middle">
+        <text x={x} y={y - h / 2 - labelOffset} fontSize={1.4 * ts} fill={textCol} textAnchor="middle">
           {c.label}
         </text>
       )}
@@ -1164,6 +1203,7 @@ function LedGlyph({
   controlState?: Record<string, ControlValue>;
   textCol: string;
 }): JSX.Element {
+  const ts = useContext(TextScale);
   const sizeR = c.size === 'large' ? 1.6 : c.size === 'small' ? 0.7 : 1.1;
   const colour = c.color ?? '#22c55e';
   let on = true;
@@ -1181,7 +1221,7 @@ function LedGlyph({
       <circle cx={x} cy={y} r={sizeR} fill={on ? colour : '#333'}
         style={on ? { filter: `drop-shadow(0 0 ${sizeR * 1.4}px ${colour})` } : undefined} />
       {c.label && (
-        <text x={x} y={y + sizeR + 2.4} fontSize={1.2} fill={textCol} textAnchor="middle">
+        <text x={x} y={y + sizeR + 2.4} fontSize={1.2 * ts} fill={textCol} textAnchor="middle">
           {c.label}
         </text>
       )}

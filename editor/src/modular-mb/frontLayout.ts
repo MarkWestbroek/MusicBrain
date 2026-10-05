@@ -132,7 +132,9 @@ export function buildFrontModule(front: PatchFront, patch: Patch, project: Modul
     r.forEach((cell, i) => {
       controls.push(cell.c);
       const cx = MARGIN_X + CELL_W * (i + 0.5);
-      const cy = cell.c.kind === 'slider' && cell.c.orientation === 'v' ? top + 4 : top + h / 2 - 2;
+      // Een staande schuif tekent zich rond zijn midden (SliderGlyph): midden
+      // op top + 3 + len/2, zodat hij netjes binnen de rij (len + 12) valt.
+      const cy = cell.c.kind === 'slider' && cell.c.orientation === 'v' ? top + 3 + (cell.c.lengthMm ?? 18) / 2 : top + h / 2 - 2;
       controlPlacements[cell.vid] = {
         x: cx, y: cy,
         sizeOverride: cell.c.kind === 'knob' ? (cell.size === 'large' ? 'large' : cell.size === 'small' ? 'small' : 'medium') : undefined,

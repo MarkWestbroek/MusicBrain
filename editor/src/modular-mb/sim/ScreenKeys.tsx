@@ -25,7 +25,7 @@ export type SlideMode = 'note' | 'bend';
 
 export function ScreenKeys({
   octave, octaves = 2, onNoteOn, onNoteOff, onOctave, onAftertouch, onBend, onMod, onSustain, pedal, slide = 'note', onSlide,
-  bendKeys = 1, onBendKeys, tall = false, onTall, extra, maxWidth = 560, hint,
+  bendKeys = 1, onBendKeys, tall = false, onTall, onPanic, extra, maxWidth = 560, hint,
 }: {
   octave: number; octaves?: number;
   onNoteOn: (midi: number, velocity: number) => void;
@@ -50,6 +50,8 @@ export function ScreenKeys({
   /** Lange toetsen: meer weg voor aanslag en aftertouch. */
   tall?: boolean;
   onTall?: (tall: boolean) => void;
+  /** Panic: alle noten uit (de engine); het klavier laat zelf ook alles los. */
+  onPanic?: () => void;
   /** Extra knoppen in de werkbalk (bv. volledig scherm). */
   extra?: ReactNode;
   maxWidth?: number;
@@ -118,6 +120,15 @@ export function ScreenKeys({
     if (w === 'bend') { const v = bendFromY(y, h); setBendPos(v); onBend?.(v); }
     else { const v = modFromY(y, h); setModPos(v); onMod?.(v); }
   }
+  /** Alles los: elke vinger vergeten, wielen terug, en de engine erbij. */
+  function panic(): void {
+    for (const id of [...held.current.keys()]) release(id);
+    held.current.clear();
+    wheelHeld.current.clear();
+    setBendPos(8192); onBend?.(8192);
+    setDown(new Set());
+    onPanic?.();
+  }
   const onPointerDown = (e: React.PointerEvent<SVGSVGElement>): void => {
     if (e.button !== 0 && e.pointerType === 'mouse') return;
     e.preventDefault();
@@ -150,15 +161,15 @@ export function ScreenKeys({
     release(e.pointerId);
   };
 
-  const btn: React.CSSProperties = { fontSize: 12, padding: '3px 10px', cursor: 'pointer' };
+  const btn: React.CSSProperties = { fontSize: 12, padding: '3px 8px', cursor: 'pointer' };
   const oct: React.CSSProperties = { ...btn, fontSize: 16, fontWeight: 700, padding: '2px 12px', lineHeight: 1.2 };
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxWidth, WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}>
       {/* Werkbalk: octaaf links en rechts boven het klavier (de C-labels
           tonen het octaaf), daartussen pedalen en instellingen. */}
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', touchAction: 'none' }}>
+      <div style={{ display: 'flex', gap: 6, alignItems: 'center', touchAction: 'none' }}>
         {onOctave && <button type="button" onClick={() => onOctave(-1)} style={oct} title="Octaaf omlaag" aria-label="Octaaf omlaag">−</button>}
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', flex: 1, justifyContent: 'center' }}>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', flex: 1, justifyContent: 'center', minWidth: 0 }}>
           {onSustain && (
             <button type="button"
               title="Sustainpedaal (CC 64): tik = vast of los, vasthouden = tijdelijk"
@@ -177,24 +188,23 @@ export function ScreenKeys({
               }}
               onPointerCancel={() => setSus(false)}
               onContextMenu={(e) => e.preventDefault()}
-              style={{ ...btn, padding: '6px 12px', fontWeight: sustain ? 700 : 400, background: sustain ? '#fde68a' : undefined, userSelect: 'none' }}>
+              style={{ ...btn, padding: '5px 10px', fontWeight: sustain ? 700 : 400, background: sustain ? '#fde68a' : undefined, userSelect: 'none' }}>
               {sustain ? '⏺ Sustain' : '○ Sustain'}
             </button>
           )}
           {pedal && (
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }} title="Pedaalschuif (expressie/wah) op de eerste CC van de MIDI-IN">
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12 }} title={`Pedaalschuif (expressie/wah) op de eerste CC van de MIDI-IN: ${pedal.label}, stand ${pedalPos}`}>
               {pedal.label}
               <input type="range" min={0} max={127} value={pedalPos}
                 onChange={(e) => { const v = Number(e.target.value); setPedalPos(v); pedal.onChange(v); }}
-                style={{ width: 110 }} />
-              <span style={{ width: 24, textAlign: 'right', color: '#6b7280' }}>{pedalPos}</span>
+                style={{ width: 84 }} />
             </label>
           )}
           {onSlide && (
             <label style={{ fontSize: 12, display: 'inline-flex', gap: 4, alignItems: 'center' }} title="Wat opzij schuiven over de toetsen doet; omhoog schuiven is altijd aftertouch">
               opzij:
               <select value={slide} onChange={(e) => onSlide(e.target.value as SlideMode)} style={{ fontSize: 12 }}>
-                <option value="note">noot wisselen</option>
+                <option value="note">wisselen</option>
                 <option value="bend">buigen</option>
               </select>
             </label>
@@ -212,6 +222,9 @@ export function ScreenKeys({
               title="Lange toetsen: meer weg voor aanslag (laag = hard) en aftertouch (omhoog schuiven)" aria-label="Lange toetsen">
               ⇕
             </button>
+          )}
+          {onPanic && (
+            <button type="button" onClick={panic} style={btn} title="Panic: alle noten uit (ook een hangende)" aria-label="Alle noten uit">⏹</button>
           )}
           {extra}
         </div>

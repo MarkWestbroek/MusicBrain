@@ -390,8 +390,9 @@ export class AudioEngine {
     this.tickMeter();
   }
 
-  stop(): void {
-    this.runGate?.gain.rampTo(0, 0.01);
+  /** Panic: elke noot los, elke gate laag, de toetsenstapel leeg — de
+   *  simulator blijft lopen. Ook wat stop() doet vóór hij het geluid dichtdraait. */
+  allNotesOff(): void {
     for (const node of this.nodes.values()) {
       if (node.kind !== 'wasm') continue;
       for (const p of allGatePorts(node.runtime)) node.runtime.setInput(p, 0);
@@ -401,6 +402,11 @@ export class AudioEngine {
     this.wasmVoice.forEach((v) => { v.note = null; });
     this.noteStack.clear();
     this.currentKeyboardNote = null;
+  }
+
+  stop(): void {
+    this.runGate?.gain.rampTo(0, 0.01);
+    this.allNotesOff();
     this.status.running = false;
     this.status.level = 0;
     this.status.voiceFreqHz = 0;

@@ -4,7 +4,7 @@
 // wijziging via de store; de live waarden van engine of Teensy komen hier
 // als overlay terug, zoals in de patcher.
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { ModulePanel } from './ModulePanel';
 import { buildFrontModule, frontControlState } from './frontLayout';
@@ -23,6 +23,13 @@ export function FrontPanel({ front, patch, project, pxPerMm = 3, onPortClick, on
 }): JSX.Element {
   const fm = useMemo(() => buildFrontModule(front, patch, project), [front, patch.controlLabels, project.modules, project.moduleTypes]);
   const live = useEngineStatus().liveControls;
+  // Smal scherm: letters op het front anderhalf keer zo groot, de knoppen niet.
+  const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && window.innerWidth < 640);
+  useEffect(() => {
+    const sync = (): void => setNarrow(window.innerWidth < 640);
+    window.addEventListener('resize', sync);
+    return () => window.removeEventListener('resize', sync);
+  }, []);
   const controlState = frontControlState(fm, patch, live);
 
   function onControlChange(vid: string, value: ControlValue): void {
@@ -97,6 +104,7 @@ export function FrontPanel({ front, patch, project, pxPerMm = 3, onPortClick, on
         if (t?.kind === 'port') onPortClick(t.moduleId, t.portId, port);
       } : undefined}
       pxPerMm={pxPerMm}
+      textScale={narrow ? 1.5 : 1}
       />
     </div>
   );
