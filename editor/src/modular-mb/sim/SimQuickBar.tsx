@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { getEngine, useEngineStatus } from './engineSingleton';
 import { midiMonitor } from './midiMonitor';
 import { openMidiMonitor } from './MidiMonitorWindow';
+import { TuningChip } from './TuningChip';
 
 function useMidiFlash(): boolean {
   const [on, setOn] = useState(false);
@@ -48,6 +49,7 @@ export function SimQuickBar(): JSX.Element {
         title={status.running ? 'Simulator stoppen' : 'Simulator starten (de MIDI-bron uit de Simulatie-tab speelt mee)'}>
         {status.running ? '■ Sim' : '▶ Sim'}
       </button>
+      <TuningChip style={btn} />
       <button style={btn} onClick={openMidiMonitor} title="MIDI-monitor: wat je keyboard stuurt en wat de patch ontvangt">
         <span aria-hidden style={{
           width: 8, height: 8, borderRadius: 4, display: 'inline-block',

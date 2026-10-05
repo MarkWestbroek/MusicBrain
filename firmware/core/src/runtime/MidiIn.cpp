@@ -2,6 +2,7 @@
 #include "mb/runtime/MidiIn.h"
 
 #include <algorithm>
+#include <cmath>
 
 namespace mb::runtime {
 
@@ -87,6 +88,10 @@ void MidiInModule::setControl(std::string_view controlId, ControlValue value) {
     } else if (controlId == "spread") {
         // Total unison detune spread in cents; a couple of semitones is plenty.
         spreadCents_ = std::clamp(asFloat(0.0f), 0.0f, 200.0f);
+    } else if (controlId == "a4") {
+        // Concert pitch in Hz → V/Oct offset on every pitch output.
+        const float hz = std::clamp(asFloat(440.0f), 380.0f, 500.0f);
+        tuneV_ = std::log2(hz / 440.0f);
     }
     // Unknown ids are silently ignored (forward-compat with older patches).
 }
@@ -321,7 +326,7 @@ float MidiInModule::voicePitchV(std::uint8_t voiceIdx) const {
         : noteToVolts(currentNote_[voiceIdx]);
     // `bendPitch` folds the wheel in here (per voice), otherwise the bend is
     // only on cv_bend and the patch sums it itself.
-    return base + spreadOffsetV(voiceIdx) + (bendPitch_ ? pitchBendV() : 0.0f);
+    return base + tuneV_ + spreadOffsetV(voiceIdx) + (bendPitch_ ? pitchBendV() : 0.0f);
 }
 
 bool MidiInModule::voiceGate(std::uint8_t voiceIdx) const {

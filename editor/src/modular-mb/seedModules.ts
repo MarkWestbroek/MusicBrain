@@ -1050,6 +1050,10 @@ function mmbMidiIn() {
       display('cc1Disp', w*0.34, 80, { digits: 3, style: 'led', bindTo: 'cc1Num', format: 'int' }),
       knob   ('cc2Num',  'CC2#', w*0.58, 80, { size: 'small', min: 0, max: 127, def: 71, step: 1, color: '#f9fafb' }),
       display('cc2Disp', w*0.76, 80, { digits: 3, style: 'led', bindTo: 'cc2Num', format: 'int' }),
+      // Stemtoon: elke pitch-uitgang schuift log2(a4/440) V (A432 = -31,8 ct).
+      // De speler zet dit meestal persoonlijk (chip A= in de kop); dan
+      // gaat die instelling hier overheen.
+      knob('a4', 'A4', w*0.93, 80, { size: 'small', min: 380, max: 500, def: 440, step: 1, unit: 'Hz', color: '#f9fafb' }),
       // Note-outputs (per stem) — links.
       outPort('pitch', 'V/Oct', 'cv',   w*0.07, 112, { eventKind: 'voice' }),
       outPort('gate',  'Gate',  'gate', w*0.17, 112, { eventKind: 'voice' }),

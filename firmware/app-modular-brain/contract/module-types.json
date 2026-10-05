@@ -1146,6 +1146,7 @@
         "vel"
       ],
       "controls": [
+        "a4",
         "bendPitch",
         "bendRange",
         "cc1Num",

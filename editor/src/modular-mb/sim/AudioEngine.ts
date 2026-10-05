@@ -30,6 +30,7 @@ import { simSupportByKind } from './simSupport';
 import { NoteStack, notePriorityOf, pickVoiceIndex,
   stealStrategyOf, type NotePriority, type StealStrategy } from './polySim';
 import { planSimGraph, MIDIIN_TYPE } from './simGraph';
+import { effectiveA4, tuneVolts } from './tuning';
 import { pickTeensyInput } from './teensyInput';
 
 export interface EngineStatus {
@@ -195,6 +196,16 @@ export class AudioEngine {
    *  patch, dan speelt die de gekabelde modules zelf, met de firmwareregels. */
   private steal: StealStrategy = 'oldest';
   private glideMs = 0;
+  // Stemtoon (sim/tuning.ts): de persoonlijke A4 (null = volgens patch), de
+  // A4-knop van de MIDI-IN van de patch, en wat daaruit volgt als V/Oct-
+  // offset. Eén constant signaal, opgeteld bij elke pitch-kabel uit MIDI-IN
+  // (Web Audio sommeert op een ingang) en bij het klavier-gemak. De wasm-
+  // MIDI-IN krijgt `a4` bewust niet: zo blijft het één implementatie in de
+  // simulator, ook als de wasm later opnieuw gebouwd wordt met de knop.
+  private personalA4: number | null = null;
+  private patchA4 = 440;
+  private tuneV = 0;
+  private tuneSig: Tone.Signal<'number'> | null = null;
   private noteStack = new NoteStack();
   private priority: NotePriority = 'last';
   private legato = false;
@@ -505,6 +516,8 @@ export class AudioEngine {
       case 'wasm': {
         // Het aantal stemmen verandert de groepen zelf — dat blijft een rebuild.
         if (node.type.id === MIDIIN && controlId === 'voiceCount') return false;
+        // De stemtoon doet de engine zelf (tuneSig), niet de wasm — zie readMidiInKnobs.
+        if (node.type.id === MIDIIN && controlId === 'a4') { this.readMidiInKnobs(node.controls); return true; }
         node.runtime.setControl(controlId, value);
         // Master van een PolyGroup: knop waaiert uit naar de followers.
         for (const fid of this.wasmGroups.get(node.moduleId) ?? []) {
@@ -668,6 +681,24 @@ export class AudioEngine {
     this.glideMs = Math.max(0, readKnob(c, 'glide', 0));
     this.priority = notePriorityOf(readKnob(c, 'priority', 0));
     this.legato = readKnob(c, 'legato', 0) >= 0.5;
+    this.patchA4 = readKnob(c, 'a4', 440);
+    this.applyTuning();
+  }
+
+  /** Persoonlijke stemtoon (Hz), of null = de A4-knop van de patch. */
+  setTuningA4(hz: number | null): void {
+    this.personalA4 = hz;
+    this.applyTuning();
+  }
+  /** De stemtoon die nu klinkt (Hz). */
+  tuningA4(): number { return effectiveA4(this.personalA4, this.patchA4); }
+  private applyTuning(): void {
+    this.tuneV = tuneVolts(this.tuningA4());
+    if (this.tuneSig) this.tuneSig.rampTo(this.tuneV, 0.02);
+  }
+  private ensureTuneSig(): Tone.Signal<'number'> {
+    if (!this.tuneSig) this.tuneSig = new Tone.Signal(this.tuneV);
+    return this.tuneSig;
   }
 
   /**
@@ -695,7 +726,7 @@ export class AudioEngine {
         this.wasmNoteOn(node.moduleId, midi, velocity, done, retrigger);
       }
     }
-    this.status.voiceFreqHz = midiToHz(midi);
+    this.status.voiceFreqHz = midiToHz(midi) * Math.pow(2, this.tuneV);
     this.emit();
   }
 
@@ -752,7 +783,7 @@ export class AudioEngine {
         const primed = this.glidePrimed.has(voice);
         this.glidePrimed.add(voice);
         const slew = primed && this.glideMs > 0 ? 1000 / this.glideMs : 0;
-        rt.setInput(voct, (midi - 60) / 12, slew);
+        rt.setInput(voct, (midi - 60) / 12 + this.tuneV, slew);
       }
       const vp = wasmVelPort(rt, sfx);
       if (vp && !rt.cabled.has(vp)) rt.setInput(vp, clamp(velocity, 0, 1));
@@ -821,6 +852,11 @@ export class AudioEngine {
       tail = g;
       this.cableGains.set(conn.id, g);
       if (dst.kind === 'wasm') dst.runtime.extra.push(g); else if (src.kind === 'wasm') src.runtime.extra.push(g);
+    }
+    // Stemtoon: elke pitch-kabel uit MIDI-IN krijgt de V/Oct-offset erbij
+    // (de ingang sommeert; zie tuning.ts).
+    if (src.kind === 'wasm' && src.type.id === MIDIIN && /^pitch\d*$/.test(conn.from.portId)) {
+      this.ensureTuneSig().connect(inp);
     }
     if (src.kind === 'wasm' && dst.kind === 'wasm') {
       // Web Audio dempt een lus zonder DelayNode (Stages.eoc → Marbles.clock

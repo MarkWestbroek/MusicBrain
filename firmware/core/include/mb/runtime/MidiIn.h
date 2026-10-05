@@ -39,6 +39,7 @@
  * | `cc2Num`     | int     | CC number routed to `cv_cc2` (0..127; default 71)  |
  * | `bendRange`  | int     | pitch-bend range in semitones (1..24; default 2)   |
  * | `bendPitch`  | int     | fold pitch-bend into `pitch`/`pitchK` (0/1; default 0) |
+ * | `a4`         | float   | concert pitch in Hz (380..500; default 440): every pitch output is shifted by log2(a4/440) V, so A432 plays 31.8 cent low on any V/Oct oscillator |
  *
  * **V/Oct convention:**
  * MIDI note 60 (middle C) = 0.0 V; each octave (12 semitones) = ±1.0 V.
@@ -187,6 +188,9 @@ public:
         return voiceIdx < kMaxAllocVoices ? static_cast<float>(rel_[voiceIdx]) * (1.0f / 127.0f) : 0.0f;
     }
 
+    /** @brief Concert-pitch offset in V/Oct: log2(a4 / 440). 0 at A440. */
+    float tuneV() const { return tuneV_; }
+
     /** @brief Pitch-bend offset in V/Oct (±`bendRange` semitones). */
     float pitchBendV() const {
         const float norm = (static_cast<float>(bend14_) - 8192.0f) / 8192.0f; // -1..~+1
@@ -283,6 +287,10 @@ private:
     // voice in voicePitchV() so a later MPE mode (bend per channel = per
     // voice) only has to swap the global bend14_ for a per-voice one.
     bool                       bendPitch_ = false;
+    // `a4`: concert pitch. Kept as the V/Oct offset it implies, added to
+    // every voice's pitch readout (not to cv_bend), so the whole patch
+    // transposes by the same fraction of a semitone — one knob for A432.
+    float                      tuneV_     = 0.0f;
 
     // Per-voice state, indexed 0..kMaxAllocVoices-1. We keep velocity
     // separate from the allocator's `VoiceState` so the allocator stays

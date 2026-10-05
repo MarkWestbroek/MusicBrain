@@ -17,6 +17,22 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-05 — Stemtoon A4 (A432): MIDI-IN `a4` in de firmware, persoonlijke instelling in de editor
+- **Firmware** (`core/runtime/MidiIn`): control `a4` (Hz, 380–500, standaard
+  440). Elke pitch-uitgang (`pitch`, `pitchK`) schuift log2(a4/440) V, dus
+  alle V/Oct-oscillators gaan mee; A432 = −31,8 cent. Niet op `cv_bend`.
+  Hosttest `midiin_a4_shifts_every_pitch_output_by_log2_of_the_ratio`
+  (142 tests groen). Contract opnieuw gedumpt (fw 0.5.94 + `a4`). Niet op
+  hardware gebouwd; de wasm van MIDI-IN is niet opnieuw gebouwd (geen
+  wasi-sdk hier), zie FW-13.
+- **Editor**: chip **A = …** in de kop naast ▶ Sim en MIDI (`sim/TuningChip.tsx`,
+  `sim/tuning.ts`): persoonlijk, voor elke patch, onthouden in de browser;
+  "A = patch" volgt de nieuwe A4-knop op het MIDI-IN-paneel. De simulator
+  telt de offset op bij elke pitch-kabel uit MIDI-IN (één constant signaal
+  op de ingang) en bij het klavier-gemak, en stuurt `a4` bewust niet naar de
+  wasm. De Teensy krijgt per patch een controlPoke `a4` op elke MIDI-IN
+  (vluchtig tot er een apparaatinstelling is). Catalogus bijgewerkt. 2 tests.
+
 ### 2026-10-04 — Speelmodus op de telefoon: wielen, pedalen, patchkeuze, https (editor, geen nieuwe firmware)
 - **Schermtoetsenbord compleet voor alle MIDI-IN-ingangen** (`sim/ScreenKeys.tsx`,
   `sim/screenKeysLayout.ts`, `FrontKeys.tsx`): pitchbend- en modwiel naast de

@@ -1520,7 +1520,9 @@ describe('tp_mmb_midiin (MidiInModule zelf)', () => {
     for (const id of ['pitch', 'gate', 'vel', 'press', 'rel', 'cv_mod', 'cv_bend', 'cv_cc1', 'cv_cc2', 'pitch16', 'gate16', 'vel16', 'press16', 'rel16'])
       expect(m.outputs).toContain(id);
     const t = project.moduleTypes.find((x) => x.id === 'tp_mmb_midiin')!;
-    const echte = t.controls.filter((c) => !['led', 'display'].includes(String((c as { kind?: string }).kind)));
+    // `a4` (stemtoon) doet de engine zelf (sim/tuning.ts: offset op elke
+    // pitch-kabel); de wasm krijgt die control bewust niet.
+    const echte = t.controls.filter((c) => !['led', 'display'].includes(String((c as { kind?: string }).kind)) && c.id !== 'a4');
     for (const c of echte) expect(m.controls, c.id).toContain(c.id);
     expect(m.controls).toContain('voiceCount');
   });

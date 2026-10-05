@@ -65,6 +65,26 @@ MB_TEST(midiin_mono_noteon_raises_gate_and_sets_pitch) {
     MB_REQUIRE(std::fabs(midi.voicePitchV(0) - 0.0f) < kEps);
 }
 
+MB_TEST(midiin_a4_shifts_every_pitch_output_by_log2_of_the_ratio) {
+    MidiInModule midi("m");
+    midi.setControl("voiceCount", std::int32_t{2});
+    midi.onNoteOn(1, 60, 100);
+    midi.onNoteOn(1, 72, 100);
+    // A432: log2(432/440) = -0.03163 V = -31.8 cent, on both voices.
+    midi.setControl("a4", 432.0f);
+    const float off = std::log2(432.0f / 440.0f);
+    MB_REQUIRE(std::fabs(midi.tuneV() - off) < kEps);
+    MB_REQUIRE(std::fabs(midi.voicePitchV(0) - (0.0f + off)) < kEps);
+    MB_REQUIRE(std::fabs(midi.voicePitchV(1) - (1.0f + off)) < kEps);
+    // Not on cv_bend: the wheel stays centred.
+    MB_REQUIRE(std::fabs(midi.pitchBendV()) < kEps);
+    // Back to 440 = no offset; out-of-range values clamp (380..500).
+    midi.setControl("a4", 440.0f);
+    MB_REQUIRE(std::fabs(midi.voicePitchV(0)) < kEps);
+    midi.setControl("a4", 10.0f);
+    MB_REQUIRE(std::fabs(midi.tuneV() - std::log2(380.0f / 440.0f)) < kEps);
+}
+
 MB_TEST(midiin_mono_priority_high_ignores_lower_keys) {
     MidiInModule midi("m");
     midi.setControl("priority", ControlValue{std::int32_t{2}});   // high
