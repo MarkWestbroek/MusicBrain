@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 
 import { ModulePanel } from './ModulePanel';
 import { frontIssues } from './fronts';
-import { autoFront, buildFrontModule, frontControlState, patchModulesInSignalOrder, rankKnobs, withNameDisplays } from './frontLayout';
+import { autoFront, buildFrontModule, frontAddModules, frontControlState, patchModulesInSignalOrder, rankKnobs, withNameDisplays } from './frontLayout';
 import { findModuleByWord } from './recipe/edits';
 import { buildRecipe } from './recipe/compile';
 import { seedInternals, seedKrellPatch, seedSoloVoicePatch } from './seedModules';
@@ -268,5 +268,17 @@ describe('displays op een front', () => {
     const key = fm.type.controls[0]!.kind === 'led' ? fm.type.controls[0]!.bindTo! : '';
     expect(frontControlState(fm, patch)[key]).toBeUndefined();   // sim staat stil
     expect(frontControlState(fm, patch, { seq1: { __currentStep: 3 } })[key]).toBe(3);
+  });
+});
+
+describe('frontAddModules (de lijst achter + Toevoegen)', () => {
+  it('geeft elke module van de patch één keer, in signaalvolgorde, met een naam die dubbelen uit elkaar houdt', () => {
+    const { p } = voice();   // twee AHDSR's (filter en amp)
+    const patch = active(p);
+    const list = frontAddModules(patch, p);
+    expect(list.map((x) => x.id)).toEqual(patchModulesInSignalOrder(patch, p).map((m) => m.id));
+    const labels = list.map((x) => x.label);
+    expect(new Set(labels).size).toBe(labels.length);
+    expect(labels.filter((l) => /AHDSR/.test(l)).length).toBeGreaterThanOrEqual(2);
   });
 });

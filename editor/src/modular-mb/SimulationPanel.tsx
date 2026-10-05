@@ -39,6 +39,8 @@ import { ModlinkPanel } from './sim/ModlinkPanel';
 import { setLastTake as rememberLastTake, markUploaded } from './sim/lastTakeStore';
 import { MidiFileUi } from './sim/MidiFileUi';
 import { midiMonitor } from './sim/midiMonitor';
+import { RecordButton } from './sim/RecordButton';
+import { bindRecordHandlers, publishRecordState } from './sim/recordControl';
 
 type SourceId = 'screen' | 'sequence' | 'webmidi' | 'file';
 
@@ -391,6 +393,16 @@ export function SimulationPanel(): JSX.Element {
     }
   }
 
+  // De opnameknop staat ook rechtsboven naast ▶ Sim (RecordButton), dus ook
+  // in de speelmodus: daar is dit paneel niet in beeld. Stand en start/stop
+  // gaan via recordControl; de handlers via een ref, zodat ze altijd de
+  // actuele patch en enginestatus zien.
+  const recHandlers = useRef({ start: startRec, stop: stopRec });
+  recHandlers.current = { start: startRec, stop: stopRec };
+  useEffect(() => bindRecordHandlers({ start: () => recHandlers.current.start(), stop: () => recHandlers.current.stop() }), []);
+  useEffect(() => { publishRecordState({ recording, secs: recSecs, done: recDone, error: recording || recDone ? null : error }); },
+    [recording, recSecs, recDone, error]);
+
   function switchSource(next: SourceId): void {
     source.stop();
     setSourceId(next);
@@ -430,14 +442,7 @@ export function SimulationPanel(): JSX.Element {
             {!status.running
               ? <button onClick={startAll} className="primary">▶ Start</button>
               : <button onClick={stopAll}>■ Stop</button>}
-            {!recording
-              ? <button onClick={() => void startRec()}
-                  title="Schrijft de master-som rechtstreeks mee als WAV, en de gespeelde MIDI als .mid met dezelfde naam — geen BlackHole of DAW nodig">
-                  ⏺ Opname
-                </button>
-              : <button onClick={() => void stopRec()} style={{ color: '#b91c1c', fontWeight: 600 }}>
-                  ⏹ Stop · {recSecs.toFixed(1)} s
-                </button>}
+            <RecordButton />
             <label style={{ fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 4 }}
               title="Bewaar de patch als .patch.json naast de opname (te laden via Importeren), zodat je de MIDI later opnieuw door dezelfde klank kunt sturen">
               <input type="checkbox" checked={recWithPatch} onChange={(e) => toggleRecWithPatch(e.target.checked)} />

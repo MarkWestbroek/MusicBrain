@@ -916,7 +916,9 @@ export function ModularMbApp(): JSX.Element {
       <ZoomEscape />
 
       {/* ── Sub-tabs; dicht = alleen het front en "Binnenkijken" ── */}
-      <nav style={{ display: 'flex', gap: 4, borderBottom: '1px solid #cbd2d9', marginBottom: 12, alignItems: 'center' }}>
+      {/* In de speelmodus loopt de balk op een smal scherm door op een tweede
+          regel: anders staan ▶ Sim en de opnameknop rechts buiten beeld. */}
+      <nav style={{ display: 'flex', gap: 4, borderBottom: '1px solid #cbd2d9', marginBottom: 12, alignItems: 'center', flexWrap: expert ? undefined : 'wrap' }}>
         {!expert && (
           <>
             <PatchSelect project={project} style={{ padding: '4px 8px' }} />

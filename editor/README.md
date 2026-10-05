@@ -170,7 +170,9 @@ zichzelf spelen); dezelfde voorbeelden staan onderaan de patchkeuzelijst.
 - **Front**: een patch zonder eigen front krijgt er automatisch een. Rechtsklik
   op een knop in rack of patcher → "Op front zetten"; in de Front-tab (na
   Binnenkijken) bewerk je naam, volgorde, labels en kopjes, of laat je ✨ AI een
-  front voorstellen. Draaien op het front wijzigt de patch; **● Bewaar** of
+  front voorstellen. **+ Toevoegen** in de Front-tab opent per module een lijst
+  met knoppen, displays en jacks om aan te tikken; dat werkt ook op een
+  telefoon, waar geen rechtsklik is. Draaien op het front wijzigt de patch; **● Bewaar** of
   **Bewaar als…** legt het vast. Ook een display of led kan op het front
   (zelfde rechtsklik, of de frontvelden in de eigenschappen): het toont de
   stand van zijn knop. Een naamdisplay komt vanzelf mee, zodat je bij Bank en
@@ -181,6 +183,11 @@ zichzelf spelen); dezelfde voorbeelden staan onderaan de patchkeuzelijst.
   vasthouden = tijdelijk), een pedaalschuif op de eerste CC van de MIDI-IN,
   ⇕ lange toetsen, ⏹ alle noten uit, ⛶ volledig scherm met front of 🎹 alleen
   het klavier.
+- **Opnemen**: de rode ⏺ rechtsboven naast ▶ Sim neemt op wat je speelt, ook
+  in de speelmodus: een WAV, de gespeelde MIDI als .mid en de patch, met
+  dezelfde naam. Tik op ⏹ om te stoppen; de bestanden worden gedownload en de
+  take staat klaar in de Simulatie-tab (naar de library, bewerken). Op
+  volledig scherm staat de knop rechts naast de patchkeuze.
 - **Stemtoon**: het keuzelijstje **A = …** naast ▶ Sim zet een persoonlijke
   stemtoon (bijvoorbeeld 432) voor elke patch; MIDI-IN schuift alle
   toonhoogtes mee.

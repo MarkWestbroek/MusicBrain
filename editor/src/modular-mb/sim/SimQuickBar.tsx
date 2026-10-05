@@ -1,11 +1,13 @@
-// Sim starten/stoppen en de MIDI-monitor openen vanuit de tabbalk, zonder
-// eerst naar de Simulatie-tab te gaan. Het simulatiepaneel blijft altijd
+// Sim starten/stoppen, opnemen en de MIDI-monitor openen vanuit de tabbalk,
+// zonder eerst naar de Simulatie-tab te gaan. De balk staat ook in de
+// speelmodus rechtsboven, naast de patchkeuze. Het simulatiepaneel blijft altijd
 // gemount; het volgt de engine-status en start dan zelf de MIDI-bron.
 
 import { useEffect, useState } from 'react';
 import { getEngine, useEngineStatus } from './engineSingleton';
 import { midiMonitor } from './midiMonitor';
 import { openMidiMonitor } from './MidiMonitorWindow';
+import { RecordButton } from './RecordButton';
 import { TuningChip } from './TuningChip';
 
 function useMidiFlash(): boolean {
@@ -49,6 +51,7 @@ export function SimQuickBar(): JSX.Element {
         title={status.running ? 'Simulator stoppen' : 'Simulator starten (de MIDI-bron uit de Simulatie-tab speelt mee)'}>
         {status.running ? '■ Sim' : '▶ Sim'}
       </button>
+      <RecordButton compact style={btn} />
       <TuningChip style={btn} />
       <button style={btn} onClick={openMidiMonitor} title="MIDI-monitor: wat je keyboard stuurt en wat de patch ontvangt">
         <span aria-hidden style={{

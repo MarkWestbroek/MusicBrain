@@ -5,15 +5,17 @@
 // het front zit in de bewaarcyclus van de patch (recipe/saved.ts) en in
 // undo/redo. In de spelermodus (`expert` uit) is er geen bewerker.
 //
-// Kiezen welke knoppen en jacks erop staan gebeurt in rack en patcher
-// (rechtsklik → "Op front zetten", of de frontvelden in de eigenschappen);
-// hier schik je ze.
+// Kiezen welke knoppen, displays en jacks erop staan kan hier met
+// "+ Toevoegen" (een lijst per module om aan te tikken; werkt ook op een
+// telefoon, waar geen rechtsklik is), of in rack en patcher (rechtsklik →
+// "Op front zetten", of de frontvelden in de eigenschappen).
 
 import { useEffect, useRef, useState } from 'react';
 
+import { FrontFields } from './FrontFields';
 import { FrontKeys } from './FrontKeys';
 import { FrontPanel } from './FrontPanel';
-import { autoFront } from './frontLayout';
+import { autoFront, frontAddModules } from './frontLayout';
 import {
   addFront, insertFrontItem, moveFrontItem, newFront, pruneFronts, removeFront, removeFrontItemAt,
   updateFront, updateFrontItem,
@@ -22,6 +24,7 @@ import { DEMO_SEEDS } from './demoSeeds';
 import { PatchSelect } from './PatchSelect';
 import { runCommands } from './recipe/commands';
 import { openPoolBrowser } from './sim/PoolWindows';
+import { RecordButton, RecordStatus } from './sim/RecordButton';
 import { getProject, setProject } from './store';
 import { askAi, llmReady, loadLlmConfig } from './recipe/llm';
 import { updateProject, useModularProject, uid } from './store';
@@ -41,6 +44,11 @@ export function FrontTab({ expert = true }: { expert?: boolean }): JSX.Element {
   // Schikmodus (stap 4): items vrij slepen; alleen op een bewaard front.
   // (Hook vóór de vroege return, anders klaagt React zodra er een patch komt.)
   const [arrange, setArrange] = useState(false);
+  // "+ Toevoegen" open? De knop staat in de bovenste rij en de lijst direct
+  // boven het front: op een telefoon staat de bewerker onder het
+  // toetsenbord, en je wilt zien wat je aantikt. Vanaf Auto bewaart de knop
+  // eerst het front.
+  const [adding, setAdding] = useState(false);
   const stageRef = useRef<HTMLDivElement>(null);
   // Op volledig scherm staat de werkbalk van de app buiten beeld; de
   // patchkeuze komt dan bovenin het podium (niet in de stand "alleen toetsen").
@@ -94,10 +102,19 @@ export function FrontTab({ expert = true }: { expert?: boolean }): JSX.Element {
               <button type="button" style={btn} onClick={newEmpty}>+ Leeg front</button>
             </>
           : <button type="button" style={btn} onClick={() => remove(front.id)}>Front verwijderen</button>)}
+        {expert && (
+          <button type="button" style={{ ...btn, fontWeight: 600 }}
+            title={isAuto ? 'Bewaart Auto als front en opent de lijst met knoppen, displays en jacks van de patch'
+              : 'Kies per module welke knoppen, displays en jacks op dit front staan'}
+            onClick={() => { if (isAuto) { saveAuto(); setAdding(true); } else setAdding(!adding); }}>
+            {isAuto ? '+ Toevoegen (bewaart Auto)' : adding ? '− Klaar met toevoegen' : '+ Toevoegen'}
+          </button>
+        )}
         <span style={{ opacity: 0.6, fontSize: 12 }}>
           Draaien op het front wijzigt de patch; wat niet op het front staat, staat vast.
         </span>
       </div>
+      {expert && adding && !isAuto && <div style={{ maxWidth: 460 }}><FrontAdd patch={patch} front={front} /></div>}
       {expert && <FrontAi project={project} onDone={(id) => setChosen(id ?? null)} />}
       {front.description && <p style={{ margin: 0, maxWidth: 640, opacity: 0.85 }}>{front.description}</p>}
       <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
@@ -113,8 +130,10 @@ export function FrontTab({ expert = true }: { expert?: boolean }): JSX.Element {
           {full && (
             <div className="mb-stage-top" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <PatchSelect project={project} onChoose={() => setChosen(null)} />
+              <RecordButton compact style={{ ...btn, marginLeft: 'auto' }} />
             </div>
           )}
+          <RecordStatus />
           <div className="mb-stage-front" style={{ overflow: 'auto' }}>
             <FrontPanel front={front} patch={patch} project={project} pxPerMm={4}
               onArrange={arranging ? (i, pos) => edit((x) => updateFrontItem(x, front.id, i, (y) => (y.kind === 'group' ? y : { ...y, pos }))) : undefined} />
@@ -124,8 +143,8 @@ export function FrontTab({ expert = true }: { expert?: boolean }): JSX.Element {
         {expert && (isAuto
           ? <div style={{ fontSize: 12, color: '#6b7280', maxWidth: 300 }}>
               Dit front is afgeleid uit de patch: gelabelde en gebonden knoppen, de speelmodules, en per module de
-              belangrijkste twee knoppen. Bewaar het als front om labels, volgorde en kopjes te bewerken; knoppen en
-              jacks kies je in rack en patcher met rechtsklik → "Op front zetten".
+              belangrijkste knoppen. Bewaar het als front om labels, volgorde en kopjes te bewerken, of zet er met
+              "+ Toevoegen" meteen iets bij.
             </div>
           : <FrontEditor patch={patch} front={front} edit={edit} arrange={arrange} onArrange={setArrange} />)}
       </div>
@@ -192,7 +211,7 @@ function FrontEditor({ patch, front, edit, arrange, onArrange }: {
         )}
       </div>
       <div style={{ fontSize: 11, color: '#6b7280' }}>
-        Items in rastervolgorde. Knoppen, displays en jacks toevoegen: rechtsklik in rack of patcher, of de frontvelden in de eigenschappen.
+        Items in rastervolgorde. Knoppen, displays en jacks erbij: "+ Toevoegen" bovenaan, rechtsklik in rack of patcher, of de frontvelden in de eigenschappen.
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
         {front.items.map((it, i) => (
@@ -224,6 +243,36 @@ function FrontEditor({ patch, front, edit, arrange, onArrange }: {
       <div style={{ fontSize: 11, color: '#6b7280' }}>
         Bewerkingen zitten in de bewaarcyclus van de patch (Bewaar, Terug, Vergelijk) en in undo (Ctrl+Z).
       </div>
+    </div>
+  );
+}
+
+// ── "+ Toevoegen": per module aantikken wat op het front staat ────────────
+
+function FrontAdd({ patch, front }: { patch: Patch; front: PatchFront }): JSX.Element {
+  const project = useModularProject();
+  const mods = frontAddModules(patch, project);
+  const [chosen, setChosen] = useState<string | null>(null);
+  const onFront = (id: string): number => front.items.filter((it) => it.kind !== 'group' && it.moduleId === id).length;
+  // Begin bij de eerste module die al op het front staat (de klankbron),
+  // niet bij MIDI-IN, die vooraan in de signaalvolgorde staat.
+  const current = mods.find((m) => m.id === chosen) ?? mods.find((m) => onFront(m.id) > 0) ?? mods[0];
+  const m = current && project.modules.find((x) => x.id === current.id);
+  return (
+    <div style={{ border: '1px solid #cbd2d9', borderRadius: 6, padding: 8, background: '#fff' }}>
+      <select value={current?.id ?? ''} onChange={(e) => setChosen(e.target.value)}
+        style={{ fontSize: 14, padding: '6px 8px', width: '100%', marginBottom: 4 }}>
+        {mods.map((x) => {
+          const n = onFront(x.id);
+          return <option key={x.id} value={x.id}>{x.label}{n ? ` (${n} op het front)` : ''}</option>;
+        })}
+      </select>
+      {m
+        ? <div style={{ maxHeight: 320, overflowY: 'auto' }}>
+            <FrontFields moduleId={m.id} controls={resolveControls(m, project.moduleTypes)} ports={resolvePorts(m, project.moduleTypes)}
+              patchId={patch.id} frontId={front.id} roomy />
+          </div>
+        : <div style={{ color: '#9ca3af' }}>Deze patch heeft geen modules.</div>}
     </div>
   );
 }

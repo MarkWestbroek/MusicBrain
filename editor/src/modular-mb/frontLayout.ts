@@ -307,6 +307,28 @@ export function patchModulesInSignalOrder(patch: Patch, project: ModularProject)
   return result.flatMap((id) => { const m = project.modules.find((x) => x.id === id); return m ? [m] : []; });
 }
 
+/** De modules van de patch in signaalvolgorde, met een naam die ze uit
+ *  elkaar houdt: twee AHDSR's krijgen het label van hun poly-groep (envFlt,
+ *  envAmp) of anders een volgnummer. */
+export function frontAddModules(patch: Patch, project: ModularProject): { id: string; label: string }[] {
+  const mods = patchModulesInSignalOrder(patch, project);
+  const groupLabel = (id: string): string | undefined => {
+    for (const r of project.racks) for (const g of r.polyGroups ?? [])
+      if (g.members.some((m) => m.kind === 'module' && m.moduleId === id)) return g.label;
+    return undefined;
+  };
+  const count = new Map<string, number>();
+  for (const m of mods) count.set(m.name, (count.get(m.name) ?? 0) + 1);
+  const seen = new Map<string, number>();
+  return mods.map((m) => {
+    if ((count.get(m.name) ?? 0) < 2) return { id: m.id, label: m.name };
+    const n = (seen.get(m.name) ?? 0) + 1;
+    seen.set(m.name, n);
+    const g = groupLabel(m.id);
+    return { id: m.id, label: `${m.name} · ${g && g !== m.name ? g : n}` };
+  });
+}
+
 /** De controls van een module in volgorde van vermoedelijk belang voor een
  *  speler. Eerst de lijst van het type (`FRONT_CONTROLS`), in die volgorde.
  *  Dan de rest van de knoppen, schuiven en karakterschakelaars: wat van zijn

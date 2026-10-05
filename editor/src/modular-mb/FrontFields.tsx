@@ -6,6 +6,10 @@
 // maken uit het automatische front. Displays en LED's die iets tonen (een
 // naam, een stap) staan er ook bij: zij kijken op het front naar dezelfde
 // control als op het paneel.
+//
+// De Front-tab gebruikt hetzelfde onderdeel achter "+ Toevoegen", met
+// `frontId` (het front dat daar open staat) en `roomy` (regels op
+// vingerhoogte: op een telefoon is er geen rechtsklik).
 
 import { useState } from 'react';
 
@@ -14,8 +18,11 @@ import { autoFront } from './frontLayout';
 import { updateProject, useModularProject, uid } from './store';
 import type { Control, FrontItem, Patch, Port } from './types';
 
-export function FrontFields({ moduleId, controls, ports, patchId, dark = false }: {
+export function FrontFields({ moduleId, controls, ports, patchId, dark = false, frontId, roomy = false }: {
   moduleId: string; controls: Control[]; ports: Port[]; patchId?: string; dark?: boolean;
+  /** Vast front (Front-tab): geen kop en geen frontkeuze. */
+  frontId?: string;
+  roomy?: boolean;
 }): JSX.Element | null {
   const project = useModularProject();
   const id = patchId ?? project.activePatchId;
@@ -23,7 +30,7 @@ export function FrontFields({ moduleId, controls, ports, patchId, dark = false }
   const [chosen, setChosen] = useState<string | null>(null);
   if (!patch) return null;
   const fronts = patch.fronts ?? [];
-  const front = fronts.find((f) => f.id === chosen) ?? fronts[0];
+  const front = frontId ? fronts.find((f) => f.id === frontId) : fronts.find((f) => f.id === chosen) ?? fronts[0];
   const moduleName = project.modules.find((m) => m.id === moduleId)?.name;
   const playable = controls.filter((c) => c.kind !== 'display' && c.kind !== 'led');
   // Een LED zonder binding brandt altijd en zegt op een front niets.
@@ -51,19 +58,22 @@ export function FrontFields({ moduleId, controls, ports, patchId, dark = false }
 
   const muted = dark ? '#94a3b8' : '#6b7280';
   const head: React.CSSProperties = { fontSize: 11, fontWeight: 600, color: dark ? '#94a3b8' : '#374151', margin: '6px 0 3px' };
-  const line: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2, fontSize: 11 };
+  const line: React.CSSProperties = roomy
+    ? { display: 'flex', alignItems: 'center', gap: 10, padding: '7px 4px', fontSize: 14, borderBottom: '1px solid #eef2f7', cursor: 'pointer' }
+    : { display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2, fontSize: 11 };
+  const box: React.CSSProperties | undefined = roomy ? { width: 20, height: 20, flex: 'none' } : undefined;
   const select: React.CSSProperties = dark
     ? { fontSize: 11, background: '#1e293b', color: '#e2e8f0', border: '1px solid #334155', borderRadius: 3, padding: '1px 4px' }
     : { fontSize: 11 };
 
   return (
-    <div style={{ marginTop: 10 }}>
-      <div style={head}>Front <span style={{ fontWeight: 400 }}>(deze patch)</span></div>
+    <div style={{ marginTop: frontId ? 0 : 10 }}>
+      {!frontId && <div style={head}>Front <span style={{ fontWeight: 400 }}>(deze patch)</span></div>}
       {!front ? (
-        <button type="button" onClick={makeFront} style={{ fontSize: 11 }}>+ Front maken (uit Auto)</button>
+        frontId ? null : <button type="button" onClick={makeFront} style={{ fontSize: 11 }}>+ Front maken (uit Auto)</button>
       ) : (
         <>
-          {fronts.length > 1 && (
+          {!frontId && fronts.length > 1 && (
             <select value={front.id} onChange={(e) => setChosen(e.target.value)} style={{ ...select, marginBottom: 4 }}>
               {fronts.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
             </select>
@@ -72,7 +82,7 @@ export function FrontFields({ moduleId, controls, ports, patchId, dark = false }
             const item: FrontItem = { kind: 'control', moduleId, controlId: c.id };
             return (
               <label key={`c-${c.id}`} style={line}>
-                <input type="checkbox" checked={isOnFront(front, item)} onChange={() => toggle(item)} />
+                <input type="checkbox" style={box} checked={isOnFront(front, item)} onChange={() => toggle(item)} />
                 <span style={{ color: muted }}>{c.label || c.id}</span>
               </label>
             );
@@ -81,7 +91,7 @@ export function FrontFields({ moduleId, controls, ports, patchId, dark = false }
             const item: FrontItem = { kind: 'control', moduleId, controlId: c.id };
             return (
               <label key={`d-${c.id}`} style={line}>
-                <input type="checkbox" checked={isOnFront(front, item)} onChange={() => toggle(item)} />
+                <input type="checkbox" style={box} checked={isOnFront(front, item)} onChange={() => toggle(item)} />
                 <span style={{ color: muted }}>▭ {c.label || shows(c)}</span>
               </label>
             );
@@ -90,7 +100,7 @@ export function FrontFields({ moduleId, controls, ports, patchId, dark = false }
             const item: FrontItem = { kind: 'port', moduleId, portId: p.id };
             return (
               <label key={`p-${p.id}`} style={line}>
-                <input type="checkbox" checked={isOnFront(front, item)} onChange={() => toggle(item)} />
+                <input type="checkbox" style={box} checked={isOnFront(front, item)} onChange={() => toggle(item)} />
                 <span style={{ color: muted }}>⚬ {p.name} <em style={{ opacity: 0.7 }}>({p.direction === 'in' ? 'in' : 'uit'})</em></span>
               </label>
             );

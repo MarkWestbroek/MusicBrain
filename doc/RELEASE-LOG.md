@@ -40,7 +40,18 @@
   ritmebox en acid hebben een ontworpen front "Spelen" in hun seed.
   Luisteroordeel over de nieuwe acht staat open. De beschrijving van DX7
   poly klopte niet meer (de fabrieksbanken zitten erin) en is bijgewerkt.
-- 10 nieuwe tests (displays, frontlijst tegen de modules, standaardset).
+- **+ Toevoegen in de Front-tab** (`FrontTab.tsx`, `FrontFields.tsx`): kies een
+  module en tik aan welke knoppen, displays en jacks op het front staan. Voor
+  de telefoon, waar geen rechtsklik is; vanaf Auto wordt het front eerst
+  bewaard.
+- **Opnemen in de speelmodus** (`sim/RecordButton.tsx`, `sim/recordControl.ts`):
+  de opnameknop uit de Simulatie-tab staat nu ook rechtsboven naast ▶ Sim, op
+  elke tab en in de speelmodus; op volledig scherm rechts naast de
+  patchkeuze. Zelfde recorder, zelfde bestanden (WAV,
+  .mid, patch). De werkbalk van de speelmodus loopt op een telefoon door op
+  een tweede regel; ▶ Sim en MIDI stonden daar rechts buiten beeld.
+- 12 nieuwe tests (displays, frontlijst tegen de modules, standaardset,
+  modulelijst, opnameknop).
 
 ### 2026-10-05 — Stemtoon A4 (A432): MIDI-IN `a4` in de firmware, persoonlijke instelling in de editor
 - **Firmware** (`core/runtime/MidiIn`): control `a4` (Hz, 380–500, standaard

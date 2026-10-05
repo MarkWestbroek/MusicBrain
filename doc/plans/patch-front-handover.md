@@ -30,12 +30,13 @@ Alles onder `editor/src/modular-mb/` tenzij anders vermeld.
 | `frontLayout.ts` | `buildFrontModule` maakt van een front een virtueel `ModuleType` + `ModuleInstance` (raster, tegels per kopje, vrije `pos` in mm, brede displays over twee cellen). `autoFront`, `rankKnobs` en `withNameDisplays` bepalen het automatische front. Heette eerst `frontPanel.ts`; zie [Valkuilen](#valkuilen). |
 | `frontControls.ts` | `FRONT_CONTROLS`: per moduletype de knoppen die een speler wil, in volgorde. Leidend voor het automatische front; `frontControls.test.ts` eist een lijst voor elke klankbron, elk filter, elk effect en elke drum. |
 | `FrontPanel.tsx` | Tekent het front via `ModulePanel`; schikmodus (slepen naar mm); letters ×1,5 op een smal scherm (`textScale`). |
-| `FrontTab.tsx` | De Front-tab: frontkeuze, bewerker (naam, uitleg, kolommen, kopjes, label, klein/groot, volgorde), ✨ AI-front, lege start met voorbeelden, het podium voor volledig scherm. |
+| `FrontTab.tsx` | De Front-tab: frontkeuze, **+ Toevoegen** (per module aantikken wat op het front staat; hergebruikt `FrontFields`), bewerker (naam, uitleg, kolommen, kopjes, label, klein/groot, volgorde), ✨ AI-front, lege start met voorbeelden, het podium voor volledig scherm. |
 | `FrontMenu.tsx`, `FrontFields.tsx` | Rechtsklik "Op front zetten" in rack en patcher, en het blok "Front (deze patch)" in de eigenschappen. |
 | `frontRecipe.ts` + `recipe/tools.ts` | AI-frontrecept: tools `get_front_candidates` en `propose_front` (ook in de MCP-server), commando `front`. |
 | `frontSvg.ts` | Het front als los SVG-bestand, als hoes bij ⤴ Voorstellen naar de pool. |
 | `FrontKeys.tsx` | Het toetsenbord onder het front: speelt direct op de engine, start die bij de eerste aanslag. Onthoudt octaaf, schuifstand, bendbereik, lange toetsen. Volledig scherm in twee standen. |
 | `sim/ScreenKeys.tsx`, `sim/screenKeysLayout.ts` | Het schermtoetsenbord zelf (ook in de Simulatie-tab): pointer capture per vinger, aanslag uit de plek op de toets, omhoog = aftertouch, opzij = noot wisselen of buigen, wielen, sustain, pedaal, panic. Layout en hit-test zijn puur en getest. |
+| `sim/RecordButton.tsx`, `sim/recordControl.ts` | De ene opnameknop: in de Simulatie-tab, rechtsboven in `SimQuickBar` (ook speelmodus), en in het podium op volledig scherm, rechts naast de patchkeuze. De recorder zelf blijft in `SimulationPanel` (altijd gemount); `recordControl` is het doorgeefluik voor stand en start/stop. |
 | `sim/midiInCc.ts` | Welke CC's de MIDI-IN van de patch verwacht (pedaalschuif op `cc1Num`, sustain op 64). |
 | `sim/tuning.ts`, `sim/TuningChip.tsx` | Persoonlijke stemtoon: chip "A = …" in de kop, onthouden (`mb.tuning.a4`), naar engine en Teensy. |
 | `PatchSelect.tsx` | Patchkeuze met onderaan "Voorbeeld toevoegen" (de standaardset). Speelmodus, Front-tab en volledig scherm gebruiken dezelfde. |
@@ -68,6 +69,7 @@ Toegevoegd op 2026-10-05, na de eerste overdracht. Aanleiding: het DX7-front had
 - **`FRONT_CONTROLS` is leidend.** De maatstaf is "waar draait een speler aan": geen stemming, geen volume per module, wel keuzeknoppen en karakterschakelaars (Rotary `speed`). `playable` in de receptcatalogus is iets anders (startwaarden) en doet voor het front niet meer mee. Mixers hebben een lege lijst: in een poly-patch zijn de kanalen de stemmen.
 - **Jacks.** Alleen de uitgangen van een AUDIO IN en de audio-ingangen van modules die nog geen audio krijgen, en niet van klankbronnen. De vrije R-ingang van een mono gevoede Rotary en de EXT-ingangen van de SID stonden eerst als aansluiting op het front.
 - **Nieuwe module.** Zet de speelknoppen in `frontControls.ts`; de test wijst het aan als je het vergeet. Heeft de module een keuzeknop (bank, model, ritme), geef het paneel dan een display met `lookup`.
+- **+ Toevoegen in de Front-tab.** Op een telefoon is er geen rechtsklik, en lang indrukken botst met draaien. De knop staat in de bovenste rij en de lijst komt direct boven het front, omdat de bewerker op een telefoon onder het toetsenbord staat. Vanaf Auto bewaart de knop eerst het front. De lijst is `FrontFields` met een vast front en ruime regels (`frontId`, `roomy`); `frontAddModules` houdt dubbele modulenamen uit elkaar. Getest in Playwright op Pixel 7-formaat; op een echt toestel nog te bevestigen. De expertstand zelf is op een telefoon breder dan het scherm (de werkbalk breekt niet af).
 - **Niet gedaan:** de tekeningen per moduletype in `ModulePanel` (VU-meter op OUT, bankstrip van de sampler, MIDI-leds) zijn geen controls en komen niet op een front. Zie Open werk.
 
 ## Besluiten die je niet opnieuw hoeft te nemen
@@ -79,7 +81,7 @@ Uit [patch-front.md §9](patch-front.md#9-besluiten) en de gesprekken met Mark:
 - Raster eerst, vrije plaatsing als optie.
 - Speelmodus standaard dicht, keuze onthouden.
 - Spelen is ook tweaken en bewaren: Bewaar en Bewaar als in de speelmodus. Terug en A/B blijven achter Binnenkijken. A/B-morph komt later in de speelmodus, als hetzelfde onderdeel uit de patcher (geen eigen variant): "UI-technisch zo doen dat het niet weer ingewikkeld wordt".
-- Vuistregel werkbalk speelmodus: patchkeuze, bewaren, Binnenkijken. De rest erachter.
+- Vuistregel werkbalk speelmodus: patchkeuze, bewaren, Binnenkijken. De rest erachter. Rechts staat de balk die er op elke tab staat (▶ Sim, ⏺ opname, stemtoon, MIDI); op een smal scherm loopt hij in de speelmodus door op een tweede regel.
 - Stemtoon is persoonlijk (niet van de patch) en wordt uitgevoerd door MIDI-IN.
 - Publieke pools zijn publiek: lezen zonder token mag vanaf elk adres; schrijven alleen vanaf de lijst in Imprint.
 
