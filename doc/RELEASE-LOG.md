@@ -51,8 +51,10 @@
   toetsen" (hoeveel toetsbreedtes opzij het volle bendbereik is; 1–12,
   onthouden). Pitch- en modwiel zo breed als een toets. **⇕ Lange toetsen**
   (150 i.p.v. 90): meer weg voor aanslag en aftertouch, onthouden.
-  **⛶ Volledig scherm** (Fullscreen API) voor front + toetsenbord, met
-  dezelfde knop weer terug. **⊡ Terug naar alles in beeld**: zodra de pagina
+  **Volledig scherm** (Fullscreen API) in twee standen: ⛶ front +
+  toetsenbord, 🎹 alleen het klavier over de volle breedte, liggend
+  (oriëntatie vergrendeld waar de telefoon dat toelaat); wisselen kan
+  binnen volledig scherm, ✕ gaat eruit. **⊡ Terug naar alles in beeld**: zodra de pagina
   op de telefoon ingezoomd is staat er linksboven één knopje om de zoom
   terug te zetten (het toetsenbord zelf laat knijpen niet toe, dus anders
   kwam je er niet meer uit). 1 test extra.

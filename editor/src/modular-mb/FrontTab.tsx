@@ -95,8 +95,12 @@ export function FrontTab({ expert = true }: { expert?: boolean }): JSX.Element {
         <div ref={stageRef} className="mb-stage" style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
           {/* Op volledig scherm (⛶ in de werkbalk van het toetsenbord): witte
               achtergrond en scrollen, anders staat het front op zwart. */}
-          <style>{`.mb-stage:fullscreen { background: #fff; overflow: auto; padding: 12px; box-sizing: border-box; }`}</style>
-          <div style={{ overflow: 'auto' }}>
+          <style>{`
+            .mb-stage:fullscreen { background: #fff; overflow: auto; padding: 12px; box-sizing: border-box; }
+            .mb-stage:fullscreen[data-full-mode="keys"] > .mb-stage-front { display: none; }
+            .mb-stage:fullscreen[data-full-mode="keys"] { justify-content: center; }
+          `}</style>
+          <div className="mb-stage-front" style={{ overflow: 'auto' }}>
             <FrontPanel front={front} patch={patch} project={project} pxPerMm={4}
               onArrange={arranging ? (i, pos) => edit((x) => updateFrontItem(x, front.id, i, (y) => (y.kind === 'group' ? y : { ...y, pos }))) : undefined} />
           </div>

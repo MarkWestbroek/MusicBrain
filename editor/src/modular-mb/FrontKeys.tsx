@@ -45,18 +45,38 @@ export function FrontKeys({ stage }: { stage?: RefObject<HTMLElement | null> } =
   const setTall = (t: boolean): void => { setTallState(t); remember(TALL_KEY, t ? '1' : '0'); };
   // Volledig scherm (Fullscreen API): de werkbalk van het toetsenbord blijft
   // in beeld, dus ook de knop om er weer uit te komen.
+  // Twee standen: 'stage' = front + toetsen, 'keys' = alleen het klavier,
+  // liggend (de oriëntatie vergrendelen mag alleen op volledig scherm en
+  // niet op elke telefoon; mislukt het, dan draait de gebruiker zelf).
   const canFull = typeof document !== 'undefined' && !!document.documentElement.requestFullscreen;
   const [full, setFull] = useState(false);
+  const [fullMode, setFullModeState] = useState<'stage' | 'keys'>('stage');
+  const orientation = (): { lock?: (o: string) => Promise<void>; unlock?: () => void } | undefined =>
+    (typeof screen !== 'undefined' ? screen.orientation : undefined) as unknown as { lock?: (o: string) => Promise<void>; unlock?: () => void } | undefined;
+  const setFullMode = (m: 'stage' | 'keys'): void => {
+    setFullModeState(m);
+    if (stage?.current) stage.current.dataset.fullMode = m;   // FrontTab verbergt het front in de keys-stand (CSS)
+    const o = orientation();
+    if (m === 'keys') o?.lock?.('landscape').catch(() => { /* niet toegestaan: dan niet */ });
+    else { try { o?.unlock?.(); } catch { /* idem */ } }
+  };
   useEffect(() => {
-    const sync = (): void => setFull(!!document.fullscreenElement);
+    const sync = (): void => {
+      const on = !!document.fullscreenElement;
+      setFull(on);
+      if (!on) setFullMode('stage');
+    };
     document.addEventListener('fullscreenchange', sync);
     return () => document.removeEventListener('fullscreenchange', sync);
-  }, []);
-  const toggleFull = (): void => {
-    if (document.fullscreenElement) { void document.exitFullscreen(); return; }
+  }, []);   // eslint-disable-line react-hooks/exhaustive-deps
+  const enterFull = (m: 'stage' | 'keys'): void => {
     const el = stage?.current;
-    if (el) el.requestFullscreen().catch(() => { /* geweigerd (iframe, iOS): dan niet */ });
+    if (!el) return;
+    const go = document.fullscreenElement ? Promise.resolve() : el.requestFullscreen();
+    go.then(() => setFullMode(m)).catch(() => { /* geweigerd (iframe, iOS): dan niet */ });
   };
+  const exitFull = (): void => { if (document.fullscreenElement) void document.exitFullscreen(); };
+  const fsBtn: React.CSSProperties = { fontSize: 12, padding: '3px 8px', cursor: 'pointer' };
   const [err, setErr] = useState<string | null>(null);
   const setOctave = (d: number): void => {
     const o = Math.max(0, Math.min(8, octave + d));
@@ -89,11 +109,15 @@ export function FrontKeys({ stage }: { stage?: RefObject<HTMLElement | null> } =
         onAftertouch={aftertouch} onBend={bend} onMod={mod} onSustain={sustain}
         pedal={{ label: `Pedaal CC ${cc.cc1}`, onChange: pedal }} slide={slide} onSlide={setSlide}
         bendKeys={bendKeys} onBendKeys={setBendKeys} tall={tall} onTall={setTall}
+        maxWidth={full && fullMode === 'keys' ? 4000 : 560}
         extra={canFull && stage ? (
-          <button type="button" onClick={toggleFull} style={{ fontSize: 12, padding: '3px 10px', cursor: 'pointer', fontWeight: full ? 700 : 400, background: full ? '#fde68a' : undefined }}
-            title={full ? 'Volledig scherm uit' : 'Front en toetsenbord op het hele scherm'} aria-label="Volledig scherm">
-            {full ? '✕ ⛶' : '⛶'}
-          </button>
+          <span style={{ display: 'inline-flex', gap: 4 }}>
+            <button type="button" onClick={() => enterFull('stage')} style={{ ...fsBtn, fontWeight: full && fullMode === 'stage' ? 700 : 400, background: full && fullMode === 'stage' ? '#fde68a' : undefined }}
+              title="Volledig scherm: front en toetsenbord" aria-label="Volledig scherm: front en toetsenbord">⛶</button>
+            <button type="button" onClick={() => enterFull('keys')} style={{ ...fsBtn, fontWeight: full && fullMode === 'keys' ? 700 : 400, background: full && fullMode === 'keys' ? '#fde68a' : undefined }}
+              title="Volledig scherm: alleen het toetsenbord, liggend" aria-label="Volledig scherm: alleen toetsenbord">🎹</button>
+            {full && <button type="button" onClick={exitFull} style={fsBtn} title="Volledig scherm uit" aria-label="Volledig scherm uit">✕</button>}
+          </span>
         ) : undefined}
         hint={status.running ? undefined : 'Eerste aanslag start de simulator'} />
       {err && <div style={{ color: '#b91c1c', fontSize: 12, marginTop: 4 }}>{err}</div>}
