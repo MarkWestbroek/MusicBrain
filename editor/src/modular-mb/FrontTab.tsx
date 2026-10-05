@@ -41,6 +41,7 @@ export function FrontTab({ expert = true }: { expert?: boolean }): JSX.Element {
   // Schikmodus (stap 4): items vrij slepen; alleen op een bewaard front.
   // (Hook vóór de vroege return, anders klaagt React zodra er een patch komt.)
   const [arrange, setArrange] = useState(false);
+  const stageRef = useRef<HTMLDivElement>(null);
 
   if (!patch) return <EmptyStart expert={expert} />;
 
@@ -91,12 +92,15 @@ export function FrontTab({ expert = true }: { expert?: boolean }): JSX.Element {
       {expert && <FrontAi project={project} onDone={(id) => setChosen(id ?? null)} />}
       {front.description && <p style={{ margin: 0, maxWidth: 640, opacity: 0.85 }}>{front.description}</p>}
       <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
+        <div ref={stageRef} className="mb-stage" style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
+          {/* Op volledig scherm (⛶ in de werkbalk van het toetsenbord): witte
+              achtergrond en scrollen, anders staat het front op zwart. */}
+          <style>{`.mb-stage:fullscreen { background: #fff; overflow: auto; padding: 12px; box-sizing: border-box; }`}</style>
           <div style={{ overflow: 'auto' }}>
             <FrontPanel front={front} patch={patch} project={project} pxPerMm={4}
               onArrange={arranging ? (i, pos) => edit((x) => updateFrontItem(x, front.id, i, (y) => (y.kind === 'group' ? y : { ...y, pos }))) : undefined} />
           </div>
-          <FrontKeys />
+          <FrontKeys stage={stageRef} />
         </div>
         {expert && (isAuto
           ? <div style={{ fontSize: 12, color: '#6b7280', maxWidth: 300 }}>

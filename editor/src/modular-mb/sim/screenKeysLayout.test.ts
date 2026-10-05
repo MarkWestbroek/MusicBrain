@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { KEY_H, KEY_W, WHEEL_W, aftertouchFor, bendFor, bendFromY, keyAt, keyLayout, layoutWidth, modFromY, velocityAt, wheelAt } from './screenKeysLayout';
+import { KEY_H, KEY_H_TALL, KEY_W, WHEEL_W, aftertouchFor, bendFor, bendFromY, keyAt, keyLayout, layoutWidth, modFromY, velocityAt, wheelAt } from './screenKeysLayout';
 
 describe('schermtoetsenbord: layout en hit-test', () => {
   const keys = keyLayout(60, 2);   // C4..C6
@@ -37,6 +37,9 @@ describe('schermtoetsenbord: layout en hit-test', () => {
     expect(bendFor(KEY_W)).toBe(16383);
     expect(bendFor(-2 * KEY_W)).toBe(1);
     expect(bendFor(KEY_W / 2)).toBe(8192 + 4096);
+    // Instelbaar bereik: twee toetsen opzij voor het volle bereik.
+    expect(bendFor(KEY_W, 2)).toBe(8192 + 4096);
+    expect(bendFor(2 * KEY_W, 2)).toBe(16383);
     expect(aftertouchFor(0)).toBe(0);
     expect(aftertouchFor(20)).toBe(0);                 // omlaag: niets
     expect(aftertouchFor(-0.6 * KEY_H)).toBe(127);
@@ -53,5 +56,18 @@ describe('schermtoetsenbord: layout en hit-test', () => {
     expect(bendFromY(KEY_H)).toBe(1);
     expect(modFromY(KEY_H)).toBe(0);
     expect(modFromY(0)).toBe(127);
+  });
+});
+
+describe('lange toetsen', () => {
+  it('schalen aanslag en aftertouch mee met de hoogte', () => {
+    const keys = keyLayout(60, 2, KEY_W, KEY_H_TALL);
+    const c = keys[0]!;
+    expect(c.h).toBe(KEY_H_TALL);
+    expect(keys.find((k) => k.black)!.h).toBe(KEY_H_TALL * 0.6);
+    expect(velocityAt(c, KEY_H_TALL / 2)).toBe(0.68);
+    expect(aftertouchFor(-0.6 * KEY_H_TALL, KEY_H_TALL)).toBe(127);
+    expect(wheelAt(2 + WHEEL_W / 2, KEY_H_TALL - 1, KEY_H_TALL)).toBe('bend');
+    expect(wheelAt(2 + WHEEL_W / 2, KEY_H + 1)).toBeNull();
   });
 });

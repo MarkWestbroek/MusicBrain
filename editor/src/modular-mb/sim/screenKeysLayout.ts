@@ -6,6 +6,8 @@ export interface KeyRect { midi: number; black: boolean; x: number; y: number; w
 
 export const KEY_W = 22;
 export const KEY_H = 90;
+/** Lange toetsen (op aanvraag): meer weg voor aanslag en aftertouch. */
+export const KEY_H_TALL = 150;
 const LABELS = ['C', '', 'D', '', 'E', 'F', '', 'G', '', 'A', '', 'B'];
 
 /** Het klavier vanaf `startMidi` over `octaves` octaven, plus de C erboven. */
@@ -45,10 +47,12 @@ export function velocityAt(k: KeyRect, y: number): number {
   return Math.round((0.35 + 0.65 * t) * 100) / 100;
 }
 
-/** Pitch bend uit horizontaal schuiven: één toetsbreedte opzij = het volle
- *  bereik (14-bits, 8192 = midden). */
-export function bendFor(dx: number, w = KEY_W): number {
-  const t = Math.max(-1, Math.min(1, dx / w));
+/** Pitch bend uit horizontaal schuiven: `keys` toetsbreedtes opzij = het
+ *  volle bereik (14-bits, 8192 = midden). Hoeveel halve tonen dat is bepaalt
+ *  de Bend-knop van de MIDI-IN; dit is alleen de weg op het scherm. */
+export const BEND_KEYS = [1, 2, 3, 5, 7, 12] as const;
+export function bendFor(dx: number, keys = 1, w = KEY_W): number {
+  const t = Math.max(-1, Math.min(1, dx / (w * keys)));
   return Math.round(8192 + t * 8191);
 }
 
@@ -61,7 +65,7 @@ export function aftertouchFor(dy: number, h = KEY_H): number {
 
 // ── Wielen links van de toetsen: pitch bend (veert terug) en mod (blijft) ──
 
-export const WHEEL_W = 11;          // breedte van één wiel
+export const WHEEL_W = KEY_W;       // breedte van één wiel: zo breed als een toets
 export const WHEELS_W = 2 * WHEEL_W + 8;   // het hele wielenblok incl. tussenruimte en rand
 
 export type Wheel = 'bend' | 'mod';

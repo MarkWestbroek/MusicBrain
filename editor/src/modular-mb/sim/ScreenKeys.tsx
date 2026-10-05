@@ -14,17 +14,18 @@
 //     bend en aftertouch terug.
 // De component weet niets van de engine: hij roept de callbacks.
 
-import { useRef, useState } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 
 import {
-  KEY_H, WHEEL_W, WHEELS_W, aftertouchFor, bendFor, bendFromY, keyAt, keyLayout, layoutWidth, modFromY, velocityAt, wheelAt,
+  BEND_KEYS, KEY_H, KEY_H_TALL, KEY_W, WHEEL_W, WHEELS_W, aftertouchFor, bendFor, bendFromY, keyAt, keyLayout, layoutWidth, modFromY, velocityAt, wheelAt,
   type KeyRect, type Wheel,
 } from './screenKeysLayout';
 
 export type SlideMode = 'note' | 'bend';
 
 export function ScreenKeys({
-  octave, octaves = 2, onNoteOn, onNoteOff, onOctave, onAftertouch, onBend, onMod, onSustain, pedal, slide = 'note', onSlide, maxWidth = 560, hint,
+  octave, octaves = 2, onNoteOn, onNoteOff, onOctave, onAftertouch, onBend, onMod, onSustain, pedal, slide = 'note', onSlide,
+  bendKeys = 1, onBendKeys, tall = false, onTall, extra, maxWidth = 560, hint,
 }: {
   octave: number; octaves?: number;
   onNoteOn: (midi: number, velocity: number) => void;
@@ -43,14 +44,23 @@ export function ScreenKeys({
   /** Wat opzij schuiven doet: de noot wisselen of buigen. */
   slide?: SlideMode;
   onSlide?: (mode: SlideMode) => void;
+  /** Hoeveel toetsbreedtes opzij het volle bendbereik is (bend-stand). */
+  bendKeys?: number;
+  onBendKeys?: (keys: number) => void;
+  /** Lange toetsen: meer weg voor aanslag en aftertouch. */
+  tall?: boolean;
+  onTall?: (tall: boolean) => void;
+  /** Extra knoppen in de werkbalk (bv. volledig scherm). */
+  extra?: ReactNode;
   maxWidth?: number;
-  /** Tekst rechts van de octaafknoppen (bv. de computertoetsen). */
+  /** Eén regel onder de toetsen (bv. "Eerste aanslag start de simulator"). */
   hint?: string;
 }): JSX.Element {
   // Wielen links (alleen met onMod); de toetsen schuiven dan WHEELS_W op.
   const wheels = !!onMod;
   const off = wheels ? WHEELS_W : 0;
-  const keys = keyLayout((octave + 1) * 12, octaves);
+  const h = tall ? KEY_H_TALL : KEY_H;
+  const keys = keyLayout((octave + 1) * 12, octaves, KEY_W, h);
   const width = layoutWidth(keys) + off;
   const [bendPos, setBendPos] = useState(8192);
   const [modPos, setModPos] = useState(0);
@@ -71,7 +81,7 @@ export function ScreenKeys({
   function pointOf(e: React.PointerEvent): { x: number; y: number } {
     const svg = svgRef.current!;
     const r = svg.getBoundingClientRect();
-    const sx = width / r.width, sy = KEY_H / r.height;
+    const sx = width / r.width, sy = h / r.height;
     return { x: (e.clientX - r.left) * sx, y: (e.clientY - r.top) * sy };
   }
   function press(pointerId: number, k: KeyRect, x: number, y: number): void {
@@ -97,23 +107,23 @@ export function ScreenKeys({
   }
   /** Schuiven na de aanslag: omhoog = aftertouch, opzij = bend (in de bend-stand). */
   function slideTo(pointerId: number, x: number, y: number): void {
-    const h = held.current.get(pointerId);
-    if (!h) return;
-    const at = aftertouchFor(y - h.y0);
-    if (at !== h.at) { h.at = at; onAftertouch?.(h.midi, at); }
-    if (slide === 'bend') onBend?.(bendFor(x - h.x0));
+    const hd = held.current.get(pointerId);
+    if (!hd) return;
+    const at = aftertouchFor(y - hd.y0, h);
+    if (at !== hd.at) { hd.at = at; onAftertouch?.(hd.midi, at); }
+    if (slide === 'bend') onBend?.(bendFor(x - hd.x0, bendKeys));
   }
 
   function wheelTo(w: Wheel, y: number): void {
-    if (w === 'bend') { const v = bendFromY(y); setBendPos(v); onBend?.(v); }
-    else { const v = modFromY(y); setModPos(v); onMod?.(v); }
+    if (w === 'bend') { const v = bendFromY(y, h); setBendPos(v); onBend?.(v); }
+    else { const v = modFromY(y, h); setModPos(v); onMod?.(v); }
   }
   const onPointerDown = (e: React.PointerEvent<SVGSVGElement>): void => {
     if (e.button !== 0 && e.pointerType === 'mouse') return;
     e.preventDefault();
     svgRef.current?.setPointerCapture(e.pointerId);
     const { x, y } = pointOf(e);
-    const w = wheels ? wheelAt(x, y) : null;
+    const w = wheels ? wheelAt(x, y, h) : null;
     if (w) { wheelHeld.current.set(e.pointerId, w); wheelTo(w, y); return; }
     const k = keyAt(keys, x - off, y);
     if (k) press(e.pointerId, k, x - off, y);
@@ -141,10 +151,14 @@ export function ScreenKeys({
   };
 
   const btn: React.CSSProperties = { fontSize: 12, padding: '3px 10px', cursor: 'pointer' };
+  const oct: React.CSSProperties = { ...btn, fontSize: 16, fontWeight: 700, padding: '2px 12px', lineHeight: 1.2 };
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxWidth, WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}>
-      {(onSustain || pedal) && (
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', touchAction: 'none' }}>
+      {/* Werkbalk: octaaf links en rechts boven het klavier (de C-labels
+          tonen het octaaf), daartussen pedalen en instellingen. */}
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', touchAction: 'none' }}>
+        {onOctave && <button type="button" onClick={() => onOctave(-1)} style={oct} title="Octaaf omlaag" aria-label="Octaaf omlaag">−</button>}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', flex: 1, justifyContent: 'center' }}>
           {onSustain && (
             <button type="button"
               title="Sustainpedaal (CC 64): tik = vast of los, vasthouden = tijdelijk"
@@ -163,26 +177,19 @@ export function ScreenKeys({
               }}
               onPointerCancel={() => setSus(false)}
               onContextMenu={(e) => e.preventDefault()}
-              style={{ ...btn, padding: '6px 14px', fontWeight: sustain ? 700 : 400, background: sustain ? '#fde68a' : undefined, userSelect: 'none' }}>
+              style={{ ...btn, padding: '6px 12px', fontWeight: sustain ? 700 : 400, background: sustain ? '#fde68a' : undefined, userSelect: 'none' }}>
               {sustain ? '⏺ Sustain' : '○ Sustain'}
             </button>
           )}
           {pedal && (
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }} title="Pedaalschuif (expressie/wah) op de eerste CC van de MIDI-IN">
               {pedal.label}
               <input type="range" min={0} max={127} value={pedalPos}
                 onChange={(e) => { const v = Number(e.target.value); setPedalPos(v); pedal.onChange(v); }}
-                style={{ width: 140 }} />
+                style={{ width: 110 }} />
               <span style={{ width: 24, textAlign: 'right', color: '#6b7280' }}>{pedalPos}</span>
             </label>
           )}
-        </div>
-      )}
-      {onOctave && (
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <button type="button" onClick={() => onOctave(-1)} style={btn}>− octaaf</button>
-          <span style={{ fontSize: 12 }}>octaaf {octave}</span>
-          <button type="button" onClick={() => onOctave(1)} style={btn}>+ octaaf</button>
           {onSlide && (
             <label style={{ fontSize: 12, display: 'inline-flex', gap: 4, alignItems: 'center' }} title="Wat opzij schuiven over de toetsen doet; omhoog schuiven is altijd aftertouch">
               opzij:
@@ -192,15 +199,30 @@ export function ScreenKeys({
               </select>
             </label>
           )}
-          {hint && <span style={{ fontSize: 11, color: '#6b7280', marginLeft: 'auto' }}>{hint}</span>}
+          {onSlide && slide === 'bend' && onBendKeys && (
+            <label style={{ fontSize: 12, display: 'inline-flex', gap: 4, alignItems: 'center' }} title="Hoeveel toetsen opzij het volle bendbereik is; het bereik in halve tonen staat op de Bend-knop van de MIDI-IN">
+              over
+              <select value={bendKeys} onChange={(e) => onBendKeys(Number(e.target.value))} style={{ fontSize: 12 }}>
+                {BEND_KEYS.map((k) => <option key={k} value={k}>{k} {k === 1 ? 'toets' : 'toetsen'}</option>)}
+              </select>
+            </label>
+          )}
+          {onTall && (
+            <button type="button" onClick={() => onTall(!tall)} style={{ ...btn, fontWeight: tall ? 700 : 400, background: tall ? '#fde68a' : undefined }}
+              title="Lange toetsen: meer weg voor aanslag (laag = hard) en aftertouch (omhoog schuiven)" aria-label="Lange toetsen">
+              ⇕
+            </button>
+          )}
+          {extra}
         </div>
-      )}
+        {onOctave && <button type="button" onClick={() => onOctave(1)} style={oct} title="Octaaf omhoog" aria-label="Octaaf omhoog">+</button>}
+      </div>
       <svg
         ref={svgRef}
-        viewBox={`0 0 ${width} ${KEY_H}`}
+        viewBox={`0 0 ${width} ${h}`}
         width="100%"
         style={{
-          display: 'block', height: 'auto', aspectRatio: `${width} / ${KEY_H}`,
+          display: 'block', height: 'auto', aspectRatio: `${width} / ${h}`,
           touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none',
           // iOS: geen "kopieer/zoek"-callout bij lang drukken op de toetsen.
           WebkitTouchCallout: 'none',
@@ -216,17 +238,18 @@ export function ScreenKeys({
         onLostPointerCapture={onPointerEnd}
         aria-label="Toetsenbord"
       >
+        <title>Laag op de toets is hard; omhoog schuiven is aftertouch; opzij: noot wisselen of buigen</title>
         {wheels && (
           <g pointerEvents="none">
             {/* Pitch bend: midden = rust; het blokje toont de stand. */}
-            <rect x={2} y={0} width={WHEEL_W} height={KEY_H} rx={2} fill="#1f2937" stroke="#000" strokeWidth={0.8} />
-            <line x1={2} y1={KEY_H / 2} x2={2 + WHEEL_W} y2={KEY_H / 2} stroke="#6b7280" strokeWidth={0.6} />
-            <rect x={3} y={KEY_H / 2 - (bendPos - 8192) / 8191 * (KEY_H / 2 - 4) - 3} width={WHEEL_W - 2} height={6} rx={1} fill="#fbbf24" />
-            <text x={2 + WHEEL_W / 2} y={KEY_H - 2} fontSize={5} textAnchor="middle" fill="#9ca3af">bend</text>
+            <rect x={2} y={0} width={WHEEL_W} height={h} rx={2} fill="#1f2937" stroke="#000" strokeWidth={0.8} />
+            <line x1={2} y1={h / 2} x2={2 + WHEEL_W} y2={h / 2} stroke="#6b7280" strokeWidth={0.6} />
+            <rect x={3} y={h / 2 - (bendPos - 8192) / 8191 * (h / 2 - 4) - 3} width={WHEEL_W - 2} height={6} rx={1} fill="#fbbf24" />
+            <text x={2 + WHEEL_W / 2} y={h - 2} fontSize={5} textAnchor="middle" fill="#9ca3af">bend</text>
             {/* Modwiel: onder = 0. */}
-            <rect x={2 + WHEEL_W + 4} y={0} width={WHEEL_W} height={KEY_H} rx={2} fill="#1f2937" stroke="#000" strokeWidth={0.8} />
-            <rect x={2 + WHEEL_W + 4 + 1} y={KEY_H - 4 - (modPos / 127) * (KEY_H - 8) - 3} width={WHEEL_W - 2} height={6} rx={1} fill="#60a5fa" />
-            <text x={2 + WHEEL_W + 4 + WHEEL_W / 2} y={KEY_H - 2} fontSize={5} textAnchor="middle" fill="#9ca3af">mod</text>
+            <rect x={2 + WHEEL_W + 4} y={0} width={WHEEL_W} height={h} rx={2} fill="#1f2937" stroke="#000" strokeWidth={0.8} />
+            <rect x={2 + WHEEL_W + 4 + 1} y={h - 4 - (modPos / 127) * (h - 8) - 3} width={WHEEL_W - 2} height={6} rx={1} fill="#60a5fa" />
+            <text x={2 + WHEEL_W + 4 + WHEEL_W / 2} y={h - 2} fontSize={5} textAnchor="middle" fill="#9ca3af">mod</text>
           </g>
         )}
         {keys.filter((k) => !k.black).map((k) => (
@@ -243,6 +266,7 @@ export function ScreenKeys({
             fill={down.has(k.midi) ? '#d97706' : '#1f2937'} stroke="#000" strokeWidth={0.8} />
         ))}
       </svg>
+      {hint && <div style={{ fontSize: 11, color: '#6b7280' }}>{hint}</div>}
     </div>
   );
 }

@@ -913,6 +913,7 @@ export function ModularMbApp(): JSX.Element {
       <DemoCaption state={demo} onSkip={() => demoRef.current?.finish()} onClose={() => { demoRef.current?.stop(); setDemo(null); }} />
 
       <SecureContextNote />
+      <ZoomEscape />
 
       {/* ── Sub-tabs; dicht = alleen het front en "Binnenkijken" ── */}
       <nav style={{ display: 'flex', gap: 4, borderBottom: '1px solid #cbd2d9', marginBottom: 12, alignItems: 'center' }}>
@@ -1004,5 +1005,44 @@ function SecureContextNote() {
       {hint.httpsUrl && <>Start de dev-server met <code>npm run dev:https</code> en open <a href={hint.httpsUrl}>{hint.httpsUrl}</a> (certificaat eenmalig accepteren). </>}
       Of zet in Chrome <code>chrome://flags/#unsafely-treat-insecure-origin-as-secure</code> aan voor dit adres.
     </div>
+  );
+}
+
+/** Uitweg uit de pinch-zoom op de telefoon. Het toetsenbord en de knoppen
+ *  hebben `touch-action: none`, dus zodra het klavier het scherm vult is er
+ *  geen plek meer om terug te knijpen. Zolang de pagina ingezoomd is staat
+ *  er linksboven in het zichtbare deel één knopje: terug naar alles in beeld
+ *  (de viewport-meta even op maximum-scale=1 zetten, wat Chrome en Safari
+ *  als "terug naar 1" uitvoeren). */
+function ZoomEscape(): JSX.Element | null {
+  const [vv, setVv] = useState<{ scale: number; left: number; top: number } | null>(null);
+  useEffect(() => {
+    const v = window.visualViewport;
+    if (!v) return undefined;
+    const sync = (): void => setVv(v.scale > 1.05 ? { scale: v.scale, left: v.offsetLeft, top: v.offsetTop } : null);
+    v.addEventListener('resize', sync);
+    v.addEventListener('scroll', sync);
+    sync();
+    return () => { v.removeEventListener('resize', sync); v.removeEventListener('scroll', sync); };
+  }, []);
+  if (!vv) return null;
+  const reset = (): void => {
+    const meta = document.querySelector<HTMLMetaElement>('meta[name="viewport"]');
+    if (!meta) return;
+    const was = meta.content;
+    meta.content = 'width=device-width, initial-scale=1, maximum-scale=1';
+    window.setTimeout(() => { meta.content = was; }, 150);
+  };
+  return (
+    <button type="button" onClick={reset} title="Terug naar alles in beeld" aria-label="Terug naar alles in beeld"
+      style={{
+        position: 'fixed', left: vv.left + 6, top: vv.top + 6, zIndex: 1000,
+        // Op het ingezoomde scherm even groot blijven: tegen de schaal in.
+        transform: `scale(${1 / vv.scale})`, transformOrigin: 'top left',
+        fontSize: 16, lineHeight: 1, padding: '8px 10px', borderRadius: 8, border: '1px solid #cbd2d9', background: '#fff7e6', cursor: 'pointer',
+        boxShadow: '0 1px 4px rgba(0,0,0,.25)',
+      }}>
+      ⊡
+    </button>
   );
 }

@@ -5,7 +5,7 @@
 // is de gebruikersactie die Web Audio daarvoor vraagt). Het octaaf wordt
 // onthouden.
 
-import { useState } from 'react';
+import { useEffect, useState, type RefObject } from 'react';
 
 import { getEngine, useEngineStatus } from './sim/engineSingleton';
 import { SUSTAIN_CC, midiInCcNumbers } from './sim/midiInCc';
@@ -14,8 +14,19 @@ import { useModularProject } from './store';
 
 const OCT_KEY = 'mb.front.octave';
 const SLIDE_KEY = 'mb.front.slide';
+const BEND_KEY = 'mb.front.bendKeys';
+const TALL_KEY = 'mb.front.tall';
 
-export function FrontKeys(): JSX.Element {
+function remembered<T>(key: string, parse: (raw: string | null) => T): T {
+  try { return parse(localStorage.getItem(key)); } catch { return parse(null); }
+}
+function remember(key: string, value: string): void {
+  try { localStorage.setItem(key, value); } catch { /* geen opslag */ }
+}
+
+/** `stage`: wat er op volledig scherm gaat (front + toetsen), als de
+ *  browser dat kan; de knop ⛶ staat in de werkbalk van het toetsenbord. */
+export function FrontKeys({ stage }: { stage?: RefObject<HTMLElement | null> } = {}): JSX.Element {
   const status = useEngineStatus();
   const project = useModularProject();
   // De pedaalschuif stuurt op het nummer dat de MIDI-IN van deze patch als
@@ -28,6 +39,24 @@ export function FrontKeys(): JSX.Element {
     try { return localStorage.getItem(SLIDE_KEY) === 'bend' ? 'bend' : 'note'; } catch { return 'note'; }
   });
   const setSlide = (m: SlideMode): void => { setSlideState(m); try { localStorage.setItem(SLIDE_KEY, m); } catch { /* geen opslag */ } };
+  const [bendKeys, setBendKeysState] = useState<number>(() => remembered(BEND_KEY, (r) => { const v = Number(r); return v >= 1 && v <= 12 ? v : 2; }));
+  const setBendKeys = (k: number): void => { setBendKeysState(k); remember(BEND_KEY, String(k)); };
+  const [tall, setTallState] = useState<boolean>(() => remembered(TALL_KEY, (r) => r === '1'));
+  const setTall = (t: boolean): void => { setTallState(t); remember(TALL_KEY, t ? '1' : '0'); };
+  // Volledig scherm (Fullscreen API): de werkbalk van het toetsenbord blijft
+  // in beeld, dus ook de knop om er weer uit te komen.
+  const canFull = typeof document !== 'undefined' && !!document.documentElement.requestFullscreen;
+  const [full, setFull] = useState(false);
+  useEffect(() => {
+    const sync = (): void => setFull(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', sync);
+    return () => document.removeEventListener('fullscreenchange', sync);
+  }, []);
+  const toggleFull = (): void => {
+    if (document.fullscreenElement) { void document.exitFullscreen(); return; }
+    const el = stage?.current;
+    if (el) el.requestFullscreen().catch(() => { /* geweigerd (iframe, iOS): dan niet */ });
+  };
   const [err, setErr] = useState<string | null>(null);
   const setOctave = (d: number): void => {
     const o = Math.max(0, Math.min(8, octave + d));
@@ -59,7 +88,14 @@ export function FrontKeys(): JSX.Element {
       <ScreenKeys octave={octave} onOctave={setOctave} onNoteOn={noteOn} onNoteOff={noteOff}
         onAftertouch={aftertouch} onBend={bend} onMod={mod} onSustain={sustain}
         pedal={{ label: `Pedaal CC ${cc.cc1}`, onChange: pedal }} slide={slide} onSlide={setSlide}
-        hint={status.running ? 'Laag op de toets is hard; omhoog schuiven is aftertouch' : 'Eerste aanslag start de simulator'} />
+        bendKeys={bendKeys} onBendKeys={setBendKeys} tall={tall} onTall={setTall}
+        extra={canFull && stage ? (
+          <button type="button" onClick={toggleFull} style={{ fontSize: 12, padding: '3px 10px', cursor: 'pointer', fontWeight: full ? 700 : 400, background: full ? '#fde68a' : undefined }}
+            title={full ? 'Volledig scherm uit' : 'Front en toetsenbord op het hele scherm'} aria-label="Volledig scherm">
+            {full ? '✕ ⛶' : '⛶'}
+          </button>
+        ) : undefined}
+        hint={status.running ? undefined : 'Eerste aanslag start de simulator'} />
       {err && <div style={{ color: '#b91c1c', fontSize: 12, marginTop: 4 }}>{err}</div>}
     </div>
   );

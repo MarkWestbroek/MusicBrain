@@ -44,6 +44,18 @@
   certificaat); de editor toont boven de werkbalk één oranje regel met de
   uitweg (`secureContext.ts`) en de MIDI-fout benoemt de oorzaak. Uitleg in
   `editor/README.md` ("Telefoon: geluid en MIDI alleen via https").
+- **Schermtoetsenbord, tweede ronde** (`sim/ScreenKeys.tsx`,
+  `sim/screenKeysLayout.ts`, `FrontKeys.tsx`): octaaf − en + links en rechts
+  boven het klavier (de C-labels tonen het octaaf), daartussen Sustain, de
+  pedaalschuif, "opzij: noot wisselen/buigen" en, in de buigstand, "over N
+  toetsen" (hoeveel toetsbreedtes opzij het volle bendbereik is; 1–12,
+  onthouden). Pitch- en modwiel zo breed als een toets. **⇕ Lange toetsen**
+  (150 i.p.v. 90): meer weg voor aanslag en aftertouch, onthouden.
+  **⛶ Volledig scherm** (Fullscreen API) voor front + toetsenbord, met
+  dezelfde knop weer terug. **⊡ Terug naar alles in beeld**: zodra de pagina
+  op de telefoon ingezoomd is staat er linksboven één knopje om de zoom
+  terug te zetten (het toetsenbord zelf laat knijpen niet toe, dus anders
+  kwam je er niet meer uit). 1 test extra.
 - **Standaardset bij de eerste start** (`demoSeeds.standardProject`,
   `store.freshStart`): wie de editor voor het eerst opent (niets bewaard in
   de browser) begint met de negen voorbeeldpatches uit de Front-tab als
