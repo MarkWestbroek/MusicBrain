@@ -3,7 +3,9 @@
 // welke knoppen en jacks van deze module erop staan. Hetzelfde als
 // rechtsklik → "Op front zetten", maar zichtbaar en voor wie rechtsklik
 // niet vindt. Een patch zonder front krijgt hier een knop om er een te
-// maken uit het automatische front.
+// maken uit het automatische front. Displays en LED's die iets tonen (een
+// naam, een stap) staan er ook bij: zij kijken op het front naar dezelfde
+// control als op het paneel.
 
 import { useState } from 'react';
 
@@ -24,7 +26,16 @@ export function FrontFields({ moduleId, controls, ports, patchId, dark = false }
   const front = fronts.find((f) => f.id === chosen) ?? fronts[0];
   const moduleName = project.modules.find((m) => m.id === moduleId)?.name;
   const playable = controls.filter((c) => c.kind !== 'display' && c.kind !== 'led');
-  if (playable.length === 0 && ports.length === 0) return null;
+  // Een LED zonder binding brandt altijd en zegt op een front niets.
+  const readouts = controls.filter((c) => c.kind === 'display' || (c.kind === 'led' && c.bindTo));
+  const shows = (c: Control): string => {
+    if (c.kind !== 'display' && c.kind !== 'led') return '';
+    const of = (id?: string): string | undefined => (id ? controls.find((x) => x.id === id)?.label ?? id.replace(/^__/, '') : undefined);
+    const parts = [of(c.bindTo), c.kind === 'display' ? of(c.bindTo2) : undefined].filter(Boolean);
+    const what = c.kind === 'led' ? 'led' : c.lookup ? 'naam' : 'display';
+    return parts.length ? `${what} bij ${parts.join(' en ')}` : what;
+  };
+  if (playable.length === 0 && readouts.length === 0 && ports.length === 0) return null;
 
   const edit = (fn: (x: Patch) => Patch): void =>
     updateProject((p) => ({ ...p, patches: p.patches.map((x) => (x.id === patch.id ? fn(x) : x)) }), { forceCommit: true });
@@ -63,6 +74,15 @@ export function FrontFields({ moduleId, controls, ports, patchId, dark = false }
               <label key={`c-${c.id}`} style={line}>
                 <input type="checkbox" checked={isOnFront(front, item)} onChange={() => toggle(item)} />
                 <span style={{ color: muted }}>{c.label || c.id}</span>
+              </label>
+            );
+          })}
+          {readouts.map((c) => {
+            const item: FrontItem = { kind: 'control', moduleId, controlId: c.id };
+            return (
+              <label key={`d-${c.id}`} style={line}>
+                <input type="checkbox" checked={isOnFront(front, item)} onChange={() => toggle(item)} />
+                <span style={{ color: muted }}>▭ {c.label || shows(c)}</span>
               </label>
             );
           })}

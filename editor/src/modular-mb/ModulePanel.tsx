@@ -209,7 +209,7 @@ export function ModulePanel({
           <g key={`ctl-${c.id}`}
             opacity={disabled ? 0.35 : 1}
             style={disabled ? { pointerEvents: 'none' } : undefined}
-            onContextMenu={onControlContextMenu && c.kind !== 'display' && c.kind !== 'led'
+            onContextMenu={onControlContextMenu
               ? (e) => { e.preventDefault(); e.stopPropagation(); onControlContextMenu(c.id, e); } : undefined}>
             {disabled && <title>Niet actief in deze patch</title>}
             <ControlGlyph

@@ -7,10 +7,10 @@ import { describe, expect, it } from 'vitest';
 
 import { ModulePanel } from './ModulePanel';
 import { frontIssues } from './fronts';
-import { autoFront, buildFrontModule, frontControlState, patchModulesInSignalOrder, rankKnobs } from './frontLayout';
+import { autoFront, buildFrontModule, frontControlState, patchModulesInSignalOrder, rankKnobs, withNameDisplays } from './frontLayout';
 import { findModuleByWord } from './recipe/edits';
 import { buildRecipe } from './recipe/compile';
-import { seedInternals, seedKrellPatch } from './seedModules';
+import { seedInternals, seedKrellPatch, seedSoloVoicePatch } from './seedModules';
 import { seedEPianoPolyPatch } from './seedShowcase';
 import { addBusFx } from './recipe/edits';
 import { emptyModularProject, resolveControls, type FrontItem, type ModularProject, type ModuleInstance, type Patch, type PatchFront } from './types';
@@ -183,5 +183,90 @@ describe('autoFront', () => {
     const first = f.items[0]!, second = f.items[1]!;
     expect(first).toMatchObject({ kind: 'control', moduleId: vcf, controlId: 'q', size: 'large' });
     expect(second).toMatchObject({ kind: 'control', moduleId: vco, controlId: 'fine' });
+  });
+});
+
+describe('displays op een front', () => {
+  const dx7 = (): { p: ModularProject; patch: Patch; id: string } => {
+    const p = seedSoloVoicePatch(base(), 'tp_mmb_dx7', 'DX7', 'out', 'out', { bank: 2, program: 5, level: 0.8 });
+    const patch = active(p);
+    const inPatch = new Set(p.racks.filter((r) => patch.rackIds.includes(r.id)).flatMap((r) => r.slots.map((x) => x.moduleId)));
+    return { p, patch, id: p.modules.find((m) => m.typeId === 'tp_mmb_dx7' && inPatch.has(m.id))!.id };
+  };
+  const nameOf = (p: ModularProject, id: string, bank: number, program: number): string => {
+    const d = resolveControlsOf(p, p.modules.find((m) => m.id === id)!).find((c) => c.id === 'voiceName')!;
+    return d.kind === 'display' ? d.lookup![bank]![program]! : '';
+  };
+
+  it('toont de voicenaam van de DX7, ook als Bank en Program zelf niet op het front staan', () => {
+    const { p, patch, id } = dx7();
+    const front: PatchFront = { id: 'f', name: 'F', items: [
+      { kind: 'control', moduleId: id, controlId: 'voiceName' },
+      { kind: 'control', moduleId: id, controlId: 'level' },
+    ] };
+    const fm = buildFrontModule(front, patch, p);
+    expect(fm.type.controls.map((c) => c.kind)).toEqual(['display', 'knob']);
+    const state = frontControlState(fm, patch);
+    const svg = renderToStaticMarkup(createElement(ModulePanel, { module: fm.module, types: [fm.type], controlState: state }));
+    expect(svg).toContain(nameOf(p, id, 2, 5).trimEnd());
+    // De live waarde van de engine of de Teensy gaat voor de patch.
+    const live = frontControlState(fm, patch, { [id]: { program: 6 } });
+    const svg2 = renderToStaticMarkup(createElement(ModulePanel, { module: fm.module, types: [fm.type], controlState: live }));
+    expect(svg2).toContain(nameOf(p, id, 2, 6).trimEnd());
+  });
+
+  it('valt zonder waarde in de patch terug op de standaard van de gebonden knop', () => {
+    const { p, patch, id } = dx7();
+    const bare: Patch = { ...patch, controlState: { ...patch.controlState, [id]: {} } };
+    const fm = buildFrontModule({ id: 'f', name: 'F', items: [{ kind: 'control', moduleId: id, controlId: 'voiceName' }] }, bare, p);
+    const svg = renderToStaticMarkup(createElement(ModulePanel, { module: fm.module, types: [fm.type], controlState: frontControlState(fm, bare) }));
+    expect(svg).toContain(nameOf(p, id, 0, 0).trimEnd());
+  });
+
+  it('geeft een groot display twee cellen en breekt de rij als het niet meer past', () => {
+    const { p, patch, id } = dx7();
+    const front: PatchFront = { id: 'f', name: 'F', columns: 4, items: [
+      { kind: 'control', moduleId: id, controlId: 'bank' },
+      { kind: 'control', moduleId: id, controlId: 'program' },
+      { kind: 'control', moduleId: id, controlId: 'level' },
+      { kind: 'control', moduleId: id, controlId: 'voiceName', size: 'large' },   // past niet meer: nieuwe rij
+      { kind: 'control', moduleId: id, controlId: 'coarse' },
+    ] };
+    const cp = buildFrontModule(front, patch, p).module.visual.controlPlacements;
+    expect(cp.c3!.y).toBeGreaterThan(cp.c0!.y);
+    expect(cp.c3!.x).toBe(5 + 24);              // midden van kolom 0 en 1
+    expect(cp.c4!.y).toBe(cp.c3!.y);
+    expect(cp.c4!.x).toBe(5 + 24 * 2.5);        // derde kolom
+  });
+
+  it('zet in het automatische front de naam vóór Bank en Program, en telt hem niet als knop', () => {
+    const { p, patch, id } = dx7();
+    const f = autoFront(patch, p);
+    const controls = f.items.filter((it): it is Extract<FrontItem, { kind: 'control' }> => it.kind === 'control');
+    const at = controls.findIndex((c) => c.moduleId === id && c.controlId === 'voiceName');
+    expect(at).toBeGreaterThanOrEqual(0);
+    expect(controls[at]!.size).toBe('large');
+    expect(controls[at + 1]).toMatchObject({ moduleId: id, controlId: 'bank' });
+    // Het kopje van de module blijft boven het display staan.
+    const raw = f.items.findIndex((it) => it.kind === 'control' && it.controlId === 'voiceName');
+    expect(f.items[raw - 1]).toMatchObject({ kind: 'group' });
+    // Cijferdisplays (bnkDisp, prgDisp) komen niet vanzelf mee.
+    expect(controls.some((c) => c.controlId === 'bnkDisp' || c.controlId === 'prgDisp')).toBe(false);
+    expect(frontIssues({ ...patch, fronts: [f] }, p)).toEqual([]);
+    expect(withNameDisplays(f.items, p)).toEqual(f.items);   // idempotent
+  });
+
+  it('laat een LED de lopende stap van de sequencer volgen', () => {
+    const p0 = base();
+    const isStepLed = (c: { kind: string; bindTo?: string; bindMatch?: number }): boolean => c.kind === 'led' && c.bindTo === '__currentStep' && c.bindMatch === 3;
+    const seqType = p0.moduleTypes.find((t) => t.controls.some(isStepLed))!;
+    const led = seqType.controls.find(isStepLed)!;
+    const m: ModuleInstance = { ...p0.modules[0]!, id: 'seq1', typeId: seqType.id, name: 'SEQ' };
+    const p: ModularProject = { ...p0, modules: [...p0.modules, m] };
+    const patch = active(seedSoloVoicePatch(p, 'tp_mmb_vco', 'VCO', 'out', 'out', {}));
+    const fm = buildFrontModule({ id: 'f', name: 'F', items: [{ kind: 'control', moduleId: 'seq1', controlId: led.id }] }, patch, p);
+    const key = fm.type.controls[0]!.kind === 'led' ? fm.type.controls[0]!.bindTo! : '';
+    expect(frontControlState(fm, patch)[key]).toBeUndefined();   // sim staat stil
+    expect(frontControlState(fm, patch, { seq1: { __currentStep: 3 } })[key]).toBe(3);
   });
 });

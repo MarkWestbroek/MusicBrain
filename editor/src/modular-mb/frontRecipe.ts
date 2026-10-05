@@ -52,12 +52,17 @@ export function frontCandidates(project: ModularProject, patchId = project.activ
           id: c.id, label: patch.controlLabels?.[m.id]?.[c.id] ?? c.label ?? c.id, kind: c.kind,
           rank: i + 1, value: state[c.id] ?? defaultValueOf(c),
         })),
+        // Displays en LED's: geen waarde, ze tonen die van `shows`. Een
+        // display met `name: true` vertaalt de stand naar een naam.
+        displays: resolveControls(m, project.moduleTypes).flatMap((c) => (c.kind === 'display' || (c.kind === 'led' && c.bindTo)
+          ? [{ id: c.id, kind: c.kind, shows: [c.bindTo, c.kind === 'display' ? c.bindTo2 : undefined].filter(Boolean), name: c.kind === 'display' && !!c.lookup }]
+          : [])),
         ports: resolvePorts(m, project.moduleTypes).map((p) => ({ id: p.id, name: p.name, dir: p.direction, signal: p.signalType })),
       };
     }),
     existingFronts: (patch.fronts ?? []).map((f) => ({ id: f.id, name: f.name, items: f.items.length })),
     autoFront: auto.items,
-    hint: 'Een front is een view: alleen bestaande controls en poorten, geen waarden. Kies wat een speler nodig heeft; groepeer per functie met kopjes; hoogstens 8-12 knoppen; labels in de taal van de gebruiker.',
+    hint: 'Een front is een view: alleen bestaande controls en poorten, geen waarden. Kies wat een speler nodig heeft; groepeer per functie met kopjes; hoogstens 8-12 knoppen; labels in de taal van de gebruiker. Staat er een keuzeknop op het front (bank, program, ritme) en heeft de module een display met name: true, zet dat display er dan vóór (als control-item met het display-id, size "large"): de speler wil zien wat hij kiest.',
   };
 }
 

@@ -2702,6 +2702,13 @@ function mmbRings() {
 // 14c. MMB PLAITS — 12 HP. Mutable Instruments Plaits macro-oscillator
 //     (FW-AU-12): 16 synth-engines achter één engine-knop. Interne LPG
 //     (decay/colour) vuurt per trigger op de gate-ingang.
+// Engines in registratievolgorde van Plaits 1.2 (zie de knop hieronder).
+const PLAITS_ENGINE_NAMES = [
+  'VA+VCF', 'PHASEDIST', 'FM 6-OP A', 'FM 6-OP B', 'FM 6-OP C', 'WAVETERR', 'STRINGS', 'CHIPTUNE',
+  'VA', 'WAVESHAPE', 'FM 2-OP', 'GRAIN', 'ADDITIVE', 'WAVETABLE', 'CHORD', 'SPEECH',
+  'SWARM', 'NOISE', 'PARTICLE', 'STRING', 'MODAL', 'BASS DRUM', 'SNARE', 'HI-HAT',
+];
+
 function mmbPlaits() {
   const w = W(12);
   const col = (i: number): number => w * (0.16 + i * 0.34);   // 3 kolommen
@@ -2725,7 +2732,9 @@ function mmbPlaits() {
       // 21=BassDrum 22=Snare 23=HiHat. (Tot 2026-09-29 stond hier de oude
       // 16-lijst met max 15: "7=Speech" was Chiptune, 16–23 onbereikbaar.)
       knob   ('engine', 'Engine', w*0.28, 26, { size: 'medium', min: 0, max: 23, def: 0, step: 1, color: '#f9fafb' }),
-      display('engDisp', w*0.66, 26, { digits: 2, style: 'led', bindTo: 'engine', format: 'int' }),
+      display('engDisp', w*0.66, 22, { digits: 2, style: 'led', bindTo: 'engine', format: 'int' }),
+      // De naam van de engine erbij: op een front zegt "Engine 13" niets.
+      display('engName', w*0.66, 29, { digits: 9, style: 'led-green', size: 'small', bindTo: 'engine', lookup: [PLAITS_ENGINE_NAMES], text: 'VA+VCF' }),
       knob('harmonics', 'Harmonics', col(0), 52, { size: 'large', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
       knob('timbre',    'Timbre',    col(1), 52, { size: 'large', min: 0, max: 1, def: 0.5, color: '#e11d48' }),
       knob('morph',     'Morph',     col(2), 52, { size: 'large', min: 0, max: 1, def: 0.5, color: '#0891b2' }),
@@ -6430,7 +6439,7 @@ export function seedDx7PolyPatch(project: ModularProject, voiceCount = 8): Modul
   });
   const patch: Patch = {
     id: uid('patch'), name: `DX7 poly ×${N}`,
-    description: `${N}-stemmige 6-op FM (msfa/Dexed-kern). Zonder geladen bank klinkt alles als E.PIANO 1; laad een .syx via de Teensy-modal en kies met Program (0–31).`,
+    description: `${N}-stemmige 6-op FM (msfa/Dexed-kern). Bank kiest een van de acht fabrieksbanken (1A t/m 4B), Program de klank (0–31); het display toont de naam. Bank 8 is je eigen .syx, te laden via de Teensy-modal.`,
     voiceCount: N,
     rackIds: [rack.id],
     connections: [

@@ -2,17 +2,18 @@
 
 **Datum:** 2026-10-05
 **Status:** gebouwd en live op editor.musicbrain.nl (`main` = `0b74898`, deploy-run 110). Firmware-deel (stemtoon `a4`) gebouwd en hostgetest, niet geflasht.
+**Bijgewerkt 2026-10-05 (later):** displays en LED's op het front, een frontlijst per moduletype, vier ontworpen fronts en een standaardset van zeventien patches. Zie [Displays, knoppenkeuze en standaardset](#displays-knoppenkeuze-en-standaardset).
 **Ontwerp en besluiten:** [patch-front.md](patch-front.md) (§9 is de besluitenlijst). Dit document is het startpunt voor een volgende chat: wat er staat, waar het zit, waarom het zo is, en wat er nog open ligt.
 
 ## Korte conclusie
 
-Een patch heeft nu een **front**: een virtueel paneel met een deel van zijn knoppen en jacks, voor wie wil spelen zonder kabels te zien. Daar omheen is een **speelmodus** gegroeid die op een telefoon werkt: een schermtoetsenbord met wielen, sustain en pedaal, volledig scherm, panic, bewaren, en een persoonlijke stemtoon (A432). Nieuwe gebruikers beginnen met een standaardset van negen patches.
+Een patch heeft nu een **front**: een virtueel paneel met een deel van zijn knoppen en jacks, voor wie wil spelen zonder kabels te zien. Daar omheen is een **speelmodus** gegroeid die op een telefoon werkt: een schermtoetsenbord met wielen, sustain en pedaal, volledig scherm, panic, bewaren, en een persoonlijke stemtoon (A432). Nieuwe gebruikers beginnen met een standaardset van zeventien patches.
 
 Open zijn: signaalstroom-lijnen op het front (wacht op module-flows), macro's, front naar de Teensy, A/B-morph in de speelmodus, en twee firmwarestappen voor de stemtoon. Zie [Open werk](#open-werk).
 
 ## Begrippen
 
-- **Front** (`PatchFront` in `types.ts`): een benoemde, geordende lijst items op een patch. Een item is een control, een jack of een kopje. Waarden staan níét in het front maar in `patch.controlState`: het front is een *view met een beperkte controller* (MVC). Draaien op het front wijzigt de patch.
+- **Front** (`PatchFront` in `types.ts`): een benoemde, geordende lijst items op een patch. Een item is een control, een jack of een kopje. Een display of LED is ook een control en kan er dus ook op. Waarden staan níét in het front maar in `patch.controlState`: het front is een *view met een beperkte controller* (MVC). Draaien op het front wijzigt de patch.
 - **Auto-front**: wat een patch zonder bewaard front laat zien. Wordt elke keer afgeleid (`autoFront`), niet opgeslagen. "Auto bewaren als front" maakt er een bewerkbaar front van.
 - **Speelmodus** ("dicht"): alleen front, toetsenbord en een smalle werkbalk. Standaard voor wie de editor opent; "Binnenkijken ▸" opent rack, patcher en de rest, "◂ Speelmodus" gaat terug. Wordt onthouden (`mb.front.open`).
 - **Stereopaar**: twee gelijke mono-modules op L en R (zie `findTwin` in `recipe/edits.ts`). Op een front één knop die naar beide schrijft.
@@ -26,7 +27,8 @@ Alles onder `editor/src/modular-mb/` tenzij anders vermeld.
 | `types.ts` | `FrontItem`, `PatchFront`, `Patch.fronts`, `pruneFronts` (verwijzingen naar verdwenen modules vallen weg bij laden en bewerken). |
 | `setPatchControl.ts` | **Het enige schrijfpad voor een controlwijziging**: poly-fan-out (`polyControlTargets`), live naar de Teensy (`sendControlPoke`), en `controlState`. Patcher, eigenschappenpaneel, control-surface en front gebruiken het allemaal. `{ twins: true }` schrijft ook naar het stereopaar. |
 | `fronts.ts` | Pure bewerkingen: toevoegen (bij de eigen module, met kopje als nodig), verwijderen, verplaatsen, bijwerken, `frontIssues`. |
-| `frontLayout.ts` | `buildFrontModule` maakt van een front een virtueel `ModuleType` + `ModuleInstance` (raster, tegels per kopje, vrije `pos` in mm). `autoFront` en `rankKnobs` bepalen het automatische front. Heette eerst `frontPanel.ts`; zie [Valkuilen](#valkuilen). |
+| `frontLayout.ts` | `buildFrontModule` maakt van een front een virtueel `ModuleType` + `ModuleInstance` (raster, tegels per kopje, vrije `pos` in mm, brede displays over twee cellen). `autoFront`, `rankKnobs` en `withNameDisplays` bepalen het automatische front. Heette eerst `frontPanel.ts`; zie [Valkuilen](#valkuilen). |
+| `frontControls.ts` | `FRONT_CONTROLS`: per moduletype de knoppen die een speler wil, in volgorde. Leidend voor het automatische front; `frontControls.test.ts` eist een lijst voor elke klankbron, elk filter, elk effect en elke drum. |
 | `FrontPanel.tsx` | Tekent het front via `ModulePanel`; schikmodus (slepen naar mm); letters ×1,5 op een smal scherm (`textScale`). |
 | `FrontTab.tsx` | De Front-tab: frontkeuze, bewerker (naam, uitleg, kolommen, kopjes, label, klein/groot, volgorde), ✨ AI-front, lege start met voorbeelden, het podium voor volledig scherm. |
 | `FrontMenu.tsx`, `FrontFields.tsx` | Rechtsklik "Op front zetten" in rack en patcher, en het blok "Front (deze patch)" in de eigenschappen. |
@@ -38,7 +40,7 @@ Alles onder `editor/src/modular-mb/` tenzij anders vermeld.
 | `sim/tuning.ts`, `sim/TuningChip.tsx` | Persoonlijke stemtoon: chip "A = …" in de kop, onthouden (`mb.tuning.a4`), naar engine en Teensy. |
 | `PatchSelect.tsx` | Patchkeuze met onderaan "Voorbeeld toevoegen" (de standaardset). Speelmodus, Front-tab en volledig scherm gebruiken dezelfde. |
 | `PatchSave.tsx` | "● Bewaar" en "Bewaar als…", gedeeld door patcher-kop en speelmodus. |
-| `demoSeeds.ts` | De negen voorbeelden en `standardProject()` voor de eerste start (`store.freshStart`). |
+| `demoSeeds.ts` | De zeventien voorbeelden en `standardProject()` voor de eerste start (`store.freshStart`). Orgel, koper, ritmebox en acid hebben een ontworpen front in hun seed (`playFront` in `seedShowcase.ts`, `seedBrass.ts`). |
 | `secureContext.ts` | De oranje melding als de pagina via http op een netwerkadres open staat. |
 | `ModularMbApp.tsx` | Speelmodus versus binnenkijken, werkbalk, `ZoomEscape` (⊡-knop als de telefoon ingezoomd is). |
 | `ModulePanel.tsx` | Knop: met een vinger draaien als een schroefje (boog om het midden); schuif: grijpvlak en absoluut volgen; niet-passieve `touchstart` tegen meescrollen; `textScale`. |
@@ -54,7 +56,19 @@ In het Imprint-repo (`imprint-engine`, ook op `main`): `plugin-patches` heeft ee
 1. Een front is data op de patch; het zit in de bewaarcyclus (`recipe/saved.ts`: `fronts` in `SavedFields`), dus "gewijzigd", Bewaar, Terug en undo werken er gewoon op.
 2. `buildFrontModule` vertaalt het front naar een gewoon paneel met virtuele id's (`c0`, `p0`, …) en een `map` terug naar `(module, control)`. `ModulePanel` tekent het zonder te weten dat het een front is.
 3. Elke draai gaat via `setPatchControl` met `twins: true`. Er is geen tweede schrijfpad.
-4. `autoFront` kiest: gelabelde controls, gebonden controls, PADS/FADERS/KNOBS, dan per module in signaalvolgorde (audiopad eerst, dan envelopes, dan LFO's) de best gerangschikte knoppen (`rankKnobs`: catalogus-`playable`, dan afwijkend van standaard, dan karakterschakelaar, dan paneelvolgorde). Bron krijgt drie knoppen, de rest twee; maximaal acht; MIDI-IN overgeslagen; stereoparen één keer.
+4. `autoFront` kiest: gelabelde controls, gebonden controls, PADS/FADERS/KNOBS, dan per module in signaalvolgorde (audiopad eerst, dan envelopes, dan LFO's) de knoppen uit de lijst van het moduletype (`FRONT_CONTROLS`). Eerste ronde: de bron drie, de rest twee. Tweede ronde: aanvullen tot acht uit dezelfde lijsten, bij de eigen module. Een type zonder lijst volgt de vuistregels van `rankKnobs` (afwijkend van standaard, dan karakterschakelaar, dan paneelvolgorde; stemming en volume achteraan). MIDI-IN overgeslagen; stereoparen één keer. Daarna komt bij elke keuzeknop zijn naamdisplay (`withNameDisplays`).
+
+## Displays, knoppenkeuze en standaardset
+
+Toegevoegd op 2026-10-05, na de eerste overdracht. Aanleiding: het DX7-front had Bank en Program maar liet niet zien welke klank er speelde, en de automatische keuze viel voor bijna alle modules terug op paneelvolgorde.
+
+- **Een display is een control-item.** `{ kind: 'control', moduleId, controlId: 'voiceName' }` verwijst naar het display van de module. Het datamodel is niet veranderd; `pruneFronts` en `frontIssues` werkten al. `buildFrontModule` zet de binding van het display (`bindTo`, `bindTo2`) om naar een eigen sleutel en `frontControlState` vult die uit de echte module: live waarde, dan de patch, dan de standaard van de gebonden knop. De knop zelf hoeft dus niet op het front te staan, en lopende waarden van de engine (`__currentStep`) komen ook door. Het blijft een view.
+- **Breedte.** Een display neemt zoveel cellen als het breed is (de voicenaam in groot: twee). Past het niet meer in de rij, dan begint er een nieuwe.
+- **Vanzelf mee.** Alleen naamdisplays (met `lookup`): DX7-voicenaam, ritmenaam, FOF-lettergreep, Plaits-engine. Cijferdisplays herhalen de knop en zet je er met de hand op (rechtsklik, of de frontvelden).
+- **`FRONT_CONTROLS` is leidend.** De maatstaf is "waar draait een speler aan": geen stemming, geen volume per module, wel keuzeknoppen en karakterschakelaars (Rotary `speed`). `playable` in de receptcatalogus is iets anders (startwaarden) en doet voor het front niet meer mee. Mixers hebben een lege lijst: in een poly-patch zijn de kanalen de stemmen.
+- **Jacks.** Alleen de uitgangen van een AUDIO IN en de audio-ingangen van modules die nog geen audio krijgen, en niet van klankbronnen. De vrije R-ingang van een mono gevoede Rotary en de EXT-ingangen van de SID stonden eerst als aansluiting op het front.
+- **Nieuwe module.** Zet de speelknoppen in `frontControls.ts`; de test wijst het aan als je het vergeet. Heeft de module een keuzeknop (bank, model, ritme), geef het paneel dan een display met `lookup`.
+- **Niet gedaan:** de tekeningen per moduletype in `ModulePanel` (VU-meter op OUT, bankstrip van de sampler, MIDI-leds) zijn geen controls en komen niet op een front. Zie Open werk.
 
 ## Besluiten die je niet opnieuw hoeft te nemen
 
@@ -110,4 +124,7 @@ Live: een push naar `main` met iets onder `editor/` deployt via de Action "Deplo
 | FW-13 | Stemtoon: MIDI-IN-wasm opnieuw bouwen (`tools/mmb-wasm/build.sh midiin`, vraagt wasi-sdk), apparaatinstelling in EEPROM, flashen en stemmen op hardware | [BACKLOG](../BACKLOG.md) |
 | — | Hangende noten: de oorzaak is niet gevonden (klavier dat een vinger niet afmeldt, of stemverdeling bij sustain). ⏹ Panic is de pleister. Let bij een volgende melding op of sustain aan stond. | speelmodus |
 | — | Werkbalk staand op de telefoon blijft twee regels | speelmodus |
+| — | Tekeningen per moduletype op het front: VU-meter van OUT, bankstrip van sampler en tapestrip. Het zijn geen controls; ze vragen een eigen itemsoort of een display op het paneel van de module. | `ModulePanel.tsx`, `frontLayout.ts` |
+| — | Luisteroordeel over de acht nieuwe patches in de standaardset (DX7 ×8, CS-80 koper, Axel F, SID, Buchla-stem, ritmebox, acid, West Coast); wat tegenvalt is één regel in `demoSeeds.ts` | Mark |
+| — | Bestaande gebruikers krijgen de nieuwe voorbeelden niet vanzelf; ze staan onder "Voorbeeld toevoegen". Een eenmalige melding "er zijn nieuwe voorbeelden" kan later. | `PatchSelect.tsx` |
 | ED-RX-1 | Reflex: pedaalsimulatie in de effect-switcher, door Mark uitgesteld | [pedaalsimulatie-effect-switcher.md](pedaalsimulatie-effect-switcher.md) |

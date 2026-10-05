@@ -7,8 +7,14 @@
 // `visual`, zodat `ModulePanel` het ongewijzigd tekent. Elke control krijgt
 // een virtueel id (`c0`, `c1`, …) dat via `map` terugwijst naar
 // (moduleId, controlId); poorten net zo (`p0`, …).
+//
+// Displays en LED's zijn ook controls en kunnen dus ook op een front. Zij
+// tonen geen eigen waarde maar die van een andere control van hun module
+// (`bindTo`): die waarden komen via `binds` uit de echte module, ook als de
+// knop zelf niet op het front staat.
 
-import { CATALOG, kindOf, type ModuleKindTag } from './recipe/catalog';
+import { DULL_CONTROL, FRONT_CONTROLS } from './frontControls';
+import { kindOf, type ModuleKindTag } from './recipe/catalog';
 import { findTwin } from './recipe/edits';
 import {
   MM_PER_HP, defaultValueOf, resolveControls, resolvePorts,
@@ -25,6 +31,9 @@ export interface FrontModule {
   type: ModuleType;
   /** Virtueel control-/poort-id → echte (module, control|poort). */
   map: Record<string, FrontTarget>;
+  /** Waar displays en LED's naar kijken: sleutel in de controlState van het
+   *  virtuele paneel → echte (module, control), met de standaardwaarde. */
+  binds: Record<string, { moduleId: string; controlId: string; def?: ControlValue }>;
   widthMm: number;
   heightMm: number;
 }
@@ -46,8 +55,18 @@ function rowHeightFor(c: Control): number {
   switch (c.kind) {
     case 'slider': return c.orientation === 'v' ? (c.lengthMm ?? 18) + 12 : ROW_KNOB;
     case 'switch': return Math.max(ROW_KNOB, (c.positions.length <= 3 ? 6 : 2.2 * c.positions.length) + 10);
+    case 'display': return c.size === 'large' ? 20 : 15;
+    case 'led': return 12;
     default: return ROW_KNOB;
   }
+}
+
+/** Hoeveel rastercellen een control breed is: een lang display (de voicenaam
+ *  van de DX7 in groot) neemt er twee. Zelfde maten als `DisplayGlyph`. */
+function spanFor(c: Control): number {
+  if (c.kind !== 'display') return 1;
+  const charW = c.size === 'large' ? 3.4 : c.size === 'small' ? 1.4 : 2.0;
+  return Math.max(1, Math.ceil((c.digits * charW + 4) / CELL_W));
 }
 
 /** Het label op het front: eigen label, anders het onderschrift van de
@@ -57,14 +76,14 @@ export function frontLabel(item: Extract<FrontItem, { kind: 'control' }>, patch:
 }
 
 /** Bouw het virtuele paneel. Items naar onbekende modules of controls worden
- *  overgeslagen (zie `pruneFronts`); displays en LED's tekenen we niet, hun
- *  bindingen wijzen naar controls van de echte module. */
+ *  overgeslagen (zie `pruneFronts`). */
 export function buildFrontModule(front: PatchFront, patch: Patch, project: ModularProject): FrontModule {
   const columns = Math.max(1, front.columns ?? DEFAULT_COLUMNS);
   const widthMm = columns * CELL_W + 2 * MARGIN_X;
   const controls: Control[] = [];
   const ports: Port[] = [];
   const map: Record<string, FrontTarget> = {};
+  const binds: FrontModule['binds'] = {};
   const controlPlacements: ModuleInstance['visual']['controlPlacements'] = {};
   const portPlacements: ModuleInstance['visual']['portPlacements'] = {};
   const texts: NonNullable<ModuleInstance['visual']['texts']> = [
@@ -81,10 +100,11 @@ export function buildFrontModule(front: PatchFront, patch: Patch, project: Modul
   // groepskopje hangt boven de cel die erop volgt (inline, geen eigen rij),
   // zodat vier kolommen gevuld blijven; een kopje vlak vóór de jacks wordt
   // de kop van het jack-blok.
-  type Cell = { c: Control; vid: string; size?: 'small' | 'large'; group?: string };
+  type Cell = { c: Control; vid: string; size?: 'small' | 'large'; group?: string; span: number };
   const rows: Cell[][] = [];
   let row: Cell[] = [];
-  const flush = () => { if (row.length) { rows.push(row); row = []; } };
+  let used = 0;   // bezette kolommen in de lopende rij
+  const flush = () => { if (row.length) { rows.push(row); row = []; } used = 0; };
   const portItems: Extract<FrontItem, { kind: 'port' }>[] = [];
   // Vrij geplaatste items (stap 4) staan buiten het raster, op hun eigen mm.
   const free: { c: Control; vid: string; size?: 'small' | 'large'; x: number; y: number }[] = [];
@@ -97,10 +117,28 @@ export function buildFrontModule(front: PatchFront, patch: Patch, project: Modul
     if (it.kind === 'port') { portItems.push(it); if (pendingGroup) { portsHeader = pendingGroup; pendingGroup = undefined; } continue; }
     const m = project.modules.find((x) => x.id === it.moduleId);
     if (!m) continue;
-    const real = resolveControls(m, project.moduleTypes).find((c) => c.id === it.controlId);
-    if (!real || real.kind === 'display' || real.kind === 'led') continue;
+    const all = resolveControls(m, project.moduleTypes);
+    const real = all.find((c) => c.id === it.controlId);
+    if (!real) continue;
     const vid = `c${n++}`;
-    let c: Control = { ...real, id: vid, label: frontLabel(it, patch, real) } as Control;
+    let c: Control;
+    if (real.kind === 'display' || real.kind === 'led') {
+      // Een display houdt zijn eigen (meestal lege) label; de binding gaat
+      // naar een sleutel die `frontControlState` uit de echte module vult.
+      const bind = (id?: string): string | undefined => {
+        if (!id) return undefined;
+        const bound = all.find((x) => x.id === id);
+        const key = `${vid}:${id}`;
+        binds[key] = { moduleId: it.moduleId, controlId: id, ...(bound ? { def: defaultValueOf(bound) } : {}) };
+        return key;
+      };
+      const label = it.label ?? real.label;
+      c = real.kind === 'display'
+        ? { ...real, id: vid, label, size: it.size ?? real.size, bindTo: bind(real.bindTo), bindTo2: bind(real.bindTo2) }
+        : { ...real, id: vid, label, size: it.size ?? real.size, bindTo: bind(real.bindTo) };
+    } else {
+      c = { ...real, id: vid, label: frontLabel(it, patch, real) } as Control;
+    }
     if (c.kind === 'knob' && it.range) {
       const min = Math.max(c.min, Math.min(it.range.min, it.range.max));
       const max = Math.min(c.max, Math.max(it.range.min, it.range.max));
@@ -112,9 +150,12 @@ export function buildFrontModule(front: PatchFront, patch: Patch, project: Modul
       freeBottom = Math.max(freeBottom, it.pos.y + rowHeightFor(c) / 2 + 4);
       continue;
     }
-    row.push({ c, vid, size: it.size, group: pendingGroup });
+    const span = Math.min(columns, spanFor(c));
+    if (used + span > columns) flush();
+    row.push({ c, vid, size: it.size, group: pendingGroup, span });
     pendingGroup = undefined;
-    if (row.length === columns) flush();
+    used += span;
+    if (used >= columns) flush();
   }
   flush();
 
@@ -125,13 +166,16 @@ export function buildFrontModule(front: PatchFront, patch: Patch, project: Modul
     const top = y + (withGroup ? GROUP_H : 0);
     const h = Math.max(...r.map((cell) => rowHeightFor(cell.c)));
     let segStart: number | null = inGroup ? 0 : null;
+    // Segmenten in kolommen (een breed display telt voor twee): van `from`
+    // tot vóór `to`.
     const closeSeg = (from: number, to: number) => {
-      if (to < from) return;   // lege reeks (kopje op de eerste cel van een doorlopende groep)
-      tile(MARGIN_X + CELL_W * from + 1, MARGIN_X + CELL_W * (to + 1) - 1, y + 0.8, top + h - 1.2);
+      if (to <= from) return;   // lege reeks (kopje op de eerste cel van een doorlopende groep)
+      tile(MARGIN_X + CELL_W * from + 1, MARGIN_X + CELL_W * to - 1, y + 0.8, top + h - 1.2);
     };
-    r.forEach((cell, i) => {
+    let col = 0;
+    for (const cell of r) {
       controls.push(cell.c);
-      const cx = MARGIN_X + CELL_W * (i + 0.5);
+      const cx = MARGIN_X + CELL_W * (col + cell.span / 2);
       // Een staande schuif tekent zich rond zijn midden (SliderGlyph): midden
       // op top + 3 + len/2, zodat hij netjes binnen de rij (len + 12) valt.
       const cy = cell.c.kind === 'slider' && cell.c.orientation === 'v' ? top + 3 + (cell.c.lengthMm ?? 18) / 2 : top + h / 2 - 2;
@@ -140,12 +184,13 @@ export function buildFrontModule(front: PatchFront, patch: Patch, project: Modul
         sizeOverride: cell.c.kind === 'knob' ? (cell.size === 'large' ? 'large' : cell.size === 'small' ? 'small' : 'medium') : undefined,
       };
       if (cell.group) {
-        if (segStart !== null) closeSeg(segStart, i - 1);
-        segStart = i; inGroup = true;
-        texts.push({ x: cx - CELL_W / 2 + 2.2, y: y + 3.7, text: cell.group, fontSize: 2.1, align: 'start', color: '#374151' });
+        if (segStart !== null) closeSeg(segStart, col);
+        segStart = col; inGroup = true;
+        texts.push({ x: MARGIN_X + CELL_W * col + 2.2, y: y + 3.7, text: cell.group, fontSize: 2.1, align: 'start', color: '#374151' });
       }
-    });
-    if (segStart !== null) closeSeg(segStart, r.length - 1);
+      col += cell.span;
+    }
+    if (segStart !== null) closeSeg(segStart, col);
     y = top + h;
   }
 
@@ -195,7 +240,7 @@ export function buildFrontModule(front: PatchFront, patch: Patch, project: Modul
     id: `front:${front.id}`, typeId: type.id, internal: true, name: front.name,
     visual: { hpWidth, heightMm, texture: 'aluminum', decorations, texts, controlPlacements, portPlacements },
   };
-  return { module, type, map, widthMm: hpWidth * MM_PER_HP, heightMm };
+  return { module, type, map, binds, widthMm: hpWidth * MM_PER_HP, heightMm };
 }
 
 /** De waarden van het virtuele paneel: uit de patch, met de live waarden van
@@ -206,9 +251,15 @@ export function frontControlState(
   const out: Record<string, ControlValue> = {};
   for (const c of fm.type.controls) {
     const t = fm.map[c.id];
-    if (!t || t.kind !== 'control') continue;
+    if (!t || t.kind !== 'control' || c.kind === 'display' || c.kind === 'led') continue;
     const v = live?.[t.moduleId]?.[t.controlId] ?? patch.controlState[t.moduleId]?.[t.controlId];
     out[c.id] = v ?? defaultValueOf(c);
+  }
+  // Waar de displays en LED's naar kijken (ook lopende waarden van de engine,
+  // zoals de stap van een sequencer).
+  for (const [key, b] of Object.entries(fm.binds)) {
+    const v = live?.[b.moduleId]?.[b.controlId] ?? patch.controlState[b.moduleId]?.[b.controlId] ?? b.def;
+    if (v !== undefined) out[key] = v;
   }
   return out;
 }
@@ -256,29 +307,43 @@ export function patchModulesInSignalOrder(patch: Patch, project: ModularProject)
   return result.flatMap((id) => { const m = project.modules.find((x) => x.id === id); return m ? [m] : []; });
 }
 
-/** De knoppen en schuiven van een module in volgorde van vermoedelijk
- *  belang: de `playable`-lijst van de receptcatalogus, dan wat van zijn
- *  standaardwaarde afwijkt (bewust gezet), dan de paneelvolgorde. */
+/** De controls van een module in volgorde van vermoedelijk belang voor een
+ *  speler. Eerst de lijst van het type (`FRONT_CONTROLS`), in die volgorde.
+ *  Dan de rest van de knoppen, schuiven en karakterschakelaars: wat van zijn
+ *  standaardwaarde afwijkt (bewust gezet), dan de schakelaars, dan de
+ *  paneelvolgorde; stemming en volume achteraan. */
 export function rankKnobs(m: ModuleInstance, patch: Patch, project: ModularProject): Control[] {
+  const all = resolveControls(m, project.moduleTypes);
+  const listed = (FRONT_CONTROLS[m.typeId] ?? []).flatMap((id) => {
+    const c = all.find((x) => x.id === id);
+    return c && PLAYABLE.has(c.kind) ? [c] : [];
+  });
   // Draaiknoppen en schuiven, plus de schakelaars die het karakter kiezen
-  // (type, mode, stack, model, engine, wave): die horen op een speelfront
-  // (E-piano: Type tine/reed), andere schakelaars niet.
-  const knobs = resolveControls(m, project.moduleTypes).filter((c) =>
-    c.kind === 'knob' || c.kind === 'slider' || ((c.kind === 'switch' || c.kind === 'toggle') && CHARACTER_SWITCHES.has(c.id)));
-  const playable = Object.keys(CATALOG[m.typeId]?.playable ?? {});
+  // (type, mode, stack, model, engine, wave); andere schakelaars alleen via
+  // de lijst van het type.
+  const rest = all.filter((c) => !listed.includes(c)
+    && (c.kind === 'knob' || c.kind === 'slider' || ((c.kind === 'switch' || c.kind === 'toggle') && CHARACTER_SWITCHES.has(c.id))));
   const state = patch.controlState[m.id] ?? {};
   const deviates = (c: Control) => state[c.id] !== undefined && JSON.stringify(state[c.id]) !== JSON.stringify(defaultValueOf(c));
-  // Volgorde: catalogus-playable, dan bewust gezet, dan een karakterschakelaar, dan de rest in paneelvolgorde.
-  const rank = (c: Control) => (playable.includes(c.id) ? playable.indexOf(c.id)
-    : playable.length + (deviates(c) ? 0 : c.kind === 'switch' || c.kind === 'toggle' ? 500 : 1000));
-  return [...knobs].map((c, i) => ({ c, i })).sort((a, b) => rank(a.c) - rank(b.c) || a.i - b.i).map((x) => x.c);
+  const rank = (c: Control) => (DULL_CONTROL.test(c.id) ? 2000 : 0)
+    + (deviates(c) ? 0 : c.kind === 'switch' || c.kind === 'toggle' ? 500 : 1000);
+  return [...listed, ...rest.map((c, i) => ({ c, i })).sort((a, b) => rank(a.c) - rank(b.c) || a.i - b.i).map((x) => x.c)];
 }
 const CHARACTER_SWITCHES = new Set(['type', 'mode', 'stack', 'model', 'engine', 'wave', 'algo', 'algorithm']);
 
+/** Waar het automatische front uit kiest: de lijst van het type als die er
+ *  is (leidend, ook als hij leeg is), anders de vuistregels van `rankKnobs`. */
+function autoPicks(m: ModuleInstance, patch: Patch, project: ModularProject): { picks: Control[]; listed: boolean } {
+  const list = FRONT_CONTROLS[m.typeId];
+  const ranked = rankKnobs(m, patch, project);
+  return list ? { picks: ranked.filter((c) => list.includes(c.id)), listed: true } : { picks: ranked, listed: false };
+}
+
 /** Het front voor een patch zonder front (§5): gelabelde controls, gebonden
  *  controls, de speelmodules, aangevuld tot `max` knoppen in signaalvolgorde;
- *  jacks: de uitgangen van een AUDIO IN en onverbonden audio-ingangen. Niet
- *  opgeslagen; de aanroeper bewaart het pas als iemand het bewerkt. */
+ *  naamdisplays bij hun knop; jacks: de uitgangen van een AUDIO IN en de
+ *  audio-ingangen van modules die nog geen audio krijgen. Niet opgeslagen;
+ *  de aanroeper bewaart het pas als iemand het bewerkt. */
 export function autoFront(patch: Patch, project: ModularProject, max = 8): PatchFront {
   const mods = patchModulesInSignalOrder(patch, project);
   const items: FrontItem[] = [];
@@ -298,19 +363,25 @@ export function autoFront(patch: Patch, project: ModularProject, max = 8): Patch
     const m = mods.find((x) => x.id === b.mod);
     if (m && playable(m).some((c) => c.id === b.ctrl)) add(m.id, b.ctrl);
   }
-  // 3. De speelmodules (PADS, FADERS, KNOBS).
-  for (const m of mods) if (PLAY_MODULES.has(m.typeId)) for (const c of playable(m)) add(m.id, c.id);
+  // 3. De speelmodules (PADS, FADERS, KNOBS): de pads en schuiven zelf.
+  for (const m of mods) if (PLAY_MODULES.has(m.typeId)) {
+    const list = FRONT_CONTROLS[m.typeId];
+    for (const c of playable(m)) if (!list || list.includes(c.id)) add(m.id, c.id);
+  }
   // 4. Aanvullen in signaalvolgorde: per module een kopje met zijn naam en
-  //    de eerste twee knoppen, tot `max`. (Niet om de beurt: "T1" en "S1"
-  //    zeggen zonder modulenaam niets.)
+  //    zijn belangrijkste knoppen, tot `max`. Twee rondes: eerst krijgt
+  //    elke module zijn deel (de bron drie, de rest twee), daarna vullen we
+  //    de plekken die over zijn met de volgende knoppen uit de lijst van
+  //    het type, bij de eigen module. Zo krijgt een E-piano met alleen een
+  //    OUT erachter zijn tremolo en drive erbij in plaats van vier lege
+  //    plekken.
   const count = () => items.filter((it) => it.kind === 'control').length;
   //    Welke modules eerst: die op het audiopad (bron, filter, effect, VCA,
   //    uit), dan envelopes, dan LFO's en de rest (mixers, CV-rekenwerk);
   //    binnen een laag de signaalvolgorde. Anders kwamen in een receptpatch
   //    de LFO en de envelopes vóór de VCO en het filter.
-  //    Welke twee knoppen: eerst de klankbepalende controls uit de
-  //    receptcatalogus (`playable`), dan controls die de ontwerper van hun
-  //    standaardwaarde heeft gezet, dan de paneelvolgorde.
+  //    Welke knoppen: de lijst van het moduletype (`FRONT_CONTROLS`); een
+  //    type zonder lijst volgt de vuistregels van `rankKnobs`.
   const roleOf = (m: ModuleInstance) => project.moduleTypes.find((t) => t.id === m.typeId)?.role;
   const layer = (m: ModuleInstance): number => {
     const t = project.moduleTypes.find((x) => x.id === m.typeId);
@@ -322,6 +393,12 @@ export function autoFront(patch: Patch, project: ModularProject, max = 8): Patch
   // Een stereopaar (dezelfde mono-module op L en R) staat één keer op het
   // front; de knop schrijft naar allebei (setPatchControl met twins).
   const twinned = new Set<string>();
+  const isSource = (m: ModuleInstance): boolean => {
+    const t = project.moduleTypes.find((x) => x.id === m.typeId);
+    return !!t && kindOf(t) === 'source';
+  };
+  const left = (m: ModuleInstance) => autoPicks(m, patch, project).picks.filter((c) => !have.has(`${m.id}/${c.id}`));
+  const shown: ModuleInstance[] = [];   // modules met een eigen kopje, in volgorde
   for (const m of ordered) {
     if (count() >= max) break;
     if (roleOf(m) === 'event-source') continue;   // MIDI-IN: kanaal en bendbereik zijn geen speelknoppen
@@ -329,27 +406,68 @@ export function autoFront(patch: Patch, project: ModularProject, max = 8): Patch
     const tw = findTwin(project, patch, m);
     if (tw) twinned.add(tw[0].id === m.id ? tw[1].id : tw[0].id);
     // De klankbron krijgt drie knoppen (daar zit het karakter), de rest twee.
-    const kind = project.moduleTypes.find((t) => t.id === m.typeId);
-    const per = kind && kindOf(kind) === 'source' ? 3 : 2;
-    const next = rankKnobs(m, patch, project).filter((c) => !have.has(`${m.id}/${c.id}`)).slice(0, per);
+    const next = left(m).slice(0, isSource(m) ? 3 : 2);
     if (!next.length) continue;
     items.push({ kind: 'group', text: m.name });
     for (const c of next) { if (count() >= max) break; add(m.id, c.id); }
+    shown.push(m);
+  }
+  // Tweede ronde: om de beurt één knop erbij (de bron twee), alleen uit de
+  // lijst van het type, direct achter de knoppen die de module al heeft.
+  for (let grew = true; grew && count() < max;) {
+    grew = false;
+    for (const m of shown) {
+      if (!autoPicks(m, patch, project).listed) continue;
+      for (const c of left(m).slice(0, isSource(m) ? 2 : 1)) {
+        if (count() >= max) break;
+        let last = -1;
+        items.forEach((it, i) => { if (it.kind === 'control' && it.moduleId === m.id) last = i; });
+        have.add(`${m.id}/${c.id}`);
+        items.splice(last + 1, 0, { kind: 'control', moduleId: m.id, controlId: c.id });
+        grew = true;
+      }
+    }
   }
 
-  // Jacks: AUDIO IN-uitgangen, dan onverbonden audio-ingangen (hoogstens 6),
-  //  in dezelfde laagvolgorde (een open mixeringang komt dus achteraan).
+  // Jacks: AUDIO IN-uitgangen, dan de audio-ingangen van modules die nog
+  //  helemaal geen audio krijgen (hoogstens 6), in dezelfde laagvolgorde.
+  //  Een vrije ingang van een module die al audio krijgt (de R van een
+  //  mono gevoede Rotary, een extra mixerkanaal) is geen aansluiting van
+  //  de black box en blijft weg; de EXT-ingang van een klankbron ook.
   const connectedIn = new Set(patch.connections.map((c) => `${c.to.moduleId}/${c.to.portId}`));
+  const fedModules = new Set<string>();
+  for (const m of ordered) for (const p of resolvePorts(m, project.moduleTypes))
+    if (p.direction === 'in' && p.signalType === 'audio' && connectedIn.has(`${m.id}/${p.id}`)) fedModules.add(m.id);
   const ports: FrontItem[] = [];
   for (const m of ordered) {
     for (const p of resolvePorts(m, project.moduleTypes)) {
       if (ports.length >= 6) break;
       const isAudioInSrc = m.typeId === 'tp_mmb_audioin' && p.direction === 'out';
-      const openAudioIn = p.direction === 'in' && p.signalType === 'audio' && !connectedIn.has(`${m.id}/${p.id}`);
+      const openAudioIn = p.direction === 'in' && p.signalType === 'audio' && !fedModules.has(m.id) && !isSource(m);
       if (isAudioInSrc || openAudioIn) ports.push({ kind: 'port', moduleId: m.id, portId: p.id, label: `${m.name} ${p.name}` });
     }
   }
   if (ports.length) items.push({ kind: 'group', text: 'Aansluitingen' }, ...ports);
 
-  return { id: 'front_auto', name: 'Auto', description: patch.description, columns: DEFAULT_COLUMNS, items };
+  return { id: 'front_auto', name: 'Auto', description: patch.description, columns: DEFAULT_COLUMNS, items: withNameDisplays(items, project) };
+}
+
+/** Een naamdisplay (met `lookup`: de voicenaam van de DX7, de lettergreep
+ *  van FOF, het ritme) hoort bij zijn knop: staat Bank of Program op het
+ *  front, dan komt de naam ervóór te staan, groot. Cijferdisplays herhalen
+ *  alleen de knop en komen niet vanzelf mee; die zet je er met de hand op. */
+export function withNameDisplays(items: FrontItem[], project: ModularProject): FrontItem[] {
+  const out = [...items];
+  const moduleIds = [...new Set(items.flatMap((it) => (it.kind === 'control' ? [it.moduleId] : [])))];
+  for (const id of moduleIds) {
+    const m = project.modules.find((x) => x.id === id);
+    if (!m) continue;
+    for (const d of resolveControls(m, project.moduleTypes)) {
+      if (d.kind !== 'display' || !d.lookup) continue;
+      if (out.some((it) => it.kind === 'control' && it.moduleId === id && it.controlId === d.id)) continue;
+      const at = out.findIndex((it) => it.kind === 'control' && it.moduleId === id && (it.controlId === d.bindTo || it.controlId === d.bindTo2));
+      if (at >= 0) out.splice(at, 0, { kind: 'control', moduleId: id, controlId: d.id, size: 'large' });
+    }
+  }
+  return out;
 }

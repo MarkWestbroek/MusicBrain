@@ -28,6 +28,7 @@ Overdracht en bestandenkaart: [doc/plans/patch-front-handover.md](doc/plans/patc
 - Elke controlwijziging loopt via `setPatchControl` (`editor/src/modular-mb/setPatchControl.ts`): poly-fan-out, Teensy-poke en store in één. Geen tweede schrijfpad bouwen; op een front met `{ twins: true }` voor stereoparen.
 - De speelmodus blijft klein: patchkeuze, bewaren, Binnenkijken. Nieuwe functies komen achter Binnenkijken of hergebruiken een bestaand onderdeel (zoals `PatchSelect`, `PatchSave`), geen eigen variant.
 - Touch-bediening op het paneel en het schermtoetsenbord: `touch-action: none` plus een niet-passieve `touchstart` met `preventDefault`, en geen tik-oplichting. Touch-gedrag op een echte telefoon laten bevestigen; de emulator bootst scrollen niet na.
+- Nieuwe klankbron, filter, effect of drum: zet in `editor/src/modular-mb/frontControls.ts` welke knoppen een speler wil (de test eist een lijst). Een keuzeknop (bank, model, ritme) krijgt op het paneel een display met `lookup`, dan staat de naam ook op het front.
 - Bestandsnamen in één map mogen niet alleen in hoofdletters verschillen (`editor/src/filenames.test.ts`).
 
 ## Documentatie

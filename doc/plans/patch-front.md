@@ -1,6 +1,8 @@
 # Patch-front: de black-box-kant van een patch
 
 > **Actueel (2026-10-05):** gebouwd en live, inclusief de speelmodus op de telefoon (toetsenbord, volledig scherm, panic, bewaren, stemtoon). Startpunt voor een volgende chat: [patch-front-handover.md](patch-front-handover.md).
+>
+> **Bijgewerkt 2026-10-05 (later):** displays en LED's kunnen op een front (een control-item met het id van het display; §3 hoefde er niet voor te veranderen). De knoppenkeuze van het automatische front (§5, punt 4) volgt niet meer `playable` uit de receptcatalogus maar een eigen lijst per moduletype, `editor/src/modular-mb/frontControls.ts`, en vult aan tot acht. De jacks zijn beperkt tot modules die nog geen audio krijgen. Zie de overdracht.
 
 Datum: 2026-10-03. Status: **grotendeels gebouwd** (2026-10-03/04): stap 0 t/m 4 en 6 (datamodel, schrijfhelper, virtueel paneel, automatisch front, Front-tab met bewerker, op front zetten, bewaarcyclus, spelermodus, AI-frontrecept, vrij schikken, hoes voor de pool; zie §8). Open: 4b (signaalstroom-lijnen, na [module-signaalstroom.md](module-signaalstroom.md)), 5 (macro's) en 7 (front → bindings en labels op de Teensy). Aanleiding: Mark
 laat de editor aan musici zien; de klanken slaan aan, de kabels schrikken af.

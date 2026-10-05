@@ -11,7 +11,7 @@ import { createPortal } from 'react-dom';
 import { addFront, addToFront, isOnFront, newFront, removeFromFront } from './fronts';
 import { autoFront } from './frontLayout';
 import { updateProject, useModularProject, uid } from './store';
-import type { FrontItem, Patch } from './types';
+import { resolveControls, type FrontItem, type Patch } from './types';
 
 export interface FrontMenuAnchor { x: number; y: number; item: FrontItem }
 
@@ -36,7 +36,10 @@ export function FrontMenu({ anchor, patchId, onClose }: { anchor: FrontMenuAncho
     updateProject((p) => ({ ...p, patches: p.patches.map((x) => (x.id === patchId ? fn(x) : x)) }), { forceCommit: true });
     onClose();
   };
-  const describe = item.kind === 'control' ? `knop ${item.controlId}` : item.kind === 'port' ? `jack ${item.portId}` : item.text;
+  const itemModule = item.kind !== 'group' ? project.modules.find((m) => m.id === item.moduleId) : undefined;
+  const ctlKind = item.kind === 'control' && itemModule ? resolveControls(itemModule, project.moduleTypes).find((c) => c.id === item.controlId)?.kind : undefined;
+  const describe = item.kind === 'control' ? `${ctlKind === 'display' ? 'display' : ctlKind === 'led' ? 'led' : 'knop'} ${item.controlId}`
+    : item.kind === 'port' ? `jack ${item.portId}` : item.text;
 
   const row: React.CSSProperties = {
     display: 'block', width: '100%', textAlign: 'left', border: 'none', background: 'transparent',

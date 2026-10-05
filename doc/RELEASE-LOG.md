@@ -17,6 +17,31 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-05 — Front: displays, betere knoppenkeuze, zeventien opstart-patches (editor, geen nieuwe firmware)
+- **Displays en LED's op het front** (`frontLayout.ts`): een display is een
+  control-item en toont op het front de stand van zijn knop in de echte
+  module, ook als die knop zelf niet op het front staat; lopende waarden van
+  de engine (de stap van een sequencer) komen ook door. Een breed display
+  neemt twee cellen. Een naamdisplay (DX7-voicenaam, ritmenaam,
+  FOF-lettergreep) komt vanzelf vóór zijn knop te staan; cijferdisplays zet
+  je er zelf op via rechtsklik of de frontvelden. Ook in de SVG-hoes voor de
+  pool en in de AI-fronttools (`displays` per module).
+- **Knoppenkeuze** (`frontControls.ts`, nieuw): per moduletype een lijst met
+  wat een speler wil, in volgorde; geen stemming en geen volume per module.
+  Het automatische front vult nu aan tot acht (de E-piano krijgt tremolo en
+  drive erbij), neemt Rotary `speed` mee en laat mixerkanalen weg. Jacks
+  alleen nog van modules die geen audio krijgen: de vrije R van de Rotary en
+  de EXT-ingangen van de SID staan er niet meer op.
+- **Plaits** toont de naam van de engine naast het nummer (paneel; bestaande
+  projecten krijgen het na "interne modules verversen").
+- **Standaardset van negen naar zeventien** (`demoSeeds.ts`): erbij DX7 ×8,
+  CS-80 koper, Axel F lead, SID ×3, Buchla-stem, ritmebox (CR-78), acid jam
+  en West Coast. Orgel (alle negen trekstangen, percussie, rotary), koper,
+  ritmebox en acid hebben een ontworpen front "Spelen" in hun seed.
+  Luisteroordeel over de nieuwe acht staat open. De beschrijving van DX7
+  poly klopte niet meer (de fabrieksbanken zitten erin) en is bijgewerkt.
+- 10 nieuwe tests (displays, frontlijst tegen de modules, standaardset).
+
 ### 2026-10-05 — Stemtoon A4 (A432): MIDI-IN `a4` in de firmware, persoonlijke instelling in de editor
 - **Firmware** (`core/runtime/MidiIn`): control `a4` (Hz, 380–500, standaard
   440). Elke pitch-uitgang (`pitch`, `pitchK`) schuift log2(a4/440) V, dus

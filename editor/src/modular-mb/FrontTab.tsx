@@ -153,6 +153,12 @@ function FrontEditor({ patch, front, edit, arrange, onArrange }: {
     const p = resolvePorts(m, project.moduleTypes).find((x) => x.id === it.portId);
     return `${m.name} · ${p?.name || it.portId} (jack)`;
   };
+  const isReadout = (it: FrontItem): boolean => {
+    if (it.kind !== 'control') return false;
+    const m = project.modules.find((x) => x.id === it.moduleId);
+    const k = m && resolveControls(m, project.moduleTypes).find((x) => x.id === it.controlId)?.kind;
+    return k === 'display' || k === 'led';
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 320, maxWidth: 460, fontSize: 12 }}>
@@ -186,12 +192,12 @@ function FrontEditor({ patch, front, edit, arrange, onArrange }: {
         )}
       </div>
       <div style={{ fontSize: 11, color: '#6b7280' }}>
-        Items in rastervolgorde. Knoppen en jacks toevoegen: rechtsklik in rack of patcher, of de frontvelden in de eigenschappen.
+        Items in rastervolgorde. Knoppen, displays en jacks toevoegen: rechtsklik in rack of patcher, of de frontvelden in de eigenschappen.
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
         {front.items.map((it, i) => (
           <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center', padding: '2px 4px', background: it.kind === 'group' ? '#eef2f7' : 'transparent', borderRadius: 4 }}>
-            <span style={{ width: 14, textAlign: 'center', color: '#9ca3af' }}>{it.kind === 'group' ? '¶' : it.kind === 'port' ? '⚬' : '◉'}</span>
+            <span style={{ width: 14, textAlign: 'center', color: '#9ca3af' }}>{it.kind === 'group' ? '¶' : it.kind === 'port' ? '⚬' : isReadout(it) ? '▭' : '◉'}</span>
             {it.kind === 'group' ? (
               <input value={it.text} maxLength={30} style={{ ...input, flex: 1, fontWeight: 600 }}
                 onChange={(e) => edit((x) => updateFrontItem(x, id, i, (y) => (y.kind === 'group' ? { ...y, text: e.target.value } : y)))} />

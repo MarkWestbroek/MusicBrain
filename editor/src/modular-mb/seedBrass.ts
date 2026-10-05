@@ -8,8 +8,9 @@
 //      alle stemmen tegelijk): tot vier octaven bij volle druk;
 //   2. vibrato komt erbij: druk telt op bij het modwheel als vibratodiepte.
 
-import type { ControlValue, ModularProject } from './types';
+import type { ControlValue, FrontItem, ModularProject, PatchFront } from './types';
 import { seedPolyVoicePatch } from './seedModules';
+import { uid } from './store';
 import { addBusFx, feedCvInput, spreadVoices } from './recipe/edits';
 
 export function seedCs80BrassPatch(project: ModularProject, voiceCount = 6): ModularProject {
@@ -63,10 +64,27 @@ export function seedCs80BrassPatch(project: ModularProject, voiceCount = 6): Mod
   set(inPatch('tp_mmb_elements_reverb'), { amount: 0.35, time: 0.8, diffusion: 0.7, lp: 0.55 });
   p = spreadVoices(p, pid, 0.6).project;
 
+  // Het speelfront: het filter en wat de druk ermee doet, dan de ruimte.
+  // Geen envelope-schuiven (die zijn 56 mm lang); de knoppen van de master
+  // gaan via de poly-groep naar alle stemmen.
+  const ladder = group('Ladder')[0]!, sum = group('LfoSum')[0]!;
+  const ctl = (moduleId: string, controlId: string, label: string, size?: 'large'): FrontItem =>
+    ({ kind: 'control', moduleId, controlId, label, ...(size ? { size } : {}) });
+  const front: PatchFront = {
+    id: uid('front'), name: 'Spelen', columns: 4, items: [
+      { kind: 'group', text: 'Filter' },
+      ctl(ladder, 'cutoff', 'Helderheid', 'large'), ctl(ladder, 'q', 'Resonantie'), ctl(ladder, 'drive', 'Drive'), ctl(sum, 'gain_a', 'Envelope'),
+      { kind: 'group', text: 'Aftertouch' }, ctl(sum, 'gain_c', 'Druk op filter'),
+      { kind: 'group', text: 'Ruimte' }, ctl(inPatch('tp_mmb_bbd_chorus'), 'mix', 'Chorus'), ctl(inPatch('tp_mmb_elements_reverb'), 'amount', 'Galm'),
+      { kind: 'group', text: 'Uit' }, ctl(inPatch('tp_mmb_out'), 'level', 'Volume'),
+    ],
+  };
+
   return {
     ...p,
     patches: p.patches.map((x) => x.id !== pid ? x : {
       ...x,
+      fronts: [front],
       description: `CS-80-koper à la Vangelis: ${N} stemmen zaagtand → ladder, trage filter-attack. Aftertouch opent het filter (tot vier octaven) en voegt vibrato toe (opgeteld bij het modwheel). BBD-chorus en plaatgalm op de bus. Speel langzaam en druk ná de aanslag door.`,
     }),
   };

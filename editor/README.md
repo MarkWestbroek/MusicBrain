@@ -164,14 +164,17 @@ Wie de editor opent ziet de **speelmodus**: de patchkeuze, het front van de
 patch (een virtueel paneel met de belangrijkste knoppen) en een
 schermtoetsenbord dat ook op een telefoon werkt. **Binnenkijken ▸** opent
 rack, patcher en de rest; **◂ Speelmodus** gaat terug. De eerste keer staat er
-een standaardset van negen patches klaar; meer voorbeelden onderaan de
-patchkeuzelijst.
+een standaardset van zeventien patches klaar (toetsen, synths en een paar die
+zichzelf spelen); dezelfde voorbeelden staan onderaan de patchkeuzelijst.
 
 - **Front**: een patch zonder eigen front krijgt er automatisch een. Rechtsklik
   op een knop in rack of patcher → "Op front zetten"; in de Front-tab (na
   Binnenkijken) bewerk je naam, volgorde, labels en kopjes, of laat je ✨ AI een
   front voorstellen. Draaien op het front wijzigt de patch; **● Bewaar** of
-  **Bewaar als…** legt het vast.
+  **Bewaar als…** legt het vast. Ook een display of led kan op het front
+  (zelfde rechtsklik, of de frontvelden in de eigenschappen): het toont de
+  stand van zijn knop. Een naamdisplay komt vanzelf mee, zodat je bij Bank en
+  Program van de DX7 de naam van de klank ziet.
 - **Toetsenbord**: laag op de toets is hard; omhoog schuiven is aftertouch;
   opzij schuiven wisselt de noot of buigt (instelbaar bereik). Links pitch- en
   modwiel, boven − en + voor het octaaf, Sustain (CC 64; tikken = vast,

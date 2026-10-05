@@ -12,12 +12,25 @@
 // gecontroleerd.
 
 import type {
-  ControlValue, ModularProject, ModuleInstance, Patch, PatchConnection, Rack, RackSlot,
+  ControlValue, FrontItem, ModularProject, ModuleInstance, Patch, PatchConnection, PatchFront, Rack, RackSlot,
 } from './types';
 import { uid } from './store';
 import { seedInternals } from './seedModules';
 
 type Wire = [from: ModuleInstance, output: string, to: ModuleInstance, input: string];
+
+/** Een ontworpen front voor een seed ("Spelen"): kopjes als tekst, knoppen
+ *  als [module, control, label?, groot?]. Het automatische front is goed
+ *  voor de meeste patches; een seed krijgt een eigen front als de keuze
+ *  niet uit de modules af te leiden is (alle negen trekstangen van het
+ *  orgel, de pads naast de ritmenaam). */
+type FrontRow = string | [mod: ModuleInstance, control: string, label?: string, size?: 'small' | 'large'];
+function playFront(columns: number, rows: FrontRow[]): PatchFront {
+  const items = rows.map((r): FrontItem => (typeof r === 'string'
+    ? { kind: 'group', text: r }
+    : { kind: 'control', moduleId: r[0].id, controlId: r[1], ...(r[2] ? { label: r[2] } : {}), ...(r[3] ? { size: r[3] } : {}) }));
+  return { id: uid('front'), name: 'Spelen', columns, items };
+}
 
 /** Verse instanties van interne types, in één rij in een nieuw rack. */
 function build(
@@ -103,6 +116,11 @@ export function seedAcidJamPatch(project: ModularProject): ModularProject {
       [mixer.id]: { vol1: 0.6, pan1: 0, vol2: 0.6, pan2: 0 },
       [out.id]: { level: 0.8 },
     },
+    fronts: [playFront(4, [
+      'Acid', [acid, 'cutoff', undefined, 'large'], [acid, 'res'], [acid, 'envmod'], [acid, 'decay'],
+      [acid, 'accent'], [acid, 'wave'],
+      'Klok', [clock, 'tempo'], [clock, 'swing'],
+    ])],
     envelopes: [], lfos: [],
   };
   return finish(p, mods, rack, patch);
@@ -184,6 +202,14 @@ export function seedOrganPolyPatch(project: ModularProject): ModularProject {
       [rotary.id]: { drive: 0.35, level: 1 },
       [out.id]: { level: 0.85 },
     },
+    fronts: [playFront(5, [
+      'Trekstangen', [organ, 'd16'], [organ, 'd513'], [organ, 'd8'], [organ, 'd4'], [organ, 'd223'],
+      [organ, 'd2'], [organ, 'd135'], [organ, 'd113'], [organ, 'd1'],
+      'Percussie', [organ, 'perc', '2e / 3e'],
+      'Orgel', [organ, 'vib'], [organ, 'click'],
+      'Rotary', [rotary, 'speed', 'Snelheid'], [rotary, 'drive'],
+      'Uit', [out, 'level', 'Volume'],
+    ])],
     envelopes: [], lfos: [],
   };
   return finish(p, mods, rack, patch);
@@ -378,6 +404,12 @@ export function seedRhythmBoxPatch(project: ModularProject): ModularProject {
       [box.id]: { rhythm: 14, variation: 2, tempo: 128, run: 1, extclock: 0, accent: 0.6, bass: 0.8, snare: 0.8, metal: 0.7, perc: 0.7, level: 0.8 },
       [out.id]: { level: 0.85 },
     },
+    fronts: [playFront(4, [
+      'Ritme', [box, 'rhythmName', undefined, 'large'], [box, 'rhythm'], [box, 'variation'],
+      [box, 'tempo'], [box, 'accent'],
+      'Spelen', [pads, 'b1'], [pads, 'b2'],
+      'Mix', [box, 'bass'], [box, 'snare'], [box, 'metal'], [box, 'perc'],
+    ])],
     envelopes: [], lfos: [],
   };
   return finish(p, mods, rack, patch);
