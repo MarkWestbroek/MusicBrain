@@ -19,6 +19,7 @@ import {
   updateFront, updateFrontItem,
 } from './fronts';
 import { DEMO_SEEDS } from './demoSeeds';
+import { PatchSelect } from './PatchSelect';
 import { runCommands } from './recipe/commands';
 import { openPoolBrowser } from './sim/PoolWindows';
 import { getProject, setProject } from './store';
@@ -72,15 +73,7 @@ export function FrontTab({ expert = true }: { expert?: boolean }): JSX.Element {
   return (
     <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-        {project.patches.length > 1 ? (
-          <select value={patch.id} title="Kies een patch" style={{ fontSize: 13, fontWeight: 700, maxWidth: 260 }}
-            onChange={(e) => { setChosen(null); updateProject((p) => {
-              const x = p.patches.find((q) => q.id === e.target.value);
-              return x ? { ...p, activePatchId: x.id, activeRackId: x.rackIds[0] ?? p.activeRackId } : p;
-            }); }}>
-            {project.patches.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
-          </select>
-        ) : <strong>{patch.name}</strong>}
+        <PatchSelect project={project} onChoose={() => setChosen(null)} />
         <select value={isAuto ? AUTO : front.id} onChange={(e) => setChosen(e.target.value)} style={{ fontSize: 12 }}>
           <option value={AUTO}>Auto (afgeleid, niet opgeslagen)</option>
           {fronts.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}

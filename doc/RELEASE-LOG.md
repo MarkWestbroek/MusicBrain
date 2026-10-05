@@ -48,8 +48,9 @@
   `store.freshStart`): wie de editor voor het eerst opent (niets bewaard in
   de browser) begint met de negen voorbeeldpatches uit de Front-tab als
   project "Standaardset", E-piano actief, in plaats van "Er is nog geen
-  patch". Alles blijft te verwijderen; Solo ▾/Poly ▾ zetten het zo weer
-  neer. 1 test.
+  patch". De patchkeuzelijst (speelmodus en Front-tab, `PatchSelect.tsx`)
+  heeft onderaan de groep "Voorbeeld toevoegen" met dezelfde negen, zodat je
+  er na de eerste keuze altijd bij terugkomt. 2 tests.
 - **Knoppen draaien op de telefoon** (`ModulePanel.tsx`, `taper.ts`): met
   een vinger draai je een knop als een schroefje: de vinger loopt in een boog
   om het midden en de wijzer volgt (een hele wijzerslag van 270° is de hele

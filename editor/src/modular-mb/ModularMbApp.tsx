@@ -10,6 +10,7 @@ import { onRackFocus } from './rackFocus';
 import { savePatch } from './recipe/saved';
 import { SaveAsButton, SaveButton } from './PatchSave';
 import { standardProject } from './demoSeeds';
+import { PatchSelect } from './PatchSelect';
 import { CommandPalette } from './recipe/CommandPalette';
 import { Tour, tourSeen } from './recipe/Tour';
 import { startDemo, DemoCaption, type DemoState, type DemoHandle } from './recipe/demo';
@@ -917,20 +918,7 @@ export function ModularMbApp(): JSX.Element {
       <nav style={{ display: 'flex', gap: 4, borderBottom: '1px solid #cbd2d9', marginBottom: 12, alignItems: 'center' }}>
         {!expert && (
           <>
-            {project.patches.length > 1 ? (
-              <select value={project.activePatchId ?? ''} title="Kies een patch"
-                onChange={(e) => updateProject((p) => {
-                  const x = p.patches.find((q) => q.id === e.target.value);
-                  return x ? { ...p, activePatchId: x.id, activeRackId: x.rackIds[0] ?? p.activeRackId } : p;
-                })}
-                style={{ padding: '4px 8px', fontWeight: 700, fontSize: 13, maxWidth: 260 }}>
-                {project.patches.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
-              </select>
-            ) : (
-              <span style={{ padding: '6px 14px', fontWeight: 700, fontSize: 13 }}>
-                {project.patches[0]?.name ?? project.name}
-              </span>
-            )}
+            <PatchSelect project={project} style={{ padding: '4px 8px' }} />
             {/* Spelen is ook tweaken: Bewaar zodra er iets gewijzigd is, en
                 Bewaar als. Terug en A/B wonen in de editor (Binnenkijken). */}
             {playerPatch && <SaveButton patch={playerPatch} style={{ padding: '4px 12px' }} />}
