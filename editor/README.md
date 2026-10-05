@@ -158,6 +158,35 @@ in de dev-server, zie [modlink/README.md](modlink/README.md) en
 > Let op: `server.host` maakt de dev-server bereikbaar voor alles in je
 > lokale netwerk, niet alleen voor localhost.
 
+### Speelmodus en front
+
+Wie de editor opent ziet de **speelmodus**: de patchkeuze, het front van de
+patch (een virtueel paneel met de belangrijkste knoppen) en een
+schermtoetsenbord dat ook op een telefoon werkt. **Binnenkijken ▸** opent
+rack, patcher en de rest; **◂ Speelmodus** gaat terug. De eerste keer staat er
+een standaardset van negen patches klaar; meer voorbeelden onderaan de
+patchkeuzelijst.
+
+- **Front**: een patch zonder eigen front krijgt er automatisch een. Rechtsklik
+  op een knop in rack of patcher → "Op front zetten"; in de Front-tab (na
+  Binnenkijken) bewerk je naam, volgorde, labels en kopjes, of laat je ✨ AI een
+  front voorstellen. Draaien op het front wijzigt de patch; **● Bewaar** of
+  **Bewaar als…** legt het vast.
+- **Toetsenbord**: laag op de toets is hard; omhoog schuiven is aftertouch;
+  opzij schuiven wisselt de noot of buigt (instelbaar bereik). Links pitch- en
+  modwiel, boven − en + voor het octaaf, Sustain (CC 64; tikken = vast,
+  vasthouden = tijdelijk), een pedaalschuif op de eerste CC van de MIDI-IN,
+  ⇕ lange toetsen, ⏹ alle noten uit, ⛶ volledig scherm met front of 🎹 alleen
+  het klavier.
+- **Stemtoon**: het keuzelijstje **A = …** naast ▶ Sim zet een persoonlijke
+  stemtoon (bijvoorbeeld 432) voor elke patch; MIDI-IN schuift alle
+  toonhoogtes mee.
+- **Telefoon**: knoppen draai je met een vinger in een boog om het midden;
+  schuiven volgen je vinger. Zit je vast in een ingezoomd scherm, dan staat er
+  linksboven een ⊡ om terug te gaan naar alles in beeld.
+
+Achtergrond voor ontwikkelaars: [doc/plans/patch-front-handover.md](../doc/plans/patch-front-handover.md).
+
 ### Telefoon: geluid en MIDI alleen via https
 
 AudioWorklet (alle wasm-modules), Web MIDI en de microfoon werken in de

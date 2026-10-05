@@ -1,5 +1,7 @@
 # Patch-front: de black-box-kant van een patch
 
+> **Actueel (2026-10-05):** gebouwd en live, inclusief de speelmodus op de telefoon (toetsenbord, volledig scherm, panic, bewaren, stemtoon). Startpunt voor een volgende chat: [patch-front-handover.md](patch-front-handover.md).
+
 Datum: 2026-10-03. Status: **grotendeels gebouwd** (2026-10-03/04): stap 0 t/m 4 en 6 (datamodel, schrijfhelper, virtueel paneel, automatisch front, Front-tab met bewerker, op front zetten, bewaarcyclus, spelermodus, AI-frontrecept, vrij schikken, hoes voor de pool; zie §8). Open: 4b (signaalstroom-lijnen, na [module-signaalstroom.md](module-signaalstroom.md)), 5 (macro's) en 7 (front → bindings en labels op de Teensy). Aanleiding: Mark
 laat de editor aan musici zien; de klanken slaan aan, de kabels schrikken af.
 Gevraagd: één patch, meerdere "fronts"; een front toont een deelverzameling
@@ -236,6 +238,9 @@ Solo ▾/Poly ▾-demo's zijn de eerste kandidaten.
 | 5 | editor | macro-knop (mini-morph) | middel, later |
 | 6 | editor + Imprint | `front.svg` bij Voorstellen; veld op het contenttype; tonen op `/patches/<slug>` | klein, **gebouwd 2026-10-04** |
 | 7 | editor + fw | front → bindings en labels bij patchwissel | middel, na control-labels fw |
+| S1 | editor | speelmodus: schermtoetsenbord (aanslag, aftertouch, buigen, wielen, sustain, pedaal), standaardset en voorbeelden in de patchkeuze, Bewaar/Bewaar als | **gebouwd 2026-10-04/05** |
+| S2 | editor | telefoon: draaien als een schroefje, grijpbare schuiven, grotere letters, volledig scherm in twee standen, ⊡ uit de zoom, ⏹ panic, `dev:https` | **gebouwd 2026-10-05** |
+| S3 | editor + fw | stemtoon A4 (A432): MIDI-IN `a4`, persoonlijke chip in de kop | **gebouwd 2026-10-05**; wasm, EEPROM en flashen open (FW-13) |
 
 Stap 1 en 2 zijn samen al demonstreerbaar: één seed met een front, de
 Front-tab, en de kabels uit beeld.
