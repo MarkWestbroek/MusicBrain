@@ -12,7 +12,7 @@
 // front in hun seed.
 
 import {
-  VIBE_SOLO_FX, SHIMMER_SOLO_FX, STEREO_PHASER_SOLO_FX, seedDx7PolyPatch, seedGenerativeJamPatch, seedKrellPatch,
+  VIBE_SOLO_FX, SHIMMER_SOLO_FX, STEREO_PHASER_SOLO_FX, REVERB_SOLO_FX, seedDx7PolyPatch, seedGenerativeJamPatch, seedKrellPatch,
   seedMellotronPatch, seedSoloVoicePatch,
 } from './seedModules';
 import { seedAxelFLeadPatch } from './seedAxelF';
@@ -58,6 +58,11 @@ export const DEMO_SEEDS: DemoSeed[] = [
       { engine: 0, harmonics: 0.5, timbre: 0.5, morph: 0.5, decay: 0.6, lpg: 0.5, level: 0.8 }, STEREO_PHASER_SOLO_FX) },
   { label: '🧪 Buchla-stem', title: 'West Coast onder het klavier: complex-oscillator door een low-pass gate.',
     run: seedComplexVoicePatch },
+  { label: '🎚 Mixtur + Plate', title: 'Trautonium-stem (Oskar Sala, The Birds): ondertonen in plaats van boventonen en vaste formanten, met plaatgalm. Probeer het lint (〰) onder het klavier.',
+    run: (p) => seedSoloVoicePatch(p, 'tp_mmb_mixtur', 'MIXTUR', 'out', 'out',
+      { coarse: -12, curve: 0.6, unrest: 0.3, glide: 60, main: 0.8, div1: 2, div2: 3, div3: 4, div4: 5,
+        sub1: 0.55, sub2: 0.4, sub3: 0.3, sub4: 0.15, formant: 4, fshift: -2, freso: 0.6, fmix: 0.75,
+        noise: 0.04, dyn: 0, attack: 15, release: 250, level: 0.8 }, REVERB_SOLO_FX) },
   // ── Zelfspelend ───────────────────────────────────────────────────────
   { label: '🥁 Ritmebox (CR-78)', title: 'De ritmes van de CR-78; pad 1 start en stopt.', run: seedRhythmBoxPatch },
   { label: '🧬 Acid jam', title: 'Zelfspelende acid-lijn met een kick; draai aan Cutoff en Reso.', run: seedAcidJamPatch },
