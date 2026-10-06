@@ -86,6 +86,7 @@
 #include "DriveModule.h"
 #include "FreqShiftModule.h"
 #include "AcidModule.h"
+#include "MixturModule.h"
 #include "RunglerModule.h"
 #include "OrganModule.h"
 #include "SemModule.h"
@@ -204,6 +205,7 @@ inline void registerAllRuntimeModules() {
     DriveModule::registerFactory();     // overdrive / distortion / fuzz
     FreqShiftModule::registerFactory(); // frequency shifter (Bode)
     AcidModule::registerFactory();      // 303-stijl basstem met accent en slide
+    MixturModule::registerFactory();    // Trautonium-stem: glimlamp, ondertoondelers, vaste formanten
     RunglerModule::registerFactory();   // Benjolin-stijl chaos (rungler)
     OrganModule::registerFactory();     // tonewheel-orgel, 12 toetsen
     SemModule::registerFactory();        // SEM-filter (LP→notch→HP, bandpass apart)

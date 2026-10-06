@@ -196,6 +196,7 @@ sel lpg && build lpg tp_mmb_lpg "$LIB/mmb-dsp" --
 sel drive && build drive tp_mmb_drive "$LIB/mmb-dsp" --
 sel freqshift && build freqshift tp_mmb_freqshift "$LIB/mmb-dsp" --
 sel acid && build acid tp_mmb_acid "$LIB/mmb-dsp" --
+sel mixtur && build mixtur tp_mmb_mixtur "$LIB/mmb-dsp" --
 sel rungler && build rungler tp_mmb_rungler "$LIB/mmb-dsp" --
 sel organ && build organ tp_mmb_organ "$LIB/mmb-dsp" --
 sel sem && build sem tp_mmb_sem "$LIB/mmb-dsp" --

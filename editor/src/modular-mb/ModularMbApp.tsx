@@ -657,6 +657,14 @@ export function ModularMbApp(): JSX.Element {
                 onMouseLeave={() => setShowSolo(false)}
               >
                 {([
+                  { label: '🎚 Mixtur (Trautonium)', t: 'tp_mmb_mixtur', n: 'MIXTUR', l: 'out', r: 'out',
+                    c: { coarse: -12, curve: 0.6, unrest: 0.3, glide: 60, main: 0.8, div1: 2, div2: 3, div3: 4, div4: 5,
+                         sub1: 0.55, sub2: 0.4, sub3: 0.3, sub4: 0.15, formant: 4, fshift: -2, freso: 0.6, fmix: 0.75,
+                         noise: 0.04, dyn: 0, attack: 15, release: 250, level: 0.8 } },
+                  { label: '🎚 Mixtur + Plate reverb', t: 'tp_mmb_mixtur', n: 'MIXTUR', l: 'out', r: 'out',
+                    c: { coarse: -12, curve: 0.6, unrest: 0.3, glide: 60, main: 0.8, div1: 2, div2: 3, div3: 4, div4: 5,
+                         sub1: 0.55, sub2: 0.4, sub3: 0.3, sub4: 0.15, formant: 4, fshift: -2, freso: 0.6, fmix: 0.75,
+                         noise: 0.04, dyn: 0, attack: 15, release: 250, level: 0.8 }, fx: 'plate' },
                   { label: '🧪 Acid (303-stijl bas)', t: 'tp_mmb_acid', n: 'ACID', l: 'out', r: 'out',
                     c: { wave: 0, tune: -12, cutoff: 0.3, res: 0.8, envmod: 0.65, decay: 0.35, accent: 0.7, level: 0.8 } },
                   { label: '〽️ Fluit + FOLDER (West Coast)', t: 'tp_mmb_stk_sound', n: 'STK', l: 'out', r: 'out',

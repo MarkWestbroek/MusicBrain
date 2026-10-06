@@ -4054,6 +4054,63 @@ function mmbFreqShift() {
 }
 
 // MMB ACID — 12 HP. Basstem naar de TB-303 (firmware tp_mmb_acid).
+// ── Mixtur (Trautonium-stem) ──────────────────────────────────────────
+function mmbMixtur() {
+  const w = W(16);
+  const col = (i: number): number => w * (0.10 + i * 0.2);          // vijf kolommen
+  return assemble({
+    typeId: 'tp_mmb_mixtur', categoryId: 'vco',
+    variant: 'Mixtur (Trautonium-stem)',
+    brand: 'MMB', model: 'MIXTUR',
+    hp: 16, texture: 'wood', baseColor: '#3b2a1c', internal: true,
+    texts: [
+      { x: w/2, y: 8, text: 'MIXTUR', fontSize: 2.6, color: '#f5e6c8', align: 'middle' },
+      { x: w/2, y: 13, text: 'glimlamp · ondertonen · formanten', fontSize: 1.1, color: '#d6c4a0', align: 'middle' },
+      { x: 3, y: 41, text: 'f/n', fontSize: 1.0, color: '#d6c4a0', align: 'start' },
+      { x: 3, y: 57, text: 'Mix', fontSize: 1.0, color: '#d6c4a0', align: 'start' },
+      { x: col(0), y: 41, text: 'f', fontSize: 1.4, color: '#f5e6c8', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f5e6c8', align: 'middle' },
+    ],
+    items: [
+      knob('coarse', 'Coarse', col(0), 24, { size: 'small', min: -36, max: 36, def: 0, step: 1, unit: 'semi', color: '#f5e6c8' }),
+      knob('fine',   'Fine',   col(1), 24, { size: 'small', min: -100, max: 100, def: 0, unit: 'ct', color: '#f5e6c8' }),
+      knob('curve',  'Lamp',   col(2), 24, { size: 'small', min: 0, max: 1, def: 0.55, color: '#fbbf24' }),
+      knob('unrest', 'Unrest', col(3), 24, { size: 'small', min: 0, max: 1, def: 0.25, color: '#fbbf24' }),
+      knob('glide',  'Glide',  col(4), 24, { size: 'small', min: 0, max: 2000, def: 0, unit: 'ms', color: '#f5e6c8' }),
+      // Mixtuur: hoofdtoon + vier ondertonen (deler 1..24 en niveau).
+      knob('div1', 'Div', col(1), 41, { size: 'small', min: 1, max: 24, def: 2, step: 1, color: '#d6c4a0' }),
+      knob('div2', 'Div', col(2), 41, { size: 'small', min: 1, max: 24, def: 3, step: 1, color: '#d6c4a0' }),
+      knob('div3', 'Div', col(3), 41, { size: 'small', min: 1, max: 24, def: 4, step: 1, color: '#d6c4a0' }),
+      knob('div4', 'Div', col(4), 41, { size: 'small', min: 1, max: 24, def: 5, step: 1, color: '#d6c4a0' }),
+      knob('main', 'Main', col(0), 57, { size: 'medium', min: 0, max: 1, def: 0.8, color: '#fbbf24' }),
+      knob('sub1', 'Sub 1', col(1), 57, { size: 'medium', min: 0, max: 1, def: 0.6, color: '#fbbf24' }),
+      knob('sub2', 'Sub 2', col(2), 57, { size: 'medium', min: 0, max: 1, def: 0.45, color: '#fbbf24' }),
+      knob('sub3', 'Sub 3', col(3), 57, { size: 'medium', min: 0, max: 1, def: 0.3, color: '#fbbf24' }),
+      knob('sub4', 'Sub 4', col(4), 57, { size: 'medium', min: 0, max: 1, def: 0, color: '#fbbf24' }),
+      // Vaste formantfilters.
+      sw  ('formant', 'Formant', col(0), 78, ['Uit', 'A', 'E', 'I', 'O', 'U'], 1),
+      knob('fshift', 'Shift', col(1), 78, { size: 'small', min: -12, max: 12, def: 0, unit: 'semi', color: '#93c5fd' }),
+      knob('freso',  'Reso',  col(2), 78, { size: 'small', min: 0, max: 1, def: 0.55, color: '#93c5fd' }),
+      knob('fmix',   'Form mix', col(3), 78, { size: 'small', min: 0, max: 1, def: 0.7, color: '#93c5fd' }),
+      knob('noise',  'Noise', col(4), 78, { size: 'small', min: 0, max: 1, def: 0.03, color: '#d6c4a0' }),
+      // Dynamiek.
+      sw  ('dyn',     'Dyn',     col(0), 98, ['Vel', 'Press'], 0),
+      knob('attack',  'Att',     col(1), 98, { size: 'small', min: 0.5, max: 2000, def: 8, unit: 'ms', color: '#f5e6c8' }),
+      knob('release', 'Rel',     col(2), 98, { size: 'small', min: 1, max: 5000, def: 120, unit: 'ms', color: '#f5e6c8' }),
+      knob('level',   'Level',   col(4), 98, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f5e6c8' }),
+      inPort ('voct',    'V/Oct', 'cv',   w*0.07, 116),
+      inPort ('gate',    'Gate',  'gate', w*0.18, 116),
+      inPort ('vel',     'Vel',   'cv',   w*0.29, 116),
+      inPort ('press',   'Press', 'cv',   w*0.40, 116),
+      inPort ('sub_cv',  'Sub+',  'cv',   w*0.51, 116),
+      inPort ('form_cv', 'Form+', 'cv',   w*0.62, 116),
+      outPort('amp',     'Amp',   'cv',   w*0.80, 116),
+      outPort('out',     'Out',   'audio', w*0.92, 116),
+    ],
+    notes: 'Een stem naar het Mixtur-Trautonium van Oskar Sala (bekend van The Birds). Drie dingen maken het geluid. (1) Een glimlamp-oscillator: een condensator laadt op en ontlaadt in één klap door een neonlamp, een zaagtand met een gebogen flank en een harde val; Lamp = hoe krom die laadcurve is, Unrest = de kleine onrust per periode van een echte lamp. (2) Ondertonen in plaats van boventonen: vier delers tellen de perioden van de hoofdtoon en geven f/Div (1..24), exact in fase met de hoofdtoon. De mengverhouding van Main en Sub 1–4 is een mixtuur: een akkoord uit de ondertoonreeks (bijv. Div 2-3-4-5 = de grondtoon met een octaaf, een kwint en een terts daaronder) dat meeschuift met de toonhoogte. Sub+ (CV) schaalt de vier ondertonen samen, zoals Salas pedaal. (3) Vaste formantfilters: drie bandfilters op de klinker A, E, I, O of U die níét meebewegen met de toonhoogte; daardoor klinkt hij als een stem of een blaasinstrument en verkleurt hij als je over het bereik glijdt. Shift schuift de drie samen, Reso maakt ze scherper, Form mix mengt droog en gefilterd, Form+ (CV) glijdt door de klinkerrij. Dyn: Vel = de aanslag van de toets, Press = continue druk (de draad van het instrument; MIDI-aftertouch of een lint met drukmeting). Glide maakt de toonhoogte traploos voor wie op toetsen speelt. Het instrument had twee manualen: twee modules, of een PolyGroup ×2. Amp is de dynamiek als CV. Eigen model naar de beschrijvingen, op het oor. Firmware tp_mmb_mixtur, mmb_dsp::Mixtur; in de simulator draait dezelfde code als wasm.',
+  });
+}
+
 function mmbAcid() {
   const w = W(12);
   const col = (i: number): number => w * (0.12 + i * 0.19);
@@ -4752,7 +4809,7 @@ export function seedInternals(project: ModularProject): ModularProject {
   all.push(mmbExcitable());
   all.push(mmbTapeStrip());
   all.push(mmbClock(), mmbEuclid(), mmbTuring(), mmbBranches(), mmbChaos(), mmbLfo8(), mmbSlope(), mmbLogic());
-  all.push(mmbFolder(), mmbLpg(), mmbDrive(), mmbTube(), mmbFreqShift(), mmbAcid(), mmbRungler(), mmbOrgan());
+  all.push(mmbFolder(), mmbLpg(), mmbDrive(), mmbTube(), mmbFreqShift(), mmbAcid(), mmbMixtur(), mmbRungler(), mmbOrgan());
   all.push(mmbSem(), mmbComplex(), mmbWah(), mmbEnsemble(), mmbEPiano());
   all.push(mmbPads(), mmbFaders(), mmbKnobs());
   all.push(mmbRhythm(), mmbPercuter(), mmbSynthex());
@@ -5634,9 +5691,9 @@ export function seedSoloVoicePatch(
     connections: [
       c(mi, 'pitch', inst, 'voct'),
       c(mi, 'gate',  inst, 'gate'),
-      ...(typeId === 'tp_mmb_material_bridge' || typeId === 'tp_mmb_fof' || typeId === 'tp_mmb_scanned' ? [c(mi, 'vel', inst, 'vel')] : []),
+      ...(typeId === 'tp_mmb_material_bridge' || typeId === 'tp_mmb_fof' || typeId === 'tp_mmb_scanned' || typeId === 'tp_mmb_mixtur' ? [c(mi, 'vel', inst, 'vel')] : []),
       // Scanned: aftertouch drukt de vinger in de ring.
-      ...(typeId === 'tp_mmb_scanned' ? [c(mi, 'press', inst, 'press')] : []),
+      ...(typeId === 'tp_mmb_scanned' || typeId === 'tp_mmb_mixtur' ? [c(mi, 'press', inst, 'press')] : []),
       // Mono-effect (ringmod, octaver): L erin, de ene uitgang naar L én R.
       ...(fxm && fx!.mono
         ? [c(inst, outL, fxm, 'in'), c(fxm, 'out', out, 'l'), c(fxm, 'out', out, 'r')]

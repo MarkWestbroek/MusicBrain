@@ -1,6 +1,6 @@
 {
   "$comment": "GEGENEREERD door tools/contract_dump.py — niet met de hand bewerken. Poort-ids zijn letterlijk wat de firmware accepteert (aliassen als out/out_l en naam/naam_cv staan er dus allebei in).",
-  "firmwareVersion": "0.5.94",
+  "firmwareVersion": "0.5.95",
   "modules": {
     "...": {
       "typeId": "...",
@@ -1282,6 +1282,45 @@
         "vol8"
       ],
       "controlsIgnored": []
+    },
+    "tp_mmb_mixtur": {
+      "typeId": "tp_mmb_mixtur",
+      "source": "firmware/app-modular-brain/src/MixturModule.h",
+      "ports": [
+        "amp",
+        "form_cv",
+        "gate",
+        "out",
+        "press",
+        "sub_cv",
+        "vel",
+        "voct"
+      ],
+      "controls": [
+        "attack",
+        "coarse",
+        "curve",
+        "div1",
+        "div2",
+        "div3",
+        "div4",
+        "dyn",
+        "fine",
+        "fmix",
+        "formant",
+        "freso",
+        "fshift",
+        "glide",
+        "level",
+        "main",
+        "noise",
+        "release",
+        "sub1",
+        "sub2",
+        "sub3",
+        "sub4",
+        "unrest"
+      ]
     },
     "tp_mmb_morph_wt": {
       "typeId": "tp_mmb_morph_wt",

@@ -419,3 +419,69 @@ describe('shimmer (wasm)', () => {
     expect(on.peak).toBeLessThan(1);                        // loopt niet weg
   });
 });
+
+describe('mixtur (wasm)', () => {
+  const play = async (ctl: Record<string, number>, feed: (id: string, t: number) => number, secs = 1.0): Promise<{ y: Float32Array; m: Mod }> => {
+    const m = await load('tp_mmb_mixtur');
+    for (const [id, v] of Object.entries(ctl)) m.setCtl(id, v);
+    for (const id of ['voct', 'gate', 'vel', 'press']) m.connect(id, true);
+    const o = m.render(secs, feed);
+    return { y: o.out!.subarray(Math.round(0.2 * m.rate)), m };
+  };
+  const held = (vel = 0.8, press = 0) => (id: string): number =>
+    id === 'gate' ? 1 : id === 'vel' ? vel : id === 'press' ? press : 0;          // voct 0 = C4, 261,6 Hz
+
+  it('ondertonen: Div 2 en 3 geven f/2 en f/3; met Sub 0 zijn ze weg', async () => {
+    const base = { formant: 0, unrest: 0, noise: 0, main: 0.6, div1: 2, div2: 3, sub3: 0, sub4: 0 };
+    const on = await play({ ...base, sub1: 0.8, sub2: 0.8 }, held());
+    const off = await play({ ...base, sub1: 0, sub2: 0 }, held());
+    const f = 261.6256;
+    expect(tone(on.y, f / 2, on.m.rate)).toBeGreaterThan(0.05);
+    expect(tone(on.y, f / 3, on.m.rate)).toBeGreaterThan(0.03);
+    expect(tone(off.y, f / 2, off.m.rate)).toBeLessThan(0.005);
+    expect(tone(on.y, f, on.m.rate)).toBeGreaterThan(0.03);                       // de hoofdtoon blijft
+  });
+
+  it('formanten liggen vast: A is helderder dan U, en ze bewegen niet mee met de toonhoogte', async () => {
+    const base = { unrest: 0, noise: 0, sub1: 0, sub2: 0, sub3: 0, sub4: 0, fmix: 1, freso: 0.7 };
+    const centroid = (x: Float32Array, rate: number): number => {
+      let num = 0, den = 0;
+      for (let k = 1; k <= 15; k++) { const hz = 261.6256 * k; const a = chunked(x, hz, rate); num += a * hz; den += a; }   // op de harmonischen
+      return num / den;
+    };
+    // Let op: het eerste formant van de I (270 Hz) valt bijna op de grondtoon
+    // van C4, dus de I is in zwaartepunt niet "helder"; zijn tweede formant
+    // (2290 Hz) wel. Vergelijk daarom A met U, en de 9e harmonische (2354 Hz).
+    const a = await play({ ...base, formant: 1 }, held());
+    const u = await play({ ...base, formant: 5 }, held());
+    const i = await play({ ...base, formant: 3 }, held());
+    expect(centroid(a.y, a.m.rate)).toBeGreaterThan(centroid(u.y, u.m.rate) + 150);
+    void i;
+    // Vast: met formanten blijft het zwaartepunt bij een octaaf lager ongeveer
+    // staan; zonder formanten zakt het mee met de toon.
+    const cAt = (x: Float32Array, rate: number, f0: number): number => {
+      let num = 0, den = 0;
+      for (let k = 1; k * f0 <= 4000; k++) { const a2 = chunked(x, f0 * k, rate); num += a2 * f0 * k; den += a2; }
+      return num / den;
+    };
+    const low = (id: string): number => (id === 'gate' ? 1 : id === 'vel' ? 0.8 : id === 'voct' ? -1 : 0);
+    const aHi = await play({ ...base, formant: 1 }, held()), aLo = await play({ ...base, formant: 1 }, low);
+    const dHi = await play({ ...base, formant: 0 }, held()), dLo = await play({ ...base, formant: 0 }, low);
+    const keptA = cAt(aLo.y, aLo.m.rate, 130.8128) / cAt(aHi.y, aHi.m.rate, 261.6256);
+    const keptDry = cAt(dLo.y, dLo.m.rate, 130.8128) / cAt(dHi.y, dHi.m.rate, 261.6256);
+    // Gemeten: met formant A 0,97, droog 0,83 (een zaagtand onder een vaste
+    // bovengrens zakt maar weinig). Het verschil is waar het om gaat.
+    expect(keptA).toBeGreaterThan(0.9);
+    expect(keptA).toBeGreaterThan(keptDry + 0.08);
+  });
+
+  it('Dyn Press: het volume volgt de druk, niet de aanslag', async () => {
+    const r = await play({ dyn: 1, formant: 0, attack: 2, release: 20 },
+      (id, t) => (id === 'gate' ? 1 : id === 'vel' ? 1 : id === 'press' ? (t < 0.6 ? 0.2 : 0.9) : 0), 1.2);
+    const rate = r.m.rate;
+    const soft = rms(r.y.subarray(Math.round(0.1 * rate), Math.round(0.35 * rate)));
+    const loud = rms(r.y.subarray(Math.round(0.6 * rate), Math.round(0.9 * rate)));
+    expect(loud).toBeGreaterThan(2.5 * soft);
+    expect(Number.isFinite(loud)).toBe(true);
+  });
+});

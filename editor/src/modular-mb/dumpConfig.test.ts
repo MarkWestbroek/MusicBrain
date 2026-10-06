@@ -32,6 +32,7 @@ const seeds = {
   'solo-stk':    () => seedSoloVoicePatch(seedInternals(emptyModularProject()), 'tp_mmb_stk_sound', 'STK', 'out', 'out', stk),
   'solo-rotary': () => seedSoloVoicePatch(seedInternals(emptyModularProject()), 'tp_mmb_vco', 'VCO', 'out', 'out', { level: 0.5 }, ROTARY_SOLO_FX),
   'solo-shimmer': () => seedSoloVoicePatch(seedInternals(emptyModularProject()), 'tp_mmb_vco', 'VCO', 'out', 'out', { level: 0.5 }, SHIMMER_SOLO_FX),
+  'solo-mixtur': () => seedSoloVoicePatch(seedInternals(emptyModularProject()), 'tp_mmb_mixtur', 'MIXTUR', 'out', 'out', { coarse: -12, sub1: 0.55, sub2: 0.4, sub3: 0.3, sub4: 0.15, formant: 4, fshift: -2, unrest: 0.3 }),
   'solo-trem':   () => seedSoloVoicePatch(seedInternals(emptyModularProject()), 'tp_mmb_vco', 'VCO', 'out', 'out', { level: 0.5 }, TREMOLO_SOLO_FX),
   'poly-aftertouch': () => seedPolyVoicePatch(seedInternals(emptyModularProject()), 4, { aftertouch: true }),
   'sampler-wah': () => seedSamplerPolyPatch(seedInternals(emptyModularProject()), 8, true),

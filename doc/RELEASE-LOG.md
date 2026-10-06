@@ -17,6 +17,29 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### fw 0.5.95 — MIXTUR: Trautonium-stem (2026-10-06)
+- **`tp_mmb_mixtur`** (`mmb_dsp/mixtur.h`), naar het Mixtur-Trautonium van
+  Oskar Sala. Glimlamp-oscillator: gebogen laadcurve en harde ontlading
+  (`curve` = Lamp, tabel + polyBLEP), `unrest` = onrust per periode. Vier
+  **ondertoondelers** die de perioden van de hoofdtoon tellen (f/1..f/24,
+  exact in fase), elk met eigen niveau; `sub_cv` schaalt ze samen
+  (pedaal). Drie **vaste formantfilters** (A/E/I/O/U, TPT-bandpass) die niet
+  meebewegen met de toonhoogte; `fshift`, `freso`, `fmix`, `form_cv`
+  glijdt door de klinkerrij. Dynamiek `dyn`: Vel (aanslag) of Press
+  (continue druk, de draad), plus `glide`. Eén stem; twee manualen = twee
+  modules of PolyGroup ×2. Uit: `out` en `amp` (CV).
+- Solo ▾: **Mixtur (Trautonium)** en **Mixtur + Plate reverb**; de
+  Solo-seed bekabelt vel en press. `frontControls.ts`: de vier ondertonen,
+  delers en formant. Contract 114 modules.
+- Tests (`wasmNewFx.test.ts`): f/2 en f/3 aanwezig en weg bij Sub 0;
+  formant A helderder dan U; formanten blijven staan bij een octaaf lager
+  (zwaartepunt 0,97 tegen 0,83 droog); Press volgt de druk.
+- **Gemeten op de Teensy** (A2 110 Hz, Div 2-3-4-5): lijnen op f, f/2, f/3,
+  f/4, f/5, stil ertussen (0,001); piek 0,42; ~5 % CPU.
+- Volgende stappen (ontwerp, nog niet gebouwd): een lint-invoer als
+  alternatief toetsenbord in de editor (positie = toonhoogte, druk =
+  dynamiek, naast het schermtoetsenbord), en een echt lint als
+  invoerapparaat (SoftPot + FSR, of Doepfer A-198 met positie en druk).
 ### 2026-10-05 — Front: displays, betere knoppenkeuze, zeventien opstart-patches (editor, geen nieuwe firmware)
 - **Displays en LED's op het front** (`frontLayout.ts`): een display is een
   control-item en toont op het front de stand van zijn knop in de echte
