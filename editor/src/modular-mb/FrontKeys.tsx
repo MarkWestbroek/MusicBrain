@@ -9,6 +9,7 @@ import { useEffect, useState, type RefObject } from 'react';
 
 import { getEngine, useEngineStatus } from './sim/engineSingleton';
 import { SUSTAIN_CC, midiInCcNumbers } from './sim/midiInCc';
+import { ribbonMidiIn } from './sim/ribbonSetup';
 import { ScreenKeys, type SlideMode } from './sim/ScreenKeys';
 import { useModularProject } from './store';
 
@@ -110,6 +111,7 @@ export function FrontKeys({ stage }: { stage?: RefObject<HTMLElement | null> } =
         onAftertouch={aftertouch} onBend={bend} onMod={mod} onSustain={sustain}
         pedal={{ label: `Pedaal CC ${cc.cc1}`, onChange: pedal }} slide={slide} onSlide={setSlide}
         bendKeys={bendKeys} onBendKeys={setBendKeys} tall={tall} onTall={setTall} onPanic={panic}
+        ribbon={ribbonMidiIn(project.patches.find((x) => x.id === project.activePatchId), project)}
         maxWidth={full && fullMode === 'keys' ? 4000 : 560}
         extra={canFull && stage ? (
           <span style={{ display: 'inline-flex', gap: 2 }}>

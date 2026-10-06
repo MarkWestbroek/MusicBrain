@@ -187,6 +187,17 @@ bankbalk van de Simulatie-tab gaat vóór.
   vasthouden = tijdelijk), een pedaalschuif op de eerste CC van de MIDI-IN,
   ⇕ lange toetsen, ⏹ alle noten uit, ⛶ volledig scherm met front of 🎹 alleen
   het klavier.
+- **Lint** (〰 in de werkbalk van het toetsenbord, ook in de Simulatie-tab):
+  in plaats van toetsen een draad zoals op het Trautonium. De plek is de
+  toonhoogte, traploos (glissando, vibrato met de vinger); laag op het lint
+  is hard (de druk gaat als aftertouch mee, een pen of drukgevoelig scherm
+  geeft echte druk). *Aantrekken* trekt naar de halve tonen (links traploos,
+  rechts vaste halve tonen). Het lint speelt een noot plus pitch bend; dat
+  klinkt pas traploos als de MIDI-IN de bend in de toonhoogte vouwt. Staat
+  dat nog niet goed, dan verschijnt **MIDI-IN klaarzetten** (zet B→P aan en
+  Bend op het gekozen *bereik*, en past daarmee de patch aan). Eén noot
+  tegelijk, zoals één manuaal; een tweede vinger neemt het over. Klinkt het
+  best met MIXTUR op Dyn = Press. 🎹 brengt het klavier terug.
 - **Opnemen**: de rode ⏺ rechtsboven naast ▶ Sim neemt op wat je speelt, ook
   in de speelmodus: een WAV, de gespeelde MIDI als .mid en de patch, met
   dezelfde naam. Tik op ⏹ om te stoppen; de bestanden worden gedownload en de

@@ -27,6 +27,7 @@ import {
 } from './sim/MidiSource';
 import { ScreenKeys, type SlideMode } from './sim/ScreenKeys';
 import { SUSTAIN_CC, midiInCcNumbers } from './sim/midiInCc';
+import { ribbonMidiIn } from './sim/ribbonSetup';
 import type { ModularProject, Patch, ControlValue } from './types';
 import { MidiFileSource, parseSmf } from './sim/midiFilePlayer';
 import { TakeLibraryPanel } from './sim/TakeLibraryPanel';
@@ -631,6 +632,7 @@ function ScreenKeyboardUi({ source }: { source: ScreenKeyboardSource }): JSX.Ele
         onMod={(v) => source.mod(v)}
         onSustain={(on) => source.cc(SUSTAIN_CC, on ? 127 : 0)}
         pedal={{ label: `Pedaal CC ${cc.cc1}`, onChange: (v) => source.cc(cc.cc1, v) }}
+        ribbon={ribbonMidiIn(project.patches.find((x) => x.id === project.activePatchId), project)}
         hint="Computertoetsen: A S D F G H J K (witte), W E T Y U (zwarte); Z/X octaaf" />
     </div>
   );

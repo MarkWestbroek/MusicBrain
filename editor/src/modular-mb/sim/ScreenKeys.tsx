@@ -12,20 +12,32 @@
 //     opzij = óf de noot wisselen (glijden, standaard) óf pitch bend
 //     (`slide: 'bend'`: één toetsbreedte = het volle bereik); loslaten zet
 //     bend en aftertouch terug.
+// Wissel 🎹/〰: in plaats van het klavier een lint (Trautonium-draad,
+// ScreenRibbon): traploze toonhoogte via ankernoot + pitch bend, druk uit de
+// hoogte op het lint. De keuze, het aantrekken en het bereik onthoudt de
+// browser; `ribbon` (van de aanroeper) zegt of de MIDI-IN klaarstaat.
 // De component weet niets van de engine: hij roept de callbacks.
 
 import { useRef, useState, type ReactNode } from 'react';
 
+import { RIBBON_BENDS } from './ribbonLayout';
+import type { RibbonMidiIn } from './ribbonSetup';
+import { ScreenRibbon } from './ScreenRibbon';
 import {
   BEND_KEYS, KEY_H, KEY_H_TALL, KEY_W, WHEEL_W, WHEELS_W, aftertouchFor, bendFor, bendFromY, keyAt, keyLayout, layoutWidth, modFromY, velocityAt, wheelAt,
   type KeyRect, type Wheel,
 } from './screenKeysLayout';
 
 export type SlideMode = 'note' | 'bend';
+type InputMode = 'keys' | 'ribbon';
+
+const INPUT_KEY = 'mb.keys.input', SNAP_KEY = 'mb.ribbon.snap', RANGE_KEY = 'mb.ribbon.range';
+function stored(key: string): string | null { try { return localStorage.getItem(key); } catch { return null; } }
+function store(key: string, value: string): void { try { localStorage.setItem(key, value); } catch { /* geen opslag */ } }
 
 export function ScreenKeys({
   octave, octaves = 2, onNoteOn, onNoteOff, onOctave, onAftertouch, onBend, onMod, onSustain, pedal, slide = 'note', onSlide,
-  bendKeys = 1, onBendKeys, tall = false, onTall, onPanic, extra, maxWidth = 560, hint,
+  bendKeys = 1, onBendKeys, tall = false, onTall, onPanic, extra, maxWidth = 560, hint, ribbon,
 }: {
   octave: number; octaves?: number;
   onNoteOn: (midi: number, velocity: number) => void;
@@ -57,9 +69,22 @@ export function ScreenKeys({
   maxWidth?: number;
   /** Eén regel onder de toetsen (bv. "Eerste aanslag start de simulator"). */
   hint?: string;
+  /** MIDI-IN van de patch, voor de lintstand: staat bend-in-toonhoogte goed? */
+  ribbon?: RibbonMidiIn;
 }): JSX.Element {
+  // Klavier of lint; het lint onthoudt aantrekken en bereik.
+  const [input, setInputState] = useState<InputMode>(() => (stored(INPUT_KEY) === 'ribbon' ? 'ribbon' : 'keys'));
+  const setInput = (m: InputMode): void => { setInputState(m); store(INPUT_KEY, m); };
+  const [snap, setSnapState] = useState<number>(() => { const v = Number(stored(SNAP_KEY)); return v >= 0 && v <= 1 ? v : 0; });
+  const setSnap = (v: number): void => { setSnapState(v); store(SNAP_KEY, String(v)); };
+  const [range, setRangeState] = useState<number>(() => {
+    const v = Number(stored(RANGE_KEY));
+    return (RIBBON_BENDS as readonly number[]).includes(v) ? v : 24;
+  });
+  const setRange = (v: number): void => { setRangeState(v); store(RANGE_KEY, String(v)); };
+  const isRibbon = input === 'ribbon';
   // Wielen links (alleen met onMod); de toetsen schuiven dan WHEELS_W op.
-  const wheels = !!onMod;
+  const wheels = !!onMod && input === 'keys';
   const off = wheels ? WHEELS_W : 0;
   const h = tall ? KEY_H_TALL : KEY_H;
   const keys = keyLayout((octave + 1) * 12, octaves, KEY_W, h);
@@ -200,7 +225,34 @@ export function ScreenKeys({
                 style={{ width: 84 }} />
             </label>
           )}
-          {onSlide && (
+          <button type="button" onClick={() => { panic(); setInput(isRibbon ? 'keys' : 'ribbon'); }}
+            style={{ ...btn, fontWeight: isRibbon ? 700 : 400, background: isRibbon ? '#fde68a' : undefined }}
+            title={isRibbon ? 'Terug naar het klavier' : 'Lint (Trautonium-draad): traploze toonhoogte, druk uit de hoogte op het lint'}
+            aria-label={isRibbon ? 'Klavier' : 'Lint'}>
+            {isRibbon ? '🎹' : '〰'}
+          </button>
+          {isRibbon && (
+            <label style={{ fontSize: 12, display: 'inline-flex', gap: 4, alignItems: 'center' }} title="Aantrekken naar de halve tonen: links traploos (glissando, vibrato met de vinger), rechts vaste halve tonen">
+              aantrekken
+              <input type="range" min={0} max={1} step={0.05} value={snap} onChange={(e) => setSnap(Number(e.target.value))} style={{ width: 70 }} />
+            </label>
+          )}
+          {isRibbon && (
+            <label style={{ fontSize: 12, display: 'inline-flex', gap: 4, alignItems: 'center' }} title="Bendbereik van het lint in halve tonen; moet gelijk zijn aan de Bend-knop van de MIDI-IN">
+              bereik
+              <select value={range} onChange={(e) => setRange(Number(e.target.value))} style={{ fontSize: 12 }}>
+                {RIBBON_BENDS.map((r) => <option key={r} value={r}>±{r}</option>)}
+              </select>
+            </label>
+          )}
+          {isRibbon && ribbon?.present && !ribbon.ready(range) && (
+            <button type="button" onClick={() => ribbon.fix(range)}
+              style={{ ...btn, background: '#fef3c7', borderColor: '#d97706' }}
+              title={`Het lint speelt een noot plus pitch bend. Dat klinkt pas traploos als de MIDI-IN de bend in de toonhoogte vouwt: zet B→P aan en Bend op ${range}. Dit past de patch aan.`}>
+              MIDI-IN klaarzetten
+            </button>
+          )}
+          {onSlide && !isRibbon && (
             <label style={{ fontSize: 12, display: 'inline-flex', gap: 4, alignItems: 'center' }} title="Wat opzij schuiven over de toetsen doet; omhoog schuiven is altijd aftertouch">
               opzij:
               <select value={slide} onChange={(e) => onSlide(e.target.value as SlideMode)} style={{ fontSize: 12 }}>
@@ -209,7 +261,7 @@ export function ScreenKeys({
               </select>
             </label>
           )}
-          {onSlide && slide === 'bend' && onBendKeys && (
+          {onSlide && !isRibbon && slide === 'bend' && onBendKeys && (
             <label style={{ fontSize: 12, display: 'inline-flex', gap: 4, alignItems: 'center' }} title="Hoeveel toetsen opzij het volle bendbereik is; het bereik in halve tonen staat op de Bend-knop van de MIDI-IN">
               over
               <select value={bendKeys} onChange={(e) => onBendKeys(Number(e.target.value))} style={{ fontSize: 12 }}>
@@ -230,6 +282,10 @@ export function ScreenKeys({
         </div>
         {onOctave && <button type="button" onClick={() => onOctave(1)} style={oct} title="Octaaf omhoog" aria-label="Octaaf omhoog">+</button>}
       </div>
+      {isRibbon ? (
+        <ScreenRibbon startMidi={(octave + 1) * 12} octaves={octaves} tall={tall} bendRange={range} snap={snap}
+          onNoteOn={onNoteOn} onNoteOff={onNoteOff} onBend={onBend} onAftertouch={onAftertouch} />
+      ) : (
       <svg
         ref={svgRef}
         viewBox={`0 0 ${width} ${h}`}
@@ -279,6 +335,7 @@ export function ScreenKeys({
             fill={down.has(k.midi) ? '#d97706' : '#1f2937'} stroke="#000" strokeWidth={0.8} />
         ))}
       </svg>
+      )}
       {hint && <div style={{ fontSize: 11, color: '#6b7280' }}>{hint}</div>}
     </div>
   );

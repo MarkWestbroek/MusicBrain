@@ -17,6 +17,24 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-07 — Lint: het schermtoetsenbord als Trautonium-draad (editor, geen nieuwe firmware)
+- **〰 Lint** in de werkbalk van het schermtoetsenbord (`sim/ScreenRibbon.tsx`,
+  logica in `sim/ribbonLayout.ts` `RibbonPlayer`): een alternatieve invoer,
+  dus overal waar het klavier staat (speelmodus, Simulatie-tab). Plek =
+  traploze toonhoogte, hoogte op het lint (of echte pen-/schermdruk) =
+  druk. Naar buiten gaan gewone MIDI-gebeurtenissen: een ankernoot plus
+  pitch bend, en de druk als aftertouch. Voorbij het bendbereik schuift het
+  anker legato mee (nieuwe noot vóór de oude los). Monofoon; een tweede
+  vinger neemt het over en bij opstaan de eerste weer.
+- *Aantrekken* (0 traploos … 1 vaste halve tonen) en *bereik* (±2/12/24),
+  onthouden in de browser. **MIDI-IN klaarzetten** verschijnt als de patch
+  de bend niet in de toonhoogte vouwt (`sim/ribbonSetup.ts`): zet B→P en
+  `bendRange` via `setPatchControl` (dus ook op de Teensy en in de patch).
+- Tests `sim/ribbon.test.ts` (11): plek/aantrekken/druk, bend t.o.v. het
+  anker, legato-ankerwissel, tweede vinger, loslaten, klaarzetten.
+- Volgende stap: een echt lint als invoerapparaat (SoftPot + FSR of Doepfer
+  A-198 via de CV-ingang).
+
 ### fw 0.5.95 — MIXTUR: Trautonium-stem (2026-10-06)
 - **`tp_mmb_mixtur`** (`mmb_dsp/mixtur.h`), naar het Mixtur-Trautonium van
   Oskar Sala. Glimlamp-oscillator: gebogen laadcurve en harde ontlading
