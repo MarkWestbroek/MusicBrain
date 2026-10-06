@@ -164,8 +164,12 @@ Wie de editor opent ziet de **speelmodus**: de patchkeuze, het front van de
 patch (een virtueel paneel met de belangrijkste knoppen) en een
 schermtoetsenbord dat ook op een telefoon werkt. **Binnenkijken ▸** opent
 rack, patcher en de rest; **◂ Speelmodus** gaat terug. De eerste keer staat er
-een standaardset van zeventien patches klaar (toetsen, synths en een paar die
-zichzelf spelen); dezelfde voorbeelden staan onderaan de patchkeuzelijst.
+een standaardset van negentien patches klaar (toetsen, synths en een paar die
+zichzelf spelen); dezelfde voorbeelden staan onderaan de patchkeuzelijst. De
+twee Mellotrons laden hun samplebank (fluit, strijkers) van de server, bij
+iedereen dezelfde: de patch vraagt zelf om die bank (`simBanks`), ook al
+staat er onder dat banknummer standaard iets anders. Je eigen keuze in de
+bankbalk van de Simulatie-tab gaat vóór.
 
 - **Front**: een patch zonder eigen front krijgt er automatisch een. Rechtsklik
   op een knop in rack of patcher → "Op front zetten"; in de Front-tab (na

@@ -50,8 +50,15 @@
   patchkeuze. Zelfde recorder, zelfde bestanden (WAV,
   .mid, patch). De werkbalk van de speelmodus loopt op een telefoon door op
   een tweede regel; ▶ Sim en MIDI stonden daar rechts buiten beeld.
-- 12 nieuwe tests (displays, frontlijst tegen de modules, standaardset,
-  modulelijst, opnameknop).
+- **Mellotron fluit en strijkers** in de standaardset (`seedMellotronPatch`):
+  tape strip ×8 op de serverbanken Flute en Slow Strings. Nieuw veld
+  `Patch.simBanks` (bank-knop NN → bestand in `public/banks/`): de simulator
+  laadt dan die bank voor iedereen, na de SD-naam van de Teensy en een eigen
+  keuze in de bankbalk, vóór de standaardindeling. De CS-80 in de
+  standaardset heeft vier stemmen in plaats van zes: zes ladderfilters met
+  chorus en galm waren op een telefoon te zwaar. Negentien patches.
+- 13 nieuwe tests (displays, frontlijst tegen de modules, standaardset,
+  modulelijst, opnameknop, bankkeuze per patch).
 
 ### 2026-10-05 — Stemtoon A4 (A432): MIDI-IN `a4` in de firmware, persoonlijke instelling in de editor
 - **Firmware** (`core/runtime/MidiIn`): control `a4` (Hz, 380–500, standaard

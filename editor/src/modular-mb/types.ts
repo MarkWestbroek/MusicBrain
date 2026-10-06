@@ -695,6 +695,13 @@ export interface Patch {
    *  bewerk je tot je bewaart, net als een kabel. Items naar verdwenen
    *  modules worden bij laden en bij edits gesnoeid (`pruneFronts`). */
   fronts?: PatchFront[];
+  /** Welke serverbank de simulator voor bank-knop NN laadt in deze patch
+   *  (bestandsnaam in `public/banks/`, zie `sim/bankAutoLoad.ts`). Zo
+   *  speelt een Mellotron-seed bij iedereen de fluit, ook al staat er op
+   *  bank 7 standaard iets anders. Alleen voor de simulator: de Teensy
+   *  neemt de bank van zijn SD-kaart. Een eigen keuze in de bankbalk gaat
+   *  vóór. */
+  simBanks?: Record<string, string>;
 }
 
 // ═══════════════════════════════════════════════════════════════════════

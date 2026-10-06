@@ -14,6 +14,7 @@ export function SamplerBankBar(props: { project: ModularProject; patch: Patch })
   const sampler = project.modules.find((m) => (m.typeId === 'tp_mmb_sampler' || m.typeId === 'tp_mmb_tapestrip' || m.typeId === 'tp_mmb_percuter')
     && patch.connections.some((c) => c.from.moduleId === m.id || c.to.moduleId === m.id));
   const nn = sampler ? Math.round(Number(patch.controlState[sampler.id]?.bank ?? 0)) : null;
+  const hint = nn === null ? undefined : patch.simBanks?.[String(nn)];
   const [index, setIndex] = useState<BankIndex | null>(null);
   const [state, setState] = useState<{ busy?: boolean; bank?: LoadedBank | null; err?: string }>({ bank: currentBank() });
   const [tick, setTick] = useState(0);
@@ -23,15 +24,15 @@ export function SamplerBankBar(props: { project: ModularProject; patch: Patch })
     if (nn === null) return;
     let cancelled = false;
     setState((s) => ({ ...s, busy: true, err: undefined }));
-    ensureSamplerBank(nn, sdNames, tick > 0)
+    ensureSamplerBank(nn, sdNames, tick > 0, hint)
       .then((bank) => { if (!cancelled) setState({ bank, busy: false }); })
       .catch((e) => { if (!cancelled) setState({ busy: false, err: e instanceof Error ? e.message : String(e) }); });
     return () => { cancelled = true; };
-  }, [nn, (sdNames ?? []).join('|'), tick]);   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [nn, (sdNames ?? []).join('|'), tick, hint]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   if (nn === null) return null;
-  const resolved = index ? resolveBank(index, nn, sdNames) : null;
-  const src = { teensy: 'zelfde naam als op de SD-kaart', keuze: 'jouw keuze voor dit nummer', standaard: 'standaardindeling' } as const;
+  const resolved = index ? resolveBank(index, nn, sdNames, hint) : null;
+  const src = { teensy: 'zelfde naam als op de SD-kaart', keuze: 'jouw keuze voor dit nummer', patch: 'gevraagd door de patch', standaard: 'standaardindeling' } as const;
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontSize: 13,
                   padding: '6px 10px', border: '1px solid #e5e7eb', borderRadius: 8, background: '#f8fafc', margin: '8px 0' }}>

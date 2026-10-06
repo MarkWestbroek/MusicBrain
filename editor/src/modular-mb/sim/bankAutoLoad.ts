@@ -7,7 +7,8 @@
 //   1. Teensy verbonden en de SD-kaart meldt een naam voor NN
 //      (status.sdBankNames[NN]) → de serverbank met dezelfde naam;
 //   2. een keuze die je in de simulatie maakte (onthouden per NN);
-//   3. de standaardindeling in banks/index.json.
+//   3. wat de patch zelf vraagt (`patch.simBanks[NN]`, bv. een Mellotron-seed);
+//   4. de standaardindeling in banks/index.json.
 // De sampler-wasm heeft één bank voor alle instanties (WasmModule.setBlob
 // per type), dus de laatst gevraagde bank wint.
 
@@ -58,10 +59,11 @@ export function setUserPick(nn: number, file: string | null): void {
   emit();
 }
 
-export type BankSource = 'teensy' | 'keuze' | 'standaard';
+export type BankSource = 'teensy' | 'keuze' | 'patch' | 'standaard';
 
-/** Welk serverbestand hoort bij bank NN (zonder te laden). */
-export function resolveBank(index: BankIndex, nn: number, sdNames?: (string | undefined)[]): { file: string; source: BankSource } | null {
+/** Welk serverbestand hoort bij bank NN (zonder te laden). `hint` is wat de
+ *  patch zelf vraagt (`patch.simBanks[NN]`). */
+export function resolveBank(index: BankIndex, nn: number, sdNames?: (string | undefined)[], hint?: string): { file: string; source: BankSource } | null {
   const sd = sdNames?.[nn]?.trim();
   if (sd) {
     // Meerdere serverbanken met dezelfde naam (beide vleugels heten
@@ -72,6 +74,7 @@ export function resolveBank(index: BankIndex, nn: number, sdNames?: (string | un
   }
   const pick = userPicks()[String(nn)];
   if (pick && index.files.some((f) => f.file === pick)) return { file: pick, source: 'keuze' };
+  if (hint && index.files.some((f) => f.file === hint)) return { file: hint, source: 'patch' };
   const def = index.defaults[String(nn)];
   return def ? { file: def, source: 'standaard' } : null;
 }
@@ -83,9 +86,9 @@ let inflightKey = '';
 export function currentBank(): LoadedBank | null { return loaded; }
 
 /** Zorg dat bank NN in de sampler-wasm staat; doet niets als hij er al staat. */
-export async function ensureSamplerBank(nn: number, sdNames?: (string | undefined)[], force = false): Promise<LoadedBank | null> {
+export async function ensureSamplerBank(nn: number, sdNames?: (string | undefined)[], force = false, hint?: string): Promise<LoadedBank | null> {
   const index = await loadBankIndex();
-  const r = resolveBank(index, nn, sdNames);
+  const r = resolveBank(index, nn, sdNames, hint);
   if (!r) return null;
   const key = `${nn}:${r.file}`;
   if (!force && loaded && `${loaded.nn}:${loaded.file}` === key) return loaded;

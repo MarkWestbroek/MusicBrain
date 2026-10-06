@@ -13,7 +13,7 @@
 
 import {
   VIBE_SOLO_FX, SHIMMER_SOLO_FX, STEREO_PHASER_SOLO_FX, seedDx7PolyPatch, seedGenerativeJamPatch, seedKrellPatch,
-  seedSoloVoicePatch,
+  seedMellotronPatch, seedSoloVoicePatch,
 } from './seedModules';
 import { seedAxelFLeadPatch } from './seedAxelF';
 import { seedCs80BrassPatch } from './seedBrass';
@@ -35,9 +35,15 @@ export const DEMO_SEEDS: DemoSeed[] = [
     run: (p) => seedDx7PolyPatch(p, 8) },
   { label: '💡 DX7 + Vibe', title: 'Zesoperator-FM (één stem) met univibe erachter.',
     run: (p) => seedSoloVoicePatch(p, 'tp_mmb_dx7', 'DX7', 'out', 'out', { program: 0, level: 0.8 }, VIBE_SOLO_FX) },
+  { label: '🎞 Mellotron fluit ×8', title: 'De fluit van de Mellotron: bandjes van acht seconden, met wow en flutter.',
+    run: (p) => seedMellotronPatch(p, 'fluit') },
+  { label: '🎻 Mellotron strijkers ×8', title: 'Strijkers op de Mellotron: akkoorden die na acht seconden vallen.',
+    run: (p) => seedMellotronPatch(p, 'strijkers') },
   // ── Synths ────────────────────────────────────────────────────────────
-  { label: '🎺 CS-80 koper ×6', title: 'Koper à la Vangelis: druk na de aanslag door (aftertouch) en het filter gaat open.',
-    run: (p) => seedCs80BrassPatch(p, 6) },
+  // Vier stemmen, geen zes: zes ladderfilters met chorus en galm zijn op een
+  // telefoon te zwaar. Met Poly ▾ zet je er zo een met zes neer.
+  { label: '🎺 CS-80 koper ×4', title: 'Koper à la Vangelis: druk na de aanslag door (aftertouch) en het filter gaat open. Vier stemmen, licht genoeg voor een telefoon.',
+    run: (p) => seedCs80BrassPatch(p, 4) },
   { label: '🎛 Synthex ×8', title: 'Achtstemmige Elka Synthex.', run: seedSynthexPolyPatch },
   { label: '🎸 Axel F lead', title: 'De lead van Axel F: twee zagen in unison door een ladderfilter, met echo.',
     run: seedAxelFLeadPatch },

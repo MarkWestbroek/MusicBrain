@@ -6642,6 +6642,31 @@ export function seedTapeStripPolyPatch(project: ModularProject, voiceCount = 8):
   };
 }
 
+/** De Mellotrons: een tape strip ×8 op een vaste serverbank (`simBanks`),
+ *  zodat iedere bezoeker dezelfde fluit of strijkers hoort. Op de Teensy
+ *  telt het banknummer: 7 is daar de shakuhachi, 3 de warm pad. */
+export const MELLOTRONS = {
+  fluit: { name: 'Mellotron fluit', nn: 7, file: 'gu-flute.mmbs',
+    description: 'De fluit van de Mellotron M400: elke toets een bandje van acht seconden, dan stopt de klank. Speel legato en laat het bandje terugspoelen; Wow, Flutter en Wear zijn de ouderdom van de machine.' },
+  strijkers: { name: 'Mellotron strijkers', nn: 3, file: 'gu-strings.mmbs',
+    description: 'Strijkers op de Mellotron: akkoorden van hoogstens acht seconden, met de veer die het bandje terugtrekt als je loslaat. Houd een akkoord vast tot het valt; dat is de machine, geen fout.' },
+} as const;
+
+export function seedMellotronPatch(project: ModularProject, which: keyof typeof MELLOTRONS): ModularProject {
+  const m = MELLOTRONS[which];
+  const p = seedTapeStripPolyPatch(project, 8);
+  const tape = p.modules.find((x) => x.typeId === 'tp_mmb_tapestrip' && p.patches.at(-1)!.connections.some((c) => c.from.moduleId === x.id))!;
+  return {
+    ...p,
+    racks: p.racks.map((r) => (r.id === p.activeRackId ? { ...r, name: m.name } : r)),
+    patches: p.patches.map((x) => (x.id !== p.activePatchId ? x : {
+      ...x, name: m.name, description: m.description,
+      controlState: { ...x.controlState, [tape.id]: { ...x.controlState[tape.id], bank: m.nn } },
+      simBanks: { [String(m.nn)]: m.file },
+    })),
+  };
+}
+
 /**
  * Zelfspelende demo-seed: Marbles klokt en kiest de noten, Plaits speelt ze,
  * Clouds maakt er een wolk van en Tides (quadratuur) beweegt de wolk.

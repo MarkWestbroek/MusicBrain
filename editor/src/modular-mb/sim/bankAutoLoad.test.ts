@@ -33,6 +33,15 @@ describe('samplebank kiezen voor de sim', () => {
     expect(resolveBank(index, 15, sd)!.file).toBe('ydp-grand.mmbs');
   });
 
+  it('een patch kan zelf een bank vragen (simBanks): na SD-naam en eigen keuze, vóór de standaard', () => {
+    setUserPick(7, null);
+    expect(resolveBank(index, 7, undefined, 'gu-flute.mmbs')).toEqual({ file: 'gu-flute.mmbs', source: 'patch' });
+    expect(resolveBank(index, 7, undefined, 'bestaat-niet.mmbs')).toEqual({ file: index.defaults['7'], source: 'standaard' });
+    setUserPick(7, 'gu-choir.mmbs');
+    expect(resolveBank(index, 7, undefined, 'gu-flute.mmbs')).toEqual({ file: 'gu-choir.mmbs', source: 'keuze' });
+    setUserPick(7, null);
+  });
+
   it('volgorde: SD-naam, dan eigen keuze, dan standaard', () => {
     expect(resolveBank(index, 13)).toEqual({ file: index.defaults['13'], source: 'standaard' });
     setUserPick(13, 'gu-choir.mmbs');
