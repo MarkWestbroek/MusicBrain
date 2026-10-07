@@ -12,7 +12,7 @@
 // front in hun seed.
 
 import {
-  VIBE_SOLO_FX, SHIMMER_SOLO_FX, STEREO_PHASER_SOLO_FX, REVERB_SOLO_FX, seedDx7PolyPatch, seedGenerativeJamPatch, seedKrellPatch,
+  DIGITAL_ECHO_SOLO_FX, PALME_SOLO_FX, VIBE_SOLO_FX, SHIMMER_SOLO_FX, STEREO_PHASER_SOLO_FX, REVERB_SOLO_FX, seedDx7PolyPatch, seedGenerativeJamPatch, seedKrellPatch,
   seedMellotronPatch, seedSoloVoicePatch,
 } from './seedModules';
 import { seedAxelFLeadPatch } from './seedAxelF';
@@ -63,6 +63,13 @@ export const DEMO_SEEDS: DemoSeed[] = [
       { coarse: -12, curve: 0.6, unrest: 0.3, glide: 60, main: 0.8, div1: 2, div2: 3, div3: 4, div4: 5,
         sub1: 0.55, sub2: 0.4, sub3: 0.3, sub4: 0.15, formant: 4, fshift: -2, freso: 0.6, fmix: 0.75,
         noise: 0.04, dyn: 0, attack: 15, release: 250, level: 0.8 }, REVERB_SOLO_FX) },
+  { label: '🎐 Ondes Martenot', title: 'Ondes Martenot (Messiaen, Jonny Greenwood) door de Palme-luidspreker: twaalf snaren die meetrillen. Het modwiel geeft meer vibrato; op het lint glijdt hij als de ring aan de draad.',
+    run: (p) => seedSoloVoicePatch(p, 'tp_mmb_martenot', 'MARTENOT', 'out', 'out',
+      { onde: 0.8, creux: 0.15, souffle: 0.05, glide: 40, vib: 0.18, vib_rate: 5.5, attack: 10, release: 350, level: 0.8 },
+      PALME_SOLO_FX) },
+  { label: '🔁 Arp + String echo', title: 'Arpeggiator: houd een akkoord vast en hij speelt de toetsen op en neer over twee octaven, een geplukte snaar met echo. Latch staat aan: hij speelt door na het loslaten; het stopbord stopt hem.',
+    run: (p) => seedSoloVoicePatch(p, 'tp_mmb_string', 'String', 'out', 'out', { pluck: 0.6, level: 0.8 },
+      DIGITAL_ECHO_SOLO_FX, { arp: { mode: 2, octaves: 2, tempo: 110, division: 3, gate: 0.5, latch: 1, extclock: 0, channel: 0 } }) },
   // ── Zelfspelend ───────────────────────────────────────────────────────
   { label: '🥁 Ritmebox (CR-78)', title: 'De ritmes van de CR-78; pad 1 start en stopt.', run: seedRhythmBoxPatch },
   { label: '🧬 Acid jam', title: 'Zelfspelende acid-lijn met een kick; draai aan Cutoff en Reso.', run: seedAcidJamPatch },

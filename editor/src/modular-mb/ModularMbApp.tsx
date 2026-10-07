@@ -19,7 +19,7 @@ import { startDemo, DemoCaption, type DemoState, type DemoHandle } from './recip
 import type { PatchOp } from './recipe/types';
 import { emptyModularProject, type ModularProject } from './types';
 import { exportPanel, importPanel, parsePanelFile } from './panelIO';
-import { BUS_SOLO_FX, CONSOLE_EQ_SOLO_FX, PARA_EQ_SOLO_FX, DIODE_SOLO_FX, EQ_SOLO_FX, FET_SOLO_FX, OPTO_SOLO_FX, SAMPLER_MASTER_FX, VARIMU_SOLO_FX, STEREO_TAPE_SOLO_FX, DIGITAL_ECHO_SOLO_FX, BBD_SOLO_FX, RINGMOD_SOLO_FX, OCTAVER_SOLO_FX, HARMONIZER_SOLO_FX, REVERB_SOLO_FX, SPRING_SOLO_FX, TREMOLO_SOLO_FX, STEREO_PHASER_SOLO_FX, VIBE_SOLO_FX, ROTARY_SOLO_FX, SHIMMER_SOLO_FX, seedExampleModules, seedInternals, seedTestPatch, seedFmTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, seedDx7PolyPatch, seedSamplerPolyPatch, seedWarpsVocoderPatch, seedVocoderChoirPatch, seedZangPatch, seed808JamPatch, seedKrellPatch, type PolySeedOptions } from './seedModules';
+import { BUS_SOLO_FX, CONSOLE_EQ_SOLO_FX, PARA_EQ_SOLO_FX, DIODE_SOLO_FX, EQ_SOLO_FX, FET_SOLO_FX, OPTO_SOLO_FX, SAMPLER_MASTER_FX, VARIMU_SOLO_FX, STEREO_TAPE_SOLO_FX, DIGITAL_ECHO_SOLO_FX, BBD_SOLO_FX, RINGMOD_SOLO_FX, OCTAVER_SOLO_FX, HARMONIZER_SOLO_FX, REVERB_SOLO_FX, SPRING_SOLO_FX, PALME_SOLO_FX, METALLIQUE_SOLO_FX, TREMOLO_SOLO_FX, STEREO_PHASER_SOLO_FX, VIBE_SOLO_FX, ROTARY_SOLO_FX, SHIMMER_SOLO_FX, seedExampleModules, seedInternals, seedTestPatch, seedFmTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, seedDx7PolyPatch, seedSamplerPolyPatch, seedWarpsVocoderPatch, seedVocoderChoirPatch, seedZangPatch, seed808JamPatch, seedKrellPatch, type PolySeedOptions } from './seedModules';
 import { seedCs80BrassPatch } from './seedBrass';
 import { seedAxelFLeadPatch } from './seedAxelF';
 import { seedSid3Patch, seedSidPolyPatch } from './seedSid';
@@ -43,6 +43,8 @@ const SOLO_FX = {
   oct:    { fx: OCTAVER_SOLO_FX, title: 'Monofoon met OCTAVER (−1 oct 0,8, −2 oct 0,3): de analoge sub onder de noot; speel één noot tegelijk.' },
   harm:   { fx: HARMONIZER_SOLO_FX, title: 'Monofoon met HARMONIZER: stem A +7 (kwint, links), stem B +12 +5 ct (octaaf, rechts), wat feedback — koor van kwinten en octaven.' },
   plate:  { fx: REVERB_SOLO_FX, title: 'Monofoon met REVERB in Plate-stand (Dattorro-tank, size 0,7, predelay 15 ms): de gladde studioplaat.' },
+  palme:  { fx: PALME_SOLO_FX, title: 'Monofoon door de DIFFUSEUR in Palme-stand: twaalf chromatisch gestemde snaren trillen mee, een zingende halo die na de noot doorklinkt.' },
+  metal:  { fx: METALLIQUE_SOLO_FX, title: 'Monofoon door de DIFFUSEUR in Métallique-stand: een gong als luidspreker, metalen boventonen die niet met de toon meegaan.' },
   spring: { fx: SPRING_SOLO_FX, title: 'Monofoon met REVERB in Spring-stand: twee veren met dispersie — de boing van een gitaarversterker.' },
   trem:   { fx: TREMOLO_SOLO_FX, title: 'Monofoon met TREMOLO in Harm-stand (brownface): laag en hoog in tegenfase op 5,2 Hz — half tremolo, half phaser.' },
   vibe:   { fx: VIBE_SOLO_FX, title: 'Monofoon met VIBE (univibe-stijl): Chorus-stand, 1,6 Hz, lampkarakter 0,75 — het ademende, scheve kloppen tussen chorus en phaser in.' },
@@ -678,6 +680,10 @@ export function ModularMbApp(): JSX.Element {
                     c: { coarse: -12, curve: 0.6, unrest: 0.3, glide: 60, main: 0.8, div1: 2, div2: 3, div3: 4, div4: 5,
                          sub1: 0.55, sub2: 0.4, sub3: 0.3, sub4: 0.15, formant: 4, fshift: -2, freso: 0.6, fmix: 0.75,
                          noise: 0.04, dyn: 0, attack: 15, release: 250, level: 0.8 }, fx: 'plate' },
+                  { label: '🌊 Martenot + Palme', t: 'tp_mmb_martenot', n: 'MARTENOT', l: 'out', r: 'out',
+                    c: { onde: 0.8, creux: 0.15, souffle: 0.05, glide: 40, vib: 0.18, vib_rate: 5.5, attack: 10, release: 350, level: 0.8 }, fx: 'palme' },
+                  { label: '🌊 Martenot + Métallique', t: 'tp_mmb_martenot', n: 'MARTENOT', l: 'out', r: 'out',
+                    c: { onde: 0.5, gambe: 0.35, nasillard: 0.2, glide: 40, vib: 0.18, attack: 10, release: 350, level: 0.8 }, fx: 'metal' },
                   { label: '🧪 Acid (303-stijl bas)', t: 'tp_mmb_acid', n: 'ACID', l: 'out', r: 'out',
                     c: { wave: 0, tune: -12, cutoff: 0.3, res: 0.8, envmod: 0.65, decay: 0.35, accent: 0.7, level: 0.8 } },
                   { label: '〽️ Fluit + FOLDER (West Coast)', t: 'tp_mmb_stk_sound', n: 'STK', l: 'out', r: 'out',

@@ -1,6 +1,6 @@
 {
   "$comment": "GEGENEREERD door tools/contract_dump.py — niet met de hand bewerken. Poort-ids zijn letterlijk wat de firmware accepteert (aliassen als out/out_l en naam/naam_cv staan er dus allebei in).",
-  "firmwareVersion": "0.5.95",
+  "firmwareVersion": "0.5.96",
   "modules": {
     "...": {
       "typeId": "...",
@@ -61,6 +61,28 @@
         "reset",
         "retrig",
         "sustain"
+      ]
+    },
+    "tp_mmb_arp": {
+      "typeId": "tp_mmb_arp",
+      "source": "firmware/app-modular-brain/src/ArpModule.h",
+      "ports": [
+        "clock",
+        "gate",
+        "pitch",
+        "reset",
+        "step",
+        "vel"
+      ],
+      "controls": [
+        "channel",
+        "division",
+        "extclock",
+        "gate",
+        "latch",
+        "mode",
+        "octaves",
+        "tempo"
       ]
     },
     "tp_mmb_audioin": {
@@ -379,6 +401,23 @@
         "gain_c",
         "mode",
         "offset"
+      ]
+    },
+    "tp_mmb_diffuseur": {
+      "typeId": "tp_mmb_diffuseur",
+      "source": "firmware/app-modular-brain/src/DiffuseurModule.h",
+      "ports": [
+        "in",
+        "mix_cv",
+        "out"
+      ],
+      "controls": [
+        "gong",
+        "level",
+        "mix",
+        "ring",
+        "tune",
+        "type"
       ]
     },
     "tp_mmb_digital_echo": {
@@ -1101,6 +1140,37 @@
         "steps",
         "tempo",
         "xbias"
+      ]
+    },
+    "tp_mmb_martenot": {
+      "typeId": "tp_mmb_martenot",
+      "source": "firmware/app-modular-brain/src/MartenotModule.h",
+      "ports": [
+        "amp",
+        "gate",
+        "out",
+        "press",
+        "vel",
+        "vib_cv",
+        "voct"
+      ],
+      "controls": [
+        "attack",
+        "bright",
+        "coarse",
+        "creux",
+        "fine",
+        "gambe",
+        "glide",
+        "level",
+        "nasillard",
+        "octaviant",
+        "onde",
+        "release",
+        "souffle",
+        "touche",
+        "vib",
+        "vib_rate"
       ]
     },
     "tp_mmb_material_bridge": {

@@ -43,6 +43,10 @@ const EN: Record<string, string> = {
     'West Coast under the keyboard: complex oscillator through a low-pass gate.',
   'Trautonium-stem (Oskar Sala, The Birds): ondertonen in plaats van boventonen en vaste formanten, met plaatgalm. Probeer het lint (〰) onder het klavier.':
     'Trautonium voice (Oskar Sala, The Birds): undertones instead of overtones and fixed formants, with plate reverb. Try the ribbon (〰) under the keyboard.',
+  'Ondes Martenot (Messiaen, Jonny Greenwood) door de Palme-luidspreker: twaalf snaren die meetrillen. Het modwiel geeft meer vibrato; op het lint glijdt hij als de ring aan de draad.':
+    'Ondes Martenot (Messiaen, Jonny Greenwood) through the Palme speaker: twelve strings that resonate along. The mod wheel adds vibrato; on the ribbon it glides like the ring on the wire.',
+  'Arpeggiator: houd een akkoord vast en hij speelt de toetsen op en neer over twee octaven, een geplukte snaar met echo. Latch staat aan: hij speelt door na het loslaten; het stopbord stopt hem.':
+    'Arpeggiator: hold a chord and it plays the keys up and down over two octaves, a plucked string with echo. Latch is on: it keeps playing after you let go; the stop sign stops it.',
   'De ritmes van de CR-78; pad 1 start en stopt.': 'The CR-78 rhythms; pad 1 starts and stops.',
   'Zelfspelende acid-lijn met een kick; draai aan Cutoff en Reso.':
     'Self-playing acid line with a kick; turn Cutoff and Reso.',
@@ -110,8 +114,8 @@ export const SAME = new Set([
   'Volume', 'Drive', 'Envelope', 'Chorus', 'Aftertouch', 'Filter', 'Rotary', 'Mix', 'Acid',
 ]);
 
-/** "Monofoon: … X zit tussen Y en OUT." uit seedSoloVoicePatch. */
-const SOLO = /^Monofoon: speel en draai — alle knoppen gaan live naar de Teensy\. (.+) zit tussen (.+) en OUT\.$/;
+/** "Monofoon: … X zit tussen Y en OUT." uit seedSoloVoicePatch, met de ARP ervoor. */
+const SOLO = /^(Arpeggio: houd een akkoord vast; ARP speelt de toetsen als reeks\. )?Monofoon: speel en draai — alle knoppen gaan live naar de Teensy\. (.+) zit tussen (.+) en OUT\.$/;
 
 /** De Engelse tekst bij een Nederlandse standaardtekst; anders (of in het
  *  Nederlands) de tekst zelf. */
@@ -126,7 +130,8 @@ export function contentText(nl: string | undefined): string | undefined {
 export function contentEn(nl: string): string | undefined {
   if (nl in EN) return EN[nl];
   const m = SOLO.exec(nl);
-  if (m) return `Monophonic: play and turn — every knob goes live to the Teensy. ${m[1]} sits between ${m[2]} and OUT.`;
+  if (m) return (m[1] ? 'Arpeggio: hold a chord; ARP plays the keys as a sequence. ' : '')
+    + `Monophonic: play and turn — every knob goes live to the Teensy. ${m[2]} sits between ${m[3]} and OUT.`;
   // "2e / 3e" (percussie-harmonische)
   if (nl === '2e / 3e') return '2nd / 3rd';
   return undefined;

@@ -87,6 +87,9 @@
 #include "FreqShiftModule.h"
 #include "AcidModule.h"
 #include "MixturModule.h"
+#include "MartenotModule.h"
+#include "DiffuseurModule.h"
+#include "ArpModule.h"
 #include "RunglerModule.h"
 #include "OrganModule.h"
 #include "SemModule.h"
@@ -206,6 +209,9 @@ inline void registerAllRuntimeModules() {
     FreqShiftModule::registerFactory(); // frequency shifter (Bode)
     AcidModule::registerFactory();      // 303-stijl basstem met accent en slide
     MixturModule::registerFactory();    // Trautonium-stem: glimlamp, ondertoondelers, vaste formanten
+    MartenotModule::registerFactory();  // Ondes Martenot-stem: tiroir, touche, vibrato
+    DiffuseurModule::registerFactory(); // Martenot-luidsprekers: Principal, Palme, Métallique
+    ArpModule::registerFactory();       // arpeggiator: hoort zelf MIDI-noten
     RunglerModule::registerFactory();   // Benjolin-stijl chaos (rungler)
     OrganModule::registerFactory();     // tonewheel-orgel, 12 toetsen
     SemModule::registerFactory();        // SEM-filter (LP→notch→HP, bandpass apart)

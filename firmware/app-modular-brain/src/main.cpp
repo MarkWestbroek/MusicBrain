@@ -597,6 +597,13 @@ void logVoiceTable(const char* tag) {
 
 void forwardMidiToRuntime(bool noteOn, uint8_t channel, uint8_t note, uint8_t velocity) {
     for (auto& [id, mod] : runtime.instances()) {
+        // De arpeggiator hoort de toetsen zelf, net als MIDI-IN.
+        if (mod->typeId() == mmb_link::ArpModule::kTypeId) {
+            auto* arp = static_cast<mmb_link::ArpModule*>(mod.get());
+            if (noteOn) arp->onNoteOn(channel, note, velocity);
+            else        arp->onNoteOff(channel, note, velocity);
+            continue;
+        }
         if (mod->typeId() != mb::runtime::MidiInModule::kTypeId) continue;
         auto* m = static_cast<mb::runtime::MidiInModule*>(mod.get());
         if (noteOn) m->onNoteOn(channel, note, velocity);
@@ -703,6 +710,10 @@ void handleControlChange(uint8_t channel, uint8_t cc, uint8_t value) {
     if (hits > 0) return;
     midiIn.onControlChange(channel, cc, value);
     for (auto& [id, mod] : runtime.instances()) {
+        if (mod->typeId() == mmb_link::ArpModule::kTypeId) {   // all notes off (CC 120/123)
+            static_cast<mmb_link::ArpModule*>(mod.get())->onControlChange(channel, cc, value);
+            continue;
+        }
         if (mod->typeId() != mb::runtime::MidiInModule::kTypeId) continue;
         static_cast<mb::runtime::MidiInModule*>(mod.get())->onControlChange(channel, cc, value);
     }

@@ -3722,6 +3722,114 @@ function mmbEuclid() {
   });
 }
 
+// MMB ARP — 8 HP. Arpeggiator (firmware tp_mmb_arp): hoort zelf de toetsen.
+function mmbArp() {
+  const w = W(8);
+  return assemble({
+    typeId: 'tp_mmb_arp', categoryId: 'sequencer',
+    variant: 'Arp (arpeggiator)',
+    brand: 'MMB', model: 'ARP',
+    hp: 8, texture: 'pcb-black', baseColor: '#1f2a3d', internal: true,
+    texts: [
+      { x: w/2, y: 8, text: 'ARP', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13, text: 'arpeggiator · hoort de toetsen', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      sw  ('mode', 'Mode', w*0.30, 26, ['Up', 'Down', 'Up/Down', 'Random', 'Played'], 0),
+      knob('octaves', 'Oct', w*0.75, 26, { size: 'small', min: 1, max: 4, def: 1, step: 1, color: '#f9fafb' }),
+      knob('tempo', 'Tempo', w*0.30, 46, { size: 'medium', min: 20, max: 300, def: 120, unit: 'bpm', color: '#38bdf8' }),
+      sw  ('division', 'Div', w*0.75, 46, ['1/4', '1/8', '1/8T', '1/16', '1/16T', '1/32'], 3),
+      knob('gate', 'Gate', w*0.30, 66, { size: 'small', min: 0.05, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('channel', 'Ch', w*0.75, 66, { size: 'small', min: 0, max: 16, def: 0, step: 1, color: '#9ca3af',
+        ticks: { labels: { 0: 'alle' } } }),
+      toggle('latch', 'Latch', w*0.30, 82),
+      toggle('extclock', 'ExtClk', w*0.75, 82),
+      inPort('clock', 'Clk', 'gate', w*0.30, 98),
+      inPort('reset', 'Rst', 'gate', w*0.70, 98),
+      outPort('pitch', 'Pitch', 'cv', w*0.14, 116),
+      outPort('gate', 'Gate', 'gate', w*0.38, 116),
+      outPort('vel', 'Vel', 'cv', w*0.62, 116),
+      outPort('step', 'Step', 'gate', w*0.86, 116),
+    ],
+    notes: 'Arpeggiator, het bruikbare deel van Mutable Yarns. Hoort zelf de toetsen (net als MIDI-IN: elk MIDI-bericht gaat naar elke MIDI-IN en elke ARP) en speelt de toetsen die je vasthoudt als geklokte reeks op één stem: Pitch (V/Oct), Gate en Vel, zoals de mono-uitgangen van MIDI-IN. Mode: Up, Down, Up/Down (heen en terug, de uitersten één keer), Random (nooit twee keer dezelfde) of Played (de volgorde waarin je aansloeg). Oct herhaalt de reeks één tot vier octaven hoger. Latch: de reeks blijft spelen na het loslaten; een nieuwe aanslag na het loslaten begint een nieuwe. Klok intern (Tempo in bpm, Div = notenwaarde) of ExtClk aan + Clk: een stap per flank. De eerste aanslag uit stilstand speelt meteen. Gate is de nootlengte als deel van de stap; er blijft altijd een korte pauze, zodat elke noot opnieuw aanslaat. Step pulseert op elke stap (ook zonder toetsen), Rst begint de reeks opnieuw. Ch = MIDI-kanaal (0 = alle). Firmware tp_mmb_arp; in de simulator draait dezelfde klasse als wasm.',
+  });
+}
+
+// MMB MARTENOT — 14 HP. Ondes Martenot-stem (firmware tp_mmb_martenot).
+function mmbMartenot() {
+  const w = W(14);
+  const col = (i: number): number => w * (0.12 + i * 0.19);          // vijf kolommen
+  return assemble({
+    typeId: 'tp_mmb_martenot', categoryId: 'vco',
+    variant: 'Martenot (Ondes Martenot-stem)',
+    brand: 'MMB', model: 'MARTENOT',
+    hp: 14, texture: 'wood', baseColor: '#2b1d14', internal: true,
+    texts: [
+      { x: w/2, y: 8, text: 'MARTENOT', fontSize: 2.5, color: '#f3e3c3', align: 'middle' },
+      { x: w/2, y: 13, text: 'tiroir · touche · vibrato', fontSize: 1.1, color: '#c9b38a', align: 'middle' },
+      { x: 3, y: 36, text: 'tiroir', fontSize: 1.0, color: '#c9b38a', align: 'start' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f3e3c3', align: 'middle' },
+    ],
+    items: [
+      knob('coarse', 'Coarse', col(0), 24, { size: 'small', min: -36, max: 36, def: 0, step: 1, unit: 'semi', color: '#f3e3c3' }),
+      knob('fine',   'Fine',   col(1), 24, { size: 'small', min: -100, max: 100, def: 0, unit: 'ct', color: '#f3e3c3' }),
+      knob('glide',  'Glide',  col(2), 24, { size: 'small', min: 0, max: 2000, def: 0, unit: 'ms', color: '#f3e3c3' }),
+      knob('vib',    'Vib',    col(3), 24, { size: 'small', min: 0, max: 1, def: 0.15, unit: 'semi', color: '#fbbf24' }),
+      knob('vib_rate', 'Rate', col(4), 24, { size: 'small', min: 0.5, max: 12, def: 5.5, unit: 'Hz', color: '#fbbf24' }),
+      // De tiroir: zes klankschakelaars, hier als mengknoppen.
+      knob('onde',      'O', col(0), 44, { size: 'medium', min: 0, max: 1, def: 0.8, color: '#fde68a' }),
+      knob('creux',     'C', col(1), 44, { size: 'medium', min: 0, max: 1, def: 0, color: '#fde68a' }),
+      knob('gambe',     'G', col(2), 44, { size: 'medium', min: 0, max: 1, def: 0, color: '#fde68a' }),
+      knob('nasillard', 'N', col(3), 44, { size: 'medium', min: 0, max: 1, def: 0, color: '#fde68a' }),
+      knob('octaviant', '8', col(4), 44, { size: 'medium', min: 0, max: 1, def: 0, color: '#fde68a' }),
+      knob('souffle',   'S', col(0), 64, { size: 'small', min: 0, max: 1, def: 0.05, color: '#d6c4a0' }),
+      knob('bright',    'Bright', col(1), 64, { size: 'small', min: 0, max: 1, def: 0.6, color: '#d6c4a0' }),
+      // Dynamiek: klavier of touche.
+      sw  ('touche', 'Volume', col(2), 82, ['Klavier', 'Touche'], 0),
+      knob('attack',  'Att',   col(3), 82, { size: 'small', min: 0.5, max: 2000, def: 6, unit: 'ms', color: '#f3e3c3' }),
+      knob('release', 'Rel',   col(4), 82, { size: 'small', min: 1, max: 5000, def: 250, unit: 'ms', color: '#f3e3c3' }),
+      knob('level',   'Level', col(4), 64, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f3e3c3' }),
+      inPort ('voct',   'V/Oct', 'cv',   w*0.08, 116),
+      inPort ('gate',   'Gate',  'gate', w*0.21, 116),
+      inPort ('vel',    'Vel',   'cv',   w*0.34, 116),
+      inPort ('press',  'Touche','cv',   w*0.47, 116),
+      inPort ('vib_cv', 'Vib+',  'cv',   w*0.60, 116),
+      outPort('amp',    'Amp',   'cv',   w*0.78, 116),
+      outPort('out',    'Out',   'audio', w*0.92, 116),
+    ],
+    notes: 'Een stem naar de Ondes Martenot (Maurice Martenot, 1928; Messiaens Turangalîla, Jonny Greenwood). Een bijna zuivere toon met de tiroir, de la met klankschakelaars, hier als mengknoppen die je kunt combineren: O (onde, de zuivere golf), C (creux, hol: alleen oneven boventonen), G (gambe, strijkend en rijk), N (nasillard, neuzig), 8 (octaviant, het octaaf erbij) en S (souffle, adem rond de toonhoogte). Volume: Klavier = de toets met zijn aanslag, druk zwelt erbovenop; Touche = zoals het instrument, de druktoets onder de linkerhand maakt het volume en de toetsen (of de ring aan de draad, of het lint van het schermtoetsenbord) kiezen alleen de toonhoogte: zonder druk klinkt er niets. Hang Touche aan aftertouch (Press van MIDI-IN). Vib is het vibrato dat je maakt door de toets opzij te wiegen; Vib+ (het modwiel) zet er meer bij. Glide is het glijden van de ring. Bright: hoe helder de toon de kast in gaat. De luidsprekers (Principal, Palme met meetrillende snaren, Métallique met een gong) zijn een eigen module erachter: DIFFUSEUR. Eigen model naar de beschrijvingen, op het oor. Firmware tp_mmb_martenot, mmb_dsp::Martenot; in de simulator draait dezelfde code als wasm.',
+  });
+}
+
+// MMB DIFFUSEUR — 8 HP. De luidsprekers van de Ondes Martenot (firmware tp_mmb_diffuseur).
+function mmbDiffuseur() {
+  const w = W(8);
+  return assemble({
+    typeId: 'tp_mmb_diffuseur', categoryId: 'effect',
+    variant: 'Diffuseur (Martenot-luidsprekers)',
+    brand: 'MMB', model: 'DIFFUSEUR',
+    hp: 8, texture: 'wood', baseColor: '#2b1d14', internal: true,
+    texts: [
+      { x: w/2, y: 8, text: 'DIFFUSEUR', fontSize: 2.2, color: '#f3e3c3', align: 'middle' },
+      { x: w/2, y: 13, text: 'principal · palme · métallique', fontSize: 1.0, color: '#c9b38a', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f3e3c3', align: 'middle' },
+    ],
+    items: [
+      sw  ('type', 'Kast', w/2, 26, ['Principal', 'Palme', 'Métallique'], 1),
+      knob('mix',  'Mix',  w*0.30, 48, { size: 'medium', min: 0, max: 1, def: 0.5, color: '#fde68a' }),
+      knob('ring', 'Ring', w*0.72, 48, { size: 'medium', min: 0, max: 1, def: 0.5, color: '#fde68a' }),
+      knob('tune', 'Tune', w*0.30, 70, { size: 'small', min: -12, max: 12, def: 0, step: 1, unit: 'semi', color: '#f3e3c3' }),
+      knob('gong', 'Gong', w*0.72, 70, { size: 'small', min: 60, max: 600, def: 196, unit: 'Hz', color: '#f3e3c3' }),
+      knob('level', 'Level', w*0.30, 88, { size: 'small', min: 0, max: 2, def: 1, color: '#f3e3c3' }),
+      inPort ('in',     'In',   'audio', w*0.20, 112),
+      inPort ('mix_cv', 'Mix+', 'cv',    w*0.50, 112),
+      outPort('out',    'Out',  'audio', w*0.80, 112),
+    ],
+    notes: 'De luidsprekers van de Ondes Martenot, elk met een eigen klank. Principal: de gewone kast, wat laag en wat hoog eraf. Palme: een liervormige kast met twaalf snaren, chromatisch gestemd vanaf C3, die meetrillen: een zingende halo die na de noot doorklinkt; Tune stemt de snaren om, Ring is hoe lang ze naklinken. Métallique: een gong als luidsprekermembraan; metalen, niet-harmonische boventonen die niet met de toon meegaan; Gong is de grondtoon van de gong, Ring hoe lang hij zingt. Mix mengt de kast met de directe klank (Principal heeft geen menging), Mix+ telt erbij op. Eén kast voor alle stemmen: zet hem na de stemmen, en ook achter iets anders (een piano door de palme). De vierde luidspreker, Résonance (veergalm), is REVERB in Spring-stand erachter. Eigen model op het oor. Firmware tp_mmb_diffuseur, mmb_dsp::Diffuseur; in de simulator draait dezelfde code als wasm.',
+  });
+}
+
 // MMB TURING — 8 HP. Schuifregister-sequencer (firmware tp_mmb_turing).
 function mmbTuring() {
   const w = W(8);
@@ -4810,6 +4918,7 @@ export function seedInternals(project: ModularProject): ModularProject {
   all.push(mmbTapeStrip());
   all.push(mmbClock(), mmbEuclid(), mmbTuring(), mmbBranches(), mmbChaos(), mmbLfo8(), mmbSlope(), mmbLogic());
   all.push(mmbFolder(), mmbLpg(), mmbDrive(), mmbTube(), mmbFreqShift(), mmbAcid(), mmbMixtur(), mmbRungler(), mmbOrgan());
+  all.push(mmbMartenot(), mmbDiffuseur(), mmbArp());
   all.push(mmbSem(), mmbComplex(), mmbWah(), mmbEnsemble(), mmbEPiano());
   all.push(mmbPads(), mmbFaders(), mmbKnobs());
   all.push(mmbRhythm(), mmbPercuter(), mmbSynthex());
@@ -5641,8 +5750,12 @@ export function seedSoloVoicePatch(
   typeId: string, label: string, outL: string, outR: string,
   controls: Record<string, ControlValue> = {},
   fx?: { typeId: string; label: string; controls?: Record<string, ControlValue>; mono?: boolean; monoIn?: boolean },
+  /** `arp`: een ARP in plaats van MIDI-IN (zelfde pitch/gate/vel-uitgangen), met deze knoppen. */
+  opts: { arp?: Record<string, ControlValue> } = {},
 ): ModularProject {
-  const needed = [typeId, 'tp_mmb_midiin', 'tp_mmb_out', ...(fx ? [fx.typeId] : [])];
+  const arp = opts.arp;
+  const src = arp ? 'tp_mmb_arp' : 'tp_mmb_midiin';
+  const needed = [typeId, src, 'tp_mmb_out', ...(fx ? [fx.typeId] : [])];
   const missing = needed.some((tid) => !project.moduleTypes.some((t) => t.id === tid));
   // FOF kreeg later `vel` (2026-10-01) en `pressure` (2026-10-01, Pressure-stap):
   // een oud project met een FOF-type zonder die poorten wordt eerst ververst.
@@ -5655,12 +5768,12 @@ export function seedSoloVoicePatch(
     const proto = p.modules.find((m) => m.typeId === tid)!;
     return { ...proto, id: uid('mod'), internal: false, visual: proto.visual };
   };
-  const mi   = fresh('tp_mmb_midiin');
+  const mi   = fresh(src);
   const inst = fresh(typeId);
   // Optioneel effect tussen instrument en OUT (stereo in/uit).
   const fxm  = fx ? fresh(fx.typeId) : null;
   const out  = fresh('tp_mmb_out');
-  const name = fx ? `${label} + ${fx.label}` : `${label} solo`;
+  const name = (fx ? `${label} + ${fx.label}` : `${label} solo`) + (arp ? ' arp' : '');
 
   let offset = 0;
   const place = (m: ModuleInstance): RackSlot => {
@@ -5670,7 +5783,7 @@ export function seedSoloVoicePatch(
   };
   const rack: Rack = {
     id: uid('rack'), name,
-    description: `MidiIn → ${label}${fxm ? ` → ${fx!.label}` : ''} → OUT.`,
+    description: `${arp ? 'ARP' : 'MidiIn'} → ${label}${fxm ? ` → ${fx!.label}` : ''} → OUT.`,
     rows: 1, hpPerRow: Math.max(64, mi.visual.hpWidth + inst.visual.hpWidth
       + (fxm ? fxm.visual.hpWidth : 0) + out.visual.hpWidth + 4),
     slots: [place(mi), place(inst), ...(fxm ? [place(fxm)] : []), place(out)],
@@ -5684,16 +5797,20 @@ export function seedSoloVoicePatch(
   });
   const patch: Patch = {
     id: uid('patch'), name,
-    description: `Monofoon: speel en draai — alle knoppen gaan live naar de Teensy.`
+    description: (arp ? 'Arpeggio: houd een akkoord vast; ARP speelt de toetsen als reeks. ' : '')
+      + `Monofoon: speel en draai — alle knoppen gaan live naar de Teensy.`
       + (fxm ? ` ${fx!.label} zit tussen ${label} en OUT.` : ''),
     voiceCount: 1,
     rackIds: [rack.id],
     connections: [
       c(mi, 'pitch', inst, 'voct'),
       c(mi, 'gate',  inst, 'gate'),
-      ...(typeId === 'tp_mmb_material_bridge' || typeId === 'tp_mmb_fof' || typeId === 'tp_mmb_scanned' || typeId === 'tp_mmb_mixtur' ? [c(mi, 'vel', inst, 'vel')] : []),
-      // Scanned: aftertouch drukt de vinger in de ring.
-      ...(typeId === 'tp_mmb_scanned' || typeId === 'tp_mmb_mixtur' ? [c(mi, 'press', inst, 'press')] : []),
+      ...(typeId === 'tp_mmb_material_bridge' || typeId === 'tp_mmb_fof' || typeId === 'tp_mmb_scanned' || typeId === 'tp_mmb_mixtur'
+        || typeId === 'tp_mmb_martenot' ? [c(mi, 'vel', inst, 'vel')] : []),
+      // Scanned: aftertouch drukt de vinger in de ring. Martenot: de touche.
+      ...(!arp && (typeId === 'tp_mmb_scanned' || typeId === 'tp_mmb_mixtur' || typeId === 'tp_mmb_martenot') ? [c(mi, 'press', inst, 'press')] : []),
+      // Martenot: het modwiel wiegt de toets (meer vibrato).
+      ...(!arp && typeId === 'tp_mmb_martenot' ? [c(mi, 'cv_mod', inst, 'vib_cv')] : []),
       // Mono-effect (ringmod, octaver): L erin, de ene uitgang naar L én R.
       ...(fxm && fx!.mono
         ? [c(inst, outL, fxm, 'in'), c(fxm, 'out', out, 'l'), c(fxm, 'out', out, 'r')]
@@ -5708,7 +5825,7 @@ export function seedSoloVoicePatch(
     controlState: {
       [inst.id]: controls,
       [out.id]:  { level: 0.8 },
-      [mi.id]:   { channel: 0, voiceCount: 1 },
+      [mi.id]:   arp ?? { channel: 0, voiceCount: 1 },
       ...(fxm ? { [fxm.id]: fx!.controls ?? {} } : {}),
     },
     envelopes: [], lfos: [],
@@ -5789,6 +5906,14 @@ export const HARMONIZER_SOLO_FX = {
 export const REVERB_SOLO_FX = {
   typeId: 'tp_mmb_reverb', label: 'REVERB',
   controls: { mode: 0, size: 0.7, damp: 0.4, predelay: 15, mod: 0.3, mix: 0.35 },
+} as const;
+export const PALME_SOLO_FX = {
+  typeId: 'tp_mmb_diffuseur', label: 'DIFFUSEUR', mono: true,
+  controls: { type: 1, mix: 0.5, tune: 0, ring: 0.55, gong: 196, level: 1 },
+} as const;
+export const METALLIQUE_SOLO_FX = {
+  typeId: 'tp_mmb_diffuseur', label: 'DIFFUSEUR', mono: true,
+  controls: { type: 2, mix: 0.45, tune: 0, ring: 0.5, gong: 196, level: 1 },
 } as const;
 export const SPRING_SOLO_FX = {
   typeId: 'tp_mmb_reverb', label: 'SPRING',

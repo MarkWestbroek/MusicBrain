@@ -22,6 +22,8 @@ const T = (id: string): string => `tp_mmb_${id}`;
 export const FRONT_CONTROLS: Record<string, string[]> = {
   // ── Klankbronnen ──────────────────────────────────────────────────────
   [T('acid')]: ['cutoff', 'res', 'envmod', 'decay', 'accent', 'wave'],
+  [T('martenot')]: ['onde', 'creux', 'gambe', 'nasillard', 'octaviant', 'souffle', 'vib', 'touche'],
+  [T('diffuseur')]: ['type', 'mix', 'ring', 'tune'],
   [T('mixtur')]: ['sub1', 'sub2', 'sub3', 'sub4', 'div1', 'div2', 'div3', 'div4', 'formant', 'fshift', 'freso', 'curve'],
   [T('audioin')]: ['level'],
   [T('complex')]: ['timbre', 'fm', 'symmetry', 'ratio', 'tmod', 'am'],
@@ -123,6 +125,7 @@ export const FRONT_CONTROLS: Record<string, string[]> = {
   [T('grids')]: ['x', 'y', 'chaos', 'tempo', 'bd', 'sd', 'hh'],
   [T('marbles')]: ['tempo', 'bias', 'spread', 'jitter', 'dejavu', 'steps'],
   [T('seq8')]: ['rate', 'gate', 'length', 'run', 'root'],
+  [T('arp')]: ['mode', 'octaves', 'tempo', 'division', 'gate', 'latch'],
   [T('turing')]: ['change', 'length', 'tempo', 'range'],
   [T('chord')]: ['chord', 'inv', 'spread'],
   [T('quant')]: ['scale', 'root'],

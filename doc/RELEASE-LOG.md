@@ -17,6 +17,36 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-07 — ARP, MARTENOT en DIFFUSEUR (fw 0.5.96)
+- **ARP** (`tp_mmb_arp`, `ArpModule.h`): arpeggiator, het bruikbare deel van
+  Mutable Yarns (FW-CV-8). Hoort zelf de toetsen, net als MIDI-IN: de
+  firmware (`forwardMidiToRuntime`, CC 120/123) en de simulator
+  (`AudioEngine.sendMidi`, panic) geven noten aan elke MIDI-IN én elke ARP.
+  Up, Down, Up/Down, Random, Played; 1–4 octaven; tempo met notenwaarde
+  (1/4 t/m 1/32, triolen) of externe klok; gate-lengte, latch, kanaal.
+  Uit: `pitch`/`gate`/`vel` zoals de mono-uitgangen van MIDI-IN, plus `step`.
+  De eerste aanslag uit stilstand speelt meteen; alles los = de noot stopt.
+- **MARTENOT** (`tp_mmb_martenot`, `mmb_dsp/martenot.h`): Ondes
+  Martenot-stem. De tiroir als zes mengknoppen (O onde, C creux, G gambe,
+  N nasillard, 8 octaviant, S souffle), Volume Klavier of Touche (de druk
+  is het volume, zoals de druktoets onder de linkerhand), vibrato met het
+  modwiel erbij, glide voor de ring.
+- **DIFFUSEUR** (`tp_mmb_diffuseur`, `mmb_dsp/diffuseur.h`): de luidsprekers
+  als effect na de stemmen: Principal, Palme (twaalf chromatische snaren die
+  meetrillen) en Métallique (gong als membraan). Een eigen module, zodat een
+  poly-patch één kast deelt en hij ook achter iets anders kan.
+- Standaardset: **🎐 Ondes Martenot** (met Palme) en **🔁 Arp + String
+  echo** (latch aan); Solo ▾: Martenot + Palme / + Métallique. Tests in
+  `sim/wasmMartenotArp.test.ts` (volgorde, latch, gate, klok, kanaal,
+  touche, tiroir, vibrato, naklinken van palme en gong). Geflasht en gemeten:
+  Martenot met Palme ~13,5 % cpu op de Teensy; Ring en Gong op het gehoor
+  inregelen staat nog open.
+- **Push naar de Teensy: nooit het hele project** (`teensyLink.ts`). Een
+  project met de standaardset ging met 17 patches (275 KB) de lijn op, de
+  Teensy neemt 96 KB. Nu: zonder geldige actieve patch alleen de eerste, de
+  vergelijkset hoogstens vier bestaande patches, en past het nog niet, dan
+  alleen de actieve patch (met een regel in het log).
+
 ### 2026-10-07 — Speelmodus in het Engels (editor)
 - Taal uit `?lang=en|nl` (onthouden), anders de onthouden keuze, anders de
   browsertaal; een klein grijs wereldbolletje in de hoek rechtsboven wisselt. `<html lang>` volgt, zodat

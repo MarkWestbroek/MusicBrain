@@ -50,6 +50,7 @@ export interface EngineStatus {
 }
 
 const MIDIIN = MIDIIN_TYPE;
+const ARP = 'tp_mmb_arp';
 const SEQ = 'tp_mmb_seq8';
 
 interface BaseNode {
@@ -407,8 +408,8 @@ export class AudioEngine {
     for (const node of this.nodes.values()) {
       if (node.kind !== 'wasm') continue;
       for (const p of allGatePorts(node.runtime)) node.runtime.setInput(p, 0);
-      // All Notes Off (CC 123): MidiInModule::allNotesOff.
-      if (node.type.id === MIDIIN) node.runtime.midi(0xB0, 123, 0);
+      // All Notes Off (CC 123): MidiInModule::allNotesOff, en de ARP vergeet zijn toetsen.
+      if (node.type.id === MIDIIN || node.type.id === ARP) node.runtime.midi(0xB0, 123, 0);
     }
     this.wasmVoice.forEach((v) => { v.note = null; });
     this.noteStack.clear();
@@ -702,14 +703,15 @@ export class AudioEngine {
   }
 
   /**
-   * Eén MIDI-bericht naar elke MIDI-In. Het kanaal is dat van zijn filter
-   * (CH-knop), of 1 bij omni: het klavier van de simulator speelt altijd op
-   * het kanaal waar MIDI-In naar luistert.
+   * Eén MIDI-bericht naar elke MIDI-In en elke ARP (die hoort de toetsen zelf,
+   * net als op de Teensy). Het kanaal is dat van zijn filter (CH-knop), of 1
+   * bij omni: het klavier van de simulator speelt altijd op het kanaal waar
+   * de module naar luistert.
    */
   private sendMidi(status: number, d1: number, d2: number): void {
     for (const tap of this.midiTaps) tap(status, d1 & 0x7F, d2 & 0x7F);
     for (const node of this.nodes.values()) {
-      if (node.kind !== 'wasm' || node.type.id !== MIDIIN) continue;
+      if (node.kind !== 'wasm' || (node.type.id !== MIDIIN && node.type.id !== ARP)) continue;
       const ch = Math.max(1, Math.min(16, Math.round(readKnob(node.controls, 'channel', 0)) || 1));
       node.runtime.midi((status & 0xF0) | (ch - 1), d1 & 0x7F, d2 & 0x7F);
     }

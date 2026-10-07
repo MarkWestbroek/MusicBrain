@@ -7,7 +7,8 @@ import { describe, expect, it } from 'vitest';
 
 import { emptyModularProject } from './types';
 import { STEREO_TAPE_SOLO_FX, seedInternals, seedPolyVoicePatch, seedSoloVoicePatch } from './seedModules';
-import { buildConfigPayload } from './teensyLink';
+import { DEMO_SEEDS } from './demoSeeds';
+import { TEENSY_LINE_MAX, buildConfigPayload } from './teensyLink';
 
 interface Cfg { project: { modules: { id: string; typeId: string }[]; patches: { controlState: Record<string, Record<string, unknown>> }[] } }
 
@@ -34,5 +35,29 @@ describe('config-payload: standaardwaarden mee (FW-13)', () => {
     expect(cs.voiceCount).toBe(16);                           // uit de seed, niet de standaard 1
     expect(cs).not.toHaveProperty('chDisp');
     expect(json.length).toBeLessThan(40 * 1024);
+  });
+});
+
+// 2026-10-08: een project met de hele standaardset ging met 17 patches
+// (275 KB) naar de Teensy, die maximaal 96 KB per regel neemt.
+describe('config-payload: nooit het hele project', () => {
+  const all = (): ReturnType<typeof emptyModularProject> => {
+    let p = emptyModularProject();
+    for (const d of DEMO_SEEDS) p = d.run(p);
+    return p;
+  };
+
+  it('zonder geldige actieve patch alleen de eerste', () => {
+    const p = { ...all(), activePatchId: 'patch_weg' };
+    const r = buildConfigPayload(p);
+    expect(r.patches).toBe(1);
+    expect(r.json.length).toBeLessThan(TEENSY_LINE_MAX);
+  });
+
+  it('een opgeblazen vergelijkset telt hoogstens vier patches; activeOnly alleen de actieve', () => {
+    const base = all();
+    const p = { ...base, compareSet: [...base.patches.map((x) => x.id), 'bestaat_niet'] };
+    expect(buildConfigPayload(p).patches).toBeLessThanOrEqual(5);
+    expect(buildConfigPayload(p, { activeOnly: true }).patches).toBe(1);
   });
 });

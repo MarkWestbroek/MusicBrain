@@ -358,7 +358,7 @@ async function safeClose(): Promise<void> {
 }
 
 /** De config-payload precies zoals sendConfig hem stuurt (los, voor tools en tests). */
-export function buildConfigPayload(project: ModularProject): { json: string; modules: number; patches: number } {
+export function buildConfigPayload(project: ModularProject, opts: { activeOnly?: boolean } = {}): { json: string; modules: number; patches: number } {
   // Expand poly-groups (×N voices) into the flat per-voice connection list the
   // firmware runs — the brain only ever sees a flat module + connection graph
   // (ADR 0010 §3). Done here, just before serialising, so the editor model
@@ -372,14 +372,15 @@ export function buildConfigPayload(project: ModularProject): { json: string; mod
   // extra patch + ±100 modules; alles meesturen liet een 16-stemmige comb-
   // patch op 140 KB uitkomen én instantieert dode modules op de Teensy).
   // Patch wisselen = opnieuw pushen; de Push-knop activeert toch al mee.
-  const activeId = flat.activePatchId;
+  // Zonder (geldige) actieve patch: alleen de eerste, nooit het hele project
+  // (17 patches = 275 KB, ver boven de 96 KB-lijnbuffer; gezien 2026-10-08).
+  const activeId = flat.patches.some((p) => p.id === flat.activePatchId) ? flat.activePatchId : flat.patches[0]?.id;
   // De A/B-vergelijkset (ED-RC-8) gaat mee: wisselen op de Teensy is dan
   // een selectPatch (graph-herbouw, geen nieuwe modules) in plaats van een
-  // nieuwe config.
-  const setIds = new Set([activeId, ...(flat.compareSet ?? [])].filter((x): x is string => !!x));
-  const pushPatches = (activeId
-    ? flat.patches.filter((p) => setIds.has(p.id))
-    : flat.patches)
+  // nieuwe config. Hoogstens de vier slots, en alleen patches die bestaan.
+  const compare = opts.activeOnly ? [] : (flat.compareSet ?? []).filter((id) => flat.patches.some((p) => p.id === id)).slice(0, 4);
+  const setIds = new Set([activeId, ...compare].filter((x): x is string => !!x));
+  const pushPatches = flat.patches.filter((p) => setIds.has(p.id))
     .sort((a, b) => Number(b.id === activeId) - Number(a.id === activeId));   // actieve patch eerst (surface-bindings)
   // Modules die meegaan (ED-RC-7): alles wat aan een kabel hangt van de
   // gepushte patch(es) ÉN van elke andere patch die een rack met hen deelt.
@@ -466,8 +467,18 @@ export function buildConfigPayload(project: ModularProject): { json: string; mod
   return { json, modules: runtime.modules.length, patches: runtime.patches.length };
 }
 
+/** Lijnbuffer van de firmware (TeensyLink.h `kLineMax` − 1). */
+export const TEENSY_LINE_MAX = 96 * 1024 - 1;
+
 export async function sendConfig(project: ModularProject): Promise<void> {
-  const { json, modules, patches } = buildConfigPayload(project);
+  let { json, modules, patches } = buildConfigPayload(project);
+  // Past de A/B-set niet, dan alleen de actieve patch (wisselen wordt dan
+  // weer een volledige push).
+  if (json.length > TEENSY_LINE_MAX && patches > 1) {
+    pushLog({ ts: Date.now(), dir: 'sys', text:
+      `config payload ${(json.length / 1024).toFixed(1)} KB past niet (max 96 KB): alleen de actieve patch, zonder de vergelijkset` });
+    ({ json, modules, patches } = buildConfigPayload(project, { activeOnly: true }));
+  }
   // Payload-grootte in het log: de firmware-lijnbuffer is 96 KB — bij
   // overschrijding stuurt de firmware een expliciete "line too long"-ack.
   pushLog({ ts: Date.now(), dir: 'sys', text:
