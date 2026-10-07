@@ -133,7 +133,7 @@ export function FrontTab({ expert = true }: { expert?: boolean }): JSX.Element {
             </div>
           )}
           <RecordStatus />
-          <div className="mb-stage-front" style={{ overflow: 'auto' }}>
+          <div className="mb-stage-front" data-tour="play-front" style={{ overflow: 'auto' }}>
             <FrontPanel front={front} patch={patch} project={project} pxPerMm={4}
               onArrange={arranging ? (i, pos) => edit((x) => updateFrontItem(x, front.id, i, (y) => (y.kind === 'group' ? y : { ...y, pos }))) : undefined} />
           </div>

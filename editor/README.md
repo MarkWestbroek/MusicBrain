@@ -171,6 +171,12 @@ iedereen dezelfde: de patch vraagt zelf om die bank (`simBanks`), ook al
 staat er onder dat banknummer standaard iets anders. Je eigen keuze in de
 bankbalk van de Simulatie-tab gaat vóór.
 
+Een **rondleiding** wijst bij het eerste bezoek aan de speelmodus de
+onderdelen een voor een aan: patchkeuze, volledig scherm, front, pedalen,
+octaaf, opzij schuiven, alleen het klavier, de wielen, lange toetsen, alles
+uit, spelen, opnemen, het lint en het sluitkruis. **?** naast Binnenkijken
+start haar opnieuw. Op volledig scherm loopt ze gewoon door.
+
 - **Front**: een patch zonder eigen front krijgt er automatisch een. Rechtsklik
   op een knop in rack of patcher → "Op front zetten"; in de Front-tab (na
   Binnenkijken) bewerk je naam, volgorde, labels en kopjes, of laat je ✨ AI een
@@ -198,11 +204,11 @@ bankbalk van de Simulatie-tab gaat vóór.
   Bend op het gekozen *bereik*, en past daarmee de patch aan). Eén noot
   tegelijk, zoals één manuaal; een tweede vinger neemt het over. Klinkt het
   best met MIXTUR op Dyn = Press. 🎹 brengt het klavier terug.
-- **Opnemen**: de rode ⏺ rechtsboven naast ▶ Sim neemt op wat je speelt, ook
-  in de speelmodus: een WAV, de gespeelde MIDI als .mid en de patch, met
-  dezelfde naam. Tik op ⏹ om te stoppen; de bestanden worden gedownload en de
-  take staat klaar in de Simulatie-tab (naar de library, bewerken). Op
-  volledig scherm staat de knop rechts naast de patchkeuze.
+- **Opnemen**: het rode rondje neemt op wat je speelt: een WAV, de gespeelde
+  MIDI als .mid en de patch, met dezelfde naam. Tik op het rode vierkantje om
+  te stoppen; de bestanden worden gedownload en de take staat klaar in de
+  Simulatie-tab (naar de library, bewerken). In de speelmodus staat de knop in
+  de werkbalk van het toetsenbord, in de expertstand rechtsboven naast ▶ Sim.
 - **Stemtoon**: het keuzelijstje **A = …** naast ▶ Sim zet een persoonlijke
   stemtoon (bijvoorbeeld 432) voor elke patch; MIDI-IN schuift alle
   toonhoogtes mee.

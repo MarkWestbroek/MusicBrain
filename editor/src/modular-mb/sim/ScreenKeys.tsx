@@ -214,10 +214,10 @@ export function ScreenKeys({
       {/* Werkbalk: octaaf links en rechts boven het klavier (de C-labels
           tonen het octaaf), daartussen pedalen en instellingen. */}
       <div style={{ display: 'flex', gap: 6, alignItems: 'center', touchAction: 'none' }}>
-        {onOctave && <button type="button" onClick={() => onOctave(-1)} style={oct} title="Octaaf omlaag" aria-label="Octaaf omlaag">−</button>}
+        {onOctave && <button type="button" onClick={() => onOctave(-1)} style={oct} title="Octaaf omlaag" aria-label="Octaaf omlaag" data-tour="keys-octave">−</button>}
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', flex: 1, justifyContent: 'center', minWidth: 0 }}>
           {onSustain && (
-            <button type="button"
+            <button type="button" data-tour="keys-pedals"
               title="Sustainpedaal (CC 64): tik = vast of los, vasthouden = tijdelijk"
               onPointerDown={(e) => {
                 e.preventDefault();
@@ -246,7 +246,7 @@ export function ScreenKeys({
                 style={{ width: 84 }} />
             </label>
           )}
-          <button type="button" onClick={() => { panic(); setInput(isRibbon ? 'keys' : 'ribbon'); }}
+          <button type="button" data-tour="keys-ribbon" onClick={() => { panic(); setInput(isRibbon ? 'keys' : 'ribbon'); }}
             style={{ ...btn, fontWeight: isRibbon ? 700 : 400, background: isRibbon ? '#fde68a' : undefined }}
             title={isRibbon ? 'Terug naar het klavier' : 'Lint (Trautonium-draad): traploze toonhoogte, druk uit de hoogte op het lint'}
             aria-label={isRibbon ? 'Klavier' : 'Lint'}>
@@ -274,7 +274,7 @@ export function ScreenKeys({
             </button>
           )}
           {onSlide && !isRibbon && (
-            <label style={{ fontSize: 12, display: 'inline-flex', gap: 4, alignItems: 'center' }} title="Wat opzij schuiven over de toetsen doet; omhoog schuiven is altijd aftertouch">
+            <label data-tour="keys-slide" style={{ fontSize: 12, display: 'inline-flex', gap: 4, alignItems: 'center' }} title="Wat opzij schuiven over de toetsen doet; omhoog schuiven is altijd aftertouch">
               opzij:
               <select value={slide} onChange={(e) => onSlide(e.target.value as SlideMode)} style={{ fontSize: 12, height: 28 }}>
                 <option value="note">wisselen</option>
@@ -291,13 +291,13 @@ export function ScreenKeys({
             </label>
           )}
           {onTall && (
-            <button type="button" onClick={() => onTall(!tall)} style={{ ...btn, fontWeight: tall ? 700 : 400, background: tall ? '#fde68a' : undefined }}
+            <button type="button" data-tour="keys-tall" onClick={() => onTall(!tall)} style={{ ...btn, fontWeight: tall ? 700 : 400, background: tall ? '#fde68a' : undefined }}
               title="Lange toetsen: meer weg voor aanslag (laag = hard) en aftertouch (omhoog schuiven)" aria-label="Lange toetsen">
               ⇕
             </button>
           )}
           {onPanic && (
-            <button type="button" onClick={panic} style={btn} title="Panic: alle noten uit (ook een hangende)" aria-label="Alle noten uit"><PanicGlyph /></button>
+            <button type="button" data-tour="keys-panic" onClick={panic} style={btn} title="Panic: alle noten uit (ook een hangende)" aria-label="Alle noten uit"><PanicGlyph /></button>
           )}
           {extra}
         </div>
@@ -327,17 +327,18 @@ export function ScreenKeys({
         onPointerCancel={onPointerEnd}
         onLostPointerCapture={onPointerEnd}
         aria-label="Toetsenbord"
+        data-tour="keys-board"
       >
         <title>Laag op de toets is hard; omhoog schuiven is aftertouch; opzij: noot wisselen of buigen</title>
         {wheels && (
           <g pointerEvents="none">
             {/* Pitch bend: midden = rust; het blokje toont de stand. */}
-            <rect x={2} y={0} width={WHEEL_W} height={h} rx={2} fill="#1f2937" stroke="#000" strokeWidth={0.8} />
+            <rect data-tour="keys-bend" x={2} y={0} width={WHEEL_W} height={h} rx={2} fill="#1f2937" stroke="#000" strokeWidth={0.8} />
             <line x1={2} y1={h / 2} x2={2 + WHEEL_W} y2={h / 2} stroke="#6b7280" strokeWidth={0.6} />
             <rect x={3} y={h / 2 - (bendPos - 8192) / 8191 * (h / 2 - 4) - 3} width={WHEEL_W - 2} height={6} rx={1} fill="#fbbf24" />
             <text x={2 + WHEEL_W / 2} y={h - 2} fontSize={5} textAnchor="middle" fill="#9ca3af">bend</text>
             {/* Modwiel: onder = 0. */}
-            <rect x={2 + WHEEL_W + 4} y={0} width={WHEEL_W} height={h} rx={2} fill="#1f2937" stroke="#000" strokeWidth={0.8} />
+            <rect data-tour="keys-mod" x={2 + WHEEL_W + 4} y={0} width={WHEEL_W} height={h} rx={2} fill="#1f2937" stroke="#000" strokeWidth={0.8} />
             <rect x={2 + WHEEL_W + 4 + 1} y={h - 4 - (modPos / 127) * (h - 8) - 3} width={WHEEL_W - 2} height={6} rx={1} fill="#60a5fa" />
             <text x={2 + WHEEL_W + 4 + WHEEL_W / 2} y={h - 2} fontSize={5} textAnchor="middle" fill="#9ca3af">mod</text>
           </g>

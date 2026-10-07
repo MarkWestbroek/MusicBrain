@@ -17,6 +17,19 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-07 — Rondleiding door de speelmodus; werkbalk op de telefoon (editor)
+- **Rondleiding** (`PlayTour.tsx`): start vanzelf bij het eerste bezoek aan de
+  speelmodus en opnieuw met **?** naast Binnenkijken. Zestien stappen in de
+  volgorde van Marks schets, van de patchkeuze tot het lint en het
+  sluitkruis; ⛶ en 🎹 aantikken gaat vanzelf door, en op volledig scherm loopt
+  de rondleiding mee (de ballon staat dan in het schermvullende element).
+  Ankers zijn `data-tour`-attributen; `PlayTour.test.ts` bewaakt dat elk anker
+  in de code bestaat.
+- **Werkbalk van het toetsenbord**: alle knoppen even hoog (`TOOLBAR_BTN`), de
+  opnameknop staat in de speelmodus in die werkbalk (▶ Sim, A= en MIDI
+  rechtsboven alleen in de expertstand), opnemen is een rood rondje en paniek
+  een grijs stopbord: Android tekende ⏺ en ⏹ allebei als oranje vierkantje.
+
 ### 2026-10-07 — Lint: het schermtoetsenbord als Trautonium-draad (editor, geen nieuwe firmware)
 - **〰 Lint** in de werkbalk van het schermtoetsenbord (`sim/ScreenRibbon.tsx`,
   logica in `sim/ribbonLayout.ts` `RibbonPlayer`): een alternatieve invoer,

@@ -119,12 +119,12 @@ export function FrontKeys({ stage, record = false }: { stage?: RefObject<HTMLEle
         maxWidth={full && fullMode === 'keys' ? 4000 : 560}
         extra={canFull && stage ? (
           <span style={{ display: 'inline-flex', gap: 2 }}>
-            {(record || full) && <RecordButton compact style={fsBtn} />}
-            <button type="button" onClick={() => enterFull('stage')} style={{ ...fsBtn, fontWeight: full && fullMode === 'stage' ? 700 : 400, background: full && fullMode === 'stage' ? '#fde68a' : undefined }}
+            {(record || full) && <span data-tour="keys-record" style={{ display: 'inline-flex' }}><RecordButton compact style={fsBtn} /></span>}
+            <button type="button" data-tour="keys-full" onClick={() => enterFull('stage')} style={{ ...fsBtn, fontWeight: full && fullMode === 'stage' ? 700 : 400, background: full && fullMode === 'stage' ? '#fde68a' : undefined }}
               title="Volledig scherm: front en toetsenbord" aria-label="Volledig scherm: front en toetsenbord">⛶</button>
-            <button type="button" onClick={() => enterFull('keys')} style={{ ...fsBtn, fontWeight: full && fullMode === 'keys' ? 700 : 400, background: full && fullMode === 'keys' ? '#fde68a' : undefined }}
+            <button type="button" data-tour="keys-full-keys" onClick={() => enterFull('keys')} style={{ ...fsBtn, fontWeight: full && fullMode === 'keys' ? 700 : 400, background: full && fullMode === 'keys' ? '#fde68a' : undefined }}
               title="Volledig scherm: alleen het toetsenbord, liggend" aria-label="Volledig scherm: alleen toetsenbord">🎹</button>
-            {full && <button type="button" onClick={exitFull} style={fsBtn} title="Volledig scherm uit" aria-label="Volledig scherm uit">✕</button>}
+            {full && <button type="button" data-tour="keys-exit" onClick={exitFull} style={fsBtn} title="Volledig scherm uit" aria-label="Volledig scherm uit">✕</button>}
           </span>
         ) : undefined}
         hint={status.running ? undefined : 'Eerste aanslag start de simulator'} />

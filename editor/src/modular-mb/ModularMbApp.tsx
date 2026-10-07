@@ -13,6 +13,7 @@ import { standardProject } from './demoSeeds';
 import { PatchSelect } from './PatchSelect';
 import { CommandPalette } from './recipe/CommandPalette';
 import { Tour, tourSeen } from './recipe/Tour';
+import { PlayTour, playTourSeen } from './PlayTour';
 import { startDemo, DemoCaption, type DemoState, type DemoHandle } from './recipe/demo';
 import type { PatchOp } from './recipe/types';
 import { emptyModularProject, type ModularProject } from './types';
@@ -149,6 +150,7 @@ export function ModularMbApp(): JSX.Element {
   const [showSolo,    setShowSolo]    = useState(false);
   const [showCmd,     setShowCmd]     = useState(false);   // Ctrl+K commandoregel (ED-RC-2)
   const [showTour,    setShowTour]    = useState(false);   // rondleiding (ED-RC-4)
+  const [showPlayTour, setShowPlayTour] = useState(false);  // rondleiding door de speelmodus
   const [demo,        setDemo]        = useState<DemoState | null>(null);
   const demoRef = useRef<DemoHandle | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
@@ -184,6 +186,13 @@ export function ModularMbApp(): JSX.Element {
     // De rondleiding gaat over rack en patcher; in de spelermodus (dicht) niet starten.
     if (expert && !tourSeen() && project.patches.length === 0) setShowTour(true);
   }, []);   // eslint-disable-line react-hooks/exhaustive-deps
+  // De speelmodus heeft een eigen rondleiding: de eerste keer dat je erin
+  // komt, als het front en het toetsenbord er staan.
+  useEffect(() => {
+    if (expert || playTourSeen()) return;
+    const t = setTimeout(() => setShowPlayTour(true), 900);
+    return () => clearTimeout(t);
+  }, [expert]);
 
   // "Ga naar rack" (rechtsklik in de patcher): het rack van de module actief
   // maken en naar het Rack-tabblad; RackPanel selecteert de module.
@@ -918,6 +927,7 @@ export function ModularMbApp(): JSX.Element {
       <CommandPalette open={showCmd} onClose={() => setShowCmd(false)} onBuilt={() => setTab('patcher')}
         onDemo={(ops) => { setShowCmd(false); runDemo(ops); }} />
       <Tour open={showTour} onClose={() => setShowTour(false)} onTab={(t) => setTab(t as Tab)} onOpenCommand={() => setShowCmd(true)} />
+      <PlayTour open={showPlayTour && !expert} onClose={() => setShowPlayTour(false)} />
       <DemoCaption state={demo} onSkip={() => demoRef.current?.finish()} onClose={() => { demoRef.current?.stop(); setDemo(null); }} />
 
       <SecureContextNote />
@@ -929,7 +939,7 @@ export function ModularMbApp(): JSX.Element {
       <nav style={{ display: 'flex', gap: 4, borderBottom: '1px solid #cbd2d9', marginBottom: 12, alignItems: 'center', flexWrap: expert ? undefined : 'wrap' }}>
         {!expert && (
           <>
-            <PatchSelect project={project} style={{ padding: '4px 8px' }} />
+            <span data-tour="play-patch" style={{ display: 'inline-flex' }}><PatchSelect project={project} style={{ padding: '4px 8px' }} /></span>
             {/* Spelen is ook tweaken: Bewaar zodra er iets gewijzigd is, en
                 Bewaar als. Terug en A/B wonen in de editor (Binnenkijken). */}
             {playerPatch && <SaveButton patch={playerPatch} style={{ padding: '4px 12px' }} />}
@@ -937,6 +947,10 @@ export function ModularMbApp(): JSX.Element {
             <button onClick={() => { setExpert(true); setTab('patcher'); }} title="Open de hele editor: rack, kabels, modules"
               style={{ padding: '4px 12px', fontSize: 12, borderRadius: 6, border: '1px solid #cbd2d9', background: '#f5f7fa', cursor: 'pointer' }}>
               Binnenkijken ▸
+            </button>
+            <button onClick={() => setShowPlayTour(true)} title="Rondleiding door de speelmodus, stap voor stap" aria-label="Rondleiding"
+              style={{ padding: '4px 10px', fontSize: 12, borderRadius: 6, border: '1px solid #cbd2d9', background: '#f5f7fa', cursor: 'pointer' }}>
+              ?
             </button>
           </>
         )}
