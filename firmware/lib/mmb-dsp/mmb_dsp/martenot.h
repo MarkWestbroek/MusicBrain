@@ -100,14 +100,13 @@ public:
             // ── toon en tiroir ─────────────────────────────────────────────
             phase_ += inc_;
             if (phase_ >= 1) phase_ -= 1;
-            const float w = 6.2831853f * phase_;
-            const float s1 = std::sin(w);
+            const float s1 = sine(phase_);
             float y = mix_[0] * s1;
             if (mix_[1] > 0) {   // creux: 1, 1/3, 1/5 (oneven), alleen wat onder Nyquist past
                 float c = s1;
-                if (inc_ * 3 < 0.45f) c += std::sin(3 * w) * (1.0f / 3);
-                if (inc_ * 5 < 0.45f) c += std::sin(5 * w) * (1.0f / 5);
-                if (inc_ * 7 < 0.45f) c += std::sin(7 * w) * (1.0f / 7);
+                if (inc_ * 3 < 0.45f) c += sine(wrap(3 * phase_)) * (1.0f / 3);
+                if (inc_ * 5 < 0.45f) c += sine(wrap(5 * phase_)) * (1.0f / 5);
+                if (inc_ * 7 < 0.45f) c += sine(wrap(7 * phase_)) * (1.0f / 7);
                 y += mix_[1] * c * 0.85f;
             }
             if (mix_[2] > 0) y += mix_[2] * 0.6f * (2 * phase_ - 1 - blep(phase_, inc_));
@@ -146,6 +145,29 @@ private:
     float coef8(float ms) const { return 1 - std::exp(-8 / (ms * 0.001f * sr_)); }   // per 8 samples
     float onePole(float hz) const { return 1 - std::exp(-6.2831853f * hz / sr_); }
 
+    // Sinus uit een tabel met lineaire interpolatie (zoals lut_sine bij
+    // Mutable): 512 punten, fout ~2e-5 (−94 dB), een paar cycli in plaats van
+    // de tientallen van sinf op de Teensy. Eén tabel voor alle stemmen.
+    static constexpr int kSine = 512;
+    static const float* sineTable() {
+        static float table[kSine + 1];
+        static bool ready = false;
+        if (!ready) {
+            for (int i = 0; i <= kSine; ++i) table[i] = std::sin(6.2831853f * static_cast<float>(i) / kSine);
+            ready = true;
+        }
+        return table;
+    }
+    /** sin(2π·p), p in [0, 1). */
+    inline float sine(float p) const {
+        const float x = p * kSine;
+        int i = static_cast<int>(x);
+        if (i >= kSine) i = kSine - 1;
+        const float f = x - static_cast<float>(i);
+        return sine_[i] + (sine_[i + 1] - sine_[i]) * f;
+    }
+    static float wrap(float p) { return p - static_cast<float>(static_cast<int>(p)); }
+
     static float blep(float t, float dt) {
         if (dt <= 0) return 0;
         if (t < dt) { t /= dt; return t + t - t * t - 1; }
@@ -172,7 +194,7 @@ private:
     void prepare() {
         // Vibrato: altijd een beetje (vib), het modwiel zet er meer bij.
         const float depth = vib_ * (0.25f + 0.75f * vibCv_);
-        const float vibSemi = depth * std::sin(6.2831853f * vibPh_);
+        const float vibSemi = depth * sine(vibPh_);
         const float hz = 261.6256f * std::exp2(voctSm_ + (coarse_ + vibSemi) / 12 + fine_ / 1200);
         inc_ = finiteClamp(hz / sr_, 0, 0.45f, 0.006f);
         // Souffle-bandfilter op de toonhoogte.
@@ -196,6 +218,7 @@ private:
     float phase_ = 0, inc_ = 0.006f, amp_ = 0, nasLp_ = 0, tone_ = 0, hp_ = 0;
     float sa1_ = 0, sa2_ = 0, sa3_ = 0, sb1_ = 0, sb2_ = 0;
     uint32_t counter_ = 0, rng_ = 4242u;
+    const float* sine_ = sineTable();
 };
 
 }  // namespace mmb_dsp

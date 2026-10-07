@@ -17,6 +17,19 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-08 — Martenot zuiniger, Palme gestemd (fw 0.5.97)
+- MARTENOT: sinus uit een tabel met interpolatie (512 punten, zoals
+  Mutables `lut_sine`) in plaats van `sinf`, ook voor de oneven boventonen
+  van creux en het vibrato. Op de Teensy, C3, totaal: zonder luidspreker
+  7,7 → 4,5 %, met Métallique 10,1 → 7,1 %, met Palme 13,5 → 9,3 %.
+- DIFFUSEUR Palme: de terugkoppeling stond door een vaste ×1,02 bij de
+  meeste Ring-standen op het plafond (naklank zo hard als de noot). Nu volgt
+  hij uit de echte demping in de lus, de aanslag schaalt mee met de
+  naklinktijd, en de vertraging van het dempfilter gaat van de lijn af:
+  de snaren staan precies op hun toon (C3 → 130,79 Hz). Naklank ~13 dB
+  onder de noot bij Ring 0,55 en Mix 0,5; Ring en Gong op het gehoor
+  inregelen volgt.
+
 ### 2026-10-07 — ARP, MARTENOT en DIFFUSEUR (fw 0.5.96)
 - **ARP** (`tp_mmb_arp`, `ArpModule.h`): arpeggiator, het bruikbare deel van
   Mutable Yarns (FW-CV-8). Hoort zelf de toetsen, net als MIDI-IN: de

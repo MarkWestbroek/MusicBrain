@@ -95,17 +95,16 @@ public:
 private:
     /** Palme: twaalf meetrillende snaren. */
     float palme(float x) {
-        const float drive = x * 0.08f;
         float sum = 0;
         for (int i = 0; i < kStrings; ++i) {
-            float rp = static_cast<float>(wp_) - delay_[i];
-            if (rp < 0) rp += kMaxDelay;
-            const int r0 = static_cast<int>(rp);
-            const float fr = rp - static_cast<float>(r0);
-            const int r1 = r0 + 1 < kMaxDelay ? r0 + 1 : 0;
-            const float d = line_[i][r0] + (line_[i][r1] - line_[i][r0]) * fr;
-            damp_[i] += (d - damp_[i]) * 0.55f;                     // snaar verliest hoog
-            const float v = drive + fb_[i] * damp_[i];
+            // Lineair geïnterpoleerd: een snaar die lang naklinkt is zo smal
+            // dat hele samples (±0,4 Hz bij C3) de noot al missen.
+            int r0 = wp_ - tap_[i];
+            if (r0 < 0) r0 += kMaxDelay;
+            const int r1 = r0 > 0 ? r0 - 1 : kMaxDelay - 1;       // één sample ouder
+            const float d = line_[i][r0] + (line_[i][r1] - line_[i][r0]) * frac_[i];
+            damp_[i] += (d - damp_[i]) * kDampA;                    // snaar verliest hoog
+            const float v = x * drv_[i] + fb_[i] * damp_[i];
             line_[i][wp_] = v;
             sum += v;
         }
@@ -141,9 +140,23 @@ private:
             float d = sr_ / hz;
             if (d > kMaxDelay - 2) d = kMaxDelay - 2;
             if (d < 2) d = 2;
-            delay_[i] = d;
-            float g = std::pow(10.0f, -3 * d / (t60 * sr_)) * 1.02f;   // de demping in de lus kost iets
+            // De demping in de lus vertraagt zelf ook (~(1−a)/a samples): eraf.
+            float dl = d - (1 - kDampA) / kDampA;
+            if (dl < 2) dl = 2;
+            delay_[i] = dl;
+            tap_[i] = static_cast<int>(dl);                        // geheel deel; frac schuift naar korter
+            frac_[i] = dl - static_cast<float>(tap_[i]);
+            // Terugkoppeling voor de gewenste naklinktijd, gedeeld door wat de
+            // demping in de lus (eenpolig, a = 0,55) op deze toon al kost.
+            const float w = 6.2831853f * hz / sr_;
+            const float b = 1 - kDampA;
+            const float h = kDampA / std::sqrt(1 + b * b - 2 * b * std::cos(w));
+            float g = std::pow(10.0f, -3 * d / (t60 * sr_)) / h;
             fb_[i] = g > 0.9995f ? 0.9995f : g;
+            // Aanslag geschaald op de naklinktijd: een snaar die lang zingt
+            // bouwt langzaam op, zodat de halo niet harder wordt dan de noot
+            // (zonder dit gaf C3 op de C3-snaar een naklank zo hard als de toon).
+            drv_[i] = 0.8f * (1 - fb_[i] * h);
         }
     }
     void tuneGong() {
@@ -168,6 +181,10 @@ private:
     float mix_ = 0.5f, tune_ = 0, ring_ = 0.5f, gongHz_ = 196, level_ = 1, mixCv_ = 0;
     float tone_ = 0, hp_ = 0, hpCoef_ = 0.01f;
     float line_[kStrings][kMaxDelay] = {}, delay_[kStrings] = {}, fb_[kStrings] = {}, damp_[kStrings] = {};
+    int   tap_[kStrings] = {};
+    float frac_[kStrings] = {};
+    float drv_[kStrings] = {};
+    static constexpr float kDampA = 0.55f;
     int   wp_ = 0;
     float palmeHp_ = 0;
     float ga1_[kModes] = {}, ga2_[kModes] = {}, ga3_[kModes] = {}, g1_[kModes] = {}, g2_[kModes] = {}, gw_[kModes] = {};
