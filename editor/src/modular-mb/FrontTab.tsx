@@ -24,7 +24,7 @@ import { DEMO_SEEDS } from './demoSeeds';
 import { PatchSelect } from './PatchSelect';
 import { runCommands } from './recipe/commands';
 import { openPoolBrowser } from './sim/PoolWindows';
-import { RecordButton, RecordStatus } from './sim/RecordButton';
+import { RecordStatus } from './sim/RecordButton';
 import { getProject, setProject } from './store';
 import { askAi, llmReady, loadLlmConfig } from './recipe/llm';
 import { updateProject, useModularProject, uid } from './store';
@@ -130,7 +130,6 @@ export function FrontTab({ expert = true }: { expert?: boolean }): JSX.Element {
           {full && (
             <div className="mb-stage-top" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <PatchSelect project={project} onChoose={() => setChosen(null)} />
-              <RecordButton compact style={{ ...btn, marginLeft: 'auto' }} />
             </div>
           )}
           <RecordStatus />
@@ -138,7 +137,7 @@ export function FrontTab({ expert = true }: { expert?: boolean }): JSX.Element {
             <FrontPanel front={front} patch={patch} project={project} pxPerMm={4}
               onArrange={arranging ? (i, pos) => edit((x) => updateFrontItem(x, front.id, i, (y) => (y.kind === 'group' ? y : { ...y, pos }))) : undefined} />
           </div>
-          <FrontKeys stage={stageRef} />
+          <FrontKeys stage={stageRef} record={!expert} />
         </div>
         {expert && (isAuto
           ? <div style={{ fontSize: 12, color: '#6b7280', maxWidth: 300 }}>

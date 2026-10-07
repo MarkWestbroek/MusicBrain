@@ -11,7 +11,10 @@ export function App(): JSX.Element {
 
   return (
     <main style={{ fontFamily: 'var(--mb-font-sans)', padding: 16 }}>
-      <header style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+      {/* Op een smal scherm (telefoon) lopen logo en tabs door op een tweede
+          regel; anders is de pagina breder dan het scherm en zoomt de
+          browser alles uit, ook het toetsenbord. */}
+      <header style={{ display: 'flex', alignItems: 'center', gap: '8px 16px', marginBottom: 16, flexWrap: 'wrap' }}>
         <BrainMark />
         <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, letterSpacing: '-0.01em' }}>
           Music<span style={{ color: 'var(--mb-accent)' }}>Brain</span>{' '}
@@ -28,7 +31,7 @@ export function App(): JSX.Element {
             editor
           </span>
         </h1>
-        <nav style={{ display: 'flex', gap: 4 }}>
+        <nav style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
           <ProjectButton current={project} value="switcher" set={setProject}>
             Effect-switcher
           </ProjectButton>

@@ -29,6 +29,24 @@ import {
 } from './screenKeysLayout';
 
 export type SlideMode = 'note' | 'bend';
+
+/** Stijl van een knop in de werkbalk van het toetsenbord: vaste hoogte,
+ *  inhoud gecentreerd. Ook voor knoppen van buiten (`extra`). */
+export const TOOLBAR_BTN: React.CSSProperties = {
+  fontSize: 12, padding: '0 8px', height: 28, boxSizing: 'border-box', cursor: 'pointer',
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4, lineHeight: 1,
+};
+
+/** Paniek: grijs stopbord met een kruis — een andere vorm en kleur dan de
+ *  rode opnameknop. */
+function PanicGlyph(): JSX.Element {
+  return (
+    <svg aria-hidden width="1.1em" height="1.1em" viewBox="0 0 12 12" style={{ display: 'block' }}>
+      <polygon points="3.5,0.5 8.5,0.5 11.5,3.5 11.5,8.5 8.5,11.5 3.5,11.5 0.5,8.5 0.5,3.5" fill="#475569" />
+      <path d="M4 4 L8 8 M8 4 L4 8" stroke="#fff" strokeWidth={1.4} strokeLinecap="round" />
+    </svg>
+  );
+}
 type InputMode = 'keys' | 'ribbon';
 
 const INPUT_KEY = 'mb.keys.input', SNAP_KEY = 'mb.ribbon.snap', RANGE_KEY = 'mb.ribbon.range';
@@ -186,8 +204,11 @@ export function ScreenKeys({
     release(e.pointerId);
   };
 
-  const btn: React.CSSProperties = { fontSize: 12, padding: '3px 8px', cursor: 'pointer' };
-  const oct: React.CSSProperties = { ...btn, fontSize: 16, fontWeight: 700, padding: '2px 12px', lineHeight: 1.2 };
+  // Eén hoogte voor alle knoppen in de werkbalk, zodat ze op een telefoon
+  // op één lijn staan (ook de knoppen die de aanroeper via `extra` meegeeft:
+  // zie TOOLBAR_BTN).
+  const btn: React.CSSProperties = TOOLBAR_BTN;
+  const oct: React.CSSProperties = { ...btn, fontSize: 16, fontWeight: 700, padding: '0 12px' };
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxWidth, WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}>
       {/* Werkbalk: octaaf links en rechts boven het klavier (de C-labels
@@ -213,7 +234,7 @@ export function ScreenKeys({
               }}
               onPointerCancel={() => setSus(false)}
               onContextMenu={(e) => e.preventDefault()}
-              style={{ ...btn, padding: '5px 10px', fontWeight: sustain ? 700 : 400, background: sustain ? '#fde68a' : undefined, userSelect: 'none' }}>
+              style={{ ...btn, padding: '0 10px', fontWeight: sustain ? 700 : 400, background: sustain ? '#fde68a' : undefined, userSelect: 'none' }}>
               {sustain ? '⏺ Sustain' : '○ Sustain'}
             </button>
           )}
@@ -240,7 +261,7 @@ export function ScreenKeys({
           {isRibbon && (
             <label style={{ fontSize: 12, display: 'inline-flex', gap: 4, alignItems: 'center' }} title="Bendbereik van het lint in halve tonen; moet gelijk zijn aan de Bend-knop van de MIDI-IN">
               bereik
-              <select value={range} onChange={(e) => setRange(Number(e.target.value))} style={{ fontSize: 12 }}>
+              <select value={range} onChange={(e) => setRange(Number(e.target.value))} style={{ fontSize: 12, height: 28 }}>
                 {RIBBON_BENDS.map((r) => <option key={r} value={r}>±{r}</option>)}
               </select>
             </label>
@@ -255,7 +276,7 @@ export function ScreenKeys({
           {onSlide && !isRibbon && (
             <label style={{ fontSize: 12, display: 'inline-flex', gap: 4, alignItems: 'center' }} title="Wat opzij schuiven over de toetsen doet; omhoog schuiven is altijd aftertouch">
               opzij:
-              <select value={slide} onChange={(e) => onSlide(e.target.value as SlideMode)} style={{ fontSize: 12 }}>
+              <select value={slide} onChange={(e) => onSlide(e.target.value as SlideMode)} style={{ fontSize: 12, height: 28 }}>
                 <option value="note">wisselen</option>
                 <option value="bend">buigen</option>
               </select>
@@ -264,7 +285,7 @@ export function ScreenKeys({
           {onSlide && !isRibbon && slide === 'bend' && onBendKeys && (
             <label style={{ fontSize: 12, display: 'inline-flex', gap: 4, alignItems: 'center' }} title="Hoeveel toetsen opzij het volle bendbereik is; het bereik in halve tonen staat op de Bend-knop van de MIDI-IN">
               over
-              <select value={bendKeys} onChange={(e) => onBendKeys(Number(e.target.value))} style={{ fontSize: 12 }}>
+              <select value={bendKeys} onChange={(e) => onBendKeys(Number(e.target.value))} style={{ fontSize: 12, height: 28 }}>
                 {BEND_KEYS.map((k) => <option key={k} value={k}>{k} {k === 1 ? 'toets' : 'toetsen'}</option>)}
               </select>
             </label>
@@ -276,7 +297,7 @@ export function ScreenKeys({
             </button>
           )}
           {onPanic && (
-            <button type="button" onClick={panic} style={btn} title="Panic: alle noten uit (ook een hangende)" aria-label="Alle noten uit">⏹</button>
+            <button type="button" onClick={panic} style={btn} title="Panic: alle noten uit (ook een hangende)" aria-label="Alle noten uit"><PanicGlyph /></button>
           )}
           {extra}
         </div>

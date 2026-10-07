@@ -10,7 +10,8 @@ import { useEffect, useState, type RefObject } from 'react';
 import { getEngine, useEngineStatus } from './sim/engineSingleton';
 import { SUSTAIN_CC, midiInCcNumbers } from './sim/midiInCc';
 import { ribbonMidiIn } from './sim/ribbonSetup';
-import { ScreenKeys, type SlideMode } from './sim/ScreenKeys';
+import { RecordButton } from './sim/RecordButton';
+import { ScreenKeys, TOOLBAR_BTN, type SlideMode } from './sim/ScreenKeys';
 import { useModularProject } from './store';
 
 const OCT_KEY = 'mb.front.octave';
@@ -27,7 +28,10 @@ function remember(key: string, value: string): void {
 
 /** `stage`: wat er op volledig scherm gaat (front + toetsen), als de
  *  browser dat kan; de knop ⛶ staat in de werkbalk van het toetsenbord. */
-export function FrontKeys({ stage }: { stage?: RefObject<HTMLElement | null> } = {}): JSX.Element {
+/** `record`: de opnameknop in de werkbalk (speelmodus; in de expertstand
+ *  staat hij rechtsboven naast ▶ Sim). Op volledig scherm altijd, want dan
+ *  is die bovenbalk weg. */
+export function FrontKeys({ stage, record = false }: { stage?: RefObject<HTMLElement | null>; record?: boolean } = {}): JSX.Element {
   const status = useEngineStatus();
   const project = useModularProject();
   // De pedaalschuif stuurt op het nummer dat de MIDI-IN van deze patch als
@@ -77,7 +81,7 @@ export function FrontKeys({ stage }: { stage?: RefObject<HTMLElement | null> } =
     go.then(() => setFullMode(m)).catch(() => { /* geweigerd (iframe, iOS): dan niet */ });
   };
   const exitFull = (): void => { if (document.fullscreenElement) void document.exitFullscreen(); };
-  const fsBtn: React.CSSProperties = { fontSize: 12, padding: '3px 6px', cursor: 'pointer' };
+  const fsBtn: React.CSSProperties = { ...TOOLBAR_BTN, padding: '0 6px' };
   const [err, setErr] = useState<string | null>(null);
   const setOctave = (d: number): void => {
     const o = Math.max(0, Math.min(8, octave + d));
@@ -115,6 +119,7 @@ export function FrontKeys({ stage }: { stage?: RefObject<HTMLElement | null> } =
         maxWidth={full && fullMode === 'keys' ? 4000 : 560}
         extra={canFull && stage ? (
           <span style={{ display: 'inline-flex', gap: 2 }}>
+            {(record || full) && <RecordButton compact style={fsBtn} />}
             <button type="button" onClick={() => enterFull('stage')} style={{ ...fsBtn, fontWeight: full && fullMode === 'stage' ? 700 : 400, background: full && fullMode === 'stage' ? '#fde68a' : undefined }}
               title="Volledig scherm: front en toetsenbord" aria-label="Volledig scherm: front en toetsenbord">⛶</button>
             <button type="button" onClick={() => enterFull('keys')} style={{ ...fsBtn, fontWeight: full && fullMode === 'keys' ? 700 : 400, background: full && fullMode === 'keys' ? '#fde68a' : undefined }}

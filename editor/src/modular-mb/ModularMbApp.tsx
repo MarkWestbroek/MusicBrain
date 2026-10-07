@@ -925,7 +925,7 @@ export function ModularMbApp(): JSX.Element {
 
       {/* ── Sub-tabs; dicht = alleen het front en "Binnenkijken" ── */}
       {/* In de speelmodus loopt de balk op een smal scherm door op een tweede
-          regel: anders staan ▶ Sim en de opnameknop rechts buiten beeld. */}
+          regel, zodat niets rechts buiten beeld valt. */}
       <nav style={{ display: 'flex', gap: 4, borderBottom: '1px solid #cbd2d9', marginBottom: 12, alignItems: 'center', flexWrap: expert ? undefined : 'wrap' }}>
         {!expert && (
           <>
@@ -969,7 +969,9 @@ export function ModularMbApp(): JSX.Element {
             {t.label}
           </button>
         ))}
-        <SimQuickBar />
+        {/* In de speelmodus niet: de eerste aanslag start de simulator, en de
+            opnameknop staat in de werkbalk van het toetsenbord (FrontKeys). */}
+        {expert && <SimQuickBar />}
       </nav>
       <MidiMonitorHost />
       <TakeEditorHost />
