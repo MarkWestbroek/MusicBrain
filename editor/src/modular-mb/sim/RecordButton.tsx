@@ -7,9 +7,12 @@
 // lijkt de opnameknop op de paniekknop. Een rood rondje (opnemen) en een rood
 // vierkantje (stoppen) als SVG zien er op elk toestel hetzelfde uit.
 
+import { nlen } from '../../i18n';
 import { toggleRecording, useRecordState } from './recordControl';
 
-const TITLE = 'Schrijft de master-som rechtstreeks mee als WAV, en de gespeelde MIDI als .mid met dezelfde naam — geen BlackHole of DAW nodig';
+const title = (): string => nlen(
+  'Schrijft de master-som rechtstreeks mee als WAV, en de gespeelde MIDI als .mid met dezelfde naam — geen BlackHole of DAW nodig',
+  'Records the master output straight to WAV, and the notes you play as a .mid with the same name — no BlackHole or DAW needed');
 
 /** Rood rondje (opnemen) of rood vierkantje (stoppen), zo groot als een letter. */
 export function RecGlyph({ stop = false }: { stop?: boolean }): JSX.Element {
@@ -26,15 +29,15 @@ export function RecordButton({ compact = false, style }: { compact?: boolean; st
   const rec = useRecordState();
   if (!rec.recording) {
     return (
-      <button type="button" onClick={toggleRecording} style={style} title={TITLE} aria-label="Opname starten">
-        <RecGlyph />{compact ? null : ' Opname'}
+      <button type="button" onClick={toggleRecording} style={style} title={title()} aria-label={nlen('Opname starten', 'Start recording')}>
+        <RecGlyph />{compact ? null : nlen(' Opname', ' Record')}
       </button>
     );
   }
   const secs = compact ? `${Math.floor(rec.secs / 60)}:${String(Math.floor(rec.secs % 60)).padStart(2, '0')}` : `${rec.secs.toFixed(1)} s`;
   return (
     <button type="button" onClick={toggleRecording} style={{ ...style, color: '#b91c1c', fontWeight: 600, gap: 4 }}
-      title="Opname stoppen en bewaren" aria-label="Opname stoppen">
+      title={nlen('Opname stoppen en bewaren', 'Stop and save the recording')} aria-label={nlen('Opname stoppen', 'Stop recording')}>
       <RecGlyph stop />{compact ? secs : `Stop · ${secs}`}
     </button>
   );
@@ -44,7 +47,7 @@ export function RecordButton({ compact = false, style }: { compact?: boolean; st
 export function RecordStatus({ style }: { style?: React.CSSProperties }): JSX.Element | null {
   const rec = useRecordState();
   if (rec.error) return <div style={{ color: '#b91c1c', fontSize: 12, ...style }}>⚠ {rec.error}</div>;
-  if (rec.recording) return <div style={{ color: '#b91c1c', fontSize: 12, ...style }}>Opname loopt: speel, en tik dan op het rode vierkantje.</div>;
+  if (rec.recording) return <div style={{ color: '#b91c1c', fontSize: 12, ...style }}>{nlen('Opname loopt: speel, en tik dan op het rode vierkantje.', 'Recording: play, then tap the red square.')}</div>;
   if (rec.done) return <div style={{ color: '#475569', fontSize: 12, ...style }}>✔ {rec.done}</div>;
   return null;
 }

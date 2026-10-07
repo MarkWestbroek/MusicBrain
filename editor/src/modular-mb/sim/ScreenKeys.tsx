@@ -20,6 +20,7 @@
 
 import { useRef, useState, type ReactNode } from 'react';
 
+import { nlen } from '../../i18n';
 import { RIBBON_BENDS } from './ribbonLayout';
 import type { RibbonMidiIn } from './ribbonSetup';
 import { ScreenRibbon } from './ScreenRibbon';
@@ -214,11 +215,11 @@ export function ScreenKeys({
       {/* Werkbalk: octaaf links en rechts boven het klavier (de C-labels
           tonen het octaaf), daartussen pedalen en instellingen. */}
       <div style={{ display: 'flex', gap: 6, alignItems: 'center', touchAction: 'none' }}>
-        {onOctave && <button type="button" onClick={() => onOctave(-1)} style={oct} title="Octaaf omlaag" aria-label="Octaaf omlaag" data-tour="keys-octave">−</button>}
+        {onOctave && <button type="button" onClick={() => onOctave(-1)} style={oct} title={nlen('Octaaf omlaag', 'Octave down')} aria-label={nlen('Octaaf omlaag', 'Octave down')} data-tour="keys-octave">−</button>}
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', flex: 1, justifyContent: 'center', minWidth: 0 }}>
           {onSustain && (
             <button type="button" data-tour="keys-pedals"
-              title="Sustainpedaal (CC 64): tik = vast of los, vasthouden = tijdelijk"
+              title={nlen('Sustainpedaal (CC 64): tik = vast of los, vasthouden = tijdelijk', 'Sustain pedal (CC 64): tap = latch on or off, hold = only while held')}
               onPointerDown={(e) => {
                 e.preventDefault();
                 sustainDownAt.current = Date.now();
@@ -239,7 +240,7 @@ export function ScreenKeys({
             </button>
           )}
           {pedal && (
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12 }} title={`Pedaalschuif (expressie/wah) op de eerste CC van de MIDI-IN: ${pedal.label}, stand ${pedalPos}`}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12 }} title={nlen(`Pedaalschuif (expressie/wah) op de eerste CC van de MIDI-IN: ${pedal.label}, stand ${pedalPos}`, `Pedal slider (expression/wah) on the first CC of the MIDI-IN: ${pedal.label}, position ${pedalPos}`)}>
               {pedal.label}
               <input type="range" min={0} max={127} value={pedalPos}
                 onChange={(e) => { const v = Number(e.target.value); setPedalPos(v); pedal.onChange(v); }}
@@ -248,19 +249,20 @@ export function ScreenKeys({
           )}
           <button type="button" data-tour="keys-ribbon" onClick={() => { panic(); setInput(isRibbon ? 'keys' : 'ribbon'); }}
             style={{ ...btn, fontWeight: isRibbon ? 700 : 400, background: isRibbon ? '#fde68a' : undefined }}
-            title={isRibbon ? 'Terug naar het klavier' : 'Lint (Trautonium-draad): traploze toonhoogte, druk uit de hoogte op het lint'}
-            aria-label={isRibbon ? 'Klavier' : 'Lint'}>
+            title={isRibbon ? nlen('Terug naar het klavier', 'Back to the keyboard')
+              : nlen('Lint (Trautonium-draad): traploze toonhoogte, druk uit de hoogte op het lint', 'Ribbon (Trautonium wire): stepless pitch, pressure from how low you touch the ribbon')}
+            aria-label={isRibbon ? nlen('Klavier', 'Keyboard') : nlen('Lint', 'Ribbon')}>
             {isRibbon ? '🎹' : '〰'}
           </button>
           {isRibbon && (
-            <label style={{ fontSize: 12, display: 'inline-flex', gap: 4, alignItems: 'center' }} title="Aantrekken naar de halve tonen: links traploos (glissando, vibrato met de vinger), rechts vaste halve tonen">
-              aantrekken
+            <label style={{ fontSize: 12, display: 'inline-flex', gap: 4, alignItems: 'center' }} title={nlen('Aantrekken naar de halve tonen: links traploos (glissando, vibrato met de vinger), rechts vaste halve tonen', 'Pull towards semitones: left is stepless (glissando, finger vibrato), right is fixed semitones')}>
+              {nlen('aantrekken', 'snap')}
               <input type="range" min={0} max={1} step={0.05} value={snap} onChange={(e) => setSnap(Number(e.target.value))} style={{ width: 70 }} />
             </label>
           )}
           {isRibbon && (
-            <label style={{ fontSize: 12, display: 'inline-flex', gap: 4, alignItems: 'center' }} title="Bendbereik van het lint in halve tonen; moet gelijk zijn aan de Bend-knop van de MIDI-IN">
-              bereik
+            <label style={{ fontSize: 12, display: 'inline-flex', gap: 4, alignItems: 'center' }} title={nlen('Bendbereik van het lint in halve tonen; moet gelijk zijn aan de Bend-knop van de MIDI-IN', 'Bend range of the ribbon in semitones; must match the Bend knob of the MIDI-IN')}>
+              {nlen('bereik', 'range')}
               <select value={range} onChange={(e) => setRange(Number(e.target.value))} style={{ fontSize: 12, height: 28 }}>
                 {RIBBON_BENDS.map((r) => <option key={r} value={r}>±{r}</option>)}
               </select>
@@ -269,39 +271,40 @@ export function ScreenKeys({
           {isRibbon && ribbon?.present && !ribbon.ready(range) && (
             <button type="button" onClick={() => ribbon.fix(range)}
               style={{ ...btn, background: '#fef3c7', borderColor: '#d97706' }}
-              title={`Het lint speelt een noot plus pitch bend. Dat klinkt pas traploos als de MIDI-IN de bend in de toonhoogte vouwt: zet B→P aan en Bend op ${range}. Dit past de patch aan.`}>
-              MIDI-IN klaarzetten
+              title={nlen(`Het lint speelt een noot plus pitch bend. Dat klinkt pas traploos als de MIDI-IN de bend in de toonhoogte vouwt: zet B→P aan en Bend op ${range}. Dit past de patch aan.`,
+                `The ribbon plays a note plus pitch bend. It only sounds stepless once the MIDI-IN folds the bend into the pitch: switch B→P on and Bend to ${range}. This changes the patch.`)}>
+              {nlen('MIDI-IN klaarzetten', 'Set up MIDI-IN')}
             </button>
           )}
           {onSlide && !isRibbon && (
-            <label data-tour="keys-slide" style={{ fontSize: 12, display: 'inline-flex', gap: 4, alignItems: 'center' }} title="Wat opzij schuiven over de toetsen doet; omhoog schuiven is altijd aftertouch">
-              opzij:
+            <label data-tour="keys-slide" style={{ fontSize: 12, display: 'inline-flex', gap: 4, alignItems: 'center' }} title={nlen('Wat opzij schuiven over de toetsen doet; omhoog schuiven is altijd aftertouch', 'What sliding sideways across the keys does; sliding up is always aftertouch')}>
+              {nlen('opzij:', 'slide:')}
               <select value={slide} onChange={(e) => onSlide(e.target.value as SlideMode)} style={{ fontSize: 12, height: 28 }}>
-                <option value="note">wisselen</option>
-                <option value="bend">buigen</option>
+                <option value="note">{nlen('wisselen', 'note')}</option>
+                <option value="bend">{nlen('buigen', 'bend')}</option>
               </select>
             </label>
           )}
           {onSlide && !isRibbon && slide === 'bend' && onBendKeys && (
-            <label style={{ fontSize: 12, display: 'inline-flex', gap: 4, alignItems: 'center' }} title="Hoeveel toetsen opzij het volle bendbereik is; het bereik in halve tonen staat op de Bend-knop van de MIDI-IN">
-              over
+            <label style={{ fontSize: 12, display: 'inline-flex', gap: 4, alignItems: 'center' }} title={nlen('Hoeveel toetsen opzij het volle bendbereik is; het bereik in halve tonen staat op de Bend-knop van de MIDI-IN', 'How many keys sideways make the full bend range; the range in semitones is on the Bend knob of the MIDI-IN')}>
+              {nlen('over', 'over')}
               <select value={bendKeys} onChange={(e) => onBendKeys(Number(e.target.value))} style={{ fontSize: 12, height: 28 }}>
-                {BEND_KEYS.map((k) => <option key={k} value={k}>{k} {k === 1 ? 'toets' : 'toetsen'}</option>)}
+                {BEND_KEYS.map((k) => <option key={k} value={k}>{k} {k === 1 ? nlen('toets', 'key') : nlen('toetsen', 'keys')}</option>)}
               </select>
             </label>
           )}
           {onTall && (
             <button type="button" data-tour="keys-tall" onClick={() => onTall(!tall)} style={{ ...btn, fontWeight: tall ? 700 : 400, background: tall ? '#fde68a' : undefined }}
-              title="Lange toetsen: meer weg voor aanslag (laag = hard) en aftertouch (omhoog schuiven)" aria-label="Lange toetsen">
+              title={nlen('Lange toetsen: meer weg voor aanslag (laag = hard) en aftertouch (omhoog schuiven)', 'Tall keys: more room for velocity (low = loud) and aftertouch (slide up)')} aria-label={nlen('Lange toetsen', 'Tall keys')}>
               ⇕
             </button>
           )}
           {onPanic && (
-            <button type="button" data-tour="keys-panic" onClick={panic} style={btn} title="Panic: alle noten uit (ook een hangende)" aria-label="Alle noten uit"><PanicGlyph /></button>
+            <button type="button" data-tour="keys-panic" onClick={panic} style={btn} title={nlen('Panic: alle noten uit (ook een hangende)', 'Panic: all notes off (including a stuck one)')} aria-label={nlen('Alle noten uit', 'All notes off')}><PanicGlyph /></button>
           )}
           {extra}
         </div>
-        {onOctave && <button type="button" onClick={() => onOctave(1)} style={oct} title="Octaaf omhoog" aria-label="Octaaf omhoog">+</button>}
+        {onOctave && <button type="button" onClick={() => onOctave(1)} style={oct} title={nlen('Octaaf omhoog', 'Octave up')} aria-label={nlen('Octaaf omhoog', 'Octave up')}>+</button>}
       </div>
       {isRibbon ? (
         <ScreenRibbon startMidi={(octave + 1) * 12} octaves={octaves} tall={tall} bendRange={range} snap={snap}
@@ -326,10 +329,10 @@ export function ScreenKeys({
         onPointerUp={onPointerEnd}
         onPointerCancel={onPointerEnd}
         onLostPointerCapture={onPointerEnd}
-        aria-label="Toetsenbord"
+        aria-label={nlen('Toetsenbord', 'Keyboard')}
         data-tour="keys-board"
       >
-        <title>Laag op de toets is hard; omhoog schuiven is aftertouch; opzij: noot wisselen of buigen</title>
+        <title>{nlen('Laag op de toets is hard; omhoog schuiven is aftertouch; opzij: noot wisselen of buigen', 'Low on the key is loud; sliding up is aftertouch; sideways: change note or bend')}</title>
         {wheels && (
           <g pointerEvents="none">
             {/* Pitch bend: midden = rust; het blokje toont de stand. */}

@@ -5,6 +5,8 @@
 
 import type { CSSProperties } from 'react';
 
+import { nlen } from '../i18n';
+import { contentText } from './contentEn';
 import { DEMO_SEEDS } from './demoSeeds';
 import { getProject, setProject, updateProject } from './store';
 import type { ModularProject } from './types';
@@ -32,13 +34,13 @@ export function PatchSelect({ project, onChoose, style }: {
   style?: CSSProperties;
 }): JSX.Element {
   return (
-    <select value={project.activePatchId ?? ''} title="Kies een patch, of zet een voorbeeld uit de standaardset erbij"
+    <select value={project.activePatchId ?? ''} title={nlen('Kies een patch, of zet een voorbeeld uit de standaardset erbij', 'Choose a patch, or add an example from the standard set')}
       onChange={(e) => { choosePatch(e.target.value); onChoose?.(); }}
       style={{ fontSize: 13, fontWeight: 700, maxWidth: 260, ...style }}>
-      {project.patches.length === 0 && <option value="">(nog geen patch)</option>}
-      {project.patches.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
-      <optgroup label="Voorbeeld toevoegen">
-        {DEMO_SEEDS.map((d, i) => <option key={d.label} value={`${SEED}${i}`} title={d.title}>{d.label}</option>)}
+      {project.patches.length === 0 && <option value="">{nlen('(nog geen patch)', '(no patch yet)')}</option>}
+      {project.patches.map((x) => <option key={x.id} value={x.id}>{contentText(x.name)}</option>)}
+      <optgroup label={nlen('Voorbeeld toevoegen', 'Add an example')}>
+        {DEMO_SEEDS.map((d, i) => <option key={d.label} value={`${SEED}${i}`} title={contentText(d.title)}>{contentText(d.label)}</option>)}
       </optgroup>
     </select>
   );

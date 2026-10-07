@@ -14,6 +14,7 @@ import { PatchSelect } from './PatchSelect';
 import { CommandPalette } from './recipe/CommandPalette';
 import { Tour, tourSeen } from './recipe/Tour';
 import { PlayTour, playTourSeen } from './PlayTour';
+import { nlen, useLang } from '../i18n';
 import { startDemo, DemoCaption, type DemoState, type DemoHandle } from './recipe/demo';
 import type { PatchOp } from './recipe/types';
 import { emptyModularProject, type ModularProject } from './types';
@@ -106,6 +107,9 @@ const TABS: { id: Tab; label: string }[] = [
 ];
 
 export function ModularMbApp(): JSX.Element {
+  // Taal van de speelmodus (?lang=en, de browser, of het wereldbolletje
+  // rechtsboven); de editor achter Binnenkijken blijft Nederlands.
+  useLang();
   // ?patch=<slug>: een patch van musicbrain.nl aanbieden via de inbox (patch-pool §5).
   useEffect(() => {
     const slug = new URLSearchParams(window.location.search).get('patch');
@@ -944,11 +948,13 @@ export function ModularMbApp(): JSX.Element {
                 Bewaar als. Terug en A/B wonen in de editor (Binnenkijken). */}
             {playerPatch && <SaveButton patch={playerPatch} style={{ padding: '4px 12px' }} />}
             {playerPatch && <SaveAsButton project={project} patch={playerPatch} style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid #cbd2d9', background: '#f5f7fa', cursor: 'pointer' }} />}
-            <button onClick={() => { setExpert(true); setTab('patcher'); }} title="Open de hele editor: rack, kabels, modules"
+            <button onClick={() => { setExpert(true); setTab('patcher'); }}
+              title={nlen('Open de hele editor: rack, kabels, modules', 'Open the whole editor: rack, cables, modules (in Dutch)')}
               style={{ padding: '4px 12px', fontSize: 12, borderRadius: 6, border: '1px solid #cbd2d9', background: '#f5f7fa', cursor: 'pointer' }}>
-              Binnenkijken ▸
+              {nlen('Binnenkijken ▸', 'Look inside ▸')}
             </button>
-            <button onClick={() => setShowPlayTour(true)} title="Rondleiding door de speelmodus, stap voor stap" aria-label="Rondleiding"
+            <button onClick={() => setShowPlayTour(true)} title={nlen('Rondleiding door de speelmodus, stap voor stap', 'A tour of play mode, step by step')}
+              aria-label={nlen('Rondleiding', 'Tour')}
               style={{ padding: '4px 10px', fontSize: 12, borderRadius: 6, border: '1px solid #cbd2d9', background: '#f5f7fa', cursor: 'pointer' }}>
               ?
             </button>

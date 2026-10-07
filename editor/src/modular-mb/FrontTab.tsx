@@ -20,6 +20,8 @@ import {
   addFront, insertFrontItem, moveFrontItem, newFront, pruneFronts, removeFront, removeFrontItemAt,
   updateFront, updateFrontItem,
 } from './fronts';
+import { nlen } from '../i18n';
+import { contentText, frontText } from './contentEn';
 import { DEMO_SEEDS } from './demoSeeds';
 import { PatchSelect } from './PatchSelect';
 import { runCommands } from './recipe/commands';
@@ -93,8 +95,8 @@ export function FrontTab({ expert = true }: { expert?: boolean }): JSX.Element {
         {/* In de speelmodus staat de patchkeuze al in de werkbalk van de app. */}
         {expert && <PatchSelect project={project} onChoose={() => setChosen(null)} />}
         <select value={isAuto ? AUTO : front.id} onChange={(e) => setChosen(e.target.value)} style={{ fontSize: 12 }}>
-          <option value={AUTO}>Auto (afgeleid, niet opgeslagen)</option>
-          {fronts.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+          <option value={AUTO}>{nlen('Auto (afgeleid, niet opgeslagen)', 'Auto (derived, not saved)')}</option>
+          {fronts.map((f) => <option key={f.id} value={f.id}>{contentText(f.name)}</option>)}
         </select>
         {expert && (isAuto
           ? <>
@@ -111,12 +113,13 @@ export function FrontTab({ expert = true }: { expert?: boolean }): JSX.Element {
           </button>
         )}
         <span style={{ opacity: 0.6, fontSize: 12 }}>
-          Draaien op het front wijzigt de patch; wat niet op het front staat, staat vast.
+          {nlen('Draaien op het front wijzigt de patch; wat niet op het front staat, staat vast.',
+                'Turning a knob on the front panel changes the patch; whatever is not on the front stays as it is.')}
         </span>
       </div>
       {expert && adding && !isAuto && <div style={{ maxWidth: 460 }}><FrontAdd patch={patch} front={front} /></div>}
       {expert && <FrontAi project={project} onDone={(id) => setChosen(id ?? null)} />}
-      {front.description && <p style={{ margin: 0, maxWidth: 640, opacity: 0.85 }}>{front.description}</p>}
+      {front.description && <p style={{ margin: 0, maxWidth: 640, opacity: 0.85 }}>{contentText(front.description)}</p>}
       <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div ref={stageRef} className="mb-stage" style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
           {/* Op volledig scherm (⛶ in de werkbalk van het toetsenbord): witte
@@ -134,7 +137,7 @@ export function FrontTab({ expert = true }: { expert?: boolean }): JSX.Element {
           )}
           <RecordStatus />
           <div className="mb-stage-front" data-tour="play-front" style={{ overflow: 'auto' }}>
-            <FrontPanel front={front} patch={patch} project={project} pxPerMm={4}
+            <FrontPanel front={frontText(front)} patch={patch} project={project} pxPerMm={4}
               onArrange={arranging ? (i, pos) => edit((x) => updateFrontItem(x, front.id, i, (y) => (y.kind === 'group' ? y : { ...y, pos }))) : undefined} />
           </div>
           <FrontKeys stage={stageRef} record={!expert} />
@@ -336,20 +339,21 @@ function EmptyStart({ expert }: { expert: boolean }): JSX.Element {
   const btn: React.CSSProperties = { fontSize: 14, padding: '8px 12px', cursor: 'pointer', textAlign: 'left' };
   return (
     <div style={{ padding: 16, maxWidth: 560, lineHeight: 1.5 }}>
-      <p style={{ margin: '0 0 4px', fontWeight: 600 }}>Er is nog geen patch.</p>
+      <p style={{ margin: '0 0 4px', fontWeight: 600 }}>{nlen('Er is nog geen patch.', 'There is no patch yet.')}</p>
       <p style={{ margin: '0 0 12px', opacity: 0.8 }}>
-        Kies een voorbeeld; je ziet dan het front: de belangrijkste knoppen, zonder kabels, en een toetsenbord om te spelen.
-        {expert ? ' Of bouw er zelf een in Rack en Patcher.' : ' Binnenkijken ▸ opent de hele editor.'}
+        {nlen('Kies een voorbeeld; je ziet dan het front: de belangrijkste knoppen, zonder kabels, en een toetsenbord om te spelen.',
+              'Choose an example; you will then see its front panel: the most important knobs, no cables, and a keyboard to play.')}
+        {expert ? ' Of bouw er zelf een in Rack en Patcher.' : nlen(' Binnenkijken ▸ opent de hele editor.', ' Look inside ▸ opens the whole editor.')}
       </p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 8 }}>
         {DEMO_SEEDS.map((d) => (
-          <button key={d.label} type="button" style={btn} title={d.title} onClick={() => setProject(d.run(getProject()))}>{d.label}</button>
+          <button key={d.label} type="button" style={btn} title={contentText(d.title)} onClick={() => setProject(d.run(getProject()))}>{contentText(d.label)}</button>
         ))}
       </div>
       <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
-        <button type="button" style={btn} onClick={() => fileRef.current?.click()}>↑ Project openen (.json)</button>
+        <button type="button" style={btn} onClick={() => fileRef.current?.click()}>{nlen('↑ Project openen (.json)', '↑ Open a project (.json)')}</button>
         <input ref={fileRef} type="file" accept="application/json,.json" onChange={onFile} style={{ display: 'none' }} />
-        <button type="button" style={btn} onClick={openPoolBrowser} title="Patches van musicbrain.nl: bladeren en laden">📚 Patches van musicbrain.nl</button>
+        <button type="button" style={btn} onClick={openPoolBrowser} title={nlen('Patches van musicbrain.nl: bladeren en laden', 'Patches from musicbrain.nl: browse and load')}>{nlen('📚 Patches van musicbrain.nl', '📚 Patches from musicbrain.nl')}</button>
       </div>
     </div>
   );

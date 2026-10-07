@@ -11,6 +11,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 
+import { nlen } from '../../i18n';
 import { RIBBON_H, RIBBON_H_TALL, RIBBON_SEMI, RibbonPlayer, ribbonWidth } from './ribbonLayout';
 
 const NAMES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
@@ -80,9 +81,9 @@ export function ScreenRibbon({
       onPointerUp={onPointerEnd}
       onPointerCancel={onPointerEnd}
       onLostPointerCapture={onPointerEnd}
-      aria-label="Lint"
+      aria-label={nlen('Lint', 'Ribbon')}
     >
-      <title>Lint: de plek is de toonhoogte (traploos), laag op het lint is hard (druk)</title>
+      <title>{nlen('Lint: de plek is de toonhoogte (traploos), laag op het lint is hard (druk)', 'Ribbon: the position is the pitch (stepless), low on the ribbon is loud (pressure)')}</title>
       <rect x={0} y={0} width={width} height={h} rx={3} fill="#2b2118" stroke="#000" strokeWidth={0.8} pointerEvents="none" />
       {/* De draad over de plaat. */}
       <line x1={2} y1={h * 0.5} x2={width - 2} y2={h * 0.5} stroke="#b8a27a" strokeWidth={1.2} pointerEvents="none" />

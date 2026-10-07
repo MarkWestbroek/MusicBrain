@@ -10,6 +10,8 @@
 // als ze niet van toepassing zijn (✕ bestaat alleen op volledig scherm).
 
 import { useEffect, useLayoutEffect, useState } from 'react';
+
+import { nlen, useLang } from '../i18n';
 import { createPortal } from 'react-dom';
 
 export interface PlayTourStep {
@@ -17,6 +19,8 @@ export interface PlayTourStep {
   anchor?: string;
   title: string;
   text: string;
+  /** Engels (UK): titel en tekst. */
+  en: [title: string, text: string];
   /** Vanzelf door zodra dit waar is. */
   done?: () => boolean;
   /** Overslaan als dit waar is (op het moment dat de stap aan de beurt is). */
@@ -27,40 +31,56 @@ const fullMode = (): string | undefined =>
   (document.fullscreenElement as HTMLElement | null)?.dataset.fullMode;
 
 export const PLAY_TOUR_STEPS: PlayTourStep[] = [
-  { anchor: 'play-patch', title: 'Kies wat je speelt',
+  { anchor: 'play-patch', en: ['Choose what you play', 'Choose the patch here. At the bottom of the list are examples you can add. Turn a knob and Save appears; Save as… makes your own version.'],
+    title: 'Kies wat je speelt',
     text: 'Hier kies je de patch. Onderaan de lijst staan voorbeelden om erbij te zetten. Draai je aan een knop, dan verschijnt Bewaar; Bewaar als… maakt er een eigen versie van.' },
-  { anchor: 'keys-full', title: 'Volledig scherm',
+  { anchor: 'keys-full', en: ['Full screen', '⛶ puts the front panel and the keyboard on the whole screen. Tap it to try, or carry on.'],
+    title: 'Volledig scherm',
     text: '⛶ zet het front en het toetsenbord op het hele scherm. Tik erop om het te proberen, of ga verder.',
     done: () => !!document.fullscreenElement },
-  { anchor: 'play-front', title: 'Het front',
+  { anchor: 'play-front', en: ['The front panel', 'The knobs a player turns. Turning one changes the sound straight away; whatever is not on the front stays as it is. Look inside shows the whole patch.'],
+    title: 'Het front',
     text: 'De knoppen waar een speler aan draait. Draaien verandert de klank meteen; wat niet op het front staat, staat vast. Binnenkijken laat de hele patch zien.' },
-  { anchor: 'keys-pedals', title: 'Sustain en pedaal',
+  { anchor: 'keys-pedals', en: ['Sustain and pedal', 'Sustain: tap = latch on or off, hold = only while you press. The slider is an expression pedal; what it does depends on the patch (often the filter).'],
+    title: 'Sustain en pedaal',
     text: 'Sustain: tik = vast of los, vasthouden = alleen zolang je drukt. De schuif is een expressiepedaal; wat hij doet hangt van de patch af (vaak het filter).' },
-  { anchor: 'keys-octave', title: 'Octaaf',
+  { anchor: 'keys-octave', en: ['Octave', '− and + shift the keyboard an octave down or up. The C keys show which octave you are in.'],
+    title: 'Octaaf',
     text: '− en + schuiven het klavier een octaaf omlaag of omhoog. De C-toetsen tonen in welk octaaf je zit.' },
-  { anchor: 'keys-slide', title: 'Opzij schuiven',
+  { anchor: 'keys-slide', en: ['Sliding sideways', 'What your finger does when it glides across the keys: note = move to the next note, bend = bend the pitch. "Over" sets how many keys make the full bend range.'],
+    title: 'Opzij schuiven',
     text: 'Wat je vinger doet als hij over de toetsen glijdt: wisselen = naar de volgende noot, buigen = de toon buigen. "Over" zegt hoeveel toetsen het volle buigbereik is.' },
-  { anchor: 'keys-full-keys', title: 'Alleen het klavier',
+  { anchor: 'keys-full-keys', en: ['Keyboard only', '🎹 puts just the keyboard on the screen, in landscape: more room for your fingers. Turn your phone round. Tap it to try, or carry on.'],
+    title: 'Alleen het klavier',
     text: '🎹 zet alleen het klavier op het scherm, liggend: meer ruimte voor je vingers. Draai je telefoon. Tik erop om het te proberen, of ga verder.',
     done: () => fullMode() === 'keys' },
-  { anchor: 'keys-bend', title: 'Pitch bend',
+  { anchor: 'keys-bend', en: ['Pitch bend', 'The left wheel bends the pitch and springs back to the centre when you let go.'],
+    title: 'Pitch bend',
     text: 'Het linkerwiel buigt de toonhoogte en veert terug naar het midden als je loslaat.' },
-  { anchor: 'keys-mod', title: 'Modwiel',
+  { anchor: 'keys-mod', en: ['Mod wheel', 'The right wheel stays where you leave it: usually vibrato or filter, depending on the patch.'],
+    title: 'Modwiel',
     text: 'Het rechterwiel blijft staan waar je het laat: meestal vibrato of filter, afhankelijk van de patch.' },
-  { anchor: 'keys-tall', title: 'Lange toetsen',
+  { anchor: 'keys-tall', en: ['Tall keys', '⇕ makes the keys taller: more room for velocity and pressure.'],
+    title: 'Lange toetsen',
     text: '⇕ maakt de toetsen langer: meer ruimte voor aanslag en druk.' },
-  { anchor: 'keys-panic', title: 'Alles uit',
+  { anchor: 'keys-panic', en: ['All notes off', 'The stop sign releases every note, including one that is stuck.'],
+    title: 'Alles uit',
     text: 'Het stopbord laat alle noten los, ook een noot die blijft hangen.' },
-  { anchor: 'keys-board', title: 'Spelen',
+  { anchor: 'keys-board', en: ['Playing', 'Low on the key is loud, high is soft. Slide up after the note for pressure (aftertouch). Several fingers at once make chords. The first note switches the sound on.'],
+    title: 'Spelen',
     text: 'Laag op de toets is hard, hoog is zacht. Schuif na de aanslag omhoog voor druk (aftertouch). Meerdere vingers tegelijk zijn akkoorden. De eerste aanslag zet de klank aan.' },
-  { anchor: 'keys-record', title: 'Opnemen',
+  { anchor: 'keys-record', en: ['Recording', 'The red dot records what you play: audio (WAV), the notes (MIDI) and the patch. Tap the red square to stop; the files are downloaded.'],
+    title: 'Opnemen',
     text: 'Het rode rondje neemt op wat je speelt: geluid (WAV), de noten (MIDI) en de patch. Tik op het rode vierkantje om te stoppen; de bestanden worden gedownload.' },
-  { anchor: 'keys-ribbon', title: 'Het lint',
+  { anchor: 'keys-ribbon', en: ['The ribbon', '〰 swaps the keys for a wire, as on the Trautonium: where you touch is the pitch, without steps; low on the ribbon is loud. 🎹 brings the keyboard back.'],
+    title: 'Het lint',
     text: '〰 vervangt de toetsen door een draad, zoals op het Trautonium: de plek is de toonhoogte, traploos; laag op het lint is hard. 🎹 brengt het klavier terug.' },
-  { anchor: 'keys-exit', title: 'Volledig scherm uit',
+  { anchor: 'keys-exit', en: ['Leave full screen', '✕ takes you back to the normal view. On Android you can also swipe down from the top.'],
+    title: 'Volledig scherm uit',
     text: '✕ brengt je terug naar de gewone weergave. Op Android kan het ook door van boven naar beneden te vegen.',
     skip: () => !document.fullscreenElement },
-  { title: 'Klaar', text: 'Veel plezier. De rondleiding start opnieuw met ? bovenaan.' },
+  { en: ['Done', 'Enjoy. Start the tour again with ? at the top.'],
+    title: 'Klaar', text: 'Veel plezier. De rondleiding start opnieuw met ? bovenaan.' },
 ];
 
 const SEEN_KEY = 'mb.playtour.v1';
@@ -78,6 +98,7 @@ function anchorRect(anchor?: string): DOMRect | null {
 export function PlayTour({ open, onClose, steps = PLAY_TOUR_STEPS }: {
   open: boolean; onClose: () => void; steps?: PlayTourStep[];
 }): JSX.Element | null {
+  const lang = useLang();
   const [i, setI] = useState(0);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [host, setHost] = useState<Element | null>(null);
@@ -159,16 +180,16 @@ export function PlayTour({ open, onClose, steps = PLAY_TOUR_STEPS }: {
       {/* key per stap: een nieuwe ballon in plaats van bijgewerkte tekst. Chrome
           Vertalen vervangt tekstknopen; werkt React die oude knopen bij, dan blijft
           de vertaling van de vorige stap staan. */}
-      <div key={i} role="dialog" aria-label="Rondleiding" style={{ ...bubble, background: '#fff', color: '#0f172a', borderRadius: 10, padding: '12px 14px',
+      <div key={`${lang}${i}`} role="dialog" aria-label={nlen('Rondleiding', 'Tour')} style={{ ...bubble, background: '#fff', color: '#0f172a', borderRadius: 10, padding: '12px 14px',
         boxShadow: '0 12px 40px rgba(0,0,0,0.35)', fontSize: 14, boxSizing: 'border-box' }}>
-        <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>stap {i + 1} van {steps.length}</div>
-        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>{step.title}</div>
-        <div style={{ lineHeight: 1.45 }}>{step.text}</div>
+        <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>{nlen(`stap ${i + 1} van ${steps.length}`, `step ${i + 1} of ${steps.length}`)}</div>
+        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>{lang === 'nl' ? step.title : step.en[0]}</div>
+        <div style={{ lineHeight: 1.45 }}>{lang === 'nl' ? step.text : step.en[1]}</div>
         <div style={{ display: 'flex', gap: 8, marginTop: 12, alignItems: 'center' }}>
-          <button type="button" onClick={close} style={b}>Sluiten</button>
+          <button type="button" onClick={close} style={b}>{nlen('Sluiten', 'Close')}</button>
           <span style={{ flex: 1 }} />
-          {i > 0 && <button type="button" onClick={back} style={b}>‹ Terug</button>}
-          <button type="button" onClick={next} style={{ ...b, fontWeight: 600 }}>{last ? 'Klaar' : 'Volgende ›'}</button>
+          {i > 0 && <button type="button" onClick={back} style={b}>{nlen('‹ Terug', '‹ Back')}</button>}
+          <button type="button" onClick={next} style={{ ...b, fontWeight: 600 }}>{last ? nlen('Klaar', 'Done') : nlen('Volgende ›', 'Next ›')}</button>
         </div>
       </div>
     </>,

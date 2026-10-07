@@ -6,6 +6,8 @@
 
 import type { CSSProperties } from 'react';
 
+import { nlen } from '../i18n';
+import { contentText } from './contentEn';
 import { MorphSaveMenu } from './recipe/MorphPanel';
 import { isDirty, saveAsPatch, savePatch } from './recipe/saved';
 import { uid, updateProject } from './store';
@@ -15,11 +17,12 @@ import type { ModularProject, Patch } from './types';
  *  Maakt een diepe kopie met een vers id; deze wordt direct actief. Het
  *  programmanummer wordt niet meegekopieerd (zou botsen met origineel). */
 export function saveAsNewPatch(patch: Patch): void {
-  const suggested = `${patch.name} (kopie)`;
+  const suggested = `${contentText(patch.name)} ${nlen('(kopie)', '(copy)')}`;
   const name = window.prompt(
     isDirty(patch)
-      ? 'Bewaar als — de bewerking wordt een nieuwe patch; het origineel gaat terug naar zijn bewaarde versie. Naam:'
-      : 'Bewaar patch als — nieuwe naam:', suggested);
+      ? nlen('Bewaar als — de bewerking wordt een nieuwe patch; het origineel gaat terug naar zijn bewaarde versie. Naam:',
+             'Save as — your changes become a new patch; the original goes back to its saved version. Name:')
+      : nlen('Bewaar patch als — nieuwe naam:', 'Save patch as — new name:'), suggested);
   if (name === null) return;
   const id = uid('patch');
   updateProject((p) => saveAsPatch(p, patch.id, id, name.trim() || suggested), { forceCommit: true });
@@ -30,8 +33,8 @@ export function SaveAsButton({ project, patch, style }: { project: ModularProjec
   if (patch.morph) return <MorphSaveMenu project={project} patch={patch} />;
   return (
     <button onClick={() => saveAsNewPatch(patch)} style={{ fontSize: 12, padding: '3px 10px', whiteSpace: 'nowrap', ...style }}
-      title="Bewaar deze patch als een nieuwe patch (kopie met nieuwe naam)">
-      Bewaar als…
+      title={nlen('Bewaar deze patch als een nieuwe patch (kopie met nieuwe naam)', 'Save this patch as a new patch (a copy with a new name)')}>
+      {nlen('Bewaar als…', 'Save as…')}
     </button>
   );
 }
@@ -41,9 +44,9 @@ export function SaveButton({ patch, style }: { patch: Patch; style?: CSSProperti
   if (!isDirty(patch)) return null;
   return (
     <button onClick={() => updateProject((p) => savePatch(p, patch.id), { forceCommit: true })}
-      title="Bewaar de knopstanden en het front van deze patch (Ctrl+S)"
+      title={nlen('Bewaar de knopstanden en het front van deze patch (Ctrl+S)', 'Save the knob settings and front panel of this patch (Ctrl+S)')}
       style={{ fontSize: 12, padding: '3px 10px', whiteSpace: 'nowrap', fontWeight: 600, border: '1px solid #f0b060', background: '#fff7e6', borderRadius: 6, cursor: 'pointer', ...style }}>
-      ● Bewaar
+      {nlen('● Bewaar', '● Save')}
     </button>
   );
 }

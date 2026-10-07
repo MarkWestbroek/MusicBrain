@@ -177,6 +177,14 @@ octaaf, opzij schuiven, alleen het klavier, de wielen, lange toetsen, alles
 uit, spelen, opnemen, het lint en het sluitkruis. **?** naast Binnenkijken
 start haar opnieuw. Op volledig scherm loopt ze gewoon door.
 
+De speelmodus is er ook in het **Engels** (UK): een Engelstalige browser krijgt
+dat vanzelf, het grijze wereldbolletje in de hoek rechtsboven wisselt, en een link met
+`?lang=en` (of `?lang=nl`) zet de taal en onthoudt hem, handig om naar
+iemand te sturen. Vertaald zijn de knoppen, het toetsenbord, de rondleiding
+en de namen, uitleg en frontlabels van de standaardset
+(`modular-mb/contentEn.ts`, sleutel = de Nederlandse tekst). De editor achter
+Binnenkijken blijft Nederlands; een eigen patch houdt zijn eigen tekst.
+
 - **Front**: een patch zonder eigen front krijgt er automatisch een. Rechtsklik
   op een knop in rack of patcher → "Op front zetten"; in de Front-tab (na
   Binnenkijken) bewerk je naam, volgorde, labels en kopjes, of laat je ✨ AI een

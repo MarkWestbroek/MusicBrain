@@ -7,6 +7,7 @@
 
 import { useEffect, useState, type RefObject } from 'react';
 
+import { nlen, useLang } from '../i18n';
 import { getEngine, useEngineStatus } from './sim/engineSingleton';
 import { SUSTAIN_CC, midiInCcNumbers } from './sim/midiInCc';
 import { ribbonMidiIn } from './sim/ribbonSetup';
@@ -34,6 +35,7 @@ function remember(key: string, value: string): void {
 export function FrontKeys({ stage, record = false }: { stage?: RefObject<HTMLElement | null>; record?: boolean } = {}): JSX.Element {
   const status = useEngineStatus();
   const project = useModularProject();
+  useLang();
   // De pedaalschuif stuurt op het nummer dat de MIDI-IN van deze patch als
   // CC1# verwacht; sustain is altijd CC 64 (de patch zet CC2# daarop).
   const cc = midiInCcNumbers(project.patches.find((x) => x.id === project.activePatchId), project);
@@ -113,7 +115,7 @@ export function FrontKeys({ stage, record = false }: { stage?: RefObject<HTMLEle
     <div>
       <ScreenKeys octave={octave} onOctave={setOctave} onNoteOn={noteOn} onNoteOff={noteOff}
         onAftertouch={aftertouch} onBend={bend} onMod={mod} onSustain={sustain}
-        pedal={{ label: `Pedaal CC ${cc.cc1}`, onChange: pedal }} slide={slide} onSlide={setSlide}
+        pedal={{ label: `${nlen('Pedaal', 'Pedal')} CC ${cc.cc1}`, onChange: pedal }} slide={slide} onSlide={setSlide}
         bendKeys={bendKeys} onBendKeys={setBendKeys} tall={tall} onTall={setTall} onPanic={panic}
         ribbon={ribbonMidiIn(project.patches.find((x) => x.id === project.activePatchId), project)}
         maxWidth={full && fullMode === 'keys' ? 4000 : 560}
@@ -121,13 +123,13 @@ export function FrontKeys({ stage, record = false }: { stage?: RefObject<HTMLEle
           <span style={{ display: 'inline-flex', gap: 2 }}>
             {(record || full) && <span data-tour="keys-record" style={{ display: 'inline-flex' }}><RecordButton compact style={fsBtn} /></span>}
             <button type="button" data-tour="keys-full" onClick={() => enterFull('stage')} style={{ ...fsBtn, fontWeight: full && fullMode === 'stage' ? 700 : 400, background: full && fullMode === 'stage' ? '#fde68a' : undefined }}
-              title="Volledig scherm: front en toetsenbord" aria-label="Volledig scherm: front en toetsenbord">⛶</button>
+              title={nlen('Volledig scherm: front en toetsenbord', 'Full screen: front panel and keyboard')} aria-label={nlen('Volledig scherm: front en toetsenbord', 'Full screen: front panel and keyboard')}>⛶</button>
             <button type="button" data-tour="keys-full-keys" onClick={() => enterFull('keys')} style={{ ...fsBtn, fontWeight: full && fullMode === 'keys' ? 700 : 400, background: full && fullMode === 'keys' ? '#fde68a' : undefined }}
-              title="Volledig scherm: alleen het toetsenbord, liggend" aria-label="Volledig scherm: alleen toetsenbord">🎹</button>
-            {full && <button type="button" data-tour="keys-exit" onClick={exitFull} style={fsBtn} title="Volledig scherm uit" aria-label="Volledig scherm uit">✕</button>}
+              title={nlen('Volledig scherm: alleen het toetsenbord, liggend', 'Full screen: keyboard only, landscape')} aria-label={nlen('Volledig scherm: alleen toetsenbord', 'Full screen: keyboard only')}>🎹</button>
+            {full && <button type="button" data-tour="keys-exit" onClick={exitFull} style={fsBtn} title={nlen('Volledig scherm uit', 'Leave full screen')} aria-label={nlen('Volledig scherm uit', 'Leave full screen')}>✕</button>}
           </span>
         ) : undefined}
-        hint={status.running ? undefined : 'Eerste aanslag start de simulator'} />
+        hint={status.running ? undefined : nlen('Eerste aanslag start de simulator', 'The first note starts the simulator')} />
       {err && <div style={{ color: '#b91c1c', fontSize: 12, marginTop: 4 }}>{err}</div>}
     </div>
   );

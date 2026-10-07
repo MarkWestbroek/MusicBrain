@@ -1,4 +1,6 @@
 import { useState } from 'react';
+
+import { setLang, useLang } from './i18n';
 import { EffectSwitcherApp } from './effect-switcher/EffectSwitcherApp';
 import { ModularMbApp } from './modular-mb/ModularMbApp';
 import { ScopePanel } from './scope/ScopePanel';
@@ -10,7 +12,7 @@ export function App(): JSX.Element {
   const [project, setProject] = useState<Project>('mmb');
 
   return (
-    <main style={{ fontFamily: 'var(--mb-font-sans)', padding: 16 }}>
+    <main style={{ fontFamily: 'var(--mb-font-sans)', padding: 16, position: 'relative' }}>
       {/* Op een smal scherm (telefoon) lopen logo en tabs door op een tweede
           regel; anders is de pagina breder dan het scherm en zoomt de
           browser alles uit, ook het toetsenbord. */}
@@ -45,6 +47,7 @@ export function App(): JSX.Element {
             Scope
           </ProjectButton>
         </nav>
+        <LangSwitch />
       </header>
 
       {project === 'switcher' && <EffectSwitcherApp />}
@@ -70,6 +73,27 @@ export function App(): JSX.Element {
         </section>
       )}
     </main>
+  );
+}
+
+/** Taalwissel: klein en grijs in de hoek rechtsboven (los van de kop, zodat
+ *  hij op een telefoon geen eigen regel kost), buiten de speelmodus. Toont
+ *  de huidige taal; tikken wisselt. Een link met ?lang=en doet hetzelfde. */
+function LangSwitch(): JSX.Element {
+  const lang = useLang();
+  return (
+    <button type="button" onClick={() => setLang(lang === 'nl' ? 'en' : 'nl')}
+      title={lang === 'nl' ? 'Taal: Nederlands — switch to English' : 'Language: English — naar het Nederlands'}
+      aria-label={lang === 'nl' ? 'Switch to English' : 'Naar het Nederlands'}
+      style={{
+        position: 'absolute', top: 4, right: 6, display: 'inline-flex', alignItems: 'center', gap: 3, padding: '2px 4px',
+        border: 'none', background: 'none', color: '#9ca3af', fontSize: 11, fontFamily: 'var(--mb-font-mono)', cursor: 'pointer',
+      }}>
+      <svg aria-hidden width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1">
+        <circle cx="6" cy="6" r="5" /><ellipse cx="6" cy="6" rx="2.2" ry="5" /><path d="M1 6h10M2 3.2h8M2 8.8h8" />
+      </svg>
+      {lang.toUpperCase()}
+    </button>
   );
 }
 

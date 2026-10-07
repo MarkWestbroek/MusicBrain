@@ -17,6 +17,18 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-07 — Speelmodus in het Engels (editor)
+- Taal uit `?lang=en|nl` (onthouden), anders de onthouden keuze, anders de
+  browsertaal; een klein grijs wereldbolletje in de hoek rechtsboven wisselt. `<html lang>` volgt, zodat
+  Chrome Vertalen en schermlezers de juiste taal zien.
+- Engels (UK) voor de speelbalk, patchkeuze, bewaren, het schermtoetsenbord en
+  het lint, de opnameknop en de rondleiding (`nlen()` en `useLang()` in
+  `src/i18n.ts`).
+- Inhoud van de standaardset (naam, uitleg, frontkopjes en -labels) via
+  `modular-mb/contentEn.ts`, met de Nederlandse tekst als sleutel;
+  `contentEn.test.ts` eist een vertaling voor elke seedtekst.
+- Binnenkijken (de hele editor) blijft Nederlands.
+
 ### 2026-10-07 — Rondleiding door de speelmodus; werkbalk op de telefoon (editor)
 - **Rondleiding** (`PlayTour.tsx`): start vanzelf bij het eerste bezoek aan de
   speelmodus en opnieuw met **?** naast Binnenkijken. Zestien stappen in de

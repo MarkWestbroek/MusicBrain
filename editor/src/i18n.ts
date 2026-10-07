@@ -9,6 +9,16 @@
 //   2. Use `t('your.key')` in components.
 //
 // The active language persists to localStorage under 'mb.lang'.
+//
+// Start language: `?lang=en` / `?lang=nl` in the URL (remembered, so a link
+// for a friend sticks), else the remembered choice, else the browser
+// language (Dutch browser → nl, anything else → en).
+//
+// Short texts that live next to their component (the modular play mode)
+// use `nlen('Dutch', 'English')` instead of a key; components that use it
+// call `useLang()` so they re-render when the language changes.
+
+import { useSyncExternalStore } from 'react';
 
 export type Lang = 'en' | 'nl';
 
@@ -189,20 +199,46 @@ const dictionaries: Record<Lang, Record<string, string>> = {
   },
 };
 
-let activeLang: Lang = (localStorage.getItem(STORAGE_KEY) as Lang) ?? 'en';
+const isLang = (v: unknown): v is Lang => v === 'en' || v === 'nl';
+
+/** URL, then remembered choice, then browser language. Exported for tests. */
+export function initialLang(search: string, stored: string | null, browser: string | undefined): Lang {
+  const fromUrl = new URLSearchParams(search).get('lang')?.toLowerCase().slice(0, 2);
+  if (isLang(fromUrl)) return fromUrl;
+  if (isLang(stored)) return stored;
+  return browser?.toLowerCase().startsWith('nl') ? 'nl' : 'en';
+}
+
+function storedLang(): string | null { try { return localStorage.getItem(STORAGE_KEY); } catch { return null; } }
+function rememberLang(lang: Lang): void { try { localStorage.setItem(STORAGE_KEY, lang); } catch { /* no storage */ } }
+/** `<html lang>` follows, so browser translation and screen readers see the right language. */
+function markDocument(lang: Lang): void { if (typeof document !== 'undefined') document.documentElement.lang = lang; }
+
+let activeLang: Lang = initialLang(
+  typeof location !== 'undefined' ? location.search : '', storedLang(),
+  typeof navigator !== 'undefined' ? navigator.language : undefined);
+if (typeof location !== 'undefined' && new URLSearchParams(location.search).has('lang')) rememberLang(activeLang);
+markDocument(activeLang);
 const listeners = new Set<() => void>();
 
 export function getLang(): Lang { return activeLang; }
 
 export function setLang(lang: Lang): void {
   activeLang = lang;
-  localStorage.setItem(STORAGE_KEY, lang);
+  rememberLang(lang);
+  markDocument(lang);
   for (const l of listeners) l();
 }
 
+/** The active language; re-renders the component when it changes. */
+export function useLang(): Lang { return useSyncExternalStore(subscribeLang, getLang); }
+
+/** Dutch or English text, by the active language. */
+export function nlen(nl: string, en: string): string { return activeLang === 'nl' ? nl : en; }
+
 export function subscribeLang(cb: () => void): () => void {
   listeners.add(cb);
-  return () => listeners.delete(cb);
+  return () => { listeners.delete(cb); };
 }
 
 /**
