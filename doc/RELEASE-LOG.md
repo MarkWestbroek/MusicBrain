@@ -32,6 +32,14 @@
   Volume, pan, dempen, weg; ⤓ bewaren (IndexedDB `mmb-songs`, bewust),
   📂 laden, ⤴ export (mix.wav + n.mid + n.patch.json). Plan:
   `doc/plans/overdub.md`. Proef zonder handen op telefoonformaat.
+- **Ritmebox in de maat** (2026-10-09, Marks melding): de box liep vrij
+  vanaf het laden van de patch, dus zijn "één" viel ergens in de maat (in
+  zijn opname 385 ms te laat). Nu zet ● hem stil en start hem opnieuw op
+  maat 1 na het aftellen (`run` 0 → 1 via `engine.updateControl`, zonder de
+  patch te wijzigen), en bij een drop-in op het begin van de ronde. Gemeten:
+  eerste klap 0,3–0,5 ms na maat 1. Het tempobereik van de song is nu dat
+  van de box (30–300 bpm, op 0,1); eerst stopte de song op 40 terwijl de box
+  op 30 liep.
 
 ### 2026-10-08 — Ondes ×4: een ensemble van ondes door één Palme (editor)
 - `seedMartenotPolyPatch` (`seedMartenot.ts`): MidiIn → [MARTENOT]×N

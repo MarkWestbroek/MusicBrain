@@ -22,12 +22,19 @@ import { deleteSong, listSongs, loadSong, saveSong, type SongSummary } from './s
 import { getSongTransport, type SongTransport } from './SongTransport';
 import { encodeWav } from './wavRecorder';
 
-/** De patch van nu, voor het spoor: naam, tempo, momentopname. */
-function currentPatchInfo(): { name: string; bpm: number | null; snapshot: ReturnType<typeof patchSnapshot> | null } {
+/** Modules met een eigen patroon die op maat 1 opnieuw moeten beginnen. */
+const RESTART_TYPES = new Set(['tp_mmb_rhythm']);
+
+/** De patch van nu, voor het spoor: naam, tempo, momentopname, en welke
+ *  modules op maat 1 opnieuw beginnen. */
+function currentPatchInfo(): { name: string; bpm: number | null; snapshot: ReturnType<typeof patchSnapshot> | null; restart: string[] } {
   const project = getProject();
   const patch = project.patches.find((p) => p.id === project.activePatchId);
-  if (!patch) return { name: '', bpm: null, snapshot: null };
-  return { name: patch.name, bpm: patchTempo(project, patch), snapshot: patchSnapshot(project, patch) };
+  if (!patch) return { name: '', bpm: null, snapshot: null, restart: [] };
+  const inPatch = new Set(project.racks.filter((r) => patch.rackIds.includes(r.id)).flatMap((r) => r.slots.map((s) => s.moduleId)));
+  const restart = project.modules.filter((m) => inPatch.has(m.id) && RESTART_TYPES.has(m.typeId)
+    && patch.controlState[m.id]?.run !== false && patch.controlState[m.id]?.run !== 0).map((m) => m.id);
+  return { name: patch.name, bpm: patchTempo(project, patch), snapshot: patchSnapshot(project, patch), restart };
 }
 
 export function useSongTransport(): SongTransport {
@@ -60,7 +67,7 @@ export function OverdubPanel(): JSX.Element {
   const patch = project.patches.find((p) => p.id === project.activePatchId);
   const tempo = patch ? tempoControl(project, patch) : null;
   useEffect(() => {
-    if (!patch || !tempo || tempo.bpm === song.bpm) return;
+    if (!patch || !tempo || Math.abs(tempo.bpm - song.bpm) < 0.06) return;   // de song rondt af op 0,1
     if (!hasAudio) t.setBpm(tempo.bpm);
     else setPatchControl(patch.id, tempo.moduleId, 'tempo', song.bpm);
   }, [patch?.id, tempo?.moduleId, tempo?.bpm, song.bpm, hasAudio]);   // eslint-disable-line react-hooks/exhaustive-deps
@@ -148,7 +155,7 @@ export function OverdubPanel(): JSX.Element {
         </button>
         <span style={{ fontVariantNumeric: 'tabular-nums', minWidth: 72 }}>{fmt(Math.max(0, pos))} / {fmt(total)}</span>
         <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }} title={bpmLocked ? nlen('Het tempo ligt vast zodra er een spoor is', 'The tempo is fixed once a track exists') : nlen('Tempo van de metronoom en de maten', 'Tempo of the metronome and the bars')}>
-          <input type="number" min={40} max={240} value={song.bpm} disabled={bpmLocked || busy}
+          <input type="number" min={30} max={300} step={0.1} value={song.bpm} disabled={bpmLocked || busy}
             onChange={(e) => t.setBpm(Number(e.target.value))} style={{ width: 52, fontSize: 12 }} /> bpm
         </label>
         {tempo && <span style={small} title={nlen('De tempoknop van de patch loopt mee', 'The tempo knob of the patch follows')}>⟲ {patch?.name}</span>}

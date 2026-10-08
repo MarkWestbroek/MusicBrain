@@ -35,8 +35,11 @@ describe('maten en regio', () => {
     expect(loopMs(s)).toEqual({ start: 0, end: 7500 });
   });
 
-  it('bpm blijft binnen de grenzen', () => {
-    expect(newSong(1000).bpm).toBe(240);
+  it('bpm blijft binnen het bereik van de ritmebox (30–300) en volgt een knop tot op 0,1', () => {
+    expect(newSong(1000).bpm).toBe(300);
+    expect(newSong(10).bpm).toBe(30);
+    expect(newSong(89.99999999999997).bpm).toBe(90);
+    expect(newSong(94.25).bpm).toBe(94.3);
     expect(newSong(NaN).bpm).toBe(120);
   });
 });

@@ -41,8 +41,10 @@ export interface TransportState {
   waiting: boolean;
   error: string | null;
 }
-/** Wat het spoor over de patch van dat moment onthoudt. */
-export interface PatchInfo { name: string; bpm: number | null; snapshot: ModularProject | null }
+/** Wat het spoor over de patch van dat moment onthoudt. `restart`: modules
+ *  met een eigen patroon (ritmebox) die op maat 1 opnieuw moeten beginnen,
+ *  anders valt hun "één" ergens in de maat. */
+export interface PatchInfo { name: string; bpm: number | null; snapshot: ModularProject | null; restart?: string[] }
 
 interface Player { src: AudioBufferSourceNode; gain: GainNode; pan: StereoPannerNode; trackId: string }
 
@@ -63,6 +65,7 @@ export class SongTransport {
   private metroFrom = 0;
   private endTimer: number | null = null;
   private armTimer: number | null = null;
+  private restartTimer: number | null = null;
 
   constructor(private readonly engine: AudioEngine = getEngine(), private readonly info: () => PatchInfo = () => ({ name: '', bpm: null, snapshot: null })) {
     this.state = { song: newSong(), phase: 'idle', armed: null, waiting: false, error: null };
@@ -142,6 +145,7 @@ export class SongTransport {
   }
 
   stop(): void {
+    if (this.restartTimer !== null) { window.clearTimeout(this.restartTimer); this.restartTimer = null; this.setRun(this.info().restart ?? [], true); }
     if (this.endTimer !== null) { window.clearTimeout(this.endTimer); this.endTimer = null; }
     if (this.armTimer !== null) { window.clearTimeout(this.armTimer); this.armTimer = null; }
     this.stopMetronome();
@@ -174,6 +178,7 @@ export class SongTransport {
       this.midiUnsub = this.engine.onMidi(this.midiRec.record);
       const countIn = ctx.currentTime + 0.15;
       this.origin = countIn + barMs(this.song) / 1000;
+      this.restartAt(this.origin);
       this.startPlayers(this.origin, i);
       // Aftellen tikt altijd; daarna alleen met de metronoom aan.
       this.startMetronome(countIn, this.song.metronome ? Infinity : this.origin);
@@ -226,6 +231,7 @@ export class SongTransport {
       const rounds = Math.floor(since / len) + 1;
       const start = this.origin + lp.start / 1000 + rounds * len;
       const end = start + len;
+      this.restartAt(start);
       this.set({ armed: i, waiting: true, error: null });
       this.armTimer = window.setTimeout(() => { this.armTimer = null; if (this.state.armed === i) this.set({ phase: 'recording', waiting: false }); },
         Math.max(0, (start - ctx.currentTime) * 1000));
@@ -255,6 +261,23 @@ export class SongTransport {
     this.set({ song: withTrack(this.song, i, track), phase: 'playing', armed: null, waiting: false });
     // Het spoor opnieuw in de lus, op de plek waar de anderen nu zijn.
     this.startPlayer(track, this.ctx().currentTime + 0.05);
+  }
+
+  // ── patroonmodules op de maat ─────────────────────────────────────────
+  /** Ritmebox en dergelijke: nu stil, en op contexttijd `at` opnieuw vanaf
+   *  stap 1 (`run` 0 → 1 doet `restart()` in de kern). Live via de engine,
+   *  zonder de patch te wijzigen. Een paar ms vóór `at`, want het bericht
+   *  naar de worklet kost een blok. */
+  private restartAt(at: number): void {
+    const ids = this.info().restart ?? [];
+    if (!ids.length) return;
+    this.setRun(ids, false);
+    if (this.restartTimer !== null) window.clearTimeout(this.restartTimer);
+    this.restartTimer = window.setTimeout(() => { this.restartTimer = null; this.setRun(ids, true); },
+      Math.max(0, (at - this.ctx().currentTime) * 1000 - 4));
+  }
+  private setRun(ids: readonly string[], on: boolean): void {
+    for (const id of ids) this.engine.updateControl(id, 'run', on);
   }
 
   // ── spelers ───────────────────────────────────────────────────────────

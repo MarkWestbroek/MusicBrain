@@ -53,7 +53,7 @@ export function newSong(bpm = 120): Song {
 export function emptyTrack(name: string): SongTrack {
   return { id: newId('trk'), name, gain: 0.8, pan: 0, mute: false, audio: null, midi: [], patch: null };
 }
-export const clampBpm = (v: number): number => (Number.isFinite(v) ? Math.max(40, Math.min(240, Math.round(v))) : 120);
+export const clampBpm = (v: number): number => (Number.isFinite(v) ? Math.max(30, Math.min(300, Math.round(v * 10) / 10)) : 120);
 
 /** Lengte van één tel en één maat in ms. */
 export const beatMs = (s: Pick<Song, 'bpm'>): number => 60_000 / s.bpm;
