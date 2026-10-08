@@ -45,6 +45,10 @@ const EN: Record<string, string> = {
     'Trautonium voice (Oskar Sala, The Birds): undertones instead of overtones and fixed formants, with plate reverb. Try the ribbon (〰) under the keyboard.',
   'Ondes Martenot (Messiaen, Jonny Greenwood) door de Palme-luidspreker: twaalf snaren die meetrillen. Het modwiel geeft meer vibrato; op het lint glijdt hij als de ring aan de draad.':
     'Ondes Martenot (Messiaen, Jonny Greenwood) through the Palme speaker: twelve strings that resonate along. The mod wheel adds vibrato; on the ribbon it glides like the ring on the wire.',
+  'Vier ondes Martenot door één Palme, zoals Messiaen voor een ensemble van ondes schreef: akkoorden die nazingen in de snaren. Speel langzaam en legato.':
+    'Four ondes Martenot through one Palme, as Messiaen wrote for an ensemble of ondes: chords that sing on in the strings. Play slowly and legato.',
+  'Een ensemble van 4 ondes Martenot door één Palme-luidspreker, zoals Messiaen voor zes ondes schreef (het instrument zelf is eenstemmig). Akkoorden zingen na in de twaalf snaren van de Palme; het modwiel geeft meer vibrato, aftertouch zwelt. Speel langzaam en legato.':
+    'An ensemble of 4 ondes Martenot through one Palme speaker, as Messiaen wrote for six ondes (the instrument itself is monophonic). Chords sing on in the twelve strings of the Palme; the mod wheel adds vibrato, aftertouch swells. Play slowly and legato.',
   'Arpeggiator: houd een akkoord vast en hij speelt de toetsen op en neer over twee octaven, een geplukte snaar met echo. Latch staat aan: hij speelt door na het loslaten; het stopbord stopt hem.':
     'Arpeggiator: hold a chord and it plays the keys up and down over two octaves, a plucked string with echo. Latch is on: it keeps playing after you let go; the stop sign stops it.',
   'De ritmes van de CR-78; pad 1 start en stopt.': 'The CR-78 rhythms; pad 1 starts and stops.',

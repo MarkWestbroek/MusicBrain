@@ -17,6 +17,13 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-08 — Ondes ×4: een ensemble van ondes door één Palme (editor)
+- `seedMartenotPolyPatch` (`seedMartenot.ts`): MidiIn → [MARTENOT]×N
+  (PolyGroup) → MIXER → DIFFUSEUR → OUT. Het instrument is eenstemmig;
+  meerstemmig schreef men voor een ensemble (Messiaen, zes ondes), en zo
+  deelt dit ensemble één kast. Aftertouch en modwiel naar alle stemmen.
+  Standaardset **🎐 Ondes ×4** en Poly ▾. Teensy: akkoord van vier ~16,8 %.
+
 ### 2026-10-08 — Martenot zuiniger, Palme gestemd (fw 0.5.97)
 - MARTENOT: sinus uit een tabel met interpolatie (512 punten, zoals
   Mutables `lut_sine`) in plaats van `sinf`, ook voor de oneven boventonen

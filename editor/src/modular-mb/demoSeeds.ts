@@ -21,6 +21,7 @@ import {
   TUBE_SOLO_FX, seedAcidJamPatch, seedComplexVoicePatch, seedEPianoPolyPatch, seedOrganPolyPatch, seedRhythmBoxPatch,
   seedSynthexPolyPatch, seedWestCoastPatch,
 } from './seedShowcase';
+import { seedMartenotPolyPatch } from './seedMartenot';
 import { seedSidPolyPatch } from './seedSid';
 import { emptyModularProject, type ModularProject } from './types';
 
@@ -67,6 +68,8 @@ export const DEMO_SEEDS: DemoSeed[] = [
     run: (p) => seedSoloVoicePatch(p, 'tp_mmb_martenot', 'MARTENOT', 'out', 'out',
       { onde: 0.8, creux: 0.15, souffle: 0.05, glide: 40, vib: 0.18, vib_rate: 5.5, attack: 10, release: 350, level: 0.8 },
       PALME_SOLO_FX) },
+  { label: '🎐 Ondes ×4', title: 'Vier ondes Martenot door één Palme, zoals Messiaen voor een ensemble van ondes schreef: akkoorden die nazingen in de snaren. Speel langzaam en legato.',
+    run: (p) => seedMartenotPolyPatch(p, 4) },
   { label: '🔁 Arp + String echo', title: 'Arpeggiator: houd een akkoord vast en hij speelt de toetsen op en neer over twee octaven, een geplukte snaar met echo. Latch staat aan: hij speelt door na het loslaten; het stopbord stopt hem.',
     run: (p) => seedSoloVoicePatch(p, 'tp_mmb_string', 'String', 'out', 'out', { pluck: 0.6, level: 0.8 },
       DIGITAL_ECHO_SOLO_FX, { arp: { mode: 2, octaves: 2, tempo: 110, division: 3, gate: 0.5, latch: 1, extclock: 0, channel: 0 } }) },

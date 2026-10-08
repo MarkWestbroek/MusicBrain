@@ -22,6 +22,7 @@ import { exportPanel, importPanel, parsePanelFile } from './panelIO';
 import { BUS_SOLO_FX, CONSOLE_EQ_SOLO_FX, PARA_EQ_SOLO_FX, DIODE_SOLO_FX, EQ_SOLO_FX, FET_SOLO_FX, OPTO_SOLO_FX, SAMPLER_MASTER_FX, VARIMU_SOLO_FX, STEREO_TAPE_SOLO_FX, DIGITAL_ECHO_SOLO_FX, BBD_SOLO_FX, RINGMOD_SOLO_FX, OCTAVER_SOLO_FX, HARMONIZER_SOLO_FX, REVERB_SOLO_FX, SPRING_SOLO_FX, PALME_SOLO_FX, METALLIQUE_SOLO_FX, TREMOLO_SOLO_FX, STEREO_PHASER_SOLO_FX, VIBE_SOLO_FX, ROTARY_SOLO_FX, SHIMMER_SOLO_FX, seedExampleModules, seedInternals, seedTestPatch, seedFmTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, seedDx7PolyPatch, seedSamplerPolyPatch, seedWarpsVocoderPatch, seedVocoderChoirPatch, seedZangPatch, seed808JamPatch, seedKrellPatch, type PolySeedOptions } from './seedModules';
 import { seedCs80BrassPatch } from './seedBrass';
 import { seedAxelFLeadPatch } from './seedAxelF';
+import { seedMartenotPolyPatch } from './seedMartenot';
 import { seedSid3Patch, seedSidPolyPatch } from './seedSid';
 import { seedMaterialBridgeDemo, seedReservoirDemo, seedTapeStripPolyPatch } from './seedModules';
 import { DRIVE_SOLO_FX, ENSEMBLE_SOLO_FX, TUBE_SOLO_FX, FOLDER_SOLO_FX, FREQSHIFT_SOLO_FX, WAH_SOLO_FX, seedAcidJamPatch, seedComplexVoicePatch, seedEPianoPolyPatch, seedOrganPolyPatch, seedRunglerPatch, seedRhythmBoxPatch, seedSemSweepPatch, seedSynthexPolyPatch, seedWestCoastPatch } from './seedShowcase';
@@ -516,6 +517,14 @@ export function ModularMbApp(): JSX.Element {
                     padding: '7px 12px', cursor: 'pointer', fontSize: 13,
                   }}
                 >🎹 Axel F-lead (2 saws)</button>
+                <button
+                  onClick={() => { setProject(seedMartenotPolyPatch(getProject(), 4)); setShowPoly(false); }}
+                  title="Ondes ×4: vier MARTENOT-stemmen als PolyGroup door één DIFFUSEUR (Palme) — een ensemble van ondes dat één kast deelt, zoals Messiaens Fête des belles eaux voor zes ondes."
+                  style={{
+                    textAlign: 'left', border: 'none', background: 'transparent',
+                    padding: '7px 12px', cursor: 'pointer', fontSize: 13,
+                  }}
+                >🎐 Ondes ×4 (Martenot-ensemble)</button>
                 <button
                   onClick={() => { setProject(seedSidPolyPatch(getProject())); setShowPoly(false); }}
                   title="SID ×3 (C64): één SID-emulatie met drie stem-cellen als PolyGroup, MIDI-in verdeelt de noten. Pulse met een langzame PWM (LFO op PW+), pitch-wheel op Bend. Nog zonder filter."
