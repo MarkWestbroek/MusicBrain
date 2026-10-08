@@ -4,15 +4,25 @@ Voorstel, 2026-10-08. Vraag van Mark: een ritmepatch combineren met een bas,
 een akkoord en een melodie, na elkaar ingespeeld, als sporen, hoogstens vier,
 "a bit like overdubbing", ook op de telefoon.
 
+> **Actueel (2026-10-09):** de eerste versie (2026-10-08) nam per spoor één
+> vaste regio op; Mark bedoelde het anders en zo is het nu gebouwd: eerst
+> vrij opnemen met metronoom, zo lang je wilt; daarna een regio kiezen,
+> loopen en op een spoor overdoen (drop-in), meermalen; dan mixen en
+> bewaren. Onderstaande tekst beschrijft die werkwijze.
+
 ## 1. Wat het is
 
-Een vierspoors bandrecorder naast het klavier. Spoor 1 speel je in op de
-patch van dat moment; daarna kies je een andere patch en speel je spoor 2 in
-terwijl spoor 1 meeklinkt; enzovoort tot vier. Elk spoor is een take zoals de
-opnameknop die nu al maakt: **wav + mid + patch**. Afspelen is de som van de
-wavs plus wat je live speelt.
+Een vierspoors bandrecorder naast het klavier. Spoor 1 speel je vrij in op
+de patch van dat moment, met de metronoom, zo lang je wilt; dat is de
+lengte van de song. Daarna kies je een andere patch en speel je spoor 2 in
+terwijl spoor 1 meeklinkt; enzovoort tot vier. Een stuk overdoen: zet een
+regio (van maat … t/m maat), loop hem, en ● op een spoor neemt de volgende
+ronde op in dat spoor (drop-in), zo vaak je wilt. Tevreden: volume en pan
+per spoor, bewaren, exporteren.
 
-Dat is bewust *audio-overdub* (tape), niet "vier patches tegelijk draaien":
+Elk spoor is een take zoals de opnameknop die nu al maakt: **wav + mid +
+patch**. Afspelen is de som van de wavs plus wat je live speelt. Dat is
+bewust *audio-overdub* (tape), niet "vier patches tegelijk draaien":
 
 - de simulator draait één patch; vier patches tegelijk zou een nieuw
   engine-model vragen en op de Teensy niet passen;
@@ -25,113 +35,83 @@ Dat is bewust *audio-overdub* (tape), niet "vier patches tegelijk draaien":
 
 | bouwsteen | waar | wat het doet |
 |---|---|---|
-| `MasterRecorder` | `sim/wavRecorder.ts` | neemt de master-som op als wav |
+| `MasterRecorder` | `sim/wavRecorder.ts` | neemt de master-som op als wav; meldt zijn startframe |
 | MIDI-recorder | `sim/midiRecorder.ts` | de gespeelde noten, cc, bend, druk |
-| `MidiFileSource` | `sim/midiFilePlayer.ts` | speelt een .mid in de engine, met lus en seek |
-| take (wav + mid + patch) | `SimulationPanel` `stopRec` | de opname van nu |
-| take-library | `sim/takeLibrary.ts` | bewaren in de browser, naar Imprint |
 | take-editor | `sim/TakeEditorWindow.tsx` | bijsnijden, exporteren (ook als Reaper-project) |
-| `simOut` | `AudioEngine` | vaste uitgang; de master hangt eraan |
+| `simOut` / `speakers` | `AudioEngine` | vaste uitgang; de recorder tapt `speakers` |
 
-Nieuw is dus vooral het **song**-model, de **transport** en de **sporenstrip**.
-
-## 3. Ontwerp
+## 3. Ontwerp (zoals gebouwd)
 
 ### Song
 
 ```
-Song { id, name, bpm, bars, metronome: boolean, tracks: Track[] (≤ 4) }
-Track { id, name, take: Take (wav, mid, patch.json), gain, pan, mute }
+Song  { id, name, bpm, beatsPerBar, metronome, loop: Region | null, tracks: Track[] (≤ 4) }
+Track { id, name, gain, pan, mute, audio: { channels, sampleRate } | null, midi, patch }
+Region { from, to }   // maten, 0-based, `to` exclusief
 ```
 
-Een spoor is precies één **regio** lang: de lus. Volume en pan staan per
-spoor in de strip, vóór het opnemen al (ze gelden bij het afspelen; wat op
-de wav komt is de patch met zijn eigen Level). Na het inspelen van alle
-sporen kun je afspelen, de mix bijstellen en dan bewaren of exporteren.
+`sim/song.ts` is zuiver (getest): maatrekensom, `songMs` = het langste
+spoor, `clampRegion`/`loopMs`, `cutRegion` (knippen met fades), `punchIn`
+(drop-in met kruisfades), `mixdown` (equal-power pan), `midiToRegion`
+(naar songtijd; een noot uit het aftellen begint op het begin) en
+`spliceMidi`, `exportFiles`. `sim/songStore.ts` bewaart in IndexedDB
+`mmb-songs`; bewaren is een handeling (⤓), nooit automatisch.
 
-**Bewaren is een handeling**, nooit automatisch (regio's opnieuw inspelen
-zou anders een stapel bestanden geven): ⤓ bewaart de song in de take-library
-(IndexedDB) onder één groep, mét de mixdown. **Exporteren** geeft bij drie
-sporen zeven bestanden: `mix.wav`, `1.mid`/`2.mid`/`3.mid` en
-`1.patch.json`/`2.patch.json`/`3.patch.json`, plus (optie) de wav per spoor.
-Reaper-project met vier sporen later (de exporter bestaat al voor één).
+### Transport (`sim/SongTransport.ts`)
 
-**Laden**: een bewaarde song uit de library komt met zijn sporen terug (de
-wav per spoor zit erin). Een export zonder wav per spoor is later ook te
-laden door elk spoor uit zijn mid en patch opnieuw te renderen (de sim kan
-een mid door een patch spelen; headless, zoals de patch-library meet).
+- **Vrij opnemen** (● zonder lus): recorder aan, één maat aftellen
+  (metronoom tikt altijd), dan songtijd 0 op een geplande contexttijd
+  (`origin`); de andere sporen starten daar; opnemen tot ■. Het stuk vanaf
+  `origin` wordt het spoor; de song groeit mee.
+- **Lus** (regio + lus aan): de spelers zijn `AudioBufferSourceNode`s met
+  `loop`, `loopStart`, `loopEnd` op de regio, allemaal op `origin`.
+- **Drop-in** (● met lus aan en spelend): recorder aan; op de volgende
+  keer dat de lus bij het begin van de regio is wordt één ronde geknipt en
+  met `punchIn` in het spoor gezet; het spoor start opnieuw op de plek waar
+  de anderen zijn. Zo vaak je wilt.
+- **Tijd**: alles op de klok van de AudioContext; de tap-worklet meldt
+  `currentFrame` bij zijn eerste blok (`MasterRecorder.startFrame`), dus
+  het knippen is sample-precies. MIDI loopt op `performance.now()` en wordt
+  met het verschil met de contexttijd op songtijd gezet.
+- **Wat je hoort**: sporen en metronoom gaan rechtstreeks naar
+  `ctx.destination`, buiten de `speakers`-bus om, dus de recorder neemt ze
+  niet mee: op een spoor komt alleen de patch.
+- **Tempo**: heeft de patch een tempoknop (ritmebox, Grids, Marbles, klok;
+  `tempoControl` in `midiRecorder.ts`), dan volgt de song die vóór het
+  eerste spoor, en zet het paneel die knop op het songtempo daarna
+  (`setPatchControl`), zodat een ritmebox op spoor 2 in de maat loopt.
 
-### Transport
+### Sporenstrip (`sim/OverdubPanel.tsx`)
 
-- **Regio.** De lus is de regio: tempo (van de patch, anders 120) en een
-  aantal maten, in te stellen vóór spoor 1 (standaard 2 maten). Alles loopt
-  rond, zoals een looper; er is geen lineaire stand (besluit 2026-10-08).
-- **Opnemen van spoor n.** Druk op ● bij een spoor: één maat aftellen
-  (altijd; de metronoom tikt mee, aan of uit als optie), dan spelen de
-  andere sporen af en neemt de recorder precies één regio op. Daarna blijf
-  je op dat spoor: je hoort het terug in de lus en kunt het opnieuw doen,
-  tot je zelf naar een volgend spoor gaat. Het spoor krijgt de patch van dat
-  moment. Je voegt dus regio's toe, één per spoor.
-- **Timing.** Afspelen en opnemen starten op dezelfde `AudioContext`-tijd:
-  de `Tone.Player`s van de sporen en de `MasterRecorder` delen één
-  startmoment, dus de sporen liggen sample-precies op elkaar. Het klavier
-  heeft de latency van Web Audio (~10–30 ms op een telefoon); dat hoor je
-  als speler, niet in de opname (die neemt de engine op, niet de
-  luidspreker).
-- **Alleen het nieuwe spoor** komt op de wav: de spoor-players hangen aan
-  `simOut`, naast de master, niet erdoorheen; de recorder tapt de master.
-
-### Sporenstrip (speelmodus)
-
-Achter de opnameknop, onder het klavier, één regel per spoor:
-
-```
-● 1  Ritmebox        ▮▮▮▮▮▮▮▮▮▮▮▮  🔈  ✕
-● 2  SID bas         ▮▮▮▮▮▮▮▮      🔈  ✕
-● 3  —  (patch van nu: E-piano)
-     4  —
-▶ ■  ⟲ lus   1 maat aftellen   ⤓ bewaren
-```
-
-- ● bij een leeg spoor = opnemen; bij een vol spoor = opnieuw (vraagt).
-- De naam is de patchnaam; tikken erop laadt die patch (om er nog even op
-  te spelen of hem bij te draaien); de patch zit in het spoor.
-- 🔈 dempen, ✕ weg, en per spoor een volume- en een panknop (ook vóór het
-  opnemen al te zetten).
-- Op een telefoon: dezelfde strip, de balkjes zijn de golfvorm van de take
-  (de take-editor tekent die al).
+Klapt open met ≣ in de werkbalk van het toetsenbord (speelmodus). Per
+spoor: ● (vrij of drop-in), patchnaam, een balkje (lengte van het spoor op
+de song, de regio, de positie), volume, pan, 🔈, ✕. Eronder ▶/■ met de
+teller, bpm, metronoom; met sporen: lus aan/uit en de maten, ⤓ bewaren,
+⤴ export; 📂 laden.
 
 ### Teensy (fase 2)
 
-De sporen spelen in de browser; de Teensy speelt live. Wie de Teensy
-"hoort" via Windows (Listen to this device) hoort beide. Opnemen van de
-Teensy in een spoor kan via AUDIO IN (getUserMedia op het Teensy-apparaat);
-dat is dezelfde route als de microfoon nu. Niet in versie 1.
+De sporen spelen in de browser; de Teensy speelt live. Opnemen van de
+Teensy in een spoor kan via AUDIO IN (getUserMedia op het Teensy-apparaat).
+Niet in versie 1.
 
-## 4. Stappen
+## 4. Open
 
-1. **Song-model + library.** Types, bewaren/laden in de take-library als
-   groep, exporteren als map. Test: rondreis.
-2. **Transport.** `SongTransport` in `sim/`: players per spoor aan `simOut`,
-   gezamenlijk startmoment, lus, aftellen, opnemen van spoor n via de
-   bestaande recorder-handlers (`recordControl`). Test met een
-   kunstmatige take: twee sporen liggen op elkaar binnen één blok.
-3. **Sporenstrip** in `FrontKeys` (de werkbalk) + een paneel eronder;
-   `data-tour`-anker en een stap in de rondleiding; Engels via `nlen()`.
-4. **Proef op de telefoon**: ritmebox → bas → akkoord → melodie, lus van
-   twee maten; latency op het oor; dan de knoppen bijstellen.
-5. Later: spoor opnieuw renderen uit de mid met een andere patch (headless,
-   zoals de patch-library meet); Reaper-export met vier sporen; Teensy.
+- Export zonder stems terugladen: per spoor renderen uit mid + patch
+  (headless, zoals de patch-library meet).
+- Reaper-project met vier sporen.
+- De ritmebox op "de één" laten starten bij het aftellen (Start/Stop-pad).
+- Teensy-fase.
 
-## 5. Besluiten (Mark, 2026-10-08)
+## 5. Besluiten (Mark, 2026-10-08/09)
 
-1. Lus, altijd: een regio van hele maten; je voegt regio's toe, één per spoor.
-2. Aftellen altijd één maat; metronoom aan/uit als optie.
-3. Een paneel dat openklapt onder het klavier.
-4. Mixdown bij bewaren, maar bewaren is een bewuste handeling, niet
-   automatisch. Exporteren = per spoor mid + patch, plus de mix (zeven
-   bestanden bij drie sporen).
-5. Volume en pan per spoor, al vóór het opnemen; na alle sporen terugluisteren,
-   mixen en dan pas exporteren.
-6. Laden van een bewaarde song uit de library; laden van een export via
-   opnieuw renderen komt later.
+1. Eerst vrij opnemen met metronoom, zo lang je wilt; de song is zo lang
+   als het langste spoor.
+2. Daarna regio's kiezen en loopen voor drop-in, meermalen per spoor.
+3. Aftellen altijd één maat; metronoom aan/uit als optie.
+4. Een paneel dat openklapt onder het klavier.
+5. Bewaren bewust (⤓), mixdown erbij; export = mix + per spoor mid + patch
+   (zeven bestanden bij drie sporen).
+6. Volume en pan per spoor, al vóór het opnemen; na alles terugluisteren,
+   mixen, dan exporteren. Laden uit de library.
+7. Tempo van een ritmebox en van de opname volgen elkaar.

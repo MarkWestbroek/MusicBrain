@@ -131,14 +131,22 @@ export function takeTempo(clockTimes: readonly number[], patchTempo: number | nu
 
 /** Tempoknop van een klokmodule (Grids, Marbles) in deze patch, anders null. */
 export function patchTempo(project: ModularProject, patch: Patch): number | null {
+  return tempoControl(project, patch)?.bpm ?? null;
+}
+
+/** De module in de patch die het tempo bepaalt (ritmebox, Grids, Marbles,
+ *  klok): zijn `tempo`-knop en de stand. De overdub volgt die knop, of zet
+ *  hem (sim/OverdubPanel.tsx). */
+export function tempoControl(project: ModularProject, patch: Patch): { moduleId: string; controlId: 'tempo'; bpm: number } | null {
   const ids = new Set(project.racks.filter((r) => patch.rackIds.includes(r.id)).flatMap((r) => r.slots.map((s) => s.moduleId)));
   for (const m of project.modules) {
-    if (!ids.has(m.id) || (m.typeId !== 'tp_mmb_grids' && m.typeId !== 'tp_mmb_marbles')) continue;
+    if (!ids.has(m.id) || !TEMPO_TYPES.has(m.typeId)) continue;
     const v = Number(patch.controlState[m.id]?.tempo ?? 120);
-    if (Number.isFinite(v)) return v;
+    if (Number.isFinite(v)) return { moduleId: m.id, controlId: 'tempo', bpm: v };
   }
   return null;
 }
+const TEMPO_TYPES = new Set(['tp_mmb_rhythm', 'tp_mmb_grids', 'tp_mmb_marbles', 'tp_mmb_clock']);
 
 /** Verzamelt MIDI tijdens een opname. */
 export class MidiRecorder {

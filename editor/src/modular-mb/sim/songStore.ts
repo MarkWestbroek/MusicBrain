@@ -5,7 +5,7 @@
 
 import type { ModularProject } from '../types';
 import type { MidiEvent } from './midiRecorder';
-import { MAX_TRACKS, clampBars, clampBpm, type Song, type SongTrack } from './song';
+import { MAX_TRACKS, clampBpm, clampRegion, type Region, type Song, type SongTrack } from './song';
 
 const DB = 'mmb-songs';
 const STORE = 'songs';
@@ -19,16 +19,17 @@ export interface StoredTrack {
   patch: string | null;
 }
 export interface StoredSong {
-  id: string; name: string; bpm: number; bars: number; beatsPerBar: number; metronome: boolean;
+  id: string; name: string; bpm: number; beatsPerBar: number; metronome: boolean;
+  loop: Region | null;
   savedAt: number;
   tracks: StoredTrack[];
 }
-export interface SongSummary { id: string; name: string; bpm: number; bars: number; tracks: number; savedAt: number }
+export interface SongSummary { id: string; name: string; bpm: number; tracks: number; savedAt: number }
 
 // ── zuiver, voor de tests ──────────────────────────────────────────────────
 export function toStored(song: Song, savedAt = Date.now()): StoredSong {
   return {
-    id: song.id, name: song.name, bpm: song.bpm, bars: song.bars, beatsPerBar: song.beatsPerBar, metronome: song.metronome, savedAt,
+    id: song.id, name: song.name, bpm: song.bpm, beatsPerBar: song.beatsPerBar, metronome: song.metronome, loop: song.loop, savedAt,
     tracks: song.tracks.slice(0, MAX_TRACKS).map((t) => ({
       id: t.id, name: t.name, gain: t.gain, pan: t.pan, mute: t.mute,
       sampleRate: t.audio?.sampleRate ?? 0,
@@ -46,10 +47,13 @@ export function fromStored(s: StoredSong): Song {
     midi: Array.isArray(t.midi) ? t.midi : [],
     patch: parsePatch(t.patch),
   }));
-  return {
-    id: s.id, name: s.name ?? '', bpm: clampBpm(s.bpm), bars: clampBars(s.bars),
-    beatsPerBar: Math.max(1, Math.min(16, Math.round(s.beatsPerBar || 4))), metronome: s.metronome !== false, tracks,
+  const song: Song = {
+    id: s.id, name: s.name ?? '', bpm: clampBpm(s.bpm),
+    beatsPerBar: Math.max(1, Math.min(16, Math.round(s.beatsPerBar || 4))), metronome: s.metronome !== false, loop: null, tracks,
   };
+  const r = s.loop;
+  song.loop = r && typeof r.from === 'number' && typeof r.to === 'number' ? clampRegion(song, r) : null;
+  return song;
 }
 const finite = (v: unknown, fb: number): number => (typeof v === 'number' && Number.isFinite(v) ? v : fb);
 function parsePatch(text: string | null): ModularProject | null {
@@ -57,7 +61,7 @@ function parsePatch(text: string | null): ModularProject | null {
   try { return JSON.parse(text) as ModularProject; } catch { return null; }
 }
 export function summaryOf(s: StoredSong): SongSummary {
-  return { id: s.id, name: s.name, bpm: s.bpm, bars: s.bars, tracks: (s.tracks ?? []).filter((t) => t.channels?.length).length, savedAt: s.savedAt };
+  return { id: s.id, name: s.name, bpm: s.bpm, tracks: (s.tracks ?? []).filter((t) => t.channels?.length).length, savedAt: s.savedAt };
 }
 
 // ── IndexedDB ─────────────────────────────────────────────────────────────

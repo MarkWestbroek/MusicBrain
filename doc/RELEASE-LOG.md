@@ -19,16 +19,19 @@
 
 ### 2026-10-08 — Sporen: vierspoors overdub in de speelmodus (editor)
 - **≣ Sporen** in de werkbalk van het toetsenbord: vier sporen na elkaar
-  inspelen, elk één regio (tempo × maten), als audio-overdub: wav + mid +
-  patch per spoor (`sim/song.ts`, `sim/SongTransport.ts`,
-  `sim/OverdubPanel.tsx`). Eén maat aftellen, metronoom als optie, de
-  sporen en de metronoom buiten de recorder-bus om (op een spoor komt
-  alleen de patch). De tap-worklet meldt zijn startframe, zodat de regio
-  sample-precies uit de opname geknipt wordt; het nieuwe spoor valt meteen
-  in de lus. Volume, pan, dempen, weg; ⤓ bewaren (IndexedDB `mmb-songs`,
-  bewust), 📂 laden, ⤴ export (mix.wav + n.mid + n.patch.json). Plan:
-  `doc/plans/overdub.md`. Proef zonder handen op telefoonformaat: twee
-  sporen op twee patches, beide met audio, bewaard en terug.
+  inspelen als audio-overdub, wav + mid + patch per spoor (`sim/song.ts`,
+  `sim/SongTransport.ts`, `sim/OverdubPanel.tsx`). Vrij opnemen: één maat
+  aftellen (metronoom), dan zo lang je speelt, tot ■; de song is zo lang
+  als het langste spoor. Daarna een regio (van maat t/m maat) loopen en met
+  ● op een spoor de volgende ronde opnemen (drop-in, met kruisfades op de
+  naden), zo vaak je wilt. De sporen en de metronoom lopen buiten de
+  recorder-bus om (op een spoor komt alleen de patch); de tap-worklet meldt
+  zijn startframe, zodat een stuk sample-precies uit de opname geknipt
+  wordt. Tempo: vóór het eerste spoor volgt de song de tempoknop van de
+  patch (ritmebox, Grids, Marbles, klok), daarna volgt die knop de song.
+  Volume, pan, dempen, weg; ⤓ bewaren (IndexedDB `mmb-songs`, bewust),
+  📂 laden, ⤴ export (mix.wav + n.mid + n.patch.json). Plan:
+  `doc/plans/overdub.md`. Proef zonder handen op telefoonformaat.
 
 ### 2026-10-08 — Ondes ×4: een ensemble van ondes door één Palme (editor)
 - `seedMartenotPolyPatch` (`seedMartenot.ts`): MidiIn → [MARTENOT]×N

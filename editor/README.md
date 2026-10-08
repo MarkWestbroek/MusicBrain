@@ -202,15 +202,17 @@ Binnenkijken blijft Nederlands; een eigen patch houdt zijn eigen tekst.
   ⇕ lange toetsen, ⏹ alle noten uit, ⛶ volledig scherm met front of 🎹 alleen
   het klavier.
 - **Sporen** (≣ in de werkbalk van het toetsenbord, speelmodus): een
-  vierspoors recorder, als overdub op tape. Zet tempo en maten (de regio),
-  druk ● bij spoor 1: één maat aftellen, dan precies één regio op de patch
-  van nu. Kies een andere patch, ● bij spoor 2, enzovoort tot vier; de
-  andere sporen spelen mee, het nieuwe valt meteen in de lus. Per spoor
-  volume, pan, dempen en weg; metronoom aan of uit (het aftellen tikt
-  altijd). **⤓** bewaart de song in de browser (bewust, nooit vanzelf),
-  **📂** laadt er een terug, **⤴** exporteert de mix als wav en per spoor
-  de .mid en de patch (zeven bestanden bij drie sporen). Ontwerp:
-  [doc/plans/overdub.md](../doc/plans/overdub.md).
+  vierspoors recorder, als overdub op tape. ● bij spoor 1: één maat
+  aftellen (metronoom), dan opnemen zo lang je speelt, ■ om te stoppen.
+  Kies een andere patch, ● bij spoor 2, enzovoort tot vier; de andere
+  sporen spelen mee. Een stuk overdoen: **lus** aan, de maten kiezen, ▶,
+  en ● op een spoor neemt de volgende ronde op in dat spoor (drop-in), zo
+  vaak je wilt. Heeft de patch een tempoknop (ritmebox, klok), dan volgt
+  de song die vóór het eerste spoor en de knop de song daarna. Per spoor
+  volume, pan, dempen en weg. **⤓** bewaart de song in de browser (bewust,
+  nooit vanzelf), **📂** laadt er een terug, **⤴** exporteert de mix als
+  wav en per spoor de .mid en de patch (zeven bestanden bij drie sporen).
+  Ontwerp: [doc/plans/overdub.md](../doc/plans/overdub.md).
 - **Lint** (〰 in de werkbalk van het toetsenbord, ook in de Simulatie-tab):
   in plaats van toetsen een draad zoals op het Trautonium. De plek is de
   toonhoogte, traploos (glissando, vibrato met de vinger); laag op het lint
