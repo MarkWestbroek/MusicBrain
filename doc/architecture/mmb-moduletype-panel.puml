@@ -1,8 +1,11 @@
 @startuml mmb-moduletype-panel
 ' MMB: ModuleType (Model/contract) — Panel (View) — realisaties.
-' As-built naar editor/src/modular-mb/types.ts (2026-07-06).
+' As-built naar editor/src/modular-mb/types.ts (2026-07-06); Readout, DeviceDisplay en
+' de readout-kant van Indicator zijn voorstel (doc/plans/module-meldwaarden.md, 2026-10-06).
 ' Bron voor doc/architecture/mmb-moduletype-panel.xmi (EA-import);
 ' regenereer die met tools/uml_xmi_gen.py (model als data daarin) na wijzigingen hier.
+' Hetzelfde model als Omnium V3 (mmb-moduletype-panel.v3.json) en als SVG via de
+' Omnium-render-sidecar: tools/mmb_model_v3.py (leest dezelfde data).
 
 package "Contract (het midden: ModuleType-data)" {
   class ModuleType {
@@ -42,7 +45,7 @@ package "Contract (het midden: ModuleType-data)" {
   class Joystick
   class Exotic
   abstract class Indicator {
-    bindTo : Control.id
+    bindTo : Control.id | Readout.id
   }
   class Display {
     digits : int
@@ -58,10 +61,18 @@ package "Contract (het midden: ModuleType-data)" {
     label : string
     count : int
   }
+  class Readout <<voorstel>> {
+    id : string
+    kind : number|text
+    label : string
+    unit : string
+  }
 
   ModuleType "1" *-- "1..*" Port
   ModuleType "1" *-- "0..*" Control
+  ModuleType "1" *-- "0..*" Readout
   ModuleType "1" *-- "0..*" CellGroup
+  Indicator --> "0..1" Readout : bindTo
   CellGroup --> "0..*" Port : portIds (per cel)
   CellGroup --> "0..*" Control : controlIds (per cel)
   Control <|-- Knob
@@ -76,7 +87,14 @@ package "Contract (het midden: ModuleType-data)" {
   Indicator <|-- Led
   note right of Indicator
     read-only: toont een Control-waarde
-    (bindTo) of statische tekst
+    of een Readout (bindTo), of statische tekst
+  end note
+  note right of Readout
+    Toestand die de module zelf maakt
+    (stap, banknaam, klanknaam, piek).
+    Geen control: niet in de patch,
+    er is alleen een waarde zolang de
+    module draait.
   end note
 }
 
@@ -101,6 +119,11 @@ package "View (paneel)" {
   class PanelDecoration {
     kind : rect|line|text|tubeSlot|ledMarker|jackBlock
   }
+  class DeviceDisplay <<View, voorstel>> {
+    toont readouts van 1..* modules
+    (display op de Teensy / FRONT-kaart)
+  }
+  DeviceDisplay --> "0..*" Readout : toont
 
   Panel "0..*" --> "1" ModuleType : visualiseert
   Panel *-- "0..*" ControlPlacement
@@ -124,8 +147,12 @@ package "Realisaties" {
     inputPortKind(portId)
     writeCvPort(portId, v)
     setControl(controlId, v)
+    readouts(sink) (voorstel)
   }
-  class SimModule <<browser>>
+  class SimModule <<browser, wasm>> {
+    mmb_readout_count() (voorstel)
+    mmb_readout(i) (voorstel)
+  }
 
   ModuleInstance --> "1" ModuleType : typeId
   ModuleInstance *-- "1" Panel : visual

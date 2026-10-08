@@ -126,8 +126,8 @@ Live: een push naar `main` met iets onder `editor/` deployt via de Action "Deplo
 | FW-13 | Stemtoon: MIDI-IN-wasm opnieuw bouwen (`tools/mmb-wasm/build.sh midiin`, vraagt wasi-sdk), apparaatinstelling in EEPROM, flashen en stemmen op hardware | [BACKLOG](../BACKLOG.md) |
 | — | Hangende noten: de oorzaak is niet gevonden (klavier dat een vinger niet afmeldt, of stemverdeling bij sustain). ⏹ Panic is de pleister. Let bij een volgende melding op of sustain aan stond. | speelmodus |
 | — | Werkbalk staand op de telefoon blijft twee regels | speelmodus |
-| — | Tekeningen per moduletype op het front: VU-meter van OUT, bankstrip van sampler en tapestrip. Het zijn geen controls; ze vragen een eigen itemsoort of een display op het paneel van de module. | `ModulePanel.tsx`, `frontLayout.ts` |
+| — | Tekeningen per moduletype op het front: VU-meter van OUT, bankstrip van sampler en tapestrip. Het zijn geen controls. Oplossing: de module meldt zijn toestand zelf en het paneel krijgt er een display voor, zie [module-meldwaarden.md](module-meldwaarden.md). | `ModulePanel.tsx`, `frontLayout.ts` |
 | — | Luisteroordeel over de tien nieuwe patches in de standaardset (DX7 ×8, Mellotron fluit en strijkers, CS-80 koper ×4, Axel F, SID, Buchla-stem, ritmebox, acid, West Coast); wat tegenvalt is één regel in `demoSeeds.ts` | Mark |
-| — | Een Mellotron-front toont het banknummer zonder naam: de bankstrip is een tekening per moduletype, geen display (zie hierboven) | `ModulePanel.tsx` |
+| — | Een Mellotron-front toont het banknummer zonder naam: de bankstrip is een tekening per moduletype, geen display. Zie [module-meldwaarden.md](module-meldwaarden.md). | `ModulePanel.tsx` |
 | — | Bestaande gebruikers krijgen de nieuwe voorbeelden niet vanzelf; ze staan onder "Voorbeeld toevoegen". Een eenmalige melding "er zijn nieuwe voorbeelden" kan later. | `PatchSelect.tsx` |
 | ED-RX-1 | Reflex: pedaalsimulatie in de effect-switcher, door Mark uitgesteld | [pedaalsimulatie-effect-switcher.md](pedaalsimulatie-effect-switcher.md) |

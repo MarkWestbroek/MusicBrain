@@ -1,0 +1,806 @@
+{
+ "versie": "v3",
+ "naam": "MMB moduletype, paneel en realisaties",
+ "beschrijving": "ModuleType (contract) met poorten, controls, readouts en celgroepen; het paneel als view; firmware en wasm als realisaties. Zelfde data als mmb-moduletype-panel.puml. Readout, DeviceDisplay en de readout-kant van Indicator zijn voorstel (doc/plans/module-meldwaarden.md).",
+ "datatypes": [],
+ "enums": [],
+ "referentielijstInstanties": [],
+ "domeinen": [
+  {
+   "naam": "mmb",
+   "kleur": "#bfdbfe",
+   "description": "Modular Music Brain: moduletypes"
+  }
+ ],
+ "entiteiten": [
+  {
+   "typenaam": "ModuleType",
+   "description": "Contract (het midden: ModuleType-data)",
+   "domein": "mmb",
+   "kleur": "#bfdbfe",
+   "isAbstract": false,
+   "meervoud": "moduletypes",
+   "velden": [],
+   "afgeleideVelden": [
+    {
+     "naam": "id",
+     "goType": "string",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    },
+    {
+     "naam": "categoryId",
+     "goType": "string",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    },
+    {
+     "naam": "variant",
+     "goType": "string",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    },
+    {
+     "naam": "role",
+     "goType": "ModuleRole",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    },
+    {
+     "naam": "internal",
+     "goType": "bool",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    }
+   ],
+   "relaties": [
+    {
+     "naam": "ModuleType_ports_Port",
+     "doelEntiteit": "Port",
+     "doelKardinaliteit": "1..*",
+     "bronKardinaliteit": "1",
+     "naamLabelHeen": "bevat: ports",
+     "momentvoorkomen": "meervoudig",
+     "velden": []
+    },
+    {
+     "naam": "ModuleType_controls_Control",
+     "doelEntiteit": "Control",
+     "doelKardinaliteit": "0..*",
+     "bronKardinaliteit": "1",
+     "naamLabelHeen": "bevat: controls",
+     "momentvoorkomen": "meervoudig",
+     "velden": []
+    },
+    {
+     "naam": "ModuleType_cellGroups_CellGroup",
+     "doelEntiteit": "CellGroup",
+     "doelKardinaliteit": "0..*",
+     "bronKardinaliteit": "1",
+     "naamLabelHeen": "bevat: cellGroups",
+     "momentvoorkomen": "meervoudig",
+     "velden": []
+    },
+    {
+     "naam": "ModuleType_readouts_Readout",
+     "doelEntiteit": "Readout",
+     "doelKardinaliteit": "0..*",
+     "bronKardinaliteit": "1",
+     "naamLabelHeen": "bevat: readouts",
+     "momentvoorkomen": "meervoudig",
+     "velden": []
+    }
+   ]
+  },
+  {
+   "typenaam": "Port",
+   "description": "Contract (het midden: ModuleType-data)",
+   "domein": "mmb",
+   "kleur": "#bfdbfe",
+   "isAbstract": false,
+   "meervoud": "ports",
+   "velden": [],
+   "afgeleideVelden": [
+    {
+     "naam": "id",
+     "goType": "string",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    },
+    {
+     "naam": "signalType",
+     "goType": "cv|gate|trigger|audio|midi",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    },
+    {
+     "naam": "direction",
+     "goType": "in|out",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    },
+    {
+     "naam": "range",
+     "goType": "CvRange",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    },
+    {
+     "naam": "cvFormat",
+     "goType": "analog|dcv12|dcv16",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    },
+    {
+     "naam": "eventKind",
+     "goType": "voice|global",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    }
+   ],
+   "relaties": []
+  },
+  {
+   "typenaam": "Control",
+   "description": "Contract (het midden: ModuleType-data)",
+   "domein": "mmb",
+   "kleur": "#bfdbfe",
+   "isAbstract": true,
+   "meervoud": "controls",
+   "velden": [],
+   "afgeleideVelden": [
+    {
+     "naam": "id",
+     "goType": "string",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    },
+    {
+     "naam": "label",
+     "goType": "string",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    }
+   ],
+   "relaties": []
+  },
+  {
+   "typenaam": "Knob",
+   "description": "Contract (het midden: ModuleType-data)",
+   "domein": "mmb",
+   "kleur": "#bfdbfe",
+   "isAbstract": false,
+   "meervoud": "knobs",
+   "velden": [],
+   "afgeleideVelden": [
+    {
+     "naam": "min",
+     "goType": "float",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    },
+    {
+     "naam": "max",
+     "goType": "float",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    },
+    {
+     "naam": "defaultValue",
+     "goType": "float",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    },
+    {
+     "naam": "step",
+     "goType": "float",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    },
+    {
+     "naam": "taper",
+     "goType": "lin|log|exp",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    },
+    {
+     "naam": "style",
+     "goType": "KnobStyle",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    }
+   ],
+   "relaties": [],
+   "erft": "Control"
+  },
+  {
+   "typenaam": "Slider",
+   "description": "Contract (het midden: ModuleType-data)",
+   "domein": "mmb",
+   "kleur": "#bfdbfe",
+   "isAbstract": false,
+   "meervoud": "sliders",
+   "velden": [],
+   "afgeleideVelden": [],
+   "relaties": [],
+   "erft": "Control"
+  },
+  {
+   "typenaam": "Toggle",
+   "description": "Contract (het midden: ModuleType-data)",
+   "domein": "mmb",
+   "kleur": "#bfdbfe",
+   "isAbstract": false,
+   "meervoud": "toggles",
+   "velden": [],
+   "afgeleideVelden": [],
+   "relaties": [],
+   "erft": "Control"
+  },
+  {
+   "typenaam": "Switch",
+   "description": "Contract (het midden: ModuleType-data)",
+   "domein": "mmb",
+   "kleur": "#bfdbfe",
+   "isAbstract": false,
+   "meervoud": "switchs",
+   "velden": [],
+   "afgeleideVelden": [
+    {
+     "naam": "positions",
+     "goType": "string[]",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    },
+    {
+     "naam": "defaultIndex",
+     "goType": "int",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    }
+   ],
+   "relaties": [],
+   "erft": "Control"
+  },
+  {
+   "typenaam": "Button",
+   "description": "Contract (het midden: ModuleType-data)",
+   "domein": "mmb",
+   "kleur": "#bfdbfe",
+   "isAbstract": false,
+   "meervoud": "buttons",
+   "velden": [],
+   "afgeleideVelden": [],
+   "relaties": [],
+   "erft": "Control"
+  },
+  {
+   "typenaam": "Joystick",
+   "description": "Contract (het midden: ModuleType-data)",
+   "domein": "mmb",
+   "kleur": "#bfdbfe",
+   "isAbstract": false,
+   "meervoud": "joysticks",
+   "velden": [],
+   "afgeleideVelden": [],
+   "relaties": [],
+   "erft": "Control"
+  },
+  {
+   "typenaam": "Exotic",
+   "description": "Contract (het midden: ModuleType-data)",
+   "domein": "mmb",
+   "kleur": "#bfdbfe",
+   "isAbstract": false,
+   "meervoud": "exotics",
+   "velden": [],
+   "afgeleideVelden": [],
+   "relaties": [],
+   "erft": "Control"
+  },
+  {
+   "typenaam": "Indicator",
+   "description": "Contract (het midden: ModuleType-data)",
+   "domein": "mmb",
+   "kleur": "#bfdbfe",
+   "isAbstract": true,
+   "meervoud": "indicators",
+   "velden": [],
+   "afgeleideVelden": [
+    {
+     "naam": "bindTo",
+     "goType": "Control.id_|_Readout.id",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    }
+   ],
+   "relaties": [
+    {
+     "naam": "Indicator_bindTo_Readout",
+     "doelEntiteit": "Readout",
+     "doelKardinaliteit": "0..1",
+     "bronKardinaliteit": "0..*",
+     "naamLabelHeen": "bindTo",
+     "momentvoorkomen": "enkelvoudig",
+     "velden": []
+    }
+   ],
+   "erft": "Control"
+  },
+  {
+   "typenaam": "Display",
+   "description": "Contract (het midden: ModuleType-data)",
+   "domein": "mmb",
+   "kleur": "#bfdbfe",
+   "isAbstract": false,
+   "meervoud": "displays",
+   "velden": [],
+   "afgeleideVelden": [
+    {
+     "naam": "digits",
+     "goType": "int",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    },
+    {
+     "naam": "format",
+     "goType": "int|float1|float2|midi|onoff",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    },
+    {
+     "naam": "style",
+     "goType": "led|oled",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    }
+   ],
+   "relaties": [],
+   "erft": "Indicator"
+  },
+  {
+   "typenaam": "Led",
+   "description": "Contract (het midden: ModuleType-data)",
+   "domein": "mmb",
+   "kleur": "#bfdbfe",
+   "isAbstract": false,
+   "meervoud": "leds",
+   "velden": [],
+   "afgeleideVelden": [
+    {
+     "naam": "color",
+     "goType": "string",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    },
+    {
+     "naam": "bindMatch",
+     "goType": "float",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    }
+   ],
+   "relaties": [],
+   "erft": "Indicator"
+  },
+  {
+   "typenaam": "CellGroup",
+   "description": "Contract (het midden: ModuleType-data)",
+   "domein": "mmb",
+   "kleur": "#bfdbfe",
+   "isAbstract": false,
+   "meervoud": "cellgroups",
+   "velden": [],
+   "afgeleideVelden": [
+    {
+     "naam": "id",
+     "goType": "string",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    },
+    {
+     "naam": "label",
+     "goType": "string",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    },
+    {
+     "naam": "count",
+     "goType": "int",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    }
+   ],
+   "relaties": [
+    {
+     "naam": "CellGroup_portIds_Port",
+     "doelEntiteit": "Port",
+     "doelKardinaliteit": "0..*",
+     "bronKardinaliteit": "0..*",
+     "naamLabelHeen": "portIds (per cel)",
+     "momentvoorkomen": "meervoudig",
+     "velden": []
+    },
+    {
+     "naam": "CellGroup_controlIds_Control",
+     "doelEntiteit": "Control",
+     "doelKardinaliteit": "0..*",
+     "bronKardinaliteit": "0..*",
+     "naamLabelHeen": "controlIds (per cel)",
+     "momentvoorkomen": "meervoudig",
+     "velden": []
+    }
+   ]
+  },
+  {
+   "typenaam": "Readout",
+   "description": "Contract (het midden: ModuleType-data)",
+   "domein": "mmb",
+   "kleur": "#bfdbfe",
+   "isAbstract": false,
+   "meervoud": "readouts",
+   "velden": [],
+   "afgeleideVelden": [
+    {
+     "naam": "id",
+     "goType": "string",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    },
+    {
+     "naam": "kind",
+     "goType": "number|text",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    },
+    {
+     "naam": "label",
+     "goType": "string",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    },
+    {
+     "naam": "unit",
+     "goType": "string",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    }
+   ],
+   "relaties": []
+  },
+  {
+   "typenaam": "Panel",
+   "description": "View (paneel, front, apparaat)",
+   "domein": "mmb",
+   "kleur": "#bbf7d0",
+   "isAbstract": false,
+   "meervoud": "panels",
+   "velden": [],
+   "afgeleideVelden": [
+    {
+     "naam": "hpWidth",
+     "goType": "HP",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    },
+    {
+     "naam": "heightMm",
+     "goType": "float",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    },
+    {
+     "naam": "texture",
+     "goType": "PanelTexture",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    },
+    {
+     "naam": "baseColor",
+     "goType": "string",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    },
+    {
+     "naam": "minFirmwareVersion",
+     "goType": "semver_(voorstel)",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    }
+   ],
+   "relaties": [
+    {
+     "naam": "Panel_visualiseert_ModuleType",
+     "doelEntiteit": "ModuleType",
+     "doelKardinaliteit": "1",
+     "bronKardinaliteit": "0..*",
+     "naamLabelHeen": "visualiseert",
+     "momentvoorkomen": "enkelvoudig",
+     "velden": []
+    },
+    {
+     "naam": "Panel_controlPlacements_ControlPlacement",
+     "doelEntiteit": "ControlPlacement",
+     "doelKardinaliteit": "0..*",
+     "bronKardinaliteit": "1",
+     "naamLabelHeen": "bevat: controlPlacements",
+     "momentvoorkomen": "meervoudig",
+     "velden": []
+    },
+    {
+     "naam": "Panel_portPlacements_PortPlacement",
+     "doelEntiteit": "PortPlacement",
+     "doelKardinaliteit": "0..*",
+     "bronKardinaliteit": "1",
+     "naamLabelHeen": "bevat: portPlacements",
+     "momentvoorkomen": "meervoudig",
+     "velden": []
+    },
+    {
+     "naam": "Panel_decorations_PanelDecoration",
+     "doelEntiteit": "PanelDecoration",
+     "doelKardinaliteit": "0..*",
+     "bronKardinaliteit": "1",
+     "naamLabelHeen": "bevat: decorations",
+     "momentvoorkomen": "meervoudig",
+     "velden": []
+    }
+   ]
+  },
+  {
+   "typenaam": "ControlPlacement",
+   "description": "View (paneel, front, apparaat)",
+   "domein": "mmb",
+   "kleur": "#bbf7d0",
+   "isAbstract": false,
+   "meervoud": "controlplacements",
+   "velden": [],
+   "afgeleideVelden": [
+    {
+     "naam": "x",
+     "goType": "mm",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    },
+    {
+     "naam": "y",
+     "goType": "mm",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    },
+    {
+     "naam": "rotation",
+     "goType": "deg",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    },
+    {
+     "naam": "sizeOverride",
+     "goType": "ControlSize",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    }
+   ],
+   "relaties": [
+    {
+     "naam": "ControlPlacement_per_Control",
+     "doelEntiteit": "Control",
+     "doelKardinaliteit": "1",
+     "bronKardinaliteit": "0..*",
+     "naamLabelHeen": "per id",
+     "momentvoorkomen": "enkelvoudig",
+     "velden": []
+    }
+   ]
+  },
+  {
+   "typenaam": "PortPlacement",
+   "description": "View (paneel, front, apparaat)",
+   "domein": "mmb",
+   "kleur": "#bbf7d0",
+   "isAbstract": false,
+   "meervoud": "portplacements",
+   "velden": [],
+   "afgeleideVelden": [
+    {
+     "naam": "x",
+     "goType": "mm",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    },
+    {
+     "naam": "y",
+     "goType": "mm",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    },
+    {
+     "naam": "labelPos",
+     "goType": "above|below|left|right|none",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    }
+   ],
+   "relaties": [
+    {
+     "naam": "PortPlacement_per_Port",
+     "doelEntiteit": "Port",
+     "doelKardinaliteit": "1",
+     "bronKardinaliteit": "0..*",
+     "naamLabelHeen": "per id",
+     "momentvoorkomen": "enkelvoudig",
+     "velden": []
+    }
+   ]
+  },
+  {
+   "typenaam": "PanelDecoration",
+   "description": "View (paneel, front, apparaat)",
+   "domein": "mmb",
+   "kleur": "#bbf7d0",
+   "isAbstract": false,
+   "meervoud": "paneldecorations",
+   "velden": [],
+   "afgeleideVelden": [
+    {
+     "naam": "kind",
+     "goType": "rect|line|text|tubeSlot|ledMarker|jackBlock",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    }
+   ],
+   "relaties": []
+  },
+  {
+   "typenaam": "DeviceDisplay",
+   "description": "View (paneel, front, apparaat)",
+   "domein": "mmb",
+   "kleur": "#bbf7d0",
+   "isAbstract": false,
+   "meervoud": "devicedisplays",
+   "velden": [],
+   "afgeleideVelden": [
+    {
+     "naam": "toont readouts van 1..* modules (Teensy / FRONT-kaart, voorstel)",
+     "goType": "bewerking",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    }
+   ],
+   "relaties": [
+    {
+     "naam": "DeviceDisplay_toont_Readout",
+     "doelEntiteit": "Readout",
+     "doelKardinaliteit": "0..*",
+     "bronKardinaliteit": "0..*",
+     "naamLabelHeen": "toont",
+     "momentvoorkomen": "meervoudig",
+     "velden": []
+    }
+   ]
+  },
+  {
+   "typenaam": "ModuleInstance",
+   "description": "Realisatie (firmware, wasm, instantie)",
+   "domein": "mmb",
+   "kleur": "#e5e7eb",
+   "isAbstract": false,
+   "meervoud": "moduleinstances",
+   "velden": [],
+   "afgeleideVelden": [
+    {
+     "naam": "id",
+     "goType": "string",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    }
+   ],
+   "relaties": [
+    {
+     "naam": "ModuleInstance_typeId_ModuleType",
+     "doelEntiteit": "ModuleType",
+     "doelKardinaliteit": "1",
+     "bronKardinaliteit": "0..*",
+     "naamLabelHeen": "typeId",
+     "momentvoorkomen": "enkelvoudig",
+     "velden": []
+    },
+    {
+     "naam": "ModuleInstance_visual_Panel",
+     "doelEntiteit": "Panel",
+     "doelKardinaliteit": "1",
+     "bronKardinaliteit": "1",
+     "naamLabelHeen": "bevat: visual",
+     "momentvoorkomen": "enkelvoudig",
+     "velden": []
+    }
+   ]
+  },
+  {
+   "typenaam": "FirmwareModule",
+   "description": "Realisatie (firmware, wasm, instantie)",
+   "domein": "mmb",
+   "kleur": "#e5e7eb",
+   "isAbstract": false,
+   "meervoud": "firmwaremodules",
+   "velden": [],
+   "afgeleideVelden": [
+    {
+     "naam": "kTypeId",
+     "goType": "const_char*",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    },
+    {
+     "naam": "inputPortKind(portId)",
+     "goType": "bewerking",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    },
+    {
+     "naam": "writeCvPort(portId, v)",
+     "goType": "bewerking",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    },
+    {
+     "naam": "setControl(controlId, v)",
+     "goType": "bewerking",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    },
+    {
+     "naam": "readouts(sink) (voorstel)",
+     "goType": "bewerking",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    }
+   ],
+   "relaties": [
+    {
+     "naam": "FirmwareModule_realiseert_ModuleType",
+     "doelEntiteit": "ModuleType",
+     "doelKardinaliteit": "1",
+     "bronKardinaliteit": "0..*",
+     "naamLabelHeen": "realiseert",
+     "directioneel": true,
+     "velden": []
+    }
+   ]
+  },
+  {
+   "typenaam": "SimModule",
+   "description": "Realisatie (firmware, wasm, instantie)",
+   "domein": "mmb",
+   "kleur": "#e5e7eb",
+   "isAbstract": false,
+   "meervoud": "simmodules",
+   "velden": [],
+   "afgeleideVelden": [
+    {
+     "naam": "mmb_readout_count() (voorstel)",
+     "goType": "bewerking",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    },
+    {
+     "naam": "mmb_readout(i) (voorstel)",
+     "goType": "bewerking",
+     "afleidingsregelTaal": "cel",
+     "afleidingsregel": ""
+    }
+   ],
+   "relaties": [
+    {
+     "naam": "SimModule_realiseert_ModuleType",
+     "doelEntiteit": "ModuleType",
+     "doelKardinaliteit": "1",
+     "bronKardinaliteit": "0..*",
+     "naamLabelHeen": "realiseert",
+     "directioneel": true,
+     "velden": []
+    }
+   ]
+  }
+ ]
+}
