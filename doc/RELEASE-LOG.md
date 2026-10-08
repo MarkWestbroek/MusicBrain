@@ -17,6 +17,19 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-08 — Sporen: vierspoors overdub in de speelmodus (editor)
+- **≣ Sporen** in de werkbalk van het toetsenbord: vier sporen na elkaar
+  inspelen, elk één regio (tempo × maten), als audio-overdub: wav + mid +
+  patch per spoor (`sim/song.ts`, `sim/SongTransport.ts`,
+  `sim/OverdubPanel.tsx`). Eén maat aftellen, metronoom als optie, de
+  sporen en de metronoom buiten de recorder-bus om (op een spoor komt
+  alleen de patch). De tap-worklet meldt zijn startframe, zodat de regio
+  sample-precies uit de opname geknipt wordt; het nieuwe spoor valt meteen
+  in de lus. Volume, pan, dempen, weg; ⤓ bewaren (IndexedDB `mmb-songs`,
+  bewust), 📂 laden, ⤴ export (mix.wav + n.mid + n.patch.json). Plan:
+  `doc/plans/overdub.md`. Proef zonder handen op telefoonformaat: twee
+  sporen op twee patches, beide met audio, bewaard en terug.
+
 ### 2026-10-08 — Ondes ×4: een ensemble van ondes door één Palme (editor)
 - `seedMartenotPolyPatch` (`seedMartenot.ts`): MidiIn → [MARTENOT]×N
   (PolyGroup) → MIXER → DIFFUSEUR → OUT. Het instrument is eenstemmig;

@@ -120,8 +120,12 @@ export class MasterRecorder {
   private rate = 48000;
   private readonly chans = 2;
   private onFlushed: (() => void) | null = null;
+  private firstFrame: number | null = null;
 
   get active(): boolean { return this.node !== null; }
+  /** Frame van de AudioContext (`currentFrame` in de worklet) waarop de
+   *  opname begon; null tot het eerste blok binnen is. */
+  get startFrame(): number | null { return this.firstFrame; }
   get frames(): number { return this.frameCount; }
   get seconds(): number { return this.rate > 0 ? this.frameCount / this.rate : 0; }
 
@@ -135,6 +139,7 @@ export class MasterRecorder {
     this.rate = ctx.sampleRate;
     this.parts = [];
     this.frameCount = 0;
+    this.firstFrame = null;
 
     // Via `ctx.createAudioWorkletNode`, niet via `new AudioWorkletNode(raw…)`:
     // Tone's rawContext is niet altijd een echte BaseAudioContext (het kan de
@@ -154,7 +159,8 @@ export class MasterRecorder {
       processorOptions: { channels: this.chans },
     });
     node.port.onmessage = (e: MessageEvent): void => {
-      const d = e.data as { chunks?: Float32Array[]; done?: boolean };
+      const d = e.data as { chunks?: Float32Array[]; done?: boolean; startFrame?: number };
+      if (typeof d.startFrame === 'number') this.firstFrame = d.startFrame;
       if (d.chunks && d.chunks.length > 0) {
         this.parts.push(d.chunks);
         this.frameCount += d.chunks[0]!.length;

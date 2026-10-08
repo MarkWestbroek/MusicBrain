@@ -10,6 +10,7 @@ import { useEffect, useState, type RefObject } from 'react';
 import { nlen, useLang } from '../i18n';
 import { getEngine, useEngineStatus } from './sim/engineSingleton';
 import { SUSTAIN_CC, midiInCcNumbers } from './sim/midiInCc';
+import { OverdubPanel } from './sim/OverdubPanel';
 import { ribbonMidiIn } from './sim/ribbonSetup';
 import { RecordButton } from './sim/RecordButton';
 import { ScreenKeys, TOOLBAR_BTN, type SlideMode } from './sim/ScreenKeys';
@@ -19,6 +20,7 @@ const OCT_KEY = 'mb.front.octave';
 const SLIDE_KEY = 'mb.front.slide';
 const BEND_KEY = 'mb.front.bendKeys';
 const TALL_KEY = 'mb.front.tall';
+const TRACKS_KEY = 'mb.front.tracks';
 
 function remembered<T>(key: string, parse: (raw: string | null) => T): T {
   try { return parse(localStorage.getItem(key)); } catch { return parse(null); }
@@ -49,6 +51,9 @@ export function FrontKeys({ stage, record = false }: { stage?: RefObject<HTMLEle
   const [bendKeys, setBendKeysState] = useState<number>(() => remembered(BEND_KEY, (r) => { const v = Number(r); return v >= 1 && v <= 12 ? v : 2; }));
   const setBendKeys = (k: number): void => { setBendKeysState(k); remember(BEND_KEY, String(k)); };
   const [tall, setTallState] = useState<boolean>(() => remembered(TALL_KEY, (r) => r === '1'));
+  // Het sporenpaneel (overdub) onder het klavier; alleen in de speelmodus.
+  const [tracks, setTracksState] = useState<boolean>(() => remembered(TRACKS_KEY, (r) => r === '1'));
+  const setTracks = (t: boolean): void => { setTracksState(t); remember(TRACKS_KEY, t ? '1' : '0'); };
   const setTall = (t: boolean): void => { setTallState(t); remember(TALL_KEY, t ? '1' : '0'); };
   // Volledig scherm (Fullscreen API): de werkbalk van het toetsenbord blijft
   // in beeld, dus ook de knop om er weer uit te komen.
@@ -122,6 +127,12 @@ export function FrontKeys({ stage, record = false }: { stage?: RefObject<HTMLEle
         extra={canFull && stage ? (
           <span style={{ display: 'inline-flex', gap: 2 }}>
             {(record || full) && <span data-tour="keys-record" style={{ display: 'inline-flex' }}><RecordButton compact style={fsBtn} /></span>}
+            {record && (
+              <button type="button" data-tour="keys-tracks" onClick={() => setTracks(!tracks)}
+                style={{ ...fsBtn, fontWeight: tracks ? 700 : 400, background: tracks ? '#fde68a' : undefined }}
+                title={nlen('Sporen: vier sporen na elkaar inspelen (overdub)', 'Tracks: record four tracks one after another (overdub)')}
+                aria-label={nlen('Sporen', 'Tracks')}>≣</button>
+            )}
             <button type="button" data-tour="keys-full" onClick={() => enterFull('stage')} style={{ ...fsBtn, fontWeight: full && fullMode === 'stage' ? 700 : 400, background: full && fullMode === 'stage' ? '#fde68a' : undefined }}
               title={nlen('Volledig scherm: front en toetsenbord', 'Full screen: front panel and keyboard')} aria-label={nlen('Volledig scherm: front en toetsenbord', 'Full screen: front panel and keyboard')}>⛶</button>
             <button type="button" data-tour="keys-full-keys" onClick={() => enterFull('keys')} style={{ ...fsBtn, fontWeight: full && fullMode === 'keys' ? 700 : 400, background: full && fullMode === 'keys' ? '#fde68a' : undefined }}
@@ -131,6 +142,7 @@ export function FrontKeys({ stage, record = false }: { stage?: RefObject<HTMLEle
         ) : undefined}
         hint={status.running ? undefined : nlen('Eerste aanslag start de simulator', 'The first note starts the simulator')} />
       {err && <div style={{ color: '#b91c1c', fontSize: 12, marginTop: 4 }}>{err}</div>}
+      {record && tracks && <OverdubPanel />}
     </div>
   );
 }

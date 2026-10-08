@@ -40,6 +40,15 @@ class TapProcessor extends AudioWorkletProcessor {
 
   process(inputs) {
     if (!this.running) return false;
+    // Het eerste blok meldt op welk frame van de AudioContext de opname
+    // begint: zo kan de overdub (sim/SongTransport.ts) een regio die op
+    // contexttijd gepland is sample-precies uit de opname knippen.
+    if (this.startFrame === undefined) {
+      // `currentFrame` is een globaal van de AudioWorkletGlobalScope; de
+      // test-harnas heeft het niet, dan 0.
+      this.startFrame = typeof currentFrame === 'number' ? currentFrame : 0;
+      this.port.postMessage({ startFrame: this.startFrame });
+    }
     const input = inputs[0] ?? [];
     // Tijdens een patch-herbouw hangt er even niets aan de bus. Dan schrijven
     // we nullen door, zodat de tijdlijn blijft kloppen en de opname niet
