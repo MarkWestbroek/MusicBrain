@@ -668,7 +668,15 @@ export interface Patch {
    * Bewaarde versie (ED-RC-9), alleen aanwezig zolang de patch gewijzigd is
    * sinds de laatste Bewaar. Zie recipe/saved.ts.
    */
-  saved?: Pick<Patch, 'connections' | 'controlState' | 'voiceCount' | 'rackIds' | 'envelopes' | 'lfos' | 'polyOverrides' | 'fronts'>;
+  saved?: Pick<Patch, 'connections' | 'controlState' | 'voiceCount' | 'rackIds' | 'envelopes' | 'lfos' | 'polyOverrides' | 'fronts' | 'moduleData'>;
+  /**
+   * Data van een module die niet in knopstanden past (doc/plans/fairlight.md):
+   * nu het harmonischenprofiel van een CMI-stem (`cmi`, base64, ~1,4 KB),
+   * onder de module (bij een PolyGroup: de master). Gaat mee in bewaren,
+   * export en pool, niet in de config naar de Teensy (die krijgt de
+   * uitgerekende golfvormen apart, zie cmiSync.ts).
+   */
+  moduleData?: Record<string, { cmi?: string }>;
   /** Tijdens vergelijken staat de bewaarde versie voor en zit de bewerking in `saved`. */
   showingSaved?: boolean;
   /** Optional MIDI Program Change number (0–127) used to select this patch

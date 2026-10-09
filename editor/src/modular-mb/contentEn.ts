@@ -45,6 +45,9 @@ const EN: Record<string, string> = {
     'Trautonium voice (Oskar Sala, The Birds): undertones instead of overtones and fixed formants, with plate reverb. Try the ribbon (〰) under the keyboard.',
   'Ondes Martenot (Messiaen, Jonny Greenwood) door de Palme-luidspreker: twaalf snaren die meetrillen. Het modwiel geeft meer vibrato; op het lint glijdt hij als de ring aan de draad.':
     'Ondes Martenot (Messiaen, Jonny Greenwood) through the Palme speaker: twelve strings that resonate along. The mod wheel adds vibrato; on the ribbon it glides like the ring on the wire.',
+  '🖥 Fairlight CMI': '🖥 Fairlight CMI',
+  'De golfvormsynthese van de Fairlight CMI: een koor uit 32 harmonischen dat door de noot heen beweegt. PAGE 4 boven het front tekent de harmonischen, groen op zwart.':
+    'The waveform synthesis of the Fairlight CMI: a choir made of 32 harmonics that moves through the note. PAGE 4 above the front panel draws the harmonics, green on black.',
   'Vier ondes Martenot door één Palme, zoals Messiaen voor een ensemble van ondes schreef: akkoorden die nazingen in de snaren. Speel langzaam en legato.':
     'Four ondes Martenot through one Palme, as Messiaen wrote for an ensemble of ondes: chords that sing on in the strings. Play slowly and legato.',
   'Een ensemble van 4 ondes Martenot door één Palme-luidspreker, zoals Messiaen voor zes ondes schreef (het instrument zelf is eenstemmig). Akkoorden zingen na in de twaalf snaren van de Palme; het modwiel geeft meer vibrato, aftertouch zwelt. Speel langzaam en legato.':

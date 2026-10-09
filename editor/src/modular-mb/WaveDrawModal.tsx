@@ -8,12 +8,17 @@
 // onze 256 samples in −32768..32767.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useModularProject } from './store';
+import { updateProject, useModularProject } from './store';
 import { sendWaveform, sendControlPoke, isConnected } from './teensyLink';
+import { CMI_TYPE, computeTable, encodeProfile, harmonicsOf, profileFromHarmonics } from './cmiProfile';
+import { profileOf } from './cmiSync';
 import { WasmModule } from './runtime';
 
 const N = 256;                     // samples per cycle (firmware-resolutie)
-const TARGET_TYPES = ['tp_mmb_draw_vco', 'tp_mmb_morph_wt'];
+// CMI (Fairlight): de tekening is Page 6; hij wordt geanalyseerd naar 32
+// harmonischen en dat wordt het profiel van Page 4 (elk segment gelijk,
+// DURATION en ENERGY blijven staan). Zie doc/plans/fairlight.md.
+const TARGET_TYPES = ['tp_mmb_draw_vco', 'tp_mmb_morph_wt', CMI_TYPE];
 
 type Shape = 'sine' | 'tri' | 'saw' | 'square';
 
@@ -106,6 +111,7 @@ export function WaveDrawModal({ open, onClose }: { open: boolean; onClose: () =>
     pushTimer.current = window.setTimeout(() => {
       pushTimer.current = null;
       if (!target) return;
+      if (target.typeId === CMI_TYPE) { pushCmi(); return; }
       const data = Array.from(waveRef.current, (v) => Math.round(
         Math.max(-1, Math.min(1, v)) * 32767));
       // De simulator krijgt de tekening ook, met of zonder Teensy: Draw-VCO
@@ -117,6 +123,24 @@ export function WaveDrawModal({ open, onClose }: { open: boolean; onClose: () =>
       setPushed(`→ ${target.name}${targetIds.length > 1 ? ` ×${targetIds.length}` : ''}`
         + `${target.typeId === 'tp_mmb_morph_wt' ? ` USER-frame ${wslot}` : ''} (${new Date().toLocaleTimeString()})`);
     }, 150);
+  }
+
+  /** Page 6 → Page 4: harmonischen van de tekening als profiel van de CMI. */
+  function pushCmi(): void {
+    if (!target || !activePatch) return;
+    const owner = targetIds[0] ?? target.id;
+    const next = profileFromHarmonics(harmonicsOf(waveRef.current));
+    const was = profileOf(activePatch, owner);
+    next.duration.set(was.duration); next.energy.set(was.energy);
+    const table = computeTable(next);
+    for (const id of targetIds) WasmModule.setInstanceBlob(id, 0, table, 44100);
+    if (isConnected()) { const data = Array.from(table); for (const id of targetIds) void sendWaveform(id, data); }
+    const cmi = encodeProfile(next);
+    updateProject((proj) => ({
+      ...proj,
+      patches: proj.patches.map((x) => (x.id === activePatch.id ? { ...x, moduleData: { ...(x.moduleData ?? {}), [owner]: { ...(x.moduleData?.[owner] ?? {}), cmi } } } : x)),
+    }), { forceCommit: true });
+    setPushed(`→ ${target.name}: Page 4 (${new Date().toLocaleTimeString()})`);
   }
 
   // ── canvas render ────────────────────────────────────────────────────

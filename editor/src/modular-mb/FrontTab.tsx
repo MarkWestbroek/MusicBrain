@@ -21,6 +21,8 @@ import {
   updateFront, updateFrontItem,
 } from './fronts';
 import { nlen } from '../i18n';
+import { CmiPage4 } from './CmiPage4';
+import { cmiVoices } from './cmiSync';
 import { contentText, frontText } from './contentEn';
 import { DEMO_SEEDS } from './demoSeeds';
 import { PatchSelect } from './PatchSelect';
@@ -51,6 +53,8 @@ export function FrontTab({ expert = true }: { expert?: boolean }): JSX.Element {
   // toetsenbord, en je wilt zien wat je aantikt. Vanaf Auto bewaart de knop
   // eerst het front.
   const [adding, setAdding] = useState(false);
+  // Page 4 (Fairlight): het harmonischenprofiel van de CMI-stem(men) in de patch.
+  const [page4, setPage4] = useState(false);
   const stageRef = useRef<HTMLDivElement>(null);
   // Op volledig scherm staat de werkbalk van de app buiten beeld; de
   // patchkeuze komt dan bovenin het podium (niet in de stand "alleen toetsen").
@@ -67,6 +71,7 @@ export function FrontTab({ expert = true }: { expert?: boolean }): JSX.Element {
   const stored = chosen === AUTO ? undefined : (fronts.find((f) => f.id === chosen) ?? fronts[0]);
   const front: PatchFront = stored ?? autoFront(patch, project);
   const isAuto = !stored;
+  const cmi = cmiVoices(project, patch);
 
   const edit = (fn: (x: Patch) => Patch): void =>
     updateProject((p) => ({ ...p, patches: p.patches.map((x) => (x.id === patch.id ? fn(x) : x)) }), { forceCommit: true });
@@ -94,6 +99,14 @@ export function FrontTab({ expert = true }: { expert?: boolean }): JSX.Element {
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         {/* In de speelmodus staat de patchkeuze al in de werkbalk van de app. */}
         {expert && <PatchSelect project={project} onChoose={() => setChosen(null)} />}
+        {cmi.length > 0 && (
+          <button type="button" data-tour="play-page4" onClick={() => setPage4(true)}
+            title={nlen('Page 4: de harmonischen van de CMI-stem tekenen', 'Page 4: draw the harmonics of the CMI voice')}
+            style={{ fontSize: 12, padding: '3px 10px', cursor: 'pointer', fontFamily: 'ui-monospace, Menlo, Consolas, monospace', fontWeight: 700,
+              background: '#020a04', color: '#39ff7a', border: '1px solid #1f8a45', borderRadius: 4 }}>
+            PAGE 4
+          </button>
+        )}
         <select value={isAuto ? AUTO : front.id} onChange={(e) => setChosen(e.target.value)} style={{ fontSize: 12 }}>
           <option value={AUTO}>{nlen('Auto (afgeleid, niet opgeslagen)', 'Auto (derived, not saved)')}</option>
           {fronts.map((f) => <option key={f.id} value={f.id}>{contentText(f.name)}</option>)}
@@ -119,6 +132,9 @@ export function FrontTab({ expert = true }: { expert?: boolean }): JSX.Element {
       </div>
       {expert && adding && !isAuto && <div style={{ maxWidth: 460 }}><FrontAdd patch={patch} front={front} /></div>}
       {expert && <FrontAi project={project} onDone={(id) => setChosen(id ?? null)} />}
+      {page4 && cmi.length > 0 && (
+        <CmiPage4 patchId={patch.id} owner={cmi[0]!.owner} voices={cmi.map((v) => v.id)} onClose={() => setPage4(false)} />
+      )}
       {front.description && <p style={{ margin: 0, maxWidth: 640, opacity: 0.85 }}>{contentText(front.description)}</p>}
       <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div ref={stageRef} className="mb-stage" style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>

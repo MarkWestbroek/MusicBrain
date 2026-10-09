@@ -25,11 +25,11 @@ const int MMB_NUM_CONTROLS = 8;
 static const int kAudioIn[] = {0}, kCvIn[] = {0, 2, 3, 1}, kAudioOut[] = {0}, kCvOut[] = {1};
 MMB_KERNEL_HOST(mmb_dsp::Cmi, kAudioIn, 0, kCvIn, 4, kAudioOut, 1, kCvOut, 1)
 
-namespace { int16_t g_table[mmb_dsp::Cmi::kSegments * mmb_dsp::Cmi::kSamples]; }
+namespace { int16_t g_table[mmb_dsp::Cmi::kTableWithProfiles]; }
 MMB_EXPORT(mmb_blob_ptr) int16_t* mmb_blob_ptr(int slot, int bytes) {
     return slot == 0 && bytes <= static_cast<int>(sizeof(g_table)) ? g_table : nullptr;
 }
 MMB_EXPORT(mmb_blob_commit) void mmb_blob_commit(int slot, int frames, float, int) {
     if (slot != 0 || frames < 2) return;
-    g_kernel.setTable(g_table, frames > 4096 ? 4096 : frames);
+    g_kernel.setTable(g_table, frames > mmb_dsp::Cmi::kTableWithProfiles ? mmb_dsp::Cmi::kTableWithProfiles : frames);
 }

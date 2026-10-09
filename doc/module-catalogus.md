@@ -1,6 +1,6 @@
 # Modulecatalogus (Modular MB / Cortex)
 
-> GEGENEREERD door `editor/scripts/moduleCatalog.ts` (`npm run catalog` in `editor/`), niet met de hand bewerken. Bron: de moduledefinities in de editor, de simulatorselectie en het firmware-contract 0.5.98. Gegenereerd op 2026-10-09.
+> GEGENEREERD door `editor/scripts/moduleCatalog.ts` (`npm run catalog` in `editor/`), niet met de hand bewerken. Bron: de moduledefinities in de editor, de simulatorselectie en het firmware-contract 0.5.99. Gegenereerd op 2026-10-09.
 
 Wat de kolommen betekenen:
 

@@ -19,7 +19,7 @@
 
 import type { ModularProject, Patch } from '../types';
 
-export type SavedFields = Pick<Patch, 'connections' | 'controlState' | 'voiceCount' | 'rackIds' | 'envelopes' | 'lfos' | 'polyOverrides' | 'fronts'>;
+export type SavedFields = Pick<Patch, 'connections' | 'controlState' | 'voiceCount' | 'rackIds' | 'envelopes' | 'lfos' | 'polyOverrides' | 'fronts' | 'moduleData'>;
 
 export function snapshotOf(p: Patch): SavedFields {
   return {
@@ -27,10 +27,11 @@ export function snapshotOf(p: Patch): SavedFields {
     rackIds: p.rackIds, envelopes: p.envelopes, lfos: p.lfos,
     ...(p.polyOverrides ? { polyOverrides: p.polyOverrides } : {}),
     ...(p.fronts ? { fronts: p.fronts } : {}),
+    ...(p.moduleData ? { moduleData: p.moduleData } : {}),
   };
 }
 
-const sig = (s: SavedFields): string => JSON.stringify([s.connections, s.controlState, s.voiceCount, s.rackIds, s.envelopes, s.lfos, s.polyOverrides ?? null, s.fronts ?? null]);
+const sig = (s: SavedFields): string => JSON.stringify([s.connections, s.controlState, s.voiceCount, s.rackIds, s.envelopes, s.lfos, s.polyOverrides ?? null, s.fronts ?? null, s.moduleData ?? null]);
 
 /** Na elke store-wijziging: leg de bewaarde versie vast bij de eerste
  *  wijziging van een schone patch, en ruim hem op als de bewerking weer

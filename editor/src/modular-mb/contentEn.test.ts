@@ -30,5 +30,5 @@ describe('Engelse teksten van de standaardset', () => {
 /** Namen die in beide talen hetzelfde zijn (merk, model, emoji + model). */
 function isName(t: string): boolean {
   return /^(🎹 E-piano|🎐 Ondes Martenot|🎐 Ondes ×|🔁 Arp|🎼 DX7|💡 DX7|🎛 Synthex|🎸 Axel F|👾 SID|🔥 String|✨ Rings|🌀 Plaits|🎚 Mixtur|🧬 Acid|🌊 West|🌌 Krell|🎲 Generative)/.test(t)
-    || /^(E-piano|MARTENOT|Ondes ×|Organ|DX7|Synthex|Axel F|SID|String|Rings|Plaits|MIXTUR|Acid jam|West Coast|Krell|Generative jam)\b/.test(t);
+    || /^(E-piano|MARTENOT|CMI|Ondes ×|Organ|DX7|Synthex|Axel F|SID|String|Rings|Plaits|MIXTUR|Acid jam|West Coast|Krell|Generative jam)\b/.test(t);
 }

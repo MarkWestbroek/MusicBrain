@@ -164,7 +164,7 @@ Wie de editor opent ziet de **speelmodus**: de patchkeuze, het front van de
 patch (een virtueel paneel met de belangrijkste knoppen) en een
 schermtoetsenbord dat ook op een telefoon werkt. **Binnenkijken ▸** opent
 rack, patcher en de rest; **◂ Speelmodus** gaat terug. De eerste keer staat er
-een standaardset van drieëntwintig patches klaar (toetsen, synths en een paar die
+een standaardset van vierentwintig patches klaar (toetsen, synths en een paar die
 zichzelf spelen); dezelfde voorbeelden staan onderaan de patchkeuzelijst. De
 twee Mellotrons laden hun samplebank (fluit, strijkers) van de server, bij
 iedereen dezelfde: de patch vraagt zelf om die bank (`simBanks`), ook al
@@ -201,6 +201,16 @@ Binnenkijken blijft Nederlands; een eigen patch houdt zijn eigen tekst.
   vasthouden = tijdelijk), een pedaalschuif op de eerste CC van de MIDI-IN,
   ⇕ lange toetsen, ⏹ alle noten uit, ⛶ volledig scherm met front of 🎹 alleen
   het klavier.
+- **Fairlight / PAGE 4**: in een patch met een CMI-stem (standaardset **🖥
+  Fairlight CMI**, of Solo ▾) staat boven het front **PAGE 4**: de
+  harmonische profielen van de Fairlight, groen op zwart. Kies een
+  harmonische (1–32), of DUR (hoe lang elk segment klinkt) of ENRG (de
+  volumecurve), en teken over de 32 segmenten van de noot; je hoort het
+  meteen, en bij loslaten staat het in de patch (Bewaar om te houden).
+  Startpunten: koper, zaag, vierkant, orgel, strijkers, koor, klok. De
+  wave-tekenaar (Page 6) kan ook naar een CMI-stem: de tekening wordt
+  geanalyseerd naar harmonischen en dat wordt het profiel. Ontwerp:
+  [doc/plans/fairlight.md](../doc/plans/fairlight.md).
 - **Sporen** (≣ in de werkbalk van het toetsenbord, speelmodus): een
   vierspoors recorder, als overdub op tape. ● bij spoor 1: één maat
   aftellen (metronoom), dan opnemen zo lang je speelt, ■ om te stoppen.

@@ -9,12 +9,42 @@
 Voorstel, 2026-10-09, ter review door Mark. Doel: vandaag bouwen.
 Backlog: FW-AU-7 (Fourier-shaper, "Fairlight-achtig").
 
+## 0. Nagekeken in de documentatie (2026-10-09)
+
+Bronnen: Greg Holmes' pagina's over de CMI Series II
+(<http://www.ghservices.com/gregh/fairligh/>, met
+[Page 4](http://www.ghservices.com/gregh/fairligh/page_4.htm)), Wikipedia en
+de Virtual Music-uitleg. Wat dat verandert of bevestigt:
+
+- **Pagina's**: 4 = harmonische profielen tekenen (lichtpen), 5 = dezelfde
+  gegevens als faders, **6 = golfvorm tekenen** (niet D; D is een 3D-weergave),
+  7 = besturing (vibrato, loops), **8 = samplen**, R = Real-Time Composer.
+  Onze wave-tekenaar is dus Page 6, de sampler Page 8.
+- **Page 4, Mode 1**: tot 32 harmonischen × **32 segmenten van 128 samples**
+  (4096 samples), precies onze stem. Erbij: een **DURATION**-profiel (hoe
+  lang elk segment klinkt) en een **ENERGY**-profiel (de volumecurve over de
+  segmenten). **INTERP** mengt elk segment met het volgende: onze Smooth.
+  COMPUTE rekent de 32 golfvormen uit. (Mode 4, 128 segmenten, laten we
+  liggen.)
+- **Afspelen**: met een variabele rate per stem (toonhoogte), 8 bit; Series I
+  samplede op 8–24 kHz, Series II tot ~32 kHz. Per audiokaart een eenvoudig
+  laagdoorlaat, **met de hand** in 16 standen (0–15), niet toonvolgend. Onze
+  Era CMI houdt het toonvolgende filter (handiger); een vaste stand kan er
+  als optie bij.
+
+Gevolg voor stap 3: het profiel krijgt naast de 32 × 32 harmonischen ook
+een DURATION- en een ENERGY-curve; de stem krijgt die mee (32 duurfactoren
+en 32 niveaus na de 4096 samples). Mark: Page 4 mag groen op zwart; het
+tekenen per harmonische is gewenst; een getekende golf (Page 6) analyseren
+naar harmonischen is een goede brug naar Page 4 (dezelfde rekensom als de
+FFT uit een sample).
+
 ## 1. Wat de Fairlight CMI zijn klank gaf
 
 Uit wat ik van het instrument weet (Series I/II, 1979–1983; de details
 hieronder zijn op het oor te controleren, niet allemaal nagemeten):
 
-1. **Sampling met een klok per stem.** Elke stem had een eigen DAC en een
+1. **Sampling met een klok per stem** (Page 8). Elke stem had een eigen DAC en een
    eigen sampleklok: toonhoogte = sneller of langzamer uitlezen, **zonder
    interpolatie**, 8 bit. Daardoor schuiven de alias-spiegelingen mee met de
    toon, en klinkt hoog spelen korrelig en laag spelen dof. Een filter per
@@ -25,7 +55,7 @@ hieronder zijn op het oor te controleren, niet allemaal nagemeten):
    golfvormen van uit (één per segment) en speelde die na elkaar af: de
    klank beweegt door de noot heen. Feitelijk een wavetable-sweep,
    berekend uit harmonischen.
-3. **Golfvorm tekenen** (Page D, lichtpen): één periode tekenen.
+3. **Golfvorm tekenen** (Page 6, lichtpen): één periode tekenen.
 4. **Page R**, de patroon-sequencer.
 
 ## 2. Wat er al is

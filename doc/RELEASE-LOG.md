@@ -17,6 +17,25 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-09 — Fairlight: PAGE 4, DURATION en ENERGY (fw 0.5.99)
+- **PAGE 4** (`CmiPage4.tsx`): de harmonische profielen van de CMI, groen
+  op zwart, ook op de telefoon. 32 harmonischen × 32 segmenten tekenen, plus
+  **DUR** (duur per segment) en **ENRG** (volumecurve), zoals Page 4 van de
+  CMI Series II (nagekeken in de documentatie, zie het plan). Startpunten
+  koper, zaag, vierkant, orgel, strijkers, koor, klok. Live hoorbaar tijdens
+  het tekenen; bij loslaten in de patch.
+- **Profiel in de patch**: nieuw veld `patch.moduleData[moduleId].cmi`
+  (base64, ~1,4 KB), mee in Bewaar/Terug, export en pool; niet in de config
+  naar de Teensy. `cmiProfile.ts` (opslag, COMPUTE, `harmonicsOf`),
+  `cmiSync.ts`: de simulator krijgt de tabellen bij elke build, de Teensy na
+  de config als `wavetable`-bericht (4160 waarden).
+- **Stem**: DURATION en ENERGY per segment na de 4096 samples
+  (`mmb_dsp/cmi.h`, buffer in `main.cpp` 4160).
+- **Page 6 → Page 4**: de wave-tekenaar kan naar een CMI-stem; de tekening
+  wordt geanalyseerd naar 32 harmonischen en dat wordt het profiel.
+- Standaardset **🖥 Fairlight CMI** (koor-profiel + plaatgalm); een stap in
+  de rondleiding (alleen als de patch een CMI heeft).
+
 ### 2026-10-09 — Fairlight: Era CMI op de sampler, de CMI-stem (fw 0.5.98)
 - **SAMPLER, Era CMI** (`sample_player.h`): zoals de Fairlight CMI, een klok
   per stem. De leeskop valt op het raster van **Clock** (8–32 kHz, de rate

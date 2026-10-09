@@ -25,6 +25,7 @@ import type {
   ModularProject, Patch, ModuleInstance, ModuleType,
   PatchConnection, ControlValue, SignalType,
 } from '../types';
+import { cmiTables } from '../cmiSync';
 import { registry, WasmModule } from '../runtime';
 import { simSupportByKind } from './simSupport';
 import { NoteStack, notePriorityOf, pickVoiceIndex,
@@ -225,6 +226,9 @@ export class AudioEngine {
     //    stemmen, en de kabels na het uitvouwen (zie simGraph.ts).
     const plan = planSimGraph(project, patch);
     const { inRack, midiVoices, midiOuts } = plan;
+    // CMI-stemmen: hun golfvormen uit het profiel in de patch (blijven staan
+    // over een herbouw; nieuwe worklets krijgen ze bij het aanmaken).
+    for (const c of cmiTables(project, patch)) WasmModule.setInstanceBlob(c.id, 0, c.table, 44100);
     this.wasmGroups = plan.groups; this.wasmFollowerOf = plan.followerOf; this.cellMasterOf = plan.cellMasterOf;
     this.wasmVoice.clear();
     this.glidePrimed.clear();          // nieuwe worklets beginnen weer op 0 V

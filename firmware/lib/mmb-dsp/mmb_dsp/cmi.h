@@ -15,6 +15,10 @@
 //     `loop` (1..32; 32 = op het laatste blijven); bij loslaten speelt hij
 //     door naar het eind en daar klinkt de release uit.
 //   • `seg_cv` schuift de positie in de segmenten (±1 = ±16 segmenten).
+//   • DURATION en ENERGY (Page 4): na de 4096 samples mogen 32 duurfactoren
+//     (×1000, dus 1000 = `seg` ms) en 32 niveaus (0..32767) volgen: hoe lang
+//     elk segment klinkt en de volumecurve over de segmenten. Zonder: alle
+//     segmenten even lang, energie 1.
 //
 // Zonder tabel van de editor speelt hij een ingebouwd profiel (koper-achtig:
 // heldere aanzet die naar een zachtere toon zakt), zodat de module meteen
@@ -35,6 +39,8 @@ public:
     enum CvOut { Pos, kCvOuts };
     static constexpr float kDefaults[kControls] = { 0, 0, 40, 0.3f, 24, 4, 300, 0.8f };
     static constexpr int kSegments = 32, kSamples = 128;
+    /** Tabel + 32 duurfactoren + 32 energieniveaus. */
+    static constexpr int kTableWithProfiles = kSegments * kSamples + 2 * kSegments;
 
     // Geen `*this = Cmi()`: de tabel is 4 KB, die hoort niet als tijdelijke
     // kopie op de stack.
@@ -43,6 +49,7 @@ public:
         for (int c = 0; c < kControls; ++c) setControl(c, kDefaults[c]);
         phase_ = 0; segPos_ = 0; amp_ = 0; lp1_ = lp2_ = 0; gate_ = false; vel_ = 0; velLatched_ = 0.8f;
         voct_ = 0; segCv_ = 0;
+        for (int s = 0; s < kSegments; ++s) { dur_[s] = 1; energy_[s] = 1; }
         defaultTable();
         prepare();
     }
@@ -59,6 +66,12 @@ public:
                 const int v = k < count ? data[k] : data[i % (count < kSamples ? count : kSamples)];
                 table_[s][i] = static_cast<int8_t>(v >> 8);
             }
+        // DURATION en ENERGY als ze meekomen; anders vlak.
+        const int base = kSegments * kSamples;
+        for (int s = 0; s < kSegments; ++s) {
+            dur_[s] = count >= base + kSegments ? finiteClamp(data[base + s] * 0.001f, 0.05f, 16, 1) : 1;
+            energy_[s] = count >= base + 2 * kSegments ? finiteClamp(data[base + kSegments + s] / 32767.0f, 0, 1, 1) : 1;
+        }
     }
 
     void setControl(int control, float value) {
@@ -95,11 +108,13 @@ public:
     float cvOut(int output) const { return output == Pos ? segPos_ / (kSegments - 1) : 0; }
 
     void Process(const float* const*, float* const* out, int frames) {
-        const float segInc = 1000.0f / (segMs_ * sr_);           // segmenten per sample
+        const float segInc = 1000.0f / (segMs_ * sr_);           // segmenten per sample bij duur 1
         const float loopFrom = static_cast<float>(loop_ - 1);
         for (int frame = 0; frame < frames; ++frame) {
-            // ── positie in de segmenten ────────────────────────────────────
-            segPos_ += segInc;
+            // ── positie in de segmenten (DURATION: per segment eigen duur) ─
+            int cur = static_cast<int>(segPos_);
+            if (cur > kSegments - 1) cur = kSegments - 1;
+            segPos_ += segInc / dur_[cur];
             if (segPos_ > kSegments - 1) {
                 if (gate_ && loop_ < kSegments) {
                     const float len = static_cast<float>(kSegments - 1) - loopFrom;
@@ -128,10 +143,11 @@ public:
             lp1_ += (raw - lp1_) * lpCoef_;
             lp2_ += (lp1_ - lp2_) * lpCoef_;
 
-            // ── envelope ───────────────────────────────────────────────────
+            // ── envelope; ENERGY glijdt traploos over de segmenten ──────────
             const float target = gate_ ? velLatched_ : 0;
             amp_ += (target - amp_) * (target > amp_ ? attack_ : release_);
-            out[0][frame] = lp2_ * amp_ * level_;
+            const float energy = energy_[s0] + (energy_[s1] - energy_[s0]) * frac;
+            out[0][frame] = lp2_ * amp_ * energy * level_;
         }
     }
 
@@ -171,6 +187,7 @@ private:
     bool  gate_ = false;
     float phase_ = 0, inc_ = 0.006f, segPos_ = 0, amp_ = 0, lp1_ = 0, lp2_ = 0, lpCoef_ = 1;
     int8_t table_[kSegments][kSamples] = {};
+    float  dur_[kSegments] = {}, energy_[kSegments] = {};
 };
 
 }  // namespace mmb_dsp

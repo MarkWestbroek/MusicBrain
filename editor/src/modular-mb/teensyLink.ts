@@ -10,6 +10,7 @@
 import { useSyncExternalStore } from 'react';
 import type { ModularProject, ControlValue } from './types';
 import { defaultValueOf } from './types';
+import { cmiTeensyFrames } from './cmiSync';
 import { flattenProjectForFirmware, polyControlTargets } from './polyExpand';
 
 // ── Web Serial type shims ──────────────────────────────────────────────
@@ -485,6 +486,10 @@ export async function sendConfig(project: ModularProject): Promise<void> {
     `config payload: ${(json.length / 1024).toFixed(1)} KB — ${modules} modules, ${patches} patch(es)` });
   await writeLine(json);
   pushedPatchIds = new Set((JSON.parse(json) as { project: { patches: { id: string }[] } }).project.patches.map((p) => p.id));
+  // CMI-stemmen: hun golfvormen apart, ná de config (dan bestaan de modules).
+  for (const p of project.patches.filter((x) => pushedPatchIds.has(x.id))) {
+    for (const f of cmiTeensyFrames(project, p)) await writeLine(JSON.stringify({ type: 'wavetable', mod: f.id, data: f.data }));
+  }
 }
 
 export async function sendSelectPatch(patchId: string): Promise<void> {
