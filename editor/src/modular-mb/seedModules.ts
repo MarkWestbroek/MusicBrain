@@ -1428,6 +1428,11 @@ function mmbSampler() {
       // boven ±1, en tussen modules is dat hard afknippen (digitale
       // overdrive). Aan = limiter + zachte begrenzing; Uit = het gruis.
       sw  ('limit', 'Limit', w*0.08, 62, ['Uit', 'Aan'], 1),
+      // Era CMI: zoals de Fairlight — klok per stem, geen interpolatie, 8 bit,
+      // een filter dat de toon volgt (doc/plans/fairlight.md).
+      sw  ('era',   'Era',   w*0.44, 62, ['Clean', 'CMI'], 0),
+      knob('clock', 'Clock', w*0.55, 62, { size: 'small', min: 8000, max: 32000, def: 24000, unit: 'Hz', color: '#fbbf24' }),
+      knob('bits',  'Bits',  w*0.64, 62, { size: 'small', min: 6, max: 12, def: 8, step: 1, color: '#fbbf24' }),
       // Gedeelde bend-ingang (V/Oct) bovenop de V/Oct van elke cel: één kabel
       // MidiIn.Bend → Bend buigt alle stemmen, ook in een PolyGroup.
       inPort('bend', 'Bend', 'cv', w*0.30, 62),
@@ -1442,7 +1447,7 @@ function mmbSampler() {
       ...cells.map((k) => inPort(`gate_${k}`,   '',     'gate', colX(k - 1), 108, { cellGroupId: 'voice' })),
       ...cells.map((k) => inPort(`vel_${k}`,    '',     'cv',   colX(k - 1), 120, { cellGroupId: 'voice' })),
     ],
-    notes: 'Multisample-speler als multi-module: acht stem-cellen (voct_k/gate_k/vel_k) die één keymap-bank delen, elk met een filter in de stem (Filter: uit/SVF/MS-20 — dezelfde kernels als de losse VCF en MS-20) dat via cutoff_k gestuurd wordt, en een envelope-follower per stem op env_k (Sens tilt die met decibels op; zonder lift haalt een sample amper 0,2 en blijft de wah een kiertje). Auto-wah = env_k → cutoff_k. Een keymap met key- én velocity-zones kiest per noot en aanslag het juiste sample; V/Oct transponeert vanaf de root-noot van die zone; Bend (gedeelde CV-ingang, V/Oct) komt daar bij alle cellen bovenop — MidiIn.Bend → Bend en de pitch-wheel buigt alle stemmen mee (of een LFO voor vibrato). 1–4 kanalen (mono komt op L+R, stereo op L/R, quad op alle vier), gemengd over alle cellen. Limit (standaard aan): limiter + zachte begrenzing op die som, zodat een zingende MS-20 op een paar stemmen niet digitaal clipt; Uit = hard afknippen op ±1 (het gruis). Loop-modes: geen, one-shot, continu, of tot note-off. Polyfoon spelen = een PolyGroup over de cellen (Poly ▾ → Sampler ×8): MIDI-in verdeelt de noten, de sampler doet niets slims. Banken maak je met de 🎹 Multisample-import; die schrijft een .mmbs die je naar /mmb/banks/NN.mmbs op de SD kopieert — Bank kiest NN. In de simulator draait dezelfde kern (mmb_dsp::SamplePlayer) als wasm. Firmware tp_mmb_sampler.',
+    notes: 'Multisample-speler als multi-module: acht stem-cellen (voct_k/gate_k/vel_k) die één keymap-bank delen, elk met een filter in de stem (Filter: uit/SVF/MS-20 — dezelfde kernels als de losse VCF en MS-20) dat via cutoff_k gestuurd wordt, en een envelope-follower per stem op env_k (Sens tilt die met decibels op; zonder lift haalt een sample amper 0,2 en blijft de wah een kiertje). Auto-wah = env_k → cutoff_k. Een keymap met key- én velocity-zones kiest per noot en aanslag het juiste sample; V/Oct transponeert vanaf de root-noot van die zone; Bend (gedeelde CV-ingang, V/Oct) komt daar bij alle cellen bovenop — MidiIn.Bend → Bend en de pitch-wheel buigt alle stemmen mee (of een LFO voor vibrato). 1–4 kanalen (mono komt op L+R, stereo op L/R, quad op alle vier), gemengd over alle cellen. Limit (standaard aan): limiter + zachte begrenzing op die som, zodat een zingende MS-20 op een paar stemmen niet digitaal clipt; Uit = hard afknippen op ±1 (het gruis). Loop-modes: geen, one-shot, continu, of tot note-off. Polyfoon spelen = een PolyGroup over de cellen (Poly ▾ → Sampler ×8): MIDI-in verdeelt de noten, de sampler doet niets slims. Banken maak je met de 🎹 Multisample-import; die schrijft een .mmbs die je naar /mmb/banks/NN.mmbs op de SD kopieert — Bank kiest NN. Era CMI: zoals de Fairlight CMI — elke stem leest met een eigen klok (Clock: de samplerate waarop de bank "opgenomen" was, 8–32 kHz), zonder interpolatie (de spiegelingen lopen mee met de toon), op Bits (standaard 8), door een filter dat de toon volgt; hoog spelen klinkt korrelig, laag dof. Clean = zoals altijd. In de simulator draait dezelfde kern (mmb_dsp::SamplePlayer) als wasm. Firmware tp_mmb_sampler.',
   });
 }
 
@@ -3722,6 +3727,41 @@ function mmbEuclid() {
   });
 }
 
+// MMB CMI — 12 HP. Fairlight CMI-stem: golfvormsynthese (firmware tp_mmb_cmi).
+function mmbCmi() {
+  const w = W(12);
+  const col = (i: number): number => w * (0.15 + i * 0.233);        // vier kolommen
+  return assemble({
+    typeId: 'tp_mmb_cmi', categoryId: 'vco',
+    variant: 'CMI (Fairlight-golfvormsynthese)',
+    brand: 'MMB', model: 'CMI',
+    hp: 12, texture: 'pcb-black', baseColor: '#d9d3c3', internal: true,
+    texts: [
+      { x: w/2, y: 8, text: 'CMI', fontSize: 2.6, color: '#1f2937', align: 'middle' },
+      { x: w/2, y: 13, text: '32 golfvormen · 8 bit', fontSize: 1.1, color: '#4b5563', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#1f2937', align: 'middle' },
+    ],
+    items: [
+      knob('coarse',  'Coarse', col(0), 26, { size: 'small', min: -36, max: 36, def: 0, step: 1, unit: 'semi', color: '#1f2937' }),
+      knob('fine',    'Fine',   col(1), 26, { size: 'small', min: -100, max: 100, def: 0, unit: 'ct', color: '#1f2937' }),
+      knob('level',   'Level',  col(3), 26, { size: 'small', min: 0, max: 1, def: 0.8, color: '#1f2937' }),
+      // De segmenten: hoe snel de klank door zijn 32 golfvormen gaat.
+      knob('seg',     'Seg',    col(0), 50, { size: 'medium', min: 5, max: 1000, def: 40, unit: 'ms', color: '#16a34a' }),
+      knob('smooth',  'Smooth', col(1), 50, { size: 'medium', min: 0, max: 1, def: 0.3, color: '#16a34a' }),
+      knob('loop',    'Loop',   col(2), 50, { size: 'medium', min: 1, max: 32, def: 24, step: 1, color: '#16a34a' }),
+      knob('attack',  'Att',    col(0), 76, { size: 'small', min: 0.5, max: 2000, def: 4, unit: 'ms', color: '#1f2937' }),
+      knob('release', 'Rel',    col(1), 76, { size: 'small', min: 1, max: 5000, def: 300, unit: 'ms', color: '#1f2937' }),
+      inPort ('voct',   'V/Oct', 'cv',   w*0.12, 104),
+      inPort ('gate',   'Gate',  'gate', w*0.31, 104),
+      inPort ('vel',    'Vel',   'cv',   w*0.50, 104),
+      inPort ('seg_cv', 'Seg+',  'cv',   w*0.69, 104),
+      outPort('pos',    'Pos',   'cv',   w*0.88, 104),
+      outPort('out',    'Out',   'audio', w*0.88, 118),
+    ],
+    notes: 'Een stem naar de golfvormsynthese van de Fairlight CMI (Page 4/5). Uit een harmonischenprofiel — tot 32 harmonischen, elk met een eigen verloop over 32 segmenten — rekent de editor 32 golfvormen van 128 samples (8 bit) en stuurt die naar deze stem; die speelt ze na elkaar af, zodat de klank door de noot heen beweegt. Seg: hoe lang elk segment duurt. Smooth: 0 = hard van golfvorm wisselen zoals de CMI, hoger = laten overvloeien. Loop: zolang je de toets vasthoudt loopt hij na segment 32 rond vanaf dit segment (32 = op het laatste blijven); loslaten speelt door naar het eind. Afspelen zoals de CMI: zonder interpolatie (de stem klokt op 128 × de grondtoon), 8 bit, door een filter dat die klok volgt. Seg+ schuift de positie (±1 = ±16 segmenten); Pos is de positie als CV. Zonder profiel speelt hij een ingebouwde koperklank. Firmware tp_mmb_cmi, mmb_dsp::Cmi; in de simulator draait dezelfde code als wasm.',
+  });
+}
+
 // MMB ARP — 8 HP. Arpeggiator (firmware tp_mmb_arp): hoort zelf de toetsen.
 function mmbArp() {
   const w = W(8);
@@ -4918,7 +4958,7 @@ export function seedInternals(project: ModularProject): ModularProject {
   all.push(mmbTapeStrip());
   all.push(mmbClock(), mmbEuclid(), mmbTuring(), mmbBranches(), mmbChaos(), mmbLfo8(), mmbSlope(), mmbLogic());
   all.push(mmbFolder(), mmbLpg(), mmbDrive(), mmbTube(), mmbFreqShift(), mmbAcid(), mmbMixtur(), mmbRungler(), mmbOrgan());
-  all.push(mmbMartenot(), mmbDiffuseur(), mmbArp());
+  all.push(mmbMartenot(), mmbDiffuseur(), mmbArp(), mmbCmi());
   all.push(mmbSem(), mmbComplex(), mmbWah(), mmbEnsemble(), mmbEPiano());
   all.push(mmbPads(), mmbFaders(), mmbKnobs());
   all.push(mmbRhythm(), mmbPercuter(), mmbSynthex());
@@ -5806,7 +5846,7 @@ export function seedSoloVoicePatch(
       c(mi, 'pitch', inst, 'voct'),
       c(mi, 'gate',  inst, 'gate'),
       ...(typeId === 'tp_mmb_material_bridge' || typeId === 'tp_mmb_fof' || typeId === 'tp_mmb_scanned' || typeId === 'tp_mmb_mixtur'
-        || typeId === 'tp_mmb_martenot' ? [c(mi, 'vel', inst, 'vel')] : []),
+        || typeId === 'tp_mmb_martenot' || typeId === 'tp_mmb_cmi' ? [c(mi, 'vel', inst, 'vel')] : []),
       // Scanned: aftertouch drukt de vinger in de ring. Martenot: de touche.
       ...(!arp && (typeId === 'tp_mmb_scanned' || typeId === 'tp_mmb_mixtur' || typeId === 'tp_mmb_martenot') ? [c(mi, 'press', inst, 'press')] : []),
       // Martenot: het modwiel wiegt de toets (meer vibrato).

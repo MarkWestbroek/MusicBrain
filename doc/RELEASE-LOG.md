@@ -17,6 +17,27 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-09 — Fairlight: Era CMI op de sampler, de CMI-stem (fw 0.5.98)
+- **SAMPLER, Era CMI** (`sample_player.h`): zoals de Fairlight CMI, een klok
+  per stem. De leeskop valt op het raster van **Clock** (8–32 kHz, de rate
+  waarop de bank "opgenomen" was), zonder interpolatie (zero-order hold: de
+  spiegelingen lopen mee met de toon), gekwantiseerd op **Bits** (6–12,
+  standaard 8), door een tweepolig filter op 0,45 × de effectieve klok van
+  de stem: hoog spelen korrelig, laag dof. *Clean* blijft zoals het was.
+  Tests in `sim/wasmSamplerCmi.test.ts` (spiegeling op 9 kHz bij een 12
+  kHz-klok, bits, het filter volgt de toon).
+- **CMI** (`tp_mmb_cmi`, `mmb_dsp/cmi.h`): de golfvormsynthese van de CMI
+  (Page 4/5). 32 golfvormen van 128 samples (8 bit) na elkaar over de noot;
+  **Seg** (ms per segment), **Smooth** (overvloeien), **Loop** (rondgaan
+  vanaf segment n zolang de toets ligt), Att/Rel, Seg+ en Pos. Afspelen
+  zonder interpolatie op 128 × de grondtoon, door een filter dat die klok
+  volgt. De tabel komt van de editor als `wavetable`-bericht (4096 samples;
+  de buffer in `main.cpp` gaat daarvoor van 256 naar 4096) of als wasm-blob;
+  zonder tabel een ingebouwde koperklank. Solo ▾ **🖥 CMI (Fairlight-stem)**.
+  Teensy: ~2,4 % cpu totaal. Tests in `sim/wasmCmi.test.ts`.
+- Plan en besluiten: `doc/plans/fairlight.md`. Volgt: de editor (profiel →
+  golfvormen, opslag in de patch, het Harmonischen-venster) en de FFT.
+
 ### 2026-10-08 — Sporen: vierspoors overdub in de speelmodus (editor)
 - **≣ Sporen** in de werkbalk van het toetsenbord: vier sporen na elkaar
   inspelen als audio-overdub, wav + mid + patch per spoor (`sim/song.ts`,

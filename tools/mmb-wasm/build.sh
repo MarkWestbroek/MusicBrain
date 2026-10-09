@@ -200,6 +200,7 @@ sel acid && build acid tp_mmb_acid "$LIB/mmb-dsp" --
 sel mixtur && build mixtur tp_mmb_mixtur "$LIB/mmb-dsp" --
 sel martenot && build martenot tp_mmb_martenot "$LIB/mmb-dsp" --
 sel diffuseur && build diffuseur tp_mmb_diffuseur "$LIB/mmb-dsp" --
+sel cmi && build cmi tp_mmb_cmi "$LIB/mmb-dsp" --
 sel rungler && build rungler tp_mmb_rungler "$LIB/mmb-dsp" --
 sel organ && build organ tp_mmb_organ "$LIB/mmb-dsp" --
 sel sem && build sem tp_mmb_sem "$LIB/mmb-dsp" --

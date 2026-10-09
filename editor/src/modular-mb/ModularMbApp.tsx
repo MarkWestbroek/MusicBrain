@@ -689,6 +689,8 @@ export function ModularMbApp(): JSX.Element {
                     c: { coarse: -12, curve: 0.6, unrest: 0.3, glide: 60, main: 0.8, div1: 2, div2: 3, div3: 4, div4: 5,
                          sub1: 0.55, sub2: 0.4, sub3: 0.3, sub4: 0.15, formant: 4, fshift: -2, freso: 0.6, fmix: 0.75,
                          noise: 0.04, dyn: 0, attack: 15, release: 250, level: 0.8 }, fx: 'plate' },
+                  { label: '🖥 CMI (Fairlight-stem)', t: 'tp_mmb_cmi', n: 'CMI', l: 'out', r: 'out',
+                    c: { seg: 40, smooth: 0.3, loop: 24, attack: 4, release: 400, level: 0.8 }, fx: 'plate' },
                   { label: '🌊 Martenot + Palme', t: 'tp_mmb_martenot', n: 'MARTENOT', l: 'out', r: 'out',
                     c: { onde: 0.8, creux: 0.15, souffle: 0.05, glide: 40, vib: 0.18, vib_rate: 5.5, attack: 10, release: 350, level: 0.8 }, fx: 'palme' },
                   { label: '🌊 Martenot + Métallique', t: 'tp_mmb_martenot', n: 'MARTENOT', l: 'out', r: 'out',

@@ -40,6 +40,15 @@
  * simulator), dan verandert er niets: dat pad is byte-gelijk aan vroeger.
  * Uitzondering: een gestreamde LOOP_SUSTAIN-zone speelt na note-off nog de al
  * gevulde loopframes (hooguit één ring) voordat de staart begint.
+ *
+ * **Era CMI** (doc/plans/fairlight.md): zoals de Fairlight CMI, waar elke
+ * stem een eigen sampleklok had en toonhoogte "sneller of langzamer
+ * uitlezen" was. De leeskop valt op het raster van `clock` (de samplerate
+ * waarop de bank "opgenomen" was: een 48 kHz-bank op 24 kHz krijgt die
+ * korrel), er is geen interpolatie (zero-order hold: de spiegelingen lopen
+ * mee met de toon), de sample wordt naar `bits` gekwantiseerd, en een
+ * tweepolig laagdoorlaat op 0,45 × de effectieve klok van de stem haalt het
+ * ergste eraf: hoog spelen klinkt korrelig, laag spelen dof.
  */
 
 #include <cmath>
@@ -227,6 +236,22 @@ public:
     void set_transpose(float semitones) { transpose_ = semitones; }
     /** Startpunt 0..1 binnen het sample (0 = zoals opgenomen). */
     void set_startOffset(float s) { startOffset_ = s < 0.0f ? 0.0f : (s > 0.99f ? 0.99f : s); }
+
+    // ── Era CMI: klok per stem, geen interpolatie, minder bits ───────────
+    /** 0 = Clean (lineaire interpolatie, 16 bit), 1 = CMI. */
+    void set_era(int e) {
+        const int ne = e == 1 ? 1 : 0;
+        if (ne != era_) { era_ = ne; for (int c = 0; c < kMaxChannels; ++c) cmiLp1_[c] = cmiLp2_[c] = 0.0f; }
+        updateCmi();
+    }
+    /** Samplerate van de CMI-klok in Hz (8000..32000). */
+    void set_clock(float hz) { cmiClock_ = hz < 8000.0f ? 8000.0f : (hz > 32000.0f ? 32000.0f : hz); updateCmi(); }
+    /** Bitdiepte in de CMI-stand (6..12). */
+    void set_bits(float b) {
+        const int nb = static_cast<int>(b + 0.5f);
+        cmiBits_ = nb < 6 ? 6 : (nb > 12 ? 12 : nb);
+        cmiStep_ = 32768.0f / static_cast<float>(1 << (cmiBits_ - 1));
+    }
 
     // ── filter in de cel + envelope-follower per stem ───────────────────
     // De filterkernels zijn dezelfde klassen als de losse VCF (Svf) en MS-20
@@ -424,9 +449,26 @@ public:
 
         float v[kMaxChannels];
         float mono = 0.0f;
-        for (int c = 0; c < ch && c < kMaxChannels; ++c) {
-            v[c] = (base0[c] + (base1[c] - base0[c]) * f) * amp;
-            mono += v[c];
+        if (era_) {
+            // CMI: de leeskop op het raster van de klok, zonder interpolatie,
+            // gekwantiseerd, door het klokvolgende filter (zie de kop).
+            const int16_t* b = base0;
+            if (!streaming_ && cmiGrid_ > 1.0f) {
+                const int ri = static_cast<int>(static_cast<float>(static_cast<int>((static_cast<float>(i0) + f) / cmiGrid_)) * cmiGrid_);
+                b = slot_->data + static_cast<long>(ri < i0 ? ri : i0) * ch;
+            }
+            for (int c = 0; c < ch && c < kMaxChannels; ++c) {
+                const float q = std::floor(static_cast<float>(b[c]) / cmiStep_ + 0.5f) * cmiStep_;
+                cmiLp1_[c] += (q - cmiLp1_[c]) * cmiCoef_;
+                cmiLp2_[c] += (cmiLp1_[c] - cmiLp2_[c]) * cmiCoef_;
+                v[c] = cmiLp2_[c] * amp;
+                mono += v[c];
+            }
+        } else {
+            for (int c = 0; c < ch && c < kMaxChannels; ++c) {
+                v[c] = (base0[c] + (base1[c] - base0[c]) * f) * amp;
+                mono += v[c];
+            }
         }
         // Follower op de stem zelf, vóór het filter — een auto-wah reageert op
         // wat er ín gaat, niet op wat er na het filter overblijft.
@@ -535,6 +577,21 @@ private:
         const float semis = 12.0f * voct_ + (60.0f - zone_->root)
                           + transpose_ + zone_->tuneCents * 0.01f;
         inc_ = (slot_->rate / sr_) * std::exp2(semis / 12.0f);
+        updateCmi();
+    }
+    /** Raster en filter van de CMI-stand: het raster in frames van de bank,
+     *  het filter op 0,45 × de klok die de stem nu effectief heeft. */
+    void updateCmi() {
+        if (!era_ || !slot_) return;
+        const float rate = slot_->rate > 0.0f ? slot_->rate : sr_;
+        cmiGrid_ = rate > cmiClock_ ? rate / cmiClock_ : 1.0f;
+        const float ratio = inc_ * sr_ / rate;                 // toonhoogteverhouding
+        float fc = 0.45f * cmiClock_ * ratio;
+        if (fc > 0.45f * sr_) fc = 0.45f * sr_;
+        if (fc < 200.0f) fc = 200.0f;
+        // Twee eenpolige trappen: de kantelfrequentie per trap iets hoger,
+        // zodat het geheel rond fc zit.
+        cmiCoef_ = 1.0f - std::exp(-6.2831853f * fc * 1.55f / sr_);
     }
 
     float sr_ = 44100.0f;
@@ -570,6 +627,9 @@ private:
     }
     int   filterType_ = FILTER_NONE;
     float cvAmt_ = 4.0f, cutoffCv_ = 0.0f, svfBase_ = 2000.0f, svfOct_ = 0.0f;
+    int   era_ = 0, cmiBits_ = 8;
+    float cmiClock_ = 24000.0f, cmiStep_ = 256.0f, cmiGrid_ = 1.0f, cmiCoef_ = 1.0f;
+    float cmiLp1_[kMaxChannels] = {}, cmiLp2_[kMaxChannels] = {};
     Svf         svf_[kMaxChannels];
     Korg35      k35_[kMaxChannels];
     EnvFollower follower_;

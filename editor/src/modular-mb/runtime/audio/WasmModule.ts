@@ -44,7 +44,7 @@ export class WasmModule extends AudioModule {
     // Modulatorpakket (2026-10-02).
     'tp_mmb_sh', 'tp_mmb_clock', 'tp_mmb_euclid', 'tp_mmb_turing', 'tp_mmb_branches', 'tp_mmb_chaos', 'tp_mmb_lfo8', 'tp_mmb_slope', 'tp_mmb_logic',
     // West Coast, pedalen en klassiekers (2026-10-02).
-    'tp_mmb_folder', 'tp_mmb_lpg', 'tp_mmb_drive', 'tp_mmb_freqshift', 'tp_mmb_acid', 'tp_mmb_mixtur', 'tp_mmb_martenot', 'tp_mmb_diffuseur', 'tp_mmb_arp', 'tp_mmb_rungler', 'tp_mmb_organ',
+    'tp_mmb_folder', 'tp_mmb_lpg', 'tp_mmb_drive', 'tp_mmb_freqshift', 'tp_mmb_acid', 'tp_mmb_mixtur', 'tp_mmb_martenot', 'tp_mmb_diffuseur', 'tp_mmb_arp', 'tp_mmb_cmi', 'tp_mmb_rungler', 'tp_mmb_organ',
     'tp_mmb_sem', 'tp_mmb_complex', 'tp_mmb_wah', 'tp_mmb_ensemble', 'tp_mmb_epiano',
     'tp_mmb_pads', 'tp_mmb_faders', 'tp_mmb_knobs',
     'tp_mmb_rhythm', 'tp_mmb_percuter', 'tp_mmb_synthex', 'tp_mmb_tube',

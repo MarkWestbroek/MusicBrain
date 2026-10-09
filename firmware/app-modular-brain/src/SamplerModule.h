@@ -743,6 +743,9 @@ public:
     void setAttack(float ms){ for (auto& v : voice_) v.setAttackMs(ms); }
     void setLevel(float l)  { for (auto& v : voice_) v.set_level(l); }
     void setLimit(bool on)  { limiter_.set_enabled(on); }
+    void setEra(int e)      { for (auto& v : voice_) v.set_era(e); }
+    void setClock(float hz) { for (auto& v : voice_) v.set_clock(hz); }
+    void setBits(float b)   { for (auto& v : voice_) v.set_bits(b); }
 
     /** Zo vaak (in samples) worden de filtercoëfficiënten en de interne
      *  env -> cutoff bijgewerkt — gelijk aan het blok van de sampler-wasm in de
@@ -892,6 +895,9 @@ public:
         else if (controlId == "cv_amt") stream_.setCvAmount(asFloat(4.0f));
         else if (controlId == "env_rel") stream_.setEnvRelease(asFloat(120.0f));
         else if (controlId == "env_sens") stream_.setEnvSens(asFloat(12.0f));
+        else if (controlId == "era")    stream_.setEra(static_cast<int>(asFloat(0.0f) + 0.5f));
+        else if (controlId == "clock")  stream_.setClock(asFloat(24000.0f));
+        else if (controlId == "bits")   stream_.setBits(asFloat(8.0f));
     }
 
     static void registerFactory() {

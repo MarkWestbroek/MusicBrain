@@ -1,6 +1,6 @@
 {
   "$comment": "GEGENEREERD door tools/contract_dump.py — niet met de hand bewerken. Poort-ids zijn letterlijk wat de firmware accepteert (aliassen als out/out_l en naam/naam_cv staan er dus allebei in).",
-  "firmwareVersion": "0.5.97",
+  "firmwareVersion": "0.5.98",
   "modules": {
     "...": {
       "typeId": "...",
@@ -259,6 +259,28 @@
         "size",
         "spread",
         "texture"
+      ]
+    },
+    "tp_mmb_cmi": {
+      "typeId": "tp_mmb_cmi",
+      "source": "firmware/app-modular-brain/src/CmiModule.h",
+      "ports": [
+        "gate",
+        "out",
+        "pos",
+        "seg_cv",
+        "vel",
+        "voct"
+      ],
+      "controls": [
+        "attack",
+        "coarse",
+        "fine",
+        "level",
+        "loop",
+        "release",
+        "seg",
+        "smooth"
       ]
     },
     "tp_mmb_comb": {
@@ -2142,12 +2164,15 @@
       "controls": [
         "attack",
         "bank",
+        "bits",
+        "clock",
         "coarse",
         "cutoff",
         "cv_amt",
         "drive",
         "env_rel",
         "env_sens",
+        "era",
         "filter",
         "fine",
         "fmode",

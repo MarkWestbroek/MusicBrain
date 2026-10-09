@@ -22,6 +22,7 @@ const T = (id: string): string => `tp_mmb_${id}`;
 export const FRONT_CONTROLS: Record<string, string[]> = {
   // ── Klankbronnen ──────────────────────────────────────────────────────
   [T('acid')]: ['cutoff', 'res', 'envmod', 'decay', 'accent', 'wave'],
+  [T('cmi')]: ['seg', 'smooth', 'loop', 'attack', 'release'],
   [T('martenot')]: ['onde', 'creux', 'gambe', 'nasillard', 'octaviant', 'souffle', 'vib', 'touche'],
   [T('diffuseur')]: ['type', 'mix', 'ring', 'tune'],
   [T('mixtur')]: ['sub1', 'sub2', 'sub3', 'sub4', 'div1', 'div2', 'div3', 'div4', 'formant', 'fshift', 'freso', 'curve'],

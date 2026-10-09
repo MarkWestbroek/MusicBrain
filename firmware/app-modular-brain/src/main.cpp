@@ -786,11 +786,13 @@ void onDx7Bank(JsonArrayConst data) {
     mmb_link::TeensyLink::logf("dx7bank geladen; voice 0 = \"%s\"", name);
 }
 
+// Tot 4096 samples: de Fairlight-stem (tp_mmb_cmi) krijgt zijn 32 golfvormen
+// van 128 samples in één bericht; de tekenaars sturen er 256.
 void onWaveform(const char* moduleId, JsonArrayConst data) {
-    static int16_t buf[256];
+    static int16_t buf[4096];
     std::size_t n = 0;
     for (JsonVariantConst v : data) {
-        if (n >= 256) break;
+        if (n >= 4096) break;
         int s = v.as<int>();
         if (s >  32767) s =  32767;
         if (s < -32768) s = -32768;

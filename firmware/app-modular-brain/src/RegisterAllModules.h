@@ -90,6 +90,7 @@
 #include "MartenotModule.h"
 #include "DiffuseurModule.h"
 #include "ArpModule.h"
+#include "CmiModule.h"
 #include "RunglerModule.h"
 #include "OrganModule.h"
 #include "SemModule.h"
@@ -212,6 +213,7 @@ inline void registerAllRuntimeModules() {
     MartenotModule::registerFactory();  // Ondes Martenot-stem: tiroir, touche, vibrato
     DiffuseurModule::registerFactory(); // Martenot-luidsprekers: Principal, Palme, Métallique
     ArpModule::registerFactory();       // arpeggiator: hoort zelf MIDI-noten
+    CmiModule::registerFactory();       // Fairlight CMI-stem: golfvormsynthese, 32 segmenten
     RunglerModule::registerFactory();   // Benjolin-stijl chaos (rungler)
     OrganModule::registerFactory();     // tonewheel-orgel, 12 toetsen
     SemModule::registerFactory();        // SEM-filter (LP→notch→HP, bandpass apart)
