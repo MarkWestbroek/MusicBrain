@@ -1,4 +1,4 @@
-// FrontHelp — het ?-blad van de speelmodus (doc/plans/help-en-instrumenttour.md):
+// FrontHelp — het uitlegblad van de speelmodus (ⓘ Uitleg) (doc/plans/help-en-instrumenttour.md):
 // per module op het front een korte uitleg en per knop één regel. Tekst uit
 // moduleHelp.ts; zonder regel daar de eerste zin van de module-notes.
 
@@ -6,10 +6,11 @@ import { useEffect } from 'react';
 
 import { nlen, useLang } from '../i18n';
 import { frontLabel } from './frontLayout';
+import { startKnobTour, tourable } from './knobTour';
 import { controlHelp, moduleAbout } from './moduleHelp';
 import { resolveControls, type ModularProject, type Patch, type PatchFront } from './types';
 
-interface Row { label: string; text: string | null }
+interface Row { label: string; text: string | null; moduleId: string; controlId: string; range?: { min: number; max: number }; playable: boolean }
 interface Block { moduleId: string; title: string; about: string | null; rows: Row[] }
 
 /** De blokken van het blad, in de volgorde van het front. Zuiver. */
@@ -27,7 +28,7 @@ export function frontHelpBlocks(front: PatchFront, patch: Patch, project: Modula
       b = { moduleId: m.id, title: m.name, about: moduleAbout(m.typeId) ?? firstSentence(notes), rows: [] };
       blocks.set(m.id, b);
     }
-    b.rows.push({ label: frontLabel(it, patch, c), text: controlHelp(m.typeId, c.id) });
+    b.rows.push({ label: frontLabel(it, patch, c), text: controlHelp(m.typeId, c.id), moduleId: m.id, controlId: c.id, range: it.range, playable: tourable(c) });
   }
   return [...blocks.values()];
 }
@@ -58,18 +59,27 @@ export function FrontHelp({ front, patch, project, onClose }: {
           <button type="button" onClick={onClose} style={{ fontSize: 14, padding: '2px 10px', cursor: 'pointer' }}>✕</button>
         </div>
         <p style={{ margin: '0 0 10px', fontSize: 12, color: '#6b7280' }}>
-          {nlen('Tip: houd een knop even vast (of wijs hem aan met de muis) voor alleen die regel.',
-                'Tip: press and hold a knob (or hover over it with the mouse) for just its line.')}
+          {nlen('Tip: houd een knop even vast (of wijs hem aan met de muis) voor alleen die regel. ▶ speelt iets en draait aan de knop.',
+                'Tip: press and hold a knob (or hover over it with the mouse) for just its line. ▶ plays something and turns the knob.')}
         </p>
         {blocks.length === 0 && <p style={{ margin: 0 }}>{nlen('Er staan geen knoppen op dit front.', 'There are no knobs on this front panel.')}</p>}
         {blocks.map((b) => (
           <section key={b.moduleId} style={{ marginBottom: 12 }}>
             <h3 style={{ margin: '0 0 2px', fontSize: 14 }}>{b.title}</h3>
             {b.about && <p style={{ margin: '0 0 4px', fontSize: 13, color: '#374151' }}>{b.about}</p>}
-            <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: 'minmax(70px, max-content) 1fr', columnGap: 10, rowGap: 2, fontSize: 13 }}>
+            <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: 'minmax(90px, max-content) 1fr', columnGap: 10, rowGap: 2, fontSize: 13 }}>
               {b.rows.map((r, i) => (
                 <div key={i} style={{ display: 'contents' }}>
-                  <dt style={{ fontWeight: 600 }}>{r.label}</dt>
+                  <dt style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    {r.playable
+                      ? <button type="button"
+                          onClick={() => { onClose(); void startKnobTour({ patchId: patch.id, moduleId: r.moduleId, controlId: r.controlId, label: r.label, help: r.text, range: r.range }); }}
+                          title={nlen('Laat horen: speel en draai aan deze knop', 'Let me hear it: play and turn this knob')}
+                          aria-label={nlen(`Laat ${r.label} horen`, `Let me hear ${r.label}`)}
+                          style={{ fontSize: 11, lineHeight: 1, padding: '3px 5px', cursor: 'pointer', borderRadius: 4 }}>▶</button>
+                      : <span style={{ width: 22 }} />}
+                    {r.label}
+                  </dt>
                   <dd style={{ margin: 0, color: r.text ? '#111827' : '#9ca3af' }}>{r.text ?? '—'}</dd>
                 </div>
               ))}

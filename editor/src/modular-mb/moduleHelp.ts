@@ -1,4 +1,4 @@
-// Uitleg per module en per knop, voor de help in de speelmodus (? boven het
+// Uitleg per module en per knop, voor de help in de speelmodus (ⓘ Uitleg boven het
 // front, lang drukken op een knop) — doc/plans/help-en-instrumenttour.md.
 //
 // Los van de moduledefinities (seedModules.ts): een project bewaart zijn

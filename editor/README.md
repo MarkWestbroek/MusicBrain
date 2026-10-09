@@ -177,6 +177,14 @@ octaaf, opzij schuiven, alleen het klavier, de wielen, lange toetsen, alles
 uit, spelen, opnemen, het lint en het sluitkruis. **?** naast Binnenkijken
 start haar opnieuw. Op volledig scherm loopt ze gewoon door.
 
+**ⓘ Uitleg** boven het front zegt per module wat het is en per knop wat hij
+doet (`modular-mb/moduleHelp.ts`, NL en EN); lang drukken op een knop (of er
+met de muis op wijzen) toont alleen die regel. **▶** naast een knop laat het
+horen: het instrument speelt een akkoordje en draait aan de knop. **⏸** houdt
+een mooie stand vast, **Houden** zet hem in de patch (daarna Bewaar of Bewaar
+als…), **✕** zet de knop terug (`modular-mb/knobTour.ts`). Een nieuwe module
+krijgt een regel per frontknop; `moduleHelp.test.ts` bewaakt dat.
+
 De speelmodus is er ook in het **Engels** (UK): een Engelstalige browser krijgt
 dat vanzelf, het grijze wereldbolletje in de hoek rechtsboven wisselt, en een link met
 `?lang=en` (of `?lang=nl`) zet de taal en onthoudt hem, handig om naar

@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { ModulePanel } from './ModulePanel';
 import { buildFrontModule, frontControlState } from './frontLayout';
+import { knobTourUserTouched, useKnobTour } from './knobTour';
 import { controlHelp } from './moduleHelp';
 import { setPatchControl } from './setPatchControl';
 import { useEngineStatus } from './sim/engineSingleton';
@@ -31,7 +32,15 @@ export function FrontPanel({ front, patch, project, pxPerMm = 3, onPortClick, on
     window.addEventListener('resize', sync);
     return () => window.removeEventListener('resize', sync);
   }, []);
+  const tour = useKnobTour();
   const controlState = frontControlState(fm, patch, live);
+  // Knoptour: de knop die de tour draait toont de previewwaarde, niet de patchwaarde.
+  let tourVid: string | null = null;
+  if (tour.status !== 'idle' && tour.patchId === patch.id && tour.value !== null) {
+    for (const [vid, t] of Object.entries(fm.map)) {
+      if (t.kind === 'control' && t.moduleId === tour.moduleId && t.controlId === tour.controlId) { controlState[vid] = tour.value; tourVid = vid; }
+    }
+  }
 
   // Help: hover geeft de regel als tooltip, lang drukken als ballon (telefoon).
   const helpOf = (vid: string): string | null => {
@@ -53,6 +62,7 @@ export function FrontPanel({ front, patch, project, pxPerMm = 3, onPortClick, on
   function onControlChange(vid: string, value: ControlValue): void {
     const t = fm.map[vid];
     if (!t || t.kind !== 'control') return;
+    knobTourUserTouched(t.moduleId, t.controlId);
     setPatchControl(patch.id, t.moduleId, t.controlId, value, { twins: true });
   }
 
@@ -126,6 +136,14 @@ export function FrontPanel({ front, patch, project, pxPerMm = 3, onPortClick, on
       controlHelp={onArrange ? undefined : helpOf}
       onControlHold={(vid, at) => { const text = helpOf(vid); if (text) setBalloon({ text, ...at }); }}
       />
+      {tourVid && fm.module.visual.controlPlacements[tourVid] && (() => {
+        const cp = fm.module.visual.controlPlacements[tourVid]!;
+        const s = scale(), r = 11;
+        return <div aria-hidden style={{
+          position: 'absolute', left: (cp.x - r) * s, top: (cp.y - r) * s, width: 2 * r * s, height: 2 * r * s,
+          borderRadius: '50%', border: '3px solid #f59e0b', boxShadow: '0 0 12px rgba(245,158,11,0.7)', pointerEvents: 'none', boxSizing: 'border-box',
+        }} />;
+      })()}
       {balloon && (
         <div role="tooltip" style={{
           position: 'fixed', zIndex: 50, left: Math.max(8, Math.min(window.innerWidth - 268, balloon.x - 130)), top: Math.max(8, balloon.y - 8),

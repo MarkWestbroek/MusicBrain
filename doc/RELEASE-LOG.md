@@ -17,6 +17,22 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-10 — Laat horen: ▶ per knop in de uitleg (editor)
+- In het uitlegblad staat ▶ voor elke knop. Het instrument speelt dan een
+  gebroken akkoord op het tempo van de patch en draait acht seconden aan de
+  knop: naar het minimum, langzaam naar het maximum en terug (Hz en ms
+  logaritmisch, schakelaars lopen hun standen af). Een oranje ring wijst de
+  knop aan; de balk bovenin toont zijn uitlegregel.
+- **⏸ Pauze** houdt de klank vast; **Houden** zet die stand in de patch, dan
+  verschijnt ● Bewaar en werkt Bewaar als… gewoon. **✕** (of Escape) zet de
+  knop terug. Draai je zelf aan de knop, dan stopt de tour en geldt jouw stand.
+- Het draaien is een preview: engine en Teensy, niet de patch (geen
+  Bewaar-knop, geen undo) — `knobTour.ts`, `KnobTourBar.tsx`. Een patch die
+  zelf speelt (ritmebox, sequencer) krijgt geen noten; met een ARP houdt de
+  tour een akkoord vast.
+- De knop boven het front heet nu **ⓘ Uitleg**: twee keer ? naast elkaar (de
+  rondleiding staat naast Binnenkijken) was verwarrend.
+
 ### 2026-10-10 — Sampler: paneel opnieuw ingedeeld (editor)
 - Met Era, Clock en Bits erbij stond de derde rij op elkaar (Marks melding):
   Clock over de Era-schakelaar, Sens half boven Bits, labels tegen de

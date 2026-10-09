@@ -23,6 +23,7 @@ import {
 import { nlen } from '../i18n';
 import { CmiPage4 } from './CmiPage4';
 import { FrontHelp } from './FrontHelp';
+import { KnobTourBar } from './KnobTourBar';
 import { cmiVoices } from './cmiSync';
 import { contentText, frontText } from './contentEn';
 import { DEMO_SEEDS } from './demoSeeds';
@@ -105,7 +106,7 @@ export function FrontTab({ expert = true }: { expert?: boolean }): JSX.Element {
         <button type="button" data-tour="play-help" onClick={() => setHelp(true)}
           title={nlen('Wat doen de knoppen? (of houd een knop even vast)', 'What do the knobs do? (or press and hold a knob)')}
           aria-label={nlen('Uitleg bij de knoppen', 'Explain the knobs')}
-          style={{ ...btn, fontWeight: 700, minWidth: 28, borderRadius: 14 }}>?</button>
+          style={{ ...btn, fontWeight: 600 }}>{nlen('ⓘ Uitleg', 'ⓘ Explain')}</button>
         {cmi.length > 0 && (
           <button type="button" data-tour="play-page4" onClick={() => setPage4(true)}
             title={nlen('Page 4: de harmonischen van de CMI-stem tekenen', 'Page 4: draw the harmonics of the CMI voice')}
@@ -142,6 +143,7 @@ export function FrontTab({ expert = true }: { expert?: boolean }): JSX.Element {
       {page4 && cmi.length > 0 && (
         <CmiPage4 patchId={patch.id} owner={cmi[0]!.owner} voices={cmi.map((v) => v.id)} onClose={() => setPage4(false)} />
       )}
+      <KnobTourBar patchId={patch.id} />
       {help && <FrontHelp front={frontText(front)} patch={patch} project={project} onClose={() => setHelp(false)} />}
       {front.description && <p style={{ margin: 0, maxWidth: 640, opacity: 0.85 }}>{contentText(front.description)}</p>}
       <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>

@@ -1,6 +1,6 @@
 # Help per knop en instrumenttour (speelmodus)
 
-Status 2026-10-10: deel A gebouwd, deel B is een ontwerp ter review.
+Status 2026-10-10: deel A gebouwd; van deel B is stap 1 gebouwd (▶ per knop), de rest is ontwerp.
 
 Een speler ziet op het front knoppen als *Timbre*, *Seg* of *Contact* en weet
 niet wat ze doen. Deel A legt ze uit in tekst; deel B laat het horen.
@@ -12,7 +12,8 @@ niet wat ze doen. Deel A legt ze uit in tekst; deel B laat het horen.
   staat los van de moduledefinities: een project bewaart zijn eigen kopie van
   de moduletypen, dus tekst daarin zou in bestaande projecten ontbreken.
   De lange uitleg blijft de `notes` van de module.
-- **?-knop** boven het front (`data-tour="play-help"`) opent een blad
+- **ⓘ Uitleg** boven het front (eerst een ?, maar dat botste met de ? van de
+  rondleiding naast Binnenkijken) (`data-tour="play-help"`) opent een blad
   (`FrontHelp.tsx`): per module op het front de uitleg en per knop zijn label
   met de regel. Zonder eigen tekst valt de module terug op de eerste zin van
   zijn notes; een knop zonder regel krijgt een streepje.
@@ -45,7 +46,7 @@ het verschil hoort. Twee standen:
 | Speler | timerlus zoals `recipe/demo.tsx` (`startDemo`: state, stop, finish) | patroon, geen code |
 | Draaien | een stap zet elke ~30 ms een tussenwaarde | `setPatchControl` met een nieuwe optie `{ preview: true }` (zie hieronder) |
 | Aanwijzen | de ballon van de rondleiding bij de knop die draait, met de regel | `PlayTour`-ballon; knoppen krijgen een anker per vid |
-| Ingang | ▶ per knopregel in het ?-blad ("laat horen") en ▶ Tour bovenaan het blad | geen nieuwe knop in de speelmodus |
+| Ingang | ▶ per knopregel in het uitlegblad ("laat horen") en ▶ Tour bovenaan het blad | geen nieuwe knop in de speelmodus |
 
 ### Het schrijfpad
 
@@ -77,8 +78,14 @@ via hetzelfde pad, tenzij je in de pauze op Houden tikte (zie Gedrag). Besloten 
 
 ### Stappen
 
-1. ▶ per knopregel in het ?-blad: automatische zwaai, stand 1 met de
-   standaardfrase. Klein en meteen nuttig.
+1. ▶ per knopregel in het uitlegblad: automatische zwaai, stand 1 met de
+   standaardfrase. Klein en meteen nuttig. **Gebouwd 2026-10-10**
+   (`knobTour.ts`, `KnobTourBar.tsx`): 8 s zwaai in knopstand (orig → min →
+   max → orig; schakelaars lopen hun standen af), gebroken akkoord in kwarten
+   op het patchtempo, niets bij een patch die zelf speelt, een vastgehouden
+   akkoord bij de ARP; oranje ring om de knop; ⏸/▶, Houden, ✕, Escape en
+   spatie. Een control die de engine alleen met een herbouw kan zetten,
+   hoor je in de preview niet.
 2. ▶ Tour per instrument: alle frontknoppen na elkaar, met de ballon.
 3. Stand 2 (ik speel, jij draait).
 4. Handgeschreven scripts voor een paar instrumenten (e-piano, orgel, acid,
