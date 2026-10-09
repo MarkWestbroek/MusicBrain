@@ -13,9 +13,9 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 
 import { nlen, useLang } from '../../i18n';
-import { setPatchControl } from '../setPatchControl';
-import { getProject, useModularProject } from '../store';
-import { downloadBlob, encodeSmf, patchSnapshot, patchTempo, tempoControl } from './midiRecorder';
+import { getProject } from '../store';
+import { setPatchTempo, useTempoNow } from '../useTempoSync';
+import { downloadBlob, encodeSmf, patchSnapshot, patchTempo } from './midiRecorder';
 import { TOOLBAR_BTN } from './ScreenKeys';
 import { MAX_TRACKS, barMs, exportFiles, songBars, songMs } from './song';
 import { deleteSong, listSongs, loadSong, saveSong, type SongSummary } from './songStore';
@@ -60,17 +60,13 @@ export function OverdubPanel(): JSX.Element {
   const [saved, setSaved] = useState<SongSummary[] | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
-  // Tempo gelijk houden met de patch (ritmebox, klok): voor het eerste spoor
-  // volgt de song de patch; daarna volgt de patch de song, zodat een
-  // ritmebox op spoor 2 in de maat van spoor 1 loopt.
-  const project = useModularProject();
-  const patch = project.patches.find((p) => p.id === project.activePatchId);
-  const tempo = patch ? tempoControl(project, patch) : null;
+  // Tempo (doc/plans/tempo.md): zonder sporen volgt de song het ene tempo
+  // van de patch (TAP, de knoppen, de MIDI-clock); met sporen is de song de
+  // baas en zet de tempokoppeling (useTempoSync) de knoppen op het songtempo.
+  const tempoNow = useTempoNow();
   useEffect(() => {
-    if (!patch || !tempo || Math.abs(tempo.bpm - song.bpm) < 0.06) return;   // de song rondt af op 0,1
-    if (!hasAudio) t.setBpm(tempo.bpm);
-    else setPatchControl(patch.id, tempo.moduleId, 'tempo', song.bpm);
-  }, [patch?.id, tempo?.moduleId, tempo?.bpm, song.bpm, hasAudio]);   // eslint-disable-line react-hooks/exhaustive-deps
+    if (!hasAudio && Math.abs(tempoNow.bpm - song.bpm) >= 0.06) t.setBpm(tempoNow.bpm);
+  }, [tempoNow.bpm, hasAudio]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // De positie in de song, voor de balkjes en de teller.
   useEffect(() => {
@@ -156,9 +152,8 @@ export function OverdubPanel(): JSX.Element {
         <span style={{ fontVariantNumeric: 'tabular-nums', minWidth: 72 }}>{fmt(Math.max(0, pos))} / {fmt(total)}</span>
         <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }} title={bpmLocked ? nlen('Het tempo ligt vast zodra er een spoor is', 'The tempo is fixed once a track exists') : nlen('Tempo van de metronoom en de maten', 'Tempo of the metronome and the bars')}>
           <input type="number" min={30} max={300} step={0.1} value={song.bpm} disabled={bpmLocked || busy}
-            onChange={(e) => t.setBpm(Number(e.target.value))} style={{ width: 52, fontSize: 12 }} /> bpm
+            onChange={(e) => { const v = Number(e.target.value); if (v >= 30 && v <= 300) setPatchTempo(v); }} style={{ width: 52, fontSize: 12 }} /> bpm
         </label>
-        {tempo && <span style={small} title={nlen('De tempoknop van de patch loopt mee', 'The tempo knob of the patch follows')}>⟲ {patch?.name}</span>}
         <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }} title={nlen('Metronoom tijdens afspelen en opnemen (het aftellen tikt altijd)', 'Metronome while playing and recording (the count-in always ticks)')}>
           <input type="checkbox" checked={song.metronome} onChange={(e) => t.setMetronome(e.target.checked)} /> {nlen('metronoom', 'metronome')}
         </label>

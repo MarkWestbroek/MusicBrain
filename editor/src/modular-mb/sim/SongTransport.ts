@@ -67,7 +67,7 @@ export class SongTransport {
   private armTimer: number | null = null;
   private restartTimer: number | null = null;
 
-  constructor(private readonly engine: AudioEngine = getEngine(), private readonly info: () => PatchInfo = () => ({ name: '', bpm: null, snapshot: null })) {
+  constructor(private readonly engine: AudioEngine = getEngine(), private info: () => PatchInfo = () => ({ name: '', bpm: null, snapshot: null })) {
     this.state = { song: newSong(), phase: 'idle', armed: null, waiting: false, error: null };
   }
 
@@ -76,6 +76,8 @@ export class SongTransport {
   subscribe(fn: () => void): () => void { this.listeners.add(fn); return () => { this.listeners.delete(fn); }; }
   private set(next: Partial<TransportState>): void { this.state = { ...this.state, ...next }; for (const l of this.listeners) l(); }
   get song(): Song { return this.state.song; }
+  /** Wie de patch-info levert (het paneel); de tempokoppeling kan er eerder zijn. */
+  setInfo(info: () => PatchInfo): void { this.info = info; }
 
   /** Positie in de song in ms (voor de balkjes); tijdens het aftellen negatief. */
   positionMs(): number {
@@ -355,5 +357,6 @@ export class SongTransport {
 let shared: SongTransport | null = null;
 export function getSongTransport(info?: () => PatchInfo): SongTransport {
   if (!shared) shared = new SongTransport(getEngine(), info);
+  else if (info) shared.setInfo(info);
   return shared;
 }

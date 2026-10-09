@@ -19,7 +19,7 @@
 
 import type { ModularProject, Patch } from '../types';
 
-export type SavedFields = Pick<Patch, 'connections' | 'controlState' | 'voiceCount' | 'rackIds' | 'envelopes' | 'lfos' | 'polyOverrides' | 'fronts' | 'moduleData'>;
+export type SavedFields = Pick<Patch, 'connections' | 'controlState' | 'voiceCount' | 'rackIds' | 'envelopes' | 'lfos' | 'polyOverrides' | 'fronts' | 'moduleData' | 'tempo' | 'tempoOwn'>;
 
 export function snapshotOf(p: Patch): SavedFields {
   return {
@@ -28,10 +28,12 @@ export function snapshotOf(p: Patch): SavedFields {
     ...(p.polyOverrides ? { polyOverrides: p.polyOverrides } : {}),
     ...(p.fronts ? { fronts: p.fronts } : {}),
     ...(p.moduleData ? { moduleData: p.moduleData } : {}),
+    ...(p.tempo !== undefined ? { tempo: p.tempo } : {}),
+    ...(p.tempoOwn ? { tempoOwn: p.tempoOwn } : {}),
   };
 }
 
-const sig = (s: SavedFields): string => JSON.stringify([s.connections, s.controlState, s.voiceCount, s.rackIds, s.envelopes, s.lfos, s.polyOverrides ?? null, s.fronts ?? null, s.moduleData ?? null]);
+const sig = (s: SavedFields): string => JSON.stringify([s.connections, s.controlState, s.voiceCount, s.rackIds, s.envelopes, s.lfos, s.polyOverrides ?? null, s.fronts ?? null, s.moduleData ?? null, s.tempo ?? null, s.tempoOwn ?? null]);
 
 /** Na elke store-wijziging: leg de bewaarde versie vast bij de eerste
  *  wijziging van een schone patch, en ruim hem op als de bewerking weer

@@ -14,6 +14,7 @@ import { PatchSelect } from './PatchSelect';
 import { CommandPalette } from './recipe/CommandPalette';
 import { Tour, tourSeen } from './recipe/Tour';
 import { PlayTour, playTourSeen } from './PlayTour';
+import { useTempoSync } from './useTempoSync';
 import { nlen, useLang } from '../i18n';
 import { startDemo, DemoCaption, type DemoState, type DemoHandle } from './recipe/demo';
 import type { PatchOp } from './recipe/types';
@@ -113,6 +114,8 @@ export function ModularMbApp(): JSX.Element {
   // Taal van de speelmodus (?lang=en, de browser, of het wereldbolletje
   // rechtsboven); de editor achter Binnenkijken blijft Nederlands.
   useLang();
+  // Eén tempo per patch: alle tempoknoppen volgen (doc/plans/tempo.md).
+  useTempoSync();
   // ?patch=<slug>: een patch van musicbrain.nl aanbieden via de inbox (patch-pool §5).
   useEffect(() => {
     const slug = new URLSearchParams(window.location.search).get('patch');

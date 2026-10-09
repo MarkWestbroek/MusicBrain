@@ -668,7 +668,12 @@ export interface Patch {
    * Bewaarde versie (ED-RC-9), alleen aanwezig zolang de patch gewijzigd is
    * sinds de laatste Bewaar. Zie recipe/saved.ts.
    */
-  saved?: Pick<Patch, 'connections' | 'controlState' | 'voiceCount' | 'rackIds' | 'envelopes' | 'lfos' | 'polyOverrides' | 'fronts' | 'moduleData'>;
+  saved?: Pick<Patch, 'connections' | 'controlState' | 'voiceCount' | 'rackIds' | 'envelopes' | 'lfos' | 'polyOverrides' | 'fronts' | 'moduleData' | 'tempo' | 'tempoOwn'>;
+  /** Het tempo van de patch in bpm (doc/plans/tempo.md): alle tempoknoppen
+   *  volgen het, tenzij ExtClk of `tempoOwn`. Weggelaten = de eerste knop. */
+  tempo?: number;
+  /** Modules die bewust hun eigen tempo houden. */
+  tempoOwn?: string[];
   /**
    * Data van een module die niet in knopstanden past (doc/plans/fairlight.md):
    * nu het harmonischenprofiel van een CMI-stem (`cmi`, base64, ~1,4 KB),

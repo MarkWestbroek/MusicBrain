@@ -42,7 +42,7 @@ Drie projectmodi via knoppen bovenin:
 | Modus | Status |
 |---|---|
 | **Effect-switcher** | Volledig werkende offline editor + simulatie (zie hieronder) |
-| **Modular MB** | Rack, patcher, presets, Teensy-link én een browser-simulator die de Teensy-DSP als wasm draait (DX7, Elements, Rings, Marbles, Plaits, …) — zie [tools/mmb-wasm/README.md](../tools/mmb-wasm/README.md) en [doc/Simulation.md §9](../doc/Simulation.md). De Modules-tab heeft zoeken, sorteerbare kolommen en een Sim-kolom die per type laat zien of de simulator hem speelt (`src/modular-mb/sim/simSupport.ts`) |
+| **Modular MB** | Opent in de **speelmodus** (patchkeuze, front, schermtoetsenbord en lint, rondleiding, sporen, tempo; NL/EN, zie [Speelmodus en front](#speelmodus-en-front)); **Binnenkijken ▸** opent rack, patcher, presets, Teensy-link én een browser-simulator die de Teensy-DSP als wasm draait (DX7, Elements, Rings, Marbles, Plaits, …) — zie [tools/mmb-wasm/README.md](../tools/mmb-wasm/README.md) en [doc/Simulation.md §9](../doc/Simulation.md). De Modules-tab heeft zoeken, sorteerbare kolommen en een Sim-kolom die per type laat zien of de simulator hem speelt (`src/modular-mb/sim/simSupport.ts`) |
 | **Amp-switcher** | Placeholder — moet nog uitgewerkt worden |
 | **Poly-synth (scope)** | Live CV/gate-trace van `mb_simulator` via `tools/scope-bridge` |
 
@@ -201,6 +201,15 @@ Binnenkijken blijft Nederlands; een eigen patch houdt zijn eigen tekst.
   vasthouden = tijdelijk), een pedaalschuif op de eerste CC van de MIDI-IN,
   ⇕ lange toetsen, ⏹ alle noten uit, ⛶ volledig scherm met front of 🎹 alleen
   het klavier.
+- **Tempo** (♩ in de werkbalk van het toetsenbord, speelmodus): één tempo
+  per patch. Tik in de maat op ♩ (tap tempo) of typ het getal in het menu
+  (▾); alle tempoknoppen in de patch volgen (ritmebox, CLOCK, ARP, GRIDS,
+  MARBLES, EUCLID, TURING), behalve modules op ExtClk (de kabel beslist) of
+  die je in het menu op *eigen tempo* zet. Draai je aan zo'n knop, dan is
+  dat het nieuwe tempo. Wie beslist: de **MIDI-clock** (als *MIDI-clock
+  volgen* aan staat en er een klok binnenkomt) > de **song** van de
+  vierspoorsrecorder (zodra die sporen heeft) > het patchtempo. Ontwerp:
+  [doc/plans/tempo.md](../doc/plans/tempo.md).
 - **Fairlight / PAGE 4**: in een patch met een CMI-stem (standaardset **🖥
   Fairlight CMI**, of Solo ▾) staat boven het front **PAGE 4**: de
   harmonische profielen van de Fairlight, groen op zwart. Kies een

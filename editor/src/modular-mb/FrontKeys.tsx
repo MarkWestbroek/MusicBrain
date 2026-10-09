@@ -11,6 +11,7 @@ import { nlen, useLang } from '../i18n';
 import { getEngine, useEngineStatus } from './sim/engineSingleton';
 import { SUSTAIN_CC, midiInCcNumbers } from './sim/midiInCc';
 import { OverdubPanel } from './sim/OverdubPanel';
+import { TempoTap } from './TempoTap';
 import { ribbonMidiIn } from './sim/ribbonSetup';
 import { RecordButton } from './sim/RecordButton';
 import { ScreenKeys, TOOLBAR_BTN, type SlideMode } from './sim/ScreenKeys';
@@ -127,6 +128,7 @@ export function FrontKeys({ stage, record = false }: { stage?: RefObject<HTMLEle
         extra={canFull && stage ? (
           <span style={{ display: 'inline-flex', gap: 2 }}>
             {(record || full) && <span data-tour="keys-record" style={{ display: 'inline-flex' }}><RecordButton compact style={fsBtn} /></span>}
+            {record && <TempoTap />}
             {record && (
               <button type="button" data-tour="keys-tracks" onClick={() => setTracks(!tracks)}
                 style={{ ...fsBtn, fontWeight: tracks ? 700 : 400, background: tracks ? '#fde68a' : undefined }}

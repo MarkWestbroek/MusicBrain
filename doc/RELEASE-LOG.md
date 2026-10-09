@@ -17,6 +17,29 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-09 — Tempo: één baas per patch, tap tempo, MIDI-clock (editor)
+- **Eén tempo per patch** (`patch.tempo`, plan `doc/plans/tempo.md`): alle
+  tempoknoppen volgen het (ritmebox, CLOCK, ARP, GRIDS, MARBLES, EUCLID,
+  TURING), behalve op ExtClk of bewust op *eigen tempo* (`patch.tempoOwn`).
+  Draai je aan zo'n knop, dan wordt dat het patchtempo en gaan de anderen
+  mee. Volgorde van wie beslist: **MIDI-clock** > de **song** van de
+  vierspoorsrecorder (met sporen) > het patchtempo.
+- **♩ TAP** in de werkbalk van het toetsenbord (`TempoTap.tsx`): tikken =
+  tap tempo (gemiddelde van de laatste vier intervallen, na 2 s opnieuw);
+  ▾ = menu met het getal, *MIDI-clock volgen* en per tempomodule *volgt /
+  eigen tempo / ExtClk*. Stap in de rondleiding.
+- **MIDI-clock volgen**: 24 tikken per tel uit de ruwe Web MIDI-ingang;
+  alleen live (engine + Teensy-poke), niet in de patch, zodat een verlopende
+  DAW-klok de patch niet steeds gewijzigd maakt; stopt de klok, dan terug
+  naar de patch.
+- De vierspoorsrecorder gebruikt het patchtempo (zijn eigen regel voor
+  "de eerste tempoknop" is weg); met sporen zet de song alle volgende knoppen.
+- Zonder firmwarewijziging: de knoppen gaan via `setPatchControl` ook naar de
+  Teensy. Fase 2 (de brain volgt MIDI-clock zelf) staat open (FW-CV-9).
+- Zuiver deel getest (`tempo.test.ts`); in de browser op telefoonformaat:
+  laden laat de patch schoon, tikken zet de ritmebox, het menu toont CLOCK
+  (volgt) en EUCLID (ExtClk).
+
 ### 2026-10-09 — Fairlight: PAGE 4, DURATION en ENERGY (fw 0.5.99)
 - **PAGE 4** (`CmiPage4.tsx`): de harmonische profielen van de CMI, groen
   op zwart, ook op de telefoon. 32 harmonischen × 32 segmenten tekenen, plus

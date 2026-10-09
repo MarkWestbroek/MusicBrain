@@ -10,7 +10,7 @@ digital synthesizers, samplers and effects. External audio paths can remain
 analog; internal DSP and USB audio are digital. Recall of external equipment
 depends on which parameters and connections its hardware can actually control.
 
-**[Open the editor](https://editor.musicbrain.nl/)** ·
+**[Open the editor](https://editor.musicbrain.nl/)** ([in English](https://editor.musicbrain.nl/?lang=en)) ·
 [Website](https://musicbrain.nl/) ·
 [Firmware downloads](https://github.com/MarkWestbroek/MusicBrain/releases) ·
 [Development log](doc/RELEASE-LOG.md)
@@ -30,9 +30,9 @@ depends on which parameters and connections its hardware can actually control.
 
 ## Current status
 
-**Development snapshot: 30 September 2026.** This is an active development
+**Development snapshot: 9 October 2026.** This is an active development
 project, not just scaffolding and not a finished hardware product family.
-The firmware source identifies itself as **0.5.94**. The deployed editor,
+The firmware source identifies itself as **0.5.99**. The deployed editor,
 downloadable firmware and published hardware releases can lag behind source;
 check the release notes and the version reported by a connected device.
 
@@ -55,14 +55,18 @@ No MusicBrain hardware or account is needed for the core editor and simulator.
 Use a current Chrome or Edge browser for the most straightforward MIDI/USB
 workflow; device access depends on browser support and permissions.
 
-1. Open [the editor](https://editor.musicbrain.nl/) and select **Modular MB**.
-2. Export any existing project before experimenting. Choose a ready-made
-  instrument patch from **Solo** or **Poly** instead of starting with an empty rack.
-3. Open **Simulatie / Simulation**, start audio and play the on-screen
-  keyboard. A MIDI keyboard is optional; select its input and grant access
-  when using Web MIDI. Start with a low listening volume.
-4. Change a control or patch cable and listen. Export the project as JSON
-  to keep a portable copy; browser storage is not a backup.
+1. Open [the editor](https://editor.musicbrain.nl/) (add
+  [`?lang=en`](https://editor.musicbrain.nl/?lang=en) for English; an English
+  browser gets it automatically). It opens in **play mode**: a patch from
+  the standard set, its front panel and an on-screen keyboard that also
+  works on a phone. A short tour explains the controls; **?** repeats it.
+2. Choose another patch from the list and play. The first key press starts
+  the audio. A MIDI keyboard is optional; grant access when using Web MIDI.
+  Start with a low listening volume.
+3. Turn the knobs on the front panel. **Save** keeps your changes in the
+  patch; **Look inside ▸** opens the full editor (rack, patcher, simulator).
+4. Export the project as JSON to keep a portable copy; browser storage is
+  not a backup.
 
 If a patch stays silent, check that audio has started, that it reaches an
 output and that its modules are supported in the simulator. Sampler and
@@ -114,6 +118,8 @@ module exists or that every target supports it.
 | Sampling | Multisample analysis, SF2 import, key/velocity zones, bank transfer and SD streaming | [Browser instruments](doc/browser-instrumenten.md), [Teensy storage](doc/teensy-aan-de-pc.md#3-de-sd-kaart-voor-de-sampler) |
 | Effects | Filters, delays, chorus, phasers, reverbs, pitch effects, compressors and EQ | [Release log](doc/RELEASE-LOG.md), [compressors](doc/plans/vintage-compressors.md), [EQ](doc/plans/vintage-eq.md) |
 | Voice and audio input | External audio/vocoder, ZANG lyric banks and voice-synthesis experiments | [Zang](doc/plans/zingende-stemmen.md), [voice as an instrument](doc/plans/stem-als-instrument.md), [local speech generation](tools/piper-tts/README.md) |
+| Play mode | Front panels, a touch keyboard and a Trautonium-style ribbon on the phone, a guided tour, English/Dutch, a four-track overdub recorder (free recording, then loop a region and punch in), one tempo per patch with tap tempo and MIDI clock | [Editor: play mode](editor/README.md#speelmodus-en-front), [overdub](doc/plans/overdub.md), [tempo](doc/plans/tempo.md) |
+| Classic instruments | Trautonium (MIXTUR), Ondes Martenot with its Palme and Métallique speakers, Fairlight CMI (8-bit sampler mode and waveform synthesis drawn on a green-on-black PAGE 4), an arpeggiator, organ, e-piano, Mellotron, CS-80 brass and more | [Release log](doc/RELEASE-LOG.md), [Fairlight](doc/plans/fairlight.md), [module catalogue](doc/module-catalogus.md) |
 | Performance control | MIDI, CC, aftertouch, control-surface feedback and touch/phone experiments | [Roto-Control](doc/plans/control-surface.md), [MPE status](doc/plans/mpe.md), [Snaarbank](doc/snaarbank-testlab.md) |
 | Patch creation tools | Recipes, optional AI assistance and project-file editing through MCP | [Recipes](doc/plans/patch-recept.md), [MCP tools](tools/mmb-mcp/README.md) |
 | A/B and morph | Compare and interpolate patches on the same rack; firmware support is incomplete | [Morph status and limits](doc/plans/morph-a-b.md) |
