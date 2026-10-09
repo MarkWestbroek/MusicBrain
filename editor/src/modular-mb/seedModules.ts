@@ -1415,31 +1415,31 @@ function mmbSampler() {
       knob('attack', 'Att',    w*0.76, 28, { size: 'small', min: 0.2, max: 500, def: 1.5, unit: 'ms', color: '#9ca3af' }),
       knob('env_rel', 'Env rel', w*0.90, 28, { size: 'small', min: 10, max: 2000, def: 120, unit: 'ms', color: '#9ca3af' }),
       // Filter in de cel — dezelfde kernels als VCF (SVF) en MS-20 (Korg35).
-      sw  ('filter', 'Filter', w*0.08, 50, ['Uit', 'SVF', 'MS-20'], 0),
-      knob('cutoff', 'Cutoff', w*0.24, 50, { size: 'medium', min: 20, max: 18000, def: 2000, unit: 'Hz', color: '#38bdf8' }),
-      knob('q',      'Res',    w*0.38, 50, { size: 'small', min: 0, max: 1, def: 0.3, color: '#38bdf8' }),
-      sw  ('fmode',  'Mode',   w*0.50, 50, ['LP', 'HP', 'BP'], 0),
-      knob('drive',  'Drive',  w*0.62, 50, { size: 'small', min: 0.1, max: 10, def: 1, color: '#38bdf8' }),
-      knob('cv_amt', 'CV amt', w*0.74, 50, { size: 'small', min: 0, max: 8, def: 4, unit: 'oct', color: '#38bdf8' }),
+      sw  ('filter', 'Filter', w*0.08, 45, ['Uit', 'SVF', 'MS-20'], 0),
+      knob('cutoff', 'Cutoff', w*0.24, 45, { size: 'medium', min: 20, max: 18000, def: 2000, unit: 'Hz', color: '#38bdf8' }),
+      knob('q',      'Res',    w*0.38, 45, { size: 'small', min: 0, max: 1, def: 0.3, color: '#38bdf8' }),
+      sw  ('fmode',  'Mode',   w*0.50, 45, ['LP', 'HP', 'BP'], 0),
+      knob('drive',  'Drive',  w*0.62, 45, { size: 'small', min: 0.1, max: 10, def: 1, color: '#38bdf8' }),
+      knob('cv_amt', 'CV amt', w*0.74, 45, { size: 'small', min: 0, max: 8, def: 4, unit: 'oct', color: '#38bdf8' }),
       // Lift op de follower: een keurig uitgestuurd sample geeft een env van
       // 0,1 à 0,2, en dan blijft de auto-wah op 4 octaven een kiertje.
-      knob('env_sens', 'Sens', w*0.74, 60, { size: 'small', min: -12, max: 36, def: 12, unit: 'dB', color: '#38bdf8' }),
+      knob('env_sens', 'Sens', w*0.75, 58, { size: 'small', min: -12, max: 36, def: 12, unit: 'dB', color: '#38bdf8' }),
       // Limiter op de som: een zingende MS-20 op een paar stemmen komt ruim
       // boven ±1, en tussen modules is dat hard afknippen (digitale
       // overdrive). Aan = limiter + zachte begrenzing; Uit = het gruis.
-      sw  ('limit', 'Limit', w*0.08, 62, ['Uit', 'Aan'], 1),
+      sw  ('limit', 'Limit', w*0.07, 58, ['Uit', 'Aan'], 1),
       // Era CMI: zoals de Fairlight — klok per stem, geen interpolatie, 8 bit,
       // een filter dat de toon volgt (doc/plans/fairlight.md).
-      sw  ('era',   'Era',   w*0.44, 62, ['Clean', 'CMI'], 0),
-      knob('clock', 'Clock', w*0.55, 62, { size: 'small', min: 8000, max: 32000, def: 24000, unit: 'Hz', color: '#fbbf24' }),
-      knob('bits',  'Bits',  w*0.64, 62, { size: 'small', min: 6, max: 12, def: 8, step: 1, color: '#fbbf24' }),
+      sw  ('era',   'Era',   w*0.33, 58, ['Clean', 'CMI'], 0),
+      knob('clock', 'Clock', w*0.51, 58, { size: 'small', min: 8000, max: 32000, def: 24000, unit: 'Hz', color: '#fbbf24' }),
+      knob('bits',  'Bits',  w*0.63, 58, { size: 'small', min: 6, max: 12, def: 8, step: 1, color: '#fbbf24' }),
       // Gedeelde bend-ingang (V/Oct) bovenop de V/Oct van elke cel: één kabel
       // MidiIn.Bend → Bend buigt alle stemmen, ook in een PolyGroup.
-      inPort('bend', 'Bend', 'cv', w*0.30, 62),
-      outPort('out_l', 'L',  'audio', w*0.86, 50),
-      outPort('out_r', 'R',  'audio', w*0.93, 50),
-      outPort('out_3', '3',  'audio', w*0.86, 62),
-      outPort('out_4', '4',  'audio', w*0.93, 62),
+      inPort('bend', 'Bend', 'cv', w*0.20, 58),
+      outPort('out_l', 'L',  'audio', w*0.86, 45),
+      outPort('out_r', 'R',  'audio', w*0.93, 45),
+      outPort('out_3', '3',  'audio', w*0.86, 58),
+      outPort('out_4', '4',  'audio', w*0.93, 58),
       // Per cel: Env (uit), Cutoff (in), V/Oct, Gate, Vel — ids `<base>_<k>`, gebonden aan 'voice'.
       ...cells.map((k) => outPort(`env_${k}`,   `${k}`, 'cv',   colX(k - 1), 72,  { cellGroupId: 'voice' })),
       ...cells.map((k) => inPort(`cutoff_${k}`, '',     'cv',   colX(k - 1), 84,  { cellGroupId: 'voice' })),

@@ -56,11 +56,16 @@ poly-fan-out. Voorstel: één pad houden en `setPatchControl` een optie
 overslaat, plus een overlay met previewwaarden die `frontControlState` over de
 patchwaarden legt (zoals nu de live waarden). Aan het eind, bij stop of bij
 een patchwissel, zet de speler elke geraakte knop terug naar de patchwaarde
-via hetzelfde pad. **Besluit nodig**: dit is een uitbreiding van het ene
-schrijfpad, geen tweede; akkoord?
+via hetzelfde pad, tenzij je in de pauze op Houden tikte (zie Gedrag). Besloten 2026-10-10: terugzetten is de standaard, houden kan vanuit de pauze.
 
 ### Gedrag
 
+- **Pauze en houden** (Mark, 2026-10-10): ⏸ bevriest de tour op de klank van
+  dat moment; de frase mag doorspelen. In de pauze staat in de ballon
+  **Houden**: dat zet de previewwaarden van alle geraakte knoppen via het
+  gewone pad in de patch (één undo-punt) en stopt de tour. Daarna werken
+  Bewaren en Bewaar als… zoals altijd. ▶ gaat verder, ✕ stopt en zet alles
+  terug.
 - **Jij wint**: raak je tijdens de tour een knop aan, dan laat de tour die
   knop los (jouw waarde blijft, en wordt gewoon in de patch gezet).
 - **Stand 2** draait alleen terwijl er een toets ingedrukt is; laat je los,

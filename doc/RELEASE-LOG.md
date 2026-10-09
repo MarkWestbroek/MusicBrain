@@ -17,6 +17,13 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-10 — Sampler: paneel opnieuw ingedeeld (editor)
+- Met Era, Clock en Bits erbij stond de derde rij op elkaar (Marks melding):
+  Clock over de Era-schakelaar, Sens half boven Bits, labels tegen de
+  stemcellen. Limit, Bend, Era, Clock, Bits en Sens staan nu op één rij met
+  ruimte ertussen; filter- en derde rij schoven 4–5 mm omhoog, weg van de
+  cellen. Bestaande projecten krijgen het nieuwe paneel bij het laden.
+
 ### 2026-10-10 — Help per knop in de speelmodus (editor)
 - **?** boven het front opent een blad: per module een korte uitleg en per
   knop één regel, Nederlands en Engels. **Lang drukken** op een knop
