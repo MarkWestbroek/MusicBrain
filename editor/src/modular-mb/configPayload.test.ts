@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { emptyModularProject } from './types';
 import { STEREO_TAPE_SOLO_FX, seedInternals, seedPolyVoicePatch, seedSoloVoicePatch } from './seedModules';
 import { DEMO_SEEDS } from './demoSeeds';
-import { TEENSY_LINE_MAX, buildConfigPayload } from './teensyLink';
+import { TEENSY_LINE_MAX, buildConfigPayload, waveformMessage } from './teensyLink';
 
 interface Cfg { project: { modules: { id: string; typeId: string }[]; patches: { controlState: Record<string, Record<string, unknown>> }[] } }
 
@@ -59,5 +59,22 @@ describe('config-payload: nooit het hele project', () => {
     const p = { ...base, compareSet: [...base.patches.map((x) => x.id), 'bestaat_niet'] };
     expect(buildConfigPayload(p).patches).toBeLessThanOrEqual(5);
     expect(buildConfigPayload(p, { activeOnly: true }).patches).toBe(1);
+  });
+});
+
+// 2026-10-09: de 4160 waarden van een CMI-stem als JSON-lijst kostten de
+// Teensy te veel heap om te parsen; groter dan een getekende golf gaat het
+// als base64 van int16 little-endian.
+describe('wavetable-bericht', () => {
+  it('kleine golf: de lijst zoals altijd; CMI-tabel: base64 die precies terugkomt en ~11 KB is', () => {
+    expect(JSON.parse(waveformMessage('m1', [1, -2, 3]))).toEqual({ type: 'wavetable', mod: 'm1', data: [1, -2, 3] });
+    const table = Array.from({ length: 4160 }, (_, i) => Math.round(30000 * Math.sin(i / 7)) - (i % 2));
+    const msg = waveformMessage('cmi1', table);
+    expect(msg.length).toBeLessThan(12_000);
+    const { b64 } = JSON.parse(msg) as { b64: string };
+    const bin = atob(b64);
+    const view = new DataView(Uint8Array.from(bin, (c) => c.charCodeAt(0)).buffer);
+    const back = Array.from({ length: bin.length / 2 }, (_, i) => view.getInt16(i * 2, true));
+    expect(back).toEqual(table);
   });
 });

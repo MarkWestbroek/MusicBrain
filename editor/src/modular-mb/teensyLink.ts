@@ -488,7 +488,7 @@ export async function sendConfig(project: ModularProject): Promise<void> {
   pushedPatchIds = new Set((JSON.parse(json) as { project: { patches: { id: string }[] } }).project.patches.map((p) => p.id));
   // CMI-stemmen: hun golfvormen apart, ná de config (dan bestaan de modules).
   for (const p of project.patches.filter((x) => pushedPatchIds.has(x.id))) {
-    for (const f of cmiTeensyFrames(project, p)) await writeLine(JSON.stringify({ type: 'wavetable', mod: f.id, data: f.data }));
+    for (const f of cmiTeensyFrames(project, p)) await writeLine(waveformMessage(f.id, f.data));
   }
 }
 
@@ -593,9 +593,21 @@ export async function sendWaveform(
   moduleId: string, data: number[],
 ): Promise<void> {
   if (!writer) return;
-  await writeLine(JSON.stringify({
-    type: 'wavetable', mod: moduleId, data: data.map((x) => x | 0),
-  }));
+  await writeLine(waveformMessage(moduleId, data));
+}
+
+/** Het `wavetable`-bericht. Groter dan een getekende golf (de 4160 waarden
+ *  van een CMI-stem): als base64 van int16 little-endian, ~11 KB als één
+ *  string. Als JSON-lijst kostte dat de Teensy tientallen KB heap om te
+ *  parsen, en bij een volle patch viel het bericht stil weg (fw 0.5.100). */
+export function waveformMessage(moduleId: string, data: ArrayLike<number>): string {
+  if (data.length <= 256) return JSON.stringify({ type: 'wavetable', mod: moduleId, data: Array.from(data, (x) => x | 0) });
+  const bytes = new Uint8Array(data.length * 2);
+  const view = new DataView(bytes.buffer);
+  for (let i = 0; i < data.length; i++) view.setInt16(i * 2, Math.max(-32768, Math.min(32767, data[i]! | 0)), true);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return JSON.stringify({ type: 'wavetable', mod: moduleId, b64: btoa(bin) });
 }
 
 /** DX7-bank push (FW-AU-13): één 32-voice bank (4096 bytes packed, dus een

@@ -17,6 +17,19 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-09 — CMI op de Teensy: golfvormen als base64 (fw 0.5.100)
+- Marks melding: de Page 4-profielen staan wel in de patch, maar op de
+  Teensy klonk elke CMI-patch hetzelfde. Oorzaak: de 4160 waarden per stem
+  gingen als JSON-lijst; de parser op de Teensy heeft daar tientallen KB heap
+  voor nodig en bij een volle patch viel het bericht stil weg (de stem hield
+  zijn ingebouwde koperklank). In de simulator werkte het wel (nagemeten:
+  koor, orgel en vierkant geven elk een ander spectrum, ook na wisselen).
+- Nu: groter dan een getekende golf gaat `wavetable` als `b64` (int16
+  little-endian, ~11 KB als één string; `waveformMessage` in
+  `teensyLink.ts`, `onWaveformB64` in `main.cpp`). Neemt een module een golf
+  niet aan, dan staat dat in het Teensy-log. Getekende golven (256 waarden)
+  blijven de lijst, dus oudere firmware werkt daarmee zoals voorheen.
+
 ### 2026-10-09 — Tempo: één baas per patch, tap tempo, MIDI-clock (editor)
 - **Eén tempo per patch** (`patch.tempo`, plan `doc/plans/tempo.md`): alle
   tempoknoppen volgen het (ritmebox, CLOCK, ARP, GRIDS, MARBLES, EUCLID,

@@ -104,6 +104,10 @@ public:
     /** Callback invoked when a "wavetable" message arrives (FW-AU-6).
      *  Bulk single-cycle waveform push to a draw-waveshape oscillator. */
     using WaveformHandler = void (*)(const char* moduleId, JsonArrayConst data);
+    /** Compacte vorm: `b64` = base64 van int16 little-endian (de CMI-stem:
+     *  4160 waarden). Een JSON-lijst van 4160 getallen kostte de parser
+     *  tientallen KB heap en viel bij een volle patch stil weg. */
+    using WaveformB64Handler = void (*)(const char* moduleId, const char* b64);
 
     /** Callback invoked when a "dx7bank" message arrives: één 32-voice
      *  DX7-bank (4096 bytes packed, zonder sysex-framing) als int-array. */
@@ -152,6 +156,7 @@ public:
     void onControlPoke(ControlPokeHandler h) { onControlPoke_ = h; }
     /** @brief Register the bulk-waveform handler (FW-AU-6). */
     void onWaveform(WaveformHandler h) { onWaveform_ = h; }
+    void onWaveformB64(WaveformB64Handler h) { onWaveformB64_ = h; }
     void onDx7Bank(Dx7BankHandler h)   { onDx7Bank_ = h; }
     /** @brief Register the telemetry handler for "getStatus" requests. */
     void onGetStatus(StatusHandler h) { onStatus_ = h; }
@@ -296,6 +301,7 @@ private:
     MidiCcHandler      onMidiCc_      = nullptr;
     ControlPokeHandler onControlPoke_ = nullptr;
     WaveformHandler    onWaveform_    = nullptr;
+    WaveformB64Handler onWaveformB64_ = nullptr;
     Dx7BankHandler     onDx7Bank_     = nullptr;
     StatusHandler      onStatus_      = nullptr;
     SelfTestHandler    onSelfTest_    = nullptr;
@@ -486,7 +492,10 @@ private:
         if (strcmp(type, "wavetable") == 0) {
             // Draw-waveshape push (FW-AU-6):
             //   {"type":"wavetable","mod":id,"data":[int16,...]}
+            //   of {"type":"wavetable","mod":id,"b64":"<int16 LE, base64>"}
             const char* mod = doc["mod"] | "";
+            const char* b64 = doc["b64"] | "";
+            if (*mod && *b64 && onWaveformB64_) { onWaveformB64_(mod, b64); return; }
             JsonArrayConst data = doc["data"].as<JsonArrayConst>();
             if (*mod && !data.isNull() && onWaveform_)
                 onWaveform_(mod, data);

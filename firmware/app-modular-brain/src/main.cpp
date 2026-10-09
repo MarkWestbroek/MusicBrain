@@ -799,7 +799,34 @@ void onWaveform(const char* moduleId, JsonArrayConst data) {
         if (s < -32768) s = -32768;
         buf[n++] = static_cast<int16_t>(s);
     }
-    if (n >= 2) runtime.setWaveform(moduleId, buf, n);
+    if (n >= 2 && !runtime.setWaveform(moduleId, buf, n))
+        mmb_link::TeensyLink::logf("wavetable: module %s nam de golf niet aan (%u waarden)", moduleId, static_cast<unsigned>(n));
+}
+
+// Compacte vorm: base64 van int16 little-endian. Zelfde buffer en zelfde weg.
+void onWaveformB64(const char* moduleId, const char* b64) {
+    static int16_t buf[4160];
+    auto val = [](char c) -> int {
+        if (c >= 'A' && c <= 'Z') return c - 'A';
+        if (c >= 'a' && c <= 'z') return c - 'a' + 26;
+        if (c >= '0' && c <= '9') return c - '0' + 52;
+        if (c == '+') return 62;
+        if (c == '/') return 63;
+        return -1;
+    };
+    uint8_t* out = reinterpret_cast<uint8_t*>(buf);
+    std::size_t bytes = 0, cap = sizeof(buf);
+    uint32_t acc = 0; int bits = 0;
+    for (const char* p = b64; *p && *p != '='; ++p) {
+        const int v = val(*p);
+        if (v < 0) continue;
+        acc = (acc << 6) | static_cast<uint32_t>(v); bits += 6;
+        if (bits >= 8) { bits -= 8; if (bytes < cap) out[bytes++] = static_cast<uint8_t>(acc >> bits); }
+    }
+    const std::size_t n = bytes / 2;
+    if (n < 2) { mmb_link::TeensyLink::logf("wavetable: lege of kapotte b64 voor %s", moduleId); return; }
+    if (!runtime.setWaveform(moduleId, buf, n))
+        mmb_link::TeensyLink::logf("wavetable: module %s nam de golf niet aan (%u waarden)", moduleId, static_cast<unsigned>(n));
 }
 
 }  // namespace
@@ -868,6 +895,7 @@ void setup() {
     link.onMidiPressure(onMidiPressure); // aftertouch via de brug
     link.onControlPoke(onControlPoke);   // FW-LIVE-1: live control-sync
     link.onWaveform(onWaveform);         // FW-AU-6: draw-waveshape push
+    link.onWaveformB64(onWaveformB64);   // compact: de 32 golfvormen van de CMI-stem
     link.onDx7Bank(onDx7Bank);           // FW-AU-13: DX7-bank push
     mmb_link::SampleBank::instance().beginStorage();   // SD-kaart voor de .mmbk-samplebanken
     link.onGetStatus(onGetStatus);       // telemetrie voor de editor
