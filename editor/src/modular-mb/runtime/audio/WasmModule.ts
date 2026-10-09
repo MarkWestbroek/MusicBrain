@@ -135,6 +135,10 @@ export class WasmModule extends AudioModule {
     m.set(slot, { data, rate, name: '', channels: 1 });
     for (const inst of WasmModule.instances) if (inst.id === moduleId) inst.postBlob(slot, data, rate, 1);
   }
+  /** De blob die een module (op id) nu in slot `slot` heeft, of undefined. */
+  static instanceBlob(moduleId: string, slot: number): Int16Array | undefined {
+    return WasmModule.instanceBlobs.get(moduleId)?.get(slot)?.data;
+  }
   /** Keymap zetten (vervangt de vorige). */
   static setZones(typeId: string, zones: WasmZone[]): void {
     WasmModule.zoneMaps.set(typeId, zones);

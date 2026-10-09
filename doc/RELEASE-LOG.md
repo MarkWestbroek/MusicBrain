@@ -29,6 +29,16 @@
   `teensyLink.ts`, `onWaveformB64` in `main.cpp`). Neemt een module een golf
   niet aan, dan staat dat in het Teensy-log. Getekende golven (256 waarden)
   blijven de lijst, dus oudere firmware werkt daarmee zoals voorheen.
+- **Twee patches op hetzelfde rack** ("Bewaar als…") delen de CMI-module maar
+  niet het profiel. De simulator herbouwt bij een patchwissel alleen als de
+  topologie verandert, dus de tabel van de andere patch kwam nooit aan (in
+  Marks twee opnames speelde de "hobo"-patch het profiel van de eerste). Nu
+  zet het simulatiepaneel bij elke wissel de tabel van de nieuwe patch als
+  die verschilt van wat de module heeft (`WasmModule.instanceBlob`), en de
+  Teensy krijgt na een `selectPatch` de tabellen van die patch opnieuw (en bij
+  een push de actieve patch als laatste). Nagemeten in de browser: orgel
+  (h2, h6, h8) en vierkant (oneven) blijven elk van hun patch, ook heen en
+  weer; op de Teensy (0.5.100, b64): koor h4 sterkst, koper h1 sterkst.
 
 ### 2026-10-09 — Tempo: één baas per patch, tap tempo, MIDI-clock (editor)
 - **Eén tempo per patch** (`patch.tempo`, plan `doc/plans/tempo.md`): alle

@@ -487,9 +487,21 @@ export async function sendConfig(project: ModularProject): Promise<void> {
   await writeLine(json);
   pushedPatchIds = new Set((JSON.parse(json) as { project: { patches: { id: string }[] } }).project.patches.map((p) => p.id));
   // CMI-stemmen: hun golfvormen apart, ná de config (dan bestaan de modules).
-  for (const p of project.patches.filter((x) => pushedPatchIds.has(x.id))) {
+  // De actieve patch als laatste: patches op hetzelfde rack delen de module,
+  // en het laatst gestuurde profiel is wat er klinkt.
+  const pushed = project.patches.filter((x) => pushedPatchIds.has(x.id))
+    .sort((a, b) => Number(a.id === project.activePatchId) - Number(b.id === project.activePatchId));
+  for (const p of pushed) {
     for (const f of cmiTeensyFrames(project, p)) await writeLine(waveformMessage(f.id, f.data));
   }
+}
+
+/** De CMI-golfvormen van één patch opnieuw (na een selectPatch: een gedeelde
+ *  module heeft anders nog het profiel van de vorige patch). */
+async function sendCmiTables(project: ModularProject, patchId: string): Promise<void> {
+  const p = project.patches.find((x) => x.id === patchId);
+  if (!p) return;
+  for (const f of cmiTeensyFrames(project, p)) await writeLine(waveformMessage(f.id, f.data));
 }
 
 export async function sendSelectPatch(patchId: string): Promise<void> {
@@ -508,7 +520,11 @@ export function hasPushedPatch(patchId: string): boolean { return pushedPatchIds
  */
 export async function activateOnTeensy(project: ModularProject): Promise<'select' | 'config' | 'offline'> {
   if (!isConnected() || !project.activePatchId) return 'offline';
-  if (pushedPatchIds.has(project.activePatchId)) { await sendSelectPatch(project.activePatchId); return 'select'; }
+  if (pushedPatchIds.has(project.activePatchId)) {
+    await sendSelectPatch(project.activePatchId);
+    await sendCmiTables(project, project.activePatchId);
+    return 'select';
+  }
   await sendConfig(project);
   return 'config';
 }

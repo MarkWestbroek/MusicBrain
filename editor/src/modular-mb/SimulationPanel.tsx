@@ -19,6 +19,7 @@ import { MidiRecorder, encodeSmf, patchSnapshot, siblingName, takeTempo, patchTe
 import {
   loadLibrarySettings, saveLibrarySettings, uploadTakeWithExtras, replaceAsset, parseTags, renameTake, splitTakeName, type LibrarySettings, type Take,
 } from './sim/mediaLibrary';
+import { cmiTables } from './cmiSync';
 import { dx7Host, WasmModule } from './runtime';
 import { simSupportOf, type SimSupport } from './sim/simSupport';
 import {
@@ -186,7 +187,7 @@ export function SimulationPanel(): JSX.Element {
       prevSigRef.current = sig;
       prevCtrlRef.current = JSON.parse(JSON.stringify(patch.controlState ?? {}));
       const wasRunning = status.running;
-      engine.build(project, patch);
+      engine.build(project, patch);   // zet ook de CMI-tabellen
       engine.setMasterVolume(masterVol);
       if (wasRunning) { void engine.start(); }
       return;
@@ -212,6 +213,14 @@ export function SimulationPanel(): JSX.Element {
       }
     }
     prevCtrlRef.current = JSON.parse(JSON.stringify(next));
+    // CMI-profielen (Page 4) live: twee patches op hetzelfde rack ("Bewaar
+    // als…") delen de module maar niet het profiel; zonder herbouw kwam de
+    // tabel van de nieuwe patch nooit aan (Marks melding, 2026-10-09).
+    // Vergelijken met wat de module nu echt heeft (Page 4 duwt ook rechtstreeks).
+    for (const c of cmiTables(project, patch)) {
+      if (WasmModule.instanceBlob(c.id, 0) === c.table) continue;
+      WasmModule.setInstanceBlob(c.id, 0, c.table, 44100);
+    }
     if (needRebuild) {
       const wasRunning = status.running;
       engine.build(project, patch);
