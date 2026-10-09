@@ -91,6 +91,11 @@ export interface ModulePanelProps {
   onPortContextMenu?: (portId: string, e: React.MouseEvent) => void;
   /** Letters groter (telefoon): vermenigvuldigt elke fontSize op het paneel. */
   textScale?: number;
+  /** Uitleg bij een knop (speelmodus-help): verschijnt als tooltip bij hover. */
+  controlHelp?: (controlId: string) => string | null;
+  /** Lang drukken (½ s stil) op een knop: de help als ballon. Krijgt de
+   *  schermplek van de knop. */
+  onControlHold?: (controlId: string, at: { x: number; y: number }) => void;
 }
 
 export function ModulePanel({
@@ -108,6 +113,8 @@ export function ModulePanel({
   onControlContextMenu,
   onPortContextMenu,
   textScale = 1,
+  controlHelp,
+  onControlHold,
 }: ModulePanelProps): JSX.Element {
   const ts = textScale;
   const visual   = mod.visual;
@@ -205,13 +212,15 @@ export function ModulePanel({
         if (!cp) return null;
         const value = controlState?.[c.id] ?? defaultValueOf(c);
         const disabled = disabledControlIds?.has(c.id) ?? false;
+        const help = controlHelp?.(c.id) ?? null;
         return (
           <g key={`ctl-${c.id}`}
             opacity={disabled ? 0.35 : 1}
+            {...(help && onControlHold ? holdHandlers(c.id, onControlHold) : {})}
             style={disabled ? { pointerEvents: 'none' } : undefined}
             onContextMenu={onControlContextMenu
               ? (e) => { e.preventDefault(); e.stopPropagation(); onControlContextMenu(c.id, e); } : undefined}>
-            {disabled && <title>Niet actief in deze patch</title>}
+            {disabled ? <title>Niet actief in deze patch</title> : help ? <title>{help}</title> : null}
             <ControlGlyph
               control={c}
               x={cp.x} y={cp.y}
@@ -1233,4 +1242,33 @@ function LedGlyph({
 
 function clamp(v: number, lo: number, hi: number): number {
   return v < lo ? lo : v > hi ? hi : v;
+}
+
+// Lang drukken op een knop: ½ s zonder noemenswaardig te bewegen. In de
+// capture-fase, zodat de knop zelf gewoon blijft draaien; wie draait, beweegt
+// en annuleert de timer.
+const HOLD_MS = 500, HOLD_SLOP_PX = 6;
+let holdTimer: ReturnType<typeof setTimeout> | null = null;
+let holdStart: { x: number; y: number } | null = null;
+function holdHandlers(controlId: string, onHold: (id: string, at: { x: number; y: number }) => void): {
+  onPointerDownCapture: (e: React.PointerEvent) => void;
+  onPointerMoveCapture: (e: React.PointerEvent) => void;
+  onPointerUpCapture: () => void;
+  onPointerCancelCapture: () => void;
+} {
+  const stop = (): void => { if (holdTimer) clearTimeout(holdTimer); holdTimer = null; holdStart = null; };
+  return {
+    onPointerDownCapture: (e) => {
+      stop();
+      const r = (e.currentTarget as SVGGElement).getBoundingClientRect();
+      const at = { x: r.left + r.width / 2, y: r.top };
+      holdStart = { x: e.clientX, y: e.clientY };
+      holdTimer = setTimeout(() => { holdTimer = null; holdStart = null; onHold(controlId, at); }, HOLD_MS);
+    },
+    onPointerMoveCapture: (e) => {
+      if (holdStart && Math.hypot(e.clientX - holdStart.x, e.clientY - holdStart.y) > HOLD_SLOP_PX) stop();
+    },
+    onPointerUpCapture: stop,
+    onPointerCancelCapture: stop,
+  };
 }

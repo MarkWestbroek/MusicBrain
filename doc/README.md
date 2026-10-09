@@ -61,6 +61,7 @@ Elk plan draagt zijn eigen datum en status. Kort per thema:
 - **Labels per control**: [control-labels.md](plans/control-labels.md) (vrije tekst per patch bij PADS, faders en knoppen; plan om ze naar de Teensy te sturen).
 - **Percuter**: [percuter.md](plans/percuter.md) (acht 8-bit drumkanalen naar de Dynacord Percuter, cartridge-dumps omzetten).
 - **Ritmebox**: [ritmebox.md](plans/ritmebox.md) (CR-78-presets uit de Service Notes overgenomen, wat er ontbreekt, en waarom de Elka-ritmes niet uit de documentatie komen).
+- **Help en instrumenttour (2026-10-10)**: [help-en-instrumenttour.md](plans/help-en-instrumenttour.md): ? en lang drukken leggen elke frontknop uit (gebouwd); ontwerp voor een tour die speelt en aan de knoppen draait.
 - **Tempo (2026-10-09)**: [tempo.md](plans/tempo.md): één tempo per patch, tap tempo, MIDI-clock volgen; wie de baas is.
 - **Fairlight (voorstel 2026-10-09)**: [fairlight.md](plans/fairlight.md): CMI-stand op de sampler (klok per stem, 8 bit, geen interpolatie) en een FAIRLIGHT-stem met golfvormsynthese uit 32 harmonischen × 32 segmenten; ter review.
 - **Overdub (voorstel 2026-10-08)**: [overdub.md](plans/overdub.md): vier sporen in de speelmodus als audio-overdub (wav + mid + patch per spoor), lus op hele maten, sporenstrip onder het klavier; open besluiten.

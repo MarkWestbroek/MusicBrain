@@ -17,6 +17,17 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-10 — Help per knop in de speelmodus (editor)
+- **?** boven het front opent een blad: per module een korte uitleg en per
+  knop één regel, Nederlands en Engels. **Lang drukken** op een knop
+  (telefoon) toont alleen die regel als ballon; met de muis is het een
+  tooltip. De rondleiding wijst de ?-knop aan.
+- Tekst in `moduleHelp.ts` voor de 42 modules en 140 knoppen op de fronts van
+  de standaardset; `moduleHelp.test.ts` eist een regel voor elke frontknop.
+  Zonder regel valt een module terug op de eerste zin van zijn notes.
+- Plan en ontwerp voor een instrumenttour die speelt en aan de knoppen draait:
+  [plans/help-en-instrumenttour.md](plans/help-en-instrumenttour.md).
+
 ### 2026-10-09 — CMI: de morph mengt de Page 4-profielen (editor)
 - Een morph-patch kreeg geen profiel mee en speelde de ingebouwde koperklank
   (Marks melding). Nu mengt `morphModuleData` (`recipe/morph.ts`) de

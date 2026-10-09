@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { ModulePanel } from './ModulePanel';
 import { buildFrontModule, frontControlState } from './frontLayout';
+import { controlHelp } from './moduleHelp';
 import { setPatchControl } from './setPatchControl';
 import { useEngineStatus } from './sim/engineSingleton';
 import type { ControlValue, ModularProject, Patch, PatchFront, Port } from './types';
@@ -31,6 +32,23 @@ export function FrontPanel({ front, patch, project, pxPerMm = 3, onPortClick, on
     return () => window.removeEventListener('resize', sync);
   }, []);
   const controlState = frontControlState(fm, patch, live);
+
+  // Help: hover geeft de regel als tooltip, lang drukken als ballon (telefoon).
+  const helpOf = (vid: string): string | null => {
+    const t = fm.map[vid];
+    if (!t || t.kind !== 'control') return null;
+    const m = project.modules.find((x) => x.id === t.moduleId);
+    return m ? controlHelp(m.typeId, t.controlId) : null;
+  };
+  const [balloon, setBalloon] = useState<{ text: string; x: number; y: number } | null>(null);
+  useEffect(() => {
+    if (!balloon) return;
+    const close = (): void => setBalloon(null);
+    const t = setTimeout(close, 6000);
+    // Volgende tik ergens sluit hem (na deze tik: pas na het loslaten luisteren).
+    const arm = setTimeout(() => window.addEventListener('pointerdown', close, { once: true }), 0);
+    return () => { clearTimeout(t); clearTimeout(arm); window.removeEventListener('pointerdown', close); };
+  }, [balloon]);
 
   function onControlChange(vid: string, value: ControlValue): void {
     const t = fm.map[vid];
@@ -105,7 +123,16 @@ export function FrontPanel({ front, patch, project, pxPerMm = 3, onPortClick, on
       } : undefined}
       pxPerMm={pxPerMm}
       textScale={narrow ? 1.5 : 1}
+      controlHelp={onArrange ? undefined : helpOf}
+      onControlHold={(vid, at) => { const text = helpOf(vid); if (text) setBalloon({ text, ...at }); }}
       />
+      {balloon && (
+        <div role="tooltip" style={{
+          position: 'fixed', zIndex: 50, left: Math.max(8, Math.min(window.innerWidth - 268, balloon.x - 130)), top: Math.max(8, balloon.y - 8),
+          transform: 'translateY(-100%)', width: 260, padding: '8px 10px', borderRadius: 8, fontSize: 13, lineHeight: 1.35,
+          background: '#1f2937', color: '#f9fafb', boxShadow: '0 4px 14px rgba(0,0,0,0.3)', pointerEvents: 'none',
+        }}>{balloon.text}</div>
+      )}
     </div>
   );
 }
