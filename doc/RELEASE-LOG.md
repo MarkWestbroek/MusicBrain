@@ -17,6 +17,16 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-09 — CMI: de morph mengt de Page 4-profielen (editor)
+- Een morph-patch kreeg geen profiel mee en speelde de ingebouwde koperklank
+  (Marks melding). Nu mengt `morphModuleData` (`recipe/morph.ts`) de
+  profielen van A en B op stand t (`mixProfiles` in `cmiProfile.ts`):
+  niveaus en ENERGY lineair, DURATION logaritmisch; de randen zijn precies A
+  en B, een kant zonder profiel telt als koper. Tijdens het schuiven krijgt de
+  Teensy de gemengde golfvormen een paar keer per seconde; de simulator haalt
+  ze uit de patch. Gemeten in de browser (orgel → vierkant): de even
+  harmonischen zakken van −4 dB (t 0) via −9 (t 0,5) naar −71 (t 1).
+
 ### 2026-10-09 — CMI op de Teensy: golfvormen als base64 (fw 0.5.100)
 - Marks melding: de Page 4-profielen staan wel in de patch, maar op de
   Teensy klonk elke CMI-patch hetzelfde. Oorzaak: de 4160 waarden per stem

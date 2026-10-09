@@ -94,6 +94,21 @@ export function computeTable(p: CmiProfile): Int16Array {
   return out;
 }
 
+// ── morph: twee profielen mengen ──────────────────────────────────────────
+/** Profiel op stand t tussen A (0) en B (1): niveaus en energie lineair,
+ *  de duur logaritmisch (halverwege 1× en 4× is 2×). Een harmonische
+ *  crossfade, zoals je van een morph verwacht. */
+export function mixProfiles(a: CmiProfile, b: CmiProfile, t: number): CmiProfile {
+  const u = Math.max(0, Math.min(1, t));
+  const p = emptyProfile();
+  for (let i = 0; i < H * SEG; i++) p.levels[i] = a.levels[i]! + (b.levels[i]! - a.levels[i]!) * u;
+  for (let s = 0; s < SEG; s++) {
+    p.energy[s] = a.energy[s]! + (b.energy[s]! - a.energy[s]!) * u;
+    p.duration[s] = 2 ** (Math.log2(a.duration[s]!) + (Math.log2(b.duration[s]!) - Math.log2(a.duration[s]!)) * u);
+  }
+  return p;
+}
+
 // ── Page 6 → Page 4: een periode analyseren ───────────────────────────────
 /** Amplitudes van harmonische 1..32 in één periode (DFT), genormaliseerd op
  *  de sterkste. */

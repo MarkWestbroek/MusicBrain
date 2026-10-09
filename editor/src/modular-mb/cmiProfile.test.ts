@@ -63,3 +63,36 @@ describe('CMI-profiel', () => {
     }
   });
 });
+
+describe('CMI-profiel in de morph', () => {
+  it('mixProfiles: niveaus en energie lineair, duur logaritmisch; de randen zijn A en B', async () => {
+    const { mixProfiles } = await import('./cmiProfile');
+    const a = preset('organ'), b = preset('square');
+    a.duration.fill(1); b.duration.fill(4); a.energy.fill(0.2); b.energy.fill(1);
+    const half = mixProfiles(a, b, 0.5);
+    expect(half.levels[1 * SEG + 3]).toBeCloseTo((a.levels[1 * SEG + 3]! + b.levels[1 * SEG + 3]!) / 2, 5);
+    expect(half.duration[7]).toBeCloseTo(2, 5);
+    expect(half.energy[7]).toBeCloseTo(0.6, 5);
+    expect(Array.from(mixProfiles(a, b, 0).levels)).toEqual(Array.from(a.levels));
+    expect(Array.from(mixProfiles(a, b, 1).levels)).toEqual(Array.from(b.levels));
+  });
+
+  it('morphModuleData: het profiel gaat mee; een kant zonder profiel telt als koper', async () => {
+    const { morphModuleData } = await import('./recipe/morph');
+    const base = { id: 'x', name: 'x', voiceCount: 1, rackIds: [], connections: [], controlState: {}, envelopes: [], lfos: [] };
+    const A = { ...base, id: 'a', moduleData: { m1: { cmi: encodeProfile(preset('organ')) } } };
+    const B = { ...base, id: 'b', moduleData: { m1: { cmi: encodeProfile(preset('square')) } } };
+    expect(morphModuleData(A, B, 0)!.m1!.cmi).toBe(A.moduleData.m1.cmi);
+    expect(morphModuleData(A, B, 1)!.m1!.cmi).toBe(B.moduleData.m1.cmi);
+    const mid = decodeProfile(morphModuleData(A, B, 0.5)!.m1!.cmi)!;
+    // h2 (index 1): orgel 0,8, vierkant 0 → halverwege ~0,4
+    expect(mid.levels[1 * SEG + 5]).toBeCloseTo(0.4, 1);
+    const noB = { ...base, id: 'b2' };
+    // B zonder profiel = koper: op t = 1 geen profiel (de stem speelt koper),
+    // halverwege een menging met koper.
+    expect(morphModuleData(A, noB, 1)!.m1).toBeUndefined();
+    const half = decodeProfile(morphModuleData(A, noB, 0.5)!.m1!.cmi)!;
+    expect(half.levels[1 * SEG + 31]).toBeCloseTo((preset('organ').levels[1 * SEG + 31]! + preset('brass').levels[1 * SEG + 31]!) / 2, 1);
+    expect(morphModuleData(base, { ...base, id: 'c' }, 0.5)).toBeUndefined();
+  });
+});

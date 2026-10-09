@@ -13,7 +13,9 @@
 // patch, of als nieuwe patch die meteen op A of B komt.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { updateProject, uid } from '../store';
+import { cmiTeensyFrames } from '../cmiSync';
+import { getProject, updateProject, uid } from '../store';
+import { isConnected, sendWaveform } from '../teensyLink';
 import type { ControlValue, ModularProject, Patch } from '../types';
 import { morphDescriptor, describeMorph, upsertMorph, morphPatch } from './morph';
 import { savePatch } from './saved';
@@ -105,6 +107,7 @@ export function MorphPanel(props: { project: ModularProject; patch: Patch }): JS
   const { project, patch } = props;
   const m = patch.morph;
   const [dragging, setDragging] = useState(false);
+  const lastCmiPush = useRef(0);
   const desc = useMemo(() => {
     if (!m) return null;
     try { return { ok: true as const, d: morphDescriptor(project, m.a, m.b) }; }
@@ -137,6 +140,14 @@ export function MorphPanel(props: { project: ModularProject; patch: Patch }): JS
     updateProject((p) => {
       try { return upsertMorph(p, m!.a, m!.b, u, patch.id); } catch { return p; }
     }, commit ? { forceCommit: true } : { skipHistory: true });
+    // CMI-profielen morphen mee; de Teensy krijgt de gemengde golfvormen
+    // een paar keer per seconde (de simulator haalt ze uit de patch).
+    const now = performance.now();
+    if (isConnected() && (commit || now - lastCmiPush.current > 200)) {
+      lastCmiPush.current = now;
+      const proj = getProject(), mp = proj.patches.find((x) => x.id === patch.id);
+      if (mp) for (const f of cmiTeensyFrames(proj, mp)) void sendWaveform(f.id, f.data);
+    }
   }
 
   const pct = Math.round(t * 100);

@@ -19,6 +19,7 @@
 
 import type { ModularProject, Patch, PatchConnection, ControlValue, Control } from '../types';
 import { resolvePorts, resolveControls } from '../types';
+import { decodeProfile, encodeProfile, mixProfiles, preset } from '../cmiProfile';
 import { fromTaper, toTaper } from '../taper';
 import { RecipeError } from './types';
 
@@ -315,7 +316,11 @@ export function morphPatch(p: ModularProject, desc: MorphDescriptor, t: number, 
     const c = resolveControls(m, p.moduleTypes).find((x) => x.id === e.controlId); if (!c) continue;
     controlState[e.moduleId] = { ...(controlState[e.moduleId] ?? {}), [e.controlId]: morphControlValue(c, e, u) };
   }
+  // Data van modules (het Page 4-profiel van een CMI-stem) morpht mee;
+  // zonder dit speelde de morph de ingebouwde klank (Marks melding).
+  const moduleData = morphModuleData(A, B, u);
   return {
+    ...(moduleData ? { moduleData } : {}),
     id: base?.id ?? `morph_${desc.a}_${desc.b}`,
     name: base?.name ?? `${A.name} ⇄ ${B.name}`,
     folder: base?.folder ?? A.folder,
@@ -326,6 +331,25 @@ export function morphPatch(p: ModularProject, desc: MorphDescriptor, t: number, 
     morph: { a: desc.a, b: desc.b, t: u },
     ...(base?.programNumber !== undefined ? { programNumber: base.programNumber } : {}),
   };
+}
+
+/** CMI-profielen van A en B op stand t; een kant zonder profiel telt als
+ *  de ingebouwde klank (koper), zoals de stem die dan ook speelt. */
+export function morphModuleData(A: Patch, B: Patch, t: number): Patch['moduleData'] {
+  const ids = new Set([...Object.keys(A.moduleData ?? {}), ...Object.keys(B.moduleData ?? {})]);
+  if (ids.size === 0) return undefined;
+  const out: NonNullable<Patch['moduleData']> = {};
+  for (const id of ids) {
+    const sa = A.moduleData?.[id]?.cmi, sb = B.moduleData?.[id]?.cmi;
+    if (!sa && !sb) continue;
+    // De randen zijn precies A en B; een kant zonder profiel is de koperklank.
+    if (sa === sb) { out[id] = { cmi: sa! }; continue; }
+    if (t <= 0) { if (sa) out[id] = { cmi: sa }; continue; }
+    if (t >= 1) { if (sb) out[id] = { cmi: sb }; continue; }
+    const pa = decodeProfile(sa) ?? preset('brass'), pb = decodeProfile(sb) ?? preset('brass');
+    out[id] = { cmi: encodeProfile(mixProfiles(pa, pb, t)) };
+  }
+  return out;
 }
 
 /** Maak of ververs de morph-patch in het project op stand t. */
