@@ -46,6 +46,21 @@
   standaardset. Plan: [plans/editor-structuur.md](plans/editor-structuur.md)
   stap 0a en 0b. 11 nieuwe tests.
 
+### 2026-10-10 — Fairlight: PAGE D, het profiel in 3D (editor)
+- Bovenin het Page 4-venster nu [4] [D]. **PAGE D** toont het profiel als
+  berglandschap, groen op zwart, van achter naar voor getekend zodat de
+  voorste rijen de achterste afdekken:
+  - **HARMONISCH** (Marks schets): harmonische 1 vooraan, 32 schuin naar
+    achteren, de tijd naar rechts (volgt DURATION), het niveau omhoog;
+    standaard in dB (48 dB), LIN als keuze. Tik op een rij en je tekent die
+    harmonische op Page 4.
+  - **GOLF**: de echte Page D van de CMI, de golfvorm van elk segment
+    (maal ENERGY), segment 1 vooraan.
+  - Stap 1, 2 of 4 rijen, zoals op de CMI.
+- In UIT SAMPLE toont **3D** het resultaat van de analyse vóór OVERNEMEN.
+- `cmiPageDRows.ts` (rijen en projectie, getest), `CmiPageD.tsx`. Plan:
+  [plans/fairlight.md](plans/fairlight.md) §7.
+
 ### 2026-10-10 — Fairlight: UIT SAMPLE, een geluid analyseren naar Page 4 (editor)
 - Nieuw op Page 4: **UIT SAMPLE**. Kies een audiobestand, een zone uit een
   samplebank van de server (de grondnoot van de zone helpt tegen

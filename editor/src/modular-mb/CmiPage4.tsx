@@ -17,6 +17,8 @@ import { createPortal } from 'react-dom';
 
 import { nlen, useLang } from '../i18n';
 import { CmiFromSample } from './CmiFromSample';
+import { CmiPageD } from './CmiPageD';
+import type { PageDMode, PageDScale } from './cmiPageDRows';
 import {
   H, PRESETS, SEG, computeTable, encodeProfile, harmonicsOf, level, preset, profileFromHarmonics,
   type CmiProfile, type PresetId,
@@ -53,6 +55,11 @@ export function CmiPage4({ patchId, owner, voices, onClose }: {
     return cloneProfile(patch ? profileOf(patch, owner) : preset('brass'));
   });
   const [row, setRow] = useState<Row>(0);
+  // PAGE D (§7): hetzelfde profiel in 3D; GOLF = de echte Page D, HARMONISCH = Page 4 uitgesmeerd.
+  const [page, setPage] = useState<'4' | 'D'>('4');
+  const [dMode, setDMode] = useState<PageDMode>('harm');
+  const [dStep, setDStep] = useState(1);
+  const [dScale, setDScale] = useState<PageDScale>('db');
   // UIT SAMPLE (§6): een geluid analyseren naar dit profiel.
   const [fromSample, setFromSample] = useState(false);
   const segMs = (() => {
@@ -134,12 +141,44 @@ export function CmiPage4({ patchId, owner, voices, onClose }: {
       onPointerDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div style={{ width: '100%', maxWidth: 720, background: BG, color: GREEN, fontFamily: FONT, border: `2px solid ${MID}`, borderRadius: 6, padding: 12, boxSizing: 'border-box', boxShadow: `0 0 24px ${DIM}` }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 8 }}>
-          <span style={{ fontWeight: 700, letterSpacing: '0.08em' }}>PAGE 4</span>
-          <span style={{ fontSize: 12, opacity: 0.8 }}>{nlen('HARMONISCHE PROFIELEN', 'HARMONIC PROFILES')}</span>
+          <span style={{ fontWeight: 700, letterSpacing: '0.08em' }}>PAGE</span>
+          <span style={{ display: 'inline-flex', gap: 3 }}>
+            <button type="button" style={{ ...btn(page === '4'), fontWeight: 700 }} onClick={() => setPage('4')} aria-pressed={page === '4'}>4</button>
+            <button type="button" style={{ ...btn(page === 'D'), fontWeight: 700 }} onClick={() => setPage('D')} aria-pressed={page === 'D'}
+              title={nlen('Page D: het profiel in 3D', 'Page D: the profile in 3D')}>D</button>
+          </span>
+          <span style={{ fontSize: 12, opacity: 0.8 }}>{page === '4' ? nlen('HARMONISCHE PROFIELEN', 'HARMONIC PROFILES') : nlen('WEERGAVE', 'DISPLAY')}</span>
           <span style={{ flex: 1 }} />
           <button type="button" onClick={onClose} style={btn(false)} aria-label={nlen('Sluiten', 'Close')}>✕</button>
         </div>
 
+        {page === 'D' && (
+          <div>
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center', marginBottom: 6, fontSize: 12 }}>
+              <button type="button" style={{ ...btn(dMode === 'harm'), minWidth: 0, padding: '0 8px' }} onClick={() => setDMode('harm')}>{nlen('HARMONISCH', 'HARMONIC')}</button>
+              <button type="button" style={{ ...btn(dMode === 'wave'), minWidth: 0, padding: '0 8px' }} onClick={() => setDMode('wave')}>{nlen('GOLF', 'WAVE')}</button>
+              {dMode === 'harm' && (['db', 'lin'] as const).map((sc) => (
+                <button key={sc} type="button" style={{ ...btn(dScale === sc), minWidth: 0, padding: '0 6px' }} onClick={() => setDScale(sc)}
+                  title={sc === 'db' ? nlen('In dB: zwakke boventonen worden zichtbaar', 'In dB: weak overtones become visible') : nlen('Lineair, zoals Page 4', 'Linear, as on Page 4')}>
+                  {sc === 'db' ? 'dB' : 'LIN'}
+                </button>
+              ))}
+              <span style={{ flex: 1 }} />
+              <span>{nlen('STAP', 'STEP')}</span>
+              {[1, 2, 4].map((n) => <button key={n} type="button" style={btn(dStep === n)} onClick={() => setDStep(n)}>{n}</button>)}
+            </div>
+            <CmiPageD profile={profile} mode={dMode} step={dStep} scale={dScale}
+              onPickHarmonic={(h) => { setRow(h); setPage('4'); }} />
+            <div style={{ fontSize: 11, opacity: 0.7, marginTop: 6, lineHeight: 1.4 }}>
+              {dMode === 'harm'
+                ? nlen('Harmonische 1 vooraan, 32 achteraan; de tijd loopt naar rechts en volgt DURATION. Tik op een rij om die harmonische op Page 4 te tekenen.',
+                       'Harmonic 1 in front, 32 at the back; time runs to the right and follows DURATION. Tap a row to draw that harmonic on Page 4.')
+                : nlen('De golfvorm van elk segment, zoals Page D op de CMI: segment 1 (het begin van de noot) vooraan, 32 achteraan, maal ENERGY.',
+                       'The waveform of each segment, as on the CMI’s Page D: segment 1 (the start of the note) in front, 32 at the back, times ENERGY.')}
+            </div>
+          </div>
+        )}
+        <div style={{ display: page === '4' ? 'block' : 'none' }}>
         <div style={{ fontSize: 12, marginBottom: 4 }}>{rowLabel}</div>
         <svg ref={svgRef} viewBox={`0 0 ${W} ${HT}`} width="100%" style={{ display: 'block', touchAction: 'none', background: '#000', border: `1px solid ${DIM}`, cursor: 'crosshair', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}
           onPointerDown={(e) => { e.preventDefault(); svgRef.current?.setPointerCapture(e.pointerId); drawing.current = { last: null }; paint(e, false); }}
@@ -168,6 +207,7 @@ export function CmiPage4({ patchId, owner, voices, onClose }: {
           ))}
           <button type="button" onClick={() => setRow('dur')} style={{ ...btn(row === 'dur'), minWidth: 44 }} title={nlen('Hoe lang elk segment klinkt', 'How long each segment sounds')}>DUR</button>
           <button type="button" onClick={() => setRow('energy')} style={{ ...btn(row === 'energy'), minWidth: 44 }} title={nlen('De volumecurve over de segmenten', 'The volume curve over the segments')}>ENRG</button>
+        </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 10, fontSize: 12 }}>

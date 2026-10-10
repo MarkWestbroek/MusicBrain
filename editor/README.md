@@ -234,8 +234,11 @@ Binnenkijken blijft Nederlands; een eigen patch houdt zijn eigen tekst.
   segmenten (met *aanzet fijner* korte segmenten vooraan) en meet per
   segment de 32 harmonischen; ENERGY wordt de volumecurve en DURATION volgt
   het origineel. ▶ ORIGINEEL en ▶ CMI vergelijken, OVERNEMEN zet het profiel
-  op Page 4 (`cmiAnalyse.ts`, `CmiFromSample.tsx`). Ontwerp:
-  [doc/plans/fairlight.md](../doc/plans/fairlight.md) §6.
+  op Page 4 (`cmiAnalyse.ts`, `CmiFromSample.tsx`). **PAGE D** ([D] naast
+  [4]) toont het profiel in 3D: HARMONISCH (harmonische 1 vooraan, 32
+  achteraan, tijd naar rechts, in dB of lineair) of GOLF (de golfvorm per
+  segment, zoals Page D op de CMI). Ontwerp:
+  [doc/plans/fairlight.md](../doc/plans/fairlight.md) §6 en §7.
 - **Sporen** (≣ in de werkbalk van het toetsenbord, in de speelmodus, de
   Front-tab en de Simulatie-tab; niet bij volledig scherm met alleen
   toetsen, daar past het niet): een

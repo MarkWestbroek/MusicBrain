@@ -258,7 +258,14 @@ volgorde waarin je het gebruikt:
 4. Release-log, Fairlight-uitleg in `editor/README.md`, Engelse teksten.
 
 
-## 7. Voorstel: PAGE D, de 3D-weergave (2026-10-10, ter review)
+## 7. PAGE D, de 3D-weergave (2026-10-10)
+
+> **Gebouwd 2026-10-10** (`cmiPageDRows.ts`, `CmiPageD.tsx`): [4] [D] bovenin
+> het Page 4-venster, GOLF en HARMONISCH, stap 1/2/4, en in HARMONISCH een
+> dB-schaal (standaard, 48 dB) naast LIN, omdat lineair de zwakke boventonen
+> plat laat liggen. De tijd volgt DURATION. Ook als 3D-knop in UIT SAMPLE.
+> Mark (2026-10-10): de echte Page D erbij "omdat het zo hoort", maar
+> HARMONISCH is wat hij bedoelde: Page 4 uitgesmeerd in 3D.
 
 **Op de echte CMI** (Series II/IIx) was Page D de *Voice Waveform Display*:
 de golfvormen van de segmenten achter elkaar, als een berglandschap in

@@ -6,6 +6,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { nlen, useLang } from '../i18n';
+import { CmiPageD } from './CmiPageD';
 import { analyseSample, noteOf, soundStart } from './cmiAnalyse';
 import { SEG, type CmiProfile } from './cmiProfile';
 import { bankZones, decodeToMono, lastTakeSound, serverBanks, type BankZoneSound, type MonoSound } from './cmiSources';
@@ -46,6 +47,7 @@ export function CmiFromSample({ patchId, segMs, btn, onPreview, onApply, onClose
   const [region, setRegion] = useState<[number, number]>([0, 0]);
   const [f0Override, setF0Override] = useState<number | null>(null);
   const [fine, setFine] = useState(true);
+  const [show3d, setShow3d] = useState(false);
   const [banks, setBanks] = useState<{ file: string; name: string }[] | null>(null);
   const [zones, setZones] = useState<BankZoneSound[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -235,11 +237,14 @@ export function CmiFromSample({ patchId, segMs, btn, onPreview, onApply, onClose
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
             <button type="button" style={small} onClick={() => playRegion(sound, region[0], region[1])}>▶ {nlen('ORIGINEEL', 'ORIGINAL')}</button>
             <button type="button" style={small} disabled={!f0} onClick={playCmi}>▶ CMI</button>
+            <button type="button" style={{ ...small, ...(show3d ? btn(true) : {}) }} disabled={!f0} onClick={() => setShow3d(!show3d)}
+              title={nlen('Het resultaat als Page D (3D) bekijken', 'View the result as Page D (3D)')}>3D</button>
             <span style={{ flex: 1 }} />
             <button type="button" style={{ ...small, ...btn(true) }} disabled={!analysis || !f0}
               onClick={() => { if (analysis) { previewed.current = false; onApply(analysis.profile); onClose(); } }}>{nlen('OVERNEMEN', 'APPLY')}</button>
             <button type="button" style={small} onClick={() => { onPreview(null); onClose(); }}>{nlen('TERUG', 'BACK')}</button>
           </div>
+          {show3d && analysis && f0 > 0 && <div style={{ marginTop: 8 }}><CmiPageD profile={analysis.profile} mode="harm" /></div>}
           <div style={{ fontSize: 10, opacity: 0.6, marginTop: 6 }}>
             {nlen(`${SEG} segmenten; DURATION volgt het origineel bij Seg = ${Math.round(segMs)} ms.`, `${SEG} segments; DURATION follows the original at Seg = ${Math.round(segMs)} ms.`)}
           </div>
