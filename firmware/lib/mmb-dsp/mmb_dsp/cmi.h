@@ -9,6 +9,11 @@
 //   • Afspelen zoals de CMI: de golfvorm wordt zonder interpolatie gelezen
 //     (zero-order hold; de stem "klokt" op 128 × de grondtoon), 8 bit, door
 //     een filter dat die klok volgt (0,45 × 128 × f, begrensd op Nyquist).
+//     `filter` 1..15 zoals op Page 7 van de CMI ("a LOW-PASS tracking
+//     filter … cutoff frequency is raised by increasing the value. If set to
+//     15, the filter is bypassed completely"; standaard 8). 8 = het filter
+//     hierboven; elke stap een halve octaaf (onze keuze, de handleiding noemt
+//     geen frequenties); 15 = geen filter.
 //   • Segmenten: segment n duurt `seg` ms; `smooth` laat het ene segment in
 //     het volgende overvloeien (0 = hard wisselen, zoals de CMI). Zolang de
 //     toets vastgehouden wordt loopt hij na het laatste segment rond vanaf
@@ -33,11 +38,11 @@ namespace mmb_dsp {
 
 class Cmi {
 public:
-    enum Control { Coarse, Fine, Seg, Smooth, Loop, Attack, Release, Level, kControls };
+    enum Control { Coarse, Fine, Seg, Smooth, Loop, Attack, Release, Level, Filter, kControls };
     // Gate als laatste: de aanslag leest vel van hetzelfde moment.
     enum CvIn { Voct, Vel, SegCv, Gate, kCvIns };
     enum CvOut { Pos, kCvOuts };
-    static constexpr float kDefaults[kControls] = { 0, 0, 40, 0.3f, 24, 4, 300, 0.8f };
+    static constexpr float kDefaults[kControls] = { 0, 0, 40, 0.3f, 24, 4, 300, 0.8f, 8 };
     static constexpr int kSegments = 32, kSamples = 128;
     /** Tabel + 32 duurfactoren + 32 energieniveaus. */
     static constexpr int kTableWithProfiles = kSegments * kSamples + 2 * kSegments;
@@ -84,6 +89,7 @@ public:
             case Attack:  attack_ = coef(finiteClamp(value, 0.5f, 2000, 4)); break;
             case Release: release_ = coef(finiteClamp(value, 1, 5000, 300)); break;
             case Level:   level_ = finiteClamp(value, 0, 1, 0.8f); break;
+            case Filter:  filter_ = static_cast<int>(finiteClamp(value, 1, 15, 8) + 0.5f); prepare(); break;
             default: return;
         }
     }
@@ -140,8 +146,11 @@ public:
             const float a = static_cast<float>(table_[s0][idx]);
             const float b = static_cast<float>(table_[s1][idx]);
             const float raw = (a + (b - a) * w) * (1.0f / 128.0f);
-            lp1_ += (raw - lp1_) * lpCoef_;
-            lp2_ += (lp1_ - lp2_) * lpCoef_;
+            if (filter_ >= 15) { lp1_ = lp2_ = raw; }   // Page 7: 15 = filter uit
+            else {
+                lp1_ += (raw - lp1_) * lpCoef_;
+                lp2_ += (lp1_ - lp2_) * lpCoef_;
+            }
 
             // ── envelope; ENERGY glijdt traploos over de segmenten ──────────
             const float target = gate_ ? velLatched_ : 0;
@@ -157,8 +166,9 @@ private:
     void prepare() {
         const float hz = 261.6256f * std::exp2(voct_ + coarse_ / 12 + fine_ / 1200);
         inc_ = finiteClamp(hz / sr_, 0, 0.45f, 0.006f);
-        // Het filter volgt de klok van de stem: 128 × f, 0,45 daarvan.
-        float fc = 0.45f * kSamples * hz;
+        // Het filter volgt de klok van de stem: 128 × f, 0,45 daarvan; FILTER
+        // schuift dat per stap een halve octaaf (8 = precies dat).
+        float fc = 0.45f * kSamples * hz * std::exp2(0.5f * static_cast<float>(filter_ - 8));
         if (fc > 0.45f * sr_) fc = 0.45f * sr_;
         lpCoef_ = 1 - std::exp(-6.2831853f * fc * 1.55f / sr_);
     }
@@ -181,7 +191,7 @@ private:
 
     float sr_ = 44100;
     float coarse_ = 0, fine_ = 0, segMs_ = 40, smooth_ = 0.3f, level_ = 0.8f;
-    int   loop_ = 24;
+    int   loop_ = 24, filter_ = 8;
     float attack_ = 0.01f, release_ = 0.001f;
     float voct_ = 0, vel_ = 0, velLatched_ = 0.8f, segCv_ = 0;
     bool  gate_ = false;

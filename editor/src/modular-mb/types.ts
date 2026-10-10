@@ -801,7 +801,7 @@ export interface CmiVoice {
   name: string;
   /** Base64-profiel, zoals in `patch.moduleData[id].cmi`. */
   cmi: string;
-  /** Seg, Smooth, Loop, Attack, Release. */
+  /** Seg, Smooth, Loop, Attack, Release, Filter. */
   controls: Record<string, number>;
 }
 export interface CmiBank { name: string; voices: (CmiVoice | null)[] }

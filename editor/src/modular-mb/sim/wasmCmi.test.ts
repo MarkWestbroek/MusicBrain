@@ -72,4 +72,23 @@ describe('tp_mmb_cmi', () => {
     expect(toneLevel(x, 128 * f - f, m.rate, from)).toBeGreaterThan(0.002);
     expect(toneLevel(x, 128 * f - f, m.rate, from)).toBeGreaterThan(5 * toneLevel(x, 128 * f - f + 300, m.rate, from));
   });
+
+  it('Filter zoals Page 7: lager = doffer, 15 = uit (de spiegeling van de klok komt erdoor)', async () => {
+    // Grondtoon 65,4 Hz; tabel = h1 + h20 (1308 Hz) even sterk.
+    const play = async (filter: number): Promise<{ x: Float32Array; rate: number }> => {
+      const m = await voice({ seg: 1000, filter });
+      setTable(m, (_s, p) => 0.5 * sine(1)(p) + 0.5 * sine(20)(p));
+      m.setIn('voct', -2);
+      return { x: m.render(0.6).out!, rate: m.rate };
+    };
+    const f = 65.41;
+    const lvl = (r: { x: Float32Array; rate: number }, hz: number): number => toneLevel(r.x, hz, r.rate, Math.round(0.1 * r.rate));
+    const f1 = await play(1), f8 = await play(8), f15 = await play(15);
+    // Filter 1 dempt h20 ten opzichte van de grondtoon veel sterker dan 8.
+    expect(lvl(f1, 20 * f) / lvl(f1, f)).toBeLessThan(0.3 * (lvl(f8, 20 * f) / lvl(f8, f)));
+    // Filter 15 laat de spiegeling rond de klok (128·f − 20·f) veel meer door.
+    const img = 128 * f - 20 * f;
+    expect(lvl(f15, img)).toBeGreaterThan(2 * lvl(f8, img));
+  });
 });
+

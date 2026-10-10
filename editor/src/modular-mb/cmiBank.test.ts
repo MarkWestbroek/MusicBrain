@@ -31,7 +31,7 @@ describe('CMI-bank', () => {
     const { p, patchId, owner } = fairlight();
     const v = voiceFromPatch(p, patchId, owner, 'mijn koor')!;
     expect(v.cmi).toBe(p.patches.find((x) => x.id === patchId)!.moduleData![owner]!.cmi);
-    expect(v.controls).toEqual({ seg: 60, smooth: 0.5, loop: 20, attack: 30, release: 600 });
+    expect(v.controls).toEqual({ seg: 60, smooth: 0.5, loop: 20, attack: 30, release: 600, filter: 8 });
     expect(p.modules.find((m) => m.id === owner)!.typeId).toBe(CMI_TYPE);
     const q = storeVoice(p, 9, v);
     expect(q.cmiBank!.voices[9]).toEqual(v);

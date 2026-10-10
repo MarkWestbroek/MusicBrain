@@ -79,6 +79,18 @@
   standaardset. Plan: [plans/editor-structuur.md](plans/editor-structuur.md)
   stap 0a en 0b. 11 nieuwe tests.
 
+### 2026-10-11 — CMI-stem: Filter zoals Page 7 (fw 0.5.101)
+- Nieuwe knop **Filter** (1–15, standaard 8) op `tp_mmb_cmi`, zoals FILTER op
+  Page 7 van de Fairlight: een laagdoorlaat die de toon volgt. 8 = het filter
+  van tot nu toe (bestaande patches klinken gelijk), elke stap een halve
+  octaaf, 15 = filter uit (de spiegelingen van de 8-bit-klok komen erdoor).
+- Nagezocht in de *Operation Manual* v3.09 (Page 7, "Level/Filter"); het
+  plan zei eerder "met de hand, niet toonvolgend" en dat klopte niet
+  (gecorrigeerd in [plans/fairlight.md](plans/fairlight.md) §0 en §9).
+- Filter gaat mee in de CMI-bank; uitlegregel bij de knop. Kern
+  `mmb_dsp/cmi.h`, firmware, wasm, contract 0.5.101, catalogus, test in
+  `sim/wasmCmi.test.ts`.
+
 ### 2026-10-11 — Fairlight: CMI-bank (editor)
 - Op Page 4 een rij **BANK**: 32 plekken met CMI-klanken in het project.
   Een klank is het profiel én de knoppen Seg, Smooth, Loop, Attack en

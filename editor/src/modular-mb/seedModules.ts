@@ -3751,6 +3751,9 @@ function mmbCmi() {
       knob('loop',    'Loop',   col(2), 50, { size: 'medium', min: 1, max: 32, def: 24, step: 1, color: '#16a34a' }),
       knob('attack',  'Att',    col(0), 76, { size: 'small', min: 0.5, max: 2000, def: 4, unit: 'ms', color: '#1f2937' }),
       knob('release', 'Rel',    col(1), 76, { size: 'small', min: 1, max: 5000, def: 300, unit: 'ms', color: '#1f2937' }),
+      // FILTER zoals Page 7 van de CMI: een laagdoorlaat die de toon volgt;
+      // hoger = helderder, 8 = standaard, 15 = uit.
+      knob('filter',  'Filter', col(2), 76, { size: 'small', min: 1, max: 15, def: 8, step: 1, color: '#1f2937', ticks: { every: 1, highlight: [8, 15] } }),
       inPort ('voct',   'V/Oct', 'cv',   w*0.12, 104),
       inPort ('gate',   'Gate',  'gate', w*0.31, 104),
       inPort ('vel',    'Vel',   'cv',   w*0.50, 104),
@@ -3758,7 +3761,7 @@ function mmbCmi() {
       outPort('pos',    'Pos',   'cv',   w*0.88, 104),
       outPort('out',    'Out',   'audio', w*0.88, 118),
     ],
-    notes: 'Een stem naar de golfvormsynthese van de Fairlight CMI (Page 4/5). Uit een harmonischenprofiel — tot 32 harmonischen, elk met een eigen verloop over 32 segmenten — rekent de editor 32 golfvormen van 128 samples (8 bit) en stuurt die naar deze stem; die speelt ze na elkaar af, zodat de klank door de noot heen beweegt. Seg: hoe lang elk segment duurt. Smooth: 0 = hard van golfvorm wisselen zoals de CMI, hoger = laten overvloeien. Loop: zolang je de toets vasthoudt loopt hij na segment 32 rond vanaf dit segment (32 = op het laatste blijven); loslaten speelt door naar het eind. Afspelen zoals de CMI: zonder interpolatie (de stem klokt op 128 × de grondtoon), 8 bit, door een filter dat die klok volgt. Seg+ schuift de positie (±1 = ±16 segmenten); Pos is de positie als CV. Zonder profiel speelt hij een ingebouwde koperklank. Firmware tp_mmb_cmi, mmb_dsp::Cmi; in de simulator draait dezelfde code als wasm.',
+    notes: 'Een stem naar de golfvormsynthese van de Fairlight CMI (Page 4/5). Uit een harmonischenprofiel — tot 32 harmonischen, elk met een eigen verloop over 32 segmenten — rekent de editor 32 golfvormen van 128 samples (8 bit) en stuurt die naar deze stem; die speelt ze na elkaar af, zodat de klank door de noot heen beweegt. Seg: hoe lang elk segment duurt. Smooth: 0 = hard van golfvorm wisselen zoals de CMI, hoger = laten overvloeien. Loop: zolang je de toets vasthoudt loopt hij na segment 32 rond vanaf dit segment (32 = op het laatste blijven); loslaten speelt door naar het eind. Afspelen zoals de CMI: zonder interpolatie (de stem klokt op 128 × de grondtoon), 8 bit, door een filter dat die klok volgt. Filter (1–15) zoals Page 7 van de CMI: hoger = helderder, 8 = standaard, 15 = filter uit (dan hoor je de spiegelingen van de 8-bit-klok). Seg+ schuift de positie (±1 = ±16 segmenten); Pos is de positie als CV. Zonder profiel speelt hij een ingebouwde koperklank. Firmware tp_mmb_cmi, mmb_dsp::Cmi; in de simulator draait dezelfde code als wasm.',
   });
 }
 

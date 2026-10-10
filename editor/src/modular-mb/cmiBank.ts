@@ -1,6 +1,6 @@
 // CMI-bank (doc/plans/fairlight.md §8): 32 klanken voor de CMI-stem, los
 // van de patches, in het project. Een klank = het Page 4-profiel én de
-// knoppen Seg, Smooth, Loop, Attack, Release. Zuiver: projecten erin,
+// knoppen Seg, Smooth, Loop, Attack, Release en Filter. Zuiver: projecten erin,
 // projecten eruit; CmiPage4 doet de store, de Teensy en de stemmen.
 
 import { CMI_TYPE, PRESETS, encodeProfile, preset } from './cmiProfile';
@@ -8,18 +8,18 @@ import { writePatchControl } from './setPatchControl';
 import { defaultValueOf, resolveControls, type CmiBank, type CmiVoice, type ModularProject } from './types';
 
 export const BANK_SIZE = 32;
-export const CMI_VOICE_CONTROLS = ['seg', 'smooth', 'loop', 'attack', 'release'] as const;
+export const CMI_VOICE_CONTROLS = ['seg', 'smooth', 'loop', 'attack', 'release', 'filter'] as const;
 const FORMAT = 'musicbrain-cmibank';
 
 /** Knoppen bij de startpunten: wat bij elk profiel natuurlijk klinkt. */
 const PRESET_CONTROLS: Record<string, Record<string, number>> = {
-  brass:   { seg: 40, smooth: 0.3, loop: 20, attack: 15, release: 250 },
-  saw:     { seg: 40, smooth: 0.3, loop: 32, attack: 5, release: 200 },
-  square:  { seg: 40, smooth: 0.3, loop: 32, attack: 5, release: 200 },
-  organ:   { seg: 30, smooth: 0.2, loop: 32, attack: 5, release: 80 },
-  strings: { seg: 80, smooth: 0.6, loop: 24, attack: 120, release: 700 },
-  choir:   { seg: 60, smooth: 0.5, loop: 20, attack: 30, release: 600 },
-  bell:    { seg: 90, smooth: 0.4, loop: 32, attack: 2, release: 1500 },
+  brass:   { seg: 40, smooth: 0.3, loop: 20, attack: 15, release: 250, filter: 8 },
+  saw:     { seg: 40, smooth: 0.3, loop: 32, attack: 5, release: 200, filter: 8 },
+  square:  { seg: 40, smooth: 0.3, loop: 32, attack: 5, release: 200, filter: 8 },
+  organ:   { seg: 30, smooth: 0.2, loop: 32, attack: 5, release: 80, filter: 8 },
+  strings: { seg: 80, smooth: 0.6, loop: 24, attack: 120, release: 700, filter: 8 },
+  choir:   { seg: 60, smooth: 0.5, loop: 20, attack: 30, release: 600, filter: 8 },
+  bell:    { seg: 90, smooth: 0.4, loop: 32, attack: 2, release: 1500, filter: 8 },
 };
 
 /** Een nieuwe bank: de zeven startpunten vooraan, de rest leeg. */

@@ -6,7 +6,8 @@
 > profiel → golfvormen, opslag in de patch, Page 4) is gebouwd (fw 0.5.99/0.5.100).
 > **2026-10-10:** stap 4 (FFT uit een sample) gebouwd volgens §6: UIT SAMPLE op
 > Page 4 met .wav, bankzone en laatste opname. Nog open: microfoon, CMI-bank,
-> vaste filterstand, Era CMI met een bank op de Teensy meten.
+> Era CMI met een bank op de Teensy meten. (De "vaste filterstand" bleek
+> een misverstand: zie §0 en §9.)
 
 Voorstel, 2026-10-09, ter review door Mark. Doel: vandaag bouwen.
 Backlog: FW-AU-7 (Fourier-shaper, "Fairlight-achtig").
@@ -30,9 +31,14 @@ de Virtual Music-uitleg. Wat dat verandert of bevestigt:
   liggen.)
 - **Afspelen**: met een variabele rate per stem (toonhoogte), 8 bit; Series I
   samplede op 8–24 kHz, Series II tot ~32 kHz. Per audiokaart een eenvoudig
-  laagdoorlaat, **met de hand** in 16 standen (0–15), niet toonvolgend. Onze
-  Era CMI houdt het toonvolgende filter (handiger); een vaste stand kan er
-  als optie bij.
+  laagdoorlaat, ~~met de hand in 16 standen (0–15), niet toonvolgend~~.
+  **Gecorrigeerd 2026-10-11** uit de *Operation Manual* (v3.09, Page 7,
+  "Level/Filter"): FILTER heeft bereik **1–15**, is "a LOW-PASS **tracking**
+  filter … cutoff frequency is raised by increasing the value. If set to 15,
+  the filter is bypassed completely", standaard 8. Hij volgt de toon dus wél,
+  en de knop schuift hem. Gebouwd als knop *Filter* op de CMI-stem (fw
+  0.5.101, §9). (Page 8 heeft voor het samplen nog een FILTER LOW 18–294 Hz
+  en FILTER HIGH 0,6–12 kHz in 9 standen, op de ingang.)
 
 Gevolg voor stap 3: het profiel krijgt naast de 32 × 32 harmonischen ook
 een DURATION- en een ENERGY-curve; de stem krijgt die mee (32 duurfactoren
@@ -343,4 +349,22 @@ ingebouwde koperklank tot de editor de tabel stuurt.)
 - Teensy: niets nodig; de editor stuurt de tabel van de gekozen klank al.
 - Tests: bewaren en laden (profiel en knoppen), plek overschrijven,
   export → import, oude projecten zonder bank.
+
+## 9. FILTER zoals Page 7 (2026-10-11)
+
+De CMI-stem krijgt een knop **Filter**, 1–15, standaard 8, zoals Page 7 van
+de CMI. Het filter volgt de toon (de klok van de stem, 128 × f):
+
+- **8** = het filter dat de stem al had (0,45 × de klok): bestaande patches
+  klinken precies hetzelfde.
+- Elke stap lager of hoger schuift het een **halve octaaf**. De handleiding
+  noemt geen frequenties per stand; de halve octaaf is onze keuze (stand 1
+  ≈ 11 × de grondtoon, dof; stand 14 zit al tegen Nyquist).
+- **15** = geen filter: de spiegelingen van de 8-bit-klok komen erdoor, de
+  rauwste CMI-klank.
+- De knop hoort bij een klank, dus de CMI-bank bewaart hem mee.
+- Gemeten (`sim/wasmCmi.test.ts`): stand 1 dempt een 20e harmonische veel
+  sterker dan 8; stand 15 laat de spiegeling rond de klok veel meer door.
+- Era CMI op de SAMPLER heeft nog geen Filter-knop (het paneel is vol); dat
+  filter staat vast op stand 8.
 

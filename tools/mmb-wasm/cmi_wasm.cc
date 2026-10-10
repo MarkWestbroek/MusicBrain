@@ -17,9 +17,9 @@ MmbPort MMB_OUTPUTS[] = { { "out", MMB_AUDIO, 0, {} }, { "pos", MMB_CV, 0, {} } 
 const int MMB_NUM_OUTPUTS = 2;
 MmbControl MMB_CONTROLS[] = {
     { "coarse", 0.0f }, { "fine", 0.0f }, { "seg", 40.0f }, { "smooth", 0.3f }, { "loop", 24.0f },
-    { "attack", 4.0f }, { "release", 300.0f }, { "level", 0.8f },
+    { "attack", 4.0f }, { "release", 300.0f }, { "level", 0.8f }, { "filter", 8.0f },
 };
-const int MMB_NUM_CONTROLS = 8;
+const int MMB_NUM_CONTROLS = 9;
 
 // Kernel-volgorde van de CV's: Voct, Vel, SegCv, Gate.
 static const int kAudioIn[] = {0}, kCvIn[] = {0, 2, 3, 1}, kAudioOut[] = {0}, kCvOut[] = {1};

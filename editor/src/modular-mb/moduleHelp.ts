@@ -274,6 +274,7 @@ export const MODULE_HELP: Readonly<Record<string, ModuleHelp>> = {
       loop: ['Zolang je de toets vasthoudt loopt hij vanaf dit segment rond; 32 = op het laatste blijven.', 'While you hold the key it cycles from this segment; 32 = stay on the last one.'],
       attack: ['Hoe snel een noot opkomt.', 'How fast a note comes in.'],
       release: ['Hoe lang hij uitklinkt na loslaten.', 'How long it rings on after you let go.'],
+      filter: ['Filter dat de toon volgt, zoals Page 7: hoger = helderder, 8 = standaard, 15 = uit.', 'Filter that follows the pitch, as on Page 7: higher = brighter, 8 = standard, 15 = off.'],
     },
   },
   tp_mmb_arp: {

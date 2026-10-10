@@ -19,7 +19,8 @@
  * | out      | `pos`    | Cv    | Positie in de segmenten, 0..1       |
  *
  * Controls: coarse, fine, seg (ms per segment), smooth (0..1), loop (1..32),
- * attack (ms), release (ms), level.
+ * attack (ms), release (ms), level, filter (1..15 zoals Page 7; 8 = standaard,
+ * 15 = uit).
  */
 
 #include "AudioModule.h"
@@ -75,6 +76,7 @@ public:
         else if (controlId == "attack") stream_.control(Kernel::Attack, number);
         else if (controlId == "release") stream_.control(Kernel::Release, number);
         else if (controlId == "level") stream_.control(Kernel::Level, number);
+        else if (controlId == "filter") stream_.control(Kernel::Filter, number);
     }
     /** De 32 golfvormen van de editor (4096 samples, segment na segment).
      *  Met de audio-interrupt uit: de tabel wisselt nooit half tijdens een blok. */
