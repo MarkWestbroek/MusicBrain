@@ -96,6 +96,9 @@
 - Nagezocht in de *Operation Manual* v3.09 (Page 7, "Level/Filter"); het
   plan zei eerder "met de hand, niet toonvolgend" en dat klopte niet
   (gecorrigeerd in [plans/fairlight.md](plans/fairlight.md) §0 en §9).
+- Op de Teensy gemeten (A2): de spiegelingen boven 4,5 kHz gaan van −73 dB
+  (stand 1) via −37 (8) naar −31 (15); de hoge harmonischen van −32 naar
+  −22 dB; het volume blijft gelijk. Boven 12 verandert er weinig meer.
 - Filter gaat mee in de CMI-bank; uitlegregel bij de knop. Kern
   `mmb_dsp/cmi.h`, firmware, wasm, contract 0.5.101, catalogus, test in
   `sim/wasmCmi.test.ts`.

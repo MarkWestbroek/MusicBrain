@@ -365,6 +365,21 @@ de CMI. Het filter volgt de toon (de klok van de stem, 128 × f):
 - De knop hoort bij een klank, dus de CMI-bank bewaart hem mee.
 - Gemeten (`sim/wasmCmi.test.ts`): stand 1 dempt een 20e harmonische veel
   sterker dan 8; stand 15 laat de spiegeling rond de klok veel meer door.
+- **Op de Teensy gemeten** (fw 0.5.101, koperprofiel, A2 = 110 Hz, dus de
+  klok op 14 kHz; aandeel van het spectrum):
+
+  | Filter | 1–3,6 kHz (hoge harmonischen) | > 4,5 kHz (spiegelingen) |
+  |---|---|---|
+  | 1 | −32 dB | −73 dB |
+  | 4 | −25 dB | −56 dB |
+  | 8 | −22 dB | −37 dB |
+  | 12 | −22 dB | −31 dB |
+  | 15 | −22 dB | −31 dB |
+
+  Het volume blijft gelijk (−12 dB rms). Boven 12 verandert er weinig meer:
+  de kantelfrequentie zit dan al tegen Nyquist van de Teensy, en 15 haalt
+  alleen het laatste beetje filter weg. Bij hogere noten ligt de klok boven
+  Nyquist en verschillen 8 en 15 nog minder.
 - Era CMI op de SAMPLER heeft nog geen Filter-knop (het paneel is vol); dat
   filter staat vast op stand 8.
 
