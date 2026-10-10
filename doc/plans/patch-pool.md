@@ -129,7 +129,7 @@ de seeds. Een script haalt bij elke editor-release de pool `centraal` op.
 | 2 | editor | ⤴ Voorstellen, 📚 Patches, `?patch=<slug>` via de inbox | middel |
 | 3 | Imprint | pagina's /patches, /lab, /vragen, /patches/<slug> met "Open in de editor" | middel |
 | 4 | Imprint | gesprek onder een patch (discussie/annotaties) en "antwoord met patch" | middel, hangt aan het communities-werk |
-| 5 | editor | basisset in de build + release-script | klein |
+| 5 | editor | basisset in de build + release-script | klein. **Release-script gebouwd 2026-10-11** (`tools/pool-basisset/publish-basisset.ts`, zie [editor-structuur.md](editor-structuur.md) stap 9): de code is de bron (besluit Mark 2026-10-10), het script stuurt voorstellen in en Mark zet ze op `centraal`. Basisset in de editor-build zelf: niet nodig, de standaardset zit al in de code. |
 
 Stap 1 en 2 kunnen tegelijk, zoals bij de library.
 

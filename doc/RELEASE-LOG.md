@@ -17,6 +17,15 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-11 — Basisset naar de pool: release-script (tools)
+- **`tools/pool-basisset/publish-basisset.ts`**: de standaardset uit de code
+  als voorstellen naar de pool op musicbrain.nl, met dezelfde bestanden als
+  ⤴ Voorstellen (patch, SysEx, front-hoes), CC0 en de labels `basisset` en
+  `mmb-<id>`. Zonder `--send` een proefstand; wat al in de pool staat slaat
+  het over. Daarna zet Mark de voorstellen in de admin op `centraal`.
+  Nog niet ingestuurd. Plan [editor-structuur.md](plans/editor-structuur.md)
+  stap 9.
+
 ### 2026-10-11 — Patchkiezer met tabbladen (editor)
 - **`PatchBrowser.tsx`**: Mijn patches (per map), Voorbeelden (standaardset,
   Poly, Solo), Pool (musicbrain.nl) en Diagnose (testpatches, Stress), met

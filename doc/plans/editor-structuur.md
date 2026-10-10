@@ -174,6 +174,14 @@ Elke stap kan apart naar live. Stap 1 verandert niets aan wat je ziet.
 - Bewust niet: de moduletypes van een project vanzelf verversen. Dat vervangt panelen; dat besluit blijft bij de gebruiker.
 - Nog niet: `simBanks` tegen de banklijst van de server (asynchroon), hernoemingen (stap 6), AI-reparatie (stap 7).
 
+**Gebouwd in stap 9 (2026-10-11), nog niet ingestuurd:**
+
+- `tools/pool-basisset/publish-basisset.ts`: bouwt elke patch van de standaardset, legt hem langs de patchcontrole en maakt dezelfde bestanden als ⤴ Voorstellen (`.patch.json`, `.syx`, front-hoes als SVG) met `requires`. Licentie CC0, labels `basisset` en `mmb-<id>`. Zonder `--send` een proefstand; `--out <map>` schrijft de bestanden weg om te bekijken. Het token komt uit `MMB_POOL_TOKEN`.
+- De API kan niets in `centraal` zetten: het script stuurt voorstellen in, Mark zet ze in de admin op `centraal`. Wat al in `centraal` of bij de voorstellen staat (herkend aan `mmb-<id>`) slaat het over.
+- Versie: zoals de live editor de contractversie (0.5.101 op 2026-10-11), niet een oude `editor/cortex`-tag.
+- Elk bestand is ongeveer 670 KB, net als bij ⤴ Voorstellen: de momentopname neemt alle moduletypes mee. Kleiner maken (alleen de gebruikte types) kan later, voor editor en script tegelijk.
+- Open: een bijgewerkte patch die al in de pool staat, wordt niet vervangen (de API kent geen bijwerken). Een eigen admin-route om een patch op `centraal` te zetten zou het handwerk weghalen; dat is een vraag aan Imprint.
+
 **Gebouwd in stap 5 (2026-10-11):**
 
 - `PatchBrowser.tsx`: één venster, vier tabbladen (Mijn patches per map, Voorbeelden = standaardset + Poly + Solo, Pool, Diagnose = bouwstenen, testpatches en Stress), zoeken behalve in Pool; op de telefoon volledig scherm, op desktop een venster van 820 px. `openPatchBrowser(tab)`; de host staat in `ModularMbApp`.
@@ -209,4 +217,4 @@ Elke stap kan apart naar live. Stap 1 verandert niets aan wat je ziet.
 | 6 | Hernoemingen in het contract (firmware) | oude kabels worden omgezet in plaats van weggehaald | middel, vraagt een firmwarerelease |
 | 7 | AI-reparatie van wat niet zeker is | voorstel na de melding, met goedkeuring | middel |
 | 8 | Bovenbalk opnieuw indelen, wat er nog over is | kleiner dan Astra's UX-02 | klein |
-| 9 | Basisset naar of uit de pool | na besluit 1 | klein |
+| 9 🟡 | Basisset naar of uit de pool | script klaar; insturen en in `centraal` zetten door Mark | klein |
