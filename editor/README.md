@@ -209,7 +209,8 @@ Binnenkijken blijft Nederlands; een eigen patch houdt zijn eigen tekst.
   vasthouden = tijdelijk), een pedaalschuif op de eerste CC van de MIDI-IN,
   ⇕ lange toetsen, ⏹ alle noten uit, ⛶ volledig scherm met front of 🎹 alleen
   het klavier.
-- **Tempo** (♩ in de werkbalk van het toetsenbord, speelmodus): één tempo
+- **Tempo** (♩ in de werkbalk van het toetsenbord, in de speelmodus, de
+  Front-tab en de Simulatie-tab): één tempo
   per patch. Tik in de maat op ♩ (tap tempo) of typ het getal in het menu
   (▾); alle tempoknoppen in de patch volgen (ritmebox, CLOCK, ARP, GRIDS,
   MARBLES, EUCLID, TURING), behalve modules op ExtClk (de kabel beslist) of
@@ -228,7 +229,9 @@ Binnenkijken blijft Nederlands; een eigen patch houdt zijn eigen tekst.
   wave-tekenaar (Page 6) kan ook naar een CMI-stem: de tekening wordt
   geanalyseerd naar harmonischen en dat wordt het profiel. Ontwerp:
   [doc/plans/fairlight.md](../doc/plans/fairlight.md).
-- **Sporen** (≣ in de werkbalk van het toetsenbord, speelmodus): een
+- **Sporen** (≣ in de werkbalk van het toetsenbord, in de speelmodus, de
+  Front-tab en de Simulatie-tab; niet bij volledig scherm met alleen
+  toetsen, daar past het niet): een
   vierspoors recorder, als overdub op tape. ● bij spoor 1: één maat
   aftellen (metronoom), dan opnemen zo lang je speelt, ■ om te stoppen.
   Kies een andere patch, ● bij spoor 2, enzovoort tot vier; de andere

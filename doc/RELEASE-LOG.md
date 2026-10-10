@@ -17,6 +17,20 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-10 — Eén schermtoetsenbord; Binnenkijken past op de telefoon (editor)
+- **Het toetsenbord van de Simulatie-tab is dat van de speelmodus**
+  (`FrontKeys` met de bron als uitgang, `KeySink`): ook daar lange toetsen,
+  ♩ tempo en ≣ Sporen; de computertoetsen werken zoals voorheen. ♩ en ≣
+  staan nu ook in de Front-tab na Binnenkijken.
+- **Volledig scherm, alleen toetsen:** geen ≣ Sporen meer; het paneel duwde
+  de knoppen om eruit te gaan buiten beeld.
+- **Geen pagina breder dan het scherm:** de projectknoppen, de tabs en de
+  bank/patch-regel breken af (de projectbalk was 1500 px, ook op een
+  laptop), en op een smal scherm komt de zijkolom van Patcher en Rack onder
+  het schema. Chrome op Android zoomde eerder de hele pagina uit; dat was
+  de reden om Desktopsite aan te zetten. De speelmodus clipt horizontale
+  overloop, en de melding van de patchcontrole breekt lange woorden af.
+
 ### 2026-10-10 — Patchcontrole bij elke binnenkomst (editor, geen nieuwe firmware)
 - **Elke patch wordt gecontroleerd** tegen de moduletypes van nu
   (`patchCheck.ts`): bij het opstarten, bij import, Nieuw en presets, en na

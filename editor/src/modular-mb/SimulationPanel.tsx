@@ -27,9 +27,7 @@ import {
   ScreenKeyboardSource, TestSequenceSource, WebMidiSource, SEQUENCE_PATTERNS,
   type MidiSource, type MidiEvent, type SequencePattern,
 } from './sim/MidiSource';
-import { ScreenKeys, type SlideMode } from './sim/ScreenKeys';
-import { SUSTAIN_CC, midiInCcNumbers } from './sim/midiInCc';
-import { ribbonMidiIn } from './sim/ribbonSetup';
+import { FrontKeys, type KeySink } from './FrontKeys';
 import type { ModularProject, Patch, ControlValue } from './types';
 import { MidiFileSource, parseSmf } from './sim/midiFilePlayer';
 import { TakeLibraryPanel } from './sim/TakeLibraryPanel';
@@ -624,27 +622,21 @@ function SourceControls({ source, sourceId, running, onStartSim, onReplace }: {
   return <WebMidiUi source={source as WebMidiSource} />;
 }
 
+/** Hetzelfde toetsenbord als onder het front (FrontKeys: lange toetsen,
+ *  ♩ tempo, ≣ Sporen), maar via de bron, zoals de computertoetsen. */
 function ScreenKeyboardUi({ source }: { source: ScreenKeyboardSource }): JSX.Element {
-  const [octave, setOctave] = useState(source.getOctave());
-  const [slide, setSlide] = useState<SlideMode>('note');
-  const project = useModularProject();
-  const cc = midiInCcNumbers(project.patches.find((x) => x.id === project.activePatchId), project);
-  function shift(d: number): void {
-    source.setOctave(octave + d);
-    setOctave(source.getOctave());
-  }
+  const sink = useMemo<KeySink>(() => ({
+    noteOn: (midi, vel) => source.pressNote(midi, vel),
+    noteOff: (midi) => source.releaseNote(midi),
+    aftertouch: (midi, v) => source.aftertouch(midi, v),
+    bend: (v) => source.bend(v),
+    mod: (v) => source.mod(v),
+    cc: (num, v) => source.cc(num, v),
+    octave: (o) => source.setOctave(o),
+  }), [source]);
   return (
     <div style={{ marginTop: 6 }}>
-      <ScreenKeys octave={octave} onOctave={shift} slide={slide} onSlide={setSlide}
-        onNoteOn={(midi, vel) => source.pressNote(midi, vel)}
-        onNoteOff={(midi) => source.releaseNote(midi)}
-        onAftertouch={(midi, v) => source.aftertouch(midi, v)}
-        onBend={(v) => source.bend(v)}
-        onMod={(v) => source.mod(v)}
-        onSustain={(on) => source.cc(SUSTAIN_CC, on ? 127 : 0)}
-        pedal={{ label: `Pedaal CC ${cc.cc1}`, onChange: (v) => source.cc(cc.cc1, v) }}
-        ribbon={ribbonMidiIn(project.patches.find((x) => x.id === project.activePatchId), project)}
-        hint="Computertoetsen: A S D F G H J K (witte), W E T Y U (zwarte); Z/X octaaf" />
+      <FrontKeys sink={sink} hint="Computertoetsen: A S D F G H J K (witte), W E T Y U (zwarte); Z/X octaaf" />
     </div>
   );
 }
