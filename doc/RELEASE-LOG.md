@@ -79,6 +79,15 @@
   standaardset. Plan: [plans/editor-structuur.md](plans/editor-structuur.md)
   stap 0a en 0b. 11 nieuwe tests.
 
+### 2026-10-11 — Era CMI op de Teensy gemeten; zelfstandig spelen genoteerd
+- Era CMI (SAMPLER, bank 05 Concert Choir, fw 0.5.101) tegen Clean: het
+  volume blijft gelijk, het hoog boven 12 kHz stijgt van −46 naar −28 dB
+  (de spiegelingen van de klok); bij een klok van 8 kHz minder. Details in
+  [plans/fairlight.md](plans/fairlight.md) §10.
+- Backlog **FW-SA-1**: de Teensy bewaart na het uitzetten alleen de sample- en
+  lyricbanken. Voor spelen zonder pc moeten patches op de SD-kaart, en dan
+  ook de CMI-tabellen (per patch of als hele CMI-bank).
+
 ### 2026-10-11 — Fairlight: de microfoon als bron voor UIT SAMPLE (editor)
 - **● MICRO** in UIT SAMPLE: tik om op te nemen (de knop telt de seconden),
   nog eens om te stoppen, na 10 s stopt hij vanzelf. Ruw opgenomen (geen

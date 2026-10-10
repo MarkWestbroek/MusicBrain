@@ -6,7 +6,7 @@
 > profiel → golfvormen, opslag in de patch, Page 4) is gebouwd (fw 0.5.99/0.5.100).
 > **2026-10-10:** stap 4 (FFT uit een sample) gebouwd volgens §6: UIT SAMPLE op
 > Page 4 met .wav, bankzone en laatste opname. Nog open: microfoon, CMI-bank,
-> Era CMI met een bank op de Teensy meten; de microfoon is erbij (§6.1). (De "vaste filterstand" bleek
+> de microfoon is erbij (§6.1); Era CMI is op de Teensy gemeten (§10). (De "vaste filterstand" bleek
 > een misverstand: zie §0 en §9.)
 
 Voorstel, 2026-10-09, ter review door Mark. Doel: vandaag bouwen.
@@ -347,6 +347,10 @@ ingebouwde koperklank tot de editor de tabel stuurt.)
 - Een paar fabrieksklanken (de zeven startpunten) als eerste vulling van een
   nieuwe bank, zodat hij niet leeg begint.
 - Teensy: niets nodig; de editor stuurt de tabel van de gekozen klank al.
+  **Later (backlog FW-SA-1):** de Teensy bewaart na het uitzetten niets
+  (behalve sample- en lyricbanken). Moet hij zelfstandig spelen, dan horen de
+  CMI-tabellen mee op de SD-kaart: per patch (~8 KB per stem) of de hele
+  bank (~270 KB) om op de Teensy zelf van klank te wisselen.
 - Tests: bewaren en laden (profiel en knoppen), plek overschrijven,
   export → import, oude projecten zonder bank.
 
@@ -382,4 +386,27 @@ de CMI. Het filter volgt de toon (de klok van de stem, 128 × f):
   Nyquist en verschillen 8 en 15 nog minder.
 - Era CMI op de SAMPLER heeft nog geen Filter-knop (het paneel is vol); dat
   filter staat vast op stand 8.
+
+## 10. Era CMI op de Teensy gemeten (2026-10-11)
+
+fw 0.5.101, SAMPLER met bank 05 (Concert Choir) van de SD-kaart, A3, één
+stem, opgenomen over USB-audio. Aandeel van het spectrum:
+
+| Stand | Volume (rms) | > 6 kHz | > 12 kHz |
+|---|---|---|---|
+| Clean | −27 … −28 dB | −33 … −34 dB | −45 … −46 dB |
+| CMI 24 kHz, 8 bit | −27 dB | −25 dB | −28 dB |
+| CMI 12 kHz, 8 bit | −27 dB | −26 dB | −30 dB |
+| CMI 8 kHz, 8 bit | −28 dB | −25 dB | −35 dB |
+
+- Het volume blijft gelijk (binnen 1 dB); Era CMI voegt hoog toe: de
+  spiegelingen van de klok (zonder interpolatie), ~9 dB meer boven 6 kHz en
+  ~18 dB meer boven 12 kHz. Een lagere klok schuift ze omlaag: bij 8 kHz
+  minder boven 12 kHz.
+- De ruisvloer van 8 bit was in dit sample niet te onderscheiden van de
+  adem in het koor zelf.
+- Geen fouten in de log. De processorlast is hier niet gemeten.
+- Valkuil bij meten: de eerste noot na een config valt soms terwijl de bank
+  nog van de kaart laadt; wacht een paar seconden (eerste poging gaf
+  daardoor een schijnbaar volumeverschil van 7 dB).
 
