@@ -39,7 +39,7 @@ Alles onder `editor/src/modular-mb/` tenzij anders vermeld.
 | `sim/RecordButton.tsx`, `sim/recordControl.ts` | De ene opnameknop: in de Simulatie-tab, rechtsboven in `SimQuickBar` (ook speelmodus), en in het podium op volledig scherm, rechts naast de patchkeuze. De recorder zelf blijft in `SimulationPanel` (altijd gemount); `recordControl` is het doorgeefluik voor stand en start/stop. |
 | `sim/midiInCc.ts` | Welke CC's de MIDI-IN van de patch verwacht (pedaalschuif op `cc1Num`, sustain op 64). |
 | `sim/tuning.ts`, `sim/TuningChip.tsx` | Persoonlijke stemtoon: chip "A = …" in de kop, onthouden (`mb.tuning.a4`), naar engine en Teensy. |
-| `PatchSelect.tsx` | Patchkeuze met onderaan "Voorbeeld toevoegen" (de standaardset). Speelmodus, Front-tab en volledig scherm gebruiken dezelfde. |
+| `PatchSelect.tsx` | Patchkeuze met onderaan "Voorbeeld toevoegen" (de standaardset) en "Meer…" (de patchkiezer, `PatchBrowser.tsx`, sinds 2026-10-11). Speelmodus, Front-tab en volledig scherm gebruiken dezelfde. |
 | `PatchSave.tsx` | "● Bewaar" en "Bewaar als…", gedeeld door patcher-kop en speelmodus. |
 | `demoSeeds.ts` | De negentien voorbeelden en `standardProject()` voor de eerste start (`store.freshStart`). Orgel, koper, ritmebox en acid hebben een ontworpen front in hun seed (`playFront` in `seedShowcase.ts`, `seedBrass.ts`). |
 | `secureContext.ts` | De oranje melding als de pagina via http op een netwerkadres open staat. |

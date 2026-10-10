@@ -23,6 +23,7 @@ import { lastTakeFor, setLastTake, markUploaded, onLastTake } from './lastTakeSt
 import { listTakes, addPatchSnapshot } from './takeLibrary';
 import { offerPatch } from './PatchInbox';
 import type { ModularProject } from '../types';
+import { openPatchBrowser } from '../PatchBrowser';
 
 // ── open/dicht ───────────────────────────────────────────────────────────
 type Win = { kind: 'propose'; patchId: string } | { kind: 'browse' } | null;
@@ -30,14 +31,15 @@ let current: Win = null;
 const listeners = new Set<(w: Win) => void>();
 function set(w: Win): void { current = w; listeners.forEach((fn) => fn(w)); }
 export function openPropose(patchId: string): void { set({ kind: 'propose', patchId }); }
-export function openPoolBrowser(): void { set({ kind: 'browse' }); }
+/** De pool staat nu als tabblad in de patchkiezer (PatchBrowser.tsx). */
+export function openPoolBrowser(): void { openPatchBrowser('pool'); }
 export function closePoolWindows(): void { set(null); }
 
 export function PoolWindowsHost(): JSX.Element | null {
   const [w, setW] = useState<Win>(current);
   useEffect(() => { listeners.add(setW); return () => { listeners.delete(setW); }; }, []);
   if (!w) return null;
-  return w.kind === 'propose' ? <ProposeDialog patchId={w.patchId} onClose={closePoolWindows} /> : <PoolBrowser onClose={closePoolWindows} />;
+  return w.kind === 'propose' ? <ProposeDialog patchId={w.patchId} onClose={closePoolWindows} /> : null;
 }
 
 /** Een patch uit de pool ophalen en via de inbox aanbieden (ook voor ?patch=<slug>). */
@@ -202,7 +204,9 @@ const POOLS: { id: Pool; label: string; hint: string }[] = [
   { id: 'prive', label: 'Privé', hint: 'alleen voor jou (het account achter je token); hier kun je ze alsnog voorstellen' },
 ];
 
-function PoolBrowser({ onClose }: { onClose: () => void }): JSX.Element {
+/** De lijst van de pool, zonder eigen venster: het tabblad Pool van de
+ *  patchkiezer (PatchBrowser.tsx). */
+export function PoolList(): JSX.Element {
   const lib = loadLibrarySettings();
   const [pool, setPool] = useState<Pool>('centraal');
   const [tag, setTag] = useState('');
@@ -266,14 +270,9 @@ function PoolBrowser({ onClose }: { onClose: () => void }): JSX.Element {
 
   const base = siteBase(lib);
   return (
-    <div style={overlay} onMouseDown={(e) => { onClose(); e.stopPropagation(); }}>
-      <div style={{ ...panel, width: 760 }} role="dialog" aria-label="Patches van musicbrain.nl" onMouseDown={(e) => e.stopPropagation()}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <h3 style={{ margin: 0, flex: 1 }}>📚 Patches van musicbrain.nl</h3>
-          <a href={`${base}/patches`} target="_blank" rel="noreferrer" style={{ fontSize: 12 }}>op de site ↗</a>
-          <button onClick={onClose} aria-label="Sluiten">✕</button>
-        </div>
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginTop: 8 }}>
+      <div>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+          <a href={`${base}/patches`} target="_blank" rel="noreferrer" style={{ fontSize: 12, marginRight: 6 }}>musicbrain.nl ↗</a>
           {POOLS.map((p) => (
             <button key={p.id} onClick={() => setPool(p.id)} aria-pressed={pool === p.id} title={p.hint}
               style={pool === p.id ? { fontWeight: 700, background: '#e0f2fe' } : undefined}>{p.label}</button>
@@ -315,6 +314,5 @@ function PoolBrowser({ onClose }: { onClose: () => void }): JSX.Element {
           );
         })}
       </div>
-    </div>
   );
 }

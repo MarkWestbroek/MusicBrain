@@ -174,6 +174,12 @@ Elke stap kan apart naar live. Stap 1 verandert niets aan wat je ziet.
 - Bewust niet: de moduletypes van een project vanzelf verversen. Dat vervangt panelen; dat besluit blijft bij de gebruiker.
 - Nog niet: `simBanks` tegen de banklijst van de server (asynchroon), hernoemingen (stap 6), AI-reparatie (stap 7).
 
+**Gebouwd in stap 5 (2026-10-11):**
+
+- `PatchBrowser.tsx`: één venster, vier tabbladen (Mijn patches per map, Voorbeelden = standaardset + Poly + Solo, Pool, Diagnose = bouwstenen, testpatches en Stress), zoeken behalve in Pool; op de telefoon volledig scherm, op desktop een venster van 820 px. `openPatchBrowser(tab)`; de host staat in `ModularMbApp`.
+- Openen: **Meer…** onderaan de keuzelijst (`PatchSelect`, beide modi) en **📂 Patches…** in de bovenbalk na Binnenkijken. Poly ▾, Solo ▾ en Stress ▾ zijn weg. De vijf diagnoseknoppen blijven voorlopig in de bovenbalk voor snel testen, tot het snelmenu er is (stap 8).
+- Het Pool-tabblad is de bestaande poolbrowser (`PoolList` in `sim/PoolWindows.tsx`, zonder eigen venster); `openPoolBrowser()` opent de kiezer op dat tabblad, dus 📚 Pool in het Patches-tab en de lege start werken als voorheen.
+
 **Gebouwd in stap 1 (2026-10-11):**
 
 - `patchCatalog.ts`: `PATCH_CATALOG` met 124 items (5 diagnose, 26 poly, 58 solo, 9 stress, de standaardset), elk met een stabiel `id` (`menu/label-als-slug`), label, uitleg en bouwfunctie; `catalogMenu(menu)`. De menu's zijn met een script uit de JSX gehaald, dus label, uitleg, volgorde en scheidingslijnen zijn ongewijzigd. `SOLO_FX` staat nu hier.
@@ -199,7 +205,7 @@ Elke stap kan apart naar live. Stap 1 verandert niets aan wat je ziet.
 | 2b ✅ | `useWeergave()` en de plaatsingstabel, met Playwright-test op drie viewports | knoppen staan op de telefoon op een vaste plek | middel |
 | 3 ✅ | Simulatie-tab in twee kolommen | Sporen en takes naast de engine | klein |
 | 4 | Register voor module-editors; openen vanaf paneel en front | Page 4, DX7 en Wave openen bij de module | middel |
-| 5 | Patchkiezer met vier tabbladen | vervangt Poly ▾, Solo ▾, Stress ▾, de vier seedknoppen en 📚 Pool | middel |
+| 5 ✅ | Patchkiezer met vier tabbladen | vervangt Poly ▾, Solo ▾, Stress ▾, de vier seedknoppen en 📚 Pool | middel |
 | 6 | Hernoemingen in het contract (firmware) | oude kabels worden omgezet in plaats van weggehaald | middel, vraagt een firmwarerelease |
 | 7 | AI-reparatie van wat niet zeker is | voorstel na de melding, met goedkeuring | middel |
 | 8 | Bovenbalk opnieuw indelen, wat er nog over is | kleiner dan Astra's UX-02 | klein |

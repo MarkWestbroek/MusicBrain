@@ -58,12 +58,12 @@ Verbinding met hardware verschilt per modus:
 
 ### Vijf onderzoeksmodules (2026-10-02)
 
-Onder **Solo ▾**: **Scanned** (levende golftabel: een traag bewegende
+Onder **📂 Patches… → Voorbeelden** (vroeger Solo ▾): **Scanned** (levende golftabel: een traag bewegende
 massa-veerring, aanslag en aftertouch-druk), **GENDYN** (Xenakis' stochastische
 golfvorm, gestemd en per noot reproduceerbaar), **Excitable** (prikkelbaar
 celraster met twee pacemakers, subharmonieken uit de refractaire tijd) en de
 **Reservoir demo** (twee zelfspelende stemmen die een eindige, herstellende
-bron delen; A/B met Drain 0,8 tegenover 0). Onder **Poly ▾**: **Tape strip ×8**
+bron delen; A/B met Drain 0,8 tegenover 0). Bij de meerstemmige voorbeelden (vroeger Poly ▾): **Tape strip ×8**
 (Mellotron-mechanica om de bank van de sampler: bandje van 8 s per toets dat
 na loslaten terugspoelt, kopcontact, motorbelasting, wow/flutter, slijtage).
 Alle vijf draaien dezelfde C++-kern in wasm en op de Teensy; geen is al door
@@ -267,6 +267,13 @@ Binnenkijken blijft Nederlands; een eigen patch houdt zijn eigen tekst.
   Bend op het gekozen *bereik*, en past daarmee de patch aan). Eén noot
   tegelijk, zoals één manuaal; een tweede vinger neemt het over. Klinkt het
   best met MIXTUR op Dyn = Press. 🎹 brengt het klavier terug.
+- **Patch kiezen**: de keuzelijst is de snelle keuze (je patches en de
+  standaardset); **Meer…** onderaan opent de patchkiezer met vier
+  tabbladen: Mijn patches (per map), Voorbeelden (standaardset, Poly, Solo),
+  Pool (musicbrain.nl) en Diagnose (testpatches en Stress). Zoeken werkt in
+  elk tabblad behalve Pool. Op de telefoon vult de kiezer het scherm. Na
+  Binnenkijken opent **📂 Patches…** in de bovenbalk hetzelfde venster; het
+  vervangt Poly ▾, Solo ▾ en Stress ▾.
 - **Patchcontrole**: bij het laden, importeren of binnenhalen van een patch
   (pool, SysEx, take) wordt hij gecontroleerd tegen de modules van nu. Wat
   zeker is wordt hersteld (een kabel naar een poort die niet meer bestaat,

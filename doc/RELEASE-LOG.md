@@ -17,6 +17,17 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-11 — Patchkiezer met tabbladen (editor)
+- **`PatchBrowser.tsx`**: Mijn patches (per map), Voorbeelden (standaardset,
+  Poly, Solo), Pool (musicbrain.nl) en Diagnose (testpatches, Stress), met
+  zoeken. Open met **Meer…** onderaan de keuzelijst, in de speelmodus en na
+  Binnenkijken; op de telefoon vult hij het scherm.
+- Na Binnenkijken vervangt **📂 Patches…** de menu's Poly ▾, Solo ▾ en
+  Stress ▾. De diagnoseknoppen blijven voorlopig staan.
+- De poolbrowser is het tabblad Pool geworden (`PoolList`); 📚 Pool opent de
+  kiezer op dat tabblad. Plan [editor-structuur.md](plans/editor-structuur.md)
+  stap 5.
+
 ### 2026-10-11 — Patchcatalogus: alle seeds in één register (editor)
 - **`patchCatalog.ts`**: de diagnoseknoppen, Poly ▾, Solo ▾, Stress ▾ en de
   standaardset als gegevens (124 items, elk met een vast id). De menu's in

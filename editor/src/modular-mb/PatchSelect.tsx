@@ -8,14 +8,18 @@ import type { CSSProperties } from 'react';
 import { nlen } from '../i18n';
 import { contentText } from './contentEn';
 import { DEMO_SEEDS } from './demoSeeds';
+import { openPatchBrowser } from './PatchBrowser';
 import { getProject, setProject, updateProject } from './store';
 import type { ModularProject } from './types';
 
 const SEED = 'seed:';
+/** "Meer…": de patchkiezer met alle voorbeelden, de pool en je eigen patches per map. */
+const MORE = 'more:';
 
 /** Maak de patch actief (met zijn rack), of zet een voorbeeld uit de
  *  standaardset erbij en maak dat actief. Puur op de waarde van de keuzelijst. */
 export function choosePatch(value: string): void {
+  if (value === MORE) { openPatchBrowser('voorbeelden'); return; }
   if (value.startsWith(SEED)) {
     const d = DEMO_SEEDS[Number(value.slice(SEED.length))];
     if (d) setProject(d.run(getProject()));
@@ -42,6 +46,7 @@ export function PatchSelect({ project, onChoose, style }: {
       <optgroup label={nlen('Voorbeeld toevoegen', 'Add an example')}>
         {DEMO_SEEDS.map((d, i) => <option key={d.label} value={`${SEED}${i}`} title={contentText(d.title)}>{contentText(d.label)}</option>)}
       </optgroup>
+      <option value={MORE}>{nlen('Meer…', 'More…')}</option>
     </select>
   );
 }

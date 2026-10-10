@@ -57,7 +57,8 @@ import { Dx7EditorModal } from './Dx7EditorModal';
 import { currentSecureContextHint } from './secureContext';
 // Reuse the ES project-bar CSS classes (.es-projectbar*) — same visual language.
 import '../effect-switcher/styles.css';
-import { DiagnoseButtons, SeedMenu } from './SeedMenu';
+import { DiagnoseButtons } from './SeedMenu';
+import { PatchBrowserHost, openPatchBrowser } from './PatchBrowser';
 
 type Tab = 'patches' | 'modules' | 'rack' | 'categories' | 'front' | 'patcher' | 'simulation' | 'surface';
 
@@ -418,11 +419,11 @@ export function ModularMbApp(): JSX.Element {
             title="DX7-patch bewerken: algoritme, operators, envelopes — je hoort elke wijziging meteen in alle DX7-modules"
           >🎛 DX7</button>
           {/* Seeds uit de patchcatalogus (patchCatalog.ts): diagnoseknoppen en
-              de menu's Poly, Solo en Stress. */}
+              de patchkiezer (Voorbeelden, Pool, Diagnose). */}
           <DiagnoseButtons />
-          <SeedMenu menu="poly" label="Poly ▾" minWidth={150} title="Seed een N-stemmige polyfonie-testpatch (ADR 0011): MidiIn (N stemmen) → N× voice-keten → MIXER → OUT. N≤4=4-in mixer, N≤8=8-in, N≤16=16-in." />
-          <SeedMenu menu="solo" label="Solo ▾" title="Solo-seeds: de kortst mogelijke speelbare patch rond één instrument (MidiIn → module → OUT) — om Rings/Plaits/Elements/STK te leren kennen." />
-          <SeedMenu menu="stress" label="Stress ▾" minWidth={240} title="Stress-seeds: energievretende varianten van de poly-patch om de Teensy te pushen. Kijk in de status-strip (CPU / blocks / loop) hoe ver hij gaat." />
+          <button onClick={() => openPatchBrowser('voorbeelden')}
+            title="Patch kiezen: je eigen patches, de voorbeelden (standaardset, Poly, Solo), de pool van musicbrain.nl en diagnose (testpatches, Stress)"
+          >📂 Patches…</button>
           <button className="es-projectbar-reset"
             onClick={() => { if (confirm('Project wissen en opnieuw beginnen?')) setProject(emptyModularProject()); }}
           >Nieuw</button>
@@ -507,6 +508,7 @@ export function ModularMbApp(): JSX.Element {
       <TakeEditorHost />
       <PatchInboxHost />
       <PoolWindowsHost />
+      <PatchBrowserHost />
 
       {expert && tab === 'patches'    && <PatchesPanel />}
       {expert && tab === 'modules'    && <ModulesPanel />}
