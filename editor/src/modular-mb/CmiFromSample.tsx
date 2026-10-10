@@ -1,5 +1,5 @@
 // UIT SAMPLE op Page 4 (doc/plans/fairlight.md §6.3): kies een geluid (.wav,
-// een bankzone of de laatste opname), kies het gebied, controleer de
+// een bankzone, de laatste opname of de microfoon), kies het gebied, controleer de
 // grondtoon, luister origineel tegen CMI en neem het profiel over.
 // Het rekenwerk staat in cmiAnalyse.ts, de bronnen in cmiSources.ts.
 
@@ -9,7 +9,7 @@ import { nlen, useLang } from '../i18n';
 import { CmiPageD } from './CmiPageD';
 import { analyseSample, noteOf, soundStart } from './cmiAnalyse';
 import { SEG, type CmiProfile } from './cmiProfile';
-import { bankZones, decodeToMono, lastTakeSound, serverBanks, type BankZoneSound, type MonoSound } from './cmiSources';
+import { bankZones, decodeToMono, lastTakeSound, serverBanks, startMicRecording, type BankZoneSound, type MonoSound } from './cmiSources';
 import { lastTakeFor } from './sim/lastTakeStore';
 import { getEngine } from './sim/engineSingleton';
 
@@ -58,6 +58,30 @@ export function CmiFromSample({ patchId, segMs, btn, onPreview, onApply, onClose
   const [dragRegion, setDragRegion] = useState<[number, number] | null>(null);
   const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [bankFile, setBankFile] = useState('');
+  // MICRO: opnemen met de microfoon (max. 10 s), daarna gewoon analyseren.
+  const mic = useRef<{ stop: () => Promise<MonoSound>; cancel: () => void } | null>(null);
+  const [recSince, setRecSince] = useState<number | null>(null);
+  const [, tick] = useState(0);
+  useEffect(() => {
+    if (recSince === null) return undefined;
+    const t = setInterval(() => tick((x) => x + 1), 250);
+    return () => clearInterval(t);
+  }, [recSince]);
+  useEffect(() => () => mic.current?.cancel(), []);
+  function takeRecording(p: Promise<MonoSound>): void {
+    mic.current = null; setRecSince(null);
+    void run('mic', async () => load(await p));
+  }
+  async function toggleMic(): Promise<void> {
+    if (mic.current) { takeRecording(mic.current.stop()); return; }
+    setBankFile(''); setZones(null); setErr(null);
+    try {
+      mic.current = await startMicRecording({ maxSeconds: 10, onAutoStop: takeRecording });
+      setRecSince(performance.now());
+    } catch (e) {
+      setErr(nlen(`Microfoon: ${e instanceof Error ? e.message : String(e)}`, `Microphone: ${e instanceof Error ? e.message : String(e)}`));
+    }
+  }
   // Proefklank (▶ CMI) nog in de stemmen? Bij sluiten zonder Overnemen
   // (ook via ✕ van Page 4) gaat het profiel van Page 4 terug.
   const previewed = useRef(false);
@@ -181,6 +205,11 @@ export function CmiFromSample({ patchId, segMs, btn, onPreview, onApply, onClose
             {zones.map((z, i) => <option key={i} value={i}>{z.label}</option>)}
           </select>
         )}
+        <button type="button" style={{ ...small, ...(recSince !== null ? { background: '#ff4d4d', color: '#000', borderColor: '#ff4d4d' } : {}) }}
+          onClick={() => void toggleMic()} aria-pressed={recSince !== null}
+          title={nlen('Opnemen met de microfoon (tik nog eens om te stoppen; max. 10 s)', 'Record with the microphone (tap again to stop; max. 10 s)')}>
+          {recSince !== null ? `■ ${((performance.now() - recSince) / 1000).toFixed(1).replace('.', nlen(',', '.'))} s` : nlen('● MICRO', '● MIC')}
+        </button>
         <button type="button" style={{ ...small, opacity: hasTake ? 1 : 0.4 }} disabled={!hasTake}
           title={hasTake ? nlen('De laatste opname van deze patch', 'The last recording of this patch') : nlen('Nog geen opname van deze patch (⏺)', 'No recording of this patch yet (⏺)')}
           onClick={() => { setBankFile(''); setZones(null); void run('take', async () => { const s = await lastTakeSound(patchId); if (s) load(s); }); }}>{nlen('OPNAME', 'TAKE')}</button>

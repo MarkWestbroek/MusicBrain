@@ -229,7 +229,7 @@ Binnenkijken blijft Nederlands; een eigen patch houdt zijn eigen tekst.
   wave-tekenaar (Page 6) kan ook naar een CMI-stem: de tekening wordt
   geanalyseerd naar harmonischen en dat wordt het profiel. **UIT SAMPLE**
   doet dat met een echt geluid: een audiobestand, een zone uit een
-  samplebank of de laatste opname van de patch. De editor zoekt de
+  samplebank, de laatste opname van de patch of de microfoon (● MICRO). De editor zoekt de
   grondtoon (½×/2× om te corrigeren), snijdt het gekozen gebied in 32
   segmenten (met *aanzet fijner* korte segmenten vooraan) en meet per
   segment de 32 harmonischen; ENERGY wordt de volumecurve en DURATION volgt

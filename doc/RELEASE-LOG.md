@@ -79,6 +79,15 @@
   standaardset. Plan: [plans/editor-structuur.md](plans/editor-structuur.md)
   stap 0a en 0b. 11 nieuwe tests.
 
+### 2026-10-11 — Fairlight: de microfoon als bron voor UIT SAMPLE (editor)
+- **● MICRO** in UIT SAMPLE: tik om op te nemen (de knop telt de seconden),
+  nog eens om te stoppen, na 10 s stopt hij vanzelf. Ruw opgenomen (geen
+  echo-onderdrukking, ruisfilter of automatisch volume) en daarna
+  geanalyseerd zoals een bestand: zing of speel een toon en hij staat op
+  Page 4. `startMicRecording` in `cmiSources.ts`.
+- Getest met Chrome's nep-microfoon die een zaag van 220 Hz afspeelt:
+  A3 · 220,0 Hz, 100 % harmonisch. Met een echte microfoon nog niet.
+
 ### 2026-10-11 — CMI-stem: Filter zoals Page 7 (fw 0.5.101)
 - Nieuwe knop **Filter** (1–15, standaard 8) op `tp_mmb_cmi`, zoals FILTER op
   Page 7 van de Fairlight: een laagdoorlaat die de toon volgt. 8 = het filter

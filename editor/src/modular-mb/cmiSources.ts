@@ -63,3 +63,29 @@ export async function lastTakeSound(patchId: string): Promise<MonoSound | null> 
   const f = lastTakeFor(patchId)?.take.files.find((t) => /\.wav$/i.test(t.name));
   return f ? decodeToMono(await f.blob.arrayBuffer(), f.name) : null;
 }
+
+/** Opnemen met de microfoon (ruw: geen echo-onderdrukking, ruisfilter of
+ *  automatisch volume, die zouden de klank veranderen). `stop()` levert het
+ *  geluid; na `maxSeconds` stopt hij vanzelf en roept `onAutoStop`. */
+export async function startMicRecording(opts: { maxSeconds?: number; onAutoStop?: (s: Promise<MonoSound>) => void } = {}): Promise<{
+  stop: () => Promise<MonoSound>; cancel: () => void;
+}> {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+  const rec = new MediaRecorder(stream);
+  const chunks: Blob[] = [];
+  rec.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+  let done: Promise<MonoSound> | null = null;
+  const finish = (): Promise<MonoSound> => {
+    done ??= new Promise<Blob>((resolve) => {
+      rec.onstop = () => { stream.getTracks().forEach((t) => t.stop()); resolve(new Blob(chunks, { type: rec.mimeType })); };
+      if (rec.state !== 'inactive') rec.stop(); else rec.onstop?.(new Event('stop'));
+    }).then(async (blob) => decodeToMono(await blob.arrayBuffer(), `microfoon ${new Date().toLocaleTimeString()}`));
+    return done;
+  };
+  const timer = setTimeout(() => opts.onAutoStop?.(finish()), (opts.maxSeconds ?? 10) * 1000);
+  rec.start();
+  return {
+    stop: () => { clearTimeout(timer); return finish(); },
+    cancel: () => { clearTimeout(timer); rec.onstop = null; if (rec.state !== 'inactive') rec.stop(); stream.getTracks().forEach((t) => t.stop()); },
+  };
+}

@@ -6,7 +6,7 @@
 > profiel → golfvormen, opslag in de patch, Page 4) is gebouwd (fw 0.5.99/0.5.100).
 > **2026-10-10:** stap 4 (FFT uit een sample) gebouwd volgens §6: UIT SAMPLE op
 > Page 4 met .wav, bankzone en laatste opname. Nog open: microfoon, CMI-bank,
-> Era CMI met een bank op de Teensy meten. (De "vaste filterstand" bleek
+> Era CMI met een bank op de Teensy meten; de microfoon is erbij (§6.1). (De "vaste filterstand" bleek
 > een misverstand: zie §0 en §9.)
 
 Voorstel, 2026-10-09, ter review door Mark. Doel: vandaag bouwen.
@@ -179,7 +179,7 @@ een knop **UIT SAMPLE** in Page 4. Niets op het front of in de werkbalk
 | **Samplebank** | lijst van de server (`banks/index.json`), `parseBank`, kies een zone | `root` van de zone |
 | **Laatste opname** | de wav van de laatste take van deze patch (`lastTakeStore`) | geen |
 
-Microfoon kan later (zelfde pad als AUDIO IN).
+**Microfoon** (2026-10-11): ● MICRO neemt tot 10 s op, ruw (geen echo-onderdrukking, ruisfilter of automatisch volume), en analyseert dat zoals een bestand.
 
 ### 6.2 De analyse
 
