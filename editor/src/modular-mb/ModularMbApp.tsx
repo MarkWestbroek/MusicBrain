@@ -15,6 +15,8 @@ import { CommandPalette } from './recipe/CommandPalette';
 import { Tour, tourSeen } from './recipe/Tour';
 import { PlayTour, playTourSeen } from './PlayTour';
 import { IntakeNotice } from './IntakeNotice';
+import { PlayMenu } from './PlayMenu';
+import { useWeergave } from './weergave';
 import { useTempoSync } from './useTempoSync';
 import { nlen, useLang } from '../i18n';
 import { startDemo, DemoCaption, type DemoState, type DemoHandle } from './recipe/demo';
@@ -135,6 +137,8 @@ export function ModularMbApp(): JSX.Element {
     if (freshStart && getProject().patches.length === 0) setProject(standardProject());
   }, []);
   const playerPatch = project.patches.find((p) => p.id === project.activePatchId);
+  // Telefoon: patchkeuze en ⋯ op één regel (plaatsingstabel, editor-structuur.md §5b).
+  const phone = useWeergave().soort === 'telefoon';
   const [expert, setExpertState] = useState<boolean>(() => {
     try { return localStorage.getItem(OPEN_KEY) === '1'; } catch { return false; }
   });
@@ -970,7 +974,12 @@ export function ModularMbApp(): JSX.Element {
       <nav style={{ display: 'flex', gap: 4, borderBottom: '1px solid #cbd2d9', marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
         {!expert && (
           <>
-            <span data-tour="play-patch" style={{ display: 'inline-flex' }}><PatchSelect project={project} style={{ padding: '4px 8px' }} /></span>
+            <span data-tour="play-patch" style={{ display: 'inline-flex', minWidth: 0, flex: phone ? '1 1 auto' : undefined }}><PatchSelect project={project} style={{ padding: '4px 8px', ...(phone ? { maxWidth: '100%' } : {}) }} /></span>
+            {phone && (
+              <PlayMenu project={project} patch={playerPatch}
+                onInside={() => { setExpert(true); setTab('patcher'); }} onTour={() => setShowPlayTour(true)} />
+            )}
+            {!phone && <>
             {/* Spelen is ook tweaken: Bewaar zodra er iets gewijzigd is, en
                 Bewaar als. Terug en A/B wonen in de editor (Binnenkijken). */}
             {playerPatch && <SaveButton patch={playerPatch} style={{ padding: '4px 12px' }} />}
@@ -985,6 +994,7 @@ export function ModularMbApp(): JSX.Element {
               style={{ padding: '4px 10px', fontSize: 12, borderRadius: 6, border: '1px solid #cbd2d9', background: '#f5f7fa', cursor: 'pointer' }}>
               ?
             </button>
+            </>}
           </>
         )}
         {expert && (

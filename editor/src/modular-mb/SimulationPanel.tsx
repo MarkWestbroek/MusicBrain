@@ -28,6 +28,8 @@ import {
   type MidiSource, type MidiEvent, type SequencePattern,
 } from './sim/MidiSource';
 import { FrontKeys, type KeySink } from './FrontKeys';
+import { OverdubPanel } from './sim/OverdubPanel';
+import { TempoTap } from './TempoTap';
 import type { ModularProject, Patch, ControlValue } from './types';
 import { MidiFileSource, parseSmf } from './sim/midiFilePlayer';
 import { TakeLibraryPanel } from './sim/TakeLibraryPanel';
@@ -427,7 +429,16 @@ export function SimulationPanel(): JSX.Element {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    // Twee kolommen (editor-structuur.md §4.1): links de engine en waar de
+    // noten vandaan komen, rechts spelen en opnemen. Op een smal scherm
+    // onder elkaar.
+    <div className="mmb-sim-grid">
+      <style>{`
+        .mmb-sim-grid { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+        .mmb-sim-grid > .mmb-sim-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+        @media (max-width: 1100px) { .mmb-sim-grid { grid-template-columns: minmax(0, 1fr); } }
+      `}</style>
+      <div className="mmb-sim-col">
       <fieldset style={fs}>
         <legend style={lg}>Patch & Engine</legend>
         <div style={row}>
@@ -604,10 +615,21 @@ export function SimulationPanel(): JSX.Element {
         <SourceControls source={source} sourceId={sourceId} running={status.running} onStartSim={() => void startAll()}
           onReplace={async (slug, name, bytes) => (await replaceAsset(slug, { name, blob: new Blob([bytes], { type: 'audio/midi' }) }, lib)).slug} />
       </fieldset>
+      </div>
+
+      <div className="mmb-sim-col">
+      {/* Sporen luisteren naar de engine, dus ook naar een extern keyboard of
+          een MIDI-bestand: ze horen niet bij het schermtoetsenbord. */}
+      <fieldset style={fs}>
+        <legend style={lg}>Sporen</legend>
+        <div style={{ ...row, marginBottom: 6 }}><TempoTap /></div>
+        <OverdubPanel />
+      </fieldset>
 
       <ModlinkPanel />
 
       <ModuleMatchSummary project={project} patch={patch} />
+      </div>
     </div>
   );
 }
@@ -636,7 +658,7 @@ function ScreenKeyboardUi({ source }: { source: ScreenKeyboardSource }): JSX.Ele
   }), [source]);
   return (
     <div style={{ marginTop: 6 }}>
-      <FrontKeys sink={sink} hint="Computertoetsen: A S D F G H J K (witte), W E T Y U (zwarte); Z/X octaaf" />
+      <FrontKeys sink={sink} tracks={false} hint="Computertoetsen: A S D F G H J K (witte), W E T Y U (zwarte); Z/X octaaf" />
     </div>
   );
 }

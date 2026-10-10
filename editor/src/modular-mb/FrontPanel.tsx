@@ -13,6 +13,7 @@ import { controlHelp } from './moduleHelp';
 import { setPatchControl } from './setPatchControl';
 import { useEngineStatus } from './sim/engineSingleton';
 import type { ControlValue, ModularProject, Patch, PatchFront, Port } from './types';
+import { useWeergave } from './weergave';
 
 export function FrontPanel({ front, patch, project, pxPerMm = 3, onPortClick, onArrange }: {
   front: PatchFront; patch: Patch; project: ModularProject; pxPerMm?: number;
@@ -25,13 +26,8 @@ export function FrontPanel({ front, patch, project, pxPerMm = 3, onPortClick, on
 }): JSX.Element {
   const fm = useMemo(() => buildFrontModule(front, patch, project), [front, patch.controlLabels, project.modules, project.moduleTypes]);
   const live = useEngineStatus().liveControls;
-  // Smal scherm: letters op het front anderhalf keer zo groot, de knoppen niet.
-  const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && window.innerWidth < 640);
-  useEffect(() => {
-    const sync = (): void => setNarrow(window.innerWidth < 640);
-    window.addEventListener('resize', sync);
-    return () => window.removeEventListener('resize', sync);
-  }, []);
+  // Telefoon: letters op het front anderhalf keer zo groot, de knoppen niet.
+  const narrow = useWeergave().soort === 'telefoon';
   const tour = useKnobTour();
   const controlState = frontControlState(fm, patch, live);
   // Knoptour: de knop die de tour draait toont de previewwaarde, niet de patchwaarde.

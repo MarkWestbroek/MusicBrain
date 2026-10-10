@@ -17,6 +17,17 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-10 — ⋯ op de telefoon; Simulatie-tab in twee kolommen (editor)
+- **Telefoon, speelmodus:** patchkeuze en ⋯ op één regel (`PlayMenu.tsx`);
+  onder ⋯ Bewaar, Bewaar als, Binnenkijken en Rondleiding. Eén meting van
+  het scherm voor de hele editor (`weergave.ts`, `useWeergave`).
+- **Simulatie-tab in twee kolommen** (onder 1100 px onder elkaar): rechts
+  Sporen met ♩ tempo, telefoon als bedieningsvlak en wat er speelt. De
+  Sporen werken daar met elke MIDI-bron, ook een extern keyboard.
+- Plan [editor-structuur.md](plans/editor-structuur.md) stap 2b en 3; de
+  plaatsingstabel is gecorrigeerd naar het besluit van 7 oktober (geen ▶ Sim
+  rechtsboven in de speelmodus). 2 nieuwe tests.
+
 ### 2026-10-10 — Eén schermtoetsenbord; Binnenkijken past op de telefoon (editor)
 - **Het toetsenbord van de Simulatie-tab is dat van de speelmodus**
   (`FrontKeys` met de bron als uitgang, `KeySink`): ook daar lange toetsen,

@@ -123,12 +123,14 @@ Wat het wordt:
 
 Voorstel voor de tabel (te bevestigen, besluit 5):
 
+> **Gecorrigeerd 2026-10-10:** de transportregel hieronder klopte niet met een besluit van 2026-10-07 (commit `2f13858`, naar Marks schets voor de rondleiding): in de speelmodus staan ▶ Sim, A = en MIDI níét rechtsboven; de eerste aanslag start de simulator, en ⏺, ♩ en ≣ staan in de werkbalk van het toetsenbord, ook op volledig scherm. Dat besluit geldt. Rechtsboven staat de transportbalk alleen na Binnenkijken. Gebouwd volgens de gecorrigeerde regel.
+
 | Onderdeel | Desktop | Telefoon staand | Volledig scherm, front + toetsen | Volledig scherm, alleen toetsen |
 |---|---|---|---|---|
 | Patchkeuze | werkbalk links | werkbalk regel 1 | bovenin het podium | bovenin het podium |
 | Bewaar, Bewaar als | werkbalk | in een ⋯-menu | weg | weg |
 | Binnenkijken, rondleiding | werkbalk | in het ⋯-menu | weg | weg |
-| Transportbalk (▶, ⏺, ♩, ≣, A =, MIDI) | rechtsboven | regel 2, alleen tekens; A = en MIDI in het ⋯-menu | bovenin het podium, rechts | werkbalk toetsenbord |
+| Transportbalk (▶, ⏺, ♩, ≣, A =, MIDI) | ~~rechtsboven~~ speelmodus: ⏺ ♩ ≣ in de werkbalk van het toetsenbord; Binnenkijken: rechtsboven | ~~regel 2~~ werkbalk van het toetsenbord | werkbalk toetsenbord | werkbalk toetsenbord, zonder ≣ |
 | ⓘ Uitleg, PAGE 4 | boven het front | boven het front, klein | boven het front | weg |
 | Sporen-paneel | onder het toetsenbord | onder het toetsenbord, ingeklapt | onder het toetsenbord | weg |
 | Werkbalk toetsenbord | onder het front | onder het front | onder het front | boven de toetsen |
@@ -152,10 +154,10 @@ Testen: de tabel wordt een Playwright-test op drie viewports (1280 breed, Pixel 
 
 ## 8. Besluiten voor Mark
 
-1. **Bron van de basisset:** de pool `centraal` (met de patchcontrole van §2 als vangnet), of het register in code dat bij elke release naar de pool gepubliceerd wordt?
-2. **Diagnose-seeds** (Stress, FM-test, CV-bridge, Internals): voor iedereen zichtbaar in het tabblad Diagnose, of alleen in een dev-build of na een instelling?
-3. **Patchkiezer op de telefoon:** volledig scherm, of de keuzelijst met "Meer…" die naar de kiezer gaat?
-4. **Hernoemingen in de firmware** (§2.2, laag 2): akkoord dat een moduletype voortaan een lijst oude namen bijhoudt?
+1. **Bron van de basisset:** de pool `centraal` (met de patchcontrole van §2 als vangnet), of het register in code dat bij elke release naar de pool gepubliceerd wordt? **Besloten 2026-10-10 (Mark): de code is de bron; een release-script vult de pool `centraal` aan vanuit het register.**
+2. **Diagnose-seeds** (Stress, FM-test, CV-bridge, Internals): voor iedereen zichtbaar in het tabblad Diagnose, of alleen in een dev-build of na een instelling? **Besloten 2026-10-10 (Mark): voorlopig voor iedereen zichtbaar, zodat vrienden kunnen testen; later niet meer.**
+3. **Patchkiezer op de telefoon:** volledig scherm, of de keuzelijst met "Meer…" die naar de kiezer gaat? **Besloten 2026-10-10 (Mark): de eenvoudige keuze blijft de keuzelijst zoals nu; "Meer…" opent de volledige kiezer (de tabbladen) op volledig scherm.**
+4. **Hernoemingen in de firmware** (§2.2, laag 2): akkoord dat een moduletype voortaan een lijst oude namen bijhoudt? **Besloten 2026-10-10 (Mark): ja. Een wijziging aan poorten, controls of displays van een module is altijd een firmwarewijziging; daarbij noteer je het achterwaarts compatibele pad (oude naam → nieuwe naam), en de patchcontrole volgt dat pad in plaats van de kabel of stand weg te halen.**
 5. **Plaatsingstabel** (§5b): klopt de voorgestelde indeling per weergave, en mag Bewaar op de telefoon in een ⋯-menu? **Besloten 2026-10-10 (Mark): ja, eens met het voorstel.**
 
 ## 9. Stappen
@@ -172,14 +174,22 @@ Elke stap kan apart naar live. Stap 1 verandert niets aan wat je ziet.
 - Bewust niet: de moduletypes van een project vanzelf verversen. Dat vervangt panelen; dat besluit blijft bij de gebruiker.
 - Nog niet: `simBanks` tegen de banklijst van de server (asynchroon), hernoemingen (stap 6), AI-reparatie (stap 7).
 
+**Gebouwd in 2b en 3 (2026-10-10):**
+
+- `weergave.ts`: `useWeergave()` en `weergaveVan()` (telefoon onder 640 px breed of 500 px hoog, tablet tot 1024, desktop). Het front gebruikt hem voor de grotere letters; nieuwe onderdelen lezen hem in plaats van zelf te meten.
+- `PlayMenu.tsx`: ⋯ in de werkbalk van de speelmodus op de telefoon, staand en liggend, met Bewaar (alleen bij een wijziging; dan een stip op ⋯), Bewaar als, Binnenkijken en Rondleiding. Dezelfde knoppen als op de desktop.
+- Eén schermtoetsenbord (`FrontKeys`) in speelmodus, Front-tab en Simulatie-tab; in de Simulatie-tab via de MIDI-bron (`KeySink`). Met alleen toetsen op volledig scherm geen ≣.
+- Simulatie-tab in twee kolommen, onder 1100 px onder elkaar: links engine, samplerbank en MIDI-bron; rechts Sporen met ♩ tempo (voor elke MIDI-bron, ook een extern keyboard), telefoon als bedieningsvlak en wat er speelt.
+- De plaatsing is nagelopen met Playwright op Pixel 7 staand en liggend en op 1400 px (scratch-script). Een vaste Playwright-test in de repo vraagt Playwright als devDependency; nog niet gedaan.
+
 | # | Wat | Verandert voor de gebruiker | Omvang |
 |---|---|---|---|
 | 0a ✅ | `checkPatch` en de bevindingen; de contracttest gebruikt hem voor de seeds | niets | klein |
 | 0b ✅ | Controle bij elke binnenkomst, deterministische reparatie, melding | melding bij laden of import als er iets hersteld is | middel |
 | 1 | Register: alle seeds als gegevens; Poly ▾, Solo ▾, Stress ▾ en de opstartset lezen eruit | niets zichtbaar; ModularMbApp ongeveer 450 regels korter | middel |
 | 2 | Transportbalk in beide modi | ♩ TAP en ≣ Sporen ook na Binnenkijken | klein |
-| 2b | `useWeergave()` en de plaatsingstabel, met Playwright-test op drie viewports | knoppen staan op de telefoon op een vaste plek | middel |
-| 3 | Simulatie-tab in twee kolommen | Sporen en takes naast de engine | klein |
+| 2b ✅ | `useWeergave()` en de plaatsingstabel, met Playwright-test op drie viewports | knoppen staan op de telefoon op een vaste plek | middel |
+| 3 ✅ | Simulatie-tab in twee kolommen | Sporen en takes naast de engine | klein |
 | 4 | Register voor module-editors; openen vanaf paneel en front | Page 4, DX7 en Wave openen bij de module | middel |
 | 5 | Patchkiezer met vier tabbladen | vervangt Poly ▾, Solo ▾, Stress ▾, de vier seedknoppen en 📚 Pool | middel |
 | 6 | Hernoemingen in het contract (firmware) | oude kabels worden omgezet in plaats van weggehaald | middel, vraagt een firmwarerelease |

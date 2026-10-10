@@ -278,7 +278,10 @@ Binnenkijken blijft Nederlands; een eigen patch houdt zijn eigen tekst.
 - **Stemtoon**: het keuzelijstje **A = …** naast ▶ Sim zet een persoonlijke
   stemtoon (bijvoorbeeld 432) voor elke patch; MIDI-IN schuift alle
   toonhoogtes mee.
-- **Telefoon**: knoppen draai je met een vinger in een boog om het midden;
+- **Telefoon**: in de speelmodus staan de patchkeuze en **⋯** op één regel;
+  onder ⋯ zitten Bewaar (alleen na een wijziging, dan staat er een stip op
+  ⋯), Bewaar als, Binnenkijken en de rondleiding. Knoppen draai je met een
+  vinger in een boog om het midden;
   schuiven volgen je vinger. Zit je vast in een ingezoomd scherm, dan staat er
   linksboven een ⊡ om terug te gaan naar alles in beeld.
 

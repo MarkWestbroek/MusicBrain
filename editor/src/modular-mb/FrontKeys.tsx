@@ -53,8 +53,10 @@ export interface KeySink {
 /** `record`: de opnameknop in de werkbalk (speelmodus; in de expertstand
  *  staat hij rechtsboven naast ▶ Sim). Op volledig scherm altijd, want dan
  *  is die bovenbalk weg. */
-export function FrontKeys({ stage, record = false, sink, hint: hintText }: {
-  stage?: RefObject<HTMLElement | null>; record?: boolean; sink?: KeySink; hint?: string;
+/** `tracks`: ≣ Sporen in de werkbalk (standaard aan). De Simulatie-tab zet
+ *  het uit: daar staan de sporen in de rechterkolom, voor elke MIDI-bron. */
+export function FrontKeys({ stage, record = false, sink, hint: hintText, tracks: withTracks = true }: {
+  stage?: RefObject<HTMLElement | null>; record?: boolean; sink?: KeySink; hint?: string; tracks?: boolean;
 } = {}): JSX.Element {
   const status = useEngineStatus();
   const project = useModularProject();
@@ -164,7 +166,7 @@ export function FrontKeys({ stage, record = false, sink, hint: hintText }: {
           <span style={{ display: 'inline-flex', gap: 2 }}>
             {(record || full) && <span data-tour="keys-record" style={{ display: 'inline-flex' }}><RecordButton compact style={fsBtn} /></span>}
             <TempoTap />
-            {!keysOnly && (
+            {withTracks && !keysOnly && (
               <button type="button" data-tour="keys-tracks" onClick={() => setTracks(!tracks)}
                 style={{ ...fsBtn, fontWeight: tracks ? 700 : 400, background: tracks ? '#fde68a' : undefined }}
                 title={nlen('Sporen: vier sporen na elkaar inspelen (overdub)', 'Tracks: record four tracks one after another (overdub)')}
@@ -181,7 +183,7 @@ export function FrontKeys({ stage, record = false, sink, hint: hintText }: {
         )}
         hint={hintText ?? (status.running ? undefined : nlen('Eerste aanslag start de simulator', 'The first note starts the simulator'))} />
       {err && <div style={{ color: '#b91c1c', fontSize: 12, marginTop: 4 }}>{err}</div>}
-      {tracks && !keysOnly && <OverdubPanel />}
+      {withTracks && tracks && !keysOnly && <OverdubPanel />}
     </div>
   );
 }
