@@ -45,7 +45,11 @@ function Notice({ report, canUndo, open, onToggle, onClose }: { report: IntakeRe
   const btn: React.CSSProperties = { fontSize: 12, padding: '2px 8px', cursor: 'pointer' };
 
   return (
-    <div role="status" style={{ margin: '0 0 10px', padding: '8px 12px', borderRadius: 6, background: '#fff4e5', border: '1px solid #f0b060', fontSize: 13, lineHeight: 1.4 }}>
+    // overflowWrap: een module-id of typenaam zonder spaties mag de melding
+    // niet breder maken dan het scherm; Chrome op Android zoomt dan de hele
+    // pagina uit en blijft dat doen tot je herlaadt.
+    <div role="status" style={{ margin: '0 0 10px', padding: '8px 12px', borderRadius: 6, background: '#fff4e5', border: '1px solid #f0b060', fontSize: 13, lineHeight: 1.4,
+      maxWidth: '100%', boxSizing: 'border-box', overflowWrap: 'anywhere' }}>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <strong>{nlen('Patchcontrole', 'Patch check')} {report.source}:</strong>
         {parts.length > 0 && <span>{parts.join(', ')}{inPatches > 1 ? nlen(`, in ${inPatches} patches`, `, in ${inPatches} patches`) : ''}.</span>}

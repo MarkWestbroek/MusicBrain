@@ -306,7 +306,11 @@ export function ModularMbApp(): JSX.Element {
   }
 
   return (
-    <section style={{ fontFamily: 'var(--mb-font-sans)' }}>
+    // In de speelmodus mag niets de pagina breder maken dan het scherm: Chrome
+    // op Android zoomt anders de hele pagina uit (en blijft dat tot je
+    // herlaadt). `clip` maakt geen scrollgebied, dus het front houdt zijn
+    // eigen horizontale scroll en volledig scherm werkt zoals het werkte.
+    <section style={{ fontFamily: 'var(--mb-font-sans)', ...(expert ? {} : { overflowX: 'clip', maxWidth: '100%' }) }}>
 
       {/* ── Project header bar (alleen open; de speler ziet het front) ── */}
       {expert && (
