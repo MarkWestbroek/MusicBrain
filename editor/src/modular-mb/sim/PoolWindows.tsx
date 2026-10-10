@@ -8,6 +8,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { getProject, updateProject, uid } from '../store';
+import { admitActivePatch } from '../patchIntake';
 import { seedInternals } from '../seedModules';
 import { getEngine } from './engineSingleton';
 import { loadLibrarySettings, uploadTakeWithExtras, renameTake, splitTakeName, slugName, type LibrarySettings } from './mediaLibrary';
@@ -242,7 +243,7 @@ function PoolBrowser({ onClose }: { onClose: () => void }): JSX.Element {
       const snap = JSON.parse(json) as ModularProject;
       let newId = '';
       updateProject((p) => { const r = addPatchSnapshot(seedInternals(p), snap, it.title, uid); newId = r.activePatchId ?? ''; return r; }, { forceCommit: true });
-      if (newId) rememberOrigin(newId, it.slug);
+      if (newId) { rememberOrigin(newId, it.slug); admitActivePatch('uit de pool'); }
       setMsg({ ok: true, text: `"${it.title}" toegevoegd als nieuwe patch en actief.` });
     } catch (e) { setMsg({ ok: false, text: e instanceof Error ? e.message : String(e) }); }
     finally { setBusy(null); }

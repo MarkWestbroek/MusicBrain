@@ -3,6 +3,7 @@
 
 import { useRef, useState } from 'react';
 import { getProject, updateProject, uid } from '../store';
+import { admitActivePatch } from '../patchIntake';
 import { patchOrder } from '../recipe/classify';
 import { buildConfigPayload } from '../teensyLink';
 import { patchSnapshot, slimSnapshot } from './midiRecorder';
@@ -57,6 +58,7 @@ export function PatchExportMenu(): JSX.Element {
       const name = snap.patches?.[0]?.name ?? file.name.replace(/\.syx$/i, '');
       // Types en interne modules zitten niet in de SysEx: eerst aanvullen.
       updateProject((p) => addPatchSnapshot(seedInternals(p), snap, name, uid), { forceCommit: true });
+      admitActivePatch('uit SysEx');
       setMsg({ ok: true, text: `Patch "${name}" toegevoegd.` });
     } catch (e) { setMsg({ ok: false, text: e instanceof Error ? e.message : String(e) }); }
   }

@@ -4,6 +4,8 @@
 
 import { useEffect, useState } from 'react';
 import { updateProject, uid } from '../store';
+import { admitActivePatch } from '../patchIntake';
+import { nlen } from '../../i18n';
 import { seedInternals } from '../seedModules';
 import { addPatchSnapshot } from './takeLibrary';
 import type { ModularProject } from '../types';
@@ -33,6 +35,7 @@ export function loadOffered(p: OfferedPatch): void {
   let newId = '';
   updateProject((proj) => { const r = addPatchSnapshot(seedInternals(proj), snap, p.name, uid); newId = r.activePatchId ?? ''; return r; }, { forceCommit: true });
   if (p.pool && newId) rememberOrigin(newId, p.pool.slug);
+  if (newId) admitActivePatch(p.pool ? nlen('uit de pool', 'from the pool') : nlen('bij het binnenhalen', 'on receiving'));
 }
 
 export function PatchInboxHost(): JSX.Element | null {

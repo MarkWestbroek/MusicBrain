@@ -251,6 +251,12 @@ Binnenkijken blijft Nederlands; een eigen patch houdt zijn eigen tekst.
   Bend op het gekozen *bereik*, en past daarmee de patch aan). Eén noot
   tegelijk, zoals één manuaal; een tweede vinger neemt het over. Klinkt het
   best met MIXTUR op Dyn = Press. 🎹 brengt het klavier terug.
+- **Patchcontrole**: bij het laden, importeren of binnenhalen van een patch
+  (pool, SysEx, take) wordt hij gecontroleerd tegen de modules van nu. Wat
+  zeker is wordt hersteld (een kabel naar een poort die niet meer bestaat,
+  een knop buiten zijn bereik) en een oranje melding zegt wat er gebeurd is,
+  met Details en Ongedaan maken. Zijn de moduletypes van je project ouder dan
+  die van de editor, dan biedt de melding **Modules verversen** aan.
 - **Opnemen**: het rode rondje neemt op wat je speelt: een WAV, de gespeelde
   MIDI als .mid en de patch, met dezelfde naam. Tik op het rode vierkantje om
   te stoppen; de bestanden worden gedownload en de take staat klaar in de

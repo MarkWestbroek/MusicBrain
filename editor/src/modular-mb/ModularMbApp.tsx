@@ -14,6 +14,7 @@ import { PatchSelect } from './PatchSelect';
 import { CommandPalette } from './recipe/CommandPalette';
 import { Tour, tourSeen } from './recipe/Tour';
 import { PlayTour, playTourSeen } from './PlayTour';
+import { IntakeNotice } from './IntakeNotice';
 import { useTempoSync } from './useTempoSync';
 import { nlen, useLang } from '../i18n';
 import { startDemo, DemoCaption, type DemoState, type DemoHandle } from './recipe/demo';
@@ -955,6 +956,7 @@ export function ModularMbApp(): JSX.Element {
       <DemoCaption state={demo} onSkip={() => demoRef.current?.finish()} onClose={() => { demoRef.current?.stop(); setDemo(null); }} />
 
       <SecureContextNote />
+      <IntakeNotice />
       <ZoomEscape />
 
       {/* ── Sub-tabs; dicht = alleen het front en "Binnenkijken" ── */}

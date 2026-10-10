@@ -8,6 +8,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useModularProject, updateProject, getProject, uid } from './store';
+import { admitActivePatch } from './patchIntake';
 import { findPatchByBankProgram } from './recipe/classify';
 import { SamplerBankBar } from './sim/SamplerBankBar';
 import { AudioEngine, type EngineStatus } from './sim/AudioEngine';
@@ -132,6 +133,7 @@ export function SimulationPanel(): JSX.Element {
     if (!snap || !Array.isArray(snap.patches) || !Array.isArray(snap.modules)) throw new Error('Geen geldig patch-bestand.');
     const label = `Take ${name.replace(/^mmb-/, '')}`;
     updateProject((p) => addPatchSnapshot(p, snap, label, uid), { forceCommit: true });
+    admitActivePatch('uit een take');
   }
   const [libBusy, setLibBusy] = useState(false);
   const [libMsg, setLibMsg] = useState<{ ok: boolean; text: string } | null>(null);

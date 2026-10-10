@@ -1,5 +1,7 @@
 # Editor UX-aanbevelingen
 
+> **Actueel (2026-10-10):** UX-02 (bovenbalk) en UX-06 (contextbalk) worden grotendeels vervangen door [editor-structuur.md](editor-structuur.md) §7: patchbronnen en klankeditors verhuizen uit de bovenbalk, en de transportbalk is de contextbalk. UX-01, UX-03, UX-04, UX-05 en UX-07 blijven zoals hieronder.
+
 Datum: 2026-09-30
 Status: voorstel ter bespreking; nog niet geimplementeerd.
 

@@ -19,6 +19,8 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { emptyModularProject } from './types';
+import { standardProject } from './demoSeeds';
+import { checkPatch } from './patchCheck';
 import type { ModularProject, ModuleType } from './types';
 import {
   seedCloudsAmbientPatch,
@@ -284,34 +286,21 @@ describe('ModuleType-controls bestaan in de firmware', () => {
   }
 });
 
-// ── 2. Seed-kabels wijzen naar echte paneel-jacks ─────────────────────────
+// ── 2. Patchcontrole: dezelfde controle die elke geladen patch krijgt ─────
+// (patchCheck.ts, doc/plans/editor-structuur.md §2). Een seed moet hem
+// zonder één bevinding doorstaan; een signaal-mismatch is alleen informatief.
+// Hij vangt ook de out_l-klasse van 5 juli: kabels naar jacks die niet op
+// het paneel bestaan, en uitgangen die als ingang gebruikt worden.
 
-describe('seed-patchkabels matchen paneel-jacks (de out_l-klasse)', () => {
-  const typeById = new Map<string, ModuleType>(
-    project.moduleTypes.map((t) => [t.id, t]));
-  const moduleType = new Map<string, ModuleType>();
-  for (const m of project.modules) {
-    const t = typeById.get(m.typeId);
-    if (t) moduleType.set(m.id, t);
-  }
-
-  for (const patch of project.patches) {
-    it(`patch "${patch.name}"`, () => {
-      const bad: string[] = [];
-      for (const c of patch.connections) {
-        for (const [end, dir] of [[c.from, 'out'], [c.to, 'in']] as const) {
-          const t = moduleType.get(end.moduleId);
-          if (!t) { bad.push(`onbekende module ${end.moduleId}`); continue; }
-          const port = t.ports.find((p) => p.id === end.portId);
-          if (!port) {
-            bad.push(`${t.id}.${end.portId}: geen jack op het paneel`);
-          } else if (port.direction !== dir) {
-            bad.push(`${t.id}.${end.portId}: ${port.direction} gebruikt als ${dir}`);
-          }
-        }
-      }
-      expect(bad).toEqual([]);
-    });
+describe('seeds doorstaan de patchcontrole', () => {
+  const std = standardProject();
+  for (const [p, label] of [[project, 'seed'], [std, 'standaardset']] as const) {
+    for (const patch of p.patches) {
+      it(`${label}: "${patch.name}"`, () => {
+        const f = checkPatch(patch, p).filter((x) => x.kind !== 'signal-mismatch');
+        expect(f.map((x) => `${x.kind}: ${x.message}`)).toEqual([]);
+      });
+    }
   }
 });
 

@@ -17,6 +17,21 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-10 — Patchcontrole bij elke binnenkomst (editor, geen nieuwe firmware)
+- **Elke patch wordt gecontroleerd** tegen de moduletypes van nu
+  (`patchCheck.ts`): bij het opstarten, bij import, Nieuw en presets, en na
+  het binnenhalen van één patch uit de pool, een link, SysEx of een take
+  (`patchIntake.ts`). Zeker herstel gebeurt vanzelf, als bewerking met undo:
+  kabels naar verdwenen poorten of modules weg, knopstanden terug in hun
+  bereik, front-items zonder doel weg. Een uitgang die als ingang gebruikt
+  wordt of een onbekend moduletype wordt gemeld, niet hersteld.
+- **Melding** (`IntakeNotice.tsx`) in beide modi: wat er hersteld is, wat je
+  oordeel vraagt, met Details, Ongedaan maken en, als de moduletypes van het
+  project ouder zijn dan die van de editor, Modules verversen.
+- De contracttest gebruikt dezelfde controle voor alle seeds en de
+  standaardset. Plan: [plans/editor-structuur.md](plans/editor-structuur.md)
+  stap 0a en 0b. 11 nieuwe tests.
+
 ### 2026-10-10 — Laat horen: ▶ per knop in de uitleg (editor)
 - In het uitlegblad staat ▶ voor elke knop. Het instrument speelt dan een
   gebroken akkoord op het tempo van de patch en draait acht seconden aan de

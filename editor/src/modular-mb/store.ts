@@ -57,6 +57,13 @@ let lastPushAt = 0;
 
 const listeners = new Set<() => void>();
 
+/** Telt elke keer dat het project als geheel vervangen wordt (opstart,
+ *  import, Nieuw, preset). De patchcontrole (patchIntake.ts) kijkt hiernaar
+ *  en controleert dan alle patches; zij leeft buiten de store omdat ze de
+ *  seeds nodig heeft, en die importeren `uid` van hier. */
+let replacedCount = 1;
+export function projectReplacedCount(): number { return replacedCount; }
+
 function emit(): void {
   scheduleSave();   // elke mutatie loopt via emit() — één bewaarpunt
   for (const l of listeners) l();
@@ -70,6 +77,7 @@ export function setProject(next: ModularProject | unknown): boolean {
   if (next && typeof next === 'object' && (next as { version?: unknown }).version === 2) {
     current = pruneOrphanGroups(next as ModularProject).project;
     past.length = 0; future.length = 0; lastPushAt = 0;
+    replacedCount++;
     emit();
     return true;
   }
@@ -77,6 +85,7 @@ export function setProject(next: ModularProject | unknown): boolean {
   if (!migrated) return false;
   current = migrated;
   past.length = 0; future.length = 0; lastPushAt = 0;
+  replacedCount++;
   emit();
   return true;
 }
