@@ -96,3 +96,27 @@ describe('CMI-profiel in de morph', () => {
     expect(morphModuleData(base, { ...base, id: 'c' }, 0.5)).toBeUndefined();
   });
 });
+
+describe('CMI-profiel door de pool', () => {
+  it('een patch uit de pool (addPatchSnapshot) houdt zijn profiel, onder de nieuwe module-id', async () => {
+    const { standardProject } = await import('./demoSeeds');
+    const { DEMO_SEEDS } = await import('./demoSeeds');
+    const { patchSnapshot, slimSnapshot } = await import('./sim/midiRecorder');
+    const { addPatchSnapshot } = await import('./sim/takeLibrary');
+    const seed = DEMO_SEEDS.find((d) => d.label.includes('Fairlight'))!;
+    const src = seed.run(standardProject());
+    const patch = src.patches.find((x) => x.id === src.activePatchId)!;
+    const [oldId, data] = Object.entries(patch.moduleData ?? {})[0]!;
+    // zoals ⤴ Voorstellen het verstuurt (volledig en slank) en de pool het teruggeeft
+    for (const snap of [patchSnapshot(src, patch), slimSnapshot(patchSnapshot(src, patch))]) {
+      const json = JSON.parse(JSON.stringify(snap));
+      let n = 0;
+      const out = addPatchSnapshot(standardProject(), json, 'uit de pool', (p) => `${p}_pool${n++}`);
+      const got = out.patches.at(-1)!;
+      const [newId, d2] = Object.entries(got.moduleData ?? {})[0]!;
+      expect(d2!.cmi).toBe(data!.cmi);
+      expect(newId).not.toBe(oldId);
+      expect(out.modules.find((m) => m.id === newId)?.typeId).toBe('tp_mmb_cmi');
+    }
+  });
+});

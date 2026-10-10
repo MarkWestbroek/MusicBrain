@@ -299,3 +299,44 @@ Voorstel: één weergave met twee standen, dezelfde tekenaar:
   Page D tonen, zodat je ziet wat je krijgt.
 - **Tests**: de projectie (zuivere functie: punten en volgorde van achter
   naar voor) en dat beide standen 32 rijen geven.
+
+## 8. CMI-bank (2026-10-11, besluiten genomen, nog te bouwen)
+
+Nu leeft een Page 4-profiel alleen in de patch (de "edit buffer",
+`patch.moduleData`). Een bank is een bibliotheek van CMI-klanken los van de
+patches, zoals de DX7-banken en zoals de CMI zijn stemmen van diskette laadde.
+
+**Besluiten (Mark, 2026-10-11)**
+
+1. **Een klank = het profiel én de knoppen** van de stem: Seg, Smooth, Loop,
+   Attack, Release (Seg bepaalt hoe lang het profiel duurt).
+2. **De bank staat in het project**: gaat mee met bewaren, undo en export;
+   los te exporteren en te importeren als bestand. De server/pool kan later.
+
+**Pool**: een patch neemt zijn klank altijd mee, met of zonder bank. Het
+profiel staat in de patch zelf; ⤴ Voorstellen stuurt de hele patch (in de
+`.patch.json` en in de SysEx), en bij het ophalen krijgt de module een nieuwe
+id waar het profiel netjes mee verhuist. Vastgelegd in een test
+(`cmiProfile.test.ts`, "CMI-profiel door de pool"). Wat níet meegaat is de
+bank zelf: wie een patch ophaalt krijgt de klank, niet jouw 32 andere.
+(Kanttekening: de SysEx draagt het profiel als data mee, maar een Teensy
+zonder editor kan er geen golfvormen van maken; die speelt dan de
+ingebouwde koperklank tot de editor de tabel stuurt.)
+
+**Ontwerp**
+
+- Datamodel: `project.cmiBank = { name, voices: (CmiVoice | null)[32] }`,
+  `CmiVoice = { name, cmi: '<base64-profiel>', controls: { seg, smooth, loop,
+  attack, release } }`. Eén bank per project; meer banken kan later (de DX7
+  heeft er ook meerdere).
+- Page 4 krijgt een rij **BANK**: de 32 plekken (naam of —), **LADEN** (zet
+  profiel en knoppen op de stem: één undo-stap, daarna Bewaar zoals altijd),
+  **BEWAREN…** (naam, kies een plek; een bezette plek vraagt eerst),
+  **⤓ / ⤒** bank exporteren en importeren als `.cmibank.json` (importeren
+  vult lege plekken of vervangt de bank, je kiest).
+- Een paar fabrieksklanken (de zeven startpunten) als eerste vulling van een
+  nieuwe bank, zodat hij niet leeg begint.
+- Teensy: niets nodig; de editor stuurt de tabel van de gekozen klank al.
+- Tests: bewaren en laden (profiel en knoppen), plek overschrijven,
+  export → import, oude projecten zonder bank.
+
