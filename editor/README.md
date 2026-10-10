@@ -237,8 +237,11 @@ Binnenkijken blijft Nederlands; een eigen patch houdt zijn eigen tekst.
   op Page 4 (`cmiAnalyse.ts`, `CmiFromSample.tsx`). **PAGE D** ([D] naast
   [4]) toont het profiel in 3D: HARMONISCH (harmonische 1 vooraan, 32
   achteraan, tijd naar rechts, in dB of lineair) of GOLF (de golfvorm per
-  segment, zoals Page D op de CMI). Ontwerp:
-  [doc/plans/fairlight.md](../doc/plans/fairlight.md) §6 en §7.
+  segment, zoals Page D op de CMI). De rij **BANK** op Page 4 bewaart
+  klanken (profiel plus Seg, Smooth, Loop, Attack, Release) op 32 plekken in
+  het project, laadt ze op de stem en exporteert of importeert de bank als
+  `.cmibank.json` (`cmiBank.ts`). Ontwerp:
+  [doc/plans/fairlight.md](../doc/plans/fairlight.md) §6–§8.
 - **Sporen** (≣ in de werkbalk van het toetsenbord, in de speelmodus, de
   Front-tab en de Simulatie-tab; niet bij volledig scherm met alleen
   toetsen, daar past het niet): een

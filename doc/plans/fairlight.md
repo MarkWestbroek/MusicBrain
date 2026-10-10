@@ -300,7 +300,11 @@ Voorstel: één weergave met twee standen, dezelfde tekenaar:
 - **Tests**: de projectie (zuivere functie: punten en volgorde van achter
   naar voor) en dat beide standen 32 rijen geven.
 
-## 8. CMI-bank (2026-10-11, besluiten genomen, nog te bouwen)
+## 8. CMI-bank (2026-10-11)
+
+> **Gebouwd 2026-10-11** (`cmiBank.ts`, `CmiBankRow.tsx`, `project.cmiBank`):
+> zoals hieronder; bij inlezen met *lege plekken vullen* komen klanken die er
+> precies zo al staan (zoals de startpunten) er niet dubbel in.
 
 Nu leeft een Page 4-profiel alleen in de patch (de "edit buffer",
 `patch.moduleData`). Een bank is een bibliotheek van CMI-klanken los van de

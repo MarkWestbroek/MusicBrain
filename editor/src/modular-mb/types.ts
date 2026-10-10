@@ -790,7 +790,21 @@ export interface ModularProject {
    *  afwisselt. Gaan bij een push mee naar de Teensy, zodat wisselen daar
    *  een selectPatch is (graph-herbouw) en geen nieuwe config. */
   compareSet?: string[];
+  /** CMI-bank (doc/plans/fairlight.md §8): 32 klanken voor de CMI-stem,
+   *  los van de patches. Ontbreekt = nog geen bank (cmiBank.ts maakt er een
+   *  met de startpunten zodra je hem gebruikt). */
+  cmiBank?: CmiBank;
 }
+
+/** Eén CMI-klank: het Page 4-profiel en de knoppen van de stem. */
+export interface CmiVoice {
+  name: string;
+  /** Base64-profiel, zoals in `patch.moduleData[id].cmi`. */
+  cmi: string;
+  /** Seg, Smooth, Loop, Attack, Release. */
+  controls: Record<string, number>;
+}
+export interface CmiBank { name: string; voices: (CmiVoice | null)[] }
 
 // ═══════════════════════════════════════════════════════════════════════
 //  Seed

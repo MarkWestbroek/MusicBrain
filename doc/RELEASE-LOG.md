@@ -57,6 +57,21 @@
   standaardset. Plan: [plans/editor-structuur.md](plans/editor-structuur.md)
   stap 0a en 0b. 11 nieuwe tests.
 
+### 2026-10-11 — Fairlight: CMI-bank (editor)
+- Op Page 4 een rij **BANK**: 32 plekken met CMI-klanken in het project.
+  Een klank is het profiel én de knoppen Seg, Smooth, Loop, Attack en
+  Release. **LADEN** zet ze op de stem (één undo-stap; daarna Bewaar zoals
+  altijd), **BEWAREN…** zet de klank van nu op de gekozen plek (vraagt eerst
+  bij een bezette plek), ✕ maakt een plek leeg, **⤓/⤒** exporteert en
+  importeert de bank als `.cmibank.json` (vervangen, of lege plekken vullen
+  zonder dubbele). ◂ in de lijst wijst de klank aan die nu op de stem staat.
+- Een nieuwe bank begint met de zeven startpunten (koper, zaag, vierkant,
+  orgel, strijkers, koor, klok), elk met passende knoppen.
+- Een patch naar de pool neemt zijn klank altijd mee (het profiel staat in
+  de patch); nu ook vastgelegd in een test. De bank zelf gaat niet mee.
+- `cmiBank.ts` (getest), `CmiBankRow.tsx`; plan
+  [plans/fairlight.md](plans/fairlight.md) §8.
+
 ### 2026-10-10 — Fairlight: PAGE D, het profiel in 3D (editor)
 - Bovenin het Page 4-venster nu [4] [D]. **PAGE D** toont het profiel als
   berglandschap, groen op zwart, van achter naar voor getekend zodat de

@@ -16,6 +16,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { nlen, useLang } from '../i18n';
+import { CmiBankRow } from './CmiBankRow';
 import { CmiFromSample } from './CmiFromSample';
 import { CmiPageD } from './CmiPageD';
 import type { PageDMode, PageDScale } from './cmiPageDRows';
@@ -226,6 +227,8 @@ export function CmiPage4({ patchId, owner, voices, onClose }: {
             {nlen('UIT SAMPLE', 'FROM SAMPLE')}
           </button>
         </div>
+        <CmiBankRow patchId={patchId} owner={owner} btn={btn}
+          onLoaded={(p) => { const c = cloneProfile(p); setProfile(c); push(c); }} />
         {fromSample && (
           <CmiFromSample patchId={patchId} segMs={segMs} btn={btn}
             onPreview={(p) => push(p ?? profile)}
