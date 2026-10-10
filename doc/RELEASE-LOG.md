@@ -17,6 +17,17 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-11 — Patchcatalogus: alle seeds in één register (editor)
+- **`patchCatalog.ts`**: de diagnoseknoppen, Poly ▾, Solo ▾, Stress ▾ en de
+  standaardset als gegevens (124 items, elk met een vast id). De menu's in
+  de bovenbalk lezen eruit (`SeedMenu.tsx`); voor de gebruiker verandert er
+  niets, behalve dat een menu rechts in de bovenbalk nu naar links
+  openklapt. `ModularMbApp.tsx` is ongeveer 530 regels korter.
+- Elke seed wordt in de test gebouwd en langs de patchcontrole gelegd. De
+  FM-testpatch had een filter-Q buiten het bereik; hersteld.
+- Nieuwe seeds horen voortaan in het register (CLAUDE.md). Plan
+  [editor-structuur.md](plans/editor-structuur.md) stap 1.
+
 ### 2026-10-10 — ⋯ op de telefoon; Simulatie-tab in twee kolommen (editor)
 - **Telefoon, speelmodus:** patchkeuze en ⋯ op één regel (`PlayMenu.tsx`);
   onder ⋯ Bewaar, Bewaar als, Binnenkijken en Rondleiding. Eén meting van

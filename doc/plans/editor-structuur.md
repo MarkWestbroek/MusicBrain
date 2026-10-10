@@ -174,6 +174,14 @@ Elke stap kan apart naar live. Stap 1 verandert niets aan wat je ziet.
 - Bewust niet: de moduletypes van een project vanzelf verversen. Dat vervangt panelen; dat besluit blijft bij de gebruiker.
 - Nog niet: `simBanks` tegen de banklijst van de server (asynchroon), hernoemingen (stap 6), AI-reparatie (stap 7).
 
+**Gebouwd in stap 1 (2026-10-11):**
+
+- `patchCatalog.ts`: `PATCH_CATALOG` met 124 items (5 diagnose, 26 poly, 58 solo, 9 stress, de standaardset), elk met een stabiel `id` (`menu/label-als-slug`), label, uitleg en bouwfunctie; `catalogMenu(menu)`. De menu's zijn met een script uit de JSX gehaald, dus label, uitleg, volgorde en scheidingslijnen zijn ongewijzigd. `SOLO_FX` staat nu hier.
+- `SeedMenu.tsx`: één uitklapmenu en de diagnoseknoppen, uit het register. `ModularMbApp.tsx` ging van 1117 naar 590 regels. Een menu dat rechts in de bovenbalk staat klapt naar links open.
+- De standaardset blijft in `demoSeeds.ts` (andere chats voegen daar patches toe) en komt het register binnen als menu `basisset`.
+- `patchCatalog.test.ts` bouwt elk item en legt de patch langs de patchcontrole. Dat vond meteen een fout: de FM-testpatch zette de Q van het filter op 0,3, buiten het bereik 0,7..5 (hersteld naar 0,7).
+- Nog niet: het dubbele tussen standaardset en menu's (zelfde instrument, eigen waarden) samenvoegen; dat kan als de patchkiezer er is.
+
 **Gebouwd in 2b en 3 (2026-10-10):**
 
 - `weergave.ts`: `useWeergave()` en `weergaveVan()` (telefoon onder 640 px breed of 500 px hoog, tablet tot 1024, desktop). Het front gebruikt hem voor de grotere letters; nieuwe onderdelen lezen hem in plaats van zelf te meten.
@@ -186,7 +194,7 @@ Elke stap kan apart naar live. Stap 1 verandert niets aan wat je ziet.
 |---|---|---|---|
 | 0a ✅ | `checkPatch` en de bevindingen; de contracttest gebruikt hem voor de seeds | niets | klein |
 | 0b ✅ | Controle bij elke binnenkomst, deterministische reparatie, melding | melding bij laden of import als er iets hersteld is | middel |
-| 1 | Register: alle seeds als gegevens; Poly ▾, Solo ▾, Stress ▾ en de opstartset lezen eruit | niets zichtbaar; ModularMbApp ongeveer 450 regels korter | middel |
+| 1 ✅ | Register: alle seeds als gegevens; Poly ▾, Solo ▾, Stress ▾ en de opstartset lezen eruit | niets zichtbaar; ModularMbApp ongeveer 450 regels korter | middel |
 | 2 | Transportbalk in beide modi | ♩ TAP en ≣ Sporen ook na Binnenkijken | klein |
 | 2b ✅ | `useWeergave()` en de plaatsingstabel, met Playwright-test op drie viewports | knoppen staan op de telefoon op een vaste plek | middel |
 | 3 ✅ | Simulatie-tab in twee kolommen | Sporen en takes naast de engine | klein |

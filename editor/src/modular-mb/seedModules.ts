@@ -5262,7 +5262,7 @@ export function seedFmTestPatch(project: ModularProject): ModularProject {
   const controlState: Record<string, Record<string, ControlValue>> = {
     [mod.id]: { wave: 0, coarse: 12, fine: 0, level: 0.8 },           // sinus, ratio 2:1
     [fm.id]:  { wave: 0, coarse: 0, fine: 0, fm_amt: 1.5, level: 0.8 }, // 1,5 octaaf FM-diepte
-    [vcf.id]: { cutoff: 6000, q: 0.3, cv_amt: 1, type: 0 },            // open LP, alleen wat top eraf
+    [vcf.id]: { cutoff: 6000, q: 0.7, cv_amt: 1, type: 0 },            // open LP, alleen wat top eraf (0.7 = laagste Q; 0.3 lag buiten het bereik)
     [vca.id]: { gain: 0, resp: 0 },
     [env.id]: { attack: 5, hold: 0, decay: 350, sustain: 0.35, release: 500, loop: false, curve: 1 },
     [out.id]: { level: 0.8 },
