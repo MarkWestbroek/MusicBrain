@@ -53,7 +53,7 @@ export function PatchStepper(props: { project: ModularProject; patch: Patch }): 
   const lbl: React.CSSProperties = { fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5, marginRight: 4 };
 
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#475569' }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#475569', flexWrap: 'wrap' }}>
       <span style={box} title="Bank = map. ◀ ▶ springt naar de vorige/volgende bank.">
         <span style={lbl}>Bank</span>
         <button onClick={() => step(-1, 'bank')} style={btn}>◀</button>

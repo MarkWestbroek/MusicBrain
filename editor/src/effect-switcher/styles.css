@@ -76,6 +76,9 @@
 .es-projectbar-actions {
   margin-left: auto;
   display: flex;
+  /* Afbreken in plaats van de pagina breder maken: de rij is breder dan een
+     laptopscherm, en op een telefoon zoomde Chrome anders alles uit. */
+  flex-wrap: wrap;
   gap: 4px;
   align-items: center;
 }

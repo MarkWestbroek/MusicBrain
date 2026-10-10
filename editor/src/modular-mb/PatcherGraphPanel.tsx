@@ -771,8 +771,17 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
   }, [project.modules, project.moduleTypes, patchId]);
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 12 }}>
+    <div className="mmb-patcher-grid" style={{ display: 'grid', gap: 12 }}>
       <style>{`
+        /* Schema en zijkolom naast elkaar; op een smal scherm (telefoon)
+           de zijkolom eronder, anders bleef er voor het schema zo'n 90 px
+           over. */
+        .mmb-patcher-grid { grid-template-columns: minmax(0, 1fr) 280px; }
+        .mmb-patcher-graph { height: 620px; }
+        @media (max-width: 720px) {
+          .mmb-patcher-grid { grid-template-columns: minmax(0, 1fr); }
+          .mmb-patcher-graph { height: 70vh; }
+        }
         /* Selected cable: dikker, lichte glow, kleine label-cue */
         .mmb-patcher .react-flow__edge.selected .react-flow__edge-path {
           stroke-width: 5 !important;
@@ -797,7 +806,7 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
         }
       `}</style>
       <div
-        className={`mmb-patcher${connecting ? ' mmb-connecting' : ''}`}
+        className={`mmb-patcher mmb-patcher-graph${connecting ? ' mmb-connecting' : ''}`}
         tabIndex={0}
         onKeyDown={(e) => {
           if ((e.key === 'Delete' || e.key === 'Backspace') && selectedEdgeId) {
@@ -812,7 +821,7 @@ function PatcherGraphInner({ patchId }: { patchId: string }): JSX.Element {
           }
         }}
         style={{
-          height: 620, border: '1px solid #cbd2d9', borderRadius: 6,
+          border: '1px solid #cbd2d9', borderRadius: 6,
           background: '#0f172a', userSelect: 'none', outline: 'none',
         }}>
         {allGroups.length > 0 && (

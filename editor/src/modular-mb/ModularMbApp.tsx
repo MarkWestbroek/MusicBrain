@@ -964,9 +964,10 @@ export function ModularMbApp(): JSX.Element {
       <ZoomEscape />
 
       {/* ── Sub-tabs; dicht = alleen het front en "Binnenkijken" ── */}
-      {/* In de speelmodus loopt de balk op een smal scherm door op een tweede
-          regel, zodat niets rechts buiten beeld valt. */}
-      <nav style={{ display: 'flex', gap: 4, borderBottom: '1px solid #cbd2d9', marginBottom: 12, alignItems: 'center', flexWrap: expert ? undefined : 'wrap' }}>
+      {/* De balk loopt op een smal scherm door op een tweede regel, zodat
+          niets rechts buiten beeld valt en de tabs de pagina niet breder
+          maken dan het scherm (Chrome op Android zoomt dan alles uit). */}
+      <nav style={{ display: 'flex', gap: 4, borderBottom: '1px solid #cbd2d9', marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
         {!expert && (
           <>
             <span data-tour="play-patch" style={{ display: 'inline-flex' }}><PatchSelect project={project} style={{ padding: '4px 8px' }} /></span>

@@ -189,8 +189,10 @@ export function RackPanel(): JSX.Element {
                           }
                         }} />
 
-      <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
+      {/* Rack en zijpaneel naast elkaar; past dat niet (telefoon), dan komt
+          het zijpaneel eronder in plaats van het rack smal te drukken. */}
+      <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 320px', minWidth: 0 }}>
           <RackGrid
             rack={rack} modules={project.modules} types={project.moduleTypes}
             activeRow={activeRow} onSelectRow={setActiveRow}
