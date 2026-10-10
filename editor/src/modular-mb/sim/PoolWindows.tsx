@@ -269,6 +269,7 @@ export function PoolList(): JSX.Element {
   }
 
   const base = siteBase(lib);
+  const needsToken = (pool === 'prive' || pool === 'voorstel') && !lib.token.trim();
   return (
       <div>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -282,8 +283,13 @@ export function PoolList(): JSX.Element {
           {items && <span style={{ color: '#6b7280', fontSize: 12 }}>{items.length} patch{items.length === 1 ? '' : 'es'}</span>}
         </div>
         {msg && <div style={{ marginTop: 8, padding: '6px 8px', borderRadius: 6, background: msg.ok ? '#ecfdf5' : '#fef2f2', color: msg.ok ? '#065f46' : '#991b1b' }}>{msg.ok ? '✓ ' : '✕ '}{msg.text}</div>}
-        {pool === 'prive' && !lib.token.trim() && <div style={{ color: '#6b7280', marginTop: 10 }}>Je privé-lijst zie je alleen met een API-token (⚙ Library in de Simulatie-tab).</div>}
-        {items?.length === 0 && <div style={{ color: '#6b7280', marginTop: 10 }}>Niets in deze pool{tag ? ` met tag "${tag}"` : ''}.</div>}
+        {/* Voorstellen en Privé geeft de pool alleen met een token; zonder
+            token is de lijst leeg, en dat leek op een lege pool. Het token
+            staat per browser (de telefoon heeft het niet vanzelf). */}
+        {needsToken && <div style={{ color: '#b45309', marginTop: 10 }}>
+          {pool === 'prive' ? 'Je privé-lijst' : 'Voorstellen'} zie je alleen met een API-token, en dat staat per browser. Vul het in bij ⚙ Library in de Simulatie-tab (Binnenkijken).
+        </div>}
+        {items?.length === 0 && !needsToken && <div style={{ color: '#6b7280', marginTop: 10 }}>Niets in deze pool{tag ? ` met tag "${tag}"` : ''}.</div>}
         {items?.map((it) => {
           const missing = it.requires ? missingTypes(it.requires, project) : [];
           return (
