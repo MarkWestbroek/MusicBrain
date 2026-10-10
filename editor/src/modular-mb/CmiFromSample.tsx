@@ -198,7 +198,7 @@ export function CmiFromSample({ patchId, segMs, btn, onPreview, onApply, onClose
       {sound && peaks && (
         <>
           <div style={{ fontSize: 11, marginTop: 8, opacity: 0.85 }}>
-            {sound.name} · {nlen('gebied', 'region')} {regionS.toFixed(2)} s
+            {sound.name} · {nlen('gebied', 'region')} {regionS.toFixed(2).replace('.', nlen(',', '.'))} s
           </div>
           <svg ref={svgRef} viewBox={`0 0 ${W} ${HT}`} width="100%" role="slider" aria-label={nlen('Gebied: sleep begin of eind', 'Region: drag start or end')}
             aria-valuenow={Math.round(regionS * 100) / 100}

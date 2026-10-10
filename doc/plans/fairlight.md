@@ -200,22 +200,42 @@ Microfoon kan later (zelfde pad als AUDIO IN).
 
 ### 6.3 Het venster (in Page 4, groen op zwart)
 
+Zo ziet het eruit (gebouwd 2026-10-10, Concert Choir uit de bank, zone F4):
+
+![UIT SAMPLE op Page 4](img/fairlight-uit-sample.png)
+
+Het blok staat onder het tekenvlak van Page 4 en opent met de knop
+**UIT SAMPLE** in de rij met startpunten. Van boven naar onder, in de
+volgorde waarin je het gebruikt:
+
 ```
-┌ UIT SAMPLE ─────────────────────────────────────┐
-│ [.wav]  [Bank ▾ 05 Concert Choir · zone C3]  [Opname] │
-│ ▁▂▅█▇▆▅▄▃▃▂▂▁▁▁   ← golfvorm, |begin| en |eind| slepen │
-│ Grondtoon  A2 · 110,2 Hz   [½×] [2×]  harmonisch 92 % │
-│ [x] aanzet fijner                                     │
-│ [▶ ORIGINEEL]  [▶ CMI]        [OVERNEMEN] [TERUG]     │
-└───────────────────────────────────────────────────────┘
+ ① BRON      [BESTAND]  [Concert Choir ▾]  [F4 · slot 6 ▾]  [OPNAME]  [✕]
+              .wav e.d.   samplebank         zone van de bank  laatste take
+
+ ② GEBIED    slot 6 · gebied 0,99 s
+             ┃▁▂▃▅▆▇█▇▆▅▅▆▇▆▅▄▄▅▆▅▄▃▃▃▂▂▂▁┃   ← golfvorm van het hele geluid;
+             ┃                             ┃     het lichte vlak is het gebied,
+             ╵╵╵╵╵ ╵ ╵ ╵  ╵  ╵   ╵    ╵    ╵     de twee dikke strepen versleep je
+             └ 32 segmentgrenzen: vooraan dicht op elkaar (aanzet fijner)
+
+ ③ TOON      GRONDTOON: F4 −26c · 344,0 Hz   [½×] [2×]   · harmonisch 97 %
+             [x] aanzet fijner (korte segmenten vooraan)
+
+ ④ KIEZEN    [▶ ORIGINEEL]  [▶ CMI]                 [OVERNEMEN]  [TERUG]
 ```
 
-- **▶ Origineel** speelt het gebied; **▶ CMI** stuurt de berekende tabel
-  tijdelijk naar de stemmen en speelt de noot van de grondtoon (zoals Page 4
-  live doet). Terug zet het oude profiel terug.
-- **Overnemen** vervangt het profiel in Page 4; bij loslaten komt het in de
-  patch zoals elke Page 4-wijziging (Bewaar en Terug werken gewoon).
-- Telefoon: grepen met `touch-action: none`, zoals het tekenvlak.
+1. **Bron**: een bestand, een bank (dan verschijnt de zonekeuze ernaast)
+   of de laatste opname van de patch (grijs zolang die er niet is).
+2. **Gebied**: de golfvorm van het hele geluid; het lichte vlak is wat
+   geanalyseerd wordt. Tik of sleep: de dichtstbijzijnde rand verschuift.
+   De streepjes onderaan zijn de 32 segmenten.
+3. **Toon**: de gevonden grondtoon als noot en Hz; ½× en 2× bij een
+   octaaffout, AUTO zet hem terug. *Harmonisch* zegt hoeveel van het geluid
+   op de harmonischen valt; onder 60 % verschijnt een waarschuwing.
+4. **Kiezen**: ▶ ORIGINEEL speelt het gebied; ▶ CMI zet het resultaat
+   tijdelijk op de stemmen en speelt de noot van de grondtoon. OVERNEMEN
+   zet het profiel op Page 4 (en in de patch); TERUG of ✕ laat alles zoals
+   het was, ook na ▶ CMI.
 
 ### 6.4 Tests (`cmiAnalyse.test.ts`)
 
@@ -237,3 +257,38 @@ Microfoon kan later (zelfde pad als AUDIO IN).
 3. Het venster in Page 4 met A/B.
 4. Release-log, Fairlight-uitleg in `editor/README.md`, Engelse teksten.
 
+
+## 7. Voorstel: PAGE D, de 3D-weergave (2026-10-10, ter review)
+
+**Op de echte CMI** (Series II/IIx) was Page D de *Voice Waveform Display*:
+de golfvormen van de segmenten achter elkaar, als een berglandschap in
+pseudo-3D. Per lijn één segment (128 samples, links → rechts de golf,
+omhoog de uitslag), het voorste segment is het begin van de klank en bij
+een toets loopt de CMI van voor naar achter. Twee formaten (A en B), met
+een stapgrootte (elk 1e, 2e, 4e segment). Bronnen: de artikelserie "The
+Fairlight Explained" (Electronics & Music Maker, op muzines.co.uk), de
+IIx Command Summary (`D`, `D,n`, `D,van,tot`, `D,*`), Greg Holmes' pagina's.
+
+**Marks variant**: de harmonischen in de diepte. Tijd (segment 1–32) naar
+rechts, niveau omhoog, harmonische 1 vooraan en 32 achteraan. Dat is het
+profiel van Page 4 in één beeld in plaats van rij voor rij.
+
+Voorstel: één weergave met twee standen, dezelfde tekenaar:
+
+| Stand | x (→) | y (↑) | z (naar achter) | Data |
+|---|---|---|---|---|
+| **GOLF** (de echte Page D) | positie in de golf, 128 samples | uitslag | segment 1 … 32 | `computeTable` |
+| **HARMONISCH** (Marks variant) | segment 1 … 32 (tijd) | niveau | harmonische 1 … 32 | het profiel |
+
+- **Tekenen**: schuine projectie, elke rij iets naar rechtsboven verschoven;
+  van achter naar voor als zwart gevuld vlak met een groene lijn erop, zodat
+  de voorste rijen de achterste afdekken (verborgen lijnen, zoals op de
+  CMI). 32 × 128 punten is licht genoeg voor SVG, ook op een telefoon.
+- **Bediening**: [4] [D] bovenin het Page 4-venster om te wisselen;
+  GOLF/HARMONISCH; stap 1/2/4. In HARMONISCH kiest een tik op een rij die
+  harmonische en springt naar Page 4 om hem te tekenen. Kantelen met slepen
+  kan later.
+- **Bij UIT SAMPLE**: ook het resultaat van de analyse vóór OVERNEMEN als
+  Page D tonen, zodat je ziet wat je krijgt.
+- **Tests**: de projectie (zuivere functie: punten en volgorde van achter
+  naar voor) en dat beide standen 32 rijen geven.
