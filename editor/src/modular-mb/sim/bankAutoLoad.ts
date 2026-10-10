@@ -23,6 +23,9 @@ export interface BankIndex { files: BankIndexEntry[]; defaults: Record<string, s
 
 const base = (): string => ((import.meta as unknown as { env?: { BASE_URL?: string } }).env?.BASE_URL ?? '/').replace(/\/?$/, '/');
 
+/** URL van een bankbestand op de server (ook voor Page 4: UIT SAMPLE). */
+export function bankFileUrl(file: string): string { return `${base()}banks/${encodeURIComponent(file)}`; }
+
 let indexP: Promise<BankIndex> | null = null;
 let indexCache: BankIndex | null = null;
 export function loadBankIndex(): Promise<BankIndex> {

@@ -3,8 +3,10 @@
 > **Stand (2026-10-09):** besluiten 1–3 genomen (zie §5). Stap 1 (Era CMI op
 > de sampler) en stap 2 (de stem `tp_mmb_cmi`) zijn gebouwd, getest en op de
 > Teensy gemeten (fw 0.5.98: de stem ~2,4 % cpu totaal). Stap 3 (de editor:
-> profiel → golfvormen, opslag in de patch, het Harmonischen-venster) en
-> stap 4 (FFT) volgen.
+> profiel → golfvormen, opslag in de patch, Page 4) is gebouwd (fw 0.5.99/0.5.100).
+> **2026-10-10:** stap 4 (FFT uit een sample) gebouwd volgens §6: UIT SAMPLE op
+> Page 4 met .wav, bankzone en laatste opname. Nog open: microfoon, CMI-bank,
+> vaste filterstand, Era CMI met een bank op de Teensy meten.
 
 Voorstel, 2026-10-09, ter review door Mark. Doel: vandaag bouwen.
 Backlog: FW-AU-7 (Fourier-shaper, "Fairlight-achtig").
@@ -154,3 +156,84 @@ SAMPLER; 3 ja, een dataveld in de patch (`patch.moduleData`), als
 4. **Het Harmonischen-venster**: tekenen per harmonische (zoals Page 4), of
    eerst alleen de snelknoppen + FFT en het tekenen later?
 5. **Page R** laten we liggen (sporen en arp dekken het). Akkoord?
+
+## 6. Stap 4: een sample analyseren naar Page 4 (2026-10-10)
+
+Doel: een stuk geluid wordt een gewoon Page 4-profiel (32 harmonischen ×
+32 segmenten, DURATION, ENERGY) dat je daarna tekent, bewaart en morpht.
+Zuiver rekenwerk in `cmiAnalyse.ts` (geen React, getest); de bediening is
+een knop **UIT SAMPLE** in Page 4. Niets op het front of in de werkbalk
+(de UI-herziening loopt daar).
+
+### 6.1 Bronnen
+
+| Bron | Hoe | Grondtoon als hint |
+|---|---|---|
+| **.wav** (of ander audiobestand) | kiezen of slepen; `decodeAudioData`, naar mono | geen |
+| **Samplebank** | lijst van de server (`banks/index.json`), `parseBank`, kies een zone | `root` van de zone |
+| **Laatste opname** | de wav van de laatste take van deze patch (`lastTakeStore`) | geen |
+
+Microfoon kan later (zelfde pad als AUDIO IN).
+
+### 6.2 De analyse
+
+1. **Gebied**: begin en eind in de golfvorm, standaard het eerste geluid tot
+   max. 4 s.
+2. **Grondtoon**: YIN (genormaliseerd verschil) op het stabiele midden van
+   het gebied, 40–2000 Hz, met de zonegrondtoon als hint tegen
+   octaaffouten. Te corrigeren met ½× en 2× of een notenkeuze.
+3. **Indeling in 32 segmenten**: gelijk, of **aanzet fijner** (standaard):
+   grenzen meetkundig oplopend, het laatste segment ~11× zo lang als het
+   eerste, zodat de aanzet niet in één segment verdwijnt. De duur van elk
+   segment wordt DURATION, gedeeld door de Seg-knop van de stem (geklemd op
+   1/16..16), zodat het profiel even lang klinkt als het origineel.
+4. **Per segment**: de grondtoon opnieuw meten binnen ±6 % (vibrato smeert
+   dan niet uit); een Hann-venster van vier perioden rond het midden; de
+   sterkte van harmonische *k* = de DFT op precies *k* × f0. Harmonischen
+   boven Nyquist van de bron zijn 0. Fasen vervallen, zoals op Page 4.
+5. **Schaal**: niveaus per segment op de sterkste harmonische = 1 (de klank);
+   ENERGY = RMS van het segment ten opzichte van het luidste (de
+   volumecurve). Zo teken je klank en volume los, zoals op de CMI.
+6. **Harmonisch gehalte**: het deel van de energie dat op de harmonischen
+   valt. Onder ~60 % een waarschuwing: klokken, drums en ruis klinken anders
+   na (dat is de CMI-klank, geen fout).
+
+### 6.3 Het venster (in Page 4, groen op zwart)
+
+```
+┌ UIT SAMPLE ─────────────────────────────────────┐
+│ [.wav]  [Bank ▾ 05 Concert Choir · zone C3]  [Opname] │
+│ ▁▂▅█▇▆▅▄▃▃▂▂▁▁▁   ← golfvorm, |begin| en |eind| slepen │
+│ Grondtoon  A2 · 110,2 Hz   [½×] [2×]  harmonisch 92 % │
+│ [x] aanzet fijner                                     │
+│ [▶ ORIGINEEL]  [▶ CMI]        [OVERNEMEN] [TERUG]     │
+└───────────────────────────────────────────────────────┘
+```
+
+- **▶ Origineel** speelt het gebied; **▶ CMI** stuurt de berekende tabel
+  tijdelijk naar de stemmen en speelt de noot van de grondtoon (zoals Page 4
+  live doet). Terug zet het oude profiel terug.
+- **Overnemen** vervangt het profiel in Page 4; bij loslaten komt het in de
+  patch zoals elke Page 4-wijziging (Bewaar en Terug werken gewoon).
+- Telefoon: grepen met `touch-action: none`, zoals het tekenvlak.
+
+### 6.4 Tests (`cmiAnalyse.test.ts`)
+
+- Zaag van 220 Hz: f0 binnen 0,5 %, niveaus ≈ 1/k.
+- Vierkant: even harmonischen onder −30 dB.
+- Klank die verloopt (hoge harmonischen sterven sneller): h5/h1 daalt over
+  de segmenten; ENERGY daalt.
+- Vibrato ±1 %: niveaus blijven schoon.
+- Ruis: harmonisch gehalte laag.
+- DURATION: som × Seg ≈ lengte van het gebied; met *aanzet fijner* is het
+  eerste segment korter dan het laatste.
+- Rondreis: profiel → `computeTable` → afspelen op f0 → analyse ≈ het
+  oorspronkelijke profiel.
+
+### 6.5 Volgorde
+
+1. `cmiAnalyse.ts` + tests.
+2. Bronnen laden (.wav, bank, laatste opname) naar mono Float32 + rate.
+3. Het venster in Page 4 met A/B.
+4. Release-log, Fairlight-uitleg in `editor/README.md`, Engelse teksten.
+

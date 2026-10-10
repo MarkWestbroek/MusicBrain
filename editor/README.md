@@ -227,8 +227,15 @@ Binnenkijken blijft Nederlands; een eigen patch houdt zijn eigen tekst.
   meteen, en bij loslaten staat het in de patch (Bewaar om te houden).
   Startpunten: koper, zaag, vierkant, orgel, strijkers, koor, klok. De
   wave-tekenaar (Page 6) kan ook naar een CMI-stem: de tekening wordt
-  geanalyseerd naar harmonischen en dat wordt het profiel. Ontwerp:
-  [doc/plans/fairlight.md](../doc/plans/fairlight.md).
+  geanalyseerd naar harmonischen en dat wordt het profiel. **UIT SAMPLE**
+  doet dat met een echt geluid: een audiobestand, een zone uit een
+  samplebank of de laatste opname van de patch. De editor zoekt de
+  grondtoon (½×/2× om te corrigeren), snijdt het gekozen gebied in 32
+  segmenten (met *aanzet fijner* korte segmenten vooraan) en meet per
+  segment de 32 harmonischen; ENERGY wordt de volumecurve en DURATION volgt
+  het origineel. ▶ ORIGINEEL en ▶ CMI vergelijken, OVERNEMEN zet het profiel
+  op Page 4 (`cmiAnalyse.ts`, `CmiFromSample.tsx`). Ontwerp:
+  [doc/plans/fairlight.md](../doc/plans/fairlight.md) §6.
 - **Sporen** (≣ in de werkbalk van het toetsenbord, in de speelmodus, de
   Front-tab en de Simulatie-tab; niet bij volledig scherm met alleen
   toetsen, daar past het niet): een

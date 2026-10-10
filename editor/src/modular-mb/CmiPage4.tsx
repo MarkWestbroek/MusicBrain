@@ -2,7 +2,7 @@
 // profielen van een CMI-stem tekenen, groen op zwart. Kies een harmonische
 // (1–32), of DUR (hoe lang elk segment klinkt) of ENRG (de volumecurve), en
 // teken met vinger of muis over de 32 segmenten. Startpunten: koper, zaag,
-// vierkant, orgel, strijkers, koor, klok.
+// vierkant, orgel, strijkers, koor, klok, of UIT SAMPLE (CmiFromSample.tsx).
 //
 // Tijdens het tekenen hoor je het meteen (de tabel gaat elke ~120 ms naar de
 // stemmen in de simulator en, met een open link, naar de Teensy); bij het
@@ -16,6 +16,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { nlen, useLang } from '../i18n';
+import { CmiFromSample } from './CmiFromSample';
 import {
   H, PRESETS, SEG, computeTable, encodeProfile, harmonicsOf, level, preset, profileFromHarmonics,
   type CmiProfile, type PresetId,
@@ -52,6 +53,12 @@ export function CmiPage4({ patchId, owner, voices, onClose }: {
     return cloneProfile(patch ? profileOf(patch, owner) : preset('brass'));
   });
   const [row, setRow] = useState<Row>(0);
+  // UIT SAMPLE (§6): een geluid analyseren naar dit profiel.
+  const [fromSample, setFromSample] = useState(false);
+  const segMs = (() => {
+    const v = getProject().patches.find((x) => x.id === patchId)?.controlState[owner]?.seg;
+    return typeof v === 'number' && v > 0 ? v : 40;
+  })();
   const svgRef = useRef<SVGSVGElement>(null);
   const drawing = useRef<{ last: number | null } | null>(null);
   const lastPush = useRef(0);
@@ -174,7 +181,17 @@ export function CmiPage4({ patchId, owner, voices, onClose }: {
             title={nlen('Analyseer de golf van segment 1 naar harmonischen en maak die overal gelijk', 'Analyse the wave of segment 1 into harmonics and make them equal everywhere')}>
             {nlen('vlak uit seg. 1', 'flat from seg. 1')}
           </button>
+          <button type="button" onClick={() => setFromSample(true)} style={{ ...btn(fromSample), minWidth: 0, padding: '0 8px', fontWeight: 700 }}
+            title={nlen('Een sample (.wav, bank of opname) analyseren naar harmonischen', 'Analyse a sample (.wav, bank or take) into harmonics')}>
+            {nlen('UIT SAMPLE', 'FROM SAMPLE')}
+          </button>
         </div>
+        {fromSample && (
+          <CmiFromSample patchId={patchId} segMs={segMs} btn={btn}
+            onPreview={(p) => push(p ?? profile)}
+            onApply={(p) => apply(cloneProfile(p), true)}
+            onClose={() => setFromSample(false)} />
+        )}
         <div style={{ fontSize: 11, opacity: 0.7, marginTop: 8, lineHeight: 1.4 }}>
           {nlen('Kies een harmonische (of DUR/ENRG) en teken over de 32 segmenten van de noot. Je hoort het meteen; bij loslaten staat het in de patch (Bewaar om te houden).',
                 'Pick a harmonic (or DUR/ENRG) and draw across the 32 segments of the note. You hear it at once; on release it is in the patch (Save to keep it).')}

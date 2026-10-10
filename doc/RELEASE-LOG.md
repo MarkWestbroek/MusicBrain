@@ -46,6 +46,27 @@
   standaardset. Plan: [plans/editor-structuur.md](plans/editor-structuur.md)
   stap 0a en 0b. 11 nieuwe tests.
 
+### 2026-10-10 — Fairlight: UIT SAMPLE, een geluid analyseren naar Page 4 (editor)
+- Nieuw op Page 4: **UIT SAMPLE**. Kies een audiobestand, een zone uit een
+  samplebank van de server (de grondnoot van de zone helpt tegen
+  octaaffouten) of de laatste opname van de patch; sleep begin en eind van
+  het gebied in de golfvorm.
+- De analyse (`cmiAnalyse.ts`): grondtoon met YIN, per segment opnieuw
+  gemeten (vibrato smeert niet uit); 32 segmenten, standaard meetkundig
+  oplopend (*aanzet fijner*); per segment een Hann-venster van vier perioden
+  en de sterkte van harmonische 1–32 op precies k × f0. Niveaus per segment
+  genormaliseerd (de klank), ENERGY = RMS-curve (het volume), DURATION
+  volgt het origineel bij de Seg-knop van de stem. Een harmonisch gehalte
+  onder 60 % geeft een waarschuwing (klokken, ruis).
+- ▶ ORIGINEEL en ▶ CMI om te vergelijken (de proefklank gaat terug als je
+  sluit zonder OVERNEMEN); OVERNEMEN zet het profiel op Page 4 en in de
+  patch, daarna Bewaar zoals altijd.
+- Getest: zaag, vierkant, verlopende klank, vibrato, ruis, duur, octaafhint
+  en een rondreis profiel → golfvormen → analyse (`cmiAnalyse.test.ts`); in
+  de browser een zaag op 220 Hz (A3 · 220,0 Hz, 100 % harmonisch) en Concert
+  Choir uit de bank (A2, 76 %, 24 zones).
+- Plan: [plans/fairlight.md](plans/fairlight.md) §6.
+
 ### 2026-10-10 — Laat horen: ▶ per knop in de uitleg (editor)
 - In het uitlegblad staat ▶ voor elke knop. Het instrument speelt dan een
   gebroken akkoord op het tempo van de patch en draait acht seconden aan de
