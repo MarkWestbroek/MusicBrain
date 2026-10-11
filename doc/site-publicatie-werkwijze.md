@@ -113,10 +113,17 @@ component-level read-modify-post volstaat, paginakop toont "Software").
 ## Firmware- en editorreleases op /releases
 
 De releasepagina leest **niet** zelf van GitHub (ondanks het onderschrift):
-elk item is met de hand gepost. Recept: `publish_release_software.py`
-(`python publish_release_software.py <base> <token>`). Per nieuwe firmware
-een item in `ITEMS` erbij, Engelse highlights, `date` niet later dan
-vandaag in UTC (anders toont Imprint het nog niet). Lokaal, dan live.
+elk item wordt gepost.
+
+- **Firmware gaat vanzelf** (sinds 2026-10-12): de workflow
+  `firmware-release.yml` post bij elke tag `fw-X.Y.Z` een item met
+  `tools/site_release_item.py` (secret `IMPRINT_INGEST_TOKEN`). Engelse
+  highlights: zet onder de firmwarekop in de release-log een regel
+  `<!-- EN: … -->` per highlight. Een item dat er al staat wordt niet
+  overschreven (`--force` met de hand).
+- **Met de hand** (editor, of een firmware-item verfijnen):
+  `publish_release_software.py <base> <token>`; `date` niet later dan
+  vandaag in UTC (anders toont Imprint het nog niet). Lokaal, dan live.
 
 ## Fout gepost? Terugtrekken (tombstone)
 

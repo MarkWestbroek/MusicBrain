@@ -4,7 +4,8 @@
 # het resultaat als mmb-fw-X.Y.Z.hex aan een GitHub-release "Firmware X.Y.Z".
 # De editor (Teensy-venster) vraagt die releases op bij de GitHub-API en biedt
 # de nieuwste aan als download; flashen gaat met Teensy Loader van PJRC.
-# Zie doc/firmware-distributie.md.
+# Zie doc/firmware-distributie.md. Daarna komt de versie ook op
+# musicbrain.nl/releases (laatste stap).
 #
 # Handmatig (bijv. voor een tag van vóór deze workflow): Actions → Firmware
 # release → Run workflow, met de tag als invoer.
@@ -78,9 +79,11 @@ jobs:
           v="${{ steps.ver.outputs.version }}"
           mkdir -p out
           cp firmware/app-modular-brain/.pio/build/teensy41/firmware.hex "out/mmb-fw-$v.hex"
-          # Notes: het eerste blok "### fw …" uit de release-log waarin de
-          # versie voorkomt (ook "### fw 0.5.74–0.5.77"), tot de volgende kop.
-          awk -v v="$v" '/^### /{ if (on) exit; on = ($0 ~ /^### fw / && index($0, v) > 0) } on' doc/RELEASE-LOG.md > out/notes.md || true
+          # Notes: het eerste blok uit de release-log waarin de versie
+          # voorkomt, tot de volgende kop. Oude vorm "### fw 0.5.78 — …" (ook
+          # "### fw 0.5.74–0.5.77"), nieuwe vorm "### 2026-10-11 — … (fw 0.5.107)".
+          awk -v v="$v" '/^### /{ if (on) exit; i = index($0, "fw " v); c = substr($0, i + 3 + length(v), 1);
+            on = ($0 ~ /^### fw / && index($0, v) > 0) || (i > 0 && c !~ /[0-9]/) } on' doc/RELEASE-LOG.md > out/notes.md || true
           {
             echo "Firmware $v voor de MusicBrain (Teensy 4.1 met PSRAM)."
             echo
@@ -102,3 +105,13 @@ jobs:
           else
             gh release create "$TAG" "out/mmb-fw-$v.hex" --title "Firmware $v" --notes-file out/body.md
           fi
+
+      # De releasepagina van de site leest niet zelf van GitHub: een item
+      # posten (Engelse highlights uit <!-- EN: … --> in de release-log; zie
+      # tools/site_release_item.py). Een bestaand item blijft staan. Zonder
+      # het secret IMPRINT_INGEST_TOKEN wordt deze stap overgeslagen.
+      - name: Op de site zetten (musicbrain.nl/releases)
+        env:
+          INGEST_TOKEN: ${{ secrets.IMPRINT_INGEST_TOKEN }}
+          IMPRINT_BASE: https://musicbrain.nl
+        run: python tools/site_release_item.py "${{ steps.ver.outputs.version }}" --post
