@@ -17,6 +17,19 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-11 — E-piano: Drive blaft in plaats van dun en stil te worden (fw 0.5.104)
+- Mark: "drive = 1 is geen drive, 0 is voluit?" Gemeten bij de Tine: Drive
+  op vol werd 10 dB zachter en dun (tweede harmonische 5 dB boven de
+  grondtoon), omdat de tine zo ver over de top van het pickupveld zwaaide dat
+  de grondtoon instortte. Drive 0 was daardoor het luidst en voelde als
+  "voluit".
+- Nu: het bereik van Drive is kleiner (0,25 + 1,0·drive in plaats van 1,5),
+  zodat de tine in het blafgebied blijft (op vol: h2 ≈ grondtoon, THD
+  +1,5 dB), en het volume blijft gelijk over de hele knop (binnen ~1 dB).
+  De standaardstand (Drive 0,4) is even luid als voorheen, wel iets schoner
+  (THD −9 in plaats van −5 dB); Drive 0 is 6 dB zachter dan voorheen. Reed
+  was al goed en is onveranderd.
+
 ### 2026-10-11 — Eigen Ladder in plaats van de Teensy Audio Library (fw 0.5.103)
 - `tp_mmb_ladder` draait nu op `mmb_dsp/ladder.h`, in firmware én browser:
   hetzelfde Huovilainen-algoritme (van Hoesel, MIT) met ons 4×-filter en een

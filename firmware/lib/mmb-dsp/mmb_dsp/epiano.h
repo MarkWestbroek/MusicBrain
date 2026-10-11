@@ -88,7 +88,20 @@ public:
     void Process(const float* const*, float* const* out, int frames) {
         // Tine: plek naast de pickup (0 = er recht voor) en aansturing.
         const float offset = timbre_ * 1.5f;
-        const float reach = 0.25f + drive_ * 1.5f;
+        // Drive: hoe ver de tine naar de pickup zwaait. Tot fw 0.5.103 was dat
+        // 0,25 + 1,5·drive; dan zwaaide hij op vol zo ver over de top van het
+        // veld dat de grondtoon instortte (h2 +5 dB boven de grondtoon, 10 dB
+        // zachter): Drive 1 klonk dun en stil in plaats van blaffend (Mark).
+        const float reach = 0.25f + drive_ * 1.0f;
+        // Volume gelijk houden over Drive (gemeten: zonder dit zakt het naar
+        // 1/(1 + 1,68·drive)). Recht voor de pickup (Timbre laag) is de tine
+        // altijd al vervormd en blijft het volume vanzelf gelijk; daar valt de
+        // compensatie weg.
+        const float comp = finiteClamp((offset - 0.1f) / 0.4f, 0, 1, 1);
+        // ×0,5: zo is de standaardstand (Drive 0,4) even luid als vóór fw
+        // 0.5.104; Drive 0 is daardoor 6 dB zachter dan toen, maar nu even
+        // luid als elke andere Drive-stand.
+        const float makeup = 0.5f * (1 + 1.68f * drive_ * comp);
         // Bij kleine uitwijking is de gevoeligheid de helling van het veld; daarop normeren.
         const float fieldSlope = offset / ((1 + offset * offset) * std::sqrt(1 + offset * offset));
         const float tineGain = 0.55f / (fieldSlope * reach + 0.2f);
@@ -110,7 +123,7 @@ public:
                 if (type_ == 0) {
                     const float u = position * reach + offset;
                     const float q = 1 + u * u;
-                    sum += speed * u / (q * std::sqrt(q)) * tineGain;
+                    sum += speed * u / (q * std::sqrt(q)) * tineGain * makeup;
                 } else {
                     float c = position * reedReach;
                     c = c > 0.85f ? 0.85f : c < -0.85f ? -0.85f : c;
