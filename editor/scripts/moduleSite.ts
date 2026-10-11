@@ -139,7 +139,9 @@ async function main(): Promise<void> {
     L.push('## Controls', '', '| Control | Range | Default | What it does |', '|---|---|---|---|');
     for (const c of resolveControls(mod, base.moduleTypes)) {
       if (c.kind === 'display' || c.kind === 'led') continue;
-      const line = help?.controls[c.id]?.[1] ?? meta.controlHelp?.[c.id] ?? '';
+      // site-modules.json gaat voor: daar staat een correctie als de korte
+      // uitleg in moduleHelp niet klopt met wat de firmware doet.
+      const line = meta.controlHelp?.[c.id] ?? help?.controls[c.id]?.[1] ?? '';
       L.push(`| ${esc(c.label || c.id)} | ${esc(range(c))} | ${esc(defaultOf(c))} | ${esc(line)} |`);
     }
     L.push('');

@@ -1,0 +1,1 @@
+A slow oscillator for movement (vibrato, wah, sweep).

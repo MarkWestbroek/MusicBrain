@@ -1,0 +1,1 @@
+Stereo phaser: sweeping notches, offset between left and right.

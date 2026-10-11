@@ -1,0 +1,1 @@
+An electric piano modelled from tine (Rhodes) or reed (Wurlitzer) and pickup, no samples. Soft and hard playing really sound different.

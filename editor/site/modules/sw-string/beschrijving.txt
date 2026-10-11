@@ -1,0 +1,1 @@
+A plucked string (Karplus-Strong).

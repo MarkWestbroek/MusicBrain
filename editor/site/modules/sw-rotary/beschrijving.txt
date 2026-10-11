@@ -1,0 +1,1 @@
+A rotating speaker (Leslie): horn and drum each spin at their own speed.

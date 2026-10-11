@@ -5,6 +5,14 @@ beschreven en getoond. We zouden de software achter de modules ook kunnen
 beschrijven. Modules zijn componenten: we hebben hardware-modules en
 software-modules."
 
+> **Stand 2026-10-12:** alle 42 modules van de standaardset hebben een pagina
+> (Engelse tekst in `text/<slug>.en.md`, uit code, release-log en plannen
+> afgeleid; per module naam, knop- en poortuitleg in `site-modules.json`).
+> Publiceren: `hardware/kicad-generators/publish_modules.py`. Rekentijd:
+> `tools/teensy-live/module_cpu.py --site --write` (nog te meten). Overzicht
+> `/modules` bij Imprint: componenten met `kind: software` en slug `sw-*`.
+> Wat bij het schrijven niet bleek te kloppen in de modules: BACKLOG FW-MOD-1.
+
 Ter review. **Stap 1 gebouwd (2026-10-11): de Ladder als voorbeeld**:
 `editor/scripts/moduleSite.ts` (generator), `editor/site/modules/` (per
 module een map met module.md, beschrijving.txt en panel.svg; handgeschreven

@@ -1,0 +1,1 @@
+Low-pass gate: filter and volume together, with the after-glow of a vactrol.

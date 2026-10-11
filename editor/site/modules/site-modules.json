@@ -25,6 +25,982 @@
       },
       "takeNote": "Gekozen door Mark (2026-10-11): 6 stemmen, cutoff 68 Hz, Q 0,87, Drive 3, op de Teensy. Voorgesteld voor de pool, dus in de media-library. Let op: drie gaten van 8,6 ms rond 57, 62 en 66 s (cpu); eventueel inkorten tot 0–55 s.",
       "takeUrl": null
+    },
+    "tp_mmb_epiano": {
+      "slug": "sw-epiano",
+      "name": "Electric piano",
+      "controlHelp": {
+        "level": "Output volume.",
+        "damper": "How fast the felt damper silences a released key: 0 = no dampers, 1 = in about 15 ms."
+      },
+      "portHelp": {
+        "voct_1": "Pitch of key 1, 1 V per octave (from MIDI-IN).",
+        "gate_1": "Gate of key 1: high while the key is held.",
+        "vel_1": "Velocity of key 1, 0 to 1; without a cable a medium touch.",
+        "voct_2": "Pitch of key 2, 1 V per octave (from MIDI-IN).",
+        "gate_2": "Gate of key 2: high while the key is held.",
+        "vel_2": "Velocity of key 2, 0 to 1; without a cable a medium touch.",
+        "voct_3": "Pitch of key 3, 1 V per octave (from MIDI-IN).",
+        "gate_3": "Gate of key 3: high while the key is held.",
+        "vel_3": "Velocity of key 3, 0 to 1; without a cable a medium touch.",
+        "voct_4": "Pitch of key 4, 1 V per octave (from MIDI-IN).",
+        "gate_4": "Gate of key 4: high while the key is held.",
+        "vel_4": "Velocity of key 4, 0 to 1; without a cable a medium touch.",
+        "voct_5": "Pitch of key 5, 1 V per octave (from MIDI-IN).",
+        "gate_5": "Gate of key 5: high while the key is held.",
+        "vel_5": "Velocity of key 5, 0 to 1; without a cable a medium touch.",
+        "voct_6": "Pitch of key 6, 1 V per octave (from MIDI-IN).",
+        "gate_6": "Gate of key 6: high while the key is held.",
+        "vel_6": "Velocity of key 6, 0 to 1; without a cable a medium touch.",
+        "voct_7": "Pitch of key 7, 1 V per octave (from MIDI-IN).",
+        "gate_7": "Gate of key 7: high while the key is held.",
+        "vel_7": "Velocity of key 7, 0 to 1; without a cable a medium touch.",
+        "voct_8": "Pitch of key 8, 1 V per octave (from MIDI-IN).",
+        "gate_8": "Gate of key 8: high while the key is held.",
+        "vel_8": "Velocity of key 8, 0 to 1; without a cable a medium touch.",
+        "voct_9": "Pitch of key 9, 1 V per octave (from MIDI-IN).",
+        "gate_9": "Gate of key 9: high while the key is held.",
+        "vel_9": "Velocity of key 9, 0 to 1; without a cable a medium touch.",
+        "voct_10": "Pitch of key 10, 1 V per octave (from MIDI-IN).",
+        "gate_10": "Gate of key 10: high while the key is held.",
+        "vel_10": "Velocity of key 10, 0 to 1; without a cable a medium touch.",
+        "voct_11": "Pitch of key 11, 1 V per octave (from MIDI-IN).",
+        "gate_11": "Gate of key 11: high while the key is held.",
+        "vel_11": "Velocity of key 11, 0 to 1; without a cable a medium touch.",
+        "voct_12": "Pitch of key 12, 1 V per octave (from MIDI-IN).",
+        "gate_12": "Gate of key 12: high while the key is held.",
+        "vel_12": "Velocity of key 12, 0 to 1; without a cable a medium touch.",
+        "sustain": "Sustain pedal (gate): while high, released keys ring on.",
+        "out_l": "Left output, with the tremolo.",
+        "out_r": "Right output, with the tremolo."
+      }
+    },
+    "tp_mmb_organ": {
+      "slug": "sw-organ",
+      "name": "Tonewheel organ",
+      "controlHelp": {
+        "perc_fast": "Percussion decay: fast (about 0.22 s) or slow (about 0.7 s).",
+        "perc_soft": "Softer percussion; off (normal) pulls the drawbars back about 3 dB, as on the original.",
+        "leak": "How much neighbouring tonewheels bleed into each other.",
+        "level": "Output volume; Swell adds to it."
+      },
+      "portHelp": {
+        "voct_1": "Pitch of key 1, 1 V per octave (from MIDI-IN).",
+        "gate_1": "Gate of key 1: high while the key is held.",
+        "voct_2": "Pitch of key 2, 1 V per octave (from MIDI-IN).",
+        "gate_2": "Gate of key 2: high while the key is held.",
+        "voct_3": "Pitch of key 3, 1 V per octave (from MIDI-IN).",
+        "gate_3": "Gate of key 3: high while the key is held.",
+        "voct_4": "Pitch of key 4, 1 V per octave (from MIDI-IN).",
+        "gate_4": "Gate of key 4: high while the key is held.",
+        "voct_5": "Pitch of key 5, 1 V per octave (from MIDI-IN).",
+        "gate_5": "Gate of key 5: high while the key is held.",
+        "voct_6": "Pitch of key 6, 1 V per octave (from MIDI-IN).",
+        "gate_6": "Gate of key 6: high while the key is held.",
+        "voct_7": "Pitch of key 7, 1 V per octave (from MIDI-IN).",
+        "gate_7": "Gate of key 7: high while the key is held.",
+        "voct_8": "Pitch of key 8, 1 V per octave (from MIDI-IN).",
+        "gate_8": "Gate of key 8: high while the key is held.",
+        "voct_9": "Pitch of key 9, 1 V per octave (from MIDI-IN).",
+        "gate_9": "Gate of key 9: high while the key is held.",
+        "voct_10": "Pitch of key 10, 1 V per octave (from MIDI-IN).",
+        "gate_10": "Gate of key 10: high while the key is held.",
+        "voct_11": "Pitch of key 11, 1 V per octave (from MIDI-IN).",
+        "gate_11": "Gate of key 11: high while the key is held.",
+        "voct_12": "Pitch of key 12, 1 V per octave (from MIDI-IN).",
+        "gate_12": "Gate of key 12: high while the key is held.",
+        "swell": "Expression pedal: adds to Level (set Level to 0 for a full swell pedal).",
+        "out": "Mono organ output; send it into the ROTARY."
+      }
+    },
+    "tp_mmb_rotary": {
+      "slug": "sw-rotary",
+      "name": "Rotary speaker",
+      "controlHelp": {
+        "slow_rate": "Rotor speed in the Slow position (default 0.8 Hz).",
+        "fast_rate": "Rotor speed in the Fast position (default 6.7 Hz).",
+        "inertia": "Scales how slowly the rotors change speed: 0.25 = quick, 1 = classic, 2 = extra heavy.",
+        "balance": "Horn against drum: 0 = drum only, 0.5 = both, 1 = horn only.",
+        "spread": "Angle between the two microphones: 0 = mono, 1 = opposite sides.",
+        "noise": "Side noises: horn air, motor hum, drum rumble and the relay tick.",
+        "level": "Output volume (up to 2)."
+      },
+      "portHelp": {
+        "fast": "Gate, switches on its edges: rising = fast, falling = slow.",
+        "drive_cv": "CV for the valve preamp drive.",
+        "in_l": "Left input; left and right are summed to mono.",
+        "in_r": "Right input; leave empty for a mono source.",
+        "out_l": "Left microphone.",
+        "out_r": "Right microphone."
+      }
+    },
+    "tp_mmb_dx7": {
+      "slug": "sw-dx7",
+      "name": "DX7 FM voice",
+      "controlHelp": {
+        "coarse": "Transposes the voice in semitones.",
+        "fine": "Fine tuning in cents.",
+        "level": "Output volume."
+      },
+      "portHelp": {
+        "voct": "Pitch, 1 V per octave; followed continuously, so glide works.",
+        "gate": "Note on while high, note off when it falls.",
+        "vel": "Velocity 0 to 1, read at the start of the note; drives the FM envelopes.",
+        "out": "Mono audio output."
+      }
+    },
+    "tp_mmb_vibe": {
+      "slug": "sw-vibe",
+      "name": "Vibe",
+      "controlHelp": {
+        "lamp_age": "How much lamp and LDR character: 0 = a clean sine sweep, 1 = the lopsided sweep of an old unit.",
+        "volume": "Output volume (up to 2)."
+      },
+      "portHelp": {
+        "speed_cv": "CV for Speed, for example an expression pedal or envelope.",
+        "intensity_cv": "CV for Intensity.",
+        "in_l": "Left input.",
+        "in_r": "Right input; leave empty and the left input feeds both sides.",
+        "out_l": "Left output.",
+        "out_r": "Right output."
+      }
+    },
+    "tp_mmb_synthex": {
+      "slug": "sw-synthex",
+      "name": "Synthex polysynth",
+      "controlHelp": {
+        "o1_oct": "Oscillator 1 footage, 16′ to 2′.",
+        "o1_wave": "Oscillator 1 waveform: ramp, square or pulse.",
+        "o1_level": "Oscillator 1 level in the mixer (16 steps).",
+        "o2_oct": "Oscillator 2 footage, 16′ to 2′.",
+        "o2_transpose": "Oscillator 2 transposed in semitones.",
+        "o2_wave": "Oscillator 2 waveform: ramp, square or pulse.",
+        "o2_level": "Oscillator 2 level in the mixer (16 steps).",
+        "sync": "Locks oscillator 2 to oscillator 1.",
+        "ring": "Replaces oscillator 2 with the product of both oscillators.",
+        "pw": "Pulse width for the Pulse waveform.",
+        "noise": "Noise level in the mixer.",
+        "kbd": "Keyboard tracking of the filter: 10 = follows the pitch fully.",
+        "mode": "Filter mode: low-pass 24 dB, band-pass 12 dB or high-pass 24 dB.",
+        "fa": "Filter envelope attack.",
+        "fd": "Filter envelope decay.",
+        "fs": "Filter envelope sustain.",
+        "fr": "Filter envelope release.",
+        "ad": "Volume envelope decay.",
+        "as": "Volume envelope sustain.",
+        "lfo_rate": "LFO speed.",
+        "lfo_wave": "LFO waveform: triangle, square, sawtooth or sample & hold.",
+        "lfo_osc": "LFO to the pitch of both oscillators (1 = ±1 octave).",
+        "lfo_pw": "LFO to the pulse width.",
+        "lfo_vcf": "LFO to the filter cutoff (1 = ±2 octaves).",
+        "lfo_vca": "LFO to the volume (tremolo).",
+        "glide": "Portamento time between notes.",
+        "tune": "Master tuning in semitones.",
+        "level": "Output volume."
+      },
+      "portHelp": {
+        "voct_1": "Pitch of key 1, 1 V per octave (from MIDI-IN).",
+        "gate_1": "Gate of key 1: high while the key is held.",
+        "voct_2": "Pitch of key 2, 1 V per octave (from MIDI-IN).",
+        "gate_2": "Gate of key 2: high while the key is held.",
+        "voct_3": "Pitch of key 3, 1 V per octave (from MIDI-IN).",
+        "gate_3": "Gate of key 3: high while the key is held.",
+        "voct_4": "Pitch of key 4, 1 V per octave (from MIDI-IN).",
+        "gate_4": "Gate of key 4: high while the key is held.",
+        "voct_5": "Pitch of key 5, 1 V per octave (from MIDI-IN).",
+        "gate_5": "Gate of key 5: high while the key is held.",
+        "voct_6": "Pitch of key 6, 1 V per octave (from MIDI-IN).",
+        "gate_6": "Gate of key 6: high while the key is held.",
+        "voct_7": "Pitch of key 7, 1 V per octave (from MIDI-IN).",
+        "gate_7": "Gate of key 7: high while the key is held.",
+        "voct_8": "Pitch of key 8, 1 V per octave (from MIDI-IN).",
+        "gate_8": "Gate of key 8: high while the key is held.",
+        "bend": "Joystick X: pitch bend, 1 V per octave.",
+        "joy": "Joystick Y: moves the filter cutoff.",
+        "out_l": "Left output (after the chorus).",
+        "out_r": "Right output (after the chorus)."
+      }
+    },
+    "tp_mmb_string": {
+      "slug": "sw-string",
+      "name": "Plucked string",
+      "controlHelp": {
+        "level": "Output volume."
+      },
+      "portHelp": {
+        "voct": "Pitch, 1 V per octave; read at the pluck.",
+        "gate": "Each rising edge plucks the string.",
+        "pluck_cv": "CV for Pluck.",
+        "level_cv": "CV for Level.",
+        "out": "Mono audio output."
+      }
+    },
+    "tp_mmb_cmi": {
+      "slug": "sw-cmi",
+      "name": "Fairlight CMI voice",
+      "controlHelp": {
+        "coarse": "Transposes the voice in semitones.",
+        "fine": "Fine tuning in cents.",
+        "level": "Output volume."
+      },
+      "portHelp": {
+        "voct": "Pitch, 1 V per octave.",
+        "gate": "Note on while high; on release the voice plays on to the last segment.",
+        "vel": "Velocity 0 to 1, read at the start of the note.",
+        "seg_cv": "Shifts the position in the segments: ±1 = ±16 segments.",
+        "pos": "The current position in the segments as CV, 0 to 1.",
+        "out": "Mono audio output."
+      }
+    },
+    "tp_mmb_mixtur": {
+      "slug": "sw-mixtur",
+      "name": "Trautonium (Mixtur)",
+      "controlHelp": {
+        "coarse": "Transposes the voice in semitones.",
+        "fine": "Fine tuning in cents.",
+        "curve": "Lamp: how curved the charging slope of the glow-lamp sawtooth is (0 = straight).",
+        "unrest": "Small random variation per period, like a real glow lamp.",
+        "glide": "Slide time between notes, up to 2 s.",
+        "div2": "Divider for undertone 2: the pitch divided by this number.",
+        "div3": "Divider for undertone 3: the pitch divided by this number.",
+        "div4": "Divider for undertone 4: the pitch divided by this number.",
+        "main": "Level of the main tone.",
+        "formant": "Formant vowel: off, A, E, I, O or U.",
+        "fshift": "Moves the three formants together, in semitones.",
+        "freso": "Sharpness of the formant filters.",
+        "fmix": "Dry against formant-filtered sound.",
+        "noise": "Noise, the air in the lamp; follows the dynamics.",
+        "dyn": "Dynamics from key velocity (Vel) or from continuous pressure (Press).",
+        "attack": "Attack time.",
+        "release": "Release time.",
+        "level": "Output volume."
+      },
+      "portHelp": {
+        "voct": "Pitch, 1 V per octave.",
+        "gate": "Note on while high.",
+        "vel": "Velocity 0 to 1, used when Dyn is Vel.",
+        "press": "Continuous pressure 0 to 1 (aftertouch), used when Dyn is Press.",
+        "sub_cv": "Scales the four undertones together, like the pedal.",
+        "form_cv": "Glides along the row of vowels.",
+        "amp": "The dynamics as CV, 0 to 1.",
+        "out": "Mono audio output."
+      }
+    },
+    "tp_mmb_martenot": {
+      "slug": "sw-martenot",
+      "name": "Ondes Martenot",
+      "controlHelp": {
+        "coarse": "Transposes the voice in semitones.",
+        "fine": "Fine tuning in cents.",
+        "glide": "Slide time between notes, like the ring on the wire (up to 2 s).",
+        "vib": "Vibrato depth in semitones (up to 1).",
+        "vib_rate": "Vibrato speed.",
+        "souffle": "S (souffle): breath, noise around the pitch.",
+        "bright": "How dull or bright the tone goes into the loudspeaker.",
+        "touche": "Klavier = key and velocity, pressure swells on top; Touche = pressure alone makes the volume.",
+        "attack": "Attack time.",
+        "release": "Release time.",
+        "level": "Output volume."
+      },
+      "portHelp": {
+        "voct": "Pitch, 1 V per octave.",
+        "gate": "Note on while high.",
+        "vel": "Velocity 0 to 1, used in Klavier mode.",
+        "press": "Pressure 0 to 1 (aftertouch): the volume in Touche mode, a swell in Klavier mode.",
+        "vib_cv": "Adds vibrato, for example from the mod wheel.",
+        "amp": "The volume as CV, 0 to 1.",
+        "out": "Mono audio output; send it into DIFFUSEUR."
+      }
+    },
+    "tp_mmb_vco": {
+      "slug": "sw-vco",
+      "name": "VCO",
+      "controlHelp": {
+        "coarse": "Tuning in semitones, on top of the V/Oct input.",
+        "fine": "Fine tuning in cents.",
+        "level": "Output level.",
+        "fm_amt": "FM depth; the FM input is not wired up yet in this module (use the FM-VCO for FM)."
+      },
+      "portHelp": {
+        "voct": "Pitch, 1 V per octave; 0 V is C4.",
+        "tune": "Extra pitch in V/Oct added to the note, for bend or detune.",
+        "fm": "Frequency modulation input; not implemented yet.",
+        "sync": "Hard sync input; not implemented yet.",
+        "out": "The oscillator."
+      }
+    },
+    "tp_mmb_sid": {
+      "slug": "sw-sid",
+      "name": "SID",
+      "controlHelp": {
+        "tri": "Triangle wave on or off.",
+        "saw": "Sawtooth wave on or off.",
+        "pulse": "Pulse wave on or off.",
+        "noise": "Noise on or off; combined with another wave it dies out, as on the chip.",
+        "combo": "How strong combined waveforms are: 0 = pure AND, 4 = 8580, 7 = 6581.",
+        "ring": "Ring-modulates each voice's triangle with the voice before it.",
+        "sync": "Hard-syncs each voice to the voice before it.",
+        "sustain": "Sustain level (0–15).",
+        "release": "How fast a note fades after the gate closes (0–15).",
+        "coarse": "Tuning in semitones.",
+        "fine": "Fine tuning in cents.",
+        "volume": "The chip's 4-bit master volume (0–15).",
+        "level": "Output level of the module.",
+        "filt": "Sends the voices through the filter.",
+        "model": "Chip model for filter and output: 6581 or 8580.",
+        "curve": "6581 only: moves the cutoff curve, as no two 6581s are alike (0 = bright, 1 = dark).",
+        "lp": "Low-pass mode on or off (combine with BP and HP).",
+        "bp": "Band-pass mode on or off.",
+        "hp": "High-pass mode on or off; LP + HP gives a notch.",
+        "chips": "How many chips play (1–4), three voices each.",
+        "spread": "How far the chips are spread over left and right."
+      },
+      "portHelp": {
+        "bend": "Pitch bend in V/Oct for all voices.",
+        "pw_cv": "Added to the pulse width (0 to 1).",
+        "pw": "Same as PW+.",
+        "cutoff_cv": "Added to the cutoff; 0 to 1 covers the whole range.",
+        "cutoff": "Same as Cut+.",
+        "ext_in": "EXT IN of chip 1: any audio through that chip's filter.",
+        "ext_2": "EXT IN of chip 2, through its filter.",
+        "ext_3": "EXT IN of chip 3, through its filter.",
+        "ext_4": "EXT IN of chip 4, through its filter.",
+        "out": "Mono: all chips summed, with a limiter.",
+        "out_l": "Left: the chips spread over the stereo image with Spread.",
+        "out_r": "Right: the chips spread over the stereo image with Spread.",
+        "sid_1": "Chip 1 on its own, to mix and pan yourself.",
+        "sid_2": "Chip 2 on its own, to mix and pan yourself.",
+        "sid_3": "Chip 3 on its own, to mix and pan yourself.",
+        "sid_4": "Chip 4 on its own, to mix and pan yourself.",
+        "voct_1": "Pitch of voice 1 (chip 1), 1 V per octave.",
+        "gate_1": "Gate of voice 1: starts and releases its envelope.",
+        "voct_2": "Pitch of voice 2 (chip 1), 1 V per octave.",
+        "gate_2": "Gate of voice 2: starts and releases its envelope.",
+        "voct_3": "Pitch of voice 3 (chip 1), 1 V per octave.",
+        "gate_3": "Gate of voice 3: starts and releases its envelope.",
+        "voct_4": "Pitch of voice 4 (chip 2), 1 V per octave.",
+        "gate_4": "Gate of voice 4: starts and releases its envelope.",
+        "voct_5": "Pitch of voice 5 (chip 2), 1 V per octave.",
+        "gate_5": "Gate of voice 5: starts and releases its envelope.",
+        "voct_6": "Pitch of voice 6 (chip 2), 1 V per octave.",
+        "gate_6": "Gate of voice 6: starts and releases its envelope.",
+        "voct_7": "Pitch of voice 7 (chip 3), 1 V per octave.",
+        "gate_7": "Gate of voice 7: starts and releases its envelope.",
+        "voct_8": "Pitch of voice 8 (chip 3), 1 V per octave.",
+        "gate_8": "Gate of voice 8: starts and releases its envelope.",
+        "voct_9": "Pitch of voice 9 (chip 3), 1 V per octave.",
+        "gate_9": "Gate of voice 9: starts and releases its envelope.",
+        "voct_10": "Pitch of voice 10 (chip 4), 1 V per octave.",
+        "gate_10": "Gate of voice 10: starts and releases its envelope.",
+        "voct_11": "Pitch of voice 11 (chip 4), 1 V per octave.",
+        "gate_11": "Gate of voice 11: starts and releases its envelope.",
+        "voct_12": "Pitch of voice 12 (chip 4), 1 V per octave.",
+        "gate_12": "Gate of voice 12: starts and releases its envelope."
+      }
+    },
+    "tp_mmb_rings": {
+      "slug": "sw-rings",
+      "name": "Rings resonator",
+      "controlHelp": {
+        "polyphony": "Voices: 1, 2 or 4; each strum goes to the next voice.",
+        "coarse": "Tuning in semitones.",
+        "fine": "Fine tuning in cents.",
+        "level": "Output level."
+      },
+      "portHelp": {
+        "voct": "Pitch, 1 V per octave; 0 V is C4.",
+        "gate": "Strum: each rising edge plucks the resonator.",
+        "strum": "Same as Strum.",
+        "out_l": "Odd voices.",
+        "out_r": "Even voices.",
+        "out": "Same as Odd.",
+        "structure_cv": "Sets Structure (0 to 1) while patched.",
+        "structure": "Same as S+.",
+        "brightness_cv": "Sets Brightness (0 to 1) while patched.",
+        "brightness": "Same as B+.",
+        "damping_cv": "Sets Damping (0 to 1) while patched.",
+        "damping": "Same as D+.",
+        "position_cv": "Sets Position (0 to 1) while patched.",
+        "position": "Same as P+."
+      }
+    },
+    "tp_mmb_plaits": {
+      "slug": "sw-plaits",
+      "name": "Plaits macro oscillator",
+      "controlHelp": {
+        "lpg": "Colour of the low-pass gate: from more filter to more volume.",
+        "level": "Output level.",
+        "coarse": "Tuning in semitones.",
+        "fine": "Fine tuning in cents."
+      },
+      "portHelp": {
+        "voct": "Pitch, 1 V per octave; 0 V is C4.",
+        "gate": "Trig: each rising edge strikes the low-pass gate and the percussive engines.",
+        "trig": "Same as Trig.",
+        "harmonics_cv": "Sets Harmonics (0 to 1) while patched.",
+        "harmonics": "Same as H+.",
+        "timbre_cv": "Sets Timbre (0 to 1) while patched.",
+        "timbre": "Same as T+.",
+        "morph_cv": "Sets Morph (0 to 1) while patched.",
+        "morph": "Same as M+.",
+        "level_cv": "Opens the low-pass gate (0 to 1), like an accent.",
+        "level": "Same as the level CV input.",
+        "out": "The main sound.",
+        "out_l": "Same as Out.",
+        "aux": "A variant of the sound, different per engine.",
+        "out_r": "Same as Aux."
+      }
+    },
+    "tp_mmb_complex": {
+      "slug": "sw-complex",
+      "name": "Complex oscillator",
+      "controlHelp": {
+        "ratio": "Frequency of the modulation oscillator, as a multiple of the pitch (0.01–16).",
+        "mod_wave": "Waveform of the modulation oscillator: sine, triangle or saw.",
+        "pitch": "Tuning in semitones.",
+        "level": "Output level.",
+        "am": "How much the modulation oscillator changes the level going into the folder.",
+        "tmod": "How much the modulation oscillator moves the folder."
+      },
+      "portHelp": {
+        "voct": "Pitch, 1 V per octave; 0 V is C4.",
+        "fm_cv": "Added to the FM amount.",
+        "timbre_cv": "Added to Timbre: an envelope here gives a brighter attack.",
+        "out": "The main oscillator after the folder.",
+        "mod": "The modulation oscillator on its own."
+      }
+    },
+    "tp_mmb_morph_wt": {
+      "slug": "sw-morph-wt",
+      "name": "Morph wavetable",
+      "controlHelp": {
+        "level": "Output level.",
+        "coarse": "Tuning in semitones.",
+        "fine": "Fine tuning in cents."
+      },
+      "portHelp": {
+        "voct": "Pitch, 1 V per octave; 0 V is C4.",
+        "morph_cv": "Added to Morph: ±1 moves up to ±7 frames.",
+        "morph": "Same as M+.",
+        "out": "The oscillator."
+      }
+    },
+    "tp_mmb_clouds": {
+      "slug": "sw-clouds",
+      "name": "Clouds granular",
+      "controlHelp": {
+        "pitch": "Transposes the grains in semitones (±24).",
+        "density": "How many grains: middle = none, lower = regular, higher = random.",
+        "texture": "Shape of the grains; the top quarter adds diffusion.",
+        "mix": "Dry to wet.",
+        "spread": "Stereo width of the grains.",
+        "feedback": "How much of the output goes back into the buffer.",
+        "reverb": "Amount of the built-in reverb.",
+        "level": "Output level.",
+        "mode": "Granular, stretch, looping delay or spectral.",
+        "freeze": "Stops recording, so the grains keep playing the frozen buffer."
+      },
+      "portHelp": {
+        "in_l": "Audio in, left (or mono).",
+        "in": "Same as In L.",
+        "in_r": "Audio in, right.",
+        "freeze": "High = freeze the buffer.",
+        "trig": "Each rising edge fires a single grain.",
+        "out_l": "Audio out, left.",
+        "out": "Same as Out L.",
+        "out_r": "Audio out, right.",
+        "position_cv": "Sets Position (0 to 1) while patched.",
+        "position": "Same as P+.",
+        "size_cv": "Sets Size (0 to 1) while patched.",
+        "size": "Same as S+.",
+        "density_cv": "Sets Density (0 to 1) while patched.",
+        "density": "Same as D+.",
+        "texture_cv": "Sets Texture (0 to 1) while patched.",
+        "texture": "Same as T+.",
+        "pitch_cv": "Sets Pitch while patched, 1 V per octave.",
+        "pitch": "Same as the pitch CV input.",
+        "mix_cv": "Sets Mix (0 to 1) while patched.",
+        "mix": "Same as the mix CV input."
+      }
+    },
+    "tp_mmb_stages": {
+      "slug": "sw-stages",
+      "name": "Stages segment generator",
+      "controlHelp": {
+        "segments": "How many segments take part (1–6).",
+        "loop": "Repeat the segments from L-start to L-end: an LFO.",
+        "loop_start": "First segment of the loop (0 = segment 1).",
+        "loop_end": "Last segment of the loop.",
+        "rate": "Meant as an overall time scale; not applied in the current firmware.",
+        "t2": "Primary knob of segment 2: time on a ramp, level on a hold or step.",
+        "t3": "Primary knob of segment 3: time on a ramp, level on a hold or step.",
+        "t4": "Primary knob of segment 4: time on a ramp, level on a hold or step.",
+        "t5": "Primary knob of segment 5: time on a ramp, level on a hold or step.",
+        "t6": "Primary knob of segment 6: time on a ramp, level on a hold or step.",
+        "s1": "Secondary knob of segment 1: shape on a ramp, time on a hold, glide on a step.",
+        "type1": "Type of segment 1: ramp, step, hold or alternate (firmware order).",
+        "s2": "Secondary knob of segment 2: shape on a ramp, time on a hold, glide on a step.",
+        "type2": "Type of segment 2: ramp, step, hold or alternate (firmware order).",
+        "s3": "Secondary knob of segment 3: shape on a ramp, time on a hold, glide on a step.",
+        "type3": "Type of segment 3: ramp, step, hold or alternate (firmware order).",
+        "s4": "Secondary knob of segment 4: shape on a ramp, time on a hold, glide on a step.",
+        "type4": "Type of segment 4: ramp, step, hold or alternate (firmware order).",
+        "s5": "Secondary knob of segment 5: shape on a ramp, time on a hold, glide on a step.",
+        "type5": "Type of segment 5: ramp, step, hold or alternate (firmware order).",
+        "s6": "Secondary knob of segment 6: shape on a ramp, time on a hold, glide on a step.",
+        "type6": "Type of segment 6: ramp, step, hold or alternate (firmware order)."
+      },
+      "portHelp": {
+        "gate": "Starts the chain, and holds it while high.",
+        "trig": "Same as Gate.",
+        "out": "The generated signal, 0 to 1.",
+        "eoc": "High while the first segment runs."
+      }
+    },
+    "tp_mmb_marbles": {
+      "slug": "sw-marbles",
+      "name": "Marbles random sequencer",
+      "controlHelp": {
+        "spread": "How widely the X notes are spread.",
+        "jitter": "Loosens the timing of the t gates.",
+        "xbias": "Whether the X notes tend to land low or high.",
+        "steps": "From smooth random voltages to stepped notes in the scale.",
+        "dejavu": "Repetition: 0 = always new, around the middle the loop locks.",
+        "length": "Length of the déjà vu loop in steps (1–16).",
+        "model": "How t1 and t2 are chosen: coin toss, clusters or drums.",
+        "scale": "Scale for the X notes: major, minor, pentatonic, pelog, bhairav or shri.",
+        "range": "Range of X: 0 to 2 V, 0 to 5 V or ±5 V.",
+        "extclock": "Follow the Clk jack instead of the internal tempo."
+      },
+      "portHelp": {
+        "clock": "External clock, used when ExtClk is on.",
+        "rate_cv": "Bends the tempo, ±1 = ±2 octaves.",
+        "dejavu_cv": "Added to Déjà vu.",
+        "spread_cv": "Added to Spread.",
+        "t1": "Random gates, stream 1.",
+        "t2": "Random gates, stream 2.",
+        "tclk": "The master clock.",
+        "x1": "Random note CV in volts, quantised to the scale.",
+        "x2": "Second random note CV.",
+        "x3": "Third random note CV.",
+        "y": "Slow random CV, on the clock divided by 16."
+      }
+    },
+    "tp_mmb_elements_reverb": {
+      "slug": "sw-elements-reverb",
+      "name": "Elements reverb",
+      "controlHelp": {
+        "time": "How long the tail lasts.",
+        "diffusion": "How dense the echoes are.",
+        "lp": "Damping in the tail: lower is darker."
+      },
+      "portHelp": {
+        "in_l": "Audio in, left (or mono).",
+        "in_r": "Audio in, right.",
+        "out_l": "Reverb out, left.",
+        "out_r": "Reverb out, right."
+      }
+    },
+    "tp_mmb_bbd_chorus": {
+      "slug": "sw-bbd-chorus",
+      "name": "BBD chorus",
+      "controlHelp": {
+        "rate": "How fast the LFO sweeps the delay, in Hz.",
+        "depth": "How far the delay swings: up to ±60 % of Delay.",
+        "delay": "The centre delay: 2–6 ms flanger, 8–20 ms chorus, above 20 ms doubling.",
+        "feedback": "Feeds the output back in, positive or negative, for the flanger side.",
+        "spread": "Phase offset of the right LFO: 0 = mono, 1 = opposite phase, the widest image.",
+        "age": "Clock noise and a harder-working compander: an older, dirtier unit.",
+        "tone": "Bandwidth of the bucket brigade: 0 = about 2 kHz (dull), 1 = 12 kHz."
+      },
+      "portHelp": {
+        "rate_cv": "Replaces the Rate knob while patched; the value is read in Hz.",
+        "depth_cv": "Replaces the Depth knob while patched (0 to 1).",
+        "mix_cv": "Replaces the Mix knob while patched (0 to 1).",
+        "in_l": "Audio input, left (or mono).",
+        "in_r": "Audio input, right; leave it empty for mono in, stereo out.",
+        "out_l": "Audio output, left.",
+        "out_r": "Audio output, right."
+      }
+    },
+    "tp_mmb_para_eq": {
+      "slug": "sw-para-eq",
+      "name": "Parametric EQ",
+      "controlHelp": {
+        "lf_freq": "Frequency of the low band, 30–450 Hz.",
+        "lf_shelf": "Low band as a bell or a shelf.",
+        "lmf_freq": "Frequency of the low-mid band, 200 Hz–2 kHz.",
+        "lmf_q": "Width of the low-mid band: low = broad, high = narrow.",
+        "hmf_freq": "Frequency of the high-mid band, 600 Hz–7 kHz.",
+        "hmf_gain": "The high mids: up or down.",
+        "hmf_q": "Width of the high-mid band: low = broad, high = narrow.",
+        "hf_freq": "Frequency of the high band, 1.5–16 kHz.",
+        "hf_gain": "The treble: up or down.",
+        "hf_shelf": "High band as a bell or a shelf.",
+        "hpf": "High-pass filter, 12 dB per octave; fully left is off.",
+        "lpf": "Low-pass filter; fully right (20 kHz) is off.",
+        "prop_q": "On: the Q follows the gain, broad for small changes, focused for large ones.",
+        "output": "Output level, to match the level for an A/B with Bypass.",
+        "bypass": "On: the signal passes unchanged."
+      },
+      "portHelp": {
+        "in_l": "Audio input, left (or mono).",
+        "in_r": "Audio input, right.",
+        "out_l": "Equalised audio, left.",
+        "out_r": "Equalised audio, right."
+      }
+    },
+    "tp_mmb_digital_echo": {
+      "slug": "sw-digital-echo",
+      "name": "Digital echo",
+      "controlHelp": {
+        "ratio": "Right-hand echo time as a factor of the left: 0.75 or 1.5 give dotted patterns.",
+        "cross": "How much of each track's echo goes into the other: with Fbk at 0, ping-pong.",
+        "mod_rate": "Speed of the modulation on the echoes, in Hz.",
+        "mod_depth": "Depth of the modulation: chorus on the repeats.",
+        "bits": "Converter resolution: 12 is the classic sound, 8 crackles.",
+        "band": "Bandwidth of the repeats; lower is darker and grittier."
+      },
+      "portHelp": {
+        "time_cv": "Replaces the Time knob while patched; the value is read in seconds.",
+        "fbk_cv": "Replaces the Fbk knob while patched.",
+        "mod_cv": "Replaces the modulation Depth knob while patched (0 to 1).",
+        "mix_cv": "Replaces the Mix knob while patched (0 to 1).",
+        "in_l": "Audio input, left (or mono).",
+        "in_r": "Audio input, right; leave it empty for mono in, stereo out.",
+        "out_l": "Audio output, left.",
+        "out_r": "Audio output, right."
+      }
+    },
+    "tp_mmb_tube": {
+      "slug": "sw-tube",
+      "name": "Tube",
+      "controlHelp": {
+        "mode": "Studio = one triode and an output transformer; Amp = guitar amp with tone stack and cabinet.",
+        "bias": "Left cold (cuts off earlier, rawer), right warm (grid current sooner, rounder).",
+        "sag": "How far the power supply dips when you play hard: compression and a spongier feel (Amp).",
+        "cab": "Speaker cabinet simulation on or off (Amp).",
+        "mix": "Dry against valve: below 1 it works as a parallel effect.",
+        "level": "Output level."
+      },
+      "portHelp": {
+        "drive_cv": "Added to the Drive knob.",
+        "in_l": "Audio input, left (or mono).",
+        "in_r": "Audio input, right; leave it empty and both outputs carry the left channel.",
+        "out_l": "Audio output, left.",
+        "out_r": "Audio output, right."
+      }
+    },
+    "tp_mmb_shimmer": {
+      "slug": "sw-shimmer",
+      "name": "Shimmer reverb",
+      "controlHelp": {
+        "interval": "How far the tail is shifted each round: +12 (an octave), +7, +19, +24 or −12 semitones.",
+        "damp": "How fast the treble dies away in the reverb.",
+        "tone": "Brightness of the shimmer loop: lower is warmer, with less whistling.",
+        "predelay": "Time before the reverb starts, up to 120 ms.",
+        "mod": "Slight drift in the reverb tank.",
+        "mix": "How much reverb is mixed with the dry sound."
+      },
+      "portHelp": {
+        "shimmer_cv": "Replaces the Shimmer knob while patched (0 to 1).",
+        "size_cv": "Replaces the Size knob while patched (0 to 1).",
+        "mix_cv": "Replaces the Mix knob while patched (0 to 1).",
+        "in_l": "Audio input, left (or mono).",
+        "in_r": "Audio input, right; leave it empty and the right side gets the left input.",
+        "out_l": "Audio output, left.",
+        "out_r": "Audio output, right."
+      }
+    },
+    "tp_mmb_stereo_phaser": {
+      "slug": "sw-stereo-phaser",
+      "name": "Stereo phaser",
+      "controlHelp": {
+        "feedback": "Makes the notches resonate: a sharper, more vocal sweep.",
+        "spread": "Offset between left and right: 0 = mono, 0.5 = a quarter cycle, 1 = opposite phase.",
+        "mix": "How much phaser is mixed with the dry sound."
+      },
+      "portHelp": {
+        "rate_cv": "Replaces the Rate knob while patched; the value is read in Hz.",
+        "depth_cv": "Replaces the Depth knob while patched (0 to 1).",
+        "in_l": "Audio input, left (or mono).",
+        "in_r": "Audio input, right; leave it empty for mono in, stereo out.",
+        "out_l": "Audio output, left.",
+        "out_r": "Audio output, right."
+      }
+    },
+    "tp_mmb_reverb": {
+      "slug": "sw-reverb",
+      "name": "Plate / spring reverb",
+      "controlHelp": {
+        "mode": "Plate = smooth studio plate; Spring = two springs with the boing.",
+        "damp": "How fast the treble dies away: 0 = bright, 1 = dull.",
+        "predelay": "Time before the reverb starts, up to 120 ms.",
+        "mod": "Plate: slight drift, from metal towards air. Spring: rumble."
+      },
+      "portHelp": {
+        "size_cv": "Replaces the Size knob while patched (0 to 1).",
+        "mix_cv": "Replaces the Mix knob while patched (0 to 1).",
+        "in_l": "Audio input, left (or mono).",
+        "in_r": "Audio input, right; leave it empty and the right side gets the left input.",
+        "out_l": "Audio output, left.",
+        "out_r": "Audio output, right."
+      }
+    },
+    "tp_mmb_diffuseur": {
+      "slug": "sw-diffuseur",
+      "name": "Diffuseur",
+      "controlHelp": {
+        "ring": "How long the Palme strings or the gong ring on.",
+        "tune": "Retunes the twelve Palme strings, in semitones from C3.",
+        "gong": "Fundamental of the gong in Métallique, 60–600 Hz.",
+        "level": "Output level."
+      },
+      "portHelp": {
+        "in": "Audio input: the voices, or anything else.",
+        "mix_cv": "Added to the Mix knob.",
+        "out": "The sound through the chosen loudspeaker (mono)."
+      }
+    },
+    "tp_mmb_folder": {
+      "slug": "sw-folder",
+      "name": "Wavefolder",
+      "controlHelp": {
+        "type": "Folding curve: Sine = soft and round, Tri = bright and sharp, 259 = Buchla-style, hollow and nasal.",
+        "mix": "Dry against folded signal.",
+        "level": "Output level."
+      },
+      "portHelp": {
+        "fold_cv": "Added to the Fold knob: an envelope here opens the sound like a filter.",
+        "sym_cv": "Added to the Sym knob.",
+        "in": "Audio input; works best with a full-level sine or triangle.",
+        "out": "The folded audio."
+      }
+    },
+    "tp_mmb_tapestrip": {
+      "slug": "sw-tapestrip",
+      "name": "Tape strip",
+      "controlHelp": {
+        "length": "Length of each tape strip, 1–8 s: the note stops abruptly when it runs out.",
+        "return": "How long a full strip takes to rewind after you let go.",
+        "level": "Output level."
+      },
+      "portHelp": {
+        "press": "Pressure on the pad (0 to 1), for example channel pressure: slows the tape slightly.",
+        "bend": "Pitch bend in V/Oct, added to all eight cells.",
+        "tape": "Position of the last struck tape strip, 0 to 1 of Length.",
+        "load": "Motor load, 0 to 1, with inertia.",
+        "out_l": "Audio output, left.",
+        "out_r": "Audio output, right.",
+        "voct_1": "Pitch for voice 1, in V/Oct.",
+        "gate_1": "Gate for voice 1: high = key down, low = the tape rewinds.",
+        "vel_1": "Velocity for voice 1: picks the velocity layer in the bank.",
+        "voct_2": "Pitch for voice 2, in V/Oct.",
+        "gate_2": "Gate for voice 2: high = key down, low = the tape rewinds.",
+        "vel_2": "Velocity for voice 2: picks the velocity layer in the bank.",
+        "voct_3": "Pitch for voice 3, in V/Oct.",
+        "gate_3": "Gate for voice 3: high = key down, low = the tape rewinds.",
+        "vel_3": "Velocity for voice 3: picks the velocity layer in the bank.",
+        "voct_4": "Pitch for voice 4, in V/Oct.",
+        "gate_4": "Gate for voice 4: high = key down, low = the tape rewinds.",
+        "vel_4": "Velocity for voice 4: picks the velocity layer in the bank.",
+        "voct_5": "Pitch for voice 5, in V/Oct.",
+        "gate_5": "Gate for voice 5: high = key down, low = the tape rewinds.",
+        "vel_5": "Velocity for voice 5: picks the velocity layer in the bank.",
+        "voct_6": "Pitch for voice 6, in V/Oct.",
+        "gate_6": "Gate for voice 6: high = key down, low = the tape rewinds.",
+        "vel_6": "Velocity for voice 6: picks the velocity layer in the bank.",
+        "voct_7": "Pitch for voice 7, in V/Oct.",
+        "gate_7": "Gate for voice 7: high = key down, low = the tape rewinds.",
+        "vel_7": "Velocity for voice 7: picks the velocity layer in the bank.",
+        "voct_8": "Pitch for voice 8, in V/Oct.",
+        "gate_8": "Gate for voice 8: high = key down, low = the tape rewinds.",
+        "vel_8": "Velocity for voice 8: picks the velocity layer in the bank."
+      }
+    },
+    "tp_mmb_out": {
+      "slug": "sw-out",
+      "name": "Output",
+      "portHelp": {
+        "l": "Left channel of the output; a source here alone plays on the left only.",
+        "r": "Right channel of the output."
+      }
+    },
+    "tp_mmb_cvmath": {
+      "slug": "sw-cvmath",
+      "name": "CV math",
+      "controlHelp": {
+        "mode": "Sum adds A, B, C and the offset; Mult multiplies A by B.",
+        "gain_b": "How much of input B counts; in Mult mode 0 gives silence.",
+        "offset": "A fixed value added to the sum (Sum mode only)."
+      },
+      "portHelp": {
+        "a": "First input.",
+        "b": "Second input; the multiplier in Mult mode.",
+        "c": "Third input, used in Sum mode only.",
+        "out": "The result, limited to ±10 in Sum mode."
+      }
+    },
+    "tp_mmb_vca": {
+      "slug": "sw-vca",
+      "name": "VCA",
+      "controlHelp": {
+        "resp": "Linear or exponential response; stored but not yet used by the firmware.",
+        "gain": "Base volume; stored but not yet used by the firmware, so only CV sets the level."
+      },
+      "portHelp": {
+        "in": "The audio to be amplified.",
+        "cv": "The level, 0 … 1, typically from an envelope; linear.",
+        "out": "The audio at the level set by CV."
+      }
+    },
+    "tp_mmb_lfo": {
+      "slug": "sw-lfo",
+      "name": "LFO",
+      "controlHelp": {
+        "wave": "Sine, triangle, saw, square, or sample & hold (a random value per cycle).",
+        "bipolar": "On: −Depth … +Depth. Off: 0 … Depth.",
+        "run": "Always runs freely; Gated and OneShot wait for a gate input that the panel does not have yet.",
+        "rate_cv_amt": "How much the Rate input changes the speed; at 1, ±1 CV is ±4 octaves; below 0 inverted."
+      },
+      "portHelp": {
+        "rate_cv": "Speed modulation, exponential: +1 is four octaves faster at Rate CV 1.",
+        "reset": "A rising edge restarts the cycle.",
+        "out": "The LFO signal.",
+        "out_inv": "The same signal upside down.",
+        "gate": "Gate for the Gated and OneShot run modes (firmware only, not on the panel)."
+      }
+    },
+    "tp_mmb_lpg": {
+      "slug": "sw-lpg",
+      "name": "Low-pass gate",
+      "controlHelp": {
+        "mode": "LP: only the filter follows the vactrol; Both: filter and volume; VCA: only the volume.",
+        "res": "Filter peak, from none to a peak that rings along.",
+        "level": "Output level."
+      },
+      "portHelp": {
+        "in": "The audio to be gated.",
+        "cv": "Opens the gate, 0 … 1, added to Open.",
+        "trig": "Ping: a trigger flashes the vactrol for a short, natural hit.",
+        "out": "The gated audio.",
+        "env": "The vactrol state as CV, 0 … 1."
+      }
+    },
+    "tp_mmb_slope": {
+      "slug": "sw-slope",
+      "name": "Slope",
+      "controlHelp": {
+        "shape": "Bends the lines: log (fast start), lin (straight) or exp (slow start).",
+        "cycle": "On: restarts at the end of the fall, so it runs as an LFO."
+      },
+      "portHelp": {
+        "in": "The output follows this signal, up at the Rise speed and down at the Fall speed.",
+        "trig": "A rising edge starts a rise to 1 followed by a fall.",
+        "time_cv": "Stretches both times: +1 is eight times longer, −1 eight times shorter.",
+        "out": "The slope, 0 … 1.",
+        "inv": "1 minus Out.",
+        "eor": "End of rise: high while the output falls.",
+        "eoc": "End of cycle: a 10 ms pulse when the fall is done."
+      }
+    },
+    "tp_mmb_arp": {
+      "slug": "sw-arp",
+      "name": "Arpeggiator",
+      "controlHelp": {
+        "division": "Note value of a step: 1/4, 1/8, 1/8 triplet, 1/16, 1/16 triplet or 1/32.",
+        "gate": "Note length as a part of the step.",
+        "channel": "MIDI channel it listens to; 0 = all.",
+        "latch": "On: the sequence keeps playing after you let go of the keys.",
+        "extclock": "On: one step per rising edge on Clk instead of the internal tempo."
+      },
+      "portHelp": {
+        "clock": "Step clock, used when ExtClk is on.",
+        "reset": "A rising edge goes back to the start of the sequence.",
+        "pitch": "Pitch of the current note, 1 V per octave (middle C = 0 V).",
+        "gate": "High while the note plays.",
+        "vel": "Velocity of the key, 0 … 1.",
+        "step": "A short pulse on every step, also with no keys held."
+      }
+    },
+    "tp_mmb_rhythm": {
+      "slug": "sw-rhythm",
+      "name": "Rhythm box",
+      "controlHelp": {
+        "run": "Starts and stops the rhythm.",
+        "extclock": "On: follows one pulse per beat on Clk instead of the Tempo knob.",
+        "level": "Overall output level."
+      },
+      "portHelp": {
+        "start": "Each pulse toggles start and stop, like a foot switch.",
+        "clock": "External beat, one pulse per beat (with ExtClk on).",
+        "reset": "A rising edge goes back to the start of bar A.",
+        "step": "A 10 ms pulse on every step.",
+        "bar": "A 10 ms pulse on beat one.",
+        "acc": "A 10 ms pulse on every accented step.",
+        "out_l": "Left audio output.",
+        "out_r": "Right audio output."
+      }
+    },
+    "tp_mmb_pads": {
+      "slug": "sw-pads",
+      "name": "Pads",
+      "controlHelp": {
+        "b3": "Button 3: a gate on G3 and a trigger on T3.",
+        "b4": "Button 4: a gate on G4 and a trigger on T4.",
+        "latch1": "On: button 1 toggles its gate on each press.",
+        "latch2": "On: button 2 toggles its gate on each press.",
+        "latch3": "On: button 3 toggles its gate on each press.",
+        "latch4": "On: button 4 toggles its gate on each press."
+      },
+      "portHelp": {
+        "gate_1": "High while button 1 is held (or toggled on with Latch).",
+        "gate_2": "High while button 2 is held (or toggled on with Latch).",
+        "gate_3": "High while button 3 is held (or toggled on with Latch).",
+        "gate_4": "High while button 4 is held (or toggled on with Latch).",
+        "trig_1": "A 10 ms pulse on each press of button 1.",
+        "trig_2": "A 10 ms pulse on each press of button 2.",
+        "trig_3": "A 10 ms pulse on each press of button 3.",
+        "trig_4": "A 10 ms pulse on each press of button 4.",
+        "any": "High while any of the four gates is high."
+      }
+    },
+    "tp_mmb_acid": {
+      "slug": "sw-acid",
+      "name": "Acid bass",
+      "controlHelp": {
+        "tune": "Pitch offset in semitones; a bass line usually wants −12 or −24.",
+        "level": "Output level."
+      },
+      "portHelp": {
+        "voct": "Pitch, 1 V per octave around middle C.",
+        "gate": "Note on and off.",
+        "accent": "High at the start of a note: the note is accented.",
+        "slide": "High: glide to the next note without a new attack.",
+        "cutoff_cv": "Cutoff modulation: ±1 is ±4 octaves.",
+        "env": "The filter envelope as CV, 0 … 1.",
+        "out": "The bass voice."
+      }
+    },
+    "tp_mmb_clock": {
+      "slug": "sw-clock",
+      "name": "Clock",
+      "controlHelp": {
+        "run": "Off: the clock stops and all gates stay low.",
+        "width": "Pulse width of the gate outputs.",
+        "div": "Length of the Div output in sixteenths (6 = dotted quarter)."
+      },
+      "portHelp": {
+        "reset": "A rising edge goes back to beat one.",
+        "tempo_cv": "Tempo modulation, exponential: +1 doubles the tempo.",
+        "bar": "One pulse per bar of four beats.",
+        "beat": "Quarter notes.",
+        "x2": "Eighth notes.",
+        "x3": "Eighth-note triplets.",
+        "x4": "Sixteenth notes, with swing: the step clock for sequencers.",
+        "div": "One pulse every Div sixteenths.",
+        "ramp": "A saw from 0 to 1 over each bar."
+      }
     }
   },
   "exampleNames": {

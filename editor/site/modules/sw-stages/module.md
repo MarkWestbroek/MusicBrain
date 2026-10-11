@@ -1,0 +1,92 @@
+# Stages segment generator
+
+## Overview
+
+A chain of segments: envelope or LFO (Mutable Instruments Stages).
+
+A port of the segment generator from Mutable Instruments Stages: up to six
+segments in a chain that together make one control signal. Without a loop
+it is an envelope with as many breakpoints as you like; with Loop on, the
+segments from L-start to L-end repeat and it becomes a multi-stage LFO.
+Active sets how many segments take part (1 to 6).
+
+Each segment has a type switch and two knobs: T (primary) and S
+(secondary). What they do depends on the type: on a ramp T is the time and
+S the shape, on a hold T is the level and S the time, on a step T is the
+level and S the glide. The Gate input starts or holds the chain, Out is the
+signal (0 to 1) and EOC is high while the first segment runs, so it can
+retrigger the chain or clock another module.
+
+## Controls
+
+| Control | Range | Default | What it does |
+|---|---|---|---|
+| T1 | 0 … 1 | 0.5 | The time of the first segment: faster or slower. |
+| S1 | 0 … 1 | 0.5 | Secondary knob of segment 1: shape on a ramp, time on a hold, glide on a step. |
+| type1 | R / H / S / A | R | Type of segment 1: ramp, step, hold or alternate (firmware order). |
+| T2 | 0 … 1 | 0.5 | Primary knob of segment 2: time on a ramp, level on a hold or step. |
+| S2 | 0 … 1 | 0.5 | Secondary knob of segment 2: shape on a ramp, time on a hold, glide on a step. |
+| type2 | R / H / S / A | R | Type of segment 2: ramp, step, hold or alternate (firmware order). |
+| T3 | 0 … 1 | 0.5 | Primary knob of segment 3: time on a ramp, level on a hold or step. |
+| S3 | 0 … 1 | 0.5 | Secondary knob of segment 3: shape on a ramp, time on a hold, glide on a step. |
+| type3 | R / H / S / A | R | Type of segment 3: ramp, step, hold or alternate (firmware order). |
+| T4 | 0 … 1 | 0.5 | Primary knob of segment 4: time on a ramp, level on a hold or step. |
+| S4 | 0 … 1 | 0.5 | Secondary knob of segment 4: shape on a ramp, time on a hold, glide on a step. |
+| type4 | R / H / S / A | R | Type of segment 4: ramp, step, hold or alternate (firmware order). |
+| T5 | 0 … 1 | 0.5 | Primary knob of segment 5: time on a ramp, level on a hold or step. |
+| S5 | 0 … 1 | 0.5 | Secondary knob of segment 5: shape on a ramp, time on a hold, glide on a step. |
+| type5 | R / H / S / A | R | Type of segment 5: ramp, step, hold or alternate (firmware order). |
+| T6 | 0 … 1 | 0.5 | Primary knob of segment 6: time on a ramp, level on a hold or step. |
+| S6 | 0 … 1 | 0.5 | Secondary knob of segment 6: shape on a ramp, time on a hold, glide on a step. |
+| type6 | R / H / S / A | R | Type of segment 6: ramp, step, hold or alternate (firmware order). |
+| Active | 1 … 6 | 3 | How many segments take part (1–6). |
+| Loop | off / on | off | Repeat the segments from L-start to L-end: an LFO. |
+| L-start | 0 … 5 | 0 | First segment of the loop (0 = segment 1). |
+| L-end | 0 … 5 | 2 | Last segment of the loop. |
+| Rate | 0.05 … 20 | 1 | Meant as an overall time scale; not applied in the current firmware. |
+
+## Ports
+
+| Port | Direction | Signal | What it carries |
+|---|---|---|---|
+| Gate | in | gate | Starts the chain, and holds it while high. |
+| Out | out | cv | The generated signal, 0 to 1. |
+| EOC | out | gate | High while the first segment runs. |
+
+## How it works
+
+The module wraps the `SegmentGenerator` from the original firmware, with
+the segment types ramp, step, hold and alternate. It runs in MusicBrain's
+control domain, updated 1000 times a second, which suits Stages: it is a
+control-rate design. The audio-rate oscillator modes of the original are
+left out.
+
+The knobs are passed on as the original's segment parameters; the output
+is used as it comes, from 0 to 1. The browser simulator compiles the same
+code to WebAssembly.
+
+## Runs on
+
+- **Teensy 4.1** (the MusicBrain Brain).
+- **The browser**: the editor's simulator runs the same C++ code as WebAssembly, so what you hear while patching is what the Brain plays.
+
+## Try it
+
+In the editor's example set: *🌌 Krell (zelfspelend)*, *🌌 Krell*.
+
+Editor: <https://editor.musicbrain.nl>
+
+## Sources & licences
+
+- Based on Mutable Instruments Stages by Émilie Gillet, open source under
+  the MIT licence (vendored in `firmware/lib/mi-stages`).
+- The MusicBrain wrapper is MIT licensed as well. This is a software port,
+  not the Mutable Instruments hardware.
+
+## Versions
+
+- **September 2026**: the output uses the full 0 to 1 range (it was divided
+  by 8, so a VCA opened to only 12.5 %); the browser runs the module as
+  WebAssembly.
+- **0.5.41**: first version (July 2026): six segments, loop, gate in, EOC
+  out.

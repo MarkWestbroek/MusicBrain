@@ -1,0 +1,1 @@
+A function generator: rise and fall, as an envelope or LFO.

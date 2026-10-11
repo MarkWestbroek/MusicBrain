@@ -1,0 +1,1 @@
+Arpeggiator: plays the keys you hold as a sequence.

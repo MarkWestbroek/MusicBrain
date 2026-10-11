@@ -264,7 +264,7 @@ function SamplerBankStrip({ cx, y, w, bank }: { cx: number; y: number; w: number
   const ts = useContext(TextScale);
   const link = useTeensyLink();
   const st = link.status.kind === 'connected' ? link.lastStatus : undefined;
-  useSyncExternalStore(subscribeBanks, banksVersion);
+  useSyncExternalStore(subscribeBanks, banksVersion, banksVersion);   // derde: ook buiten de browser (moduleSite.ts)
   let { text, tone } = bankTitle(bank, st);
   // Zonder Teensy: de serverbank die de simulator voor dit nummer laadt.
   let fromSim = false;
@@ -293,7 +293,7 @@ function ZangBankStrip({ cx, y, w, bank }: { cx: number; y: number; w: number; b
   const ts = useContext(TextScale);
   const link = useTeensyLink();
   const st = link.status.kind === 'connected' ? link.lastStatus : undefined;
-  useSyncExternalStore(subscribeLyricBanks, lyricBanksVersion);
+  useSyncExternalStore(subscribeLyricBanks, lyricBanksVersion, lyricBanksVersion);
   const k = Math.max(0, Math.round(bank));
   const nn = String(k).padStart(2, '0');
   let text: string, col: string, title: string;
