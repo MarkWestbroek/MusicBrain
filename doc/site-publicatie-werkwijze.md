@@ -110,6 +110,14 @@ component-level read-modify-post volstaat, paginakop toont "Software").
    `kind: software` op de component-docs);
 3. daarna cortex-borden: per bord `widget_export.py --3d` + herpublicatie.
 
+## Firmware- en editorreleases op /releases
+
+De releasepagina leest **niet** zelf van GitHub (ondanks het onderschrift):
+elk item is met de hand gepost. Recept: `publish_release_software.py`
+(`python publish_release_software.py <base> <token>`). Per nieuwe firmware
+een item in `ITEMS` erbij, Engelse highlights, `date` niet later dan
+vandaag in UTC (anders toont Imprint het nog niet). Lokaal, dan live.
+
 ## Fout gepost? Terugtrekken (tombstone)
 
 ```bash
