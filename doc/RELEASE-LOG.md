@@ -17,6 +17,55 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-12 — Knopbewegingen in de sporen; een song als bestand op schijf (editor, ED-SM-10 stap 2 en 3)
+- **Sporen** (≣): een spoor schrijft de knopbewegingen mee, net als een
+  take (`SongTrack.automation`, songtijd). Drop-in vervangt ze in de regio;
+  op het eind van de regio gaat elke knop die daar bewoog terug naar de stand
+  die het spoor had (`spliceAutomation`). De browseropslag bewaart ze; songs
+  van vóór vandaag laden met een lege lijst.
+- **Tonen**: onder het spoor een regel "🎛 bewogen: Timbre"; open (standaard)
+  per knop een smalle lijn, precies onder het balkje van het spoor, met de
+  lus en de afspeelkop erop. Klik op de regel om de lijnen te verbergen. In
+  📚 Takes staat 🎛 bij ▶ MIDI als de take knopbewegingen heeft.
+- **Export** (⤴): per spoor ook `n.auto.json`; gebonden knoppen als CC in
+  `n.mid`.
+- **Song als bestand** (Mark: "kan ik bewaarde opnames van schijf inlezen?").
+  Tot nu toe kon dat niet: ⤓ bewaart alleen in de browser, en de export heeft
+  de sporen zelf niet. Nu: **💾 bestand** schrijft de hele song als één zip
+  (`<naam>.mmbsong.zip`: song.json, per spoor wav 24 bit, mid en auto.json),
+  **📁 van schijf** leest hem weer in, ook op een ander apparaat
+  (`songFile.ts`). Een zip die opnieuw is ingepakt met compressie geeft een
+  duidelijke melding.
+- Tests: `songAutomation.test.ts` (naar songtijd, drop-in, lijnen, bestand
+  heen en terug, export). In de browser nagelopen: spoor opnemen met een
+  draai aan Timbre, lijn zichtbaar, 💾, spoor weg, 📁, alles terug.
+- Afspelen van een song beweegt de knoppen van de patch niet: de sporen zijn
+  audio, de beweging zit al in het geluid. De lijnen tonen hem.
+
+### 2026-10-12 — Knopbewegingen in de take, en terugspelen (editor, ED-SM-10 stap 1)
+- Mark: "Ik bewoog de cutoff, maar met de muis. Dat zou eigenlijk in de
+  opname moeten landen." Nu: zolang ⏺ loopt wordt elke knopwijziging
+  meegeschreven, zonder extra knop (muis op front of patcher, Roto-Control,
+  een gebonden MIDI-knop). Ze komt via `setPatchControl` (`onControlWrite`),
+  hoogstens één waarde per knop per 10 ms; de stand van vóór de eerste
+  beweging staat op t = 0.
+- Een vierde bestand bij de take: `<take>.auto.json` (`automation.ts`).
+  Gebonden knoppen staan er ook als CC in de .mid, zodat een DAW ze als
+  CC-lane ziet. De melding na de opname zegt welke knoppen bewogen zijn
+  ("bewogen: Timbre").
+- Terugspelen: **▶ Opnieuw** bij de laatste take, **▶ MIDI** in 📚 Takes, of
+  de .mid en de .auto.json samen kiezen in de MIDI-speler. Noten én
+  knopbewegingen; de knoppen op front, patcher en rack draaien mee. Het gaat
+  via het previewpad van de knoptour (nu `controlPreview.ts`): engine en
+  Teensy krijgen de waarde, de patch niet (geen Bewaar-knop, geen undo). Bij
+  stoppen gaat alles terug op de patchwaarde; draai je tijdens het afspelen
+  zelf aan een knop, dan stopt die knop met meespelen. Een take uit de
+  library landt op een kopie van de patch met nieuwe id's; de knop wordt
+  teruggevonden op moduletype en volgorde.
+- Tests: `automation.test.ts` (opnemen en terugspelen geeft dezelfde waarden
+  op dezelfde tijden, springen, CC niet dubbel, nieuwe id's).
+- Nog niet: automation per spoor in ≣ Sporen (stap 2), de lanes (stap 3).
+
 ### 2026-10-11 — Stemmen wijzigen raakt geen andere patches meer (editor)
 - Mark: "ik maakte de 4-stemmige ladder 6-stemmig en toen 8; als ik terugga
   naar de 6 en 4 hebben die ook 8 stemmen." Patches die met "Bewaar als…"

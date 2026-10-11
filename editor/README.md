@@ -255,6 +255,11 @@ Binnenkijken blijft Nederlands; een eigen patch houdt zijn eigen tekst.
   volume, pan, dempen en weg. **⤓** bewaart de song in de browser (bewust,
   nooit vanzelf), **📂** laadt er een terug, **⤴** exporteert de mix als
   wav en per spoor de .mid en de patch (zeven bestanden bij drie sporen).
+  **💾 bestand** zet de hele song als één zip op schijf (sporen, MIDI,
+  knopbewegingen, patches), **📁 van schijf** leest hem weer in, ook op een
+  ander apparaat. Knoppen die je tijdens het inspelen draait staan onder het
+  spoor ("🎛 bewogen: Cutoff") en als lijn op de tijd van de song; drop-in
+  vervangt ze in de regio.
   Ontwerp: [doc/plans/overdub.md](../doc/plans/overdub.md).
 - **Lint** (〰 in de werkbalk van het toetsenbord, ook in de Simulatie-tab):
   in plaats van toetsen een draad zoals op het Trautonium. De plek is de
@@ -285,6 +290,9 @@ Binnenkijken blijft Nederlands; een eigen patch houdt zijn eigen tekst.
   te stoppen; de bestanden worden gedownload en de take staat klaar in de
   Simulatie-tab (naar de library, bewerken). In de speelmodus staat de knop in
   de werkbalk van het toetsenbord, in de expertstand rechtsboven naast ▶ Sim.
+  Knoppen die je tijdens de opname draait gaan mee, als `.auto.json` naast de
+  .mid. **▶ Opnieuw** speelt de take terug met noten én knopbewegingen; de
+  knoppen draaien mee en staan na het stoppen weer waar ze stonden.
 - **Stemtoon**: het keuzelijstje **A = …** naast ▶ Sim zet een persoonlijke
   stemtoon (bijvoorbeeld 432) voor elke patch; MIDI-IN schuift alle
   toonhoogtes mee.

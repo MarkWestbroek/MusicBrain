@@ -998,6 +998,22 @@ export class AudioEngine {
     this.simSide?.dispose();    this.simSide = null;
   }
 
+  /** Een waarde op de panelen tonen zonder hem in de patch te zetten
+   *  (automation afspelen); `undefined` haalt hem weer weg. */
+  showLive(moduleId: string, controlId: string, value: ControlValue | undefined): void {
+    const cur = this.status.liveControls[moduleId] ?? {};
+    if (value === undefined) {
+      if (!(controlId in cur)) return;
+      const rest = { ...cur };
+      delete rest[controlId];
+      this.status.liveControls = { ...this.status.liveControls, [moduleId]: rest };
+    } else {
+      if (cur[controlId] === value) return;
+      this.status.liveControls = { ...this.status.liveControls, [moduleId]: { ...cur, [controlId]: value } };
+    }
+    this.emit();
+  }
+
   private emit(): void {
     const s = { ...this.status };
     this.listeners.forEach((fn) => fn(s));

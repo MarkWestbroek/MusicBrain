@@ -21,6 +21,8 @@
 
 import * as Tone from 'tone';
 
+import { AutomationRecorder, automationToRegion, listenAutomation, spliceAutomation } from '../automation';
+import { getProject } from '../store';
 import type { ModularProject } from '../types';
 import type { AudioEngine } from './AudioEngine';
 import { getEngine } from './engineSingleton';
@@ -54,6 +56,8 @@ export class SongTransport {
   private players: Player[] = [];
   private recorder = new MasterRecorder();
   private midiRec = new MidiRecorder();
+  /** Knopbewegingen lopen mee, op dezelfde klok als de MIDI. */
+  private autoRec = new AutomationRecorder();
   private midiUnsub: (() => void) | null = null;
   /** Contexttijd waarop songtijd 0 ligt (de spelers lopen daar vanaf). */
   private origin = 0;
@@ -157,6 +161,7 @@ export class SongTransport {
     if (wasFree) { void this.finishFree(this.state.armed!); return; }
     if (this.recorder.active) void this.recorder.stop().catch(() => undefined);
     if (this.midiRec.active) this.midiRec.stop(0);
+    if (this.autoRec.active) this.autoRec.stop();
     this.set({ phase: 'idle', armed: null, waiting: false });
   }
 
@@ -176,8 +181,7 @@ export class SongTransport {
       const ctx = this.ctx();
       await this.recorder.start(this.engine.recorderTap());
       this.recCtxAt = ctx.currentTime;
-      this.midiRec.start(performance.now());
-      this.midiUnsub = this.engine.onMidi(this.midiRec.record);
+      this.startTaps();
       const countIn = ctx.currentTime + 0.15;
       this.origin = countIn + barMs(this.song) / 1000;
       this.restartAt(this.origin);
@@ -192,10 +196,21 @@ export class SongTransport {
       this.set({ error: e instanceof Error ? e.message : String(e) });
     }
   }
+  /** MIDI en knopbewegingen meeschrijven vanaf nu (zelfde klok). */
+  private startTaps(): void {
+    const now = performance.now();
+    this.midiRec.start(now);
+    this.autoRec.start(getProject().activePatchId ?? '', { now });
+    const offMidi = this.engine.onMidi(this.midiRec.record);
+    const offAuto = listenAutomation(this.autoRec);
+    this.midiUnsub = () => { offMidi(); offAuto(); };
+  }
+
   private async finishFree(i: number): Promise<void> {
     try {
       const r = await this.recorder.stop();
       const events = this.midiRec.stop(0);
+      const moves = this.autoRec.stop();
       const first = this.recorder.startFrame ?? Math.round(this.recCtxAt * r.sampleRate);
       const startFrame = Math.round(this.origin * r.sampleRate) - first;
       const frames = Math.max(0, r.frames - startFrame);
@@ -207,6 +222,7 @@ export class SongTransport {
         name: info.name || prev?.name || `Spoor ${i + 1}`,
         audio: frames > 0 ? { channels: cutRegion(r.channels, startFrame, frames), sampleRate: r.sampleRate } : null,
         midi: midiToRegion(events, (this.origin - this.recCtxAt) * 1000, lengthMs),
+        automation: automationToRegion(moves, (this.origin - this.recCtxAt) * 1000, lengthMs),
         patch: info.snapshot,
       };
       this.set({ song: withTrack(this.song, i, track), phase: 'idle', armed: null, waiting: false });
@@ -225,8 +241,7 @@ export class SongTransport {
       const ctx = this.ctx();
       await this.recorder.start(this.engine.recorderTap());
       this.recCtxAt = ctx.currentTime;
-      this.midiRec.start(performance.now());
-      this.midiUnsub = this.engine.onMidi(this.midiRec.record);
+      this.startTaps();
       // De volgende keer dat de lus bij het begin van de regio is.
       const len = (lp.end - lp.start) / 1000;
       const since = ctx.currentTime - (this.origin + lp.start / 1000);
@@ -247,6 +262,7 @@ export class SongTransport {
     this.midiUnsub?.(); this.midiUnsub = null;
     const r = await this.recorder.stop();
     const events = this.midiRec.stop(0);
+    const moves = this.autoRec.stop();
     if (this.state.armed !== i) return;
     const first = this.recorder.startFrame ?? Math.round(this.recCtxAt * r.sampleRate);
     const startFrame = Math.round(start * r.sampleRate) - first;
@@ -259,7 +275,9 @@ export class SongTransport {
     const base = prev.audio && prev.audio.sampleRate === r.sampleRate ? prev.audio.channels : [new Float32Array(0), new Float32Array(0)];
     const audio = { channels: punchIn(base, piece, Math.round(atMs / 1000 * r.sampleRate)), sampleRate: r.sampleRate };
     const midi = spliceMidi(prev.midi, midiToRegion(events, (start - this.recCtxAt) * 1000, (end - start) * 1000, atMs), atMs, atMs + (end - start) * 1000);
-    const track: SongTrack = { ...prev, name: prev.audio ? prev.name : (info.name || `Spoor ${i + 1}`), audio, midi, patch: prev.patch ?? info.snapshot };
+    const lenMs = (end - start) * 1000;
+    const automation = spliceAutomation(prev.automation ?? [], automationToRegion(moves, (start - this.recCtxAt) * 1000, lenMs, atMs), atMs, atMs + lenMs);
+    const track: SongTrack = { ...prev, name: prev.audio ? prev.name : (info.name || `Spoor ${i + 1}`), audio, midi, automation, patch: prev.patch ?? info.snapshot };
     this.set({ song: withTrack(this.song, i, track), phase: 'playing', armed: null, waiting: false });
     // Het spoor opnieuw in de lus, op de plek waar de anderen nu zijn.
     this.startPlayer(track, this.ctx().currentTime + 0.05);

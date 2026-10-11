@@ -8,7 +8,7 @@ import { openTakeEditor, takeFromBytes } from './TakeEditorWindow';
 
 export function TakeLibraryPanel({ settings, onMidi, onPatch }: {
   settings: LibrarySettings;
-  onMidi: (bytes: Uint8Array, name: string, slug: string) => void;
+  onMidi: (bytes: Uint8Array, name: string, slug: string, auto?: Uint8Array | null) => void;
   onPatch: (bytes: Uint8Array, name: string) => void;
 }): JSX.Element {
   const [folder, setFolder] = useState(settings.folder);
@@ -47,8 +47,10 @@ export function TakeLibraryPanel({ settings, onMidi, onPatch }: {
     setBusy(`${t.group}:${what}`); setMsg(null);
     try {
       const bytes = await fetchAsset(asset);
-      if (what === 'mid') onMidi(bytes, `${t.group}.mid`, asset.slug); else onPatch(bytes, t.group);
-      setMsg({ ok: true, text: what === 'mid' ? `${t.group}.mid staat in de MIDI-speler (bron: MIDI-bestand).` : `Patch van ${t.group} toegevoegd en actief.` });
+      // De knopbewegingen gaan mee in de speler (ED-SM-10).
+      const auto = what === 'mid' && t.auto ? await fetchAsset(t.auto) : null;
+      if (what === 'mid') onMidi(bytes, `${t.group}.mid`, asset.slug, auto); else onPatch(bytes, t.group);
+      setMsg({ ok: true, text: what === 'mid' ? `${t.group}.mid staat in de MIDI-speler (bron: MIDI-bestand)${auto ? ', met de knopbewegingen' : ''}.` : `Patch van ${t.group} toegevoegd en actief.` });
     } catch (e) {
       setMsg({ ok: false, text: e instanceof Error ? e.message : String(e) });
     } finally { setBusy(null); }
@@ -82,8 +84,8 @@ export function TakeLibraryPanel({ settings, onMidi, onPatch }: {
                   </td>
                   <td style={{ ...cell, whiteSpace: 'nowrap' }}>
                     <button disabled={!t.mid || busy !== null} onClick={() => void load(t, 'mid')}
-                      title="De MIDI van deze take in de MIDI-speler zetten (bron wordt MIDI-bestand)">
-                      {busy === `${t.group}:mid` ? '…' : '▶ MIDI'}
+                      title={t.auto ? 'De MIDI van deze take in de MIDI-speler zetten, met de knopbewegingen (bron wordt MIDI-bestand)' : 'De MIDI van deze take in de MIDI-speler zetten (bron wordt MIDI-bestand)'}>
+                      {busy === `${t.group}:mid` ? '…' : t.auto ? '▶ MIDI 🎛' : '▶ MIDI'}
                     </button>{' '}
                     <button disabled={!t.patch || busy !== null} onClick={() => void load(t, 'patch')}
                       title="De patch van deze take als nieuwe patch toevoegen (je eigen patches blijven staan)">

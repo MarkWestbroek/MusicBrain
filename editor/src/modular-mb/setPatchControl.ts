@@ -14,6 +14,10 @@
 //   2. live naar de Teensy (FW-LIVE-1): per doel één controlPoke, alleen voor
 //      scalaire waarden (joystick-standen hebben geen poke-vorm);
 //   3. persistent: `patch.controlState[doel][control] = waarde`.
+//
+// Wie wil weten wat er gedraaid wordt (de automation-recorder, ED-SM-10)
+// luistert met `onControlWrite`; hij hoort de knop waar je aan draaide, niet
+// elke stem.
 
 import { polyControlTargets } from './polyExpand';
 import { findTwin } from './recipe/edits';
@@ -48,15 +52,30 @@ export function writePatchControl(
   };
 }
 
+/** Eén controlwijziging zoals de gebruiker hem deed. `prev` is de waarde
+ *  in de patch ervóór (undefined = nooit gezet, dus de default). */
+export interface ControlWrite {
+  patchId: string; moduleId: string; controlId: string;
+  value: ControlValue; prev: ControlValue | undefined; twins: boolean;
+}
+const writeListeners = new Set<(w: ControlWrite) => void>();
+export function onControlWrite(fn: (w: ControlWrite) => void): () => void {
+  writeListeners.add(fn);
+  return () => { writeListeners.delete(fn); };
+}
+
 /** Met bijwerkingen: de store bijwerken én de waarde live naar de Teensy
  *  sturen. Geeft de module-id's terug waarop geschreven is. */
 export function setPatchControl(
   patchId: string, moduleId: string, controlId: string, value: ControlValue, opts: { twins?: boolean } = {},
 ): string[] {
-  const { targets } = writePatchControl(getProject(), patchId, moduleId, controlId, value, opts);
+  const before = getProject();
+  const { targets } = writePatchControl(before, patchId, moduleId, controlId, value, opts);
   if (targets.length === 0) return targets;
+  const prev = before.patches.find((x) => x.id === patchId)?.controlState[moduleId]?.[controlId];
   if (typeof value === 'number' || typeof value === 'boolean')
     for (const id of targets) void sendControlPoke(id, controlId, value);
   updateProject((p) => writePatchControl(p, patchId, moduleId, controlId, value, opts).project);
+  for (const fn of writeListeners) fn({ patchId, moduleId, controlId, value, prev, twins: Boolean(opts.twins) });
   return targets;
 }

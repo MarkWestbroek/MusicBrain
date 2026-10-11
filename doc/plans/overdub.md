@@ -98,7 +98,9 @@ Niet in versie 1.
 ## 4. Open
 
 - Export zonder stems terugladen: per spoor renderen uit mid + patch
-  (headless, zoals de patch-library meet).
+  (headless, zoals de patch-library meet). *2026-10-12: anders opgelost,
+  met een songbestand dat de sporen wél heeft (💾 bestand / 📁 van schijf,
+  `songFile.ts`).*
 - Reaper-project met vier sporen.
 - De ritmebox op "de één" laten starten bij het aftellen (Start/Stop-pad).
 - Teensy-fase.

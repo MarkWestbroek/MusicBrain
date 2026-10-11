@@ -8,7 +8,8 @@
 // als het langste spoor. Een regio (van maat … tot maat) kun je daarna
 // loopen en op een spoor opnieuw inspelen (drop-in), zo vaak je wilt.
 
-import type { ModularProject } from '../types';
+import { automationCc, trackAutomationFile, type AutomationEvent } from '../automation';
+import type { MidiBinding, ModularProject } from '../types';
 import type { MidiEvent } from './midiRecorder';
 
 export const MAX_TRACKS = 4;
@@ -26,6 +27,9 @@ export interface SongTrack {
   audio: TrackAudio | null;
   /** De gespeelde MIDI, t in ms vanaf het begin van de song. */
   midi: MidiEvent[];
+  /** Knopbewegingen tijdens het inspelen (ED-SM-10), t in ms vanaf het
+   *  begin van de song; drop-in vervangt ze in de regio. */
+  automation: AutomationEvent[];
   /** Momentopname van de patch (patchSnapshot), om later opnieuw te renderen. */
   patch: ModularProject | null;
 }
@@ -51,7 +55,7 @@ export function newSong(bpm = 120): Song {
   return { id: newId('song'), name: '', bpm: clampBpm(bpm), beatsPerBar: 4, metronome: true, loop: null, tracks: [] };
 }
 export function emptyTrack(name: string): SongTrack {
-  return { id: newId('trk'), name, gain: 0.8, pan: 0, mute: false, audio: null, midi: [], patch: null };
+  return { id: newId('trk'), name, gain: 0.8, pan: 0, mute: false, audio: null, midi: [], automation: [], patch: null };
 }
 export const clampBpm = (v: number): number => (Number.isFinite(v) ? Math.max(30, Math.min(300, Math.round(v * 10) / 10)) : 120);
 
@@ -206,9 +210,11 @@ export interface Encoders {
 /**
  * De exportset: `mix.wav`, en per spoor `n.mid` en `n.patch.json` (zeven
  * bestanden bij drie sporen). `withStems` zet ook `n.wav` erbij, zodat de
- * export ook zonder renderen weer te laden is.
+ * export ook zonder renderen weer te laden is. Heeft een spoor
+ * knopbewegingen, dan komt `n.auto.json` erbij, en gebonden knoppen
+ * (`bindings`) staan ook als CC in `n.mid`.
  */
-export function exportFiles(song: Song, enc: Encoders, withStems = false): ExportFile[] {
+export function exportFiles(song: Song, enc: Encoders, withStems = false, bindings: readonly MidiBinding[] = []): ExportFile[] {
   const tracks = filledTracks(song);
   const rate = tracks[0]?.audio?.sampleRate ?? 48000;
   const frames = songFrames(song, rate);
@@ -218,7 +224,12 @@ export function exportFiles(song: Song, enc: Encoders, withStems = false): Expor
   ];
   tracks.forEach((t, i) => {
     const n = i + 1;
-    files.push({ name: `${base}-${n}.mid`, blob: new Blob([enc.smf(t.midi, { lengthMs: songMs(song), name: t.name, bpm: song.bpm, beatsPerBar: song.beatsPerBar })], { type: 'audio/midi' }) });
+    const auto = trackAutomationFile(t.patch, t.automation ?? [], songMs(song));
+    const cc = auto ? automationCc(auto, bindings) : null;
+    if (auto && cc?.lanes.length) auto.cc = cc.lanes;
+    const midi = cc?.events.length ? [...t.midi, ...cc.events].sort((a, b) => a.t - b.t) : t.midi;
+    files.push({ name: `${base}-${n}.mid`, blob: new Blob([enc.smf(midi, { lengthMs: songMs(song), name: t.name, bpm: song.bpm, beatsPerBar: song.beatsPerBar })], { type: 'audio/midi' }) });
+    if (auto) files.push({ name: `${base}-${n}.auto.json`, blob: new Blob([JSON.stringify(auto)], { type: 'application/json' }) });
     if (t.patch) files.push({ name: `${base}-${n}.patch.json`, blob: new Blob([JSON.stringify(t.patch, null, 1)], { type: 'application/json' }) });
     if (withStems && t.audio) files.push({ name: `${base}-${n}.wav`, blob: new Blob([enc.wav(t.audio.channels, t.audio.sampleRate)], { type: 'audio/wav' }) });
   });

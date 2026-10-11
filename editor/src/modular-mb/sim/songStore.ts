@@ -3,6 +3,7 @@
 // automatisch. De sporen gaan erin als ruwe stereo-floats, zodat laden
 // geen renderen vraagt; de mixdown wordt bij het laden opnieuw gemaakt.
 
+import type { AutomationEvent } from '../automation';
 import type { ModularProject } from '../types';
 import type { MidiEvent } from './midiRecorder';
 import { MAX_TRACKS, clampBpm, clampRegion, type Region, type Song, type SongTrack } from './song';
@@ -16,6 +17,8 @@ export interface StoredTrack {
   /** Per kanaal de floats; leeg = nog geen opname. */
   channels: ArrayBuffer[];
   midi: MidiEvent[];
+  /** Knopbewegingen (ED-SM-10); ontbreekt in songs van vóór 2026-10-12. */
+  automation?: AutomationEvent[];
   patch: string | null;
 }
 export interface StoredSong {
@@ -35,6 +38,7 @@ export function toStored(song: Song, savedAt = Date.now()): StoredSong {
       sampleRate: t.audio?.sampleRate ?? 0,
       channels: t.audio ? t.audio.channels.map((c) => c.slice().buffer) : [],
       midi: t.midi,
+      automation: t.automation,
       patch: t.patch ? JSON.stringify(t.patch) : null,
     })),
   };
@@ -45,6 +49,7 @@ export function fromStored(s: StoredSong): Song {
     id: t.id, name: t.name ?? '', gain: finite(t.gain, 0.8), pan: finite(t.pan, 0), mute: !!t.mute,
     audio: t.channels?.length ? { channels: t.channels.map((b) => new Float32Array(b)), sampleRate: t.sampleRate } : null,
     midi: Array.isArray(t.midi) ? t.midi : [],
+    automation: Array.isArray(t.automation) ? t.automation : [],
     patch: parsePatch(t.patch),
   }));
   const song: Song = {

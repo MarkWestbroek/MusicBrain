@@ -6,6 +6,7 @@
 // uit andere sporen dan het eerste), SMPTE-tijdbasis. Meta en SysEx worden
 // overgeslagen. Alle sporen worden samengevoegd tot één lijst in ms.
 
+import type { AutomationEvent, AutomationSink } from '../automation';
 import type { MidiEvent, MidiListener, MidiSource } from './MidiSource';
 import { encodeSmf, MARKER_LOOP_START, MARKER_LOOP_END, MARKER_TEL1 } from './midiRecorder';
 import { parseSmf, noteSpans, controllerSeries, SmfError, type ParsedSmf, type SmfEvent, type LoopRegion, type Grid, type NoteSpan, type CtlKind, type CtlSeries } from '../../take-player/smf';
@@ -34,6 +35,10 @@ export function toMidiEvent(b: readonly number[]): MidiEvent | null {
  * timer zijn injecteerbaar voor tests. Springen (seek) en een lusvenster
  * zoals in een DAW; na een sprong krijgt de patch de laatste stand van de
  * controllers, pitch bend en aftertouch mee ("chase").
+ *
+ * Met automation (ED-SM-10, `setAutomation`) speelt hij ook de knop-
+ * bewegingen van de take: op tijd naar de sink, bij een sprong de stand van
+ * dat moment, bij stoppen alles terug.
  */
 export class MidiFileSource implements MidiSource, Playback {
   readonly id = 'file';
@@ -55,6 +60,8 @@ export class MidiFileSource implements MidiSource, Playback {
   private gridOverride: Partial<Grid> | null = null;
   /** Afspeelsnelheid (1 = zoals opgenomen). Alleen voor de sim; een widget met audio laat hem op 1. */
   private speed = 1;
+  /** Knopbewegingen van de take (op tijd) en waar ze heen gaan. */
+  private auto: { events: AutomationEvent[]; sink: AutomationSink; idx: number; skipCc: Set<number> } | null = null;
   loop = true;
 
   constructor(
@@ -66,16 +73,50 @@ export class MidiFileSource implements MidiSource, Playback {
   onState(fn: () => void): () => void { this.stateListeners.add(fn); return () => { this.stateListeners.delete(fn); }; }
   private changed(): void { this.stateListeners.forEach((fn) => fn()); }
 
-  load(file: ParsedSmf, name: string, origin: { slug: string } | null = null): void {
+  /** `keepAutomation`: hetzelfde bestand opnieuw (tempo of lus bewerkt); de
+   *  knopbewegingen blijven erbij. */
+  load(file: ParsedSmf, name: string, origin: { slug: string } | null = null, keepAutomation = false): void {
     const wasPlaying = this.timer !== null;
     this.fileOrigin = origin;
     this.halt();
+    if (!keepAutomation) this.setAutomation(null);
     this.file = file; this.fileName = name; this.startAt = 0; this.gridOverride = null;
     this.loopRegion = file.loop ? { ...file.loop } : null;
     if (wasPlaying) this.start(); else this.changed();
   }
 
   parsed(): ParsedSmf | null { return this.file; }
+
+  /** Knopbewegingen bij het geladen bestand; null = geen. `cc` = CC-lanes in
+   *  de .mid die dezelfde beweging dragen (gebonden knoppen): die slaat de
+   *  speler over. Ná `load` zetten; een nieuw bestand haalt ze weg. */
+  setAutomation(a: { events: readonly AutomationEvent[]; sink: AutomationSink; cc?: readonly { ch: number; cc: number }[] } | null): void {
+    if (this.auto) { this.auto.sink.restore(); this.auto.sink.dispose?.(); }
+    this.auto = a ? {
+      events: [...a.events].sort((x, y) => x.t - y.t), sink: a.sink, idx: 0,
+      skipCc: new Set((a.cc ?? []).map((l) => ((0xB0 | (l.ch - 1)) << 8) | l.cc)),
+    } : null;
+    if (this.auto && this.timer) this.chaseAuto(this.position());
+    this.changed();
+  }
+
+  /** Aantal knopbewegingen bij het bestand (0 = geen automation). */
+  automationCount(): number { return this.auto?.events.length ?? 0; }
+
+  private skips(b: readonly number[]): boolean {
+    return !!this.auto && (b[0]! & 0xF0) === 0xB0 && this.auto.skipCc.has((b[0]! << 8) | (b[1] ?? 0));
+  }
+
+  /** Automation: de laatste stand per knop van vóór `ms`, en de index daar. */
+  private chaseAuto(ms: number): void {
+    const a = this.auto;
+    if (!a) return;
+    let i = 0;
+    const last = new Map<string, AutomationEvent>();
+    while (i < a.events.length && a.events[i]!.t < ms) { const e = a.events[i]!; last.set(`${e.moduleId}/${e.controlId}`, e); i++; }
+    a.idx = i;
+    for (const e of last.values()) a.sink.apply(e);
+  }
 
   origin(): { slug: string } | null { return this.fileOrigin; }
   fileNameOf(): string | null { return this.fileName; }
@@ -173,12 +214,13 @@ export class MidiFileSource implements MidiSource, Playback {
     const f = this.file;
     this.releaseAll();
     this.t0 = this.now() - ms / this.speed;
+    this.chaseAuto(ms);
     if (!f) { this.idx = 0; return; }
     let i = 0;
     const last = new Map<string, number[]>();   // laatste stand per soort
     while (i < f.events.length && f.events[i]!.t < ms) {
       const b = f.events[i]!.bytes, s = b[0]! & 0xF0;
-      if (s === 0xB0) last.set(`cc${b[0]}:${b[1]}`, b);
+      if (s === 0xB0 && !this.skips(b)) last.set(`cc${b[0]}:${b[1]}`, b);
       else if (s === 0xE0 || s === 0xD0) last.set(`s${b[0]}`, b);
       i++;
     }
@@ -189,6 +231,7 @@ export class MidiFileSource implements MidiSource, Playback {
   private halt(): void {
     if (this.timer) { clearInterval(this.timer); this.timer = null; }
     this.releaseAll();
+    this.auto?.sink.restore();
   }
 
   private releaseAll(): void {
@@ -213,9 +256,16 @@ export class MidiFileSource implements MidiSource, Playback {
       const ev = f.events[this.idx]!;
       // In een lusvenster hoort een noot-aan precies op het einde bij de volgende ronde.
       if (this.loop && this.loopRegion && ev.t >= b.end && (ev.bytes[0]! & 0xF0) === 0x90 && (ev.bytes[2] ?? 0) > 0) break;
-      const e = toMidiEvent(ev.bytes);
+      const e = this.skips(ev.bytes) ? null : toMidiEvent(ev.bytes);
       this.idx++;
       if (e) this.emit(e);
+    }
+    const a = this.auto;
+    if (a) while (a.idx < a.events.length && a.events[a.idx]!.t <= until) {
+      const ev = a.events[a.idx]!;
+      if (this.loop && this.loopRegion && ev.t >= b.end) break;
+      a.idx++;
+      a.sink.apply(ev);
     }
     const atEnd = this.loop ? pos >= b.end : (this.idx >= f.events.length && pos >= f.durationMs);
     if (!atEnd) return;

@@ -7,16 +7,17 @@
 // Teensy, maar niet in de patch. Zo komt er geen Bewaar-knop en geen undo-
 // punt. Bij stoppen gaat de knop terug naar zijn patchwaarde; "Houden" in de
 // pauze zet de waarde van dat moment via setPatchControl wél in de patch.
+// Het previewpad deelt de tour met het afspelen van automation (controlPreview.ts).
 
 import { useSyncExternalStore } from 'react';
 
+import { previewControl as preview } from './controlPreview';
 import { patchModulesInSignalOrder } from './frontLayout';
 import { setPatchControl, writePatchControl } from './setPatchControl';
 import { getEngine } from './sim/engineSingleton';
 import { getProject } from './store';
 import { fromTaper, toTaper } from './taper';
 import { patchTempoOf } from './tempo';
-import { sendControlPoke } from './teensyLink';
 import { defaultValueOf, resolveControls, type Control, type ControlValue } from './types';
 
 // ── zuiver: het verloop van één knop ─────────────────────────────────────
@@ -91,15 +92,6 @@ let noteTimer: ReturnType<typeof setTimeout> | null = null;
 let held: number[] = [];
 let elapsed = 0, lastTick = 0;
 let ctx: { c: Control; orig: ControlValue; range?: { min: number; max: number }; targets: string[] } | null = null;
-
-/** De waarde op alle doelen, live, buiten de patch om. */
-function preview(controlId: string, targets: readonly string[], v: ControlValue): void {
-  const engine = getEngine();
-  for (const id of targets) {
-    engine.updateControl(id, controlId, v);
-    if (typeof v === 'number' || typeof v === 'boolean') void sendControlPoke(id, controlId, v);
-  }
-}
 
 function stopNotes(): void {
   if (noteTimer) clearTimeout(noteTimer);

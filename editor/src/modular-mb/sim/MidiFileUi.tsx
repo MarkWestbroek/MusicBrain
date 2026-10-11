@@ -2,6 +2,8 @@
 // kiezen en lus aan/uit; transport en voortgang zitten in de pianorol.
 
 import { useEffect, useState } from 'react';
+import { automationSink, parseAutomation } from '../automation';
+import { getProject } from '../store';
 import { MidiFileSource, parseSmf, encodeEdited } from './midiFilePlayer';
 import { MidiRoll } from './MidiRoll';
 import { offerFromSysex } from './PatchInbox';
@@ -27,7 +29,7 @@ export function MidiFileUi({ source, running, onStartSim, onReplace }: {
   /** Het nieuwe bestand laden; de plek blijft staan. */
   function reloadFrom(bytes: Uint8Array<ArrayBuffer>, name: string): void {
     const pos = source.position();
-    source.load(parseSmf(bytes), name, source.origin());
+    source.load(parseSmf(bytes), name, source.origin(), true);
     source.seek(pos);
   }
   function download(): void {
@@ -56,14 +58,26 @@ export function MidiFileUi({ source, running, onStartSim, onReplace }: {
   useEffect(() => source.onState(() => setTick((x) => x + 1)), [source]);
   const st = source.state();
 
-  async function pick(file: File | undefined): Promise<void> {
-    if (!file) return;
+  /** Een .mid, eventueel met de .auto.json van dezelfde take erbij (of
+   *  alleen de .auto.json bij het bestand dat er al staat). */
+  async function pick(files: FileList | null): Promise<void> {
+    const all = [...(files ?? [])];
+    const file = all.find((f) => /\.midi?$/i.test(f.name));
+    const autoFile = all.find((f) => /\.auto\.json$/i.test(f.name));
+    if (!file && !autoFile) return;
     try {
-      const parsed = parseSmf(new Uint8Array(await file.arrayBuffer()));
-      if (parsed.events.length === 0) throw new Error('Het bestand bevat geen noten of controllers.');
-      source.load(parsed, file.name);
+      if (file) {
+        const parsed = parseSmf(new Uint8Array(await file.arrayBuffer()));
+        if (parsed.events.length === 0) throw new Error('Het bestand bevat geen noten of controllers.');
+        source.load(parsed, file.name);
+        void offerFromSysex(parsed.sysex, file.name);
+      }
+      if (autoFile) {
+        if (!source.parsed()) throw new Error('Kies eerst de .mid van de take (of beide tegelijk).');
+        const a = parseAutomation(new Uint8Array(await autoFile.arrayBuffer()));
+        source.setAutomation({ events: a.events, cc: a.cc, sink: automationSink(a, getProject) });
+      }
       setErr(null);
-      void offerFromSysex(parsed.sysex, file.name);
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     }
@@ -73,8 +87,10 @@ export function MidiFileUi({ source, running, onStartSim, onReplace }: {
     <div style={{ marginTop: 6 }}>
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', fontSize: 12 }}>
       <label style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
-        <input type="file" accept=".mid,.midi,audio/midi" onChange={(e) => { void pick(e.target.files?.[0]); e.target.value = ''; }} />
+        <input type="file" multiple accept=".mid,.midi,audio/midi,.json" onChange={(e) => { void pick(e.target.files); e.target.value = ''; }}
+          title="Een .mid; kies de .auto.json van dezelfde take erbij, dan bewegen de knoppen mee" />
       </label>
+      {source.automationCount() > 0 && <span title="De knopbewegingen van de take spelen mee; draai je zelf aan een knop, dan stopt die knop met meespelen">🎛 {source.automationCount()} knopbewegingen</span>}
       <label style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}>
         <input type="checkbox" checked={st.loop} onChange={(e) => source.setLoop(e.target.checked)} /> lus
       </label>

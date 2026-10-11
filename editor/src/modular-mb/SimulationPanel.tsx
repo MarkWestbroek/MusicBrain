@@ -30,7 +30,7 @@ import {
 import { FrontKeys, type KeySink } from './FrontKeys';
 import { OverdubPanel } from './sim/OverdubPanel';
 import { TempoTap } from './TempoTap';
-import type { ModularProject, Patch, ControlValue } from './types';
+import { defaultValueOf, resolveControls, type ModularProject, type Patch, type ControlValue } from './types';
 import { MidiFileSource, parseSmf } from './sim/midiFilePlayer';
 import { TakeLibraryPanel } from './sim/TakeLibraryPanel';
 import { openTakeEditor, takeFromBytes } from './sim/TakeEditorWindow';
@@ -44,6 +44,7 @@ import { MidiFileUi } from './sim/MidiFileUi';
 import { midiMonitor } from './sim/midiMonitor';
 import { RecordButton } from './sim/RecordButton';
 import { bindRecordHandlers, publishRecordState } from './sim/recordControl';
+import { AutomationRecorder, automationCc, automationSink, buildAutomationFile, listenAutomation, movedLabels, parseAutomation } from './automation';
 
 type SourceId = 'screen' | 'sequence' | 'webmidi' | 'file';
 
@@ -92,6 +93,10 @@ export function SimulationPanel(): JSX.Element {
   const midiRecRef = useRef<MidiRecorder | null>(null);
   if (midiRecRef.current === null) midiRecRef.current = new MidiRecorder();
   const midiRec = midiRecRef.current;
+  // Knopbewegingen lopen ook mee (ED-SM-10): .auto.json naast de .mid.
+  const autoRecRef = useRef<AutomationRecorder | null>(null);
+  if (autoRecRef.current === null) autoRecRef.current = new AutomationRecorder();
+  const autoRec = autoRecRef.current;
   const midiUnsubRef = useRef<(() => void) | null>(null);
   const [recWithPatch, setRecWithPatch] = useState<boolean>(() => {
     try { return localStorage.getItem('mmb.rec.patchJson') !== '0'; } catch { return true; }
@@ -121,10 +126,26 @@ export function SimulationPanel(): JSX.Element {
       setError(err instanceof Error ? err.message : String(err));
     }
   }
-  function takeMidi(bytes: Uint8Array, name: string, slug: string): void {
+  /** De laatste opname in de MIDI-speler, met de knopbewegingen. */
+  async function replayLastTake(): Promise<void> {
+    const mid = lastTake?.files.find((f) => f.name.endsWith('.mid'));
+    if (!mid || !lastTake) return;
+    try {
+      const auto = [...lastTake.files, ...(lastTake.extras ?? [])].find((f) => f.name.endsWith('.auto.json'));
+      takeMidi(new Uint8Array(await mid.blob.arrayBuffer()), mid.name, null,
+        auto ? new Uint8Array(await auto.blob.arrayBuffer()) : null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
+  function takeMidi(bytes: Uint8Array, name: string, slug: string | null, auto?: Uint8Array | null): void {
     const file = sources.file as MidiFileSource;
     const parsed = parseSmf(bytes);
-    file.load(parsed, name, { slug });
+    file.load(parsed, name, slug ? { slug } : null);
+    if (auto) {
+      const a = parseAutomation(auto);
+      file.setAutomation({ events: a.events, cc: a.cc, sink: automationSink(a, getProject) });
+    }
     void offerFromSysex(parsed.sysex, `${name}`);
     if (sourceId !== 'file') switchSource('file');
   }
@@ -156,6 +177,13 @@ export function SimulationPanel(): JSX.Element {
   }
   const recStartRef = useRef(0);
   function stopMidiTap(): void { midiUnsubRef.current?.(); midiUnsubRef.current = null; }
+  /** De patchwaarde van een knop die nooit gezet is: zijn default. */
+  function controlDefault(moduleId: string, controlId: string): ControlValue | undefined {
+    const p = getProject();
+    const m = p.modules.find((x) => x.id === moduleId);
+    const c = m ? resolveControls(m, p.moduleTypes).find((x) => x.id === controlId) : undefined;
+    return c ? defaultValueOf(c) : undefined;
+  }
   // Tijdens het openen van de Teensy-ingang (toestemmingsdialoog) de knop dicht.
   const [compareBusy, setCompareBusy] = useState(false);
   async function toggleCompare(): Promise<void> {
@@ -337,12 +365,16 @@ export function SimulationPanel(): JSX.Element {
       // dan is meteen starten wat je bedoelde.
       if (!status.running) await startAll();
       await recorder.start(engine.recorderTap());
-      midiRec.start();
-      recStartRef.current = performance.now();
+      const t0 = performance.now();
+      midiRec.start(t0);
+      autoRec.start(patch?.id ?? '', { now: t0, defaultOf: controlDefault });
+      recStartRef.current = t0;
       // MIDI-clock van het keyboard meelezen voor het tempo van de take.
       void midiMonitor.startRaw();
       stopMidiTap();
-      midiUnsubRef.current = engine.onMidi(midiRec.record);
+      const offMidi = engine.onMidi(midiRec.record);
+      const offAuto = listenAutomation(autoRec);
+      midiUnsubRef.current = () => { offMidi(); offAuto(); };
       setRecording(true);
     } catch (err) {
       stopMidiTap();
@@ -355,7 +387,8 @@ export function SimulationPanel(): JSX.Element {
     try {
       const r = await recorder.stop();
       stopMidiTap();
-      const midi = midiRec.stop(r.seconds * 1000);
+      const notes = midiRec.stop(r.seconds * 1000);
+      const autoEvents = autoRec.stop();
       setRecording(false);
       if (r.frames === 0) { setRecDone('niets opgenomen — de tap kreeg geen blokken door'); return; }
       const name = wavFileName(patch?.name ?? 'patch');
@@ -365,17 +398,29 @@ export function SimulationPanel(): JSX.Element {
       // .mid als er niets gespeeld is (bv. een drone of generatieve patch).
       const files: Take['files'] = [{ name, blob: new Blob([wav], { type: 'audio/wav' }) }];
       const extra: string[] = [];
+      // Knopbewegingen: het eigen bestand, en gebonden knoppen ook als CC in de .mid.
+      const auto = patch && autoEvents.length > 0 ? buildAutomationFile(project, patch, autoEvents, r.seconds * 1000) : null;
+      const cc = auto ? automationCc(auto, project.midiMap?.bindings ?? []) : { events: [], lanes: [] };
+      if (auto && cc.lanes.length > 0) auto.cc = cc.lanes;
+      const midi = [...notes, ...cc.events].sort((a, b) => a.t - b.t);
       if (midi.length > 0) {
         const clock = midiMonitor.list().filter((e) => e.dir === 'in' && e.bytes[0] === 0xF8 && e.t >= recStartRef.current).map((e) => e.t);
         const tempo = takeTempo(clock, patch ? patchTempo(project, patch) : null);
         files.push({ name: siblingName(name, '.mid'), blob: new Blob([encodeSmf(midi, { lengthMs: r.seconds * 1000, name: patch?.name, bpm: tempo?.bpm })], { type: 'audio/midi' }) });
         extra.push(`${midi.length} MIDI-events${tempo ? ` op ${tempo.bpm} BPM (${tempo.from === 'clock' ? 'MIDI-clock' : 'klok in de patch'})` : ''}`);
       }
+      // Als extra in de library (per stuk achteraan): weigert die het bestand,
+      // dan staat de take er toch. Downloaden doet hij wel.
+      const autoFile = auto ? { name: siblingName(name, '.auto.json'), blob: new Blob([JSON.stringify(auto)], { type: 'application/json' }) } : null;
+      if (auto) {
+        const moved = movedLabels(auto);
+        if (moved.length > 0) extra.push(`bewogen: ${moved.join(', ')}`);
+      }
       if (recWithPatch && patch) {
         files.push({ name: siblingName(name, '.patch.json'), blob: new Blob([JSON.stringify(patchSnapshot(project, patch), null, 1)], { type: 'application/json' }) });
         extra.push('patch');
       }
-      for (const f of files.slice(1)) {
+      for (const f of [...files.slice(1), ...(autoFile ? [autoFile] : [])]) {
         const url = URL.createObjectURL(f.blob);
         const a = document.createElement('a');
         a.href = url; a.download = f.name;
@@ -383,7 +428,7 @@ export function SimulationPanel(): JSX.Element {
         setTimeout(() => URL.revokeObjectURL(url), 10_000);
       }
       // De patch ook als .syx in de groep (niet downloaden: dat zijn er al genoeg).
-      const extras: Take['files'] = [];
+      const extras: Take['files'] = autoFile ? [autoFile] : [];
       if (recWithPatch && patch) {
         try { extras.push({ name: siblingName(name, '.syx'), blob: new Blob([joinSysex(await patchToSysex(project))], { type: 'application/octet-stream' }) }); }
         catch { /* zonder .syx verder */ }
@@ -553,6 +598,10 @@ export function SimulationPanel(): JSX.Element {
             )}
             {lastTake && (
               <button onClick={() => void editLastTake()} title="Deze opname in de take-editor openen: bijsnijden en exporteren">✎ Bewerken</button>
+            )}
+            {lastTake?.files.some((f) => f.name.endsWith('.mid')) && (
+              <button onClick={() => void replayLastTake()}
+                title="Deze opname in de MIDI-speler zetten: noten én knopbewegingen, de knoppen draaien mee">▶ Opnieuw</button>
             )}
             <button onClick={() => setTakesOpen((v) => !v)} style={takesOpen ? { fontWeight: 600 } : undefined}
               title="Takes uit de media library: beluisteren, de MIDI afspelen, de patch terughalen">

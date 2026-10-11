@@ -95,7 +95,7 @@ function ccToValue(b: MidiBinding, v7: number): number {
   return v;
 }
 
-function valueToCc(b: MidiBinding, v: number): number {
+export function valueToCc(b: MidiBinding, v: number): number {
   return Math.round(toTaper(v, { min: b.min, max: b.max, taper: b.curve }) * 127);
 }
 

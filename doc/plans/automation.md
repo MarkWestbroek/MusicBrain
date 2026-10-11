@@ -12,8 +12,24 @@ moeten landen, als een soort automation-data (zoals in Logic)."
 > spoor én de lijnen onder de sporen ("anders hangt het maar weer in de
 > backlog"). Bouwen: de editor-UI-chat (overgedragen 2026-10-12).
 
-Niets gebouwd. Eerst de werkwijze, dan de techniek (les van de
-overdub-sporen: [overdub.md](overdub.md)).
+> **Stand 2026-10-12:** stap 1 (vastleggen en afspelen) is gebouwd:
+> `editor/src/modular-mb/automation.ts`, `controlPreview.ts`, de luisteraar
+> `onControlWrite` in `setPatchControl.ts`, afspelen in `MidiFileSource`
+> (`setAutomation`). Afwijkingen van het plan hieronder: een event draagt
+> ook `twins` (front-knop van een stereopaar), en `controls` heeft per knop
+> `typeId` en `ordinal`, zodat een take ook op een kopie van de patch (nieuwe
+> id's) zijn knoppen terugvindt. `cc` in het bestand noemt de CC-lanes die
+> in de .mid dezelfde beweging dragen; de speler slaat die over.
+>
+> **Stand 2026-10-12, later:** stap 2 en 3 ook gebouwd (zie RELEASE-LOG):
+> `SongTrack.automation`, `automationToRegion`, `spliceAutomation` (na de
+> regio terug naar de stand van het spoor), export per spoor, de regel en de
+> lijnen in ≣ Sporen. Afwijking: een song afspelen beweegt de knoppen niet
+> (de sporen zijn audio); de lijnen tonen de beweging. Open: stap 4
+> (bewerken) en ED-SM-12.
+
+Eerst de werkwijze, dan de techniek (les van de overdub-sporen:
+[overdub.md](overdub.md)).
 
 ## 1. De werkwijze
 

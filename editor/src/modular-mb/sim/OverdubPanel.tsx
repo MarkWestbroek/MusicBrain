@@ -8,16 +8,23 @@
 //      (drop-in), zo vaak je wilt.
 //   3. Tevreden: volume en pan per spoor, ⤓ bewaren, ⤴ exporteren.
 //
-// Bewaren is een handeling (⤓): nooit automatisch.
+// Bewaren is een handeling (⤓): nooit automatisch. In de browser (📂 laden)
+// of als bestand op schijf (💾 bestand, 📁 van schijf; songFile.ts).
+//
+// Knopbewegingen tijdens het inspelen (ED-SM-10) staan per spoor als regel
+// ("bewogen: Cutoff") en, opengeklapt, als lijnen op de tijd van de song.
 
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { automationLanes, trackAutomationFile, type AutomationLane } from '../automation';
+
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
 import { nlen, useLang } from '../../i18n';
 import { getProject } from '../store';
 import { setPatchTempo, useTempoNow } from '../useTempoSync';
 import { downloadBlob, encodeSmf, patchSnapshot, patchTempo } from './midiRecorder';
 import { TOOLBAR_BTN } from './ScreenKeys';
-import { MAX_TRACKS, barMs, exportFiles, songBars, songMs } from './song';
+import { MAX_TRACKS, barMs, exportFiles, songBars, songMs, type SongTrack } from './song';
+import { songFileName, songFromFile, songToFile } from './songFile';
 import { deleteSong, listSongs, loadSong, saveSong, type SongSummary } from './songStore';
 import { getSongTransport, type SongTransport } from './SongTransport';
 import { encodeWav } from './wavRecorder';
@@ -47,6 +54,33 @@ const btn: React.CSSProperties = { ...TOOLBAR_BTN, padding: '0 8px' };
 const small: React.CSSProperties = { fontSize: 11, color: '#64748b' };
 const fmt = (ms: number): string => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, '0')}`;
 
+/** De bewogen knoppen van een spoor, als lijnen. */
+function trackLanes(tr: SongTrack | undefined, totalMs: number): AutomationLane[] {
+  if (!tr?.audio || !tr.automation?.length) return [];
+  const f = trackAutomationFile(tr.patch, tr.automation, totalMs);
+  return f ? automationLanes(f) : [];
+}
+
+/** Eén lijn: de stand blijft staan tot het volgende punt. */
+function LaneSvg({ lane, totalMs, pos, loop }: { lane: AutomationLane; totalMs: number; pos: number | null; loop: { start: number; end: number } | null }): JSX.Element {
+  const W = 1000, H = 14;
+  const x = (t: number): number => (totalMs > 0 ? Math.min(W, (t / totalMs) * W) : 0);
+  const y = (v: number): number => H - 1 - v * (H - 2);
+  let d = '';
+  lane.points.forEach((p, i) => {
+    d += i === 0 ? `M0 ${y(p.y).toFixed(1)} L${x(p.t).toFixed(1)} ${y(p.y).toFixed(1)}` : ` L${x(p.t).toFixed(1)} ${y(lane.points[i - 1]!.y).toFixed(1)} L${x(p.t).toFixed(1)} ${y(p.y).toFixed(1)}`;
+  });
+  const last = lane.points.at(-1);
+  if (last) d += ` L${W} ${y(last.y).toFixed(1)}`;
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ flex: '1 1 auto', minWidth: 0, height: H, display: 'block', background: '#eef2f7', borderRadius: 2 }} aria-hidden>
+      {loop && <rect x={x(loop.start)} y={0} width={Math.max(1, x(loop.end) - x(loop.start))} height={H} fill="rgba(251,191,36,0.3)" />}
+      <path d={d} fill="none" stroke="#7c3aed" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+      {pos !== null && <line x1={x(pos)} x2={x(pos)} y1={0} y2={H} stroke="#2563eb" strokeWidth={2} vectorEffect="non-scaling-stroke" />}
+    </svg>
+  );
+}
+
 export function OverdubPanel(): JSX.Element {
   useLang();
   const t = useSongTransport();
@@ -59,6 +93,10 @@ export function OverdubPanel(): JSX.Element {
   const [pos, setPos] = useState(0);
   const [saved, setSaved] = useState<SongSummary[] | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  /** Sporen waarvan de lijnen van de knopbewegingen dicht zijn. */
+  const [lanesClosed, setLanesClosed] = useState<Set<string>>(() => new Set());
+  const toggleLanes = (id: string): void => setLanesClosed((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
   // Tempo (doc/plans/tempo.md): zonder sporen volgt de song het ene tempo
   // van de patch (TAP, de knoppen, de MIDI-clock); met sporen is de song de
@@ -88,9 +126,28 @@ export function OverdubPanel(): JSX.Element {
     const files = exportFiles(song, {
       wav: (ch, rate) => encodeWav(ch, rate, 'i24'),
       smf: (events, o) => encodeSmf(events, o),
-    });
+    }, false, getProject().midiMap?.bindings ?? []);
     for (const f of files) downloadBlob(f.blob, f.name, f.blob.type);
     setMsg(nlen(`${files.length} bestanden gedownload.`, `${files.length} files downloaded.`));
+  }
+  /** De hele song als één bestand (zip) downloaden; met 📁 weer in te lezen. */
+  function saveFile(): void {
+    const name = window.prompt(nlen('Naam van de song:', 'Name of the song:'), song.name || currentPatchInfo().name);
+    if (name === null) return;
+    t.setName(name.trim() || song.name);
+    const s = t.song;
+    downloadBlob(songToFile(s), songFileName(s), 'application/zip');
+    setMsg(nlen(`${songFileName(s)} gedownload; met 📁 van schijf lees je hem weer in.`, `${songFileName(s)} downloaded; read it back with 📁 from disk.`));
+  }
+  async function loadFile(file: File | undefined): Promise<void> {
+    if (!file) return;
+    try {
+      const s = songFromFile(new Uint8Array(await file.arrayBuffer()), () => `song_${Date.now().toString(36)}`);
+      t.setSong(s); setSaved(null);
+      setMsg(nlen(`${file.name} geladen: ${s.tracks.filter((x) => x.audio).length} sporen.`, `${file.name} loaded: ${s.tracks.filter((x) => x.audio).length} tracks.`));
+    } catch (e) {
+      setMsg(nlen(`Inlezen mislukt: ${e instanceof Error ? e.message : String(e)}`, `Could not read: ${e instanceof Error ? e.message : String(e)}`));
+    }
   }
   async function openList(): Promise<void> { setSaved(await listSongs()); }
   async function load(id: string): Promise<void> {
@@ -112,8 +169,12 @@ export function OverdubPanel(): JSX.Element {
         const isArmed = armed === i;
         const filled = !!tr?.audio;
         const trackMs = tr?.audio ? tr.audio.channels[0]!.length / tr.audio.sampleRate * 1000 : 0;
+        const lanes = trackLanes(tr, total);
+        const lanesOpen = !!tr && lanes.length > 0 && !lanesClosed.has(tr.id);
+        const loopSpan = song.loop ? { start: song.loop.from * barMs(song), end: song.loop.to * barMs(song) } : null;
         return (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <button type="button" onClick={() => void t.record(i)} disabled={busy}
               title={recordTitle(filled)} aria-label={nlen(`Spoor ${i + 1} opnemen`, `Record track ${i + 1}`)}
               style={{ ...btn, width: 32, padding: 0, color: '#dc2626', fontWeight: 700, background: isArmed ? (phase === 'recording' ? '#fecaca' : '#fde68a') : undefined }}>
@@ -141,6 +202,32 @@ export function OverdubPanel(): JSX.Element {
               title={nlen('Dempen', 'Mute')} aria-label={nlen('Dempen', 'Mute')} style={{ ...btn, padding: '0 6px', opacity: tr?.mute ? 0.4 : 1 }}>🔈</button>
             <button type="button" onClick={() => { if (window.confirm(nlen('Dit spoor weggooien?', 'Discard this track?'))) t.clearTrack(i); }} disabled={!filled || busy}
               title={nlen('Spoor weg', 'Remove track')} aria-label={nlen('Spoor weg', 'Remove track')} style={{ ...btn, padding: '0 6px' }}>✕</button>
+          </div>
+          {tr && lanes.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 1, paddingLeft: 50 }}>
+              <button type="button" onClick={() => toggleLanes(tr.id)} aria-expanded={lanesOpen}
+                title={nlen('De knopbewegingen van dit spoor als lijnen tonen of verbergen', 'Show or hide the knob movements of this track as lanes')}
+                style={{ all: 'unset', cursor: 'pointer', ...small, color: '#6d28d9' }}>
+                {lanesOpen ? '▾' : '▸'} 🎛 {nlen('bewogen', 'moved')}: {lanes.map((l) => l.label).join(', ')}
+              </button>
+            </div>
+          )}
+          {/* De lijnen staan precies onder het balkje van het spoor (zelfde tijdas):
+              dezelfde kolommen als de rij, de rest onzichtbaar. */}
+          {tr && lanesOpen && lanes.map((l) => (
+            <div key={l.key} style={{ display: 'flex', alignItems: 'center', gap: 6 }} aria-label={nlen(`Knopbeweging ${l.label}`, `Knob movement ${l.label}`)}>
+              <span style={{ ...btn, width: 32, padding: 0, visibility: 'hidden' }} />
+              <span style={{ width: 12 }} />
+              <span style={{ flex: '1 1 80px', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'right', ...small }} title={l.label}>{l.label}</span>
+              <span style={{ flex: '2 1 90px', minWidth: 0, display: 'flex' }}>
+                <LaneSvg lane={l} totalMs={total} pos={phase !== 'idle' && pos >= 0 ? pos : null} loop={loopOn ? loopSpan : null} />
+              </span>
+              <input type="range" disabled tabIndex={-1} aria-hidden style={{ width: 54, visibility: 'hidden' }} />
+              <input type="range" disabled tabIndex={-1} aria-hidden style={{ width: 44, visibility: 'hidden' }} />
+              <span style={{ ...btn, padding: '0 6px', visibility: 'hidden' }}>🔈</span>
+              <span style={{ ...btn, padding: '0 6px', visibility: 'hidden' }}>✕</span>
+            </div>
+          ))}
           </div>
         );
       })}
@@ -179,11 +266,18 @@ export function OverdubPanel(): JSX.Element {
           )}
           <span style={{ flex: 1 }} />
           <button type="button" onClick={() => void save()} disabled={busy} style={btn} title={nlen('Bewaar de song in de browser (met de mix)', 'Save the song in the browser (with the mix)')}>⤓ {nlen('bewaren', 'save')}</button>
-          <button type="button" onClick={exportAll} disabled={busy} style={btn} title={nlen('Exporteren: de mix als wav, en per spoor mid + patch', 'Export: the mix as wav, and mid + patch per track')}>⤴ {nlen('export', 'export')}</button>
+          <button type="button" onClick={saveFile} disabled={busy} style={btn} title={nlen('De hele song als één bestand (zip) op schijf: sporen, MIDI, knopbewegingen en patches. Met 📁 van schijf weer in te lezen, ook op een ander apparaat.', 'The whole song as one file (zip) on disk: tracks, MIDI, knob movements and patches. Read it back with 📁 from disk, also on another device.')}>💾 {nlen('bestand', 'file')}</button>
+          <button type="button" onClick={exportAll} disabled={busy} style={btn} title={nlen('Exporteren voor een DAW: de mix als wav, en per spoor mid + patch (+ knopbewegingen)', 'Export for a DAW: the mix as wav, and mid + patch per track (+ knob movements)')}>⤴ {nlen('export', 'export')}</button>
         </div>
       )}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <button type="button" onClick={() => void openList()} disabled={busy} style={btn} title={nlen('Een bewaarde song laden', 'Load a saved song')}>📂 {nlen('laden', 'load')}</button>
+        <button type="button" onClick={() => void openList()} disabled={busy} style={btn} title={nlen('Een song laden die in deze browser bewaard is', 'Load a song saved in this browser')}>📂 {nlen('laden', 'load')}</button>
+        <button type="button" onClick={() => fileRef.current?.click()} disabled={busy} style={btn}
+          title={nlen('Een songbestand (.mmbsong.zip, van 💾 bestand) van schijf inlezen', 'Read a song file (.mmbsong.zip, from 💾 file) from disk')}>
+          📁 {nlen('van schijf', 'from disk')}
+        </button>
+        <input ref={fileRef} type="file" accept=".zip,.mmbsong,application/zip" style={{ display: 'none' }}
+          onChange={(e) => { void loadFile(e.target.files?.[0]); e.target.value = ''; }} />
         <span style={{ flex: 1 }} />
         {(msg || error) && <span style={{ ...small, color: error ? '#b91c1c' : small.color }}>{error ?? msg}</span>}
       </div>
