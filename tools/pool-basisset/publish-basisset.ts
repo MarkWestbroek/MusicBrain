@@ -91,15 +91,24 @@ async function upload(group: string, name: string, blob: Blob): Promise<Uploaded
 async function main(): Promise<void> {
   // Wat staat er al? De openbare pools zonder token, de voorstellen met.
   const present = new Map<string, PoolItem>();   // label mmb-<id> → item
+  const counts: string[] = [];
   for (const pool of ['centraal', 'experimenteel', ...(token ? ['voorstel'] : [])] as const) {
     try {
       const items: PoolItem[] = await listPool({ pool }, lib);
-      for (const it of items) for (const t of it.tags ?? []) if (/^mmb-(?!v-)/.test(t)) present.set(t, it);
+      let n = 0;
+      for (const it of items) for (const t of it.tags ?? []) if (/^mmb-(?!v-)/.test(t)) { present.set(t, it); n++; }
+      counts.push(`${pool} ${n}`);
     } catch (err) {
       console.error(`Pool ${pool} niet te lezen: ${err instanceof Error ? err.message : String(err)}`);
       if (send) process.exit(1);
     }
   }
+
+  // Zonder token ziet het script de voorstellen niet (die zijn niet
+  // openbaar): wat al is ingestuurd maar nog niet op centraal staat, lijkt
+  // dan nieuw. Zeg dat duidelijk; --send vraagt sowieso een token.
+  console.log(`Token: ${token ? 'ja' : 'NEE'}. Basisset-patches gevonden: ${counts.join(', ')}.`);
+  if (!token) console.log('Let op: zonder token zie ik de voorstellen niet; wat al is ingestuurd maar nog niet op centraal staat, telt hieronder als nieuw.\n');
 
   const base = seedInternals(emptyModularProject());
   const entries = catalogMenu('basisset');
