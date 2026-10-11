@@ -7,6 +7,11 @@ software-modules."
 
 Ter review. Geen code gebouwd.
 
+> **Besluiten (Mark, 2026-10-11):** 1 ja, eerst de 42 uit de standaardset;
+> 2 per module, met een overzicht per familie; 3 Engels (Imprint heeft nog
+> geen meertaligheid; "moet snel"): de Nederlandse teksten bewaren we ernaast
+> om mee te sturen zodra dat er is. 4 en 5 nog open.
+
 ## 1. Wat er al is
 
 - **De pijplijn** ([site-publicatie-werkwijze.md](../site-publicatie-werkwijze.md)):
@@ -62,6 +67,19 @@ Gegenereerd, niet met de hand geschreven:
 | **Runs on** | Teensy (met cpu per exemplaar uit `bench`) en de browser (wasm) |
 | **Try it** | link naar de editor met een voorbeeldpatch (`editor.musicbrain.nl/?patch=…`) |
 | **Versions** | wat er per firmwareversie veranderde (uit de release-log) |
+
+### Familie
+
+Elk moduletype heeft een `categoryId`: `effect` (37), `vco` (35), `utility`
+(17), `vcf` (7), `sequencer` (7), `envelope` (5), `drum` (5), `lfo` (4), `vca`
+(3), `noise` (1), plus `mixer`, `midiRouter` en `custom`. De catalogus deelt
+er al op in, met een uitleg per familie (`FAMILIE_UITLEG` in
+`editor/scripts/moduleCatalog.ts`, Nederlands; komt in het Engels bij).
+`vco` en `effect` zijn breed (onder `vco` staan ook e-piano, orgel en CMI).
+Eerst `categoryId` zoals het is; een fijnere indeling (oscillators /
+instruments / samplers / physical models; delay / reverb / modulation /
+dynamics / distortion) kan later als tweede veld, zonder iets aan patches te
+veranderen.
 
 ## 4. De pijplijn
 
