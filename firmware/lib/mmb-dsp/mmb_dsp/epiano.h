@@ -18,7 +18,7 @@
 //     glazig. Schuif je hem ernaast (Timbre omhoog), dan komt de grondtoon
 //     terug: vol en rond. Dat is de stelschroef waarmee een technicus het
 //     instrument "voiced". Grote uitwijking drijft het veld in zijn kromming:
-//     de blaf bij hard spelen.
+//     het grommen (Engels: de "bark") bij hard spelen.
 //   Type 1, Reed (Wurlitzer-familie): een stalen tong voor een
 //     condensatorplaat. De gevoeligheid stijgt scherp als de tong de plaat
 //     nadert: holler, nasaler, en de noot sterft sneller uit.
@@ -93,7 +93,7 @@ public:
         // Drive: hoe ver de tine naar de pickup zwaait. Tot fw 0.5.103 was dat
         // 0,25 + 1,5·drive; dan zwaaide hij op vol zo ver over de top van het
         // veld dat de grondtoon instortte (h2 +5 dB boven de grondtoon, 10 dB
-        // zachter): Drive 1 klonk dun en stil in plaats van blaffend (Mark).
+        // zachter): Drive 1 klonk dun en stil in plaats van rauw en grommend (Mark).
         const float reach = 0.25f + drive_ * 1.0f;
         // Volume gelijk houden over Drive (gemeten: zonder dit zakt het naar
         // 1/(1 + 1,68·drive)). Recht voor de pickup (Timbre laag) is de tine
@@ -147,7 +147,7 @@ public:
             // zachte knie voor wat de attack mist. Tot fw 0.5.104 een begrenzer
             // per sample (eerst een tanh, toen een knie vanaf 0,7): met sustain
             // en een vol akkoord liep die bij elke trilling vol en vervormde
-            // het geheel (−15 dB, Marks melding). Het blaffen hoort bij de tine
+            // het geheel (−15 dB, Marks melding). Het grommen hoort bij de tine
             // zelf (Drive), niet bij de optelling.
             float mono = sum * 1.3f;
             limiter_.Process(&mono, 1);

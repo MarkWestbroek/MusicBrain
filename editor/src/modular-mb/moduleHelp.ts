@@ -25,7 +25,7 @@ export const MODULE_HELP: Readonly<Record<string, ModuleHelp>> = {
       bell: ['De tik in de aanslag: een hoge, snel wegstervende boventoon.', 'The ping in the attack: a high overtone that dies away quickly.'],
       tremolo: ['Hoe sterk het geluid tussen links en rechts wiegt.', 'How strongly the sound sways between left and right.'],
       trem_rate: ['Hoe snel de tremolo wiegt.', 'How fast the tremolo sways.'],
-      drive: ['Hoe dicht de tine bij de pickup staat: meer = blaffen bij hard spelen.', 'How close the tine is to the pickup: more = barking when you play hard.'],
+      drive: ['Hoe dicht de tine bij de pickup staat: meer = rauwer, grommend bij hard spelen.', 'How close the tine is to the pickup: more = barking when you play hard.'],
       decay: ['Hoe lang een noot uitklinkt (hoge noten korter, zoals echt).', 'How long a note rings on (higher notes shorter, as on the real thing).'],
     },
   },

@@ -352,7 +352,7 @@ export function seedEPianoPolyPatch(project: ModularProject): ModularProject {
   }];
   const patch: Patch = {
     id: uid('patch'), name: `E-piano ×${N}`,
-    description: 'Elektrische piano met twaalf toetsen: een model van tine en pickup, zonder samples. Speel zacht en hard: de klank verandert met de aanslag, van rond naar blaffend. Timbre is de plek van de tine voor de pickup (0 = dun en glazig, hoger = vol); Bell is de tik in de aanslag; Type Reed geeft de hollere Wurlitzer-kant. Tremolo wiegt tussen links en rechts. Het sustainpedaal (CC64) zit via MIDI-IN CC2 op Sust; Damper is hoe snel losgelaten toetsen stilvallen.',
+    description: 'Elektrische piano met twaalf toetsen: een model van tine en pickup, zonder samples. Speel zacht en hard: de klank verandert met de aanslag, van rond naar rauw en grommend. Timbre is de plek van de tine voor de pickup (0 = dun en glazig, hoger = vol); Bell is de tik in de aanslag; Type Reed geeft de hollere Wurlitzer-kant. Tremolo wiegt tussen links en rechts. Het sustainpedaal (CC64) zit via MIDI-IN CC2 op Sust; Damper is hoe snel losgelaten toetsen stilvallen.',
     voiceCount: N, rackIds: [rack.id],
     connections: cables([
       [midi, 'pitch', piano, 'voct_1'],

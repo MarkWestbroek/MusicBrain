@@ -28,14 +28,14 @@
   ~3 dB teruggenomen in plaats van platgedrukt. Losse noten en gewone
   akkoorden blijven onder de drempel en veranderen niet.
 
-### 2026-10-11 — E-piano: Drive blaft in plaats van dun en stil te worden (fw 0.5.104)
+### 2026-10-11 — E-piano: Drive gromt in plaats van dun en stil te worden (fw 0.5.104)
 - Mark: "drive = 1 is geen drive, 0 is voluit?" Gemeten bij de Tine: Drive
   op vol werd 10 dB zachter en dun (tweede harmonische 5 dB boven de
   grondtoon), omdat de tine zo ver over de top van het pickupveld zwaaide dat
   de grondtoon instortte. Drive 0 was daardoor het luidst en voelde als
   "voluit".
 - Nu: het bereik van Drive is kleiner (0,25 + 1,0·drive in plaats van 1,5),
-  zodat de tine in het blafgebied blijft (op vol: h2 ≈ grondtoon, THD
+  zodat de tine blijft waar hij gromt (op vol: h2 ≈ grondtoon, THD
   +1,5 dB), en het volume blijft gelijk over de hele knop (binnen ~1 dB).
   De standaardstand (Drive 0,4) is even luid als voorheen, wel iets schoner
   (THD −9 in plaats van −5 dB); Drive 0 is 6 dB zachter dan voorheen. Reed
@@ -61,7 +61,7 @@
   duidelijk beter; Amp op vol nauwelijks (zie het rapport).
 - **E-piano**: niet langer één tanh over de som van alle stemmen, maar een
   begrenzer die schoon is tot 0,7. Twee tonen samen gaven bij de standaard
-  Drive intermodulatie op −27 dB, nu −49 dB; het blaffen van de tine blijft.
+  Drive intermodulatie op −27 dB, nu −49 dB; het grommen van de tine blijft.
   Het geheel wordt ~1 dB luider.
 - Nieuwe test `sim/wasmAlias.test.ts` met een grens per geval.
 - Gevonden en genoteerd, niet gerepareerd: de Ladder (Teensy Audio Library)

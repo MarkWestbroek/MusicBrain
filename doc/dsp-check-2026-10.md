@@ -131,7 +131,7 @@ in de e-piano." Gebouwd:
 - **Tube**: ADAA op beide triodetrappen en de eindtrap (met sag:
   `processVarying`), zachte begrenzer op de uitgang.
 - **E-piano**: de tanh over de **som** van alle stemmen (die gewone akkoorden
-  al samen vervormde) is een begrenzer die schoon blijft tot 0,7. Het blaffen
+  al samen vervormde) is een begrenzer die schoon blijft tot 0,7. Het grommen
   zit in de tine zelf (Drive) en blijft.
 
 | Geval | signaal | sterkste alias < 10 kHz voor → na | volume |
