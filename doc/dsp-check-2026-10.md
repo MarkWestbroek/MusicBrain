@@ -230,3 +230,22 @@ geeft klokcycli per sample terug.
 - Les: na elke DSP-wijziging die op de Teensy draait, `bench` of `getStatus`
   meten; in de browser was dezelfde code even snel.
 
+## Bronnen
+
+- **ADAA** (`mmb_dsp/adaa.h`): J. D. Parker, V. Zavalishin, E. Le Bihan,
+  "Reducing the Aliasing of Nonlinear Waveshaping Using Continuous-Time
+  Convolution", *Proc. DAFx-16*, Brno, 2016. De naam *antiderivative
+  antialiasing* en de algemene vorm: S. Bilbao, F. Esqueda, J. D. Parker,
+  V. Välimäki, "Antiderivative Antialiasing for Memoryless Nonlinearities",
+  *IEEE Signal Processing Letters* 24(7), 2017. Onze implementatie is eigen
+  werk naar die artikelen.
+- **Ladder** (`mmb_dsp/ladder.h`): het model van A. Huovilainen,
+  "Non-Linear Digital Implementation of the Moog Ladder Filter", *Proc.
+  DAFx-04*, Napels, 2004, en V. Välimäki, A. Huovilainen, "Oscillator and
+  Filter Algorithms for Virtual Analog Synthesis", *Computer Music Journal*
+  30(2), 2006; de rekenwijze van `AudioFilterLadder` (Richard van Hoesel,
+  2021) in de Teensy Audio Library van PJRC (MIT-licentie).
+- **Aanleiding**: de reactie van *Archit3ch_* op Circuit Studio (r/synthdiy,
+  oktober 2026); vergelijking met Circuit Studio: zie
+  [vergelijking-circuit-studio-2026-10.md](vergelijking-circuit-studio-2026-10.md).
+

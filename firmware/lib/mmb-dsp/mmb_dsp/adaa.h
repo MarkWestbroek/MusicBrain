@@ -1,6 +1,15 @@
 #pragma once
 // Anti-aliasing voor vervormers: de "antiderivative"-methode (ADAA, eerste
-// orde; Parker, Zavalishin & Le Bihan, DAFx 2016).
+// orde).
+//
+// Bronnen:
+//   J. D. Parker, V. Zavalishin, E. Le Bihan, "Reducing the Aliasing of
+//   Nonlinear Waveshaping Using Continuous-Time Convolution", Proc. 19th Int.
+//   Conf. on Digital Audio Effects (DAFx-16), Brno, 2016.
+//   S. Bilbao, F. Esqueda, J. D. Parker, V. Välimäki, "Antiderivative
+//   Antialiasing for Memoryless Nonlinearities", IEEE Signal Processing
+//   Letters 24(7), 2017.
+// Deze implementatie is eigen werk naar die artikelen.
 //
 // Een vervormer f(u) per sample maakt boventonen die boven Nyquist
 // terugvouwen; een harde knik maakt er zoveel dat zelfs 4× overbemonsteren

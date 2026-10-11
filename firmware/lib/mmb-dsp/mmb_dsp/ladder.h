@@ -2,8 +2,12 @@
 // Ladder: Moog-achtig 4-polig laagdoorlaatfilter (tp_mmb_ladder).
 //
 // Het algoritme is dat van `AudioFilterLadder` uit de Teensy Audio Library:
-// Huovilainen's "New Moog" (CMJ, juni 2006), voor de Teensy uitgewerkt door
-// Richard van Hoesel (2021). filter_ladder.cpp, Copyright (c) Paul
+// Huovilainen's "New Moog"-model, voor de Teensy uitgewerkt door Richard van
+// Hoesel (2021). Bronnen van het model:
+//   A. Huovilainen, "Non-Linear Digital Implementation of the Moog Ladder
+//   Filter", Proc. DAFx-04, Napels, 2004.
+//   V. Välimäki, A. Huovilainen, "Oscillator and Filter Algorithms for Virtual
+//   Analog Synthesis", Computer Music Journal 30(2), 2006. filter_ladder.cpp, Copyright (c) Paul
 // Stoffregen, PJRC.COM, LLC; MIT-licentie; "please retain this header if you
 // use this code." Vier eenpolers met een tanh in de terugkoppeling,
 // gecompenseerd laagverlies (`kPassbandComp`, 0,5 zoals de bibliotheek) en
