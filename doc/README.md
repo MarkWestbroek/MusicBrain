@@ -41,6 +41,7 @@ of ontwerp, kijk naar de datum en de status in het document zelf.
 |---|---|
 | [documentatie-review-2026-09-30.md](documentatie-review-2026-09-30.md) | Externe review van documentatie en website. Stap 1–4 van de aanpak zijn uitgevoerd; stap 5 (publieke roadmap, site) loopt via Imprint. |
 | [imprint-website-actualisatie-2026-09.md](imprint-website-actualisatie-2026-09.md) | Wijzigingsverzoek aan Imprint voor Musicbrain.nl, volgt uit de review. |
+| [dsp-check-2026-10.md](dsp-check-2026-10.md) | DSP-check naar de kritiek op Circuit Studio: aliasing van de vervormers (Drive en Tube het zwakst), geen stille kwaliteitsverlaging, zelf-oscillatie; voorstellen. |
 | [code-review-firmware-wasm-2026-09-29.md](code-review-firmware-wasm-2026-09-29.md) | Review firmware + WASM-simulator; bevindingen staan in de backlog. |
 | [code-review-firmware-editor-2026-07-05.md](code-review-firmware-editor-2026-07-05.md) | Eerdere review firmware ↔ editor. |
 | [code-review-busboard-2026-08-31.md](code-review-busboard-2026-08-31.md), [code-review-axon-dac8-2026-09-01.md](code-review-axon-dac8-2026-09-01.md), [code-review-gswitch-2026-09-01.md](code-review-gswitch-2026-09-01.md), [code-review-matrix-2026-09-01.md](code-review-matrix-2026-09-01.md), [code-review-uitbreidingskaarten-2026-09-01.md](code-review-uitbreidingskaarten-2026-09-01.md), [code-review-vcf8-2026-09-01.md](code-review-vcf8-2026-09-01.md) | Ontwerpreviews van borden. Afgehandelde punten staan in de bord-README's. |
