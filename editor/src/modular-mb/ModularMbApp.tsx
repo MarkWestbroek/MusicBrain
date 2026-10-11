@@ -36,7 +36,7 @@ import { MidiMonitorHost } from './sim/MidiMonitorWindow';
 import { TakeEditorHost } from './sim/TakeEditorWindow';
 import { PatchExportMenu } from './sim/PatchExportMenu';
 import { PatchInboxHost } from './sim/PatchInbox';
-import { PoolWindowsHost, offerFromPool } from './sim/PoolWindows';
+import { PoolWindowsHost, openFromPool } from './sim/PoolWindows';
 import { ControlSurfacePanel } from './ControlSurfacePanel';
 import { PresetsModal } from './PresetsModal';
 import { TeensyLinkModal } from './TeensyLinkModal';
@@ -82,14 +82,6 @@ export function ModularMbApp(): JSX.Element {
   useLang();
   // Eén tempo per patch: alle tempoknoppen volgen (doc/plans/tempo.md).
   useTempoSync();
-  // ?patch=<slug>: een patch van musicbrain.nl aanbieden via de inbox (patch-pool §5).
-  useEffect(() => {
-    const slug = new URLSearchParams(window.location.search).get('patch');
-    if (!slug) return;
-    void offerFromPool(slug).catch((e) => console.warn('patch-pool:', e instanceof Error ? e.message : e));
-    const u = new URL(window.location.href); u.searchParams.delete('patch');
-    window.history.replaceState(null, '', u.toString());
-  }, []);
   const project = useModularProject();
   // Spelermodus (patch-front §6): standaard dicht (alleen het front), want
   // zonder login ben je geen expert. "Binnenkijken" opent de hele editor en
@@ -113,6 +105,28 @@ export function ModularMbApp(): JSX.Element {
   const [tab,         setTab]         = useState<Tab>(() => {
     try { return localStorage.getItem(OPEN_KEY) === '1' ? 'patcher' : 'front'; } catch { return 'front'; }
   });
+  // Link van musicbrain.nl (patch-pool §5): `?patch=<slug>` opent die patch
+  // meteen; `&mode=play` in de speelmodus, `&mode=edit` of geen mode in de
+  // editor (Binnenkijken, Patcher). Zonder ?patch= doet `mode` hetzelfde met
+  // de patch die er al is. De parameters gaan daarna uit de adresbalk, zodat
+  // herladen niet opnieuw opent.
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const slug = q.get('patch');
+    const mode = q.get('mode');
+    if (!slug && !mode) return;
+    if (mode === 'play') setExpert(false);
+    else if (mode === 'edit' || slug) { setExpert(true); setTab('patcher'); }
+    if (slug) {
+      void openFromPool(slug).catch((e) => {
+        console.warn('patch-pool:', e instanceof Error ? e.message : e);
+        window.alert(nlen(`De patch "${slug}" kon niet geopend worden: ${e instanceof Error ? e.message : String(e)}`,
+          `Could not open the patch "${slug}": ${e instanceof Error ? e.message : String(e)}`));
+      });
+    }
+    const u = new URL(window.location.href); u.searchParams.delete('patch'); u.searchParams.delete('mode');
+    window.history.replaceState(null, '', u.toString());
+  }, []);   // eslint-disable-line react-hooks/exhaustive-deps
   const [editingName, setEditingName] = useState(false);
   const [editingVer,  setEditingVer]  = useState(false);
   const [editingDesc, setEditingDesc] = useState(false);

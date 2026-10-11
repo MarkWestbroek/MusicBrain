@@ -89,6 +89,14 @@ de editor haalt het item op en biedt hem aan via de bestaande patch-inbox
 ("Laden als nieuwe patch / Negeren"). Zo opent een patch in de editor zoals
 een video in VLC.
 
+> **2026-10-12 (vraag Imprint via MODULES):** `?patch=<slug>` opent de patch
+> nu meteen, zonder de inbox (`openFromPool` in `sim/PoolWindows.tsx`).
+> `&mode=play` opent hem in de speelmodus (knop "Spelen" op de patchpagina);
+> zonder mode of met `&mode=edit` in de editor op de Patcher ("Open in de
+> editor"). Staat er al een kopie van die pool-patch in het project, dan wordt
+> die actief in plaats van een tweede kopie. Na het openen gaan `patch` en
+> `mode` uit de adresbalk. Bevestigd aan imprint-CORE.
+
 ## 6. In de editor
 
 Twee knoppen, allebei op bestaande bouwstenen:

@@ -21,7 +21,7 @@ import { frontForPool, frontSvg } from '../frontSvg';
 import { recordDemo } from './demoTake';
 import { lastTakeFor, setLastTake, markUploaded, onLastTake } from './lastTakeStore';
 import { listTakes, addPatchSnapshot } from './takeLibrary';
-import { offerPatch } from './PatchInbox';
+import { loadOffered, offerPatch } from './PatchInbox';
 import type { ModularProject } from '../types';
 import { openPatchBrowser } from '../PatchBrowser';
 
@@ -48,6 +48,26 @@ export async function offerFromPool(slug: string, s: LibrarySettings = loadLibra
   if (!item) throw new Error(`Patch "${slug}" niet gevonden in de pool.`);
   const json = await fetchPatchFile(item, s);
   offerPatch(json, `musicbrain.nl (${item.title})`, { slug: item.slug, missing: item.requires ? missingTypes(item.requires, getProject()) : [] });
+}
+
+/**
+ * Een patch uit de pool meteen openen (link van musicbrain.nl,
+ * `?patch=<slug>`). Staat er al een kopie van deze pool-patch in het project,
+ * dan wordt die actief, zodat elke klik op de link geen nieuwe kopie maakt;
+ * anders komt hij erbij, langs de patchcontrole (patchIntake), net als
+ * "Laden" in de inbox. Geeft de naam van de patch terug.
+ */
+export async function openFromPool(slug: string, s: LibrarySettings = loadLibrarySettings()): Promise<string> {
+  const have = getProject().patches.find((p) => originOf(p.id) === slug);
+  if (have) {
+    updateProject((p) => ({ ...p, activePatchId: have.id }));
+    return have.name;
+  }
+  const [item] = await listPool({ slug }, s);
+  if (!item) throw new Error(`Patch "${slug}" niet gevonden in de pool.`);
+  const json = await fetchPatchFile(item, s);
+  loadOffered({ name: item.title, json, source: `musicbrain.nl (${item.title})`, pool: { slug: item.slug, missing: item.requires ? missingTypes(item.requires, getProject()) : [] } });
+  return item.title;
 }
 
 const TAG_SUGGESTIONS = ['lead', 'pad', 'bas', 'drums', 'fx', 'keys', 'koper', 'strijkers', 'subtractief', 'fm', 'fysisch', 'wavetable', 'sampler', 'sid', 'mono', 'poly'];

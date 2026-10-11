@@ -17,6 +17,15 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-12 — Link van de site opent de patch meteen, ook in de speelmodus (editor)
+- Imprint (via MODULES): de modulepagina's op musicbrain.nl linken naar
+  patches; die moeten meteen open en speelbaar zijn. `?patch=<slug>` bood de
+  patch tot nu toe alleen aan via de inbox. Nu opent hij meteen, langs de
+  patchcontrole. `&mode=play` opent in de speelmodus; zonder mode (of
+  `&mode=edit`) in de editor op de Patcher. Een kopie van dezelfde
+  pool-patch die er al is wordt hergebruikt. Een onbekende slug geeft een
+  melding. Plan: [plans/patch-pool.md](plans/patch-pool.md) §5.
+
 ### 2026-10-12 — Knopbewegingen in de sporen; een song als bestand op schijf (editor, ED-SM-10 stap 2 en 3)
 - **Sporen** (≣): een spoor schrijft de knopbewegingen mee, net als een
   take (`SongTrack.automation`, songtijd). Drop-in vervangt ze in de regio;
