@@ -1,7 +1,8 @@
 # DSP-check: aliasing, begrenzing en zelf-oscillatie (2026-10-11)
 
 > **Actueel (2026-10-11, fw 0.5.102):** ADAA gebouwd in Drive, Tube en de
-> uitgang van de e-piano; zie **§5 Na de aanpassing**. Correctie op §1: de
+> uitgang van de e-piano; zie **§5 Na de aanpassing**. fw 0.5.103: een eigen
+> Ladder (§6). Correctie op §1: de
 > Ladder is alleen schoon tot Drive 1; met een zaag en Drive 4 aliast hij fors
 > (§5). De meting staat nu als test in `editor/src/modular-mb/sim/wasmAlias.test.ts`.
 
@@ -170,4 +171,30 @@ Het geheel wordt ~1 dB luider (minder samengedrukt); de piek blijft onder 0,8.
   bibliotheek ongewijzigd; repareren vraagt een eigen kopie (of een melding
   bij PJRC). Precies het punt van Archit3ch_: met alleen een sinus mis je dit.
 - **Fuzz**: twee trappen achter elkaar; −44 dB bij een hoge sinus.
+
+## 6. Eigen Ladder (fw 0.5.103)
+
+Mark: "een eigen ladder maken ipv de teensy audio lib is geen probleem."
+`mmb_dsp/ladder.h` is hetzelfde algoritme (Huovilainen / van Hoesel, MIT,
+met de kop van de bibliotheek), maar:
+
+- ons 4×-filter (65 taps) in plaats van de FIR van 36 taps;
+- geen 16-bit-uitgang die boven ±1 omklapt (dat was het grootste deel van de
+  −13 dB aliasing bij Drive 4), maar een zachte begrenzer (knie 0,9) op de
+  4×-rate, na de vierde pool en buiten de terugkoppellus;
+- in de lus géén ADAA (de halve sample vertraging zou de resonantie
+  verstemmen); de gladde Padé-tanh blijft, op 4×;
+- ×1,1 op de uitgang: het oude interpolatiefilter versterkte zoveel.
+
+| | oud (bibliotheek) | nieuw |
+|---|---|---|
+| Kleinsignaal, q 0 / 1 / 1,5 | — | binnen 0,6 dB gelijk |
+| Zelf-oscillatie (q 1,8, cutoff 1 kHz) | 991 Hz, rms 0,21 | 990 Hz, rms 0,23 |
+| Zaag A3, Drive 2: aliasing totaal | −97 dB | −77 dB |
+| Zaag A3, Drive 4: aliasing totaal | **−13 dB** | **−65 dB** |
+| Zaag A3, Drive 4: sterkste alias < 10 kHz | **−35 dB** | **−115 dB** |
+
+Firmware en browser gebruiken nu dezelfde kern (`LadderModule.h`,
+`tools/mmb-wasm/ladder_wasm.cc`); de module heeft dezelfde poorten, knoppen en
+CV-wetten.
 

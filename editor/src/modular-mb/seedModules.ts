@@ -876,7 +876,8 @@ function mmbVcf() {
 }
 
 // 5b. MMB LADDER — 6 HP. Moog-stijl 4-pole lowpass ladder (Huovilainen-model,
-//     AudioFilterLadder). Audio-rate CV op cutoff ÉN resonantie, plus input-
+//     het algoritme van AudioFilterLadder; sinds fw 0.5.103 een eigen kern,
+//     mmb_dsp/ladder.h). Audio-rate CV op cutoff ÉN resonantie, plus input-
 //     drive (tanh-overdrive). Alleen LP 24 dB/oct — voor HP/BP: de MMB VCF.
 function mmbLadder() {
   const w = W(8);

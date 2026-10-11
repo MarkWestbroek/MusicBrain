@@ -17,6 +17,15 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-11 — Eigen Ladder in plaats van de Teensy Audio Library (fw 0.5.103)
+- `tp_mmb_ladder` draait nu op `mmb_dsp/ladder.h`, in firmware én browser:
+  hetzelfde Huovilainen-algoritme (van Hoesel, MIT) met ons 4×-filter en een
+  zachte begrenzer op de 4×-rate. De versie uit de bibliotheek zette zijn
+  uitgang zonder klem om naar 16 bit en klapte boven ±1 om; met een zaag op
+  Drive 4 gaf dat −35 dB aliasing, nu −115 dB. Klank, zelf-oscillatie en
+  niveau zijn gelijk gebleven (binnen 0,6 dB). Zelfde poorten en knoppen.
+  Zie [dsp-check-2026-10.md](dsp-check-2026-10.md) §6.
+
 ### 2026-10-11 — Minder aliasing en schonere akkoorden: ADAA in Drive, Tube en e-piano (fw 0.5.102)
 - Naar de DSP-check ([dsp-check-2026-10.md](dsp-check-2026-10.md)) en Marks
   "clippen vond ik te veel aanwezig, ook in de e-piano". Nieuw gedeeld:

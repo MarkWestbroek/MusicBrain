@@ -14,7 +14,8 @@ genormeerd op het laag (100 Hz).
 
 Hun schakeling: PNP-ladder op transistorniveau (2100-stijl kern); Cutoff is
 geijkt in Hz en geeft de **−3 dB-frequentie van het geheel**, Resonance 0..1.
-Onze ladder is `AudioFilterLadder` uit de Teensy Audio Library; zijn Cutoff
+Onze ladder had het algoritme van `AudioFilterLadder` uit de Teensy Audio
+Library (sinds fw 0.5.103 een eigen kern met hetzelfde algoritme); zijn Cutoff
 ligt dichter bij de piekfrequentie. Hun "1 kHz" komt overeen met onze cutoff
 ≈ 2210 Hz.
 

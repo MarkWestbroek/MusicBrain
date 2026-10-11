@@ -1,7 +1,7 @@
 // Aliasing en intermodulatie van de vervormers (doc/dsp-check-2026-10.md),
 // met een grens per geval: zo glijdt het niet ongemerkt terug. De grenzen
 // liggen ~6 dB boven wat de kernen nu halen (fw 0.5.102, ADAA in Drive, Tube
-// en de uitgang van de e-piano).
+// en de uitgang van de e-piano; fw 0.5.103 de eigen Ladder).
 
 import { describe, expect, it } from 'vitest';
 
@@ -30,10 +30,9 @@ describe('aliasing van de vervormers', () => {
     ['Drive Fuzz vol', 'tp_mmb_drive', { drive: 1, mode: 2, mix: 1 }, 'in', 'out', -38, -59],
     ['Tube Studio vol', 'tp_mmb_tube', { drive: 1, mode: 0, mix: 1 }, 'in_l', 'out_l', -88, -108],
     ['Tube Amp vol', 'tp_mmb_tube', { drive: 1, mode: 1, mix: 1 }, 'in_l', 'out_l', -37, -61],
-    // Ladder (Teensy Audio Library): schoon tot Drive 1. Daarboven knipt zijn
-    // fast_tanh hard af bij ±3 en aliast hij fors (zaag A3, Drive 4: −35 dB);
-    // dat zit in de bibliotheek, zie doc/dsp-check-2026-10.md.
-    ['Ladder open, drive 1', 'tp_mmb_ladder', { cutoff: 18000, q: 0, drive: 1 }, 'in', 'out', -85, -85],
+    // Ladder: eigen kern sinds fw 0.5.103 (mmb_dsp/ladder.h). De versie uit
+    // de Teensy Audio Library aliaste hier −35 dB (zaag, Drive 4).
+    ['Ladder open, drive 4', 'tp_mmb_ladder', { cutoff: 18000, q: 0, drive: 4 }, 'in', 'out', -60, -100],
   ];
   for (const [name, type, ctl, inp, out, limSine, limSaw] of cases) {
     it(`${name}: sterkste alias onder de grens (sinus ${SINE_F0} Hz en zaag A3)`, async () => {
