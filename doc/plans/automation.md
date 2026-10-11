@@ -8,7 +8,9 @@ moeten landen, als een soort automation-data (zoals in Logic)."
 > is deel van het spel, dus van de opname". Afspelen is dus geen latere stap
 > maar hoort bij de eerste versie, en de knoppen op het scherm bewegen mee.
 > 4 niet-gebonden knoppen als lane in Reaper/Logic: **nog niet**, staat in de
-> backlog (ED-SM-12). 2 (waar je het ziet) nog open, zie §7.
+> backlog (ED-SM-12). 2 **allebei, en meteen afmaken**: de regel bij take en
+> spoor én de lijnen onder de sporen ("anders hangt het maar weer in de
+> backlog"). Bouwen: de editor-UI-chat (overgedragen 2026-10-12).
 
 Niets gebouwd. Eerst de werkwijze, dan de techniek (les van de
 overdub-sporen: [overdub.md](overdub.md)).
@@ -93,14 +95,14 @@ Dat pad (`knobTour.ts`, `preview`) wordt daarvoor een gedeeld stuk.
    tijden.
 2. **Sporen**: automation per spoor, mee met drop-in, mee in de export
    (Reaper).
-3. **Tonen**: de bewogen knoppen bij take en spoor; daarna de lanes.
+3. **Tonen**: de bewogen knoppen bij take en spoor, en de lanes in ≣ Sporen
+   (besluit 2: allebei in deze ronde).
 4. **Bewerken.**
 
 ## 7. Vragen voor Mark
 
 1. ~~Altijd meeschrijven?~~ Besloten: ja.
-2. **Hoe zie je dat er automation in een opname zit?** Voorstel, in twee
-   stappen: eerst een regel bij de take en bij het spoor ("bewogen: Cutoff,
+2. ~~Hoe zie je het?~~ Besloten: allebei, in deze ronde: een regel bij de take en bij het spoor ("bewogen: Cutoff,
    Drive"); later, in ≣ Sporen, per bewogen knop een smalle lijn onder het
    spoor die de beweging laat zien (zoals in Logic). Tijdens het afspelen zie
    je het hoe dan ook: de knoppen draaien mee.
