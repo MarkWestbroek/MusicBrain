@@ -5,7 +5,13 @@ beschreven en getoond. We zouden de software achter de modules ook kunnen
 beschrijven. Modules zijn componenten: we hebben hardware-modules en
 software-modules."
 
-Ter review. Geen code gebouwd.
+Ter review. **Stap 1 gebouwd (2026-10-11): de Ladder als voorbeeld**:
+`editor/scripts/moduleSite.ts` (generator), `editor/site/modules/` (per
+module een map met module.md, beschrijving.txt en panel.svg; handgeschreven
+Engels in `text/<slug>.en.md`; cpu, take en ontbrekende uitleg in
+`site-modules.json`). Droge publicatie met `publish_software.py --dry` klopt;
+nog niet gepost (lokale Imprint draait niet; live pas na akkoord). Geen take
+van de Ladder gekozen: wacht op een nieuwe opname van Mark.
 
 > **Besluiten (Mark, 2026-10-11):** 1 ja, eerst de 42 uit de standaardset;
 > 2 per module, met een overzicht per familie; 3 Engels (Imprint heeft nog

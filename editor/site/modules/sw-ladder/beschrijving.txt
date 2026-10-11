@@ -1,0 +1,1 @@
+A Moog-style ladder filter: 24 dB low-pass.

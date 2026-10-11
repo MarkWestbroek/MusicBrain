@@ -1,0 +1,32 @@
+{
+  "_uitleg": "Per software-module op de site (doc/plans/software-modules-op-de-site.md): naam en slug op de site, gemeten rekentijd op de Teensy 4.1 (cpu in % per exemplaar, met de firmwareversie waarin gemeten), de take die Mark koos (null = geen geluid op de pagina) en Engelse uitleg bij knoppen die moduleHelp.ts niet heeft. Handmatig bijgehouden; editor/scripts/moduleSite.ts leest dit.",
+  "modules": {
+    "tp_mmb_ladder": {
+      "slug": "sw-ladder",
+      "name": "Ladder filter",
+      "cpu": {
+        "percent": 8.3,
+        "fw": "0.5.107",
+        "how": "Marks patch Ladder ×4 (VCO → Ladder → VCA per voice): 37 % with four ladders, 3.5 % with a state-variable filter instead; getStatus on the Teensy"
+      },
+      "take": null,
+      "try": "Open the editor and choose **Axel F lead** from the standard set, or **Poly ▾ → Ladder-filter ×4**.",
+      "controlHelp": {
+        "cv_amt": "How many octaves the cutoff moves for a full-scale signal on F CV.",
+        "q_cv_amt": "How much a full-scale signal on Res CV adds to the resonance.",
+        "drive_cv_amt": "How strongly Drv CV changes the drive (at 1: ±1 CV is ×4 … ÷4)."
+      },
+      "portHelp": {
+        "in": "The audio to be filtered.",
+        "cv": "Cutoff modulation, one octave per unit × F CV amt; audio rate on the Teensy.",
+        "q_cv": "Resonance modulation on top of the Res knob.",
+        "drive_cv": "Drive modulation.",
+        "out": "Low-pass output, 24 dB per octave."
+      }
+    }
+  },
+  "exampleNames": {
+    "_uitleg": "Engelse namen voor voorbeeldpatches die contentEn.ts niet kent (die dekt de standaardset)",
+    "🎺 CS-80 koper (aftertouch)": "🎺 CS-80 brass (aftertouch)"
+  }
+}
