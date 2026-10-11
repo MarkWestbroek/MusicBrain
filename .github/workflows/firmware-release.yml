@@ -110,8 +110,19 @@ jobs:
       # posten (Engelse highlights uit <!-- EN: … --> in de release-log; zie
       # tools/site_release_item.py). Een bestaand item blijft staan. Zonder
       # het secret IMPRINT_INGEST_TOKEN wordt deze stap overgeslagen.
+      # Script en release-log van main (een oudere tag heeft het script nog
+      # niet, en de EN-regels kunnen later zijn aangevuld).
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main-src
+          sparse-checkout: |
+            tools
+            doc/RELEASE-LOG.md
+            firmware/app-modular-brain/contract
+
       - name: Op de site zetten (musicbrain.nl/releases)
         env:
           INGEST_TOKEN: ${{ secrets.IMPRINT_INGEST_TOKEN }}
           IMPRINT_BASE: https://musicbrain.nl
-        run: python tools/site_release_item.py "${{ steps.ver.outputs.version }}" --post
+        run: python main-src/tools/site_release_item.py "${{ steps.ver.outputs.version }}" --post
