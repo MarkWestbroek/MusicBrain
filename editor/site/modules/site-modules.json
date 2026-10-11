@@ -1,5 +1,5 @@
 {
-  "_uitleg": "Per software-module op de site (doc/plans/software-modules-op-de-site.md): naam en slug op de site, gemeten rekentijd op de Teensy 4.1 (cpu in % per exemplaar, met de firmwareversie waarin gemeten), de take die Mark koos (null = geen geluid op de pagina) en Engelse uitleg bij knoppen die moduleHelp.ts niet heeft. Handmatig bijgehouden; editor/scripts/moduleSite.ts leest dit.",
+  "_uitleg": "Per software-module op de site (doc/plans/software-modules-op-de-site.md): naam en slug op de site, gemeten rekentijd op de Teensy 4.1 (cpu in % per exemplaar, met de firmwareversie waarin gemeten), de take die Mark koos (take = de groep in de media-library; takeUrl = de openbare link, pas dan komt er een Listen-sectie op de pagina) en Engelse uitleg bij knoppen die moduleHelp.ts niet heeft. Handmatig bijgehouden; editor/scripts/moduleSite.ts leest dit.",
   "modules": {
     "tp_mmb_ladder": {
       "slug": "sw-ladder",
@@ -9,7 +9,7 @@
         "fw": "0.5.107",
         "how": "Marks patch Ladder ×4 (VCO → Ladder → VCA per voice): 37 % with four ladders, 3.5 % with a state-variable filter instead; getStatus on the Teensy"
       },
-      "take": null,
+      "take": "mmb-6-stemmig-ladder-filter-20261011-233237",
       "try": "Open the editor and choose **Axel F lead** from the standard set, or **Poly ▾ → Ladder-filter ×4**.",
       "controlHelp": {
         "cv_amt": "How many octaves the cutoff moves for a full-scale signal on F CV.",
@@ -22,7 +22,9 @@
         "q_cv": "Resonance modulation on top of the Res knob.",
         "drive_cv": "Drive modulation.",
         "out": "Low-pass output, 24 dB per octave."
-      }
+      },
+      "takeNote": "Gekozen door Mark (2026-10-11): 6 stemmen, cutoff 68 Hz, Q 0,87, Drive 3, op de Teensy. Voorgesteld voor de pool, dus in de media-library. Let op: drie gaten van 8,6 ms rond 57, 62 en 66 s (cpu); eventueel inkorten tot 0–55 s.",
+      "takeUrl": null
     }
   },
   "exampleNames": {

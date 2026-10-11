@@ -35,6 +35,7 @@ interface SiteModule {
   slug: string; name: string;
   cpu?: { percent: number; fw: string; how?: string };
   take?: string | null;
+  takeUrl?: string | null;
   try?: string;
   controlHelp?: Record<string, string>;
   portHelp?: Record<string, string>;
@@ -124,6 +125,9 @@ function main(): void {
       L.push(`| ${esc(p.name || p.id)} | ${p.direction} | ${p.signalType} | ${esc(meta.portHelp?.[p.id] ?? '')} |`);
     }
     L.push('');
+
+    // Luisteren: alleen met een openbare link naar Marks take.
+    if (meta.takeUrl) L.push('## Listen', '', `A recording on the MusicBrain Brain: <${meta.takeUrl}>`, '');
 
     const how = text.get('How it works');
     if (how) L.push('## How it works', '', how, '');
