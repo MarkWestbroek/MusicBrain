@@ -48,7 +48,12 @@ van de Ladder gekozen: wacht op een nieuwe opname van Mark.
 ## 2. Het model
 
 - **Eén component per software-module**, `kind: software`, slug naar het
-  type: `tp_mmb_ladder` → `sw-ladder` (leesbaar, zonder `tp_mmb_`).
+  type: `tp_mmb_ladder` → `sw-ladder` (leesbaar, zonder `tp_mmb_`), en `_`
+  wordt `-` (`tp_mmb_tape_echo` → `sw-tape-echo`). Vaste afspraak met Imprint
+  (2026-10-12): het overzicht `/modules` toont precies de componenten met
+  `kind: software` en slug `sw-*`, en een patchpagina linkt elk moduletype
+  uit `requires.moduleTypes` zo naar zijn modulepagina. De generator
+  controleert de slug.
 - **Versie = de firmwareversie** waarin de module het laatst veranderde
   (uit de release-log of `git log` op de kern), bijvoorbeeld `v0.5.107`. Bij
   een nieuwe firmware alleen opnieuw publiceren wat echt veranderde.

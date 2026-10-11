@@ -115,6 +115,10 @@ async function main(): Promise<void> {
   for (const id of ids) {
     const meta = site.modules[id];
     if (!meta) throw new Error(`${id} staat niet in site-modules.json`);
+    // Afspraak met Imprint (2026-10-12): /modules toont componenten met slug
+    // sw-*, en een patchpagina linkt moduleType tp_mmb_x_y naar sw-x-y.
+    const want = `sw-${id.replace(/^tp_mmb_/, '').replace(/_/g, '-')}`;
+    if (meta.slug !== want) throw new Error(`${id}: slug moet ${want} zijn (staat ${meta.slug})`);
     const mod = base.modules.find((m) => m.typeId === id);
     const type = base.moduleTypes.find((t) => t.id === id);
     if (!mod || !type) throw new Error(`${id}: geen module of type`);
