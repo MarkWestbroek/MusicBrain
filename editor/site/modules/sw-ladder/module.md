@@ -35,6 +35,10 @@ resonance inputs run at audio rate.
 | Drv CV | in | cv | Drive modulation. |
 | Out | out | audio | Low-pass output, 24 dB per octave. |
 
+## Listen
+
+A recording on the MusicBrain Brain, with the patch it was played on: <https://musicbrain.nl/patches/6-stemmig-ladder-filter>
+
 ## How it works
 
 The filter is Antti Huovilainen's non-linear model of the Moog transistor
@@ -56,9 +60,11 @@ with a sawtooth at drive 4; now −115 dB).
 
 ## Try it
 
+Patches to play (open them in the editor from their page): [6-stemmig ladder-filter](https://musicbrain.nl/patches/6-stemmig-ladder-filter).
+
 Open the editor and choose **Axel F lead** from the standard set, or **Poly ▾ → Ladder-filter ×4**.
 
-Example patches with this module: *🎺 CS-80 brass (aftertouch)*, *🎹 Axel F-lead (2 saws)*, *🎺 CS-80 brass ×4*, *🎸 Axel F lead*.
+In the editor's example set: *🎺 CS-80 brass (aftertouch)*, *🎹 Axel F-lead (2 saws)*, *🎺 CS-80 brass ×4*, *🎸 Axel F lead*.
 
 Editor: <https://editor.musicbrain.nl>
 

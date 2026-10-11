@@ -7,7 +7,10 @@
 //
 // Wat uit de code komt: knoppen en poorten (moduledefinitie + firmware-
 // contract), de korte uitleg en de knopregels (moduleHelp.ts), de
-// voorbeeldpatches waarin de module zit (patchCatalog.ts), het paneel.
+// voorbeeldpatches waarin de module zit (patchCatalog.ts), het paneel, en
+// de openbare patches uit de pool op musicbrain.nl die hem gebruiken (uit
+// `requires.moduleTypes`; die krijgen een link naar hun patchpagina, waar je
+// ze in de editor opent of speelt).
 // Wat niet uit de code komt staat in editor/site/modules/: de Engelse
 // lange uitleg, "how it works", bronnen en versies (text/<slug>.en.md), en
 // per module de gemeten rekentijd, de gekozen take en ontbrekende
@@ -67,12 +70,29 @@ function sections(md: string): Map<string, string> {
   return out;
 }
 
-function main(): void {
+interface PoolPatch { slug: string; title: string; pool: string; url?: string; takes?: string[]; requires?: { moduleTypes?: string[] } }
+const SITE = process.env.MMB_SITE ?? 'https://musicbrain.nl';
+
+/** De openbare patches (centraal, experimenteel); leeg als de site niet bereikbaar is. */
+async function poolPatches(): Promise<PoolPatch[]> {
+  const out: PoolPatch[] = [];
+  for (const pool of ['centraal', 'experimenteel']) {
+    try {
+      const res = await fetch(`${SITE}/api/patches?pool=${pool}`);
+      const body = await res.json() as { patches?: PoolPatch[]; items?: PoolPatch[] } | PoolPatch[];
+      out.push(...(Array.isArray(body) ? body : body.patches ?? body.items ?? []));
+    } catch (e) { console.warn(`pool ${pool} niet te lezen: ${e instanceof Error ? e.message : e}`); }
+  }
+  return out;
+}
+
+async function main(): Promise<void> {
   const ids = process.argv.slice(2);
   if (ids.length === 0) throw new Error('gebruik: tsx scripts/moduleSite.ts tp_mmb_ladder …');
   const site = JSON.parse(fs.readFileSync(path.join(siteDir, 'site-modules.json'), 'utf-8')) as { modules: Record<string, SiteModule>; exampleNames?: Record<string, string> };
   const contract = JSON.parse(fs.readFileSync(path.join(repo, 'firmware', 'app-modular-brain', 'contract', 'module-types.json'), 'utf-8')) as { firmwareVersion: string; modules: Record<string, unknown> };
   const base = seedInternals(emptyModularProject());
+  const pool = await poolPatches();
 
   // Voorbeeldpatches waarin een type zit (geen diagnose- of stresspatches).
   const usedBy = new Map<string, string[]>();
@@ -126,8 +146,16 @@ function main(): void {
     }
     L.push('');
 
-    // Luisteren: alleen met een openbare link naar Marks take.
-    if (meta.takeUrl) L.push('## Listen', '', `A recording on the MusicBrain Brain: <${meta.takeUrl}>`, '');
+    // Openbare patches met deze module; die met Marks gekozen take eerst.
+    const inPool = pool.filter((x) => x.requires?.moduleTypes?.includes(id))
+      .map((x) => ({ ...x, url: x.url ?? `${SITE}/patches/${x.slug}` }))
+      .sort((a, b) => Number(b.takes?.includes(meta.take ?? '') ?? false) - Number(a.takes?.includes(meta.take ?? '') ?? false)
+        || Number(b.pool === 'centraal') - Number(a.pool === 'centraal'));
+
+    // Luisteren: alleen met een openbare link naar Marks take (of de
+    // openbare patch waar die take bij hoort).
+    const takeUrl = meta.takeUrl ?? inPool.find((x) => meta.take && x.takes?.includes(meta.take))?.url;
+    if (takeUrl) L.push('## Listen', '', `A recording on the MusicBrain Brain, with the patch it was played on: <${takeUrl}>`, '');
 
     const how = text.get('How it works');
     if (how) L.push('## How it works', '', how, '');
@@ -140,8 +168,9 @@ function main(): void {
 
     const examples = usedBy.get(id) ?? [];
     L.push('## Try it', '');
+    if (inPool.length) L.push(`Patches to play (open them in the editor from their page): ${inPool.map((x) => `[${x.title}](${x.url})`).join(', ')}.`, '');
     if (meta.try) L.push(meta.try, '');
-    if (examples.length) L.push(`Example patches with this module: ${examples.map((x) => `*${x}*`).join(', ')}.`, '');
+    if (examples.length) L.push(`In the editor's example set: ${examples.map((x) => `*${x}*`).join(', ')}.`, '');
     L.push('Editor: <https://editor.musicbrain.nl>', '');
 
     for (const h of ['Sources & licences', 'Versions']) {
@@ -155,4 +184,4 @@ function main(): void {
   }
 }
 
-main();
+void main();
