@@ -11,10 +11,20 @@
 // front-hoes (SVG), met de versie-eisen (`requires`). Licentie CC0, labels
 // `basisset` en `mmb-<id>`.
 //
-// De API kan niets rechtstreeks in `centraal` zetten: een token stuurt
-// voorstellen in, en Mark zet ze in de admin op `centraal` (één veld). Het
-// script stuurt niets dubbel: een patch waarvan het label `mmb-<id>` al in
-// `centraal` of (met token) bij de voorstellen staat, slaat het over.
+// De API kan niets in `centraal` zetten (besluit Imprint 2026-10-11): een
+// token stuurt voorstellen in, en Mark zet ze in de admin op `centraal`.
+//
+// Per patch kiest het script:
+//   nieuw        geen patch met label `mmb-<id>` in de pool → POST (voorstel)
+//   ongewijzigd  wel, met dezelfde vingerafdruk `mmb-v-<hash>` → overslaan
+//   gewijzigd    wel, met een andere vingerafdruk → nieuwe bestanden en
+//                PATCH /api/patches/<slug> op dezelfde slug. Imprint zet hem
+//                dan terug op `voorstel`, ook vanuit `centraal`: Marks
+//                oordeel geldt per inhoud. Bedoeld gedrag.
+// De vingerafdruk is over de patch zelf (slimSnapshot, zonder moduletypes),
+// met de id's die de bouw willekeurig maakt vervangen door volgnummers.
+// Zonder dat zou elke run alles bijwerken en de hele basisset terug in de
+// wachtrij zetten; een wijziging aan een moduletype telt niet mee.
 //
 // Zonder --send stuurt het niets: het toont per patch wat het zou doen. Het
 // token komt uit MMB_POOL_TOKEN en wordt nooit getoond; het heeft de scopes
@@ -30,14 +40,15 @@ import React from '../../editor/node_modules/react/index.js';
 (globalThis as { React?: unknown }).React = React;
 
 import { resolveBuildInfo } from '../../editor/build-info';
+import { contentHash } from './contentHash';
 import { frontForPool, frontSvg } from '../../editor/src/modular-mb/frontSvg';
 import { catalogMenu, type CatalogEntry } from '../../editor/src/modular-mb/patchCatalog';
 import { checkPatch } from '../../editor/src/modular-mb/patchCheck';
 import { seedInternals } from '../../editor/src/modular-mb/seedModules';
 import { emptyModularProject, type ModularProject } from '../../editor/src/modular-mb/types';
-import { DEFAULT_LIBRARY, type LibrarySettings } from '../../editor/src/modular-mb/sim/mediaLibrary';
+import { DEFAULT_LIBRARY, uploadTake, type LibrarySettings, type UploadedAsset } from '../../editor/src/modular-mb/sim/mediaLibrary';
 import { patchSnapshot, slimSnapshot } from '../../editor/src/modular-mb/sim/midiRecorder';
-import { listPool, proposePatch, type PoolItem } from '../../editor/src/modular-mb/sim/patchPool';
+import { assetRef, listPool, patchesUrl, proposePatch, type PoolItem } from '../../editor/src/modular-mb/sim/patchPool';
 import { patchRequires, splitDescribe } from '../../editor/src/modular-mb/sim/patchRequires';
 import { encodePatchSysex, joinSysex, SYSEX_CMD } from '../../editor/src/modular-mb/sim/patchSysex';
 import { buildConfigPayload } from '../../editor/src/modular-mb/teensyLink';
@@ -70,13 +81,20 @@ if (!info.editorVersion || !info.firmwareContract) {
   process.exit(1);
 }
 
+/** Een bestand naar de library (één group per patch), zoals proposePatch doet. */
+async function upload(group: string, name: string, blob: Blob): Promise<UploadedAsset> {
+  const [a] = await uploadTake({ group, files: [{ name, blob }] }, lib);
+  if (!a) throw new Error(`De library gaf geen asset terug voor ${name}.`);
+  return a;
+}
+
 async function main(): Promise<void> {
-  // Wat staat er al? Centraal is openbaar; voorstellen alleen met token.
-  const present = new Map<string, string>();   // label → pool
-  for (const pool of ['centraal', ...(token ? ['voorstel'] : [])] as const) {
+  // Wat staat er al? De openbare pools zonder token, de voorstellen met.
+  const present = new Map<string, PoolItem>();   // label mmb-<id> → item
+  for (const pool of ['centraal', 'experimenteel', ...(token ? ['voorstel'] : [])] as const) {
     try {
       const items: PoolItem[] = await listPool({ pool }, lib);
-      for (const it of items) for (const t of it.tags ?? []) if (t.startsWith('mmb-')) present.set(t, it.pool);
+      for (const it of items) for (const t of it.tags ?? []) if (/^mmb-(?!v-)/.test(t)) present.set(t, it);
     } catch (err) {
       console.error(`Pool ${pool} niet te lezen: ${err instanceof Error ? err.message : String(err)}`);
       if (send) process.exit(1);
@@ -86,7 +104,7 @@ async function main(): Promise<void> {
   const base = seedInternals(emptyModularProject());
   const entries = catalogMenu('basisset');
   console.log(`${send ? 'INSTUREN' : 'Proefstand'}: ${entries.length} patches, editor ${info.editorVersion}${info.editorBuild ? ` (${info.editorBuild})` : ''}, contract ${info.firmwareContract}, pool ${endpoint.replace(/\/api\/media$/, '')}\n`);
-  let sent = 0, skipped = 0, failed = 0;
+  let created = 0, updated = 0, same = 0, failed = 0;
   for (const e of entries) {
     const tag = tagOf(e);
     const title = titleOf(e);
@@ -99,13 +117,14 @@ async function main(): Promise<void> {
     }
     const snap = patchSnapshot(p, patch);
     const requires = patchRequires(snap, info);
+    const vtag = `mmb-v-${contentHash(snap)}`;
+    const tags = ['basisset', tag, vtag];
     const json = JSON.stringify(snap, null, 1);
     const syx = joinSysex([
       ...await encodePatchSysex(SYSEX_CMD.firmwareConfig, buildConfigPayload(snap).json),
       ...await encodePatchSysex(SYSEX_CMD.editorPatch, JSON.stringify(slimSnapshot(snap))),
     ]);
     const front = frontSvg(frontForPool(patch, p), patch, p);
-    const where = present.get(tag);
     const sizes = `${Math.round(json.length / 1024)} KB json, ${Math.round(syx.length / 1024)} KB syx, ${requires.moduleTypes.length} moduletypes`;
     if (outDir) {
       fs.mkdirSync(outDir, { recursive: true });
@@ -113,24 +132,46 @@ async function main(): Promise<void> {
       fs.writeFileSync(path.join(outDir, `${tag}.syx`), syx);
       fs.writeFileSync(path.join(outDir, `${tag}.front.svg`), front);
     }
-    if (where) { console.log(`= ${title} [${tag}]: staat al in ${where}`); skipped++; continue; }
-    if (!send) { console.log(`+ ${title} [${tag}]: zou ingestuurd worden (${sizes})`); continue; }
+    const old = present.get(tag);
+    if (old && (old.tags ?? []).includes(vtag)) { console.log(`= ${title} [${tag}]: ongewijzigd (${old.pool})`); same++; continue; }
+    if (!send) {
+      console.log(old
+        ? `~ ${title} [${tag}]: zou bijgewerkt worden op ${old.slug}; gaat daarna terug naar voorstel (nu ${old.pool})`
+        : `+ ${title} [${tag}]: zou ingestuurd worden (${sizes})`);
+      continue;
+    }
     try {
-      const item = await proposePatch(
-        { kind: 'proposal', title, description: e.title ?? '', tags: ['basisset', tag], license: 'CC0', requires },
-        { group: `${tag}-basisset`, patchJson: new Blob([json], { type: 'application/json' }), syx: new Blob([syx], { type: 'application/octet-stream' }),
-          front: new Blob([front], { type: 'image/svg+xml' }) },
-        [], lib,
-      );
-      console.log(`✓ ${title} [${tag}]: voorgesteld als ${item.slug}`);
-      sent++;
+      if (!old) {
+        const item = await proposePatch(
+          { kind: 'proposal', title, description: e.title ?? '', tags, license: 'CC0', requires },
+          { group: `${tag}-basisset`, patchJson: new Blob([json], { type: 'application/json' }), syx: new Blob([syx], { type: 'application/octet-stream' }),
+            front: new Blob([front], { type: 'image/svg+xml' }) },
+          [], lib,
+        );
+        console.log(`✓ ${title} [${tag}]: voorgesteld als ${item.slug}`);
+        created++;
+        continue;
+      }
+      const group = `${tag}-basisset-${vtag.slice(6)}`;
+      const file = await upload(group, `${group}.patch.json`, new Blob([json], { type: 'application/json' }));
+      const syxA = await upload(group, `${group}.syx`, new Blob([syx], { type: 'application/octet-stream' }));
+      const frontA = await upload(group, `${group}.front.svg`, new Blob([front], { type: 'image/svg+xml' }));
+      const res = await fetch(`${patchesUrl(lib)}/${encodeURIComponent(old.slug)}`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, description: e.title ?? '', tags, requires, file: assetRef(file), syx: assetRef(syxA), front: assetRef(frontA) }),
+      });
+      const body = await res.json().catch(() => ({})) as { error?: string; changed?: string[]; requeued?: boolean; pool?: string };
+      if (!res.ok) throw new Error(`HTTP ${res.status}${body.error ? `: ${body.error}` : ''}`);
+      console.log(`↻ ${title} [${tag}]: bijgewerkt op ${old.slug} (${(body.changed ?? []).join(', ') || 'niets'})${body.requeued ? ', terug naar voorstel' : ''}`);
+      updated++;
     } catch (err) {
       console.log(`✕ ${title} [${tag}]: ${err instanceof Error ? err.message : String(err)}`);
       failed++;
     }
   }
-  console.log(`\n${send ? `${sent} ingestuurd` : 'niets ingestuurd (proefstand)'}, ${skipped} stonden er al, ${failed} mislukt.`);
-  if (send && sent) console.log('Zet de voorstellen in de admin op pool "centraal" (licentie staat al op CC0).');
+  console.log(`\n${send ? `${created} ingestuurd, ${updated} bijgewerkt` : 'niets verstuurd (proefstand)'}, ${same} ongewijzigd, ${failed} mislukt.`);
+  if (send && (created || updated)) console.log('Zet de nieuwe en bijgewerkte voorstellen in de admin op pool "centraal" (licentie staat al op CC0).');
   if (failed) process.exit(1);
 }
 
