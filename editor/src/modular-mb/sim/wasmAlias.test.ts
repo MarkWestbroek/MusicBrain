@@ -28,7 +28,9 @@ describe('aliasing van de vervormers', () => {
     ['Drive Overdrive vol', 'tp_mmb_drive', { drive: 1, mode: 0, mix: 1 }, 'in', 'out', -66, -90],
     ['Drive Distortion vol', 'tp_mmb_drive', { drive: 1, mode: 1, mix: 1 }, 'in', 'out', -60, -90],
     ['Drive Fuzz vol', 'tp_mmb_drive', { drive: 1, mode: 2, mix: 1 }, 'in', 'out', -38, -59],
-    ['Tube Studio vol', 'tp_mmb_tube', { drive: 1, mode: 0, mix: 1 }, 'in_l', 'out_l', -88, -108],
+    // Tube zonder ADAA in de triodes (fw 0.5.107): een log per oversampled
+    // sample was te duur op de Teensy (één Tube kostte 139 % cpu).
+    ['Tube Studio vol', 'tp_mmb_tube', { drive: 1, mode: 0, mix: 1 }, 'in_l', 'out_l', -74, -93],
     ['Tube Amp vol', 'tp_mmb_tube', { drive: 1, mode: 1, mix: 1 }, 'in_l', 'out_l', -37, -61],
     // Ladder: eigen kern sinds fw 0.5.103 (mmb_dsp/ladder.h). De versie uit
     // de Teensy Audio Library aliaste hier −35 dB (zaag, Drive 4).

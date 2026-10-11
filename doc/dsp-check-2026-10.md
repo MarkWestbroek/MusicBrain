@@ -2,7 +2,7 @@
 
 > **Actueel (2026-10-11, fw 0.5.102):** ADAA gebouwd in Drive, Tube en de
 > uitgang van de e-piano; zie **§5 Na de aanpassing**. fw 0.5.103: een eigen
-> Ladder (§6). Correctie op §1: de
+> Ladder (§6). fw 0.5.107: rekentijd op de Teensy (§7). Correctie op §1: de
 > Ladder is alleen schoon tot Drive 1; met een zaag en Drive 4 aliast hij fors
 > (§5). De meting staat nu als test in `editor/src/modular-mb/sim/wasmAlias.test.ts`.
 
@@ -197,4 +197,36 @@ met de kop van de bibliotheek), maar:
 Firmware en browser gebruiken nu dezelfde kern (`LadderModule.h`,
 `tools/mmb-wasm/ladder_wasm.cc`); de module heeft dezelfde poorten, knoppen en
 CV-wetten.
+
+## 7. Rekentijd op de Teensy (fw 0.5.107)
+
+Mark hoorde de Ladder ×4 kraken op de Teensy. In zijn opname: 27 gaten van
+precies 8,6 ms (drie audioblokken) — de Teensy kreeg blokken niet op tijd af.
+Nieuw diagnosecommando `{"type":"bench","what":"os|ladder|drive|tube|tanh|logcosh|div"}`
+(main.cpp, `runBench`): rekent een kern 50 blokken met interrupts uit en
+geeft klokcycli per sample terug.
+
+| | voor | na |
+|---|---|---|
+| Oversampler4 alleen | 1653 cycli (12,2 % cpu) | **435 (3,2 %)** |
+| Ladder | 14,6 % | 8,4 % |
+| Drive | 16,7 % | 10,5 % |
+| Tube (twee ingangen) | **139 %** | 51,5 % |
+| Marks patch Ladder ×4 (gemeten via getStatus) | 61 % | **37 %** |
+| Eén Tube, één ingang | vastgelopen | 26 % |
+
+- **Oorzaak**: `Oversampler4` (gedeeld door Complex, Drive, Folder, Ladder,
+  Tube) rekende elke FIR-som als één keten van 68 vermenigvuldig-optellingen,
+  met een modulo per tap. Op de Cortex-M7 wacht elke schakel op de vorige.
+  Nu: vier onafhankelijke sommen en een verdubbelde geschiedenis (geen
+  modulo). Dezelfde taps, dezelfde uitkomst.
+- **Tube**: zonder rechteringang rekent hij links één keer en kopieert (rechts
+  was precies hetzelfde); de ADAA in de triodes en de eindtrap is eruit (een
+  `log` per oversampled sample; gaf bij Amp weinig winst). Tube Studio valt
+  daarmee terug naar −80 dB (sinus), de grens in de test is aangepast.
+- Een vermoeden dat de kernen traag waren omdat ze uit QSPI-flash draaien
+  (het linkerscript zet main.cpp in flash) klopte **niet**: met de lus in
+  ITCM (`.fastrun`) bleef het gelijk. Teruggedraaid.
+- Les: na elke DSP-wijziging die op de Teensy draait, `bench` of `getStatus`
+  meten; in de browser was dezelfde code even snel.
 

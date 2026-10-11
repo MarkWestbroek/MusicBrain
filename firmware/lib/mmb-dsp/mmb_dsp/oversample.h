@@ -42,6 +42,9 @@ public:
             sum += value;
         }
         for (float& tap : taps_) tap = static_cast<float>(tap / sum);
+        // Per fase de taps achter elkaar, met de ×4 van het opvullen erin.
+        for (int phase = 0; phase < kFactor; ++phase)
+            for (int k = 0; k < kPhaseTaps; ++k) phaseTaps_[phase][k] = taps_[k * kFactor + phase] * kFactor;
         clear();
     }
 
@@ -51,16 +54,26 @@ public:
         upIndex_ = downIndex_ = 0;
     }
 
+    // Snelheid (2026-10-11, doc/dsp-check-2026-10.md §7): de geschiedenis staat
+    // twee keer achter elkaar, zodat elke FIR-som een aaneengesloten stuk leest
+    // (geen modulo per tap), en de sommen lopen in vier onafhankelijke ketens
+    // die de FPU van de Cortex-M7 kan overlappen. Eerst was het één keten van 68
+    // vermenigvuldig-optellingen met een modulo per tap: 1650 cycli per sample
+    // op de Teensy (12 % cpu per oversampler).
+
     /** Eén sample erin, vier eruit (versterking 1). */
     void up(float input, float* out4) {
-        upIndex_ = (upIndex_ + kPhaseTaps - 1) % kPhaseTaps;
+        upIndex_ = upIndex_ == 0 ? kPhaseTaps - 1 : upIndex_ - 1;
         upHistory_[upIndex_] = input;
-        for (int phase = 0; phase < kFactor; ++phase) {
-            float acc = 0;
-            for (int k = 0; k < kPhaseTaps; ++k)
-                acc += taps_[k * kFactor + phase] * upHistory_[(upIndex_ + k) % kPhaseTaps];
-            out4[phase] = acc * kFactor;
+        upHistory_[upIndex_ + kPhaseTaps] = input;
+        const float* h = upHistory_ + upIndex_;      // h[0] = nieuwste
+        const float *p0 = phaseTaps_[0], *p1 = phaseTaps_[1], *p2 = phaseTaps_[2], *p3 = phaseTaps_[3];
+        float a0 = 0, a1 = 0, a2 = 0, a3 = 0;
+        for (int k = 0; k < kPhaseTaps; ++k) {
+            const float x = h[k];
+            a0 += p0[k] * x; a1 += p1[k] * x; a2 += p2[k] * x; a3 += p3[k] * x;
         }
+        out4[0] = a0; out4[1] = a1; out4[2] = a2; out4[3] = a3;
     }
 
     /** Vier samples erin, één eruit. */
@@ -68,14 +81,16 @@ public:
         // Uitlezen op het eerste van de vier samples: dan valt de totale
         // vertraging (2 x 32 hoge samples) precies op 16 basissamples.
         pushDown(in4[0]);
-        float acc = 0;
-        int index = downIndex_;
-        for (int k = 0; k < kTaps; ++k) {
-            acc += taps_[k] * downHistory_[index];
-            if (++index == kTaps) index = 0;
+        const float* h = downHistory_ + downIndex_;  // h[0] = nieuwste
+        float a0 = 0, a1 = 0, a2 = 0, a3 = 0;
+        for (int k = 0; k < kTaps; k += 4) {
+            a0 += taps_[k] * h[k];
+            a1 += taps_[k + 1] * h[k + 1];
+            a2 += taps_[k + 2] * h[k + 2];
+            a3 += taps_[k + 3] * h[k + 3];
         }
         pushDown(in4[1]); pushDown(in4[2]); pushDown(in4[3]);
-        return acc;
+        return (a0 + a1) + (a2 + a3);
     }
 
     /** `shaper` op vier keer de samplefrequentie toepassen. */
@@ -89,8 +104,9 @@ public:
 
 private:
     void pushDown(float value) {
-        downIndex_ = (downIndex_ + kTaps - 1) % kTaps;
+        downIndex_ = downIndex_ == 0 ? kTaps - 1 : downIndex_ - 1;
         downHistory_[downIndex_] = value;
+        downHistory_[downIndex_ + kTaps] = value;
     }
     static double bessel0(double x) {
         double sum = 1, term = 1;
@@ -99,8 +115,9 @@ private:
     }
 
     float taps_[kTaps] = {};
-    float upHistory_[kPhaseTaps] = {};
-    float downHistory_[kTaps] = {};
+    float phaseTaps_[kFactor][kPhaseTaps] = {};
+    float upHistory_[2 * kPhaseTaps] = {};           // twee keer achter elkaar
+    float downHistory_[2 * kTaps] = {};
     int upIndex_ = 0, downIndex_ = 0;
 };
 

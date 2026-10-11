@@ -118,6 +118,10 @@ public:
      *  fills @p status with telemetry fields (cpu, mem, modules, …); the
      *  link serialises it as `{"type":"status",...}` back to the editor. */
     using StatusHandler = void (*)(JsonObject status);
+    /** {"type":"bench","what":"ladder"}: diagnose, rekentijd van een kern in
+     *  klokcycli per sample (main.cpp vult `out`). */
+    using BenchHandler = void (*)(const char* what, JsonObject out);
+    void onBench(BenchHandler h) { onBench_ = h; }
 
     /** Callback voor een "selfTest"-verzoek: een diagnose die buiten de
      *  audioroutine om rekent (zie mmb_dsp/sampler_selftest.h). Het antwoord
@@ -306,6 +310,7 @@ private:
     StatusHandler      onStatus_      = nullptr;
     SelfTestHandler    onSelfTest_    = nullptr;
     HeadHandler        onSamplerHead_ = nullptr;
+    BenchHandler       onBench_ = nullptr;
 
     void sendHello() {
         JsonDocument doc;
@@ -477,6 +482,14 @@ private:
             JsonDocument extra;
             extra["ms"] = ms; extra["force"] = force;
             sendAckOk("samplerHead", extra);
+            return;
+        }
+        if (strcmp(type, "bench") == 0) {
+            JsonDocument out;
+            out["type"] = "bench";
+            if (onBench_) onBench_(doc["what"] | "", out.as<JsonObject>());
+            serializeJson(out, Serial);
+            Serial.println();
             return;
         }
         if (strcmp(type, "getStatus") == 0) {

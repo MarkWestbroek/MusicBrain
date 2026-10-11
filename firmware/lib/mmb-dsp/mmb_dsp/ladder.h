@@ -68,9 +68,16 @@ public:
             // CV-gelijkspanningen glijden lineair (2 ms), zoals de DC-objecten.
             fc_ = glide(fc_, fcTarget_);
             q_ = glide(q_, qTarget_);
-            float f = base_ * std::exp2(fc_ * cvAmt_);
-            if (f > 0.425f * sr_) f = 0.425f * sr_;
-            coefficients(f);
+            // Coëfficiënten alleen opnieuw als de frequentie verandert (een
+            // envelope op `cv` doet dat elke sample; een stilstaande knop niet),
+            // met de snelle exp2 van de bibliotheek: op de Teensy telt het.
+            const float oct = fc_ * cvAmt_;
+            if (oct != lastOct_ || base_ != lastBase_) {
+                lastOct_ = oct; lastBase_ = base_;
+                float f = base_ * fastExp2(oct);
+                if (f > 0.425f * sr_) f = 0.425f * sr_;
+                coefficients(f);
+            }
             float kTot = k_ + 4 * q_;
             kTot = kTot < 0 ? 0 : kTot > 4 * kMaxResonance ? 4 * kMaxResonance : kTot;
             const float kq = kTot * qAdjust_;
@@ -113,6 +120,15 @@ private:
         z0_[i] = s;
         return ft;
     }
+    /** 2^x, snel (uit de bibliotheek): (1 + f·ln2/256)^256 voor het breukdeel. */
+    static float fastExp2(float x) {
+        float i;
+        float f = std::modf(x, &i);
+        f *= 0.693147f / 256.0f;
+        f += 1.0f;
+        f *= f; f *= f; f *= f; f *= f; f *= f; f *= f; f *= f; f *= f;
+        return std::ldexp(f, static_cast<int>(i));
+    }
     /** Padé-benadering van tanh; glad tot ±3 (de afgeleide is daar 0), dan vlak. */
     static float fastTanh(float x) {
         if (x > 3) return 1;
@@ -127,7 +143,7 @@ private:
     float base_ = 2000, k_ = 2.8f, driveBase_ = 1, overdrive_ = 1;
     float cvAmt_ = 2, qCvAmt_ = 0.5f, driveCvAmt_ = 0.5f, driveCv_ = 0, qCvRaw_ = 0;
     float fcTarget_ = 0, qTarget_ = 0, fc_ = 0, q_ = 0;
-    float alpha_ = 1, qAdjust_ = 1;
+    float alpha_ = 1, qAdjust_ = 1, lastOct_ = -1e9f, lastBase_ = -1;
     float z0_[4] = {}, z1_[4] = {};
 };
 

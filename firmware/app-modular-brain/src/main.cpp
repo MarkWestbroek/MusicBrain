@@ -831,6 +831,11 @@ void onWaveformB64(const char* moduleId, const char* b64) {
 
 }  // namespace
 
+#include "mmb_dsp/drive.h"
+#include "mmb_dsp/ladder.h"
+#include "mmb_dsp/tube.h"
+void runBench(const char* what, JsonObject out);   // diagnose, onderaan
+
 void setup() {
     pinMode(kHeartbeatPin, OUTPUT);
     Serial.begin(115200);
@@ -924,7 +929,55 @@ void setup() {
     });
     link.onSamplerHead([](int ms, bool force) {
         mmb_link::SampleBank::instance().setHeadMs(static_cast<uint32_t>(ms), force);
-    });         // diagnose: MS-20 in de sampler, zonder uitgang
+    });
+    link.onBench(runBench);         // diagnose: MS-20 in de sampler, zonder uitgang
+}
+
+// ── diagnose: rekentijd van een kern ({"type":"bench","what":...}) ──────────
+// Klokcycli per sample, met interrupts uit (de audio hapert even). Voor het
+// opsporen van te zware kernen (2026-10-11: de Ladder kostte 14,5 % per stem).
+namespace {
+template <class Fn> float benchCycles(Fn&& fn, int blocks, int frames) {
+    fn();                                            // opwarmen (cache)
+    __disable_irq();
+    const uint32_t t0 = ARM_DWT_CYCCNT;
+    for (int b = 0; b < blocks; ++b) fn();
+    const uint32_t dt = ARM_DWT_CYCCNT - t0;
+    __enable_irq();
+    return static_cast<float>(dt) / static_cast<float>(blocks * frames);
+}
+float g_benchIn[128], g_benchOut[2][128];
+}
+void runBench(const char* what, JsonObject out) {
+    constexpr int N = 128, B = 50;
+    for (int i = 0; i < N; ++i) g_benchIn[i] = 0.8f * (2.0f * static_cast<float>(i % 64) / 64.0f - 1.0f);
+    const float* in[2] = {g_benchIn, g_benchIn};
+    float* o[2] = {g_benchOut[0], g_benchOut[1]};
+    out["what"] = what;
+    if (strcmp(what, "os") == 0) {
+        static mmb_dsp::Oversampler4 os; os.Init();
+        out["cyclesPerSample"] = benchCycles([&] { for (int i = 0; i < N; ++i) g_benchOut[0][i] = os.process(g_benchIn[i], [](float v) { return v; }); }, B, N);
+    } else if (strcmp(what, "ladder") == 0) {
+        static mmb_dsp::Ladder k; k.Init(AUDIO_SAMPLE_RATE_EXACT); k.setControl(mmb_dsp::Ladder::Cutoff, 600);
+        out["cyclesPerSample"] = benchCycles([&] { k.Process(in, o, N); }, B, N);
+    } else if (strcmp(what, "drive") == 0) {
+        static mmb_dsp::Drive k; k.Init(AUDIO_SAMPLE_RATE_EXACT); k.setControl(mmb_dsp::Drive::Amount, 1);
+        out["cyclesPerSample"] = benchCycles([&] { k.Process(in, o, N); }, B, N);
+    } else if (strcmp(what, "tube") == 0) {
+        static mmb_dsp::Tube k; k.Init(AUDIO_SAMPLE_RATE_EXACT); k.setControl(mmb_dsp::Tube::Drive, 1);
+        out["cyclesPerSample"] = benchCycles([&] { k.Process(in, o, N); }, 5, N);
+    } else if (strcmp(what, "tanh") == 0) {
+        volatile float acc = 0;
+        out["cyclesPerSample"] = benchCycles([&] { for (int i = 0; i < N; ++i) acc = acc + std::tanh(g_benchIn[i] * 3.0f); }, B, N);
+    } else if (strcmp(what, "logcosh") == 0) {
+        volatile float acc = 0;
+        out["cyclesPerSample"] = benchCycles([&] { for (int i = 0; i < N; ++i) acc = acc + mmb_dsp::logCosh(g_benchIn[i] * 3.0f); }, B, N);
+    } else if (strcmp(what, "div") == 0) {
+        volatile float acc = 1;
+        out["cyclesPerSample"] = benchCycles([&] { for (int i = 0; i < N; ++i) acc = g_benchIn[i] / (acc + 2.0f); }, B, N);
+    } else {
+        out["error"] = "os, ladder, drive, tube, tanh, logcosh, div";
+    }
 }
 
 void loop() {

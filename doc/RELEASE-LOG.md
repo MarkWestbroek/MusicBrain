@@ -17,6 +17,21 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-11 — Rekentijd: het oversamplingfilter 3,8× sneller; Tube werkt weer op de Teensy (fw 0.5.107)
+- Mark: "de ladder ×4 kraakte op de Teensy." Zijn opname had 27 gaten van
+  8,6 ms: de Teensy kreeg audioblokken niet op tijd af (patch op 61 % cpu).
+- Het gedeelde 4×-filter (`oversample.h`) kostte 1653 klokcycli per sample
+  (12 % cpu per stuk); nu 435 (3,2 %): vier parallelle sommen en een
+  verdubbelde buffer, zelfde taps en zelfde klank. Complex, Drive, Folder,
+  Ladder en Tube worden allemaal lichter. Marks Ladder ×4: 61 → 37 %.
+- **Tube**: één Tube kostte sinds de ADAA van vandaag 139 % en liet de Teensy
+  vastlopen. Nu: de ADAA in de triodes en de eindtrap is eruit (te duur, weinig
+  winst), en zonder rechteringang rekent hij één kanaal: 26 %.
+- Nieuw diagnosecommando `bench` (klokcycli per sample van een kern), zie
+  [dsp-check-2026-10.md](dsp-check-2026-10.md) §7.
+- Bijgewerkt bij het herbouwen: `tp_mmb_midiin.wasm` en `tp_mmb_tapestrip.wasm`
+  liepen achter op hun bron (o.a. de stemtoon-instelling van 5 oktober).
+
 ### 2026-10-11 — E-piano: geen vervorming meer met sustain en volle akkoorden (fw 0.5.105)
 - Mark: "klinkt toch nog overstuurd, met name met de sustain aan." Met
   sustain klinken veel tonen door; de som liep bij elke trilling vol in de
