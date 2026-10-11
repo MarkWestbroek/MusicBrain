@@ -108,6 +108,53 @@ function rowEnd(p: ModularProject, rack: Rack, row: number): number {
   return end;
 }
 
+/**
+ * Kopiëren bij schrijven: racks van deze patch die een andere patch ook
+ * gebruikt (na "Bewaar als…" delen ze rack en modules) worden voor deze patch
+ * gekopieerd, met nieuwe id's voor rack, slots, modules en poly-groepen; de
+ * patch (kabels, knopstanden, fronts, moduledata …) gaat mee naar de nieuwe
+ * id's. Daarna kan een bewerking het rack aanpassen zonder de andere patches
+ * te raken (Marks melding 2026-10-11: 4- en 6-stemmig werden mee 8-stemmig).
+ * Het interne Brain-rack wordt nooit gekopieerd. `saved` blijft naar het oude
+ * rack wijzen, dus Terug werkt.
+ */
+export function forkSharedRacks(p: ModularProject, patchId: string): { project: ModularProject; forked: number } {
+  const patch = p.patches.find((x) => x.id === patchId);
+  if (!patch) return { project: p, forked: 0 };
+  const shared = p.racks.filter((r) => patch.rackIds.includes(r.id) && r.kind !== 'internal' && r.id !== 'rack_internal'
+    && p.patches.some((o) => o.id !== patchId && o.rackIds.includes(r.id)));
+  if (!shared.length) return { project: p, forked: 0 };
+  const ids = new Map<string, string>();
+  const mods = new Map(p.modules.map((m) => [m.id, m]));
+  for (const r of shared) {
+    ids.set(r.id, uid('rack'));
+    for (const sl of r.slots) {
+      ids.set(sl.id, uid('slot'));
+      const m = mods.get(sl.moduleId);
+      if (m && !m.internal) ids.set(m.id, uid('mod'));
+    }
+    for (const g of r.polyGroups ?? []) ids.set(g.id, uid('poly'));
+  }
+  // Id's zijn unieke strings: als geheel vervangen waar ze als waarde of sleutel staan.
+  const swap = <T>(v: T): T => JSON.parse(JSON.stringify(v).replace(/"([^"\\]+)"/g, (all, x: string) => {
+    const n = ids.get(x);
+    return n ? `"${n}"` : all;
+  })) as T;
+  const newModules = p.modules.filter((m) => ids.has(m.id)).map((m) => swap(m));
+  const newRacks = shared.map((r) => ({ ...swap(r), name: `${r.name} · ${patch.name}` }));
+  const { saved, ...rest } = patch;
+  const moved: Patch = { ...swap(rest), ...(saved ? { saved } : {}) } as Patch;
+  return {
+    project: {
+      ...p,
+      modules: [...p.modules, ...newModules],
+      racks: [...p.racks, ...newRacks],
+      patches: p.patches.map((x) => (x.id === patchId ? moved : x)),
+    },
+    forked: shared.length,
+  };
+}
+
 function withRack(p: ModularProject, rackId: string, fn: (r: Rack) => Rack): ModularProject {
   return { ...p, racks: p.racks.map((r) => (r.id === rackId ? fn(r) : r)) };
 }
@@ -791,7 +838,11 @@ export function findVoiceChain(p: ModularProject, patch: Patch): string[] {
 export function setVoices(project: ModularProject, patchId: string, voices: number): EditResult {
   const N = Math.max(1, Math.min(16, Math.round(voices)));
   const warnings: string[] = [];
-  let p = project;
+  // Eerst een eigen rack als een andere patch dit rack deelt: anders krijgen
+  // alle patches op dit rack de nieuwe stemmen (of verliezen ze er).
+  const fork = forkSharedRacks(project, patchId);
+  let p = fork.project;
+  if (fork.forked) warnings.push('Deze patch deelde zijn rack met een andere patch en heeft nu een eigen kopie; de andere patches blijven zoals ze waren.');
   const patch = patchOf(p, patchId);
   const racks = patchRacks(p, patch);
   const ids = patchModuleIds(p, patch);

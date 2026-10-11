@@ -17,6 +17,23 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-11 — Stemmen wijzigen raakt geen andere patches meer (editor)
+- Mark: "ik maakte de 4-stemmige ladder 6-stemmig en toen 8; als ik terugga
+  naar de 6 en 4 hebben die ook 8 stemmen." Patches die met "Bewaar als…"
+  zijn gemaakt delen hun rack, en de stemmen (de kopieën van de modules en de
+  poly-groep) zitten in dat rack. "N stemmen" (`setVoices`) paste het
+  gedeelde rack aan, dus alle patches erop; minder stemmen haalde zelfs
+  modules en kabels bij de andere patches weg.
+- Nu: kopiëren bij schrijven (`forkSharedRacks` in `recipe/edits.ts`). Deelt
+  een andere patch het rack, dan krijgt deze patch eerst een eigen kopie
+  (rack, modules, poly-groepen, met de kabels en knopstanden op de nieuwe
+  id's); de melding zegt dat. Het interne Brain-rack wordt nooit gekopieerd;
+  "Terug" wijst nog naar het oude rack. Test met Marks scenario in
+  `recipe/edits.test.ts`.
+- Bestaande projecten worden niet vanzelf hersteld: zet bij een patch die
+  het verkeerde aantal heeft de stemmen opnieuw (rechtsklik → N stemmen);
+  hij krijgt dan zijn eigen rack.
+
 ### 2026-10-11 — Rekentijd: het oversamplingfilter 3,8× sneller; Tube werkt weer op de Teensy (fw 0.5.107)
 - Mark: "de ladder ×4 kraakte op de Teensy." Zijn opname had 27 gaten van
   8,6 ms: de Teensy kreeg audioblokken niet op tijd af (patch op 61 % cpu).

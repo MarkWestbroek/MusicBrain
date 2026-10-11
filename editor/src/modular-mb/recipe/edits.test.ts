@@ -416,3 +416,56 @@ describe('woorden → modules', () => {
     expect(findPortByWord(p0, vco, 'cutoff')).toBeNull();
   });
 });
+
+describe('setVoices op een gedeeld rack (Marks melding 2026-10-11)', () => {
+  it('"Bewaar als…" en dan meer of minder stemmen: de andere patches blijven zoals ze waren', async () => {
+    const { PATCH_CATALOG } = await import('../patchCatalog');
+    const { saveAsPatch } = await import('./saved');
+    const { setVoices } = await import('./edits');
+    const entry = PATCH_CATALOG.find((e) => e.menu === 'stress' && e.label.includes('Ladder-filter'))!;
+    let p = entry.build(seedInternals(emptyModularProject()));
+    const four = p.activePatchId!;
+    const groupSize = (proj: ModularProject, patchId: string): number => {
+      const patch = proj.patches.find((x) => x.id === patchId)!;
+      const gs = proj.racks.filter((r) => patch.rackIds.includes(r.id)).flatMap((r) => r.polyGroups ?? []);
+      return Math.max(1, ...gs.map((g) => g.voiceCount));
+    };
+    const moduleSet = (proj: ModularProject, patchId: string): string => {
+      const patch = proj.patches.find((x) => x.id === patchId)!;
+      return proj.racks.filter((r) => patch.rackIds.includes(r.id)).flatMap((r) => r.slots.map((s) => s.moduleId)).sort().join(',');
+    };
+    expect(groupSize(p, four)).toBe(4);
+    const before4 = moduleSet(p, four);
+    const conns4 = JSON.stringify(p.patches.find((x) => x.id === four)!.connections);
+
+    // 4 → "Bewaar als" → die naar 6
+    p = saveAsPatch(p, four, 'patch_six', '6-stemmig');
+    const r6 = setVoices(p, 'patch_six', 6);
+    p = r6.project;
+    expect(r6.warnings.join(' ')).toMatch(/eigen kopie/);
+    expect(groupSize(p, 'patch_six')).toBe(6);
+    expect(groupSize(p, four)).toBe(4);
+    expect(moduleSet(p, four)).toBe(before4);
+    expect(JSON.stringify(p.patches.find((x) => x.id === four)!.connections)).toBe(conns4);
+
+    // 6 → "Bewaar als" → die naar 8; de 6 blijft 6, de 4 blijft 4
+    p = saveAsPatch(p, 'patch_six', 'patch_eight', '8-stemmig');
+    p = setVoices(p, 'patch_eight', 8).project;
+    expect(groupSize(p, 'patch_eight')).toBe(8);
+    expect(groupSize(p, 'patch_six')).toBe(6);
+    expect(groupSize(p, four)).toBe(4);
+
+    // Minder stemmen haalt bij een ander niets weg
+    p = saveAsPatch(p, four, 'patch_two', '2-stemmig');
+    p = setVoices(p, 'patch_two', 2).project;
+    expect(groupSize(p, 'patch_two')).toBe(2);
+    expect(moduleSet(p, four)).toBe(before4);
+    expect(JSON.stringify(p.patches.find((x) => x.id === four)!.connections)).toBe(conns4);
+
+    // Een patch met een eigen rack wordt niet nog eens gekopieerd
+    const racks = p.racks.length;
+    const again = setVoices(p, 'patch_eight', 6);
+    expect(again.project.racks.length).toBe(racks);
+    expect(again.warnings.join(' ')).not.toMatch(/eigen kopie/);
+  });
+});
