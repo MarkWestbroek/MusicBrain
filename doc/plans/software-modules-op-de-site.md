@@ -10,7 +10,10 @@ Ter review. Geen code gebouwd.
 > **Besluiten (Mark, 2026-10-11):** 1 ja, eerst de 42 uit de standaardset;
 > 2 per module, met een overzicht per familie; 3 Engels (Imprint heeft nog
 > geen meertaligheid; "moet snel"): de Nederlandse teksten bewaren we ernaast
-> om mee te sturen zodra dat er is. 4 en 5 nog open.
+> om mee te sturen zodra dat er is. 4 **geen zelf gerenderd geluid**
+> ("automatische muziekjes zijn tot nu toe te technisch van aard; elke module
+> inspireert tot andere timing, noten, sfeer"): wel zoeken naar een take van
+> Mark waarin de module zit (§3a). 5 **ja, rekentijd tonen** (§3b).
 
 ## 1. Wat er al is
 
@@ -81,6 +84,28 @@ instruments / samplers / physical models; delay / reverb / modulation /
 dynamics / distortion) kan later als tweede veld, zonder iets aan patches te
 veranderen.
 
+### 3a. Geluid: Marks eigen takes
+
+Geen gerenderde demo's. Een take is wav + mid + patch.json (⏺ Opname in de
+editor; op de site in de media-library, zie [patch-pool.md](patch-pool.md)); de patch.json zegt welke modules
+erin zitten. De generator zoekt per module de takes waarin hij voorkomt
+(lokaal: de takes-map en Downloads; op de site: de media-library van Imprint,
+`group` = take-id) en zet de beste als luisterfragment op de pagina, of geeft
+een lijst waaruit Mark kiest. Geen take = geen geluid op die pagina. Wat "de
+beste" is, beslist Mark (een kleine keuzelijst `site-takes.json`: module →
+take).
+
+### 3b. Rekentijd op de Teensy
+
+Per module de cpu per exemplaar op de Teensy 4.1, gemeten, niet geschat.
+Generiek, zonder per kern code te schrijven: per moduletype een minimale
+config (een VCO in de module, de module naar OUT) naar de Teensy sturen,
+`getStatus` uitlezen en de basis (zonder de module) aftrekken; zoals op
+2026-10-11 met een los meetscript gedaan (komt als `tools/teensy-live/module_cpu.py`). Het getal krijgt de
+firmwareversie erbij ("~8 % per voice, fw 0.5.107"), zodat duidelijk is dat
+het per versie kan veranderen. Opnieuw meten bij elke firmware die een kern
+raakt.
+
 ## 4. De pijplijn
 
 - Een generator (`editor/scripts/moduleSite.ts`, naast `moduleCatalog.ts`)
@@ -100,8 +125,8 @@ Als feature request, pas na jouw akkoord op dit plan:
 1. **Een overzicht van software-modules per familie** (VCO, filters,
    effecten, …): een lijst- of rasterpagina, gefilterd op `kind: software`
    en een familieveld.
-2. **Een geluidsfragment als asset** (wav/mp3 naast de afbeeldingen), zodat
-   een modulepagina kan laten horen wat hij doet.
+2. **Een geluidsfragment als asset**, of een verwijzing naar een take in de
+   media-library (§3a), zodat een modulepagina kan laten horen wat hij doet.
 3. Eventueel **een eigen soort `module`** naast `software`, als een module
    anders getoond moet worden dan een editor. Waarschijnlijk niet nodig.
 
@@ -116,7 +141,5 @@ Als feature request, pas na jouw akkoord op dit plan:
 3. **Taal:** Engels, zoals de rest van de site. De lange uitleg (`notes`) is
    nu Nederlands en moet vertaald worden. Wie doet dat: ik, eenmalig per
    module, en bewaard naast de Nederlandse tekst?
-4. **Geluid op de pagina:** ja/nee? Kan uit de wasm-kern gerenderd worden
-   (dezelfde code als de Teensy).
-5. **Rekentijd tonen** ("~8 % cpu per voice on the Teensy 4.1")? Eerlijk en
-   nuttig, maar een getal dat verandert bij elke optimalisatie.
+4. ~~Geluid op de pagina~~: besloten, Marks eigen takes (§3a).
+5. ~~Rekentijd tonen~~: besloten, ja (§3b).
