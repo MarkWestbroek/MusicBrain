@@ -16,9 +16,13 @@
 //      elkaar en een toonregeling die laag en hoog mengt met een gat in het
 //      midden ("scooped"). Lange, zingende sustain.
 //
-// De clippers lopen vier keer overbemonsterd (oversample.h). Het is een eigen
+// De clippers lopen vier keer overbemonsterd (oversample.h) én met ADAA
+// (adaa.h): een harde knik maakte anders zoveel boventonen dat ze ook op de
+// 4×-rate terugvouwden (doc/dsp-check-2026-10.md). De uitgang begrenst zacht
+// in plaats van hard af te knippen. Het is een eigen
 // model op het oor en op de schema-topologie, geen component-voor-component
 // simulatie. Header-only; gedeeld door Teensy en browser.
+#include "adaa.h"
 #include "oversample.h"
 
 namespace mmb_dsp {
@@ -81,16 +85,23 @@ public:
             const float dry = dry_.process(x);      // even lang onderweg als de clipper
             float wet;
             if (mode == 0) {
-                wet = oversampler_.process(driven, [gain](float s) { return softAsym(s * gain); });
+                Adaa1& a = adaa1_;
+                wet = oversampler_.process(driven, [gain, &a](float s) { return a.process(s * gain, softAsym, softAsymF); });
                 wet = dry + wet;                     // schoon erbij: het laag blijft heel
             } else if (mode == 1) {
-                wet = oversampler_.process(driven, [gain](float s) { return hardClip(s * gain); });
+                Adaa1& a = adaa1_;
+                const KneeShape& k = hardKnee_;
+                wet = oversampler_.process(driven, [gain, &a, &k](float s) {
+                    return a.process(s * gain, [&k](float v) { return k.f(v); }, [&k](float v) { return k.anti(v); });
+                });
             } else {
                 float& state = interStage_;
-                wet = oversampler_.process(driven, [gain, interHp, &state](float s) {
-                    const float first = softSym(s * gain);
+                Adaa1& a1 = adaa1_;
+                Adaa1& a2 = adaa2_;
+                wet = oversampler_.process(driven, [gain, interHp, &state, &a1, &a2](float s) {
+                    const float first = a1.process(s * gain, TanhShape::f, TanhShape::anti);
                     state += interHp * (first - state);     // koppelcondensator tussen de trappen
-                    return softSym((first - state) * gain * 0.5f);
+                    return a2.process((first - state) * gain * 0.5f, TanhShape::f, TanhShape::anti);
                 });
             }
             // Toonregeling.
@@ -102,7 +113,7 @@ public:
                 toned = lp2_ * (1 - tone_) * 1.6f + high * tone_ * 1.6f;   // midden op 0,5: gat rond 700 Hz
             }
             const float y = dry + (toned * outGain - dry) * mix_;
-            out[0][frame] = y < -1 ? -1 : y > 1 ? 1 : y;
+            out[0][frame] = outLimit_.process(y);
         }
     }
 
@@ -112,13 +123,16 @@ private:
     static float softAsym(float u) {
         return u >= 0 ? std::tanh(u) : 0.85f * std::tanh(u * (1 / 0.85f));
     }
-    static float softSym(float u) { return std::tanh(u); }
-    /** Harde dioden naar massa: recht tot vlak voor de knik, dan vast. */
-    static float hardClip(float u) {
-        const float a = std::fabs(u);
-        const float y = a / std::sqrt(std::sqrt(1 + a * a * a * a));
-        return u < 0 ? -y : y;
+    /** De primitieve van softAsym (voor ADAA). */
+    static float softAsymF(float u) {
+        return u >= 0 ? logCosh(u) : 0.7225f * logCosh(u * (1 / 0.85f));
     }
+    // Harde dioden naar massa (Distortion): recht tot de helft, dan een korte
+    // bocht naar vast. Eerder a/(1+a⁴)^¼; deze vorm heeft een primitieve,
+    // nodig voor ADAA, en ligt er binnen een paar procent naast.
+    KneeShape hardKnee_{0.5f};
+    Adaa1 adaa1_, adaa2_;
+    SoftLimit outLimit_{0.9f};
 
     Oversampler4 oversampler_;
     DryDelay dry_;

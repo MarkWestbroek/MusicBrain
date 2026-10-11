@@ -1,5 +1,10 @@
 # DSP-check: aliasing, begrenzing en zelf-oscillatie (2026-10-11)
 
+> **Actueel (2026-10-11, fw 0.5.102):** ADAA gebouwd in Drive, Tube en de
+> uitgang van de e-piano; zie **§5 Na de aanpassing**. Correctie op §1: de
+> Ladder is alleen schoon tot Drive 1; met een zaag en Drive 4 aliast hij fors
+> (§5). De meting staat nu als test in `editor/src/modular-mb/sim/wasmAlias.test.ts`.
+
 Aanleiding: de kritiek van *Archit3ch_* op Circuit Studio
 (circuit.synthcity.org, r/synthdiy, oktober 2026). Zijn punten zijn een goede
 checklist voor elke nagebootste analoge schakeling, dus ook voor de onze:
@@ -100,13 +105,69 @@ Geen enkel filter loopt vast op een constante (gemiddelde overal 0,000).
 
 ## Voorstellen (nog niet gedaan)
 
-- **Drive en Tube**: anti-aliasing op de clipper zelf (ADAA, de
-  "antiderivative"-methode: een paar bewerkingen per sample, werkt goed op
-  harde knikken), of 8× voor de harde standen. Daarna deze meting als test
-  vastleggen, met een grens per module.
+- ~~**Drive en Tube**: anti-aliasing op de clipper zelf (ADAA) … daarna deze
+  meting als test vastleggen.~~ Gedaan, zie §5.
 - **MS-20**: zelf-oscillatie zonder drive en de toon bij hoge drive naast de
   Circuit Studio-schakeling en een echte MS-20-opname leggen.
 - **Het decimatiefilter**: steiler maken (meer taps of een tweede trap) kost
   rekentijd op 22 kernen; eerst de vervormers aanpakken, dan opnieuw meten of
   dit nog uitmaakt.
 - **Een clipindicator in de speelmodus** (OUT-niveau te heet).
+
+## 5. Na de aanpassing (fw 0.5.102)
+
+Mark (2026-10-11): "Clippen vond ik ook wel te veel aanwezig, ook in de drive
+in de e-piano." Gebouwd:
+
+- `mmb_dsp/adaa.h`: eerste-orde ADAA (`Adaa1`), vormen met hun primitieve
+  (`TanhShape`, `KneeShape`) en `SoftLimit`, een uitgangsbegrenzer die
+  schoon is tot de knie en pas daarboven ADAA gebruikt (op de gewone rate zou
+  ADAA in het lineaire stuk het hoog dempen: −2,5 dB op 10 kHz).
+- **Drive**: ADAA op alle drie de clippers (binnen de 4×). De harde clipper
+  van Distortion is nu een knie-vorm (recht tot 0,5, dan een tanh-bocht naar
+  vol), want die heeft een primitieve; hij ligt binnen een paar procent van
+  de oude vorm. De harde klem op de uitgang is een zachte begrenzer (knie 0,9).
+- **Tube**: ADAA op beide triodetrappen en de eindtrap (met sag:
+  `processVarying`), zachte begrenzer op de uitgang.
+- **E-piano**: de tanh over de **som** van alle stemmen (die gewone akkoorden
+  al samen vervormde) is een begrenzer die schoon blijft tot 0,7. Het blaffen
+  zit in de tine zelf (Drive) en blijft.
+
+| Geval | signaal | sterkste alias < 10 kHz voor → na | volume |
+|---|---|---|---|
+| Drive Overdrive vol | sinus 3457 Hz | −34 → **−72 dB** | gelijk |
+| Drive Overdrive vol | zaag A3 | −64 → **−96 dB** | gelijk |
+| Drive Distortion vol | sinus 3457 Hz | −31 → **−66 dB** | gelijk |
+| Drive Distortion vol | zaag A3 | −63 → **−96 dB** | gelijk |
+| Drive Fuzz vol | sinus 3457 Hz | −33 → −44 dB | gelijk |
+| Drive Fuzz vol | zaag A3 | −56 → −65 dB | gelijk |
+| Tube Studio vol | sinus 3457 Hz | −80 → −94 dB | gelijk |
+| Tube Amp vol | sinus 3457 Hz | −38 → −43 dB | gelijk |
+| Tube Amp vol | zaag A3 | −70 → −67 dB | gelijk |
+
+**E-piano, twee tonen (C4 + E4) op volle aanslag**, intermodulatie
+t.o.v. de grondtoon:
+
+| Drive | 2f1 − f2 (194 Hz) voor → na | 2f2 − f1 (398 Hz) voor → na |
+|---|---|---|
+| 0,4 (standaard) | −27 → **−49 dB** | −27 → **−49 dB** |
+| 1 | −39 → **−75 dB** | −40 → **−128 dB** |
+
+Het geheel wordt ~1 dB luider (minder samengedrukt); de piek blijft onder 0,8.
+
+**Wat overblijft**
+
+- **Tube Amp op vol**: nauwelijks beter. Twee trappen met samen tot 60 × 15
+  versterking; de triodecurve heeft een knikje in de kromming op nul, en
+  daarvoor is eerste-orde ADAA met 4× niet genoeg. Sag, kast en
+  uitgangsbegrenzer zijn het niet (apart uitgezet en gemeten). Oplossing:
+  tweede-orde ADAA of 8× voor deze stand.
+- **Ladder (correctie op §1)**: met een sinus was hij schoon, met een
+  **zaag op A3 en Drive 4** aliast hij fors: −35 dB (in totaal −13 dB). Bij
+  Drive 1 is hij schoon (−114 dB). Oorzaak in `AudioFilterLadder` van de
+  Teensy Audio Library (Richard van Hoesel): `fast_tanh` knipt hard af boven
+  ±3, en de oversampling heeft een FIR van 36 taps. De firmware gebruikt de
+  bibliotheek ongewijzigd; repareren vraagt een eigen kopie (of een melding
+  bij PJRC). Precies het punt van Archit3ch_: met alleen een sinus mis je dit.
+- **Fuzz**: twee trappen achter elkaar; −44 dB bij een hoge sinus.
+

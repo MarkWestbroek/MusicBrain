@@ -17,6 +17,23 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-11 — Minder aliasing en schonere akkoorden: ADAA in Drive, Tube en e-piano (fw 0.5.102)
+- Naar de DSP-check ([dsp-check-2026-10.md](dsp-check-2026-10.md)) en Marks
+  "clippen vond ik te veel aanwezig, ook in de e-piano". Nieuw gedeeld:
+  `mmb_dsp/adaa.h` (ADAA eerste orde + een zachte uitgangsbegrenzer).
+- **Drive**: ADAA op alle clippers; de harde uitgangsklem is een zachte
+  begrenzer. Sterkste alias bij Overdrive/Distortion op vol: −34 → −72 dB
+  (hoge sinus), −64 → −96 dB (zaag A3). Volume gelijk.
+- **Tube**: ADAA op de triodetrappen en de eindtrap, zachte uitgang. Studio
+  duidelijk beter; Amp op vol nauwelijks (zie het rapport).
+- **E-piano**: niet langer één tanh over de som van alle stemmen, maar een
+  begrenzer die schoon is tot 0,7. Twee tonen samen gaven bij de standaard
+  Drive intermodulatie op −27 dB, nu −49 dB; het blaffen van de tine blijft.
+  Het geheel wordt ~1 dB luider.
+- Nieuwe test `sim/wasmAlias.test.ts` met een grens per geval.
+- Gevonden en genoteerd, niet gerepareerd: de Ladder (Teensy Audio Library)
+  aliast fors boven Drive 1; Tube Amp op vol vraagt tweede-orde ADAA of 8×.
+
 ### 2026-10-11 — Basisset naar de pool: release-script (tools)
 - **`tools/pool-basisset/publish-basisset.ts`**: de standaardset uit de code
   als voorstellen naar de pool op musicbrain.nl, met dezelfde bestanden als

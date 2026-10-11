@@ -32,6 +32,7 @@
 // gedrag en topologie, geen simulatie per onderdeel. Stereo: twee gelijke
 // kanalen. Header-only; gedeeld door Teensy en browser.
 #include "biquad.h"
+#include "adaa.h"
 #include "oversample.h"
 
 namespace mmb_dsp {
@@ -76,11 +77,11 @@ public:
             for (int frame = 0; frame < frames; ++frame) {
                 const float x = input ? finiteClamp(input[frame], -4, 4, 0) : 0;
                 // Eerste trap (beide standen).
-                float y = triodeStage(c.os1, c.shift1, c.dc1, x * gain1, bias, amp);
+                float y = triodeStage(c.os1, c.adaa1, c.shift1, c.dc1, x * gain1, bias, amp);
                 float dry = c.dry.process(x);
                 if (amp) {
                     y = biquadTick(interstage_, c.inter, y);                // koppelcondensator + kathode
-                    y = triodeStage(c.os2, c.shift2, c.dc2, y * gain2, bias, true);
+                    y = triodeStage(c.os2, c.adaa2, c.shift2, c.dc2, y * gain2, bias, true);
                     dry = c.dryB.process(dry);                                // even lang als de tweede trap
                     // Toonstack.
                     y = biquadTick(stackLow_, c.stack[0], y);
@@ -91,7 +92,12 @@ public:
                     c.sag += (level > c.sag ? sagAttack_ : sagRelease_) * (level - c.sag);
                     const float supply = 1.0f / (1.0f + control_[Sag] * 1.5f * c.sag);
                     // Een lagere voeding verlaagt het plafond: eerder clippen, zachter.
-                    y = c.osPower.process(y, [supply](float s) { return supply * std::tanh(s * 1.6f / supply) / 1.6f * 1.2f; });
+                    Adaa1& ap = c.adaaPower;
+                    y = c.osPower.process(y, [supply, &ap](float s) {
+                        return ap.processVarying(s,
+                            [supply](float v) { return supply * std::tanh(v * 1.6f / supply) / 1.6f * 1.2f; },
+                            [supply](float v) { return 1.2f * supply * supply / (1.6f * 1.6f) * logCosh(v * 1.6f / supply); });
+                    });
                     dry = c.dry2.process(dry);                                // de eindtrap loopt ook overbemonsterd
                     y = biquadTick(presence_, c.presence, y);
                     if (control_[Cab] >= 0.5f) {
@@ -105,7 +111,7 @@ public:
                     y *= makeup;
                 }
                 const float mixed = (dry + (y - dry) * control_[Mix]) * control_[Level] * 1.6f;
-                out[ch][frame] = mixed < -1 ? -1 : mixed > 1 ? 1 : mixed;
+                out[ch][frame] = c.outLimit.process(mixed);
             }
         }
     }
@@ -125,17 +131,27 @@ public:
         return t - 0.3f * t * t;
     }
 
+    /** Primitieven van triode en studioTriode, voor ADAA (adaa.h). */
+    static float triodeF(float u) {
+        if (u >= 0) return u - std::log1p(u);
+        const float v = 1 - 0.4f * u;
+        return (v - std::log(v) - 1) / 0.16f;
+    }
+    static float studioTriodeF(float u) { return logCosh(u) - 0.3f * (u - std::tanh(u)); }
+
 private:
     static constexpr float kMaxShift = 1.2f;                     // hoe ver het werkpunt kan wegzakken
     struct Channel {
         Oversampler4 os1, os2, osPower;
+        Adaa1 adaa1, adaa2, adaaPower;
+        SoftLimit outLimit{0.9f};
         DryDelay dry, dryB, dry2;
         BiquadState inter, stack[3], presence, cab[4], trafo;
         float shift1 = 0, shift2 = 0, dc1 = 0, dc2 = 0, sag = 0;
     };
 
     /** Eén triodetrap: overbemonsterd, met bias-verschuiving en DC-blokker. */
-    float triodeStage(Oversampler4& os, float& shift, float& dc, float u, float bias, bool hot) {
+    float triodeStage(Oversampler4& os, Adaa1& adaa, float& shift, float& dc, float u, float bias, bool hot) {
         // De verschuiving volgt het deel boven nul (roosterstroom) en lekt weg.
         // Studio: zuiver klasse A, nauwelijks roosterstroom en dus nauwelijks verschuiving.
         const float charge = blockCharge_ * (hot ? 1.0f : 0.1f), leak = blockLeak_;
@@ -143,7 +159,7 @@ private:
         const float y = os.process(u, [&](float s) {
             const float grid = s + bias - shift;
             if (grid > 0) drive += grid / (1 + grid);           // roosterstroom loopt via de roosterweerstand: begrensd
-            return hot ? triode(grid) : studioTriode(grid);
+            return hot ? adaa.process(grid, triode, triodeF) : adaa.process(grid, studioTriode, studioTriodeF);
         });
         shift += charge * drive * 0.25f - leak * shift;
         shift = shift < 0 ? 0 : shift > kMaxShift ? kMaxShift : shift;

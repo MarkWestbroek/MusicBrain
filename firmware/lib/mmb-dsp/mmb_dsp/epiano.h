@@ -27,6 +27,7 @@
 // heen-en-weer-tremolo van het koffermodel. Geen samples, geen
 // overbemonstering (de pickup maakt weinig hoge boventonen).
 // Header-only; gedeeld door Teensy en browser.
+#include "adaa.h"
 #include "oversample.h"
 
 namespace mmb_dsp {
@@ -126,7 +127,11 @@ public:
             tremPhase_ += tremRate_ / sampleRate_;
             if (tremPhase_ >= 1) tremPhase_ -= 1;
             const float sway = 0.5f * std::sin(6.2831853f * tremPhase_);
-            const float y = std::tanh(sum * 1.3f) * level_;
+            // Eén begrenzer over de som van alle stemmen: schoon tot 0,7, daarna
+            // zacht naar vol. Eerder een tanh over de som, die ook gewone
+            // akkoorden al samen vervormde (de tonen trokken aan elkaar); het
+            // blaffen hoort bij de tine zelf (Drive), niet bij de optelling.
+            const float y = outLimit_.process(sum * 1.3f) * level_;
             out[0][frame] = y * (1 - tremolo_ * (0.5f + sway));
             out[1][frame] = y * (1 - tremolo_ * (0.5f - sway));
         }
@@ -167,6 +172,7 @@ private:
     float sampleRate_ = 44100, damper_ = 0.999f, strike_ = 0.02f;
     bool sustain_ = false;
     float timbre_ = 0.35f, bell_ = 0.5f, decay_ = 0.5f, drive_ = 0.4f, tremolo_ = 0.3f, tremRate_ = 4.5f, level_ = 0.8f;
+    SoftLimit outLimit_{0.7f};
     float tremPhase_ = 0;
     int type_ = 0;
 };
