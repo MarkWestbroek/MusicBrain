@@ -1,0 +1,104 @@
+# Software-modules op de site (voorstel, 2026-10-11)
+
+Mark: "We hebben de (geplande) hardware vrij uitgebreid op de website
+beschreven en getoond. We zouden de software achter de modules ook kunnen
+beschrijven. Modules zijn componenten: we hebben hardware-modules en
+software-modules."
+
+Ter review. Geen code gebouwd.
+
+## 1. Wat er al is
+
+- **De pijplijn** ([site-publicatie-werkwijze.md](../site-publicatie-werkwijze.md)):
+  een **component** met versies, een **spec** per versie (tekstsecties en
+  afbeeldingen, via `POST /api/ingest/board-spec`), een **product** dat
+  componenten bundelt, en **releases** die versies pinnen.
+- **Software-componenten** bestaan al: `editor-reflex` en `editor-cortex`, met
+  `kind: software` ([imprint-fr-component-kind.md](../imprint-fr-component-kind.md)),
+  gepubliceerd met `hardware/kicad-generators/publish_software.py`. De
+  componentpagina zegt dan "Software v…" in plaats van "Board v…".
+- **De gegevens per module** liggen al machinaal klaar:
+  - poorten en knoppen uit het firmwarecontract
+    (`firmware/app-modular-brain/contract/module-types.json`);
+  - de uitleg (`notes`) en de familie uit `seedModules.ts`;
+  - een korte uitleg en een regel per knop, Nederlands én Engels
+    (`moduleHelp.ts`, 42 modules);
+  - de voorbeeldpatches waarin een module voorkomt;
+  - of hij in de browser draait (`simSupport.ts`);
+  - alles samen al als [module-catalogus.md](../module-catalogus.md).
+- **Afbeeldingen**: het paneel van een module is als SVG te renderen
+  (`ModulePanel`, zoals `frontSvg.ts` dat voor fronts doet).
+- **Rekentijd op de Teensy**: het commando `bench` (fw 0.5.107) geeft klokcycli
+  per sample.
+
+## 2. Het model
+
+- **Eén component per software-module**, `kind: software`, slug naar het
+  type: `tp_mmb_ladder` → `sw-ladder` (leesbaar, zonder `tp_mmb_`).
+- **Versie = de firmwareversie** waarin de module het laatst veranderde
+  (uit de release-log of `git log` op de kern), bijvoorbeeld `v0.5.107`. Bij
+  een nieuwe firmware alleen opnieuw publiceren wat echt veranderde.
+- **De relatie met de hardware**: een component `musicbrain-firmware`
+  (software) met de modules als `children`; het Brain-bord (hardware) draait
+  die firmware. Waar een hardware-module een software-tegenhanger heeft (de
+  analoge vcf8-kern en een VCF in software), kan de pagina naar elkaar
+  verwijzen.
+- **Producten**: Cortex bundelt het bord, de firmware en de editor; de
+  modules komen via de firmware mee.
+
+## 3. Wat er op een modulepagina staat
+
+Gegenereerd, niet met de hand geschreven:
+
+| Sectie | Bron |
+|---|---|
+| Afbeelding (renderTop) | het paneel als PNG/SVG |
+| Tweede afbeelding (overview) | een front uit een voorbeeldpatch, of een spectrum/klankbeeld |
+| **Overview** | de korte uitleg (`moduleHelp` EN), daarna de lange (`notes`, vertaald) |
+| **Controls** | tabel: knop, bereik, standaard, uitlegregel (EN) |
+| **Ports** | tabel: in/uit, soort (audio/cv/gate), betekenis |
+| **How it works** | het algoritme in een paar zinnen (bv. "Huovilainen ladder, 4× oversampled, soft limiter") |
+| **Sources & licences** | bronnen en licenties (MI-ports MIT, Teensy Audio Library MIT, eigen werk; de artikelen, zoals bij ADAA en de Ladder) |
+| **Runs on** | Teensy (met cpu per exemplaar uit `bench`) en de browser (wasm) |
+| **Try it** | link naar de editor met een voorbeeldpatch (`editor.musicbrain.nl/?patch=…`) |
+| **Versions** | wat er per firmwareversie veranderde (uit de release-log) |
+
+## 4. De pijplijn
+
+- Een generator (`editor/scripts/moduleSite.ts`, naast `moduleCatalog.ts`)
+  schrijft per module een map met `module.md` (de secties hierboven),
+  `beschrijving.txt` en de afbeeldingen. De editorcode zit daar, dus de
+  generator ook.
+- `publish_software.py` (of een variant `publish_modules.py` die een hele map
+  in één keer doet) post ze, eerst naar de lokale Imprint
+  (`IMPRINT_BASE=http://localhost:3000`), dan live.
+- Draait na `npm run catalog`, dus na elke modulewijziging in de vaste
+  volgorde van CLAUDE.md.
+
+## 5. Wat we waarschijnlijk van Imprint nodig hebben
+
+Als feature request, pas na jouw akkoord op dit plan:
+
+1. **Een overzicht van software-modules per familie** (VCO, filters,
+   effecten, …): een lijst- of rasterpagina, gefilterd op `kind: software`
+   en een familieveld.
+2. **Een geluidsfragment als asset** (wav/mp3 naast de afbeeldingen), zodat
+   een modulepagina kan laten horen wat hij doet.
+3. Eventueel **een eigen soort `module`** naast `software`, als een module
+   anders getoond moet worden dan een editor. Waarschijnlijk niet nodig.
+
+## 6. Besluiten voor Mark
+
+1. **Welke modules?** Alle 118 typen, of eerst een selectie: de modules uit
+   de standaardset (42, die hebben al Engelse uitleg) en de klassiekers?
+   **Voorstel:** eerst die 42; interne en diagnosemodules nooit.
+2. **Eén pagina per module, of per familie** (één pagina "Filters" met de
+   Ladder, MS-20, SEM, …)? **Voorstel:** per module, met een familieoverzicht
+   via Imprint (5.1).
+3. **Taal:** Engels, zoals de rest van de site. De lange uitleg (`notes`) is
+   nu Nederlands en moet vertaald worden. Wie doet dat: ik, eenmalig per
+   module, en bewaard naast de Nederlandse tekst?
+4. **Geluid op de pagina:** ja/nee? Kan uit de wasm-kern gerenderd worden
+   (dezelfde code als de Teensy).
+5. **Rekentijd tonen** ("~8 % cpu per voice on the Teensy 4.1")? Eerlijk en
+   nuttig, maar een getal dat verandert bij elke optimalisatie.
