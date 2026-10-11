@@ -144,7 +144,7 @@ export function SimulationPanel(): JSX.Element {
     file.load(parsed, name, slug ? { slug } : null);
     if (auto) {
       const a = parseAutomation(auto);
-      file.setAutomation({ events: a.events, cc: a.cc, sink: automationSink(a, getProject) });
+      file.setAutomation({ events: a.events, cc: a.cc, file: a, sink: automationSink(a, getProject) });
     }
     void offerFromSysex(parsed.sysex, `${name}`);
     if (sourceId !== 'file') switchSource('file');

@@ -6,7 +6,7 @@
 // uit andere sporen dan het eerste), SMPTE-tijdbasis. Meta en SysEx worden
 // overgeslagen. Alle sporen worden samengevoegd tot één lijst in ms.
 
-import type { AutomationEvent, AutomationSink } from '../automation';
+import type { AutomationEvent, AutomationFile, AutomationSink } from '../automation';
 import type { MidiEvent, MidiListener, MidiSource } from './MidiSource';
 import { encodeSmf, MARKER_LOOP_START, MARKER_LOOP_END, MARKER_TEL1 } from './midiRecorder';
 import { parseSmf, noteSpans, controllerSeries, SmfError, type ParsedSmf, type SmfEvent, type LoopRegion, type Grid, type NoteSpan, type CtlKind, type CtlSeries } from '../../take-player/smf';
@@ -61,7 +61,7 @@ export class MidiFileSource implements MidiSource, Playback {
   /** Afspeelsnelheid (1 = zoals opgenomen). Alleen voor de sim; een widget met audio laat hem op 1. */
   private speed = 1;
   /** Knopbewegingen van de take (op tijd) en waar ze heen gaan. */
-  private auto: { events: AutomationEvent[]; sink: AutomationSink; idx: number; skipCc: Set<number> } | null = null;
+  private auto: { events: AutomationEvent[]; sink: AutomationSink; idx: number; skipCc: Set<number>; file?: AutomationFile } | null = null;
   loop = true;
 
   constructor(
@@ -90,15 +90,19 @@ export class MidiFileSource implements MidiSource, Playback {
   /** Knopbewegingen bij het geladen bestand; null = geen. `cc` = CC-lanes in
    *  de .mid die dezelfde beweging dragen (gebonden knoppen): die slaat de
    *  speler over. Ná `load` zetten; een nieuw bestand haalt ze weg. */
-  setAutomation(a: { events: readonly AutomationEvent[]; sink: AutomationSink; cc?: readonly { ch: number; cc: number }[] } | null): void {
+  setAutomation(a: { events: readonly AutomationEvent[]; sink: AutomationSink; cc?: readonly { ch: number; cc: number }[]; file?: AutomationFile } | null): void {
     if (this.auto) { this.auto.sink.restore(); this.auto.sink.dispose?.(); }
     this.auto = a ? {
       events: [...a.events].sort((x, y) => x.t - y.t), sink: a.sink, idx: 0,
       skipCc: new Set((a.cc ?? []).map((l) => ((0xB0 | (l.ch - 1)) << 8) | l.cc)),
+      file: a.file,
     } : null;
     if (this.auto && this.timer) this.chaseAuto(this.position());
     this.changed();
   }
+
+  /** Het automation-bestand (labels, bereik), om de lijnen te tekenen. */
+  automationFile(): AutomationFile | null { return this.auto?.file ?? null; }
 
   /** Aantal knopbewegingen bij het bestand (0 = geen automation). */
   automationCount(): number { return this.auto?.events.length ?? 0; }

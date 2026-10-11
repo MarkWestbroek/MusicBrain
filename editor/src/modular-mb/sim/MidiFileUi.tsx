@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { automationSink, parseAutomation } from '../automation';
 import { getProject } from '../store';
 import { MidiFileSource, parseSmf, encodeEdited } from './midiFilePlayer';
+import { PlayerLanes } from './AutomationLanes';
 import { MidiRoll } from './MidiRoll';
 import { offerFromSysex } from './PatchInbox';
 
@@ -55,6 +56,7 @@ export function MidiFileUi({ source, running, onStartSim, onReplace }: {
   }
   const [, setTick] = useState(0);
   const [err, setErr] = useState<string | null>(null);
+  const [hint, setHint] = useState<string | null>(null);
   useEffect(() => source.onState(() => setTick((x) => x + 1)), [source]);
   const st = source.state();
 
@@ -75,9 +77,12 @@ export function MidiFileUi({ source, running, onStartSim, onReplace }: {
       if (autoFile) {
         if (!source.parsed()) throw new Error('Kies eerst de .mid van de take (of beide tegelijk).');
         const a = parseAutomation(new Uint8Array(await autoFile.arrayBuffer()));
-        source.setAutomation({ events: a.events, cc: a.cc, sink: automationSink(a, getProject) });
+        source.setAutomation({ events: a.events, cc: a.cc, file: a, sink: automationSink(a, getProject) });
       }
       setErr(null);
+      // Alleen een .mid gekozen: de browser mag niet zelf naast het bestand
+      // kijken, dus zeg hoe de knopbewegingen erbij komen.
+      setHint(file && !autoFile ? `Heeft deze take knopbewegingen? Kies dan ook ${file.name.replace(/\.midi?$/i, '.auto.json')} (of kies beide tegelijk, met Ctrl of Shift).` : null);
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     }
@@ -116,8 +121,10 @@ export function MidiFileUi({ source, running, onStartSim, onReplace }: {
       )}
       {saveMsg && <span style={{ color: saveMsg.ok ? '#15803d' : '#b91c1c' }}>{saveMsg.ok ? '✔' : '⚠'} {saveMsg.text}</span>}
       {err && <span style={{ color: '#b91c1c' }}>⚠ {err}</span>}
+      {hint && source.automationCount() === 0 && <span style={{ color: '#6b7280' }}>{hint}</span>}
     </div>
     <MidiRoll source={source} canPlay={running} onRequestStart={onStartSim} />
+    <PlayerLanes source={source} />
     </div>
   );
 }

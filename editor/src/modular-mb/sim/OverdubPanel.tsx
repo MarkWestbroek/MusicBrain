@@ -23,6 +23,7 @@ import { getProject } from '../store';
 import { setPatchTempo, useTempoNow } from '../useTempoSync';
 import { downloadBlob, encodeSmf, patchSnapshot, patchTempo } from './midiRecorder';
 import { TOOLBAR_BTN } from './ScreenKeys';
+import { LaneSvg } from './AutomationLanes';
 import { MAX_TRACKS, barMs, exportFiles, songBars, songMs, type SongTrack } from './song';
 import { songFileName, songFromFile, songToFile } from './songFile';
 import { deleteSong, listSongs, loadSong, saveSong, type SongSummary } from './songStore';
@@ -59,26 +60,6 @@ function trackLanes(tr: SongTrack | undefined, totalMs: number): AutomationLane[
   if (!tr?.audio || !tr.automation?.length) return [];
   const f = trackAutomationFile(tr.patch, tr.automation, totalMs);
   return f ? automationLanes(f) : [];
-}
-
-/** Eén lijn: de stand blijft staan tot het volgende punt. */
-function LaneSvg({ lane, totalMs, pos, loop }: { lane: AutomationLane; totalMs: number; pos: number | null; loop: { start: number; end: number } | null }): JSX.Element {
-  const W = 1000, H = 14;
-  const x = (t: number): number => (totalMs > 0 ? Math.min(W, (t / totalMs) * W) : 0);
-  const y = (v: number): number => H - 1 - v * (H - 2);
-  let d = '';
-  lane.points.forEach((p, i) => {
-    d += i === 0 ? `M0 ${y(p.y).toFixed(1)} L${x(p.t).toFixed(1)} ${y(p.y).toFixed(1)}` : ` L${x(p.t).toFixed(1)} ${y(lane.points[i - 1]!.y).toFixed(1)} L${x(p.t).toFixed(1)} ${y(p.y).toFixed(1)}`;
-  });
-  const last = lane.points.at(-1);
-  if (last) d += ` L${W} ${y(last.y).toFixed(1)}`;
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ flex: '1 1 auto', minWidth: 0, height: H, display: 'block', background: '#eef2f7', borderRadius: 2 }} aria-hidden>
-      {loop && <rect x={x(loop.start)} y={0} width={Math.max(1, x(loop.end) - x(loop.start))} height={H} fill="rgba(251,191,36,0.3)" />}
-      <path d={d} fill="none" stroke="#7c3aed" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
-      {pos !== null && <line x1={x(pos)} x2={x(pos)} y1={0} y2={H} stroke="#2563eb" strokeWidth={2} vectorEffect="non-scaling-stroke" />}
-    </svg>
-  );
 }
 
 export function OverdubPanel(): JSX.Element {

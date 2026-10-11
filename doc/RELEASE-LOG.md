@@ -74,6 +74,10 @@
 - Tests: `automation.test.ts` (opnemen en terugspelen geeft dezelfde waarden
   op dezelfde tijden, springen, CC niet dubbel, nieuwe id's).
 - Nog niet: automation per spoor in ≣ Sporen (stap 2), de lanes (stap 3).
+- Later die dag: onder de pianorol van de MIDI-speler per bewogen knop een
+  lijn op dezelfde tijdas (`AutomationLanes.tsx`, gedeeld met ≣ Sporen).
+  Een .mid van schijf neemt de .auto.json niet vanzelf mee (de browser mag
+  niet naast het bestand kijken); kies ze samen, en de speler zegt dat.
 
 ### 2026-10-11 — Stemmen wijzigen raakt geen andere patches meer (editor)
 - Mark: "ik maakte de 4-stemmige ladder 6-stemmig en toen 8; als ik terugga
