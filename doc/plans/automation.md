@@ -3,7 +3,14 @@
 Mark: "Ik bewoog de cutoff, maar met de muis. Dat zou eigenlijk in de opname
 moeten landen, als een soort automation-data (zoals in Logic)."
 
-Ter review; niets gebouwd. Eerst de werkwijze, dan de techniek (les van de
+> **Besluiten (Mark, 2026-10-12):** 1 **altijd meeschrijven**, geen aparte
+> knop. 3 **afspelen hoort erbij**: "bij afspelen moet hetzelfde gebeuren; het
+> is deel van het spel, dus van de opname". Afspelen is dus geen latere stap
+> maar hoort bij de eerste versie, en de knoppen op het scherm bewegen mee.
+> 4 niet-gebonden knoppen als lane in Reaper/Logic: **nog niet**, staat in de
+> backlog (ED-SM-12). 2 (waar je het ziet) nog open, zie §7.
+
+Niets gebouwd. Eerst de werkwijze, dan de techniek (les van de
 overdub-sporen: [overdub.md](overdub.md)).
 
 ## 1. De werkwijze
@@ -78,23 +85,24 @@ Dat pad (`knobTour.ts`, `preview`) wordt daarvoor een gedeeld stuk.
 
 ## 6. Stappen
 
-1. **Vastleggen**: luisteraar op `setPatchControl`, recorder, `.auto.json` bij
-   de take, CC in de .mid voor gebonden knoppen. Test: een opname met
-   knopbewegingen levert de juiste events.
+1. **Vastleggen en afspelen** (samen, besluit 3): luisteraar op
+   `setPatchControl`, recorder, `.auto.json` bij de take, CC in de .mid voor
+   gebonden knoppen; een take opnieuw laten klinken speelt noten én
+   knopbewegingen, en de knoppen op het scherm bewegen mee. Test: opnemen met
+   knopbewegingen en terugspelen levert dezelfde controlwaarden op dezelfde
+   tijden.
 2. **Sporen**: automation per spoor, mee met drop-in, mee in de export
    (Reaper).
-3. **Afspelen**: een take of spoor opnieuw laten klinken, met noten en
-   automation, in de simulator of op de Teensy.
-4. **Tonen**: de bewogen knoppen bij take en spoor; daarna de lanes.
-5. **Bewerken.**
+3. **Tonen**: de bewogen knoppen bij take en spoor; daarna de lanes.
+4. **Bewerken.**
 
 ## 7. Vragen voor Mark
 
-1. **Altijd meeschrijven**, of een knop "A" (automation aan/uit) naast ⏺?
-   Voorstel: altijd; je kunt het later wissen.
-2. **Waar wil je het eerst zien**: bij de take, in de sporenstrip, of allebei?
-3. **Opnieuw laten klinken**: is dat nuttig, of is bewaren en exporteren
-   genoeg voor nu?
-4. **Export**: is CC in de .mid (voor gebonden knoppen) plus de .auto.json
-   genoeg, of wil je in Reaper of Logic ook de niet-gebonden knoppen als lane
-   zien (dan zouden we ze aan vaste CC-nummers moeten hangen)?
+1. ~~Altijd meeschrijven?~~ Besloten: ja.
+2. **Hoe zie je dat er automation in een opname zit?** Voorstel, in twee
+   stappen: eerst een regel bij de take en bij het spoor ("bewogen: Cutoff,
+   Drive"); later, in ≣ Sporen, per bewogen knop een smalle lijn onder het
+   spoor die de beweging laat zien (zoals in Logic). Tijdens het afspelen zie
+   je het hoe dan ook: de knoppen draaien mee.
+3. ~~Opnieuw laten klinken?~~ Besloten: ja, hoort bij de eerste versie.
+4. ~~Niet-gebonden knoppen als lane in de DAW?~~ Nog niet (ED-SM-12).
