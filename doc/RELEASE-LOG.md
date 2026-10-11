@@ -17,6 +17,17 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-11 — E-piano: geen vervorming meer met sustain en volle akkoorden (fw 0.5.105)
+- Mark: "klinkt toch nog overstuurd, met name met de sustain aan." Met
+  sustain klinken veel tonen door; de som liep bij elke trilling vol in de
+  begrenzer per sample (piek precies op het plafond) en vervormde.
+- Nu: een limiter die het volume bijregelt (`OutputLimiter` uit limiter.h,
+  zoals de sampler: snel omlaag, 250 ms terug, pas boven 0,8) met een zachte
+  knie voor wat de attack mist. Acht tonen met sustain, hard aangeslagen:
+  vervorming door de optelling −16,5 → −28,6 dB (Drive 0); het akkoord wordt
+  ~3 dB teruggenomen in plaats van platgedrukt. Losse noten en gewone
+  akkoorden blijven onder de drempel en veranderen niet.
+
 ### 2026-10-11 — E-piano: Drive blaft in plaats van dun en stil te worden (fw 0.5.104)
 - Mark: "drive = 1 is geen drive, 0 is voluit?" Gemeten bij de Tine: Drive
   op vol werd 10 dB zachter en dun (tweede harmonische 5 dB boven de

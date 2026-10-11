@@ -28,6 +28,7 @@
 // overbemonstering (de pickup maakt weinig hoge boventonen).
 // Header-only; gedeeld door Teensy en browser.
 #include "adaa.h"
+#include "limiter.h"
 #include "oversample.h"
 
 namespace mmb_dsp {
@@ -46,6 +47,7 @@ public:
     void Init(float sampleRate) {
         *this = EPiano();
         sampleRate_ = finiteClamp(sampleRate, 8000, 192000, 44100);
+        limiter_.Init(sampleRate_, 1.0f, 250.0f);
         setControl(Damper, kDefaults[Damper]);
         strike_ = 1 - std::exp(-1 / (0.0015f * sampleRate_));
     }
@@ -140,11 +142,16 @@ public:
             tremPhase_ += tremRate_ / sampleRate_;
             if (tremPhase_ >= 1) tremPhase_ -= 1;
             const float sway = 0.5f * std::sin(6.2831853f * tremPhase_);
-            // Eén begrenzer over de som van alle stemmen: schoon tot 0,7, daarna
-            // zacht naar vol. Eerder een tanh over de som, die ook gewone
-            // akkoorden al samen vervormde (de tonen trokken aan elkaar); het
-            // blaffen hoort bij de tine zelf (Drive), niet bij de optelling.
-            const float y = outLimit_.process(sum * 1.3f) * level_;
+            // De som van alle stemmen door een limiter die het VOLUME bijregelt
+            // (limiter.h: snel omlaag, 250 ms terug, pas boven 0,8), met een
+            // zachte knie voor wat de attack mist. Tot fw 0.5.104 een begrenzer
+            // per sample (eerst een tanh, toen een knie vanaf 0,7): met sustain
+            // en een vol akkoord liep die bij elke trilling vol en vervormde
+            // het geheel (−15 dB, Marks melding). Het blaffen hoort bij de tine
+            // zelf (Drive), niet bij de optelling.
+            float mono = sum * 1.3f;
+            limiter_.Process(&mono, 1);
+            const float y = mono * level_;
             out[0][frame] = y * (1 - tremolo_ * (0.5f + sway));
             out[1][frame] = y * (1 - tremolo_ * (0.5f - sway));
         }
@@ -185,7 +192,7 @@ private:
     float sampleRate_ = 44100, damper_ = 0.999f, strike_ = 0.02f;
     bool sustain_ = false;
     float timbre_ = 0.35f, bell_ = 0.5f, decay_ = 0.5f, drive_ = 0.4f, tremolo_ = 0.3f, tremRate_ = 4.5f, level_ = 0.8f;
-    SoftLimit outLimit_{0.7f};
+    OutputLimiter limiter_;
     float tremPhase_ = 0;
     int type_ = 0;
 };
