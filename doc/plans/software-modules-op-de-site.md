@@ -12,6 +12,12 @@ software-modules."
 > `tools/teensy-live/module_cpu.py --site --write` (nog te meten). Overzicht
 > `/modules` bij Imprint: componenten met `kind: software` en slug `sw-*`.
 > Wat bij het schrijven niet bleek te kloppen in de modules: BACKLOG FW-MOD-1.
+> **Live 2026-10-12:** 41 pagina's (DX7 wacht op de licentie van de
+> fabrieksbanken), rekentijd gemeten op fw 0.5.108. Ordening op `/modules`
+> (Imprint 577a4a2): `family` en `tags` per module in `site-modules.json`,
+> meegestuurd op de component; filters in de URL (`?family=`, `?tag=a,b`,
+> `?q=`, `?view=az`). De familienaam moet letterlijk in de lijst van Imprint
+> staan.
 
 Ter review. **Stap 1 gebouwd (2026-10-11): de Ladder als voorbeeld**:
 `editor/scripts/moduleSite.ts` (generator), `editor/site/modules/` (per

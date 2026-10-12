@@ -49,6 +49,8 @@ def main():
     ap.add_argument('--desc', help='beschrijving.txt (component-description)')
     ap.add_argument('--hero', required=True, help='hoofd-screenshot (renderTop)')
     ap.add_argument('--overview', help='tweede screenshot (overview)')
+    ap.add_argument('--family', help='familie op /modules (letterlijk uit de lijst bij Imprint)')
+    ap.add_argument('--tags', help='tags, komma-gescheiden (kleine letters, streepjes)')
     ap.add_argument('--base', default=os.environ.get('IMPRINT_BASE', 'http://localhost:3000'))
     ap.add_argument('--token', default=os.environ.get('INGEST_TOKEN', 'test-ingest-token-123'))
     ap.add_argument('--dry', action='store_true')
@@ -91,6 +93,10 @@ def main():
     if a.desc and os.path.exists(a.desc):
         comp['description'] = open(a.desc, encoding='utf-8').read().strip()
     comp.setdefault('description', '')
+    if a.family:
+        comp['family'] = a.family
+    if a.tags is not None:
+        comp['tags'] = [t for t in a.tags.split(',') if t]
     comp.setdefault('children', [])
     versions = comp.get('versions') or []
     if not any(v.get('number') == a.version for v in versions):
