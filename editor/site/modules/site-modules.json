@@ -1375,6 +1375,56 @@
       },
       "family": "Rhythm & sequencing",
       "tags": []
+    },
+    "tp_mmb_elements": {
+      "slug": "sw-elements",
+      "name": "Elements modal voice",
+      "family": "Oscillators & voices",
+      "tags": [
+        "mutable-instruments",
+        "physical-model",
+        "stereo"
+      ],
+      "controlHelp": {
+        "bow_timbre_amt": "Attenuverter for the Bow Timbre CV input: middle = off, left inverts.",
+        "blow_meta_amt": "Attenuverter for the Flow CV input: middle = off, left inverts.",
+        "blow_timbre_amt": "Attenuverter for the Blow Timbre CV input: middle = off, left inverts.",
+        "strike_meta_amt": "Attenuverter for the Mallet CV input: middle = off, left inverts.",
+        "strike_timbre_amt": "Attenuverter for the Strike Timbre CV input: middle = off, left inverts.",
+        "damping_amt": "Attenuverter for the Damping CV input: middle = off, left inverts.",
+        "geometry_amt": "Attenuverter for the Geometry CV input: middle = off, left inverts.",
+        "position_amt": "Attenuverter for the Position CV input: middle = off, left inverts.",
+        "brightness_amt": "Attenuverter for the Brightness CV input: middle = off, left inverts.",
+        "space_amt": "Attenuverter for the Space CV input: middle = off, left inverts.",
+        "coarse": "Tuning in semitones, on top of V/Oct.",
+        "fine": "Fine tuning in cents.",
+        "fm": "Attenuverter of the FM input: middle = off; fully open, one unit of CV is one octave.",
+        "signature": "The exciter's 'signature' parameter, not on the original panel.",
+        "mod_freq": "Speed of the internal resonator modulation.",
+        "mod_offset": "Depth of the internal resonator modulation.",
+        "level": "Output level.",
+        "play": "Strikes the voice without a gate (held = gate high)."
+      },
+      "portHelp": {
+        "voct": "Pitch, 1 V per octave.",
+        "fm": "Frequency modulation, scaled by the FM knob.",
+        "gate": "Starts and holds the excitation.",
+        "strength": "How hard each note is played (velocity).",
+        "blow_in": "Your own sound as the breath (replaces the internal noise).",
+        "strike_in": "Your own sound as the strike.",
+        "out_l": "Left output.",
+        "out_r": "Right output.",
+        "bow_timbre_cv": "CV for Bow Timbre, scaled by its attenuverter.",
+        "blow_meta_cv": "CV for Flow, scaled by its attenuverter.",
+        "blow_timbre_cv": "CV for Blow Timbre, scaled by its attenuverter.",
+        "strike_meta_cv": "CV for Mallet, scaled by its attenuverter.",
+        "strike_timbre_cv": "CV for Strike Timbre, scaled by its attenuverter.",
+        "damping_cv": "CV for Damping, scaled by its attenuverter.",
+        "geometry_cv": "CV for Geometry, scaled by its attenuverter.",
+        "position_cv": "CV for Position, scaled by its attenuverter.",
+        "brightness_cv": "CV for Brightness, scaled by its attenuverter.",
+        "space_cv": "CV for Space, scaled by its attenuverter."
+      }
     }
   },
   "exampleNames": {

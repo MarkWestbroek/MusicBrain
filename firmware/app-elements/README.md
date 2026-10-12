@@ -1,5 +1,12 @@
 # app-elements — Mutable Instruments *Elements* 5-voice polyphonic port
 
+> **Stand 2026-10-12:** de huidige broncode bouwt niet meer: `firmware/core`
+> is sinds juni gegroeid en RAM1 komt 32 KB tekort. Wat er op de Teensy staat
+> (fw 0.5.5) bouw je vanaf commit `4418c66` in een aparte worktree; zo is hij
+> op 2026-10-12 teruggezet. De patchbank van die Teensy staat in
+> `sounds/Elements/` (gered met `tools/teensy-flash-dump`).
+
+
 Dedicated Teensy 4.1 app for the open-source (MIT) **Elements** modal /
 physical-modelling voice, running **5 voices polyphonic** with dual-thread
 rendering and hybrid DTCM/OCRAM memory layout.
