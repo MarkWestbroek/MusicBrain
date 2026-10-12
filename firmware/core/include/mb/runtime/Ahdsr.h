@@ -29,6 +29,8 @@
  * | `release`  | float | ms   | \u2265 0           |
  * | `loop`     | bool  | \u2014    | false / true |
  * | `curve`    | int   | \u2014    | 0=Lin, 1=Exp, 2=Log |
+ * | `ped_hold` | float | ms   | ± (op Hold zolang `pedal` hoog) |
+ * | `ped_rel`  | float | ms   | ± (op Release zolang `pedal` hoog) |
  *
  * **Curve:**
  * Applies only to the ramping phases (Attack/Decay/Release).  Hold and
@@ -101,7 +103,7 @@ public:
 
     /** @brief `gate`/`trig` are gate-domain inputs; `cv_out` is a CV output. */
     PortKind inputPortKind(std::string_view portId) const override {
-        return (portId == "gate" || portId == "trig") ? PortKind::Gate
+        return (portId == "gate" || portId == "trig" || portId == "pedal") ? PortKind::Gate
                                                       : PortKind::None;
     }
     PortKind outputPortKind(std::string_view portId) const override {
@@ -110,6 +112,7 @@ public:
     /** @brief CV bridge entry point.  `gate` / `trig` accept 0.0 / 1.0. */
     void writeCvPort(std::string_view portId, float value) override {
         if (portId == "gate" || portId == "trig") setGate(value >= 0.5f);
+        else if (portId == "pedal") setPedal(value >= 0.5f);
     }
     /** @brief CV bridge sample point.  `cv_out` returns the envelope value. */
     float readCvPort(std::string_view portId) const override {
@@ -154,6 +157,17 @@ private:
         return ms <= 0.0f ? 0u
                           : static_cast<std::uint32_t>(ms * (kCvTickRateHz / 1000.0f));
     }
+
+    /** Sustainpedaal (Mark 2026-10-12): zolang hoog tellen `ped_hold` en
+     *  `ped_rel` (ms, ook negatief) op bij Hold en Release; de som blijft
+     *  ≥ 0. Verandert de release tijdens de uitklank (pedaal los), dan schaalt
+     *  de voortgang mee: de envelope daalt vanaf waar hij is, zonder sprong. */
+    void setPedal(bool down) { pedal_ = down; applyTimes(); }
+    void applyTimes();
+
+    float holdMs_ = 0.0f, releaseMs_ = 300.0f;
+    float pedHoldMs_ = 0.0f, pedRelMs_ = 0.0f;
+    bool  pedal_ = false;
 
     // Parameters (durations are stored as ticks; converted from ms by setControl).
     std::uint32_t attackTicks_  = msToTicks(10.0f);

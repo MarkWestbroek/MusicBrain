@@ -17,6 +17,25 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-13 — Sustainpedaal op de AHDSR, en een VC SWITCH (fw 0.5.112)
+<!-- EN: AHDSR: sustain-pedal input with Hold and Release offsets (−H+, −R+), so the pedal can stretch an envelope -->
+<!-- EN: VC SWITCH: new dual A/B voltage-controlled switch for CV, with glide and crossfade -->
+- Mark wilde op de 6× Ladder het sustainpedaal "een alternatieve AHDSR"
+  laten inschakelen (lange Hold, lange Release).
+- **AHDSR**: ingang **Ped** (gate) met twee knoppen **−H+** en **−R+** (ms,
+  ook negatief): zolang het pedaal hoog is tellen ze op bij Hold en Release
+  (som ≥ 0). Pedaal los tijdens de uitklank = kortere release vanaf waar hij
+  is, zonder sprong (de voortgang schaalt mee), zoals dempers. In de core
+  (`mb/runtime/Ahdsr`), dus Teensy en simulator gelijk. Paneel blijft 8 HP.
+- **VC SWITCH** (`tp_mmb_vcswitch`, 6 HP): dubbele spanningsgestuurde
+  A/B-schakelaar in het CV-domein (zoals de Doepfer A-150). Eén **Sel** voor
+  twee kanalen (A1/B1 → Out1, A2/B2 → Out2), zodat één pedaal de amp- en de
+  filter-envelope tegelijk omzet. **Mode** Gate (Sel ≥ 0,5 = B) of Fade
+  (traploos mengen), **Glide** (0 = hard, een paar ms = klikvrij, langer =
+  overvloeien), **B** met de hand.
+- Het pedaal: MIDI-IN `cc2Num` (of `cc1Num`) op 64 zetten; die CC-uitgang
+  geeft 0/1 en gaat naar Ped of Sel. Tests `wasmPedalSwitch.test.ts`.
+
 ### 2026-10-12 — BEADS: Mutable Instruments Beads, een dag na de vrijgave (fw 0.5.112, nog niet getagd)
 <!-- EN: BEADS: Mutable Instruments Beads, a day after Émilie Gillet released the source — granular, delay/looper and wavetable modes, all four media -->
 - Émilie Gillet zette op 11 oktober de broncode van Beads online (MIT,

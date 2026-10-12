@@ -638,16 +638,23 @@ function mmbAhdsr() {
       // Stond hier 400 ms en Exp, dan toonde het paneel iets anders dan je hoorde.
       slider('release', 'R', colX[4], sliderY, { min: 0,    max: 8000, def: 300,  lengthMm: sliderLen, unit: 'ms' }),
 
-      toggle('loop',    'Loop',  w*0.20, 96),
-      toggle('retrig',  'Reset', w*0.45, 96),
-      sw    ('curve',   'Curve', w*0.74, 96, ['Lin','Exp','Log'], 0),
+      toggle('loop',    'Loop',  w*0.15, 93),
+      toggle('retrig',  'Reset', w*0.40, 93),
+      sw    ('curve',   'Curve', w*0.75, 93, ['Lin','Exp','Log'], 0),
 
-      inPort ('gate',    'Gate', 'gate',   w*0.20, 112),
-      inPort ('trig',    'Trig', 'trigger',w*0.50, 112),
-      outPort('cv_out',  'Env',  'cv',     w*0.80, 112),
-      outPort('eoc',     'EOC',  'trigger',w*0.50, 122),
+      // Sustainpedaal (Mark 2026-10-12): zolang Ped hoog is, tellen −H+ en
+      // −R+ op bij Hold en Release (ook negatief). Hang er het pedaal aan
+      // (MIDI-IN CC 64 op een CC-uitgang).
+      inPort ('pedal',   'Ped',  'gate',   w*0.15, 105),
+      knob('ped_hold', 'Pedal Hold',    w*0.55, 105, { size: 'small', min: -5000, max: 5000, def: 0, unit: 'ms', color: '#f59e0b', panelLabel: '−H+' }),
+      knob('ped_rel',  'Pedal Release', w*0.82, 105, { size: 'small', min: -8000, max: 8000, def: 0, unit: 'ms', color: '#f59e0b', panelLabel: '−R+' }),
+
+      inPort ('gate',    'Gate', 'gate',   w*0.12, 117),
+      inPort ('trig',    'Trig', 'trigger',w*0.37, 117),
+      outPort('cv_out',  'Env',  'cv',     w*0.63, 117),
+      outPort('eoc',     'EOC',  'trigger',w*0.88, 117),
     ],
-    notes: 'Interne MMB envelope. Loop=on maakt er een quasi-LFO van; curve schakelt tussen lineair/exp/log per fase. Reset=on hertriggert elke noot vanaf 0 (consistente filter-wah); Reset=off vervolgt klikvrij vanaf de huidige waarde (goed voor amp-env).',
+    notes: 'Interne MMB envelope. Loop=on maakt er een quasi-LFO van; curve schakelt tussen lineair/exp/log per fase. Reset=on hertriggert elke noot vanaf 0 (consistente filter-wah); Reset=off vervolgt klikvrij vanaf de huidige waarde (goed voor amp-env). Ped (sustainpedaal): zolang hoog tellen −H+ en −R+ (ms, ook negatief) op bij Hold en Release; pedaal los tijdens de uitklank = de release wordt korter vanaf waar hij is, zonder sprong.',
   });
 }
 
@@ -688,6 +695,37 @@ function mmbLfo() {
       outPort('out_inv','Inv',  'cv',     w*0.75, 118),
     ],
     notes: 'Interne MMB LFO; bipolar=on geeft \u00b1depth, off geeft 0..depth. Run: Always loopt vrij, Gated alleen zolang Gate hoog is, OneShot \u00e9\u00e9n ronde per opgaande flank op Gate. Rst zet de fase op 0.',
+  });
+}
+
+// VC SWITCH — 6 HP. Spanningsgestuurde A/B-schakelaar, dubbel (zoals de
+//     Doepfer A-150), in het CV-domein. Eén Select voor twee kanalen: één
+//     sustainpedaal zet de amp- én de filter-envelope om (Mark 2026-10-12).
+function mmbVcSwitch() {
+  const w = W(6);
+  return assemble({
+    typeId: 'tp_mmb_vcswitch',
+    categoryId: 'utility',
+    variant: 'VC switch (dual A/B, CV)',
+    brand: 'MMB', model: 'VC SWITCH',
+    hp: 6, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    texts: [
+      { x: w/2, y: 8,  text: 'VC SWITCH', fontSize: 2.0, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13, text: 'A/B ×2', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+    ],
+    items: [
+      knob('glide', 'Glide', w*0.5, 25, { size: 'medium', min: 0, max: 2000, def: 5, unit: 'ms', color: '#f9fafb' }),
+      sw('mode', 'Mode', w*0.30, 45, ['Gate', 'Fade'], 0),
+      toggle('manual', 'B', w*0.75, 45),
+      inPort ('a1',   'A1',  'cv', w*0.28, 64),
+      inPort ('b1',   'B1',  'cv', w*0.72, 64),
+      inPort ('a2',   'A2',  'cv', w*0.28, 78),
+      inPort ('b2',   'B2',  'cv', w*0.72, 78),
+      inPort ('sel',  'Sel', 'cv', w*0.50, 93),
+      outPort('out1', 'Out1', 'cv', w*0.28, 112),
+      outPort('out2', 'Out2', 'cv', w*0.72, 112),
+    ],
+    notes: 'Dubbele spanningsgestuurde A/B-schakelaar (CV, 1 kHz). Eén Select voor beide kanalen: Out1 = A1 of B1, Out2 = A2 of B2. Mode Gate: Select ≥ 0,5 kiest B (een gate, het sustainpedaal); Mode Fade: Select 0…1 mengt traploos. Glide (ms) is de tijd van A naar B: 0 = hard, een paar ms = klikvrij, langer = overvloeien. B kiest met de hand. Typisch: twee envelopes op A en B, het pedaal (MIDI-IN CC 64) op Sel, Out naar de VCA en het filter. Voor CV (envelopes, LFO\'s, toonhoogte); audio schakelen kan hier niet.',
   });
 }
 
@@ -5077,7 +5115,7 @@ export function seedInternals(project: ModularProject): ModularProject {
   all.push(mmbGendyn());
   all.push(mmbExcitable());
   all.push(mmbTapeStrip());
-  all.push(mmbClock(), mmbEuclid(), mmbTuring(), mmbBranches(), mmbChaos(), mmbLfo8(), mmbSlope(), mmbLogic());
+  all.push(mmbClock(), mmbEuclid(), mmbTuring(), mmbBranches(), mmbVcSwitch(), mmbChaos(), mmbLfo8(), mmbSlope(), mmbLogic());
   all.push(mmbFolder(), mmbLpg(), mmbDrive(), mmbTube(), mmbFreqShift(), mmbAcid(), mmbMixtur(), mmbRungler(), mmbOrgan());
   all.push(mmbMartenot(), mmbDiffuseur(), mmbArp(), mmbCmi());
   all.push(mmbSem(), mmbComplex(), mmbWah(), mmbEnsemble(), mmbEPiano());

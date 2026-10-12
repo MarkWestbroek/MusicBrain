@@ -49,6 +49,14 @@ export const MODULE_HELP: Readonly<Record<string, ModuleHelp>> = {
       space: ['Stereobreedte en galm.', 'Stereo width and reverb.'],
     },
   },
+  tp_mmb_vcswitch: {
+    about: ['Schakelaar: Sel kiest A of B, voor twee kanalen tegelijk.', 'Switch: Sel picks A or B, for two channels at once.'],
+    controls: {
+      glide: ['Hoe snel hij van A naar B gaat: 0 = hard, een paar ms = zonder tik.', 'How fast it moves from A to B: 0 = hard, a few ms = without a click.'],
+      mode: ['Gate: Sel boven de helft kiest B. Fade: Sel mengt traploos.', 'Gate: Sel above half picks B. Fade: Sel blends smoothly.'],
+      manual: ['Kies B met de hand.', 'Pick B by hand.'],
+    },
+  },
   tp_mmb_out: {
     about: ['De uitgang: wat hier binnenkomt hoor je.', 'The output: whatever arrives here is what you hear.'],
     controls: { level: ['Het eindvolume.', 'The final volume.'] },

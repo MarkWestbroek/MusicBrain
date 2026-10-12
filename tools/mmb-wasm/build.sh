@@ -139,6 +139,7 @@ sel euclid && build euclid tp_mmb_euclid "${CVINC[@]}" --
 sel turing && build turing tp_mmb_turing "${CVINC[@]}" --
 sel arp && build arp tp_mmb_arp "${CVINC[@]}" --
 sel branches && build branches tp_mmb_branches "${CVINC[@]}" --
+sel vcswitch && build vcswitch tp_mmb_vcswitch "${CVINC[@]}" --
 sel chaos && build chaos tp_mmb_chaos "${CVINC[@]}" --
 sel lfo8 && build lfo8 tp_mmb_lfo8 "${CVINC[@]}" --
 sel slope && build slope tp_mmb_slope "${CVINC[@]}" --

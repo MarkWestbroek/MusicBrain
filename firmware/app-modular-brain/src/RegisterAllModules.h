@@ -77,6 +77,7 @@
 #include "EuclidModule.h"
 #include "TuringModule.h"
 #include "BranchesModule.h"
+#include "VcSwitchModule.h"
 #include "ChaosModule.h"
 #include "Lfo8Module.h"
 #include "SlopeModule.h"
@@ -202,6 +203,7 @@ inline void registerAllRuntimeModules() {
     EuclidModule::registerFactory();   // Euclidische ritmes, drie kanalen
     TuringModule::registerFactory();   // schuifregister-sequencer
     BranchesModule::registerFactory(); // Bernoulli-gate
+    VcSwitchModule::registerFactory();   // VC SWITCH (dubbel A/B, CV), fw 0.5.112
     ChaosModule::registerFactory();    // Lorenz / Rössler / Thomas als CV
     Lfo8Module::registerFactory();     // acht verwante LFO's
     SlopeModule::registerFactory();    // functiegenerator (rise/fall/cycle)

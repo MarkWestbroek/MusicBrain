@@ -24,10 +24,12 @@ void Ahdsr::setControl(std::string_view controlId, ControlValue value) {
     };
 
     if      (controlId == "attack")  attackTicks_  = msToTicks(asFloat(10.0f));
-    else if (controlId == "hold")    holdTicks_    = msToTicks(asFloat(0.0f));
+    else if (controlId == "hold")    { holdMs_ = asFloat(0.0f); applyTimes(); }
     else if (controlId == "decay")   decayTicks_   = msToTicks(asFloat(200.0f));
     else if (controlId == "sustain") sustainLevel_ = std::clamp(asFloat(0.7f), 0.0f, 1.0f);
-    else if (controlId == "release") releaseTicks_ = msToTicks(asFloat(300.0f));
+    else if (controlId == "release") { releaseMs_ = asFloat(300.0f); applyTimes(); }
+    else if (controlId == "ped_hold") { pedHoldMs_ = asFloat(0.0f); applyTimes(); }
+    else if (controlId == "ped_rel")  { pedRelMs_  = asFloat(0.0f); applyTimes(); }
     else if (controlId == "loop")    loop_         = asBool(false);
     else if (controlId == "retrig" || controlId == "reset")
         retrig_ = asBool(false);
@@ -151,6 +153,19 @@ float Ahdsr::shape(float p) const {
         case Curve::Logarithmic: { const float q = 1.0f - p; return 1.0f - q * q; }
     }
     return p;
+}
+
+void Ahdsr::applyTimes() {
+    const float hold = holdMs_ + (pedal_ ? pedHoldMs_ : 0.0f);
+    const float rel  = releaseMs_ + (pedal_ ? pedRelMs_ : 0.0f);
+    holdTicks_ = msToTicks(hold > 0.0f ? hold : 0.0f);
+    const std::uint32_t newRel = msToTicks(rel > 0.0f ? rel : 0.0f);
+    if (phase_ == Phase::Release && releaseTicks_ > 0 && newRel != releaseTicks_) {
+        // Zelfde voortgang p = ticks/release, dus dezelfde waarde: geen sprong.
+        phaseTicks_ = static_cast<std::uint32_t>(
+            static_cast<double>(phaseTicks_) * newRel / releaseTicks_);
+    }
+    releaseTicks_ = newRel;
 }
 
 void Ahdsr::advancePhase() {

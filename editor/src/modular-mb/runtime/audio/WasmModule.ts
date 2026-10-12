@@ -42,7 +42,7 @@ export class WasmModule extends AudioModule {
   static readonly typeIds: ReadonlySet<string> = new Set([
     'tp_mmb_material_bridge', 'tp_mmb_scanned', 'tp_mmb_reservoir', 'tp_mmb_gendyn', 'tp_mmb_excitable', 'tp_mmb_tapestrip',
     // Modulatorpakket (2026-10-02).
-    'tp_mmb_sh', 'tp_mmb_clock', 'tp_mmb_euclid', 'tp_mmb_turing', 'tp_mmb_branches', 'tp_mmb_chaos', 'tp_mmb_lfo8', 'tp_mmb_slope', 'tp_mmb_logic',
+    'tp_mmb_sh', 'tp_mmb_clock', 'tp_mmb_euclid', 'tp_mmb_turing', 'tp_mmb_branches', 'tp_mmb_vcswitch', 'tp_mmb_chaos', 'tp_mmb_lfo8', 'tp_mmb_slope', 'tp_mmb_logic',
     // West Coast, pedalen en klassiekers (2026-10-02).
     'tp_mmb_folder', 'tp_mmb_lpg', 'tp_mmb_drive', 'tp_mmb_freqshift', 'tp_mmb_acid', 'tp_mmb_mixtur', 'tp_mmb_martenot', 'tp_mmb_diffuseur', 'tp_mmb_arp', 'tp_mmb_cmi', 'tp_mmb_rungler', 'tp_mmb_organ',
     'tp_mmb_sem', 'tp_mmb_complex', 'tp_mmb_wah', 'tp_mmb_ensemble', 'tp_mmb_epiano',
