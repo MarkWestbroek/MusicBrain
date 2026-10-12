@@ -1455,6 +1455,11 @@
         "density_cv": "CV for Density, added to the knob.",
         "out_l": "Left output.",
         "out_r": "Right output."
+      },
+      "cpu": {
+        "percent": 12.4,
+        "fw": "0.5.112",
+        "how": "module_cpu-stijl op de Teensy: korrels, Digital, Density 0,7. Tape+ 8,7 %, Tape 16,4 %, Vintage 10,5 %, veel korrels 17 %, wavetable 14 %, delaystand 54–58 % (Tape+ 29 %)."
       }
     }
   },

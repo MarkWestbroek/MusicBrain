@@ -74,7 +74,7 @@ there yet.
 
 ## Runs on
 
-- **Teensy 4.1** (the MusicBrain Brain).
+- **Teensy 4.1** (the MusicBrain Brain): about **12.4 % CPU per instance** (one note, default settings), measured on firmware 0.5.112.
 - **The browser**: the editor's simulator runs the same C++ code as WebAssembly, so what you hear while patching is what the Brain plays.
 
 ## Try it
@@ -95,7 +95,9 @@ Editor: <https://editor.musicbrain.nl>
 
 ## Versions
 
-- **0.5.112** (12 October 2026, a day after the source release): first
-  version, with granular, delay and wavetable modes and all four media.
-  Runs in the browser; the Brain firmware is built but not yet measured on
-  the hardware.
+- **0.5.112** (12–13 October 2026, a day after the source release): first
+  version, with granular, delay and wavetable modes and all four media, in
+  the browser and on the Brain. Measured on the Teensy: grains 9–17 % CPU
+  depending on the medium and density, the wavetable mode 14 %; the delay
+  mode is still heavy (about 55 %, 29 % on dirty tape) and is being looked
+  into.

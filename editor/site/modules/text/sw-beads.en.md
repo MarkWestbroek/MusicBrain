@@ -43,7 +43,9 @@ there yet.
 
 ## Versions
 
-- **0.5.112** (12 October 2026, a day after the source release): first
-  version, with granular, delay and wavetable modes and all four media.
-  Runs in the browser; the Brain firmware is built but not yet measured on
-  the hardware.
+- **0.5.112** (12–13 October 2026, a day after the source release): first
+  version, with granular, delay and wavetable modes and all four media, in
+  the browser and on the Brain. Measured on the Teensy: grains 9–17 % CPU
+  depending on the medium and density, the wavetable mode 14 %; the delay
+  mode is still heavy (about 55 %, 29 % on dirty tape) and is being looked
+  into.

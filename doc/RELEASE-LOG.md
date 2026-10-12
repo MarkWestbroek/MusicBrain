@@ -51,7 +51,7 @@
 - Het pedaal: MIDI-IN `cc2Num` (of `cc1Num`) op 64 zetten; die CC-uitgang
   geeft 0/1 en gaat naar Ped of Sel. Tests `wasmPedalSwitch.test.ts`.
 
-### 2026-10-12 — BEADS: Mutable Instruments Beads, een dag na de vrijgave (fw 0.5.112, nog niet getagd)
+### 2026-10-12 — BEADS: Mutable Instruments Beads, een dag na de vrijgave (fw 0.5.112)
 <!-- EN: BEADS: Mutable Instruments Beads, a day after Émilie Gillet released the source — granular, delay/looper and wavetable modes, all four media -->
 - Émilie Gillet zette op 11 oktober de broncode van Beads online (MIT,
   pichenettes/eurorack d8f4739). Plan: [plans/beads.md](plans/beads.md).
@@ -70,8 +70,10 @@
   front, receptcatalogus, seed **🔮 Plaits + BEADS** (Solo ▾). Tests
   `wasmBeads.test.ts` (korrels in alle vier de media, delay, wavetable).
 - **Teensy**: `BeadsModule.h`, opnamebuffer 768 KB in PSRAM, reverb op de
-  heap; `libmi-beads.a` in de `.text.mmbdsp`-sectie. Bouwt (RAM1 24 KB
-  vrij); **nog niet op de Brain getest of gemeten**, daarom nog geen tag.
+  heap; `libmi-beads.a` in de `.text.mmbdsp`-sectie. Op de Brain getest
+  (2026-10-13): klinkt; korrels 9–17 % cpu (Tape+ 8,7, Vintage 10,5,
+  Digital 12,4, Tape 16,4, veel korrels 17), wavetable 14 %, maar de
+  **delaystand 54–58 %** (Tape+ 29 %): FW-BEADS-1. Getagd als fw-0.5.112.
 - Niet (nog): de vrij toe te wijzen CV-ingang en de automatische
   ingangsversterking van het origineel.
 
