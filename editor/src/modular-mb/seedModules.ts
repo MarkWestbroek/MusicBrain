@@ -2814,49 +2814,55 @@ function mmbPlaits() {
   });
 }
 
-// 14d. MMB CLOUDS — 14 HP. Mutable Instruments Clouds granular processor
-//     (FW-FX-4): stereo in → korrelwolk → stereo uit. 4 playback-modes.
+// 14d. MMB CLOUDS — 18 HP, zoals het origineel. Mutable Instruments Clouds
+//     granular processor (FW-FX-4): stereo in → korrelwolk → stereo uit,
+//     4 playback-modes. Tot 2026-10-12 rekende het paneel met 14 HP op een
+//     16 HP-module en stonden vijf grote knoppen over elkaar heen (Mark: "de
+//     knoppen overlappen"). Nu twee rijen grote knoppen; Pitch CV (V/Oct) en
+//     Mix CV, die de firmware al had, staan erbij (ED-PNL-1).
 function mmbClouds() {
-  const w = W(14);
-  const col = (i: number): number => w * (0.12 + i * 0.19);   // 5 kolommen
+  const w = W(18);
+  const col5 = (i: number): number => w * (0.12 + i * 0.19);   // 5 kolommen (kleine knoppen)
+  const col4 = (i: number): number => w * (0.14 + i * 0.24);   // 4 kolommen (jacks)
   return assemble({
     typeId: 'tp_mmb_clouds',
     categoryId: 'effect',
     variant: 'Clouds (MI granular)',
     brand: 'MI', model: 'CLOUDS',
-    hp: 16, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    hp: 18, texture: 'pcb-black', baseColor: '#111827', internal: true,
     texts: [
       { x: w/2, y: 8,   text: 'CLOUDS', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
-      { x: w/2, y: 13,  text: 'granular · texture', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
-      { x: w/2, y: 126, text: 'MI', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13,  text: 'granular · texture · MI', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
     ],
     items: [
-      knob('position', 'Position', col(0), 28, { size: 'large', min: 0, max: 1, def: 0.3, color: '#f9fafb' }),
-      knob('size',     'Size',     col(1), 28, { size: 'large', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
-      knob('pitch',    'Pitch',    col(2), 28, { size: 'large', min: -24, max: 24, def: 0, unit: 'semi', color: '#f9fafb' }),
-      knob('density',  'Density',  col(3), 28, { size: 'large', min: 0, max: 1, def: 0.6, color: '#e11d48' }),
-      knob('texture',  'Texture',  col(4), 28, { size: 'large', min: 0, max: 1, def: 0.5, color: '#0891b2' }),
-      knob('mix',      'Mix',      col(0), 56, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
-      knob('spread',   'Spread',   col(1), 56, { size: 'small', min: 0, max: 1, def: 0.3, color: '#f9fafb' }),
-      knob('feedback', 'Feedbk',   col(2), 56, { size: 'small', min: 0, max: 1, def: 0.3, color: '#f9fafb' }),
-      knob('reverb',   'Reverb',   col(3), 56, { size: 'small', min: 0, max: 1, def: 0.3, color: '#f9fafb' }),
-      knob('level',    'Level',    col(4), 56, { size: 'small', min: 0, max: 1, def: 1, color: '#f9fafb' }),
-      // 0=Granular 1=Stretch 2=Looping-delay 3=Spectral.
-      sw    ('mode',   'Mode',   w*0.28, 80, ['Gran','Strch','Loop','Spect'], 0),
-      toggle('freeze', 'Freeze', w*0.72, 80),
+      knob('position', 'Position', w*0.20, 26, { size: 'large', min: 0, max: 1, def: 0.3, color: '#f9fafb' }),
+      knob('size',     'Size',     w*0.50, 26, { size: 'large', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('pitch',    'Pitch',    w*0.80, 26, { size: 'large', min: -24, max: 24, def: 0, unit: 'semi', color: '#f9fafb' }),
+      knob('density',  'Density',  w*0.32, 49, { size: 'large', min: 0, max: 1, def: 0.6, color: '#e11d48' }),
+      knob('texture',  'Texture',  w*0.68, 49, { size: 'large', min: 0, max: 1, def: 0.5, color: '#0891b2' }),
+      knob('mix',      'Mix',      col5(0), 68, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('spread',   'Spread',   col5(1), 68, { size: 'small', min: 0, max: 1, def: 0.3, color: '#f9fafb' }),
+      knob('feedback', 'Feedbk',   col5(2), 68, { size: 'small', min: 0, max: 1, def: 0.3, color: '#f9fafb' }),
+      knob('reverb',   'Reverb',   col5(3), 68, { size: 'small', min: 0, max: 1, def: 0.3, color: '#f9fafb' }),
+      knob('level',    'Level',    col5(4), 68, { size: 'small', min: 0, max: 1, def: 1, color: '#f9fafb' }),
 
-      inPort ('in_l',   'In L',  'audio', col(0), 102),
-      inPort ('in_r',   'In R',  'audio', col(1), 102),
-      inPort ('freeze', 'Frz',   'gate',  col(2), 102),
-      inPort ('trig',   'Trig',  'gate',  col(3), 102),
-      inPort ('size_cv', 'S+',   'cv',    col(4), 102),
-      outPort('out_l',  'Out L', 'audio', col(2), 118),
-      outPort('out_r',  'Out R', 'audio', col(3), 118),
-      inPort ('position_cv', 'P+', 'cv', col(0), 118),
-      inPort ('density_cv',  'D+', 'cv', col(1), 118),
-      inPort ('texture_cv',  'T+', 'cv', col(4), 118),
+      sw    ('mode',   'Mode',   w*0.28, 82, ['Gran','Strch','Loop','Spect'], 0),
+      toggle('freeze', 'Freeze', w*0.72, 82),
+
+      inPort ('freeze',      'Frz',   'gate',  col4(0), 97),
+      inPort ('trig',        'Trig',  'gate',  col4(1), 97),
+      inPort ('position_cv', 'P+',    'cv',    col4(2), 97),
+      inPort ('size_cv',     'S+',    'cv',    col4(3), 97),
+      inPort ('pitch_cv',    'V/Oct', 'cv',    col4(0), 108),
+      inPort ('mix_cv',      'M+',    'cv',    col4(1), 108),
+      inPort ('density_cv',  'D+',    'cv',    col4(2), 108),
+      inPort ('texture_cv',  'T+',    'cv',    col4(3), 108),
+      inPort ('in_l',        'In L',  'audio', col4(0), 119),
+      inPort ('in_r',        'In R',  'audio', col4(1), 119),
+      outPort('out_l',       'Out L', 'audio', col4(2), 119),
+      outPort('out_r',       'Out R', 'audio', col4(3), 119),
     ],
-    notes: 'Mutable Instruments Clouds granular processor (firmware tp_mmb_clouds, FW-FX-4). Stereo in → korrelwolk → stereo uit; mono-bron op In L werkt ook. Freeze bevriest de audiobuffer (jack of toggle), Trig vuurt één korrel. Modes: granular / pitch-stretch / looping delay / spectral. CV-ingangen: position/density/texture (ook size_cv/pitch_cv/mix_cv via kabel). Let op: één instantie kost ~26% CPU en ~180 KB heap.',
+    notes: 'Mutable Instruments Clouds granular processor (firmware tp_mmb_clouds, FW-FX-4). Stereo in → korrelwolk → stereo uit; mono-bron op In L werkt ook. Freeze bevriest de audiobuffer (jack of toggle), Trig vuurt één korrel. Modes: granular / pitch-stretch / looping delay / spectral. CV-ingangen (tellen bij de knop op, fw 0.5.110): position, size, density, texture, mix, en pitch in V/Oct. Let op: één instantie kost ~26% CPU en ~180 KB heap.',
   });
 }
 
@@ -4670,7 +4676,8 @@ function mmbKnobs() {
     ],
     items: [
       ...[0, 1, 2, 3].map((i) => knob(`v${i+1}`, `${i+1}`, i % 2 === 0 ? w*0.28 : w*0.72, i < 2 ? 28 : 52,
-        { size: 'large', min: -1, max: 1, def: 0, color: '#f9fafb', ticks: { labels: { [-1]: '−', 0: '0', 1: '+' } } })),
+        // medium: twee grote knoppen passen niet naast elkaar op 6 HP (panelOverlap.test.ts)
+        { size: 'medium', min: -1, max: 1, def: 0, color: '#f9fafb', ticks: { labels: { [-1]: '−', 0: '0', 1: '+' } } })),
       sw('range', 'Range', w*0.28, 76, ['×1', '×2', '×5'], 0),
       knob('slew', 'Slew', w*0.72, 78, { size: 'small', min: 0, max: 2000, def: 10, unit: 'ms', color: '#f9fafb' }),
       ...[0, 1, 2, 3].map((i) => outPort(`out_${i+1}`, `${i+1}`, 'cv', i % 2 === 0 ? w*0.28 : w*0.72, i < 2 ? 98 : 114)),
@@ -6671,10 +6678,16 @@ export function seedVocoderChoirPatch(
  * via de poly-groep uit naar alle stemmen. Laad een .syx via de
  * Teensy-modal voor de andere 31 voices.
  */
-export function seedDx7PolyPatch(project: ModularProject, voiceCount = 8): ModularProject {
+export function seedDx7PolyPatch(
+  project: ModularProject, voiceCount = 8,
+  /** Klank (bank 0–7, program 0–31), effecten tussen de mixer en OUT (stereo, in
+   *  volgorde), en een eigen naam en uitleg. Zonder: bank 1A, program 0, geen effect. */
+  opts: { bank?: number; program?: number; fx?: readonly SeedFx[]; name?: string; description?: string } = {},
+): ModularProject {
   const N = Math.max(2, Math.min(16, Math.round(voiceCount)));
   const mixerTypeId = N > 8 ? 'tp_mmb_mixer16' : N > 4 ? 'tp_mmb_mixer8' : 'tp_mmb_mixer';
-  const needed = ['tp_mmb_midiin', 'tp_mmb_dx7', mixerTypeId, 'tp_mmb_out'];
+  const chain = opts.fx ?? [];
+  const needed = ['tp_mmb_midiin', 'tp_mmb_dx7', mixerTypeId, 'tp_mmb_out', ...chain.map((f) => f.typeId)];
   const missing = needed.some((tid) => !project.moduleTypes.some((t) => t.id === tid));
   const p = missing ? seedInternals(project) : project;
 
@@ -6686,15 +6699,20 @@ export function seedDx7PolyPatch(project: ModularProject, voiceCount = 8): Modul
   const dx7s   = Array.from({ length: N }, () => fresh('tp_mmb_dx7'));
   const master = dx7s[0]!;
   const mixer  = fresh(mixerTypeId);
+  const fxm    = chain.map((f) => fresh(f.typeId));
   const out    = fresh('tp_mmb_out');
 
   const dxOffset    = mi.visual.hpWidth;
   const mixerOffset = dxOffset + master.visual.hpWidth;
-  const outOffset   = mixerOffset + mixer.visual.hpWidth;
+  const fxOffsets: number[] = [];
+  let at = mixerOffset + mixer.visual.hpWidth;
+  for (const m of fxm) { fxOffsets.push(at); at += m.visual.hpWidth; }
+  const outOffset   = at;
   const slots: RackSlot[] = [
     { id: uid('slot'), moduleId: mi.id,    row: 0, hpOffset: 0 },
     ...dx7s.map((d, vi) => ({ id: uid('slot'), moduleId: d.id, row: vi, hpOffset: dxOffset })),
     { id: uid('slot'), moduleId: mixer.id, row: 0, hpOffset: mixerOffset },
+    ...fxm.map((m, i) => ({ id: uid('slot'), moduleId: m.id, row: 0, hpOffset: fxOffsets[i]! })),
     { id: uid('slot'), moduleId: out.id,   row: 0, hpOffset: outOffset },
   ];
   const polyGroups: PolyGroup[] = [{
@@ -6702,8 +6720,8 @@ export function seedDx7PolyPatch(project: ModularProject, voiceCount = 8): Modul
     members: dx7s.map((d) => ({ kind: 'module' as const, moduleId: d.id })),
   }];
   const rack: Rack = {
-    id: uid('rack'), name: `DX7 poly ×${N}`,
-    description: `MidiIn → [DX7]×${N} (PolyGroup) → ${N > 8 ? 'MIXER-16' : N > 4 ? 'MIXER-8' : 'MIXER'} → OUT. FM-envelopes intern; velocity direct de engine in.`,
+    id: uid('rack'), name: opts.name ?? `DX7 poly ×${N}`,
+    description: `MidiIn → [DX7]×${N} (PolyGroup) → ${N > 8 ? 'MIXER-16' : N > 4 ? 'MIXER-8' : 'MIXER'}${chain.map((f) => ` → ${f.label}`).join('')} → OUT. FM-envelopes intern; velocity direct de engine in.`,
     rows: N, hpPerRow: Math.max(64, outOffset + out.visual.hpWidth + 4),
     slots,
     kind: 'physical',
@@ -6716,8 +6734,8 @@ export function seedDx7PolyPatch(project: ModularProject, voiceCount = 8): Modul
     to:   { moduleId: tm.id, portId: tp },
   });
   const patch: Patch = {
-    id: uid('patch'), name: `DX7 poly ×${N}`,
-    description: `${N}-stemmige 6-op FM (msfa/Dexed-kern). Bank kiest een van de acht fabrieksbanken (1A t/m 4B), Program de klank (0–31); het display toont de naam. Bank 8 is je eigen .syx, te laden via de Teensy-modal.`,
+    id: uid('patch'), name: opts.name ?? `DX7 poly ×${N}`,
+    description: opts.description ?? `${N}-stemmige 6-op FM (msfa/Dexed-kern). Bank kiest een van de acht fabrieksbanken (1A t/m 4B), Program de klank (0–31); het display toont de naam. Bank 8 is je eigen .syx, te laden via de Teensy-modal.`,
     voiceCount: N,
     rackIds: [rack.id],
     connections: [
@@ -6725,12 +6743,12 @@ export function seedDx7PolyPatch(project: ModularProject, voiceCount = 8): Modul
       c(mi, 'gate',  master, 'gate'),
       c(mi, 'vel',   master, 'vel'),
       c(master, 'out', mixer, 'in1'),
-      c(mixer, 'out_l', out, 'l'),
-      c(mixer, 'out_r', out, 'r'),
+      ...stereoChain(c, mixer, fxm, out),
     ],
     controlState: {
       [mi.id]:     { channel: 0, voiceCount: N, steal: 0 },
-      [master.id]: { program: 0, level: 0.75 },
+      [master.id]: { ...(opts.bank !== undefined ? { bank: opts.bank } : {}), program: opts.program ?? 0, level: 0.75 },
+      ...Object.fromEntries(fxm.map((m, i) => [m.id, { ...chain[i]!.controls }])),
       [mixer.id]:  Object.fromEntries(Array.from({ length: N }, (_, i) => [
         [`vol${i + 1}`, 0.6], [`pan${i + 1}`, (i / Math.max(1, N - 1)) * 1.2 - 0.6],
       ]).flat().map(([k, v]) => [k, v])) as Record<string, ControlValue>,
@@ -6742,7 +6760,7 @@ export function seedDx7PolyPatch(project: ModularProject, voiceCount = 8): Modul
   return {
     ...p,
     racks:        [...p.racks, rack],
-    modules:      [...p.modules, mi, ...dx7s, mixer, out],
+    modules:      [...p.modules, mi, ...dx7s, mixer, ...fxm, out],
     patches:      [...p.patches, patch],
     activeRackId:  rack.id,
     activePatchId: patch.id,

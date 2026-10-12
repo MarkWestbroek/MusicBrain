@@ -17,7 +17,8 @@
 import { LibraryError, uploadTake, type LibrarySettings, type UploadedAsset } from './mediaLibrary';
 import type { PatchRequires } from './patchRequires';
 
-export type Pool = 'voorstel' | 'experimenteel' | 'centraal' | 'vraag' | 'prive';
+/** `afgewezen` (Imprint 2026-10-12): privé, alleen de inzender en de redactie zien hem, met `rejection`. */
+export type Pool = 'voorstel' | 'experimenteel' | 'centraal' | 'vraag' | 'prive' | 'afgewezen';
 export type License = 'CC-BY-4.0' | 'CC0';
 
 export interface PoolItem {

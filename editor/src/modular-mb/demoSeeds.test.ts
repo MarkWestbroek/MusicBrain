@@ -46,7 +46,7 @@ describe('standardProject', () => {
     const p = standardProject();
     const named = p.patches.filter((patch) => controlsOf(frontOf(patch, p).items).some((it) => kindOfItem(p, it) === 'display'));
     expect(named.map((x) => x.name)).toEqual(expect.arrayContaining([
-      expect.stringMatching(/DX7 poly/), expect.stringMatching(/DX7 \+/), expect.stringMatching(/Ritmebox/), expect.stringMatching(/Plaits/),
+      expect.stringMatching(/DX7 poly/), expect.stringMatching(/DX7 E\.Piano/), expect.stringMatching(/Ritmebox/), expect.stringMatching(/Plaits/),
     ]));
   });
 

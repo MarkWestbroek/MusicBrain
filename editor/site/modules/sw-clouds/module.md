@@ -39,16 +39,18 @@ volts per octave).
 
 | Port | Direction | Signal | What it carries |
 |---|---|---|---|
-| In L | in | audio | Audio in, left (or mono). |
-| In R | in | audio | Audio in, right. |
 | Frz | in | gate | High = freeze the buffer. |
 | Trig | in | gate | Each rising edge fires a single grain. |
-| S+ | in | cv | Adds to the Size knob; ±1 sweeps its whole range. |
-| Out L | out | audio | Audio out, left. |
-| Out R | out | audio | Audio out, right. |
 | P+ | in | cv | Adds to the Position knob; ±1 sweeps its whole range. |
+| S+ | in | cv | Adds to the Size knob; ±1 sweeps its whole range. |
+| V/Oct | in | cv | Adds to Pitch, 1 V per octave. |
+| M+ | in | cv | Adds to the Mix knob; ±1 sweeps its whole range. |
 | D+ | in | cv | Adds to the Density knob; ±1 sweeps its whole range. |
 | T+ | in | cv | Adds to the Texture knob; ±1 sweeps its whole range. |
+| In L | in | audio | Audio in, left (or mono). |
+| In R | in | audio | Audio in, right. |
+| Out L | out | audio | Audio out, left. |
+| Out R | out | audio | Audio out, right. |
 
 ## How it works
 
@@ -71,6 +73,8 @@ code to WebAssembly.
 - **The browser**: the editor's simulator runs the same C++ code as WebAssembly, so what you hear while patching is what the Brain plays.
 
 ## Try it
+
+Patches to play (open them in the editor from their page): [Generative jam](https://musicbrain.nl/patches/generative-jam), [Krell](https://musicbrain.nl/patches/krell).
 
 In the editor's example set: *☁️ Clouds ambient (+Tides)*, *🎲 Generative jam (Marbles)*, *🌌 Krell (zelfspelend)*, *🌌 Krell*, *🎲 Generative jam*.
 

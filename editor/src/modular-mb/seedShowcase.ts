@@ -279,11 +279,11 @@ export function seedComplexVoicePatch(project: ModularProject): ModularProject {
   const [midi, slope, complex, lpg, out] = mods as [ModuleInstance, ModuleInstance, ModuleInstance, ModuleInstance, ModuleInstance];
   const patch: Patch = {
     id: uid('patch'), name: 'Buchla-stem',
-    description: 'West Coast-stem onder het klavier: complex-oscillator (259-stijl) door een low-pass gate. De gate van het klavier gaat door SLOPE (snel op, traag terug); die envelope opent de LPG en duwt het timbre open, zodat elke noot helder begint en rond uitsterft. De gate pingt de LPG ook rechtstreeks voor de tik. Draai aan Timbre, FM en Ratio op COMPLEX (hele Ratio = harmonisch, ertussen = klok), en aan Fall op SLOPE voor de lengte.',
+    description: 'West Coast-stem onder het klavier: complex-oscillator (259-stijl) door een low-pass gate. Elke toets start SLOPE (snel op, traag terug, ook als je de toets vasthoudt); die envelope opent de LPG en duwt het timbre open, zodat elke noot helder begint en rond uitsterft, zoals een Buchla-pluk. De gate pingt de LPG ook rechtstreeks voor de tik. Draai aan Timbre, FM en Ratio op COMPLEX (hele Ratio = harmonisch, ertussen = klok), en aan Fall op SLOPE voor de lengte.',
     voiceCount: 1, rackIds: [rack.id],
     connections: cables([
       [midi, 'pitch', complex, 'voct'],
-      [midi, 'gate', slope, 'in'],
+      [midi, 'gate', slope, 'trig'],
       [midi, 'gate', lpg, 'trig'],
       [slope, 'out', lpg, 'cv'],
       [slope, 'out', complex, 'timbre_cv'],
@@ -293,7 +293,7 @@ export function seedComplexVoicePatch(project: ModularProject): ModularProject {
     ]),
     controlState: {
       [midi.id]: { channel: 0, voiceCount: 1 },
-      [slope.id]: { rise: 0.005, fall: 0.25, shape: -0.5, cycle: 0 },
+      [slope.id]: { rise: 0.004, fall: 0.6, shape: -0.5, cycle: 0 },
       [complex.id]: { pitch: -12, ratio: 2, mod_wave: 0, fm: 0.25, am: 0, tmod: 0.2, timbre: 0.15, symmetry: 0.1, level: 0.9 },
       [lpg.id]: { offset: 0, decay: 0.2, mode: 1, res: 0.2, level: 0.9 },
       [out.id]: { level: 0.85 },

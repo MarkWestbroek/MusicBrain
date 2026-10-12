@@ -45,8 +45,11 @@ export const DEMO_SEEDS: DemoSeed[] = [
   { label: '🪗 Orgel ×12', title: 'Tonewheel-orgel met alle negen trekstangen en de rotary.', run: seedOrganPolyPatch },
   { label: '🎼 DX7 ×8', title: 'Achtstemmige zesoperator-FM; kies bank en program, het display toont de naam.',
     run: (p) => seedDx7PolyPatch(p, 8) },
-  { label: '💡 DX7 + Vibe', title: 'Zesoperator-FM (één stem) met univibe erachter.',
-    run: (p) => seedSoloVoicePatch(p, 'tp_mmb_dx7', 'DX7', 'out', 'out', { program: 0, level: 0.8 }, VIBE_SOLO_FX) },
+  { label: '💡 DX7 E.Piano + Vibe', title: 'De klassieke DX7-piano (E.PIANO 1 uit ROM 1A), achtstemmig, door een univibe.',
+    run: (p) => seedDx7PolyPatch(p, 8, {
+      bank: 0, program: 10, fx: [VIBE_SOLO_FX], name: 'DX7 E.Piano + Vibe',
+      description: 'De DX7-piano van de jaren tachtig: E.PIANO 1 uit fabrieksbank 1A, achtstemmig, door een univibe (lamp, vier fasetrappen) die hem laat zweven. Speel zacht en hard: de velocity geeft de bel. Op de DX7 kiest Program een andere klank; op VIBE maakt Speed de zweving sneller en Intensity dieper.',
+    }) },
   { label: '🎞 Mellotron fluit ×8', title: 'De fluit van de Mellotron: bandjes van acht seconden, met wow en flutter.',
     run: (p) => seedMellotronPatch(p, 'fluit') },
   { label: '🎻 Mellotron strijkers ×8', title: 'Strijkers op de Mellotron: akkoorden die na acht seconden vallen.',

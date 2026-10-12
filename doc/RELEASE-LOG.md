@@ -17,6 +17,18 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-12 — Clouds-paneel zonder overlap, 18 HP; test op overlappende panelen (editor)
+- Mark: "de knoppen overlappen" (Clouds op de site). Het paneel rekende met
+  14 HP op een module van 16 HP, en vijf grote knoppen naast elkaar passen
+  daar niet. Nu 18 HP zoals het origineel: Position, Size, Pitch boven,
+  Density en Texture eronder, dan de kleine knoppen, Mode en Freeze, en drie
+  rijen jacks. **Pitch CV (V/Oct) en Mix CV** staan er nu ook op; de firmware
+  en de simulator hadden ze al (ED-PNL-1). Racks schuiven vanzelf op.
+- KNOBS (6 HP): de vier knoppen medium in plaats van groot; twee grote
+  pasten niet naast elkaar.
+- Nieuwe test `panelOverlap.test.ts`: geen knoppen of jacks over elkaar
+  heen en niets buiten het paneel, voor alle interne modules.
+
 ### 2026-10-12 — Elements: paneel zoals het origineel, met alle CV-ingangen (fw 0.5.111)
 <!-- EN: Elements: panel laid out like the original, with all ten CV inputs and attenuverters, FM input, both external exciter inputs and the PLAY button -->
 - Mark: "ik heb het gevoel dat ik in Elements via gemapte CC's meer kon doen

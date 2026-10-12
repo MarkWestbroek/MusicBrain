@@ -17,6 +17,9 @@
 // Per patch kiest het script:
 //   nieuw        geen patch met label `mmb-<id>` in de pool → POST (voorstel)
 //   ongewijzigd  wel, met dezelfde vingerafdruk `mmb-v-<hash>` → overslaan
+//   afgewezen    in pool `afgewezen` (Mark wees hem af, met reden) → overslaan,
+//                ook als hij in de code veranderd is: alleen de redactie zet
+//                hem terug ("Terug naar voorstel" in /admin/patches)
 //   gewijzigd    wel, met een andere vingerafdruk → nieuwe bestanden en
 //                PATCH /api/patches/<slug> op dezelfde slug. Imprint zet hem
 //                dan terug op `voorstel`, ook vanuit `centraal`: Marks
@@ -92,7 +95,7 @@ async function main(): Promise<void> {
   // Wat staat er al? De openbare pools zonder token, de voorstellen met.
   const present = new Map<string, PoolItem>();   // label mmb-<id> → item
   const counts: string[] = [];
-  for (const pool of ['centraal', 'experimenteel', ...(token ? ['voorstel'] : [])] as const) {
+  for (const pool of ['centraal', 'experimenteel', ...(token ? ['voorstel', 'afgewezen'] : [])] as const) {
     try {
       const items: PoolItem[] = await listPool({ pool }, lib);
       let n = 0;
@@ -142,6 +145,11 @@ async function main(): Promise<void> {
       fs.writeFileSync(path.join(outDir, `${tag}.front.svg`), front);
     }
     const old = present.get(tag);
+    if (old?.pool === 'afgewezen') {
+      const why = (old as PoolItem & { rejection?: { reason?: string; at?: string } }).rejection;
+      console.log(`- ${title} [${tag}]: afgewezen${why?.at ? ` op ${why.at}` : ''}${why?.reason ? `: ${why.reason}` : ''}; niet opnieuw insturen`);
+      same++; continue;
+    }
     if (old && (old.tags ?? []).includes(vtag)) { console.log(`= ${title} [${tag}]: ongewijzigd (${old.pool})`); same++; continue; }
     if (!send) {
       console.log(old
