@@ -17,6 +17,17 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-12 — Bovenbalk: drie menu's en een snelmenu (editor, ED-ST-1 stap 8)
+- De bovenbalk na Binnenkijken had ruim twintig losse knoppen. Nu:
+  📂 Patches…, ⌘ Recept, **Project ▾**, **Klank ▾**, **Testen ▾** en ?
+  (`ToolbarMenus.tsx`). SysEx ▾ en Panels ▾ zitten in Project ▾. Klank ▾
+  heeft ook Fairlight Page 4 / D (met UIT SAMPLE, de 3D-weergave en de
+  CMI-bank), actief als de patch een CMI-stem heeft.
+- Snelmenu (besluit 2026-10-01): elk menu-item heeft een ☆; aangezet staat
+  het als losse knop rechts in de balk, per browser onthouden. Standaard
+  Teensy, Internals en Test-patch.
+- Plan: [plans/editor-structuur.md](plans/editor-structuur.md) stap 8.
+
 ### 2026-10-12 — Link van de site opent de patch meteen, ook in de speelmodus (editor)
 - Imprint (via MODULES): de modulepagina's op musicbrain.nl linken naar
   patches; die moeten meteen open en speelbaar zijn. `?patch=<slug>` bood de

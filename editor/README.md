@@ -279,6 +279,14 @@ Binnenkijken blijft Nederlands; een eigen patch houdt zijn eigen tekst.
   elk tabblad behalve Pool. Op de telefoon vult de kiezer het scherm. Na
   Binnenkijken opent **📂 Patches…** in de bovenbalk hetzelfde venster; het
   vervangt Poly ▾, Solo ▾ en Stress ▾.
+- **Bovenbalk** (na Binnenkijken): 📂 Patches…, ⌘ Recept, drie menu's en ?.
+  **Project ▾**: exporteren en importeren (JSON en .syx), patchnamen voor
+  Reaper en Cubase, Panels, Presets, Nieuw. **Klank ▾**: Wave, Sample,
+  Multisample, Zang, DX7 en Fairlight Page 4 / D (als de patch een CMI-stem heeft). **Testen ▾**: Teensy en de testpatches
+  (Voorbeelden, Internals, Test-patch, FM-test, CV-bridge). Rechts staat het
+  **snelmenu**: elk menu-item heeft een ☆, en wat je aanzet staat daar als
+  losse knop. Het begint met Teensy, Internals en Test-patch en wordt per
+  browser onthouden.
 - **Patchcontrole**: bij het laden, importeren of binnenhalen van een patch
   (pool, SysEx, take) wordt hij gecontroleerd tegen de modules van nu. Wat
   zeker is wordt hersteld (een kabel naar een poort die niet meer bestaat,

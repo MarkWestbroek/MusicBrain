@@ -34,7 +34,11 @@ import { SimulationPanel } from './SimulationPanel';
 import { SimQuickBar } from './sim/SimQuickBar';
 import { MidiMonitorHost } from './sim/MidiMonitorWindow';
 import { TakeEditorHost } from './sim/TakeEditorWindow';
-import { PatchExportMenu } from './sim/PatchExportMenu';
+import { usePatchSysex } from './sim/PatchExportMenu';
+import { ToolbarMenus } from './ToolbarMenus';
+import { CmiPage4 } from './CmiPage4';
+import { cmiVoices } from './cmiSync';
+import { catalogMenu } from './patchCatalog';
 import { PatchInboxHost } from './sim/PatchInbox';
 import { PoolWindowsHost, openFromPool } from './sim/PoolWindows';
 import { ControlSurfacePanel } from './ControlSurfacePanel';
@@ -57,7 +61,6 @@ import { Dx7EditorModal } from './Dx7EditorModal';
 import { currentSecureContextHint } from './secureContext';
 // Reuse the ES project-bar CSS classes (.es-projectbar*) — same visual language.
 import '../effect-switcher/styles.css';
-import { DiagnoseButtons } from './SeedMenu';
 import { PatchBrowserHost, openPatchBrowser } from './PatchBrowser';
 
 type Tab = 'patches' | 'modules' | 'rack' | 'categories' | 'front' | 'patcher' | 'simulation' | 'surface';
@@ -145,6 +148,9 @@ export function ModularMbApp(): JSX.Element {
   const importRef = useRef<HTMLInputElement>(null);
   const panelInRef = useRef<HTMLInputElement>(null);
   const [showPanels, setShowPanels] = useState(false);
+  const sysex = usePatchSysex();
+  // Fairlight: Page 4 ook vanuit Klank ▾ (zelfde venster als PAGE 4 op het front).
+  const [showPage4, setShowPage4] = useState(false);
 
   // ─── Global undo/redo: Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z ───────────────
   useEffect(() => {
@@ -365,82 +371,91 @@ export function ModularMbApp(): JSX.Element {
         </span>
 
         <div className="es-projectbar-actions">
-          <button onClick={onExport} title="Project downloaden als JSON">↓ Exporteer</button>
-          <button onClick={() => importRef.current?.click()} title="JSON-bestand laden">↑ Importeer</button>
-          <PatchExportMenu />
+          {/* Bovenbalk (editor-structuur.md stap 8): vaste knoppen, vaste menu's
+              en het snelmenu dat je zelf vult met ☆ (ToolbarMenus.tsx). */}
+          <ToolbarMenus
+            defaultPins={['teensy', 'diagnose/internals', 'diagnose/test-patch']}
+            before={(
+              <>
+                <button onClick={() => openPatchBrowser('voorbeelden')}
+                  title="Patch kiezen: je eigen patches, de voorbeelden (standaardset, Poly, Solo), de pool van musicbrain.nl en diagnose (testpatches, Stress)"
+                >📂 Patches…</button>
+                <button
+                  onClick={() => setShowCmd(true)}
+                  title="Commandoregel (Ctrl+K): typ wat je wilt bouwen of veranderen — 'maak een 8x poly patch met een wavetable osc en een diode compressor op het eind', 'maak deze patch 4 stemmig', 'vervang de osc door een ladder'"
+                  data-tour="command-button"
+                  style={{ fontWeight: 600 }}
+                >⌘ Recept</button>
+              </>
+            )}
+            after={<button onClick={() => setShowTour(true)} title="Rondleiding door de editor, stap voor stap" data-tour="tour-button">?</button>}
+            menus={[
+              { id: 'project', label: 'Project', title: 'Bewaren, inlezen, SysEx, panelen, presets', items: [
+                { id: 'export', label: '↓ Exporteer', title: 'Project downloaden als JSON', run: onExport },
+                { id: 'import', label: '↑ Importeer', title: 'JSON-bestand laden', run: () => importRef.current?.click() },
+                'sep',
+                { id: 'syx-export', label: '⤓ Actieve patch als .syx', title: 'De actieve patch als .syx: voor de Teensy (firmwareconfig) en voor de editor (patch)', run: sysex.exportSyx },
+                { id: 'syx-import', label: '⤒ .syx importeren als patch', title: 'Een MusicBrain-.syx inlezen als nieuwe patch', run: sysex.importSyx },
+                { id: 'names-reaper', label: '⤓ Patchnamen voor Reaper', title: 'Reaper: MIDI-item → rechtsklik → Bank/program select → Load bank file', run: () => sysex.exportNames('reaper') },
+                { id: 'names-cubase', label: '⤓ Patchnamen voor Cubase', title: 'Cubase: in de map Patchnames/inbox zetten, dan MIDI Device Manager → Install', run: () => sysex.exportNames('cubase') },
+                'sep',
+                { id: 'panels', label: 'Panels…', title: 'Eén paneel los exporteren of importeren (mmb-panel.v1)', run: () => setShowPanels(true) },
+                { id: 'presets', label: 'Presets', title: 'Presets opslaan/laden (project of per module)', run: () => setShowPresets(true) },
+                'sep',
+                { id: 'new', label: 'Nieuw', title: 'Project wissen en opnieuw beginnen', danger: true,
+                  run: () => { if (confirm('Project wissen en opnieuw beginnen?')) setProject(emptyModularProject()); } },
+              ] },
+              { id: 'klank', label: 'Klank', title: 'Editors voor golfvormen, samples, zang en de DX7', items: [
+                { id: 'wave', label: '🖊 Wave', title: 'Teken een single-cycle golfvorm en push die live naar een Draw-VCO of Morph-WT (USER-bank)', run: () => setShowWave(true) },
+                { id: 'sample', label: '🎧 Sample', title: 'Laad een audiobestand in een slot van de samplebank (SAMPLER-modules in de simulator én, indien verbonden, PSRAM + SD op de Teensy)', run: () => setShowSample(true) },
+                { id: 'multisample', label: '🎹 Multisample', title: 'Eén lange opname (C1 zacht/midden/hard, C2 idem, …) ontleden tot een keymap: toonhoogte, velocity-lagen, uitsterving en loop-punten', run: () => setShowImport(true) },
+                { id: 'zang', label: '🎤 Zang', title: 'Woorden om te zingen: spreek in of kies een wav, typ de lettergrepen, en de module ZANG zingt ze op de noten die je speelt', run: () => setShowLyric(true) },
+                { id: 'dx7', label: '🎛 DX7', title: 'DX7-patch bewerken: algoritme, operators, envelopes — je hoort elke wijziging meteen in alle DX7-modules', run: () => setShowDx7(true) },
+                { id: 'page4', label: '📟 Fairlight Page 4 / D',
+                  title: playerPatch && cmiVoices(project, playerPatch).length > 0
+                    ? 'De Fairlight CMI, groen op zwart. Page 4: kies een harmonische en teken hoe hard hij is over de noot. Page D: de golfvorm over de noot, en als bonus het profiel in 3D. Ook UIT SAMPLE en de CMI-bank zitten hier.'
+                    : 'Alleen in een patch met een Fairlight (CMI-stem); kies er een in 📂 Patches…',
+                  disabled: !playerPatch || cmiVoices(project, playerPatch).length === 0,
+                  run: () => setShowPage4(true) },
+              ] },
+              { id: 'testen', label: 'Testen', title: 'De Teensy, en patches en modules om mee te testen', items: [
+                { id: 'teensy', label: 'Teensy', title: 'Verbinden met Teensy via USB Serial en config pushen', run: () => setShowTeensy(true), tour: 'teensy-button' },
+                'sep',
+                // Uit de patchcatalogus (patchCatalog.ts); het id is dat van de catalogus.
+                ...catalogMenu('diagnose').map((e) => ({ id: e.id, label: e.label, title: e.title, run: () => setProject(e.build(getProject())) })),
+              ] },
+            ]}
+          />
+          {sysex.ui}
+          {showPage4 && playerPatch && cmiVoices(project, playerPatch).length > 0 && (() => {
+            const cmi = cmiVoices(project, playerPatch);
+            return <CmiPage4 patchId={playerPatch.id} owner={cmi[0]!.owner} voices={cmi.map((v) => v.id)} onClose={() => setShowPage4(false)} />;
+          })()}
           <input ref={importRef} type="file" accept=".json,application/json"
             style={{ display: 'none' }} onChange={onImportFile} />
-          <span style={{ position: 'relative', display: 'inline-block' }}>
-            <button onClick={() => setShowPanels((v) => !v)}
-              title="Eén paneel los exporteren of importeren (mmb-panel.v1)"
-            >Panels ▾</button>
-            {showPanels && (
+          {showPanels && (
+            <span style={{ position: 'relative', display: 'inline-block' }}>
               <div style={{
-                position: 'absolute', top: '100%', left: 0, zIndex: 20,
+                position: 'absolute', top: 14, right: 0, zIndex: 20,
                 background: '#ffffff', border: '1px solid #cbd2d9', borderRadius: 6,
                 boxShadow: '0 4px 12px rgba(0,0,0,0.15)', marginTop: 2, minWidth: 220,
                 maxHeight: 360, overflowY: 'auto', display: 'flex', flexDirection: 'column',
               }} onMouseLeave={() => setShowPanels(false)}>
                 <button onClick={() => panelInRef.current?.click()}
                   style={{ textAlign: 'left', border: 'none', borderBottom: '1px solid #e5e7eb',
-                           background: 'transparent', padding: '7px 12px', cursor: 'pointer', fontSize: 13 }}
+                           background: 'transparent', padding: '7px 12px', cursor: 'pointer', fontSize: 13, height: 'auto' }}
                 >↑ Paneel importeren…</button>
                 {project.moduleTypes.filter((t) => t.id.startsWith('tp_mmb_')).map((t) => (
                   <button key={t.id} onClick={() => onExportPanel(t.id)}
                     style={{ textAlign: 'left', border: 'none', background: 'transparent',
-                             padding: '6px 12px', cursor: 'pointer', fontSize: 12 }}
+                             padding: '6px 12px', cursor: 'pointer', fontSize: 12, height: 'auto' }}
                   >↓ {t.variant}</button>
                 ))}
               </div>
-            )}
-          </span>
+            </span>
+          )}
           <input ref={panelInRef} type="file" accept=".json,application/json"
             style={{ display: 'none' }} onChange={onImportPanelFile} />
-          <button
-            onClick={() => setShowCmd(true)}
-            title="Commandoregel (Ctrl+K): typ wat je wilt bouwen of veranderen — 'maak een 8x poly patch met een wavetable osc en een diode compressor op het eind', 'maak deze patch 4 stemmig', 'vervang de osc door een ladder'"
-            data-tour="command-button"
-            style={{ fontWeight: 600 }}
-          >⌘ Recept</button>
-          <button onClick={() => setShowTour(true)} title="Rondleiding door de editor, stap voor stap" data-tour="tour-button">?</button>
-          <button
-            onClick={() => setShowPresets(true)}
-            title="Presets opslaan/laden (project of per module)"
-          >Presets</button>
-          <button
-            onClick={() => setShowTeensy(true)}
-            title="Verbinden met Teensy via USB Serial en config pushen"
-            data-tour="teensy-button"
-          >Teensy</button>
-          <button
-            onClick={() => setShowWave(true)}
-            title="Teken een single-cycle golfvorm en push die live naar een Draw-VCO of Morph-WT (USER-bank)"
-          >🖊 Wave</button>
-          <button
-            onClick={() => setShowSample(true)}
-            title="Laad een audiobestand in een slot van de samplebank (SAMPLER-modules in de simulator én, indien verbonden, PSRAM + SD op de Teensy)"
-          >🎧 Sample</button>
-          <button
-            onClick={() => setShowImport(true)}
-            title="Eén lange opname (C1 zacht/midden/hard, C2 idem, …) ontleden tot een keymap: toonhoogte, velocity-lagen, uitsterving en loop-punten"
-          >🎹 Multisample</button>
-          <button
-            onClick={() => setShowLyric(true)}
-            title="Woorden om te zingen: spreek in of kies een wav, typ de lettergrepen, en de module ZANG zingt ze op de noten die je speelt"
-          >🎤 Zang</button>
-          <button
-            onClick={() => setShowDx7(true)}
-            title="DX7-patch bewerken: algoritme, operators, envelopes — je hoort elke wijziging meteen in alle DX7-modules"
-          >🎛 DX7</button>
-          {/* Seeds uit de patchcatalogus (patchCatalog.ts): diagnoseknoppen en
-              de patchkiezer (Voorbeelden, Pool, Diagnose). */}
-          <DiagnoseButtons />
-          <button onClick={() => openPatchBrowser('voorbeelden')}
-            title="Patch kiezen: je eigen patches, de voorbeelden (standaardset, Poly, Solo), de pool van musicbrain.nl en diagnose (testpatches, Stress)"
-          >📂 Patches…</button>
-          <button className="es-projectbar-reset"
-            onClick={() => { if (confirm('Project wissen en opnieuw beginnen?')) setProject(emptyModularProject()); }}
-          >Nieuw</button>
         </div>
       </div>
       )}

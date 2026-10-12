@@ -174,6 +174,13 @@ Elke stap kan apart naar live. Stap 1 verandert niets aan wat je ziet.
 - Bewust niet: de moduletypes van een project vanzelf verversen. Dat vervangt panelen; dat besluit blijft bij de gebruiker.
 - Nog niet: `simBanks` tegen de banklijst van de server (asynchroon), hernoemingen (stap 6), AI-reparatie (stap 7).
 
+**Gebouwd in stap 8 (2026-10-12):**
+
+- `ToolbarMenus.tsx`: vaste knoppen (📂 Patches…, ⌘ Recept, ?), drie menu's en het snelmenu (besluit UX 2026-10-01: vast menu plus configureerbaar snelmenu). Indeling door Mark gekozen: **Project ▾** (Exporteer, Importeer, .syx exporteren en importeren, patchnamen Reaper en Cubase, Panels…, Presets, Nieuw), **Klank ▾** (Wave, Sample, Multisample, Zang, DX7, Fairlight Page 4 / D; alleen met een CMI-stem in de patch, Mark 2026-10-12), **Testen ▾** (Teensy, en de diagnose-items uit de patchcatalogus).
+- Snelmenu: ☆ achter elk menu-item zet het als losse knop rechts in de balk; localStorage `mmb.toolbar.pins`, standaard Teensy, Internals en Test-patch. Het anker van de rondleiding (`teensy-button`) staat op de snelknop, of op Testen ▾ als Teensy niet vastgezet is.
+- `SysEx ▾` en `Panels ▾` zijn opgegaan in Project ▾ (`usePatchSysex` in `sim/PatchExportMenu.tsx`); `SeedMenu.tsx` is weg.
+- Nagelopen met Playwright op 1400 px en Pixel 7: geen horizontale scroll, menu's klappen in de rechterhelft naar links open.
+
 **Gebouwd in stap 9 (2026-10-11), nog niet ingestuurd:**
 
 - `tools/pool-basisset/publish-basisset.ts`: bouwt elke patch van de standaardset, legt hem langs de patchcontrole en maakt dezelfde bestanden als ⤴ Voorstellen (`.patch.json`, `.syx`, front-hoes als SVG) met `requires`. Licentie CC0, labels `basisset` en `mmb-<id>`. Zonder `--send` een proefstand; `--out <map>` schrijft de bestanden weg om te bekijken. Het token komt uit `MMB_POOL_TOKEN`.
@@ -218,5 +225,5 @@ Elke stap kan apart naar live. Stap 1 verandert niets aan wat je ziet.
 | 5 ✅ | Patchkiezer met vier tabbladen | vervangt Poly ▾, Solo ▾, Stress ▾, de vier seedknoppen en 📚 Pool | middel |
 | 6 | Hernoemingen in het contract (firmware) | oude kabels worden omgezet in plaats van weggehaald | middel, vraagt een firmwarerelease |
 | 7 | AI-reparatie van wat niet zeker is | voorstel na de melding, met goedkeuring | middel |
-| 8 | Bovenbalk opnieuw indelen, wat er nog over is | kleiner dan Astra's UX-02 | klein |
+| 8 ✅ | Bovenbalk opnieuw indelen, wat er nog over is | drie menu's plus een snelmenu met ☆ | klein |
 | 9 🟡 | Basisset naar of uit de pool | script klaar; insturen en in `centraal` zetten door Mark | klein |

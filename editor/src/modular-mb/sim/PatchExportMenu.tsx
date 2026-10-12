@@ -1,5 +1,5 @@
-// Menu "SysEx ▾" in de kopregel: de actieve patch als .syx exporteren, een
-// .syx importeren als nieuwe patch, en naamlijsten voor Reaper en Cubase.
+// SysEx in de bovenbalk (Project ▾): de actieve patch als .syx exporteren,
+// een .syx importeren als nieuwe patch, en naamlijsten voor Reaper en Cubase.
 
 import { useRef, useState } from 'react';
 import { getProject, updateProject, uid } from '../store';
@@ -32,13 +32,17 @@ export async function patchToSysex(project: ModularProject): Promise<Uint8Array[
   ];
 }
 
-export function PatchExportMenu(): JSX.Element {
-  const [open, setOpen] = useState(false);
+/** De SysEx-handelingen voor de bovenbalk (Project ▾, editor-structuur.md
+ *  stap 8): .syx van de actieve patch, .syx inlezen, patchnamen voor een
+ *  DAW. `ui` is het verborgen bestandsveld en de melding; zet die ergens in
+ *  de balk. */
+export function usePatchSysex(): {
+  exportSyx: () => void; importSyx: () => void; exportNames: (kind: 'reaper' | 'cubase') => void; ui: JSX.Element;
+} {
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   async function exportSyx(): Promise<void> {
-    setOpen(false);
     try {
       const p = getProject();
       const patch = p.patches.find((x) => x.id === p.activePatchId);
@@ -64,33 +68,22 @@ export function PatchExportMenu(): JSX.Element {
   }
 
   function exportNames(kind: 'reaper' | 'cubase'): void {
-    setOpen(false);
     const list = patchOrder(getProject()).map((x) => ({ ...x }));
     if (kind === 'reaper') download(buildReabank(list), 'MusicBrain.reabank', 'text/plain');
     else download(buildCubaseScript(list), 'MusicBrain patches.txt', 'text/plain');
     setMsg({ ok: true, text: `${list.length} patchnamen.` });
   }
 
-  const item: React.CSSProperties = { textAlign: 'left', border: 'none', background: 'transparent', padding: '7px 12px', cursor: 'pointer', fontSize: 13 };
-  return (
-    <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-      <button onClick={() => setOpen((v) => !v)} title="Patches als SysEx (.syx) en patchnamen voor DAW's">SysEx ▾</button>
-      {open && (
-        <div onMouseLeave={() => setOpen(false)} style={{
-          position: 'absolute', top: '100%', left: 0, zIndex: 50, background: '#fff', border: '1px solid #e5e7eb',
-          borderRadius: 6, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', marginTop: 2, minWidth: 260, display: 'flex', flexDirection: 'column',
-        }}>
-          <button style={item} onClick={() => void exportSyx()} title="De actieve patch als .syx: voor de Teensy (firmwareconfig) en voor de editor (patch)">⤓ Actieve patch als .syx</button>
-          <button style={item} onClick={() => { setOpen(false); fileRef.current?.click(); }} title="Een MusicBrain-.syx inlezen als nieuwe patch">⤒ .syx importeren als patch</button>
-          <button style={{ ...item, borderTop: '1px solid #e5e7eb' }} onClick={() => exportNames('reaper')}
-            title="Reaper: MIDI-item → rechtsklik → Bank/program select → Load bank file">⤓ Patchnamen voor Reaper (.reabank)</button>
-          <button style={item} onClick={() => exportNames('cubase')}
-            title="Cubase: in de map Patchnames/inbox zetten, dan MIDI Device Manager → Install">⤓ Patchnamen voor Cubase (script)</button>
-        </div>
-      )}
-      <input ref={fileRef} type="file" accept=".syx,application/octet-stream" style={{ display: 'none' }}
-        onChange={(e) => { void importSyx(e.target.files?.[0]); e.target.value = ''; }} />
-      {msg && <span style={{ fontSize: 12, color: msg.ok ? '#15803d' : '#b91c1c' }}>{msg.ok ? '✔' : '⚠'} {msg.text}</span>}
-    </span>
-  );
+  return {
+    exportSyx: () => void exportSyx(),
+    importSyx: () => fileRef.current?.click(),
+    exportNames,
+    ui: (
+      <>
+        <input ref={fileRef} type="file" accept=".syx,application/octet-stream" style={{ display: 'none' }}
+          onChange={(e) => { void importSyx(e.target.files?.[0]); e.target.value = ''; }} />
+        {msg && <span style={{ fontSize: 12, color: msg.ok ? '#15803d' : '#b91c1c' }}>{msg.ok ? '✔' : '⚠'} {msg.text}</span>}
+      </>
+    ),
+  };
 }

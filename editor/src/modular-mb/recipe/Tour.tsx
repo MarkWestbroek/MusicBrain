@@ -36,7 +36,7 @@ export const TOUR_STEPS: TourStep[] = [
   { anchor: 'tab-simulation', tab: 'simulation', title: 'Simulatie',
     text: 'Druk op Start en speel op je MIDI-keyboard of de toetsen op het scherm. Elke knop die je draait hoor je direct.' },
   { anchor: 'teensy-button', title: 'Naar de hardware',
-    text: 'Verbind de Teensy via USB en push de patch. Knopstanden gaan daarna live naar de brain.' },
+    text: 'Verbind de Teensy via USB (de knop Teensy, of Testen ▾ → Teensy) en push de patch. Knopstanden gaan daarna live naar de brain.' },
   { title: 'Klaar', text: 'Veel plezier. De rondleiding kun je altijd opnieuw starten via de ?-knop.' },
 ];
 
