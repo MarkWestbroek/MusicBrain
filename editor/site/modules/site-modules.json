@@ -24,7 +24,12 @@
         "out": "Low-pass output, 24 dB per octave."
       },
       "takeNote": "Gekozen door Mark (2026-10-11): 6 stemmen, cutoff 68 Hz, Q 0,87, Drive 3, op de Teensy. Voorgesteld voor de pool, dus in de media-library. Let op: drie gaten van 8,6 ms rond 57, 62 en 66 s (cpu); eventueel inkorten tot 0–55 s.",
-      "takeUrl": null
+      "takeUrl": null,
+      "family": "Filters & shapers",
+      "tags": [
+        "oversampled",
+        "vintage"
+      ]
     },
     "tp_mmb_epiano": {
       "slug": "sw-epiano",
@@ -78,7 +83,14 @@
         "percent": 7.3,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (pitch->voct_1; gate->gate_1; vel->vel_1; audio in: -; uit: out_l)"
-      }
+      },
+      "family": "Instruments",
+      "tags": [
+        "physical-model",
+        "polyphonic",
+        "stereo",
+        "vintage"
+      ]
     },
     "tp_mmb_organ": {
       "slug": "sw-organ",
@@ -121,7 +133,13 @@
         "percent": 4.4,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (pitch->voct_1; gate->gate_1; audio in: -; uit: out)"
-      }
+      },
+      "family": "Instruments",
+      "tags": [
+        "physical-model",
+        "polyphonic",
+        "vintage"
+      ]
     },
     "tp_mmb_rotary": {
       "slug": "sw-rotary",
@@ -147,7 +165,12 @@
         "percent": 13.3,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (audio in: in_l,in_r; uit: out_l)"
-      }
+      },
+      "family": "Modulation effects & EQ",
+      "tags": [
+        "stereo",
+        "vintage"
+      ]
     },
     "tp_mmb_dx7": {
       "slug": "sw-dx7",
@@ -167,7 +190,11 @@
         "percent": 1.3,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (pitch->voct; gate->gate; vel->vel; audio in: -; uit: out)"
-      }
+      },
+      "family": "Instruments",
+      "tags": [
+        "vintage"
+      ]
     },
     "tp_mmb_vibe": {
       "slug": "sw-vibe",
@@ -188,7 +215,12 @@
         "percent": 5.1,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (audio in: in_l,in_r; uit: out_l)"
-      }
+      },
+      "family": "Modulation effects & EQ",
+      "tags": [
+        "stereo",
+        "vintage"
+      ]
     },
     "tp_mmb_synthex": {
       "slug": "sw-synthex",
@@ -249,7 +281,13 @@
         "percent": 12.2,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (pitch->voct_1; gate->gate_1; audio in: -; uit: out_l)"
-      }
+      },
+      "family": "Instruments",
+      "tags": [
+        "polyphonic",
+        "stereo",
+        "vintage"
+      ]
     },
     "tp_mmb_string": {
       "slug": "sw-string",
@@ -268,7 +306,11 @@
         "percent": 0.3,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (pitch->voct; gate->gate; audio in: -; uit: out)"
-      }
+      },
+      "family": "Oscillators & voices",
+      "tags": [
+        "physical-model"
+      ]
     },
     "tp_mmb_cmi": {
       "slug": "sw-cmi",
@@ -290,7 +332,12 @@
         "percent": 1.8,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (pitch->voct; gate->gate; vel->vel; audio in: -; uit: out)"
-      }
+      },
+      "family": "Instruments",
+      "tags": [
+        "sample-based",
+        "vintage"
+      ]
     },
     "tp_mmb_mixtur": {
       "slug": "sw-mixtur",
@@ -329,7 +376,11 @@
         "percent": 5.2,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (pitch->voct; gate->gate; vel->vel; audio in: -; uit: out)"
-      }
+      },
+      "family": "Instruments",
+      "tags": [
+        "vintage"
+      ]
     },
     "tp_mmb_martenot": {
       "slug": "sw-martenot",
@@ -360,7 +411,11 @@
         "percent": 2.4,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (pitch->voct; gate->gate; vel->vel; audio in: -; uit: out)"
-      }
+      },
+      "family": "Instruments",
+      "tags": [
+        "vintage"
+      ]
     },
     "tp_mmb_vco": {
       "slug": "sw-vco",
@@ -382,7 +437,9 @@
         "percent": 0.1,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (pitch->voct; audio in: -; uit: out)"
-      }
+      },
+      "family": "Oscillators & voices",
+      "tags": []
     },
     "tp_mmb_sid": {
       "slug": "sw-sid",
@@ -456,7 +513,13 @@
         "percent": 11.3,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (pitch->voct_1; gate->gate_1; audio in: -; uit: sid_1)"
-      }
+      },
+      "family": "Oscillators & voices",
+      "tags": [
+        "polyphonic",
+        "stereo",
+        "vintage"
+      ]
     },
     "tp_mmb_rings": {
       "slug": "sw-rings",
@@ -487,7 +550,13 @@
         "percent": 16.6,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (pitch->voct; gate->gate; audio in: -; uit: out_l)"
-      }
+      },
+      "family": "Oscillators & voices",
+      "tags": [
+        "mutable-instruments",
+        "physical-model",
+        "stereo"
+      ]
     },
     "tp_mmb_plaits": {
       "slug": "sw-plaits",
@@ -519,7 +588,11 @@
         "percent": 7.5,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (pitch->voct; gate->gate; audio in: -; uit: out)"
-      }
+      },
+      "family": "Oscillators & voices",
+      "tags": [
+        "mutable-instruments"
+      ]
     },
     "tp_mmb_complex": {
       "slug": "sw-complex",
@@ -543,7 +616,11 @@
         "percent": 9.5,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (pitch->voct; audio in: -; uit: mod)"
-      }
+      },
+      "family": "Oscillators & voices",
+      "tags": [
+        "oversampled"
+      ]
     },
     "tp_mmb_morph_wt": {
       "slug": "sw-morph-wt",
@@ -563,7 +640,9 @@
         "percent": 0.7,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (pitch->voct; audio in: -; uit: out)"
-      }
+      },
+      "family": "Oscillators & voices",
+      "tags": []
     },
     "tp_mmb_clouds": {
       "slug": "sw-clouds",
@@ -606,7 +685,12 @@
         "percent": 5.9,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (gate->trig; audio in: in_l,in_r; uit: out_l)"
-      }
+      },
+      "family": "Delay & reverb",
+      "tags": [
+        "mutable-instruments",
+        "stereo"
+      ]
     },
     "tp_mmb_stages": {
       "slug": "sw-stages",
@@ -645,7 +729,11 @@
         "percent": 0.0,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (gate->gate; audio in: -; uit: out)"
-      }
+      },
+      "family": "Modulation & control",
+      "tags": [
+        "mutable-instruments"
+      ]
     },
     "tp_mmb_marbles": {
       "slug": "sw-marbles",
@@ -679,7 +767,11 @@
         "percent": 0.0,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (audio in: -; uit: t1)"
-      }
+      },
+      "family": "Rhythm & sequencing",
+      "tags": [
+        "mutable-instruments"
+      ]
     },
     "tp_mmb_elements_reverb": {
       "slug": "sw-elements-reverb",
@@ -699,7 +791,12 @@
         "percent": 3.2,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (audio in: in_l,in_r; uit: out_l)"
-      }
+      },
+      "family": "Delay & reverb",
+      "tags": [
+        "mutable-instruments",
+        "stereo"
+      ]
     },
     "tp_mmb_bbd_chorus": {
       "slug": "sw-bbd-chorus",
@@ -726,7 +823,12 @@
         "percent": 3.8,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (audio in: in_l,in_r; uit: out_l)"
-      }
+      },
+      "family": "Modulation effects & EQ",
+      "tags": [
+        "stereo",
+        "vintage"
+      ]
     },
     "tp_mmb_para_eq": {
       "slug": "sw-para-eq",
@@ -758,7 +860,11 @@
         "percent": 3.2,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (audio in: in_l,in_r; uit: out_l)"
-      }
+      },
+      "family": "Modulation effects & EQ",
+      "tags": [
+        "stereo"
+      ]
     },
     "tp_mmb_digital_echo": {
       "slug": "sw-digital-echo",
@@ -785,7 +891,12 @@
         "percent": 6.7,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (audio in: in_l,in_r; uit: out_l)"
-      }
+      },
+      "family": "Delay & reverb",
+      "tags": [
+        "stereo",
+        "vintage"
+      ]
     },
     "tp_mmb_tube": {
       "slug": "sw-tube",
@@ -809,7 +920,13 @@
         "percent": 52.7,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (audio in: in_l,in_r; uit: out_l)"
-      }
+      },
+      "family": "Filters & shapers",
+      "tags": [
+        "oversampled",
+        "stereo",
+        "vintage"
+      ]
     },
     "tp_mmb_shimmer": {
       "slug": "sw-shimmer",
@@ -835,7 +952,11 @@
         "percent": 18.1,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (audio in: in_l,in_r; uit: out_l)"
-      }
+      },
+      "family": "Delay & reverb",
+      "tags": [
+        "stereo"
+      ]
     },
     "tp_mmb_stereo_phaser": {
       "slug": "sw-stereo-phaser",
@@ -857,7 +978,11 @@
         "percent": 2.6,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (audio in: in_l,in_r; uit: out_l)"
-      }
+      },
+      "family": "Modulation effects & EQ",
+      "tags": [
+        "stereo"
+      ]
     },
     "tp_mmb_reverb": {
       "slug": "sw-reverb",
@@ -880,7 +1005,11 @@
         "percent": 15.3,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (audio in: in_l,in_r; uit: out_l)"
-      }
+      },
+      "family": "Delay & reverb",
+      "tags": [
+        "stereo"
+      ]
     },
     "tp_mmb_diffuseur": {
       "slug": "sw-diffuseur",
@@ -900,7 +1029,9 @@
         "percent": 4.8,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (audio in: in; uit: out)"
-      }
+      },
+      "family": "Delay & reverb",
+      "tags": []
     },
     "tp_mmb_folder": {
       "slug": "sw-folder",
@@ -920,7 +1051,11 @@
         "percent": 8.2,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (audio in: in; uit: out)"
-      }
+      },
+      "family": "Filters & shapers",
+      "tags": [
+        "oversampled"
+      ]
     },
     "tp_mmb_tapestrip": {
       "slug": "sw-tapestrip",
@@ -966,7 +1101,13 @@
         "percent": 6.0,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (pitch->voct_1; gate->gate_1; vel->vel_1; audio in: -; uit: out_l)"
-      }
+      },
+      "family": "Instruments",
+      "tags": [
+        "polyphonic",
+        "sample-based",
+        "stereo"
+      ]
     },
     "tp_mmb_out": {
       "slug": "sw-out",
@@ -979,7 +1120,11 @@
         "percent": 0.1,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (audio in: l,r; uit: None)"
-      }
+      },
+      "family": "Utilities",
+      "tags": [
+        "stereo"
+      ]
     },
     "tp_mmb_cvmath": {
       "slug": "sw-cvmath",
@@ -999,7 +1144,9 @@
         "percent": 0.0,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (audio in: -; uit: out)"
-      }
+      },
+      "family": "Modulation & control",
+      "tags": []
     },
     "tp_mmb_vca": {
       "slug": "sw-vca",
@@ -1013,7 +1160,9 @@
         "percent": 0.2,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (audio in: in; uit: out)"
-      }
+      },
+      "family": "Utilities",
+      "tags": []
     },
     "tp_mmb_lfo": {
       "slug": "sw-lfo",
@@ -1035,7 +1184,9 @@
         "percent": 0.0,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (audio in: -; uit: out)"
-      }
+      },
+      "family": "Modulation & control",
+      "tags": []
     },
     "tp_mmb_lpg": {
       "slug": "sw-lpg",
@@ -1056,7 +1207,11 @@
         "percent": 3.5,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (gate->trig; audio in: in; uit: out)"
-      }
+      },
+      "family": "Filters & shapers",
+      "tags": [
+        "vintage"
+      ]
     },
     "tp_mmb_slope": {
       "slug": "sw-slope",
@@ -1078,7 +1233,9 @@
         "percent": 0.0,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (gate->trig; audio in: -; uit: out)"
-      }
+      },
+      "family": "Modulation & control",
+      "tags": []
     },
     "tp_mmb_arp": {
       "slug": "sw-arp",
@@ -1102,7 +1259,9 @@
         "percent": 0.0,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (audio in: -; uit: pitch)"
-      }
+      },
+      "family": "Rhythm & sequencing",
+      "tags": []
     },
     "tp_mmb_rhythm": {
       "slug": "sw-rhythm",
@@ -1126,7 +1285,13 @@
         "percent": 9.3,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (audio in: -; uit: out_l)"
-      }
+      },
+      "family": "Rhythm & sequencing",
+      "tags": [
+        "drums",
+        "stereo",
+        "vintage"
+      ]
     },
     "tp_mmb_pads": {
       "slug": "sw-pads",
@@ -1154,7 +1319,11 @@
         "percent": 0.0,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (audio in: -; uit: gate_1)"
-      }
+      },
+      "family": "Modulation & control",
+      "tags": [
+        "polyphonic"
+      ]
     },
     "tp_mmb_acid": {
       "slug": "sw-acid",
@@ -1176,7 +1345,11 @@
         "percent": 7.1,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (pitch->voct; gate->gate; audio in: -; uit: out)"
-      }
+      },
+      "family": "Instruments",
+      "tags": [
+        "vintage"
+      ]
     },
     "tp_mmb_clock": {
       "slug": "sw-clock",
@@ -1201,7 +1374,9 @@
         "percent": 0.0,
         "fw": "0.5.108",
         "how": "module_cpu.py: one instance, one note held, default settings (audio in: -; uit: bar)"
-      }
+      },
+      "family": "Rhythm & sequencing",
+      "tags": []
     }
   },
   "exampleNames": {
