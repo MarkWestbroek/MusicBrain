@@ -423,14 +423,12 @@
       "controlHelp": {
         "coarse": "Tuning in semitones, on top of the V/Oct input.",
         "fine": "Fine tuning in cents.",
-        "level": "Output level.",
-        "fm_amt": "FM depth; the FM input is not wired up yet in this module (use the FM-VCO for FM)."
+        "level": "Output level."
       },
       "portHelp": {
         "voct": "Pitch, 1 V per octave; 0 V is C4.",
         "tune": "Extra pitch in V/Oct added to the note, for bend or detune.",
-        "fm": "Frequency modulation input; not implemented yet.",
-        "sync": "Hard sync input; not implemented yet.",
+        "fm": "Pitch modulation: adds FM × the FM knob in octaves (1 kHz control rate, for vibrato and sweeps).",
         "out": "The oscillator."
       },
       "cpu": {
@@ -700,24 +698,24 @@
         "loop": "Repeat the segments from L-start to L-end: an LFO.",
         "loop_start": "First segment of the loop (0 = segment 1).",
         "loop_end": "Last segment of the loop.",
-        "rate": "Meant as an overall time scale; not applied in the current firmware.",
+        "rate": "Overall time scale for all segments: 0.05× (slow) to 20× (fast).",
         "t2": "Primary knob of segment 2: time on a ramp, level on a hold or step.",
         "t3": "Primary knob of segment 3: time on a ramp, level on a hold or step.",
         "t4": "Primary knob of segment 4: time on a ramp, level on a hold or step.",
         "t5": "Primary knob of segment 5: time on a ramp, level on a hold or step.",
         "t6": "Primary knob of segment 6: time on a ramp, level on a hold or step.",
         "s1": "Secondary knob of segment 1: shape on a ramp, time on a hold, glide on a step.",
-        "type1": "Type of segment 1: ramp, step, hold or alternate (firmware order).",
+        "type1": "Type of segment 1: R ramp, S step, H hold, A alternate.",
         "s2": "Secondary knob of segment 2: shape on a ramp, time on a hold, glide on a step.",
-        "type2": "Type of segment 2: ramp, step, hold or alternate (firmware order).",
+        "type2": "Type of segment 2: R ramp, S step, H hold, A alternate.",
         "s3": "Secondary knob of segment 3: shape on a ramp, time on a hold, glide on a step.",
-        "type3": "Type of segment 3: ramp, step, hold or alternate (firmware order).",
+        "type3": "Type of segment 3: R ramp, S step, H hold, A alternate.",
         "s4": "Secondary knob of segment 4: shape on a ramp, time on a hold, glide on a step.",
-        "type4": "Type of segment 4: ramp, step, hold or alternate (firmware order).",
+        "type4": "Type of segment 4: R ramp, S step, H hold, A alternate.",
         "s5": "Secondary knob of segment 5: shape on a ramp, time on a hold, glide on a step.",
-        "type5": "Type of segment 5: ramp, step, hold or alternate (firmware order).",
+        "type5": "Type of segment 5: R ramp, S step, H hold, A alternate.",
         "s6": "Secondary knob of segment 6: shape on a ramp, time on a hold, glide on a step.",
-        "type6": "Type of segment 6: ramp, step, hold or alternate (firmware order)."
+        "type6": "Type of segment 6: R ramp, S step, H hold, A alternate."
       },
       "portHelp": {
         "gate": "Starts the chain, and holds it while high.",
@@ -1170,7 +1168,7 @@
       "controlHelp": {
         "wave": "Sine, triangle, saw, square, or sample & hold (a random value per cycle).",
         "bipolar": "On: −Depth … +Depth. Off: 0 … Depth.",
-        "run": "Always runs freely; Gated and OneShot wait for a gate input that the panel does not have yet.",
+        "run": "Always runs freely; Gated runs only while Gate is high; OneShot runs one cycle per rising edge on Gate.",
         "rate_cv_amt": "How much the Rate input changes the speed; at 1, ±1 CV is ±4 octaves; below 0 inverted."
       },
       "portHelp": {
@@ -1178,7 +1176,7 @@
         "reset": "A rising edge restarts the cycle.",
         "out": "The LFO signal.",
         "out_inv": "The same signal upside down.",
-        "gate": "Gate for the Gated and OneShot run modes (firmware only, not on the panel)."
+        "gate": "Gate for the Gated and OneShot run modes."
       },
       "cpu": {
         "percent": 0.0,

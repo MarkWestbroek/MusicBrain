@@ -17,6 +17,25 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-12 — VCO-FM, LFO-Gate en Stages-Rate werken (fw 0.5.109)
+<!-- EN: VCO: the FM input and FM knob work (pitch modulation in octaves); the unused Sync input is gone -->
+<!-- EN: LFO: Gate input on the panel, so the Gated and OneShot run modes work -->
+<!-- EN: Stages: Rate scales all segment times; the type switch labels match the firmware -->
+- Vervolg op FW-MOD-1 (knoppen die niet deden wat het paneel zegt).
+- **VCO**: FM × de FM-knop telt octaven bij de toonhoogte op (1 kHz-CV:
+  vibrato en sweeps; audio-FM blijft de FM-VCO). De Sync-ingang is weg:
+  `AudioSynthWaveform` kan zijn fase niet van buiten terugzetten, en een
+  reset op 1 kHz is geen hard sync. Geen seed gebruikte FM of Sync.
+- **LFO**: de Gate-ingang staat op het paneel (firmware had hem al), dus
+  Run = Gated (loopt alleen zolang hoog) en OneShot (één ronde per flank)
+  doen nu iets; ook in de simulator. Het recept (`addModulation`) blijft
+  een LFO als één globale modulator plaatsen, ondanks de gate-ingang.
+- **Stages**: de typeschakelaar heette R/H/S/A, de firmware doet ramp,
+  step, hold, alt: nu R/S/H/A (geen seed gebruikte H of S). **Rate**
+  (0,05–20×) schaalt alle tijden: zoveel generatorstappen per 1 kHz-tik. Bij
+  Rate 1 precies als voorheen.
+- Test `wasmModFixes.test.ts`; sitepagina's van VCO, LFO en Stages bij.
+
 ### 2026-10-12 — VCA: Gain en Resp werken (fw 0.5.108)
 <!-- EN: VCA: the Gain knob and the Lin/Exp response now work; the CV adds on top of Gain -->
 - Gevonden bij het schrijven van de modulepagina's (FW-MOD-1): de VCA sloeg

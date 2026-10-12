@@ -122,7 +122,7 @@ export const MODULE_HELP: Readonly<Record<string, ModuleHelp>> = {
     about: ['Oscillator: de bron van de toon.', 'Oscillator: the source of the tone.'],
     controls: {
       wave: ['De golfvorm: sinus, driehoek, zaag of blok.', 'The waveform: sine, triangle, saw or square.'],
-      fm_amt: ['Hoeveel de FM-ingang de toonhoogte moduleert.', 'How much the FM input modulates the pitch.'],
+      fm_amt: ['Hoeveel de FM-ingang de toonhoogte moduleert (bij 1: een octaaf per eenheid).', 'How much the FM input moves the pitch (at 1: one octave per unit).'],
     },
   },
   tp_mmb_vca: {

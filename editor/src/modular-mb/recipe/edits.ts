@@ -1056,7 +1056,11 @@ export function addModulation(project: ModularProject, patchId: string, sourceRe
   const loc = slotOf(p, tgt.id);
   if (!loc) throw new RecipeError(`${tgt.name} staat niet in een rack.`);
 
-  const gateIn = srcT.ports.find((q) => q.direction === 'in' && q.signalType === 'gate');
+  // Een bron met een gate-ingang is een envelope: per stem, door MIDI-gate
+  // getriggerd. De LFO heeft sinds fw 0.5.109 ook een Gate (voor Run =
+  // Gated/OneShot), maar blijft één globale modulator.
+  const gateIn = srcTypeId === 'tp_mmb_lfo' ? undefined
+    : srcT.ports.find((q) => q.direction === 'in' && q.signalType === 'gate');
   const grp = groupOf(p, tgt.id);
   const perVoice = !!(gateIn && grp && grp.index === 0);
   const conn = (from: { moduleId: string; portId: string }, to: { moduleId: string; portId: string }): PatchConnection =>

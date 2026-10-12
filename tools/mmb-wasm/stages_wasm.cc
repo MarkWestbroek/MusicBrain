@@ -35,6 +35,8 @@ stages::segment::Type g_type[kMaxSeg];
 float g_prim[kMaxSeg], g_sec[kMaxSeg];
 int   g_numSeg = 3, g_loopStart = 0, g_loopEnd = 5;
 bool  g_loop = false, g_dirty = true;
+float g_rate = 1.0f, g_rateAcc = 0.0f;
+stages::SegmentGenerator::Output g_out{};   // de laatste uitvoer (bij Rate < 1 blijft hij staan)
 
 void reconfigure() {
     g_dirty = false;
@@ -62,7 +64,7 @@ void mmb_on_control(int idx, float v) {
     else if (idx == C_LOOP) { g_loop = v >= 0.5f; g_dirty = true; }
     else if (idx == C_LOOP_START) { g_loopStart = static_cast<int>(v); g_dirty = true; }
     else if (idx == C_LOOP_END) { g_loopEnd = static_cast<int>(v); g_dirty = true; }
-    else if (idx == C_RATE) { /* firmware: alleen bewaard */ }
+    else if (idx == C_RATE) g_rate = v;
     else if (idx >= C_T1 && idx <= C_T6) g_prim[idx - C_T1] = mmb_clamp01(v);
     else if (idx >= C_S1 && idx <= C_S6) g_sec[idx - C_S1] = mmb_clamp01(v);
     else if (idx >= C_TYPE1 && idx <= C_TYPE6) {
@@ -76,11 +78,17 @@ void mmb_process(int frames) {
     if (g_dirty) reconfigure();
     for (int i = 0; i < g_numSeg; ++i) g_gen.set_segment_parameters(i, g_prim[i] * 2.0f - 1.0f, g_sec[i]);
     for (int k = 0; k < frames; ++k) {
-        stmlib::GateFlags flags = stmlib::ExtractGateFlags(g_lastGate, MMB_INPUTS[IN_GATE].buf[k] >= 0.5f);
-        g_lastGate = flags;
-        stages::SegmentGenerator::Output out;
-        g_gen.Process(&flags, &out, 1);
-        MMB_OUTPUTS[OUT_OUT].buf[k] = out.value;               // al 0..1 (zie StagesModule.h)
-        MMB_OUTPUTS[OUT_EOC].buf[k] = out.segment == 0 ? 1.f : 0.f;
+        // Rate schaalt de tijd: zoveel generatorstappen per tik (StagesModule.h).
+        g_rateAcc += g_rate < 0.05f ? 0.05f : (g_rate > 20.0f ? 20.0f : g_rate);
+        const int steps = static_cast<int>(g_rateAcc);
+        g_rateAcc -= static_cast<float>(steps);
+        const bool high = MMB_INPUTS[IN_GATE].buf[k] >= 0.5f;
+        for (int n = 0; n < steps; ++n) {
+            stmlib::GateFlags flags = stmlib::ExtractGateFlags(g_lastGate, high);
+            g_lastGate = flags;
+            g_gen.Process(&flags, &g_out, 1);
+        }
+        MMB_OUTPUTS[OUT_OUT].buf[k] = g_out.value;             // al 0..1 (zie StagesModule.h)
+        MMB_OUTPUTS[OUT_EOC].buf[k] = g_out.segment == 0 ? 1.f : 0.f;
     }
 }

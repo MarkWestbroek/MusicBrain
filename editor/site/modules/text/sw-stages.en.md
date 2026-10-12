@@ -9,7 +9,8 @@ Active sets how many segments take part (1 to 6).
 Each segment has a type switch and two knobs: T (primary) and S
 (secondary). What they do depends on the type: on a ramp T is the time and
 S the shape, on a hold T is the level and S the time, on a step T is the
-level and S the glide. The Gate input starts or holds the chain, Out is the
+level and S the glide. The switch reads R (ramp), S (step), H (hold), A
+(alternate). Rate scales all times at once, from 0.05× to 20×. The Gate input starts or holds the chain, Out is the
 signal (0 to 1) and EOC is high while the first segment runs, so it can
 retrigger the chain or clock another module.
 
@@ -34,6 +35,8 @@ code to WebAssembly.
 
 ## Versions
 
+- **0.5.109**: Rate works as an overall time scale; the type switch labels
+  match what the segments do (S and H were swapped on the panel).
 - **September 2026**: the output uses the full 0 to 1 range (it was divided
   by 8, so a VCA opened to only 12.5 %); the browser runs the module as
   WebAssembly.

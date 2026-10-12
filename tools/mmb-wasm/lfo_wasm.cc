@@ -3,9 +3,8 @@
 // net als op de Teensy tikt hij op de CV-klok, dus een snelle LFO wordt ook
 // hier een trapje van 1 ms.
 //
-// De catalogus heeft geen `gate`-ingang (de run-modes Gated en OneShot
-// wachten op de Teensy dus ook op niets); de firmware wel. Wij volgen de
-// catalogus: wat je niet kunt patchen, bestaat niet.
+// `gate` stuurt de run-modes Gated en OneShot (sinds 2026-10-12 ook op het
+// paneel; daarvoor ontbrak de ingang en wachtten die modes op niets).
 #define CVHOST_TOGGLES "bipolar"
 #include "cvhost.h"
 #include "mb/runtime/Lfo.h"
@@ -14,8 +13,8 @@ const char* const MMB_TYPE_ID     = "tp_mmb_lfo";
 const float       MMB_NATIVE_RATE = 1000.0f;
 const int         MMB_BLOCK       = 1;
 
-MmbPort MMB_INPUTS[] = { { "rate_cv", MMB_CV, 0, {} }, { "reset", MMB_GATE, 0, {} } };
-const int MMB_NUM_INPUTS = 2;
+MmbPort MMB_INPUTS[] = { { "rate_cv", MMB_CV, 0, {} }, { "gate", MMB_GATE, 0, {} }, { "reset", MMB_GATE, 0, {} } };
+const int MMB_NUM_INPUTS = 3;
 MmbPort MMB_OUTPUTS[] = { { "out", MMB_CV, 0, {} }, { "out_inv", MMB_CV, 0, {} } };
 const int MMB_NUM_OUTPUTS = 2;
 MmbControl MMB_CONTROLS[] = {

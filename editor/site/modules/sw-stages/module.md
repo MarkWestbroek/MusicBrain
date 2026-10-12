@@ -13,7 +13,8 @@ Active sets how many segments take part (1 to 6).
 Each segment has a type switch and two knobs: T (primary) and S
 (secondary). What they do depends on the type: on a ramp T is the time and
 S the shape, on a hold T is the level and S the time, on a step T is the
-level and S the glide. The Gate input starts or holds the chain, Out is the
+level and S the glide. The switch reads R (ramp), S (step), H (hold), A
+(alternate). Rate scales all times at once, from 0.05× to 20×. The Gate input starts or holds the chain, Out is the
 signal (0 to 1) and EOC is high while the first segment runs, so it can
 retrigger the chain or clock another module.
 
@@ -23,27 +24,27 @@ retrigger the chain or clock another module.
 |---|---|---|---|
 | T1 | 0 … 1 | 0.5 | The time of the first segment: faster or slower. |
 | S1 | 0 … 1 | 0.5 | Secondary knob of segment 1: shape on a ramp, time on a hold, glide on a step. |
-| type1 | R / H / S / A | R | Type of segment 1: ramp, step, hold or alternate (firmware order). |
+| type1 | R / S / H / A | R | Type of segment 1: R ramp, S step, H hold, A alternate. |
 | T2 | 0 … 1 | 0.5 | Primary knob of segment 2: time on a ramp, level on a hold or step. |
 | S2 | 0 … 1 | 0.5 | Secondary knob of segment 2: shape on a ramp, time on a hold, glide on a step. |
-| type2 | R / H / S / A | R | Type of segment 2: ramp, step, hold or alternate (firmware order). |
+| type2 | R / S / H / A | R | Type of segment 2: R ramp, S step, H hold, A alternate. |
 | T3 | 0 … 1 | 0.5 | Primary knob of segment 3: time on a ramp, level on a hold or step. |
 | S3 | 0 … 1 | 0.5 | Secondary knob of segment 3: shape on a ramp, time on a hold, glide on a step. |
-| type3 | R / H / S / A | R | Type of segment 3: ramp, step, hold or alternate (firmware order). |
+| type3 | R / S / H / A | R | Type of segment 3: R ramp, S step, H hold, A alternate. |
 | T4 | 0 … 1 | 0.5 | Primary knob of segment 4: time on a ramp, level on a hold or step. |
 | S4 | 0 … 1 | 0.5 | Secondary knob of segment 4: shape on a ramp, time on a hold, glide on a step. |
-| type4 | R / H / S / A | R | Type of segment 4: ramp, step, hold or alternate (firmware order). |
+| type4 | R / S / H / A | R | Type of segment 4: R ramp, S step, H hold, A alternate. |
 | T5 | 0 … 1 | 0.5 | Primary knob of segment 5: time on a ramp, level on a hold or step. |
 | S5 | 0 … 1 | 0.5 | Secondary knob of segment 5: shape on a ramp, time on a hold, glide on a step. |
-| type5 | R / H / S / A | R | Type of segment 5: ramp, step, hold or alternate (firmware order). |
+| type5 | R / S / H / A | R | Type of segment 5: R ramp, S step, H hold, A alternate. |
 | T6 | 0 … 1 | 0.5 | Primary knob of segment 6: time on a ramp, level on a hold or step. |
 | S6 | 0 … 1 | 0.5 | Secondary knob of segment 6: shape on a ramp, time on a hold, glide on a step. |
-| type6 | R / H / S / A | R | Type of segment 6: ramp, step, hold or alternate (firmware order). |
+| type6 | R / S / H / A | R | Type of segment 6: R ramp, S step, H hold, A alternate. |
 | Active | 1 … 6 | 3 | How many segments take part (1–6). |
 | Loop | off / on | off | Repeat the segments from L-start to L-end: an LFO. |
 | L-start | 0 … 5 | 0 | First segment of the loop (0 = segment 1). |
 | L-end | 0 … 5 | 2 | Last segment of the loop. |
-| Rate | 0.05 … 20 | 1 | Meant as an overall time scale; not applied in the current firmware. |
+| Rate | 0.05 … 20 | 1 | Overall time scale for all segments: 0.05× (slow) to 20× (fast). |
 
 ## Ports
 
@@ -85,6 +86,8 @@ Editor: <https://editor.musicbrain.nl>
 
 ## Versions
 
+- **0.5.109**: Rate works as an overall time scale; the type switch labels
+  match what the segments do (S and H were swapped on the panel).
 - **September 2026**: the output uses the full 0 to 1 range (it was divided
   by 8, so a VCA opened to only 12.5 %); the browser runs the module as
   WebAssembly.

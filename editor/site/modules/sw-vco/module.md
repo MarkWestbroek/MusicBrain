@@ -12,8 +12,9 @@ cents (±100), and Level sets how loud it comes out.
 Patch a pitch CV from MIDI-in or a sequencer into 1V/Oct: 0 V is C4
 (261.6 Hz) and each volt is one octave. The Tune input adds a second pitch
 voltage on top, for pitch bend or detune, without overwriting the note. The
-FM and Sync inputs and the FM knob are on the panel but do nothing yet, on
-the Teensy or in the simulator; for frequency modulation use the FM-VCO.
+FM input, scaled by the FM knob, moves the pitch in octaves: an LFO there
+gives vibrato. It runs at the 1 kHz control rate; for audio-rate frequency
+modulation use the FM-VCO.
 
 ## Controls
 
@@ -22,7 +23,7 @@ the Teensy or in the simulator; for frequency modulation use the FM-VCO.
 | Wave | Sin / Tri / Saw / Sqr | Saw | The waveform: sine, triangle, saw or square. |
 | Coarse | -36 … 36 semi | 0 | Tuning in semitones, on top of the V/Oct input. |
 | Fine | -100 … 100 ct | 0 | Fine tuning in cents. |
-| FM | 0 … 1 | 0 | FM depth; the FM input is not wired up yet in this module (use the FM-VCO for FM). |
+| FM | 0 … 1 | 0 | How much the FM input moves the pitch (at 1: one octave per unit). |
 | Level | 0 … 1 | 0.8 | Output level. |
 
 ## Ports
@@ -31,20 +32,18 @@ the Teensy or in the simulator; for frequency modulation use the FM-VCO.
 |---|---|---|---|
 | 1V/Oct | in | cv | Pitch, 1 V per octave; 0 V is C4. |
 | Tune | in | cv | Extra pitch in V/Oct added to the note, for bend or detune. |
-| FM | in | cv | Frequency modulation input; not implemented yet. |
-| Sync | in | trigger | Hard sync input; not implemented yet. |
+| FM | in | cv | Pitch modulation: adds FM × the FM knob in octaves (1 kHz control rate, for vibrato and sweeps). |
 | Out | out | audio | The oscillator. |
 
 ## How it works
 
 The oscillator is `AudioSynthWaveform` from the Teensy Audio Library, using
 its plain (not band-limited) waveforms, so very high notes alias. The pitch
-is 261.6256 Hz × 2^(V/Oct + Tune + Coarse/12 + Fine/1200), recomputed as
-soon as any of these changes.
+is 261.6256 Hz × 2^(V/Oct + Tune + FM × FM knob + Coarse/12 + Fine/1200),
+recomputed as soon as any of these changes.
 
 The browser simulator runs a WebAssembly copy of the same oscillator code,
-including the inputs that are not implemented yet, so the editor and the
-Brain behave the same.
+so the editor and the Brain behave the same.
 
 ## Runs on
 
@@ -67,6 +66,8 @@ Editor: <https://editor.musicbrain.nl>
 
 ## Versions
 
+- **0.5.109**: the FM input and FM knob work; the Sync input, which never
+  did anything, is gone.
 - **0.5.93**: Coarse and Fine retune at once (they used to wait for the next
   V/Oct change); unplugging the V/Oct cable returns the pitch to C4.
 - **Simulator** (September 2026): the browser plays the firmware oscillator

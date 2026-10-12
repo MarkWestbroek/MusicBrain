@@ -14,6 +14,10 @@ only go up. Inv is the same signal upside down, so one VCA can rise while
 another falls. A pulse on Rst starts the cycle again, to keep several LFOs
 in step.
 
+Run chooses when it moves: Always runs freely, Gated only while the Gate
+input is high, OneShot runs one cycle on each rising edge at Gate and then
+stops — a simple extra envelope.
+
 ## Controls
 
 | Control | Range | Default | What it does |
@@ -22,7 +26,7 @@ in step.
 | Wave | Sin / Tri / Saw / Sqr / S&H | Sin | Sine, triangle, saw, square, or sample & hold (a random value per cycle). |
 | Depth | 0 … 1 | 1 | How deep. |
 | Bip | off / on | on | On: −Depth … +Depth. Off: 0 … Depth. |
-| Run | Always / Gated / OneShot | Always | Always runs freely; Gated and OneShot wait for a gate input that the panel does not have yet. |
+| Run | Always / Gated / OneShot | Always | Always runs freely; Gated runs only while Gate is high; OneShot runs one cycle per rising edge on Gate. |
 | Rate CV | -1 … 1 | 1 | How much the Rate input changes the speed; at 1, ±1 CV is ±4 octaves; below 0 inverted. |
 
 ## Ports
@@ -30,6 +34,7 @@ in step.
 | Port | Direction | Signal | What it carries |
 |---|---|---|---|
 | Rate | in | cv | Speed modulation, exponential: +1 is four octaves faster at Rate CV 1. |
+| Gate | in | gate | Gate for the Gated and OneShot run modes. |
 | Rst | in | trigger | A rising edge restarts the cycle. |
 | Out | out | cv | The LFO signal. |
 | Inv | out | cv | The same signal upside down. |
@@ -64,6 +69,8 @@ Editor: <https://editor.musicbrain.nl>
 
 ## Versions
 
+- **0.5.109**: Gate input on the panel, so Gated and OneShot work (before,
+  those modes waited for an input that was not there).
 - **0.5.82**: attenuverter on the Rate input (Rate CV, −1 … +1).
 - **First version** (May 2026): five waves, depth, bipolar or unipolar,
   rate CV, reset and an inverted output.

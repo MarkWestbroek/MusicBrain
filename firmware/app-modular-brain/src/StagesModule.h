@@ -12,7 +12,9 @@
  * huis uit control-rate, dus dat past perfect (audio-rate oscillator-modes
  * laten we weg).
  *
- * Elk segment heeft een **type** (0=ramp, 1=hold, 2=step, 3=alt) en twee
+ * Elk segment heeft een **type** (0=ramp, 1=step, 2=hold, 3=alt — de enum
+ * van segment_generator.h; tot 2026-10-12 stond hier en op het paneel hold
+ * en step verwisseld) en twee
  * knoppen (primary/secondary — betekenis hangt van het type af: ramp = tijd
  * + vorm, hold = niveau + tijd, step = niveau + portamento). De `loop`-
  * schakelaar laat de keten van `loopStart`..`loopEnd` herhalen → een
@@ -81,12 +83,21 @@ public:
         for (int i = 0; i < numSeg_; ++i)
             gen_.set_segment_parameters(i, prim_[i] * 2.0f - 1.0f, sec_[i]);
 
-        stmlib::GateFlags flags =
-            stmlib::ExtractGateFlags(lastGate_, gateHigh_);
+        // Rate (0,05–20×) schaalt alle tijden: per 1 kHz-tik zoveel stappen
+        // van de generator (fractie loopt door). Flanken komen op de eerste
+        // stap; bij Rate < 1 op de eerstvolgende stap die er is.
+        rateAcc_ += rate_ < 0.05f ? 0.05f : (rate_ > 20.0f ? 20.0f : rate_);
+        int steps = static_cast<int>(rateAcc_);
+        rateAcc_ -= static_cast<float>(steps);
+        if (steps == 0) return;
+        stmlib::GateFlags flags = stmlib::ExtractGateFlags(lastGate_, gateHigh_);
         lastGate_ = flags;
-
         stages::SegmentGenerator::Output out;
-        gen_.Process(&flags, &out, 1);
+        for (int k = 0; k < steps; ++k) {
+            gen_.Process(&flags, &out, 1);
+            flags = stmlib::ExtractGateFlags(lastGate_, gateHigh_);
+            lastGate_ = flags;
+        }
         // SegmentGenerator levert al genormaliseerd 0..1 (ramp/hold/step:
         // `out->value = lp_`; de ramp-extractor ×5/8) — de vorige ÷8 ging
         // uit van ±8 V en liet de VCA in de Krell-patch maar tot 12,5 % open.
@@ -189,6 +200,7 @@ private:
     bool  loop_     = false;
     bool  dirty_    = true;
     float rate_     = 1.0f;
+    float rateAcc_  = 0.0f;
 
     bool  gateHigh_ = false;
     float out_      = 0.0f;

@@ -9,7 +9,12 @@
  * |-----------|--------|-------------------------|
  * | output    | `out`  | `osc_`, channel 0       |
  *
- * (Inputs `voct`, `fm`, `sync`, `tune` are CV-domain; not wired as AudioConnections.)
+ * (Inputs `voct`, `fm`, `tune` are CV-domain; not wired as AudioConnections.
+ *  `fm` × `fm_amt` adds octaves to the pitch at the 1 kHz control rate —
+ *  vibrato and sweeps, not audio-rate FM (that is the FM-VCO). Since fw
+ *  0.5.109; before, `fm`, `fm_amt` and a `sync` input did nothing. `sync`
+ *  is gone: AudioSynthWaveform cannot reset its phase from outside, and a
+ *  1 kHz reset is no hard sync anyway.)
  *
  * Controls (via `setControl()`):
  * | controlId | type     | effect                                 |
@@ -18,7 +23,7 @@
  * | `coarse`  | float    | Semitone offset (−36 … +36)            |
  * | `fine`    | float    | Cent offset (−100 … +100)              |
  * | `level`   | float    | Output amplitude (0 … 1)               |
- * | `fm_amt`  | float    | FM depth — stored, not yet applied     |
+ * | `fm_amt`  | float    | FM depth: octaves per unit on `fm`     |
  *
  * **Pitch update:** call `updatePitch(volts)` from the CV bridge whenever
  * the upstream V/Oct source changes value.  The voltage is shifted by the
@@ -89,13 +94,12 @@ public:
 
     // --- Port-kind / CV-bridge -----------------------------------------
 
-    /** @brief `out` is the only audio port; `voct` / `fm` / `sync` are CV. */
+    /** @brief `out` is the only audio port; `voct` / `fm` / `tune` are CV. */
     PortKind outputPortKind(std::string_view portId) const override {
         return (portId == "out") ? PortKind::Audio : PortKind::None;
     }
     PortKind inputPortKind(std::string_view portId) const override {
         if (portId == "voct" || portId == "fm" || portId == "tune") return PortKind::Cv;
-        if (portId == "sync")                     return PortKind::Gate;
         return PortKind::None;
     }
     /** @brief CV bridge entry point.  `voct` retunes the oscillator; `tune`
@@ -103,7 +107,7 @@ public:
     void writeCvPort(std::string_view portId, float value) override {
         if (portId == "voct")      updatePitch(value);
         else if (portId == "tune") updateTune(value);
-        // fm / sync: not yet implemented
+        else if (portId == "fm")   { fm_ = value; recomputeHz(); }
     }
 
     void setControl(std::string_view controlId,
@@ -133,8 +137,10 @@ public:
             recomputeHz();
         } else if (controlId == "level") {
             osc_.amplitude(asFloat(0.8f));
+        } else if (controlId == "fm_amt") {
+            fmAmt_ = asFloat(0.0f);
+            recomputeHz();
         }
-        // fm_amt: stored for future FM routing — not yet applied
     }
 
     /** @brief Register the VCO factory with the global Registry.  Idempotent. */
@@ -150,7 +156,7 @@ public:
 private:
     void recomputeHz() {
         const float hz = 261.6256f
-            * powf(2.0f, voct_ + tune_ + coarse_ / 12.0f + fine_ / 1200.0f);
+            * powf(2.0f, voct_ + tune_ + fm_ * fmAmt_ + coarse_ / 12.0f + fine_ / 1200.0f);
         osc_.frequency(hz);
     }
 
@@ -159,6 +165,8 @@ private:
     float tune_   = 0.0f;   ///< Auxiliary V/Oct shift (bend/detune), summed in
     float coarse_ = 0.0f;   ///< Semitone offset, applied in recomputeHz()
     float fine_   = 0.0f;   ///< Cent offset, applied in recomputeHz()
+    float fm_     = 0.0f;   ///< FM input (CV)
+    float fmAmt_  = 0.0f;   ///< FM depth, octaves per unit
 };
 
 }  // namespace mmb_link

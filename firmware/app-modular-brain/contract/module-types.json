@@ -1,6 +1,6 @@
 {
   "$comment": "GEGENEREERD door tools/contract_dump.py — niet met de hand bewerken. Poort-ids zijn letterlijk wat de firmware accepteert (aliassen als out/out_l en naam/naam_cv staan er dus allebei in).",
-  "firmwareVersion": "0.5.108",
+  "firmwareVersion": "0.5.109",
   "modules": {
     "...": {
       "typeId": "...",
@@ -2917,13 +2917,13 @@
       "ports": [
         "fm",
         "out",
-        "sync",
         "tune",
         "voct"
       ],
       "controls": [
         "coarse",
         "fine",
+        "fm_amt",
         "level",
         "wave"
       ],

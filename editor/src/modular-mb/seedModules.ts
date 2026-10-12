@@ -675,15 +675,18 @@ function mmbLfo() {
       sw    ('run',   'Run',  w*0.75, 79, ['Always','Gated','OneShot'], 0),
       // Attenuverter op de Rate-ingang, recht boven die jack: 1 = ±4 oct bij
       // ±1 CV (zoals vroeger), 0 = CV genegeerd, onder 0 omgekeerd.
-      knob('rate_cv_amt', 'Rate CV', w*0.25, 93, { size: 'small', min: -1, max: 1, def: 1, color: '#f9fafb' }),
+      knob('rate_cv_amt', 'Rate CV', w*0.20, 93, { size: 'small', min: -1, max: 1, def: 1, color: '#f9fafb' }),
 
-      // Ingangen boven, uitgangen onder; MMB past tussen Out en Inv.
-      inPort ('rate_cv','Rate', 'cv',     w*0.25, 106),
-      inPort ('reset',  'Rst',  'trigger',w*0.75, 106),
+      // Ingangen boven, uitgangen onder; MMB past tussen Out en Inv. Gate
+      // stuurt Run = Gated (loopt alleen zolang hoog) en OneShot (\u00e9\u00e9n ronde
+      // per opgaande flank).
+      inPort ('rate_cv','Rate', 'cv',     w*0.20, 106),
+      inPort ('gate',   'Gate', 'gate',   w*0.50, 106),
+      inPort ('reset',  'Rst',  'trigger',w*0.80, 106),
       outPort('out',    'Out',  'cv',     w*0.25, 118),
       outPort('out_inv','Inv',  'cv',     w*0.75, 118),
     ],
-    notes: 'Interne MMB LFO; bipolar=on geeft \u00b1depth, off geeft 0..depth.',
+    notes: 'Interne MMB LFO; bipolar=on geeft \u00b1depth, off geeft 0..depth. Run: Always loopt vrij, Gated alleen zolang Gate hoog is, OneShot \u00e9\u00e9n ronde per opgaande flank op Gate. Rst zet de fase op 0.',
   });
 }
 
@@ -736,13 +739,12 @@ function mmbVco() {
       knob('fm_amt', 'FM',     w*0.30, 78, { size: 'medium', min: 0, max: 1, def: 0,  color: '#f9fafb' }),
       knob('level',  'Level',  w*0.70, 78, { size: 'medium', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
 
-      inPort ('voct', '1V/Oct', 'cv',    w*0.18, 104),
-      inPort ('tune', 'Tune',   'cv',    w*0.40, 104),
-      inPort ('fm',   'FM',     'cv',    w*0.62, 104),
-      inPort ('sync', 'Sync',   'trigger', w*0.84, 104),
+      inPort ('voct', '1V/Oct', 'cv',    w*0.20, 104),
+      inPort ('tune', 'Tune',   'cv',    w*0.50, 104),
+      inPort ('fm',   'FM',     'cv',    w*0.80, 104),
       outPort('out',  'Out',    'audio', w/2,    118),
     ],
-    notes: 'Interne MMB VCO. \'wave\' kiest sine/triangle/sawtooth/square; coarse+fine zijn semitonen+cent offsets t.o.v. de inkomende V/Oct. \'tune\' is een aparte V/Oct-ingang die bij de hoofdpitch wordt opgeteld (voor pitch-bend/detune zonder de noot-V/Oct te overschrijven).',
+    notes: 'Interne MMB VCO. \'wave\' kiest sine/triangle/sawtooth/square; coarse+fine zijn semitonen+cent offsets t.o.v. de inkomende V/Oct. \'tune\' is een aparte V/Oct-ingang die bij de hoofdpitch wordt opgeteld (voor pitch-bend/detune zonder de noot-V/Oct te overschrijven). FM × de FM-knop telt octaven op (1 kHz: vibrato en sweeps; audio-FM doet de FM-VCO). Sinds fw 0.5.109; de Sync-ingang is weg (deed nooit iets).',
   });
 }
 
@@ -3041,22 +3043,22 @@ function mmbStages() {
     items: [
       knob('t1', 'T1', w * (0.10 + 0 * 0.152), 34, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
       knob('s1', 'S1', w * (0.10 + 0 * 0.152), 54, { size: 'small', min: 0, max: 1, def: 0.5, color: '#9ca3af' }),
-      sw  ('type1', '', w * (0.10 + 0 * 0.152), 72, ['R','H','S','A'], 0),
+      sw  ('type1', '', w * (0.10 + 0 * 0.152), 72, ['R','S','H','A'], 0),
       knob('t2', 'T2', w * (0.10 + 1 * 0.152), 34, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
       knob('s2', 'S2', w * (0.10 + 1 * 0.152), 54, { size: 'small', min: 0, max: 1, def: 0.5, color: '#9ca3af' }),
-      sw  ('type2', '', w * (0.10 + 1 * 0.152), 72, ['R','H','S','A'], 0),
+      sw  ('type2', '', w * (0.10 + 1 * 0.152), 72, ['R','S','H','A'], 0),
       knob('t3', 'T3', w * (0.10 + 2 * 0.152), 34, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
       knob('s3', 'S3', w * (0.10 + 2 * 0.152), 54, { size: 'small', min: 0, max: 1, def: 0.5, color: '#9ca3af' }),
-      sw  ('type3', '', w * (0.10 + 2 * 0.152), 72, ['R','H','S','A'], 0),
+      sw  ('type3', '', w * (0.10 + 2 * 0.152), 72, ['R','S','H','A'], 0),
       knob('t4', 'T4', w * (0.10 + 3 * 0.152), 34, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
       knob('s4', 'S4', w * (0.10 + 3 * 0.152), 54, { size: 'small', min: 0, max: 1, def: 0.5, color: '#9ca3af' }),
-      sw  ('type4', '', w * (0.10 + 3 * 0.152), 72, ['R','H','S','A'], 0),
+      sw  ('type4', '', w * (0.10 + 3 * 0.152), 72, ['R','S','H','A'], 0),
       knob('t5', 'T5', w * (0.10 + 4 * 0.152), 34, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
       knob('s5', 'S5', w * (0.10 + 4 * 0.152), 54, { size: 'small', min: 0, max: 1, def: 0.5, color: '#9ca3af' }),
-      sw  ('type5', '', w * (0.10 + 4 * 0.152), 72, ['R','H','S','A'], 0),
+      sw  ('type5', '', w * (0.10 + 4 * 0.152), 72, ['R','S','H','A'], 0),
       knob('t6', 'T6', w * (0.10 + 5 * 0.152), 34, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
       knob('s6', 'S6', w * (0.10 + 5 * 0.152), 54, { size: 'small', min: 0, max: 1, def: 0.5, color: '#9ca3af' }),
-      sw  ('type6', '', w * (0.10 + 5 * 0.152), 72, ['R','H','S','A'], 0),
+      sw  ('type6', '', w * (0.10 + 5 * 0.152), 72, ['R','S','H','A'], 0),
 
       knob   ('segments',  'Active', w*0.16, 96, { size: 'small', min: 1, max: 6, def: 3, step: 1, color: '#f9fafb' }),
       toggle ('loop',      'Loop',   w*0.36, 96),
@@ -3068,7 +3070,7 @@ function mmbStages() {
       outPort('out',  'Out',  'cv',   w*0.55, 114),
       outPort('eoc',  'EOC',  'gate', w*0.82, 114),
     ],
-    notes: 'Mutable Instruments Stages (firmware tp_mmb_stages, FW-CV-3): 6 ketenbare segmenten in het CV-domein (1 kHz-tick). Elk segment heeft een type — R(amp) / H(old) / S(tep) / A(lt) — en twee knoppen (T = primary, S = secondary; betekenis per type: ramp = tijd+vorm, hold = niveau+tijd, step = niveau+portamento). Active kiest hoeveel segmenten meedoen; Loop + L-start/L-end laat een deel herhalen → een multi-stage-LFO. Gate triggert/gatet de keten; EOC pulseert bij de cyclusstart. Zonder loop is het een complexe multi-breakpoint-envelope.',
+    notes: 'Mutable Instruments Stages (firmware tp_mmb_stages, FW-CV-3): 6 ketenbare segmenten in het CV-domein (1 kHz-tick). Elk segment heeft een type — R(amp) / S(tep) / H(old) / A(lt), in de volgorde van de firmware (tot 2026-10-12 stond er R/H/S/A: S en H verwisseld) — en twee knoppen (T = primary, S = secondary; betekenis per type: ramp = tijd+vorm, hold = niveau+tijd, step = niveau+portamento). Active kiest hoeveel segmenten meedoen; Loop + L-start/L-end laat een deel herhalen → een multi-stage-LFO. Rate schaalt alle tijden (0,05–20×, sinds fw 0.5.109). Gate triggert/gatet de keten; EOC is hoog zolang segment 1 loopt. Zonder loop is het een complexe multi-breakpoint-envelope.',
   });
 }
 
