@@ -5910,6 +5910,10 @@ export function seedSoloVoicePatch(
       c(mi, 'gate',  inst, 'gate'),
       ...(typeId === 'tp_mmb_material_bridge' || typeId === 'tp_mmb_fof' || typeId === 'tp_mmb_scanned' || typeId === 'tp_mmb_mixtur'
         || typeId === 'tp_mmb_martenot' || typeId === 'tp_mmb_cmi' ? [c(mi, 'vel', inst, 'vel')] : []),
+      // Elements: de aanslag is de Strength van de noot, zoals in de losse
+      // 5× Elements-firmware (velocity/127 → strength); zonder kabel klonk
+      // elke noot even sterk (Mark 2026-10-12).
+      ...(typeId === 'tp_mmb_elements' ? [c(mi, 'vel', inst, 'strength')] : []),
       // Scanned: aftertouch drukt de vinger in de ring. Martenot: de touche.
       ...(!arp && (typeId === 'tp_mmb_scanned' || typeId === 'tp_mmb_mixtur' || typeId === 'tp_mmb_martenot') ? [c(mi, 'press', inst, 'press')] : []),
       // Martenot: het modwiel wiegt de toets (meer vibrato).

@@ -17,6 +17,39 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-12 — De programma's van de 5× Elements gered; Elements-seed reageert op aanslag
+- Mark vond de patchbank van de losse 5× Elements-Teensy (`firmware/app-elements`)
+  niet terug, en had het idee dat hij toen "een of twee knoppen" meer had.
+  Die firmware kon alleen de **namen** uitlezen (`p list`: 19 programma's).
+  Om de knopstanden te redden: `tools/teensy-flash-dump`, een leesprogramma
+  dat het ruwe LittleFS-gebied (1 MB, 0x606C0000) over USB stuurt zonder het
+  bestandssysteem te koppelen (dat formatteert bij een mislukte mount, en de
+  Elements-firmware schrijft een lege bank als het lezen mislukt). Controlesom
+  klopt; op de pc ontleed met `littlefs-python`. Alles staat in
+  `sounds/Elements/` (JSON met de 19 programma's en het ruwe gebied).
+- Bevinding: alles wat die firmware via CC regelde, staat in de bank én heeft
+  een knop op onze Elements. "short" en "longer" zijn in de bank gelijk; het
+  verschil zat in het spelen. Wat wél ontbrak: in de seed "💎 Elements
+  (modaal)" (en de varianten) was de **aanslag niet aan Strength** gekoppeld;
+  de losse firmware deed dat per noot. Nu wel (`MidiIn.vel → strength`).
+
+### 2026-10-12 — Basisset: Buchla-stem plukt, DX7 E.Piano + Vibe (editor; script kent `afgewezen`)
+- **Buchla-stem** (Mark: "hard en vormloos"): het gate van het klavier ging
+  naar de `in` van SLOPE, die dan het gate volgt; zolang je een toets
+  vasthield stonden LPG en timbre vol open. Gemeten: vlak op −11,6 dB en even
+  helder tot het loslaten. Nu gaat het gate naar `trig` (AD, Fall 0,6 s):
+  elke toets is een pluk, van −11,7 dB naar −52 dB in 0,8 s, en van helder
+  naar rond in 0,4 s.
+- **DX7 + Vibe** (Mark: "niet zo interessant") wordt **DX7 E.Piano + Vibe**:
+  achtstemmig, E.PIANO 1 uit ROM 1A, door de univibe. `seedDx7PolyPatch`
+  kreeg bank, program en een effectketen. Nieuwe naam, dus een nieuw label
+  in de pool; de oude "DX7 + Vibe" kan Mark afwijzen.
+- **Basisset-script**: herkent de nieuwe pool `afgewezen` van Imprint
+  (afwijzen verwijdert niet meer, met reden) en stuurt zo'n patch nooit
+  opnieuw in; de proefstand toont de reden.
+- Deze wijzigingen kwamen per ongeluk mee in commit 648995b van een andere
+  sessie; ze waren af en getest.
+
 ### 2026-10-12 — Clouds-paneel zonder overlap, 18 HP; test op overlappende panelen (editor)
 - Mark: "de knoppen overlappen" (Clouds op de site). Het paneel rekende met
   14 HP op een module van 16 HP, en vijf grote knoppen naast elkaar passen
