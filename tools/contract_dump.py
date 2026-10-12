@@ -43,11 +43,12 @@ OUT_PATH = os.path.join(APP, "contract", "module-types.json")
 def _rng(prefix: str, n: int, sep: str = "") -> list[str]:
     return [f"{prefix}{sep}{i}" for i in range(1, n + 1)]
 
+_ELEMENTS_CV = ["bow_timbre", "blow_meta", "blow_timbre", "strike_meta", "strike_timbre",
+                "damping", "geometry", "position", "brightness", "space"]
+
 OVERRIDES: dict[str, dict[str, list[str]]] = {
     "tp_mmb_out":    {"implemented": ["level"], "ignored": []},
-    "tp_mmb_vca":    {"implemented": [], "ignored": ["gain", "resp"]},
     "tp_mmb_echo":   {"implemented": [], "ignored": ["tempo_sync"]},
-    "tp_mmb_vco":    {"implemented": [], "ignored": ["fm_amt"]},     # FM-diepte: stored, not yet applied
     "tp_mmb_midiin": {"implemented": [], "ignored": ["priority"]},   # FW-1: accepted, not yet acted on
     "tp_mmb_seq8":   {"implemented": _rng("s", 16), "ignored": []},  # Seq16.cpp substr(1)-parsing
     "tp_mmb_mixer":   {"implemented": _rng("vol", 4) + _rng("pan", 4), "ignored": []},
@@ -98,6 +99,10 @@ OVERRIDES: dict[str, dict[str, list[str]]] = {
     # Synthex: 8 stem-cellen via SynthexModule::cellOf().
     "tp_mmb_synthex": {"implemented": [], "ignored": [],
                        "ports": _rng("voct_", 8) + _rng("gate_", 8)},
+    # Elements: de tien CV-parameters met attenuverter staan in een tabel
+    # (mmb_dsp/elements_cv.h, fw 0.5.111): knop, `<knop>_amt` en `<knop>_cv`.
+    "tp_mmb_elements": {"implemented": _ELEMENTS_CV + [f"{k}_amt" for k in _ELEMENTS_CV], "ignored": [],
+                        "ports": [f"{k}_cv" for k in _ELEMENTS_CV]},
     "tp_mmb_sid3": {"implemented": [f"{n}_{k}" for n in ("tri", "saw", "pulse", "noise", "pw", "ring", "sync",
                                                          "attack", "decay", "sustain", "release",
                                                          "coarse", "fine", "filt") for k in (1, 2, 3)],

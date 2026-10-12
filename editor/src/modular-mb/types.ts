@@ -287,6 +287,8 @@ export interface PanelDecoration {
   w?: number; h?: number;
   x2?: number; y2?: number;
   color?: string;
+  /** Lijn: gestippeld (zoals de verbindingslijntjes op een MI-paneel). */
+  dash?: boolean;
   text?: string;
   fontSize?: number;
 }
@@ -296,6 +298,10 @@ export interface ControlPlacement {
   y: number;
   rotation?: number;
   sizeOverride?: ControlSize;
+  /** Wat er op het paneel bij de knop staat, als dat anders is dan het
+   *  label (dat lijsten, help en CC-mapping gebruiken). Bv. "− +" bij een
+   *  attenuverter; "" = niets. */
+  panelLabel?: string;
 }
 
 export interface PortPlacement {

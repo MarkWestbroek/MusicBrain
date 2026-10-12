@@ -28,7 +28,8 @@ const W = (hp: number) => hp * MM_PER_HP;
 
 function knob(id: string, label: string, x: number, y: number,
               opts: Partial<{ min: number; max: number; def: number; size: 'small'|'medium'|'large'; color: string; style: string; unit: string;
-                              step: number; taper: Taper; ticks: { every?: number; highlight?: number[]; labels?: Record<number, string> } }> = {}) {
+                              step: number; taper: Taper; ticks: { every?: number; highlight?: number[]; labels?: Record<number, string> };
+                              panelLabel: string }> = {}) {
   // Stempelen wat `derivedTaper` er toch al van zou maken, zodat een
   // geëxporteerd paneel zijn curve zichtbaar meedraagt.
   const taper = opts.taper
@@ -44,7 +45,7 @@ function knob(id: string, label: string, x: number, y: number,
       ...(opts.step !== undefined ? { step: opts.step } : {}),
       ticks: opts.ticks,
     },
-    placement: { x, y },
+    placement: { x, y, ...(opts.panelLabel !== undefined ? { panelLabel: opts.panelLabel } : {}) },
   };
 }
 function inPort(id: string, name: string, signal: 'cv'|'gate'|'trigger'|'audio'|'midi', x: number, y: number,
@@ -2607,61 +2608,110 @@ function mmbString() {
   });
 }
 
-// 14. MMB ELEMENTS — 20 HP. Mutable Instruments Elements modal / physical-
-//     modelling voice (FW-AU-9). Monofone voice: V/Oct + Gate in, stereo uit.
-//     Paneel volgt de hardware-indeling: exciter-sectie links (wit/roze/cyaan
-//     zoals MI), resonator rechts. Alle control-ids matchen de firmware
-//     (`ElementsModule::setControl`); bow/blow/strike zijn continue levels.
+// 14. MMB ELEMENTS — 34 HP, de indeling van het origineel (Mark 2026-10-12:
+//     "mensen kennen dat"). Links de exciter (Contour, Bow/Blow/Strike, Flow,
+//     Mallet en drie keer Timbre), rechts de resonator (Coarse, Fine, FM,
+//     Geometry, Brightness, Damping, Position, Space), met de scheidingslijn
+//     ertussen. Stippellijnen: Contour hoort bij Bow en Blow; Flow, Mallet,
+//     Geometry en Brightness wijzen naar hun CV-ingang onderaan (die kolommen
+//     hebben geen knop in de onderste rij). Onderaan tien attenuverters met
+//     hun CV-jacks, links de I/O-kolom. Zelfde control-ids als de firmware;
+//     de CV-ingangen en attenuverters sinds fw 0.5.111 (mmb_dsp/elements_cv.h).
+//     Level, Signature, ModFrq en ModOff heeft het origineel niet op het
+//     paneel: klein onderaan rechts.
 function mmbElements() {
-  const w = W(20);
-  const col = (i: number): number => w * (0.09 + i * 0.164);   // 6 kolommen
-  const rowA = 24, rowB = 46, rowC = 70, rowD = 90;
+  const w = W(34);
+  const L = [40, 51.5, 63, 74.5, 86] as const;        // kolommen exciter
+  const R = [111, 122.5, 134, 145.5, 157] as const;   // kolommen resonator
+  const ioL = 10, ioR = 22;                  // I/O-kolom
+  const yTop = 24, yBig = 47, yLow = 70, yAtt = 92, yJack = 107;
+  const white = '#f9fafb', red = '#e11d48', teal = '#0891b2', att = '#374151';
+  const atten = (id: string, label: string, x: number) =>
+    knob(id, label, x, yAtt, { size: 'small', min: -1, max: 1, def: 0, color: att, panelLabel: '−  +' });
+  const dot = (x: number, y: number, x2: number, y2: number) => ({ kind: 'line' as const, x, y, x2, y2, color: '#9ca3af', dash: true });
   return assemble({
     typeId: 'tp_mmb_elements',
     categoryId: 'vco',
     variant: 'Elements (MI)',
     brand: 'MI', model: 'ELEMENTS',
-    hp: 20, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    hp: 34, texture: 'pcb-black', baseColor: '#111827', internal: true,
     texts: [
-      { x: w/2, y: 8,   text: 'ELEMENTS', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
-      { x: w/2, y: 13,  text: 'modal / physical modelling', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
-      { x: w/2, y: 126, text: 'MI', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+      { x: 6, y: 8, text: 'Elements', fontSize: 3, color: '#f9fafb', align: 'start' },
+      { x: w - 6, y: 8, text: 'modal synthesizer', fontSize: 1.6, color: '#9ca3af', align: 'end' },
+      { x: 40, y: 126, text: 'MI · MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    decorations: [
+      // scheiding exciter | resonator
+      { kind: 'line', x: 99, y: 14, x2: 99, y2: 120, color: '#6b7280' },
+      // Contour hoort bij Bow en Blow
+      dot(28, yTop, 36, yTop), dot(44, yTop, 59, yTop),
+      // Flow, Mallet, Geometry, Brightness → hun CV-ingang
+      dot(L[1], yBig + 9, L[1], yAtt - 4), dot(L[3], yBig + 9, L[3], yAtt - 4),
+      dot(R[1], yBig + 9, R[1], yAtt - 4), dot(R[3], yBig + 9, R[3], yAtt - 4),
+      // vlak achter Out L/R
+      { kind: 'jackBlock', x: 4, y: 100, w: 24, h: 16 },
+      { kind: 'ledMarker', x: L[2], y: yBig, color: '#84cc16' },
+      { kind: 'ledMarker', x: R[2], y: yBig, color: '#f59e0b' },
     ],
     items: [
-      // Rij A — envelope-contour + de drie continue exciter-levels + tuning.
-      knob('envelope', 'Contour', col(0), rowA, { size: 'small', min: 0, max: 1, def: 1,   color: '#f9fafb' }),
-      knob('bow',      'Bow',     col(1), rowA, { size: 'small', min: 0, max: 1, def: 0,   color: '#f9fafb' }),
-      knob('blow',     'Blow',    col(2), rowA, { size: 'small', min: 0, max: 1, def: 0,   color: '#e11d48' }),
-      knob('strike',   'Strike',  col(3), rowA, { size: 'small', min: 0, max: 1, def: 0.8, color: '#0891b2' }),
-      knob('coarse',   'Coarse',  col(4), rowA, { size: 'small', min: -36, max: 36, def: 0, unit: 'semi', color: '#f9fafb' }),
-      knob('fine',     'Fine',    col(5), rowA, { size: 'small', min: -100, max: 100, def: 0, unit: 'ct', color: '#f9fafb' }),
-      // Rij B — meta-morphs (Flow/Mallet) + resonator-hoofdknoppen + FM.
-      // FM: firmware mapt 0..1 → ±24 st (f×48−24); 0.5 = neutraal.
-      knob('blow_meta',   'Flow',    col(1), rowB, { size: 'large', min: 0, max: 1, def: 0.5, color: '#e11d48' }),
-      knob('strike_meta', 'Mallet',  col(2), rowB, { size: 'large', min: 0, max: 1, def: 0.5, color: '#0891b2' }),
-      knob('fm',          'FM',      col(3), rowB, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
-      knob('geometry',    'Geometry',col(4), rowB, { size: 'large', min: 0, max: 1, def: 0.2, color: '#f9fafb' }),
-      knob('brightness',  'Bright',  col(5), rowB, { size: 'large', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
-      // Rij C — timbres per exciter + resonator-detail.
-      knob('bow_timbre',    'Bow Tim',   col(0), rowC, { size: 'small', min: 0, max: 1, def: 0.5,  color: '#f9fafb' }),
-      knob('blow_timbre',   'Blow Tim',  col(1), rowC, { size: 'small', min: 0, max: 1, def: 0.5,  color: '#e11d48' }),
-      knob('strike_timbre', 'Strike Tim',col(2), rowC, { size: 'small', min: 0, max: 1, def: 0.5,  color: '#0891b2' }),
-      knob('damping',       'Damping',   col(3), rowC, { size: 'small', min: 0, max: 1, def: 0.25, color: '#f9fafb' }),
-      knob('position',      'Position',  col(4), rowC, { size: 'small', min: 0, max: 1, def: 0.3,  color: '#f9fafb' }),
-      knob('space',         'Space',     col(5), rowC, { size: 'small', min: 0, max: 1, def: 0.5,  color: '#f9fafb' }),
-      // Rij D — exotica + uitgangsniveau.
-      knob('signature',  'Signat', col(0), rowD, { size: 'small', min: 0, max: 1, def: 0,   color: '#9ca3af' }),
-      knob('mod_freq',   'ModFrq', col(1), rowD, { size: 'small', min: 0, max: 1, def: 0.5, color: '#9ca3af' }),
-      knob('mod_offset', 'ModOff', col(2), rowD, { size: 'small', min: 0, max: 1, def: 0.1, color: '#9ca3af' }),
-      knob('level',      'Level',  col(5), rowD, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
-
-      inPort ('voct',    'V/Oct',  'cv',    col(0), 108),
-      inPort ('gate',    'Gate',   'gate',  col(1), 108),
-      inPort ('strength','Str',    'cv',    col(2), 108),
-      outPort('out_l',   'L',      'audio', col(4), 108),
-      outPort('out_r',   'R',      'audio', col(5), 108),
+      // ── exciter ──
+      knob('envelope', 'Contour', 24, yTop, { size: 'medium', min: 0, max: 1, def: 1,   color: white }),
+      knob('bow',      'Bow',     L[0], yTop, { size: 'medium', min: 0, max: 1, def: 0,   color: white }),
+      knob('blow',     'Blow',    L[2], yTop, { size: 'medium', min: 0, max: 1, def: 0,   color: red }),
+      knob('strike',   'Strike',  L[4], yTop, { size: 'medium', min: 0, max: 1, def: 0.8, color: teal }),
+      button('play', 'Play', 24, yBig),
+      knob('blow_meta',   'Flow',   L[1], yBig, { size: 'large', min: 0, max: 1, def: 0.5, color: red }),
+      knob('strike_meta', 'Mallet', L[3], yBig, { size: 'large', min: 0, max: 1, def: 0.5, color: teal }),
+      knob('bow_timbre',    'Bow Timbre',    L[0], yLow, { size: 'medium', min: 0, max: 1, def: 0.5, color: white, panelLabel: 'Timbre' }),
+      knob('blow_timbre',   'Blow Timbre',   L[2], yLow, { size: 'medium', min: 0, max: 1, def: 0.5, color: red,   panelLabel: 'Timbre' }),
+      knob('strike_timbre', 'Strike Timbre', L[4], yLow, { size: 'medium', min: 0, max: 1, def: 0.5, color: teal,  panelLabel: 'Timbre' }),
+      // ── resonator ──
+      knob('coarse', 'Coarse', R[0], yTop, { size: 'medium', min: -36, max: 36, def: 0, unit: 'semi', color: white }),
+      knob('fine',   'Fine',   R[2], yTop, { size: 'medium', min: -100, max: 100, def: 0, unit: 'ct', color: white }),
+      // FM: attenuverter van de FM-ingang, midden = uit (zoals het origineel).
+      knob('fm',     'FM',     R[4], yTop, { size: 'medium', min: 0, max: 1, def: 0.5, color: white, panelLabel: '−  FM  +' }),
+      knob('geometry',   'Geometry',   R[1], yBig, { size: 'large', min: 0, max: 1, def: 0.2, color: white }),
+      knob('brightness', 'Brightness', R[3], yBig, { size: 'large', min: 0, max: 1, def: 0.5, color: white }),
+      knob('damping',  'Damping',  R[0], yLow, { size: 'medium', min: 0, max: 1, def: 0.25, color: white }),
+      knob('position', 'Position', R[2], yLow, { size: 'medium', min: 0, max: 1, def: 0.3,  color: white }),
+      knob('space',    'Space',    R[4], yLow, { size: 'medium', min: 0, max: 1, def: 0.5,  color: white }),
+      // ── attenuverters en CV-ingangen, in de volgorde van elements_cv.h ──
+      atten('bow_timbre_amt',    'Bow Timbre CV',    L[0]),
+      atten('blow_meta_amt',     'Flow CV',          L[1]),
+      atten('blow_timbre_amt',   'Blow Timbre CV',   L[2]),
+      atten('strike_meta_amt',   'Mallet CV',        L[3]),
+      atten('strike_timbre_amt', 'Strike Timbre CV', L[4]),
+      atten('damping_amt',       'Damping CV',       R[0]),
+      atten('geometry_amt',      'Geometry CV',      R[1]),
+      atten('position_amt',      'Position CV',      R[2]),
+      atten('brightness_amt',    'Brightness CV',    R[3]),
+      atten('space_amt',         'Space CV',         R[4]),
+      inPort('bow_timbre_cv',    'Timb',  'cv', L[0], yJack),
+      inPort('blow_meta_cv',     'Flow',  'cv', L[1], yJack),
+      inPort('blow_timbre_cv',   'Timb',  'cv', L[2], yJack),
+      inPort('strike_meta_cv',   'Mall',  'cv', L[3], yJack),
+      inPort('strike_timbre_cv', 'Timb',  'cv', L[4], yJack),
+      inPort('damping_cv',       'Damp',  'cv', R[0], yJack),
+      inPort('geometry_cv',      'Geom',  'cv', R[1], yJack),
+      inPort('position_cv',      'Pos',   'cv', R[2], yJack),
+      inPort('brightness_cv',    'Brgt',  'cv', R[3], yJack),
+      inPort('space_cv',         'Space', 'cv', R[4], yJack),
+      // ── I/O-kolom ──
+      inPort ('voct',      'V/Oct',    'cv',    ioL, 62),
+      inPort ('fm',        'FM',       'cv',    ioR, 62),
+      inPort ('gate',      'Gate',     'gate',  ioL, 76),
+      inPort ('strength',  'Strength', 'cv',    ioR, 76),
+      inPort ('blow_in',   'Ext In',   'audio', ioL, 90),
+      inPort ('strike_in', 'Ext In',   'audio', ioR, 90),
+      outPort('out_l',     'Out L',    'audio', ioL, 106),
+      outPort('out_r',     'Out R',    'audio', ioR, 106),
+      // ── niet op het origineel: klein onderaan rechts ──
+      knob('signature',  'Signat', R[0], 119, { size: 'small', min: 0, max: 1, def: 0,   color: '#9ca3af' }),
+      knob('mod_freq',   'ModFrq', R[1], 119, { size: 'small', min: 0, max: 1, def: 0.5, color: '#9ca3af' }),
+      knob('mod_offset', 'ModOff', R[2], 119, { size: 'small', min: 0, max: 1, def: 0.1, color: '#9ca3af' }),
+      knob('level',      'Level',  R[4], 119, { size: 'small', min: 0, max: 1, def: 0.8, color: white }),
     ],
-    notes: 'Mutable Instruments Elements modal / physical-modelling voice (firmware tp_mmb_elements, FW-AU-9). V/Oct + Gate in, stereo uit (L/R). Exciters: Bow/Blow/Strike zijn continue levels (mengbaar, zoals de hardware); Flow/Mallet zijn de meta-morphs, Contour de exciter-envelope. FM: 0.5 = neutraal (±24 st bereik). Coarse/fine verschuiven de pitch t.o.v. V/Oct. Monofone voice; voor polyfonie plaats meerdere instanties in een PolyGroup.',
+    notes: 'Mutable Instruments Elements modal / physical-modelling voice (firmware tp_mmb_elements, FW-AU-9), met de indeling van het origineel. Exciter links: Contour (envelopevorm), Bow/Blow/Strike (niveaus, mengbaar), Flow en Mallet (karakter van blazen en aanslaan), drie keer Timbre. Resonator rechts: Coarse/Fine, Geometry, Brightness, Damping, Position, Space. Onderaan tien CV-ingangen met attenuverters: knop + attenuverter × CV (fw 0.5.111). FM is de attenuverter van de FM-ingang (midden = uit). Ext In (rood) = eigen geluid als blaas-exciter, Ext In (blauw) als aanslag. Play slaat aan zonder gate. V/Oct + Gate in, stereo uit (L/R).',
   });
 }
 

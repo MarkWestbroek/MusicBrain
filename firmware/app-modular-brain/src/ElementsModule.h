@@ -53,6 +53,7 @@
 #include "mb/runtime/Registry.h"
 #include <Audio.h>
 #include <cmath>
+#include "mmb_dsp/elements_cv.h"
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -317,6 +318,9 @@ public:
         if (portId == "voct")      return PortKind::Cv;
         if (portId == "gate")      return PortKind::Gate;
         if (portId == "strength")  return PortKind::Cv;
+        if (portId == "fm")        return PortKind::Cv;
+        for (const auto& q : mmb_dsp::elements_cv::kParams)
+            if (cvPortIs(portId, q.knob)) return PortKind::Cv;
         if (portId == "blow_in" || portId == "strike_in") return PortKind::Audio;
         return PortKind::None;
     }
@@ -328,14 +332,19 @@ public:
         } else if (portId == "strength") {
             strength_ = value;
             voice_.setStrength(strength_);
+        } else if (portId == "fm") {
+            fmCv_ = value;
+            voice_.setModulation(mmb_dsp::elements_cv::fmSemitones(fmKnob_, fmCv_));
         } else if (portId == "gate") {
-            const bool high = value >= 0.5f;
-            if (high && !lastGateHigh_) {
-                applyPitch();
-                voice_.setStrength(strength_);
-            }
-            voice_.setGate(high);
-            lastGateHigh_ = high;
+            gateCv_ = value >= 0.5f;
+            updateGate();
+        } else {
+            for (int i = 0; i < mmb_dsp::elements_cv::kNum; ++i)
+                if (cvPortIs(portId, mmb_dsp::elements_cv::kParams[i].knob)) {
+                    cv_.cv[i] = value;
+                    applyCv(i);
+                    return;
+                }
         }
     }
 
@@ -347,17 +356,14 @@ public:
             return fallback;
         };
         elements::Patch* p = voice_.part().mutable_patch();
-        if (controlId == "geometry")        p->resonator_geometry   = asFloat(0.2f);
-        else if (controlId == "brightness") p->resonator_brightness = asFloat(0.5f);
-        else if (controlId == "damping")    p->resonator_damping    = asFloat(0.25f);
-        else if (controlId == "position")   p->resonator_position   = asFloat(0.3f);
-        else if (controlId == "space")      p->space                = asFloat(0.5f);
-        else if (controlId == "envelope")   p->exciter_envelope_shape = asFloat(1.0f);
-        else if (controlId == "bow_timbre")    p->exciter_bow_timbre    = asFloat(0.5f);
-        else if (controlId == "blow_timbre")   p->exciter_blow_timbre   = asFloat(0.5f);
-        else if (controlId == "strike_timbre") p->exciter_strike_timbre = asFloat(0.5f);
-        else if (controlId == "blow_meta")     p->exciter_blow_meta     = asFloat(0.5f);
-        else if (controlId == "strike_meta")   p->exciter_strike_meta   = asFloat(0.5f);
+        // De tien knoppen met een CV-ingang en hun attenuverters (fw 0.5.111):
+        // knop + attenuverter × CV, zoals het origineel (mmb_dsp/elements_cv.h).
+        for (int i = 0; i < mmb_dsp::elements_cv::kNum; ++i) {
+            const auto& q = mmb_dsp::elements_cv::kParams[i];
+            if (controlId == q.knob) { cv_.knob[i] = asFloat(q.def); applyCv(i); return; }
+            if (controlId == q.amt)  { cv_.amt[i]  = asFloat(0.0f);  applyCv(i); return; }
+        }
+        if (controlId == "envelope")   p->exciter_envelope_shape = asFloat(1.0f);
         else if (controlId == "signature")     p->exciter_signature     = asFloat(0.0f);
         else if (controlId == "mod_freq") {
             const float f = asFloat(0.5f);
@@ -365,8 +371,10 @@ public:
         }
         else if (controlId == "mod_offset") p->resonator_modulation_offset = asFloat(0.1f);
         else if (controlId == "fm") {
-            const float f = asFloat(0.0f);
-            voice_.setModulation(f * 48.0f - 24.0f);
+            // Attenuverter van de FM-ingang (midden = uit), zoals het origineel;
+            // tot fw 0.5.111 een vaste verschuiving van ±24 halve tonen.
+            fmKnob_ = asFloat(0.5f);
+            voice_.setModulation(mmb_dsp::elements_cv::fmSemitones(fmKnob_, fmCv_));
         }
         // Continue exciter-levels — zoals de drie level-knoppen op de echte
         // Elements (mengbaar, i.p.v. de exclusieve `exciter`-switch hieronder).
@@ -378,6 +386,8 @@ public:
         else if (controlId == "fine")   { fine_   = asFloat(0.0f); applyPitch(); }
         // Uitgangsniveau van de wrapper (0..1).
         else if (controlId == "level")  voice_.setLevel(asFloat(0.8f));
+        // PLAY: indrukken slaat aan zoals een gate (OF met de Gate-ingang).
+        else if (controlId == "play")   { playHeld_ = asFloat(0.0f) >= 0.5f; updateGate(); }
         else if (controlId == "exciter") {
             // Legacy 3-standen-switch (0=bow, 1=blow, 2=strike, exclusief).
             const int mode = static_cast<int>(asFloat(2.0f));
@@ -397,6 +407,19 @@ public:
     }
 
 private:
+    void updateGate() {
+        const bool high = gateCv_ || playHeld_;
+        if (high && !lastGateHigh_) {
+            applyPitch();
+            voice_.setStrength(strength_);
+        }
+        voice_.setGate(high);
+        lastGateHigh_ = high;
+    }
+    bool gateCv_ = false, playHeld_ = false;
+    void applyCv(int i) { mmb_dsp::elements_cv::write(voice_.part().mutable_patch(), i, cv_.value(i)); }
+    mmb_dsp::elements_cv::State cv_;   ///< knop, CV en attenuverter per CV-parameter
+    float fmKnob_ = 0.5f, fmCv_ = 0.0f;
     /// V/Oct + coarse (semitonen) + fine (centen) → MIDI-noot voor de voice.
     /// Port-map-conventie: MIDI 60 = 0 V.
     void applyPitch() {

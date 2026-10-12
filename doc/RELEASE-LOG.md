@@ -17,6 +17,39 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-12 — Elements: paneel zoals het origineel, met alle CV-ingangen (fw 0.5.111)
+<!-- EN: Elements: panel laid out like the original, with all ten CV inputs and attenuverters, FM input, both external exciter inputs and the PLAY button -->
+- Mark: "ik heb het gevoel dat ik in Elements via gemapte CC's meer kon doen
+  dan nu via de knoppen" en "houd zoveel mogelijk de oorspronkelijke layout
+  aan, mensen kennen dat; ook de stippellijntjes en de scheiding".
+- **Paneel** (34 HP, was 20): exciter links, resonator rechts, met de
+  scheidingslijn; stippellijnen van Contour naar Bow en Blow, en van Flow,
+  Mallet, Geometry en Brightness naar hun CV-ingang. Onderaan tien
+  attenuverters (− +) met hun CV-jacks, links de I/O-kolom met V/Oct, FM,
+  Gate, Strength, twee keer **Ext In** (eigen geluid als blaas- of
+  aanslag-exciter; zat al in de firmware, niet op het paneel) en Out L/R.
+  **PLAY** slaat aan zonder gate. Level, Signature, ModFrq en ModOff (niet
+  op het origineel) klein onderaan rechts. Racks schuiven vanzelf op.
+- **Firmware en simulator**: de tien CV-ingangen (Bow/Blow/Strike Timbre,
+  Flow, Mallet, Damping, Geometry, Position, Brightness, Space): knop +
+  attenuverter × CV, begrensd zoals het origineel (`BIND` in
+  `cv_scaler.cc`); gedeelde tabel `mmb_dsp/elements_cv.h`. **FM** is nu de
+  attenuverter van de FM-ingang (midden = uit, 1 eenheid = een octaaf bij
+  open), zoals het origineel; tot nu een vaste verschuiving van ±24 halve
+  tonen. Geen seed zette FM. De oude `exciter`-schakelaar is uit de
+  simulator (stond niet op het paneel; de firmware accepteert hem nog).
+- **Front in de speelmodus**: Elements laat 14 knoppen zien in plaats van 8
+  (exciters, Contour, Flow, Mallet, Geometry, Brightness, de drie Timbres,
+  Damping, Position, Space); Flow en Mallet groot, de rest klein, zodat het
+  op een telefoon past (vier kolommen). Nieuw: `FRONT_SIZES` in
+  `frontControls.ts`; alleen types met zo'n regel mogen meer dan 8 knoppen.
+  Eigen fronts blijven zoals ze zijn.
+- Paneeltekening: lijnen kunnen gestippeld (`dash`), een knop kan een
+  ander gedrukt label hebben dan zijn naam (`panelLabel`).
+- Contract: de handmatige uitzonderingen voor VCA (Gain/Resp) en VCO (FM)
+  weg, die werken sinds 0.5.108/0.5.109.
+- Helpregels voor Elements (NL/EN); test `wasmElementsCv.test.ts`.
+
 ### 2026-10-12 — "+"-ingangen tellen bij de knop op (fw 0.5.110)
 <!-- EN: CV inputs marked "+" (chorus, echo, shimmer, reverb, stereo phaser, Clouds, Rings, Plaits) now add to their knob instead of replacing it -->
 - Laatste punt van FW-MOD-1. Bij BBD chorus, digital echo, shimmer, reverb,

@@ -13,7 +13,7 @@
 // (`bindTo`): die waarden komen via `binds` uit de echte module, ook als de
 // knop zelf niet op het front staat.
 
-import { DULL_CONTROL, FRONT_CONTROLS } from './frontControls';
+import { DULL_CONTROL, FRONT_CONTROLS, FRONT_MAX_CAP, FRONT_MAX_DEFAULT, FRONT_SIZES } from './frontControls';
 import { kindOf, type ModuleKindTag } from './recipe/catalog';
 import { findTwin } from './recipe/edits';
 import {
@@ -366,15 +366,23 @@ function autoPicks(m: ModuleInstance, patch: Patch, project: ModularProject): { 
  *  naamdisplays bij hun knop; jacks: de uitgangen van een AUDIO IN en de
  *  audio-ingangen van modules die nog geen audio krijgen. Niet opgeslagen;
  *  de aanroeper bewaart het pas als iemand het bewerkt. */
-export function autoFront(patch: Patch, project: ModularProject, max = 8): PatchFront {
+export function autoFront(patch: Patch, project: ModularProject, maxIn?: number): PatchFront {
   const mods = patchModulesInSignalOrder(patch, project);
   const items: FrontItem[] = [];
   const have = new Set<string>();
+  // Grootte per type (FRONT_SIZES): Elements heeft 14 knoppen, de meeste klein.
+  const sized = (moduleId: string, controlId: string): Partial<Extract<FrontItem, { kind: 'control' }>> => {
+    const t = mods.find((x) => x.id === moduleId)?.typeId;
+    const sz = t ? FRONT_SIZES[t] : undefined;
+    if (!sz) return {};
+    if (sz.large?.includes(controlId)) return { size: 'large' };
+    return sz.rest === 'small' ? { size: 'small' } : {};
+  };
   const add = (moduleId: string, controlId: string, extra: Partial<Extract<FrontItem, { kind: 'control' }>> = {}) => {
     const key = `${moduleId}/${controlId}`;
     if (have.has(key)) return;
     have.add(key);
-    items.push({ kind: 'control', moduleId, controlId, ...extra });
+    items.push({ kind: 'control', moduleId, controlId, ...sized(moduleId, controlId), ...extra });
   };
   const playable = (m: ModuleInstance) => resolveControls(m, project.moduleTypes).filter((c) => PLAYABLE.has(c.kind));
 
@@ -419,6 +427,12 @@ export function autoFront(patch: Patch, project: ModularProject, max = 8): Patch
     const t = project.moduleTypes.find((x) => x.id === m.typeId);
     return !!t && kindOf(t) === 'source';
   };
+  // Hoeveel knoppen: standaard 8, maar een klankbron met kleine knoppen
+  // (FRONT_SIZES; Elements: 14) mag zijn lijst helemaal laten zien, met
+  // ruimte voor twee knoppen van de rest (het volume van OUT, een effect).
+  const longest = Math.max(0, ...mods.filter((m) => isSource(m) && FRONT_SIZES[m.typeId])
+    .map((m) => FRONT_CONTROLS[m.typeId]?.length ?? 0));
+  const max = maxIn ?? Math.max(FRONT_MAX_DEFAULT, Math.min(FRONT_MAX_CAP, longest + 2));
   const left = (m: ModuleInstance) => autoPicks(m, patch, project).picks.filter((c) => !have.has(`${m.id}/${c.id}`));
   const shown: ModuleInstance[] = [];   // modules met een eigen kopje, in volgorde
   for (const m of ordered) {
@@ -445,7 +459,7 @@ export function autoFront(patch: Patch, project: ModularProject, max = 8): Patch
         let last = -1;
         items.forEach((it, i) => { if (it.kind === 'control' && it.moduleId === m.id) last = i; });
         have.add(`${m.id}/${c.id}`);
-        items.splice(last + 1, 0, { kind: 'control', moduleId: m.id, controlId: c.id });
+        items.splice(last + 1, 0, { kind: 'control', moduleId: m.id, controlId: c.id, ...sized(m.id, c.id) });
         grew = true;
       }
     }

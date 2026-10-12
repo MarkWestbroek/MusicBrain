@@ -1,6 +1,6 @@
 {
   "$comment": "GEGENEREERD door tools/contract_dump.py — niet met de hand bewerken. Poort-ids zijn letterlijk wat de firmware accepteert (aliassen als out/out_l en naam/naam_cv staan er dus allebei in).",
-  "firmwareVersion": "0.5.110",
+  "firmwareVersion": "0.5.111",
   "modules": {
     "...": {
       "typeId": "...",
@@ -573,38 +573,61 @@
       "source": "firmware/app-modular-brain/src/ElementsModule.h",
       "ports": [
         "blow_in",
+        "blow_meta_cv",
+        "blow_timbre_cv",
+        "bow_timbre_cv",
+        "brightness_cv",
+        "damping_cv",
+        "fm",
         "gate",
+        "geometry_cv",
         "out",
         "out_l",
         "out_r",
+        "position_cv",
+        "space_cv",
         "strength",
         "strike_in",
+        "strike_meta_cv",
+        "strike_timbre_cv",
         "voct"
       ],
       "controls": [
         "blow",
         "blow_meta",
+        "blow_meta_amt",
         "blow_timbre",
+        "blow_timbre_amt",
         "bow",
         "bow_timbre",
+        "bow_timbre_amt",
         "brightness",
+        "brightness_amt",
         "coarse",
         "damping",
+        "damping_amt",
         "envelope",
         "exciter",
         "fine",
         "fm",
         "geometry",
+        "geometry_amt",
         "level",
         "mod_freq",
         "mod_offset",
+        "play",
         "position",
+        "position_amt",
         "signature",
         "space",
+        "space_amt",
         "strike",
         "strike_meta",
-        "strike_timbre"
-      ]
+        "strike_meta_amt",
+        "strike_timbre",
+        "strike_timbre_amt"
+      ],
+      "controlsIgnored": []
     },
     "tp_mmb_elements_reverb": {
       "typeId": "tp_mmb_elements_reverb",
@@ -2888,10 +2911,6 @@
       "controls": [
         "gain",
         "resp"
-      ],
-      "controlsIgnored": [
-        "gain",
-        "resp"
       ]
     },
     "tp_mmb_vcf": {
@@ -2926,9 +2945,6 @@
         "fm_amt",
         "level",
         "wave"
-      ],
-      "controlsIgnored": [
-        "fm_amt"
       ]
     },
     "tp_mmb_vibe": {

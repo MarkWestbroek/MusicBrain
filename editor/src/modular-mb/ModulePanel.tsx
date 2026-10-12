@@ -232,6 +232,7 @@ export function ModulePanel({
               onChange={!disabled && onControlChange ? (v) => onControlChange(c.id, v) : undefined}
               textCol={textCol}
               caption={controlLabels?.[c.id]}
+              printed={cp.panelLabel}
               onCaption={onControlLabelChange ? (text) => onControlLabelChange(c.id, text) : undefined}
             />
           </g>
@@ -442,7 +443,7 @@ function Decoration({ dec, textCol }: { dec: import('./types').PanelDecoration; 
         fill={dec.color ?? '#888'} opacity={0.85} rx={0.5} />;
     case 'line':
       return <line x1={dec.x} y1={dec.y} x2={dec.x2 ?? dec.x} y2={dec.y2 ?? dec.y}
-        stroke={dec.color ?? '#444'} strokeWidth={0.3} />;
+        stroke={dec.color ?? '#444'} strokeWidth={0.3} {...(dec.dash ? { strokeDasharray: '0.6 0.9', strokeLinecap: 'round' as const } : {})} />;
     case 'text':
       return <text x={dec.x} y={dec.y} fontSize={(dec.fontSize ?? 2) * ts}
         fill={dec.color ?? textCol} textAnchor="middle">{dec.text}</text>;
@@ -561,13 +562,15 @@ function ControlGlyph(props: {
   textCol: string;
   caption?: string;
   onCaption?: (text: string) => void;
+  /** ControlPlacement.panelLabel: wat er gedrukt staat (knop). */
+  printed?: string;
 }): JSX.Element | null {
-  const { control: c, x, y, rotation, sizeOverride, value, controls, controlState, onChange, textCol, caption, onCaption } = props;
+  const { control: c, x, y, rotation, sizeOverride, value, controls, controlState, onChange, textCol, caption, onCaption, printed } = props;
   switch (c.kind) {
     case 'knob':
       return <KnobGlyph c={c} x={x} y={y} sizeOverride={sizeOverride}
         value={typeof value === 'number' ? value : c.defaultValue}
-        onChange={onChange} textCol={textCol} caption={caption} />;
+        onChange={onChange} textCol={textCol} caption={caption} printed={printed} />;
     case 'slider':
       return <SliderGlyph c={c} x={x} y={y} rotation={rotation}
         value={typeof value === 'number' ? value : c.defaultValue}
@@ -606,7 +609,7 @@ function ControlGlyph(props: {
 // ── Knob ────────────────────────────────────────────────────────────────
 
 function KnobGlyph({
-  c, x, y, sizeOverride, value, onChange, textCol, caption,
+  c, x, y, sizeOverride, value, onChange, textCol, caption, printed,
 }: {
   c: import('./types').KnobControl;
   x: number; y: number;
@@ -615,6 +618,8 @@ function KnobGlyph({
   textCol: string;
   /** Label van de patch (Patch.controlLabels): vervangt de gedrukte naam, in groen. */
   caption?: string;
+  /** Gedrukte naam als die anders is dan het label (ControlPlacement.panelLabel). */
+  printed?: string;
 }): JSX.Element {
   const ts = useContext(TextScale);
   const size = sizeOverride ?? c.size ?? 'medium';
@@ -754,7 +759,7 @@ function KnobGlyph({
         strokeWidth={Math.max(0.4, r * 0.16)} strokeLinecap="round" />
       {/* label below */}
       <text x={x} y={y + r + 2.2 + (ts - 1) * 1.6} fontSize={1.8 * ts} fill={caption ? '#4ade80' : textCol}
-        textAnchor="middle" fontWeight={500}>{caption ?? c.label}</text>
+        textAnchor="middle" fontWeight={500}>{caption ?? printed ?? c.label}</text>
     </g>
   );
 }

@@ -68,7 +68,7 @@ FAILED=""
 want="${1:-all}"
 sel() { [ "$want" = all ] || [ "$want" = "$1" ]; }
 
-sel elements && build elements tp_mmb_elements "$ELEM" -- \
+sel elements && build elements tp_mmb_elements "$ELEM" "$LIB/mmb-dsp" -- \
   "$ELEM"/elements/dsp/exciter.cc "$ELEM"/elements/dsp/multistage_envelope.cc \
   "$ELEM"/elements/dsp/part.cc "$ELEM"/elements/dsp/resonator.cc "$ELEM"/elements/dsp/string.cc \
   "$ELEM"/elements/dsp/tube.cc "$ELEM"/elements/dsp/voice.cc "$ELEM"/elements/dsp/ominous_voice.cc \

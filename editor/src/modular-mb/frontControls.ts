@@ -30,7 +30,13 @@ export const FRONT_CONTROLS: Record<string, string[]> = {
   [T('complex')]: ['timbre', 'fm', 'symmetry', 'ratio', 'tmod', 'am'],
   [T('draw_vco')]: [],
   [T('dx7')]: ['bank', 'program'],
-  [T('elements')]: ['bow', 'blow', 'strike', 'geometry', 'brightness', 'damping', 'position', 'space'],
+  // De drie exciters, hun karakter (Contour, Flow, Mallet) en klankkleur, en
+  // de resonator. 14 knoppen; Flow en Mallet groot, de rest klein
+  // (FRONT_SIZES), zodat het op een telefoon past.
+  // Rijen van vier: exciters + Contour | Flow, Mallet, Geometry, Brightness |
+  // de drie Timbres + Damping | Position, Space.
+  [T('elements')]: ['bow', 'blow', 'strike', 'envelope', 'blow_meta', 'strike_meta', 'geometry', 'brightness',
+    'bow_timbre', 'blow_timbre', 'strike_timbre', 'damping', 'position', 'space'],
   [T('epiano')]: ['type', 'timbre', 'bell', 'tremolo', 'drive', 'decay', 'trem_rate'],
   [T('excitable')]: ['excite', 'refract', 'thresh', 'pickup', 'detune'],
   [T('fm_vco')]: ['fm_amt', 'wave'],
@@ -148,4 +154,17 @@ export const FRONT_CONTROLS: Record<string, string[]> = {
 
 /** Namen die bijna nooit een speelknop zijn: stemming en volume per module.
  *  Alleen voor de terugval (types zonder lijst): daar komen ze achteraan. */
+/** Knopgrootte op het automatische front per type: de genoemde groot, de rest
+ *  `rest` (zonder vermelding: de standaardgrootte). Voor types met veel
+ *  knoppen, zodat ze op een telefoon passen (Mark 2026-10-12, Elements). */
+export const FRONT_SIZES: Record<string, { large?: string[]; rest?: 'small' | 'medium' }> = {
+  [T('elements')]: { large: ['blow_meta', 'strike_meta'], rest: 'small' },
+};
+
+/** Hoeveel knoppen het automatische front hoogstens toont. Standaard 8; een
+ *  klankbron met een eigen FRONT_SIZES-regel (kleine knoppen) mag zijn lijst
+ *  helemaal laten zien, plus twee voor de rest (tot 16). */
+export const FRONT_MAX_DEFAULT = 8;
+export const FRONT_MAX_CAP = 16;
+
 export const DULL_CONTROL = /^(level|volume|vol|gain|coarse|fine|tune|output)(_?\d+)?$/;
