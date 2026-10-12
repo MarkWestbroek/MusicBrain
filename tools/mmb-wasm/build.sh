@@ -114,6 +114,8 @@ sel warps && build warps tp_mmb_warps "$LIB/mi-warps" -- \
   "$LIB"/mi-warps/warps/dsp/oscillator.cc "$LIB"/mi-warps/warps/dsp/vocoder.cc \
   "$LIB"/mi-warps/warps/resources.cc $STMLIB_CC
 
+# Beads (MI, broncode 2026-10-11, commit d8f4739): eigen stmlib-aanvullingen in mi-beads/stmlib.
+sel beads && build beads tp_mmb_beads "$LIB/mi-beads" "$LIB/mi-stages" --   "$LIB"/mi-beads/beads/dsp/delay_clock.cc "$LIB"/mi-beads/beads/dsp/delay_controller.cc   "$LIB"/mi-beads/beads/dsp/mu_law.cc "$LIB"/mi-beads/beads/dsp/processor.cc   "$LIB"/mi-beads/beads/dsp/synth.cc "$LIB"/mi-beads/beads/dsp/trigger_generator.cc   "$LIB"/mi-beads/beads/resources.cc $STMLIB_CC
 sel elementsreverb && build elementsreverb tp_mmb_elements_reverb "$ELEM" -- $STMLIB_CC
 sel octavca && build octavca tp_mmb_octa_vca --
 sel stereovca && build stereovca tp_mmb_stereo_vca --

@@ -49,6 +49,7 @@
 #include "RingsModule.h"
 #include "PlaitsModule.h"
 #include "CloudsModule.h"
+#include "BeadsModule.h"
 #include "TidesModule.h"
 #include "MarblesModule.h"
 #include "Dx7Module.h"
@@ -173,6 +174,7 @@ inline void registerAllRuntimeModules() {
     RingsModule::registerFactory();     // FW-AU-11: Mutable Rings resonator
     PlaitsModule::registerFactory();    // FW-AU-12: Mutable Plaits macro-oscillator
     CloudsModule::registerFactory();    // FW-FX-4: Mutable Clouds granular
+    BeadsModule::registerFactory();     // Mutable Beads (broncode 2026-10-11), fw 0.5.112
     TidesModule::registerFactory();     // FW-CV-1: Mutable Tides slope-gen (CV-domein)
     MarblesModule::registerFactory();   // FW-CV-2: Mutable Marbles random-seq (CV-domein)
     Dx7Module::registerFactory();       // FW-AU-13: DX7-stem (msfa/Dexed-kern)

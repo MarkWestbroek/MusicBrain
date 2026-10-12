@@ -5,6 +5,11 @@ binnen de patch een stapeltje programs. Het botst een beetje met de patches,
 maar knoppen verzetten op één module voelt iets minder als een andere patch
 maken."
 
+> **Besluiten (Mark, 2026-10-12):** 1 bank **per module**, en ook te kiezen
+> via het menu (zoals de DX7); 2 kiezen laat **Coarse, Fine en Level staan**;
+> 3 de 19 programma's **eerst samen beluisteren** (9–19 een naam geven);
+> 4 de **VCV-importeur: zeker**.
+
 Ter review; niets gebouwd. Eerst de werkwijze, dan de techniek.
 
 ## 1. De werkwijze

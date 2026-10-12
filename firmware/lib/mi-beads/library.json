@@ -1,0 +1,11 @@
+{
+  "name": "mi-beads",
+  "version": "1.0.0",
+  "description": "Mutable Instruments Beads — texture synthesizer (MIT, (c) Emilie Gillet, Frédéric Meslin, Oliver Rockstedt), broncode vrijgegeven 2026-10-11 (pichenettes/eurorack d8f4739). Gevendord: beads/dsp en beads/resources; stmlib/dsp/hysteresis_filter.h en sample_rate_converter.h uit pichenettes/stmlib (d18def8); de rest van stmlib uit mi-elements/mi-stages/mi-clouds. beads_host.h is eigen code (MIT): knoppen/CV → parameters, samplerate per medium, gedeeld met de simulator.",
+  "license": "MIT",
+  "homepage": "https://github.com/pichenettes/eurorack",
+  "build": {
+    "flags": ["-I.", "-I../mi-stages", "-I../mi-clouds"],
+    "srcFilter": ["+<beads/>"]
+  }
+}

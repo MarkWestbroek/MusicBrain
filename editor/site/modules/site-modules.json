@@ -1425,6 +1425,37 @@
         "brightness_cv": "CV for Brightness, scaled by its attenuverter.",
         "space_cv": "CV for Space, scaled by its attenuverter."
       }
+    },
+    "tp_mmb_beads": {
+      "slug": "sw-beads",
+      "name": "Beads texture synthesizer",
+      "family": "Delay & reverb",
+      "tags": [
+        "mutable-instruments",
+        "stereo"
+      ],
+      "controlHelp": {
+        "time_amt": "Attenuverter for Time: with a cable it scales the CV, without one it adds randomness.",
+        "size_amt": "Attenuverter for Size: CV depth with a cable, randomness without.",
+        "shape_amt": "Attenuverter for Shape: CV depth with a cable, randomness without.",
+        "pitch_amt": "Attenuverter for Pitch: CV depth with a cable, randomness without.",
+        "quality": "The medium: dirty tape, clean tape, vintage digital or digital.",
+        "seed_btn": "Plays one grain (with Lock off).",
+        "seed_lock": "On: grains come by themselves (default). Off: one grain per press or trigger."
+      },
+      "portHelp": {
+        "in_l": "Audio in (left, or mono).",
+        "in_r": "Audio in, right.",
+        "freeze": "Gate: holds the recording while high.",
+        "seed": "Trigger: one grain, or a clock when Lock is on.",
+        "time_cv": "CV for Time, scaled by its attenuverter.",
+        "size_cv": "CV for Size, scaled by its attenuverter.",
+        "shape_cv": "CV for Shape, scaled by its attenuverter.",
+        "pitch_cv": "Pitch, 1 V per octave, scaled by its attenuverter.",
+        "density_cv": "CV for Density, added to the knob.",
+        "out_l": "Left output.",
+        "out_r": "Right output."
+      }
     }
   },
   "exampleNames": {

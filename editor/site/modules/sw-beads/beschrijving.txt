@@ -1,0 +1,1 @@
+Beads (Mutable): cuts what comes in into grains, or turns into a delay or a sound source.

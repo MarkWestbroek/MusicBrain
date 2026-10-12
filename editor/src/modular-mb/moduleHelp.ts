@@ -361,6 +361,21 @@ export const MODULE_HELP: Readonly<Record<string, ModuleHelp>> = {
       bank: ['De set golfvormen: analoog, stem, harmonischen, digitaal, eigen.', 'The set of waveforms: analogue, vocal, harmonics, digital, user.'],
     },
   },
+  tp_mmb_beads: {
+    about: ['Beads (Mutable): knipt wat binnenkomt in korrels, of wordt een delay of een klankbron.',
+            'Beads (Mutable): cuts what comes in into grains, or turns into a delay or a sound source.'],
+    controls: {
+      time: ['Waar de korrels in het opgenomen geluid beginnen (rechts verder terug); in de delaystand de delaytijd.', 'Where grains start in the recording (further back to the right); in delay mode the delay time.'],
+      size: ['Hoe lang een korrel duurt; helemaal open wordt het een delay.', 'How long a grain lasts; fully open it becomes a delay.'],
+      shape: ['De vorm van een korrel: van tik via zacht tot omgekeerd.', 'The shape of a grain: from a click via soft to reversed.'],
+      pitch: ['Toonhoogte van de korrels, met rustpunten op kwint en octaaf.', 'Pitch of the grains, with resting points at the fifth and octave.'],
+      density: ['Hoeveel korrels: rechts willekeurig, links regelmatig, in het midden geen.', 'How many grains: random to the right, regular to the left, none in the middle.'],
+      feedback: ['Hoeveel van de uitgang terug in de buffer gaat.', 'How much of the output goes back into the buffer.'],
+      mix: ['Droog of nat.', 'Dry or wet.'],
+      reverb: ['De ingebouwde galm.', 'The built-in reverb.'],
+      freeze_btn: ['Houdt de opname vast: de korrels spelen wat er nu in zit.', 'Holds the recording: the grains play what is in it now.'],
+    },
+  },
   tp_mmb_clouds: {
     about: ['Korrelwolk (Mutable Instruments Clouds).', 'A granular cloud (Mutable Instruments Clouds).'],
     controls: {

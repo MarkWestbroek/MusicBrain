@@ -99,6 +99,7 @@ export const CATALOG: Record<string, CatalogEntry> = {
                       playable: { rate: 0.4, depth: 0.7, mix: 0.5 } },
   tp_mmb_resonator: { short: 'Resonator',kind: 'fx',     aliases: ['resonator', 'sympathetic', 'sympathische snaren'] },
   tp_mmb_clouds:    { short: 'Clouds',   kind: 'fx',     aliases: ['clouds', 'granular', 'granulair'] },
+  tp_mmb_beads:     { short: 'Beads',    kind: 'fx',     aliases: ['beads', 'kralen', 'korrels'] },
   tp_mmb_warps:     { short: 'Warps',    kind: 'fx',     aliases: ['warps', 'ringmod', 'ring modulator', 'vocoder'] },
   tp_mmb_elements_reverb: { short: 'Reverb', kind: 'fx', aliases: ['reverb', 'galm', 'hall', 'dattorro'] },
   tp_mmb_comp:      { short: 'Comp',     kind: 'fx',     aliases: ['comp', 'compressor', 'simpele compressor', 'simple compressor', 'overdrive'] },

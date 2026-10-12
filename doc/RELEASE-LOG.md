@@ -17,6 +17,30 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-12 — BEADS: Mutable Instruments Beads, een dag na de vrijgave (fw 0.5.112, nog niet getagd)
+<!-- EN: BEADS: Mutable Instruments Beads, a day after Émilie Gillet released the source — granular, delay/looper and wavetable modes, all four media -->
+- Émilie Gillet zette op 11 oktober de broncode van Beads online (MIT,
+  pichenettes/eurorack d8f4739). Plan: [plans/beads.md](plans/beads.md).
+- **Gevendord** in `firmware/lib/mi-beads` (beads/dsp + resources,
+  byte-identiek; twee stmlib-headers uit pichenettes/stmlib). Eigen
+  `beads_host.h` (MIT), gedeeld door Teensy en simulator: knoppen en CV zoals
+  `beads.cc`/`cv_reader.h` (attenuverterwet, detune-wet van Pitch,
+  CV-bereiken), geen ingang = wavetable-klankbron (Synth), Quality = medium
+  met eigen samplerate (24/32/48 kHz), lineair omgezet van en naar 44,1 kHz.
+- **SEED Lock** (standaard aan, zoals het origineel na het opstarten): zonder
+  vergrendeling geeft de triggergenerator geen korrels (gate laag). In de
+  **delaystand** (Size helemaal open) is Time de delaytijd en Density het
+  ritme; in het midden (0,5) de langste tijd.
+- Paneel 18 HP (Time/Size/Shape/Pitch met attenuverters, Density groot,
+  Seed + Lock, Freeze, Feedback/Dry-Wet/Reverb, Quality; 11 jacks). Help,
+  front, receptcatalogus, seed **🔮 Plaits + BEADS** (Solo ▾). Tests
+  `wasmBeads.test.ts` (korrels in alle vier de media, delay, wavetable).
+- **Teensy**: `BeadsModule.h`, opnamebuffer 768 KB in PSRAM, reverb op de
+  heap; `libmi-beads.a` in de `.text.mmbdsp`-sectie. Bouwt (RAM1 24 KB
+  vrij); **nog niet op de Brain getest of gemeten**, daarom nog geen tag.
+- Niet (nog): de vrij toe te wijzen CV-ingang en de automatische
+  ingangsversterking van het origineel.
+
 ### 2026-10-12 — De programma's van de 5× Elements gered; Elements-seed reageert op aanslag
 - Mark vond de patchbank van de losse 5× Elements-Teensy (`firmware/app-elements`)
   niet terug, en had het idee dat hij toen "een of twee knoppen" meer had.

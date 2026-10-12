@@ -5,6 +5,10 @@ Op 11 oktober 2026 zette Émilie Gillet de broncode van Mutable Instruments
 commit d8f4739). Mark: "Is dit niet interessant voor ons?" Ja: Beads is de
 opvolger van Clouds, en Clouds draait hier al (`tp_mmb_clouds`).
 
+> **Stand 2026-10-12:** gebouwd (fw 0.5.112): naast Clouds, alle drie de
+> manieren van spelen; de vrije CV-ingang nog niet. Simulator en tests klaar,
+> Teensy bouwt maar is nog niet getest of gemeten. Zie de release-log.
+
 Ter review; niets gebouwd. Eerst de werkwijze, dan de techniek.
 
 ## 0. Wat vaststaat

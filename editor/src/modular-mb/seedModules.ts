@@ -2814,6 +2814,64 @@ function mmbPlaits() {
   });
 }
 
+// 14d2. MMB BEADS — 18 HP. Mutable Instruments Beads (broncode vrijgegeven
+//     door Émilie Gillet op 2026-10-11, MIT; doc/plans/beads.md): de opvolger
+//     van Clouds. Korrels uit wat binnenkomt, een delay/looper (Size helemaal
+//     open), en zonder ingang een wavetable-klankbron. Bovenaan Time, Size,
+//     Shape, Pitch met eronder hun attenuverter: met een kabel schaalt die de
+//     CV, zonder kabel bepaalt hij het toeval (zoals het origineel). Density in
+//     het midden: rechts van het midden willekeurige korrels, links regelmatige.
+//     In de delaystand is Time de delaytijd en Density het ritme. SEED: Lock aan = korrels vanzelf; uit =
+//     een korrel per druk of per trigger. Quality kiest het medium.
+function mmbBeads() {
+  const w = W(18);
+  const col4 = (i: number): number => w * (0.14 + i * 0.24);
+  const att = (id: string, label: string, x: number) =>
+    knob(id, label, x, 39, { size: 'small', min: -1, max: 1, def: 0, color: '#374151', panelLabel: '−  +' });
+  return assemble({
+    typeId: 'tp_mmb_beads',
+    categoryId: 'effect',
+    variant: 'Beads (MI granular, texture synthesizer)',
+    brand: 'MI', model: 'BEADS',
+    hp: 18, texture: 'pcb-black', baseColor: '#111827', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'BEADS', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 13,  text: 'texture synthesizer · MI', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+    ],
+    items: [
+      knob('time',  'Time',  col4(0), 24, { size: 'medium', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('size',  'Size',  col4(1), 24, { size: 'medium', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('shape', 'Shape', col4(2), 24, { size: 'medium', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('pitch', 'Pitch', col4(3), 24, { size: 'medium', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      att('time_amt',  'Time CV/random',  col4(0)),
+      att('size_amt',  'Size CV/random',  col4(1)),
+      att('shape_amt', 'Shape CV/random', col4(2)),
+      att('pitch_amt', 'Pitch CV/random', col4(3)),
+      button('seed_btn', 'Seed', w*0.14, 54),
+      toggle('seed_lock', 'Lock', w*0.14, 66, true),
+      knob('density', 'Density', w*0.50, 59, { size: 'large', min: 0, max: 1, def: 0.5, color: '#e11d48' }),
+      toggle('freeze_btn', 'Freeze', w*0.86, 59),
+      knob('feedback', 'Feedbk', col4(0), 80, { size: 'small', min: 0, max: 1, def: 0, color: '#f9fafb' }),
+      knob('mix',      'Dry/Wet', col4(1), 80, { size: 'small', min: 0, max: 1, def: 0.5, color: '#f9fafb' }),
+      knob('reverb',   'Reverb', col4(2), 80, { size: 'small', min: 0, max: 1, def: 0, color: '#f9fafb' }),
+      sw('quality', 'Quality', col4(3), 80, ['Tape+', 'Tape', 'Vintage', 'Digital'], 3),
+
+      inPort ('freeze',     'Frz',   'gate',  col4(0), 97),
+      inPort ('seed',       'Seed',  'trigger', col4(1), 97),
+      inPort ('time_cv',    'Time',  'cv',    col4(2), 97),
+      inPort ('size_cv',    'Size',  'cv',    col4(3), 97),
+      inPort ('shape_cv',   'Shape', 'cv',    col4(0), 108),
+      inPort ('pitch_cv',   'V/Oct', 'cv',    col4(1), 108),
+      inPort ('density_cv', 'Dens',  'cv',    col4(2), 108),
+      inPort ('in_l',       'In L',  'audio', col4(0), 119),
+      inPort ('in_r',       'In R',  'audio', col4(1), 119),
+      outPort('out_l',      'Out L', 'audio', col4(2), 119),
+      outPort('out_r',      'Out R', 'audio', col4(3), 119),
+    ],
+    notes: 'Mutable Instruments Beads (MIT, broncode 2026-10-11): korrels uit de ingang, delay/looper (Size helemaal open), of zonder ingang een wavetable-klankbron. Attenuverters onder Time/Size/Shape/Pitch: met kabel CV-diepte, zonder kabel toeval. Density: rechts willekeurige, links regelmatige korrels. In de delaystand: Time = delaytijd, Density = ritme van de herhalingen. SEED Lock = korrels vanzelf; uit = per druk of trigger (met Lock en een trigger: klok + deler). Quality: Tape+ (vuil, 24 kHz, µ-law), Tape (schoon), Vintage (12 bit, 32 kHz), Digital. Mono in op In L werkt.',
+  });
+}
+
 // 14d. MMB CLOUDS — 18 HP, zoals het origineel. Mutable Instruments Clouds
 //     granular processor (FW-FX-4): stereo in → korrelwolk → stereo uit,
 //     4 playback-modes. Tot 2026-10-12 rekende het paneel met 14 HP op een
@@ -5012,7 +5070,7 @@ function mmbEnvFollowerMono() {
 // ── public entry ───────────────────────────────────────────────────────
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbAudioIn(), mmbEcho(), mmbTapeEcho(), mmbStereoTapeEcho(), mmbDigitalEcho(), mmbBbdChorus(), mmbRingMod(), mmbOctaver(), mmbHarmonizer(), mmbReverb(), mmbTremolo(), mmbStereoPhaser(), mmbVibe(), mmbRotary(), mmbShimmer(), mmbFetComp(),mmbOptoComp(), mmbBusComp(),mmbVariMuComp(), mmbProgramEq(), mmbDiodeComp(), mmbConsoleEq(), mmbParaEq(), mmbSampler(), mmbZang(), mmbSid(), mmbSid3(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbFof(), mmbEnvFollower(), mmbEnvFollowerMono()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbBeads(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbAudioIn(), mmbEcho(), mmbTapeEcho(), mmbStereoTapeEcho(), mmbDigitalEcho(), mmbBbdChorus(), mmbRingMod(), mmbOctaver(), mmbHarmonizer(), mmbReverb(), mmbTremolo(), mmbStereoPhaser(), mmbVibe(), mmbRotary(), mmbShimmer(), mmbFetComp(),mmbOptoComp(), mmbBusComp(),mmbVariMuComp(), mmbProgramEq(), mmbDiodeComp(), mmbConsoleEq(), mmbParaEq(), mmbSampler(), mmbZang(), mmbSid(), mmbSid3(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbFof(), mmbEnvFollower(), mmbEnvFollowerMono()];
   all.push(mmbMaterialBridge());
   all.push(mmbScanned());
   all.push(mmbReservoir());
@@ -6041,6 +6099,11 @@ export const VIBE_SOLO_FX = {
 export const ROTARY_SOLO_FX = {
   typeId: 'tp_mmb_rotary', label: 'ROTARY',
   controls: { speed: 0, slow_rate: 0.8, fast_rate: 6.7, inertia: 1, drive: 0.35, balance: 0.5, spread: 0.8, noise: 0.35, level: 1.1 },
+} as const;
+export const BEADS_SOLO_FX = {
+  typeId: 'tp_mmb_beads', label: 'BEADS',
+  controls: { time: 0.12, size: 0.45, shape: 0.55, pitch: 0.5, density: 0.68, time_amt: 0.3, pitch_amt: 0,
+              feedback: 0.25, mix: 0.6, reverb: 0.45, quality: 1, seed_lock: 1 },
 } as const;
 export const SHIMMER_SOLO_FX = {
   typeId: 'tp_mmb_shimmer', label: 'SHIMMER',

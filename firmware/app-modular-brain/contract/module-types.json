@@ -1,6 +1,6 @@
 {
   "$comment": "GEGENEREERD door tools/contract_dump.py — niet met de hand bewerken. Poort-ids zijn letterlijk wat de firmware accepteert (aliassen als out/out_l en naam/naam_cv staan er dus allebei in).",
-  "firmwareVersion": "0.5.111",
+  "firmwareVersion": "0.5.112",
   "modules": {
     "...": {
       "typeId": "...",
@@ -123,6 +123,48 @@
         "rate",
         "spread",
         "tone"
+      ]
+    },
+    "tp_mmb_beads": {
+      "typeId": "tp_mmb_beads",
+      "source": "firmware/app-modular-brain/src/BeadsModule.h",
+      "ports": [
+        "density",
+        "density_cv",
+        "freeze",
+        "in",
+        "in_l",
+        "in_r",
+        "out",
+        "out_l",
+        "out_r",
+        "pitch",
+        "pitch_cv",
+        "seed",
+        "shape",
+        "shape_cv",
+        "size",
+        "size_cv",
+        "time",
+        "time_cv"
+      ],
+      "controls": [
+        "density",
+        "feedback",
+        "freeze_btn",
+        "mix",
+        "pitch",
+        "pitch_amt",
+        "quality",
+        "reverb",
+        "seed_btn",
+        "seed_lock",
+        "shape",
+        "shape_amt",
+        "size",
+        "size_amt",
+        "time",
+        "time_amt"
       ]
     },
     "tp_mmb_branches": {
