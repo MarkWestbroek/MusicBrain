@@ -1,9 +1,9 @@
 // tp_mmb_midiin — MIDI-In met stemtoewijzing. Draait
 // mb::runtime::MidiInModule zelf (core/src/runtime/MidiIn.cpp en de
 // VoiceAllocator) via cvhost.h, 1 kHz, blok 1: prioriteit, legato, steal,
-// glide, unison met spread — alles zoals de firmware het doet, inclusief wat
-// de firmware (nog) niet goed doet (FW-10: een gestolen stem slaat niet
-// opnieuw aan, want gate uit en aan vallen binnen één tick).
+// glide, unison met spread — alles zoals de firmware het doet. Een gestolen
+// stem slaat opnieuw aan: zijn gate blijft twee tikken laag (FW-10, opgelost
+// in fw 0.5.112; daarvoor vielen uit en aan binnen één tik).
 //
 // Noten komen binnen via `mmb_midi(status, d1, d2)` (bericht 'midi' in de
 // worklet), zoals de MIDI-ISR van de Teensy `onNoteOn` e.d. aanroept.

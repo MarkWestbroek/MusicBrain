@@ -17,6 +17,21 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-13 — Een gestolen stem slaat weer aan: de wah komt terug met sustain (FW-10, fw 0.5.112)
+<!-- EN: Voice stealing retriggers the envelopes again, so a held sustain pedal no longer swallows the attack and the filter sweep -->
+- Mark: "met sustain is er geen wah meer" (4-stemmige Ladder, simulator).
+  Zijn toetsenbord houdt bij sustain de noten zelf vast (geen CC 64 in de
+  opname): tot 12 noten tegelijk, 44 aanslagen terwijl alle 4 stemmen bezet
+  waren. De MIDI-IN steelt dan een stem, en zette diens gate laag en meteen
+  weer hoog in dezelfde aanroep. De CV-graaf leest één keer per tik (1 ms) en
+  zag dus geen nieuwe flank: de filter-envelope (Reset aan) sloeg niet opnieuw
+  aan. Dat stond al als FW-10 in de backlog, ook op de Teensy.
+- Nu: na een steal blijft de gate van die stem twee tikken laag
+  (`retrigLow_`), en in de mono-stand zonder Legato geeft een nieuwe toets
+  terwijl de vorige ligt ook een nieuwe aanslag (met Legato niet, zoals
+  bedoeld). In de core, dus Teensy en simulator gelijk. Test
+  `wasmMidiSteal.test.ts`.
+
 ### 2026-10-13 — Sustainpedaal op de AHDSR, en een VC SWITCH (fw 0.5.112)
 <!-- EN: AHDSR: sustain-pedal input with Hold and Release offsets (−H+, −R+), so the pedal can stretch an envelope -->
 <!-- EN: VC SWITCH: new dual A/B voltage-controlled switch for CV, with glide and crossfade -->

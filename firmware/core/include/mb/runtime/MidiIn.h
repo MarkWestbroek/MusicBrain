@@ -298,6 +298,11 @@ private:
     std::array<std::uint8_t, kMaxAllocVoices> velocity_{};   // 0..127
     std::array<std::uint8_t, kMaxAllocVoices> currentNote_{}; // last note assigned
     std::array<bool,         kMaxAllocVoices> gate_{};
+    // Na een steal blijft de gate van die stem een paar tikken laag: de
+    // CV-graaf leest één keer per tik, dus laag-en-meteen-hoog in dezelfde
+    // aanroep zag geen envelope (met sustain verdween de filter-wah, Mark
+    // 2026-10-13). Teller in tikken, afgeteld in tick().
+    std::array<std::uint8_t, kMaxAllocVoices> retrigLow_{};
     // Expression per voice (MPE step 1, doc/plans/mpe.md): pressure follows
     // channel pressure (all voices) or poly pressure (the voice holding the
     // note); a new note starts at the current channel pressure. Release

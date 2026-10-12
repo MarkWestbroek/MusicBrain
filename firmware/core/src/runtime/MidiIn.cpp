@@ -166,6 +166,9 @@ void MidiInModule::onNoteOn(std::uint8_t channel, std::uint8_t note, std::uint8_
         // Legato houdt de gate hoog zolang er al een toets lag: de stem
         // glijdt naar de nieuwe toon zonder dat de envelopes opnieuw
         // aanslaan. Dat is het hele punt van legato.
+        // Zonder legato is een nieuwe toets een nieuwe aanslag: de gate gaat
+        // twee tikken laag, ook als er al een toets lag (FW-10).
+        if (!legato_ && gate_[0]) retrigLow_[0] = 2;
         currentNote_[0] = after;
         velocity_   [0] = velocity;
         press_      [0] = chanPress_;
@@ -195,10 +198,11 @@ void MidiInModule::onNoteOn(std::uint8_t channel, std::uint8_t note, std::uint8_
                                                  // never returns >=kMax.
 
     if (r.stole) {
-        // The voice we got back was holding `r.prevNote`. Lower its gate
-        // first so downstream envelopes register a clean retrigger, even
-        // though we're about to raise it again below.
-        gate_[r.voiceIdx] = false;
+        // The voice we got back was holding `r.prevNote`. Its gate output
+        // stays low for two CV ticks (retrigLow_) so downstream envelopes
+        // see a real falling + rising edge; lowering and raising it in this
+        // same call was invisible to the 1 kHz CV graph.
+        retrigLow_[r.voiceIdx] = 2;
     }
 
     currentNote_[r.voiceIdx] = note;
@@ -289,6 +293,7 @@ void MidiInModule::onPitchBend(std::uint8_t channel, int value14) {
 }
 
 void MidiInModule::tick() {
+    for (auto& t : retrigLow_) if (t) --t;
     // Portamento: glide each voice's output toward its target note at a
     // constant rate (ms per octave). Off (glideMsPerOct_ == 0) → snap.
     constexpr float kTickMs = 1.0f;   // CV tick period (see main.cpp loop()).
@@ -343,7 +348,7 @@ float MidiInModule::readCvPort(std::string_view portId) const {
     const std::uint8_t n = alloc_.voiceCount();
     if (portId == "gate") {
         for (std::uint8_t v = 0; v < n; ++v)
-            if (gate_[v]) return 1.0f;
+            if (gate_[v] && !retrigLow_[v]) return 1.0f;
         return 0.0f;
     }
     if (portId == "pitch") {
@@ -396,7 +401,7 @@ float MidiInModule::readCvPort(std::string_view portId) const {
         return (vi < n) ? voicePitchV(static_cast<std::uint8_t>(vi)) : 0.0f;
     }
     if (int vi = parseVoicePort(portId, "gate"); vi >= 0) {
-        return (vi < n && gate_[vi]) ? 1.0f : 0.0f;
+        return (vi < n && gate_[vi] && !retrigLow_[vi]) ? 1.0f : 0.0f;
     }
     if (int vi = parseVoicePort(portId, "vel"); vi >= 0) {
         return (vi < n) ? voiceVelocity(static_cast<std::uint8_t>(vi)) : 0.0f;
