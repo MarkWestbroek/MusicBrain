@@ -269,11 +269,11 @@ public:
         } else if (portId == "gate" || portId == "trig") {
             voice_.trigger(value >= 0.5f);
         } else if (cvPortIs(portId, "harmonics")) {
-            voice_.patch().harmonics = clamp01(value);
+            harmonicsKc_.cv = value; voice_.patch().harmonics = harmonicsKc_.value(0.0f, 1.0f);
         } else if (cvPortIs(portId, "timbre")) {
-            voice_.patch().timbre = clamp01(value);
+            timbreKc_.cv = value; voice_.patch().timbre = timbreKc_.value(0.0f, 1.0f);
         } else if (cvPortIs(portId, "morph")) {
-            voice_.patch().morph = clamp01(value);
+            morphKc_.cv = value; voice_.patch().morph = morphKc_.value(0.0f, 1.0f);
         } else if (cvPortIs(portId, "level")) {
             voice_.setLevelCv(clamp01(value));
         }
@@ -286,9 +286,9 @@ public:
             if (auto* i = std::get_if<int32_t>(&value)) return static_cast<float>(*i);
             return fallback;
         };
-        if      (controlId == "harmonics") voice_.patch().harmonics = clamp01(asFloat(0.5f));
-        else if (controlId == "timbre")    voice_.patch().timbre    = clamp01(asFloat(0.5f));
-        else if (controlId == "morph")     voice_.patch().morph     = clamp01(asFloat(0.5f));
+        if      (controlId == "harmonics") { harmonicsKc_.knob = clamp01(asFloat(0.5f)); voice_.patch().harmonics = harmonicsKc_.value(0.0f, 1.0f); }
+        else if (controlId == "timbre")    { timbreKc_.knob = clamp01(asFloat(0.5f)); voice_.patch().timbre = timbreKc_.value(0.0f, 1.0f); }
+        else if (controlId == "morph")     { morphKc_.knob = clamp01(asFloat(0.5f)); voice_.patch().morph = morphKc_.value(0.0f, 1.0f); }
         else if (controlId == "decay")     voice_.patch().decay     = clamp01(asFloat(0.5f));
         else if (controlId == "lpg")       voice_.patch().lpg_colour = clamp01(asFloat(0.5f));
         else if (controlId == "engine") {
@@ -312,6 +312,9 @@ public:
     }
 
 private:
+    KnobCv harmonicsKc_{0.5f, 0.0f};   ///< harmonics: knop + CV (FW-MOD-1)
+    KnobCv timbreKc_{0.5f, 0.0f};   ///< timbre: knop + CV (FW-MOD-1)
+    KnobCv morphKc_{0.5f, 0.0f};   ///< morph: knop + CV (FW-MOD-1)
     static float clamp01(float v) {
         return v < 0.0f ? 0.0f : v > 1.0f ? 1.0f : v;
     }

@@ -12,8 +12,7 @@ String, plus the three extra models of the original (FM, quantized
 sympathetic strings, and string with reverb).
 
 Structure, Bright, Damping and Position shape the sound; each has a CV
-input (S+, B+, D+, P+) that takes over that knob while it is patched, from
-0 to 1. With Poly on 2 or 4, successive strums go to different internal
+input (S+, B+, D+, P+) that adds to that knob; ±1 sweeps the whole range. With Poly on 2 or 4, successive strums go to different internal
 voices so notes can ring on together; the voices alternate between the Odd
 and Even outputs, which makes a natural stereo pair.
 
@@ -39,10 +38,10 @@ and Even outputs, which makes a natural stereo pair.
 | Strum | in | gate | Strum: each rising edge plucks the resonator. |
 | Odd | out | audio | Odd voices. |
 | Even | out | audio | Even voices. |
-| S+ | in | cv | Sets Structure (0 to 1) while patched. |
-| B+ | in | cv | Sets Brightness (0 to 1) while patched. |
-| D+ | in | cv | Sets Damping (0 to 1) while patched. |
-| P+ | in | cv | Sets Position (0 to 1) while patched. |
+| S+ | in | cv | Adds to the Structure knob; ±1 sweeps its whole range. |
+| B+ | in | cv | Adds to the Brightness knob; ±1 sweeps its whole range. |
+| D+ | in | cv | Adds to the Damping knob; ±1 sweeps its whole range. |
+| P+ | in | cv | Adds to the Position knob; ±1 sweeps its whole range. |
 
 ## How it works
 
@@ -77,6 +76,7 @@ Editor: <https://editor.musicbrain.nl>
 
 ## Versions
 
+- **0.5.110**: the CV inputs add to their knob instead of replacing it.
 - **Simulator** (September 2026): the browser runs the same Rings code as
   WebAssembly.
 - **0.5.29**: first version (July 2026), with all six models and 1, 2 or 4

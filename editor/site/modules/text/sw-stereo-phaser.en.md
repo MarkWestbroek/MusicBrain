@@ -24,5 +24,6 @@ same C++ kernel runs on the Teensy and in the browser.
 
 ## Versions
 
+- **0.5.110**: the CV inputs add to their knob instead of replacing it.
 - **0.5.72**: first version (effects batch with harmonizer, plate/spring
   reverb and tremolo).

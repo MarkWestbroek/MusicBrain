@@ -101,6 +101,13 @@ static inline float mmb_clamp01(float v) { return v < 0.f ? 0.f : (v > 1.f ? 1.f
 static inline float mmb_in0(int i)       { return MMB_INPUTS[i].buf[0]; }
 static inline bool  mmb_gate_in(int i)   { return MMB_INPUTS[i].buf[0] >= 0.5f; }
 static inline bool  mmb_connected(int i) { return MMB_INPUTS[i].connected != 0; }
+/** Knop + CV op een "+"-ingang (zoals `KnobCv` in AudioModule.h): CV ±1 is het
+ *  hele knopbereik, begrensd. Zonder kabel alleen de knop. */
+static inline float mmb_knob_cv(float knob, int input, float lo, float hi) {
+    const float cv = mmb_connected(input) ? MMB_INPUTS[input].buf[0] : 0.f;
+    const float v = knob + cv * (hi - lo);
+    return v < lo ? lo : (v > hi ? hi : v);
+}
 static inline void  mmb_fill_out(int o, float v, int frames) {
     for (int k = 0; k < frames; ++k) MMB_OUTPUTS[o].buf[k] = v;
 }

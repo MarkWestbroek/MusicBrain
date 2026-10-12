@@ -32,10 +32,10 @@ side gets the same input as the left: mono in, stereo out.
 
 | Port | Direction | Signal | What it carries |
 |---|---|---|---|
-| T+ | in | cv | Replaces the Time knob while patched; the value is read in seconds. |
-| F+ | in | cv | Replaces the Fbk knob while patched. |
-| D+ | in | cv | Replaces the modulation Depth knob while patched (0 to 1). |
-| M+ | in | cv | Replaces the Mix knob while patched (0 to 1). |
+| T+ | in | cv | Adds to the Time knob; ±1 sweeps its whole range. |
+| F+ | in | cv | Adds to the Fbk knob; ±1 sweeps its whole range. |
+| D+ | in | cv | Adds to the modulation Depth knob; ±1 sweeps its whole range. |
+| M+ | in | cv | Adds to the Mix knob; ±1 sweeps its whole range. |
 | L | in | audio | Audio input, left (or mono). |
 | R | in | audio | Audio input, right; leave it empty for mono in, stereo out. |
 | L | out | audio | Audio output, left. |
@@ -74,6 +74,7 @@ Editor: <https://editor.musicbrain.nl>
 
 ## Versions
 
+- **0.5.110**: the CV inputs add to their knob instead of replacing it.
 - **0.5.77**: the echo memory moved to PSRAM; a module that drops out of
   the patch frees its buffers and gets fresh ones when it is reused.
 - **0.5.71**: first version (effects batch with stereo tape echo, BBD

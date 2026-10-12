@@ -33,6 +33,7 @@ and in the browser.
 
 ## Versions
 
+- **0.5.110**: the CV inputs add to their knob instead of replacing it.
 - **0.5.78**: plate output lowered; a sustained tone could build up above
   full scale.
 - **0.5.77**: a module that drops out of the patch frees its buffers and

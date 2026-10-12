@@ -84,9 +84,9 @@ public:
     }
     void writeCvPort(std::string_view portId, float value) override {
         auto& c = stream_.chorus();
-        if      (cvPortIs(portId, "rate"))  c.set_rate(value);
-        else if (cvPortIs(portId, "depth")) c.set_depth(value);
-        else if (cvPortIs(portId, "mix"))   c.set_mix(value);
+        if      (cvPortIs(portId, "rate"))  { rateKc_.cv = value; c.set_rate(rateKc_.value(0.02f, 12.0f)); }
+        else if (cvPortIs(portId, "depth")) { depthKc_.cv = value; c.set_depth(depthKc_.value(0.0f, 1.0f)); }
+        else if (cvPortIs(portId, "mix"))   { mixKc_.cv = value; c.set_mix(mixKc_.value(0.0f, 1.0f)); }
     }
 
     void setControl(std::string_view controlId, mb::runtime::ControlValue value) override {
@@ -97,11 +97,11 @@ public:
             return fb;
         };
         auto& c = stream_.chorus();
-        if      (controlId == "rate")     c.set_rate(asFloat(0.6f));
-        else if (controlId == "depth")    c.set_depth(asFloat(0.5f));
+        if      (controlId == "rate")     { rateKc_.knob = asFloat(0.6f); c.set_rate(rateKc_.value(0.02f, 12.0f)); }
+        else if (controlId == "depth")    { depthKc_.knob = asFloat(0.5f); c.set_depth(depthKc_.value(0.0f, 1.0f)); }
         else if (controlId == "delay")    c.set_delay(asFloat(8.0f));
         else if (controlId == "feedback") c.set_feedback(asFloat(0.0f));
-        else if (controlId == "mix")      c.set_mix(asFloat(0.5f));
+        else if (controlId == "mix")      { mixKc_.knob = asFloat(0.5f); c.set_mix(mixKc_.value(0.0f, 1.0f)); }
         else if (controlId == "spread")   c.set_spread(asFloat(1.0f));
         else if (controlId == "age")      c.set_age(asFloat(0.3f));
         else if (controlId == "tone")     c.set_tone(asFloat(0.6f));
@@ -115,6 +115,9 @@ public:
     }
 
 private:
+    KnobCv rateKc_{0.6f, 0.0f};   ///< rate: knop + CV (FW-MOD-1)
+    KnobCv depthKc_{0.5f, 0.0f};   ///< depth: knop + CV (FW-MOD-1)
+    KnobCv mixKc_{0.5f, 0.0f};   ///< mix: knop + CV (FW-MOD-1)
     mutable BbdChorusStream stream_;
 };
 

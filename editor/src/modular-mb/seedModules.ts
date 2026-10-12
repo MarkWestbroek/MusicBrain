@@ -6955,7 +6955,7 @@ export function seedGenerativeJamPatch(project: ModularProject): ModularProject 
       [mar.id]:    { tempo: 180, bias: 0.4, jitter: 0.1, model: 0, dejavu: 0, length: 8, spread: 0.5, xbias: 0.5, steps: 0.8, scale: 2, range: 1 },
       [plaits.id]: { engine: 11, harmonics: 0.5, timbre: 0.45, morph: 0.5, decay: 0.55, lpg: 0.6 },  // 11 = Grain — tokkelt mooi (heette hier string; klank ongewijzigd)
       [tides.id]:  { rate: 0.07, mode: 1, output: 2, shape: 0.5, slope: 0.5, smooth: 0.6, shift: 0.5 },
-      [clouds.id]: { position: 0.35, size: 0.6, pitch: 0, density: 0.5, texture: 0.5, mix: 0.55, spread: 0.6, feedback: 0.3, reverb: 0.55, mode: 0 },
+      [clouds.id]: { position: 0, size: 0.6, pitch: 0, density: 0.5, texture: 0, /* P+ en T+ tellen sinds fw 0.5.110 bij de knop op; 0 = alleen Tides, zoals voorheen */ mix: 0.55, spread: 0.6, feedback: 0.3, reverb: 0.55, mode: 0 },
       [out.id]:    { level: 0.8 },
     },
     envelopes: [], lfos: [],
@@ -7033,7 +7033,7 @@ export function seedCloudsAmbientPatch(project: ModularProject): ModularProject 
     controlState: {
       [plaits.id]: { engine: 4, harmonics: 0.55, timbre: 0.5, morph: 0.4, decay: 0.7, lpg: 0.5 },  // 4 = 6-op FM C — draagt lang (heette hier additive; klank ongewijzigd)
       [tides.id]:  { rate: 0.08, mode: 1, output: 2, shape: 0.5, slope: 0.5, smooth: 0.6, shift: 0.5 },  // loop + phase = quadratuur-LFO
-      [clouds.id]: { position: 0.3, size: 0.7, pitch: 0, density: 0.45, texture: 0.5, mix: 0.7, spread: 0.6, feedback: 0.35, reverb: 0.6, mode: 0 },
+      [clouds.id]: { position: 0, size: 0.7, pitch: 0, density: 0.45, texture: 0, /* P+ en T+ tellen sinds fw 0.5.110 bij de knop op; 0 = alleen Tides, zoals voorheen */ mix: 0.7, spread: 0.6, feedback: 0.35, reverb: 0.6, mode: 0 },
       [out.id]:    { level: 0.8 },
       [mi.id]:     { channel: 0, voiceCount: 1 },
     },

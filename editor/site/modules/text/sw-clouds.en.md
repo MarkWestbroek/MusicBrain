@@ -10,8 +10,9 @@ so you can play with what is in the buffer; Trig fires a single grain.
 Mode switches between four ways of playing the buffer: granular, pitch
 shifting and time stretching, a looping delay, and a spectral mode. Mix
 blends dry and wet; Spread, Feedbk and Reverb add stereo width, feedback and
-the built-in reverb. A mono source on In L works too. The CV inputs take
-over their knob while patched (0 to 1; pitch CV in volts per octave).
+the built-in reverb. A mono source on In L works too. The CV inputs add
+to their knob, as on the original: ±1 sweeps the whole range (pitch CV in
+volts per octave).
 
 ## How it works
 
@@ -37,6 +38,7 @@ code to WebAssembly.
 
 ## Versions
 
+- **0.5.110**: the CV inputs add to their knob instead of replacing it.
 - **Simulator** (September 2026): the browser runs the same Clouds code as
   WebAssembly.
 - **0.5.31**: first version (July 2026), stereo in and out, four modes.

@@ -33,4 +33,5 @@ the Teensy and in the browser.
 
 ## Versions
 
+- **0.5.110**: the CV inputs add to their knob instead of replacing it.
 - **0.5.78**: first version. Measured on the Teensy: about 17 % CPU.

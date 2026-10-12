@@ -115,10 +115,10 @@ public:
     }
     void writeCvPort(std::string_view portId, float value) override {
         auto& e = stream_.echo();
-        if      (cvPortIs(portId, "time")) e.set_time(value);
-        else if (cvPortIs(portId, "fbk"))  e.set_feedback(value);
-        else if (cvPortIs(portId, "mix"))  e.set_mix(value);
-        else if (cvPortIs(portId, "mod"))  e.set_mod_depth(value);
+        if      (cvPortIs(portId, "time")) { timeKc_.cv = value; e.set_time(timeKc_.value(0.005f, 1.0f)); }
+        else if (cvPortIs(portId, "fbk"))  { fbkKc_.cv = value; e.set_feedback(fbkKc_.value(0.0f, 1.1f)); }
+        else if (cvPortIs(portId, "mix"))  { mixKc_.cv = value; e.set_mix(mixKc_.value(0.0f, 1.0f)); }
+        else if (cvPortIs(portId, "mod"))  { modKc_.cv = value; e.set_mod_depth(modKc_.value(0.0f, 1.0f)); }
     }
 
     void setControl(std::string_view controlId, mb::runtime::ControlValue value) override {
@@ -129,13 +129,13 @@ public:
             return fb;
         };
         auto& e = stream_.echo();
-        if      (controlId == "time")      e.set_time(asFloat(0.3f));
+        if      (controlId == "time")      { timeKc_.knob = asFloat(0.3f); e.set_time(timeKc_.value(0.005f, 1.0f)); }
         else if (controlId == "ratio")     e.set_ratio(asFloat(1.0f));
-        else if (controlId == "feedback")  e.set_feedback(asFloat(0.4f));
+        else if (controlId == "feedback")  { fbkKc_.knob = asFloat(0.4f); e.set_feedback(fbkKc_.value(0.0f, 1.1f)); }
         else if (controlId == "cross")     e.set_cross(asFloat(0.0f));
-        else if (controlId == "mix")       e.set_mix(asFloat(0.4f));
+        else if (controlId == "mix")       { mixKc_.knob = asFloat(0.4f); e.set_mix(mixKc_.value(0.0f, 1.0f)); }
         else if (controlId == "mod_rate")  e.set_mod_rate(asFloat(0.8f));
-        else if (controlId == "mod_depth") e.set_mod_depth(asFloat(0.2f));
+        else if (controlId == "mod_depth") { modKc_.knob = asFloat(0.2f); e.set_mod_depth(modKc_.value(0.0f, 1.0f)); }
         else if (controlId == "bits")      e.set_bits(static_cast<int>(asFloat(12.0f) + 0.5f));
         else if (controlId == "band")      e.set_band(asFloat(8000.0f));
     }
@@ -151,6 +151,10 @@ public:
     }
 
 private:
+    KnobCv timeKc_{0.3f, 0.0f};   ///< time: knop + CV (FW-MOD-1)
+    KnobCv fbkKc_{0.4f, 0.0f};   ///< feedback: knop + CV (FW-MOD-1)
+    KnobCv mixKc_{0.4f, 0.0f};   ///< mix: knop + CV (FW-MOD-1)
+    KnobCv modKc_{0.2f, 0.0f};   ///< mod_depth: knop + CV (FW-MOD-1)
     mutable DigitalEchoStream stream_;
 };
 

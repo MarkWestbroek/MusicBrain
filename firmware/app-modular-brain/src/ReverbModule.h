@@ -111,8 +111,8 @@ public:
     }
     void writeCvPort(std::string_view portId, float value) override {
         auto& r = stream_.rv();
-        if      (cvPortIs(portId, "size")) r.set_size(value);
-        else if (cvPortIs(portId, "mix"))  r.set_mix(value);
+        if      (cvPortIs(portId, "size")) { sizeKc_.cv = value; r.set_size(sizeKc_.value(0.0f, 1.0f)); }
+        else if (cvPortIs(portId, "mix"))  { mixKc_.cv = value; r.set_mix(mixKc_.value(0.0f, 1.0f)); }
     }
 
     void setControl(std::string_view controlId, mb::runtime::ControlValue value) override {
@@ -124,11 +124,11 @@ public:
         };
         auto& r = stream_.rv();
         if      (controlId == "mode")     r.set_mode(static_cast<int>(asFloat(0.0f) + 0.5f));
-        else if (controlId == "size")     r.set_size(asFloat(0.6f));
+        else if (controlId == "size")     { sizeKc_.knob = asFloat(0.6f); r.set_size(sizeKc_.value(0.0f, 1.0f)); }
         else if (controlId == "damp")     r.set_damp(asFloat(0.4f));
         else if (controlId == "predelay") r.set_predelay(asFloat(10.0f));
         else if (controlId == "mod")      r.set_mod(asFloat(0.3f));
-        else if (controlId == "mix")      r.set_mix(asFloat(0.3f));
+        else if (controlId == "mix")      { mixKc_.knob = asFloat(0.3f); r.set_mix(mixKc_.value(0.0f, 1.0f)); }
     }
 
     void onRetire() override { stream_.park(); }
@@ -142,6 +142,8 @@ public:
     }
 
 private:
+    KnobCv sizeKc_{0.6f, 0.0f};   ///< size: knop + CV (FW-MOD-1)
+    KnobCv mixKc_{0.3f, 0.0f};   ///< mix: knop + CV (FW-MOD-1)
     mutable ReverbStream stream_;
 };
 

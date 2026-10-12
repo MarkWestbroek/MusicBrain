@@ -78,8 +78,8 @@ public:
     }
     void writeCvPort(std::string_view portId, float value) override {
         auto& p = stream_.ph();
-        if      (cvPortIs(portId, "rate"))  p.set_rate(value);
-        else if (cvPortIs(portId, "depth")) p.set_depth(value);
+        if      (cvPortIs(portId, "rate"))  { rateKc_.cv = value; p.set_rate(rateKc_.value(0.02f, 8.0f)); }
+        else if (cvPortIs(portId, "depth")) { depthKc_.cv = value; p.set_depth(depthKc_.value(0.0f, 1.0f)); }
     }
 
     void setControl(std::string_view controlId, mb::runtime::ControlValue value) override {
@@ -90,8 +90,8 @@ public:
             return fb;
         };
         auto& p = stream_.ph();
-        if      (controlId == "rate")     p.set_rate(asFloat(0.4f));
-        else if (controlId == "depth")    p.set_depth(asFloat(0.7f));
+        if      (controlId == "rate")     { rateKc_.knob = asFloat(0.4f); p.set_rate(rateKc_.value(0.02f, 8.0f)); }
+        else if (controlId == "depth")    { depthKc_.knob = asFloat(0.7f); p.set_depth(depthKc_.value(0.0f, 1.0f)); }
         else if (controlId == "feedback") p.set_feedback(asFloat(0.3f));
         else if (controlId == "mix")      p.set_mix(asFloat(0.5f));
         else if (controlId == "spread")   p.set_spread(asFloat(0.5f));
@@ -105,6 +105,8 @@ public:
     }
 
 private:
+    KnobCv rateKc_{0.4f, 0.0f};   ///< rate: knop + CV (FW-MOD-1)
+    KnobCv depthKc_{0.7f, 0.0f};   ///< depth: knop + CV (FW-MOD-1)
     mutable StereoPhaserStream stream_;
 };
 

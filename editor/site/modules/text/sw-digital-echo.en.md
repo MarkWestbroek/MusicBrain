@@ -32,6 +32,7 @@ reconstruction filter on Band smooths the output. Echo times run from 5 ms to
 
 ## Versions
 
+- **0.5.110**: the CV inputs add to their knob instead of replacing it.
 - **0.5.77**: the echo memory moved to PSRAM; a module that drops out of
   the patch frees its buffers and gets fresh ones when it is reused.
 - **0.5.71**: first version (effects batch with stereo tape echo, BBD

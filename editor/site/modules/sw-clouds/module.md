@@ -14,8 +14,9 @@ so you can play with what is in the buffer; Trig fires a single grain.
 Mode switches between four ways of playing the buffer: granular, pitch
 shifting and time stretching, a looping delay, and a spectral mode. Mix
 blends dry and wet; Spread, Feedbk and Reverb add stereo width, feedback and
-the built-in reverb. A mono source on In L works too. The CV inputs take
-over their knob while patched (0 to 1; pitch CV in volts per octave).
+the built-in reverb. A mono source on In L works too. The CV inputs add
+to their knob, as on the original: ±1 sweeps the whole range (pitch CV in
+volts per octave).
 
 ## Controls
 
@@ -42,12 +43,12 @@ over their knob while patched (0 to 1; pitch CV in volts per octave).
 | In R | in | audio | Audio in, right. |
 | Frz | in | gate | High = freeze the buffer. |
 | Trig | in | gate | Each rising edge fires a single grain. |
-| S+ | in | cv | Sets Size (0 to 1) while patched. |
+| S+ | in | cv | Adds to the Size knob; ±1 sweeps its whole range. |
 | Out L | out | audio | Audio out, left. |
 | Out R | out | audio | Audio out, right. |
-| P+ | in | cv | Sets Position (0 to 1) while patched. |
-| D+ | in | cv | Sets Density (0 to 1) while patched. |
-| T+ | in | cv | Sets Texture (0 to 1) while patched. |
+| P+ | in | cv | Adds to the Position knob; ±1 sweeps its whole range. |
+| D+ | in | cv | Adds to the Density knob; ±1 sweeps its whole range. |
+| T+ | in | cv | Adds to the Texture knob; ±1 sweeps its whole range. |
 
 ## How it works
 
@@ -84,6 +85,7 @@ Editor: <https://editor.musicbrain.nl>
 
 ## Versions
 
+- **0.5.110**: the CV inputs add to their knob instead of replacing it.
 - **Simulator** (September 2026): the browser runs the same Clouds code as
   WebAssembly.
 - **0.5.31**: first version (July 2026), stereo in and out, four modes.

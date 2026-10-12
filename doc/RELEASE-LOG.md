@@ -17,6 +17,26 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-12 — "+"-ingangen tellen bij de knop op (fw 0.5.110)
+<!-- EN: CV inputs marked "+" (chorus, echo, shimmer, reverb, stereo phaser, Clouds, Rings, Plaits) now add to their knob instead of replacing it -->
+- Laatste punt van FW-MOD-1. Bij BBD chorus, digital echo, shimmer, reverb,
+  stereo phaser, Clouds, Rings en Plaits **verving** een kabel op een
+  "+"-ingang de knop (en las hij de CV in de eenheid van de knop: Hz,
+  seconden). Nu telt hij op, zoals het "+" en de originelen van Mutable
+  Instruments zeggen: waarde = knop + CV × het bereik van de knop,
+  begrensd. Een LFO van ±1 zwaait dus over het hele bereik, een envelope van
+  0..1 telt erbij op. Clouds Pitch: knop + CV in V/Oct (×12 halve tonen).
+- Firmware: `KnobCv` in `AudioModule.h`; wasm: `mmb_knob_cv` in
+  `mmb_abi.h`. Zonder kabel geldt de knop (de CV-graaf schrijft 0 bij
+  loskoppelen).
+- **Bestaande patches**: met een kabel op zo'n ingang verandert de klank,
+  want de knop telt nu mee. De drie seeds met Tides op Clouds Position en
+  Texture hebben die knoppen op 0 gekregen: precies als voorheen. Eigen
+  patches met een CV op deze ingangen: de knop terugdraaien naar het
+  minimum geeft het oude gedrag.
+- Test `wasmKnobCv.test.ts`; sitepagina's en poortuitleg van de acht
+  modules bij.
+
 ### 2026-10-12 — VCO-FM, LFO-Gate en Stages-Rate werken (fw 0.5.109)
 <!-- EN: VCO: the FM input and FM knob work (pitch modulation in octaves); the unused Sync input is gone -->
 <!-- EN: LFO: Gate input on the panel, so the Gated and OneShot run modes work -->

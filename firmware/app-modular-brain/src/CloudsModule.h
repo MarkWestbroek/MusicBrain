@@ -291,12 +291,12 @@ public:
             if (high && !lastTrigHigh_) voice_.pulseTrigger();
             lastTrigHigh_ = high;
         }
-        else if (cvPortIs(portId, "position")) p->position = clamp01(value);
-        else if (cvPortIs(portId, "size"))     p->size     = clamp01(value);
-        else if (cvPortIs(portId, "pitch"))    p->pitch    = value * 12.0f;  // V/Oct → semitonen
-        else if (cvPortIs(portId, "density"))  p->density  = clamp01(value);
-        else if (cvPortIs(portId, "texture"))  p->texture  = clamp01(value);
-        else if (cvPortIs(portId, "mix"))      p->dry_wet  = clamp01(value);
+        else if (cvPortIs(portId, "position")) { positionKc_.cv = value; p->position = positionKc_.value(0.0f, 1.0f); }
+        else if (cvPortIs(portId, "size"))     { sizeKc_.cv = value; p->size = sizeKc_.value(0.0f, 1.0f); }
+        else if (cvPortIs(portId, "pitch"))    { pitchCv_ = value; p->pitch = pitchKnob_ + pitchCv_ * 12.0f; }  // + V/Oct (semitonen)
+        else if (cvPortIs(portId, "density"))  { densityKc_.cv = value; p->density = densityKc_.value(0.0f, 1.0f); }
+        else if (cvPortIs(portId, "texture"))  { textureKc_.cv = value; p->texture = textureKc_.value(0.0f, 1.0f); }
+        else if (cvPortIs(portId, "mix"))      { mixKc_.cv = value; p->dry_wet = mixKc_.value(0.0f, 1.0f); }
     }
 
     void setControl(std::string_view controlId,
@@ -313,12 +313,12 @@ public:
             return fallback;
         };
         clouds::Parameters* p = voice_.params();
-        if      (controlId == "position") p->position      = clamp01(asFloat(0.5f));
-        else if (controlId == "size")     p->size          = clamp01(asFloat(0.5f));
-        else if (controlId == "pitch")    p->pitch         = asFloat(0.0f);
-        else if (controlId == "density")  p->density       = clamp01(asFloat(0.5f));
-        else if (controlId == "texture")  p->texture       = clamp01(asFloat(0.5f));
-        else if (controlId == "mix")      p->dry_wet       = clamp01(asFloat(0.5f));
+        if      (controlId == "position") { positionKc_.knob = clamp01(asFloat(0.5f)); p->position = positionKc_.value(0.0f, 1.0f); }
+        else if (controlId == "size")     { sizeKc_.knob = clamp01(asFloat(0.5f)); p->size = sizeKc_.value(0.0f, 1.0f); }
+        else if (controlId == "pitch")    { pitchKnob_ = asFloat(0.0f); p->pitch = pitchKnob_ + pitchCv_ * 12.0f; }
+        else if (controlId == "density")  { densityKc_.knob = clamp01(asFloat(0.5f)); p->density = densityKc_.value(0.0f, 1.0f); }
+        else if (controlId == "texture")  { textureKc_.knob = clamp01(asFloat(0.5f)); p->texture = textureKc_.value(0.0f, 1.0f); }
+        else if (controlId == "mix")      { mixKc_.knob = clamp01(asFloat(0.5f)); p->dry_wet = mixKc_.value(0.0f, 1.0f); }
         else if (controlId == "spread")   p->stereo_spread = clamp01(asFloat(0.3f));
         else if (controlId == "feedback") p->feedback      = clamp01(asFloat(0.3f));
         else if (controlId == "reverb")   p->reverb        = clamp01(asFloat(0.3f));
@@ -343,6 +343,12 @@ public:
     }
 
 private:
+    float pitchKnob_ = 0.0f, pitchCv_ = 0.0f;   ///< pitch: knop (semitonen) + CV (V/Oct)
+    KnobCv positionKc_{0.5f, 0.0f};   ///< position: knop + CV (FW-MOD-1)
+    KnobCv sizeKc_{0.5f, 0.0f};   ///< size: knop + CV (FW-MOD-1)
+    KnobCv densityKc_{0.5f, 0.0f};   ///< density: knop + CV (FW-MOD-1)
+    KnobCv textureKc_{0.5f, 0.0f};   ///< texture: knop + CV (FW-MOD-1)
+    KnobCv mixKc_{0.5f, 0.0f};   ///< mix: knop + CV (FW-MOD-1)
     static float clamp01(float v) {
         return v < 0.0f ? 0.0f : v > 1.0f ? 1.0f : v;
     }

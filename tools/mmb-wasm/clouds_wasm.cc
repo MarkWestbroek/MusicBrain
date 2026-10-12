@@ -3,6 +3,7 @@
 #include "mmb_abi.h"
 #include "clouds/dsp/granular_processor.h"
 
+// "+"-ingangen tellen bij de knop op (mmb_knob_cv, fw 0.5.110).
 const char* const MMB_TYPE_ID     = "tp_mmb_clouds";
 const float       MMB_NATIVE_RATE = 32000.0f;
 const int         MMB_BLOCK       = static_cast<int>(clouds::kMaxBlockSize);
@@ -74,12 +75,12 @@ void mmb_on_control(int idx, float v) {
 
 void mmb_process(int frames) {
     clouds::Parameters* p = g_proc.mutable_parameters();
-    p->position = mmb_connected(IN_POSITION) ? mmb_clamp01(mmb_in0(IN_POSITION)) : g_knobPos;
-    p->size     = mmb_connected(IN_SIZE)     ? mmb_clamp01(mmb_in0(IN_SIZE))     : g_knobSize;
-    p->pitch    = mmb_connected(IN_PITCH)    ? mmb_in0(IN_PITCH) * 12.0f          : g_knobPitch;
-    p->density  = mmb_connected(IN_DENSITY)  ? mmb_clamp01(mmb_in0(IN_DENSITY))  : g_knobDens;
-    p->texture  = mmb_connected(IN_TEXTURE)  ? mmb_clamp01(mmb_in0(IN_TEXTURE))  : g_knobTex;
-    p->dry_wet  = mmb_connected(IN_MIX)      ? mmb_clamp01(mmb_in0(IN_MIX))      : g_knobMix;
+    p->position = mmb_knob_cv(g_knobPos, IN_POSITION, 0.f, 1.f);
+    p->size     = mmb_knob_cv(g_knobSize, IN_SIZE, 0.f, 1.f);
+    p->pitch    = g_knobPitch + (mmb_connected(IN_PITCH) ? mmb_in0(IN_PITCH) * 12.0f : 0.f);
+    p->density  = mmb_knob_cv(g_knobDens, IN_DENSITY, 0.f, 1.f);
+    p->texture  = mmb_knob_cv(g_knobTex, IN_TEXTURE, 0.f, 1.f);
+    p->dry_wet  = mmb_knob_cv(g_knobMix, IN_MIX, 0.f, 1.f);
     p->freeze   = g_freezeKnob || (mmb_connected(IN_FREEZE) && mmb_gate_in(IN_FREEZE));
     const bool trigHigh = mmb_gate_in(IN_TRIG);
     if (trigHigh && !g_trigPrev) g_trigPending = true;

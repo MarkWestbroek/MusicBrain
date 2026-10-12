@@ -13,7 +13,7 @@ each engine; Decay and LPG set the built-in low-pass gate.
 Patch pitch into V/Oct and a gate or trigger into Trig: each rising edge
 strikes the low-pass gate, and the drum and physical-model engines use it
 as their hit. Out is the main sound, Aux a variant that depends on the
-engine. H+, T+ and M+ take over their knob while patched (0 to 1). The
+engine. H+, T+ and M+ add to their knob; ±1 sweeps the whole range. The
 Speech engine (15) needs Trig patched; Harmonics then picks the speech
 model, Morph the vowel or word, and Timbre shifts the formants.
 
@@ -35,9 +35,9 @@ model, Morph the vowel or word, and Timbre shifts the formants.
 
 | Port | Direction | Signal | What it carries |
 |---|---|---|---|
-| H+ | in | cv | Sets Harmonics (0 to 1) while patched. |
-| T+ | in | cv | Sets Timbre (0 to 1) while patched. |
-| M+ | in | cv | Sets Morph (0 to 1) while patched. |
+| H+ | in | cv | Adds to the Harmonics knob; ±1 sweeps its whole range. |
+| T+ | in | cv | Adds to the Timbre knob; ±1 sweeps its whole range. |
+| M+ | in | cv | Adds to the Morph knob; ±1 sweeps its whole range. |
 | V/Oct | in | cv | Pitch, 1 V per octave; 0 V is C4. |
 | Trig | in | gate | Trig: each rising edge strikes the low-pass gate and the percussive engines. |
 | Out | out | audio | The main sound. |
@@ -79,6 +79,7 @@ Editor: <https://editor.musicbrain.nl>
 
 ## Versions
 
+- **0.5.110**: the CV inputs add to their knob instead of replacing it.
 - **October 2026** (editor): the engine name is shown next to the number.
 - **0.5.90**: engine numbering corrected and all 24 engines reachable (the
   knob stopped at 15 and used the old list of 16 names); existing patches

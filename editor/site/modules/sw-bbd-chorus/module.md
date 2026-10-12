@@ -32,9 +32,9 @@ it towards a flanger.
 
 | Port | Direction | Signal | What it carries |
 |---|---|---|---|
-| R+ | in | cv | Replaces the Rate knob while patched; the value is read in Hz. |
-| D+ | in | cv | Replaces the Depth knob while patched (0 to 1). |
-| M+ | in | cv | Replaces the Mix knob while patched (0 to 1). |
+| R+ | in | cv | Adds to the Rate knob; ±1 sweeps its whole range. |
+| D+ | in | cv | Adds to the Depth knob; ±1 sweeps its whole range. |
+| M+ | in | cv | Adds to the Mix knob; ±1 sweeps its whole range. |
 | L | in | audio | Audio input, left (or mono). |
 | R | in | audio | Audio input, right; leave it empty for mono in, stereo out. |
 | L | out | audio | Audio output, left. |
@@ -75,5 +75,6 @@ Editor: <https://editor.musicbrain.nl>
 
 ## Versions
 
+- **0.5.110**: the CV inputs add to their knob instead of replacing it.
 - **0.5.71**: first version (effects batch with stereo tape echo, digital
   echo, ring modulator and octaver).

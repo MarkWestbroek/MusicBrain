@@ -4,6 +4,7 @@
 #include "mmb_abi.h"
 #include "mmb_dsp/shimmer.h"
 
+// "+"-ingangen tellen bij de knop op (mmb_knob_cv, fw 0.5.110).
 const char* const MMB_TYPE_ID     = "tp_mmb_shimmer";
 const float       MMB_NATIVE_RATE = 44100.0f;
 const int         MMB_BLOCK       = 32;
@@ -49,9 +50,9 @@ void mmb_on_control(int idx, float v) {
 }
 
 void mmb_process(int frames) {
-    g_sh.set_shimmer(mmb_connected(IN_SHIMMER) ? mmb_in0(IN_SHIMMER) : g_knobShimmer);
-    g_sh.set_size(mmb_connected(IN_SIZE) ? mmb_in0(IN_SIZE) : g_knobSize);
-    g_sh.set_mix(mmb_connected(IN_MIX) ? mmb_in0(IN_MIX) : g_knobMix);
+    g_sh.set_shimmer(mmb_knob_cv(g_knobShimmer, IN_SHIMMER, 0.0f, 1.0f));
+    g_sh.set_size(mmb_knob_cv(g_knobSize, IN_SIZE, 0.0f, 1.0f));
+    g_sh.set_mix(mmb_knob_cv(g_knobMix, IN_MIX, 0.0f, 1.0f));
     const bool stereo = mmb_connected(IN_R);
     float x[2];
     for (int k = 0; k < frames; ++k) {

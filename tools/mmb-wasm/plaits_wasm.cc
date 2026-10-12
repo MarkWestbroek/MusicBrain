@@ -5,6 +5,7 @@
 #include "plaits/dsp/voice.h"
 #include "stmlib/utils/buffer_allocator.h"
 
+// "+"-ingangen tellen bij de knop op (mmb_knob_cv, fw 0.5.110).
 const char* const MMB_TYPE_ID     = "tp_mmb_plaits";
 const float       MMB_NATIVE_RATE = 48000.0f;
 const int         MMB_BLOCK       = static_cast<int>(plaits::kMaxBlockSize);
@@ -65,9 +66,9 @@ void mmb_on_control(int idx, float v) {
 void mmb_process(int frames) {
     g_patch.note = 60.f + 12.f * mmb_in0(IN_VOCT) + g_coarse + g_fine / 100.f;
     g_mods.trigger = mmb_gate_in(IN_GATE) ? 1.f : 0.f;
-    g_patch.harmonics = mmb_connected(IN_HARMONICS) ? mmb_clamp01(mmb_in0(IN_HARMONICS)) : g_knob[0];
-    g_patch.timbre    = mmb_connected(IN_TIMBRE)    ? mmb_clamp01(mmb_in0(IN_TIMBRE))    : g_knob[1];
-    g_patch.morph     = mmb_connected(IN_MORPH)     ? mmb_clamp01(mmb_in0(IN_MORPH))     : g_knob[2];
+    g_patch.harmonics = mmb_knob_cv(g_knob[0], IN_HARMONICS, 0.f, 1.f);
+    g_patch.timbre    = mmb_knob_cv(g_knob[1], IN_TIMBRE, 0.f, 1.f);
+    g_patch.morph     = mmb_knob_cv(g_knob[2], IN_MORPH, 0.f, 1.f);
     if (mmb_connected(IN_LEVEL)) { g_mods.level = mmb_clamp01(mmb_in0(IN_LEVEL)); g_mods.level_patched = true; }
 
     plaits::Voice::Frame f[plaits::kMaxBlockSize];

@@ -257,13 +257,13 @@ public:
             }
             lastGateHigh_ = high;
         } else if (cvPortIs(portId, "structure")) {
-            voice_.patch().structure = clamp01(value);
+            structureKc_.cv = value; voice_.patch().structure = structureKc_.value(0.0f, 1.0f);
         } else if (cvPortIs(portId, "brightness")) {
-            voice_.patch().brightness = clamp01(value);
+            brightnessKc_.cv = value; voice_.patch().brightness = brightnessKc_.value(0.0f, 1.0f);
         } else if (cvPortIs(portId, "damping")) {
-            voice_.patch().damping = clamp01(value);
+            dampingKc_.cv = value; voice_.patch().damping = dampingKc_.value(0.0f, 1.0f);
         } else if (cvPortIs(portId, "position")) {
-            voice_.patch().position = clamp01(value);
+            positionKc_.cv = value; voice_.patch().position = positionKc_.value(0.0f, 1.0f);
         }
     }
 
@@ -274,10 +274,10 @@ public:
             if (auto* i = std::get_if<int32_t>(&value)) return static_cast<float>(*i);
             return fallback;
         };
-        if      (controlId == "structure")  voice_.patch().structure  = clamp01(asFloat(0.4f));
-        else if (controlId == "brightness") voice_.patch().brightness = clamp01(asFloat(0.6f));
-        else if (controlId == "damping")    voice_.patch().damping    = clamp01(asFloat(0.6f));
-        else if (controlId == "position")   voice_.patch().position   = clamp01(asFloat(0.3f));
+        if      (controlId == "structure")  { structureKc_.knob = clamp01(asFloat(0.4f)); voice_.patch().structure = structureKc_.value(0.0f, 1.0f); }
+        else if (controlId == "brightness") { brightnessKc_.knob = clamp01(asFloat(0.6f)); voice_.patch().brightness = brightnessKc_.value(0.0f, 1.0f); }
+        else if (controlId == "damping")    { dampingKc_.knob = clamp01(asFloat(0.6f)); voice_.patch().damping = dampingKc_.value(0.0f, 1.0f); }
+        else if (controlId == "position")   { positionKc_.knob = clamp01(asFloat(0.3f)); voice_.patch().position = positionKc_.value(0.0f, 1.0f); }
         else if (controlId == "model") {
             int m = static_cast<int>(asFloat(0.0f));
             if (m < 0) m = 0;
@@ -304,6 +304,10 @@ public:
     }
 
 private:
+    KnobCv structureKc_{0.4f, 0.0f};   ///< structure: knop + CV (FW-MOD-1)
+    KnobCv brightnessKc_{0.6f, 0.0f};   ///< brightness: knop + CV (FW-MOD-1)
+    KnobCv dampingKc_{0.6f, 0.0f};   ///< damping: knop + CV (FW-MOD-1)
+    KnobCv positionKc_{0.3f, 0.0f};   ///< position: knop + CV (FW-MOD-1)
     static float clamp01(float v) {
         return v < 0.0f ? 0.0f : v > 1.0f ? 1.0f : v;
     }

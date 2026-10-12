@@ -42,6 +42,21 @@ inline bool cvPortIs(std::string_view portId, std::string_view name) {
         && portId.substr(name.size()) == kSuffix;
 }
 
+/**
+ * @brief Knop + CV op een "+"-ingang (FW-MOD-1, fw 0.5.110): de kabel telt
+ *        bij de knop op in plaats van hem te vervangen. CV ±1 is het hele
+ *        knopbereik; de som blijft binnen het bereik. Zonder kabel is `cv` 0
+ *        (de CV-graaf schrijft 0 bij loskoppelen), dus dan geldt de knop.
+ */
+struct KnobCv {
+    float knob = 0.0f;
+    float cv   = 0.0f;
+    float value(float lo, float hi) const {
+        const float v = knob + cv * (hi - lo);
+        return v < lo ? lo : (v > hi ? hi : v);
+    }
+};
+
 /** @brief Describes one endpoint of a dynamic audio cable. */
 struct AudioPort {
     AudioStream* stream  = nullptr; ///< Backing Teensy AudioStream object.

@@ -6,6 +6,7 @@
 #include "rings/dsp/performance_state.h"
 #include "rings/dsp/strummer.h"
 
+// "+"-ingangen tellen bij de knop op (mmb_knob_cv, fw 0.5.110).
 const char* const MMB_TYPE_ID     = "tp_mmb_rings";
 const float       MMB_NATIVE_RATE = 48000.0f;
 const int         MMB_BLOCK       = static_cast<int>(rings::kMaxBlockSize);
@@ -79,10 +80,10 @@ void mmb_process(int frames) {
     g_gate = high;
     applyPitch();
     // Parameter-CV's vervangen de knop zolang de poort verbonden is (firmware).
-    g_patch.structure  = mmb_connected(IN_STRUCTURE)  ? mmb_clamp01(mmb_in0(IN_STRUCTURE))  : g_knob[0];
-    g_patch.brightness = mmb_connected(IN_BRIGHTNESS) ? mmb_clamp01(mmb_in0(IN_BRIGHTNESS)) : g_knob[1];
-    g_patch.damping    = mmb_connected(IN_DAMPING)    ? mmb_clamp01(mmb_in0(IN_DAMPING))    : g_knob[2];
-    g_patch.position   = mmb_connected(IN_POSITION)   ? mmb_clamp01(mmb_in0(IN_POSITION))   : g_knob[3];
+    g_patch.structure  = mmb_knob_cv(g_knob[0], IN_STRUCTURE, 0.f, 1.f);
+    g_patch.brightness = mmb_knob_cv(g_knob[1], IN_BRIGHTNESS, 0.f, 1.f);
+    g_patch.damping    = mmb_knob_cv(g_knob[2], IN_DAMPING, 0.f, 1.f);
+    g_patch.position   = mmb_knob_cv(g_knob[3], IN_POSITION, 0.f, 1.f);
 
     g_ps.strum = g_strumPending;
     g_strumPending = false;

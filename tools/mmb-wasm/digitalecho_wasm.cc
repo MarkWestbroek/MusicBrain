@@ -5,6 +5,7 @@
 #include "mmb_abi.h"
 #include "mmb_dsp/digital_echo.h"
 
+// "+"-ingangen tellen bij de knop op (mmb_knob_cv, fw 0.5.110).
 const char* const MMB_TYPE_ID     = "tp_mmb_digital_echo";
 const float       MMB_NATIVE_RATE = 44100.0f;
 const int         MMB_BLOCK       = 32;
@@ -50,10 +51,10 @@ void mmb_on_control(int idx, float v) {
 }
 
 void mmb_process(int frames) {
-    g_echo.set_time(mmb_connected(IN_TIME) ? mmb_in0(IN_TIME) : g_knobTime);
-    g_echo.set_feedback(mmb_connected(IN_FBK) ? mmb_in0(IN_FBK) : g_knobFbk);
-    g_echo.set_mix(mmb_connected(IN_MIX) ? mmb_in0(IN_MIX) : g_knobMix);
-    g_echo.set_mod_depth(mmb_connected(IN_MOD) ? mmb_in0(IN_MOD) : g_knobMod);
+    g_echo.set_time(mmb_knob_cv(g_knobTime, IN_TIME, 0.005f, 1.0f));
+    g_echo.set_feedback(mmb_knob_cv(g_knobFbk, IN_FBK, 0.0f, 1.1f));
+    g_echo.set_mix(mmb_knob_cv(g_knobMix, IN_MIX, 0.0f, 1.0f));
+    g_echo.set_mod_depth(mmb_knob_cv(g_knobMod, IN_MOD, 0.0f, 1.0f));
     const bool stereo = mmb_connected(IN_R);
     float x[2];
     for (int k = 0; k < frames; ++k) {

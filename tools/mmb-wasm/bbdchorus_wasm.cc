@@ -4,6 +4,7 @@
 #include "mmb_abi.h"
 #include "mmb_dsp/bbd_chorus.h"
 
+// "+"-ingangen tellen bij de knop op (mmb_knob_cv, fw 0.5.110).
 const char* const MMB_TYPE_ID     = "tp_mmb_bbd_chorus";
 const float       MMB_NATIVE_RATE = 44100.0f;
 const int         MMB_BLOCK       = 32;
@@ -46,9 +47,9 @@ void mmb_on_control(int idx, float v) {
 }
 
 void mmb_process(int frames) {
-    g_chorus.set_rate(mmb_connected(IN_RATE) ? mmb_in0(IN_RATE) : g_knobRate);
-    g_chorus.set_depth(mmb_connected(IN_DEPTH) ? mmb_in0(IN_DEPTH) : g_knobDepth);
-    g_chorus.set_mix(mmb_connected(IN_MIX) ? mmb_in0(IN_MIX) : g_knobMix);
+    g_chorus.set_rate(mmb_knob_cv(g_knobRate, IN_RATE, 0.02f, 12.0f));
+    g_chorus.set_depth(mmb_knob_cv(g_knobDepth, IN_DEPTH, 0.0f, 1.0f));
+    g_chorus.set_mix(mmb_knob_cv(g_knobMix, IN_MIX, 0.0f, 1.0f));
     const bool stereo = mmb_connected(IN_R);
     float x[2];
     for (int k = 0; k < frames; ++k) {
