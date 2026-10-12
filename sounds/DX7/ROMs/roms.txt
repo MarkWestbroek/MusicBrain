@@ -1,0 +1,4 @@
+Yamaha DX7 factory ROM cartridges 1A-4B (ROM1A..ROM4B), bulk dumps (.syx).
+(c) Yamaha. Included for compatibility; besluit Mark 2026-10-12 (optie 1):
+zo laten, met bronvermelding op de modulepagina. Herkomst van de dumps niet
+vastgelegd; staan ook in firmware/app-modular-brain/src/Dx7FactoryBanks.h.

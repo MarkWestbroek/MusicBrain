@@ -64,8 +64,10 @@ Editor: <https://editor.musicbrain.nl>
 - msfa (music-synthesizer-for-android) by Google, Apache License 2.0;
   vendored in `firmware/lib/msfa`. The same engine is used by Dexed and
   MicroDexed.
-- The eight factory voice banks (1A–4B) are the Yamaha DX7 factory ROMs,
-  built into the firmware from .syx bulk dumps.
+- Factory voices: the eight original Yamaha DX7 ROM cartridges (1A–4B,
+  © Yamaha), included for compatibility. DX7 is a trademark of Yamaha
+  Corporation; this module is modelled on the instrument and is not a
+  Yamaha product.
 - The MusicBrain wrapper is MIT licensed.
 
 ## Versions
