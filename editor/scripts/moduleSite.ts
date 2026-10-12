@@ -167,7 +167,11 @@ async function main(): Promise<void> {
     if (how) L.push('## How it works', '', how, '');
 
     L.push('## Runs on', '');
-    L.push(`- **Teensy 4.1** (the MusicBrain Brain)${meta.cpu ? `: about **${meta.cpu.percent} % CPU per instance**, measured on firmware ${meta.cpu.fw}.` : '.'}`);
+    // Gemeten met tools/teensy-live/module_cpu.py: één exemplaar, één noot, standaardknoppen.
+    const cpu = !meta.cpu ? '.'
+      : meta.cpu.percent < 0.1 ? `: less than **0.1 % CPU** per instance, measured on firmware ${meta.cpu.fw}.`
+      : `: about **${meta.cpu.percent} % CPU per instance** (one note, default settings), measured on firmware ${meta.cpu.fw}.`;
+    L.push(`- **Teensy 4.1** (the MusicBrain Brain)${cpu}`);
     L.push('- **The browser**: the editor\'s simulator runs the same C++ code as WebAssembly, so what you hear while patching is what the Brain plays.');
     if (!contract.modules[id]) L.push('- *Not yet in the firmware contract: editor only.*');
     L.push('');

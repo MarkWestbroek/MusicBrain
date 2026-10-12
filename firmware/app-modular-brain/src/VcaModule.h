@@ -27,20 +27,28 @@
  * port, so `AudioGraph` never wires `cv` and the two graphs stay disjoint.
  *
  * Controls:
- * | controlId | type    | effect                                 |
- * |-----------|---------|----------------------------------------|
- * | `gain`    | float   | Base gain — stored, not yet used       |
- * | `resp`    | int32_t | 0=Lin, 1=Exp — stored, not yet used    |
+ * | controlId | type    | effect                                          |
+ * |-----------|---------|-------------------------------------------------|
+ * | `gain`    | float   | Base level 0 … 1; the CV adds on top            |
+ * | `resp`    | int32_t | 0=Lin, 1=Exp: curve applied to (gain + CV)      |
  *
- * In the current implementation the gain and response-curve controls are
- * captured for future use but not applied (the CV signal fully controls
- * the VCA amplitude via the multiply operation).
+ * Level = clamp(gain + CV, 0, 1), then the response curve. At gain 0 (the
+ * default) and Lin this is exactly the old behaviour: closed without CV, an
+ * envelope on CV sets the level. Gain and Resp worked in no version before
+ * 0.5.108 ("stored for future use"); FW-MOD-1.
+ *
+ * Exp is a 48 dB exponential taper that still reaches 0 at 0:
+ * (10^(2.4·(x−1)) − 10^−2.4) / (1 − 10^−2.4). Half-way is about −24 dB,
+ * which is how an envelope on an exponential VCA sounds: a natural decay.
  */
 
 #include "AudioModule.h"
 #include "mb/runtime/Registry.h"
 #include <Audio.h>
+#include <cmath>
 #include <string_view>
+#include <cstdint>
+#include <variant>
 
 namespace mmb_link {
 
@@ -72,9 +80,25 @@ public:
         return {};
     }
 
-    void setControl(std::string_view /*controlId*/,
-                    mb::runtime::ControlValue /*value*/) override {
-        // gain / resp stored for future use; multiply handles amplitude via CV
+    void setControl(std::string_view controlId,
+                    mb::runtime::ControlValue value) override {
+        float v = 0.0f;
+        if (const auto* f = std::get_if<float>(&value)) v = *f;
+        else if (const auto* i = std::get_if<std::int32_t>(&value)) v = static_cast<float>(*i);
+        else if (const auto* b = std::get_if<bool>(&value)) v = *b ? 1.0f : 0.0f;
+        if (controlId == "gain")      gain_ = v;
+        else if (controlId == "resp") expResp_ = v >= 0.5f;
+        else return;
+        apply();
+    }
+
+    /** @brief Level for (gain + cv): clamp, then the response curve. */
+    static float level(float gain, float cv, bool exp) {
+        float x = gain + cv;
+        x = x < 0.0f ? 0.0f : (x > 1.0f ? 1.0f : x);
+        if (!exp) return x;
+        constexpr float kFloor = 0.0039810717f;   // 10^-2.4 (−48 dB)
+        return (powf(10.0f, 2.4f * (x - 1.0f)) - kFloor) * (1.0f / (1.0f - kFloor));
     }
 
     // --- Port-kind / CV-bridge -----------------------------------------
@@ -95,7 +119,8 @@ public:
      *  consecutive updates join into a continuous piecewise-linear curve. */
     void writeCvPort(std::string_view portId, float value) override {
         if (portId != "cv") return;
-        cvDc_.amplitude(value, kCvSlewMs);
+        cv_ = value;
+        apply();
     }
 
     /** @brief Register the VCA factory with the global Registry.  Idempotent. */
@@ -109,6 +134,11 @@ public:
     }
 
 private:
+    void apply() { cvDc_.amplitude(level(gain_, cv_, expResp_), kCvSlewMs); }
+
+    float gain_ = 0.0f;
+    float cv_ = 0.0f;
+    bool expResp_ = false;
     mutable AudioEffectMultiply mult_;
     mutable AudioSynthWaveformDc cvDc_;  ///< DC proxy for CV-bridge-driven `cv`.
     /// Internal patch: CV-bridge DC proxy -> multiply channel 1 (always on).

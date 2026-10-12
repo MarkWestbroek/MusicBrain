@@ -5,9 +5,9 @@
       "slug": "sw-ladder",
       "name": "Ladder filter",
       "cpu": {
-        "percent": 8.3,
-        "fw": "0.5.107",
-        "how": "Marks patch Ladder ×4 (VCO → Ladder → VCA per voice): 37 % with four ladders, 3.5 % with a state-variable filter instead; getStatus on the Teensy"
+        "percent": 8.8,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (audio in: in; uit: out)"
       },
       "take": "mmb-6-stemmig-ladder-filter-20261011-233237",
       "try": "Open the editor and choose **Axel F lead** from the standard set, or **Poly ▾ → Ladder-filter ×4**.",
@@ -73,6 +73,11 @@
         "sustain": "Sustain pedal (gate): while high, released keys ring on.",
         "out_l": "Left output, with the tremolo.",
         "out_r": "Right output, with the tremolo."
+      },
+      "cpu": {
+        "percent": 7.3,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (pitch->voct_1; gate->gate_1; vel->vel_1; audio in: -; uit: out_l)"
       }
     },
     "tp_mmb_organ": {
@@ -111,6 +116,11 @@
         "gate_12": "Gate of key 12: high while the key is held.",
         "swell": "Expression pedal: adds to Level (set Level to 0 for a full swell pedal).",
         "out": "Mono organ output; send it into the ROTARY."
+      },
+      "cpu": {
+        "percent": 4.4,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (pitch->voct_1; gate->gate_1; audio in: -; uit: out)"
       }
     },
     "tp_mmb_rotary": {
@@ -132,6 +142,11 @@
         "in_r": "Right input; leave empty for a mono source.",
         "out_l": "Left microphone.",
         "out_r": "Right microphone."
+      },
+      "cpu": {
+        "percent": 13.3,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (audio in: in_l,in_r; uit: out_l)"
       }
     },
     "tp_mmb_dx7": {
@@ -147,6 +162,11 @@
         "gate": "Note on while high, note off when it falls.",
         "vel": "Velocity 0 to 1, read at the start of the note; drives the FM envelopes.",
         "out": "Mono audio output."
+      },
+      "cpu": {
+        "percent": 1.3,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (pitch->voct; gate->gate; vel->vel; audio in: -; uit: out)"
       }
     },
     "tp_mmb_vibe": {
@@ -163,6 +183,11 @@
         "in_r": "Right input; leave empty and the left input feeds both sides.",
         "out_l": "Left output.",
         "out_r": "Right output."
+      },
+      "cpu": {
+        "percent": 5.1,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (audio in: in_l,in_r; uit: out_l)"
       }
     },
     "tp_mmb_synthex": {
@@ -219,6 +244,11 @@
         "joy": "Joystick Y: moves the filter cutoff.",
         "out_l": "Left output (after the chorus).",
         "out_r": "Right output (after the chorus)."
+      },
+      "cpu": {
+        "percent": 12.2,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (pitch->voct_1; gate->gate_1; audio in: -; uit: out_l)"
       }
     },
     "tp_mmb_string": {
@@ -233,6 +263,11 @@
         "pluck_cv": "CV for Pluck.",
         "level_cv": "CV for Level.",
         "out": "Mono audio output."
+      },
+      "cpu": {
+        "percent": 0.3,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (pitch->voct; gate->gate; audio in: -; uit: out)"
       }
     },
     "tp_mmb_cmi": {
@@ -250,6 +285,11 @@
         "seg_cv": "Shifts the position in the segments: ±1 = ±16 segments.",
         "pos": "The current position in the segments as CV, 0 to 1.",
         "out": "Mono audio output."
+      },
+      "cpu": {
+        "percent": 1.8,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (pitch->voct; gate->gate; vel->vel; audio in: -; uit: out)"
       }
     },
     "tp_mmb_mixtur": {
@@ -284,6 +324,11 @@
         "form_cv": "Glides along the row of vowels.",
         "amp": "The dynamics as CV, 0 to 1.",
         "out": "Mono audio output."
+      },
+      "cpu": {
+        "percent": 5.2,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (pitch->voct; gate->gate; vel->vel; audio in: -; uit: out)"
       }
     },
     "tp_mmb_martenot": {
@@ -310,6 +355,11 @@
         "vib_cv": "Adds vibrato, for example from the mod wheel.",
         "amp": "The volume as CV, 0 to 1.",
         "out": "Mono audio output; send it into DIFFUSEUR."
+      },
+      "cpu": {
+        "percent": 2.4,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (pitch->voct; gate->gate; vel->vel; audio in: -; uit: out)"
       }
     },
     "tp_mmb_vco": {
@@ -327,6 +377,11 @@
         "fm": "Frequency modulation input; not implemented yet.",
         "sync": "Hard sync input; not implemented yet.",
         "out": "The oscillator."
+      },
+      "cpu": {
+        "percent": 0.1,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (pitch->voct; audio in: -; uit: out)"
       }
     },
     "tp_mmb_sid": {
@@ -396,6 +451,11 @@
         "gate_11": "Gate of voice 11: starts and releases its envelope.",
         "voct_12": "Pitch of voice 12 (chip 4), 1 V per octave.",
         "gate_12": "Gate of voice 12: starts and releases its envelope."
+      },
+      "cpu": {
+        "percent": 11.3,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (pitch->voct_1; gate->gate_1; audio in: -; uit: sid_1)"
       }
     },
     "tp_mmb_rings": {
@@ -422,6 +482,11 @@
         "damping": "Same as D+.",
         "position_cv": "Sets Position (0 to 1) while patched.",
         "position": "Same as P+."
+      },
+      "cpu": {
+        "percent": 16.6,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (pitch->voct; gate->gate; audio in: -; uit: out_l)"
       }
     },
     "tp_mmb_plaits": {
@@ -449,6 +514,11 @@
         "out_l": "Same as Out.",
         "aux": "A variant of the sound, different per engine.",
         "out_r": "Same as Aux."
+      },
+      "cpu": {
+        "percent": 7.5,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (pitch->voct; gate->gate; audio in: -; uit: out)"
       }
     },
     "tp_mmb_complex": {
@@ -468,6 +538,11 @@
         "timbre_cv": "Added to Timbre: an envelope here gives a brighter attack.",
         "out": "The main oscillator after the folder.",
         "mod": "The modulation oscillator on its own."
+      },
+      "cpu": {
+        "percent": 9.5,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (pitch->voct; audio in: -; uit: mod)"
       }
     },
     "tp_mmb_morph_wt": {
@@ -483,6 +558,11 @@
         "morph_cv": "Added to Morph: ±1 moves up to ±7 frames.",
         "morph": "Same as M+.",
         "out": "The oscillator."
+      },
+      "cpu": {
+        "percent": 0.7,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (pitch->voct; audio in: -; uit: out)"
       }
     },
     "tp_mmb_clouds": {
@@ -521,6 +601,11 @@
         "pitch": "Same as the pitch CV input.",
         "mix_cv": "Sets Mix (0 to 1) while patched.",
         "mix": "Same as the mix CV input."
+      },
+      "cpu": {
+        "percent": 5.9,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (gate->trig; audio in: in_l,in_r; uit: out_l)"
       }
     },
     "tp_mmb_stages": {
@@ -555,6 +640,11 @@
         "trig": "Same as Gate.",
         "out": "The generated signal, 0 to 1.",
         "eoc": "High while the first segment runs."
+      },
+      "cpu": {
+        "percent": 0.0,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (gate->gate; audio in: -; uit: out)"
       }
     },
     "tp_mmb_marbles": {
@@ -584,6 +674,11 @@
         "x2": "Second random note CV.",
         "x3": "Third random note CV.",
         "y": "Slow random CV, on the clock divided by 16."
+      },
+      "cpu": {
+        "percent": 0.0,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (audio in: -; uit: t1)"
       }
     },
     "tp_mmb_elements_reverb": {
@@ -599,6 +694,11 @@
         "in_r": "Audio in, right.",
         "out_l": "Reverb out, left.",
         "out_r": "Reverb out, right."
+      },
+      "cpu": {
+        "percent": 3.2,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (audio in: in_l,in_r; uit: out_l)"
       }
     },
     "tp_mmb_bbd_chorus": {
@@ -621,6 +721,11 @@
         "in_r": "Audio input, right; leave it empty for mono in, stereo out.",
         "out_l": "Audio output, left.",
         "out_r": "Audio output, right."
+      },
+      "cpu": {
+        "percent": 3.8,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (audio in: in_l,in_r; uit: out_l)"
       }
     },
     "tp_mmb_para_eq": {
@@ -648,6 +753,11 @@
         "in_r": "Audio input, right.",
         "out_l": "Equalised audio, left.",
         "out_r": "Equalised audio, right."
+      },
+      "cpu": {
+        "percent": 3.2,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (audio in: in_l,in_r; uit: out_l)"
       }
     },
     "tp_mmb_digital_echo": {
@@ -670,6 +780,11 @@
         "in_r": "Audio input, right; leave it empty for mono in, stereo out.",
         "out_l": "Audio output, left.",
         "out_r": "Audio output, right."
+      },
+      "cpu": {
+        "percent": 6.7,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (audio in: in_l,in_r; uit: out_l)"
       }
     },
     "tp_mmb_tube": {
@@ -689,6 +804,11 @@
         "in_r": "Audio input, right; leave it empty and both outputs carry the left channel.",
         "out_l": "Audio output, left.",
         "out_r": "Audio output, right."
+      },
+      "cpu": {
+        "percent": 52.7,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (audio in: in_l,in_r; uit: out_l)"
       }
     },
     "tp_mmb_shimmer": {
@@ -710,6 +830,11 @@
         "in_r": "Audio input, right; leave it empty and the right side gets the left input.",
         "out_l": "Audio output, left.",
         "out_r": "Audio output, right."
+      },
+      "cpu": {
+        "percent": 18.1,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (audio in: in_l,in_r; uit: out_l)"
       }
     },
     "tp_mmb_stereo_phaser": {
@@ -727,6 +852,11 @@
         "in_r": "Audio input, right; leave it empty for mono in, stereo out.",
         "out_l": "Audio output, left.",
         "out_r": "Audio output, right."
+      },
+      "cpu": {
+        "percent": 2.6,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (audio in: in_l,in_r; uit: out_l)"
       }
     },
     "tp_mmb_reverb": {
@@ -745,6 +875,11 @@
         "in_r": "Audio input, right; leave it empty and the right side gets the left input.",
         "out_l": "Audio output, left.",
         "out_r": "Audio output, right."
+      },
+      "cpu": {
+        "percent": 15.3,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (audio in: in_l,in_r; uit: out_l)"
       }
     },
     "tp_mmb_diffuseur": {
@@ -760,6 +895,11 @@
         "in": "Audio input: the voices, or anything else.",
         "mix_cv": "Added to the Mix knob.",
         "out": "The sound through the chosen loudspeaker (mono)."
+      },
+      "cpu": {
+        "percent": 4.8,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (audio in: in; uit: out)"
       }
     },
     "tp_mmb_folder": {
@@ -775,6 +915,11 @@
         "sym_cv": "Added to the Sym knob.",
         "in": "Audio input; works best with a full-level sine or triangle.",
         "out": "The folded audio."
+      },
+      "cpu": {
+        "percent": 8.2,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (audio in: in; uit: out)"
       }
     },
     "tp_mmb_tapestrip": {
@@ -816,6 +961,11 @@
         "voct_8": "Pitch for voice 8, in V/Oct.",
         "gate_8": "Gate for voice 8: high = key down, low = the tape rewinds.",
         "vel_8": "Velocity for voice 8: picks the velocity layer in the bank."
+      },
+      "cpu": {
+        "percent": 6.0,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (pitch->voct_1; gate->gate_1; vel->vel_1; audio in: -; uit: out_l)"
       }
     },
     "tp_mmb_out": {
@@ -824,6 +974,11 @@
       "portHelp": {
         "l": "Left channel of the output; a source here alone plays on the left only.",
         "r": "Right channel of the output."
+      },
+      "cpu": {
+        "percent": 0.1,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (audio in: l,r; uit: None)"
       }
     },
     "tp_mmb_cvmath": {
@@ -839,19 +994,25 @@
         "b": "Second input; the multiplier in Mult mode.",
         "c": "Third input, used in Sum mode only.",
         "out": "The result, limited to ±10 in Sum mode."
+      },
+      "cpu": {
+        "percent": 0.0,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (audio in: -; uit: out)"
       }
     },
     "tp_mmb_vca": {
       "slug": "sw-vca",
       "name": "VCA",
-      "controlHelp": {
-        "resp": "Linear or exponential response; stored but not yet used by the firmware.",
-        "gain": "Base volume; stored but not yet used by the firmware, so only CV sets the level."
-      },
       "portHelp": {
         "in": "The audio to be amplified.",
         "cv": "The level, 0 … 1, typically from an envelope; linear.",
         "out": "The audio at the level set by CV."
+      },
+      "cpu": {
+        "percent": 0.2,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (audio in: in; uit: out)"
       }
     },
     "tp_mmb_lfo": {
@@ -869,6 +1030,11 @@
         "out": "The LFO signal.",
         "out_inv": "The same signal upside down.",
         "gate": "Gate for the Gated and OneShot run modes (firmware only, not on the panel)."
+      },
+      "cpu": {
+        "percent": 0.0,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (audio in: -; uit: out)"
       }
     },
     "tp_mmb_lpg": {
@@ -885,6 +1051,11 @@
         "trig": "Ping: a trigger flashes the vactrol for a short, natural hit.",
         "out": "The gated audio.",
         "env": "The vactrol state as CV, 0 … 1."
+      },
+      "cpu": {
+        "percent": 3.5,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (gate->trig; audio in: in; uit: out)"
       }
     },
     "tp_mmb_slope": {
@@ -902,6 +1073,11 @@
         "inv": "1 minus Out.",
         "eor": "End of rise: high while the output falls.",
         "eoc": "End of cycle: a 10 ms pulse when the fall is done."
+      },
+      "cpu": {
+        "percent": 0.0,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (gate->trig; audio in: -; uit: out)"
       }
     },
     "tp_mmb_arp": {
@@ -921,6 +1097,11 @@
         "gate": "High while the note plays.",
         "vel": "Velocity of the key, 0 … 1.",
         "step": "A short pulse on every step, also with no keys held."
+      },
+      "cpu": {
+        "percent": 0.0,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (audio in: -; uit: pitch)"
       }
     },
     "tp_mmb_rhythm": {
@@ -940,6 +1121,11 @@
         "acc": "A 10 ms pulse on every accented step.",
         "out_l": "Left audio output.",
         "out_r": "Right audio output."
+      },
+      "cpu": {
+        "percent": 9.3,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (audio in: -; uit: out_l)"
       }
     },
     "tp_mmb_pads": {
@@ -963,6 +1149,11 @@
         "trig_3": "A 10 ms pulse on each press of button 3.",
         "trig_4": "A 10 ms pulse on each press of button 4.",
         "any": "High while any of the four gates is high."
+      },
+      "cpu": {
+        "percent": 0.0,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (audio in: -; uit: gate_1)"
       }
     },
     "tp_mmb_acid": {
@@ -980,6 +1171,11 @@
         "cutoff_cv": "Cutoff modulation: ±1 is ±4 octaves.",
         "env": "The filter envelope as CV, 0 … 1.",
         "out": "The bass voice."
+      },
+      "cpu": {
+        "percent": 7.1,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (pitch->voct; gate->gate; audio in: -; uit: out)"
       }
     },
     "tp_mmb_clock": {
@@ -1000,6 +1196,11 @@
         "x4": "Sixteenth notes, with swing: the step clock for sequencers.",
         "div": "One pulse every Div sixteenths.",
         "ramp": "A saw from 0 to 1 over each bar."
+      },
+      "cpu": {
+        "percent": 0.0,
+        "fw": "0.5.108",
+        "how": "module_cpu.py: one instance, one note held, default settings (audio in: -; uit: bar)"
       }
     }
   },

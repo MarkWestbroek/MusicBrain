@@ -56,7 +56,7 @@ the module to its own tempo.
 
 ## Runs on
 
-- **Teensy 4.1** (the MusicBrain Brain).
+- **Teensy 4.1** (the MusicBrain Brain): less than **0.1 % CPU** per instance, measured on firmware 0.5.108.
 - **The browser**: the editor's simulator runs the same C++ code as WebAssembly, so what you hear while patching is what the Brain plays.
 
 ## Try it

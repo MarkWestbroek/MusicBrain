@@ -2,9 +2,12 @@
 //
 // In de firmware is het `AudioEffectMultiply`: ingang × een
 // `AudioSynthWaveformDc` die de CV (1 kHz) met een slew van 2 ms volgt. De
-// DC begint op 0, dus **zonder CV-kabel is de VCA dicht**, en `gain` en
-// `resp` doen niets. Dat doen we na. Vermenigvuldigen gaat zoals de
-// bibliotheek: (a × b) >> 15, verzadigd op int16.
+// DC begint op 0. Niveau = clamp(gain + CV, 0, 1), daarna de curve (Lin of
+// Exp, 48 dB), zoals `VcaModule::level` (sinds fw 0.5.108; daarvoor deden
+// gain en resp niets). Bij gain 0 en zonder CV-kabel is de VCA dicht.
+// Vermenigvuldigen gaat zoals de bibliotheek: (a × b) >> 15, verzadigd op
+// int16.
+#include <cmath>
 #include <cstdint>
 
 #include "mmb_abi.h"
@@ -20,13 +23,23 @@ const int MMB_NUM_INPUTS = 2;
 MmbPort MMB_OUTPUTS[] = { { "out", MMB_AUDIO, 0, {} } };
 const int MMB_NUM_OUTPUTS = 1;
 
-MmbControl MMB_CONTROLS[] = { { "gain", 1.0f }, { "resp", 0.0f } };
+MmbControl MMB_CONTROLS[] = { { "gain", 0.0f }, { "resp", 0.0f } };
 const int MMB_NUM_CONTROLS = 2;
 
 namespace {
 constexpr float kCvSlewMs = 2.0f;
 TeensyDc g_dc;
-float g_last = -1e9f;
+float g_gain = 0.0f;
+bool g_exp = false;
+float g_target = 0.0f;
+
+float level(float gain, float cv, bool exp) {
+    float x = gain + cv;
+    x = x < 0.0f ? 0.0f : (x > 1.0f ? 1.0f : x);
+    if (!exp) return x;
+    constexpr float kFloor = 0.0039810717f;   // 10^-2.4 (−48 dB)
+    return (std::pow(10.0f, 2.4f * (x - 1.0f)) - kFloor) * (1.0f / (1.0f - kFloor));
+}
 
 int16_t toInt16(float x) {
     const float s = x * 32768.0f;
@@ -35,11 +48,15 @@ int16_t toInt16(float x) {
 }  // namespace
 
 void mmb_setup() {}
-void mmb_on_control(int, float) {}   // gain / resp: "stored for future use"
+void mmb_on_control(int i, float v) {
+    if (i == 0) g_gain = v;
+    else if (i == 1) g_exp = v >= 0.5f;
+}
 
 void mmb_process(int frames) {
-    if (!mmb_connected(IN_CV)) g_last = -1e9f;
-    else if (mmb_in0(IN_CV) != g_last) g_dc.amplitude(g_last = mmb_in0(IN_CV), kCvSlewMs);
+    const float cv = mmb_connected(IN_CV) ? mmb_in0(IN_CV) : 0.0f;
+    const float t = level(g_gain, cv, g_exp);
+    if (t != g_target) g_dc.amplitude(g_target = t, kCvSlewMs);
     // Zonder audiokabel krijgt de multiply geen blok en zendt hij niets.
     const bool live = mmb_connected(IN_AUDIO);
     for (int k = 0; k < frames; ++k) {

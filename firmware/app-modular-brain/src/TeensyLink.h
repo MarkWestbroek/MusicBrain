@@ -484,6 +484,16 @@ private:
             sendAckOk("samplerHead", extra);
             return;
         }
+        // {"type":"reboot"}: herstart de Teensy (zoals los en weer vast).
+        // Voor metingen per module (tools/teensy-live/module_cpu.py): elke
+        // module op een schone Teensy, zonder geparkeerde modules van eerder.
+        if (strcmp(type, "reboot") == 0) {
+            { JsonDocument extra; sendAckOk("reboot", extra); }
+            Serial.flush();
+            delay(50);
+            SCB_AIRCR = 0x05FA0004;   // systeemreset (ARM AIRCR, SYSRESETREQ)
+            while (true) {}
+        }
         if (strcmp(type, "bench") == 0) {
             JsonDocument out;
             out["type"] = "bench";

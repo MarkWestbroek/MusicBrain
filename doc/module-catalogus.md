@@ -1,6 +1,6 @@
 # Modulecatalogus (Modular MB / Cortex)
 
-> GEGENEREERD door `editor/scripts/moduleCatalog.ts` (`npm run catalog` in `editor/`), niet met de hand bewerken. Bron: de moduledefinities in de editor, de simulatorselectie en het firmware-contract 0.5.107. Gegenereerd op 2026-10-11.
+> GEGENEREERD door `editor/scripts/moduleCatalog.ts` (`npm run catalog` in `editor/`), niet met de hand bewerken. Bron: de moduledefinities in de editor, de simulatorselectie en het firmware-contract 0.5.108. Gegenereerd op 2026-10-12.
 
 Wat de kolommen betekenen:
 
@@ -160,7 +160,7 @@ Versterkers en niveau-sturing. Een VCA hoort achter een filter, met een envelope
 |---|---|---|---|---|---|---|---|---|
 | **LPG (low-pass gate, vactrol)** | `tp_mmb_lpg` | wasm | ✅ `LpgModule.h` | CV (cv), Ping (gate), In (audio) | Out (audio), Env (cv) | Open, Decay (s), Mode, Res, Level |  | Low-pass gate: filter en versterker in één, gestuurd door een vactrol (een lampje tegen een lichtgevoelige weerstand). De weerstand reageert vlug op licht maar komt traag terug, en trager naarmate het donkerder wordt. In stand Both stuurt hij tegelijk de helderheid en het volume, zoals in de Buchla 292: een klank die uitsterft wordt ook doffer, net als een aangeslagen stuk hout of een getokkelde snaar. Ping: een trigger laat het lampje flitsen; zonder envelope geeft dat al een natuurlijke tik met een eigen staart (het bongo-geluid van de West Coast). Decay bepaalt hoe lang de vactrol nagloeit. CV (0..1) telt op bij Open: een envelope of LFO opent de gate geleidelijk, en ook dan komt hij traag terug. Mode LP = alleen het filter, VCA = alleen de versterker. Res geeft het filter een piek. Env is de toestand van de vactrol als CV (0..1): een envelope met dat nagloeien, voor elders in de patch. Firmware tp_mmb_lpg, mmb_dsp::Lpg; in de simulator draait dezelfde code als wasm. |
 | **Octa VCA (shared level)** | `tp_mmb_octa_vca` | wasm | ✅ `OctaVcaModule.h` | In (audio), In (audio), In (audio), In (audio), In (audio), In (audio), In (audio), In (audio), CV (cv), CV (cv), CV (cv), CV (cv), CV (cv), CV (cv), CV (cv), CV (cv) | Out (audio), Out (audio), Out (audio), Out (audio), Out (audio), Out (audio), Out (audio), Out (audio) | Level |  | Multi-module met 8 identieke VCA-cellen (multiply): per cel audio-in, gain-CV (typisch een envelope) en audio-uit. De gedeelde Level-knop schaalt alle cellen. Samen met de Octa-VCO en Octa-VCF maakt dit een complete 8-stemmige poly van drie modules. Firmware: tp_mmb_octa_vca (FW-PM-3). |
-| **VCA (linear)** | `tp_mmb_vca` | wasm | ✅ `VcaModule.h` | In (audio), CV (cv) | Out (audio) | Gain, Resp | 2-stemmige patch, CV-bridge patch, FM test (2-op), Krell, Test patch | Lineaire VCA. Bij gain=0 is de basisweg dicht; een CV-input voegt erbovenop (typisch envelope → CV). |
+| **VCA (linear)** | `tp_mmb_vca` | wasm | ✅ `VcaModule.h` | In (audio), CV (cv) | Out (audio) | Gain, Resp | 2-stemmige patch, CV-bridge patch, FM test (2-op), Krell, Test patch | VCA. Niveau = gain + CV (0–1), daarna de curve: Lin recht evenredig, Exp exponentieel over 48 dB. Bij gain=0 is de basisweg dicht en zet de CV het niveau (typisch envelope → CV). Gain en Resp werken sinds fw 0.5.108. |
 
 ## VCF
 

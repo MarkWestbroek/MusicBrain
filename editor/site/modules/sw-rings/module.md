@@ -59,7 +59,7 @@ compiles the same vendored code to WebAssembly.
 
 ## Runs on
 
-- **Teensy 4.1** (the MusicBrain Brain).
+- **Teensy 4.1** (the MusicBrain Brain): about **16.6 % CPU per instance** (one note, default settings), measured on firmware 0.5.108.
 - **The browser**: the editor's simulator runs the same C++ code as WebAssembly, so what you hear while patching is what the Brain plays.
 
 ## Try it

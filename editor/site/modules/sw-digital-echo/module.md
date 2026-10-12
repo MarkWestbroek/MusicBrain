@@ -57,7 +57,7 @@ reconstruction filter on Band smooths the output. Echo times run from 5 ms to
 
 ## Runs on
 
-- **Teensy 4.1** (the MusicBrain Brain).
+- **Teensy 4.1** (the MusicBrain Brain): about **6.7 % CPU per instance** (one note, default settings), measured on firmware 0.5.108.
 - **The browser**: the editor's simulator runs the same C++ code as WebAssembly, so what you hear while patching is what the Brain plays.
 
 ## Try it

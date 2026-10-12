@@ -17,6 +17,26 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-12 — VCA: Gain en Resp werken (fw 0.5.108)
+<!-- EN: VCA: the Gain knob and the Lin/Exp response now work; the CV adds on top of Gain -->
+- Gevonden bij het schrijven van de modulepagina's (FW-MOD-1): de VCA sloeg
+  Gain en Resp op maar gebruikte ze niet, op de Teensy én in de simulator;
+  alleen de CV zette het niveau. De uitleg in de editor beloofde "een
+  envelope telt erbij op". Mark: "maak het maar zoals bedoeld".
+- Nu: niveau = clamp(Gain + CV, 0, 1), daarna de curve. **Lin** recht
+  evenredig, **Exp** exponentieel over 48 dB (halverwege ~−24 dB), zodat een
+  envelope natuurlijk uitsterft. Bij Gain 0 en Lin (de standaard) precies het
+  oude gedrag; geen seed zet Gain hoger.
+- Firmware `VcaModule.h` (`level()`), wasm `vca_wasm.cc` (zelfde formule,
+  standaard gain 0), test `wasmVca.test.ts`; de oude test "dicht wat gain ook
+  zegt" aangepast. Uitleg in `moduleHelp.ts` (ook Resp) en de notes.
+- **Link-commando `{"type":"reboot"}`**: herstart de Teensy (zoals los en
+  weer vast, ~4 s). Voor `tools/teensy-live/module_cpu.py`, dat de rekentijd
+  per module meet: de firmware parkeert modules van een vorige patch
+  (FW-13), en na twintig modules was het geheugen op (Clouds en de
+  Elements-reverb kregen hun buffers niet; daarna liep de Teensy vast). Nu
+  meet elke module op een schone Teensy.
+
 ### 2026-10-12 — Bovenbalk: drie menu's en een snelmenu (editor, ED-ST-1 stap 8)
 - De bovenbalk na Binnenkijken had ruim twintig losse knoppen. Nu:
   📂 Patches…, ⌘ Recept, **Project ▾**, **Klank ▾**, **Testen ▾** en ?

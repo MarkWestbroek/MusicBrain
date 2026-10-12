@@ -965,7 +965,7 @@ function mmbVca() {
       inPort ('cv',  'CV',  'cv',    w*0.75, 92),
       outPort('out', 'Out', 'audio', w/2,    114),
     ],
-    notes: 'Lineaire VCA. Bij gain=0 is de basisweg dicht; een CV-input voegt erbovenop (typisch envelope → CV).',
+    notes: 'VCA. Niveau = gain + CV (0–1), daarna de curve: Lin recht evenredig, Exp exponentieel over 48 dB. Bij gain=0 is de basisweg dicht en zet de CV het niveau (typisch envelope → CV). Gain en Resp werken sinds fw 0.5.108.',
   });
 }
 

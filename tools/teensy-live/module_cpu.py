@@ -13,6 +13,11 @@ cpu(test) − cpu(basis), gemiddeld over een paar getStatus-metingen, is de
 rekentijd van één exemplaar met één spelende noot. Knoppen op hun
 standaardstand (uit de editordefinitie, via editor/scripts/modulePorts.ts).
 
+Vóór elke module een herstart ({"type":"reboot"}, fw 0.5.108): de firmware
+parkeert modules van een vorige patch voor hergebruik (FW-13), en na twintig
+modules is het geheugen op (Clouds en de Elements-reverb kregen hun buffers
+niet en draaiden niet mee). Zonder reboot-commando (oudere firmware): --no-reboot.
+
 Teensy op COM5, de editor los (die houdt de poort anders vast). Let op: als
 iemand tegelijk speelt, kloppen de getallen niet.
 """
@@ -43,9 +48,35 @@ def port_info(types):
 
 class Teensy:
     def __init__(self, port):
-        self.ser = serial.Serial(port, 115200, timeout=0.2)
+        self.port = port
+        self.open()
+
+    def open(self, wait=15.0):
+        t = time.time()
+        while True:
+            try:
+                self.ser = serial.Serial(self.port, 115200, timeout=0.2)
+                break
+            except serial.SerialException:
+                if time.time() - t > wait:
+                    raise
+                time.sleep(0.5)
         time.sleep(0.4)
         self.ser.reset_input_buffer()
+
+    def reboot(self):
+        try:
+            self.ser.write(b'{"type":"reboot"}' + bytes([10]))
+            time.sleep(0.3)
+        except serial.SerialException:
+            pass
+        try:
+            self.ser.close()
+        except serial.SerialException:
+            pass
+        time.sleep(2.5)
+        self.open()
+        time.sleep(1.0)
 
     def cmd(self, obj, want, tmo=5.0):
         self.ser.write((json.dumps(obj) + '\n').encode())
@@ -132,34 +163,64 @@ def main():
     ap.add_argument('--site', action='store_true', help='alle modules uit site-modules.json')
     ap.add_argument('--write', action='store_true', help='cpu invullen in site-modules.json')
     ap.add_argument('--port', default='COM5')
+    ap.add_argument('--no-reboot', action='store_true', help='niet herstarten tussen modules')
     a = ap.parse_args()
     site = json.load(open(SITE_JSON, encoding='utf-8'))
     types = a.types or (list(site['modules']) if a.site else [])
     if not types:
         ap.error('geef moduletypes of --site')
     info = port_info(['tp_mmb_midiin', 'tp_mmb_vco', 'tp_mmb_out', *types])
-    t, midi = Teensy(a.port), Out()
+    t = Teensy(a.port)
     fw = fw_version()
+    results = {}
+
+    def fresh():
+        # Na een herstart is ook de MIDI-poort opnieuw aangemeld.
+        midi_ref[0].close()
+        if not a.no_reboot:
+            t.reboot()
+        for _ in range(20):
+            try:
+                midi_ref[0] = Out()
+                return
+            except (StopIteration, RuntimeError):
+                time.sleep(0.5)
+        raise RuntimeError('MIDI-poort van de Teensy komt niet terug')
+
+    midi_ref = [Out()]
     try:
-        base0 = measure(t, midi, config(info)[0])
-        print(f'basis (MIDI -> VCO -> OUT): {base0:.1f} %')
-        results = {}
+        if not a.no_reboot:
+            fresh()
+        base0 = measure(t, midi_ref[0], config(info)[0])
+        print(f'basis (MIDI -> VCO -> OUT): {base0:.1f} %', flush=True)
         for x in types:
             if x not in info:
                 print(f'{x}: onbekend type, overgeslagen')
                 continue
             cfg, how = config(info, x)
-            v = measure(t, midi, cfg)
+            try:
+                if not a.no_reboot:
+                    fresh()
+                v = measure(t, midi_ref[0], cfg)
+            except Exception as e:   # Teensy weg (overbelast?): opnieuw openen en door
+                print(f'{x}: FOUT {e}', flush=True)
+                try:
+                    t.open(30.0)
+                except Exception:
+                    print('Teensy komt niet terug: gestopt.')
+                    break
+                continue
             if v is None:
                 print(f'{x}: config niet toegepast')
                 continue
             d = round(max(0.0, v - base0), 1)
             results[x] = (d, how)
-            print(f'{x:28s} {v:5.1f} % - basis = {d:4.1f} %   ({how})')
-        base1 = measure(t, midi, config(info)[0])
-        print(f'basis opnieuw: {base1:.1f} % (verschil met begin {base1 - base0:+.1f})')
+            print(f'{x:28s} {v:5.1f} % - basis = {d:4.1f} %   ({how})', flush=True)
     finally:
-        midi.close()
+        try:
+            midi_ref[0].close()
+        except Exception:
+            pass
     if a.write:
         for x, (d, how) in results.items():
             if x in site['modules']:

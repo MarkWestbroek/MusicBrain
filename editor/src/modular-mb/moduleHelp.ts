@@ -127,7 +127,10 @@ export const MODULE_HELP: Readonly<Record<string, ModuleHelp>> = {
   },
   tp_mmb_vca: {
     about: ['Versterker: regelt het volume.', 'Amplifier: controls the volume.'],
-    controls: { gain: ['Het basisvolume; een envelope telt erbij op.', 'The base volume; an envelope adds on top.'] },
+    controls: {
+      gain: ['Het basisvolume; een envelope op CV telt erbij op.', 'The base volume; an envelope on CV adds on top.'],
+      resp: ['Lin: recht evenredig. Exp: een exponentiële curve, zodat een envelope natuurlijk uitsterft.', 'Lin: in a straight line. Exp: an exponential curve, so an envelope fades naturally.'],
+    },
   },
   tp_mmb_para_eq: {
     about: ['Parametrische EQ in mixerstijl.', 'A mixing-desk style parametric EQ.'],

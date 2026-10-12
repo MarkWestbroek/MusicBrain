@@ -1432,10 +1432,12 @@ describe('tp_mmb_vca (AudioEffectMultiply + DC-proxy)', () => {
     for (let k = 0; k < mm.block; k++) b[k] = 0.8 * Math.sin(2 * Math.PI * 220 * (t + k / mm.rate));
   };
 
-  it('is dicht zonder CV-kabel, wat gain ook zegt', async () => {
+  it('is dicht zonder CV-kabel bij gain 0; gain opent hem (sinds fw 0.5.108, wasmVca.test.ts)', async () => {
     const m = await load('tp_mmb_vca');
-    m.setCtl('gain', 1);
+    m.setCtl('gain', 0);
     expect(peak(m.render(0.2, feed)[0]!)).toBe(0);
+    m.setCtl('gain', 1);
+    expect(peak(m.render(0.2, feed)[0]!, 441)).toBeCloseTo(0.8, 2);
   });
 
   it('cv is de versterking, met 2 ms slew', async () => {
