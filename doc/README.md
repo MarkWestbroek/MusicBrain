@@ -82,7 +82,7 @@ Hardware-ontwerpdocumenten in deze map: [busboard-v2-plan.md](busboard-v2-plan.m
 
 ## Website en Imprint
 
-[imprint-vragen-2026-07.md](imprint-vragen-2026-07.md), [imprint-fr-component-kind.md](imprint-fr-component-kind.md), [imprint-fr-url-alias.md](imprint-fr-url-alias.md), [imprint-testcase-oude-releases.md](imprint-testcase-oude-releases.md), [imprint-widget-3d-voorstel.md](imprint-widget-3d-voorstel.md), [board-spec-contenttype-requirements.md](board-spec-contenttype-requirements.md): verzoeken en specificaties richting het CMS van de site. [marketing/](marketing/) bevat positionering en design-brief (namen nog niet bekrachtigd).
+[imprint-vragen-2026-07.md](imprint-vragen-2026-07.md), [imprint-fr-component-kind.md](imprint-fr-component-kind.md), [imprint-fr-url-alias.md](imprint-fr-url-alias.md), [imprint-testcase-oude-releases.md](imprint-testcase-oude-releases.md), [imprint-widget-3d-voorstel.md](imprint-widget-3d-voorstel.md), [board-spec-contenttype-requirements.md](board-spec-contenttype-requirements.md): verzoeken en specificaties richting het CMS van de site. [marketing/](marketing/) bevat positionering en design-brief (namen nog niet bekrachtigd). [muziek-omnium-dienstverlening.md](muziek-omnium-dienstverlening.md): de achtergrondmuziek bij de Omnium-animatie (modules, instellingen, tijdlijn, opnieuw renderen).
 
 ## Historisch
 
