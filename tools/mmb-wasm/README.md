@@ -128,7 +128,12 @@ node tools/mmb-wasm/render-fof-matrix.mjs [map]  # FOF: luister-/aliasingmatrix,
 node tools/mmb-wasm/render-fof-syllables.mjs [map]  # FOF: alle lettergrepen als wav + Piper-referentie (dienst op 127.0.0.1:8788)
 python tools/mmb-wasm/formant-compare.py [map]      # FOF tegenover Piper: LPC-formanten, F0, foneemduren → report.md
 node tools/mmb-wasm/make-test-bank.mjs   # testopname (Elements) + .mmbs-bank
+node tools/mmb-wasm/render-omnium-dienstverlening.mjs [map]  # muziek Omnium-animatie (97 s) → wav/mp3/ogg op -18 LUFS (ffmpeg)
 ```
+
+`offline-host.mjs` is een kleine Node-host voor muziek buiten de browser:
+modules laden, per blok ingangen zetten, cubic resamplen naar 48 kHz, wav
+schrijven. Daarmee is ook de Omnium-muziek gemaakt (zie het script).
 
 `test-analysis.mjs` en `test-sampler.mjs` bundelen `sampleAnalysis.ts` met
 esbuild, zodat de analyse zonder browser te testen is. `make-test-bank.mjs`
