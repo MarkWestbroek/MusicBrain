@@ -67,6 +67,7 @@ Elk plan draagt zijn eigen datum en status. Kort per thema:
 - **Percuter**: [percuter.md](plans/percuter.md) (acht 8-bit drumkanalen naar de Dynacord Percuter, cartridge-dumps omzetten).
 - **Ritmebox**: [ritmebox.md](plans/ritmebox.md) (CR-78-presets uit de Service Notes overgenomen, wat er ontbreekt, en waarom de Elka-ritmes niet uit de documentatie komen).
 - **Help en instrumenttour (2026-10-10)**: [help-en-instrumenttour.md](plans/help-en-instrumenttour.md): ? en lang drukken leggen elke frontknop uit (gebouwd); ontwerp voor een tour die speelt en aan de knoppen draait.
+- **Beads (voorstel 2026-10-12)**: [beads.md](plans/beads.md): Mutable Instruments Beads (broncode vrijgegeven 11-10-2026, MIT) als module naast Clouds; werkwijze, stappen, vragen.
 - **Automation (voorstel 2026-10-11)**: [automation.md](plans/automation.md): knopbewegingen meeopnemen in takes en sporen (ED-SM-10), werkwijze eerst; vragen open.
 - **Tempo (2026-10-09)**: [tempo.md](plans/tempo.md): één tempo per patch, tap tempo, MIDI-clock volgen; wie de baas is.
 - **Fairlight (voorstel 2026-10-09)**: [fairlight.md](plans/fairlight.md): CMI-stand op de sampler (klok per stem, 8 bit, geen interpolatie) en een FAIRLIGHT-stem met golfvormsynthese uit 32 harmonischen × 32 segmenten; ter review.
