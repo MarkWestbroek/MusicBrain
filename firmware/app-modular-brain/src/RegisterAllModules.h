@@ -123,6 +123,7 @@
 #include "OctaverModule.h"
 #include "HarmonizerModule.h"
 #include "ReverbModule.h"
+#include "HallModule.h"
 #include "TremoloModule.h"
 #include "StereoPhaserModule.h"
 #include "VibeModule.h"
@@ -249,6 +250,7 @@ inline void registerAllRuntimeModules() {
     OctaverModule::registerFactory();        // analoge octaver, OC-2-stijl (mmb-dsp), ook als wasm
     HarmonizerModule::registerFactory();     // pitch-shifter/harmonizer, twee stemmen (mmb-dsp), ook als wasm
     ReverbModule::registerFactory();         // plaat-/veergalm (mmb-dsp), ook als wasm
+    HallModule::registerFactory();           // grote galm in Lexicon-stijl (mmb-dsp), ook als wasm
     TremoloModule::registerFactory();        // tremolo-pedaal amp/opto/harmonic/pan (mmb-dsp), ook als wasm
     StereoPhaserModule::registerFactory();   // stereo phaser (mmb-dsp), ook als wasm
     VibeModule::registerFactory();           // univibe-stijl vibe + lichte vibrato (mmb-dsp), ook als wasm

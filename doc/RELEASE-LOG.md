@@ -17,6 +17,30 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-14 — HALL: een grote galm in Lexicon-stijl, vier algoritmes en Freeze (fw 0.5.113)
+<!-- EN: HALL: a large Lexicon-style reverb with four algorithms (Hall, Room, Chamber, Random Hall) and Freeze -->
+- Plan [plans/hall-reverb.md](plans/hall-reverb.md), besluiten van Mark:
+  alle vier de algoritmes, Freeze erbij, een aparte module naast REVERB
+  ("deze is zwaarder, dus de keuze is belangrijk"), convolutie daarna.
+- Nieuwe kern `mmb_dsp/hall.h` (eigen code, gepubliceerde technieken):
+  pre-delay met vroege reflecties (8 aftakkingen per kant, schalen met
+  Size), vier all-passes (Dattorro-coëfficiënten), een FDN van 8 lijnen met
+  Householder-menging, per lijn demping in drie banden zodat **Decay een
+  echte RT60** is (0,2–30 s) en **Lo ×** / **Hi damp** de galmtijd van laag
+  en hoog zetten; gemoduleerde lijnlengten (Random: een willekeurige
+  dwaling, de 480L-beweging). Freeze via knop of gate. CV op Size, Decay en
+  Mix telt op bij de knop.
+- Module `tp_mmb_hall` (14 HP), firmware `HallModule.h` (KernelStream; de
+  buffers, ~180 KB, van de heap en terug bij parkeren), wasm
+  `hall_wasm.cc`. Seed "🏛️ STK + HALL" (strijkstok in een zaal van 3,2 s).
+- Gemeten in de simulator (`wasmHall.test.ts`): RT60 per band klopt binnen
+  25 % voor alle algoritmes, staart boven 1 kHz vlak (< 4 dB pieken), dicht
+  na 100 ms, L/R gedecorreleerd, Freeze 10 s stabiel. Onder 1 kHz kleuren
+  kleine ruimtes (Room) meer: kamermodi, zoals een echte kamer.
+- **Teensy: 14,4 % cpu** (REVERB 14,9 %). Let op het geheugen: na het
+  opstarten is ~270 KB heap vrij; HALL (~180 KB) en REVERB (~150 KB) samen
+  in één patch passen niet.
+
 ### 2026-10-13 — Elements: de 19 geredde programma's als bank, met Program en een naamdisplay (editor)
 <!-- EN: Elements: a program bank with the 19 programs rescued from the standalone 5× Elements, chosen with a Program knob and shown by name -->
 - Stap 1 van [plans/elements-programmas.md](plans/elements-programmas.md),

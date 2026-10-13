@@ -6,7 +6,16 @@ rondgaande tank, gemoduleerde vertragingen, gedecorreleerde aftakkingen),
 de precieze algoritmes niet; Bricasti helemaal niet. Dit plan bouwt een
 eigen grote galm met die bekende technieken, zonder iets te kopiëren.
 
-Ter review; niets gebouwd. Eerst de werkwijze, dan de techniek.
+> **Besluiten (Mark, 2026-10-14):** alle vier de algoritmes; Freeze erbij;
+> een **aparte module** naast REVERB ("deze is zwaarder, dus de keuze is
+> belangrijk"); convolutie pas na HALL. Referentie om op het oor mee te
+> vergelijken: mogelijk een Lexicon PCM 91.
+
+> **Stand 2026-10-14:** stap 1–3 gebouwd (fw 0.5.113, Teensy 14,4 % cpu),
+> zie [RELEASE-LOG](../RELEASE-LOG.md). Open: de sitepagina (stap 4),
+> luisteren tegen een PCM 91, en daarna CONV.
+
+Eerst de werkwijze, dan de techniek.
 
 ## 0. Wat er al is
 

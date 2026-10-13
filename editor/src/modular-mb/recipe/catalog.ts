@@ -117,6 +117,7 @@ export const CATALOG: Record<string, CatalogEntry> = {
   tp_mmb_ringmod:   { short: 'Ringmod',  kind: 'fx',     aliases: ['ringmod', 'ring mod', 'ringmodulator', 'ring modulator', 'diode ringmod'] },
   tp_mmb_octaver:   { short: 'Octaver',  kind: 'fx',     aliases: ['octaver', 'octave', 'octaaf', 'suboctaaf', 'sub octave'] },
   tp_mmb_harmonizer:{ short: 'Harmonizer', kind: 'fx',   aliases: ['harmonizer', 'pitch shifter', 'pitchshifter', 'pitch shift'] },
+  tp_mmb_hall:      { short: 'Grote galm (zaal)', kind: 'fx', aliases: ['hall', 'zaal', 'zaalgalm', 'lexicon', 'hall reverb', 'room', 'chamber', 'kerk', 'grote galm'] },
   tp_mmb_reverb:    { short: 'Plate/Spring', kind: 'fx', aliases: ['plate', 'plaat', 'spring', 'veer', 'veergalm', 'plaatgalm', 'plate reverb', 'spring reverb'] },
   tp_mmb_tremolo:   { short: 'Tremolo',  kind: 'fx',     aliases: ['tremolo', 'trem', 'tremolo pedal', 'harmonic tremolo'] },
   tp_mmb_stereo_phaser: { short: 'Stereo Phaser', kind: 'fx', aliases: ['stereo phaser', 'phase 90'] },

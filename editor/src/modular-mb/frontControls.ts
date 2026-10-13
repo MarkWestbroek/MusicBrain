@@ -101,6 +101,7 @@ export const FRONT_CONTROLS: Record<string, string[]> = {
   [T('program_eq')]: ['low_boost', 'high_boost', 'low_atten', 'high_atten'],
   [T('resonator')]: ['structure', 'decay', 'damping', 'mix', 'root'],
   [T('reverb')]: ['size', 'mix', 'damp', 'mode'],
+  [T('hall')]: ['decay', 'size', 'mix', 'algo', 'predelay', 'hidamp', 'mod', 'freeze_btn'],
   [T('ringmod')]: ['freq', 'mix', 'wave'],
   [T('rotary')]: ['speed', 'drive', 'balance', 'fast_rate', 'slow_rate'],
   [T('shimmer')]: ['shimmer', 'size', 'mix', 'interval'],

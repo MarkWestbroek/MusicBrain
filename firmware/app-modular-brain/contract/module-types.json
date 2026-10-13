@@ -1,6 +1,6 @@
 {
   "$comment": "GEGENEREERD door tools/contract_dump.py — niet met de hand bewerken. Poort-ids zijn letterlijk wat de firmware accepteert (aliassen als out/out_l en naam/naam_cv staan er dus allebei in).",
-  "firmwareVersion": "0.5.112",
+  "firmwareVersion": "0.5.113",
   "modules": {
     "...": {
       "typeId": "...",
@@ -1054,6 +1054,39 @@
         "tempo",
         "x",
         "y"
+      ]
+    },
+    "tp_mmb_hall": {
+      "typeId": "tp_mmb_hall",
+      "source": "firmware/app-modular-brain/src/HallModule.h",
+      "ports": [
+        "decay",
+        "decay_cv",
+        "freeze",
+        "in",
+        "in_l",
+        "in_r",
+        "mix",
+        "mix_cv",
+        "out",
+        "out_l",
+        "out_r",
+        "size",
+        "size_cv"
+      ],
+      "controls": [
+        "algo",
+        "decay",
+        "diffusion",
+        "early",
+        "freeze_btn",
+        "hidamp",
+        "lomult",
+        "mix",
+        "mod",
+        "predelay",
+        "size",
+        "width"
       ]
     },
     "tp_mmb_harmonizer": {

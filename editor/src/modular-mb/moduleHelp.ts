@@ -273,6 +273,23 @@ export const MODULE_HELP: Readonly<Record<string, ModuleHelp>> = {
       div1: ['Welke ondertoon: de toon gedeeld door dit getal (2 = octaaf lager, 3 = kwint daaronder …).', 'Which undertone: the pitch divided by this number (2 = an octave down, 3 = a fifth below that …).'],
     },
   },
+  tp_mmb_hall: {
+    about: ['Grote galm: een zaal, kamer of kerk met een lange, levende staart.', 'Large reverb: a hall, room or church with a long, living tail.'],
+    controls: {
+      algo: ['Soort ruimte: Hall, Room, Chamber of Random (de dwalende 480L-beweging).', 'Kind of space: Hall, Room, Chamber or Random (the wandering 480L motion).'],
+      size: ['Hoe groot de ruimte is.', 'How big the space is.'],
+      decay: ['De galmtijd in seconden.', 'The reverb time in seconds.'],
+      predelay: ['Wachttijd voor de galm begint.', 'Delay before the reverb starts.'],
+      early: ['De eerste weerkaatsingen tegen de muren.', 'The first reflections off the walls.'],
+      diffusion: ['Hoe snel de galm een dichte wolk wordt.', 'How quickly the reverb turns into a dense cloud.'],
+      hidamp: ['Hoe snel het hoog uitsterft.', 'How quickly the highs die away.'],
+      lomult: ['Laag langer (boven 1) of korter (onder 1) dan de rest.', 'Lows longer (above 1) or shorter (below 1) than the rest.'],
+      mod: ['Beweging in de staart; haalt het metalige weg.', 'Movement in the tail; removes the metallic ring.'],
+      width: ['Stereobreedte van de galm.', 'Stereo width of the reverb.'],
+      mix: ['Hoeveel galm er bij het droge geluid komt.', 'How much reverb is mixed with the dry sound.'],
+      freeze_btn: ['Houd de galm vast: hij klinkt eindeloos door.', 'Hold the reverb: it rings on forever.'],
+    },
+  },
   tp_mmb_reverb: {
     about: ['Plaat- of veergalm.', 'Plate or spring reverb.'],
     controls: {

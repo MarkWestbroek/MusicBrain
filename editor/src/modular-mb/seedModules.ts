@@ -2099,6 +2099,45 @@ function mmbReverb() {
   });
 }
 
+// ── HALL ───────────────────────────────────────────────────────────────
+// Grote galm in Lexicon-stijl (doc/plans/hall-reverb.md): vroege reflecties,
+// verspreiding, een FDN van 8 gemoduleerde lijnen met demping in drie banden.
+function mmbHall() {
+  const w = W(14);
+  return assemble({
+    typeId: 'tp_mmb_hall', categoryId: 'effect', variant: 'Hall reverb (FDN, Lexicon-style)',
+    brand: 'MMB', model: 'HALL', hp: 14, texture: 'pcb-black', baseColor: '#14182a', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'HALL', fontSize: 2.0, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: 'zaal · kamer · chamber · random', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      sw  ('algo',  'Algo',  w*0.16, 30, ['Hall', 'Room', 'Chamber', 'Random'], 0),
+      knob('size',  'Size',  w*0.48, 32, { size: 'large', min: 0, max: 1, def: 0.6, color: '#a5b4fc' }),
+      knob('decay', 'Decay', w*0.80, 32, { size: 'large', min: 0.2, max: 30, def: 2.5, unit: 's', taper: 'log', color: '#a5b4fc' }),
+      knob('predelay',  'Pre',   w*0.14, 55, { size: 'small', min: 0, max: 250, def: 20, unit: 'ms', color: '#9ca3af' }),
+      knob('early',     'Early', w*0.38, 55, { size: 'small', min: 0, max: 1, def: 0.5, color: '#9ca3af' }),
+      knob('diffusion', 'Diff',  w*0.62, 55, { size: 'small', min: 0, max: 1, def: 0.85, color: '#9ca3af' }),
+      knob('mod',       'Mod',   w*0.86, 55, { size: 'small', min: 0, max: 1, def: 0.4, color: '#9ca3af' }),
+      knob('hidamp',    'Hi damp', w*0.14, 74, { size: 'small', min: 0, max: 1, def: 0.4, color: '#9ca3af' }),
+      knob('lomult',    'Lo ×',    w*0.38, 74, { size: 'small', min: 0.25, max: 4, def: 1.2, color: '#9ca3af' }),
+      knob('width',     'Width',   w*0.62, 74, { size: 'small', min: 0, max: 1, def: 1, color: '#9ca3af' }),
+      toggle('freeze_btn', 'Freeze', w*0.86, 74),
+      knob('mix',   'Mix',   w/2,    92, { size: 'medium', min: 0, max: 1, def: 0.3, color: '#f9fafb' }),
+      inPort ('size_cv',  'S+', 'cv',   w*0.14, 106),
+      inPort ('decay_cv', 'D+', 'cv',   w*0.38, 106),
+      inPort ('mix_cv',   'M+', 'cv',   w*0.62, 106),
+      inPort ('freeze',   'Frz', 'gate', w*0.86, 106),
+      inPort ('in_l',  'L', 'audio', w*0.12, 118),
+      inPort ('in_r',  'R', 'audio', w*0.30, 118),
+      outPort('out_l', 'L', 'audio', w*0.70, 118),
+      outPort('out_r', 'R', 'audio', w*0.88, 118),
+    ],
+    notes: 'Grote galm in Lexicon-stijl, met gepubliceerde technieken en eigen code: vroege reflecties uit de pre-delay, vier all-passes voor de verspreiding, en een feedback delay network van acht gemoduleerde lijnen met Householder-menging en per lijn een demping in drie banden. Decay is een echte galmtijd (RT60, 0,2–30 s); Lo × rekt (> 1) of kort (< 1) het laag ten opzichte daarvan, Hi damp kort het hoog in. Algo: Hall (groot, lange opbouw), Room (klein, sterke vroege reflecties), Chamber (dicht, weinig beweging), Random (de dwalende modulatie van de 480L). Size = de ruimtegrootte (glijdt, geen tik), Early = de vroege reflecties, Diff = de dichtheid van de opbouw, Mod = de beweging in de staart. Freeze (knop of gate): de staart blijft staan, de ingang gaat dicht. CV op Size, Decay (± 4 octaven tijd) en Mix telt op bij de knop. Zwaarder dan REVERB; kies hem voor de grote ruimte. Zonder R-kabel krijgt rechts hetzelfde als links. Firmware tp_mmb_hall, mmb_dsp::Hall — in de simulator draait dezelfde code als wasm.',
+  });
+}
+
 // ── Tremolo-pedaal ─────────────────────────────────────────────────────
 function mmbTremolo() {
   const w = W(8);
@@ -5112,7 +5151,7 @@ function mmbEnvFollowerMono() {
 // ── public entry ───────────────────────────────────────────────────────
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbBeads(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbAudioIn(), mmbEcho(), mmbTapeEcho(), mmbStereoTapeEcho(), mmbDigitalEcho(), mmbBbdChorus(), mmbRingMod(), mmbOctaver(), mmbHarmonizer(), mmbReverb(), mmbTremolo(), mmbStereoPhaser(), mmbVibe(), mmbRotary(), mmbShimmer(), mmbFetComp(),mmbOptoComp(), mmbBusComp(),mmbVariMuComp(), mmbProgramEq(), mmbDiodeComp(), mmbConsoleEq(), mmbParaEq(), mmbSampler(), mmbZang(), mmbSid(), mmbSid3(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbFof(), mmbEnvFollower(), mmbEnvFollowerMono()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbBeads(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbAudioIn(), mmbEcho(), mmbTapeEcho(), mmbStereoTapeEcho(), mmbDigitalEcho(), mmbBbdChorus(), mmbRingMod(), mmbOctaver(), mmbHarmonizer(), mmbReverb(), mmbHall(), mmbTremolo(), mmbStereoPhaser(), mmbVibe(), mmbRotary(), mmbShimmer(), mmbFetComp(),mmbOptoComp(), mmbBusComp(),mmbVariMuComp(), mmbProgramEq(), mmbDiodeComp(), mmbConsoleEq(), mmbParaEq(), mmbSampler(), mmbZang(), mmbSid(), mmbSid3(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbFof(), mmbEnvFollower(), mmbEnvFollowerMono()];
   all.push(mmbMaterialBridge());
   all.push(mmbScanned());
   all.push(mmbReservoir());
@@ -6146,6 +6185,10 @@ export const BEADS_SOLO_FX = {
   typeId: 'tp_mmb_beads', label: 'BEADS',
   controls: { time: 0.12, size: 0.45, shape: 0.55, pitch: 0.5, density: 0.68, time_amt: 0.3, pitch_amt: 0,
               feedback: 0.25, mix: 0.6, reverb: 0.45, quality: 1, seed_lock: 1 },
+} as const;
+export const HALL_SOLO_FX = {
+  typeId: 'tp_mmb_hall', label: 'HALL',
+  controls: { algo: 0, size: 0.75, decay: 3.2, predelay: 30, early: 0.5, diffusion: 0.85, hidamp: 0.45, lomult: 1.3, mod: 0.45, width: 1, mix: 0.4 },
 } as const;
 export const SHIMMER_SOLO_FX = {
   typeId: 'tp_mmb_shimmer', label: 'SHIMMER',

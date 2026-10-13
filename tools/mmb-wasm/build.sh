@@ -197,6 +197,7 @@ sel shimmer && build shimmer tp_mmb_shimmer "$LIB/mmb-dsp" --
 # West Coast, pedalen en klassiekers (2026-10-02): kernels via kernel_host.h.
 sel folder && build folder tp_mmb_folder "$LIB/mmb-dsp" --
 sel lpg && build lpg tp_mmb_lpg "$LIB/mmb-dsp" --
+sel hall && build hall tp_mmb_hall "$LIB/mmb-dsp" --
 sel drive && build drive tp_mmb_drive "$LIB/mmb-dsp" --
 sel freqshift && build freqshift tp_mmb_freqshift "$LIB/mmb-dsp" --
 sel acid && build acid tp_mmb_acid "$LIB/mmb-dsp" --
