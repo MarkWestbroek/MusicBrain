@@ -1461,6 +1461,33 @@
         "fw": "0.5.112",
         "how": "module_cpu-stijl op de Teensy: korrels, Digital, Density 0,7. Tape+ 8,7 %, Tape 16,4 %, Vintage 10,5 %, veel korrels 17 %, wavetable 14 %, delaystand 54–58 % (Tape+ 29 %)."
       }
+    },
+    "tp_mmb_hall": {
+      "slug": "sw-hall",
+      "name": "Hall reverb",
+      "family": "Delay & reverb",
+      "tags": [
+        "stereo"
+      ],
+      "controlHelp": {
+        "lomult": "Bass reverb time as a multiple of Decay: above 1 the bass rings longer, below 1 shorter.",
+        "freeze_btn": "Holds the tail forever and closes the input."
+      },
+      "portHelp": {
+        "in_l": "Audio in (left, or mono).",
+        "in_r": "Audio in, right.",
+        "size_cv": "CV for Size, added to the knob.",
+        "decay_cv": "CV for Decay: +1 makes the reverb time 16 times longer, −1 16 times shorter.",
+        "mix_cv": "CV for Mix, added to the knob.",
+        "freeze": "Gate: holds the tail while high.",
+        "out_l": "Left output.",
+        "out_r": "Right output."
+      },
+      "cpu": {
+        "percent": 14.4,
+        "fw": "0.5.113",
+        "how": "module_cpu.py: one instance, one note held, default settings (audio in: in_l,in_r; uit: out_l)"
+      }
     }
   },
   "exampleNames": {

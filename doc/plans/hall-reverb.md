@@ -11,9 +11,9 @@ eigen grote galm met die bekende technieken, zonder iets te kopiëren.
 > belangrijk"); convolutie pas na HALL. Referentie om op het oor mee te
 > vergelijken: mogelijk een Lexicon PCM 91.
 
-> **Stand 2026-10-14:** stap 1–3 gebouwd (fw 0.5.113, Teensy 14,4 % cpu),
-> zie [RELEASE-LOG](../RELEASE-LOG.md). Open: de sitepagina (stap 4),
-> luisteren tegen een PCM 91, en daarna CONV.
+> **Stand 2026-10-14:** stap 1–4 gebouwd (fw 0.5.113, Teensy 14,4 % cpu,
+> sitepagina `sw-hall` live), zie [RELEASE-LOG](../RELEASE-LOG.md). Open:
+> luisteren (ook tegen een PCM 91), en daarna CONV.
 
 Eerst de werkwijze, dan de techniek.
 
