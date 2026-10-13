@@ -17,6 +17,24 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-13 — Elements: de 19 geredde programma's als bank, met Program en een naamdisplay (editor)
+<!-- EN: Elements: a program bank with the 19 programs rescued from the standalone 5× Elements, chosen with a Program knob and shown by name -->
+- Stap 1 van [plans/elements-programmas.md](plans/elements-programmas.md),
+  eerst om ze te kunnen beluisteren (Mark). Nieuw `modulePrograms.ts`: per
+  moduletype een fabrieksbank; Elements = de 19 programma's van de losse
+  5× Elements (`sounds/Elements/`), 1–8 met hun naam, 9–19 als "prog N"
+  tot we ze een naam geven.
+- Op het paneel (onderaan links) en het front: knop **Program** met een
+  **naamdisplay**; in de patcher een keuzelijst op naam (zoals de DX7).
+  Kiezen zet de knoppen van het programma via `setPatchControl` (dus ook
+  naar alle stemmen, de Teensy en de automation); **Coarse, Fine en Level
+  blijven staan** (besluit Mark). De seed "💎 Elements (modaal)" begint op
+  programma 1.
+- De firmware hoeft `program` niet te kennen (contract: genegeerd); de
+  knopstanden gaan zoals altijd als losse controls naar de Teensy.
+- Nog niet: een eigen bank per patch met Bewaar, MIDI Program Change, de
+  VCV-importeur. Test `modulePrograms.test.ts`.
+
 ### 2026-10-13 — Een gestolen stem slaat weer aan: de wah komt terug met sustain (FW-10, fw 0.5.112)
 <!-- EN: Voice stealing retriggers the envelopes again, so a held sustain pedal no longer swallows the attack and the filter sweep -->
 - Mark: "met sustain is er geen wah meer" (4-stemmige Ladder, simulator).

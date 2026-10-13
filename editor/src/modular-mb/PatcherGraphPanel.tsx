@@ -28,6 +28,7 @@ import { setPatchControl } from './setPatchControl';
 import { FrontMenu, type FrontMenuAnchor } from './FrontMenu';
 import { FrontFields } from './FrontFields';
 import { DX7_VOICE_NAMES, DX7_BANK_SHORT } from './dx7BankNames';
+import { MODULE_PROGRAMS } from './modulePrograms';
 import { useEngineStatus } from './sim/engineSingleton';import {
   type ModuleInstance, type ModuleType, type Port, type PatchConnection,
   type ControlValue, type RackSlot, type PolyGroup, type PatchPolyOverride,
@@ -984,6 +985,18 @@ function PropertiesPanel(props: { patchId: string; selectedNodeId: string | null
                 >
                   {names.map((nm, i) => (
                     <option key={i} value={i}>{`${i.toString().padStart(2, '0')} ${nm.trim()}`}</option>
+                  ))}
+                </select>
+              );
+            } else if (ctrl.id === 'program' && MODULE_PROGRAMS[t.id]) {
+              // Programmabank (modulePrograms.ts): kies op naam; de keuze zet
+              // de knoppen via setPatchControl.
+              const prog = typeof v === 'number' ? v : 0;
+              editor = (
+                <select value={prog} title="Kies een programma op naam"
+                  onChange={(e) => setControl(ctrl.id, Number(e.target.value))} style={{ maxWidth: 150 }}>
+                  {MODULE_PROGRAMS[t.id]!.map((p, i) => (
+                    <option key={i} value={i}>{`${(i + 1).toString().padStart(2, '0')} ${p.name}`}</option>
                   ))}
                 </select>
               );

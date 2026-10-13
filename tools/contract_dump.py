@@ -101,7 +101,8 @@ OVERRIDES: dict[str, dict[str, list[str]]] = {
                        "ports": _rng("voct_", 8) + _rng("gate_", 8)},
     # Elements: de tien CV-parameters met attenuverter staan in een tabel
     # (mmb_dsp/elements_cv.h, fw 0.5.111): knop, `<knop>_amt` en `<knop>_cv`.
-    "tp_mmb_elements": {"implemented": _ELEMENTS_CV + [f"{k}_amt" for k in _ELEMENTS_CV], "ignored": [],
+    # `program`: de editor zet bij een keuze de knoppen zelf (modulePrograms.ts).
+    "tp_mmb_elements": {"implemented": _ELEMENTS_CV + [f"{k}_amt" for k in _ELEMENTS_CV], "ignored": ["program"],
                         "ports": [f"{k}_cv" for k in _ELEMENTS_CV]},
     "tp_mmb_sid3": {"implemented": [f"{n}_{k}" for n in ("tri", "saw", "pulse", "noise", "pw", "ring", "sync",
                                                          "attack", "decay", "sustain", "release",

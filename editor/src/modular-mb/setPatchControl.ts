@@ -19,6 +19,7 @@
 // luistert met `onControlWrite`; hij hoort de knop waar je aan draaide, niet
 // elke stem.
 
+import { MODULE_PROGRAMS } from './modulePrograms';
 import { polyControlTargets } from './polyExpand';
 import { findTwin } from './recipe/edits';
 import { getProject, updateProject } from './store';
@@ -77,5 +78,12 @@ export function setPatchControl(
     for (const id of targets) void sendControlPoke(id, controlId, value);
   updateProject((p) => writePatchControl(p, patchId, moduleId, controlId, value, opts).project);
   for (const fn of writeListeners) fn({ patchId, moduleId, controlId, value, prev, twins: Boolean(opts.twins) });
+  // Programmakeuze (modulePrograms.ts): de knoppen van het programma gaan
+  // langs hetzelfde pad, dus ook naar alle stemmen en de Teensy.
+  if (controlId === 'program' && typeof value === 'number') {
+    const typeId = before.modules.find((m) => m.id === moduleId)?.typeId;
+    const prog = typeId ? MODULE_PROGRAMS[typeId]?.[Math.round(value)] : undefined;
+    if (prog) for (const [cid, v] of Object.entries(prog.values)) setPatchControl(patchId, moduleId, cid, v, opts);
+  }
   return targets;
 }

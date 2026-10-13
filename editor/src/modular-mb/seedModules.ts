@@ -18,6 +18,7 @@ import {
   type ModuleRole, type CellGroup, type PolyGroup, type Taper,
   MM_PER_HP, PANEL_HEIGHT_MM,
 } from './types';
+import { programNames } from './modulePrograms';
 import { uid } from './store';
 import { derivedTaper } from './taper';
 import { DX7_VOICE_NAMES } from './dx7BankNames';
@@ -2676,7 +2677,7 @@ function mmbElements() {
     texts: [
       { x: 6, y: 8, text: 'Elements', fontSize: 3, color: '#f9fafb', align: 'start' },
       { x: w - 6, y: 8, text: 'modal synthesizer', fontSize: 1.6, color: '#9ca3af', align: 'end' },
-      { x: 40, y: 126, text: 'MI · MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+
     ],
     decorations: [
       // scheiding exciter | resonator
@@ -2743,6 +2744,9 @@ function mmbElements() {
       inPort ('strike_in', 'Ext In',   'audio', ioR, 90),
       outPort('out_l',     'Out L',    'audio', ioL, 106),
       outPort('out_r',     'Out R',    'audio', ioR, 106),
+      // ── programma's (modulePrograms.ts): knop + naam, onderaan links ──
+      display('program_name', 58, 120, { digits: 16, style: 'oled', bindTo: 'program', lookup: [programNames('tp_mmb_elements')], size: 'small' }),
+      knob('program', 'Program', 88, 119, { size: 'small', min: 0, max: programNames('tp_mmb_elements').length - 1, def: 0, step: 1, color: '#9ca3af' }),
       // ── niet op het origineel: klein onderaan rechts ──
       knob('signature',  'Signat', R[0], 119, { size: 'small', min: 0, max: 1, def: 0,   color: '#9ca3af' }),
       knob('mod_freq',   'ModFrq', R[1], 119, { size: 'small', min: 0, max: 1, def: 0.5, color: '#9ca3af' }),

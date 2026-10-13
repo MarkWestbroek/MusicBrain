@@ -35,7 +35,7 @@ export const FRONT_CONTROLS: Record<string, string[]> = {
   // (FRONT_SIZES), zodat het op een telefoon past.
   // Rijen van vier: exciters + Contour | Flow, Mallet, Geometry, Brightness |
   // de drie Timbres + Damping | Position, Space.
-  [T('elements')]: ['bow', 'blow', 'strike', 'envelope', 'blow_meta', 'strike_meta', 'geometry', 'brightness',
+  [T('elements')]: ['program', 'bow', 'blow', 'strike', 'envelope', 'blow_meta', 'strike_meta', 'geometry', 'brightness',
     'bow_timbre', 'blow_timbre', 'strike_timbre', 'damping', 'position', 'space'],
   [T('epiano')]: ['type', 'timbre', 'bell', 'tremolo', 'drive', 'decay', 'trem_rate'],
   [T('excitable')]: ['excite', 'refract', 'thresh', 'pickup', 'detune'],

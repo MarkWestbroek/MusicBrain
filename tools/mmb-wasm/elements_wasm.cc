@@ -30,7 +30,7 @@ const int MMB_NUM_OUTPUTS = 2;
 enum { C_GEOMETRY, C_BRIGHTNESS, C_DAMPING, C_POSITION, C_SPACE, C_ENVELOPE,
        C_BOW_TIMBRE, C_BLOW_TIMBRE, C_STRIKE_TIMBRE, C_BLOW_META, C_STRIKE_META,
        C_SIGNATURE, C_MOD_FREQ, C_MOD_OFFSET, C_FM, C_BOW, C_BLOW, C_STRIKE,
-       C_COARSE, C_FINE, C_LEVEL, C_PLAY, C_AMT0 };
+       C_COARSE, C_FINE, C_LEVEL, C_PLAY, C_PROGRAM, C_AMT0 };
 MmbControl MMB_CONTROLS[] = {
     { "geometry", 0.2f }, { "brightness", 0.5f }, { "damping", 0.25f }, { "position", 0.3f },
     { "space", 0.5f }, { "envelope", 1.0f }, { "bow_timbre", 0.5f }, { "blow_timbre", 0.5f },
@@ -38,12 +38,13 @@ MmbControl MMB_CONTROLS[] = {
     { "mod_freq", 0.5f }, { "mod_offset", 0.1f }, { "fm", 0.5f }, { "bow", 0.0f }, { "blow", 0.0f },
     { "strike", 0.8f }, { "coarse", 0.0f }, { "fine", 0.0f }, { "level", 0.8f },
     { "play", 0.f },
+    { "program", 0.f },   // programmakeuze: de editor zet de knoppen (modulePrograms.ts)
     // C_AMT0 + i = de attenuverter van elements_cv::kParams[i]
     { "bow_timbre_amt", 0.f }, { "blow_meta_amt", 0.f }, { "blow_timbre_amt", 0.f }, { "strike_meta_amt", 0.f },
     { "strike_timbre_amt", 0.f }, { "damping_amt", 0.f }, { "geometry_amt", 0.f }, { "position_amt", 0.f },
     { "brightness_amt", 0.f }, { "space_amt", 0.f },
 };
-const int MMB_NUM_CONTROLS = 32;
+const int MMB_NUM_CONTROLS = 33;
 
 namespace {
 // Delay-lines statisch (BSS = genuld, precies wat de MI-DSP verwacht).
