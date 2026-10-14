@@ -124,3 +124,40 @@ Bricasti M7) alleen als de rechten helder zijn. Eerst HALL.
 3. **Plaats in de familie**: naast REVERB als aparte module (voorstel), of
    als extra stand van REVERB?
 4. **Convolutie**: na HALL, of liever eerst?
+
+## 8. Cloud Seed (bekeken 2026-10-14)
+
+Mark: "Cloud Seed is interessant: wil je daar beter naar kijken?"
+
+- **Wat**: de algoritmische galm van Valdemar Erlingsson (Ghost Note Audio),
+  bedoeld voor grote, ambient ruimtes. De kern van Cloud Seed 2.0 is open:
+  `GhostNoteAudio/CloudSeedCore` (C++14, ~3200 regels, geen afhankelijkheden,
+  laatste commit 22-09-2024). De plugin zelf (met de bediening) is betaald.
+- **Licentie**: MIT. Voorwaarden in de readme: Ghost Note Audio als
+  oorspronkelijke auteur noemen; de naam "Cloud Seed" mag, als duidelijk is
+  dat het niet van hen komt (en ze kunnen vragen ermee te stoppen).
+- **Opbouw** (per kant een eigen kanaal; links en rechts verschillen via
+  "cross seed"): laag- en hoogafsnijding op de ingang → pre-delay →
+  multitap (vroege reflecties, met seed) → tot 12 gemoduleerde all-passes in
+  serie → tot **12 parallelle lijnen**, elk een eigen terugkoppellus met
+  daarin een gemoduleerde vertraging, tot 12 gemoduleerde all-passes, een
+  low/high shelf en een laagdoorlaat. Galmtijd per lijn uit de RT60 (zoals
+  HALL). Alle lengtes en snelheden komen uit een zaadgetal: dezelfde knoppen
+  met een ander zaad is een andere ruimte.
+- **Verschil met HALL**: geen menging tussen de lijnen (parallel, geen
+  FDN-matrix); de dichtheid komt van de all-passes *in* de lussen. Dat geeft
+  de typische, wollige, oneindige wolk. Veel knoppen (ruim 40 parameters):
+  meer een galm-instrument dan een "zet hem op Hall"-galm.
+- **Teensy**: zoals hij is past hij niet. Elke all-pass reserveert
+  100 ms bij 192 kHz (75 KB); bij de maximale instellingen zijn dat er
+  ~300, samen tientallen MB, en ook de rekentijd is dan veel te hoog. Een
+  port moet de buffers op 44,1 kHz en op de werkelijk gebruikte lengtes
+  maken, en het aantal lijnen en trappen begrenzen (bijv. 8 lijnen × 4
+  all-passes). Dan is een schatting 20–40 % cpu; meten. In de simulator
+  kan hij wel met de grenzen van nu.
+- **Advies**: als **referentie** meteen bruikbaar (zelfde impuls door HALL
+  en Cloud Seed, staart vergelijken). Als **eigen module** (bijv. "SEED" of
+  "CLOUD", met credit) is hij een mooie ambient-galm naast HALL, maar dan
+  met een kleine set knoppen op het front en de rest achter Binnenkijken.
+  Volgorde ten opzichte van CONV: Marks keuze
+  ([conv-reverb.md](conv-reverb.md) vraag 4).

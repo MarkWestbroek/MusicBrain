@@ -67,7 +67,8 @@ Elk plan draagt zijn eigen datum en status. Kort per thema:
 - **Percuter**: [percuter.md](plans/percuter.md) (acht 8-bit drumkanalen naar de Dynacord Percuter, cartridge-dumps omzetten).
 - **Ritmebox**: [ritmebox.md](plans/ritmebox.md) (CR-78-presets uit de Service Notes overgenomen, wat er ontbreekt, en waarom de Elka-ritmes niet uit de documentatie komen).
 - **Help en instrumenttour (2026-10-10)**: [help-en-instrumenttour.md](plans/help-en-instrumenttour.md): ? en lang drukken leggen elke frontknop uit (gebouwd); ontwerp voor een tour die speelt en aan de knoppen draait.
-- **HALL (voorstel 2026-10-14)**: [hall-reverb.md](plans/hall-reverb.md): grote galm in Lexicon-stijl (FDN met modulatie, vroege reflecties); convolutie later en apart.
+- **HALL (gebouwd 2026-10-14, fw 0.5.113)**: [hall-reverb.md](plans/hall-reverb.md): grote galm in Lexicon-stijl (FDN met modulatie, vroege reflecties); §8 Cloud Seed bekeken.
+- **CONV (voorstel 2026-10-14)**: [conv-reverb.md](plans/conv-reverb.md): convolutiegalm met niet-uniforme partities, IR-bank, eigen IR's lokaal (niet in de repo).
 - **Elements-programma's (voorstel 2026-10-12)**: [elements-programmas.md](plans/elements-programmas.md): een bank programma's per Elements, zoals de DX7; de 19 geredde programma's van de 5× Elements als eerste bank.
 - **Beads (voorstel 2026-10-12)**: [beads.md](plans/beads.md): Mutable Instruments Beads (broncode vrijgegeven 11-10-2026, MIT) als module naast Clouds; werkwijze, stappen, vragen.
 - **Automation (voorstel 2026-10-11)**: [automation.md](plans/automation.md): knopbewegingen meeopnemen in takes en sporen (ED-SM-10), werkwijze eerst; vragen open.
