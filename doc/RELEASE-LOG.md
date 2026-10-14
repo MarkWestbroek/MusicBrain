@@ -17,6 +17,18 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-15 — Proef: HALL als VST3/Standalone-plugin (JUCE), zelfde klank als de simulator
+<!-- EN: Proof of concept: HALL as a VST3 and standalone plugin on the same kernel, measured identical to the simulator -->
+- Mark kreeg de tip modules als plugin te verkopen; eerst een gratis proef
+  ([plans/plugin.md](plans/plugin.md)). `tools/plugin/`: JUCE-project met
+  HALL als VST3 en Standalone (Windows, kale knoppen) en `mmb-plugin-check`,
+  dat een VST3 laadt zoals een DAW en een impulsrespons rendert.
+- Gemeten: plugin en wasm geven tot op twee decimalen dezelfde RT60 per
+  band, start en L/R-correlatie. Eén kern, drie gastheren.
+- Nog niet in een DAW gedraaid (geen Live/Reaper op deze pc). Open: de
+  bediening (webview met ModulePanel of JUCE-tekenwerk), instrumenten
+  (noten), licentie-sweep, Mac.
+
 ### 2026-10-14 — CONV: convolutiegalm in de simulator; op de Teensy nog te zwaar
 <!-- EN: CONV: a convolution reverb with six generated spaces, in the simulator for now -->
 - Plan [plans/conv-reverb.md](plans/conv-reverb.md) (besluiten Mark: eigen
