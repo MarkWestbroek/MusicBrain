@@ -32,6 +32,7 @@
 #include "Dx7Module.h"
 #include "WarpsModule.h"
 #include "SamplerModule.h"
+#include "ConvModule.h"
 #include "ZangModule.h"
 #include "UsbQueueProbe.h"
 #include "mmb_dsp/sampler_selftest.h"
@@ -975,8 +976,49 @@ void runBench(const char* what, JsonObject out) {
     } else if (strcmp(what, "div") == 0) {
         volatile float acc = 1;
         out["cyclesPerSample"] = benchCycles([&] { for (int i = 0; i < N; ++i) acc = g_benchIn[i] / (acc + 2.0f); }, B, N);
+    } else if (strcmp(what, "psram") == 0 || strcmp(what, "ram2") == 0) {
+        // Leessnelheid: 32 KB doorlopen (past in de cache) en 1 MB (past niet).
+        const bool ps = strcmp(what, "psram") == 0;
+        for (int kb : { 32, 256 }) {
+            const int n = kb * 256;
+            float* p = static_cast<float*>(ps ? extmem_malloc(n * 4) : std::malloc(n * 4));
+            if (!p) { out[kb == 32 ? "c32" : "c256"] = -1; continue; }
+            for (int i = 0; i < n; ++i) p[i] = 1.0f;
+            volatile float acc = 0;
+            const float c = benchCycles([&] { float s = 0; for (int i = 0; i < n; ++i) s += p[i]; acc = s; }, 4, n);
+            out[kb == 32 ? "c32" : "c256"] = c;
+            if (ps) extmem_free(p); else std::free(p);
+        }
+        out["psramMB"] = external_psram_size;
+    } else if (strncmp(what, "conv", 4) == 0) {
+        // conv = Hall (2,6 s) in PSRAM; convs = 0,15 s in PSRAM; convsh = 0,15 s op de heap.
+        const bool heap = strcmp(what, "convsh") == 0;
+        const bool shortIr = heap || strcmp(what, "convs") == 0;
+        auto& A = mmb_dsp::convAllocator();
+        A.alloc = heap ? static_cast<void* (*)(std::size_t)>(std::malloc) : mmb_link::convAlloc;
+        A.free = mmb_link::convFree;
+        {
+            mmb_dsp::Conv k;
+            k.Init(AUDIO_SAMPLE_RATE_EXACT);
+            k.setControl(mmb_dsp::Conv::Mix, 1.0f);
+            if (shortIr) k.setControl(mmb_dsp::Conv::Length, 0.15f);
+            const uint32_t t0 = millis();
+            out["built"] = k.rebuild();
+            out["buildMs"] = millis() - t0;
+            out["irLen"] = k.irLength();
+            const float* ins[2] = { g_benchIn, nullptr };
+            float* outs[2] = { g_benchOut[0], g_benchOut[1] };
+            auto& P = mmb_dsp::convProfile();
+            P.reset(); P.clock = [] { return static_cast<uint32_t>(ARM_DWT_CYCCNT); };
+            constexpr int Bc = 512;                      // 512 × 128 = 4 × de grootste blokperiode
+            out["cyclesPerSample"] = benchCycles([&] { k.Process(ins, outs, N); }, Bc, N);
+            const double n = static_cast<double>((Bc + 1) * N);
+            out["copy"] = P.copy / n; out["fft"] = P.fft / n; out["mac"] = P.mac / n; out["ifft"] = P.ifft / n;
+            P.clock = nullptr;
+        }
+        A.alloc = mmb_link::convAlloc;
     } else {
-        out["error"] = "os, ladder, drive, tube, tanh, logcosh, div";
+        out["error"] = "os, ladder, drive, tube, tanh, logcosh, div, conv, convs, convsh";
     }
 }
 
@@ -985,6 +1027,8 @@ void loop() {
     link.poll();
     // Sampler-streamen: ringen vooruit vullen van de SD (alleen als de bank streamt).
     mmb_link::SampleBank::instance().service();
+    // CONV: een nieuwe IR uitrekenen buiten de audio-interrupt.
+    mmb_link::ConvModule::serviceAll();
 
     // CV tick — advance envelopes approximately every 1 ms
     const uint32_t now = millis();
