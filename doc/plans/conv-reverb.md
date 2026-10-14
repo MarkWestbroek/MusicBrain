@@ -15,7 +15,8 @@ de M7 zelf bestaat (gesampelde presets, Seventh Heaven).
 > **Stand 2026-10-14:** stap 1 gebouwd: kern `mmb_dsp/conv.h` (eigen reële
 > FFT, partities 64 … 4096, de grote verdeeld over de tikken, 6 gegenereerde
 > ruimtes), wasm, `wasmConv.test.ts` (exact tegen directe convolutie,
-> vertraging, galmtijden, Size, Length). Nog geen paneel en geen Teensy.
+> vertraging, galmtijden, Size, Length). Stap 2 (paneel, front, seed) ook
+> klaar. Stap 3 (Teensy) gemeten en te zwaar: zie §8.
 
 Eerst de werkwijze, dan de techniek.
 
@@ -126,3 +127,31 @@ patches):
 4. **Volgorde ten opzichte van Cloud Seed** (zie
    [hall-reverb.md](hall-reverb.md) §8): eerst CONV, eerst Cloud Seed, of
    Cloud Seed alleen als referentie?
+
+## 8. De Teensy-meting (2026-10-14)
+
+- CONV met de Hall-IR (2,6 s) op de Teensy: **82 % cpu**. Uitgesplitst
+  (bench `conv`, cycli per sample): MAC 38 700, IFFT 11 200, FFT 7 100,
+  kopiëren 4 100; samen ~4,5× het budget van een sample (13 600). (De
+  bench draait zonder interrupts en telt anders dan de audio-meter; de
+  verhouding tussen de delen is wat telt.)
+- Oorzaak: de **PSRAM**. Bench `psram`/`ram2`: doorlezen kost 64 cycli per
+  float uit PSRAM (~37 MB/s), 4 uit RAM2; ook 32 KB "in de cache" kost al
+  15. Convolutie leest per partitie per periode de hele ingangs- en
+  IR-spectra; met alles in PSRAM is dat de grens.
+- Wat het theoretisch kan worden: per partitie in PSRAM minstens ~6 floats
+  per sample (ingang + IR links + IR rechts). Met de kleine blokken op de
+  heap, de MAC per stukje bins (accumulator lokaal), de spectra in 16 bit en
+  de FFT's in een snelle kladruimte schat ik **~1 s stereo rond 20–25 %**,
+  2 s rond 35–45 %. Veel werk, en de heap is krap (HALL).
+- Keuzes:
+  1. **Kort op de Teensy**: CONV optimaliseren voor IR's tot ~0,5–1 s
+     (kamers, platen, vroege reflecties); de simulator houdt 4 s.
+  2. **Hybride**: de kop (0,3–0,5 s, het karakter van de ruimte) met
+     convolutie, de staart met de HALL-tank, afgestemd op de galmtijd per
+     band van de IR. Zo doen veel hardware-galmen het.
+  3. **Lang alleen op een effectenkaart** (BACKLOG HB-5); de Teensy krijgt
+     CONV voorlopig niet.
+- De proefbouw (ConvModule.h, bench `conv`/`psram`) staat niet in een
+  release.
+

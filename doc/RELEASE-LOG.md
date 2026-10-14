@@ -17,6 +17,27 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-14 — CONV: convolutiegalm in de simulator; op de Teensy nog te zwaar
+<!-- EN: CONV: a convolution reverb with six generated spaces, in the simulator for now -->
+- Plan [plans/conv-reverb.md](plans/conv-reverb.md) (besluiten Mark: eigen
+  en vrije IR's, langer dan 2 s als het kan, Size erbij, eerst CONV dan
+  Cloud Seed).
+- Kern `mmb_dsp/conv.h`: niet-uniform opgedeelde convolutie (eigen reële
+  FFT, blokken 64 … 4096, de grote verdeeld over de tikken), stereo-IR tot
+  4 s, vertraging 64 samples die van de pre-delay afgaat. Bank met zes
+  gegenereerde ruimtes (Hall, Room, Chamber, Plate, Church, Small); **Size**
+  rekt de IR op (grotere, donkerdere ruimte) of drukt hem in, **Length**
+  kapt af. Lo cut, Hi cut, Width, Mix (+ CV).
+- Module `tp_mmb_conv` (10 HP) met IR-knop en naamdisplay, help, front,
+  seed "⛪ Rings + CONV". Tests `wasmConv.test.ts`: exact gelijk aan een
+  rechtstreekse convolutie over alle blokgrenzen, vertraging, galmtijden,
+  Size, Length.
+- **Teensy: nog niet.** Gemeten (fw-proefbouw 0.5.114, niet uitgebracht):
+  CONV met een IR van 2,6 s kost 82 % cpu. De PSRAM haalt ~37 MB/s
+  (64 klokcycli per float bij doorlezen, RAM2: 4) en de convolutie leest per
+  partitie per periode alle spectra; dat is de grens, niet de rekenkracht.
+  Keuze voor de Teensy-kant ligt bij Mark (plan §8).
+
 ### 2026-10-14 — HALL: een grote galm in Lexicon-stijl, vier algoritmes en Freeze (fw 0.5.113)
 <!-- EN: HALL: a large Lexicon-style reverb with four algorithms (Hall, Room, Chamber, Random Hall) and Freeze -->
 - Plan [plans/hall-reverb.md](plans/hall-reverb.md), besluiten van Mark:

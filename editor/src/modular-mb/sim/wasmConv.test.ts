@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { onePole, rt60 } from './hallMeasure';
-import { load, peak } from './wasmTestHost';
+import { expectMatchesCatalog, load, peak } from './wasmTestHost';
 
 type Ctl = Record<string, number>;
 async function conv(ctl: Ctl) {
@@ -24,6 +24,8 @@ async function ir(ctl: Ctl, secs: number) {
 const band = (x: Float32Array, rate: number) => onePole(onePole(x, rate, 500, 'hp'), rate, 2000, 'lp');
 
 describe('tp_mmb_conv', () => {
+  it('draagt de namen van de catalogus', async () => { await expectMatchesCatalog('tp_mmb_conv'); });
+
   it('is een exacte convolutie: ruis erin = ruis * de gemeten impulsrespons', async () => {
     const ctl = { ir: 0, length: 0.5 };   // 0,5 s: raakt alle blokgroottes t/m 4096
     const h = (await ir(ctl, 0.8)).l;

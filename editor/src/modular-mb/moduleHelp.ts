@@ -290,6 +290,19 @@ export const MODULE_HELP: Readonly<Record<string, ModuleHelp>> = {
       freeze_btn: ['Houd de galm vast: hij klinkt eindeloos door.', 'Hold the reverb: it rings on forever.'],
     },
   },
+  tp_mmb_conv: {
+    about: ['Convolutiegalm: de nagalm van een ruimte, vastgelegd als impulsrespons.', 'Convolution reverb: the reverb of a space, captured as an impulse response.'],
+    controls: {
+      ir: ['Welke ruimte: Hall, Room, Chamber, Plate, Church of Small.', 'Which space: Hall, Room, Chamber, Plate, Church or Small.'],
+      size: ['Rekt de ruimte op (groter, donkerder) of drukt hem in (kleiner, helderder).', 'Stretches the space (bigger, darker) or squeezes it (smaller, brighter).'],
+      length: ['Kapt de galm af na zoveel seconden.', 'Cuts the reverb off after this many seconds.'],
+      predelay: ['Wachttijd voor de galm begint.', 'Delay before the reverb starts.'],
+      locut: ['Haalt het laag uit de galm.', 'Removes the lows from the reverb.'],
+      hicut: ['Haalt het hoog uit de galm.', 'Removes the highs from the reverb.'],
+      width: ['Stereobreedte van de galm.', 'Stereo width of the reverb.'],
+      mix: ['Hoeveel galm er bij het droge geluid komt.', 'How much reverb is mixed with the dry sound.'],
+    },
+  },
   tp_mmb_reverb: {
     about: ['Plaat- of veergalm.', 'Plate or spring reverb.'],
     controls: {

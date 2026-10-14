@@ -14,7 +14,7 @@
 // elk item en legt het langs de patchcontrole.
 
 import { ELEMENTS_PROGRAMS } from './modulePrograms';
-import { BUS_SOLO_FX, CONSOLE_EQ_SOLO_FX, PARA_EQ_SOLO_FX, DIODE_SOLO_FX, EQ_SOLO_FX, FET_SOLO_FX, OPTO_SOLO_FX, SAMPLER_MASTER_FX, VARIMU_SOLO_FX, STEREO_TAPE_SOLO_FX, DIGITAL_ECHO_SOLO_FX, BBD_SOLO_FX, RINGMOD_SOLO_FX, OCTAVER_SOLO_FX, HARMONIZER_SOLO_FX, REVERB_SOLO_FX, SPRING_SOLO_FX, PALME_SOLO_FX, METALLIQUE_SOLO_FX, TREMOLO_SOLO_FX, STEREO_PHASER_SOLO_FX, VIBE_SOLO_FX, ROTARY_SOLO_FX, SHIMMER_SOLO_FX, BEADS_SOLO_FX, HALL_SOLO_FX, seedExampleModules, seedInternals, seedTestPatch, seedFmTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, seedDx7PolyPatch, seedSamplerPolyPatch, seedWarpsVocoderPatch, seedVocoderChoirPatch, seedZangPatch, seed808JamPatch, seedKrellPatch, type PolySeedOptions } from './seedModules';
+import { BUS_SOLO_FX, CONSOLE_EQ_SOLO_FX, PARA_EQ_SOLO_FX, DIODE_SOLO_FX, EQ_SOLO_FX, FET_SOLO_FX, OPTO_SOLO_FX, SAMPLER_MASTER_FX, VARIMU_SOLO_FX, STEREO_TAPE_SOLO_FX, DIGITAL_ECHO_SOLO_FX, BBD_SOLO_FX, RINGMOD_SOLO_FX, OCTAVER_SOLO_FX, HARMONIZER_SOLO_FX, REVERB_SOLO_FX, SPRING_SOLO_FX, PALME_SOLO_FX, METALLIQUE_SOLO_FX, TREMOLO_SOLO_FX, STEREO_PHASER_SOLO_FX, VIBE_SOLO_FX, ROTARY_SOLO_FX, SHIMMER_SOLO_FX, BEADS_SOLO_FX, HALL_SOLO_FX, CONV_SOLO_FX, seedExampleModules, seedInternals, seedTestPatch, seedFmTestPatch, seedCvBridgePatch, seedPolyVoicePatch, seedSoloVoicePatch, seedCloudsAmbientPatch, seedGenerativeJamPatch, seedDx7PolyPatch, seedSamplerPolyPatch, seedWarpsVocoderPatch, seedVocoderChoirPatch, seedZangPatch, seed808JamPatch, seedKrellPatch, type PolySeedOptions } from './seedModules';
 import { seedCs80BrassPatch } from './seedBrass';
 import { seedAxelFLeadPatch } from './seedAxelF';
 import { seedMartenotPolyPatch } from './seedMartenot';
@@ -61,6 +61,7 @@ const SOLO_FX = {
   vibe:   { fx: VIBE_SOLO_FX, title: 'Monofoon met VIBE (univibe-stijl): Chorus-stand, 1,6 Hz, lampkarakter 0,75 — het ademende, scheve kloppen tussen chorus en phaser in.' },
   rotary: { fx: ROTARY_SOLO_FX, title: 'Monofoon met ROTARY (Leslie-stijl): begint op Slow; zet Speed op Fast en hoor hoorn en trommel elk in hun eigen tempo opwinden. Hang de Fast-gate aan het mod-wiel voor de klassieke schakelaar.' },
   beads:  { fx: BEADS_SOLO_FX, title: 'Plaits door BEADS (Mutable, broncode vrijgegeven op 11 oktober 2026): korrels in Tape-kwaliteit met galm. Draai Size helemaal open voor de delay; haal de kabel naar In L weg en Beads wordt zelf een klankbron.' },
+  conv:   { fx: CONV_SOLO_FX, title: 'Rings in CONV, IR Church: een kerk van 4,2 s, pre-delay 25 ms, laag en hoog wat getemd. Draai IR voor de andere ruimtes en Size om de ruimte op te rekken.' },
   hall:   { fx: HALL_SOLO_FX, title: 'Strijkstok (STK Bowed) in HALL: een zaal van 3,2 s met pre-delay 30 ms en een warm, langer laag. Probeer Algo Random voor de dwalende staart, en Freeze om een akkoord te laten staan.' },
   shimmer: { fx: SHIMMER_SOLO_FX, title: 'Monofoon met SHIMMER: plaatgalm met een octaaf omhoog in de lus (shimmer 0,55) — een glinsterende wolk boven wat je speelt.' },
   sphase: { fx: STEREO_PHASER_SOLO_FX, title: 'Monofoon met STEREO PHASER: 2 × 6 stages, rechts een kwartslag verschoven, feedback 0,45.' },
@@ -160,6 +161,8 @@ const SOLO_DEFS: { label: string; t: string; n: string; l: string; r: string; c:
     c: { sound: 0, level: 0.8 }, fx: 'spring' },
   { label: '🏛️ STK + HALL', t: 'tp_mmb_stk_sound', n: 'STK', l: 'out', r: 'out',
     c: { sound: 2, level: 0.8 }, fx: 'hall' },
+  { label: '⛪ Rings + CONV', t: 'tp_mmb_rings', n: 'Rings', l: 'out_l', r: 'out_r',
+    c: { structure: 0.4, brightness: 0.6, damping: 0.6, position: 0.3, model: 0, polyphony: 1, level: 0.8 }, fx: 'conv' },
   { label: '〰️ DX7 + Tremolo', t: 'tp_mmb_dx7', n: 'DX7', l: 'out', r: 'out',
     c: { program: 0, level: 0.8 }, fx: 'trem' },
   { label: '💡 DX7 + Vibe', t: 'tp_mmb_dx7', n: 'DX7', l: 'out', r: 'out',

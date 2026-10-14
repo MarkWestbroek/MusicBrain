@@ -25,7 +25,9 @@
 //
 // Een nieuwe IR (knop IR, Size, Length) vraagt een herberekening van alle
 // spectra. Standaard doet Process die zelf (simulator); de Teensy zet
-// setAutoRebuild(false) en roept rebuild() aan vanuit de hoofdlus.
+// setAutoRebuild(false) en doet releaseIr() en commit() met de audio even uit
+// en prepare() (het zware werk) daartussen vanuit de hoofdlus. Is er te weinig
+// geheugen, dan halveert prepare() de IR tot hij past (minimaal 0,25 s).
 //
 // Geheugen via convAllocator(): standaard malloc; de Teensy zet PSRAM in. De
 // toegang is op volgorde (per partitie een aaneengesloten blok), dus PSRAM met
@@ -46,6 +48,15 @@ struct ConvAllocator {
 };
 inline ConvAllocator& convAllocator() { static ConvAllocator a; return a; }
 
+/** Meten (bench op de Teensy): met een klok erin telt de kern de cycli per
+ *  onderdeel. Zonder klok kost het één vergelijking per taak. */
+struct ConvProfile {
+    std::uint32_t (*clock)() = nullptr;
+    double copy = 0, fft = 0, mac = 0, ifft = 0;
+    void reset() { copy = fft = mac = ifft = 0; }
+};
+inline ConvProfile& convProfile() { static ConvProfile p; return p; }
+
 /** Reële FFT van lengte n (macht van 2). Gepakt formaat zoals CMSIS:
  *  [0] = DC, [1] = Nyquist, daarna (re, im) voor de bins 1 … n/2−1.
  *  inverse(forward(x)) = x (de schaal zit in inverse). */
@@ -59,9 +70,10 @@ public:
     bool init(int n) {
         release();
         n_ = n; m_ = n / 2;
-        twC_ = static_cast<float*>(std::malloc(sizeof(float) * (m_ > 1 ? m_ : 2)));
-        twR_ = static_cast<float*>(std::malloc(sizeof(float) * 2 * m_));
-        rev_ = static_cast<int*>(std::malloc(sizeof(int) * m_));
+        ConvAllocator& A = convAllocator();
+        twC_ = static_cast<float*>(A.alloc(sizeof(float) * (m_ > 1 ? m_ : 2)));
+        twR_ = static_cast<float*>(A.alloc(sizeof(float) * 2 * m_));
+        rev_ = static_cast<int*>(A.alloc(sizeof(int) * m_));
         if (!twC_ || !twR_ || !rev_) { release(); return false; }
         for (int k = 0; k < m_ / 2; ++k) {
             const double a = -2.0 * 3.14159265358979323846 * k / m_;
@@ -79,7 +91,8 @@ public:
         return true;
     }
     void release() {
-        std::free(twC_); std::free(twR_); std::free(rev_);
+        ConvAllocator& A = convAllocator();
+        A.free(twC_); A.free(twR_); A.free(rev_);
         twC_ = twR_ = nullptr; rev_ = nullptr; n_ = m_ = 0;
     }
     int size() const { return n_; }
@@ -167,7 +180,11 @@ public:
     Conv() = default;
     Conv(const Conv&) = delete;
     Conv& operator=(const Conv&) = delete;
-    ~Conv() { freeLevels(); convAllocator().free(ring_); }
+    ~Conv() {
+        freeLevels();
+        for (int i = 0; i < stagedCount_; ++i) freeLevel(staged_[i]);
+        convAllocator().free(ring_);
+    }
 
     void Init(float sampleRate) {
         sr_ = sampleRate;
@@ -199,45 +216,46 @@ public:
 
     void setAutoRebuild(bool on) { autoRebuild_ = on; }
     bool rebuildPending() const { return pending_; }
+    void requestRebuild() { pending_ = true; }
     /** Lengte van de huidige IR in samples (0 = geen). */
     int irLength() const { return irLen_; }
 
-    /** Alle spectra opnieuw (nieuwe IR, Size of Length). Op de Teensy uit de
-     *  hoofdlus, met de audio even uit voor de wissel (zie ConvModule.h). */
+    /** Alles in één keer (simulator): oude IR weg, nieuwe uitrekenen, wisselen. */
     bool rebuild() {
-        pending_ = false;
-        const int maxLen = static_cast<int>(kMaxSeconds * sr_);
-        // De natuurlijke IR, zo lang als na het oprekken nog past.
-        const Preset& p = kPresets[ir_];
-        int natLen = static_cast<int>(p.t60 * 1.1f * sr_);
-        const int cap = static_cast<int>(static_cast<float>(maxLen) / size_) + 2;
-        if (natLen > cap) natLen = cap;
-        int len = static_cast<int>(static_cast<float>(natLen) * size_);
-        const int lenCap = static_cast<int>(length_ * sr_);
-        if (len > lenCap) len = lenCap;
-        if (len > maxLen) len = maxLen;
-        if (len < kTick) len = kTick;
+        releaseIr();
+        const bool ok = prepare();
+        commit();
+        return ok;
+    }
 
-        ConvAllocator& A = convAllocator();
-        float* nat = static_cast<float*>(A.alloc(sizeof(float) * 2 * natLen));
-        float* ir = static_cast<float*>(A.alloc(sizeof(float) * 2 * len));
-        bool ok = nat && ir;
-        if (ok) {
-            generate(p, nat, nat + natLen, natLen);
-            for (int c = 0; c < 2; ++c) resample(nat + c * natLen, natLen, ir + c * len, len, size_);
-            finish(ir, ir + len, len);
+    /** De huidige IR vrijgeven (Teensy: met de audio-interrupt uit). Daarna
+     *  laat Process alleen het droge signaal door. */
+    void releaseIr() { freeLevels(); }
+
+    /** De nieuwe IR en zijn spectra klaarzetten (zwaar; niet in de audio). */
+    bool prepare() {
+        pending_ = false;
+        for (int i = 0; i < stagedCount_; ++i) freeLevel(staged_[i]);
+        stagedCount_ = 0;
+        int want = static_cast<int>(kMaxSeconds * sr_);
+        const int minLen = static_cast<int>(0.25f * sr_);
+        while (want >= minLen) {
+            int count = 0;
+            if (build(want, staged_, count)) { stagedCount_ = count; return true; }
+            for (int i = 0; i < count; ++i) freeLevel(staged_[i]);
+            want /= 2;   // te weinig geheugen: korter proberen
         }
-        A.free(nat);
-        Level fresh[kMaxLevels];
-        int count = 0;
-        if (ok) ok = plan(fresh, count, len) && fill(fresh, count, ir, ir + len, len);
-        A.free(ir);
-        if (!ok) { for (int i = 0; i < count; ++i) freeLevel(fresh[i]); return false; }
+        return false;
+    }
+
+    /** De klaargezette IR in gebruik nemen (Teensy: met de audio-interrupt uit). */
+    void commit() {
+        if (stagedCount_ == 0) return;
         freeLevels();
-        for (int i = 0; i < count; ++i) { levels_[i] = fresh[i]; fresh[i] = Level(); }
-        levelCount_ = count;
-        irLen_ = len;
-        return true;
+        for (int i = 0; i < stagedCount_; ++i) { levels_[i] = staged_[i]; staged_[i] = Level(); }
+        levelCount_ = stagedCount_;
+        irLen_ = stagedLen_;
+        stagedCount_ = 0;
     }
 
     /** in[0]/in[1] (R mag nullptr zijn), out[0]/out[1]. */
@@ -248,7 +266,7 @@ public:
         for (int n = 0; n < frames; ++n) {
             const float l = inL ? inL[n] : 0.0f;
             const float r = inR ? inR[n] : l;
-            if (!ring_ || levelCount_ == 0) { out[0][n] = l; out[1][n] = r; continue; }
+            if (!ring_ || levelCount_ == 0) { out[0][n] = l * dry_; out[1][n] = r * dry_; continue; }
             if ((t_ & (kTick - 1)) == 0) tick(t_);
             ring_[t_ & (kRing - 1)] = 0.5f * (l + r);
             float wl = 0.0f, wr = 0.0f;
@@ -305,6 +323,36 @@ private:
         const float mix = clamp01(mix_ + mixCv_);
         dry_ = std::cos(1.5707963f * mix);
         wet_ = std::sin(1.5707963f * mix);
+    }
+
+    // ── Een IR opbouwen ─────────────────────────────────────────────────
+    bool build(int maxLen, Level* lv, int& count) {
+        count = 0;
+        // De natuurlijke IR, zo lang als na het oprekken nog past.
+        const Preset& p = kPresets[ir_];
+        int natLen = static_cast<int>(p.t60 * 1.1f * sr_);
+        const int cap = static_cast<int>(static_cast<float>(maxLen) / size_) + 2;
+        if (natLen > cap) natLen = cap;
+        int len = static_cast<int>(static_cast<float>(natLen) * size_);
+        const int lenCap = static_cast<int>(length_ * sr_);
+        if (len > lenCap) len = lenCap;
+        if (len > maxLen) len = maxLen;
+        if (len < kTick) len = kTick;
+
+        ConvAllocator& A = convAllocator();
+        float* nat = static_cast<float*>(A.alloc(sizeof(float) * 2 * natLen));
+        float* ir = static_cast<float*>(A.alloc(sizeof(float) * 2 * len));
+        bool ok = nat && ir;
+        if (ok) {
+            generate(p, nat, nat + natLen, natLen);
+            for (int c = 0; c < 2; ++c) resample(nat + c * natLen, natLen, ir + c * len, len, size_);
+            finish(ir, ir + len, len);
+        }
+        A.free(nat);
+        if (ok) ok = plan(lv, count, len) && fill(lv, count, ir, ir + len, len);
+        A.free(ir);
+        if (ok) stagedLen_ = len;
+        return ok;
     }
 
     // ── De partities ────────────────────────────────────────────────────
@@ -388,15 +436,25 @@ private:
     }
 
     void startJob(Level& L, std::uint32_t tc) {
+        ConvProfile& P = convProfile();
+        const std::uint32_t c0 = P.clock ? P.clock() : 0;
         const int n2 = 2 * L.n;
         const std::uint32_t end = tc - static_cast<std::uint32_t>(L.delay + preSamples_);
         const std::uint32_t from = end - static_cast<std::uint32_t>(n2);
         for (int k = 0; k < n2; ++k) L.win[k] = ring_[(from + k) & (kRing - 1)];
-        L.fft->forward(L.win, L.fdl + static_cast<std::size_t>(L.fdlPos) * n2);
         std::memset(L.acc, 0, sizeof(float) * 2 * n2);
+        const std::uint32_t c1 = P.clock ? P.clock() : 0;
+        L.fft->forward(L.win, L.fdl + static_cast<std::size_t>(L.fdlPos) * n2);
+        if (P.clock) { const std::uint32_t c2 = P.clock(); P.copy += c1 - c0; P.fft += c2 - c1; }
     }
 
     void mac(Level& L, int p0, int p1) {
+        ConvProfile& P = convProfile();
+        const std::uint32_t c0 = P.clock ? P.clock() : 0;
+        macRange(L, p0, p1);
+        if (P.clock) P.mac += P.clock() - c0;
+    }
+    void macRange(Level& L, int p0, int p1) {
         const int n2 = 2 * L.n;
         for (int p = p0; p < p1; ++p) {
             int slot = L.fdlPos - p; if (slot < 0) slot += L.parts;
@@ -416,6 +474,12 @@ private:
     }
 
     void finishJob(Level& L, int buffer) {
+        ConvProfile& P = convProfile();
+        const std::uint32_t c0 = P.clock ? P.clock() : 0;
+        finishRange(L, buffer);
+        if (P.clock) P.ifft += P.clock() - c0;
+    }
+    void finishRange(Level& L, int buffer) {
         const int n = L.n;
         for (int c = 0; c < 2; ++c) {
             L.fft->inverse(L.acc + c * 2 * n, L.win);
@@ -488,8 +552,14 @@ private:
     float* ring_ = nullptr;
     std::uint32_t t_ = 0, rng_ = 1u;
     Level levels_[kMaxLevels];
-    int levelCount_ = 0, irLen_ = 0, preSamples_ = 0;
-    bool pending_ = true, autoRebuild_ = true;
+    Level staged_[kMaxLevels];
+    int levelCount_ = 0, irLen_ = 0, preSamples_ = 0, stagedCount_ = 0, stagedLen_ = 0;
+    volatile bool pending_ = true;
+#if defined(ARDUINO)
+    bool autoRebuild_ = false;   // Teensy: nooit in de audio-interrupt, de module doet het (ConvModule.h)
+#else
+    bool autoRebuild_ = true;
+#endif
     int ir_ = -1;
     float mix_ = 0.3f, predelayMs_ = 10.0f, length_ = -1.0f, size_ = -1.0f, loCut_ = 20.0f, hiCut_ = 16000.0f, width_ = 1.0f;
     float mixCv_ = 0.0f, dry_ = 1.0f, wet_ = 0.0f, loCoef_ = 0.0f, hiCoef_ = 1.0f;

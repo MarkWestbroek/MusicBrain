@@ -2138,6 +2138,40 @@ function mmbHall() {
   });
 }
 
+// ── CONV ───────────────────────────────────────────────────────────────
+// Convolutiegalm (doc/plans/conv-reverb.md): een impulsrespons uit een bank,
+// niet-uniform opgedeeld. Zelf IR's laden komt in een volgende stap.
+export const CONV_IR_NAMES = ['HALL', 'ROOM', 'CHAMBER', 'PLATE', 'CHURCH', 'SMALL'];
+function mmbConv() {
+  const w = W(10);
+  return assemble({
+    typeId: 'tp_mmb_conv', categoryId: 'effect', variant: 'Convolution reverb',
+    brand: 'MMB', model: 'CONV', hp: 10, texture: 'pcb-black', baseColor: '#1a1424', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'CONV', fontSize: 2.0, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: 'convolutie', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob   ('ir', 'IR', w*0.26, 30, { size: 'medium', min: 0, max: CONV_IR_NAMES.length - 1, def: 0, step: 1, color: '#f9fafb' }),
+      display('irName', w*0.68, 28, { digits: 8, style: 'led-green', size: 'small', bindTo: 'ir', lookup: [CONV_IR_NAMES], text: 'HALL' }),
+      knob('size',   'Size',   w*0.28, 54, { size: 'medium', min: 0.5, max: 2, def: 1, color: '#c4b5fd' }),
+      knob('length', 'Length', w*0.72, 54, { size: 'medium', min: 0.1, max: 4, def: 4, unit: 's', color: '#c4b5fd' }),
+      knob('predelay', 'Pre',     w*0.20, 75, { size: 'small', min: 0, max: 250, def: 10, unit: 'ms', color: '#9ca3af' }),
+      knob('locut',    'Lo cut',  w*0.50, 75, { size: 'small', min: 10, max: 2000, def: 20, unit: 'Hz', taper: 'log', color: '#9ca3af' }),
+      knob('hicut',    'Hi cut',  w*0.80, 75, { size: 'small', min: 500, max: 20000, def: 16000, unit: 'Hz', taper: 'log', color: '#9ca3af' }),
+      knob('width',    'Width',   w*0.25, 93, { size: 'small', min: 0, max: 1, def: 1, color: '#9ca3af' }),
+      knob('mix',      'Mix',     w*0.65, 93, { size: 'medium', min: 0, max: 1, def: 0.3, color: '#f9fafb' }),
+      inPort ('mix_cv', 'M+', 'cv', w*0.50, 106),
+      inPort ('in_l',  'L', 'audio', w*0.12, 118),
+      inPort ('in_r',  'R', 'audio', w*0.32, 118),
+      outPort('out_l', 'L', 'audio', w*0.68, 118),
+      outPort('out_r', 'R', 'audio', w*0.88, 118),
+    ],
+    notes: 'Convolutiegalm: de ingang (L+R samen) wordt gevouwen met een stereo-impulsrespons, de "vingerafdruk" van een ruimte. Opgedeeld in blokken van 64 tot 4096 samples (niet-uniform, Gardner), dus weinig vertraging (1,5 ms, die gaat af van Pre) en weinig rekenwerk voor de staart. IR kiest een ruimte uit de bank: zes gegenereerde ruimtes (Hall 2,4 s, Room 0,7 s, Chamber 1,4 s, Plate 2 s, Church 4,2 s, Small 0,35 s). Size rekt de IR op of drukt hem in: een grotere (donkerder) of kleinere (helderder) ruimte. Length kapt de staart af met een uitfade (tot 4 s; korter scheelt rekentijd). Lo cut / Hi cut kleuren de galm, Width de stereobreedte, Mix (+ CV) de balans. IR, Size en Length rekenen de IR opnieuw uit (even stil). Zonder R-kabel krijgt rechts hetzelfde als links. Zelf IR\'s laden komt later. Firmware tp_mmb_conv, mmb_dsp::Conv — in de simulator draait dezelfde code als wasm.',
+  });
+}
+
 // ── Tremolo-pedaal ─────────────────────────────────────────────────────
 function mmbTremolo() {
   const w = W(8);
@@ -5151,7 +5185,7 @@ function mmbEnvFollowerMono() {
 // ── public entry ───────────────────────────────────────────────────────
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbBeads(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbAudioIn(), mmbEcho(), mmbTapeEcho(), mmbStereoTapeEcho(), mmbDigitalEcho(), mmbBbdChorus(), mmbRingMod(), mmbOctaver(), mmbHarmonizer(), mmbReverb(), mmbHall(), mmbTremolo(), mmbStereoPhaser(), mmbVibe(), mmbRotary(), mmbShimmer(), mmbFetComp(),mmbOptoComp(), mmbBusComp(),mmbVariMuComp(), mmbProgramEq(), mmbDiodeComp(), mmbConsoleEq(), mmbParaEq(), mmbSampler(), mmbZang(), mmbSid(), mmbSid3(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbFof(), mmbEnvFollower(), mmbEnvFollowerMono()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbBeads(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbAudioIn(), mmbEcho(), mmbTapeEcho(), mmbStereoTapeEcho(), mmbDigitalEcho(), mmbBbdChorus(), mmbRingMod(), mmbOctaver(), mmbHarmonizer(), mmbReverb(), mmbHall(), mmbConv(), mmbTremolo(), mmbStereoPhaser(), mmbVibe(), mmbRotary(), mmbShimmer(), mmbFetComp(),mmbOptoComp(), mmbBusComp(),mmbVariMuComp(), mmbProgramEq(), mmbDiodeComp(), mmbConsoleEq(), mmbParaEq(), mmbSampler(), mmbZang(), mmbSid(), mmbSid3(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbFof(), mmbEnvFollower(), mmbEnvFollowerMono()];
   all.push(mmbMaterialBridge());
   all.push(mmbScanned());
   all.push(mmbReservoir());
@@ -6189,6 +6223,10 @@ export const BEADS_SOLO_FX = {
 export const HALL_SOLO_FX = {
   typeId: 'tp_mmb_hall', label: 'HALL',
   controls: { algo: 0, size: 0.75, decay: 3.2, predelay: 30, early: 0.5, diffusion: 0.85, hidamp: 0.45, lomult: 1.3, mod: 0.45, width: 1, mix: 0.4 },
+} as const;
+export const CONV_SOLO_FX = {
+  typeId: 'tp_mmb_conv', label: 'CONV',
+  controls: { ir: 4, size: 1, length: 4, predelay: 25, locut: 60, hicut: 9000, width: 1, mix: 0.35 },
 } as const;
 export const SHIMMER_SOLO_FX = {
   typeId: 'tp_mmb_shimmer', label: 'SHIMMER',
