@@ -152,6 +152,19 @@ patches):
      band van de IR. Zo doen veel hardware-galmen het.
   3. **Lang alleen op een effectenkaart** (BACKLOG HB-5); de Teensy krijgt
      CONV voorlopig niet.
-- De proefbouw (ConvModule.h, bench `conv`/`psram`) staat niet in een
-  release.
+- **Bijgesteld (zelfde avond):** de schatting hierboven vergat het kopiëren
+  rond de FFT's (ring → klad → FDL, acc → klad → uitgang) en het lezen van
+  de uitgangsbuffers: per niveau in PSRAM ~12 floats per sample bovenop de
+  6 per partitie. Alleen al het PSRAM-verkeer kost dan, met alle
+  optimalisaties: 0,25 s ≈ 40 % cpu (of 20 % als de blokken t/m 1024 in
+  ~170 KB heap passen, wat naast HALL niet kan), 1 s ≈ 65 %, 2 s ≈ 95 %.
+  **Keuze 1 en 2 halen het dus niet**: convolutie hoort op de Teensy 4.1
+  niet thuis.
+- De proefbouw (ConvModule.h, bench `conv`/`psram`) staat op de branch
+  `proef/conv-teensy`, niet in een release; de Teensy draait weer 0.5.113.
+- Advies: CONV blijft in de simulator (4 s, zoals gebouwd); lang op
+  hardware via de effectenkaart (BACKLOG HB-5). Voor de Teensy eventueel
+  later: een IR "nabootsen" met HALL (de editor meet de galmtijd per band en
+  de vroege reflecties uit de IR en zet HALL daarop), goedkoop en met
+  dezelfde kern in simulator en Teensy.
 
