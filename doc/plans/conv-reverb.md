@@ -6,7 +6,18 @@ CONV is de andere familie: de galm van een échte ruimte of een échte machine,
 vastgelegd als impulsrespons (IR). Dat is ook hoe de "Bricasti-klank" buiten
 de M7 zelf bestaat (gesampelde presets, Seventh Heaven).
 
-Ter review; niets gebouwd. Eerst de werkwijze, dan de techniek.
+> **Besluiten (Mark, 2026-10-14):** 1 gegenereerde IR's + vrije CC-sets,
+> zelf opnemen in stap 4; 2 maximum mag ruimer dan 2 s als het kan (de kern
+> gaat tot 4 s; de Teensy-grens volgt uit de meting); 3 Size erbij (rekt de
+> IR op: een grotere of kleinere ruimte); 4 eerst CONV, dan Cloud Seed.
+> Zware varianten later eventueel op een effectenkaart (BACKLOG HB-5).
+>
+> **Stand 2026-10-14:** stap 1 gebouwd: kern `mmb_dsp/conv.h` (eigen reële
+> FFT, partities 64 … 4096, de grote verdeeld over de tikken, 6 gegenereerde
+> ruimtes), wasm, `wasmConv.test.ts` (exact tegen directe convolutie,
+> vertraging, galmtijden, Size, Length). Nog geen paneel en geen Teensy.
+
+Eerst de werkwijze, dan de techniek.
 
 ## 1. De werkwijze
 
@@ -65,6 +76,11 @@ patches):
   Dat moet in **PSRAM**, en dat kan: de toegang is op volgorde (per
   partitie een aaneengesloten blok), niet verspreid zoals in een tank
   (FxMem.h). Zonder PSRAM: een korte IR op de heap (~0,5 s).
+- **Als de Teensy krap is: de staart op halve samplerate.** Het hoog is na
+  een paar honderd ms uitgestorven; de kop blijft op 44,1 kHz, de staart
+  (de blokken van 4096) rekent op 22 kHz. Halveert de kosten van de staart
+  zonder hoorbaar verschil. Pas doen als de meting tegenvalt. (Niet de hele
+  IR naar 16 kHz: dan is alles boven 8 kHz weg.)
 - **Stereo**: mono IR → beide kanten met wat decorrelatie, of een
   stereo-IR (L→L, R→R). "True stereo" (vier IR's) pas later, is 2× zo zwaar.
 - **Size** = de IR bij het laden herbemonsteren (niet tijdens het spelen):

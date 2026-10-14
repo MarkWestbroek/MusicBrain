@@ -277,6 +277,7 @@ Uit [`doc/plans/modulecollectie-analyse-2026-10.md`](plans/modulecollectie-analy
 | HB-2 | 2 | 🔬 | **Reken-platform definitief:** Teensy 4.1 als audio/CV-brain vs RPi/sterker. Teensy bewezen voor N=8 audio; CV-matrix kan apart. |
 | HB-3 | 1 | ✅ | **MCU-keuze:** ESP32-S3 **N32R16V** (32 MB flash, 16 MB OPI-PSRAM). Zie release-log. |
 | HB-4 | 2 | 🔬 | **Poly CV-out DAC:** DAC8568 (16-bit, 8-kanaals, SPI) — evaluatie afronden, BOOST-eval. |
+| HB-5 | 3 | 🔬 | **Effectenkaart voor zware galm (CONV lang/true stereo, Cloud Seed volledig).** Als de Teensy (PSRAM-bandbreedte) de grens is: een tweede rekenbord op de bus met een audioverbinding (I2S/TDM, nog niet in de busspec). Kandidaten: Daisy Seed (STM32H750, 64 MB SDRAM, ~€30, zelfde werkwijze), Raspberry Pi CM/Pi 5 (Linux, alles kan; latentie alleen op het natte pad, booten en SD als nadelen), FPGA (ervaring in het project; sterk in veel kanalen en routering met vaste latentie, minder voor lange convolutie zonder snel extern geheugen). Eerst CONV op de Teensy meten (doc/plans/conv-reverb.md). |
 
 ---
 
