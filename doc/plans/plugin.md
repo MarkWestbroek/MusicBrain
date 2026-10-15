@@ -98,6 +98,13 @@ stemverdeler in de plugin.
 - Een nieuwe module is nu: typeId in `build:plugin-ui`, één `…Plugin.cpp`,
   één regel in de CMakeLists (README).
 
+**Eerste echte gastheer (2026-10-15): Audacity 4.0.1** (open source, Windows)
+valideerde beide VST3's bij het scannen: HALL als effect, "realtime
+capable" (dus ook live op een spoor); SID als "Unknown", want Audacity
+heeft geen MIDI en kent geen instrumenten. Let op: Audacity 4 kijkt alleen
+in `C:\Program Files\Common Files\VST3` (beheerder nodig om daar te
+kopiëren) en scant bij het opstarten.
+
 Op de Mac bouwen: het recept staat in
 [plugin-mac-overdracht.md](plugin-mac-overdracht.md).
 

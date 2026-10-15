@@ -37,8 +37,9 @@
   pluginParams.ts` → `generated/<typeId>_params.h`), de romp
   `MmbPluginBase.h` doet de rest: een nieuwe module is één bestand en één
   CMake-regel. Mac-recept in de README (AU erbij), nog niet geprobeerd.
-- Nog niet in een DAW gedraaid (geen Live/Reaper op deze pc). Open:
-  licentie-sweep, Mac, schalen, velocity/pedaal.
+- **Audacity 4.0.1** (eerste echte gastheer) valideert HALL als realtime-
+  effect; SID niet (Audacity kent geen MIDI/instrumenten). Nog geen DAW
+  met MIDI op deze pc. Open: licentie-sweep, Mac, schalen, velocity/pedaal.
 
 ### 2026-10-14 — CONV: convolutiegalm in de simulator; op de Teensy nog te zwaar
 <!-- EN: CONV: a convolution reverb with six generated spaces, in the simulator for now -->
