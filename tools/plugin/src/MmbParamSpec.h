@@ -1,0 +1,30 @@
+#pragma once
+// Beschrijving van een plugin-parameter en een module, zoals
+// editor/scripts/pluginParams.ts die uit het paneel genereert
+// (generated/<typeId>_params.h). Ids zijn de control-ids van het paneel, dus
+// ook de namen van de relays in de webview (editor/src/plugin-ui).
+
+namespace mmb_plugin {
+
+enum class ParamKind { Float, Choice, Bool };
+
+struct ParamSpec {
+    const char* id;
+    const char* name;
+    ParamKind kind;
+    float min, max, def;
+    float interval;     // stap (0 = continu); bij Choice/Bool 1
+    float skewMid;      // > 0: de waarde in het midden van de knop (log-taper)
+    const char* choices;   // Choice: standen gescheiden door '|'
+    const char* unit;
+};
+
+struct ModuleSpec {
+    const char* typeId;
+    const char* name;
+    int hp;
+    const ParamSpec* params;
+    int count;
+};
+
+}  // namespace mmb_plugin

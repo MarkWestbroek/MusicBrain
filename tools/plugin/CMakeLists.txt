@@ -1,13 +1,10 @@
-# MusicBrain-modules als audioplugin (proef, 2026-10-15; doc/plans/plugin.md).
+# MusicBrain-modules als audioplugin (doc/plans/plugin.md, README.md hier).
 #
 # Dezelfde kern als de Teensy en de simulator (firmware/lib/mmb-dsp), in een
-# JUCE-jas: VST3 en een Standalone-programma. JUCE staat niet in de repo:
-#
-#   git clone --depth 1 --branch 8.0.4 https://github.com/juce-framework/JUCE <pad>
-#   cmake -S tools/plugin -B <build> -G Ninja -DCMAKE_BUILD_TYPE=Release -DMMB_JUCE_DIR=<pad>
-#   cmake --build <build>
-#
-# Op Windows vanuit een "x64 Native Tools"-omgeving (vcvars64.bat).
+# JUCE-jas: VST3 (en AU op de Mac) plus een Standalone-programma per module.
+# De bediening is het editorpaneel in een webview; parameters komen uit het
+# paneel (editor/scripts/pluginParams.ts → generated/). JUCE staat niet in de
+# repo; zie README.md voor de stappen.
 cmake_minimum_required(VERSION 3.22)
 project(MmbPlugins VERSION 0.1.0 LANGUAGES C CXX)
 
@@ -21,42 +18,53 @@ add_subdirectory(${MMB_JUCE_DIR} juce EXCLUDE_FROM_ALL)
 
 set(MMB_DSP_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../firmware/lib/mmb-dsp)
 
-# ── HALL ─────────────────────────────────────────────────────────────────
-juce_add_plugin(MmbHall
-  COMPANY_NAME "MusicBrain"
-  PLUGIN_MANUFACTURER_CODE Mmbr
-  PLUGIN_CODE Hall
-  FORMATS VST3 Standalone
-  PRODUCT_NAME "MMB HALL"
-  IS_SYNTH FALSE
-  NEEDS_MIDI_INPUT FALSE
-  NEEDS_MIDI_OUTPUT FALSE
-  COPY_PLUGIN_AFTER_BUILD FALSE
-  NEEDS_WEBVIEW2 TRUE
-  VST3_CATEGORIES Fx Reverb)
-target_sources(MmbHall PRIVATE src/HallPlugin.cpp)
-target_include_directories(MmbHall PRIVATE ${MMB_DSP_DIR})
-
-# De bediening: het paneel uit de editor, gebouwd met
-#   MMB_JUCE_DIR=<pad> npm run build:plugin-ui   (in editor/)
-# naar web/ (index.html, app.js, app.css), hier opgenomen als binary data en
-# in de plugin uitgeserveerd door een ResourceProvider (HallPlugin.cpp).
+# ── De bediening en de parameterlijsten, uit de editor ───────────────────
+#   cd editor && MMB_JUCE_DIR=<pad> npm run build:plugin-ui
+# maakt web/ (index.html, app.js, app.css: het paneel) en generated/
+# (<typeId>_params.h). Beide niet in git.
 file(GLOB MMB_WEB_FILES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/web/*)
-if(NOT MMB_WEB_FILES)
-  message(FATAL_ERROR "tools/plugin/web/ is leeg: eerst `npm run build:plugin-ui` in editor/ (met MMB_JUCE_DIR)")
+file(GLOB MMB_GEN_FILES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/generated/*.h)
+if(NOT MMB_WEB_FILES OR NOT MMB_GEN_FILES)
+  message(FATAL_ERROR "tools/plugin/web/ of generated/ ontbreekt: eerst `npm run build:plugin-ui` in editor/ (met MMB_JUCE_DIR)")
 endif()
 juce_add_binary_data(MmbWebUi HEADER_NAME MmbWebUi.h NAMESPACE MmbWebUi SOURCES ${MMB_WEB_FILES})
 
-target_compile_definitions(MmbHall PUBLIC
-  JUCE_WEB_BROWSER=1
-  JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1
-  JUCE_USE_CURL=0
-  JUCE_VST3_CAN_REPLACE_VST2=0)
-target_link_libraries(MmbHall
-  PRIVATE MmbWebUi juce::juce_audio_utils juce::juce_gui_extra
-  PUBLIC juce::juce_recommended_config_flags juce::juce_recommended_lto_flags)
+set(MMB_FORMATS VST3 Standalone)
+if(APPLE)
+  list(APPEND MMB_FORMATS AU)
+endif()
 
-# ── Controle zonder DAW: laadt een VST3, rendert een impuls, schrijft wav ──
+# Eén module als plugin: mmb_add_module(<target> <code> "<productnaam>" <synth> <bron.cpp> <VST3-categorieën...>)
+function(mmb_add_module target code product synth source)
+  juce_add_plugin(${target}
+    COMPANY_NAME "MusicBrain"
+    PLUGIN_MANUFACTURER_CODE Mmbr
+    PLUGIN_CODE ${code}
+    FORMATS ${MMB_FORMATS}
+    PRODUCT_NAME "${product}"
+    IS_SYNTH ${synth}
+    NEEDS_MIDI_INPUT ${synth}
+    NEEDS_MIDI_OUTPUT FALSE
+    COPY_PLUGIN_AFTER_BUILD FALSE
+    NEEDS_WEBVIEW2 TRUE
+    VST3_CATEGORIES ${ARGN})
+  target_sources(${target} PRIVATE ${source})
+  target_include_directories(${target} PRIVATE ${MMB_DSP_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_SOURCE_DIR}/generated)
+  target_compile_definitions(${target} PUBLIC
+    JUCE_WEB_BROWSER=1
+    JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1
+    JUCE_USE_CURL=0
+    JUCE_VST3_CAN_REPLACE_VST2=0
+    JUCE_VST3_EMULATE_MIDI_CC_WITH_PARAMETERS=0)   # anders 2080 extra 'MIDI CC'-parameters in de DAW
+  target_link_libraries(${target}
+    PRIVATE MmbWebUi juce::juce_audio_utils juce::juce_gui_extra
+    PUBLIC juce::juce_recommended_config_flags juce::juce_recommended_lto_flags)
+endfunction()
+
+mmb_add_module(MmbHall Hall "MMB HALL" FALSE src/HallPlugin.cpp Fx Reverb)
+mmb_add_module(MmbSid  Sid1 "MMB SID"  TRUE  src/SidPlugin.cpp  Instrument Synth)
+
+# ── Controle zonder DAW: laadt een VST3, speelt/rendert, schrijft wav ─────
 juce_add_console_app(MmbPluginCheck PRODUCT_NAME "mmb-plugin-check")
 target_sources(MmbPluginCheck PRIVATE src/PluginCheck.cpp)
 target_compile_definitions(MmbPluginCheck PRIVATE

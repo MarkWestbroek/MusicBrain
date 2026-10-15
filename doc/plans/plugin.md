@@ -69,6 +69,35 @@ editor is de bediening van de plugin.
 - Nog niet: schalen (het paneel is 285 × 514 px, 4 px/mm, vast), het
   schermtoetsenbord en de helpteksten van de editor, een Mac-webview.
 
+## 2b. Instrument: de SID als plugin, en parameters uit het paneel (2026-10-15)
+
+Open vraag 2 is beantwoord: **een instrument werkt**, met een kleine
+stemverdeler in de plugin.
+
+- `tools/plugin/src/MmbPluginBase.h`: de romp voor elke module (parameters,
+  toestand, webview-editor). Een module is nog ~60 regels: `applyControl`
+  (de vertaling uit de wasm-gastheer), `prepare`, `render`.
+- **Parameters komen uit het paneel**: `editor/scripts/pluginParams.ts`
+  leest de knoppen, schakelaars en toggles van een moduletype uit
+  `seedModules.ts` en schrijft `generated/<typeId>_params.h` (id, naam,
+  soort, bereik, standaard, stap, log-taper, standen). Eén bron voor editor,
+  simulator en plugin; de relay in de webview heet als de knop. HALL: 12
+  parameters, SID: 26.
+- **SID** (`SidPlugin.cpp`): `mmb_dsp::SidMulti` (dezelfde header als de
+  Teensy en de wasm); de noten van de DAW gaan naar cellen (chips × 3
+  stemmen): dezelfde noot opnieuw → die cel, anders de langst vrije, anders
+  de oudste stelen; pitchbend ±2 halve tonen; V/oct met MIDI 60 = 0 V zoals
+  overal in MMB. In de editor doet MIDI-IN dit; de core-runtime hoefde niet
+  mee.
+- Gemeten met `mmb-plugin-check … notes=60,64,67`: C4, E4 en G4 even sterk
+  aanwezig, D4 niet, stilte na het loslaten. Het SID-paneel (20 HP, 408 px
+  breed) verschijnt in de Standalone.
+- JUCE maakt voor een instrument standaard 2080 extra "MIDI CC"-parameters
+  (16 kanalen × 130); uitgezet (`JUCE_VST3_EMULATE_MIDI_CC_WITH_PARAMETERS=0`),
+  anders staat de parameterlijst in de DAW vol.
+- Een nieuwe module is nu: typeId in `build:plugin-ui`, één `…Plugin.cpp`,
+  één regel in de CMakeLists (README).
+
 ## 3. Wat het kostte en wat het zou kosten
 
 - De proef: een avond, € 0. JUCE heeft een gratis tier; een lokaal gebouwde
@@ -90,10 +119,10 @@ editor is de bediening van de plugin.
 
 1. **Bediening.** Beantwoord: het editorpaneel in de webview (§2a).
    Open blijft: de Mac (WebKit) en schalen.
-2. **Instrumenten.** HALL is een effect. Een instrument (SID, de Ladder-
-   stem, Elements) heeft noten nodig: MIDI → gate/toonhoogte/stemverdeling
-   zit nu in de core-runtime (MidiIn), niet in de kern. Voor een plugin moet
-   een klein stuk daarvan mee, of de plugin host de core.
+2. **Instrumenten.** Beantwoord: de SID speelt, met een stemverdeler in de
+   plugin (§2b). Nog open voor andere instrumenten: velocity, aftertouch,
+   sustainpedaal, en modules die in de editor via losse envelopes/VCA's
+   spelen (die hebben een "stem" nodig, zoals de Ladder-stem).
 3. **Welke modules eerst.** Eigen code en opvallend: HALL, CONV (in de
    plugin kan 4 s wél, een pc heeft het geheugen), de SID, de Ladder/MS-20/
    SEM-filters, de compressors en EQ's. De Mutable-ports (MIT) mogen
@@ -118,7 +147,7 @@ editor is de bediening van de plugin.
 1. Mark laadt `MMB HALL.vst3` in Live (gebruikersmap
    `%LOCALAPPDATA%\Programs\Common\VST3`, daar staat hij) en luistert.
 2. ~~GUI-proef~~ gedaan: webview met `ModulePanel` (§2a).
-3. Tweede module (CONV, 4 s) en een instrument (SID) om de noten-vraag te
-   beantwoorden.
+3. ~~Een instrument (SID)~~ gedaan (§2b). Volgende: CONV (4 s kan in een
+   plugin), Mac-bouw (README heeft het recept), velocity/pedaal.
 4. Licentie-sweep en naamgeving.
 5. Dan pas: signeren, installers, winkel.

@@ -14,8 +14,8 @@ import { attach, inPlugin, log, type Handle, type Kind } from './juceBridge';
 
 const PX_PER_MM = 4;
 
-// Paneel-id → parameternaam in de plugin, waar die verschillen.
-const PARAM_NAME: Record<string, string> = { freeze_btn: 'freeze' };
+// De parameters van de plugin dragen de control-ids van het paneel
+// (editor/scripts/pluginParams.ts), dus de relay heet als de knop.
 
 function App({ typeId }: { typeId: string }) {
   const base = useMemo(() => seedInternals(emptyModularProject()), []);
@@ -34,7 +34,7 @@ function App({ typeId }: { typeId: string }) {
     for (const c of type.controls) {
       if (c.kind === 'display') continue;
       const kind: Kind = c.kind === 'switch' ? 'combo' : c.kind === 'toggle' ? 'toggle' : 'slider';
-      handles.current[c.id] = attach(PARAM_NAME[c.id] ?? c.id, kind, (v) => { received = true; setState((s) => ({ ...s, [c.id]: v })); });
+      handles.current[c.id] = attach(c.id, kind, (v) => { received = true; setState((s) => ({ ...s, [c.id]: v })); });
     }
     // De JUCE-bibliotheek vraagt bij het aanmaken van een state de beginstand
     // op, maar dat antwoord komt tijdens het laden niet aan (gemeten,

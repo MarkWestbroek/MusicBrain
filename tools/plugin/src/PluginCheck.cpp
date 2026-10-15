@@ -2,7 +2,7 @@
 // stuurt er een impuls door en schrijft de impulsrespons als wav. Zo bewijst
 // de plugin zich zonder DAW; tools/plugin/check_ir.py meet de galmtijd.
 //
-//   mmb-plugin-check <pad.vst3> <uit.wav> [seconden] [param=waarde ...] [in=<bron.wav>]
+//   mmb-plugin-check <pad.vst3> <uit.wav> [seconden] [param=waarde ...] [in=<bron.wav>] [notes=60,64,67]
 //
 // Waarden zijn in de eenheden van de parameter (decay=3 is 3 s); een keuze-
 // parameter krijgt zijn naam (algorithm=Room). Met in=<bron.wav> gaat dat
@@ -45,13 +45,15 @@ int main(int argc, char** argv) {
     // doet als je een waarde intikt. Een keuze krijgt zijn naam (algo=Room).
     for (int a = 4; a < argc; ++a) {
         const juce::String arg(argv[a]);
-        if (arg.startsWith("editor=") || arg.startsWith("poke=") || arg.startsWith("in=")) continue;   // geen parameter
+        if (arg.startsWith("editor=") || arg.startsWith("poke=") || arg.startsWith("in=") || arg.startsWith("notes=")) continue;   // geen parameter
         const juce::String id = arg.upToFirstOccurrenceOf("=", false, false).toLowerCase();
         const juce::String text = arg.fromFirstOccurrenceOf("=", false, false);
         bool hit = false;
         for (auto* p : plugin->getParameters()) {
+            // Op naam zonder spaties/streepjes, of op alleen letters en cijfers ("Lo ×" → lo).
             const juce::String name = p->getName(64).removeCharacters(" -").toLowerCase();
-            if (name != id) continue;
+            const juce::String plain = name.retainCharacters("abcdefghijklmnopqrstuvwxyz0123456789");
+            if (name != id && plain != id) continue;
             p->setValueNotifyingHost(p->getValueForText(text));
             std::printf("  %s = %s\n", p->getName(64).toRawUTF8(), p->getCurrentValueAsText().toRawUTF8());
             hit = true;
@@ -95,7 +97,8 @@ int main(int argc, char** argv) {
             const juce::String id = poke.fromFirstOccurrenceOf("=", false, false).upToFirstOccurrenceOf(":", false, false).toLowerCase();
             const juce::String text = poke.fromFirstOccurrenceOf(":", false, false);
             for (auto* p : plugin->getParameters())
-                if (p->getName(64).removeCharacters(" -").toLowerCase() == id) {
+                if (p->getName(64).removeCharacters(" -").toLowerCase() == id ||
+                    p->getName(64).removeCharacters(" -").toLowerCase().retainCharacters("abcdefghijklmnopqrstuvwxyz0123456789") == id) {
                     p->setValueNotifyingHost(p->getValueForText(text));
                     std::printf("poke: %s = %s\n", p->getName(64).toRawUTF8(), p->getCurrentValueAsText().toRawUTF8());
                     std::fflush(stdout);
@@ -127,6 +130,15 @@ int main(int argc, char** argv) {
         std::printf("bron: %s (%.1f s, %d kanalen, %.0f Hz) + %.1f s staart\n", arg.fromFirstOccurrenceOf("=", false, false).toRawUTF8(),
                     source.getNumSamples() / sourceRate, static_cast<int>(reader->numChannels), sourceRate, seconds);
     }
+    // notes=60,64,67: een instrument krijgt deze noten, de eerste helft aan.
+    juce::Array<int> notes;
+    for (int a = 4; a < argc; ++a) {
+        const juce::String arg(argv[a]);
+        if (!arg.startsWith("notes=")) continue;
+        juce::StringArray parts;
+        parts.addTokens(arg.fromFirstOccurrenceOf("=", false, false), ",", "");
+        for (const auto& t : parts) notes.add(t.getIntValue());
+    }
     const double useRate = source.getNumSamples() > 0 ? sourceRate : rate;
     plugin->setPlayConfigDetails(2, 2, useRate, block);
     plugin->prepareToPlay(useRate, block);
@@ -134,9 +146,13 @@ int main(int argc, char** argv) {
     juce::AudioBuffer<float> out(2, total);
     juce::AudioBuffer<float> buf(2, block);
     juce::MidiBuffer midi;
+    const int holdUntil = total / 2;
     for (int pos = 0; pos < total; pos += block) {
         buf.clear();
+        midi.clear();
         const int n = juce::jmin(block, total - pos);
+        if (pos == 0) for (int note : notes) midi.addEvent(juce::MidiMessage::noteOn(1, note, 0.8f), 0);
+        if (pos <= holdUntil && holdUntil < pos + n) for (int note : notes) midi.addEvent(juce::MidiMessage::noteOff(1, note), holdUntil - pos);
         if (source.getNumSamples() > 0) {
             const int avail = juce::jmin(n, source.getNumSamples() - pos);
             for (int c = 0; c < 2 && avail > 0; ++c) buf.copyFrom(c, 0, source, c, pos, avail);

@@ -98,3 +98,4 @@ tools/piper-tts/usage.jsonl
 
 # plugin-bediening: gebouwd uit editor/src/plugin-ui (npm run build:plugin-ui)
 tools/plugin/web/
+tools/plugin/generated/

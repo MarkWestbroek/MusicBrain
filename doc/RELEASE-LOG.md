@@ -31,8 +31,14 @@
   (muissleep in het paneel zet de parameter; een parameter van de gastheer
   staat in het paneel). JUCE 8.0.4 laat de allereerste opvraag van de
   beginstand vallen; de pagina vraagt daarom nog eens.
+- **SID als instrument-plugin** (`SidPlugin.cpp`): MIDI-noten naar de cellen
+  van `mmb_dsp::SidMulti` met een kleine stemverdeler, pitchbend ±2; C-E-G
+  gemeten. **Parameters komen uit het paneel** (`editor/scripts/
+  pluginParams.ts` → `generated/<typeId>_params.h`), de romp
+  `MmbPluginBase.h` doet de rest: een nieuwe module is één bestand en één
+  CMake-regel. Mac-recept in de README (AU erbij), nog niet geprobeerd.
 - Nog niet in een DAW gedraaid (geen Live/Reaper op deze pc). Open:
-  instrumenten (noten), licentie-sweep, Mac, schalen.
+  licentie-sweep, Mac, schalen, velocity/pedaal.
 
 ### 2026-10-14 — CONV: convolutiegalm in de simulator; op de Teensy nog te zwaar
 <!-- EN: CONV: a convolution reverb with six generated spaces, in the simulator for now -->
