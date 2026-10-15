@@ -68,6 +68,7 @@ Elk plan draagt zijn eigen datum en status. Kort per thema:
 - **Ritmebox**: [ritmebox.md](plans/ritmebox.md) (CR-78-presets uit de Service Notes overgenomen, wat er ontbreekt, en waarom de Elka-ritmes niet uit de documentatie komen).
 - **Help en instrumenttour (2026-10-10)**: [help-en-instrumenttour.md](plans/help-en-instrumenttour.md): ? en lang drukken leggen elke frontknop uit (gebouwd); ontwerp voor een tour die speelt en aan de knoppen draait.
 - **HALL (gebouwd 2026-10-14, fw 0.5.113)**: [hall-reverb.md](plans/hall-reverb.md): grote galm in Lexicon-stijl (FDN met modulatie, vroege reflecties); §8 Cloud Seed bekeken.
+- **Plugin op de Mac (overdracht 2026-10-15)**: [plugin-mac-overdracht.md](plans/plugin-mac-overdracht.md): recept om HALL en SID als AU/VST3 op de Mac te bouwen, te controleren (auval, Reaper, Logic) en vast te leggen.
 - **Plugin (proef 2026-10-15)**: [plugin.md](plans/plugin.md): HALL als VST3/Standalone met JUCE op dezelfde kern; meting gelijk aan de simulator; wat verkopen zou kosten; open vragen (GUI, instrumenten, licenties).
 - **CONV (voorstel 2026-10-14)**: [conv-reverb.md](plans/conv-reverb.md): convolutiegalm met niet-uniforme partities, IR-bank, eigen IR's lokaal (niet in de repo).
 - **Elements-programma's (voorstel 2026-10-12)**: [elements-programmas.md](plans/elements-programmas.md): een bank programma's per Elements, zoals de DX7; de 19 geredde programma's van de 5× Elements als eerste bank.

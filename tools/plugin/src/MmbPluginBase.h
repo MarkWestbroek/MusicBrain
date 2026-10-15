@@ -170,10 +170,13 @@ public:
             }
         }
         auto options = juce::WebBrowserComponent::Options {}
+#if JUCE_WINDOWS
+            // Windows: WebView2 (statisch gelinkt, NuGet). Mac: de standaard (WebKit).
             .withBackend(juce::WebBrowserComponent::Options::Backend::webview2)
             .withWinWebView2Options(juce::WebBrowserComponent::Options::WinWebView2 {}
                 .withUserDataFolder(juce::File::getSpecialLocation(juce::File::tempDirectory).getChildFile("MusicBrain-webview"))
                 .withBackgroundColour(juce::Colour(0xff0b0d12)))
+#endif
             .withNativeIntegrationEnabled()
             // De pagina meldt wat hij ontvangt (stdout van de gastheer; mmb-plugin-check laat het zien).
             .withNativeFunction("mmbLog", [](const juce::Array<juce::var>& args, juce::WebBrowserComponent::NativeFunctionCompletion complete) {

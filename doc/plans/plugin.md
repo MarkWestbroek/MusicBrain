@@ -98,6 +98,9 @@ stemverdeler in de plugin.
 - Een nieuwe module is nu: typeId in `build:plugin-ui`, één `…Plugin.cpp`,
   één regel in de CMakeLists (README).
 
+Op de Mac bouwen: het recept staat in
+[plugin-mac-overdracht.md](plugin-mac-overdracht.md).
+
 ## 3. Wat het kostte en wat het zou kosten
 
 - De proef: een avond, € 0. JUCE heeft een gratis tier; een lokaal gebouwde
