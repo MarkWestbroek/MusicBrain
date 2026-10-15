@@ -25,9 +25,14 @@
   dat een VST3 laadt zoals een DAW en een impulsrespons rendert.
 - Gemeten: plugin en wasm geven tot op twee decimalen dezelfde RT60 per
   band, start en L/R-correlatie. Eén kern, drie gastheren.
-- Nog niet in een DAW gedraaid (geen Live/Reaper op deze pc). Open: de
-  bediening (webview met ModulePanel of JUCE-tekenwerk), instrumenten
-  (noten), licentie-sweep, Mac.
+- **Bediening = het editorpaneel** (`editor/src/plugin-ui`, ModulePanel in
+  de webview van JUCE 8, WebView2 op Windows), in beide richtingen aan de
+  parameters gekoppeld en bewezen met `mmb-plugin-check … editor= poke=`
+  (muissleep in het paneel zet de parameter; een parameter van de gastheer
+  staat in het paneel). JUCE 8.0.4 laat de allereerste opvraag van de
+  beginstand vallen; de pagina vraagt daarom nog eens.
+- Nog niet in een DAW gedraaid (geen Live/Reaper op deze pc). Open:
+  instrumenten (noten), licentie-sweep, Mac, schalen.
 
 ### 2026-10-14 — CONV: convolutiegalm in de simulator; op de Teensy nog te zwaar
 <!-- EN: CONV: a convolution reverb with six generated spaces, in the simulator for now -->

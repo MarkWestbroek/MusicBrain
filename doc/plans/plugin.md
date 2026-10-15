@@ -6,10 +6,11 @@ Live (alleen Live Suite). De vraag was: is dat moeilijk? Antwoord na een
 proef van één avond: de klank niet, de rest wel.
 
 > **Proef gebouwd (2026-10-15):** `tools/plugin/`: HALL als VST3 en als
-> Standalone-programma (JUCE 8.0.4, Windows), met kale knoppen. Bewezen
-> zonder DAW: `mmb-plugin-check` laadt de VST3 zoals een DAW en rendert
-> impulsresponsen; die zijn tot op twee decimalen gelijk aan de simulator
-> (zie §2). Kosten: € 0.
+> Standalone-programma (JUCE 8.0.4, Windows). Bewezen zonder DAW:
+> `mmb-plugin-check` laadt de VST3 zoals een DAW en rendert impulsresponsen;
+> die zijn tot op twee decimalen gelijk aan de simulator (§2). **Bediening:
+> ons eigen paneel (ModulePanel) in de webview van JUCE 8**, in beide
+> richtingen gekoppeld aan de parameters (§2a). Kosten: € 0.
 
 ## 1. Wat er is
 
@@ -42,14 +43,39 @@ Eén kern, drie gastheren (Teensy, wasm, plugin): dezelfde klank. De
 Standalone start en draait (venster "MMB HALL"). Nog niet in een DAW
 gedraaid: op deze pc staat geen Live of Reaper.
 
+## 2a. De bediening: het editorpaneel in de plugin (gebouwd, 2026-10-15)
+
+Open vraag 1 is beantwoord: **de webview werkt**, en het paneel uit de
+editor is de bediening van de plugin.
+
+- `editor/src/plugin-ui/`: een kleine React-app die `ModulePanel` toont
+  voor één moduletype (`?type=`), met `juceBridge.ts` tussen de knoppen en
+  JUCE's relays (`WebSliderRelay` enz.). `npm run build:plugin-ui` (met
+  `MMB_JUCE_DIR`) bundelt hem naar `tools/plugin/web/` (één pagina, vaste
+  namen; niet in git); de plugin neemt die op als binary data en serveert
+  hem via een `ResourceProvider`. Op Windows is WebView2 statisch gelinkt
+  (NuGet-pakket, zie README).
+- **Bewezen met `mmb-plugin-check … editor=<s> poke=decay:20`:** de
+  bediening gaat open zoals in een DAW; een muissleep op Size in het paneel
+  zet de parameter (0,6 → 1,0); een parameter die de gastheer zet
+  (decay=7 vooraf, 20 halverwege) staat in het paneel; alle twaalf
+  beginstanden komen binnen. De pagina meldt wat hij ontvangt via een
+  native functie `mmbLog` (stdout van de gastheer).
+- **Eigenaardigheid van JUCE 8.0.4:** de beginstand die de JS-bibliotheek
+  zelf opvraagt bij het aanmaken van een state komt tijdens het laden van de
+  pagina niet aan; latere updates wel. Oplossing in `main.tsx`: na het
+  koppelen nog eens opvragen (150/500/1500/4000 ms) tot de eerste waarde er
+  is.
+- Nog niet: schalen (het paneel is 285 × 514 px, 4 px/mm, vast), het
+  schermtoetsenbord en de helpteksten van de editor, een Mac-webview.
+
 ## 3. Wat het kostte en wat het zou kosten
 
 - De proef: een avond, € 0. JUCE heeft een gratis tier; een lokaal gebouwde
   plugin heeft geen handtekening nodig (Windows laadt elke DLL; op de Mac
   blokkeert Gatekeeper alleen wat van internet komt).
 - Een **verkoopbare** versie per module, schatting:
-  - bediening: een echte GUI in plaats van de lijst (§4), dagen tot een week
-    de eerste keer;
+  - bediening: is er (§2a); nog schalen en afwerken;
   - signeren en installers: Mac notarisatie (Apple Developer ~€ 100/jaar) en
     Windows-certificaat (een paar honderd euro per jaar) of de
     SmartScreen-waarschuwing accepteren; de eerste keer een paar dagen;
@@ -62,11 +88,8 @@ gedraaid: op deze pc staat geen Live of Reaper.
 
 ## 4. Open vragen
 
-1. **Bediening.** Onze panelen zijn React/SVG. JUCE 8 kan een webview als
-   GUI gebruiken (`WebBrowserComponent` met een JS-brug); dan kan
-   `ModulePanel` misschien mee, in dezelfde stijl als de editor. Proberen
-   voor we het beloven: webviews op Windows (WebView2) en Linux hebben
-   eigenaardigheden. Anders: opnieuw tekenen in JUCE.
+1. **Bediening.** Beantwoord: het editorpaneel in de webview (§2a).
+   Open blijft: de Mac (WebKit) en schalen.
 2. **Instrumenten.** HALL is een effect. Een instrument (SID, de Ladder-
    stem, Elements) heeft noten nodig: MIDI → gate/toonhoogte/stemverdeling
    zit nu in de core-runtime (MidiIn), niet in de kern. Voor een plugin moet
@@ -88,7 +111,7 @@ gedraaid: op deze pc staat geen Live of Reaper.
 
 1. Mark laadt `MMB HALL.vst3` in Live (gebruikersmap
    `%LOCALAPPDATA%\Programs\Common\VST3`, daar staat hij) en luistert.
-2. GUI-proef: webview met `ModulePanel`, of JUCE-tekenwerk; besluit.
+2. ~~GUI-proef~~ gedaan: webview met `ModulePanel` (§2a).
 3. Tweede module (CONV, 4 s) en een instrument (SID) om de noten-vraag te
    beantwoorden.
 4. Licentie-sweep en naamgeving.

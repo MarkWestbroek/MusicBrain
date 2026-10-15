@@ -95,3 +95,6 @@ editor/public/dx7/*.syx
 tools/piper-tts/voices/
 tools/piper-tts/.venv/
 tools/piper-tts/usage.jsonl
+
+# plugin-bediening: gebouwd uit editor/src/plugin-ui (npm run build:plugin-ui)
+tools/plugin/web/

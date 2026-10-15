@@ -32,15 +32,28 @@ juce_add_plugin(MmbHall
   NEEDS_MIDI_INPUT FALSE
   NEEDS_MIDI_OUTPUT FALSE
   COPY_PLUGIN_AFTER_BUILD FALSE
+  NEEDS_WEBVIEW2 TRUE
   VST3_CATEGORIES Fx Reverb)
 target_sources(MmbHall PRIVATE src/HallPlugin.cpp)
 target_include_directories(MmbHall PRIVATE ${MMB_DSP_DIR})
+
+# De bediening: het paneel uit de editor, gebouwd met
+#   MMB_JUCE_DIR=<pad> npm run build:plugin-ui   (in editor/)
+# naar web/ (index.html, app.js, app.css), hier opgenomen als binary data en
+# in de plugin uitgeserveerd door een ResourceProvider (HallPlugin.cpp).
+file(GLOB MMB_WEB_FILES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/web/*)
+if(NOT MMB_WEB_FILES)
+  message(FATAL_ERROR "tools/plugin/web/ is leeg: eerst `npm run build:plugin-ui` in editor/ (met MMB_JUCE_DIR)")
+endif()
+juce_add_binary_data(MmbWebUi HEADER_NAME MmbWebUi.h NAMESPACE MmbWebUi SOURCES ${MMB_WEB_FILES})
+
 target_compile_definitions(MmbHall PUBLIC
-  JUCE_WEB_BROWSER=0
+  JUCE_WEB_BROWSER=1
+  JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1
   JUCE_USE_CURL=0
   JUCE_VST3_CAN_REPLACE_VST2=0)
 target_link_libraries(MmbHall
-  PRIVATE juce::juce_audio_utils
+  PRIVATE MmbWebUi juce::juce_audio_utils juce::juce_gui_extra
   PUBLIC juce::juce_recommended_config_flags juce::juce_recommended_lto_flags)
 
 # ── Controle zonder DAW: laadt een VST3, rendert een impuls, schrijft wav ──
@@ -49,6 +62,7 @@ target_sources(MmbPluginCheck PRIVATE src/PluginCheck.cpp)
 target_compile_definitions(MmbPluginCheck PRIVATE
   JUCE_WEB_BROWSER=0
   JUCE_USE_CURL=0
+  JUCE_MODAL_LOOPS_PERMITTED=1
   JUCE_PLUGINHOST_VST3=1)
 target_link_libraries(MmbPluginCheck
   PRIVATE juce::juce_audio_utils juce::juce_audio_processors juce::juce_audio_formats

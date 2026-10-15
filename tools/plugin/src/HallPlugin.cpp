@@ -1,10 +1,13 @@
 // MMB HALL als plugin: mmb_dsp::Hall (dezelfde header als HallModule.h en
-// hall_wasm.cc) achter een juce::AudioProcessor. Proef: kale knoppen via de
-// GenericAudioProcessorEditor; de echte bediening komt later (plan).
+// hall_wasm.cc) achter een juce::AudioProcessor. De bediening is het paneel
+// uit de editor (ModulePanel) in een webview; de knoppen praten via JUCE's
+// relays met de parameters (editor/src/plugin-ui, doc/plans/plugin.md).
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_audio_utils/juce_audio_utils.h>
+#include <juce_gui_extra/juce_gui_extra.h>
 
+#include "MmbWebUi.h"
 #include "mmb_dsp/hall.h"
 
 namespace {
@@ -70,8 +73,9 @@ public:
     }
 
     // ── Bediening ────────────────────────────────────────────────────────
-    juce::AudioProcessorEditor* createEditor() override { return new juce::GenericAudioProcessorEditor(*this); }
+    juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override { return true; }
+    juce::AudioProcessorValueTreeState& apvts() { return state_; }
 
     // ── Toestand ─────────────────────────────────────────────────────────
     void getStateInformation(juce::MemoryBlock& dest) override {
@@ -130,6 +134,83 @@ private:
     int appliedAlgo_ = -1, appliedFreeze_ = -1;
     Kernel kernel_;
 };
+
+// ── De bediening: het editorpaneel in een webview ────────────────────────
+// Paneel 14 HP × 128,5 mm bij 4 px/mm (PX_PER_MM in plugin-ui/main.tsx).
+constexpr int kEditorWidth = 285, kEditorHeight = 514;
+
+static const char* mimeFor(const juce::String& name) {
+    if (name.endsWith(".html")) return "text/html";
+    if (name.endsWith(".js")) return "text/javascript";
+    if (name.endsWith(".css")) return "text/css";
+    if (name.endsWith(".svg")) return "image/svg+xml";
+    if (name.endsWith(".json")) return "application/json";
+    if (name.endsWith(".woff2")) return "font/woff2";
+    return "application/octet-stream";
+}
+
+/** Serveert de gebundelde pagina (MmbWebUi) aan de webview. */
+static std::optional<juce::WebBrowserComponent::Resource> webResource(const juce::String& url) {
+    juce::String name = url.fromFirstOccurrenceOf("/", false, false).upToFirstOccurrenceOf("?", false, false);
+    if (name.isEmpty()) name = "index.html";
+    for (int i = 0; i < MmbWebUi::namedResourceListSize; ++i) {
+        if (juce::String(MmbWebUi::originalFilenames[i]) != name) continue;
+        int size = 0;
+        const char* data = MmbWebUi::getNamedResource(MmbWebUi::namedResourceList[i], size);
+        if (!data) break;
+        std::vector<std::byte> bytes(static_cast<std::size_t>(size));
+        std::memcpy(bytes.data(), data, static_cast<std::size_t>(size));
+        return juce::WebBrowserComponent::Resource { std::move(bytes), mimeFor(name) };
+    }
+    return std::nullopt;
+}
+
+class HallEditor final : public juce::AudioProcessorEditor {
+public:
+    explicit HallEditor(HallProcessor& p) : AudioProcessorEditor(p) {
+        for (const auto& spec : kParams) sliders_.push_back(std::make_unique<juce::WebSliderRelay>(spec.id));
+
+        auto options = juce::WebBrowserComponent::Options {}
+            .withBackend(juce::WebBrowserComponent::Options::Backend::webview2)
+            .withWinWebView2Options(juce::WebBrowserComponent::Options::WinWebView2 {}
+                .withUserDataFolder(juce::File::getSpecialLocation(juce::File::tempDirectory).getChildFile("MusicBrain-webview"))
+                .withBackgroundColour(juce::Colour(0xff0b0d12)))
+            .withNativeIntegrationEnabled()
+            .withNativeFunction("mmbLog", [](const juce::Array<juce::var>& args, juce::WebBrowserComponent::NativeFunctionCompletion complete) {
+                std::printf("[ui] %s\n", args.size() > 0 ? args[0].toString().toRawUTF8() : "");
+                std::fflush(stdout);
+                complete({});
+            })
+            .withResourceProvider(webResource)
+            .withOptionsFrom(algo_)
+            .withOptionsFrom(freeze_);
+        for (auto& s : sliders_) options = options.withOptionsFrom(*s);
+        browser_ = std::make_unique<juce::WebBrowserComponent>(options);
+        addAndMakeVisible(*browser_);
+
+        auto& state = p.apvts();
+        for (std::size_t i = 0; i < sliders_.size(); ++i)
+            attachments_.push_back(std::make_unique<juce::WebSliderParameterAttachment>(*state.getParameter(kParams[i].id), *sliders_[i], nullptr));
+        algoAttachment_ = std::make_unique<juce::WebComboBoxParameterAttachment>(*state.getParameter("algo"), algo_, nullptr);
+        freezeAttachment_ = std::make_unique<juce::WebToggleButtonParameterAttachment>(*state.getParameter("freeze"), freeze_, nullptr);
+
+        setSize(kEditorWidth, kEditorHeight);
+        browser_->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
+    }
+    void resized() override { if (browser_) browser_->setBounds(getLocalBounds()); }
+
+private:
+    // Volgorde telt: relays vóór de browser, attachments erna.
+    std::vector<std::unique_ptr<juce::WebSliderRelay>> sliders_;
+    juce::WebComboBoxRelay algo_ { "algo" };
+    juce::WebToggleButtonRelay freeze_ { "freeze" };
+    std::unique_ptr<juce::WebBrowserComponent> browser_;
+    std::vector<std::unique_ptr<juce::WebSliderParameterAttachment>> attachments_;
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> algoAttachment_;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> freezeAttachment_;
+};
+
+juce::AudioProcessorEditor* HallProcessor::createEditor() { return new HallEditor(*this); }
 
 }  // namespace
 

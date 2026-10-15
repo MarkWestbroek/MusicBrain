@@ -43,6 +43,7 @@ int main(int argc, char** argv) {
     // doet als je een waarde intikt. Een keuze krijgt zijn naam (algo=Room).
     for (int a = 4; a < argc; ++a) {
         const juce::String arg(argv[a]);
+        if (arg.startsWith("editor=") || arg.startsWith("poke=")) continue;   // geen parameter: zie hieronder
         const juce::String id = arg.upToFirstOccurrenceOf("=", false, false).toLowerCase();
         const juce::String text = arg.fromFirstOccurrenceOf("=", false, false);
         bool hit = false;
@@ -59,6 +60,52 @@ int main(int argc, char** argv) {
             std::fprintf(stderr, "\n");
             return 1;
         }
+    }
+
+    // "editor=<seconden>": de bediening openen (zoals een DAW), zo lang laten
+    // staan, en daarna de parameters printen. Zo is te zien of een knop in het
+    // paneel de parameter haalt en of een vooraf gezette parameter in het
+    // paneel staat (tools/plugin/README.md).
+    for (int a = 4; a < argc; ++a) {
+        const juce::String arg(argv[a]);
+        if (!arg.startsWith("editor=")) continue;
+        const double secs = arg.fromFirstOccurrenceOf("=", false, false).getDoubleValue();
+        auto printParams = [&] {
+            for (auto* p : plugin->getParameters())
+                std::printf("  %s = %s\n", p->getName(64).toRawUTF8(), p->getCurrentValueAsText().toRawUTF8());
+        };
+        std::printf("parameters voor de bediening:\n"); printParams();
+        std::unique_ptr<juce::AudioProcessorEditor> editor(plugin->createEditorIfNeeded());
+        if (!editor) { std::fprintf(stderr, "plugin heeft geen bediening\n"); return 1; }
+        juce::DocumentWindow window("mmb-plugin-check", juce::Colours::black, juce::DocumentWindow::allButtons);
+        window.setUsingNativeTitleBar(true);
+        window.setContentNonOwned(editor.get(), true);
+        window.centreWithSize(editor->getWidth(), editor->getHeight());
+        window.setVisible(true);
+        std::printf("bediening open (%d x %d) gedurende %.0f s\n", editor->getWidth(), editor->getHeight(), secs);
+        std::fflush(stdout);
+        // Halverwege een parameter vanuit de gastheer zetten ("poke=decay:20"):
+        // de bediening hoort mee te gaan.
+        juce::MessageManager::getInstance()->runDispatchLoopUntil(static_cast<int>(secs * 500.0));
+        for (int b = 4; b < argc; ++b) {
+            const juce::String poke(argv[b]);
+            if (!poke.startsWith("poke=")) continue;
+            const juce::String id = poke.fromFirstOccurrenceOf("=", false, false).upToFirstOccurrenceOf(":", false, false).toLowerCase();
+            const juce::String text = poke.fromFirstOccurrenceOf(":", false, false);
+            for (auto* p : plugin->getParameters())
+                if (p->getName(64).removeCharacters(" -").toLowerCase() == id) {
+                    p->setValueNotifyingHost(p->getValueForText(text));
+                    std::printf("poke: %s = %s\n", p->getName(64).toRawUTF8(), p->getCurrentValueAsText().toRawUTF8());
+                    std::fflush(stdout);
+                }
+        }
+        juce::MessageManager::getInstance()->runDispatchLoopUntil(static_cast<int>(secs * 500.0));
+        window.setVisible(false);
+        window.clearContentComponent();
+        plugin->editorBeingDeleted(editor.get());
+        editor.reset();
+        std::printf("parameters na de bediening:\n"); printParams();
+        return 0;
     }
 
     plugin->setPlayConfigDetails(2, 2, rate, block);
