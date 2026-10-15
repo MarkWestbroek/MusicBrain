@@ -56,6 +56,13 @@ Parameters op naam (zonder spaties, kleine letters: `hidamp`, `lomult`,
 `predelay`); een keuze met zijn naam (`"algorithm=Random Hall"`). De meting
 hoort overeen te komen met `editor/src/modular-mb/sim/wasmHall.test.ts`.
 
+Een eigen opname door de plugin (de staart komt erachteraan), om in VLC te
+beluisteren:
+
+```
+mmb-plugin-check "<pad>\MMB HALL.vst3" uit.wav 4 "in=<opname>.wav" decay=3.2 predelay=30 mix=0.4
+```
+
 De bediening testen zonder DAW:
 
 ```

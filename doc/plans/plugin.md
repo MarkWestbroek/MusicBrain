@@ -104,7 +104,13 @@ editor is de bediening van de plugin.
    tot die tijd Windows-only testen.
 5. **Max for Live** apart: kleinere markt, Max-bediening, onze kernen als
    Max-external. Niet als eerste.
-6. **Plaats in het verhaal:** de plugin als software-tweeling van de Brain
+6. **De jacks op het paneel.** In een plugin zijn er geen kabels. Voorstel:
+   de audio-jacks L/R blijven staan als de in- en uitgang van de plugin
+   (eventueel met signaalindicatie); de CV- en gate-jacks worden grijs of
+   verdwijnen, want modulatie komt in een DAW uit automation en MIDI
+   (Freeze is al een parameter). Later eventueel: CV-ingangen als
+   sidechain-bus voor DAW's die CV kunnen routeren (Bitwig, Reaper).
+7. **Plaats in het verhaal:** de plugin als software-tweeling van de Brain
    (bij de hardware, of als opstap ernaartoe).
 
 ## 5. Stappen (als Mark door wil)
