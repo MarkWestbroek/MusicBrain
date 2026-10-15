@@ -6,7 +6,9 @@ JUCE, op dezelfde kern als de Teensy en de simulator
 een webview; de parameters komen uit datzelfde paneel. Achtergrond en
 metingen: [doc/plans/plugin.md](../../doc/plans/plugin.md).
 
-Modules nu: **HALL** (effect) en **SID** (instrument, MIDI → stemmen).
+Modules nu (13): **HALL** en **SID** (handgeschreven) en, gegenereerd uit de
+uniforme kern-interface: **CONV, LADDER, SEM, DRIVE, TUBE, FOLDER,
+FREQSHIFT, WAH, LPG, ENSEMBLE, DIFFUSEUR**.
 
 ## Opbouw
 
@@ -51,7 +53,7 @@ Build Tools 2022):
 
 ```
 cmake -S tools/plugin -B <bouwmap> -G Ninja -DCMAKE_BUILD_TYPE=Release -DMMB_JUCE_DIR=<ergens>/JUCE
-cmake --build <bouwmap> --target MmbHall_VST3 MmbHall_Standalone MmbSid_VST3 MmbSid_Standalone MmbPluginCheck
+cmake --build <bouwmap>        # alle modules (VST3 + Standalone) en mmb-plugin-check
 ```
 
 Na een wijziging aan een paneel of aan `plugin-ui/`: opnieuw bundelen én de
@@ -81,11 +83,21 @@ niet gedaan: eerste keer op een Mac proberen (doc/plans/plugin.md).
 
 ## Een nieuwe module
 
-1. `editor/package.json`: het typeId toevoegen aan `build:plugin-ui`.
+Zit de module op de uniforme kern-interface (de wasm-gastheer gebruikt
+`MMB_KERNEL_HOST`)? Dan is het één stap: het typeId toevoegen aan
+`build:plugin-ui` in `editor/package.json`. De generator schrijft
+`generated/<typeId>_kernel.h`, `<typeId>_plugin.cpp` en de regel in
+`generated/modules.cmake`; `src/KernelPlugin.h` doet de rest.
+
+Anders (eigen gastheer, of een instrument met noten):
+
+1. `editor/package.json`: het typeId toevoegen aan `build:plugin-ui`
+   (voor de parameterlijst).
 2. `src/<Naam>Plugin.cpp`: een `MmbProcessor` met `applyControl` (de
    vertaling uit de wasm-gastheer `tools/mmb-wasm/<naam>_wasm.cc`),
    `prepare` en `render`; voor een instrument de stemverdeler van SidPlugin.
-3. `CMakeLists.txt`: één regel `mmb_add_module(...)`.
+3. `CMakeLists.txt`: één regel `mmb_add_module(...)` bij de handgeschreven.
+4. `editor/scripts/pluginParams.ts`: het typeId in `MANUAL`.
 
 ## Controle zonder DAW
 

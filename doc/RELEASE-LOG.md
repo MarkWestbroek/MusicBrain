@@ -37,6 +37,11 @@
   pluginParams.ts` → `generated/<typeId>_params.h`), de romp
   `MmbPluginBase.h` doet de rest: een nieuwe module is één bestand en één
   CMake-regel. Mac-recept in de README (AU erbij), nog niet geprobeerd.
+- **Elf modules erbij, gegenereerd**: alles op de uniforme kern-interface
+  wordt automatisch een plugin (`pluginParams.ts` leest ook de
+  wasm-gastheer; `KernelPlugin.h`, `generated/modules.cmake`): CONV
+  (4 s), LADDER, SEM, DRIVE, TUBE, FOLDER, FREQSHIFT, WAH, LPG, ENSEMBLE,
+  DIFFUSEUR. Met HALL en SID 13 plugins, alle geladen en gerenderd.
 - **Audacity 4.0.1** (eerste echte gastheer) valideert HALL als realtime-
   effect; SID niet (Audacity kent geen MIDI/instrumenten). Nog geen DAW
   met MIDI op deze pc. Open: licentie-sweep, Mac, schalen, velocity/pedaal.

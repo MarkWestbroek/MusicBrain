@@ -61,8 +61,12 @@ function(mmb_add_module target code product synth source)
     PUBLIC juce::juce_recommended_config_flags juce::juce_recommended_lto_flags)
 endfunction()
 
+# Handgeschreven (eigen MIDI- of kernvertaling):
 mmb_add_module(MmbHall Hall "MMB HALL" FALSE src/HallPlugin.cpp Fx Reverb)
 mmb_add_module(MmbSid  Sid1 "MMB SID"  TRUE  src/SidPlugin.cpp  Instrument Synth)
+# Gegenereerd (uniforme kern-interface, KernelPlugin.h): één regel per module.
+set(MMB_GENERATED_DIR ${CMAKE_CURRENT_SOURCE_DIR}/generated)
+include(${MMB_GENERATED_DIR}/modules.cmake OPTIONAL)
 
 # ── Controle zonder DAW: laadt een VST3, speelt/rendert, schrijft wav ─────
 juce_add_console_app(MmbPluginCheck PRODUCT_NAME "mmb-plugin-check")

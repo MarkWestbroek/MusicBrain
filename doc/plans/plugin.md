@@ -98,6 +98,31 @@ stemverdeler in de plugin.
 - Een nieuwe module is nu: typeId in `build:plugin-ui`, één `…Plugin.cpp`,
   één regel in de CMakeLists (README).
 
+## 2c. Elf modules erbij, gegenereerd (2026-10-15)
+
+Alles op de uniforme kern-interface (`Init/setControl/setCv/cvOut/Process`,
+zoals `KernelStream.h` op de Teensy en `kernel_host.h` in de wasm) is nu
+automatisch een plugin: `pluginParams.ts` leest naast het paneel ook de
+wasm-gastheer (`tools/mmb-wasm/<naam>_wasm.cc`: kernklasse, in/uit,
+knopvolgorde) en schrijft per module `<typeId>_kernel.h`,
+`<typeId>_plugin.cpp` en een regel in `generated/modules.cmake`;
+`KernelPlugin.h` is de generieke processor. Een mono-kern draait twee keer
+(links en rechts), een stereo-kern één keer; CV-ingangen staan op 0.
+
+Gebouwd en met `mmb-plugin-check` geladen en gerenderd: **CONV** (hier wél
+4 s), **LADDER**, **SEM**, **DRIVE**, **TUBE**, **FOLDER**, **FREQSHIFT**,
+**WAH**, **LPG**, **ENSEMBLE**, **DIFFUSEUR** — plus HALL en SID: 13
+plugins. Let op: de LPG staat zonder trigger of CV dicht (Offset omhoog om
+hem te openen); dat soort modules heeft in een DAW een andere bediening
+nodig (Offset als hoofdknop, of een trigger uit MIDI).
+
+Nog niet op de uniforme interface (eigen gastheer, per stuk een adapter
+zoals SidPlugin): REVERB, SHIMMER, de compressors en EQ's, tape/echo/BBD,
+ringmod, octaver, harmonizer, tremolo, phaser, vibe, rotary, MS-20, en de
+Mutable-ports. Instrumenten op de interface (acid, cmi, complex, e-piano,
+martenot, mixtur, organ, synthex) wachten op een generieke notenvertaling
+(MIDI → de `voct`/`gate`-CV's van de kern), de volgende stap.
+
 **Eerste echte gastheer (2026-10-15): Audacity 4.0.1** (open source, Windows)
 valideerde beide VST3's bij het scannen: HALL als effect, "realtime
 capable" (dus ook live op een spoor); SID als "Unknown", want Audacity
