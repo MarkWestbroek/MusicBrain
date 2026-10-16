@@ -1,10 +1,15 @@
 # Overdracht: de plugins op de Mac bouwen (recept, 2026-10-15)
 
-Voor Mark op zijn MacBook Pro (2016, macOS tot Monterey), of voor een
-Claude-sessie daar. Doel: **MMB HALL** en **MMB SID** als AU en VST3
-bouwen, laden in Reaper en Logic, en vastleggen wat werkt. Dit is de eerste
-keer op een Mac én de eerste keer in een echte DAW; op Windows is alles
-zonder DAW bewezen (zie [plugin.md](plugin.md) §2–2b).
+Voor Mark op zijn MacBook Pro (2016, Intel, macOS tot Monterey), of voor
+een Claude-sessie daar. Doel: de plugins als AU en VST3 bouwen, laden in
+Reaper en Logic, en vastleggen wat werkt. Dit is de eerste keer op een Mac
+én de eerste keer in een echte DAW; op Windows zijn alle 73 zonder DAW
+bewezen (zie [plugin.md](plugin.md) §2–2d).
+
+> **Bijgewerkt 2026-10-16.** Sinds de eerste versie van dit document zijn
+> het 73 modules (`pluginParams.ts --all`, zie §1a), bouwt Windows met
+> clang-cl, en is er een beperking voor de gastheer-plugins (§1a). Begin
+> op de Mac met een kleine selectie (§3); de hele set bouwen duurt lang.
 
 Lees eerst: [plugin.md](plugin.md) (wat er is en waarom) en
 [tools/plugin/README.md](../../tools/plugin/README.md) (de bouwstappen op
@@ -26,6 +31,27 @@ De plugins bevatten de **bediening** (het editorpaneel uit de editor, als
 webpagina in een webview) en de **parameterlijsten** (uit datzelfde paneel).
 Beide worden uit de editor gegenereerd vóór het bouwen (stap 4).
 
+## 1a. Wat er sinds gisteren bijkwam
+
+- **73 modules.** De generator (`editor/scripts/pluginParams.ts --all`)
+  leest het paneel én `tools/mmb-wasm/build.sh` en schrijft per module de
+  plugin-bron plus `generated/modules.cmake`. Twee soorten:
+  `KernelPlugin.h` (22 modules op de uniforme kern-interface, HALL en SID:
+  eigen instantie per exemplaar) en `AbiPlugin.h` (49 modules: de
+  wasm-gastheer zelf, native; **één exemplaar per plugin per DAW-proces**,
+  een tweede blijft stil). Noten via `NoteMap.h`, CV-ingangen als
+  parameters.
+- **Compiler.** Op Windows moet het clang-cl zijn (de Mutable- en STK-code
+  gebruikt GCC-extensies). Op de Mac is Apple clang de standaard: daar
+  speelt dit niet.
+- **Intel of Apple Silicon.** De MacBook uit 2016 is Intel (x86_64); wat je
+  daar bouwt draait native op die Mac en op een nieuwere Mac alleen via
+  Rosetta (Logic moet dan "Open using Rosetta" aan hebben, of je gebruikt
+  Reaper in Rosetta-stand). Een universele build (beide architecturen) kan
+  ook vanaf de Intel-Mac: `-DCMAKE_OSX_ARCHITECTURES="x86_64;arm64"`; dan
+  kun je het arm64-deel alleen niet zelf testen. Voor nu: gewoon x86_64,
+  testen op deze Mac; universeel pas als er een nieuwe Mac bij komt.
+
 ## 2. Eén keer klaarzetten
 
 1. **Xcode** uit de App Store (voor de AU het veiligst; alleen de Command
@@ -46,16 +72,19 @@ Vanuit de repo-map:
 
 ```
 cd editor
-MMB_JUCE_DIR=~/src/JUCE npm run build:plugin-ui      # → tools/plugin/generated/ en web/
+MMB_JUCE_DIR=~/src/JUCE npm run build:plugin-ui      # → tools/plugin/generated/ en web/ (73 modules)
 cd ..
 cmake -S tools/plugin -B build-mac -G Xcode -DMMB_JUCE_DIR=~/src/JUCE -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0
-cmake --build build-mac --config Release --target MmbHall_All MmbSid_All MmbPluginCheck
+cmake --build build-mac --config Release --target MmbHall_All MmbSid_All MmbPlaits_All MmbReverb_All MmbPluginCheck
 ```
 
 (`_All` bouwt AU + VST3 + Standalone van die module. Zonder Xcode:
 `-G Ninja -DCMAKE_BUILD_TYPE=Release` en de doelen `MmbHall_VST3
-MmbHall_Standalone …`; de AU slaat je dan over.) De eerste bouw duurt een
-paar minuten (JUCE zelf); daarna seconden.
+MmbHall_Standalone …`; de AU slaat je dan over.) Deze vier dekken de drie
+soorten: handgeschreven (HALL, SID), gastheer-instrument (PLAITS) en
+gastheer-effect (REVERB). JUCE compileert per plugin opnieuw: reken op een
+paar minuten per module; alle 73 is uren. De doelnamen staan in
+`tools/plugin/generated/modules.cmake`.
 
 Dan kopiëren:
 
