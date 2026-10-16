@@ -42,6 +42,12 @@
   wasm-gastheer; `KernelPlugin.h`, `generated/modules.cmake`): CONV
   (4 s), LADDER, SEM, DRIVE, TUBE, FOLDER, FREQSHIFT, WAH, LPG, ENSEMBLE,
   DIFFUSEUR. Met HALL en SID 13 plugins, alle geladen en gerenderd.
+- **De hele bibliotheek (2026-10-16): 73 VST3's.** Notenvertaler
+  `NoteMap.h` (mono/poly, pedaal, bend) voor de instrumenten; CV-ingangen
+  als parameters; `AbiPlugin.h` draait de wasm-gastheer van een module
+  native (bronnen uit `build.sh`), zodat ook REVERB, de compressors/EQ's,
+  de echo's, STK, FOF en de Mutable-ports plugin zijn. Bouw met clang-cl.
+  Beperking: gastheer-plugins één exemplaar per DAW-proces.
 - **Audacity 4.0.1** (eerste echte gastheer) valideert HALL als realtime-
   effect; SID niet (Audacity kent geen MIDI/instrumenten). Nog geen DAW
   met MIDI op deze pc. Open: licentie-sweep, Mac, schalen, velocity/pedaal.

@@ -1,8 +1,9 @@
 #pragma once
 // Gedeelde romp voor de MMB-plugins: parameters uit de gegenereerde
-// ModuleSpec (MmbParamSpec.h), toestand, en de bediening = het editorpaneel
-// in een webview (editor/src/plugin-ui, als binary data MmbWebUi). Een
-// module levert alleen nog: applyControl (id → kern), prepare en render.
+// ModuleSpec (MmbParamSpec.h) plus eventuele extra parameters (CV-ingangen),
+// toestand, en de bediening = het editorpaneel in een webview
+// (editor/src/plugin-ui, als binary data MmbWebUi). Een module levert alleen
+// nog: applyControl (id → kern), prepare en render.
 //
 // De waarden die applyControl krijgt zijn die van het paneel: knop in zijn
 // eenheid, schakelaar als index, toggle 0/1 — dezelfde afspraak als
@@ -17,6 +18,7 @@
 #include <cstring>
 #include <memory>
 #include <optional>
+#include <string>
 #include <vector>
 
 #include "MmbParamSpec.h"
@@ -26,16 +28,18 @@ namespace mmb_plugin {
 
 class MmbProcessor : public juce::AudioProcessor {
 public:
-    MmbProcessor(const ModuleSpec& spec, bool synth)
+    /** @p extra: parameters bovenop het paneel (bijv. CV-ingangen); hun
+     *  id/name/choices-teksten moeten de plugin overleven (statische opslag). */
+    MmbProcessor(const ModuleSpec& spec, bool synth, const std::vector<ParamSpec>& extra = {})
         : AudioProcessor(synth
               ? BusesProperties().withOutput("Output", juce::AudioChannelSet::stereo(), true)
               : BusesProperties().withInput("Input", juce::AudioChannelSet::stereo(), true)
                                  .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
-          spec_(spec), synth_(synth),
-          state_(*this, nullptr, juce::Identifier(juce::String(spec.typeId).toUpperCase()), layout(spec)) {
-        raw_.resize(static_cast<std::size_t>(spec.count));
-        applied_.assign(static_cast<std::size_t>(spec.count), std::nanf(""));
-        for (int i = 0; i < spec.count; ++i) raw_[static_cast<std::size_t>(i)] = state_.getRawParameterValue(spec.params[i].id);
+          spec_(spec), synth_(synth), params_(merge(spec, extra)),
+          state_(*this, nullptr, juce::Identifier(juce::String(spec.typeId).toUpperCase()), layout(params_)) {
+        raw_.resize(params_.size());
+        applied_.assign(params_.size(), std::nanf(""));
+        for (std::size_t i = 0; i < params_.size(); ++i) raw_[i] = state_.getRawParameterValue(params_[i].id);
     }
 
     // ── Door de module in te vullen ──────────────────────────────────────
@@ -80,13 +84,20 @@ public:
     void changeProgramName(int, const juce::String&) override {}
 
     const ModuleSpec& spec() const { return spec_; }
+    const std::vector<ParamSpec>& params() const { return params_; }
+    bool isSynth() const { return synth_; }
     juce::AudioProcessorValueTreeState& apvts() { return state_; }
 
 private:
-    static juce::AudioProcessorValueTreeState::ParameterLayout layout(const ModuleSpec& spec) {
+    static std::vector<ParamSpec> merge(const ModuleSpec& spec, const std::vector<ParamSpec>& extra) {
+        std::vector<ParamSpec> all(spec.params, spec.params + spec.count);
+        all.insert(all.end(), extra.begin(), extra.end());
+        return all;
+    }
+
+    static juce::AudioProcessorValueTreeState::ParameterLayout layout(const std::vector<ParamSpec>& params) {
         juce::AudioProcessorValueTreeState::ParameterLayout l;
-        for (int i = 0; i < spec.count; ++i) {
-            const ParamSpec& p = spec.params[i];
+        for (const ParamSpec& p : params) {
             const juce::ParameterID pid { p.id, 1 };
             switch (p.kind) {
                 case ParamKind::Float: {
@@ -113,15 +124,15 @@ private:
     // Alleen doorgeven wat veranderd is: een kern rekent bij setControl vaak
     // tabellen opnieuw uit.
     void pushParameters() {
-        for (int i = 0; i < spec_.count; ++i) {
-            const float v = raw_[static_cast<std::size_t>(i)]->load();
-            float& a = applied_[static_cast<std::size_t>(i)];
-            if (v != a) { applyControl(spec_.params[i].id, v); a = v; }
+        for (std::size_t i = 0; i < params_.size(); ++i) {
+            const float v = raw_[i]->load();
+            if (v != applied_[i]) { applyControl(params_[i].id, v); applied_[i] = v; }
         }
     }
 
     const ModuleSpec& spec_;
     const bool synth_;
+    std::vector<ParamSpec> params_;
     juce::AudioProcessorValueTreeState state_;
     std::vector<std::atomic<float>*> raw_;
     std::vector<float> applied_;
@@ -161,8 +172,7 @@ public:
 
     explicit MmbWebEditor(MmbProcessor& p) : AudioProcessorEditor(p) {
         const ModuleSpec& spec = p.spec();
-        for (int i = 0; i < spec.count; ++i) {
-            const ParamSpec& ps = spec.params[i];
+        for (const ParamSpec& ps : p.params()) {
             switch (ps.kind) {
                 case ParamKind::Float:  sliders_.push_back(std::make_unique<juce::WebSliderRelay>(ps.id)); break;
                 case ParamKind::Choice: combos_.push_back(std::make_unique<juce::WebComboBoxRelay>(ps.id)); break;
@@ -193,8 +203,7 @@ public:
 
         auto& state = p.apvts();
         std::size_t s = 0, c = 0, t = 0;
-        for (int i = 0; i < spec.count; ++i) {
-            const ParamSpec& ps = spec.params[i];
+        for (const ParamSpec& ps : p.params()) {
             auto* param = state.getParameter(ps.id);
             switch (ps.kind) {
                 case ParamKind::Float:  sliderAtt_.push_back(std::make_unique<juce::WebSliderParameterAttachment>(*param, *sliders_[s++], nullptr)); break;
@@ -221,5 +230,13 @@ private:
 inline juce::AudioProcessorEditor* MmbProcessor::createEditor() { return new MmbWebEditor(*this); }
 
 inline bool is(const char* id, const char* name) { return std::strcmp(id, name) == 0; }
+
+/** Teksten voor extra parameters: één keer per plugin-DLL, blijven bestaan. */
+inline const char* keep(const std::string& s) {
+    static std::vector<std::unique_ptr<std::string>> store;
+    for (auto& p : store) if (*p == s) return p->c_str();
+    store.push_back(std::make_unique<std::string>(s));
+    return store.back()->c_str();
+}
 
 }  // namespace mmb_plugin

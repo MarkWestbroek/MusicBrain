@@ -2,9 +2,9 @@
 #
 # Dezelfde kern als de Teensy en de simulator (firmware/lib/mmb-dsp), in een
 # JUCE-jas: VST3 (en AU op de Mac) plus een Standalone-programma per module.
-# De bediening is het editorpaneel in een webview; parameters komen uit het
-# paneel (editor/scripts/pluginParams.ts → generated/). JUCE staat niet in de
-# repo; zie README.md voor de stappen.
+# De bediening is het editorpaneel in een webview; parameters, plugin-bronnen
+# en de modulelijst komen uit de editor (editor/scripts/pluginParams.ts →
+# generated/). JUCE staat niet in de repo; zie README.md voor de stappen.
 cmake_minimum_required(VERSION 3.22)
 project(MmbPlugins VERSION 0.1.0 LANGUAGES C CXX)
 
@@ -17,13 +17,15 @@ endif()
 add_subdirectory(${MMB_JUCE_DIR} juce EXCLUDE_FROM_ALL)
 
 set(MMB_DSP_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../firmware/lib/mmb-dsp)
+set(MMB_WASM_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../mmb-wasm)
+set(MMB_GENERATED_DIR ${CMAKE_CURRENT_SOURCE_DIR}/generated)
 
-# ── De bediening en de parameterlijsten, uit de editor ───────────────────
+# ── De bediening en de gegenereerde bestanden, uit de editor ─────────────
 #   cd editor && MMB_JUCE_DIR=<pad> npm run build:plugin-ui
-# maakt web/ (index.html, app.js, app.css: het paneel) en generated/
-# (<typeId>_params.h). Beide niet in git.
+# maakt web/ (het paneel) en generated/ (params, kernels, plugin-bronnen,
+# modules.cmake). Beide niet in git.
 file(GLOB MMB_WEB_FILES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/web/*)
-file(GLOB MMB_GEN_FILES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/generated/*.h)
+file(GLOB MMB_GEN_FILES CONFIGURE_DEPENDS ${MMB_GENERATED_DIR}/*.h)
 if(NOT MMB_WEB_FILES OR NOT MMB_GEN_FILES)
   message(FATAL_ERROR "tools/plugin/web/ of generated/ ontbreekt: eerst `npm run build:plugin-ui` in editor/ (met MMB_JUCE_DIR)")
 endif()
@@ -34,8 +36,21 @@ if(APPLE)
   list(APPEND MMB_FORMATS AU)
 endif()
 
-# Eén module als plugin: mmb_add_module(<target> <code> "<productnaam>" <synth> <bron.cpp> <VST3-categorieën...>)
+# Eén module als plugin:
+#   mmb_add_module(<target> <code> "<productnaam>" <synth> <bron.cpp>
+#                  [CATEGORIES ...] [INCLUDES ...] [SOURCES ...] [GLOBS ...] [DEFINES ...])
+# De wasm-gastheren worden gecompileerd zoals in tools/mmb-wasm/build.sh:
+# -DTEST, cstdio vooraf ingevoegd, de shim-map en de MI-fallbacks als include.
 function(mmb_add_module target code product synth source)
+  cmake_parse_arguments(A "" "" "CATEGORIES;INCLUDES;SOURCES;GLOBS;DEFINES" ${ARGN})
+  if(NOT A_CATEGORIES)
+    set(A_CATEGORIES Fx)
+  endif()
+  set(srcs ${source} ${A_SOURCES})
+  foreach(g ${A_GLOBS})
+    file(GLOB_RECURSE found ${g})
+    list(APPEND srcs ${found})
+  endforeach()
   juce_add_plugin(${target}
     COMPANY_NAME "MusicBrain"
     PLUGIN_MANUFACTURER_CODE Mmbr
@@ -47,25 +62,36 @@ function(mmb_add_module target code product synth source)
     NEEDS_MIDI_OUTPUT FALSE
     COPY_PLUGIN_AFTER_BUILD FALSE
     NEEDS_WEBVIEW2 TRUE
-    VST3_CATEGORIES ${ARGN})
-  target_sources(${target} PRIVATE ${source})
-  target_include_directories(${target} PRIVATE ${MMB_DSP_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_SOURCE_DIR}/generated)
+    VST3_CATEGORIES ${A_CATEGORIES})
+  target_sources(${target} PRIVATE ${srcs})
+  target_include_directories(${target} PRIVATE ${MMB_DSP_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/src ${MMB_GENERATED_DIR} ${MMB_WASM_DIR} ${MMB_WASM_DIR}/shim ${A_INCLUDES})
   target_compile_definitions(${target} PUBLIC
     JUCE_WEB_BROWSER=1
     JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1
     JUCE_USE_CURL=0
     JUCE_VST3_CAN_REPLACE_VST2=0
     JUCE_VST3_EMULATE_MIDI_CC_WITH_PARAMETERS=0)   # anders 2080 extra 'MIDI CC'-parameters in de DAW
+  target_compile_definitions(${target} PRIVATE TEST=1 _USE_MATH_DEFINES=1 ${A_DEFINES})
+  # Alleen voor C++ (een .c-bron met cstdio vooraf breekt de MSVC-STL). De
+  # MI-bibliotheken gebruiken GCC/clang-extensies (VLA's, __attribute__,
+  # lege arrays): op Windows bouwen met clang-cl (README).
+  if(MSVC)
+    target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:/FIcstdio> /bigobj /wd4244 /wd4267 /wd4305)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+      target_compile_options(${target} PRIVATE -Wno-everything)
+    endif()
+  else()
+    target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-include cstdio> -Wno-unused-value)
+  endif()
   target_link_libraries(${target}
     PRIVATE MmbWebUi juce::juce_audio_utils juce::juce_gui_extra
     PUBLIC juce::juce_recommended_config_flags juce::juce_recommended_lto_flags)
 endfunction()
 
 # Handgeschreven (eigen MIDI- of kernvertaling):
-mmb_add_module(MmbHall Hall "MMB HALL" FALSE src/HallPlugin.cpp Fx Reverb)
-mmb_add_module(MmbSid  Sid1 "MMB SID"  TRUE  src/SidPlugin.cpp  Instrument Synth)
-# Gegenereerd (uniforme kern-interface, KernelPlugin.h): één regel per module.
-set(MMB_GENERATED_DIR ${CMAKE_CURRENT_SOURCE_DIR}/generated)
+mmb_add_module(MmbHall Hall "MMB HALL" FALSE src/HallPlugin.cpp CATEGORIES Fx Reverb)
+mmb_add_module(MmbSid  Sid1 "MMB SID"  TRUE  src/SidPlugin.cpp  CATEGORIES Instrument Synth)
+# Gegenereerd: één regel per module (uniforme kern of wasm-gastheer).
 include(${MMB_GENERATED_DIR}/modules.cmake OPTIONAL)
 
 # ── Controle zonder DAW: laadt een VST3, speelt/rendert, schrijft wav ─────

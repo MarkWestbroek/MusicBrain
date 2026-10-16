@@ -6,9 +6,13 @@ JUCE, op dezelfde kern als de Teensy en de simulator
 een webview; de parameters komen uit datzelfde paneel. Achtergrond en
 metingen: [doc/plans/plugin.md](../../doc/plans/plugin.md).
 
-Modules nu (13): **HALL** en **SID** (handgeschreven) en, gegenereerd uit de
-uniforme kern-interface: **CONV, LADDER, SEM, DRIVE, TUBE, FOLDER,
-FREQSHIFT, WAH, LPG, ENSEMBLE, DIFFUSEUR**.
+Modules nu: **73** — de hele bibliotheek behalve CV-modules, mixers,
+MIDI-IN, de bankmodules (sampler, ZANG, tapestrip), DX7 en de
+trigger-modules. HALL en SID zijn handgeschreven; de rest genereert
+`pluginParams.ts --all`: op de uniforme kern-interface via `KernelPlugin.h`
+(eigen instantie per exemplaar), anders via `AbiPlugin.h` (de wasm-gastheer
+zelf, native; één exemplaar per DAW-proces). Noten: `NoteMap.h`;
+CV-ingangen zijn parameters.
 
 ## Opbouw
 
@@ -49,12 +53,16 @@ MMB_JUCE_DIR=<ergens>/JUCE npm run build:plugin-ui      # → tools/plugin/gener
 ```
 
 en de plugins, vanuit een "x64 Native Tools"-prompt (`vcvars64.bat` van de
-Build Tools 2022):
+Build Tools 2022), met **clang-cl** (LLVM; MSVC struikelt over de
+GCC-extensies in de Mutable- en STK-code):
 
 ```
-cmake -S tools/plugin -B <bouwmap> -G Ninja -DCMAKE_BUILD_TYPE=Release -DMMB_JUCE_DIR=<ergens>/JUCE
-cmake --build <bouwmap>        # alle modules (VST3 + Standalone) en mmb-plugin-check
+cmake -S tools/plugin -B <bouwmap> -G Ninja -DCMAKE_BUILD_TYPE=Release -DMMB_JUCE_DIR=<ergens>/JUCE -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl
+cmake --build <bouwmap>        # alle modules (VST3 + Standalone) en mmb-plugin-check; eerste keer lang
 ```
+
+Alleen VST3's: de doelen `Mmb<Module>_VST3` (de lijst staat in
+`generated/modules.cmake`).
 
 Na een wijziging aan een paneel of aan `plugin-ui/`: opnieuw bundelen én de
 plugins opnieuw bouwen (de pagina zit als binary data in elke plugin).
@@ -83,21 +91,15 @@ niet gedaan: eerste keer op een Mac proberen (doc/plans/plugin.md).
 
 ## Een nieuwe module
 
-Zit de module op de uniforme kern-interface (de wasm-gastheer gebruikt
-`MMB_KERNEL_HOST`)? Dan is het één stap: het typeId toevoegen aan
-`build:plugin-ui` in `editor/package.json`. De generator schrijft
-`generated/<typeId>_kernel.h`, `<typeId>_plugin.cpp` en de regel in
-`generated/modules.cmake`; `src/KernelPlugin.h` doet de rest.
+Een module met een wasm-gastheer en een regel in `tools/mmb-wasm/build.sh`
+is automatisch een plugin (`pluginParams.ts --all`). Op de uniforme
+kern-interface (`MMB_KERNEL_HOST`) krijgt hij `KernelPlugin.h`, anders
+`AbiPlugin.h`. Uitsluiten of als instrument-zonder-gate markeren: de
+lijsten `EXCLUDE` en `SYNTH_OVERRIDE` in `pluginParams.ts`.
 
-Anders (eigen gastheer, of een instrument met noten):
-
-1. `editor/package.json`: het typeId toevoegen aan `build:plugin-ui`
-   (voor de parameterlijst).
-2. `src/<Naam>Plugin.cpp`: een `MmbProcessor` met `applyControl` (de
-   vertaling uit de wasm-gastheer `tools/mmb-wasm/<naam>_wasm.cc`),
-   `prepare` en `render`; voor een instrument de stemverdeler van SidPlugin.
-3. `CMakeLists.txt`: één regel `mmb_add_module(...)` bij de handgeschreven.
-4. `editor/scripts/pluginParams.ts`: het typeId in `MANUAL`.
+Handgeschreven (eigen MIDI- of kernvertaling, zoals HALL en SID):
+`src/<Naam>Plugin.cpp` met `applyControl`, `prepare`, `render`; één regel
+`mmb_add_module(...)` in `CMakeLists.txt`; het typeId in `MANUAL`.
 
 ## Controle zonder DAW
 

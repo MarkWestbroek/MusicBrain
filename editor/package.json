@@ -8,7 +8,7 @@
     "dev": "vite",
     "dev:https": "vite --config vite.config.https.ts",
     "build": "vite build",
-    "build:plugin-ui": "tsx scripts/pluginParams.ts tp_mmb_hall tp_mmb_sid tp_mmb_conv tp_mmb_ladder tp_mmb_sem tp_mmb_drive tp_mmb_tube tp_mmb_folder tp_mmb_freqshift tp_mmb_wah tp_mmb_lpg tp_mmb_ensemble tp_mmb_diffuseur && vite build --config vite.plugin-ui.config.ts",
+    "build:plugin-ui": "tsx scripts/pluginParams.ts --all && vite build --config vite.plugin-ui.config.ts",
     "banks": "node scripts/banks.mjs fetch",
     "banks:publish": "node scripts/banks.mjs publish",
     "preview": "vite preview",

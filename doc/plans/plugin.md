@@ -123,6 +123,47 @@ Mutable-ports. Instrumenten op de interface (acid, cmi, complex, e-piano,
 martenot, mixtur, organ, synthex) wachten op een generieke notenvertaling
 (MIDI → de `voct`/`gate`-CV's van de kern), de volgende stap.
 
+## 2d. De hele bibliotheek: 73 plugins (2026-10-16)
+
+Mark: "wat mij betreft de hele bibliotheek, behalve de CV- en mixdingen".
+Gebouwd en met `mmb-plugin-check` geladen en gerenderd: **73 VST3's**, geen
+enkele crash.
+
+- **Notenvertaler** `NoteMap.h`: MIDI → voct/gate/vel. Mono met een
+  notenstapel (laatste noot wint, legato), poly met cellen (zelfde
+  verdeling als de SID), sustainpedaal, pitchbend ±2. Gebruikt door beide
+  rompen; de instrumenten op de kern-interface (acid, e-piano, organ,
+  synthex, martenot, mixtur, CMI, complex, rungler) spelen daarmee met een
+  eigen instantie per exemplaar.
+- **CV-ingangen worden parameters**: "<poort> (CV)" −1..1 telt op bij de
+  knop (zoals op de Teensy), een gate wordt aan/uit. Zolang de parameter 0
+  is geldt de poort als niet aangesloten. Automation, MIDI learn en de
+  modulators van Live/Bitwig werken er zo meteen op; audio-rate CV via een
+  sidechain-bus is een latere stap.
+- **De wasm-gastheer als plugin** (`AbiPlugin.h`): voor alles zonder
+  uniforme kern-interface compileert de plugin `tools/mmb-wasm/<naam>_wasm.cc`
+  zelf, met de bronnen en include-mappen uit `build.sh` (de generator leest
+  dat script). Letterlijk dezelfde code als de simulator, op de eigen
+  samplerate van de module (32/44,1/48 kHz) met een Lagrange-resampler
+  naar de DAW. Zo kwamen in één keer mee: REVERB, SHIMMER, alle compressors
+  en EQ's, tape/echo/BBD, ringmod, octaver, harmonizer, tremolo, phasers,
+  vibe, rotary, VCF/MS-20, STK, FOF, de onderzoeksmodules, SID3, CR-78, en
+  de Mutable-ports Elements, Rings, Plaits, Clouds, Beads, Warps, Peaks.
+- **Bouw op Windows met clang-cl** (LLVM): MSVC struikelt over de
+  GCC-extensies in de Mutable- en STK-code (VLA's, `__attribute__`, lege
+  arrays). De generator zet `_USE_MATH_DEFINES`; `cstdio` wordt alleen voor
+  C++ vooraf ingevoegd (een C-bestand van JUCE brak er anders op).
+- **Niet meegenomen**: CV-modules (1 kHz), mixers en VCA-banken, MIDI-IN,
+  sampler/ZANG/tapestrip (banken uit de editor), DX7 (licentie
+  fabrieksbanken open), pads/percuter/rhythm (triggers, nog geen vertaling).
+- **Beperking van de gastheer-route**: globale toestand, dus één exemplaar
+  per plugin per DAW-proces (een tweede blijft stil en meldt dat op
+  stdout). Voor een product moet elke gastheer een klasse worden; de 22 op
+  de kern-interface plus HALL en SID hebben dat al.
+- Standaardstand die stil is, geen fout: LPG (Offset omhoog), BEADS en
+  WARPS (willen signaal en instelling), RINGMOD (nog bekijken).
+  MIDI-gebeurtenissen gelden per DAW-blok, niet per sample.
+
 **Eerste echte gastheer (2026-10-15): Audacity 4.0.1** (open source, Windows)
 valideerde beide VST3's bij het scannen: HALL als effect, "realtime
 capable" (dus ook live op een spoor); SID als "Unknown", want Audacity
