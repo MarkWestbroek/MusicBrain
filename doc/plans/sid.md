@@ -194,6 +194,10 @@ de gatein8). Rev 0.1 laat dit weg: write-only is veiliger en eenvoudiger.
 
 ## 4. Hoe de sporen elkaar helpen
 
+> **Actueel (2026-10-19):** het meten van echte chips gaat eerst via een
+> USBSID-Pico aan de pc, niet via de buskaart: zie
+> [sid-meten.md](sid-meten.md). De kaart (spoor B) blijft een aparte vraag.
+
 - De emulatie komt eerst: module, UI, contract en seeds liggen dan klaar.
   De kaart is daarna "alleen" een tweede backend.
 - De kaart is daarna het **meetinstrument voor de emulatie**: met de
