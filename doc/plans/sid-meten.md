@@ -9,6 +9,11 @@ aan echte chips en zet de uitkomst terug in de kern.
 > **Besluit (Mark, 2026-10-19):** een USBSID-Pico met een echte 6581 en een
 > echte 8580 als meetopstelling. De MIDISID (OLX) niet: daar zit eigen
 > firmware tussen (MIDI in plaats van registers), en nieuw heeft hij klonen.
+>
+> **Besluiten (Mark, 2026-10-20):** opnemen met een **Metric Halo**-interface,
+> dus de opstelling hangt aan de **Mac** (bord én interface); de tools
+> moeten daar draaien. De buskaart met een echte SID (sid.md §3) hangt af
+> van wat de metingen laten horen. Opnames: zie §2, punt 5 (voorstel).
 
 Ter review; niets gebouwd, het bord is nog niet besteld.
 
@@ -27,9 +32,12 @@ pc ──USB──► USBSID-Pico (Pico 2) ──► echte 6581 / 8580 ──aud
 - **Twee chips**: een geteste MOS **6581** (R3 of R4AR) en een **8580 R5**,
   met foto van de opdruk. Elk 6581-exemplaar klinkt anders (filter); het
   profiel geldt voor die ene chip.
-- **Audio-uitgang** van het bord naar de line-in van een audio-interface,
-  op 48 kHz. Eén keer de ingang ijken met een bekende sinus (niveau,
-  frequentiegang), zodat we de interface niet als chip meten.
+- **Audio-uitgang** van het bord naar een line-ingang van de **Metric
+  Halo** aan de Mac, op 48 kHz (hoger mag; de vergelijking resamplet). Eén
+  keer de ingang ijken met een bekende sinus (niveau, frequentiegang), zodat
+  we de interface niet als chip meten; een Metric Halo is daar ruim goed
+  genoeg voor. Het bord heeft een 3,5 mm-uitgang: een kabel naar jack/XLR
+  en de ingang op line-niveau zetten.
 - **Registers vanaf de pc**: het bord spreekt een eigen CDC-protocol over
   USB (drivers in C++, JavaScript, Rust: `LouDnl/USBSID-Pico-driver`).
   Nakijken bij aankomst: getimede schrijfacties (cycli tussen writes) en of
@@ -49,15 +57,21 @@ blijven MIT (zoals in sid.md: niets uit reSID).
    emulatie op het sample uit te lijnen zijn.
 2. **Naar de chip**: `play_usbsid` stuurt de reeks met de juiste timing en
    neemt tegelijk de line-in op (Python: `sounddevice` + het CDC-protocol,
-   of de C++-driver als dat stabieler timet).
+   of de C++-driver als dat stabieler timet). **Op de Mac**: het bord
+   verschijnt als `/dev/cu.usbmodem…`, de Metric Halo als Core Audio-
+   apparaat; `sounddevice` kiest hem op naam.
 3. **Door de kern**: `render_sid` (native, CMake, zoals de core-tests in de
    scratchpad) speelt dezelfde reeks door `mmb_dsp::SidChip::write` +
    `Process` en schrijft een wav. Zelfde model (6581/8580), zelfde
    klokfrequentie (PAL).
 4. **Vergelijken**: `compare.py` lijnt uit op de tik, en meet per proef wat
-   §3 vraagt; uitvoer een tabel plus grafieken (overdracht, spectra, envelop)
-   in `sounds/sid-metingen/<chip>/` (wav's in git-lfs of buiten git:
-   besluit bij aankomst).
+   §3 vraagt; uitvoer een tabel plus grafieken (overdracht, spectra, envelop).
+5. **Waar het staat (voorstel, Mark wist het nog niet):** de **ruwe wav's
+   buiten git**, in `sounds/sid-metingen/<chip>/raw/` met een `.gitignore`,
+   en een kopie op een vaste plek op de Mac (of later de media-library van
+   Imprint). **In git**: de reeksen (`*.json`), de uitkomsten (tabellen,
+   profielen) en de grafieken (kleine png's). De reeksen plus de chip zijn
+   genoeg om elke opname opnieuw te maken; git-lfs is dan niet nodig.
 
 ## 3. De proeven
 
@@ -101,10 +115,11 @@ Elke proef duurt seconden; de hele reeks per chip een paar minuten.
 
 ## 6. Open vragen
 
-1. Welke **audio-interface** gaat het worden voor de opname (line-in, 48 kHz)?
-2. Wav's van de metingen in git (git-lfs) of erbuiten?
-3. Komt de buskaart uit sid.md §3 (spoor B) nog, of is de USBSID-Pico voor
-   het meten genoeg en blijft de Brain bij de emulatie?
+1. ~~Audio-interface~~: Metric Halo aan de Mac (besluit 2026-10-20).
+2. Wav's: voorstel in §2 punt 5 (ruw buiten git, reeksen en uitkomsten
+   erin); Mark bevestigt of wijzigt.
+3. De buskaart uit sid.md §3: hangt af van de metingen (Mark: "niet het
+   eerste bord dat van belang is").
 
 ## 7. Bronnen
 
