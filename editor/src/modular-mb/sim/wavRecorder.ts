@@ -111,6 +111,14 @@ export interface RecordResult {
  * Eén exemplaar per paneel is genoeg; `start()` weigert een tweede opname
  * zolang de eerste loopt.
  */
+/** Ringbuffer: houd van de blokken alleen de laatste `keepFrames` frames
+ *  (op blokgrens, dus iets meer). Geeft de nieuwe lijst en het aantal frames. */
+export function trimParts(parts: Float32Array[][], frames: number, keepFrames: number): { parts: Float32Array[][]; frames: number } {
+  let i = 0, drop = 0;
+  while (i < parts.length && frames - drop - (parts[i]![0]?.length ?? 0) >= keepFrames) { drop += parts[i]![0]?.length ?? 0; i++; }
+  return i === 0 ? { parts, frames } : { parts: parts.slice(i), frames: frames - drop };
+}
+
 export class MasterRecorder {
   private node: AudioWorkletNode | null = null;
   private sink: Tone.Gain | null = null;
@@ -121,6 +129,11 @@ export class MasterRecorder {
   private readonly chans = 2;
   private onFlushed: (() => void) | null = null;
   private firstFrame: number | null = null;
+
+  /** `keepSeconds`: ringbuffer, alleen de laatste zoveel seconden blijven
+   *  bewaard (freestyle: altijd opnemen, achteraf bewaren). `startFrame`
+   *  blijft dan het frame waarop de opname ooit begon, niet van de buffer. */
+  constructor(private readonly keepSeconds: number | null = null) {}
 
   get active(): boolean { return this.node !== null; }
   /** Frame van de AudioContext (`currentFrame` in de worklet) waarop de
@@ -164,6 +177,10 @@ export class MasterRecorder {
       if (d.chunks && d.chunks.length > 0) {
         this.parts.push(d.chunks);
         this.frameCount += d.chunks[0]!.length;
+        if (this.keepSeconds !== null) {
+          const t = trimParts(this.parts, this.frameCount, Math.round(this.keepSeconds * this.rate));
+          this.parts = t.parts; this.frameCount = t.frames;
+        }
       }
       if (d.done) { this.onFlushed?.(); this.onFlushed = null; }
     };
@@ -206,6 +223,14 @@ export class MasterRecorder {
       channels, sampleRate: this.rate, frames: this.frameCount,
       seconds: this.seconds, peak, clipped: peak > 1,
     };
+  }
+
+  /** Wat er nu in de buffer staat, zonder de opname te stoppen (de
+   *  ringbuffer: "die laatste twee minuten, bewaren"). */
+  peek(): RecordResult {
+    const channels = this.merge();
+    const peak = peakOf(channels);
+    return { channels, sampleRate: this.rate, frames: this.frameCount, seconds: this.seconds, peak, clipped: peak > 1 };
   }
 
   private merge(): Float32Array[] {

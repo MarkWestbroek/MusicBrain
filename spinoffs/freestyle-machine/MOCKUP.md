@@ -11,7 +11,9 @@ stijl). Touch op een echte telefoon nog door Mark te bevestigen.
 Korte Engelse handleiding voor de telefoon: [QUICKSTART.md](QUICKSTART.md);
 in de app een rondleiding (PlayTour met eigen stappen, bij het eerste
 bezoek en via ?).
-Ringbuffer, FILL-verfijning en de beatbox-laag staan open. Tegenhanger van
+De ringbuffer (§4.7) is gebouwd: `MasterRecorder` met `keepSeconds`,
+SAVE (knop en S) schrijft de laatste twee minuten als wav. FILL-verfijning,
+einde-fill, Autopilot en de beatbox-laag staan open. Tegenhanger van
 het hardwareplan [PLAN.md](PLAN.md); voert stap 1 t/m 3 van de
 [review van 2026-08-31](REVIEW-2026-08-31.md) uit ("bouw eerst een
 softwarematig bewijsmodel met gewone knoppen").
@@ -316,7 +318,8 @@ stand (de vriend is Pools; UK English volstaat, zie
 | `editor/src/freestyle/freestylePatch.ts` | bouwt de vaste patch (Clock → Grids op x2 → Peaks ×3 + Acid; accenten → Seq → E-piano → Reverb) |
 | `editor/src/freestyle/performance.ts` | `Performance`: start/stop, DROP (direct omlaag, terug op de tel), NEXT (frase), stems (maat), FILL (één maat), TAP, percussionist; geeft `Fired`-pakketjes terug |
 | `editor/src/freestyle/FreestyleApp.tsx` | het scherm en de toetsen; plant de pakketjes op de `AudioEngine`; stijlkeuze (tik/S = volgende) bouwt de patch opnieuw (stopt de beat); laptop- en telefoonlayout (≤ 700 px) met grote DROP/NEXT/FILL-knoppen |
-| `*.test.ts` | 25 tests: klokgrenzen, tempowissel, DROP+NEXT tegelijk, wrap-around, fill, percussionist, patchcontrole |
+| `editor/src/freestyle/ringRecorder.test.ts` | de ringbuffer-trim (`trimParts` in `sim/wavRecorder.ts`) |
+| `*.test.ts` | klokgrenzen, tempowissel, DROP+NEXT tegelijk, wrap-around, fill, percussionist, patchcontrole per stijl, ringbuffer |
 
 Afwijkingen van het plan hierboven: de bas is geen eigen stem maar zit in de
 kick-stem (elke kick slaat ook de 808-sub aan, de bassequencer schuift per

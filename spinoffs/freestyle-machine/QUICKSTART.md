@@ -23,6 +23,7 @@ see it again.
 | **NEXT** | Goes to the next section: INTRO → VERSE → HOOK → BREAK → INTRO. Press it mid-line; it waits. | On the 1 of the next phrase. |
 | **FILL** | A one-bar fill. | Starts at the next bar. |
 | **KICK / 808 · SNARE · HATS · MOTIF** | Mutes or unmutes that part. Tap again to cancel before it lands. | Next bar. |
+| **SAVE** | It is always recording from the first START. Was that take good? SAVE gives you the last two minutes as a WAV file. | Right away. |
 
 An amber border on a part means "this changes at the next bar". The amber
 text line tells you what is coming ("→ HOOK on the 1", "HATS off next bar").

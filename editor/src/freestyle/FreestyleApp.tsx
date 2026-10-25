@@ -5,7 +5,13 @@
 //
 // Schermtekst in het Engels (besluit Mark 2026-10-25: hij en zijn vriend
 // lezen het dan beide). Toetsen: SPACE (houden) = DROP, → of Enter = NEXT,
-// F = FILL, 1–4 = stems, T = TAP, P = start/stop, S = volgende stijl.
+// F = FILL, 1–4 = stems, T = TAP, P = start/stop, S = SAVE, G = volgende
+// stijl (genre).
+//
+// Ringbuffer (MOCKUP.md §4.7): vanaf de eerste START neemt een
+// MasterRecorder met `keepSeconds` de eindmix op (ná DROP, wat je hoort);
+// SAVE schrijft de laatste twee minuten als wav. Je weet pas achteraf dat
+// het goed was.
 //
 // Telefoon (smal scherm): één kolom, grote knoppen voor DROP (vasthouden),
 // NEXT en FILL, de stems in een 2×2-raster; tikken op de stijlnaam gaat
@@ -18,6 +24,7 @@ import * as Tone from 'tone';
 
 import { PlayTour, playTourSeen, type PlayTourStep } from '../modular-mb/PlayTour';
 import { getEngine, useEngineStatus } from '../modular-mb/sim/engineSingleton';
+import { MasterRecorder, downloadWav, encodeWav, wavFileName } from '../modular-mb/sim/wavRecorder';
 import { TapTempo } from '../modular-mb/tempo';
 import { buildFreestyleRig } from './freestylePatch';
 import { Performance, type Fired } from './performance';
@@ -34,6 +41,8 @@ function ctxNow(): number { return (Tone.getContext().rawContext as AudioContext
  *  Engels op beide plekken (de pagina is Engels); de NL-velden zijn verplicht
  *  in het staptype en krijgen dezelfde tekst. */
 const TOUR_KEY = 'mb.freestyletour.v1';
+/** De ringbuffer: zoveel seconden blijven bewaard. */
+export const KEEP_SECONDS = 120;
 const step = (anchor: string | undefined, title: string, text: string): PlayTourStep => ({ anchor, title, text, en: [title, text] });
 const TOUR_STEPS: PlayTourStep[] = [
   step(undefined, 'Freestyle machine', 'A beat, an 808 and a motif that follow you. Nothing happens on the tap itself: every change lands on the next beat, bar or phrase, so press a little early and keep rapping.'),
@@ -47,6 +56,7 @@ const TOUR_STEPS: PlayTourStep[] = [
   step('fs-stems', 'The four parts', 'Tap a part to mute or unmute it at the next bar. An amber border means it changes at the next bar; tap again to cancel.'),
   step('fs-style', 'Style', 'Tap the style name to go to the next style: trap, boom bap, bounce. That stops the beat; press START again.'),
   step('fs-perc', 'Playing with a percussionist', 'Tick this and the hi-hats get thinner, so a djembe or shaker fits in the gaps.'),
+  step('fs-save', 'It is always recording', 'From the first START the last two minutes are kept. Was that take good? Tap SAVE and you get it as a WAV file. No need to press record first.'),
   step(undefined, 'Have fun', 'This tour comes back with the ? at the top.'),
 ];
 
@@ -86,6 +96,8 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
   const engine = getEngine();
   const { level } = useEngineStatus();
   const tapper = useRef(new TapTempo());
+  const recorder = useRef(new MasterRecorder(KEEP_SECONDS)).current;
+  const [recSecs, setRecSecs] = useState(0);
   const [, bump] = useState(0);
   const [pos, setPos] = useState(() => perf.clock.position(0));
   const [log, setLog] = useState('press START');
@@ -99,6 +111,8 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
     engine.build(rig.project, rig.patch);
     return () => { engine.stop(); };
   }, [engine, rig]);
+  // De ringbuffer loopt zolang de pagina open is (vanaf de eerste START).
+  useEffect(() => () => { if (recorder.active) void recorder.stop(); }, [recorder]);
 
   /** Plan een pakketje op zijn contexttijd. Een paar ms vroeger: het
    *  bericht naar de worklet kost een blok. */
@@ -115,17 +129,32 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
 
   // Lookahead-planner en schermklok.
   useEffect(() => {
-    const id = window.setInterval(() => { for (const f of perf.tick(ctxNow())) apply(f); }, 30);
+    const id = window.setInterval(() => {
+      for (const f of perf.tick(ctxNow())) apply(f);
+      const s = Math.floor(recorder.seconds);
+      setRecSecs((prev) => (prev === s ? prev : s));
+    }, 30);
     let raf = 0;
     const draw = (): void => { setPos(perf.clock.position(ctxNow())); raf = requestAnimationFrame(draw); };
     raf = requestAnimationFrame(draw);
     return () => { window.clearInterval(id); cancelAnimationFrame(raf); };
-  }, [perf, apply]);
+  }, [perf, apply, recorder]);
 
   const start = useCallback(async () => {
     await engine.start();
+    if (!recorder.active) {
+      try { await recorder.start(engine.recorderTap()); }
+      catch (e) { setLog(`recorder: ${e instanceof Error ? e.message : String(e)}`); }
+    }
     apply(perf.start(ctxNow()));
-  }, [engine, perf, apply]);
+  }, [engine, perf, apply, recorder]);
+  /** SAVE: de laatste twee minuten als wav, zonder de buffer te stoppen. */
+  const save = useCallback(() => {
+    if (!recorder.active || recorder.frames === 0) { setLog('nothing recorded yet — press START first'); return; }
+    const r = recorder.peek();
+    downloadWav(encodeWav(r.channels, r.sampleRate, 'i24'), wavFileName(`freestyle-${style.id}`));
+    setLog(`saved ${Math.round(r.seconds)} s${r.clipped ? ' (clipped!)' : ''}`);
+  }, [recorder, style]);
   const stop = useCallback(() => { apply(perf.stop(ctxNow())); }, [perf, apply]);
   const tap = useCallback(() => {
     setTapFlash(true); window.setTimeout(() => setTapFlash(false), 90);
@@ -157,7 +186,8 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
         }
         case 'KeyT': tap(); break;
         case 'KeyP': if (perf.running) stop(); else void start(); break;
-        case 'KeyS': nextStyle(); break;
+        case 'KeyS': save(); break;
+        case 'KeyG': nextStyle(); break;
         default: return;
       }
     };
@@ -165,7 +195,7 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', up);
     return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
-  }, [perf, act, tap, start, stop, nextStyle, tour]);
+  }, [perf, act, tap, start, stop, nextStyle, save, tour]);
 
   const running = perf.running;
   const onOne = running && pos.bar === 0 && pos.beat === 0 && pos.frac < 0.25;
@@ -244,7 +274,7 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
           Music<span style={{ color: AMBER }}>Brain</span> freestyle
         </div>
       )}
-      <button type="button" data-tour="fs-style" onClick={nextStyle} title="Next style (S) — stops the beat"
+      <button type="button" data-tour="fs-style" onClick={nextStyle} title="Next style (G) — stops the beat"
         style={{ ...TOUCH, fontSize: 13, color: FG, background: '#1f2937', border: '1px solid #374151', borderRadius: 4, padding: '5px 10px', cursor: 'pointer' }}>
         {style.name} · {style.bpm} <span style={{ color: DIM }}>▸</span>
       </button>
@@ -263,6 +293,13 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
     </header>
   );
 
+  const recLabel = recorder.active ? `● ${Math.floor(Math.min(recSecs, KEEP_SECONDS) / 60)}:${String(Math.min(recSecs, KEEP_SECONDS) % 60).padStart(2, '0')}` : '';
+  const saveButton = (
+    <button type="button" data-tour="fs-save" onClick={save} title="Save the last two minutes as a WAV file (S)"
+      style={{ ...btn(recorder.active ? '#1f2937' : 'transparent', recorder.active ? FG : DIM), ...TOUCH, border: '1px solid #374151', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+      <span style={{ ...MONO, fontSize: 12, color: recorder.active ? '#ef4444' : DIM }}>{recLabel || '○'}</span> SAVE
+    </button>
+  );
   const flash = <div aria-hidden style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: AMBER, opacity: onOne ? 0.22 : 0, transition: onOne ? 'none' : 'opacity 180ms' }} />;
   const meter = (
     <span data-level={level.toFixed(3)} title="output level" style={{ display: 'inline-block', width: 80, height: 8, background: '#1f2937', borderRadius: 2, alignSelf: 'center', overflow: 'hidden' }}>
@@ -292,7 +329,7 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
           {running ? '■ STOP' : '▶ START'}
         </button>
         <footer style={{ display: 'flex', gap: 10, fontSize: 12, color: DIM, position: 'relative', alignItems: 'center' }}>
-          {meter}<span style={{ ...MONO, flex: 1, textAlign: 'right' }}>{log}</span>
+          {saveButton}{meter}<span style={{ ...MONO, flex: 1, textAlign: 'right' }}>{log}</span>
         </footer>
       </div>
     );
@@ -332,8 +369,10 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
         <span><b style={{ color: FG }}>1–4</b> stems (next bar)</span>
         <span><b style={{ color: FG }}>T</b> tap tempo</span>
         <span><b style={{ color: FG }}>P</b> start / stop</span>
-        <span><b style={{ color: FG }}>S</b> next style</span>
+        <span><b style={{ color: FG }}>S</b> save last 2 min</span>
+        <span><b style={{ color: FG }}>G</b> next style</span>
         <span style={{ flex: 1 }} />
+        {saveButton}
         {meter}
         <span style={MONO}>{log}</span>
       </footer>
