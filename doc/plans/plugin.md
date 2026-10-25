@@ -174,6 +174,77 @@ kopiëren) en scant bij het opstarten.
 Op de Mac bouwen: het recept staat in
 [plugin-mac-overdracht.md](plugin-mac-overdracht.md).
 
+## 2e. Mac (2026-10-25)
+
+Eerste keer op een Mac: MacBook Pro 2016, Intel x86_64, macOS 15.6.1.
+Recept: [plugin-mac-overdracht.md](plugin-mac-overdracht.md).
+
+- **Bouwen zonder Xcode en Homebrew.** De Command Line Tools (Apple clang
+  17) zijn genoeg. CMake 4.4 en Ninja komen uit pip, in een eigen venv
+  (`python3 -m venv ~/src/buildtools && ~/src/buildtools/bin/pip install
+  cmake ninja`). JUCE bouwt de AU (v2) ook met Ninja. CMake 4 had geen
+  `CMAKE_POLICY_VERSION_MINIMUM` nodig. Het levert x86_64 op, zonder fouten
+  of waarschuwingen. HALL, SID en het controleprogramma kosten een paar
+  minuten, PLAITS en REVERB samen 2,5 min (8 kernen).
+- **Klank gelijk aan Windows en de simulator.** HALL-IR: RT60 2,74 / 3,01 /
+  2,01 s, start 28,34 ms. Het SID-akkoord C-E-G heeft een piek van 0,952.
+  PLAITS (noot 48) en REVERB geven geluid.
+- **De webview werkt (WebKit).** Het paneel opent (284 × 514) en de
+  beginstand komt aan. Net als op Windows lukt dat pas bij de herhaalde
+  opvraag na 150 ms, dus die herhaling blijft nodig. Een poke vanuit de
+  gastheer (Decay → 20) bereikt de pagina. Elke waarde komt twee keer
+  binnen, via `valueChangedEvent` en `propertiesChangedEvent` in
+  `juceBridge.ts`. Dat is onschuldig.
+- **auval:** `AU VALIDATION SUCCEEDED` voor HALL (`aufx Hall Mmbr`), SID
+  (`aumu Sid1 Mmbr`), PLAITS (`aumu Plai Mmbr`) en REVERB
+  (`aufx Reve Mmbr`).
+- **Valkuil: lege bundels.** Bij het configureren maakt CMake voor alle 73
+  modules al de mappen `.component`, `.vst3` en `.app` aan, zonder binair
+  bestand. Tel dus niet met `find`, maar kijk in `Contents/MacOS/`. Een lege
+  `.component` in `~/Library/Audio/Plug-Ins/Components` geeft bij auval
+  "didn't find the component".
+- **Valkuil: naam van het controleprogramma.** Met Ninja heet het
+  `build-mac/MmbPluginCheck_artefacts/Release/MmbPluginCheck`, niet
+  `mmb-plugin-check`, want `PRODUCT_NAME` geldt niet voor een console-app.
+  Het laadt alleen VST3, geen `.component`.
+- **Logic (door Mark):** alle vier door Logic's eigen scan
+  ("validation result success"). HALL, SID, PLAITS en REVERB staan onder
+  Audio Units → MusicBrain (instrumenten onder AU Instruments). Het paneel
+  verschijnt en speelt. Reaper laadt de VST3's ook.
+- **WebKit selecteerde tekst** bij een klik of sleep naast een knop: alle
+  labels werden blauw. Opgelost met `user-select: none` op de pagina
+  (`plugin-ui/index.html`); op Windows viel dat niet op.
+- **Vergroten.** Het paneel (4 px/mm, HALL 284 × 514) was klein naast de
+  Logic-plugins (zo'n 1000 px breed). Logic's eigen "View %" geldt alleen
+  voor Apple's plugins. Nu is het venster vergrootbaar met een vaste
+  verhouding: het begint op 1,5× en gaat tot 4×, en de pagina tekent op
+  `innerHeight / 128,5 mm`. Er is een sleephoek in de pagina (native
+  functie `mmbResize`), want de native webview ligt over JUCE's eigen hoek
+  heen. De schaal staat als `uiScale` in de toestand en komt dus met het
+  project mee.
+- **Waardevenster.** De editor toont waarden in de eigenschappenkolom, de
+  plugin had die niet. Nu staat tijdens het draaien onderin "Decay 3,20 s".
+- **Fabriekspresets.** Bron: `editor/src/modular-mb/modulePresets.ts` (plus
+  test). `pluginParams.ts` zet ze in `generated/<typeId>_params.h`, en de
+  plugin biedt ze als programma's aan (0 = "Standaard"). In Logic staan ze
+  in het presetmenu, en auval meldt "HAS FACTORY PRESETS". HALL heeft er 7,
+  waaronder Marks eigen "Chamber". **Bewaren in Logic (Save As…)** schrijft
+  `~/Library/Audio/Presets/MusicBrain/MMB <NAAM>/<naam>.aupreset`. Daarin
+  staat `jucePluginState`: "VC2!" plus 4 bytes lengte, gevolgd door XML met
+  `<PARAM id=… value=…>` op de control-ids. Zo komt een preset van Mark
+  terug in `modulePresets.ts`.
+- **Klank naast Logic (arpeggio, chamber-instellingen):** Mark vindt HALL
+  "vriendelijker, minder metalig" dan Space Designer (2.7s Big Chamber) en
+  Quantec QRS (Royal Chamber). Gemeten op de natte staart: in het laag
+  gelijk (T60 ~3 s), maar bij HALL zakt 1–3 kHz sneller (1,8 s tegen
+  2,7/2,3 s). Het zwaartepunt van de staart ligt na 1 s bij 170 Hz, tegen
+  590/720 Hz bij de andere twee. Logic's algoritmische tegenhanger van HALL
+  is ChromaVerb. Volgende stap: impulsresponsen (Mark bouncet
+  `impuls.wav`) en HALL laten zoeken naar Big Chamber.
+- **Nog open:** Retina-scherpte op een groter scherm, een liggende
+  plugin-indeling (voortbouwend op `frontControls.ts`), presets voor de
+  andere modules, presets in de editor zelf, en een universele build.
+
 ## 3. Wat het kostte en wat het zou kosten
 
 - De proef: een avond, € 0. JUCE heeft een gratis tier; een lokaal gebouwde

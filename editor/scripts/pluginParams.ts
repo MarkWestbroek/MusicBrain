@@ -19,6 +19,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { MODULE_PRESETS } from '../src/modular-mb/modulePresets';
 import { seedInternals } from '../src/modular-mb/seedModules';
 import { emptyModularProject, type Control } from '../src/modular-mb/types';
 
@@ -52,6 +53,21 @@ function spec(c: Control): string | undefined {
     default:
       return undefined;   // displays, joysticks, knoppen op het front: geen parameter
   }
+}
+
+/** Fabriekspresets (modulePresets.ts) als C++-tabellen; de plugin maakt er programma's van. */
+function presetRows(id: string, sym: string): string[] {
+  const presets = MODULE_PRESETS[id];
+  if (!presets?.length) return [];
+  const out: string[] = [];
+  presets.forEach((p, i) => {
+    const vals = Object.entries(p.values).map(([k, v]) => `{ ${cstr(k)}, ${num(typeof v === 'boolean' ? (v ? 1 : 0) : Number(v))} }`);
+    out.push(`inline constexpr PresetValue kPreset_${sym}_${i}[] = { ${vals.join(', ')} };`);
+  });
+  out.push(`inline constexpr PresetSpec kPresets_${sym}[] = {`);
+  presets.forEach((p, i) => out.push(`    { ${cstr(p.name)}, kPreset_${sym}_${i}, ${Object.keys(p.values).length} },`));
+  out.push('};');
+  return out;
 }
 
 // ── De wasm-gastheer van een type ────────────────────────────────────────
@@ -181,7 +197,8 @@ function main(): void {
       `inline constexpr ParamSpec kParams_${sym}[] = {`,
       ...rows.map((r) => `    ${r},`),
       '};',
-      `inline constexpr ModuleSpec kModule_${sym} { ${cstr(id)}, ${cstr(name)}, ${mod.visual.hpWidth}, kParams_${sym}, ${rows.length} };`,
+      ...presetRows(id, sym),
+      `inline constexpr ModuleSpec kModule_${sym} { ${cstr(id)}, ${cstr(name)}, ${mod.visual.hpWidth}, kParams_${sym}, ${rows.length}${MODULE_PRESETS[id]?.length ? `, kPresets_${sym}, ${MODULE_PRESETS[id]!.length}` : ''} };`,
       '}  // namespace mmb_plugin',
       '',
     ];

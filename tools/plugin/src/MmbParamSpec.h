@@ -19,12 +19,18 @@ struct ParamSpec {
     const char* unit;
 };
 
+/** Fabriekspreset: waarden op parameter-id (keuze als index, aan/uit als 0/1). */
+struct PresetValue { const char* id; float value; };
+struct PresetSpec { const char* name; const PresetValue* values; int count; };
+
 struct ModuleSpec {
     const char* typeId;
     const char* name;
     int hp;
     const ParamSpec* params;
     int count;
+    const PresetSpec* presets = nullptr;   // editor/src/modular-mb/modulePresets.ts
+    int presetCount = 0;
 };
 
 }  // namespace mmb_plugin

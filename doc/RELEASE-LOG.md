@@ -17,6 +17,23 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-25 — Plugins op de Mac: AU en VST3 gebouwd, webview werkt, auval groen
+<!-- EN: Plugins on macOS: AU and VST3 built, WebKit panel works, auval passes -->
+- Eerste Mac-build (Intel, macOS 15.6.1) met alleen de Command Line Tools en
+  CMake/Ninja uit pip. HALL, SID, PLAITS en REVERB zijn gebouwd als AU, VST3
+  en Standalone, en alle vier komen door `auval`.
+- HALL meet hetzelfde als op Windows en in de simulator. Het editorpaneel
+  werkt in WebKit, in beide richtingen.
+- Valkuilen staan in [plans/plugin.md](plans/plugin.md) §2e: lege
+  bundelmappen na de configure, en het controleprogramma heet `MmbPluginCheck`
+  (laadt alleen VST3).
+- In Logic en Reaper geladen en gespeeld. Er bleek nog wat te ontbreken, en
+  dat zit er nu in voor alle plugins: geen tekstselectie meer bij het
+  slepen (WebKit), een vergrootbaar venster (1,5× tot 4×, met sleephoek,
+  grootte bewaard in het project), een waardevenster tijdens het draaien,
+  en **fabriekspresets** uit `editor/src/modular-mb/modulePresets.ts`
+  (HALL: 7). Een preset die in Logic bewaard is, is als XML terug te lezen.
+
 ### 2026-10-15 — Proef: HALL als VST3/Standalone-plugin (JUCE), zelfde klank als de simulator
 <!-- EN: Proof of concept: HALL as a VST3 and standalone plugin on the same kernel, measured identical to the simulator -->
 - Mark kreeg de tip modules als plugin te verkopen; eerst een gratis proef

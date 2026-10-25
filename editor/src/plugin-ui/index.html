@@ -6,6 +6,8 @@
     <title>MMB</title>
     <style>
       html, body { margin: 0; background: #0b0d12; overflow: hidden; }
+      /* WebKit (Mac) selecteert anders alle labels bij een klik naast een knop */
+      html, body { -webkit-user-select: none; user-select: none; cursor: default; }
       #root { display: inline-block; line-height: 0; }
     </style>
   </head>

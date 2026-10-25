@@ -6,6 +6,13 @@ Reaper en Logic, en vastleggen wat werkt. Dit is de eerste keer op een Mac
 én de eerste keer in een echte DAW; op Windows zijn alle 73 zonder DAW
 bewezen (zie [plugin.md](plugin.md) §2–2d).
 
+> **Actueel 2026-10-25.** Op de Mac (macOS 15.6.1) gebouwd en bewezen
+> zonder DAW: zie [plugin.md](plugin.md) §2e. Xcode en Homebrew bleken niet
+> nodig (CLT plus CMake/Ninja uit pip, ook voor de AU). Het controleprogramma
+> heet daar `MmbPluginCheck` en laadt alleen VST3. Na de configure staan er
+> lege bundelmappen voor alle 73. Het werkende recept staat in
+> [tools/plugin/README.md](../../tools/plugin/README.md) onder "Bouwen (Mac)".
+
 > **Bijgewerkt 2026-10-16.** Sinds de eerste versie van dit document zijn
 > het 73 modules (`pluginParams.ts --all`, zie §1a), bouwt Windows met
 > clang-cl, en is er een beperking voor de gastheer-plugins (§1a). Begin

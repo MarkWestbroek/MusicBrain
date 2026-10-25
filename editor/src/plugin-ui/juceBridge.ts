@@ -15,6 +15,11 @@ export const log: (line: string) => void = inPlugin
   ? (() => { const f = getNativeFunction('mmbLog'); return (line) => { void f(line); }; })()
   : (line) => console.log(line);
 
+/** Vraagt de plugin om een nieuwe vensterhoogte in px (breedte volgt de verhouding). */
+export const resizeTo: (heightPx: number) => void = inPlugin
+  ? (() => { const f = getNativeFunction('mmbResize'); return (h) => { void f(Math.round(h)); }; })()
+  : () => {};
+
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 
 /** Vraagt de plugin opnieuw om de huidige stand (zoals de JUCE-bibliotheek

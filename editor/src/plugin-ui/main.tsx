@@ -9,10 +9,40 @@ import { createRoot } from 'react-dom/client';
 import '../tokens.css';
 import { ModulePanel } from '../modular-mb/ModulePanel';
 import { seedInternals } from '../modular-mb/seedModules';
-import { emptyModularProject, type ControlValue } from '../modular-mb/types';
-import { attach, inPlugin, log, type Handle, type Kind } from './juceBridge';
+import { emptyModularProject, type Control, type ControlValue } from '../modular-mb/types';
+import { attach, inPlugin, log, resizeTo, type Handle, type Kind } from './juceBridge';
 
-const PX_PER_MM = 4;
+// Het venster is vergrootbaar met vaste verhouding (MmbPluginBase.h); de
+// schaal volgt de hoogte, want elk paneel is 128,5 mm hoog.
+const PANEL_HEIGHT_MM = 128.5;
+const pxPerMmNow = () => Math.max(1, window.innerHeight / PANEL_HEIGHT_MM);
+
+/** Waarde zoals een speler hem leest: keuze op naam, getal met eenheid. */
+function formatValue(c: Control, v: ControlValue): string {
+  if (c.kind === 'switch') return c.positions[Number(v)] ?? String(v);
+  if (c.kind === 'toggle') return v ? (c.onLabel ?? 'aan') : (c.offLabel ?? 'uit');
+  if (typeof v !== 'number') return String(v);
+  const a = Math.abs(v);
+  const digits = 'step' in c && c.step !== undefined && Number.isInteger(c.step) ? 0 : a >= 100 ? 0 : a >= 10 ? 1 : 2;
+  const num = v.toLocaleString('nl-NL', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  return 'unit' in c && c.unit ? `${num} ${c.unit}` : num;
+}
+
+/** Hoek rechtsonder: slepen vraagt de plugin om een andere vensterhoogte. */
+function ResizeGrip({ size }: { size: number }) {
+  const start = useRef<{ y: number; h: number } | null>(null);
+  return (
+    <div
+      title="Slepen om te vergroten"
+      style={{ position: 'fixed', right: 0, bottom: 0, width: size, height: size, cursor: 'nwse-resize', touchAction: 'none',
+        background: 'linear-gradient(135deg, transparent 50%, rgba(255,255,255,0.35) 50%, rgba(255,255,255,0.35) 58%, transparent 58%, transparent 70%, rgba(255,255,255,0.35) 70%, rgba(255,255,255,0.35) 78%, transparent 78%)' }}
+      onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); start.current = { y: e.screenY, h: window.innerHeight }; }}
+      onPointerMove={(e) => { if (start.current) resizeTo(start.current.h + (e.screenY - start.current.y)); }}
+      onPointerUp={() => { start.current = null; }}
+      onPointerCancel={() => { start.current = null; }}
+    />
+  );
+}
 
 // De parameters van de plugin dragen de control-ids van het paneel
 // (editor/scripts/pluginParams.ts), dus de relay heet als de knop.
@@ -27,6 +57,17 @@ function App({ typeId }: { typeId: string }) {
     return init;
   });
   const handles = useRef<Record<string, Handle>>({});
+  const [pxPerMm, setPxPerMm] = useState(pxPerMmNow);
+  // Waardevenster: de knop waaraan gedraaid wordt, met zijn waarde (de editor
+  // toont dat in de eigenschappenkolom; de plugin heeft die niet).
+  const [readout, setReadout] = useState<{ label: string; text: string } | null>(null);
+  const readoutTimer = useRef<number | undefined>(undefined);
+
+  useEffect(() => {
+    const onResize = () => setPxPerMm(pxPerMmNow());
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   useEffect(() => {
     if (!type) return;
@@ -49,16 +90,32 @@ function App({ typeId }: { typeId: string }) {
 
   if (!mod || !type) return <p style={{ color: '#f87171' }}>Onbekend moduletype: {typeId}</p>;
   return (
+    <>
     <ModulePanel
       module={mod}
       types={base.moduleTypes}
       controlState={state}
-      pxPerMm={PX_PER_MM}
+      pxPerMm={pxPerMm}
       onControlChange={(id, v) => {
         setState((s) => ({ ...s, [id]: v }));
         if (typeof v === 'number' || typeof v === 'boolean') handles.current[id]?.set(v);
+        const c = type.controls.find((x) => x.id === id);
+        if (c) {
+          setReadout({ label: 'label' in c && c.label ? c.label : id, text: formatValue(c, v) });
+          window.clearTimeout(readoutTimer.current);
+          readoutTimer.current = window.setTimeout(() => setReadout(null), 1200);
+        }
       }}
     />
+    {readout && (
+      <div style={{ position: 'fixed', left: '50%', bottom: pxPerMm * 9, transform: 'translateX(-50%)', pointerEvents: 'none',
+        padding: `${pxPerMm * 0.8}px ${pxPerMm * 2}px`, borderRadius: pxPerMm, background: 'rgba(11,13,18,0.88)',
+        border: '1px solid rgba(255,255,255,0.18)', color: '#fff', font: `600 ${pxPerMm * 3}px/1.2 system-ui, sans-serif`, whiteSpace: 'nowrap' }}>
+        <span style={{ opacity: 0.7, fontWeight: 400 }}>{readout.label}</span>&nbsp; {readout.text}
+      </div>
+    )}
+    {inPlugin && <ResizeGrip size={Math.max(14, pxPerMm * 4)} />}
+    </>
   );
 }
 

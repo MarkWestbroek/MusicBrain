@@ -74,20 +74,30 @@ nodig); elke DAW zoekt daar.
 
 ## Bouwen (Mac)
 
-Zelfde project; JUCE maakt dan ook een AU (voor Logic). Nodig: Xcode (of de
-Command Line Tools), CMake en Node (`brew install cmake node`), de
-JUCE-clone als hierboven; geen WebView2-stap (de webview is WebKit).
+Zelfde project; JUCE maakt dan ook een AU (voor Logic). Xcode is niet nodig:
+de Command Line Tools volstaan, ook voor de AU, met Ninja als generator.
+CMake en Ninja kunnen uit pip komen als Homebrew er niet is. Node is ook
+nodig, en de JUCE-clone als hierboven. Er is geen WebView2-stap, want de
+webview is WebKit.
 
 ```
-cd editor && MMB_JUCE_DIR=<ergens>/JUCE npm run build:plugin-ui
-cmake -S tools/plugin -B build-mac -G Xcode -DMMB_JUCE_DIR=<ergens>/JUCE
-cmake --build build-mac --config Release --target MmbHall_All MmbSid_All MmbPluginCheck
+python3 -m venv ~/src/buildtools && ~/src/buildtools/bin/pip install cmake ninja
+export PATH=~/src/buildtools/bin:$PATH
+cd editor && MMB_JUCE_DIR=~/src/JUCE npm run build:plugin-ui && cd ..
+cmake -S tools/plugin -B build-mac -G Ninja -DCMAKE_BUILD_TYPE=Release -DMMB_JUCE_DIR=$HOME/src/JUCE -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_OSX_ARCHITECTURES=x86_64
+cmake --build build-mac --target MmbHall_All MmbSid_All MmbPluginCheck
 ```
+
+Let op: na de configure staan er voor alle modules al lege bundelmappen. Een
+module is pas gebouwd als `Contents/MacOS/` een bestand bevat. Het
+controleprogramma heet hier `build-mac/MmbPluginCheck_artefacts/Release/MmbPluginCheck`
+en laadt alleen VST3.
 
 Lokaal gebouwd laadt zonder handtekening (Gatekeeper let op downloads). AU's
 horen in `~/Library/Audio/Plug-Ins/Components`, VST3 in
-`~/Library/Audio/Plug-Ins/VST3`; Logic ziet alleen AU, Reaper beide. Nog
-niet gedaan: eerste keer op een Mac proberen (doc/plans/plugin.md).
+`~/Library/Audio/Plug-Ins/VST3`; Logic ziet alleen AU, Reaper beide. Daarna
+`killall -9 AudioComponentRegistrar` en `auval -v aufx Hall Mmbr`.
+Uitkomst van de eerste Mac-build: doc/plans/plugin.md §2e.
 
 ## Een nieuwe module
 

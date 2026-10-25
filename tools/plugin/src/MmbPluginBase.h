@@ -77,10 +77,26 @@ public:
     bool acceptsMidi() const override { return synth_; }
     bool producesMidi() const override { return false; }
     double getTailLengthSeconds() const override { return synth_ ? 10.0 : 30.0; }
-    int getNumPrograms() override { return 1; }
-    int getCurrentProgram() override { return 0; }
-    void setCurrentProgram(int) override {}
-    const juce::String getProgramName(int) override { return {}; }
+    // Programma 0 is de beginstand van het paneel, daarna de fabriekspresets.
+    int getNumPrograms() override { return 1 + spec_.presetCount; }
+    int getCurrentProgram() override { return program_; }
+    void setCurrentProgram(int index) override {
+        if (index < 0 || index > spec_.presetCount) return;
+        program_ = index;
+        const PresetSpec* preset = index > 0 ? &spec_.presets[index - 1] : nullptr;
+        for (const ParamSpec& ps : params_) {
+            float v = ps.def;
+            if (preset)
+                for (int i = 0; i < preset->count; ++i)
+                    if (std::strcmp(preset->values[i].id, ps.id) == 0) v = preset->values[i].value;
+            if (auto* param = state_.getParameter(ps.id))
+                param->setValueNotifyingHost(param->convertTo0to1(v));
+        }
+    }
+    const juce::String getProgramName(int index) override {
+        if (index == 0) return "Standaard";
+        return index <= spec_.presetCount ? juce::String::fromUTF8(spec_.presets[index - 1].name) : juce::String();
+    }
     void changeProgramName(int, const juce::String&) override {}
 
     const ModuleSpec& spec() const { return spec_; }
@@ -133,6 +149,7 @@ private:
     const ModuleSpec& spec_;
     const bool synth_;
     std::vector<ParamSpec> params_;
+    int program_ = 0;
     juce::AudioProcessorValueTreeState state_;
     std::vector<std::atomic<float>*> raw_;
     std::vector<float> applied_;
@@ -167,7 +184,8 @@ inline std::optional<juce::WebBrowserComponent::Resource> webResource(const juce
 
 class MmbWebEditor final : public juce::AudioProcessorEditor {
 public:
-    static constexpr double kPxPerMm = 4.0;       // PX_PER_MM in plugin-ui/main.tsx
+    static constexpr double kPxPerMm = 4.0;       // kleinste schaal; de pagina rekent zelf uit de hoogte
+    static constexpr double kStartScale = 1.5, kMaxScale = 4.0;
     static constexpr double kMmPerHp = 5.08, kPanelHeightMm = 128.5;
 
     explicit MmbWebEditor(MmbProcessor& p) : AudioProcessorEditor(p) {
@@ -194,6 +212,11 @@ public:
                 std::fflush(stdout);
                 complete({});
             })
+            // Sleephoek in de pagina (de native webview ligt over JUCE's eigen hoek heen).
+            .withNativeFunction("mmbResize", [this](const juce::Array<juce::var>& args, juce::WebBrowserComponent::NativeFunctionCompletion complete) {
+                if (args.size() > 0) setScale(static_cast<double>(args[0]) / (kPanelHeightMm * kPxPerMm));
+                complete({});
+            })
             .withResourceProvider(webResource);
         for (auto& r : sliders_) options = options.withOptionsFrom(*r);
         for (auto& r : combos_) options = options.withOptionsFrom(*r);
@@ -211,12 +234,32 @@ public:
                 case ParamKind::Bool:   toggleAtt_.push_back(std::make_unique<juce::WebToggleButtonParameterAttachment>(*param, *toggles_[t++], nullptr)); break;
             }
         }
-        setSize(static_cast<int>(std::lround(spec.hp * kMmPerHp * kPxPerMm)), static_cast<int>(std::lround(kPanelHeightMm * kPxPerMm)));
+        // Vergrootbaar met vaste verhouding (gastheer-rand of de hoek in de
+        // pagina); de pagina schaalt mee op de hoogte. De schaal staat in de
+        // toestand, dus een project heropent op dezelfde grootte.
+        const double scale = static_cast<double>(p.apvts().state.getProperty("uiScale", kStartScale));
+        baseW_ = spec.hp * kMmPerHp * kPxPerMm;
+        setResizable(true, false);
+        setResizeLimits(static_cast<int>(std::lround(baseW_)), static_cast<int>(std::lround(kPanelHeightMm * kPxPerMm)),
+                        static_cast<int>(std::lround(baseW_ * kMaxScale)), static_cast<int>(std::lround(kPanelHeightMm * kPxPerMm * kMaxScale)));
+        getConstrainer()->setFixedAspectRatio(baseW_ / (kPanelHeightMm * kPxPerMm));
+        ready_ = true;
+        setScale(scale);
         browser_->goToURL(juce::WebBrowserComponent::getResourceProviderRoot() + "index.html?type=" + spec.typeId);
     }
-    void resized() override { if (browser_) browser_->setBounds(getLocalBounds()); }
+    void resized() override {
+        if (browser_) browser_->setBounds(getLocalBounds());
+        if (ready_) static_cast<MmbProcessor&>(processor).apvts().state.setProperty("uiScale", getHeight() / (kPanelHeightMm * kPxPerMm), nullptr);
+    }
 
 private:
+    void setScale(double s) {
+        s = juce::jlimit(1.0, kMaxScale, s);
+        setSize(static_cast<int>(std::lround(baseW_ * s)), static_cast<int>(std::lround(kPanelHeightMm * kPxPerMm * s)));
+    }
+
+    double baseW_ = 0;
+    bool ready_ = false;  // pas na de opbouw de grootte bewaren
     // Volgorde telt: relays vóór de browser, attachments erna.
     std::vector<std::unique_ptr<juce::WebSliderRelay>> sliders_;
     std::vector<std::unique_ptr<juce::WebComboBoxRelay>> combos_;
