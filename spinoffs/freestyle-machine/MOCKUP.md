@@ -8,6 +8,9 @@ Freestyle in de editorkop); live sinds 2026-10-25 en door Mark bevestigd
 met een stijlkeuze op het scherm, en een telefoonlayout (één kolom, DROP
 vasthouden, NEXT, FILL, stems 2×2; tikken op de stijlnaam = volgende
 stijl). Touch op een echte telefoon nog door Mark te bevestigen.
+Korte Engelse handleiding voor de telefoon: [QUICKSTART.md](QUICKSTART.md);
+in de app een rondleiding (PlayTour met eigen stappen, bij het eerste
+bezoek en via ?).
 Ringbuffer, FILL-verfijning en de beatbox-laag staan open. Tegenhanger van
 het hardwareplan [PLAN.md](PLAN.md); voert stap 1 t/m 3 van de
 [review van 2026-08-31](REVIEW-2026-08-31.md) uit ("bouw eerst een

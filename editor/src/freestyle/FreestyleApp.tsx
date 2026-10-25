@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import * as Tone from 'tone';
 
+import { PlayTour, playTourSeen, type PlayTourStep } from '../modular-mb/PlayTour';
 import { getEngine, useEngineStatus } from '../modular-mb/sim/engineSingleton';
 import { TapTempo } from '../modular-mb/tempo';
 import { buildFreestyleRig } from './freestylePatch';
@@ -28,6 +29,26 @@ const MONO: CSSProperties = { fontFamily: 'var(--mb-font-mono)', fontVariantNume
 const TOUCH: CSSProperties = { touchAction: 'none', WebkitTapHighlightColor: 'transparent', userSelect: 'none' };
 
 function ctxNow(): number { return (Tone.getContext().rawContext as AudioContext).currentTime; }
+
+/** De rondleiding: spotlight per knop, bij het eerste bezoek en via "?".
+ *  Engels op beide plekken (de pagina is Engels); de NL-velden zijn verplicht
+ *  in het staptype en krijgen dezelfde tekst. */
+const TOUR_KEY = 'mb.freestyletour.v1';
+const step = (anchor: string | undefined, title: string, text: string): PlayTourStep => ({ anchor, title, text, en: [title, text] });
+const TOUR_STEPS: PlayTourStep[] = [
+  step(undefined, 'Freestyle machine', 'A beat, an 808 and a motif that follow you. Nothing happens on the tap itself: every change lands on the next beat, bar or phrase, so press a little early and keep rapping.'),
+  step('fs-start', 'Start', 'START begins the beat on the 1. On a phone this first tap also switches the sound on.'),
+  step('fs-bpm', 'Tempo', 'The big number is the tempo. Tap it in time, four taps or more, and the beat follows without a jump.'),
+  step('fs-beat', 'Where you are', 'The dots count 1-2-3-4, the bars show the bar in the four-bar phrase. The whole screen flashes amber on the 1 of every phrase: that is your cue.'),
+  step('fs-section', 'Section and chord', 'The section you are in and the chord, so a guitarist can play along. The amber line tells what is coming ("→ HOOK on the 1").'),
+  step('fs-drop', 'DROP', 'Hold it and the beat is gone, instantly, for a punchline. Let go and it comes back on the next beat.'),
+  step('fs-next', 'NEXT', 'The next section: INTRO → VERSE → HOOK → BREAK. Press it mid-line; it lands on the 1 of the next phrase.'),
+  step('fs-fill', 'FILL', 'A one-bar fill, starting at the next bar.'),
+  step('fs-stems', 'The four parts', 'Tap a part to mute or unmute it at the next bar. An amber border means it changes at the next bar; tap again to cancel.'),
+  step('fs-style', 'Style', 'Tap the style name to go to the next style: trap, boom bap, bounce. That stops the beat; press START again.'),
+  step('fs-perc', 'Playing with a percussionist', 'Tick this and the hi-hats get thinner, so a djembe or shaker fits in the gaps.'),
+  step(undefined, 'Have fun', 'This tour comes back with the ? at the top.'),
+];
 
 function useMedia(query: string): boolean {
   const [m, setM] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches);
@@ -69,6 +90,8 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
   const [pos, setPos] = useState(() => perf.clock.position(0));
   const [log, setLog] = useState('press START');
   const [tapFlash, setTapFlash] = useState(false);
+  // Rondleiding: de eerste keer vanzelf, daarna via "?".
+  const [tour, setTour] = useState(() => !playTourSeen(TOUR_KEY));
   const dropRef = useNoTouchScroll<HTMLButtonElement>();
   const bpmRef = useNoTouchScroll<HTMLDivElement>();
 
@@ -122,7 +145,7 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
 
   useEffect(() => {
     const down = (e: KeyboardEvent): void => {
-      if (e.repeat) return;
+      if (e.repeat || tour) return;      // de rondleiding heeft de pijltjes en Enter
       switch (e.code) {
         case 'Space': e.preventDefault(); act((t) => perf.dropDown(t)); break;
         case 'ArrowRight': case 'Enter': e.preventDefault(); act((t) => perf.next(t)); break;
@@ -142,7 +165,7 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', up);
     return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
-  }, [perf, act, tap, start, stop, nextStyle]);
+  }, [perf, act, tap, start, stop, nextStyle, tour]);
 
   const running = perf.running;
   const onOne = running && pos.bar === 0 && pos.beat === 0 && pos.frac < 0.25;
@@ -167,7 +190,7 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
 
   const beatDots = (
     <>
-      <div style={{ display: 'flex', justifyContent: 'center', gap: phone ? 12 : 18, marginTop: phone ? 10 : 28 }}>
+      <div data-tour="fs-beat" style={{ display: 'flex', justifyContent: 'center', gap: phone ? 12 : 18, marginTop: phone ? 10 : 28 }}>
         {[0, 1, 2, 3].map((b) => (
           <div key={b} style={{ width: phone ? 30 : 44, height: phone ? 30 : 44, borderRadius: 22, background: running && pos.beat === b ? (b === 0 ? AMBER : FG) : '#1f2937', transition: 'background 40ms' }} />
         ))}
@@ -182,7 +205,7 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
   );
 
   const bpmBlock = (
-    <div ref={bpmRef} onPointerDown={(e) => { e.preventDefault(); tap(); }} title="Tap tempo (T)" style={{ ...TOUCH, cursor: 'pointer', display: 'inline-block' }}>
+    <div ref={bpmRef} data-tour="fs-bpm" onPointerDown={(e) => { e.preventDefault(); tap(); }} title="Tap tempo (T)" style={{ ...TOUCH, cursor: 'pointer', display: 'inline-block' }}>
       <div style={{ ...MONO, fontSize: phone ? 'clamp(72px, 26vw, 120px)' : 'clamp(96px, 18vw, 220px)', fontWeight: 700, lineHeight: 0.95, color: tapFlash ? AMBER : FG }}>
         {bpm % 1 ? bpm.toFixed(1) : bpm}
       </div>
@@ -193,7 +216,7 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
   /** De grote knoppen: DROP vasthouden, NEXT, FILL. Op de laptop ook, naast de toetsen. */
   const actions = (
     <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', gap: 10 }}>
-      <button ref={dropRef} type="button"
+      <button ref={dropRef} type="button" data-tour="fs-drop"
         onPointerDown={(e) => {
           e.preventDefault();
           // Capture: de vinger mag van de knop glijden, de up komt toch hier.
@@ -205,10 +228,10 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
         style={{ ...big(perf.dropped ? AMBER : '#374151', perf.dropped ? 'var(--mb-on-accent)' : FG), ...TOUCH }}>
         DROP<span style={{ display: 'block', fontSize: 11, fontWeight: 400, opacity: 0.7 }}>hold</span>
       </button>
-      <button type="button" onClick={() => act((t) => perf.next(t))} style={{ ...big('#1f2937', FG), ...TOUCH }}>
+      <button type="button" data-tour="fs-next" onClick={() => act((t) => perf.next(t))} style={{ ...big('#1f2937', FG), ...TOUCH }}>
         NEXT<span style={{ display: 'block', fontSize: 11, fontWeight: 400, opacity: 0.7 }}>on the 1</span>
       </button>
-      <button type="button" onClick={() => act((t) => perf.fill(t))} style={{ ...big('#1f2937', FG), ...TOUCH }}>
+      <button type="button" data-tour="fs-fill" onClick={() => act((t) => perf.fill(t))} style={{ ...big('#1f2937', FG), ...TOUCH }}>
         FILL<span style={{ display: 'block', fontSize: 11, fontWeight: 400, opacity: 0.7 }}>next bar</span>
       </button>
     </div>
@@ -221,17 +244,18 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
           Music<span style={{ color: AMBER }}>Brain</span> freestyle
         </div>
       )}
-      <button type="button" onClick={nextStyle} title="Next style (S) — stops the beat"
+      <button type="button" data-tour="fs-style" onClick={nextStyle} title="Next style (S) — stops the beat"
         style={{ ...TOUCH, fontSize: 13, color: FG, background: '#1f2937', border: '1px solid #374151', borderRadius: 4, padding: '5px 10px', cursor: 'pointer' }}>
         {style.name} · {style.bpm} <span style={{ color: DIM }}>▸</span>
       </button>
       <div style={{ flex: 1 }} />
-      <label style={{ fontSize: 12, color: DIM, display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+      <label data-tour="fs-perc" style={{ fontSize: 12, color: DIM, display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
         <input type="checkbox" checked={perf.percussionist} onChange={(e) => act((t) => perf.setPercussionist(e.target.checked, t))} />
         {phone ? 'percussionist' : 'percussionist plays along'}
       </label>
+      <button type="button" onClick={() => setTour(true)} title="Tour: what every button does" aria-label="Tour" style={btn('transparent', DIM)}>?</button>
       {!phone && (
-        <button type="button" onClick={() => (running ? stop() : void start())} style={btn(running ? '#374151' : AMBER, running ? FG : 'var(--mb-on-accent)')}>
+        <button type="button" data-tour="fs-start" onClick={() => (running ? stop() : void start())} style={btn(running ? '#374151' : AMBER, running ? FG : 'var(--mb-on-accent)')}>
           {running ? '■ STOP' : '▶ START'}
         </button>
       )}
@@ -254,13 +278,16 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
         <main style={{ textAlign: 'center', position: 'relative' }}>
           {bpmBlock}
           {beatDots}
-          <div style={{ marginTop: 10, fontSize: 'clamp(28px, 9vw, 44px)', fontWeight: 800, lineHeight: 1 }}>{perf.section.name}</div>
-          <div style={{ fontSize: 'clamp(22px, 7vw, 36px)', fontWeight: 700, lineHeight: 1.1, marginTop: 4 }}>{perf.section.chord} <span style={{ fontSize: 14, color: DIM, fontWeight: 400 }}>{style.key}</span></div>
-          <div style={{ minHeight: 22, fontSize: 15, color: AMBER, fontStyle: 'italic', marginTop: 4 }}>{status}</div>
+          <div data-tour="fs-section" style={{ marginTop: 10 }}>
+            <div style={{ fontSize: 'clamp(28px, 9vw, 44px)', fontWeight: 800, lineHeight: 1 }}>{perf.section.name}</div>
+            <div style={{ fontSize: 'clamp(22px, 7vw, 36px)', fontWeight: 700, lineHeight: 1.1, marginTop: 4 }}>{perf.section.chord} <span style={{ fontSize: 14, color: DIM, fontWeight: 400 }}>{style.key}</span></div>
+            <div style={{ minHeight: 22, fontSize: 15, color: AMBER, fontStyle: 'italic', marginTop: 4 }}>{status}</div>
+          </div>
         </main>
-        <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, position: 'relative' }}>{stemButtons}</section>
+        <section data-tour="fs-stems" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, position: 'relative' }}>{stemButtons}</section>
         <section style={{ position: 'relative' }}>{actions}</section>
-        <button type="button" onClick={() => (running ? stop() : void start())}
+        <PlayTour open={tour} onClose={() => setTour(false)} steps={TOUR_STEPS} seenKey={TOUR_KEY} lang="en" />
+        <button type="button" data-tour="fs-start" onClick={() => (running ? stop() : void start())}
           style={{ ...big(running ? '#374151' : AMBER, running ? FG : 'var(--mb-on-accent)'), ...TOUCH, padding: '16px 8px', fontSize: 18, position: 'relative' }}>
           {running ? '■ STOP' : '▶ START'}
         </button>
@@ -277,7 +304,7 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
       {header}
       <main style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', alignItems: 'center', gap: 24, position: 'relative', minHeight: 0 }}>
         {/* Links: sectie en akkoord, voor de rapper en de gitarist. */}
-        <section>
+        <section data-tour="fs-section">
           <div style={{ fontSize: 14, color: DIM, letterSpacing: '0.1em' }}>SECTION</div>
           <div style={{ fontSize: 'clamp(40px, 7vw, 96px)', fontWeight: 800, lineHeight: 1 }}>{perf.section.name}</div>
           <div style={{ marginTop: 28, fontSize: 14, color: DIM, letterSpacing: '0.1em' }}>KEY · CHORD</div>
@@ -293,9 +320,10 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
       </main>
 
       <section style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12, position: 'relative', alignItems: 'stretch' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>{stemButtons}</div>
+        <div data-tour="fs-stems" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>{stemButtons}</div>
         {actions}
       </section>
+      <PlayTour open={tour} onClose={() => setTour(false)} steps={TOUR_STEPS} seenKey={TOUR_KEY} lang="en" />
 
       <footer style={{ display: 'flex', gap: 24, marginTop: 14, fontSize: 13, color: DIM, position: 'relative', flexWrap: 'wrap' }}>
         <span><b style={{ color: FG }}>SPACE</b> hold = DROP</span>

@@ -11,7 +11,7 @@
 
 import { useEffect, useLayoutEffect, useState } from 'react';
 
-import { nlen, useLang } from '../i18n';
+import { useLang } from '../i18n';
 import { createPortal } from 'react-dom';
 
 export interface PlayTourStep {
@@ -97,8 +97,9 @@ export const PLAY_TOUR_STEPS: PlayTourStep[] = [
 ];
 
 const SEEN_KEY = 'mb.playtour.v1';
-export function playTourSeen(): boolean { try { return localStorage.getItem(SEEN_KEY) === 'seen'; } catch { return true; } }
-function markSeen(): void { try { localStorage.setItem(SEEN_KEY, 'seen'); } catch { /* geen opslag */ } }
+/** Al gezien? Een andere rondleiding (freestyle) geeft zijn eigen sleutel mee. */
+export function playTourSeen(key = SEEN_KEY): boolean { try { return localStorage.getItem(key) === 'seen'; } catch { return true; } }
+function markSeen(key: string): void { try { localStorage.setItem(key, 'seen'); } catch { /* geen opslag */ } }
 
 function anchorRect(anchor?: string): DOMRect | null {
   if (!anchor) return null;
@@ -108,10 +109,15 @@ function anchorRect(anchor?: string): DOMRect | null {
   return r.width > 0 && r.height > 0 ? r : null;
 }
 
-export function PlayTour({ open, onClose, steps = PLAY_TOUR_STEPS }: {
+export function PlayTour({ open, onClose, steps = PLAY_TOUR_STEPS, seenKey = SEEN_KEY, lang: forced }: {
   open: boolean; onClose: () => void; steps?: PlayTourStep[];
+  /** localStorage-sleutel voor "al gezien" (een andere rondleiding geeft een eigen sleutel). */
+  seenKey?: string;
+  /** Vaste taal, los van de taalkeuze van de editor (de freestyle-pagina is Engels). */
+  lang?: 'nl' | 'en';
 }): JSX.Element | null {
-  const lang = useLang();
+  const chosen = useLang();
+  const lang = forced ?? chosen;
   const [i, setI] = useState(0);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [host, setHost] = useState<Element | null>(null);
@@ -161,7 +167,7 @@ export function PlayTour({ open, onClose, steps = PLAY_TOUR_STEPS }: {
 
   if (!open || !step || !host) return null;
   const last = i === steps.length - 1;
-  function close(): void { markSeen(); onClose(); }
+  function close(): void { markSeen(seenKey); onClose(); }
   function next(): void { if (last) close(); else setI(i + 1); }
   function back(): void {
     let n = i - 1;
@@ -169,6 +175,7 @@ export function PlayTour({ open, onClose, steps = PLAY_TOUR_STEPS }: {
     setI(Math.max(0, n));
   }
 
+  const t = (nl: string, en: string): string => (lang === 'nl' ? nl : en);
   const vw = window.innerWidth, vh = window.innerHeight;
   const pad = 6;
   const spot: React.CSSProperties | null = rect ? {
@@ -193,16 +200,16 @@ export function PlayTour({ open, onClose, steps = PLAY_TOUR_STEPS }: {
       {/* key per stap: een nieuwe ballon in plaats van bijgewerkte tekst. Chrome
           Vertalen vervangt tekstknopen; werkt React die oude knopen bij, dan blijft
           de vertaling van de vorige stap staan. */}
-      <div key={`${lang}${i}`} role="dialog" aria-label={nlen('Rondleiding', 'Tour')} style={{ ...bubble, background: '#fff', color: '#0f172a', borderRadius: 10, padding: '12px 14px',
+      <div key={`${lang}${i}`} role="dialog" aria-label={t('Rondleiding', 'Tour')} style={{ ...bubble, background: '#fff', color: '#0f172a', borderRadius: 10, padding: '12px 14px',
         boxShadow: '0 12px 40px rgba(0,0,0,0.35)', fontSize: 14, boxSizing: 'border-box' }}>
-        <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>{nlen(`stap ${i + 1} van ${steps.length}`, `step ${i + 1} of ${steps.length}`)}</div>
+        <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>{t(`stap ${i + 1} van ${steps.length}`, `step ${i + 1} of ${steps.length}`)}</div>
         <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>{lang === 'nl' ? step.title : step.en[0]}</div>
         <div style={{ lineHeight: 1.45 }}>{lang === 'nl' ? step.text : step.en[1]}</div>
         <div style={{ display: 'flex', gap: 8, marginTop: 12, alignItems: 'center' }}>
-          <button type="button" onClick={close} style={b}>{nlen('Sluiten', 'Close')}</button>
+          <button type="button" onClick={close} style={b}>{t('Sluiten', 'Close')}</button>
           <span style={{ flex: 1 }} />
-          {i > 0 && <button type="button" onClick={back} style={b}>{nlen('‹ Terug', '‹ Back')}</button>}
-          <button type="button" onClick={next} style={{ ...b, fontWeight: 600 }}>{last ? nlen('Klaar', 'Done') : nlen('Volgende ›', 'Next ›')}</button>
+          {i > 0 && <button type="button" onClick={back} style={b}>{t('‹ Terug', '‹ Back')}</button>}
+          <button type="button" onClick={next} style={{ ...b, fontWeight: 600 }}>{last ? t('Klaar', 'Done') : t('Volgende ›', 'Next ›')}</button>
         </div>
       </div>
     </>,
