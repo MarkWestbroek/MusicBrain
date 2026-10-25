@@ -14,7 +14,7 @@ import { getEngine, useEngineStatus } from '../modular-mb/sim/engineSingleton';
 import { TapTempo } from '../modular-mb/tempo';
 import { buildFreestyleRig } from './freestylePatch';
 import { Performance, type Fired } from './performance';
-import { STEMS, STEM_LABEL, TRAP, type Stem } from './style';
+import { STEMS, STEM_LABEL, STYLES, styleById, type Stem } from './style';
 
 const BG = '#0b0b0f', FG = '#f3f4f6', DIM = '#6b7280', AMBER = 'var(--mb-accent)';
 const MONO: CSSProperties = { fontFamily: 'var(--mb-font-mono)', fontVariantNumeric: 'tabular-nums' };
@@ -22,8 +22,12 @@ const MONO: CSSProperties = { fontFamily: 'var(--mb-font-mono)', fontVariantNume
 function ctxNow(): number { return (Tone.getContext().rawContext as AudioContext).currentTime; }
 
 export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
-  const rig = useMemo(() => buildFreestyleRig(TRAP), []);
-  const perf = useRef<Performance>(new Performance(TRAP)).current;
+  // Stijl kiezen bouwt de patch opnieuw (andere klokuitgang voor Grids,
+  // andere klank) en begint met een verse bedieningslaag.
+  const [styleId, setStyleId] = useState(STYLES[0]!.id);
+  const style = styleById(styleId);
+  const rig = useMemo(() => buildFreestyleRig(style), [style]);
+  const perf = useMemo(() => new Performance(style), [style]);
   const engine = getEngine();
   const { level } = useEngineStatus();
   const tapper = useRef(new TapTempo());
@@ -70,6 +74,11 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
     if (bpm !== null) apply(perf.setBpm(bpm, ctxNow()));
   }, [perf, apply]);
   const act = useCallback((fn: (now: number) => Fired | null | void) => { apply(fn(ctxNow()) ?? null); }, [apply]);
+  const chooseStyle = useCallback((id: string) => {
+    if (perf.running) stop();
+    setStyleId(id);
+    setLog(`style: ${styleById(id).name} — press START (P)`);
+  }, [perf, stop]);
 
   useEffect(() => {
     const down = (e: KeyboardEvent): void => {
@@ -108,7 +117,10 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
         <div style={{ fontSize: 13, letterSpacing: '0.14em', textTransform: 'uppercase', color: DIM }}>
           Music<span style={{ color: AMBER }}>Brain</span> freestyle
         </div>
-        <div style={{ fontSize: 13, color: DIM }}>{TRAP.name}</div>
+        <select value={styleId} onChange={(e) => chooseStyle(e.target.value)} title="Style (stops the beat)"
+          style={{ fontSize: 13, color: FG, background: '#1f2937', border: '1px solid #374151', borderRadius: 4, padding: '3px 6px' }}>
+          {STYLES.map((s) => <option key={s.id} value={s.id}>{s.name} · {s.bpm}</option>)}
+        </select>
         <div style={{ flex: 1 }} />
         <label style={{ fontSize: 13, color: DIM, display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
           <input type="checkbox" checked={perf.percussionist} onChange={(e) => act((t) => perf.setPercussionist(e.target.checked, t))} />
@@ -127,7 +139,7 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
           <div style={{ fontSize: 'clamp(40px, 7vw, 96px)', fontWeight: 800, lineHeight: 1 }}>{perf.section.name}</div>
           <div style={{ marginTop: 28, fontSize: 14, color: DIM, letterSpacing: '0.1em' }}>KEY · CHORD</div>
           <div style={{ fontSize: 'clamp(32px, 5vw, 72px)', fontWeight: 700, lineHeight: 1.1 }}>{perf.section.chord}</div>
-          <div style={{ fontSize: 18, color: DIM, marginTop: 4 }}>{TRAP.key}</div>
+          <div style={{ fontSize: 18, color: DIM, marginTop: 4 }}>{style.key}</div>
           <div style={{ marginTop: 28, minHeight: 28, fontSize: 20, color: AMBER, fontStyle: 'italic' }}>
             {perf.dropped ? 'DROP — beat is out' : pending.join(' · ')}
           </div>
@@ -139,7 +151,7 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
             <div style={{ ...MONO, fontSize: 'clamp(96px, 18vw, 220px)', fontWeight: 700, lineHeight: 0.95, color: tapFlash ? AMBER : FG }}>
               {bpm % 1 ? bpm.toFixed(1) : bpm}
             </div>
-            <div style={{ fontSize: 16, color: DIM, marginTop: 4 }}>BPM · {TRAP.feel} · tap T</div>
+            <div style={{ fontSize: 16, color: DIM, marginTop: 4 }}>BPM · {style.feel} · tap T</div>
           </div>
           <div style={{ display: 'flex', justifyContent: 'center', gap: 18, marginTop: 28 }}>
             {[0, 1, 2, 3].map((b) => (

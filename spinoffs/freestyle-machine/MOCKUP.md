@@ -3,8 +3,10 @@
 Plan, 2026-10-25. Status: **stap 1–3 gebouwd (2026-10-25), nog niet
 beluisterd**: maatklok + arm/fire, de trap-patch en de pagina staan in
 `editor/src/freestyle/` en zijn bereikbaar via `?app=freestyle` (of de knop
-Freestyle in de editorkop). Ringbuffer, FILL-verfijning, de andere twee
-stijlen en de beatbox-laag staan open. Tegenhanger van
+Freestyle in de editorkop); live sinds 2026-10-25 en door Mark bevestigd
+("werkt uitstekend"). Daarna de twee andere stijlen (boom bap 88, bounce 100)
+met een stijlkeuze op het scherm. Ringbuffer, FILL-verfijning en de
+beatbox-laag staan open. Tegenhanger van
 het hardwareplan [PLAN.md](PLAN.md); voert stap 1 t/m 3 van de
 [review van 2026-08-31](REVIEW-2026-08-31.md) uit ("bouw eerst een
 softwarematig bewijsmodel met gewone knoppen").
@@ -305,10 +307,10 @@ stand (de vriend is Pools; UK English volstaat, zie
 | Bestand | Wat |
 |---|---|
 | `editor/src/freestyle/barClock.ts` | `BarClock` (tel/maat/frase op de contextklok, tempowissel zonder sprong) en `ArmQueue` (gewapende acties per tel) |
-| `editor/src/freestyle/style.ts` | `Stem`, `Change`, `Section`, `Style`; de stijl TRAP (140, vier secties, fill) |
+| `editor/src/freestyle/style.ts` | `Stem`, `Change`, `Section`, `Style`; de stijlen TRAP (140, Grids op x2), BOOM_BAP (88, swing) en BOUNCE (100), elk vier secties, eigen klank (`sound`) en fill |
 | `editor/src/freestyle/freestylePatch.ts` | bouwt de vaste patch (Clock → Grids op x2 → Peaks ×3 + Acid; accenten → Seq → E-piano → Reverb) |
 | `editor/src/freestyle/performance.ts` | `Performance`: start/stop, DROP (direct omlaag, terug op de tel), NEXT (frase), stems (maat), FILL (één maat), TAP, percussionist; geeft `Fired`-pakketjes terug |
-| `editor/src/freestyle/FreestyleApp.tsx` | het scherm en de toetsen; plant de pakketjes op de `AudioEngine` |
+| `editor/src/freestyle/FreestyleApp.tsx` | het scherm en de toetsen; plant de pakketjes op de `AudioEngine`; stijlkeuze bouwt de patch opnieuw (stopt de beat) |
 | `*.test.ts` | 25 tests: klokgrenzen, tempowissel, DROP+NEXT tegelijk, wrap-around, fill, percussionist, patchcontrole |
 
 Afwijkingen van het plan hierboven: de bas is geen eigen stem maar zit in de

@@ -5,8 +5,8 @@
 // modules, zodat dezelfde patch later op de Teensy kan draaien.
 //
 //   CLOCK (140) ─bar──▶ reset van beide sequencers
-//         └─x2───────▶ GRIDS (externe klok: 1 puls = 1/16 op 70, dus
-//                             32 stappen = één frase van vier maten op 140)
+//         └─x2 of x4─▶ GRIDS (externe klok; trap op x2: 1 puls = 1/16 op 70,
+//                             dus 32 stappen = één frase van vier maten op 140)
 //   GRIDS bd ─▶ PEAKS kick · ACID gate · bas-SEQ clock (een basnoot per kick)
 //   GRIDS sd ─▶ PEAKS snare        GRIDS hh ─▶ PEAKS hat
 //   GRIDS acc ─▶ motief-SEQ clock ─▶ E-PIANO stem 1 ─▶ REVERB
@@ -91,7 +91,7 @@ export function buildFreestyleRig(style: Style, base: ModularProject = seedInter
   });
   const m = mod;
   const connections: PatchConnection[] = [
-    c(m.clock, 'x2', m.grids, 'clock'),
+    c(m.clock, style.gridsClock, m.grids, 'clock'),
     c(m.clock, 'bar', m.bassSeq, 'reset'),
     c(m.clock, 'bar', m.motifSeq, 'reset'),
     c(m.grids, 'bd', m.kick, 'gate'),
@@ -120,7 +120,9 @@ export function buildFreestyleRig(style: Style, base: ModularProject = seedInter
   // Standen: klank + tempo van de stijl + de eerste sectie + haar stems.
   const state = baseState();
   state.clock.tempo = style.bpm;
+  state.clock.swing = style.swing;
   state.grids.tempo = style.bpm;
+  for (const ch of style.sound) state[ch.module][ch.control] = ch.value;
   const first = style.sections[0];
   if (first) {
     for (const ch of first.changes) state[ch.module][ch.control] = ch.value;
@@ -133,7 +135,7 @@ export function buildFreestyleRig(style: Style, base: ModularProject = seedInter
 
   const patch: Patch = {
     id: uid('patch'), name: `Freestyle · ${style.name}`,
-    description: `De vaste patch van de freestyle-machine (spinoffs/freestyle-machine/MOCKUP.md), stijl ${style.name}, ${style.bpm} bpm (${style.feel}). Grids speelt op de halve klok (x2), dus zijn 32 stappen zijn één frase van vier maten; elke kick slaat ook de 808-sub aan en schuift de baslijn een stap; de accenten van Grids spelen het motief op de e-piano.`,
+    description: `De vaste patch van de freestyle-machine (spinoffs/freestyle-machine/MOCKUP.md), stijl ${style.name}, ${style.bpm} bpm (${style.feel}). Grids stapt op ${style.gridsClock} van de klok${style.gridsClock === 'x2' ? ' (half-time: zijn 32 stappen zijn één frase van vier maten)' : ''}; elke kick slaat ook de 808-sub aan en schuift de baslijn een stap; de accenten van Grids spelen het motief op de e-piano.`,
     voiceCount: 1, rackIds: [rack.id], connections, controlState, tempo: style.bpm,
     envelopes: [], lfos: [],
   };

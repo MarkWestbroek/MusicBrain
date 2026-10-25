@@ -8,11 +8,21 @@ import { STEMS, STYLES, TRAP, type Change } from './style';
 describe('freestyle-patch', () => {
   const rig = buildFreestyleRig(TRAP);
 
-  it('bouwt en doorstaat de patchcontrole', () => {
-    const f = checkPatch(rig.patch, rig.project).filter((x) => x.kind !== 'signal-mismatch');
-    expect(f.map((x) => `${x.kind}: ${x.message}`)).toEqual([]);
-    expect(rig.project.activePatchId).toBe(rig.patch.id);
-    expect(rig.patch.tempo).toBe(140);
+  it('bouwt elke stijl en doorstaat de patchcontrole', () => {
+    for (const style of STYLES) {
+      const r = buildFreestyleRig(style);
+      const f = checkPatch(r.patch, r.project).filter((x) => x.kind !== 'signal-mismatch');
+      expect(f.map((x) => `${x.kind}: ${x.message}`), style.id).toEqual([]);
+      expect(r.project.activePatchId).toBe(r.patch.id);
+      expect(r.patch.tempo).toBe(style.bpm);
+      expect(r.patch.controlState[r.ids.clock]?.swing).toBe(style.swing);
+      // Grids hangt aan de klokuitgang van de stijl (x2 = half-time).
+      const cable = r.patch.connections.find((c) => c.to.moduleId === r.ids.grids && c.to.portId === 'clock');
+      expect(cable?.from.portId, style.id).toBe(style.gridsClock);
+      // De klank van de stijl staat in de patch.
+      for (const ch of style.sound) expect(r.patch.controlState[r.ids[ch.module]]?.[ch.control], `${style.id}: ${ch.module}.${ch.control}`).toBe(ch.value);
+    }
+    expect(STYLES.map((s) => s.id)).toEqual(['trap', 'boombap', 'bounce']);
   });
 
   it('heeft voor elke logische module een echte module van het juiste type', () => {
@@ -37,6 +47,7 @@ describe('freestyle-patch', () => {
         for (const ch of stemChanges(s.stems)) expect(okay(ch), `${style.id}/${s.name}: ${ch.module}.${ch.control}`).toBe(true);
       }
       for (const ch of style.fill) expect(okay(ch), `${style.id}/fill: ${ch.module}.${ch.control}`).toBe(true);
+      for (const ch of style.sound) expect(okay(ch), `${style.id}/sound: ${ch.module}.${ch.control}`).toBe(true);
     }
   });
 
