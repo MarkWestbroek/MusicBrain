@@ -14,10 +14,12 @@
 // SAVE schrijft de laatste twee minuten als wav. Je weet pas achteraf dat
 // het goed was. Bij STOP pauzeert de buffer (anders vult stilte hem).
 //
-// MIC: de microfoon in een tweede ringbuffer, alleen de stem, niet naar de
-// luidsprekers; SAVE geeft dan twee bestanden (beat en voice) om later te
-// mixen. Echo-onderdrukking aan, zodat de beat uit de speaker zo min
-// mogelijk in de stemopname lekt; met een koptelefoon is hij schoon.
+// MIC: de microfoon erbij, alleen de stem, niet naar de luidsprekers. Beat
+// (kanaal 1–2) en stem (3–4) zitten in één vierkanaals ringbuffer, zodat
+// ze sample-precies gelijk lopen; SAVE splitst ze in twee bestanden (beat
+// en voice) om later te mixen. Echo-onderdrukking aan, zodat de beat uit
+// de speaker zo min mogelijk in de stemopname lekt; met een koptelefoon is
+// hij schoon.
 //
 // Telefoon (smal scherm): één kolom, grote knoppen voor DROP (vasthouden),
 // NEXT en FILL, de stems in een 2×2-raster; tikken op de stijlnaam gaat
@@ -30,7 +32,7 @@ import * as Tone from 'tone';
 
 import { PlayTour, playTourSeen, type PlayTourStep } from '../modular-mb/PlayTour';
 import { getEngine, useEngineStatus } from '../modular-mb/sim/engineSingleton';
-import { MasterRecorder, downloadWav, encodeWav, wavFileName } from '../modular-mb/sim/wavRecorder';
+import { MasterRecorder, downloadWav, encodeWav, peakOf, wavFileName } from '../modular-mb/sim/wavRecorder';
 import { TapTempo } from '../modular-mb/tempo';
 import { buildFreestyleRig } from './freestylePatch';
 import { Performance, type Fired } from './performance';
@@ -105,9 +107,10 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
   const engine = getEngine();
   const { level } = useEngineStatus();
   const tapper = useRef(new TapTempo());
-  const recorder = useRef(new MasterRecorder(KEEP_SECONDS)).current;
-  const voice = useRef(new MasterRecorder(KEEP_SECONDS)).current;
-  const mic = useRef<{ stream: MediaStream; src: MediaStreamAudioSourceNode; gain: Tone.Gain } | null>(null);
+  const recorder = useRef(new MasterRecorder(KEEP_SECONDS, 4)).current;
+  /** De vier kanalen: beat L/R uit de engine, stem L/R uit `voiceIn`. */
+  const bus = useRef<{ merger: ChannelMergerNode; voiceIn: GainNode } | null>(null);
+  const mic = useRef<{ stream: MediaStream; src: MediaStreamAudioSourceNode } | null>(null);
   const [micOn, setMicOn] = useState(false);
   const [recSecs, setRecSecs] = useState(0);
   const [, bump] = useState(0);
@@ -126,9 +129,25 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
   // De ringbuffers lopen zolang de pagina open is (vanaf de eerste START).
   useEffect(() => () => {
     if (recorder.active) void recorder.stop();
-    if (voice.active) void voice.stop();
     mic.current?.stream.getTracks().forEach((t) => t.stop());
-  }, [recorder, voice]);
+  }, [recorder]);
+  /** De vierkanaals opnamebus, één keer: beat → kanaal 0–1, stem → 2–3. */
+  const ensureBus = useCallback((): ChannelMergerNode => {
+    if (bus.current) return bus.current.merger;
+    const ctx = Tone.getContext().rawContext as AudioContext;
+    const merger = ctx.createChannelMerger(4);
+    const beatSplit = ctx.createChannelSplitter(2);
+    Tone.connect(engine.recorderTap(), beatSplit);
+    beatSplit.connect(merger, 0, 0); beatSplit.connect(merger, 1, 1);
+    // Een mono microfoon op beide stemkanalen: expliciet stereo.
+    const voiceIn = ctx.createGain();
+    voiceIn.channelCount = 2; voiceIn.channelCountMode = 'explicit'; voiceIn.channelInterpretation = 'speakers';
+    const voiceSplit = ctx.createChannelSplitter(2);
+    voiceIn.connect(voiceSplit);
+    voiceSplit.connect(merger, 0, 2); voiceSplit.connect(merger, 1, 3);
+    bus.current = { merger, voiceIn };
+    return merger;
+  }, [engine]);
 
   /** Plan een pakketje op zijn contexttijd. Een paar ms vroeger: het
    *  bericht naar de worklet kost een blok. */
@@ -141,10 +160,10 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
       if (f.master) engine.setMasterVolume(f.master.gain, f.master.rampS);
       // De klok uit: de ringbuffers pauzeren (de staart van een seconde mag mee).
       const run = f.changes.find((c) => c.module === 'clock' && c.control === 'run');
-      if (run && run.value === false) window.setTimeout(() => { recorder.pause(); voice.pause(); }, 1000);
+      if (run && run.value === false) window.setTimeout(() => recorder.pause(), 1000);
       setLog(f.label);
     }, delay);
-  }, [engine, rig, recorder, voice]);
+  }, [engine, rig, recorder]);
 
   // Lookahead-planner en schermklok.
   useEffect(() => {
@@ -162,36 +181,35 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
   const start = useCallback(async () => {
     await engine.start();
     if (!recorder.active) {
-      try { await recorder.start(engine.recorderTap()); }
+      try { await recorder.start(ensureBus()); }
       catch (e) { setLog(`recorder: ${e instanceof Error ? e.message : String(e)}`); }
     }
-    recorder.resume(); voice.resume();
+    recorder.resume();
     apply(perf.start(ctxNow()));
-  }, [engine, perf, apply, recorder, voice]);
-  /** SAVE: de laatste twee minuten als wav (beat, en de stem apart als de
-   *  microfoon aanstaat), zonder de buffers te stoppen. */
+  }, [engine, perf, apply, recorder, ensureBus]);
+  /** SAVE: de laatste twee minuten als wav: beat, en de stem apart als de
+   *  microfoon aanstaat; uit dezelfde buffer, dus gelijk lopend. */
   const save = useCallback(() => {
     if (!recorder.active || recorder.frames === 0) { setLog('nothing recorded yet — press START first'); return; }
     const when = new Date();
     const r = recorder.peek();
-    downloadWav(encodeWav(r.channels, r.sampleRate, 'i24'), wavFileName(`freestyle-${style.id}-beat`, when));
-    let msg = `saved beat ${Math.round(r.seconds)} s${r.clipped ? ' (clipped!)' : ''}`;
-    if (voice.active && voice.frames > 0) {
-      const v = voice.peek();
+    const beat = r.channels.slice(0, 2);
+    downloadWav(encodeWav(beat, r.sampleRate, 'i24'), wavFileName(`freestyle-${style.id}-beat`, when));
+    let msg = `saved beat ${Math.round(r.seconds)} s${peakOf(beat) > 1 ? ' (clipped!)' : ''}`;
+    if (micOn) {
+      const v = r.channels.slice(2, 4);
       // Even later: twee downloads tegelijk houdt een browser soms tegen.
-      window.setTimeout(() => downloadWav(encodeWav(v.channels, v.sampleRate, 'i24'), wavFileName(`freestyle-${style.id}-voice`, when)), 400);
-      msg += ` + voice ${Math.round(v.seconds)} s`;
+      window.setTimeout(() => downloadWav(encodeWav(v, r.sampleRate, 'i24'), wavFileName(`freestyle-${style.id}-voice`, when)), 400);
+      msg += ' + voice, same length';
     }
     setLog(msg);
-  }, [recorder, voice, style]);
-  /** MIC aan: microfoon openen en in de stem-ringbuffer; uit: dicht. */
+  }, [recorder, style, micOn]);
+  /** MIC aan: microfoon openen en op de stemkanalen van de opnamebus; uit: dicht. */
   const toggleMic = useCallback(async () => {
     if (mic.current) {
       mic.current.stream.getTracks().forEach((t) => t.stop());
-      try { Tone.disconnect(mic.current.src, mic.current.gain); } catch { /* al los */ }
-      mic.current.gain.dispose();
+      try { mic.current.src.disconnect(); } catch { /* al los */ }
       mic.current = null;
-      if (voice.active) await voice.stop();
       setMicOn(false); setLog('mic off');
       return;
     }
@@ -204,16 +222,14 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
       const stream = await media.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: false, autoGainControl: false } });
       const ctx = Tone.getContext().rawContext as AudioContext;
       const src = ctx.createMediaStreamSource(stream);
-      const gain = new Tone.Gain(1);
-      Tone.connect(src, gain);
-      mic.current = { stream, src, gain };
-      await voice.start(gain);
-      if (!perf.running) voice.pause();
+      ensureBus();
+      src.connect(bus.current!.voiceIn);
+      mic.current = { stream, src };
       setMicOn(true); setLog('mic on — voice on its own track');
     } catch (e) {
       setLog(`mic: ${e instanceof Error ? e.message : String(e)}`);
     }
-  }, [engine, perf, voice]);
+  }, [engine, ensureBus]);
   const stop = useCallback(() => { apply(perf.stop(ctxNow())); }, [perf, apply]);
   const tap = useCallback(() => {
     setTapFlash(true); window.setTimeout(() => setTapFlash(false), 90);

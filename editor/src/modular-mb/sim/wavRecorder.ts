@@ -122,18 +122,21 @@ export function trimParts(parts: Float32Array[][], frames: number, keepFrames: n
 export class MasterRecorder {
   private node: AudioWorkletNode | null = null;
   private sink: Tone.Gain | null = null;
-  private source: Tone.Gain | null = null;
+  private source: Tone.Gain | AudioNode | null = null;
   private parts: Float32Array[][] = [];
   private frameCount = 0;
   private rate = 48000;
-  private readonly chans = 2;
+  private readonly chans: number;
   private onFlushed: (() => void) | null = null;
   private firstFrame: number | null = null;
 
   /** `keepSeconds`: ringbuffer, alleen de laatste zoveel seconden blijven
    *  bewaard (freestyle: altijd opnemen, achteraf bewaren). `startFrame`
    *  blijft dan het frame waarop de opname ooit begon, niet van de buffer. */
-  constructor(private readonly keepSeconds: number | null = null) {}
+  /** `channels`: 2 (stereo) of meer; de freestyle-machine neemt beat en
+   *  stem als vier kanalen in één opname, zodat ze sample-precies gelijk
+   *  lopen, en splitst ze bij het bewaren. */
+  constructor(private readonly keepSeconds: number | null = null, channels = 2) { this.chans = channels; }
 
   /** Gepauzeerd: blokken worden genegeerd, de buffer blijft staan (de
    *  freestyle-machine pauzeert bij STOP, anders vult stilte de ringbuffer). */
@@ -149,7 +152,7 @@ export class MasterRecorder {
   get frames(): number { return this.frameCount; }
   get seconds(): number { return this.rate > 0 ? this.frameCount / this.rate : 0; }
 
-  async start(source: Tone.Gain): Promise<void> {
+  async start(source: Tone.Gain | AudioNode): Promise<void> {
     if (this.node) return;
     await Tone.start();
     const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
