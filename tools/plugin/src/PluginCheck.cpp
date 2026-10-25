@@ -38,6 +38,19 @@ int main(int argc, char** argv) {
     std::printf("geladen: %s (%s), %d parameters, vertraging %d samples\n",
                 plugin->getName().toRawUTF8(), found[0]->pluginFormatName.toRawUTF8(),
                 plugin->getParameters().size(), plugin->getLatencySamples());
+    if (plugin->getNumPrograms() > 1) {
+        std::printf("programma's (%d):", plugin->getNumPrograms());
+        for (int i = 0; i < plugin->getNumPrograms(); ++i) std::printf(" [%d] %s", i, plugin->getProgramName(i).toRawUTF8());
+        std::printf("\n");
+    }
+    // program=<n>: een fabriekspreset kiezen (zoals het presetmenu van een DAW), vóór de losse parameters.
+    for (int a = 4; a < argc; ++a) {
+        const juce::String arg(argv[a]);
+        if (!arg.startsWith("program=")) continue;
+        plugin->setCurrentProgram(arg.fromFirstOccurrenceOf("=", false, false).getIntValue());
+        std::printf("programma %d: %s\n", plugin->getCurrentProgram(), plugin->getProgramName(plugin->getCurrentProgram()).toRawUTF8());
+        for (auto* p : plugin->getParameters()) std::printf("  %s = %s\n", p->getName(64).toRawUTF8(), p->getCurrentValueAsText().toRawUTF8());
+    }
 
     // Door de VST3-grens heen ziet een host alleen namen en tekst, geen
     // id's of bereiken: zoeken op naam (zonder spaties/streepjes, kleine
@@ -45,7 +58,7 @@ int main(int argc, char** argv) {
     // doet als je een waarde intikt. Een keuze krijgt zijn naam (algo=Room).
     for (int a = 4; a < argc; ++a) {
         const juce::String arg(argv[a]);
-        if (arg.startsWith("editor=") || arg.startsWith("poke=") || arg.startsWith("in=") || arg.startsWith("notes=")) continue;   // geen parameter
+        if (arg.startsWith("editor=") || arg.startsWith("poke=") || arg.startsWith("in=") || arg.startsWith("notes=") || arg.startsWith("program=")) continue;   // geen parameter
         const juce::String id = arg.upToFirstOccurrenceOf("=", false, false).toLowerCase();
         const juce::String text = arg.fromFirstOccurrenceOf("=", false, false);
         bool hit = false;
