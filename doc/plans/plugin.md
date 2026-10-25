@@ -245,6 +245,23 @@ Recept: [plugin-mac-overdracht.md](plugin-mac-overdracht.md).
   plugin-indeling (voortbouwend op `frontControls.ts`), presets voor de
   andere modules, presets in de editor zelf, en een universele build.
 
+### Windows-controle van de Mac-wijzigingen (2026-10-25)
+
+Na b08793f op Windows (clang-cl, JUCE 8.0.4) nagelopen:
+
+- **Alle 73 bouwen** met de nieuwe romp (presets, vergroten) en geven
+  geluid in `mmb-plugin-check`.
+- **Presets:** HALL toont 8 programma's ("Standaard" + 7); `program=3`
+  (Concertzaal) zet de knoppen, galmtijd gemeten 2,65 s. Het
+  controleprogramma toont nu de programma's en kiest er een met
+  `program=<n>`. Een VST3-gastheer ziet er ook een parameter "Program" bij.
+- **Vergroten in WebView2:** de sleephoek in de pagina werkt (van 1,5×,
+  427 × 771, naar 1×, 284 × 514), verhouding vast, paneel schaalt mee.
+- **Valkuil:** Windows' opslagbeheer ruimde na een update de JUCE-checkout
+  in Temp half op (de webbundel faalde op `@juce/index.js`). JUCE en de
+  bouwmap staan nu in `C:\Users\User\src\` (JUCE, mmb-plugin-build), zoals
+  `~/src/JUCE` op de Mac.
+
 ## 3. Wat het kostte en wat het zou kosten
 
 - De proef: een avond, € 0. JUCE heeft een gratis tier; een lokaal gebouwde

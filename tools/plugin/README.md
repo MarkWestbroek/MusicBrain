@@ -136,6 +136,13 @@ beluisteren:
 mmb-plugin-check "<pad>\MMB HALL.vst3" uit.wav 4 "in=<opname>.wav" decay=3.2 pre=30 mix=0.4
 ```
 
+Fabriekspresets: het controleprogramma toont de programma's van een plugin
+en kiest er een met `program=<n>` (vóór de losse parameters):
+
+```
+mmb-plugin-check "<pad>\MMB HALL.vst3" ir.wav 7 program=3 mix=1 early=0
+```
+
 De bediening testen zonder DAW:
 
 ```
