@@ -10,7 +10,7 @@ zijn**. Aannames, berekeningen en open vragen staan er expliciet in.
 | Map | Onderwerp | Status |
 |---|---|---|
 | `vocoder/` | Kanaalvocoder als MusicBrain-kaart, FPGA vs Teensy | concept |
-| `freestyle-machine/` | Compacte draagbare rap-begeleidingsautomaat | concept |
+| `freestyle-machine/` | Compacte draagbare rap-begeleidingsautomaat; eerst een mockup op de laptop (`MOCKUP.md`, 2026-10-25) | concept, mockup gepland |
 | `drum-808/` | Analoge drumkaart, 808-lijn, generiek | concept |
 | `drum-cr78/` | CR-78 stemmen als kaart(en) | concept, wacht op schematic-overtrek |
 | `trackpad/` | Muzikaal trackpad als custom part | concept |

@@ -4,12 +4,22 @@ import { setLang, useLang } from './i18n';
 import { EffectSwitcherApp } from './effect-switcher/EffectSwitcherApp';
 import { ModularMbApp } from './modular-mb/ModularMbApp';
 import { ScopePanel } from './scope/ScopePanel';
+import { FreestyleApp } from './freestyle/FreestyleApp';
 
-type Project = 'switcher' | 'amp' | 'mmb' | 'scope';
+type Project = 'switcher' | 'amp' | 'mmb' | 'scope' | 'freestyle';
+
+/** `?app=freestyle` opent de freestyle-machine (spinoffs/freestyle-machine/
+ *  MOCKUP.md) meteen, zonder de editorkop: een eigen scherm voor de laptop
+ *  van de rapper. */
+function initialProject(): Project {
+  return new URLSearchParams(window.location.search).get('app') === 'freestyle' ? 'freestyle' : 'mmb';
+}
 
 export function App(): JSX.Element {
   // Modular MB is waar het werk zit, dus daar begin je.
-  const [project, setProject] = useState<Project>('mmb');
+  const [project, setProject] = useState<Project>(initialProject);
+
+  if (project === 'freestyle') return <FreestyleApp onExit={() => setProject('mmb')} />;
 
   return (
     <main style={{ fontFamily: 'var(--mb-font-sans)', padding: 16, position: 'relative' }}>
@@ -45,6 +55,9 @@ export function App(): JSX.Element {
           </ProjectButton>
           <ProjectButton current={project} value="scope" set={setProject}>
             Scope
+          </ProjectButton>
+          <ProjectButton current={project} value="freestyle" set={setProject}>
+            Freestyle
           </ProjectButton>
         </nav>
         <LangSwitch />

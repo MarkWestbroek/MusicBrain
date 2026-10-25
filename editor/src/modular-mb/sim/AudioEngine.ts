@@ -498,8 +498,10 @@ export class AudioEngine {
     this.sendMidi(0xE0, v & 0x7F, v >> 7);
   }
 
-  setMasterVolume(v: number): void {
-    if (this.master) this.master.gain.rampTo(clamp(v, 0, 1), 0.05);
+  /** Mastergain, met een klikvrije ramp. De freestyle-DROP gebruikt een
+   *  korte ramp (5 ms omlaag, 10 ms terug); standaard 50 ms. */
+  setMasterVolume(v: number, rampS = 0.05): void {
+    if (this.master) this.master.gain.rampTo(clamp(v, 0, 1), rampS);
   }
 
   /**

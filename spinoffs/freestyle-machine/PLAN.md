@@ -1,5 +1,12 @@
 # Freestyle-rap-begeleidingsautomaat
 
+> **Actueel (2026-10-25):** dit is het hardwareplan. Eerst komt een
+> softwarematige mockup op de laptop, zoals de review aanbeveelt:
+> [MOCKUP.md](MOCKUP.md) (beatgenerator, DROP/NEXT op maatgrenzen,
+> ringbuffer, later beatbox-programmeur). De ontwerpprincipes hieronder
+> blijven gelden; de kaartindeling, het 20 HP-bord en de batterijvoeding
+> wachten op die mockup.
+
 Compacte, draagbare MusicBrain-variant. Genereert zelf geluid, wordt
 met voetpedalen bediend, en is bedoeld voor iemand die stáát en zijn
 handen niet vrij heeft.
