@@ -5,7 +5,13 @@
 //
 // Schermtekst in het Engels (besluit Mark 2026-10-25: hij en zijn vriend
 // lezen het dan beide). Toetsen: SPACE (houden) = DROP, → of Enter = NEXT,
-// F = FILL, 1–4 = stems, T = TAP, P = start/stop.
+// F = FILL, 1–4 = stems, T = TAP, P = start/stop, S = volgende stijl.
+//
+// Telefoon (smal scherm): één kolom, grote knoppen voor DROP (vasthouden),
+// NEXT en FILL, de stems in een 2×2-raster; tikken op de stijlnaam gaat
+// naar de volgende stijl. Touch: `touch-action: none` plus een niet-
+// passieve touchstart met preventDefault op de knoppen die je vasthoudt,
+// zodat de pagina niet scrolt of zoomt (CLAUDE.md).
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import * as Tone from 'tone';
@@ -18,10 +24,38 @@ import { STEMS, STEM_LABEL, STYLES, styleById, type Stem } from './style';
 
 const BG = '#0b0b0f', FG = '#f3f4f6', DIM = '#6b7280', AMBER = 'var(--mb-accent)';
 const MONO: CSSProperties = { fontFamily: 'var(--mb-font-mono)', fontVariantNumeric: 'tabular-nums' };
+/** Geen tik-oplichting, geen scrollen of zoomen vanaf een knop. */
+const TOUCH: CSSProperties = { touchAction: 'none', WebkitTapHighlightColor: 'transparent', userSelect: 'none' };
 
 function ctxNow(): number { return (Tone.getContext().rawContext as AudioContext).currentTime; }
 
+function useMedia(query: string): boolean {
+  const [m, setM] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const on = (): void => setM(mq.matches);
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, [query]);
+  return m;
+}
+
+/** Niet-passieve touchstart met preventDefault: React registreert touch-
+ *  events passief, dus dit moet buiten React om. */
+function useNoTouchScroll<T extends HTMLElement>(): React.RefObject<T> {
+  const ref = useRef<T>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    const stop = (ev: TouchEvent): void => { ev.preventDefault(); };
+    el.addEventListener('touchstart', stop, { passive: false });
+    return () => el.removeEventListener('touchstart', stop);
+  }, []);
+  return ref;
+}
+
 export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
+  const phone = useMedia('(max-width: 700px)');
   // Stijl kiezen bouwt de patch opnieuw (andere klokuitgang voor Grids,
   // andere klank) en begint met een verse bedieningslaag.
   const [styleId, setStyleId] = useState(STYLES[0]!.id);
@@ -33,8 +67,10 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
   const tapper = useRef(new TapTempo());
   const [, bump] = useState(0);
   const [pos, setPos] = useState(() => perf.clock.position(0));
-  const [log, setLog] = useState('press START (P)');
+  const [log, setLog] = useState('press START');
   const [tapFlash, setTapFlash] = useState(false);
+  const dropRef = useNoTouchScroll<HTMLButtonElement>();
+  const bpmRef = useNoTouchScroll<HTMLDivElement>();
 
   useEffect(() => {
     engine.build(rig.project, rig.patch);
@@ -77,8 +113,12 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
   const chooseStyle = useCallback((id: string) => {
     if (perf.running) stop();
     setStyleId(id);
-    setLog(`style: ${styleById(id).name} — press START (P)`);
+    setLog(`style: ${styleById(id).name} — press START`);
   }, [perf, stop]);
+  const nextStyle = useCallback(() => {
+    const i = STYLES.findIndex((s) => s.id === styleId);
+    chooseStyle(STYLES[(i + 1) % STYLES.length]!.id);
+  }, [styleId, chooseStyle]);
 
   useEffect(() => {
     const down = (e: KeyboardEvent): void => {
@@ -94,6 +134,7 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
         }
         case 'KeyT': tap(); break;
         case 'KeyP': if (perf.running) stop(); else void start(); break;
+        case 'KeyS': nextStyle(); break;
         default: return;
       }
     };
@@ -101,37 +142,139 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', up);
     return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
-  }, [perf, act, tap, start, stop]);
+  }, [perf, act, tap, start, stop, nextStyle]);
 
   const running = perf.running;
   const onOne = running && pos.bar === 0 && pos.beat === 0 && pos.frac < 0.25;
   const pending = perf.pendingLabels();
   const bpm = perf.bpm;
+  const status = perf.dropped ? 'DROP — beat is out' : pending.join(' · ');
 
-  return (
-    <div style={{ position: 'fixed', inset: 0, background: BG, color: FG, fontFamily: 'var(--mb-font-sans)', display: 'flex', flexDirection: 'column', padding: '16px 24px', boxSizing: 'border-box', userSelect: 'none' }}>
-      {/* De flits op de "1" van elke frase: perifeer zichtbaar, ook voor de maat. */}
-      <div aria-hidden style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: AMBER, opacity: onOne ? 0.22 : 0, transition: onOne ? 'none' : 'opacity 180ms' }} />
+  const stemButtons = STEMS.map((s: Stem, i) => {
+    const on = perf.stems[s];
+    const will = perf.stemWillBe(s);
+    return (
+      <button key={s} type="button" onClick={() => act((t) => perf.toggleStem(s, t))}
+        style={{
+          ...TOUCH, padding: phone ? '16px 6px' : '18px 8px', fontSize: phone ? 16 : 18, fontWeight: 700, letterSpacing: '0.06em', cursor: 'pointer', borderRadius: 8,
+          background: on ? '#e5e7eb' : 'transparent', color: on ? '#111827' : DIM,
+          border: `3px solid ${will !== on ? AMBER : on ? '#e5e7eb' : '#374151'}`,
+        }}>
+        <span style={{ ...MONO, fontSize: 12, opacity: 0.6, marginRight: 8 }}>{i + 1}</span>{STEM_LABEL[s]}
+      </button>
+    );
+  });
 
-      <header style={{ display: 'flex', alignItems: 'center', gap: 16, position: 'relative' }}>
+  const beatDots = (
+    <>
+      <div style={{ display: 'flex', justifyContent: 'center', gap: phone ? 12 : 18, marginTop: phone ? 10 : 28 }}>
+        {[0, 1, 2, 3].map((b) => (
+          <div key={b} style={{ width: phone ? 30 : 44, height: phone ? 30 : 44, borderRadius: 22, background: running && pos.beat === b ? (b === 0 ? AMBER : FG) : '#1f2937', transition: 'background 40ms' }} />
+        ))}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: phone ? 8 : 14 }}>
+        {[0, 1, 2, 3].map((bar) => (
+          <div key={bar} style={{ width: phone ? 48 : 70, height: 10, borderRadius: 3, background: running && pos.bar === bar ? AMBER : running && bar < pos.bar ? '#4b5563' : '#1f2937' }} />
+        ))}
+      </div>
+      <div style={{ fontSize: 13, color: DIM, marginTop: 6 }}>{running ? `bar ${pos.bar + 1} of 4 · phrase ${pos.phrase + 1}` : 'stopped'}</div>
+    </>
+  );
+
+  const bpmBlock = (
+    <div ref={bpmRef} onPointerDown={(e) => { e.preventDefault(); tap(); }} title="Tap tempo (T)" style={{ ...TOUCH, cursor: 'pointer', display: 'inline-block' }}>
+      <div style={{ ...MONO, fontSize: phone ? 'clamp(72px, 26vw, 120px)' : 'clamp(96px, 18vw, 220px)', fontWeight: 700, lineHeight: 0.95, color: tapFlash ? AMBER : FG }}>
+        {bpm % 1 ? bpm.toFixed(1) : bpm}
+      </div>
+      <div style={{ fontSize: phone ? 13 : 16, color: DIM, marginTop: 4 }}>BPM · {style.feel} · {phone ? 'tap here' : 'tap T'}</div>
+    </div>
+  );
+
+  /** De grote knoppen: DROP vasthouden, NEXT, FILL. Op de laptop ook, naast de toetsen. */
+  const actions = (
+    <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', gap: 10 }}>
+      <button ref={dropRef} type="button"
+        onPointerDown={(e) => {
+          e.preventDefault();
+          // Capture: de vinger mag van de knop glijden, de up komt toch hier.
+          try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* synthetische pointer */ }
+          act((t) => perf.dropDown(t));
+        }}
+        onPointerUp={() => act((t) => perf.dropUp(t))}
+        onPointerCancel={() => act((t) => perf.dropUp(t))}
+        style={{ ...big(perf.dropped ? AMBER : '#374151', perf.dropped ? 'var(--mb-on-accent)' : FG), ...TOUCH }}>
+        DROP<span style={{ display: 'block', fontSize: 11, fontWeight: 400, opacity: 0.7 }}>hold</span>
+      </button>
+      <button type="button" onClick={() => act((t) => perf.next(t))} style={{ ...big('#1f2937', FG), ...TOUCH }}>
+        NEXT<span style={{ display: 'block', fontSize: 11, fontWeight: 400, opacity: 0.7 }}>on the 1</span>
+      </button>
+      <button type="button" onClick={() => act((t) => perf.fill(t))} style={{ ...big('#1f2937', FG), ...TOUCH }}>
+        FILL<span style={{ display: 'block', fontSize: 11, fontWeight: 400, opacity: 0.7 }}>next bar</span>
+      </button>
+    </div>
+  );
+
+  const header = (
+    <header style={{ display: 'flex', alignItems: 'center', gap: phone ? 8 : 16, position: 'relative', flexWrap: 'wrap' }}>
+      {!phone && (
         <div style={{ fontSize: 13, letterSpacing: '0.14em', textTransform: 'uppercase', color: DIM }}>
           Music<span style={{ color: AMBER }}>Brain</span> freestyle
         </div>
-        <select value={styleId} onChange={(e) => chooseStyle(e.target.value)} title="Style (stops the beat)"
-          style={{ fontSize: 13, color: FG, background: '#1f2937', border: '1px solid #374151', borderRadius: 4, padding: '3px 6px' }}>
-          {STYLES.map((s) => <option key={s.id} value={s.id}>{s.name} · {s.bpm}</option>)}
-        </select>
-        <div style={{ flex: 1 }} />
-        <label style={{ fontSize: 13, color: DIM, display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-          <input type="checkbox" checked={perf.percussionist} onChange={(e) => act((t) => perf.setPercussionist(e.target.checked, t))} />
-          percussionist plays along
-        </label>
+      )}
+      <button type="button" onClick={nextStyle} title="Next style (S) — stops the beat"
+        style={{ ...TOUCH, fontSize: 13, color: FG, background: '#1f2937', border: '1px solid #374151', borderRadius: 4, padding: '5px 10px', cursor: 'pointer' }}>
+        {style.name} · {style.bpm} <span style={{ color: DIM }}>▸</span>
+      </button>
+      <div style={{ flex: 1 }} />
+      <label style={{ fontSize: 12, color: DIM, display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+        <input type="checkbox" checked={perf.percussionist} onChange={(e) => act((t) => perf.setPercussionist(e.target.checked, t))} />
+        {phone ? 'percussionist' : 'percussionist plays along'}
+      </label>
+      {!phone && (
         <button type="button" onClick={() => (running ? stop() : void start())} style={btn(running ? '#374151' : AMBER, running ? FG : 'var(--mb-on-accent)')}>
           {running ? '■ STOP' : '▶ START'}
         </button>
-        {onExit && <button type="button" onClick={() => { if (running) stop(); onExit(); }} style={btn('transparent', DIM)} title="Back to the editor">✕</button>}
-      </header>
+      )}
+      {onExit && <button type="button" onClick={() => { if (running) stop(); onExit(); }} style={btn('transparent', DIM)} title="Back to the editor">✕</button>}
+    </header>
+  );
 
+  const flash = <div aria-hidden style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: AMBER, opacity: onOne ? 0.22 : 0, transition: onOne ? 'none' : 'opacity 180ms' }} />;
+  const meter = (
+    <span data-level={level.toFixed(3)} title="output level" style={{ display: 'inline-block', width: 80, height: 8, background: '#1f2937', borderRadius: 2, alignSelf: 'center', overflow: 'hidden' }}>
+      <span style={{ display: 'block', width: `${Math.min(100, level * 100)}%`, height: '100%', background: level > 0.95 ? '#ef4444' : AMBER }} />
+    </span>
+  );
+
+  if (phone) {
+    return (
+      <div style={{ position: 'fixed', inset: 0, background: BG, color: FG, fontFamily: 'var(--mb-font-sans)', display: 'flex', flexDirection: 'column', gap: 10, padding: '10px 12px', boxSizing: 'border-box', overflowY: 'auto', userSelect: 'none' }}>
+        {flash}
+        {header}
+        <main style={{ textAlign: 'center', position: 'relative' }}>
+          {bpmBlock}
+          {beatDots}
+          <div style={{ marginTop: 10, fontSize: 'clamp(28px, 9vw, 44px)', fontWeight: 800, lineHeight: 1 }}>{perf.section.name}</div>
+          <div style={{ fontSize: 'clamp(22px, 7vw, 36px)', fontWeight: 700, lineHeight: 1.1, marginTop: 4 }}>{perf.section.chord} <span style={{ fontSize: 14, color: DIM, fontWeight: 400 }}>{style.key}</span></div>
+          <div style={{ minHeight: 22, fontSize: 15, color: AMBER, fontStyle: 'italic', marginTop: 4 }}>{status}</div>
+        </main>
+        <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, position: 'relative' }}>{stemButtons}</section>
+        <section style={{ position: 'relative' }}>{actions}</section>
+        <button type="button" onClick={() => (running ? stop() : void start())}
+          style={{ ...big(running ? '#374151' : AMBER, running ? FG : 'var(--mb-on-accent)'), ...TOUCH, padding: '16px 8px', fontSize: 18, position: 'relative' }}>
+          {running ? '■ STOP' : '▶ START'}
+        </button>
+        <footer style={{ display: 'flex', gap: 10, fontSize: 12, color: DIM, position: 'relative', alignItems: 'center' }}>
+          {meter}<span style={{ ...MONO, flex: 1, textAlign: 'right' }}>{log}</span>
+        </footer>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: BG, color: FG, fontFamily: 'var(--mb-font-sans)', display: 'flex', flexDirection: 'column', padding: '16px 24px', boxSizing: 'border-box', userSelect: 'none' }}>
+      {flash}
+      {header}
       <main style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', alignItems: 'center', gap: 24, position: 'relative', minHeight: 0 }}>
         {/* Links: sectie en akkoord, voor de rapper en de gitarist. */}
         <section>
@@ -140,49 +283,18 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
           <div style={{ marginTop: 28, fontSize: 14, color: DIM, letterSpacing: '0.1em' }}>KEY · CHORD</div>
           <div style={{ fontSize: 'clamp(32px, 5vw, 72px)', fontWeight: 700, lineHeight: 1.1 }}>{perf.section.chord}</div>
           <div style={{ fontSize: 18, color: DIM, marginTop: 4 }}>{style.key}</div>
-          <div style={{ marginTop: 28, minHeight: 28, fontSize: 20, color: AMBER, fontStyle: 'italic' }}>
-            {perf.dropped ? 'DROP — beat is out' : pending.join(' · ')}
-          </div>
+          <div style={{ marginTop: 28, minHeight: 28, fontSize: 20, color: AMBER, fontStyle: 'italic' }}>{status}</div>
         </section>
-
         {/* Rechts: BPM groot, de tel en de maat. */}
         <section style={{ textAlign: 'center' }}>
-          <div onPointerDown={(e) => { e.preventDefault(); tap(); }} title="Tap tempo (T)" style={{ cursor: 'pointer', display: 'inline-block' }}>
-            <div style={{ ...MONO, fontSize: 'clamp(96px, 18vw, 220px)', fontWeight: 700, lineHeight: 0.95, color: tapFlash ? AMBER : FG }}>
-              {bpm % 1 ? bpm.toFixed(1) : bpm}
-            </div>
-            <div style={{ fontSize: 16, color: DIM, marginTop: 4 }}>BPM · {style.feel} · tap T</div>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 18, marginTop: 28 }}>
-            {[0, 1, 2, 3].map((b) => (
-              <div key={b} style={{ width: 44, height: 44, borderRadius: 22, background: running && pos.beat === b ? (b === 0 ? AMBER : FG) : '#1f2937', transition: 'background 40ms' }} />
-            ))}
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 14 }}>
-            {[0, 1, 2, 3].map((bar) => (
-              <div key={bar} style={{ width: 70, height: 10, borderRadius: 3, background: running && pos.bar === bar ? AMBER : running && bar < pos.bar ? '#4b5563' : '#1f2937' }} />
-            ))}
-          </div>
-          <div style={{ fontSize: 14, color: DIM, marginTop: 8 }}>{running ? `bar ${pos.bar + 1} of 4 · phrase ${pos.phrase + 1}` : 'stopped'}</div>
+          {bpmBlock}
+          {beatDots}
         </section>
       </main>
 
-      {/* De vier stems: aan = vol, uit = rand; gewapend = amberen rand. */}
-      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, position: 'relative' }}>
-        {STEMS.map((s: Stem, i) => {
-          const on = perf.stems[s];
-          const will = perf.stemWillBe(s);
-          return (
-            <button key={s} type="button" onClick={() => act((t) => perf.toggleStem(s, t))}
-              style={{
-                padding: '18px 8px', fontSize: 18, fontWeight: 700, letterSpacing: '0.06em', cursor: 'pointer', borderRadius: 8,
-                background: on ? '#e5e7eb' : 'transparent', color: on ? '#111827' : DIM,
-                border: `3px solid ${will !== on ? AMBER : on ? '#e5e7eb' : '#374151'}`,
-              }}>
-              <span style={{ ...MONO, fontSize: 12, opacity: 0.6, marginRight: 8 }}>{i + 1}</span>{STEM_LABEL[s]}
-            </button>
-          );
-        })}
+      <section style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12, position: 'relative', alignItems: 'stretch' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>{stemButtons}</div>
+        {actions}
       </section>
 
       <footer style={{ display: 'flex', gap: 24, marginTop: 14, fontSize: 13, color: DIM, position: 'relative', flexWrap: 'wrap' }}>
@@ -192,11 +304,9 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
         <span><b style={{ color: FG }}>1–4</b> stems (next bar)</span>
         <span><b style={{ color: FG }}>T</b> tap tempo</span>
         <span><b style={{ color: FG }}>P</b> start / stop</span>
+        <span><b style={{ color: FG }}>S</b> next style</span>
         <span style={{ flex: 1 }} />
-        {/* Uitgangsniveau: een smal balkje, ook voor de headless rooktest (data-level). */}
-        <span data-level={level.toFixed(3)} title="output level" style={{ display: 'inline-block', width: 80, height: 8, background: '#1f2937', borderRadius: 2, alignSelf: 'center', overflow: 'hidden' }}>
-          <span style={{ display: 'block', width: `${Math.min(100, level * 100)}%`, height: '100%', background: level > 0.95 ? '#ef4444' : AMBER }} />
-        </span>
+        {meter}
         <span style={MONO}>{log}</span>
       </footer>
     </div>
@@ -205,4 +315,7 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
 
 function btn(bg: string, fg: string): CSSProperties {
   return { padding: '8px 16px', fontSize: 14, fontWeight: 700, letterSpacing: '0.06em', border: 'none', borderRadius: 6, background: bg, color: fg, cursor: 'pointer' };
+}
+function big(bg: string, fg: string): CSSProperties {
+  return { padding: '12px 8px', fontSize: 16, fontWeight: 800, letterSpacing: '0.08em', border: 'none', borderRadius: 8, background: bg, color: fg, cursor: 'pointer', lineHeight: 1.1 };
 }

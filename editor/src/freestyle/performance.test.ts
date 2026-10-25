@@ -50,6 +50,21 @@ describe('Performance', () => {
     expect(perf.dropped).toBe(false);
   });
 
+  it('een korte tik en dan vasthouden: de gewapende terugkeer vervalt, het blijft stil', () => {
+    const { perf, t0 } = started();
+    const now = t0 + BEAT * 1.2;
+    perf.dropDown(now);
+    perf.dropUp(now + 0.05);                                          // tik: terug op tel 2
+    expect(perf.pendingLabels()).toEqual(['beat returns on the beat']);
+    expect(perf.dropDown(now + 0.15)).toBeNull();                     // meteen weer vast
+    expect(perf.pendingLabels()).toEqual([]);
+    expect(runUntil(perf, now, t0 + BEAT * 3)).toEqual([]);           // niets komt terug
+    expect(perf.dropped).toBe(true);
+    perf.dropUp(t0 + BEAT * 3.1);
+    expect(runUntil(perf, t0 + BEAT * 3.1, t0 + BEAT * 4.2)).toHaveLength(1);
+    expect(perf.dropped).toBe(false);
+  });
+
   it('NEXT landt op de 1 van de volgende frase, nog eens drukken schuift een sectie verder', () => {
     const { perf, t0 } = started();
     perf.next(t0 + BAR * 1.5);

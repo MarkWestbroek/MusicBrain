@@ -106,9 +106,11 @@ export class Performance {
 
   /** DROP ingedrukt: direct stil (klikvrij), de punchline valt droog. */
   dropDown(now: number): Fired | null {
+    // Opnieuw ingedrukt terwijl de terugkeer nog gewapend stond (korte tik,
+    // dan vasthouden): die terugkeer vervalt, het blijft stil.
+    this.cancelAll('drop-up');
     if (this.dropped_) return null;
     this.dropped_ = true;
-    this.cancelAll('drop-up');
     return { at: now, label: 'DROP', changes: [], master: { gain: 0, rampS: DROP_DOWN_S } };
   }
 
