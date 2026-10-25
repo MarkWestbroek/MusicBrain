@@ -26,7 +26,22 @@ type Pending =
   | { type: 'next'; target: number }
   | { type: 'stem'; stem: Stem; on: boolean }
   | { type: 'fill-on' }
-  | { type: 'fill-off' };
+  | { type: 'fill-off' }
+  /** Het einde: na de einde-fill stopt de klok. */
+  | { type: 'end' }
+  /** Autopilot: de variatie van frase `phrase`, gepland op haar "1". */
+  | { type: 'auto'; phrase: number };
+
+/** Autopilot (MOCKUP.md §4.5): per frase een kleine variatie op de Grids-
+ *  standen van de sectie, in een rondje van vier; in de vierde frase een
+ *  fill in de laatste maat. Zo is vier minuten op één sectie niet dood. */
+export const AUTO_VARIATIONS: ReadonlyArray<Readonly<Record<string, number>>> = [
+  {},
+  { hh: 0.1, y: 0.1 },
+  {},
+  { hh: 0.15, x: 0.1 },
+];
+export const AUTO_FILL_EVERY = 4;
 
 /** Hoe lang de DROP mag duren om stil te worden, en om terug te komen. */
 export const DROP_DOWN_S = 0.005;
@@ -42,6 +57,9 @@ export class Performance {
   private dropped_ = false;
   private fill_ = false;
   private percussionist_ = false;
+  private autopilot_ = false;
+  /** Variatie van de Autopilot die nu klinkt (index in AUTO_VARIATIONS). */
+  private autoVar_ = 0;
   /** Waar de DROP terugkomt: op de tel (standaard) of de maat. */
   dropReturn: Exclude<Boundary, 'now' | 'phrase'> = 'beat';
 
@@ -59,6 +77,9 @@ export class Performance {
   get dropped(): boolean { return this.dropped_; }
   get filling(): boolean { return this.fill_; }
   get percussionist(): boolean { return this.percussionist_; }
+  get autopilot(): boolean { return this.autopilot_; }
+  /** STOP is ingedrukt: de einde-fill loopt, daarna stopt hij. */
+  get ending(): boolean { return this.queue.pending().some((x) => x.payload.type === 'end'); }
   get bpm(): number { return this.clock.bpm; }
 
   /** Wat er gewapend staat, leesbaar ("→ HOOK on the 1", "HATS off next bar"). */
@@ -70,8 +91,10 @@ export class Performance {
         case 'fill-on': return 'FILL next bar';
         case 'fill-off': return 'fill ends next bar';
         case 'drop-up': return `beat returns on the ${this.dropReturn}`;
+        case 'end': return 'ending — fill, then stop';
+        case 'auto': return '';
       }
-    });
+    }).filter((s) => s !== '');
   }
   /** De stand van een stem zoals hij wordt ná wat gewapend staat. */
   stemWillBe(stem: Stem): boolean {
@@ -87,8 +110,9 @@ export class Performance {
     this.queue.clear();
     this.section_ = 0;
     this.stems_ = { ...this.sectionAt(0).stems };
-    this.dropped_ = false; this.fill_ = false;
+    this.dropped_ = false; this.fill_ = false; this.autoVar_ = 0;
     this.clock.start(at);
+    if (this.autopilot_) this.planAuto(1);
     return {
       at, label: `start · ${this.section.name}`,
       changes: [{ module: 'clock', control: 'run', value: true }, ...this.sectionChanges(0)],
@@ -96,12 +120,45 @@ export class Performance {
     };
   }
 
-  /** Stop: direct stil en de klok uit. (Een einde-fill komt later.) */
-  stop(now: number): Fired {
+  /** STOP: een einde-fill op de volgende maat, en na die maat stil (de
+   *  BeatBuddy-dubbeltik). Nog eens drukken terwijl het einde gewapend
+   *  staat: meteen stil. */
+  stop(now: number): Fired | null {
+    if (!this.clock.isRunning) return null;
+    if (this.ending) return this.stopNow(now);
+    this.cancelAll('fill-on'); this.cancelAll('fill-off'); this.cancelAll('next'); this.cancelAll('auto');
+    const fill = this.queue.arm('bar', { type: 'fill-on' }, now);
+    this.queue.armAt(fill.fireBeat + this.clock.unit('bar'), { type: 'end' });
+    return null;
+  }
+
+  /** Direct stil en de klok uit. */
+  stopNow(now: number): Fired {
     this.queue.clear();
     this.clock.stop();
     this.dropped_ = false; this.fill_ = false;
     return { at: now, label: 'stop', changes: [{ module: 'clock', control: 'run', value: false }], master: { gain: 1, rampS: DROP_UP_S } };
+  }
+
+  /** Autopilot aan of uit. Aan: plant vanaf de volgende frase; uit: de
+   *  sectie-standen meteen terug. */
+  setAutopilot(on: boolean, now: number): Fired | null {
+    if (on === this.autopilot_) return null;
+    this.autopilot_ = on;
+    this.cancelAll('auto');
+    if (!this.clock.isRunning) return null;
+    if (on) {
+      const next = this.clock.nextBoundary('phrase', now);
+      this.planAuto(Math.round(next / this.clock.unit('phrase')));
+      return null;
+    }
+    this.autoVar_ = 0;
+    return { at: now, label: 'autopilot off', changes: this.gridsChanges(this.section_) };
+  }
+
+  /** Plan de variatie van frase `phrase` op haar "1". */
+  private planAuto(phrase: number): void {
+    this.queue.armAt(phrase * this.clock.unit('phrase'), { type: 'auto', phrase });
   }
 
   /** DROP ingedrukt: direct stil (klikvrij), de punchline valt droog. */
@@ -154,11 +211,13 @@ export class Performance {
     return { at: now, label: on ? 'percussionist on' : 'percussionist off', changes: this.gridsChanges(this.section_) };
   }
 
-  /** TAP: nieuw tempo, zonder sprong in de tel; de klokmodule volgt. */
+  /** TAP of ±: nieuw tempo, zonder sprong in de tel; de klokmodule volgt. */
   setBpm(bpm: number, now: number): Fired {
-    this.clock.setBpm(bpm, now);
-    return { at: now, label: `tempo ${bpm}`, changes: [{ module: 'clock', control: 'tempo', value: bpm }] };
+    const v = Math.min(300, Math.max(30, Math.round(bpm * 10) / 10));
+    this.clock.setBpm(v, now);
+    return { at: now, label: `tempo ${v}`, changes: [{ module: 'clock', control: 'tempo', value: v }] };
   }
+  nudgeBpm(delta: number, now: number): Fired { return this.setBpm(this.clock.bpm + delta, now); }
 
   /** Haal op wat binnen `lookahead` seconden landt en voer het logisch uit;
    *  de pagina plant de wijzigingen op `at`. */
@@ -168,6 +227,7 @@ export class Performance {
     for (const d of this.queue.due(now, lookahead)) {
       const f = this.fire(d.payload, d.at, now);
       if (f) out.push(f);
+      if (!this.clock.isRunning) break;     // het einde: wat erna nog klaarstond vervalt
     }
     return out;
   }
@@ -206,6 +266,21 @@ export class Performance {
       case 'fill-off':
         this.fill_ = false;
         return { at, label: 'fill ends', changes: this.gridsChanges(this.section_) };
+      case 'end': {
+        const f = this.stopNow(at);
+        return { ...f, label: 'end' };
+      }
+      case 'auto': {
+        if (!this.autopilot_) return null;
+        this.autoVar_ = p.phrase % AUTO_VARIATIONS.length;
+        this.planAuto(p.phrase + 1);
+        // Fill in de laatste maat van elke vierde frase (niet als er al een loopt).
+        if ((p.phrase + 1) % AUTO_FILL_EVERY === 0 && !this.fill_ && !this.queue.pending().some((x) => x.payload.type === 'fill-on')) {
+          this.queue.armAt(p.phrase * this.clock.unit('phrase') + (this.clock.meter.barsPerPhrase - 1) * this.clock.unit('bar'), { type: 'fill-on' });
+        }
+        const changes = this.gridsChanges(this.section_);
+        return changes.length ? { at, label: `autopilot · phrase ${p.phrase + 1}`, changes } : null;
+      }
     }
   }
 
@@ -219,9 +294,16 @@ export class Performance {
   private gridsChanges(i: number): Change[] {
     return this.withPercussionist(this.sectionAt(i).changes.filter((c) => c.module === 'grids'));
   }
+  /** De Grids-standen van een sectie met de correcties van dit moment:
+   *  percussionist (hats dunner) en de Autopilot-variatie van deze frase. */
   private withPercussionist(changes: Change[]): Change[] {
-    if (!this.percussionist_) return changes;
-    return changes.map((c) => (c.module === 'grids' && c.control === 'hh' && typeof c.value === 'number'
-      ? { ...c, value: Math.round(c.value * PERCUSSIONIST_HH_SCALE * 1000) / 1000 } : c));
+    const vari = this.autopilot_ ? AUTO_VARIATIONS[this.autoVar_] ?? {} : {};
+    return changes.map((c) => {
+      if (c.module !== 'grids' || typeof c.value !== 'number') return c;
+      let v = c.value + (vari[c.control] ?? 0);
+      if (c.control === 'hh' && this.percussionist_) v *= PERCUSSIONIST_HH_SCALE;
+      v = Math.min(1, Math.max(0, Math.round(v * 1000) / 1000));
+      return v === c.value ? c : { ...c, value: v };
+    });
   }
 }

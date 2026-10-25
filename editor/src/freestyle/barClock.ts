@@ -110,6 +110,14 @@ export class ArmQueue<T> {
     return item;
   }
 
+  /** Wapen op een absolute tel (de Autopilot plant vooruit per frase). */
+  armAt(fireBeat: number, payload: T): Armed<T> {
+    const item: Armed<T> = { id: ++this.seq, kind: 'phrase', fireBeat, payload };
+    this.items.push(item);
+    this.items.sort((a, b) => a.fireBeat - b.fireBeat || a.id - b.id);
+    return item;
+  }
+
   cancel(id: number): boolean {
     const n = this.items.length;
     this.items = this.items.filter((x) => x.id !== id);

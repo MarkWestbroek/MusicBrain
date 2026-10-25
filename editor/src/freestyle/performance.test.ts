@@ -176,13 +176,85 @@ describe('Performance', () => {
     expect(perf.setPercussionist(true, t0)).toBeNull();
   });
 
-  it('stop zet de klok uit en vergeet wat gewapend stond', () => {
+  it('STOP speelt een einde-fill op de volgende maat en stopt na die maat', () => {
     const { perf, t0 } = started();
-    perf.next(t0 + BEAT);
-    const f = perf.stop(t0 + 2 * BEAT);
-    expect(has(f.changes, 'clock', 'run', false)).toBe(true);
+    perf.next(t0 + BEAT);                                             // vervalt door het einde
+    expect(perf.stop(t0 + 2 * BEAT)).toBeNull();
+    expect(perf.ending).toBe(true);
+    expect(perf.pendingLabels()).toEqual(['FILL next bar', 'ending — fill, then stop']);
+    const fired = runUntil(perf, t0 + 2 * BEAT, t0 + 2 * BAR + BEAT);
+    expect(fired.map((f) => f.label)).toEqual(['fill', 'end']);
+    expect(fired[0]!.at).toBeCloseTo(t0 + BAR, 5);
+    expect(fired[1]!.at).toBeCloseTo(t0 + 2 * BAR, 5);
+    expect(has(fired[1]!.changes, 'clock', 'run', false)).toBe(true);
     expect(perf.running).toBe(false);
     expect(perf.pendingLabels()).toEqual([]);
+    expect(perf.section.name).toBe('INTRO');
     expect(perf.tick(t0 + PHRASE)).toEqual([]);
+  });
+
+  it('STOP nog eens terwijl het einde gewapend staat: meteen stil', () => {
+    const { perf, t0 } = started();
+    perf.stop(t0 + BEAT);
+    const f = perf.stop(t0 + BEAT * 1.5)!;
+    expect(f.label).toBe('stop');
+    expect(f.at).toBeCloseTo(t0 + BEAT * 1.5, 5);
+    expect(perf.running).toBe(false);
+    expect(perf.stop(t0 + 2 * BEAT)).toBeNull();                       // staat al stil
+  });
+
+  it('± schuift het tempo een bpm zonder sprong en blijft binnen de grenzen', () => {
+    const { perf, t0 } = started();
+    expect(perf.nudgeBpm(1, t0 + BEAT).changes).toEqual([{ module: 'clock', control: 'tempo', value: 141 }]);
+    expect(perf.nudgeBpm(-2, t0 + BEAT).changes).toEqual([{ module: 'clock', control: 'tempo', value: 139 }]);
+    expect(perf.setBpm(1000, t0 + BEAT).changes[0]!.value).toBe(300);
+    expect(perf.clock.beatAt(t0 + BEAT)).toBeCloseTo(1);
+  });
+
+  it('Autopilot: per frase een variatie op de Grids-standen, elke vierde frase een fill in de laatste maat', () => {
+    const perf = new Performance(TRAP);
+    perf.setAutopilot(true, 0);
+    const t0 = perf.start(10).at;
+    expect(perf.autopilot).toBe(true);
+    const fired = runUntil(perf, t0, t0 + 4 * PHRASE + BEAT);
+    const labels = fired.map((f) => f.label);
+    // Frase 2 (index 1): hh +0,1 en y +0,1 op de intro-standen (hh 0,5, y 0,15).
+    const p2 = fired.find((f) => f.label === 'autopilot · phrase 2')!;
+    expect(p2.at).toBeCloseTo(t0 + PHRASE, 4);
+    expect(p2.changes.find((c) => c.control === 'hh')?.value).toBeCloseTo(0.6, 3);
+    expect(p2.changes.find((c) => c.control === 'y')?.value).toBeCloseTo(0.25, 3);
+    // Frase 3: terug naar de sectie.
+    const p3 = fired.find((f) => f.label === 'autopilot · phrase 3')!;
+    expect(p3.changes.find((c) => c.control === 'hh')?.value).toBe(0.5);
+    // Frase 4: variatie én een fill in de laatste maat, die op de 1 van frase 5 eindigt.
+    const fill = fired.find((f) => f.label === 'fill')!;
+    expect(fill.at).toBeCloseTo(t0 + 3 * PHRASE + 3 * BAR, 4);
+    expect(labels.indexOf('fill ends')).toBeGreaterThan(labels.indexOf('fill'));
+    expect(fired.find((f) => f.label === 'fill ends')!.at).toBeCloseTo(t0 + 4 * PHRASE, 4);
+    expect(labels).toContain('autopilot · phrase 5');
+  });
+
+  it('Autopilot uit zet de sectie-standen meteen terug; aan tijdens het spelen plant de volgende frase', () => {
+    const { perf, t0 } = started();
+    expect(perf.setAutopilot(true, t0 + BEAT)).toBeNull();
+    const fired = runUntil(perf, t0 + BEAT, t0 + PHRASE);
+    expect(fired.map((f) => f.label)).toEqual(['autopilot · phrase 2']);
+    const off = perf.setAutopilot(false, t0 + PHRASE + BEAT)!;
+    expect(off.label).toBe('autopilot off');
+    expect(off.changes.find((c) => c.control === 'hh')?.value).toBe(0.5);
+    expect(runUntil(perf, t0 + PHRASE + BEAT, t0 + 3 * PHRASE)).toEqual([]);
+  });
+
+  it('een sectiewissel neemt de Autopilot-variatie van die frase mee', () => {
+    const perf = new Performance(TRAP);
+    perf.setAutopilot(true, 0);
+    const t0 = perf.start(10).at;
+    perf.next(t0 + BEAT);
+    const fired = runUntil(perf, t0, t0 + PHRASE);
+    // Op de 1 van frase 2 landen de sectie (VERSE, hh 0,7) en de variatie
+    // (+0,1) samen; wat als laatste klinkt heeft beide in zich.
+    expect(fired.map((f) => f.label).sort()).toEqual(['autopilot · phrase 2', '→ VERSE'].sort());
+    expect(fired[fired.length - 1]!.changes.find((c) => c.control === 'hh')?.value).toBeCloseTo(0.8, 3);
+    expect(perf.section.name).toBe('VERSE');
   });
 });

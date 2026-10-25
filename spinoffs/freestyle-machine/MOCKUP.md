@@ -12,8 +12,16 @@ Korte Engelse handleiding voor de telefoon: [QUICKSTART.md](QUICKSTART.md);
 in de app een rondleiding (PlayTour met eigen stappen, bij het eerste
 bezoek en via ?).
 De ringbuffer (§4.7) is gebouwd: `MasterRecorder` met `keepSeconds`,
-SAVE (knop en S) schrijft de laatste twee minuten als wav. FILL-verfijning,
-einde-fill, Autopilot en de beatbox-laag staan open. Tegenhanger van
+SAVE (knop en S) schrijft de laatste twee minuten als wav; de buffer
+pauzeert bij STOP. Ook gebouwd (2026-10-25, avond): MIC (stem in een eigen
+ringbuffer, SAVE geeft beat én voice apart, echo-onderdrukking aan),
+einde-fill bij STOP (nog eens = meteen stil), Autopilot (variatie per frase
+in een rondje van vier, fill in elke vierde frase), tempo ± per bpm.
+FILL-verfijning en de beatbox-laag staan open. Marks vraag naar een
+formaat voor de hele take (muziek + stem + instellingen) is geparkeerd:
+het zou een eventlog (stijl, tempo, elke gewapende actie met tel) naast de
+voice-wav zijn, geen MIDI; let op dat Grids met Chaos > 0 niet
+deterministisch terugspeelt. Tegenhanger van
 het hardwareplan [PLAN.md](PLAN.md); voert stap 1 t/m 3 van de
 [review van 2026-08-31](REVIEW-2026-08-31.md) uit ("bouw eerst een
 softwarematig bewijsmodel met gewone knoppen").

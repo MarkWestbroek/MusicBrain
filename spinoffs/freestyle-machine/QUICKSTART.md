@@ -24,6 +24,8 @@ see it again.
 | **FILL** | A one-bar fill. | Starts at the next bar. |
 | **KICK / 808 · SNARE · HATS · MOTIF** | Mutes or unmutes that part. Tap again to cancel before it lands. | Next bar. |
 | **SAVE** | It is always recording from the first START. Was that take good? SAVE gives you the last two minutes as a WAV file. | Right away. |
+| **MIC** | Adds the microphone on its own track. SAVE then gives two files, beat and voice, to mix later. Headphones keep the voice track clean. | Right away. |
+| **STOP** | Plays an ending fill and stops after that bar. Press again to stop at once. The recording pauses while stopped. | Next bar, then stop. |
 
 An amber border on a part means "this changes at the next bar". The amber
 text line tells you what is coming ("→ HOOK on the 1", "HATS off next bar").
@@ -34,12 +36,17 @@ or phrase, so press a little early and keep rapping.
 ## Tempo
 
 Tap the big number in time, four taps or more. The beat follows without a
-jump.
+jump. The − and + buttons next to the number nudge it by 1 BPM.
 
 ## Style
 
 Tap the style name at the top left to go to the next style: Trap half-time
 (140) → Boom bap (88) → Bounce (100). This stops the beat; tap START again.
+
+## Autopilot
+
+Tick **autopilot** and every phrase gets a small variation; every fourth
+phrase ends with a fill. One section stays alive for minutes.
 
 ## Playing with someone
 

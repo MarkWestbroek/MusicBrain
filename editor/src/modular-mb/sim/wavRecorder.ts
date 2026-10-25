@@ -135,6 +135,13 @@ export class MasterRecorder {
    *  blijft dan het frame waarop de opname ooit begon, niet van de buffer. */
   constructor(private readonly keepSeconds: number | null = null) {}
 
+  /** Gepauzeerd: blokken worden genegeerd, de buffer blijft staan (de
+   *  freestyle-machine pauzeert bij STOP, anders vult stilte de ringbuffer). */
+  private paused_ = false;
+  get paused(): boolean { return this.paused_; }
+  pause(): void { this.paused_ = true; }
+  resume(): void { this.paused_ = false; }
+
   get active(): boolean { return this.node !== null; }
   /** Frame van de AudioContext (`currentFrame` in de worklet) waarop de
    *  opname begon; null tot het eerste blok binnen is. */
@@ -153,6 +160,7 @@ export class MasterRecorder {
     this.parts = [];
     this.frameCount = 0;
     this.firstFrame = null;
+    this.paused_ = false;
 
     // Via `ctx.createAudioWorkletNode`, niet via `new AudioWorkletNode(raw…)`:
     // Tone's rawContext is niet altijd een echte BaseAudioContext (het kan de
@@ -174,7 +182,7 @@ export class MasterRecorder {
     node.port.onmessage = (e: MessageEvent): void => {
       const d = e.data as { chunks?: Float32Array[]; done?: boolean; startFrame?: number };
       if (typeof d.startFrame === 'number') this.firstFrame = d.startFrame;
-      if (d.chunks && d.chunks.length > 0) {
+      if (d.chunks && d.chunks.length > 0 && !this.paused_) {
         this.parts.push(d.chunks);
         this.frameCount += d.chunks[0]!.length;
         if (this.keepSeconds !== null) {

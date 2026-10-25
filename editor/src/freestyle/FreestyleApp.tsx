@@ -5,13 +5,19 @@
 //
 // Schermtekst in het Engels (besluit Mark 2026-10-25: hij en zijn vriend
 // lezen het dan beide). Toetsen: SPACE (houden) = DROP, → of Enter = NEXT,
-// F = FILL, 1–4 = stems, T = TAP, P = start/stop, S = SAVE, G = volgende
-// stijl (genre).
+// F = FILL, 1–4 = stems, T = TAP, − en + = tempo een bpm, P = start/stop
+// (stop = einde-fill, nog eens = meteen stil), S = SAVE, G = volgende stijl
+// (genre), M = microfoon, A = Autopilot.
 //
 // Ringbuffer (MOCKUP.md §4.7): vanaf de eerste START neemt een
 // MasterRecorder met `keepSeconds` de eindmix op (ná DROP, wat je hoort);
 // SAVE schrijft de laatste twee minuten als wav. Je weet pas achteraf dat
-// het goed was.
+// het goed was. Bij STOP pauzeert de buffer (anders vult stilte hem).
+//
+// MIC: de microfoon in een tweede ringbuffer, alleen de stem, niet naar de
+// luidsprekers; SAVE geeft dan twee bestanden (beat en voice) om later te
+// mixen. Echo-onderdrukking aan, zodat de beat uit de speaker zo min
+// mogelijk in de stemopname lekt; met een koptelefoon is hij schoon.
 //
 // Telefoon (smal scherm): één kolom, grote knoppen voor DROP (vasthouden),
 // NEXT en FILL, de stems in een 2×2-raster; tikken op de stijlnaam gaat
@@ -57,6 +63,9 @@ const TOUR_STEPS: PlayTourStep[] = [
   step('fs-style', 'Style', 'Tap the style name to go to the next style: trap, boom bap, bounce. That stops the beat; press START again.'),
   step('fs-perc', 'Playing with a percussionist', 'Tick this and the hi-hats get thinner, so a djembe or shaker fits in the gaps.'),
   step('fs-save', 'It is always recording', 'From the first START the last two minutes are kept. Was that take good? Tap SAVE and you get it as a WAV file. No need to press record first.'),
+  step('fs-mic', 'Record your voice too', 'MIC adds the microphone to the recording, on its own track. SAVE then gives two files, beat and voice, to mix later. Use headphones for a clean voice track.'),
+  step('fs-auto', 'Autopilot', 'With autopilot on, every phrase gets a small variation and every fourth phrase ends with a fill, so one section stays alive for minutes.'),
+  step('fs-start', 'Stopping', 'STOP plays an ending fill and stops after that bar. Press it again to stop at once.'),
   step(undefined, 'Have fun', 'This tour comes back with the ? at the top.'),
 ];
 
@@ -97,6 +106,9 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
   const { level } = useEngineStatus();
   const tapper = useRef(new TapTempo());
   const recorder = useRef(new MasterRecorder(KEEP_SECONDS)).current;
+  const voice = useRef(new MasterRecorder(KEEP_SECONDS)).current;
+  const mic = useRef<{ stream: MediaStream; src: MediaStreamAudioSourceNode; gain: Tone.Gain } | null>(null);
+  const [micOn, setMicOn] = useState(false);
   const [recSecs, setRecSecs] = useState(0);
   const [, bump] = useState(0);
   const [pos, setPos] = useState(() => perf.clock.position(0));
@@ -111,8 +123,12 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
     engine.build(rig.project, rig.patch);
     return () => { engine.stop(); };
   }, [engine, rig]);
-  // De ringbuffer loopt zolang de pagina open is (vanaf de eerste START).
-  useEffect(() => () => { if (recorder.active) void recorder.stop(); }, [recorder]);
+  // De ringbuffers lopen zolang de pagina open is (vanaf de eerste START).
+  useEffect(() => () => {
+    if (recorder.active) void recorder.stop();
+    if (voice.active) void voice.stop();
+    mic.current?.stream.getTracks().forEach((t) => t.stop());
+  }, [recorder, voice]);
 
   /** Plan een pakketje op zijn contexttijd. Een paar ms vroeger: het
    *  bericht naar de worklet kost een blok. */
@@ -123,9 +139,12 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
     window.setTimeout(() => {
       for (const ch of f.changes) engine.updateControl(rig.ids[ch.module], ch.control, ch.value);
       if (f.master) engine.setMasterVolume(f.master.gain, f.master.rampS);
+      // De klok uit: de ringbuffers pauzeren (de staart van een seconde mag mee).
+      const run = f.changes.find((c) => c.module === 'clock' && c.control === 'run');
+      if (run && run.value === false) window.setTimeout(() => { recorder.pause(); voice.pause(); }, 1000);
       setLog(f.label);
     }, delay);
-  }, [engine, rig]);
+  }, [engine, rig, recorder, voice]);
 
   // Lookahead-planner en schermklok.
   useEffect(() => {
@@ -146,15 +165,55 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
       try { await recorder.start(engine.recorderTap()); }
       catch (e) { setLog(`recorder: ${e instanceof Error ? e.message : String(e)}`); }
     }
+    recorder.resume(); voice.resume();
     apply(perf.start(ctxNow()));
-  }, [engine, perf, apply, recorder]);
-  /** SAVE: de laatste twee minuten als wav, zonder de buffer te stoppen. */
+  }, [engine, perf, apply, recorder, voice]);
+  /** SAVE: de laatste twee minuten als wav (beat, en de stem apart als de
+   *  microfoon aanstaat), zonder de buffers te stoppen. */
   const save = useCallback(() => {
     if (!recorder.active || recorder.frames === 0) { setLog('nothing recorded yet — press START first'); return; }
+    const when = new Date();
     const r = recorder.peek();
-    downloadWav(encodeWav(r.channels, r.sampleRate, 'i24'), wavFileName(`freestyle-${style.id}`));
-    setLog(`saved ${Math.round(r.seconds)} s${r.clipped ? ' (clipped!)' : ''}`);
-  }, [recorder, style]);
+    downloadWav(encodeWav(r.channels, r.sampleRate, 'i24'), wavFileName(`freestyle-${style.id}-beat`, when));
+    let msg = `saved beat ${Math.round(r.seconds)} s${r.clipped ? ' (clipped!)' : ''}`;
+    if (voice.active && voice.frames > 0) {
+      const v = voice.peek();
+      // Even later: twee downloads tegelijk houdt een browser soms tegen.
+      window.setTimeout(() => downloadWav(encodeWav(v.channels, v.sampleRate, 'i24'), wavFileName(`freestyle-${style.id}-voice`, when)), 400);
+      msg += ` + voice ${Math.round(v.seconds)} s`;
+    }
+    setLog(msg);
+  }, [recorder, voice, style]);
+  /** MIC aan: microfoon openen en in de stem-ringbuffer; uit: dicht. */
+  const toggleMic = useCallback(async () => {
+    if (mic.current) {
+      mic.current.stream.getTracks().forEach((t) => t.stop());
+      try { Tone.disconnect(mic.current.src, mic.current.gain); } catch { /* al los */ }
+      mic.current.gain.dispose();
+      mic.current = null;
+      if (voice.active) await voice.stop();
+      setMicOn(false); setLog('mic off');
+      return;
+    }
+    const media = typeof navigator !== 'undefined' ? navigator.mediaDevices : undefined;
+    if (!media?.getUserMedia) { setLog('this browser cannot open a microphone'); return; }
+    try {
+      await engine.start();
+      // Echo-onderdrukking aan: de beat uit de speaker zo veel mogelijk uit de
+      // stem; geen ruisfilter of AGC, die knippen medeklinkers weg.
+      const stream = await media.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: false, autoGainControl: false } });
+      const ctx = Tone.getContext().rawContext as AudioContext;
+      const src = ctx.createMediaStreamSource(stream);
+      const gain = new Tone.Gain(1);
+      Tone.connect(src, gain);
+      mic.current = { stream, src, gain };
+      await voice.start(gain);
+      if (!perf.running) voice.pause();
+      setMicOn(true); setLog('mic on — voice on its own track');
+    } catch (e) {
+      setLog(`mic: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }, [engine, perf, voice]);
   const stop = useCallback(() => { apply(perf.stop(ctxNow())); }, [perf, apply]);
   const tap = useCallback(() => {
     setTapFlash(true); window.setTimeout(() => setTapFlash(false), 90);
@@ -188,6 +247,10 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
         case 'KeyP': if (perf.running) stop(); else void start(); break;
         case 'KeyS': save(); break;
         case 'KeyG': nextStyle(); break;
+        case 'KeyM': void toggleMic(); break;
+        case 'KeyA': act((t) => perf.setAutopilot(!perf.autopilot, t)); break;
+        case 'Minus': case 'NumpadSubtract': act((t) => perf.nudgeBpm(-1, t)); break;
+        case 'Equal': case 'NumpadAdd': act((t) => perf.nudgeBpm(1, t)); break;
         default: return;
       }
     };
@@ -195,7 +258,7 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', up);
     return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
-  }, [perf, act, tap, start, stop, nextStyle, save, tour]);
+  }, [perf, act, tap, start, stop, nextStyle, save, toggleMic, tour]);
 
   const running = perf.running;
   const onOne = running && pos.bar === 0 && pos.beat === 0 && pos.frac < 0.25;
@@ -234,12 +297,22 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
     </>
   );
 
+  const nudge = (delta: number): JSX.Element => (
+    <button type="button" onClick={() => act((t) => perf.nudgeBpm(delta, t))} title={`Tempo ${delta > 0 ? '+' : '−'}1 (${delta > 0 ? '+' : '−'})`}
+      style={{ ...TOUCH, width: phone ? 44 : 52, height: phone ? 44 : 52, borderRadius: 26, border: '2px solid #374151', background: 'transparent', color: FG, fontSize: phone ? 24 : 28, cursor: 'pointer', alignSelf: 'center', lineHeight: 1 }}>
+      {delta > 0 ? '+' : '−'}
+    </button>
+  );
   const bpmBlock = (
-    <div ref={bpmRef} data-tour="fs-bpm" onPointerDown={(e) => { e.preventDefault(); tap(); }} title="Tap tempo (T)" style={{ ...TOUCH, cursor: 'pointer', display: 'inline-block' }}>
-      <div style={{ ...MONO, fontSize: phone ? 'clamp(72px, 26vw, 120px)' : 'clamp(96px, 18vw, 220px)', fontWeight: 700, lineHeight: 0.95, color: tapFlash ? AMBER : FG }}>
-        {bpm % 1 ? bpm.toFixed(1) : bpm}
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: phone ? 10 : 18 }}>
+      {nudge(-1)}
+      <div ref={bpmRef} data-tour="fs-bpm" onPointerDown={(e) => { e.preventDefault(); tap(); }} title="Tap tempo (T)" style={{ ...TOUCH, cursor: 'pointer', display: 'inline-block' }}>
+        <div style={{ ...MONO, fontSize: phone ? 'clamp(64px, 22vw, 120px)' : 'clamp(96px, 16vw, 220px)', fontWeight: 700, lineHeight: 0.95, color: tapFlash ? AMBER : FG }}>
+          {bpm % 1 ? bpm.toFixed(1) : bpm}
+        </div>
+        <div style={{ fontSize: phone ? 13 : 16, color: DIM, marginTop: 4 }}>BPM · {style.feel} · {phone ? 'tap here' : 'tap T'}</div>
       </div>
-      <div style={{ fontSize: phone ? 13 : 16, color: DIM, marginTop: 4 }}>BPM · {style.feel} · {phone ? 'tap here' : 'tap T'}</div>
+      {nudge(1)}
     </div>
   );
 
@@ -283,10 +356,18 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
         <input type="checkbox" checked={perf.percussionist} onChange={(e) => act((t) => perf.setPercussionist(e.target.checked, t))} />
         {phone ? 'percussionist' : 'percussionist plays along'}
       </label>
+      <label data-tour="fs-auto" style={{ fontSize: 12, color: DIM, display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+        <input type="checkbox" checked={perf.autopilot} onChange={(e) => act((t) => perf.setAutopilot(e.target.checked, t))} />
+        autopilot
+      </label>
+      <button type="button" data-tour="fs-mic" onClick={() => void toggleMic()} title="Record the microphone on its own track (M)"
+        style={{ ...btn(micOn ? '#7f1d1d' : 'transparent', micOn ? FG : DIM), ...TOUCH, border: `1px solid ${micOn ? '#ef4444' : '#374151'}` }}>
+        {micOn ? '● MIC' : '○ MIC'}
+      </button>
       <button type="button" onClick={() => setTour(true)} title="Tour: what every button does" aria-label="Tour" style={btn('transparent', DIM)}>?</button>
       {!phone && (
         <button type="button" data-tour="fs-start" onClick={() => (running ? stop() : void start())} style={btn(running ? '#374151' : AMBER, running ? FG : 'var(--mb-on-accent)')}>
-          {running ? '■ STOP' : '▶ START'}
+          {running ? (perf.ending ? '■ ENDING…' : '■ STOP') : '▶ START'}
         </button>
       )}
       {onExit && <button type="button" onClick={() => { if (running) stop(); onExit(); }} style={btn('transparent', DIM)} title="Back to the editor">✕</button>}
@@ -326,7 +407,7 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
         <PlayTour open={tour} onClose={() => setTour(false)} steps={TOUR_STEPS} seenKey={TOUR_KEY} lang="en" />
         <button type="button" data-tour="fs-start" onClick={() => (running ? stop() : void start())}
           style={{ ...big(running ? '#374151' : AMBER, running ? FG : 'var(--mb-on-accent)'), ...TOUCH, padding: '16px 8px', fontSize: 18, position: 'relative' }}>
-          {running ? '■ STOP' : '▶ START'}
+          {running ? (perf.ending ? '■ ENDING…' : '■ STOP') : '▶ START'}
         </button>
         <footer style={{ display: 'flex', gap: 10, fontSize: 12, color: DIM, position: 'relative', alignItems: 'center' }}>
           {saveButton}{meter}<span style={{ ...MONO, flex: 1, textAlign: 'right' }}>{log}</span>
@@ -367,10 +448,10 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
         <span><b style={{ color: FG }}>→</b> NEXT section (lands on the 1)</span>
         <span><b style={{ color: FG }}>F</b> FILL (next bar)</span>
         <span><b style={{ color: FG }}>1–4</b> stems (next bar)</span>
-        <span><b style={{ color: FG }}>T</b> tap tempo</span>
-        <span><b style={{ color: FG }}>P</b> start / stop</span>
+        <span><b style={{ color: FG }}>T</b> tap tempo · <b style={{ color: FG }}>− +</b> 1 bpm</span>
+        <span><b style={{ color: FG }}>P</b> start / stop (ending)</span>
         <span><b style={{ color: FG }}>S</b> save last 2 min</span>
-        <span><b style={{ color: FG }}>G</b> next style</span>
+        <span><b style={{ color: FG }}>M</b> mic · <b style={{ color: FG }}>A</b> autopilot · <b style={{ color: FG }}>G</b> style</span>
         <span style={{ flex: 1 }} />
         {saveButton}
         {meter}
