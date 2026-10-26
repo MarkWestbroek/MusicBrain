@@ -33,6 +33,11 @@
   grootte bewaard in het project), een waardevenster tijdens het draaien,
   en **fabriekspresets** uit `editor/src/modular-mb/modulePresets.ts`
   (HALL: 7). Een preset die in Logic bewaard is, is als XML terug te lezen.
+- Zeven modules erbij op de Mac (ROTARY, ORGAN, EPIANO, ACID, TAPE ECHO,
+  CLOUDS, ELEMENTS), en fabriekspresets voor tien modules. Hersteld voor
+  alle platforms: de drawbars van ORGAN (schuiven) zijn nu parameters, en
+  een CV-ingang met de naam van een knop (ACID accent, CLOUDS freeze) botst
+  niet meer met die knop.
 
 ### 2026-10-15 — Proef: HALL als VST3/Standalone-plugin (JUCE), zelfde klank als de simulator
 <!-- EN: Proof of concept: HALL as a VST3 and standalone plugin on the same kernel, measured identical to the simulator -->

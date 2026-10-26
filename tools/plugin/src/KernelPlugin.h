@@ -49,8 +49,10 @@ public:
     void applyControl(const char* id, float v) override {
         for (int i = 0; i < K::kNumControls; ++i)
             if (is(id, K::kControls[i])) { for (auto& k : kernels_) k.setControl(i, v); return; }
+    }
+    void applyCv(const char* port, float v) override {
         for (int c = 0; c < K::kCvIn; ++c)
-            if (is(id, K::kCvNames[c])) { cvValue_[static_cast<std::size_t>(c)] = v; for (auto& k : kernels_) k.setCv(c, v); return; }
+            if (is(port, K::kCvNames[c])) { cvValue_[static_cast<std::size_t>(c)] = v; for (auto& k : kernels_) k.setCv(c, v); return; }
     }
 
     void render(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi) override {

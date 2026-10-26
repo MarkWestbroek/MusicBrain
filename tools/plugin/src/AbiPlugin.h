@@ -106,8 +106,10 @@ public:
 
     void applyControl(const char* id, float v) override {
         const int c = mmb_control_index(id);
-        if (c >= 0) { mmb_set_control(c, v); return; }
-        for (int i : ports_.cvIn) if (is(MMB_INPUTS[i].id, id)) { cvValue_[static_cast<std::size_t>(i)] = v; return; }
+        if (c >= 0) mmb_set_control(c, v);
+    }
+    void applyCv(const char* port, float v) override {
+        for (int i : ports_.cvIn) if (is(MMB_INPUTS[i].id, port)) { cvValue_[static_cast<std::size_t>(i)] = v; return; }
     }
 
     void render(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi) override {

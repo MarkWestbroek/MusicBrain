@@ -241,6 +241,25 @@ Recept: [plugin-mac-overdracht.md](plugin-mac-overdracht.md).
   590/720 Hz bij de andere twee. Logic's algoritmische tegenhanger van HALL
   is ChromaVerb. Volgende stap: impulsresponsen (Mark bouncet
   `impuls.wav`) en HALL laten zoeken naar Big Chamber.
+- **Zeven modules erbij op de Mac** (2026-10-25): ROTARY (Leslie), ORGAN,
+  EPIANO, ACID, TAPE ECHO, CLOUDS en ELEMENTS. Alle elf zijn door auval en
+  geven geluid in `MmbPluginCheck`. ROTARY, TAPE ECHO, CLOUDS, ELEMENTS,
+  PLAITS en REVERB lopen via de gastheer (één exemplaar per project).
+- **Twee fouten gevonden en hersteld (gelden ook op Windows):**
+  - *Schuiven werden geen parameter.* `pluginParams.ts` kende alleen knop,
+    schakelaar en toggle, dus de negen drawbars van ORGAN zaten niet in de
+    plugin (en AHDSR/FADERS niet, maar die zijn geen plugin). Nu is een
+    `slider` een Float-parameter: ORGAN gaat van 7 naar 16 parameters.
+  - *Een CV-ingang die heet als een knop* (ACID `accent`, CLOUDS `freeze`)
+    werd een tweede parameter met hetzelfde id. auval faalde daarop
+    ("Parameter values are different since last set"). Erger: de CV-waarde
+    kwam bij de knop terecht in plaats van bij de ingang. Nu krijgt zo'n
+    ingang het id `<naam>_in`, en de romp roept voor de extra parameters
+    `applyCv(poort)` aan in plaats van `applyControl` (`MmbPluginBase.h`,
+    `KernelPlugin.h`, `AbiPlugin.h`).
+- **Presets voor tien modules** (voorzetten, nog niet beluisterd): HALL 7,
+  REVERB 5, ROTARY 5, ORGAN 6 (drawbar-registers als naam), EPIANO 5,
+  ACID 4, TAPE ECHO 5, CLOUDS 5, SID 7, PLAITS 7 en ELEMENTS 5.
 - **Nog open:** Retina-scherpte op een groter scherm, een liggende
   plugin-indeling (voortbouwend op `frontControls.ts`), presets voor de
   andere modules, presets in de editor zelf, en een universele build.

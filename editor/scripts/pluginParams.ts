@@ -46,6 +46,8 @@ function spec(c: Control): string | undefined {
       const skewMid = c.taper === 'log' && c.min > 0 ? Math.sqrt(c.min * c.max) : 0;
       return `{ ${cstr(c.id)}, ${cstr(c.label)}, ParamKind::Float, ${num(c.min)}, ${num(c.max)}, ${num(c.defaultValue)}, ${num(c.step ?? 0)}, ${num(skewMid)}, "", ${cstr(c.unit ?? '')} }`;
     }
+    case 'slider':   // drawbars (ORGAN): een continue parameter zoals een knop
+      return `{ ${cstr(c.id)}, ${cstr(c.label)}, ParamKind::Float, ${num(c.min)}, ${num(c.max)}, ${num(c.defaultValue)}, 0.0f, 0.0f, "", ${cstr(c.unit ?? '')} }`;
     case 'switch':
       return `{ ${cstr(c.id)}, ${cstr(c.label)}, ParamKind::Choice, 0.0f, ${num(c.positions.length - 1)}, ${num(c.defaultIndex)}, 1.0f, 0.0f, ${cstr(c.positions.join('|'))}, "" }`;
     case 'toggle':

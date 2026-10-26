@@ -26,6 +26,8 @@
 
 namespace mmb_plugin {
 
+inline const char* keep(const std::string& s);
+
 class MmbProcessor : public juce::AudioProcessor {
 public:
     /** @p extra: parameters bovenop het paneel (bijv. CV-ingangen); hun
@@ -40,10 +42,13 @@ public:
         raw_.resize(params_.size());
         applied_.assign(params_.size(), std::nanf(""));
         for (std::size_t i = 0; i < params_.size(); ++i) raw_[i] = state_.getRawParameterValue(params_[i].id);
+        for (const ParamSpec& e : extra) cvPorts_.push_back(e.id);
     }
 
     // ── Door de module in te vullen ──────────────────────────────────────
     virtual void applyControl(const char* id, float value) = 0;
+    /** Een CV-/gate-ingang (de extra parameters), op poortnaam. */
+    virtual void applyCv(const char* /*port*/, float /*value*/) {}
     virtual void prepare(double sampleRate, int maxBlock) = 0;
     virtual void render(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi) = 0;
 
@@ -107,7 +112,13 @@ public:
 private:
     static std::vector<ParamSpec> merge(const ModuleSpec& spec, const std::vector<ParamSpec>& extra) {
         std::vector<ParamSpec> all(spec.params, spec.params + spec.count);
-        all.insert(all.end(), extra.begin(), extra.end());
+        for (ParamSpec e : extra) {
+            // Een ingang die heet als een knop (ACID accent, CLOUDS freeze)
+            // krijgt een eigen id: twee parameters met één id botsen (auval).
+            for (int i = 0; i < spec.count; ++i)
+                if (std::strcmp(spec.params[i].id, e.id) == 0) { e.id = keep(std::string(e.id) + "_in"); break; }
+            all.push_back(e);
+        }
         return all;
     }
 
@@ -142,7 +153,11 @@ private:
     void pushParameters() {
         for (std::size_t i = 0; i < params_.size(); ++i) {
             const float v = raw_[i]->load();
-            if (v != applied_[i]) { applyControl(params_[i].id, v); applied_[i] = v; }
+            if (v == applied_[i]) continue;
+            const std::size_t panel = static_cast<std::size_t>(spec_.count);
+            if (i < panel) applyControl(params_[i].id, v);
+            else applyCv(cvPorts_[i - panel], v);
+            applied_[i] = v;
         }
     }
 
@@ -153,6 +168,7 @@ private:
     juce::AudioProcessorValueTreeState state_;
     std::vector<std::atomic<float>*> raw_;
     std::vector<float> applied_;
+    std::vector<const char*> cvPorts_;   // poortnaam per extra parameter
 };
 
 // ── De bediening: het editorpaneel in een webview ────────────────────────
