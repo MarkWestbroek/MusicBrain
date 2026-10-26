@@ -43,6 +43,13 @@ jump. The − and + buttons next to the number nudge it by 1 BPM.
 Tap the style name at the top left to go to the next style: Trap half-time
 (140) → Boom bap (88) → Bounce (100). This stops the beat; tap START again.
 
+## Foot pedal
+
+A Bluetooth page-turner pedal (two pedals, ◀ and ▶) works as a keyboard.
+Pair it with the phone or laptop, then: **◀ = DROP** (press once, the beat
+is gone; press again and it comes back on the next beat), **▶ = NEXT**. Any
+mode of the pedal works (arrows or Page Up/Down).
+
 ## Autopilot
 
 Tick **autopilot** and every phrase gets a small variation; every fourth

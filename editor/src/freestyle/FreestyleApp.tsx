@@ -58,8 +58,8 @@ const TOUR_STEPS: PlayTourStep[] = [
   step('fs-bpm', 'Tempo', 'The big number is the tempo. Tap it in time, four taps or more, and the beat follows without a jump.'),
   step('fs-beat', 'Where you are', 'The dots count 1-2-3-4, the bars show the bar in the four-bar phrase. The whole screen flashes amber on the 1 of every phrase: that is your cue.'),
   step('fs-section', 'Section and chord', 'The section you are in and the chord, so a guitarist can play along. The amber line tells what is coming ("→ HOOK on the 1").'),
-  step('fs-drop', 'DROP', 'Hold it and the beat is gone, instantly, for a punchline. Let go and it comes back on the next beat.'),
-  step('fs-next', 'NEXT', 'The next section: INTRO → VERSE → HOOK → BREAK. Press it mid-line; it lands on the 1 of the next phrase.'),
+  step('fs-drop', 'DROP', 'Hold it and the beat is gone, instantly, for a punchline. Let go and it comes back on the next beat. With a Bluetooth page-turner pedal: the left pedal cuts the beat, press it again to bring it back.'),
+  step('fs-next', 'NEXT', 'The next section: INTRO → VERSE → HOOK → BREAK. Press it mid-line; it lands on the 1 of the next phrase. On a page-turner pedal this is the right pedal.'),
   step('fs-fill', 'FILL', 'A one-bar fill, starting at the next bar.'),
   step('fs-stems', 'The four parts', 'Tap a part to mute or unmute it at the next bar. An amber border means it changes at the next bar; tap again to cancel.'),
   step('fs-style', 'Style', 'Tap the style name to go to the next style: trap, boom bap, bounce. That stops the beat; press START again.'),
@@ -252,7 +252,15 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
       if (e.repeat || tour) return;      // de rondleiding heeft de pijltjes en Enter
       switch (e.code) {
         case 'Space': e.preventDefault(); act((t) => perf.dropDown(t)); break;
-        case 'ArrowRight': case 'Enter': e.preventDefault(); act((t) => perf.next(t)); break;
+        // Bladomslagpedaal (Bluetooth-toetsenbord, twee pedalen ◀ ▶): naar
+        // gelang de modus pijl links/rechts, pijl omhoog/omlaag of Page Up/
+        // Down. ▶ = NEXT; ◀ = DROP als schakelaar, want zo'n pedaal laat de
+        // toets meteen los of herhaalt hem: één trap beat weg, nog één terug.
+        case 'ArrowRight': case 'ArrowDown': case 'PageDown': case 'Enter': e.preventDefault(); act((t) => perf.next(t)); break;
+        case 'ArrowLeft': case 'ArrowUp': case 'PageUp':
+          e.preventDefault();
+          act((t) => (perf.dropped ? perf.dropUp(t) : perf.dropDown(t)));
+          break;
         case 'KeyF': act((t) => perf.fill(t)); break;
         case 'Digit1': case 'Digit2': case 'Digit3': case 'Digit4': {
           const stem = STEMS[Number(e.code.slice(-1)) - 1];
@@ -280,7 +288,7 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
   const onOne = running && pos.bar === 0 && pos.beat === 0 && pos.frac < 0.25;
   const pending = perf.pendingLabels();
   const bpm = perf.bpm;
-  const status = perf.dropped ? 'DROP — beat is out' : pending.join(' · ');
+  const status = [...(perf.dropped ? ['DROP — beat is out'] : []), ...pending].join(' · ');
 
   const stemButtons = STEMS.map((s: Stem, i) => {
     const on = perf.stems[s];
@@ -468,6 +476,7 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
         <span><b style={{ color: FG }}>P</b> start / stop (ending)</span>
         <span><b style={{ color: FG }}>S</b> save last 2 min</span>
         <span><b style={{ color: FG }}>M</b> mic · <b style={{ color: FG }}>A</b> autopilot · <b style={{ color: FG }}>G</b> style</span>
+        <span title="Bluetooth page-turner pedal: left pedal = DROP (press again to bring the beat back), right pedal = NEXT"><b style={{ color: FG }}>pedal</b> ◀ DROP · ▶ NEXT</span>
         <span style={{ flex: 1 }} />
         {saveButton}
         {meter}

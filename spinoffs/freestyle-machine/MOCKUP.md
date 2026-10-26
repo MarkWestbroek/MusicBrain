@@ -16,7 +16,14 @@ SAVE (knop en S) schrijft de laatste twee minuten als wav; de buffer
 pauzeert bij STOP. Ook gebouwd (2026-10-25, avond): MIC (stem in een eigen
 ringbuffer, SAVE geeft beat én voice apart, echo-onderdrukking aan),
 einde-fill bij STOP (nog eens = meteen stil), Autopilot (variatie per frase
-in een rondje van vier, fill in elke vierde frase), tempo ± per bpm.
+in een rondje van vier, fill in elke vierde frase), tempo ± per bpm. Beat en
+stem zitten in één vierkanaals ringbuffer (sample-precies gelijk), SAVE
+splitst ze. Eerste beatbox-opname van Mark (2026-10-25, laptopmic): een
+naïeve onsetdetectie vindt de slagen en 60 % valt binnen 30 ms op het
+zestiendenraster van 140; de klassen (kick/snare/hat) zijn met laag/hoog-
+energie alleen nog niet betrouwbaar; volgende stap: een opname met bekend
+patroon ("boots-cats", twee maten) als ijkmateriaal, script
+`beatbox_analyse.py` (scratch) → `editor/src/freestyle/beatbox/`.
 FILL-verfijning en de beatbox-laag staan open. Marks vraag naar een
 formaat voor de hele take (muziek + stem + instellingen) is geparkeerd:
 het zou een eventlog (stijl, tempo, elke gewapende actie met tel) naast de
