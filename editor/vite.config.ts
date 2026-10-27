@@ -16,4 +16,7 @@ export default defineConfig({
   // host: true zet de server ook op het lokale netwerk, zodat een telefoon
   // erbij kan. Zonder dit luistert Vite alleen op localhost.
   server: { port: 5173, host: true },
+  // Alleen de editor scannen: src/plugin-ui/index.html importeert `@juce`,
+  // dat alleen in de plugin-build bestaat (vite.plugin-ui.config.ts).
+  optimizeDeps: { entries: ['index.html'] },
 });
