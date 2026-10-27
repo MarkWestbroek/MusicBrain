@@ -20,6 +20,22 @@ export const resizeTo: (heightPx: number) => void = inPlugin
   ? (() => { const f = getNativeFunction('mmbResize'); return (h) => { void f(Math.round(h)); }; })()
   : () => {};
 
+/** Bank van de plugin (sampler, TAPE STRIP); zie MmbPluginBase.h. */
+export interface BankInfo { has: boolean; name: string; error: string; own: boolean; knob: number }
+
+type JuceBackend = { addEventListener(id: string, fn: (payload: unknown) => void): unknown };
+
+/** Bank-stand opvragen en volgen; geeft een functie terug die het volgen stopt. */
+export function watchBank(onInfo: (b: BankInfo) => void): () => void {
+  if (!inPlugin) return () => {};
+  void (getNativeFunction('mmbBankInfo')() as Promise<BankInfo>).then(onInfo);
+  const backend = (window as unknown as { __JUCE__: { backend: JuceBackend & { removeEventListener(t: unknown): void } } }).__JUCE__.backend;
+  const token = backend.addEventListener('mmbBank', (p) => onInfo(p as BankInfo));
+  return () => backend.removeEventListener(token);
+}
+export const chooseBank = (): void => { if (inPlugin) void getNativeFunction('mmbBankChoose')(); };
+export const clearBank = (): void => { if (inPlugin) void getNativeFunction('mmbBankClear')(); };
+
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 
 /** Vraagt de plugin opnieuw om de huidige stand (zoals de JUCE-bibliotheek

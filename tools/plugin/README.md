@@ -6,9 +6,10 @@ JUCE, op dezelfde kern als de Teensy en de simulator
 een webview; de parameters komen uit datzelfde paneel. Achtergrond en
 metingen: [doc/plans/plugin.md](../../doc/plans/plugin.md).
 
-Modules nu: **73** — de hele bibliotheek behalve CV-modules, mixers,
-MIDI-IN, de bankmodules (sampler, ZANG, tapestrip), DX7 en de
-trigger-modules. HALL en SID zijn handgeschreven; de rest genereert
+Modules nu: **75** — de hele bibliotheek behalve CV-modules, mixers,
+MIDI-IN, ZANG, DX7 en de trigger-modules. SAMPLER en TAPE STRIP laden een
+`.mmbs`: de Bank-knop uit de bankmap, of een eigen bank die in het project
+blijft (zie "Banken" hieronder). HALL en SID zijn handgeschreven; de rest genereert
 `pluginParams.ts --all`: op de uniforme kern-interface via `KernelPlugin.h`
 (eigen instantie per exemplaar), anders via `AbiPlugin.h` (de wasm-gastheer
 zelf, native; één exemplaar per DAW-proces). Noten: `NoteMap.h`;
@@ -98,6 +99,21 @@ horen in `~/Library/Audio/Plug-Ins/Components`, VST3 in
 `~/Library/Audio/Plug-Ins/VST3`; Logic ziet alleen AU, Reaper beide. Daarna
 `killall -9 AudioComponentRegistrar` en `auval -v aufx Hall Mmbr`.
 Uitkomst van de eerste Mac-build: doc/plans/plugin.md §2e.
+
+## Banken
+
+SAMPLER en TAPE STRIP spelen uit een `.mmbs`. De Bank-knop (0–15) kiest
+zoals op de Teensy een bestand uit de bankmap, via `defaults` in
+`index.json`:
+
+- Mac: `~/Library/Application Support/MusicBrain/banks`
+- Windows: `%APPDATA%\MusicBrain\banks`
+
+Vullen: de inhoud van `editor/public/banks` (de `.mmbs`-bestanden en
+`index.json`) daarheen kopiëren. "Eigen…" in de balk onder het paneel kiest
+een losse `.mmbs`; die gaat mee in het project. Controleren zonder DAW:
+`MmbPluginCheck <vst3> uit.wav 3 bank=3 notes=48,60` of
+`ownbank=<pad naar .mmbs>`.
 
 ## Een nieuwe module
 

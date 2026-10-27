@@ -318,9 +318,57 @@ de SID "werken een boel knoppen niet".
   `.progmem.mandolin` niet (`MandolinData.h`, en de generator
   `gen_mandolin_data.py`). Op de Mac valt de sectie nu weg; de Teensy
   blijft gelijk.
-- **Alle 73 bouwen op de Mac:** gestart, maar gepauzeerd op Marks
-  verzoek (de machine was te zwaar belast). `ninja -k 0` gaat later
-  verder waar hij stopte.
+- **Alle 73 bouwen op de Mac:** eerst gepauzeerd op Marks verzoek, later
+  afgemaakt. Alle 73 zijn gebouwd en geïnstalleerd en slagen voor auval.
+  Een korte render geeft bij elke plugin geluid, behalve bij LPG in de
+  standaardstand: die is dicht zonder CV. Met het eerste preset meet LPG
+  een piek van 0,77.
+
+### Banken in de plugin: SAMPLER en TAPE STRIP (2026-10-27)
+
+Stap 1 van [plugin-patches.md](plugin-patches.md). Mark miste de Mellotron
+(TAPE STRIP) tussen de AU's. Die en de SAMPLER stonden in `EXCLUDE`, omdat
+ze uit een bank spelen die de editor laadt. Nu laadt de plugin de bank zelf.
+
+- **Bank-knop, zoals op de Teensy.** De knop (0–15) kiest een `.mmbs` uit
+  de bankmap (`~/Library/Application Support/MusicBrain/banks`, op Windows
+  `%APPDATA%\MusicBrain\banks`). Welk bestand bij welke stand hoort, staat
+  in de `defaults` van `index.json`, dezelfde als in `editor/public/banks`.
+  Die map speelt de rol van de SD-kaart. Installeren: de inhoud van
+  `editor/public/banks` daarheen kopiëren (212 MB).
+- **Eigen bank.** "Eigen…" in de balk onder het paneel opent een
+  bestandskiezer. De gekozen bank gaat mee in de projecttoestand en heeft
+  voorrang op de knop; "Knop" zet de knop terug. Toestand met eigen bank:
+  `MMBP`, lengte en XML-blok, naam, lengte en de `.mmbs` zelf. Zonder eigen
+  bank blijft het gewone JUCE-formaat, dus oude projecten openen gewoon.
+- **Hoe het laden gaat.** `AbiPlugin.h` (vlag `MMB_PLUGIN_BANK`, door de
+  generator gezet voor gastheren met `mmb_zone_set`) leest de `.mmbs` met
+  de structs uit `mmb_dsp/sample_bank.h` en roept dezelfde blob- en
+  zone-exports aan als de worklet van de simulator. Laden gebeurt op de
+  message-thread onder de callback-lock (`MmbPluginBase.h`): het audioblok
+  wacht zolang. Een bank die al in de module zit, wordt niet opnieuw
+  geladen.
+- **Gemeten met `MmbPluginCheck`** (nieuw: `ownbank=<.mmbs>` zet een eigen
+  bank in de VST3-toestand, zoals een DAW hem bewaart):
+  - SAMPLER: Bank 0 "Tine Electric Piano" (piek 0,08), Bank 1 "Grand
+    Piano" (62 MB, piek 0,43), Bank 3 "Warm Pad" (0,49), Bank 9
+    "Tonewheel Organ" (0,05).
+  - TAPE STRIP: Bank 0 en 3 geven hetzelfde beeld.
+  - Eigen bank "Concert Choir": hij komt terug uit de toestand (1,45 MB,
+    `MMBP`), klinkt (piek 0,14), en Bank=5 erbovenop laat hem staan.
+- **Alle 75 opnieuw gebouwd** (de basisheader veranderde), geïnstalleerd
+  en geregistreerd. auval: 75/75 geslaagd. In Logic heten de twee nieuwe
+  "MMB SAMPLER" en "MMB TAPESTRIP".
+- **Nog niet:** ZANG en DX7 laden andere bankformaten. Slepen naar het
+  venster werkt niet: de native webview vangt het slepen af.
+- Een tweede exemplaar in hetzelfde proces blijft stil, zoals bij alle
+  gastheer-plugins, en meldt dat in de bankbalk. Dit verdwijnt met wasm2c
+  (plugin-patches.md §4).
+- `AbiPlugin` vraagt nu vóór `mmb_init` om de rate van de DAW
+  (`mmb_set_rate`, MODULES, `ac1aef2`). Een gastheer-module met
+  `MMB_RATE_FLEX` rekent dan op 48 of 96 kHz. Op dit moment is dat alleen
+  LADDER, en die draait in de plugin als kernplugin, al op de rate van de
+  DAW.
 
 ## 3. Wat het kostte en wat het zou kosten
 

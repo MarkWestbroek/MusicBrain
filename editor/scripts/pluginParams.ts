@@ -27,11 +27,12 @@ const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '.
 const outDir = path.join(repo, 'tools', 'plugin', 'generated');
 const wasmDir = path.join(repo, 'tools', 'mmb-wasm');
 const MANUAL = new Set(['tp_mmb_hall', 'tp_mmb_sid']);
-// Geen plugin: de bus zelf, stemverdelers, mixers/VCA-banken, banken die
-// de editor vult (sampler, ZANG, DX7-fabrieksbanken: licentie open), en
-// wat alleen met triggers speelt (nog geen vertaling).
+// Geen plugin: de bus zelf, stemverdelers, mixers/VCA-banken, banken in een
+// ander formaat dan .mmbs (ZANG, DX7-fabrieksbanken: licentie open), en wat
+// alleen met triggers speelt (nog geen vertaling). Sampler en TAPE STRIP
+// laden een .mmbs zelf (MMB_PLUGIN_BANK in AbiPlugin.h).
 const EXCLUDE = new Set(['tp_mmb_midiin', 'tp_mmb_octa_vca', 'tp_mmb_octa_vcf', 'tp_mmb_octa_vco', 'tp_mmb_stereo_vca', 'tp_mmb_vca',
-  'tp_mmb_env_follower', 'tp_mmb_env_follower_mono', 'tp_mmb_sampler', 'tp_mmb_tapestrip', 'tp_mmb_zang', 'tp_mmb_dx7',
+  'tp_mmb_env_follower', 'tp_mmb_env_follower_mono', 'tp_mmb_zang', 'tp_mmb_dx7',
   'tp_mmb_pads', 'tp_mmb_percuter', 'tp_mmb_rhythm']);
 // Klankbronnen zonder gate: noten zetten alleen de toonhoogte.
 const SYNTH_OVERRIDE = new Set(['tp_mmb_vco', 'tp_mmb_fm_vco', 'tp_mmb_wt_vco', 'tp_mmb_draw_vco', 'tp_mmb_morph_wt', 'tp_mmb_complex', 'tp_mmb_rungler', 'tp_mmb_noise']);
@@ -263,6 +264,7 @@ function main(): void {
     } else {
       fs.writeFileSync(path.join(outDir, `${id}_plugin.cpp`), [
         `// Gegenereerd door editor/scripts/pluginParams.ts: ${id} als plugin via de wasm-gastheer ${h.file}.`,
+        ...(fs.readFileSync(path.join(wasmDir, h.file), 'utf8').includes('mmb_zone_set') ? ['#define MMB_PLUGIN_BANK 1   // .mmbs via de blob-/zone-exports'] : []),
         '#include "AbiPlugin.h"',
         `#include "${h.file}"`,
         `#include "${id}_params.h"`,

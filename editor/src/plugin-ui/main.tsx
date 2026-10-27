@@ -10,7 +10,7 @@ import '../tokens.css';
 import { ModulePanel } from '../modular-mb/ModulePanel';
 import { seedInternals } from '../modular-mb/seedModules';
 import { emptyModularProject, type Control, type ControlValue } from '../modular-mb/types';
-import { attach, inPlugin, log, resizeTo, type Handle, type Kind } from './juceBridge';
+import { attach, chooseBank, clearBank, inPlugin, log, resizeTo, watchBank, type BankInfo, type Handle, type Kind } from './juceBridge';
 
 // Het venster is vergrootbaar met vaste verhouding (MmbPluginBase.h); de
 // schaal volgt de hoogte, want elk paneel is 128,5 mm hoog.
@@ -41,6 +41,26 @@ function ResizeGrip({ size }: { size: number }) {
       onPointerUp={() => { start.current = null; }}
       onPointerCancel={() => { start.current = null; }}
     />
+  );
+}
+
+/** Bankbalk (sampler, TAPE STRIP): welke bank klinkt, eigen bank kiezen of
+ *  terug naar de Bank-knop. Een eigen bank gaat mee in het project. */
+function BankBar({ pxPerMm }: { pxPerMm: number }) {
+  const [info, setInfo] = useState<BankInfo | null>(null);
+  useEffect(() => watchBank((b) => { log(`bank: ${JSON.stringify(b)}`); setInfo(b); }), []);
+  if (!info?.has) return null;
+  const btn = { font: 'inherit', color: '#fff', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)',
+    borderRadius: pxPerMm * 0.6, padding: `0 ${pxPerMm}px`, cursor: 'pointer' } as const;
+  const text = info.error ? info.error : info.name ? `${info.own ? 'Eigen bank' : `Bank ${info.knob}`}: ${info.name}` : 'Bank laden…';
+  return (
+    <div style={{ position: 'fixed', left: pxPerMm * 2, right: pxPerMm * 2, bottom: pxPerMm * 1.5, display: 'flex', gap: pxPerMm, alignItems: 'center',
+      padding: `${pxPerMm * 0.6}px ${pxPerMm}px`, borderRadius: pxPerMm, background: 'rgba(11,13,18,0.88)', border: '1px solid rgba(255,255,255,0.18)',
+      color: info.error ? '#fca5a5' : '#fff', font: `500 ${pxPerMm * 2.4}px/1.3 system-ui, sans-serif` }}>
+      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={text}>{text}</span>
+      <button type="button" style={btn} onClick={chooseBank} title="Een .mmbs kiezen; die gaat mee in het project">Eigen…</button>
+      {info.own && <button type="button" style={btn} onClick={clearBank} title="Terug naar de bank van de Bank-knop">Knop</button>}
+    </div>
   );
 }
 
@@ -114,6 +134,7 @@ function App({ typeId }: { typeId: string }) {
         <span style={{ opacity: 0.7, fontWeight: 400 }}>{readout.label}</span>&nbsp; {readout.text}
       </div>
     )}
+    <BankBar pxPerMm={pxPerMm} />
     {inPlugin && <ResizeGrip size={Math.max(14, pxPerMm * 4)} />}
     </>
   );

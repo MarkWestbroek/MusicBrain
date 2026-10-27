@@ -2,7 +2,7 @@
 
 Plan van 2026-10-27, na de eerste ronde met alle 73 losse modules als
 AU/VST3 in Logic ([plugin.md](plugin.md)). Status: **plan**, nog niets
-gebouwd. De motorvraag (§4) is met MODULES beantwoord: een eigen graaf
+gebouwd, behalve stap 1 voor SAMPLER en TAPE STRIP (§3). De motorvraag (§4) is met MODULES beantwoord: een eigen graaf
 met wasm2c-instanties.
 
 ## 1. Aanleiding
@@ -42,6 +42,11 @@ Stap 6 kan na stap 1 al beginnen voor één module; de volledige vorm hoort
 bij stap 5.
 
 ## 3. Stap 1: banken in de plugin-state
+
+**Stand 2026-10-27:** SAMPLER en TAPE STRIP zijn gebouwd: de Bank-knop
+werkt uit de bankmap en een eigen bank gaat mee in het project; zie
+[plugin.md](plugin.md), "Banken in de plugin". Nog open: ZANG en DX7 (andere
+bankformaten), DRAW-VCO-tekening, CMI-voice.
 
 - De plugin krijgt een bank (`.mmbs` voor sampler/TAPE STRIP, de ZANG-bank,
   een DX7-bank) via slepen of een knop in de webview. De bank gaat mee in
@@ -226,19 +231,36 @@ gebeurt:
   zet van en naar de DAW-rate. Ze werken op 48 en 96 kHz, maar het geluid
   binnen blijft 44,1 kHz: geen extra bandbreedte, geen minder aliasing.
 
-Om op 96 kHz echt op 96 kHz te rekenen:
+Om op 96 kHz echt op 96 kHz te rekenen (uitgewerkt met MODULES, die de
+ABI-kant bouwt):
 
-- **Wat er moet veranderen:** `MMB_NATIVE_RATE` wordt een waarde die de
-  gastheer bij `mmb_init` meegeeft, in plaats van een constante. Er komt
-  een export `mmb_set_rate` vóór `mmb_init`. De browser blijft 44,1 of 48
-  doorgeven.
-- **Per module nakijken:** kernen die de rate al als argument nemen (alles
-  op `kernel_host.h`) gaan vanzelf goed. Code met een vaste 44,1 kHz
-  (tabellen, coëfficiënten, `AUDIO_SAMPLE_RATE_EXACT`, de
-  Teensy-integer-oscillator in `teensy_waveform.h`) moet per module
-  bekeken worden. Een module die dat niet kan, blijft op 44,1 kHz met de
-  interpolator. Dat is dan een eigenschap van de module, geen aparte
-  versie.
+- **Per module te kiezen.** `float mmb_set_rate(float r)` komt vóór
+  `mmb_init` en geeft de rate terug die de module echt gebruikt. Alleen
+  een wrapper met `#define MMB_RATE_FLEX` volgt de vraag; de andere geven
+  `MMB_NATIVE_RATE` terug. `mmb_native_rate()` geeft daarna de gekozen rate.
+  De gastheer resamplet alleen als er nog verschil is. Na `mmb_init` heeft
+  de aanroep geen effect. Een oude `.wasm` zonder de export gaat goed: de
+  gastheer slaat de aanroep over.
+- **`MMB_NATIVE_RATE` blijft de standaardwaarde.** Daarnaast komt
+  `g_mmb_rate` met de lezer `mmb_rate()`, en een flex-wrapper gebruikt die
+  in `mmb_setup`. Wrappers zonder de vlag blijven precies hetzelfde.
+- **Niet flex:**
+  - De Mutable-ports (Clouds en Plaits 32 kHz, Rings, Elements en Peaks
+    48 kHz): hun tabellen en coëfficiënten horen bij die rate.
+  - De oscillatoren op `teensy_waveform.h` (OCTA-, WT- en DRAW-VCO), die
+    integer-fase-incrementen voor 44,1 kHz gebruiken.
+- **Valkuil: buffers met een vaste lengte in samples.** Het gaat om delay-
+  en galmlijnen in echo, tape, BBD, shimmer, harmonizer, HALL en CMI.
+  - Op 96 kHz halveert de maximale tijd, of loopt de schrijfwijzer over.
+  - Zo'n module mag pas flex worden als zijn buffers op rate × seconden
+    gemaakt zijn.
+  - Daarbij het geheugen narekenen: de wasm-heap mag tot 32 MB.
+- **Test per flex-module:** renderen op 44,1 en 96 kHz, en dan toonhoogte,
+  decay- of delaytijd en piek vergelijken.
+- **De browser roept `mmb_set_rate` niet aan.** De simulator moet klinken
+  als de Teensy, en de wasm-tests renderen op `MMB_NATIVE_RATE`. Alleen de
+  plugin vraagt een andere rate, en geeft hem bij elke herstart van een
+  instantie opnieuw mee vóór `mmb_init`.
 - **CPU:** op 96 kHz ruim het dubbele van de tabel in §4 (8 stemmen ~15 %).
 - CV-modules blijven op 1 kHz: hun gedrag hangt niet aan de audiorate.
 

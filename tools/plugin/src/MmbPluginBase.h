@@ -8,11 +8,19 @@
 // De waarden die applyControl krijgt zijn die van het paneel: knop in zijn
 // eenheid, schakelaar als index, toggle 0/1 — dezelfde afspraak als
 // mmb_on_control in de wasm-gastheren.
+//
+// Banken (sampler, TAPE STRIP): een module die `hasBank()` meldt, krijgt een
+// `.mmbs` op twee manieren. De Bank-knop kiest zoals op de Teensy een bestand
+// uit de bankmap (bankDir(): index.json `defaults`, dezelfde als
+// editor/public/banks); een eigen bank (bestandskiezer in het paneel) gaat
+// mee in de projecttoestand en gaat voor de knop. Laden gebeurt op de
+// message-thread onder de callback-lock: het audioblok wacht zolang.
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_audio_utils/juce_audio_utils.h>
 #include <juce_gui_extra/juce_gui_extra.h>
 
+#include <atomic>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -28,7 +36,23 @@ namespace mmb_plugin {
 
 inline const char* keep(const std::string& s);
 
-class MmbProcessor : public juce::AudioProcessor {
+/** Map met de standaardbanken (zoals de SD-kaart van de Teensy). */
+inline juce::File bankDir() {
+    auto base = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory);
+#if JUCE_MAC
+    base = base.getChildFile("Application Support");
+#endif
+    return base.getChildFile("MusicBrain").getChildFile("banks");
+}
+
+/** Banknaam uit de kop van een `.mmbs` (bytes 16..44), leeg als het geen bank is. */
+inline juce::String mmbsName(const void* data, std::size_t size) {
+    const char* b = static_cast<const char*>(data);
+    if (size < 44 || std::memcmp(b, "MMBS", 4) != 0) return {};
+    return juce::String::fromUTF8(b + 16, static_cast<int>(strnlen(b + 16, 28)));
+}
+
+class MmbProcessor : public juce::AudioProcessor, public juce::ChangeBroadcaster, private juce::AsyncUpdater {
 public:
     /** @p extra: parameters bovenop het paneel (bijv. CV-ingangen); hun
      *  id/name/choices-teksten moeten de plugin overleven (statische opslag). */
@@ -51,6 +75,29 @@ public:
     virtual void applyCv(const char* /*port*/, float /*value*/) {}
     virtual void prepare(double sampleRate, int maxBlock) = 0;
     virtual void render(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi) = 0;
+    /** Kan deze module een `.mmbs` laden? */
+    virtual bool hasBank() const { return false; }
+    /** Zet een `.mmbs` in de module (onder de callback-lock); false + @p error bij een fout. */
+    virtual bool applyBank(const void* /*data*/, std::size_t /*size*/, juce::String& error) { error = "geen bank"; return false; }
+
+    // ── Bank: toestand voor het paneel ───────────────────────────────────
+    struct BankInfo { juce::String name, error; bool own = false; int knob = -1; };
+    BankInfo bankInfo() const { const juce::ScopedLock sl(bankLock_); return bankInfo_; }
+    /** Eigen bank uit een bestand; blijft in het project. */
+    void loadOwnBank(const juce::File& file) {
+        juce::MemoryBlock data;
+        if (!file.loadFileAsData(data)) { setBankError("kan " + file.getFileName() + " niet lezen"); return; }
+        if (data.getSize() < 44 || std::memcmp(data.getData(), "MMBS", 4) != 0) {
+            setBankError(file.getFileName() + " is geen .mmbs-bank"); return;
+        }
+        { const juce::ScopedLock sl(bankLock_); ownBank_ = std::move(data); ownName_ = file.getFileNameWithoutExtension(); ownApplied_ = false; }
+        applyCurrentBank();
+    }
+    /** Terug naar de bank van de knop. */
+    void clearOwnBank() {
+        { const juce::ScopedLock sl(bankLock_); ownBank_.reset(); ownName_.clear(); ownApplied_ = false; loadedKnob_ = -1; }
+        applyCurrentBank();
+    }
 
     // ── AudioProcessor ───────────────────────────────────────────────────
     void prepareToPlay(double sampleRate, int maxBlock) override {
@@ -71,12 +118,36 @@ public:
     }
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override { return true; }
+    // Zonder eigen bank: het gewone JUCE-formaat (XML). Met eigen bank:
+    // "MMBP", lengte + XML-blok, naam, lengte + de .mmbs zelf.
     void getStateInformation(juce::MemoryBlock& dest) override {
-        if (auto xml = state_.copyState().createXml()) copyXmlToBinary(*xml, dest);
+        juce::MemoryBlock xmlBlock;
+        if (auto xml = state_.copyState().createXml()) copyXmlToBinary(*xml, xmlBlock);
+        const juce::ScopedLock sl(bankLock_);
+        if (ownBank_.getSize() == 0) { dest = xmlBlock; return; }
+        juce::MemoryOutputStream out(dest, false);
+        out.write("MMBP", 4);
+        out.writeInt(static_cast<int>(xmlBlock.getSize()));
+        out << xmlBlock;
+        out.writeString(ownName_);
+        out.writeInt64(static_cast<juce::int64>(ownBank_.getSize()));
+        out << ownBank_;
     }
     void setStateInformation(const void* data, int size) override {
-        if (auto xml = getXmlFromBinary(data, size))
-            if (xml->hasTagName(state_.state.getType())) state_.replaceState(juce::ValueTree::fromXml(*xml));
+        juce::MemoryBlock bank;
+        juce::String bankName;
+        if (size > 8 && std::memcmp(data, "MMBP", 4) == 0) {
+            juce::MemoryInputStream in(data, static_cast<std::size_t>(size), false);
+            in.skipNextBytes(4);
+            juce::MemoryBlock xmlBlock;
+            in.readIntoMemoryBlock(xmlBlock, in.readInt());
+            restoreXml(xmlBlock.getData(), static_cast<int>(xmlBlock.getSize()));
+            bankName = in.readString();
+            in.readIntoMemoryBlock(bank, static_cast<size_t>(in.readInt64()));
+        } else restoreXml(data, size);
+        if (!hasBank()) return;
+        { const juce::ScopedLock sl(bankLock_); ownBank_ = std::move(bank); ownName_ = bankName; ownApplied_ = false; loadedKnob_ = -1; }
+        applyCurrentBank();
     }
     const juce::String getName() const override { return juce::String("MMB ") + spec_.name; }
     bool acceptsMidi() const override { return synth_; }
@@ -158,7 +229,79 @@ private:
             if (i < panel) applyControl(params_[i].id, v);
             else applyCv(cvPorts_[i - panel], v);
             applied_[i] = v;
+            // De Bank-knop laadt een bestand: niet op de audiothread.
+            if (i < panel && std::strcmp(params_[i].id, "bank") == 0 && hasBank()) {
+                bankKnob_.store(static_cast<int>(std::lround(v)));
+                triggerAsyncUpdate();
+            }
         }
+    }
+
+    void restoreXml(const void* data, int size) {
+        if (auto xml = getXmlFromBinary(data, size))
+            if (xml->hasTagName(state_.state.getType())) state_.replaceState(juce::ValueTree::fromXml(*xml));
+    }
+
+    void handleAsyncUpdate() override { applyCurrentBank(); }
+
+    void setBankError(const juce::String& e) {
+        { const juce::ScopedLock sl(bankLock_); bankInfo_.error = e; }
+        sendChangeMessage();
+    }
+
+    /** Eigen bank als die er is, anders het bestand van de Bank-knop. Message-thread. */
+    void applyCurrentBank() {
+        juce::MemoryBlock fromFile;
+        const void* data = nullptr;
+        std::size_t size = 0;
+        juce::String name;
+        bool own = false;
+        const int knob = bankKnob_.load() < 0 ? 0 : bankKnob_.load();
+        {
+            const juce::ScopedLock sl(bankLock_);
+            own = ownBank_.getSize() > 0;
+            if (own ? ownApplied_ : knob == loadedKnob_) return;   // zit er al in
+        }
+        juce::MemoryBlock ownCopy;
+        if (own) {
+            const juce::ScopedLock sl(bankLock_);
+            ownCopy = ownBank_;
+            name = ownName_;
+            data = ownCopy.getData(); size = ownCopy.getSize();
+        } else {
+            const juce::File file = knobFile(knob);
+            if (!file.existsAsFile()) {
+                const juce::ScopedLock sl(bankLock_);
+                bankInfo_ = { {}, "geen bank " + juce::String(knob) + " in " + bankDir().getFullPathName(), false, knob };
+                loadedKnob_ = knob;
+                sendChangeMessage();
+                return;
+            }
+            if (!file.loadFileAsData(fromFile)) { setBankError("kan " + file.getFileName() + " niet lezen"); return; }
+            data = fromFile.getData(); size = fromFile.getSize();
+            name = file.getFileNameWithoutExtension();
+        }
+        const juce::String header = mmbsName(data, size);
+        if (header.isNotEmpty()) name = header;
+        juce::String error;
+        bool ok;
+        { const juce::ScopedLock cl(getCallbackLock()); ok = applyBank(data, size, error); }
+        {
+            const juce::ScopedLock sl(bankLock_);
+            bankInfo_ = { ok ? name : juce::String(), ok ? juce::String() : error, own, knob };
+            if (own) ownApplied_ = ok; else loadedKnob_ = knob;
+        }
+        std::printf("[mmb] bank %s: %s\n", own ? "eigen" : juce::String(knob).toRawUTF8(), ok ? name.toRawUTF8() : error.toRawUTF8());
+        std::fflush(stdout);
+        sendChangeMessage();
+    }
+
+    /** Bestand bij Bank-knop @p n: index.json `defaults` in de bankmap. */
+    static juce::File knobFile(int n) {
+        const juce::File dir = bankDir();
+        const juce::var index = juce::JSON::parse(dir.getChildFile("index.json"));
+        const juce::String file = index["defaults"][juce::Identifier(juce::String(n))].toString();
+        return file.isEmpty() ? juce::File() : dir.getChildFile(file);
     }
 
     const ModuleSpec& spec_;
@@ -169,6 +312,14 @@ private:
     std::vector<std::atomic<float>*> raw_;
     std::vector<float> applied_;
     std::vector<const char*> cvPorts_;   // poortnaam per extra parameter
+
+    juce::CriticalSection bankLock_;
+    juce::MemoryBlock ownBank_;          // eigen bank (in het project), leeg = de knop
+    juce::String ownName_;
+    BankInfo bankInfo_;
+    bool ownApplied_ = false;            // de eigen bank zit in de module
+    int loadedKnob_ = -1;                // welke knopstand er nu in zit
+    std::atomic<int> bankKnob_ { -1 };   // gevraagd door de audiothread
 };
 
 // ── De bediening: het editorpaneel in een webview ────────────────────────
@@ -198,13 +349,13 @@ inline std::optional<juce::WebBrowserComponent::Resource> webResource(const juce
     return std::nullopt;
 }
 
-class MmbWebEditor final : public juce::AudioProcessorEditor {
+class MmbWebEditor final : public juce::AudioProcessorEditor, private juce::ChangeListener {
 public:
     static constexpr double kPxPerMm = 4.0;       // kleinste schaal; de pagina rekent zelf uit de hoogte
     static constexpr double kStartScale = 1.5, kMaxScale = 4.0;
     static constexpr double kMmPerHp = 5.08, kPanelHeightMm = 128.5;
 
-    explicit MmbWebEditor(MmbProcessor& p) : AudioProcessorEditor(p) {
+    explicit MmbWebEditor(MmbProcessor& p) : AudioProcessorEditor(p), mmb_(p) {
         const ModuleSpec& spec = p.spec();
         for (const ParamSpec& ps : p.params()) {
             switch (ps.kind) {
@@ -231,6 +382,20 @@ public:
             // Sleephoek in de pagina (de native webview ligt over JUCE's eigen hoek heen).
             .withNativeFunction("mmbResize", [this](const juce::Array<juce::var>& args, juce::WebBrowserComponent::NativeFunctionCompletion complete) {
                 if (args.size() > 0) setScale(static_cast<double>(args[0]) / (kPanelHeightMm * kPxPerMm));
+                complete({});
+            })
+            // Bank (sampler, TAPE STRIP): stand opvragen, eigen bank kiezen of loslaten.
+            .withNativeFunction("mmbBankInfo", [this](const juce::Array<juce::var>&, juce::WebBrowserComponent::NativeFunctionCompletion complete) {
+                complete(bankVar());
+            })
+            .withNativeFunction("mmbBankChoose", [this](const juce::Array<juce::var>&, juce::WebBrowserComponent::NativeFunctionCompletion complete) {
+                chooser_ = std::make_unique<juce::FileChooser>("Bank kiezen", bankDir().exists() ? bankDir() : juce::File(), "*.mmbs");
+                chooser_->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                    [this](const juce::FileChooser& fc) { if (fc.getResult().existsAsFile()) mmb_.loadOwnBank(fc.getResult()); });
+                complete({});
+            })
+            .withNativeFunction("mmbBankClear", [this](const juce::Array<juce::var>&, juce::WebBrowserComponent::NativeFunctionCompletion complete) {
+                mmb_.clearOwnBank();
                 complete({});
             })
             .withResourceProvider(webResource);
@@ -262,18 +427,36 @@ public:
         ready_ = true;
         setScale(scale);
         browser_->goToURL(juce::WebBrowserComponent::getResourceProviderRoot() + "index.html?type=" + spec.typeId);
+        mmb_.addChangeListener(this);
     }
+    ~MmbWebEditor() override { mmb_.removeChangeListener(this); }
     void resized() override {
         if (browser_) browser_->setBounds(getLocalBounds());
         if (ready_) static_cast<MmbProcessor&>(processor).apvts().state.setProperty("uiScale", getHeight() / (kPanelHeightMm * kPxPerMm), nullptr);
     }
 
 private:
+    juce::var bankVar() const {
+        auto* o = new juce::DynamicObject();
+        const auto info = mmb_.bankInfo();
+        o->setProperty("has", mmb_.hasBank());
+        o->setProperty("name", info.name);
+        o->setProperty("error", info.error);
+        o->setProperty("own", info.own);
+        o->setProperty("knob", info.knob);
+        return juce::var(o);
+    }
+    void changeListenerCallback(juce::ChangeBroadcaster*) override {
+        if (browser_) browser_->emitEventIfBrowserIsVisible("mmbBank", bankVar());
+    }
+
     void setScale(double s) {
         s = juce::jlimit(1.0, kMaxScale, s);
         setSize(static_cast<int>(std::lround(baseW_ * s)), static_cast<int>(std::lround(kPanelHeightMm * kPxPerMm * s)));
     }
 
+    MmbProcessor& mmb_;
+    std::unique_ptr<juce::FileChooser> chooser_;
     double baseW_ = 0;
     bool ready_ = false;  // pas na de opbouw de grootte bewaren
     // Volgorde telt: relays vóór de browser, attachments erna.

@@ -58,7 +58,7 @@ int main(int argc, char** argv) {
     // doet als je een waarde intikt. Een keuze krijgt zijn naam (algo=Room).
     for (int a = 4; a < argc; ++a) {
         const juce::String arg(argv[a]);
-        if (arg.startsWith("editor=") || arg.startsWith("poke=") || arg.startsWith("in=") || arg.startsWith("notes=") || arg.startsWith("program=")) continue;   // geen parameter
+        if (arg.startsWith("editor=") || arg.startsWith("poke=") || arg.startsWith("in=") || arg.startsWith("notes=") || arg.startsWith("program=") || arg.startsWith("ownbank=")) continue;   // geen parameter
         const juce::String id = arg.upToFirstOccurrenceOf("=", false, false).toLowerCase();
         const juce::String text = arg.fromFirstOccurrenceOf("=", false, false);
         bool hit = false;
@@ -155,6 +155,47 @@ int main(int argc, char** argv) {
     const double useRate = source.getNumSamples() > 0 ? sourceRate : rate;
     plugin->setPlayConfigDetails(2, 2, useRate, block);
     plugin->prepareToPlay(useRate, block);
+    // ownbank=<.mmbs>: een eigen bank zoals een project hem bewaart (toestand
+    // "MMBP" + XML + bank, MmbPluginBase.h), via setStateInformation.
+    for (int a = 4; a < argc; ++a) {
+        const juce::String arg(argv[a]);
+        if (!arg.startsWith("ownbank=")) continue;
+        const juce::File f(arg.fromFirstOccurrenceOf("=", false, false));
+        juce::MemoryBlock bank, host;
+        if (!f.loadFileAsData(bank)) { std::fprintf(stderr, "kan %s niet lezen\n", f.getFullPathName().toRawUTF8()); return 1; }
+        // Als gastheer verpakt JUCE de VST3-toestand: XML "VST3PluginState" met
+        // de toestand van de plugin zelf (base64) in "IComponent". Daarin komt
+        // de eigen bank, precies zoals de plugin hem in een project zet.
+        plugin->getStateInformation(host);
+        auto xml = juce::AudioProcessor::getXmlFromBinary(host.getData(), static_cast<int>(host.getSize()));
+        auto* comp = xml ? xml->getChildByName("IComponent") : nullptr;
+        juce::MemoryBlock inner, st;
+        if (!comp || !inner.fromBase64Encoding(comp->getAllSubText())) { std::fprintf(stderr, "ownbank: geen VST3-toestand\n"); return 1; }
+        juce::MemoryOutputStream o(st, false);
+        o.write("MMBP", 4); o.writeInt(static_cast<int>(inner.getSize())); o << inner;
+        o.writeString(f.getFileNameWithoutExtension()); o.writeInt64(static_cast<juce::int64>(bank.getSize())); o << bank;
+        o.flush();
+        comp->deleteAllTextElements();
+        comp->addTextElement(st.toBase64Encoding());
+        juce::MemoryBlock wrapped;
+        juce::AudioProcessor::copyXmlToBinary(*xml, wrapped);
+        plugin->setStateInformation(wrapped.getData(), static_cast<int>(wrapped.getSize()));
+        juce::MemoryBlock back, backInner;
+        plugin->getStateInformation(back);
+        auto xb = juce::AudioProcessor::getXmlFromBinary(back.getData(), static_cast<int>(back.getSize()));
+        if (auto* c = xb ? xb->getChildByName("IComponent") : nullptr) backInner.fromBase64Encoding(c->getAllSubText());
+        std::printf("eigen bank %s (%zu bytes); toestand van de plugin terug: %zu bytes%s\n", f.getFileName().toRawUTF8(), bank.getSize(),
+                    backInner.getSize(), backInner.getSize() > 4 && std::memcmp(backInner.getData(), "MMBP", 4) == 0 ? " (MMBP)" : "");
+    }
+    // Eén stil blok en de message-loop even laten lopen: parameters die iets
+    // op de message-thread doen (de Bank-knop laadt een bestand) zijn dan klaar.
+    {
+        juce::AudioBuffer<float> warm(2, block);
+        juce::MidiBuffer none;
+        warm.clear();
+        plugin->processBlock(warm, none);
+        juce::MessageManager::getInstance()->runDispatchLoopUntil(300);
+    }
     const int total = source.getNumSamples() + static_cast<int>(seconds * useRate);
     juce::AudioBuffer<float> out(2, total);
     juce::AudioBuffer<float> buf(2, block);

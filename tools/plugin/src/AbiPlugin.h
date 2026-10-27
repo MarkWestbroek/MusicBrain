@@ -6,14 +6,20 @@
 //
 //  - Audio: de eerste (twee) audio-ingang(en) ← L/R van de DAW, de eerste
 //    (twee) audio-uitgang(en) → L/R. Een mono-module krijgt de som.
-//  - Samplerate: de gastheer draait op zijn eigen rate (MMB_NATIVE_RATE,
-//    blokken van MMB_BLOCK); een Lagrange-interpolator zet van en naar de
-//    rate van de DAW om.
+//  - Samplerate: vóór mmb_init vraagt de plugin de rate van de DAW
+//    (mmb_set_rate). Een module met MMB_RATE_FLEX rekent dan op 48 of 96 kHz;
+//    de andere blijven op hun eigen rate (MMB_NATIVE_RATE, blokken van
+//    MMB_BLOCK) en een Lagrange-interpolator zet van en naar de DAW om. De
+//    eerste prepare beslist (de gastheer is globaal en initialiseert één keer).
 //  - CV- en gate-ingangen die geen noten zijn worden parameters ("<poort>
 //    (CV)", −1..1; gate aan/uit). Een CV-poort geldt als "aangesloten" zodra
 //    de parameter niet 0 is, zodat de knop zonder automation alleen staat.
 //  - Noten (instrument): NoteMap.h → voct/gate/vel, mono of per cel.
 //    MIDI-gebeurtenissen gelden per DAW-blok (≤ ~10 ms), niet per sample.
+//
+//  - Bank (MMB_PLUGIN_BANK, door de generator gezet voor gastheren met
+//    mmb_zone_set: sampler, TAPE STRIP): een `.mmbs` gaat via dezelfde
+//    blob-/zone-exports als de worklet van de simulator gebruikt.
 //
 // Beperking: de gastheer gebruikt globale toestand (één wasm-instantie per
 // geheugen), dus **één exemplaar per plugin per DAW-proces**; een tweede
@@ -27,6 +33,18 @@
 #include <atomic>
 #include <string>
 #include <vector>
+
+#if MMB_PLUGIN_BANK
+#include "mmb_dsp/sample_bank.h"
+// In de gastheer (<naam>_wasm.cc, na deze header ingevoegd).
+extern "C" int16_t* mmb_blob_ptr(int slot, int bytes);
+extern "C" void mmb_blob_commit(int slot, int frames, float rate, int channels);
+extern "C" void mmb_zone_set(int idx, int slot, int lowKey, int highKey, int lowVel, int highVel,
+                             float root, float tuneCents, float gain, float pan,
+                             int loopMode, int loopStart, int loopEnd, float decay, float release,
+                             int velTrack, float attack);
+extern "C" void mmb_zone_count(int n);
+#endif
 
 namespace mmb_plugin {
 
@@ -90,9 +108,10 @@ public:
     ~AbiProcessor() override { --instances_; }
 
     void prepare(double sampleRate, int maxBlock) override {
+        mmb_set_rate(static_cast<float>(sampleRate)); // alleen vóór de eerste mmb_init, alleen met MMB_RATE_FLEX
         mmb_init();                                   // één keer per proces (de gastheer is globaal)
         dawRate_ = sampleRate;
-        ratio_ = MMB_NATIVE_RATE / sampleRate;        // native samples per DAW-sample
+        ratio_ = mmb_native_rate() / sampleRate;      // native samples per DAW-sample (1 als de module meegaat)
         inFifo_.assign(2, {}); outFifo_.assign(2, {});
         for (auto& f : outFifo_) f.assign(static_cast<std::size_t>(2 * MMB_BLOCK), 0.0f);   // speling voor de interpolator
         for (auto& i : inInterp_) i.reset();
@@ -108,6 +127,43 @@ public:
         const int c = mmb_control_index(id);
         if (c >= 0) mmb_set_control(c, v);
     }
+#if MMB_PLUGIN_BANK
+    bool hasBank() const override { return true; }
+    /** `.mmbs` naar de gastheer, zoals parseBank (sampleBank.ts) + de worklet. */
+    bool applyBank(const void* data, std::size_t size, juce::String& error) override {
+        using namespace mmb_dsp;
+        if (slot_ != 0) { error = "tweede exemplaar: de bank zit in het eerste"; return false; }
+        const auto* b = static_cast<const uint8_t*>(data);
+        if (size < sizeof(BankHeader) || std::memcmp(b, "MMBS", 4) != 0) { error = "geen .mmbs-bank"; return false; }
+        BankHeader h; std::memcpy(&h, b, sizeof h);
+        if (h.version < kBankVersionMin || h.version > kBankVersion) { error = "bankversie " + juce::String(h.version) + " onbekend"; return false; }
+        const std::size_t zoneSize = h.version >= 2 ? sizeof(ZoneRecord) : sizeof(ZoneRecordV1);
+        const std::size_t dataAt = sizeof(BankHeader) + h.numSlots * sizeof(SlotHeader) + h.numZones * zoneSize;
+        if (dataAt > size) { error = "bank afgekapt (tabellen)"; return false; }
+        mmb_init();          // sampler en TAPE STRIP zijn niet MMB_RATE_FLEX: vóór prepare laden mag
+        mmb_zone_count(0);   // eerst de keymap weg: geen stem op een half geladen slot
+        const std::size_t samples = (size - dataAt) / 2;
+        for (uint32_t i = 0; i < h.numSlots; ++i) {
+            SlotHeader sh; std::memcpy(&sh, b + sizeof(BankHeader) + i * sizeof(SlotHeader), sizeof sh);
+            const int ch = sh.channels ? sh.channels : 1;
+            const std::size_t start = static_cast<std::size_t>(sh.frameOffset) * ch, count = static_cast<std::size_t>(sh.frames) * ch;
+            if (start + count > samples) { error = "bank afgekapt (slot " + juce::String(i) + ")"; return false; }
+            int16_t* dst = mmb_blob_ptr(static_cast<int>(i), static_cast<int>(count * 2));
+            if (!dst) { error = "geen geheugen voor slot " + juce::String(i); return false; }
+            std::memcpy(dst, b + dataAt + start * 2, count * 2);
+            mmb_blob_commit(static_cast<int>(i), static_cast<int>(sh.frames), sh.rate > 0 ? sh.rate : 44100.0f, ch);
+        }
+        for (uint32_t i = 0; i < h.numZones; ++i) {
+            ZoneRecord z {};
+            std::memcpy(&z, b + sizeof(BankHeader) + h.numSlots * sizeof(SlotHeader) + i * zoneSize, zoneSize);
+            mmb_zone_set(static_cast<int>(i), z.slot, z.lowKey, z.highKey, z.lowVel, z.highVel, z.root, z.tuneCents, z.gain, z.pan,
+                         z.loopMode, static_cast<int>(z.loopStart), static_cast<int>(z.loopEnd), z.decay, z.release, z.velTrack,
+                         h.version >= 2 ? z.attack : 0.0f);
+        }
+        mmb_zone_count(static_cast<int>(h.numZones));
+        return true;
+    }
+#endif
     void applyCv(const char* port, float v) override {
         for (int i : ports_.cvIn) if (is(MMB_INPUTS[i].id, port)) { cvValue_[static_cast<std::size_t>(i)] = v; return; }
     }

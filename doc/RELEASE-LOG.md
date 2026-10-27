@@ -17,6 +17,19 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-27 — Plugins: SAMPLER en TAPE STRIP (Mellotron) met banken
+<!-- EN: Plugins: SAMPLER and TAPE STRIP load .mmbs banks (bank knob from a bank folder, or an own bank saved in the project) -->
+- SAMPLER en TAPE STRIP zijn nu ook AU/VST3 (75 plugins). De Bank-knop
+  kiest zoals op de Teensy een bank uit de bankmap
+  (`~/Library/Application Support/MusicBrain/banks`, gevuld uit
+  `editor/public/banks`). "Eigen…" onder het paneel kiest een losse
+  `.mmbs`, die in het project bewaard blijft.
+- `AbiPlugin` vraagt de DAW-rate via `mmb_set_rate`, zodat modules met
+  `MMB_RATE_FLEX` op 48/96 kHz rekenen. `MmbPluginCheck` kreeg
+  `ownbank=`.
+- Plan en metingen: [plugin.md](plans/plugin.md) ("Banken in de plugin"),
+  [plugin-patches.md](plans/plugin-patches.md) §3.
+
 ### 2026-10-27 — wasm-ABI: `mmb_set_rate` voor de plugin op 96 kHz
 <!-- EN: wasm ABI: mmb_set_rate, so plugin hosts can run modules at 96 kHz -->
 - `mmb_abi.h`: een gastheer mag vóór `mmb_init` een samplerate vragen;
