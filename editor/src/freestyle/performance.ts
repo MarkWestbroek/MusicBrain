@@ -33,7 +33,10 @@ type Pending =
   | { type: 'auto'; phrase: number }
   /** Autopilot: stems tijdelijk weg (`bars` maten), daarna `auto-unmute`. */
   | { type: 'auto-mute'; stems: Stem[]; bars: number; label: string }
-  | { type: 'auto-unmute'; stems: Stem[] };
+  | { type: 'auto-unmute'; stems: Stem[] }
+  /** Vraag en antwoord: op de 1 van maat `bar` (absoluut, vanaf de start) de
+   *  A- of B-standen van de sectie; wapent zichzelf voor de volgende maat. */
+  | { type: 'ab'; bar: number };
 
 /** Autopilot (MOCKUP.md §4.5): per frase een kleine variatie op de Grids-
  *  standen van de sectie, in een rondje van vier; in de vierde frase een
@@ -106,7 +109,7 @@ export class Performance {
         case 'fill-off': return 'fill ends next bar';
         case 'drop-up': return `beat returns on the ${this.dropReturn}`;
         case 'end': return 'ending — fill, then stop';
-        case 'auto': case 'auto-mute': case 'auto-unmute': return '';
+        case 'auto': case 'auto-mute': case 'auto-unmute': case 'ab': return '';
       }
     }).filter((s) => s !== '');
   }
@@ -127,6 +130,7 @@ export class Performance {
     this.dropped_ = false; this.fill_ = false; this.autoVar_ = 0; this.tempMuted_ = [];
     this.clock.start(at);
     if (this.autopilot_) this.planAuto(1);
+    this.queue.armAt(this.clock.unit('bar'), { type: 'ab', bar: 1 });
     return {
       at, label: `start · ${this.section.name}`,
       changes: [{ module: 'clock', control: 'run', value: true }, ...this.sectionChanges(0)],
@@ -315,8 +319,17 @@ export class Performance {
         const changes = this.unmuteChanges(p.stems);
         return changes.length ? { at, label: 'autopilot · all back', changes } : null;
       }
+      case 'ab': {
+        this.queue.armAt((p.bar + 1) * this.clock.unit('bar'), { type: 'ab', bar: p.bar + 1 });
+        const changes = abChanges(this.section, p.bar);
+        // Geen label: dit mag het logboek niet elke maat overschrijven.
+        return changes.length ? { at, label: '', changes } : null;
+      }
     }
   }
+
+  /** Heeft de huidige sectie een B-maat (vraag en antwoord)? */
+  get hasAb(): boolean { return (this.section.b?.length ?? 0) > 0; }
 
   /** Zet de stems van een Autopilot-mute uit die nu aan staan, en wapen de
    *  terugkeer na `bars` maten. */
@@ -353,6 +366,19 @@ export class Performance {
   private withPercussionist(changes: Change[]): Change[] {
     return withGrids(changes, this.autopilot_ ? AUTO_VARIATIONS[this.autoVar_] ?? {} : {}, this.percussionist_);
   }
+}
+
+/** De standen voor maat `bar` (absoluut vanaf de start) van een sectie met
+ *  een B-maat: oneven = de B-standen, even = voor dezelfde knoppen de
+ *  A-waarde uit `changes`. Zonder B-maat niets. */
+export function abChanges(section: Section, bar: number): Change[] {
+  const b = section.b;
+  if (!b?.length) return [];
+  if (bar % 2 === 1) return b;
+  return b.flatMap((ch) => {
+    const a = section.changes.find((c) => c.module === ch.module && c.control === ch.control);
+    return a ? [a] : [];
+  });
 }
 
 /** De Level-knoppen van een paar stems aan (hun niveau) of uit (0). */

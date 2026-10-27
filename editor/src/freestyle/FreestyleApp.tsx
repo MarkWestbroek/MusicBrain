@@ -170,7 +170,7 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
       // De klok uit: de ringbuffers pauzeren (de staart van een seconde mag mee).
       const run = f.changes.find((c) => c.module === 'clock' && c.control === 'run');
       if (run && run.value === false) window.setTimeout(() => recorder.pause(), 1000);
-      setLog(f.label);
+      if (f.label) setLog(f.label);
     }, delay);
   }, [engine, rig, recorder]);
 
@@ -326,7 +326,10 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
           <div key={bar} style={{ width: phone ? 48 : 70, height: 10, borderRadius: 3, background: running && pos.bar === bar ? AMBER : running && bar < pos.bar ? '#4b5563' : '#1f2937' }} />
         ))}
       </div>
-      <div style={{ fontSize: 13, color: DIM, marginTop: 6 }}>{running ? `bar ${pos.bar + 1} of 4 · phrase ${pos.phrase + 1}` : 'stopped'}</div>
+      <div style={{ fontSize: 13, color: DIM, marginTop: 6 }}>
+        {running ? `bar ${pos.bar + 1} of 4 · phrase ${pos.phrase + 1}` : 'stopped'}
+        {running && perf.hasAb && <span style={{ ...MONO, marginLeft: 10, color: FG }} title="Call and answer: the bass line alternates A and B every bar">{pos.bar % 2 ? 'B' : 'A'}</span>}
+      </div>
     </>
   );
 

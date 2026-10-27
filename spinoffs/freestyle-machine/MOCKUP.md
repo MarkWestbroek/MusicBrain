@@ -44,7 +44,10 @@ tweede EUCLID voor akkoord- en lijnslagen, de motiefsequencer als lijn op
 stem 5, sustainpedaal en padgate uit de Div-puls van de klok, 90 % van de
 maat hoog) en een Mellotron-fluitpad (`pad`: tape strip op gu-flute, bank
 07, één noot per maat; de pagina laadt de bank met `ensureSamplerBank`, de
-patch vraagt hem via `simBanks`). Het pad hoort bij de MOTIF-knop.
+patch vraagt hem via `simBanks`). Het pad hoort bij de MOTIF-knop. Na
+Marks tweede luisterbeurt: de bas in **A- en B-maten** (§2, `Section.b`):
+verse A C E♭ C E♭ A♭ G / B C E♭ C E♭ C + rust, hook A G1 C2 A♭1 G1 G1 A♭1 /
+B G1 C2 G1 A♭1 G1; e-piano iets zachter (KEYS-mixer 0,75).
 FILL-verfijning en de beatbox-laag staan open. Marks vraag naar een
 formaat voor de hele take (muziek + stem + instellingen) is geparkeerd:
 het zou een eventlog (stijl, tempo, elke gewapende actie met tel) naast de
@@ -107,6 +110,18 @@ Wat ze gemeen hebben, en wat de generator dus moet kunnen:
   frasegrenzen hangen.
 - **De DJ-trucs zijn weinig en simpel:** beat wegtrekken voor een punchline
   en op de 1 terugbrengen, een fill aan het eind van de 4, naar de hook.
+- **Rap denkt in vraag en antwoord (A en B)** (inzicht Mark, 2026-10-27,
+  bij het inspelen van de bas voor Acid hop II): een regel is één maat, en
+  de regels komen in paren, melodisch en soms ook harmonisch. A: "ik rap me
+  helemaal suf hier achter de computer", B: "ik ga de hele nacht door,
+  niemand ziet hoe ik hier ploeter". De begeleiding doet dat mee: de bas
+  (en wie wil het motief) wisselt per maat A-B-A-B, met hetzelfde begin en
+  een ander slot: A loopt weg (A♭ G), B landt op de grondtoon en rust.
+  Ontwerpprincipe: een sectie heeft naast zijn standen een **B-maat**
+  (`Section.b`), de bedieningslaag zet die op elke oneven maat en de
+  A-waarden op de even maat (`abChanges` in `performance.ts`); het scherm
+  toont A/B naast de maatteller. Eerst alleen in Acid hop II; voor V1 en
+  het motief apart met Mark te besluiten.
 - **Het BeatBuddy-pedaal heeft de bediening al uitgevonden** (voor
   gitaristen): één schakelaar, tik = fill, vasthouden = overgang naar het
   volgende deel (landt op de maat), dubbeltik = einde. De tweede generatie

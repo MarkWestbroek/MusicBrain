@@ -56,7 +56,7 @@ describe('freestyle-patch', () => {
   });
 
   it('acid hop II: slagpatronen van bas en toetsen per sectie', () => {
-    const bass: Record<string, number[]> = { INTRO: [0, 3, 6, 9, 12, 14], VERSE: [0, 3, 6, 9, 12, 14], HOOK: [0, 3, 6, 9, 12], BREAK: [0, 6, 12, 14] };
+    const bass: Record<string, number[]> = { INTRO: [0, 3, 6, 9, 12, 14], VERSE: [0, 3, 6, 9, 12, 14], HOOK: [0, 3, 6, 9, 12, 14], BREAK: [0, 6, 12, 14] };
     const chord: Record<string, number[]> = { INTRO: [0], VERSE: [0], HOOK: [], BREAK: [0] };
     const line: Record<string, number[]> = { INTRO: [], VERSE: [6, 14], HOOK: [0, 2, 4, 6, 8, 10, 12, 14], BREAK: [14] };
     const v = (s: { changes: Change[] }, module: string, control: string): unknown => s.changes.find((c) => c.module === module && c.control === control)?.value;
@@ -70,6 +70,19 @@ describe('freestyle-patch', () => {
       expect(v(s, 'motifSeq', 's1'), s.name).toBe(v(s, 'motifSeq', 's2'));
       expect(v(s, 'bassSeq', 'length'), s.name).toBe(euclidHits(s.changes).length + 1);
     }
+    // Vraag en antwoord: verse en hook hebben een B-maat; elke B-knop heeft een A-waarde.
+    for (const style of STYLES) {
+      for (const s of style.sections) {
+        for (const ch of s.b ?? []) expect(s.changes.some((c) => c.module === ch.module && c.control === ch.control), `${style.id}/${s.name}: B zonder A voor ${ch.module}.${ch.control}`).toBe(true);
+      }
+    }
+    const verseB = ACID_HOP_2.sections[1]!.b!;
+    expect(euclidHits(verseB)).toEqual([0, 3, 6, 9, 12]);
+    expect([2, 3, 4, 5, 6].map((i) => verseB.find((c) => c.module === 'bassSeq' && c.control === `s${i}`)?.value)).toEqual([0, 3, 0, 3, 0]);
+    const hookB = ACID_HOP_2.sections[2]!.b!;
+    expect(euclidHits(hookB)).toEqual([0, 3, 6, 9, 12]);
+    expect([2, 3, 4, 5, 6].map((i) => hookB.find((c) => c.module === 'bassSeq' && c.control === `s${i}`)?.value)).toEqual([-5, 0, -5, -4, -5]);
+    expect(ACID_HOP_2.sections[0]!.b).toBeUndefined();
     // De hook: het neergebroken akkoord A♭5 G5 E♭5 D5 C5 G4 E♭4 D4 (t.o.v. C5).
     const hook = ACID_HOP_2.sections[2]!;
     expect([2, 3, 4, 5, 6, 7, 8, 9].map((i) => v(hook, 'motifSeq', `s${i}`))).toEqual([8, 7, 3, 2, 0, -5, -9, -10]);

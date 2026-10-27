@@ -167,7 +167,8 @@ export function buildFreestyleRig(style: Style, base: ModularProject = seedInter
   const controlState: Patch['controlState'] = Object.fromEntries(keys.map((k) => [mod[k].id, state[k]]));
   controlState[mixer1.id] = { vol1: 0.9, pan1: 0, vol2: 0.85, pan2: 0, vol3: 0.8, pan3: 0.1, vol4: 0.7, pan4: -0.15 };
   controlState[mixer2.id] = { vol1: 1, pan1: -1, vol2: 1, pan2: 1, vol3: 0.8, pan3: -1, vol4: 0.8, pan4: 1 };
-  controlState[keysMix.id] = { vol1: 1, pan1: -1, vol2: 1, pan2: 1, vol3: 0.9, pan3: -1, vol4: 0.9, pan4: 1 };
+  // E-piano iets zachter dan het pad (Mark, 2026-10-27).
+  controlState[keysMix.id] = { vol1: 0.75, pan1: -1, vol2: 0.75, pan2: 1, vol3: 0.9, pan3: -1, vol4: 0.9, pan4: 1 };
   controlState[out.id] = { level: 0.85 };
 
   const patch: Patch = {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { DROP_DOWN_S, Performance, START_LEAD_S } from './performance';
-import { TRAP, type Change } from './style';
+import { DROP_DOWN_S, Performance, START_LEAD_S, abChanges } from './performance';
+import { ACID_HOP_2, TRAP, type Change } from './style';
 
 const BEAT = 60 / TRAP.bpm;          // 140 bpm
 const BAR = 4 * BEAT;
@@ -113,6 +113,40 @@ describe('Performance', () => {
     const fired = runUntil(perf, t0 + BEAT, t0 + BAR);
     expect(fired.map((f) => f.changes.map((c) => `${c.module}=${c.value}`).join())).toEqual(['kick=0', 'bass=0']);
     expect(perf.stems).toMatchObject({ kick: false, bass: false, hats: true });
+  });
+
+  it('vraag en antwoord: een sectie met B-maat wisselt per maat, zonder B-maat gebeurt er niets', () => {
+    // TRAP heeft geen B-maat: de maatwissels leveren geen pakketjes.
+    const { perf, t0 } = started();
+    expect(runUntil(perf, t0, t0 + 2 * BAR + BEAT)).toEqual([]);
+    // Acid hop II: INTRO zonder B, VERSE met B: na NEXT wisselt de bas per maat.
+    const p2 = new Performance(ACID_HOP_2);
+    const beat2 = 60 / ACID_HOP_2.bpm, bar2 = 4 * beat2, phrase2 = 4 * bar2;
+    const s0 = p2.start(10).at;
+    const run = (from: number, until: number): ReturnType<Performance['tick']> => {
+      const out: ReturnType<Performance['tick']> = [];
+      for (let t = from; t <= until + 1e-9; t += beat2 / 2) out.push(...p2.tick(t));
+      return out;
+    };
+    expect(run(s0, s0 + 2 * bar2 + beat2)).toEqual([]);                 // INTRO: geen B
+    expect(p2.hasAb).toBe(false);
+    p2.next(s0 + 2 * bar2 + beat2);
+    const fired = run(s0 + 2 * bar2 + beat2, s0 + phrase2 + 2 * bar2 + beat2);
+    expect(p2.section.name).toBe('VERSE');
+    expect(p2.hasAb).toBe(true);
+    // Op de 1 van de frase (maat 4, even) landt met de sectie ook de A-maat; dan B, A.
+    const ab = fired.filter((f) => f.label === '');
+    expect(ab.map((f) => f.at.toFixed(3))).toEqual([0, 1, 2].map((n) => (s0 + phrase2 + n * bar2).toFixed(3)));
+    const fill1 = (f: Change[]): unknown => f.find((c) => c.module === 'bassGate' && c.control === 'fill_1')?.value;
+    const s6 = (f: Change[]): unknown => f.find((c) => c.module === 'bassSeq' && c.control === 's6')?.value;
+    expect([fill1(ab[0]!.changes), s6(ab[0]!.changes)]).toEqual([5, 8]);   // A: [14,5,0], … A♭
+    expect([fill1(ab[1]!.changes), s6(ab[1]!.changes)]).toEqual([1, 0]);   // B: [6,1,0] + …, … C
+    expect([fill1(ab[2]!.changes), s6(ab[2]!.changes)]).toEqual([5, 8]);   // A
+    // abChanges zelf: oneven = B, even = de A-waarden van dezelfde knoppen.
+    const verse = ACID_HOP_2.sections[1]!;
+    expect(abChanges(verse, 3)).toBe(verse.b);
+    expect(abChanges(verse, 4)).toHaveLength(verse.b!.length);
+    expect(abChanges(ACID_HOP_2.sections[0]!, 1)).toEqual([]);
   });
 
   it('Autopilot: in de derde frase valt de bas de laatste maat weg en komt op de 1 terug', () => {
