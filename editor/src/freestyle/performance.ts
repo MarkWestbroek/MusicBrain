@@ -10,7 +10,7 @@
 
 import { ArmQueue, BarClock, DEFAULT_METER, type Boundary, type Meter } from './barClock';
 import { stemChanges } from './freestylePatch';
-import { PERCUSSIONIST_HH_SCALE, STEM_LABEL, STEM_LEVELS, tempoChanges, type Change, type Section, type SectionRole, type Stem, type Style } from './style';
+import { PERCUSSIONIST_HH_SCALE, STEM_LABEL, stemLevels, tempoChanges, type Change, type Section, type SectionRole, type Stem, type Style } from './style';
 
 export interface Fired {
   /** Contexttijd waarop dit moet klinken. */
@@ -361,7 +361,7 @@ export class Performance {
       }
       case 'stem': {
         this.stems_ = { ...this.stems_, [p.stem]: p.on };
-        return { at, label: `${STEM_LABEL[p.stem]} ${p.on ? 'on' : 'off'}`, changes: levelChanges([p.stem], p.on) };
+        return { at, label: `${STEM_LABEL[p.stem]} ${p.on ? 'on' : 'off'}`, changes: levelChanges([p.stem], p.on, this.style) };
       }
       case 'fill-on':
         this.fill_ = true;
@@ -442,21 +442,21 @@ export class Performance {
     // overlappen (de bas van frase 7 komt terug op de 1 waar de breakdown
     // van frase 8 begint).
     this.queue.armAt(Math.round(this.clock.beatAt(at)) + p.bars * this.clock.unit('bar'), { type: 'auto-unmute', stems });
-    return levelChanges(stems, false);
+    return levelChanges(stems, false, this.style);
   }
   /** Wat de Autopilot tijdelijk uit had weer aan (standaard alles), voor
    *  zover de rapper het intussen niet zelf uitzette. */
   private unmuteChanges(stems: readonly Stem[] = this.tempMuted_): Change[] {
     const back = this.tempMuted_.filter((s) => stems.includes(s) && this.stems_[s]);
     this.tempMuted_ = this.tempMuted_.filter((s) => !stems.includes(s));
-    return levelChanges(back, true);
+    return levelChanges(back, true, this.style);
   }
 
   /** Alle standen van een sectie: haar knoppen (met percussionist-correctie)
    *  en de stem-niveaus. */
   private sectionChanges(i: number): Change[] {
     const s = this.sectionAt(i);
-    return [...this.withPercussionist(s.changes), ...stemChanges(s.stems)];
+    return [...this.withPercussionist(s.changes), ...stemChanges(s.stems, this.style)];
   }
   /** Alleen de Grids-standen van een sectie (na een fill, of percussionist aan/uit). */
   private gridsChanges(i: number): Change[] {
@@ -482,9 +482,9 @@ export function abChanges(section: Section, bar: number): Change[] {
   });
 }
 
-/** De Level-knoppen van een paar stems aan (hun niveau) of uit (0). */
-function levelChanges(stems: Stem[], on: boolean): Change[] {
-  return stems.flatMap((s) => STEM_LEVELS[s].map((l) => ({ module: l.module, control: l.control, value: on ? l.level : 0 })));
+/** De Level-knoppen van een paar stems aan (hun niveau in deze stijl) of uit (0). */
+function levelChanges(stems: Stem[], on: boolean, style?: Style): Change[] {
+  return stems.flatMap((s) => stemLevels(style)[s].map((l) => ({ module: l.module, control: l.control, value: on ? l.level : 0 })));
 }
 
 /** De Grids-standen met de correcties van dit moment: de Autopilot-variatie

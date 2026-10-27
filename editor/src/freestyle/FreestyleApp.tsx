@@ -64,7 +64,7 @@ const TOUR_STEPS: PlayTourStep[] = [
   step('fs-break', 'BREAK', 'One phrase of break, starting on the next 1, then it goes on to the other section by itself: verse → break → hook. Press again during the break for one more phrase. Pedal: right pedal twice, quickly.'),
   step('fs-fill', 'FILL', 'A one-bar fill, starting at the next bar.'),
   step('fs-stems', 'The five parts', 'KICK, SNARE, HATS, BASS and MOTIF. Tap a part to mute or unmute it at the next bar. An amber border means it changes at the next bar; tap again to cancel. Bass and hats alone is a classic breakdown.'),
-  step('fs-style', 'Style', 'Tap the style name to go to the next style: trap, boom bap, bounce, acid hop, acid hop II (with mellotron), dark trap (sliding 808). That stops the beat; press START again.'),
+  step('fs-style', 'Style', 'Tap the style name to go to the next style: trap, boom bap, bounce, acid hop, acid hop II (with mellotron), dark trap (sliding 808, synth stabs). That stops the beat; press START again.'),
   step('fs-perc', 'Playing with a percussionist', 'Tick this and the hi-hats get thinner, so a djembe or shaker fits in the gaps.'),
   step('fs-save', 'It is always recording', 'From the first START the last two minutes are kept. Was that take good? Tap SAVE and you get it as a WAV file. No need to press record first.'),
   step('fs-mic', 'Record your voice too', 'MIC adds the microphone to the recording, on its own track. SAVE then gives two files, beat and voice, to mix later. Use headphones for a clean voice track.'),

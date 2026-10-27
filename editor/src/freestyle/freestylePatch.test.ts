@@ -107,8 +107,11 @@ describe('freestyle-patch', () => {
     expect(v(brk, 'chord', 'chord')).toBe(9);
   });
 
-  it('dark trap: glijdende 808 via een slide-rij, akkoord op de grondtoon van het pad', () => {
+  it('dark trap: glijdende 808 via een slide-rij, Synthex-riff, akkoord op de grondtoon van het pad', () => {
     const r = buildFreestyleRig(DARK);
+    const seqLineOf = (changes: Change[]): number[] =>
+      Array.from({ length: Number(changes.find((c) => c.module === 'motifSeq' && c.control === 'length')?.value ?? 0) - 1 },
+        (_, i) => Number(changes.find((c) => c.module === 'motifSeq' && c.control === `s${i + 2}`)?.value));
     const from = (toKey: keyof typeof r.ids, port: string): string | undefined => {
       const c = r.patch.connections.find((x) => x.to.moduleId === r.ids[toKey] && x.to.portId === port);
       if (!c) return undefined;
@@ -124,6 +127,38 @@ describe('freestyle-patch', () => {
     expect(from('slideSeq', 'reset')).toBe('clock.bar');
     expect(from('slideGate', 'a')).toBe('slideSeq.cv');
     expect(from('bass', 'slide')).toBe('slideGate.gt');       // één blok ná de gate: aanslag op toon, dan de boog
+    // Vuil (Marks luisterbeurt 2026-10-27): de 808 door DRIVE naar de mixer; de
+    // SYNTHEX als riff (cel 1 uit de motiefsequencer op kanaal 1 van het
+    // toetsen-Euclid) mono door DRIVE → FET COMP → STEREO PHASER, dan stereo
+    // de KEYS-mixer in; de e-piano hangt nergens aan; de strijkers spelen het
+    // hele akkoord op vier strips.
+    expect(from('bassDrive', 'in')).toBe('bass.out');
+    expect(r.patch.connections.filter((x) => x.from.moduleId === r.ids.bass && x.from.portId === 'out')).toHaveLength(1);
+    expect(from('keysGate', 'clock')).toBe('clock.x4');
+    expect(from('keysGate', 'reset')).toBe('clock.bar');
+    expect(from('motifSeq', 'clock')).toBe('keysGate.out_1');
+    expect(from('synth', 'voct_1')).toBe('motifSeq.cv');
+    expect(from('synth', 'gate_1')).toBe('motifSeq.gate_out');
+    expect(from('keysDrive', 'in')).toBe('synth.out_l');
+    expect(from('keysComp', 'in_l')).toBe('keysDrive.out');
+    expect(from('keysPhaser', 'in_l')).toBe('keysComp.out_l');
+    expect(r.patch.connections.some((x) => x.from.moduleId === r.ids.piano || x.to.moduleId === r.ids.piano)).toBe(false);
+    const phaserOuts = r.patch.connections.filter((x) => x.from.moduleId === r.ids.keysPhaser).map((x) => x.from.portId).sort();
+    expect(phaserOuts).toEqual(['out_l', 'out_r']);
+    for (const k of [1, 2, 3, 4]) {
+      expect(from('pad', `voct_${k}`)).toBe(`chord.out${k}`);
+      expect(from('pad', `gate_${k}`)).toBe('clock.div');
+    }
+    expect(from('pad', 'voct_5')).toBeUndefined();
+    expect(r.patch.controlState[r.ids.motifSeq]?.root).toBe(54);
+    // Bij de andere stijlen hangen synth en vuil nergens aan.
+    for (const style of [TRAP, ACID_HOP_2]) {
+      const o = buildFreestyleRig(style);
+      for (const key of ['synth', 'bassDrive', 'keysDrive', 'keysComp', 'keysPhaser'] as const) {
+        expect(o.patch.connections.some((x) => x.from.moduleId === o.ids[key] || x.to.moduleId === o.ids[key]), `${style.id}/${key}`).toBe(false);
+      }
+      expect(o.patch.connections.some((x) => x.from.moduleId === o.ids.bass && x.from.portId === 'out')).toBe(true);
+    }
     expect(r.patch.controlState[r.ids.bassSeq]?.gate).toBe(0.95);
     // De gate korter dan een zestiende (107 ms op 140): rate 10,4 → 91 ms.
     expect(slideBassRate(140)).toBe(10.43);
@@ -133,10 +168,9 @@ describe('freestyle-patch', () => {
     // Een tempowissel neemt de rate mee; bij de andere stijlen alleen de klok.
     expect(tempoChanges(DARK, 150)).toEqual([{ module: 'clock', control: 'tempo', value: 150 }, { module: 'bassSeq', control: 'rate', value: slideBassRate(150) }]);
     expect(tempoChanges(TRAP, 150)).toEqual([{ module: 'clock', control: 'tempo', value: 150 }]);
-    // CHORD volgt de padsequencer (F♯2), het pad op de Mellotron-strijkers (bank 3).
+    // CHORD volgt de padsequencer (F♯3), het pad op de Mellotron-strijkers (bank 3).
     expect(from('chord', 'voct')).toBe('padSeq.cv');
-    expect(from('pad', 'voct_1')).toBe('padSeq.cv');
-    expect(r.patch.controlState[r.ids.padSeq]?.root).toBe(42);
+    expect(r.patch.controlState[r.ids.padSeq]?.root).toBe(54);
     expect(r.patch.simBanks).toEqual({ '3': 'gu-strings.mmbs' });
     // Acid hop II houdt CHORD los (C4).
     const ah2 = buildFreestyleRig(ACID_HOP_2);
@@ -174,10 +208,23 @@ describe('freestyle-patch', () => {
     expect(releases(outro.changes)).toEqual([15]);
     // Elke B-knop bestaat ook in A.
     for (const s of DARK.sections) for (const ch of s.b ?? []) expect(s.changes.some((a) => a.module === ch.module && a.control === ch.control), `${s.name}: ${ch.module}.${ch.control}`).toBe(true);
-    // Toetsen: akkoord op de 1, de lijn op 8 (A), in B alleen het akkoord.
-    expect(euclidHits(verse.changes, 'keysGate', [1])).toEqual([0]);
-    expect(euclidHits(verse.changes, 'keysGate', [2])).toEqual([8]);
-    expect(euclidHits([...verse.changes.filter((c) => !verse.b!.some((b) => b.module === c.module && b.control === c.control)), ...verse.b!], 'keysGate', [2])).toEqual([]);
+    // Toetsen: de riff op het dubbele tresillo (0·3·6·8·11·14) in vers en hook,
+    // schaars in intro en break (0·6·11), twee per maat in de outro; de
+    // motiefsequencer heeft per slag een noot (plus de kopie op stap 1).
+    const tresillo = [0, 3, 6, 8, 11, 14];
+    expect(euclidHits(verse.changes, 'keysGate', [1])).toEqual(tresillo);
+    expect(euclidHits(hook.changes, 'keysGate', [1])).toEqual(tresillo);
+    expect(euclidHits(DARK.sections[0]!.changes, 'keysGate', [1])).toEqual([0, 6, 11]);
+    expect(euclidHits(DARK.sections[3]!.changes, 'keysGate', [1])).toEqual([0, 6, 11]);
+    expect(euclidHits(outro.changes, 'keysGate', [1])).toEqual([0, 8]);
+    for (const s of DARK.sections) {
+      expect(euclidHits(s.changes, 'keysGate', [2, 3]), s.name).toEqual([]);
+      const n = euclidHits(s.changes, 'keysGate', [1]).length;
+      expect(s.changes.find((c) => c.module === 'motifSeq' && c.control === 'length')?.value, s.name).toBe(n + 1);
+    }
+    expect(seqLineOf(verse.changes)).toEqual([0, 0, 3, 0, 5, 3]);
+    expect(seqLineOf(verse.b!)).toEqual([0, 0, 3, 0, -2, -4]);
+    expect(seqLineOf(hook.changes)).toEqual([7, 7, 8, 7, 3, 0]);
     expect(DARK.sections[0]!.stems.bass).toBe(false);
     expect(DARK.sections[3]!.stems.bass).toBe(false);
   });

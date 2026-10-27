@@ -70,16 +70,35 @@ glijdt erheen zonder aanslag, laag (altijd op een stille zestiende) = los.
 Drie slagen met verschillende noten zijn een glijder, dezelfde noot herhaald
 een liggende toon. Vers A: A1↘G♯1↘F♯1 · A2 ligt 4–10 · G♯1↘G1↘F♯1; B landt
 E1↘D1↘C♯1; hook: de glijder twee keer per maat, dan C♯2 (A) of C♯1 en A2
-(B). Toetsen: e-piano-akkoord F♯m/kwint op de 1 (CHORD volgt de
-padsequencer, `chordRoot: 'pad'`), pedaal twee maten in (Div 32), één
-lijnnoot per twee maten, Mellotron-strijkers (gu-strings, bank 3) op F♯2.
-Vorm: intro zonder sub, break = sub en kick weg, outro = melodie voorop met
-de bas liggend op F♯1. Gemeten in de browser (nuldoorgangen per 10 ms):
+(B). Vorm: intro zonder sub, break = sub en kick weg, outro = melodie
+voorop met de bas liggend op F♯1. Gemeten in de browser (nuldoorgangen per 10 ms):
 aanslag op toon, de glijder loopt in twee zestienden door naar F♯1, de
 octaaf ligt, rusten op 3, 11 en 15. Timingles: de slide-rij moet één blok
 ná de bas-gate aankomen (de kernel leest Slide vóór Gate), anders glijdt
 een nieuwe aanslag vanaf de oude toon; vandaar de LOGIC-stap en de klok uit
 EUCLID-kanaal 2.
+Tweede ronde na Marks luisterbeurt (dezelfde dag; strijkers onherkenbaar,
+bas bijna onhoorbaar op een telefoon, e-piano "een tapijtje onder je
+voeten" waar hij "in your face" wil): de e-piano is eruit. De voorgrond is
+de SYNTHEX (`keys: 'riff'`; Mark gaf SID of Synthex op, Synthex gekozen om
+de twee zaagtanden met het vierpolige filter en de lage kosten van één
+stem): korte harde stoten op het dubbele tresillo (toetsen-Euclid
+[16, 6, 0] = zestiende 0·3·6·8·11·14, de motiefsequencer stapt erop) op
+F♯3 met 16'-zaag eronder, filter halfopen met resonantie en een snelle
+filterenvelope, dan DRIVE (OD) → FET COMP (input +12 dB, attack en release
+snel, 12:1, pompend) → STEREO PHASER (0,12 Hz) → KEYS-mixer → galm
+(`keysFx: 'dirty'`). Riff vers A F♯ F♯ A F♯ C♯ A, B … E D; hook C♯ C♯ D C♯
+A F♯ (de halve toon D–C♯ dreigt), B … E C♯; intro en break schaars (0·6·11),
+outro twee per maat. De Mellotron-strijkers blijven als duistere laag maar
+een octaaf hoger en als heel akkoord: CHORD op F♯3 (gesloten: F♯3 A3 C♯4
+F♯4) op vier strips (`padVoices: 'chord'`), met een eigen stem-niveau
+(`Style.levels`). De 808 gaat door DRIVE in de Dist-stand (`bassFx:
+'drive'`, drive 0,45, mix 0,6): de boventonen op 139–323 Hz maken hem
+hoorbaar op een telefoon. Gemeten: energie 280–1100 Hz van −34/−57 dB naar
+−13/−21 dB t.o.v. het totaal; de rusten blijven, maar korter (50–65 ms van
+de 107: vervorming houdt de staart van een noot op niveau, dus niet harder
+knijpen); synth en strijkers solo piek −14 dBFS tegen −10 voor de bas (was
+−23). Luisteroordeel open.
 FILL-verfijning en de beatbox-laag staan open. Marks vraag naar een
 formaat voor de hele take (muziek + stem + instellingen) is geparkeerd:
 het zou een eventlog (stijl, tempo, elke gewapende actie met tel) naast de
@@ -289,7 +308,7 @@ andere patch.
 | Boom bap | 80–95 (standaard 88) | droog, op 1 en de "en" | op 2 en 4, swing | achtsten, open hat op de 4 | How Many Mics |
 | Bounce | 95–105 (standaard 100) | gesyncopeerd, stotterend | op 2 en 4, rimshot | dun, offbeat | Cop That Shit |
 | Acid hop / Acid hop II | 75 / 78 | droog | op 2 en 4 | zestienden | Marks Logic-opnamen (C mineur, 303) |
-| Dark trap | 70 (140) | 808 uit Euclid met slide-rij, glijdt omlaag tussen de tellen | strak op de 3, roffel als fill | strakke achtsten | Molly (techniek, niet de noten) |
+| Dark trap | 70 (140) | 808 uit Euclid met slide-rij, glijdt omlaag tussen de tellen, door Drive; Synthex-stoten op het dubbele tresillo | strak op de 3, roffel als fill | strakke achtsten | Molly (techniek, niet de noten) |
 
 Een schakelaar **half-time/dubbel** verdubbelt alleen de hats, zodat 72
 en 144 dezelfde beat zijn met andere hats.
@@ -420,8 +439,8 @@ stand (de vriend is Pools; UK English volstaat, zie
 | Bestand | Wat |
 |---|---|
 | `editor/src/freestyle/barClock.ts` | `BarClock` (tel/maat/frase op de contextklok, tempowissel zonder sprong) en `ArmQueue` (gewapende acties per tel) |
-| `editor/src/freestyle/style.ts` | `Stem` (vijf), `Change`, `Section` (met `role` en `b`), `Style` (met `bass: 'kick' \| 'euclid' \| 'slide'`, `keys: 'motif' \| 'chords'`, `pad`, `chordRoot`); de stijlen TRAP (140, Grids op x2), BOOM_BAP (88, swing), BOUNCE (100), ACID_HOP (75, bas uit Euclid), ACID_HOP_2 (78, akkoorden + Mellotron) en DARK (140, glijdende 808 via de slide-rij), elk met intro/vers/hook/break (en outro), eigen klank (`sound`) en fill; `euclidHits()` rekent de slagpatronen na, `slideBassRate()`/`tempoChanges()` houden de bas-gate korter dan een zestiende |
-| `editor/src/freestyle/freestylePatch.ts` | bouwt de vaste patch (Clock → Grids → Peaks ×3 + Acid, bas per kick of via Euclid → Seq-gate; e-piano als motief op de accenten of als akkoorden via CHORD + tweede Euclid; tape strip-pad op `bar`/Div; alles via Reverb) |
+| `editor/src/freestyle/style.ts` | `Stem` (vijf), `Change`, `Section` (met `role` en `b`), `Style` (met `bass: 'kick' \| 'euclid' \| 'slide'`, `keys: 'motif' \| 'chords'`, `pad`, `chordRoot`); de stijlen TRAP (140, Grids op x2), BOOM_BAP (88, swing), BOUNCE (100), ACID_HOP (75, bas uit Euclid), ACID_HOP_2 (78, akkoorden + Mellotron) en DARK (140, glijdende 808 via de slide-rij door Drive, Synthex-riff door Drive → FET comp → Stereo phaser, strijkersakkoord), elk met intro/vers/hook/break (en outro), eigen klank (`sound`), stem-niveaus (`levels`) en fill; `euclidHits()` rekent de slagpatronen na, `slideBassRate()`/`tempoChanges()` houden de bas-gate korter dan een zestiende, `stemLevels()` geeft de niveaus van een stijl |
+| `editor/src/freestyle/freestylePatch.ts` | bouwt de vaste patch (Clock → Grids → Peaks ×3 + Acid, bas per kick of via Euclid → Seq-gate, met slide-rij en Drive waar de stijl dat vraagt; e-piano als motief op de accenten of als akkoorden via CHORD + tweede Euclid, of de Synthex als riff op dat Euclid door Drive → FET comp → Stereo phaser; tape strip-pad op `bar`/Div, één noot of het CHORD-akkoord; alles via Reverb) |
 | `editor/src/freestyle/performance.ts` | `Performance`: start/stop, DROP (direct omlaag, terug op de tel), NEXT (frase), stems (maat), FILL (één maat), TAP, percussionist, Autopilot (variaties, fill, tijdelijke mutes `AUTO_MUTES`); geeft `Fired`-pakketjes terug |
 | `editor/src/freestyle/FreestyleApp.tsx` | het scherm en de toetsen; plant de pakketjes op de `AudioEngine`; stijlkeuze (tik/S = volgende) bouwt de patch opnieuw (stopt de beat); laptop- en telefoonlayout (≤ 700 px) met grote DROP/NEXT/FILL-knoppen |
 | `editor/src/freestyle/ringRecorder.test.ts` | de ringbuffer-trim (`trimParts` in `sim/wavRecorder.ts`) |

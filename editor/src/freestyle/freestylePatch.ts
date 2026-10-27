@@ -12,6 +12,10 @@
 //   (bass 'slide':)  EUCLID kanaal 1 ─▶ bas-SEQ clock; kanaal 2 (elke zestiende) ─▶ slide-SEQ (reset op bar) ─cv─▶ LOGIC gt ─▶ ACID slide
 //   GRIDS sd ─▶ PEAKS snare        GRIDS hh ─▶ PEAKS hat
 //   GRIDS acc ─▶ motief-SEQ clock ─▶ E-PIANO stem 1 ─▶ REVERB
+//   (keys 'riff':)   CLOCK x4 ─▶ toetsen-EUCLID kanaal 1 ─▶ motief-SEQ clock ─cv/gate─▶ SYNTHEX cel 1 (geen e-piano)
+//   (keysFx 'dirty':) toetsen L ─▶ DRIVE ─▶ FET COMP ─▶ STEREO PHASER ─L/R─▶ KEYS-mixer (of REVERB)
+//   (bassFx 'drive':) ACID out ─▶ DRIVE ─▶ MIXER 1 (in plaats van ACID rechtstreeks)
+//   (padVoices 'chord':) CHORD out1–4 ─▶ PAD strip 1–4 (gate = Div), in plaats van de padsequencer op strip 1
 //   drums + bas ─▶ MIXER 1 ─▶ MIXER 2 ◀─ REVERB ─▶ OUT
 //
 // Muten gaat via de Level-knop van de wasm-modules (de mixer is web-audio en
@@ -25,7 +29,7 @@ import {
   emptyModularProject,
   type ControlValue, type ModularProject, type ModuleInstance, type Patch, type PatchConnection, type Rack, type RackSlot,
 } from '../modular-mb/types';
-import { STEMS, STEM_LEVELS, type Change, type ModuleKey, type Style } from './style';
+import { STEMS, stemLevels, type Change, type ModuleKey, type Style } from './style';
 
 export interface FreestyleRig {
   project: ModularProject;
@@ -39,6 +43,7 @@ export const RIG_TYPES: Record<ModuleKey, string> = {
   bass: 'tp_mmb_acid', bassSeq: 'tp_mmb_seq8', bassGate: 'tp_mmb_euclid', motifSeq: 'tp_mmb_seq8', piano: 'tp_mmb_epiano', reverb: 'tp_mmb_reverb',
   chord: 'tp_mmb_chord', keysGate: 'tp_mmb_euclid', pad: 'tp_mmb_tapestrip', padSeq: 'tp_mmb_seq8',
   slideSeq: 'tp_mmb_seq8', slideGate: 'tp_mmb_logic',
+  synth: 'tp_mmb_synthex', bassDrive: 'tp_mmb_drive', keysDrive: 'tp_mmb_drive', keysComp: 'tp_mmb_fet_comp', keysPhaser: 'tp_mmb_stereo_phaser',
 };
 
 /** Vaste standen (klank), los van de secties. */
@@ -74,6 +79,18 @@ function baseState(): Record<ModuleKey, Record<string, ControlValue>> {
     slideSeq: { root: 60, rate: 4, gate: 0.5, length: 16, run: 0 },
     // LOGIC `gt` met B los: A > drempel, dus van de rij (0 of 1 V) een gate.
     slideGate: { thresh: 0.5 },
+    // Synth en vuil (alleen bekabeld bij keys 'riff' / bassFx / keysFx):
+    // neutrale standen (de fabrieksstanden van de modules), de stijl zet ze
+    // in `sound`.
+    synth: {
+      o1_oct: 2, o1_wave: 0, o1_level: 10, o2_oct: 2, o2_wave: 0, o2_level: 8, o2_transpose: 0, o2_detune: 6, pw: 0.3, noise: 0,
+      freq: 6, res: 2, env_amt: 4, kbd: 3, mode: 0, fa: 0.5, fd: 5, fs: 6, fr: 4, aa: 0.5, ad: 5, as: 8, ar: 4,
+      lfo_rate: 5, lfo_wave: 0, lfo_osc: 0, lfo_pw: 0, lfo_vcf: 0, lfo_vca: 0, glide: 0, tune: 0, chorus: true, sync: false, ring: false, level: 0.8,
+    },
+    bassDrive:  { mode: 0, drive: 0.5, tone: 0.5, level: 0.5, mix: 1 },
+    keysDrive:  { mode: 0, drive: 0.5, tone: 0.5, level: 0.5, mix: 1 },
+    keysComp:   { input: 0, output: 0, attack: 4, release: 4, ratio: 0, color: 1, mix: 1, bypass: 0 },
+    keysPhaser: { rate: 0.4, depth: 0.7, feedback: 0.3, spread: 0.5, mix: 0.5 },
   };
 }
 
@@ -105,7 +122,7 @@ export function buildFreestyleRig(style: Style, base: ModularProject = seedInter
   };
   const rack: Rack = {
     id: uid('rack'), name: `Freestyle · ${style.name}`,
-    description: `Clock → Grids → Peaks ×3 + Acid (bas ${style.bass === 'kick' ? 'per kick' : style.bass === 'slide' ? 'uit Euclid, met slide-rij' : 'uit Euclid'}); accenten → Seq → E-piano → Reverb.`,
+    description: `Clock → Grids → Peaks ×3 + Acid (bas ${style.bass === 'kick' ? 'per kick' : style.bass === 'slide' ? 'uit Euclid, met slide-rij' : 'uit Euclid'}${style.bassFx ? ', door Drive' : ''}); ${style.keys === 'riff' ? 'Euclid → Seq → Synthex' : 'accenten → Seq → E-piano'}${style.keysFx ? ' → Drive → FET comp → Stereo phaser' : ''} → Reverb.`,
     rows: 1, hpPerRow: Math.max(64, all.reduce((n, m) => n + m.visual.hpWidth, 0) + 4),
     slots: all.map(place), kind: 'physical',
   };
@@ -114,7 +131,16 @@ export function buildFreestyleRig(style: Style, base: ModularProject = seedInter
     id: uid('conn'), from: { moduleId: fm.id, portId: fp }, to: { moduleId: tm.id, portId: tp },
   });
   const m = mod;
+  // De toetsen: de e-piano, of (keys 'riff') de SYNTHEX. Als stereopaar
+  // rechtstreeks, of (keysFx) mono door DRIVE → FET COMP → STEREO PHASER, die
+  // er weer stereo van maakt ("mono in geeft stereo uit"; de compressor met
+  // alleen L is mono op beide).
+  const keysSrc = style.keys === 'riff' ? m.synth : m.piano;
+  const keysOut: ModuleInstance = style.keysFx ? m.keysPhaser : keysSrc;
   const connections: PatchConnection[] = [
+    ...(style.keysFx
+      ? [c(keysSrc, 'out_l', m.keysDrive, 'in'), c(m.keysDrive, 'out', m.keysComp, 'in_l'), c(m.keysComp, 'out_l', m.keysPhaser, 'in_l')]
+      : []),
     c(m.clock, style.gridsClock, m.grids, 'clock'),
     c(m.clock, 'bar', m.bassSeq, 'reset'),
     c(m.clock, 'bar', m.motifSeq, 'reset'),
@@ -144,8 +170,13 @@ export function buildFreestyleRig(style: Style, base: ModularProject = seedInter
     // stem 1–4, slag uit het toetsen-Euclid kanaal 1) met de motiefsequencer
     // als lijn op stem 5 (stapt op kanaal 2) en het sustainpedaal aan de
     // Div-puls van de klok (één per maat, 90 % hoog).
+    // Bij `riff` stapt de motiefsequencer op kanaal 1 van het toetsen-Euclid
+    // en speelt hij cel 1 van de SYNTHEX; de e-piano hangt dan nergens aan.
     ...(style.keys === 'motif'
       ? [c(m.grids, 'acc', m.motifSeq, 'clock'), c(m.motifSeq, 'cv', m.piano, 'voct_1'), c(m.motifSeq, 'gate_out', m.piano, 'gate_1')]
+      : style.keys === 'riff'
+      ? [c(m.clock, 'x4', m.keysGate, 'clock'), c(m.clock, 'bar', m.keysGate, 'reset'),
+        c(m.keysGate, 'out_1', m.motifSeq, 'clock'), c(m.motifSeq, 'cv', m.synth, 'voct_1'), c(m.motifSeq, 'gate_out', m.synth, 'gate_1')]
       : [
         c(m.clock, 'x4', m.keysGate, 'clock'), c(m.clock, 'bar', m.keysGate, 'reset'),
         ...([1, 2, 3, 4] as const).flatMap((k) => [c(m.chord, `out${k}`, m.piano, `voct_${k}`), c(m.keysGate, 'out_1', m.piano, `gate_${k}`)]),
@@ -153,15 +184,21 @@ export function buildFreestyleRig(style: Style, base: ModularProject = seedInter
         c(m.clock, 'div', m.piano, 'sustain'),
       ]),
     // Het pad: één noot per maat (padsequencer op `bar`), gate = de Div-puls.
-    // Met `chordRoot: 'pad'` volgt CHORD dezelfde CV (de toonsoort van de stijl).
+    // Met `chordRoot: 'pad'` volgt CHORD dezelfde CV (de toonsoort van de stijl);
+    // met `padVoices: 'chord'` spelen vier strips de vier uitgangen van CHORD.
     ...(style.pad
-      ? [c(m.clock, 'bar', m.padSeq, 'clock'), c(m.padSeq, 'cv', m.pad, 'voct_1'), c(m.clock, 'div', m.pad, 'gate_1'),
-        ...(style.chordRoot === 'pad' && style.keys === 'chords' ? [c(m.padSeq, 'cv', m.chord, 'voct')] : []),
-        c(m.piano, 'out_l', keysMix, 'in1'), c(m.piano, 'out_r', keysMix, 'in2'), c(m.pad, 'out_l', keysMix, 'in3'), c(m.pad, 'out_r', keysMix, 'in4'),
+      ? [c(m.clock, 'bar', m.padSeq, 'clock'),
+        ...(style.chordRoot === 'pad' ? [c(m.padSeq, 'cv', m.chord, 'voct')] : []),
+        ...(style.padVoices === 'chord' && style.chordRoot === 'pad'
+          ? ([1, 2, 3, 4] as const).flatMap((k) => [c(m.chord, `out${k}`, m.pad, `voct_${k}`), c(m.clock, 'div', m.pad, `gate_${k}`)])
+          : [c(m.padSeq, 'cv', m.pad, 'voct_1'), c(m.clock, 'div', m.pad, 'gate_1')]),
+        c(keysOut, 'out_l', keysMix, 'in1'), c(keysOut, 'out_r', keysMix, 'in2'), c(m.pad, 'out_l', keysMix, 'in3'), c(m.pad, 'out_r', keysMix, 'in4'),
         c(keysMix, 'out_l', m.reverb, 'in_l'), c(keysMix, 'out_r', m.reverb, 'in_r')]
-      : [c(m.piano, 'out_l', m.reverb, 'in_l'), c(m.piano, 'out_r', m.reverb, 'in_r')]),
+      : [c(keysOut, 'out_l', m.reverb, 'in_l'), c(keysOut, 'out_r', m.reverb, 'in_r')]),
     c(m.kick, 'out', mixer1, 'in1'),
-    c(m.bass, 'out', mixer1, 'in2'),
+    // De bas rechtstreeks de mixer in, of (bassFx) door DRIVE: de boventonen
+    // maken de 808 hoorbaar op een telefoon.
+    ...(style.bassFx ? [c(m.bass, 'out', m.bassDrive, 'in'), c(m.bassDrive, 'out', mixer1, 'in2')] : [c(m.bass, 'out', mixer1, 'in2')]),
     c(m.snare, 'out', mixer1, 'in3'),
     c(m.hat, 'out', mixer1, 'in4'),
     c(mixer1, 'out_l', mixer2, 'in1'),
@@ -183,18 +220,19 @@ export function buildFreestyleRig(style: Style, base: ModularProject = seedInter
   const first = style.sections[0];
   if (first) {
     for (const ch of first.changes) state[ch.module][ch.control] = ch.value;
-    for (const ch of stemChanges(first.stems)) state[ch.module][ch.control] = ch.value;
+    for (const ch of stemChanges(first.stems, style)) state[ch.module][ch.control] = ch.value;
   }
   const controlState: Patch['controlState'] = Object.fromEntries(keys.map((k) => [mod[k].id, state[k]]));
   controlState[mixer1.id] = { vol1: 0.9, pan1: 0, vol2: 0.85, pan2: 0, vol3: 0.8, pan3: 0.1, vol4: 0.7, pan4: -0.15 };
   controlState[mixer2.id] = { vol1: 1, pan1: -1, vol2: 1, pan2: 1, vol3: 0.8, pan3: -1, vol4: 0.8, pan4: 1 };
-  // E-piano iets zachter dan het pad (Mark, 2026-10-27).
-  controlState[keysMix.id] = { vol1: 0.75, pan1: -1, vol2: 0.75, pan2: 1, vol3: 0.9, pan3: -1, vol4: 0.9, pan4: 1 };
+  // E-piano iets zachter dan het pad (Mark, 2026-10-27); de synth-riff vol open.
+  const keysVol = style.keys === 'riff' ? 1 : 0.75;
+  controlState[keysMix.id] = { vol1: keysVol, pan1: -1, vol2: keysVol, pan2: 1, vol3: 0.9, pan3: -1, vol4: 0.9, pan4: 1 };
   controlState[out.id] = { level: 0.85 };
 
   const patch: Patch = {
     id: uid('patch'), name: `Freestyle · ${style.name}`,
-    description: `De vaste patch van de freestyle-machine (spinoffs/freestyle-machine/MOCKUP.md), stijl ${style.name}, ${style.bpm} bpm (${style.feel}). Grids stapt op ${style.gridsClock} van de klok${style.gridsClock === 'x2' ? ' (half-time: zijn 32 stappen zijn één frase van vier maten)' : ''}; ${style.bass === 'kick' ? 'elke kick slaat ook de 808-sub aan en schuift de baslijn een stap' : style.bass === 'slide' ? 'Euclid slaat de bas aan op een 3-van-4-raster en een slide-rij op de zestienden laat de 808 glijden en liggen' : 'Euclid op de zestienden slaat de bas aan en schuift de baslijn per slag'}; de accenten van Grids spelen het motief op de e-piano.`,
+    description: `De vaste patch van de freestyle-machine (spinoffs/freestyle-machine/MOCKUP.md), stijl ${style.name}, ${style.bpm} bpm (${style.feel}). Grids stapt op ${style.gridsClock} van de klok${style.gridsClock === 'x2' ? ' (half-time: zijn 32 stappen zijn één frase van vier maten)' : ''}; ${style.bass === 'kick' ? 'elke kick slaat ook de 808-sub aan en schuift de baslijn een stap' : style.bass === 'slide' ? 'Euclid slaat de bas aan op een 3-van-4-raster en een slide-rij op de zestienden laat de 808 glijden en liggen' : 'Euclid op de zestienden slaat de bas aan en schuift de baslijn per slag'}; ${style.keys === 'riff' ? 'de Synthex speelt de riff op het toetsen-Euclid' : 'de accenten van Grids spelen het motief op de e-piano'}.`,
     voiceCount: 1, rackIds: [rack.id], connections, controlState, tempo: style.bpm,
     envelopes: [], lfos: [],
     ...(style.pad ? { simBanks: { [String(style.pad.nn)]: style.pad.file } } : {}),
@@ -208,7 +246,9 @@ export function buildFreestyleRig(style: Style, base: ModularProject = seedInter
   return { project, patch, ids };
 }
 
-/** De Level-standen die bij een stem-stand horen (aan = niveau, uit = 0). */
-export function stemChanges(stems: Record<string, boolean>): Change[] {
-  return STEMS.flatMap((s) => STEM_LEVELS[s].map((l) => ({ module: l.module, control: l.control, value: stems[s] ? l.level : 0 })));
+/** De Level-standen die bij een stem-stand horen (aan = niveau, uit = 0);
+ *  met `style` de niveaus van die stijl (`Style.levels`). */
+export function stemChanges(stems: Record<string, boolean>, style?: Style): Change[] {
+  const levels = stemLevels(style);
+  return STEMS.flatMap((s) => levels[s].map((l) => ({ module: l.module, control: l.control, value: stems[s] ? l.level : 0 })));
 }

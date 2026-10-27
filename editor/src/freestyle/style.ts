@@ -26,7 +26,11 @@ export type ModuleKey =
    *  sequencer op de zestienden waarvan de CV (1 V of 0 V) via LOGIC `gt`
    *  (`slideGate`, de drempel maakt er een gate van en kost één blok) de
    *  Slide-ingang hoog of laag zet; zie `slideRow`. */
-  | 'slideSeq' | 'slideGate';
+  | 'slideSeq' | 'slideGate'
+  /** De voorgrondsynth (tp_mmb_synthex, alleen bekabeld bij `keys: 'riff'`)
+   *  en het vuil (alleen bij `bassFx` / `keysFx`): DRIVE achter de bas, en
+   *  achter de toetsen DRIVE → FET COMP → STEREO PHASER. */
+  | 'synth' | 'bassDrive' | 'keysDrive' | 'keysComp' | 'keysPhaser';
 
 export interface Change { module: ModuleKey; control: string; value: number | boolean }
 
@@ -84,8 +88,11 @@ export interface Style {
    *  Grids; `chords` = CHORD (C4 mineur, vast) op stem 1–4 met een eigen
    *  slagpatroon uit een tweede EUCLID (kanaal 1 = akkoord, kanaal 2 stapt de
    *  motiefsequencer als lijn op stem 5), sustainpedaal hoog 90 % van de maat
-   *  via de Div-uitgang van de klok. */
-  keys: 'motif' | 'chords';
+   *  via de Div-uitgang van de klok; `riff` = geen e-piano maar de SYNTHEX
+   *  (één cel) met de motiefsequencer als riff, die stapt op kanaal 1 van
+   *  het toetsen-Euclid: korte harde stoten, "in your face" (Mark over dark
+   *  trap, 2026-10-27). */
+  keys: 'motif' | 'chords' | 'riff';
   /** Mellotron-pad (tp_mmb_tapestrip) op een serverbank; de pagina laadt die
    *  bank (`ensureSamplerBank`) en de patch vraagt hem via `simBanks`. Eén
    *  noot per maat uit de padsequencer, gate = de Div-puls van de klok. */
@@ -94,6 +101,19 @@ export interface Style {
    *  dus C4 (acid hop II); `pad` = de CV van de padsequencer, zodat akkoord
    *  en pad dezelfde grondtoon hebben in een andere toonsoort (dark trap). */
   chordRoot?: 'pad';
+  /** Het pad speelt niet één noot maar het hele akkoord: de vier uitgangen
+   *  van CHORD op strip 1–4 (vraagt `chordRoot: 'pad'`), zodat strijkers als
+   *  strijkers lezen (Mark over dark trap, 2026-10-27). */
+  padVoices?: 'chord';
+  /** De bas door DRIVE (ACID → DRIVE → mixer): de boventonen maken een 808
+   *  op F♯1 hoorbaar op een telefoon, het klassieke 808-vervormingstrucje. */
+  bassFx?: 'drive';
+  /** De toetsen vuil: mono door DRIVE → FET COMP (snel, pompend) → STEREO
+   *  PHASER (langzaam), die er weer stereo van maakt, dan de galm in. */
+  keysFx?: 'dirty';
+  /** Een ander stem-niveau voor een module dan `STEM_LEVELS` (de stand als
+   *  de stem aan staat), bijvoorbeeld de strijkers luider in dark trap. */
+  levels?: Partial<Record<ModuleKey, number>>;
   /** Swing op de klok (0 = strak). */
   swing: number;
   /** Klankstanden van deze stijl (kick, snare, bas, piano, grondtonen): vast
@@ -110,9 +130,16 @@ export const STEM_LEVELS: Record<Stem, Array<{ module: ModuleKey; control: strin
   snare: [{ module: 'snare', control: 'level', level: 0.75 }],
   hats:  [{ module: 'hat', control: 'level', level: 0.45 }],
   bass:  [{ module: 'bass', control: 'level', level: 0.7 }],
-  // MOTIF is "de toetsen": e-piano én (waar bekabeld) het Mellotron-pad.
-  motif: [{ module: 'piano', control: 'level', level: 0.7 }, { module: 'pad', control: 'level', level: 0.6 }],
+  // MOTIF is "de toetsen": e-piano, Mellotron-pad en synth (waar bekabeld).
+  motif: [{ module: 'piano', control: 'level', level: 0.7 }, { module: 'pad', control: 'level', level: 0.6 }, { module: 'synth', control: 'level', level: 0.8 }],
 };
+
+/** De stem-niveaus voor een stijl: `STEM_LEVELS`, met de afwijkingen uit
+ *  `Style.levels`. */
+export function stemLevels(style?: Style): typeof STEM_LEVELS {
+  if (!style?.levels) return STEM_LEVELS;
+  return Object.fromEntries(STEMS.map((s) => [s, STEM_LEVELS[s].map((l) => ({ ...l, level: style.levels?.[l.module] ?? l.level }))])) as typeof STEM_LEVELS;
+}
 
 /** Stand "percussionist plays along": de hats dunner, de djembe vult de gaten. */
 export const PERCUSSIONIST_HH_SCALE = 0.55;
@@ -609,16 +636,25 @@ const SLIDE_DK_VERSE  = slideRow([3, 11, 15]);                               // 
 const SLIDE_DK_HOOK_A = slideRow([3, 7, 15]);                                // twee glijders · liggend tot 15
 const SLIDE_DK_HOOK_B = slideRow([3, 7, 11, 15]);                            // twee glijders · C♯1 · A2
 const SLIDE_DK_HOLD   = slideRow([15]);                                      // één toon per maat
-// De toetsen: CHORD op de grondtoon van het pad (F♯2), wijd gezet (spread 0,6:
-// F♯2 A2 C♯4 F♯4), één aanslag per maat op de 1 met het pedaal twee maten in;
-// de lijn op stem 5 één noot per twee maten (A-maat op zestiende 8).
-const LINE_DK_VERSE = [-2];                                                  // E4 (t.o.v. F♯4)
-const LINE_DK_HOOK_A = [3];                                                  // A4
-const LINE_DK_HOOK_B = [2];                                                  // G♯4
-const LINE_DK_ROOT = [0];                                                    // F♯4
-const PAD_DK = [0, 0];                                                       // F♯2, elke maat
-const KEYS_DK_A: Change[] = hitsOn('keysGate', [16, 1, 0], [16, 1, 8]);      // akkoord op 0, lijn op 8
-const KEYS_DK_B: Change[] = hitsOn('keysGate', [16, 1, 0]);                  // alleen het akkoord
+// De toetsen (Marks luisterbeurt 2026-10-27: geen e-piano, "in your face"):
+// de SYNTHEX als riff op F♯3, korte harde stoten op het dubbele tresillo
+// ([16, 6, 0]: zestiende 0·3·6·8·11·14), door DRIVE, FET COMP en STEREO
+// PHASER. Daaronder de Mellotron-strijkers als duistere laag met het hele
+// akkoord (CHORD op de grondtoon van het pad, F♯3: F♯3 A3 C♯4 F♯4; op F♯2
+// verdwenen ze onder de sub), één aanzet per twee maten.
+const HITS_DK_RIFF: EuclidChannel = [16, 6, 0];                              // 0·3·6·8·11·14
+const HITS_DK_SPARSE: EuclidChannel = [16, 3, 0];                            // 0·6·11
+const HITS_DK_TWO: EuclidChannel = [16, 2, 0];                               // 0·8
+const RIFF_DK_VERSE_A = [0, 0, 3, 0, 5, 3];                                  // F♯ F♯ A F♯ C♯ A (t.o.v. F♯3)
+const RIFF_DK_VERSE_B = [0, 0, 3, 0, -2, -4];                                // … E D: de vraag krijgt een antwoord omlaag
+const RIFF_DK_HOOK_A  = [7, 7, 8, 7, 3, 0];                                  // C♯ C♯ D C♯ A F♯: de halve toon D–C♯ dreigt
+const RIFF_DK_HOOK_B  = [7, 7, 8, 7, -2, -5];                                // … E C♯: landing
+const RIFF_DK_INTRO   = [0, 3, -2];                                          // F♯ A E op 0·6·11
+const RIFF_DK_BREAK   = [0, -2, -5];                                         // F♯ E C♯
+const RIFF_DK_OUTRO   = [0, 3];                                              // F♯ A op 0·8
+const RIFF_RATE = 6;                                                         // gate 0,5 × 1000 / 6 = 83 ms: een stoot
+const PAD_DK = [0, 0];                                                       // F♯3 (grondtoon van akkoord en strijkers), elke maat
+const riff = (grid: EuclidChannel, notes: number[]): Change[] => [...hitsOn('keysGate', grid), ...seqLine('motifSeq', notes, RIFF_RATE)];
 
 export const DARK: Style = {
   id: 'dark',
@@ -628,68 +664,110 @@ export const DARK: Style = {
   key: 'F♯ minor',
   gridsClock: 'x2',
   bass: 'slide',
-  keys: 'chords',
+  keys: 'riff',
   pad: { nn: 3, file: 'gu-strings.mmbs' },
   chordRoot: 'pad',
+  padVoices: 'chord',
+  bassFx: 'drive',
+  keysFx: 'dirty',
+  // Strijkers en synth voorop (Mark: "in your face", geen tapijtje).
+  levels: { pad: 0.9, synth: 0.9 },
   swing: 0,
   sound: [
     ...sound({
-      bass: DARK_ROOT, motif: DARK_ROOT + 36, kick: [0.9, -6, 0.3], snare: [0.75, 0.2, 0.9], hat: 0.1,
-      // De 808 als sub: zaag door een bijna dicht filter, lange filter-decay, weinig accent.
-      sub: [0.1, 0.05, 0.2, 1.0, 0.2],
-      // E-piano donker en lang: weinig timbre, geen bel, decay open, pedaal zwaar.
-      piano: [0.25, 0.05, 0.95, 0.15, 0.15, 3, 0.9], reverb: [0.7, 0.6, 40, 0.3, 0.35],
+      // De riff twee octaven boven de sub (F♯3); de e-piano hangt nergens aan.
+      bass: DARK_ROOT, motif: DARK_ROOT + 24, kick: [0.9, -6, 0.3], snare: [0.75, 0.2, 0.9], hat: 0.1,
+      // De 808 als sub: zaag door een bijna dicht filter (iets opener dan eerst,
+      // zodat de drive wat te knijpen heeft), lange filter-decay, weinig accent.
+      sub: [0.16, 0.05, 0.2, 1.0, 0.2],
+      piano: [0.25, 0.05, 0.95], reverb: [0.7, 0.6, 40, 0.3, 0.25],
     }),
     { module: 'bassSeq', control: 'rate', value: slideBassRate(140) },
     { module: 'slideSeq', control: 'root', value: 60 },
-    // Div = twee maten (32 zestienden), 90 % hoog: sustainpedaal en padgate,
-    // dus één aanzet van het pad per twee maten.
+    // De 808 door DRIVE in de Dist-stand (RAT: het hele spectrum hard geknipt,
+    // dus boventonen op 139, 231 en 323 Hz die een telefoon wél weergeeft),
+    // Tone donker, tweederde vervormd zodat de sub eronder schoon blijft.
+    // Drive matig: harder knijpen houdt de staart van elke noot op niveau en
+    // dan verdwijnen de rusten (gemeten: bij 0,6 nog 50 ms van de 107).
+    { module: 'bassDrive', control: 'mode', value: 1 }, { module: 'bassDrive', control: 'drive', value: 0.45 },
+    { module: 'bassDrive', control: 'tone', value: 0.35 }, { module: 'bassDrive', control: 'level', value: 0.5 }, { module: 'bassDrive', control: 'mix', value: 0.6 },
+    // De SYNTHEX als stoot: twee zaagtanden (8' en 16', licht ontstemd), het
+    // filter halfopen (knop 0..10 = 20 Hz..20 kHz, 4,5 ≈ 450 Hz) met veel
+    // resonantie en een snelle filterenvelope (A 0, D ≈ 90 ms, S laag); de
+    // versterker houdt de gate (83 ms) en laat dan in ≈ 80 ms los; chorus aan.
+    // Envelope-knoppen: 0,002 × 5000^(k/10) s.
+    { module: 'synth', control: 'o1_wave', value: 0 }, { module: 'synth', control: 'o1_oct', value: 2 }, { module: 'synth', control: 'o1_level', value: 10 },
+    { module: 'synth', control: 'o2_wave', value: 0 }, { module: 'synth', control: 'o2_oct', value: 1 }, { module: 'synth', control: 'o2_level', value: 8 },
+    { module: 'synth', control: 'o2_transpose', value: 0 }, { module: 'synth', control: 'o2_detune', value: 9 }, { module: 'synth', control: 'noise', value: 0 },
+    { module: 'synth', control: 'mode', value: 0 }, { module: 'synth', control: 'freq', value: 4.5 }, { module: 'synth', control: 'res', value: 6 },
+    { module: 'synth', control: 'env_amt', value: 6 }, { module: 'synth', control: 'kbd', value: 4 },
+    { module: 'synth', control: 'fa', value: 0 }, { module: 'synth', control: 'fd', value: 4.5 }, { module: 'synth', control: 'fs', value: 2 }, { module: 'synth', control: 'fr', value: 3.5 },
+    { module: 'synth', control: 'aa', value: 0 }, { module: 'synth', control: 'ad', value: 5 }, { module: 'synth', control: 'as', value: 5 }, { module: 'synth', control: 'ar', value: 4 },
+    { module: 'synth', control: 'lfo_vcf', value: 0 }, { module: 'synth', control: 'lfo_osc', value: 0 }, { module: 'synth', control: 'glide', value: 0 },
+    { module: 'synth', control: 'chorus', value: true }, { module: 'synth', control: 'sync', value: false }, { module: 'synth', control: 'ring', value: false },
+    // Het vuil achter de synth: overdrive (OD, midden naar voren), dan de
+    // FET-compressor hard aangestuurd met snelle attack en release (pompend,
+    // 12:1), dan een langzame stereo phaser die het breed en dreigend maakt.
+    { module: 'keysDrive', control: 'mode', value: 0 }, { module: 'keysDrive', control: 'drive', value: 0.55 },
+    { module: 'keysDrive', control: 'tone', value: 0.55 }, { module: 'keysDrive', control: 'level', value: 0.5 }, { module: 'keysDrive', control: 'mix', value: 0.85 },
+    { module: 'keysComp', control: 'input', value: 12 }, { module: 'keysComp', control: 'output', value: 2 },
+    { module: 'keysComp', control: 'attack', value: 6 }, { module: 'keysComp', control: 'release', value: 6 },
+    { module: 'keysComp', control: 'ratio', value: 2 }, { module: 'keysComp', control: 'color', value: 1.2 },
+    { module: 'keysPhaser', control: 'rate', value: 0.12 }, { module: 'keysPhaser', control: 'depth', value: 0.65 },
+    { module: 'keysPhaser', control: 'feedback', value: 0.45 }, { module: 'keysPhaser', control: 'spread', value: 0.6 }, { module: 'keysPhaser', control: 'mix', value: 0.5 },
+    // Div = twee maten (32 zestienden), 90 % hoog: de padgate, dus één aanzet
+    // van de strijkers per twee maten.
     { module: 'clock', control: 'div', value: 32 }, { module: 'clock', control: 'width', value: 0.9 },
-    { module: 'chord', control: 'inv', value: 0 }, { module: 'chord', control: 'spread', value: 0.6 },
-    // Mellotron-strijkers (bank 3 = de Mellotron-seed), versleten bandje.
+    // Gesloten ligging op F♯3: F♯3 A3 C♯4 F♯4 op vier strips.
+    { module: 'chord', control: 'inv', value: 0 }, { module: 'chord', control: 'spread', value: 0 },
+    // Mellotron-strijkers (bank 3 = de Mellotron-seed), vier strips tegelijk
+    // (padVoices), bandje licht versleten zodat het hoog blijft staan.
     { module: 'pad', control: 'bank', value: 3 }, { module: 'pad', control: 'length', value: 8 }, { module: 'pad', control: 'return', value: 1 },
-    { module: 'pad', control: 'contact', value: 0.5 }, { module: 'pad', control: 'motor', value: 0.4 }, { module: 'pad', control: 'wow', value: 0.2 },
-    { module: 'pad', control: 'flutter', value: 0.2 }, { module: 'pad', control: 'wear', value: 0.4 },
-    { module: 'padSeq', control: 'root', value: 42 },
+    { module: 'pad', control: 'contact', value: 0.5 }, { module: 'pad', control: 'motor', value: 0.3 }, { module: 'pad', control: 'wow', value: 0.2 },
+    { module: 'pad', control: 'flutter', value: 0.2 }, { module: 'pad', control: 'wear', value: 0.25 },
+    { module: 'padSeq', control: 'root', value: 54 },
   ],
   sections: [
     {
-      // Intro: melodie en hats, geen sub en geen snare (zijn eerste 16 maten).
+      // Intro: strijkers, hats en een schaarse riff; geen sub en geen snare.
       name: 'INTRO', role: 'intro', chord: 'F♯m',
       stems: all({ bass: false, snare: false }),
       changes: [...grids(0.3, 0.2, 0.45, 0.4, 0.75), ...hits(HITS_SLIDE_GRID, SLIDE_CLOCK), ...slideBass(BASS_DK_VERSE_A), ...SLIDE_DK_VERSE,
-        ...chordType(CHORD_MINOR), ...KEYS_DK_A, ...seqLine('motifSeq', LINE_DK_VERSE, 1), ...padLine(PAD_DK)],
-      b: [...chordType(CHORD_FIFTH), ...KEYS_DK_B],
-    },
-    {
-      name: 'VERSE', role: 'verse', chord: 'F♯m',
-      stems: all(),
-      changes: [...grids(0.35, 0.3, 0.5, 0.5, 0.8), ...hits(HITS_SLIDE_GRID, SLIDE_CLOCK), ...slideBass(BASS_DK_VERSE_A), ...SLIDE_DK_VERSE,
-        ...chordType(CHORD_MINOR), ...KEYS_DK_A, ...seqLine('motifSeq', LINE_DK_VERSE, 1), ...padLine(PAD_DK)],
-      b: [...slideBass(BASS_DK_VERSE_B), ...chordType(CHORD_FIFTH), ...KEYS_DK_B],
-    },
-    {
-      // Hook: de glijder twee keer per maat, dan C♯ liggend; minder hats.
-      name: 'HOOK', role: 'hook', chord: 'F♯m · C♯',
-      stems: all(),
-      changes: [...grids(0.45, 0.4, 0.6, 0.6, 0.55), ...hits(HITS_SLIDE_GRID, SLIDE_CLOCK), ...slideBass(BASS_DK_HOOK_A), ...SLIDE_DK_HOOK_A,
-        ...chordType(CHORD_MINOR), ...KEYS_DK_A, ...seqLine('motifSeq', LINE_DK_HOOK_A, 1), ...padLine(PAD_DK)],
-      b: [...slideBass(BASS_DK_HOOK_B), ...SLIDE_DK_HOOK_B, ...chordType(CHORD_FIFTH), ...seqLine('motifSeq', LINE_DK_HOOK_B, 1)],
-    },
-    {
-      // Break: de sub weg (en de kick, die in trap de 808 is); snare, hats en toetsen blijven.
-      name: 'BREAK', role: 'break', chord: 'F♯m',
-      stems: all({ kick: false, bass: false }),
-      changes: [...grids(0.3, 0.25, 0.4, 0.45, 0.7), ...hits(HITS_SLIDE_GRID, SLIDE_CLOCK), ...slideBass(BASS_DK_VERSE_A), ...SLIDE_DK_VERSE,
-        ...chordType(CHORD_MINOR), ...KEYS_DK_B, ...seqLine('motifSeq', LINE_DK_VERSE, 1), ...padLine(PAD_DK)],
+        ...chordType(CHORD_MINOR), ...riff(HITS_DK_SPARSE, RIFF_DK_INTRO), ...padLine(PAD_DK)],
       b: chordType(CHORD_FIFTH),
     },
     {
-      // Slot: de melodie voorop (geen kick, geen snare), de bas ligt op F♯1, hats.
+      // Vers: de riff op het dubbele tresillo, maat B antwoordt omlaag (E D).
+      name: 'VERSE', role: 'verse', chord: 'F♯m',
+      stems: all(),
+      changes: [...grids(0.35, 0.3, 0.5, 0.5, 0.8), ...hits(HITS_SLIDE_GRID, SLIDE_CLOCK), ...slideBass(BASS_DK_VERSE_A), ...SLIDE_DK_VERSE,
+        ...chordType(CHORD_MINOR), ...riff(HITS_DK_RIFF, RIFF_DK_VERSE_A), ...padLine(PAD_DK)],
+      b: [...slideBass(BASS_DK_VERSE_B), ...chordType(CHORD_FIFTH), ...riff(HITS_DK_RIFF, RIFF_DK_VERSE_B)],
+    },
+    {
+      // Hook: de glijder twee keer per maat, dan C♯ liggend; de riff op C♯ met
+      // de halve toon D; minder hats.
+      name: 'HOOK', role: 'hook', chord: 'F♯m · C♯',
+      stems: all(),
+      changes: [...grids(0.45, 0.4, 0.6, 0.6, 0.55), ...hits(HITS_SLIDE_GRID, SLIDE_CLOCK), ...slideBass(BASS_DK_HOOK_A), ...SLIDE_DK_HOOK_A,
+        ...chordType(CHORD_MINOR), ...riff(HITS_DK_RIFF, RIFF_DK_HOOK_A), ...padLine(PAD_DK)],
+      b: [...slideBass(BASS_DK_HOOK_B), ...SLIDE_DK_HOOK_B, ...chordType(CHORD_FIFTH), ...riff(HITS_DK_RIFF, RIFF_DK_HOOK_B)],
+    },
+    {
+      // Break: de sub weg (en de kick, die in trap de 808 is); snare, hats,
+      // strijkers en een schaarse riff blijven.
+      name: 'BREAK', role: 'break', chord: 'F♯m',
+      stems: all({ kick: false, bass: false }),
+      changes: [...grids(0.3, 0.25, 0.4, 0.45, 0.7), ...hits(HITS_SLIDE_GRID, SLIDE_CLOCK), ...slideBass(BASS_DK_VERSE_A), ...SLIDE_DK_VERSE,
+        ...chordType(CHORD_MINOR), ...riff(HITS_DK_SPARSE, RIFF_DK_BREAK), ...padLine(PAD_DK)],
+      b: chordType(CHORD_FIFTH),
+    },
+    {
+      // Slot: strijkers en synth voorop (geen kick, geen snare), de bas ligt op F♯1, hats.
       name: 'OUTRO', role: 'outro', chord: 'F♯m',
       stems: all({ kick: false, snare: false }),
       changes: [...grids(0.3, 0.2, 0.4, 0.4, 0.6), ...hits(HITS_SLIDE_GRID, SLIDE_CLOCK), ...slideBass(BASS_DK_ROOT), ...SLIDE_DK_HOLD,
-        ...chordType(CHORD_MINOR), ...KEYS_DK_A, ...seqLine('motifSeq', LINE_DK_ROOT, 1), ...padLine(PAD_DK)],
+        ...chordType(CHORD_MINOR), ...riff(HITS_DK_TWO, RIFF_DK_OUTRO), ...padLine(PAD_DK)],
     },
   ],
   // De fill: een snareroffel (stap 12–15 in het origineel) met wat chaos.
