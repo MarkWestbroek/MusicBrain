@@ -76,13 +76,18 @@ describe('freestyle-patch', () => {
         for (const ch of s.b ?? []) expect(s.changes.some((c) => c.module === ch.module && c.control === ch.control), `${style.id}/${s.name}: B zonder A voor ${ch.module}.${ch.control}`).toBe(true);
       }
     }
+    const chordOf = (f: Change[]): unknown => f.find((c) => c.module === 'chord' && c.control === 'chord')?.value;
     const verseB = ACID_HOP_2.sections[1]!.b!;
     expect(euclidHits(verseB)).toEqual([0, 3, 6, 9, 12]);
     expect([2, 3, 4, 5, 6].map((i) => verseB.find((c) => c.module === 'bassSeq' && c.control === `s${i}`)?.value)).toEqual([0, 3, 0, 3, 0]);
+    expect(chordOf(verseB)).toBe(9);                                    // B: de kwint C+G, zoals Marks maat 2 en 4
     const hookB = ACID_HOP_2.sections[2]!.b!;
     expect(euclidHits(hookB)).toEqual([0, 3, 6, 9, 12]);
     expect([2, 3, 4, 5, 6].map((i) => hookB.find((c) => c.module === 'bassSeq' && c.control === `s${i}`)?.value)).toEqual([-5, 0, -5, -4, -5]);
-    expect(ACID_HOP_2.sections[0]!.b).toBeUndefined();
+    expect(euclidHits(hookB, 'keysGate', [2])).toEqual([0]);            // B: de landing, één lange C4
+    expect(hookB.find((c) => c.module === 'motifSeq' && c.control === 's2')?.value).toBe(-12);
+    expect(chordOf(ACID_HOP_2.sections[0]!.b!)).toBe(9);
+    expect(chordOf(ACID_HOP_2.sections[3]!.b!)).toBe(1);                // break: A kwint, B het Cm-akkoord
     // De hook: het neergebroken akkoord A♭5 G5 E♭5 D5 C5 G4 E♭4 D4 (t.o.v. C5).
     const hook = ACID_HOP_2.sections[2]!;
     expect([2, 3, 4, 5, 6, 7, 8, 9].map((i) => v(hook, 'motifSeq', `s${i}`))).toEqual([8, 7, 3, 2, 0, -5, -9, -10]);
@@ -114,11 +119,15 @@ describe('freestyle-patch', () => {
 
   it('acid hop: de slagpatronen van Euclid passen op de baslijnen (Marks figuur 3-3-3-3-2-2)', () => {
     const expected: Record<string, number[]> = {
-      INTRO: [0, 3, 6], VERSE: [0, 3, 6, 9, 12, 14], HOOK: [0, 3, 6, 9, 12], BREAK: [0, 3, 6, 9, 12, 14],
+      INTRO: [0, 3, 6], VERSE: [0, 3, 6, 9, 12, 14], HOOK: [0, 3, 6, 9, 12, 14], BREAK: [0, 3, 6, 9, 12, 14],
     };
+    // De B-maat (vraag en antwoord): landen op de G, of C E♭ C en rust.
+    const expectedB: Record<string, number[] | undefined> = { INTRO: undefined, VERSE: [0, 3, 6, 9, 12], HOOK: [0, 3, 6, 9, 12], BREAK: [0, 3, 6] };
     for (const s of ACID_HOP.sections) {
       const hits = euclidHits(s.changes);
       expect(hits, s.name).toEqual(expected[s.name]);
+      expect(s.b ? euclidHits(s.b) : undefined, `${s.name} B`).toEqual(expectedB[s.name]);
+      if (s.b) expect(s.b.find((c) => c.module === 'bassSeq' && c.control === 'length')?.value, `${s.name} B`).toBe(euclidHits(s.b).length + 1);
       // De sequencer: stap 0 is de kopie van de eerste noot, daarna één stap per slag.
       const length = s.changes.find((c) => c.module === 'bassSeq' && c.control === 'length')?.value;
       expect(length, s.name).toBe(hits.length + 1);

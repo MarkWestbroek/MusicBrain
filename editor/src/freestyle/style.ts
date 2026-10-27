@@ -334,7 +334,9 @@ export const BOUNCE: Style = {
 // e-piano met hall): 75 bpm, C mineur. De bas is een 303-figuur in
 // zestienden 3-3-3-3-2-2: C E♭ C E♭ A♭ G op 0·3·6·9·12·14, in de hook
 // C E♭ C E♭ G (de G lang), als variant C E♭ C C A♭ G, en als breakdown
-// alleen C E♭ C met rust. Daarom komt de bas hier niet per kick maar uit
+// alleen C E♭ C met rust. Sinds de A/B-maten (Marks inzicht, zie
+// Section.b): de A-maat loopt weg (A♭ G), de B-maat landt op de G of op
+// C E♭ C met rust, zoals in zijn opname. Daarom komt de bas hier niet per kick maar uit
 // EUCLID (`bass: 'euclid'`): per sectie een slagpatroon, de sequencer
 // stapt per slag, de gate uit de sequencer bepaalt de nootlengte (eerste
 // helft bijna gebonden, de twee korte noten los). ACID-standen zijn Marks
@@ -351,6 +353,8 @@ const BASS_AH_HOOK  = [0, 3, 0, 3, 7];           // C E♭ C E♭ G      op 0·3
 const BASS_AH_VAR   = [0, 3, 0, 0, 8, 7];        // C E♭ C C A♭ G    op 0·3·6·9·12·14
 const BASS_AH_INTRO = [0, 3, 0];                 // C E♭ C           op 0·3·6, dan rust
 const HITS_AH_SIX: EuclidChannel = [14, 5, 0];   // 0·3·6·9·12 en op 14 weer stap 0
+const HITS_AH_FIVE: [EuclidChannel, EuclidChannel, EuclidChannel] = [[6, 1, 0], [16, 1, 3], [16, 1, 9]]; // 0·3·6·9·12
+const HITS_AH_THREE: [EuclidChannel, EuclidChannel, EuclidChannel] = [[16, 1, 0], [16, 1, 3], [16, 1, 6]]; // 0·3·6, dan rust
 const MOTIF_AH_A    = [7, 7, 3, 0, 7, 7, 3, 0];
 const MOTIF_AH_B    = [7, 7, 7, 3, 0, 0, 3, 0];
 /** Nootlengte: 0,95 × 1000 / rate ms; 2,5 Hz = 380 ms (drie zestienden op
@@ -375,23 +379,26 @@ export const ACID_HOP: Style = {
     {
       name: 'INTRO', chord: 'Cm',
       stems: all({ snare: false }),
-      changes: [...grids(0.35, 0.3, 0.45, 0.35, 0.5), ...hits([16, 1, 0], [16, 1, 3], [16, 1, 6]), ...bassLine(BASS_AH_INTRO, AH_RATE_LONG), ...steps('motifSeq', MOTIF_AH_A)],
+      changes: [...grids(0.35, 0.3, 0.45, 0.35, 0.5), ...hits(...HITS_AH_THREE), ...bassLine(BASS_AH_INTRO, AH_RATE_LONG), ...steps('motifSeq', MOTIF_AH_A)],
     },
     {
       name: 'VERSE', chord: 'Cm · A♭',
       stems: all(),
       changes: [...grids(0.4, 0.35, 0.6, 0.55, 0.65), ...hits(HITS_AH_SIX), ...bassLine(BASS_AH_A, AH_RATE), ...steps('motifSeq', MOTIF_AH_A)],
+      b: [...hits(...HITS_AH_FIVE), ...bassLine(BASS_AH_HOOK, AH_RATE_LONG)],
     },
     {
       name: 'HOOK', chord: 'Cm · A♭ · G',
       stems: all(),
-      changes: [...grids(0.5, 0.45, 0.7, 0.6, 0.8), ...hits([6, 1, 0], [16, 1, 3], [16, 1, 9]), ...bassLine(BASS_AH_HOOK, AH_RATE), ...steps('motifSeq', MOTIF_AH_B)],
+      changes: [...grids(0.5, 0.45, 0.7, 0.6, 0.8), ...hits(HITS_AH_SIX), ...bassLine(BASS_AH_VAR, AH_RATE), ...steps('motifSeq', MOTIF_AH_B)],
+      b: [...hits(...HITS_AH_FIVE), ...bassLine(BASS_AH_HOOK, AH_RATE_LONG)],
     },
     {
-      // Breakdown: alleen bas en hats, met de variant van de figuur.
+      // Breakdown: alleen bas en hats; A de variant van de figuur, B alleen C E♭ C en rust.
       name: 'BREAK', chord: 'Cm',
       stems: all({ kick: false, snare: false, motif: false }),
       changes: [...grids(0.4, 0.3, 0.5, 0.5, 0.55), ...hits(HITS_AH_SIX), ...bassLine(BASS_AH_VAR, AH_RATE), ...steps('motifSeq', MOTIF_AH_A)],
+      b: [...hits(...HITS_AH_THREE), ...bassLine(BASS_AH_INTRO, AH_RATE_LONG)],
     },
   ],
   fill: [
@@ -415,11 +422,11 @@ export const ACID_HOP: Style = {
 const BASS_AH2_VERSE_B = [0, 3, 0, 3, 0];         // C2 E♭2 C2 E♭2 C2 op 0·3·6·9·12, dan rust
 const BASS_AH2_HOOK_A  = [-5, 0, -4, -5, -5, -4]; // G1 C2 A♭1 G1 G1 A♭1 op 0·3·6·9·12·14
 const BASS_AH2_HOOK_B  = [-5, 0, -5, -4, -5];     // G1 C2 G1 A♭1 G1  op 0·3·6·9·12
-const HITS_AH_FIVE: [EuclidChannel, EuclidChannel, EuclidChannel] = [[6, 1, 0], [16, 1, 3], [16, 1, 9]]; // 0·3·6·9·12
 const BASS_AH2_END   = [8, 7, 3, 0];              // A♭2 G2 E♭2 C2    op 0·6·12·14
 const LINE_AH2_STABS = [7, 0];                    // G5 C5 op 6 en 14 (t.o.v. C5)
 const LINE_AH2_FALL  = [8, 7, 3, 2, 0, -5, -9, -10]; // A♭5 G5 E♭5 D5 C5 G4 E♭4 D4, om de twee zestienden, met sustain
 const LINE_AH2_GRACE = [-4];                      // A♭4 op 14, de voorslag naar het akkoord
+const LINE_AH2_LAND  = [-12];                     // C4 lang op de 1: de landing na de val
 const PAD_AH2_LOW    = [-9, -4, -5, -12];         // E♭3 A♭3 G3 C3, één per maat
 const PAD_AH2_C      = [0, 0];                    // C4 (lengte minstens 2)
 const CHORD_MINOR = 1, CHORD_FIFTH = 9;
@@ -452,31 +459,38 @@ export const ACID_HOP_2: Style = {
   ],
   sections: [
     {
+      // E-piano in A/B zoals Mark speelde (EP-MIDI per maat): A het volle
+      // Cm-akkoord, B de kwint C+G (maat 2 en 4 van zijn opname).
       name: 'INTRO', chord: 'Cm',
       stems: all({ bass: false }),
       changes: [...grids(0.35, 0.3, 0.45, 0.4, 0.5), ...hits(HITS_AH_SIX), ...bassLine(BASS_AH_A, AH_RATE),
         ...chordType(CHORD_MINOR), ...hitsOn('keysGate', [16, 1, 0]), ...seqLine('motifSeq', LINE_AH2_STABS, AH_RATE), ...padLine(PAD_AH2_C)],
+      b: chordType(CHORD_FIFTH),
     },
     {
       name: 'VERSE', chord: 'Cm',
       stems: all(),
       changes: [...grids(0.4, 0.35, 0.6, 0.55, 0.65), ...hits(HITS_AH_SIX), ...bassLine(BASS_AH_A, AH_RATE),
         ...chordType(CHORD_MINOR), ...hitsOn('keysGate', [16, 1, 0], [8, 1, 6]), ...seqLine('motifSeq', LINE_AH2_STABS, AH_RATE), ...padLine(PAD_AH2_C)],
-      b: [...hits(...HITS_AH_FIVE), ...bassLine(BASS_AH2_VERSE_B, AH_RATE)],
+      b: [...hits(...HITS_AH_FIVE), ...bassLine(BASS_AH2_VERSE_B, AH_RATE), ...chordType(CHORD_FIFTH)],
     },
     {
+      // Hook: A het neergebroken akkoord dat blijft klinken, B de landing op
+      // een lange C4 (zijn maat 13: D4 C4 en dan niets tot de volgende val).
       name: 'HOOK', chord: 'Cm · A♭ · G',
       stems: all(),
       changes: [...grids(0.5, 0.45, 0.7, 0.6, 0.8), ...hits(HITS_AH_SIX), ...bassLine(BASS_AH2_HOOK_A, AH_RATE),
         ...chordType(CHORD_MINOR), ...hitsOn('keysGate', SILENT, [2, 1, 0]), ...seqLine('motifSeq', LINE_AH2_FALL, 4), ...padLine(PAD_AH2_C)],
-      b: [...hits(...HITS_AH_FIVE), ...bassLine(BASS_AH2_HOOK_B, AH_RATE)],
+      b: [...hits(...HITS_AH_FIVE), ...bassLine(BASS_AH2_HOOK_B, AH_RATE), ...hitsOn('keysGate', SILENT, [16, 1, 0]), ...seqLine('motifSeq', LINE_AH2_LAND, 1)],
     },
     {
-      // Slot: C4+G4 een hele maat, de bas speelt A♭ G E♭ C, het pad de lage melodie.
+      // Slot: A C4+G4 een hele maat, B het Cm-akkoord (zijn maat 14–16); de bas
+      // speelt A♭ G E♭ C, het pad de lage melodie.
       name: 'BREAK', chord: 'Cm',
       stems: all({ kick: false, snare: false }),
       changes: [...grids(0.4, 0.3, 0.5, 0.5, 0.55), ...hits([6, 1, 0], [16, 1, 14]), ...bassLine(BASS_AH2_END, AH_RATE),
         ...chordType(CHORD_FIFTH), ...hitsOn('keysGate', [16, 1, 0], [16, 1, 14]), ...seqLine('motifSeq', LINE_AH2_GRACE, AH_RATE), ...padLine(PAD_AH2_LOW)],
+      b: chordType(CHORD_MINOR),
     },
   ],
   fill: [

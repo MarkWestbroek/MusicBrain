@@ -47,7 +47,12 @@ maat hoog) en een Mellotron-fluitpad (`pad`: tape strip op gu-flute, bank
 patch vraagt hem via `simBanks`). Het pad hoort bij de MOTIF-knop. Na
 Marks tweede luisterbeurt: de bas in **A- en B-maten** (§2, `Section.b`):
 verse A C E♭ C E♭ A♭ G / B C E♭ C E♭ C + rust, hook A G1 C2 A♭1 G1 G1 A♭1 /
-B G1 C2 G1 A♭1 G1; e-piano iets zachter (KEYS-mixer 0,75).
+B G1 C2 G1 A♭1 G1; e-piano iets zachter (KEYS-mixer 0,75). Daarna ook
+A/B in V1 (verse en hook A lopen weg naar A♭ G, B landt op de lange G;
+break A de variant, B C E♭ C en rust) en voor de e-piano in V2, afgeleid
+uit zijn EP-MIDI per maat: A het volle Cm-akkoord, B de kwint C+G (zijn
+maat 2 en 4), in de hook A het neergebroken akkoord en B de landing op
+een lange C4, in de break A kwint en B Cm.
 FILL-verfijning en de beatbox-laag staan open. Marks vraag naar een
 formaat voor de hele take (muziek + stem + instellingen) is geparkeerd:
 het zou een eventlog (stijl, tempo, elke gewapende actie met tel) naast de

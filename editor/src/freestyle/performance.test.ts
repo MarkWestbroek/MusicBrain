@@ -128,14 +128,16 @@ describe('Performance', () => {
       for (let t = from; t <= until + 1e-9; t += beat2 / 2) out.push(...p2.tick(t));
       return out;
     };
-    expect(run(s0, s0 + 2 * bar2 + beat2)).toEqual([]);                 // INTRO: geen B
-    expect(p2.hasAb).toBe(false);
+    // INTRO: de e-piano wisselt al A/B (Cm, dan de kwint C+G), de bas nog niet.
+    const intro = run(s0, s0 + 2 * bar2 + beat2);
+    expect(intro.map((f) => f.changes.map((c) => `${c.module}.${c.control}=${c.value}`).join())).toEqual(['chord.chord=9', 'chord.chord=1']);
+    expect(p2.hasAb).toBe(true);
     p2.next(s0 + 2 * bar2 + beat2);
     const fired = run(s0 + 2 * bar2 + beat2, s0 + phrase2 + 2 * bar2 + beat2);
     expect(p2.section.name).toBe('VERSE');
     expect(p2.hasAb).toBe(true);
     // Op de 1 van de frase (maat 4, even) landt met de sectie ook de A-maat; dan B, A.
-    const ab = fired.filter((f) => f.label === '');
+    const ab = fired.filter((f) => f.label === '' && f.at >= s0 + phrase2 - 1e-6);   // (maat 3 is nog de INTRO-B van de e-piano)
     expect(ab.map((f) => f.at.toFixed(3))).toEqual([0, 1, 2].map((n) => (s0 + phrase2 + n * bar2).toFixed(3)));
     const fill1 = (f: Change[]): unknown => f.find((c) => c.module === 'bassGate' && c.control === 'fill_1')?.value;
     const s6 = (f: Change[]): unknown => f.find((c) => c.module === 'bassSeq' && c.control === 's6')?.value;
