@@ -37,7 +37,7 @@ import { MasterRecorder, downloadWav, encodeWav, peakOf, wavFileName } from '../
 import { TapTempo } from '../modular-mb/tempo';
 import { buildFreestyleRig } from './freestylePatch';
 import { Performance, type Fired } from './performance';
-import { STEMS, STEM_LABEL, STYLES, styleById, type Stem } from './style';
+import { STEMS, STEM_LABEL, STYLES, styleById, styleIdFromSearch, type Stem } from './style';
 
 const BG = '#0b0b0f', FG = '#f3f4f6', DIM = '#6b7280', AMBER = 'var(--mb-accent)';
 const MONO: CSSProperties = { fontFamily: 'var(--mb-font-mono)', fontVariantNumeric: 'tabular-nums' };
@@ -102,7 +102,9 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
   const phone = useMedia('(max-width: 700px)');
   // Stijl kiezen bouwt de patch opnieuw (andere klokuitgang voor Grids,
   // andere klank) en begint met een verse bedieningslaag.
-  const [styleId, setStyleId] = useState(STYLES[0]!.id);
+  // Stijl uit de link (?style=acidhop2); wisselen schrijft hem terug in de URL,
+  // zodat een gedeelde link de stijl meeneemt.
+  const [styleId, setStyleId] = useState(() => styleIdFromSearch(typeof window !== 'undefined' ? window.location.search : ''));
   const style = styleById(styleId);
   const rig = useMemo(() => buildFreestyleRig(style), [style]);
   const perf = useMemo(() => new Performance(style), [style]);
@@ -250,6 +252,11 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
   const chooseStyle = useCallback((id: string) => {
     if (perf.running) stop();
     setStyleId(id);
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('style', id);
+      window.history.replaceState(null, '', url);
+    } catch { /* geen history (test) */ }
     setLog(`style: ${styleById(id).name} — press START`);
   }, [perf, stop]);
   const nextStyle = useCallback(() => {

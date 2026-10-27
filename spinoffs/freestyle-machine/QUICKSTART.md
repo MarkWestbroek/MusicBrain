@@ -46,6 +46,11 @@ Tap the style name at the top left to go to the next style: Trap half-time
 minor) → Acid hop II (78, the same bass with piano chords and a mellotron
 flute). This stops the beat; tap START again.
 
+A link can carry the style: add `&style=acidhop2` (or `trap`, `boombap`,
+`bounce`, `acidhop`) to the address, for example
+**https://editor.musicbrain.nl/?app=freestyle&style=acidhop2**. Switching
+styles updates the address, so you can copy and share it.
+
 ## Foot pedal
 
 A Bluetooth page-turner pedal (two pedals, ◀ and ▶) works as a keyboard.

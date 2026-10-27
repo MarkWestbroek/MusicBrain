@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { checkPatch } from '../modular-mb/patchCheck';
 import { resolveControls } from '../modular-mb/types';
 import { RIG_TYPES, buildFreestyleRig, stemChanges } from './freestylePatch';
-import { ACID_HOP, ACID_HOP_2, STEMS, STYLES, TRAP, euclidHits, type Change } from './style';
+import { ACID_HOP, ACID_HOP_2, STEMS, STYLES, TRAP, euclidHits, styleIdFromSearch, type Change } from './style';
 
 describe('freestyle-patch', () => {
   const rig = buildFreestyleRig(TRAP);
@@ -23,6 +23,10 @@ describe('freestyle-patch', () => {
       for (const ch of style.sound) expect(r.patch.controlState[r.ids[ch.module]]?.[ch.control], `${style.id}: ${ch.module}.${ch.control}`).toBe(ch.value);
     }
     expect(STYLES.map((s) => s.id)).toEqual(['trap', 'boombap', 'bounce', 'acidhop', 'acidhop2']);
+    // De stijl uit de link; onbekend = de eerste.
+    expect(styleIdFromSearch('?app=freestyle&style=acidhop2')).toBe('acidhop2');
+    expect(styleIdFromSearch('?app=freestyle&style=nope')).toBe('trap');
+    expect(styleIdFromSearch('')).toBe('trap');
     // Liedvorm: elke stijl heeft intro (als eerste), vers, hook en break; de acid hops ook een outro.
     for (const style of STYLES) {
       expect(style.sections[0]?.role, style.id).toBe('intro');

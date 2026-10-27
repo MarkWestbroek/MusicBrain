@@ -525,3 +525,9 @@ export const ACID_HOP_2: Style = {
 
 export const STYLES: readonly Style[] = [TRAP, BOOM_BAP, BOUNCE, ACID_HOP, ACID_HOP_2];
 export function styleById(id: string): Style { return STYLES.find((s) => s.id === id) ?? TRAP; }
+/** De stijl uit de querystring (`?app=freestyle&style=acidhop2`); onbekend of
+ *  leeg = de eerste stijl. Zo neemt een gedeelde link de stijl mee. */
+export function styleIdFromSearch(search: string): string {
+  const id = new URLSearchParams(search).get('style') ?? '';
+  return STYLES.some((s) => s.id === id) ? id : STYLES[0]!.id;
+}
