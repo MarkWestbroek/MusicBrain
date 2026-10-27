@@ -112,7 +112,16 @@ op 0 en 8 en op 15 (de laatste slag kort en schoon, anders glijdt de
 A-aanslag omhoog vanaf de lage toon); de strijkers wisselen al naar de kwint
 in B (de strips volgen de CV van CHORD). Gemeten: de B-maat heeft zichtbaar
 andere rusten dan A; mixpiek −0,6 dBFS, daarom de droge synth op 0,8.
-Luisteroordeel open. Hat-rolletjes (triolen uit de Molly-analyse): zie de
+Marks oordeel over de derde ronde (dezelfde avond): rommelig, alles loopt
+langs elkaar heen; de strijkers variëren te weinig (de hele song vrijwel
+hetzelfde); de losheid van B is te veel. Hij bouwt de song verder in Logic:
+daarvoor is er **`songMidi.ts`**, de song als MIDI-bestand (type 1, een
+spoor per stem, de liedvorm I V H V H B V H E, A/B-maten, fills in de
+laatste maat van een sectie, de glijder als gebonden noten), uitgerekend
+uit de stijltabellen en een port van de Grids-kaart die tegen de
+wasm-module is gelegd (8 standen × 32 stappen × 3 instrumenten, 0
+afwijkingen). Bestanden: `midi/` (alle zes stijlen) met een README voor
+Logic. Hat-rolletjes (triolen uit de Molly-analyse): zie de
 notitie in de release-log van 2026-10-27; met bestaande modules kan één
 vaste roll per maat (CLOCK ×3 = de zestiendentriool van het gevoelde tempo,
 EUCLID-venster op ×4, LOGIC and/or), een echte ratchet-sequencer is
@@ -462,6 +471,7 @@ stand (de vriend is Pools; UK English volstaat, zie
 | `editor/src/freestyle/performance.ts` | `Performance`: start/stop, DROP (direct omlaag, terug op de tel), NEXT (frase), stems (maat), FILL (één maat), TAP, percussionist, Autopilot (variaties, fill, tijdelijke mutes `AUTO_MUTES`); geeft `Fired`-pakketjes terug |
 | `editor/src/freestyle/FreestyleApp.tsx` | het scherm en de toetsen; plant de pakketjes op de `AudioEngine`; stijlkeuze (tik/S = volgende) bouwt de patch opnieuw (stopt de beat); laptop- en telefoonlayout (≤ 700 px) met grote DROP/NEXT/FILL-knoppen |
 | `editor/src/freestyle/ringRecorder.test.ts` | de ringbuffer-trim (`trimParts` in `sim/wavRecorder.ts`) |
+| `editor/src/freestyle/songMidi.ts` | de song van een stijl als SMF type 1 (`encodeSongMidi`, `songNotes`): Grids-port (`gridsHit`), bas per kick / Euclid / glijder (gebonden noten), motief / akkoorden + sustain / riff, pad op de Div-puls, A/B en fills; `scripts/freestyleMidi.ts` schrijft `spinoffs/freestyle-machine/midi/<stijl>-<bpm>.mid` |
 | `*.test.ts` | klokgrenzen, tempowissel, DROP+NEXT tegelijk, wrap-around, fill, percussionist, patchcontrole per stijl, ringbuffer |
 
 Afwijkingen van het plan hierboven: de bas was tot 2026-10-27 geen eigen stem
