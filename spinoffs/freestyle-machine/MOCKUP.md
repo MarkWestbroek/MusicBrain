@@ -52,7 +52,11 @@ A/B in V1 (verse en hook A lopen weg naar A♭ G, B landt op de lange G;
 break A de variant, B C E♭ C en rust) en voor de e-piano in V2, afgeleid
 uit zijn EP-MIDI per maat: A het volle Cm-akkoord, B de kwint C+G (zijn
 maat 2 en 4), in de hook A het neergebroken akkoord en B de landing op
-een lange C4, in de break A kwint en B Cm.
+een lange C4, in de break A kwint en B Cm. **Liedvorm** (2026-10-27, §4.2):
+rollen per sectie, NEXT vers ⇄ hook, BREAK-knop (B, pedaal ▶▶) één frase
+met terugkeer naar de andere sectie, STOP = uittro-frase (OUTRO-secties in
+de acid hops) met dubbeltik als korte weg, Autopilot-break in plaats van de
+breakdown-mute, maatteller per sectie.
 FILL-verfijning en de beatbox-laag staan open. Marks vraag naar een
 formaat voor de hele take (muziek + stem + instellingen) is geparkeerd:
 het zou een eventlog (stijl, tempo, elke gewapende actie met tel) naast de
@@ -202,12 +206,24 @@ Toetsen op de laptop; een pedaal is optie, geen eis.
 | Actie | Toets | Kwantisering |
 |---|---|---|
 | **DROP** | spatie ingedrukt houden | uit: direct; terug: volgende tel (instelbaar: maat) |
-| **NEXT** (volgende sectie) | → of Enter | volgende frase; nog eens drukken = nog een sectie verder |
-| **FILL** | F | op de laatste maat van de frase (de hats rollen) |
-| **Stem aan/uit** | 1 2 3 4 | volgende maat |
+| **NEXT** (vers ⇄ hook) | → of Enter | volgende frase; nog eens drukken = annuleren (sinds 2026-10-27; daarvoor: rondje door alle secties) |
+| **BREAK** (één frase, dan de andere sectie) | B; pedaal ▶▶ | volgende frase; nog eens tijdens de break = een frase erbij |
+| **FILL** | F | volgende maat (de hats rollen) |
+| **Stem aan/uit** | 1 2 3 4 5 | volgende maat |
 | **TAP** | T | tempo; vier tikken is genoeg |
 | **Bewaren** | S | direct: de laatste twee minuten als wav |
-| **Start/stop** | P | start met één maat aftellen; stop = einde-fill, dan stil |
+| **Start/stop** | P | start op de 1; stop = uittro op de volgende frase (einde-fill in de laatste maat), nog eens vóór de uittro = korte einde-fill, nog eens = stil |
+
+**Liedvorm (besluit Mark 2026-10-27, gangbaar in hiphop: I V H V H B V H E):**
+secties hebben een rol (`Section.role`: intro, verse, hook, break, outro).
+De intro klinkt één keer bij START; NEXT wisselt vers en hook en komt nooit
+in de intro terug; BREAK is één frase en keert terug naar de andere sectie
+dan waar hij uit kwam (vers → break → hook, zoals een DJ de break vóór de
+hook legt); STOP speelt de uittro (de OUTRO-sectie, of anders het
+breakmateriaal: drums dun, bas op de grondtoon, einde-fill in de laatste
+maat) en stopt; de Autopilot plant elke achtste frase zo'n echte break. Het
+scherm telt de maten binnen de sectie ("VERSE · bar 12"), want een vers is
+16 en een hook 8.
 
 Een goedkoop Bluetooth-bladomslagpedaal stuurt PageUp/PageDown en kan
 later NEXT en DROP overnemen zonder driver; een MIDI-voetcontroller via

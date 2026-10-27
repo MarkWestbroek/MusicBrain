@@ -23,6 +23,12 @@ describe('freestyle-patch', () => {
       for (const ch of style.sound) expect(r.patch.controlState[r.ids[ch.module]]?.[ch.control], `${style.id}: ${ch.module}.${ch.control}`).toBe(ch.value);
     }
     expect(STYLES.map((s) => s.id)).toEqual(['trap', 'boombap', 'bounce', 'acidhop', 'acidhop2']);
+    // Liedvorm: elke stijl heeft intro (als eerste), vers, hook en break; de acid hops ook een outro.
+    for (const style of STYLES) {
+      expect(style.sections[0]?.role, style.id).toBe('intro');
+      for (const role of ['intro', 'verse', 'hook', 'break'] as const) expect(style.sections.filter((s) => s.role === role), `${style.id}/${role}`).toHaveLength(1);
+      expect(style.sections.filter((s) => s.role === 'outro').length, style.id).toBe(style.id.startsWith('acidhop') ? 1 : 0);
+    }
   });
 
   it('acid hop II: akkoorden op stem 1–4, lijn op stem 5, sustain en padgate op Div, pad op gu-flute', () => {
@@ -56,9 +62,9 @@ describe('freestyle-patch', () => {
   });
 
   it('acid hop II: slagpatronen van bas en toetsen per sectie', () => {
-    const bass: Record<string, number[]> = { INTRO: [0, 3, 6, 9, 12, 14], VERSE: [0, 3, 6, 9, 12, 14], HOOK: [0, 3, 6, 9, 12, 14], BREAK: [0, 6, 12, 14] };
-    const chord: Record<string, number[]> = { INTRO: [0], VERSE: [0], HOOK: [], BREAK: [0] };
-    const line: Record<string, number[]> = { INTRO: [], VERSE: [6, 14], HOOK: [0, 2, 4, 6, 8, 10, 12, 14], BREAK: [14] };
+    const bass: Record<string, number[]> = { INTRO: [0, 3, 6, 9, 12, 14], VERSE: [0, 3, 6, 9, 12, 14], HOOK: [0, 3, 6, 9, 12, 14], BREAK: [0, 6, 12, 14], OUTRO: [0] };
+    const chord: Record<string, number[]> = { INTRO: [0], VERSE: [0], HOOK: [], BREAK: [0], OUTRO: [0] };
+    const line: Record<string, number[]> = { INTRO: [], VERSE: [6, 14], HOOK: [0, 2, 4, 6, 8, 10, 12, 14], BREAK: [14], OUTRO: [] };
     const v = (s: { changes: Change[] }, module: string, control: string): unknown => s.changes.find((c) => c.module === module && c.control === control)?.value;
     for (const s of ACID_HOP_2.sections) {
       expect(euclidHits(s.changes), `${s.name} bas`).toEqual(bass[s.name]);
@@ -119,7 +125,7 @@ describe('freestyle-patch', () => {
 
   it('acid hop: de slagpatronen van Euclid passen op de baslijnen (Marks figuur 3-3-3-3-2-2)', () => {
     const expected: Record<string, number[]> = {
-      INTRO: [0, 3, 6], VERSE: [0, 3, 6, 9, 12, 14], HOOK: [0, 3, 6, 9, 12, 14], BREAK: [0, 3, 6, 9, 12, 14],
+      INTRO: [0, 3, 6], VERSE: [0, 3, 6, 9, 12, 14], HOOK: [0, 3, 6, 9, 12, 14], BREAK: [0, 3, 6, 9, 12, 14], OUTRO: [0],
     };
     // De B-maat (vraag en antwoord): landen op de G, of C E♭ C en rust.
     const expectedB: Record<string, number[] | undefined> = { INTRO: undefined, VERSE: [0, 3, 6, 9, 12], HOOK: [0, 3, 6, 9, 12], BREAK: [0, 3, 6] };

@@ -20,12 +20,13 @@ see it again.
 | Button | What it does | When |
 |---|---|---|
 | **DROP** (hold) | Cuts the beat for a punchline. Let go and the beat comes back. | Out: instantly. Back: on the next beat. |
-| **NEXT** | Goes to the next section: INTRO → VERSE → HOOK → BREAK → INTRO. Press it mid-line; it waits. | On the 1 of the next phrase. |
+| **NEXT** | Switches between VERSE and HOOK (the intro plays once, at START). Press it mid-line; it waits. Press again to cancel. | On the 1 of the next phrase. |
+| **BREAK** | One phrase of break, then on to the other section by itself: verse → break → hook. Press again during the break for one more phrase. | On the 1 of the next phrase. |
 | **FILL** | A one-bar fill. On the phone it sits next to the parts. | Starts at the next bar. |
 | **KICK · SNARE · HATS · BASS · MOTIF** | Mutes or unmutes that part. Tap again to cancel before it lands. Bass and hats alone is a classic breakdown. | Next bar. |
 | **SAVE** | It is always recording from the first START. Was that take good? SAVE gives you the last two minutes as a WAV file. | Right away. |
 | **MIC** | Adds the microphone on its own track. SAVE then gives two files, beat and voice, to mix later. Headphones keep the voice track clean. | Right away. |
-| **STOP** | Plays an ending fill and stops after that bar. Press again to stop at once. The recording pauses while stopped. | Next bar, then stop. |
+| **STOP** | Plays an outro: one phrase with the bass on the root and an ending fill, then silence. Press again before the outro starts for a short ending (fill, then stop); once more to stop at once. The recording pauses while stopped. | On the 1 of the next phrase, then stop. |
 
 An amber border on a part means "this changes at the next bar". The amber
 text line tells you what is coming ("→ HOOK on the 1", "HATS off next bar").
@@ -49,8 +50,12 @@ flute). This stops the beat; tap START again.
 
 A Bluetooth page-turner pedal (two pedals, ◀ and ▶) works as a keyboard.
 Pair it with the phone or laptop, then: **◀ = DROP** (press once, the beat
-is gone; press again and it comes back on the next beat), **▶ = NEXT**. Any
-mode of the pedal works (arrows or Page Up/Down).
+is gone; press again and it comes back on the next beat), **▶ = NEXT**,
+**▶ twice quickly = BREAK** (holding ▶ works too on pedals that repeat the
+key). Any mode of the pedal works (arrows or Page Up/Down).
+
+The section name shows the bar you are in ("VERSE · bar 12"): a verse is
+usually 16 bars, a hook 8, so you feel the change coming.
 
 ## Autopilot
 

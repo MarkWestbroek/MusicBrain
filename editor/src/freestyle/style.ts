@@ -33,8 +33,17 @@ export interface Change { module: ModuleKey; control: string; value: number | bo
  *    nootlengte (acid hop: een echte baslijn met rusten). */
 export type BassSource = 'kick' | 'euclid';
 
+/** De rol van een sectie in de liedvorm (besluit Mark 2026-10-27, gangbaar in
+ *  hiphop: I V H V H B V H E): intro één keer bij START; NEXT wisselt verse
+ *  en hook; BREAK is één frase en keert terug naar de andere sectie dan waar
+ *  je vandaan kwam (vers → break → hook); STOP speelt de outro (breakmateriaal
+ *  met de bas op de grondtoon) en stopt. Ontbreekt de outro, dan is het de
+ *  break. */
+export type SectionRole = 'intro' | 'verse' | 'hook' | 'break' | 'outro';
+
 export interface Section {
   name: string;
+  role: SectionRole;
   /** Wat de gitarist ziet: toonsoort of akkoordenpaar. */
   chord: string;
   /** Welke stems deze sectie aanzet. Een mute uit de vorige sectie telt niet
@@ -205,22 +214,22 @@ export const TRAP: Style = {
   sound: sound({ bass: 29, kick: [0.85, -4, 0.35], snare: [0.7, 0.3, 0.8], hat: 0.15, sub: [0.12, 0.1, 0.25], piano: [0.4, 0.3, 0.7] }),
   sections: [
     {
-      name: 'INTRO', chord: 'Fm',
+      name: 'INTRO', role: 'intro', chord: 'Fm',
       stems: all({ snare: false }),
       changes: [...grids(0.25, 0.15, 0.5, 0.4, 0.5), ...steps('bassSeq', BASS_A), ...steps('motifSeq', MOTIF_A)],
     },
     {
-      name: 'VERSE', chord: 'Fm · D♭',
+      name: 'VERSE', role: 'verse', chord: 'Fm · D♭',
       stems: all(),
       changes: [...grids(0.35, 0.3, 0.55, 0.5, 0.7), ...steps('bassSeq', BASS_B), ...steps('motifSeq', MOTIF_B)],
     },
     {
-      name: 'HOOK', chord: 'Fm · D♭ · E♭',
+      name: 'HOOK', role: 'hook', chord: 'Fm · D♭ · E♭',
       stems: all(),
       changes: [...grids(0.5, 0.45, 0.65, 0.6, 0.85), ...steps('bassSeq', BASS_HOOK), ...steps('motifSeq', MOTIF_HOOK)],
     },
     {
-      name: 'BREAK', chord: 'Fm',
+      name: 'BREAK', role: 'break', chord: 'Fm',
       stems: all({ kick: false, snare: false, bass: false }),
       changes: [...grids(0.3, 0.3, 0.5, 0.5, 0.6), ...steps('bassSeq', BASS_A), ...steps('motifSeq', MOTIF_A)],
     },
@@ -254,22 +263,22 @@ export const BOOM_BAP: Style = {
   sound: sound({ bass: 33, kick: [0.45, 0, 0.5], snare: [0.5, 0.35, 0.6], hat: 0.12, sub: [0.22, 0.2, 0.35], piano: [0.6, 0.2, 0.5] }),
   sections: [
     {
-      name: 'INTRO', chord: 'Am',
+      name: 'INTRO', role: 'intro', chord: 'Am',
       stems: all({ snare: false }),
       changes: [...grids(0.2, 0.1, 0.45, 0.4, 0.55), ...steps('bassSeq', BASS_BB_A), ...steps('motifSeq', MOTIF_BB_A)],
     },
     {
-      name: 'VERSE', chord: 'Am · F',
+      name: 'VERSE', role: 'verse', chord: 'Am · F',
       stems: all(),
       changes: [...grids(0.3, 0.2, 0.55, 0.55, 0.65), ...steps('bassSeq', BASS_BB_B), ...steps('motifSeq', MOTIF_BB_B)],
     },
     {
-      name: 'HOOK', chord: 'Am · C · G',
+      name: 'HOOK', role: 'hook', chord: 'Am · C · G',
       stems: all(),
       changes: [...grids(0.45, 0.35, 0.65, 0.65, 0.8), ...steps('bassSeq', BASS_BB_HOOK), ...steps('motifSeq', MOTIF_BB_HOOK)],
     },
     {
-      name: 'BREAK', chord: 'Am',
+      name: 'BREAK', role: 'break', chord: 'Am',
       stems: all({ hats: false, motif: false }),
       changes: [...grids(0.25, 0.15, 0.5, 0.5, 0.5), ...steps('bassSeq', BASS_BB_A), ...steps('motifSeq', MOTIF_BB_A)],
     },
@@ -303,22 +312,22 @@ export const BOUNCE: Style = {
   sound: sound({ bass: 31, kick: [0.5, -2, 0.45], snare: [0.8, 0.22, 0.9], hat: 0.1, sub: [0.3, 0.35, 0.5], piano: [0.3, 0.5, 0.45] }),
   sections: [
     {
-      name: 'INTRO', chord: 'Gm',
+      name: 'INTRO', role: 'intro', chord: 'Gm',
       stems: all({ hats: false }),
       changes: [...grids(0.6, 0.5, 0.6, 0.45, 0.4), ...steps('bassSeq', BASS_BN_A), ...steps('motifSeq', MOTIF_BN_A)],
     },
     {
-      name: 'VERSE', chord: 'Gm · B♭',
+      name: 'VERSE', role: 'verse', chord: 'Gm · B♭',
       stems: all(),
       changes: [...grids(0.65, 0.6, 0.65, 0.55, 0.5), ...steps('bassSeq', BASS_BN_B), ...steps('motifSeq', MOTIF_BN_B)],
     },
     {
-      name: 'HOOK', chord: 'Gm · B♭ · D',
+      name: 'HOOK', role: 'hook', chord: 'Gm · B♭ · D',
       stems: all(),
       changes: [...grids(0.75, 0.7, 0.75, 0.65, 0.65), ...steps('bassSeq', BASS_BN_HOOK), ...steps('motifSeq', MOTIF_BN_HOOK)],
     },
     {
-      name: 'BREAK', chord: 'Gm',
+      name: 'BREAK', role: 'break', chord: 'Gm',
       stems: all({ snare: false, motif: false }),
       changes: [...grids(0.5, 0.4, 0.55, 0.5, 0.45), ...steps('bassSeq', BASS_BN_A), ...steps('motifSeq', MOTIF_BN_A)],
     },
@@ -377,28 +386,35 @@ export const ACID_HOP: Style = {
   }),
   sections: [
     {
-      name: 'INTRO', chord: 'Cm',
+      name: 'INTRO', role: 'intro', chord: 'Cm',
       stems: all({ snare: false }),
       changes: [...grids(0.35, 0.3, 0.45, 0.35, 0.5), ...hits(...HITS_AH_THREE), ...bassLine(BASS_AH_INTRO, AH_RATE_LONG), ...steps('motifSeq', MOTIF_AH_A)],
     },
     {
-      name: 'VERSE', chord: 'Cm · A♭',
+      name: 'VERSE', role: 'verse', chord: 'Cm · A♭',
       stems: all(),
       changes: [...grids(0.4, 0.35, 0.6, 0.55, 0.65), ...hits(HITS_AH_SIX), ...bassLine(BASS_AH_A, AH_RATE), ...steps('motifSeq', MOTIF_AH_A)],
       b: [...hits(...HITS_AH_FIVE), ...bassLine(BASS_AH_HOOK, AH_RATE_LONG)],
     },
     {
-      name: 'HOOK', chord: 'Cm · A♭ · G',
+      name: 'HOOK', role: 'hook', chord: 'Cm · A♭ · G',
       stems: all(),
       changes: [...grids(0.5, 0.45, 0.7, 0.6, 0.8), ...hits(HITS_AH_SIX), ...bassLine(BASS_AH_VAR, AH_RATE), ...steps('motifSeq', MOTIF_AH_B)],
       b: [...hits(...HITS_AH_FIVE), ...bassLine(BASS_AH_HOOK, AH_RATE_LONG)],
     },
     {
       // Breakdown: alleen bas en hats; A de variant van de figuur, B alleen C E♭ C en rust.
-      name: 'BREAK', chord: 'Cm',
+      name: 'BREAK', role: 'break', chord: 'Cm',
       stems: all({ kick: false, snare: false, motif: false }),
       changes: [...grids(0.4, 0.3, 0.5, 0.5, 0.55), ...hits(HITS_AH_SIX), ...bassLine(BASS_AH_VAR, AH_RATE), ...steps('motifSeq', MOTIF_AH_A)],
       b: [...hits(...HITS_AH_THREE), ...bassLine(BASS_AH_INTRO, AH_RATE_LONG)],
+    },
+    {
+      // Uittro (STOP): bas op de grondtoon, lang, alleen met de hats; de
+      // einde-fill komt in de laatste maat, dan stil.
+      name: 'OUTRO', role: 'outro', chord: 'Cm',
+      stems: all({ kick: false, snare: false, motif: false }),
+      changes: [...grids(0.3, 0.25, 0.45, 0.4, 0.45), ...hits([16, 1, 0]), ...bassLine([0], 0.5), ...steps('motifSeq', MOTIF_AH_A)],
     },
   ],
   fill: [
@@ -461,14 +477,14 @@ export const ACID_HOP_2: Style = {
     {
       // E-piano in A/B zoals Mark speelde (EP-MIDI per maat): A het volle
       // Cm-akkoord, B de kwint C+G (maat 2 en 4 van zijn opname).
-      name: 'INTRO', chord: 'Cm',
+      name: 'INTRO', role: 'intro', chord: 'Cm',
       stems: all({ bass: false }),
       changes: [...grids(0.35, 0.3, 0.45, 0.4, 0.5), ...hits(HITS_AH_SIX), ...bassLine(BASS_AH_A, AH_RATE),
         ...chordType(CHORD_MINOR), ...hitsOn('keysGate', [16, 1, 0]), ...seqLine('motifSeq', LINE_AH2_STABS, AH_RATE), ...padLine(PAD_AH2_C)],
       b: chordType(CHORD_FIFTH),
     },
     {
-      name: 'VERSE', chord: 'Cm',
+      name: 'VERSE', role: 'verse', chord: 'Cm',
       stems: all(),
       changes: [...grids(0.4, 0.35, 0.6, 0.55, 0.65), ...hits(HITS_AH_SIX), ...bassLine(BASS_AH_A, AH_RATE),
         ...chordType(CHORD_MINOR), ...hitsOn('keysGate', [16, 1, 0], [8, 1, 6]), ...seqLine('motifSeq', LINE_AH2_STABS, AH_RATE), ...padLine(PAD_AH2_C)],
@@ -477,7 +493,7 @@ export const ACID_HOP_2: Style = {
     {
       // Hook: A het neergebroken akkoord dat blijft klinken, B de landing op
       // een lange C4 (zijn maat 13: D4 C4 en dan niets tot de volgende val).
-      name: 'HOOK', chord: 'Cm · A♭ · G',
+      name: 'HOOK', role: 'hook', chord: 'Cm · A♭ · G',
       stems: all(),
       changes: [...grids(0.5, 0.45, 0.7, 0.6, 0.8), ...hits(HITS_AH_SIX), ...bassLine(BASS_AH2_HOOK_A, AH_RATE),
         ...chordType(CHORD_MINOR), ...hitsOn('keysGate', SILENT, [2, 1, 0]), ...seqLine('motifSeq', LINE_AH2_FALL, 4), ...padLine(PAD_AH2_C)],
@@ -486,11 +502,18 @@ export const ACID_HOP_2: Style = {
     {
       // Slot: A C4+G4 een hele maat, B het Cm-akkoord (zijn maat 14–16); de bas
       // speelt A♭ G E♭ C, het pad de lage melodie.
-      name: 'BREAK', chord: 'Cm',
+      name: 'BREAK', role: 'break', chord: 'Cm',
       stems: all({ kick: false, snare: false }),
       changes: [...grids(0.4, 0.3, 0.5, 0.5, 0.55), ...hits([6, 1, 0], [16, 1, 14]), ...bassLine(BASS_AH2_END, AH_RATE),
         ...chordType(CHORD_FIFTH), ...hitsOn('keysGate', [16, 1, 0], [16, 1, 14]), ...seqLine('motifSeq', LINE_AH2_GRACE, AH_RATE), ...padLine(PAD_AH2_LOW)],
       b: chordType(CHORD_MINOR),
+    },
+    {
+      // Uittro: bas lang op C, het Cm-akkoord op de 1, het pad op C3, hats.
+      name: 'OUTRO', role: 'outro', chord: 'Cm',
+      stems: all({ kick: false, snare: false }),
+      changes: [...grids(0.3, 0.25, 0.45, 0.4, 0.45), ...hits([16, 1, 0]), ...bassLine([0], 0.5),
+        ...chordType(CHORD_MINOR), ...hitsOn('keysGate', [16, 1, 0]), ...seqLine('motifSeq', LINE_AH2_LAND, 1), ...padLine([-12, -12])],
     },
   ],
   fill: [

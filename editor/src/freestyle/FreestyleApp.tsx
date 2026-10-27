@@ -5,8 +5,8 @@
 //
 // Schermtekst in het Engels (besluit Mark 2026-10-25: hij en zijn vriend
 // lezen het dan beide). Toetsen: SPACE (houden) = DROP, → of Enter = NEXT,
-// F = FILL, 1–5 = stems, T = TAP, − en + = tempo een bpm, P = start/stop
-// (stop = einde-fill, nog eens = meteen stil), S = SAVE, G = volgende stijl
+// B = BREAK (één frase), F = FILL, 1–5 = stems, T = TAP, − en + = tempo een bpm, P = start/stop
+// (stop = uittro op de frase, nog eens = korte einde-fill, nog eens = stil), S = SAVE, G = volgende stijl
 // (genre), M = microfoon, A = Autopilot.
 //
 // Ringbuffer (MOCKUP.md §4.7): vanaf de eerste START neemt een
@@ -60,7 +60,8 @@ const TOUR_STEPS: PlayTourStep[] = [
   step('fs-beat', 'Where you are', 'The dots count 1-2-3-4, the bars show the bar in the four-bar phrase. The whole screen flashes amber on the 1 of every phrase: that is your cue.'),
   step('fs-section', 'Section and chord', 'The section you are in and the chord, so a guitarist can play along. The amber line tells what is coming ("→ HOOK on the 1").'),
   step('fs-drop', 'DROP', 'Hold it and the beat is gone, instantly, for a punchline. Let go and it comes back on the next beat. With a Bluetooth page-turner pedal: the left pedal cuts the beat, press it again to bring it back.'),
-  step('fs-next', 'NEXT', 'The next section: INTRO → VERSE → HOOK → BREAK. Press it mid-line; it lands on the 1 of the next phrase. On a page-turner pedal this is the right pedal.'),
+  step('fs-next', 'NEXT', 'Switches between VERSE and HOOK (the intro plays once, at START). Press it mid-line; it lands on the 1 of the next phrase. Press again to cancel. On a page-turner pedal this is the right pedal.'),
+  step('fs-break', 'BREAK', 'One phrase of break, starting on the next 1, then it goes on to the other section by itself: verse → break → hook. Press again during the break for one more phrase. Pedal: right pedal twice, quickly.'),
   step('fs-fill', 'FILL', 'A one-bar fill, starting at the next bar.'),
   step('fs-stems', 'The five parts', 'KICK, SNARE, HATS, BASS and MOTIF. Tap a part to mute or unmute it at the next bar. An amber border means it changes at the next bar; tap again to cancel. Bass and hats alone is a classic breakdown.'),
   step('fs-style', 'Style', 'Tap the style name to go to the next style: trap, boom bap, bounce, acid hop, acid hop II (with mellotron). That stops the beat; press START again.'),
@@ -68,7 +69,7 @@ const TOUR_STEPS: PlayTourStep[] = [
   step('fs-save', 'It is always recording', 'From the first START the last two minutes are kept. Was that take good? Tap SAVE and you get it as a WAV file. No need to press record first.'),
   step('fs-mic', 'Record your voice too', 'MIC adds the microphone to the recording, on its own track. SAVE then gives two files, beat and voice, to mix later. Use headphones for a clean voice track.'),
   step('fs-auto', 'Autopilot', 'With autopilot on, every phrase gets a small variation: the bass drops out for a bar, every fourth phrase ends with a fill, now and then two bars of bass and hats only. One section stays alive for minutes.'),
-  step('fs-start', 'Stopping', 'STOP plays an ending fill and stops after that bar. Press it again to stop at once.'),
+  step('fs-start', 'Stopping', 'STOP plays an outro on the next 1: one phrase with the bass on the root and an ending fill, then silence. Press STOP again before the outro starts for a short ending (fill, then stop); once more to stop at once.'),
   step(undefined, 'Have fun', 'This tour comes back with the ? at the top.'),
 ];
 
@@ -256,16 +257,36 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
     chooseStyle(STYLES[(i + 1) % STYLES.length]!.id);
   }, [styleId, chooseStyle]);
 
+  // NEXT-toetsen: twee keer snel (of vasthouden op een pedaal dat herhaalt) = BREAK.
+  const nextKey = useRef({ lastAt: -1e9, downAt: 0, held: false });
   useEffect(() => {
+    const NEXT_KEYS = ['ArrowRight', 'ArrowDown', 'PageDown', 'Enter'];
+    const breakInstead = (): void => act((t) => { perf.cancelNext(); perf.breakOnce(t); });
     const down = (e: KeyboardEvent): void => {
-      if (e.repeat || tour) return;      // de rondleiding heeft de pijltjes en Enter
+      if (tour) return;                  // de rondleiding heeft de pijltjes en Enter
+      if (e.repeat) {
+        // Vasthouden (een pedaal dat de toets herhaalt): na 0,6 s wordt de NEXT een BREAK.
+        if (NEXT_KEYS.includes(e.code) && !nextKey.current.held && performance.now() - nextKey.current.downAt >= 600) {
+          nextKey.current.held = true;
+          breakInstead();
+        }
+        return;
+      }
       switch (e.code) {
         case 'Space': e.preventDefault(); act((t) => perf.dropDown(t)); break;
         // Bladomslagpedaal (Bluetooth-toetsenbord, twee pedalen ◀ ▶): naar
         // gelang de modus pijl links/rechts, pijl omhoog/omlaag of Page Up/
-        // Down. ▶ = NEXT; ◀ = DROP als schakelaar, want zo'n pedaal laat de
-        // toets meteen los of herhaalt hem: één trap beat weg, nog één terug.
-        case 'ArrowRight': case 'ArrowDown': case 'PageDown': case 'Enter': e.preventDefault(); act((t) => perf.next(t)); break;
+        // Down. ▶ = NEXT, ▶▶ (binnen 0,4 s) = BREAK; ◀ = DROP als schakelaar,
+        // want zo'n pedaal laat de toets meteen los of herhaalt hem.
+        case 'ArrowRight': case 'ArrowDown': case 'PageDown': case 'Enter': {
+          e.preventDefault();
+          const now = performance.now();
+          const twice = now - nextKey.current.lastAt < 400;
+          nextKey.current = { lastAt: twice ? -1e9 : now, downAt: now, held: false };
+          if (twice) breakInstead(); else act((t) => perf.next(t));
+          break;
+        }
+        case 'KeyB': act((t) => perf.breakOnce(t)); break;
         case 'ArrowLeft': case 'ArrowUp': case 'PageUp':
           e.preventDefault();
           act((t) => (perf.dropped ? perf.dropUp(t) : perf.dropDown(t)));
@@ -359,9 +380,16 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
       FILL<span style={{ display: 'block', fontSize: 11, fontWeight: 400, opacity: 0.7 }}>next bar</span>
     </button>
   );
-  /** De grote knoppen: DROP vasthouden, NEXT (en op de laptop FILL). Op de laptop ook, naast de toetsen. */
+  const inBreak = perf.section.role === 'break';
+  const breakButton = (
+    <button type="button" data-tour="fs-break" onClick={() => act((t) => perf.breakOnce(t))} title="One phrase of break, then on to the other section (B)"
+      style={{ ...big(inBreak ? AMBER : '#1f2937', inBreak ? 'var(--mb-on-accent)' : FG), ...TOUCH }}>
+      BREAK<span style={{ display: 'block', fontSize: 11, fontWeight: 400, opacity: 0.7 }}>{inBreak ? 'one more' : 'one phrase'}</span>
+    </button>
+  );
+  /** De grote knoppen: DROP vasthouden, NEXT, BREAK (en op de laptop FILL). Op de laptop ook, naast de toetsen. */
   const actions = (
-    <div style={{ display: 'grid', gridTemplateColumns: phone ? '1.4fr 1fr' : '1.4fr 1fr 1fr', gap: 10 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: phone ? '1.4fr 1fr 1fr' : '1.4fr 1fr 1fr 1fr', gap: 10 }}>
       <button ref={dropRef} type="button" data-tour="fs-drop"
         onPointerDown={(e) => {
           e.preventDefault();
@@ -375,8 +403,9 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
         DROP<span style={{ display: 'block', fontSize: 11, fontWeight: 400, opacity: 0.7 }}>hold</span>
       </button>
       <button type="button" data-tour="fs-next" onClick={() => act((t) => perf.next(t))} style={{ ...big('#1f2937', FG), ...TOUCH }}>
-        NEXT<span style={{ display: 'block', fontSize: 11, fontWeight: 400, opacity: 0.7 }}>on the 1</span>
+        NEXT<span style={{ display: 'block', fontSize: 11, fontWeight: 400, opacity: 0.7 }}>{perf.section.role === 'verse' ? 'to hook' : perf.section.role === 'hook' ? 'to verse' : 'on the 1'}</span>
       </button>
+      {breakButton}
       {!phone && fillButton}
     </div>
   );
@@ -438,7 +467,9 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
           {bpmBlock}
           {beatDots}
           <div data-tour="fs-section" style={{ marginTop: 10 }}>
-            <div style={{ fontSize: 'clamp(28px, 9vw, 44px)', fontWeight: 800, lineHeight: 1 }}>{perf.section.name}</div>
+            <div style={{ fontSize: 'clamp(28px, 9vw, 44px)', fontWeight: 800, lineHeight: 1 }}>
+              {perf.section.name}{running && <span style={{ ...MONO, fontSize: 16, fontWeight: 400, color: DIM, marginLeft: 10 }}>bar {perf.barInSection(ctxNow())}</span>}
+            </div>
             <div style={{ fontSize: 'clamp(22px, 7vw, 36px)', fontWeight: 700, lineHeight: 1.1, marginTop: 4 }}>{perf.section.chord} <span style={{ fontSize: 14, color: DIM, fontWeight: 400 }}>{style.key}</span></div>
             <div style={{ minHeight: 22, fontSize: 15, color: AMBER, fontStyle: 'italic', marginTop: 4 }}>{status}</div>
           </div>
@@ -466,6 +497,7 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
         <section data-tour="fs-section">
           <div style={{ fontSize: 14, color: DIM, letterSpacing: '0.1em' }}>SECTION</div>
           <div style={{ fontSize: 'clamp(40px, 7vw, 96px)', fontWeight: 800, lineHeight: 1 }}>{perf.section.name}</div>
+          <div style={{ ...MONO, fontSize: 18, color: DIM, marginTop: 6, minHeight: 22 }} title="Bar within this section: a verse is usually 16 bars, a hook 8">{running ? `bar ${perf.barInSection(ctxNow())}` : ''}</div>
           <div style={{ marginTop: 28, fontSize: 14, color: DIM, letterSpacing: '0.1em' }}>KEY · CHORD</div>
           <div style={{ fontSize: 'clamp(32px, 5vw, 72px)', fontWeight: 700, lineHeight: 1.1 }}>{perf.section.chord}</div>
           <div style={{ fontSize: 18, color: DIM, marginTop: 4 }}>{style.key}</div>
@@ -486,14 +518,15 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
 
       <footer style={{ display: 'flex', gap: 24, marginTop: 14, fontSize: 13, color: DIM, position: 'relative', flexWrap: 'wrap' }}>
         <span><b style={{ color: FG }}>SPACE</b> hold = DROP</span>
-        <span><b style={{ color: FG }}>→</b> NEXT section (lands on the 1)</span>
+        <span><b style={{ color: FG }}>→</b> NEXT verse ⇄ hook (on the 1)</span>
+        <span><b style={{ color: FG }}>B</b> BREAK (one phrase)</span>
         <span><b style={{ color: FG }}>F</b> FILL (next bar)</span>
         <span><b style={{ color: FG }}>1–5</b> parts (next bar)</span>
         <span><b style={{ color: FG }}>T</b> tap tempo · <b style={{ color: FG }}>− +</b> 1 bpm</span>
-        <span><b style={{ color: FG }}>P</b> start / stop (ending)</span>
+        <span><b style={{ color: FG }}>P</b> start / stop (outro)</span>
         <span><b style={{ color: FG }}>S</b> save last 2 min</span>
         <span><b style={{ color: FG }}>M</b> mic · <b style={{ color: FG }}>A</b> autopilot · <b style={{ color: FG }}>G</b> style</span>
-        <span title="Bluetooth page-turner pedal: left pedal = DROP (press again to bring the beat back), right pedal = NEXT"><b style={{ color: FG }}>pedal</b> ◀ DROP · ▶ NEXT</span>
+        <span title="Bluetooth page-turner pedal: left pedal = DROP (press again to bring the beat back), right pedal = NEXT, right pedal twice quickly (or held) = BREAK"><b style={{ color: FG }}>pedal</b> ◀ DROP · ▶ NEXT · ▶▶ BREAK</span>
         <span style={{ flex: 1 }} />
         {saveButton}
         {meter}

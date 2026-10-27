@@ -65,29 +65,59 @@ describe('Performance', () => {
     expect(perf.dropped).toBe(false);
   });
 
-  it('NEXT landt op de 1 van de volgende frase, nog eens drukken schuift een sectie verder', () => {
+  it('NEXT landt op de 1 van de volgende frase; nog eens drukken annuleert', () => {
     const { perf, t0 } = started();
     perf.next(t0 + BAR * 1.5);
     expect(perf.pendingLabels()).toEqual(['→ VERSE on the 1']);
-    perf.next(t0 + BAR * 1.6);
-    expect(perf.pendingLabels()).toEqual(['→ HOOK on the 1']);
+    perf.next(t0 + BAR * 1.6);                                        // annuleren
+    expect(perf.pendingLabels()).toEqual([]);
+    perf.next(t0 + BAR * 1.7);
     expect(runUntil(perf, t0, t0 + PHRASE - BEAT)).toEqual([]);
     const fired = runUntil(perf, t0 + PHRASE - BEAT / 2, t0 + PHRASE);
     expect(fired).toHaveLength(1);
     expect(fired[0]!.at).toBeCloseTo(t0 + PHRASE, 5);
-    expect(perf.section.name).toBe('HOOK');
+    expect(perf.section.name).toBe('VERSE');
     expect(has(fired[0]!.changes, 'snare', 'level', 0.75)).toBe(true);
-    expect(has(fired[0]!.changes, 'grids', 'hh', 0.85)).toBe(true);
+    expect(has(fired[0]!.changes, 'grids', 'hh', 0.7)).toBe(true);
+    expect(perf.barInSection(t0 + PHRASE + BAR * 2.5)).toBe(3);
   });
 
-  it('wrapt van de laatste sectie terug naar de eerste', () => {
+  it('liedvorm: intro één keer, daarna wisselt NEXT vers en hook en komt nooit in de intro terug', () => {
     const { perf, t0 } = started();
-    const n = TRAP.sections.length;
-    for (let i = 0; i < n; i++) {
+    const names: string[] = [];
+    for (let i = 0; i < 5; i++) {
       perf.next(t0 + i * PHRASE + BEAT);
       runUntil(perf, t0 + i * PHRASE + BEAT, t0 + (i + 1) * PHRASE);
+      names.push(perf.section.name);
     }
-    expect(perf.sectionIndex).toBe(0);
+    expect(names).toEqual(['VERSE', 'HOOK', 'VERSE', 'HOOK', 'VERSE']);
+  });
+
+  it('BREAK: één frase op de volgende 1, dan vanzelf naar de andere sectie; nog eens = een frase erbij', () => {
+    const { perf, t0 } = started();
+    perf.next(t0 + BEAT);
+    runUntil(perf, t0 + BEAT, t0 + PHRASE);                           // → VERSE
+    perf.breakOnce(t0 + PHRASE + BEAT);
+    expect(perf.pendingLabels()).toEqual(['→ BREAK on the 1 · then HOOK']);
+    perf.breakOnce(t0 + PHRASE + BEAT * 1.1);                         // annuleren
+    expect(perf.pendingLabels()).toEqual([]);
+    perf.breakOnce(t0 + PHRASE + BEAT * 1.2);
+    let fired = runUntil(perf, t0 + PHRASE + BEAT * 1.5, t0 + 2 * PHRASE + BEAT / 2);   // tikken op halve tellen, zodat de grens zelf raak is
+    expect(fired.map((f) => f.label)).toEqual(['→ BREAK']);
+    expect(fired[0]!.at).toBeCloseTo(t0 + 2 * PHRASE, 4);
+    expect(perf.section.role).toBe('break');
+    expect(perf.stems.kick).toBe(false);                              // trap-break: hats + motief
+    expect(perf.pendingLabels()).toEqual(['→ HOOK after the break']);
+    perf.breakOnce(t0 + 2 * PHRASE + BAR);                            // een frase erbij
+    fired = runUntil(perf, t0 + 2 * PHRASE + BAR, t0 + 3 * PHRASE + BEAT);
+    expect(fired.map((f) => f.label)).toEqual([]);
+    expect(perf.section.role).toBe('break');
+    fired = runUntil(perf, t0 + 3 * PHRASE + BEAT, t0 + 4 * PHRASE + BEAT);
+    expect(fired.map((f) => f.label)).toEqual(['→ HOOK']);
+    expect(fired[0]!.at).toBeCloseTo(t0 + 4 * PHRASE, 4);
+    // Uit de hook gaat de break naar het vers.
+    perf.breakOnce(t0 + 4 * PHRASE + BEAT);
+    expect(perf.pendingLabels()).toEqual(['→ BREAK on the 1 · then VERSE']);
   });
 
   it('een stem landt op de volgende maat; nog eens drukken annuleert', () => {
@@ -166,20 +196,22 @@ describe('Performance', () => {
     expect(perf.stems.bass).toBe(true);                               // de knop stond al die tijd aan
   });
 
-  it('Autopilot: de achtste frase begint met twee maten alleen bas en hats; zelf uitgezet blijft uit', () => {
+  it('Autopilot: de achtste frase is een echte BREAK, daarna de andere sectie; in de intro niet', () => {
     const perf = new Performance(TRAP);
     perf.setAutopilot(true, 0);
     const t0 = perf.start(10).at;
-    perf.toggleStem('motif', t0 + BEAT);                              // de rapper zet het motief zelf uit
-    const fired = runUntil(perf, t0, t0 + 7 * PHRASE + 2 * BAR + BEAT);
-    const down = fired.find((f) => f.label === 'autopilot · phrase 8')!;
-    // INTRO heeft geen snare en het motief staat zelf uit: alleen de kick gaat tijdelijk weg.
-    expect(down.changes.filter((c) => c.control === 'level').map((c) => `${c.module}=${c.value}`)).toEqual(['kick=0']);
-    // (De eerste "all back" op de 1 van frase 8 is de bas uit frase 7; de breakdown eindigt twee maten later.)
-    const back = fired.find((f) => f.label === 'autopilot · all back' && f.at > t0 + 7 * PHRASE + BEAT)!;
-    expect(back.at).toBeCloseTo(t0 + 7 * PHRASE + 2 * BAR, 4);
-    expect(back.changes.map((c) => `${c.module}=${c.value}`)).toEqual(['kick=0.9']);
-    expect(perf.stems.motif).toBe(false);
+    perf.next(t0 + BEAT);                                             // → VERSE op frase 2
+    const fired = runUntil(perf, t0, t0 + 8 * PHRASE + BEAT);
+    const brk = fired.find((f) => f.label === '→ BREAK')!;
+    expect(brk.at).toBeCloseTo(t0 + 7 * PHRASE, 4);
+    const back = fired.find((f) => f.label === '→ HOOK')!;              // uit het vers gaat de break naar de hook
+    expect(back.at).toBeCloseTo(t0 + 8 * PHRASE, 4);
+    expect(perf.section.name).toBe('HOOK');
+    // Blijf je in de intro, dan komt er geen break.
+    const p2 = new Performance(TRAP);
+    p2.setAutopilot(true, 0);
+    const s0 = p2.start(10).at;
+    expect(runUntil(p2, s0, s0 + 8 * PHRASE + BEAT).some((f) => f.label === '→ BREAK')).toBe(false);
   });
 
   it('Autopilot uit tijdens een tijdelijke mute zet de stem meteen terug; NEXT ook', () => {
@@ -264,31 +296,47 @@ describe('Performance', () => {
     expect(perf.setPercussionist(true, t0)).toBeNull();
   });
 
-  it('STOP speelt een einde-fill op de volgende maat en stopt na die maat', () => {
+  it('STOP = uittro: op de volgende 1 de outro (of de break), fill in de laatste maat, dan stil', () => {
     const { perf, t0 } = started();
     perf.next(t0 + BEAT);                                             // vervalt door het einde
     expect(perf.stop(t0 + 2 * BEAT)).toBeNull();
     expect(perf.ending).toBe(true);
-    expect(perf.pendingLabels()).toEqual(['FILL next bar', 'ending — fill, then stop']);
-    const fired = runUntil(perf, t0 + 2 * BEAT, t0 + 2 * BAR + BEAT);
-    expect(fired.map((f) => f.label)).toEqual(['fill', 'end']);
-    expect(fired[0]!.at).toBeCloseTo(t0 + BAR, 5);
-    expect(fired[1]!.at).toBeCloseTo(t0 + 2 * BAR, 5);
-    expect(has(fired[1]!.changes, 'clock', 'run', false)).toBe(true);
+    expect(perf.pendingLabels()).toEqual(['ending — outro on the 1, then stop']);
+    perf.next(t0 + 3 * BEAT);                                         // doet niets meer
+    expect(perf.pendingLabels()).toEqual(['ending — outro on the 1, then stop']);
+    const fired = runUntil(perf, t0 + 2 * BEAT, t0 + 2 * PHRASE + BEAT);
+    expect(fired.map((f) => f.label)).toEqual(['→ OUTRO', 'fill', 'end']);
+    expect(fired[0]!.at).toBeCloseTo(t0 + PHRASE, 5);
+    expect(perf.section.role).toBe('break');                          // trap heeft geen outro: breakmateriaal
+    expect(fired[1]!.at).toBeCloseTo(t0 + PHRASE + 3 * BAR, 5);
+    expect(fired[2]!.at).toBeCloseTo(t0 + 2 * PHRASE, 5);
+    expect(has(fired[2]!.changes, 'clock', 'run', false)).toBe(true);
     expect(perf.running).toBe(false);
-    expect(perf.pendingLabels()).toEqual([]);
-    expect(perf.section.name).toBe('INTRO');
-    expect(perf.tick(t0 + PHRASE)).toEqual([]);
+    expect(perf.ending).toBe(false);
+    expect(perf.tick(t0 + 3 * PHRASE)).toEqual([]);
   });
 
-  it('STOP nog eens terwijl het einde gewapend staat: meteen stil', () => {
+  it('STOP nog eens vóór de uittro: de korte weg (fill, dan stil); nog eens: meteen stil', () => {
     const { perf, t0 } = started();
     perf.stop(t0 + BEAT);
-    const f = perf.stop(t0 + BEAT * 1.5)!;
-    expect(f.label).toBe('stop');
-    expect(f.at).toBeCloseTo(t0 + BEAT * 1.5, 5);
+    expect(perf.stop(t0 + BEAT * 1.5)).toBeNull();                     // korte weg
+    expect(perf.pendingLabels()).toEqual(['FILL next bar', 'ending — fill, then stop']);
+    const fired = runUntil(perf, t0 + BEAT * 1.5, t0 + 2 * BAR + BEAT);
+    expect(fired.map((f) => f.label)).toEqual(['fill', 'end']);
     expect(perf.running).toBe(false);
-    expect(perf.stop(t0 + 2 * BEAT)).toBeNull();                       // staat al stil
+    // En de derde druk, terwijl de korte weg loopt: meteen stil.
+    const { perf: p2, t0: s0 } = started();
+    p2.stop(s0 + BEAT); p2.stop(s0 + BEAT * 1.2);
+    const f = p2.stop(s0 + BEAT * 1.5)!;
+    expect(f.label).toBe('stop');
+    expect(p2.running).toBe(false);
+    expect(p2.stop(s0 + 2 * BEAT)).toBeNull();                         // staat al stil
+    // Ook tijdens de uittro zelf: meteen stil.
+    const { perf: p3, t0: u0 } = started();
+    p3.stop(u0 + BEAT);
+    runUntil(p3, u0 + BEAT, u0 + PHRASE + BEAT);
+    expect(p3.section.role).toBe('break');
+    expect(p3.stop(u0 + PHRASE + BEAT)!.label).toBe('stop');
   });
 
   it('± schuift het tempo een bpm zonder sprong en blijft binnen de grenzen', () => {
