@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { checkPatch } from '../modular-mb/patchCheck';
 import { resolveControls } from '../modular-mb/types';
 import { RIG_TYPES, buildFreestyleRig, stemChanges } from './freestylePatch';
-import { STEMS, STYLES, TRAP, type Change } from './style';
+import { ACID_HOP, STEMS, STYLES, TRAP, euclidHits, type Change } from './style';
 
 describe('freestyle-patch', () => {
   const rig = buildFreestyleRig(TRAP);
@@ -22,7 +22,47 @@ describe('freestyle-patch', () => {
       // De klank van de stijl staat in de patch.
       for (const ch of style.sound) expect(r.patch.controlState[r.ids[ch.module]]?.[ch.control], `${style.id}: ${ch.module}.${ch.control}`).toBe(ch.value);
     }
-    expect(STYLES.map((s) => s.id)).toEqual(['trap', 'boombap', 'bounce']);
+    expect(STYLES.map((s) => s.id)).toEqual(['trap', 'boombap', 'bounce', 'acidhop']);
+  });
+
+  it('bekabelt de bas per kick, of uit Euclid op de zestienden', () => {
+    const cable = (r: ReturnType<typeof buildFreestyleRig>, toKey: keyof typeof r.ids, port: string): string | undefined => {
+      const c = r.patch.connections.find((x) => x.to.moduleId === r.ids[toKey] && x.to.portId === port);
+      if (!c) return undefined;
+      const fromKey = (Object.keys(r.ids) as Array<keyof typeof r.ids>).find((k) => r.ids[k] === c.from.moduleId);
+      return `${String(fromKey)}.${c.from.portId}`;
+    };
+    expect(cable(rig, 'bass', 'gate')).toBe('grids.bd');
+    expect(cable(rig, 'bassSeq', 'clock')).toBe('grids.bd');
+    expect(cable(rig, 'bassGate', 'clock')).toBeUndefined();
+    const ah = buildFreestyleRig(ACID_HOP);
+    expect(cable(ah, 'bassGate', 'clock')).toBe('clock.x4');
+    expect(cable(ah, 'bassGate', 'reset')).toBe('clock.bar');
+    expect(cable(ah, 'bassSeq', 'clock')).toBe('bassGate.any');
+    expect(cable(ah, 'bassSeq', 'reset')).toBe('clock.bar');
+    expect(cable(ah, 'bass', 'gate')).toBe('bassSeq.gate_out');
+    expect(ah.patch.controlState[ah.ids.bassSeq]?.gate).toBe(0.95);
+    expect(ah.patch.controlState[ah.ids.bassGate]?.extclock).toBe(1);
+  });
+
+  it('acid hop: de slagpatronen van Euclid passen op de baslijnen (Marks figuur 3-3-3-3-2-2)', () => {
+    const expected: Record<string, number[]> = {
+      INTRO: [0, 3, 6], VERSE: [0, 3, 6, 9, 12, 14], HOOK: [0, 3, 6, 9, 12], BREAK: [0, 3, 6, 9, 12, 14],
+    };
+    for (const s of ACID_HOP.sections) {
+      const hits = euclidHits(s.changes);
+      expect(hits, s.name).toEqual(expected[s.name]);
+      // De sequencer: stap 0 is de kopie van de eerste noot, daarna één stap per slag.
+      const length = s.changes.find((c) => c.module === 'bassSeq' && c.control === 'length')?.value;
+      expect(length, s.name).toBe(hits.length + 1);
+      const s1 = s.changes.find((c) => c.module === 'bassSeq' && c.control === 's1')?.value;
+      const s2 = s.changes.find((c) => c.module === 'bassSeq' && c.control === 's2')?.value;
+      expect(s1, s.name).toBe(s2);
+    }
+    // De andere stijlen zetten Euclid niet aan.
+    for (const style of STYLES.filter((s) => s.bass === 'kick')) {
+      for (const s of style.sections) expect(s.changes.some((c) => c.module === 'bassGate'), `${style.id}/${s.name}`).toBe(false);
+    }
   });
 
   it('heeft voor elke logische module een echte module van het juiste type', () => {
@@ -63,8 +103,9 @@ describe('freestyle-patch', () => {
   });
 
   it('muten zet precies de Level-knoppen van die stem op nul', () => {
-    const off = stemChanges({ kick: false, snare: true, hats: true, motif: true });
+    const off = stemChanges({ kick: false, snare: true, hats: true, bass: false, motif: true });
     expect(off.filter((c) => c.value === 0).map((c) => c.module).sort()).toEqual(['bass', 'kick']);
-    expect(STEMS).toHaveLength(4);
+    expect(stemChanges({ kick: true, snare: true, hats: true, bass: false, motif: true }).filter((c) => c.value === 0).map((c) => c.module)).toEqual(['bass']);
+    expect(STEMS).toEqual(['kick', 'snare', 'hats', 'bass', 'motif']);
   });
 });

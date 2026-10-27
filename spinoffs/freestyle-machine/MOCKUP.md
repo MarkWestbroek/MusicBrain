@@ -24,6 +24,18 @@ zestiendenraster van 140; de klassen (kick/snare/hat) zijn met laag/hoog-
 energie alleen nog niet betrouwbaar; volgende stap: een opname met bekend
 patroon ("boots-cats", twee maten) als ijkmateriaal, script
 `beatbox_analyse.py` (scratch) → `editor/src/freestyle/beatbox/`.
+**2026-10-27: de bas is een eigen stem** (besluit Mark via de sessie "song
+for FREESTYLE"): vijf stems KICK · SNARE · HATS · BASS · MOTIF (toetsen 1–5),
+op de telefoon een 2×3-raster met FILL als zesde cel. Per stijl zegt
+`bass` hoe de bas wordt aangeslagen: `kick` (808: elke kick, zoals het was)
+of `euclid` (een eigen slagpatroon per sectie uit `tp_mmb_euclid` op de
+zestiendenklok; de bassequencer stapt per slag, zijn gate bepaalt de
+nootlengte). Vierde stijl **Acid hop · 75** uit Marks Logic-opname: C
+mineur, de 303-figuur 3-3-3-3-2-2 (C E♭ C E♭ A♭ G; hook C E♭ C E♭ G; break
+alleen bas en hats met de variant C E♭ C C A♭ G), ACID-preset "acid bass
+opname", e-piano G G E♭ C op C6. Autopilot kreeg mutes: in de derde frase
+valt de bas de laatste maat weg, elke achtste frase begint met twee maten
+alleen bas en hats; wat de rapper zelf uitzette blijft uit.
 FILL-verfijning en de beatbox-laag staan open. Marks vraag naar een
 formaat voor de hele take (muziek + stem + instellingen) is geparkeerd:
 het zou een eventlog (stijl, tempo, elke gewapende actie met tel) naast de
@@ -329,16 +341,18 @@ stand (de vriend is Pools; UK English volstaat, zie
 | Bestand | Wat |
 |---|---|
 | `editor/src/freestyle/barClock.ts` | `BarClock` (tel/maat/frase op de contextklok, tempowissel zonder sprong) en `ArmQueue` (gewapende acties per tel) |
-| `editor/src/freestyle/style.ts` | `Stem`, `Change`, `Section`, `Style`; de stijlen TRAP (140, Grids op x2), BOOM_BAP (88, swing) en BOUNCE (100), elk vier secties, eigen klank (`sound`) en fill |
-| `editor/src/freestyle/freestylePatch.ts` | bouwt de vaste patch (Clock → Grids op x2 → Peaks ×3 + Acid; accenten → Seq → E-piano → Reverb) |
-| `editor/src/freestyle/performance.ts` | `Performance`: start/stop, DROP (direct omlaag, terug op de tel), NEXT (frase), stems (maat), FILL (één maat), TAP, percussionist; geeft `Fired`-pakketjes terug |
+| `editor/src/freestyle/style.ts` | `Stem` (vijf), `Change`, `Section`, `Style` (met `bass: 'kick' \| 'euclid'`); de stijlen TRAP (140, Grids op x2), BOOM_BAP (88, swing), BOUNCE (100) en ACID_HOP (75, bas uit Euclid), elk vier secties, eigen klank (`sound`) en fill; `euclidHits()` rekent het slagpatroon na |
+| `editor/src/freestyle/freestylePatch.ts` | bouwt de vaste patch (Clock → Grids → Peaks ×3 + Acid, bas per kick of via Euclid → Seq-gate; accenten → Seq → E-piano → Reverb) |
+| `editor/src/freestyle/performance.ts` | `Performance`: start/stop, DROP (direct omlaag, terug op de tel), NEXT (frase), stems (maat), FILL (één maat), TAP, percussionist, Autopilot (variaties, fill, tijdelijke mutes `AUTO_MUTES`); geeft `Fired`-pakketjes terug |
 | `editor/src/freestyle/FreestyleApp.tsx` | het scherm en de toetsen; plant de pakketjes op de `AudioEngine`; stijlkeuze (tik/S = volgende) bouwt de patch opnieuw (stopt de beat); laptop- en telefoonlayout (≤ 700 px) met grote DROP/NEXT/FILL-knoppen |
 | `editor/src/freestyle/ringRecorder.test.ts` | de ringbuffer-trim (`trimParts` in `sim/wavRecorder.ts`) |
 | `*.test.ts` | klokgrenzen, tempowissel, DROP+NEXT tegelijk, wrap-around, fill, percussionist, patchcontrole per stijl, ringbuffer |
 
-Afwijkingen van het plan hierboven: de bas is geen eigen stem maar zit in de
-kick-stem (elke kick slaat ook de 808-sub aan, de bassequencer schuift per
-kick een noot); Grids loopt op de halve klok zodat zijn 32 stappen één frase
+Afwijkingen van het plan hierboven: de bas was tot 2026-10-27 geen eigen stem
+maar zat in de kick-stem (elke kick slaat ook de 808-sub aan, de
+bassequencer schuift per kick een noot); sinds die dag is BASS de vijfde
+stem en kan een stijl de bas ook uit Euclid laten komen (zie boven); Grids
+loopt op de halve klok zodat zijn 32 stappen één frase
 zijn en de snare in half-time op de 3 valt; FILL landt op de volgende maat,
 niet per se op de laatste van de frase. `AudioEngine.setMasterVolume` kreeg
 een ramp-parameter voor de DROP.

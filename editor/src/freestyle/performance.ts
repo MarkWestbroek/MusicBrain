@@ -10,7 +10,7 @@
 
 import { ArmQueue, BarClock, DEFAULT_METER, type Boundary, type Meter } from './barClock';
 import { stemChanges } from './freestylePatch';
-import { PERCUSSIONIST_HH_SCALE, STEMS, STEM_LABEL, type Change, type Section, type Stem, type Style } from './style';
+import { PERCUSSIONIST_HH_SCALE, STEM_LABEL, STEM_LEVELS, type Change, type Section, type Stem, type Style } from './style';
 
 export interface Fired {
   /** Contexttijd waarop dit moet klinken. */
@@ -30,7 +30,10 @@ type Pending =
   /** Het einde: na de einde-fill stopt de klok. */
   | { type: 'end' }
   /** Autopilot: de variatie van frase `phrase`, gepland op haar "1". */
-  | { type: 'auto'; phrase: number };
+  | { type: 'auto'; phrase: number }
+  /** Autopilot: stems tijdelijk weg (`bars` maten), daarna `auto-unmute`. */
+  | { type: 'auto-mute'; stems: Stem[]; bars: number; label: string }
+  | { type: 'auto-unmute'; stems: Stem[] };
 
 /** Autopilot (MOCKUP.md §4.5): per frase een kleine variatie op de Grids-
  *  standen van de sectie, in een rondje van vier; in de vierde frase een
@@ -42,6 +45,15 @@ export const AUTO_VARIATIONS: ReadonlyArray<Readonly<Record<string, number>>> = 
   { hh: 0.15, x: 0.1 },
 ];
 export const AUTO_FILL_EVERY = 4;
+/** Autopilot-mutes (besluit Mark 2026-10-27): in de derde frase van elke
+ *  vier valt de bas de laatste maat weg en komt op de 1 terug; elke achtste
+ *  frase begint met twee maten alleen bas en hats. Alleen stems die aan
+ *  staan gaan tijdelijk uit; wat de rapper zelf wisselt, blijft zo. */
+export interface AutoMute { every: number; phase: number; bar: number; bars: number; stems: Stem[]; label: string }
+export const AUTO_MUTES: readonly AutoMute[] = [
+  { every: 4, phase: 2, bar: 3, bars: 1, stems: ['bass'], label: 'autopilot · bass out' },
+  { every: 8, phase: 7, bar: 0, bars: 2, stems: ['kick', 'snare', 'motif'], label: 'autopilot · breakdown' },
+];
 
 /** Hoe lang de DROP mag duren om stil te worden, en om terug te komen. */
 export const DROP_DOWN_S = 0.005;
@@ -60,6 +72,8 @@ export class Performance {
   private autopilot_ = false;
   /** Variatie van de Autopilot die nu klinkt (index in AUTO_VARIATIONS). */
   private autoVar_ = 0;
+  /** Stems die de Autopilot tijdelijk uit heeft gezet. */
+  private tempMuted_: Stem[] = [];
   /** Waar de DROP terugkomt: op de tel (standaard) of de maat. */
   dropReturn: Exclude<Boundary, 'now' | 'phrase'> = 'beat';
 
@@ -92,7 +106,7 @@ export class Performance {
         case 'fill-off': return 'fill ends next bar';
         case 'drop-up': return `beat returns on the ${this.dropReturn}`;
         case 'end': return 'ending — fill, then stop';
-        case 'auto': return '';
+        case 'auto': case 'auto-mute': case 'auto-unmute': return '';
       }
     }).filter((s) => s !== '');
   }
@@ -110,7 +124,7 @@ export class Performance {
     this.queue.clear();
     this.section_ = 0;
     this.stems_ = { ...this.sectionAt(0).stems };
-    this.dropped_ = false; this.fill_ = false; this.autoVar_ = 0;
+    this.dropped_ = false; this.fill_ = false; this.autoVar_ = 0; this.tempMuted_ = [];
     this.clock.start(at);
     if (this.autopilot_) this.planAuto(1);
     return {
@@ -126,7 +140,7 @@ export class Performance {
   stop(now: number): Fired | null {
     if (!this.clock.isRunning) return null;
     if (this.ending) return this.stopNow(now);
-    this.cancelAll('fill-on'); this.cancelAll('fill-off'); this.cancelAll('next'); this.cancelAll('auto');
+    this.cancelAll('fill-on'); this.cancelAll('fill-off'); this.cancelAll('next'); this.cancelAutoAll();
     const fill = this.queue.arm('bar', { type: 'fill-on' }, now);
     this.queue.armAt(fill.fireBeat + this.clock.unit('bar'), { type: 'end' });
     return null;
@@ -136,7 +150,7 @@ export class Performance {
   stopNow(now: number): Fired {
     this.queue.clear();
     this.clock.stop();
-    this.dropped_ = false; this.fill_ = false;
+    this.dropped_ = false; this.fill_ = false; this.tempMuted_ = [];
     return { at: now, label: 'stop', changes: [{ module: 'clock', control: 'run', value: false }], master: { gain: 1, rampS: DROP_UP_S } };
   }
 
@@ -145,7 +159,7 @@ export class Performance {
   setAutopilot(on: boolean, now: number): Fired | null {
     if (on === this.autopilot_) return null;
     this.autopilot_ = on;
-    this.cancelAll('auto');
+    this.cancelAutoAll();
     if (!this.clock.isRunning) return null;
     if (on) {
       const next = this.clock.nextBoundary('phrase', now);
@@ -153,8 +167,10 @@ export class Performance {
       return null;
     }
     this.autoVar_ = 0;
-    return { at: now, label: 'autopilot off', changes: this.gridsChanges(this.section_) };
+    // De sectie-standen terug, en wat de Autopilot tijdelijk uit had weer aan.
+    return { at: now, label: 'autopilot off', changes: [...this.gridsChanges(this.section_), ...this.unmuteChanges()] };
   }
+  private cancelAutoAll(): void { this.cancelAll('auto'); this.cancelAll('auto-mute'); this.cancelAll('auto-unmute'); }
 
   /** Plan de variatie van frase `phrase` op haar "1". */
   private planAuto(phrase: number): void {
@@ -250,14 +266,15 @@ export class Performance {
       case 'next': {
         this.section_ = p.target;
         this.stems_ = { ...this.sectionAt(p.target).stems };
-        // Een lopende fill of gewapende stem-wissel is met de sectie achterhaald.
+        // Een lopende fill, gewapende stem-wissel of tijdelijke Autopilot-mute
+        // is met de sectie achterhaald: de sectie zet alle niveaus.
         this.fill_ = false; this.cancelAll('fill-off'); this.cancelAll('stem');
+        this.cancelAll('auto-unmute'); this.tempMuted_ = [];
         return { at, label: `→ ${this.section.name}`, changes: this.sectionChanges(p.target) };
       }
       case 'stem': {
         this.stems_ = { ...this.stems_, [p.stem]: p.on };
-        const only = stemChanges(this.stems_).filter((c) => STEMS.some((s) => s === p.stem && (c.module === 'kick' || c.module === 'bass' ? s === 'kick' : c.module === 'snare' ? s === 'snare' : c.module === 'hat' ? s === 'hats' : s === 'motif')));
-        return { at, label: `${STEM_LABEL[p.stem]} ${p.on ? 'on' : 'off'}`, changes: only };
+        return { at, label: `${STEM_LABEL[p.stem]} ${p.on ? 'on' : 'off'}`, changes: levelChanges([p.stem], p.on) };
       }
       case 'fill-on':
         this.fill_ = true;
@@ -279,9 +296,46 @@ export class Performance {
           this.queue.armAt(p.phrase * this.clock.unit('phrase') + (this.clock.meter.barsPerPhrase - 1) * this.clock.unit('bar'), { type: 'fill-on' });
         }
         const changes = this.gridsChanges(this.section_);
+        // De tijdelijke mutes van deze frase: op de 1 meteen, anders op hun maat.
+        const phraseBeat = p.phrase * this.clock.unit('phrase');
+        for (const m of AUTO_MUTES) {
+          if (p.phrase % m.every !== m.phase) continue;
+          const mute: Pending = { type: 'auto-mute', stems: m.stems, bars: m.bars, label: m.label };
+          if (m.bar === 0) changes.push(...this.muteNow(mute, at));
+          else this.queue.armAt(phraseBeat + m.bar * this.clock.unit('bar'), mute);
+        }
         return changes.length ? { at, label: `autopilot · phrase ${p.phrase + 1}`, changes } : null;
       }
+      case 'auto-mute': {
+        if (!this.autopilot_) return null;
+        const changes = this.muteNow(p, at);
+        return changes.length ? { at, label: p.label, changes } : null;
+      }
+      case 'auto-unmute': {
+        const changes = this.unmuteChanges(p.stems);
+        return changes.length ? { at, label: 'autopilot · all back', changes } : null;
+      }
     }
+  }
+
+  /** Zet de stems van een Autopilot-mute uit die nu aan staan, en wapen de
+   *  terugkeer na `bars` maten. */
+  private muteNow(p: Extract<Pending, { type: 'auto-mute' }>, at: number): Change[] {
+    const stems = p.stems.filter((s) => this.stems_[s] && !this.tempMuted_.includes(s));
+    if (stems.length === 0) return [];
+    this.tempMuted_ = [...this.tempMuted_, ...stems];
+    // Elke mute heeft zijn eigen terugkeer: twee mutes kunnen elkaar
+    // overlappen (de bas van frase 7 komt terug op de 1 waar de breakdown
+    // van frase 8 begint).
+    this.queue.armAt(Math.round(this.clock.beatAt(at)) + p.bars * this.clock.unit('bar'), { type: 'auto-unmute', stems });
+    return levelChanges(stems, false);
+  }
+  /** Wat de Autopilot tijdelijk uit had weer aan (standaard alles), voor
+   *  zover de rapper het intussen niet zelf uitzette. */
+  private unmuteChanges(stems: readonly Stem[] = this.tempMuted_): Change[] {
+    const back = this.tempMuted_.filter((s) => stems.includes(s) && this.stems_[s]);
+    this.tempMuted_ = this.tempMuted_.filter((s) => !stems.includes(s));
+    return levelChanges(back, true);
   }
 
   /** Alle standen van een sectie: haar knoppen (met percussionist-correctie)
@@ -297,13 +351,23 @@ export class Performance {
   /** De Grids-standen van een sectie met de correcties van dit moment:
    *  percussionist (hats dunner) en de Autopilot-variatie van deze frase. */
   private withPercussionist(changes: Change[]): Change[] {
-    const vari = this.autopilot_ ? AUTO_VARIATIONS[this.autoVar_] ?? {} : {};
-    return changes.map((c) => {
-      if (c.module !== 'grids' || typeof c.value !== 'number') return c;
-      let v = c.value + (vari[c.control] ?? 0);
-      if (c.control === 'hh' && this.percussionist_) v *= PERCUSSIONIST_HH_SCALE;
-      v = Math.min(1, Math.max(0, Math.round(v * 1000) / 1000));
-      return v === c.value ? c : { ...c, value: v };
-    });
+    return withGrids(changes, this.autopilot_ ? AUTO_VARIATIONS[this.autoVar_] ?? {} : {}, this.percussionist_);
   }
+}
+
+/** De Level-knoppen van een paar stems aan (hun niveau) of uit (0). */
+function levelChanges(stems: Stem[], on: boolean): Change[] {
+  return stems.flatMap((s) => STEM_LEVELS[s].map((l) => ({ module: l.module, control: l.control, value: on ? l.level : 0 })));
+}
+
+/** De Grids-standen met de correcties van dit moment: de Autopilot-variatie
+ *  (`vari`) en de percussionist (hats dunner). */
+function withGrids(changes: Change[], vari: Readonly<Record<string, number>>, percussionist: boolean): Change[] {
+  return changes.map((c) => {
+    if (c.module !== 'grids' || typeof c.value !== 'number') return c;
+    let v = c.value + (vari[c.control] ?? 0);
+    if (c.control === 'hh' && percussionist) v *= PERCUSSIONIST_HH_SCALE;
+    v = Math.min(1, Math.max(0, Math.round(v * 1000) / 1000));
+    return v === c.value ? c : { ...c, value: v };
+  });
 }

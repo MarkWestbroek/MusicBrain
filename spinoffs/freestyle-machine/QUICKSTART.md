@@ -21,8 +21,8 @@ see it again.
 |---|---|---|
 | **DROP** (hold) | Cuts the beat for a punchline. Let go and the beat comes back. | Out: instantly. Back: on the next beat. |
 | **NEXT** | Goes to the next section: INTRO → VERSE → HOOK → BREAK → INTRO. Press it mid-line; it waits. | On the 1 of the next phrase. |
-| **FILL** | A one-bar fill. | Starts at the next bar. |
-| **KICK / 808 · SNARE · HATS · MOTIF** | Mutes or unmutes that part. Tap again to cancel before it lands. | Next bar. |
+| **FILL** | A one-bar fill. On the phone it sits next to the parts. | Starts at the next bar. |
+| **KICK · SNARE · HATS · BASS · MOTIF** | Mutes or unmutes that part. Tap again to cancel before it lands. Bass and hats alone is a classic breakdown. | Next bar. |
 | **SAVE** | It is always recording from the first START. Was that take good? SAVE gives you the last two minutes as a WAV file. | Right away. |
 | **MIC** | Adds the microphone on its own track. SAVE then gives two files, beat and voice, to mix later. Headphones keep the voice track clean. | Right away. |
 | **STOP** | Plays an ending fill and stops after that bar. Press again to stop at once. The recording pauses while stopped. | Next bar, then stop. |
@@ -41,7 +41,8 @@ jump. The − and + buttons next to the number nudge it by 1 BPM.
 ## Style
 
 Tap the style name at the top left to go to the next style: Trap half-time
-(140) → Boom bap (88) → Bounce (100). This stops the beat; tap START again.
+(140) → Boom bap (88) → Bounce (100) → Acid hop (75, a 303 bass line in C
+minor). This stops the beat; tap START again.
 
 ## Foot pedal
 
@@ -52,8 +53,10 @@ mode of the pedal works (arrows or Page Up/Down).
 
 ## Autopilot
 
-Tick **autopilot** and every phrase gets a small variation; every fourth
-phrase ends with a fill. One section stays alive for minutes.
+Tick **autopilot** and every phrase gets a small variation: the bass drops
+out for a bar and comes back on the 1, every fourth phrase ends with a fill,
+and now and then two bars of bass and hats only. One section stays alive for
+minutes. Parts you switched off yourself stay off.
 
 ## Playing with someone
 

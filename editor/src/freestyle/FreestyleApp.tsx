@@ -5,7 +5,7 @@
 //
 // Schermtekst in het Engels (besluit Mark 2026-10-25: hij en zijn vriend
 // lezen het dan beide). Toetsen: SPACE (houden) = DROP, → of Enter = NEXT,
-// F = FILL, 1–4 = stems, T = TAP, − en + = tempo een bpm, P = start/stop
+// F = FILL, 1–5 = stems, T = TAP, − en + = tempo een bpm, P = start/stop
 // (stop = einde-fill, nog eens = meteen stil), S = SAVE, G = volgende stijl
 // (genre), M = microfoon, A = Autopilot.
 //
@@ -21,9 +21,9 @@
 // de speaker zo min mogelijk in de stemopname lekt; met een koptelefoon is
 // hij schoon.
 //
-// Telefoon (smal scherm): één kolom, grote knoppen voor DROP (vasthouden),
-// NEXT en FILL, de stems in een 2×2-raster; tikken op de stijlnaam gaat
-// naar de volgende stijl. Touch: `touch-action: none` plus een niet-
+// Telefoon (smal scherm): één kolom, grote knoppen voor DROP (vasthouden)
+// en NEXT, de vijf stems plus FILL in een 2×3-raster; tikken op de
+// stijlnaam gaat naar de volgende stijl. Touch: `touch-action: none` plus een niet-
 // passieve touchstart met preventDefault op de knoppen die je vasthoudt,
 // zodat de pagina niet scrolt of zoomt (CLAUDE.md).
 
@@ -61,12 +61,12 @@ const TOUR_STEPS: PlayTourStep[] = [
   step('fs-drop', 'DROP', 'Hold it and the beat is gone, instantly, for a punchline. Let go and it comes back on the next beat. With a Bluetooth page-turner pedal: the left pedal cuts the beat, press it again to bring it back.'),
   step('fs-next', 'NEXT', 'The next section: INTRO → VERSE → HOOK → BREAK. Press it mid-line; it lands on the 1 of the next phrase. On a page-turner pedal this is the right pedal.'),
   step('fs-fill', 'FILL', 'A one-bar fill, starting at the next bar.'),
-  step('fs-stems', 'The four parts', 'Tap a part to mute or unmute it at the next bar. An amber border means it changes at the next bar; tap again to cancel.'),
-  step('fs-style', 'Style', 'Tap the style name to go to the next style: trap, boom bap, bounce. That stops the beat; press START again.'),
+  step('fs-stems', 'The five parts', 'KICK, SNARE, HATS, BASS and MOTIF. Tap a part to mute or unmute it at the next bar. An amber border means it changes at the next bar; tap again to cancel. Bass and hats alone is a classic breakdown.'),
+  step('fs-style', 'Style', 'Tap the style name to go to the next style: trap, boom bap, bounce, acid hop. That stops the beat; press START again.'),
   step('fs-perc', 'Playing with a percussionist', 'Tick this and the hi-hats get thinner, so a djembe or shaker fits in the gaps.'),
   step('fs-save', 'It is always recording', 'From the first START the last two minutes are kept. Was that take good? Tap SAVE and you get it as a WAV file. No need to press record first.'),
   step('fs-mic', 'Record your voice too', 'MIC adds the microphone to the recording, on its own track. SAVE then gives two files, beat and voice, to mix later. Use headphones for a clean voice track.'),
-  step('fs-auto', 'Autopilot', 'With autopilot on, every phrase gets a small variation and every fourth phrase ends with a fill, so one section stays alive for minutes.'),
+  step('fs-auto', 'Autopilot', 'With autopilot on, every phrase gets a small variation: the bass drops out for a bar, every fourth phrase ends with a fill, now and then two bars of bass and hats only. One section stays alive for minutes.'),
   step('fs-start', 'Stopping', 'STOP plays an ending fill and stops after that bar. Press it again to stop at once.'),
   step(undefined, 'Have fun', 'This tour comes back with the ? at the top.'),
 ];
@@ -262,7 +262,7 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
           act((t) => (perf.dropped ? perf.dropUp(t) : perf.dropDown(t)));
           break;
         case 'KeyF': act((t) => perf.fill(t)); break;
-        case 'Digit1': case 'Digit2': case 'Digit3': case 'Digit4': {
+        case 'Digit1': case 'Digit2': case 'Digit3': case 'Digit4': case 'Digit5': {
           const stem = STEMS[Number(e.code.slice(-1)) - 1];
           if (stem) act((t) => perf.toggleStem(stem, t));
           break;
@@ -340,9 +340,16 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
     </div>
   );
 
-  /** De grote knoppen: DROP vasthouden, NEXT, FILL. Op de laptop ook, naast de toetsen. */
+  /** FILL: op de laptop naast DROP en NEXT, op de telefoon de zesde cel van het stemraster. */
+  const fillButton = (
+    <button type="button" data-tour="fs-fill" onClick={() => act((t) => perf.fill(t))}
+      style={{ ...big(perf.filling ? AMBER : '#1f2937', perf.filling ? 'var(--mb-on-accent)' : FG), ...TOUCH, ...(phone ? { padding: '16px 6px', fontSize: 16, borderRadius: 8 } : {}) }}>
+      FILL<span style={{ display: 'block', fontSize: 11, fontWeight: 400, opacity: 0.7 }}>next bar</span>
+    </button>
+  );
+  /** De grote knoppen: DROP vasthouden, NEXT (en op de laptop FILL). Op de laptop ook, naast de toetsen. */
   const actions = (
-    <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', gap: 10 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: phone ? '1.4fr 1fr' : '1.4fr 1fr 1fr', gap: 10 }}>
       <button ref={dropRef} type="button" data-tour="fs-drop"
         onPointerDown={(e) => {
           e.preventDefault();
@@ -358,9 +365,7 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
       <button type="button" data-tour="fs-next" onClick={() => act((t) => perf.next(t))} style={{ ...big('#1f2937', FG), ...TOUCH }}>
         NEXT<span style={{ display: 'block', fontSize: 11, fontWeight: 400, opacity: 0.7 }}>on the 1</span>
       </button>
-      <button type="button" data-tour="fs-fill" onClick={() => act((t) => perf.fill(t))} style={{ ...big('#1f2937', FG), ...TOUCH }}>
-        FILL<span style={{ display: 'block', fontSize: 11, fontWeight: 400, opacity: 0.7 }}>next bar</span>
-      </button>
+      {!phone && fillButton}
     </div>
   );
 
@@ -426,7 +431,7 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
             <div style={{ minHeight: 22, fontSize: 15, color: AMBER, fontStyle: 'italic', marginTop: 4 }}>{status}</div>
           </div>
         </main>
-        <section data-tour="fs-stems" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, position: 'relative' }}>{stemButtons}</section>
+        <section data-tour="fs-stems" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, position: 'relative' }}>{stemButtons}{fillButton}</section>
         <section style={{ position: 'relative' }}>{actions}</section>
         <PlayTour open={tour} onClose={() => setTour(false)} steps={TOUR_STEPS} seenKey={TOUR_KEY} lang="en" />
         <button type="button" data-tour="fs-start" onClick={() => (running ? stop() : void start())}
@@ -461,8 +466,8 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
         </section>
       </main>
 
-      <section style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12, position: 'relative', alignItems: 'stretch' }}>
-        <div data-tour="fs-stems" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>{stemButtons}</div>
+      <section style={{ display: 'grid', gridTemplateColumns: '2.5fr 1fr', gap: 12, position: 'relative', alignItems: 'stretch' }}>
+        <div data-tour="fs-stems" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}>{stemButtons}</div>
         {actions}
       </section>
       <PlayTour open={tour} onClose={() => setTour(false)} steps={TOUR_STEPS} seenKey={TOUR_KEY} lang="en" />
@@ -471,7 +476,7 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
         <span><b style={{ color: FG }}>SPACE</b> hold = DROP</span>
         <span><b style={{ color: FG }}>→</b> NEXT section (lands on the 1)</span>
         <span><b style={{ color: FG }}>F</b> FILL (next bar)</span>
-        <span><b style={{ color: FG }}>1–4</b> stems (next bar)</span>
+        <span><b style={{ color: FG }}>1–5</b> parts (next bar)</span>
         <span><b style={{ color: FG }}>T</b> tap tempo · <b style={{ color: FG }}>− +</b> 1 bpm</span>
         <span><b style={{ color: FG }}>P</b> start / stop (ending)</span>
         <span><b style={{ color: FG }}>S</b> save last 2 min</span>

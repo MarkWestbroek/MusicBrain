@@ -106,11 +106,62 @@ describe('Performance', () => {
     expect(perf.stems.hats).toBe(false);
   });
 
-  it('de kick-stem neemt de 808-sub mee', () => {
+  it('kick en bas zijn aparte stems', () => {
     const { perf, t0 } = started();
     perf.toggleStem('kick', t0 + BEAT);
+    perf.toggleStem('bass', t0 + BEAT);
     const fired = runUntil(perf, t0 + BEAT, t0 + BAR);
-    expect(fired[0]!.changes.map((c) => `${c.module}=${c.value}`).sort()).toEqual(['bass=0', 'kick=0']);
+    expect(fired.map((f) => f.changes.map((c) => `${c.module}=${c.value}`).join())).toEqual(['kick=0', 'bass=0']);
+    expect(perf.stems).toMatchObject({ kick: false, bass: false, hats: true });
+  });
+
+  it('Autopilot: in de derde frase valt de bas de laatste maat weg en komt op de 1 terug', () => {
+    const perf = new Performance(TRAP);
+    perf.setAutopilot(true, 0);
+    const t0 = perf.start(10).at;
+    const fired = runUntil(perf, t0, t0 + 3 * PHRASE + BEAT);
+    const out = fired.find((f) => f.label === 'autopilot · bass out')!;
+    expect(out.at).toBeCloseTo(t0 + 2 * PHRASE + 3 * BAR, 4);
+    expect(out.changes).toEqual([{ module: 'bass', control: 'level', value: 0 }]);
+    const back = fired.find((f) => f.label === 'autopilot · all back')!;
+    expect(back.at).toBeCloseTo(t0 + 3 * PHRASE, 4);
+    expect(back.changes).toEqual([{ module: 'bass', control: 'level', value: 0.7 }]);
+    expect(perf.stems.bass).toBe(true);                               // de knop stond al die tijd aan
+  });
+
+  it('Autopilot: de achtste frase begint met twee maten alleen bas en hats; zelf uitgezet blijft uit', () => {
+    const perf = new Performance(TRAP);
+    perf.setAutopilot(true, 0);
+    const t0 = perf.start(10).at;
+    perf.toggleStem('motif', t0 + BEAT);                              // de rapper zet het motief zelf uit
+    const fired = runUntil(perf, t0, t0 + 7 * PHRASE + 2 * BAR + BEAT);
+    const down = fired.find((f) => f.label === 'autopilot · phrase 8')!;
+    // INTRO heeft geen snare en het motief staat zelf uit: alleen de kick gaat tijdelijk weg.
+    expect(down.changes.filter((c) => c.control === 'level').map((c) => `${c.module}=${c.value}`)).toEqual(['kick=0']);
+    // (De eerste "all back" op de 1 van frase 8 is de bas uit frase 7; de breakdown eindigt twee maten later.)
+    const back = fired.find((f) => f.label === 'autopilot · all back' && f.at > t0 + 7 * PHRASE + BEAT)!;
+    expect(back.at).toBeCloseTo(t0 + 7 * PHRASE + 2 * BAR, 4);
+    expect(back.changes.map((c) => `${c.module}=${c.value}`)).toEqual(['kick=0.9']);
+    expect(perf.stems.motif).toBe(false);
+  });
+
+  it('Autopilot uit tijdens een tijdelijke mute zet de stem meteen terug; NEXT ook', () => {
+    const perf = new Performance(TRAP);
+    perf.setAutopilot(true, 0);
+    const t0 = perf.start(10).at;
+    runUntil(perf, t0, t0 + 2 * PHRASE + 3 * BAR + BEAT);            // de bas is net weg
+    const off = perf.setAutopilot(false, t0 + 2 * PHRASE + 3 * BAR + BEAT)!;
+    expect(off.changes).toContainEqual({ module: 'bass', control: 'level', value: 0.7 });
+    expect(runUntil(perf, t0 + 2 * PHRASE + 3 * BAR + BEAT, t0 + 4 * PHRASE)).toEqual([]);
+    // En met NEXT: de sectie zet alle niveaus, de terugkeer vervalt.
+    const perf2 = new Performance(TRAP);
+    perf2.setAutopilot(true, 0);
+    const s0 = perf2.start(10).at;
+    perf2.next(s0 + 2 * PHRASE + 3 * BAR + BEAT);
+    const fired = runUntil(perf2, s0, s0 + 3 * PHRASE + BEAT);
+    expect(fired.map((f) => f.label)).toContain('autopilot · bass out');
+    expect(fired.map((f) => f.label)).not.toContain('autopilot · all back');
+    expect(fired.find((f) => f.label === '→ VERSE')!.changes).toContainEqual({ module: 'bass', control: 'level', value: 0.7 });
   });
 
   it('een sectiewissel zet de stems van de sectie en vergeet een losse mute', () => {
