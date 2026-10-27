@@ -140,7 +140,10 @@ const roots = (bass: number, motif = bass + 36): Change[] => [
 const sound = (o: {
   bass: number; motif?: number;
   kick: [decay: number, coarse: number, tone: number]; snare: [tone: number, decay: number, snap: number]; hat: number;
-  sub: [cutoff: number, res: number, envmod: number, decay?: number, accent?: number]; piano: [timbre: number, bell: number, decay: number];
+  sub: [cutoff: number, res: number, envmod: number, decay?: number, accent?: number];
+  piano: [timbre: number, bell: number, decay: number, drive?: number, tremolo?: number, tremRate?: number, damper?: number];
+  /** Galm van het motief (tp_mmb_reverb): size, damp, predelay (ms), mod, mix. */
+  reverb?: [size: number, damp: number, predelay: number, mod: number, mix: number];
 }): Change[] => [
   ...roots(o.bass, o.motif),
   { module: 'kick', control: 'decay', value: o.kick[0] }, { module: 'kick', control: 'coarse', value: o.kick[1] }, { module: 'kick', control: 'tone', value: o.kick[2] },
@@ -150,6 +153,11 @@ const sound = (o: {
   ...(o.sub[3] !== undefined ? [{ module: 'bass', control: 'decay', value: o.sub[3] } as Change] : []),
   ...(o.sub[4] !== undefined ? [{ module: 'bass', control: 'accent', value: o.sub[4] } as Change] : []),
   { module: 'piano', control: 'timbre', value: o.piano[0] }, { module: 'piano', control: 'bell', value: o.piano[1] }, { module: 'piano', control: 'decay', value: o.piano[2] },
+  ...(o.piano[3] !== undefined ? [{ module: 'piano', control: 'drive', value: o.piano[3] } as Change] : []),
+  ...(o.piano[4] !== undefined ? [{ module: 'piano', control: 'tremolo', value: o.piano[4] } as Change] : []),
+  ...(o.piano[5] !== undefined ? [{ module: 'piano', control: 'trem_rate', value: o.piano[5] } as Change] : []),
+  ...(o.piano[6] !== undefined ? [{ module: 'piano', control: 'damper', value: o.piano[6] } as Change] : []),
+  ...(o.reverb ? (['size', 'damp', 'predelay', 'mod', 'mix'] as const).map((c, i) => ({ module: 'reverb', control: c, value: o.reverb![i] } as Change)) : []),
 ];
 
 const all = (o: Partial<Record<Stem, boolean>> = {}): Record<Stem, boolean> => ({ kick: true, snare: true, hats: true, bass: true, motif: true, ...o });
@@ -298,7 +306,13 @@ export const BOUNCE: Style = {
 // stapt per slag, de gate uit de sequencer bepaalt de nootlengte (eerste
 // helft bijna gebonden, de twee korte noten los). ACID-standen zijn Marks
 // preset "acid bass opname": cutoff 0,20, res 0,94, envmod 0,60, decay
-// 0,40, accent 0,60, zaag. De e-piano prikt G G E♭ C op C6/E♭6/G6.
+// 0,40, accent 0,60, zaag. De e-piano prikt G G E♭ C; eerst op C6, maar dat
+// stak (Mark, 2026-10-27), nu op C5 zoals zijn eigen EP-stoten in de MIDI,
+// met de klank van zijn preset "ep opname" (tine, timbre 0,35, bell 0,29,
+// decay 0,50, drive 0,40, tremolo 0,30 op 4,5 Hz, damper 0,60) en een galm
+// die zijn HALL-preset "ep-chamber-opname" benadert (Room, size 0,58, decay
+// 2,5 s, 66 ms predelay, hidamp 0,875, mix 0,30) op de bestaande
+// REVERB-module: size 0,5, damp 0,85, predelay 66, mod 0,4, mix 0,3.
 const BASS_AH_A     = [0, 3, 0, 3, 8, 7];        // C E♭ C E♭ A♭ G   op 0·3·6·9·12·14
 const BASS_AH_HOOK  = [0, 3, 0, 3, 7];           // C E♭ C E♭ G      op 0·3·6·9·12
 const BASS_AH_VAR   = [0, 3, 0, 0, 8, 7];        // C E♭ C C A♭ G    op 0·3·6·9·12·14
@@ -319,7 +333,10 @@ export const ACID_HOP: Style = {
   gridsClock: 'x4',
   bass: 'euclid',
   swing: 0.1,
-  sound: sound({ bass: 36, motif: 84, kick: [0.5, -2, 0.45], snare: [0.6, 0.3, 0.7], hat: 0.12, sub: [0.2, 0.94, 0.6, 0.4, 0.6], piano: [0.5, 0.45, 0.4] }),
+  sound: sound({
+    bass: 36, motif: 72, kick: [0.5, -2, 0.45], snare: [0.6, 0.3, 0.7], hat: 0.12, sub: [0.2, 0.94, 0.6, 0.4, 0.6],
+    piano: [0.35, 0.29, 0.5, 0.4, 0.3, 4.5, 0.6], reverb: [0.5, 0.85, 66, 0.4, 0.3],
+  }),
   sections: [
     {
       name: 'INTRO', chord: 'Cm',
