@@ -369,7 +369,7 @@ export class Performance {
         return { at, label: 'fill', changes: this.style.fill };
       case 'fill-off':
         this.fill_ = false;
-        return { at, label: 'fill ends', changes: this.gridsChanges(this.section_) };
+        return { at, label: 'fill ends', changes: [...this.gridsChanges(this.section_), ...this.fillRestore(this.section_, at)] };
       case 'end': {
         const f = this.stopNow(at);
         return { ...f, label: 'end' };
@@ -424,12 +424,26 @@ export class Performance {
    *  gewapende stem-wissel of tijdelijke Autopilot-mute is met de sectie
    *  achterhaald: de sectie zet alle niveaus. */
   private enterSection(i: number, at: number, label = `→ ${this.sectionAt(i).name}`): Fired {
+    const wasFilling = this.fill_;
     this.section_ = i;
     this.stems_ = { ...this.sectionAt(i).stems };
     this.fill_ = false; this.cancelAll('fill-off'); this.cancelAll('stem');
     this.cancelAll('auto-unmute'); this.tempMuted_ = [];
     this.sectionStartBar_ = Math.round(this.clock.beatAt(at) / this.clock.unit('bar'));
-    return { at, label, changes: this.sectionChanges(i) };
+    return { at, label, changes: [...this.sectionChanges(i), ...(wasFilling ? this.fillRestore(i, at) : [])] };
+  }
+
+  /** De knoppen van de fill buiten Grids (bv. de Roll-gate van RATCHET) terug
+   *  naar hun stand: die van de sectie (A of B van maat `at`), anders die van
+   *  de stijl (`sound`). Grids zelf gaat via `gridsChanges`. */
+  private fillRestore(i: number, at: number): Change[] {
+    const sec = this.sectionAt(i);
+    const ab = abChanges(sec, Math.round(this.clock.beatAt(at) / this.clock.unit('bar')));
+    return this.style.fill.filter((f) => f.module !== 'grids').flatMap((f) => {
+      const same = (c: Change): boolean => c.module === f.module && c.control === f.control;
+      const v = ab.find(same) ?? sec.changes.find(same) ?? this.style.sound.find(same);
+      return v ? [v] : [];
+    });
   }
 
   /** Zet de stems van een Autopilot-mute uit die nu aan staan, en wapen de

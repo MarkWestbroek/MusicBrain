@@ -22,7 +22,7 @@ see it again.
 | **DROP** (hold) | Cuts the beat for a punchline. Let go and the beat comes back. | Out: instantly. Back: on the next beat. |
 | **NEXT** | Switches between VERSE and HOOK (the intro plays once, at START). Press it mid-line; it waits. Press again to cancel. | On the 1 of the next phrase. |
 | **BREAK** | One phrase of break, then on to the other section by itself: verse → break → hook. Press again during the break for one more phrase. | On the 1 of the next phrase. |
-| **FILL** | A one-bar fill. On the phone it sits next to the parts. | Starts at the next bar. |
+| **FILL** | A one-bar fill; in Dark trap the hi-hat rolls in triplets for the whole bar. On the phone it sits next to the parts. | Starts at the next bar. |
 | **KICK · SNARE · HATS · BASS · MOTIF** | Mutes or unmutes that part. Tap again to cancel before it lands. Bass and hats alone is a classic breakdown. | Next bar. |
 | **SAVE** | It is always recording from the first START. Was that take good? SAVE gives you the last two minutes as a WAV file. | Right away. |
 | **MIC** | Adds the microphone on its own track. SAVE then gives two files, beat and voice, to mix later. Headphones keep the voice track clean. | Right away. |

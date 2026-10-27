@@ -133,6 +133,21 @@ describe('freestyle-patch', () => {
     // de KEYS-mixer in; de e-piano hangt nergens aan; de strijkers spelen het
     // hele akkoord op vier strips.
     expect(from('bassDrive', 'in')).toBe('bass.out');
+    // Roffels (RATCHET, fw 0.5.114): de Grids-hat door RATCHET (thru) naar een
+    // CR-78-hat die accent en toon volgt; de Peaks-hat hangt los; de FILL zet
+    // Roll hoog via LOGIC gt (A los, drempel −0,5).
+    expect(from('ratchet', 'thru')).toBe('grids.hh');
+    expect(from('ratchet', 'clock')).toBe('clock.x4');
+    expect(from('ratchet', 'reset')).toBe('clock.bar');
+    expect(from('ratchet', 'roll')).toBe('rollGate.gt');
+    expect(from('rollHat', 'gate')).toBe('ratchet.gate');
+    expect(from('rollHat', 'accent_cv')).toBe('ratchet.accent');
+    expect(from('rollHat', 'voct')).toBe('ratchet.pitch');
+    expect(from('hat', 'gate')).toBeUndefined();
+    expect(r.patch.connections.filter((x) => x.from.moduleId === r.ids.rollHat).map((x) => x.from.portId)).toEqual(['out']);
+    expect(r.patch.controlState[r.ids.rollHat]?.drum).toBe(5);
+    expect(r.patch.controlState[r.ids.rollGate]?.thresh).toBe(0.5);
+    expect(DARK.fill.find((c) => c.module === 'rollGate')?.value).toBe(-0.5);
     expect(r.patch.connections.filter((x) => x.from.moduleId === r.ids.bass && x.from.portId === 'out')).toHaveLength(1);
     expect(from('keysGate', 'clock')).toBe('clock.x4');
     expect(from('keysGate', 'reset')).toBe('clock.bar');
@@ -246,6 +261,15 @@ describe('freestyle-patch', () => {
     expect(euclidHits(withB(DARK.sections[3]!), 'keysGate', [1])).toEqual([1, 9]);
     expect(seqLineOf(verse.b!)).toEqual([0, -2, -4, -5]);
     expect(seqLineOf(hook.b!)).toEqual([7, 5, 3, 0]);
+    // Roffels: de zestiendentriool (3:2 = stand 7) op 14–15 in A, B zonder;
+    // hook A ook op 6–7, hook B een snelle vier op de laatste zestiende.
+    const stand = (ch: Change[], step: number): unknown => ch.find((c) => c.module === 'ratchet' && c.control === `a_${step + 1}`)?.value;
+    expect(stand(verse.changes, 14)).toBe(7);
+    expect(stand(withB(verse), 14)).toBe(0);
+    expect(stand(hook.changes, 6)).toBe(7);
+    expect(stand(hook.changes, 14)).toBe(7);
+    expect(stand(withB(hook), 15)).toBe(4);
+    for (const s of DARK.sections) expect(s.changes.filter((c) => c.module === 'ratchet')).toHaveLength(16);
     expect(outro.b).toBeUndefined();
     for (const s of DARK.sections) {
       if (!s.b) continue;

@@ -121,7 +121,21 @@ laatste maat van een sectie, de glijder als gebonden noten), uitgerekend
 uit de stijltabellen en een port van de Grids-kaart die tegen de
 wasm-module is gelegd (8 standen × 32 stappen × 3 instrumenten, 0
 afwijkingen). Bestanden: `midi/` (alle zes stijlen) met een README voor
-Logic. Hat-rolletjes (triolen uit de Molly-analyse): zie de
+Logic. **Hat-roffels** (2026-10-27, avond): Mark koos de ratchet-module
+(doc/plans/ratchet.md, fw 0.5.114, typeId `tp_mmb_ratchet`); Dark trap
+heeft `hats: 'ratchet'`: de Grids-hat gaat door RATCHET (`thru`, klok x4,
+reset per maat) naar een CR-78-hat (drum HiHat) die accent en toon van de
+roffels volgt (de Peaks-hat doet dat niet en hangt in deze stijl los). Per
+sectie een stand per zestiende (`rolls()`, knoppen a_1..a_16; de B-maat zet
+dezelfde knoppen, de ab-ingang blijft los): A een zestiendentriool (3:2) op
+14–15 vlak vóór de 1, hook A ook op 6–7, hook B een snelle vier op 15; B
+verder zonder (Marks oordeel: B was al te los). De FILL zet de Roll-ingang
+hoog via een LOGIC `gt` met A los en drempel −0,5 (`roll()`): een maat vol
+zestiendentriolen; `fillRestore()` in performance.ts zet knoppen van de fill
+buiten Grids terug (ook bij een sectiewissel tijdens de fill). Gemeten
+headless (hats solo, fill): de fill-maat 24 slagen op 71 ms, de A-maat de
+triool op 14–15. `ratchet_cv` voor de Autopilot is nog niet aangesloten (de
+Autopilot varieert alleen Grids). Hat-rolletjes (triolen uit de Molly-analyse): zie de
 notitie in de release-log van 2026-10-27; met bestaande modules kan één
 vaste roll per maat (CLOCK ×3 = de zestiendentriool van het gevoelde tempo,
 EUCLID-venster op ×4, LOGIC and/or), een echte ratchet-sequencer is
@@ -471,6 +485,7 @@ stand (de vriend is Pools; UK English volstaat, zie
 | `editor/src/freestyle/performance.ts` | `Performance`: start/stop, DROP (direct omlaag, terug op de tel), NEXT (frase), stems (maat), FILL (één maat), TAP, percussionist, Autopilot (variaties, fill, tijdelijke mutes `AUTO_MUTES`); geeft `Fired`-pakketjes terug |
 | `editor/src/freestyle/FreestyleApp.tsx` | het scherm en de toetsen; plant de pakketjes op de `AudioEngine`; stijlkeuze (tik/S = volgende) bouwt de patch opnieuw (stopt de beat); laptop- en telefoonlayout (≤ 700 px) met grote DROP/NEXT/FILL-knoppen |
 | `editor/src/freestyle/ringRecorder.test.ts` | de ringbuffer-trim (`trimParts` in `sim/wavRecorder.ts`) |
+| `editor/src/freestyle/freestylePatch.ts` (hats 'ratchet') | GRIDS hh → RATCHET thru → CR-78-hat (gate, accent_cv, voct), Roll ← LOGIC gt (`rollGate`); de Peaks-hat los |
 | `editor/src/freestyle/songMidi.ts` | de song van een stijl als SMF type 1 (`encodeSongMidi`, `songNotes`): Grids-port (`gridsHit`), bas per kick / Euclid / glijder (gebonden noten), motief / akkoorden + sustain / riff, pad op de Div-puls, A/B en fills; `scripts/freestyleMidi.ts` schrijft `spinoffs/freestyle-machine/midi/<stijl>-<bpm>.mid` |
 | `*.test.ts` | klokgrenzen, tempowissel, DROP+NEXT tegelijk, wrap-around, fill, percussionist, patchcontrole per stijl, ringbuffer |
 

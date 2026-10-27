@@ -60,6 +60,14 @@ describe('songMidi', () => {
     expect(a.find((n) => n.note === 54)!.dur).toBe(29 * S16);              // Div 32 × 0,9
   });
 
+  it('dark trap: de roffels van RATCHET in de hats: 3:2 op 14–15 in A, de fill-maat vol triolen', () => {
+    const a = inBar(song.HATS, 4).filter((n) => six(n) >= 14);
+    expect(a.map((n) => Math.round(six(n) * 100) / 100)).toEqual([14, 14.67, 15.33]);
+    expect(a.map((n) => n.vel)).toEqual([79, 101, 123]);                 // base 0,45 → 0,95
+    expect(inBar(song.HATS, 5).filter((n) => six(n) % 1 !== 0)).toEqual([]);   // B: geen roffel
+    expect(inBar(song.HATS, 19).length).toBeGreaterThanOrEqual(24);      // fill: acht 3:2's
+  });
+
   it('zet de fill in de laatste maat van een sectie', () => {
     expect(inBar(song.SNARE, 19).length).toBeGreaterThan(inBar(song.SNARE, 17).length);
   });

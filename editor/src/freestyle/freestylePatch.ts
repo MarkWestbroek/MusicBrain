@@ -11,6 +11,7 @@
 //   (bass 'euclid':) CLOCK x4 ─▶ EUCLID (reset op bar) ─any─▶ bas-SEQ clock ─gate_out─▶ ACID gate
 //   (bass 'slide':)  EUCLID kanaal 1 ─▶ bas-SEQ clock; kanaal 2 (elke zestiende) ─▶ slide-SEQ (reset op bar) ─cv─▶ LOGIC gt ─▶ ACID slide
 //   GRIDS sd ─▶ PEAKS snare        GRIDS hh ─▶ PEAKS hat
+//   (hats 'ratchet'): GRIDS hh ─▶ RATCHET thru (clock x4, reset bar, roll ◀─ LOGIC gt) ─gate/accent/pitch─▶ CR-78 HiHat ─▶ MIXER 1 (de PEAKS-hat hangt los)
 //   GRIDS acc ─▶ motief-SEQ clock ─▶ E-PIANO stem 1 ─▶ REVERB
 //   (keys 'riff':)   CLOCK x4 ─▶ toetsen-EUCLID kanaal 1 ─▶ motief-SEQ clock ─cv/gate─▶ SYNTHEX cel 1 (geen e-piano)
 //   (keysFx 'dirty':) toetsen L ─▶ DRIVE ─▶ FET COMP ─▶ STEREO PHASER ─L/R─▶ KEYS-mixer (of REVERB)
@@ -44,6 +45,7 @@ export const RIG_TYPES: Record<ModuleKey, string> = {
   chord: 'tp_mmb_chord', keysGate: 'tp_mmb_euclid', pad: 'tp_mmb_tapestrip', padSeq: 'tp_mmb_seq8',
   slideSeq: 'tp_mmb_seq8', slideGate: 'tp_mmb_logic',
   synth: 'tp_mmb_synthex', bassDrive: 'tp_mmb_drive', keysDrive: 'tp_mmb_drive', keysComp: 'tp_mmb_fet_comp', keysPhaser: 'tp_mmb_stereo_phaser',
+  ratchet: 'tp_mmb_ratchet', rollHat: 'tp_mmb_cr78', rollGate: 'tp_mmb_logic',
 };
 
 /** Vaste standen (klank), los van de secties. */
@@ -91,6 +93,15 @@ function baseState(): Record<ModuleKey, Record<string, ControlValue>> {
     keysDrive:  { mode: 0, drive: 0.5, tone: 0.5, level: 0.5, mix: 1 },
     keysComp:   { input: 0, output: 0, attack: 4, release: 4, ratio: 0, color: 1, mix: 1, bypass: 0 },
     keysPhaser: { rate: 0.4, depth: 0.7, feedback: 0.3, spread: 0.5, mix: 0.5 },
+    // Roffels (alleen bekabeld bij hats 'ratchet'): alle stappen rust, de
+    // stijl zet de standen per sectie; CR-78 op HiHat; Roll laag (LOGIC gt
+    // met A los: 0 V > 0,5 is onwaar).
+    ratchet: {
+      ...Object.fromEntries(Array.from({ length: 16 }, (_, i) => [`a_${i + 1}`, 0])), ...Object.fromEntries(Array.from({ length: 16 }, (_, i) => [`b_${i + 1}`, 0])),
+      length: 16, base: 0.6, ramp: 0.4, sweep: 0, rollstand: 5, width: 50,
+    },
+    rollHat:  { drum: 5, tone: 0.5, decay: 0.5, bend: 0.5, level: 0.55 },
+    rollGate: { thresh: 0.5 },
   };
 }
 
@@ -169,7 +180,14 @@ export function buildFreestyleRig(style: Style, base: ModularProject = seedInter
       : []),
     c(m.bassSeq, 'cv', m.bass, 'voct'),
     c(m.grids, 'sd', m.snare, 'gate'),
-    c(m.grids, 'hh', m.hat, 'gate'),
+    // De hats: rechtstreeks op de Peaks-hat, of (hats 'ratchet') door RATCHET
+    // naar de CR-78-hat, die accent en toon van de roffels volgt; de FILL zet
+    // Roll hoog via LOGIC (gt met A los en een negatieve drempel).
+    ...(style.hats === 'ratchet'
+      ? [c(m.grids, 'hh', m.ratchet, 'thru'), c(m.clock, 'x4', m.ratchet, 'clock'), c(m.clock, 'bar', m.ratchet, 'reset'),
+        c(m.rollGate, 'gt', m.ratchet, 'roll'),
+        c(m.ratchet, 'gate', m.rollHat, 'gate'), c(m.ratchet, 'accent', m.rollHat, 'accent_cv'), c(m.ratchet, 'pitch', m.rollHat, 'voct')]
+      : [c(m.grids, 'hh', m.hat, 'gate')]),
     // De e-piano: één motiefstem per Grids-accent, of akkoorden (CHORD op
     // stem 1–4, slag uit het toetsen-Euclid kanaal 1) met de motiefsequencer
     // als lijn op stem 5 (stapt op kanaal 2) en het sustainpedaal aan de
@@ -204,7 +222,7 @@ export function buildFreestyleRig(style: Style, base: ModularProject = seedInter
     // maken de 808 hoorbaar op een telefoon.
     ...(style.bassFx ? [c(m.bass, 'out', m.bassDrive, 'in'), c(m.bassDrive, 'out', mixer1, 'in2')] : [c(m.bass, 'out', mixer1, 'in2')]),
     c(m.snare, 'out', mixer1, 'in3'),
-    c(m.hat, 'out', mixer1, 'in4'),
+    c(style.hats === 'ratchet' ? m.rollHat : m.hat, 'out', mixer1, 'in4'),
     c(mixer1, 'out_l', dryMix, 'in1'),
     c(mixer1, 'out_r', dryMix, 'in2'),
     ...(style.keys === 'riff' ? [c(keysOut, 'out_l', dryMix, 'in3'), c(keysOut, 'out_r', dryMix, 'in4')] : []),

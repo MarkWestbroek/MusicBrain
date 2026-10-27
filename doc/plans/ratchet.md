@@ -109,4 +109,5 @@ Mark nam de vier voorstellen van §7 over. Afwijkingen van het plan:
 - Standaardpatroon A: hats op de achtsten, 3:2 op stap 13, een dubbele op 16. B is leeg.
 - De Peaks-hat volgt accent noch V/Oct. De seed gebruikt daarom de CR-78-hat, die nu ook V/Oct volgt.
 - Tests: `editor/src/modular-mb/sim/wasmRatchet.test.ts` (standen 3, 6 en 3:2 op 140 bpm, swing, accent- en pitch-ramp, A/B, Roll, Rat+, Thru, Length, Reset).
-- Nog open: Teensy flashen, `getStatus` en een roll horen (stap 6), en de Freestyle-koppeling (stap 7).
+- Stap 7 gedaan (FREESTYLE-sessie, dezelfde avond): Dark trap `hats: 'ratchet'` in `editor/src/freestyle/style.ts` en `freestylePatch.ts` (Grids-hat op `thru`, CR-78-hat, Roll op de FILL via LOGIC `gt`; standen per sectie, B via dezelfde knoppen zodat `ab` los blijft). `ratchet_cv` voor de Autopilot nog niet aangesloten.
+- Nog open: Teensy flashen, `getStatus` en een roll horen (stap 6).

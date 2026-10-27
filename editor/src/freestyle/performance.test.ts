@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { DROP_DOWN_S, Performance, START_LEAD_S, abChanges } from './performance';
-import { ACID_HOP_2, TRAP, type Change } from './style';
+import { ACID_HOP_2, DARK, TRAP, type Change } from './style';
 
 const BEAT = 60 / TRAP.bpm;          // 140 bpm
 const BAR = 4 * BEAT;
@@ -132,7 +132,7 @@ describe('Performance', () => {
     const fired = runUntil(perf, t0 + BEAT, t0 + BAR);
     expect(fired).toHaveLength(1);
     expect(fired[0]!.at).toBeCloseTo(t0 + BAR, 5);
-    expect(fired[0]!.changes).toEqual([{ module: 'hat', control: 'level', value: 0 }]);
+    expect(fired[0]!.changes).toEqual([{ module: 'hat', control: 'level', value: 0 }, { module: 'rollHat', control: 'level', value: 0 }]);
     expect(perf.stems.hats).toBe(false);
   });
 
@@ -259,6 +259,29 @@ describe('Performance', () => {
     expect(off[0]!.at).toBeCloseTo(t0 + 2 * BAR, 5);
     expect(has(off[0]!.changes, 'grids', 'hh', 0.5)).toBe(true);     // intro-stand
     expect(off[0]!.changes.every((c) => c.module === 'grids')).toBe(true);
+    expect(perf.filling).toBe(false);
+  });
+
+  it('FILL met knoppen buiten Grids (dark trap: de Roll-gate van RATCHET) zet ook die terug', () => {
+    const perf = new Performance(DARK);
+    const t0 = 10;
+    perf.start(t0);
+    perf.fill(t0 + BEAT);
+    // Dark trap heeft A/B-maten: op elke maatgrens vuurt ook de (naamloze) ab-wissel.
+    const on = runUntil(perf, t0 + BEAT, t0 + BAR).find((f) => f.label === 'fill')!;
+    expect(has(on.changes, 'rollGate', 'thresh', -0.5)).toBe(true);
+    const off = runUntil(perf, t0 + BAR + BEAT / 2, t0 + 2 * BAR).find((f) => f.label === 'fill ends')!;
+    expect(has(off.changes, 'rollGate', 'thresh', 0.5)).toBe(true);   // de stand uit `sound`
+    // En een sectiewissel tijdens een fill: de nieuwe sectie zet Roll ook laag.
+    perf.fill(t0 + 2 * BAR + BEAT);
+    runUntil(perf, t0 + 2 * BAR + BEAT, t0 + 3 * BAR);
+    expect(perf.filling).toBe(true);
+    perf.next(t0 + 3 * BAR + BEAT / 4);
+    // Fill-einde en sectiewissel vallen op dezelfde 1: welke van de twee ook
+    // eerst vuurt, Roll gaat laag.
+    const fired = runUntil(perf, t0 + 3 * BAR + BEAT / 4, t0 + 4 * BAR + BEAT / 2);
+    expect(fired.some((f) => f.label.startsWith('→'))).toBe(true);
+    expect(fired.some((f) => has(f.changes, 'rollGate', 'thresh', 0.5))).toBe(true);
     expect(perf.filling).toBe(false);
   });
 

@@ -30,7 +30,12 @@ export type ModuleKey =
   /** De voorgrondsynth (tp_mmb_synthex, alleen bekabeld bij `keys: 'riff'`)
    *  en het vuil (alleen bij `bassFx` / `keysFx`): DRIVE achter de bas, en
    *  achter de toetsen DRIVE → FET COMP → STEREO PHASER. */
-  | 'synth' | 'bassDrive' | 'keysDrive' | 'keysComp' | 'keysPhaser';
+  | 'synth' | 'bassDrive' | 'keysDrive' | 'keysComp' | 'keysPhaser'
+  /** De roffels (alleen bekabeld bij `hats: 'ratchet'`, fw 0.5.114): de
+   *  Grids-hat door RATCHET (`thru`) naar een CR-78-hat die accent en toon
+   *  volgt (de Peaks-hat doet dat niet); `rollGate` is een LOGIC die de
+   *  Roll-ingang hoog zet voor de FILL. */
+  | 'ratchet' | 'rollHat' | 'rollGate';
 
 export interface Change { module: ModuleKey; control: string; value: number | boolean }
 
@@ -111,6 +116,11 @@ export interface Style {
   /** De toetsen vuil: mono door DRIVE → FET COMP (snel, pompend) → STEREO
    *  PHASER (langzaam), die er weer stereo van maakt, dan de galm in. */
   keysFx?: 'dirty';
+  /** Hi-hat-roffels: de Grids-hat gaat door RATCHET (op x4, reset per maat)
+   *  naar een CR-78-hat; per sectie een stand per zestiende (`rolls`), de
+   *  B-maat via dezelfde knoppen, en de FILL zet de Roll-ingang hoog zodat
+   *  elke stap de `rollstand` (3:2, de zestiendentriool) speelt. */
+  hats?: 'ratchet';
   /** Een ander stem-niveau voor een module dan `STEM_LEVELS` (de stand als
    *  de stem aan staat), bijvoorbeeld de strijkers luider in dark trap. */
   levels?: Partial<Record<ModuleKey, number>>;
@@ -128,7 +138,7 @@ export interface Style {
 export const STEM_LEVELS: Record<Stem, Array<{ module: ModuleKey; control: string; level: number }>> = {
   kick:  [{ module: 'kick', control: 'level', level: 0.9 }],
   snare: [{ module: 'snare', control: 'level', level: 0.75 }],
-  hats:  [{ module: 'hat', control: 'level', level: 0.45 }],
+  hats:  [{ module: 'hat', control: 'level', level: 0.45 }, { module: 'rollHat', control: 'level', level: 0.55 }],
   bass:  [{ module: 'bass', control: 'level', level: 0.7 }],
   // MOTIF is "de toetsen": e-piano, Mellotron-pad en synth (waar bekabeld).
   motif: [{ module: 'piano', control: 'level', level: 0.7 }, { module: 'pad', control: 'level', level: 0.6 }, { module: 'synth', control: 'level', level: 0.8 }],
@@ -197,6 +207,17 @@ const bassLine = (notes: number[], rate: number): Change[] => seqLine('bassSeq',
 /** Het pad: één noot per maat (de padsequencer stapt op `bar`, zonder reset),
  *  dus gewoon de noten op s1… met de lengte van de reeks. */
 const padLine = (notes: number[]): Change[] => [...steps('padSeq', notes), { module: 'padSeq', control: 'length', value: Math.max(2, notes.length) }];
+/** De roffels van RATCHET (RatchetModule.h): per zestiende 0..15 een stand,
+ *  de rest rust. Standen: 2 en 4 slagen binnen de zestiende (32e, 64e), 3:2 =
+ *  drie slagen over twee zestienden (de zestiendentriool, de gewone
+ *  trap-roll; de volgende stap wordt overgeslagen), 3:4 = de achtstetriool.
+ *  Patroon A staat op a_1..a_16; de B-maat zet dezelfde knoppen (Section.b),
+ *  dus de ab-ingang van de module blijft los. */
+export const ROLL_2 = 2, ROLL_4 = 4, ROLL_32 = 7, ROLL_34 = 8;
+const rolls = (stands: Record<number, number>): Change[] => Array.from({ length: 16 }, (_, i) => ({ module: 'ratchet', control: `a_${i + 1}`, value: stands[i] ?? 0 } as Change));
+/** De Roll-ingang van RATCHET hoog of laag: LOGIC `gt` met A los (0 V) en de
+ *  drempel eronder (hoog) of erboven (laag); zo kan de FILL een gate zetten. */
+const roll = (on: boolean): Change[] => [{ module: 'rollGate', control: 'thresh', value: on ? -0.5 : 0.5 }];
 /** Akkoordtype van CHORD (ChordModule.h): 1 = mineur (C E♭ G C'), 9 = kwint (C G C' G'). */
 const chordType = (chord: number): Change[] => [{ module: 'chord', control: 'chord', value: chord }];
 
@@ -684,6 +705,7 @@ export const DARK: Style = {
   padVoices: 'chord',
   bassFx: 'drive',
   keysFx: 'dirty',
+  hats: 'ratchet',
   // Strijkers en synth voorop (Mark: "in your face", geen tapijtje); de
   // strijkers vol open, de galm (mix 0,45) zet ze naar achteren.
   levels: { pad: 1, synth: 0.9 },
@@ -744,33 +766,47 @@ export const DARK: Style = {
     { module: 'pad', control: 'contact', value: 0.5 }, { module: 'pad', control: 'motor', value: 0.3 }, { module: 'pad', control: 'wow', value: 0.2 },
     { module: 'pad', control: 'flutter', value: 0.2 }, { module: 'pad', control: 'wear', value: 0.25 },
     { module: 'padSeq', control: 'root', value: 54 },
+    // Roffels (Mark koos de RATCHET-module, fw 0.5.114): de Grids-hat door
+    // RATCHET naar een CR-78-hat; over een roll loopt het accent op van 0,45
+    // naar 0,95 en de toon vijf halve tonen omhoog. De FILL zet Roll: elke
+    // zestiende een 3:2, een maat vol zestiendentriolen. Roll staat laag.
+    { module: 'ratchet', control: 'length', value: 16 }, { module: 'ratchet', control: 'base', value: 0.45 },
+    { module: 'ratchet', control: 'ramp', value: 0.5 }, { module: 'ratchet', control: 'sweep', value: 5 },
+    { module: 'ratchet', control: 'rollstand', value: 5 }, { module: 'ratchet', control: 'width', value: 40 },
+    { module: 'rollHat', control: 'drum', value: 5 }, { module: 'rollHat', control: 'tone', value: 0.4 },
+    { module: 'rollHat', control: 'decay', value: 0.2 }, { module: 'rollHat', control: 'bend', value: 0 },
+    ...roll(false),
   ],
   sections: [
     {
       // Intro: strijkers, hats en een schaarse riff; geen sub en geen snare.
+      // Roffel: één zestiendentriool op 14–15 in A, de B-maat zonder.
       name: 'INTRO', role: 'intro', chord: 'F♯m',
       stems: all({ bass: false, snare: false }),
       changes: [...grids(0.3, 0.2, 0.45, 0.4, 0.75), ...hits(HITS_SLIDE_GRID, SLIDE_CLOCK), ...slideBass(BASS_DK_VERSE_A), ...SLIDE_DK_VERSE,
-        ...chordType(CHORD_MINOR), ...riff(HITS_DK_SPARSE, RIFF_DK_INTRO), ...padLine(PAD_DK)],
-      b: [...chordType(CHORD_FIFTH), ...riff(HITS_DK_SPARSE_B, RIFF_DK_INTRO_B)],
+        ...chordType(CHORD_MINOR), ...riff(HITS_DK_SPARSE, RIFF_DK_INTRO), ...padLine(PAD_DK), ...rolls({ 14: ROLL_32 })],
+      b: [...chordType(CHORD_FIFTH), ...riff(HITS_DK_SPARSE_B, RIFF_DK_INTRO_B), ...rolls({})],
     },
     {
       // Vers: de riff op het dubbele tresillo; maat B dunner en achter de tel,
       // de 808 op het late tresillo en zakkend naar C♯1, het akkoord een kwint.
+      // Roffel: de zestiendentriool op 14–15 vlak vóór de 1 van B; B zelf zonder
+      // (Mark: de losheid van B was al te veel).
       name: 'VERSE', role: 'verse', chord: 'F♯m',
       stems: all(),
       changes: [...grids(0.35, 0.3, 0.5, 0.5, 0.8), ...hits(HITS_SLIDE_GRID, SLIDE_CLOCK), ...slideBass(BASS_DK_VERSE_A), ...SLIDE_DK_VERSE,
-        ...chordType(CHORD_MINOR), ...riff(HITS_DK_RIFF, RIFF_DK_VERSE_A), ...padLine(PAD_DK)],
-      b: [...hits(HITS_SLIDE_GRID_B, SLIDE_CLOCK), ...slideBass(BASS_DK_VERSE_B), ...SLIDE_DK_B, ...chordType(CHORD_FIFTH), ...riff(HITS_DK_RIFF_B, RIFF_DK_VERSE_B)],
+        ...chordType(CHORD_MINOR), ...riff(HITS_DK_RIFF, RIFF_DK_VERSE_A), ...padLine(PAD_DK), ...rolls({ 14: ROLL_32 })],
+      b: [...hits(HITS_SLIDE_GRID_B, SLIDE_CLOCK), ...slideBass(BASS_DK_VERSE_B), ...SLIDE_DK_B, ...chordType(CHORD_FIFTH), ...riff(HITS_DK_RIFF_B, RIFF_DK_VERSE_B), ...rolls({})],
     },
     {
       // Hook: de glijder twee keer per maat, dan C♯ liggend; de riff op C♯ met
-      // de halve toon D; minder hats.
+      // de halve toon D; minder hats. Roffels: de triool op 6–7 en op 14–15 in
+      // A; in B een snelle vier (64sten) op de laatste zestiende, de "machinegun".
       name: 'HOOK', role: 'hook', chord: 'F♯m · C♯',
       stems: all(),
       changes: [...grids(0.45, 0.4, 0.6, 0.6, 0.55), ...hits(HITS_SLIDE_GRID, SLIDE_CLOCK), ...slideBass(BASS_DK_HOOK_A), ...SLIDE_DK_HOOK_A,
-        ...chordType(CHORD_MINOR), ...riff(HITS_DK_RIFF, RIFF_DK_HOOK_A), ...padLine(PAD_DK)],
-      b: [...hits(HITS_SLIDE_GRID_B, SLIDE_CLOCK), ...slideBass(BASS_DK_HOOK_B), ...SLIDE_DK_B, ...chordType(CHORD_FIFTH), ...riff(HITS_DK_RIFF_B, RIFF_DK_HOOK_B)],
+        ...chordType(CHORD_MINOR), ...riff(HITS_DK_RIFF, RIFF_DK_HOOK_A), ...padLine(PAD_DK), ...rolls({ 6: ROLL_32, 14: ROLL_32 })],
+      b: [...hits(HITS_SLIDE_GRID_B, SLIDE_CLOCK), ...slideBass(BASS_DK_HOOK_B), ...SLIDE_DK_B, ...chordType(CHORD_FIFTH), ...riff(HITS_DK_RIFF_B, RIFF_DK_HOOK_B), ...rolls({ 15: ROLL_4 })],
     },
     {
       // Break: de sub weg (en de kick, die in trap de 808 is); snare, hats,
@@ -778,19 +814,21 @@ export const DARK: Style = {
       name: 'BREAK', role: 'break', chord: 'F♯m',
       stems: all({ kick: false, bass: false }),
       changes: [...grids(0.3, 0.25, 0.4, 0.45, 0.7), ...hits(HITS_SLIDE_GRID, SLIDE_CLOCK), ...slideBass(BASS_DK_VERSE_A), ...SLIDE_DK_VERSE,
-        ...chordType(CHORD_MINOR), ...riff(HITS_DK_SPARSE, RIFF_DK_BREAK), ...padLine(PAD_DK)],
-      b: [...chordType(CHORD_FIFTH), ...riff(HITS_DK_SPARSE_B, RIFF_DK_BREAK_B)],
+        ...chordType(CHORD_MINOR), ...riff(HITS_DK_SPARSE, RIFF_DK_BREAK), ...padLine(PAD_DK), ...rolls({ 14: ROLL_32 })],
+      b: [...chordType(CHORD_FIFTH), ...riff(HITS_DK_SPARSE_B, RIFF_DK_BREAK_B), ...rolls({})],
     },
     {
       // Slot: strijkers en synth voorop (geen kick, geen snare), de bas ligt op F♯1, hats.
       name: 'OUTRO', role: 'outro', chord: 'F♯m',
       stems: all({ kick: false, snare: false }),
       changes: [...grids(0.3, 0.2, 0.4, 0.4, 0.6), ...hits(HITS_SLIDE_GRID, SLIDE_CLOCK), ...slideBass(BASS_DK_ROOT), ...SLIDE_DK_HOLD,
-        ...chordType(CHORD_MINOR), ...riff(HITS_DK_TWO, RIFF_DK_OUTRO), ...padLine(PAD_DK)],
+        ...chordType(CHORD_MINOR), ...riff(HITS_DK_TWO, RIFF_DK_OUTRO), ...padLine(PAD_DK), ...rolls({})],
     },
   ],
-  // De fill: een snareroffel (stap 12–15 in het origineel) met wat chaos.
+  // De fill: een snareroffel (stap 12–15 in het origineel) met wat chaos, en
+  // de hat een maat lang in zestiendentriolen (Roll hoog op RATCHET).
   fill: [
+    ...roll(true),
     { module: 'grids', control: 'sd', value: 0.95 },
     { module: 'grids', control: 'hh', value: 0.9 },
     { module: 'grids', control: 'y', value: 0.6 },

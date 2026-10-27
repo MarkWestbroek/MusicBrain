@@ -8,6 +8,8 @@
 // - Drums: Grids per stap nagerekend (x/y/density van de sectie, de fill in
 //   de laatste maat van een sectie), zonder chaos (de perturbatie werkt per
 //   patroonronde en die begint nooit in een fill-maat). Accent → velocity.
+// - Roffels (hats 'ratchet'): RATCHET nagerekend per stand (2, 4, 3:2, 3:4 …)
+//   met de accent-ramp als velocity; de fill-maat een maat vol 3:2.
 // - Bas: per kick, uit EUCLID, of de glijder (bass 'slide'): een gebonden
 //   noot (overlap) waar de slide-rij hoog staat, een korte stoot waar hij
 //   laag staat. Een mono-synth met legato en ±60 ms glide speelt dat na.
@@ -168,6 +170,36 @@ export function songNotes(style: Style, opts: SongOptions = {}): Record<SongTrac
       if (accent) accents[b]!.push(t);
     }
   });
+
+  // Roffels (hats 'ratchet'): RATCHET op x4 met de Grids-hat op thru. Eigen
+  // slagen per stand (RatchetModule.h: slagen en overspanning per stand), de
+  // accent-ramp van base naar base + ramp als velocity; Roll hoog (fill) laat
+  // elke stap de rollstand spelen. Een thru-slag op hetzelfde moment vervalt.
+  if (style.hats === 'ratchet') {
+    const HITS = [0, 1, 2, 3, 4, 6, 8, 3, 3], SPAN = [0, 1, 1, 1, 1, 1, 1, 2, 4], ROLLSTANDS = [2, 3, 4, 5, 6, 7];
+    bars.forEach((bar, b) => {
+      if (!bar.stems.hats) return;
+      const t0 = b * BAR;
+      const rollOn = num(bar.ctrl, 'rollGate', 'thresh', 0.5) < 0;
+      const rollStand = ROLLSTANDS[Math.round(num(bar.ctrl, 'ratchet', 'rollstand', 5))] ?? 7;
+      const base = num(bar.ctrl, 'ratchet', 'base', 0.6), ramp = num(bar.ctrl, 'ratchet', 'ramp', 0.4);
+      const length = Math.max(1, Math.round(num(bar.ctrl, 'ratchet', 'length', 16)));
+      const own: Note[] = [];
+      for (let k = 0; k < 16;) {
+        const stand = rollOn ? rollStand : Math.round(num(bar.ctrl, 'ratchet', `a_${(k % length) + 1}`, 0));
+        const hits = HITS[stand] ?? 0, span = SPAN[stand] ?? 1;
+        for (let j = 0; j < hits; j++) {
+          const f = hits > 1 ? j / (hits - 1) : 0;
+          const accent = Math.min(1, Math.max(0, base + ramp * f));
+          own.push({ t: Math.round(t0 + k * S16 + (j * span * S16) / hits), dur: S16 / 4, note: DRUM_NOTES.hat, vel: Math.round(40 + accent * 87) });
+        }
+        k += hits ? span : 1;
+      }
+      notes.HATS = notes.HATS.filter((n) => n.t < t0 || n.t >= t0 + BAR || !own.some((o) => o.t === n.t));
+      notes.HATS.push(...own);
+    });
+    notes.HATS.sort((p, q) => p.t - q.t);
+  }
 
   // Bas.
   bars.forEach((bar, b) => {
