@@ -42,7 +42,8 @@ jump. The − and + buttons next to the number nudge it by 1 BPM.
 
 Tap the style name at the top left to go to the next style: Trap half-time
 (140) → Boom bap (88) → Bounce (100) → Acid hop (75, a 303 bass line in C
-minor). This stops the beat; tap START again.
+minor) → Acid hop II (78, the same bass with piano chords and a mellotron
+flute). This stops the beat; tap START again.
 
 ## Foot pedal
 

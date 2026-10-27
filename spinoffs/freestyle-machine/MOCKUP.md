@@ -36,6 +36,15 @@ alleen bas en hats met de variant C E♭ C C A♭ G), ACID-preset "acid bass
 opname", e-piano G G E♭ C op C6. Autopilot kreeg mutes: in de derde frase
 valt de bas de laatste maat weg, elke achtste frase begint met twee maten
 alleen bas en hats; wat de rapper zelf uitzette blijft uit.
+**Acid hop II · 78** (2026-10-27, naast V1, uit Marks referentie
+[referenties/mmb-freestyle-01/](referenties/mmb-freestyle-01/README.md)):
+tweede basdeel G1 C2 G1 A♭1 G1, slotfiguur A♭ G E♭ C, de e-piano
+meerstemmig zoals Mark speelde (`keys: 'chords'`: CHORD op stem 1–4 met een
+tweede EUCLID voor akkoord- en lijnslagen, de motiefsequencer als lijn op
+stem 5, sustainpedaal en padgate uit de Div-puls van de klok, 90 % van de
+maat hoog) en een Mellotron-fluitpad (`pad`: tape strip op gu-flute, bank
+07, één noot per maat; de pagina laadt de bank met `ensureSamplerBank`, de
+patch vraagt hem via `simBanks`). Het pad hoort bij de MOTIF-knop.
 FILL-verfijning en de beatbox-laag staan open. Marks vraag naar een
 formaat voor de hele take (muziek + stem + instellingen) is geparkeerd:
 het zou een eventlog (stijl, tempo, elke gewapende actie met tel) naast de
@@ -341,8 +350,8 @@ stand (de vriend is Pools; UK English volstaat, zie
 | Bestand | Wat |
 |---|---|
 | `editor/src/freestyle/barClock.ts` | `BarClock` (tel/maat/frase op de contextklok, tempowissel zonder sprong) en `ArmQueue` (gewapende acties per tel) |
-| `editor/src/freestyle/style.ts` | `Stem` (vijf), `Change`, `Section`, `Style` (met `bass: 'kick' \| 'euclid'`); de stijlen TRAP (140, Grids op x2), BOOM_BAP (88, swing), BOUNCE (100) en ACID_HOP (75, bas uit Euclid), elk vier secties, eigen klank (`sound`) en fill; `euclidHits()` rekent het slagpatroon na |
-| `editor/src/freestyle/freestylePatch.ts` | bouwt de vaste patch (Clock → Grids → Peaks ×3 + Acid, bas per kick of via Euclid → Seq-gate; accenten → Seq → E-piano → Reverb) |
+| `editor/src/freestyle/style.ts` | `Stem` (vijf), `Change`, `Section`, `Style` (met `bass: 'kick' \| 'euclid'`, `keys: 'motif' \| 'chords'`, `pad`); de stijlen TRAP (140, Grids op x2), BOOM_BAP (88, swing), BOUNCE (100), ACID_HOP (75, bas uit Euclid) en ACID_HOP_2 (78, akkoorden + Mellotron), elk vier secties, eigen klank (`sound`) en fill; `euclidHits()` rekent de slagpatronen na |
+| `editor/src/freestyle/freestylePatch.ts` | bouwt de vaste patch (Clock → Grids → Peaks ×3 + Acid, bas per kick of via Euclid → Seq-gate; e-piano als motief op de accenten of als akkoorden via CHORD + tweede Euclid; tape strip-pad op `bar`/Div; alles via Reverb) |
 | `editor/src/freestyle/performance.ts` | `Performance`: start/stop, DROP (direct omlaag, terug op de tel), NEXT (frase), stems (maat), FILL (één maat), TAP, percussionist, Autopilot (variaties, fill, tijdelijke mutes `AUTO_MUTES`); geeft `Fired`-pakketjes terug |
 | `editor/src/freestyle/FreestyleApp.tsx` | het scherm en de toetsen; plant de pakketjes op de `AudioEngine`; stijlkeuze (tik/S = volgende) bouwt de patch opnieuw (stopt de beat); laptop- en telefoonlayout (≤ 700 px) met grote DROP/NEXT/FILL-knoppen |
 | `editor/src/freestyle/ringRecorder.test.ts` | de ringbuffer-trim (`trimParts` in `sim/wavRecorder.ts`) |

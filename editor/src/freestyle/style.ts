@@ -16,7 +16,12 @@ export const STEMS: readonly Stem[] = ['kick', 'snare', 'hats', 'bass', 'motif']
 export const STEM_LABEL: Record<Stem, string> = { kick: 'KICK', snare: 'SNARE', hats: 'HATS', bass: 'BASS', motif: 'MOTIF' };
 
 /** Logische namen van de modules in de patch; freestylePatch.ts geeft de id's. */
-export type ModuleKey = 'clock' | 'grids' | 'kick' | 'snare' | 'hat' | 'bass' | 'bassSeq' | 'bassGate' | 'motifSeq' | 'piano' | 'reverb';
+export type ModuleKey =
+  | 'clock' | 'grids' | 'kick' | 'snare' | 'hat' | 'bass' | 'bassSeq' | 'bassGate' | 'motifSeq' | 'piano' | 'reverb'
+  /** Toetsen-uitbreiding (alleen bekabeld bij `keys: 'chords'` / `pad`): akkoordgever
+   *  voor e-piano stem 1–4, slagpatroon voor akkoord en lijn, Mellotron-pad met
+   *  zijn eigen sequencer (één noot per maat). */
+  | 'chord' | 'keysGate' | 'pad' | 'padSeq';
 
 export interface Change { module: ModuleKey; control: string; value: number | boolean }
 
@@ -51,6 +56,16 @@ export interface Style {
   gridsClock: 'x2' | 'x4';
   /** Hoe de bas wordt aangeslagen (kabelkeuze bij het bouwen). */
   bass: BassSource;
+  /** De e-piano: `motif` = één stem, de motiefsequencer stapt per accent van
+   *  Grids; `chords` = CHORD (C4 mineur, vast) op stem 1–4 met een eigen
+   *  slagpatroon uit een tweede EUCLID (kanaal 1 = akkoord, kanaal 2 stapt de
+   *  motiefsequencer als lijn op stem 5), sustainpedaal hoog 90 % van de maat
+   *  via de Div-uitgang van de klok. */
+  keys: 'motif' | 'chords';
+  /** Mellotron-pad (tp_mmb_tapestrip) op een serverbank; de pagina laadt die
+   *  bank (`ensureSamplerBank`) en de patch vraagt hem via `simBanks`. Eén
+   *  noot per maat uit de padsequencer, gate = de Div-puls van de klok. */
+  pad?: { nn: number; file: string };
   /** Swing op de klok (0 = strak). */
   swing: number;
   /** Klankstanden van deze stijl (kick, snare, bas, piano, grondtonen): vast
@@ -67,7 +82,8 @@ export const STEM_LEVELS: Record<Stem, Array<{ module: ModuleKey; control: strin
   snare: [{ module: 'snare', control: 'level', level: 0.75 }],
   hats:  [{ module: 'hat', control: 'level', level: 0.45 }],
   bass:  [{ module: 'bass', control: 'level', level: 0.7 }],
-  motif: [{ module: 'piano', control: 'level', level: 0.7 }],
+  // MOTIF is "de toetsen": e-piano én (waar bekabeld) het Mellotron-pad.
+  motif: [{ module: 'piano', control: 'level', level: 0.7 }, { module: 'pad', control: 'level', level: 0.6 }],
 };
 
 /** Stand "percussionist plays along": de hats dunner, de djembe vult de gaten. */
@@ -89,18 +105,20 @@ const grids = (x: number, y: number, bd: number, sd: number, hh: number, chaos =
  *  en in `euclidHits()` hieronder, zodat de test het patroon kan narekenen. */
 type EuclidChannel = [steps: number, fill: number, rot: number];
 const SILENT: EuclidChannel = [16, 0, 0];
-const hits = (ch1: EuclidChannel, ch2: EuclidChannel = SILENT, ch3: EuclidChannel = SILENT): Change[] =>
+const hitsOn = (module: 'bassGate' | 'keysGate', ch1: EuclidChannel, ch2: EuclidChannel = SILENT, ch3: EuclidChannel = SILENT): Change[] =>
   [ch1, ch2, ch3].flatMap((ch, i) => [
-    { module: 'bassGate', control: `steps_${i + 1}`, value: ch[0] } as Change,
-    { module: 'bassGate', control: `fill_${i + 1}`, value: ch[1] } as Change,
-    { module: 'bassGate', control: `rot_${i + 1}`, value: ch[2] } as Change,
+    { module, control: `steps_${i + 1}`, value: ch[0] } as Change,
+    { module, control: `fill_${i + 1}`, value: ch[1] } as Change,
+    { module, control: `rot_${i + 1}`, value: ch[2] } as Change,
   ]);
-/** Welke zestienden (0..15) van een maat de drie EUCLID-kanalen samen raken. */
-export function euclidHits(changes: Change[], stepsPerBar = 16): number[] {
-  const v = (c: string, d: number): number => { const x = changes.find((ch) => ch.module === 'bassGate' && ch.control === c)?.value; return typeof x === 'number' ? x : d; };
+const hits = (ch1: EuclidChannel, ch2?: EuclidChannel, ch3?: EuclidChannel): Change[] => hitsOn('bassGate', ch1, ch2, ch3);
+/** Welke zestienden (0..15) van een maat de EUCLID-kanalen `channels` van
+ *  module `module` samen raken. */
+export function euclidHits(changes: Change[], module: 'bassGate' | 'keysGate' = 'bassGate', channels: number[] = [1, 2, 3], stepsPerBar = 16): number[] {
+  const v = (c: string, d: number): number => { const x = changes.find((ch) => ch.module === module && ch.control === c)?.value; return typeof x === 'number' ? x : d; };
   const out: number[] = [];
   for (let step = 0; step < stepsPerBar; step++) {
-    const hit = [1, 2, 3].some((k) => {
+    const hit = channels.some((k) => {
       const steps = v(`steps_${k}`, 16), fill = Math.min(v(`fill_${k}`, 0), steps), rot = v(`rot_${k}`, 0);
       if (fill === 0) return false;
       const index = (step + steps - (rot % steps)) % steps;
@@ -110,16 +128,22 @@ export function euclidHits(changes: Change[], stepsPerBar = 16): number[] {
   }
   return out;
 }
-/** De baslijn bij een slagpatroon: de bassequencer begint elke maat op stap
- *  0 en schuift bij de eerste slag al naar stap 1 (de reset komt een blok
- *  vóór de slag aan), dus stap 1 is een kopie van de eerste noot en de
- *  lijn staat op s2…; `rate` bepaalt met Gate 0,95 de nootlengte
+/** Een lijn op een sequencer die per EUCLID-slag stapt en elke maat op stap
+ *  0 begint: de reset komt een blok vóór de slag aan, dus bij de eerste slag
+ *  staat hij al op stap 1. Stap 1 is daarom een kopie van de eerste noot en
+ *  de lijn staat op s2…; `rate` bepaalt met Gate 0,95 de nootlengte
  *  (0,95 × 1000 / rate ms). */
-const bassLine = (notes: number[], rate: number): Change[] => [
-  ...steps('bassSeq', [notes[0] ?? 0, ...notes]),
-  { module: 'bassSeq', control: 'length', value: notes.length + 1 },
-  { module: 'bassSeq', control: 'rate', value: rate },
+const seqLine = (module: 'bassSeq' | 'motifSeq', notes: number[], rate: number): Change[] => [
+  ...steps(module, [notes[0] ?? 0, ...notes]),
+  { module, control: 'length', value: notes.length + 1 },
+  { module, control: 'rate', value: rate },
 ];
+const bassLine = (notes: number[], rate: number): Change[] => seqLine('bassSeq', notes, rate);
+/** Het pad: één noot per maat (de padsequencer stapt op `bar`, zonder reset),
+ *  dus gewoon de noten op s1… met de lengte van de reeks. */
+const padLine = (notes: number[]): Change[] => [...steps('padSeq', notes), { module: 'padSeq', control: 'length', value: Math.max(2, notes.length) }];
+/** Akkoordtype van CHORD (ChordModule.h): 1 = mineur (C E♭ G C'), 9 = kwint (C G C' G'). */
+const chordType = (chord: number): Change[] => [{ module: 'chord', control: 'chord', value: chord }];
 
 // F mineur: 0 = F, 3 = A♭, 5 = B♭, 7 = C, 8 = D♭, 10 = E♭; -2 = E♭, -4 = D♭, -5 = C.
 // De bassequencer stapt per kick en begint elke maat opnieuw, dus de eerste
@@ -170,6 +194,7 @@ export const TRAP: Style = {
   key: 'F minor',
   gridsClock: 'x2',
   bass: 'kick',
+  keys: 'motif',
   swing: 0,
   sound: sound({ bass: 29, kick: [0.85, -4, 0.35], snare: [0.7, 0.3, 0.8], hat: 0.15, sub: [0.12, 0.1, 0.25], piano: [0.4, 0.3, 0.7] }),
   sections: [
@@ -218,6 +243,7 @@ export const BOOM_BAP: Style = {
   key: 'A minor',
   gridsClock: 'x4',
   bass: 'kick',
+  keys: 'motif',
   swing: 0.18,
   sound: sound({ bass: 33, kick: [0.45, 0, 0.5], snare: [0.5, 0.35, 0.6], hat: 0.12, sub: [0.22, 0.2, 0.35], piano: [0.6, 0.2, 0.5] }),
   sections: [
@@ -266,6 +292,7 @@ export const BOUNCE: Style = {
   key: 'G minor',
   gridsClock: 'x4',
   bass: 'kick',
+  keys: 'motif',
   swing: 0.08,
   sound: sound({ bass: 31, kick: [0.5, -2, 0.45], snare: [0.8, 0.22, 0.9], hat: 0.1, sub: [0.3, 0.35, 0.5], piano: [0.3, 0.5, 0.45] }),
   sections: [
@@ -332,6 +359,7 @@ export const ACID_HOP: Style = {
   key: 'C minor',
   gridsClock: 'x4',
   bass: 'euclid',
+  keys: 'motif',
   swing: 0.1,
   sound: sound({
     bass: 36, motif: 72, kick: [0.5, -2, 0.45], snare: [0.6, 0.3, 0.7], hat: 0.12, sub: [0.2, 0.94, 0.6, 0.4, 0.6],
@@ -367,5 +395,83 @@ export const ACID_HOP: Style = {
   ],
 };
 
-export const STYLES: readonly Style[] = [TRAP, BOOM_BAP, BOUNCE, ACID_HOP];
+// Acid hop II (Marks referentie "MMB Freestyle 01 (78)", spinoffs/freestyle-
+// machine/referenties/mmb-freestyle-01/): 78 bpm, C mineur, naast V1 om te
+// vergelijken. Nieuw: een tweede basdeel dat naar G1/A♭1 zakt, een
+// slotfiguur A♭ G E♭ C, de e-piano meerstemmig zoals Mark hem speelde
+// (lange Cm-akkoorden met sustain, korte stoten, in de hook een neergebroken
+// akkoord A♭5 G5 E♭5 D5 C5 G4 E♭4 D4 dat blijft klinken) en een Mellotron-
+// fluitpad (tape strip op gu-flute): C4 lang, in de break de lage
+// slotmelodie E♭3 A♭3 G3 C3. In zijn opname komt de bas in maat 3; hier is
+// INTRO drums + pad + akkoord en brengt NEXT de bas.
+const BASS_AH2_PART2 = [-5, 0, -5, -4, -5];       // G1 C2 G1 A♭1 G1  op 0·3·6·9·12
+const BASS_AH2_END   = [8, 7, 3, 0];              // A♭2 G2 E♭2 C2    op 0·6·12·14
+const LINE_AH2_STABS = [7, 0];                    // G5 C5 op 6 en 14 (t.o.v. C5)
+const LINE_AH2_FALL  = [8, 7, 3, 2, 0, -5, -9, -10]; // A♭5 G5 E♭5 D5 C5 G4 E♭4 D4, om de twee zestienden, met sustain
+const LINE_AH2_GRACE = [-4];                      // A♭4 op 14, de voorslag naar het akkoord
+const PAD_AH2_LOW    = [-9, -4, -5, -12];         // E♭3 A♭3 G3 C3, één per maat
+const PAD_AH2_C      = [0, 0];                    // C4 (lengte minstens 2)
+const CHORD_MINOR = 1, CHORD_FIFTH = 9;
+
+export const ACID_HOP_2: Style = {
+  id: 'acidhop2',
+  name: 'Acid hop II',
+  bpm: 78,
+  feel: '303 bass · mellotron · as Mark played it',
+  key: 'C minor',
+  gridsClock: 'x4',
+  bass: 'euclid',
+  keys: 'chords',
+  pad: { nn: 7, file: 'gu-flute.mmbs' },
+  swing: 0.1,
+  sound: [
+    ...sound({
+      bass: 36, motif: 72, kick: [0.5, -2, 0.45], snare: [0.6, 0.3, 0.7], hat: 0.12, sub: [0.2, 0.94, 0.6, 0.4, 0.6],
+      piano: [0.35, 0.29, 0.5, 0.4, 0.3, 4.5, 0.6], reverb: [0.5, 0.85, 66, 0.4, 0.3],
+    }),
+    // Div = één puls per maat (16 zestienden), 90 % hoog: de gate van het pad
+    // en het sustainpedaal van de e-piano; de dempers vallen vlak vóór de 1.
+    { module: 'clock', control: 'div', value: 16 }, { module: 'clock', control: 'width', value: 0.9 },
+    { module: 'chord', control: 'inv', value: 0 }, { module: 'chord', control: 'spread', value: 0 },
+    // Mellotron-mechanica als de Mellotron-seed: bandje van 8 s, veer terug, wat wow.
+    { module: 'pad', control: 'bank', value: 7 }, { module: 'pad', control: 'length', value: 8 }, { module: 'pad', control: 'return', value: 1 },
+    { module: 'pad', control: 'contact', value: 0.5 }, { module: 'pad', control: 'motor', value: 0.4 }, { module: 'pad', control: 'wow', value: 0.3 },
+    { module: 'pad', control: 'flutter', value: 0.3 }, { module: 'pad', control: 'wear', value: 0.3 },
+    { module: 'padSeq', control: 'root', value: 60 },
+  ],
+  sections: [
+    {
+      name: 'INTRO', chord: 'Cm',
+      stems: all({ bass: false }),
+      changes: [...grids(0.35, 0.3, 0.45, 0.4, 0.5), ...hits(HITS_AH_SIX), ...bassLine(BASS_AH_A, AH_RATE),
+        ...chordType(CHORD_MINOR), ...hitsOn('keysGate', [16, 1, 0]), ...seqLine('motifSeq', LINE_AH2_STABS, AH_RATE), ...padLine(PAD_AH2_C)],
+    },
+    {
+      name: 'VERSE', chord: 'Cm',
+      stems: all(),
+      changes: [...grids(0.4, 0.35, 0.6, 0.55, 0.65), ...hits(HITS_AH_SIX), ...bassLine(BASS_AH_A, AH_RATE),
+        ...chordType(CHORD_MINOR), ...hitsOn('keysGate', [16, 1, 0], [8, 1, 6]), ...seqLine('motifSeq', LINE_AH2_STABS, AH_RATE), ...padLine(PAD_AH2_C)],
+    },
+    {
+      name: 'HOOK', chord: 'Cm · A♭ · G',
+      stems: all(),
+      changes: [...grids(0.5, 0.45, 0.7, 0.6, 0.8), ...hits([6, 1, 0], [16, 1, 3], [16, 1, 9]), ...bassLine(BASS_AH2_PART2, AH_RATE),
+        ...chordType(CHORD_MINOR), ...hitsOn('keysGate', SILENT, [2, 1, 0]), ...seqLine('motifSeq', LINE_AH2_FALL, 4), ...padLine(PAD_AH2_C)],
+    },
+    {
+      // Slot: C4+G4 een hele maat, de bas speelt A♭ G E♭ C, het pad de lage melodie.
+      name: 'BREAK', chord: 'Cm',
+      stems: all({ kick: false, snare: false }),
+      changes: [...grids(0.4, 0.3, 0.5, 0.5, 0.55), ...hits([6, 1, 0], [16, 1, 14]), ...bassLine(BASS_AH2_END, AH_RATE),
+        ...chordType(CHORD_FIFTH), ...hitsOn('keysGate', [16, 1, 0], [16, 1, 14]), ...seqLine('motifSeq', LINE_AH2_GRACE, AH_RATE), ...padLine(PAD_AH2_LOW)],
+    },
+  ],
+  fill: [
+    { module: 'grids', control: 'hh', value: 0.95 },
+    { module: 'grids', control: 'y', value: 0.6 },
+    { module: 'grids', control: 'chaos', value: 0.35 },
+  ],
+};
+
+export const STYLES: readonly Style[] = [TRAP, BOOM_BAP, BOUNCE, ACID_HOP, ACID_HOP_2];
 export function styleById(id: string): Style { return STYLES.find((s) => s.id === id) ?? TRAP; }

@@ -31,6 +31,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import * as Tone from 'tone';
 
 import { PlayTour, playTourSeen, type PlayTourStep } from '../modular-mb/PlayTour';
+import { ensureSamplerBank } from '../modular-mb/sim/bankAutoLoad';
 import { getEngine, useEngineStatus } from '../modular-mb/sim/engineSingleton';
 import { MasterRecorder, downloadWav, encodeWav, peakOf, wavFileName } from '../modular-mb/sim/wavRecorder';
 import { TapTempo } from '../modular-mb/tempo';
@@ -62,7 +63,7 @@ const TOUR_STEPS: PlayTourStep[] = [
   step('fs-next', 'NEXT', 'The next section: INTRO → VERSE → HOOK → BREAK. Press it mid-line; it lands on the 1 of the next phrase. On a page-turner pedal this is the right pedal.'),
   step('fs-fill', 'FILL', 'A one-bar fill, starting at the next bar.'),
   step('fs-stems', 'The five parts', 'KICK, SNARE, HATS, BASS and MOTIF. Tap a part to mute or unmute it at the next bar. An amber border means it changes at the next bar; tap again to cancel. Bass and hats alone is a classic breakdown.'),
-  step('fs-style', 'Style', 'Tap the style name to go to the next style: trap, boom bap, bounce, acid hop. That stops the beat; press START again.'),
+  step('fs-style', 'Style', 'Tap the style name to go to the next style: trap, boom bap, bounce, acid hop, acid hop II (with mellotron). That stops the beat; press START again.'),
   step('fs-perc', 'Playing with a percussionist', 'Tick this and the hi-hats get thinner, so a djembe or shaker fits in the gaps.'),
   step('fs-save', 'It is always recording', 'From the first START the last two minutes are kept. Was that take good? Tap SAVE and you get it as a WAV file. No need to press record first.'),
   step('fs-mic', 'Record your voice too', 'MIC adds the microphone to the recording, on its own track. SAVE then gives two files, beat and voice, to mix later. Use headphones for a clean voice track.'),
@@ -124,8 +125,16 @@ export function FreestyleApp({ onExit }: { onExit?: () => void }): JSX.Element {
 
   useEffect(() => {
     engine.build(rig.project, rig.patch);
+    // Mellotron-pad: de serverbank in de sampler-wasm zetten (de tape strip
+    // leest dezelfde bank). Buiten de editor is er geen SamplerBankBar die dat doet.
+    if (style.pad) {
+      const { nn, file } = style.pad;
+      ensureSamplerBank(nn, undefined, false, file)
+        .then((b) => setLog(b ? `mellotron: ${b.name}` : 'mellotron: bank not found'))
+        .catch((e) => setLog(`mellotron: ${e instanceof Error ? e.message : String(e)}`));
+    }
     return () => { engine.stop(); };
-  }, [engine, rig]);
+  }, [engine, rig, style]);
   // De ringbuffers lopen zolang de pagina open is (vanaf de eerste START).
   useEffect(() => () => {
     if (recorder.active) void recorder.stop();

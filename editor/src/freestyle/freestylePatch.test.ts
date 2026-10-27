@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { checkPatch } from '../modular-mb/patchCheck';
 import { resolveControls } from '../modular-mb/types';
 import { RIG_TYPES, buildFreestyleRig, stemChanges } from './freestylePatch';
-import { ACID_HOP, STEMS, STYLES, TRAP, euclidHits, type Change } from './style';
+import { ACID_HOP, ACID_HOP_2, STEMS, STYLES, TRAP, euclidHits, type Change } from './style';
 
 describe('freestyle-patch', () => {
   const rig = buildFreestyleRig(TRAP);
@@ -22,7 +22,61 @@ describe('freestyle-patch', () => {
       // De klank van de stijl staat in de patch.
       for (const ch of style.sound) expect(r.patch.controlState[r.ids[ch.module]]?.[ch.control], `${style.id}: ${ch.module}.${ch.control}`).toBe(ch.value);
     }
-    expect(STYLES.map((s) => s.id)).toEqual(['trap', 'boombap', 'bounce', 'acidhop']);
+    expect(STYLES.map((s) => s.id)).toEqual(['trap', 'boombap', 'bounce', 'acidhop', 'acidhop2']);
+  });
+
+  it('acid hop II: akkoorden op stem 1–4, lijn op stem 5, sustain en padgate op Div, pad op gu-flute', () => {
+    const r = buildFreestyleRig(ACID_HOP_2);
+    const from = (toKey: keyof typeof r.ids, port: string): string[] => r.patch.connections
+      .filter((x) => x.to.moduleId === r.ids[toKey] && x.to.portId === port)
+      .map((c) => `${String((Object.keys(r.ids) as Array<keyof typeof r.ids>).find((k) => r.ids[k] === c.from.moduleId))}.${c.from.portId}`);
+    for (const k of [1, 2, 3, 4]) {
+      expect(from('piano', `voct_${k}`), `voct_${k}`).toEqual([`chord.out${k}`]);
+      expect(from('piano', `gate_${k}`), `gate_${k}`).toEqual(['keysGate.out_1']);
+    }
+    expect(from('piano', 'voct_5')).toEqual(['motifSeq.cv']);
+    expect(from('piano', 'gate_5')).toEqual(['motifSeq.gate_out']);
+    expect(from('piano', 'sustain')).toEqual(['clock.div']);
+    expect(from('motifSeq', 'clock')).toEqual(['keysGate.out_2']);
+    expect(from('keysGate', 'clock')).toEqual(['clock.x4']);
+    expect(from('keysGate', 'reset')).toEqual(['clock.bar']);
+    expect(from('pad', 'gate_1')).toEqual(['clock.div']);
+    expect(from('pad', 'voct_1')).toEqual(['padSeq.cv']);
+    expect(from('padSeq', 'clock')).toEqual(['clock.bar']);
+    // De e-piano gaat niet meer rechtstreeks de galm in, maar via de KEYS-mixer.
+    expect(from('reverb', 'in_l')).toEqual(['undefined.out_l']);
+    expect(r.patch.simBanks).toEqual({ '7': 'gu-flute.mmbs' });
+    expect(r.patch.controlState[r.ids.pad]?.bank).toBe(7);
+    expect(r.patch.controlState[r.ids.clock]).toMatchObject({ div: 16, width: 0.9 });
+    // V1 heeft hier niets van: motief op de accenten, e-piano direct de galm in.
+    const v1 = buildFreestyleRig(ACID_HOP);
+    expect(v1.patch.connections.some((c) => c.to.moduleId === v1.ids.piano && c.to.portId === 'voct_5')).toBe(false);
+    expect(v1.patch.connections.some((c) => c.from.moduleId === v1.ids.piano && c.to.moduleId === v1.ids.reverb)).toBe(true);
+    expect(v1.patch.simBanks).toBeUndefined();
+  });
+
+  it('acid hop II: slagpatronen van bas en toetsen per sectie', () => {
+    const bass: Record<string, number[]> = { INTRO: [0, 3, 6, 9, 12, 14], VERSE: [0, 3, 6, 9, 12, 14], HOOK: [0, 3, 6, 9, 12], BREAK: [0, 6, 12, 14] };
+    const chord: Record<string, number[]> = { INTRO: [0], VERSE: [0], HOOK: [], BREAK: [0] };
+    const line: Record<string, number[]> = { INTRO: [], VERSE: [6, 14], HOOK: [0, 2, 4, 6, 8, 10, 12, 14], BREAK: [14] };
+    const v = (s: { changes: Change[] }, module: string, control: string): unknown => s.changes.find((c) => c.module === module && c.control === control)?.value;
+    for (const s of ACID_HOP_2.sections) {
+      expect(euclidHits(s.changes), `${s.name} bas`).toEqual(bass[s.name]);
+      expect(euclidHits(s.changes, 'keysGate', [1]), `${s.name} akkoord`).toEqual(chord[s.name]);
+      const hits = euclidHits(s.changes, 'keysGate', [2]);
+      expect(hits, `${s.name} lijn`).toEqual(line[s.name]);
+      // Lijn en bas: stap 0 kopie van de eerste noot, lengte = slagen + 1.
+      if (hits.length) expect(v(s, 'motifSeq', 'length'), s.name).toBe(hits.length + 1);
+      expect(v(s, 'motifSeq', 's1'), s.name).toBe(v(s, 'motifSeq', 's2'));
+      expect(v(s, 'bassSeq', 'length'), s.name).toBe(euclidHits(s.changes).length + 1);
+    }
+    // De hook: het neergebroken akkoord A♭5 G5 E♭5 D5 C5 G4 E♭4 D4 (t.o.v. C5).
+    const hook = ACID_HOP_2.sections[2]!;
+    expect([2, 3, 4, 5, 6, 7, 8, 9].map((i) => v(hook, 'motifSeq', `s${i}`))).toEqual([8, 7, 3, 2, 0, -5, -9, -10]);
+    // De break: het pad speelt de lage slotmelodie, één noot per maat.
+    const brk = ACID_HOP_2.sections[3]!;
+    expect([1, 2, 3, 4].map((i) => v(brk, 'padSeq', `s${i}`))).toEqual([-9, -4, -5, -12]);
+    expect(v(brk, 'chord', 'chord')).toBe(9);
   });
 
   it('bekabelt de bas per kick, of uit Euclid op de zestienden', () => {
