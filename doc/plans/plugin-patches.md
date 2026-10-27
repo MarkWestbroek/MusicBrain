@@ -126,9 +126,49 @@ plugins op.
   in `module-types.json`) en het front komen direct uit de editor. De
   WebAudio-graaf draait in de plugin niet mee.
 
-**Eerst meten.** Vóór de UI komt er een kleine meetstap: een patch van 8×4
-wasm2c-instanties (VCO, VCF, VCA, ENV per stem) in een testprogramma, met
-het CPU-gebruik per blok bij 48 kHz.
+**Gemeten (2026-10-27, Mac, Intel i9-9880H 2,3 GHz):** de meetopstelling
+staat in `tools/plugin/wasm2c/bench.cc`. Per stem draait een keten VCO →
+LADDER → VCA, met een AHDSR op de cutoff en de VCA. Het zijn wasm2c-instanties
+van de `.wasm`-bestanden uit `editor/public/wasm/`, zonder herbouw. De AHDSR
+tikt op 1 kHz, de audio loopt in blokken van 32 op 44,1 kHz. Tijden zijn
+voor één kern.
+
+| Stemmen × 4 modules | CPU | Realtime |
+|---|---|---|
+| 8 | 7,1 % | ×14 |
+| 32 | 29 % | ×3 |
+| 64 | 61 % | ×2 |
+
+- **Instanties zijn onafhankelijk.** De stemmen liggen precies 5 halve
+  tonen uit elkaar (253 → 338 Hz enz.). Elke instantie heeft eigen
+  globals en eigen geheugen.
+- **wasm2c is even snel als gewoon gecompileerde code.** Dezelfde `.cc`,
+  32 instanties, eerst als wasm2c en dan native (`-O3`):
+
+  | Module | wasm2c | native |
+  |---|---|---|
+  | VCO | 0,53 % | 0,57 % |
+  | LADDER | 27,6 % | 24,3 % |
+
+  De kosten zitten in de DSP. De LADDER is het dure deel: ongeveer 0,8 % per
+  stem.
+- **Geheugencontrole: expliciete bounds checks** (`-DWASM_RT_USE_MMAP=0
+  -DWASM_RT_MEMCHECK_BOUNDS_CHECK=1`). De standaard is guard pages, met een
+  signal handler en 8 GB virtueel per instantie, en dat wil je niet in een
+  DAW. Gemeten verschil: geen (7,35 % tegen 7,32 % bij 8 stemmen).
+- **Bouwen:**
+  - wabt uit de broncode (`~/src/wabt`, CMake + Ninja, doelen `wasm2c` en
+    `wasm-objdump`).
+  - De `.wasm` gebruiken SIMD (`-msimd128`), dus de gegenereerde C heeft
+    simde nodig (`wabt/third_party/simde`).
+  - Een module zonder WASI-imports (VCO, LADDER, VCA) heeft niets extra
+    nodig. De AHDSR importeert vier WASI-functies (`fd_write` enz., uit de
+    C-bibliotheek); lege stubs volstaan.
+  - De C per module is 140–780 kB en compileert zonder waarschuwingen.
+
+**Conclusie:** route 2 met wasm2c draagt een patch van 8 stemmen ruim, en
+32 stemmen in één plugin kan ook. Het grootste risico van het plan is
+weg.
 
 ## 5. Stap 3 en 4: de patch-plugin
 
@@ -167,11 +207,41 @@ controls (via dezelfde route als het paneel).
 
 ## 8. Open vragen
 
-- CPU: hoeveel wasm2c-instanties passen in één plugin? De meetstap in §4
-  beslist, vóór de UI.
-- Samplerate en bloklengte: zoals `AbiPlugin` nu (blok 128, Lagrange naar
-  de DAW-rate). Goed genoeg voor een hele patch, of per patch één keer
-  resamplen aan de rand?
-- Waar wasm2c op de Mac en Windows vandaan komt (wabt bouwen of een
-  release), en of de gegenereerde C in de CMake-build past.
+- Samplerate: zie §9.
+- Waar wasm2c op Windows vandaan komt (wabt bouwen of een release), en of
+  de gegenereerde C met clang-cl in de CMake-build past.
 - Licenties per module vóór verkoop (zie plugin.md).
+
+## 9. Samplerate (48 en 96 kHz in Logic)
+
+Eén pluginversie werkt nu al op elke rate. Het verschil zit in wat er binnen
+gebeurt:
+
+- **Kernplugins** (`KernelPlugin.h`, onder meer HALL, SID en de 22 op de
+  kern-interface) roepen `Init(sampleRate)` aan met de rate van de DAW. Op
+  96 kHz rekenen ze echt op 96 kHz; daar heb je het voordeel van de
+  oversampling.
+- **Wasm-gastheren** (`AbiPlugin.h`, de meeste modules) rekenen op hun eigen
+  `MMB_NATIVE_RATE` (44,1 kHz, zoals de Teensy). Een Lagrange-interpolator
+  zet van en naar de DAW-rate. Ze werken op 48 en 96 kHz, maar het geluid
+  binnen blijft 44,1 kHz: geen extra bandbreedte, geen minder aliasing.
+
+Om op 96 kHz echt op 96 kHz te rekenen:
+
+- **Wat er moet veranderen:** `MMB_NATIVE_RATE` wordt een waarde die de
+  gastheer bij `mmb_init` meegeeft, in plaats van een constante. Er komt
+  een export `mmb_set_rate` vóór `mmb_init`. De browser blijft 44,1 of 48
+  doorgeven.
+- **Per module nakijken:** kernen die de rate al als argument nemen (alles
+  op `kernel_host.h`) gaan vanzelf goed. Code met een vaste 44,1 kHz
+  (tabellen, coëfficiënten, `AUDIO_SAMPLE_RATE_EXACT`, de
+  Teensy-integer-oscillator in `teensy_waveform.h`) moet per module
+  bekeken worden. Een module die dat niet kan, blijft op 44,1 kHz met de
+  interpolator. Dat is dan een eigenschap van de module, geen aparte
+  versie.
+- **CPU:** op 96 kHz ruim het dubbele van de tabel in §4 (8 stemmen ~15 %).
+- CV-modules blijven op 1 kHz: hun gedrag hangt niet aan de audiorate.
+
+Er komen dus geen versies per rate. Hoe dit in het werk past: stap 2 en 3
+nemen `mmb_set_rate` mee, omdat de wasm2c-route de `.wasm` toch per
+instantie start.
