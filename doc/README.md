@@ -70,6 +70,7 @@ Elk plan draagt zijn eigen datum en status. Kort per thema:
 - **HALL (gebouwd 2026-10-14, fw 0.5.113)**: [hall-reverb.md](plans/hall-reverb.md): grote galm in Lexicon-stijl (FDN met modulatie, vroege reflecties); §8 Cloud Seed bekeken.
 - **Plugin op de Mac (overdracht 2026-10-15)**: [plugin-mac-overdracht.md](plans/plugin-mac-overdracht.md): recept om HALL en SID als AU/VST3 op de Mac te bouwen, te controleren (auval, Reaper, Logic) en vast te leggen.
 - **Plugin (proef 2026-10-15)**: [plugin.md](plans/plugin.md): HALL als VST3/Standalone met JUCE op dezelfde kern; meting gelijk aan de simulator; wat verkopen zou kosten; open vragen (GUI, instrumenten, licenties).
+- **Plugin: banken, patches, hele editor (plan 2026-10-27)**: [plugin-patches.md](plans/plugin-patches.md): banken in de plugin-state (Mellotron, ZANG, DX7), een patch als één plugin met het front als UI, de hele editor met kabels, en de CMI-subeditor.
 - **CONV (voorstel 2026-10-14)**: [conv-reverb.md](plans/conv-reverb.md): convolutiegalm met niet-uniforme partities, IR-bank, eigen IR's lokaal (niet in de repo).
 - **Elements-programma's (voorstel 2026-10-12)**: [elements-programmas.md](plans/elements-programmas.md): een bank programma's per Elements, zoals de DX7; de 19 geredde programma's van de 5× Elements als eerste bank.
 - **Beads (voorstel 2026-10-12)**: [beads.md](plans/beads.md): Mutable Instruments Beads (broncode vrijgegeven 11-10-2026, MIT) als module naast Clouds; werkwijze, stappen, vragen.
