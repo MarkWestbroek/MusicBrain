@@ -47,6 +47,10 @@ bij stap 5.
 werkt uit de bankmap en een eigen bank gaat mee in het project; zie
 [plugin.md](plugin.md), "Banken in de plugin". Nog open: ZANG en DX7 (andere
 bankformaten), DRAW-VCO-tekening, CMI-voice.
+Ook open: de bankmap (212 MB) moet nu met de hand gevuld worden. Voor
+gebruikers hoort daar een installer-stap bij, of een terugval op een map
+naast de plugin. Windows is gecontroleerd door MODULES: de banken laden
+en de pieken zijn gelijk aan de Mac (Bank 3 met noten 48 en 60: 0,272).
 
 - De plugin krijgt een bank (`.mmbs` voor sampler/TAPE STRIP, de ZANG-bank,
   een DX7-bank) via slepen of een knop in de webview. De bank gaat mee in
