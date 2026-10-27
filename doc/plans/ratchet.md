@@ -1,6 +1,6 @@
 # RATCHET — stapsequencer voor roffels (plan)
 
-*Voorstel 2026-10-27. Aanleiding: hi-hat-roffels voor Dark trap in de Freestyle-machine (analyse en eisen van de FREESTYLE-sessie). Nog niets gebouwd.*
+*Gebouwd 2026-10-27 als fw 0.5.114 (zie §8). Voorstel van dezelfde dag. Aanleiding: hi-hat-roffels voor Dark trap in de Freestyle-machine (analyse en eisen van de FREESTYLE-sessie). Nog niets gebouwd.*
 
 ## 1. Waarom een module
 
@@ -100,3 +100,13 @@ Stap 1–5 kunnen in één ronde; 6 en 7 volgen.
 2. **Lengte per patroon?** Voorstel: één `length` voor A en B.
 3. **Roll-stand:** vaste knop (voorstel) of ook als CV?
 4. **Paneelbreedte:** 32 keuzeknoppen passen op ongeveer 20 HP. Liever smaller met alleen patroon A zichtbaar en B achter een schakelaar?
+
+## 8. Gebouwd (fw 0.5.114, 2026-10-27)
+
+Mark nam de vier voorstellen van §7 over. Afwijkingen van het plan:
+
+- De knop voor de roll-stand heet `rollstand`, niet `roll`: de Roll-gate-ingang heet al `roll`, en een poort en knop met dezelfde naam botsen in de plugins.
+- Standaardpatroon A: hats op de achtsten, 3:2 op stap 13, een dubbele op 16. B is leeg.
+- De Peaks-hat volgt accent noch V/Oct. De seed gebruikt daarom de CR-78-hat, die nu ook V/Oct volgt.
+- Tests: `editor/src/modular-mb/sim/wasmRatchet.test.ts` (standen 3, 6 en 3:2 op 140 bpm, swing, accent- en pitch-ramp, A/B, Roll, Rat+, Thru, Length, Reset).
+- Nog open: Teensy flashen, `getStatus` en een roll horen (stap 6), en de Freestyle-koppeling (stap 7).

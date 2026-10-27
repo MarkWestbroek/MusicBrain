@@ -17,6 +17,25 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-27 — fw 0.5.114: RATCHET, roffels per stap
+<!-- EN: fw 0.5.114: RATCHET, a step sequencer for hi-hat rolls -->
+- Nieuwe module `tp_mmb_ratchet` (plan: [ratchet.md](plans/ratchet.md)):
+  zestien stappen op een stapklok (Clock ×4), per stap rust, 1, 2, 3, 4,
+  6 of 8 slagen binnen de stap, of 3:2 en 3:4 (drie slagen over twee of
+  vier stappen: de zestiendentriool en de achtstetriool). Geen eigen
+  tempo: de module meet de klok en deelt die op, ook met swing.
+- Over een roll lopen Acc (Base → Base + Ramp) en Pitch (0 → Sweep halve
+  tonen) mee. Twee patronen (A/B-gate), Roll-gate voor een fill, Rat+ als
+  CV op de standen, Thru om de Grids-hat erdoor te laten.
+- CR-78: de HiHat volgt nu ook V/Oct (het hoogdoorlaatfilter schuift mee),
+  zodat een RATCHET-sweep te horen is. Zonder kabel klinkt hij gelijk.
+- Seed "🥁 Ratchet trap (Grids + RATCHET)": Grids op 140 speelt kick, snare
+  en hats, RATCHET voegt de rolls toe op een CR-78-hat.
+- Bekend: de Peaks-hat volgt accent noch V/Oct (Peaks bewaart accent wel,
+  maar gebruikt het niet). Gebruik voor rolls de CR-78-hat.
+- Deze build bevat ook de schonere ROTARY-voorversterker en de
+  DRAW-VCO-Vorm-schakelaar hieronder.
+
 ### 2026-10-27 — DRAW-VCO: Vorm-schakelaar met vaste golfvormen
 <!-- EN: DRAW-VCO gets a Shape switch with fixed waveforms -->
 - Nieuwe control `shape`: Getekend (standaard, de tekening of tot dan

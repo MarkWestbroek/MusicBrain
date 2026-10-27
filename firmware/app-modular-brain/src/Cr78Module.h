@@ -20,7 +20,7 @@
  * | Dir | portId | Kind  | Betekenis                            |
  * |-----|--------|-------|---------------------------------------|
  * | in  | `gate`/`trig` | Gate | Stijgende flank slaat de drum  |
- * | in  | `voct` | Cv    | Toonhoogte-offset (vellen)            |
+ * | in  | `voct` | Cv    | Toonhoogte-offset (vellen en hat)     |
  * | in  | `accent`/`accent_cv` | Cv | Accent → luider + meer bend |
  * | out | `out`  | Audio | Mono drum-uitgang                     |
  *

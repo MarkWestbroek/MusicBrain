@@ -448,3 +448,59 @@ export function seedSynthexPolyPatch(project: ModularProject): ModularProject {
   };
   return finish(p, mods, rack, patch);
 }
+
+/**
+ * Trap-hats met roffels: Grids speelt kick, snare en de gewone hats; die
+ * hats gaan door RATCHET (Thru) naar de CR-78-hat, die er de rolls aan
+ * toevoegt (de CR-78 volgt accent en, sinds fw 0.5.114, V/Oct ook op de hat): een
+ * zestiendentriool (3:2), zessen en achten aan het eind van de maat, met
+ * een accent dat oploopt en een toon die meeklimt.
+ */
+export function seedRatchetTrapPatch(project: ModularProject): ModularProject {
+  const { p, mods, rack } = build(project,
+    ['tp_mmb_clock', 'tp_mmb_grids', 'tp_mmb_ratchet', 'tp_mmb_cr78', 'tp_mmb_peaks', 'tp_mmb_peaks', 'tp_mmb_mixer', 'tp_mmb_out'],
+    'Ratchet trap', 'Clock → Grids (kick, snare, hats) → RATCHET (Thru) → CR-78-hat; rolls met accent-ramp en toonsweep.');
+  const [clock, grids, ratchet, hat, kick, snare, mixer, out] = mods as [ModuleInstance, ModuleInstance, ModuleInstance, ModuleInstance, ModuleInstance, ModuleInstance, ModuleInstance, ModuleInstance];
+  // Standen (RATCHET_STANDS): 0 rust, 1 één slag, 5 zes, 6 acht, 7 = 3:2.
+  const a: Record<number, number> = { 7: 7, 15: 5, 16: 6 };
+  const b: Record<number, number> = { 3: 7, 11: 7, 13: 4, 15: 5, 16: 6 };
+  const steps: Record<string, ControlValue> = {};
+  for (let i = 1; i <= 16; ++i) { steps[`a_${i}`] = a[i] ?? 0; steps[`b_${i}`] = b[i] ?? 0; }
+  const patch: Patch = {
+    id: uid('patch'), name: 'Ratchet trap',
+    description: 'Trap op 140 bpm. Grids speelt kick, snare en hats op de zestienden van de Clock; de hats gaan via Thru door RATCHET, die er de roffels aan toevoegt: een zestiendentriool (3:2) halverwege en zessen en achten aan het eind van de maat. Over een roll loopt het accent op (Base → Base + Ramp) en klimt de toon mee (Sweep). Zet een gate op A/B voor patroon B, of op Roll voor een fill. Draai aan de standen per stap, aan Ramp en Sweep, en aan HH op Grids.',
+    voiceCount: 1, rackIds: [rack.id],
+    connections: cables([
+      [clock, 'x4', grids, 'clock'],
+      [clock, 'x4', ratchet, 'clock'],
+      [clock, 'bar', ratchet, 'reset'],
+      [grids, 'hh', ratchet, 'thru'],
+      [grids, 'bd', kick, 'gate'],
+      [grids, 'sd', snare, 'gate'],
+      [ratchet, 'gate', hat, 'gate'],
+      [ratchet, 'accent', hat, 'accent_cv'],
+      [ratchet, 'pitch', hat, 'voct'],
+      [hat, 'out', mixer, 'in1'],
+      [kick, 'out', mixer, 'in2'],
+      [snare, 'out', mixer, 'in3'],
+      [mixer, 'out_l', out, 'l'],
+      [mixer, 'out_r', out, 'r'],
+    ]),
+    controlState: {
+      [clock.id]: { tempo: 140, swing: 0, width: 0.3, div: 6, run: 1 },
+      [grids.id]: { x: 0.2, y: 0.3, bd: 0.45, sd: 0.4, hh: 0.55, chaos: 0, tempo: 140, extclock: 1 },
+      [ratchet.id]: { ...steps, length: 16, base: 0.45, ramp: 0.5, sweep: 5, rollstand: 5, width: 40 },
+      [hat.id]: { drum: 5, tone: 0.4, decay: 0.2, bend: 0, level: 0.7 },
+      [kick.id]: { drum: 0, tone: 0.4, decay: 0.7, snap: 0.4, coarse: -5, level: 0.9 },
+      [snare.id]: { drum: 1, tone: 0.5, decay: 0.45, snap: 0.6, coarse: 0, level: 0.7 },
+      [mixer.id]: { vol1: 0.55, pan1: 0.15, vol2: 0.7, pan2: 0, vol3: 0.6, pan3: -0.05 },
+      [out.id]: { level: 0.8 },
+    },
+    fronts: [playFront(4, [
+      'Roffels', [ratchet, 'ramp', undefined, 'large'], [ratchet, 'sweep'], [ratchet, 'base'], [ratchet, 'rollstand'],
+      'Ritme', [grids, 'hh'], [grids, 'x'], [grids, 'y'], [clock, 'tempo'],
+    ])],
+    envelopes: [], lfos: [],
+  };
+  return finish(p, mods, rack, patch);
+}

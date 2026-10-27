@@ -156,7 +156,7 @@ private:
     /// Vertaal drum/tone/decay/voct naar per-sample-coëfficiënten.
     void reconfigure() {
         const float t = tone_ - 0.5f;                    // -0.5..+0.5
-        const float oct = std::exp2f(voct_);             // V/Oct op de vellen
+        const float oct = std::exp2f(voct_);             // V/Oct op de vellen en de hat
         switch (drum_) {
             case 0:  f0_ = 52.0f  * oct * (1.0f + 0.5f * t);
                      c1_ = coef(0.09f + 0.30f * decay_); c2_ = c1_;
@@ -178,7 +178,7 @@ private:
             case 4:  f0_ = 565.0f * (1.0f + 0.3f * t); f1_ = f0_ * 1.48f;
                      c1_ = coef(0.015f); c2_ = coef(0.055f + 0.10f * decay_);
                      bendAmt_ = 0.0f; gain_ = 0.8f;                  break;
-            case 5:  hpR_ = hpCoef(7000.0f + 3500.0f * tone_);
+            case 5:  hpR_ = hpCoef(std::fmin((7000.0f + 3500.0f * tone_) * oct, 16000.0f));   // V/Oct schuift de hat (RATCHET-sweep)
                      c1_ = coef(0.018f + 0.045f * decay_); c2_ = coef(0.002f);
                      bendAmt_ = 0.0f; gain_ = 1.8f;                  break;
             case 6:  hpR_ = hpCoef(5500.0f + 2500.0f * tone_); f0_ = 5200.0f;

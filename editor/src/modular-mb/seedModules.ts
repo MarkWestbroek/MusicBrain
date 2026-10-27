@@ -3961,6 +3961,59 @@ function mmbEuclid() {
   });
 }
 
+/** Ratchet-standen per stap (RatchetModule.h): index 0..8. */
+export const RATCHET_STANDS = ['–', '1', '2', '3', '4', '6', '8', '3:2', '3:4'];
+/** Roll-stand (knop `rollstand`): index 0..5. */
+export const RATCHET_ROLL_STANDS = ['2', '3', '4', '6', '8', '3:2'];
+
+function mmbRatchet() {
+  const w = W(20);
+  const col = (i: number): number => w * (0.09 + i * 0.117);
+  const rows = [{ p: 'a', from: 1, y: 25 }, { p: 'a', from: 9, y: 41 }, { p: 'b', from: 1, y: 61 }, { p: 'b', from: 9, y: 77 }];
+  const def = (p: string, i: number): number => p !== 'a' ? 0 : i === 13 ? 7 : i === 16 ? 2 : i % 2 === 1 ? 1 : 0;
+  return assemble({
+    typeId: 'tp_mmb_ratchet', categoryId: 'sequencer',
+    variant: 'Ratchet (roffels per stap, A/B)',
+    brand: 'MMB', model: 'RATCHET',
+    hp: 20, texture: 'pcb-black', baseColor: '#1f2a3d', internal: true,
+    texts: [
+      { x: w/2, y: 8, text: 'RATCHET', fontSize: 2.4, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 12.5, text: 'roffels en triolen per stap', fontSize: 1.1, color: '#9ca3af', align: 'middle' },
+      { x: w*0.03, y: 34, text: 'A', fontSize: 1.8, color: '#e11d48', align: 'middle' },
+      { x: w*0.03, y: 70, text: 'B', fontSize: 1.8, color: '#0891b2', align: 'middle' },
+      { x: w/2, y: 126.5, text: 'MMB', fontSize: 1.4, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      ...rows.flatMap((r) => Array.from({ length: 8 }, (_, k) => {
+        const i = r.from + k;
+        const id = `${r.p}_${i}`;
+        return [
+          display(`${id}_name`, col(k), r.y - 6.5, { digits: 3, style: 'led-green', size: 'small', bindTo: id, lookup: [RATCHET_STANDS] }),
+          knob(id, `${i}`, col(k), r.y, { size: 'small', min: 0, max: 8, def: def(r.p, i), step: 1, color: r.p === 'a' ? '#e11d48' : '#0891b2' }),
+        ];
+      }).flat()),
+      knob('length', 'Length', col(0), 94, { size: 'small', min: 1, max: 16, def: 16, step: 1, color: '#f9fafb' }),
+      knob('base', 'Base', col(1), 94, { size: 'small', min: 0, max: 1, def: 0.6, color: '#eab308' }),
+      knob('ramp', 'Ramp', col(2), 94, { size: 'small', min: -1, max: 1, def: 0.4, color: '#eab308' }),
+      knob('sweep', 'Sweep', col(3), 94, { size: 'small', min: -12, max: 12, def: 0, unit: 'st', color: '#eab308' }),
+      display('rollstand_name', col(4), 87.5, { digits: 3, style: 'led-green', size: 'small', bindTo: 'rollstand', lookup: [RATCHET_ROLL_STANDS] }),
+      knob('rollstand', 'Roll', col(4), 94, { size: 'small', min: 0, max: 5, def: 5, step: 1, color: '#f9fafb' }),
+      knob('width', 'Width', col(5), 94, { size: 'small', min: 10, max: 90, def: 50, unit: '%', color: '#f9fafb' }),
+      inPort('clock', 'Clk', 'gate', col(0), 107),
+      inPort('reset', 'Rst', 'gate', col(1), 107),
+      inPort('ab', 'A/B', 'gate', col(2), 107),
+      inPort('roll', 'Roll', 'gate', col(3), 107),
+      inPort('ratchet_cv', 'Rat+', 'cv', col(4), 107),
+      inPort('thru', 'Thru', 'gate', col(5), 107),
+      outPort('step', 'Step', 'gate', col(7), 94),
+      outPort('gate', 'Gate', 'gate', col(4), 119),
+      outPort('accent', 'Acc', 'cv', col(5), 119),
+      outPort('pitch', 'Pitch', 'cv', col(6), 119),
+    ],
+    notes: 'Stapsequencer voor roffels, zoals de hi-hat-rolls in trap. Zestien stappen op een stapklok (Clk, normaal Clock ×4); per stap een stand: – (rust), 1, 2, 3, 4, 6 of 8 slagen gelijk verdeeld over de stap, of 3:2 en 3:4: drie slagen over twee of vier stappen. Op een zestiendenklok is 3:2 de zestiendentriool (de gewone trap-roll) en 3:4 de achtstetriool; 3 en 6 binnen één stap zijn de 32e- en 64e-triool. Geen eigen tempo: de module meet de klok en deelt die op, ook met swing (een stap wordt opgedeeld met de periode van een stap van dezelfde soort, lang of kort). Over een roll lopen Acc (van Base naar Base + Ramp) en Pitch (van 0 naar Sweep halve tonen, V/oct) mee: stuur Gate naar Trig, Acc naar Acc en Pitch naar V/Oct van een CR-78 met HiHat (die volgt accent en toon; de Peaks-hat volgt geen van beide). Twee patronen: A/B hoog speelt B. Roll hoog laat elke stap de Roll-stand spelen (de fill). Rat+ schuift de standen 1 tot 8 op (±5 standen), voor een LFO of de Autopilot. Thru wordt met de eigen slagen samengevoegd: zet de Grids-hat erop en RATCHET voegt de rolls toe. Step volgt de klok. Firmware tp_mmb_ratchet; in de simulator draait dezelfde klasse als wasm.',
+  });
+}
+
 // MMB CMI — 12 HP. Fairlight CMI-stem: golfvormsynthese (firmware tp_mmb_cmi).
 function mmbCmi() {
   const w = W(12);
@@ -5194,7 +5247,7 @@ export function seedInternals(project: ModularProject): ModularProject {
   all.push(mmbGendyn());
   all.push(mmbExcitable());
   all.push(mmbTapeStrip());
-  all.push(mmbClock(), mmbEuclid(), mmbTuring(), mmbBranches(), mmbVcSwitch(), mmbChaos(), mmbLfo8(), mmbSlope(), mmbLogic());
+  all.push(mmbClock(), mmbEuclid(), mmbRatchet(), mmbTuring(), mmbBranches(), mmbVcSwitch(), mmbChaos(), mmbLfo8(), mmbSlope(), mmbLogic());
   all.push(mmbFolder(), mmbLpg(), mmbDrive(), mmbTube(), mmbFreqShift(), mmbAcid(), mmbMixtur(), mmbRungler(), mmbOrgan());
   all.push(mmbMartenot(), mmbDiffuseur(), mmbArp(), mmbCmi());
   all.push(mmbSem(), mmbComplex(), mmbWah(), mmbEnsemble(), mmbEPiano());

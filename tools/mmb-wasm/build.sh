@@ -136,6 +136,7 @@ sel grids && build grids tp_mmb_grids "${CVINC[@]}" --
 sel sh && build sh tp_mmb_sh "${CVINC[@]}" --
 sel clock && build clock tp_mmb_clock "${CVINC[@]}" --
 sel euclid && build euclid tp_mmb_euclid "${CVINC[@]}" --
+sel ratchet && build ratchet tp_mmb_ratchet "${CVINC[@]}" --
 sel turing && build turing tp_mmb_turing "${CVINC[@]}" --
 sel arp && build arp tp_mmb_arp "${CVINC[@]}" --
 sel branches && build branches tp_mmb_branches "${CVINC[@]}" --

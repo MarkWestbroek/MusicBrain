@@ -104,6 +104,8 @@ OVERRIDES: dict[str, dict[str, list[str]]] = {
     # `program`: de editor zet bij een keuze de knoppen zelf (modulePrograms.ts).
     "tp_mmb_elements": {"implemented": _ELEMENTS_CV + [f"{k}_amt" for k in _ELEMENTS_CV], "ignored": ["program"],
                         "ports": [f"{k}_cv" for k in _ELEMENTS_CV]},
+    # Ratchet: stap-standen `a_N` / `b_N` via char-parsing in setControl.
+    "tp_mmb_ratchet": {"implemented": _rng("a_", 16) + _rng("b_", 16), "ignored": []},
     "tp_mmb_sid3": {"implemented": [f"{n}_{k}" for n in ("tri", "saw", "pulse", "noise", "pw", "ring", "sync",
                                                          "attack", "decay", "sustain", "release",
                                                          "coarse", "fine", "filt") for k in (1, 2, 3)],

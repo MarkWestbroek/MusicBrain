@@ -75,6 +75,7 @@
 #include "SampleHoldModule.h"
 #include "ClockModule.h"
 #include "EuclidModule.h"
+#include "RatchetModule.h"
 #include "TuringModule.h"
 #include "BranchesModule.h"
 #include "VcSwitchModule.h"
@@ -202,6 +203,7 @@ inline void registerAllRuntimeModules() {
     SampleHoldModule::registerFactory(); // S&H / T&H / slew (paneel bestond al)
     ClockModule::registerFactory();    // masterklok met delers, swing, maatzaag
     EuclidModule::registerFactory();   // Euclidische ritmes, drie kanalen
+    RatchetModule::registerFactory();  // roffels: ratchets en triolen per stap
     TuringModule::registerFactory();   // schuifregister-sequencer
     BranchesModule::registerFactory(); // Bernoulli-gate
     VcSwitchModule::registerFactory();   // VC SWITCH (dubbel A/B, CV), fw 0.5.112
