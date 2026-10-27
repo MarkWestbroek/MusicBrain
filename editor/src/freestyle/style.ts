@@ -627,30 +627,44 @@ export const ACID_HOP_2: Style = {
 const DARK_ROOT = 30;                                                        // F♯1
 // Twaalf slagen per maat op het 3-van-4-raster: [0·1·2] [4·5·6] [8·9·10] [12·13·14].
 const BASS_DK_VERSE_A = [3, 2, 0, 15, 15, 15, 15, 15, 15, 2, 1, 0];          // A1↘G♯1↘F♯1 · A2 (ligt 4–10) · G♯1↘G1↘F♯1
-const BASS_DK_VERSE_B = [3, 2, 0, 15, 15, 15, 15, 15, 15, -2, -4, -5];       // … · E1↘D1↘C♯1: de C♯-landing
 const BASS_DK_HOOK_A  = [2, 1, 0, 2, 1, 0, 7, 7, 7, 7, 7, 7];                // G♯1↘G1↘F♯1 twee keer · C♯2 ligt 8–14
-const BASS_DK_HOOK_B  = [2, 1, 0, 2, 1, 0, -5, -5, -5, 15, 15, 15];          // … · C♯1 ligt 8–10 · A2 ligt 12–14
 const BASS_DK_ROOT    = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];                // F♯1 de hele maat (outro)
 // Waar de bas loslaat (de nullen in de slide-rij), altijd op een stille zestiende.
 const SLIDE_DK_VERSE  = slideRow([3, 11, 15]);                               // glijder · octaaf tot 11 · glijder
 const SLIDE_DK_HOOK_A = slideRow([3, 7, 15]);                                // twee glijders · liggend tot 15
-const SLIDE_DK_HOOK_B = slideRow([3, 7, 11, 15]);                            // twee glijders · C♯1 · A2
 const SLIDE_DK_HOLD   = slideRow([15]);                                      // één toon per maat
+// De B-maat van de 808 (Mark 2026-10-27: A ademt in en bouwt op, op de tel;
+// B ademt uit en laat zakken, minder noten en achter de tel): een tresillo
+// één zestiende achter de tel ([8, 3, 1]: 1·4·7, 9·12·15), zes slagen in
+// plaats van twaalf; los op 0 en 8 (stil, vlak vóór de aanslag) en op 15,
+// zodat de laatste slag een korte schone stoot is en de A-maat op toon
+// begint (de rij van A staat op 0 hoog; stond B op 15 nog hoog, dan gleed
+// de A-aanslag omhoog vanaf de lage toon).
+export const HITS_SLIDE_GRID_B: EuclidChannel = [8, 3, 1];
+const BASS_DK_VERSE_B = [3, 2, 0, 15, 15, -5];                               // A1↘G♯1↘F♯1 (traag) · A2 ligt 9–14 · C♯1 kort: zakt
+const BASS_DK_HOOK_B  = [2, 1, 0, -5, -5, -5];                               // G♯1↘G1↘F♯1 · C♯1 ligt, kort op 15
+const SLIDE_DK_B      = slideRow([0, 8, 15]);
 // De toetsen (Marks luisterbeurt 2026-10-27: geen e-piano, "in your face"):
 // de SYNTHEX als riff op F♯3, korte harde stoten op het dubbele tresillo
 // ([16, 6, 0]: zestiende 0·3·6·8·11·14), door DRIVE, FET COMP en STEREO
 // PHASER. Daaronder de Mellotron-strijkers als duistere laag met het hele
 // akkoord (CHORD op de grondtoon van het pad, F♯3: F♯3 A3 C♯4 F♯4; op F♯2
 // verdwenen ze onder de sub), één aanzet per twee maten.
+// A/B (Mark): de A-maat op de tel, de B-maat dunner en achter de tel: vier
+// stoten elk een zestiende na de tel ([16, 4, 1]: 1·5·9·13) en een dalende lijn.
 const HITS_DK_RIFF: EuclidChannel = [16, 6, 0];                              // 0·3·6·8·11·14
+const HITS_DK_RIFF_B: EuclidChannel = [16, 4, 1];                            // 1·5·9·13: achter de tel
 const HITS_DK_SPARSE: EuclidChannel = [16, 3, 0];                            // 0·6·11
+const HITS_DK_SPARSE_B: EuclidChannel = [16, 2, 1];                          // 1·9
 const HITS_DK_TWO: EuclidChannel = [16, 2, 0];                               // 0·8
 const RIFF_DK_VERSE_A = [0, 0, 3, 0, 5, 3];                                  // F♯ F♯ A F♯ C♯ A (t.o.v. F♯3)
-const RIFF_DK_VERSE_B = [0, 0, 3, 0, -2, -4];                                // … E D: de vraag krijgt een antwoord omlaag
+const RIFF_DK_VERSE_B = [0, -2, -4, -5];                                     // F♯ E D C♯: zakt
 const RIFF_DK_HOOK_A  = [7, 7, 8, 7, 3, 0];                                  // C♯ C♯ D C♯ A F♯: de halve toon D–C♯ dreigt
-const RIFF_DK_HOOK_B  = [7, 7, 8, 7, -2, -5];                                // … E C♯: landing
+const RIFF_DK_HOOK_B  = [7, 5, 3, 0];                                        // C♯ B A F♯: zakt
 const RIFF_DK_INTRO   = [0, 3, -2];                                          // F♯ A E op 0·6·11
+const RIFF_DK_INTRO_B = [0, -5];                                             // F♯ C♯ op 1·9
 const RIFF_DK_BREAK   = [0, -2, -5];                                         // F♯ E C♯
+const RIFF_DK_BREAK_B = [-2, -5];                                            // E C♯ op 1·9
 const RIFF_DK_OUTRO   = [0, 3];                                              // F♯ A op 0·8
 const RIFF_RATE = 6;                                                         // gate 0,5 × 1000 / 6 = 83 ms: een stoot
 const PAD_DK = [0, 0];                                                       // F♯3 (grondtoon van akkoord en strijkers), elke maat
@@ -670,8 +684,9 @@ export const DARK: Style = {
   padVoices: 'chord',
   bassFx: 'drive',
   keysFx: 'dirty',
-  // Strijkers en synth voorop (Mark: "in your face", geen tapijtje).
-  levels: { pad: 0.9, synth: 0.9 },
+  // Strijkers en synth voorop (Mark: "in your face", geen tapijtje); de
+  // strijkers vol open, de galm (mix 0,45) zet ze naar achteren.
+  levels: { pad: 1, synth: 0.9 },
   swing: 0,
   sound: [
     ...sound({
@@ -680,17 +695,20 @@ export const DARK: Style = {
       // De 808 als sub: zaag door een bijna dicht filter (iets opener dan eerst,
       // zodat de drive wat te knijpen heeft), lange filter-decay, weinig accent.
       sub: [0.16, 0.05, 0.2, 1.0, 0.2],
-      piano: [0.25, 0.05, 0.95], reverb: [0.7, 0.6, 40, 0.3, 0.25],
+      // Galm vooral voor de strijkers (de synth gaat grotendeels droog via de
+      // DRY-mixer): groot en nat, zodat ze zich scheiden van synth en 808.
+      piano: [0.25, 0.05, 0.95], reverb: [0.7, 0.6, 40, 0.3, 0.45],
     }),
     { module: 'bassSeq', control: 'rate', value: slideBassRate(140) },
     { module: 'slideSeq', control: 'root', value: 60 },
     // De 808 door DRIVE in de Dist-stand (RAT: het hele spectrum hard geknipt,
     // dus boventonen op 139, 231 en 323 Hz die een telefoon wél weergeeft),
     // Tone donker, tweederde vervormd zodat de sub eronder schoon blijft.
-    // Drive matig: harder knijpen houdt de staart van elke noot op niveau en
-    // dan verdwijnen de rusten (gemeten: bij 0,6 nog 50 ms van de 107).
-    { module: 'bassDrive', control: 'mode', value: 1 }, { module: 'bassDrive', control: 'drive', value: 0.45 },
-    { module: 'bassDrive', control: 'tone', value: 0.35 }, { module: 'bassDrive', control: 'level', value: 0.5 }, { module: 'bassDrive', control: 'mix', value: 0.6 },
+    // Drive matig (Mark: iets minder): harder knijpen houdt de staart van
+    // elke noot op niveau en dan verdwijnen de rusten (gemeten: bij 0,6 nog
+    // 50 ms van de 107).
+    { module: 'bassDrive', control: 'mode', value: 1 }, { module: 'bassDrive', control: 'drive', value: 0.35 },
+    { module: 'bassDrive', control: 'tone', value: 0.35 }, { module: 'bassDrive', control: 'level', value: 0.5 }, { module: 'bassDrive', control: 'mix', value: 0.5 },
     // De SYNTHEX als stoot: twee zaagtanden (8' en 16', licht ontstemd), het
     // filter halfopen (knop 0..10 = 20 Hz..20 kHz, 4,5 ≈ 450 Hz) met veel
     // resonantie en een snelle filterenvelope (A 0, D ≈ 90 ms, S laag); de
@@ -734,15 +752,16 @@ export const DARK: Style = {
       stems: all({ bass: false, snare: false }),
       changes: [...grids(0.3, 0.2, 0.45, 0.4, 0.75), ...hits(HITS_SLIDE_GRID, SLIDE_CLOCK), ...slideBass(BASS_DK_VERSE_A), ...SLIDE_DK_VERSE,
         ...chordType(CHORD_MINOR), ...riff(HITS_DK_SPARSE, RIFF_DK_INTRO), ...padLine(PAD_DK)],
-      b: chordType(CHORD_FIFTH),
+      b: [...chordType(CHORD_FIFTH), ...riff(HITS_DK_SPARSE_B, RIFF_DK_INTRO_B)],
     },
     {
-      // Vers: de riff op het dubbele tresillo, maat B antwoordt omlaag (E D).
+      // Vers: de riff op het dubbele tresillo; maat B dunner en achter de tel,
+      // de 808 op het late tresillo en zakkend naar C♯1, het akkoord een kwint.
       name: 'VERSE', role: 'verse', chord: 'F♯m',
       stems: all(),
       changes: [...grids(0.35, 0.3, 0.5, 0.5, 0.8), ...hits(HITS_SLIDE_GRID, SLIDE_CLOCK), ...slideBass(BASS_DK_VERSE_A), ...SLIDE_DK_VERSE,
         ...chordType(CHORD_MINOR), ...riff(HITS_DK_RIFF, RIFF_DK_VERSE_A), ...padLine(PAD_DK)],
-      b: [...slideBass(BASS_DK_VERSE_B), ...chordType(CHORD_FIFTH), ...riff(HITS_DK_RIFF, RIFF_DK_VERSE_B)],
+      b: [...hits(HITS_SLIDE_GRID_B, SLIDE_CLOCK), ...slideBass(BASS_DK_VERSE_B), ...SLIDE_DK_B, ...chordType(CHORD_FIFTH), ...riff(HITS_DK_RIFF_B, RIFF_DK_VERSE_B)],
     },
     {
       // Hook: de glijder twee keer per maat, dan C♯ liggend; de riff op C♯ met
@@ -751,7 +770,7 @@ export const DARK: Style = {
       stems: all(),
       changes: [...grids(0.45, 0.4, 0.6, 0.6, 0.55), ...hits(HITS_SLIDE_GRID, SLIDE_CLOCK), ...slideBass(BASS_DK_HOOK_A), ...SLIDE_DK_HOOK_A,
         ...chordType(CHORD_MINOR), ...riff(HITS_DK_RIFF, RIFF_DK_HOOK_A), ...padLine(PAD_DK)],
-      b: [...slideBass(BASS_DK_HOOK_B), ...SLIDE_DK_HOOK_B, ...chordType(CHORD_FIFTH), ...riff(HITS_DK_RIFF, RIFF_DK_HOOK_B)],
+      b: [...hits(HITS_SLIDE_GRID_B, SLIDE_CLOCK), ...slideBass(BASS_DK_HOOK_B), ...SLIDE_DK_B, ...chordType(CHORD_FIFTH), ...riff(HITS_DK_RIFF_B, RIFF_DK_HOOK_B)],
     },
     {
       // Break: de sub weg (en de kick, die in trap de 808 is); snare, hats,
@@ -760,7 +779,7 @@ export const DARK: Style = {
       stems: all({ kick: false, bass: false }),
       changes: [...grids(0.3, 0.25, 0.4, 0.45, 0.7), ...hits(HITS_SLIDE_GRID, SLIDE_CLOCK), ...slideBass(BASS_DK_VERSE_A), ...SLIDE_DK_VERSE,
         ...chordType(CHORD_MINOR), ...riff(HITS_DK_SPARSE, RIFF_DK_BREAK), ...padLine(PAD_DK)],
-      b: chordType(CHORD_FIFTH),
+      b: [...chordType(CHORD_FIFTH), ...riff(HITS_DK_SPARSE_B, RIFF_DK_BREAK_B)],
     },
     {
       // Slot: strijkers en synth voorop (geen kick, geen snare), de bas ligt op F♯1, hats.

@@ -98,7 +98,25 @@ hoorbaar op een telefoon. Gemeten: energie 280–1100 Hz van −34/−57 dB naar
 −13/−21 dB t.o.v. het totaal; de rusten blijven, maar korter (50–65 ms van
 de 107: vervorming houdt de staart van een noot op niveau, dus niet harder
 knijpen); synth en strijkers solo piek −14 dBFS tegen −10 voor de bas (was
-−23). Luisteroordeel open.
+−23). Derde ronde (Mark: "veel beter", drie punten): 808 iets minder
+drive (0,35, mix 0,5); strijkers vol open en de galm van 0,25 naar 0,45,
+terwijl de synth via een DRY-mixer grotendeels droog naar de master gaat
+(zacht naar de galm), zodat de strijkers naar achteren gaan en zich
+scheiden; en **A/B in dichtheid en plaatsing** (Marks beeld: A ademt in en
+bouwt op, op de tel; B ademt uit en laat zakken, minder noten, achter de
+tel). B in elke sectie met een B: de riff vier stoten elk een zestiende
+achter de tel ([16, 4, 1] = 1·5·9·13; intro en break twee op 1·9) met een
+dalende lijn (vers F♯ E D C♯, hook C♯ B A F♯); de 808 op een late tresillo
+([8, 3, 1] = 1·4·7, 9·12·15, zes slagen in plaats van twaalf) met de rij los
+op 0 en 8 en op 15 (de laatste slag kort en schoon, anders glijdt de
+A-aanslag omhoog vanaf de lage toon); de strijkers wisselen al naar de kwint
+in B (de strips volgen de CV van CHORD). Gemeten: de B-maat heeft zichtbaar
+andere rusten dan A; mixpiek −0,6 dBFS, daarom de droge synth op 0,8.
+Luisteroordeel open. Hat-rolletjes (triolen uit de Molly-analyse): zie de
+notitie in de release-log van 2026-10-27; met bestaande modules kan één
+vaste roll per maat (CLOCK ×3 = de zestiendentriool van het gevoelde tempo,
+EUCLID-venster op ×4, LOGIC and/or), een echte ratchet-sequencer is
+firmware en Marks besluit.
 FILL-verfijning en de beatbox-laag staan open. Marks vraag naar een
 formaat voor de hele take (muziek + stem + instellingen) is geparkeerd:
 het zou een eventlog (stijl, tempo, elke gewapende actie met tel) naast de

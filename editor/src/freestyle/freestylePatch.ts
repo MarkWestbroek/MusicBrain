@@ -16,7 +16,7 @@
 //   (keysFx 'dirty':) toetsen L ─▶ DRIVE ─▶ FET COMP ─▶ STEREO PHASER ─L/R─▶ KEYS-mixer (of REVERB)
 //   (bassFx 'drive':) ACID out ─▶ DRIVE ─▶ MIXER 1 (in plaats van ACID rechtstreeks)
 //   (padVoices 'chord':) CHORD out1–4 ─▶ PAD strip 1–4 (gate = Div), in plaats van de padsequencer op strip 1
-//   drums + bas ─▶ MIXER 1 ─▶ MIXER 2 ◀─ REVERB ─▶ OUT
+//   drums + bas ─▶ MIXER 1 ─▶ DRY ─▶ MIXER 2 ◀─ REVERB ─▶ OUT   (keys 'riff': de synth ook droog in DRY, zacht naar de galm)
 //
 // Muten gaat via de Level-knop van de wasm-modules (de mixer is web-audio en
 // kan niet live); DROP is de mastergain van de engine. EUCLID zit in elke
@@ -111,8 +111,12 @@ export function buildFreestyleRig(style: Style, base: ModularProject = seedInter
   // De toetsen (e-piano en pad) samen de galm in; zonder pad gaat de e-piano
   // er rechtstreeks in, zoals vóór 2026-10-27.
   const keysMix = fresh('tp_mmb_mixer', 'KEYS');
+  // Drums en (keys 'riff') de synth droog, vóór de master: zo krijgt de
+  // synth weinig galm en de strijkers veel (Mark: "in your face" voorop, de
+  // strijkers naar achteren).
+  const dryMix = fresh('tp_mmb_mixer', 'DRY');
   const out = fresh('tp_mmb_out', 'OUT');
-  const all = [...keys.map((k) => mod[k]), mixer1, mixer2, keysMix, out];
+  const all = [...keys.map((k) => mod[k]), mixer1, dryMix, mixer2, keysMix, out];
 
   let offset = 0;
   const place = (m: ModuleInstance): RackSlot => {
@@ -201,8 +205,11 @@ export function buildFreestyleRig(style: Style, base: ModularProject = seedInter
     ...(style.bassFx ? [c(m.bass, 'out', m.bassDrive, 'in'), c(m.bassDrive, 'out', mixer1, 'in2')] : [c(m.bass, 'out', mixer1, 'in2')]),
     c(m.snare, 'out', mixer1, 'in3'),
     c(m.hat, 'out', mixer1, 'in4'),
-    c(mixer1, 'out_l', mixer2, 'in1'),
-    c(mixer1, 'out_r', mixer2, 'in2'),
+    c(mixer1, 'out_l', dryMix, 'in1'),
+    c(mixer1, 'out_r', dryMix, 'in2'),
+    ...(style.keys === 'riff' ? [c(keysOut, 'out_l', dryMix, 'in3'), c(keysOut, 'out_r', dryMix, 'in4')] : []),
+    c(dryMix, 'out_l', mixer2, 'in1'),
+    c(dryMix, 'out_r', mixer2, 'in2'),
     c(m.reverb, 'out_l', mixer2, 'in3'),
     c(m.reverb, 'out_r', mixer2, 'in4'),
     c(mixer2, 'out_l', out, 'l'),
@@ -225,9 +232,11 @@ export function buildFreestyleRig(style: Style, base: ModularProject = seedInter
   const controlState: Patch['controlState'] = Object.fromEntries(keys.map((k) => [mod[k].id, state[k]]));
   controlState[mixer1.id] = { vol1: 0.9, pan1: 0, vol2: 0.85, pan2: 0, vol3: 0.8, pan3: 0.1, vol4: 0.7, pan4: -0.15 };
   controlState[mixer2.id] = { vol1: 1, pan1: -1, vol2: 1, pan2: 1, vol3: 0.8, pan3: -1, vol4: 0.8, pan4: 1 };
-  // E-piano iets zachter dan het pad (Mark, 2026-10-27); de synth-riff vol open.
-  const keysVol = style.keys === 'riff' ? 1 : 0.75;
-  controlState[keysMix.id] = { vol1: keysVol, pan1: -1, vol2: keysVol, pan2: 1, vol3: 0.9, pan3: -1, vol4: 0.9, pan4: 1 };
+  // E-piano iets zachter dan het pad (Mark, 2026-10-27). De synth-riff gaat
+  // droog door DRY en maar zacht de galm in; de strijkers vol.
+  const riff = style.keys === 'riff';
+  controlState[keysMix.id] = { vol1: riff ? 0.35 : 0.75, pan1: -1, vol2: riff ? 0.35 : 0.75, pan2: 1, vol3: riff ? 1 : 0.9, pan3: -1, vol4: riff ? 1 : 0.9, pan4: 1 };
+  controlState[dryMix.id] = { vol1: 1, pan1: -1, vol2: 1, pan2: 1, vol3: 0.8, pan3: -1, vol4: 0.8, pan4: 1 };
   controlState[out.id] = { level: 0.85 };
 
   const patch: Patch = {

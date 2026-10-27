@@ -144,7 +144,10 @@ describe('freestyle-patch', () => {
     expect(from('keysPhaser', 'in_l')).toBe('keysComp.out_l');
     expect(r.patch.connections.some((x) => x.from.moduleId === r.ids.piano || x.to.moduleId === r.ids.piano)).toBe(false);
     const phaserOuts = r.patch.connections.filter((x) => x.from.moduleId === r.ids.keysPhaser).map((x) => x.from.portId).sort();
-    expect(phaserOuts).toEqual(['out_l', 'out_r']);
+    expect(phaserOuts).toEqual(['out_l', 'out_l', 'out_r', 'out_r']);  // droog (DRY) én zacht naar de galm (KEYS)
+    const dry = r.project.modules.find((m) => m.name === 'DRY')!;
+    expect(r.patch.connections.filter((x) => x.from.moduleId === r.ids.keysPhaser && x.to.moduleId === dry.id).map((x) => x.to.portId).sort()).toEqual(['in3', 'in4']);
+    expect(r.patch.controlState[dry.id]?.vol3).toBe(0.8);
     for (const k of [1, 2, 3, 4]) {
       expect(from('pad', `voct_${k}`)).toBe(`chord.out${k}`);
       expect(from('pad', `gate_${k}`)).toBe('clock.div');
@@ -184,6 +187,9 @@ describe('freestyle-patch', () => {
         (_, i) => Number(changes.find((c) => c.module === module && c.control === `s${i + 1}`)?.value));
     // De rij staat bij zestiende 0 al op stap 1 (reset vóór de eerste puls): s(k+2) = zestiende k, s1 = zestiende 15.
     const releases = (changes: Change[]): number[] => { const r = seq(changes, 'slideSeq'); return [...r.slice(1), r[0]!].flatMap((v, i) => (v === 0 ? [i] : [])); };
+    // De B-maat: de standen van A met die van B eroverheen.
+    const withB = (s: Section): Change[] => [...s.changes.filter((c) => !s.b!.some((b) => b.module === c.module && b.control === c.control)), ...s.b!];
+    const gridB = [1, 4, 7, 9, 12, 15];                     // tresillo een zestiende achter de tel
     for (const s of DARK.sections) {
       expect(euclidHits(s.changes, 'bassGate', [1]), s.name).toEqual(grid);
       expect(euclidHits(s.changes, 'bassGate', [2]), s.name).toEqual(Array.from({ length: 16 }, (_, i) => i));
@@ -195,15 +201,23 @@ describe('freestyle-patch', () => {
       // Elke nul in de slide-rij op een stille zestiende (3, 7, 11, 15), en
       // vlak vóór elke nieuwe aanslag (een andere noot na een stilte) een nul.
       for (const z of releases(s.changes)) expect(grid.includes(z), `${s.name}: los op ${z}`).toBe(false);
-      for (const z of releases(s.b ?? [])) expect(grid.includes(z), `${s.name} B: los op ${z}`).toBe(false);
+      if (!s.b) continue;
+      // B: eigen raster (zes slagen, achter de tel) waar de bas meespeelt; de
+      // rij laat los op 0 en 8 (stil) en op 15, zodat A op toon begint.
+      const hitsB = euclidHits(withB(s), 'bassGate', [1]);
+      if (s.stems.bass) {
+        expect(hitsB, `${s.name} B`).toEqual(gridB);
+        expect(seq(withB(s), 'bassSeq'), `${s.name} B`).toHaveLength(7);
+        expect(releases(withB(s)), `${s.name} B`).toEqual([0, 8, 15]);
+      }
+      for (const z of releases(s.b).filter((z) => z !== 15)) expect(hitsB.includes(z), `${s.name} B: los op ${z}`).toBe(false);
     }
     const verse = DARK.sections[1]!, hook = DARK.sections[2]!, outro = DARK.sections[4]!;
     expect(seq(verse.changes, 'bassSeq').slice(1)).toEqual([3, 2, 0, 15, 15, 15, 15, 15, 15, 2, 1, 0]);
     expect(releases(verse.changes)).toEqual([3, 11, 15]);
-    expect(seq(verse.b!, 'bassSeq').slice(1)).toEqual([3, 2, 0, 15, 15, 15, 15, 15, 15, -2, -4, -5]);
+    expect(seq(verse.b!, 'bassSeq').slice(1)).toEqual([3, 2, 0, 15, 15, -5]);
     expect(releases(hook.changes)).toEqual([3, 7, 15]);
-    expect(releases(hook.b!)).toEqual([3, 7, 11, 15]);
-    expect(seq(hook.b!, 'bassSeq').slice(1)).toEqual([2, 1, 0, 2, 1, 0, -5, -5, -5, 15, 15, 15]);
+    expect(seq(hook.b!, 'bassSeq').slice(1)).toEqual([2, 1, 0, -5, -5, -5]);
     expect(seq(outro.changes, 'bassSeq').slice(1)).toEqual(Array(12).fill(0));
     expect(releases(outro.changes)).toEqual([15]);
     // Elke B-knop bestaat ook in A.
@@ -223,8 +237,21 @@ describe('freestyle-patch', () => {
       expect(s.changes.find((c) => c.module === 'motifSeq' && c.control === 'length')?.value, s.name).toBe(n + 1);
     }
     expect(seqLineOf(verse.changes)).toEqual([0, 0, 3, 0, 5, 3]);
-    expect(seqLineOf(verse.b!)).toEqual([0, 0, 3, 0, -2, -4]);
     expect(seqLineOf(hook.changes)).toEqual([7, 7, 8, 7, 3, 0]);
+    // B dunner en achter de tel: vier stoten op 1·5·9·13 (intro/break twee op
+    // 1·9), dalende lijnen; de outro heeft geen B.
+    expect(euclidHits(withB(verse), 'keysGate', [1])).toEqual([1, 5, 9, 13]);
+    expect(euclidHits(withB(hook), 'keysGate', [1])).toEqual([1, 5, 9, 13]);
+    expect(euclidHits(withB(DARK.sections[0]!), 'keysGate', [1])).toEqual([1, 9]);
+    expect(euclidHits(withB(DARK.sections[3]!), 'keysGate', [1])).toEqual([1, 9]);
+    expect(seqLineOf(verse.b!)).toEqual([0, -2, -4, -5]);
+    expect(seqLineOf(hook.b!)).toEqual([7, 5, 3, 0]);
+    expect(outro.b).toBeUndefined();
+    for (const s of DARK.sections) {
+      if (!s.b) continue;
+      const n = euclidHits(withB(s), 'keysGate', [1]).length;
+      expect(s.b.find((c) => c.module === 'motifSeq' && c.control === 'length')?.value, `${s.name} B`).toBe(n + 1);
+    }
     expect(DARK.sections[0]!.stems.bass).toBe(false);
     expect(DARK.sections[3]!.stems.bass).toBe(false);
   });
