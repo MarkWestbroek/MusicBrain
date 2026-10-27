@@ -148,7 +148,8 @@ describe('Performance', () => {
     const verse = ACID_HOP_2.sections[1]!;
     expect(abChanges(verse, 3)).toBe(verse.b);
     expect(abChanges(verse, 4)).toHaveLength(verse.b!.length);
-    expect(abChanges(ACID_HOP_2.sections[0]!, 1)).toEqual([]);
+    expect(abChanges(ACID_HOP_2.sections[0]!, 1)).toEqual([{ module: 'chord', control: 'chord', value: 9 }]);
+    expect(abChanges(TRAP.sections[1]!, 1)).toEqual([]);
   });
 
   it('Autopilot: in de derde frase valt de bas de laatste maat weg en komt op de 1 terug', () => {
