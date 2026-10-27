@@ -17,6 +17,17 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-27 — ROTARY: schone voorversterker; plugins: SID-filter aan, presets voor alle modules
+<!-- EN: ROTARY preamp clean at low drive; plugins: SID starts with filter on, factory presets for every module -->
+- **ROTARY (alle platforms):** de Leslie-voorversterker (`mmb_dsp/leslie.h`)
+  vervormde al bij Drive 0: 4 % derde harmonische op DAW-niveau. Nu
+  tanh met een kwadratische drive. Drive 0 en 0,2 zijn vrijwel schoon
+  (≤ 0,7 %), en vanaf ongeveer 0,5 wordt het vuil. De editor-wasm volgt.
+- **Plugins:** de SID begint met het filter aan (`PLUGIN_DEFAULTS`),
+  anders lijkt de hele filterkolom dood. Fabriekspresets voor alle
+  modules behalve DRAW-VCO. STK SOUND bouwt nu ook op de Mac.
+  Details: [plans/plugin.md](plans/plugin.md) §2e.
+
 ### 2026-10-25 — Plugins op de Mac: AU en VST3 gebouwd, webview werkt, auval groen
 <!-- EN: Plugins on macOS: AU and VST3 built, WebKit panel works, auval passes -->
 - Eerste Mac-build (Intel, macOS 15.6.1) met alleen de Command Line Tools en

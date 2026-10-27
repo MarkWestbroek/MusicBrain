@@ -281,6 +281,44 @@ Na b08793f op Windows (clang-cl, JUCE 8.0.4) nagelopen:
   bouwmap staan nu in `C:\Users\User\src\` (JUCE, mmb-plugin-build), zoals
   `~/src/JUCE` op de Mac.
 
+### Mac, tweede ronde: ROTARY schoner, SID-filter aan, presets voor alle (2026-10-27)
+
+Mark speelde de elf in Logic: ROTARY klonk "erg scherp over-driven", en op
+de SID "werken een boel knoppen niet".
+
+- **ROTARY: de voorversterker vervormde al bij Drive 0.** De curve
+  `v/(1+|v|)` buigt vanaf nul. Een sinus op 0,9 kreeg zo 3,9 %
+  vervorming bij Drive 0 en 5,9 % bij de standaard 0,2, bijna allemaal
+  de derde harmonische. ORGAN levert zelf pieken van 0,88, dus de editor
+  en de Teensy klonken net zo. Nieuw in `mmb_dsp/leslie.h`: tanh (als
+  Padé-benadering) met voorversterking `0,3 + 6·drive²` en een
+  niveaucorrectie per drive-stand. Gemeten bij 0,9 in: 0,2 % (Drive 0),
+  0,7 % (0,2), 8,3 % (0,65), 12 % (1). Het kraken komt nu pas als je
+  Drive opendraait, zoals bij een echte Leslie-voorversterker.
+  `editor/public/wasm/tp_mmb_rotary.wasm` moet nog opnieuw gebouwd
+  worden; op de Mac staat geen emcc.
+- **SID: de knoppen werken, maar veel alleen in een bepaalde stand.**
+  Gemeten met `MmbPluginCheck`: elke parameter komt aan. Cutoff, Res,
+  Curve en LP/BP/HP doen alleen iets als Filt aan staat, en dat stond
+  standaard uit. Daarnaast werkt Combo alleen met twee golfvormen aan,
+  Ring alleen op Tri, en Spread alleen bij meer dan één SID. Dat klopt
+  met de chip, maar in een plugin lijkt het stuk. Nieuw:
+  `PLUGIN_DEFAULTS` in `modulePresets.ts` geeft een plugin een eigen
+  beginstand. Voor de SID is dat Filt aan; het editorpaneel blijft zoals
+  het is.
+- **Fabriekspresets voor alle modules** (4–6 per module, nog niet
+  beluisterd). De test legt elke waarde langs het paneel, ook
+  `PLUGIN_DEFAULTS`. DRAW-VCO heeft er geen: zijn klank is de getekende
+  vorm, en die is geen parameter. Daarvoor is een Vorm-schakelaar op de
+  module voorgesteld.
+- **STK SOUND bouwde niet op de Mac.** Mach-O kent de ELF-sectienaam
+  `.progmem.mandolin` niet (`MandolinData.h`, en de generator
+  `gen_mandolin_data.py`). Op de Mac valt de sectie nu weg; de Teensy
+  blijft gelijk.
+- **Alle 73 bouwen op de Mac:** gestart, maar gepauzeerd op Marks
+  verzoek (de machine was te zwaar belast). `ninja -k 0` gaat later
+  verder waar hij stopte.
+
 ## 3. Wat het kostte en wat het zou kosten
 
 - De proef: een avond, € 0. JUCE heeft een gratis tier; een lokaal gebouwde

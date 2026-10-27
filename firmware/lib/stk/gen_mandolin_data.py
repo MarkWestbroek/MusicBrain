@@ -29,7 +29,13 @@ lines.append("// anders naar DTCM (RAM1), en dat is te kostbaar voor 24 KB sampl
 lines.append("// Flash is op de T4.1 memory-mapped, dus gewoon direct leesbaar.")
 lines.append("#include <cstdint>")
 lines.append("")
-lines.append('#define MMB_MANDOLIN_FLASH __attribute__((section(".progmem.mandolin"), aligned(4)))')
+lines.extend([
+    '#if defined(__APPLE__)   // Mach-O kent geen ELF-sectienamen (plugin-build op de Mac)',
+    '#define MMB_MANDOLIN_FLASH __attribute__((aligned(4)))',
+    '#else',
+    '#define MMB_MANDOLIN_FLASH __attribute__((section(".progmem.mandolin"), aligned(4)))',
+    '#endif',
+])
 lines.append("")
 lines.append("namespace stk {")
 lines.append("")

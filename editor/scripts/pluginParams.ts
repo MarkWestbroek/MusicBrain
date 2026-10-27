@@ -19,7 +19,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { MODULE_PRESETS } from '../src/modular-mb/modulePresets';
+import { MODULE_PRESETS, PLUGIN_DEFAULTS } from '../src/modular-mb/modulePresets';
 import { seedInternals } from '../src/modular-mb/seedModules';
 import { emptyModularProject, type Control } from '../src/modular-mb/types';
 
@@ -55,6 +55,16 @@ function spec(c: Control): string | undefined {
     default:
       return undefined;   // displays, joysticks, knoppen op het front: geen parameter
   }
+}
+
+/** De beginstand van de plugin: het paneel, met PLUGIN_DEFAULTS erover. */
+function withPluginDefault(id: string, c: Control): Control {
+  const v = PLUGIN_DEFAULTS[id]?.[c.id];
+  if (v === undefined) return c;
+  if (c.kind === 'switch') return { ...c, defaultIndex: Number(v) };
+  if (c.kind === 'knob' || c.kind === 'slider') return { ...c, defaultValue: Number(v) };
+  if (c.kind === 'toggle') return { ...c, defaultValue: Boolean(v) };
+  return c;
 }
 
 /** Fabriekspresets (modulePresets.ts) als C++-tabellen; de plugin maakt er programma's van. */
@@ -187,7 +197,7 @@ function main(): void {
     const type = base.moduleTypes.find((t) => t.id === id);
     const mod = base.modules.find((m) => m.typeId === id);
     if (!type || !mod) throw new Error(`${id}: geen moduletype in de standaardset`);
-    const rows = type.controls.map(spec).filter((r): r is string => r !== undefined);
+    const rows = type.controls.map((c) => spec(withPluginDefault(id, c))).filter((r): r is string => r !== undefined);
     const sym = id.replace(/[^A-Za-z0-9]/g, '_');
     const name = (type as { modelNumber?: string }).modelNumber ?? id.replace(/^tp_mmb_/, '').replace(/_/g, ' ').toUpperCase();
     const paramsH = [

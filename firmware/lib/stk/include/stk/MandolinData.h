@@ -6,7 +6,11 @@
 // Flash is op de T4.1 memory-mapped, dus gewoon direct leesbaar.
 #include <cstdint>
 
+#if defined(__APPLE__)   // Mach-O kent geen ELF-sectienamen (plugin-build op de Mac)
+#define MMB_MANDOLIN_FLASH __attribute__((aligned(4)))
+#else
 #define MMB_MANDOLIN_FLASH __attribute__((section(".progmem.mandolin"), aligned(4)))
+#endif
 
 namespace stk {
 

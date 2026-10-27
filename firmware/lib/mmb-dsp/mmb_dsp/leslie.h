@@ -58,7 +58,13 @@ public:
     void set_fast_rate(float hz) { fastHz_ = hz < 2.0f ? 2.0f : (hz > 10.0f ? 10.0f : hz); }
     /** Schaal op de traagheid: 0,25 = vlug, 1 = klassiek, 2 = extra zwaar. */
     void set_inertia(float k)    { inertia_ = k < 0.25f ? 0.25f : (k > 2.0f ? 2.0f : k); setTimes(); }
-    void set_drive(float d)      { drive_ = clamp01(d); }
+    /** Voorversterker: 0 = vrijwel schoon (ook bij 0 dBFS), 1 = flink vuil.
+     *  Kwadratisch, zodat het kraken pas komt als je hem opendraait. */
+    void set_drive(float d) {
+        drive_ = clamp01(d);
+        preGain_ = 0.3f + 6.0f * drive_ * drive_;
+        makeup_ = 0.6f / softSat(0.6f * preGain_);   // ingang 0,6 komt er als 0,6 uit
+    }
     /** 0 = alleen trommel, 0,5 = beide, 1 = alleen hoorn. */
     void set_balance(float b)    { balance_ = clamp01(b); }
     /** Microfoonhoek: 0 = beide op dezelfde plek (mono), 1 = tegenover elkaar. */
@@ -84,10 +90,11 @@ public:
         dPhase_ += dRate_ / sr_; if (dPhase_ >= 1.0f) dPhase_ -= 1.0f;
 
         // ── voorversterker: zachte, iets asymmetrische buizenvervorming ──
-        float v = in * (1.0f + 5.0f * drive_);
+        // (Was v/(1+|v|): die buigt al vanaf nul, dus ook Drive 0 vervormde
+        // een orgel op DAW-niveau hoorbaar — 4 % derde harmonische.)
+        float v = in * preGain_;
         v = v + 0.12f * drive_ * v * v;                         // even harmonischen
-        v = v / (1.0f + (v < 0.0f ? -v : v));
-        v *= (1.0f + 0.6f * drive_) / (1.0f + 1.5f * drive_);   // ongeveer gelijk niveau
+        v = softSat(v) * makeup_;
 
         // ── crossover 800 Hz (LR4: twee keer 2e orde) ─────────────────────
         const float lo = biquadTick(lpX_, lp2_[0], biquadTick(lpX_, lp1_[0], v));
@@ -128,6 +135,13 @@ private:
     static constexpr float kDrumFast = 0.88f;
 
     static float clamp01(float v) { return v < 0.0f ? 0.0f : (v > 1.0f ? 1.0f : v); }
+    /** tanh als Padé-benadering: recht bij kleine x, glad naar ±1 bij |x| = 3. */
+    static float softSat(float x) {
+        if (x > 3.0f) return 1.0f;
+        if (x < -3.0f) return -1.0f;
+        const float x2 = x * x;
+        return x * (27.0f + x2) / (27.0f + 9.0f * x2);
+    }
     void setTimes() {
         // Klassiek: hoorn ~0,8 s op / 1,2 s af, trommel ~4 s op / 5,5 s af.
         auto k = [&](float s) { return 1.0f - std::exp(-1.0f / (s * inertia_ * sr_)); };
@@ -188,6 +202,7 @@ private:
     float slowHz_ = 0.8f, fastHz_ = 6.7f, inertia_ = 1.0f;
     float hRate_ = 0.8f, dRate_ = 0.68f, hPhase_ = 0.0f, dPhase_ = 0.0f;
     float hUp_ = 0.0f, hDn_ = 0.0f, dUp_ = 0.0f, dDn_ = 0.0f;
+    float preGain_ = 0.54f, makeup_ = 0.6f / softSat(0.6f * 0.54f);
     float drive_ = 0.2f, balance_ = 0.5f, spread_ = 0.8f, noiseAmt_ = 0.3f, level_ = 1.0f;
     float micCos_ = 0.309f, micSin_ = 0.951f;
     BiquadCoef lpX_, hpX_, cab_, cabHp_;

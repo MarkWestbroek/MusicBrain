@@ -3,15 +3,18 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { MODULE_PRESETS } from './modulePresets';
+import { MODULE_PRESETS, PLUGIN_DEFAULTS } from './modulePresets';
 import { seedInternals } from './seedModules';
 import { emptyModularProject } from './types';
 
 const types = seedInternals(emptyModularProject()).moduleTypes;
 
+// PLUGIN_DEFAULTS gaat langs dezelfde controle, als één preset per module.
+const pluginDefaults = Object.entries(PLUGIN_DEFAULTS).map(([id, values]) => [`${id} (plugin-beginstand)`, id, [{ name: 'beginstand', values }]] as const);
+
 describe('MODULE_PRESETS', () => {
-  for (const [typeId, presets] of Object.entries(MODULE_PRESETS)) {
-    it(`${typeId}: bestaande knoppen, binnen bereik, unieke namen`, () => {
+  for (const [label, typeId, presets] of [...Object.entries(MODULE_PRESETS).map(([id, p]) => [id, id, p] as const), ...pluginDefaults]) {
+    it(`${label}: bestaande knoppen, binnen bereik, unieke namen`, () => {
       const type = types.find((t) => t.id === typeId);
       expect(type, typeId).toBeDefined();
       expect(new Set(presets.map((p) => p.name)).size).toBe(presets.length);
