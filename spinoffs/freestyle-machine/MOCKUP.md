@@ -57,6 +57,29 @@ rollen per sectie, NEXT vers ⇄ hook, BREAK-knop (B, pedaal ▶▶) één frase
 met terugkeer naar de andere sectie, STOP = uittro-frase (OUTRO-secties in
 de acid hops) met dubbeltik als korte weg, Autopilot-break in plaats van de
 breakdown-mute, maatteller per sectie.
+**Dark trap · 140** (2026-10-27, op verzoek van Mark via de sessie "song
+for FREESTYLE", naar referentie 3, PRO8L3M "Molly"; techniek, niet de
+noten): F♯ mineur, gevoeld 70, kaal. Nieuw is `bass: 'slide'`: de 808
+glijdt chromatisch omlaag tussen de tellen terwijl de drums strak staan
+(§2, het principe). EUCLID-kanaal 1 slaat een vast 3-van-4-raster
+([4, 3, 2]: zestiende 0·1·2, 4·5·6, …), de bassequencer stapt per slag met
+een gate korter dan een zestiende (`slideBassRate`, volgt het tempo), en
+kanaal 2 (elke zestiende) stapt een tweede Seq16-rij die via LOGIC `gt` de
+Slide-ingang van ACID zet: hoog = de noot blijft liggen en de volgende slag
+glijdt erheen zonder aanslag, laag (altijd op een stille zestiende) = los.
+Drie slagen met verschillende noten zijn een glijder, dezelfde noot herhaald
+een liggende toon. Vers A: A1↘G♯1↘F♯1 · A2 ligt 4–10 · G♯1↘G1↘F♯1; B landt
+E1↘D1↘C♯1; hook: de glijder twee keer per maat, dan C♯2 (A) of C♯1 en A2
+(B). Toetsen: e-piano-akkoord F♯m/kwint op de 1 (CHORD volgt de
+padsequencer, `chordRoot: 'pad'`), pedaal twee maten in (Div 32), één
+lijnnoot per twee maten, Mellotron-strijkers (gu-strings, bank 3) op F♯2.
+Vorm: intro zonder sub, break = sub en kick weg, outro = melodie voorop met
+de bas liggend op F♯1. Gemeten in de browser (nuldoorgangen per 10 ms):
+aanslag op toon, de glijder loopt in twee zestienden door naar F♯1, de
+octaaf ligt, rusten op 3, 11 en 15. Timingles: de slide-rij moet één blok
+ná de bas-gate aankomen (de kernel leest Slide vóór Gate), anders glijdt
+een nieuwe aanslag vanaf de oude toon; vandaar de LOGIC-stap en de klok uit
+EUCLID-kanaal 2.
 FILL-verfijning en de beatbox-laag staan open. Marks vraag naar een
 formaat voor de hele take (muziek + stem + instellingen) is geparkeerd:
 het zou een eventlog (stijl, tempo, elke gewapende actie met tel) naast de
@@ -131,6 +154,15 @@ Wat ze gemeen hebben, en wat de generator dus moet kunnen:
   A-waarden op de even maat (`abChanges` in `performance.ts`); het scherm
   toont A/B naast de maatteller. Eerst alleen in Acid hop II; voor V1 en
   het motief apart met Mark te besluiten.
+- **Een glijdende 808 onder strakke drums voelt "uit de pas"** (analyse
+  van de sessie "song for FREESTYLE" van referentie 3, PRO8L3M "Molly",
+  2026-10-27): de drums staan op de milliseconde strak (hats achtsten,
+  snare met een roffel aan het eind van vier maten), en toch voelt het
+  nummer wankel. Dat zit in de 808: de toon begint op de tel en glijdt in
+  twee, drie zestienden chromatisch omlaag, zodat hij tússen de tellen
+  landt. Ontwerpprincipe voor Dark trap (`bass: 'slide'`): de drums blijven
+  op het raster, de bas krijgt per slag een boog (de slide-rij) en de
+  nullen in die rij zeggen waar hij ademt. Niet de drums losmaken, de bas.
 - **Het BeatBuddy-pedaal heeft de bediening al uitgevonden** (voor
   gitaristen): één schakelaar, tik = fill, vasthouden = overgang naar het
   volgende deel (landt op de maat), dubbeltik = einde. De tweede generatie
@@ -256,6 +288,8 @@ andere patch.
 | Trap half-time | 65–80 (standaard 72) | 808 met glijder, sparse | clap op de 3 | zestienden met rolls, triolen | Sally Walker, Molly |
 | Boom bap | 80–95 (standaard 88) | droog, op 1 en de "en" | op 2 en 4, swing | achtsten, open hat op de 4 | How Many Mics |
 | Bounce | 95–105 (standaard 100) | gesyncopeerd, stotterend | op 2 en 4, rimshot | dun, offbeat | Cop That Shit |
+| Acid hop / Acid hop II | 75 / 78 | droog | op 2 en 4 | zestienden | Marks Logic-opnamen (C mineur, 303) |
+| Dark trap | 70 (140) | 808 uit Euclid met slide-rij, glijdt omlaag tussen de tellen | strak op de 3, roffel als fill | strakke achtsten | Molly (techniek, niet de noten) |
 
 Een schakelaar **half-time/dubbel** verdubbelt alleen de hats, zodat 72
 en 144 dezelfde beat zijn met andere hats.
@@ -386,7 +420,7 @@ stand (de vriend is Pools; UK English volstaat, zie
 | Bestand | Wat |
 |---|---|
 | `editor/src/freestyle/barClock.ts` | `BarClock` (tel/maat/frase op de contextklok, tempowissel zonder sprong) en `ArmQueue` (gewapende acties per tel) |
-| `editor/src/freestyle/style.ts` | `Stem` (vijf), `Change`, `Section`, `Style` (met `bass: 'kick' \| 'euclid'`, `keys: 'motif' \| 'chords'`, `pad`); de stijlen TRAP (140, Grids op x2), BOOM_BAP (88, swing), BOUNCE (100), ACID_HOP (75, bas uit Euclid) en ACID_HOP_2 (78, akkoorden + Mellotron), elk vier secties, eigen klank (`sound`) en fill; `euclidHits()` rekent de slagpatronen na |
+| `editor/src/freestyle/style.ts` | `Stem` (vijf), `Change`, `Section` (met `role` en `b`), `Style` (met `bass: 'kick' \| 'euclid' \| 'slide'`, `keys: 'motif' \| 'chords'`, `pad`, `chordRoot`); de stijlen TRAP (140, Grids op x2), BOOM_BAP (88, swing), BOUNCE (100), ACID_HOP (75, bas uit Euclid), ACID_HOP_2 (78, akkoorden + Mellotron) en DARK (140, glijdende 808 via de slide-rij), elk met intro/vers/hook/break (en outro), eigen klank (`sound`) en fill; `euclidHits()` rekent de slagpatronen na, `slideBassRate()`/`tempoChanges()` houden de bas-gate korter dan een zestiende |
 | `editor/src/freestyle/freestylePatch.ts` | bouwt de vaste patch (Clock → Grids → Peaks ×3 + Acid, bas per kick of via Euclid → Seq-gate; e-piano als motief op de accenten of als akkoorden via CHORD + tweede Euclid; tape strip-pad op `bar`/Div; alles via Reverb) |
 | `editor/src/freestyle/performance.ts` | `Performance`: start/stop, DROP (direct omlaag, terug op de tel), NEXT (frase), stems (maat), FILL (één maat), TAP, percussionist, Autopilot (variaties, fill, tijdelijke mutes `AUTO_MUTES`); geeft `Fired`-pakketjes terug |
 | `editor/src/freestyle/FreestyleApp.tsx` | het scherm en de toetsen; plant de pakketjes op de `AudioEngine`; stijlkeuze (tik/S = volgende) bouwt de patch opnieuw (stopt de beat); laptop- en telefoonlayout (≤ 700 px) met grote DROP/NEXT/FILL-knoppen |

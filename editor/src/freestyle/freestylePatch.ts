@@ -9,6 +9,7 @@
 //                             dus 32 stappen = één frase van vier maten op 140)
 //   GRIDS bd ─▶ PEAKS kick · (bass 'kick':) ACID gate · bas-SEQ clock (een basnoot per kick)
 //   (bass 'euclid':) CLOCK x4 ─▶ EUCLID (reset op bar) ─any─▶ bas-SEQ clock ─gate_out─▶ ACID gate
+//   (bass 'slide':)  EUCLID kanaal 1 ─▶ bas-SEQ clock; kanaal 2 (elke zestiende) ─▶ slide-SEQ (reset op bar) ─cv─▶ LOGIC gt ─▶ ACID slide
 //   GRIDS sd ─▶ PEAKS snare        GRIDS hh ─▶ PEAKS hat
 //   GRIDS acc ─▶ motief-SEQ clock ─▶ E-PIANO stem 1 ─▶ REVERB
 //   drums + bas ─▶ MIXER 1 ─▶ MIXER 2 ◀─ REVERB ─▶ OUT
@@ -37,6 +38,7 @@ export const RIG_TYPES: Record<ModuleKey, string> = {
   clock: 'tp_mmb_clock', grids: 'tp_mmb_grids', kick: 'tp_mmb_peaks', snare: 'tp_mmb_peaks', hat: 'tp_mmb_peaks',
   bass: 'tp_mmb_acid', bassSeq: 'tp_mmb_seq8', bassGate: 'tp_mmb_euclid', motifSeq: 'tp_mmb_seq8', piano: 'tp_mmb_epiano', reverb: 'tp_mmb_reverb',
   chord: 'tp_mmb_chord', keysGate: 'tp_mmb_euclid', pad: 'tp_mmb_tapestrip', padSeq: 'tp_mmb_seq8',
+  slideSeq: 'tp_mmb_seq8', slideGate: 'tp_mmb_logic',
 };
 
 /** Vaste standen (klank), los van de secties. */
@@ -67,6 +69,11 @@ function baseState(): Record<ModuleKey, Record<string, ControlValue>> {
     keysGate: { extclock: 1, tempo: 140, steps_1: 16, fill_1: 0, rot_1: 0, steps_2: 16, fill_2: 0, rot_2: 0, steps_3: 16, fill_3: 0, rot_3: 0 },
     pad:      { bank: 7, length: 8, return: 1, contact: 0.5, motor: 0.4, wow: 0.3, flutter: 0.3, wear: 0.3, level: 0.6 },
     padSeq:   { root: 60, rate: 0.5, gate: 0.95, length: 2, run: 0 },
+    // Slide-rij (alleen bekabeld bij `bass: 'slide'`): zestien stappen op x4,
+    // s = 12 (1 V) is Slide hoog, 0 is laag; de secties zetten de rij.
+    slideSeq: { root: 60, rate: 4, gate: 0.5, length: 16, run: 0 },
+    // LOGIC `gt` met B los: A > drempel, dus van de rij (0 of 1 V) een gate.
+    slideGate: { thresh: 0.5 },
   };
 }
 
@@ -98,7 +105,7 @@ export function buildFreestyleRig(style: Style, base: ModularProject = seedInter
   };
   const rack: Rack = {
     id: uid('rack'), name: `Freestyle · ${style.name}`,
-    description: `Clock → Grids → Peaks ×3 + Acid (bas ${style.bass === 'kick' ? 'per kick' : 'uit Euclid'}); accenten → Seq → E-piano → Reverb.`,
+    description: `Clock → Grids → Peaks ×3 + Acid (bas ${style.bass === 'kick' ? 'per kick' : style.bass === 'slide' ? 'uit Euclid, met slide-rij' : 'uit Euclid'}); accenten → Seq → E-piano → Reverb.`,
     rows: 1, hpPerRow: Math.max(64, all.reduce((n, m) => n + m.visual.hpWidth, 0) + 4),
     slots: all.map(place), kind: 'physical',
   };
@@ -117,7 +124,19 @@ export function buildFreestyleRig(style: Style, base: ModularProject = seedInter
     // de sequencer staat bij de eerste slag op stap 1; style.ts rekent daarmee.
     ...(style.bass === 'kick'
       ? [c(m.grids, 'bd', m.bass, 'gate'), c(m.grids, 'bd', m.bassSeq, 'clock')]
-      : [c(m.clock, 'x4', m.bassGate, 'clock'), c(m.clock, 'bar', m.bassGate, 'reset'), c(m.bassGate, 'any', m.bassSeq, 'clock'), c(m.bassSeq, 'gate_out', m.bass, 'gate')]),
+      : [c(m.clock, 'x4', m.bassGate, 'clock'), c(m.clock, 'bar', m.bassGate, 'reset'),
+        c(m.bassGate, style.bass === 'slide' ? 'out_1' : 'any', m.bassSeq, 'clock'), c(m.bassSeq, 'gate_out', m.bass, 'gate')]),
+    // De glijdende 808 (bass 'slide'): Euclid-kanaal 1 is het slagraster,
+    // kanaal 2 (elke zestiende) stapt een tweede rij, die via LOGIC (gt: rij
+    // > drempel) de Slide-ingang van ACID zet; hoog = de noot blijft liggen
+    // en de volgende slag glijdt erheen, laag = los. Vier kabels tegenover
+    // drie voor de gate: de rij komt één blok ná de gate aan, zodat Slide bij
+    // een nieuwe aanslag nog laag is en de noot op toon begint; de boog gaat
+    // pas daarna hoog (de kernel leest Slide vóór Gate).
+    ...(style.bass === 'slide'
+      ? [c(m.bassGate, 'out_2', m.slideSeq, 'clock'), c(m.clock, 'bar', m.slideSeq, 'reset'),
+        c(m.slideSeq, 'cv', m.slideGate, 'a'), c(m.slideGate, 'gt', m.bass, 'slide')]
+      : []),
     c(m.bassSeq, 'cv', m.bass, 'voct'),
     c(m.grids, 'sd', m.snare, 'gate'),
     c(m.grids, 'hh', m.hat, 'gate'),
@@ -134,8 +153,10 @@ export function buildFreestyleRig(style: Style, base: ModularProject = seedInter
         c(m.clock, 'div', m.piano, 'sustain'),
       ]),
     // Het pad: één noot per maat (padsequencer op `bar`), gate = de Div-puls.
+    // Met `chordRoot: 'pad'` volgt CHORD dezelfde CV (de toonsoort van de stijl).
     ...(style.pad
       ? [c(m.clock, 'bar', m.padSeq, 'clock'), c(m.padSeq, 'cv', m.pad, 'voct_1'), c(m.clock, 'div', m.pad, 'gate_1'),
+        ...(style.chordRoot === 'pad' && style.keys === 'chords' ? [c(m.padSeq, 'cv', m.chord, 'voct')] : []),
         c(m.piano, 'out_l', keysMix, 'in1'), c(m.piano, 'out_r', keysMix, 'in2'), c(m.pad, 'out_l', keysMix, 'in3'), c(m.pad, 'out_r', keysMix, 'in4'),
         c(keysMix, 'out_l', m.reverb, 'in_l'), c(keysMix, 'out_r', m.reverb, 'in_r')]
       : [c(m.piano, 'out_l', m.reverb, 'in_l'), c(m.piano, 'out_r', m.reverb, 'in_r')]),
@@ -157,7 +178,7 @@ export function buildFreestyleRig(style: Style, base: ModularProject = seedInter
   state.clock.swing = style.swing;
   state.grids.tempo = style.bpm;
   state.bassGate.tempo = style.bpm;
-  if (style.bass === 'euclid') state.bassSeq.gate = 0.95;
+  if (style.bass !== 'kick') state.bassSeq.gate = 0.95;
   for (const ch of style.sound) state[ch.module][ch.control] = ch.value;
   const first = style.sections[0];
   if (first) {
@@ -173,7 +194,7 @@ export function buildFreestyleRig(style: Style, base: ModularProject = seedInter
 
   const patch: Patch = {
     id: uid('patch'), name: `Freestyle · ${style.name}`,
-    description: `De vaste patch van de freestyle-machine (spinoffs/freestyle-machine/MOCKUP.md), stijl ${style.name}, ${style.bpm} bpm (${style.feel}). Grids stapt op ${style.gridsClock} van de klok${style.gridsClock === 'x2' ? ' (half-time: zijn 32 stappen zijn één frase van vier maten)' : ''}; ${style.bass === 'kick' ? 'elke kick slaat ook de 808-sub aan en schuift de baslijn een stap' : 'Euclid op de zestienden slaat de bas aan en schuift de baslijn per slag'}; de accenten van Grids spelen het motief op de e-piano.`,
+    description: `De vaste patch van de freestyle-machine (spinoffs/freestyle-machine/MOCKUP.md), stijl ${style.name}, ${style.bpm} bpm (${style.feel}). Grids stapt op ${style.gridsClock} van de klok${style.gridsClock === 'x2' ? ' (half-time: zijn 32 stappen zijn één frase van vier maten)' : ''}; ${style.bass === 'kick' ? 'elke kick slaat ook de 808-sub aan en schuift de baslijn een stap' : style.bass === 'slide' ? 'Euclid slaat de bas aan op een 3-van-4-raster en een slide-rij op de zestienden laat de 808 glijden en liggen' : 'Euclid op de zestienden slaat de bas aan en schuift de baslijn per slag'}; de accenten van Grids spelen het motief op de e-piano.`,
     voiceCount: 1, rackIds: [rack.id], connections, controlState, tempo: style.bpm,
     envelopes: [], lfos: [],
     ...(style.pad ? { simBanks: { [String(style.pad.nn)]: style.pad.file } } : {}),

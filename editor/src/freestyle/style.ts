@@ -21,7 +21,12 @@ export type ModuleKey =
   /** Toetsen-uitbreiding (alleen bekabeld bij `keys: 'chords'` / `pad`): akkoordgever
    *  voor e-piano stem 1–4, slagpatroon voor akkoord en lijn, Mellotron-pad met
    *  zijn eigen sequencer (één noot per maat). */
-  | 'chord' | 'keysGate' | 'pad' | 'padSeq';
+  | 'chord' | 'keysGate' | 'pad' | 'padSeq'
+  /** De slide-rij voor ACID (alleen bekabeld bij `bass: 'slide'`): een
+   *  sequencer op de zestienden waarvan de CV (1 V of 0 V) via LOGIC `gt`
+   *  (`slideGate`, de drempel maakt er een gate van en kost één blok) de
+   *  Slide-ingang hoog of laag zet; zie `slideRow`. */
+  | 'slideSeq' | 'slideGate';
 
 export interface Change { module: ModuleKey; control: string; value: number | boolean }
 
@@ -31,7 +36,11 @@ export interface Change { module: ModuleKey; control: string; value: number | bo
  *  - `euclid`: een eigen slagpatroon per sectie uit EUCLID op de
  *    zestiendenklok; de bassequencer stapt per slag en zijn gate bepaalt de
  *    nootlengte (acid hop: een echte baslijn met rusten). */
-export type BassSource = 'kick' | 'euclid';
+/**  - `slide`: als `euclid`, met een vast 3-van-4-raster en een korte gate,
+ *    plus een tweede sequencer-rij op de zestienden aan de Slide-ingang van
+ *    ACID: zo glijdt een 808 chromatisch tussen de tellen en blijft hij
+ *    liggen waar de rij hoog is (dark trap). */
+export type BassSource = 'kick' | 'euclid' | 'slide';
 
 /** De rol van een sectie in de liedvorm (besluit Mark 2026-10-27, gangbaar in
  *  hiphop: I V H V H B V H E): intro één keer bij START; NEXT wisselt verse
@@ -81,6 +90,10 @@ export interface Style {
    *  bank (`ensureSamplerBank`) en de patch vraagt hem via `simBanks`. Eén
    *  noot per maat uit de padsequencer, gate = de Div-puls van de klok. */
   pad?: { nn: number; file: string };
+  /** Waar CHORD zijn grondtoon vandaan haalt: weggelaten = de ingang los,
+   *  dus C4 (acid hop II); `pad` = de CV van de padsequencer, zodat akkoord
+   *  en pad dezelfde grondtoon hebben in een andere toonsoort (dark trap). */
+  chordRoot?: 'pad';
   /** Swing op de klok (0 = strak). */
   swing: number;
   /** Klankstanden van deze stijl (kick, snare, bas, piano, grondtonen): vast
@@ -159,6 +172,57 @@ const bassLine = (notes: number[], rate: number): Change[] => seqLine('bassSeq',
 const padLine = (notes: number[]): Change[] => [...steps('padSeq', notes), { module: 'padSeq', control: 'length', value: Math.max(2, notes.length) }];
 /** Akkoordtype van CHORD (ChordModule.h): 1 = mineur (C E♭ G C'), 9 = kwint (C G C' G'). */
 const chordType = (chord: number): Change[] => [{ module: 'chord', control: 'chord', value: chord }];
+
+/** De slide-rij van ACID op de zestienden (bass 'slide'): 1 V (hoog, de
+ *  boog) op elke zestiende behalve `releases`, daar 0 V (los).
+ *  Betekenis (mmb_dsp/acid.h): is Slide hoog als de gate van een noot
+ *  loslaat, dan blijft de noot klinken tot de volgende slag, en die slag
+ *  glijdt (tijdconstante 60 ms) naar zijn toon zonder nieuwe aanslag; gaat
+ *  Slide laag, dan stopt een losgelaten noot en slaat de volgende slag
+ *  opnieuw aan. Een nul hoort dus altijd op een stille zestiende, vlak vóór
+ *  een aanslag.
+ *  Timing (gemeten 2026-10-27): de rij moet één blok ná de bas-gate bij
+ *  ACID aankomen, want de kernel leest Slide vóór Gate; dan is Slide bij een
+ *  nieuwe aanslag nog laag en begint de noot op toon (anders glijdt hij vanaf
+ *  de oude toon). Daarom stapt de rij op EUCLID-kanaal 2 (elke zestiende,
+ *  twee kabels) en gaat hij via LOGIC naar ACID (vier kabels tegenover drie
+ *  voor de gate). De reset op `bar` (één kabel) komt een blok vóór de eerste
+ *  klokpuls, dus bij zestiende 0 staat de rij al op stap 1: zestiende k
+ *  staat op s(k+2), zestiende 15 op s1. */
+const slideRow = (releases: number[]): Change[] => {
+  const row = Array.from({ length: 16 }, (_, i) => (releases.includes(i) ? 0 : 12));
+  return [...steps('slideSeq', [row[15]!, ...row.slice(0, 15)]), { module: 'slideSeq', control: 'length', value: 16 }];
+};
+/** Een baslijn op het 3-van-4-raster van `HITS_SLIDE_GRID` (twaalf slagen per
+ *  maat; stap 1 is weer de kopie, zie `seqLine`), zonder rate: de gate moet
+ *  korter blijven dan een zestiende en volgt het tempo (`slideBassRate`). */
+const slideBass = (notes: number[]): Change[] => [
+  ...steps('bassSeq', [notes[0] ?? 0, ...notes]),
+  { module: 'bassSeq', control: 'length', value: notes.length + 1 },
+];
+/** Het slagraster van bass 'slide' op EUCLID-kanaal 1: zestiende 0·1·2,
+ *  4·5·6, 8·9·10 en 12·13·14 ([4, 3, 2]: drie van vier, gedraaid zodat de
+ *  stille op 3 valt); op 3, 7, 11 en 15 ademt de bas. Drie slagen achter
+ *  elkaar met verschillende noten zijn een glijder, met dezelfde noot een
+ *  liggende toon (de slag valt dan in de boog en doet niets). Kanaal 2 geeft
+ *  elke zestiende: de klok van de slide-rij. */
+export const HITS_SLIDE_GRID: EuclidChannel = [4, 3, 2];
+export const SLIDE_CLOCK: EuclidChannel = [1, 1, 0];
+/** Rate van de bassequencer bij bass 'slide': de gate (0,95 × 1000 / rate
+ *  ms) moet korter zijn dan een zestiende (15000 / bpm ms), hier 85 % ervan;
+ *  op 140 is dat 91 ms, rate 10,4. Begrensd op het bereik van Seq16. */
+export function slideBassRate(bpm: number): number {
+  const sixteenth = 15000 / bpm;
+  return Math.min(16, Math.max(0.5, Math.round((950 / (0.85 * sixteenth)) * 100) / 100));
+}
+/** Wat er bij een nieuw tempo mee moet: de klok, en bij bass 'slide' de
+ *  gate-lengte van de bassequencer. */
+export function tempoChanges(style: Style, bpm: number): Change[] {
+  return [
+    { module: 'clock', control: 'tempo', value: bpm },
+    ...(style.bass === 'slide' ? [{ module: 'bassSeq', control: 'rate', value: slideBassRate(bpm) } as Change] : []),
+  ];
+}
 
 // F mineur: 0 = F, 3 = A♭, 5 = B♭, 7 = C, 8 = D♭, 10 = E♭; -2 = E♭, -4 = D♭, -5 = C.
 // De bassequencer stapt per kick en begint elke maat opnieuw, dus de eerste
@@ -523,7 +587,121 @@ export const ACID_HOP_2: Style = {
   ],
 };
 
-export const STYLES: readonly Style[] = [TRAP, BOOM_BAP, BOUNCE, ACID_HOP, ACID_HOP_2];
+// Dark trap (referentie 3 in MOCKUP §1: PRO8L3M, "Molly" instr., Steez83;
+// analyse van de sessie "song for FREESTYLE", 2026-10-27): precies 140,
+// gevoeld 70, F♯ mineur, kaal. Het "uit de pas"-gevoel zit in de 808: de
+// toon begint op de tel en glijdt in twee, drie zestienden chromatisch
+// omlaag terwijl de drums strak staan; dan een lange octaaf of een landing
+// op C♯. Techniek overgenomen, niet de noten. Vorm: intro zonder sub, vers
+// met de glijders, hook met de glijder twee keer per maat en dan C♯ liggend,
+// break = sub weg, outro = de melodie voorop en de bas liggend op F♯.
+// A/B: maat A eindigt met een glijder, maat B met de C♯-landing (vers) of
+// met de lage C♯ en de octaaf (hook); het akkoord wisselt mineur/kwint.
+const DARK_ROOT = 30;                                                        // F♯1
+// Twaalf slagen per maat op het 3-van-4-raster: [0·1·2] [4·5·6] [8·9·10] [12·13·14].
+const BASS_DK_VERSE_A = [3, 2, 0, 15, 15, 15, 15, 15, 15, 2, 1, 0];          // A1↘G♯1↘F♯1 · A2 (ligt 4–10) · G♯1↘G1↘F♯1
+const BASS_DK_VERSE_B = [3, 2, 0, 15, 15, 15, 15, 15, 15, -2, -4, -5];       // … · E1↘D1↘C♯1: de C♯-landing
+const BASS_DK_HOOK_A  = [2, 1, 0, 2, 1, 0, 7, 7, 7, 7, 7, 7];                // G♯1↘G1↘F♯1 twee keer · C♯2 ligt 8–14
+const BASS_DK_HOOK_B  = [2, 1, 0, 2, 1, 0, -5, -5, -5, 15, 15, 15];          // … · C♯1 ligt 8–10 · A2 ligt 12–14
+const BASS_DK_ROOT    = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];                // F♯1 de hele maat (outro)
+// Waar de bas loslaat (de nullen in de slide-rij), altijd op een stille zestiende.
+const SLIDE_DK_VERSE  = slideRow([3, 11, 15]);                               // glijder · octaaf tot 11 · glijder
+const SLIDE_DK_HOOK_A = slideRow([3, 7, 15]);                                // twee glijders · liggend tot 15
+const SLIDE_DK_HOOK_B = slideRow([3, 7, 11, 15]);                            // twee glijders · C♯1 · A2
+const SLIDE_DK_HOLD   = slideRow([15]);                                      // één toon per maat
+// De toetsen: CHORD op de grondtoon van het pad (F♯2), wijd gezet (spread 0,6:
+// F♯2 A2 C♯4 F♯4), één aanslag per maat op de 1 met het pedaal twee maten in;
+// de lijn op stem 5 één noot per twee maten (A-maat op zestiende 8).
+const LINE_DK_VERSE = [-2];                                                  // E4 (t.o.v. F♯4)
+const LINE_DK_HOOK_A = [3];                                                  // A4
+const LINE_DK_HOOK_B = [2];                                                  // G♯4
+const LINE_DK_ROOT = [0];                                                    // F♯4
+const PAD_DK = [0, 0];                                                       // F♯2, elke maat
+const KEYS_DK_A: Change[] = hitsOn('keysGate', [16, 1, 0], [16, 1, 8]);      // akkoord op 0, lijn op 8
+const KEYS_DK_B: Change[] = hitsOn('keysGate', [16, 1, 0]);                  // alleen het akkoord
+
+export const DARK: Style = {
+  id: 'dark',
+  name: 'Dark trap',
+  bpm: 140,
+  feel: 'half-time · feels like 70 · sliding 808',
+  key: 'F♯ minor',
+  gridsClock: 'x2',
+  bass: 'slide',
+  keys: 'chords',
+  pad: { nn: 3, file: 'gu-strings.mmbs' },
+  chordRoot: 'pad',
+  swing: 0,
+  sound: [
+    ...sound({
+      bass: DARK_ROOT, motif: DARK_ROOT + 36, kick: [0.9, -6, 0.3], snare: [0.75, 0.2, 0.9], hat: 0.1,
+      // De 808 als sub: zaag door een bijna dicht filter, lange filter-decay, weinig accent.
+      sub: [0.1, 0.05, 0.2, 1.0, 0.2],
+      // E-piano donker en lang: weinig timbre, geen bel, decay open, pedaal zwaar.
+      piano: [0.25, 0.05, 0.95, 0.15, 0.15, 3, 0.9], reverb: [0.7, 0.6, 40, 0.3, 0.35],
+    }),
+    { module: 'bassSeq', control: 'rate', value: slideBassRate(140) },
+    { module: 'slideSeq', control: 'root', value: 60 },
+    // Div = twee maten (32 zestienden), 90 % hoog: sustainpedaal en padgate,
+    // dus één aanzet van het pad per twee maten.
+    { module: 'clock', control: 'div', value: 32 }, { module: 'clock', control: 'width', value: 0.9 },
+    { module: 'chord', control: 'inv', value: 0 }, { module: 'chord', control: 'spread', value: 0.6 },
+    // Mellotron-strijkers (bank 3 = de Mellotron-seed), versleten bandje.
+    { module: 'pad', control: 'bank', value: 3 }, { module: 'pad', control: 'length', value: 8 }, { module: 'pad', control: 'return', value: 1 },
+    { module: 'pad', control: 'contact', value: 0.5 }, { module: 'pad', control: 'motor', value: 0.4 }, { module: 'pad', control: 'wow', value: 0.2 },
+    { module: 'pad', control: 'flutter', value: 0.2 }, { module: 'pad', control: 'wear', value: 0.4 },
+    { module: 'padSeq', control: 'root', value: 42 },
+  ],
+  sections: [
+    {
+      // Intro: melodie en hats, geen sub en geen snare (zijn eerste 16 maten).
+      name: 'INTRO', role: 'intro', chord: 'F♯m',
+      stems: all({ bass: false, snare: false }),
+      changes: [...grids(0.3, 0.2, 0.45, 0.4, 0.75), ...hits(HITS_SLIDE_GRID, SLIDE_CLOCK), ...slideBass(BASS_DK_VERSE_A), ...SLIDE_DK_VERSE,
+        ...chordType(CHORD_MINOR), ...KEYS_DK_A, ...seqLine('motifSeq', LINE_DK_VERSE, 1), ...padLine(PAD_DK)],
+      b: [...chordType(CHORD_FIFTH), ...KEYS_DK_B],
+    },
+    {
+      name: 'VERSE', role: 'verse', chord: 'F♯m',
+      stems: all(),
+      changes: [...grids(0.35, 0.3, 0.5, 0.5, 0.8), ...hits(HITS_SLIDE_GRID, SLIDE_CLOCK), ...slideBass(BASS_DK_VERSE_A), ...SLIDE_DK_VERSE,
+        ...chordType(CHORD_MINOR), ...KEYS_DK_A, ...seqLine('motifSeq', LINE_DK_VERSE, 1), ...padLine(PAD_DK)],
+      b: [...slideBass(BASS_DK_VERSE_B), ...chordType(CHORD_FIFTH), ...KEYS_DK_B],
+    },
+    {
+      // Hook: de glijder twee keer per maat, dan C♯ liggend; minder hats.
+      name: 'HOOK', role: 'hook', chord: 'F♯m · C♯',
+      stems: all(),
+      changes: [...grids(0.45, 0.4, 0.6, 0.6, 0.55), ...hits(HITS_SLIDE_GRID, SLIDE_CLOCK), ...slideBass(BASS_DK_HOOK_A), ...SLIDE_DK_HOOK_A,
+        ...chordType(CHORD_MINOR), ...KEYS_DK_A, ...seqLine('motifSeq', LINE_DK_HOOK_A, 1), ...padLine(PAD_DK)],
+      b: [...slideBass(BASS_DK_HOOK_B), ...SLIDE_DK_HOOK_B, ...chordType(CHORD_FIFTH), ...seqLine('motifSeq', LINE_DK_HOOK_B, 1)],
+    },
+    {
+      // Break: de sub weg (en de kick, die in trap de 808 is); snare, hats en toetsen blijven.
+      name: 'BREAK', role: 'break', chord: 'F♯m',
+      stems: all({ kick: false, bass: false }),
+      changes: [...grids(0.3, 0.25, 0.4, 0.45, 0.7), ...hits(HITS_SLIDE_GRID, SLIDE_CLOCK), ...slideBass(BASS_DK_VERSE_A), ...SLIDE_DK_VERSE,
+        ...chordType(CHORD_MINOR), ...KEYS_DK_B, ...seqLine('motifSeq', LINE_DK_VERSE, 1), ...padLine(PAD_DK)],
+      b: chordType(CHORD_FIFTH),
+    },
+    {
+      // Slot: de melodie voorop (geen kick, geen snare), de bas ligt op F♯1, hats.
+      name: 'OUTRO', role: 'outro', chord: 'F♯m',
+      stems: all({ kick: false, snare: false }),
+      changes: [...grids(0.3, 0.2, 0.4, 0.4, 0.6), ...hits(HITS_SLIDE_GRID, SLIDE_CLOCK), ...slideBass(BASS_DK_ROOT), ...SLIDE_DK_HOLD,
+        ...chordType(CHORD_MINOR), ...KEYS_DK_A, ...seqLine('motifSeq', LINE_DK_ROOT, 1), ...padLine(PAD_DK)],
+    },
+  ],
+  // De fill: een snareroffel (stap 12–15 in het origineel) met wat chaos.
+  fill: [
+    { module: 'grids', control: 'sd', value: 0.95 },
+    { module: 'grids', control: 'hh', value: 0.9 },
+    { module: 'grids', control: 'y', value: 0.6 },
+    { module: 'grids', control: 'chaos', value: 0.45 },
+  ],
+};
+
+export const STYLES: readonly Style[] = [TRAP, BOOM_BAP, BOUNCE, ACID_HOP, ACID_HOP_2, DARK];
 export function styleById(id: string): Style { return STYLES.find((s) => s.id === id) ?? TRAP; }
 /** De stijl uit de querystring (`?app=freestyle&style=acidhop2`); onbekend of
  *  leeg = de eerste stijl. Zo neemt een gedeelde link de stijl mee. */

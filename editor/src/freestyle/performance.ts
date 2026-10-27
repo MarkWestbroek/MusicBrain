@@ -10,7 +10,7 @@
 
 import { ArmQueue, BarClock, DEFAULT_METER, type Boundary, type Meter } from './barClock';
 import { stemChanges } from './freestylePatch';
-import { PERCUSSIONIST_HH_SCALE, STEM_LABEL, STEM_LEVELS, type Change, type Section, type SectionRole, type Stem, type Style } from './style';
+import { PERCUSSIONIST_HH_SCALE, STEM_LABEL, STEM_LEVELS, tempoChanges, type Change, type Section, type SectionRole, type Stem, type Style } from './style';
 
 export interface Fired {
   /** Contexttijd waarop dit moet klinken. */
@@ -308,7 +308,7 @@ export class Performance {
   setBpm(bpm: number, now: number): Fired {
     const v = Math.min(300, Math.max(30, Math.round(bpm * 10) / 10));
     this.clock.setBpm(v, now);
-    return { at: now, label: `tempo ${v}`, changes: [{ module: 'clock', control: 'tempo', value: v }] };
+    return { at: now, label: `tempo ${v}`, changes: tempoChanges(this.style, v) };
   }
   nudgeBpm(delta: number, now: number): Fired { return this.setBpm(this.clock.bpm + delta, now); }
 

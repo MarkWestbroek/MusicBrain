@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { checkPatch } from '../modular-mb/patchCheck';
 import { resolveControls } from '../modular-mb/types';
 import { RIG_TYPES, buildFreestyleRig, stemChanges } from './freestylePatch';
-import { ACID_HOP, ACID_HOP_2, STEMS, STYLES, TRAP, euclidHits, styleIdFromSearch, type Change } from './style';
+import { ACID_HOP, ACID_HOP_2, DARK, STEMS, STYLES, TRAP, euclidHits, slideBassRate, styleIdFromSearch, tempoChanges, type Change } from './style';
 
 describe('freestyle-patch', () => {
   const rig = buildFreestyleRig(TRAP);
@@ -22,7 +22,7 @@ describe('freestyle-patch', () => {
       // De klank van de stijl staat in de patch.
       for (const ch of style.sound) expect(r.patch.controlState[r.ids[ch.module]]?.[ch.control], `${style.id}: ${ch.module}.${ch.control}`).toBe(ch.value);
     }
-    expect(STYLES.map((s) => s.id)).toEqual(['trap', 'boombap', 'bounce', 'acidhop', 'acidhop2']);
+    expect(STYLES.map((s) => s.id)).toEqual(['trap', 'boombap', 'bounce', 'acidhop', 'acidhop2', 'dark']);
     // De stijl uit de link; onbekend = de eerste.
     expect(styleIdFromSearch('?app=freestyle&style=acidhop2')).toBe('acidhop2');
     expect(styleIdFromSearch('?app=freestyle&style=nope')).toBe('trap');
@@ -31,7 +31,7 @@ describe('freestyle-patch', () => {
     for (const style of STYLES) {
       expect(style.sections[0]?.role, style.id).toBe('intro');
       for (const role of ['intro', 'verse', 'hook', 'break'] as const) expect(style.sections.filter((s) => s.role === role), `${style.id}/${role}`).toHaveLength(1);
-      expect(style.sections.filter((s) => s.role === 'outro').length, style.id).toBe(style.id.startsWith('acidhop') ? 1 : 0);
+      expect(style.sections.filter((s) => s.role === 'outro').length, style.id).toBe(style.id.startsWith('acidhop') || style.id === 'dark' ? 1 : 0);
     }
   });
 
@@ -105,6 +105,81 @@ describe('freestyle-patch', () => {
     const brk = ACID_HOP_2.sections[3]!;
     expect([1, 2, 3, 4].map((i) => v(brk, 'padSeq', `s${i}`))).toEqual([-9, -4, -5, -12]);
     expect(v(brk, 'chord', 'chord')).toBe(9);
+  });
+
+  it('dark trap: glijdende 808 via een slide-rij, akkoord op de grondtoon van het pad', () => {
+    const r = buildFreestyleRig(DARK);
+    const from = (toKey: keyof typeof r.ids, port: string): string | undefined => {
+      const c = r.patch.connections.find((x) => x.to.moduleId === r.ids[toKey] && x.to.portId === port);
+      if (!c) return undefined;
+      const k = (Object.keys(r.ids) as Array<keyof typeof r.ids>).find((key) => r.ids[key] === c.from.moduleId);
+      return `${String(k)}.${c.from.portId}`;
+    };
+    // Bas als bij acid hop (Euclid → bassequencer → ACID), plus de slide-rij op x4
+    // met reset per maat, haar CV aan de Slide-ingang.
+    expect(from('bassGate', 'clock')).toBe('clock.x4');
+    expect(from('bassSeq', 'clock')).toBe('bassGate.out_1');
+    expect(from('bass', 'gate')).toBe('bassSeq.gate_out');
+    expect(from('slideSeq', 'clock')).toBe('bassGate.out_2');
+    expect(from('slideSeq', 'reset')).toBe('clock.bar');
+    expect(from('slideGate', 'a')).toBe('slideSeq.cv');
+    expect(from('bass', 'slide')).toBe('slideGate.gt');       // één blok ná de gate: aanslag op toon, dan de boog
+    expect(r.patch.controlState[r.ids.bassSeq]?.gate).toBe(0.95);
+    // De gate korter dan een zestiende (107 ms op 140): rate 10,4 → 91 ms.
+    expect(slideBassRate(140)).toBe(10.43);
+    expect(r.patch.controlState[r.ids.bassSeq]?.rate).toBe(slideBassRate(140));
+    expect(950 / slideBassRate(140)).toBeLessThan(15000 / 140);
+    expect(950 / slideBassRate(200)).toBeLessThan(15000 / 200);
+    // Een tempowissel neemt de rate mee; bij de andere stijlen alleen de klok.
+    expect(tempoChanges(DARK, 150)).toEqual([{ module: 'clock', control: 'tempo', value: 150 }, { module: 'bassSeq', control: 'rate', value: slideBassRate(150) }]);
+    expect(tempoChanges(TRAP, 150)).toEqual([{ module: 'clock', control: 'tempo', value: 150 }]);
+    // CHORD volgt de padsequencer (F♯2), het pad op de Mellotron-strijkers (bank 3).
+    expect(from('chord', 'voct')).toBe('padSeq.cv');
+    expect(from('pad', 'voct_1')).toBe('padSeq.cv');
+    expect(r.patch.controlState[r.ids.padSeq]?.root).toBe(42);
+    expect(r.patch.simBanks).toEqual({ '3': 'gu-strings.mmbs' });
+    // Acid hop II houdt CHORD los (C4).
+    const ah2 = buildFreestyleRig(ACID_HOP_2);
+    expect(ah2.patch.connections.some((x) => x.to.moduleId === ah2.ids.chord && x.to.portId === 'voct')).toBe(false);
+
+    // Het slagraster is in elke sectie 3-van-4; de baslijn heeft twaalf noten
+    // (plus de kopie op stap 1); de slide-rij is zestien stappen van 0 of 12.
+    const grid = [0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14];
+    const seq = (changes: Change[], module: 'bassSeq' | 'slideSeq'): number[] =>
+      Array.from({ length: Number(changes.find((c) => c.module === module && c.control === 'length')?.value ?? 0) },
+        (_, i) => Number(changes.find((c) => c.module === module && c.control === `s${i + 1}`)?.value));
+    // De rij staat bij zestiende 0 al op stap 1 (reset vóór de eerste puls): s(k+2) = zestiende k, s1 = zestiende 15.
+    const releases = (changes: Change[]): number[] => { const r = seq(changes, 'slideSeq'); return [...r.slice(1), r[0]!].flatMap((v, i) => (v === 0 ? [i] : [])); };
+    for (const s of DARK.sections) {
+      expect(euclidHits(s.changes, 'bassGate', [1]), s.name).toEqual(grid);
+      expect(euclidHits(s.changes, 'bassGate', [2]), s.name).toEqual(Array.from({ length: 16 }, (_, i) => i));
+      expect(euclidHits(s.changes, 'bassGate', [3]), s.name).toEqual([]);
+      const bass = seq(s.changes, 'bassSeq');
+      expect(bass, s.name).toHaveLength(13);
+      expect(bass[0], s.name).toBe(bass[1]);
+      expect(seq(s.changes, 'slideSeq'), s.name).toHaveLength(16);
+      // Elke nul in de slide-rij op een stille zestiende (3, 7, 11, 15), en
+      // vlak vóór elke nieuwe aanslag (een andere noot na een stilte) een nul.
+      for (const z of releases(s.changes)) expect(grid.includes(z), `${s.name}: los op ${z}`).toBe(false);
+      for (const z of releases(s.b ?? [])) expect(grid.includes(z), `${s.name} B: los op ${z}`).toBe(false);
+    }
+    const verse = DARK.sections[1]!, hook = DARK.sections[2]!, outro = DARK.sections[4]!;
+    expect(seq(verse.changes, 'bassSeq').slice(1)).toEqual([3, 2, 0, 15, 15, 15, 15, 15, 15, 2, 1, 0]);
+    expect(releases(verse.changes)).toEqual([3, 11, 15]);
+    expect(seq(verse.b!, 'bassSeq').slice(1)).toEqual([3, 2, 0, 15, 15, 15, 15, 15, 15, -2, -4, -5]);
+    expect(releases(hook.changes)).toEqual([3, 7, 15]);
+    expect(releases(hook.b!)).toEqual([3, 7, 11, 15]);
+    expect(seq(hook.b!, 'bassSeq').slice(1)).toEqual([2, 1, 0, 2, 1, 0, -5, -5, -5, 15, 15, 15]);
+    expect(seq(outro.changes, 'bassSeq').slice(1)).toEqual(Array(12).fill(0));
+    expect(releases(outro.changes)).toEqual([15]);
+    // Elke B-knop bestaat ook in A.
+    for (const s of DARK.sections) for (const ch of s.b ?? []) expect(s.changes.some((a) => a.module === ch.module && a.control === ch.control), `${s.name}: ${ch.module}.${ch.control}`).toBe(true);
+    // Toetsen: akkoord op de 1, de lijn op 8 (A), in B alleen het akkoord.
+    expect(euclidHits(verse.changes, 'keysGate', [1])).toEqual([0]);
+    expect(euclidHits(verse.changes, 'keysGate', [2])).toEqual([8]);
+    expect(euclidHits([...verse.changes.filter((c) => !verse.b!.some((b) => b.module === c.module && b.control === c.control)), ...verse.b!], 'keysGate', [2])).toEqual([]);
+    expect(DARK.sections[0]!.stems.bass).toBe(false);
+    expect(DARK.sections[3]!.stems.bass).toBe(false);
   });
 
   it('bekabelt de bas per kick, of uit Euclid op de zestienden', () => {

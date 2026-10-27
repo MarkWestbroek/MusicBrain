@@ -44,10 +44,12 @@ jump. The − and + buttons next to the number nudge it by 1 BPM.
 Tap the style name at the top left to go to the next style: Trap half-time
 (140) → Boom bap (88) → Bounce (100) → Acid hop (75, a 303 bass line in C
 minor) → Acid hop II (78, the same bass with piano chords and a mellotron
-flute). This stops the beat; tap START again.
+flute) → Dark trap (140, felt as 70, F♯ minor: an 808 that slides down
+between the beats while the drums stay straight, mellotron strings). This
+stops the beat; tap START again.
 
 A link can carry the style: add `&style=acidhop2` (or `trap`, `boombap`,
-`bounce`, `acidhop`) to the address, for example
+`bounce`, `acidhop`, `dark`) to the address, for example
 **https://editor.musicbrain.nl/?app=freestyle&style=acidhop2**. Switching
 styles updates the address, so you can copy and share it.
 
