@@ -26,7 +26,9 @@ export interface Mod {
   render(seconds: number, feed?: (t: number, m: Mod) => void): Record<string, Float32Array>;
 }
 
-export async function load(typeId: string): Promise<Mod> {
+/** `rate`: vraag vóór mmb_init een andere samplerate (mmb_set_rate, alleen
+ *  modules met MMB_RATE_FLEX volgen hem; zie mmb_abi.h). */
+export async function load(typeId: string, opts: { rate?: number } = {}): Promise<Mod> {
   const bytes = readFileSync(fileURLToPath(new URL(`../../../public/wasm/${typeId}.wasm`, import.meta.url)));
   const mod = await WebAssembly.compile(bytes);
   const imports: Record<string, Record<string, () => number>> = {};
@@ -42,6 +44,7 @@ export async function load(typeId: string): Promise<Mod> {
     for (let i = p; m[i]; i++) s += String.fromCharCode(m[i]!);
     return s;
   };
+  if (opts.rate) ex.mmb_set_rate(opts.rate);
   ex.mmb_init();
   const inputs: string[] = [], outputs: string[] = [], controls: string[] = [];
   for (let i = 0; i < ex.mmb_num_inputs(); i++)  inputs.push(cstr(ex.mmb_input_id(i)));

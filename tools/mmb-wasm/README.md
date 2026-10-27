@@ -229,6 +229,26 @@ hetzelfde typeId en gooit al bij het laden van de editor (zo ging het bij de VCF
 en de MS-20). En registreer het typeId pas als de `.wasm` er is — zonder binair
 valt de runtime niet terug op Tone, de module wordt dan stil.
 
+## Samplerate: `mmb_set_rate` (2026-10-27)
+
+Een module rekent standaard op `MMB_NATIVE_RATE`, zoals de Teensy. Voor de
+plugin op 96 kHz ([plugin-patches.md](../../doc/plans/plugin-patches.md) §9)
+kan een wrapper aangeven dat hij elke rate aankan:
+
+- `#define MMB_RATE_FLEX 1` vóór de include, en in `mmb_setup()` de rate uit
+  `mmb_rate()` halen in plaats van `MMB_NATIVE_RATE` (`kernel_host.h` doet
+  dat al).
+- De gastheer roept vóór `mmb_init` `mmb_set_rate(r)` aan. Het antwoord is
+  de rate waarop de module echt rekent; zonder de vlag blijft dat
+  `MMB_NATIVE_RATE`, en daarna telt een nieuwe vraag niet meer.
+  `mmb_native_rate()` geeft dezelfde waarde.
+- De browser roept het niet aan: de simulator blijft op de rate van de Teensy.
+- Geef een module de vlag pas als haar buffers met de rate meegroeien (geen
+  delay- of galmlijnen van vaste lengte in samples). Niet voor de MI-ports
+  (32/48 kHz afgestemd) en de `teensy_waveform.h`-oscillatoren.
+- Eerste flex-module: LADDER. Test: `editor/src/modular-mb/sim/wasmRate.test.ts`
+  (zelfde doorlaat op 44,1 en 96 kHz).
+
 ## Afwijkingen van de Teensy
 
 - PolyGroups spelen polyfoon: de engine bouwt alle leden, vouwt de kabels uit zoals

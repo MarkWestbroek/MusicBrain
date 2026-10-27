@@ -17,6 +17,15 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-27 — wasm-ABI: `mmb_set_rate` voor de plugin op 96 kHz
+<!-- EN: wasm ABI: mmb_set_rate, so plugin hosts can run modules at 96 kHz -->
+- `mmb_abi.h`: een gastheer mag vóór `mmb_init` een samplerate vragen;
+  alleen modules met `MMB_RATE_FLEX` volgen hem, de rest blijft op
+  `MMB_NATIVE_RATE` (plan: [plugin-patches.md](plans/plugin-patches.md) §9).
+  De browser vraagt niets: de simulator klinkt als de Teensy.
+- Eerste flex-module: LADDER (zelfde doorlaat op 44,1 en 96 kHz, test
+  `wasmRate.test.ts`). Oude `.wasm` zonder de export blijven werken.
+
 ### 2026-10-27 — fw 0.5.114: RATCHET, roffels per stap
 <!-- EN: fw 0.5.114: RATCHET, a step sequencer for hi-hat rolls -->
 - Nieuwe module `tp_mmb_ratchet` (plan: [ratchet.md](plans/ratchet.md)):

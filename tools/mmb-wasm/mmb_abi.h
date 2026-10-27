@@ -21,6 +21,15 @@
 //     alleen als de poort connected is (zoals de firmware: de CV-graph
 //     schrijft dan elke tick).
 // Elk render-blok is precies mmb_block() frames op mmb_native_rate().
+//
+// Samplerate: standaard MMB_NATIVE_RATE (zoals de Teensy). Een wrapper die
+// op elke rate kan rekenen, zet `#define MMB_RATE_FLEX 1` vóór de include en
+// gebruikt in mmb_setup() `mmb_rate()` in plaats van MMB_NATIVE_RATE. Een
+// gastheer mag dan vóór mmb_init `mmb_set_rate(r)` aanroepen; het antwoord is
+// de rate waarop de module echt rekent (zonder de vlag: MMB_NATIVE_RATE), en
+// mmb_native_rate() geeft daarna dezelfde waarde. De browser roept het niet
+// aan: de simulator rekent op de rate van de Teensy. Plan:
+// doc/plans/plugin-patches.md §9.
 #pragma once
 #include <cerrno>
 #include <cstddef>
@@ -97,6 +106,10 @@ void mmb_on_control(int idx, float v);     // control gewijzigd
 void mmb_process(int frames);              // frames == MMB_BLOCK
 
 // ── hulpjes voor wrappers ─────────────────────────────────────────────
+// Gevraagde rate; 0 = MMB_NATIVE_RATE. In BSS, dus na een reset van het
+// geheugen weer 0: de gastheer vraagt de rate dan opnieuw, vóór mmb_init.
+static float g_mmb_rate = 0.f;
+static inline float mmb_rate() { return g_mmb_rate > 0.f ? g_mmb_rate : MMB_NATIVE_RATE; }
 static inline float mmb_clamp01(float v) { return v < 0.f ? 0.f : (v > 1.f ? 1.f : v); }
 static inline float mmb_in0(int i)       { return MMB_INPUTS[i].buf[0]; }
 static inline bool  mmb_gate_in(int i)   { return MMB_INPUTS[i].buf[0] >= 0.5f; }
@@ -119,7 +132,7 @@ static inline int mmb_control_index(const char* id) {
 
 // ── exports (identiek voor elke module) ──────────────────────────────
 MMB_EXPORT(mmb_type_id)        const char* mmb_type_id()        { return MMB_TYPE_ID; }
-MMB_EXPORT(mmb_native_rate)    float mmb_native_rate()          { return MMB_NATIVE_RATE; }
+MMB_EXPORT(mmb_native_rate)    float mmb_native_rate()          { return mmb_rate(); }
 MMB_EXPORT(mmb_block)          int mmb_block()                  { return MMB_BLOCK; }
 MMB_EXPORT(mmb_num_inputs)     int mmb_num_inputs()             { return MMB_NUM_INPUTS; }
 MMB_EXPORT(mmb_input_id)       const char* mmb_input_id(int i)  { return (i >= 0 && i < MMB_NUM_INPUTS) ? MMB_INPUTS[i].id : ""; }
@@ -157,6 +170,14 @@ MMB_EXPORT(mmb_init)           void mmb_init() {
     mmb_setup();
     // Beginstand van alle controls doorzetten naar de DSP.
     for (int i = 0; i < MMB_NUM_CONTROLS; ++i) mmb_on_control(i, MMB_CONTROLS[i].value);
+}
+MMB_EXPORT(mmb_set_rate)       float mmb_set_rate(float rate) {
+#ifdef MMB_RATE_FLEX
+    if (!g_mmb_inited && rate >= 8000.f && rate <= 384000.f) g_mmb_rate = rate;
+#else
+    (void)rate;
+#endif
+    return mmb_rate();
 }
 MMB_EXPORT(mmb_render)         void mmb_render(int frames) {
     if (frames > MMB_MAX_BLOCK) frames = MMB_MAX_BLOCK;

@@ -6,6 +6,9 @@
 // uitgangsbegrenzer. Daarvoor was dit een kopie van de bibliotheek, met haar
 // FIR van 36 taps en een 16-bit-uitgang die boven ±1 omklapte.
 
+// Rekent op elke rate (mmb_set_rate): de kern neemt de rate in Init, zonder
+// buffers van vaste lengte.
+#define MMB_RATE_FLEX 1
 #include "kernel_host.h"
 #include "mmb_dsp/ladder.h"
 

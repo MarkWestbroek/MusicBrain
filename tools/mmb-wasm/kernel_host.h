@@ -21,7 +21,7 @@
 
 #define MMB_KERNEL_HOST(KERNEL, AIN, NAIN, CIN, NCIN, AOUT, NAOUT, COUT, NCOUT)          \
     namespace { KERNEL g_kernel; }                                                        \
-    void mmb_setup() { g_kernel.Init(MMB_NATIVE_RATE); }                                  \
+    void mmb_setup() { g_kernel.Init(mmb_rate()); }                                       \
     void mmb_on_control(int index, float value) { g_kernel.setControl(index, value); }    \
     void mmb_process(int frames) {                                                        \
         for (int k = 0; k < (NCIN); ++k)                                                  \
