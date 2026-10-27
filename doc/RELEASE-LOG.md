@@ -17,6 +17,17 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-27 — DRAW-VCO: Vorm-schakelaar met vaste golfvormen
+<!-- EN: DRAW-VCO gets a Shape switch with fixed waveforms -->
+- Nieuwe control `shape`: Getekend (standaard, de tekening of tot dan
+  een driehoek, dus bestaande patches klinken gelijk), Sinus, Driehoek,
+  Zaag, Blok, Puls 25 % en Orgel (grondtoon plus de 2e, 3e en 4e
+  harmonische). De tabellen staan in `mmb_dsp/draw_shapes.h`, gedeeld
+  door de firmware en de wasm.
+- Daarmee kan DRAW-VCO in de plugin iets anders spelen dan een driehoek.
+  Er zijn zeven fabriekspresets. Tekenen in het paneel (editor en plugin)
+  is de volgende stap.
+
 ### 2026-10-27 — ROTARY: schone voorversterker; plugins: SID-filter aan, presets voor alle modules
 <!-- EN: ROTARY preamp clean at low drive; plugins: SID starts with filter on, factory presets for every module -->
 - **ROTARY (alle platforms):** de Leslie-voorversterker (`mmb_dsp/leslie.h`)

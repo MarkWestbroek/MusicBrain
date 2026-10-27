@@ -308,9 +308,12 @@ de SID "werken een boel knoppen niet".
   het is.
 - **Fabriekspresets voor alle modules** (4–6 per module, nog niet
   beluisterd). De test legt elke waarde langs het paneel, ook
-  `PLUGIN_DEFAULTS`. DRAW-VCO heeft er geen: zijn klank is de getekende
-  vorm, en die is geen parameter. Daarvoor is een Vorm-schakelaar op de
-  module voorgesteld.
+  `PLUGIN_DEFAULTS`. DRAW-VCO had er eerst geen: zijn klank is de
+  getekende vorm, en die is geen parameter. Hij heeft nu een
+  Vorm-schakelaar (`shape`: Getekend, Sinus, Driehoek, Zaag, Blok, Puls,
+  Orgel) en zeven presets. Stap 2 is tekenen in het paneel. In de
+  plugin komt de tekening dan in de opgeslagen projectgegevens
+  (getStateInformation), en de editor moet hem in de patch gaan bewaren.
 - **STK SOUND bouwde niet op de Mac.** Mach-O kent de ELF-sectienaam
   `.progmem.mandolin` niet (`MandolinData.h`, en de generator
   `gen_mandolin_data.py`). Op de Mac valt de sectie nu weg; de Teensy

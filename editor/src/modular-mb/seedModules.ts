@@ -3501,14 +3501,16 @@ function mmbDrawVco() {
       { kind: 'rect', x: w*0.12, y: 22, w: w*0.76, h: 30, color: '#0b1220' },
     ],
     items: [
-      knob('coarse', 'Coarse', w*0.30, 70, { size: 'medium', min: -36, max: 36, def: 0,  unit: 'semi', color: '#f9fafb' }),
-      knob('fine',   'Fine',   w*0.70, 70, { size: 'medium', min: -100, max: 100, def: 0, unit: 'ct',  color: '#f9fafb' }),
-      knob('level',  'Level',  w/2,    92, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
+      // Vorm: 0 = de tekening (tot er getekend is een driehoek), daarna vaste vormen (mmb_dsp/draw_shapes.h).
+      sw('shape', 'Vorm', w/2, 58, ['Getekend', 'Sinus', 'Driehoek', 'Zaag', 'Blok', 'Puls', 'Orgel'], 0),
+      knob('coarse', 'Coarse', w*0.30, 76, { size: 'medium', min: -36, max: 36, def: 0,  unit: 'semi', color: '#f9fafb' }),
+      knob('fine',   'Fine',   w*0.70, 76, { size: 'medium', min: -100, max: 100, def: 0, unit: 'ct',  color: '#f9fafb' }),
+      knob('level',  'Level',  w/2,    95, { size: 'small', min: 0, max: 1, def: 0.8, color: '#f9fafb' }),
       inPort ('voct', '1V/Oct', 'cv',    w*0.25, 110),
       inPort ('tune', 'Tune',   'cv',    w*0.50, 110),
       outPort('out',  'Out',    'audio', w*0.78, 110),
     ],
-    notes: 'Teken-golfvorm-oscillator: de editor stuurt een single-cycle tabel via het \'wavetable\'-serieframe (FW-LIVE-1) en de firmware resamplet naar 256 punten. De zwarte balk is de teken-zone (UI volgt). coarse/fine zijn pitch-offsets t.o.v. V/Oct. Firmware tp_mmb_draw_vco (FW-AU-6).',
+    notes: 'Teken-golfvorm-oscillator: de editor stuurt een single-cycle tabel via het \'wavetable\'-serieframe (FW-LIVE-1) en de firmware resamplet naar 256 punten. De zwarte balk is de teken-zone (UI volgt). Vorm kiest wat er klinkt: Getekend = de tekening (tot er getekend is een driehoek), of een vaste vorm — Sinus, Driehoek, Zaag, Blok, Puls (25 %) of Orgel (grondtoon plus de 2e, 3e en 4e harmonische, als drawbars). coarse/fine zijn pitch-offsets t.o.v. V/Oct. Firmware tp_mmb_draw_vco (FW-AU-6).',
   });
 }
 

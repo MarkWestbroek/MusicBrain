@@ -12,6 +12,7 @@
 
 #include "mmb_abi.h"
 #include "teensy_waveform.h"
+#include "mmb_dsp/draw_shapes.h"
 
 const char* const MMB_TYPE_ID     = "tp_mmb_draw_vco";
 const float       MMB_NATIVE_RATE = 44100.0f;
@@ -23,17 +24,25 @@ const int MMB_NUM_INPUTS = 2;
 MmbPort MMB_OUTPUTS[] = { { "out", MMB_AUDIO, 0, {} } };
 const int MMB_NUM_OUTPUTS = 1;
 
-enum { C_COARSE, C_FINE, C_LEVEL };
-MmbControl MMB_CONTROLS[] = { { "coarse", 0.0f }, { "fine", 0.0f }, { "level", 0.8f } };
-const int MMB_NUM_CONTROLS = 3;
+enum { C_COARSE, C_FINE, C_LEVEL, C_SHAPE };
+MmbControl MMB_CONTROLS[] = { { "coarse", 0.0f }, { "fine", 0.0f }, { "level", 0.8f }, { "shape", 0.0f } };
+const int MMB_NUM_CONTROLS = 4;
 
 namespace {
 constexpr int kTableLen = 256, kMaxDraw = 4096;
 TeensyWaveform g_osc;
 int16_t g_table[kTableLen];
 int16_t g_draw[kMaxDraw];
+int16_t g_drawn[kTableLen];   // laatste tekening (of de driehoek)
+int g_shape = 0;
 float g_voct = 0.0f, g_tune = 0.0f, g_coarse = 0.0f, g_fine = 0.0f;
 float g_last[2] = { -1e9f, -1e9f };
+
+// De gespeelde tabel: de tekening (stand 0) of een vaste vorm (DrawVcoModule::applyShape).
+void applyShape() {
+    if (g_shape == mmb_dsp::kDrawDrawn) for (int i = 0; i < kTableLen; ++i) g_table[i] = g_drawn[i];
+    else mmb_dsp::fillDrawShape(g_shape, g_table, kTableLen);
+}
 
 void recomputeHz() {
     g_osc.frequency(261.6256f * powf(2.0f, g_voct + g_tune + g_coarse / 12.0f + g_fine / 1200.0f));
@@ -48,7 +57,8 @@ MMB_EXPORT(mmb_blob_commit) void mmb_blob_commit(int slot, int frames, float, in
     // DrawVcoModule::setWaveformData — nearest-neighbour naar 256.
     if (slot != 0 || frames < 2 || frames > kMaxDraw) return;
     for (int i = 0; i < kTableLen; ++i)
-        g_table[i] = g_draw[(static_cast<long>(i) * frames) / kTableLen];
+        g_drawn[i] = g_draw[(static_cast<long>(i) * frames) / kTableLen];
+    if (g_shape == mmb_dsp::kDrawDrawn) applyShape();
 }
 
 void mmb_setup() {
@@ -56,8 +66,9 @@ void mmb_setup() {
     for (int i = 0; i < kTableLen; ++i) {
         const float ph = static_cast<float>(i) / kTableLen;
         const float tri = (ph < 0.5f) ? (4.0f * ph - 1.0f) : (3.0f - 4.0f * ph);
-        g_table[i] = static_cast<int16_t>(tri * 32767.0f);
+        g_drawn[i] = static_cast<int16_t>(tri * 32767.0f);
     }
+    applyShape();
     g_osc.arbitraryWaveform(g_table);
     g_osc.begin(TW_ARBITRARY);
     g_osc.amplitude(0.8f);
@@ -69,6 +80,12 @@ void mmb_on_control(int idx, float v) {
         case C_COARSE: g_coarse = v; recomputeHz(); break;
         case C_FINE:   g_fine = v; recomputeHz(); break;
         case C_LEVEL:  g_osc.amplitude(v); break;
+        case C_SHAPE: {
+            const int n = static_cast<int>(v + 0.5f);
+            g_shape = (n < 0 || n >= mmb_dsp::kDrawShapeCount) ? 0 : n;
+            applyShape();
+            break;
+        }
     }
 }
 

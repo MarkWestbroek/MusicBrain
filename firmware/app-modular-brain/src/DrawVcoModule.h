@@ -12,7 +12,9 @@
  * (0 V = C4 = 261.626 Hz).
  *
  * Until a table is received the module defaults to a triangle so it is audible
- * immediately after patching.
+ * immediately after patching.  The `shape` switch picks a fixed waveform
+ * instead (mmb_dsp/draw_shapes.h); position 0 ("Getekend") plays the drawn
+ * table, so existing patches sound the same.
  *
  * Port map:
  * | Direction | portId | Domain | Stream / channel   |
@@ -27,10 +29,12 @@
  * | `coarse`  | float   | Semitone offset             |
  * | `fine`    | float   | Cent offset                 |
  * | `level`   | float   | Output amplitude (0 … 1)    |
+ * | `shape`   | int     | 0 drawn, 1 sine, 2 triangle, 3 saw, 4 square, 5 pulse 25 %, 6 organ |
  */
 
 #include "AudioModule.h"
 #include "mb/runtime/Registry.h"
+#include "mmb_dsp/draw_shapes.h"
 #include <Audio.h>
 #include <cmath>
 #include <cstdint>
@@ -52,9 +56,9 @@ public:
             const float ph = static_cast<float>(i) / kTableLen;
             const float tri = (ph < 0.5f) ? (4.0f * ph - 1.0f)
                                           : (3.0f - 4.0f * ph);
-            table_[i] = static_cast<int16_t>(tri * 32767.0f);
+            drawn_[i] = static_cast<int16_t>(tri * 32767.0f);
         }
-        osc_.arbitraryWaveform(table_, AUDIO_SAMPLE_RATE_EXACT * 0.5f);
+        applyShape();
         osc_.begin(WAVEFORM_ARBITRARY);
         osc_.amplitude(0.8f);
         recomputeHz();
@@ -85,9 +89,9 @@ public:
         for (int i = 0; i < kTableLen; ++i) {
             // Nearest-neighbour resample of `count` source points → 256.
             const std::size_t src = (static_cast<std::size_t>(i) * count) / kTableLen;
-            table_[i] = data[src];
+            drawn_[i] = data[src];
         }
-        osc_.arbitraryWaveform(table_, AUDIO_SAMPLE_RATE_EXACT * 0.5f);
+        if (shape_ == mmb_dsp::kDrawDrawn) applyShape();
         return true;
     }
 
@@ -101,6 +105,11 @@ public:
         if      (controlId == "coarse") { coarse_ = asFloat(0.0f); recomputeHz(); }
         else if (controlId == "fine")   { fine_ = asFloat(0.0f); recomputeHz(); }
         else if (controlId == "level")  { osc_.amplitude(asFloat(0.8f)); }
+        else if (controlId == "shape")  {
+            const int n = static_cast<int>(asFloat(0.0f) + 0.5f);
+            shape_ = (n < 0 || n >= mmb_dsp::kDrawShapeCount) ? 0 : n;
+            applyShape();
+        }
     }
 
     /** @brief Register the draw-VCO factory.  Idempotent. */
@@ -114,6 +123,15 @@ public:
     }
 
 private:
+    /** De gespeelde tabel: de tekening (stand 0) of een vaste vorm. */
+    void applyShape() {
+        if (shape_ == mmb_dsp::kDrawDrawn)
+            for (int i = 0; i < kTableLen; ++i) table_[i] = drawn_[i];
+        else
+            mmb_dsp::fillDrawShape(shape_, table_, kTableLen);
+        osc_.arbitraryWaveform(table_, AUDIO_SAMPLE_RATE_EXACT * 0.5f);
+    }
+
     void recomputeHz() {
         const float hz = 261.6256f
             * powf(2.0f, voct_ + tune_ + coarse_ / 12.0f + fine_ / 1200.0f);
@@ -122,6 +140,8 @@ private:
 
     mutable AudioSynthWaveform osc_;
     int16_t table_[kTableLen] = { 0 };
+    int16_t drawn_[kTableLen] = { 0 };   // laatste tekening (of de driehoek)
+    int     shape_  = 0;
     float   voct_   = 0.0f;
     float   tune_   = 0.0f;
     float   coarse_ = 0.0f;

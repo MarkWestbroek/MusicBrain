@@ -553,7 +553,8 @@
       "controls": [
         "coarse",
         "fine",
-        "level"
+        "level",
+        "shape"
       ]
     },
     "tp_mmb_drive": {

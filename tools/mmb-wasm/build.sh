@@ -156,7 +156,7 @@ sel ladder && build ladder tp_mmb_ladder "$LIB/mmb-dsp" --
 sel octavcf && build octavcf tp_mmb_octa_vcf --
 sel octavco && build octavco tp_mmb_octa_vco --
 sel wtvco   && build wtvco   tp_mmb_wt_vco   --
-sel drawvco && build drawvco tp_mmb_draw_vco --
+sel drawvco && build drawvco tp_mmb_draw_vco "$LIB/mmb-dsp" --
 sel noise   && build noise   tp_mmb_noise   "$LIB/mmb-dsp" --
 sel vco     && build vco     tp_mmb_vco     --
 sel fmvco   && build fmvco   tp_mmb_fm_vco  --

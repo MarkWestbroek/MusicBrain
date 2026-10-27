@@ -28,7 +28,7 @@ export const FRONT_CONTROLS: Record<string, string[]> = {
   [T('mixtur')]: ['sub1', 'sub2', 'sub3', 'sub4', 'div1', 'div2', 'div3', 'div4', 'formant', 'fshift', 'freso', 'curve'],
   [T('audioin')]: ['level'],
   [T('complex')]: ['timbre', 'fm', 'symmetry', 'ratio', 'tmod', 'am'],
-  [T('draw_vco')]: [],
+  [T('draw_vco')]: ['shape'],
   [T('dx7')]: ['bank', 'program'],
   // De drie exciters, hun karakter (Contour, Flow, Mallet) en klankkleur, en
   // de resonator. 14 knoppen; Flow en Mallet groot, de rest klein

@@ -634,6 +634,16 @@ export const MODULE_PRESETS: Record<string, ModulePreset[]> = {
     { name: 'Bas', values: { o1_oct: 0, o1_wave: 1, o1_level: 10, o2_oct: 1, o2_transpose: 0, o2_detune: 3, o2_wave: 0, o2_level: 7, freq: 3, res: 4, env_amt: 6, kbd: 5, mode: 0, fa: 0, fd: 3.5, fs: 2, fr: 2.5, aa: 0, ad: 4, as: 8, ar: 2, chorus: false, level: 0.8 } },
     { name: 'Ringklok', values: { o1_oct: 2, o1_wave: 0, o1_level: 9, o2_oct: 2, o2_transpose: 5, o2_detune: 0, o2_wave: 1, o2_level: 9, ring: true, freq: 7, res: 2, env_amt: 2, kbd: 4, mode: 1, fa: 0, fd: 5, fs: 3, fr: 5, aa: 0, ad: 6, as: 2, ar: 5.5, chorus: true, level: 0.7 } },
   ],
+  // DRAW-VCO: shape 0 Getekend, 1 Sinus, 2 Driehoek, 3 Zaag, 4 Blok, 5 Puls, 6 Orgel.
+  tp_mmb_draw_vco: [
+    { name: 'Zuivere sinus', values: { shape: 1, level: 0.8 } },
+    { name: 'Zachte driehoek', values: { shape: 2, level: 0.8 } },
+    { name: 'Zaag', values: { shape: 3, level: 0.7 } },
+    { name: 'Blok', values: { shape: 4, level: 0.7 } },
+    { name: 'Smalle puls', values: { shape: 5, level: 0.7 } },
+    { name: 'Orgeltje', values: { shape: 6, level: 0.8 } },
+    { name: 'Sub-sinus (−1 oct)', values: { shape: 1, coarse: -12, level: 0.9 } },
+  ],
 };
 
 // Beginstand alleen in de plugin ("Standaard" en een nieuwe instantie), waar
