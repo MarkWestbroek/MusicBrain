@@ -17,6 +17,22 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-29 — fw 0.5.117: E-PIANO wordt weer luider als je harder speelt
+<!-- EN: fw 0.5.117: the E-PIANO gets louder again when you play harder -->
+- Mark: "velocity lijkt iets te doen met de toon, maar niet met het volume."
+  Gemeten: een losse noot was in orde (vel 0,2 → 1,0: +17 dB), maar een
+  akkoord van drie of vier noten zat vanaf velocity ~0,65 tegen de limiter
+  achter de som. Harder spelen werd dan alleen helderder (bel, tine), niet
+  luider: 4 noten vel 0,65 → 1,0 gaf 0 dB.
+- De som gaat nu met 0,6 in plaats van 1,3 de limiter in (−6,7 dB). Tot
+  vier noten groeit het volume nu mee: 4 noten vel 0,2 → 1,0 van −30,6 naar
+  −13,6 dB RMS. Pas een vol akkoord van zes noten op vol raakt de limiter
+  nog; die blijft het vangnet voor akkoorden met sustain.
+- Daardoor is de e-piano op dezelfde Level ~7 dB zachter. In de seed
+  "🎹 E-piano ×12" staat Level nu op 1 (+2 dB). Eigen patches: Level of de
+  uitgang wat hoger zetten.
+- De velocitycurve zelf (vel^1,3) is niet veranderd.
+
 ### 2026-10-29 — fw 0.5.116: VCA-BUS krijgt een sidechain-ingang
 <!-- EN: fw 0.5.116: the VCA bus compressor gets a sidechain input -->
 - `tp_mmb_bus_comp` heeft nu een ingang `sc` (mono), net als PUMP: met een
