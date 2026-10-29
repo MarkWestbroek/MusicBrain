@@ -1097,6 +1097,8 @@ function mmbMidiIn() {
       // De speler zet dit meestal persoonlijk (chip A= in de kop); dan
       // gaat die instelling hier overheen.
       knob('a4', 'A4', w*0.93, 80, { size: 'small', min: 380, max: 500, def: 440, step: 1, unit: 'Hz', color: '#f9fafb' }),
+      // Aanslagcurve op vel/velK, voor alles wat aan velocity hangt.
+      sw  ('velcurve', 'Vel', w*0.16, 96, ['Zacht', 'Norm', 'Hard', 'Vast'], 1),
       // Note-outputs (per stem) — links.
       outPort('pitch', 'V/Oct', 'cv',   w*0.07, 112, { eventKind: 'voice' }),
       outPort('gate',  'Gate',  'gate', w*0.17, 112, { eventKind: 'voice' }),
@@ -1111,7 +1113,7 @@ function mmbMidiIn() {
       outPort('cv_cc1',  'CC1',  'cv', w*0.83, 112),
       outPort('cv_cc2',  'CC2',  'cv', w*0.94, 112),
     ],
-    notes: 'Zet inkomende MIDI om in CV. NOTE-uitgangen (per stem): pitch (V/Oct), gate, velocity, Press (aftertouch: channel pressure zet alle stemmen, poly pressure alleen de stem met die toets; 0..1) en Rel (release-velocity van de laatste note-off op die stem, 0..1, blijft staan — een keyboard dat hem niet meldt geeft 0,5). MOD-uitgangen (globaal): Mod (mod-wheel CC1), Bend (pitch-bend, V/Oct, bereik = Bend-knop in halve tonen; B→P aan = de bend zit ook al in pitch/pitchK, handig zonder aparte bend-kabel), CC1/CC2 (vrij kiesbare CC-nummers via CC1#/CC2#; het gekozen nummer staat op het LED-display naast elke knop). De MIDI-bron kies je in het Simulatie-paneel. Mono/poly volgt automatisch uit het aantal stemmen (voiceCount). PRIO = mono note-priority (last/low/high). STEAL = poly voice-stealing → firmware StealStrategy. LEG = legato (firmware-gedrag = FW-1, nog te bouwen). GLIDE = portamento (ms per octaaf, 0 = uit). UNI = unison (één toets → alle stemmen, last-note); SPRD = unison-detune in centen. Géén MIDI-jack op de front; alles loopt via de brain.',
+    notes: 'Zet inkomende MIDI om in CV. NOTE-uitgangen (per stem): pitch (V/Oct), gate, velocity, Press (aftertouch: channel pressure zet alle stemmen, poly pressure alleen de stem met die toets; 0..1) en Rel (release-velocity van de laatste note-off op die stem, 0..1, blijft staan — een keyboard dat hem niet meldt geeft 0,5). VEL = aanslagcurve op vel en velK: Zacht (licht spelen klinkt al vol), Norm (lineair), Hard (meer verschil, vol vraagt een flinke aanslag) of Vast (altijd 0,8, geen aanslaggevoeligheid); geldt voor elk instrument dat aan vel hangt. MOD-uitgangen (globaal): Mod (mod-wheel CC1), Bend (pitch-bend, V/Oct, bereik = Bend-knop in halve tonen; B→P aan = de bend zit ook al in pitch/pitchK, handig zonder aparte bend-kabel), CC1/CC2 (vrij kiesbare CC-nummers via CC1#/CC2#; het gekozen nummer staat op het LED-display naast elke knop). De MIDI-bron kies je in het Simulatie-paneel. Mono/poly volgt automatisch uit het aantal stemmen (voiceCount). PRIO = mono note-priority (last/low/high). STEAL = poly voice-stealing → firmware StealStrategy. LEG = legato (firmware-gedrag = FW-1, nog te bouwen). GLIDE = portamento (ms per octaaf, 0 = uit). UNI = unison (één toets → alle stemmen, last-note); SPRD = unison-detune in centen. Géén MIDI-jack op de front; alles loopt via de brain.',
   });
 }
 

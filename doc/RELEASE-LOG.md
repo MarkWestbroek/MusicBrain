@@ -17,6 +17,21 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-29 — fw 0.5.118: MIDI-IN krijgt een aanslagcurve
+<!-- EN: fw 0.5.118: MIDI-IN gets a velocity curve -->
+- Nieuwe schakelaar **Vel** (`velcurve`) op MIDI-IN: hoe de velocity van
+  het keyboard op `vel` en `velK` komt. **Zacht** (x^0,6: licht spelen klinkt
+  al vol), **Norm** (lineair, de standaard en tot nu de enige), **Hard**
+  (x^1,7: meer verschil, vol vraagt een flinke aanslag) en **Vast** (altijd
+  0,8, geen aanslaggevoeligheid).
+- Bewust op MIDI-IN en niet per instrument: de curve gaat over speler en
+  keyboard en geldt zo voor alles wat aan `vel` hangt. Hoe een instrument
+  zelf op de aanslag reageert (de e-piano: volume vel^1,3, bel vel^2,8)
+  blijft karakter van dat instrument. Eén instrument anders laten reageren
+  kan met een CV-MATH tussen `vel` en de ingang.
+- Bestaande patches blijven gelijk (Norm). Tests: `wasmMidiVelCurve.test.ts`;
+  de core-tests (`test_midiin.cpp`) slagen.
+
 ### 2026-10-29 — fw 0.5.117: E-PIANO wordt weer luider als je harder speelt
 <!-- EN: fw 0.5.117: the E-PIANO gets louder again when you play harder -->
 - Mark: "velocity lijkt iets te doen met de toon, maar niet met het volume."

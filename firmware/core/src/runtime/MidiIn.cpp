@@ -88,6 +88,13 @@ void MidiInModule::setControl(std::string_view controlId, ControlValue value) {
     } else if (controlId == "spread") {
         // Total unison detune spread in cents; a couple of semitones is plenty.
         spreadCents_ = std::clamp(asFloat(0.0f), 0.0f, 200.0f);
+    } else if (controlId == "velcurve") {
+        // Aanslagcurve (0 Zacht, 1 Normaal, 2 Hard, 3 Vast): hoe de velocity
+        // van het keyboard op `vel`/`velK` komt. Hoort hier en niet in het
+        // instrument: het gaat om speler en keyboard, en geldt dan voor alles
+        // wat aan `vel` hangt.
+        const int c = static_cast<int>(asFloat(1.0f) + 0.5f);
+        velCurve_ = static_cast<std::uint8_t>(std::clamp(c, 0, 3));
     } else if (controlId == "a4") {
         // Concert pitch in Hz → V/Oct offset on every pitch output.
         const float hz = std::clamp(asFloat(440.0f), 380.0f, 500.0f);
@@ -339,9 +346,21 @@ bool MidiInModule::voiceGate(std::uint8_t voiceIdx) const {
     return gate_[voiceIdx];
 }
 
+float MidiInModule::shapeVelocity(std::uint8_t raw) const {
+    // 0 blijft 0: een stem die nog nooit aansloeg.
+    if (raw == 0) return 0.0f;
+    const float x = static_cast<float>(raw) * (1.0f / 127.0f);
+    switch (velCurve_) {
+        case 0:  return std::pow(x, 0.6f);   // Zacht: licht spelen klinkt al vol
+        case 2:  return std::pow(x, 1.7f);   // Hard: meer verschil, vol vraagt een flinke aanslag
+        case 3:  return 0.8f;                // Vast: geen aanslaggevoeligheid
+        default: return x;                   // Normaal: lineair (tot fw 0.5.117 de enige)
+    }
+}
+
 float MidiInModule::voiceVelocity(std::uint8_t voiceIdx) const {
     if (voiceIdx >= kMaxAllocVoices) return 0.0f;
-    return static_cast<float>(velocity_[voiceIdx]) * (1.0f / 127.0f);
+    return shapeVelocity(velocity_[voiceIdx]);
 }
 
 float MidiInModule::readCvPort(std::string_view portId) const {
@@ -370,8 +389,8 @@ float MidiInModule::readCvPort(std::string_view portId) const {
         // bring the level down smoothly. Mirrors the documented contract of
         // voiceVelocity().
         for (std::uint8_t v = 0; v < n; ++v)
-            if (gate_[v]) return static_cast<float>(velocity_[v]) * (1.0f / 127.0f);
-        return static_cast<float>(velocity_[0]) * (1.0f / 127.0f);
+            if (gate_[v]) return shapeVelocity(velocity_[v]);
+        return shapeVelocity(velocity_[0]);
     }
     // Pressure and release velocity of the first gated voice; latched on
     // voice 0 when nothing is gated, like `vel` (a release-phase envelope

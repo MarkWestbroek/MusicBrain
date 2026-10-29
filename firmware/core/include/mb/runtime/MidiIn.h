@@ -39,6 +39,7 @@
  * | `cc2Num`     | int     | CC number routed to `cv_cc2` (0..127; default 71)  |
  * | `bendRange`  | int     | pitch-bend range in semitones (1..24; default 2)   |
  * | `bendPitch`  | int     | fold pitch-bend into `pitch`/`pitchK` (0/1; default 0) |
+ * | `velcurve`   | int     | aanslagcurve op `vel`/`velK`: 0 Zacht (x^0,6), 1 Normaal (lineair, default), 2 Hard (x^1,7), 3 Vast (0,8) |
  * | `a4`         | float   | concert pitch in Hz (380..500; default 440): every pitch output is shifted by log2(a4/440) V, so A432 plays 31.8 cent low on any V/Oct oscillator |
  *
  * **V/Oct convention:**
@@ -165,6 +166,9 @@ public:
      *  Holds the value from the most recent NoteOn even after NoteOff, so
      *  envelope release can still read it. */
     float voiceVelocity(std::uint8_t voiceIdx) const;
+
+    /** @brief MIDI-velocity 0..127 door de aanslagcurve (`velcurve`), 0..1. */
+    float shapeVelocity(std::uint8_t raw) const;
 
     /** @brief Currently configured polyphony count. */
     std::uint8_t voiceCount() const { return alloc_.voiceCount(); }
@@ -296,6 +300,7 @@ private:
     // separate from the allocator's `VoiceState` so the allocator stays
     // generic (no audio-domain concepts).
     std::array<std::uint8_t, kMaxAllocVoices> velocity_{};   // 0..127
+    std::uint8_t velCurve_ = 1;   // `velcurve`: 0 Zacht, 1 Normaal, 2 Hard, 3 Vast
     std::array<std::uint8_t, kMaxAllocVoices> currentNote_{}; // last note assigned
     std::array<bool,         kMaxAllocVoices> gate_{};
     // Na een steal blijft de gate van die stem een paar tikken laag: de
