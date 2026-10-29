@@ -121,6 +121,12 @@ const EN: Record<string, string> = {
   'Filter-envelope': 'Filter envelope',
   'Aanzet': 'Attack',
   'Uitklinken': 'Release',
+  'Filter-attack': 'Filter attack',
+  'Druk op vibrato': 'Pressure to vibrato',
+  'Chorus-diepte': 'Chorus depth',
+  'Chorus-snelheid': 'Chorus speed',
+  'Galmtijd': 'Reverb time',
+  'Effecten': 'Effects',
 };
 
 /** Al Engels, of een naam: hetzelfde in beide talen. */

@@ -120,6 +120,8 @@ public:
     const char* outputId(int i) const { return outId_[static_cast<std::size_t>(i)].c_str(); }
     int outputKind(int i) const { return outKind_[static_cast<std::size_t>(i)]; }
     const float* outBuf(int i) { return reinterpret_cast<const float*>(mem() + outOff_[static_cast<std::size_t>(i)]); }
+    /** Schrijfbaar, voor de patchmotor (bypass mengt het droge signaal erbij na render). */
+    float* outBufMut(int i) { return reinterpret_cast<float*>(mem() + outOff_[static_cast<std::size_t>(i)]); }
     int inputIndex(const std::string& id) const { for (int i = 0; i < nIn_; ++i) if (inId_[static_cast<std::size_t>(i)] == id) return i; return -1; }
     int outputIndex(const std::string& id) const { for (int i = 0; i < nOut_; ++i) if (outId_[static_cast<std::size_t>(i)] == id) return i; return -1; }
     int controlIndex(const char* id) const {

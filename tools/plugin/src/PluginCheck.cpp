@@ -59,7 +59,7 @@ int main(int argc, char** argv) {
     for (int a = 4; a < argc; ++a) {
         const juce::String arg(argv[a]);
         if (arg.startsWith("editor=") || arg.startsWith("poke=") || arg.startsWith("in=") || arg.startsWith("notes=") || arg.startsWith("program=") || arg.startsWith("ownbank=") || arg.startsWith("instances=") ||
-            arg.startsWith("press=") || arg.startsWith("cc=")) continue;   // geen parameter
+            arg.startsWith("press=") || arg.startsWith("cc=") || arg.startsWith("at=")) continue;   // geen parameter
         const juce::String id = arg.upToFirstOccurrenceOf("=", false, false).toLowerCase();
         const juce::String text = arg.fromFirstOccurrenceOf("=", false, false);
         bool hit = false;
@@ -236,6 +236,21 @@ int main(int argc, char** argv) {
         if (arg.startsWith("cc=")) ccs.emplace_back(arg.fromFirstOccurrenceOf("=", false, false).upToFirstOccurrenceOf(":", false, false).getIntValue(),
                                                      arg.fromFirstOccurrenceOf(":", false, false).getIntValue());
     }
+    // at=<seconden>:<param>=<waarde>: een parameter tijdens het renderen zetten
+    // (bv. een bypass omzetten midden in een noot).
+    struct At { int pos; juce::AudioProcessorParameter* p; float v; bool done; };
+    std::vector<At> ats;
+    for (int a = 4; a < argc; ++a) {
+        const juce::String arg(argv[a]);
+        if (!arg.startsWith("at=")) continue;
+        const juce::String rest = arg.fromFirstOccurrenceOf("=", false, false);
+        const int at = static_cast<int>(rest.upToFirstOccurrenceOf(":", false, false).getDoubleValue() * useRate);
+        const juce::String id = rest.fromFirstOccurrenceOf(":", false, false).upToFirstOccurrenceOf("=", false, false).toLowerCase();
+        const juce::String text = rest.fromLastOccurrenceOf("=", false, false);
+        for (auto* p : plugin->getParameters())
+            if (p->getName(64).removeCharacters(" -").toLowerCase().retainCharacters("abcdefghijklmnopqrstuvwxyz0123456789") == id)
+                ats.push_back({ at, p, p->getValueForText(text), false });
+    }
     const int pressAt = total / 4;
     for (int pos = 0; pos < total; pos += block) {
         buf.clear();
@@ -252,6 +267,7 @@ int main(int argc, char** argv) {
         } else if (pos == 0) {
             buf.setSample(0, 0, 1.0f);   // de impuls, links
         }
+        for (auto& t : ats) if (!t.done && pos >= t.pos) { t.p->setValueNotifyingHost(t.v); t.done = true; }
         juce::AudioBuffer<float> in(buf);
         juce::MidiBuffer midiIn(midi);
         plugin->processBlock(buf, midi);

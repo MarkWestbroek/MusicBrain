@@ -443,8 +443,30 @@ Brass" (51 modules, de acht knoppen van het front als parameters).
     naar ±1750 Hz (het filter gaat open). Het modwheel verandert de klank.
   - Poly 8 met acht noten: 20 s audio in 1,9 s, inclusief laden.
   - auval 77/77.
-- **Nog niet:** het front als bediening (nu de generieke JUCE-weergave),
-  en Poly 8 heeft geen front, dus geen parameters.
+- **Nog niet:** het front als bediening (nu de generieke JUCE-weergave).
+- **Fronts en bypass (2026-10-29, later):**
+  - De parameters komen uit alle fronts (tabs) van de patch, elke knop één
+    keer. Poly 8 kreeg een front (8 parameters). De CS-80 heeft nu twee
+    tabs: Spelen (filter, filter-attack, druk op filter en vibrato,
+    vibratosnelheid, volume) en Effecten (chorus, galm).
+  - Elk effect op een front krijgt een parameter "<naam> bypass" (de
+    pseudo-knop `__bypass`). Welke modules en welk droog pad:
+    `bypassRoute.ts` (MODULES), alleen categorie `effect`; modules met een
+    eigen Bypass-knop (compressors, EQ's) krijgen die. De generator zet de
+    routes in de JSON (`"bypass"` naast `"project"`).
+  - In `PatchEngine.h`: overgang in 10 ms, met trails: de invoer van het
+    effect gaat dicht, zijn staart klinkt uit, het droge signaal komt erbij.
+    Een stereo-ingang zonder kabel valt terug op links, zoals de firmware.
+  - Gemeten (`MmbPluginCheck`, nieuw: `at=<s>:<param>=<waarde>` zet een
+    parameter tijdens het renderen): galm-bypass vanaf het begin haalt de
+    staart weg (0,5 s na het loslaten 0,000 tegen 0,059 rms); omschakelen
+    midden in een akkoord geeft geen klik (grootste stap rond het
+    omschakelen 0,009–0,022, gewone muziek 0,015–0,024).
+  - Let op: gebypast klinkt het effect vaak luider, omdat het droge pad het
+    volle signaal doorgeeft en de effectmix het droge deels terugneemt
+    (CS-80 galm-bypass: piek 0,72 tegen 0,57).
+  - Nog niet: de bypass in de speelmodus van de editor, de simulator en de
+    firmware.
 - **Bouwen:** `npx tsx scripts/pluginPatches.ts` in `editor/` schrijft
   `generated/*_patch_plugin.cpp` en `patches.cmake`. De lijst `PATCHES`
   bepaalt welke seeds een plugin worden. `scripts/exportPatch.ts` schrijft

@@ -141,6 +141,7 @@ export const MODULE_HELP: Readonly<Record<string, ModuleHelp>> = {
     about: ['Rekent met besturingssignalen: optellen en versterken.', 'Does sums with control signals: adding and scaling.'],
     controls: {
       gain_a: ['Hoeveel van ingang A meetelt.', 'How much of input A counts.'],
+      gain_b: ['Hoeveel van ingang B meetelt.', 'How much of input B counts.'],
       gain_c: ['Hoeveel van ingang C meetelt (hier vaak de druk of de LFO).', 'How much of input C counts (here often pressure or the LFO).'],
     },
   },

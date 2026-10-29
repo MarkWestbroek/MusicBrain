@@ -52,6 +52,8 @@ export function seedCs80BrassPatch(project: ModularProject, voiceCount = 6): Mod
   // Aftertouch erbij op de vibratodiepte: feedCvInput zet een optel-CvMath
   // (modwheel + druk) vóór de mult.
   p = feedCvInput(p, pid, { moduleId: mi.id, portId: 'press' }, { moduleId: vibDepth, portId: 'b' }, 0.7).project;
+  // De kabel van de druk naar die optel-CvMath (de andere gaat naar het filter, LfoSum).
+  const pressVib = conns().find((c) => c.from.moduleId === mi.id && c.from.portId === 'press' && !group('LfoSum').includes(c.to.moduleId))!;
 
   // Bus: BBD-chorus voor breedte, dan een lange plaat.
   p = addBusFx(p, pid, 'tp_mmb_bbd_chorus').project;
@@ -64,19 +66,28 @@ export function seedCs80BrassPatch(project: ModularProject, voiceCount = 6): Mod
   set(inPatch('tp_mmb_elements_reverb'), { amount: 0.35, time: 0.8, diffusion: 0.7, lp: 0.55 });
   p = spreadVoices(p, pid, 0.6).project;
 
-  // Het speelfront: het filter en wat de druk ermee doet, dan de ruimte.
-  // Geen envelope-schuiven (die zijn 56 mm lang); de knoppen van de master
-  // gaan via de poly-groep naar alle stemmen.
-  const ladder = group('Ladder')[0]!, sum = group('LfoSum')[0]!;
+  // Twee tabs: Spelen (het filter en wat de druk ermee doet, het vibrato)
+  // en Effecten (chorus en galm; in de plugin elk met een bypass). Geen
+  // envelope-schuiven (die zijn 56 mm lang), wel de filter-attack als knop;
+  // de knoppen van de master gaan via de poly-groep naar alle stemmen.
+  const ladder = group('Ladder')[0]!, sum = group('LfoSum')[0]!, envFlt = group('envFlt')[0]!;
   const ctl = (moduleId: string, controlId: string, label: string, size?: 'large'): FrontItem =>
     ({ kind: 'control', moduleId, controlId, label, ...(size ? { size } : {}) });
   const front: PatchFront = {
     id: uid('front'), name: 'Spelen', columns: 4, items: [
       { kind: 'group', text: 'Filter' },
       ctl(ladder, 'cutoff', 'Helderheid', 'large'), ctl(ladder, 'q', 'Resonantie'), ctl(ladder, 'drive', 'Drive'), ctl(sum, 'gain_a', 'Envelope'),
-      { kind: 'group', text: 'Aftertouch' }, ctl(sum, 'gain_c', 'Druk op filter'),
-      { kind: 'group', text: 'Ruimte' }, ctl(inPatch('tp_mmb_bbd_chorus'), 'mix', 'Chorus'), ctl(inPatch('tp_mmb_elements_reverb'), 'amount', 'Galm'),
+      ctl(envFlt, 'attack', 'Filter-attack'),
+      { kind: 'group', text: 'Aftertouch' }, ctl(sum, 'gain_c', 'Druk op filter'), ctl(pressVib.to.moduleId, `gain_${pressVib.to.portId}`, 'Druk op vibrato'),
+      { kind: 'group', text: 'Vibrato' }, ctl(lfo.id, 'rate', 'Snelheid'),
       { kind: 'group', text: 'Uit' }, ctl(inPatch('tp_mmb_out'), 'level', 'Volume'),
+    ],
+  };
+  const chorus = inPatch('tp_mmb_bbd_chorus'), reverb = inPatch('tp_mmb_elements_reverb');
+  const effects: PatchFront = {
+    id: uid('front'), name: 'Effecten', columns: 4, items: [
+      { kind: 'group', text: 'Chorus' }, ctl(chorus, 'mix', 'Chorus', 'large'), ctl(chorus, 'depth', 'Chorus-diepte'), ctl(chorus, 'rate', 'Chorus-snelheid'),
+      { kind: 'group', text: 'Galm' }, ctl(reverb, 'amount', 'Galm', 'large'), ctl(reverb, 'time', 'Galmtijd'),
     ],
   };
 
@@ -84,7 +95,7 @@ export function seedCs80BrassPatch(project: ModularProject, voiceCount = 6): Mod
     ...p,
     patches: p.patches.map((x) => x.id !== pid ? x : {
       ...x,
-      fronts: [front],
+      fronts: [front, effects],
       description: `CS-80-koper à la Vangelis: ${N} stemmen zaagtand → ladder, trage filter-attack. Aftertouch opent het filter (tot vier octaven) en voegt vibrato toe (opgeteld bij het modwheel). BBD-chorus en plaatgalm op de bus. Speel langzaam en druk ná de aanslag door.`,
     }),
   };

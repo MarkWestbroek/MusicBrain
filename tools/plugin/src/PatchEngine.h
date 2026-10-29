@@ -22,11 +22,20 @@
 //    topologische volgorde, een terugkoppeling krijgt één blok vertraging.
 //  - Kabels die audio en CV mengen, slaat de firmware over; hier ook.
 //  - `attenuation` op een kabel geldt als versterking (zoals de simulator).
+//
+// Bypass (plugin-patches.md §9): de pseudo-knop `__bypass` in controlState.
+// Welke modules en hoe staat per type in "bypass" naast "project" in de JSON
+// (de generator haalt het uit bypassRoute.ts): { "own": true } = de module
+// heeft zelf een knop `bypass`, die zetten we; anders [uitgang, ingang,
+// terugval?] voor het droge pad (terugval: als de ingang geen kabel heeft,
+// bv. in_r bij een mono bron, zoals de firmware mono op beide kanten zet). Overgang in ~10 ms, met trails: de invoer van het
+// effect gaat dicht, zijn uitgang klinkt uit, het droge signaal komt erbij.
 
 #include "W2cRuntime.h"
 
 #include <juce_core/juce_core.h>
 
+#include <algorithm>
 #include <cmath>
 #include <functional>
 #include <memory>
@@ -77,6 +86,21 @@ public:
             }
         }
 
+        // Bypass-routes per type (vóór de knoppen: controlState kan `__bypass` hebben).
+        if (auto* bp = root["bypass"].getDynamicObject()) {
+            for (auto& n : nodes_) {
+                if (!n->host || !bp->hasProperty(juce::Identifier(n->type))) continue;
+                const juce::var r = bp->getProperty(juce::Identifier(n->type));
+                if (r.isObject() && static_cast<bool>(r["own"])) { n->ownBypass = true; continue; }
+                if (auto* pairs = r.getArray())
+                    for (const auto& pr : *pairs) {
+                        const int o = n->host->outputIndex(pr[0].toString().toStdString()), i = n->host->inputIndex(pr[1].toString().toStdString());
+                        const int f = pr.size() > 2 ? n->host->inputIndex(pr[2].toString().toStdString()) : -1;
+                        if (o >= 0 && i >= 0 && outKind(*n, o) == kPortAudio_ && inKind(*n, i) == kPortAudio_) n->dry.push_back({ o, i, f });
+                    }
+            }
+        }
+
         // Knoppen, en het aantal stemmen naar MIDI-IN (applyPatchVoiceCount).
         if (auto* cs = patch["controlState"].getDynamicObject()) {
             for (const auto& kv : cs->getProperties()) {
@@ -107,6 +131,13 @@ public:
             }
         }
         order();
+        // Terugval van het droge pad: een ingang zonder kabel → de terugvalingang.
+        for (auto& n : nodes_)
+            for (auto& d : n->dry) {
+                const auto wired = [&](int in) { return std::any_of(audio_.begin(), audio_.end(), [&](const AudioCable& c) { return c.dst == n.get() && c.in == in; }); };
+                if (d.fallback >= 0 && !wired(d.in) && wired(d.fallback)) d.in = d.fallback;
+            }
+        for (auto& n : nodes_) n->byp = n->bypTarget;   // de opgeslagen stand meteen, zonder overgang
         loaded_ = true;
         std::printf("[mmb] patch: %zu modules, %zu audiokabels, %zu cv-kabels, %d overgeslagen\n", nodes_.size(), audio_.size(), cv_.size(), skipped_);
         std::fflush(stdout);
@@ -154,7 +185,13 @@ private:
         float level = 1.0f;
         float in[8][kBlock] = {};
         float out[2][kBlock] = {};
+        // Bypass: eigen knop, of droge paren (uitgang, ingang); byp loopt naar bypTarget.
+        bool ownBypass = false;
+        struct Dry { int out, in, fallback; };
+        std::vector<Dry> dry;
+        float byp = 0.0f, bypTarget = 0.0f;
     };
+    static constexpr float kBypassStep = 1.0f / (0.010f * static_cast<float>(kRate));   // 10 ms
     struct AudioCable { Node* src; int out; Node* dst; int in; float gain; };
     struct CvCable { Node* src; int out; Node* dst; int in; float gain; float last; bool primed; };
     struct MidiEvent { double at; int s, d1, d2; };
@@ -163,6 +200,11 @@ private:
     Node* find(const std::string& id) { auto it = byId_.find(id); return it == byId_.end() ? nullptr : it->second; }
 
     void setControl(Node& n, const std::string& control, float v) {
+        if (control == "__bypass") {
+            if (n.ownBypass) setControl(n, "bypass", v);
+            else if (!n.dry.empty()) n.bypTarget = v >= 0.5f ? 1.0f : 0.0f;
+            return;
+        }
         if (n.host) { const int c = n.host->controlIndex(control.c_str()); if (c >= 0) n.host->setControl(c, v); return; }
         if (n.kind == Node::Out && control == "level") { n.level = v; return; }
         if (n.kind == Node::Mixer8 && control.size() == 4) {
@@ -234,6 +276,35 @@ private:
         return c.src->out[c.out] + offset;
     }
 
+    /** Eén subblok met bypass: invoer dicht naar mate van byp (trails), droog erbij. */
+    void bypassBlock(Node& n) {
+        float g[kBlock];
+        for (int k = 0; k < n.block; ++k) {
+            n.byp += n.byp < n.bypTarget ? std::min(kBypassStep, n.bypTarget - n.byp) : -std::min(kBypassStep, n.byp - n.bypTarget);
+            g[k] = n.byp;
+        }
+        // Droge kopie van de gebruikte ingangen, dan de invoer van het effect dichtdraaien.
+        float dryIn[8][kBlock];
+        int used[8], nUsed = 0;
+        for (auto& [o, i, f] : n.dry) {
+            if (std::find(used, used + nUsed, i) != used + nUsed || nUsed == 8) continue;
+            std::copy(n.host->inBuf(i), n.host->inBuf(i) + n.block, dryIn[nUsed]);
+            used[nUsed++] = i;
+        }
+        for (int i = 0; i < n.host->numInputs(); ++i) {
+            if (n.host->inputKind(i) != kPortAudio_) continue;
+            float* in = n.host->inBuf(i);
+            for (int k = 0; k < n.block; ++k) in[k] *= 1.0f - g[k];
+        }
+        n.host->process(n.block);
+        for (auto& [o, i, f] : n.dry) {
+            const int u = static_cast<int>(std::find(used, used + nUsed, i) - used);
+            if (u >= nUsed) continue;
+            float* out = n.host->outBufMut(o);
+            for (int k = 0; k < n.block; ++k) out[k] += g[k] * dryIn[u][k];
+        }
+    }
+
     void render(Node& n, float* l, float* r) {
         if (n.host) {
             for (int off = 0; off < kBlock; off += n.block) {
@@ -248,7 +319,8 @@ private:
                         for (int k = 0; k < n.block; ++k) in[k] += c.gain * s[k];
                     }
                 }
-                n.host->process(n.block);
+                if (n.dry.empty() || (n.byp == 0.0f && n.bypTarget == 0.0f)) { n.host->process(n.block); continue; }
+                bypassBlock(n);
             }
             return;
         }

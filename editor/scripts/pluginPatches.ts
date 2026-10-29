@@ -8,9 +8,12 @@
 //    uitgevouwen, alle knoppen erbij), ingebakken in de plugin;
 //  - de wasm2c-modules die erin voorkomen (W2CMODS), met een fabriek
 //    typeId → functietabel;
-//  - parameters = de knoppen van het eerste front van de patch; een knop op
-//    een stem gaat naar alle stemmen van zijn poly-groep (polyControlTargets,
-//    zoals setPatchControl).
+//  - parameters = de knoppen van de fronts van de patch (alle tabs, elke
+//    knop één keer); een knop op een stem gaat naar alle stemmen van zijn
+//    poly-groep (polyControlTargets, zoals setPatchControl);
+//  - per effecttype de bypass-route uit bypassRoute.ts ("bypass" naast
+//    "project" in de JSON, PatchEngine.h); elk effect dat op een front staat, krijgt er een
+//    parameter "<label> bypass" bij (de pseudo-knop `__bypass`).
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -18,6 +21,7 @@ import { fileURLToPath } from 'node:url';
 import { PATCH_CATALOG } from '../src/modular-mb/patchCatalog';
 import { polyControlTargets } from '../src/modular-mb/polyExpand';
 import { seedInternals } from '../src/modular-mb/seedModules';
+import { bypassRoute } from '../src/modular-mb/bypassRoute';
 import { buildConfigPayload } from '../src/modular-mb/teensyLink';
 import { emptyModularProject } from '../src/modular-mb/types';
 import { spec } from './pluginParams';
@@ -33,6 +37,9 @@ const outDir = path.join(repo, 'tools', 'plugin', 'generated');
 const wasmPublic = path.join(repo, 'editor', 'public', 'wasm');
 const NATIVE = new Set(['tp_mmb_mixer8', 'tp_mmb_out']);   // PatchEngine.h doet die zelf
 
+const BYPASS_CONTROL = { id: '__bypass', kind: 'toggle', label: 'Bypass', defaultValue: false } as const;
+type Item = { moduleId: string; controlId: string; label?: string };
+
 const cstr = (s: string) => '"' + s.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
 /** Modulenaam voor wasm2c: letters en cijfers (wasm2c verdubbelt een underscore). */
 const w2cName = (typeId: string) => typeId.replace(/^tp_mmb_/, '').replace(/[^a-z0-9]/g, '');
@@ -45,22 +52,42 @@ function main(): void {
     if (!entry) throw new Error(`geen seed "${p.label}" in patchCatalog.ts`);
     const project = entry.build(seedInternals(emptyModularProject()));
     const patch = project.patches.find((x) => x.id === project.activePatchId) ?? project.patches[project.patches.length - 1]!;
-    const { json } = buildConfigPayload(project, { activeOnly: true });
-    const config = JSON.parse(json) as { project: { modules: { id: string; typeId: string }[] } };
+    const payload = buildConfigPayload(project, { activeOnly: true });
+    const config = JSON.parse(payload.json) as { project: { modules: { id: string; typeId: string }[] }; bypass?: Record<string, unknown> };
+    const bypass: Record<string, unknown> = {};
+    for (const t of new Set(config.project.modules.map((m) => m.typeId))) {
+      const type = project.moduleTypes.find((x) => x.id === t);
+      const route = type && bypassRoute(type);
+      if (route) bypass[t] = 'own' in route ? { own: true } : route.pairs.map((x) => (x.fallback ? [x.out, x.in, x.fallback] : [x.out, x.in]));
+    }
+    config.bypass = bypass;
+    const json = JSON.stringify(config);
 
     const types = [...new Set(config.project.modules.map((m) => m.typeId))].filter((t) => !NATIVE.has(t)).sort();
     const missing = types.filter((t) => !fs.existsSync(path.join(wasmPublic, `${t}.wasm`)));
     if (missing.length) console.warn(`${p.label}: geen wasm voor ${missing.join(', ')} (die modules vallen weg)`);
     const mods = types.filter((t) => !missing.includes(t));
 
-    // Parameters uit het eerste front.
+    // Parameters uit de fronts (alle tabs), elke knop één keer.
     const rows: string[] = [];
     const targets: string[] = [];
-    for (const it of patch.fronts?.[0]?.items ?? []) {
-      if (it.kind !== 'control') continue;
+    const seen = new Set<string>();
+    const items: Item[] = (patch.fronts ?? []).flatMap((f) => f.items).filter((it): it is Item & { kind: 'control' } => it.kind === 'control');
+    // Bypass per effect op een front, na de knoppen; label van zijn eerste knop.
+    for (const it of [...items]) {
+      const type = project.moduleTypes.find((t) => t.id === project.modules.find((m) => m.id === it.moduleId)?.typeId);
+      if (type && bypassRoute(type) && !items.some((x) => x.moduleId === it.moduleId && x.controlId === BYPASS_CONTROL.id))
+        items.push({ moduleId: it.moduleId, controlId: BYPASS_CONTROL.id, label: `${it.label ?? type.variant} bypass` });
+    }
+    for (const it of items) {
+      const key = `${it.moduleId}\0${it.controlId}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
       const mod = project.modules.find((m) => m.id === it.moduleId);
       const type = project.moduleTypes.find((t) => t.id === mod?.typeId);
-      const c = type?.controls.find((x) => x.id === it.controlId);
+      const c = it.controlId === BYPASS_CONTROL.id
+        ? (type && bypassRoute(type) ? (BYPASS_CONTROL as unknown as NonNullable<typeof type>['controls'][number]) : undefined)
+        : type?.controls.find((x) => x.id === it.controlId);
       if (!c) continue;
       const row = spec({ ...c, defaultValue: (patch.controlState[it.moduleId]?.[it.controlId] ?? (c as { defaultValue?: unknown }).defaultValue) } as typeof c);
       if (!row) continue;

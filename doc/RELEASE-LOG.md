@@ -58,6 +58,19 @@
 - Plan en metingen: [plugin.md](plans/plugin.md) ("Banken in de plugin"),
   [plugin-patches.md](plans/plugin-patches.md) §3.
 
+### 2026-10-29 — Patch-plugins: effect-bypass, CS-80 met tabs Spelen en Effecten
+<!-- EN: Patch plugins: effect bypass (10 ms crossfade, trails); CS-80 front split into Play and Effects tabs -->
+- Elk effect op een front van een patch-plugin krijgt een parameter
+  "<naam> bypass". De patchmotor schakelt in 10 ms om, met trails (de
+  staart van een galm of echo klinkt uit); het droge pad komt uit
+  `bypassRoute.ts`. Compressors en EQ's gebruiken hun eigen Bypass-knop.
+- De parameters komen uit alle fronts van de patch. De CS-80 heeft nu twee
+  tabs: Spelen (met nieuw Filter-attack, Druk op vibrato en
+  Vibrato-snelheid) en Effecten (Chorus, Galm, elk met bypass).
+- Bekend verschil: editor, simulator en firmware kennen de bypass nog niet.
+- `MmbPluginCheck`: `at=<s>:<param>=<waarde>` zet een parameter tijdens het
+  renderen. Details: [plugin.md](plans/plugin.md) ("Patch-plugins").
+
 ### 2026-10-29 — Effect-bypass: droog pad per moduletype
 <!-- EN: effect bypass: the dry path per module type -->
 - `editor/src/modular-mb/bypassRoute.ts`: per effecttype (categorie
