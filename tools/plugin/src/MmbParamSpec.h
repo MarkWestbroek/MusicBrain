@@ -31,6 +31,8 @@ struct ModuleSpec {
     int count;
     const PresetSpec* presets = nullptr;   // editor/src/modular-mb/modulePresets.ts
     int presetCount = 0;
+    // Paneelmaat in mm als die niet hp × 128,5 is (patch-plugins: het front); 0 = module.
+    float widthMm = 0, heightMm = 0;
 };
 
 }  // namespace mmb_plugin

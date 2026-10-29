@@ -443,7 +443,23 @@ Brass" (51 modules, de acht knoppen van het front als parameters).
     naar ±1750 Hz (het filter gaat open). Het modwheel verandert de klank.
   - Poly 8 met acht noten: 20 s audio in 1,9 s, inclusief laden.
   - auval 77/77.
-- **Nog niet:** het front als bediening (nu de generieke JUCE-weergave).
+- **Het front als bediening (2026-10-29, later):** de patch-plugins openen
+  het front van de patch, met de fronts als tabs (CS-80: Spelen,
+  Effecten), in dezelfde webweergave als de losse modules
+  (`src/plugin-ui/main.tsx`, `?type=patch_…`).
+  - Generator en bediening delen één lijst (`patchPlugins.ts`:
+    `PATCH_PLUGINS`, `pluginFronts`, `pluginParams`), zodat parameter
+    `p<k>` aan beide kanten dezelfde knop is.
+  - Elk effect op een front krijgt in de plugin een Bypass-schakelaar na
+    zijn laatste knop (`__bypass`; `frontLayout.ts` tekent die als
+    schakelaar).
+  - Het venster heeft de maat van het grootste front plus de tabbalk
+    (`ModuleSpec.widthMm/heightMm`), en opent hooguit ~780 px hoog.
+  - Lange envelopeschuiven worden op een front 18 mm (ook in de editor):
+    een front is een view.
+  - Getest: een parameter vanuit de host komt in de bediening aan
+    (`editor=` met `poke=`); schermafdrukken van beide tabs; auval
+    voor beide plugins.
 - **Fronts en bypass (2026-10-29, later):**
   - De parameters komen uit alle fronts (tabs) van de patch, elke knop één
     keer. Poly 8 kreeg een front (8 parameters). De CS-80 heeft nu twee

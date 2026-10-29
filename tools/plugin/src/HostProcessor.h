@@ -166,12 +166,6 @@ public:
         }
     }
 
-    juce::AudioProcessorEditor* createEditor() override {
-        // Patch: voorlopig de generieke JUCE-bediening (het front volgt).
-        if constexpr (Host::kRawMidi) return new juce::GenericAudioProcessorEditor(*this);
-        else return MmbProcessor::createEditor();
-    }
-
     void applyCv(const char* port, float v) override {
         for (int i : ports_.cvIn) if (is(host_.inputId(i), port)) { cvValue_[static_cast<std::size_t>(i)] = v; return; }
     }

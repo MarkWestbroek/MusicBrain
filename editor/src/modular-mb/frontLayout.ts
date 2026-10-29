@@ -13,6 +13,7 @@
 // (`bindTo`): die waarden komen via `binds` uit de echte module, ook als de
 // knop zelf niet op het front staat.
 
+import { bypassRoute } from './bypassRoute';
 import { DULL_CONTROL, FRONT_CONTROLS, FRONT_MAX_CAP, FRONT_MAX_DEFAULT, FRONT_SIZES } from './frontControls';
 import { kindOf, type ModuleKindTag } from './recipe/catalog';
 import { findTwin } from './recipe/edits';
@@ -21,6 +22,11 @@ import {
   type Control, type ControlValue, type FrontItem, type ModularProject, type ModuleInstance,
   type ModuleType, type PanelDecoration, type Patch, type PatchFront, type Port,
 } from './types';
+
+const bypassable = (typeId: string, project: ModularProject): boolean => {
+  const t = project.moduleTypes.find((x) => x.id === typeId);
+  return !!t && !!bypassRoute(t);
+};
 
 export type FrontTarget =
   | { kind: 'control'; moduleId: string; controlId: string }
@@ -48,6 +54,7 @@ const ROW_PORT = 15;
 const GROUP_H = 5;      // extra hoogte van een rij met een groepskopje erboven
 const BOTTOM = 4;
 export const DEFAULT_COLUMNS = 4;
+const FRONT_SLIDER_MM = 18;
 
 /** Hoogte die een control in zijn rij vraagt (sliders en lange schakelaars
  *  zijn hoger dan een knop). */
@@ -118,7 +125,9 @@ export function buildFrontModule(front: PatchFront, patch: Patch, project: Modul
     const m = project.modules.find((x) => x.id === it.moduleId);
     if (!m) continue;
     const all = resolveControls(m, project.moduleTypes);
-    const real = all.find((c) => c.id === it.controlId);
+    // `__bypass`: de bypass-schakelaar van een effect (geen knop van het type; patchPlugins.ts).
+    const real = all.find((c) => c.id === it.controlId)
+      ?? (it.controlId === '__bypass' && bypassable(m.typeId, project) ? { id: '__bypass', kind: 'toggle', label: 'Bypass', defaultValue: false } as Control : undefined);
     if (!real) continue;
     const vid = `c${n++}`;
     let c: Control;
@@ -138,6 +147,9 @@ export function buildFrontModule(front: PatchFront, patch: Patch, project: Modul
         : { ...real, id: vid, label, size: it.size ?? real.size, bindTo: bind(real.bindTo) };
     } else {
       c = { ...real, id: vid, label: frontLabel(it, patch, real) } as Control;
+      // Een lange schuif (envelope: 56 mm) slokt op een front een hele rij
+      // op; een front is een view, dus hier hooguit FRONT_SLIDER_MM.
+      if (c.kind === 'slider' && c.orientation === 'v' && (c.lengthMm ?? 18) > FRONT_SLIDER_MM) c = { ...c, lengthMm: FRONT_SLIDER_MM };
     }
     if (c.kind === 'knob' && it.range) {
       const min = Math.max(c.min, Math.min(it.range.min, it.range.max));

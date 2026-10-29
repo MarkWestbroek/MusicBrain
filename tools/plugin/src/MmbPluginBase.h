@@ -381,7 +381,7 @@ public:
             })
             // Sleephoek in de pagina (de native webview ligt over JUCE's eigen hoek heen).
             .withNativeFunction("mmbResize", [this](const juce::Array<juce::var>& args, juce::WebBrowserComponent::NativeFunctionCompletion complete) {
-                if (args.size() > 0) setScale(static_cast<double>(args[0]) / (kPanelHeightMm * kPxPerMm));
+                if (args.size() > 0) setScale(static_cast<double>(args[0]) / (panelH_ * kPxPerMm));
                 complete({});
             })
             // Bank (sampler, TAPE STRIP): stand opvragen, eigen bank kiezen of loslaten.
@@ -418,12 +418,16 @@ public:
         // Vergrootbaar met vaste verhouding (gastheer-rand of de hoek in de
         // pagina); de pagina schaalt mee op de hoogte. De schaal staat in de
         // toestand, dus een project heropent op dezelfde grootte.
-        const double scale = static_cast<double>(p.apvts().state.getProperty("uiScale", kStartScale));
-        baseW_ = spec.hp * kMmPerHp * kPxPerMm;
+        // Beginschaal: hooguit ~780 px hoog (een front is hoger dan een module).
+        const double start = juce::jmin(kStartScale, 780.0 / ((spec.heightMm > 0 ? spec.heightMm : kPanelHeightMm) * kPxPerMm));
+        const double scale = static_cast<double>(p.apvts().state.getProperty("uiScale", start));
+        // Patch-plugins geven hun eigen maat (het front); modules zijn hp × 128,5 mm.
+        panelH_ = spec.heightMm > 0 ? spec.heightMm : kPanelHeightMm;
+        baseW_ = (spec.widthMm > 0 ? spec.widthMm : spec.hp * kMmPerHp) * kPxPerMm;
         setResizable(true, false);
-        setResizeLimits(static_cast<int>(std::lround(baseW_)), static_cast<int>(std::lround(kPanelHeightMm * kPxPerMm)),
-                        static_cast<int>(std::lround(baseW_ * kMaxScale)), static_cast<int>(std::lround(kPanelHeightMm * kPxPerMm * kMaxScale)));
-        getConstrainer()->setFixedAspectRatio(baseW_ / (kPanelHeightMm * kPxPerMm));
+        setResizeLimits(static_cast<int>(std::lround(baseW_)), static_cast<int>(std::lround(panelH_ * kPxPerMm)),
+                        static_cast<int>(std::lround(baseW_ * kMaxScale)), static_cast<int>(std::lround(panelH_ * kPxPerMm * kMaxScale)));
+        getConstrainer()->setFixedAspectRatio(baseW_ / (panelH_ * kPxPerMm));
         ready_ = true;
         setScale(scale);
         browser_->goToURL(juce::WebBrowserComponent::getResourceProviderRoot() + "index.html?type=" + spec.typeId);
@@ -432,7 +436,7 @@ public:
     ~MmbWebEditor() override { mmb_.removeChangeListener(this); }
     void resized() override {
         if (browser_) browser_->setBounds(getLocalBounds());
-        if (ready_) static_cast<MmbProcessor&>(processor).apvts().state.setProperty("uiScale", getHeight() / (kPanelHeightMm * kPxPerMm), nullptr);
+        if (ready_) static_cast<MmbProcessor&>(processor).apvts().state.setProperty("uiScale", getHeight() / (panelH_ * kPxPerMm), nullptr);
     }
 
 private:
@@ -452,12 +456,12 @@ private:
 
     void setScale(double s) {
         s = juce::jlimit(1.0, kMaxScale, s);
-        setSize(static_cast<int>(std::lround(baseW_ * s)), static_cast<int>(std::lround(kPanelHeightMm * kPxPerMm * s)));
+        setSize(static_cast<int>(std::lround(baseW_ * s)), static_cast<int>(std::lround(panelH_ * kPxPerMm * s)));
     }
 
     MmbProcessor& mmb_;
     std::unique_ptr<juce::FileChooser> chooser_;
-    double baseW_ = 0;
+    double baseW_ = 0, panelH_ = kPanelHeightMm;
     bool ready_ = false;  // pas na de opbouw de grootte bewaren
     // Volgorde telt: relays vóór de browser, attachments erna.
     std::vector<std::unique_ptr<juce::WebSliderRelay>> sliders_;

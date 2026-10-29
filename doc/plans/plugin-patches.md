@@ -191,8 +191,9 @@ weg.
 plugins, met MIDI-IN, aftertouch en modwheel zoals op de Teensy. Zie
 [plugin.md](plugin.md), "Patch-plugins". Poly 8 heeft een front; de
 CS-80 heeft tabs Spelen en Effecten, en elk effect op een front krijgt een
-bypass-parameter (`bypassRoute.ts`, `PatchEngine.h`). Nog open: het front
-als bediening, en de bypass in editor, simulator en firmware.
+bypass-parameter (`bypassRoute.ts`, `PatchEngine.h`). Het front is de
+bediening, met de fronts als tabs. Nog open: de bypass in editor,
+simulator en firmware.
 
 - Een vaste patch (een seed uit `patchCatalog.ts`) wordt één AU/VST3. De
   UI is het front van die patch: dezelfde componenten als de speelmodus.

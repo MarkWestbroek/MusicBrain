@@ -86,6 +86,15 @@
 - Plan en metingen: [plugin.md](plans/plugin.md) ("Banken in de plugin"),
   [plugin-patches.md](plans/plugin-patches.md) §3.
 
+### 2026-10-29 — Patch-plugins: het front als bediening, met tabs
+<!-- EN: Patch plugins: the patch front is now the plugin UI, with fronts as tabs and a Bypass switch per effect -->
+- MMB Poly 8 en MMB CS-80 Brass openen nu het front van de patch in plaats
+  van een lijst schuifjes. Meer fronts zijn tabs (CS-80: Spelen en
+  Effecten); elk effect heeft daar een Bypass-schakelaar.
+- Lange envelopeschuiven zijn op een front korter (18 mm), ook in de
+  speelmodus van de editor.
+- Details: [plugin.md](plans/plugin.md) ("Patch-plugins").
+
 ### 2026-10-29 — Patch-plugins: effect-bypass, CS-80 met tabs Spelen en Effecten
 <!-- EN: Patch plugins: effect bypass (10 ms crossfade, trails); CS-80 front split into Play and Effects tabs -->
 - Elk effect op een front van een patch-plugin krijgt een parameter

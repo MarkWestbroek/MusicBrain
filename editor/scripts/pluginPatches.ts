@@ -19,6 +19,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { PATCH_CATALOG } from '../src/modular-mb/patchCatalog';
+import { PATCH_PLUGINS, patchPluginTypeId, pluginPanelSize, pluginParams } from '../src/modular-mb/patchPlugins';
 import { polyControlTargets } from '../src/modular-mb/polyExpand';
 import { seedInternals } from '../src/modular-mb/seedModules';
 import { bypassRoute } from '../src/modular-mb/bypassRoute';
@@ -26,19 +27,10 @@ import { buildConfigPayload } from '../src/modular-mb/teensyLink';
 import { emptyModularProject } from '../src/modular-mb/types';
 import { spec } from './pluginParams';
 
-/** Welke patches een plugin worden. Code: vier tekens, uniek onder de MMB-plugins (P = patch). */
-const PATCHES: { label: string; target: string; code: string; product: string }[] = [
-  { label: '8-stemmig', target: 'MmbPatchPoly8', code: 'Pp8v', product: 'MMB Poly 8' },
-  { label: '🎺 CS-80 koper (aftertouch)', target: 'MmbPatchCs80', code: 'Pcs8', product: 'MMB CS-80 Brass' },
-];
-
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const outDir = path.join(repo, 'tools', 'plugin', 'generated');
 const wasmPublic = path.join(repo, 'editor', 'public', 'wasm');
 const NATIVE = new Set(['tp_mmb_mixer8', 'tp_mmb_out']);   // PatchEngine.h doet die zelf
-
-const BYPASS_CONTROL = { id: '__bypass', kind: 'toggle', label: 'Bypass', defaultValue: false } as const;
-type Item = { moduleId: string; controlId: string; label?: string };
 
 const cstr = (s: string) => '"' + s.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
 /** Modulenaam voor wasm2c: letters en cijfers (wasm2c verdubbelt een underscore). */
@@ -47,7 +39,7 @@ const w2cName = (typeId: string) => typeId.replace(/^tp_mmb_/, '').replace(/[^a-
 function main(): void {
   fs.mkdirSync(outDir, { recursive: true });
   const cmake = ['# Gegenereerd door editor/scripts/pluginPatches.ts; niet met de hand wijzigen.'];
-  for (const p of PATCHES) {
+  for (const p of PATCH_PLUGINS) {
     const entry = PATCH_CATALOG.find((e) => e.label === p.label);
     if (!entry) throw new Error(`geen seed "${p.label}" in patchCatalog.ts`);
     const project = entry.build(seedInternals(emptyModularProject()));
@@ -68,36 +60,20 @@ function main(): void {
     if (missing.length) console.warn(`${p.label}: geen wasm voor ${missing.join(', ')} (die modules vallen weg)`);
     const mods = types.filter((t) => !missing.includes(t));
 
-    // Parameters uit de fronts (alle tabs), elke knop één keer.
+    // Parameters: de knoppen van de fronts, met een bypass per effect (patchPlugins.ts).
     const rows: string[] = [];
     const targets: string[] = [];
-    const seen = new Set<string>();
-    const items: Item[] = (patch.fronts ?? []).flatMap((f) => f.items).filter((it): it is Item & { kind: 'control' } => it.kind === 'control');
-    // Bypass per effect op een front, na de knoppen; label van zijn eerste knop.
-    for (const it of [...items]) {
-      const type = project.moduleTypes.find((t) => t.id === project.modules.find((m) => m.id === it.moduleId)?.typeId);
-      if (type && bypassRoute(type) && !items.some((x) => x.moduleId === it.moduleId && x.controlId === BYPASS_CONTROL.id))
-        items.push({ moduleId: it.moduleId, controlId: BYPASS_CONTROL.id, label: `${it.label ?? type.variant} bypass` });
-    }
-    for (const it of items) {
-      const key = `${it.moduleId}\0${it.controlId}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      const mod = project.modules.find((m) => m.id === it.moduleId);
-      const type = project.moduleTypes.find((t) => t.id === mod?.typeId);
-      const c = it.controlId === BYPASS_CONTROL.id
-        ? (type && bypassRoute(type) ? (BYPASS_CONTROL as unknown as NonNullable<typeof type>['controls'][number]) : undefined)
-        : type?.controls.find((x) => x.id === it.controlId);
-      if (!c) continue;
+    for (const [k, it] of pluginParams(project, patch).entries()) {
+      const c = it.control;
       const row = spec({ ...c, defaultValue: (patch.controlState[it.moduleId]?.[it.controlId] ?? (c as { defaultValue?: unknown }).defaultValue) } as typeof c);
-      if (!row) continue;
-      const id = `p${rows.length}`;
-      const label = it.label ?? ('label' in c && c.label ? c.label : c.id);
+      if (!row) throw new Error(`${p.label}: ${it.controlId} kan geen parameter zijn`);
       // spec() begint met { "<control-id>", "<naam>", …: id en naam vervangen.
-      rows.push(row.replace(/^\{ "(?:[^"\\]|\\.)*", "(?:[^"\\]|\\.)*"/, `{ ${cstr(id)}, ${cstr(label)}`));
+      rows.push(row.replace(/^\{ "(?:[^"\\]|\\.)*", "(?:[^"\\]|\\.)*"/, `{ ${cstr(`p${k}`)}, ${cstr(it.label)}`));
       const to = polyControlTargets(patch, project, it.moduleId).map((m) => `{ ${cstr(m)}, ${cstr(it.controlId)} }`);
       targets.push(`        { ${to.join(', ')} },`);
     }
+    // Het venster: het grootste front plus de tabbalk (MmbWebEditor rekent in mm).
+    const size = pluginPanelSize(project, patch);
 
     const slug = p.target.replace(/^Mmb/, '').toLowerCase();
     const sym = slug.replace(/[^a-z0-9]/g, '_');
@@ -127,7 +103,7 @@ function main(): void {
       ...(rows.length
         ? [`inline constexpr ParamSpec kParams_${sym}[] = {`, ...rows.map((r) => `    ${r},`), '};']
         : []),
-      `inline constexpr ModuleSpec kModule_${sym} { ${cstr('patch_' + sym)}, ${cstr(p.product.replace(/^MMB /, ''))}, 40, ${rows.length ? `kParams_${sym}` : 'nullptr'}, ${rows.length} };`,
+      `inline constexpr ModuleSpec kModule_${sym} { ${cstr(patchPluginTypeId(p.target))}, ${cstr(p.product.replace(/^MMB /, ''))}, ${Math.ceil(size.widthMm / 5.08)}, ${rows.length ? `kParams_${sym}` : 'nullptr'}, ${rows.length}, nullptr, 0, ${size.widthMm.toFixed(1)}f, ${size.heightMm.toFixed(1)}f };`,
       '}  // namespace mmb_plugin',
       '',
       `juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter() { return new mmb_plugin::PatchProcessor(mmb_plugin::kModule_${sym}, true); }`,
