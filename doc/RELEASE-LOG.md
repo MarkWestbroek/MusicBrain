@@ -96,6 +96,17 @@
 - Plan en metingen: [plugin.md](plans/plugin.md) ("Banken in de plugin"),
   [plugin-patches.md](plans/plugin-patches.md) §3.
 
+### 2026-10-29 — Patch-plugins: Expert-tab, alle knoppen als parameter
+<!-- EN: Patch plugins: an Expert tab with every control per module; all controls are DAW parameters with stable ids -->
+- Naast de fronts een tab Expert: alle knoppen van de patch per module,
+  zonder vormgeving, met scrollen. Een poly-patch toont ze één keer voor
+  alle stemmen, zoals de editor.
+- Al die knoppen zijn DAW-parameters (Poly 8: 82, CS-80: 107), met een vast
+  id (`ladder1_cutoff`). Let op: automatisering die met de eerdere id's
+  `p0`, `p1`, … is opgenomen, werkt niet meer.
+- Richting voor stap 5 vastgelegd: de plugin wordt de patcher, met
+  gepatchte racks als presets ([plugin-patches.md](plans/plugin-patches.md) §6).
+
 ### 2026-10-29 — Patch-plugins: het front als bediening, met tabs
 <!-- EN: Patch plugins: the patch front is now the plugin UI, with fronts as tabs and a Bypass switch per effect -->
 - MMB Poly 8 en MMB CS-80 Brass openen nu het front van de patch in plaats

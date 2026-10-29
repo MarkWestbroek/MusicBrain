@@ -3,7 +3,8 @@
 // naar de parameters van de plugin en terug (automation, presets).
 // Welke module: `?type=tp_mmb_hall` in de URL, standaard HALL.
 // Patch-plugins (`?type=patch_…`, src/modular-mb/patchPlugins.ts): de fronts
-// van de patch als tabs; parameter "p<k>" is de k-de knop van pluginParams().
+// van de patch als tabs, met als laatste Expert (alle knoppen per module);
+// de relays dragen de ids van pluginParams() (patchPlugins.ts).
 
 import { StrictMode, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -13,7 +14,10 @@ import { ModulePanel } from '../modular-mb/ModulePanel';
 import { buildFrontModule, frontControlState } from '../modular-mb/frontLayout';
 import { controlHelp } from '../modular-mb/moduleHelp';
 import { PATCH_CATALOG } from '../modular-mb/patchCatalog';
-import { PATCH_PLUGINS, TAB_BAR_MM, patchPluginTypeId, pluginFronts, pluginPanelSize, pluginParams } from '../modular-mb/patchPlugins';
+import {
+  PATCH_PLUGINS, TAB_BAR_MM, expertModules, patchPluginTypeId, pluginFronts, pluginPanelSize, pluginParams,
+  type ExpertModule, type PluginParam,
+} from '../modular-mb/patchPlugins';
 import { seedInternals } from '../modular-mb/seedModules';
 import { emptyModularProject, type Control, type ControlValue } from '../modular-mb/types';
 import { attach, chooseBank, clearBank, inPlugin, log, resizeTo, watchBank, type BankInfo, type Handle, type Kind } from './juceBridge';
@@ -168,6 +172,83 @@ function Readout({ readout, pxPerMm, bottom }: { readout: { label: string; text:
   );
 }
 
+/** Tekst van een display: zijn lookup, of de waarde van de knop waar hij naar kijkt. */
+function displayText(c: Extract<Control, { kind: 'display' }>, mod: ExpertModule, state: Record<string, ControlValue>): string {
+  const bound = (id?: string) => (id ? mod.params.find((p) => p.controlId === id) : undefined);
+  const val = (id?: string) => (id ? state[id] ?? (bound(id)?.control as { defaultValue?: ControlValue } | undefined)?.defaultValue : undefined);
+  if (c.lookup) return c.lookup[Math.round(Number(val(c.bindTo2) ?? 0))]?.[Math.round(Number(val(c.bindTo) ?? 0))] ?? c.text ?? '--';
+  const b = bound(c.bindTo);
+  const v = val(c.bindTo);
+  return b && v !== undefined ? formatValue(b.control, v) : c.text ?? '--';
+}
+
+/** Schuif in 0..1000 ↔ waarde, met de taper van de knop (log: gelijke stappen per octaaf). */
+function toPos(c: Control, v: number): number {
+  if (c.kind !== 'knob' && c.kind !== 'slider') return 0;
+  const log = c.kind === 'knob' && c.taper === 'log' && c.min > 0;
+  const t = log ? Math.log(v / c.min) / Math.log(c.max / c.min) : (v - c.min) / (c.max - c.min);
+  return Math.round(1000 * Math.min(1, Math.max(0, t)));
+}
+function fromPos(c: Control, pos: number): number {
+  if (c.kind !== 'knob' && c.kind !== 'slider') return 0;
+  const t = pos / 1000;
+  const log = c.kind === 'knob' && c.taper === 'log' && c.min > 0;
+  let v = log ? c.min * Math.pow(c.max / c.min, t) : c.min + t * (c.max - c.min);
+  const step = c.kind === 'knob' ? c.step : undefined;
+  if (step) v = Math.round(v / step) * step;
+  return v;
+}
+
+/** Expert: alle knoppen en displays van de patch, per module onder elkaar, zonder vormgeving. */
+function ExpertView({ modules, state, onChange, pxPerMm, height }: {
+  modules: ExpertModule[]; state: Record<string, Record<string, ControlValue>>;
+  onChange: (p: PluginParam, v: ControlValue) => void; pxPerMm: number; height: number;
+}) {
+  const fs = Math.max(11, pxPerMm * 2.8);
+  return (
+    <div style={{ height, overflowY: 'auto', padding: `${fs * 0.5}px ${fs}px ${fs * 3}px`, boxSizing: 'border-box',
+      background: '#14171d', color: '#e5e7eb', font: `${fs}px/1.35 system-ui, sans-serif` }}>
+      {modules.map((m) => {
+        const st = state[m.moduleId] ?? {};
+        return (
+          <section key={m.moduleId} style={{ marginTop: fs * 0.8 }}>
+            <h3 style={{ margin: `0 0 ${fs * 0.3}px`, font: `600 ${fs * 1.05}px/1.2 system-ui, sans-serif`, color: '#fff',
+              borderBottom: '1px solid rgba(255,255,255,0.15)', paddingBottom: fs * 0.2 }}>{m.name}</h3>
+            {m.displays.map((d) => (
+              <div key={d.id} style={{ display: 'grid', gridTemplateColumns: '38% 1fr', gap: fs * 0.6, alignItems: 'center' }}>
+                <span style={{ opacity: 0.7 }}>{('label' in d && d.label) || (() => { const b = m.params.find((p) => p.controlId === (d as { bindTo?: string }).bindTo)?.control; return b && 'label' in b && b.label ? `${b.label} (naam)` : 'Display'; })()}</span>
+                <span style={{ fontFamily: 'ui-monospace, monospace', color: '#fca5a5' }}>{displayText(d as Extract<Control, { kind: 'display' }>, m, st)}</span>
+              </div>
+            ))}
+            {m.params.map((p) => {
+              const c = p.control;
+              const v = st[p.controlId] ?? (c as { defaultValue?: ControlValue }).defaultValue ?? 0;
+              const own = 'label' in c && c.label ? c.label : c.id;
+              return (
+                <label key={p.id} style={{ display: 'grid', gridTemplateColumns: '38% 1fr 22%', gap: fs * 0.6, alignItems: 'center', minHeight: fs * 1.7 }}>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={p.label}>{own}</span>
+                  {c.kind === 'switch' ? (
+                    <select value={Number(v)} onChange={(e) => onChange(p, Number(e.target.value))} style={{ font: 'inherit' }}>
+                      {c.positions.map((pos, i) => <option key={i} value={i}>{pos}</option>)}
+                    </select>
+                  ) : c.kind === 'toggle' ? (
+                    <input type="checkbox" checked={Boolean(v)} onChange={(e) => onChange(p, e.target.checked)} style={{ justifySelf: 'start' }} />
+                  ) : (
+                    <input type="range" min={0} max={1000} value={toPos(c, Number(v))} onChange={(e) => onChange(p, fromPos(c, Number(e.target.value)))} />
+                  )}
+                  <span style={{ textAlign: 'right', opacity: 0.8, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                    {c.kind === 'toggle' || c.kind === 'switch' ? '' : formatValue(c, v)}
+                  </span>
+                </label>
+              );
+            })}
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
 /** Een patch-plugin: de fronts van de patch als tabs. Elke knop is een
  *  parameter van de plugin (de motor zet hem op alle stemmen). */
 function PatchApp({ typeId }: { typeId: string }) {
@@ -177,12 +258,12 @@ function PatchApp({ typeId }: { typeId: string }) {
     if (!seed) return null;
     const project = seed.build(seedInternals(emptyModularProject()));
     const patch = project.patches.find((x) => x.id === project.activePatchId) ?? project.patches[project.patches.length - 1]!;
-    return { project, patch, fronts: pluginFronts(project, patch), params: pluginParams(project, patch), size: pluginPanelSize(project, patch) };
+    return { project, patch, fronts: pluginFronts(project, patch), params: pluginParams(project, patch), expert: expertModules(project, patch), size: pluginPanelSize(project, patch) };
   }, [entry]);
   // Stand per (module, knop), zoals patch.controlState.
   const [state, setState] = useState<Record<string, Record<string, ControlValue>>>(() => built?.patch.controlState ?? {});
   const [tab, setTab] = useState(() => Number(new URLSearchParams(window.location.search).get('tab') ?? 0));   // ?tab= voor schermafdrukken
-  const handles = useRef<Handle[]>([]);
+  const handles = useRef<Record<string, Handle>>({});
   const [readout, showReadout] = useReadout();
   const [pxPerMm, setPxPerMm] = useState(1);
 
@@ -197,44 +278,53 @@ function PatchApp({ typeId }: { typeId: string }) {
   useEffect(() => {
     if (!built) return;
     let received = false;
-    handles.current = built.params.map((p, k) => {
+    for (const p of built.params) {
       const kind: Kind = p.control.kind === 'switch' ? 'combo' : p.control.kind === 'toggle' ? 'toggle' : 'slider';
-      return attach(`p${k}`, kind, (v) => {
+      handles.current[p.id] = attach(p.id, kind, (v) => {
         received = true;
         setState((s) => ({ ...s, [p.moduleId]: { ...s[p.moduleId], [p.controlId]: v } }));
       });
-    });
+    }
     // Zie App: de beginstand komt tijdens het laden niet altijd aan.
     const timers = [150, 500, 1500, 4000].map((ms) => window.setTimeout(() => {
-      if (!received) for (const h of handles.current) h.refresh();
+      if (!received) for (const h of Object.values(handles.current)) h.refresh();
     }, ms));
     return () => timers.forEach((t) => window.clearTimeout(t));
   }, [built]);
 
   if (!built) return <p style={{ color: '#f87171' }}>Onbekende patch: {typeId}</p>;
-  const { project, fronts, params, size } = built;
+  const { project, fronts, params, expert, size } = built;
   const patch = { ...built.patch, controlState: state };
-  const front = fronts[Math.min(tab, fronts.length - 1)];
-  if (!front) return <p style={{ color: '#f87171' }}>Deze patch heeft geen front.</p>;
-  const fm = buildFrontModule(front, patch, project);
-  const tabs = fronts.length > 1;
-  const tabH = tabs ? TAB_BAR_MM * pxPerMm : 0;
+  // Eén schrijfpad: stand bijwerken en de parameter zetten (de motor doet de stemmen).
+  const change = (p: PluginParam, v: ControlValue) => {
+    setState((s) => ({ ...s, [p.moduleId]: { ...s[p.moduleId], [p.controlId]: v } }));
+    if (typeof v === 'number' || typeof v === 'boolean') handles.current[p.id]?.set(v);
+  };
+  const paramOf = (moduleId: string, controlId: string) => params.find((p) => p.moduleId === moduleId && p.controlId === controlId);
+  const names = [...fronts.map((f) => f.name), 'Expert'];
+  const onExpert = tab >= fronts.length || !fronts.length;
+  const front = onExpert ? undefined : fronts[tab];
+  const fm = front ? buildFrontModule(front, patch, project) : undefined;
+  const tabH = TAB_BAR_MM * pxPerMm;
   const width = size.widthMm * pxPerMm;
 
   return (
     <div style={{ width, margin: '0 auto', background: '#0b0d12', minHeight: '100vh' }}>
-      {tabs && (
+      {(
         <div role="tablist" style={{ display: 'flex', gap: pxPerMm, height: tabH, alignItems: 'flex-end', padding: `0 ${pxPerMm * 2}px`, boxSizing: 'border-box' }}>
-          {fronts.map((f, i) => (
-            <button key={f.id} type="button" role="tab" aria-selected={i === tab} onClick={() => setTab(i)}
+          {names.map((name, i) => (
+            <button key={name + i} type="button" role="tab" aria-selected={i === tab} onClick={() => setTab(i)}
               style={{ font: `600 ${pxPerMm * 3.2}px/1 system-ui, sans-serif`, padding: `${pxPerMm * 1.4}px ${pxPerMm * 3}px`, cursor: 'pointer',
                 color: i === tab ? '#0b0d12' : '#e5e7eb', background: i === tab ? '#d6dade' : 'rgba(255,255,255,0.08)',
                 border: '1px solid rgba(255,255,255,0.18)', borderBottom: 'none', borderRadius: `${pxPerMm}px ${pxPerMm}px 0 0` }}>
-              {f.name}
+              {name}
             </button>
           ))}
         </div>
       )}
+      {onExpert || !fm ? (
+        <ExpertView modules={expert} state={state} onChange={change} pxPerMm={pxPerMm} height={window.innerHeight - tabH} />
+      ) : (
       <div style={{ width: fm.widthMm * pxPerMm }}>
         <ModulePanel
           module={fm.module}
@@ -249,14 +339,14 @@ function PatchApp({ typeId }: { typeId: string }) {
           onControlChange={(vid, v) => {
             const t = fm.map[vid];
             if (!t || t.kind !== 'control') return;
-            setState((s) => ({ ...s, [t.moduleId]: { ...s[t.moduleId], [t.controlId]: v } }));
-            const k = params.findIndex((p) => p.moduleId === t.moduleId && p.controlId === t.controlId);
-            if (k >= 0 && (typeof v === 'number' || typeof v === 'boolean')) handles.current[k]?.set(v);
+            const p = paramOf(t.moduleId, t.controlId);
+            if (p) change(p, v);
             const c = fm.type.controls.find((x) => x.id === vid);
             if (c) showReadout('label' in c && c.label ? c.label : vid, formatValue(c, v));
           }}
         />
       </div>
+      )}
       <Readout readout={readout} pxPerMm={pxPerMm} bottom={pxPerMm * 6} />
       {inPlugin && <ResizeGrip size={Math.max(14, pxPerMm * 4)} />}
     </div>

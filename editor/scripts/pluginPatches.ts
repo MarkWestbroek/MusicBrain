@@ -8,9 +8,10 @@
 //    uitgevouwen, alle knoppen erbij), ingebakken in de plugin;
 //  - de wasm2c-modules die erin voorkomen (W2CMODS), met een fabriek
 //    typeId → functietabel;
-//  - parameters = de knoppen van de fronts van de patch (alle tabs, elke
-//    knop één keer); een knop op een stem gaat naar alle stemmen van zijn
-//    poly-groep (polyControlTargets, zoals setPatchControl);
+//  - parameters = alle knoppen van de patch (per poly-groep één keer; de
+//    fronts eerst), met een vast id (patchPlugins.ts); een knop op een stem
+//    gaat naar alle stemmen van zijn poly-groep (polyControlTargets, zoals
+//    setPatchControl);
 //  - per effecttype de bypass-route uit bypassRoute.ts ("bypass" naast
 //    "project" in de JSON, PatchEngine.h); elk effect dat op een front staat, krijgt er een
 //    parameter "<label> bypass" bij (de pseudo-knop `__bypass`).
@@ -63,12 +64,13 @@ function main(): void {
     // Parameters: de knoppen van de fronts, met een bypass per effect (patchPlugins.ts).
     const rows: string[] = [];
     const targets: string[] = [];
-    for (const [k, it] of pluginParams(project, patch).entries()) {
+    const params = pluginParams(project, patch);
+    for (const it of params) {
       const c = it.control;
       const row = spec({ ...c, defaultValue: (patch.controlState[it.moduleId]?.[it.controlId] ?? (c as { defaultValue?: unknown }).defaultValue) } as typeof c);
       if (!row) throw new Error(`${p.label}: ${it.controlId} kan geen parameter zijn`);
       // spec() begint met { "<control-id>", "<naam>", …: id en naam vervangen.
-      rows.push(row.replace(/^\{ "(?:[^"\\]|\\.)*", "(?:[^"\\]|\\.)*"/, `{ ${cstr(`p${k}`)}, ${cstr(it.label)}`));
+      rows.push(row.replace(/^\{ "(?:[^"\\]|\\.)*", "(?:[^"\\]|\\.)*"/, `{ ${cstr(it.id)}, ${cstr(it.label)}`));
       const to = polyControlTargets(patch, project, it.moduleId).map((m) => `{ ${cstr(m)}, ${cstr(it.controlId)} }`);
       targets.push(`        { ${to.join(', ')} },`);
     }
@@ -93,6 +95,13 @@ function main(): void {
       'const W2cVtable* patchModule(const std::string& t) {',
       ...mods.map((t) => `    if (t == ${cstr(t)}) return &kW2c_${w2cName(t)};`),
       '    return nullptr;',
+      '}',
+      'int patchParamIndex(const char* id) {',
+      '    static const char* const ids[] = {',
+      ...params.map((x) => `        ${cstr(x.id)},`),
+      '    };',
+      '    for (int i = 0; i < static_cast<int>(sizeof(ids) / sizeof(ids[0])); ++i) if (std::strcmp(ids[i], id) == 0) return i;',
+      '    return -1;',
       '}',
       'const std::vector<std::vector<std::pair<std::string, std::string>>>& patchParamTargets() {',
       '    static const std::vector<std::vector<std::pair<std::string, std::string>>> t = {',

@@ -7,17 +7,18 @@
 //  - MIDI gaat onbewerkt naar MIDI-IN (`mmb_midi`): stemtoewijzing,
 //    aftertouch, modwheel, pitchbend en CC's doet de firmwarecode van
 //    MIDI-IN zelf, zoals op de Teensy.
-//  - Parameters zijn de knoppen van het front van de patch; een knop op een
-//    stem gaat naar alle stemmen van zijn poly-groep (zoals setPatchControl
-//    in de editor). De generator (editor/scripts/pluginPatches.ts) zet de
+//  - Parameters zijn alle knoppen van de patch, per poly-groep één keer
+//    (de fronts eerst); een knop op een stem gaat naar alle stemmen van zijn
+//    poly-groep (zoals setPatchControl in de editor). De generator (editor/scripts/pluginPatches.ts) zet de
 //    doelen per parameter in patchParamTargets().
 //
 // De gegenereerde <naam>_patch_plugin.cpp levert patchJson(),
-// patchModule() en patchParamTargets().
+// patchModule(), patchParamIndex() en patchParamTargets().
 
 #include "HostProcessor.h"
 #include "PatchEngine.h"
 
+#include <cstring>
 #include <utility>
 
 namespace mmb_plugin {
@@ -25,6 +26,8 @@ namespace mmb_plugin {
 /** Uit de gegenereerde plugin.cpp. */
 const char* patchJson();
 const W2cVtable* patchModule(const std::string& typeId);
+/** Parameter-id → index in de ModuleSpec (−1 = onbekend). */
+int patchParamIndex(const char* id);
 /** Per parameter (in de volgorde van de ModuleSpec) de (module, knop)-paren. */
 const std::vector<std::vector<std::pair<std::string, std::string>>>& patchParamTargets();
 
@@ -45,8 +48,8 @@ public:
     const float* outBuf(int i) const { return out_[i]; }
     bool hasBank() const { return false; }
 
-    /** Parameter-id "p<k>" → k. */
-    int controlIndex(const char* id) const { return id[0] == 'p' ? std::atoi(id + 1) : -1; }
+    /** Parameter-id (`ladder1_cutoff`, patchPlugins.ts) → index. */
+    int controlIndex(const char* id) const { return patchParamIndex(id); }
     void setControl(int c, float v) {
         if (c < 0) return;
         if (!engine_.loaded()) { pending_.emplace_back(c, v); return; }   // vóór prepare: onthouden

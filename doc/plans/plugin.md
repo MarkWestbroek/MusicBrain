@@ -460,6 +460,20 @@ Brass" (51 modules, de acht knoppen van het front als parameters).
   - Getest: een parameter vanuit de host komt in de bediening aan
     (`editor=` met `poke=`); schermafdrukken van beide tabs; auval
     voor beide plugins.
+- **Expert-tab en alle knoppen als parameter (2026-10-29, later):**
+  - Na de fronts staat een tab Expert: per module (per poly-groep één
+    keer, in de volgorde van het rack) alle knoppen als eenvoudige schuif,
+    keuzelijst of vinkje, plus de displays met een naam (lookup).
+    Gegenereerd uit `expertModules()` in `patchPlugins.ts`.
+  - Al die knoppen zijn DAW-parameters: Poly 8 heeft er 82, de CS-80 107
+    (met de twee bypasses). De knoppen van de fronts staan vooraan, met hun
+    frontnaam; de rest heet "<module> <knop>".
+  - De id's zijn vast: `<type><n>_<knop>` (`ladder1_cutoff`), niet meer
+    `p<k>`. Een ander front verschuift dus geen automatisering meer.
+    Automatisering die al met `p<k>` was opgenomen, gaat daardoor één
+    keer verloren.
+  - Getest: VCO Wave = Sin, een knop die alleen in Expert staat, haalt de
+    boventonen weg (2e harmonische −7 → −74 dB); auval voor beide.
 - **Fronts en bypass (2026-10-29, later):**
   - De parameters komen uit alle fronts (tabs) van de patch, elke knop één
     keer. Poly 8 kreeg een front (8 parameters). De CS-80 heeft nu twee

@@ -211,6 +211,18 @@ simulator en firmware.
 
 ## 6. Stap 5: de hele editor
 
+**Besluit Mark 2026-10-29: richting A, met B als presets.** De plugin is de
+patcher: de hele modulebibliotheek, een rack vullen en patchen (de twee
+tabs van de editor). Een gepatcht rack met passende modules (B) is een
+preset; een preset wisselen wisselt rack en patch tegelijk, zoals op de
+Teensy en in de editor. Een poly-patch toont, net als in de editor, de
+knoppen één keer voor alle stemmen.
+
+Tussenstap (staat): de patch-plugins hebben naast hun fronts een tab
+Expert, met alle knoppen en de naam-displays per module, zonder kabels.
+Dat dekt alles wat je bij Binnenkijken kunt draaien en verbergt alleen de
+modulaire aard. Alle knoppen zijn daar ook DAW-parameters.
+
 De editor (rack, kabels, panelen, front) in de webview van de plugin, met
 de patchmotor uit §4 als geluid. De editor praat dan met de plugin in
 plaats van met de Teensy; het transport (`modlinkHost`, de poke van

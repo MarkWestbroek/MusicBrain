@@ -1,11 +1,11 @@
 // Patch-plugins (doc/plans/plugin-patches.md §5): welke seeds een plugin
 // worden, en welke knoppen daar een DAW-parameter zijn. Gedeeld door de
 // generator (scripts/pluginPatches.ts) en de bediening in de plugin
-// (src/plugin-ui), zodat parameter "p<k>" aan beide kanten dezelfde knop is.
+// (src/plugin-ui), zodat een parameter-id aan beide kanten dezelfde knop is.
 
 import { bypassRoute } from './bypassRoute';
 import { buildFrontModule } from './frontLayout';
-import type { Control, FrontItem, ModularProject, Patch, PatchFront } from './types';
+import { resolveControls, type Control, type FrontItem, type ModularProject, type Patch, type PatchFront } from './types';
 
 /** Welke patches een plugin worden. Code: vier tekens, uniek onder de MMB-plugins (P = patch). */
 export const PATCH_PLUGINS: { label: string; target: string; code: string; product: string }[] = [
@@ -43,37 +43,88 @@ export function pluginFronts(project: ModularProject, patch: Patch): PatchFront[
   });
 }
 
-export interface PluginParam { moduleId: string; controlId: string; label: string; control: Control }
+export interface PluginParam {
+  /** Vast id voor de DAW: `<type><n>_<knop>` (n = hoeveelste van dat type in het rack). */
+  id: string;
+  moduleId: string; controlId: string;
+  /** Naam in de DAW: het label op het front, anders "<module> <knop>". */
+  label: string;
+  control: Control;
+}
 
-/** De parameters van de plugin, in volgorde (p0, p1, …): de knoppen van alle fronts, elke knop één keer. */
+/** Een module in de Expert-tab: zijn knoppen en displays, onder zijn naam. */
+export interface ExpertModule { moduleId: string; name: string; params: PluginParam[]; displays: Control[] }
+
+const PARAM_KINDS = new Set<Control['kind']>(['knob', 'slider', 'switch', 'toggle']);
+
+/**
+ * Alle modules van de patch zoals de editor ze toont bij Binnenkijken: per
+ * poly-groep alleen de eerste stem (de rest volgt via polyControlTargets),
+ * in de volgorde van het rack. Met elke knop als parameter, en een bypass
+ * per effect.
+ */
+export function expertModules(project: ModularProject, patch: Patch): ExpertModule[] {
+  const rackIds = new Set(patch.rackIds);
+  const racks = project.racks.filter((r) => rackIds.has(r.id));
+  const followers = new Set(racks.flatMap((r) => (r.polyGroups ?? []).flatMap((g) => g.members.slice(1)
+    .filter((m): m is { kind: 'module'; moduleId: string } => m.kind === 'module').map((m) => m.moduleId))));
+  const frontLabel = new Map<string, string>();
+  for (const it of pluginFronts(project, patch).flatMap((f) => f.items))
+    if (it.kind === 'control' && it.label) frontLabel.set(`${it.moduleId}\0${it.controlId}`, it.label);
+  const count = new Map<string, number>();
+  const out: ExpertModule[] = [];
+  for (const slot of racks.flatMap((r) => r.slots)) {
+    if (followers.has(slot.moduleId)) continue;
+    const m = project.modules.find((x) => x.id === slot.moduleId);
+    if (!m) continue;
+    const type = project.moduleTypes.find((t) => t.id === m.typeId);
+    const short = m.typeId.replace(/^tp_mmb_/, '');
+    const n = (count.get(short) ?? 0) + 1;
+    count.set(short, n);
+    const all = resolveControls(m, project.moduleTypes);
+    const name = all.length && m.name ? m.name.replace(/^MMB /, '') : short;
+    const controls = all.filter((c) => PARAM_KINDS.has(c.kind));
+    if (type && bypassRoute(type) && !controls.some((c) => c.id === 'bypass')) controls.push(bypassControl());
+    // Naam van een effect op het front ("Galm"), voor zijn bypass.
+    const onFront = [...frontLabel.entries()].find(([k]) => k.startsWith(`${m.id}\0`) && !k.endsWith(`\0${BYPASS_CONTROL_ID}`))?.[1];
+    const params = controls.map((c): PluginParam => {
+      const label = frontLabel.get(`${m.id}\0${c.id}`);
+      const own = 'label' in c && c.label ? c.label : c.id;
+      return { id: `${short}${n}_${c.id === BYPASS_CONTROL_ID ? 'bypass' : c.id}`, moduleId: m.id, controlId: c.id, control: c,
+        label: c.id === BYPASS_CONTROL_ID ? `${onFront ?? `${name}${n > 1 ? ` ${n}` : ''}`} bypass` : label ?? `${name}${n > 1 ? ` ${n}` : ''} ${own}` };
+    });
+    // Displays alleen als ze iets toevoegen (een naam uit een lijst); een
+    // getal staat al naast zijn knop.
+    const displays = all.filter((c) => c.kind === 'display' && !!c.lookup);
+    if (params.length || displays.length) out.push({ moduleId: m.id, name: n > 1 ? `${name} ${n}` : name, params, displays });
+  }
+  return out;
+}
+
+/**
+ * De parameters van de plugin: eerst de knoppen van de fronts (in hun
+ * volgorde, zodat de DAW-lijst met het spelen begint), dan de rest per
+ * module. Elke knop één keer; het id is vast, ook als het front verandert.
+ */
 export function pluginParams(project: ModularProject, patch: Patch): PluginParam[] {
+  const all = expertModules(project, patch).flatMap((m) => m.params);
+  const key = (moduleId: string, controlId: string) => `${moduleId}\0${controlId}`;
+  const byKey = new Map(all.map((p) => [key(p.moduleId, p.controlId), p]));
   const out: PluginParam[] = [];
   const seen = new Set<string>();
-  const items = pluginFronts(project, patch).flatMap((f) => f.items);
-  // Naam van een effect in de DAW: het label van zijn eerste knop ("Galm bypass").
-  const nameOf = (moduleId: string) => items.find((x): x is Extract<FrontItem, { kind: 'control' }> =>
-    x.kind === 'control' && x.moduleId === moduleId && x.controlId !== BYPASS_CONTROL_ID)?.label;
-  for (const it of items) {
+  for (const it of pluginFronts(project, patch).flatMap((f) => f.items)) {
     if (it.kind !== 'control') continue;
-    const key = `${it.moduleId}\0${it.controlId}`;
-    if (seen.has(key)) continue;
-    const type = typeOf(project, it.moduleId);
-    const c = it.controlId === BYPASS_CONTROL_ID ? (type && bypassRoute(type) ? bypassControl() : undefined) : type?.controls.find((x) => x.id === it.controlId);
-    // Alleen wat een DAW-parameter kan zijn (spec() in scripts/pluginParams.ts).
-    if (!c || !['knob', 'slider', 'switch', 'toggle'].includes(c.kind)) continue;
-    seen.add(key);
-    const label = it.controlId === BYPASS_CONTROL_ID
-      ? `${nameOf(it.moduleId) ?? type!.variant} bypass`
-      : it.label ?? ('label' in c && c.label ? c.label : c.id);
-    out.push({ moduleId: it.moduleId, controlId: it.controlId, label, control: c });
+    const p = byKey.get(key(it.moduleId, it.controlId));
+    if (p && !seen.has(p.id)) { seen.add(p.id); out.push(p); }
   }
+  for (const p of all) if (!seen.has(p.id)) { seen.add(p.id); out.push(p); }
   return out;
 }
 
 /** Hoogte van de tabbalk boven het front, in mm van het paneel. */
 export const TAB_BAR_MM = 9;
 
-/** Grootste front (mm), plus de tabbalk als er meer dan één is: het venster van de plugin. */
+/** Grootste front (mm), plus de tabbalk (de fronts en Expert): het venster van de plugin. */
 export function pluginPanelSize(project: ModularProject, patch: Patch): { widthMm: number; heightMm: number } {
   const fronts = pluginFronts(project, patch);
   let w = 0, h = 0;
@@ -81,5 +132,5 @@ export function pluginPanelSize(project: ModularProject, patch: Patch): { widthM
     const fm = buildFrontModule(f, patch, project);
     w = Math.max(w, fm.widthMm); h = Math.max(h, fm.heightMm);
   }
-  return { widthMm: w, heightMm: h + (fronts.length > 1 ? TAB_BAR_MM : 0) };
+  return { widthMm: w || 106.7, heightMm: (h || 120) + TAB_BAR_MM };
 }
