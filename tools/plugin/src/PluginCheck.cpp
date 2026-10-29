@@ -2,7 +2,7 @@
 // stuurt er een impuls door en schrijft de impulsrespons als wav. Zo bewijst
 // de plugin zich zonder DAW; tools/plugin/check_ir.py meet de galmtijd.
 //
-//   mmb-plugin-check <pad.vst3> <uit.wav> [seconden] [param=waarde ...] [in=<bron.wav>] [notes=60,64,67]
+//   mmb-plugin-check <pad.vst3> <uit.wav> [seconden] [param=waarde ...] [in=<bron.wav>] [notes=60,64,67] [seq=<noten.txt>]
 //
 // Waarden zijn in de eenheden van de parameter (decay=3 is 3 s); een keuze-
 // parameter krijgt zijn naam (algorithm=Room). Met in=<bron.wav> gaat dat
@@ -59,7 +59,7 @@ int main(int argc, char** argv) {
     for (int a = 4; a < argc; ++a) {
         const juce::String arg(argv[a]);
         if (arg.startsWith("editor=") || arg.startsWith("poke=") || arg.startsWith("in=") || arg.startsWith("notes=") || arg.startsWith("program=") || arg.startsWith("ownbank=") || arg.startsWith("instances=") ||
-            arg.startsWith("press=") || arg.startsWith("cc=") || arg.startsWith("at=")) continue;   // geen parameter
+            arg.startsWith("press=") || arg.startsWith("cc=") || arg.startsWith("at=") || arg.startsWith("seq=")) continue;   // geen parameter
         const juce::String id = arg.upToFirstOccurrenceOf("=", false, false).toLowerCase();
         const juce::String text = arg.fromFirstOccurrenceOf("=", false, false);
         bool hit = false;
@@ -252,6 +252,21 @@ int main(int argc, char** argv) {
                 ats.push_back({ at, p, p->getValueForText(text), false });
     }
     const int pressAt = total / 4;
+    // seq=<bestand>: een notenreeks in plaats van het akkoord; per regel
+    // "<seconden> <noot> <aanslag>" (aanslag 0 = loslaten).
+    struct SeqEv { int pos; int note, vel; };
+    std::vector<SeqEv> seq;
+    for (int a = 4; a < argc; ++a) {
+        const juce::String arg(argv[a]);
+        if (!arg.startsWith("seq=")) continue;
+        juce::StringArray lines;
+        juce::File(arg.fromFirstOccurrenceOf("=", false, false)).readLines(lines);
+        for (const auto& l : lines) {
+            auto t = juce::StringArray::fromTokens(l, " ", "");
+            if (t.size() >= 3) seq.push_back({ static_cast<int>(t[0].getDoubleValue() * useRate), t[1].getIntValue(), t[2].getIntValue() });
+        }
+        notes.clear();
+    }
     for (int pos = 0; pos < total; pos += block) {
         buf.clear();
         midi.clear();
@@ -261,6 +276,9 @@ int main(int argc, char** argv) {
         if (press >= 0 && pos <= pressAt && pressAt < pos + n) midi.addEvent(juce::MidiMessage::channelPressureChange(1, press), pressAt - pos);
         if (press >= 0 && pos <= holdUntil && holdUntil < pos + n) midi.addEvent(juce::MidiMessage::channelPressureChange(1, 0), holdUntil - pos);
         if (pos <= holdUntil && holdUntil < pos + n) for (int note : notes) midi.addEvent(juce::MidiMessage::noteOff(1, note), holdUntil - pos);
+        for (const auto& e : seq)
+            if (pos <= e.pos && e.pos < pos + n)
+                midi.addEvent(e.vel > 0 ? juce::MidiMessage::noteOn(1, e.note, static_cast<juce::uint8>(e.vel)) : juce::MidiMessage::noteOff(1, e.note), e.pos - pos);
         if (source.getNumSamples() > 0) {
             const int avail = juce::jmin(n, source.getNumSamples() - pos);
             for (int c = 0; c < 2 && avail > 0; ++c) buf.copyFrom(c, 0, source, c, pos, avail);

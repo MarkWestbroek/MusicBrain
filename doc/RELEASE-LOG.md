@@ -96,6 +96,19 @@
 - Plan en metingen: [plugin.md](plans/plugin.md) ("Banken in de plugin"),
   [plugin-patches.md](plans/plugin-patches.md) §3.
 
+### 2026-10-29 — Patch-plugins: noten hangen niet meer
+<!-- EN: Patch plugins: notes no longer hang; choice controls start in the patch's position -->
+- Sinds alle knoppen een parameter zijn, begon elke keuzeknop in de stand
+  van het paneel in plaats van die van de patch: CV-MATH stond op Sum in
+  plaats van Mult, dus envelope + aanslag naar de VCA. Na het loslaten hield
+  de aanslag de stem open (Poly 8 en CS-80), en het geheel klonk harder en
+  vervormd. Ook de envelopecurves (Exp) stonden verkeerd.
+- De generator (`editor/scripts/pluginPatches.ts`) geeft een switch nu de
+  stand uit `controlState` als `defaultIndex`. Gecontroleerd met een losse
+  noot en met akkoordreeksen: de stem klinkt uit, de galm sterft weg.
+- `mmb-plugin-check` kan een notenreeks spelen: `seq=<bestand>` met per
+  regel `<seconden> <noot> <aanslag>` (aanslag 0 = loslaten).
+
 ### 2026-10-29 — Patch-plugins: Expert-tab, alle knoppen als parameter
 <!-- EN: Patch plugins: an Expert tab with every control per module; all controls are DAW parameters with stable ids -->
 - Naast de fronts een tab Expert: alle knoppen van de patch per module,

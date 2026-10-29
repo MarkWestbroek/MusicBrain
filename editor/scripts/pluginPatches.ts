@@ -67,7 +67,11 @@ function main(): void {
     const params = pluginParams(project, patch);
     for (const it of params) {
       const c = it.control;
-      const row = spec({ ...c, defaultValue: (patch.controlState[it.moduleId]?.[it.controlId] ?? (c as { defaultValue?: unknown }).defaultValue) } as typeof c);
+      // De beginstand is die van de patch; een keuzeknop draagt hem in defaultIndex.
+      const state = patch.controlState[it.moduleId]?.[it.controlId];
+      const row = spec((c.kind === 'switch'
+        ? { ...c, defaultIndex: typeof state === 'number' ? state : c.defaultIndex }
+        : { ...c, defaultValue: state ?? (c as { defaultValue?: unknown }).defaultValue }) as typeof c);
       if (!row) throw new Error(`${p.label}: ${it.controlId} kan geen parameter zijn`);
       // spec() begint met { "<control-id>", "<naam>", …: id en naam vervangen.
       rows.push(row.replace(/^\{ "(?:[^"\\]|\\.)*", "(?:[^"\\]|\\.)*"/, `{ ${cstr(it.id)}, ${cstr(it.label)}`));
