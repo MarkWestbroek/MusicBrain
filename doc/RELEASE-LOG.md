@@ -17,6 +17,18 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-29 — Plugins: meerdere exemplaren per project (wasm2c)
+<!-- EN: Plugins: host-based modules now run their simulator .wasm via wasm2c, one instance per plugin copy -->
+- De 53 plugins via de wasm-gastheer konden maar één keer per project
+  draaien. Nu draaien ze de `.wasm` van de simulator als C (wasm2c), met
+  een eigen instantie per exemplaar. Gemeten tegen native: 35 bit-gelijk,
+  de rest onhoorbaar verschillend (≥ 82 dB); twee exemplaren geven exact
+  hetzelfde; auval 75/75.
+- Bouwen vraagt wabt (`-DMMB_WABT_DIR`), zie `tools/plugin/README.md`;
+  `MmbPluginCheck` kreeg `instances=N`.
+- Details: [plugin.md](plans/plugin.md) ("Meerdere exemplaren"),
+  [plugin-patches.md](plans/plugin-patches.md) §4.
+
 ### 2026-10-27 — Plugins: SAMPLER en TAPE STRIP (Mellotron) met banken
 <!-- EN: Plugins: SAMPLER and TAPE STRIP load .mmbs banks (bank knob from a bank folder, or an own bank saved in the project) -->
 - SAMPLER en TAPE STRIP zijn nu ook AU/VST3 (75 plugins). De Bank-knop

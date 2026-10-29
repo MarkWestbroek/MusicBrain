@@ -36,13 +36,25 @@ if(APPLE)
   list(APPEND MMB_FORMATS AU)
 endif()
 
+# wasm2c (wabt, https://github.com/WebAssembly/wabt): de gastheer-plugins
+# draaien hun .wasm als C, met een eigen instantie per exemplaar
+# (W2cPlugin.h). MMB_WABT_DIR is de wabt-checkout (runtime en simde), met
+# wasm2c gebouwd in <dir>/build (of zet MMB_WASM2C).
+set(MMB_WABT_DIR "" CACHE PATH "wabt-checkout (wasm2c-runtime en simde)")
+if(MMB_WABT_DIR)
+  find_program(MMB_WASM2C wasm2c PATHS ${MMB_WABT_DIR}/build ${MMB_WABT_DIR}/build/Release NO_DEFAULT_PATH
+               DOC "wasm2c-programma (standaard <MMB_WABT_DIR>/build/wasm2c)")
+endif()
+find_package(Python3 COMPONENTS Interpreter)
+
 # Eén module als plugin:
 #   mmb_add_module(<target> <code> "<productnaam>" <synth> <bron.cpp>
-#                  [CATEGORIES ...] [INCLUDES ...] [SOURCES ...] [GLOBS ...] [DEFINES ...])
+#                  [CATEGORIES ...] [INCLUDES ...] [SOURCES ...] [GLOBS ...] [DEFINES ...] [W2C <module.wasm>])
+# W2C: de gastheer als wasm2c-C uit die .wasm (gen_w2c.py, in de bouwmap).
 # De wasm-gastheren worden gecompileerd zoals in tools/mmb-wasm/build.sh:
 # -DTEST, cstdio vooraf ingevoegd, de shim-map en de MI-fallbacks als include.
 function(mmb_add_module target code product synth source)
-  cmake_parse_arguments(A "" "" "CATEGORIES;INCLUDES;SOURCES;GLOBS;DEFINES" ${ARGN})
+  cmake_parse_arguments(A "" "W2C" "CATEGORIES;INCLUDES;SOURCES;GLOBS;DEFINES" ${ARGN})
   if(NOT A_CATEGORIES)
     set(A_CATEGORIES Fx)
   endif()
@@ -64,6 +76,21 @@ function(mmb_add_module target code product synth source)
     NEEDS_WEBVIEW2 TRUE
     VST3_CATEGORIES ${A_CATEGORIES})
   target_sources(${target} PRIVATE ${srcs})
+  if(A_W2C)
+    if(NOT MMB_WASM2C OR NOT MMB_WABT_DIR)
+      message(FATAL_ERROR "${target}: wasm2c nodig; zet -DMMB_WABT_DIR=<wabt-checkout> (README)")
+    endif()
+    set(gen ${CMAKE_CURRENT_BINARY_DIR}/w2c/${target})
+    add_custom_command(
+      OUTPUT ${gen}/mod.c ${gen}/mod.h ${gen}/mod_glue.h
+      COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/wasm2c/gen_w2c.py ${MMB_WASM2C} ${A_W2C} ${gen}
+      DEPENDS ${A_W2C} ${CMAKE_CURRENT_SOURCE_DIR}/wasm2c/gen_w2c.py
+      COMMENT "wasm2c ${A_W2C}")
+    target_sources(${target} PRIVATE ${gen}/mod.c ${MMB_WABT_DIR}/wasm2c/wasm-rt-impl.c ${MMB_WABT_DIR}/wasm2c/wasm-rt-mem-impl.c ${MMB_WABT_DIR}/wasm2c/wasm-rt-exceptions-impl.c)
+    target_include_directories(${target} PRIVATE ${gen} ${MMB_WABT_DIR}/wasm2c ${MMB_WABT_DIR}/third_party/simde)
+    # Bounds checks in plaats van guard pages: geen signal handler in de DAW.
+    target_compile_definitions(${target} PRIVATE WASM_RT_USE_MMAP=0 WASM_RT_MEMCHECK_BOUNDS_CHECK=1)
+  endif()
   target_include_directories(${target} PRIVATE ${MMB_DSP_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/src ${MMB_GENERATED_DIR} ${MMB_WASM_DIR} ${MMB_WASM_DIR}/shim ${A_INCLUDES})
   target_compile_definitions(${target} PUBLIC
     JUCE_WEB_BROWSER=1

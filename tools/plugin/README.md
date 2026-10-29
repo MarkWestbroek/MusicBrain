@@ -11,9 +11,30 @@ MIDI-IN, ZANG, DX7 en de trigger-modules. SAMPLER en TAPE STRIP laden een
 `.mmbs`: de Bank-knop uit de bankmap, of een eigen bank die in het project
 blijft (zie "Banken" hieronder). HALL en SID zijn handgeschreven; de rest genereert
 `pluginParams.ts --all`: op de uniforme kern-interface via `KernelPlugin.h`
-(eigen instantie per exemplaar), anders via `AbiPlugin.h` (de wasm-gastheer
-zelf, native; één exemplaar per DAW-proces). Noten: `NoteMap.h`;
+(eigen instantie per exemplaar), anders via `W2cPlugin.h`: de `.wasm` van de
+simulator (`editor/public/wasm`) door wasm2c als C, met een eigen instantie
+per exemplaar en bit voor bit dezelfde uitkomst als native. `AbiPlugin.h`
+(de gastheer native, één exemplaar per DAW-proces) blijft beschikbaar met
+`MMB_PLUGIN_NATIVE=1` bij `build:plugin-ui`; `HostProcessor.h` is voor
+beide dezelfde. Noten: `NoteMap.h`;
 CV-ingangen zijn parameters.
+
+## wasm2c (wabt)
+
+De gastheer-plugins hebben wasm2c nodig (een keer bouwen):
+
+```sh
+git clone --depth 1 --recursive --shallow-submodules https://github.com/WebAssembly/wabt.git ~/src/wabt
+cmake -S ~/src/wabt -B ~/src/wabt/build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF -DBUILD_LIBWASM=OFF
+ninja -C ~/src/wabt/build wasm2c
+```
+
+Daarna `-DMMB_WABT_DIR=~/src/wabt` bij de configure. CMake draait per module
+`wasm2c/gen_w2c.py` (wasm2c plus `mod_glue.h`: optionele exports en lege
+WASI-functies) in de bouwmap; een nieuwe `.wasm` in `editor/public/wasm`
+bouwt de plugin vanzelf opnieuw. De plugin is dus zo actueel als de `.wasm`
+van de simulator. `MmbPluginCheck ... instances=2` controleert dat twee
+exemplaren naast elkaar hetzelfde geven.
 
 ## Opbouw
 
@@ -58,7 +79,7 @@ Build Tools 2022), met **clang-cl** (LLVM; MSVC struikelt over de
 GCC-extensies in de Mutable- en STK-code):
 
 ```
-cmake -S tools/plugin -B <bouwmap> -G Ninja -DCMAKE_BUILD_TYPE=Release -DMMB_JUCE_DIR=<ergens>/JUCE -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl
+cmake -S tools/plugin -B <bouwmap> -G Ninja -DCMAKE_BUILD_TYPE=Release -DMMB_JUCE_DIR=<ergens>/JUCE -DMMB_WABT_DIR=<ergens>/wabt -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl
 cmake --build <bouwmap>        # alle modules (VST3 + Standalone) en mmb-plugin-check; eerste keer lang
 ```
 
@@ -85,7 +106,7 @@ webview is WebKit.
 python3 -m venv ~/src/buildtools && ~/src/buildtools/bin/pip install cmake ninja
 export PATH=~/src/buildtools/bin:$PATH
 cd editor && MMB_JUCE_DIR=~/src/JUCE npm run build:plugin-ui && cd ..
-cmake -S tools/plugin -B build-mac -G Ninja -DCMAKE_BUILD_TYPE=Release -DMMB_JUCE_DIR=$HOME/src/JUCE -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_OSX_ARCHITECTURES=x86_64
+cmake -S tools/plugin -B build-mac -G Ninja -DCMAKE_BUILD_TYPE=Release -DMMB_JUCE_DIR=$HOME/src/JUCE -DMMB_WABT_DIR=$HOME/src/wabt -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_OSX_ARCHITECTURES=x86_64
 cmake --build build-mac --target MmbHall_All MmbSid_All MmbPluginCheck
 ```
 

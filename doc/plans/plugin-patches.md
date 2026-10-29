@@ -175,6 +175,12 @@ voor één kern.
     C-bibliotheek); lege stubs volstaan.
   - De C per module is 140–780 kB en compileert zonder waarschuwingen.
 
+**Stand 2026-10-29 (stap 2 klaar):** alle 53 gastheer-plugins draaien via
+wasm2c, met een eigen instantie per exemplaar. 35 zijn bit-identiek aan
+native, de rest wijkt minstens 82 dB af (eigen libm van de wasm), en twee
+exemplaren naast elkaar geven exact hetzelfde. Zie
+[plugin.md](plugin.md), "Meerdere exemplaren".
+
 **Conclusie:** route 2 met wasm2c draagt een patch van 8 stemmen ruim, en
 32 stemmen in één plugin kan ook. Het grootste risico van het plan is
 weg.

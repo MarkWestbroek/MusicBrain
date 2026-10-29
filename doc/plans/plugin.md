@@ -361,14 +361,50 @@ ze uit een bank spelen die de editor laadt. Nu laadt de plugin de bank zelf.
   "MMB SAMPLER" en "MMB TAPESTRIP".
 - **Nog niet:** ZANG en DX7 laden andere bankformaten. Slepen naar het
   venster werkt niet: de native webview vangt het slepen af.
-- Een tweede exemplaar in hetzelfde proces blijft stil, zoals bij alle
-  gastheer-plugins, en meldt dat in de bankbalk. Dit verdwijnt met wasm2c
-  (plugin-patches.md §4).
+- Een tweede exemplaar in hetzelfde proces bleef eerst stil, zoals bij
+  alle gastheer-plugins. Opgelost met wasm2c (hieronder): elk exemplaar
+  heeft nu zijn eigen bank.
 - `AbiPlugin` vraagt nu vóór `mmb_init` om de rate van de DAW
   (`mmb_set_rate`, MODULES, `ac1aef2`). Een gastheer-module met
   `MMB_RATE_FLEX` rekent dan op 48 of 96 kHz. Op dit moment is dat alleen
   LADDER, en die draait in de plugin als kernplugin, al op de rate van de
   DAW.
+
+### Meerdere exemplaren: de gastheer-plugins via wasm2c (2026-10-29)
+
+Stap 2 van [plugin-patches.md](plugin-patches.md). De 53 plugins die via de
+wasm-gastheer liepen, konden maar één keer per project draaien: een tweede
+exemplaar bleef stil. Nu draaien ze de `.wasm` van de simulator
+(`editor/public/wasm`) als C, gemaakt door wasm2c, met een eigen instantie
+per exemplaar.
+
+- **Opbouw:**
+  - `HostProcessor.h` is de plugin, gelijk voor elke gastheer.
+  - `W2cPlugin.h` is de wasm2c-host. Hij heeft per exemplaar een eigen
+    geheugen. Een trap in de module maakt alleen die module stil; de DAW
+    loopt door.
+  - `AbiPlugin.h` blijft als native host (`MMB_PLUGIN_NATIVE=1`), om te
+    vergelijken.
+  - CMake draait per module `tools/plugin/wasm2c/gen_w2c.py`, die wasm2c
+    aanroept en de verbindingscode schrijft: welke optionele exports er
+    zijn en lege WASI-functies.
+  - Geheugen met expliciete bounds checks: geen signal handler en geen
+    gereserveerde gigabytes in de DAW.
+- **Gemeten tegen native** (`MmbPluginCheck`, 2 s, effecten met een
+  testsignaal en instrumenten met drie noten):
+  - 35 van de 53 zijn bit voor bit gelijk, ook SAMPLER met bank.
+  - 17 wijken 82–199 dB af. De wasm brengt zijn eigen wiskundebibliotheek
+    mee; het verschil is onhoorbaar.
+  - STK SOUND wijkt af omdat zijn ruis native met `time(NULL)` gezaaid
+    wordt en bij elke start anders klinkt. Via wasm2c is hij voorspelbaar,
+    zoals in de simulator. De omhullende is gelijk.
+- **Twee exemplaren** (`instances=2`, blok om blok door elkaar gedraaid):
+  bij alle 53 is het tweede exemplaar exact gelijk aan het eerste, zonder
+  traps. auval: 75/75. Grootte: ~5 MB per AU, zoals voorheen.
+- **Bouwen:** wabt (wasm2c) eenmalig, plus `-DMMB_WABT_DIR` bij de
+  configure; zie `tools/plugin/README.md`. Wat de plugin draait, is
+  daarmee precies de `.wasm` van de simulator: een nieuwe `.wasm` bouwt
+  de plugin vanzelf opnieuw.
 
 ## 3. Wat het kostte en wat het zou kosten
 

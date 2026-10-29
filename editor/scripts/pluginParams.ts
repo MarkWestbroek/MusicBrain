@@ -26,6 +26,10 @@ import { emptyModularProject, type Control } from '../src/modular-mb/types';
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const outDir = path.join(repo, 'tools', 'plugin', 'generated');
 const wasmDir = path.join(repo, 'tools', 'mmb-wasm');
+const wasmPublic = path.join(repo, 'editor', 'public', 'wasm');
+// MMB_PLUGIN_NATIVE=1: de gastheer native compileren (AbiPlugin.h, één
+// exemplaar per DAW-proces) in plaats van via wasm2c; om te vergelijken.
+const NATIVE = process.env.MMB_PLUGIN_NATIVE === '1';
 const MANUAL = new Set(['tp_mmb_hall', 'tp_mmb_sid']);
 // Geen plugin: de bus zelf, stemverdelers, mixers/VCA-banken, banken in een
 // ander formaat dan .mmbs (ZANG, DX7-fabrieksbanken: licentie open), en wat
@@ -193,7 +197,7 @@ function main(): void {
     '# Gegenereerd door editor/scripts/pluginParams.ts; niet met de hand wijzigen.',
     '# Eén plugin per module: KernelPlugin.h (uniforme kern) of AbiPlugin.h (wasm-gastheer).',
   ];
-  let nKernel = 0, nAbi = 0;
+  let nKernel = 0, nAbi = 0, nW2c = 0;
   for (const id of ids) {
     const type = base.moduleTypes.find((t) => t.id === id);
     const mod = base.modules.find((m) => m.typeId === id);
@@ -261,6 +265,19 @@ function main(): void {
       cmake.push(`mmb_add_module(${target} ${pluginCode(slug)} "MMB ${name}" ${k.audioIn === 0 ? 'TRUE' : 'FALSE'} \${MMB_GENERATED_DIR}/${id}_plugin.cpp CATEGORIES ${k.audioIn === 0 ? 'Instrument Synth' : 'Fx'} ${common})`);
       note += `, kern ${k.cls} (${k.audioIn} in / ${k.audioOut} uit) → ${target}`;
       ++nKernel;
+    } else if (!NATIVE && fs.existsSync(path.join(wasmPublic, `${id}.wasm`))) {
+      // Standaard: de .wasm van de simulator via wasm2c, een instantie per exemplaar (W2cPlugin.h).
+      fs.writeFileSync(path.join(outDir, `${id}_plugin.cpp`), [
+        `// Gegenereerd door editor/scripts/pluginParams.ts: ${id} als plugin via wasm2c (editor/public/wasm/${id}.wasm, gastheer ${h.file}).`,
+        '#include "W2cPlugin.h"',
+        `#include "${id}_params.h"`,
+        '',
+        `juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter() { return new mmb_plugin::W2cProcessor(mmb_plugin::kModule_${sym}, ${synth ? 'true' : 'false'}); }`,
+        '',
+      ].join('\n'));
+      cmake.push(`mmb_add_module(${target} ${pluginCode(slug)} "MMB ${name}" ${synth ? 'TRUE' : 'FALSE'} \${MMB_GENERATED_DIR}/${id}_plugin.cpp CATEGORIES ${synth ? 'Instrument Synth' : 'Fx'} W2C ${cstr(path.join(wasmPublic, `${id}.wasm`).split(path.sep).join('/'))})`);
+      note += `, wasm2c ${id}.wasm (${h.rate} Hz, ${h.audioIn} in / ${h.audioOut} uit${synth ? ', instrument' : ''}) → ${target}`;
+      ++nW2c;
     } else {
       fs.writeFileSync(path.join(outDir, `${id}_plugin.cpp`), [
         `// Gegenereerd door editor/scripts/pluginParams.ts: ${id} als plugin via de wasm-gastheer ${h.file}.`,
@@ -279,7 +296,7 @@ function main(): void {
     console.log(`${id}: ${note}`);
   }
   fs.writeFileSync(path.join(outDir, 'modules.cmake'), cmake.join('\n') + '\n');
-  console.log(`modules.cmake: ${nKernel} op de kern-interface, ${nAbi} via de gastheer`);
+  console.log(`modules.cmake: ${nKernel} op de kern-interface, ${nW2c} via wasm2c, ${nAbi} via de native gastheer`);
 }
 
 main();

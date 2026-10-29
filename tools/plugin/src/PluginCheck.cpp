@@ -58,7 +58,7 @@ int main(int argc, char** argv) {
     // doet als je een waarde intikt. Een keuze krijgt zijn naam (algo=Room).
     for (int a = 4; a < argc; ++a) {
         const juce::String arg(argv[a]);
-        if (arg.startsWith("editor=") || arg.startsWith("poke=") || arg.startsWith("in=") || arg.startsWith("notes=") || arg.startsWith("program=") || arg.startsWith("ownbank=")) continue;   // geen parameter
+        if (arg.startsWith("editor=") || arg.startsWith("poke=") || arg.startsWith("in=") || arg.startsWith("notes=") || arg.startsWith("program=") || arg.startsWith("ownbank=") || arg.startsWith("instances=")) continue;   // geen parameter
         const juce::String id = arg.upToFirstOccurrenceOf("=", false, false).toLowerCase();
         const juce::String text = arg.fromFirstOccurrenceOf("=", false, false);
         bool hit = false;
@@ -196,7 +196,31 @@ int main(int argc, char** argv) {
         plugin->processBlock(warm, none);
         juce::MessageManager::getInstance()->runDispatchLoopUntil(300);
     }
+    // instances=N: N-1 extra exemplaren met dezelfde toestand, blok om blok
+    // tussen het eerste door gedraaid. Elk exemplaar hoort hetzelfde te
+    // geven; een gedeelde (globale) gastheer valt hier door de mand.
+    std::vector<std::unique_ptr<juce::AudioPluginInstance>> extra;
+    for (int a = 4; a < argc; ++a) {
+        const juce::String arg(argv[a]);
+        if (!arg.startsWith("instances=")) continue;
+        juce::MemoryBlock st;
+        plugin->getStateInformation(st);
+        for (int k = 1; k < arg.fromFirstOccurrenceOf("=", false, false).getIntValue(); ++k) {
+            auto p = formats.createPluginInstance(*found[0], useRate, block, error);
+            if (!p) { std::fprintf(stderr, "exemplaar %d: %s\n", k + 1, error.toRawUTF8()); return 1; }
+            p->setStateInformation(st.getData(), static_cast<int>(st.getSize()));
+            p->setPlayConfigDetails(2, 2, useRate, block);
+            p->prepareToPlay(useRate, block);
+            juce::AudioBuffer<float> warm(2, block);
+            juce::MidiBuffer none;
+            warm.clear();
+            p->processBlock(warm, none);
+            extra.push_back(std::move(p));
+        }
+        juce::MessageManager::getInstance()->runDispatchLoopUntil(300);
+    }
     const int total = source.getNumSamples() + static_cast<int>(seconds * useRate);
+    std::vector<juce::AudioBuffer<float>> extraOut(extra.size(), juce::AudioBuffer<float>(2, total));
     juce::AudioBuffer<float> out(2, total);
     juce::AudioBuffer<float> buf(2, block);
     juce::MidiBuffer midi;
@@ -213,10 +237,25 @@ int main(int argc, char** argv) {
         } else if (pos == 0) {
             buf.setSample(0, 0, 1.0f);   // de impuls, links
         }
+        juce::AudioBuffer<float> in(buf);
+        juce::MidiBuffer midiIn(midi);
         plugin->processBlock(buf, midi);
         for (int c = 0; c < 2; ++c) out.copyFrom(c, pos, buf, c, 0, n);
+        for (std::size_t k = 0; k < extra.size(); ++k) {
+            juce::AudioBuffer<float> b(in);
+            juce::MidiBuffer m(midiIn);
+            extra[k]->processBlock(b, m);
+            for (int c = 0; c < 2; ++c) extraOut[k].copyFrom(c, pos, b, c, 0, n);
+        }
     }
     plugin->releaseResources();
+    for (std::size_t k = 0; k < extra.size(); ++k) {
+        float diff = 0.0f;
+        for (int c = 0; c < 2; ++c)
+            for (int i = 0; i < total; ++i) diff = juce::jmax(diff, std::abs(extraOut[k].getSample(c, i) - out.getSample(c, i)));
+        std::printf("exemplaar %zu: piek %.3f, verschil met het eerste %.2e\n", k + 2, extraOut[k].getMagnitude(0, total), diff);
+        extra[k]->releaseResources();
+    }
 
     outFile.deleteFile();
     juce::WavAudioFormat wav;
