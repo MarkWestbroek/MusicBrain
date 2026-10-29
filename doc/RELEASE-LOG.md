@@ -103,6 +103,13 @@
   Effecten); elk effect heeft daar een Bypass-schakelaar.
 - Lange envelopeschuiven zijn op een front korter (18 mm), ook in de
   speelmodus van de editor.
+- Draaien aan een knop op de bediening is nu een gebaar voor de DAW
+  (begin/einde, 400 ms na de laatste beweging): Logic neemt het in Touch
+  en Latch op als automatisering. Geldt voor alle plugins met de
+  webbediening; de losse modules krijgen het bij de volgende bouw.
+- De audio-ingang `sc` (sidechain van PUMP en Bus comp) telt in de
+  plugins niet als hoofdingang; hij is stil en "niet aangesloten" tot er
+  een sidechain-bus is.
 - Details: [plugin.md](plans/plugin.md) ("Patch-plugins").
 
 ### 2026-10-29 — Patch-plugins: effect-bypass, CS-80 met tabs Spelen en Effecten

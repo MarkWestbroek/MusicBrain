@@ -46,6 +46,7 @@ constexpr int kPortAudio = 0, kPortCv = 1, kPortGate = 2;
 /** Poorten van de gastheer, gesorteerd op rol. */
 struct AbiPorts {
     std::vector<int> audioIn, audioOut, cvIn;      // cvIn: CV/gate-poorten die parameters worden
+    std::vector<int> sideIn;                       // audio-ingang `sc` (sidechain, PUMP, Bus comp): niet de hoofdingang
     int monoVoct = -1, monoGate = -1, monoVel = -1;
     std::vector<int> cellVoct, cellGate, cellVel;  // poly: index per cel (−1 = geen)
     bool notes = false;
@@ -54,7 +55,8 @@ struct AbiPorts {
     static AbiPorts scan(Host& h, bool synth) {
         AbiPorts p;
         auto find = [&](const char* id) { for (int i = 0; i < h.numInputs(); ++i) if (is(h.inputId(i), id)) return i; return -1; };
-        for (int i = 0; i < h.numInputs(); ++i) if (h.inputKind(i) == kPortAudio) p.audioIn.push_back(i);
+        for (int i = 0; i < h.numInputs(); ++i)
+            if (h.inputKind(i) == kPortAudio) (is(h.inputId(i), "sc") ? p.sideIn : p.audioIn).push_back(i);
         for (int i = 0; i < h.numOutputs(); ++i) if (h.outputKind(i) == kPortAudio) p.audioOut.push_back(i);
         std::vector<int> used;
         if (synth) {
@@ -211,6 +213,9 @@ public:
                     host_.setConnected(port, 1);
                 } else { std::memset(buf, 0, sizeof(float) * B); host_.setConnected(port, 0); }
             }
+            // Sidechain: nog geen bus van de DAW, dus stil en "niet
+            // aangesloten" (de detector luistert dan naar de eigen ingang).
+            for (int i : ports_.sideIn) { std::memset(host_.inBuf(i), 0, sizeof(float) * B); host_.setConnected(i, 0); }
             for (int i : ports_.cvIn) {
                 const float v = cvValue_[static_cast<std::size_t>(i)];
                 fill(i, v, host_.inputKind(i) == kPortGate ? 1 : (v != 0.0f ? 1 : 0));

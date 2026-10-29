@@ -36,6 +36,9 @@ export function watchBank(onInfo: (b: BankInfo) => void): () => void {
 export const chooseBank = (): void => { if (inPlugin) void getNativeFunction('mmbBankChoose')(); };
 export const clearBank = (): void => { if (inPlugin) void getNativeFunction('mmbBankClear')(); };
 
+/** Zo lang na de laatste beweging eindigt een draai (automatisering in Touch). */
+const GESTURE_IDLE_MS = 400;
+
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 
 /** Vraagt de plugin opnieuw om de huidige stand (zoals de JUCE-bibliotheek
@@ -54,13 +57,20 @@ export function attach(name: string, kind: Kind, onValue: (v: number | boolean) 
     const push = () => { log(`${name} <- ${s.getScaledValue()} (norm ${s.getNormalisedValue()}, ${s.properties.start}..${s.properties.end})`); onValue(s.getScaledValue()); };
     s.valueChangedEvent.addListener(push);
     s.propertiesChangedEvent.addListener(push);
+    // Een draai is een gebaar (begin/einde) voor de DAW: zonder dat neemt
+    // Logic in Touch/Latch geen automatisering op. Het paneel meldt geen
+    // loslaten, dus het gebaar eindigt na een korte rust.
+    let gesture: number | undefined;
     return {
       set: (v) => {
         const p = s.properties;
         const span = p.end - p.start;
         if (!(span > 0)) return;
         const n = Math.pow(clamp01(((v as number) - p.start) / span), p.skew || 1);
+        if (gesture === undefined) s.sliderDragStarted();
+        else window.clearTimeout(gesture);
         s.setNormalisedValue(n);
+        gesture = window.setTimeout(() => { gesture = undefined; s.sliderDragEnded(); }, GESTURE_IDLE_MS);
       },
       refresh: () => requestInitial(s.identifier),
     };
