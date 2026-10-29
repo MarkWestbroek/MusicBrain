@@ -74,7 +74,9 @@ int main(int argc, char** argv) {
         }
         if (!hit) {
             std::fprintf(stderr, "onbekende parameter %s; er zijn:", id.toRawUTF8());
-            for (auto* p : plugin->getParameters()) std::fprintf(stderr, " %s", p->getName(64).removeCharacters(" -").toLowerCase().toRawUTF8());
+            for (auto* p : plugin->getParameters())
+                if (!p->getName(64).startsWith("MIDI CC "))   // JUCE's CC-proxy's (VST3_EMULATE_MIDI_CC)
+                    std::fprintf(stderr, " %s", p->getName(64).removeCharacters(" -").toLowerCase().toRawUTF8());
             std::fprintf(stderr, "\n");
             return 1;
         }
