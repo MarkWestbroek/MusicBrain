@@ -35,6 +35,15 @@ def main() -> None:
         sys.exit(f'gen_w2c: naam "{name}" moet uit kleine letters en cijfers bestaan')
     os.makedirs(out, exist_ok=True)
     subprocess.run([wasm2c, '-n', name, wasm, '-o', os.path.join(out, f'{name}.c')], check=True)
+    # wasm2c maakt per import een zwakke tailcall-functie
+    # (WEAK_FUNC_DECL(wasm_tailcall_w2c_<import>, wasm_fallback_<naam>_…)). Met
+    # meer modules in één plugin krijgt dezelfde naam verschillende
+    # alternatieven, en dat weigert lld-link (/alternatename-conflict). Alleen
+    # de eigen module gebruikt ze: per module hernoemen.
+    for ext in ('c', 'h'):
+        f = os.path.join(out, f'{name}.{ext}')
+        text = open(f, encoding='utf-8').read().replace('wasm_tailcall_w2c_', f'wasm_tailcall_{name}_w2c_')
+        open(f, 'w', encoding='utf-8').write(text)
     header = open(os.path.join(out, f'{name}.h'), encoding='utf-8').read()
     has = lambda e: f'w2c_{name}_{e}(' in header
     missing = [e for e in REQUIRED if not has(e)]
