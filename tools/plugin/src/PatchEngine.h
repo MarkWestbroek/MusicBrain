@@ -280,7 +280,7 @@ private:
     void bypassBlock(Node& n) {
         float g[kBlock];
         for (int k = 0; k < n.block; ++k) {
-            n.byp += n.byp < n.bypTarget ? std::min(kBypassStep, n.bypTarget - n.byp) : -std::min(kBypassStep, n.byp - n.bypTarget);
+            n.byp += n.byp < n.bypTarget ? (std::min)(kBypassStep, n.bypTarget - n.byp) : -(std::min)(kBypassStep, n.byp - n.bypTarget);
             g[k] = n.byp;
         }
         // Droge kopie van de gebruikte ingangen, dan de invoer van het effect dichtdraaien.
