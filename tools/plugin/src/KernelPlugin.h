@@ -133,15 +133,17 @@ private:
         if (cellVoct_.empty()) { monoVoct_ = cvIndex("voct"); monoGate_ = cvIndex("gate"); monoVel_ = cvIndex("vel"); }
     }
     void setCv(int c, float v) { if (c >= 0) kernels_[0].setCv(c, v); }
+    // De gate als laatste: een kern die op de opgaande flank aanslaat (E-PIANO)
+    // leest daar toonhoogte en velocity, die moeten er dan al staan.
     void writeNotes() {
         if (cellVoct_.empty()) {
             const auto& c = notes_.cell(0);
-            setCv(monoVoct_, c.voct + notes_.bend()); setCv(monoGate_, c.gate ? 1.0f : 0.0f); setCv(monoVel_, c.vel);
+            setCv(monoVoct_, c.voct + notes_.bend()); setCv(monoVel_, c.vel); setCv(monoGate_, c.gate ? 1.0f : 0.0f);
             return;
         }
         for (std::size_t k = 0; k < cellVoct_.size(); ++k) {
             const auto& c = notes_.cell(static_cast<int>(k));
-            setCv(cellVoct_[k], c.voct + notes_.bend()); setCv(cellGate_[k], c.gate ? 1.0f : 0.0f); setCv(cellVel_[k], c.vel);
+            setCv(cellVoct_[k], c.voct + notes_.bend()); setCv(cellVel_[k], c.vel); setCv(cellGate_[k], c.gate ? 1.0f : 0.0f);
         }
     }
 

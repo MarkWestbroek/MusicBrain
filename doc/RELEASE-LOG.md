@@ -127,6 +127,17 @@
 - Plan en metingen: [plugin.md](plans/plugin.md) ("Banken in de plugin"),
   [plugin-patches.md](plans/plugin-patches.md) §3.
 
+### 2026-10-29 — Kern-plugins: velocity werkt (E-PIANO)
+<!-- EN: Kernel plugins: velocity works (E-PIANO) -->
+- In `KernelPlugin.h` ging per stem de gate naar de kern vóór de velocity.
+  E-PIANO slaat aan op de opgaande gate en las daar dus de oude velocity
+  (de eerste keer 0 → vaste 0,7): elke aanslag klonk even hard. Nu gaan
+  toonhoogte en velocity eerst, de gate als laatste.
+- Gemeten, één noot: vel 10 → piek 0,007, vel 70 → 0,088, vel 127 → 0,207
+  (eerst 0,123 bij elke velocity). Geldt voor alle kern-plugins met
+  noten (o.a. ACID, CMI, ORGAN, SYNTHEX, SEM, MARTENOT); die moeten nog
+  opnieuw gebouwd worden.
+
 ### 2026-10-29 — Patch-plugins: noten hangen niet meer
 <!-- EN: Patch plugins: notes no longer hang; choice controls start in the patch's position -->
 - Sinds alle knoppen een parameter zijn, begon elke keuzeknop in de stand
