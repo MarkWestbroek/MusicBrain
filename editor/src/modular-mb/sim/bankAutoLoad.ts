@@ -44,6 +44,13 @@ function emit(): void { version++; for (const l of listeners) l(); }
 export function subscribeBanks(fn: () => void): () => void { listeners.add(fn); return () => { listeners.delete(fn); }; }
 export function banksVersion(): number { return version; }
 
+// ── in een plugin: de bank die de plugin zelf laadde (plugin-ui/main.tsx) ──
+/** Wat de plugin meldt (MmbPluginBase.h, bankVar): daar is geen Teensy en geen server. */
+export interface HostBank { name: string; error: string; own: boolean; knob: number }
+let host: HostBank | null = null;
+export function setHostBank(b: HostBank | null): void { host = b; emit(); }
+export function hostBank(): HostBank | null { return host; }
+
 /** Naam van de serverbank die de sim voor bank-knop NN gebruikt (of zou gebruiken). */
 export function simBankName(nn: number): string | null {
   if (loaded && loaded.nn === nn) return loaded.name;

@@ -127,6 +127,17 @@
 - Plan en metingen: [plugin.md](plans/plugin.md) ("Banken in de plugin"),
   [plugin-patches.md](plans/plugin-patches.md) §3.
 
+### 2026-10-29 — Plugins: banknaam in de DAW en op het paneel
+<!-- EN: Plugins: the bank name shows in the DAW and on the panel -->
+- SAMPLER en TAPESTRIP: de parameter Bank toont in de DAW "03 · Warm Pad"
+  in plaats van een getal (Logic: Controls-weergave, automatisering), met
+  een eigen bank "Eigen · <naam>". De naam komt uit index.json in de
+  bankmap, anders uit de kop van de `.mmbs` (`MmbPluginBase.h`, bankKnobName).
+- Het strookje op het paneel toont in de plugin de bank die de plugin
+  laadde (`setHostBank` in `sim/bankAutoLoad.ts`, gevuld door
+  `plugin-ui/main.tsx`); daar is geen Teensy en geen server. Draait de
+  knop nog, dan "05 · laden…". Test: `sim/hostBank.test.ts`.
+
 ### 2026-10-29 — Kern-plugins: velocity werkt (E-PIANO)
 <!-- EN: Kernel plugins: velocity works (E-PIANO) -->
 - In `KernelPlugin.h` ging per stem de gate naar de kern vóór de velocity.

@@ -19,6 +19,7 @@ import {
   type ExpertModule, type PluginParam,
 } from '../modular-mb/patchPlugins';
 import { seedInternals } from '../modular-mb/seedModules';
+import { setHostBank } from '../modular-mb/sim/bankAutoLoad';
 import { emptyModularProject, type Control, type ControlValue } from '../modular-mb/types';
 import { attach, chooseBank, clearBank, inPlugin, log, resizeTo, watchBank, type BankInfo, type Handle, type Kind } from './juceBridge';
 
@@ -58,7 +59,7 @@ function ResizeGrip({ size }: { size: number }) {
  *  terug naar de Bank-knop. Een eigen bank gaat mee in het project. */
 function BankBar({ pxPerMm }: { pxPerMm: number }) {
   const [info, setInfo] = useState<BankInfo | null>(null);
-  useEffect(() => watchBank((b) => { log(`bank: ${JSON.stringify(b)}`); setInfo(b); }), []);
+  useEffect(() => watchBank((b) => { log(`bank: ${JSON.stringify(b)}`); setInfo(b); if (b.has) setHostBank(b); }), []);
   if (!info?.has) return null;
   const btn = { font: 'inherit', color: '#fff', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)',
     borderRadius: pxPerMm * 0.6, padding: `0 ${pxPerMm}px`, cursor: 'pointer' } as const;

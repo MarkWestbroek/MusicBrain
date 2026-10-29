@@ -18,7 +18,7 @@ const TextScale = createContext(1);
 import { MidiPortLeds } from './sim/MidiPortLeds';
 import { useTeensyLink } from './teensyLink';
 import { bankTitle } from './teensyStorage';
-import { subscribeBanks, banksVersion, simBankName } from './sim/bankAutoLoad';
+import { subscribeBanks, banksVersion, simBankName, hostBank } from './sim/bankAutoLoad';
 import { subscribeLyricBanks, lyricBanksVersion, simLyricBank } from './lyric/lyricStore';
 import {
   dragTravelPx, fromTaper, toTaper, wheelStep,
@@ -267,16 +267,27 @@ function SamplerBankStrip({ cx, y, w, bank }: { cx: number; y: number; w: number
   const st = link.status.kind === 'connected' ? link.lastStatus : undefined;
   useSyncExternalStore(subscribeBanks, banksVersion, banksVersion);   // derde: ook buiten de browser (moduleSite.ts)
   let { text, tone } = bankTitle(bank, st);
+  // In een plugin: de bank die de plugin zelf laadde (uit de bankmap of eigen).
+  const nn = Math.max(0, Math.round(bank));
+  const hb = hostBank();
+  if (hb) {
+    if (hb.error) { text = hb.error; tone = 'warn'; }
+    else if (hb.own) { text = `Eigen · ${hb.name}`; tone = 'ok'; }
+    else if (hb.knob === nn && hb.name) { text = `${String(nn).padStart(2, '0')} · ${hb.name}`; tone = 'ok'; }
+    else { text = `${String(nn).padStart(2, '0')} · laden…`; tone = 'dim'; }
+  }
   // Zonder Teensy: de serverbank die de simulator voor dit nummer laadt.
   let fromSim = false;
-  if (tone === 'dim') {
+  if (!hb && tone === 'dim') {
     const name = simBankName(Math.max(0, Math.round(bank)));
     if (name) { text = `${String(Math.max(0, Math.round(bank))).padStart(2, '0')} · ${name}`; tone = 'ok'; fromSim = true; }
   }
   const col = fromSim ? '#a5b4fc' : tone === 'ok' ? '#67e8f9' : tone === 'warn' ? '#fbbf24' : '#64748b';
   return (
     <g>
-      <title>{fromSim
+      <title>{hb
+        ? 'Bank in de plugin: uit de bankmap (Bank-knop) of een eigen bank (Eigen… onderaan).'
+        : fromSim
         ? 'Bank in de simulator, van de server (Simulatie-tab: kies een andere). Met een Teensy aan de kabel staat hier de bank van de SD-kaart.'
         : 'Bank op de SD-kaart van de Teensy (/mmb/banks/NN.mmbs); de naam komt uit de bank zelf.'}</title>
       <rect x={cx - w / 2} y={y} width={w} height={3.6} rx={0.6}

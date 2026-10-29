@@ -24,6 +24,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -52,6 +53,34 @@ inline juce::String mmbsName(const void* data, std::size_t size) {
     return juce::String::fromUTF8(b + 16, static_cast<int>(strnlen(b + 16, 28)));
 }
 
+/** Naam van de bank op Bank-knop @p n ("" = geen): index.json `files[].name`,
+ *  anders de kop van het bestand. Onthouden tot index.json verandert. */
+inline juce::String bankKnobName(int n) {
+    static juce::CriticalSection lock;
+    static juce::Time stamp;
+    static std::map<int, juce::String> names;
+    const juce::ScopedLock sl(lock);
+    const juce::File dir = bankDir(), indexFile = dir.getChildFile("index.json");
+    const juce::Time t = indexFile.getLastModificationTime();
+    if (t != stamp) { names.clear(); stamp = t; }
+    if (auto it = names.find(n); it != names.end()) return it->second;
+    const juce::var index = juce::JSON::parse(indexFile);
+    const juce::String file = index["defaults"][juce::Identifier(juce::String(n))].toString();
+    juce::String name;
+    if (file.isNotEmpty()) {
+        if (const auto* files = index["files"].getArray())
+            for (const auto& f : *files) if (f["file"].toString() == file) name = f["name"].toString();
+        if (name.isEmpty()) {
+            juce::MemoryBlock head;
+            if (auto in = dir.getChildFile(file).createInputStream()) in->readIntoMemoryBlock(head, 44);
+            name = mmbsName(head.getData(), head.getSize());
+        }
+        if (name.isEmpty()) name = juce::File(file).getFileNameWithoutExtension();
+    }
+    names[n] = name;
+    return name;
+}
+
 class MmbProcessor : public juce::AudioProcessor, public juce::ChangeBroadcaster, private juce::AsyncUpdater {
 public:
     /** @p extra: parameters bovenop het paneel (bijv. CV-ingangen); hun
@@ -62,7 +91,7 @@ public:
               : BusesProperties().withInput("Input", juce::AudioChannelSet::stereo(), true)
                                  .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
           spec_(spec), synth_(synth), params_(merge(spec, extra)),
-          state_(*this, nullptr, juce::Identifier(juce::String(spec.typeId).toUpperCase()), layout(params_)) {
+          state_(*this, nullptr, juce::Identifier(juce::String(spec.typeId).toUpperCase()), layout(params_, this)) {
         raw_.resize(params_.size());
         applied_.assign(params_.size(), std::nanf(""));
         for (std::size_t i = 0; i < params_.size(); ++i) raw_[i] = state_.getRawParameterValue(params_[i].id);
@@ -83,6 +112,16 @@ public:
     // ── Bank: toestand voor het paneel ───────────────────────────────────
     struct BankInfo { juce::String name, error; bool own = false; int knob = -1; };
     BankInfo bankInfo() const { const juce::ScopedLock sl(bankLock_); return bankInfo_; }
+    /** Tekst van de Bank-knop voor de DAW: "03 · Harp", met een eigen bank "Eigen · <naam>". */
+    juce::String bankText(int knob) const {
+        const juce::String dot = juce::String::fromUTF8(" \xc2\xb7 ");   // " · "
+        {
+            const juce::ScopedLock sl(bankLock_);
+            if (ownBank_.getSize() > 0) return "Eigen" + dot + (bankInfo_.own && bankInfo_.name.isNotEmpty() ? bankInfo_.name : ownName_);
+        }
+        const juce::String name = bankKnobName(knob);
+        return juce::String(knob).paddedLeft('0', 2) + dot + (name.isEmpty() ? juce::String("(leeg)") : name);
+    }
     /** Eigen bank uit een bestand; blijft in het project. */
     void loadOwnBank(const juce::File& file) {
         juce::MemoryBlock data;
@@ -193,7 +232,7 @@ private:
         return all;
     }
 
-    static juce::AudioProcessorValueTreeState::ParameterLayout layout(const std::vector<ParamSpec>& params) {
+    static juce::AudioProcessorValueTreeState::ParameterLayout layout(const std::vector<ParamSpec>& params, MmbProcessor* self) {
         juce::AudioProcessorValueTreeState::ParameterLayout l;
         for (const ParamSpec& p : params) {
             const juce::ParameterID pid { p.id, 1 };
@@ -201,8 +240,13 @@ private:
                 case ParamKind::Float: {
                     juce::NormalisableRange<float> range(p.min, p.max, p.interval);
                     if (p.skewMid > 0.0f) range.setSkewForCentre(p.skewMid);
-                    l.add(std::make_unique<juce::AudioParameterFloat>(pid, p.name, range, p.def,
-                        juce::AudioParameterFloatAttributes().withLabel(p.unit)));
+                    auto attr = juce::AudioParameterFloatAttributes().withLabel(p.unit);
+                    // Bank-knop (sampler, TAPE STRIP): de DAW toont "03 · Harp", of de eigen bank.
+                    if (std::strcmp(p.id, "bank") == 0)
+                        attr = attr.withLabel("")
+                            .withStringFromValueFunction([self](float v, int) { return self->bankText(static_cast<int>(std::lround(v))); })
+                            .withValueFromStringFunction([](const juce::String& t) { return t.trimStart().getFloatValue(); });
+                    l.add(std::make_unique<juce::AudioParameterFloat>(pid, p.name, range, p.def, attr));
                     break;
                 }
                 case ParamKind::Choice: {
