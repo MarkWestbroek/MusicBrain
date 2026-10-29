@@ -19,6 +19,9 @@
  *  - **Sidechain-hoogdoorlaat** (niet op het origineel, wel op veel
  *    opvolgers): de bas laat de compressor dan minder pompen.
  *  - **Makeup**, **Mix**, **Bypass**, en de gain reduction als CV.
+ *  - **Sidechain** (fw 0.5.116): met een sleutel (`ProcessKeyed`) luistert de
+ *    detector alleen daarnaar, door dezelfde hoogdoorlaat. Zo pompt de mix
+ *    op een kick die er zelf niet in zit (doc/plans/sidechain-comp.md).
  *
  * Stereo gekoppeld: één detector over alle kanalen. Header-only, zonder heap.
  */
@@ -77,19 +80,24 @@ public:
     }
 
     /** Eén sampleframe van `n` kanalen (≤ 4), in place. */
-    inline void Process(float* x, int n) {
+    inline void Process(float* x, int n) { ProcessKeyed(x, n, 0.0f, false); }
+
+    /**
+     * Als Process(), met een sidechain-sleutel: met `scOn` luistert de
+     * detector alleen naar `sc` (door de hoogdoorlaat), anders naar `x`.
+     */
+    inline void ProcessKeyed(float* x, int n, float sc, bool scOn) {
         if (n > 4) n = 4;
         float peak = 0.0f;
-        for (int c = 0; c < n; ++c) {
-            if (!(x[c] == x[c])) x[c] = 0.0f;
-            float d = x[c];
-            if (hpCoef_ > 0.0f) {                   // eenpolige hoogdoorlaat in de detector
-                hpState_[c] = hpCoef_ * (hpState_[c] + d - hpPrev_[c]);
-                hpPrev_[c] = d;
-                d = hpState_[c];
+        for (int c = 0; c < n; ++c) if (!(x[c] == x[c])) x[c] = 0.0f;
+        if (scOn) {
+            if (!(sc == sc)) sc = 0.0f;
+            peak = std::fabs(hp(0, sc));
+        } else {
+            for (int c = 0; c < n; ++c) {
+                const float a = std::fabs(hp(c, x[c]));
+                if (a > peak) peak = a;
             }
-            const float a = std::fabs(d);
-            if (a > peak) peak = a;
         }
         const float levelDb = peak > 1e-9f ? 20.0f * std::log10(peak) : -180.0f;
         const float target = staticGrDb(levelDb);
@@ -111,6 +119,13 @@ public:
     }
 
 private:
+    /** Eenpolige hoogdoorlaat in de detector, per kanaal. */
+    inline float hp(int c, float d) {
+        if (hpCoef_ <= 0.0f) return d;
+        hpState_[c] = hpCoef_ * (hpState_[c] + d - hpPrev_[c]);
+        hpPrev_[c] = d;
+        return hpState_[c];
+    }
     void updateTimes() {
         static const float a[6] = { 0.1f, 0.3f, 1.0f, 3.0f, 10.0f, 30.0f };
         static const float r[4] = { 100.0f, 300.0f, 600.0f, 1200.0f };

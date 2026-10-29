@@ -1,7 +1,7 @@
 // tp_mmb_bus_comp — VCA-buscompressor in SSL-G-stijl (spiegel van BusCompModule.h;
 // de DSP zelf is mmb_dsp::BusComp, dezelfde header als de firmware).
 // Native 44,1 kHz, blok 32. Zonder in_r krijgt R hetzelfde als L, zoals in de
-// firmware.
+// firmware. Met een kabel op sc luistert de detector naar de sleutel.
 #include "mmb_abi.h"
 #include "mmb_dsp/bus_comp.h"
 
@@ -9,9 +9,9 @@ const char* const MMB_TYPE_ID     = "tp_mmb_bus_comp";
 const float       MMB_NATIVE_RATE = 44100.0f;
 const int         MMB_BLOCK       = 32;
 
-enum { IN_L, IN_R };
-MmbPort MMB_INPUTS[] = { { "in_l", MMB_AUDIO, 0, {} }, { "in_r", MMB_AUDIO, 0, {} } };
-const int MMB_NUM_INPUTS = 2;
+enum { IN_L, IN_R, IN_SC };
+MmbPort MMB_INPUTS[] = { { "in_l", MMB_AUDIO, 0, {} }, { "in_r", MMB_AUDIO, 0, {} }, { "sc", MMB_AUDIO, 0, {} } };
+const int MMB_NUM_INPUTS = 3;
 enum { OUT_L, OUT_R, OUT_GR };
 MmbPort MMB_OUTPUTS[] = { { "out_l", MMB_AUDIO, 0, {} }, { "out_r", MMB_AUDIO, 0, {} }, { "gr", MMB_CV, 0, {} } };
 const int MMB_NUM_OUTPUTS = 3;
@@ -48,11 +48,12 @@ void mmb_on_control(int idx, float v) {
 
 void mmb_process(int frames) {
     const bool stereo = mmb_connected(IN_R);
+    const bool scOn = mmb_connected(IN_SC);
     float x[2];
     for (int k = 0; k < frames; ++k) {
         x[0] = MMB_INPUTS[IN_L].buf[k];
         x[1] = stereo ? MMB_INPUTS[IN_R].buf[k] : x[0];
-        g_comp.Process(x, 2);
+        g_comp.ProcessKeyed(x, 2, MMB_INPUTS[IN_SC].buf[k], scOn);
         MMB_OUTPUTS[OUT_L].buf[k] = x[0] > 1.f ? 1.f : (x[0] < -1.f ? -1.f : x[0]);
         MMB_OUTPUTS[OUT_R].buf[k] = x[1] > 1.f ? 1.f : (x[1] < -1.f ? -1.f : x[1]);
         MMB_OUTPUTS[OUT_GR].buf[k] = g_comp.gr();

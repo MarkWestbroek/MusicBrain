@@ -17,6 +17,16 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-29 — fw 0.5.116: VCA-BUS krijgt een sidechain-ingang
+<!-- EN: fw 0.5.116: the VCA bus compressor gets a sidechain input -->
+- `tp_mmb_bus_comp` heeft nu een ingang `sc` (mono), net als PUMP: met een
+  sleutel erop luistert de detector alleen daarnaar, door SC HPF; los werkt
+  hij zoals voorheen (bestaande patches klinken gelijk). De SSL-pomp: de mix
+  ademt mee op een kick die er zelf niet in zit, trager en ronder dan PUMP.
+- Ook in de firmware telt `sc` als aangesloten tot 2 s na het laatste blok.
+- Paneel: zes jacks op één rij (L, R, SC, GR, L, R). Tests: twee nieuwe in
+  `wasmBusComp.test.ts` (pompen op de sleutel; eigen ingang genegeerd).
+
 ### 2026-10-29 — fw 0.5.115: PUMP, compressor met sidechain (3630-stijl)
 <!-- EN: fw 0.5.115: PUMP, a sidechain compressor in the spirit of the Alesis 3630 -->
 - Nieuwe module `tp_mmb_pump` (plan: [sidechain-comp.md](plans/sidechain-comp.md)):

@@ -2343,13 +2343,14 @@ function mmbBusComp() {
       sw  ('sc_hpf',  'SC HPF',  w*0.10, 82, ['Uit', '60', '100', '150'], 0),
       knob('mix',     'Mix',     w*0.48, 84, { size: 'small', min: 0, max: 1, def: 1, color: '#9ca3af' }),
       sw  ('bypass',  'Bypass',  w*0.78, 84, ['Uit', 'Aan'], 0),
-      inPort ('in_l',  'L',  'audio', w*0.12, 106),
-      inPort ('in_r',  'R',  'audio', w*0.28, 106),
-      outPort('gr',    'GR', 'cv',    w*0.50, 106),
-      outPort('out_l', 'L',  'audio', w*0.72, 106),
-      outPort('out_r', 'R',  'audio', w*0.88, 106),
+      inPort ('in_l',  'L',  'audio', w*0.09, 106),
+      inPort ('in_r',  'R',  'audio', w*0.25, 106),
+      inPort ('sc',    'SC', 'audio', w*0.41, 106),
+      outPort('gr',    'GR', 'cv',    w*0.59, 106),
+      outPort('out_l', 'L',  'audio', w*0.75, 106),
+      outPort('out_r', 'R',  'audio', w*0.91, 106),
     ],
-    notes: 'VCA-buscompressor die knipoogt naar de SSL G-bus: strak en schoon, de lijm op een mix. Vaste standen zoals het apparaat: Attack 0,1 tot 30 ms, Release 0,1 tot 1,2 s en Auto, Ratio 2/4/10. De klassieke busstand: attack 30, release Auto, ratio 2 of 4 — de aanslag komt erdoor en de mix pompt mee met de maat. Auto = een snelle envelope (100 ms) voor losse pieken en een trage (1,2 s) die alleen bij aanhoudend luid materiaal groeit; de grootste wint. SC HPF (niet op het origineel) haalt laag uit de detector zodat de bas hem minder laat pompen. Makeup, Mix (parallel), Bypass, GR als CV. Stereo gekoppeld. Firmware tp_mmb_bus_comp (mmb_dsp::BusComp); dezelfde kern als wasm in de simulator.',
+    notes: 'VCA-buscompressor die knipoogt naar de SSL G-bus: strak en schoon, de lijm op een mix. Vaste standen zoals het apparaat: Attack 0,1 tot 30 ms, Release 0,1 tot 1,2 s en Auto, Ratio 2/4/10. De klassieke busstand: attack 30, release Auto, ratio 2 of 4 — de aanslag komt erdoor en de mix pompt mee met de maat. Auto = een snelle envelope (100 ms) voor losse pieken en een trage (1,2 s) die alleen bij aanhoudend luid materiaal groeit; de grootste wint. SC HPF (niet op het origineel) haalt laag uit de detector zodat de bas hem minder laat pompen. SC (sidechain, mono): met een sleutel erop luistert de detector alleen daarnaar (door SC HPF), zodat de mix pompt op een kick die er zelf niet in zit; los = de eigen ingang. Voor de snelle, hijgende pomp: PUMP. Makeup, Mix (parallel), Bypass, GR als CV. Stereo gekoppeld. Firmware tp_mmb_bus_comp (mmb_dsp::BusComp); dezelfde kern als wasm in de simulator.',
   });
 }
 

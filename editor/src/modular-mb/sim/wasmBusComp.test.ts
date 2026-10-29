@@ -8,6 +8,8 @@ import { fileURLToPath } from 'node:url';
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { load, rms } from './wasmTestHost';
+
 const QUANTUM = 128;
 const CTX = 44100;          // gelijk aan de native rate: geen resampling in de meting
 
@@ -200,5 +202,35 @@ describe('VCA-buscompressor (SSL-stijl)', () => {
     const o = await run({ threshold: 0, makeup: 20 }, 0.5, sine(0, 110));
     let pk = 0; for (const v of o.l) pk = Math.max(pk, Math.abs(v));
     expect(pk).toBeLessThanOrEqual(1);
+  }, 30_000);
+});
+
+describe('VCA-bus: sidechain (fw 0.5.116)', () => {
+  /** Pad op in_l, optioneel een sleutel op sc; geeft out_l. */
+  async function keyed(ctl: Record<string, number>, secs: number, pad: (t: number) => number, key?: (t: number) => number) {
+    const m = await load(TYPE);
+    for (const [id, v] of Object.entries(ctl)) m.setCtl(id, v);
+    m.setIn('in_r', 0, false);
+    if (!key) m.setIn('sc', 0, false);
+    let n = 0;
+    return m.render(secs, (_t, mm) => {
+      const a = mm.inBuf('in_l'), s = key ? mm.inBuf('sc') : null;
+      for (let k = 0; k < mm.block; ++k, ++n) { a[k] = pad(n / mm.rate); if (s) s[k] = key!(n / mm.rate); }
+    }).out_l!;
+  }
+  const kick = (t: number) => { const p = t % 0.5; return 0.9 * Math.exp(-p / 0.08) * Math.sin(2 * Math.PI * 60 * p); };
+  const win = (o: Float32Array, a: number, b: number) => 20 * Math.log10(rms(o, Math.round(a * CTX), Math.round(b * CTX)));
+  const ctl = { threshold: -24, ratio: 2, attack: 0, release: 0 };   // 10:1, 0,1 ms, 100 ms
+
+  it('de mix pompt op een kick op SC, en zonder sleutel niet', async () => {
+    const met = await keyed(ctl, 2, sine(-30, 440), kick);
+    expect(win(met, 1.42, 1.48) - win(met, 1.02, 1.07)).toBeGreaterThan(10);
+    const zonder = await keyed(ctl, 2, sine(-30, 440));
+    expect(win(zonder, 1.02, 1.07)).toBeCloseTo(-33, 0);
+  }, 30_000);
+
+  it('met een sleutel luistert de detector niet naar de eigen ingang', async () => {
+    const o = await keyed({ threshold: -30, ratio: 2 }, 0.8, sine(-6), () => 0);
+    expect(win(o, 0.6, 0.8)).toBeCloseTo(-9, 0);
   }, 30_000);
 });

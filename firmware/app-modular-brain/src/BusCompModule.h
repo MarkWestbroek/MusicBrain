@@ -7,13 +7,16 @@
  * De DSP is mmb_dsp::BusComp (dezelfde header draait als wasm in de simulator);
  * zie daar en doc/plans/vintage-compressors.md voor het karakter. Stereo;
  * alleen `in_l` aangesloten = mono, en dan komt het resultaat op beide
- * uitgangen.
+ * uitgangen. Met een sleutel op `sc` (fw 0.5.116) luistert de detector
+ * daarnaar; `sc` telt als aangesloten tot 2 s na het laatste blok, zoals bij
+ * PUMP (PumpModule.h).
  *
  * Port map:
  * | Direction | portId  | Domain | Stream / channel |
  * |-----------|---------|--------|------------------|
  * | input     | `in_l`  | Audio  | stream_, 0       |
  * | input     | `in_r`  | Audio  | stream_, 1       |
+ * | input     | `sc`    | Audio  | stream_, 2 (sidechain-sleutel) |
  * | output    | `out_l` | Audio  | stream_, 0       |
  * | output    | `out_r` | Audio  | stream_, 1       |
  * | output    | `gr`    | Cv     | gain reduction, 0..1 (1 = 20 dB of meer) |
@@ -43,7 +46,7 @@ namespace mmb_link {
 
 class BusCompStream : public AudioStream {
 public:
-    BusCompStream() : AudioStream(2, inputQueue_) { comp_.Init(AUDIO_SAMPLE_RATE_EXACT); }
+    BusCompStream() : AudioStream(3, inputQueue_) { comp_.Init(AUDIO_SAMPLE_RATE_EXACT); }
 
     mmb_dsp::BusComp& comp() { return comp_; }
     float gr() const { return gr_; }
@@ -51,6 +54,7 @@ public:
     void update() override {
         audio_block_t* inL = receiveReadOnly(0);
         audio_block_t* inR = receiveReadOnly(1);
+        audio_block_t* inS = receiveReadOnly(2);
         audio_block_t* outL = allocate();
         audio_block_t* outR = allocate();
         if (!outL || !outR) {
@@ -58,15 +62,20 @@ public:
             if (outR) release(outR);
             if (inL) release(inL);
             if (inR) release(inR);
+            if (inS) release(inS);
             return;
         }
+        if (inS) scHold_ = kScHoldBlocks;
+        else if (scHold_ > 0) --scHold_;
+        const bool scOn = scHold_ > 0;
         // Mono: zonder rechterkabel krijgt R hetzelfde als L.
         const audio_block_t* srcR = inR ? inR : inL;
         float x[2];
         for (int i = 0; i < AUDIO_BLOCK_SAMPLES; ++i) {
             x[0] = inL  ? inL->data[i]  * (1.0f / 32768.0f) : 0.0f;
             x[1] = srcR ? srcR->data[i] * (1.0f / 32768.0f) : 0.0f;
-            comp_.Process(x, 2);
+            const float s = inS ? inS->data[i] * (1.0f / 32768.0f) : 0.0f;
+            comp_.ProcessKeyed(x, 2, s, scOn);
             outL->data[i] = static_cast<int16_t>(clamp1(x[0]) * 32767.0f);
             outR->data[i] = static_cast<int16_t>(clamp1(x[1]) * 32767.0f);
         }
@@ -77,13 +86,16 @@ public:
         release(outR);
         if (inL) release(inL);
         if (inR) release(inR);
+        if (inS) release(inS);
     }
 
 private:
+    static constexpr int kScHoldBlocks = 690;   // ~2 s bij 128 samples op 44,1 kHz
     static float clamp1(float v) { return v > 1.0f ? 1.0f : (v < -1.0f ? -1.0f : v); }
 
-    audio_block_t* inputQueue_[2] = { nullptr, nullptr };
+    audio_block_t* inputQueue_[3] = { nullptr, nullptr, nullptr };
     mmb_dsp::BusComp comp_;
+    int scHold_ = 0;
     volatile float gr_ = 0.0f;
 };
 
@@ -103,10 +115,11 @@ public:
         auto* s = const_cast<BusCompStream*>(&stream_);
         if (portId == "in_l" || portId == "in") return { s, 0, true };
         if (portId == "in_r") return { s, 1, true };
+        if (portId == "sc") return { s, 2, true };
         return {};
     }
     PortKind inputPortKind(std::string_view portId) const override {
-        if (portId == "in_l" || portId == "in_r" || portId == "in") return PortKind::Audio;
+        if (portId == "in_l" || portId == "in_r" || portId == "in" || portId == "sc") return PortKind::Audio;
         return PortKind::None;
     }
     PortKind outputPortKind(std::string_view portId) const override {
