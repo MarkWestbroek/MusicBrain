@@ -1,6 +1,6 @@
 {
   "$comment": "GEGENEREERD door tools/contract_dump.py — niet met de hand bewerken. Poort-ids zijn letterlijk wat de firmware accepteert (aliassen als out/out_l en naam/naam_cv staan er dus allebei in).",
-  "firmwareVersion": "0.5.114",
+  "firmwareVersion": "0.5.115",
   "modules": {
     "...": {
       "typeId": "...",
@@ -1997,6 +1997,38 @@
         "low_boost",
         "low_freq",
         "output"
+      ]
+    },
+    "tp_mmb_pump": {
+      "typeId": "tp_mmb_pump",
+      "source": "firmware/app-modular-brain/src/PumpModule.h",
+      "ports": [
+        "gate",
+        "gr",
+        "in",
+        "in_l",
+        "in_r",
+        "out",
+        "out_l",
+        "out_r",
+        "sc",
+        "thresh",
+        "thresh_cv"
+      ],
+      "controls": [
+        "attack",
+        "bypass",
+        "gate",
+        "gate_rate",
+        "knee",
+        "listen",
+        "mix",
+        "mode",
+        "output",
+        "ratio",
+        "release",
+        "sc_hp",
+        "threshold"
       ]
     },
     "tp_mmb_quant": {

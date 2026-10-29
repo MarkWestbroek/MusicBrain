@@ -74,7 +74,7 @@ Elk plan draagt zijn eigen datum en status. Kort per thema:
 - **CONV (voorstel 2026-10-14)**: [conv-reverb.md](plans/conv-reverb.md): convolutiegalm met niet-uniforme partities, IR-bank, eigen IR's lokaal (niet in de repo).
 - **Elements-programma's (voorstel 2026-10-12)**: [elements-programmas.md](plans/elements-programmas.md): een bank programma's per Elements, zoals de DX7; de 19 geredde programma's van de 5× Elements als eerste bank.
 - **Beads (voorstel 2026-10-12)**: [beads.md](plans/beads.md): Mutable Instruments Beads (broncode vrijgegeven 11-10-2026, MIT) als module naast Clouds; werkwijze, stappen, vragen.
-- **PUMP (voorstel 2026-10-29)**: [sidechain-comp.md](plans/sidechain-comp.md): compressor met sidechain-ingang in de geest van de Alesis 3630 (de pomp van de French house), met gate, Peak/RMS en een sidechain-filter; open vragen.
+- **PUMP (fw 0.5.115, 2026-10-29)**: [sidechain-comp.md](plans/sidechain-comp.md): compressor met sidechain-ingang in de geest van de Alesis 3630 (de pomp van de French house), met gate, Peak/RMS en een sidechain-filter; gebouwd, Teensy-meting en plugin-sidechain open.
 - **RATCHET (voorstel 2026-10-27)**: [ratchet.md](plans/ratchet.md): stapsequencer voor hi-hat-roffels (ratchets en triolen over één of meer stappen, accent-ramp, toonsweep, A/B), voor Dark trap in de Freestyle-machine; open vragen.
 - **Automation (voorstel 2026-10-11)**: [automation.md](plans/automation.md): knopbewegingen meeopnemen in takes en sporen (ED-SM-10), werkwijze eerst; vragen open.
 - **Tempo (2026-10-09)**: [tempo.md](plans/tempo.md): één tempo per patch, tap tempo, MIDI-clock volgen; wie de baas is.

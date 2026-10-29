@@ -504,3 +504,64 @@ export function seedRatchetTrapPatch(project: ModularProject): ModularProject {
   };
   return finish(p, mods, rack, patch);
 }
+
+/**
+ * French house-pomp: een Min7-akkoord uit vier zaagtanden (Chord → VCO's),
+ * door de LADDER en een BBD-chorus, gaat stereo door PUMP. De kick (Peaks,
+ * op de tel van de Clock) zit op de sidechain én in de mix: bij elke kick
+ * zakt het akkoord weg en zwelt het daarna weer aan (doc/plans/sidechain-comp.md).
+ */
+export function seedFrenchPumpPatch(project: ModularProject): ModularProject {
+  const { p, mods, rack } = build(project,
+    ['tp_mmb_clock', 'tp_mmb_peaks', 'tp_mmb_chord', 'tp_mmb_vco', 'tp_mmb_vco', 'tp_mmb_vco', 'tp_mmb_vco',
+     'tp_mmb_mixer', 'tp_mmb_ladder', 'tp_mmb_bbd_chorus', 'tp_mmb_pump', 'tp_mmb_mixer', 'tp_mmb_out'],
+    'French pump', 'Clock → kick (Peaks) op de sidechain van PUMP; Chord → 4 zaagtanden → Ladder → BBD → PUMP.');
+  const [clock, kick, chord, v1, v2, v3, v4, padMix, ladder, chorus, pump, mixer, out] = mods as [
+    ModuleInstance, ModuleInstance, ModuleInstance, ModuleInstance, ModuleInstance, ModuleInstance, ModuleInstance,
+    ModuleInstance, ModuleInstance, ModuleInstance, ModuleInstance, ModuleInstance, ModuleInstance];
+  const saw = (fine: number) => ({ wave: 2, coarse: -12, fine, fm_amt: 0, level: 0.8 });
+  const patch: Patch = {
+    id: uid('patch'), name: 'French pump',
+    description: 'French house op 124 bpm. Een Min7-akkoord uit vier licht ontstemde zaagtanden gaat door de Ladder en een BBD-chorus, en dan stereo door PUMP. De kick zit op SC (de sidechain) én in de mix: bij elke tel zakt het akkoord weg en zwelt het daarna weer aan. Draai aan Release (kort = hijgend, lang = traag ademend), Ratio en Threshold voor de diepte, en aan Cutoff voor de kleur. Zet Listen aan om de sleutel te horen.',
+    voiceCount: 1, rackIds: [rack.id],
+    connections: cables([
+      [clock, 'beat', kick, 'gate'],
+      [chord, 'out1', v1, 'voct'],
+      [chord, 'out2', v2, 'voct'],
+      [chord, 'out3', v3, 'voct'],
+      [chord, 'out4', v4, 'voct'],
+      [v1, 'out', padMix, 'in1'],
+      [v2, 'out', padMix, 'in2'],
+      [v3, 'out', padMix, 'in3'],
+      [v4, 'out', padMix, 'in4'],
+      [padMix, 'out_l', ladder, 'in'],
+      [ladder, 'out', chorus, 'in_l'],
+      [chorus, 'out_l', pump, 'in_l'],
+      [chorus, 'out_r', pump, 'in_r'],
+      [kick, 'out', pump, 'sc'],
+      [pump, 'out_l', mixer, 'in1'],
+      [pump, 'out_r', mixer, 'in2'],
+      [kick, 'out', mixer, 'in3'],
+      [mixer, 'out_l', out, 'l'],
+      [mixer, 'out_r', out, 'r'],
+    ]),
+    controlState: {
+      [clock.id]: { tempo: 124, swing: 0, width: 0.3, div: 6, run: 1 },
+      [kick.id]: { drum: 0, tone: 0.35, decay: 0.6, snap: 0.4, coarse: -5, level: 0.9 },
+      [chord.id]: { chord: 3, inv: 1, spread: 0.3 },
+      [v1.id]: saw(0), [v2.id]: saw(6), [v3.id]: saw(-5), [v4.id]: saw(3),
+      [padMix.id]: { vol1: 0.4, vol2: 0.4, vol3: 0.4, vol4: 0.4, pan1: 0, pan2: 0, pan3: 0, pan4: 0 },
+      [ladder.id]: { cutoff: 1800, q: 0.3, drive: 1.2 },
+      [chorus.id]: { rate: 0.5, depth: 0.6, delay: 8, feedback: 0, mix: 0.5, spread: 1, age: 0.3, tone: 0.6 },
+      [pump.id]: { threshold: -14, ratio: 10, attack: 0.5, release: 180, mode: 0, knee: 0, output: 0, gate: -70, gate_rate: 200, sc_hp: 0, listen: 0, mix: 1, bypass: 0 },
+      [mixer.id]: { vol1: 0.7, pan1: -1, vol2: 0.7, pan2: 1, vol3: 0.8, pan3: 0 },
+      [out.id]: { level: 0.8 },
+    },
+    fronts: [playFront(4, [
+      'Pomp', [pump, 'release', undefined, 'large'], [pump, 'ratio'], [pump, 'threshold'], [pump, 'listen'],
+      'Klank', [ladder, 'cutoff'], [chord, 'chord'], [chorus, 'mix'], [clock, 'tempo'],
+    ])],
+    envelopes: [], lfos: [],
+  };
+  return finish(p, mods, rack, patch);
+}

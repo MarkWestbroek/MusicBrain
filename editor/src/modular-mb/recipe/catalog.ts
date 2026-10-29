@@ -106,6 +106,7 @@ export const CATALOG: Record<string, CatalogEntry> = {
   tp_mmb_fet_comp:  { short: 'FET',      kind: 'fx',     aliases: ['fet', 'fet comp', 'fet compressor', '1176'] },
   tp_mmb_opto_comp: { short: 'Opto',     kind: 'fx',     aliases: ['opto', 'opto comp', 'opto compressor', 'la2a', 'la 2a'] },
   tp_mmb_bus_comp:  { short: 'VCA-Bus',  kind: 'fx',     aliases: ['bus comp', 'buscomp', 'bus compressor', 'vca bus', 'vca compressor', 'ssl comp', 'glue'] },
+  tp_mmb_pump:      { short: 'Pump',     kind: 'fx',     aliases: ['pump', 'sidechain', 'sidechain comp', 'sidechain compressor', 'ducking', 'ducker', 'french house'] },
   tp_mmb_varimu_comp: { short: 'Vari-mu', kind: 'fx',    aliases: ['varimu', 'vari mu', 'vari mu comp', 'vari mu compressor', 'buizencompressor', 'tube comp', 'fairchild'] },
   tp_mmb_diode_comp:{ short: 'Diode',    kind: 'fx',     aliases: ['diode', 'diode comp', 'diode compressor', 'diodebrug', 'diode bridge', 'neve comp', '33609'] },
   tp_mmb_program_eq:{ short: 'Program EQ', kind: 'fx',   aliases: ['program eq', 'pultec', 'programeq'] },

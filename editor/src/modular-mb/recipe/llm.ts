@@ -160,7 +160,7 @@ export const TOOLS_PROMPT = [
   'Stapel geen voorstellen om eerdere voorstellen terug te draaien: zeg liever dat de gebruiker op "Nieuw gesprek" kan drukken.',
   'Poly-patches: in get_patch_summary zie je alleen de kabels van stem 1 (de master). De firmware legt ze per stem:',
   'een kabel van de master naar mixer in1 betekent stem 1 → in1, stem 2 → in2, … stem N → inN. Alle N mixerkanalen zijn dus in gebruik.',
-  'Kies bij "compressor" zonder karakter tp_mmb_bus_comp; bij "filter" zonder meer tp_mmb_vcf; "moog"/"ladder" = tp_mmb_ladder; "korg"/"ms20" = tp_mmb_ms20.',
+  'Kies bij "compressor" zonder karakter tp_mmb_bus_comp, bij "sidechain"/"ducking"/"pomp" tp_mmb_pump (sleutel op sc); bij "filter" zonder meer tp_mmb_vcf; "moog"/"ladder" = tp_mmb_ladder; "korg"/"ms20" = tp_mmb_ms20.',
   'Sluit af met één of twee zinnen in het Nederlands over wat je hebt voorgesteld, zonder JSON.',
 ].join('\n');
 

@@ -79,6 +79,7 @@ export const FRONT_CONTROLS: Record<string, string[]> = {
   // ── Effecten ──────────────────────────────────────────────────────────
   [T('bbd_chorus')]: ['rate', 'depth', 'mix', 'feedback'],
   [T('bus_comp')]: ['threshold', 'makeup', 'mix'],
+  [T('pump')]: ['threshold', 'ratio', 'release', 'output', 'mix'],
   [T('beads')]: ['time', 'size', 'shape', 'pitch', 'density', 'feedback', 'mix', 'reverb', 'freeze_btn'],
   [T('clouds')]: ['position', 'size', 'density', 'texture', 'pitch', 'mix', 'reverb', 'feedback', 'freeze'],
   [T('comb')]: ['coarse', 'feedback', 'mix'],   // coarse is hier de stemming van de kam: dat ís de klank

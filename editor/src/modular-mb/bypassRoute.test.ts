@@ -34,7 +34,7 @@ describe('bypassRoute', () => {
 
   it('eigen knop alleen als het effect een `bypass`-control heeft', () => {
     const own = effects.filter((t) => bypassRoute(t)?.hasOwnProperty('own')).map((t) => t.id);
-    expect(own.length).toBe(8);
+    expect(own.length).toBe(9);
     for (const t of effects) {
       const hasCtl = t.controls.some((c) => c.id === 'bypass');
       expect(bypassRoute(t)?.hasOwnProperty('own') ?? false, t.id).toBe(hasCtl);

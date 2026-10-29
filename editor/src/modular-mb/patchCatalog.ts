@@ -20,7 +20,7 @@ import { seedAxelFLeadPatch } from './seedAxelF';
 import { seedMartenotPolyPatch } from './seedMartenot';
 import { seedSid3Patch, seedSidPolyPatch } from './seedSid';
 import { seedMaterialBridgeDemo, seedReservoirDemo, seedTapeStripPolyPatch } from './seedModules';
-import { DRIVE_SOLO_FX, ENSEMBLE_SOLO_FX, TUBE_SOLO_FX, FOLDER_SOLO_FX, FREQSHIFT_SOLO_FX, WAH_SOLO_FX, seedAcidJamPatch, seedComplexVoicePatch, seedEPianoPolyPatch, seedOrganPolyPatch, seedRunglerPatch, seedRatchetTrapPatch, seedRhythmBoxPatch, seedSemSweepPatch, seedSynthexPolyPatch, seedWestCoastPatch } from './seedShowcase';
+import { DRIVE_SOLO_FX, ENSEMBLE_SOLO_FX, TUBE_SOLO_FX, FOLDER_SOLO_FX, FREQSHIFT_SOLO_FX, WAH_SOLO_FX, seedAcidJamPatch, seedComplexVoicePatch, seedEPianoPolyPatch, seedOrganPolyPatch, seedRunglerPatch, seedRatchetTrapPatch, seedFrenchPumpPatch, seedRhythmBoxPatch, seedSemSweepPatch, seedSynthexPolyPatch, seedWestCoastPatch } from './seedShowcase';
 import { DEMO_SEEDS } from './demoSeeds';
 import type { ModularProject } from './types';
 
@@ -246,6 +246,7 @@ const RAW: Raw[] = [
   { menu: 'solo', label: "🎛️ Buchla-stem (Complex + LPG)", title: "West Coast-stem onder het klavier: COMPLEX (259-stijl) door de LPG; SLOPE opent de gate en beweegt het timbre.", build: (p) => seedComplexVoicePatch(p) },
   { menu: 'solo', label: "🎚️ SEM sweep (LP → notch → HP)", title: "Zelfspelend: zaag op een sequencerlijn door het SEM-filter; Mode schuift traag van laagdoorlaat via notch naar hoogdoorlaat.", build: (p) => seedSemSweepPatch(p) },
   { menu: 'solo', label: "🥁 Ratchet trap (Grids + RATCHET)", title: "Trap op 140: Grids speelt kick, snare en hats, RATCHET voegt de hi-hat-roffels toe (triolen, zessen, achten) met oplopend accent. Draai aan Ramp en Sweep.", build: (p) => seedRatchetTrapPatch(p) },
+  { menu: 'solo', label: "🏠 French pump (PUMP-sidechain)", title: "French house op 124: de kick zit op de sidechain van PUMP, zodat een Min7-akkoord bij elke tel wegzakt en weer aanzwelt. Draai aan Release, Ratio en Threshold.", build: (p) => seedFrenchPumpPatch(p) },
   { menu: 'solo', label: "🥁 Ritmebox (CR-78-presets)", title: "Ritmebox met de presets van de CR-78 (overgenomen uit de Service Notes). Draai aan Rhythm; pad 1 start/stopt.", build: (p) => seedRhythmBoxPatch(p) },
   { menu: 'solo', label: "🗣️ Warps vocoder", title: "Vocoder: jouw keyboard bespeelt Warps' interne zaag-carrier; Marbles klokt Plaits als ritmische modulator. Houd een noot aan en draai Timbre.", build: (p) => seedWarpsVocoderPatch(p) },
   { menu: 'solo', label: "🎶 Koor zingt woorden (vocoder)", title: "Het koor zingt woorden: de sampler (koor) is de drager van Warps' vocoder, Plaits' spraak-engine spreekt bij elke aanslag een woord. Speel akkoorden; Morph kiest het woord.", build: (p) => seedVocoderChoirPatch(p, 'plaits') },

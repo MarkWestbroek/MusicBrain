@@ -17,6 +17,34 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-29 — fw 0.5.115: PUMP, compressor met sidechain (3630-stijl)
+<!-- EN: fw 0.5.115: PUMP, a sidechain compressor in the spirit of the Alesis 3630 -->
+- Nieuwe module `tp_mmb_pump` (plan: [sidechain-comp.md](plans/sidechain-comp.md)):
+  een schone VCA-compressor met een **sidechain-ingang** `sc` (mono). Met een
+  sleutel erop luistert de detector alleen daarnaar; zonder kabel naar de
+  eigen ingang, als gewone compressor. Dat is de pomp van de French house:
+  kick op SC, pad op L/R.
+- Knoppen zoals het apparaat: Threshold −40 … +20 dB (0 = −18 dBFS), Ratio
+  1 … 20 en ∞, Attack 0,1–200 ms, Release 50 ms–3 s, Peak/RMS (in RMS
+  volgen de tijden het programma), Knee hard/zacht, Output ±20 dB, en een
+  **gate** (drempel, helemaal links = uit; Rate = sluittijd 20 ms–2 s) die
+  ook in Bypass werkt. Extra: SC HP (60/100/150 Hz in de detector), Listen
+  (hoor de sleutel), Mix, Bypass. Uitgangen GR (CV) en Gate; Thr+ als CV bij
+  de drempel op.
+- De kern `mmb_dsp/pump_comp.h` rekent op elke samplerate (`MMB_RATE_FLEX`),
+  klaar voor de plugin op 96 kHz. Effect-bypass in de patch-plugins: PUMP
+  heeft een eigen `bypass`-knop (nu 9 effecten).
+- Firmware: `sc` telt als aangesloten tot 2 s na het laatste audioblok, zodat
+  een bron die bij stilte niets zendt de detector niet tussen twee kicks naar
+  de eigen ingang laat springen.
+- Seed "🏠 French pump (PUMP-sidechain)": een Min7-akkoord uit vier
+  zaagtanden door Ladder en BBD, stereo door PUMP; de kick (Peaks, op de tel
+  van de Clock op 124) zit op SC en in de mix.
+- Tests: `wasmPump.test.ts` (statische curve, ∞, knie, attack/release,
+  sidechain, SC HP, gate ook in bypass, Listen/Mix/Bypass, mono, 96 kHz).
+- Nog niet: meting op de Teensy (`getStatus`), luisteroordeel, en de
+  sidechain-bus in de plugin (VST-sessie).
+
 ### 2026-10-29 — Patch-plugins: Poly 8 en CS-80 Brass als één AU/VST3
 <!-- EN: Patch plugins: a whole patch (voices, MIDI-IN, effects) as one AU/VST3; Poly 8 and CS-80 Brass -->
 - Een hele patch uit de catalogus is nu één plugin: de JSON die de Teensy

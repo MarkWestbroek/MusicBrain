@@ -2353,6 +2353,48 @@ function mmbBusComp() {
   });
 }
 
+// 10e'. MMB PUMP — 12 HP. VCA-compressor met sidechain en gate, 3630-stijl
+// (doc/plans/sidechain-comp.md).
+function mmbPump() {
+  const w = W(12);
+  return assemble({
+    typeId: 'tp_mmb_pump',
+    categoryId: 'effect',
+    variant: 'Sidechain compressor',
+    brand: 'MMB', model: 'PUMP',
+    hp: 12, texture: 'pcb-black', baseColor: '#1c1a22', internal: true,
+    texts: [
+      { x: w/2, y: 8,   text: 'PUMP', fontSize: 2.0, color: '#f9fafb', align: 'middle' },
+      { x: w/2, y: 14,  text: 'sidechain compressor · gate', fontSize: 1.0, color: '#9ca3af', align: 'middle' },
+      { x: w/2, y: 126, text: 'MMB', fontSize: 1.6, color: '#f9fafb', align: 'middle' },
+    ],
+    items: [
+      knob('threshold', 'Threshold', w*0.20, 30, { size: 'medium', min: -40, max: 20, def: -10, unit: 'dB', color: '#e879f9' }),
+      knob('ratio',     'Ratio',     w*0.50, 30, { size: 'medium', min: 1, max: 21, def: 4, taper: 'log', color: '#e879f9', ticks: { highlight: [1, 2, 4, 10, 21], labels: { 21: '∞' } } }),
+      knob('output',    'Output',    w*0.80, 30, { size: 'medium', min: -20, max: 20, def: 0, unit: 'dB', color: '#e879f9' }),
+      knob('attack',    'Attack',    w*0.20, 52, { size: 'small', min: 0.1, max: 200, def: 1, unit: 'ms', taper: 'log', color: '#f9fafb' }),
+      knob('release',   'Release',   w*0.50, 52, { size: 'small', min: 50, max: 3000, def: 150, unit: 'ms', taper: 'log', color: '#f9fafb' }),
+      sw  ('mode',  'Mode',  w*0.80, 52, ['Peak', 'RMS'], 0),
+      knob('gate',      'Gate',      w*0.20, 72, { size: 'small', min: -70, max: 0, def: -70, unit: 'dB', color: '#38bdf8', ticks: { labels: { [-70]: 'uit' } } }),
+      knob('gate_rate', 'Rate',      w*0.50, 72, { size: 'small', min: 20, max: 2000, def: 200, unit: 'ms', taper: 'log', color: '#38bdf8' }),
+      sw  ('knee',  'Knee',  w*0.80, 72, ['Hard', 'Soft'], 0),
+      sw  ('sc_hp', 'SC HP', w*0.13, 90, ['Uit', '60', '100', '150'], 0),
+      sw  ('listen', 'Listen', w*0.37, 90, ['Uit', 'Aan'], 0),
+      knob('mix',   'Mix',   w*0.62, 90, { size: 'small', min: 0, max: 1, def: 1, color: '#9ca3af' }),
+      sw  ('bypass', 'Bypass', w*0.87, 90, ['Uit', 'Aan'], 0),
+      inPort ('in_l',      'L',      'audio', w*0.13, 105),
+      inPort ('in_r',      'R',      'audio', w*0.37, 105),
+      inPort ('sc',        'SC',     'audio', w*0.62, 105),
+      inPort ('thresh_cv', 'Thr+',   'cv',    w*0.87, 105),
+      outPort('gr',        'GR',     'cv',    w*0.13, 117),
+      outPort('gate',      'Gate',   'gate',  w*0.37, 117),
+      outPort('out_l',     'L',      'audio', w*0.62, 117),
+      outPort('out_r',     'R',      'audio', w*0.87, 117),
+    ],
+    notes: 'VCA-compressor met sidechain en gate, in de geest van de Alesis 3630: de pomp van de French house. Zet een kick op SC en een pad of akkoorden op L/R: bij elke kick zakt het signaal weg en zwelt daarna weer aan. Pompstand: ratio 4–10, attack 0,1–1 ms, release 100–250 ms (rond een achtste van het tempo). Los van SC luistert de detector naar de eigen ingang, als gewone compressor. Threshold −40 tot +20 dB (0 = −18 dBFS), Ratio 1 tot 20 en ∞ (begrenzer), Knee hard of zacht. Mode Peak gebruikt Attack en Release; RMS volgt het programma zelf (de knoppen doen dan niets, zoals op het apparaat). SC HP (niet op het origineel) haalt laag uit de detector, zodat de bas van een volle mix niet meepompt. Listen laat de sleutel horen bij het afstellen. Gate: drempel (helemaal links = uit) en Rate, de sluittijd; werkt ook in Bypass. Mix (parallel), Output, Thr+ als CV bij de drempel op, GR (1 = 20 dB) en Gate als uitgang. Stereo gekoppeld; alleen L aangesloten = mono op beide uitgangen. Firmware tp_mmb_pump (mmb_dsp::PumpComp); dezelfde kern als wasm in de simulator.',
+  });
+}
+
 // 10f. MMB VARI-MU — 10 HP. Variable-mu buizencompressor in Fairchild-stijl (FW-FX-3 stap 4).
 function mmbVariMuComp() {
   const w = W(10);
@@ -5240,7 +5282,7 @@ function mmbEnvFollowerMono() {
 // ── public entry ───────────────────────────────────────────────────────
 /** Plaats interne modules in (en creëer eventueel) de `rack_internal`. */
 export function seedInternals(project: ModularProject): ModularProject {
-  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbBeads(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbAudioIn(), mmbEcho(), mmbTapeEcho(), mmbStereoTapeEcho(), mmbDigitalEcho(), mmbBbdChorus(), mmbRingMod(), mmbOctaver(), mmbHarmonizer(), mmbReverb(), mmbHall(), mmbConv(), mmbTremolo(), mmbStereoPhaser(), mmbVibe(), mmbRotary(), mmbShimmer(), mmbFetComp(),mmbOptoComp(), mmbBusComp(),mmbVariMuComp(), mmbProgramEq(), mmbDiodeComp(), mmbConsoleEq(), mmbParaEq(), mmbSampler(), mmbZang(), mmbSid(), mmbSid3(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbFof(), mmbEnvFollower(), mmbEnvFollowerMono()];
+  const all = [mmbAhdsr(), mmbLfo(), mmbSh(), mmbVco(), mmbQuadVcoShared(), mmbOctaVco(), mmbOctaVcf(), mmbOctaVca(), mmbQuadMixerShared(), mmbVcf(), mmbLadder(), mmbMs20(), mmbVca(), mmbOut(), mmbMidiIn(), mmbCvMath(), mmbMixer(), mmbMixer8(), mmbMixer16(), mmbSeq8(), mmbString(), mmbElements(), mmbRings(), mmbPlaits(), mmbClouds(), mmbBeads(), mmbTides(), mmbMarbles(), mmbDx7(), mmbWarps(), mmbMorphWt(), mmbStages(), mmbPeaks(), mmbResonator(), mmbCr78(), mmbQuant(), mmbChord(), mmbElementsReverb(), mmbGrids(), mmbComp(), mmbNoise(), mmbAudioIn(), mmbEcho(), mmbTapeEcho(), mmbStereoTapeEcho(), mmbDigitalEcho(), mmbBbdChorus(), mmbRingMod(), mmbOctaver(), mmbHarmonizer(), mmbReverb(), mmbHall(), mmbConv(), mmbTremolo(), mmbStereoPhaser(), mmbVibe(), mmbRotary(), mmbShimmer(), mmbFetComp(),mmbOptoComp(), mmbBusComp(), mmbPump(),mmbVariMuComp(), mmbProgramEq(), mmbDiodeComp(), mmbConsoleEq(), mmbParaEq(), mmbSampler(), mmbZang(), mmbSid(), mmbSid3(), mmbPhaser(), mmbStereoVca(), mmbFmVco(), mmbComb(), mmbWtVco(), mmbDrawVco(), mmbStkSound(), mmbFof(), mmbEnvFollower(), mmbEnvFollowerMono()];
   all.push(mmbMaterialBridge());
   all.push(mmbScanned());
   all.push(mmbReservoir());

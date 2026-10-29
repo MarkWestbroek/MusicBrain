@@ -178,6 +178,7 @@ sel tapeecho && build tapeecho tp_mmb_tape_echo "$LIB/mmb-dsp" --
 sel fetcomp && build fetcomp tp_mmb_fet_comp "$LIB/mmb-dsp" --
 sel optocomp && build optocomp tp_mmb_opto_comp "$LIB/mmb-dsp" --
 sel buscomp && build buscomp tp_mmb_bus_comp "$LIB/mmb-dsp" --
+sel pump && build pump tp_mmb_pump "$LIB/mmb-dsp" --
 sel varimucomp && build varimucomp tp_mmb_varimu_comp "$LIB/mmb-dsp" --
 sel programeq && build programeq tp_mmb_program_eq "$LIB/mmb-dsp" --
 sel diodecomp && build diodecomp tp_mmb_diode_comp "$LIB/mmb-dsp" --
