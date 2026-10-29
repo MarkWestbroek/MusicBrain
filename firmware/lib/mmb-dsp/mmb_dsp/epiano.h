@@ -149,7 +149,7 @@ public:
             // en een vol akkoord liep die bij elke trilling vol en vervormde
             // het geheel (−15 dB, Marks melding). Het grommen hoort bij de tine
             // zelf (Drive), niet bij de optelling.
-            float mono = sum * 1.3f;
+            float mono = sum * kSumGain;
             limiter_.Process(&mono, 1);
             const float y = mono * level_;
             out[0][frame] = y * (1 - tremolo_ * (0.5f + sway));
@@ -159,6 +159,13 @@ public:
 
 private:
     static constexpr float kBellRatio = 6.267f;      // tweede trilvorm van een ingeklemde staaf
+    // Versterking van de som vóór de limiter. Tot fw 0.5.116 was dat 1,3: dan
+    // zat een akkoord van drie of vier noten op gemiddelde velocity al tegen
+    // de limiter en werd harder spelen niet luider, alleen helderder (Mark,
+    // 2026-10-29; gemeten: 4 noten vel 0,65 → 1,0 gaf 0 dB). Op 0,6 groeit het
+    // volume tot vier noten mee met de velocity; de limiter blijft het vangnet
+    // voor volle akkoorden met sustain.
+    static constexpr float kSumGain = 0.6f;
     struct Voice {
         float phase = 0, bellPhase = 0, increment = 0;
         float amplitude = 0, bell = 0, decay = 1, bellDecay = 1, attack = 0;

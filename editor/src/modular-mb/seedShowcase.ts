@@ -364,7 +364,7 @@ export function seedEPianoPolyPatch(project: ModularProject): ModularProject {
     ]),
     controlState: {
       [midi.id]: { channel: 0, voiceCount: N, steal: 0, cc2Num: 64 },
-      [piano.id]: { type: 0, timbre: 0.35, bell: 0.5, decay: 0.5, drive: 0.4, tremolo: 0.3, trem_rate: 4.5, level: 0.8, damper: 0.6 },
+      [piano.id]: { type: 0, timbre: 0.35, bell: 0.5, decay: 0.5, drive: 0.4, tremolo: 0.3, trem_rate: 4.5, level: 1, damper: 0.6 },
       [out.id]: { level: 0.85 },
     },
     envelopes: [], lfos: [],
