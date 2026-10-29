@@ -45,7 +45,7 @@ const cstr = (s: string) => '"' + s.replace(/\\/g, '\\\\').replace(/"/g, '\\"') 
 const num = (v: number) => (Number.isInteger(v) ? `${v}.0f` : `${v}f`);
 const posix = (p: string) => p.replace(/\\/g, '/');
 
-function spec(c: Control): string | undefined {
+export function spec(c: Control): string | undefined {
   switch (c.kind) {
     case 'knob': {
       const skewMid = c.taper === 'log' && c.min > 0 ? Math.sqrt(c.min * c.max) : 0;
@@ -172,7 +172,7 @@ function parseBuildSh(): Map<string, BuildEntry> {
 }
 
 const usedCodes = new Set<string>(['Hall', 'Sid1']);
-function pluginCode(slug: string): string {
+export function pluginCode(slug: string): string {
   const letters = slug.replace(/[^a-z]/g, '');
   let code = (letters[0] ?? 'x').toUpperCase() + (letters.slice(1, 4) + 'xxx').slice(0, 3);
   for (let n = 2; usedCodes.has(code); ++n) code = code.slice(0, 3) + String(n);
@@ -299,4 +299,5 @@ function main(): void {
   console.log(`modules.cmake: ${nKernel} op de kern-interface, ${nW2c} via wasm2c, ${nAbi} via de native gastheer`);
 }
 
-main();
+// Alleen als script (pluginPatches.ts gebruikt spec en pluginCode).
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) main();

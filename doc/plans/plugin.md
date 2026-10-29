@@ -406,6 +406,59 @@ per exemplaar.
   daarmee precies de `.wasm` van de simulator: een nieuwe `.wasm` bouwt
   de plugin vanzelf opnieuw.
 
+### Patch-plugins: een hele patch als één AU/VST3 (2026-10-29)
+
+Stap 3 van [plugin-patches.md](plugin-patches.md). Twee seeds zijn nu een
+plugin: "MMB Poly 8" (de seed "8-stemmig", 54 modules) en "MMB CS-80
+Brass" (51 modules, de acht knoppen van het front als parameters).
+
+- **Drie klassen, elk met één taak:**
+  - `PatchEngine.h` draait de patch: de JSON die de Teensy krijgt
+    (`buildConfigPayload`), met elke module als wasm2c-instantie en
+    MIXER8/OUT native, volgens de firmware.
+  - `PatchPlugin.h` (`PatchHost`) laat de patch eruitzien als één module
+    voor de plugin-romp. Een parameter gaat naar alle stemmen van zijn
+    poly-groep (`polyControlTargets`, zoals `setPatchControl`).
+  - `HostProcessor<PatchHost>` is dezelfde romp als die van de losse
+    modules: samplerate, toestand, parameters.
+- **Timing volgens de firmware** (afgestemd met MODULES):
+  - CV tikt op 1 kHz met een fractionele teller.
+  - Per tik: eerst MIDI tot die tik, dan alle CV-modules, dan de bridge.
+    De bridge schrijft alleen bij een verandering, met een geheugen per
+    kabel.
+  - Daarna een audioblok van 32 samples. Kabels die audio en CV mengen,
+    worden overgeslagen, net als op de Teensy.
+- **MIDI** gaat onbewerkt naar de MIDI-IN-wasm (`mmb_midi`). Die doet
+  stemtoewijzing, aftertouch (kanaal en per toets), modwheel, pitchbend en
+  CC's met de firmwarecode zelf.
+  - In VST3 komen CC's, aftertouch en pitchbend als parameters binnen. De
+    patch-plugins zetten daarom `JUCE_VST3_EMULATE_MIDI_CC_WITH_PARAMETERS`
+    aan (2080 verborgen MIDI-parameters); de losse modules niet.
+  - Een AU in Logic krijgt gewoon MIDI.
+- **Gemeten** (`MmbPluginCheck`, nieuw: `press=` en `cc=`):
+  - Poly 8 met C3, C4, E4, G4: pieken op 131, 262, 330 en 392 Hz. De
+    omhullende zakt na de aanslag naar sustain en is 0,5 s na het loslaten
+    stil.
+  - CS-80: aftertouch vanaf 1 s tilt het spectrale zwaartepunt van ±370
+    naar ±1750 Hz (het filter gaat open). Het modwheel verandert de klank.
+  - Poly 8 met acht noten: 20 s audio in 1,9 s, inclusief laden.
+  - auval 77/77.
+- **Nog niet:** het front als bediening (nu de generieke JUCE-weergave),
+  en Poly 8 heeft geen front, dus geen parameters.
+- **Bouwen:** `npx tsx scripts/pluginPatches.ts` in `editor/` schrijft
+  `generated/*_patch_plugin.cpp` en `patches.cmake`. De lijst `PATCHES`
+  bepaalt welke seeds een plugin worden. `scripts/exportPatch.ts` schrijft
+  de JSON van één seed.
+- **Nieuwe opbouw van de wasm2c-route:** `gen_w2c.py` maakt per module een
+  functietabel (`W2cRuntime.h`), zodat meerdere modules in één plugin
+  passen. Gecontroleerd: alle 53 losse plugins geven dezelfde pieken als
+  native, en het tweede exemplaar is overal exact gelijk.
+- **Gevonden fout:** de native route (`MMB_PLUGIN_NATIVE=1`) compileerde
+  sinds 792b672 niet meer zonder bankvlag. Opgelost. Een afwijking bij
+  RINGS bleek een meetfout aan de native kant: daar verstoort een tweede
+  exemplaar de gedeelde gastheer. Zonder tweede exemplaar is RINGS
+  bit-gelijk.
+
 ## 3. Wat het kostte en wat het zou kosten
 
 - De proef: een avond, € 0. JUCE heeft een gratis tier; een lokaal gebouwde

@@ -27,7 +27,8 @@
 // Een Host levert: numInputs/inputId/inputKind/inBuf/setConnected,
 // numOutputs/outputKind/outBuf, controlIndex/setControl, setRate/init/
 // nativeRate/block/process/typeId, en met kBank blobPtr/blobCommit/zoneSet/
-// zoneCount. kShared zegt of alle exemplaren één gastheer delen.
+// zoneCount (als hasBank()). kShared zegt of alle exemplaren één gastheer
+// delen.
 
 #include "MmbPluginBase.h"
 #include "NoteMap.h"
@@ -125,12 +126,13 @@ public:
         if (c >= 0) host_.setControl(c, v);
     }
 
-    bool hasBank() const override { return Host::kBank; }
+    bool hasBank() const override { return Host::kBank && host_.hasBank(); }
     /** `.mmbs` naar de gastheer, zoals parseBank (sampleBank.ts) + de worklet. */
     bool applyBank(const void* data, std::size_t size, juce::String& error) override {
         if constexpr (!Host::kBank) { error = "geen bank"; return false; }
         else {
             using namespace mmb_dsp;
+            if (!host_.hasBank()) { error = "geen bank"; return false; }
             if (slot_ != 0) { error = "tweede exemplaar: de bank zit in het eerste"; return false; }
             const auto* b = static_cast<const uint8_t*>(data);
             if (size < sizeof(BankHeader) || std::memcmp(b, "MMBS", 4) != 0) { error = "geen .mmbs-bank"; return false; }
@@ -164,6 +166,12 @@ public:
         }
     }
 
+    juce::AudioProcessorEditor* createEditor() override {
+        // Patch: voorlopig de generieke JUCE-bediening (het front volgt).
+        if constexpr (Host::kRawMidi) return new juce::GenericAudioProcessorEditor(*this);
+        else return MmbProcessor::createEditor();
+    }
+
     void applyCv(const char* port, float v) override {
         for (int i : ports_.cvIn) if (is(host_.inputId(i), port)) { cvValue_[static_cast<std::size_t>(i)] = v; return; }
     }
@@ -171,7 +179,14 @@ public:
     void render(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi) override {
         const int frames = buffer.getNumSamples();
         if (slot_ != 0) { buffer.clear(); return; }
-        for (const auto meta : midi) notes_.handle(meta.getMessage());
+        if constexpr (Host::kRawMidi) {
+            // Onbewerkt naar de host (patch: MIDI-IN), op zijn plek in de tijd:
+            // na wat er nog in de fifo staat, plus de offset in dit blok.
+            const double queued = static_cast<double>(inFifo_[0].size());
+            for (const auto meta : midi) host_.midiRaw(meta.getMessage(), queued + meta.samplePosition * ratio_);
+        } else {
+            for (const auto meta : midi) notes_.handle(meta.getMessage());
+        }
 
         // DAW → native: hoeveel native samples horen bij dit blok?
         const double want = frames * ratio_ + carry_;

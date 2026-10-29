@@ -187,6 +187,11 @@ weg.
 
 ## 5. Stap 3 en 4: de patch-plugin
 
+**Stand 2026-10-29:** stap 3 staat. "MMB Poly 8" en "MMB CS-80 Brass" zijn
+plugins, met MIDI-IN, aftertouch en modwheel zoals op de Teensy. Zie
+[plugin.md](plugin.md), "Patch-plugins". Nog open: het front als bediening,
+en een front voor Poly 8.
+
 - Een vaste patch (een seed uit `patchCatalog.ts`) wordt één AU/VST3. De
   UI is het front van die patch: dezelfde componenten als de speelmodus.
 - DAW-parameters zijn de items van het front, dus automatisering werkt op

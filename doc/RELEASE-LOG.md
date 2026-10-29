@@ -17,6 +17,19 @@
 > Editor-tabel hieronder vastgelegd. Wie tijd heeft: aanvullen vanuit
 > `git log firmware/`.
 
+### 2026-10-29 — Patch-plugins: Poly 8 en CS-80 Brass als één AU/VST3
+<!-- EN: Patch plugins: a whole patch (voices, MIDI-IN, effects) as one AU/VST3; Poly 8 and CS-80 Brass -->
+- Een hele patch uit de catalogus is nu één plugin: de JSON die de Teensy
+  krijgt, met elke module als wasm2c-instantie, met de CV-timing en
+  MIDI-IN van de firmware. Eerst "MMB Poly 8" en "MMB CS-80 Brass". De
+  knoppen van het front worden DAW-parameters.
+- Aftertouch en modwheel werken via MIDI-IN, zoals op de hardware; in
+  VST3 via de MIDI-parameteremulatie van JUCE.
+- De wasm2c-route kreeg een functietabel per module (meerdere modules per
+  plugin). Testhulpjes staan in `tools/plugin/test/`.
+- Details: [plugin.md](plans/plugin.md) ("Patch-plugins"),
+  [plugin-patches.md](plans/plugin-patches.md) §5.
+
 ### 2026-10-29 — Plugins: meerdere exemplaren per project (wasm2c)
 <!-- EN: Plugins: host-based modules now run their simulator .wasm via wasm2c, one instance per plugin copy -->
 - De 53 plugins via de wasm-gastheer konden maar één keer per project

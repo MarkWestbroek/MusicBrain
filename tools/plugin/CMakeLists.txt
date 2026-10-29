@@ -49,12 +49,14 @@ find_package(Python3 COMPONENTS Interpreter)
 
 # Eén module als plugin:
 #   mmb_add_module(<target> <code> "<productnaam>" <synth> <bron.cpp>
-#                  [CATEGORIES ...] [INCLUDES ...] [SOURCES ...] [GLOBS ...] [DEFINES ...] [W2C <module.wasm>])
-# W2C: de gastheer als wasm2c-C uit die .wasm (gen_w2c.py, in de bouwmap).
+#                  [CATEGORIES ...] [INCLUDES ...] [SOURCES ...] [GLOBS ...] [DEFINES ...]
+#                  [W2C <module.wasm>] [W2CMODS <naam> <module.wasm> ...])
+# W2C: de gastheer als wasm2c-C uit die .wasm (gen_w2c.py, in de bouwmap);
+# W2CMODS: meerdere modules in één plugin (patch-plugins, generated/patches.cmake).
 # De wasm-gastheren worden gecompileerd zoals in tools/mmb-wasm/build.sh:
 # -DTEST, cstdio vooraf ingevoegd, de shim-map en de MI-fallbacks als include.
 function(mmb_add_module target code product synth source)
-  cmake_parse_arguments(A "" "W2C" "CATEGORIES;INCLUDES;SOURCES;GLOBS;DEFINES" ${ARGN})
+  cmake_parse_arguments(A "" "W2C" "CATEGORIES;INCLUDES;SOURCES;GLOBS;DEFINES;W2CMODS" ${ARGN})
   if(NOT A_CATEGORIES)
     set(A_CATEGORIES Fx)
   endif()
@@ -76,17 +78,31 @@ function(mmb_add_module target code product synth source)
     NEEDS_WEBVIEW2 TRUE
     VST3_CATEGORIES ${A_CATEGORIES})
   target_sources(${target} PRIVATE ${srcs})
+  # W2C <wasm>: één module (naam "mod"); W2CMODS <naam> <wasm> ...: meerdere (patch-plugin).
+  set(w2c ${A_W2CMODS})
   if(A_W2C)
+    list(APPEND w2c mod ${A_W2C})
+  endif()
+  if(w2c)
     if(NOT MMB_WASM2C OR NOT MMB_WABT_DIR)
       message(FATAL_ERROR "${target}: wasm2c nodig; zet -DMMB_WABT_DIR=<wabt-checkout> (README)")
     endif()
     set(gen ${CMAKE_CURRENT_BINARY_DIR}/w2c/${target})
-    add_custom_command(
-      OUTPUT ${gen}/mod.c ${gen}/mod.h ${gen}/mod_glue.h
-      COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/wasm2c/gen_w2c.py ${MMB_WASM2C} ${A_W2C} ${gen}
-      DEPENDS ${A_W2C} ${CMAKE_CURRENT_SOURCE_DIR}/wasm2c/gen_w2c.py
-      COMMENT "wasm2c ${A_W2C}")
-    target_sources(${target} PRIVATE ${gen}/mod.c ${MMB_WABT_DIR}/wasm2c/wasm-rt-impl.c ${MMB_WABT_DIR}/wasm2c/wasm-rt-mem-impl.c ${MMB_WABT_DIR}/wasm2c/wasm-rt-exceptions-impl.c)
+    list(LENGTH w2c n)
+    math(EXPR last "${n} - 1")
+    foreach(i RANGE 0 ${last} 2)
+      math(EXPR j "${i} + 1")
+      list(GET w2c ${i} name)
+      list(GET w2c ${j} wasm)
+      add_custom_command(
+        OUTPUT ${gen}/${name}.c ${gen}/${name}.h ${gen}/${name}_vt.h
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/wasm2c/gen_w2c.py ${MMB_WASM2C} ${wasm} ${gen} ${name}
+        DEPENDS ${wasm} ${CMAKE_CURRENT_SOURCE_DIR}/wasm2c/gen_w2c.py
+        COMMENT "wasm2c ${name}")
+      target_sources(${target} PRIVATE ${gen}/${name}.c ${gen}/${name}_vt.h)
+    endforeach()
+    target_sources(${target} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/wasm2c/wasi_stubs.c ${MMB_WABT_DIR}/wasm2c/wasm-rt-impl.c
+                   ${MMB_WABT_DIR}/wasm2c/wasm-rt-mem-impl.c ${MMB_WABT_DIR}/wasm2c/wasm-rt-exceptions-impl.c)
     target_include_directories(${target} PRIVATE ${gen} ${MMB_WABT_DIR}/wasm2c ${MMB_WABT_DIR}/third_party/simde)
     # Bounds checks in plaats van guard pages: geen signal handler in de DAW.
     target_compile_definitions(${target} PRIVATE WASM_RT_USE_MMAP=0 WASM_RT_MEMCHECK_BOUNDS_CHECK=1)
@@ -97,7 +113,10 @@ function(mmb_add_module target code product synth source)
     JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1
     JUCE_USE_CURL=0
     JUCE_VST3_CAN_REPLACE_VST2=0
-    JUCE_VST3_EMULATE_MIDI_CC_WITH_PARAMETERS=0)   # anders 2080 extra 'MIDI CC'-parameters in de DAW
+    # VST3 kent geen MIDI-CC/aftertouch/pitchbend als MIDI: de DAW stuurt ze als
+    # parameters. Een patch (W2CMODS) heeft ze nodig voor MIDI-IN (modwheel,
+    # aftertouch); een losse module niet (anders 2080 extra 'MIDI CC'-parameters).
+    JUCE_VST3_EMULATE_MIDI_CC_WITH_PARAMETERS=$<IF:$<BOOL:${A_W2CMODS}>,1,0>)
   target_compile_definitions(${target} PRIVATE TEST=1 _USE_MATH_DEFINES=1 ${A_DEFINES})
   # Alleen voor C++ (een .c-bron met cstdio vooraf breekt de MSVC-STL). De
   # MI-bibliotheken gebruiken GCC/clang-extensies (VLA's, __attribute__,
@@ -120,6 +139,8 @@ mmb_add_module(MmbHall Hall "MMB HALL" FALSE src/HallPlugin.cpp CATEGORIES Fx Re
 mmb_add_module(MmbSid  Sid1 "MMB SID"  TRUE  src/SidPlugin.cpp  CATEGORIES Instrument Synth)
 # Gegenereerd: één regel per module (uniforme kern of wasm-gastheer).
 include(${MMB_GENERATED_DIR}/modules.cmake OPTIONAL)
+# Patch-plugins (editor/scripts/pluginPatches.ts): een hele patch, front als parameters.
+include(${MMB_GENERATED_DIR}/patches.cmake OPTIONAL)
 
 # ── Controle zonder DAW: laadt een VST3, speelt/rendert, schrijft wav ─────
 juce_add_console_app(MmbPluginCheck PRODUCT_NAME "mmb-plugin-check")

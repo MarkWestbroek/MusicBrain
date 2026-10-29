@@ -7,6 +7,10 @@
 #include "HostProcessor.h"
 #include "mmb_abi.h"
 
+#ifndef MMB_PLUGIN_BANK
+#define MMB_PLUGIN_BANK 0   // de generator zet 1 voor gastheren met mmb_zone_set
+#endif
+
 #if MMB_PLUGIN_BANK
 // In de gastheer (<naam>_wasm.cc, na deze header ingevoegd).
 extern "C" int16_t* mmb_blob_ptr(int slot, int bytes);
@@ -22,7 +26,8 @@ namespace mmb_plugin {
 
 struct NativeHost {
     static constexpr bool kShared = true;
-    static constexpr bool kBank = MMB_PLUGIN_BANK + 0 != 0;
+    static constexpr bool kRawMidi = false;
+    static constexpr bool kBank = MMB_PLUGIN_BANK != 0;
 
     int numInputs() const { return MMB_NUM_INPUTS; }
     const char* inputId(int i) const { return MMB_INPUTS[i].id; }
@@ -40,6 +45,7 @@ struct NativeHost {
     int block() const { return MMB_BLOCK; }
     bool process(int frames) { mmb_process(frames); return true; }
     const char* typeId() const { return MMB_TYPE_ID; }
+    bool hasBank() const { return kBank; }
 #if MMB_PLUGIN_BANK
     int16_t* blobPtr(int slot, int bytes) { return mmb_blob_ptr(slot, bytes); }
     void blobCommit(int slot, int frames, float rate, int channels) { mmb_blob_commit(slot, frames, rate, channels); }

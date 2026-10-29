@@ -58,7 +58,8 @@ int main(int argc, char** argv) {
     // doet als je een waarde intikt. Een keuze krijgt zijn naam (algo=Room).
     for (int a = 4; a < argc; ++a) {
         const juce::String arg(argv[a]);
-        if (arg.startsWith("editor=") || arg.startsWith("poke=") || arg.startsWith("in=") || arg.startsWith("notes=") || arg.startsWith("program=") || arg.startsWith("ownbank=") || arg.startsWith("instances=")) continue;   // geen parameter
+        if (arg.startsWith("editor=") || arg.startsWith("poke=") || arg.startsWith("in=") || arg.startsWith("notes=") || arg.startsWith("program=") || arg.startsWith("ownbank=") || arg.startsWith("instances=") ||
+            arg.startsWith("press=") || arg.startsWith("cc=")) continue;   // geen parameter
         const juce::String id = arg.upToFirstOccurrenceOf("=", false, false).toLowerCase();
         const juce::String text = arg.fromFirstOccurrenceOf("=", false, false);
         bool hit = false;
@@ -225,11 +226,25 @@ int main(int argc, char** argv) {
     juce::AudioBuffer<float> buf(2, block);
     juce::MidiBuffer midi;
     const int holdUntil = total / 2;
+    // press=<0..127>: kanaal-aftertouch vanaf een kwart (tot het loslaten);
+    // cc=<nummer>:<waarde>: een controller vanaf het begin (cc=1:100 = modwheel).
+    int press = -1;
+    std::vector<std::pair<int, int>> ccs;
+    for (int a = 4; a < argc; ++a) {
+        const juce::String arg(argv[a]);
+        if (arg.startsWith("press=")) press = arg.fromFirstOccurrenceOf("=", false, false).getIntValue();
+        if (arg.startsWith("cc=")) ccs.emplace_back(arg.fromFirstOccurrenceOf("=", false, false).upToFirstOccurrenceOf(":", false, false).getIntValue(),
+                                                     arg.fromFirstOccurrenceOf(":", false, false).getIntValue());
+    }
+    const int pressAt = total / 4;
     for (int pos = 0; pos < total; pos += block) {
         buf.clear();
         midi.clear();
         const int n = juce::jmin(block, total - pos);
         if (pos == 0) for (int note : notes) midi.addEvent(juce::MidiMessage::noteOn(1, note, 0.8f), 0);
+        if (pos == 0) for (const auto& [cc, v] : ccs) midi.addEvent(juce::MidiMessage::controllerEvent(1, cc, v), 0);
+        if (press >= 0 && pos <= pressAt && pressAt < pos + n) midi.addEvent(juce::MidiMessage::channelPressureChange(1, press), pressAt - pos);
+        if (press >= 0 && pos <= holdUntil && holdUntil < pos + n) midi.addEvent(juce::MidiMessage::channelPressureChange(1, 0), holdUntil - pos);
         if (pos <= holdUntil && holdUntil < pos + n) for (int note : notes) midi.addEvent(juce::MidiMessage::noteOff(1, note), holdUntil - pos);
         if (source.getNumSamples() > 0) {
             const int avail = juce::jmin(n, source.getNumSamples() - pos);

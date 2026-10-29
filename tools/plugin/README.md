@@ -121,6 +121,26 @@ horen in `~/Library/Audio/Plug-Ins/Components`, VST3 in
 `killall -9 AudioComponentRegistrar` en `auval -v aufx Hall Mmbr`.
 Uitkomst van de eerste Mac-build: doc/plans/plugin.md §2e.
 
+## Patch-plugins
+
+Een hele patch als één plugin (`PatchEngine.h`, `PatchPlugin.h`): in
+`editor/` schrijft `npx tsx scripts/pluginPatches.ts` de bronnen
+(`generated/*_patch_plugin.cpp`, `patches.cmake`) voor de seeds in de lijst
+`PATCHES`. De parameters zijn de knoppen van het eerste front. Controleren:
+`MmbPluginCheck "<plugin>.vst3" uit.wav 4 notes=48,55,60,64 press=127`
+(aftertouch) of `cc=1:127` (modwheel).
+
+## Testen
+
+`tools/plugin/test/`:
+- `render_all.sh <bouwmap> <uitmap>` rendert elke gastheer-plugin met twee
+  exemplaren;
+- `compare_wav.py a.wav b.wav` geeft het verschil en de SNR;
+- `make_test_wav.py` maakt het testsignaal.
+
+Op Windows is `python3` vaak de WindowsApps-stub: geef de echte python mee
+met `-DPython3_EXECUTABLE=<pad naar python.exe>`.
+
 ## Banken
 
 SAMPLER en TAPE STRIP spelen uit een `.mmbs`. De Bank-knop (0–15) kiest
