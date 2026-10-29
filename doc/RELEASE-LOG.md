@@ -58,6 +58,17 @@
 - Plan en metingen: [plugin.md](plans/plugin.md) ("Banken in de plugin"),
   [plugin-patches.md](plans/plugin-patches.md) §3.
 
+### 2026-10-29 — Effect-bypass: droog pad per moduletype
+<!-- EN: effect bypass: the dry path per module type -->
+- `editor/src/modular-mb/bypassRoute.ts`: per effecttype (categorie
+  `effect`) het droge pad voor een bypass in de patchmotor: mono in/uit,
+  stereo L/R (rechts valt terug op links) en mono → stereo volgen een
+  patroon; Warps, Ringmod, Resonator en Freq shift staan met de hand
+  vast, de Stereo-VCA krijgt geen bypass. De acht compressors en EQ's met
+  een eigen Bypass-knop houden die. De test eist een besluit per
+  effecttype. De motor zelf (`__bypass`, crossfade, trails) komt in de
+  patch-plugins; sim en firmware volgen later.
+
 ### 2026-10-27 — wasm-ABI: `mmb_set_rate` voor de plugin op 96 kHz
 <!-- EN: wasm ABI: mmb_set_rate, so plugin hosts can run modules at 96 kHz -->
 - `mmb_abi.h`: een gastheer mag vóór `mmb_init` een samplerate vragen;
