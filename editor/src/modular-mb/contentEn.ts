@@ -116,11 +116,16 @@ const EN: Record<string, string> = {
   'Galm': 'Reverb',
   'Ritme': 'Rhythm',
   'Klok': 'Clock',
+  'Klank': 'Sound',
+  'Golfvorm': 'Waveform',
+  'Filter-envelope': 'Filter envelope',
+  'Aanzet': 'Attack',
+  'Uitklinken': 'Release',
 };
 
 /** Al Engels, of een naam: hetzelfde in beide talen. */
 export const SAME = new Set([
-  'Volume', 'Drive', 'Envelope', 'Chorus', 'Aftertouch', 'Filter', 'Rotary', 'Mix', 'Acid',
+  'Volume', 'Drive', 'Envelope', 'Chorus', 'Aftertouch', 'Filter', 'Rotary', 'Mix', 'Acid', 'Vibrato',
 ]);
 
 /** "Monofoon: … X zit tussen Y en OUT." uit seedSoloVoicePatch, met de ARP ervoor. */

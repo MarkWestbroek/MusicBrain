@@ -25,6 +25,9 @@
   knoppen van het front worden DAW-parameters.
 - Aftertouch en modwheel werken via MIDI-IN, zoals op de hardware; in
   VST3 via de MIDI-parameteremulatie van JUCE.
+- De 8-stemmige seeds kregen een speelfront (Golfvorm, Helderheid,
+  Resonantie, Filter-envelope, Aanzet, Uitklinken, Vibrato, Volume); dat
+  zijn de parameters van "MMB Poly 8" en het front in de speelmodus.
 - De wasm2c-route kreeg een functietabel per module (meerdere modules per
   plugin). Testhulpjes staan in `tools/plugin/test/`.
 - Details: [plugin.md](plans/plugin.md) ("Patch-plugins"),

@@ -117,6 +117,24 @@ export const MODULE_HELP: Readonly<Record<string, ModuleHelp>> = {
       cutoff: ['De helderheid: tot waar het hoog doorkomt.', 'The brightness: how much treble gets through.'],
       q: ['Resonantie: een piek op de cutoff; hoog gaat hij zingen.', 'Resonance: a peak at the cutoff; turned up high it sings.'],
       drive: ['Hoe hard het filter wordt aangestuurd: meer = vetter en vervormd.', 'How hard the filter is driven: more = fatter and distorted.'],
+      cv_amt: ['Hoe ver de filter-envelope het filter opent bij elke noot.', 'How far the filter envelope opens the filter on each note.'],
+    },
+  },
+  tp_mmb_vcf: {
+    about: ['Filter met keuze uit laag-, band- en hoogdoorlaat.', 'A filter with a choice of low-, band- and high-pass.'],
+    controls: {
+      cutoff: ['De helderheid: tot waar het hoog doorkomt.', 'The brightness: how much treble gets through.'],
+      q: ['Resonantie: een piek op de cutoff; hoog gaat hij zingen.', 'Resonance: a peak at the cutoff; turned up high it sings.'],
+      cv_amt: ['Hoe ver de filter-envelope het filter opent bij elke noot.', 'How far the filter envelope opens the filter on each note.'],
+    },
+  },
+  tp_mmb_ahdsr: {
+    about: ['Envelope: hoe een noot opkomt, blijft staan en uitklinkt.', 'Envelope: how a note rises, holds and dies away.'],
+    controls: {
+      attack: ['Aanzet: hoe snel de noot opkomt. Laag = een tik, hoog = zacht aanzwellen.', 'Attack: how fast the note rises. Low = a click, high = a soft swell.'],
+      decay: ['Hoe snel hij na de piek zakt naar het sustainniveau.', 'How fast it falls from the peak to the sustain level.'],
+      sustain: ['Het niveau zolang je de toets vasthoudt.', 'The level while you hold the key.'],
+      release: ['Uitklinken: hoe lang de noot nog doorklinkt na het loslaten.', 'Release: how long the note rings on after you let go.'],
     },
   },
   tp_mmb_cvmath: {

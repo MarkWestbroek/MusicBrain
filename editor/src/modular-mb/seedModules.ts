@@ -15,7 +15,7 @@
 import {
   type ModularProject, type ModuleType, type ModuleInstance, type RackSlot,
   type Rack, type Patch, type PatchConnection, type ControlValue,
-  type ModuleRole, type CellGroup, type PolyGroup, type Taper,
+  type ModuleRole, type CellGroup, type PolyGroup, type Taper, type FrontItem, type PatchFront,
   MM_PER_HP, PANEL_HEIGHT_MM,
 } from './types';
 import { programNames } from './modulePrograms';
@@ -6035,8 +6035,24 @@ export function seedPolyVoicePatch(
     echoL ? 'bus-echo' : null,
     elements ? '+Elements' : null,
   ].filter(Boolean).join(' · ');
+  // Speelfront: de knoppen van de master-stem (via de poly-groep naar alle
+  // stemmen), het vibrato en het volume. Seeds die hierop bouwen (CS-80)
+  // vervangen het door hun eigen front.
+  const ctl = (moduleId: string, controlId: string, label: string, size?: 'large'): FrontItem =>
+    ({ kind: 'control', moduleId, controlId, label, ...(size ? { size } : {}) });
+  const front: PatchFront = {
+    id: uid('front'), name: 'Spelen', columns: 4, items: [
+      ...(srcTypeId === 'tp_mmb_vco' ? [{ kind: 'group', text: 'Klank' } as FrontItem, ctl(master.vco.id, 'wave', 'Golfvorm')] : []),
+      { kind: 'group', text: 'Filter' },
+      ctl(master.vcf.id, 'cutoff', 'Helderheid', 'large'), ctl(master.vcf.id, 'q', 'Resonantie'), ctl(master.vcf.id, 'cv_amt', 'Filter-envelope'),
+      { kind: 'group', text: 'Envelope' }, ctl(master.envAmp.id, 'attack', 'Aanzet'), ctl(master.envAmp.id, 'release', 'Uitklinken'),
+      { kind: 'group', text: 'Vibrato' }, ctl(lfo.id, 'rate', 'Snelheid'),
+      { kind: 'group', text: 'Uit' }, ctl(out.id, 'level', 'Volume'),
+    ],
+  };
   const patch: Patch = {
     id: uid('patch'),
+    fronts: [front],
     name: opts.label ?? (extrasLabel ? `${N}-stemmig 🔥 ${extrasLabel}` : `${N}-stemmige patch`),
     description: (N >= 2
       ? `Eén master voice-keten + PolyGroups (×${N}). De flatten expandeert naar ${N} stemmen via MidiIn pitch/gate/vel en VCA→${N > 4 ? 'MIXER-8' : 'mixer'} in1..in${N} (ADR 0011 optie B).`
