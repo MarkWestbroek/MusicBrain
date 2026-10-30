@@ -22,3 +22,4 @@ Format: based on Michael Nygard's template (Context / Decision / Consequences).
 | [0014](0014-pitch-formats-and-cv-ranges.md) | Pitch CV formats and output voltage ranges (V/oct, Hz/V, S-Trig) | Proposed |
 | [0015](0015-poly-instrument-slot-addressing.md) | Poly-instrument slot addressing and the FPGA voice contract | Proposed |
 | [0016](0016-modulation-surfaces-over-cc.md) | Modulation surfaces speak CC, even when the transport is not MIDI | Proposed |
+| [0017](0017-keuzedisplay.md) | Keuzedisplay: een display dat ook kiest (klik = lijst, ‹ › = stap) | Proposed |

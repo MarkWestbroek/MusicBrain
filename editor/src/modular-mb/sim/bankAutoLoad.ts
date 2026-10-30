@@ -99,6 +99,8 @@ let loaded: LoadedBank | null = null;
 let inflight: Promise<LoadedBank | null> | null = null;
 let inflightKey = '';
 export function currentBank(): LoadedBank | null { return loaded; }
+/** Wordt bank NN nu van de server gehaald? Dan klinkt nog de vorige (paneel: "laden…"). */
+export function simBankLoading(nn: number): boolean { return inflight !== null && inflightKey.startsWith(`${nn}:`); }
 
 /** Zorg dat bank NN in de sampler-wasm staat; doet niets als hij er al staat. */
 export async function ensureSamplerBank(nn: number, sdNames?: (string | undefined)[], force = false, hint?: string): Promise<LoadedBank | null> {
@@ -117,8 +119,8 @@ export async function ensureSamplerBank(nn: number, sdNames?: (string | undefine
     WasmModule.setZones(TYPE_ID, zones);
     const entry = indexCache?.files.find((x) => x.file === r.file);
     loaded = { nn, file: r.file, name: entry?.title ?? (name || r.file), source: r.source, summary: `${slots.length} samples, ${zones.length} zones` };
-    emit();
     return loaded;
-  })().finally(() => { inflight = null; });
+  })().finally(() => { inflight = null; emit(); });
+  emit();
   return inflight;
 }

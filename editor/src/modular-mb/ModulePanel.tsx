@@ -18,7 +18,8 @@ const TextScale = createContext(1);
 import { MidiPortLeds } from './sim/MidiPortLeds';
 import { useTeensyLink } from './teensyLink';
 import { bankTitle } from './teensyStorage';
-import { subscribeBanks, banksVersion, simBankName, hostBank } from './sim/bankAutoLoad';
+import { subscribeBanks, banksVersion, simBankName, simBankLoading, hostBank } from './sim/bankAutoLoad';
+import { BankPicker } from './BankPicker';
 import { subscribeLyricBanks, lyricBanksVersion, simLyricBank } from './lyric/lyricStore';
 import {
   dragTravelPx, fromTaper, toTaper, wheelStep,
@@ -248,7 +249,9 @@ export function ModulePanel({
       )}
       {(mod.typeId === 'tp_mmb_sampler' || mod.typeId === 'tp_mmb_tapestrip' || mod.typeId === 'tp_mmb_percuter') && (
         <SamplerBankStrip cx={widthMm / 2} y={15.6} w={widthMm * 0.62}
-          bank={Number(controlState?.bank ?? 0)} />
+          bank={Number(controlState?.bank ?? 0)}
+          max={Number((controls.find((c) => c.id === 'bank') as { max?: number } | undefined)?.max ?? 63)}
+          onPick={!disabledControlIds?.has('bank') && onControlChange ? (n) => onControlChange('bank', n) : undefined} />
       )}
       {mod.typeId === 'tp_mmb_zang' && (
         <ZangBankStrip cx={widthMm / 2} y={15.6} w={widthMm * 0.62}
@@ -261,11 +264,16 @@ export function ModulePanel({
 
 /** Displaystrookje op het sampler-paneel: de naam van de gekozen bank, zoals
  *  de Teensy hem van de SD-kaart las (zie teensyStorage.bankTitle). */
-function SamplerBankStrip({ cx, y, w, bank }: { cx: number; y: number; w: number; bank: number }): JSX.Element {
+function SamplerBankStrip({ cx, y, w, bank, max, onPick }: {
+  cx: number; y: number; w: number; bank: number; max: number;
+  /** Gezet = klik op het strookje opent de bankenlijst, ‹ › bladeren. */
+  onPick?: (n: number) => void;
+}): JSX.Element {
   const ts = useContext(TextScale);
   const link = useTeensyLink();
   const st = link.status.kind === 'connected' ? link.lastStatus : undefined;
   useSyncExternalStore(subscribeBanks, banksVersion, banksVersion);   // derde: ook buiten de browser (moduleSite.ts)
+  const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
   let { text, tone } = bankTitle(bank, st);
   // In een plugin: de bank die de plugin zelf laadde (uit de bankmap of eigen).
   const nn = Math.max(0, Math.round(bank));
@@ -282,9 +290,21 @@ function SamplerBankStrip({ cx, y, w, bank }: { cx: number; y: number; w: number
     const name = simBankName(Math.max(0, Math.round(bank)));
     if (name) { text = `${String(Math.max(0, Math.round(bank))).padStart(2, '0')} · ${name}`; tone = 'ok'; fromSim = true; }
   }
-  const col = fromSim ? '#a5b4fc' : tone === 'ok' ? '#67e8f9' : tone === 'warn' ? '#fbbf24' : '#64748b';
+  // De naam staat er meteen, het geluid volgt pas als de bank binnen is.
+  const loading = fromSim && simBankLoading(nn);
+  if (loading) text += ' — laden…';
+  const col = loading ? '#64748b' : fromSim ? '#a5b4fc' : tone === 'ok' ? '#67e8f9' : tone === 'warn' ? '#fbbf24' : '#64748b';
+  // Naam per nummer voor de lijst: van de SD-kaart als de Teensy er is, anders de serverbank.
+  const nameOf = (k: number): string | null =>
+    st && st.sdOk !== undefined ? (st.sdBankNames?.[k] || null) : simBankName(k);
+  const step = (d: number) => (e: React.PointerEvent): void => {
+    e.stopPropagation();
+    onPick?.(Math.min(max, Math.max(0, nn + d)));
+  };
+  const x0 = cx - w / 2, ax = 1.6;
   return (
-    <g>
+    <g style={onPick ? { cursor: 'pointer', touchAction: 'none' } : undefined}
+      onPointerDown={onPick ? (e) => { e.stopPropagation(); e.preventDefault(); setMenuAt({ x: e.clientX, y: e.clientY }); } : undefined}>
       <title>{hb
         ? `Bank in de plugin: uit de bankmap (Bank-knop) of een eigen bank (Eigen… onderaan).${hb.note ? ` Let op: ${hb.note}.` : ''}`
         : fromSim
@@ -294,6 +314,16 @@ function SamplerBankStrip({ cx, y, w, bank }: { cx: number; y: number; w: number
         fill="#0b1220" stroke="#1e293b" strokeWidth={0.15} />
       <text x={cx} y={y + 2.55} fontSize={1.9 * ts} fill={col} textAnchor="middle"
         fontFamily="ui-monospace, monospace">{text}</text>
+      {onPick && [[-1, x0 + ax / 2, '‹'], [1, x0 + w - ax / 2, '›']].map(([d, x, ch]) => (
+        <g key={String(d)} onPointerDown={step(d as number)}>
+          <rect x={(x as number) - ax / 2} y={y} width={ax} height={3.6} fill="transparent" />
+          <text x={x as number} y={y + 2.75} fontSize={2.6 * ts} fill="#94a3b8" textAnchor="middle">{ch}</text>
+        </g>
+      ))}
+      {menuAt && onPick && (
+        <BankPicker at={menuAt} current={nn} max={max} nameOf={nameOf}
+          onPick={(k) => { onPick(k); setMenuAt(null); }} onClose={() => setMenuAt(null)} />
+      )}
     </g>
   );
 }
