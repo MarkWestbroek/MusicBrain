@@ -1,6 +1,6 @@
 # PUMP — compressor met sidechain (plan)
 
-> **Actueel (2026-10-29):** besluiten genomen (§8): een nieuwe module, naam PUMP, met gate en Listen, mono-sidechain. **Gebouwd in fw 0.5.115**: stappen 1–5 klaar (kern, firmware, wasm, tests, paneel, seed "🏠 French pump", contractketen). Open: stap 6 (Teensy-meting en luisteren), stap 7 (sidechain-bus in de plugin, VST-sessie). `sc` op de Bus comp: gebouwd in fw 0.5.116. Geen GR-meter op het paneel: er is nog geen meterwidget; GR staat als CV-uitgang, zoals bij de andere compressors.
+> **Actueel (2026-10-29):** besluiten genomen (§8): een nieuwe module, naam PUMP, met gate en Listen, mono-sidechain. **Gebouwd in fw 0.5.115**: stappen 1–5 klaar (kern, firmware, wasm, tests, paneel, seed "🏠 French pump", contractketen). `sc` op de Bus comp: gebouwd in fw 0.5.116. **Stap 7 klaar (b8ed0cf, 2026-10-30):** de PUMP- en BUS COMP-plugins hebben een tweede ingangsbus "Sidechain"; op Windows nagemeten met `MmbPluginCheck … sc=kick.wav`: de pad zakt bij PUMP 17 dB na elke kick, zonder sleutel blijft hij vlak. Open: stap 6 (Teensy-meting en luisteren; de Teensy is tot begin november weg). Geen GR-meter op het paneel: er is nog geen meterwidget; GR staat als CV-uitgang, zoals bij de andere compressors.
 
 *Voorstel 2026-10-29. Aanleiding: Mark wil een compressor met sidechain, in de geest van de Alesis 3630.*
 
