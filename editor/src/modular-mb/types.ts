@@ -302,6 +302,9 @@ export interface ControlPlacement {
    *  label (dat lijsten, help en CC-mapping gebruiken). Bv. "− +" bij een
    *  attenuverter; "" = niets. */
   panelLabel?: string;
+  /** Keuzedisplay (ADR 0017) boven de knop: de naam van de samplebank, klik =
+   *  lijst, ‹ › = stap. Zet het front bij de Bank-knop van een sampler. */
+  bankStrip?: boolean;
 }
 
 export interface PortPlacement {

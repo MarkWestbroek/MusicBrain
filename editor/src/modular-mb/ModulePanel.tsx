@@ -253,6 +253,17 @@ export function ModulePanel({
           max={Number((controls.find((c) => c.id === 'bank') as { max?: number } | undefined)?.max ?? 63)}
           onPick={!disabledControlIds?.has('bank') && onControlChange ? (n) => onControlChange('bank', n) : undefined} />
       )}
+      {/* Op een front: het bankstrookje boven de Bank-knop van een sampler (frontLayout). */}
+      {controls.map((c) => {
+        const cp = visual.controlPlacements[c.id];
+        if (!cp?.bankStrip || c.kind !== 'knob') return null;
+        const r = KNOB_R[cp.sizeOverride ?? c.size ?? 'medium'] ?? KNOB_R.medium!;
+        return (
+          <SamplerBankStrip key={`bank-${c.id}`} cx={cp.x} y={cp.y - r - 5} w={21}
+            bank={Number(controlState?.[c.id] ?? c.defaultValue)} max={c.max}
+            onPick={!disabledControlIds?.has(c.id) && onControlChange ? (n) => onControlChange(c.id, n) : undefined} />
+        );
+      })}
       {mod.typeId === 'tp_mmb_zang' && (
         <ZangBankStrip cx={widthMm / 2} y={15.6} w={widthMm * 0.62}
           bank={Number(controlState?.bank ?? 0)} />
@@ -306,6 +317,9 @@ function SamplerBankStrip({ cx, y, w, bank, max, onPick }: {
     onPick?.(Math.min(max, Math.max(0, nn + d)));
   };
   const x0 = cx - w / 2, ax = 1.6;
+  // Smal strookje (front): de naam afkappen in plaats van over de rand te lopen.
+  const fit = Math.floor((w - (onPick ? 2 * ax : 0) - 0.6) / (1.9 * 0.6 * ts));
+  if (text.length > fit) text = `${text.slice(0, Math.max(1, fit - 1))}…`;
   return (
     <g style={onPick ? { cursor: 'pointer', touchAction: 'none' } : undefined}
       onPointerDown={onPick ? (e) => { e.stopPropagation(); e.preventDefault(); setMenuAt({ x: e.clientX, y: e.clientY }); } : undefined}>

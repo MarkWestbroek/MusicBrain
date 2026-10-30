@@ -28,6 +28,8 @@ const bypassable = (typeId: string, project: ModularProject): boolean => {
   return !!t && !!bypassRoute(t);
 };
 
+const SAMPLE_BANK_TYPES = new Set(['tp_mmb_sampler', 'tp_mmb_tapestrip', 'tp_mmb_percuter']);
+
 export type FrontTarget =
   | { kind: 'control'; moduleId: string; controlId: string }
   | { kind: 'port'; moduleId: string; portId: string };
@@ -118,6 +120,9 @@ export function buildFrontModule(front: PatchFront, patch: Patch, project: Modul
   let freeBottom = 0;
   let portsHeader: string | undefined;
   let pendingGroup: string | undefined;
+  // Bank-knoppen van een sampler: op het front zonder naam niet te bedienen
+  // (64 banken, de helft leeg), dus het bankstrookje erboven (ADR 0017).
+  const bankStrips = new Set<string>();
   let n = 0;
   for (const it of front.items) {
     if (it.kind === 'group') { pendingGroup = it.text; continue; }
@@ -157,6 +162,7 @@ export function buildFrontModule(front: PatchFront, patch: Patch, project: Modul
       if (min < max) c = { ...c, min, max, defaultValue: Math.min(max, Math.max(min, c.defaultValue)) };
     }
     map[vid] = { kind: 'control', moduleId: it.moduleId, controlId: it.controlId };
+    if (c.kind === 'knob' && it.controlId === 'bank' && SAMPLE_BANK_TYPES.has(m.typeId)) bankStrips.add(vid);
     if (it.pos) {
       free.push({ c, vid, size: it.size, x: it.pos.x, y: it.pos.y });
       freeBottom = Math.max(freeBottom, it.pos.y + rowHeightFor(c) / 2 + 4);
@@ -194,6 +200,7 @@ export function buildFrontModule(front: PatchFront, patch: Patch, project: Modul
       controlPlacements[cell.vid] = {
         x: cx, y: cy,
         sizeOverride: cell.c.kind === 'knob' ? (cell.size === 'large' ? 'large' : cell.size === 'small' ? 'small' : 'medium') : undefined,
+        ...(bankStrips.has(cell.vid) ? { bankStrip: true } : {}),
       };
       if (cell.group) {
         if (segStart !== null) closeSeg(segStart, col);
@@ -239,6 +246,7 @@ export function buildFrontModule(front: PatchFront, patch: Patch, project: Modul
     controlPlacements[f.vid] = {
       x: f.x, y: f.y,
       sizeOverride: f.c.kind === 'knob' ? (f.size === 'large' ? 'large' : f.size === 'small' ? 'small' : 'medium') : undefined,
+      ...(bankStrips.has(f.vid) ? { bankStrip: true } : {}),
     };
   }
   const heightMm = Math.max(40, y + BOTTOM, freeBottom + BOTTOM);
