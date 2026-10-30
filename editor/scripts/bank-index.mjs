@@ -58,7 +58,7 @@ const SD_BANKS = {
   4: 'church-organ.mmbs',
   5: 'gu-choir.mmbs',
   6: 'gu-marimba.mmbs',
-  7: 'gu-shakuhachi.mmbs',
+  7: 'gu-flute.mmbs',                                     // was shakuhachi; 2026-10-30 omgedraaid met 20 (Mark: fluit belangrijker)
   8: 'gu-sitar.mmbs',
   9: 'gu-tonewheel-organ.mmbs',
   10: 'gu-tubular-bells.mmbs',
@@ -73,7 +73,7 @@ const SD_BANKS = {
   17: 'gu-bowed-glass.mmbs',
   18: 'gu-church-bells.mmbs',
   19: 'gu-fantasia.mmbs',
-  20: 'gu-flute.mmbs',
+  20: 'gu-shakuhachi.mmbs',
   21: 'gu-harp.mmbs',
   22: 'gu-ice-rain.mmbs',
   23: 'gu-nylon-guitar.mmbs',

@@ -7246,7 +7246,8 @@ export function seedTapeStripPolyPatch(project: ModularProject, voiceCount = 8):
 
 /** De Mellotrons: een tape strip ×8 op een vaste serverbank (`simBanks`),
  *  zodat iedere bezoeker dezelfde fluit of strijkers hoort. Op de Teensy
- *  telt het banknummer: 7 is daar de shakuhachi, 3 de warm pad. */
+ *  telt het banknummer: 7 is de fluit (sinds 2026-10-30; de kaart wordt bij
+ *  terugkomst bijgewerkt, tot dan de shakuhachi), 3 de warm pad. */
 export const MELLOTRONS = {
   fluit: { name: 'Mellotron fluit', nn: 7, file: 'gu-flute.mmbs',
     description: 'De fluit van de Mellotron M400: elke toets een bandje van acht seconden, dan stopt de klank. Speel legato en laat het bandje terugspoelen; Wow, Flutter en Wear zijn de ouderdom van de machine.' },
