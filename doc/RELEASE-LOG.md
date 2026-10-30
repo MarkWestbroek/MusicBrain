@@ -101,6 +101,19 @@
 - Nog niet: meting op de Teensy (`getStatus`), luisteroordeel, en de
   sidechain-bus in de plugin (VST-sessie).
 
+### 2026-10-30 — Plugins: bank laden zonder te haperen, "laden…" en de bankkiezer
+<!-- EN: Plugins: banks load on a background thread, show "loading…", and the bank picker works in the plugin -->
+- SAMPLER en TAPESTRIP laden een bank op een eigen thread (`bankPool_` in
+  `MmbPluginBase.h`). Eerst stond de UI stil zolang een grote bank laadde,
+  zodat "laden…" nooit te zien was. Nu tonen het strookje, de balk en de
+  DAW-tekst van Bank "07 · Shakuhachi — laden…" tot de bank klinkt. Een
+  nieuwere keuze maakt een lopende overbodig.
+- De bankkiezer op het strookje (klik = lijst, ‹ › = stap; MODULES,
+  aa816b3) werkt ook in de plugin. De lijst komt uit de bankmap van de
+  plugin zelf (native `mmbBankList` → `hostBankList()` in
+  `sim/bankAutoLoad.ts`). Test: `sim/hostBank.test.ts`.
+- `MmbPluginCheck` wacht na het zetten van Bank tot de lading klaar is.
+
 ### 2026-10-30 — Plugins: de knopbank blijft die je bewaarde; 64 banken
 <!-- EN: Plugins: a saved bank stays the same bank even if the bank folder changes; 64 banks -->
 - SAMPLER en TAPESTRIP bewaren een knopbank als nummer én bestandsnaam.

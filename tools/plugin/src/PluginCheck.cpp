@@ -228,6 +228,17 @@ int main(int argc, char** argv) {
         warm.clear();
         plugin->processBlock(warm, none);
         juce::MessageManager::getInstance()->runDispatchLoopUntil(300);
+        // De bank laadt op een eigen thread: wachten tot de DAW-tekst geen "laden" meer zegt.
+        for (int t = 0; t < 100; ++t) {
+            bool busy = false;
+            for (auto* p : plugin->getParameters())
+                if (p->getName(64) == "Bank" && p->getCurrentValueAsText().contains("laden")) {
+                    if (t == 0) std::printf("tijdens het laden: Bank = %s\n", p->getCurrentValueAsText().toRawUTF8());
+                    busy = true;
+                }
+            if (!busy) break;
+            juce::MessageManager::getInstance()->runDispatchLoopUntil(100);
+        }
     }
     // savestate=<bestand>: de toestand zoals een DAW hem in het project zet.
     for (int a = 4; a < argc; ++a) {

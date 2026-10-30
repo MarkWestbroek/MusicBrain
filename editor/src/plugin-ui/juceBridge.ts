@@ -21,7 +21,7 @@ export const resizeTo: (heightPx: number) => void = inPlugin
   : () => {};
 
 /** Bank van de plugin (sampler, TAPE STRIP); zie MmbPluginBase.h. */
-export interface BankInfo { has: boolean; name: string; error: string; own: boolean; knob: number; note?: string }
+export interface BankInfo { has: boolean; name: string; error: string; own: boolean; knob: number; note?: string; loading?: boolean }
 
 type JuceBackend = { addEventListener(id: string, fn: (payload: unknown) => void): unknown };
 
@@ -32,6 +32,12 @@ export function watchBank(onInfo: (b: BankInfo) => void): () => void {
   const backend = (window as unknown as { __JUCE__: { backend: JuceBackend & { removeEventListener(t: unknown): void } } }).__JUCE__.backend;
   const token = backend.addEventListener('mmbBank', (p) => onInfo(p as BankInfo));
   return () => backend.removeEventListener(token);
+}
+/** De banken met naam in de bankmap van de plugin (0..63), voor de bankkiezer. */
+export async function bankList(): Promise<{ n: number; name: string }[]> {
+  if (!inPlugin) return [];
+  const r = await (getNativeFunction('mmbBankList')() as Promise<unknown>);
+  return Array.isArray(r) ? r.map((x) => ({ n: Number((x as { n: unknown }).n), name: String((x as { name: unknown }).name) })) : [];
 }
 export const chooseBank = (): void => { if (inPlugin) void getNativeFunction('mmbBankChoose')(); };
 export const clearBank = (): void => { if (inPlugin) void getNativeFunction('mmbBankClear')(); };

@@ -19,9 +19,9 @@ import {
   type ExpertModule, type PluginParam,
 } from '../modular-mb/patchPlugins';
 import { seedInternals } from '../modular-mb/seedModules';
-import { setHostBank } from '../modular-mb/sim/bankAutoLoad';
+import { setHostBank, setHostBankList } from '../modular-mb/sim/bankAutoLoad';
 import { emptyModularProject, type Control, type ControlValue } from '../modular-mb/types';
-import { attach, chooseBank, clearBank, inPlugin, log, resizeTo, watchBank, type BankInfo, type Handle, type Kind } from './juceBridge';
+import { attach, bankList, chooseBank, clearBank, inPlugin, log, resizeTo, watchBank, type BankInfo, type Handle, type Kind } from './juceBridge';
 
 // Het venster is vergrootbaar met vaste verhouding (MmbPluginBase.h); de
 // schaal volgt de hoogte, want elk paneel is 128,5 mm hoog.
@@ -60,10 +60,12 @@ function ResizeGrip({ size }: { size: number }) {
 function BankBar({ pxPerMm }: { pxPerMm: number }) {
   const [info, setInfo] = useState<BankInfo | null>(null);
   useEffect(() => watchBank((b) => { log(`bank: ${JSON.stringify(b)}`); setInfo(b); if (b.has) setHostBank(b); }), []);
+  // De lijst voor de bankkiezer: één keer, en opnieuw na elke geladen bank (de bankmap kan veranderd zijn).
+  useEffect(() => { if (info?.has && !info.loading) void bankList().then(setHostBankList); }, [info?.has, info?.loading, info?.knob]);
   if (!info?.has) return null;
   const btn = { font: 'inherit', color: '#fff', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)',
     borderRadius: pxPerMm * 0.6, padding: `0 ${pxPerMm}px`, cursor: 'pointer' } as const;
-  const text = info.error ? info.error : info.name ? `${info.own ? 'Eigen bank' : `Bank ${info.knob}`}: ${info.name}${info.note ? ` (${info.note})` : ''}` : 'Bank laden…';
+  const text = info.error ? info.error : info.name ? `${info.own ? 'Eigen bank' : `Bank ${info.knob}`}: ${info.name}${info.loading ? ' — laden…' : ''}${info.note ? ` (${info.note})` : ''}` : 'Bank laden…';
   return (
     <div style={{ position: 'fixed', left: pxPerMm * 2, right: pxPerMm * 2, bottom: pxPerMm * 1.5, display: 'flex', gap: pxPerMm, alignItems: 'center',
       padding: `${pxPerMm * 0.6}px ${pxPerMm}px`, borderRadius: pxPerMm, background: 'rgba(11,13,18,0.88)', border: '1px solid rgba(255,255,255,0.18)',

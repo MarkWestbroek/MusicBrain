@@ -50,10 +50,14 @@ export function banksVersion(): number { return version; }
 // ── in een plugin: de bank die de plugin zelf laadde (plugin-ui/main.tsx) ──
 /** Wat de plugin meldt (MmbPluginBase.h, bankVar): daar is geen Teensy en geen server. */
 /** note: de bank wijkt af van het nummer (bewaard bestand, of dat ontbreekt); MmbPluginBase.h. */
-export interface HostBank { name: string; error: string; own: boolean; knob: number; note?: string }
+export interface HostBank { name: string; error: string; own: boolean; knob: number; note?: string; loading?: boolean }
 let host: HostBank | null = null;
 export function setHostBank(b: HostBank | null): void { host = b; emit(); }
 export function hostBank(): HostBank | null { return host; }
+/** De banken met naam volgens de plugin zelf (bankmap + index.json), voor de bankkiezer. */
+let hostList: { n: number; name: string }[] | null = null;
+export function setHostBankList(list: { n: number; name: string }[] | null): void { hostList = list; emit(); }
+export function hostBankList(): { n: number; name: string }[] | null { return hostList; }
 
 /** Naam van de serverbank die de sim voor bank-knop NN gebruikt (of zou gebruiken). */
 export function simBankName(nn: number): string | null {

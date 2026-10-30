@@ -105,7 +105,7 @@ public:
         cvValue_.assign(static_cast<std::size_t>(host_.numInputs()), 0.0f);
         if (Host::kShared) slot_ = instances_++;
     }
-    ~HostProcessor() override { if (Host::kShared) --instances_; }
+    ~HostProcessor() override { stopBankLoads(); if (Host::kShared) --instances_; }
 
     void prepare(double sampleRate, int maxBlock) override {
         host_.setRate(static_cast<float>(sampleRate));   // alleen vóór de eerste init, alleen met MMB_RATE_FLEX

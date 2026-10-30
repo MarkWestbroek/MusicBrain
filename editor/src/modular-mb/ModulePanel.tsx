@@ -18,7 +18,7 @@ const TextScale = createContext(1);
 import { MidiPortLeds } from './sim/MidiPortLeds';
 import { useTeensyLink } from './teensyLink';
 import { bankTitle } from './teensyStorage';
-import { subscribeBanks, banksVersion, simBankName, simBankLoading, hostBank } from './sim/bankAutoLoad';
+import { subscribeBanks, banksVersion, simBankName, simBankLoading, hostBank, hostBankList } from './sim/bankAutoLoad';
 import { BankPicker } from './BankPicker';
 import { subscribeLyricBanks, lyricBanksVersion, simLyricBank } from './lyric/lyricStore';
 import {
@@ -281,6 +281,7 @@ function SamplerBankStrip({ cx, y, w, bank, max, onPick }: {
   if (hb) {
     if (hb.error) { text = hb.error; tone = 'warn'; }
     else if (hb.own) { text = `Eigen · ${hb.name}`; tone = 'ok'; }
+    else if (hb.knob === nn && hb.name && hb.loading) { text = `${String(nn).padStart(2, '0')} · ${hb.name} — laden…`; tone = 'dim'; }
     else if (hb.knob === nn && hb.name) { text = `${String(nn).padStart(2, '0')} · ${hb.name}`; tone = hb.note ? 'warn' : 'ok'; }
     else { text = `${String(nn).padStart(2, '0')} · laden…`; tone = 'dim'; }
   }
@@ -295,8 +296,11 @@ function SamplerBankStrip({ cx, y, w, bank, max, onPick }: {
   if (loading) text += ' — laden…';
   const col = loading ? '#64748b' : fromSim ? '#a5b4fc' : tone === 'ok' ? '#67e8f9' : tone === 'warn' ? '#fbbf24' : '#64748b';
   // Naam per nummer voor de lijst: van de SD-kaart als de Teensy er is, anders de serverbank.
+  // In een plugin: de bankmap van de plugin zelf.
+  const hostList = hb ? hostBankList() : null;
   const nameOf = (k: number): string | null =>
-    st && st.sdOk !== undefined ? (st.sdBankNames?.[k] || null) : simBankName(k);
+    hostList ? (hostList.find((b) => b.n === k)?.name ?? null)
+      : st && st.sdOk !== undefined ? (st.sdBankNames?.[k] || null) : simBankName(k);
   const step = (d: number) => (e: React.PointerEvent): void => {
     e.stopPropagation();
     onPick?.(Math.min(max, Math.max(0, nn + d)));

@@ -356,6 +356,12 @@ ze uit een bank spelen die de editor laadt. Nu laadt de plugin de bank zelf.
   geldt het nummer weer. Projecten van vóór deze versie hebben alleen het
   nummer. Testen: `MmbPluginCheck ... bank=3 savestate=s.bin`, dan
   `loadstate=s.bin`.
+- **Laden op een eigen thread (2026-10-30).** `applyCurrentBank` kiest op
+  de message-thread wat er moet komen, zet `BankInfo::loading` en meldt
+  dat (paneel, DAW-tekst "— laden…"); lezen en `applyBank` doet
+  `bankPool_`, onder de callback-lock alleen het overzetten. `bankGen_`
+  laat een oudere lading stoppen. Een afgeleide klasse met `applyBank`
+  roept `stopBankLoads()` in zijn destructor.
 - **Hoe het laden gaat.** `AbiPlugin.h` (vlag `MMB_PLUGIN_BANK`, door de
   generator gezet voor gastheren met `mmb_zone_set`) leest de `.mmbs` met
   de structs uit `mmb_dsp/sample_bank.h` en roept dezelfde blob- en

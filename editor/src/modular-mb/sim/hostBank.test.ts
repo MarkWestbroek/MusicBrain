@@ -29,6 +29,10 @@ describe('bankstrookje met de bank van de plugin', () => {
     setHostBank({ name: 'Warm Pad', error: '', own: false, knob: 3 });
     expect(strip(5)).toContain('05 · laden…');
   });
+  it('een bank die de plugin nog laadt: naam plus laden…', () => {
+    setHostBank({ name: 'Shakuhachi', error: '', own: false, knob: 7, loading: true });
+    expect(strip(7)).toContain('07 · Shakuhachi — laden…');
+  });
   it('een bewaard bestand dat niet meer op het nummer staat: naam plus melding', () => {
     setHostBank({ name: 'Warm Pad', error: '', own: false, knob: 3, note: 'bewaard bestand gu-warmpad.mmbs; op 03 staat nu gu-harp' });
     const svg = strip(3);
