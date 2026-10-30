@@ -159,6 +159,7 @@ public:
         o->setProperty("name", name_);
         o->setProperty("ui", ui_);
         o->setProperty("error", error_);
+        o->setProperty("warning", warning_);
         return juce::var(o);
     }
     juce::var patchLoad(const juce::String& config, const juce::String& ui, const juce::String& name) override {
@@ -167,6 +168,7 @@ public:
         auto* o = new juce::DynamicObject();
         o->setProperty("ok", ok);
         o->setProperty("error", error);
+        { const juce::ScopedLock sl(lock_); o->setProperty("warning", ok ? warning_ : juce::String()); }
         return juce::var(o);
     }
 
@@ -214,6 +216,11 @@ private:
         }
         auto engine = std::make_unique<PatchEngine>();
         if (!engine->load(root["json"].toString(), [](const std::string& t) { return genericModule(t); }, error)) return fail(error);
+        // Modules met een bank blijven stil (nog geen banken in de motor): zeggen.
+        juce::StringArray bankTypes;
+        for (const auto& t : engine->needsBank()) bankTypes.add(juce::String(t).fromFirstOccurrenceOf("tp_mmb_", false, false).toUpperCase());
+        const juce::String warning = bankTypes.isEmpty() ? juce::String()
+            : bankTypes.joinIntoString(", ") + juce::String::fromUTF8(" heeft een bank nodig; die laadt MMB Patch nog niet, dus dat deel blijft stil");
         std::vector<PatchSlot> forHost = slots;
         {
             const juce::ScopedLock cl(getCallbackLock());
@@ -222,7 +229,7 @@ private:
         {
             const juce::ScopedLock sl(lock_);
             slots_ = std::move(slots);
-            config_ = config; ui_ = ui; name_ = name; error_.clear();
+            config_ = config; ui_ = ui; name_ = name; error_.clear(); warning_ = warning;
         }
         // engine en forHost houden nu de oude motor; die gaat hier weg, buiten de lock.
         if (defaults) {
@@ -248,7 +255,7 @@ private:
 
     juce::CriticalSection lock_;
     std::vector<PatchSlot> slots_;   // voor namen en tekst in de DAW (de gastheer heeft een eigen kopie)
-    juce::String config_, ui_, name_, error_;
+    juce::String config_, ui_, name_, error_, warning_;
 };
 
 }  // namespace mmb_plugin

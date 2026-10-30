@@ -411,7 +411,7 @@ function GenericPatchApp() {
   useEffect(() => {
     void patchGet().then((r) => {
       if (r?.ui) {
-        try { show(withBuiltinTypes(JSON.parse(r.ui) as ModularProject, base), r.name); }
+        try { show(withBuiltinTypes(JSON.parse(r.ui) as ModularProject, base), r.name); if (r.warning) setMsg({ text: `${r.name}: ${r.warning}`, warn: true }); }
         catch (e) { setMsg({ text: `patch onleesbaar: ${String(e)}`, warn: true }); }
       } else if (r?.error) setMsg({ text: r.error, warn: true });
     });
@@ -427,7 +427,8 @@ function GenericPatchApp() {
       const r = await patchLoad(config, JSON.stringify(slim), name);
       if (!r.ok) { setMsg({ text: `${name}: ${r.error}`, warn: true }); return; }
       show(slim, name);
-      setMsg(cfg.slots.length > PATCH_SLOTS ? { text: `${cfg.slots.length - PATCH_SLOTS} knoppen zonder DAW-parameter (alleen Expert)`, warn: true } : null);
+      const notes = [r.warning, cfg.slots.length > PATCH_SLOTS ? `${cfg.slots.length - PATCH_SLOTS} knoppen zonder DAW-parameter (alleen Expert)` : ''].filter(Boolean);
+      setMsg(notes.length ? { text: `${name}: ${notes.join('; ')}`, warn: true } : null);
     } catch (e) {
       setMsg({ text: `${name}: ${e instanceof Error ? e.message : String(e)}`, warn: true });
     }

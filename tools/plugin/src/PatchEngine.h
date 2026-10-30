@@ -83,6 +83,12 @@ public:
                     else { error = juce::String(type) + ": " + juce::String(rate) + " Hz, blok " + juce::String(block) + " kan nog niet in een patch"; return false; }
                     node->block = block;
                     if (node->host->hasMidi()) midiNodes_.push_back(node.get());
+                    // Banken (sampler, TAPE STRIP, ZANG) laadt de motor nog niet: zo'n module blijft stil.
+                    if ((node->host->hasBank() || type == "tp_mmb_zang") &&
+                        std::find(needsBank_.begin(), needsBank_.end(), type) == needsBank_.end()) {
+                        needsBank_.push_back(type);
+                        std::printf("[mmb] patch: %s heeft een bank nodig; die laadt de patchmotor nog niet, dus hij blijft stil\n", type.c_str());
+                    }
                 }
                 byId_[id] = node.get();
                 nodes_.push_back(std::move(node));
@@ -366,6 +372,10 @@ private:
     double clock_ = 0.0, nextTick_ = 0.0;
     int skipped_ = 0;
     bool loaded_ = false;
+    std::vector<std::string> needsBank_;
+public:
+    /** Moduletypen in de patch die een bank nodig hebben (en dus stil blijven). */
+    const std::vector<std::string>& needsBank() const { return needsBank_; }
 };
 
 }  // namespace mmb_plugin

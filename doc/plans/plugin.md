@@ -561,7 +561,10 @@ in het venster.
   - Van de 125 catalogpatches klinken er 71. Niet: modules op een andere
     rate of blokgrootte (Plaits/Rings/Peaks 48 kHz, Elements/Clouds 32 kHz,
     DX7 blok 64, Warps blok 60; 46 patches), banken (Sampler, Mellotron,
-    Zang: 8, stil), en een patch met een audio-ingang (1).
+    Zang: 8, stil; de plugin meldt dat in het log en in de balk), en een
+    patch met een audio-ingang (1).
+  - Op Windows (MODULES, clang-cl): pluginval strictness 5 geslaagd;
+    8-stemmig, CS-80 ×4, SID ×3, E-piano ×12, Synthex ×8 en Acid klinken.
   - auval geslaagd.
 - **Bouwen:** `npx tsx scripts/pluginPatches.ts` schrijft ook
   `patchgeneric_plugin.cpp` en `patch_generic.cmake`. MMB Patch linkt
