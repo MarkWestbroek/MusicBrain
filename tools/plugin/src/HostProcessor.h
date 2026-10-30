@@ -100,7 +100,8 @@ template <class Host>
 class HostProcessor final : public MmbProcessor {
 public:
     HostProcessor(const ModuleSpec& spec, bool synth)
-        : MmbProcessor(spec, synth, probe().extraParamsFor(synth)), ports_(probe().portsFor(synth)) {
+        : MmbProcessor(spec, synth, probe().extraParamsFor(synth), !synth && !probe().portsFor(synth).sideIn.empty()),
+          ports_(probe().portsFor(synth)) {
         cvValue_.assign(static_cast<std::size_t>(host_.numInputs()), 0.0f);
         if (Host::kShared) slot_ = instances_++;
     }
@@ -112,11 +113,12 @@ public:
         block_ = host_.block();
         dawRate_ = sampleRate;
         ratio_ = host_.nativeRate() / sampleRate;         // native samples per DAW-sample (1 als de module meegaat)
-        inFifo_.assign(2, {}); outFifo_.assign(2, {});
+        inFifo_.assign(3, {}); outFifo_.assign(2, {});   // in: L, R en de sidechain (som)
         for (auto& f : outFifo_) f.assign(static_cast<std::size_t>(2 * block_), 0.0f);   // speling voor de interpolator
         for (auto& i : inInterp_) i.reset();
         for (auto& o : outInterp_) o.reset();
         carry_ = 0.0;
+        sideLive_ = false;
         scratch_.setSize(2, maxBlock + 8);
         notes_.reset(ports_.cellVoct.empty() ? 1 : static_cast<int>(ports_.cellVoct.size()));
         setLatencySamples(static_cast<int>(std::lround(2 * block_ / ratio_)));
@@ -188,7 +190,7 @@ public:
         const double want = frames * ratio_ + carry_;
         const int nativeFrames = static_cast<int>(want);
         carry_ = want - nativeFrames;
-        const int inCh = isSynth() ? 0 : getTotalNumInputChannels();
+        const int inCh = isSynth() ? 0 : getMainBusNumInputChannels();
         for (int ch = 0; ch < 2; ++ch) {
             auto& fifo = inFifo_[static_cast<std::size_t>(ch)];
             const std::size_t at = fifo.size();
@@ -197,6 +199,29 @@ public:
             const float* src = buffer.getReadPointer(ch < inCh ? ch : 0);
             if (ratio_ == 1.0) std::memcpy(fifo.data() + at, src, sizeof(float) * static_cast<std::size_t>(nativeFrames));
             else inInterp_[ch].process(1.0 / ratio_, src, fifo.data() + at, nativeFrames, frames, 0);
+        }
+        // Sidechain van de DAW (mono som). Hij telt als aangesloten zodra er
+        // eens iets op binnenkwam: tot dan, en zonder bron, luistert de
+        // detector naar de eigen ingang, zoals in het rack met SC los.
+        if (!ports_.sideIn.empty()) {
+            auto& fifo = inFifo_[2];
+            const std::size_t at = fifo.size();
+            fifo.resize(at + static_cast<std::size_t>(nativeFrames), 0.0f);
+            const auto* bus = getBusCount(true) > 1 ? getBus(true, 1) : nullptr;
+            const int scCh = bus && bus->isEnabled() ? bus->getNumberOfChannels() : 0;
+            if (scCh > 0) {
+                auto sc = getBusBuffer(buffer, true, 1);
+                if (scratch_.getNumSamples() < frames) scratch_.setSize(2, frames, false, false, true);   // groter blok dan beloofd
+                float* mono = scratch_.getWritePointer(0);
+                for (int k = 0; k < frames; ++k) {
+                    float v = 0.0f;
+                    for (int c = 0; c < scCh; ++c) v += sc.getSample(c, k);
+                    mono[k] = v / static_cast<float>(scCh);
+                    if (std::abs(mono[k]) > 1.0e-5f) sideLive_ = true;
+                }
+                if (ratio_ == 1.0) std::memcpy(fifo.data() + at, mono, sizeof(float) * static_cast<std::size_t>(nativeFrames));
+                else inInterp_[2].process(1.0 / ratio_, mono, fifo.data() + at, nativeFrames, frames, 0);
+            }
         }
 
         // De gastheer draait in blokken van block_ op zijn eigen rate.
@@ -213,9 +238,11 @@ public:
                     host_.setConnected(port, 1);
                 } else { std::memset(buf, 0, sizeof(float) * B); host_.setConnected(port, 0); }
             }
-            // Sidechain: nog geen bus van de DAW, dus stil en "niet
-            // aangesloten" (de detector luistert dan naar de eigen ingang).
-            for (int i : ports_.sideIn) { std::memset(host_.inBuf(i), 0, sizeof(float) * B); host_.setConnected(i, 0); }
+            for (int i : ports_.sideIn) {
+                if (sideLive_) std::memcpy(host_.inBuf(i), inFifo_[2].data(), sizeof(float) * B);
+                else std::memset(host_.inBuf(i), 0, sizeof(float) * B);
+                host_.setConnected(i, sideLive_ ? 1 : 0);
+            }
             for (int i : ports_.cvIn) {
                 const float v = cvValue_[static_cast<std::size_t>(i)];
                 fill(i, v, host_.inputKind(i) == kPortGate ? 1 : (v != 0.0f ? 1 : 0));
@@ -228,7 +255,7 @@ public:
                 if (o < 0 || !ok) fifo.insert(fifo.end(), B, 0.0f);
                 else { const float* src = host_.outBuf(o); fifo.insert(fifo.end(), src, src + B); }
             }
-            for (auto& f : inFifo_) f.erase(f.begin(), f.begin() + static_cast<long>(B));
+            for (auto& f : inFifo_) if (f.size() >= B) f.erase(f.begin(), f.begin() + static_cast<long>(B));
         }
 
         // Native → DAW.
@@ -286,7 +313,8 @@ private:
     NoteMap notes_;
     double dawRate_ = 44100.0, ratio_ = 1.0, carry_ = 0.0;
     std::vector<std::vector<float>> inFifo_, outFifo_;
-    juce::LagrangeInterpolator inInterp_[2], outInterp_[2];
+    juce::LagrangeInterpolator inInterp_[3], outInterp_[2];
+    bool sideLive_ = false;   // er kwam iets op de sidechain-bus binnen
     juce::AudioBuffer<float> scratch_;
 };
 

@@ -80,7 +80,7 @@ export function seedCs80BrassPatch(project: ModularProject, voiceCount = 6): Mod
       ctl(envFlt, 'attack', 'Filter-attack'),
       { kind: 'group', text: 'Aftertouch' }, ctl(sum, 'gain_c', 'Druk op filter'), ctl(pressVib.to.moduleId, `gain_${pressVib.to.portId}`, 'Druk op vibrato'),
       { kind: 'group', text: 'Vibrato' }, ctl(lfo.id, 'rate', 'Snelheid'),
-      { kind: 'group', text: 'Uit' }, ctl(inPatch('tp_mmb_out'), 'level', 'Volume'),
+      { kind: 'group', text: 'Uit' }, ctl(mi.id, 'velcurve', 'Aanslag'), ctl(inPatch('tp_mmb_out'), 'level', 'Volume'),
     ],
   };
   const chorus = inPatch('tp_mmb_bbd_chorus'), reverb = inPatch('tp_mmb_elements_reverb');

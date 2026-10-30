@@ -121,6 +121,7 @@ const EN: Record<string, string> = {
   'Filter-envelope': 'Filter envelope',
   'Aanzet': 'Attack',
   'Uitklinken': 'Release',
+  'Aanslag': 'Touch',
   'Filter-attack': 'Filter attack',
   'Druk op vibrato': 'Pressure to vibrato',
   'Chorus-diepte': 'Chorus depth',

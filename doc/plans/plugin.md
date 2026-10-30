@@ -140,6 +140,11 @@ enkele crash.
   is geldt de poort als niet aangesloten. Automation, MIDI learn en de
   modulators van Live/Bitwig werken er zo meteen op; audio-rate CV via een
   sidechain-bus is een latere stap.
+- **Sidechain** (2026-10-30): een module met een audio-ingang `sc` (PUMP,
+  Bus comp) krijgt een tweede ingangsbus "Sidechain" (mono of stereo, de
+  som gaat naar `sc`). `sc` telt als aangesloten zodra er eens iets op die
+  bus binnenkwam; daarvoor luistert de detector naar de eigen ingang.
+  Testen: `MmbPluginCheck <plugin> uit.wav 1 in=pad.wav sc=kick.wav`.
 - **De wasm-gastheer als plugin** (`AbiPlugin.h`): voor alles zonder
   uniforme kern-interface compileert de plugin `tools/mmb-wasm/<naam>_wasm.cc`
   zelf, met de bronnen en include-mappen uit `build.sh` (de generator leest

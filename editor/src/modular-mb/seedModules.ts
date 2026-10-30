@@ -6092,7 +6092,7 @@ export function seedPolyVoicePatch(
       ctl(master.vcf.id, 'cutoff', 'Helderheid', 'large'), ctl(master.vcf.id, 'q', 'Resonantie'), ctl(master.vcf.id, 'cv_amt', 'Filter-envelope'),
       { kind: 'group', text: 'Envelope' }, ctl(master.envAmp.id, 'attack', 'Aanzet'), ctl(master.envAmp.id, 'release', 'Uitklinken'),
       { kind: 'group', text: 'Vibrato' }, ctl(lfo.id, 'rate', 'Snelheid'),
-      { kind: 'group', text: 'Uit' }, ctl(out.id, 'level', 'Volume'),
+      { kind: 'group', text: 'Uit' }, ctl(mi.id, 'velcurve', 'Aanslag'), ctl(out.id, 'level', 'Volume'),
     ],
   };
   const patch: Patch = {

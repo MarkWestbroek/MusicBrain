@@ -2,7 +2,7 @@
 // stuurt er een impuls door en schrijft de impulsrespons als wav. Zo bewijst
 // de plugin zich zonder DAW; tools/plugin/check_ir.py meet de galmtijd.
 //
-//   mmb-plugin-check <pad.vst3> <uit.wav> [seconden] [param=waarde ...] [in=<bron.wav>] [notes=60,64,67] [seq=<noten.txt>]
+//   mmb-plugin-check <pad.vst3> <uit.wav> [seconden] [param=waarde ...] [in=<bron.wav>] [sc=<sleutel.wav>] [notes=60,64,67] [seq=<noten.txt>]
 //
 // Waarden zijn in de eenheden van de parameter (decay=3 is 3 s); een keuze-
 // parameter krijgt zijn naam (algorithm=Room). Met in=<bron.wav> gaat dat
@@ -58,7 +58,7 @@ int main(int argc, char** argv) {
     // doet als je een waarde intikt. Een keuze krijgt zijn naam (algo=Room).
     for (int a = 4; a < argc; ++a) {
         const juce::String arg(argv[a]);
-        if (arg.startsWith("editor=") || arg.startsWith("poke=") || arg.startsWith("in=") || arg.startsWith("notes=") || arg.startsWith("program=") || arg.startsWith("ownbank=") || arg.startsWith("instances=") ||
+        if (arg.startsWith("editor=") || arg.startsWith("poke=") || arg.startsWith("in=") || arg.startsWith("sc=") || arg.startsWith("notes=") || arg.startsWith("program=") || arg.startsWith("ownbank=") || arg.startsWith("instances=") ||
             arg.startsWith("press=") || arg.startsWith("cc=") || arg.startsWith("at=") || arg.startsWith("seq=")) continue;   // geen parameter
         const juce::String id = arg.upToFirstOccurrenceOf("=", false, false).toLowerCase();
         const juce::String text = arg.fromFirstOccurrenceOf("=", false, false);
@@ -146,6 +146,19 @@ int main(int argc, char** argv) {
         std::printf("bron: %s (%.1f s, %d kanalen, %.0f Hz) + %.1f s staart\n", arg.fromFirstOccurrenceOf("=", false, false).toRawUTF8(),
                     source.getNumSamples() / sourceRate, static_cast<int>(reader->numChannels), sourceRate, seconds);
     }
+    // sc=<sleutel.wav>: op de sidechain-ingang (PUMP, Bus comp), vanaf het begin.
+    juce::AudioBuffer<float> side;
+    for (int a = 4; a < argc; ++a) {
+        const juce::String arg(argv[a]);
+        if (!arg.startsWith("sc=")) continue;
+        juce::AudioFormatManager formatsIn;
+        formatsIn.registerBasicFormats();
+        std::unique_ptr<juce::AudioFormatReader> reader(formatsIn.createReaderFor(juce::File(arg.fromFirstOccurrenceOf("=", false, false))));
+        if (!reader) { std::fprintf(stderr, "kan %s niet lezen\n", arg.toRawUTF8()); return 1; }
+        side.setSize(2, static_cast<int>(reader->lengthInSamples));
+        reader->read(&side, 0, static_cast<int>(reader->lengthInSamples), 0, true, true);
+        if (reader->numChannels == 1) side.copyFrom(1, 0, side, 0, 0, side.getNumSamples());
+    }
     // notes=60,64,67: een instrument krijgt deze noten, de eerste helft aan.
     juce::Array<int> notes;
     for (int a = 4; a < argc; ++a) {
@@ -157,6 +170,13 @@ int main(int argc, char** argv) {
     }
     const double useRate = source.getNumSamples() > 0 ? sourceRate : rate;
     plugin->setPlayConfigDetails(2, 2, useRate, block);
+    if (side.getNumSamples() > 0) {
+        auto layout = plugin->getBusesLayout();
+        if (layout.inputBuses.size() < 2) { std::fprintf(stderr, "sc=: deze plugin heeft geen sidechain-ingang\n"); return 1; }
+        layout.inputBuses.getReference(1) = juce::AudioChannelSet::stereo();
+        if (!plugin->setBusesLayout(layout)) { std::fprintf(stderr, "sc=: sidechain niet aan te zetten\n"); return 1; }
+        std::printf("sidechain aan: %d ingangskanalen\n", plugin->getTotalNumInputChannels());
+    }
     plugin->prepareToPlay(useRate, block);
     // ownbank=<.mmbs>: een eigen bank zoals een project hem bewaart (toestand
     // "MMBP" + XML + bank, MmbPluginBase.h), via setStateInformation.
@@ -225,7 +245,7 @@ int main(int argc, char** argv) {
     const int total = source.getNumSamples() + static_cast<int>(seconds * useRate);
     std::vector<juce::AudioBuffer<float>> extraOut(extra.size(), juce::AudioBuffer<float>(2, total));
     juce::AudioBuffer<float> out(2, total);
-    juce::AudioBuffer<float> buf(2, block);
+    juce::AudioBuffer<float> buf(juce::jmax(2, plugin->getTotalNumInputChannels()), block);
     juce::MidiBuffer midi;
     const int holdUntil = total / 2;
     // press=<0..127>: kanaal-aftertouch vanaf een kwart (tot het loslaten);
@@ -286,6 +306,10 @@ int main(int argc, char** argv) {
             for (int c = 0; c < 2 && avail > 0; ++c) buf.copyFrom(c, 0, source, c, pos, avail);
         } else if (pos == 0) {
             buf.setSample(0, 0, 1.0f);   // de impuls, links
+        }
+        if (side.getNumSamples() > 0 && buf.getNumChannels() >= 4) {
+            const int avail = juce::jmin(n, side.getNumSamples() - pos);
+            for (int c = 0; c < 2 && avail > 0; ++c) buf.copyFrom(2 + c, 0, side, c, pos, avail);
         }
         for (auto& t : ats) if (!t.done && pos >= t.pos) { t.p->setValueNotifyingHost(t.v); t.done = true; }
         juce::AudioBuffer<float> in(buf);

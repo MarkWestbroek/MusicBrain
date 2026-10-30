@@ -57,6 +57,13 @@ export const MODULE_HELP: Readonly<Record<string, ModuleHelp>> = {
       manual: ['Kies B met de hand.', 'Pick B by hand.'],
     },
   },
+  tp_mmb_midiin: {
+    about: ['De ingang voor je keyboard: zet toetsen, aanslag en wieltjes om in stuurspanning voor de stemmen.', 'The input for your keyboard: turns keys, velocity and wheels into control voltage for the voices.'],
+    controls: {
+      velcurve: ['Aanslagcurve. Zacht: licht spelen klinkt al vol. Norm: zoals je speelt. Hard: vol vraagt een flinke aanslag. Vast: altijd even hard.',
+                 'Velocity curve. Soft: a light touch already sounds full. Norm: as you play. Hard: full needs a firm touch. Fixed: always the same.'],
+    },
+  },
   tp_mmb_out: {
     about: ['De uitgang: wat hier binnenkomt hoor je.', 'The output: whatever arrives here is what you hear.'],
     controls: { level: ['Het eindvolume.', 'The final volume.'] },

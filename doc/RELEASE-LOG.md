@@ -86,6 +86,35 @@
 - Nog niet: meting op de Teensy (`getStatus`), luisteroordeel, en de
   sidechain-bus in de plugin (VST-sessie).
 
+### 2026-10-30 — Plugins: sidechain voor PUMP en Bus comp
+<!-- EN: Plugins: PUMP and Bus comp get a DAW sidechain input -->
+- PUMP en BUS COMP hebben in de plugin een tweede ingang "Sidechain"
+  (`MmbPluginBase.h`, `HostProcessor.h`). In Logic kies je de bron
+  rechtsboven in het pluginvenster (Side Chain); de som van L en R gaat naar
+  de poort `sc`. Zo pompt een pad op een kick van een ander spoor.
+- Zolang er nog niets op de sidechain binnenkwam, luistert de detector naar
+  de eigen ingang, zoals in het rack met SC los. Na de eerste klank op de
+  sidechain blijft hij op de sleutel (ook in een break zonder kick) tot het
+  project of de plugin opnieuw start.
+- Gemeten met `MmbPluginCheck ... sc=kick.wav` (nieuw): een pad zakt op elke
+  tel weg en zwelt aan; zonder sleutel drukt PUMP de pad gelijkmatig in.
+
+### 2026-10-30 — Patch-plugins: aanslagcurve op het front
+<!-- EN: Patch plugins: velocity curve on the front -->
+- Het Spelen-front van de poly-seeds (Poly 8) en van CS-80 Brass kreeg
+  **Aanslag**: de Vel-schakelaar van MIDI-IN (fw 0.5.118: Zacht / Norm /
+  Hard / Vast). In de plugin is het ook een DAW-parameter. Met Zacht speelt
+  een stug keyboard (KeyStep Pro) makkelijker zacht en vol.
+- Helpregel (`moduleHelp.ts`, MIDI-IN) en Engels ("Touch") erbij.
+
+### 2026-10-30 — Plugins: alle losse plugins opnieuw gebouwd
+<!-- EN: Plugins: all single-module plugins rebuilt -->
+- Alle 74 module-plugins en de twee patch-plugins zijn opnieuw gebouwd en
+  geïnstalleerd, met de fixes van de afgelopen dagen: een knopdraai is een
+  DAW-gebaar (automation opnemen, c29cffb) en de kern-instrumenten (ACID,
+  CMI, ORGAN, SYNTHEX, SEM, MARTENOT, …) horen de aanslag (7592728).
+  auval: 78/78.
+
 ### 2026-10-29 — Patch-plugins: Poly 8 en CS-80 Brass als één AU/VST3
 <!-- EN: Patch plugins: a whole patch (voices, MIDI-IN, effects) as one AU/VST3; Poly 8 and CS-80 Brass -->
 - Een hele patch uit de catalogus is nu één plugin: de JSON die de Teensy

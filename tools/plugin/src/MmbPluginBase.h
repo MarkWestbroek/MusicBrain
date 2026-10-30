@@ -85,17 +85,22 @@ class MmbProcessor : public juce::AudioProcessor, public juce::ChangeBroadcaster
 public:
     /** @p extra: parameters bovenop het paneel (bijv. CV-ingangen); hun
      *  id/name/choices-teksten moeten de plugin overleven (statische opslag). */
-    MmbProcessor(const ModuleSpec& spec, bool synth, const std::vector<ParamSpec>& extra = {})
-        : AudioProcessor(synth
-              ? BusesProperties().withOutput("Output", juce::AudioChannelSet::stereo(), true)
-              : BusesProperties().withInput("Input", juce::AudioChannelSet::stereo(), true)
-                                 .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
+    /** @p sidechain: een tweede ingang "Sidechain" (de poort `sc`, PUMP en Bus comp). */
+    MmbProcessor(const ModuleSpec& spec, bool synth, const std::vector<ParamSpec>& extra = {}, bool sidechain = false)
+        : AudioProcessor(buses(synth, sidechain)),
           spec_(spec), synth_(synth), params_(merge(spec, extra)),
           state_(*this, nullptr, juce::Identifier(juce::String(spec.typeId).toUpperCase()), layout(params_, this)) {
         raw_.resize(params_.size());
         applied_.assign(params_.size(), std::nanf(""));
         for (std::size_t i = 0; i < params_.size(); ++i) raw_[i] = state_.getRawParameterValue(params_[i].id);
         for (const ParamSpec& e : extra) cvPorts_.push_back(e.id);
+    }
+
+    static BusesProperties buses(bool synth, bool sidechain) {
+        if (synth) return BusesProperties().withOutput("Output", juce::AudioChannelSet::stereo(), true);
+        auto b = BusesProperties().withInput("Input", juce::AudioChannelSet::stereo(), true)
+                                  .withOutput("Output", juce::AudioChannelSet::stereo(), true);
+        return sidechain ? b.withInput("Sidechain", juce::AudioChannelSet::stereo(), true) : b;
     }
 
     // ── Door de module in te vullen ──────────────────────────────────────
@@ -148,7 +153,13 @@ public:
         if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo()) return false;
         if (synth_) return true;
         const auto in = layouts.getMainInputChannelSet();
-        return in == juce::AudioChannelSet::stereo() || in == juce::AudioChannelSet::mono();
+        if (in != juce::AudioChannelSet::stereo() && in != juce::AudioChannelSet::mono()) return false;
+        // Sidechain: uit, mono of stereo (de module krijgt de som).
+        if (layouts.inputBuses.size() > 1) {
+            const auto sc = layouts.getChannelSet(true, 1);
+            return sc.isDisabled() || sc == juce::AudioChannelSet::stereo() || sc == juce::AudioChannelSet::mono();
+        }
+        return true;
     }
     void processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi) override {
         juce::ScopedNoDenormals noDenormals;
